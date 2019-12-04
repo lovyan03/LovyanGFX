@@ -738,6 +738,10 @@ public:
         _cursor_x  = 0;
         _cursor_y += (int16_t)size_y * fontHeight;
         return 0;
+      } else
+      if (_textwrapX && ((x + (int16_t)size_x * (fontWidth)) > _width)) {
+        _cursor_x  = 0;
+        _cursor_y += (int16_t)size_y * fontHeight;
       }
       x = _cursor_x;
       y = _cursor_y;
@@ -933,7 +937,7 @@ protected:
   int32_t  _cursor_y = 0;
   uint32_t _textcolor = 0xFFFF;
   uint32_t _textbgcolor = 0;
-  bool     _textwrapX;
+  bool     _textwrapX = true;
   bool     _textwrapY;
   bool     _drawCharMoveCursor;
 
