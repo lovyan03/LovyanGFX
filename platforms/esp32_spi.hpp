@@ -68,21 +68,13 @@ namespace lgfx
     {
       TPin<_panel_rst>::init();
       TPin<_panel_rst>::lo();
-      TPin<_panel_rst>::enableOutput();
       TPin<_spi_cs>::init();
       TPin<_spi_cs>::hi();
-      TPin<_spi_cs>::enableOutput();
       TPin<_spi_dc>::init();
       TPin<_spi_dc>::hi();
-      TPin<_spi_dc>::enableOutput();
-      TPin<_spi_mosi>::init();
-      TPin<_spi_mosi>::enableOutput();
-      TPin<_spi_miso>::init();
-      TPin<_spi_miso>::enableInput();
+      TPin<_spi_mosi>::init(_spi_half_duplex ? GPIO_MODE_INPUT_OUTPUT : GPIO_MODE_OUTPUT);
+      TPin<_spi_miso>::init(GPIO_MODE_INPUT);
       TPin<_spi_sclk>::init();
-      TPin<_spi_sclk>::enableOutput();
-
-      if (_spi_half_duplex) TPin<_spi_mosi>::enableInput();
 
       if (_spi_host == HSPI_HOST) {
         DPORT_SET_PERI_REG_MASK(DPORT_PERIP_CLK_EN_REG, DPORT_SPI_CLK_EN);

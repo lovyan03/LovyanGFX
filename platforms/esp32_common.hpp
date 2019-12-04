@@ -93,78 +93,22 @@
     }
     return bestReg.value;
   }
-
-  typedef struct {
-      uint8_t reg;      /*!< GPIO register offset from DR_REG_IO_MUX_BASE */
-      int8_t rtc;       /*!< RTC GPIO number (-1 if not RTC GPIO pin) */
-      int8_t adc;       /*!< ADC Channel number (-1 if not ADC pin) */
-      int8_t touch;     /*!< Touch Channel number (-1 if not Touch pin) */
-  } esp32_gpioMux_t;
-  const DRAM_ATTR esp32_gpioMux_t esp32_gpioMux[GPIO_PIN_COUNT]={
-      {0x44, 11, 11, 1},
-      {0x88, -1, -1, -1},
-      {0x40, 12, 12, 2},
-      {0x84, -1, -1, -1},
-      {0x48, 10, 10, 0},
-      {0x6c, -1, -1, -1},
-      {0x60, -1, -1, -1},
-      {0x64, -1, -1, -1},
-      {0x68, -1, -1, -1},
-      {0x54, -1, -1, -1},
-      {0x58, -1, -1, -1},
-      {0x5c, -1, -1, -1},
-      {0x34, 15, 15, 5},
-      {0x38, 14, 14, 4},
-      {0x30, 16, 16, 6},
-      {0x3c, 13, 13, 3},
-      {0x4c, -1, -1, -1},
-      {0x50, -1, -1, -1},
-      {0x70, -1, -1, -1},
-      {0x74, -1, -1, -1},
-      {0x78, -1, -1, -1},
-      {0x7c, -1, -1, -1},
-      {0x80, -1, -1, -1},
-      {0x8c, -1, -1, -1},
-      {0, -1, -1, -1},
-      {0x24, 6, 18, -1}, //DAC1
-      {0x28, 7, 19, -1}, //DAC2
-      {0x2c, 17, 17, 7},
-      {0, -1, -1, -1},
-      {0, -1, -1, -1},
-      {0, -1, -1, -1},
-      {0, -1, -1, -1},
-      {0x1c, 9, 4, 9},
-      {0x20, 8, 5, 8},
-      {0x14, 4, 6, -1},
-      {0x18, 5, 7, -1},
-      {0x04, 0, 0, -1},
-      {0x08, 1, 1, -1},
-      {0x0c, 2, 2, -1},
-      {0x10, 3, 3, -1}
-  };
-
 #endif
 
-namespace lgfx {
-
+namespace lgfx
+{
   template<uint8_t PIN, uint32_t MASK>
   struct ESP32PIN {
-    static void init() {
-      volatile uint32_t* rtc_reg = (volatile uint32_t*)( rtc_gpio_desc[PIN].reg );
-      if (rtc_reg) {
-        *rtc_reg = *rtc_reg & ~(rtc_gpio_desc[PIN].mux);
-        *rtc_reg = *rtc_reg & ~(rtc_gpio_desc[PIN].pullup | rtc_gpio_desc[PIN].pulldown);
-      }
-      *(volatile uint32_t*)(DR_REG_IO_MUX_BASE + esp32_gpioMux[PIN].reg)
-        = ((uint32_t)2 << FUN_DRV_S)
-        | ((uint32_t)2 << MCU_SEL_S);
-      GPIO.pin[PIN].val = 0;
+    static void init(gpio_mode_t mode = GPIO_MODE_OUTPUT) {
+      rtc_gpio_deinit((gpio_num_t)PIN);
+      gpio_config_t io_conf;
+      io_conf.intr_type = GPIO_INTR_DISABLE;
+      io_conf.mode = mode;
+      io_conf.pin_bit_mask = MASK;
+      io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
+      io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
+      gpio_config(&io_conf);
     }
-
-    inline static void enableInput() {
-      *(volatile uint32_t*)(DR_REG_IO_MUX_BASE + esp32_gpioMux[PIN].reg) |= FUN_IE;
-    }
-
     inline static void enableOutput() __attribute__ ((always_inline)) { if (PIN < 32) { GPIO.enable_w1ts = MASK; } else { GPIO.enable1_w1ts.val = MASK; } }
     inline static void disableOutput() __attribute__ ((always_inline)) { if (PIN < 32) { GPIO.enable_w1tc = MASK; } else { GPIO.enable1_w1tc.val = MASK; } }
     inline static void hi() __attribute__ ((always_inline)) { if (PIN < 32) GPIO.out_w1ts = MASK; else GPIO.out1_w1ts.val = MASK; }
@@ -173,7 +117,7 @@ namespace lgfx {
   };
   struct ESP32NOPIN {
   public:
-    inline static void init() __attribute__ ((always_inline)) {}
+    inline static void init(gpio_mode_t mode = GPIO_MODE_OUTPUT) __attribute__ ((always_inline)) {}
     inline static void enableInput() __attribute__ ((always_inline)) {}
     inline static void enableOutput() __attribute__ ((always_inline)) {}
     inline static void disableOutput() __attribute__ ((always_inline)) {}
@@ -187,7 +131,6 @@ namespace lgfx {
 
   template<>
   struct TPin<-1> : public ESP32NOPIN {};
-
 
 };
 
