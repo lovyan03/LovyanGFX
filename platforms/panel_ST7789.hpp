@@ -14,6 +14,9 @@ namespace lgfx
     static constexpr uint8_t LEN_DUMMY_READ_PIXEL = 16;
     static constexpr uint8_t LEN_DUMMY_READ_RDDID = 1;
 
+    static constexpr int16_t RAM_WIDTH  = 240;
+    static constexpr int16_t RAM_HEIGHT = 320;
+
     struct CMD : public CommandCommon
     {
       static constexpr uint8_t PORCTRL  = 0xB2;      // Porch control
@@ -89,13 +92,33 @@ namespace lgfx
   {
     static constexpr int16_t PANEL_WIDTH  = 240;
     static constexpr int16_t PANEL_HEIGHT = 240;
+    static constexpr int16_t OFFSET_X = 0;
+    static constexpr int16_t OFFSET_Y = 0;
     static constexpr bool HAS_OFFSET = true;
 
     static rotation_data_t* getRotationData(uint8_t r) {
       static rotation_data_t res {0,0,0};
       r = r & 3;
-      res.colstart = (r == 3) ? 80 : 0;
-      res.rowstart = (r == 2) ? 80 : 0;
+      //res.colstart = (r == 3) ? 80 : 0;
+      //res.rowstart = (r == 2) ? 80 : 0;
+      switch (r) {
+      default:
+        res.colstart = OFFSET_X;
+        res.rowstart = OFFSET_Y;
+        break;
+      case 1:
+        res.colstart = OFFSET_Y;
+        res.rowstart = RAM_WIDTH - (PANEL_WIDTH + OFFSET_X);
+        break;
+      case 2:
+        res.colstart = RAM_WIDTH - (PANEL_WIDTH + OFFSET_X);
+        res.rowstart = RAM_HEIGHT - (PANEL_HEIGHT + OFFSET_Y);
+        break;
+      case 3:
+        res.colstart = RAM_HEIGHT - (PANEL_HEIGHT + OFFSET_Y);
+        res.rowstart = OFFSET_X;
+        break;
+      }
       static constexpr uint8_t madctl_table[] = {
                                         MAD::BGR,
         MAD::MX|MAD::MV|                MAD::BGR,

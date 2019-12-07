@@ -33,8 +33,6 @@ class LovyanGFX
 {
 public:
   LovyanGFX() {
-    _width  = width();
-    _height = height();
     _swapBytes = false;
   }
   virtual ~LovyanGFX() {}
@@ -49,9 +47,11 @@ public:
 
   inline void setSwapBytes(bool swap) { _swapBytes = swap; }
 
+  inline static uint16_t color565(uint32_t color888) { return lgfx::getColor565(color888); }
   inline static uint16_t color565(uint8_t r, uint8_t g, uint8_t b) { return lgfx::getColor565(r, g, b); }
   inline static uint32_t color888(uint8_t r, uint8_t g, uint8_t b) { return lgfx::getColor888(r, g, b); }
 
+  inline uint32_t color(uint8_t r, uint8_t g, uint8_t b) { return _dev.getColorFromRGB(r, g, b); }
   inline uint32_t getColorFromRGB(uint8_t r, uint8_t g, uint8_t b) { return _dev.getColorFromRGB(r, g, b); }
 
   void begin(uint8_t tc) { init(); }
@@ -68,32 +68,13 @@ public:
 
   inline void startWrite(void)
   {
-    if (0 == _start_write_count++) _dev.startWrite();
-  }
-
-  inline void startWriteFill(void)
-  {
-    if (0 == _start_write_count++) _dev.startWrite();
-    if (0 == _start_fill_count++) _dev.startFill();
+    if (0 == _start_write_count++) { _dev.beginTransaction(); }
   }
 
   inline void endWrite(void)
   {
     if (_start_write_count) {
-      if (0 == (--_start_write_count)) _dev.endWrite();
-    }
-  }
-
-  inline void endWriteFill(void)
-  {
-    if (_start_write_count) {
-      if (0 == (--_start_write_count)) {
-        _dev.endWrite();
-        _start_fill_count = 0;
-      }
-    }
-    if (_start_fill_count) {
-      if (0 == (--_start_fill_count)) _dev.endFill();
+      if (0 == (--_start_write_count)) _dev.endTransaction();
     }
   }
 
@@ -126,7 +107,6 @@ public:
   {
     startWrite();
     _dev.setWindow(xs, ys, xe, ye);
-    _dev.writeMode();
     endWrite();
   }
 
@@ -179,8 +159,7 @@ public:
   uint32_t readPixel(int32_t x, int32_t y)
   {
     startWrite();
-    _dev.setWindow(x, y, x, y);
-    _dev.startRead();
+    _dev.readWindow(x, y, x, y);
     uint32_t res = _dev.readPixel();
     _dev.endRead();
     endWrite();
@@ -198,8 +177,7 @@ public:
     if ((w < 1) || (h < 1)) return;
 
     startWrite();
-    _dev.setWindow(x, y, x + w - 1, y + h - 1);
-    _dev.startRead();
+    _dev.readWindow(x, y, x + w - 1, y + h - 1);
     _dev.readPixels(w * h, (uint8_t*)buf, _swapBytes);
     _dev.endRead();
     endWrite();
@@ -209,11 +187,9 @@ public:
   {
     if (x < 0 || y < 0 || (x >= _width) || (y >= _height)) return;
 
-    startWriteFill();
-    _dev.setWindow(x, y, x, y);
-    _dev.writeMode();
-    _dev.writeColor(color);
-    endWriteFill();
+    startWrite();
+    _dev.fillWindow(x, y, x, y, color);
+    endWrite();
   }
 
   void drawFastVLine(int32_t x, int32_t y, int32_t h, uint32_t color)
@@ -223,9 +199,9 @@ public:
     if ((y + h) > _height) h = _height - y;
     if (h < 1) return;
 
-    startWriteFill();
-    _dev.setWindowFill(x, y, x, y + h - 1, color);
-    endWriteFill();
+    startWrite();
+    _dev.fillWindow(x, y, x, y + h - 1, color);
+    endWrite();
   }
 
   void drawFastHLine(int32_t x, int32_t y, int32_t w, uint32_t color)
@@ -235,9 +211,9 @@ public:
     if ((x + w) > _width) w = _width - x;
     if (w < 1) return;
 
-    startWriteFill();
-    _dev.setWindowFill(x, y, x + w - 1, y, color);
-    endWriteFill();
+    startWrite();
+    _dev.fillWindow(x, y, x + w - 1, y, color);
+    endWrite();
   }
 
   void fillRect(int32_t x, int32_t y, int32_t w, int32_t h, uint32_t color)
@@ -249,9 +225,9 @@ public:
     if ((y + h) > _height) h = _height - y;
     if ((w < 1) || (h < 1)) return;
 
-    startWriteFill();
-    _dev.setWindowFill(x, y, x + w - 1, y + h - 1, color);
-    endWriteFill();
+    startWrite();
+    _dev.fillWindow(x, y, x + w - 1, y + h - 1, color);
+    endWrite();
   }
 
   inline void fillScreen(uint32_t color)
@@ -275,7 +251,6 @@ public:
 
     startWrite();
     _dev.setWindow(x, y, x + w - 1, y + h - 1);
-    _dev.writeMode();
     pushColors((const void*)buf, w * h, _swapBytes);
     endWrite();
     return w * h;
@@ -294,7 +269,7 @@ public:
 
     if (y0 < y1) ystep = 1;
 
-    startWriteFill();
+    startWrite();
     if (steep) {
       for (; x0 <= x1; x0++) {
         dlen++;
@@ -320,16 +295,16 @@ public:
       }
       if (dlen) drawFastHLine(xs, y0, dlen, color);
     }
-    endWriteFill();
+    endWrite();
   }
 
   void drawTriangle(int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t x2, int32_t y2, uint32_t color)
   {
-    startWriteFill();
+    startWrite();
     drawLine(x0, y0, x1, y1, color);
     drawLine(x1, y1, x2, y2, color);
     drawLine(x2, y2, x0, y0, color);
-    endWriteFill();
+    endWrite();
   }
 
   void fillTriangle(int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t x2, int32_t y2, uint32_t color)
@@ -370,7 +345,7 @@ public:
     if (y1 == y2) last = y1;  // Include y1 scanline
     else         last = y1 - 1; // Skip it
 
-    startWriteFill();
+    startWrite();
     for (y = y0; y <= last; y++) {
       a   = x0 + sa / dy01;
       b   = x0 + sb / dy02;
@@ -394,22 +369,22 @@ public:
       if (a > b) swap_coord(a, b);
       drawFastHLine(a, y, b - a + 1, color);
     }
-    endWriteFill();
+    endWrite();
   }
 
   void drawRect(int32_t x, int32_t y, int32_t w, int32_t h, uint32_t color)
   {
-    startWriteFill();
+    startWrite();
     drawFastHLine(x, y, w, color);
     drawFastHLine(x, y + h - 1, w, color);
     drawFastVLine(x, y + 1, h-2, color);
     drawFastVLine(x + w - 1, y+1, h-2, color);
-    endWriteFill();
+    endWrite();
   }
 
   void drawRoundRect(int32_t x, int32_t y, int32_t w, int32_t h, int32_t r, uint32_t color)
   {
-    startWriteFill();
+    startWrite();
     // smarter version
     drawFastHLine(x + r  , y    , w - r - r, color); // Top
     drawFastHLine(x + r  , y + h - 1, w - r - r, color); // Bottom
@@ -420,18 +395,18 @@ public:
     drawCircleHelper(x + w - r - 1, y + r    , r, 2, color);
     drawCircleHelper(x + w - r - 1, y + h - r - 1, r, 4, color);
     drawCircleHelper(x + r    , y + h - r - 1, r, 8, color);
-    endWriteFill();
+    endWrite();
   }
 
 
   void fillRoundRect(int32_t x, int32_t y, int32_t w, int32_t h, int32_t r, uint32_t color)
   {
-    startWriteFill();
+    startWrite();
     fillRect(x, y + r, w, h - r - r, color);
 
     fillCircleHelper(x + r, y + h - r - 1, r, 1, w - r - r - 1, color);
     fillCircleHelper(x + r, y + r        , r, 2, w - r - r - 1, color);
-    endWriteFill();
+    endWrite();
   }
 
 
@@ -478,7 +453,7 @@ public:
     int32_t dy = r << 1;
     int32_t p  = -(r >> 1);
 
-    startWriteFill();
+    startWrite();
 
     drawPixel(x0 + r, y0, color);
     drawPixel(x0 - r, y0, color);
@@ -514,7 +489,7 @@ public:
     drawPixel(x0 - r, y0 - x, color);
     drawPixel(x0 + r, y0 - x, color);
 
-    endWriteFill();
+    endWrite();
   }
 
   void fillCircle(int32_t x0, int32_t y0, int32_t r, uint32_t color)
@@ -524,7 +499,7 @@ public:
     int32_t dy = r << 1;
     int32_t p  = -(r>>1);
 
-    startWriteFill();
+    startWrite();
 
     drawFastHLine(x0 - r, y0, dy+1, color);
     while(x < r) {
@@ -544,7 +519,7 @@ public:
       drawFastHLine(x0 - r, y0 - x, 2 * r+1, color);
     }
 
-    endWriteFill();
+    endWrite();
   }
 
   void fillCircleHelper(int32_t x0, int32_t y0, int32_t r, uint8_t cornername, int32_t delta, uint32_t color)
@@ -757,7 +732,7 @@ public:
       bool flg;
       uint8_t line, i, j;
       int32_t len = 1;
-      startWriteFill();
+      startWrite();
       for (i = 0; i < 6; i++ ) {
         line = (i == 5) ? 0 : pgm_read_byte(font + (c * 5) + i);
         flg = (line & 0x1);
@@ -771,7 +746,7 @@ public:
           }
         }
       }
-      endWriteFill();
+      endWrite();
     }
     if (_drawCharMoveCursor) {
       _cursor_x += fontWidth * size_x;
@@ -840,7 +815,7 @@ public:
 
         int16_t hpc = 0; // Horizontal foreground pixel count
 
-        startWriteFill();
+        startWrite();
 
         int16_t xo16 = xo;
         int16_t yo16 = yo;
@@ -867,7 +842,7 @@ public:
           }
         }
 
-        endWriteFill();
+        endWrite();
       }
     }
     if (_drawCharMoveCursor) {
@@ -925,9 +900,9 @@ public:
 protected:
   TDevice _dev;
   uint32_t _start_write_count = 0;
-  uint32_t _start_fill_count = 0;
-  int32_t _width, _height;
-  bool _swapBytes;
+  int32_t _width = 0;
+  int32_t _height = 0;
+  bool _swapBytes = false;
 
   uint8_t  _textfont = 1;
   uint8_t  _textsize_x = 1;
@@ -1078,7 +1053,7 @@ protected:
         bool flg;
         uint8_t line, i, j;
         int32_t len = 1;
-        startWriteFill();
+        startWrite();
         for (i = 0; i < 6; i++ ) {
           line = (i == 5) ? 0 : pgm_read_byte(font + (c * 5) + i);
           flg = (line & 0x1);
@@ -1092,7 +1067,7 @@ protected:
             }
           }
         }
-        endWriteFill();
+        endWrite();
       }
       else  // use _gfxFont
       {
@@ -1116,7 +1091,7 @@ protected:
 
           int16_t hpc = 0; // Horizontal foreground pixel count
 
-          startWriteFill();
+          startWrite();
 
           int16_t xo16 = xo;
           int16_t yo16 = yo;
@@ -1145,7 +1120,7 @@ protected:
             }
           }
 
-          endWriteFill();
+          endWrite();
         }
 #endif
 

@@ -21,10 +21,10 @@ namespace lgfx
     inline static uint32_t getColor24FromRead(uint32_t raw) { return getSwap24(raw); }
 
     inline static uint16_t getWriteColor16FromRead(uint32_t raw) { return getSwapColor565FromSwap888(raw); }
-    inline static uint32_t getWriteColor24FromRead(uint32_t raw) { return raw & 0x00FFFFFF; }
+    inline static uint32_t getWriteColor24FromRead(uint32_t raw) { return raw & 0xFCFCFC; }
 
     inline static uint16_t getWriteColor16(uint16_t color) { return getSwap16(color); }
-    inline static uint32_t getWriteColor24(uint32_t color) { return getSwap24(color); }
+    inline static uint32_t getWriteColor24(uint32_t color) { return getSwap24(color) & 0xFCFCFC; }
 
     inline static uint32_t getWindowAddr(uint16_t H, uint16_t L) { return ((H)<<8 | (H)>>8) | (((L)<<8 | (L)>>8)<<16 ); }
 

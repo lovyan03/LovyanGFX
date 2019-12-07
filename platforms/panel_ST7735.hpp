@@ -14,6 +14,9 @@ namespace lgfx
     static constexpr uint8_t LEN_DUMMY_READ_PIXEL = 9;
     static constexpr uint8_t LEN_DUMMY_READ_RDDID = 1;
 
+    static constexpr int16_t RAM_WIDTH  = 132;
+    static constexpr int16_t RAM_HEIGHT = 162;
+
     struct CMD : public CommandCommon
     {
       static constexpr uint8_t FRMCTR1 = 0xB1;
@@ -59,7 +62,6 @@ namespace lgfx
     inline static PIX getPixset(uint8_t bpp) { return (bpp > 16) ? RGB666_3BYTE : RGB565_2BYTE; }
 
     static constexpr uint8_t PROGMEM Bcmd[] = {                  // Initialization commands for 7735B screens
-      18,                       // 18 commands in list:
       CMD::SWRESET,   CMD_INIT_DELAY,  //  1: Software reset, no args, w/delay
         50,                     //     50 ms delay
       CMD::SLPOUT ,   CMD_INIT_DELAY,  //  2: Out of sleep mode, no args, w/delay
@@ -156,7 +158,7 @@ namespace lgfx
         0x05,                   //     16-bit color
       0xFF,0xFF
     };
-
+/*
     static constexpr uint8_t PROGMEM Rcmd2green[] = {            // Init for 7735R, part 2 (green tab only)
       CMD::CASET  , 4      ,  //  1: Column addr set, 4 args, no delay:
         0x00, 0x02,             //     XSTART = 0
@@ -176,7 +178,7 @@ namespace lgfx
         0x00, 0x9F,             //     XEND = 159
       0xFF,0xFF
     };
-
+//*/
     static constexpr uint8_t PROGMEM Rcmd3[] = {                 // Init for 7735R, part 3 (red or green tab)
       CMD::GMCTRP1, 16      , //  1: 16 args, no delay:
         0x02, 0x1c, 0x07, 0x12,
@@ -197,8 +199,8 @@ namespace lgfx
   };
   constexpr uint8_t Panel_ST7735_COMMON::Bcmd[];
   constexpr uint8_t Panel_ST7735_COMMON::Rcmd1[];
-  constexpr uint8_t Panel_ST7735_COMMON::Rcmd2green[];
-  constexpr uint8_t Panel_ST7735_COMMON::Rcmd2red[];
+//  constexpr uint8_t Panel_ST7735_COMMON::Rcmd2green[];
+//  constexpr uint8_t Panel_ST7735_COMMON::Rcmd2red[];
   constexpr uint8_t Panel_ST7735_COMMON::Rcmd3[];
 
 
@@ -206,13 +208,33 @@ namespace lgfx
   {
     static constexpr int16_t PANEL_WIDTH  = 80;
     static constexpr int16_t PANEL_HEIGHT = 160;
+    static constexpr int16_t OFFSET_X = 26;
+    static constexpr int16_t OFFSET_Y = 1;
     static constexpr bool HAS_OFFSET = true;
 
     static rotation_data_t* getRotationData(uint8_t r) {
       static rotation_data_t res {0,0,0};
       r = r & 3;
-      res.colstart = (r & 1) ? 1 : 26;
-      res.rowstart = (r & 1) ? 26 : 1;
+      //res.colstart = (r & 1) ? 1 : 26;
+      //res.rowstart = (r & 1) ? 26 : 1;
+      switch (r) {
+      default:
+        res.colstart = OFFSET_X;
+        res.rowstart = OFFSET_Y;
+        break;
+      case 1:
+        res.colstart = OFFSET_Y;
+        res.rowstart = RAM_WIDTH - (PANEL_WIDTH + OFFSET_X);
+        break;
+      case 2:
+        res.colstart = RAM_WIDTH - (PANEL_WIDTH + OFFSET_X);
+        res.rowstart = RAM_HEIGHT - (PANEL_HEIGHT + OFFSET_Y);
+        break;
+      case 3:
+        res.colstart = RAM_HEIGHT - (PANEL_HEIGHT + OFFSET_Y);
+        res.rowstart = OFFSET_X;
+        break;
+      }
       static constexpr uint8_t madctl_table[] = {
         MAD::MX|        MAD::MY|MAD::MH|MAD::BGR,
                 MAD::MV|MAD::MY|        MAD::BGR,
@@ -225,71 +247,10 @@ namespace lgfx
 
     static const uint8_t* getInitCommands(uint8_t listno = 0) {
       switch (listno) {
-      case 0: return Panel_ST7735_COMMON::Rcmd1;
-      case 1: return Panel_ST7735_COMMON::Rcmd2green;
-      case 2: return Panel_ST7735_COMMON::Rcmd3;
-      default: return nullptr;
-    }
-/*
-      static constexpr uint8_t init_commands[] = {
-      SWRESET,   CMD_INIT_DELAY,  //  1: Software reset, 0 args, w/delay
-        150,                    //     150 ms delay
-      SLPOUT ,   CMD_INIT_DELAY,  //  2: Out of sleep mode, 0 args, w/delay
-        255,                    //     500 ms delay
-      FRMCTR1, 3      ,  //  3: Frame rate ctrl - normal mode, 3 args:
-        0x01, 0x2C, 0x2D,       //     Rate = fosc/(1x2+40) * (LINE+2C+2D)
-      FRMCTR2, 3      ,  //  4: Frame rate control - idle mode, 3 args:
-        0x01, 0x2C, 0x2D,       //     Rate = fosc/(1x2+40) * (LINE+2C+2D)
-      FRMCTR3, 6      ,  //  5: Frame rate ctrl - partial mode, 6 args:
-        0x01, 0x2C, 0x2D,       //     Dot inversion mode
-        0x01, 0x2C, 0x2D,       //     Line inversion mode
-      INVCTR , 1      ,  //  6: Display inversion ctrl, 1 arg, no delay:
-        0x07,                   //     No inversion
-      PWCTR1 , 3      ,  //  7: Power control, 3 args, no delay:
-        0xA2,
-        0x02,                   //     -4.6V
-        0x84,                   //     AUTO mode
-      PWCTR2 , 1      ,  //  8: Power control, 1 arg, no delay:
-        0xC5,                   //     VGH25 = 2.4C VGSEL = -10 VGH = 3 * AVDD
-      PWCTR3 , 2      ,  //  9: Power control, 2 args, no delay:
-        0x0A,                   //     Opamp current small
-        0x00,                   //     Boost frequency
-      PWCTR4 , 2      ,  // 10: Power control, 2 args, no delay:
-        0x8A,                   //     BCLK/2, Opamp current small & Medium low
-        0x2A,  
-      PWCTR5 , 2      ,  // 11: Power control, 2 args, no delay:
-        0x8A, 0xEE,
-      VMCTR1 , 1      ,  // 12: Power control, 1 arg, no delay:
-        0x0E,
-      INVOFF , 0      ,  // 13: Don't invert display, no args, no delay
-      MADCTL , 1      ,  // 14: Memory access control (directions), 1 arg:
-        0xC8,                   //     row addr/col addr, bottom to top refresh
-      PIXSET , 1      ,  // 15: set color mode, 1 arg, no delay:
-        0x05,                   //     16-bit color
-      CASET  , 4      ,  //  1: Column addr set, 4 args, no delay:
-        0x00, 0x02,             //     XSTART = 0
-        0x00, 0x7F+0x02,        //     XEND = 127
-      PASET  , 4      ,  //  2: Row addr set, 4 args, no delay:
-        0x00, 0x01,             //     XSTART = 0
-        0x00, 0x9F+0x01,        //     XEND = 159
-      GMCTRP1, 16      , //  1: 16 args, no delay:
-        0x02, 0x1c, 0x07, 0x12,
-        0x37, 0x32, 0x29, 0x2d,
-        0x29, 0x25, 0x2B, 0x39,
-        0x00, 0x01, 0x03, 0x10,
-      GMCTRN1, 16      , //  2: 16 args, no delay:
-        0x03, 0x1d, 0x07, 0x06,
-        0x2E, 0x2C, 0x29, 0x2D,
-        0x2E, 0x2E, 0x37, 0x3F,
-        0x00, 0x00, 0x02, 0x10,
-      NORON  ,    CMD_INIT_DELAY, //  3: Normal display on, no args, w/delay
-        10,                     //     10 ms delay
-      DISPON ,    CMD_INIT_DELAY, //  4: Main screen turn on, no args w/delay
-        100,                  //     100 ms delay
-      0xFF,0xFF               // end
-     };
-      return init_commands;
-*/
+        case 0: return Panel_ST7735_COMMON::Rcmd1;
+        case 1: return Panel_ST7735_COMMON::Rcmd3; // Panel_ST7735_COMMON::Rcmd2green;
+        default: return nullptr;
+      }
     }
   };
 

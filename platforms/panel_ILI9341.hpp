@@ -14,10 +14,6 @@ namespace lgfx
     static constexpr uint8_t LEN_PIXEL_READ = 24;
     static constexpr uint8_t LEN_DUMMY_READ_PIXEL = 8;
     static constexpr uint8_t LEN_DUMMY_READ_RDDID = 0;
-  //  static constexpr uint8_t LEN_PIXEL_WRITE = (_bpp > 16) ? 24 : 16;
-  //  static constexpr uint8_t LEN_R_BITS = (_bpp > 16) ? 6 : 5;
-  //  static constexpr uint8_t LEN_G_BITS = 6;
-  //  static constexpr uint8_t LEN_B_BITS = (_bpp > 16) ? 6 : 5;
 
     struct CMD : public CommandCommon
     {
@@ -33,8 +29,8 @@ namespace lgfx
       static constexpr uint8_t PWCTR5  = 0xC4;
       static constexpr uint8_t VMCTR1  = 0xC5;
       static constexpr uint8_t VMCTR2  = 0xC7;
-      static constexpr uint8_t GMCTRP1 = 0xE0;
-      static constexpr uint8_t GMCTRN1 = 0xE1;
+      static constexpr uint8_t GMCTRP1 = 0xE0; // Positive Gamma Correction (E0h)
+      static constexpr uint8_t GMCTRN1 = 0xE1; // Negative Gamma Correction (E1h)
 
       static constexpr uint8_t RDINDEX = 0xD9; // ili9341
       static constexpr uint8_t IDXRD   = 0xDD; // ILI9341 only, indexed control register read
@@ -71,9 +67,11 @@ namespace lgfx
           CMD::FRMCTR1,2, 0x00,0x18,
           CMD::DFUNCTR,3, 0x08,0x82,0x27,
           0xF2       , 1, 0x00,
+
           CMD::GAMMASET,1, 0x01,  // Gamma set, curve 1
           CMD::GMCTRP1,15, 0x0F,0x31,0x2B,0x0C,0x0E,0x08,0x4E,0xF1,0x37,0x07,0x10,0x03,0x0E,0x09,0x00,
           CMD::GMCTRN1,15, 0x00,0x0E,0x14,0x03,0x11,0x07,0x31,0xC1,0x48,0x08,0x0F,0x0C,0x31,0x36,0x0F,
+
           CMD::SLPOUT, 0,
           0xFF,0xFF, // end
       };

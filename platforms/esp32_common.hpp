@@ -104,7 +104,7 @@ namespace lgfx
       gpio_config_t io_conf;
       io_conf.intr_type = GPIO_INTR_DISABLE;
       io_conf.mode = mode;
-      io_conf.pin_bit_mask = MASK;
+      io_conf.pin_bit_mask = (uint64_t)1 << PIN;
       io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
       io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
       gpio_config(&io_conf);
@@ -113,6 +113,7 @@ namespace lgfx
     inline static void disableOutput() __attribute__ ((always_inline)) { if (PIN < 32) { GPIO.enable_w1tc = MASK; } else { GPIO.enable1_w1tc.val = MASK; } }
     inline static void hi() __attribute__ ((always_inline)) { if (PIN < 32) GPIO.out_w1ts = MASK; else GPIO.out1_w1ts.val = MASK; }
     inline static void lo() __attribute__ ((always_inline)) { if (PIN < 32) GPIO.out_w1tc = MASK; else GPIO.out1_w1tc.val = MASK; }
+    inline static bool get() __attribute__ ((always_inline)) { if (PIN < 32) return GPIO.in & MASK; else return GPIO.in1.data & MASK; }
     inline static bool isset() __attribute__ ((always_inline)) { if (PIN < 32) return GPIO.out & MASK; else return GPIO.out1.val & MASK; }
   };
   struct ESP32NOPIN {
@@ -123,6 +124,7 @@ namespace lgfx
     inline static void disableOutput() __attribute__ ((always_inline)) {}
     inline static void hi() __attribute__ ((always_inline)) {}
     inline static void lo() __attribute__ ((always_inline)) {}
+    inline static bool get() __attribute__ ((always_inline)) { return false; }
     inline static bool isset() __attribute__ ((always_inline)) { return false; }
   };
 
