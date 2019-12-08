@@ -1,7 +1,8 @@
 #ifndef LGFX_ESP32_COMMON_HPP_
 #define LGFX_ESP32_COMMON_HPP_
 
-
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 #include <driver/periph_ctrl.h>
 #include <driver/rtc_io.h>
 #include <driver/spi_common.h>
@@ -13,7 +14,7 @@
 #include <soc/spi_struct.h>
 
 #ifdef ARDUINO
-//  #include <esp32-hal-spi.h>
+  #include <esp32-hal-cpu.h>
 #else
   void delay(uint32_t ms) { vTaskDelay(ms / portTICK_PERIOD_MS); }
 
@@ -24,6 +25,15 @@
   void IRAM_ATTR pinMatrixOutDetach(uint8_t pin                  , bool invertOut, bool invertEnable) { gpio_matrix_out(pin, MATRIX_DETACH_OUT_SIG, invertOut, invertEnable); }
   void IRAM_ATTR pinMatrixInAttach( uint8_t pin, uint8_t signal           , bool inverted) { gpio_matrix_in(pin, signal, inverted); }
   void IRAM_ATTR pinMatrixInDetach(              uint8_t signal, bool high, bool inverted) { gpio_matrix_in(high?MATRIX_DETACH_IN_LOW_HIGH:MATRIX_DETACH_IN_LOW_PIN, signal, inverted); }
+
+  uint32_t getApbFrequency() {
+    rtc_cpu_freq_config_t conf;
+    rtc_clk_cpu_freq_get_config(&conf);
+    if (conf.freq_mhz >= 80){
+      return 80 * 1000000;
+    }
+    return (conf.source_freq_mhz * 1000000) / conf.div;
+  }
 
   uint32_t spiFrequencyToClockDiv(uint32_t freq) {
     typedef union {
@@ -37,13 +47,10 @@
         };
     } spiClk_t;
 
-    rtc_cpu_freq_config_t conf;
-    rtc_clk_cpu_freq_get_config(&conf);
-
-    uint32_t apb_freq = ((conf.freq_mhz >= 80) ? 80 : (conf.source_freq_mhz / conf.div)) * 1000000;
+    uint32_t apb_freq = getApbFrequency();
 
     if(freq >= apb_freq) {
-        return SPI_CLK_EQU_SYSCLK;
+      return SPI_CLK_EQU_SYSCLK;
     }
 
     const spiClk_t minFreqReg = { 0x7FFFF000 };

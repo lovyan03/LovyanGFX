@@ -147,11 +147,15 @@ namespace lgfx
       return true;
     }
 
-    inline static void beginTransaction(void) {
-      _clkdiv_write = spiFrequencyToClockDiv(CFG::freq_write);
-      _clkdiv_read  = (CFG::freq_read <= 0) ? _clkdiv_write : spiFrequencyToClockDiv(CFG::freq_read);
-      _clkdiv_fill  = (CFG::freq_fill <= 0) ? _clkdiv_write : spiFrequencyToClockDiv(CFG::freq_fill);
-      wait_spi();
+    static void beginTransaction(void) {
+      uint32_t apb_freq = getApbFrequency();
+      if (_last_apb_freq != apb_freq) {
+        _last_apb_freq = apb_freq;
+        _clkdiv_write = spiFrequencyToClockDiv(CFG::freq_write);
+        _clkdiv_read  = (CFG::freq_read <= 0) ? _clkdiv_write : spiFrequencyToClockDiv(CFG::freq_read);
+        _clkdiv_fill  = (CFG::freq_fill <= 0) ? _clkdiv_write : spiFrequencyToClockDiv(CFG::freq_fill);
+      }
+      set_clock_write();
       TPin<_spi_cs>::lo();
       {//spiSetDataMode(spi, dataMode);
         if (Panel::SPI_MODE == 1 || Panel::SPI_MODE == 2) {
@@ -165,9 +169,11 @@ namespace lgfx
           *reg(SPI_PIN_REG(_spi_port)) &= ~SPI_CK_IDLE_EDGE;
         }
       }
+      // MSB first
+      *reg(SPI_CTRL_REG(_spi_port)) &= ~(SPI_WR_BIT_ORDER | SPI_RD_BIT_ORDER);
     }
 
-    inline static void endTransaction(void) {
+    static void endTransaction(void) {
       wait_spi();
       TPin<_spi_cs>::hi();
     }
@@ -196,9 +202,6 @@ namespace lgfx
         _height = Panel::PANEL_HEIGHT;
       }
       _caset = _paset = 0xffffffff;
-      endTransaction();
-      vTaskDelay(1);
-      beginTransaction();
     }
 
     static void* setColorDepth(uint8_t bpp)  // b : 16 or 24
@@ -222,13 +225,9 @@ namespace lgfx
       //write_cmd(0xD9);
       //write_data(0x10, 8);
       write_cmd(Panel::CMD::RDDID);
-      wait_spi();
-      TPin<_spi_dc>::hi();
-      if (_spi_half_duplex) { begin_half_duplex(); }
-      set_clock_read();
+      startRead();
       if (Panel::LEN_DUMMY_READ_RDDID) {
         read_data(Panel::LEN_DUMMY_READ_RDDID);
-        wait_spi();
       }
       uint32_t res = read_data(32);
       endRead();
@@ -240,46 +239,20 @@ namespace lgfx
       //write_cmd(0xD9);
       //write_data(0x10, 8);
       write_cmd(cmd);
-      wait_spi();
-      TPin<_spi_dc>::hi();
-      if (_spi_half_duplex) { begin_half_duplex(); }
-      set_clock_read();
+      startRead();
       uint32_t res = read_data(32);
       endRead();
       return res;
     }
 
-    static void set_window(int32_t xs, int32_t ys, int32_t xe, int32_t ye)
-    {
-      if (Panel::HAS_OFFSET) { xs += _colstart; xe += _colstart; }
-      uint32_t caset = Panel::getWindowAddr(xs, xe);
-      if (Panel::HAS_OFFSET) { ys += _rowstart; ye += _rowstart; }
-      uint32_t paset = Panel::getWindowAddr(ys, ye);
-      if (_paset == paset || _caset == caset) {
-        write_cmd(0);
-      }
-      if (_caset != caset) {
-        write_cmd(Panel::CMD::CASET);
-        write_data(caset, 32);
-        _caset = caset;
-      }
-      if (_paset != paset) {
-        write_cmd(Panel::CMD::PASET);
-        write_data(paset, 32);
-        _paset = paset;
-      }
-    }
-
     static void setWindow(int32_t xs, int32_t ys, int32_t xe, int32_t ye)
     {
-      wait_spi();
       set_clock_write();
       set_window(xs, ys, xe, ye);
       write_cmd(Panel::CMD::RAMWR);
     }
 
     static void fillWindow(int32_t xs, int32_t ys, int32_t xe, int32_t ye, uint32_t color) {
-      wait_spi();
       set_clock_fill();
       set_window(xs, ys, xe, ye);
       write_cmd(Panel::CMD::RAMWR);
@@ -289,45 +262,26 @@ namespace lgfx
 
     static void readWindow(int32_t xs, int32_t ys, int32_t xe, int32_t ye)
     {
-      wait_spi();
       set_clock_write();
       set_window(xs, ys, xe, ye);
-      startRead();
       write_cmd(Panel::CMD::RAMRD);
-      wait_spi();
-      TPin<_spi_dc>::hi();
-      if (_spi_half_duplex) { begin_half_duplex(); }
+      startRead();
       if (Panel::LEN_DUMMY_READ_PIXEL) read_data(Panel::LEN_DUMMY_READ_PIXEL);
     }
 
-    static void startRead()  {
-      write_cmd(0);
-      if (_spi_half_duplex)
-      { // If this dummy command is removed, RAMRD may not work in certain situations.
-        wait_spi();
-        TPin<_spi_cs>::hi();
-        write_cmd(0);
-        wait_spi();
-        TPin<_spi_cs>::lo();
-      }
+    static void startRead() {
       set_clock_read();
+      TPin<_spi_dc>::hi();
+      if (_spi_half_duplex) { begin_half_duplex(); }
     }
 
     static void endRead() {
-      wait_spi();
       set_clock_write();
       TPin<_spi_cs>::hi();
-      if (_spi_half_duplex)
-      { // If this dummy command is removed, Next command may not work in certain situations.
-        end_half_duplex();
-        set_len(Panel::LEN_DUMMY_READ_PIXEL + Panel::LEN_CMD);
-        _spi_w0_reg[0] = 0;
-        _spi_w0_reg[1] = 0;
-        TPin<_spi_cs>::lo();
-        exec_spi();
-      } else {
-        TPin<_spi_cs>::lo();
-      }
+      if (_spi_half_duplex) end_half_duplex(); 
+      write_data(0, Panel::LEN_CMD);
+      wait_spi();
+      TPin<_spi_cs>::lo();
     }
 
     inline static void writeColor(uint32_t color)
@@ -359,7 +313,7 @@ namespace lgfx
       wait_spi();
       TPin<_spi_dc>::hi();
       set_len(len * _bpp);
-      goto LGFX_GOTO_1;
+      goto LGFX_GOTO;
       do {
         wait_spi();
         if (len != limit) {
@@ -367,7 +321,7 @@ namespace lgfx
           set_len(limit * _bpp);
           ie = 16;
         }
-LGFX_GOTO_1:
+LGFX_GOTO:
         if (_bpp == 16) { for (uint16_t i = 0; i < ie; i++) { _spi_w0_reg[i] = _regbuf[  0]; } }
         else {            for (uint16_t i = 0; i < ie; i++) { _spi_w0_reg[i] = _regbuf[i%3]; } } 
         exec_spi();
@@ -391,7 +345,6 @@ LGFX_GOTO_1:
       const uint16_t limit = (_bpp == 16) ? 32 : 21; // limit = 512 / bpp;
       uint16_t len = length % limit;
       if (!len) len = limit;
-      length -= len;
 
       uint16_t ie;
       if (_bpp == 16) {
@@ -414,7 +367,7 @@ LGFX_GOTO_1:
       for (uint16_t i = 0; i < ie; i++) _spi_w0_reg[i] = _regbuf[i];
       set_len(len * _bpp);
       exec_spi();
-      for (; length; length -= limit) {
+      for (length -= len; length; length -= limit) {
         dst = (uint8_t*)_regbuf;
         if (_bpp == 16) {
           for (uint16_t i = 0; i < limit; i++) {
@@ -443,15 +396,14 @@ LGFX_GOTO_1:
       const uint16_t limit = 64;
       uint16_t len = length % limit;
       if (!len) len = limit;
-      length -= len;
       uint16_t ie = (len+3)>>2;
       wait_spi();
       TPin<_spi_dc>::hi();
-      set_len(len << 3);
       for (uint16_t i = 0; i < ie; i++) _spi_w0_reg[i] = *data32++;
+      set_len(len << 3);
       exec_spi();
       data32 = (const uint32_t*)(data + len);
-      for (; length; length -= limit) {
+      for (length -= len; length; length -= limit) {
         wait_spi();
         for (uint16_t i = 0; i < 16; i++) _spi_w0_reg[i] = *data32++;
         set_len(limit << 3);
@@ -461,8 +413,8 @@ LGFX_GOTO_1:
 
     static uint32_t readPixel(void)
     {
-      return (_bpp == 16) ? Panel::getColor16FromRead(read_data(Panel::LEN_PIXEL_READ))
-                          : Panel::getColor24FromRead(read_data(Panel::LEN_PIXEL_READ));
+      return (_bpp == 16) ? Panel::getColor16FromRead(read_data(Panel::LEN_READ_PIXEL))
+                          : Panel::getColor24FromRead(read_data(Panel::LEN_READ_PIXEL));
     }
 
     static void readPixels(uint32_t len, uint8_t* buf, bool swapBytes)
@@ -524,16 +476,35 @@ LGFX_GOTO_1:
     static constexpr volatile uint32_t *_spi_cmd_reg       = (volatile uint32_t *)ETS_UNCACHED_ADDR(SPI_CMD_REG(_spi_port));
     static constexpr volatile uint32_t *_spi_clock_reg     = (volatile uint32_t *)ETS_UNCACHED_ADDR(SPI_CLOCK_REG(_spi_port));
     static constexpr volatile uint32_t *_spi_mosi_dlen_reg = (volatile uint32_t *)ETS_UNCACHED_ADDR(SPI_MOSI_DLEN_REG(_spi_port));
+//  static constexpr volatile uint32_t *_spi_miso_dlen_reg = (volatile uint32_t *)ETS_UNCACHED_ADDR(SPI_MISO_DLEN_REG(_spi_port));
 
     inline static volatile uint32_t* reg(uint32_t addr) { return (volatile uint32_t *)ETS_UNCACHED_ADDR(addr); }
-    inline static void set_clock_write(void) { *_spi_clock_reg = _clkdiv_write; }
-    inline static void set_clock_read(void)  { *_spi_clock_reg = _clkdiv_read;  }
-    inline static void set_clock_fill(void)  { *_spi_clock_reg = _clkdiv_fill;  }
+    inline static void set_clock_write(void) { wait_spi(); *_spi_clock_reg = _clkdiv_write; }
+    inline static void set_clock_read(void)  { wait_spi(); *_spi_clock_reg = _clkdiv_read;  }
+    inline static void set_clock_fill(void)  { wait_spi(); *_spi_clock_reg = _clkdiv_fill;  }
     inline static void exec_spi(void) { *_spi_cmd_reg |= SPI_USR; }
     inline static void wait_spi(void) { while (*_spi_cmd_reg & SPI_USR); }
-    inline static void set_len(uint32_t len) { *_spi_mosi_dlen_reg = len - 1; }
+    inline static void set_len(uint16_t len) { *_spi_mosi_dlen_reg = len - 1; }
 
-    inline static void write_cmd(uint32_t cmd) __attribute__ ((always_inline))
+    static void set_window(int32_t xs, int32_t ys, int32_t xe, int32_t ye)
+    {
+      if (Panel::HAS_OFFSET) { xs += _colstart; xe += _colstart; }
+      uint32_t caset = Panel::getWindowAddr(xs, xe);
+      if (_caset != caset) {
+        write_cmd(Panel::CMD::CASET);
+        write_data(caset, 32);
+        _caset = caset;
+      }
+      if (Panel::HAS_OFFSET) { ys += _rowstart; ye += _rowstart; }
+      uint32_t paset = Panel::getWindowAddr(ys, ye);
+      if (_paset != paset) {
+        write_cmd(Panel::CMD::PASET);
+        write_data(paset, 32);
+        _paset = paset;
+      }
+    }
+
+    static void write_cmd(uint32_t cmd) __attribute__ ((always_inline))
     {
       wait_spi();
       //taskDISABLE_INTERRUPTS();
@@ -544,7 +515,7 @@ LGFX_GOTO_1:
       //taskENABLE_INTERRUPTS();
     }
 
-    inline static void write_data(uint32_t data, uint8_t len) __attribute__ ((always_inline))
+    static void write_data(uint32_t data, uint16_t len) __attribute__ ((always_inline))
     {
       wait_spi();
       //taskDISABLE_INTERRUPTS();
@@ -555,7 +526,7 @@ LGFX_GOTO_1:
       //taskENABLE_INTERRUPTS();
     }
 
-    inline static uint32_t read_data(uint8_t len) __attribute__ ((always_inline))
+    static uint32_t read_data(uint16_t len) __attribute__ ((always_inline))
     {
       set_len(len);
       exec_spi();
@@ -566,7 +537,7 @@ LGFX_GOTO_1:
     static void read_pixels_16(uint32_t len, uint16_t* buf, uint16_t (*func)(uint32_t))
     {
       if (!len) return;
-      set_len(Panel::LEN_PIXEL_READ);
+      set_len(Panel::LEN_READ_PIXEL);
       exec_spi();
       while (len--) {
         wait_spi();
@@ -578,7 +549,7 @@ LGFX_GOTO_1:
     static void read_pixels_24(uint32_t len, uint8_t* buf, uint32_t (*func)(uint32_t))
     {
       if (!len) return;
-      set_len(Panel::LEN_PIXEL_READ);
+      set_len(Panel::LEN_READ_PIXEL);
       exec_spi();
       while (--len) {
         wait_spi();
@@ -593,20 +564,19 @@ LGFX_GOTO_1:
       *buf   = c >> 16;
     }
 
-    inline static void begin_half_duplex(void) {
+    static void begin_half_duplex(void) {
       pinMatrixOutDetach(_spi_mosi, false, false);
-      TPin<_spi_mosi>::disableOutput();
       pinMatrixInAttach(_spi_mosi, (_spi_host == HSPI_HOST) ? HSPIQ_OUT_IDX : VSPIQ_OUT_IDX, false);
+      TPin<_spi_mosi>::disableOutput();
     }
 
-    inline static void end_half_duplex(void) {
+    static void end_half_duplex(void) {
       if (_spi_miso >= 0) {
         pinMatrixInAttach(_spi_miso, (_spi_host == HSPI_HOST) ? HSPIQ_OUT_IDX : VSPIQ_OUT_IDX, false);
       }
       TPin<_spi_mosi>::enableOutput();
       pinMatrixOutAttach(_spi_mosi, (_spi_host == HSPI_HOST) ? HSPID_IN_IDX : VSPID_IN_IDX, false, false);
     }
-
     static uint8_t _bpp;
     static uint8_t _invert;
     static uint8_t _rotation;
@@ -616,6 +586,7 @@ LGFX_GOTO_1:
     static int16_t _height;
     static uint32_t _caset;
     static uint32_t _paset;
+    static uint32_t _last_apb_freq;
     static uint32_t _clkdiv_write;
     static uint32_t _clkdiv_read;
     static uint32_t _clkdiv_fill;
@@ -630,6 +601,7 @@ LGFX_GOTO_1:
   template <typename P, typename C> int16_t Esp32Spi<P, C>::_height;
   template <typename P, typename C> uint32_t Esp32Spi<P, C>::_caset;
   template <typename P, typename C> uint32_t Esp32Spi<P, C>::_paset;
+  template <typename P, typename C> uint32_t Esp32Spi<P, C>::_last_apb_freq;
   template <typename P, typename C> uint32_t Esp32Spi<P, C>::_clkdiv_write;
   template <typename P, typename C> uint32_t Esp32Spi<P, C>::_clkdiv_read;
   template <typename P, typename C> uint32_t Esp32Spi<P, C>::_clkdiv_fill;

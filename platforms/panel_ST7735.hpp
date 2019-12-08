@@ -10,7 +10,7 @@ namespace lgfx
     static constexpr uint8_t SPI_MODE = 0;
 
     static constexpr uint8_t LEN_CMD = 8;
-    static constexpr uint8_t LEN_PIXEL_READ = 24;
+    static constexpr uint8_t LEN_READ_PIXEL = 24;
     static constexpr uint8_t LEN_DUMMY_READ_PIXEL = 9;
     static constexpr uint8_t LEN_DUMMY_READ_RDDID = 1;
 

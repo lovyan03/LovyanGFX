@@ -136,12 +136,15 @@ Serial.printf("LovyanGFX mosi:%d  miso:%d  sclk:%d  cs:%d  dc:%d  rst:%d \r\n", 
   ledcWrite(BLK_PWM_CHANNEL, 128);
   pinMode(LGFX_Config::panel_rst, INPUT);
   bool lcdver = digitalRead(LGFX_Config::panel_rst);
-  tft.invertDisplay(lcdver);
+#else
+  lgfx::TPin<LGFX_Config::panel_bl>::init();
+  lgfx::TPin<LGFX_Config::panel_bl>::hi();
 #endif
 #if defined(ARDUINO_M5Stick_C) || defined ( ARDUINO_T )
   tft.invertDisplay(true);
 #endif
   tft.init();
+  tft.invertDisplay(lcdver);
   tft.setRotation(1);
   //tft.setTextWrap(true, true);
   tft.fillScreen(0xFF00);
@@ -193,16 +196,16 @@ volatile char ctmp;
 uint32_t sec, psec, count;
 void loop()
 {
-  tft.setColorDepth(count & 8 ? 24 : 16);
-  tft.setSwapBytes(count & 4);
-  tft.setRotation(count & 3);
 Serial.printf("colorDepth:%d  swapBytes:%d  rotation:%d \r\n"
              , tft.getColorDepth(), tft.getSwapBytes(), tft.getRotation());
 
-  tft.drawPixel(100,100,100);
+  tft.setColorDepth(count & 8 ? 24 : 16);
+  tft.setSwapBytes(count & 4);
+  tft.setRotation(count & 3);
   pushRectBuffer2(tft,0);
   pushRectBuffer1(tft,0);
   blockReadWrite(tft);
+  blockReadPixelWrite(tft);
 //  tft.init();
 
 //for ( int i = 0; i < 20; i++) { copy(tft, 0, 0, tft.width()>>1, tft.height()-8, 0, 8);}
@@ -452,7 +455,6 @@ void blockReadPixelWrite(T& Lcd)
 {
   int32_t width  = Lcd.width();
   int32_t height = Lcd.height();
-  Lcd.startWrite();
   Lcd.fillRect(0, 0, width / 2, height, random(0, 0xFFFFFF));
   for (int count = 0; count < 80; count++) {
     int x = (count % (height>>3));
@@ -462,6 +464,7 @@ void blockReadPixelWrite(T& Lcd)
   }
   uint8_t buf[320*3];
   for (int count = 0; count < height; count++) {
+  Lcd.startWrite();
     Lcd.readRect(         0, count, width >> 1, 1, (uint16_t*)buf);
     if (Lcd.getColorDepth() == 16) {
       for (int x = 0; x < width>>1; x++) {
@@ -472,9 +475,9 @@ void blockReadPixelWrite(T& Lcd)
         Lcd.drawPixel((width>>1)+x, count, *(uint32_t*)(&buf[x*3]) );
       }
     }
+  Lcd.endWrite();
 //*/
   }
-  Lcd.endWrite();
 }
 
 template<typename T>

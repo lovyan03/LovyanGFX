@@ -34,6 +34,7 @@ class LovyanGFX
 public:
   LovyanGFX() {
     _swapBytes = false;
+    _drawCharMoveCursor = false;
   }
   virtual ~LovyanGFX() {}
 
@@ -66,12 +67,12 @@ public:
     endWrite();
   }
 
-  inline void startWrite(void)
+  inline void startWrite(void) __attribute__ ((always_inline))
   {
     if (0 == _start_write_count++) { _dev.beginTransaction(); }
   }
 
-  inline void endWrite(void)
+  inline void endWrite(void) __attribute__ ((always_inline))
   {
     if (_start_write_count) {
       if (0 == (--_start_write_count)) _dev.endTransaction();
@@ -688,16 +689,10 @@ public:
     return (uint16_t)c; // fall-back to extended ASCII
   }
 
-  int16_t drawChar(uint16_t uniCode, int32_t x, int32_t y) { return drawChar(uniCode, x, y, _textfont); }
-  int16_t drawChar(uint16_t uniCode, int32_t x, int32_t y, uint8_t font)
+  inline int16_t drawChar(uint16_t uniCode, int32_t x, int32_t y) { return drawChar(uniCode, x, y, _textfont); }
+  inline int16_t drawChar(uint16_t uniCode, int32_t x, int32_t y, uint8_t font)
   {
-    if (!uniCode) return 0;
-
-    if (font == 1)
-    {
-      return drawChar(x, y, uniCode, _textcolor, _textbgcolor, _textsize_x, _textsize_y);
-    }
-    return 0;
+    return drawChar(x, y, uniCode, _textcolor, _textbgcolor, _textsize_x, _textsize_y);
   }
 
   int16_t (LovyanGFX<TDevice>::*fpDrawCharClassic)(int32_t x, int32_t y, uint16_t c, uint32_t color, uint32_t bg, uint8_t size_x, uint8_t size_y) = &LovyanGFX<TDevice>::drawCharGLCD;
@@ -752,6 +747,120 @@ public:
       _cursor_x += fontWidth * size_x;
     }
 //*/
+    return fontWidth * size_x;
+  }
+
+  int16_t drawCharBMP(int32_t x, int32_t y, uint16_t c, uint32_t color, uint32_t bg, uint8_t size_x, uint8_t size_y)
+  { // BMP font
+    uint16_t uniCode = c - 32;
+    const int fontWidth = ((c < 32) || (c > 127)) ? 0 : pgm_read_byte(widtbl_f16 + uniCode);
+    constexpr int fontHeight = chr_hgt_f16;
+
+    if (_drawCharMoveCursor) {
+      if (c == '\n') {
+        _cursor_x  = 0;
+        _cursor_y += (int16_t)size_y * fontHeight;
+        return 0;
+      } else
+      if (_textwrapX && ((x + (int16_t)size_x * (fontWidth)) > _width)) {
+        _cursor_x  = 0;
+        _cursor_y += (int16_t)size_y * fontHeight;
+      }
+      x = _cursor_x;
+      y = _cursor_y;
+    }
+    if ((c < 32) || (c > 127)) return 0;
+    uint32_t flash_address = pgm_read_dword(&chrtbl_f16[uniCode]);
+
+    bool nodraw = ((x >= _width)  || // Clip right
+                   (y >= _height) || // Clip bottom
+                   ((x + fontWidth  * size_x - 1) < 0) || // Clip left
+                   ((y + fontHeight * size_y - 1) < 0));  // Clip top
+    if (!nodraw) {
+      int32_t w = (fontWidth + 6) >> 3;
+      bool fillbg = (bg != color);
+      bool flg = false;
+      uint8_t line = 0, i, j;
+      int32_t len = 1;
+      startWrite();
+      for (i = 0; i < fontHeight; i++) {
+        line = pgm_read_byte((uint8_t *) (flash_address + w * i) );
+        flg = line & 0x80;
+        for (j = 1; j <= fontWidth; j++) {
+          if (j & 7) {
+            line <<= 1;
+          } else {
+            line = (j + 1 < fontWidth) ? pgm_read_byte((uint8_t *) (flash_address + w * i + (j>>3)) ) : 0;
+          }
+          if (flg == (bool)(line & 0x80) && j < fontWidth) { len++; }
+          else {
+            if (fillbg || flg) { fillRect( x + (j - len) * size_x, y + (i * size_y), len * size_x, size_y, flg ? color : bg); }
+            flg = !flg;
+            len = 1;
+          }
+        }
+      }
+      endWrite();
+    }
+    if (_drawCharMoveCursor) {
+      _cursor_x += fontWidth * size_x;
+    }
+
+    return fontWidth * size_x;
+  }
+
+  int16_t drawCharRLE(int32_t x, int32_t y, uint16_t c, uint32_t color, uint32_t bg, uint8_t size_x, uint8_t size_y)
+  { // RLE font
+    uint16_t uniCode = c - 32;
+    const int fontWidth = ((c < 32) || (c > 127)) ? 0 : pgm_read_byte( (uint8_t *)pgm_read_dword( &(fontdata[_textfont].widthtbl ) ) + uniCode );
+    const int fontHeight = pgm_read_byte( &fontdata[_textfont].height );
+
+    if (_drawCharMoveCursor) {
+      if (c == '\n') {
+        _cursor_x  = 0;
+        _cursor_y += (int16_t)size_y * fontHeight;
+        return 0;
+      } else
+      if (_textwrapX && ((x + (int16_t)size_x * (fontWidth)) > _width)) {
+        _cursor_x  = 0;
+        _cursor_y += (int16_t)size_y * fontHeight;
+      }
+      x = _cursor_x;
+      y = _cursor_y;
+    }
+    if ((c < 32) || (c > 127)) return 0;
+    uint32_t flash_address = pgm_read_dword( (const void*)(pgm_read_dword( &(fontdata[_textfont].chartbl ) ) + uniCode*sizeof(void *)) );
+    bool nodraw = ((x >= _width)  || // Clip right
+                   (y >= _height) || // Clip bottom
+                   ((x + fontWidth  * size_x - 1) < 0) || // Clip left
+                   ((y + fontHeight * size_y - 1) < 0));  // Clip top
+    if (!nodraw) {
+      bool fillbg = (bg != color);
+      bool flg = false;
+      uint8_t line = 0, i = 0, j = 0;
+      int32_t len;
+      startWrite();
+      while (i < fontHeight) {
+        line = pgm_read_byte((uint8_t *)flash_address++);
+        flg = line & 0x80;
+        line = (line & 0x7F)+1;
+        do {
+          len = (j + line > fontWidth) ? fontWidth - j : line;
+          line -= len;
+          if (fillbg || flg) { fillRect( x + j * size_x, y + (i * size_y), len * size_x, size_y, flg ? color : bg); }
+          j += len;
+          if (j == fontWidth) {
+            j = 0;
+            i++;
+          }
+        } while (line);
+      }
+      endWrite();
+    }
+    if (_drawCharMoveCursor) {
+      _cursor_x += fontWidth * size_x;
+    }
+
     return fontWidth * size_x;
   }
 
@@ -866,7 +975,13 @@ public:
   void setTextFont(uint8_t f) {
     _textfont = (f > 0) ? f : 1;
     _gfxFont = NULL; 
-    fpDrawCharClassic = &LovyanGFX<TDevice>::drawCharGLCD;
+    if (_textfont == 1) {
+      fpDrawCharClassic = &LovyanGFX<TDevice>::drawCharGLCD;
+    } else if (_textfont == 2) {
+      fpDrawCharClassic = &LovyanGFX<TDevice>::drawCharBMP;
+    } else{
+      fpDrawCharClassic = &LovyanGFX<TDevice>::drawCharRLE;
+    }
   }
 
   void setFreeFont(const GFXfont *f = nullptr)
@@ -993,205 +1108,5 @@ protected:
     return n;
   }
 };
-
-/*
-// 'Classic' built-in font AND _gfxFont
-  int16_t drawChar(int32_t x, int32_t y, uint16_t c, uint32_t color, uint32_t bg, uint8_t size)
-  {
-    int fontWidth  = 6;
-    int fontHeight = 8;
-
-    if (_drawCharMoveCursor) {
-      if (c == '\n') {
-        _cursor_x  = 0;
-        _cursor_y += (int16_t)size * fontHeight;
-        return 0;
-      }
-
-#ifdef LOAD_GFXFF
-      if (_gfxFont) {
-        if (c > pgm_read_word(&_gfxFont->last )) return 0;
-        if (c < pgm_read_word(&_gfxFont->first)) return 0;
-        fontHeight = pgm_read_byte(&_gfxFont->yAdvance);
-
-        uint16_t c2 = c - pgm_read_word(&_gfxFont->first);
-
-        GFXglyph *glyph = &(((GFXglyph *)pgm_read_dword(&_gfxFont->glyph))[c2]);
-  //      fontWidth = pgm_read_byte(&glyph->width);
-        fontWidth = pgm_read_byte(&glyph->xAdvance);
-        uint8_t   w     = pgm_read_byte(&glyph->width),
-                  h     = pgm_read_byte(&glyph->height);
-        if((w > 0) && (h > 0)) { // Is there an associated bitmap?
-          int16_t xo = (int8_t)pgm_read_byte(&glyph->xOffset);
-          if (_textwrapX && ((_cursor_x + (int16_t)size * (xo + w)) > _width)) {
-            _cursor_x  = 0;
-            _cursor_y += (int16_t)size * fontHeight;
-          }
-          if (_textwrapY && (_cursor_y + _glyph_ab >= (int32_t)_height)) {
-            _cursor_y = 0;
-          }
-        }
-      }
-#endif
-
-      x = _cursor_x;
-      y = _cursor_y;
-    }
-
-    bool nodraw = ((x >= _width)  || // Clip right
-                   (y >= _height) || // Clip bottom
-                   ((x + fontWidth  * size - 1) < 0) || // Clip left
-                   ((y + fontHeight * size - 1) < 0));  // Clip top
-
-    if (c < 32) return 0;
-    bool fillbg = (bg != color);
-    if (!nodraw) {
-#ifdef LOAD_GFXFF
-      if (!_gfxFont)  // 'Classic' built-in font
-#endif
-      {
-        bool flg;
-        uint8_t line, i, j;
-        int32_t len = 1;
-        startWrite();
-        for (i = 0; i < 6; i++ ) {
-          line = (i == 5) ? 0 : pgm_read_byte(font + (c * 5) + i);
-          flg = (line & 0x1);
-          for (j = 1; j <= 8; j++) {
-            line >>= 1;
-            if (j < 8 && flg == (bool)(line & 0x1)) { len++; }
-            else {
-              if (fillbg || flg) { fillRect(x + (i * size), y + (j - len) * size, size, len * size, flg ? color : bg); }
-              flg = !flg;
-              len = 1;
-            }
-          }
-        }
-        endWrite();
-      }
-      else  // use _gfxFont
-      {
-
-#ifdef LOAD_GFXFF
-        // Filter out bad characters not present in font
-        if ((c >= pgm_read_word(&_gfxFont->first)) && (c <= pgm_read_word(&_gfxFont->last )))
-        {
-          bool flg = false;
-          c -= pgm_read_word(&_gfxFont->first);
-          GFXglyph *glyph  = &(((GFXglyph *)pgm_read_dword(&_gfxFont->glyph))[c]);
-          uint8_t  *bitmap = (uint8_t *)pgm_read_dword(&_gfxFont->bitmap);
-
-          uint32_t bo = pgm_read_word(&glyph->bitmapOffset);
-          uint8_t  w  = pgm_read_byte(&glyph->width),
-                   h  = pgm_read_byte(&glyph->height);
-                   //xa = pgm_read_byte(&glyph->xAdvance);
-          int8_t  xo = pgm_read_byte(&glyph->xOffset),
-                  yo = pgm_read_byte(&glyph->yOffset);
-          uint8_t  xx, yy, bits=0, bit=0;
-
-          int16_t hpc = 0; // Horizontal foreground pixel count
-
-          startWrite();
-
-          int16_t xo16 = xo;
-          int16_t yo16 = yo;
-
-          for (yy=0; yy<h; yy++) {
-            for (xx=0; xx<w; xx++) {
-              if (bit == 0) {
-                bits = pgm_read_byte(&bitmap[bo++]);
-                bit  = 0x80;
-              }
-              if(bits & bit) hpc++;
-              else {
-               if (hpc) {
-                  if(size == 1) drawFastHLine(x+xo+xx-hpc, y+yo+yy, hpc, color);
-                  else fillRect(x+(xo16+xx-hpc)*size, y+(yo16+yy)*size, size*hpc, size, color);
-                  hpc=0;
-                }
-              }
-              bit >>= 1;
-            }
-          // Draw pixels for this line as we are about to increment yy
-            if (hpc) {
-              if(size == 1) drawFastHLine(x+xo+xx-hpc, y+yo+yy, hpc, color);
-              else fillRect(x+(xo16+xx-hpc)*size, y+(yo16+yy)*size, size*hpc, size, color);
-              hpc=0;
-            }
-          }
-
-          endWrite();
-        }
-#endif
-
-      }
-    }
-    if (_drawCharMoveCursor) {
-      _cursor_x += fontWidth * size;
-    }
-    return fontWidth * size;
-  }
-//*/
-/*
-  size_t write(uint8_t utf8)
-  {
-    if (utf8 == '\r') return 1;
-
-    uint16_t uniCode = utf8;
-    uniCode = decodeUTF8(utf8);
-    if (uniCode == 0) return 1;
-
-    _drawCharMoveCursor = true;
-    drawChar(uniCode, _cursor_x, _cursor_y, _textfont);
-    _drawCharMoveCursor = false;
-
-    int32_t width = 0;
-    int32_t height = 0;
-    if (!_gfxFont) {
-      if (_textfont == 1)
-      {
-        width =  6;
-        height = 8;
-      } else
-      if (_textfont == 2)
-      {
-        if (uniCode > 127) return 1;
-
-        width = pgm_read_byte(widtbl_f16 + uniCode-32);
-        height = chr_hgt_f16;
-        // Font 2 is rendered in whole byte widths so we must allow for this
-        width = (width + 6) / 8;  // Width in whole bytes for font 2, should be + 7 but must allow for font width change
-        width = width * 8;        // Width converted back to pixels
-      } else
-      if ((_textfont > 2) && (_textfont < 9))
-      {
-        if (uniCode > 127) return 1;
-        // Uses the fontinfo struct array to avoid lots of 'if' or 'switch' statements
-        width = pgm_read_byte( (uint8_t *)pgm_read_dword( &(fontdata[_textfont].widthtbl ) ) + uniCode-32 );
-        height= pgm_read_byte( &fontdata[_textfont].height );
-      }
-
-      height = height * _textsize;
-
-      if (utf8 == '\n') {
-        _cursor_y += height;
-        _cursor_x  = 0;
-      }
-      else
-      {
-        if (_textwrapX && (_cursor_x + width * _textsize > _width))
-        {
-          _cursor_y += height;
-          _cursor_x = 0;
-        }
-        if (_textwrapY && (_cursor_y + height >= (int32_t)_height)) _cursor_y = 0;
-        _cursor_x += drawChar(uniCode, _cursor_x, _cursor_y, _textfont);
-      }
-    }
-    return 1;
-  }
-*/
-
-
 
 #endif
