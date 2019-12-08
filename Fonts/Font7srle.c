@@ -8,6 +8,18 @@
 
 //#include <pgmspace.h>
 
+#ifdef __AVR__
+ #include <avr/io.h>
+ #include <avr/pgmspace.h>
+#elif defined(ESP8266)
+ #include <pgmspace.h>
+#elif defined(__IMXRT1052__) || defined(__IMXRT1062__)
+// PROGMEM is defefind for T4 to place data in specific memory section
+ #undef PROGMEM
+ #define PROGMEM
+#else
+ #define PROGMEM
+#endif
 
 PROGMEM const unsigned char widtbl_f7s[96] =          // character width table
 {
