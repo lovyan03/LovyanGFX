@@ -376,178 +376,168 @@ public:
   void drawRect(int32_t x, int32_t y, int32_t w, int32_t h, uint32_t color)
   {
     startWrite();
-    drawFastHLine(x, y, w, color);
-    drawFastHLine(x, y + h - 1, w, color);
-    drawFastVLine(x, y + 1, h-2, color);
-    drawFastVLine(x + w - 1, y+1, h-2, color);
+    drawFastHLine(x, y    , w, color);
+    h--;
+    drawFastHLine(x, y + h, w, color);
+    h--;
+    y++;
+    drawFastVLine(x        , y, h, color);
+    drawFastVLine(x + w - 1, y, h, color);
     endWrite();
   }
-
-  void drawRoundRect(int32_t x, int32_t y, int32_t w, int32_t h, int32_t r, uint32_t color)
-  {
-    startWrite();
-    // smarter version
-    drawFastHLine(x + r  , y    , w - r - r, color); // Top
-    drawFastHLine(x + r  , y + h - 1, w - r - r, color); // Bottom
-    drawFastVLine(x    , y + r  , h - r - r, color); // Left
-    drawFastVLine(x + w - 1, y + r  , h - r - r, color); // Right
-    // draw four corners
-    drawCircleHelper(x + r    , y + r    , r, 1, color);
-    drawCircleHelper(x + w - r - 1, y + r    , r, 2, color);
-    drawCircleHelper(x + w - r - 1, y + h - r - 1, r, 4, color);
-    drawCircleHelper(x + r    , y + h - r - 1, r, 8, color);
-    endWrite();
-  }
-
-
-  void fillRoundRect(int32_t x, int32_t y, int32_t w, int32_t h, int32_t r, uint32_t color)
-  {
-    startWrite();
-    fillRect(x, y + r, w, h - r - r, color);
-
-    fillCircleHelper(x + r, y + h - r - 1, r, 1, w - r - r - 1, color);
-    fillCircleHelper(x + r, y + r        , r, 2, w - r - r - 1, color);
-    endWrite();
-  }
-
 
   void drawCircleHelper( int32_t x0, int32_t y0, int32_t r, uint8_t cornername, uint32_t color)
   {
     int32_t f     = 1 - r;
     int32_t ddF_x = 1;
     int32_t ddF_y = -2 * r;
-    int32_t x     = 0;
-
-    while (x < r) {
+    int32_t len   = 0;
+    for (int32_t i = 0; i <= r; i++) {
+      len++;
       if (f >= 0) {
+        if (cornername & 0x4) {
+          drawFastHLine(x0 + i - len + 1, y0 + r, len, color);
+          drawFastVLine(x0 + r, y0 + i - len + 1, len, color);
+        }
+        if (cornername & 0x2) {
+          drawFastHLine(x0 + i - len + 1, y0 - r, len, color);
+          drawFastVLine(x0 + r, y0 - i          , len, color);
+        }
+        if (cornername & 0x8) {
+          drawFastHLine(x0 - i          , y0 + r, len, color);
+          drawFastVLine(x0 - r, y0 + i - len + 1, len, color);
+        }
+        if (cornername & 0x1) {
+          drawFastHLine(x0 - i          , y0 - r, len, color);
+          drawFastVLine(x0 - r, y0 - i          , len, color);
+        }
+        len = 0;
         r--;
         ddF_y += 2;
         f     += ddF_y;
       }
-      x++;
       ddF_x += 2;
       f     += ddF_x;
-      if (cornername & 0x4) {
-        drawPixel(x0 + x, y0 + r, color);
-        drawPixel(x0 + r, y0 + x, color);
-      }
-      if (cornername & 0x2) {
-        drawPixel(x0 + x, y0 - r, color);
-        drawPixel(x0 + r, y0 - x, color);
-      }
-      if (cornername & 0x8) {
-        drawPixel(x0 - r, y0 + x, color);
-        drawPixel(x0 - x, y0 + r, color);
-      }
-      if (cornername & 0x1) {
-        drawPixel(x0 - r, y0 - x, color);
-        drawPixel(x0 - x, y0 - r, color);
-      }
     }
   }
 
+  void drawRoundRect(int32_t x, int32_t y, int32_t w, int32_t h, int32_t r, uint32_t color)
+  {
+    startWrite();
+    drawCircleHelper(x + r    , y + r    , r, 1, color);
+    w--;
+    drawCircleHelper(x + w - r, y + r    , r, 2, color);
+    h--;
+    drawCircleHelper(x + w - r, y + h - r, r, 4, color);
+    drawCircleHelper(x + r    , y + h - r, r, 8, color);
+    int32_t len = (r << 1) + 1;
+    r++;
+    drawFastHLine(x + r, y    , w - len, color);
+    drawFastHLine(x + r, y + h, w - len, color);
+    drawFastVLine(x    , y + r, h - len, color);
+    drawFastVLine(x + w, y + r, h - len, color);
+    endWrite();
+  }
+
+  void fillRoundRect(int32_t x, int32_t y, int32_t w, int32_t h, int32_t r, uint32_t color)
+  {
+    startWrite();
+    fillRect(x, y + r, w, h - (r << 1), color);
+    int32_t x0 = x + r;
+    int32_t y1 = y + h - r - 1;
+    int32_t y2 = y + r;
+
+    int32_t delta = w - (r << 1);
+    int32_t f     = 1 - r;
+    int32_t ddF_x = 1;
+    int32_t ddF_y = -r - r;
+    int32_t len = 0;
+    for (int32_t i = 0; i <= r; i++) {
+      len++;
+      if (f >= 0) {
+        fillRect(x0 - r, y2 - i          , (r << 1) + delta, len, color);
+        fillRect(x0 - r, y1 + i - len + 1, (r << 1) + delta, len, color);
+        if (i == r) break;
+        len = 0;
+        ddF_y += 2;
+        f     += ddF_y;
+        drawFastHLine(x0 - i, y1 + r, (i << 1) + delta, color);
+        drawFastHLine(x0 - i, y2 - r, (i << 1) + delta, color);
+        r--;
+      }
+      ddF_x += 2;
+      f     += ddF_x;
+    }
+    endWrite();
+  }
 
   void drawCircle(int32_t x0, int32_t y0, int32_t r, uint32_t color)
   {
-    int32_t x  = 0;
     int32_t dx = 1;
-    int32_t dy = r << 1;
     int32_t p  = -(r >> 1);
-
+    int32_t i = 0;
+    while (p < 0) {
+      dx+=2; p+=dx; i++;
+    }
+    int32_t dy = r << 1;
+    dy -= 2;
+    p -= dy;
+    int32_t len = (i << 1)+1;
     startWrite();
-
-    drawPixel(x0 + r, y0, color);
-    drawPixel(x0 - r, y0, color);
-    drawPixel(x0, y0 - r, color);
-    drawPixel(x0, y0 + r, color);
-    int32_t len = 0;
-    while (x < r) {
-      len++;
+    drawFastHLine(x0 - i, y0 + r, len, color);
+    drawFastHLine(x0 - i, y0 - r, len, color);
+    drawFastVLine(x0 - r, y0 - i, len, color);
+    drawFastVLine(x0 + r, y0 - i, len, color);
+    len = 0;
+    for (r--; i <= r; i++) {
       if (p >= 0) {
-        drawFastHLine(x0 + x - len + 1, y0 + r, len, color);
-        drawFastHLine(x0 - x          , y0 + r, len, color);
-        drawFastHLine(x0 - x          , y0 - r, len, color);
-        drawFastHLine(x0 + x - len + 1, y0 - r, len, color);
-        drawFastVLine(x0 + r, y0 + x - len + 1, len, color);
-        drawFastVLine(x0 - r, y0 + x - len + 1, len, color);
-        drawFastVLine(x0 - r, y0 - x          , len, color);
-        drawFastVLine(x0 + r, y0 - x          , len, color);
-        len = 0;
+        drawFastHLine(x0 - i          , y0 + r, len, color);
+        drawFastHLine(x0 - i          , y0 - r, len, color);
+        drawFastHLine(x0 + i - len + 1, y0 + r, len, color);
+        drawFastHLine(x0 + i - len + 1, y0 - r, len, color);
+        if (i == r && len == 1) break;
         dy -= 2;
         p -= dy;
+        drawFastVLine(x0 - r, y0 - i          , len, color);
+        drawFastVLine(x0 + r, y0 - i          , len, color);
+        drawFastVLine(x0 + r, y0 + i - len + 1, len, color);
+        drawFastVLine(x0 - r, y0 + i - len + 1, len, color);
+        len = 0;
         r--;
       }
+      len++;
       dx+=2;
       p+=dx;
-      x++;
     }
-    drawPixel(x0 + x, y0 + r, color);
-    drawPixel(x0 - x, y0 + r, color);
-    drawPixel(x0 - x, y0 - r, color);
-    drawPixel(x0 + x, y0 - r, color);
-    drawPixel(x0 + r, y0 + x, color);
-    drawPixel(x0 - r, y0 + x, color);
-    drawPixel(x0 - r, y0 - x, color);
-    drawPixel(x0 + r, y0 - x, color);
-
     endWrite();
   }
 
   void fillCircle(int32_t x0, int32_t y0, int32_t r, uint32_t color)
   {
-    int32_t x  = 0;
     int32_t dx = 1;
     int32_t dy = r << 1;
-    int32_t p  = -(r>>1);
-
+    int32_t p  = -(r >> 1);
+    int32_t len = 0;
     startWrite();
-
     drawFastHLine(x0 - r, y0, dy+1, color);
-    while(x < r) {
-      if(p>=0) {
-        drawFastHLine(x0 - x, y0 + r, 2 * x+1, color);
-        drawFastHLine(x0 - x, y0 - r, 2 * x+1, color);
-        dy-=2;
-        p-=dy;
+
+    for (int32_t i  = 0; i <= r; i++) {
+      len++;
+      if (p >= 0) {
+        fillRect(x0 - r, y0 - i          , (r<<1) + 1, len, color);
+        fillRect(x0 - r, y0 + i - len + 1, (r<<1) + 1, len, color);
+        if (i == r) break;
+        dy -= 2;
+        p -= dy;
+        len = 0;
+        drawFastHLine(x0 - i, y0 + r, (i<<1) + 1, color);
+        drawFastHLine(x0 - i, y0 - r, (i<<1) + 1, color);
         r--;
       }
-
       dx+=2;
       p+=dx;
-
-      x++;
-      drawFastHLine(x0 - r, y0 + x, 2 * r+1, color);
-      drawFastHLine(x0 - r, y0 - x, 2 * r+1, color);
     }
-
     endWrite();
-  }
-
-  void fillCircleHelper(int32_t x0, int32_t y0, int32_t r, uint8_t cornername, int32_t delta, uint32_t color)
-  {
-    int32_t f     = 1 - r;
-    int32_t ddF_x = 1;
-    int32_t ddF_y = -r - r;
-    int32_t y     = 0;
-
-    delta++;
-    while (y < r) {
-      if (f >= 0) {
-        if (cornername & 0x1) { drawFastHLine(x0 - y, y0 + r, y + y + delta, color); }
-        if (cornername & 0x2) { drawFastHLine(x0 - y, y0 - r, y + y + delta, color); }
-
-        r--;
-        ddF_y += 2;
-        f     += ddF_y;
-      }
-      y++;
-      //x++;
-      ddF_x += 2;
-      f     += ddF_x;
-
-      if (cornername & 0x1) { drawFastHLine(x0 - r, y0 + y, r + r + delta, color); }
-      if (cornername & 0x2) { drawFastHLine(x0 - r, y0 - y, r + r + delta, color); }
-    }
   }
 
 //----------------------------------------------------------------------------
@@ -840,7 +830,7 @@ public:
       uint8_t line = 0, i = 0, j = 0;
       int32_t len;
       startWrite();
-      while (i < fontHeight) {
+      do {
         line = pgm_read_byte((uint8_t *)flash_address++);
         flg = line & 0x80;
         line = (line & 0x7F)+1;
@@ -854,7 +844,7 @@ public:
             i++;
           }
         } while (line);
-      }
+      } while (i < fontHeight);
       endWrite();
     }
     if (_drawCharMoveCursor) {

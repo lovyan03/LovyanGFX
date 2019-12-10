@@ -92,15 +92,13 @@ namespace lgfx
       {//spiStopBus;
         *reg(SPI_SLAVE_REG(_spi_port)) &= ~(SPI_SLAVE_MODE | SPI_TRANS_DONE);
         *reg(SPI_PIN_REG(_spi_port)) = 0;
-        *reg(SPI_USER_REG(_spi_port)) = 0;
+        *reg(SPI_USER_REG(_spi_port)) = SPI_USR_MOSI | SPI_USR_MISO | SPI_DOUTDIN;
         *reg(SPI_USER1_REG(_spi_port)) = 0;
         *reg(SPI_CTRL_REG(_spi_port)) = 0;
         *reg(SPI_CTRL1_REG(_spi_port)) = 0;
         *reg(SPI_CTRL2_REG(_spi_port)) = 0;
         *reg(SPI_CLOCK_REG(_spi_port)) = 0;
       }
-
-      *reg(SPI_USER_REG(_spi_port)) |= SPI_USR_MOSI | SPI_USR_MISO | SPI_DOUTDIN;
 
       if (_spi_sclk >= 0) { pinMatrixOutAttach(_spi_sclk, (_spi_host == HSPI_HOST) ? HSPICLK_OUT_IDX : VSPICLK_OUT_IDX, false, false); }
       if (_spi_mosi >= 0) { pinMatrixOutAttach(_spi_mosi, (_spi_host == HSPI_HOST) ? HSPID_IN_IDX : VSPID_IN_IDX, false, false); }
@@ -157,6 +155,8 @@ namespace lgfx
       }
       set_clock_write();
       TPin<_spi_cs>::lo();
+      *_spi_miso_dlen_reg = 0;
+      *reg(SPI_USER_REG(_spi_port)) &= ~(SPI_USR_MISO | SPI_DOUTDIN);
       {//spiSetDataMode(spi, dataMode);
         if (Panel::SPI_MODE == 1 || Panel::SPI_MODE == 2) {
           *reg(SPI_USER_REG(_spi_port)) |= SPI_CK_OUT_EDGE;
@@ -176,6 +176,7 @@ namespace lgfx
     static void endTransaction(void) {
       wait_spi();
       TPin<_spi_cs>::hi();
+      *reg(SPI_USER_REG(_spi_port)) |= SPI_USR_MISO | SPI_DOUTDIN;
     }
 
     inline static uint16_t width(void) { return _width; }
@@ -270,16 +271,27 @@ namespace lgfx
     }
 
     static void startRead() {
+      *reg(SPI_USER_REG(_spi_port)) |= SPI_USR_MISO | SPI_DOUTDIN;
       set_clock_read();
       TPin<_spi_dc>::hi();
-      if (_spi_half_duplex) { begin_half_duplex(); }
+      if (_spi_half_duplex) {
+        pinMatrixOutDetach(_spi_mosi, false, false);
+        pinMatrixInAttach(_spi_mosi, (_spi_host == HSPI_HOST) ? HSPIQ_OUT_IDX : VSPIQ_OUT_IDX, false);
+        TPin<_spi_mosi>::disableOutput();
+      }
     }
 
     static void endRead() {
       set_clock_write();
       TPin<_spi_cs>::hi();
-      if (_spi_half_duplex) end_half_duplex(); 
-      write_data(0, Panel::LEN_CMD);
+      *reg(SPI_USER_REG(_spi_port)) &= ~(SPI_USR_MISO | SPI_DOUTDIN);
+      if (_spi_half_duplex) {
+        if (_spi_miso >= 0) {
+          pinMatrixInAttach(_spi_miso, (_spi_host == HSPI_HOST) ? HSPIQ_OUT_IDX : VSPIQ_OUT_IDX, false);
+        }
+        TPin<_spi_mosi>::enableOutput();
+        pinMatrixOutAttach(_spi_mosi, (_spi_host == HSPI_HOST) ? HSPID_IN_IDX : VSPID_IN_IDX, false, false);
+      }
       wait_spi();
       TPin<_spi_cs>::lo();
     }
@@ -299,7 +311,7 @@ namespace lgfx
       uint16_t ie;
       if (_bpp == 16) {
         _regbuf[0] = Panel::getWriteColor16(color);
-        ((uint16_t*)_regbuf)[1] = _regbuf[0];
+        _regbuf[2] = _regbuf[1] = _regbuf[0] |= _regbuf[0]<<16;
         ie = (len + 1) >> 1;
       } else {
         _regbuf[0] = Panel::getWriteColor24(color);
@@ -309,24 +321,33 @@ namespace lgfx
         *(uint32_t*)dst = _regbuf[0];
         ie = (len + 1) * 3 >> 2;
       }
-
       wait_spi();
+      for (uint16_t i = 0;;) {
+        _spi_w0_reg[i++] = _regbuf[0]; if (i == ie) break;
+        _spi_w0_reg[i++] = _regbuf[1]; if (i == ie) break;
+        _spi_w0_reg[i++] = _regbuf[2]; if (i == ie) break;
+      }
       TPin<_spi_dc>::hi();
       set_len(len * _bpp);
-      goto LGFX_GOTO;
-      do {
-        wait_spi();
-        if (len != limit) {
-          len = limit;
-          set_len(limit * _bpp);
-          ie = 16;
+      exec_spi();
+      if (0 == (length -= len)) return;
+      if (len != limit) {
+        if (ie != 16) {
+          for (uint16_t i = 15;;) {
+            _spi_w0_reg[i] = _regbuf[0]; if (i-- == ie) break;
+            _spi_w0_reg[i] = _regbuf[2]; if (i-- == ie) break;
+            _spi_w0_reg[i] = _regbuf[1]; if (i-- == ie) break;
+          }
         }
-LGFX_GOTO:
-        if (_bpp == 16) { for (uint16_t i = 0; i < ie; i++) { _spi_w0_reg[i] = _regbuf[  0]; } }
-        else {            for (uint16_t i = 0; i < ie; i++) { _spi_w0_reg[i] = _regbuf[i%3]; } } 
+        wait_spi();
+        set_len(limit * _bpp);
         exec_spi();
-        length -= len;
-      } while (length);
+        length -= limit;
+      }
+      for (; length; length -= limit) {
+        wait_spi();
+        exec_spi();
+      }
     }
 
     // need data size = length * (24bpp=3 : 16bpp=2)
@@ -413,79 +434,51 @@ LGFX_GOTO:
 
     static uint32_t readPixel(void)
     {
+      wait_spi();
       return (_bpp == 16) ? Panel::getColor16FromRead(read_data(Panel::LEN_READ_PIXEL))
                           : Panel::getColor24FromRead(read_data(Panel::LEN_READ_PIXEL));
     }
 
-    static void readPixels(uint32_t len, uint8_t* buf, bool swapBytes)
+    static void readPixels(uint32_t length, uint8_t* buf, bool swapBytes)
     {
-#ifdef taskDISABLE_INTERRUPTS
-      taskDISABLE_INTERRUPTS();
-#endif
+      if (!length) return;
+      wait_spi();
       if (_bpp == 16) {
-        read_pixels_16( len, (uint16_t*)buf
+        read_pixels_16( length, (uint16_t*)buf
                     , swapBytes ? Panel::getColor16FromRead
                                 : Panel::getWriteColor16FromRead
                     );
       } else if (_bpp == 24) {
-        read_pixels_24( len, buf
+        read_pixels_24( length, buf
                     , swapBytes ? Panel::getColor24FromRead
                                 : Panel::getWriteColor24FromRead
                     );
       }
-#ifdef taskENABLE_INTERRUPTS
-      taskENABLE_INTERRUPTS();
-#endif
     }
 
-    static void readBytes(uint32_t len, uint8_t* buf)
+    static void readBytes(uint32_t length, uint8_t* buf)
     {
-      if (!len) return;
+      if (!length) return;
       set_len(32);  // 4Byte
       exec_spi();
       uint32_t* buf32 = (uint32_t*)buf;
-      while (4 <= len) {
-        len -= 4;
+      while (4 <= length) {
+        length -= 4;
         wait_spi();
-        if (len) exec_spi();
+        if (length) exec_spi();
         *buf32++ = *_spi_w0_reg;
       }
-      if (len) {
+      if (length) {
         buf = (uint8_t*)buf32;
         uint8_t tmp[4];
         uint8_t* t = tmp;
         wait_spi();
         *(uint32_t*)tmp = *_spi_w0_reg;
-        while (len--) *buf++ = *t++;
+        while (length--) *buf++ = *t++;
       }
     }
 
   private:
-    static constexpr int _spi_mosi = get_spi_mosi<CFG, 23>::value;
-    static constexpr int _spi_miso = get_spi_miso<CFG, 19>::value;
-    static constexpr int _spi_sclk = get_spi_sclk<CFG, 18>::value;
-    static constexpr int _spi_cs   = get_spi_cs<  CFG, -1>::value;
-    static constexpr int _spi_dc   = get_spi_dc<  CFG, -1>::value;
-    static constexpr int _panel_rst= get_panel_rst< CFG, -1>::value;
-    static constexpr spi_host_device_t _spi_host = get_spi_host<CFG, VSPI_HOST>::value;
-    static constexpr bool _spi_half_duplex = get_spi_half_duplex<CFG, false>::value;
-
-    //static volatile spi_dev_t* _spi_dev;
-    static constexpr uint8_t _spi_port = (_spi_host == HSPI_HOST) ? 2 : 3;  // FSPI=1  HSPI=2  VSPI=3;
-    static constexpr volatile uint32_t *_spi_w0_reg        = (volatile uint32_t *)ETS_UNCACHED_ADDR(SPI_W0_REG(_spi_port));
-    static constexpr volatile uint32_t *_spi_cmd_reg       = (volatile uint32_t *)ETS_UNCACHED_ADDR(SPI_CMD_REG(_spi_port));
-    static constexpr volatile uint32_t *_spi_clock_reg     = (volatile uint32_t *)ETS_UNCACHED_ADDR(SPI_CLOCK_REG(_spi_port));
-    static constexpr volatile uint32_t *_spi_mosi_dlen_reg = (volatile uint32_t *)ETS_UNCACHED_ADDR(SPI_MOSI_DLEN_REG(_spi_port));
-//  static constexpr volatile uint32_t *_spi_miso_dlen_reg = (volatile uint32_t *)ETS_UNCACHED_ADDR(SPI_MISO_DLEN_REG(_spi_port));
-
-    inline static volatile uint32_t* reg(uint32_t addr) { return (volatile uint32_t *)ETS_UNCACHED_ADDR(addr); }
-    inline static void set_clock_write(void) { wait_spi(); *_spi_clock_reg = _clkdiv_write; }
-    inline static void set_clock_read(void)  { wait_spi(); *_spi_clock_reg = _clkdiv_read;  }
-    inline static void set_clock_fill(void)  { wait_spi(); *_spi_clock_reg = _clkdiv_fill;  }
-    inline static void exec_spi(void) { *_spi_cmd_reg |= SPI_USR; }
-    inline static void wait_spi(void) { while (*_spi_cmd_reg & SPI_USR); }
-    inline static void set_len(uint16_t len) { *_spi_mosi_dlen_reg = len - 1; }
-
     static void set_window(int32_t xs, int32_t ys, int32_t xe, int32_t ye)
     {
       if (Panel::HAS_OFFSET) { xs += _colstart; xe += _colstart; }
@@ -507,54 +500,124 @@ LGFX_GOTO:
     static void write_cmd(uint32_t cmd) __attribute__ ((always_inline))
     {
       wait_spi();
-      //taskDISABLE_INTERRUPTS();
       TPin<_spi_dc>::lo();
       set_len(Panel::LEN_CMD);
       *_spi_w0_reg = cmd;
       exec_spi();
-      //taskENABLE_INTERRUPTS();
     }
 
-    static void write_data(uint32_t data, uint16_t len) __attribute__ ((always_inline))
+    static void write_data(uint32_t data, uint16_t length) __attribute__ ((always_inline))
     {
       wait_spi();
-      //taskDISABLE_INTERRUPTS();
       TPin<_spi_dc>::hi();
-      set_len(len);
+      set_len(length);
       *_spi_w0_reg = data;
       exec_spi();
-      //taskENABLE_INTERRUPTS();
     }
 
-    static uint32_t read_data(uint16_t len) __attribute__ ((always_inline))
+    static uint32_t read_data(uint16_t length) __attribute__ ((always_inline))
     {
-      set_len(len);
+      set_len(length);
       exec_spi();
       wait_spi();
       return *_spi_w0_reg;
     }
 
-    static void read_pixels_16(uint32_t len, uint16_t* buf, uint16_t (*func)(uint32_t))
+    static void read_pixels_16(uint32_t length, uint16_t* buf, uint16_t (*func)(uint32_t))
     {
-      if (!len) return;
+      if (length >= 4) {
+        set_len(Panel::LEN_READ_PIXEL << 2);
+        exec_spi();
+        while (length >= 4) {
+          length -= 4;
+          wait_spi();
+          _regbuf[0] = _spi_w0_reg[0];
+          _regbuf[1] = _spi_w0_reg[1];
+          _regbuf[2] = _spi_w0_reg[2];
+          if (length >= 4) exec_spi();
+          *buf++ = func( _regbuf[0]);
+          *buf++ = func((_regbuf[0]>>24)|(_regbuf[1]<<8) );
+          *buf++ = func((_regbuf[2]<<16)|(_regbuf[1]>>16));
+          *buf++ = func( _regbuf[2]>>8);
+        }
+        if (!length) return;
+      }
       set_len(Panel::LEN_READ_PIXEL);
       exec_spi();
-      while (len--) {
+      uint32_t tmp;
+      while (length--) {
         wait_spi();
-        if (len) exec_spi();
-        *buf++ = func(*_spi_w0_reg);
+        tmp = *_spi_w0_reg;
+        if (length) exec_spi();
+        *buf++ = func(tmp);
       }
     }
 
-    static void read_pixels_24(uint32_t len, uint8_t* buf, uint32_t (*func)(uint32_t))
+    static void read_pixels_24(uint32_t length, uint8_t* buf, uint32_t (*func)(uint32_t))
     {
-      if (!len) return;
+      if (length >= 4) {
+        set_len(Panel::LEN_READ_PIXEL << 2);
+        exec_spi();
+        while (length >= 4) {
+          length -= 4;
+          wait_spi();
+          _regbuf[0] = _spi_w0_reg[0];
+          _regbuf[1] = _spi_w0_reg[1];
+          _regbuf[2] = _spi_w0_reg[2];
+          if (length >= 4) exec_spi();
+          *(uint32_t*)buf = func(_regbuf[0]);
+          buf += 3;
+          *(uint32_t*)buf = func((_regbuf[0]>>24)|(_regbuf[1]<<8));
+          buf += 3;
+          *(uint32_t*)buf = func((_regbuf[2]<<16)|(_regbuf[1]>>16));
+          buf += 3;
+          uint32_t tmp = func(_regbuf[2]>>8);
+          *buf++ = tmp;
+          *buf++ = tmp >> 8;
+          *buf++ = tmp >> 16;
+        }
+        if (!length) return;
+      }
       set_len(Panel::LEN_READ_PIXEL);
       exec_spi();
-      while (--len) {
+      uint32_t tmp;
+      while (--length) {
         wait_spi();
+        tmp = *_spi_w0_reg;
         exec_spi();
-        *(uint32_t*)buf = func(*_spi_w0_reg);
+        *(uint32_t*)buf = func(tmp);
+        buf += 3;
+      }
+      wait_spi();
+      tmp = func(*_spi_w0_reg);
+      *buf++ = tmp;
+      *buf++ = tmp >> 8;
+      *buf   = tmp >> 16;
+    }
+/*
+    static void read_pixels_16(uint32_t length, uint16_t* buf, uint16_t (*func)(uint32_t))
+    {
+      set_len(Panel::LEN_READ_PIXEL);
+      exec_spi();
+      uint32_t tmp;
+      while (length--) {
+        wait_spi();
+        tmp = *_spi_w0_reg;
+        if (length) exec_spi();
+        *buf++ = func(tmp);
+      }
+    }
+
+    static void read_pixels_24(uint32_t length, uint8_t* buf, uint32_t (*func)(uint32_t))
+    {
+      set_len(Panel::LEN_READ_PIXEL);
+      exec_spi();
+      uint32_t tmp;
+      while (--length) {
+        wait_spi();
+        tmp = *_spi_w0_reg;
+        exec_spi();
+        *(uint32_t*)buf = func(tmp);
         buf += 3;
       }
       wait_spi();
@@ -563,20 +626,32 @@ LGFX_GOTO:
       *buf++ = c >> 8;
       *buf   = c >> 16;
     }
+*/
+    inline static volatile uint32_t* reg(uint32_t addr) { return (volatile uint32_t *)ETS_UNCACHED_ADDR(addr); }
+    inline static void set_clock_write(void) { wait_spi(); *_spi_clock_reg = _clkdiv_write; }
+    inline static void set_clock_read(void)  { wait_spi(); *_spi_clock_reg = _clkdiv_read;  }
+    inline static void set_clock_fill(void)  { wait_spi(); *_spi_clock_reg = _clkdiv_fill;  }
+    inline static void exec_spi(void) { *_spi_cmd_reg |= SPI_USR; }
+    inline static void wait_spi(void) { while (*_spi_cmd_reg & SPI_USR); }
+    inline static void set_len(uint16_t len) { *_spi_mosi_dlen_reg = len - 1; }
 
-    static void begin_half_duplex(void) {
-      pinMatrixOutDetach(_spi_mosi, false, false);
-      pinMatrixInAttach(_spi_mosi, (_spi_host == HSPI_HOST) ? HSPIQ_OUT_IDX : VSPIQ_OUT_IDX, false);
-      TPin<_spi_mosi>::disableOutput();
-    }
+    static constexpr int _spi_mosi = get_spi_mosi<CFG, 23>::value;
+    static constexpr int _spi_miso = get_spi_miso<CFG, 19>::value;
+    static constexpr int _spi_sclk = get_spi_sclk<CFG, 18>::value;
+    static constexpr int _spi_cs   = get_spi_cs<  CFG, -1>::value;
+    static constexpr int _spi_dc   = get_spi_dc<  CFG, -1>::value;
+    static constexpr int _panel_rst= get_panel_rst< CFG, -1>::value;
+    static constexpr spi_host_device_t _spi_host = get_spi_host<CFG, VSPI_HOST>::value;
+    static constexpr bool _spi_half_duplex = get_spi_half_duplex<CFG, false>::value;
 
-    static void end_half_duplex(void) {
-      if (_spi_miso >= 0) {
-        pinMatrixInAttach(_spi_miso, (_spi_host == HSPI_HOST) ? HSPIQ_OUT_IDX : VSPIQ_OUT_IDX, false);
-      }
-      TPin<_spi_mosi>::enableOutput();
-      pinMatrixOutAttach(_spi_mosi, (_spi_host == HSPI_HOST) ? HSPID_IN_IDX : VSPID_IN_IDX, false, false);
-    }
+    //static volatile spi_dev_t* _spi_dev;
+    static constexpr uint8_t _spi_port = (_spi_host == HSPI_HOST) ? 2 : 3;  // FSPI=1  HSPI=2  VSPI=3;
+    static constexpr volatile uint32_t *_spi_w0_reg        = (volatile uint32_t *)ETS_UNCACHED_ADDR(SPI_W0_REG(_spi_port));
+    static constexpr volatile uint32_t *_spi_cmd_reg       = (volatile uint32_t *)ETS_UNCACHED_ADDR(SPI_CMD_REG(_spi_port));
+    static constexpr volatile uint32_t *_spi_clock_reg     = (volatile uint32_t *)ETS_UNCACHED_ADDR(SPI_CLOCK_REG(_spi_port));
+    static constexpr volatile uint32_t *_spi_mosi_dlen_reg = (volatile uint32_t *)ETS_UNCACHED_ADDR(SPI_MOSI_DLEN_REG(_spi_port));
+    static constexpr volatile uint32_t *_spi_miso_dlen_reg = (volatile uint32_t *)ETS_UNCACHED_ADDR(SPI_MISO_DLEN_REG(_spi_port));
+
     static uint8_t _bpp;
     static uint8_t _invert;
     static uint8_t _rotation;
