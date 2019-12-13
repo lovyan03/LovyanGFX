@@ -7,6 +7,8 @@ namespace lgfx
 {
   struct PanelLcdCommon
   {
+    virtual void init() {}
+
     struct rotation_data_t {
       uint8_t madctl;
       uint8_t colstart;
@@ -35,6 +37,7 @@ namespace lgfx
     static constexpr uint8_t MADCTL  = 0x36;
     static constexpr uint8_t COLMOD  = 0x3A; static constexpr uint8_t PIXSET = 0x3A;
     };
+
     uint32_t cmd_rddid  = CommandCommon::RDDID;
     uint32_t cmd_invoff = CommandCommon::INVOFF;
     uint32_t cmd_invon  = CommandCommon::INVON;
@@ -58,7 +61,7 @@ namespace lgfx
     uint8_t len_dummy_read_rddid = 0;
 
     virtual uint8_t getColMod(uint8_t bpp) const { return 0; }
-    virtual uint8_t getAdjustBpp(uint8_t bpp) const { return (bpp > 16 ) ? 24 : 16; }
+    virtual uint8_t getAdjustBpp(uint8_t bpp) const { return (bpp > 16) ? 24 : 16; }
     virtual const uint8_t* getInitCommands(uint8_t listno = 0) const { return nullptr; }
     virtual const rotation_data_t* getRotationData(uint8_t r) const
     {

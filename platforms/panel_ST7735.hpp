@@ -7,7 +7,7 @@ namespace lgfx
 {
   struct Panel_ST7735_COMMON : public PanelLcdCommon
   {
-    Panel_ST7735_COMMON()
+    void init()
     {
       len_dummy_read_pixel = 9;
       len_dummy_read_rddid = 1;
@@ -218,7 +218,7 @@ namespace lgfx
 
   struct Panel_ST7735_GREENTAB160x80 : public Panel_ST7735_COMMON
   {
-    Panel_ST7735_GREENTAB160x80()
+    void init()
     {
       panel_width  = 80;
       panel_height = 160;

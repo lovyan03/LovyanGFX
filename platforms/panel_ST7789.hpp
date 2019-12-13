@@ -7,43 +7,11 @@ namespace lgfx
 {
   struct Panel_ST7789_COMMON : public PanelLcdCommon
   {
-    Panel_ST7789_COMMON()
-    {
-      spi_mode = 3;
-      len_dummy_read_pixel = 16;
-      len_dummy_read_rddid = 1;
-    }
-
     enum colmod_t
     { RGB565_2BYTE = 0x55
     , RGB666_3BYTE = 0x66
     };
-
-    uint8_t getAdjustBpp(uint8_t bpp) const { return (bpp > 16) ? 24 : 16; }
     uint8_t getColMod(uint8_t bpp) const { return (bpp > 16) ? RGB666_3BYTE : RGB565_2BYTE; }
-
-    enum MAD
-    { MY  = 0x80
-    , MX  = 0x40
-    , MV  = 0x20
-    , ML  = 0x10
-    , BGR = 0x08
-    , MH  = 0x04
-    , RGB = 0x00
-    };
-
-    const rotation_data_t* getRotationData(uint8_t r) const {
-      static constexpr uint8_t madctl_table[] = {
-                                        MAD::BGR,
-        MAD::MX|MAD::MV|                MAD::BGR,
-        MAD::MX|        MAD::MY|MAD::MH|MAD::BGR,
-                MAD::MV|MAD::MY|        MAD::BGR,
-      };
-      r = r & 3;
-      auto res = const_cast<rotation_data_t*>(PanelLcdCommon::getRotationData(r));
-      res->madctl = madctl_table[r];
-      return res;
-    }
 
     struct CMD : public CommandCommon
     {
@@ -58,6 +26,15 @@ namespace lgfx
       static constexpr uint8_t PWCTRL1  = 0xD0;      // Power control 1
       static constexpr uint8_t PVGAMCTRL= 0xE0;      // Positive voltage gamma control
       static constexpr uint8_t NVGAMCTRL= 0xE1;      // Negative voltage gamma control
+    };
+    enum MAD
+    { MY  = 0x80
+    , MX  = 0x40
+    , MV  = 0x20
+    , ML  = 0x10
+    , BGR = 0x08
+    , MH  = 0x04
+    , RGB = 0x00
     };
 
     const uint8_t* getInitCommands(uint8_t listno = 0) const {
@@ -98,11 +75,24 @@ namespace lgfx
       default: return nullptr;
       }
     }
+
+    const rotation_data_t* getRotationData(uint8_t r) const {
+      static constexpr uint8_t madctl_table[] = {
+                                        MAD::BGR,
+        MAD::MX|MAD::MV|                MAD::BGR,
+        MAD::MX|        MAD::MY|MAD::MH|MAD::BGR,
+                MAD::MV|MAD::MY|        MAD::BGR,
+      };
+      r = r & 3;
+      auto res = const_cast<rotation_data_t*>(PanelLcdCommon::getRotationData(r));
+      res->madctl = madctl_table[r];
+      return res;
+    }
   };
 
   struct Panel_ST7789_240x240 : public Panel_ST7789_COMMON
   {
-    Panel_ST7789_240x240()
+    void init()
     {
       panel_width  = 240;
       panel_height = 240;
@@ -115,10 +105,12 @@ namespace lgfx
 
   struct Panel_ST7789_240x320 : public Panel_ST7789_COMMON
   {
-    Panel_ST7789_240x320()
+    void init()
     {
-      ram_width  = panel_width  = 240;
-      ram_height = panel_height = 320;
+      ram_width  = 240;
+      panel_width  = 240;
+      ram_height = 320;
+      panel_height = 320;
       offset_x = 0;
       offset_y = 0;
     }

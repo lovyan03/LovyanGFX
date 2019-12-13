@@ -50,8 +50,6 @@ namespace lgfx
   template <typename CFG>
   class Esp32Spi
   {
-    static const CFG _cfg;
-    static const PanelLcdCommon* _panel;
   public:
     inline uint32_t getColorFromRGB(uint8_t r, uint8_t g, uint8_t b) { return (_bpp == 16) ? getColor565(r,g,b) : getColor888(r,g,b); }
 
@@ -59,8 +57,9 @@ namespace lgfx
       setPanel(&_cfg.panel);
     }
 
-    static void setPanel(const PanelLcdCommon* panel)
+    static void setPanel(PanelLcdCommon* panel)
     {
+      panel->init();
       _panel = panel;
       _panel_spi_mode = panel->spi_mode;
       _panel_len_command = panel->len_command;
@@ -683,6 +682,8 @@ namespace lgfx
     static constexpr volatile uint32_t *_spi_mosi_dlen_reg = (volatile uint32_t *)ETS_UNCACHED_ADDR(SPI_MOSI_DLEN_REG(_spi_port));
     static constexpr volatile uint32_t *_spi_miso_dlen_reg = (volatile uint32_t *)ETS_UNCACHED_ADDR(SPI_MISO_DLEN_REG(_spi_port));
 
+    static CFG _cfg;
+    static const PanelLcdCommon* _panel;
     static uint8_t _bpp;
     static uint8_t _invert;
     static uint8_t _rotation;
@@ -708,7 +709,7 @@ namespace lgfx
     //static uint8_t _panel_len_dummy_read_pixel;
     //static uint8_t _panel_len_dummy_read_rddid;
   };
-  template <typename T> const T Esp32Spi<T>::_cfg;
+  template <typename T> T Esp32Spi<T>::_cfg;
   template <typename T> const PanelLcdCommon* Esp32Spi<T>::_panel;
   template <typename T> uint32_t Esp32Spi<T>::_panel_len_command;
   template <typename T> uint32_t Esp32Spi<T>::_panel_cmd_caset;
