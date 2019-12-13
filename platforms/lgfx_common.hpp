@@ -34,7 +34,10 @@ namespace lgfx {
   inline static uint16_t getSwap16(uint16_t c) { return c<<8 | c>>8; }
   inline static uint32_t getSwap24(uint32_t c) { return (uint8_t)c<<16 | ((uint16_t)c&0xFF00) | (uint8_t)(c>>16); }
 
-  inline static uint16_t getColor565(uint32_t color888) { return ((color888>>8) & 0xF800) | ((color888>>5) & 0x07E0) | (uint8_t)(color888 >> 3); }
+  inline static uint16_t getColor565(uint32_t color888) { return ((uint16_t)(color888>>8) & 0xF800) | ((uint16_t)(color888>>5) & 0x07E0) | (uint8_t)(color888 >> 3); }
+
+  inline static uint8_t  getColor332(uint8_t r, uint8_t g, uint8_t b) { return (r & 0xE0) | ((g & 0xE0) >> 3) | (b >> 6); }
+  inline static uint16_t getColor444(uint8_t r, uint8_t g, uint8_t b) { return ((r & 0xF0) << 4) | (g & 0xF0)  | (b >> 4); }
   inline static uint16_t getColor565(uint8_t r, uint8_t g, uint8_t b) { return ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3); }
   inline static uint32_t getColor888(uint8_t r, uint8_t g, uint8_t b) { return (r << 16) | (g << 8) | b; }
   inline static uint32_t getColor565FromSwap888(uint32_t d) { return ((uint8_t)d&0xF8)<<8 | ((uint16_t)d>>5&0x07E0) | ((uint8_t)(d>>19)&0x1F); }

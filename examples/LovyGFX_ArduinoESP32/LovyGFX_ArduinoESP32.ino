@@ -19,8 +19,9 @@
     static constexpr int freq_read  = 16000000;
     static constexpr int freq_fill  = 40000000;
     static constexpr bool spi_half_duplex = true;
+    const lgfx::Panel_M5Stack panel;
   };
-  static LovyanGFX<lgfx::Esp32Spi<lgfx::Panel_M5Stack, LGFX_Config> > tft;
+  static LGFX<LGFX_Config> tft;
 
 #elif defined(ARDUINO_M5Stick_C) // M5Stick C
   struct LGFX_Config {
@@ -35,8 +36,9 @@
     static constexpr int freq_read  = 16000000;
     static constexpr int freq_fill  = 27000000;
     static constexpr bool spi_half_duplex = true;
+    const lgfx::Panel_ST7735_GREENTAB160x80 panel;
   };
-  static LovyanGFX<lgfx::Esp32Spi<lgfx::Panel_ST7735_GREENTAB160x80, LGFX_Config> > tft;
+  static LGFX<LGFX_Config> tft;
 
 #elif defined ( ARDUINO_ESP32_DEV ) // ESP-WROVER-KIT
   struct LGFX_Config {
@@ -52,8 +54,9 @@
     static constexpr int freq_read  = 20000000;
     static constexpr int freq_fill  = 40000000;
     static constexpr bool spi_half_duplex = false;
+    const lgfx::Panel_ILI9341_240x320 panel;
   };
-  static LovyanGFX<lgfx::Esp32Spi<lgfx::Panel_ILI9341_240x320, LGFX_Config> > tft;
+  static LGFX<LGFX_Config> tft;
 
 #elif defined(ARDUINO_ODROID_ESP32) // ODROID-GO
   struct LGFX_Config {
@@ -69,8 +72,9 @@
     static constexpr int freq_read  = 20000000;
     static constexpr int freq_fill  = 80000000;
     static constexpr bool spi_half_duplex = true;
+    const lgfx::Panel_ILI9341_240x320 panel;
   };
-  static LovyanGFX<lgfx::Esp32Spi<lgfx::Panel_ILI9341_240x320, LGFX_Config> > tft;
+  static LGFX<LGFX_Config> tft;
 
 #elif defined(ARDUINO_T) // TTGO T-Watch
   struct LGFX_Config {
@@ -86,8 +90,9 @@
     static constexpr int freq_read  = 16000000;
     static constexpr int freq_fill  = 80000000;
     static constexpr bool spi_half_duplex = true;
+    const lgfx::Panel_ST7789_240x240 panel;
   };
-  static LovyanGFX<lgfx::Esp32Spi<lgfx::Panel_ST7789_240x240, LGFX_Config> > tft;
+  static LGFX<LGFX_Config> tft;
 
 #elif !defined(ESP32) & defined(ARDUINO) // Arduino UNO
   struct LGFX_Config
@@ -102,11 +107,14 @@
     static constexpr int freq_read  = 16000000;
     static constexpr int freq_fill  = 40000000;
     static constexpr bool spi_half_duplex = true;
+    const lgfx::Panel_ST7789_240x320 panel;
 */
   };
-  static LovyanGFX<lgfx::AvrSpi<lgfx::Panel_ST7789_240x320, LGFX_Config> > tft;
+  static LovyanGFX<lgfx::AvrSpi<LGFX_Config> > tft;
 
 #endif
+
+static LGFXSprite sprite;
 
 void setup()
 {
@@ -115,6 +123,9 @@ Serial.begin(115200);
 #ifdef ARDUINO
 Serial.print("Arduino\r\n");
 #endif
+
+sprite.createSprite(100,100);
+
 
 /*
   auto _pspi_t = SPI.bus();
@@ -199,6 +210,16 @@ void loop()
 Serial.printf("colorDepth:%d  swapBytes:%d  rotation:%d \r\n"
              , tft.getColorDepth(), tft.getSwapBytes(), tft.getRotation());
 
+sprite.fillRect( 0, 0,50,50,sprite.color(0,0,255));
+sprite.fillRect(50, 0,50,50,sprite.color(0,255,0));
+sprite.fillRect( 0,50,50,50,sprite.color(255,0,0));
+sprite.fillRect(50,50,50,50,sprite.color(255,255,255));
+sprite.fillCircle(50, 50, 40, 0);
+
+uint8_t* spbuf = sprite.getDevice()->buffer();
+for (int i = 0; i < 1000; i++) {
+  tft.pushImage(random(0,220), random(0,140), 100, 100, spbuf);
+}
   tft.setColorDepth(count & 8 ? 24 : 16);
   tft.setSwapBytes(count & 4);
   tft.setRotation(count & 3);

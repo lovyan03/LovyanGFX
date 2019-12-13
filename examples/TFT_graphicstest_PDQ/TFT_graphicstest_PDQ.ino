@@ -56,8 +56,9 @@
     static constexpr int freq_read  = 16000000;
     static constexpr int freq_fill  = 40000000;
     static constexpr bool spi_half_duplex = true;
+    const lgfx::Panel_M5Stack panel;
   };
-  static LovyanGFX<lgfx::Esp32Spi<lgfx::Panel_M5Stack, LGFX_Config> > tft;
+  static LGFX<LGFX_Config> tft;
 
 #elif defined(ARDUINO_M5Stick_C) // M5Stick C
   struct LGFX_Config {
@@ -72,8 +73,9 @@
     static constexpr int freq_read  = 16000000;
     static constexpr int freq_fill  = 27000000;
     static constexpr bool spi_half_duplex = true;
+    const lgfx::Panel_ST7735_GREENTAB160x80 panel;
   };
-  static LovyanGFX<lgfx::Esp32Spi<lgfx::Panel_ST7735_GREENTAB160x80, LGFX_Config> > tft;
+  static LGFX<LGFX_Config> tft;
 
 #elif defined ( ARDUINO_ESP32_DEV ) // ESP-WROVER-KIT
   struct LGFX_Config {
@@ -89,8 +91,9 @@
     static constexpr int freq_read  = 20000000;
     static constexpr int freq_fill  = 40000000;
     static constexpr bool spi_half_duplex = false;
+    const lgfx::Panel_ILI9341_240x320 panel;
   };
-  static LovyanGFX<lgfx::Esp32Spi<lgfx::Panel_ILI9341_240x320, LGFX_Config> > tft;
+  static LGFX<LGFX_Config> tft;
 
 #elif defined(ARDUINO_ODROID_ESP32) // ODROID-GO
   struct LGFX_Config {
@@ -106,8 +109,9 @@
     static constexpr int freq_read  = 20000000;
     static constexpr int freq_fill  = 80000000;
     static constexpr bool spi_half_duplex = true;
+    const lgfx::Panel_ILI9341_240x320 panel;
   };
-  static LovyanGFX<lgfx::Esp32Spi<lgfx::Panel_ILI9341_240x320, LGFX_Config> > tft;
+  static LGFX<LGFX_Config> tft;
 
 #elif defined(ARDUINO_T) // TTGO T-Watch
   struct LGFX_Config {
@@ -123,8 +127,9 @@
     static constexpr int freq_read  = 16000000;
     static constexpr int freq_fill  = 80000000;
     static constexpr bool spi_half_duplex = true;
+    const lgfx::Panel_ST7789_240x240 panel;
   };
-  static LovyanGFX<lgfx::Esp32Spi<lgfx::Panel_ST7789_240x240, LGFX_Config> > tft;
+  static LGFX<LGFX_Config> tft;
 
 #elif !defined(ESP32) & defined(ARDUINO) // Arduino UNO
   struct LGFX_Config
@@ -139,9 +144,10 @@
     static constexpr int freq_read  = 16000000;
     static constexpr int freq_fill  = 40000000;
     static constexpr bool spi_half_duplex = true;
+    const lgfx::Panel_ST7789_240x320 panel;
 */
   };
-  static LovyanGFX<lgfx::AvrSpi<lgfx::Panel_ST7789_240x320, LGFX_Config> > tft;
+  static LovyanGFX<lgfx::AvrSpi<LGFX_Config> > tft;
 
 #endif
 
@@ -189,72 +195,72 @@ void loop(void)
 	uint32_t usecHaD = testHaD();
 	Serial.print(F("HaD pushColor            "));
 	Serial.println(usecHaD);
-	delay(500);
+	delay(100);
 
 	uint32_t usecFillScreen = testFillScreen();
 	Serial.print(F("Screen fill              "));
 	Serial.println(usecFillScreen);
-	delay(500);
+	delay(100);
 
 	uint32_t usecText = testText();
 	Serial.print(F("Text                     "));
 	Serial.println(usecText);
-	delay(500);
+	delay(100);
 
 	uint32_t usecPixels = testPixels();
 	Serial.print(F("Pixels                   "));
 	Serial.println(usecPixels);
-	delay(500);
+	delay(100);
 
 	uint32_t usecLines = testLines(TFT_BLUE);
 	Serial.print(F("Lines                    "));
 	Serial.println(usecLines);
-	delay(500);
+	delay(100);
 
 	uint32_t usecFastLines = testFastLines(TFT_RED, TFT_BLUE);
 	Serial.print(F("Horiz/Vert Lines         "));
 	Serial.println(usecFastLines);
-	delay(500);
+	delay(100);
 
 	uint32_t usecRects = testRects(TFT_GREEN);
 	Serial.print(F("Rectangles (outline)     "));
 	Serial.println(usecRects);
-	delay(500);
+	delay(100);
 
 	uint32_t usecFilledRects = testFilledRects(TFT_YELLOW, TFT_MAGENTA);
 	Serial.print(F("Rectangles (filled)      "));
 	Serial.println(usecFilledRects);
-	delay(500);
+	delay(100);
 
 	uint32_t usecFilledCircles = testFilledCircles(10, TFT_MAGENTA);
 	Serial.print(F("Circles (filled)         "));
 	Serial.println(usecFilledCircles);
-	delay(500);
+	delay(100);
 
 	uint32_t usecCircles = testCircles(10, TFT_WHITE);
 	Serial.print(F("Circles (outline)        "));
 	Serial.println(usecCircles);
-	delay(500);
+	delay(100);
 
 	uint32_t usecTriangles = testTriangles();
 	Serial.print(F("Triangles (outline)      "));
 	Serial.println(usecTriangles);
-	delay(500);
+	delay(100);
 
 	uint32_t usecFilledTrangles = testFilledTriangles();
 	Serial.print(F("Triangles (filled)       "));
 	Serial.println(usecFilledTrangles);
-	delay(500);
+	delay(100);
 
 	uint32_t usecRoundRects = testRoundRects();
 	Serial.print(F("Rounded rects (outline)  "));
 	Serial.println(usecRoundRects);
-	delay(500);
+	delay(100);
 
 	uint32_t usedFilledRoundRects = testFilledRoundRects();
 	Serial.print(F("Rounded rects (filled)   "));
 	Serial.println(usedFilledRoundRects);
-	delay(500);
+	delay(100);
 	tft.endWrite();
 
 	Serial.println(F("Done!"));

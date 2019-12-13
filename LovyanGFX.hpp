@@ -14,6 +14,7 @@
 #if defined (ESP32) || (CONFIG_IDF_TARGET_ESP32)
   #include "platforms/esp32_common.hpp"
   #include "platforms/esp32_spi.hpp"
+  #include "platforms/esp32_sprite.hpp"
 #elif defined (__AVR__)
   #include "platforms/avr_spi.hpp"
 #endif
@@ -179,7 +180,7 @@ public:
 
     startWrite();
     _dev.readWindow(x, y, x + w - 1, y + h - 1);
-    _dev.readPixels(w * h, (uint8_t*)buf, _swapBytes);
+    _dev.readPixels((uint8_t*)buf, w * h, _swapBytes);
     _dev.endRead();
     endWrite();
   }
@@ -257,6 +258,46 @@ public:
     return w * h;
   }
 
+
+  void copyRect(int32_t src_x, int32_t src_y, int32_t w, int32_t h, int32_t dst_x, int32_t dst_y)
+  {
+    if ((src_x >= _width) || (src_y >= _height)) return;
+    if ((dst_x >= _width) || (dst_y >= _height)) return;
+    if (src_x < dst_x) { if (src_x < 0) { w += src_x; dst_x -= src_x; src_x = 0; } if ((dst_x + w) > _width )  w = _width  - dst_x; }
+    else               { if (dst_x < 0) { w += dst_x; src_x -= dst_x; dst_x = 0; } if ((src_x + w) > _width )  w = _width  - src_x; }
+    if (src_y < dst_y) { if (src_y < 0) { h += src_y; dst_y -= src_y; src_y = 0; } if ((dst_y + h) > _height)  h = _height - dst_y; }
+    else               { if (dst_y < 0) { h += dst_y; src_y -= dst_y; dst_y = 0; } if ((src_y + h) > _height)  h = _height - src_y; }
+    if ((w < 1) || (h < 1)) return;
+
+    startWrite();
+    if (w < h) {
+      uint8_t buf[h * 3];
+      int16_t add = (src_x < dst_x) ? -1 : 1;
+      uint32_t pos = (src_x < dst_x) ? w - 1 : 0;
+      for (int count = 0; count < w; count++) {
+        _dev.readWindow(src_x + pos, src_y, src_x + pos, src_y + h - 1);
+        _dev.readPixels(buf, h, false);
+        _dev.endRead();
+        _dev.setWindow(dst_x + pos, dst_y, dst_x + pos, dst_y + h - 1);
+        _dev.writePixels(buf, h, false);
+        pos += add;
+      }
+    } else {
+      uint8_t buf[w * 3];
+      int16_t add = (src_y < dst_y) ? -1 : 1;
+      uint32_t pos = (src_y < dst_y) ? h - 1 : 0;
+      for (int count = 0; count < h; count++) {
+        _dev.readWindow(src_x, src_y + pos, src_x + w - 1, src_y + pos);
+        _dev.readPixels(buf, w, false);
+        _dev.endRead();
+        _dev.setWindow(dst_x, dst_y + pos, dst_x + w - 1, dst_y + pos);
+        _dev.writePixels(buf, w, false);
+        pos += add;
+      }
+    }
+    endWrite();
+  }
+
   void drawLine(int32_t x0, int32_t y0, int32_t x1, int32_t y1, uint32_t color)
   {
     bool steep = abs(y1 - y0) > abs(x1 - x0);
@@ -264,11 +305,12 @@ public:
     if (steep) {   swap_coord(x0, y0); swap_coord(x1, y1); }
     if (x0 > x1) { swap_coord(x0, x1); swap_coord(y0, y1); }
 
-    int32_t dx = x1 - x0, dy = abs(y1 - y0);;
-
-    int32_t err = dx >> 1, ystep = -1, xs = x0, dlen = 0;
-
-    if (y0 < y1) ystep = 1;
+    int32_t xs = x0;
+    int32_t dx = x1 - x0;
+    int32_t err = dx >> 1;
+    int32_t dy = abs(y1 - y0);
+    int32_t ystep = (y0 < y1) ? 1 : -1;
+    int32_t dlen = 0;
 
     startWrite();
     if (steep) {
@@ -376,13 +418,10 @@ public:
   void drawRect(int32_t x, int32_t y, int32_t w, int32_t h, uint32_t color)
   {
     startWrite();
-    drawFastHLine(x, y    , w, color);
-    h--;
-    drawFastHLine(x, y + h, w, color);
-    h--;
-    y++;
-    drawFastVLine(x        , y, h, color);
-    drawFastVLine(x + w - 1, y, h, color);
+    drawFastHLine(x, y        , w, color);
+    drawFastHLine(x, y + (--h), w, color);
+    drawFastVLine(x        , ++y, --h, color);
+    drawFastVLine(x + w - 1,   y,   h, color);
     endWrite();
   }
 
@@ -1098,5 +1137,25 @@ protected:
     return n;
   }
 };
+
+#if defined (ESP32) || (CONFIG_IDF_TARGET_ESP32)
+
+template <typename CFG>
+class LGFX : public LovyanGFX<lgfx::Esp32Spi<CFG> > {};
+
+class LGFXSprite : public LovyanGFX<lgfx::Esp32Sprite>
+{
+public:
+  void* createSprite(int16_t w, int16_t h) {
+    void* res = _dev.createSprite(w, h);
+    _width = _dev.width();
+    _height = _dev.height();
+    fillRect(0, 0, w, h, 0);
+    return res;
+  }
+};
+
+#endif
+
 
 #endif

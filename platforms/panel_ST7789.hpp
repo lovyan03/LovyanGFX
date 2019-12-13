@@ -7,15 +7,43 @@ namespace lgfx
 {
   struct Panel_ST7789_COMMON : public PanelLcdCommon
   {
-    static constexpr uint8_t SPI_MODE = 0;
+    Panel_ST7789_COMMON()
+    {
+      spi_mode = 3;
+      len_dummy_read_pixel = 16;
+      len_dummy_read_rddid = 1;
+    }
 
-    static constexpr uint8_t LEN_CMD = 8;
-    static constexpr uint8_t LEN_PIXEL_READ = 24;
-    static constexpr uint8_t LEN_DUMMY_READ_PIXEL = 16;
-    static constexpr uint8_t LEN_DUMMY_READ_RDDID = 1;
+    enum colmod_t
+    { RGB565_2BYTE = 0x55
+    , RGB666_3BYTE = 0x66
+    };
 
-    static constexpr int16_t RAM_WIDTH  = 240;
-    static constexpr int16_t RAM_HEIGHT = 320;
+    uint8_t getAdjustBpp(uint8_t bpp) const { return (bpp > 16) ? 24 : 16; }
+    uint8_t getColMod(uint8_t bpp) const { return (bpp > 16) ? RGB666_3BYTE : RGB565_2BYTE; }
+
+    enum MAD
+    { MY  = 0x80
+    , MX  = 0x40
+    , MV  = 0x20
+    , ML  = 0x10
+    , BGR = 0x08
+    , MH  = 0x04
+    , RGB = 0x00
+    };
+
+    const rotation_data_t* getRotationData(uint8_t r) const {
+      static constexpr uint8_t madctl_table[] = {
+                                        MAD::BGR,
+        MAD::MX|MAD::MV|                MAD::BGR,
+        MAD::MX|        MAD::MY|MAD::MH|MAD::BGR,
+                MAD::MV|MAD::MY|        MAD::BGR,
+      };
+      r = r & 3;
+      auto res = const_cast<rotation_data_t*>(PanelLcdCommon::getRotationData(r));
+      res->madctl = madctl_table[r];
+      return res;
+    }
 
     struct CMD : public CommandCommon
     {
@@ -31,21 +59,8 @@ namespace lgfx
       static constexpr uint8_t PVGAMCTRL= 0xE0;      // Positive voltage gamma control
       static constexpr uint8_t NVGAMCTRL= 0xE1;      // Negative voltage gamma control
     };
-    enum MAD
-    { MY  = 0x80
-    , MX  = 0x40
-    , MV  = 0x20
-    , ML  = 0x10
-    , BGR = 0x08
-    , MH  = 0x04
-    , RGB = 0x00
-    };
-    enum PIX
-    { RGB565_2BYTE = 0x55
-    , RGB666_3BYTE = 0x66
-    };
 
-    static const uint8_t* getInitCommands(uint8_t listno = 0) {
+    const uint8_t* getInitCommands(uint8_t listno = 0) const {
       static constexpr uint8_t list0[] = {
           CMD::SLPOUT , CMD_INIT_DELAY, 120,
           CMD::NORON  , CMD_INIT_DELAY, 0,
@@ -83,70 +98,29 @@ namespace lgfx
       default: return nullptr;
       }
     }
-
-    inline static uint8_t getAdjustBpp(uint8_t bpp) { return (bpp > 17 ) ? 24 : 16; }
-    inline static PIX getPixset(uint8_t bpp) { return (bpp > 16) ? RGB666_3BYTE : RGB565_2BYTE; }
   };
 
   struct Panel_ST7789_240x240 : public Panel_ST7789_COMMON
   {
-    static constexpr int16_t PANEL_WIDTH  = 240;
-    static constexpr int16_t PANEL_HEIGHT = 240;
-    static constexpr int16_t OFFSET_X = 0;
-    static constexpr int16_t OFFSET_Y = 0;
-    static constexpr bool HAS_OFFSET = true;
-
-    static rotation_data_t* getRotationData(uint8_t r) {
-      static rotation_data_t res {0,0,0};
-      r = r & 3;
-      //res.colstart = (r == 3) ? 80 : 0;
-      //res.rowstart = (r == 2) ? 80 : 0;
-      switch (r) {
-      default:
-        res.colstart = OFFSET_X;
-        res.rowstart = OFFSET_Y;
-        break;
-      case 1:
-        res.colstart = OFFSET_Y;
-        res.rowstart = RAM_WIDTH - (PANEL_WIDTH + OFFSET_X);
-        break;
-      case 2:
-        res.colstart = RAM_WIDTH - (PANEL_WIDTH + OFFSET_X);
-        res.rowstart = RAM_HEIGHT - (PANEL_HEIGHT + OFFSET_Y);
-        break;
-      case 3:
-        res.colstart = RAM_HEIGHT - (PANEL_HEIGHT + OFFSET_Y);
-        res.rowstart = OFFSET_X;
-        break;
-      }
-      static constexpr uint8_t madctl_table[] = {
-                                        MAD::BGR,
-        MAD::MX|MAD::MV|                MAD::BGR,
-        MAD::MX|        MAD::MY|MAD::MH|MAD::BGR,
-                MAD::MV|MAD::MY|        MAD::BGR,
-      };
-      res.madctl = madctl_table[r];
-      return &res;
+    Panel_ST7789_240x240()
+    {
+      panel_width  = 240;
+      panel_height = 240;
+      ram_width  = 240;
+      ram_height = 320;
+      offset_x = 0;
+      offset_y = 0;
     }
   };
 
   struct Panel_ST7789_240x320 : public Panel_ST7789_COMMON
   {
-    static constexpr int16_t PANEL_WIDTH  = 240;
-    static constexpr int16_t PANEL_HEIGHT = 320;
-    static constexpr bool HAS_OFFSET = true;
-
-    static rotation_data_t* getRotationData(uint8_t r) {
-      static rotation_data_t res {0,0,0};
-      r = r & 3;
-      static constexpr uint8_t madctl_table[] = {
-                                        MAD::BGR,
-        MAD::MX|MAD::MV|                MAD::BGR,
-        MAD::MX|        MAD::MY|MAD::MH|MAD::BGR,
-                MAD::MV|MAD::MY|        MAD::BGR,
-      };
-      res.madctl = madctl_table[r];
-      return &res;
+    Panel_ST7789_240x320()
+    {
+      ram_width  = panel_width  = 240;
+      ram_height = panel_height = 320;
+      offset_x = 0;
+      offset_y = 0;
     }
   };
 }

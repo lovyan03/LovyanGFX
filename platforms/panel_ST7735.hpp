@@ -7,15 +7,45 @@ namespace lgfx
 {
   struct Panel_ST7735_COMMON : public PanelLcdCommon
   {
-    static constexpr uint8_t SPI_MODE = 0;
+    Panel_ST7735_COMMON()
+    {
+      len_dummy_read_pixel = 9;
+      len_dummy_read_rddid = 1;
+      ram_width  = 132;
+      ram_height = 162;
+    }
 
-    static constexpr uint8_t LEN_CMD = 8;
-    static constexpr uint8_t LEN_READ_PIXEL = 24;
-    static constexpr uint8_t LEN_DUMMY_READ_PIXEL = 9;
-    static constexpr uint8_t LEN_DUMMY_READ_RDDID = 1;
+    enum colmod_t
+    { RGB444_2BYTE = 0x03
+    , RGB565_2BYTE = 0x05
+    , RGB666_3BYTE = 0x06
+    };
 
-    static constexpr int16_t RAM_WIDTH  = 132;
-    static constexpr int16_t RAM_HEIGHT = 162;
+    uint8_t getAdjustBpp(uint8_t bpp) const { return (bpp > 16) ? 24 : (bpp > 12) ? 16 : 12; }
+    uint8_t getColMod(uint8_t bpp) const { return (bpp > 16) ? RGB666_3BYTE : (bpp > 12) ? RGB565_2BYTE: RGB444_2BYTE; }
+
+    enum MAD
+    { MY  = 0x80
+    , MX  = 0x40
+    , MV  = 0x20
+    , ML  = 0x10
+    , BGR = 0x08
+    , MH  = 0x04
+    , RGB = 0x00
+    };
+
+    const rotation_data_t* getRotationData(uint8_t r) const {
+      static constexpr uint8_t madctl_table[] = {
+        MAD::MX|        MAD::MY|MAD::MH|MAD::BGR,
+                MAD::MV|MAD::MY|        MAD::BGR,
+                                        MAD::BGR,
+        MAD::MX|MAD::MV|                MAD::BGR,
+      };
+      r = r & 3;
+      auto res = const_cast<rotation_data_t*>(PanelLcdCommon::getRotationData(r));
+      res->madctl = madctl_table[r];
+      return res;
+    }
 
     struct CMD : public CommandCommon
     {
@@ -42,24 +72,6 @@ namespace lgfx
       static constexpr uint8_t GMCTRP1 = 0xE0;
       static constexpr uint8_t GMCTRN1 = 0xE1;
     };
-
-    enum MAD
-    { MY  = 0x80
-    , MX  = 0x40
-    , MV  = 0x20
-    , ML  = 0x10
-    , BGR = 0x08
-    , MH  = 0x04
-    , RGB = 0x00
-    };
-    enum PIX
-    { RGB444_2BYTE = 0x03
-    , RGB565_2BYTE = 0x05
-    , RGB666_3BYTE = 0x06
-    };
-
-    inline static uint8_t getAdjustBpp(uint8_t bpp) { return (bpp > 17 ) ? 24 : 16; }
-    inline static PIX getPixset(uint8_t bpp) { return (bpp > 16) ? RGB666_3BYTE : RGB565_2BYTE; }
 
     static constexpr uint8_t PROGMEM Bcmd[] = {                  // Initialization commands for 7735B screens
       CMD::SWRESET,   CMD_INIT_DELAY,  //  1: Software reset, no args, w/delay
@@ -206,46 +218,16 @@ namespace lgfx
 
   struct Panel_ST7735_GREENTAB160x80 : public Panel_ST7735_COMMON
   {
-    static constexpr int16_t PANEL_WIDTH  = 80;
-    static constexpr int16_t PANEL_HEIGHT = 160;
-    static constexpr int16_t OFFSET_X = 26;
-    static constexpr int16_t OFFSET_Y = 1;
+    Panel_ST7735_GREENTAB160x80()
+    {
+      panel_width  = 80;
+      panel_height = 160;
+      offset_x = 26;
+      offset_y = 1;
+    }
     static constexpr bool HAS_OFFSET = true;
 
-    static rotation_data_t* getRotationData(uint8_t r) {
-      static rotation_data_t res {0,0,0};
-      r = r & 3;
-      //res.colstart = (r & 1) ? 1 : 26;
-      //res.rowstart = (r & 1) ? 26 : 1;
-      switch (r) {
-      default:
-        res.colstart = OFFSET_X;
-        res.rowstart = OFFSET_Y;
-        break;
-      case 1:
-        res.colstart = OFFSET_Y;
-        res.rowstart = RAM_WIDTH - (PANEL_WIDTH + OFFSET_X);
-        break;
-      case 2:
-        res.colstart = RAM_WIDTH - (PANEL_WIDTH + OFFSET_X);
-        res.rowstart = RAM_HEIGHT - (PANEL_HEIGHT + OFFSET_Y);
-        break;
-      case 3:
-        res.colstart = RAM_HEIGHT - (PANEL_HEIGHT + OFFSET_Y);
-        res.rowstart = OFFSET_X;
-        break;
-      }
-      static constexpr uint8_t madctl_table[] = {
-        MAD::MX|        MAD::MY|MAD::MH|MAD::BGR,
-                MAD::MV|MAD::MY|        MAD::BGR,
-                                        MAD::BGR,
-        MAD::MX|MAD::MV|                MAD::BGR,
-      };
-      res.madctl = madctl_table[r];
-      return &res;
-    }
-
-    static const uint8_t* getInitCommands(uint8_t listno = 0) {
+    const uint8_t* getInitCommands(uint8_t listno = 0) const {
       switch (listno) {
         case 0: return Panel_ST7735_COMMON::Rcmd1;
         case 1: return Panel_ST7735_COMMON::Rcmd3; // Panel_ST7735_COMMON::Rcmd2green;

@@ -7,13 +7,11 @@ namespace lgfx
 {
   struct Panel_ILI9341_COMMON : public PanelLcdCommon
   {
-    static constexpr uint8_t SPI_MODE = 0;
-    static constexpr bool HAS_OFFSET = false;
-
-    static constexpr uint8_t LEN_CMD = 8;
-    static constexpr uint8_t LEN_READ_PIXEL = 24;
-    static constexpr uint8_t LEN_DUMMY_READ_PIXEL = 8;
-    static constexpr uint8_t LEN_DUMMY_READ_RDDID = 0;
+    enum colmod_t
+    { RGB565_2BYTE = 0x55
+    , RGB666_3BYTE = 0x66
+    };
+    uint8_t getColMod(uint8_t bpp) const { return (bpp > 16) ? RGB666_3BYTE : RGB565_2BYTE; }
 
     struct CMD : public CommandCommon
     {
@@ -44,12 +42,8 @@ namespace lgfx
     , MH  = 0x04
     , RGB = 0x00
     };
-    enum PIX
-    { RGB565_2BYTE = 0x55
-    , RGB666_3BYTE = 0x66
-    };
 
-    static const uint8_t* getInitCommands(uint8_t listno = 0) {
+    const uint8_t* getInitCommands(uint8_t listno = 0) const {
       static constexpr uint8_t list0[] = {
           0xEF       , 3, 0x03,0x80,0x02,
           0xCF       , 3, 0x00,0xC1,0x30,
@@ -85,18 +79,11 @@ namespace lgfx
       default: return nullptr;
       }
     }
-
-    inline static uint8_t getAdjustBpp(uint8_t bpp) { return (bpp > 17 ) ? 24 : 16; }
-    inline static PIX getPixset(uint8_t bpp) { return (bpp > 16) ? RGB666_3BYTE : RGB565_2BYTE; }
   };
 
   struct Panel_M5Stack : public Panel_ILI9341_COMMON
   {
-    static constexpr int16_t PANEL_WIDTH = 240;
-    static constexpr int16_t PANEL_HEIGHT = 320;
-    static const rotation_data_t* getRotationData(uint8_t r) {
-      static rotation_data_t res = {0,0,0};
-      r = r & 7;
+    const rotation_data_t* getRotationData(uint8_t r) const {
       static constexpr uint8_t madctl_table[] = {
         MAD::MV|        MAD::MY|MAD::BGR,
                                 MAD::BGR,
@@ -107,18 +94,16 @@ namespace lgfx
         MAD::MV|                MAD::BGR,
                 MAD::MX|        MAD::BGR,
       };
-      res.madctl = madctl_table[r];
-      return &res;
+      r = r & 7;
+      auto res = const_cast<rotation_data_t*>(PanelLcdCommon::getRotationData(r));
+      res->madctl = madctl_table[r];
+      return res;
     }
   };
 
   struct Panel_ILI9341_240x320 : public Panel_ILI9341_COMMON
   { // ESP-WROVER-KIT ILI9341
-    static constexpr int16_t PANEL_WIDTH = 240;
-    static constexpr int16_t PANEL_HEIGHT = 320;
-    static const rotation_data_t* getRotationData(uint8_t r) {
-      static rotation_data_t res = {0,0,0};
-      r = r & 7;
+    const rotation_data_t* getRotationData(uint8_t r) const {
       static constexpr uint8_t madctl_table[] = {
                 MAD::MX|        MAD::BGR,
         MAD::MV|                MAD::BGR,
@@ -129,10 +114,11 @@ namespace lgfx
                                 MAD::BGR,
         MAD::MV|        MAD::MY|MAD::BGR,
       };
-      res.madctl = madctl_table[r];
-      return &res;
+      r = r & 7;
+      auto res = const_cast<rotation_data_t*>(PanelLcdCommon::getRotationData(r));
+      res->madctl = madctl_table[r];
+      return res;
     }
-
   };
 }
 
