@@ -439,20 +439,34 @@ namespace lgfx
     static void writeBytes(const uint8_t* data, uint32_t length)
     {
       const uint32_t* data32 = (const uint32_t*)data;
-      const uint16_t limit = 64;
+      const uint16_t limit = 32;
       uint16_t len = length % limit;
       if (!len) len = limit;
       uint16_t ie = (len+3)>>2;
+      uint8_t highpart = ((length - 1) & 0x20) ? 8 : 0;
       wait_spi();
       TPin<_spi_dc>::hi();
-      for (uint16_t i = 0; i < ie; i++) _spi_w0_reg[i] = *data32++;
+      for (uint16_t i = 0; i < ie; i++) _spi_w0_reg[i+highpart] = *data32++;
       set_len(len << 3);
+      if (highpart) *reg(SPI_USER_REG(_spi_port)) |= SPI_USR_MOSI_HIGHPART;
       exec_spi();
+      if (0 == (length -= len)) return;
+
       data32 = (const uint32_t*)(data + len);
-      for (length -= len; length; length -= limit) {
+      highpart = 8 - highpart;
+      for (uint8_t i = 0; i < 8; i++) _spi_w0_reg[i+highpart] = *data32++;
+      wait_spi();
+      if (highpart) *reg(SPI_USER_REG(_spi_port)) |= SPI_USR_MOSI_HIGHPART;
+      else          *reg(SPI_USER_REG(_spi_port)) &= ~SPI_USR_MOSI_HIGHPART;
+      set_len(limit << 3);
+      exec_spi();
+
+      for (length -= limit; length; length -= limit) {
+        highpart = 8 - highpart;
+        for (uint8_t i = 0; i < 8; i++) _spi_w0_reg[i+highpart] = *data32++;
         wait_spi();
-        for (uint16_t i = 0; i < 16; i++) _spi_w0_reg[i] = *data32++;
-        set_len(limit << 3);
+        if (highpart) *reg(SPI_USER_REG(_spi_port)) |= SPI_USR_MOSI_HIGHPART;
+        else          *reg(SPI_USER_REG(_spi_port)) &= ~SPI_USR_MOSI_HIGHPART;
         exec_spi();
       }
     }
