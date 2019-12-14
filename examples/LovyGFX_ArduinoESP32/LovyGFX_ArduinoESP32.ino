@@ -13,13 +13,13 @@
     static constexpr int spi_sclk = 18;
     static constexpr int spi_cs   = 14;
     static constexpr int spi_dc   = 27;
-    static constexpr int panel_rst = 33;
+    static constexpr int panel_rst = -1;
     static constexpr int panel_bl  = 32;
     static constexpr int freq_write = 40000000;
     static constexpr int freq_read  = 16000000;
     static constexpr int freq_fill  = 40000000;
     static constexpr bool spi_half_duplex = true;
-    const lgfx::Panel_M5Stack panel;
+    lgfx::Panel_M5Stack panel;
   };
   static LGFX<LGFX_Config> tft;
 
@@ -36,7 +36,7 @@
     static constexpr int freq_read  = 16000000;
     static constexpr int freq_fill  = 27000000;
     static constexpr bool spi_half_duplex = true;
-    const lgfx::Panel_ST7735_GREENTAB160x80 panel;
+    lgfx::Panel_ST7735_GREENTAB160x80 panel;
   };
   static LGFX<LGFX_Config> tft;
 
@@ -54,7 +54,7 @@
     static constexpr int freq_read  = 20000000;
     static constexpr int freq_fill  = 40000000;
     static constexpr bool spi_half_duplex = false;
-    const lgfx::Panel_ILI9341_240x320 panel;
+    lgfx::Panel_ILI9341_240x320 panel;
   };
   static LGFX<LGFX_Config> tft;
 
@@ -72,7 +72,7 @@
     static constexpr int freq_read  = 20000000;
     static constexpr int freq_fill  = 80000000;
     static constexpr bool spi_half_duplex = true;
-    const lgfx::Panel_ILI9341_240x320 panel;
+    lgfx::Panel_ILI9341_240x320 panel;
   };
   static LGFX<LGFX_Config> tft;
 
@@ -90,7 +90,7 @@
     static constexpr int freq_read  = 16000000;
     static constexpr int freq_fill  = 80000000;
     static constexpr bool spi_half_duplex = true;
-    const lgfx::Panel_ST7789_240x240 panel;
+    lgfx::Panel_ST7789_240x240 panel;
   };
   static LGFX<LGFX_Config> tft;
 
@@ -107,12 +107,39 @@
     static constexpr int freq_read  = 16000000;
     static constexpr int freq_fill  = 40000000;
     static constexpr bool spi_half_duplex = true;
-    const lgfx::Panel_ST7789_240x320 panel;
+    lgfx::Panel_ST7789_240x320 panel;
 */
   };
   static LovyanGFX<lgfx::AvrSpi<LGFX_Config> > tft;
 
 #endif
+
+  struct LGFX_Config2 {
+//*
+    static constexpr spi_host_device_t spi_host = HSPI_HOST;
+    static constexpr int spi_mosi = 13;
+    static constexpr int spi_miso = -1;
+    static constexpr int spi_sclk = 12;
+    static constexpr int spi_cs   = 16;
+    static constexpr int spi_dc   = 17;
+/*/
+    static constexpr spi_host_device_t spi_host = VSPI_HOST;
+    static constexpr int spi_mosi = 23;
+    static constexpr int spi_miso = 19;
+    static constexpr int spi_sclk = 18;
+    static constexpr int spi_cs   = 16;
+    static constexpr int spi_dc   = 17;
+//*/
+    static constexpr int panel_rst = -1;
+    static constexpr int panel_bl  = 32;
+    static constexpr int freq_write = 40000000;
+    static constexpr int freq_read  = 16000000;
+    static constexpr int freq_fill  = 40000000;
+    static constexpr bool spi_half_duplex = true;
+    lgfx::Panel_ST7789_240x320 panel;
+  };
+  static LGFX<LGFX_Config2> tft2;
+
 
 static LGFXSprite sprite;
 
@@ -146,7 +173,7 @@ Serial.printf("LovyanGFX mosi:%d  miso:%d  sclk:%d  cs:%d  dc:%d  rst:%d \r\n", 
   ledcAttachPin(LGFX_Config::panel_bl, BLK_PWM_CHANNEL);
   ledcWrite(BLK_PWM_CHANNEL, 128);
   pinMode(LGFX_Config::panel_rst, INPUT);
-  bool lcdver = digitalRead(LGFX_Config::panel_rst);
+  bool lcdver = !digitalRead(LGFX_Config::panel_rst);
 #else
   lgfx::TPin<LGFX_Config::panel_bl>::init();
   lgfx::TPin<LGFX_Config::panel_bl>::hi();
@@ -155,10 +182,18 @@ Serial.printf("LovyanGFX mosi:%d  miso:%d  sclk:%d  cs:%d  dc:%d  rst:%d \r\n", 
   tft.invertDisplay(true);
 #endif
   tft.init();
+
   tft.invertDisplay(lcdver);
   tft.setRotation(1);
   //tft.setTextWrap(true, true);
   tft.fillScreen(0xFF00);
+
+  tft2.init();
+  tft2.setRotation(1);
+  tft2.invertDisplay(true);
+  tft2.fillScreen(0xFF00);
+
+
 /*
 auto* dev = tft.getDevice();
 tft.spi_begin();
@@ -219,6 +254,7 @@ sprite.fillCircle(50, 50, 40, 0);
 uint8_t* spbuf = sprite.getDevice()->buffer();
 for (int i = 0; i < 1000; i++) {
   tft.pushImage(random(0,220), random(0,140), 100, 100, spbuf);
+  tft2.pushImage(random(0,220), random(0,140), 100, 100, spbuf);
 }
   tft.setColorDepth(count & 8 ? 24 : 16);
   tft.setSwapBytes(count & 4);

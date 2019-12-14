@@ -54,9 +54,9 @@
     static constexpr int panel_bl  = 32;
     static constexpr int freq_write = 40000000;
     static constexpr int freq_read  = 16000000;
-    static constexpr int freq_fill  = 40000000;
+    static constexpr int freq_fill  = 80000000;
     static constexpr bool spi_half_duplex = true;
-    const lgfx::Panel_M5Stack panel;
+    lgfx::Panel_M5Stack panel;
   };
   static LGFX<LGFX_Config> tft;
 
@@ -73,7 +73,7 @@
     static constexpr int freq_read  = 16000000;
     static constexpr int freq_fill  = 27000000;
     static constexpr bool spi_half_duplex = true;
-    const lgfx::Panel_ST7735_GREENTAB160x80 panel;
+    lgfx::Panel_ST7735_GREENTAB160x80 panel;
   };
   static LGFX<LGFX_Config> tft;
 
@@ -91,7 +91,7 @@
     static constexpr int freq_read  = 20000000;
     static constexpr int freq_fill  = 40000000;
     static constexpr bool spi_half_duplex = false;
-    const lgfx::Panel_ILI9341_240x320 panel;
+    lgfx::Panel_ILI9341_240x320 panel;
   };
   static LGFX<LGFX_Config> tft;
 
@@ -109,7 +109,7 @@
     static constexpr int freq_read  = 20000000;
     static constexpr int freq_fill  = 80000000;
     static constexpr bool spi_half_duplex = true;
-    const lgfx::Panel_ILI9341_240x320 panel;
+    lgfx::Panel_ILI9341_240x320 panel;
   };
   static LGFX<LGFX_Config> tft;
 
@@ -127,7 +127,7 @@
     static constexpr int freq_read  = 16000000;
     static constexpr int freq_fill  = 80000000;
     static constexpr bool spi_half_duplex = true;
-    const lgfx::Panel_ST7789_240x240 panel;
+    lgfx::Panel_ST7789_240x240 panel;
   };
   static LGFX<LGFX_Config> tft;
 
@@ -144,7 +144,7 @@
     static constexpr int freq_read  = 16000000;
     static constexpr int freq_fill  = 40000000;
     static constexpr bool spi_half_duplex = true;
-    const lgfx::Panel_ST7789_240x320 panel;
+    lgfx::Panel_ST7789_240x320 panel;
 */
   };
   static LovyanGFX<lgfx::AvrSpi<LGFX_Config> > tft;
@@ -160,6 +160,7 @@ void setup() {
   Serial.println(""); Serial.println("");
   Serial.println("Lovyan's LovyanGFX library Test!"); 
  
+  tft.init();
 
 Serial.printf("LovyanGFX mosi:%d  miso:%d  sclk:%d  cs:%d  dc:%d  rst:%d \r\n", LGFX_Config::spi_mosi, LGFX_Config::spi_miso, LGFX_Config::spi_sclk, LGFX_Config::spi_cs, LGFX_Config::spi_dc, LGFX_Config::panel_rst);
 #if defined(ARDUINO_M5Stick_C)
@@ -175,12 +176,11 @@ Serial.printf("LovyanGFX mosi:%d  miso:%d  sclk:%d  cs:%d  dc:%d  rst:%d \r\n", 
   pinMode(LGFX_Config::panel_rst, INPUT);
   lcdver = digitalRead(LGFX_Config::panel_rst);
 #endif
+  tft.setRotation(0);
+  tft.invertDisplay(lcdver);
 #if defined(ARDUINO_M5Stick_C) || defined ( ARDUINO_T )
   tft.invertDisplay(true);
 #endif
-  tft.init();
-  tft.setRotation(0);
-  tft.invertDisplay(lcdver);
 
   tft.setColorDepth(16);
 
@@ -205,7 +205,7 @@ void loop(void)
 	uint32_t usecText = testText();
 	Serial.print(F("Text                     "));
 	Serial.println(usecText);
-	delay(100);
+	delay(1000);
 
 	uint32_t usecPixels = testPixels();
 	Serial.print(F("Pixels                   "));
