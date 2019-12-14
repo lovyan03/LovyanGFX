@@ -241,23 +241,34 @@ public:
 
 
   template<typename T>
-  inline uint32_t pushRect(int32_t x, int32_t y, int32_t w, int32_t h, const T* buf) { return pushImage(x, y, w, h, buf); }
+  inline void pushRect(int32_t x, int32_t y, int32_t w, int32_t h, const T* data) { pushImage(x, y, w, h, data); }
 
   template<typename T>
-  uint32_t pushImage(int32_t x, int32_t y, int32_t w, int32_t h, const T* buf)
+  void pushImage(int32_t x, int32_t y, int32_t w, int32_t h, const T* data)
   {
-    if ((x >= _width) || (y >= _height)) return 0;
-    if (x < 0) { w += x; x = 0; }
-    if (y < 0) { h += y; y = 0; }
-    if ((x + w) > _width)  w = _width  - x;
-    if ((y + h) > _height) h = _height - y;
-    if ((w < 1) || (h < 1)) return 0;
+    if ((x >= _width) || (y >= _height)) return;
+    int32_t dx = 0;
+    int32_t dy = 0;
+    int32_t dw = w;
+    int32_t dh = h;
+    if (x < 0) { dw += x; dx = -x; x = 0; }
+    if ((x + dw) > _width ) dw = _width  - x;
 
+    if (y < 0) { dh += y; dy = -y; y = 0; }
+    if ((y + dh) > _height) dh = _height - y;
+
+    if (dw < 1 || dh < 1) return;
+
+    const uint8_t colorBytes = getColorDepth() >> 3;
     startWrite();
-    _dev.setWindow(x, y, x + w - 1, y + h - 1);
-    pushColors((const void*)buf, w * h, _swapBytes);
+    _dev.setWindow(x, y, x + dw - 1, y + dh - 1);
+    data += (dx + dy * w) * colorBytes;
+    while (dh--)
+    {
+      pushColors(data, dw, _swapBytes);
+      data += w * colorBytes;
+    }
     endWrite();
-    return w * h;
   }
 
 
