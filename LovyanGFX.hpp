@@ -188,7 +188,7 @@ public:
 
   void drawPixel(int32_t x, int32_t y, uint32_t color)
   {
-    if (x < 0 || y < 0 || (x >= _width) || (y >= _height)) return;
+    if (x < 0 || (x >= _width) || y < 0 || (y >= _height)) return;
 
     startWrite();
     _dev.fillWindow(x, y, x, y, color);
@@ -260,13 +260,14 @@ public:
     if (dw < 1 || dh < 1) return;
 
     const uint8_t colorBytes = getColorDepth() >> 3;
+    auto src = (const uint8_t*)data;
     startWrite();
     _dev.setWindow(x, y, x + dw - 1, y + dh - 1);
-    data += (dx + dy * w) * colorBytes;
+    src += (dx + dy * w) * colorBytes;
     while (dh--)
     {
-      pushColors(data, dw, _swapBytes);
-      data += w * colorBytes;
+      pushColors(src, dw, _swapBytes);
+      src += w * colorBytes;
     }
     endWrite();
   }
@@ -650,7 +651,7 @@ public:
     };
     if (len >= sizeof(loc_buf)){
       temp = (char*) malloc(len+1);
-      if (temp == NULL) {
+      if (temp == nullptr) {
         va_end(arg);
         return 0;
       }
@@ -801,8 +802,7 @@ public:
           uint8_t line = pgm_read_byte(font + (c * 5) + i);
           flg = (line & 0x1);
           for (j = 1; j < fontHeight; j++) {
-            if (flg == (bool)(line & 0x1<<j))
-            {
+            if (flg == (bool)(line & 0x1<<j)) {
               len += size_y;
             } else {
               if (flg || fillbg) { fillRect(xpos, ypos, size_x, len, flg ? color : bg); }
@@ -846,16 +846,15 @@ public:
     if ((c < 32) || (c > 127)) return 0;
     uint32_t flash_address = pgm_read_dword(&chrtbl_f16[uniCode]);
 
-    bool nodraw = ((x >= _width)  || // Clip right
-                   (y >= _height) || // Clip bottom
-                   ((x + fontWidth  * size_x - 1) < 0) || // Clip left
-                   ((y + fontHeight * size_y - 1) < 0));  // Clip top
-    if (!nodraw) {
+    if ((x < _width)
+     && (x + fontWidth * size_x > 0)
+     && (y < _height)
+     && (y + fontHeight * size_y > 0)) {
       int32_t w = (fontWidth + 6) >> 3;
       bool fillbg = (bg != color);
       bool flg = false;
-      uint8_t line = 0, i, j;
       int32_t len = 1;
+      uint8_t line = 0, i, j;
       startWrite();
       for (i = 0; i < fontHeight; i++) {
         line = pgm_read_byte((uint8_t *) (flash_address + w * i) );
@@ -868,7 +867,7 @@ public:
           }
           if (flg == (bool)(line & 0x80) && j < fontWidth) { len++; }
           else {
-            if (fillbg || flg) { fillRect( x + (j - len) * size_x, y + (i * size_y), len * size_x, size_y, flg ? color : bg); }
+            if (flg || fillbg) { fillRect( x + (j - len) * size_x, y + (i * size_y), len * size_x, size_y, flg ? color : bg); }
             flg = !flg;
             len = 1;
           }
@@ -1048,7 +1047,7 @@ public:
 
   void setTextFont(uint8_t f) {
     _textfont = (f > 0) ? f : 1;
-    _gfxFont = NULL; 
+    _gfxFont = nullptr; 
     if (_textfont == 1) {
       fpDrawCharClassic = &LovyanGFX<TDevice>::drawCharGLCD;
     } else if (_textfont == 2) {
