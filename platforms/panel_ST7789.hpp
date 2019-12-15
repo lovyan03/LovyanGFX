@@ -7,6 +7,15 @@ namespace lgfx
 {
   struct Panel_ST7789_COMMON : public PanelLcdCommon
   {
+    Panel_ST7789_COMMON() : PanelLcdCommon()
+    {
+      ram_width  = 240;
+      ram_height = 320;
+      len_command = 8;
+      len_read_pixel = 24;
+      len_dummy_read_pixel = 8;
+    }
+
     enum colmod_t
     { RGB565_2BYTE = 0x55
     , RGB666_3BYTE = 0x66
@@ -90,31 +99,24 @@ namespace lgfx
     }
   };
 
-  struct Panel_ST7789_240x240 : public Panel_ST7789_COMMON
+
+  template<int PanelWidth = 240, int PanelHeight = 320, int OffsetX = 0, int OffsetY = 0>
+  struct Panel_ST7789 : public Panel_ST7789_COMMON
   {
-    void init()
+    Panel_ST7789() : Panel_ST7789_COMMON()
     {
-      panel_width  = 240;
-      panel_height = 240;
-      ram_width  = 240;
-      ram_height = 320;
-      offset_x = 0;
-      offset_y = 0;
+      panel_width  = PanelWidth;
+      panel_height = PanelHeight;
+      offset_x = OffsetX;
+      offset_y = OffsetY;
     }
   };
 
-  struct Panel_ST7789_240x320 : public Panel_ST7789_COMMON
-  {
-    void init()
-    {
-      ram_width  = 240;
-      panel_width  = 240;
-      ram_height = 320;
-      panel_height = 320;
-      offset_x = 0;
-      offset_y = 0;
-    }
-  };
+
+  struct Panel_ST7789_240x320 : public Panel_ST7789<> {};
+
+  struct Panel_ST7789_240x240 : public Panel_ST7789<240, 240> {};
+
 }
 
 #endif

@@ -13,6 +13,7 @@
 struct LGFX_CONFIG_SAMPLE
 {
   static constexpr spi_host_device_t spi_host = VSPI_HOST; //  VSPI_HOST or HSPI_HOST
+  static constexpr int spi_mode =  0;
   static constexpr int spi_mosi = 23;
   static constexpr int spi_miso = 19;
   static constexpr int spi_sclk = 18;
@@ -34,6 +35,7 @@ namespace lgfx
   MEMBER_DETECTOR(freq_fill, get_freq_fill, get_freq_fill_impl, int)
   MEMBER_DETECTOR(freq_read, get_freq_read, get_freq_read_impl, int)
   MEMBER_DETECTOR(freq_write,get_freq_write,get_freq_write_impl,int)
+  MEMBER_DETECTOR(spi_mode,  get_spi_mode,  get_spi_mode_impl,  int)
   MEMBER_DETECTOR(spi_mosi,  get_spi_mosi,  get_spi_mosi_impl,  int)
   MEMBER_DETECTOR(spi_miso,  get_spi_miso,  get_spi_miso_impl,  int)
   MEMBER_DETECTOR(spi_sclk,  get_spi_sclk,  get_spi_sclk_impl,  int)
@@ -54,26 +56,27 @@ namespace lgfx
     inline uint32_t getColorFromRGB(uint8_t r, uint8_t g, uint8_t b) { return (_bpp == 16) ? getColor565(r,g,b) : getColor888(r,g,b); }
 
     Esp32Spi() {
-      setPanel(&_cfg.panel);
+      _panel = &_cfg.panel;
+
+      _bpp      = get_bpp     <CFG,   16>::value;
+      _invert   = get_invert  <CFG,false>::value;
+      _rotation = get_rotation<CFG,    0>::value;
     }
 
-    static void setPanel(PanelLcdCommon* panel)
+    static void setPanel(const PanelLcdCommon* panel)
     {
-      panel->init();
       _panel = panel;
-      _panel_spi_mode = panel->spi_mode;
-      _panel_len_command = panel->len_command;
       _panel_cmd_caset = panel->cmd_caset;
       _panel_cmd_raset = panel->cmd_raset;
+      _panel_len_command = panel->len_command;
     }
 
     inline static void init(void)
     {
-      _bpp      = get_bpp     <CFG,   16>::value;
-      _invert   = get_invert  <CFG,false>::value;
-      _rotation = get_rotation<CFG,    0>::value;
-
       init_bus();
+
+      setPanel(_panel);
+
       init_panel();
     }
 
@@ -164,18 +167,18 @@ namespace lgfx
         _clkdiv_fill  = spiFrequencyToClockDiv(_freq_fill);
       }
       wait_spi();
-      *_spi_clock_reg = _clkdiv_write;
-      _fillmode = false;
       TPin<_spi_cs>::lo();
+      _fillmode = false;
       *_spi_miso_dlen_reg = 0;
+      *_spi_clock_reg = _clkdiv_write;
       *reg(SPI_USER_REG(_spi_port)) &= ~(SPI_USR_MISO | SPI_DOUTDIN);
       {//spiSetDataMode(spi, dataMode);
-        if (_panel_spi_mode == 1 || _panel_spi_mode == 2) {
+        if (_spi_mode == 1 || _spi_mode == 2) {
           *reg(SPI_USER_REG(_spi_port)) |= SPI_CK_OUT_EDGE;
         } else {
           *reg(SPI_USER_REG(_spi_port)) &= ~SPI_CK_OUT_EDGE;
         }
-        if (_panel_spi_mode == 2 || _panel_spi_mode == 3) {
+        if (_spi_mode == 2 || _spi_mode == 3) {
           *reg(SPI_PIN_REG(_spi_port)) |= SPI_CK_IDLE_EDGE;
         } else {
           *reg(SPI_PIN_REG(_spi_port)) &= ~SPI_CK_IDLE_EDGE;
@@ -356,6 +359,7 @@ namespace lgfx
       set_len(len * _bpp);
       exec_spi();
       if (0 == (length -= len)) return;
+
       if (len != limit) {
         if (ie != 16) {
           for (uint8_t i = 15;;) {
@@ -369,6 +373,7 @@ namespace lgfx
         exec_spi();
         length -= limit;
       }
+
       for (; length; length -= limit) {
         wait_spi();
         exec_spi();
@@ -677,17 +682,18 @@ namespace lgfx
     inline static void wait_spi(void) { while (*_spi_cmd_reg & SPI_USR); }
     inline static void set_len(uint32_t len) { *_spi_mosi_dlen_reg = len - 1; }
 
-    static constexpr int _freq_write = get_freq_write<CFG, 40000000>::value;
-    static constexpr int _freq_read  = get_freq_read<CFG, 20000000>::value;
-    static constexpr int _freq_fill  = get_freq_fill<CFG, _freq_write>::value;
+    static constexpr int _spi_mode = get_spi_mode<CFG,  0>::value;
     static constexpr int _spi_mosi = get_spi_mosi<CFG, 23>::value;
     static constexpr int _spi_miso = get_spi_miso<CFG, 19>::value;
     static constexpr int _spi_sclk = get_spi_sclk<CFG, 18>::value;
     static constexpr int _spi_cs   = get_spi_cs<  CFG, -1>::value;
     static constexpr int _spi_dc   = get_spi_dc<  CFG, -1>::value;
     static constexpr int _panel_rst= get_panel_rst< CFG, -1>::value;
-    static constexpr spi_host_device_t _spi_host = get_spi_host<CFG, VSPI_HOST>::value;
     static constexpr bool _spi_half_duplex = get_spi_half_duplex<CFG, false>::value;
+    static constexpr int _freq_write = get_freq_write<CFG, 40000000>::value;
+    static constexpr int _freq_read  = get_freq_read<CFG, 16000000>::value;
+    static constexpr int _freq_fill  = get_freq_fill<CFG, _freq_write>::value;
+    static constexpr spi_host_device_t _spi_host = get_spi_host<CFG, VSPI_HOST>::value;
 
     static constexpr uint8_t _spi_port = (_spi_host == HSPI_HOST) ? 2 : 3;  // FSPI=1  HSPI=2  VSPI=3;
     static constexpr volatile uint32_t *_spi_w0_reg        = (volatile uint32_t *)ETS_UNCACHED_ADDR(SPI_W0_REG(_spi_port));
@@ -696,7 +702,7 @@ namespace lgfx
     static constexpr volatile uint32_t *_spi_mosi_dlen_reg = (volatile uint32_t *)ETS_UNCACHED_ADDR(SPI_MOSI_DLEN_REG(_spi_port));
     static constexpr volatile uint32_t *_spi_miso_dlen_reg = (volatile uint32_t *)ETS_UNCACHED_ADDR(SPI_MISO_DLEN_REG(_spi_port));
 
-    static CFG _cfg;
+    static const CFG _cfg;
     static const PanelLcdCommon* _panel;
     static uint8_t _bpp;
     static uint8_t _invert;
@@ -715,7 +721,6 @@ namespace lgfx
     static uint32_t _clkdiv_fill;
     static bool _fillmode;
     static uint32_t _regbuf[17];
-    static uint8_t _panel_spi_mode;
     static uint32_t _panel_len_command;
     static uint32_t _panel_cmd_caset;
     static uint32_t _panel_cmd_raset;
@@ -723,12 +728,11 @@ namespace lgfx
     //static uint8_t _panel_len_dummy_read_pixel;
     //static uint8_t _panel_len_dummy_read_rddid;
   };
-  template <typename T> T Esp32Spi<T>::_cfg;
+  template <typename T> const T Esp32Spi<T>::_cfg;
   template <typename T> const PanelLcdCommon* Esp32Spi<T>::_panel;
   template <typename T> uint32_t Esp32Spi<T>::_panel_len_command;
   template <typename T> uint32_t Esp32Spi<T>::_panel_cmd_caset;
   template <typename T> uint32_t Esp32Spi<T>::_panel_cmd_raset;
-  template <typename T> uint8_t Esp32Spi<T>::_panel_spi_mode;
 //template <typename T> uint8_t Esp32Spi<T>::_panel_len_read_pixel;
 //template <typename T> uint8_t Esp32Spi<T>::_panel_len_dummy_read_pixel;
 //template <typename T> uint8_t Esp32Spi<T>::_panel_len_dummy_read_rddid;

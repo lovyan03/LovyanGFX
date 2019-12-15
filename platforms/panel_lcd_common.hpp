@@ -7,8 +7,6 @@ namespace lgfx
 {
   struct PanelLcdCommon
   {
-    virtual void init() {}
-
     struct rotation_data_t {
       uint8_t madctl;
       uint8_t colstart;
@@ -54,7 +52,6 @@ namespace lgfx
     uint16_t ram_height = 320;
     uint16_t offset_x = 0;
     uint16_t offset_y = 0;
-    uint8_t spi_mode  = 0;
     uint8_t len_command = 8;
     uint8_t len_read_pixel = 24;
     uint8_t len_dummy_read_pixel = 8;

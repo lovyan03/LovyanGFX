@@ -7,6 +7,16 @@ namespace lgfx
 {
   struct Panel_ILI9341_COMMON : public PanelLcdCommon
   {
+    Panel_ILI9341_COMMON() : PanelLcdCommon()
+    {
+      ram_width  = 240;
+      ram_height = 320;
+      len_command = 8;
+      len_read_pixel = 24;
+      len_dummy_read_pixel = 8;
+      len_dummy_read_rddid = 0;
+    }
+
     enum colmod_t
     { RGB565_2BYTE = 0x55
     , RGB666_3BYTE = 0x66
@@ -79,9 +89,42 @@ namespace lgfx
       default: return nullptr;
       }
     }
+
+    const rotation_data_t* getRotationData(uint8_t r) const {
+      static constexpr uint8_t madctl_table[] = {
+                MAD::MX|        MAD::BGR,
+        MAD::MV|                MAD::BGR,
+                        MAD::MY|MAD::BGR,
+        MAD::MV|MAD::MX|MAD::MY|MAD::BGR,
+                MAD::MX|MAD::MY|MAD::BGR,
+        MAD::MV|MAD::MX|        MAD::BGR,
+                                MAD::BGR,
+        MAD::MV|        MAD::MY|MAD::BGR,
+      };
+      r = r & 7;
+      auto res = const_cast<rotation_data_t*>(PanelLcdCommon::getRotationData(r));
+      res->madctl = madctl_table[r];
+      return res;
+    }
   };
 
-  struct Panel_M5Stack : public Panel_ILI9341_COMMON
+  template<int PanelWidth = 240, int PanelHeight = 320, int OffsetX = 0, int OffsetY = 0>
+  struct Panel_ILI9341 : public Panel_ILI9341_COMMON
+  {
+    Panel_ILI9341() : Panel_ILI9341_COMMON()
+    {
+      panel_width  = PanelWidth;
+      panel_height = PanelHeight;
+      offset_x = OffsetX;
+      offset_y = OffsetY;
+    }
+  };
+
+
+  struct Panel_ILI9341_240x320 : public Panel_ILI9341<> {};
+
+
+  struct Panel_M5Stack : public Panel_ILI9341<>
   {
     const rotation_data_t* getRotationData(uint8_t r) const {
       static constexpr uint8_t madctl_table[] = {
@@ -95,27 +138,7 @@ namespace lgfx
                 MAD::MX|        MAD::BGR,
       };
       r = r & 7;
-      auto res = const_cast<rotation_data_t*>(PanelLcdCommon::getRotationData(r));
-      res->madctl = madctl_table[r];
-      return res;
-    }
-  };
-
-  struct Panel_ILI9341_240x320 : public Panel_ILI9341_COMMON
-  { // ESP-WROVER-KIT ILI9341
-    const rotation_data_t* getRotationData(uint8_t r) const {
-      static constexpr uint8_t madctl_table[] = {
-                MAD::MX|        MAD::BGR,
-        MAD::MV|                MAD::BGR,
-                        MAD::MY|MAD::BGR,
-        MAD::MV|MAD::MX|MAD::MY|MAD::BGR,
-                MAD::MX|MAD::MY|MAD::BGR,
-        MAD::MV|MAD::MX|        MAD::BGR,
-                                MAD::BGR,
-        MAD::MV|        MAD::MY|MAD::BGR,
-      };
-      r = r & 7;
-      auto res = const_cast<rotation_data_t*>(PanelLcdCommon::getRotationData(r));
+      auto res = const_cast<rotation_data_t*>(Panel_ILI9341_COMMON::getRotationData(r));
       res->madctl = madctl_table[r];
       return res;
     }

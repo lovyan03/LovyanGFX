@@ -7,12 +7,14 @@ namespace lgfx
 {
   struct Panel_ST7735_COMMON : public PanelLcdCommon
   {
-    void init()
+    Panel_ST7735_COMMON() : PanelLcdCommon()
     {
-      len_dummy_read_pixel = 9;
-      len_dummy_read_rddid = 1;
       ram_width  = 132;
       ram_height = 162;
+      len_command = 8;
+      len_read_pixel = 24;
+      len_dummy_read_pixel = 9;
+      len_dummy_read_rddid = 1;
     }
 
     enum colmod_t
@@ -215,23 +217,24 @@ namespace lgfx
 //  constexpr uint8_t Panel_ST7735_COMMON::Rcmd2red[];
   constexpr uint8_t Panel_ST7735_COMMON::Rcmd3[];
 
-
-  struct Panel_ST7735_GREENTAB160x80 : public Panel_ST7735_COMMON
+  template<int PanelWidth = 132, int PanelHeight = 162, int OffsetX = 0, int OffsetY = 0>
+  struct Panel_ST7735 : public Panel_ST7735_COMMON
   {
-    void init()
-    {
-      panel_width  = 80;
-      panel_height = 160;
-      offset_x = 26;
-      offset_y = 1;
+    Panel_ST7735() : Panel_ST7735_COMMON() {
+      panel_width  = PanelWidth;
+      panel_height = PanelHeight;
+      offset_x = OffsetX;
+      offset_y = OffsetY;
     }
-    static constexpr bool HAS_OFFSET = true;
+  };
 
+  struct Panel_ST7735_GREENTAB160x80 : public Panel_ST7735<80, 160, 26, 1>
+  {
     const uint8_t* getInitCommands(uint8_t listno = 0) const {
       switch (listno) {
-        case 0: return Panel_ST7735_COMMON::Rcmd1;
-        case 1: return Panel_ST7735_COMMON::Rcmd3; // Panel_ST7735_COMMON::Rcmd2green;
-        default: return nullptr;
+      case 0: return Panel_ST7735_COMMON::Rcmd1;
+      case 1: return Panel_ST7735_COMMON::Rcmd3; // Panel_ST7735_COMMON::Rcmd2green;
+      default: return nullptr;
       }
     }
   };
