@@ -125,9 +125,9 @@ public:
     setWindow(x, y, x + w - 1, y + h - 1);
   }
 
-  void writeColor(uint32_t color, uint32_t len) {               _dev.writeColor(color, len);             }
-  void pushColor( uint32_t color, uint32_t len) { startWrite(); _dev.writeColor(color, len); endWrite(); }
-  void pushColor( uint32_t color              ) { startWrite(); _dev.writeColor(color);      endWrite(); }
+  inline void writeColor(uint32_t color, uint32_t len) { if (len) {               _dev.writeColor(color, len);             } }
+  inline void pushColor( uint32_t color, uint32_t len) { if (len) { startWrite(); _dev.writeColor(color, len); endWrite(); } }
+  inline void pushColor( uint32_t color              ) {            startWrite(); _dev.writeColor(color);      endWrite();   }
 
   void pushColors(const uint8_t *data, uint32_t len) {
     startWrite();
@@ -764,54 +764,48 @@ public:
      && (x + fontWidth * size_x > 0)
      && (y < _height)
      && (y + fontHeight * size_y > 0)) {
+      auto font_addr = font + (c * 5);
       bool fillbg = (bg != color);
-      bool flg;
-      uint8_t i, j;
-      if (fillbg && x >= 0 && y >= 0 && x + fontWidth * size_x <= _width && y + fontHeight * size_y <= _height)
-      {
+      if (fillbg && size_y == 1 && x >= 0 && y >= 0 && y + fontHeight <= _height && x + fontWidth * size_x <= _width) {
         uint8_t col[fontWidth];
+        for (uint8_t i = 0; i < 5; i++) {
+          col[i] = pgm_read_byte(font_addr + i);
+        }
         col[5] = 0;
-        for (i = 0; i < 5; i++) {
-          col[i] = pgm_read_byte(font + c * 5 + i);
-        }
         startWrite();
-        setAddrWindow(x, y, fontWidth * size_x, fontHeight * size_y);
-        for (j = 0; j < fontHeight; j++) {
-          for (uint8_t sy = 0; sy < size_y; sy++) {
-            int32_t len = size_x;
-            flg = col[0] & 1 << j;
-            for (i = 1; i < fontWidth; i++) {
-              if (flg == (bool)(col[i] & 1<<j)) {
-                len += size_x;
-              } else {
-                writeColor(flg ? color : bg , len);
-                len = size_x;
-                flg = !flg;
-              }
-            }
-            writeColor(bg , len);
-          }
-        }
-        endWrite();
-      } else {
-        int32_t ypos, xpos = x;
-        startWrite();
-        for (i = 0; i < fontWidth-1; i++ ) {
-          int32_t len = size_y;
-          ypos = y;
-          uint8_t line = pgm_read_byte(font + (c * 5) + i);
-          flg = (line & 0x1);
-          for (j = 1; j < fontHeight; j++) {
-            if (flg == (bool)(line & 0x1<<j)) {
-              len += size_y;
-            } else {
-              if (flg || fillbg) { fillRect(xpos, ypos, size_x, len, flg ? color : bg); }
-              ypos += len;
-              len = size_y;
+        setAddrWindow(x, y, fontWidth * size_x, fontHeight);
+        bool flg = col[0] & 1;
+        uint32_t len = 0;
+        for (uint8_t i = 0; i < fontHeight; i++) {
+          for (uint8_t j = 0; j < fontWidth; j++) {
+            if (flg != (bool)(col[j] & 1 << i)) {
+              writeColor(flg ? color : bg , len);
+              len = 0;
               flg = !flg;
             }
+            len += size_x;
           }
-          if (flg || fillbg) { fillRect(xpos, ypos, size_x, len, flg ? color : bg); }
+        }
+        writeColor(bg, len);
+        endWrite();
+      } else {
+        int32_t xpos = x;
+        startWrite();
+        for (uint8_t i = 0; i < fontWidth-1; i++) {
+          uint32_t len = 1;
+          int32_t ypos = y;
+          uint8_t line = pgm_read_byte(font_addr + i);
+          bool flg = (line & 0x1);
+          for (uint8_t j = 1; j < fontHeight; j++) {
+            if (flg != (bool)(line & 1 << j)) {
+              if (flg || fillbg) { fillRect(xpos, ypos, size_x, len * size_y, flg ? color : bg); }
+              ypos += len * size_y;
+              len = 0;
+              flg = !flg;
+            }
+            len++;
+          }
+          if (flg || fillbg) { fillRect(xpos, ypos, size_x, len * size_y, flg ? color : bg); }
           xpos += size_x;
         }
         if (fillbg) { fillRect(xpos, y, size_x, fontHeight * size_y, bg); }
@@ -844,36 +838,67 @@ public:
       y = _cursor_y;
     }
     if ((c < 32) || (c > 127)) return 0;
-    uint32_t flash_address = pgm_read_dword(&chrtbl_f16[uniCode]);
+    auto font_addr = (const uint8_t*)pgm_read_dword(&chrtbl_f16[uniCode]);
 
     if ((x < _width)
      && (x + fontWidth * size_x > 0)
      && (y < _height)
      && (y + fontHeight * size_y > 0)) {
-      int32_t w = (fontWidth + 6) >> 3;
+      int32_t ypos = y;
+      uint8_t w = (fontWidth + 6) >> 3;
       bool fillbg = (bg != color);
-      bool flg = false;
-      int32_t len = 1;
-      uint8_t line = 0, i, j;
-      startWrite();
-      for (i = 0; i < fontHeight; i++) {
-        line = pgm_read_byte((uint8_t *) (flash_address + w * i) );
-        flg = line & 0x80;
-        for (j = 1; j <= fontWidth; j++) {
-          if (j & 7) {
-            line <<= 1;
-          } else {
-            line = (j + 1 < fontWidth) ? pgm_read_byte((uint8_t *) (flash_address + w * i + (j>>3)) ) : 0;
+      if (fillbg && size_y == 1 && x >= 0 && y >= 0 && y + fontHeight <= _height && x + fontWidth * size_x <= _width) {
+        uint32_t len = 0;
+        uint8_t line = 0;
+        bool flg = false;
+        startWrite();
+        setAddrWindow(x, y, fontWidth * size_x, fontHeight);
+        for (uint8_t i = 0; i < fontHeight; i++) {
+          for (uint8_t j = 0; j < fontWidth; j++) {
+            if (j & 7) {
+              line <<= 1;
+            } else {
+              line = (j == fontWidth - 1) ? 0 : pgm_read_byte(font_addr + (j >> 3));
+            }
+            if (flg != (bool)(line & 0x80)) {
+              writeColor(flg ? color : bg , len);
+              flg = !flg;
+              len = 0;
+            }
+            len += size_x;
           }
-          if (flg == (bool)(line & 0x80) && j < fontWidth) { len++; }
-          else {
-            if (flg || fillbg) { fillRect( x + (j - len) * size_x, y + (i * size_y), len * size_x, size_y, flg ? color : bg); }
-            flg = !flg;
-            len = 1;
-          }
+          font_addr += w;
         }
+        writeColor(flg ? color : bg , len);
+        endWrite();
+      } else {
+        startWrite();
+        for (uint8_t i = 0; i < fontHeight; i++) {
+          uint8_t line = pgm_read_byte(font_addr);
+          bool flg = line & 0x80;
+          uint32_t len = 1;
+          uint8_t j = 1;
+          for (; j < fontWidth-1; j++) {
+            if (j & 7) {
+              line <<= 1;
+            } else {
+              line = pgm_read_byte(font_addr + (j >> 3));
+            }
+            if (flg != (bool)(line & 0x80)) {
+              if (flg || fillbg) { fillRect( x + (j - len) * size_x, ypos, len * size_x, size_y, flg ? color : bg); }
+              len = 1;
+              flg = !flg;
+            } else {
+              len++;
+            }
+          }
+          if (flg || fillbg) { fillRect( x + (j - len) * size_x, ypos, len * size_x, size_y, flg ? color : bg); }
+          ypos += size_y;
+          font_addr += w;
+        }
+        if (fillbg) { fillRect( x + (fontWidth - 1) * size_x, y, size_x, fontHeight * size_y, bg); }
+        endWrite();
       }
-      endWrite();
     }
     if (_drawCharMoveCursor) {
       _cursor_x += fontWidth * size_x;
@@ -902,33 +927,46 @@ public:
       y = _cursor_y;
     }
     if ((c < 32) || (c > 127)) return 0;
-    uint32_t flash_address = pgm_read_dword( (const void*)(pgm_read_dword( &(fontdata[_textfont].chartbl ) ) + uniCode*sizeof(void *)) );
-    bool nodraw = ((x >= _width)  || // Clip right
-                   (y >= _height) || // Clip bottom
-                   ((x + fontWidth  * size_x - 1) < 0) || // Clip left
-                   ((y + fontHeight * size_y - 1) < 0));  // Clip top
-    if (!nodraw) {
+    auto font_addr = (const uint8_t*)pgm_read_dword( (const void*)(pgm_read_dword( &(fontdata[_textfont].chartbl ) ) + uniCode*sizeof(void *)) );
+    if ((x < _width)
+     && (x + fontWidth * size_x > 0)
+     && (y < _height)
+     && (y + fontHeight * size_y > 0)) {
       bool fillbg = (bg != color);
-      bool flg = false;
-      uint8_t line = 0, i = 0, j = 0;
-      int32_t len;
-      startWrite();
-      do {
-        line = pgm_read_byte((uint8_t *)flash_address++);
-        flg = line & 0x80;
-        line = (line & 0x7F)+1;
+      if (fillbg && size_y == 1 && x >= 0 && y >= 0 && y + fontHeight <= _height && x + fontWidth * size_x <= _width) {
+        uint32_t line = 0;
+        startWrite();
+        uint32_t len = fontWidth * size_x * fontHeight;
+        setAddrWindow(x, y, fontWidth * size_x, fontHeight);
         do {
-          len = (j + line > fontWidth) ? fontWidth - j : line;
-          line -= len;
-          if (fillbg || flg) { fillRect( x + j * size_x, y + (i * size_y), len * size_x, size_y, flg ? color : bg); }
-          j += len;
-          if (j == fontWidth) {
-            j = 0;
-            i++;
-          }
-        } while (line);
-      } while (i < fontHeight);
-      endWrite();
+          line = pgm_read_byte(font_addr++);
+          bool flg = line & 0x80;
+          line = ((line & 0x7F) + 1) * size_x;
+          _dev.writeColor(flg ? color : bg, line);
+        } while (len -= line);
+        endWrite();
+      } else {
+        bool flg = false;
+        uint8_t line = 0, i = 0, j = 0;
+        int32_t len;
+        startWrite();
+        do {
+          line = pgm_read_byte(font_addr++);
+          flg = line & 0x80;
+          line = (line & 0x7F)+1;
+          do {
+            len = (j + line > fontWidth) ? fontWidth - j : line;
+            line -= len;
+            if (fillbg || flg) { fillRect( x + j * size_x, y + (i * size_y), len * size_x, size_y, flg ? color : bg); }
+            j += len;
+            if (j == fontWidth) {
+              j = 0;
+              i++;
+            }
+          } while (line);
+        } while (i < fontHeight);
+        endWrite();
+      }
     }
     if (_drawCharMoveCursor) {
       _cursor_x += fontWidth * size_x;
@@ -971,14 +1009,13 @@ public:
       y = _cursor_y;
     }
 
-    bool nodraw = ((x >= _width)  || // Clip right
-                   (y >= _height) || // Clip bottom
-                   ((x + fontWidth  * size_x - 1) < 0) || // Clip left
-                   ((y + fontHeight * size_y - 1) < 0));  // Clip top
-
     if (c < 32) return 0;
-    bool fillbg = (bg != color);
-    if (!nodraw) {
+
+    if ((x < _width)
+     && (x + fontWidth * size_x > 0)
+     && (y < _height)
+     && (y + fontHeight * size_y > 0)) {
+      bool fillbg = (bg != color);
       // Filter out bad characters not present in font
       if ((c >= pgm_read_word(&_gfxFont->first)) && (c <= pgm_read_word(&_gfxFont->last )))
       {
@@ -1098,7 +1135,7 @@ protected:
   uint8_t  _textdatum;
   int32_t  _cursor_x = 0;
   int32_t  _cursor_y = 0;
-  uint32_t _textcolor = 0xFFFF;
+  uint32_t _textcolor = 0xFFFFFF;
   uint32_t _textbgcolor = 0;
   bool     _textwrapX = true;
   bool     _textwrapY;
@@ -1167,9 +1204,7 @@ protected:
     n += print(int_part);
 
     // Print the decimal point, but only if there are digits beyond
-    if (digits > 0) {
-      n += print(".");
-    }
+    if (digits > 0) n += print(".");
 
     // Extract digits from the remainder one at a time
     while (digits-- > 0) {
@@ -1183,22 +1218,49 @@ protected:
 };
 
 #if defined (ESP32) || (CONFIG_IDF_TARGET_ESP32)
+  template <typename CFG>
+  class LGFX : public // Ç±Ç±Ç≈í«â¡ã@î\ÇÃé¿ëïÇåpè≥Ç∑ÇÈ
+  #ifdef LGFX_JPGSUPPORT_HPP_
+    LGFX_JpgSupport<
+  #endif
+  #ifdef LGFX_BMPSUPPORT_HPP_
+    LGFX_BmpSupport<
+  #endif
+    LovyanGFX<lgfx::Esp32Spi<CFG> > // Ç±ÇÍÇ™ñ{ëÃ
+  #ifdef LGFX_BMPSUPPORT_HPP_
+    >
+  #endif
+  #ifdef LGFX_JPGSUPPORT_HPP_
+    >
+  #endif
+  {};
 
-template <typename CFG>
-class LGFX : public LovyanGFX<lgfx::Esp32Spi<CFG> > {};
 
-class LGFXSprite : public LovyanGFX<lgfx::Esp32Sprite>
-{
-public:
-  void* createSprite(int16_t w, int16_t h) {
-    void* res = _dev.createSprite(w, h);
-    _width = _dev.width();
-    _height = _dev.height();
-    fillRect(0, 0, w, h, 0);
-    return res;
-  }
-};
 
+  class LGFXSprite : public
+  #ifdef LGFX_JPGSUPPORT_HPP_
+    LGFX_JpgSupport<
+  #endif
+  #ifdef LGFX_BMPSUPPORT_HPP_
+    LGFX_BmpSupport<
+  #endif
+    LovyanGFX<lgfx::Esp32Sprite>
+  #ifdef LGFX_BMPSUPPORT_HPP_
+    >
+  #endif
+  #ifdef LGFX_JPGSUPPORT_HPP_
+    >
+  #endif
+  {
+  public:
+    void* createSprite(uint16_t w, uint16_t h) {
+      void* res = _dev.createSprite(w, h);
+      _width = _dev.width();
+      _height = _dev.height();
+      fillRect(0, 0, w, h, 0);
+      return res;
+    }
+  };
 #endif
 
 

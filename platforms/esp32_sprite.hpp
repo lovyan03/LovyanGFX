@@ -74,10 +74,10 @@ namespace lgfx
     inline static uint32_t readPanelID(void) { return 0; }
     inline static uint32_t readPanelIDSub(uint8_t cmd) { return 0; }
 
-    inline uint16_t width(void) { return _width; }
-    inline uint16_t height(void) { return _height; }
-    inline uint8_t getRotation(void) { return _rotation; }
-    inline uint8_t getColorDepth(void) { return _bpp; }
+    inline uint16_t width(void) const { return _width; }
+    inline uint16_t height(void) const { return _height; }
+    inline uint8_t getRotation(void) const { return _rotation; }
+    inline uint8_t getColorDepth(void) const { return _bpp; }
 
     void setRotation(uint8_t r)
     {
@@ -154,10 +154,20 @@ namespace lgfx
       uint8_t *dst = ptr_img();
       if (_bytes) {
         uint8_t i, b = _bytes;
-        for (;;) {
-          for (i = 0; i < b; i++) { *dst++ = *s++; }
-          if (0 == --length) return;
-          if (ptr_advance()) dst = ptr_img();
+        if (swap && b > 1) {
+          for (;;) {
+            dst += b;
+            for (i = 0; i < b; i++) { *--dst = *s++; }
+            dst += b;
+            if (0 == --length) return;
+            if (ptr_advance()) dst = ptr_img();
+          }
+        } else {
+          for (;;) {
+            for (i = 0; i < b; i++) { *dst++ = *s++; }
+            if (0 == --length) return;
+            if (ptr_advance()) dst = ptr_img();
+          }
         }
       } else {
         for (;;) {
