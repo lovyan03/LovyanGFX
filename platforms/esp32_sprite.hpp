@@ -13,7 +13,7 @@ namespace lgfx
   class Esp32Sprite
   {
   public:
-    inline uint32_t getColorFromRGB(uint8_t r, uint8_t g, uint8_t b) { return (_bpp == 16) ? getColor565(r,g,b) : getColor888(r,g,b); }
+    inline uint32_t getColorFromRGB(uint8_t r, uint8_t g, uint8_t b) { return (_bpp == 16) ? color565(r,g,b) : color888(r,g,b); }
 
     Esp32Sprite()
     : _img     (nullptr)

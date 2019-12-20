@@ -49,9 +49,9 @@ public:
 
   inline void setSwapBytes(bool swap) { _swapBytes = swap; }
 
-  inline static uint16_t color565(uint32_t color888) { return lgfx::getColor565(color888); }
-  inline static uint16_t color565(uint8_t r, uint8_t g, uint8_t b) { return lgfx::getColor565(r, g, b); }
-  inline static uint32_t color888(uint8_t r, uint8_t g, uint8_t b) { return lgfx::getColor888(r, g, b); }
+  inline static uint16_t color565(uint32_t color888) { return lgfx::color565(color888); }
+  inline static uint16_t color565(uint8_t r, uint8_t g, uint8_t b) { return lgfx::color565(r, g, b); }
+  inline static uint32_t color888(uint8_t r, uint8_t g, uint8_t b) { return lgfx::color888(r, g, b); }
 
   inline uint32_t color(uint8_t r, uint8_t g, uint8_t b) { return _dev.getColorFromRGB(r, g, b); }
   inline uint32_t getColorFromRGB(uint8_t r, uint8_t g, uint8_t b) { return _dev.getColorFromRGB(r, g, b); }
@@ -117,10 +117,11 @@ public:
   {
     if ((x >= _width) || (y >= _height)) return;
     if (x < 0) { w += x; x = 0; }
-    if (y < 0) { h += y; y = 0; }
     if ((x + w) > _width)  w = _width  - x;
+    if (w < 1) return;
+    if (y < 0) { h += y; y = 0; }
     if ((y + h) > _height) h = _height - y;
-    if ((w < 1) || (h < 1)) return;
+    if (h < 1) return;
 
     setWindow(x, y, x + w - 1, y + h - 1);
   }
@@ -134,12 +135,20 @@ public:
     _dev.writeBytes(data, len);
     endWrite();
   }
-
+/*
   inline void pushColors(const uint16_t *data, uint32_t len, bool swap = true) { pushColors((const void*)data, len, swap); }
   void pushColors(const void *src, uint32_t len, bool swap)
   {
     startWrite();
     _dev.writePixels(src, len, swap);
+    endWrite();
+  }
+*/
+  template <typename T>
+  void pushColors(const T *src, uint32_t len)
+  {
+    startWrite();
+    _dev.writePixels(src, len);
     endWrite();
   }
 
@@ -174,10 +183,11 @@ public:
   {
     if ((x >= _width) || (y >= _height)) return;
     if (x < 0) { w += x; x = 0; }
-    if (y < 0) { h += y; y = 0; }
     if ((x + w) > _width)  w = _width  - x;
+    if (w < 1) return;
+    if (y < 0) { h += y; y = 0; }
     if ((y + h) > _height) h = _height - y;
-    if ((w < 1) || (h < 1)) return;
+    if (h < 1) return;
 
     startWrite();
     _dev.readWindow(x, y, x + w - 1, y + h - 1);
@@ -247,17 +257,51 @@ public:
   void pushImage(int32_t x, int32_t y, int32_t w, int32_t h, const T* data)
   {
     if ((x >= _width) || (y >= _height)) return;
+
     int32_t dx = 0;
-    int32_t dy = 0;
     int32_t dw = w;
-    int32_t dh = h;
     if (x < 0) { dw += x; dx = -x; x = 0; }
     if ((x + dw) > _width ) dw = _width  - x;
+    if (dw < 1) return;
 
+    int32_t dy = 0;
+    int32_t dh = h;
     if (y < 0) { dh += y; dy = -y; y = 0; }
     if ((y + dh) > _height) dh = _height - y;
+    if (dh < 1) return;
 
-    if (dw < 1 || dh < 1) return;
+    startWrite();
+    _dev.setWindow(x, y, x + dw - 1, y + dh - 1);
+    data += dx + dy * w;
+    while (dh--)
+    {
+      pushColors(data, dw);
+      data += w;
+    }
+    endWrite();
+  }
+
+  void pushImage(int32_t x, int32_t y, int32_t w, int32_t h, const uint16_t* data)
+  {
+    if (_swapBytes) pushImage(x, y, w, h, (const lgfx::rgb565_t*)data);
+    else            pushImage(x, y, w, h, (const lgfx::swap565_t*)data);
+  }
+/*
+  void pushImage(int32_t x, int32_t y, int32_t w, int32_t h, const uint16_t* data)
+  {
+    if ((x >= _width) || (y >= _height)) return;
+
+    int32_t dx = 0;
+    int32_t dw = w;
+    if (x < 0) { dw += x; dx = -x; x = 0; }
+    if ((x + dw) > _width ) dw = _width  - x;
+    if (dw < 1) return;
+
+    int32_t dy = 0;
+    int32_t dh = h;
+    if (y < 0) { dh += y; dy = -y; y = 0; }
+    if ((y + dh) > _height) dh = _height - y;
+    if (dh < 1) return;
 
     const uint8_t colorBytes = getColorDepth() >> 3;
     auto src = (const uint8_t*)data;
@@ -271,8 +315,7 @@ public:
     }
     endWrite();
   }
-
-
+*/
   void copyRect(int32_t src_x, int32_t src_y, int32_t w, int32_t h, int32_t dst_x, int32_t dst_y)
   {
     if ((src_x >= _width) || (src_y >= _height)) return;
@@ -283,9 +326,11 @@ public:
     else               { if (dst_y < 0) { h += dst_y; src_y -= dst_y; dst_y = 0; } if ((src_y + h) > _height)  h = _height - src_y; }
     if ((w < 1) || (h < 1)) return;
 
+    uint16_t bytes = getColorDepth() >> 3;
+    if (0 == bytes) return;
     startWrite();
     if (w < h) {
-      uint8_t buf[h * 3];
+      uint8_t buf[h * bytes];
       int16_t add = (src_x < dst_x) ? -1 : 1;
       uint32_t pos = (src_x < dst_x) ? w - 1 : 0;
       for (int count = 0; count < w; count++) {
@@ -293,11 +338,11 @@ public:
         _dev.readPixels(buf, h, false);
         _dev.endRead();
         _dev.setWindow(dst_x + pos, dst_y, dst_x + pos, dst_y + h - 1);
-        _dev.writePixels(buf, h, false);
+        _dev.writeBytes(buf, h * bytes);
         pos += add;
       }
     } else {
-      uint8_t buf[w * 3];
+      uint8_t buf[w * bytes];
       int16_t add = (src_y < dst_y) ? -1 : 1;
       uint32_t pos = (src_y < dst_y) ? h - 1 : 0;
       for (int count = 0; count < h; count++) {
@@ -305,7 +350,7 @@ public:
         _dev.readPixels(buf, w, false);
         _dev.endRead();
         _dev.setWindow(dst_x, dst_y + pos, dst_x + w - 1, dst_y + pos);
-        _dev.writePixels(buf, w, false);
+        _dev.writeBytes(buf, w * bytes);
         pos += add;
       }
     }
@@ -1216,6 +1261,9 @@ protected:
     return n;
   }
 };
+
+//----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
 
 #if defined (ESP32) || (CONFIG_IDF_TARGET_ESP32)
   template <typename CFG>

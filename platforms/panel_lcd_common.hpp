@@ -85,14 +85,14 @@ namespace lgfx
     }
 
 
-    inline static uint16_t getColor16(uint8_t r, uint8_t g, uint8_t b) { return getColor565(r,g,b); }
-    inline static uint32_t getColor24(uint8_t r, uint8_t g, uint8_t b) { return getColor888(r,g,b); }
+    inline static uint16_t getColor16(uint8_t r, uint8_t g, uint8_t b) { return color565(r,g,b); }
+    inline static uint32_t getColor24(uint8_t r, uint8_t g, uint8_t b) { return color888(r,g,b); }
 
     inline static uint16_t getColor16FromRead(uint32_t raw) { return getColor565FromSwap888(raw); }
     inline static uint32_t getColor24FromRead(uint32_t raw) { return getSwap24(raw); }
 
-    inline static uint16_t getWriteColor16FromRead(uint32_t raw) { return getSwapColor565FromSwap888(raw); }
-    inline static uint32_t getWriteColor24FromRead(uint32_t raw) { return raw & 0xFFFFFF; }
+    //inline static uint16_t getWriteColor16FromRead(uint32_t raw) { return getSwapColor565FromSwap888(raw); }
+    //inline static uint32_t getWriteColor24FromRead(uint32_t raw) { return raw & 0xFFFFFF; }
 
     inline static uint16_t getWriteColor16(uint16_t color) { return getSwap16(color); }
     inline static uint32_t getWriteColor24(uint32_t color) { return getSwap24(color) & 0xFFFFFF; }
