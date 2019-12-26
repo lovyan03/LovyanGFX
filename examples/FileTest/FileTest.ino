@@ -51,25 +51,24 @@ void setup()
   ledcWrite(BLK_PWM_CHANNEL, 128);
 
 // sprite使う例
-//  sprite.createSprite(100,100);
-//  sprite.drawBmpFile(SD, "/m5stack_24bpp.bmp", 0, 0);
+  //sprite.getDevice()->setMallocCap(MALLOC_CAP_SPIRAM); // PSRAM使う場合
+  sprite.setColorDepth(8); // 8 , 16 , 24
+  sprite.createSprite(320,240);
+
+  sprite.drawBmpFile(SD, "/m5stack_mono.bmp",      0,  10);
+  sprite.drawBmpFile(SD, "/m5stack_16color.bmp", 110,  10);
+  sprite.drawBmpFile(SD, "/m5stack_256color.bmp",220,  10);
+  sprite.drawBmpFile(SD, "/m5stack_16bpp.bmp",     0, 130);
+  sprite.drawBmpFile(SD, "/m5stack_24bpp.bmp",   110, 130);
+  sprite.drawBmpFile(SD, "/m5stack_32bpp.bmp",   220, 130);
 }
 
 void loop() {
   tft.setColorDepth( ( tft.getColorDepth()==24 ) ? 16 : 24);
-  tft.drawBmpFile(SD, "/m5stack_mono.bmp",      0,  10);
-  tft.drawBmpFile(SD, "/m5stack_16color.bmp", 110,  10);
-  tft.drawBmpFile(SD, "/m5stack_256color.bmp",220,  10);
-  tft.drawBmpFile(SD, "/m5stack_16bpp.bmp",     0, 130);
-  tft.drawBmpFile(SD, "/m5stack_24bpp.bmp",   110, 130);
-  tft.drawBmpFile(SD, "/m5stack_32bpp.bmp",   220, 130);
-}
-
 /*
-
-  // sprite使う例
-void loop_sprite() {
   uint8_t* spbuf = sprite.getDevice()->buffer(); // (機能未実装のため暫定措置)
-  tft.pushImage(random(-70, 300), random(-70, 200), 100, 100, spbuf);
-}
+  tft.pushImage(random(-20, 20), random(-20, 20), 320, 240, (uint16_t*)spbuf);
 */
+  sprite.pushSprite(&tft, random(-20, 20), random(-20, 20));
+}
+

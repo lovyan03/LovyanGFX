@@ -1403,7 +1403,6 @@ public:
   {};
 
 
-
   class LGFXSprite : public
   #if defined (_SD_H_)
     LGFX_SD_Support<
@@ -1420,6 +1419,24 @@ public:
       _height = _dev.height();
       fillRect(0, 0, w, h, 0);
       return res;
+    }
+    template<typename T>
+    inline void fillSprite (const T& color) {
+      fillSprite(_dev.getDevColor(color));
+    }
+    void fillSprite(const lgfx::dev_color_t& color) {
+      fillRect(0, 0, _width, _height, color);
+    }
+
+    template <class T>
+    void pushSprite(T* lgfx, int32_t x, int32_t y) {
+      void* spbuf = _dev.buffer();
+      switch (getColorDepth()) {
+    //case  1: // unimplimented
+      case  8: lgfx->pushImage(x, y, _width, _height, (lgfx::rgb332_t*)spbuf); break;
+      case 16: lgfx->pushImage(x, y, _width, _height, (lgfx::swap565_t*)spbuf); break;
+      case 24: lgfx->pushImage(x, y, _width, _height, (lgfx::swap888_t*)spbuf); break;
+      }
     }
   };
 #endif
