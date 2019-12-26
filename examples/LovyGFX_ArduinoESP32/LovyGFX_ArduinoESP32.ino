@@ -3,6 +3,9 @@
  #include <AXP192.h>
 #endif
 
+#include <M5Stack.h>
+M5Display& tft_espi(M5.Lcd);
+
 #include <LovyanGFX.hpp>
 
 #if defined(ARDUINO_M5Stack_Core_ESP32) || defined(ARDUINO_M5STACK_FIRE) // M5Stack
@@ -13,7 +16,7 @@
     static constexpr int spi_sclk = 18;
     static constexpr int spi_cs   = 14;
     static constexpr int spi_dc   = 27;
-    static constexpr int panel_rst = -1;
+    static constexpr int panel_rst = 33;
     static constexpr int panel_bl  = 32;
     static constexpr int freq_write = 40000000;
     static constexpr int freq_read  = 16000000;
@@ -21,7 +24,6 @@
     static constexpr bool spi_half_duplex = true;
     lgfx::Panel_M5Stack panel;
   };
-  static LGFX<LGFX_Config> tft;
 
 #elif defined(ARDUINO_M5Stick_C) // M5Stick C
   struct LGFX_Config {
@@ -38,7 +40,6 @@
     static constexpr bool spi_half_duplex = true;
     lgfx::Panel_ST7735_GREENTAB160x80 panel;
   };
-  static LGFX<LGFX_Config> tft;
 
 #elif defined ( ARDUINO_ESP32_DEV ) // ESP-WROVER-KIT
   struct LGFX_Config {
@@ -56,7 +57,6 @@
     static constexpr bool spi_half_duplex = false;
     lgfx::Panel_ILI9341_240x320 panel;
   };
-  static LGFX<LGFX_Config> tft;
 
 #elif defined(ARDUINO_ODROID_ESP32) // ODROID-GO
   struct LGFX_Config {
@@ -74,13 +74,12 @@
     static constexpr bool spi_half_duplex = true;
     lgfx::Panel_ILI9341_240x320 panel;
   };
-  static LGFX<LGFX_Config> tft;
 
 #elif defined(ARDUINO_T) // TTGO T-Watch
   struct LGFX_Config {
     static constexpr spi_host_device_t spi_host = VSPI_HOST;
     static constexpr int spi_mosi = 19;
-    static constexpr int spi_miso = -1;
+    static constexpr int spi_miso = 19;
     static constexpr int spi_sclk = 18;
     static constexpr int spi_cs   =  5;
     static constexpr int spi_dc   = 27;
@@ -92,7 +91,6 @@
     static constexpr bool spi_half_duplex = true;
     lgfx::Panel_ST7789_240x240 panel;
   };
-  static LGFX<LGFX_Config> tft;
 
 #elif !defined(ESP32) & defined(ARDUINO) // Arduino UNO
   struct LGFX_Config
@@ -110,7 +108,6 @@
     lgfx::Panel_ST7789_240x320 panel;
 */
   };
-  static LovyanGFX<lgfx::AvrSpi<LGFX_Config> > tft;
 
 #endif
 
@@ -138,134 +135,374 @@
     static constexpr bool spi_half_duplex = true;
     lgfx::Panel_ST7789_240x320 panel;
   };
-  static LGFX<LGFX_Config2> tft2;
-
-
+  //static LGFX<LGFX_Config2> tft2;
+static LGFX<LGFX_Config> tft_lgfx;
 static LGFXSprite sprite;
+
+
+
+
+template<typename T>
+void movingSprite(T& Lcd)
+{
+  uint8_t* spbuf = sprite.getDevice()->buffer();
+
+  for (int i = 0; i < 200; i++) {
+    //M5.Lcd.pushRect((i % (Lcd.width()+100))-50, (i % (Lcd.height() + 100))-50, 200, 200, (uint16_t*)spbuf);
+    //Lcd.pushImage((i % (Lcd.width()+100))-100, (i % (Lcd.height() + 100))-100, 200, 200, (lgfx::rgb565_t*)spbuf);
+    //Lcd.pushImage((i % (Lcd.width()+100))-100, (i % (Lcd.height() + 100))-100, 200, 200, (uint16_t*)spbuf);
+      Lcd.pushImage((i % (Lcd.width()+100))-100, (i % (Lcd.height() + 100))-100, 200, 200, (lgfx::rgb332_t*)spbuf);
+  //  Lcd.pushImage((i % (Lcd.width()+100))-100, (i % (Lcd.height() + 100))-100, 200, 200, (lgfx::rgb565_t*)spbuf);
+    //Lcd.pushImage(random(-50,270), random(-50,190), 100, 100, (lgfx::rgb565_t*)spbuf);
+  }
+}
+
+template<typename T>
+void pixelCopy(T& Lcd)
+{
+  int32_t width  = Lcd.width();
+  int32_t height = Lcd.height();
+  Lcd.startWrite();
+  uint32_t c;
+  for (int count = 0; count < (width * height >> 1); count++) {
+    c = Lcd.readPixel(count % (width>>1)             , count / (width>>1));
+    Lcd.    drawPixel(count % (width>>1) + (width>>1), count / (width>>1), c);
+  }
+  Lcd.endWrite();
+}
+
+template<typename T>
+void copy(T& Lcd, int x, int y, int w, int h, int dstx, int dsty)
+{
+  Lcd.startWrite();
+  uint8_t buf[320*3];
+  if (y < dsty) {
+    for (int count = h - 1; count >= 0; count--) {
+      Lcd.readRect(x, y + count, w, 1, buf);
+      Lcd.pushRect(dstx, dsty + count, w, 1, buf);
+    }
+  } else {
+    for (int count = 0; count < h; count++) {
+      Lcd.readRect(x, y + count, w, 1, buf);
+      Lcd.pushRect(dstx, dsty + count, w, 1, buf);
+    }
+  }
+  Lcd.endWrite();
+}
+template<typename T>
+void pushRectBuffer(T& Lcd, int x)
+{
+  int32_t width  = Lcd.width();
+  int32_t height = Lcd.height();
+
+  uint16_t buf[320*3];
+  for (int i = 0; i < 320*3; i++ ) {
+    buf[i] = Lcd.color565(0xFF-(i<<3), 0x80-(i<<6), i<<4);
+  }
+
+  Lcd.startWrite();
+  Lcd.pushRect(x, x, 72,1, buf);
+  Lcd.endWrite();
+}
+
+template<typename T>
+void pushRectBuffer1(T& Lcd, int x)
+{
+  int32_t width  = Lcd.width();
+  int32_t height = Lcd.height();
+
+  uint16_t buf[320*3];
+  for (int i = 0; i < 320*3; i++ ) {
+    buf[i] = Lcd.color565(0xFF-(i<<3), 0x80-(i<<6), i<<4);
+  }
+
+  Lcd.startWrite();
+  for (int count = 0; count < 72; count++) {
+    Lcd.pushRect(x, count, 1+count,1, buf);
+delay(30);
+  }
+  Lcd.endWrite();
+}
+
+template<typename T>
+void pushRectBuffer2(T& Lcd, int x)
+{
+  int32_t width  = Lcd.width();
+  int32_t height = Lcd.height();
+
+  uint16_t buf[320*3];
+  //lgfx::swap565_t buf[320*3];
+  for (int i = 0; i < 320*3; i++ ) {
+    buf[i] = Lcd.color565(i, i, 0xFF);
+  }
+
+  Lcd.startWrite();
+  for (int count = 72; count; count--) {
+    Lcd.pushImage(x, count, 1+count,1, &buf[count]);
+delay(30);
+  }
+  Lcd.endWrite();
+}
+
+template<typename T>
+void fillRectLoop(T& Lcd)
+{
+  int32_t width  = Lcd.width();
+  int32_t height = Lcd.height();
+
+  Lcd.startWrite();
+//  Lcd.setWindow(count, count, 32+(count>>2),4);
+  for (int count = 0; count < 240; count++) {
+    Lcd.fillRect(count, count, 1+(count>>2),1, 255 - (count<<2));
+    //Lcd.pushColor(255 - (count<<2), 32+(count));
+delay(5);
+  }
+  for (int count = 240; count > 0; count--) {
+    Lcd.fillRect(count, count, 1+(count>>2),1, 255 - (count<<2));
+delay(5);
+  }
+  Lcd.endWrite();
+}
+/*
+
+template<typename T>
+void pixelReadWrite(T& Lcd)
+{
+  int32_t width  = Lcd.width();
+  int32_t height = Lcd.height();
+  Lcd.startWrite();
+  Lcd.fillRect(0, 0, width / 2, height, 0);
+
+  for (int count = 0; count < width<<3; count++) {
+    int x = (count % (width>>1));
+    Lcd.fillRect(x  , random(         0, height  /3),1,3, tft.getColorFromRGB(      (x<<1) , 0, 0));
+    Lcd.fillRect(x+1, random(height  /3, height*2/3),2,2, tft.getColorFromRGB(0,    (x<<2) , 0));
+    Lcd.fillRect(x+2, random(height*2/3, height    ),3,1, tft.getColorFromRGB(0, 0, (x<<3) ));
+  }
+  for (int count = 0; count < width<<5; count++) {
+    int x = (count % (width>>1));
+    Lcd.drawPixel(x  , random(         0, height  /6),    tft.getColorFromRGB(      (x<<2) , 0, 0));
+    Lcd.drawPixel(x+1, random(height  /3, height*3/6),    tft.getColorFromRGB(0,    (x<<3) , 0));
+    Lcd.drawPixel(x+2, random(height*2/3, height*5/6),    tft.getColorFromRGB(0, 0, (x<<4) ));
+  }
+  for (int count = 0; count < 10; count++) {
+    Lcd.drawLine( random(0, width>>1), random(0, height)
+                , random(0, width>>1), random(0, height), tft.getColorFromRGB(0xFF, 0, 0));
+    Lcd.drawLine( random(0, width>>1), random(0, height)
+                , random(0, width>>1), random(0, height), tft.getColorFromRGB(0, 0xFF, 0));
+    Lcd.drawLine( random(0, width>>1), random(0, height)
+                , random(0, width>>1), random(0, height), tft.getColorFromRGB(0, 0, 0xFF));
+  }
+  uint32_t c;
+  for (int count = 0; count < (width * height >> 1); count++) {
+    c = Lcd.readPixel(count % (width>>1)             , count / (width>>1));
+    Lcd.    drawPixel(count % (width>>1) + (width>>1), count / (width>>1), c);
+  }
+  Lcd.endWrite();
+}
+
+template<typename T>
+void blockReadPixelWrite(T& Lcd)
+{
+  int32_t width  = Lcd.width();
+  int32_t height = Lcd.height();
+  Lcd.fillRect(0, 0, width / 2, height, random(0, 0xFFFFFF));
+  for (int count = 0; count < 80; count++) {
+    int x = (count % (height>>3));
+    Lcd.drawRoundRect(count,          0 + count, (width>>1) - (count<<1), height / 3 -(count<<1), (width-count) >>4, tft.getColorFromRGB(      (x<<5) + (sec << 1), 0, 0));
+    Lcd.drawRoundRect(count, height  /3 + count, (width>>1) - (count<<1), height / 3 -(count<<1), (width-count) >>4, tft.getColorFromRGB(0,    (x<<4) + (sec << 3), 0   ));
+    Lcd.drawRoundRect(count, height*2/3 + count, (width>>1) - (count<<1), height / 3 -(count<<1), (width-count) >>4, tft.getColorFromRGB(0, 0, (x<<3) + (sec << 5)      ));
+  }
+  uint8_t buf[320*3];
+  for (int count = 0; count < height; count++) {
+  Lcd.startWrite();
+    Lcd.readRect(         0, count, width >> 1, 1, (uint16_t*)buf);
+    if (Lcd.getColorDepth() == 16) {
+      for (int x = 0; x < width>>1; x++) {
+        Lcd.drawPixel((width>>1)+x, count, ((uint16_t*)buf)[x]);
+      }
+    } else {
+      for (int x = 0; x < width>>1; x++) {
+        Lcd.drawPixel((width>>1)+x, count, *(uint32_t*)(&buf[x*3]) );
+      }
+    }
+  Lcd.endWrite();
+  }
+}
+*/
+template<typename T>
+void drawRects(T& Lcd, int32_t offset = 0)
+{
+  int32_t width  = Lcd.width() >> 1;
+  int32_t height = Lcd.height();
+  Lcd.startWrite();
+//  Lcd.fillRect(offset, 0, width >> 1, height, random(0, 0xFFFFFF));
+  for (int count = 0; count < 80; count++) {
+    int x = (count % (width>>1));
+    Lcd.drawRect(x + offset, x             , (width >> 1)-(x<<1), height/3-(x<<1), Lcd.color565(      x<<4, 0, 0));
+    Lcd.drawRect(x + offset, x + height  /3, (width >> 1)-(x<<1), height/3-(x<<1), Lcd.color565(0,    x<<4, 0   ));
+    Lcd.drawRect(x + offset, x + height*2/3, (width >> 1)-(x<<1), height/3-(x<<1), Lcd.color565(0, 0, x<<4      ));
+  }
+  Lcd.endWrite();
+}
+
+template<typename T>
+void blockReadWrite(T& Lcd, int32_t offset = 0)
+{
+  int32_t width  = Lcd.width() >> 1;
+  int32_t height = Lcd.height();
+  Lcd.startWrite();
+  uint16_t buf[320*2];
+  for (int count = 0; count < height; count++) {
+    Lcd.readRect(offset           , count, (width - (count>>1)) >> 1, 1, buf);
+    Lcd.pushRect(offset+(width>>1), count, (width - (count>>1)) >> 1, 1, buf);
+    Lcd.drawPixel(offset + (count>>2), count, 0xFFFF);
+  }
+  Lcd.endWrite();
+}
+
+template<typename T>
+void concentricFillCircle(T& Lcd)
+{
+  int32_t width  = Lcd.width();
+  int32_t height = Lcd.height();
+  Lcd.startWrite();
+  Lcd.fillRect(0, 0, width, height, random(0, 0xFFFFFF));
+  for (int count = 0; count < 200; count++) {
+    Lcd.drawCircle(width>>1, height>>1, 200 - count, Lcd.color565((count&1 ? 0xFF:0), (count&2 ? 0xFF:0), (count&4 ? 0xFF:0)));
+  }
+  Lcd.endWrite();
+}
+
+template<typename T>
+void dualFillCircle(T& Lcd)
+{
+  int32_t width  = Lcd.width();
+  int32_t height = Lcd.height();
+  Lcd.startWrite();
+  Lcd.fillRect(0, 0, width, height, random(0, 0xFFFFFF));
+  for (int count = 0; count < 100; count++) {
+    Lcd.fillCircle (width  >>2, height>>1, 100 - count, Lcd.color565((count&1 ? 0xFF:0), (count&2 ? 0xFF:0), (count&4 ? 0xFF:0)));
+    Lcd.fillCircle (width*3>>2, height>>1, 100 - count, Lcd.color565((count&1 ? 0xFF:0), (count&2 ? 0xFF:0), (count&4 ? 0xFF:0)));
+  }
+  Lcd.endWrite();
+}
+
+
+//*/
+
 
 void setup()
 {
-Serial.begin(115200);
+  bool lcdver = false;
+#if defined(ARDUINO_M5Stack_Core_ESP32) || defined(ARDUINO_M5STACK_FIRE)
+  pinMode(LGFX_Config::panel_rst, INPUT);
+  delay(100);
+  lcdver = digitalRead(LGFX_Config::panel_rst);
+  pinMode(LGFX_Config::panel_rst, OUTPUT);
+  digitalWrite(LGFX_Config::panel_rst, HIGH);
+#endif
 
 #ifdef ARDUINO
+//  M5.begin();
+Serial.begin(115200);
 Serial.print("Arduino\r\n");
+Serial.printf("LovyanGFX mosi:%d  miso:%d  sclk:%d  cs:%d  dc:%d  rst:%d \r\n"
+             , LGFX_Config::spi_mosi, LGFX_Config::spi_miso, LGFX_Config::spi_sclk, LGFX_Config::spi_cs, LGFX_Config::spi_dc, LGFX_Config::panel_rst);
 #endif
 
-sprite.createSprite(100,100);
+  tft_lgfx.init();
+  tft_espi.init();
+
+  sprite.setColorDepth(8);
+  sprite.createSprite(200,200);
+  drawRects(sprite, 0);
+  blockReadWrite(sprite, 0);
+  //sprite.fillRect( 0, 0,50,50,sprite.color332(0,0,255));
+  sprite.fillRect(50, 0,50,50,sprite.color332(0,255,0));
+  //sprite.fillRect( 0,50,50,50,sprite.color332(255,0,0));
+  sprite.fillRect(50,50,50,50,sprite.color332(255,255,255));
+  //sprite.fillCircle(50, 50, 40, 0);
 
 
-/*
-  auto _pspi_t = SPI.bus();
-  Serial.printf("dev :%x \r\n", *(uint32_t*)_pspi_t);
-  Serial.printf("spi0:%x \r\n", DR_REG_SPI0_BASE);
-  Serial.printf("spi1:%x \r\n", DR_REG_SPI1_BASE);
-  Serial.printf("spi2:%x \r\n", DR_REG_SPI2_BASE);
-  Serial.printf("spi3:%x \r\n", DR_REG_SPI3_BASE);
-*/
-Serial.printf("LovyanGFX mosi:%d  miso:%d  sclk:%d  cs:%d  dc:%d  rst:%d \r\n", LGFX_Config::spi_mosi, LGFX_Config::spi_miso, LGFX_Config::spi_sclk, LGFX_Config::spi_cs, LGFX_Config::spi_dc, LGFX_Config::panel_rst);
-#if defined(ARDUINO_M5Stick_C)
-  AXP192 axp;
-  axp.begin();
-#endif
 #if defined(ARDUINO_M5Stack_Core_ESP32) || defined(ARDUINO_M5STACK_FIRE) || defined ( ARDUINO_ESP32_DEV ) || defined ( ARDUINO_T )
   const int BLK_PWM_CHANNEL = 7;
   ledcSetup(BLK_PWM_CHANNEL, 12000, 8);
   ledcAttachPin(LGFX_Config::panel_bl, BLK_PWM_CHANNEL);
   ledcWrite(BLK_PWM_CHANNEL, 128);
-  pinMode(LGFX_Config::panel_rst, INPUT);
-  bool lcdver = !digitalRead(LGFX_Config::panel_rst);
+#elif defined(ARDUINO_M5Stick_C)
+  AXP192 axp;
+  axp.begin();
+  lcdver = true;
 #else
   lgfx::TPin<LGFX_Config::panel_bl>::init();
   lgfx::TPin<LGFX_Config::panel_bl>::hi();
 #endif
 #if defined(ARDUINO_M5Stick_C) || defined ( ARDUINO_T )
-  tft.invertDisplay(true);
+  lcdver = true;
 #endif
-  tft.init();
 
-  tft.invertDisplay(lcdver);
-  tft.setRotation(1);
+  tft_lgfx.invertDisplay(lcdver);
+  tft_lgfx.setRotation(1);
+  tft_lgfx.fillScreen(0xFF00);
+  tft_espi.setRotation(1);
+  tft_lgfx.setSwapBytes(true);
+  tft_espi.setSwapBytes(true);
+
+
   //tft.setTextWrap(true, true);
-  tft.fillScreen(0xFF00);
-
-  tft2.init();
-  tft2.setRotation(1);
-  tft2.invertDisplay(true);
-  tft2.fillScreen(0xFF00);
 
 
 /*
-auto* dev = tft.getDevice();
-tft.spi_begin();
-dev->setSPIFrequency(80000000); Serial.printf("clock:%d \r\n", dev->getSPIFrequency());
-dev->setSPIFrequency(60000000); Serial.printf("clock:%d \r\n", dev->getSPIFrequency());
-dev->setSPIFrequency(40000000); Serial.printf("clock:%d \r\n", dev->getSPIFrequency());
-dev->setSPIFrequency(30000000); Serial.printf("clock:%d \r\n", dev->getSPIFrequency());
-dev->setSPIFrequency(20000000); Serial.printf("clock:%d \r\n", dev->getSPIFrequency());
-dev->setSPIFrequency(10000000); Serial.printf("clock:%d \r\n", dev->getSPIFrequency());
-dev->setSPIFrequency( 9000000); Serial.printf("clock:%d \r\n", dev->getSPIFrequency());
-dev->setSPIFrequency( 8000000); Serial.printf("clock:%d \r\n", dev->getSPIFrequency());
-dev->setSPIFrequency( 7000000); Serial.printf("clock:%d \r\n", dev->getSPIFrequency());
-dev->setSPIFrequency( 6000000); Serial.printf("clock:%d \r\n", dev->getSPIFrequency());
-dev->setSPIFrequency( 5000000); Serial.printf("clock:%d \r\n", dev->getSPIFrequency());
-dev->setSPIFrequency( 4000000); Serial.printf("clock:%d \r\n", dev->getSPIFrequency());
-dev->setSPIFrequency( 3000000); Serial.printf("clock:%d \r\n", dev->getSPIFrequency());
-dev->setSPIFrequency( 2000000); Serial.printf("clock:%d \r\n", dev->getSPIFrequency());
-dev->setSPIFrequency( 1000000); Serial.printf("clock:%d \r\n", dev->getSPIFrequency());
-dev->setSPIFrequency(  900000); Serial.printf("clock:%d \r\n", dev->getSPIFrequency());
-dev->setSPIFrequency(  800000); Serial.printf("clock:%d \r\n", dev->getSPIFrequency());
-dev->setSPIFrequency(  700000); Serial.printf("clock:%d \r\n", dev->getSPIFrequency());
-dev->setSPIFrequency(  600000); Serial.printf("clock:%d \r\n", dev->getSPIFrequency());
-dev->setSPIFrequency(  500000); Serial.printf("clock:%d \r\n", dev->getSPIFrequency());
-tft.spi_end();
-///*/
 //  uint32_t id = tft.getLcdID();
 //  Serial.printf("\r\n RDDID: 0x%06X \r\n", id);
-
-Serial.printf("PanelID: %08x \r\n", tft.readPanelID());
-//M5StickC=f0897c
-
-Serial.printf("PanelID DA: %08x \r\n", tft.readPanelIDSub(0xDA));
-//M5StickC=7c
-
-Serial.printf("PanelID DB: %08x \r\n", tft.readPanelIDSub(0xDB));
-//M5StickC=89
-
-Serial.printf("PanelID DC: %08x \r\n", tft.readPanelIDSub(0xDC));
-//M5StickC=f0
-
+Serial.printf("PanelID: %08x \r\n", tft.readPanelID());        //M5StickC=f0897c
+Serial.printf("PanelID DA: %08x \r\n", tft.readPanelIDSub(0xDA)); //M5StickC=7c
+Serial.printf("PanelID DB: %08x \r\n", tft.readPanelIDSub(0xDB)); //M5StickC=89
+Serial.printf("PanelID DC: %08x \r\n", tft.readPanelIDSub(0xDC)); //M5StickC=f0
 Serial.printf("PanelID D3: %08x \r\n", tft.readPanelIDSub(0xD3));
+///*/
 
 }
 
-volatile char ctmp;
-uint32_t sec, psec, count;
+static uint32_t sec, psec, count = 0;
+
 void loop()
 {
+Serial.printf("count:%d  ", count);
+Serial.printf("sec: %d \n", (int)(sec));
+
+delay(500);
+/*
+  tft_lgfx.setColorDepth(count & 8 ? 24 : 16);
+  tft_espi.setSwapBytes(count & 4);
+  tft_lgfx.setSwapBytes(count & 4);
+  tft_espi.setRotation(count & 3);
+  tft_lgfx.setRotation(count & 3);
 Serial.printf("colorDepth:%d  swapBytes:%d  rotation:%d \r\n"
-             , tft.getColorDepth(), tft.getSwapBytes(), tft.getRotation());
+             , tft_lgfx.getColorDepth(), tft_lgfx.getSwapBytes(), tft_lgfx.getRotation());
+*/
 
-sprite.fillRect( 0, 0,50,50,sprite.color(0,0,255));
-sprite.fillRect(50, 0,50,50,sprite.color(0,255,0));
-sprite.fillRect( 0,50,50,50,sprite.color(255,0,0));
-sprite.fillRect(50,50,50,50,sprite.color(255,255,255));
-sprite.fillCircle(50, 50, 40, 0);
+  drawRects(tft_espi, tft_espi.width()>>1);
+  blockReadWrite(tft_espi, tft_espi.width()>>1);
+  movingSprite(tft_lgfx);
+  drawRects(tft_lgfx, 0);
 
-uint8_t* spbuf = sprite.getDevice()->buffer();
-for (int i = 0; i < 1000; i++) {
-  tft.pushImage(random(0,220), random(0,140), 100, 100, spbuf);
-  tft2.pushImage(random(0,220), random(0,140), 100, 100, spbuf);
-}
-  tft.setColorDepth(count & 8 ? 24 : 16);
-  tft.setSwapBytes(count & 4);
-  tft.setRotation(count & 3);
-  pushRectBuffer2(tft,0);
-  pushRectBuffer1(tft,0);
-  blockReadWrite(tft);
+taskDISABLE_INTERRUPTS();
+sec = esp_timer_get_time();
+
+  blockReadWrite(tft_lgfx, 0);
+
+sec = esp_timer_get_time() - sec;
+taskENABLE_INTERRUPTS();
+
+  count++;
+return;
+
+/*
   blockReadPixelWrite(tft);
-//  tft.init();
-
-//for ( int i = 0; i < 20; i++) { copy(tft, 0, 0, tft.width()>>1, tft.height()-8, 0, 8);}
+for ( int i = 0; i < 20; i++) { tft.copyRect(i, i, tft.width() - (i<<1), tft.height()-i, i, i+1);}
+//for ( int i = 0; i < 20; i++) { copy(tft, i, i, tft.width() - (i<<1), tft.height()-i, i, i+1);}
   tft.setTextColor(0xFFFF, 0x0000);
   tft.setTextFont(1);
   tft.setCursor(20,20);
@@ -297,11 +534,9 @@ for (int i = 0; i < 1000; i++) {
   tft.print("StringTest \n");
   tft.setFreeFont(&FreeSans9pt7b);
   tft.print("StringTest \n");
-
-
 delay (1000);
-  count++;
-return;
+*/
+
 //  M5.Lcd.setSwapBytes(count&1);
 /*
 //  tft.setColorDepth(tft.getColorDepth() == 16 ? 24 : 16);
@@ -455,205 +690,4 @@ M5.Lcd.endWrite();
     M5.Lcd.setRotation((sec >> 1) & 3);
   }
 */
-}
-
-template<typename T>
-void pixelReadWrite(T& Lcd)
-{
-  int32_t width  = Lcd.width();
-  int32_t height = Lcd.height();
-  Lcd.startWrite();
-  Lcd.fillRect(0, 0, width / 2, height, 0);
-
-  for (int count = 0; count < width<<3; count++) {
-    int x = (count % (width>>1));
-    Lcd.fillRect(x  , random(         0, height  /3),1,3, tft.getColorFromRGB(      (x<<1) , 0, 0));
-    Lcd.fillRect(x+1, random(height  /3, height*2/3),2,2, tft.getColorFromRGB(0,    (x<<2) , 0));
-    Lcd.fillRect(x+2, random(height*2/3, height    ),3,1, tft.getColorFromRGB(0, 0, (x<<3) ));
-  }
-  for (int count = 0; count < width<<5; count++) {
-    int x = (count % (width>>1));
-    Lcd.drawPixel(x  , random(         0, height  /6),    tft.getColorFromRGB(      (x<<2) , 0, 0));
-    Lcd.drawPixel(x+1, random(height  /3, height*3/6),    tft.getColorFromRGB(0,    (x<<3) , 0));
-    Lcd.drawPixel(x+2, random(height*2/3, height*5/6),    tft.getColorFromRGB(0, 0, (x<<4) ));
-  }
-  for (int count = 0; count < 10; count++) {
-    Lcd.drawLine( random(0, width>>1), random(0, height)
-                , random(0, width>>1), random(0, height), tft.getColorFromRGB(0xFF, 0, 0));
-    Lcd.drawLine( random(0, width>>1), random(0, height)
-                , random(0, width>>1), random(0, height), tft.getColorFromRGB(0, 0xFF, 0));
-    Lcd.drawLine( random(0, width>>1), random(0, height)
-                , random(0, width>>1), random(0, height), tft.getColorFromRGB(0, 0, 0xFF));
-  }
-  uint32_t c;
-  for (int count = 0; count < (width * height >> 1); count++) {
-    c = Lcd.readPixel(count % (width>>1)             , count / (width>>1));
-    Lcd.    drawPixel(count % (width>>1) + (width>>1), count / (width>>1), c);
-  }
-  Lcd.endWrite();
-}
-
-template<typename T>
-void pixelCopy(T& Lcd)
-{
-  int32_t width  = Lcd.width();
-  int32_t height = Lcd.height();
-  Lcd.startWrite();
-  uint32_t c;
-  for (int count = 0; count < (width * height >> 1); count++) {
-    c = Lcd.readPixel(count % (width>>1)             , count / (width>>1));
-    Lcd.    drawPixel(count % (width>>1) + (width>>1), count / (width>>1), c);
-  }
-  Lcd.endWrite();
-}
-
-template<typename T>
-void blockReadPixelWrite(T& Lcd)
-{
-  int32_t width  = Lcd.width();
-  int32_t height = Lcd.height();
-  Lcd.fillRect(0, 0, width / 2, height, random(0, 0xFFFFFF));
-  for (int count = 0; count < 80; count++) {
-    int x = (count % (height>>3));
-    Lcd.drawRoundRect(count,          0 + count, (width>>1) - (count<<1), height / 3 -(count<<1), (width-count) >>4, tft.getColorFromRGB(      (x<<5) + (sec << 1), 0, 0));
-    Lcd.drawRoundRect(count, height  /3 + count, (width>>1) - (count<<1), height / 3 -(count<<1), (width-count) >>4, tft.getColorFromRGB(0,    (x<<4) + (sec << 3), 0   ));
-    Lcd.drawRoundRect(count, height*2/3 + count, (width>>1) - (count<<1), height / 3 -(count<<1), (width-count) >>4, tft.getColorFromRGB(0, 0, (x<<3) + (sec << 5)      ));
-  }
-  uint8_t buf[320*3];
-  for (int count = 0; count < height; count++) {
-  Lcd.startWrite();
-    Lcd.readRect(         0, count, width >> 1, 1, (uint16_t*)buf);
-    if (Lcd.getColorDepth() == 16) {
-      for (int x = 0; x < width>>1; x++) {
-        Lcd.drawPixel((width>>1)+x, count, ((uint16_t*)buf)[x]);
-      }
-    } else {
-      for (int x = 0; x < width>>1; x++) {
-        Lcd.drawPixel((width>>1)+x, count, *(uint32_t*)(&buf[x*3]) );
-      }
-    }
-  Lcd.endWrite();
-//*/
-  }
-}
-
-template<typename T>
-void blockReadWrite(T& Lcd)
-{
-  int32_t width  = Lcd.width();
-  int32_t height = Lcd.height();
-  Lcd.startWrite();
-  Lcd.fillRect(0, 0, width / 2, height, random(0, 0xFFFFFF));
-  for (int count = 0; count < 80; count++) {
-    int x = (count % (width>>1));
-    Lcd.fillRect(x,          0, (width >> 1)-(x<<1), height/3-count, tft.getColorFromRGB(      (x<<4) + (sec << 1), 0, 0));
-    Lcd.drawRect(x, height  /3, (width >> 1)-(x<<1), height/3-count, tft.getColorFromRGB(0,    (x<<4) + (sec << 3), 0   ));
-    Lcd.fillRect(x, height*2/3, (width >> 1)-(x<<1), height/3-count, tft.getColorFromRGB(0, 0, (x<<4) + (sec << 5)      ));
-  }
-  uint8_t buf[320*3];
-  for (int count = 0; count < height>>1; count++) {
-    Lcd.readRect(         0, count<<1, (width-count) >> 1, 2, (uint16_t*)buf);
-    Lcd.pushRect((width>>1), count<<1, (width-count) >> 1, 2, (uint16_t*)buf);
-  }
-  Lcd.endWrite();
-}
-
-template<typename T>
-void copy(T& Lcd, int x, int y, int w, int h, int dstx, int dsty)
-{
-  Lcd.startWrite();
-  uint8_t buf[320*3];
-  if (y < dsty) {
-    for (int count = h - 1; count >= 0; count--) {
-      Lcd.readRect(x, y + count, w, 1, buf);
-      Lcd.pushRect(dstx, dsty + count, w, 1, buf);
-    }
-  } else {
-    for (int count = 0; count < h; count++) {
-      Lcd.readRect(x, y + count, w, 1, buf);
-      Lcd.pushRect(dstx, dsty + count, w, 1, buf);
-    }
-  }
-  Lcd.endWrite();
-}
-template<typename T>
-void pushRectBuffer1(T& Lcd, int x)
-{
-  int32_t width  = Lcd.width();
-  int32_t height = Lcd.height();
-
-  uint16_t buf[320*3];
-  for (int i = 0; i < 320*3; i++ ) {
-    buf[i] = Lcd.color565(0xFF-(i<<3), 0x80-(i<<6), i<<4);
-  }
-
-  Lcd.startWrite();
-  for (int count = 0; count < 240; count++) {
-    Lcd.pushRect(x, count, 1+(count>>2),1, buf);
-  }
-  Lcd.endWrite();
-}
-
-template<typename T>
-void pushRectBuffer2(T& Lcd, int x)
-{
-  int32_t width  = Lcd.width();
-  int32_t height = Lcd.height();
-
-  uint16_t buf[320*3];
-  for (int i = 0; i < 320*3; i++ ) {
-    buf[i] = Lcd.color565(i, i, 0xFF);
-  }
-
-  Lcd.startWrite();
-  for (int count = 239; count; count--) {
-    Lcd.pushRect(x, count, 1+(count>>2),1, &buf[count]);
-  }
-  Lcd.endWrite();
-}
-
-template<typename T>
-void fillRectLoop(T& Lcd)
-{
-  int32_t width  = Lcd.width();
-  int32_t height = Lcd.height();
-
-  Lcd.startWrite();
-//  Lcd.setWindow(count, count, 32+(count>>2),4);
-  for (int count = 0; count < 240; count++) {
-    Lcd.fillRect(count, count, 1+(count>>2),1, 255 - (count<<2));
-    //Lcd.pushColor(255 - (count<<2), 32+(count));
-delay(5);
-  }
-  for (int count = 240; count > 0; count--) {
-    Lcd.fillRect(count, count, 1+(count>>2),1, 255 - (count<<2));
-delay(5);
-  }
-  Lcd.endWrite();
-}
-template<typename T>
-void concentricFillCircle(T& Lcd)
-{
-  int32_t width  = Lcd.width();
-  int32_t height = Lcd.height();
-  Lcd.startWrite();
-  Lcd.fillRect(0, 0, width, height, random(0, 0xFFFFFF));
-  for (int count = 0; count < 200; count++) {
-    Lcd.drawCircle(width>>1, height>>1, 200 - count, tft.getColorFromRGB((count&1 ? 0xFF:0), (count&2 ? 0xFF:0), (count&4 ? 0xFF:0)));
-  }
-  Lcd.endWrite();
-}
-
-template<typename T>
-void dualFillCircle(T& Lcd)
-{
-  int32_t width  = Lcd.width();
-  int32_t height = Lcd.height();
-  Lcd.startWrite();
-  Lcd.fillRect(0, 0, width, height, random(0, 0xFFFFFF));
-  for (int count = 0; count < 100; count++) {
-    Lcd.fillCircle (width  >>2, height>>1, 100 - count, tft.getColorFromRGB((count&1 ? 0xFF:0), (count&2 ? 0xFF:0), (count&4 ? 0xFF:0)));
-    Lcd.fillCircle (width*3>>2, height>>1, 100 - count, tft.getColorFromRGB((count&1 ? 0xFF:0), (count&2 ? 0xFF:0), (count&4 ? 0xFF:0)));
-  }
-  Lcd.endWrite();
 }

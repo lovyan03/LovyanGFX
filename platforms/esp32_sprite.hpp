@@ -13,7 +13,30 @@ namespace lgfx
   class Esp32Sprite
   {
   public:
-    inline uint32_t getColorFromRGB(uint8_t r, uint8_t g, uint8_t b) { return (_bpp == 16) ? color565(r,g,b) : color888(r,g,b); }
+#define TYPECHECK(dType) template < typename tType, typename std::enable_if < (sizeof(tType) == sizeof(dType)) && (std::is_signed<tType>::value == std::is_signed<dType>::value), std::nullptr_t >::type=nullptr >
+    TYPECHECK(uint8_t ) __attribute__ ((always_inline)) inline dev_color_t getDevColor(tType c) { return getDevColor(*(const rgb332_t*)&c); }
+    TYPECHECK(uint16_t) __attribute__ ((always_inline)) inline dev_color_t getDevColor(tType c) { return getDevColor(*(const rgb565_t*)&c); }
+    TYPECHECK(uint32_t) __attribute__ ((always_inline)) inline dev_color_t getDevColor(tType c) { return getDevColor(*(const rgb888_t*)&c); }
+    TYPECHECK(int     ) __attribute__ ((always_inline)) inline dev_color_t getDevColor(tType c) { return getDevColor(*(const rgb565_t*)&c); }
+#undef TYPECHECK
+    inline dev_color_t getDevColor(const rgb888_t& c) {
+      if (_bpp ==  8) return color332(c.r, c.g, c.b);
+      if (_bpp == 16) return swap565( c.r, c.g, c.b);
+      if (_bpp == 24) return c.r | c.g<<8 | c.b<<16;
+      return (bool)c;
+    }
+    inline dev_color_t getDevColor(const rgb565_t& c) {
+      if (_bpp ==  8) return ((c.r<<3)&0xE0) | ((c.g>>1)&0x1C) | (c.b>>3);
+      if (_bpp == 16) return c.raw << 8 | c.raw >> 8;
+      if (_bpp == 24) return c.R8() | (c.G8()<<8) | (c.B8()<<16);
+      return (bool)c;
+    }
+    inline dev_color_t getDevColor(const rgb332_t& c) {
+      if (_bpp ==  8) return c.raw;
+      if (_bpp == 16) return swap565(c.R8(), c.G8(), c.B8());
+      if (_bpp == 24) return swap888(c.R8(), c.G8(), c.B8());
+      return (bool)c;
+    }
 
     Esp32Sprite()
     : _img     (nullptr)
@@ -79,6 +102,8 @@ namespace lgfx
     inline uint8_t getRotation(void) const { return _rotation; }
     inline uint8_t getColorDepth(void) const { return _bpp; }
 
+    inline uint8_t* buffer() { return _img; }
+
     void setRotation(uint8_t r)
     {
       r = r & 7;
@@ -97,6 +122,7 @@ namespace lgfx
       else if (bpp >  1) _bpp =  8;
       else               _bpp =  1;
       _bytes = _bpp >> 3;
+      if (_img == nullptr) return nullptr;
       deleteSprite();
       return createSprite(_width, _height);
     }
@@ -110,7 +136,8 @@ namespace lgfx
       _index = xs + ys * _bitwidth;
     }
 
-    inline void fillWindow(int32_t xs, int32_t ys, int32_t xe, int32_t ye, uint32_t color) {
+    inline void fillWindow(int32_t xs, int32_t ys, int32_t xe, int32_t ye, const dev_color_t& color)
+    {
       setWindow(xs, ys, xe, ye);
       writeColor(color, (xe-xs+1) * (ye-ys+1));
     }
@@ -123,21 +150,18 @@ namespace lgfx
     inline static void startRead() {}
     inline static void endRead() {}
 
-    void writeColor(uint32_t color, uint32_t length = 1)
+    inline void writeColor(const dev_color_t& color, uint32_t length = 1)
     {
       if (!length) return;
-      uint8_t *dst = ptr_img();
-      if (_bytes) {
-        uint8_t i, b = _bytes;
+      if (     _bpp ==  8) { write_color(*(rgb332_t* )&color.raw, length); }
+      else if (_bpp == 16) { write_color(*(swap565_t*)&color.raw, length); }
+      else if (_bpp == 24) { write_color(*(swap888_t*)&color.raw, length); }
+      else {
+        uint8_t *dst = ptr_img();
+        bool col = color;
         for (;;) {
-          for (i = 0; i < b; i++) { *dst++ = color >> (i << 3); }
-          if (0 == --length) return;
-          if (ptr_advance()) dst = ptr_img();
-        }
-      } else {
-        for (;;) {
-          if (color) *dst |=  (0x80>>(_index & 7));
-          else       *dst &= ~(0x80>>(_index & 7));
+          if (col) *dst |=  (0x80>>(_index & 7));
+          else     *dst &= ~(0x80>>(_index & 7));
           if (0 == --length) return;
           if (ptr_advance()) dst = ptr_img();
           else if (!(_index & 0x07)) ++dst;
@@ -145,31 +169,46 @@ namespace lgfx
       }
     }
 
-    // need data size = length * (24bpp=3 : 16bpp=2)
-    void writePixels(const void* src, uint32_t length, bool swap)
+    __attribute__ ((always_inline)) inline void writePixels(const rgb332_t*   src, uint32_t length) { writePixelsTemplate(src, length); }
+    __attribute__ ((always_inline)) inline void writePixels(const rgb565_t*   src, uint32_t length) { writePixelsTemplate(src, length); }
+    __attribute__ ((always_inline)) inline void writePixels(const rgb888_t*   src, uint32_t length) { writePixelsTemplate(src, length); }
+    __attribute__ ((always_inline)) inline void writePixels(const swap565_t*  src, uint32_t length) { writePixelsTemplate(src, length); }
+    __attribute__ ((always_inline)) inline void writePixels(const swap888_t*  src, uint32_t length) { writePixelsTemplate(src, length); }
+    __attribute__ ((always_inline)) inline void writePixels(const argb8888_t* src, uint32_t length) { writePixelsTemplate(src, length); }
+
+    inline rgb565_t readPixel(void)
+    {
+      const uint8_t *src = ptr_img();
+      rgb565_t res;
+      if (     _bpp ==  8) { res = *(( rgb332_t*)src); return res;}
+      else if (_bpp == 16) { res = *((swap565_t*)src); return res;}
+      else if (_bpp == 24) { res = *((swap888_t*)src); return res;}
+
+      return (bool)(*src & (0x80 >> (_index & 0x07)));
+    }
+
+    __attribute__ ((always_inline)) inline void readPixels(rgb332_t*   buf, uint32_t length) { readPixelsTemplate(buf, length); }
+    __attribute__ ((always_inline)) inline void readPixels(rgb565_t*   buf, uint32_t length) { readPixelsTemplate(buf, length); }
+    __attribute__ ((always_inline)) inline void readPixels(rgb888_t*   buf, uint32_t length) { readPixelsTemplate(buf, length); }
+    __attribute__ ((always_inline)) inline void readPixels(swap565_t*  buf, uint32_t length) { readPixelsTemplate(buf, length); }
+    __attribute__ ((always_inline)) inline void readPixels(swap888_t*  buf, uint32_t length) { readPixelsTemplate(buf, length); }
+    __attribute__ ((always_inline)) inline void readPixels(argb8888_t* buf, uint32_t length) { readPixelsTemplate(buf, length); }
+
+//----------------------------------------------------------------------------
+  protected:
+
+    template <class TSrc>
+    void writePixelsTemplate(const TSrc* src, uint32_t length)
     {
       if (!length) return;
-      const uint8_t* s(static_cast<const uint8_t*>(src));
-      uint8_t p = 0;
-      uint8_t *dst = ptr_img();
-      if (_bytes) {
-        uint8_t i, b = _bytes;
-        if (swap && b > 1) {
-          for (;;) {
-            dst += b;
-            for (i = 0; i < b; i++) { *--dst = *s++; }
-            dst += b;
-            if (0 == --length) return;
-            if (ptr_advance()) dst = ptr_img();
-          }
-        } else {
-          for (;;) {
-            for (i = 0; i < b; i++) { *dst++ = *s++; }
-            if (0 == --length) return;
-            if (ptr_advance()) dst = ptr_img();
-          }
-        }
-      } else {
+      if (     _bpp ==  8) { write_pixels< rgb332_t>(src, length); }
+      else if (_bpp == 16) { write_pixels<swap565_t>(src, length); }
+      else if (_bpp == 24) { write_pixels<swap888_t>(src, length); }
+/*
+      else {
+        const uint8_t* s(static_cast<const uint8_t*>(src));
+        uint8_t p = 0;
+        uint8_t *dst = ptr_img();
         for (;;) {
           if (*s & (0x80 >> p)) *dst |=  (0x80>>(_index & 0x07));
           else                  *dst &= ~(0x80>>(_index & 0x07));
@@ -182,34 +221,20 @@ namespace lgfx
           }
         }
       }
+*/
     }
 
-    uint32_t readPixel(void)
-    {
-      uint32_t res = 0;
-      const uint8_t *src = ptr_img();
-      if (_bytes) {
-        for (uint32_t i = 0; i < _bytes; i++) {
-          res |= (*src++) << (i<<3);
-        }
-        return res;
-      }
-      return *src & (0x80 >> (_index & 0x07));
-    }
-
-    void readPixels(uint8_t* buf, uint32_t length, bool swapBytes)
+    template <class TDst>
+    void readPixelsTemplate(TDst* buf, uint32_t length)
     {
       if (!length) return;
-      uint8_t p = 0;
-      const uint8_t *src = ptr_img();
-      if (_bytes) {
-        uint8_t i, b = _bytes;
-        for (;;) {
-          for (i = 0; i < b; i++) { *buf++ = *src++; }
-          if (0 == --length) return;
-          if (ptr_advance()) src = ptr_img();
-        }
-      } else {
+      if (     _bpp ==  8) { read_pixels< rgb332_t>(buf, length); }
+      else if (_bpp == 16) { read_pixels<swap565_t>(buf, length); }
+      else if (_bpp == 24) { read_pixels<swap888_t>(buf, length); }
+/*
+      else {
+        uint8_t p = 0;
+        const uint8_t *src = ptr_img();
         for (;;) {
           if (*src & (0x80 >> (_index & 0x07))) *buf |=  (0x80>>p);
           else                                  *buf &= ~(0x80>>p);
@@ -222,11 +247,40 @@ namespace lgfx
           }
         }
       }
+*/
     }
 
-    uint8_t* buffer() { return _img; }
+    template <class T>
+    void write_color(const T& color, uint32_t length)
+    {
+      auto *dst = (T*)ptr_img();
+      while (length--) {
+        *dst++ = color;
+        if (ptr_advance()) dst = (T*)ptr_img();
+      }
+    }
 
-  private:
+    template <class TDst, class TSrc>
+    void write_pixels(const TSrc* src, uint32_t length)
+    {
+      auto *dst = (TDst*)ptr_img();
+      while (length--) {
+        *dst++ = *src++;
+        if (ptr_advance()) dst = (TDst*)ptr_img();
+      }
+    }
+
+    template <class TSrc, class TDst>
+    void read_pixels(TDst* buf, uint32_t length)
+    {
+      auto src = (const TSrc*)ptr_img();
+      while (length--) {
+        *buf++ = *src++;
+        if (ptr_advance()) src = (const TSrc*)ptr_img();
+        auto src = (TSrc*)ptr_img();
+      }
+    }
+
     inline bool ptr_advance() {
       if (++_xptr > _xe) {
         _xptr = _xs;

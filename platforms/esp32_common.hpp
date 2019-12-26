@@ -102,6 +102,7 @@
   }
 #endif
 
+
 namespace lgfx
 {
   template<uint8_t PIN, uint32_t MASK>
@@ -116,23 +117,23 @@ namespace lgfx
       io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
       gpio_config(&io_conf);
     }
-    inline static void enableOutput() __attribute__ ((always_inline)) { if (PIN < 32) { GPIO.enable_w1ts = MASK; } else { GPIO.enable1_w1ts.val = MASK; } }
-    inline static void disableOutput() __attribute__ ((always_inline)) { if (PIN < 32) { GPIO.enable_w1tc = MASK; } else { GPIO.enable1_w1tc.val = MASK; } }
-    inline static void hi() __attribute__ ((always_inline)) { if (PIN < 32) GPIO.out_w1ts = MASK; else GPIO.out1_w1ts.val = MASK; }
-    inline static void lo() __attribute__ ((always_inline)) { if (PIN < 32) GPIO.out_w1tc = MASK; else GPIO.out1_w1tc.val = MASK; }
-    inline static bool get() __attribute__ ((always_inline)) { if (PIN < 32) return GPIO.in & MASK; else return GPIO.in1.data & MASK; }
-    inline static bool isset() __attribute__ ((always_inline)) { if (PIN < 32) return GPIO.out & MASK; else return GPIO.out1.val & MASK; }
+    __attribute__ ((always_inline)) inline static void enableOutput()  { if (PIN < 32) { GPIO.enable_w1ts = MASK; } else { GPIO.enable1_w1ts.val = MASK; } }
+    __attribute__ ((always_inline)) inline static void disableOutput() { if (PIN < 32) { GPIO.enable_w1tc = MASK; } else { GPIO.enable1_w1tc.val = MASK; } }
+    __attribute__ ((always_inline)) inline static void hi()    { if (PIN < 32) GPIO.out_w1ts = MASK; else GPIO.out1_w1ts.val = MASK; }
+    __attribute__ ((always_inline)) inline static void lo()    { if (PIN < 32) GPIO.out_w1tc = MASK; else GPIO.out1_w1tc.val = MASK; }
+    __attribute__ ((always_inline)) inline static bool get()   { if (PIN < 32) return GPIO.in  & MASK; else return GPIO.in1.data & MASK; }
+    __attribute__ ((always_inline)) inline static bool isset() { if (PIN < 32) return GPIO.out & MASK; else return GPIO.out1.val & MASK; }
   };
   struct ESP32NOPIN {
   public:
-    inline static void init(gpio_mode_t mode = GPIO_MODE_OUTPUT) __attribute__ ((always_inline)) {}
-    inline static void enableInput() __attribute__ ((always_inline)) {}
-    inline static void enableOutput() __attribute__ ((always_inline)) {}
-    inline static void disableOutput() __attribute__ ((always_inline)) {}
-    inline static void hi() __attribute__ ((always_inline)) {}
-    inline static void lo() __attribute__ ((always_inline)) {}
-    inline static bool get() __attribute__ ((always_inline)) { return false; }
-    inline static bool isset() __attribute__ ((always_inline)) { return false; }
+    __attribute__ ((always_inline)) inline static void init(gpio_mode_t mode = GPIO_MODE_OUTPUT) {}
+    __attribute__ ((always_inline)) inline static void enableInput() {}
+    __attribute__ ((always_inline)) inline static void enableOutput() {}
+    __attribute__ ((always_inline)) inline static void disableOutput() {}
+    __attribute__ ((always_inline)) inline static void hi() {}
+    __attribute__ ((always_inline)) inline static void lo() {}
+    __attribute__ ((always_inline)) inline static bool get() { return false; }
+    __attribute__ ((always_inline)) inline static bool isset() { return false; }
   };
 
   template<int PIN>

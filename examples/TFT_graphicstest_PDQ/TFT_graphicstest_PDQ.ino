@@ -58,8 +58,6 @@
     static constexpr bool spi_half_duplex = true;
     lgfx::Panel_M5Stack panel;
   };
-  static LGFX<LGFX_Config> tft;
-
 #elif defined(ARDUINO_M5Stick_C) // M5Stick C
   struct LGFX_Config {
     static constexpr spi_host_device_t spi_host = VSPI_HOST;
@@ -75,8 +73,6 @@
     static constexpr bool spi_half_duplex = true;
     lgfx::Panel_ST7735_GREENTAB160x80 panel;
   };
-  static LGFX<LGFX_Config> tft;
-
 #elif defined ( ARDUINO_ESP32_DEV ) // ESP-WROVER-KIT
   struct LGFX_Config {
     static constexpr spi_host_device_t spi_host = VSPI_HOST;
@@ -93,8 +89,6 @@
     static constexpr bool spi_half_duplex = false;
     lgfx::Panel_ILI9341_240x320 panel;
   };
-  static LGFX<LGFX_Config> tft;
-
 #elif defined(ARDUINO_ODROID_ESP32) // ODROID-GO
   struct LGFX_Config {
     static constexpr spi_host_device_t spi_host = VSPI_HOST;
@@ -111,8 +105,6 @@
     static constexpr bool spi_half_duplex = true;
     lgfx::Panel_ILI9341_240x320 panel;
   };
-  static LGFX<LGFX_Config> tft;
-
 #elif defined(ARDUINO_T) // TTGO T-Watch
   struct LGFX_Config {
     static constexpr spi_host_device_t spi_host = VSPI_HOST;
@@ -129,8 +121,6 @@
     static constexpr bool spi_half_duplex = true;
     lgfx::Panel_ST7789_240x240 panel;
   };
-  static LGFX<LGFX_Config> tft;
-
 #elif !defined(ESP32) & defined(ARDUINO) // Arduino UNO
   struct LGFX_Config
   {
@@ -151,10 +141,23 @@
 
 #endif
 
+static LGFX<LGFX_Config> tft;
 
 unsigned long total = 0;
 unsigned long tn = 0;
 void setup() {
+
+  bool lcdver = false;
+#if defined(ARDUINO_M5Stack_Core_ESP32) || defined(ARDUINO_M5STACK_FIRE)
+  pinMode(LGFX_Config::panel_rst, INPUT);
+  delay(100);
+  lcdver = digitalRead(LGFX_Config::panel_rst);
+  pinMode(LGFX_Config::panel_rst, OUTPUT);
+  digitalWrite(LGFX_Config::panel_rst, HIGH);
+#elif defined(ARDUINO_M5Stick_C) || defined ( ARDUINO_T )
+  lcdver = true;
+#endif
+
   Serial.begin(115200);
   while (!Serial);
   Serial.println(""); Serial.println("");
@@ -166,23 +169,18 @@ Serial.printf("LovyanGFX mosi:%d  miso:%d  sclk:%d  cs:%d  dc:%d  rst:%d \r\n", 
 #if defined(ARDUINO_M5Stick_C)
   AXP192 axp;
   axp.begin();
-#endif
-  bool lcdver = false;
-#if defined(ARDUINO_M5Stack_Core_ESP32) || defined(ARDUINO_M5STACK_FIRE) || defined ( ARDUINO_ESP32_DEV ) || defined ( ARDUINO_T )
+#elif defined(ARDUINO_M5Stack_Core_ESP32) || defined(ARDUINO_M5STACK_FIRE) || defined ( ARDUINO_ESP32_DEV ) || defined ( ARDUINO_T )
   const int BLK_PWM_CHANNEL = 7;
   ledcSetup(BLK_PWM_CHANNEL, 12000, 8);
   ledcAttachPin(LGFX_Config::panel_bl, BLK_PWM_CHANNEL);
   ledcWrite(BLK_PWM_CHANNEL, 128);
-  pinMode(LGFX_Config::panel_rst, INPUT);
-  lcdver = digitalRead(LGFX_Config::panel_rst);
 #endif
   tft.setRotation(0);
+
   tft.invertDisplay(lcdver);
-#if defined(ARDUINO_M5Stick_C) || defined ( ARDUINO_T )
-  tft.invertDisplay(true);
-#endif
 
   tft.setColorDepth(16);
+  //tft.setColorDepth(24);
 
 }
 

@@ -29,9 +29,9 @@ struct LGFX_CONFIG_SAMPLE
 namespace lgfx
 {
   #define MEMBER_DETECTOR(member, classname, classname_impl, valuetype) struct classname_impl { \
-  template<typename T, valuetype V> static constexpr std::integral_constant<valuetype, T::member> check(decltype(T::member)*); \
-  template<typename T, valuetype V> static constexpr std::integral_constant<valuetype, V> check(...); \
-  };template<typename T, valuetype V> class classname : public decltype(classname_impl::check<T, V>(nullptr)) {};
+  template<class T, valuetype V> static constexpr std::integral_constant<valuetype, T::member> check(decltype(T::member)*); \
+  template<class T, valuetype V> static constexpr std::integral_constant<valuetype, V> check(...); \
+  };template<class T, valuetype V> class classname : public decltype(classname_impl::check<T, V>(nullptr)) {};
   MEMBER_DETECTOR(freq_fill, get_freq_fill, get_freq_fill_impl, int)
   MEMBER_DETECTOR(freq_read, get_freq_read, get_freq_read_impl, int)
   MEMBER_DETECTOR(freq_write,get_freq_write,get_freq_write_impl,int)
@@ -49,11 +49,19 @@ namespace lgfx
   MEMBER_DETECTOR(rotation,  get_rotation,  get_rotation_impl,  uint8_t)
   #undef MEMBER_DETECTOR
 
-  template <typename CFG>
+  template <class CFG>
   class Esp32Spi
   {
   public:
-    inline uint32_t getColorFromRGB(uint8_t r, uint8_t g, uint8_t b) { return (_bpp == 16) ? color565(r,g,b) : color888(r,g,b); }
+#define TYPECHECK(dType) template < typename tType, typename std::enable_if < (sizeof(tType) == sizeof(dType)) && (std::is_signed<tType>::value == std::is_signed<dType>::value), std::nullptr_t >::type=nullptr >
+    TYPECHECK(uint8_t ) __attribute__ ((always_inline)) inline dev_color_t getDevColor(tType c) { return getDevColor(*(rgb332_t*)&c); }
+    TYPECHECK(uint16_t) __attribute__ ((always_inline)) inline dev_color_t getDevColor(tType c) { return getDevColor(*(rgb565_t*)&c); }
+    TYPECHECK(uint32_t) __attribute__ ((always_inline)) inline dev_color_t getDevColor(tType c) { return getDevColor(*(rgb888_t*)&c); }
+    TYPECHECK(int     ) __attribute__ ((always_inline)) inline dev_color_t getDevColor(tType c) { return getDevColor(*(rgb565_t*)&c); }
+#undef TYPECHECK
+    __attribute__ ((always_inline)) inline dev_color_t getDevColor(const rgb888_t& c) { return (_bpp == 16) ? swap565( c.r, c.g, c.b) : (c.r | c.g<<8 | c.b<<16); }
+    __attribute__ ((always_inline)) inline dev_color_t getDevColor(const rgb565_t& c) { return (_bpp == 16) ? (c.raw << 8 | c.raw >> 8) : (c.R8() | (c.G8()<<8) | (c.B8()<<16)); }
+    __attribute__ ((always_inline)) inline dev_color_t getDevColor(const rgb332_t& c) { return (_bpp == 16) ? swap565(c.R8(), c.G8(), c.B8()) : swap888(c.R8(), c.G8(), c.B8()); }
 
     Esp32Spi() {
       _panel = &_cfg.panel;
@@ -63,6 +71,8 @@ namespace lgfx
       _rotation = get_rotation<CFG,    0>::value;
     }
 
+    virtual ~Esp32Spi() {}
+
     static void setPanel(const PanelLcdCommon* panel)
     {
       _panel = panel;
@@ -71,7 +81,7 @@ namespace lgfx
       _panel_len_command = panel->len_command;
     }
 
-    inline static void init(void)
+    static void init(void)
     {
       init_bus();
 
@@ -171,12 +181,12 @@ namespace lgfx
       _fillmode = false;
       *_spi_miso_dlen_reg = 0;
       *_spi_clock_reg = _clkdiv_write;
-      *reg(SPI_USER_REG(_spi_port)) &= ~(SPI_USR_MISO | SPI_DOUTDIN);
+      _user_reg = *_spi_user_reg & ~(SPI_USR_MISO | SPI_DOUTDIN);
       {//spiSetDataMode(spi, dataMode);
         if (_spi_mode == 1 || _spi_mode == 2) {
-          *reg(SPI_USER_REG(_spi_port)) |= SPI_CK_OUT_EDGE;
+          _user_reg |= SPI_CK_OUT_EDGE;
         } else {
-          *reg(SPI_USER_REG(_spi_port)) &= ~SPI_CK_OUT_EDGE;
+          _user_reg &= ~SPI_CK_OUT_EDGE;
         }
         if (_spi_mode == 2 || _spi_mode == 3) {
           *reg(SPI_PIN_REG(_spi_port)) |= SPI_CK_IDLE_EDGE;
@@ -184,6 +194,7 @@ namespace lgfx
           *reg(SPI_PIN_REG(_spi_port)) &= ~SPI_CK_IDLE_EDGE;
         }
       }
+      *_spi_user_reg = _user_reg;
       // MSB first
       *reg(SPI_CTRL_REG(_spi_port)) &= ~(SPI_WR_BIT_ORDER | SPI_RD_BIT_ORDER);
     }
@@ -191,7 +202,7 @@ namespace lgfx
     static void endTransaction(void) {
       wait_spi();
       TPin<_spi_cs>::hi();
-      *reg(SPI_USER_REG(_spi_port)) |= SPI_USR_MISO | SPI_DOUTDIN;
+      *_spi_user_reg = _user_reg | SPI_USR_MISO | SPI_DOUTDIN;
     }
 
     inline static uint16_t width(void) { return _width; }
@@ -270,19 +281,6 @@ namespace lgfx
       write_cmd(_panel->cmd_ramwr);
     }
 
-    static void fillWindow(int32_t xs, int32_t ys, int32_t xe, int32_t ye, uint32_t color)
-    {
-      set_window(xs, ys, xe, ye);
-      if (_freq_write != _freq_fill && !_fillmode) {
-        _fillmode = true;
-        wait_spi();
-        set_clock_fill();
-      }
-      write_cmd(_panel->cmd_ramwr);
-      if (xs == xe && ys == ye) writeColor(color);
-      else writeColor(color, (xe-xs+1) * (ye-ys+1));
-    }
-
     static void readWindow(int32_t xs, int32_t ys, int32_t xe, int32_t ye)
     {
       set_window(xs, ys, xe, ye);
@@ -293,7 +291,7 @@ namespace lgfx
     }
 
     static void startRead() {
-      *reg(SPI_USER_REG(_spi_port)) |= SPI_USR_MISO | SPI_DOUTDIN;
+      *_spi_user_reg = _user_reg | SPI_USR_MISO | SPI_DOUTDIN;
       wait_spi();
       set_clock_read();
       TPin<_spi_dc>::hi();
@@ -307,7 +305,7 @@ namespace lgfx
     static void endRead() {
       TPin<_spi_cs>::hi();
       set_clock_write();
-      *reg(SPI_USER_REG(_spi_port)) &= ~(SPI_USR_MISO | SPI_DOUTDIN);
+      *_spi_user_reg = _user_reg;
       if (_spi_half_duplex) {
         if (_spi_miso >= 0) {
           pinMatrixInAttach(_spi_miso, (_spi_host == HSPI_HOST) ? HSPIQ_OUT_IDX : VSPIQ_OUT_IDX, false);
@@ -319,235 +317,132 @@ namespace lgfx
       TPin<_spi_cs>::lo();
     }
 
-    inline static void writeColor(uint32_t color)
+    static void fillWindow(int32_t xs, int32_t ys, int32_t xe, int32_t ye, const dev_color_t& color)
     {
-      write_data( (_bpp == 16)
-                ? _panel->getWriteColor16(color) 
-                : _panel->getWriteColor24(color), _bpp);
+      set_window(xs, ys, xe, ye);
+      if (_freq_write != _freq_fill && !_fillmode) {
+        _fillmode = true;
+        wait_spi();
+        set_clock_fill();
+      }
+      write_cmd(_panel->cmd_ramwr);
+      writeColor(color, (xe-xs+1) * (ye-ys+1));
     }
 
-    static void writeColor(uint32_t color, uint32_t length)
+    static void writeColor(const dev_color_t& color, uint32_t length = 1)
     {
-      uint32_t buf[3];
-      const uint16_t limit = (_bpp == 16) ? 32 : 21; // limit = 512 / bpp;
-      uint16_t len = length % limit;
-      if (!len) len = limit;
-      uint8_t ie;
+      if (length == 1) { write_data(color.raw, _bpp); return; }
+
+      uint32_t len;
       if (_bpp == 16) {
-        buf[0] = _panel->getWriteColor16(color);
-        buf[2] = buf[1] = buf[0] |= buf[0]<<16;
-        ie = (len + 1) >> 1;
-      } else {
-        buf[0] = _panel->getWriteColor24(color);
-        uint8_t* dst = ((uint8_t*)buf) + 3;
-        *(uint32_t*)dst = buf[0]; dst += 3;
-        *(uint32_t*)dst = buf[0]; dst += 3;
-        *(uint32_t*)dst = buf[0];
-        ie = (len + 1) * 3 >> 2;
+        _regbuf[0] = color.raw | color.raw << 16;
+        memcpy(&_regbuf[1], _regbuf, 4);
+        memcpy(&_regbuf[2], _regbuf, 4);
+        len = 6;
+      } else { // _bpp == 24
+        _regbuf[0] = color.raw;
+        memcpy(&((uint8_t*)_regbuf)[3], _regbuf, 3);
+        memcpy(&((uint8_t*)_regbuf)[6], _regbuf, 6);
+        len = 4;
+      }
+
+      if (length < len) len = length;
+      wait_spi();
+      set_len(len * _bpp);
+      TPin<_spi_dc>::hi();
+      memcpy((void*)_spi_w0_reg, _regbuf, 12);
+      exec_spi();
+      if (0 == (length -= len)) return;
+
+      memcpy((void*)&_regbuf[ 3], _regbuf, 12);
+      memcpy((void*)&_regbuf[ 6], _regbuf,  4);
+      memcpy((void*)&_spi_w0_reg[ 3], _regbuf, 24);
+      memcpy((void*)&_spi_w0_reg[ 9], _regbuf, 28);
+
+      const uint32_t limit = (_bpp == 16) ? 32 : 21; // limit = 512 / bpp;
+      len = length % limit;
+      if (len) {
+        wait_spi();
+        set_len(len * _bpp);
+        exec_spi();
+        if (0 == (length -= len)) return;
       }
       wait_spi();
-
-//    for (uint8_t i = 0;i!=ie;i++) { _spi_w0_reg[i] = buf[i%3]; }
-      for (auto dst = _spi_w0_reg, end = &_spi_w0_reg[ie];;) {
-        *dst++ = buf[0]; if (dst == end) break;
-        *dst++ = buf[1]; if (dst == end) break;
-        *dst++ = buf[2]; if (dst == end) break;
-        *dst++ = buf[0]; if (dst == end) break;
-        *dst++ = buf[1]; if (dst == end) break;
-        *dst++ = buf[2]; if (dst == end) break;
+      set_len(limit * _bpp);
+      exec_spi();
+      while (length -= limit) {
+        wait_spi();
+        exec_spi();
       }
+    }
+
+    __attribute__ ((always_inline)) inline static void writePixels(const rgb332_t*   src, uint32_t length) { writePixelsTemplate(src, length); }
+    __attribute__ ((always_inline)) inline static void writePixels(const rgb565_t*   src, uint32_t length) { writePixelsTemplate(src, length); }
+    __attribute__ ((always_inline)) inline static void writePixels(const rgb888_t*   src, uint32_t length) { writePixelsTemplate(src, length); }
+    __attribute__ ((always_inline)) inline static void writePixels(const argb8888_t* src, uint32_t length) { writePixelsTemplate(src, length); }
+
+    __attribute__ ((always_inline)) inline static void writePixels(const swap565_t*  src, uint32_t length)
+    {
+      if      (_bpp == 16) { writeBytes((const uint8_t*)src, length * 2); }
+      else if (_bpp == 24) { write_pixels<swap888_t>(src, length); }
+    }
+
+    __attribute__ ((always_inline)) inline static void writePixels(const swap888_t* src, uint32_t length)
+    {
+      if      (_bpp == 16) { write_pixels<swap565_t>(src, length); }
+      else if (_bpp == 24) { writeBytes((const uint8_t*)src, length * 3); }
+    }
+
+    // need data size = length ( no use bpp )
+    static void writeBytes(const uint8_t* data, uint32_t length)
+    {
+      if (!length) return;
+      constexpr uint32_t limit = 32;
+      uint32_t len = ((length - 1) & 0x1F) + 1;
+      uint8_t highpart = ((length - 1) & limit) >> 2; // 8 or 0
+
+      wait_spi();
       TPin<_spi_dc>::hi();
-      set_len(len * _bpp);
+      set_len(len << 3);
+      memcpy((void*)&_spi_w0_reg[highpart], data, (len + 3) & 0xFC);
+      if (highpart) *_spi_user_reg = _user_reg | SPI_USR_MOSI_HIGHPART;
       exec_spi();
       if (0 == (length -= len)) return;
 
       if (len != limit) {
-        if (ie != 16) {
-          for (uint8_t i = 15;;) {
-            _spi_w0_reg[i] = buf[0]; if (i-- == ie) break;
-            _spi_w0_reg[i] = buf[2]; if (i-- == ie) break;
-            _spi_w0_reg[i] = buf[1]; if (i-- == ie) break;
-          }
-        }
+        memcpy((void*)&_spi_w0_reg[highpart ^= 0x08], data += len, limit);
+        uint32_t user = _user_reg;
+        if (highpart) user |= SPI_USR_MOSI_HIGHPART;
         wait_spi();
-        set_len(limit * _bpp);
+        *_spi_user_reg = user;
+        set_len(limit << 3);
         exec_spi();
         length -= limit;
       }
-
       for (; length; length -= limit) {
+        memcpy((void*)&_spi_w0_reg[highpart ^= 0x08], data += limit, limit);
+        uint32_t user = _user_reg;
+        if (highpart) user |= SPI_USR_MOSI_HIGHPART;
         wait_spi();
+        *_spi_user_reg = user;
         exec_spi();
       }
     }
 
-    // need data size = length * (24bpp=3 : 16bpp=2)
-    static void writePixels(const void* src, uint32_t length, bool swapBytes)
-    {
-      if (!length) return;
-      if (_bpp == 16) {
-        if (swapBytes) {
-          write_pixels(src, length, copy_from_userbuf_template<swap565_t, rgb565_t>);
-        } else {
-          writeBytes(src, length * 2);
-//        write_pixels(src, length, copy_from_userbuf_template<swap565_t, swap565_t>);
-        }
-      } else if (_bpp == 24) {
-        if (swapBytes) {
-          write_pixels(src, length, copy_from_userbuf_template<swap888_t, rgb888_t>);
-        } else {
-          writeBytes(src, length * 3);
-//        write_pixels(src, length, copy_from_userbuf_template<swap888_t, swap888_t>);
-        }
-      }
-    }
-
-    template<typename T>
-    static void writePixels(const T* src, uint32_t length)
-    {
-      if (!length) return;
-      if (     _bpp == 16) { write_pixels(src, length, copy_from_userbuf_template<swap565_t, T>); }
-      else if (_bpp == 24) { write_pixels(src, length, copy_from_userbuf_template<swap888_t, T>); }
-    }
-/*
-    // need data size = length * (24bpp=3 : 16bpp=2)
-    static void writePixels(const void* src, uint32_t length)
-    {
-      const uint8_t* data = (uint8_t*)src;
-      uint8_t* dst = (uint8_t*)_regbuf;
-      const uint32_t step = _bpp >> 3;
-      const uint16_t limit = (_bpp == 16) ? 32 : 21; // limit = 512 / bpp;
-      uint16_t len = length % limit;
-      if (!len) len = limit;
-
-      uint16_t ie;
-      if (_bpp == 16) {
-        ie = (len + 1) >> 1;
-        for (uint16_t i = 0; i < len; i++) {
-          *(uint16_t*)dst = _panel->getWriteColor16(*(const uint32_t*)data);
-          dst += step;
-          data += step;
-        }
-      } else {
-        ie = (len + 1) * 3 >> 2;
-        for (uint16_t i = 0; i < len; i++) {
-          *(uint32_t*)dst = _panel->getWriteColor24(*(const uint32_t*)data);
-          dst += step;
-          data += step;
-        }
-      }
-      wait_spi();
-      TPin<_spi_dc>::hi();
-      for (uint16_t i = 0; i < ie; i++) _spi_w0_reg[i] = _regbuf[i];
-      set_len(len * _bpp);
-      exec_spi();
-      for (length -= len; length; length -= limit) {
-        dst = (uint8_t*)_regbuf;
-        if (_bpp == 16) {
-          for (uint16_t i = 0; i < limit; i++) {
-            *(uint16_t*)dst = _panel->getWriteColor16(*(const uint32_t*)data);
-            dst += step;
-            data += step;
-          }
-        } else {
-          for (uint16_t i = 0; i < limit; i++) {
-            *(uint32_t*)dst = _panel->getWriteColor24(*(const uint32_t*)data);
-            dst += step;
-            data += step;
-          }
-        }
-        wait_spi();
-        for (uint16_t i = 0; i < 16; i++) _spi_w0_reg[i] = _regbuf[i];
-        set_len(limit * _bpp);
-        exec_spi();
-      }
-    }
-*/
-    // need data size = length ( no use bpp )
-    static void writeBytes(const uint8_t* data, uint32_t length)
-    {
-      const uint32_t* data32 = (const uint32_t*)data;
-      const uint16_t limit = 32;
-      uint16_t len = length % limit;
-      if (!len) len = limit;
-      uint16_t ie = (len+3)>>2;
-      uint8_t highpart = ((length - 1) & 0x20) ? 8 : 0;
-      wait_spi();
-      TPin<_spi_dc>::hi();
-      for (uint16_t i = 0; i < ie; i++) _spi_w0_reg[i+highpart] = *data32++;
-      set_len(len << 3);
-      if (highpart) *reg(SPI_USER_REG(_spi_port)) |= SPI_USR_MOSI_HIGHPART;
-      exec_spi();
-      if (0 == (length -= len)) return;
-
-      data32 = (const uint32_t*)(data + len);
-      highpart = 0x08 ^ highpart;
-      for (uint8_t i = 0; i < 8; i++) _spi_w0_reg[i+highpart] = *data32++;
-      wait_spi();
-      if (highpart) *reg(SPI_USER_REG(_spi_port)) |= SPI_USR_MOSI_HIGHPART;
-      else          *reg(SPI_USER_REG(_spi_port)) &= ~SPI_USR_MOSI_HIGHPART;
-      set_len(limit << 3);
-      exec_spi();
-
-      for (length -= limit; length; length -= limit) {
-        highpart = 0x08 ^ highpart;
-        for (uint8_t i = 0; i < 8; i++) _spi_w0_reg[i+highpart] = *data32++;
-        wait_spi();
-        if (highpart) *reg(SPI_USER_REG(_spi_port)) |= SPI_USR_MOSI_HIGHPART;
-        else          *reg(SPI_USER_REG(_spi_port)) &= ~SPI_USR_MOSI_HIGHPART;
-        exec_spi();
-      }
-    }
-
-    static uint32_t readPixel(void)
+    static rgb565_t readPixel(void)
     {
       wait_spi();
-      return (_bpp == 16) ? _panel->getColor16FromRead(read_data(_panel->len_read_pixel))
-                          : _panel->getColor24FromRead(read_data(_panel->len_read_pixel));
+      if (_panel->len_read_pixel == 24) return swap888_t(read_data(24));
     }
 
-    static void readPixels(void* buf, uint32_t length, bool swapBytes)
-    {
-      if (!length) return;
-      if (_bpp == 16) {
-        read_pixels(buf, length, swapBytes ? copy_to_userbuf_template<rgb565_t, swap888_t>
-                                           : copy_to_userbuf_template<swap565_t, swap888_t>);
-      } else if (_bpp == 24) {
-        read_pixels(buf, length, swapBytes ? copy_to_userbuf_template<rgb888_t, swap888_t>
-                                           : copy_to_userbuf_template<swap888_t, swap888_t>);
-      }
-    }
-    template<typename T>
-    static void readPixels(T* buf, uint32_t length)
-    {
-      if (!length) return;
-      if (     _bpp == 16) { read_pixels(buf, length, copy_to_userbuf_template<T, swap888_t>); }
-      else if (_bpp == 24) { read_pixels(buf, length, copy_to_userbuf_template<T, swap888_t>); }
-    }
+    __attribute__ ((always_inline)) inline static void readPixels(rgb332_t*   buf, uint32_t length) { readPixelsTemplate(buf, length); }
+    __attribute__ ((always_inline)) inline static void readPixels(rgb565_t*   buf, uint32_t length) { readPixelsTemplate(buf, length); }
+    __attribute__ ((always_inline)) inline static void readPixels(rgb888_t*   buf, uint32_t length) { readPixelsTemplate(buf, length); }
+    __attribute__ ((always_inline)) inline static void readPixels(swap565_t*  buf, uint32_t length) { readPixelsTemplate(buf, length); }
+    __attribute__ ((always_inline)) inline static void readPixels(swap888_t*  buf, uint32_t length) { readPixelsTemplate(buf, length); }
+    __attribute__ ((always_inline)) inline static void readPixels(argb8888_t* buf, uint32_t length) { readPixelsTemplate(buf, length); }
 
-/*
-    static void readBytes(uint32_t length, uint8_t* buf)
-    {
-      if (!length) return;
-      set_len(32);  // 4Byte
-      exec_spi();
-      uint32_t* buf32 = (uint32_t*)buf;
-      while (4 <= length) {
-        length -= 4;
-        wait_spi();
-        if (length) exec_spi();
-        *buf32++ = *_spi_w0_reg;
-      }
-      if (length) {
-        buf = (uint8_t*)buf32;
-        uint8_t tmp[4];
-        uint8_t* t = tmp;
-        wait_spi();
-        *(uint32_t*)tmp = *_spi_w0_reg;
-        while (length--) *buf++ = *t++;
-      }
-    }
-//*/
+
 //----------------------------------------------------------------------------
   private:
 
@@ -571,7 +466,7 @@ namespace lgfx
       }
     }
 
-    inline static void write_cmd(uint32_t cmd) __attribute__ ((always_inline))
+    inline static void write_cmd(uint32_t cmd)
     {
       wait_spi();
       *_spi_w0_reg = cmd;
@@ -580,7 +475,7 @@ namespace lgfx
       exec_spi();
     }
 
-    inline static void write_data(uint32_t data, uint32_t length) __attribute__ ((always_inline))
+    inline static void write_data(uint32_t data, uint32_t length)
     {
       wait_spi();
       *_spi_w0_reg = data;
@@ -589,7 +484,7 @@ namespace lgfx
       exec_spi();
     }
 
-    inline static uint32_t read_data(uint16_t length) __attribute__ ((always_inline))
+    inline static uint32_t read_data(uint16_t length)
     {
       set_len(length);
       exec_spi();
@@ -597,94 +492,104 @@ namespace lgfx
       return *_spi_w0_reg;
     }
 
-    template <typename TDst, typename TSrc>
-    static void* copy_from_userbuf_template(void* dst, const void* src, uint16_t len) {
-      auto s = (TSrc*)src;
-      auto d = (TDst*)dst;
-      while (len--) { *d++ = *s++; }
-      return s;
-    }
-    static void write_pixels(const void* src, uint32_t length, void*(*copy_from_userbuf)(void* dst, const void*, uint16_t))
+    template<class T>
+    __attribute__ ((always_inline)) inline static void writePixelsTemplate(const T* src, uint32_t length)
     {
-      uint32_t buf[8];
-      const uint16_t limit = (_bpp == 16) ? 16 : 10; // (32/_bpp) The upper limit that can be sent at once (24bpp=10pixel / 16bpp=16pixel)
-      uint16_t len = length % limit; // Calculate fraction
-      if (!len) len = limit;
-      uint8_t highpart = ((length - 1) / limit) & 1 ? 8 : 0;
-      src = copy_from_userbuf(buf, src, len);
+      if (     _bpp == 16) { write_pixels<swap565_t>(src, length); }
+      else if (_bpp == 24) { write_pixels<swap888_t>(src, length); }
+    }
+    template <class TDst, class TSrc>
+    static void write_pixels(const TSrc* src, uint32_t length)
+    {
+      if (!length) return;
+      constexpr uint32_t limit = (sizeof(TDst) == 2) ? 16 : 10;
+      uint32_t len = (length - 1) / limit;
+      uint8_t highpart = (len & 1) << 3;
+      len = length - (len * limit);
+      auto dst = (TDst*)_regbuf;
+      for (uint32_t i = 0; i < len; i++) { *dst++ = *src++; }
       wait_spi();
       TPin<_spi_dc>::hi();
-      for (uint16_t i = 0; i < ((len * _bpp + 31) >> 5); i++) { _spi_w0_reg[highpart+i] = buf[i]; }
-      set_len(len * _bpp);
-      if (highpart) *reg(SPI_USER_REG(_spi_port)) |= SPI_USR_MOSI_HIGHPART;
+      set_len(len * sizeof(TDst) << 3);
+      memcpy((void*)&_spi_w0_reg[highpart], _regbuf, (len * sizeof(TDst) + 3) & 0xFC);
+      if (highpart) *_spi_user_reg = _user_reg | SPI_USR_MOSI_HIGHPART;
       exec_spi();
       if (0 == (length -= len)) return;
 
-      highpart = 0x08 ^ highpart;
-      src = copy_from_userbuf(buf, src, limit);
-      for (uint8_t i = 0; i < 8; i++) { _spi_w0_reg[highpart+i] = buf[i]; }
-      wait_spi();
-      if (highpart) *reg(SPI_USER_REG(_spi_port)) |= SPI_USR_MOSI_HIGHPART;
-      else          *reg(SPI_USER_REG(_spi_port)) &= ~SPI_USR_MOSI_HIGHPART;
-      set_len(limit * _bpp);
-      exec_spi();
-
-      for (length -= limit; length; length -= limit) {
-        highpart = 0x08 ^ highpart;
-        src = copy_from_userbuf(buf, src, limit);
-        for (uint8_t i = 0; i < 8; i++) { _spi_w0_reg[highpart+i] = buf[i]; }
-        wait_spi();
-        if (highpart) *reg(SPI_USER_REG(_spi_port)) |= SPI_USR_MOSI_HIGHPART;
-        else          *reg(SPI_USER_REG(_spi_port)) &= ~SPI_USR_MOSI_HIGHPART;
-        exec_spi();
+      for (; length; length -= limit) {
+        dst = (TDst*)_regbuf;
+        for (uint32_t i = 0; i < limit; i++) { *dst++ = *src++; }
+        memcpy((void*)&_spi_w0_reg[highpart ^= 0x08], _regbuf, limit * sizeof(TDst));
+        uint32_t user = _user_reg;
+        if (highpart) user |= SPI_USR_MOSI_HIGHPART;
+        if (len != limit) {
+          wait_spi();
+          set_len(limit * sizeof(TDst) << 3);
+          *_spi_user_reg = user;
+          exec_spi();
+          len = limit;
+        } else {
+          wait_spi();
+          *_spi_user_reg = user;
+          exec_spi();
+        }
       }
     }
 
-    template <typename TDst, typename TSrc>
-    static void* copy_to_userbuf_template(void* dst, const void* src, uint16_t len) {
-      auto s = (TSrc*)src;
+    template<class T>
+    __attribute__ ((always_inline)) inline static void readPixelsTemplate(T* buf, uint32_t length)
+    {
+      if (_panel->len_read_pixel == 24) {
+        read_pixels(buf, length, copy_to_userbuf_template<T, swap888_t>);
+      }
+    }
+
+    template <class TDst, class TSrc>
+    static void* copy_to_userbuf_template(void* dst, uint32_t len) {
+      auto s = (TSrc*)_regbuf;
       auto d = (TDst*)dst;
       while (len--) { *d++ = *s++; }
       return d;
     }
-    static void read_pixels(void* dst, uint32_t length, void*(*copy_to_userbuf)(void*, const void* src, uint16_t))
+    static void read_pixels(void* dst, uint32_t length, void*(*copy_to_userbuf)(void*, uint32_t))
     {
-      uint32_t buf[3];
+      if (!length) return;
+      uint32_t len(length & 7);
+      length >>= 3;
       wait_spi();
-      uint16_t len(length & 3); // Calculate fraction
       if (len) {
         set_len(_panel->len_read_pixel * len);
         exec_spi();
-        length -= len;
         wait_spi();
-        buf[0] = _spi_w0_reg[0];
-        buf[1] = _spi_w0_reg[1];
-        buf[2] = _spi_w0_reg[2];
-      }
-      if (length) {
-        set_len(_panel->len_read_pixel * 4); // 4pixel read
+        memcpy(_regbuf, (void*)_spi_w0_reg, 3 * len);
+        if (length) {
+          set_len(_panel->len_read_pixel << 3); // 8pixel read
+          exec_spi();
+        }
+        dst = copy_to_userbuf(dst, len);
+        if (!length) { return; }
+      } else {
+        set_len(_panel->len_read_pixel << 3); // 8pixel read
         exec_spi();
       }
-      if (len) {
-        dst = copy_to_userbuf(dst, buf, len);
-      }
-      while (length) {
+      while (--length) {
         wait_spi();
-        buf[0] = _spi_w0_reg[0];
-        buf[1] = _spi_w0_reg[1];
-        buf[2] = _spi_w0_reg[2];
-        if (length -= 4) exec_spi();
-        dst = copy_to_userbuf(dst, buf, 4);
+        memcpy(_regbuf, (void*)_spi_w0_reg, 24);
+        exec_spi();
+        dst = copy_to_userbuf(dst, 8);
       }
+      wait_spi();
+      memcpy(_regbuf, (void*)_spi_w0_reg, 24);
+      copy_to_userbuf(dst, 8);
     }
 
-    inline static volatile uint32_t* reg(uint32_t addr) { return (volatile uint32_t *)ETS_UNCACHED_ADDR(addr); }
-    inline static void set_clock_write(void) { *_spi_clock_reg = _clkdiv_write; }
-    inline static void set_clock_read(void)  { *_spi_clock_reg = _clkdiv_read;  }
-    inline static void set_clock_fill(void)  { *_spi_clock_reg = _clkdiv_fill;  }
-    inline static void exec_spi(void) { *_spi_cmd_reg |= SPI_USR; }
-    inline static void wait_spi(void) { while (*_spi_cmd_reg & SPI_USR); }
-    inline static void set_len(uint32_t len) { *_spi_mosi_dlen_reg = len - 1; }
+    __attribute__ ((always_inline)) inline static volatile uint32_t* reg(uint32_t addr) { return (volatile uint32_t *)ETS_UNCACHED_ADDR(addr); }
+    __attribute__ ((always_inline)) inline static void set_clock_write(void) { *_spi_clock_reg = _clkdiv_write; }
+    __attribute__ ((always_inline)) inline static void set_clock_read(void)  { *_spi_clock_reg = _clkdiv_read;  }
+    __attribute__ ((always_inline)) inline static void set_clock_fill(void)  { *_spi_clock_reg = _clkdiv_fill;  }
+    __attribute__ ((always_inline)) inline static void exec_spi(void) { *_spi_cmd_reg = SPI_USR; }
+    __attribute__ ((always_inline)) inline static void wait_spi(void) { while (*_spi_cmd_reg & SPI_USR); }
+    __attribute__ ((always_inline)) inline static void set_len(uint32_t len) { *_spi_mosi_dlen_reg = len - 1; }
 
     static constexpr int _spi_mode = get_spi_mode<CFG,  0>::value;
     static constexpr int _spi_mosi = get_spi_mosi<CFG, 23>::value;
@@ -702,6 +607,7 @@ namespace lgfx
     static constexpr uint8_t _spi_port = (_spi_host == HSPI_HOST) ? 2 : 3;  // FSPI=1  HSPI=2  VSPI=3;
     static constexpr volatile uint32_t *_spi_w0_reg        = (volatile uint32_t *)ETS_UNCACHED_ADDR(SPI_W0_REG(_spi_port));
     static constexpr volatile uint32_t *_spi_cmd_reg       = (volatile uint32_t *)ETS_UNCACHED_ADDR(SPI_CMD_REG(_spi_port));
+    static constexpr volatile uint32_t *_spi_user_reg      = (volatile uint32_t *)ETS_UNCACHED_ADDR(SPI_USER_REG(_spi_port));
     static constexpr volatile uint32_t *_spi_clock_reg     = (volatile uint32_t *)ETS_UNCACHED_ADDR(SPI_CLOCK_REG(_spi_port));
     static constexpr volatile uint32_t *_spi_mosi_dlen_reg = (volatile uint32_t *)ETS_UNCACHED_ADDR(SPI_MOSI_DLEN_REG(_spi_port));
     static constexpr volatile uint32_t *_spi_miso_dlen_reg = (volatile uint32_t *)ETS_UNCACHED_ADDR(SPI_MISO_DLEN_REG(_spi_port));
@@ -730,30 +636,34 @@ namespace lgfx
     static uint32_t _clkdiv_read;
     static uint32_t _clkdiv_fill;
     static bool _fillmode;
+    static uint32_t _user_reg;
+    static uint32_t _regbuf[8];
   };
-  template <typename T> const T Esp32Spi<T>::_cfg;
-  template <typename T> const PanelLcdCommon* Esp32Spi<T>::_panel;
-  template <typename T> uint32_t Esp32Spi<T>::_panel_len_command;
-  template <typename T> uint32_t Esp32Spi<T>::_panel_cmd_caset;
-  template <typename T> uint32_t Esp32Spi<T>::_panel_cmd_raset;
-//template <typename T> uint8_t Esp32Spi<T>::_panel_len_read_pixel;
-//template <typename T> uint8_t Esp32Spi<T>::_panel_len_dummy_read_pixel;
-//template <typename T> uint8_t Esp32Spi<T>::_panel_len_dummy_read_rddid;
-  template <typename T> uint8_t Esp32Spi<T>::_bpp;
-  template <typename T> uint8_t Esp32Spi<T>::_invert;
-  template <typename T> uint8_t Esp32Spi<T>::_rotation;
-  template <typename T> int16_t Esp32Spi<T>::_width;
-  template <typename T> int16_t Esp32Spi<T>::_height;
-  template <typename T> uint16_t Esp32Spi<T>::_colstart;
-  template <typename T> uint16_t Esp32Spi<T>::_rowstart;
-  template <typename T> uint16_t Esp32Spi<T>::_last_xs;
-  template <typename T> uint16_t Esp32Spi<T>::_last_xe;
-  template <typename T> uint16_t Esp32Spi<T>::_last_ys;
-  template <typename T> uint16_t Esp32Spi<T>::_last_ye;
-  template <typename T> uint32_t Esp32Spi<T>::_last_apb_freq;
-  template <typename T> uint32_t Esp32Spi<T>::_clkdiv_write;
-  template <typename T> uint32_t Esp32Spi<T>::_clkdiv_read;
-  template <typename T> uint32_t Esp32Spi<T>::_clkdiv_fill;
-  template <typename T> bool Esp32Spi<T>::_fillmode;
+  template <class T> const T Esp32Spi<T>::_cfg;
+  template <class T> const PanelLcdCommon* Esp32Spi<T>::_panel;
+  template <class T> uint32_t Esp32Spi<T>::_panel_len_command;
+  template <class T> uint32_t Esp32Spi<T>::_panel_cmd_caset;
+  template <class T> uint32_t Esp32Spi<T>::_panel_cmd_raset;
+//template <class T> uint8_t Esp32Spi<T>::_panel_len_read_pixel;
+//template <class T> uint8_t Esp32Spi<T>::_panel_len_dummy_read_pixel;
+//template <class T> uint8_t Esp32Spi<T>::_panel_len_dummy_read_rddid;
+  template <class T> uint8_t Esp32Spi<T>::_bpp;
+  template <class T> uint8_t Esp32Spi<T>::_invert;
+  template <class T> uint8_t Esp32Spi<T>::_rotation;
+  template <class T> int16_t Esp32Spi<T>::_width;
+  template <class T> int16_t Esp32Spi<T>::_height;
+  template <class T> uint16_t Esp32Spi<T>::_colstart;
+  template <class T> uint16_t Esp32Spi<T>::_rowstart;
+  template <class T> uint16_t Esp32Spi<T>::_last_xs;
+  template <class T> uint16_t Esp32Spi<T>::_last_xe;
+  template <class T> uint16_t Esp32Spi<T>::_last_ys;
+  template <class T> uint16_t Esp32Spi<T>::_last_ye;
+  template <class T> uint32_t Esp32Spi<T>::_last_apb_freq;
+  template <class T> uint32_t Esp32Spi<T>::_clkdiv_write;
+  template <class T> uint32_t Esp32Spi<T>::_clkdiv_read;
+  template <class T> uint32_t Esp32Spi<T>::_clkdiv_fill;
+  template <class T> bool Esp32Spi<T>::_fillmode;
+  template <class T> uint32_t Esp32Spi<T>::_user_reg;
+  template <class T> uint32_t Esp32Spi<T>::_regbuf[];
 }
 #endif

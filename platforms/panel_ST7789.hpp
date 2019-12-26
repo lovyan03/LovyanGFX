@@ -13,7 +13,7 @@ namespace lgfx
       ram_height = 320;
       len_command = 8;
       len_read_pixel = 24;
-      len_dummy_read_pixel = 8;
+      len_dummy_read_pixel =16;
     }
 
     enum colmod_t

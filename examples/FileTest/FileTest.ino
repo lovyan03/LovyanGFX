@@ -1,7 +1,13 @@
 
 #include <SD.h>
-#include <LGFX_BmpSupport.hpp> // BMP機能追加
-#include <LovyanGFX.hpp>  // 機能追加includeより後に書く
+#include <LovyanGFX.hpp>
+
+/*
+#include <M5Stack.h>
+
+static M5Display &tft (M5.Lcd);
+static TFT_eSprite sprite(&tft);
+*/
 
 struct LGFX_Config
 {
@@ -25,29 +31,45 @@ static LGFXSprite sprite;
 
 void setup()
 {
+  bool lcdver = false;
+#if defined(ARDUINO_M5Stack_Core_ESP32) || defined(ARDUINO_M5STACK_FIRE)
+  pinMode(LGFX_Config::panel_rst, INPUT);
+  delay(100);
+  lcdver = digitalRead(LGFX_Config::panel_rst);
+#endif
 
+  Serial.begin(115200);
   SD.begin(4, SPI, 20000000);  // 4=TFCARD_CS_PIN
 
-  tft.invertDisplay(true);
-  tft.setRotation(1);
   tft.init();
+  tft.invertDisplay(lcdver);
+  tft.setRotation(1);
 
   const int BLK_PWM_CHANNEL = 7;
   ledcSetup(BLK_PWM_CHANNEL, 12000, 8);
   ledcAttachPin(LGFX_Config::panel_bl, BLK_PWM_CHANNEL);
   ledcWrite(BLK_PWM_CHANNEL, 128);
 
-  // sprite使う例
-  sprite.createSprite(100,100);
-  sprite.drawBmpFile(SD, "/test.bmp", 0, 0);
+// sprite使う例
+//  sprite.createSprite(100,100);
+//  sprite.drawBmpFile(SD, "/m5stack_24bpp.bmp", 0, 0);
 }
 
 void loop() {
-  tft.drawBmpFile(SD, "/test.bmp", random(-70,300), random(-70,200));
+  tft.setColorDepth( ( tft.getColorDepth()==24 ) ? 16 : 24);
+  tft.drawBmpFile(SD, "/m5stack_mono.bmp",      0,  10);
+  tft.drawBmpFile(SD, "/m5stack_16color.bmp", 110,  10);
+  tft.drawBmpFile(SD, "/m5stack_256color.bmp",220,  10);
+  tft.drawBmpFile(SD, "/m5stack_16bpp.bmp",     0, 130);
+  tft.drawBmpFile(SD, "/m5stack_24bpp.bmp",   110, 130);
+  tft.drawBmpFile(SD, "/m5stack_32bpp.bmp",   220, 130);
 }
+
+/*
 
   // sprite使う例
 void loop_sprite() {
   uint8_t* spbuf = sprite.getDevice()->buffer(); // (機能未実装のため暫定措置)
   tft.pushImage(random(-70, 300), random(-70, 200), 100, 100, spbuf);
 }
+*/

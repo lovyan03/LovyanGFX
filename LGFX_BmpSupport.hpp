@@ -2,17 +2,10 @@
 #define LGFX_BMPSUPPORT_HPP_
 
 #include "platforms/lgfx_common.hpp"
-
-#if defined (ARDUINO)
-
-#else
-
-#endif
+#include <SD.h>
 
 template <class Base>
-struct LGFX_BmpSupport : public Base { // テンプレート継承
-public:
-
+class LGFX_BmpSupport : public Base { // テンプレート継承
   uint16_t read16(fs::File &f) {
     uint16_t result;
     f.read(reinterpret_cast<uint8_t*>(&result), 2);
@@ -29,6 +22,7 @@ public:
     f.seek(len, SeekCur);
   }
 
+public:
   inline void drawBmp(fs::FS &fs, const char *path, int16_t x, int16_t y) { drawBmpFile(fs, path, x, y); }
   void drawBmpFile(fs::FS &fs, const char *path, int16_t x, int16_t y) {
     if ((x >= this->_width) || (y >= this->_height)) return;
@@ -95,13 +89,13 @@ public:
               for (int32_t i = 1; i < w; i++) {
                 if (0 == (i & 7)) src++;
                 if (flg != (bool)(*src & (0x80 >> (i&7)))) {
-                  this->drawFastHLine(x + i - len, y, len, palette[flg].raw);
+                  this->drawFastHLine(x + i - len, y, len, palette[flg]);
                   flg = !flg;
                   len = 0;
                 }
                 len++;
               }
-              this->drawFastHLine(x + w - len, y, len, palette[flg].raw);
+              this->drawFastHLine(x + w - len, y, len, palette[flg]);
               y += flow;
             }
           } else {
@@ -132,17 +126,16 @@ public:
       }
       else Serial.println("BMP format not recognized.");
     }
+
     bmpFS.close();
     if (this->_start_write_count) { this->_dev.beginTransaction(); }
   }
 
-/*
-  void drawBitmap(int16_t x0, int16_t y0, int16_t w, int16_t h, const uint16_t *data);
-  void drawBitmap(int16_t x0, int16_t y0, int16_t w, int16_t h, const uint8_t *data);
-  void drawBitmap(int16_t x0, int16_t y0, int16_t w, int16_t h, uint16_t *data);
-  void drawBitmap(int16_t x0, int16_t y0, int16_t w, int16_t h, uint8_t *data);
-  void drawBitmap(int16_t x0, int16_t y0, int16_t w, int16_t h, const uint16_t *data, uint16_t transparent);
-*/
+  //void drawBitmap(int16_t x0, int16_t y0, int16_t w, int16_t h, const uint16_t *data);
+  //void drawBitmap(int16_t x0, int16_t y0, int16_t w, int16_t h, const uint8_t *data);
+  //void drawBitmap(int16_t x0, int16_t y0, int16_t w, int16_t h, uint16_t *data);
+  //void drawBitmap(int16_t x0, int16_t y0, int16_t w, int16_t h, uint8_t *data);
+  //void drawBitmap(int16_t x0, int16_t y0, int16_t w, int16_t h, const uint16_t *data, uint16_t transparent);
 };
 
 #endif
