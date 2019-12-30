@@ -66,7 +66,7 @@ namespace lgfx
       _malloc_cap = flg;
     }
 
-    void* createSprite(int16_t w, int16_t h)
+    void* createSprite(int32_t w, int32_t h)
     {
       if (w < 1 || h < 1) return nullptr;
       if (_img) deleteSprite();
@@ -97,8 +97,8 @@ namespace lgfx
     inline static uint32_t readPanelID(void) { return 0; }
     inline static uint32_t readPanelIDSub(uint8_t cmd) { return 0; }
 
-    inline uint16_t width(void) const { return _width; }
-    inline uint16_t height(void) const { return _height; }
+    inline int32_t width(void) const { return _width; }
+    inline int32_t height(void) const { return _height; }
     inline uint8_t getRotation(void) const { return _rotation; }
     inline uint8_t getColorDepth(void) const { return _bpp; }
 
@@ -140,6 +140,47 @@ namespace lgfx
     {
       setWindow(xs, ys, xe, ye);
       writeColor(color, (xe-xs+1) * (ye-ys+1));
+/*
+      while (int32_t 
+        auto dst = (T*)ptr_img();
+        *dst = color;
+        if (0 == --length) { ptr_advance(); return; }
+
+        auto cpysrc = dst++;
+        uint32_t step = 1;
+        uint32_t line_rest = _xe - _xptr;
+        while (length) {
+          if (ptr_advance()) {
+            dst = (T*)ptr_img();
+            line_rest = 1 + (_xe - _xptr);
+            if (line_rest > length) {
+              line_rest = length;
+              if (step > line_rest) step = line_rest;
+            }
+            memcpy(dst, cpysrc, sizeof(T) * step);
+            _xptr += step;
+            if (0 == (length -= step)) return;
+            if (0 == (line_rest -= step)) continue;
+            cpysrc = dst;
+            dst += step;
+          } else {
+            line_rest = _xe - _xptr;
+          }
+          if (line_rest > length) {
+            line_rest = length;
+          }
+          while (line_rest) {
+            if (step > line_rest) step = line_rest;
+            memcpy(dst, cpysrc, sizeof(T) * step);
+            dst += step;
+            _xptr += step;
+            length -= step;
+            line_rest -= step;
+            step << 1;
+          }
+        }
+      }
+//*/
     }
 
     inline void readWindow(int32_t xs, int32_t ys, int32_t xe, int32_t ye)
@@ -306,17 +347,17 @@ namespace lgfx
     int32_t _bitwidth;
     int32_t _width;
     int32_t _height;
-    uint32_t _xptr;
-    uint32_t _yptr;
+    int32_t _xptr;
+    int32_t _yptr;
+    int32_t _xs;
+    int32_t _xe;
+    int32_t _ys;
+    int32_t _ye;
     uint32_t _index;
-    uint8_t _iptr;
-    uint32_t _xs;
-    uint32_t _xe;
-    uint32_t _ys;
-    uint32_t _ye;
-    uint32_t _bitmap_fg;
-    uint32_t _bitmap_bg;
     uint32_t _malloc_cap;
+    //uint8_t _iptr;
+    //uint32_t _bitmap_fg;
+    //uint32_t _bitmap_bg;
   };
 }
 

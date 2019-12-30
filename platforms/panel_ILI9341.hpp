@@ -92,14 +92,14 @@ namespace lgfx
 
     const rotation_data_t* getRotationData(uint8_t r) const {
       static constexpr uint8_t madctl_table[] = {
-                MAD::MX|        MAD::BGR,
-        MAD::MV|                MAD::BGR,
-                        MAD::MY|MAD::BGR,
-        MAD::MV|MAD::MX|MAD::MY|MAD::BGR,
-                MAD::MX|MAD::MY|MAD::BGR,
-        MAD::MV|MAD::MX|        MAD::BGR,
-                                MAD::BGR,
-        MAD::MV|        MAD::MY|MAD::BGR,
+                MAD::MX        ,
+        MAD::MV                ,
+                        MAD::MY,
+        MAD::MV|MAD::MX|MAD::MY,
+                MAD::MX|MAD::MY,
+        MAD::MV|MAD::MX        ,
+                              0,
+        MAD::MV|        MAD::MY,
       };
       r = r & 7;
       auto res = const_cast<rotation_data_t*>(PanelLcdCommon::getRotationData(r));
@@ -128,14 +128,14 @@ namespace lgfx
   {
     const rotation_data_t* getRotationData(uint8_t r) const {
       static constexpr uint8_t madctl_table[] = {
-        MAD::MV|        MAD::MY|MAD::BGR,
-                                MAD::BGR,
-        MAD::MV|MAD::MX|        MAD::BGR,
-                MAD::MX|MAD::MY|MAD::BGR,
-        MAD::MV|MAD::MX|MAD::MY|MAD::BGR,
-                        MAD::MY|MAD::BGR,
-        MAD::MV|                MAD::BGR,
-                MAD::MX|        MAD::BGR,
+        MAD::MV|        MAD::MY,
+                              0,
+        MAD::MV|MAD::MX        ,
+                MAD::MX|MAD::MY,
+        MAD::MV|MAD::MX|MAD::MY,
+                        MAD::MY,
+        MAD::MV                ,
+                MAD::MX        ,
       };
       r = r & 7;
       auto res = const_cast<rotation_data_t*>(Panel_ILI9341_COMMON::getRotationData(r));

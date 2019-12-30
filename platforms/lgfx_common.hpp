@@ -238,6 +238,7 @@ namespace lgfx {
     swap888_t() : r(0), g(0), b(0) {};
     swap888_t(const swap888_t&) = default;
     swap888_t(uint8_t r8, uint8_t g8, uint8_t b8) : r(r8),g(g8),b(b8) {}
+    swap888_t(uint32_t color888) : r(color888), g(color888>>8), b(color888>>16) {}
     inline swap888_t& operator=(const rgb332_t&);
     inline swap888_t& operator=(const rgb565_t&);
     inline swap888_t& operator=(const rgb888_t&);

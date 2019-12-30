@@ -21,6 +21,7 @@ struct LGFX_CONFIG_SAMPLE
   static constexpr int spi_dc   = -1;
   static constexpr bool spi_half_duplex = false;
   static constexpr int panel_rst = -1;
+  static constexpr bool rgb_order = true;   // true=RGB / false=BGR
   static constexpr int freq_write = 20000000;
   static constexpr int freq_read  = 10000000;
   static constexpr int freq_fill  = 20000000;
@@ -44,6 +45,7 @@ namespace lgfx
   MEMBER_DETECTOR(spi_host,  get_spi_host,  get_spi_host_impl, spi_host_device_t)
   MEMBER_DETECTOR(spi_half_duplex, get_spi_half_duplex, get_spi_half_duplex_impl, bool)
   MEMBER_DETECTOR(panel_rst, get_panel_rst, get_panel_rst_impl, int)
+  MEMBER_DETECTOR(rgb_order, get_rgb_order, get_rgb_order_impl, bool)
   MEMBER_DETECTOR(bpp,       get_bpp,       get_bpp_impl,       uint8_t)
   MEMBER_DETECTOR(invert,    get_invert,    get_invert_impl,    bool)
   MEMBER_DETECTOR(rotation,  get_rotation,  get_rotation_impl,  uint8_t)
@@ -94,13 +96,12 @@ namespace lgfx
     {
       TPin<_spi_cs>::init();
       TPin<_spi_dc>::init();
-      TPin<_spi_mosi>::init(_spi_half_duplex ? GPIO_MODE_INPUT_OUTPUT : GPIO_MODE_OUTPUT);
-      TPin<_spi_miso>::init(GPIO_MODE_INPUT);
+      TPin<_spi_mosi>::init(GPIO_MODE_INPUT_OUTPUT);
+      TPin<_spi_miso>::init(GPIO_MODE_INPUT_OUTPUT);
       TPin<_spi_sclk>::init();
       TPin<_panel_rst>::init();
       TPin<_panel_rst>::lo();
-      TPin<_spi_cs>::hi();
-      TPin<_spi_dc>::hi();
+      cs_h();
 
       if (_spi_host == HSPI_HOST) {
         DPORT_SET_PERI_REG_MASK(DPORT_PERIP_CLK_EN_REG, DPORT_SPI_CLK_EN);
@@ -135,6 +136,8 @@ namespace lgfx
         delay(120);
         beginTransaction();
         commandList(cmds);
+        invertDisplay(_invert);
+        setRotation(_rotation);
         endTransaction();
       }
       _last_xs = _last_xe = _last_ys = _last_ye = 0xFFFF;
@@ -176,9 +179,9 @@ namespace lgfx
         _clkdiv_read  = spiFrequencyToClockDiv(_freq_read);
         _clkdiv_fill  = spiFrequencyToClockDiv(_freq_fill);
       }
-      wait_spi();
-      TPin<_spi_cs>::lo();
       _fillmode = false;
+      wait_spi();
+      cs_l();
       *_spi_miso_dlen_reg = 0;
       *_spi_clock_reg = _clkdiv_write;
       _user_reg = *_spi_user_reg & ~(SPI_USR_MISO | SPI_DOUTDIN);
@@ -201,12 +204,12 @@ namespace lgfx
 
     static void endTransaction(void) {
       wait_spi();
-      TPin<_spi_cs>::hi();
+      cs_h();
       *_spi_user_reg = _user_reg | SPI_USR_MISO | SPI_DOUTDIN;
     }
 
-    inline static uint16_t width(void) { return _width; }
-    inline static uint16_t height(void) { return _height; }
+    inline static int32_t width(void) { return _width; }
+    inline static int32_t height(void) { return _height; }
     inline static bool    getInvert(void) { return _invert; }
     inline static uint8_t getRotation(void) { return _rotation; }
     inline static uint8_t getColorDepth(void) { return _bpp; }
@@ -216,11 +219,14 @@ namespace lgfx
       write_cmd(_panel->cmd_madctl);
       r = r & 7;
       _rotation = r;
+//Serial.printf("rotation:%d ", _rotation);
 
       auto rotation_data = _panel->getRotationData(r);
       _colstart = rotation_data->colstart;
       _rowstart = rotation_data->rowstart;
-      write_data(rotation_data->madctl, 8);
+//Serial.printf("colstart:%d / rowstart:%d ", _colstart, _rowstart);
+      uint8_t madctl = rotation_data->madctl | (_rgb_order ? _panel->madctl_rgb : _panel->madctl_bgr);
+      write_data(madctl, 8);
       if (r & 1) {
         _width  = _panel->panel_height;
         _height = _panel->panel_width;
@@ -228,6 +234,7 @@ namespace lgfx
         _width  = _panel->panel_width;
         _height = _panel->panel_height;
       }
+//Serial.printf("width:%d / height:%d \r\n", _width, _height);
       _last_xs = _last_xe = _last_ys = _last_ye = 0xFFFF;
     }
 
@@ -294,27 +301,30 @@ namespace lgfx
       *_spi_user_reg = _user_reg | SPI_USR_MISO | SPI_DOUTDIN;
       wait_spi();
       set_clock_read();
-      TPin<_spi_dc>::hi();
+      dc_h();
       if (_spi_half_duplex) {
         pinMatrixOutDetach(_spi_mosi, false, false);
         pinMatrixInAttach(_spi_mosi, (_spi_host == HSPI_HOST) ? HSPIQ_OUT_IDX : VSPIQ_OUT_IDX, false);
         TPin<_spi_mosi>::disableOutput();
+      } else if (_spi_miso != -1) {
+        pinMatrixInAttach(_spi_miso, (_spi_host == HSPI_HOST) ? HSPIQ_OUT_IDX : VSPIQ_OUT_IDX, false);
+        TPin<_spi_miso>::disableOutput();
       }
     }
 
     static void endRead() {
-      TPin<_spi_cs>::hi();
+      cs_h();
       set_clock_write();
       *_spi_user_reg = _user_reg;
       if (_spi_half_duplex) {
-        if (_spi_miso >= 0) {
+        if (_spi_miso != -1) {
           pinMatrixInAttach(_spi_miso, (_spi_host == HSPI_HOST) ? HSPIQ_OUT_IDX : VSPIQ_OUT_IDX, false);
         }
         TPin<_spi_mosi>::enableOutput();
         pinMatrixOutAttach(_spi_mosi, (_spi_host == HSPI_HOST) ? HSPID_IN_IDX : VSPID_IN_IDX, false, false);
       }
       wait_spi();
-      TPin<_spi_cs>::lo();
+      cs_l();
     }
 
     static void fillWindow(int32_t xs, int32_t ys, int32_t xe, int32_t ye, const dev_color_t& color)
@@ -349,7 +359,7 @@ namespace lgfx
       if (length < len) len = length;
       wait_spi();
       set_len(len * _bpp);
-      TPin<_spi_dc>::hi();
+      dc_h();
       memcpy((void*)_spi_w0_reg, _regbuf, 12);
       exec_spi();
       if (0 == (length -= len)) return;
@@ -402,7 +412,7 @@ namespace lgfx
       uint8_t highpart = ((length - 1) & limit) >> 2; // 8 or 0
 
       wait_spi();
-      TPin<_spi_dc>::hi();
+      dc_h();
       set_len(len << 3);
       memcpy((void*)&_spi_w0_reg[highpart], data, (len + 3) & 0xFC);
       if (highpart) *_spi_user_reg = _user_reg | SPI_USR_MOSI_HIGHPART;
@@ -446,23 +456,19 @@ namespace lgfx
 //----------------------------------------------------------------------------
   private:
 
-    static void set_window(uint16_t xs, uint16_t ys, uint16_t xe, uint16_t ye)
+    static void set_window(uint32_t xs, uint32_t ys, uint32_t xe, uint32_t ye)
     {
       if (_last_xs != xs || _last_xe != xe) {
         write_cmd(_panel_cmd_caset);
         _last_xs = xs;
-        xs += _colstart;
         _last_xe = xe;
-        xe += _colstart;
-        write_data(_panel->getWindowAddr(xs, xe), 32);
+        write_data(_panel->getWindowAddr(xs += _colstart, xe += _colstart), 32);
       }
       if (_last_ys != ys || _last_ye != ye) {
         write_cmd(_panel_cmd_raset);
         _last_ys = ys;
-        ys += _rowstart;
         _last_ye = ye;
-        ye += _rowstart;
-        write_data(_panel->getWindowAddr(ys, ye), 32);
+        write_data(_panel->getWindowAddr(ys += _rowstart, ye += _rowstart), 32);
       }
     }
 
@@ -471,7 +477,7 @@ namespace lgfx
       wait_spi();
       *_spi_w0_reg = cmd;
       set_len(_panel_len_command);
-      TPin<_spi_dc>::lo();
+      dc_l();
       exec_spi();
     }
 
@@ -480,11 +486,11 @@ namespace lgfx
       wait_spi();
       *_spi_w0_reg = data;
       set_len(length);
-      TPin<_spi_dc>::hi();
+      dc_h();
       exec_spi();
     }
 
-    inline static uint32_t read_data(uint16_t length)
+    inline static uint32_t read_data(uint32_t length)
     {
       set_len(length);
       exec_spi();
@@ -509,7 +515,7 @@ namespace lgfx
       auto dst = (TDst*)_regbuf;
       for (uint32_t i = 0; i < len; i++) { *dst++ = *src++; }
       wait_spi();
-      TPin<_spi_dc>::hi();
+      dc_h();
       set_len(len * sizeof(TDst) << 3);
       memcpy((void*)&_spi_w0_reg[highpart], _regbuf, (len * sizeof(TDst) + 3) & 0xFC);
       if (highpart) *_spi_user_reg = _user_reg | SPI_USR_MOSI_HIGHPART;
@@ -591,6 +597,11 @@ namespace lgfx
     __attribute__ ((always_inline)) inline static void wait_spi(void) { while (*_spi_cmd_reg & SPI_USR); }
     __attribute__ ((always_inline)) inline static void set_len(uint32_t len) { *_spi_mosi_dlen_reg = len - 1; }
 
+    __attribute__ ((always_inline)) inline static void cs_h(void) { TPin<_spi_cs>::hi(); }
+    __attribute__ ((always_inline)) inline static void cs_l(void) { TPin<_spi_cs>::lo(); }
+    __attribute__ ((always_inline)) inline static void dc_h(void) { TPin<_spi_dc>::hi(); }
+    __attribute__ ((always_inline)) inline static void dc_l(void) { TPin<_spi_dc>::lo(); }
+
     static constexpr int _spi_mode = get_spi_mode<CFG,  0>::value;
     static constexpr int _spi_mosi = get_spi_mosi<CFG, 23>::value;
     static constexpr int _spi_miso = get_spi_miso<CFG, 19>::value;
@@ -598,6 +609,7 @@ namespace lgfx
     static constexpr int _spi_cs   = get_spi_cs<  CFG, -1>::value;
     static constexpr int _spi_dc   = get_spi_dc<  CFG, -1>::value;
     static constexpr int _panel_rst= get_panel_rst< CFG, -1>::value;
+    static constexpr int _rgb_order= get_rgb_order< CFG, false>::value;
     static constexpr bool _spi_half_duplex = get_spi_half_duplex<CFG, false>::value;
     static constexpr int _freq_write = get_freq_write<CFG, 40000000>::value;
     static constexpr int _freq_read  = get_freq_read< CFG, 16000000>::value;
@@ -623,14 +635,14 @@ namespace lgfx
     static uint8_t _bpp;
     static uint8_t _invert;
     static uint8_t _rotation;
-    static int16_t _width;
-    static int16_t _height;
-    static uint16_t _colstart;
-    static uint16_t _rowstart;
-    static uint16_t _last_xs;
-    static uint16_t _last_xe;
-    static uint16_t _last_ys;
-    static uint16_t _last_ye;
+    static int32_t _width;
+    static int32_t _height;
+    static uint32_t _colstart;
+    static uint32_t _rowstart;
+    static uint32_t _last_xs;
+    static uint32_t _last_xe;
+    static uint32_t _last_ys;
+    static uint32_t _last_ye;
     static uint32_t _last_apb_freq;
     static uint32_t _clkdiv_write;
     static uint32_t _clkdiv_read;
@@ -650,14 +662,14 @@ namespace lgfx
   template <class T> uint8_t Esp32Spi<T>::_bpp;
   template <class T> uint8_t Esp32Spi<T>::_invert;
   template <class T> uint8_t Esp32Spi<T>::_rotation;
-  template <class T> int16_t Esp32Spi<T>::_width;
-  template <class T> int16_t Esp32Spi<T>::_height;
-  template <class T> uint16_t Esp32Spi<T>::_colstart;
-  template <class T> uint16_t Esp32Spi<T>::_rowstart;
-  template <class T> uint16_t Esp32Spi<T>::_last_xs;
-  template <class T> uint16_t Esp32Spi<T>::_last_xe;
-  template <class T> uint16_t Esp32Spi<T>::_last_ys;
-  template <class T> uint16_t Esp32Spi<T>::_last_ye;
+  template <class T> int32_t Esp32Spi<T>::_width;
+  template <class T> int32_t Esp32Spi<T>::_height;
+  template <class T> uint32_t Esp32Spi<T>::_colstart;
+  template <class T> uint32_t Esp32Spi<T>::_rowstart;
+  template <class T> uint32_t Esp32Spi<T>::_last_xs;
+  template <class T> uint32_t Esp32Spi<T>::_last_xe;
+  template <class T> uint32_t Esp32Spi<T>::_last_ys;
+  template <class T> uint32_t Esp32Spi<T>::_last_ye;
   template <class T> uint32_t Esp32Spi<T>::_last_apb_freq;
   template <class T> uint32_t Esp32Spi<T>::_clkdiv_write;
   template <class T> uint32_t Esp32Spi<T>::_clkdiv_read;

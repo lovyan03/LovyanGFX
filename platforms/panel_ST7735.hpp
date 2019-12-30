@@ -9,8 +9,6 @@ namespace lgfx
   {
     Panel_ST7735_COMMON() : PanelLcdCommon()
     {
-      ram_width  = 132;
-      ram_height = 162;
       len_command = 8;
       len_read_pixel = 24;
       len_dummy_read_pixel = 9;
@@ -36,12 +34,13 @@ namespace lgfx
     , RGB = 0x00
     };
 
-    const rotation_data_t* getRotationData(uint8_t r) const {
+    const rotation_data_t* getRotationData(uint8_t r) const override
+    {
       static constexpr uint8_t madctl_table[] = {
-        MAD::MX|        MAD::MY|MAD::MH|MAD::BGR,
-                MAD::MV|MAD::MY|        MAD::BGR,
-                                        MAD::BGR,
-        MAD::MX|MAD::MV|                MAD::BGR,
+        MAD::MX|        MAD::MY|MAD::MH,
+                MAD::MV|MAD::MY        ,
+                                      0,
+        MAD::MX|MAD::MV                ,
       };
       r = r & 3;
       auto res = const_cast<rotation_data_t*>(PanelLcdCommon::getRotationData(r));
@@ -217,10 +216,14 @@ namespace lgfx
 //  constexpr uint8_t Panel_ST7735_COMMON::Rcmd2red[];
   constexpr uint8_t Panel_ST7735_COMMON::Rcmd3[];
 
-  template<int PanelWidth = 132, int PanelHeight = 162, int OffsetX = 0, int OffsetY = 0>
+
+  template<uint16_t RamWidth = 132, uint16_t RamHeight = 162, uint16_t PanelWidth = 128, uint16_t PanelHeight = 160, uint16_t OffsetX = 0, uint16_t OffsetY = 0>
   struct Panel_ST7735 : public Panel_ST7735_COMMON
   {
-    Panel_ST7735() : Panel_ST7735_COMMON() {
+    Panel_ST7735() : Panel_ST7735_COMMON()
+    {
+      ram_width  = RamWidth;
+      ram_height = RamHeight;
       panel_width  = PanelWidth;
       panel_height = PanelHeight;
       offset_x = OffsetX;
@@ -228,7 +231,43 @@ namespace lgfx
     }
   };
 
-  struct Panel_ST7735_GREENTAB160x80 : public Panel_ST7735<80, 160, 26, 1>
+
+  template<int PanelWidth = 128, int PanelHeight = 160, int OffsetX = 0, int OffsetY = 0>
+  struct Panel_ST7735_128 : public Panel_ST7735<128, 160, PanelWidth, PanelHeight, OffsetX, OffsetY>
+  {
+  };
+
+
+  template<int PanelWidth = 132, int PanelHeight = 162, int OffsetX = 0, int OffsetY = 0>
+  struct Panel_ST7735_132 : public Panel_ST7735<132, 162, PanelWidth, PanelHeight, OffsetX, OffsetY>
+  {
+  };
+
+
+  struct Panel_ST7735_GREENTAB160x80 : public Panel_ST7735_132<80, 160, 26, 1>
+  {
+    const uint8_t* getInitCommands(uint8_t listno = 0) const {
+      switch (listno) {
+      case 0: return Panel_ST7735_COMMON::Rcmd1;
+      case 1: return Panel_ST7735_COMMON::Rcmd3; // Panel_ST7735_COMMON::Rcmd2green;
+      default: return nullptr;
+      }
+    }
+  };
+
+
+  struct Panel_ST7735_REDTAB160x80 : public Panel_ST7735_128<80, 160, 24, 0>
+  {
+    const uint8_t* getInitCommands(uint8_t listno = 0) const {
+      switch (listno) {
+      case 0: return Panel_ST7735_COMMON::Rcmd1;
+      case 1: return Panel_ST7735_COMMON::Rcmd3; // Panel_ST7735_COMMON::Rcmd2green;
+      default: return nullptr;
+      }
+    }
+  };
+
+  struct Panel_M5StickC : public Panel_ST7735_128<80, 160, 24, 0>
   {
     const uint8_t* getInitCommands(uint8_t listno = 0) const {
       switch (listno) {

@@ -87,10 +87,10 @@ namespace lgfx
 
     const rotation_data_t* getRotationData(uint8_t r) const {
       static constexpr uint8_t madctl_table[] = {
-                                        MAD::BGR,
-        MAD::MX|MAD::MV|                MAD::BGR,
-        MAD::MX|        MAD::MY|MAD::MH|MAD::BGR,
-                MAD::MV|MAD::MY|        MAD::BGR,
+                                      0,
+        MAD::MX|MAD::MV                ,
+        MAD::MX|        MAD::MY|MAD::MH,
+                MAD::MV|MAD::MY        ,
       };
       r = r & 3;
       auto res = const_cast<rotation_data_t*>(PanelLcdCommon::getRotationData(r));

@@ -45,6 +45,7 @@
 #if defined(ARDUINO_M5Stack_Core_ESP32) || defined(ARDUINO_M5STACK_FIRE) // M5Stack
   struct LGFX_Config {
     static constexpr spi_host_device_t spi_host = VSPI_HOST;
+    static constexpr bool spi_half_duplex = true;
     static constexpr int spi_mosi = 23;
     static constexpr int spi_miso = 19;
     static constexpr int spi_sclk = 18;
@@ -55,12 +56,12 @@
     static constexpr int freq_write = 40000000;
     static constexpr int freq_read  = 16000000;
     static constexpr int freq_fill  = 80000000;
-    static constexpr bool spi_half_duplex = true;
     lgfx::Panel_M5Stack panel;
   };
 #elif defined(ARDUINO_M5Stick_C) // M5Stick C
   struct LGFX_Config {
     static constexpr spi_host_device_t spi_host = VSPI_HOST;
+    static constexpr bool spi_half_duplex = true;
     static constexpr int spi_mosi = 15;
     static constexpr int spi_miso = 14;
     static constexpr int spi_sclk = 13;
@@ -70,12 +71,13 @@
     static constexpr int freq_write = 27000000;
     static constexpr int freq_read  = 16000000;
     static constexpr int freq_fill  = 27000000;
-    static constexpr bool spi_half_duplex = true;
     lgfx::Panel_ST7735_GREENTAB160x80 panel;
   };
 #elif defined ( ARDUINO_ESP32_DEV ) // ESP-WROVER-KIT
+/*
   struct LGFX_Config {
     static constexpr spi_host_device_t spi_host = VSPI_HOST;
+    static constexpr bool spi_half_duplex = false;
     static constexpr int spi_mosi = 23;
     static constexpr int spi_miso = 25;
     static constexpr int spi_sclk = 19;
@@ -86,12 +88,31 @@
     static constexpr int freq_write = 40000000;
     static constexpr int freq_read  = 20000000;
     static constexpr int freq_fill  = 40000000;
-    static constexpr bool spi_half_duplex = false;
     lgfx::Panel_ILI9341_240x320 panel;
   };
+//*/
+  struct LGFX_Config {
+    static constexpr spi_host_device_t spi_host = VSPI_HOST; // devkit
+    static constexpr int spi_mosi = 23;
+    static constexpr int spi_miso = 25;
+    static constexpr int spi_sclk = 19;
+    static constexpr int spi_dc   = 21;
+    static constexpr int spi_cs   = 14;
+
+    static constexpr int panel_rst = -1;
+    static constexpr int panel_bl  = -1;
+    static constexpr int freq_write = 40000000;
+    static constexpr int freq_read  = 16000000;
+    static constexpr int freq_fill  = 40000000;
+    static constexpr bool spi_half_duplex = true;
+    lgfx::Panel_ILI9163_128x160 panel;
+  };
+
+
 #elif defined(ARDUINO_ODROID_ESP32) // ODROID-GO
   struct LGFX_Config {
     static constexpr spi_host_device_t spi_host = VSPI_HOST;
+    static constexpr bool spi_half_duplex = true;
     static constexpr int spi_mosi = 23;
     static constexpr int spi_miso = 19;
     static constexpr int spi_sclk = 18;
@@ -102,12 +123,12 @@
     static constexpr int freq_write = 40000000;
     static constexpr int freq_read  = 20000000;
     static constexpr int freq_fill  = 80000000;
-    static constexpr bool spi_half_duplex = true;
     lgfx::Panel_ILI9341_240x320 panel;
   };
 #elif defined(ARDUINO_T) // TTGO T-Watch
   struct LGFX_Config {
     static constexpr spi_host_device_t spi_host = VSPI_HOST;
+    static constexpr bool spi_half_duplex = true;
     static constexpr int spi_mosi = 19;
     static constexpr int spi_miso = -1;
     static constexpr int spi_sclk = 18;
@@ -118,7 +139,7 @@
     static constexpr int freq_write = 80000000;
     static constexpr int freq_read  = 16000000;
     static constexpr int freq_fill  = 80000000;
-    static constexpr bool spi_half_duplex = true;
+    static constexpr bool invert    = true;
     lgfx::Panel_ST7789_240x240 panel;
   };
 #elif !defined(ESP32) & defined(ARDUINO) // Arduino UNO

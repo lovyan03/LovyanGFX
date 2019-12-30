@@ -52,10 +52,13 @@ namespace lgfx
     uint16_t ram_height = 320;
     uint16_t offset_x = 0;
     uint16_t offset_y = 0;
-    uint8_t len_command = 8;
-    uint8_t len_read_pixel = 24;
-    uint8_t len_dummy_read_pixel = 8;
-    uint8_t len_dummy_read_rddid = 0;
+
+    uint32_t len_command = 8;
+    uint32_t len_read_pixel = 24;
+    uint32_t len_dummy_read_pixel = 8;
+    uint32_t len_dummy_read_rddid = 0;
+    uint8_t madctl_rgb = 0x00;
+    uint8_t madctl_bgr = 0x08;
 
     virtual uint8_t getColMod(uint8_t bpp) const { return 0; }
     virtual uint8_t getAdjustBpp(uint8_t bpp) const { return (bpp > 16) ? 24 : 16; }
