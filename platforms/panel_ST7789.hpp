@@ -1,26 +1,51 @@
 #ifndef LGFX_PANEL_ST7789_HPP_
 #define LGFX_PANEL_ST7789_HPP_
 
-#include "panel_lcd_common.hpp"
+#include "panel_ilitek_common.hpp"
 
 namespace lgfx
 {
-  struct Panel_ST7789_COMMON : public PanelLcdCommon
+  template <class CFG>
+  class Panel_ST7789 : public PanelIlitekCommon<CFG>
   {
-    Panel_ST7789_COMMON() : PanelLcdCommon()
+    Panel_ST7789() : PanelIlitekCommon<CFG>()
     {
-      ram_width  = 240;
-      ram_height = 320;
+      if (!this->_ram_width   ) this->_ram_width = 240;
+      if (!this->_ram_height  ) this->_ram_height = 320;
+      if (!this->_panel_width ) this->_panel_width = 240;
+      if (!this->_panel_height) this->_panel_height = 320;
       len_command = 8;
       len_read_pixel = 24;
       len_dummy_read_pixel =16;
     }
 
+  protected:
     enum colmod_t
     { RGB565_2BYTE = 0x55
     , RGB666_3BYTE = 0x66
     };
-    uint8_t getColMod(uint8_t bpp) const { return (bpp > 16) ? RGB666_3BYTE : RGB565_2BYTE; }
+    uint8_t getColMod(uint8_t bpp) const override { return (bpp > 16) ? RGB666_3BYTE : RGB565_2BYTE; }
+
+    enum MAD
+    { MY  = 0x80
+    , MX  = 0x40
+    , MV  = 0x20
+    , ML  = 0x10
+    , BGR = 0x08
+    , MH  = 0x04
+    , RGB = 0x00
+    };
+    uint8_t getMadCtl(uint8_t r) const override {
+      static constexpr uint8_t madctl_table[] = {
+                                      0,
+        MAD::MX|MAD::MV                ,
+        MAD::MX|        MAD::MY|MAD::MH,
+                MAD::MV|MAD::MY        ,
+      };
+      r = r & 3;
+      return madctl_table[r];
+    }
+
 
     struct CMD : public CommandCommon
     {
@@ -36,17 +61,7 @@ namespace lgfx
       static constexpr uint8_t PVGAMCTRL= 0xE0;      // Positive voltage gamma control
       static constexpr uint8_t NVGAMCTRL= 0xE1;      // Negative voltage gamma control
     };
-    enum MAD
-    { MY  = 0x80
-    , MX  = 0x40
-    , MV  = 0x20
-    , ML  = 0x10
-    , BGR = 0x08
-    , MH  = 0x04
-    , RGB = 0x00
-    };
-
-    const uint8_t* getInitCommands(uint8_t listno = 0) const {
+    const uint8_t* getInitCommands(uint8_t listno) const override {
       static constexpr uint8_t list0[] = {
           CMD::SLPOUT , CMD_INIT_DELAY, 120,
           CMD::NORON  , CMD_INIT_DELAY, 0,
@@ -83,19 +98,6 @@ namespace lgfx
       case 1: return list1;
       default: return nullptr;
       }
-    }
-
-    const rotation_data_t* getRotationData(uint8_t r) const {
-      static constexpr uint8_t madctl_table[] = {
-                                      0,
-        MAD::MX|MAD::MV                ,
-        MAD::MX|        MAD::MY|MAD::MH,
-                MAD::MV|MAD::MY        ,
-      };
-      r = r & 3;
-      auto res = const_cast<rotation_data_t*>(PanelLcdCommon::getRotationData(r));
-      res->madctl = madctl_table[r];
-      return res;
     }
   };
 

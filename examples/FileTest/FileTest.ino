@@ -52,7 +52,7 @@ void setup()
 
 // sprite使う例
   //sprite.getDevice()->setMallocCap(MALLOC_CAP_SPIRAM); // PSRAM使う場合
-  sprite.setColorDepth(8); // 8 , 16 , 24
+  sprite.setColorDepth(16); // 8 , 16 , 24
   sprite.createSprite(320,240);
 
   sprite.drawBmpFile(SD, "/m5stack_mono.bmp",      0,  10);
@@ -65,10 +65,7 @@ void setup()
 
 void loop() {
   tft.setColorDepth( ( tft.getColorDepth()==24 ) ? 16 : 24);
-/*
-  uint8_t* spbuf = sprite.getDevice()->buffer(); // (機能未実装のため暫定措置)
-  tft.pushImage(random(-20, 20), random(-20, 20), 320, 240, (uint16_t*)spbuf);
-*/
+
   sprite.pushSprite(&tft, random(-20, 20), random(-20, 20));
 }
 

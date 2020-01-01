@@ -56,8 +56,9 @@
     static constexpr int freq_write = 40000000;
     static constexpr int freq_read  = 16000000;
     static constexpr int freq_fill  = 80000000;
-    lgfx::Panel_M5Stack panel;
   };
+  static LovyanGFX<lgfx::Panel_M5Stack> tft;
+
 #elif defined(ARDUINO_M5Stick_C) // M5Stick C
   struct LGFX_Config {
     static constexpr spi_host_device_t spi_host = VSPI_HOST;
@@ -73,6 +74,8 @@
     static constexpr int freq_fill  = 27000000;
     lgfx::Panel_ST7735_GREENTAB160x80 panel;
   };
+  static LovyanGFX<lgfx::Panel_ST7735<LGFX_Config> > tft;
+
 #elif defined ( ARDUINO_ESP32_DEV ) // ESP-WROVER-KIT
 /*
   struct LGFX_Config {
@@ -162,7 +165,7 @@
 
 #endif
 
-static LGFX<LGFX_Config> tft;
+//static LGFX<LGFX_Config> tft;
 
 unsigned long total = 0;
 unsigned long tn = 0;

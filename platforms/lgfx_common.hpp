@@ -247,7 +247,7 @@ namespace lgfx {
     explicit inline operator bool() const { return r||g||b; }
     //inline operator uint32_t() const { return (b<<16)|(g<<8)|r; }
     //inline operator rgb332_t() const { return rgb332_t(r,g,b); }
-    //inline operator rgb565_t() const { return rgb565_t(r,g,b); }
+    explicit inline operator rgb565_t() const { return rgb565_t(r,g,b); }
     //inline operator rgb888_t() const { return rgb888_t(r,g,b); }
     //inline operator swap565_t() const { return swap565_t(r,g,b); }
     inline uint8_t R8() const { return r; }
@@ -259,7 +259,15 @@ namespace lgfx {
   };
 
   struct dev_color_t {
-    uint32_t raw;
+    union {
+      struct {
+        uint8_t raw0;
+        uint8_t raw1;
+        uint8_t raw2;
+        uint8_t raw3;
+      };
+      uint32_t raw;
+    };
 
     dev_color_t() : raw(0) {}
     dev_color_t(const dev_color_t&) = default;

@@ -1,28 +1,32 @@
 #ifndef LGFX_PANEL_ST7735_HPP_
 #define LGFX_PANEL_ST7735_HPP_
 
-#include "panel_lcd_common.hpp"
+#include "panel_ilitek_common.hpp"
 
 namespace lgfx
 {
-  struct Panel_ST7735_COMMON : public PanelLcdCommon
+  template <class CFG>
+  class Panel_ST7735 : public PanelIlitekCommon<CFG>
   {
-    Panel_ST7735_COMMON() : PanelLcdCommon()
+    Panel_ST7735() : PanelIlitekCommon<CFG>()
     {
+      if (!this->_ram_width   ) this->_ram_width = 132;
+      if (!this->_ram_height  ) this->_ram_height = 162;
+      if (!this->_panel_width ) this->_panel_width = 132;
+      if (!this->_panel_height) this->_panel_height = 162;
       len_command = 8;
       len_read_pixel = 24;
       len_dummy_read_pixel = 9;
       len_dummy_read_rddid = 1;
     }
 
+  protected:
     enum colmod_t
     { RGB444_2BYTE = 0x03
     , RGB565_2BYTE = 0x05
     , RGB666_3BYTE = 0x06
     };
-
-    uint8_t getAdjustBpp(uint8_t bpp) const { return (bpp > 16) ? 24 : (bpp > 12) ? 16 : 12; }
-    uint8_t getColMod(uint8_t bpp) const { return (bpp > 16) ? RGB666_3BYTE : (bpp > 12) ? RGB565_2BYTE: RGB444_2BYTE; }
+    uint8_t getColMod(uint8_t bpp) const override { return (bpp > 16) ? RGB666_3BYTE : RGB565_2BYTE; }
 
     enum MAD
     { MY  = 0x80
@@ -33,9 +37,7 @@ namespace lgfx
     , MH  = 0x04
     , RGB = 0x00
     };
-
-    const rotation_data_t* getRotationData(uint8_t r) const override
-    {
+    uint8_t getMadCtl(uint8_t r) const override {
       static constexpr uint8_t madctl_table[] = {
         MAD::MX|        MAD::MY|MAD::MH,
                 MAD::MV|MAD::MY        ,
@@ -43,12 +45,10 @@ namespace lgfx
         MAD::MX|MAD::MV                ,
       };
       r = r & 3;
-      auto res = const_cast<rotation_data_t*>(PanelLcdCommon::getRotationData(r));
-      res->madctl = madctl_table[r];
-      return res;
+      return madctl_table[r];
     }
 
-    struct CMD : public CommandCommon
+    struct CMD : public PanelIlitekCommon<CFG>::CommandCommon
     {
       static constexpr uint8_t FRMCTR1 = 0xB1;
       static constexpr uint8_t FRMCTR2 = 0xB2;
@@ -75,61 +75,47 @@ namespace lgfx
     };
 
     static constexpr uint8_t PROGMEM Bcmd[] = {                  // Initialization commands for 7735B screens
-      CMD::SWRESET,   CMD_INIT_DELAY,  //  1: Software reset, no args, w/delay
-        50,                     //     50 ms delay
-      CMD::SLPOUT ,   CMD_INIT_DELAY,  //  2: Out of sleep mode, no args, w/delay
-        255,                    //     255 = 500 ms delay
-      CMD::COLMOD , 1+CMD_INIT_DELAY,  //  3: Set color mode, 1 arg + delay:
-        0x05,                   //     16-bit color
-        10,                     //     10 ms delay
-      CMD::FRMCTR1, 3+CMD_INIT_DELAY,  //  4: Frame rate control, 3 args + delay:
+      CMD::SWRESET,   CMD_INIT_DELAY, 50,   // Software reset, no args, w/delay
+      CMD::SLPOUT ,   CMD_INIT_DELAY, 255,  // Out of sleep mode, no args, w/delay
+      CMD::FRMCTR1, 3+CMD_INIT_DELAY,  // Frame rate control, 3 args + delay:
         0x00,                   //     fastest refresh
         0x06,                   //     6 lines front porch
         0x03,                   //     3 lines back porch
         10,                     //     10 ms delay
-      CMD::MADCTL , 1      ,  //  5: Memory access ctrl (directions), 1 arg:
-        0x40,                   //     Row addr/col addr, bottom to top refresh
-      CMD::DISSET5, 2      ,  //  6: Display settings #5, 2 args, no delay:
-        0x15,                   //     1 clk cycle nonoverlap, 2 cycle gate
-                                //     rise, 3 cycle osc equalize
+      CMD::DISSET5, 2      ,  //  Display settings #5, 2 args, no delay:
+        0x15,                   //     1 clk cycle nonoverlap, 2 cycle gate rise, 3 cycle osc equalize
         0x02,                   //     Fix on VTL
-      CMD::INVCTR , 1      ,  //  7: Display inversion control, 1 arg:
+      CMD::INVCTR , 1      ,  //  Display inversion control, 1 arg:
         0x0,                    //     Line inversion
       CMD::PWCTR1 , 2+CMD_INIT_DELAY,  //  8: Power control, 2 args + delay:
         0x02,                   //     GVDD = 4.7V
         0x70,                   //     1.0uA
         10,                     //     10 ms delay
-      CMD::PWCTR2 , 1      ,  //  9: Power control, 1 arg, no delay:
+      CMD::PWCTR2 , 1      ,  //  Power control, 1 arg, no delay:
         0x05,                   //     VGH = 14.7V, VGL = -7.35V
-      CMD::PWCTR3 , 2      ,  // 10: Power control, 2 args, no delay:
+      CMD::PWCTR3 , 2      ,  //  Power control, 2 args, no delay:
         0x01,                   //     Opamp current small
         0x02,                   //     Boost frequency
       CMD::VMCTR1 , 2+CMD_INIT_DELAY,  // 11: Power control, 2 args + delay:
         0x3C,                   //     VCOMH = 4V
         0x38,                   //     VCOML = -1.1V
         10,                     //     10 ms delay
-      CMD::PWCTR6 , 2      ,  // 12: Power control, 2 args, no delay:
+      CMD::PWCTR6 , 2      ,  //  Power control, 2 args, no delay:
         0x11, 0x15,
-      CMD::GMCTRP1,16      ,  // 13: Magical unicorn dust, 16 args, no delay:
+      CMD::GMCTRP1,16      ,  //  Magical unicorn dust, 16 args, no delay:
         0x09, 0x16, 0x09, 0x20, //     (seriously though, not sure what
         0x21, 0x1B, 0x13, 0x19, //      these config values represent)
         0x17, 0x15, 0x1E, 0x2B,
         0x04, 0x05, 0x02, 0x0E,
-      CMD::GMCTRN1,16+CMD_INIT_DELAY,  // 14: Sparkles and rainbows, 16 args + delay:
+      CMD::GMCTRN1,16+CMD_INIT_DELAY,  // Sparkles and rainbows, 16 args + delay:
         0x0B, 0x14, 0x08, 0x1E, //     (ditto)
         0x22, 0x1D, 0x18, 0x1E,
         0x1B, 0x1A, 0x24, 0x2B,
         0x06, 0x06, 0x02, 0x0F,
         10,                     //     10 ms delay
-      CMD::CASET  , 4      ,  // 15: Column addr set, 4 args, no delay:
-        0x00, 0x02,             //     XSTART = 2
-        0x00, 0x81,             //     XEND = 129
-      CMD::RASET  , 4      ,  // 16: Row addr set, 4 args, no delay:
-        0x00, 0x02,             //     XSTART = 1
-        0x00, 0x81,             //     XEND = 160
-      CMD::NORON  ,   CMD_INIT_DELAY,  // 17: Normal display on, no args, w/delay
+      CMD::NORON  ,   CMD_INIT_DELAY,  // Normal display on, no args, w/delay
         10,                     //     10 ms delay
-      CMD::DISPON ,   CMD_INIT_DELAY,  // 18: Main screen turn on, no args, w/delay
+      CMD::DISPON ,   CMD_INIT_DELAY,  // Main screen turn on, no args, w/delay
         255 ,                   //     255 = 500 ms delay
       0xFF, 0xFF
     };
@@ -164,35 +150,10 @@ namespace lgfx
         0x8A, 0xEE,
       CMD::VMCTR1 , 1      ,  // 12: Power control, 1 arg, no delay:
         0x0E,
-      CMD::INVOFF , 0      ,  // 13: Don't invert display, no args, no delay
-      CMD::MADCTL , 1      ,  // 14: Memory access control (directions), 1 arg:
-        0xC8,                   //     row addr/col addr, bottom to top refresh
-      CMD::COLMOD , 1      ,  // 15: set color mode, 1 arg, no delay:
-        0x05,                   //     16-bit color
-      0xFF,0xFF
-    };
-/*
-    static constexpr uint8_t PROGMEM Rcmd2green[] = {            // Init for 7735R, part 2 (green tab only)
-      CMD::CASET  , 4      ,  //  1: Column addr set, 4 args, no delay:
-        0x00, 0x02,             //     XSTART = 0
-        0x00, 0x7F+0x02,        //     XEND = 127
-      CMD::RASET  , 4      ,  //  2: Row addr set, 4 args, no delay:
-        0x00, 0x01,             //     XSTART = 0
-        0x00, 0x9F+0x01,        //     XEND = 159
       0xFF,0xFF
     };
 
-    static constexpr uint8_t PROGMEM Rcmd2red[] = {              // Init for 7735R, part 2 (red tab only)
-      CMD::CASET  , 4      ,  //  1: Column addr set, 4 args, no delay:
-        0x00, 0x00,             //     XSTART = 0
-        0x00, 0x7F,             //     XEND = 127
-      CMD::RASET  , 4      ,  //  2: Row addr set, 4 args, no delay:
-        0x00, 0x00,             //     XSTART = 0
-        0x00, 0x9F,             //     XEND = 159
-      0xFF,0xFF
-    };
-//*/
-    static constexpr uint8_t PROGMEM Rcmd3[] = {                 // Init for 7735R, part 3 (red or green tab)
+    static constexpr uint8_t PROGMEM Rcmd2[] = {  // Init for 7735R, part 2 (red or green tab)
       CMD::GMCTRP1, 16      , //  1: 16 args, no delay:
         0x02, 0x1c, 0x07, 0x12,
         0x37, 0x32, 0x29, 0x2d,
@@ -210,73 +171,56 @@ namespace lgfx
       0xFF,0xFF
     };
   };
-  constexpr uint8_t Panel_ST7735_COMMON::Bcmd[];
-  constexpr uint8_t Panel_ST7735_COMMON::Rcmd1[];
-//  constexpr uint8_t Panel_ST7735_COMMON::Rcmd2green[];
-//  constexpr uint8_t Panel_ST7735_COMMON::Rcmd2red[];
-  constexpr uint8_t Panel_ST7735_COMMON::Rcmd3[];
+  constexpr uint8_t Panel_ST7735::Bcmd[];
+  constexpr uint8_t Panel_ST7735::Rcmd1[];
+  constexpr uint8_t Panel_ST7735::Rcmd2[];
 
 
-  template<uint16_t RamWidth = 132, uint16_t RamHeight = 162, uint16_t PanelWidth = 128, uint16_t PanelHeight = 160, uint16_t OffsetX = 0, uint16_t OffsetY = 0>
-  struct Panel_ST7735 : public Panel_ST7735_COMMON
+  template <class CFG>
+  class Panel_ST7735B : public Panel_ST7735<CFG>
   {
-    Panel_ST7735() : Panel_ST7735_COMMON()
-    {
-      ram_width  = RamWidth;
-      ram_height = RamHeight;
-      panel_width  = PanelWidth;
-      panel_height = PanelHeight;
-      offset_x = OffsetX;
-      offset_y = OffsetY;
-    }
-  };
-
-
-  template<int PanelWidth = 128, int PanelHeight = 160, int OffsetX = 0, int OffsetY = 0>
-  struct Panel_ST7735_128 : public Panel_ST7735<128, 160, PanelWidth, PanelHeight, OffsetX, OffsetY>
-  {
-  };
-
-
-  template<int PanelWidth = 132, int PanelHeight = 162, int OffsetX = 0, int OffsetY = 0>
-  struct Panel_ST7735_132 : public Panel_ST7735<132, 162, PanelWidth, PanelHeight, OffsetX, OffsetY>
-  {
-  };
-
-
-  struct Panel_ST7735_GREENTAB160x80 : public Panel_ST7735_132<80, 160, 26, 1>
-  {
-    const uint8_t* getInitCommands(uint8_t listno = 0) const {
+    const uint8_t* getInitCommands(uint8_t listno) const override {
       switch (listno) {
-      case 0: return Panel_ST7735_COMMON::Rcmd1;
-      case 1: return Panel_ST7735_COMMON::Rcmd3; // Panel_ST7735_COMMON::Rcmd2green;
+      case 0: return Panel_ST7735_COMMON::Bcmd;
       default: return nullptr;
       }
     }
   };
 
-
-  struct Panel_ST7735_REDTAB160x80 : public Panel_ST7735_128<80, 160, 24, 0>
+  template <class CFG>
+  class Panel_ST7735R : public Panel_ST7735<CFG>
   {
-    const uint8_t* getInitCommands(uint8_t listno = 0) const {
+    const uint8_t* getInitCommands(uint8_t listno) const override {
       switch (listno) {
       case 0: return Panel_ST7735_COMMON::Rcmd1;
-      case 1: return Panel_ST7735_COMMON::Rcmd3; // Panel_ST7735_COMMON::Rcmd2green;
+      case 1: return Panel_ST7735_COMMON::Rcmd2;
       default: return nullptr;
       }
     }
   };
 
-  struct Panel_M5StickC : public Panel_ST7735_128<80, 160, 24, 0>
-  {
-    const uint8_t* getInitCommands(uint8_t listno = 0) const {
-      switch (listno) {
-      case 0: return Panel_ST7735_COMMON::Rcmd1;
-      case 1: return Panel_ST7735_COMMON::Rcmd3; // Panel_ST7735_COMMON::Rcmd2green;
-      default: return nullptr;
-      }
-    }
+#if defined(ARDUINO_M5Stick_C) // M5Stick C
+  struct CfgM5StickC {
+    static constexpr spi_host_device_t spi_host = VSPI_HOST;
+    static constexpr bool spi_half_duplex = true;
+    static constexpr int spi_mosi = 15;
+    static constexpr int spi_miso = 14;
+    static constexpr int spi_sclk = 13;
+    static constexpr int spi_cs   =  5;
+    static constexpr int spi_dc   = 23;
+    static constexpr int panel_rst = 18;
+    static constexpr int freq_write = 27000000;
+    static constexpr int freq_read  = 14000000;
+    static constexpr int freq_fill  = 27000000;
+    static constexpr int panel_x      = 26
+    static constexpr int panel_y      = 1
+    static constexpr int panel_width  = 80
+    static constexpr int panel_height = 160
   };
+
+  struct Panel_M5StickC : public Panel_ST7735R<CfgM5StickC>
+  {};
+#endif
 
 }
 

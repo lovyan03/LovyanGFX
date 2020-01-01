@@ -9,21 +9,8 @@
 #include <LovyanGFX.hpp>
 
 #if defined(ARDUINO_M5Stack_Core_ESP32) || defined(ARDUINO_M5STACK_FIRE) // M5Stack
-  struct LGFX_Config {
-    static constexpr spi_host_device_t spi_host = VSPI_HOST;
-    static constexpr int spi_mosi = 23;
-    static constexpr int spi_miso = 19;
-    static constexpr int spi_sclk = 18;
-    static constexpr int spi_cs   = 14;
-    static constexpr int spi_dc   = 27;
-    static constexpr int panel_rst = 33;
-    static constexpr int panel_bl  = 32;
-    static constexpr int freq_write = 40000000;
-    static constexpr int freq_read  = 16000000;
-    static constexpr int freq_fill  = 40000000;
-    static constexpr bool spi_half_duplex = true;
-    lgfx::Panel_M5Stack panel;
-  };
+
+  static LovyanGFX<lgfx::Panel_M5Stack> tft_lgfx;
 
 #elif defined(ARDUINO_M5Stick_C) // M5Stick C
   struct LGFX_Config {
@@ -138,13 +125,12 @@
     static constexpr int freq_read  = 16000000;
     static constexpr int freq_fill  = 40000000;
     static constexpr bool spi_half_duplex = true;
-    lgfx::Panel_ILI9163_128x160 panel;
+    //lgfx::Panel_ILI9163_128x160 panel;
     //lgfx::Panel_ST7735_REDTAB160x80 panel;
     //lgfx::Panel_ST7789_240x320 panel;
   };
-static LGFX<LGFX_Config2> tft_ext;
-static LGFX<LGFX_Config> tft_lgfx;
-static LGFXSprite sprite;
+//static LGFX<LGFX_Config2> tft_ext;
+static LGFXSprite sprite(&tft_lgfx);
 
 
 
@@ -152,10 +138,8 @@ static LGFXSprite sprite;
 template<typename T>
 void movingSprite(T& Lcd)
 {
-  uint8_t* spbuf = sprite.getDevice()->buffer();
-
   for (int i = 0; i < 200; i++) {
-    sprite.pushSprite(&Lcd, (i % (Lcd.width()+100))-100, (i % (Lcd.height() + 100))-100);
+    sprite.pushSprite((i % (Lcd.width()+100))-100, (i % (Lcd.height() + 100))-100);
     //sprite.pushSprite(*Lcd, random(-50,270), random(-50,190));
   }
 }
@@ -340,11 +324,14 @@ void drawRects(T& Lcd, int32_t offset = 0)
   int32_t height = Lcd.height();
   Lcd.startWrite();
 //  Lcd.fillRect(offset, 0, width >> 1, height, random(0, 0xFFFFFF));
+  int w = width>>1;
+  int h = height/3;
   for (int count = 0; count < 80; count++) {
     int x = (count % (width>>1));
-    Lcd.drawRect(x + offset, x             , (width >> 1)-(x<<1), height/3-(x<<1), Lcd.color565(      x<<4, 0, 0));
-    Lcd.drawRect(x + offset, x + height  /3, (width >> 1)-(x<<1), height/3-(x<<1), Lcd.color565(0,    x<<4, 0   ));
-    Lcd.drawRect(x + offset, x + height*2/3, (width >> 1)-(x<<1), height/3-(x<<1), Lcd.color565(0, 0, x<<4      ));
+    Lcd.drawRect(x + offset, x             , w, h, Lcd.color565(      x<<4, 0, 0));
+    Lcd.drawRect(x + offset, x + height  /3, w, h, Lcd.color565(0,    x<<4, 0   ));
+    Lcd.drawRect(x + offset, x + height*2/3, w, h, Lcd.color565(0, 0, x<<4      ));
+    if (1 > (w -= 2) || 1 > (h -= 2)) break;
   }
   Lcd.endWrite();
 }
@@ -359,7 +346,8 @@ void blockReadWrite(T& Lcd, int32_t offset = 0)
   for (int count = 0; count < height; count++) {
     if (1 > (width - (count>>1))) break;
     Lcd.readRect(offset           , count, (width - (count>>1)) >> 1, 1, buf);
-    Lcd.pushRect(offset+(width>>1), count, (width - (count>>1)) >> 1, 1, buf);
+    //Lcd.fillRect(offset+(width>>1), count, (width - (count>>1)) >> 1, 1, count);
+    Lcd.pushImage(offset+(width>>1), count, (width - (count>>1)) >> 1, 1, buf);
     Lcd.drawPixel(offset + (count>>2), count, 0xFFFF);
   }
   Lcd.endWrite();
@@ -415,11 +403,11 @@ Serial.printf("LovyanGFX mosi:%d  miso:%d  sclk:%d  cs:%d  dc:%d  rst:%d \r\n"
              , LGFX_Config::spi_mosi, LGFX_Config::spi_miso, LGFX_Config::spi_sclk, LGFX_Config::spi_cs, LGFX_Config::spi_dc, LGFX_Config::panel_rst);
 #endif
 
-  tft_ext.init();
+  //tft_ext.init();
   tft_lgfx.init();
   //tft_espi.init();
 
-  sprite.setColorDepth(24);
+  sprite.setColorDepth(8);
   sprite.createSprite(100,100);
   drawRects(sprite, 0);
   blockReadWrite(sprite, 0);
@@ -454,8 +442,8 @@ Serial.printf("LovyanGFX mosi:%d  miso:%d  sclk:%d  cs:%d  dc:%d  rst:%d \r\n"
   tft_lgfx.setSwapBytes(true);
   //tft_espi.setSwapBytes(true);
 
-  tft_ext.setRotation(2);
-  tft_ext.setSwapBytes(true);
+  //tft_ext.setRotation(2);
+  //tft_ext.setSwapBytes(true);
 
   //tft.setTextWrap(true, true);
 
@@ -484,17 +472,18 @@ delay(500);
   tft_lgfx.setColorDepth(count & 8 ? 24 : 16);
   tft_lgfx.setSwapBytes(count & 4);
   tft_lgfx.setRotation(count & 3);
-  tft_ext.setSwapBytes(count & 4);
-  tft_ext.setRotation(count & 3);
+  //tft_ext.setSwapBytes(count & 4);
+  //tft_ext.setRotation(count & 3);
   //tft_espi.setSwapBytes(count & 4);
   //tft_espi.setRotation(count & 3);
 Serial.printf("colorDepth:%d  swapBytes:%d  rotation:%d \r\n"
              , tft_lgfx.getColorDepth(), tft_lgfx.getSwapBytes(), tft_lgfx.getRotation());
+  drawRects(sprite, 0);
 
 //taskDISABLE_INTERRUPTS();
 sec = esp_timer_get_time();
 
-  drawRects(sprite, 0);
+  movingSprite(tft_lgfx);
 
 sec = esp_timer_get_time() - sec;
 //taskENABLE_INTERRUPTS();
@@ -502,11 +491,10 @@ sec = esp_timer_get_time() - sec;
   //drawRects(tft_espi, tft_espi.width()>>1);
   //blockReadWrite(tft_espi, tft_espi.width()>>1);
 
-  movingSprite(tft_ext);
-  drawRects(tft_ext, 0);
-  blockReadWrite(tft_ext, 0);
+  //movingSprite(tft_ext);
+  //drawRects(tft_ext, 0);
+  //blockReadWrite(tft_ext, 0);
 
-  movingSprite(tft_lgfx);
   drawRects(tft_lgfx, 0);
   blockReadWrite(tft_lgfx, 0);
 
