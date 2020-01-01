@@ -146,19 +146,21 @@ namespace lgfx
 //*/
     void fillWindow(int32_t xs, int32_t ys, int32_t xe, int32_t ye) override
     {
+      if (xs == xe) {
+        if (_bpp == 16) {
+          do { _img16[xs + ys * _bitwidth] = *(swap565_t*)&_color; } while (++ys <= ye);
+        } else if (_bpp == 8) {
+          do { _img[xs + ys * _bitwidth] = _color.raw0; } while (++ys <= ye);
+        } else if (_bpp == 24) {
+          do { _img24[xs + ys * _bitwidth] = *(swap888_t*)&_color; } while (++ys <= ye);
+        } else { // _bpp == 1
+      // unimplemanted
+        }
+        return;
+      }
       if (_bpp == 1) {
         // unimplemanted
       } else {
-        if (xs == xe) {
-          if (_bpp == 8) {
-            do { _img[xs + ys * _bitwidth] = _color.raw0; } while (++ys <= ye);
-          } else if (_bpp == 16) {
-            do { _img16[xs + ys * _bitwidth] = *(swap565_t*)&_color; } while (++ys <= ye);
-          } else if (_bpp == 24) {
-            do { _img24[xs + ys * _bitwidth] = *(swap888_t*)&_color; } while (++ys <= ye);
-          }
-          return;
-        }
         if (_bpp == 8 || (_color.raw0 == _color.raw1 && (_bpp == 16 || (_color.raw0 == _color.raw2)))) {
           if (xs == 0 && xe == _width) {
             memset(&_img[ys * _bitwidth * _bytes], _color.raw0, _width *  (ye - ys + 1) * _bytes);
