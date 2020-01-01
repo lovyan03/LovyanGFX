@@ -6,7 +6,7 @@
 
 #include "lgfx_common.hpp"
 #include "esp32_common.hpp"
-#include "panel_common.hpp"
+//#include "panel_common.hpp"
 #include "panel_sprite.hpp"
 
 namespace lgfx
@@ -47,17 +47,17 @@ namespace lgfx
   #undef MEMBER_DETECTOR
 
   template <class CFG>
-  class PanelDevice : public PanelCommon
+  class LovyanGFXDevice : public LovyanGFX
   {
   public:
 
-    PanelDevice() {
+    LovyanGFXDevice() {
       _bpp      = get_bpp     <CFG,   16>::value;
       _invert   = get_invert  <CFG,false>::value;
       _rotation = get_rotation<CFG,    0>::value;
     }
 
-    virtual ~PanelDevice() {}
+    virtual ~LovyanGFXDevice() {}
 /*
     static void setPanel(const PanelLcdCommon* panel)
     {
@@ -72,6 +72,8 @@ namespace lgfx
       init_bus();
 
       init_panel();
+
+      LovyanGFX::init();
     }
 
     void beginTransaction(void) override {
@@ -131,7 +133,7 @@ namespace lgfx
         _mode = panel_mode_t::fill;
       }
       write_cmd(_cmd_ramwr);
-      writeColor((xe-xs+1) * (ye-ys+1));
+      _writeColor((xe-xs+1) * (ye-ys+1));
     }
 
     void readWindow(int32_t xs, int32_t ys, int32_t xe, int32_t ye) override
@@ -147,7 +149,7 @@ namespace lgfx
       end_read();
     }
 
-    void writeColor(uint32_t length) override
+    void _writeColor(uint32_t length) override
     {
       if (length == 1) { write_data(_color.raw, _bpp); return; }
 
@@ -194,30 +196,30 @@ namespace lgfx
       }
     }
 
-    rgb565_t readPixel(void) override
+    rgb565_t _readPixel(void) override
     {
       wait_spi();
       if (_len_read_pixel == 24) return (rgb565_t)swap888_t(read_data(24));
     }
 
-    void readPixels(rgb332_t*   buf, uint32_t length) override { readPixelsTemplate(buf, length); }
-    void readPixels(rgb565_t*   buf, uint32_t length) override { readPixelsTemplate(buf, length); }
-    void readPixels(rgb888_t*   buf, uint32_t length) override { readPixelsTemplate(buf, length); }
-    void readPixels(swap565_t*  buf, uint32_t length) override { readPixelsTemplate(buf, length); }
-    void readPixels(swap888_t*  buf, uint32_t length) override { readPixelsTemplate(buf, length); }
-    void readPixels(argb8888_t* buf, uint32_t length) override { readPixelsTemplate(buf, length); }
+    void _readPixels(rgb332_t*   buf, uint32_t length) override { readPixelsTemplate(buf, length); }
+    void _readPixels(rgb565_t*   buf, uint32_t length) override { readPixelsTemplate(buf, length); }
+    void _readPixels(rgb888_t*   buf, uint32_t length) override { readPixelsTemplate(buf, length); }
+    void _readPixels(swap565_t*  buf, uint32_t length) override { readPixelsTemplate(buf, length); }
+    void _readPixels(swap888_t*  buf, uint32_t length) override { readPixelsTemplate(buf, length); }
+    void _readPixels(argb8888_t* buf, uint32_t length) override { readPixelsTemplate(buf, length); }
 
-    void writePixels(const rgb332_t*   src, uint32_t length) override { writePixelsTemplate(src, length); }
-    void writePixels(const rgb565_t*   src, uint32_t length) override { writePixelsTemplate(src, length); }
-    void writePixels(const rgb888_t*   src, uint32_t length) override { writePixelsTemplate(src, length); }
-    void writePixels(const argb8888_t* src, uint32_t length) override { writePixelsTemplate(src, length); }
-    void writePixels(const swap565_t*  src, uint32_t length) override
+    void _writePixels(const rgb332_t*   src, uint32_t length) override { writePixelsTemplate(src, length); }
+    void _writePixels(const rgb565_t*   src, uint32_t length) override { writePixelsTemplate(src, length); }
+    void _writePixels(const rgb888_t*   src, uint32_t length) override { writePixelsTemplate(src, length); }
+    void _writePixels(const argb8888_t* src, uint32_t length) override { writePixelsTemplate(src, length); }
+    void _writePixels(const swap565_t*  src, uint32_t length) override
     {
       if      (_bpp == 16) { write_bytes((const uint8_t*)src, length * 2); }
       else if (_bpp == 24) { write_pixels<swap888_t>(src, length); }
     }
 
-    void writePixels(const swap888_t* src, uint32_t length) override
+    void _writePixels(const swap888_t* src, uint32_t length) override
     {
       if      (_bpp == 16) { write_pixels<swap565_t>(src, length); }
       else if (_bpp == 24) { write_bytes((const uint8_t*)src, length * 3); }
@@ -567,15 +569,16 @@ namespace lgfx
     static uint32_t _user_reg;
     static uint32_t _regbuf[8];
   };
-  template <class T> uint32_t PanelDevice<T>::_last_apb_freq;
-  template <class T> uint32_t PanelDevice<T>::_clkdiv_write;
-  template <class T> uint32_t PanelDevice<T>::_clkdiv_read;
-  template <class T> uint32_t PanelDevice<T>::_clkdiv_fill;
-  template <class T> uint32_t PanelDevice<T>::_user_reg;
-  template <class T> uint32_t PanelDevice<T>::_regbuf[];
+  template <class T> uint32_t LovyanGFXDevice<T>::_last_apb_freq;
+  template <class T> uint32_t LovyanGFXDevice<T>::_clkdiv_write;
+  template <class T> uint32_t LovyanGFXDevice<T>::_clkdiv_read;
+  template <class T> uint32_t LovyanGFXDevice<T>::_clkdiv_fill;
+  template <class T> uint32_t LovyanGFXDevice<T>::_user_reg;
+  template <class T> uint32_t LovyanGFXDevice<T>::_regbuf[];
 
+//----------------------------------------------------------------------------
 
-  class PanelSprite : public PanelSpriteCommon 
+  class LGFXSprite : public LGFXSpriteBase
   {
     void* mallocSprite(uint32_t bytes, uint32_t param) override
     {
@@ -585,7 +588,10 @@ namespace lgfx
     {
       heap_caps_free(buf);
     }
- };
+  public:
+    LGFXSprite() : LGFXSpriteBase() {}
+    LGFXSprite(LovyanGFX* parent) : LGFXSpriteBase(parent) {}
+  };
 
 }
 #endif

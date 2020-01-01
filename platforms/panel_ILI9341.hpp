@@ -127,7 +127,7 @@ namespace lgfx
     static constexpr bool spi_half_duplex = true;
   };
 
-  struct Panel_M5Stack : public Panel_ILI9341<CfgM5Stack>
+  class Panel_M5Stack : public Panel_ILI9341<CfgM5Stack>
   {
   protected:
     uint8_t getMadCtl(uint8_t r) const override {

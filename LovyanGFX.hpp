@@ -10,18 +10,10 @@
 #include <cmath>
 #include <cfloat>
 
-#include "platforms/panel_device.hpp"
-
-#include "platforms/panel_ILI9341.hpp"
-#include "platforms/panel_sprite.hpp"
-/*
-#include "platforms/panel_ILI9163.hpp"
-#include "platforms/panel_ST7735.hpp"
-#include "platforms/panel_ST7789.hpp"
-*/
-
 #define LOAD_GFXFF
 #include "LGFX_FontLoad.hpp"
+
+#include "platforms/lgfx_common.hpp"
 
 namespace lgfx
 {
@@ -30,44 +22,50 @@ namespace lgfx
   __attribute__ ((always_inline)) inline bool ab(int32_t& x, int32_t& w) { if (w < 0) { x += w + 1; w = -w; } return w; }
   public:
     LGFXBase() {}
-    LGFXBase(PanelCommon* panel) : _panel(panel) {}
+  //LGFXBase(PanelCommon* panel) : _panel(panel) {}
     virtual ~LGFXBase() {}
 
-    __attribute__ ((always_inline)) inline PanelCommon* getPanel(void) { return _panel; }
+  //__attribute__ ((always_inline)) inline PanelCommon* getPanel(void) { return _panel; }
     __attribute__ ((always_inline)) inline int32_t width        (void) const { return _width; }
     __attribute__ ((always_inline)) inline int32_t height       (void) const { return _height; }
-    __attribute__ ((always_inline)) inline uint8_t getInvert    (void) const { return _panel->getInvert(); }
-    __attribute__ ((always_inline)) inline uint8_t getRotation  (void) const { return _panel->getRotation(); }
-    __attribute__ ((always_inline)) inline uint8_t getColorDepth(void) const { return _panel->getColorDepth(); }
+    __attribute__ ((always_inline)) inline bool getInvert       (void) const { return _invert; }
+    __attribute__ ((always_inline)) inline uint8_t getRotation  (void) const { return _rotation; }
+    __attribute__ ((always_inline)) inline uint8_t getColorDepth(void) const { return _bpp; }
     __attribute__ ((always_inline)) inline bool getSwapBytes    (void) const { return _swapBytes; }
     __attribute__ ((always_inline)) inline void setSwapBytes(bool swap) { _swapBytes = swap; }
     __attribute__ ((always_inline)) inline static uint8_t  color332(uint8_t r, uint8_t g, uint8_t b) { return lgfx::color332(r, g, b); }
     __attribute__ ((always_inline)) inline static uint16_t color565(uint8_t r, uint8_t g, uint8_t b) { return lgfx::color565(r, g, b); }
     __attribute__ ((always_inline)) inline static uint32_t color888(uint8_t r, uint8_t g, uint8_t b) { return lgfx::color888(r, g, b); }
 
-    template<typename T> inline void writeColor    ( const T& color, uint32_t len) { _panel->setColor(color);               _writeColor(len);             }
-    template<typename T> inline void pushColor     ( const T& color, uint32_t len) { _panel->setColor(color); startWrite(); _pushColor (len); endWrite(); }
-    template<typename T> inline void pushColor     ( const T& color              ) { _panel->setColor(color); startWrite(); _pushColor ();    endWrite(); }
-    template<typename T> inline void fillScreen    ( const T& color)               { _panel->setColor(color); startWrite(); _fillRect(0, 0, _width, _height); endWrite(); }
+    template<typename T> inline void writeColor    ( const T& color, uint32_t len) { set_color(color);               _writeColor(len);             }
+    template<typename T> inline void pushColor     ( const T& color, uint32_t len) { set_color(color); startWrite(); _writeColor(len); endWrite(); }
+    template<typename T> inline void pushColor     ( const T& color              ) { set_color(color); startWrite(); _writeColor();    endWrite(); }
+    template<typename T> inline void fillScreen    ( const T& color)               { set_color(color); startWrite(); _fillRect(0, 0, _width, _height); endWrite(); }
 
-    template<typename T> inline void drawPixel     ( int32_t x, int32_t y                      , const T& color)  {                                 _panel->setColor(color); startWrite(); _drawPixel    (x, y      ); endWrite(); }
-    template<typename T> inline void drawCircle    ( int32_t x, int32_t y, int32_t r           , const T& color)  {                                 _panel->setColor(color); startWrite(); _drawCircle   (x, y, r   ); endWrite(); }
-    template<typename T> inline void fillCircle    ( int32_t x, int32_t y, int32_t r           , const T& color)  {                                 _panel->setColor(color); startWrite(); _fillCircle   (x, y, r   ); endWrite(); }
-    template<typename T> inline void drawFastVLine ( int32_t x, int32_t y           , int32_t h, const T& color)  { if (!ab(y,h)          ) return; _panel->setColor(color); startWrite(); _drawFastVLine(x, y   , h); endWrite(); }
-    template<typename T> inline void drawFastHLine ( int32_t x, int32_t y, int32_t w           , const T& color)  { if (!ab(x,w)          ) return; _panel->setColor(color); startWrite(); _drawFastHLine(x, y, w   ); endWrite(); }
-    template<typename T> inline void drawRect      ( int32_t x, int32_t y, int32_t w, int32_t h, const T& color)  { if (!ab(x,w)||!ab(y,h)) return; _panel->setColor(color); startWrite(); _drawRect     (x, y, w, h); endWrite(); }
-    template<typename T> inline void fillRect      ( int32_t x, int32_t y, int32_t w, int32_t h, const T& color)  { if (!ab(x,w)||!ab(y,h)) return; _panel->setColor(color); startWrite(); _fillRect     (x, y, w, h); endWrite(); }
-    template<typename T> inline void drawRoundRect ( int32_t x, int32_t y, int32_t w, int32_t h, int32_t r, const T& color) { if (!ab(x,w)||!ab(y,h)) return; _panel->setColor(color); startWrite(); _drawRoundRect(x, y, w, h, r); endWrite(); }
-    template<typename T> inline void fillRoundRect ( int32_t x, int32_t y, int32_t w, int32_t h, int32_t r, const T& color) { if (!ab(x,w)||!ab(y,h)) return; _panel->setColor(color); startWrite(); _fillRoundRect(x, y, w, h, r); endWrite(); }
-    template<typename T> inline void drawLine      ( int32_t x0, int32_t y0, int32_t x1, int32_t y1                        , const T& color)  { _panel->setColor(color); startWrite(); _drawLine(    x0, y0, x1, y1        ); endWrite(); }
-    template<typename T> inline void drawTriangle  ( int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t x2, int32_t y2, const T& color)  { _panel->setColor(color); startWrite(); _drawTriangle(x0, y0, x1, y1, x2, y2); endWrite(); }
-    template<typename T> inline void fillTriangle  ( int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t x2, int32_t y2, const T& color)  { _panel->setColor(color); startWrite(); _fillTriangle(x0, y0, x1, y1, x2, y2); endWrite(); }
+    template<typename T> inline void drawPixel     ( int32_t x, int32_t y                      , const T& color)  {                                 set_color(color); startWrite(); _drawPixel    (x, y      ); endWrite(); }
+    template<typename T> inline void drawCircle    ( int32_t x, int32_t y, int32_t r           , const T& color)  {                                 set_color(color); startWrite(); _drawCircle   (x, y, r   ); endWrite(); }
+    template<typename T> inline void fillCircle    ( int32_t x, int32_t y, int32_t r           , const T& color)  {                                 set_color(color); startWrite(); _fillCircle   (x, y, r   ); endWrite(); }
+    template<typename T> inline void drawFastVLine ( int32_t x, int32_t y           , int32_t h, const T& color)  { if (!ab(y,h)          ) return; set_color(color); startWrite(); _drawFastVLine(x, y   , h); endWrite(); }
+    template<typename T> inline void drawFastHLine ( int32_t x, int32_t y, int32_t w           , const T& color)  { if (!ab(x,w)          ) return; set_color(color); startWrite(); _drawFastHLine(x, y, w   ); endWrite(); }
+    template<typename T> inline void drawRect      ( int32_t x, int32_t y, int32_t w, int32_t h, const T& color)  { if (!ab(x,w)||!ab(y,h)) return; set_color(color); startWrite(); _drawRect     (x, y, w, h); endWrite(); }
+    template<typename T> inline void fillRect      ( int32_t x, int32_t y, int32_t w, int32_t h, const T& color)  { if (!ab(x,w)||!ab(y,h)) return; set_color(color); startWrite(); _fillRect     (x, y, w, h); endWrite(); }
+    template<typename T> inline void drawRoundRect ( int32_t x, int32_t y, int32_t w, int32_t h, int32_t r, const T& color) { if (!ab(x,w)||!ab(y,h)) return; set_color(color); startWrite(); _drawRoundRect(x, y, w, h, r); endWrite(); }
+    template<typename T> inline void fillRoundRect ( int32_t x, int32_t y, int32_t w, int32_t h, int32_t r, const T& color) { if (!ab(x,w)||!ab(y,h)) return; set_color(color); startWrite(); _fillRoundRect(x, y, w, h, r); endWrite(); }
+    template<typename T> inline void drawLine      ( int32_t x0, int32_t y0, int32_t x1, int32_t y1                        , const T& color)  { set_color(color); startWrite(); _drawLine(    x0, y0, x1, y1        ); endWrite(); }
+    template<typename T> inline void drawTriangle  ( int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t x2, int32_t y2, const T& color)  { set_color(color); startWrite(); _drawTriangle(x0, y0, x1, y1, x2, y2); endWrite(); }
+    template<typename T> inline void fillTriangle  ( int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t x2, int32_t y2, const T& color)  { set_color(color); startWrite(); _fillTriangle(x0, y0, x1, y1, x2, y2); endWrite(); }
+
+    __attribute__ ((always_inline)) inline void startWrite(void) { if (0 == _start_write_count++) { beginTransaction(); } }
+    __attribute__ ((always_inline)) inline void endWrite(void)   { if (_start_write_count) { if (0 == (--_start_write_count)) endTransaction(); } }
+    virtual void beginTransaction() {}
+    virtual void endTransaction() {}
 
     __attribute__ ((always_inline)) inline void flush(void) {}
     __attribute__ ((always_inline)) inline void begin(void) { init(); }
-    void init(void)
+
+    virtual void init()
     {
-      _panel->init();
+    //_panel->init();
 
       startWrite();
       setRotation(getRotation());
@@ -77,9 +75,8 @@ namespace lgfx
       endWrite();
     }
 
-    __attribute__ ((always_inline)) inline void startWrite(void) { if (0 == _start_write_count++) { _panel->beginTransaction(); } }
-    __attribute__ ((always_inline)) inline void endWrite(void)   { if (_start_write_count) { if (0 == (--_start_write_count)) _panel->endTransaction(); } }
-
+    virtual void setRotation(uint8_t rotation) {}
+/*
     void setRotation(uint8_t rotation)
     {
       startWrite();
@@ -88,7 +85,10 @@ namespace lgfx
       _width = _panel->width();
       _height = _panel->height();
     }
+*/
 
+    virtual void* setColorDepth(uint8_t bpp) { return nullptr; }
+/*
     void* setColorDepth(uint8_t bpp)
     {
       startWrite();
@@ -96,20 +96,24 @@ namespace lgfx
       endWrite();
       return res;
     }
-
+*/
+    virtual void invertDisplay(bool invert) {}
+/*
     void invertDisplay(bool i)
     {
       startWrite();
       _panel->invertDisplay(i);
       endWrite();
     }
-
+*/
+/*
     void setWindow(int32_t xs, int32_t ys, int32_t xe, int32_t ye)
     {
       startWrite();
       _panel->setWindow(xs, ys, xe, ye);
       endWrite();
     }
+*/
 
     void setAddrWindow(int32_t x, int32_t y, int32_t w, int32_t h)
     {
@@ -122,9 +126,7 @@ namespace lgfx
       if ((y + h) > _height) h = _height - y;
       if (h < 1) return;
 
-      startWrite();
-      _panel->setWindow(x, y, x + w - 1, y + h - 1);
-      endWrite();
+      setWindow(x, y, x + w - 1, y + h - 1);
     }
 
   /*
@@ -145,10 +147,13 @@ namespace lgfx
     void pushColors(const T *src, uint32_t len)
     {
       startWrite();
-      _panel->writePixels(src, len);
+      _writePixels(src, len);
       endWrite();
     }
 
+    virtual uint32_t readPanelID(void) { return 0; }
+    virtual uint32_t readPanelIDSub(uint8_t cmd) { return 0; }
+/*
     uint32_t readPanelID()
     {
       startWrite();
@@ -164,13 +169,13 @@ namespace lgfx
       endWrite();
       return res;
     }
-
+*/
     uint16_t readPixel(int32_t x, int32_t y)
     {
       startWrite();
-      _panel->readWindow(x, y, x, y);
-      uint16_t res = (uint16_t)_panel->readPixel();
-      _panel->endRead();
+      readWindow(x, y, x, y);
+      uint16_t res = (uint16_t)_readPixel();
+      endRead();
       endWrite();
       return res;
     }
@@ -202,9 +207,9 @@ namespace lgfx
       if (h < 1) return;
 
       startWrite();
-      _panel->readWindow(x, y, x + w - 1, y + h - 1);
-      _panel->readPixels(buf, w * h);
-      _panel->endRead();
+      readWindow(x, y, x + w - 1, y + h - 1);
+      _readPixels(buf, w * h);
+      endRead();
       endWrite();
     }
 
@@ -244,11 +249,11 @@ namespace lgfx
       if (dh < 1) return;
 
       startWrite();
-      _panel->setWindow(x, y, x + dw - 1, y + dh - 1);
+      setWindow(x, y, x + dw - 1, y + dh - 1);
       data += dx + dy * w;
       while (dh--)
       {
-        _panel->writePixels(data, dw);
+        _writePixels(data, dw);
         //pushColors(data, dw);
         data += w;
       }
@@ -461,8 +466,8 @@ namespace lgfx
           for (uint8_t i = 0; i < fontHeight; i++) {
             for (uint8_t j = 0; j < fontWidth; j++) {
               if (flg != (bool)(col[j] & 1 << i)) {
-                _panel->setColor(flg ? color : bg);
-                _panel->writeColor(len);
+                set_color(flg ? color : bg);
+                _writeColor(len);
                 len = 0;
                 flg = !flg;
               }
@@ -472,7 +477,7 @@ namespace lgfx
           writeColor(bg, len);
           endWrite();
         } else {
-          if (!fillbg) _panel->setColor(color);
+          if (!fillbg) set_color(color);
           int32_t xpos = x;
           startWrite();
           for (uint8_t i = 0; i < fontWidth-1; i++) {
@@ -483,7 +488,7 @@ namespace lgfx
             for (uint8_t j = 1; j < fontHeight; j++) {
               if (flg != (bool)(line & 1 << j)) {
                 if (flg || fillbg) {
-                  if (fillbg) _panel->setColor(flg ? color : bg);
+                  if (fillbg) set_color(flg ? color : bg);
                   _fillRect(xpos, ypos, size_x, len * size_y);
                 }
                 ypos += len * size_y;
@@ -493,7 +498,7 @@ namespace lgfx
               len++;
             }
             if (flg || fillbg) {
-              if (fillbg) _panel->setColor(flg ? color : bg);
+              if (fillbg) set_color(flg ? color : bg);
               _fillRect(xpos, ypos, size_x, len * size_y);
             }
             xpos += size_x;
@@ -632,8 +637,8 @@ namespace lgfx
             line = pgm_read_byte(font_addr++);
             bool flg = line & 0x80;
             line = ((line & 0x7F) + 1) * size_x;
-            _panel->setColor(flg ? color : bg);
-            _panel->writeColor(line);
+            set_color(flg ? color : bg);
+            _writeColor(line);
           } while (len -= line);
           endWrite();
         } else {
@@ -768,8 +773,8 @@ namespace lgfx
     void setTextSize(uint8_t s) { setTextSize(s,s); }
     void setTextSize(uint8_t sx, uint8_t sy) { _textsize_x = (sx > 0) ? sx : 1; _textsize_y = (sy > 0) ? sy : 1; }
 
-    template <typename T> void setTextColor(T c)      { _panel->setColor(c); _textcolor = _textbgcolor = _panel->getColor(); }
-    template <typename T> void setTextColor(T c, T b) { _panel->setColor(c); _textcolor = _panel->getColor(); _panel->setColor(b); _textbgcolor = _panel->getColor(); }
+    template <typename T> void setTextColor(T c)      { set_color(c); _textcolor = _textbgcolor = _color; }
+    template <typename T> void setTextColor(T c, T b) { set_color(c); _textcolor = _color; set_color(b); _textbgcolor = _color; }
     void setTextDatum( uint8_t datum) { _textdatum = datum; }
     void setTextWrap( bool wrapX, bool wrapY = false) { _textwrapX = wrapX; _textwrapY = wrapY; }
 
@@ -814,8 +819,11 @@ namespace lgfx
   //----------------------------------------------------------------------------
 
   protected:
-    PanelCommon *_panel = nullptr;
+    //PanelCommon *_panel = nullptr;
     uint32_t _start_write_count = 0;
+    bool _invert = false;
+    uint8_t _bpp = 16;
+    uint8_t _rotation = 0;
     int32_t _width = 0;
     int32_t _height = 0;
 
@@ -833,8 +841,39 @@ namespace lgfx
     uint8_t  _decoderState = 0;   // UTF8 decoder state
     uint16_t _decoderBuffer= 0;   // Unicode code-point buffer
 
+    dev_color_t _color = 0xFFFFFFFF;
     dev_color_t _textcolor = 0xFFFFFFFF;
     dev_color_t _textbgcolor = 0;
+
+
+    __attribute__ ((always_inline)) inline void set_color(const dev_color_t& c) { _color = c; }
+#define TYPECHECK(dType) template < typename tType, typename std::enable_if < (sizeof(tType) == sizeof(dType)) && (std::is_signed<tType>::value == std::is_signed<dType>::value), std::nullptr_t >::type=nullptr >
+    TYPECHECK(uint8_t ) __attribute__ ((always_inline)) inline void set_color(tType c) { set_color(*(rgb332_t*)&c); }
+    TYPECHECK(uint16_t) __attribute__ ((always_inline)) inline void set_color(tType c) { set_color(*(rgb565_t*)&c); }
+    TYPECHECK(uint32_t) __attribute__ ((always_inline)) inline void set_color(tType c) { set_color(*(rgb888_t*)&c); }
+    TYPECHECK(int     ) __attribute__ ((always_inline)) inline void set_color(tType c) { set_color(*(rgb565_t*)&c); }
+#undef TYPECHECK
+    __attribute__ ((always_inline)) inline void set_color(const rgb888_t& c) {
+      _color.raw = (_bpp == 16) ? swap565( c.r, c.g, c.b)
+                 : (_bpp == 24) ? c.r | c.g<<8 | c.b<<16
+                 : (_bpp ==  8) ? color332(c.r, c.g, c.b)
+                 : (c.r|c.g|c.b);
+    }
+    __attribute__ ((always_inline)) inline void set_color(const rgb565_t& c) {
+      _color.raw = (_bpp == 16) ? c.raw << 8 | c.raw >> 8
+                 : (_bpp == 24) ? c.R8() | (c.G8()<<8) | (c.B8()<<16)
+                 : (_bpp ==  8) ? ((c.r<<3)&0xE0) | ((c.g>>1)&0x1C) | (c.b>>3)
+                 : c.raw;
+    }
+    __attribute__ ((always_inline)) inline void set_color(const rgb332_t& c) {
+      _color.raw = (_bpp == 16) ? swap565(c.R8(), c.G8(), c.B8())
+                 : (_bpp == 24) ? swap888(c.R8(), c.G8(), c.B8())
+                 : (_bpp ==  8) ? c.raw
+                 : c.raw;
+    }
+
+
+
 
   #ifdef LOAD_GFXFF
     const GFXfont  *_gfxFont;
@@ -845,13 +884,32 @@ namespace lgfx
     template <typename T>
     inline static void swap_coord(T& a, T& b) { T t = a; a = b; b = t; }
 
-    __attribute__ ((always_inline)) inline void _writeColor(uint32_t len) { if (len) _panel->writeColor(len); }
-    __attribute__ ((always_inline)) inline void _pushColor( uint32_t len) { if (len) _panel->writeColor(len); }
-    __attribute__ ((always_inline)) inline void _pushColor(             ) {          _panel->writeColor();    }
-    __attribute__ ((always_inline)) inline void _drawPixel(int32_t x, int32_t y)
+    virtual void setWindow(int32_t xs, int32_t ys, int32_t xe, int32_t ye) {}
+    virtual void fillWindow(int32_t xs, int32_t ys, int32_t xe, int32_t ye) {}
+    virtual void readWindow(int32_t xs, int32_t ys, int32_t xe, int32_t ye) {}
+    virtual void endRead(void) {}
+
+    virtual void _writeColor(uint32_t len = 1) {} // if (len) _panel->writeColor(len); 
+
+    virtual rgb565_t _readPixel(void) { return 0; }
+    virtual void _readPixels(rgb332_t*   buf, uint32_t length) {}
+    virtual void _readPixels(rgb565_t*   buf, uint32_t length) {}
+    virtual void _readPixels(rgb888_t*   buf, uint32_t length) {}
+    virtual void _readPixels(swap565_t*  buf, uint32_t length) {}
+    virtual void _readPixels(swap888_t*  buf, uint32_t length) {}
+    virtual void _readPixels(argb8888_t* buf, uint32_t length) {}
+
+    virtual void _writePixels(const rgb332_t*   src, uint32_t length) {}
+    virtual void _writePixels(const rgb565_t*   src, uint32_t length) {}
+    virtual void _writePixels(const rgb888_t*   src, uint32_t length) {}
+    virtual void _writePixels(const swap565_t*  src, uint32_t length) {}
+    virtual void _writePixels(const swap888_t*  src, uint32_t length) {}
+    virtual void _writePixels(const argb8888_t* src, uint32_t length) {}
+
+    void _drawPixel(int32_t x, int32_t y)
     {
       if (x < 0 || (x >= _width) || y < 0 || (y >= _height)) return;
-      _panel->fillWindow(x, y, x, y);
+      fillWindow(x, y, x, y);
     }
 
     void _drawFastVLine(int32_t x, int32_t y, int32_t h)
@@ -861,17 +919,23 @@ namespace lgfx
       if ((y + h) > _height) h = _height - y;
       if (h < 1) return;
 
-      _panel->fillWindow(x, y, x, y + h - 1);
+      fillWindow(x, y, x, y + h - 1);
+      //_draw_fast_vline(x, y, h);
     }
-
+/*
+    virtual void _draw_fast_vline(int32_t x, int32_t y, int32_t h)
+    {
+      fillWindow(x, y, x, y + h - 1);
+    }
+*/
     void _drawFastHLine(int32_t x, int32_t y, int32_t w)
     {
-      if ((y < 0) || (x >= _width) || (y >= _height)) return;
+      if ((y < 0) || (y >= _height) || (x >= _width)) return;
       if (x < 0) { w += x; x = 0; }
       if ((x + w) > _width) w = _width - x;
       if (w < 1) return;
 
-      _panel->fillWindow(x, y, x + w - 1, y);
+      fillWindow(x, y, x + w - 1, y);
     }
 
     void _fillRect(int32_t x, int32_t y, int32_t w, int32_t h)
@@ -884,7 +948,7 @@ namespace lgfx
       if ((y + h) > _height) h = _height - y;
       if (h < 1) return;
 
-      _panel->fillWindow(x, y, x + w - 1, y + h - 1);
+      fillWindow(x, y, x + w - 1, y + h - 1);
     }
 
     void _drawRect(int32_t x, int32_t y, int32_t w, int32_t h)
@@ -1162,10 +1226,10 @@ namespace lgfx
         int32_t add = (src_x < dst_x) ? -1 : 1;
         int32_t pos = (src_x < dst_x) ? w - 1 : 0;
         for (int count = 0; count < w; count++) {
-          _panel->readWindow(src_x + pos, src_y, src_x + pos, src_y + h - 1);
-          _panel->readPixels(buf, h);
-          _panel->setWindow(dst_x + pos, dst_y, dst_x + pos, dst_y + h - 1);
-          _panel->writePixels(buf, h);
+          readWindow(src_x + pos, src_y, src_x + pos, src_y + h - 1);
+          _readPixels(buf, h);
+          setWindow(dst_x + pos, dst_y, dst_x + pos, dst_y + h - 1);
+          _writePixels(buf, h);
           pos += add;
         }
       } else {
@@ -1173,10 +1237,10 @@ namespace lgfx
         int32_t add = (src_y < dst_y) ? -1 : 1;
         int32_t pos = (src_y < dst_y) ? h - 1 : 0;
         for (int count = 0; count < h; count++) {
-          _panel->readWindow(src_x, src_y + pos, src_x + w - 1, src_y + pos);
-          _panel->readPixels(buf, w);
-          _panel->setWindow(dst_x, dst_y + pos, dst_x + w - 1, dst_y + pos);
-          _panel->writePixels(buf, w);
+          readWindow(src_x, src_y + pos, src_x + w - 1, src_y + pos);
+          _readPixels(buf, w);
+          setWindow(dst_x, dst_y + pos, dst_x + w - 1, dst_y + pos);
+          _writePixels(buf, w);
           pos += add;
         }
       }
@@ -1272,12 +1336,12 @@ namespace lgfx
     void drawBmpFile(fs::FS &fs, const char *path, int32_t x, int32_t y) {
       if ((x >= this->_width) || (y >= this->_height)) return;
 
-      this->_panel->endTransaction();
+      this->endTransaction();
       // Open requested file on SD card
       File bmpFS = fs.open(path, "r");
 
       if (!bmpFS) {
-        if (this->_start_write_count) { this->_panel->beginTransaction(); }
+        if (this->_start_write_count) { this->beginTransaction(); }
         return;
       }
 
@@ -1306,9 +1370,9 @@ namespace lgfx
             uint16_t padding = (4 - (w & 3)) & 3;
             uint8_t lineBuffer[w * (bpp >> 3) + padding];
             while (h--) {
-              this->_panel->endTransaction();
+              this->endTransaction();
               bmpFS.read(lineBuffer, sizeof(lineBuffer));
-              this->_panel->beginTransaction();
+              this->beginTransaction();
               if (bpp == 24) {      this->pushImage(x, y, w, 1, reinterpret_cast<rgb888_t*>(lineBuffer));  }
               else if (bpp == 16) { this->pushImage(x, y, w, 1, reinterpret_cast<rgb565_t*>(lineBuffer));  }
               else if (bpp == 32) { this->pushImage(x, y, w, 1, reinterpret_cast<argb8888_t*>(lineBuffer)); }
@@ -1325,9 +1389,9 @@ namespace lgfx
             if (bpp == 1) {
               uint8_t lineBuffer[((w+31) >> 5) << 2];
               while (h--) {
-                this->_panel->endTransaction();
+                this->endTransaction();
                 bmpFS.read(lineBuffer, sizeof(lineBuffer));
-                this->_panel->beginTransaction();
+                this->beginTransaction();
                 uint8_t* src = lineBuffer;
                 bool flg = lineBuffer[0] & 0x80;
                 int32_t len = 1;
@@ -1350,9 +1414,9 @@ namespace lgfx
                                : (w + (4 - (w & 3) & 3));
               uint8_t lineBuffer[w * 3];
               while (h--) {
-                this->_panel->endTransaction();
+                this->endTransaction();
                 bmpFS.read(lineBuffer, readlen);
-                this->_panel->beginTransaction();
+                this->beginTransaction();
                 if (bpp == 8) {
                   for (int16_t i = 1; i <= w; i++) {
                     reinterpret_cast<rgb888_t*>(lineBuffer)[w - i] = palette[lineBuffer[w - i]];
@@ -1373,79 +1437,36 @@ namespace lgfx
       }
 
       bmpFS.close();
-      if (this->_start_write_count) { this->_panel->beginTransaction(); }
+      if (this->_start_write_count) { this->beginTransaction(); }
     }
   };
 #endif
 
 //----------------------------------------------------------------------------
-//----------------------------------------------------------------------------
-
-  template <class Base>
-  class LGFX_Sprite_Support : public Base {
-  LGFXBase* _parent = nullptr;
-  public:
-    LGFX_Sprite_Support() {}
-    LGFX_Sprite_Support(LGFXBase* parent) : _parent(parent) {}
-
-    void* createSprite(int32_t w, int32_t h) {
-      void* res = ((PanelSprite*)this->_panel)->createSprite(w, h);
-      this->_width = this->_panel->width();
-      this->_height = this->_panel->height();
-      this->fillRect(0, 0, w, h, 0);
-      return res;
-    }
-
-    void deleteSprite(void) {
-      ((PanelSprite*)this->_panel)->deleteSprite();
-    }
-
-    template<typename T>
-    inline void fillSprite (const T& color) {
-      this->fillRect(0, 0, this->_width, this->_height, color);
-    }
-
-    __attribute__ ((always_inline)) inline void pushSprite(int32_t x, int32_t y) { pushSprite(_parent, x, y); }
-    void pushSprite(LGFXBase* lgfx, int32_t x, int32_t y) {
-      void* spbuf = ((PanelSprite*)this->_panel)->buffer();
-      switch (this->getColorDepth()) {
-    //case  1: // unimplimented
-      case  8: lgfx->pushImage(x, y, this->_width, this->_height, (rgb332_t*)spbuf); break;
-      case 16: lgfx->pushImage(x, y, this->_width, this->_height, (swap565_t*)spbuf); break;
-      case 24: lgfx->pushImage(x, y, this->_width, this->_height, (swap888_t*)spbuf); break;
-      }
-    }
-  };
 
 //----------------------------------------------------------------------------
+
+  class LovyanGFX : public  // ここで追加機能の実装を継承する
+  #if defined (ARDUINO) && defined (_SD_H_)
+    LGFX_SD_Support<
+  #endif
+    lgfx::LGFXBase // これが本体
+  #if defined (ARDUINO) && defined (_SD_H_)
+    >
+  #endif
+  {};
 }
 //----------------------------------------------------------------------------
-
-template <typename TPanel>
-class LovyanGFX : public  // ここで追加機能の実装を継承する
-#if defined (ARDUINO) && defined (_SD_H_)
-  LGFX_SD_Support<
-#endif
-  lgfx::LGFXBase // これが本体
-#if defined (ARDUINO) && defined (_SD_H_)
-  >
-#endif
-{
-public:
-  LovyanGFX() { this->_panel = &_panel_instance; }
-  TPanel _panel_instance;
-protected:
-};
-
 //----------------------------------------------------------------------------
 
-class LGFXSprite : public lgfx::LGFX_Sprite_Support<LovyanGFX<lgfx::PanelSprite> >
-{
-public:
-  LGFXSprite() {}
-  LGFXSprite(lgfx::LGFXBase* parent) : lgfx::LGFX_Sprite_Support<LovyanGFX<lgfx::PanelSprite> >(parent) {}
-};
+#include "platforms/panel_device.hpp"
 
-//----------------------------------------------------------------------------
+#include "platforms/panel_ILI9341.hpp"
+#include "platforms/panel_sprite.hpp"
+/*
+#include "platforms/panel_ILI9163.hpp"
+#include "platforms/panel_ST7735.hpp"
+#include "platforms/panel_ST7789.hpp"
+*/
 
 #endif

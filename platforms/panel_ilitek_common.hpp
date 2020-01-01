@@ -6,12 +6,12 @@
 namespace lgfx
 {
   template <class CFG>
-  class PanelIlitekCommon : public PanelDevice<CFG>
+  class PanelIlitekCommon : public LovyanGFXDevice<CFG>
   {
   public:
-    PanelIlitekCommon() : PanelDevice<CFG>() 
-    , _panel_x    (get_panel_x    <CFG, 0>::value)
-    , _panel_y    (get_panel_y    <CFG, 0>::value)
+    PanelIlitekCommon() : LovyanGFXDevice<CFG>() 
+    , _panel_x     (get_panel_x     <CFG, 0>::value)
+    , _panel_y     (get_panel_y     <CFG, 0>::value)
     , _ram_width   (get_ram_width   <CFG, 0>::value)
     , _ram_height  (get_ram_height  <CFG, 0>::value)
     , _panel_width (get_panel_width <CFG, 0>::value)
@@ -28,6 +28,7 @@ namespace lgfx
     }
     void setRotation(uint8_t r) override
     {
+      this->startWrite();
       this->write_cmd(this->_cmd_madctl);
       r = r & 7;
       this->_rotation = r;
@@ -61,21 +62,26 @@ namespace lgfx
       uint8_t madctl = getMadCtl(r) | (this->_rgb_order ? _madctl_rgb : _madctl_bgr);
       this->write_data(madctl, 8);
       this->_last_xs = this->_last_xe = this->_last_ys = this->_last_ye = 0xFFFF;
+      this->endWrite();
     }
 
     void* setColorDepth(uint8_t bpp) override  // 16 or 24
     {
+      this->startWrite();
       this->write_cmd(_cmd_colmod);
       this->_bpp = getAdjustBpp(bpp);
       this->write_data(getColMod(this->_bpp), 8);
+      this->endWrite();
       return nullptr;
     }
 
     void invertDisplay(bool i) override
     { // Send the command twice as otherwise it does not always work!
+      this->startWrite();
       this->_invert = i;
       this->write_cmd(i ? _cmd_invon : _cmd_invoff);
       this->write_cmd(i ? _cmd_invon : _cmd_invoff);
+      this->endWrite();
     }
 
     uint32_t readPanelID(void) override

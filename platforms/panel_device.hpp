@@ -2,7 +2,6 @@
 #define LGFX_PANEL_DEVICE_HPP_
 
 #include "lgfx_common.hpp"
-#include "panel_common.hpp"
 
 #if defined (ESP32) || (CONFIG_IDF_TARGET_ESP32)
   #include "esp32_common.hpp"

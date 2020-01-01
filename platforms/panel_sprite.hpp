@@ -1,21 +1,22 @@
 #ifndef LGFX_PANEL_SPRITE_HPP_
 #define LGFX_PANEL_SPRITE_HPP_
 
-// #pragma GCC optimize ("O3")
 
-#include "panel_common.hpp"
+//#include "panel_common.hpp"
+#include "LovyanGFX.hpp"
 
 namespace lgfx
 {
-  class PanelSpriteCommon : public PanelCommon
+  class LGFXSpriteBase : public LovyanGFX
   {
+    LovyanGFX* _parent = nullptr;
     virtual void* mallocSprite(uint32_t bytes, uint32_t param) = 0;
     virtual void freeSprite(void* buf) = 0;
 
   public:
 
-    PanelSpriteCommon()
-    : PanelCommon()
+    LGFXSpriteBase(LovyanGFX* parent)
+    : LovyanGFX()
     , _img  (nullptr)
     , _bytes(2)
     , _xptr (0)
@@ -26,10 +27,14 @@ namespace lgfx
     , _ye   (0)
     , _index(0)
     , _malloc_cap(MALLOC_CAP_8BIT)
-    {
-    }
+    , _parent(parent)
+    {}
 
-    virtual ~PanelSpriteCommon() {
+    LGFXSpriteBase()
+    : LGFXSpriteBase(nullptr)
+    {}
+
+    virtual ~LGFXSpriteBase() {
       deleteSprite();
     }
 
@@ -51,6 +56,7 @@ namespace lgfx
       _height = h;
       _ye = h - 1;
       _rotation = _index = _xs = _ys = _xptr = _yptr = 0;
+      this->fillRect(0, 0, w, h, 0);
       return _img;
     }
 
@@ -59,6 +65,21 @@ namespace lgfx
       if (_img == nullptr) return;
       freeSprite(_img);
       _img = nullptr;
+    }
+
+    template<typename T>
+    inline void fillSprite (const T& color) {
+      this->fillRect(0, 0, this->_width, this->_height, color);
+    }
+
+    __attribute__ ((always_inline)) inline void pushSprite(int32_t x, int32_t y) { pushSprite(_parent, x, y); }
+    void pushSprite(LovyanGFX* lgfx, int32_t x, int32_t y) {
+      switch (this->getColorDepth()) {
+    //case  1: // unimplimented
+      case  8: lgfx->pushImage(x, y, this->_width, this->_height, (rgb332_t*)_img); break;
+      case 16: lgfx->pushImage(x, y, this->_width, this->_height, (swap565_t*)_img); break;
+      case 24: lgfx->pushImage(x, y, this->_width, this->_height, (swap888_t*)_img); break;
+      }
     }
 
     inline void* buffer() { return _img; }
@@ -99,16 +120,45 @@ namespace lgfx
     {
       setWindow(xs, ys, xe, ye);
     }
+/*
+    void _drawPixel(int32_t x, int32_t y) override
+    {
+      if (x < 0 || (x >= _width) || y < 0 || (y >= _height)) return;
+      if (_bpp == 8) {
+        _img[x + y * _bitwidth] = _color.raw0;
+      } else if (_bpp == 16) {
+        _img16[x + y * _bitwidth] = *(swap565_t*)&_color;
+      } else if (_bpp == 24) {
+        _img24[x + y * _bitwidth] = *(swap888_t*)&_color;
+      }
+    }
 
+    void _draw_fast_vline(int32_t x, int32_t y, int32_t h) override
+    {
+      if (_bpp == 8) {
+        for (int32_t i = 0; i < h; i++) _img[x + (y + i) * _bitwidth] = _color.raw0;
+      } else if (_bpp == 16) {
+        for (int32_t i = 0; i < h; i++) _img16[x + (y + i) * _bitwidth] = *(swap565_t*)&_color;
+      } else if (_bpp == 24) {
+        for (int32_t i = 0; i < h; i++) _img24[x + (y + i) * _bitwidth] = *(swap888_t*)&_color;
+      }
+    }
+//*/
     void fillWindow(int32_t xs, int32_t ys, int32_t xe, int32_t ye) override
     {
       if (_bpp == 1) {
         // unimplemanted
       } else {
-        uint8_t* src = &_img[(xs + ys * _bitwidth) * _bytes];
-        memcpy(src, &_color.raw, _bytes);
-      //memcpy(&_img[_index * _bytes], &_color.raw, _bytes);
-        if (xs == xe && ys == ye) { return; }
+        if (xs == xe) {
+          if (_bpp == 8) {
+            do { _img[xs + ys * _bitwidth] = _color.raw0; } while (++ys <= ye);
+          } else if (_bpp == 16) {
+            do { _img16[xs + ys * _bitwidth] = *(swap565_t*)&_color; } while (++ys <= ye);
+          } else if (_bpp == 24) {
+            do { _img24[xs + ys * _bitwidth] = *(swap888_t*)&_color; } while (++ys <= ye);
+          }
+          return;
+        }
         if (_bpp == 8 || (_color.raw0 == _color.raw1 && (_bpp == 16 || (_color.raw0 == _color.raw2)))) {
           if (xs == 0 && xe == _width) {
             memset(&_img[ys * _bitwidth * _bytes], _color.raw0, _width *  (ye - ys + 1) * _bytes);
@@ -118,14 +168,20 @@ namespace lgfx
             }
           }
         } else {
-          //uint8_t* src = &_img[_index * _bytes];
+          _index = xs + ys * _bitwidth;
+          uint8_t* src = &_img[_index * _bytes];
+          if (_bpp == 8) {
+            *src = _color.raw0;
+          } else if (_bpp == 16) {
+            _img16[xs + ys * _bitwidth] = *(swap565_t*)&_color;
+          } else if (_bpp == 24) {
+            _img24[xs + ys * _bitwidth] = *(swap888_t*)&_color;
+          }
           if (xs == 0 && xe == _width) {
             dupe_fill(src + _bytes, src, (_bitwidth * (ye - ys + 1) - 1) * _bytes, _bytes);
             return;
           }
-          if (xs != xe) {
-            dupe_fill(src + _bytes, src, (xe - xs) * _bytes, _bytes);
-          }
+          dupe_fill(src + _bytes, src, (xe - xs) * _bytes, _bytes);
           if (ye == ys) return;
           uint32_t len = (xe - xs + 1) * _bytes;
           uint8_t* dst = src;
@@ -136,7 +192,7 @@ namespace lgfx
         }
       }
     }
-    void writeColor(uint32_t length) override
+    void _writeColor(uint32_t length) override
     {
       if (!length) return;
       if (_bpp == 1) {
@@ -198,7 +254,7 @@ namespace lgfx
       }
     }
 
-    rgb565_t readPixel(void) override
+    rgb565_t _readPixel(void) override
     {
       const uint8_t *src = ptr_img();
       rgb565_t res;
@@ -209,19 +265,19 @@ namespace lgfx
       return (bool)(*src & (0x80 >> (_index & 0x07)));
     }
 
-    void readPixels(rgb332_t*   buf, uint32_t length) override { readPixelsTemplate(buf, length); }
-    void readPixels(rgb565_t*   buf, uint32_t length) override { readPixelsTemplate(buf, length); }
-    void readPixels(rgb888_t*   buf, uint32_t length) override { readPixelsTemplate(buf, length); }
-    void readPixels(swap565_t*  buf, uint32_t length) override { readPixelsTemplate(buf, length); }
-    void readPixels(swap888_t*  buf, uint32_t length) override { readPixelsTemplate(buf, length); }
-    void readPixels(argb8888_t* buf, uint32_t length) override { readPixelsTemplate(buf, length); }
+    void _readPixels(rgb332_t*   buf, uint32_t length) override { readPixelsTemplate(buf, length); }
+    void _readPixels(rgb565_t*   buf, uint32_t length) override { readPixelsTemplate(buf, length); }
+    void _readPixels(rgb888_t*   buf, uint32_t length) override { readPixelsTemplate(buf, length); }
+    void _readPixels(swap565_t*  buf, uint32_t length) override { readPixelsTemplate(buf, length); }
+    void _readPixels(swap888_t*  buf, uint32_t length) override { readPixelsTemplate(buf, length); }
+    void _readPixels(argb8888_t* buf, uint32_t length) override { readPixelsTemplate(buf, length); }
 
-    void writePixels(const rgb332_t*   src, uint32_t length) override { writePixelsTemplate(src, length); }
-    void writePixels(const rgb565_t*   src, uint32_t length) override { writePixelsTemplate(src, length); }
-    void writePixels(const rgb888_t*   src, uint32_t length) override { writePixelsTemplate(src, length); }
-    void writePixels(const swap565_t*  src, uint32_t length) override { writePixelsTemplate(src, length); }
-    void writePixels(const swap888_t*  src, uint32_t length) override { writePixelsTemplate(src, length); }
-    void writePixels(const argb8888_t* src, uint32_t length) override { writePixelsTemplate(src, length); }
+    void _writePixels(const rgb332_t*   src, uint32_t length) override { writePixelsTemplate(src, length); }
+    void _writePixels(const rgb565_t*   src, uint32_t length) override { writePixelsTemplate(src, length); }
+    void _writePixels(const rgb888_t*   src, uint32_t length) override { writePixelsTemplate(src, length); }
+    void _writePixels(const swap565_t*  src, uint32_t length) override { writePixelsTemplate(src, length); }
+    void _writePixels(const swap888_t*  src, uint32_t length) override { writePixelsTemplate(src, length); }
+    void _writePixels(const argb8888_t* src, uint32_t length) override { writePixelsTemplate(src, length); }
 
 //----------------------------------------------------------------------------
   protected:
@@ -277,16 +333,6 @@ namespace lgfx
         }
       }
 */
-    }
-
-    template <class T>
-    void write_color(const T& color, uint32_t length)
-    {
-      auto *dst = (T*)ptr_img();
-      while (length--) {
-        *dst++ = color;
-        if (ptr_advance()) dst = (T*)ptr_img();
-      }
     }
 
     void dupe_fill(uint8_t* dst, uint8_t* src, size_t len, size_t size) {
@@ -354,8 +400,11 @@ namespace lgfx
     inline uint8_t* ptr_img() {
       return &_img[_bytes ? (_index * _bytes) : (_index >> 3)];
     }
-
+    union {
     uint8_t* _img;
+    swap565_t* _img16;
+    swap888_t* _img24;
+    };
     uint8_t _bytes;
     int32_t _bitwidth;
     int32_t _xptr;

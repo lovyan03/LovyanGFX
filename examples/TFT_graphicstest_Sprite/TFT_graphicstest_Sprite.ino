@@ -19,8 +19,8 @@
 #endif
 
 #include <LovyanGFX.hpp>
+//#include <M5Stack.h>
 
-//#include <TFT_eSPI.h>
 #define TFT_BLACK       0x0000      /*   0,   0,   0 */
 #define TFT_NAVY        0x000F      /*   0,   0, 128 */
 #define TFT_DARKGREEN   0x03E0      /*   0, 128,   0 */
@@ -42,6 +42,8 @@
 #define TFT_PINK        0xFC9F
 
 
+#ifdef LOVYANGFX_HPP_
+
 #if defined(ARDUINO_M5Stack_Core_ESP32) || defined(ARDUINO_M5STACK_FIRE) // M5Stack
   struct LGFX_Config {
     static constexpr spi_host_device_t spi_host = VSPI_HOST;
@@ -57,8 +59,7 @@
     static constexpr int freq_read  = 16000000;
     static constexpr int freq_fill  = 80000000;
   };
-  //static LovyanGFX<lgfx::Panel_M5Stack> tft;
-  static lgfx::Panel_M5Stack tft;
+  static lgfx::Panel_M5Stack tft_lcd;
 
 #elif defined(ARDUINO_M5Stick_C) // M5Stick C
   struct LGFX_Config {
@@ -71,7 +72,7 @@
     static constexpr int spi_dc   = 23;
     static constexpr int panel_rst = 18;
     static constexpr int freq_write = 27000000;
-    static constexpr int freq_read  = 16000000;
+    static constexpr int freq_read  = 14000000;
     static constexpr int freq_fill  = 27000000;
     lgfx::Panel_ST7735_GREENTAB160x80 panel;
   };
@@ -166,19 +167,25 @@
 
 #endif
 
-//static LGFX<LGFX_Config> tft;
+static lgfx::LGFXSprite tft(&tft_lcd);
+
+#else
+
+static TFT_eSPI tft_lcd;
+static TFT_eSprite tft(&tft_lcd);
+
+#endif
 
 unsigned long total = 0;
 unsigned long tn = 0;
 void setup() {
-
   bool lcdver = false;
 #if defined(ARDUINO_M5Stack_Core_ESP32) || defined(ARDUINO_M5STACK_FIRE)
-  pinMode(LGFX_Config::panel_rst, INPUT);
+  pinMode(33, INPUT);
   delay(100);
-  lcdver = digitalRead(LGFX_Config::panel_rst);
-  pinMode(LGFX_Config::panel_rst, OUTPUT);
-  digitalWrite(LGFX_Config::panel_rst, HIGH);
+  lcdver = digitalRead(33);
+  pinMode(33, OUTPUT);
+  digitalWrite(33, HIGH);
 #elif defined(ARDUINO_M5Stick_C) || defined ( ARDUINO_T )
   lcdver = true;
 #endif
@@ -186,105 +193,124 @@ void setup() {
   Serial.begin(115200);
   while (!Serial);
   Serial.println(""); Serial.println("");
-  Serial.println("Lovyan's LovyanGFX library Test!"); 
+  Serial.println(F("Lovyan's LovyanGFX library Test!")); 
  
-  tft.init();
+  tft_lcd.init();
 
-Serial.printf("LovyanGFX mosi:%d  miso:%d  sclk:%d  cs:%d  dc:%d  rst:%d \r\n", LGFX_Config::spi_mosi, LGFX_Config::spi_miso, LGFX_Config::spi_sclk, LGFX_Config::spi_cs, LGFX_Config::spi_dc, LGFX_Config::panel_rst);
+//Serial.printf("LovyanGFX mosi:%d  miso:%d  sclk:%d  cs:%d  dc:%d  rst:%d \r\n", LGFX_Config::spi_mosi, LGFX_Config::spi_miso, LGFX_Config::spi_sclk, LGFX_Config::spi_cs, LGFX_Config::spi_dc, LGFX_Config::panel_rst);
 #if defined(ARDUINO_M5Stick_C)
   AXP192 axp;
   axp.begin();
 #elif defined(ARDUINO_M5Stack_Core_ESP32) || defined(ARDUINO_M5STACK_FIRE) || defined ( ARDUINO_ESP32_DEV ) || defined ( ARDUINO_T )
   const int BLK_PWM_CHANNEL = 7;
   ledcSetup(BLK_PWM_CHANNEL, 12000, 8);
-  ledcAttachPin(LGFX_Config::panel_bl, BLK_PWM_CHANNEL);
+  ledcAttachPin(32, BLK_PWM_CHANNEL);
   ledcWrite(BLK_PWM_CHANNEL, 128);
 #endif
-  tft.setRotation(0);
 
-  tft.invertDisplay(lcdver);
+  tft_lcd.setRotation(0);
 
-  tft.setColorDepth(16);
+  tft_lcd.invertDisplay(lcdver);
+
+  //tft.setColorDepth(8);
   //tft.setColorDepth(24);
+  tft.createSprite(240,240);
+  //tft.setColorDepth();
+  //tft.createSprite(tft_lcd.width(), tft_lcd.height());
+
 
 }
 
 void loop(void)
 {
-	tft.startWrite();
+	//tft.startWrite();
 
 	Serial.println(F("Benchmark                Time (microseconds)"));
 
 	uint32_t usecHaD = testHaD();
+	tft.pushSprite(0, 0);
 	Serial.print(F("HaD pushColor            "));
 	Serial.println(usecHaD);
 	delay(100);
 
 	uint32_t usecFillScreen = testFillScreen();
+	tft.pushSprite(0, 0);
 	Serial.print(F("Screen fill              "));
 	Serial.println(usecFillScreen);
 	delay(100);
 
 	uint32_t usecText = testText();
+	tft.pushSprite(0, 0);
 	Serial.print(F("Text                     "));
 	Serial.println(usecText);
-	delay(1000);
+	delay(100);
 
 	uint32_t usecPixels = testPixels();
+	tft.pushSprite(0, 0);
 	Serial.print(F("Pixels                   "));
 	Serial.println(usecPixels);
 	delay(100);
 
 	uint32_t usecLines = testLines(TFT_BLUE);
+	tft.pushSprite(0, 0);
 	Serial.print(F("Lines                    "));
 	Serial.println(usecLines);
 	delay(100);
 
 	uint32_t usecFastLines = testFastLines(TFT_RED, TFT_BLUE);
+	tft.pushSprite(0, 0);
 	Serial.print(F("Horiz/Vert Lines         "));
 	Serial.println(usecFastLines);
 	delay(100);
 
 	uint32_t usecRects = testRects(TFT_GREEN);
+	tft.pushSprite(0, 0);
 	Serial.print(F("Rectangles (outline)     "));
 	Serial.println(usecRects);
 	delay(100);
 
 	uint32_t usecFilledRects = testFilledRects(TFT_YELLOW, TFT_MAGENTA);
+	tft.pushSprite(0, 0);
 	Serial.print(F("Rectangles (filled)      "));
 	Serial.println(usecFilledRects);
 	delay(100);
 
 	uint32_t usecFilledCircles = testFilledCircles(10, TFT_MAGENTA);
+	tft.pushSprite(0, 0);
 	Serial.print(F("Circles (filled)         "));
 	Serial.println(usecFilledCircles);
 	delay(100);
 
 	uint32_t usecCircles = testCircles(10, TFT_WHITE);
+	tft.pushSprite(0, 0);
 	Serial.print(F("Circles (outline)        "));
 	Serial.println(usecCircles);
 	delay(100);
 
 	uint32_t usecTriangles = testTriangles();
+	tft.pushSprite(0, 0);
 	Serial.print(F("Triangles (outline)      "));
 	Serial.println(usecTriangles);
 	delay(100);
 
 	uint32_t usecFilledTrangles = testFilledTriangles();
+	tft.pushSprite(0, 0);
 	Serial.print(F("Triangles (filled)       "));
 	Serial.println(usecFilledTrangles);
 	delay(100);
 
 	uint32_t usecRoundRects = testRoundRects();
+	tft.pushSprite(0, 0);
 	Serial.print(F("Rounded rects (outline)  "));
 	Serial.println(usecRoundRects);
 	delay(100);
 
 	uint32_t usedFilledRoundRects = testFilledRoundRects();
+	tft.pushSprite(0, 0);
 	Serial.print(F("Rounded rects (filled)   "));
 	Serial.println(usedFilledRoundRects);
 	delay(100);
-	tft.endWrite();
+	//tft.endWrite();
 
 	Serial.println(F("Done!"));
 
@@ -394,6 +420,8 @@ void loop(void)
 	tft.setTextColor(TFT_GREEN); tft.setTextSize(2);
 	tft.print(F("Benchmark Complete!"));
 
+	tft.pushSprite(0, 0);
+
 	delay(60 * 1000L);
 }
 
@@ -432,7 +460,7 @@ uint32_t testHaD()
 	// 	count =  0nnnnnnn = 1 byte or 1nnnnnnn nnnnnnnn 2 bytes (0 - 32767)
 	// 	repeat color count times
 	// 	toggle color1/color2
-	static const uint8_t HaD_240x320[] PROGMEM =
+	static constexpr uint8_t HaD_240x320[] PROGMEM =
 	{
 		0xb9, 0x50, 0x0e, 0x80, 0x93, 0x0e, 0x41, 0x11, 0x80, 0x8d, 0x11, 0x42, 0x12, 0x80, 0x89, 0x12, 
 		0x45, 0x12, 0x80, 0x85, 0x12, 0x48, 0x12, 0x80, 0x83, 0x12, 0x4a, 0x13, 0x7f, 0x13, 0x4c, 0x13, 
@@ -548,7 +576,7 @@ uint32_t testHaD()
 	tft.setCursor(96, 302);
 	tft.print(F("Xark"));
 
-	delay(3 * 1000L);
+//	delay(3 * 1000L);
 	
 	return t;
 }
@@ -605,7 +633,7 @@ uint32_t testText()
 	tft.setTextSize(6);
 	tft.println(F("Woot!"));
 	uint32_t t = micros() - start;
-	delay(1000);
+//	delay(1000);
 	return t;
 }
 
