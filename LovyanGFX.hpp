@@ -40,7 +40,7 @@ namespace lgfx
     template<typename T> inline void writeColor    ( const T& color, uint32_t len) { set_color(color);               _writeColor(len);             }
     template<typename T> inline void pushColor     ( const T& color, uint32_t len) { set_color(color); startWrite(); _writeColor(len); endWrite(); }
     template<typename T> inline void pushColor     ( const T& color              ) { set_color(color); startWrite(); _writeColor();    endWrite(); }
-    template<typename T> inline void fillScreen    ( const T& color)               { set_color(color); startWrite(); _fillRect(0, 0, _width, _height); endWrite(); }
+    template<typename T> inline void fillScreen    ( const T& color)               { set_color(color);               _fillRect(0, 0, _width, _height); }
 
     template<typename T> inline void drawPixel     ( int32_t x, int32_t y                      , const T& color)  {                                 set_color(color); _drawPixel    (x, y      ); }
     template<typename T> inline void drawFastVLine ( int32_t x, int32_t y           , int32_t h, const T& color)  { if (!ab(y,h)          ) return; set_color(color); _drawFastVLine(x, y   , h); }
@@ -874,8 +874,6 @@ namespace lgfx
     }
 
 
-
-
   #ifdef LOAD_GFXFF
     const GFXfont  *_gfxFont;
     uint8_t _glyph_ab;   // glyph delta Y (height) above baseline
@@ -886,7 +884,6 @@ namespace lgfx
     inline static void swap_coord(T& a, T& b) { T t = a; a = b; b = t; }
 
     virtual void setWindow(int32_t xs, int32_t ys, int32_t xe, int32_t ye) {}
-    //virtual void fillWindow(int32_t xs, int32_t ys, int32_t xe, int32_t ye) {}
     virtual void readWindow(int32_t xs, int32_t ys, int32_t xe, int32_t ye) {}
     virtual void endRead(void) {}
 
@@ -910,20 +907,12 @@ namespace lgfx
     void _drawPixel(int32_t x, int32_t y)
     {
       if (x < 0 || (x >= _width) || y < 0 || (y >= _height)) return;
-      //fillRect_impl(x, y, 1, 1, inTransaction);
       drawPixel_impl(x, y);
     }
 
     virtual void drawPixel_impl(int32_t x, int32_t y);
-    //virtual void drawFastVLine_impl(int32_t x, int32_t y, int32_t h);
     virtual void fillRect_impl(int32_t x, int32_t y, int32_t w, int32_t h);
- /*
-    {
-      startWrite();
-      fillWindow(x, y, x, y);
-      endWrite();
-    }
-//*/
+
     void _drawFastVLine(int32_t x, int32_t y, int32_t h)
     {
       if ((x < 0) || (x >= _width) || (y >= _height)) return;
@@ -932,8 +921,6 @@ namespace lgfx
       if (h < 1) return;
 
       fillRect_impl(x, y, 1, h);
-      //drawFastVLine_impl(x, y, h);
-      //fillWindow(x, y, x, y + h - 1);
     }
 
     void _drawFastHLine(int32_t x, int32_t y, int32_t w)
@@ -944,7 +931,6 @@ namespace lgfx
       if (w < 1) return;
 
       fillRect_impl(x, y, w, 1);
-      //fillWindow(x, y, x + w - 1, y);
     }
 
     void _fillRect(int32_t x, int32_t y, int32_t w, int32_t h)
@@ -958,7 +944,6 @@ namespace lgfx
       if (h < 1) return;
 
       fillRect_impl(x, y, w, h);
-      //fillWindow(x, y, x + w - 1, y + h - 1);
     }
 
     void _drawRect(int32_t x, int32_t y, int32_t w, int32_t h)

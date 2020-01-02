@@ -18,7 +18,7 @@ namespace lgfx
     LGFXSpriteBase(LovyanGFX* parent)
     : LovyanGFX()
     , _img  (nullptr)
-    , _bytes(2)
+    , _bytes(_bpp>>3)
     , _xptr (0)
     , _yptr (0)
     , _xs   (0)
@@ -28,7 +28,9 @@ namespace lgfx
     , _index(0)
     , _malloc_cap(MALLOC_CAP_8BIT)
     , _parent(parent)
-    {}
+    {
+      _start_write_count = 0xFFFF;
+    }
 
     LGFXSpriteBase()
     : LGFXSpriteBase(nullptr)
@@ -123,11 +125,11 @@ namespace lgfx
 
     void drawPixel_impl(int32_t x, int32_t y) override
     {
-      if (_bpp == 16) {
-        _img16[x + y * _bitwidth] = *(swap565_t*)&_color;
-      } else if (_bpp == 8) {
+      if (_bytes == 2) {
+        ((uint16_t*)_img16)[x + y * _bitwidth] = *(uint16_t*)&_color;
+      } else if (_bytes == 1) {
         _img[x + y * _bitwidth] = _color.raw0;
-      } else if (_bpp == 24) {
+      } else if (_bytes == 3) {
         _img24[x + y * _bitwidth] = *(swap888_t*)&_color;
       }
     }
@@ -172,24 +174,22 @@ namespace lgfx
             } while (--h);
           }
         } else {
-          //uint8_t* src = &_img[(xs + ys * _bitwidth) * _bytes];
+          constexpr int32_t advance = 2;
           if (_bytes == 2) {
             *(uint16_t*)src     = *(uint16_t*)&_color;
             *(uint16_t*)(src+2) = *(uint16_t*)&_color;
-            //_img16[xs + ys * _bitwidth] = *(swap565_t*)&_color;
           } else if (_bytes == 1) {
             *src     = _color.raw0;
             *(src+1) = _color.raw0;
           } else { // (_bpp == 24) 
             *(swap888_t*)src     = *(swap888_t*)&_color;
             *(swap888_t*)(src+3) = *(swap888_t*)&_color;
-            //_img24[xs + ys * _bitwidth] = *(swap888_t*)&_color;
           }
           if (x == 0 && w == _width) {
-            dupe_fill(src + _bytes*2, src, (w * h - 2) * _bytes, _bytes*2);
+            dupe_fill(src + _bytes * advance, src, (w * h - advance) * _bytes, _bytes * advance);
             return;
           }
-          if (2 < w) dupe_fill(src + _bytes*2, src, (w - 2) * _bytes, _bytes * 2);
+          if (advance < w) dupe_fill(src + _bytes * advance, src, (w - advance) * _bytes, _bytes * advance);
           if (h == 1) return;
           size_t len = w * _bytes;
           uint8_t* dst = src;

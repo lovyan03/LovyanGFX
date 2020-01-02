@@ -136,22 +136,7 @@ namespace lgfx
       write_data(_color.raw, _bpp);
       if (!_start_write_count) endTransaction();
     }
-/*
-    void drawFastVLine_impl(int32_t x, int32_t y, int32_t h, bool inTransaction) override
-    {
-      if (!(inTransaction |= _start_write_count)) beginTransaction();
-      set_window(x, y, x, y+h-1);
-      if (_freq_write != _freq_fill && _mode != panel_mode_t::fill) {
-        wait_spi();
-        set_clock_fill();
-        _mode = panel_mode_t::fill;
-      }
-      write_cmd(_cmd_ramwr);
-      if (1 == h) write_data(_color.raw, _bpp);
-      else          _writeColor(h);
-      if (!inTransaction) endTransaction();
-    }
-//*/
+
     void fillRect_impl(int32_t x, int32_t y, int32_t w, int32_t h) override
     {
       if (!_start_write_count) beginTransaction();
@@ -166,19 +151,7 @@ namespace lgfx
       else            _writeColor(w*h);
       if (!_start_write_count) endTransaction();
     }
-/*
-    void fillWindow(int32_t xs, int32_t ys, int32_t xe, int32_t ye) override
-    {
-      set_window(xs, ys, xe, ye);
-      if (_freq_write != _freq_fill && _mode != panel_mode_t::fill) {
-        wait_spi();
-        set_clock_fill();
-        _mode = panel_mode_t::fill;
-      }
-      write_cmd(_cmd_ramwr);
-      _writeColor((xe-xs+1) * (ye-ys+1));
-    }
-*/
+
     void readWindow(int32_t xs, int32_t ys, int32_t xe, int32_t ye) override
     {
       set_window(xs, ys, xe, ye);
