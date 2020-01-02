@@ -74,9 +74,9 @@
     static constexpr int freq_write = 27000000;
     static constexpr int freq_read  = 14000000;
     static constexpr int freq_fill  = 27000000;
-    lgfx::Panel_ST7735_GREENTAB160x80 panel;
   };
-  static LovyanGFX<lgfx::Panel_ST7735<LGFX_Config> > tft;
+  //static LovyanGFX<lgfx::Panel_ST7735<LGFX_Config> > tft;
+  static lgfx::Panel_M5StickC tft_lcd;
 
 #elif defined ( ARDUINO_ESP32_DEV ) // ESP-WROVER-KIT
 /*
