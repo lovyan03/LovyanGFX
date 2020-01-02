@@ -904,14 +904,14 @@ namespace lgfx
     virtual void _writePixels(const swap888_t*  src, uint32_t length) {}
     virtual void _writePixels(const argb8888_t* src, uint32_t length) {}
 
-    void _drawPixel(int32_t x, int32_t y)
+    virtual void drawPixel_impl(int32_t x, int32_t y);
+    virtual void fillRect_impl(int32_t x, int32_t y, int32_t w, int32_t h);
+
+    __attribute__ ((always_inline)) inline void _drawPixel(int32_t x, int32_t y)
     {
       if (x < 0 || (x >= _width) || y < 0 || (y >= _height)) return;
       drawPixel_impl(x, y);
     }
-
-    virtual void drawPixel_impl(int32_t x, int32_t y);
-    virtual void fillRect_impl(int32_t x, int32_t y, int32_t w, int32_t h);
 
     void _drawFastVLine(int32_t x, int32_t y, int32_t h)
     {
@@ -1109,11 +1109,11 @@ namespace lgfx
       if (steep) {   swap_coord(x0, y0); swap_coord(x1, y1); }
       if (x0 > x1) { swap_coord(x0, x1); swap_coord(y0, y1); }
 
+      int32_t dy = abs(y1 - y0);
+      int32_t ystep = (y0 < y1) ? 1 : -1;
       int32_t xs = x0;
       int32_t dx = x1 - x0;
       int32_t err = dx >> 1;
-      int32_t dy = abs(y1 - y0);
-      int32_t ystep = (y0 < y1) ? 1 : -1;
       int32_t dlen = 0;
 
       if (steep) {
@@ -1122,7 +1122,8 @@ namespace lgfx
           err -= dy;
           if (err < 0) {
             err += dx;
-            _drawFastVLine(y0, xs, dlen);
+            if (dlen == 1) _drawPixel(y0, xs);
+            else           _drawFastVLine(y0, xs, dlen);
             dlen = 0; y0 += ystep; xs = x0 + 1;
           }
         }
@@ -1135,7 +1136,8 @@ namespace lgfx
           err -= dy;
           if (err < 0) {
             err += dx;
-            _drawFastHLine(xs, y0, dlen);
+            if (dlen == 1) _drawPixel(xs, y0);
+            else           _drawFastHLine(xs, y0, dlen);
             dlen = 0; y0 += ystep; xs = x0 + 1;
           }
         }
