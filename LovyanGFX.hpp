@@ -1472,10 +1472,10 @@ namespace lgfx
 #include "platforms/panel_device.hpp"
 
 #include "platforms/panel_ILI9341.hpp"
+#include "platforms/panel_ST7735.hpp"
 #include "platforms/panel_sprite.hpp"
 /*
 #include "platforms/panel_ILI9163.hpp"
-#include "platforms/panel_ST7735.hpp"
 #include "platforms/panel_ST7789.hpp"
 */
 

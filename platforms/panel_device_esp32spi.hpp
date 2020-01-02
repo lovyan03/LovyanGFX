@@ -6,7 +6,6 @@
 
 #include "lgfx_common.hpp"
 #include "esp32_common.hpp"
-//#include "panel_common.hpp"
 #include "panel_sprite.hpp"
 
 namespace lgfx
