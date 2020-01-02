@@ -42,10 +42,10 @@ namespace lgfx
     template<typename T> inline void pushColor     ( const T& color              ) { set_color(color); startWrite(); _writeColor();    endWrite(); }
     template<typename T> inline void fillScreen    ( const T& color)               { set_color(color); startWrite(); _fillRect(0, 0, _width, _height); endWrite(); }
 
-    template<typename T> inline void drawPixel     ( int32_t x, int32_t y                      , const T& color)  {                                 set_color(color); _drawPixel    (x, y      , false); }
-    template<typename T> inline void drawFastVLine ( int32_t x, int32_t y           , int32_t h, const T& color)  { if (!ab(y,h)          ) return; set_color(color); _drawFastVLine(x, y   , h, false); }
-    template<typename T> inline void drawFastHLine ( int32_t x, int32_t y, int32_t w           , const T& color)  { if (!ab(x,w)          ) return; set_color(color); _drawFastHLine(x, y, w   , false); }
-    template<typename T> inline void fillRect      ( int32_t x, int32_t y, int32_t w, int32_t h, const T& color)  { if (!ab(x,w)||!ab(y,h)) return; set_color(color); _fillRect     (x, y, w, h, false); }
+    template<typename T> inline void drawPixel     ( int32_t x, int32_t y                      , const T& color)  {                                 set_color(color); _drawPixel    (x, y      ); }
+    template<typename T> inline void drawFastVLine ( int32_t x, int32_t y           , int32_t h, const T& color)  { if (!ab(y,h)          ) return; set_color(color); _drawFastVLine(x, y   , h); }
+    template<typename T> inline void drawFastHLine ( int32_t x, int32_t y, int32_t w           , const T& color)  { if (!ab(x,w)          ) return; set_color(color); _drawFastHLine(x, y, w   ); }
+    template<typename T> inline void fillRect      ( int32_t x, int32_t y, int32_t w, int32_t h, const T& color)  { if (!ab(x,w)||!ab(y,h)) return; set_color(color); _fillRect     (x, y, w, h); }
 
     template<typename T> inline void drawCircle    ( int32_t x, int32_t y, int32_t r           , const T& color)  {                                 set_color(color); startWrite(); _drawCircle   (x, y, r   ); endWrite(); }
     template<typename T> inline void fillCircle    ( int32_t x, int32_t y, int32_t r           , const T& color)  {                                 set_color(color); startWrite(); _fillCircle   (x, y, r   ); endWrite(); }
@@ -907,16 +907,16 @@ namespace lgfx
     virtual void _writePixels(const swap888_t*  src, uint32_t length) {}
     virtual void _writePixels(const argb8888_t* src, uint32_t length) {}
 
-    void _drawPixel(int32_t x, int32_t y, bool inTransaction = true)
+    void _drawPixel(int32_t x, int32_t y)
     {
       if (x < 0 || (x >= _width) || y < 0 || (y >= _height)) return;
       //fillRect_impl(x, y, 1, 1, inTransaction);
-      drawPixel_impl(x, y, inTransaction);
+      drawPixel_impl(x, y);
     }
 
-    virtual void drawPixel_impl(int32_t x, int32_t y, bool inTransaction = true);
-    //virtual void drawFastVLine_impl(int32_t x, int32_t y, int32_t h, bool inTransaction = true);
-    virtual void fillRect_impl(int32_t x, int32_t y, int32_t w, int32_t h, bool inTransaction = true);
+    virtual void drawPixel_impl(int32_t x, int32_t y);
+    //virtual void drawFastVLine_impl(int32_t x, int32_t y, int32_t h);
+    virtual void fillRect_impl(int32_t x, int32_t y, int32_t w, int32_t h);
  /*
     {
       startWrite();
@@ -924,30 +924,30 @@ namespace lgfx
       endWrite();
     }
 //*/
-    void _drawFastVLine(int32_t x, int32_t y, int32_t h, bool inTransaction = true)
+    void _drawFastVLine(int32_t x, int32_t y, int32_t h)
     {
       if ((x < 0) || (x >= _width) || (y >= _height)) return;
       if (y < 0) { h += y; y = 0; }
       if ((y + h) > _height) h = _height - y;
       if (h < 1) return;
 
-      fillRect_impl(x, y, 1, h, inTransaction);
-      //drawFastVLine_impl(x, y, h, inTransaction);
+      fillRect_impl(x, y, 1, h);
+      //drawFastVLine_impl(x, y, h);
       //fillWindow(x, y, x, y + h - 1);
     }
 
-    void _drawFastHLine(int32_t x, int32_t y, int32_t w, bool inTransaction = true)
+    void _drawFastHLine(int32_t x, int32_t y, int32_t w)
     {
       if ((y < 0) || (y >= _height) || (x >= _width)) return;
       if (x < 0) { w += x; x = 0; }
       if ((x + w) > _width) w = _width - x;
       if (w < 1) return;
 
-      fillRect_impl(x, y, w, 1, inTransaction);
+      fillRect_impl(x, y, w, 1);
       //fillWindow(x, y, x + w - 1, y);
     }
 
-    void _fillRect(int32_t x, int32_t y, int32_t w, int32_t h, bool inTransaction = true)
+    void _fillRect(int32_t x, int32_t y, int32_t w, int32_t h)
     {
       if ((x >= _width) || (y >= _height)) return;
       if (x < 0) { w += x; x = 0; }
@@ -957,7 +957,7 @@ namespace lgfx
       if ((y + h) > _height) h = _height - y;
       if (h < 1) return;
 
-      fillRect_impl(x, y, w, h, inTransaction);
+      fillRect_impl(x, y, w, h);
       //fillWindow(x, y, x + w - 1, y + h - 1);
     }
 

@@ -121,7 +121,7 @@ namespace lgfx
       setWindow(xs, ys, xe, ye);
     }
 
-    void drawPixel_impl(int32_t x, int32_t y, bool inTransaction) override
+    void drawPixel_impl(int32_t x, int32_t y) override
     {
       if (_bpp == 16) {
         _img16[x + y * _bitwidth] = *(swap565_t*)&_color;
@@ -132,7 +132,7 @@ namespace lgfx
       }
     }
 /*
-    void drawFastVLine_impl(int32_t x, int32_t y, int32_t h, bool inTransaction) override
+    void drawFastVLine_impl(int32_t x, int32_t y, int32_t h) override
     {
       uint8_t* src = &_img[(x + y * _bitwidth) * _bytes];
       if (_bytes == 2) {
@@ -145,13 +145,13 @@ namespace lgfx
       }
     }
 //*/
-    void fillRect_impl(int32_t x, int32_t y, int32_t w, int32_t h, bool inTransaction) override
+    void fillRect_impl(int32_t x, int32_t y, int32_t w, int32_t h) override
     {
       //fill_window(x, y, x+w-1, y+h-1);
       uint8_t* src = &_img[(x + y * _bitwidth) * _bytes];
       if (w == 1) {
         if (_bytes == 2) {
-          do { *(swap565_t*)src = *(swap565_t*)&_color; src += _bitwidth << 1; } while (--h);
+          do { *(uint16_t*)src = *(uint16_t*)&_color;   src += _bitwidth << 1; } while (--h);
         } else if (_bytes == 1) {
           do {             *src = _color.raw0;          src += _bitwidth;      } while (--h);
         } else if (_bytes == 3) { // (_bpp == 24) 
@@ -174,8 +174,8 @@ namespace lgfx
         } else {
           //uint8_t* src = &_img[(xs + ys * _bitwidth) * _bytes];
           if (_bytes == 2) {
-            *(swap565_t*)src     = *(swap565_t*)&_color;
-            *(swap565_t*)(src+2) = *(swap565_t*)&_color;
+            *(uint16_t*)src     = *(uint16_t*)&_color;
+            *(uint16_t*)(src+2) = *(uint16_t*)&_color;
             //_img16[xs + ys * _bitwidth] = *(swap565_t*)&_color;
           } else if (_bytes == 1) {
             *src     = _color.raw0;

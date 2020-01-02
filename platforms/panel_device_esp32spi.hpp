@@ -75,8 +75,6 @@ namespace lgfx
       LovyanGFX::init();
     }
 
-    bool _inTransaction = false;
-
     void beginTransaction(void) override {
       uint32_t apb_freq = getApbFrequency();
       if (_last_apb_freq != apb_freq) {
@@ -125,9 +123,9 @@ namespace lgfx
       write_cmd(_cmd_ramwr);
     }
 
-    void drawPixel_impl(int32_t x, int32_t y, bool inTransaction) override
+    void drawPixel_impl(int32_t x, int32_t y) override
     {
-      if (!(inTransaction |= _start_write_count)) beginTransaction();
+      if (!_start_write_count) beginTransaction();
       set_window(x, y, x, y);
       if (_freq_write != _freq_fill && _mode != panel_mode_t::fill) {
         wait_spi();
@@ -136,7 +134,7 @@ namespace lgfx
       }
       write_cmd(_cmd_ramwr);
       write_data(_color.raw, _bpp);
-      if (!inTransaction) endTransaction();
+      if (!_start_write_count) endTransaction();
     }
 /*
     void drawFastVLine_impl(int32_t x, int32_t y, int32_t h, bool inTransaction) override
@@ -154,9 +152,9 @@ namespace lgfx
       if (!inTransaction) endTransaction();
     }
 //*/
-    void fillRect_impl(int32_t x, int32_t y, int32_t w, int32_t h, bool inTransaction) override
+    void fillRect_impl(int32_t x, int32_t y, int32_t w, int32_t h) override
     {
-      if (!(inTransaction |= _start_write_count)) beginTransaction();
+      if (!_start_write_count) beginTransaction();
       set_window(x, y, x+w-1, y+h-1);
       if (_freq_write != _freq_fill && _mode != panel_mode_t::fill) {
         wait_spi();
@@ -166,7 +164,7 @@ namespace lgfx
       write_cmd(_cmd_ramwr);
       if (1 == (w|h)) write_data(_color.raw, _bpp);
       else            _writeColor(w*h);
-      if (!inTransaction) endTransaction();
+      if (!_start_write_count) endTransaction();
     }
 /*
     void fillWindow(int32_t xs, int32_t ys, int32_t xe, int32_t ye) override
@@ -244,7 +242,8 @@ namespace lgfx
     rgb565_t _readPixel(void) override
     {
       wait_spi();
-      if (_len_read_pixel == 24) return (rgb565_t)swap888_t(read_data(24));
+      //if (_len_read_pixel == 24) 
+        return (rgb565_t)swap888_t(read_data(24));
     }
 
     void _readPixels(rgb332_t*   buf, uint32_t length) override { readPixelsTemplate(buf, length); }
