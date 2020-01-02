@@ -233,73 +233,97 @@ void loop(void)
 	Serial.println(usecHaD);
 	delay(100);
 
+taskDISABLE_INTERRUPTS();
 	uint32_t usecFillScreen = testFillScreen();
+taskENABLE_INTERRUPTS();
 	tft.pushSprite(0, 0);
 	Serial.print(F("Screen fill              "));
 	Serial.println(usecFillScreen);
 	delay(100);
 
+taskDISABLE_INTERRUPTS();
 	uint32_t usecText = testText();
+taskENABLE_INTERRUPTS();
 	tft.pushSprite(0, 0);
 	Serial.print(F("Text                     "));
 	Serial.println(usecText);
 	delay(100);
 
+taskDISABLE_INTERRUPTS();
 	uint32_t usecPixels = testPixels();
+taskENABLE_INTERRUPTS();
 	tft.pushSprite(0, 0);
 	Serial.print(F("Pixels                   "));
 	Serial.println(usecPixels);
 	delay(100);
 
+taskDISABLE_INTERRUPTS();
 	uint32_t usecLines = testLines(TFT_BLUE);
+taskENABLE_INTERRUPTS();
 	tft.pushSprite(0, 0);
 	Serial.print(F("Lines                    "));
 	Serial.println(usecLines);
 	delay(100);
 
+taskDISABLE_INTERRUPTS();
 	uint32_t usecFastLines = testFastLines(TFT_RED, TFT_BLUE);
+taskENABLE_INTERRUPTS();
 	tft.pushSprite(0, 0);
 	Serial.print(F("Horiz/Vert Lines         "));
 	Serial.println(usecFastLines);
 	delay(100);
 
+taskDISABLE_INTERRUPTS();
 	uint32_t usecRects = testRects(TFT_GREEN);
+taskENABLE_INTERRUPTS();
 	tft.pushSprite(0, 0);
 	Serial.print(F("Rectangles (outline)     "));
 	Serial.println(usecRects);
 	delay(100);
 
+taskDISABLE_INTERRUPTS();
 	uint32_t usecFilledRects = testFilledRects(TFT_YELLOW, TFT_MAGENTA);
+taskENABLE_INTERRUPTS();
 	tft.pushSprite(0, 0);
 	Serial.print(F("Rectangles (filled)      "));
 	Serial.println(usecFilledRects);
 	delay(100);
 
+taskDISABLE_INTERRUPTS();
 	uint32_t usecFilledCircles = testFilledCircles(10, TFT_MAGENTA);
+taskENABLE_INTERRUPTS();
 	tft.pushSprite(0, 0);
 	Serial.print(F("Circles (filled)         "));
 	Serial.println(usecFilledCircles);
 	delay(100);
 
+taskDISABLE_INTERRUPTS();
 	uint32_t usecCircles = testCircles(10, TFT_WHITE);
+taskENABLE_INTERRUPTS();
 	tft.pushSprite(0, 0);
 	Serial.print(F("Circles (outline)        "));
 	Serial.println(usecCircles);
 	delay(100);
 
+taskDISABLE_INTERRUPTS();
 	uint32_t usecTriangles = testTriangles();
+taskENABLE_INTERRUPTS();
 	tft.pushSprite(0, 0);
 	Serial.print(F("Triangles (outline)      "));
 	Serial.println(usecTriangles);
 	delay(100);
 
+taskDISABLE_INTERRUPTS();
 	uint32_t usecFilledTrangles = testFilledTriangles();
+taskENABLE_INTERRUPTS();
 	tft.pushSprite(0, 0);
 	Serial.print(F("Triangles (filled)       "));
 	Serial.println(usecFilledTrangles);
 	delay(100);
 
+taskDISABLE_INTERRUPTS();
 	uint32_t usecRoundRects = testRoundRects();
+taskENABLE_INTERRUPTS();
 	tft.pushSprite(0, 0);
 	Serial.print(F("Rounded rects (outline)  "));
 	Serial.println(usecRoundRects);

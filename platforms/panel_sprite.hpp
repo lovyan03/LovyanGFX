@@ -120,80 +120,87 @@ namespace lgfx
     {
       setWindow(xs, ys, xe, ye);
     }
-/*
-    void _drawPixel(int32_t x, int32_t y) override
+
+    void drawPixel_impl(int32_t x, int32_t y, bool inTransaction) override
     {
-      if (x < 0 || (x >= _width) || y < 0 || (y >= _height)) return;
-      if (_bpp == 8) {
-        _img[x + y * _bitwidth] = _color.raw0;
-      } else if (_bpp == 16) {
+      if (_bpp == 16) {
         _img16[x + y * _bitwidth] = *(swap565_t*)&_color;
+      } else if (_bpp == 8) {
+        _img[x + y * _bitwidth] = _color.raw0;
       } else if (_bpp == 24) {
         _img24[x + y * _bitwidth] = *(swap888_t*)&_color;
       }
     }
-
-    void _draw_fast_vline(int32_t x, int32_t y, int32_t h) override
+/*
+    void drawFastVLine_impl(int32_t x, int32_t y, int32_t h, bool inTransaction) override
     {
-      if (_bpp == 8) {
-        for (int32_t i = 0; i < h; i++) _img[x + (y + i) * _bitwidth] = _color.raw0;
-      } else if (_bpp == 16) {
-        for (int32_t i = 0; i < h; i++) _img16[x + (y + i) * _bitwidth] = *(swap565_t*)&_color;
-      } else if (_bpp == 24) {
-        for (int32_t i = 0; i < h; i++) _img24[x + (y + i) * _bitwidth] = *(swap888_t*)&_color;
+      uint8_t* src = &_img[(x + y * _bitwidth) * _bytes];
+      if (_bytes == 2) {
+        do { *(swap565_t*)src = *(swap565_t*)&_color; src += _bitwidth << 1; } while (h--);
+      } else if (_bytes == 1) {
+        do {             *src = _color.raw0;          src += _bitwidth;      } while (h--);
+      } else if (_bytes == 3) { // (_bpp == 24) 
+        do { *(swap888_t*)src = *(swap888_t*)&_color; src += _bitwidth * 3;  } while (h--);
+      } else {
       }
     }
 //*/
-    void fillWindow(int32_t xs, int32_t ys, int32_t xe, int32_t ye) override
+    void fillRect_impl(int32_t x, int32_t y, int32_t w, int32_t h, bool inTransaction) override
     {
-      if (xs == xe) {
-        if (_bpp == 16) {
-          do { _img16[xs + ys * _bitwidth] = *(swap565_t*)&_color; } while (++ys <= ye);
-        } else if (_bpp == 8) {
-          do { _img[xs + ys * _bitwidth] = _color.raw0; } while (++ys <= ye);
-        } else if (_bpp == 24) {
-          do { _img24[xs + ys * _bitwidth] = *(swap888_t*)&_color; } while (++ys <= ye);
-        } else { // _bpp == 1
-      // unimplemanted
+      //fill_window(x, y, x+w-1, y+h-1);
+      uint8_t* src = &_img[(x + y * _bitwidth) * _bytes];
+      if (w == 1) {
+        if (_bytes == 2) {
+          do { *(swap565_t*)src = *(swap565_t*)&_color; src += _bitwidth << 1; } while (--h);
+        } else if (_bytes == 1) {
+          do {             *src = _color.raw0;          src += _bitwidth;      } while (--h);
+        } else if (_bytes == 3) { // (_bpp == 24) 
+          do { *(swap888_t*)src = *(swap888_t*)&_color; src += _bitwidth * 3;  } while (--h);
+        } else {
         }
-        return;
-      }
+      } else
       if (_bpp == 1) {
         // unimplemanted
       } else {
         if (_bpp == 8 || (_color.raw0 == _color.raw1 && (_bpp == 16 || (_color.raw0 == _color.raw2)))) {
-          if (xs == 0 && xe == _width) {
-            memset(&_img[ys * _bitwidth * _bytes], _color.raw0, _width *  (ye - ys + 1) * _bytes);
+          if (x == 0 && w == _width) {
+            memset(src, _color.raw0, _width * h * _bytes);
           } else {
-            for (int32_t y = ys; y <= ye; y++) {
-              memset(&_img[(xs + y * _bitwidth) * _bytes], _color.raw0, (xe - xs + 1) * _bytes);
-            }
+            do {
+              memset(src, _color.raw0, w * _bytes);
+              src += _width * _bytes;
+            } while (--h);
           }
         } else {
-          _index = xs + ys * _bitwidth;
-          uint8_t* src = &_img[_index * _bytes];
-          if (_bpp == 8) {
-            *src = _color.raw0;
-          } else if (_bpp == 16) {
-            _img16[xs + ys * _bitwidth] = *(swap565_t*)&_color;
-          } else if (_bpp == 24) {
-            _img24[xs + ys * _bitwidth] = *(swap888_t*)&_color;
+          //uint8_t* src = &_img[(xs + ys * _bitwidth) * _bytes];
+          if (_bytes == 2) {
+            *(swap565_t*)src     = *(swap565_t*)&_color;
+            *(swap565_t*)(src+2) = *(swap565_t*)&_color;
+            //_img16[xs + ys * _bitwidth] = *(swap565_t*)&_color;
+          } else if (_bytes == 1) {
+            *src     = _color.raw0;
+            *(src+1) = _color.raw0;
+          } else { // (_bpp == 24) 
+            *(swap888_t*)src     = *(swap888_t*)&_color;
+            *(swap888_t*)(src+3) = *(swap888_t*)&_color;
+            //_img24[xs + ys * _bitwidth] = *(swap888_t*)&_color;
           }
-          if (xs == 0 && xe == _width) {
-            dupe_fill(src + _bytes, src, (_bitwidth * (ye - ys + 1) - 1) * _bytes, _bytes);
+          if (x == 0 && w == _width) {
+            dupe_fill(src + _bytes*2, src, (w * h - 2) * _bytes, _bytes*2);
             return;
           }
-          dupe_fill(src + _bytes, src, (xe - xs) * _bytes, _bytes);
-          if (ye == ys) return;
-          uint32_t len = (xe - xs + 1) * _bytes;
+          if (2 < w) dupe_fill(src + _bytes*2, src, (w - 2) * _bytes, _bytes * 2);
+          if (h == 1) return;
+          size_t len = w * _bytes;
           uint8_t* dst = src;
-          for (int32_t y = ys + 1; y <= ye; y++) {
-            dst += _bitwidth * _bytes;
+          while (--h) {
+            dst += _width * _bytes;
             memcpy(dst, src, len);
           }
         }
       }
     }
+
     void _writeColor(uint32_t length) override
     {
       if (!length) return;
@@ -337,7 +344,7 @@ namespace lgfx
 */
     }
 
-    void dupe_fill(uint8_t* dst, uint8_t* src, size_t len, size_t size) {
+    void dupe_fill(uint8_t* dst, const uint8_t* src, size_t len, size_t size) {
       while (len > size) {
         memcpy(dst, src, size);
         dst += size;
