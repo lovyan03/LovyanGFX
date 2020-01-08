@@ -70,8 +70,8 @@ namespace lgfx
     };
     const uint8_t* getInitCommands(uint8_t listno) const override {
       static constexpr uint8_t list0[] = {
-          CMD::SWRESET, CMD_INIT_DELAY, 120,  // Software reset
-          CMD::SLPOUT,  CMD_INIT_DELAY, 5,    // Exit sleep mode
+          CMD::SWRESET, PanelIlitekCommon<CFG>::CMD_INIT_DELAY, 120,  // Software reset
+          CMD::SLPOUT,  PanelIlitekCommon<CFG>::CMD_INIT_DELAY, 5,    // Exit sleep mode
           0x26,  1, 0x04, // Set Gamma curve 3
           0xF2,  1, 0x01, // Gamma adjustment enabled
           0xE0, 15, 0x3F, 0x25, 0x1C, 0x1E, 0x20, 0x12, 0x2A, 0x90,

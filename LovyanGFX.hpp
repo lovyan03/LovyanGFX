@@ -1,14 +1,13 @@
 #ifndef LOVYANGFX_HPP_
 #define LOVYANGFX_HPP_
 
-// #pragma GCC optimize ("O3")
-
 #include <stdio.h>
 #include <stdint.h>
 #include <stdarg.h>
 #include <string.h>
 #include <cmath>
 #include <cfloat>
+#include <type_traits>
 
 #define LOAD_GFXFF
 #include "LGFX_FontLoad.hpp"
@@ -19,106 +18,63 @@ namespace lgfx
 {
   class LGFXBase
   {
-  __attribute__ ((always_inline)) inline bool ab(int32_t& x, int32_t& w) { if (w < 0) { x += w + 1; w = -w; } return w; }
   public:
     LGFXBase() {}
-  //LGFXBase(PanelCommon* panel) : _panel(panel) {}
     virtual ~LGFXBase() {}
 
-  //__attribute__ ((always_inline)) inline PanelCommon* getPanel(void) { return _panel; }
-    __attribute__ ((always_inline)) inline int32_t width        (void) const { return _width; }
-    __attribute__ ((always_inline)) inline int32_t height       (void) const { return _height; }
-    __attribute__ ((always_inline)) inline bool getInvert       (void) const { return _invert; }
-    __attribute__ ((always_inline)) inline uint8_t getRotation  (void) const { return _rotation; }
-    __attribute__ ((always_inline)) inline uint8_t getColorDepth(void) const { return _bpp; }
-    __attribute__ ((always_inline)) inline bool getSwapBytes    (void) const { return _swapBytes; }
-    __attribute__ ((always_inline)) inline void setSwapBytes(bool swap) { _swapBytes = swap; }
+
+    template<typename T> __attribute__ ((always_inline)) inline void setColor(T c) { _color.setColor(c); }
+
+    template<typename T> inline void writeColor    ( const T& color, int32_t len) { if (0 >= len) return; setColor(color);               _writeColor(len);             }
+    template<typename T> inline void pushColor     ( const T& color, int32_t len) { if (0 >= len) return; setColor(color); startWrite(); _writeColor(len); endWrite(); }
+    template<typename T> inline void pushColor     ( const T& color             ) {                       setColor(color); startWrite(); _writeColor();    endWrite(); }
+
+    template<typename T> inline void fillScreen    ( const T& color)              { setColor(color); fillRect(0, 0, _width, _height); }
+    template<typename T> inline void clear         ( const T& color)              { setColor(color); fillRect(0, 0, _width, _height); }
+                         inline void clear         ( void )                       { _color.raw = 0;  fillRect(0, 0, _width, _height); }
+
+    template<typename T> inline void drawPixel     ( int32_t x, int32_t y                      , const T& color) { setColor(color); drawPixel    (x, y      ); }
+    template<typename T> inline void drawFastVLine ( int32_t x, int32_t y           , int32_t h, const T& color) { setColor(color); drawFastVLine(x, y   , h); }
+    template<typename T> inline void drawFastHLine ( int32_t x, int32_t y, int32_t w           , const T& color) { setColor(color); drawFastHLine(x, y, w   ); }
+    template<typename T> inline void fillRect      ( int32_t x, int32_t y, int32_t w, int32_t h, const T& color) { setColor(color); fillRect     (x, y, w, h); }
+
+    template<typename T> inline void drawCircle    ( int32_t x, int32_t y, int32_t r           , const T& color) { setColor(color); drawCircle(x, y, r   ); }
+    template<typename T> inline void fillCircle    ( int32_t x, int32_t y, int32_t r           , const T& color) { setColor(color); fillCircle(x, y, r   ); }
+    template<typename T> inline void drawRect      ( int32_t x, int32_t y, int32_t w, int32_t h, const T& color) { setColor(color); drawRect  (x, y, w, h); }
+    template<typename T> inline void drawRoundRect ( int32_t x, int32_t y, int32_t w, int32_t h, int32_t r, const T& color) { setColor(color); drawRoundRect(x, y, w, h, r); }
+    template<typename T> inline void fillRoundRect ( int32_t x, int32_t y, int32_t w, int32_t h, int32_t r, const T& color) { setColor(color); fillRoundRect(x, y, w, h, r); }
+    template<typename T> inline void drawLine      ( int32_t x0, int32_t y0, int32_t x1, int32_t y1                        , const T& color)  { setColor(color); drawLine(    x0, y0, x1, y1        ); }
+    template<typename T> inline void drawTriangle  ( int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t x2, int32_t y2, const T& color)  { setColor(color); drawTriangle(x0, y0, x1, y1, x2, y2); }
+    template<typename T> inline void fillTriangle  ( int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t x2, int32_t y2, const T& color)  { setColor(color); fillTriangle(x0, y0, x1, y1, x2, y2); }
+
+
     __attribute__ ((always_inline)) inline static uint8_t  color332(uint8_t r, uint8_t g, uint8_t b) { return lgfx::color332(r, g, b); }
     __attribute__ ((always_inline)) inline static uint16_t color565(uint8_t r, uint8_t g, uint8_t b) { return lgfx::color565(r, g, b); }
     __attribute__ ((always_inline)) inline static uint32_t color888(uint8_t r, uint8_t g, uint8_t b) { return lgfx::color888(r, g, b); }
 
-    template<typename T> inline void writeColor    ( const T& color, uint32_t len) { set_color(color);               _writeColor(len);             }
-    template<typename T> inline void pushColor     ( const T& color, uint32_t len) { set_color(color); startWrite(); _writeColor(len); endWrite(); }
-    template<typename T> inline void pushColor     ( const T& color              ) { set_color(color); startWrite(); _writeColor();    endWrite(); }
-    template<typename T> inline void fillScreen    ( const T& color)               { set_color(color);               _fillRect(0, 0, _width, _height); }
-
-    template<typename T> inline void drawPixel     ( int32_t x, int32_t y                      , const T& color)  {                                 set_color(color); _drawPixel    (x, y      ); }
-    template<typename T> inline void drawFastVLine ( int32_t x, int32_t y           , int32_t h, const T& color)  { if (!ab(y,h)          ) return; set_color(color); _drawFastVLine(x, y   , h); }
-    template<typename T> inline void drawFastHLine ( int32_t x, int32_t y, int32_t w           , const T& color)  { if (!ab(x,w)          ) return; set_color(color); _drawFastHLine(x, y, w   ); }
-    template<typename T> inline void fillRect      ( int32_t x, int32_t y, int32_t w, int32_t h, const T& color)  { if (!ab(x,w)||!ab(y,h)) return; set_color(color); _fillRect     (x, y, w, h); }
-
-    template<typename T> inline void drawCircle    ( int32_t x, int32_t y, int32_t r           , const T& color)  {                                 set_color(color); startWrite(); _drawCircle   (x, y, r   ); endWrite(); }
-    template<typename T> inline void fillCircle    ( int32_t x, int32_t y, int32_t r           , const T& color)  {                                 set_color(color); startWrite(); _fillCircle   (x, y, r   ); endWrite(); }
-    template<typename T> inline void drawRect      ( int32_t x, int32_t y, int32_t w, int32_t h, const T& color)  { if (!ab(x,w)||!ab(y,h)) return; set_color(color); startWrite(); _drawRect     (x, y, w, h); endWrite(); }
-    template<typename T> inline void drawRoundRect ( int32_t x, int32_t y, int32_t w, int32_t h, int32_t r, const T& color) { if (!ab(x,w)||!ab(y,h)) return; set_color(color); startWrite(); _drawRoundRect(x, y, w, h, r); endWrite(); }
-    template<typename T> inline void fillRoundRect ( int32_t x, int32_t y, int32_t w, int32_t h, int32_t r, const T& color) { if (!ab(x,w)||!ab(y,h)) return; set_color(color); startWrite(); _fillRoundRect(x, y, w, h, r); endWrite(); }
-    template<typename T> inline void drawLine      ( int32_t x0, int32_t y0, int32_t x1, int32_t y1                        , const T& color)  { set_color(color); startWrite(); _drawLine(    x0, y0, x1, y1        ); endWrite(); }
-    template<typename T> inline void drawTriangle  ( int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t x2, int32_t y2, const T& color)  { set_color(color); startWrite(); _drawTriangle(x0, y0, x1, y1, x2, y2); endWrite(); }
-    template<typename T> inline void fillTriangle  ( int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t x2, int32_t y2, const T& color)  { set_color(color); startWrite(); _fillTriangle(x0, y0, x1, y1, x2, y2); endWrite(); }
+    __attribute__ ((always_inline)) inline int32_t width        (void) const { return _width; }
+    __attribute__ ((always_inline)) inline int32_t height       (void) const { return _height; }
+    __attribute__ ((always_inline)) inline uint8_t getRotation  (void) const { return _rotation; }
+    __attribute__ ((always_inline)) inline color_depth_t getColorDepth(void) const { return _color.bpp; }
+    __attribute__ ((always_inline)) inline bool getInvert       (void) const { return _invert; }
+    __attribute__ ((always_inline)) inline bool getSwapBytes    (void) const { return _swapBytes; }
+    __attribute__ ((always_inline)) inline void setSwapBytes(bool swap) { _swapBytes = swap; }
+    __attribute__ ((always_inline)) inline void invertDisplay(bool invert) { invertDisplay_impl(invert); }
+    __attribute__ ((always_inline)) inline void setRotation(uint8_t rotation) { setRotation_impl(rotation); }
+    __attribute__ ((always_inline)) inline void* setColorDepth(uint8_t bpp)       { return setColorDepth_impl((color_depth_t)bpp); }
+    __attribute__ ((always_inline)) inline void* setColorDepth(color_depth_t bpp) { return setColorDepth_impl(bpp); }
 
     __attribute__ ((always_inline)) inline void startWrite(void) { if (0 == _start_write_count++) { beginTransaction(); } }
     __attribute__ ((always_inline)) inline void endWrite(void)   { if (_start_write_count) { if (0 == (--_start_write_count)) endTransaction(); } }
-    virtual void beginTransaction() {}
-    virtual void endTransaction() {}
-
+    __attribute__ ((always_inline)) inline void beginTransaction(void) { beginTransaction_impl(); }
+    __attribute__ ((always_inline)) inline void endTransaction(void)   { endTransaction_impl(); }
     __attribute__ ((always_inline)) inline void flush(void) {}
-    __attribute__ ((always_inline)) inline void begin(void) { init(); }
-
-    virtual void init()
-    {
-    //_panel->init();
-
-      startWrite();
-      setRotation(getRotation());
-      invertDisplay(getInvert());
-      setColorDepth(getColorDepth());
-      fillScreen(0);
-      endWrite();
-    }
-
-    virtual void setRotation(uint8_t rotation) {}
-/*
-    void setRotation(uint8_t rotation)
-    {
-      startWrite();
-      _panel->setRotation(rotation);
-      endWrite();
-      _width = _panel->width();
-      _height = _panel->height();
-    }
-*/
-
-    virtual void* setColorDepth(uint8_t bpp) { return nullptr; }
-/*
-    void* setColorDepth(uint8_t bpp)
-    {
-      startWrite();
-      void* res = _panel->setColorDepth(bpp);
-      endWrite();
-      return res;
-    }
-*/
-    virtual void invertDisplay(bool invert) {}
-/*
-    void invertDisplay(bool i)
-    {
-      startWrite();
-      _panel->invertDisplay(i);
-      endWrite();
-    }
-*/
-/*
-    void setWindow(int32_t xs, int32_t ys, int32_t xe, int32_t ye)
-    {
-      startWrite();
-      _panel->setWindow(xs, ys, xe, ye);
-      endWrite();
-    }
-*/
+    __attribute__ ((always_inline)) inline void begin(void) { init_impl(); }
+    __attribute__ ((always_inline)) inline void init(void) { init_impl(); }
+    __attribute__ ((always_inline)) inline void setWindow(int32_t xs, int32_t ys, int32_t xe, int32_t ye) { setWindow_impl(xs, ys, xe, ye); }
 
     void setAddrWindow(int32_t x, int32_t y, int32_t w, int32_t h)
     {
-      if (!ab(x,w) || !ab(y,h)) return; 
       if ((x >= _width) || (y >= _height)) return;
       if (x < 0) { w += x; x = 0; }
       if ((x + w) > _width)  w = _width  - x;
@@ -128,6 +84,341 @@ namespace lgfx
       if (h < 1) return;
 
       setWindow(x, y, x + w - 1, y + h - 1);
+    }
+
+    __attribute__ ((always_inline)) inline void drawPixel(int32_t x, int32_t y)
+    {
+      if (x < 0 || (x >= _width) || y < 0 || (y >= _height)) return;
+      drawPixel_impl(x, y);
+    }
+
+    void drawFastVLine(int32_t x, int32_t y, int32_t h)
+    {
+      if ((x < 0) || (x >= _width)) return;
+      if (adj(y,h)) return; 
+      if (y < 0) { h += y; y = 0; }
+      if ((y + h) > _height) h = _height - y;
+      if (h < 1) return;
+
+      fillRect_impl(x, y, 1, h);
+    }
+
+    void drawFastHLine(int32_t x, int32_t y, int32_t w)
+    {
+      if ((y < 0) || (y >= _height)) return;
+      if (adj(x,w)) return; 
+      if (x < 0) { w += x; x = 0; }
+      if ((x + w) > _width) w = _width - x;
+      if (w < 1) return;
+
+      fillRect_impl(x, y, w, 1);
+    }
+
+    void fillRect(int32_t x, int32_t y, int32_t w, int32_t h)
+    {
+      if (adj(x,w)||adj(y,h)) return; 
+      if ((x >= _width) || (y >= _height)) return;
+      if (x < 0) { w += x; x = 0; }
+      if ((x + w) > _width)  w = _width  - x;
+      if (w < 1) return;
+      if (y < 0) { h += y; y = 0; }
+      if ((y + h) > _height) h = _height - y;
+      if (h < 1) return;
+
+      fillRect_impl(x, y, w, h);
+    }
+
+    void drawRect(int32_t x, int32_t y, int32_t w, int32_t h)
+    {
+      if (adj(x,w)||adj(y,h)) return;
+      startWrite();
+      drawFastHLine(x, y        , w);
+      if (--h) {
+        drawFastHLine(x, y + h    , w);
+        if (--h) {
+          drawFastVLine(x        , ++y, h);
+          drawFastVLine(x + w - 1,   y, h);
+        }
+      }
+      endWrite();
+    }
+
+    void drawCircle(int32_t x, int32_t y, int32_t r)
+    {
+      startWrite();
+
+      int32_t dx = 1;
+      int32_t p  = -(r >> 1);
+      int32_t i = 0;
+      while (p < 0) {
+        dx+=2; p+=dx; i++;
+      }
+      int32_t dy = r << 1;
+      dy -= 2;
+      p -= dy;
+      int32_t len = (i << 1)+1;
+      drawFastHLine(x - i, y + r, len);
+      drawFastHLine(x - i, y - r, len);
+      drawFastVLine(x - r, y - i, len);
+      drawFastVLine(x + r, y - i, len);
+      len = 0;
+      for (r--; i <= r; i++) {
+        if (p >= 0) {
+          drawFastHLine(x - i          , y + r, len);
+          drawFastHLine(x - i          , y - r, len);
+          drawFastHLine(x + i - len + 1, y + r, len);
+          drawFastHLine(x + i - len + 1, y - r, len);
+          if (i == r && len == 1) break;
+          dy -= 2;
+          p -= dy;
+          drawFastVLine(x - r, y - i          , len);
+          drawFastVLine(x + r, y - i          , len);
+          drawFastVLine(x + r, y + i - len + 1, len);
+          drawFastVLine(x - r, y + i - len + 1, len);
+          len = 0;
+          r--;
+        }
+        len++;
+        dx+=2;
+        p+=dx;
+      }
+
+      endWrite();
+    }
+
+    void fillCircle(int32_t x, int32_t y, int32_t r)
+    {
+      startWrite();
+
+      int32_t dx = 1;
+      int32_t dy = r << 1;
+      int32_t p  = -(r >> 1);
+      int32_t len = 0;
+      drawFastHLine(x - r, y, dy+1);
+
+      for (int32_t i  = 0; i <= r; i++) {
+        len++;
+        if (p >= 0) {
+          fillRect(x - r, y - i          , (r<<1) + 1, len);
+          fillRect(x - r, y + i - len + 1, (r<<1) + 1, len);
+          if (i == r) break;
+          dy -= 2;
+          p -= dy;
+          len = 0;
+          drawFastHLine(x - i, y + r, (i<<1) + 1);
+          drawFastHLine(x - i, y - r, (i<<1) + 1);
+          r--;
+        }
+        dx+=2;
+        p+=dx;
+      }
+
+      endWrite();
+    }
+
+    void drawRoundRect(int32_t x, int32_t y, int32_t w, int32_t h, int32_t r)
+    {
+      if (adj(x,w)||adj(y,h)) return; 
+      startWrite();
+
+      w--;
+      h--;
+      int32_t len = (r << 1) + 1;
+      drawFastVLine(x      , y + r+1, h - len);
+      drawFastVLine(x + w  , y + r+1, h - len);
+      drawFastHLine(x + r+1, y      , w - len);
+      drawFastHLine(x + r+1, y + h  , w - len);
+
+      int32_t x0 = x + r;
+      int32_t x1 = x + w - r;
+      int32_t y0 = y + r;
+      int32_t y1 = y + h - r;
+
+      int32_t f     = 1 - r;
+      int32_t ddF_x = 1;
+      int32_t ddF_y = -2 * r;
+
+      len = 0;
+      for (int32_t i = 0; i <= r; i++) {
+        len++;
+        if (f >= 0) {
+          drawFastHLine(x0 - i          , y0 - r, len);
+          drawFastHLine(x0 - i          , y1 + r, len);
+          drawFastHLine(x1 + i - len + 1, y1 + r, len);
+          drawFastHLine(x1 + i - len + 1, y0 - r, len);
+          drawFastVLine(x1 + r, y1 + i - len + 1, len);
+          drawFastVLine(x0 - r, y1 + i - len + 1, len);
+          drawFastVLine(x1 + r, y0 - i, len);
+          drawFastVLine(x0 - r, y0 - i, len);
+          len = 0;
+          r--;
+          ddF_y += 2;
+          f     += ddF_y;
+        }
+        ddF_x += 2;
+        f     += ddF_x;
+      }
+      endWrite();
+    }
+
+    void fillRoundRect(int32_t x, int32_t y, int32_t w, int32_t h, int32_t r)
+    {
+      if (adj(x,w)||adj(y,h)) return; 
+      startWrite();
+      fillRect(x, y + r, w, h - (r << 1));
+      int32_t x0 = x + r;
+      int32_t y1 = y + h - r - 1;
+      int32_t y2 = y + r;
+
+      int32_t delta = w - (r << 1);
+      int32_t f     = 1 - r;
+      int32_t ddF_x = 1;
+      int32_t ddF_y = -r - r;
+      int32_t len = 0;
+      for (int32_t i = 0; i <= r; i++) {
+        len++;
+        if (f >= 0) {
+          fillRect(x0 - r, y2 - i          , (r << 1) + delta, len);
+          fillRect(x0 - r, y1 + i - len + 1, (r << 1) + delta, len);
+          if (i == r) break;
+          len = 0;
+          ddF_y += 2;
+          f     += ddF_y;
+          drawFastHLine(x0 - i, y1 + r, (i << 1) + delta);
+          drawFastHLine(x0 - i, y2 - r, (i << 1) + delta);
+          r--;
+        }
+        ddF_x += 2;
+        f     += ddF_x;
+      }
+      endWrite();
+    }
+
+    void drawLine(int32_t x0, int32_t y0, int32_t x1, int32_t y1)
+    {
+      bool steep = abs(y1 - y0) > abs(x1 - x0);
+
+      if (steep) {   swap_coord(x0, y0); swap_coord(x1, y1); }
+      if (x0 > x1) { swap_coord(x0, x1); swap_coord(y0, y1); }
+
+      int32_t dy = abs(y1 - y0);
+      int32_t ystep = (y0 < y1) ? 1 : -1;
+      int32_t dx = x1 - x0;
+      int32_t err = dx >> 1;
+
+      int32_t yend = steep ? _width : _height;
+      while (x0 < 0 || y0 < 0 || y0 >= yend) {
+        err -= dy;
+        if (err < 0) {
+          err += dx;
+          y0 += ystep;
+        }
+        if (++x0 > x1) return;
+      }
+      int32_t xs = x0;
+      int32_t dlen = 0;
+
+      startWrite();
+      if (steep) {
+        if (x1 >= _height) x1 = _height - 1;
+        for (; x0 <= x1; x0++) {
+          dlen++;
+          if ((err -= dy) < 0) {
+            fillRect_impl(y0, xs, 1, dlen);
+            err += dx;
+            xs = x0 + 1; dlen = 0; y0 += ystep;
+            if ((y0 < 0) || (y0 >= _width)) break;
+          }
+        }
+        if (dlen) fillRect_impl(y0, xs, 1, dlen);
+      } else {
+        if (x1 >= _width) x1 = _width - 1;
+        for (; x0 <= x1; x0++) {
+          dlen++;
+          if ((err -= dy) < 0) {
+            fillRect_impl(xs, y0, dlen, 1);
+            err += dx;
+            xs = x0 + 1; dlen = 0; y0 += ystep;
+            if ((y0 < 0) || (y0 >= _height)) break;
+          }
+        }
+        if (dlen) fillRect_impl(xs, y0, dlen, 1);
+      }
+      endWrite();
+    }
+
+    void drawTriangle(int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t x2, int32_t y2)
+    {
+      startWrite();
+      drawLine(x0, y0, x1, y1);
+      drawLine(x1, y1, x2, y2);
+      drawLine(x2, y2, x0, y0);
+      endWrite();
+    }
+
+    void fillTriangle(int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t x2, int32_t y2)
+    {
+      int32_t a, b, y, last;
+
+      // Sort coordinates by Y order (y2 >= y1 >= y0)
+      if (y0 > y1) { swap_coord(y0, y1); swap_coord(x0, x1); }
+      if (y1 > y2) { swap_coord(y2, y1); swap_coord(x2, x1); }
+      if (y0 > y1) { swap_coord(y0, y1); swap_coord(x0, x1); }
+
+      if (y0 == y2) { // Handle awkward all-on-same-line case as its own thing
+        a = b = x0;
+        if (x1 < a)      a = x1;
+        else if (x1 > b) b = x1;
+        if (x2 < a)      a = x2;
+        else if (x2 > b) b = x2;
+        drawFastHLine(a, y0, b - a + 1);
+        return;
+      }
+
+      int32_t
+      dx01 = x1 - x0,
+      dy01 = y1 - y0,
+      dx02 = x2 - x0,
+      dy02 = y2 - y0,
+      dx12 = x2 - x1,
+      dy12 = y2 - y1,
+      sa   = 0,
+      sb   = 0;
+
+      // For upper part of triangle, find scanline crossings for segments
+      // 0-1 and 0-2.  If y1=y2 (flat-bottomed triangle), the scanline y1
+      // is included here (and second loop will be skipped, avoiding a /0
+      // error there), otherwise scanline y1 is skipped here and handled
+      // in the second loop...which also avoids a /0 error here if y0=y1
+      // (flat-topped triangle).
+      if (y1 == y2) last = y1;  // Include y1 scanline
+      else         last = y1 - 1; // Skip it
+
+      startWrite();
+      for (y = y0; y <= last; y++) {
+        a   = x0 + sa / dy01;
+        b   = x0 + sb / dy02;
+        sa += dx01;
+        sb += dx02;
+
+        if (a > b) swap_coord(a, b);
+        drawFastHLine(a, y, b - a + 1);
+      }
+
+      // For lower part of triangle, find scanline crossings for segments
+      // 0-2 and 1-2.  This loop is skipped if y1=y2.
+      sa = dx12 * (y - y1);
+      sb = dx02 * (y - y0);
+      for (; y <= y2; y++) {
+        a   = x1 + sa / dy12;
+        b   = x0 + sb / dy02;
+        sa += dx12;
+        sb += dx02;
+
+        if (a > b) swap_coord(a, b);
+        drawFastHLine(a, y, b - a + 1);
+      }
+      endWrite();
     }
 
   /*
@@ -148,7 +439,7 @@ namespace lgfx
     void pushColors(const T *src, uint32_t len)
     {
       startWrite();
-      _writePixels(src, len);
+      pushColors_impl(src, len);
       endWrite();
     }
 
@@ -173,12 +464,8 @@ namespace lgfx
 */
     uint16_t readPixel(int32_t x, int32_t y)
     {
-      startWrite();
-      readWindow(x, y, x, y);
-      uint16_t res = (uint16_t)_readPixel();
-      endRead();
-      endWrite();
-      return res;
+      if (x < 0 || (x >= _width) || y < 0 || (y >= _height)) return 0;
+      return readPixel16_impl(x, y).raw;
     }
 
     void readRect(int32_t x, int32_t y, int32_t w, int32_t h, uint8_t* buf)
@@ -198,7 +485,7 @@ namespace lgfx
     template<typename T>
     void readRect(int32_t x, int32_t y, int32_t w, int32_t h, T* buf)
     {
-      if (!ab(x,w) || !ab(y,h)) return;
+      if (adj(x,w) || adj(y,h)) return;
       if ((x >= _width) || (y >= _height)) return;
       if (x < 0) { w += x; x = 0; }
       if ((x + w) > _width)  w = _width  - x;
@@ -207,11 +494,7 @@ namespace lgfx
       if ((y + h) > _height) h = _height - y;
       if (h < 1) return;
 
-      startWrite();
-      readWindow(x, y, x + w - 1, y + h - 1);
-      _readPixels(buf, w * h);
-      endRead();
-      endWrite();
+      readRect_impl(x, y, w, h, buf);
     }
 
     template<typename T>
@@ -231,37 +514,28 @@ namespace lgfx
       if (_swapBytes) pushImage(x, y, w, h, (const rgb888_t*)data);
       else            pushImage(x, y, w, h, (const swap888_t*)data);
     }
+
     template<typename T>
     void pushImage(int32_t x, int32_t y, int32_t w, int32_t h, const T* data)
     {
-      if (!ab(x,w) || !ab(y,h)) return;
-      if ((x >= _width) || (y >= _height)) return;
-
-      int32_t dx = 0;
-      int32_t dw = w;
-      if (x < 0) { dw += x; dx = -x; x = 0; }
-      if ((x + dw) > _width ) dw = _width  - x;
-      if (dw < 1) return;
-
-      int32_t dy = 0;
-      int32_t dh = h;
-      if (y < 0) { dh += y; dy = -y; y = 0; }
-      if ((y + dh) > _height) dh = _height - y;
-      if (dh < 1) return;
+      int32_t dx=0, dw=w;
+      if (_adj_width(x, dx, dw, _width)) return;
+      int32_t dy=0, dh=h;
+      if (_adj_width(y, dy, dh, _height)) return;
 
       startWrite();
       setWindow(x, y, x + dw - 1, y + dh - 1);
-      data += dx + dy * w;
+      int32_t len = (std::is_same<T,mono1_t>::value) ? (w + 7)>>3 : w;
+      data += dx + dy * len;
       while (dh--)
       {
-        _writePixels(data, dw);
-        //pushColors(data, dw);
-        data += w;
+        pushColors_impl(data, dw);
+        data += len;
       }
       endWrite();
     }
 
-    void copyRect(int32_t src_x, int32_t src_y, int32_t w, int32_t h, int32_t dst_x, int32_t dst_y)
+    void copyRect(int32_t dst_x, int32_t dst_y, int32_t w, int32_t h, int32_t src_x, int32_t src_y)
     {
       if ((src_x >= _width) || (dst_x >= _width)) return;
       if (src_x < dst_x) { if (src_x < 0) { w += src_x; dst_x -= src_x; src_x = 0; } if ((dst_x + w) > _width )  w = _width  - dst_x; }
@@ -272,13 +546,7 @@ namespace lgfx
       else               { if (dst_y < 0) { h += dst_y; src_y -= dst_y; dst_y = 0; } if ((src_y + h) > _height)  h = _height - src_y; }
       if (h < 1) return;
 
-      startWrite();
-      switch (getColorDepth()) {
-      case  8: copyRect_impl<rgb332_t >(src_x, src_y, w, h, dst_x, dst_y); break;
-      case 16: copyRect_impl<swap565_t>(src_x, src_y, w, h, dst_x, dst_y); break;
-      case 24: copyRect_impl<swap888_t>(src_x, src_y, w, h, dst_x, dst_y); break;
-      }
-      endWrite();
+      copyRect_impl(dst_x, dst_y, w, h, src_x, src_y);
     }
 
   //----------------------------------------------------------------------------
@@ -425,10 +693,10 @@ namespace lgfx
       return drawChar(x, y, uniCode, _textcolor, _textbgcolor, _textsize_x, _textsize_y);
     }
 
-    int16_t (LGFXBase::*fpDrawCharClassic)(int32_t x, int32_t y, uint16_t c, const dev_color_t& color, const dev_color_t& bg, uint8_t size_x, uint8_t size_y) = &LGFXBase::drawCharGLCD;
-    inline int16_t drawChar(int32_t x, int32_t y, uint16_t c, const dev_color_t& color, const dev_color_t& bg, uint8_t size)                   { return (this->*fpDrawCharClassic)(x, y, c, color, bg, size, size); }
-    inline int16_t drawChar(int32_t x, int32_t y, uint16_t c, const dev_color_t& color, const dev_color_t& bg, uint8_t size_x, uint8_t size_y) { return (this->*fpDrawCharClassic)(x, y, c, color, bg, size_x, size_y); }
-    int16_t drawCharGLCD(int32_t x, int32_t y, uint16_t c, const dev_color_t& color, const dev_color_t& bg, uint8_t size_x, uint8_t size_y)
+    int16_t (LGFXBase::*fpDrawCharClassic)(int32_t x, int32_t y, uint16_t c, const uint32_t& color, const uint32_t& bg, uint8_t size_x, uint8_t size_y) = &LGFXBase::drawCharGLCD;
+    inline int16_t drawChar(int32_t x, int32_t y, uint16_t c, const uint32_t& color, const uint32_t& bg, uint8_t size)                   { return (this->*fpDrawCharClassic)(x, y, c, color, bg, size, size); }
+    inline int16_t drawChar(int32_t x, int32_t y, uint16_t c, const uint32_t& color, const uint32_t& bg, uint8_t size_x, uint8_t size_y) { return (this->*fpDrawCharClassic)(x, y, c, color, bg, size_x, size_y); }
+    int16_t drawCharGLCD(int32_t x, int32_t y, uint16_t c, const uint32_t& color, const uint32_t& bg, uint8_t size_x, uint8_t size_y)
     { // glcd font
       static constexpr int fontWidth  = 6;
       static constexpr int fontHeight = 8;
@@ -453,6 +721,7 @@ namespace lgfx
        && (y < _height)
        && (y + fontHeight * size_y > 0)) {
         auto font_addr = font + (c * 5);
+        uint32_t colortbl[2] = {bg, color};
         bool fillbg = (bg != color);
         if (fillbg && size_y == 1 && x >= 0 && y >= 0 && y + fontHeight <= _height && x + fontWidth * size_x <= _width) {
           uint8_t col[fontWidth];
@@ -467,7 +736,7 @@ namespace lgfx
           for (uint8_t i = 0; i < fontHeight; i++) {
             for (uint8_t j = 0; j < fontWidth; j++) {
               if (flg != (bool)(col[j] & 1 << i)) {
-                set_color(flg ? color : bg);
+                _color.raw = colortbl[flg];
                 _writeColor(len);
                 len = 0;
                 flg = !flg;
@@ -475,10 +744,10 @@ namespace lgfx
               len += size_x;
             }
           }
-          writeColor(bg, len);
+          _color.raw = bg;
+          _writeColor(len);
           endWrite();
         } else {
-          if (!fillbg) set_color(color);
           int32_t xpos = x;
           startWrite();
           for (uint8_t i = 0; i < fontWidth-1; i++) {
@@ -489,8 +758,8 @@ namespace lgfx
             for (uint8_t j = 1; j < fontHeight; j++) {
               if (flg != (bool)(line & 1 << j)) {
                 if (flg || fillbg) {
-                  if (fillbg) set_color(flg ? color : bg);
-                  _fillRect(xpos, ypos, size_x, len * size_y);
+                  _color.raw = colortbl[flg];
+                  fillRect(xpos, ypos, size_x, len * size_y);
                 }
                 ypos += len * size_y;
                 len = 0;
@@ -499,12 +768,15 @@ namespace lgfx
               len++;
             }
             if (flg || fillbg) {
-              if (fillbg) set_color(flg ? color : bg);
-              _fillRect(xpos, ypos, size_x, len * size_y);
+              _color.raw = colortbl[flg];
+              fillRect(xpos, ypos, size_x, len * size_y);
             }
             xpos += size_x;
           }
-          if (fillbg) { fillRect(xpos, y, size_x, fontHeight * size_y, bg); }
+          if (fillbg) {
+            _color.raw = bg;
+            fillRect(xpos, y, size_x, fontHeight * size_y); 
+          }
           endWrite();
         }
       }
@@ -514,7 +786,7 @@ namespace lgfx
       return fontWidth * size_x;
     }
 
-    int16_t drawCharBMP(int32_t x, int32_t y, uint16_t c, const dev_color_t& color, const dev_color_t& bg, uint8_t size_x, uint8_t size_y)
+    int16_t drawCharBMP(int32_t x, int32_t y, uint16_t c, const uint32_t& color, const uint32_t& bg, uint8_t size_x, uint8_t size_y)
     { // BMP font
       uint16_t uniCode = c - 32;
       const int fontWidth = ((c < 32) || (c > 127)) ? 0 : pgm_read_byte(widtbl_f16 + uniCode);
@@ -542,6 +814,7 @@ namespace lgfx
        && (y + fontHeight * size_y > 0)) {
         int32_t ypos = y;
         uint8_t w = (fontWidth + 6) >> 3;
+        uint32_t colortbl[2] = {bg, color};
         bool fillbg = (bg != color);
         if (fillbg && size_y == 1 && x >= 0 && y >= 0 && y + fontHeight <= _height && x + fontWidth * size_x <= _width) {
           uint32_t len = 0;
@@ -557,7 +830,8 @@ namespace lgfx
                 line = (j == fontWidth - 1) ? 0 : pgm_read_byte(font_addr + (j >> 3));
               }
               if (flg != (bool)(line & 0x80)) {
-                writeColor(flg ? color : bg , len);
+                _color.raw = colortbl[flg];
+                _writeColor(len);
                 flg = !flg;
                 len = 0;
               }
@@ -565,7 +839,8 @@ namespace lgfx
             }
             font_addr += w;
           }
-          writeColor(flg ? color : bg , len);
+          _color.raw = colortbl[flg];
+          _writeColor(len);
           endWrite();
         } else {
           startWrite();
@@ -581,18 +856,27 @@ namespace lgfx
                 line = pgm_read_byte(font_addr + (j >> 3));
               }
               if (flg != (bool)(line & 0x80)) {
-                if (flg || fillbg) { fillRect( x + (j - len) * size_x, ypos, len * size_x, size_y, flg ? color : bg); }
+                if (flg || fillbg) {
+                  _color.raw = colortbl[flg];
+                  fillRect( x + (j - len) * size_x, ypos, len * size_x, size_y); 
+                }
                 len = 1;
                 flg = !flg;
               } else {
                 len++;
               }
             }
-            if (flg || fillbg) { fillRect( x + (j - len) * size_x, ypos, len * size_x, size_y, flg ? color : bg); }
+            if (flg || fillbg) {
+              _color.raw = colortbl[flg];
+              fillRect( x + (j - len) * size_x, ypos, len * size_x, size_y); 
+            }
             ypos += size_y;
             font_addr += w;
           }
-          if (fillbg) { fillRect( x + (fontWidth - 1) * size_x, y, size_x, fontHeight * size_y, bg); }
+          if (fillbg) {
+            _color.raw = bg;
+            fillRect( x + (fontWidth - 1) * size_x, y, size_x, fontHeight * size_y);
+          }
           endWrite();
         }
       }
@@ -603,7 +887,7 @@ namespace lgfx
       return fontWidth * size_x;
     }
 
-    int16_t drawCharRLE(int32_t x, int32_t y, uint16_t c, const dev_color_t& color, const dev_color_t& bg, uint8_t size_x, uint8_t size_y)
+    int16_t drawCharRLE(int32_t x, int32_t y, uint16_t c, const uint32_t& color, const uint32_t& bg, uint8_t size_x, uint8_t size_y)
     { // RLE font
       uint16_t uniCode = c - 32;
       const int fontWidth = ((c < 32) || (c > 127)) ? 0 : pgm_read_byte( (uint8_t *)pgm_read_dword( &(fontdata[_textfont].widthtbl ) ) + uniCode );
@@ -628,6 +912,7 @@ namespace lgfx
        && (x + fontWidth * size_x > 0)
        && (y < _height)
        && (y + fontHeight * size_y > 0)) {
+        uint32_t colortbl[2] = {bg, color};
         bool fillbg = (bg != color);
         if (fillbg && size_y == 1 && x >= 0 && y >= 0 && y + fontHeight <= _height && x + fontWidth * size_x <= _width) {
           uint32_t line = 0;
@@ -638,7 +923,7 @@ namespace lgfx
             line = pgm_read_byte(font_addr++);
             bool flg = line & 0x80;
             line = ((line & 0x7F) + 1) * size_x;
-            set_color(flg ? color : bg);
+            _color.raw = colortbl[flg];
             _writeColor(line);
           } while (len -= line);
           endWrite();
@@ -654,7 +939,10 @@ namespace lgfx
             do {
               len = (j + line > fontWidth) ? fontWidth - j : line;
               line -= len;
-              if (fillbg || flg) { fillRect( x + j * size_x, y + (i * size_y), len * size_x, size_y, flg ? color : bg); }
+              if (fillbg || flg) {
+                _color.raw = colortbl[flg];
+                fillRect( x + j * size_x, y + (i * size_y), len * size_x, size_y);
+              }
               j += len;
               if (j == fontWidth) {
                 j = 0;
@@ -672,7 +960,7 @@ namespace lgfx
       return fontWidth * size_x;
     }
 
-    int16_t drawCharGFXFF(int32_t x, int32_t y, uint16_t c, const dev_color_t& color, const dev_color_t& bg, uint8_t size_x, uint8_t size_y)
+    int16_t drawCharGFXFF(int32_t x, int32_t y, uint16_t c, const uint32_t& color, const uint32_t& bg, uint8_t size_x, uint8_t size_y)
     {
       int fontHeight = pgm_read_byte(&_gfxFont->yAdvance);
       if (c == '\n') {
@@ -712,7 +1000,8 @@ namespace lgfx
        && (x + fontWidth * size_x > 0)
        && (y < _height)
        && (y + fontHeight * size_y > 0)) {
-        bool fillbg = (bg != color);
+      //bool fillbg = (bg != color);
+        _color.raw = color;
         // Filter out bad characters not present in font
         if ((c >= pgm_read_word(&_gfxFont->first)) && (c <= pgm_read_word(&_gfxFont->last )))
         {
@@ -745,7 +1034,7 @@ namespace lgfx
               if(bits & bit) hpc++;
               else {
                if (hpc) {
-                  fillRect(x+(xo16+xx-hpc)*size_x, y+(yo16+yy)*size_y, size_x*hpc, size_y, color);
+                  fillRect(x+(xo16+xx-hpc)*size_x, y+(yo16+yy)*size_y, size_x*hpc, size_y);
                   hpc=0;
                 }
               }
@@ -753,7 +1042,7 @@ namespace lgfx
             }
           // Draw pixels for this line as we are about to increment yy
             if (hpc) {
-              fillRect(x+(xo16+xx-hpc)*size_x, y+(yo16+yy)*size_y, size_x*hpc, size_y, color);
+              fillRect(x+(xo16+xx-hpc)*size_x, y+(yo16+yy)*size_y, size_x*hpc, size_y);
               hpc=0;
             }
           }
@@ -774,8 +1063,8 @@ namespace lgfx
     void setTextSize(uint8_t s) { setTextSize(s,s); }
     void setTextSize(uint8_t sx, uint8_t sy) { _textsize_x = (sx > 0) ? sx : 1; _textsize_y = (sy > 0) ? sy : 1; }
 
-    template <typename T> void setTextColor(T c)      { set_color(c); _textcolor = _textbgcolor = _color; }
-    template <typename T> void setTextColor(T c, T b) { set_color(c); _textcolor = _color; set_color(b); _textbgcolor = _color; }
+    template <typename T> void setTextColor(T c)      { _textcolor = _textbgcolor = _color.convertColor(c); }
+    template <typename T> void setTextColor(T c, T b) { _textcolor = _color.convertColor(c); _textbgcolor = _color.convertColor(b); }
     void setTextDatum( uint8_t datum) { _textdatum = datum; }
     void setTextWrap( bool wrapX, bool wrapY = false) { _textwrapX = wrapX; _textwrapY = wrapY; }
 
@@ -823,7 +1112,6 @@ namespace lgfx
     //PanelCommon *_panel = nullptr;
     uint32_t _start_write_count = 0;
     bool _invert = false;
-    uint8_t _bpp = 16;
     uint8_t _rotation = 0;
     int32_t _width = 0;
     int32_t _height = 0;
@@ -843,36 +1131,20 @@ namespace lgfx
     uint16_t _decoderBuffer= 0;   // Unicode code-point buffer
 
     dev_color_t _color = 0xFFFFFFFF;
-    dev_color_t _textcolor = 0xFFFFFFFF;
-    dev_color_t _textbgcolor = 0;
+    uint32_t _textcolor = 0xFFFFFFFF;
+    uint32_t _textbgcolor = 0;
 
+    template <typename T>
+    __attribute__ ((always_inline)) inline static void swap_coord(T& a, T& b) { T t = a; a = b; b = t; }
+    __attribute__ ((always_inline)) inline static bool adj(int32_t& x, int32_t& w) { if (w < 0) { x += w + 1; w = -w; } return 0==w; }
 
-    __attribute__ ((always_inline)) inline void set_color(const dev_color_t& c) { _color = c; }
-#define TYPECHECK(dType) template < typename tType, typename std::enable_if < (sizeof(tType) == sizeof(dType)) && (std::is_signed<tType>::value == std::is_signed<dType>::value), std::nullptr_t >::type=nullptr >
-    TYPECHECK(uint8_t ) __attribute__ ((always_inline)) inline void set_color(tType c) { set_color(*(rgb332_t*)&c); }
-    TYPECHECK(uint16_t) __attribute__ ((always_inline)) inline void set_color(tType c) { set_color(*(rgb565_t*)&c); }
-    TYPECHECK(uint32_t) __attribute__ ((always_inline)) inline void set_color(tType c) { set_color(*(rgb888_t*)&c); }
-    TYPECHECK(int     ) __attribute__ ((always_inline)) inline void set_color(tType c) { set_color(*(rgb565_t*)&c); }
-#undef TYPECHECK
-    __attribute__ ((always_inline)) inline void set_color(const rgb888_t& c) {
-      _color.raw = (_bpp == 16) ? swap565( c.r, c.g, c.b)
-                 : (_bpp == 24) ? c.r | c.g<<8 | c.b<<16
-                 : (_bpp ==  8) ? color332(c.r, c.g, c.b)
-                 : (c.r|c.g|c.b);
+    static bool _adj_width(int32_t& x, int32_t& dx, int32_t& dw, int32_t _width)
+    {
+      if ((dw < 1) || (x >= _width)) return true;
+      if (x < 0) { dw += x; dx = -x; x = 0; }
+      if ((x + dw) > _width ) dw = _width  - x;
+      return (dw < 1);
     }
-    __attribute__ ((always_inline)) inline void set_color(const rgb565_t& c) {
-      _color.raw = (_bpp == 16) ? c.raw << 8 | c.raw >> 8
-                 : (_bpp == 24) ? c.R8() | (c.G8()<<8) | (c.B8()<<16)
-                 : (_bpp ==  8) ? ((c.r<<3)&0xE0) | ((c.g>>1)&0x1C) | (c.b>>3)
-                 : c.raw;
-    }
-    __attribute__ ((always_inline)) inline void set_color(const rgb332_t& c) {
-      _color.raw = (_bpp == 16) ? swap565(c.R8(), c.G8(), c.B8())
-                 : (_bpp == 24) ? swap888(c.R8(), c.G8(), c.B8())
-                 : (_bpp ==  8) ? c.raw
-                 : c.raw;
-    }
-
 
   #ifdef LOAD_GFXFF
     const GFXfont  *_gfxFont;
@@ -880,367 +1152,44 @@ namespace lgfx
     uint8_t _glyph_bb;   // glyph delta Y (height) below baseline
   #endif
 
-    template <typename T>
-    inline static void swap_coord(T& a, T& b) { T t = a; a = b; b = t; }
+    virtual void _writeColor(int32_t len = 1) {} // if (len) _panel->writeColor(len); 
 
-    virtual void setWindow(int32_t xs, int32_t ys, int32_t xe, int32_t ye) {}
-    virtual void readWindow(int32_t xs, int32_t ys, int32_t xe, int32_t ye) {}
-    virtual void endRead(void) {}
+    virtual rgb565_t readPixel16_impl(int32_t x, int32_t y) { return 0; }
+    virtual void readRect_impl(int32_t x, int32_t y, int32_t w, int32_t h, rgb332_t*   buf) {}
+    virtual void readRect_impl(int32_t x, int32_t y, int32_t w, int32_t h, rgb565_t*   buf) {}
+    virtual void readRect_impl(int32_t x, int32_t y, int32_t w, int32_t h, rgb888_t*   buf) {}
+    virtual void readRect_impl(int32_t x, int32_t y, int32_t w, int32_t h, swap565_t*  buf) {}
+    virtual void readRect_impl(int32_t x, int32_t y, int32_t w, int32_t h, swap666_t*  buf) {}
+    virtual void readRect_impl(int32_t x, int32_t y, int32_t w, int32_t h, swap888_t*  buf) {}
+    virtual void readRect_impl(int32_t x, int32_t y, int32_t w, int32_t h, argb8888_t* buf) {}
 
-    virtual void _writeColor(uint32_t len = 1) {} // if (len) _panel->writeColor(len); 
+    virtual void pushColors_impl(const mono1_t*    src, uint32_t length) {}
+    virtual void pushColors_impl(const rgb332_t*   src, uint32_t length) {}
+    virtual void pushColors_impl(const rgb565_t*   src, uint32_t length) {}
+    virtual void pushColors_impl(const rgb888_t*   src, uint32_t length) {}
+    virtual void pushColors_impl(const swap565_t*  src, uint32_t length) {}
+    virtual void pushColors_impl(const swap666_t*  src, uint32_t length) {}
+    virtual void pushColors_impl(const swap888_t*  src, uint32_t length) {}
+    virtual void pushColors_impl(const argb8888_t* src, uint32_t length) {}
 
-    virtual rgb565_t _readPixel(void) { return 0; }
-    virtual void _readPixels(rgb332_t*   buf, uint32_t length) {}
-    virtual void _readPixels(rgb565_t*   buf, uint32_t length) {}
-    virtual void _readPixels(rgb888_t*   buf, uint32_t length) {}
-    virtual void _readPixels(swap565_t*  buf, uint32_t length) {}
-    virtual void _readPixels(swap888_t*  buf, uint32_t length) {}
-    virtual void _readPixels(argb8888_t* buf, uint32_t length) {}
+    virtual void copyRect_impl(int32_t dst_x, int32_t dst_y, int32_t w, int32_t h, int32_t src_x, int32_t src_y) {};
 
-    virtual void _writePixels(const rgb332_t*   src, uint32_t length) {}
-    virtual void _writePixels(const rgb565_t*   src, uint32_t length) {}
-    virtual void _writePixels(const rgb888_t*   src, uint32_t length) {}
-    virtual void _writePixels(const swap565_t*  src, uint32_t length) {}
-    virtual void _writePixels(const swap888_t*  src, uint32_t length) {}
-    virtual void _writePixels(const argb8888_t* src, uint32_t length) {}
+    virtual void beginTransaction_impl() {}
+    virtual void endTransaction_impl() {}
+    virtual void setRotation_impl(uint8_t rotation) {}
+    virtual void* setColorDepth_impl(color_depth_t bpp) { return nullptr; }
+    virtual void invertDisplay_impl(bool invert) {}
+    virtual void setWindow_impl(int32_t xs, int32_t ys, int32_t xe, int32_t ye) {}
+    virtual void drawPixel_impl(int32_t x, int32_t y) = 0;
+    virtual void fillRect_impl(int32_t x, int32_t y, int32_t w, int32_t h) = 0;
 
-    virtual void drawPixel_impl(int32_t x, int32_t y);
-    virtual void fillRect_impl(int32_t x, int32_t y, int32_t w, int32_t h);
-
-    __attribute__ ((always_inline)) inline void _drawPixel(int32_t x, int32_t y)
-    {
-      if (x < 0 || (x >= _width) || y < 0 || (y >= _height)) return;
-      drawPixel_impl(x, y);
-    }
-
-    void _drawFastVLine(int32_t x, int32_t y, int32_t h)
-    {
-      if ((x < 0) || (x >= _width) || (y >= _height)) return;
-      if (y < 0) { h += y; y = 0; }
-      if ((y + h) > _height) h = _height - y;
-      if (h < 1) return;
-
-      fillRect_impl(x, y, 1, h);
-    }
-
-    void _drawFastHLine(int32_t x, int32_t y, int32_t w)
-    {
-      if ((y < 0) || (y >= _height) || (x >= _width)) return;
-      if (x < 0) { w += x; x = 0; }
-      if ((x + w) > _width) w = _width - x;
-      if (w < 1) return;
-
-      fillRect_impl(x, y, w, 1);
-    }
-
-    void _fillRect(int32_t x, int32_t y, int32_t w, int32_t h)
-    {
-      if ((x >= _width) || (y >= _height)) return;
-      if (x < 0) { w += x; x = 0; }
-      if ((x + w) > _width)  w = _width  - x;
-      if (w < 1) return;
-      if (y < 0) { h += y; y = 0; }
-      if ((y + h) > _height) h = _height - y;
-      if (h < 1) return;
-
-      fillRect_impl(x, y, w, h);
-    }
-
-    void _drawRect(int32_t x, int32_t y, int32_t w, int32_t h)
-    {
-      _drawFastHLine(x, y        , w);
-      if (!--h) return;
-      _drawFastHLine(x, y + h    , w);
-      if (!--h) return;
-      _drawFastVLine(x        , ++y, h);
-      _drawFastVLine(x + w - 1,   y, h);
-    }
-
-    void _drawCircle(int32_t x, int32_t y, int32_t r)
-    {
-      int32_t dx = 1;
-      int32_t p  = -(r >> 1);
-      int32_t i = 0;
-      while (p < 0) {
-        dx+=2; p+=dx; i++;
-      }
-      int32_t dy = r << 1;
-      dy -= 2;
-      p -= dy;
-      int32_t len = (i << 1)+1;
-      _drawFastHLine(x - i, y + r, len);
-      _drawFastHLine(x - i, y - r, len);
-      _drawFastVLine(x - r, y - i, len);
-      _drawFastVLine(x + r, y - i, len);
-      len = 0;
-      for (r--; i <= r; i++) {
-        if (p >= 0) {
-          _drawFastHLine(x - i          , y + r, len);
-          _drawFastHLine(x - i          , y - r, len);
-          _drawFastHLine(x + i - len + 1, y + r, len);
-          _drawFastHLine(x + i - len + 1, y - r, len);
-          if (i == r && len == 1) break;
-          dy -= 2;
-          p -= dy;
-          _drawFastVLine(x - r, y - i          , len);
-          _drawFastVLine(x + r, y - i          , len);
-          _drawFastVLine(x + r, y + i - len + 1, len);
-          _drawFastVLine(x - r, y + i - len + 1, len);
-          len = 0;
-          r--;
-        }
-        len++;
-        dx+=2;
-        p+=dx;
-      }
-    }
-
-    void _fillCircle(int32_t x, int32_t y, int32_t r)
-    {
-      int32_t dx = 1;
-      int32_t dy = r << 1;
-      int32_t p  = -(r >> 1);
-      int32_t len = 0;
-      _drawFastHLine(x - r, y, dy+1);
-
-      for (int32_t i  = 0; i <= r; i++) {
-        len++;
-        if (p >= 0) {
-          _fillRect(x - r, y - i          , (r<<1) + 1, len);
-          _fillRect(x - r, y + i - len + 1, (r<<1) + 1, len);
-          if (i == r) break;
-          dy -= 2;
-          p -= dy;
-          len = 0;
-          _drawFastHLine(x - i, y + r, (i<<1) + 1);
-          _drawFastHLine(x - i, y - r, (i<<1) + 1);
-          r--;
-        }
-        dx+=2;
-        p+=dx;
-      }
-    }
-
-    void _drawCircleHelper(int32_t x, int32_t y, int32_t r, uint8_t cornername)
-    {
-      int32_t f     = 1 - r;
-      int32_t ddF_x = 1;
-      int32_t ddF_y = -2 * r;
-      int32_t len   = 0;
-      for (int32_t i = 0; i <= r; i++) {
-        len++;
-        if (f >= 0) {
-          if (cornername & 0x4) {
-            _drawFastHLine(x + i - len + 1, y + r, len);
-            _drawFastVLine(x + r, y + i - len + 1, len);
-          }
-          if (cornername & 0x2) {
-            _drawFastHLine(x + i - len + 1, y - r, len);
-            _drawFastVLine(x + r, y - i          , len);
-          }
-          if (cornername & 0x8) {
-            _drawFastHLine(x - i          , y + r, len);
-            _drawFastVLine(x - r, y + i - len + 1, len);
-          }
-          if (cornername & 0x1) {
-            _drawFastHLine(x - i          , y - r, len);
-            _drawFastVLine(x - r, y - i          , len);
-          }
-          len = 0;
-          r--;
-          ddF_y += 2;
-          f     += ddF_y;
-        }
-        ddF_x += 2;
-        f     += ddF_x;
-      }
-    }
-
-    void _drawRoundRect(int32_t x, int32_t y, int32_t w, int32_t h, int32_t r)
-    {
-      _drawCircleHelper(x + r    , y + r    , r, 1);
-      w--;
-      _drawCircleHelper(x + w - r, y + r    , r, 2);
-      h--;
-      _drawCircleHelper(x + w - r, y + h - r, r, 4);
-      _drawCircleHelper(x + r    , y + h - r, r, 8);
-      int32_t len = (r << 1) + 1;
-      r++;
-      _drawFastHLine(x + r, y    , w - len);
-      _drawFastHLine(x + r, y + h, w - len);
-      _drawFastVLine(x    , y + r, h - len);
-      _drawFastVLine(x + w, y + r, h - len);
-    }
-
-    void _fillRoundRect(int32_t x, int32_t y, int32_t w, int32_t h, int32_t r)
-    {
-      _fillRect(x, y + r, w, h - (r << 1));
-      int32_t x0 = x + r;
-      int32_t y1 = y + h - r - 1;
-      int32_t y2 = y + r;
-
-      int32_t delta = w - (r << 1);
-      int32_t f     = 1 - r;
-      int32_t ddF_x = 1;
-      int32_t ddF_y = -r - r;
-      int32_t len = 0;
-      for (int32_t i = 0; i <= r; i++) {
-        len++;
-        if (f >= 0) {
-          _fillRect(x0 - r, y2 - i          , (r << 1) + delta, len);
-          _fillRect(x0 - r, y1 + i - len + 1, (r << 1) + delta, len);
-          if (i == r) break;
-          len = 0;
-          ddF_y += 2;
-          f     += ddF_y;
-          _drawFastHLine(x0 - i, y1 + r, (i << 1) + delta);
-          _drawFastHLine(x0 - i, y2 - r, (i << 1) + delta);
-          r--;
-        }
-        ddF_x += 2;
-        f     += ddF_x;
-      }
-    }
-
-    void _drawLine(int32_t x0, int32_t y0, int32_t x1, int32_t y1)
-    {
-      bool steep = abs(y1 - y0) > abs(x1 - x0);
-
-      if (steep) {   swap_coord(x0, y0); swap_coord(x1, y1); }
-      if (x0 > x1) { swap_coord(x0, x1); swap_coord(y0, y1); }
-
-      int32_t dy = abs(y1 - y0);
-      int32_t ystep = (y0 < y1) ? 1 : -1;
-      int32_t xs = x0;
-      int32_t dx = x1 - x0;
-      int32_t err = dx >> 1;
-      int32_t dlen = 0;
-
-      if (steep) {
-        for (; x0 <= x1; x0++) {
-          dlen++;
-          err -= dy;
-          if (err < 0) {
-            err += dx;
-            if (dlen == 1) _drawPixel(y0, xs);
-            else           _drawFastVLine(y0, xs, dlen);
-            dlen = 0; y0 += ystep; xs = x0 + 1;
-          }
-        }
-        if (dlen) _drawFastVLine(y0, xs, dlen);
-      }
-      else
-      {
-        for (; x0 <= x1; x0++) {
-          dlen++;
-          err -= dy;
-          if (err < 0) {
-            err += dx;
-            if (dlen == 1) _drawPixel(xs, y0);
-            else           _drawFastHLine(xs, y0, dlen);
-            dlen = 0; y0 += ystep; xs = x0 + 1;
-          }
-        }
-        if (dlen) _drawFastHLine(xs, y0, dlen);
-      }
-    }
-
-    void _drawTriangle(int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t x2, int32_t y2)
-    {
-      _drawLine(x0, y0, x1, y1);
-      _drawLine(x1, y1, x2, y2);
-      _drawLine(x2, y2, x0, y0);
-    }
-
-    void _fillTriangle(int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t x2, int32_t y2)
-    {
-      int32_t a, b, y, last;
-
-      // Sort coordinates by Y order (y2 >= y1 >= y0)
-      if (y0 > y1) { swap_coord(y0, y1); swap_coord(x0, x1); }
-      if (y1 > y2) { swap_coord(y2, y1); swap_coord(x2, x1); }
-      if (y0 > y1) { swap_coord(y0, y1); swap_coord(x0, x1); }
-
-      if (y0 == y2) { // Handle awkward all-on-same-line case as its own thing
-        a = b = x0;
-        if (x1 < a)      a = x1;
-        else if (x1 > b) b = x1;
-        if (x2 < a)      a = x2;
-        else if (x2 > b) b = x2;
-        _drawFastHLine(a, y0, b - a + 1);
-        return;
-      }
-
-      int32_t
-      dx01 = x1 - x0,
-      dy01 = y1 - y0,
-      dx02 = x2 - x0,
-      dy02 = y2 - y0,
-      dx12 = x2 - x1,
-      dy12 = y2 - y1,
-      sa   = 0,
-      sb   = 0;
-
-      // For upper part of triangle, find scanline crossings for segments
-      // 0-1 and 0-2.  If y1=y2 (flat-bottomed triangle), the scanline y1
-      // is included here (and second loop will be skipped, avoiding a /0
-      // error there), otherwise scanline y1 is skipped here and handled
-      // in the second loop...which also avoids a /0 error here if y0=y1
-      // (flat-topped triangle).
-      if (y1 == y2) last = y1;  // Include y1 scanline
-      else         last = y1 - 1; // Skip it
-
-      for (y = y0; y <= last; y++) {
-        a   = x0 + sa / dy01;
-        b   = x0 + sb / dy02;
-        sa += dx01;
-        sb += dx02;
-
-        if (a > b) swap_coord(a, b);
-        _drawFastHLine(a, y, b - a + 1);
-      }
-
-      // For lower part of triangle, find scanline crossings for segments
-      // 0-2 and 1-2.  This loop is skipped if y1=y2.
-      sa = dx12 * (y - y1);
-      sb = dx02 * (y - y0);
-      for (; y <= y2; y++) {
-        a   = x1 + sa / dy12;
-        b   = x0 + sb / dy02;
-        sa += dx12;
-        sb += dx02;
-
-        if (a > b) swap_coord(a, b);
-        _drawFastHLine(a, y, b - a + 1);
-      }
-    }
-
-    template <class T>
-    void copyRect_impl(int32_t src_x, int32_t src_y, int32_t w, int32_t h, int32_t dst_x, int32_t dst_y)
-    {
-      if (w < h) {
-        T buf[h];
-        int32_t add = (src_x < dst_x) ? -1 : 1;
-        int32_t pos = (src_x < dst_x) ? w - 1 : 0;
-        for (int count = 0; count < w; count++) {
-          readWindow(src_x + pos, src_y, src_x + pos, src_y + h - 1);
-          _readPixels(buf, h);
-          setWindow(dst_x + pos, dst_y, dst_x + pos, dst_y + h - 1);
-          _writePixels(buf, h);
-          pos += add;
-        }
-      } else {
-        T buf[w];
-        int32_t add = (src_y < dst_y) ? -1 : 1;
-        int32_t pos = (src_y < dst_y) ? h - 1 : 0;
-        for (int count = 0; count < h; count++) {
-          readWindow(src_x, src_y + pos, src_x + w - 1, src_y + pos);
-          _readPixels(buf, w);
-          setWindow(dst_x, dst_y + pos, dst_x + w - 1, dst_y + pos);
-          _writePixels(buf, w);
-          pos += add;
-        }
-      }
+    virtual void init_impl() {
+      startWrite();
+      setRotation(getRotation());
+      invertDisplay(getInvert());
+      setColorDepth(getColorDepth());
+      clear();
+      endWrite();
     }
 
   //----------------------------------------------------------------------------
@@ -1447,7 +1396,7 @@ namespace lgfx
   #if defined (ARDUINO) && defined (_SD_H_)
     LGFX_SD_Support<
   #endif
-    lgfx::LGFXBase // これが本体
+    LGFXBase // これが本体
   #if defined (ARDUINO) && defined (_SD_H_)
     >
   #endif
@@ -1456,14 +1405,32 @@ namespace lgfx
 //----------------------------------------------------------------------------
 //----------------------------------------------------------------------------
 
-#include "platforms/panel_device.hpp"
+#if defined (ESP32) || (CONFIG_IDF_TARGET_ESP32)
+
+  #include "platforms/esp32_common.hpp"
+  #include "platforms/lgfx_spi_esp32.hpp"
+
+#elif defined (ESP8266)
+
+  #include "platforms/esp8266_common.hpp"
+  #include "platforms/lgfx_spi_esp8266.hpp"
+
+#elif defined (STM32F7)
+
+  #include "platforms/lgfx_spi_stm32_spi.hpp"
+
+#elif defined (__AVR__)
+
+  #include "platforms/lgfx_spi_avr.hpp"
+
+#endif
+
+#include "platforms/lgfx_sprite.hpp"
 
 #include "platforms/panel_ILI9341.hpp"
-#include "platforms/panel_ST7735.hpp"
-#include "platforms/panel_sprite.hpp"
-/*
 #include "platforms/panel_ILI9163.hpp"
+#include "platforms/panel_ST7735.hpp"
 #include "platforms/panel_ST7789.hpp"
-*/
+#include "platforms/panel_ssd_common.hpp"
 
 #endif

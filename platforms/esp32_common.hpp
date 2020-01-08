@@ -108,7 +108,7 @@ namespace lgfx
   template<uint8_t PIN, uint32_t MASK>
   struct ESP32PIN {
     static void init(gpio_mode_t mode = GPIO_MODE_OUTPUT) {
-      rtc_gpio_deinit((gpio_num_t)PIN);
+      if (rtc_gpio_is_valid_gpio((gpio_num_t)PIN)) rtc_gpio_deinit((gpio_num_t)PIN);
       gpio_config_t io_conf;
       io_conf.intr_type = GPIO_INTR_DISABLE;
       io_conf.mode = mode;

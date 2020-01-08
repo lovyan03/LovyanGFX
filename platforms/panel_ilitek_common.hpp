@@ -1,15 +1,15 @@
 #ifndef LGFX_PANEL_ILITEK_COMMON_HPP_
 #define LGFX_PANEL_ILITEK_COMMON_HPP_
 
-#include "panel_device.hpp"
+#include "LovyanGFX.hpp"
 
 namespace lgfx
 {
   template <class CFG>
-  class PanelIlitekCommon : public LovyanGFXDevice<CFG>
+  class PanelIlitekCommon : public LGFX_SPI<CFG>
   {
   public:
-    PanelIlitekCommon() : LovyanGFXDevice<CFG>() 
+    PanelIlitekCommon() : LGFX_SPI<CFG>()
     , _panel_x     (get_panel_x     <CFG, 0>::value)
     , _panel_y     (get_panel_y     <CFG, 0>::value)
     , _ram_width   (get_ram_width   <CFG, 0>::value)
@@ -26,7 +26,8 @@ namespace lgfx
       this->_len_dummy_read_pixel = 8;
       this->_len_dummy_read_rddid = 0;
     }
-    void setRotation(uint8_t r) override
+
+    void setRotation_impl(uint8_t r) override
     {
       this->startWrite();
       this->write_cmd(this->_cmd_madctl);
@@ -65,17 +66,17 @@ namespace lgfx
       this->endWrite();
     }
 
-    void* setColorDepth(uint8_t bpp) override  // 16 or 24
+    void* setColorDepth_impl(color_depth_t bpp) override  // 16 or 24
     {
       this->startWrite();
       this->write_cmd(_cmd_colmod);
-      this->_bpp = getAdjustBpp(bpp);
-      this->write_data(getColMod(this->_bpp), 8);
+      this->_color.setColorDepth(getAdjustBpp(bpp));
+      this->write_data(getColMod(this->_color.bpp), 8);
       this->endWrite();
       return nullptr;
     }
 
-    void invertDisplay(bool i) override
+    void invertDisplay_impl(bool i) override
     { // Send the command twice as otherwise it does not always work!
       this->startWrite();
       this->_invert = i;
@@ -150,7 +151,7 @@ namespace lgfx
 
     virtual uint8_t getMadCtl(uint8_t r) const { return 0; }
     virtual uint8_t getColMod(uint8_t bpp) const { return 0; }
-    virtual uint8_t getAdjustBpp(uint8_t bpp) const { return (bpp > 16) ? 24 : 16; }
+    virtual color_depth_t getAdjustBpp(color_depth_t bpp) const { return (bpp > 16) ? rgb888_3Byte : rgb565_2Byte; }
 
 
     //inline static uint16_t getColor16(uint8_t r, uint8_t g, uint8_t b) { return color565(r,g,b); }

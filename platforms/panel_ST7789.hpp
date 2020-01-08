@@ -8,16 +8,18 @@ namespace lgfx
   template <class CFG>
   class Panel_ST7789 : public PanelIlitekCommon<CFG>
   {
+  public:
     Panel_ST7789() : PanelIlitekCommon<CFG>()
     {
       if (!this->_ram_width   ) this->_ram_width = 240;
       if (!this->_ram_height  ) this->_ram_height = 320;
       if (!this->_panel_width ) this->_panel_width = 240;
       if (!this->_panel_height) this->_panel_height = 320;
-      len_command = 8;
-      len_read_pixel = 24;
-      len_dummy_read_pixel =16;
+      this->_len_command = 8;
+      this->_len_read_pixel = 24;
+      this->_len_dummy_read_pixel =16;
     }
+
 
   protected:
     enum colmod_t
@@ -47,7 +49,7 @@ namespace lgfx
     }
 
 
-    struct CMD : public CommandCommon
+    struct CMD : public PanelIlitekCommon<CFG>::CommandCommon
     {
       static constexpr uint8_t PORCTRL  = 0xB2;      // Porch control
       static constexpr uint8_t GCTRL    = 0xB7;      // Gate control
@@ -63,8 +65,8 @@ namespace lgfx
     };
     const uint8_t* getInitCommands(uint8_t listno) const override {
       static constexpr uint8_t list0[] = {
-          CMD::SLPOUT , CMD_INIT_DELAY, 120,
-          CMD::NORON  , CMD_INIT_DELAY, 0,
+          CMD::SLPOUT , PanelIlitekCommon<CFG>::CMD_INIT_DELAY, 120,
+          CMD::NORON  , PanelIlitekCommon<CFG>::CMD_INIT_DELAY, 0,
           0xB6        , 2, 0x0A,0x82,
           CMD::PORCTRL, 5, 0x0c, 0x0c, 0x00, 0x33, 0x33,
           CMD::GCTRL  , 1, 0x35,
@@ -101,7 +103,7 @@ namespace lgfx
     }
   };
 
-
+/*
   template<int PanelWidth = 240, int PanelHeight = 320, int OffsetX = 0, int OffsetY = 0>
   struct Panel_ST7789 : public Panel_ST7789_COMMON
   {
@@ -118,7 +120,7 @@ namespace lgfx
   struct Panel_ST7789_240x320 : public Panel_ST7789<> {};
 
   struct Panel_ST7789_240x240 : public Panel_ST7789<240, 240> {};
-
+//*/
 }
 
 #endif

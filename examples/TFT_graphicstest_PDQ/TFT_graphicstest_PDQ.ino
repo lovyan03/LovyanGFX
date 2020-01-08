@@ -19,8 +19,8 @@
 #endif
 
 #include <LovyanGFX.hpp>
-
 //#include <TFT_eSPI.h>
+
 #define TFT_BLACK       0x0000      /*   0,   0,   0 */
 #define TFT_NAVY        0x000F      /*   0,   0, 128 */
 #define TFT_DARKGREEN   0x03E0      /*   0, 128,   0 */
@@ -41,6 +41,7 @@
 #define TFT_GREENYELLOW 0xB7E0      /* 180, 255,   0 */
 #define TFT_PINK        0xFC9F
 
+#ifdef LOVYANGFX_HPP_
 
 #if defined(ARDUINO_M5Stack_Core_ESP32) || defined(ARDUINO_M5STACK_FIRE) // M5Stack
   struct LGFX_Config {
@@ -55,7 +56,7 @@
     static constexpr int panel_bl  = 32;
     static constexpr int freq_write = 40000000;
     static constexpr int freq_read  = 16000000;
-    static constexpr int freq_fill  = 80000000;
+    static constexpr int freq_fill  = 40000000;
   };
   //static LovyanGFX<lgfx::Panel_M5Stack> tft;
   static lgfx::Panel_M5Stack tft;
@@ -166,19 +167,25 @@
 
 #endif
 
-//static LGFX<LGFX_Config> tft;
+
+#else
+
+static TFT_eSPI tft;
+
+#endif
+
+
 
 unsigned long total = 0;
 unsigned long tn = 0;
 void setup() {
-
   bool lcdver = false;
 #if defined(ARDUINO_M5Stack_Core_ESP32) || defined(ARDUINO_M5STACK_FIRE)
-  pinMode(LGFX_Config::panel_rst, INPUT);
+  pinMode(33, INPUT);
   delay(100);
-  lcdver = digitalRead(LGFX_Config::panel_rst);
-  pinMode(LGFX_Config::panel_rst, OUTPUT);
-  digitalWrite(LGFX_Config::panel_rst, HIGH);
+  lcdver = digitalRead(33);
+  pinMode(33, OUTPUT);
+  digitalWrite(33, HIGH);
 #elif defined(ARDUINO_M5Stick_C) || defined ( ARDUINO_T )
   lcdver = true;
 #endif
@@ -186,25 +193,34 @@ void setup() {
   Serial.begin(115200);
   while (!Serial);
   Serial.println(""); Serial.println("");
-  Serial.println("Lovyan's LovyanGFX library Test!"); 
- 
+#ifdef LOVYANGFX_HPP_
+  Serial.println(F("Lovyan's LovyanGFX library Test!")); 
+  Serial.printf("LovyanGFX mosi:%d  miso:%d  sclk:%d  cs:%d  dc:%d  rst:%d \r\n", LGFX_Config::spi_mosi, LGFX_Config::spi_miso, LGFX_Config::spi_sclk, LGFX_Config::spi_cs, LGFX_Config::spi_dc, LGFX_Config::panel_rst);
+#else
+  Serial.println(F("TFT_eSPI library Test!")); 
+#endif
   tft.init();
 
-Serial.printf("LovyanGFX mosi:%d  miso:%d  sclk:%d  cs:%d  dc:%d  rst:%d \r\n", LGFX_Config::spi_mosi, LGFX_Config::spi_miso, LGFX_Config::spi_sclk, LGFX_Config::spi_cs, LGFX_Config::spi_dc, LGFX_Config::panel_rst);
 #if defined(ARDUINO_M5Stick_C)
   AXP192 axp;
   axp.begin();
-#elif defined(ARDUINO_M5Stack_Core_ESP32) || defined(ARDUINO_M5STACK_FIRE) || defined ( ARDUINO_ESP32_DEV ) || defined ( ARDUINO_T )
+#elif defined(ARDUINO_M5Stack_Core_ESP32) || defined(ARDUINO_M5STACK_FIRE) // || defined ( ARDUINO_ESP32_DEV ) || defined ( ARDUINO_T )
   const int BLK_PWM_CHANNEL = 7;
   ledcSetup(BLK_PWM_CHANNEL, 12000, 8);
-  ledcAttachPin(LGFX_Config::panel_bl, BLK_PWM_CHANNEL);
+  ledcAttachPin(32, BLK_PWM_CHANNEL);
+  ledcWrite(BLK_PWM_CHANNEL, 128);
+#elif defined ( ARDUINO_ESP32_DEV )
+  const int BLK_PWM_CHANNEL = 7;
+  ledcSetup(BLK_PWM_CHANNEL, 12000, 8);
+  ledcAttachPin(5, BLK_PWM_CHANNEL);
   ledcWrite(BLK_PWM_CHANNEL, 128);
 #endif
+
   tft.setRotation(0);
 
   tft.invertDisplay(lcdver);
 
-  tft.setColorDepth(16);
+  //tft.setColorDepth(16);
   //tft.setColorDepth(24);
 
 }
@@ -302,8 +318,11 @@ void loop(void)
 	tft.setTextColor(TFT_MAGENTA);
 	tft.setTextSize(2);
 
- 	tft.println(F("   LovyanGFX test"));
-
+#ifdef LOVYANGFX_HPP_
+	tft.println(F("   LovyanGFX test"));
+#else
+	tft.println(F("   TFT_eSPI test"));
+#endif
 	tft.setTextSize(1);
 	tft.setTextColor(TFT_WHITE);
 	tft.println(F(""));
