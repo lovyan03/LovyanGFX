@@ -124,7 +124,7 @@ namespace lgfx
         fill_mode = true;
       }
       write_cmd(_cmd_ramwr);
-      write_data(_color.raw, _color.bytes << 3);
+      write_data(_color.raw, _color.bits);
       if (!_start_write_count) endTransaction_impl();
     }
 
@@ -138,8 +138,8 @@ namespace lgfx
         fill_mode = true;
       }
       write_cmd(_cmd_ramwr);
-      if (1 == (w|h)) write_data(_color.raw, _color.bytes << 3);
-      else            _writeColor(w*h);
+      if (1 == (w|h)) write_data(_color.raw, _color.bits);
+      else            writeColor_impl(w*h);
       if (!_start_write_count) endTransaction_impl();
     }
 
@@ -151,9 +151,9 @@ namespace lgfx
       if (_len_dummy_read_pixel) read_data(_len_dummy_read_pixel);
     }
 
-    void _writeColor(int32_t length) override
+    void writeColor_impl(int32_t length) override
     {
-      if (length == 1) { write_data(_color.raw, _color.bytes << 3); return; }
+      if (length == 1) { write_data(_color.raw, _color.bits); return; }
 
       uint32_t len;
       if (_color.bytes == 2) {
@@ -170,7 +170,7 @@ namespace lgfx
 
       if (length < len) len = length;
       wait_spi();
-      set_len(len * _color.bytes << 3);
+      set_len(len * _color.bits);
       dc_h();
       memcpy((void*)_spi_w0_reg, _regbuf, 12);
       exec_spi();
@@ -185,12 +185,12 @@ namespace lgfx
       len = length % limit;
       if (len) {
         wait_spi();
-        set_len(len * _color.bytes << 3);
+        set_len(len * _color.bits);
         exec_spi();
         if (0 == (length -= len)) return;
       }
       wait_spi();
-      set_len(limit * _color.bytes << 3);
+      set_len(limit * _color.bits);
       exec_spi();
       while (length -= limit) {
         wait_spi();
@@ -209,66 +209,6 @@ namespace lgfx
       return res;
     }
 
-    void readRect_impl(int32_t x, int32_t y, int32_t w, int32_t h, rgb332_t*   buf) override { readRectTemplate(x, y, w, h, buf); }
-    void readRect_impl(int32_t x, int32_t y, int32_t w, int32_t h, rgb565_t*   buf) override { readRectTemplate(x, y, w, h, buf); }
-    void readRect_impl(int32_t x, int32_t y, int32_t w, int32_t h, rgb888_t*   buf) override { readRectTemplate(x, y, w, h, buf); }
-    void readRect_impl(int32_t x, int32_t y, int32_t w, int32_t h, swap565_t*  buf) override { readRectTemplate(x, y, w, h, buf); }
-    void readRect_impl(int32_t x, int32_t y, int32_t w, int32_t h, swap666_t*  buf) override { readRectTemplate(x, y, w, h, buf); }
-    void readRect_impl(int32_t x, int32_t y, int32_t w, int32_t h, swap888_t*  buf) override { readRectTemplate(x, y, w, h, buf); }
-    void readRect_impl(int32_t x, int32_t y, int32_t w, int32_t h, argb8888_t* buf) override { readRectTemplate(x, y, w, h, buf); }
-
-    void pushColors_impl(const mono1_t*    src, uint32_t length) override { writePixelsMonoTemplate(src, length); }
-    void pushColors_impl(const rgb332_t*   src, uint32_t length) override { writePixelsTemplate(src, length); }
-    void pushColors_impl(const rgb565_t*   src, uint32_t length) override { writePixelsTemplate(src, length); }
-    void pushColors_impl(const rgb888_t*   src, uint32_t length) override { writePixelsTemplate(src, length); }
-    void pushColors_impl(const argb8888_t* src, uint32_t length) override { writePixelsTemplate(src, length); }
-    void pushColors_impl(const swap565_t*  src, uint32_t length) override
-    {
-      if      (_color.bpp == rgb565_2Byte) { write_bytes((const uint8_t*)src, length * 2); }
-      else if (_color.bpp == rgb666_3Byte) { write_pixels(src, length, 3, copy_from_userbuf_template<swap666_t, swap565_t>); }
-      else if (_color.bpp == rgb888_3Byte) { write_pixels(src, length, 3, copy_from_userbuf_template<swap888_t, swap565_t>); }
-    }
-
-    void pushColors_impl(const swap666_t* src, uint32_t length) override
-    {
-      if      (_color.bpp == rgb565_2Byte) { write_pixels(src, length, 2, copy_from_userbuf_template<swap565_t, swap666_t>); }
-      else if (_color.bpp == rgb666_3Byte) { write_bytes((const uint8_t*)src, length * 3); }
-      else if (_color.bpp == rgb888_3Byte) { write_pixels(src, length, 3, copy_from_userbuf_template<swap888_t, swap666_t>); }
-    }
-
-    void pushColors_impl(const swap888_t* src, uint32_t length) override
-    {
-      if      (_color.bpp == rgb565_2Byte) { write_pixels(src, length, 2, copy_from_userbuf_template<swap565_t, swap888_t>); }
-      else if (_color.bpp == rgb666_3Byte) { write_pixels(src, length, 3, copy_from_userbuf_template<swap666_t, swap888_t>); }
-      else if (_color.bpp == rgb888_3Byte) { write_bytes((const uint8_t*)src, length * 3); }
-    }
-
-    void copyRect_impl(int32_t dst_x, int32_t dst_y, int32_t w, int32_t h, int32_t src_x, int32_t src_y) override
-    {
-      startWrite();
-      if (w < h) {
-        swap888_t buf[h+2];
-        int32_t add = (src_x < dst_x) ? -1 : 1;
-        int32_t pos = (src_x < dst_x) ? w - 1 : 0;
-        for (int count = 0; count < w; count++) {
-          readRect(src_x + pos, src_y, 1, h, buf);
-          setWindow(dst_x + pos, dst_y, dst_x + pos, dst_y + h - 1);
-          pushColors_impl(buf, h);
-          pos += add;
-        }
-      } else {
-        swap888_t buf[w+2];
-        int32_t add = (src_y < dst_y) ? -1 : 1;
-        int32_t pos = (src_y < dst_y) ? h - 1 : 0;
-        for (int count = 0; count < h; count++) {
-          readRect(src_x, src_y + pos, w, 1, buf);
-          setWindow(dst_x, dst_y + pos, dst_x + w - 1, dst_y + pos);
-          pushColors_impl(buf, w);
-          pos += add;
-        }
-      }
-      endWrite();
-    }
 //----------------------------------------------------------------------------
   protected:
     virtual const uint8_t* getInitCommands(uint8_t listno = 0) const { return nullptr; }
@@ -443,47 +383,42 @@ namespace lgfx
       return *_spi_w0_reg;
     }
 
-    template<class T>
-    __attribute__ ((always_inline)) inline void writePixelsTemplate(const T* src, uint32_t length)
+    void pushPaletteColors_impl(const void* src, uint32_t length, const rgb888_t* palette, color_depth_t color_depth) override
     {
-      if      (_color.bpp == rgb565_2Byte) { write_pixels(src, length, 2, copy_from_userbuf_template<swap565_t, T>); }
-      else if (_color.bpp == rgb666_3Byte) { write_pixels(src, length, 3, copy_from_userbuf_template<swap666_t, T>); }
-      else if (_color.bpp == rgb888_3Byte) { write_pixels(src, length, 3, copy_from_userbuf_template<swap888_t, T>); }
-    }
-
-    template<class T>
-    __attribute__ ((always_inline)) inline void writePixelsMonoTemplate(const T* src, uint32_t length)
-    {
-      _mono_mask = 256;
-      if      (_color.bpp == rgb565_2Byte) { write_pixels(src, length, 2, copy_from_userbuf_mono_template<swap565_t>); }
-      else if (_color.bpp == rgb666_3Byte) { write_pixels(src, length, 3, copy_from_userbuf_mono_template<swap666_t>); }
-      else if (_color.bpp == rgb888_3Byte) { write_pixels(src, length, 3, copy_from_userbuf_mono_template<swap888_t>); }
-    }
-
-    template <class TDst, class TSrc>
-    static const void* copy_from_userbuf_template(const void* src, uint32_t len) {
-      auto s = (TSrc*)src;
-      auto d = (TDst*)_regbuf;
-      while (len--) { *d++ = *s++; }
-      return s;
-    }
-    template <class TDst>
-    static const void* copy_from_userbuf_mono_template(const void* src, uint32_t len) {
-      auto s = (uint8_t*)src;
-      auto d = (TDst*)_regbuf;
-      while (len--) { *d++ = (*s & _mono_mask) ? ~0:0; 
-        if (!(_mono_mask>>=1)) { _mono_mask = 128; s++; }
+      switch (color_depth) {
+      case palette_8bit: _palette_bits = 0; _palette_mask = 0b11111111; break;
+      case palette_4bit: _palette_bits = 4; _palette_mask = 0b00001111; break;
+      case palette_2bit: _palette_bits = 6; _palette_mask = 0b00000011; break;
+      case palette_1bit: _palette_bits = 7; _palette_mask = 0b00000001; break;
+      default: return;
       }
-      return s;
+      _sprite_palette = palette;
+      _palette_x = _palette_bits;
+      if      (_color.bpp == rgb565_2Byte) { write_pixels(src, length, 2, copy_from_palette_template<swap565_t>); }
+      else if (_color.bpp == rgb666_3Byte) { write_pixels(src, length, 3, copy_from_palette_template<swap666_t>); }
+      else if (_color.bpp == rgb888_3Byte) { write_pixels(src, length, 3, copy_from_palette_template<swap888_t>); }
+
+      _sprite_palette = nullptr;
     }
-    static void write_pixels(const void* src, uint32_t length, uint8_t bytes, const void*(*copy_from_userbuf)(const void*, uint32_t))
+
+    template <class TDst>
+    static void copy_from_palette_template(void* dst, const void* &src, uint32_t len) {
+      const uint8_t*& s = (const uint8_t*&)src;
+      auto d = (TDst*)dst;
+      do {
+        *d++ = _sprite_palette[(*s >> _palette_x) & _palette_mask];
+        if (!_palette_x) { s++; }
+        _palette_x = (_palette_x + _palette_bits) & 7;
+      } while (--len);
+    }
+    void write_pixels(const void* src, int32_t length, uint8_t bytes, void(*copy_from_userbuf)(void*, const void*&, uint32_t)) override
     {
       if (!length) return;
       const uint32_t limit = (bytes == 2) ? 16 : 10;
       uint32_t len = (length - 1) / limit;
       uint8_t highpart = (len & 1) << 3;
       len = length - (len * limit);
-      src = copy_from_userbuf(src, len);
+      copy_from_userbuf(_regbuf, src, len);
       wait_spi();
       dc_h();
       set_len(len * bytes << 3);
@@ -493,7 +428,7 @@ namespace lgfx
       if (0 == (length -= len)) return;
 
       for (; length; length -= limit) {
-        src = copy_from_userbuf(src, limit);
+        copy_from_userbuf(_regbuf, src, limit);
         memcpy((void*)&_spi_w0_reg[highpart ^= 0x08], _regbuf, limit * bytes);
         uint32_t user = _user_reg;
         if (highpart) user |= SPI_USR_MOSI_HIGHPART;
@@ -511,7 +446,7 @@ namespace lgfx
       }
     }
 
-    void write_bytes(const uint8_t* data, uint32_t length)
+    void write_bytes(const uint8_t* data, int32_t length) override
     {
       if (!length) return;
       constexpr uint32_t limit = 32;
@@ -546,6 +481,15 @@ namespace lgfx
       }
     }
 
+
+    void readRect_impl(int32_t x, int32_t y, int32_t w, int32_t h, rgb332_t*   buf) override { readRectTemplate(x, y, w, h, buf); }
+    void readRect_impl(int32_t x, int32_t y, int32_t w, int32_t h, rgb565_t*   buf) override { readRectTemplate(x, y, w, h, buf); }
+    void readRect_impl(int32_t x, int32_t y, int32_t w, int32_t h, rgb888_t*   buf) override { readRectTemplate(x, y, w, h, buf); }
+    void readRect_impl(int32_t x, int32_t y, int32_t w, int32_t h, swap565_t*  buf) override { readRectTemplate(x, y, w, h, buf); }
+    void readRect_impl(int32_t x, int32_t y, int32_t w, int32_t h, swap666_t*  buf) override { readRectTemplate(x, y, w, h, buf); }
+    void readRect_impl(int32_t x, int32_t y, int32_t w, int32_t h, swap888_t*  buf) override { readRectTemplate(x, y, w, h, buf); }
+    void readRect_impl(int32_t x, int32_t y, int32_t w, int32_t h, argb8888_t* buf) override { readRectTemplate(x, y, w, h, buf); }
+
     template<class T>
     __attribute__ ((always_inline)) inline void readRectTemplate(int32_t x, int32_t y, int32_t w, int32_t h, T* buf)
     {
@@ -561,42 +505,41 @@ namespace lgfx
     }
 
     template <class TDst, class TSrc>
-    static void* copy_to_userbuf_template(void* dst, uint32_t len) {
+    static void copy_to_userbuf_template(void*& dst, uint32_t len) {
       auto s = (TSrc*)_regbuf;
-      auto d = (TDst*)dst;
-      while (len--) { *d++ = *s++; }
-      return d;
+      TDst*& d = (TDst*&)dst;
+      do { *d++ = *s++; } while (--len);
     }
-    void read_pixels(void* dst, uint32_t length, void*(*copy_to_userbuf)(void*, uint32_t))
+    void read_pixels(void* dst, uint32_t length, void(*copy_to_userbuf)(void*&, uint32_t))
     {
       if (!length) return;
       uint32_t len(length & 7);
       length >>= 3;
       wait_spi();
-      if (len) {
-        set_len(_len_read_pixel * len);
-        exec_spi();
-        wait_spi();
-        memcpy(_regbuf, (void*)_spi_w0_reg, 3 * len);
-        if (length) {
-          set_len(_len_read_pixel << 3); // 8pixel read
-          exec_spi();
-        }
-        dst = copy_to_userbuf(dst, len);
-        if (!length) { return; }
-      } else {
+      if (length) {
         set_len(_len_read_pixel << 3); // 8pixel read
         exec_spi();
-      }
-      while (--length) {
+        while (--length) {
+          wait_spi();
+          memcpy(_regbuf, (void*)_spi_w0_reg, 24);
+          exec_spi();
+          copy_to_userbuf(dst, 8);
+        }
         wait_spi();
         memcpy(_regbuf, (void*)_spi_w0_reg, 24);
+        if (len) {
+          set_len(_len_read_pixel * len);
+          exec_spi();
+        }
+        copy_to_userbuf(dst, 8);
+        if (!len) return;
+      } else {
+        set_len(_len_read_pixel * len);
         exec_spi();
-        dst = copy_to_userbuf(dst, 8);
       }
       wait_spi();
-      memcpy(_regbuf, (void*)_spi_w0_reg, 24);
-      copy_to_userbuf(dst, 8);
+      memcpy(_regbuf, (void*)_spi_w0_reg, 3 * len);
+      copy_to_userbuf(dst, len);
     }
 
     __attribute__ ((always_inline)) inline static volatile uint32_t* reg(uint32_t addr) { return (volatile uint32_t *)ETS_UNCACHED_ADDR(addr); }
@@ -640,7 +583,10 @@ namespace lgfx
     static uint32_t _clkdiv_fill;
     static uint32_t _user_reg;
     static uint32_t _regbuf[8];
-    static uint32_t _mono_mask;
+    static const rgb888_t* _sprite_palette;
+    static uint32_t _palette_x;
+    static uint32_t _palette_bits;
+    static uint32_t _palette_mask;
   };
   template <class T> uint32_t LGFX_SPI<T>::_last_apb_freq;
   template <class T> uint32_t LGFX_SPI<T>::_clkdiv_write;
@@ -648,7 +594,10 @@ namespace lgfx
   template <class T> uint32_t LGFX_SPI<T>::_clkdiv_fill;
   template <class T> uint32_t LGFX_SPI<T>::_user_reg;
   template <class T> uint32_t LGFX_SPI<T>::_regbuf[];
-  template <class T> uint32_t LGFX_SPI<T>::_mono_mask;
+  template <class T> const rgb888_t* LGFX_SPI<T>::_sprite_palette;
+  template <class T> uint32_t LGFX_SPI<T>::_palette_x;
+  template <class T> uint32_t LGFX_SPI<T>::_palette_bits;
+  template <class T> uint32_t LGFX_SPI<T>::_palette_mask;
 
 //----------------------------------------------------------------------------
 

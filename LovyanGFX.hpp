@@ -25,9 +25,9 @@ namespace lgfx
 
     template<typename T> __attribute__ ((always_inline)) inline void setColor(T c) { _color.setColor(c); }
 
-    template<typename T> inline void writeColor    ( const T& color, int32_t len) { if (0 >= len) return; setColor(color);               _writeColor(len);             }
-    template<typename T> inline void pushColor     ( const T& color, int32_t len) { if (0 >= len) return; setColor(color); startWrite(); _writeColor(len); endWrite(); }
-    template<typename T> inline void pushColor     ( const T& color             ) {                       setColor(color); startWrite(); _writeColor();    endWrite(); }
+    template<typename T> inline void writeColor    ( const T& color, int32_t length) { if (0 >= length) return; setColor(color);               writeColor_impl(length);             }
+    template<typename T> inline void pushColor     ( const T& color, int32_t length) { if (0 >= length) return; setColor(color); startWrite(); writeColor_impl(length); endWrite(); }
+    template<typename T> inline void pushColor     ( const T& color                ) {                          setColor(color); startWrite(); writeColor_impl(1);      endWrite(); }
 
     template<typename T> inline void fillScreen    ( const T& color)              { setColor(color); fillRect(0, 0, _width, _height); }
     template<typename T> inline void clear         ( const T& color)              { setColor(color); fillRect(0, 0, _width, _height); }
@@ -439,7 +439,14 @@ namespace lgfx
     void pushColors(const T *src, uint32_t len)
     {
       startWrite();
-      pushColors_impl(src, len);
+      pushColors_template(src, len);
+      endWrite();
+    }
+
+    void pushPaletteColors(const void* src, uint32_t length, const rgb888_t* palette, color_depth_t color_depth)
+    {
+      startWrite();
+      pushPaletteColors_impl(src, length, palette, color_depth);
       endWrite();
     }
 
@@ -525,11 +532,11 @@ namespace lgfx
 
       startWrite();
       setWindow(x, y, x + dw - 1, y + dh - 1);
-      int32_t len = (std::is_same<T,mono1_t>::value) ? (w + 7)>>3 : w;
+      int32_t len = (std::is_same<T,palette_t>::value) ? (w + 7)>>3 : w;
       data += dx + dy * len;
       while (dh--)
       {
-        pushColors_impl(data, dw);
+        pushColors_template(data, dw);
         data += len;
       }
       endWrite();
@@ -737,7 +744,7 @@ namespace lgfx
             for (uint8_t j = 0; j < fontWidth; j++) {
               if (flg != (bool)(col[j] & 1 << i)) {
                 _color.raw = colortbl[flg];
-                _writeColor(len);
+                writeColor_impl(len);
                 len = 0;
                 flg = !flg;
               }
@@ -745,7 +752,7 @@ namespace lgfx
             }
           }
           _color.raw = bg;
-          _writeColor(len);
+          writeColor_impl(len);
           endWrite();
         } else {
           int32_t xpos = x;
@@ -831,7 +838,7 @@ namespace lgfx
               }
               if (flg != (bool)(line & 0x80)) {
                 _color.raw = colortbl[flg];
-                _writeColor(len);
+                writeColor_impl(len);
                 flg = !flg;
                 len = 0;
               }
@@ -840,7 +847,7 @@ namespace lgfx
             font_addr += w;
           }
           _color.raw = colortbl[flg];
-          _writeColor(len);
+          writeColor_impl(len);
           endWrite();
         } else {
           startWrite();
@@ -924,7 +931,7 @@ namespace lgfx
             bool flg = line & 0x80;
             line = ((line & 0x7F) + 1) * size_x;
             _color.raw = colortbl[flg];
-            _writeColor(line);
+            writeColor_impl(line);
           } while (len -= line);
           endWrite();
         } else {
@@ -1152,7 +1159,7 @@ namespace lgfx
     uint8_t _glyph_bb;   // glyph delta Y (height) below baseline
   #endif
 
-    virtual void _writeColor(int32_t len = 1) {} // if (len) _panel->writeColor(len); 
+    virtual void writeColor_impl(int32_t len) {} // if (len) _panel->writeColor(len); 
 
     virtual rgb565_t readPixel16_impl(int32_t x, int32_t y) { return 0; }
     virtual void readRect_impl(int32_t x, int32_t y, int32_t w, int32_t h, rgb332_t*   buf) {}
@@ -1163,16 +1170,58 @@ namespace lgfx
     virtual void readRect_impl(int32_t x, int32_t y, int32_t w, int32_t h, swap888_t*  buf) {}
     virtual void readRect_impl(int32_t x, int32_t y, int32_t w, int32_t h, argb8888_t* buf) {}
 
-    virtual void pushColors_impl(const mono1_t*    src, uint32_t length) {}
-    virtual void pushColors_impl(const rgb332_t*   src, uint32_t length) {}
-    virtual void pushColors_impl(const rgb565_t*   src, uint32_t length) {}
-    virtual void pushColors_impl(const rgb888_t*   src, uint32_t length) {}
-    virtual void pushColors_impl(const swap565_t*  src, uint32_t length) {}
-    virtual void pushColors_impl(const swap666_t*  src, uint32_t length) {}
-    virtual void pushColors_impl(const swap888_t*  src, uint32_t length) {}
-    virtual void pushColors_impl(const argb8888_t* src, uint32_t length) {}
+    virtual void pushPaletteColors_impl(const void* src, uint32_t length, const rgb888_t* palette, color_depth_t color_depth) {}
 
-    virtual void copyRect_impl(int32_t dst_x, int32_t dst_y, int32_t w, int32_t h, int32_t src_x, int32_t src_y) {};
+    template<class T>
+    void pushColors_template(const T* src, uint32_t length)
+    {
+      switch (getColorDepth()) {
+      case rgb332_1Byte: write_bytes((const uint8_t*)src, length * 2); break;
+      case rgb565_2Byte: if (std::is_same<T, swap565_t>::value) { write_bytes((const uint8_t*)src, length * 2); } else { write_pixels(src, length, 2, copy_from_userbuf_template<swap565_t, T>); } break;
+      case rgb666_3Byte: if (std::is_same<T, swap666_t>::value) { write_bytes((const uint8_t*)src, length * 3); } else { write_pixels(src, length, 3, copy_from_userbuf_template<swap666_t, T>); } break;
+      case rgb888_3Byte: if (std::is_same<T, swap888_t>::value) { write_bytes((const uint8_t*)src, length * 3); } else { write_pixels(src, length, 3, copy_from_userbuf_template<swap888_t, T>); } break;
+      case palette_1bit: break;
+      case palette_2bit: break;
+      case palette_4bit: break;
+      case palette_8bit: break;
+      }
+    }
+    template <class TDst, class TSrc>
+    static void copy_from_userbuf_template(void* dst, const void* &src, uint32_t len) {
+      const TSrc*& s = (const TSrc*&)src;
+      auto d = (TDst*)dst;
+      do { *d++ = *s++; } while (--len);
+    }
+
+    virtual void write_pixels(const void* src, int32_t length, uint8_t bytes, void(*copy_from_userbuf)(void*, const void*&, uint32_t)) {}
+    virtual void write_bytes(const uint8_t* data, int32_t length) {}
+
+    virtual void copyRect_impl(int32_t dst_x, int32_t dst_y, int32_t w, int32_t h, int32_t src_x, int32_t src_y)
+    {
+      startWrite();
+      if (w < h) {
+        swap888_t buf[h+2];
+        int32_t add = (src_x < dst_x) ? -1 : 1;
+        int32_t pos = (src_x < dst_x) ? w - 1 : 0;
+        for (int count = 0; count < w; count++) {
+          readRect(src_x + pos, src_y, 1, h, buf);
+          setWindow(dst_x + pos, dst_y, dst_x + pos, dst_y + h - 1);
+          pushColors_template(buf, h);
+          pos += add;
+        }
+      } else {
+        swap888_t buf[w+2];
+        int32_t add = (src_y < dst_y) ? -1 : 1;
+        int32_t pos = (src_y < dst_y) ? h - 1 : 0;
+        for (int count = 0; count < h; count++) {
+          readRect(src_x, src_y + pos, w, 1, buf);
+          setWindow(dst_x, dst_y + pos, dst_x + w - 1, dst_y + pos);
+          pushColors_template(buf, w);
+          pos += add;
+        }
+      }
+      endWrite();
+    }
 
     virtual void beginTransaction_impl() {}
     virtual void endTransaction_impl() {}
