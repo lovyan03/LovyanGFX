@@ -129,6 +129,7 @@ case palette_1bit: k = 0xFFFFFF; break;
     void* setColorDepth_impl(color_depth_t bpp) override
     {
       _color.setColorDepth(bpp);
+      _readColorDepth = getColorDepth();
 
       if (_img == nullptr) return nullptr;
       deleteSprite();
@@ -156,6 +157,11 @@ case palette_1bit: k = 0xFFFFFF; break;
     }
 
     void setWindow_impl(int32_t xs, int32_t ys, int32_t xe, int32_t ye) override
+    {
+      set_window(xs, ys, xe, ye);
+    }
+
+    void readWindow_impl(int32_t xs, int32_t ys, int32_t xe, int32_t ye) override
     {
       set_window(xs, ys, xe, ye);
     }
@@ -380,15 +386,7 @@ return;
 
       return (bool)(*src & (0x80 >> (_index & 0x07)));
     }
-
-    void readRect_impl(int32_t x, int32_t y, int32_t w, int32_t h, rgb332_t*   buf) override { readRectTemplate(x, y, w, h, buf); }
-    void readRect_impl(int32_t x, int32_t y, int32_t w, int32_t h, rgb565_t*   buf) override { readRectTemplate(x, y, w, h, buf); }
-    void readRect_impl(int32_t x, int32_t y, int32_t w, int32_t h, rgb888_t*   buf) override { readRectTemplate(x, y, w, h, buf); }
-    void readRect_impl(int32_t x, int32_t y, int32_t w, int32_t h, swap565_t*  buf) override { readRectTemplate(x, y, w, h, buf); }
-    void readRect_impl(int32_t x, int32_t y, int32_t w, int32_t h, swap666_t*  buf) override { readRectTemplate(x, y, w, h, buf); }
-    void readRect_impl(int32_t x, int32_t y, int32_t w, int32_t h, swap888_t*  buf) override { readRectTemplate(x, y, w, h, buf); }
-    void readRect_impl(int32_t x, int32_t y, int32_t w, int32_t h, argb8888_t* buf) override { readRectTemplate(x, y, w, h, buf); }
-
+/*
     template<class T>
     __attribute__ ((always_inline)) inline void readRectTemplate(int32_t x, int32_t y, int32_t w, int32_t h, T* buf)
     {
@@ -396,7 +394,7 @@ return;
       else if (_color.bpp == 16) { read_pixels<swap565_t>(x, y ,w ,h ,buf); }
       else if (_color.bpp == 24) { read_pixels<swap888_t>(x, y ,w ,h ,buf); }
       else {
-/*
+
         uint8_t p = 0;
         const uint8_t *src = ptr_img();
         for (;;) {
@@ -410,18 +408,11 @@ return;
             ++buf;
           }
         }
-*/
+
       }
     }
+*/
 /*
-    void pushColors_impl(const rgb332_t*   src, uint32_t length) override { writePixelsTemplate(src, length); }
-    void pushColors_impl(const rgb565_t*   src, uint32_t length) override { writePixelsTemplate(src, length); }
-    void pushColors_impl(const rgb888_t*   src, uint32_t length) override { writePixelsTemplate(src, length); }
-    void pushColors_impl(const swap565_t*  src, uint32_t length) override { writePixelsTemplate(src, length); }
-    void pushColors_impl(const swap666_t*  src, uint32_t length) override { writePixelsTemplate(src, length); }
-    void pushColors_impl(const swap888_t*  src, uint32_t length) override { writePixelsTemplate(src, length); }
-    void pushColors_impl(const argb8888_t* src, uint32_t length) override { writePixelsTemplate(src, length); }
-
     template <class TSrc>
     void writePixelsTemplate(const TSrc* src, uint32_t length)
     {
@@ -445,21 +436,9 @@ return;
             ++s;
           }
         }
-
       }
     }
 */
-    template <class TSrc, class TDst>
-    void read_pixels(int32_t x, int32_t y, int32_t w, int32_t h, TDst* buf)
-    {
-      while (h--) {
-        auto src = (const TSrc*)&_img[(x + y * _width) * _color.bytes];
-        y++;
-        for (int32_t i = 0; i < w; i++) {
-          *buf++ = *src++;
-        }
-      }
-    }
 /*
     static void dupe_fill(uint8_t* dst, const uint8_t* src, size_t len, size_t size) {
       while (len > size) {
@@ -506,26 +485,45 @@ return;
       }
     }
 
-
-    void write_pixels(const void* src, int32_t length, uint8_t bytes, void(*copy_from_userbuf)(void*, const void*&, uint32_t)) override
+    void read_pixels(void* dst, int32_t length, void(*copy_func)(void*&, const void* &src, uint32_t)) override
     {
-      uint32_t linelength;
+      int32_t linelength;
       do {
-        auto dst = ptr_img();
-        linelength = std::min(_xe - _xptr, length);
-        copy_from_userbuf(dst, src, linelength);
-        ptr_advance();
+        linelength = std::min(_xe - _xptr + 1, length);
+        const void* src = ptr_img();
+        copy_func(dst, src, linelength);
+        ptr_advance(linelength);
+      } while (length -= linelength);
+    }
+
+    void read_bytes(uint8_t* dst, int32_t length) override
+    {
+      int32_t linelength;
+      do {
+        linelength = std::min(_xe - _xptr + 1, length);
+        memcpy(dst, ptr_img(), linelength);
+        ptr_advance(linelength);
+      } while (length -= linelength);
+    }
+
+    void write_pixels(const void* src, int32_t length, void(*copy_func)(void*&, const void*&, uint32_t)) override
+    {
+      int32_t linelength;
+      do {
+        linelength = std::min(_xe - _xptr + 1, length);
+        void* dst = ptr_img();
+        copy_func(dst, src, linelength);
+        ptr_advance(linelength);
       } while (length -= linelength);
     }
 
     void write_bytes(const uint8_t* data, int32_t length) override
     {
-      uint32_t linelength;
+      int32_t linelength;
       do {
-        auto dst = ptr_img();
-        linelength = std::min(_xe - _xptr, length);
-        memcpy(dst, data, linelength);
-        ptr_advance();
+        linelength = std::min(_xe - _xptr + 1, length);
+        memcpy(ptr_img(), data, linelength);
+        ptr_advance(linelength);
       } while (length -= linelength);
     }
 

@@ -45,6 +45,7 @@ namespace lgfx
 
     LGFX_SPI() : LovyanGFX() {
       _color.setColorDepth((color_depth_t)get_bpp<CFG, 16>::value);
+      _readColorDepth = rgb888_3Byte;
       _invert   = get_invert  <CFG,false>::value;
       _rotation = get_rotation<CFG,    0>::value;
     }
@@ -143,12 +144,15 @@ namespace lgfx
       if (!_start_write_count) endTransaction_impl();
     }
 
-    void readWindow(int32_t xs, int32_t ys, int32_t xe, int32_t ye)
+    void readWindow_impl(int32_t xs, int32_t ys, int32_t xe, int32_t ye) override
     {
       set_window(xs, ys, xe, ye);
       write_cmd(_cmd_ramrd);
       start_read();
-      if (_len_dummy_read_pixel) read_data(_len_dummy_read_pixel);
+      if (_len_dummy_read_pixel) {;
+        set_len(_len_dummy_read_pixel);
+        exec_spi();
+      }
     }
 
     void writeColor_impl(int32_t length) override
@@ -201,7 +205,7 @@ namespace lgfx
     rgb565_t readPixel16_impl(int32_t x, int32_t y) override
     {
       startWrite();
-      readWindow(x, y, x, y);
+      readWindow_impl(x, y, x, y);
       //if (_len_read_pixel == 24) 
       rgb565_t res = (rgb565_t)swap888_t(read_data(24));
       end_read();
@@ -325,7 +329,7 @@ namespace lgfx
       }
     }
 
-    void start_read() {
+    void start_read(void) {
       *_spi_user_reg = _user_reg | SPI_USR_MISO | SPI_DOUTDIN;
       fill_mode = false;
       wait_spi();
@@ -341,7 +345,11 @@ namespace lgfx
       }
     }
 
-    void end_read() {
+    void endRead_impl(void) override
+    {
+      end_read();
+    }
+    void end_read(void) {
       cs_h();
       *_spi_user_reg = _user_reg;
       set_clock_write();
@@ -394,31 +402,34 @@ namespace lgfx
       }
       _sprite_palette = palette;
       _palette_x = _palette_bits;
-      if      (_color.bpp == rgb565_2Byte) { write_pixels(src, length, 2, copy_from_palette_template<swap565_t>); }
-      else if (_color.bpp == rgb666_3Byte) { write_pixels(src, length, 3, copy_from_palette_template<swap666_t>); }
-      else if (_color.bpp == rgb888_3Byte) { write_pixels(src, length, 3, copy_from_palette_template<swap888_t>); }
+      if      (_color.bpp == rgb565_2Byte) { write_pixels(src, length, copy_from_palette_template<swap565_t>); }
+      else if (_color.bpp == rgb666_3Byte) { write_pixels(src, length, copy_from_palette_template<swap666_t>); }
+      else if (_color.bpp == rgb888_3Byte) { write_pixels(src, length, copy_from_palette_template<swap888_t>); }
 
       _sprite_palette = nullptr;
     }
 
     template <class TDst>
-    static void copy_from_palette_template(void* dst, const void* &src, uint32_t len) {
+    static void copy_from_palette_template(void*& dst, const void* &src, uint32_t len) {
       const uint8_t*& s = (const uint8_t*&)src;
-      auto d = (TDst*)dst;
+      TDst*& d = (TDst*&)dst;
       do {
         *d++ = _sprite_palette[(*s >> _palette_x) & _palette_mask];
         if (!_palette_x) { s++; }
         _palette_x = (_palette_x + _palette_bits) & 7;
       } while (--len);
     }
-    void write_pixels(const void* src, int32_t length, uint8_t bytes, void(*copy_from_userbuf)(void*, const void*&, uint32_t)) override
+
+    void write_pixels(const void* src, int32_t length, void(*copy_func)(void*&, const void*&, uint32_t)) override
     {
       if (!length) return;
-      const uint32_t limit = (bytes == 2) ? 16 : 10;
+      const uint8_t bytes = _color.bytes;
+      const uint32_t limit = (bytes == 2) ? 16 : 10; //  limit = 32/bytes (bytes==2 is 16   bytes==3 is 10)
       uint32_t len = (length - 1) / limit;
       uint8_t highpart = (len & 1) << 3;
       len = length - (len * limit);
-      copy_from_userbuf(_regbuf, src, len);
+      void* dst = _regbuf;
+      copy_func(dst, src, len);
       wait_spi();
       dc_h();
       set_len(len * bytes << 3);
@@ -428,7 +439,8 @@ namespace lgfx
       if (0 == (length -= len)) return;
 
       for (; length; length -= limit) {
-        copy_from_userbuf(_regbuf, src, limit);
+        void* dst = _regbuf;
+        copy_func(dst, src, limit);
         memcpy((void*)&_spi_w0_reg[highpart ^= 0x08], _regbuf, limit * bytes);
         uint32_t user = _user_reg;
         if (highpart) user |= SPI_USR_MOSI_HIGHPART;
@@ -481,36 +493,7 @@ namespace lgfx
       }
     }
 
-
-    void readRect_impl(int32_t x, int32_t y, int32_t w, int32_t h, rgb332_t*   buf) override { readRectTemplate(x, y, w, h, buf); }
-    void readRect_impl(int32_t x, int32_t y, int32_t w, int32_t h, rgb565_t*   buf) override { readRectTemplate(x, y, w, h, buf); }
-    void readRect_impl(int32_t x, int32_t y, int32_t w, int32_t h, rgb888_t*   buf) override { readRectTemplate(x, y, w, h, buf); }
-    void readRect_impl(int32_t x, int32_t y, int32_t w, int32_t h, swap565_t*  buf) override { readRectTemplate(x, y, w, h, buf); }
-    void readRect_impl(int32_t x, int32_t y, int32_t w, int32_t h, swap666_t*  buf) override { readRectTemplate(x, y, w, h, buf); }
-    void readRect_impl(int32_t x, int32_t y, int32_t w, int32_t h, swap888_t*  buf) override { readRectTemplate(x, y, w, h, buf); }
-    void readRect_impl(int32_t x, int32_t y, int32_t w, int32_t h, argb8888_t* buf) override { readRectTemplate(x, y, w, h, buf); }
-
-    template<class T>
-    __attribute__ ((always_inline)) inline void readRectTemplate(int32_t x, int32_t y, int32_t w, int32_t h, T* buf)
-    {
-      startWrite();
-      readWindow(x, y, x + w - 1, y + h - 1);
-
-      if (_len_read_pixel == 24) {
-        read_pixels(buf, w*h, copy_to_userbuf_template<T, swap888_t>);
-      }
-
-      end_read();
-      endWrite();
-    }
-
-    template <class TDst, class TSrc>
-    static void copy_to_userbuf_template(void*& dst, uint32_t len) {
-      auto s = (TSrc*)_regbuf;
-      TDst*& d = (TDst*&)dst;
-      do { *d++ = *s++; } while (--len);
-    }
-    void read_pixels(void* dst, uint32_t length, void(*copy_to_userbuf)(void*&, uint32_t))
+    void read_pixels(void* dst, int32_t length, void(*copy_func)(void*&, const void* &src, uint32_t)) override
     {
       if (!length) return;
       uint32_t len(length & 7);
@@ -523,7 +506,8 @@ namespace lgfx
           wait_spi();
           memcpy(_regbuf, (void*)_spi_w0_reg, 24);
           exec_spi();
-          copy_to_userbuf(dst, 8);
+          const void* src = _regbuf;
+          copy_func(dst, src, 8);
         }
         wait_spi();
         memcpy(_regbuf, (void*)_spi_w0_reg, 24);
@@ -531,7 +515,8 @@ namespace lgfx
           set_len(_len_read_pixel * len);
           exec_spi();
         }
-        copy_to_userbuf(dst, 8);
+        const void* src = _regbuf;
+        copy_func(dst, src, 8);
         if (!len) return;
       } else {
         set_len(_len_read_pixel * len);
@@ -539,7 +524,39 @@ namespace lgfx
       }
       wait_spi();
       memcpy(_regbuf, (void*)_spi_w0_reg, 3 * len);
-      copy_to_userbuf(dst, len);
+      const void* src = _regbuf;
+      copy_func(dst, src, len);
+    }
+
+    void read_bytes(uint8_t* dst, int32_t length) override
+    {
+      if (!length) return;
+      uint32_t len(length & 0x3F);
+      length >>= 6;
+      wait_spi();
+      if (length) {
+        set_len(64 << 3); // 64byte read
+        exec_spi();
+        while (--length) {
+          wait_spi();
+          memcpy(dst, (void*)_spi_w0_reg, 64);
+          exec_spi();
+          dst += 64;
+        }
+        wait_spi();
+        memcpy(dst, (void*)_spi_w0_reg, 64);
+        if (len) {
+          set_len(len << 3);
+          exec_spi();
+        }
+        dst += 64;
+        if (!len) return;
+      } else {
+        set_len(len << 3);
+        exec_spi();
+      }
+      wait_spi();
+      memcpy(dst, (void*)_spi_w0_reg, len);
     }
 
     __attribute__ ((always_inline)) inline static volatile uint32_t* reg(uint32_t addr) { return (volatile uint32_t *)ETS_UNCACHED_ADDR(addr); }

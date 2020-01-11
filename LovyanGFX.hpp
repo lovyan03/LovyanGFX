@@ -25,13 +25,13 @@ namespace lgfx
 
     template<typename T> __attribute__ ((always_inline)) inline void setColor(T c) { _color.setColor(c); }
 
+                         inline void clear         ( void )          { _color.raw = 0;  fillRect(0, 0, _width, _height); }
+    template<typename T> inline void clear         ( const T& color) { setColor(color); fillRect(0, 0, _width, _height); }
+    template<typename T> inline void fillScreen    ( const T& color) { setColor(color); fillRect(0, 0, _width, _height); }
+
     template<typename T> inline void writeColor    ( const T& color, int32_t length) { if (0 >= length) return; setColor(color);               writeColor_impl(length);             }
     template<typename T> inline void pushColor     ( const T& color, int32_t length) { if (0 >= length) return; setColor(color); startWrite(); writeColor_impl(length); endWrite(); }
     template<typename T> inline void pushColor     ( const T& color                ) {                          setColor(color); startWrite(); writeColor_impl(1);      endWrite(); }
-
-    template<typename T> inline void fillScreen    ( const T& color)              { setColor(color); fillRect(0, 0, _width, _height); }
-    template<typename T> inline void clear         ( const T& color)              { setColor(color); fillRect(0, 0, _width, _height); }
-                         inline void clear         ( void )                       { _color.raw = 0;  fillRect(0, 0, _width, _height); }
 
     template<typename T> inline void drawPixel     ( int32_t x, int32_t y                      , const T& color) { setColor(color); drawPixel    (x, y      ); }
     template<typename T> inline void drawFastVLine ( int32_t x, int32_t y           , int32_t h, const T& color) { setColor(color); drawFastVLine(x, y   , h); }
@@ -439,7 +439,9 @@ namespace lgfx
     void pushColors(const T *src, uint32_t len)
     {
       startWrite();
-      pushColors_template(src, len);
+      auto fp = get_write_pixels_fp<T>();
+      (this->*fp)(src, len);
+      //pushColors_template(src, len);
       endWrite();
     }
 
@@ -501,7 +503,7 @@ namespace lgfx
       if ((y + h) > _height) h = _height - y;
       if (h < 1) return;
 
-      readRect_impl(x, y, w, h, buf);
+      readRect_template(x, y, w, h, buf);
     }
 
     template<typename T>
@@ -533,10 +535,12 @@ namespace lgfx
       startWrite();
       setWindow(x, y, x + dw - 1, y + dh - 1);
       int32_t len = (std::is_same<T,palette_t>::value) ? (w + 7)>>3 : w;
+      auto fp = get_write_pixels_fp<T>();
       data += dx + dy * len;
       while (dh--)
       {
-        pushColors_template(data, dw);
+        (this->*fp)(data, dw);
+        //pushColors_template(data, dw);
         data += len;
       }
       endWrite();
@@ -1118,28 +1122,28 @@ namespace lgfx
   protected:
     //PanelCommon *_panel = nullptr;
     uint32_t _start_write_count = 0;
-    bool _invert = false;
-    uint8_t _rotation = 0;
     int32_t _width = 0;
     int32_t _height = 0;
-
-    uint8_t _textfont = 1;
-    uint8_t _textsize_x = 1;
-    uint8_t _textsize_y = 1;
-    uint8_t _textdatum;
     int32_t _cursor_x = 0;
     int32_t _cursor_y = 0;
+    uint32_t _textcolor = 0xFFFFFFFF;
+    uint32_t _textbgcolor = 0;
+    dev_color_t _color = 0xFFFFFFFF;
+
+    uint16_t _decoderBuffer= 0;   // Unicode code-point buffer
+    uint8_t  _decoderState = 0;   // UTF8 decoder state
+    uint8_t _rotation = 0;
+    uint8_t _textsize_x = 1;
+    uint8_t _textsize_y = 1;
+    uint8_t _textfont = 1;
+    uint8_t _textdatum;
+    bool _invert = false;
     bool _swapBytes = false;
     bool _textwrapX = true;
     bool _textwrapY = false;
     bool _drawCharMoveCursor = false;
 
-    uint8_t  _decoderState = 0;   // UTF8 decoder state
-    uint16_t _decoderBuffer= 0;   // Unicode code-point buffer
-
-    dev_color_t _color = 0xFFFFFFFF;
-    uint32_t _textcolor = 0xFFFFFFFF;
-    uint32_t _textbgcolor = 0;
+    color_depth_t _readColorDepth;
 
     template <typename T>
     __attribute__ ((always_inline)) inline static void swap_coord(T& a, T& b) { T t = a; a = b; b = t; }
@@ -1162,42 +1166,106 @@ namespace lgfx
     virtual void writeColor_impl(int32_t len) {} // if (len) _panel->writeColor(len); 
 
     virtual rgb565_t readPixel16_impl(int32_t x, int32_t y) { return 0; }
-    virtual void readRect_impl(int32_t x, int32_t y, int32_t w, int32_t h, rgb332_t*   buf) {}
-    virtual void readRect_impl(int32_t x, int32_t y, int32_t w, int32_t h, rgb565_t*   buf) {}
-    virtual void readRect_impl(int32_t x, int32_t y, int32_t w, int32_t h, rgb888_t*   buf) {}
-    virtual void readRect_impl(int32_t x, int32_t y, int32_t w, int32_t h, swap565_t*  buf) {}
-    virtual void readRect_impl(int32_t x, int32_t y, int32_t w, int32_t h, swap666_t*  buf) {}
-    virtual void readRect_impl(int32_t x, int32_t y, int32_t w, int32_t h, swap888_t*  buf) {}
-    virtual void readRect_impl(int32_t x, int32_t y, int32_t w, int32_t h, argb8888_t* buf) {}
 
-    virtual void pushPaletteColors_impl(const void* src, uint32_t length, const rgb888_t* palette, color_depth_t color_depth) {}
 
-    template<class T>
-    void pushColors_template(const T* src, uint32_t length)
-    {
-      switch (getColorDepth()) {
-      case rgb332_1Byte: write_bytes((const uint8_t*)src, length * 2); break;
-      case rgb565_2Byte: if (std::is_same<T, swap565_t>::value) { write_bytes((const uint8_t*)src, length * 2); } else { write_pixels(src, length, 2, copy_from_userbuf_template<swap565_t, T>); } break;
-      case rgb666_3Byte: if (std::is_same<T, swap666_t>::value) { write_bytes((const uint8_t*)src, length * 3); } else { write_pixels(src, length, 3, copy_from_userbuf_template<swap666_t, T>); } break;
-      case rgb888_3Byte: if (std::is_same<T, swap888_t>::value) { write_bytes((const uint8_t*)src, length * 3); } else { write_pixels(src, length, 3, copy_from_userbuf_template<swap888_t, T>); } break;
-      case palette_1bit: break;
-      case palette_2bit: break;
-      case palette_4bit: break;
-      case palette_8bit: break;
-      }
-    }
     template <class TDst, class TSrc>
-    static void copy_from_userbuf_template(void* dst, const void* &src, uint32_t len) {
+    static void copy_func_template(void*& dst, const void* &src, uint32_t len) {
       const TSrc*& s = (const TSrc*&)src;
-      auto d = (TDst*)dst;
+      TDst*& d = (TDst*&)dst;
       do { *d++ = *s++; } while (--len);
     }
 
-    virtual void write_pixels(const void* src, int32_t length, uint8_t bytes, void(*copy_from_userbuf)(void*, const void*&, uint32_t)) {}
+    template<class T>
+    void readRect_template(int32_t x, int32_t y, int32_t w, int32_t h, T* buf)
+    {
+      if (w < 1 || h < 1) return;
+      startWrite();
+      readWindow_impl(x, y, x + w - 1, y + h - 1);
+      //auto fp = get_read_pixels_fp<T>();
+      //(this->*fp)(buf, w * h);
+      int32_t length = w * h;
+
+//      read_bytes((uint8_t*)buf, length * sizeof(T) );
+
+      switch (_readColorDepth) {
+      case rgb888_3Byte: if (std::is_same<T, swap888_t>::value) { read_bytes((uint8_t*)buf, length * 3); } else { read_pixels(buf, length, copy_func_template<T, swap888_t>); } break;
+      case rgb666_3Byte: if (std::is_same<T, swap666_t>::value) { read_bytes((uint8_t*)buf, length * 3); } else { read_pixels(buf, length, copy_func_template<T, swap666_t>); } break;
+      case rgb565_2Byte: if (std::is_same<T, swap565_t>::value) { read_bytes((uint8_t*)buf, length * 2); } else { read_pixels(buf, length, copy_func_template<T, swap565_t>); } break;
+      case rgb332_1Byte: if (std::is_same<T, rgb332_t >::value) { read_bytes((uint8_t*)buf, length    ); } else { read_pixels(buf, length, copy_func_template<T, rgb332_t >); } break;
+      case palette_8bit: break;
+      case palette_4bit: break;
+      case palette_2bit: break;
+      case palette_1bit: break;
+      }
+//*/
+      endRead_impl();
+      endWrite();
+    }
+
+    template<class TDst, class TSrc>
+    void write_pixels_template(const void* src, uint32_t length)
+    {
+      if (std::is_same<TDst, TSrc>::value) {
+        write_bytes((const uint8_t*)src, length * sizeof(TDst));
+      } else {
+        write_pixels(src, length, copy_func_template<TDst, TSrc>);
+      }
+    }
+    template<class T>
+    auto get_write_pixels_fp(void) -> void(LGFXBase::*)(const void*, uint32_t)
+    {
+      switch (getColorDepth()) {
+      case rgb888_3Byte: return &LGFXBase::write_pixels_template<swap888_t, T>;
+      case rgb666_3Byte: return &LGFXBase::write_pixels_template<swap666_t, T>;
+      case rgb565_2Byte: return &LGFXBase::write_pixels_template<swap565_t, T>;
+      case rgb332_1Byte: return &LGFXBase::write_pixels_template<rgb332_t , T>;
+      case palette_8bit: break;
+      case palette_4bit: break;
+      case palette_2bit: break;
+      case palette_1bit: break;
+      }
+      return &LGFXBase::write_pixels_template<T, T>;
+    }
+/*
+    template<class TDst, class TSrc>
+    void read_pixels_template(void* dst, uint32_t length)
+    {
+      if (std::is_same<TDst, TSrc>::value) {
+        read_bytes((uint8_t*)dst, length * sizeof(TDst));
+      } else {
+        read_pixels(dst, length, copy_func_template<TDst, TSrc>);
+      }
+    }
+    template<class T>
+    auto get_read_pixels_fp(void) -> void(LGFXBase::*)(void*, uint32_t)
+    {
+      switch (_readColorDepth) {
+      case rgb888_3Byte: return &LGFXBase::read_pixels_template<T, swap888_t>;
+      case rgb666_3Byte: return &LGFXBase::read_pixels_template<T, swap666_t>;
+      case rgb565_2Byte: return &LGFXBase::read_pixels_template<T, swap565_t>;
+      case rgb332_1Byte: return &LGFXBase::read_pixels_template<T, rgb332_t >;
+      case palette_8bit: break;
+      case palette_4bit: break;
+      case palette_2bit: break;
+      case palette_1bit: break;
+      }
+      return &LGFXBase::read_pixels_template<T, T>;
+    }
+//*/
+    virtual void pushPaletteColors_impl(const void* src, uint32_t length, const rgb888_t* palette, color_depth_t color_depth) {}
+
+    virtual void read_pixels(void* dst, int32_t length, void(*copy_func)(void*&, const void* &src, uint32_t)) {}
+    virtual void write_pixels(const void* src, int32_t length, void(*copy_func)(void*&, const void*&, uint32_t)) {}
+    virtual void read_bytes(uint8_t* dst, int32_t length) {}
     virtual void write_bytes(const uint8_t* data, int32_t length) {}
 
     virtual void copyRect_impl(int32_t dst_x, int32_t dst_y, int32_t w, int32_t h, int32_t src_x, int32_t src_y)
     {
+      copy_rect(dst_x, dst_y, w, h, src_x, src_y);
+    }
+    void copy_rect(int32_t dst_x, int32_t dst_y, int32_t w, int32_t h, int32_t src_x, int32_t src_y)
+    {
+      auto fp = get_write_pixels_fp<swap888_t>();
       startWrite();
       if (w < h) {
         swap888_t buf[h+2];
@@ -1206,7 +1274,7 @@ namespace lgfx
         for (int count = 0; count < w; count++) {
           readRect(src_x + pos, src_y, 1, h, buf);
           setWindow(dst_x + pos, dst_y, dst_x + pos, dst_y + h - 1);
-          pushColors_template(buf, h);
+          (this->*fp)(buf, h);
           pos += add;
         }
       } else {
@@ -1216,7 +1284,7 @@ namespace lgfx
         for (int count = 0; count < h; count++) {
           readRect(src_x, src_y + pos, w, 1, buf);
           setWindow(dst_x, dst_y + pos, dst_x + w - 1, dst_y + pos);
-          pushColors_template(buf, w);
+          (this->*fp)(buf, w);
           pos += add;
         }
       }
@@ -1228,9 +1296,11 @@ namespace lgfx
     virtual void setRotation_impl(uint8_t rotation) {}
     virtual void* setColorDepth_impl(color_depth_t bpp) { return nullptr; }
     virtual void invertDisplay_impl(bool invert) {}
-    virtual void setWindow_impl(int32_t xs, int32_t ys, int32_t xe, int32_t ye) {}
     virtual void drawPixel_impl(int32_t x, int32_t y) = 0;
     virtual void fillRect_impl(int32_t x, int32_t y, int32_t w, int32_t h) = 0;
+    virtual void setWindow_impl(int32_t xs, int32_t ys, int32_t xe, int32_t ye) {}
+    virtual void readWindow_impl(int32_t xs, int32_t ys, int32_t xe, int32_t ye) {}
+    virtual void endRead_impl(void) {}
 
     virtual void init_impl() {
       startWrite();
