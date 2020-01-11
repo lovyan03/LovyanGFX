@@ -99,13 +99,18 @@ case palette_1bit: k = 0xFFFFFF; break;
 
     __attribute__ ((always_inline)) inline void pushSprite(int32_t x, int32_t y) { pushSprite(_parent, x, y); }
     void pushSprite(LovyanGFX* lgfx, int32_t x, int32_t y) {
+      lgfx->_sprite_palette = _palette;
       switch (getColorDepth()) {
-      case rgb332_1Byte: lgfx->pushImage(x, y, _width, _height, (rgb332_t* )_img); return;
-      case rgb565_2Byte: lgfx->pushImage(x, y, _width, _height, (swap565_t*)_img); return;
-      case rgb666_3Byte: lgfx->pushImage(x, y, _width, _height, (swap666_t*)_img); return;
       case rgb888_3Byte: lgfx->pushImage(x, y, _width, _height, (swap888_t*)_img); return;
+      case rgb666_3Byte: lgfx->pushImage(x, y, _width, _height, (swap666_t*)_img); return;
+      case rgb565_2Byte: lgfx->pushImage(x, y, _width, _height, (swap565_t*)_img); return;
+      case rgb332_1Byte: lgfx->pushImage(x, y, _width, _height, (rgb332_t* )_img); return;
+      case palette_8bit: lgfx->pushPaletteImage(x, y, _width, _height, (palette8_t*)_img); return;
+      case palette_4bit: lgfx->pushPaletteImage(x, y, _width, _height, (palette4_t*)_img); return;
+      case palette_2bit: lgfx->pushPaletteImage(x, y, _width, _height, (palette2_t*)_img); return;
+      case palette_1bit: lgfx->pushPaletteImage(x, y, _width, _height, (palette1_t*)_img); return;
       }
-
+/*
       int32_t dx=0, dw=_width;
       if (_adj_width(x, dx, dw, lgfx->width())) return;
       int32_t dy=0, dh=_height;
@@ -122,6 +127,7 @@ case palette_1bit: k = 0xFFFFFF; break;
         data += len;
       } while (--dh);
       lgfx->endWrite();
+*/
     }
 
     inline void* buffer() { return _img; }
@@ -487,10 +493,12 @@ return;
 
     void read_pixels(void* dst, int32_t length, void(*copy_func)(void*&, const void* &src, uint32_t)) override
     {
+      const void* src;
+      copy_func(dst, src, 0);
       int32_t linelength;
       do {
         linelength = std::min(_xe - _xptr + 1, length);
-        const void* src = ptr_img();
+        src = ptr_img();
         copy_func(dst, src, linelength);
         ptr_advance(linelength);
       } while (length -= linelength);
@@ -508,10 +516,12 @@ return;
 
     void write_pixels(const void* src, int32_t length, void(*copy_func)(void*&, const void*&, uint32_t)) override
     {
+      void* dst;
+      copy_func(dst, src, 0);
       int32_t linelength;
       do {
         linelength = std::min(_xe - _xptr + 1, length);
-        void* dst = ptr_img();
+        dst = ptr_img();
         copy_func(dst, src, linelength);
         ptr_advance(linelength);
       } while (length -= linelength);

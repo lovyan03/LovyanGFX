@@ -391,35 +391,6 @@ namespace lgfx
       return *_spi_w0_reg;
     }
 
-    void pushPaletteColors_impl(const void* src, uint32_t length, const rgb888_t* palette, color_depth_t color_depth) override
-    {
-      switch (color_depth) {
-      case palette_8bit: _palette_bits = 0; _palette_mask = 0b11111111; break;
-      case palette_4bit: _palette_bits = 4; _palette_mask = 0b00001111; break;
-      case palette_2bit: _palette_bits = 6; _palette_mask = 0b00000011; break;
-      case palette_1bit: _palette_bits = 7; _palette_mask = 0b00000001; break;
-      default: return;
-      }
-      _sprite_palette = palette;
-      _palette_x = _palette_bits;
-      if      (_color.bpp == rgb565_2Byte) { write_pixels(src, length, copy_from_palette_template<swap565_t>); }
-      else if (_color.bpp == rgb666_3Byte) { write_pixels(src, length, copy_from_palette_template<swap666_t>); }
-      else if (_color.bpp == rgb888_3Byte) { write_pixels(src, length, copy_from_palette_template<swap888_t>); }
-
-      _sprite_palette = nullptr;
-    }
-
-    template <class TDst>
-    static void copy_from_palette_template(void*& dst, const void* &src, uint32_t len) {
-      const uint8_t*& s = (const uint8_t*&)src;
-      TDst*& d = (TDst*&)dst;
-      do {
-        *d++ = _sprite_palette[(*s >> _palette_x) & _palette_mask];
-        if (!_palette_x) { s++; }
-        _palette_x = (_palette_x + _palette_bits) & 7;
-      } while (--len);
-    }
-
     void write_pixels(const void* src, int32_t length, void(*copy_func)(void*&, const void*&, uint32_t)) override
     {
       if (!length) return;
@@ -429,6 +400,7 @@ namespace lgfx
       uint8_t highpart = (len & 1) << 3;
       len = length - (len * limit);
       void* dst = _regbuf;
+      copy_func(dst, src, 0);
       copy_func(dst, src, len);
       wait_spi();
       dc_h();
@@ -439,7 +411,7 @@ namespace lgfx
       if (0 == (length -= len)) return;
 
       for (; length; length -= limit) {
-        void* dst = _regbuf;
+        dst = _regbuf;
         copy_func(dst, src, limit);
         memcpy((void*)&_spi_w0_reg[highpart ^= 0x08], _regbuf, limit * bytes);
         uint32_t user = _user_reg;
@@ -496,6 +468,8 @@ namespace lgfx
     void read_pixels(void* dst, int32_t length, void(*copy_func)(void*&, const void* &src, uint32_t)) override
     {
       if (!length) return;
+      const void* src;
+      copy_func(dst, src, 0);
       uint32_t len(length & 7);
       length >>= 3;
       wait_spi();
@@ -506,7 +480,7 @@ namespace lgfx
           wait_spi();
           memcpy(_regbuf, (void*)_spi_w0_reg, 24);
           exec_spi();
-          const void* src = _regbuf;
+          src = _regbuf;
           copy_func(dst, src, 8);
         }
         wait_spi();
@@ -515,7 +489,7 @@ namespace lgfx
           set_len(_len_read_pixel * len);
           exec_spi();
         }
-        const void* src = _regbuf;
+        src = _regbuf;
         copy_func(dst, src, 8);
         if (!len) return;
       } else {
@@ -524,7 +498,7 @@ namespace lgfx
       }
       wait_spi();
       memcpy(_regbuf, (void*)_spi_w0_reg, 3 * len);
-      const void* src = _regbuf;
+      src = _regbuf;
       copy_func(dst, src, len);
     }
 
@@ -600,10 +574,8 @@ namespace lgfx
     static uint32_t _clkdiv_fill;
     static uint32_t _user_reg;
     static uint32_t _regbuf[8];
-    static const rgb888_t* _sprite_palette;
-    static uint32_t _palette_x;
-    static uint32_t _palette_bits;
-    static uint32_t _palette_mask;
+    //static uint32_t _palette_bits;
+    //static uint32_t _palette_mask;
   };
   template <class T> uint32_t LGFX_SPI<T>::_last_apb_freq;
   template <class T> uint32_t LGFX_SPI<T>::_clkdiv_write;
@@ -611,10 +583,8 @@ namespace lgfx
   template <class T> uint32_t LGFX_SPI<T>::_clkdiv_fill;
   template <class T> uint32_t LGFX_SPI<T>::_user_reg;
   template <class T> uint32_t LGFX_SPI<T>::_regbuf[];
-  template <class T> const rgb888_t* LGFX_SPI<T>::_sprite_palette;
-  template <class T> uint32_t LGFX_SPI<T>::_palette_x;
-  template <class T> uint32_t LGFX_SPI<T>::_palette_bits;
-  template <class T> uint32_t LGFX_SPI<T>::_palette_mask;
+  //template <class T> uint32_t LGFX_SPI<T>::_palette_bits;
+  //template <class T> uint32_t LGFX_SPI<T>::_palette_mask;
 
 //----------------------------------------------------------------------------
 

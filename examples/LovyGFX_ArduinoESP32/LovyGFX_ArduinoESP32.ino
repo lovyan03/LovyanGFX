@@ -644,15 +644,18 @@ Serial.printf("colorDepth:%d  swapBytes:%d  rotation:%d \r\n"
   copyRect(tft_lgfx, 0);
   //blockReadWrite(tft_lgfx, 0);
 
-  movingCopyRect(tft_lgfx);
-
-//taskDISABLE_INTERRUPTS();
-sec = esp_timer_get_time();
-
   movingSprite(tft_lgfx);
 
+//lgfx::swap565_t buf[240];
+taskDISABLE_INTERRUPTS();
+sec = esp_timer_get_time();
+
+//tft_lgfx.readRect(0,0,240,1,buf);
+
 sec = esp_timer_get_time() - sec;
-//taskENABLE_INTERRUPTS();
+taskENABLE_INTERRUPTS();
+
+//  movingCopyRect(tft_lgfx);
 
   //movingSprite(tft2);
   //movingSprite(tft3);
