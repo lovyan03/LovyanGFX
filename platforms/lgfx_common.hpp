@@ -186,7 +186,7 @@ namespace lgfx {
         uint16_t g: 6;
         uint16_t r: 5;
       };
-      uint8_t bytes[2];
+//      uint8_t bytes[2];
       uint16_t raw;
     };
     rgb565_t() : raw(0) {}
@@ -227,7 +227,7 @@ namespace lgfx {
         uint8_t g;
         uint8_t r;
       };
-      uint8_t bytes[3];
+//      uint8_t bytes[3];
     };
     rgb888_t() : b(0), g(0), r(0) {}
     rgb888_t(const rgb888_t&) = default;
@@ -268,7 +268,7 @@ namespace lgfx {
         uint8_t r;
         uint8_t a;
       };
-      uint8_t bytes[4];
+//      uint8_t bytes[4];
       uint32_t raw;
     };
     argb8888_t() : raw(0) {}
@@ -310,7 +310,7 @@ namespace lgfx {
         uint16_t b:5;
         uint16_t gl:3;
       };
-      uint8_t bytes[2];
+//      uint8_t bytes[2];
       uint16_t raw;
     };
     swap565_t() : raw(0) {}
@@ -345,7 +345,7 @@ namespace lgfx {
         uint8_t g;
         uint8_t b;
       };
-      uint8_t bytes[3];
+//      uint8_t bytes[3];
     };
     swap666_t() : r(0), g(0), b(0) {};
     swap666_t(const swap666_t&) = default;
@@ -383,7 +383,7 @@ namespace lgfx {
         uint8_t g;
         uint8_t b;
       };
-      uint8_t bytes[3];
+//      uint8_t bytes[3];
     };
     swap888_t() : r(0), g(0), b(0) {};
     swap888_t(const swap888_t&) = default;

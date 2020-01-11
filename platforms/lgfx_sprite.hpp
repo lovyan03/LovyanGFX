@@ -93,44 +93,51 @@ case palette_1bit: k = 0xFFFFFF; break;
     }
 
     template<typename T>
-    inline void fillSprite (const T& color) {
-      fillRect(0, 0, _width, _height, color);
-    }
+    __attribute__ ((always_inline)) inline void fillSprite (const T& color) { fillRect(0, 0, _width, _height, color); }
 
     __attribute__ ((always_inline)) inline void pushSprite(int32_t x, int32_t y) { pushSprite(_parent, x, y); }
+
     void pushSprite(LovyanGFX* lgfx, int32_t x, int32_t y) {
-      lgfx->_sprite_palette = _palette;
       switch (getColorDepth()) {
       case rgb888_3Byte: lgfx->pushImage(x, y, _width, _height, (swap888_t*)_img); return;
       case rgb666_3Byte: lgfx->pushImage(x, y, _width, _height, (swap666_t*)_img); return;
       case rgb565_2Byte: lgfx->pushImage(x, y, _width, _height, (swap565_t*)_img); return;
       case rgb332_1Byte: lgfx->pushImage(x, y, _width, _height, (rgb332_t* )_img); return;
-      case palette_8bit: lgfx->pushPaletteImage(x, y, _width, _height, (palette8_t*)_img); return;
-      case palette_4bit: lgfx->pushPaletteImage(x, y, _width, _height, (palette4_t*)_img); return;
-      case palette_2bit: lgfx->pushPaletteImage(x, y, _width, _height, (palette2_t*)_img); return;
-      case palette_1bit: lgfx->pushPaletteImage(x, y, _width, _height, (palette1_t*)_img); return;
+      case palette_8bit: lgfx->pushIndexImage(x, y, _width, _height, (palette8_t*)_img, _palette); return;
+      case palette_4bit: lgfx->pushIndexImage(x, y, _width, _height, (palette4_t*)_img, _palette); return;
+      case palette_2bit: lgfx->pushIndexImage(x, y, _width, _height, (palette2_t*)_img, _palette); return;
+      case palette_1bit: lgfx->pushIndexImage(x, y, _width, _height, (palette1_t*)_img, _palette); return;
       }
-/*
-      int32_t dx=0, dw=_width;
-      if (_adj_width(x, dx, dw, lgfx->width())) return;
-      int32_t dy=0, dh=_height;
-      if (_adj_width(y, dy, dh, lgfx->height())) return;
-
-      lgfx->startWrite();
-      lgfx->setWindow(x, y, x + dw - 1, y + dh - 1);
-      auto data = _img;
-      int32_t len = _bitwidth >> (4-_color.bpp);
-      data += dx + dy * len;
-      auto depth = getColorDepth();
-      do {
-        lgfx->pushPaletteColors(data, dw, _palette, depth);
-        data += len;
-      } while (--dh);
-      lgfx->endWrite();
-*/
     }
 
     inline void* buffer() { return _img; }
+
+
+//----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+
+  protected:
+    LovyanGFX* _parent = nullptr;
+
+    virtual void* _mem_alloc(uint32_t bytes, uint32_t param) = 0;
+    virtual void _mem_free(void* buf) = 0;
+
+    __attribute__ ((always_inline)) inline void set_window(int32_t xs, int32_t ys, int32_t xe, int32_t ye)
+    {
+      _xe = xe;
+      _ye = ye;
+      _xptr = _xs = xs;
+      _yptr = _ys = ys;
+      _index = xs + ys * _bitwidth;
+    }
+    void setWindow_impl(int32_t xs, int32_t ys, int32_t xe, int32_t ye) override
+    {
+      set_window(xs, ys, xe, ye);
+    }
+    void readWindow_impl(int32_t xs, int32_t ys, int32_t xe, int32_t ye) override
+    {
+      set_window(xs, ys, xe, ye);
+    }
 
     void* setColorDepth_impl(color_depth_t bpp) override
     {
@@ -151,25 +158,6 @@ case palette_1bit: k = 0xFFFFFF; break;
         _height = tmp;
       }
       _rotation = r;
-    }
-
-    __attribute__ ((always_inline)) inline void set_window(int32_t xs, int32_t ys, int32_t xe, int32_t ye)
-    {
-      _xe = xe;
-      _ye = ye;
-      _xptr = _xs = xs;
-      _yptr = _ys = ys;
-      _index = xs + ys * _bitwidth;
-    }
-
-    void setWindow_impl(int32_t xs, int32_t ys, int32_t xe, int32_t ye) override
-    {
-      set_window(xs, ys, xe, ye);
-    }
-
-    void readWindow_impl(int32_t xs, int32_t ys, int32_t xe, int32_t ye) override
-    {
-      set_window(xs, ys, xe, ye);
     }
 
     void drawPixel_impl(int32_t x, int32_t y) override
@@ -342,13 +330,6 @@ return;
       }
     }
 
-//----------------------------------------------------------------------------
-  protected:
-    LovyanGFX* _parent = nullptr;
-
-    virtual void* _mem_alloc(uint32_t bytes, uint32_t param) = 0;
-    virtual void _mem_free(void* buf) = 0;
-
     void copyRect_impl(int32_t dst_x, int32_t dst_y, int32_t w, int32_t h, int32_t src_x, int32_t src_y) override
     {
       if (_color.bpp == 1) {
@@ -506,12 +487,15 @@ return;
 
     void read_bytes(uint8_t* dst, int32_t length) override
     {
-      int32_t linelength;
-      do {
-        linelength = std::min(_xe - _xptr + 1, length);
-        memcpy(dst, ptr_img(), linelength);
+      uint8_t b = _color.bytes ? _color.bytes : 1;
+      length /= b;
+      while (length) {
+        int32_t linelength = std::min(_xe - _xptr + 1, length);
+        memcpy(dst, ptr_img(), linelength * b);
+        dst += linelength * b;
         ptr_advance(linelength);
-      } while (length -= linelength);
+        length -= linelength;
+      }
     }
 
     void write_pixels(const void* src, int32_t length, void(*copy_func)(void*&, const void*&, uint32_t)) override
@@ -529,25 +513,17 @@ return;
 
     void write_bytes(const uint8_t* data, int32_t length) override
     {
-      int32_t linelength;
-      do {
-        linelength = std::min(_xe - _xptr + 1, length);
-        memcpy(ptr_img(), data, linelength);
+      uint8_t b = _color.bytes ? _color.bytes : 1;
+      length /= b;
+      while (length) {
+        int32_t linelength = std::min(_xe - _xptr + 1, length);
+        memcpy(ptr_img(), data, linelength * b);
+        data += linelength * b;
         ptr_advance(linelength);
-      } while (length -= linelength);
-    }
-
-/*
-    template <class TDst, class TSrc>
-    void write_pixels(const TSrc* src, uint32_t length)
-    {
-      auto *dst = (TDst*)ptr_img();
-      while (length--) {
-        *dst++ = *src++;
-        if (ptr_advance()) dst = (TDst*)ptr_img();
+        length -= linelength;
       }
     }
-*/
+
     inline bool ptr_advance(int32_t length = 1) {
       if ((_xptr += length) > _xe) {
         _xptr = _xs;

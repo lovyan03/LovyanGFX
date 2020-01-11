@@ -391,7 +391,7 @@ namespace lgfx
       return *_spi_w0_reg;
     }
 
-    void write_pixels(const void* src, int32_t length, void(*copy_func)(void*&, const void*&, uint32_t)) override
+    void write_pixels(const void* src, int32_t length, void(*fp_copy)(void*&, const void*&, uint32_t)) override
     {
       if (!length) return;
       const uint8_t bytes = _color.bytes;
@@ -400,8 +400,8 @@ namespace lgfx
       uint8_t highpart = (len & 1) << 3;
       len = length - (len * limit);
       void* dst = _regbuf;
-      copy_func(dst, src, 0);
-      copy_func(dst, src, len);
+      fp_copy(dst, src, 0);
+      fp_copy(dst, src, len);
       wait_spi();
       dc_h();
       set_len(len * bytes << 3);
@@ -412,7 +412,7 @@ namespace lgfx
 
       for (; length; length -= limit) {
         dst = _regbuf;
-        copy_func(dst, src, limit);
+        fp_copy(dst, src, limit);
         memcpy((void*)&_spi_w0_reg[highpart ^= 0x08], _regbuf, limit * bytes);
         uint32_t user = _user_reg;
         if (highpart) user |= SPI_USR_MOSI_HIGHPART;
@@ -465,11 +465,11 @@ namespace lgfx
       }
     }
 
-    void read_pixels(void* dst, int32_t length, void(*copy_func)(void*&, const void* &src, uint32_t)) override
+    void read_pixels(void* dst, int32_t length, void(*fp_copy)(void*&, const void* &src, uint32_t)) override
     {
       if (!length) return;
       const void* src;
-      copy_func(dst, src, 0);
+      fp_copy(dst, src, 0);
       uint32_t len(length & 7);
       length >>= 3;
       wait_spi();
@@ -481,7 +481,7 @@ namespace lgfx
           memcpy(_regbuf, (void*)_spi_w0_reg, 24);
           exec_spi();
           src = _regbuf;
-          copy_func(dst, src, 8);
+          fp_copy(dst, src, 8);
         }
         wait_spi();
         memcpy(_regbuf, (void*)_spi_w0_reg, 24);
@@ -490,7 +490,7 @@ namespace lgfx
           exec_spi();
         }
         src = _regbuf;
-        copy_func(dst, src, 8);
+        fp_copy(dst, src, 8);
         if (!len) return;
       } else {
         set_len(_len_read_pixel * len);
@@ -499,7 +499,7 @@ namespace lgfx
       wait_spi();
       memcpy(_regbuf, (void*)_spi_w0_reg, 3 * len);
       src = _regbuf;
-      copy_func(dst, src, len);
+      fp_copy(dst, src, len);
     }
 
     void read_bytes(uint8_t* dst, int32_t length) override
