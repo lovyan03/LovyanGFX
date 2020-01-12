@@ -220,7 +220,7 @@ void setup() {
   tft_lcd.setRotation(0);
 
   tft_lcd.invertDisplay(lcdver);
-  tft_lcd.setColorDepth(16);
+  //tft_lcd.setColorDepth(16);
   //tft_lcd.setColorDepth(24);
 
   //tft.setPsram(true);
@@ -228,9 +228,9 @@ void setup() {
   //tft.setColorDepth(1);  tft.createSprite(240,320);
   //tft.setColorDepth(lgfx::palette_1bit);  tft.createSprite(240,320);
   //tft.setColorDepth(lgfx::palette_2bit);  tft.createSprite(240,320);
-  //tft.setColorDepth(lgfx::palette_4bit);  tft.createSprite(240,320);
+  tft.setColorDepth(lgfx::palette_4bit);  tft.createSprite(240,320);
   //tft.setColorDepth(lgfx::palette_8bit);  tft.createSprite(240,320);
-  tft.setColorDepth( 8);  tft.createSprite(240,320);
+  //tft.setColorDepth( 8);  tft.createSprite(240,320);
   //tft.setColorDepth(16);  tft.createSprite(240,240);
   //tft.setColorDepth(24);  tft.createSprite(240,170);
   //tft.setColorDepth();
@@ -380,7 +380,7 @@ taskENABLE_INTERRUPTS();
 	tft.println(F(""));
 	tft.setTextSize(1);
 	tft.println(F(""));
-	tft.setTextColor(tft.color332(0x80, 0x80, 0x80));
+	tft.setTextColor(tft.color565(0x80, 0x80, 0x80));
 
 	tft.println(F(""));
 
@@ -596,8 +596,8 @@ uint32_t testHaD()
 		tft.setAddrWindow(0, 0, 240, 320);
 
 		uint16_t cnt = 0;
-		auto color = tft.color332((i << 4) | i, (i << 4) | i, (i << 4) | i);
-		auto curcolor = tft.color332(0,0,0);
+		auto color = tft.color565((i << 4) | i, (i << 4) | i, (i << 4) | i);
+		auto curcolor = tft.color565(0,0,0);
 
 		const uint8_t *cmp = &HaD_240x320[0];
 
@@ -648,11 +648,11 @@ uint32_t testText()
 	tft.setTextColor(TFT_WHITE,TFT_BLACK);	tft.setTextSize(1);
 	tft.println(F("Hello World!"));
 	tft.setTextSize(2);
-	tft.setTextColor(tft.color332(0xff, 0x00, 0x00));
+	tft.setTextColor(tft.color565(0xff, 0x00, 0x00));
 	tft.print(F("RED "));
-	tft.setTextColor(tft.color332(0x00, 0xff, 0x00));
+	tft.setTextColor(tft.color565(0x00, 0xff, 0x00));
 	tft.print(F("GREEN "));
-	tft.setTextColor(tft.color332(0x00, 0x00, 0xff));
+	tft.setTextColor(tft.color565(0x00, 0x00, 0xff));
 	tft.println(F("BLUE"));
 	tft.setTextColor(TFT_YELLOW); tft.setTextSize(2);
 	tft.println(1234.56);
@@ -694,7 +694,7 @@ uint32_t testPixels()
 	{
 		for (uint16_t x = 0; x < w; x++)
 		{
-			tft.drawPixel(x, y, tft.color332(x<<3, y<<3, x*y));
+			tft.drawPixel(x, y, tft.color565(x<<3, y<<3, x*y));
 		}
 	}
 	tft.endWrite();
@@ -918,7 +918,7 @@ uint32_t testTriangles()
 			cx		, cy - i, // peak
 			cx - i, cy + i, // bottom left
 			cx + i, cy + i, // bottom right
-			tft.color332(0, 0, i));
+			tft.color565(0, 0, i));
 	}
 
 	return micros() - start;
@@ -938,10 +938,10 @@ uint32_t testFilledTriangles()
 	for (i = min(cx,cy); i > 10; i -= 5) {
 		start = micros_start();
 		tft.fillTriangle(cx, cy - i, cx - i, cy + i, cx + i, cy + i,
-			tft.color332(0, i, i));
+			tft.color565(0, i, i));
 		t += micros() - start;
 		tft.drawTriangle(cx, cy - i, cx - i, cy + i, cx + i, cy + i,
-			tft.color332(i, i, 0));
+			tft.color565(i, i, 0));
 	}
 
 	return t;
@@ -963,7 +963,7 @@ uint32_t testRoundRects()
 	for (i = 0; i < w; i += 6)
 	{
 		i2 = i / 2;
-		tft.drawRoundRect(cx-i2, cy-i2, i, i, i/8, tft.color332(i, 0, 0));
+		tft.drawRoundRect(cx-i2, cy-i2, i, i, i/8, tft.color565(i, 0, 0));
 	}
 
 	return micros() - start;
@@ -983,7 +983,7 @@ uint32_t testFilledRoundRects()
 	for (i = min(tft.width(), tft.height()); i > 20; i -= 6)
 	{
 		i2 = i / 2;
-		tft.fillRoundRect(cx-i2, cy-i2, i, i, i/8, tft.color332(0, i, 0));
+		tft.fillRoundRect(cx-i2, cy-i2, i, i, i/8, tft.color565(0, i, 0));
 	}
 
 	return micros() - start;

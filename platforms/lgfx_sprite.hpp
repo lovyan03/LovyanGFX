@@ -472,15 +472,13 @@ return;
       }
     }
 
-    void read_pixels(void* dst, int32_t length, void(*copy_func)(void*&, const void* &src, uint32_t)) override
+    void read_pixels(void* dst, int32_t length, pixelcopy_param_t* param, void(*fp_copy)(void*&, const void*&, int32_t, pixelcopy_param_t*)) override
     {
-      const void* src;
-      copy_func(dst, src, 0);
       int32_t linelength;
       do {
         linelength = std::min(_xe - _xptr + 1, length);
-        src = ptr_img();
-        copy_func(dst, src, linelength);
+        const void* src = ptr_img();
+        fp_copy(dst, src, linelength, param);
         ptr_advance(linelength);
       } while (length -= linelength);
     }
@@ -498,15 +496,13 @@ return;
       }
     }
 
-    void write_pixels(const void* src, int32_t length, void(*copy_func)(void*&, const void*&, uint32_t)) override
+    void write_pixels(const void* src, int32_t length, pixelcopy_param_t* param, void(*fp_copy)(void*&, const void*&, int32_t, pixelcopy_param_t*)) override
     {
-      void* dst;
-      copy_func(dst, src, 0);
       int32_t linelength;
       do {
         linelength = std::min(_xe - _xptr + 1, length);
-        dst = ptr_img();
-        copy_func(dst, src, linelength);
+        void* dst = ptr_img();
+        fp_copy(dst, src, linelength, param);
         ptr_advance(linelength);
       } while (length -= linelength);
     }
