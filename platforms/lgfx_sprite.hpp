@@ -96,7 +96,8 @@ case palette_1bit: k = 0xFFFFFF; break;
     __attribute__ ((always_inline)) inline void fillSprite (const T& color) { fillRect(0, 0, _width, _height, color); }
 
     __attribute__ ((always_inline)) inline void pushSprite(int32_t x, int32_t y) { pushSprite(_parent, x, y); }
-    void pushSprite(LovyanGFX* lgfx, int32_t x, int32_t y) {
+    void pushSprite(LovyanGFX* lgfx, int32_t x, int32_t y)
+    {
       switch (getColorDepth()) {
       case rgb888_3Byte: lgfx->pushImage(x, y, _width, _height, (swap888_t*)_img); return;
       case rgb666_3Byte: lgfx->pushImage(x, y, _width, _height, (swap666_t*)_img); return;
@@ -113,19 +114,137 @@ case palette_1bit: k = 0xFFFFFF; break;
     __attribute__ ((always_inline)) inline void pushSprite(int32_t x, int32_t y, const T& transparent) { pushSprite(_parent, x, y, transparent); }
 
     template<typename T>
-    void pushSprite(LovyanGFX* lgfx, int32_t x, int32_t y, const T& transparent) {
-      auto transp = _color.convertColor(transparent);
+    void pushSprite(LovyanGFX* lgfx, int32_t x, int32_t y, const T& transparent)
+    {
+      uint32_t transp = _color.convertColor(transparent);
       switch (getColorDepth()) {
-      case rgb888_3Byte: lgfx->pushImage(x, y, _width, _height, (swap888_t*)_img, *(swap888_t*)&transp); return;
-      case rgb666_3Byte: lgfx->pushImage(x, y, _width, _height, (swap666_t*)_img, *(swap666_t*)&transp); return;
-      case rgb565_2Byte: lgfx->pushImage(x, y, _width, _height, (swap565_t*)_img, *(swap565_t*)&transp); return;
-      case rgb332_1Byte: lgfx->pushImage(x, y, _width, _height, (rgb332_t* )_img, *(rgb332_t* )&transp); return;
-      case palette_8bit: lgfx->pushIndexImage(x, y, _width, _height, (palette8_t*)_img, _palette, *(palette8_t*)&transp); return;
-      case palette_4bit: lgfx->pushIndexImage(x, y, _width, _height, (palette4_t*)_img, _palette, *(palette4_t*)&transp); return;
-      case palette_2bit: lgfx->pushIndexImage(x, y, _width, _height, (palette2_t*)_img, _palette, *(palette2_t*)&transp); return;
-      case palette_1bit: lgfx->pushIndexImage(x, y, _width, _height, (palette1_t*)_img, _palette, *(palette1_t*)&transp); return;
+      case rgb888_3Byte: lgfx->pushImage(x, y, _width, _height, (swap888_t*)_img, transp); return;
+      case rgb666_3Byte: lgfx->pushImage(x, y, _width, _height, (swap666_t*)_img, transp); return;
+      case rgb565_2Byte: lgfx->pushImage(x, y, _width, _height, (swap565_t*)_img, transp); return;
+      case rgb332_1Byte: lgfx->pushImage(x, y, _width, _height, (rgb332_t* )_img, transp); return;
+      case palette_8bit: lgfx->pushIndexImage(x, y, _width, _height, (palette8_t*)_img, _palette, transp); return;
+      case palette_4bit: lgfx->pushIndexImage(x, y, _width, _height, (palette4_t*)_img, _palette, transp); return;
+      case palette_2bit: lgfx->pushIndexImage(x, y, _width, _height, (palette2_t*)_img, _palette, transp); return;
+      case palette_1bit: lgfx->pushIndexImage(x, y, _width, _height, (palette1_t*)_img, _palette, transp); return;
       }
     }
+
+
+    static void getRotatedBounds(float sina, float cosa, int16_t w, int16_t h, int16_t xp, int16_t yp,
+                                       int16_t *min_x, int16_t *min_y, int16_t *max_x, int16_t *max_y)
+    {
+      w -= xp; // w is now right edge coordinate relative to xp
+      h -= yp; // h is now bottom edge coordinate relative to yp
+
+      // Calculate new corner coordinates
+      int16_t x0 = -xp * cosa - yp * sina;
+      int16_t y0 =  xp * sina - yp * cosa;
+
+      int16_t x1 =  w * cosa - yp * sina;
+      int16_t y1 = -w * sina - yp * cosa;
+
+      int16_t x2 =  h * sina + w * cosa;
+      int16_t y2 =  h * cosa - w * sina;
+
+      int16_t x3 =  h * sina - xp * cosa;
+      int16_t y3 =  h * cosa + xp * sina;
+
+      // Find bounding box extremes, enlarge box to accomodate rounding errors
+      *min_x = x0-2;
+      if (x1 < *min_x) *min_x = x1-2;
+      if (x2 < *min_x) *min_x = x2-2;
+      if (x3 < *min_x) *min_x = x3-2;
+
+      *max_x = x0+2;
+      if (x1 > *max_x) *max_x = x1+2;
+      if (x2 > *max_x) *max_x = x2+2;
+      if (x3 > *max_x) *max_x = x3+2;
+
+      *min_y = y0-2;
+      if (y1 < *min_y) *min_y = y1-2;
+      if (y2 < *min_y) *min_y = y2-2;
+      if (y3 < *min_y) *min_y = y3-2;
+
+      *max_y = y0+2;
+      if (y1 > *max_y) *max_y = y1+2;
+      if (y2 > *max_y) *max_y = y2+2;
+      if (y3 > *max_y) *max_y = y3+2;
+
+    }
+
+
+    __attribute__ ((always_inline)) inline void pushRotated(int16_t angle, int32_t transp = -1) { pushRotated(_parent, angle, transp); }
+
+    bool pushRotated(LovyanGFX* lgfx, int16_t angle, int32_t transp = -1)
+    {
+      // Trig values for the rotation
+      float radAngle = -angle * 0.0174532925; // Convert degrees to radians
+      float sinra = sin(radAngle);
+      float cosra = cos(radAngle);
+
+      // Bounding box parameters
+      int16_t min_x;
+      int16_t min_y;
+      int16_t max_x;
+      int16_t max_y;
+
+      // Get the bounding box of this rotated source Sprite
+      getRotatedBounds(sinra, cosra, width(), height(), _xpivot, _ypivot, &min_x, &min_y, &max_x, &max_y);
+
+      // Move bounding box so source Sprite pivot coincides with destination Sprite pivot
+      min_x += lgfx->getPivotX();
+      max_x += lgfx->getPivotX();
+      min_y += lgfx->getPivotY();
+      max_y += lgfx->getPivotY();
+
+      // Test only to show bounding box
+      // lgfx->fillSprite(TFT_BLACK);
+      // lgfx->drawRect(min_x, min_y, max_x - min_x + 1, max_y - min_y + 1, 0x0F00);
+
+      // Return if bounding box is completely outside of destination Sprite
+      if (min_x > lgfx->width()) return true;
+      if (min_y > lgfx->height()) return true;
+      if (max_x < 0) return true;
+      if (max_y < 0) return true;
+
+      // Clip bounding box if it is partially within destination Sprite
+      if (min_x < 0) min_x = 0;
+      if (min_y < 0) min_y = 0;
+      if (max_x > lgfx->width()) max_x = lgfx->width();
+      if (max_y > lgfx->height()) max_y = lgfx->height();
+
+      lgfx->startWrite();
+      // Scan destination bounding box and fetch transformed pixels from source Sprite
+      for (int32_t x = min_x; x <= max_x; x++)
+      {
+        int32_t xt = x - lgfx->getPivotX();
+        float cxt = cosra * xt + _xpivot;
+        float sxt = sinra * xt + _ypivot;
+        bool column_drawn = false;
+        for (int32_t y = min_y; y <= max_y; y++)
+        {
+          int32_t yt = y - lgfx->getPivotY();
+          int32_t xs = (int32_t)round(cxt - sinra * yt);
+          // Do not calculate ys unless xs is in bounds
+          if (xs >= 0 && xs < width())
+          {
+            int32_t ys = (int32_t)round(sxt + cosra * yt);
+            // Check if ys is in bounds
+            if (ys >= 0 && ys < height())
+            {
+              int32_t rp = readPixel(xs, ys);
+              if (rp != transp) lgfx->drawPixel(x, y, rp);
+              column_drawn = true;
+            }
+          }
+          else if (column_drawn) y = max_y; // Skip the remaining pixels below the Sprite
+        }
+      }
+      lgfx->endWrite();
+
+      return true;
+    }
+
 
     inline void* buffer() { return _img; }
 

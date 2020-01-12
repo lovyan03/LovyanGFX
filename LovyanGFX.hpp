@@ -52,14 +52,20 @@ namespace lgfx
 
     template<typename T> inline void readRect      ( int32_t x, int32_t y, int32_t w, int32_t h, T* buf) { read_rect(x, y, w, h, buf, get_read_pixels_fp<T>()); }
     template<typename T> inline void pushRect      ( int32_t x, int32_t y, int32_t w, int32_t h, const T* data) { pushImage(x, y, w, h, data); }
-    template<typename T> inline void pushImage     ( int32_t x, int32_t y, int32_t w, int32_t h, const T* data)                                                { push_image(x, y, w, h, data, nullptr, T::bits, get_write_pixels_fp<T>()); }
-    template<typename T> inline void pushIndexImage( int32_t x, int32_t y, int32_t w, int32_t h, const T* data, const rgb888_t* palette)                       { push_image(x, y, w, h, data, palette, T::bits, get_write_palette_fp<T>()); }
+    template<typename T> inline void pushImage     ( int32_t x, int32_t y, int32_t w, int32_t h, const T* data)                                                { push_image(x, y, w, h, data, nullptr                          , T::bits, get_write_pixels_fp<T>()); }
+    template<typename T> inline void pushImage     ( int32_t x, int32_t y, int32_t w, int32_t h, const T* data                         , uint32_t transparent) { push_image(x, y, w, h, data, nullptr,              transparent, T::bits, get_write_pixels_fp<T>()); }
     template<typename T> inline void pushImage     ( int32_t x, int32_t y, int32_t w, int32_t h, const T* data                         , const T& transparent) { push_image(x, y, w, h, data, nullptr, *(uint32_t*)&transparent, T::bits, get_write_pixels_fp<T>()); }
+    template<typename T> inline void pushIndexImage( int32_t x, int32_t y, int32_t w, int32_t h, const T* data, const rgb888_t* palette)                       { push_image(x, y, w, h, data, palette                          , T::bits, get_write_palette_fp<T>()); }
+    template<typename T> inline void pushIndexImage( int32_t x, int32_t y, int32_t w, int32_t h, const T* data, const rgb888_t* palette, uint32_t transparent) { push_image(x, y, w, h, data, palette,              transparent, T::bits, get_write_palette_fp<T>()); }
     template<typename T> inline void pushIndexImage( int32_t x, int32_t y, int32_t w, int32_t h, const T* data, const rgb888_t* palette, const T& transparent) { push_image(x, y, w, h, data, palette, *(uint32_t*)&transparent, T::bits, get_write_palette_fp<T>()); }
 
     __attribute__ ((always_inline)) inline static uint8_t  color332(uint8_t r, uint8_t g, uint8_t b) { return lgfx::color332(r, g, b); }
     __attribute__ ((always_inline)) inline static uint16_t color565(uint8_t r, uint8_t g, uint8_t b) { return lgfx::color565(r, g, b); }
     __attribute__ ((always_inline)) inline static uint32_t color888(uint8_t r, uint8_t g, uint8_t b) { return lgfx::color888(r, g, b); }
+
+    __attribute__ ((always_inline)) inline void setPivot(int16_t x, int16_t y) { _xpivot = x; _ypivot = y; }
+    __attribute__ ((always_inline)) inline int16_t getPivotX(void) const { return _xpivot; }
+    __attribute__ ((always_inline)) inline int16_t getPivotY(void) const { return _ypivot; }
 
     __attribute__ ((always_inline)) inline int32_t width        (void) const { return _width; }
     __attribute__ ((always_inline)) inline int32_t height       (void) const { return _height; }
@@ -1086,6 +1092,8 @@ namespace lgfx
     uint32_t _textbgcolor = 0;
     dev_color_t _color = 0xFFFFFFFF;
 
+    int16_t _xpivot;   // x pivot point coordinate
+    int16_t _ypivot;   // x pivot point coordinate
     uint16_t _decoderBuffer= 0;   // Unicode code-point buffer
     uint8_t  _decoderState = 0;   // UTF8 decoder state
     uint8_t _rotation = 0;
@@ -1214,7 +1222,7 @@ namespace lgfx
         uint8_t offset = (-dx * bits) & 7;
         for (i = 0; i < dw; i++) {
           offset = (offset + 8 - bits) & 7;
-          if (((*(uint32_t*)&src[(dx+i)*bits >> 3]) >> offset) & color_mask == transp) {
+          if ((((*(uint32_t*)&src[(dx+i)*bits >> 3]) >> offset) & color_mask) == transp) {
             if (j != i) {
               setWindow(x + j, y, x + i, y);
               param.src_offset = (-(dx+j) * bits) & 7;
