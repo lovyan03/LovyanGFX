@@ -96,7 +96,6 @@ case palette_1bit: k = 0xFFFFFF; break;
     __attribute__ ((always_inline)) inline void fillSprite (const T& color) { fillRect(0, 0, _width, _height, color); }
 
     __attribute__ ((always_inline)) inline void pushSprite(int32_t x, int32_t y) { pushSprite(_parent, x, y); }
-
     void pushSprite(LovyanGFX* lgfx, int32_t x, int32_t y) {
       switch (getColorDepth()) {
       case rgb888_3Byte: lgfx->pushImage(x, y, _width, _height, (swap888_t*)_img); return;
@@ -110,8 +109,25 @@ case palette_1bit: k = 0xFFFFFF; break;
       }
     }
 
-    inline void* buffer() { return _img; }
+    template<typename T>
+    __attribute__ ((always_inline)) inline void pushSprite(int32_t x, int32_t y, const T& transparent) { pushSprite(_parent, x, y, transparent); }
 
+    template<typename T>
+    void pushSprite(LovyanGFX* lgfx, int32_t x, int32_t y, const T& transparent) {
+      auto transp = _color.convertColor(transparent);
+      switch (getColorDepth()) {
+      case rgb888_3Byte: lgfx->pushImage(x, y, _width, _height, (swap888_t*)_img, *(swap888_t*)&transp); return;
+      case rgb666_3Byte: lgfx->pushImage(x, y, _width, _height, (swap666_t*)_img, *(swap666_t*)&transp); return;
+      case rgb565_2Byte: lgfx->pushImage(x, y, _width, _height, (swap565_t*)_img, *(swap565_t*)&transp); return;
+      case rgb332_1Byte: lgfx->pushImage(x, y, _width, _height, (rgb332_t* )_img, *(rgb332_t* )&transp); return;
+      case palette_8bit: lgfx->pushIndexImage(x, y, _width, _height, (palette8_t*)_img, _palette, *(palette8_t*)&transp); return;
+      case palette_4bit: lgfx->pushIndexImage(x, y, _width, _height, (palette4_t*)_img, _palette, *(palette4_t*)&transp); return;
+      case palette_2bit: lgfx->pushIndexImage(x, y, _width, _height, (palette2_t*)_img, _palette, *(palette2_t*)&transp); return;
+      case palette_1bit: lgfx->pushIndexImage(x, y, _width, _height, (palette1_t*)_img, _palette, *(palette1_t*)&transp); return;
+      }
+    }
+
+    inline void* buffer() { return _img; }
 
 //----------------------------------------------------------------------------
 //----------------------------------------------------------------------------

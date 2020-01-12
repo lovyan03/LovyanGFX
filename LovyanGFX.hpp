@@ -52,10 +52,10 @@ namespace lgfx
 
     template<typename T> inline void readRect      ( int32_t x, int32_t y, int32_t w, int32_t h, T* buf) { read_rect(x, y, w, h, buf, get_read_pixels_fp<T>()); }
     template<typename T> inline void pushRect      ( int32_t x, int32_t y, int32_t w, int32_t h, const T* data) { pushImage(x, y, w, h, data); }
-    template<typename T> inline void pushImage     ( int32_t x, int32_t y, int32_t w, int32_t h, const T* data)                                                { push_image(x, y, w, h, data, nullptr, T::bits, T::shift, get_write_pixels_fp<T>()); }
-    template<typename T> inline void pushIndexImage( int32_t x, int32_t y, int32_t w, int32_t h, const T* data, const rgb888_t* palette)                       { push_image(x, y, w, h, data, palette, T::bits, T::shift, get_write_palette_fp<T>()); }
-    template<typename T> inline void pushImage     ( int32_t x, int32_t y, int32_t w, int32_t h, const T* data                         , const T& transparent) { push_image(x, y, w, h, data, nullptr, _color.convertColor(transparent), T::bits, T::shift, get_pixel_to_pixel_fp<T>()); }
-//  template<typename T> inline void pushIndexImage( int32_t x, int32_t y, int32_t w, int32_t h, const T* data, const rgb888_t* palette, const T& transparent) { push_image(x, y, w, h, data, palette, _color.convertColor(transparent), T::bits, T::shift, get_pixel_to_pixel_fp<T>()); }
+    template<typename T> inline void pushImage     ( int32_t x, int32_t y, int32_t w, int32_t h, const T* data)                                                { push_image(x, y, w, h, data, nullptr, T::bits, get_write_pixels_fp<T>()); }
+    template<typename T> inline void pushIndexImage( int32_t x, int32_t y, int32_t w, int32_t h, const T* data, const rgb888_t* palette)                       { push_image(x, y, w, h, data, palette, T::bits, get_write_palette_fp<T>()); }
+    template<typename T> inline void pushImage     ( int32_t x, int32_t y, int32_t w, int32_t h, const T* data                         , const T& transparent) { push_image(x, y, w, h, data, nullptr, *(uint32_t*)&transparent, T::bits, get_write_pixels_fp<T>()); }
+    template<typename T> inline void pushIndexImage( int32_t x, int32_t y, int32_t w, int32_t h, const T* data, const rgb888_t* palette, const T& transparent) { push_image(x, y, w, h, data, palette, *(uint32_t*)&transparent, T::bits, get_write_palette_fp<T>()); }
 
     __attribute__ ((always_inline)) inline static uint8_t  color332(uint8_t r, uint8_t g, uint8_t b) { return lgfx::color332(r, g, b); }
     __attribute__ ((always_inline)) inline static uint16_t color565(uint8_t r, uint8_t g, uint8_t b) { return lgfx::color565(r, g, b); }
@@ -495,13 +495,13 @@ namespace lgfx
 
     void pushImage(int32_t x, int32_t y, int32_t w, int32_t h, const uint16_t* data)
     {
-      if (_swapBytes) push_image(x, y, w, h, data, nullptr, rgb565_t ::bits, rgb565_t ::shift, get_write_pixels_fp<rgb565_t>());
-      else            push_image(x, y, w, h, data, nullptr, swap565_t::bits, swap565_t::shift, get_write_pixels_fp<swap565_t>());
+      if (_swapBytes) push_image(x, y, w, h, data, nullptr, rgb565_t ::bits, get_write_pixels_fp<rgb565_t>());
+      else            push_image(x, y, w, h, data, nullptr, swap565_t::bits, get_write_pixels_fp<swap565_t>());
     }
     void pushImage(int32_t x, int32_t y, int32_t w, int32_t h, const void* data)
     {
-      if (_swapBytes) push_image(x, y, w, h, data, nullptr, rgb888_t ::bits, rgb888_t ::shift, get_write_pixels_fp<rgb888_t>());
-      else            push_image(x, y, w, h, data, nullptr, swap888_t::bits, swap888_t::shift, get_write_pixels_fp<swap888_t>());
+      if (_swapBytes) push_image(x, y, w, h, data, nullptr, rgb888_t ::bits, get_write_pixels_fp<rgb888_t>());
+      else            push_image(x, y, w, h, data, nullptr, swap888_t::bits, get_write_pixels_fp<swap888_t>());
     }
 
     void copyRect(int32_t dst_x, int32_t dst_y, int32_t w, int32_t h, int32_t src_x, int32_t src_y)
@@ -1164,7 +1164,7 @@ namespace lgfx
       endRead_impl();
       endWrite();
     }
-    void push_image(int32_t x, int32_t y, int32_t w, int32_t h, const void* data, const rgb888_t* palette, const uint8_t bits, const uint8_t shift, void(LGFXBase::*fp_write_pixels)(const void*, int32_t, pixelcopy_param_t*))
+    void push_image(int32_t x, int32_t y, int32_t w, int32_t h, const void* data, const rgb888_t* palette, const uint8_t bits, void(LGFXBase::*fp_write_pixels)(const void*, int32_t, pixelcopy_param_t*))
     {
       int32_t dx=0, dw=w;
       if (_adj_width(x, dx, dw, _width)) return;
@@ -1176,60 +1176,64 @@ namespace lgfx
 
       startWrite();
       setWindow(x, y, x + dw - 1, y + dh - 1);
-      uint8_t offset = (dx & ((1<<shift)-1)) * (8 - bits);
-      const int32_t bytes = std::max(1, bits >> 3);
-      const int32_t len = shift ? (w + (1<<shift)-1) >> shift : (w * bytes);
-      const uint8_t* src = (const uint8_t*)data + (dx >> shift) * bytes + dy * len;
-      do {
-        param.src_offset = offset;
-        (this->*fp_write_pixels)(src, dw, &param);
-        src += len;
-      } while (--dh);
+      bool indivisible = (w * bits) & 7;
+      const int32_t len = indivisible + (w * bits >> 3);
+      const uint8_t* src = (const uint8_t*)data + (dx * bits >> 3) + dy * len;
+      if (dw == w && !indivisible) {
+        (this->*fp_write_pixels)(src, dw * dh, &param);
+      } else {
+        uint8_t offset = (-dx * bits) & 7;
+        do {
+          param.src_offset = offset;
+          (this->*fp_write_pixels)(src, dw, &param);
+          src += len;
+        } while (--dh);
+      }
       endWrite();
     }
 
-    void push_image(int32_t x, int32_t y, int32_t w, int32_t h, const void* data, const rgb888_t* palette, uint32_t transp, const uint8_t bits, const uint8_t shift, void(*fp_pixel_to_pixel)(void*&, const void*&, int32_t))
+    void push_image(int32_t x, int32_t y, int32_t w, int32_t h, const void* data, const rgb888_t* palette, uint32_t transp, const uint8_t bits, void(LGFXBase::*fp_write_pixels)(const void*, int32_t, pixelcopy_param_t*))
     {
-/*
       int32_t dx=0, dw=w;
       if (_adj_width(x, dx, dw, _width)) return;
       int32_t dy=0, dh=h;
       if (_adj_width(y, dy, dh, _height)) return;
 
-      startWrite();
-//      setWindow(x, y, x + dw - 1, y + dh - 1);
-      const uint32_t bytes = bits >> 3;
-      uint8_t dst[dw * bytes];
-      int32_t len = shift ? (w + (1 << shift) - 1) >> shift : w;
-      const uint8_t* src = (const uint8_t*)data + dx + dy * len;
-      const uint32_t mask = (1<<bits)-1;
-      do {
-        uint8_t* d = dst;
-        uint8_t* s = src;
-        fp_pixel_to_pixel(d, s, dw);
+      pixelcopy_param_t param;
+      param.src_palette = palette;
 
+      startWrite();
+      setWindow(x, y, x + dw - 1, y + dh - 1);
+      bool indivisible = (w * bits) & 7;
+      const int32_t len = indivisible + (w * bits >> 3);
+      const uint8_t* src = (const uint8_t*)data + dy * len;
+      const uint32_t color_mask = (1<<bits)-1;
+      transp &= color_mask;
+      do {
         int32_t i, j = 0;
-        for (i = 0, j; i < dw; i++) {
-          if ((*((uint32_t*)&dst[i*bytes]) & mask) == transp) {
-            if (i != j) {
+        uint8_t offset = (-dx * bits) & 7;
+        for (i = 0; i < dw; i++) {
+          offset = (offset + 8 - bits) & 7;
+          if (((*(uint32_t*)&src[(dx+i)*bits >> 3]) >> offset) & color_mask == transp) {
+            if (j != i) {
               setWindow(x + j, y, x + i, y);
-              write_byte(&dst[j*bytes], i - j);
+              param.src_offset = (-(dx+j) * bits) & 7;
+              (this->*fp_write_pixels)(&src[(dx+j)*bits>>3], i - j, &param);
             }
-            d1 = d2;
             j = i + 1;
           }
         }
-        if (i != j) {
+        if (j != i) {
           setWindow(x + j, y, x + i, y);
-          write_byte(&dst[j*bytes], i - j);
+          param.src_offset = (-(dx+j) * bits) & 7;
+          (this->*fp_write_pixels)(&src[(dx+j)*bits>>3], i - j, &param);
         }
         y++;
         src += len;
       } while (--dh);
-      endWrite();
-//*/
-    }
 
+      endWrite();
+    }
 
     template<class TDst, class TSrc>
     void read_pixels_template(void* dst, int32_t length, pixelcopy_param_t* param)
@@ -1281,23 +1285,6 @@ namespace lgfx
       default: break;
       }
       return &LGFXBase::write_pixels_template<T, T>;
-    }
-
-    template<class T>
-    auto get_pixel_to_pixel_fp(void) -> void(*)(void*&, const void*&, int32_t, pixelcopy_param_t*)
-    {
-      switch (getColorDepth()) {
-      case rgb888_3Byte: return &pixel_to_pixel_template<swap888_t, T>;
-      case rgb666_3Byte: return &pixel_to_pixel_template<swap666_t, T>;
-      case rgb565_2Byte: return &pixel_to_pixel_template<swap565_t, T>;
-      case rgb332_1Byte: return &pixel_to_pixel_template<rgb332_t , T>;
-      case palette_8bit:
-      case palette_4bit:
-      case palette_2bit:
-      case palette_1bit:
-      default: break;
-      }
-      return &pixel_to_pixel_template<T, T>;
     }
 
     template<class TDst, class TSrc>

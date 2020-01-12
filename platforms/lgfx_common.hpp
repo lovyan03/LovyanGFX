@@ -102,7 +102,6 @@ namespace lgfx {
     palette8_t(const palette8_t&) = default;
     palette8_t(uint8_t c) : raw(c) {}
     static constexpr uint8_t bits = 8;
-    static constexpr uint8_t shift = 0;
     static constexpr uint8_t mask  = 0b11111111;
   };
   struct palette4_t {
@@ -113,7 +112,6 @@ namespace lgfx {
     palette4_t(const palette4_t&) = default;
     palette4_t(uint8_t c) : raw(c) {}
     static constexpr uint8_t bits = 4;
-    static constexpr uint8_t shift = 1;
     static constexpr uint8_t mask  = 0b00001111;
   };
   struct palette2_t {
@@ -124,7 +122,6 @@ namespace lgfx {
     palette2_t(const palette2_t&) = default;
     palette2_t(uint8_t c) : raw(c) {}
     static constexpr uint8_t bits = 2;
-    static constexpr uint8_t shift = 2;
     static constexpr uint8_t mask  = 0b00000011;
   };
   struct palette1_t {
@@ -135,7 +132,6 @@ namespace lgfx {
     palette1_t(const palette1_t&) = default;
     palette1_t(uint8_t c) : raw(c) {}
     static constexpr uint8_t bits = 1;
-    static constexpr uint8_t shift = 3;
     static constexpr uint8_t mask  = 0b00000001;
   };
 
@@ -176,7 +172,6 @@ namespace lgfx {
     inline void G8(uint8_t g8) { g = g8 >> 5; }
     inline void B8(uint8_t b8) { b = b8 >> 6; }
     static constexpr uint8_t bits = 8;
-    static constexpr uint8_t shift = 0;
   };
 
   struct rgb565_t {
@@ -186,7 +181,6 @@ namespace lgfx {
         uint16_t g: 6;
         uint16_t r: 5;
       };
-//      uint8_t bytes[2];
       uint16_t raw;
     };
     rgb565_t() : raw(0) {}
@@ -217,7 +211,6 @@ namespace lgfx {
     inline void G8(uint8_t g8) { g = g8 >> 2; }
     inline void B8(uint8_t b8) { b = b8 >> 3; }
     static constexpr uint8_t bits = 16;
-    static constexpr uint8_t shift = 0;
   };
 
   struct rgb888_t {
@@ -227,7 +220,6 @@ namespace lgfx {
         uint8_t g;
         uint8_t r;
       };
-//      uint8_t bytes[3];
     };
     rgb888_t() : b(0), g(0), r(0) {}
     rgb888_t(const rgb888_t&) = default;
@@ -257,7 +249,6 @@ namespace lgfx {
     inline void G8(uint8_t g8) { g = g8; }
     inline void B8(uint8_t b8) { b = b8; }
     static constexpr uint8_t bits = 24;
-    static constexpr uint8_t shift = 0;
   };
 
   struct argb8888_t {
@@ -268,7 +259,6 @@ namespace lgfx {
         uint8_t r;
         uint8_t a;
       };
-//      uint8_t bytes[4];
       uint32_t raw;
     };
     argb8888_t() : raw(0) {}
@@ -299,7 +289,6 @@ namespace lgfx {
     inline void G8(uint8_t g8) { g = g8; }
     inline void B8(uint8_t b8) { b = b8; }
     static constexpr uint8_t bits = 32;
-    static constexpr uint8_t shift = 0;
   };
 
   struct swap565_t {
@@ -310,7 +299,6 @@ namespace lgfx {
         uint16_t b:5;
         uint16_t gl:3;
       };
-//      uint8_t bytes[2];
       uint16_t raw;
     };
     swap565_t() : raw(0) {}
@@ -335,7 +323,6 @@ namespace lgfx {
     inline uint8_t G6() const { return  gh << 3 | gl; }
     inline uint8_t B6() const { return ( b * 0x21) >> 4; }
     static constexpr uint8_t bits = 16;
-    static constexpr uint8_t shift = 0;
   };
 
   struct swap666_t {
@@ -345,7 +332,6 @@ namespace lgfx {
         uint8_t g;
         uint8_t b;
       };
-//      uint8_t bytes[3];
     };
     swap666_t() : r(0), g(0), b(0) {};
     swap666_t(const swap666_t&) = default;
@@ -373,7 +359,6 @@ namespace lgfx {
     inline void G8(uint8_t g8) { g = g8>>2; }
     inline void B8(uint8_t b8) { b = b8>>2; }
     static constexpr uint8_t bits = 24;
-    static constexpr uint8_t shift = 0;
   };
 
   struct swap888_t {
@@ -383,7 +368,6 @@ namespace lgfx {
         uint8_t g;
         uint8_t b;
       };
-//      uint8_t bytes[3];
     };
     swap888_t() : r(0), g(0), b(0) {};
     swap888_t(const swap888_t&) = default;
@@ -412,7 +396,6 @@ namespace lgfx {
     inline void G8(uint8_t g8) { g = g8; }
     inline void B8(uint8_t b8) { b = b8; }
     static constexpr uint8_t bits = 24;
-    static constexpr uint8_t shift = 0;
   };
 
   struct dev_color_t {
