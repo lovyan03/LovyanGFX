@@ -75,7 +75,7 @@ namespace lgfx
         _clkdiv_read  = spiFrequencyToClockDiv(_freq_read);
         _clkdiv_fill  = spiFrequencyToClockDiv(_freq_fill);
       }
-      fill_mode = false;
+      _fill_mode = false;
       wait_spi();
       cs_l();
       *_spi_miso_dlen_reg = 0;
@@ -107,10 +107,10 @@ namespace lgfx
     void setWindow_impl(int32_t xs, int32_t ys, int32_t xe, int32_t ye) override
     {
       set_window(xs, ys, xe, ye);
-      if (_freq_write != _freq_fill && fill_mode) {
+      if (_freq_write != _freq_fill && _fill_mode) {
         wait_spi();
         set_clock_write();
-        fill_mode = false;
+        _fill_mode = false;
       }
       write_cmd(_cmd_ramwr);
     }
@@ -119,10 +119,10 @@ namespace lgfx
     {
       if (!_start_write_count) beginTransaction_impl();
       set_window(x, y, x, y);
-      if (_freq_write != _freq_fill && !fill_mode) {
+      if (_freq_write != _freq_fill && !_fill_mode) {
         wait_spi();
         set_clock_fill();
-        fill_mode = true;
+        _fill_mode = true;
       }
       write_cmd(_cmd_ramwr);
       write_data(_color.raw, _color.bits);
@@ -133,10 +133,10 @@ namespace lgfx
     {
       if (!_start_write_count) beginTransaction_impl();
       set_window(x, y, x+w-1, y+h-1);
-      if (_freq_write != _freq_fill && !fill_mode) {
+      if (_freq_write != _freq_fill && !_fill_mode) {
         wait_spi();
         set_clock_fill();
-        fill_mode = true;
+        _fill_mode = true;
       }
       write_cmd(_cmd_ramwr);
       if (1 == (w|h)) write_data(_color.raw, _color.bits);
@@ -216,16 +216,19 @@ namespace lgfx
 //----------------------------------------------------------------------------
   protected:
     virtual const uint8_t* getInitCommands(uint8_t listno = 0) const { return nullptr; }
-    __attribute__ ((always_inline)) inline static uint32_t getWindowAddr(uint16_t H, uint16_t L) { return ((H)<<8 | (H)>>8) | (((L)<<8 | (L)>>8)<<16 ); }
+    static uint32_t getWindowAddr32(uint16_t H, uint16_t L) { return ((H)<<8 | (H)>>8) | (((L)<<8 | (L)>>8)<<16 ); }
+    static uint32_t getWindowAddr16(uint16_t H, uint16_t L) { return H | L<<8; }
+    uint32_t(*getWindowAddr)(uint16_t, uint16_t) = getWindowAddr32;
 
     static constexpr uint8_t CMD_INIT_DELAY = 0x80;
 
-    bool fill_mode;
+    bool _fill_mode;
     uint32_t _cmd_caset;
     uint32_t _cmd_raset;
     uint32_t _cmd_ramrd;
     uint32_t _cmd_ramwr;
     uint32_t _len_command = 8;
+    uint32_t _len_setwindow = 32;
     uint32_t _len_read_pixel = 24;
     uint32_t _len_dummy_read_pixel = 8;
     uint32_t _len_dummy_read_rddid = 0;
@@ -313,25 +316,25 @@ namespace lgfx
       return true;
     }
 
-    virtual void set_window(uint32_t xs, uint32_t ys, uint32_t xe, uint32_t ye)
+    void set_window(uint32_t xs, uint32_t ys, uint32_t xe, uint32_t ye)
     {
       if (_last_xs != xs || _last_xe != xe) {
         write_cmd(_cmd_caset);
         _last_xs = xs;
         _last_xe = xe;
-        write_data(getWindowAddr(xs += _colstart, xe += _colstart), 32);
+        write_data(getWindowAddr(xs += _colstart, xe += _colstart), _len_setwindow);
       }
       if (_last_ys != ys || _last_ye != ye) {
         write_cmd(_cmd_raset);
         _last_ys = ys;
         _last_ye = ye;
-        write_data(getWindowAddr(ys += _rowstart, ye += _rowstart), 32);
+        write_data(getWindowAddr(ys += _rowstart, ye += _rowstart), _len_setwindow);
       }
     }
 
     void start_read(void) {
       *_spi_user_reg = _user_reg | SPI_USR_MISO | SPI_DOUTDIN;
-      fill_mode = false;
+      _fill_mode = false;
       wait_spi();
       set_clock_read();
       dc_h();
@@ -353,7 +356,7 @@ namespace lgfx
       cs_h();
       *_spi_user_reg = _user_reg;
       set_clock_write();
-      fill_mode = false;
+      _fill_mode = false;
       if (_spi_half_duplex) {
         if (_spi_miso != -1) {
           pinMatrixInAttach(_spi_miso, (_spi_host == HSPI_HOST) ? HSPIQ_OUT_IDX : VSPIQ_OUT_IDX, false);

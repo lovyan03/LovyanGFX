@@ -25,6 +25,8 @@ namespace lgfx
       this->_len_read_pixel = 24;
       this->_len_dummy_read_pixel = 8;
       this->_len_dummy_read_rddid = 0;
+      this->_len_setwindow = 16;
+      this->getWindowAddr = this->getWindowAddr16;
     }
 
     void setRotation_impl(uint8_t r) override
@@ -160,24 +162,6 @@ namespace lgfx
     //virtual uint8_t getAdjustBpp(uint8_t bpp) const { return 16; }
     virtual color_depth_t getAdjustBpp(color_depth_t bpp) const { return (bpp > 16) ? rgb666_3Byte : rgb565_2Byte; }
 
-
-
-
-    void set_window(uint32_t xs, uint32_t ys, uint32_t xe, uint32_t ye) override
-    {
-      if (this->_last_xs != xs || this->_last_xe != xe) {
-        this->write_cmd(this->_cmd_caset);
-        this->_last_xs = xs;
-        this->_last_xe = xe;
-        this->write_data((xs += this->_colstart) | ((xe += this->_colstart) << 8), 16);
-      }
-      if (this->_last_ys != ys || this->_last_ye != ye) {
-        this->write_cmd(this->_cmd_raset);
-        this->_last_ys = ys;
-        this->_last_ye = ye;
-        this->write_data((ys += this->_rowstart) | ((ye += this->_rowstart) << 8), 16);
-      }
-    }
 
     const uint8_t* getInitCommands(uint8_t listno) const override {
       static constexpr uint8_t list0[] = {
