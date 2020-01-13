@@ -54,7 +54,7 @@ namespace lgfx
         break;
       }
 
-      this->write_data(getMadCtl(r) | getColMod(this->_color.bpp), 8);
+      this->write_data(getMadCtl(r) | getColMod(this->getColorDepth()), 8);
 
       if (r & 1) {
         this->_width  = _panel_height;

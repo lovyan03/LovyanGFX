@@ -66,12 +66,12 @@ namespace lgfx
       this->endWrite();
     }
 
-    void* setColorDepth_impl(color_depth_t bpp) override  // 16 or 24
+    void* setColorDepth_impl(color_depth_t depth) override  // 16 or 24
     {
       this->startWrite();
       this->write_cmd(_cmd_colmod);
-      this->_color.setColorDepth(getAdjustBpp(bpp));
-      this->write_data(getColMod(this->_color.bpp), 8);
+      this->_color.setColorDepth(getAdjustBpp(depth));
+      this->write_data(getColMod(this->getColorDepth()), 8);
       this->endWrite();
       return nullptr;
     }

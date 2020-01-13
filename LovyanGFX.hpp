@@ -70,7 +70,7 @@ namespace lgfx
     __attribute__ ((always_inline)) inline int32_t width        (void) const { return _width; }
     __attribute__ ((always_inline)) inline int32_t height       (void) const { return _height; }
     __attribute__ ((always_inline)) inline uint8_t getRotation  (void) const { return _rotation; }
-    __attribute__ ((always_inline)) inline color_depth_t getColorDepth(void) const { return _color.bpp; }
+    __attribute__ ((always_inline)) inline color_depth_t getColorDepth(void) const { return _color.depth; }
     __attribute__ ((always_inline)) inline bool getInvert       (void) const { return _invert; }
     __attribute__ ((always_inline)) inline bool getSwapBytes    (void) const { return _swapBytes; }
     __attribute__ ((always_inline)) inline void setSwapBytes(bool swap) { _swapBytes = swap; }

@@ -46,43 +46,44 @@ namespace lgfx
       if (w < 1 || h < 1) return nullptr;
       if (_img) deleteSprite();
 
-      if (_color.bpp >= palette_1bit && _color.bpp <= palette_8bit) {
-        _bitwidth = (w + _color.x_mask) & (~_color.x_mask);
-        _img = (uint8_t*)_mem_alloc((_bitwidth >> (4 - _color.bpp)) * h + 1, _malloc_cap);
-        if (_img) {
-          size_t palettes = ((size_t)_color.colormask+1);
-          _palette = (rgb888_t*)_mem_alloc(sizeof(rgb888_t) * palettes, _malloc_cap);
+      int32_t x_mask = (_color.bits & 7) ? (8 / (_color.bits & 7)) - 1 : 0;
+      _bitwidth = (w + x_mask) & ~x_mask;
+      _img = (uint8_t*)_mem_alloc((h * _bitwidth * _color.bits >> 3) + 1, _malloc_cap);
+      if (!_img) return nullptr;
 
-if (_color.bpp == palette_8bit) {
+      if (_color.depth <= palette_8bit) {
+        size_t palettes = 1 << _color.bits;
+        _palette = (rgb888_t*)_mem_alloc(sizeof(rgb888_t) * palettes, _malloc_cap);
+        if (!_palette) {
+          deleteSprite();
+          return nullptr;
+        }
+/*
+if (_color.depth == palette_8bit) {
   for (uint32_t i = 0; i < palettes; i++) {
     _palette[i] = *(rgb332_t*)&i;
   }
 } else
 //*/
-{
-uint32_t k;
-switch (_color.bpp) {
-case palette_8bit: k = 0x010101; break;
-case palette_4bit: k = 0x111111; break;
-case palette_2bit: k = 0x555555; break;
-case palette_1bit: k = 0xFFFFFF; break;
-}
-  for (uint32_t i = 0; i < palettes; i++) {
-    _palette[i] = i * k;
-  }
-}
+        { // create grayscale palette
+          uint32_t k;
+          switch (_color.depth) {
+          case palette_8bit: k = 0x010101; break;
+          case palette_4bit: k = 0x111111; break;
+          case palette_2bit: k = 0x555555; break;
+          case palette_1bit: k = 0xFFFFFF; break;
+          }
+          for (uint32_t i = 0; i < palettes; i++) {
+            _palette[i] = i * k;
+          }
         }
-      } else {
-        _bitwidth = w;
-        _img = (uint8_t*)_mem_alloc((_bitwidth * _color.bytes) * h + 1, _malloc_cap);
       }
-      if (!_img) return nullptr;
       _width = w;
       _xe = w - 1;
       _height = h;
       _ye = h - 1;
       _rotation = _index = _xs = _ys = _xptr = _yptr = 0;
-      fillRect(0, 0, w, h, 0);
+      clear();
       return _img;
     }
 
@@ -90,6 +91,22 @@ case palette_1bit: k = 0xFFFFFF; break;
     {
       if (_img     != nullptr) { _mem_free(_img    ); _img     = nullptr; }
       if (_palette != nullptr) { _mem_free(_palette); _palette = nullptr; }
+    }
+
+    void setBitmapColor(uint16_t fgcolor, uint16_t bgcolor)  // For 1bpp sprites
+    {
+      if (_palette) {
+        _palette[0] = *(rgb565_t*)&bgcolor;
+        _palette[1] = *(rgb565_t*)&fgcolor;
+      }
+    }
+
+    void setPalette(size_t index, const rgb888_t& rgb) {
+      if (_palette) { _palette[index & ((1<<_color.bits)-1)] = rgb; }
+    }
+
+    void setPalette(size_t index, uint8_t r, uint8_t g, uint8_t b) {
+      if (_palette) { _palette[index & ((1<<_color.bits)-1)].set(r, g, b); }
     }
 
     template<typename T>
@@ -274,9 +291,9 @@ case palette_1bit: k = 0xFFFFFF; break;
       set_window(xs, ys, xe, ye);
     }
 
-    void* setColorDepth_impl(color_depth_t bpp) override
+    void* setColorDepth_impl(color_depth_t depth) override
     {
-      _color.setColorDepth(bpp);
+      _color.setColorDepth(depth);
       _readColorDepth = getColorDepth();
 
       if (_img == nullptr) return nullptr;
@@ -298,14 +315,14 @@ case palette_1bit: k = 0xFFFFFF; break;
     void drawPixel_impl(int32_t x, int32_t y) override
     {
       if (_color.bytes == 2) {
-        ((uint16_t*)_img16)[x + y * _bitwidth] = *(uint16_t*)&_color;
+        _img16[x + y * _bitwidth] = _color.rawL;
       } else if (_color.bytes == 1) {
         _img[x + y * _bitwidth] = _color.raw0;
       } else if (_color.bytes == 3) {
         _img24[x + y * _bitwidth] = *(swap888_t*)&_color;
       } else {
-        uint8_t mask = _color.colormask << (((~x) & _color.x_mask) << (_color.bpp - 1));
-        auto dst = &_img[(x + y * _bitwidth) >> (4 - _color.bpp)];
+        uint8_t mask = (uint8_t)(~(0xFF >> _color.bits)) >> (x * _color.bits & 7);
+        auto dst = &_img[(x + y * _bitwidth) * _color.bits >> 3];
         *dst = (*dst & ~mask) | (_color.raw0 & mask);
       }
     }
@@ -318,14 +335,13 @@ writeColor_impl(w*h);
 return;
 //*/
       if (_color.bytes == 0) {
-        uint8_t addrshift = (4 - _color.bpp);
-        size_t d = _bitwidth >> addrshift;
-        uint8_t* dst = &_img[(x + y * _bitwidth) >> addrshift];
-        size_t len = ((x+w) >> addrshift) - (x >> addrshift);
-        uint8_t mask = 0xFF >> ((x & _color.x_mask) * _color.bits);
+        size_t d = _bitwidth * _color.bits >> 3;
+        uint8_t* dst = &_img[(x + y * _bitwidth) * _color.bits >> 3];
+        size_t len = ((x + w) * _color.bits >> 3) - (x * _color.bits >> 3);
+        uint8_t mask = 0xFF >> (x * _color.bits & 7);
         uint8_t c = _color.raw0;
         if (!len) {
-          mask &= ~(mask >> (w * _color.bits));
+          mask ^= mask >> (w * _color.bits);
           c &= mask;
         } else {
           if (mask != 0xFF) {
@@ -335,7 +351,7 @@ return;
             do { *dst2 = (*dst2 & ~mask) | c; dst2 += d; } while (--h2);
             dst++; len--;
           }
-          mask = ~(0xFF>>(((x+w) & _color.x_mask) * _color.bits));
+          mask = ~(0xFF>>((x+w) * _color.bits & 7));
           if (mask == 0xFF) len--;
           c = _color.raw0;
           if (len) {
@@ -396,7 +412,7 @@ return;
       if (0 >= length) return;
       if (_color.bytes == 0) {
         uint8_t c = _color.raw0;
-        uint8_t addrshift = (4 - _color.bpp);
+        uint8_t addrshift = (4 - _color.depth);
         int32_t linelength;
         do {
           uint8_t* dst = &_img[(_xptr + _yptr * _bitwidth) >> addrshift];
@@ -467,7 +483,8 @@ return;
 
     void copyRect_impl(int32_t dst_x, int32_t dst_y, int32_t w, int32_t h, int32_t src_x, int32_t src_y) override
     {
-      if (_color.bpp == 1) {
+      if (_color.bits < 8) {
+// unimplemented
       } else {
         int32_t add = _width * _color.bytes;
         if (src_y < dst_y) add = -add;
@@ -501,10 +518,10 @@ return;
 
       const uint8_t *src = ptr_img();
       rgb565_t res;
-      if (     _color.bpp ==  8) { res = *(( rgb332_t*)src); return res;}
-      else if (_color.bpp == 16) { res = *((swap565_t*)src); return res;}
-//    else if (_color.bpp == 18) { res = *((swap888_t*)src); return res;}
-      else if (_color.bpp == 24) { res = *((swap888_t*)src); return res;}
+      if (     _color.depth == rgb332_1Byte) { res = *(( rgb332_t*)src); return res;}
+      else if (_color.depth == rgb565_2Byte) { res = *((swap565_t*)src); return res;}
+//    else if (_color.depth == rgb666_3Byte) { res = *((swap888_t*)src); return res;}
+      else if (_color.depth == rgb888_3Byte) { res = *((swap888_t*)src); return res;}
 
       return (bool)(*src & (0x80 >> (_index & 0x07)));
     }
@@ -669,11 +686,11 @@ return;
     }
 
     inline uint8_t* ptr_img() {
-      return &_img[_color.bytes ? (_index * _color.bytes) : (_index >> (4-_color.bpp))];
+      return &_img[_index * _color.bits >> 3];
     }
     union {
     uint8_t* _img;
-    swap565_t* _img16;
+    uint16_t* _img16;
     swap888_t* _img24;
     };
     rgb888_t* _palette;
