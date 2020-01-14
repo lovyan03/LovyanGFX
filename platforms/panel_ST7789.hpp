@@ -5,23 +5,23 @@
 
 namespace lgfx
 {
-  template <class CFG>
-  class Panel_ST7789 : public PanelIlitekCommon<CFG>
+  class Panel_ST7789_Common  : public PanelIlitekCommon
   {
-  public:
-    Panel_ST7789() : PanelIlitekCommon<CFG>()
+  protected:
+
+    void setConfig_impl(void) override
     {
-      if (!this->_ram_width   ) this->_ram_width = 240;
-      if (!this->_ram_height  ) this->_ram_height = 320;
-      if (!this->_panel_width ) this->_panel_width = 240;
-      if (!this->_panel_height) this->_panel_height = 320;
-      this->_len_command = 8;
-      this->_len_read_pixel = 24;
-      this->_len_dummy_read_pixel =16;
+      if (!_ram_width   ) _ram_width = 240;
+      if (!_ram_height  ) _ram_height = 320;
+      if (!_panel_width ) _panel_width = 240;
+      if (!_panel_height) _panel_height = 320;
+      if (!freq_write) freq_write = 80000000;
+      if (!freq_read ) freq_read  = 20000000;
+      if (!freq_fill ) freq_fill  = 80000000;
+
+      len_dummy_read_pixel = 16;
     }
 
-
-  protected:
     enum colmod_t
     { RGB565_2BYTE = 0x55
     , RGB666_3BYTE = 0x66
@@ -49,7 +49,7 @@ namespace lgfx
     }
 
 
-    struct CMD : public PanelIlitekCommon<CFG>::CommandCommon
+    struct CMD : public CommandCommon
     {
       static constexpr uint8_t PORCTRL  = 0xB2;      // Porch control
       static constexpr uint8_t GCTRL    = 0xB7;      // Gate control
@@ -65,8 +65,8 @@ namespace lgfx
     };
     const uint8_t* getInitCommands(uint8_t listno) const override {
       static constexpr uint8_t list0[] = {
-          CMD::SLPOUT , PanelIlitekCommon<CFG>::CMD_INIT_DELAY, 120,
-          CMD::NORON  , PanelIlitekCommon<CFG>::CMD_INIT_DELAY, 0,
+          CMD::SLPOUT , CMD_INIT_DELAY, 120,
+          CMD::NORON  , CMD_INIT_DELAY, 0,
           0xB6        , 2, 0x0A,0x82,
           CMD::PORCTRL, 5, 0x0c, 0x0c, 0x00, 0x33, 0x33,
           CMD::GCTRL  , 1, 0x35,
@@ -103,24 +103,35 @@ namespace lgfx
     }
   };
 
-/*
-  template<int PanelWidth = 240, int PanelHeight = 320, int OffsetX = 0, int OffsetY = 0>
-  struct Panel_ST7789 : public Panel_ST7789_COMMON
+
+  template <typename CFG>
+  class Panel_ST7789 : public Panel_ST7789_Common
   {
-    Panel_ST7789() : Panel_ST7789_COMMON()
-    {
-      panel_width  = PanelWidth;
-      panel_height = PanelHeight;
-      offset_x = OffsetX;
-      offset_y = OffsetY;
-    }
+  public:
+    Panel_ST7789() : Panel_ST7789_Common() { setConfig<CFG>(); }
   };
 
 
-  struct Panel_ST7789_240x320 : public Panel_ST7789<> {};
+  class Panel_TTGO_TWatch : public Panel_ST7789_Common
+  {
+  public:
+    Panel_TTGO_TWatch() : Panel_ST7789_Common() {
+      setConfig<cfg_t>(); 
+    }
 
-  struct Panel_ST7789_240x240 : public Panel_ST7789<240, 240> {};
-//*/
+  private:
+    struct cfg_t {
+      static constexpr int spi_cs =  5;
+      static constexpr int spi_dc = 27;
+      static constexpr uint32_t freq_write = 80000000;
+      static constexpr uint32_t freq_read  = 16000000;
+      static constexpr uint32_t freq_fill  = 80000000;
+      static constexpr bool spi_half_duplex = true;
+      static constexpr bool invert      = true;
+      static constexpr int panel_width  = 240;
+      static constexpr int panel_height = 240;
+    };
+  };
 }
 
 #endif

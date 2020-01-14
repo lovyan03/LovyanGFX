@@ -40,12 +40,11 @@ namespace lgfx
     template<typename T> inline void drawFastVLine ( int32_t x, int32_t y           , int32_t h, const T& color) { setColor(color); drawFastVLine(x, y   , h); }
     template<typename T> inline void drawFastHLine ( int32_t x, int32_t y, int32_t w           , const T& color) { setColor(color); drawFastHLine(x, y, w   ); }
     template<typename T> inline void fillRect      ( int32_t x, int32_t y, int32_t w, int32_t h, const T& color) { setColor(color); fillRect     (x, y, w, h); }
-
-    template<typename T> inline void drawCircle    ( int32_t x, int32_t y, int32_t r           , const T& color) { setColor(color); drawCircle(x, y, r   ); }
-    template<typename T> inline void fillCircle    ( int32_t x, int32_t y, int32_t r           , const T& color) { setColor(color); fillCircle(x, y, r   ); }
-    template<typename T> inline void drawRect      ( int32_t x, int32_t y, int32_t w, int32_t h, const T& color) { setColor(color); drawRect  (x, y, w, h); }
+    template<typename T> inline void drawRect      ( int32_t x, int32_t y, int32_t w, int32_t h, const T& color) { setColor(color); drawRect     (x, y, w, h); }
     template<typename T> inline void drawRoundRect ( int32_t x, int32_t y, int32_t w, int32_t h, int32_t r, const T& color) { setColor(color); drawRoundRect(x, y, w, h, r); }
     template<typename T> inline void fillRoundRect ( int32_t x, int32_t y, int32_t w, int32_t h, int32_t r, const T& color) { setColor(color); fillRoundRect(x, y, w, h, r); }
+    template<typename T> inline void drawCircle    ( int32_t x, int32_t y                      , int32_t r, const T& color) { setColor(color); drawCircle(x, y, r   ); }
+    template<typename T> inline void fillCircle    ( int32_t x, int32_t y                      , int32_t r, const T& color) { setColor(color); fillCircle(x, y, r   ); }
     template<typename T> inline void drawLine      ( int32_t x0, int32_t y0, int32_t x1, int32_t y1                        , const T& color)  { setColor(color); drawLine(    x0, y0, x1, y1        ); }
     template<typename T> inline void drawTriangle  ( int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t x2, int32_t y2, const T& color)  { setColor(color); drawTriangle(x0, y0, x1, y1, x2, y2); }
     template<typename T> inline void fillTriangle  ( int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t x2, int32_t y2, const T& color)  { setColor(color); fillTriangle(x0, y0, x1, y1, x2, y2); }
@@ -84,21 +83,15 @@ namespace lgfx
     __attribute__ ((always_inline)) inline void beginTransaction(void) { beginTransaction_impl(); }
     __attribute__ ((always_inline)) inline void endTransaction(void)   { endTransaction_impl(); }
     __attribute__ ((always_inline)) inline void flush(void) {}
-    __attribute__ ((always_inline)) inline void begin(void) { init_impl(); }
-    __attribute__ ((always_inline)) inline void init(void) { init_impl(); }
     __attribute__ ((always_inline)) inline void setWindow(int32_t xs, int32_t ys, int32_t xe, int32_t ye) { setWindow_impl(xs, ys, xe, ye); }
 
     void setAddrWindow(int32_t x, int32_t y, int32_t w, int32_t h)
     {
-      if ((x >= _width) || (y >= _height)) return;
-      if (x < 0) { w += x; x = 0; }
-      if ((x + w) > _width)  w = _width  - x;
-      if (w < 1) return;
-      if (y < 0) { h += y; y = 0; }
-      if ((y + h) > _height) h = _height - y;
-      if (h < 1) return;
-
+      _adj(x,w);
+      _adj(y,h);
+      startWrite();
       setWindow(x, y, x + w - 1, y + h - 1);
+      endWrite();
     }
 
     __attribute__ ((always_inline)) inline void drawPixel(int32_t x, int32_t y)
@@ -110,7 +103,7 @@ namespace lgfx
     void drawFastVLine(int32_t x, int32_t y, int32_t h)
     {
       if ((x < 0) || (x >= _width)) return;
-      if (adj(y,h)) return; 
+      if (_adj(y,h)) return; 
       if (y < 0) { h += y; y = 0; }
       if ((y + h) > _height) h = _height - y;
       if (h < 1) return;
@@ -121,7 +114,7 @@ namespace lgfx
     void drawFastHLine(int32_t x, int32_t y, int32_t w)
     {
       if ((y < 0) || (y >= _height)) return;
-      if (adj(x,w)) return; 
+      if (_adj(x,w)) return; 
       if (x < 0) { w += x; x = 0; }
       if ((x + w) > _width) w = _width - x;
       if (w < 1) return;
@@ -131,7 +124,7 @@ namespace lgfx
 
     void fillRect(int32_t x, int32_t y, int32_t w, int32_t h)
     {
-      if (adj(x,w)||adj(y,h)) return; 
+      if (_adj(x,w)||_adj(y,h)) return; 
       if ((x >= _width) || (y >= _height)) return;
       if (x < 0) { w += x; x = 0; }
       if ((x + w) > _width)  w = _width  - x;
@@ -145,7 +138,7 @@ namespace lgfx
 
     void drawRect(int32_t x, int32_t y, int32_t w, int32_t h)
     {
-      if (adj(x,w)||adj(y,h)) return;
+      if (_adj(x,w)||_adj(y,h)) return;
       startWrite();
       drawFastHLine(x, y        , w);
       if (--h) {
@@ -233,7 +226,7 @@ namespace lgfx
 
     void drawRoundRect(int32_t x, int32_t y, int32_t w, int32_t h, int32_t r)
     {
-      if (adj(x,w)||adj(y,h)) return; 
+      if (_adj(x,w)||_adj(y,h)) return; 
       startWrite();
 
       w--;
@@ -278,7 +271,7 @@ namespace lgfx
 
     void fillRoundRect(int32_t x, int32_t y, int32_t w, int32_t h, int32_t r)
     {
-      if (adj(x,w)||adj(y,h)) return; 
+      if (_adj(x,w)||_adj(y,h)) return; 
       startWrite();
       fillRect(x, y + r, w, h - (r << 1));
       int32_t x0 = x + r;
@@ -459,25 +452,13 @@ namespace lgfx
       endWrite();
     }
 
-    virtual uint32_t readPanelID(void) { return 0; }
-    virtual uint32_t readPanelIDSub(uint8_t cmd) { return 0; }
-/*
-    uint32_t readPanelID()
+    void pushColorsDMA(const uint8_t* src, uint32_t len)
     {
       startWrite();
-      uint32_t res = _panel->readPanelID();
+      pushColorsDMA_impl(src, len);
       endWrite();
-      return res;
     }
 
-    uint32_t readPanelIDSub(uint8_t cmd)
-    {
-      startWrite();
-      uint32_t res = _panel->readPanelIDSub(cmd);
-      endWrite();
-      return res;
-    }
-*/
     uint16_t readPixel(int32_t x, int32_t y)
     {
       if (x < 0 || (x >= _width) || y < 0 || (y >= _height)) return 0;
@@ -1111,7 +1092,7 @@ namespace lgfx
 
     template <typename T>
     __attribute__ ((always_inline)) inline static void swap_coord(T& a, T& b) { T t = a; a = b; b = t; }
-    __attribute__ ((always_inline)) inline static bool adj(int32_t& x, int32_t& w) { if (w < 0) { x += w + 1; w = -w; } return 0==w; }
+    __attribute__ ((always_inline)) inline static bool _adj(int32_t& x, int32_t& w) { if (w < 0) { x += w + 1; w = -w; } return 0==w; }
 
     static bool _adj_width(int32_t& x, int32_t& dx, int32_t& dw, int32_t _width)
     {
@@ -1156,7 +1137,7 @@ namespace lgfx
 
     void read_rect(int32_t x, int32_t y, int32_t w, int32_t h, void* buf, void(LGFXBase::*fp_read_pixels)(void*, int32_t, pixelcopy_param_t* param))
     {
-      if (adj(x,w) || adj(y,h)) return;
+      if (_adj(x,w) || _adj(y,h)) return;
       if ((x >= _width) || (y >= _height)) return;
       if (x < 0) { w += x; x = 0; }
       if ((x + w) > _width)  w = _width  - x;
@@ -1327,20 +1308,13 @@ namespace lgfx
     virtual void setRotation_impl(uint8_t rotation) {}
     virtual void* setColorDepth_impl(color_depth_t bpp) { return nullptr; }
     virtual void invertDisplay_impl(bool invert) {}
+    virtual void writeColor_impl(int32_t len) = 0;
     virtual void drawPixel_impl(int32_t x, int32_t y) = 0;
     virtual void fillRect_impl(int32_t x, int32_t y, int32_t w, int32_t h) = 0;
     virtual void setWindow_impl(int32_t xs, int32_t ys, int32_t xe, int32_t ye) {}
     virtual void readWindow_impl(int32_t xs, int32_t ys, int32_t xe, int32_t ye) {}
+    virtual void pushColorsDMA_impl(const uint8_t* src, uint32_t len) { write_bytes(src, len); }
     virtual void endRead_impl(void) {}
-    virtual void writeColor_impl(int32_t len) {}
-    virtual void init_impl() {
-      startWrite();
-      setRotation(getRotation());
-      invertDisplay(getInvert());
-      setColorDepth(getColorDepth());
-      clear();
-      endWrite();
-    }
 
     virtual void copyRect_impl(int32_t dst_x, int32_t dst_y, int32_t w, int32_t h, int32_t src_x, int32_t src_y)
     {
@@ -1578,19 +1552,19 @@ namespace lgfx
   #if defined (ARDUINO) && defined (_SD_H_)
     >
   #endif
-  {};
+  {
+  protected:
+  };
 }
 //----------------------------------------------------------------------------
 //----------------------------------------------------------------------------
 
 #if defined (ESP32) || (CONFIG_IDF_TARGET_ESP32)
 
-  #include "platforms/esp32_common.hpp"
   #include "platforms/lgfx_spi_esp32.hpp"
 
 #elif defined (ESP8266)
 
-  #include "platforms/esp8266_common.hpp"
   #include "platforms/lgfx_spi_esp8266.hpp"
 
 #elif defined (STM32F7)

@@ -220,6 +220,7 @@ void setup() {
   tft_lcd.setRotation(0);
 
   tft_lcd.invertDisplay(lcdver);
+  tft_lcd.clear(-1);
   //tft_lcd.setColorDepth(16);
   //tft_lcd.setColorDepth(24);
 

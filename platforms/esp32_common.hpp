@@ -105,18 +105,21 @@
 
 namespace lgfx
 {
+  static void gpioInit(gpio_num_t pin, gpio_mode_t mode = GPIO_MODE_OUTPUT) {
+    if (pin == -1) return;
+    if (rtc_gpio_is_valid_gpio(pin)) rtc_gpio_deinit(pin);
+    gpio_config_t io_conf;
+    io_conf.intr_type = GPIO_INTR_DISABLE;
+    io_conf.mode = mode;
+    io_conf.pin_bit_mask = (uint64_t)1 << pin;
+    io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
+    io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
+    gpio_config(&io_conf);
+  }
+
   template<uint8_t PIN, uint32_t MASK>
   struct ESP32PIN {
-    static void init(gpio_mode_t mode = GPIO_MODE_OUTPUT) {
-      if (rtc_gpio_is_valid_gpio((gpio_num_t)PIN)) rtc_gpio_deinit((gpio_num_t)PIN);
-      gpio_config_t io_conf;
-      io_conf.intr_type = GPIO_INTR_DISABLE;
-      io_conf.mode = mode;
-      io_conf.pin_bit_mask = (uint64_t)1 << PIN;
-      io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
-      io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
-      gpio_config(&io_conf);
-    }
+    __attribute__ ((always_inline)) inline static void init(gpio_mode_t mode = GPIO_MODE_OUTPUT) { gpioInit((gpio_num_t)PIN, mode); }
     __attribute__ ((always_inline)) inline static void enableOutput()  { if (PIN < 32) { GPIO.enable_w1ts = MASK; } else { GPIO.enable1_w1ts.val = MASK; } }
     __attribute__ ((always_inline)) inline static void disableOutput() { if (PIN < 32) { GPIO.enable_w1tc = MASK; } else { GPIO.enable1_w1tc.val = MASK; } }
     __attribute__ ((always_inline)) inline static void hi()    { if (PIN < 32) GPIO.out_w1ts = MASK; else GPIO.out1_w1ts.val = MASK; }

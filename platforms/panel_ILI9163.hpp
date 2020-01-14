@@ -5,23 +5,24 @@
 
 namespace lgfx
 {
-  template <class CFG>
-  class Panel_ILI9163 : public PanelIlitekCommon<CFG>
+  class Panel_ILI9163_Common : public PanelIlitekCommon
   {
-  public:
-    Panel_ILI9163() : PanelIlitekCommon<CFG>()
+  protected:
+
+    void setConfig_impl(void) override
     {
-      if (!this->_ram_width   ) this->_ram_width = 132;
-      if (!this->_ram_height  ) this->_ram_height = 162;
-      if (!this->_panel_width ) this->_panel_width = 132;
-      if (!this->_panel_height) this->_panel_height = 162;
-      this->_len_command = 8;
-      this->_len_read_pixel = 24;
-      this->_len_dummy_read_pixel = 8;
-      this->_len_dummy_read_rddid = 0;
+      if (!_ram_width   ) _ram_width = 132;
+      if (!_ram_height  ) _ram_height = 162;
+      if (!_panel_width ) _panel_width = 132;
+      if (!_panel_height) _panel_height = 162;
+      if (!freq_write) freq_write = 20000000;
+      if (!freq_read ) freq_read  = 10000000;
+      if (!freq_fill ) freq_fill  = 40000000;
+
+      _madctl_rgb = MAD::RGB;
+      _madctl_bgr = MAD::BGR;
     }
 
-  protected:
     enum colmod_t
     { RGB565_2BYTE = 0x55
     , RGB666_3BYTE = 0x66
@@ -48,7 +49,7 @@ namespace lgfx
       return madctl_table[r];
     }
 
-    struct CMD : public PanelIlitekCommon<CFG>::CommandCommon
+    struct CMD : public CommandCommon
     {
       static constexpr uint8_t FRMCTR1 = 0xB1;
       static constexpr uint8_t FRMCTR2 = 0xB2;
@@ -70,8 +71,8 @@ namespace lgfx
     };
     const uint8_t* getInitCommands(uint8_t listno) const override {
       static constexpr uint8_t list0[] = {
-          CMD::SWRESET, PanelIlitekCommon<CFG>::CMD_INIT_DELAY, 120,  // Software reset
-          CMD::SLPOUT,  PanelIlitekCommon<CFG>::CMD_INIT_DELAY, 5,    // Exit sleep mode
+          CMD::SWRESET, CMD_INIT_DELAY, 120,  // Software reset
+          CMD::SLPOUT,  CMD_INIT_DELAY, 5,    // Exit sleep mode
           0x26,  1, 0x04, // Set Gamma curve 3
           0xF2,  1, 0x01, // Gamma adjustment enabled
           0xE0, 15, 0x3F, 0x25, 0x1C, 0x1E, 0x20, 0x12, 0x2A, 0x90,
@@ -100,6 +101,13 @@ namespace lgfx
       default: return nullptr;
       }
     }
+  };
+
+  template <typename CFG>
+  class Panel_ILI9163 : public Panel_ILI9163_Common
+  {
+  public:
+    Panel_ILI9163() : Panel_ILI9163_Common() { setConfig<CFG>(); }
   };
 }
 

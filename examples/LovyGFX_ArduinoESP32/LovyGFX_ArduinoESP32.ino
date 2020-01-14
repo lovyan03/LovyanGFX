@@ -231,19 +231,19 @@ void movingSprite(T& Lcd)
 
   for (int i = -w; i < Lcd.width() - w; i++) {
     if (i<0)delay(10);
-    sprite.pushSprite(&Lcd, i, -h);
+    sprite.pushSprite(&Lcd, i, -h, 1);
   }
   for (int i = -h; i < Lcd.height() - h; i++) {
     if (i<0)delay(10);
-    sprite.pushSprite(&Lcd, Lcd.width() - w, i);
+    sprite.pushSprite(&Lcd, Lcd.width() - w, i, 1);
   }
   for (int i = Lcd.width() - w; i > -w; i--) {
     if (i<0)delay(10);
-    sprite.pushSprite(&Lcd, i, Lcd.height() - h);
+    sprite.pushSprite(&Lcd, i, Lcd.height() - h, 1);
   }
   for (int i = Lcd.height() - h; i > -h; i--) {
     if (i<0)delay(10);
-    sprite.pushSprite(&Lcd, - w, i);
+    sprite.pushSprite(&Lcd, - w, i, 1);
   }
 }
 
@@ -309,7 +309,7 @@ void pushRectBuffer(T& Lcd, int x)
 
   uint16_t buf[320*3];
   for (int i = 0; i < 320*3; i++ ) {
-    buf[i] = Lcd.color332(0xFF-(i<<3), 0x80-(i<<6), i<<4);
+    buf[i] = Lcd.color565(0xFF-(i<<3), 0x80-(i<<6), i<<4);
   }
 
   Lcd.startWrite();
@@ -325,7 +325,7 @@ void pushRectBuffer1(T& Lcd, int x)
 
   uint16_t buf[320*3];
   for (int i = 0; i < 320*3; i++ ) {
-    buf[i] = Lcd.color332(0xFF-(i<<3), 0x80-(i<<6), i<<4);
+    buf[i] = Lcd.color565(0xFF-(i<<3), 0x80-(i<<6), i<<4);
   }
 
   Lcd.startWrite();
@@ -345,7 +345,7 @@ void pushRectBuffer2(T& Lcd, int x)
   uint16_t buf[320*3];
   //lgfx::swap565_t buf[320*3];
   for (int i = 0; i < 320*3; i++ ) {
-    buf[i] = Lcd.color332(i, i, 0xFF);
+    buf[i] = Lcd.color565(i, i, 0xFF);
   }
 
   Lcd.startWrite();
@@ -453,9 +453,9 @@ void drawRects(T& Lcd, int32_t offset = 0)
   int h = height/3;
   for (int count = 0; count < 80; count++) {
     int x = (count % (width>>1));
-    Lcd.drawRect(x + offset, x             , w, h, Lcd.color332(      x<<4, 0, 0));
-    Lcd.drawRect(x + offset, x + height  /3, w, h, Lcd.color332(0,    x<<4, 0   ));
-    Lcd.drawRect(x + offset, x + height*2/3, w, h, Lcd.color332(0, 0, x<<4      ));
+    Lcd.drawRect(x + offset, x             , w, h, Lcd.color565(      x<<4, 0, 0));
+    Lcd.drawRect(x + offset, x + height  /3, w, h, Lcd.color565(0,    x<<4, 0   ));
+    Lcd.drawRect(x + offset, x + height*2/3, w, h, Lcd.color565(0, 0, x<<4      ));
     if (1 > (w -= 2) || 1 > (h -= 2)) break;
   }
   Lcd.endWrite();
@@ -501,7 +501,7 @@ void concentricFillCircle(T& Lcd)
   Lcd.startWrite();
   Lcd.fillRect(0, 0, width, height, random(0, 0xFFFFFF));
   for (int count = 0; count < 200; count++) {
-    Lcd.drawCircle(width>>1, height>>1, 200 - count, Lcd.color332((count&1 ? 0xFF:0), (count&2 ? 0xFF:0), (count&4 ? 0xFF:0)));
+    Lcd.drawCircle(width>>1, height>>1, 200 - count, Lcd.color565((count&1 ? 0xFF:0), (count&2 ? 0xFF:0), (count&4 ? 0xFF:0)));
   }
   Lcd.endWrite();
 }
@@ -514,8 +514,8 @@ void dualFillCircle(T& Lcd)
   Lcd.startWrite();
   Lcd.fillRect(0, 0, width, height, random(0, 0xFFFFFF));
   for (int count = 0; count < 100; count++) {
-    Lcd.fillCircle (width  >>2, height>>1, 100 - count, Lcd.color332((count&1 ? 0xFF:0), (count&2 ? 0xFF:0), (count&4 ? 0xFF:0)));
-    Lcd.fillCircle (width*3>>2, height>>1, 100 - count, Lcd.color332((count&1 ? 0xFF:0), (count&2 ? 0xFF:0), (count&4 ? 0xFF:0)));
+    Lcd.fillCircle (width  >>2, height>>1, 100 - count, Lcd.color565((count&1 ? 0xFF:0), (count&2 ? 0xFF:0), (count&4 ? 0xFF:0)));
+    Lcd.fillCircle (width*3>>2, height>>1, 100 - count, Lcd.color565((count&1 ? 0xFF:0), (count&2 ? 0xFF:0), (count&4 ? 0xFF:0)));
   }
   Lcd.endWrite();
 }
@@ -561,8 +561,8 @@ Serial.print("Arduino\r\n");
   //tft4.init();
   //tft5.init();
 
-  sprite.setColorDepth(3);
-  sprite.createSprite(100,100);
+  sprite.setColorDepth(2);
+  sprite.createSprite(99,99);
 
 
 #if defined(ARDUINO_M5Stack_Core_ESP32) || defined(ARDUINO_M5STACK_FIRE)
@@ -644,17 +644,20 @@ Serial.printf("colorDepth:%d  swapBytes:%d  rotation:%d \r\n"
   sprite.fillRect(50,50,50,50,4);
   sprite.fillCircle(50, 50, 40, 0);
   sprite.drawCircle(50, 50, 40, 6);
-  sprite.pushSprite(&tft_lgfx, tft_lgfx.width()-sprite.width()>>1, tft_lgfx.height()-sprite.height()>>1);
+  tft_lgfx.fillRect(tft_lgfx.width()-sprite.width()>>1, tft_lgfx.height()-sprite.height()>>1, 100,100,1);
+  sprite.pushSprite(&tft_lgfx, tft_lgfx.width()-sprite.width()>>1, tft_lgfx.height()-sprite.height()>>1, 1);
 
   movingSprite(tft_lgfx);
 
   drawRects(sprite, 0);
-  sprite.pushSprite(&tft_lgfx, tft_lgfx.width()-sprite.width()>>1, tft_lgfx.height()-sprite.height()>>1);
+  tft_lgfx.fillRect(tft_lgfx.width()-sprite.width()>>1, tft_lgfx.height()-sprite.height()>>1, 100,100,1);
+  sprite.pushSprite(&tft_lgfx, tft_lgfx.width()-sprite.width()>>1, tft_lgfx.height()-sprite.height()>>1, 1);
 
   movingSprite(tft_lgfx);
 
   blockReadWrite(sprite, 0);
-  sprite.pushSprite(&tft_lgfx, tft_lgfx.width()-sprite.width()>>1, tft_lgfx.height()-sprite.height()>>1);
+  tft_lgfx.fillRect(tft_lgfx.width()-sprite.width()>>1, tft_lgfx.height()-sprite.height()>>1, 100,100,1);
+  sprite.pushSprite(&tft_lgfx, tft_lgfx.width()-sprite.width()>>1, tft_lgfx.height()-sprite.height()>>1, 1);
 
   movingSprite(tft_lgfx);
 

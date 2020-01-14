@@ -5,23 +5,24 @@
 
 namespace lgfx
 {
-  template <class CFG>
-  class Panel_ILI9341 : public PanelIlitekCommon<CFG>
+  class Panel_ILI9341_Common : public PanelIlitekCommon
   {
-  public:
-    Panel_ILI9341() : PanelIlitekCommon<CFG>()
+  protected:
+
+    void setConfig_impl(void) override
     {
-      if (!this->_ram_width   ) this->_ram_width = 240;
-      if (!this->_ram_height  ) this->_ram_height = 320;
-      if (!this->_panel_width ) this->_panel_width = 240;
-      if (!this->_panel_height) this->_panel_height = 320;
-      this->_len_command = 8;
-      this->_len_read_pixel = 24;
-      this->_len_dummy_read_pixel = 8;
-      this->_len_dummy_read_rddid = 0;
+      if (!_ram_width   ) _ram_width = 240;
+      if (!_ram_height  ) _ram_height = 320;
+      if (!_panel_width ) _panel_width = 240;
+      if (!_panel_height) _panel_height = 320;
+      if (!freq_write) freq_write = 20000000;
+      if (!freq_read ) freq_read  = 10000000;
+      if (!freq_fill ) freq_fill  = 40000000;
+
+      _madctl_rgb = MAD::RGB;
+      _madctl_bgr = MAD::BGR;
     }
 
-  protected:
     enum colmod_t
     { RGB565_2BYTE = 0x55
     , RGB666_3BYTE = 0x66
@@ -37,6 +38,7 @@ namespace lgfx
     , MH  = 0x04
     , RGB = 0x00
     };
+
     uint8_t getMadCtl(uint8_t r) const override {
       static constexpr uint8_t madctl_table[] = {
                 MAD::MX        ,
@@ -52,7 +54,7 @@ namespace lgfx
       return madctl_table[r];
     }
 
-    struct CMD : public PanelIlitekCommon<CFG>::CommandCommon
+    struct CMD : public PanelIlitekCommon::CommandCommon
     {
       static constexpr uint8_t FRMCTR1 = 0xB1;
       static constexpr uint8_t FRMCTR2 = 0xB2;
@@ -109,43 +111,71 @@ namespace lgfx
       default: return nullptr;
       }
     }
-
   };
 
-#if defined(ARDUINO_M5Stack_Core_ESP32) || defined(ARDUINO_M5STACK_FIRE) // M5Stack
-  struct CfgM5Stack {
-    static constexpr spi_host_device_t spi_host = VSPI_HOST;
-    static constexpr int spi_mosi = 23;
-    static constexpr int spi_miso = 19;
-    static constexpr int spi_sclk = 18;
-    static constexpr int spi_cs   = 14;
-    static constexpr int spi_dc   = 27;
-    static constexpr int panel_rst = 33;
-    static constexpr int freq_write = 40000000;
-    static constexpr int freq_read  = 16000000;
-    static constexpr int freq_fill  = 80000000;
-    static constexpr bool spi_half_duplex = true;
-  };
-
-  class Panel_M5Stack : public Panel_ILI9341<CfgM5Stack>
+  template <typename CFG>
+  class Panel_ILI9341 : public Panel_ILI9341_Common
   {
-  protected:
+  public:
+    Panel_ILI9341() : Panel_ILI9341_Common() { setConfig<CFG>(); }
+  };
+
+  class Panel_ODROID_GO : public Panel_ILI9341_Common
+  {
+  public:
+    Panel_ODROID_GO() : Panel_ILI9341_Common() {
+      setConfig<cfg_t>(); 
+    }
+
+  private:
+    struct cfg_t {
+      static constexpr int spi_cs =  5;
+      static constexpr int spi_dc = 21;
+      static constexpr uint32_t freq_write = 40000000;
+      static constexpr uint32_t freq_read  = 16000000;
+      static constexpr uint32_t freq_fill  = 80000000;
+      static constexpr bool spi_half_duplex = true;
+    };
+  };
+
+  class Panel_M5Stack : public Panel_ILI9341_Common
+  {
+  public:
+    Panel_M5Stack() : Panel_ILI9341_Common() {
+      setConfig<cfg_t>(); 
+    }
+
+  private:
+    struct cfg_t {
+    //static constexpr color_depth_t color_depth = rgb565_2Byte;
+    //static constexpr bool rgb_order = false;
+    //static constexpr bool invert = false;
+    //static constexpr int rotation = 0;
+    //static constexpr int spi_mode = 0;
+      static constexpr int spi_cs = 14;
+      static constexpr int spi_dc = 27;
+      static constexpr uint32_t freq_write = 40000000;
+      static constexpr uint32_t freq_read  = 16000000;
+      static constexpr uint32_t freq_fill  = 80000000;
+      static constexpr bool spi_half_duplex = true;
+    };
+
     uint8_t getMadCtl(uint8_t r) const override {
       static constexpr uint8_t madctl_table[] = {
-        this->MAD::MV|this->MAD::MY,
+        MAD::MV|MAD::MY,
         0,
-        this->MAD::MV|this->MAD::MX,
-        this->MAD::MX|this->MAD::MY,
-        this->MAD::MV|this->MAD::MX|this->MAD::MY,
-        this->MAD::MY,
-        this->MAD::MV,
-        this->MAD::MX,
+        MAD::MV|MAD::MX,
+        MAD::MX|MAD::MY,
+        MAD::MV|MAD::MX|MAD::MY,
+        MAD::MY,
+        MAD::MV,
+        MAD::MX,
       };
+
       r = r & 7;
       return madctl_table[r];
     }
   };
-#endif
 }
 
 #endif

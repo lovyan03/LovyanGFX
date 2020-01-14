@@ -274,14 +274,24 @@ if (_color.depth == palette_8bit) {
     virtual void* _mem_alloc(uint32_t bytes, uint32_t param) = 0;
     virtual void _mem_free(void* buf) = 0;
 
-    __attribute__ ((always_inline)) inline void set_window(int32_t xs, int32_t ys, int32_t xe, int32_t ye)
+    void set_window(int32_t xs, int32_t ys, int32_t xe, int32_t ye)
     {
-      _xe = xe;
-      _ye = ye;
-      _xptr = _xs = xs;
-      _yptr = _ys = ys;
+      if (xs > xe) swap_coord(xs, xe);
+      if (ys > ye) swap_coord(ys, ye);
+
+      if ((xe < 0) || (ye < 0) || (xs >= _width) || (ys >= _height))
+      {
+        _xptr = _xs = _xe = 0;
+        _yptr = _ys = _ye = _height;
+      } else {
+        _xptr = _xs = (xs < 0) ? 0 : xs;
+        _yptr = _ys = (ys < 0) ? 0 : ys;
+        _xe = (xe >= _width ) ? _width  - 1 : xe;
+        _ye = (ye >= _height) ? _height - 1 : ye;
+      }
       _index = xs + ys * _bitwidth;
     }
+
     void setWindow_impl(int32_t xs, int32_t ys, int32_t xe, int32_t ye) override
     {
       set_window(xs, ys, xe, ye);
