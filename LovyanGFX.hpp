@@ -443,19 +443,35 @@ namespace lgfx
       endWrite();
     }
   */
-    template <typename T>
-    void pushColors(const T *src, uint32_t len)
+    void pushColors(const uint8_t* data, int32_t len)
     {
+      pushColors((rgb332_t*)data, len);
+    }
+    void pushColors(const uint16_t* data, int32_t len, bool swap = true)
+    {
+      if (swap) pushColors((rgb565_t *)data, len);
+      else      pushColors((swap565_t*)data, len);
+    }
+    void pushColors(const void* data, int32_t len, bool swap = true)
+    {
+      if (swap) pushColors((rgb888_t *)data, len);
+      else      pushColors((swap888_t*)data, len);
+    }
+
+    template <typename T>
+    void pushColors(const T *src, int32_t len)
+    {
+      pixelcopy_param_t p;
       startWrite();
       auto fp = get_write_pixels_fp<T>();
-      (this->*fp)(src, len);
+      (this->*fp)(src, len, &p);
       endWrite();
     }
 
-    void pushColorsDMA(const uint8_t* src, uint32_t len)
+    void pushDMA(const uint8_t* src, int32_t len)
     {
       startWrite();
-      pushColorsDMA_impl(src, len);
+      pushDMA_impl(src, len);
       endWrite();
     }
 
@@ -1113,9 +1129,9 @@ namespace lgfx
 
     struct pixelcopy_param_t {
       int32_t src_offset = 0;
-      int32_t dst_offset = 0;
+    //int32_t dst_offset = 0;
       const rgb888_t* src_palette = nullptr;
-      const rgb888_t* dst_palette = nullptr;
+    //const rgb888_t* dst_palette = nullptr;
     };
 
     template <class TDst, class TSrc>
@@ -1313,7 +1329,7 @@ namespace lgfx
     virtual void fillRect_impl(int32_t x, int32_t y, int32_t w, int32_t h) = 0;
     virtual void setWindow_impl(int32_t xs, int32_t ys, int32_t xe, int32_t ye) {}
     virtual void readWindow_impl(int32_t xs, int32_t ys, int32_t xe, int32_t ye) {}
-    virtual void pushColorsDMA_impl(const uint8_t* src, uint32_t len) { write_bytes(src, len); }
+    virtual void pushDMA_impl(const uint8_t* src, int32_t len) { write_bytes(src, len); }
     virtual void endRead_impl(void) {}
 
     virtual void copyRect_impl(int32_t dst_x, int32_t dst_y, int32_t w, int32_t h, int32_t src_x, int32_t src_y)
@@ -1439,9 +1455,11 @@ namespace lgfx
       File bmpFS = fs.open(path, "r");
 
       if (!bmpFS) {
+//Serial.print("file can't open :"); Serial.println(path);
         if (this->_start_write_count) { this->beginTransaction(); }
         return;
       }
+Serial.println(path);
 
       uint32_t startTime = millis();
 
@@ -1482,7 +1500,8 @@ namespace lgfx
             uint32_t biClrUsed = read32(bmpFS);
             skip(bmpFS, 4);
             argb8888_t palette[1<<bpp];
-            bmpFS.read((uint8_t*)palette, (1<<bpp)*4); // load palette
+            bmpFS.seek(seekOffset-(1<<bpp)*sizeof(argb8888_t));
+            bmpFS.read((uint8_t*)palette, (1<<bpp)*sizeof(argb8888_t)); // load palette
             bmpFS.seek(seekOffset);
             if (bpp == 1) {
               uint8_t lineBuffer[((w+31) >> 5) << 2];
@@ -1529,9 +1548,9 @@ namespace lgfx
               }
             }
           }
-  //      Serial.print("Loaded in "); Serial.print(millis() - startTime);   Serial.println(" ms");
+          Serial.print("Loaded in "); Serial.print(millis() - startTime);   Serial.println(" ms");
         }
-  //    else Serial.println("BMP format not recognized.");
+        else Serial.println("BMP format not recognized.");
       }
 
       bmpFS.close();

@@ -31,10 +31,29 @@ namespace lgfx
     virtual ~LGFX_SPI() {
       if (_panel) delete _panel;
       _panel = nullptr;
+
+      if (dmadesc_tx) heap_caps_free(dmadesc_tx);
+      dmadesc_tx = nullptr;
     }
 
     LGFX_SPI() : LovyanGFX() {
+//      _hw = (volatile spi_dev_t *)REG_SPI_BASE(_spi_port);
+
       if (nullptr != (_panel = createPanelFromConfig<CFG>(nullptr))) { postSetPanel(); }
+
+      _dma_chan_claimed = false;
+      if (0 != _dma_ch) {
+        _dma_chan_claimed = spicommon_dma_chan_claim(_dma_ch);
+        if ( _dma_chan_claimed ) {
+          int dma_desc_ct=(320 * 80 * 2 + SPI_MAX_DMA_LEN-1)/SPI_MAX_DMA_LEN;
+          dmadesc_tx = (lldesc_t*)heap_caps_malloc(sizeof(lldesc_t)*dma_desc_ct, MALLOC_CAP_DMA);
+          for (int i = 0; i < dma_desc_ct; i++) {
+            dmadesc_tx[i].sosf = 0;
+            dmadesc_tx[i].owner = 1;
+            dmadesc_tx[i].qe.stqe_next = &dmadesc_tx[i + 1];
+          }
+        }
+      }
     }
 
     template <class T> inline void setPanel(const T& panel) { setPanel<T>(); }
@@ -60,55 +79,23 @@ namespace lgfx
       }
 
       {//spiStopBus;
-        *reg(SPI_SLAVE_REG(_spi_port)) &= ~(SPI_SLAVE_MODE | SPI_TRANS_DONE);
-        *reg(SPI_PIN_REG  (_spi_port)) = 0;
-        *reg(SPI_USER_REG (_spi_port)) = SPI_USR_MOSI | SPI_USR_MISO | SPI_DOUTDIN;
-        *reg(SPI_USER1_REG(_spi_port)) = 0;
         *reg(SPI_CTRL_REG (_spi_port)) = 0;
         *reg(SPI_CTRL1_REG(_spi_port)) = 0;
         *reg(SPI_CTRL2_REG(_spi_port)) = 0;
         *reg(SPI_CLOCK_REG(_spi_port)) = 0;
-      }
-/*
-_dma_chan_claimed = false;
-if (0 != _dma_ch) {
-  _dma_chan_claimed = spicommon_dma_chan_claim(_dma_ch);
-  auto hw = (volatile spi_dev_t *)REG_SPI_BASE(_spi_port);
-
+        *reg(SPI_USER_REG (_spi_port)) = SPI_USR_MOSI | SPI_USR_MISO | SPI_DOUTDIN;
+        *reg(SPI_USER1_REG(_spi_port)) = 0;
+        *reg(SPI_PIN_REG  (_spi_port)) = 0;
+        *reg(SPI_SLAVE_REG(_spi_port)) = 0; //&= ~(SPI_SLAVE_MODE | SPI_TRANS_DONE);
 
   //Reset DMA
-  hw->dma_conf.val|=SPI_OUT_RST|SPI_IN_RST|SPI_AHBM_RST|SPI_AHBM_FIFO_RST;
-  hw->dma_out_link.start=0;
-  hw->dma_in_link.start=0;
-  hw->dma_conf.val&=~(SPI_OUT_RST|SPI_IN_RST|SPI_AHBM_RST|SPI_AHBM_FIFO_RST);
-  //Reset timing
-  hw->ctrl2.val=0;
+        *reg(SPI_DMA_CONF_REG(_spi_port)) |= SPI_OUT_RST|SPI_IN_RST|SPI_AHBM_RST|SPI_AHBM_FIFO_RST;
+        *reg(SPI_DMA_OUT_LINK_REG(_spi_port)) = 0;
+        *reg(SPI_DMA_IN_LINK_REG(_spi_port)) = 0;
+        *reg(SPI_DMA_CONF_REG(_spi_port)) &= ~(SPI_OUT_RST|SPI_IN_RST|SPI_AHBM_RST|SPI_AHBM_FIFO_RST);
+//*/
+      }
 
-  //master use all 64 bytes of the buffer
-  hw->user.usr_miso_highpart=0;
-  hw->user.usr_mosi_highpart=0;
-
-  //Disable unneeded ints
-  hw->slave.rd_buf_done=0;
-  hw->slave.wr_buf_done=0;
-  hw->slave.rd_sta_done=0;
-  hw->slave.wr_sta_done=0;
-  hw->slave.rd_buf_inten=0;
-  hw->slave.wr_buf_inten=0;
-  hw->slave.rd_sta_inten=0;
-  hw->slave.wr_sta_inten=0;
-
-  //Force a transaction done interrupt. This interrupt won't fire yet because we initialized the SPI interrupt as
-  //disabled.  This way, we can just enable the SPI interrupt and the interrupt handler will kick in, handling
-  //any transactions that are queued.
-  hw->slave.trans_inten=1;
-  hw->slave.trans_done=1;
-
-  //   int dma_desc_ct=(bus_config->max_transfer_sz+SPI_MAX_DMA_LEN-1)/SPI_MAX_DMA_LEN;
-  int dma_desc_ct=(320*120*2+SPI_MAX_DMA_LEN-1)/SPI_MAX_DMA_LEN;
-
-  dmadesc_tx=heap_caps_malloc(sizeof(lldesc_t)*dma_desc_ct, MALLOC_CAP_DMA);
-}
 //*/
       if (_spi_sclk >= 0) { pinMatrixOutAttach(_spi_sclk, (_spi_host == HSPI_HOST) ? HSPICLK_OUT_IDX : VSPICLK_OUT_IDX, false, false); }
       if (_spi_mosi >= 0) { pinMatrixOutAttach(_spi_mosi, (_spi_host == HSPI_HOST) ? HSPID_IN_IDX : VSPID_IN_IDX, false, false); }
@@ -241,6 +228,7 @@ if (0 != _dma_ch) {
     }
 
     void beginTransaction_impl(void) override {
+//memcpy(_spi_reg_backup, (void*)REG_SPI_BASE(_spi_port), 16*4);
       uint32_t apb_freq = getApbFrequency();
       if (_last_apb_freq != apb_freq) {
         _last_apb_freq = apb_freq;
@@ -269,11 +257,18 @@ if (0 != _dma_ch) {
       *_spi_user_reg = _user_reg;
       // MSB first
       *reg(SPI_CTRL_REG(_spi_port)) &= ~(SPI_WR_BIT_ORDER | SPI_RD_BIT_ORDER);
+      if (_dma_ch && _dma_chan_claimed) {
+        DPORT_SET_PERI_REG_BITS(DPORT_SPI_DMA_CHAN_SEL_REG, 3, _dma_ch, (_spi_host * 2));
+      }
     }
 
     void endTransaction_impl(void) override {
       wait_spi();
       cs_h();
+      if (_dma_ch && _dma_chan_claimed) {
+        spicommon_dmaworkaround_idle(_dma_ch);
+      }
+//memcpy((void*)REG_SPI_BASE(_spi_port), _spi_reg_backup, 16*4);
       *_spi_user_reg = _user_reg | SPI_USR_MISO | SPI_DOUTDIN;
     }
 
@@ -540,6 +535,7 @@ if (0 != _dma_ch) {
       wait_spi();
       dc_h();
       set_len(len << 3);
+
       memcpy((void*)&_spi_w0_reg[highpart], data, (len + 3) & 0xFC);
       if (highpart) *_spi_user_reg = _user_reg | SPI_USR_MOSI_HIGHPART;
       exec_spi();
@@ -632,50 +628,29 @@ if (0 != _dma_ch) {
       memcpy(dst, (void*)_spi_w0_reg, len);
     }
 
-
-    void pushColorsDMA_impl(const uint8_t* src, uint32_t length) override
-    {
-      auto hw = (volatile spi_dev_t *)REG_SPI_BASE(_spi_port);
-
-      wait_spi();
-
-    //clear int bit
-    hw->slave.trans_done = 0;
-
-//    trans = trans_buf->trans;
-
-    //Reset DMA peripheral
-    hw->dma_conf.val |= SPI_OUT_RST|SPI_IN_RST|SPI_AHBM_RST|SPI_AHBM_FIFO_RST;
-    hw->dma_out_link.start=0;
-    hw->dma_in_link.start=0;
-    hw->dma_conf.val &= ~(SPI_OUT_RST|SPI_IN_RST|SPI_AHBM_RST|SPI_AHBM_FIFO_RST);
-    hw->dma_conf.out_data_burst_en=1;
-    hw->dma_conf.indscr_burst_en=1;
-    hw->dma_conf.outdscr_burst_en=1;
-
-    //Set up QIO/DIO if needed
-    hw->ctrl.val &= ~(SPI_FREAD_DUAL|SPI_FREAD_QUAD|SPI_FREAD_DIO|SPI_FREAD_QIO);
-    hw->user.val &= ~(SPI_FWRITE_DUAL|SPI_FWRITE_QUAD|SPI_FWRITE_DIO|SPI_FWRITE_QIO);
-
-    //Fill DMA descriptors
-    int extra_dummy=0;
-
-
-    if (_dma_ch == 0) {
-        //Need to copy data to registers manually
-        //memcpy(hw->data_buf, src, length);
-
-    } else {
-        spicommon_setup_dma_desc_links(dmadesc_tx, length, src, false);
-        hw->dma_out_link.addr=(int)(src) & 0xFFFFF;
-        hw->dma_out_link.start=1;
+    static void IRAM_ATTR _setup_dma_desc_links(lldesc_t *dmadesc, int len, const uint8_t *data)
+    {          //spicommon_setup_dma_desc_links
+      do {
+        dmadesc->buf = (uint8_t *)data;
+        int dmachunklen = (len > SPI_MAX_DMA_LEN) ? SPI_MAX_DMA_LEN : len;
+        *(uint32_t*)dmadesc = dmachunklen | dmachunklen<<12 | ((dmachunklen == len) ? 0xC0000000:0x80000000);
+        dmadesc++;
+        data += dmachunklen;
+        len -= dmachunklen;
+      } while (len);
     }
 
-    hw->user.usr_mosi = 1;
-
-    //Kick off transfer
-    hw->cmd.usr=1;
-//*/
+    void pushDMA_impl(const uint8_t* data, int32_t length) override
+    {
+      if (!_dma_ch || !_dma_chan_claimed) { write_bytes(data, length); return; }
+      wait_spi();
+      dc_h();
+      set_len(length << 3);
+      //spicommon_dmaworkaround_idle(_dma_ch);
+      _setup_dma_desc_links(dmadesc_tx, length, data);
+      *reg(SPI_DMA_OUT_LINK_REG(_spi_port)) = SPI_OUTLINK_START | ((int)(&dmadesc_tx[0]) & 0xFFFFF);
+      spicommon_dmaworkaround_transfer_active(_dma_ch);
+      exec_spi();
     }
 
 
@@ -711,6 +686,7 @@ if (0 != _dma_ch) {
     static constexpr volatile uint32_t *_spi_clock_reg     = (volatile uint32_t *)ETS_UNCACHED_ADDR(SPI_CLOCK_REG(_spi_port));
     static constexpr volatile uint32_t *_spi_mosi_dlen_reg = (volatile uint32_t *)ETS_UNCACHED_ADDR(SPI_MOSI_DLEN_REG(_spi_port));
     static constexpr volatile uint32_t *_spi_miso_dlen_reg = (volatile uint32_t *)ETS_UNCACHED_ADDR(SPI_MISO_DLEN_REG(_spi_port));
+    static constexpr volatile spi_dev_t *_hw           = (volatile spi_dev_t *)REG_SPI_BASE(_spi_port);
 
     volatile uint32_t* _gpio_reg_cs_h;
     volatile uint32_t* _gpio_reg_cs_l;
@@ -741,13 +717,19 @@ if (0 != _dma_ch) {
     bool _fill_mode;
     static uint32_t _user_reg;
     static uint32_t _regbuf[8];
-    static bool _dma_chan_claimed;
     static lldesc_t* dmadesc_tx;
+//    static volatile spi_dev_t *_hw;
+    static bool _dma_chan_claimed;
+
+    static uint32_t _spi_reg_backup[16];
   };
   template <class T> uint32_t LGFX_SPI<T>::_user_reg;
   template <class T> uint32_t LGFX_SPI<T>::_regbuf[];
-  template <class T> bool LGFX_SPI<T>::_dma_chan_claimed;
   template <class T> lldesc_t* LGFX_SPI<T>::dmadesc_tx;
+//  template <class T> volatile spi_dev_t *LGFX_SPI<T>::_hw;
+  template <class T> bool LGFX_SPI<T>::_dma_chan_claimed;
+
+  template <class T> uint32_t LGFX_SPI<T>::_spi_reg_backup[];
 
 //----------------------------------------------------------------------------
 

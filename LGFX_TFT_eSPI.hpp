@@ -96,6 +96,6 @@ namespace lgfx {
 }
 
 class TFT_eSPI : public lgfx::LGFX_SPI<lgfx::LGFX_Config> {};
-class TFT_eSprite : public lgfx::LGFXSprite {};
+typedef lgfx::LGFXSprite TFT_eSprite;
 
 #endif

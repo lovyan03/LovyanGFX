@@ -714,9 +714,6 @@ return;
     int32_t _ye;
     uint32_t _index;
     uint32_t _malloc_cap;
-    //uint8_t _iptr;
-    //uint32_t _bitmap_fg;
-    //uint32_t _bitmap_bg;
   };
 
 
@@ -744,6 +741,8 @@ return;
       heap_caps_free(buf);
     }
   };
+
+#elif defined (ESP8226)
 
 #elif defined (STM32F7)
 

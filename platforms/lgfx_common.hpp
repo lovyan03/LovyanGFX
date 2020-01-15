@@ -492,6 +492,10 @@ namespace lgfx {
     TYPECHECK(uint32_t) __attribute__ ((always_inline)) inline uint32_t convertColor(T c) { return convert_rgb888(c); }
     TYPECHECK(int     ) __attribute__ ((always_inline)) inline uint32_t convertColor(T c) { return convert_rgb565(c); }
 #undef TYPECHECK
+    __attribute__ ((always_inline)) inline uint32_t convertColor(const argb8888_t& c) { return convert_rgb888(c.raw); }
+    __attribute__ ((always_inline)) inline uint32_t convertColor(const rgb888_t&   c) { return convert_rgb888(*(uint32_t*)&c); }
+    __attribute__ ((always_inline)) inline uint32_t convertColor(const rgb565_t&   c) { return convert_rgb565(c.raw); }
+    __attribute__ ((always_inline)) inline uint32_t convertColor(const rgb332_t&   c) { return convert_rgb332(c.raw); }
 
     template<typename T>
     __attribute__ ((always_inline)) inline void setColor(T c) { raw = convertColor(c); }
