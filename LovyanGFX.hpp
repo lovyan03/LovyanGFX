@@ -48,8 +48,8 @@ namespace lgfx
     template<typename T> inline void drawLine      ( int32_t x0, int32_t y0, int32_t x1, int32_t y1                        , const T& color)  { setColor(color); drawLine(    x0, y0, x1, y1        ); }
     template<typename T> inline void drawTriangle  ( int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t x2, int32_t y2, const T& color)  { setColor(color); drawTriangle(x0, y0, x1, y1, x2, y2); }
     template<typename T> inline void fillTriangle  ( int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t x2, int32_t y2, const T& color)  { setColor(color); fillTriangle(x0, y0, x1, y1, x2, y2); }
-
-    template<typename T> inline void readRect      ( int32_t x, int32_t y, int32_t w, int32_t h, T* buf) { read_rect(x, y, w, h, buf, get_read_pixels_fp<T>()); }
+    template<typename T> inline void readRect      ( int32_t x, int32_t y, int32_t w, int32_t h,       T* data) { read_rect(x, y, w, h, data, get_read_pixels_fp<T>()); }
+                                void readRectRGB   ( int32_t x, int32_t y, int32_t w, int32_t h, uint8_t* data) { read_rect(x, y, w, h, data, get_read_pixels_fp<swap888_t>()); }
     template<typename T> inline void pushRect      ( int32_t x, int32_t y, int32_t w, int32_t h, const T* data) { pushImage(x, y, w, h, data); }
     template<typename T> inline void pushImage     ( int32_t x, int32_t y, int32_t w, int32_t h, const T* data)                                                { push_image(x, y, w, h, data, nullptr                          , T::bits, get_write_pixels_fp<T>()); }
     template<typename T> inline void pushImage     ( int32_t x, int32_t y, int32_t w, int32_t h, const T* data                         , uint32_t transparent) { push_image(x, y, w, h, data, nullptr,              transparent, T::bits, get_write_pixels_fp<T>()); }
@@ -429,20 +429,6 @@ namespace lgfx
       endWrite();
     }
 
-  /*
-    void pushColors(const uint8_t *data, uint32_t len) {
-      startWrite();
-      _panel->writeBytes(data, len);
-      endWrite();
-    }
-    inline void pushColors(const uint16_t *data, uint32_t len, bool swap = true) { pushColors((const void*)data, len, swap); }
-    void pushColors(const void *src, uint32_t len, bool swap)
-    {
-      startWrite();
-      _panel->writePixels(src, len, swap);
-      endWrite();
-    }
-  */
     void pushColors(const uint8_t* data, int32_t len)
     {
       pushColors((rgb332_t*)data, len);
@@ -477,23 +463,26 @@ namespace lgfx
 
     uint16_t readPixel(int32_t x, int32_t y)
     {
+      //rgb565_t buf;
+      //read_rect(x, y, 1, 1, &buf, get_read_pixels_fp<rgb565_t>());
+      //return buf.raw;
       if (x < 0 || (x >= _width) || y < 0 || (y >= _height)) return 0;
       return readPixel16_impl(x, y).raw;
     }
 
-    void readRect(int32_t x, int32_t y, int32_t w, int32_t h, uint8_t* buf)
+    void readRect(int32_t x, int32_t y, int32_t w, int32_t h, uint8_t* data)
     {
-      read_rect(x, y, w, h, buf, get_read_pixels_fp<rgb332_t>());
+      read_rect(x, y, w, h, data, get_read_pixels_fp<rgb332_t>());
     }
-    void readRect(int32_t x, int32_t y, int32_t w, int32_t h, uint16_t* buf)
+    void readRect(int32_t x, int32_t y, int32_t w, int32_t h, uint16_t* data)
     {
-      if (_swapBytes) read_rect(x, y, w, h, buf, get_read_pixels_fp<rgb565_t>());
-      else            read_rect(x, y, w, h, buf, get_read_pixels_fp<swap565_t>());
+      if (_swapBytes) read_rect(x, y, w, h, data, get_read_pixels_fp<rgb565_t>());
+      else            read_rect(x, y, w, h, data, get_read_pixels_fp<swap565_t>());
     }
-    void readRect(int32_t x, int32_t y, int32_t w, int32_t h, void* buf)
+    void readRect(int32_t x, int32_t y, int32_t w, int32_t h, void* data)
     {
-      if (_swapBytes) read_rect(x, y, w, h, buf, get_read_pixels_fp<rgb888_t>());
-      else            read_rect(x, y, w, h, buf, get_read_pixels_fp<swap888_t>());
+      if (_swapBytes) read_rect(x, y, w, h, data, get_read_pixels_fp<rgb888_t>());
+      else            read_rect(x, y, w, h, data, get_read_pixels_fp<swap888_t>());
     }
 
     void pushImage(int32_t x, int32_t y, int32_t w, int32_t h, const uint16_t* data)
@@ -1079,7 +1068,6 @@ namespace lgfx
   //----------------------------------------------------------------------------
 
   protected:
-    //PanelCommon *_panel = nullptr;
     uint32_t _start_write_count = 0;
     int32_t _width = 0;
     int32_t _height = 0;
@@ -1151,7 +1139,7 @@ namespace lgfx
       } while (--len);
     }
 
-    void read_rect(int32_t x, int32_t y, int32_t w, int32_t h, void* buf, void(LGFXBase::*fp_read_pixels)(void*, int32_t, pixelcopy_param_t* param))
+    void read_rect(int32_t x, int32_t y, int32_t w, int32_t h, void* data, void(LGFXBase::*fp_read_pixels)(void*, int32_t, pixelcopy_param_t* param))
     {
       if (_adj(x,w) || _adj(y,h)) return;
       if ((x >= _width) || (y >= _height)) return;
@@ -1165,7 +1153,7 @@ namespace lgfx
       pixelcopy_param_t p;
       startWrite();
       readWindow_impl(x, y, x + w - 1, y + h - 1);
-      (this->*fp_read_pixels)(buf, w * h, &p);
+      (this->*fp_read_pixels)(data, w * h, &p);
       endRead_impl();
       endWrite();
     }
@@ -1208,7 +1196,6 @@ namespace lgfx
       param.src_palette = palette;
 
       startWrite();
-      setWindow(x, y, x + dw - 1, y + dh - 1);
       bool indivisible = (w * bits) & 7;
       const int32_t len = indivisible + (w * bits >> 3);
       const uint8_t* src = (const uint8_t*)data + dy * len;
@@ -1218,12 +1205,12 @@ namespace lgfx
         int32_t i, j = 0;
         uint8_t offset = (-dx * bits) & 7;
         for (i = 0; i < dw; i++) {
-          offset = (offset + 8 - bits) & 7;
+          offset = (offset - bits) & 7;
           if ((((*(uint32_t*)&src[(dx+i)*bits >> 3]) >> offset) & color_mask) == transp) {
             if (j != i) {
               setWindow(x + j, y, x + i, y);
               param.src_offset = (-(dx+j) * bits) & 7;
-              (this->*fp_write_pixels)(&src[(dx+j)*bits>>3], i - j, &param);
+              (this->*fp_write_pixels)(&src[(dx+j)*bits >> 3], i - j, &param);
             }
             j = i + 1;
           }
@@ -1231,7 +1218,7 @@ namespace lgfx
         if (j != i) {
           setWindow(x + j, y, x + i, y);
           param.src_offset = (-(dx+j) * bits) & 7;
-          (this->*fp_write_pixels)(&src[(dx+j)*bits>>3], i - j, &param);
+          (this->*fp_write_pixels)(&src[(dx+j)*bits >> 3], i - j, &param);
         }
         y++;
         src += len;

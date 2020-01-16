@@ -18,164 +18,13 @@
  #include <AXP192.h>
 #endif
 
-#include <LovyanGFX.hpp>
-//#include <TFT_eSPI.h>
-
-#define TFT_BLACK       0x0000      /*   0,   0,   0 */
-#define TFT_NAVY        0x000F      /*   0,   0, 128 */
-#define TFT_DARKGREEN   0x03E0      /*   0, 128,   0 */
-#define TFT_DARKCYAN    0x03EF      /*   0, 128, 128 */
-#define TFT_MAROON      0x7800      /* 128,   0,   0 */
-#define TFT_PURPLE      0x780F      /* 128,   0, 128 */
-#define TFT_OLIVE       0x7BE0      /* 128, 128,   0 */
-#define TFT_LIGHTGREY   0xC618      /* 192, 192, 192 */
-#define TFT_DARKGREY    0x7BEF      /* 128, 128, 128 */
-#define TFT_BLUE        0x001F      /*   0,   0, 255 */
-#define TFT_GREEN       0x07E0      /*   0, 255,   0 */
-#define TFT_CYAN        0x07FF      /*   0, 255, 255 */
-#define TFT_RED         0xF800      /* 255,   0,   0 */
-#define TFT_MAGENTA     0xF81F      /* 255,   0, 255 */
-#define TFT_YELLOW      0xFFE0      /* 255, 255,   0 */
-#define TFT_WHITE       0xFFFF      /* 255, 255, 255 */
-#define TFT_ORANGE      0xFDA0      /* 255, 180,   0 */
-#define TFT_GREENYELLOW 0xB7E0      /* 180, 255,   0 */
-#define TFT_PINK        0xFC9F
-
-
-#ifdef LOVYANGFX_HPP_
-
-#if defined(ARDUINO_M5Stack_Core_ESP32) || defined(ARDUINO_M5STACK_FIRE) // M5Stack
-  struct LGFX_Config {
-    static constexpr spi_host_device_t spi_host = VSPI_HOST;
-    static constexpr bool spi_half_duplex = true;
-    static constexpr int spi_mosi = 23;
-    static constexpr int spi_miso = 19;
-    static constexpr int spi_sclk = 18;
-    static constexpr int spi_cs   = 14;
-    static constexpr int spi_dc   = 27;
-    static constexpr int panel_rst = 33;
-    static constexpr int panel_bl  = 32;
-    static constexpr int freq_write = 40000000;
-    static constexpr int freq_read  = 16000000;
-    static constexpr int freq_fill  = 80000000;
-  };
-  static lgfx::Panel_M5Stack tft_lcd;
-
-#elif defined(ARDUINO_M5Stick_C) // M5Stick C
-  struct LGFX_Config {
-    static constexpr spi_host_device_t spi_host = VSPI_HOST;
-    static constexpr bool spi_half_duplex = true;
-    static constexpr int spi_mosi = 15;
-    static constexpr int spi_miso = 14;
-    static constexpr int spi_sclk = 13;
-    static constexpr int spi_cs   =  5;
-    static constexpr int spi_dc   = 23;
-    static constexpr int panel_rst = 18;
-    static constexpr int freq_write = 27000000;
-    static constexpr int freq_read  = 14000000;
-    static constexpr int freq_fill  = 27000000;
-  };
-  //static LovyanGFX<lgfx::Panel_ST7735<LGFX_Config> > tft;
-  static lgfx::Panel_M5StickC tft_lcd;
-
-#elif defined ( ARDUINO_ESP32_DEV ) // ESP-WROVER-KIT
-//*
-  struct LGFX_Config {
-    static constexpr spi_host_device_t spi_host = VSPI_HOST;
-    static constexpr bool spi_half_duplex = false;
-    static constexpr int spi_mosi = 23;
-    static constexpr int spi_miso = 25;
-    static constexpr int spi_sclk = 19;
-    static constexpr int spi_cs   = 22;
-    static constexpr int spi_dc   = 21;
-    static constexpr int panel_rst = 18;
-    static constexpr int panel_bl  = 5;
-    static constexpr int freq_write = 40000000;
-    static constexpr int freq_read  = 20000000;
-    static constexpr int freq_fill  = 40000000;
-  };
-/*/
-  struct LGFX_Config {
-    static constexpr spi_host_device_t spi_host = VSPI_HOST; // devkit
-    static constexpr int spi_mosi = 23;
-    static constexpr int spi_miso = 25;
-    static constexpr int spi_sclk = 19;
-    static constexpr int spi_dc   = 21;
-    static constexpr int spi_cs   = 14;
-
-    static constexpr int panel_rst = -1;
-    static constexpr int panel_bl  = -1;
-    static constexpr int freq_write = 40000000;
-    static constexpr int freq_read  = 16000000;
-    static constexpr int freq_fill  = 40000000;
-    static constexpr bool spi_half_duplex = true;
-    lgfx::Panel_ILI9163_128x160 panel;
-  };
-*/
-
-  static lgfx::Panel_ILI9341<LGFX_Config> tft_lcd;
-
-#elif defined(ARDUINO_ODROID_ESP32) // ODROID-GO
-  struct LGFX_Config {
-    static constexpr spi_host_device_t spi_host = VSPI_HOST;
-    static constexpr bool spi_half_duplex = true;
-    static constexpr int spi_mosi = 23;
-    static constexpr int spi_miso = 19;
-    static constexpr int spi_sclk = 18;
-    static constexpr int spi_cs   =  5;
-    static constexpr int spi_dc   = 21;
-    static constexpr int panel_rst = -1;
-    static constexpr int panel_bl  = 14;
-    static constexpr int freq_write = 40000000;
-    static constexpr int freq_read  = 20000000;
-    static constexpr int freq_fill  = 80000000;
-    lgfx::Panel_ILI9341_240x320 panel;
-  };
-#elif defined(ARDUINO_T) // TTGO T-Watch
-  struct LGFX_Config {
-    static constexpr spi_host_device_t spi_host = VSPI_HOST;
-    static constexpr bool spi_half_duplex = true;
-    static constexpr int spi_mosi = 19;
-    static constexpr int spi_miso = -1;
-    static constexpr int spi_sclk = 18;
-    static constexpr int spi_cs   =  5;
-    static constexpr int spi_dc   = 27;
-    static constexpr int panel_rst = -1;
-    static constexpr int panel_bl  = 12;
-    static constexpr int freq_write = 80000000;
-    static constexpr int freq_read  = 16000000;
-    static constexpr int freq_fill  = 80000000;
-    static constexpr bool invert    = true;
-    lgfx::Panel_ST7789_240x240 panel;
-  };
-#elif !defined(ESP32) & defined(ARDUINO) // Arduino UNO
-  struct LGFX_Config
-  {
-/*
-    static constexpr int spi_mosi = 23;
-    static constexpr int spi_miso = 19;
-    static constexpr int spi_sclk = 18;
-    static constexpr int spi_cs   = 16;
-    static constexpr int spi_dc   = 17;
-    static constexpr int freq_write = 40000000;
-    static constexpr int freq_read  = 16000000;
-    static constexpr int freq_fill  = 40000000;
-    static constexpr bool spi_half_duplex = true;
-    lgfx::Panel_ST7789_240x320 panel;
-*/
-  };
-  static LovyanGFX<lgfx::AvrSpi<LGFX_Config> > tft;
-
-#endif
-
-static lgfx::LGFXSprite tft(&tft_lcd);
-
-#else
+//#include <LGFX_TFT_eSPI.hpp>
+#include <TFT_eSPI.h>
+//#include <M5Stack.h>
 
 static TFT_eSPI tft_lcd;
 static TFT_eSprite tft(&tft_lcd);
 
-#endif
 
 unsigned long total = 0;
 unsigned long tn = 0;
@@ -220,7 +69,7 @@ void setup() {
   tft_lcd.setRotation(0);
 
   tft_lcd.invertDisplay(lcdver);
-  tft_lcd.clear(-1);
+  //tft_lcd.fillSprite(-1);
   //tft_lcd.setColorDepth(16);
   //tft_lcd.setColorDepth(24);
 
@@ -229,9 +78,9 @@ void setup() {
   //tft.setColorDepth(1);  tft.createSprite(240,320);
   //tft.setColorDepth(lgfx::palette_1bit);  tft.createSprite(240,320);
   //tft.setColorDepth(lgfx::palette_2bit);  tft.createSprite(240,320);
-  tft.setColorDepth(lgfx::palette_4bit);  tft.createSprite(240,320);
+  //tft.setColorDepth(lgfx::palette_4bit);  tft.createSprite(240,320);
   //tft.setColorDepth(lgfx::palette_8bit);  tft.createSprite(240,320);
-  //tft.setColorDepth( 8);  tft.createSprite(240,320);
+  tft.setColorDepth( 8);  tft.createSprite(240,320);
   //tft.setColorDepth(16);  tft.createSprite(240,240);
   //tft.setColorDepth(24);  tft.createSprite(240,170);
   //tft.setColorDepth();

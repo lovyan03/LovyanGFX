@@ -126,7 +126,6 @@ namespace lgfx
     Panel_ODROID_GO() : Panel_ILI9341_Common() {
       setConfig<cfg_t>(); 
     }
-
   private:
     struct cfg_t {
       static constexpr int spi_cs =  5;
@@ -144,7 +143,6 @@ namespace lgfx
     Panel_M5Stack() : Panel_ILI9341_Common() {
       setConfig<cfg_t>(); 
     }
-
   private:
     struct cfg_t {
     //static constexpr color_depth_t color_depth = rgb565_2Byte;

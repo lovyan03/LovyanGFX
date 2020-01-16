@@ -155,20 +155,23 @@ namespace lgfx
     template<class T> static PanelCommon* createPanelFromConfig(decltype(T::panel)*) { return createPanel(T::panel); }
     template<class T> static PanelCommon* createPanelFromConfig(...) { return nullptr; }
 
+    static volatile uint32_t* _get_gpio_hi_reg(uint8_t pin) { return (pin == -1) ? nullptr : (pin & 32) ? &GPIO.out1_w1ts.val : &GPIO.out_w1ts; }
+    static volatile uint32_t* _get_gpio_lo_reg(uint8_t pin) { return (pin == -1) ? nullptr : (pin & 32) ? &GPIO.out1_w1tc.val : &GPIO.out_w1tc; }
+
     void postSetPanel(void)
     {
       _cmd_ramrd      = _panel->cmd_ramrd;
       _cmd_ramwr      = _panel->cmd_ramwr;
-      _invert         = _panel->invert    ;
-      _rotation       = _panel->rotation  ;
+      _invert         = _panel->invert   ;
+      _rotation       = _panel->rotation ;
       _len_setwindow  = _panel->len_setwindow;
       fpGetWindowAddr = _len_setwindow == 32 ? PanelCommon::getWindowAddr32 : PanelCommon::getWindowAddr16;
       _last_apb_freq = -1;
 
-      _gpio_reg_cs_h = (_panel->spi_cs == -1) ? nullptr : (_panel->spi_cs & 32) ? &GPIO.out1_w1ts.val : &GPIO.out_w1ts;
-      _gpio_reg_cs_l = (_panel->spi_cs == -1) ? nullptr : (_panel->spi_cs & 32) ? &GPIO.out1_w1tc.val : &GPIO.out_w1tc;
-      _gpio_reg_dc_h = (_panel->spi_dc == -1) ? nullptr : (_panel->spi_dc & 32) ? &GPIO.out1_w1ts.val : &GPIO.out_w1ts;
-      _gpio_reg_dc_l = (_panel->spi_dc == -1) ? nullptr : (_panel->spi_dc & 32) ? &GPIO.out1_w1tc.val : &GPIO.out_w1tc;
+      _gpio_reg_cs_h = _get_gpio_hi_reg(_panel->spi_cs);
+      _gpio_reg_cs_l = _get_gpio_lo_reg(_panel->spi_cs);
+      _gpio_reg_dc_h = _get_gpio_hi_reg(_panel->spi_dc);
+      _gpio_reg_dc_l = _get_gpio_lo_reg(_panel->spi_dc);
       _mask_reg_cs = 1 << (_panel->spi_cs & 31);
       _mask_reg_dc = 1 << (_panel->spi_dc & 31);
       gpioInit((gpio_num_t)_panel->spi_cs);
@@ -188,7 +191,7 @@ namespace lgfx
       _rowstart  = _panel->rowstart ;
       _cmd_caset = _panel->cmd_caset;
       _cmd_raset = _panel->cmd_raset;
-      _last_xs = _last_xe = _last_ys = _last_ye = 0xFFFF;
+      _last_xs = _last_xe = _last_ys = _last_ye = ~0;
     }
 
     void postSetColorDepth(void)
@@ -196,7 +199,7 @@ namespace lgfx
       _color.setColorDepth(_panel->write_depth);
       _readColorDepth  = _panel->read_depth;
       _len_read_pixel  = _readColorDepth;
-      _last_xs = _last_xe = _last_ys = _last_ye = 0xFFFF;
+      _last_xs = _last_xe = _last_ys = _last_ye = ~0;
     }
 
     void invertDisplay_impl(bool i) override
@@ -388,6 +391,7 @@ namespace lgfx
       uint8_t  numArgs;
       uint8_t  ms;
 
+      _fill_mode = false;
       wait_spi();
       set_clock_write();
       for (;;) {                // For each command...
@@ -630,14 +634,17 @@ namespace lgfx
 
     static void IRAM_ATTR _setup_dma_desc_links(lldesc_t *dmadesc, int len, const uint8_t *data)
     {          //spicommon_setup_dma_desc_links
-      do {
+      while (len > SPI_MAX_DMA_LEN) {
         dmadesc->buf = (uint8_t *)data;
-        int dmachunklen = (len > SPI_MAX_DMA_LEN) ? SPI_MAX_DMA_LEN : len;
-        *(uint32_t*)dmadesc = dmachunklen | dmachunklen<<12 | ((dmachunklen == len) ? 0xC0000000:0x80000000);
+        data += SPI_MAX_DMA_LEN;
+        *(uint32_t*)dmadesc = SPI_MAX_DMA_LEN | SPI_MAX_DMA_LEN<<12 | 0x80000000;
+        dmadesc->qe.stqe_next = dmadesc + 1;
         dmadesc++;
-        data += dmachunklen;
-        len -= dmachunklen;
-      } while (len);
+        len -= SPI_MAX_DMA_LEN;
+      }
+      *(uint32_t*)dmadesc = len | len<<12 | 0xC0000000;
+      dmadesc->buf = (uint8_t *)data;
+      dmadesc->qe.stqe_next = nullptr;
     }
 
     void pushDMA_impl(const uint8_t* data, int32_t length) override
@@ -648,6 +655,7 @@ namespace lgfx
       set_len(length << 3);
       //spicommon_dmaworkaround_idle(_dma_ch);
       _setup_dma_desc_links(dmadesc_tx, length, data);
+      //spicommon_setup_dma_desc_links(dmadesc_tx, length, data, false);
       *reg(SPI_DMA_OUT_LINK_REG(_spi_port)) = SPI_OUTLINK_START | ((int)(&dmadesc_tx[0]) & 0xFFFFF);
       spicommon_dmaworkaround_transfer_active(_dma_ch);
       exec_spi();

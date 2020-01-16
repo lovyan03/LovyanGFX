@@ -495,12 +495,19 @@ return;
     {
       if (_color.bits < 8) {
 // unimplemented
+/*
+        int32_t sx = (src_x + (src_y + pos) * _bitwidth) * _color.bits;
+        int32_t dx = (dst_x + (dst_y + pos) * _bitwidth) * _color.bits;
+        uint8_t* src = &_img[sx >> 3];
+        uint8_t* dst = &_img[dx >> 3];
+        uint8_t buf[w];
+//*/
       } else {
-        int32_t add = _width * _color.bytes;
+        int32_t add = _bitwidth * _color.bytes;
         if (src_y < dst_y) add = -add;
         int32_t pos = (src_y < dst_y) ? h - 1 : 0;
-        uint8_t* src = &_img[(src_x + (src_y + pos) * _width) * _color.bytes];
-        uint8_t* dst = &_img[(dst_x + (dst_y + pos) * _width) * _color.bytes];
+        uint8_t* src = &_img[(src_x + (src_y + pos) * _bitwidth) * _color.bytes];
+        uint8_t* dst = &_img[(dst_x + (dst_y + pos) * _bitwidth) * _color.bytes];
         size_t len = w * _color.bytes;
         if (_disable_memcpy) {
           uint8_t buf[len];

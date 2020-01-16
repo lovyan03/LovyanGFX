@@ -53,6 +53,7 @@ namespace lgfx {
   struct LGFX_Config {
     static const Panel_ODROID_GO panel;
     static constexpr spi_host_device_t spi_host = VSPI_HOST;
+    static constexpr int dma_ch   = 1;
     static constexpr int spi_mosi = 23;
     static constexpr int spi_miso = 19;
     static constexpr int spi_sclk = 18;
