@@ -132,8 +132,7 @@ namespace lgfx
         dmadesc_tx = (lldesc_t*)heap_caps_malloc(sizeof(lldesc_t)*dma_desc_ct, MALLOC_CAP_DMA);
       }
 
-//      startWrite();
-      beginTransaction_impl();
+      startWrite();
 
       const uint8_t *cmds;
       for (uint8_t i = 0; (cmds = _panel->getInitCommands(i)); i++) {
@@ -149,11 +148,24 @@ namespace lgfx
       setColorDepth(getColorDepth());
       setRotation(getRotation());
       clear();
-//      endWrite();
-      endTransaction_impl();
+      endWrite();
       _sx = _sy = 0;
       _sw = _width;
       _sh = _height;
+    }
+
+    void writecommand(uint32_t cmd)
+    {
+      startWrite();
+      write_cmd(cmd);
+      endWrite();
+    }
+
+    void writedata(uint32_t data, uint32_t len = 8)
+    {
+      startWrite();
+      write_data(data, len);
+      endWrite();
     }
 
     uint32_t readPanelID(void)
@@ -379,8 +391,7 @@ namespace lgfx
         _fill_mode = true;
       }
       write_cmd(_cmd_ramwr);
-      if (1 == (w|h)) write_data(_color.raw, _write_depth.bits);
-      else            writeColor_impl(w*h);
+      writeColor_impl(w*h);
       if (!_start_write_count) endTransaction_impl();
     }
 

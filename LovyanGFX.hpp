@@ -177,10 +177,10 @@ namespace lgfx
           drawFastHLine(x + i - len + 1, y + r, len);
           drawFastHLine(x + i - len + 1, y - r, len);
           if (i == r && len == 1) break;
-          dy -= 2;
-          p -= dy;
           drawFastVLine(x - r, y - i          , len);
           drawFastVLine(x + r, y - i          , len);
+          dy -= 2;
+          p -= dy;
           drawFastVLine(x + r, y + i - len + 1, len);
           drawFastVLine(x - r, y + i - len + 1, len);
           len = 0;
@@ -232,15 +232,15 @@ namespace lgfx
       w--;
       h--;
       int32_t len = (r << 1) + 1;
-      drawFastVLine(x      , y + r+1, h - len);
-      drawFastVLine(x + w  , y + r+1, h - len);
-      drawFastHLine(x + r+1, y      , w - len);
-      drawFastHLine(x + r+1, y + h  , w - len);
-
-      int32_t x0 = x + r;
-      int32_t x1 = x + w - r;
-      int32_t y0 = y + r;
       int32_t y1 = y + h - r;
+      int32_t y0 = y + r;
+      drawFastVLine(x      , y0 + 1, h - len);
+      drawFastVLine(x + w  , y0 + 1, h - len);
+
+      int32_t x1 = x + w - r;
+      int32_t x0 = x + r;
+      drawFastHLine(x0 + 1, y      , w - len);
+      drawFastHLine(x0 + 1, y + h  , w - len);
 
       int32_t f     = 1 - r;
       int32_t ddF_x = 1;
@@ -290,9 +290,9 @@ namespace lgfx
           fillRect(x0 - r, y1 + i - len + 1, (r << 1) + delta, len);
           if (i == r) break;
           len = 0;
+          drawFastHLine(x0 - i, y1 + r, (i << 1) + delta);
           ddF_y += 2;
           f     += ddF_y;
-          drawFastHLine(x0 - i, y1 + r, (i << 1) + delta);
           drawFastHLine(x0 - i, y2 - r, (i << 1) + delta);
           r--;
         }
