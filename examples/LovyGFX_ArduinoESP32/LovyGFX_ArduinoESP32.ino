@@ -23,7 +23,7 @@
     static constexpr int freq_write = 27000000;
     static constexpr int freq_read  = 14000000;
     static constexpr int freq_fill  = 27000000;
-    //static constexpr bool spi_half_duplex = true;
+    //static constexpr bool spi_3wire = true;
     static constexpr int panel_x      = 24;
     static constexpr int panel_y      = 0;
     static constexpr int panel_width  = 80;
@@ -45,7 +45,7 @@
     static constexpr int freq_write = 20000000;
     static constexpr int freq_read  = 10000000;
     static constexpr int freq_fill  = 20000000;
-    static constexpr bool spi_half_duplex = true;
+    static constexpr bool spi_3wire = true;
     static constexpr int ram_width    = 128;
     static constexpr int ram_height   = 160;
     static constexpr int panel_width  = 128;
@@ -65,7 +65,7 @@
     static constexpr int freq_write = 14000000;
     static constexpr int freq_read  = 10000000;
     static constexpr int freq_fill  = 14000000;
-    //static constexpr bool spi_half_duplex = true;
+    //static constexpr bool spi_3wire = true;
     static constexpr int ram_width    = 128;
     static constexpr int ram_height   = 128;
     static constexpr int panel_width  = 128;
@@ -86,7 +86,7 @@
     static constexpr int freq_write = 40000000;
     static constexpr int freq_read  = 10000000;
     static constexpr int freq_fill  = 40000000;
-    static constexpr bool spi_half_duplex = true;
+    static constexpr bool spi_3wire = true;
     static constexpr bool invert = true;
 //    static constexpr int ram_width    = 128;
 //    static constexpr int ram_height   = 128;

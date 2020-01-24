@@ -23,10 +23,10 @@ namespace lgfx
     virtual ~LGFXBase() {}
 
 
-    template<typename T> __attribute__ ((always_inline)) inline void setColor(T c) { _color.setColor(c); }
+    template<typename T> __attribute__ ((always_inline)) inline void setColor(T c) { _color.raw = _write_depth.convert(c); }
 
-    template<typename T> inline void setTextColor(T c)      { _textcolor = _textbgcolor = _color.convertColor(c); }
-    template<typename T> inline void setTextColor(T c, T b) { _textcolor = _color.convertColor(c); _textbgcolor = _color.convertColor(b); }
+    template<typename T> inline void setTextColor(T c)      { _textcolor = _textbgcolor = _write_depth.convert(c); }
+    template<typename T> inline void setTextColor(T c, T b) { _textcolor = _write_depth.convert(c); _textbgcolor = _write_depth.convert(b); }
 
                          inline void clear         ( void )          { _color.raw = 0;  fillRect(0, 0, _width, _height); }
     template<typename T> inline void clear         ( const T& color) { setColor(color); fillRect(0, 0, _width, _height); }
@@ -69,7 +69,7 @@ namespace lgfx
     __attribute__ ((always_inline)) inline int32_t width        (void) const { return _width; }
     __attribute__ ((always_inline)) inline int32_t height       (void) const { return _height; }
     __attribute__ ((always_inline)) inline uint8_t getRotation  (void) const { return _rotation; }
-    __attribute__ ((always_inline)) inline color_depth_t getColorDepth(void) const { return _color.depth; }
+    __attribute__ ((always_inline)) inline color_depth_t getColorDepth(void) const { return _write_depth.depth; }
     __attribute__ ((always_inline)) inline bool getInvert       (void) const { return _invert; }
     __attribute__ ((always_inline)) inline bool getSwapBytes    (void) const { return _swapBytes; }
     __attribute__ ((always_inline)) inline void setSwapBytes(bool swap) { _swapBytes = swap; }
@@ -87,8 +87,8 @@ namespace lgfx
 
     void setAddrWindow(int32_t x, int32_t y, int32_t w, int32_t h)
     {
-      _adj(x,w);
-      _adj(y,h);
+      _adjust(x,w);
+      _adjust(y,h);
       startWrite();
       setWindow(x, y, x + w - 1, y + h - 1);
       endWrite();
@@ -103,7 +103,7 @@ namespace lgfx
     void drawFastVLine(int32_t x, int32_t y, int32_t h)
     {
       if ((x < 0) || (x >= _width)) return;
-      if (_adj(y,h)) return; 
+      if (_adjust(y,h)) return; 
       if (y < 0) { h += y; y = 0; }
       if ((y + h) > _height) h = _height - y;
       if (h < 1) return;
@@ -114,7 +114,7 @@ namespace lgfx
     void drawFastHLine(int32_t x, int32_t y, int32_t w)
     {
       if ((y < 0) || (y >= _height)) return;
-      if (_adj(x,w)) return; 
+      if (_adjust(x,w)) return; 
       if (x < 0) { w += x; x = 0; }
       if ((x + w) > _width) w = _width - x;
       if (w < 1) return;
@@ -124,7 +124,7 @@ namespace lgfx
 
     void fillRect(int32_t x, int32_t y, int32_t w, int32_t h)
     {
-      if (_adj(x,w)||_adj(y,h)) return; 
+      if (_adjust(x,w)||_adjust(y,h)) return; 
       if ((x >= _width) || (y >= _height)) return;
       if (x < 0) { w += x; x = 0; }
       if ((x + w) > _width)  w = _width  - x;
@@ -138,7 +138,7 @@ namespace lgfx
 
     void drawRect(int32_t x, int32_t y, int32_t w, int32_t h)
     {
-      if (_adj(x,w)||_adj(y,h)) return;
+      if (_adjust(x,w)||_adjust(y,h)) return;
       startWrite();
       drawFastHLine(x, y        , w);
       if (--h) {
@@ -226,7 +226,7 @@ namespace lgfx
 
     void drawRoundRect(int32_t x, int32_t y, int32_t w, int32_t h, int32_t r)
     {
-      if (_adj(x,w)||_adj(y,h)) return; 
+      if (_adjust(x,w)||_adjust(y,h)) return; 
       startWrite();
 
       w--;
@@ -271,7 +271,7 @@ namespace lgfx
 
     void fillRoundRect(int32_t x, int32_t y, int32_t w, int32_t h, int32_t r)
     {
-      if (_adj(x,w)||_adj(y,h)) return; 
+      if (_adjust(x,w)||_adjust(y,h)) return; 
       startWrite();
       fillRect(x, y + r, w, h - (r << 1));
       int32_t x0 = x + r;
@@ -496,6 +496,52 @@ namespace lgfx
       else            push_image(x, y, w, h, data, nullptr, swap888_t::bits, get_write_pixels_fp<swap888_t>());
     }
 
+    template <typename T>
+    void setScrollRect(int32_t x, int32_t y, int32_t w, int32_t h, const T& color) {
+      _scolor = _write_depth.convert(color);
+      setScrollRect(x, y, w, h);
+    }
+    void setScrollRect(int32_t x, int32_t y, int32_t w, int32_t h) {
+      _adjust(x,w);
+      _adjust(y,h);
+      if (x < 0) { w += x; x = 0; }
+      if ((x + w) > _width)  w = _width  - x;
+      if (w < 0) w = 0;
+      if (y < 0) { h += y; y = 0; }
+      if ((y + h) > _height) h = _height - y;
+      if (h < 0) h = 0;
+      _sx = x;
+      _sy = y;
+      _sw = w;
+      _sh = h;
+    }
+
+    void scroll(int16_t dx, int16_t dy)
+    {
+      _color.raw = _scolor;
+      int absx = abs(dx);
+      int absy = abs(dy);
+      if (absx >= _sw || absy >= _sh) {
+        fillRect(_sx, _sy, _sw, _sh);
+        return;
+      }
+
+      int32_t w  = _sw - absx;
+      int32_t h  = _sh - absy;
+
+      int32_t src_x = dx < 0 ? _sx - dx : _sx;
+      int32_t src_y = dy < 0 ? _sy - dy : _sy;
+      int32_t dst_x = src_x + dx;
+      int32_t dst_y = src_y + dy;
+
+      copyRect(dst_x, dst_y, w, h, src_x, src_y);
+
+      if (     dx > 0) fillRect(_sx           , dst_y,  dx, h);
+      else if (dx < 0) fillRect(_sx + _sw + dx, dst_y, -dx, h);
+      if (     dy > 0) fillRect(_sx, _sy           , _sw,  dy);
+      else if (dy < 0) fillRect(_sx, _sy + _sh + dy, _sw, -dy);
+    }
+
     void copyRect(int32_t dst_x, int32_t dst_y, int32_t w, int32_t h, int32_t src_x, int32_t src_y)
     {
       if ((src_x >= _width) || (dst_x >= _width)) return;
@@ -562,10 +608,10 @@ namespace lgfx
       va_copy(copy, arg);
       size_t len = vsnprintf(temp, sizeof(loc_buf), format, copy);
       va_end(copy);
-      if (len < 0) {
-        va_end(arg);
-        return 0;
-      };
+//    if (len < 0) {
+//      va_end(arg);
+//      return 0;
+//    };
       if (len >= sizeof(loc_buf)){
         temp = (char*) malloc(len+1);
         if (temp == nullptr) {
@@ -663,14 +709,19 @@ namespace lgfx
       static constexpr int fontHeight = 8;
 
       if (_drawCharMoveCursor) {
+        int32_t fh = (int16_t)size_y * fontHeight;
         if (c == '\n') {
           _cursor_x  = 0;
-          _cursor_y = y + (int16_t)size_y * fontHeight;
+          _cursor_y = y + fh;
           return 0;
         } else
         if (_textwrapX && ((x + (int16_t)size_x * (fontWidth)) > _width)) {
           x  = 0;
-          y += (int16_t)size_y * fontHeight;
+          y += fh;
+        }
+        if (_textscroll && (y + fh >= (int32_t)_sy + _sh)) {
+          y -= fh;
+          scroll(0, -fh);
         }
         _cursor_x = x;
         _cursor_y = y;
@@ -947,7 +998,11 @@ namespace lgfx
             _cursor_x  = 0;
             _cursor_y += (int16_t)size_y * fontHeight;
           }
-          if (_textwrapY && (_cursor_y + _glyph_ab >= (int32_t)_height)) {
+          if (_textscroll && (_cursor_y + _glyph_ab >= (int32_t)_sy + _sh)) {
+            scroll(0, -(int16_t)size_y * fontHeight);
+            _cursor_y -= (int16_t)size_y * fontHeight;
+          }
+          else if (_textwrapY && (_cursor_y + _glyph_ab >= (int32_t)_height)) {
             _cursor_y = 0;
           }
         }
@@ -966,7 +1021,6 @@ namespace lgfx
         // Filter out bad characters not present in font
         if ((c >= pgm_read_word(&_gfxFont->first)) && (c <= pgm_read_word(&_gfxFont->last )))
         {
-          bool flg = false;
           c -= pgm_read_word(&_gfxFont->first);
           GFXglyph *glyph  = &(((GFXglyph *)pgm_read_dword(&_gfxFont->glyph))[c]);
           uint8_t  *bitmap = (uint8_t *)pgm_read_dword(&_gfxFont->bitmap);
@@ -1026,6 +1080,7 @@ namespace lgfx
 
     void setTextDatum( uint8_t datum) { _textdatum = datum; }
     void setTextWrap( bool wrapX, bool wrapY = false) { _textwrapX = wrapX; _textwrapY = wrapY; }
+    void setTextScroll(bool scrollY) { _textscroll = scrollY; }
 
     void setTextFont(uint8_t f) {
       _textfont = (f > 0) ? f : 1;
@@ -1073,9 +1128,14 @@ namespace lgfx
     int32_t _height = 0;
     int32_t _cursor_x = 0;
     int32_t _cursor_y = 0;
+    int32_t  _sx, _sy, _sw, _sh; // for scroll zone
     uint32_t _textcolor = 0xFFFFFFFF;
     uint32_t _textbgcolor = 0;
-    dev_color_t _color = 0xFFFFFFFF;
+    uint32_t _scolor;  // gap fill colour for scroll zone
+    raw_color_t _color = 0xFFFFFFFF;
+
+    dev_color_t _write_depth;
+    dev_color_t _read_depth;
 
     int16_t _xpivot;   // x pivot point coordinate
     int16_t _ypivot;   // x pivot point coordinate
@@ -1086,19 +1146,19 @@ namespace lgfx
     uint8_t _textsize_y = 1;
     uint8_t _textfont = 1;
     uint8_t _textdatum;
+    bool _has_transaction = true;
     bool _invert = false;
     bool _swapBytes = false;
     bool _textwrapX = true;
     bool _textwrapY = false;
+    bool _textscroll = false;
     bool _drawCharMoveCursor = false;
-
-    color_depth_t _readColorDepth;
 
     template <typename T>
     __attribute__ ((always_inline)) inline static void swap_coord(T& a, T& b) { T t = a; a = b; b = t; }
-    __attribute__ ((always_inline)) inline static bool _adj(int32_t& x, int32_t& w) { if (w < 0) { x += w + 1; w = -w; } return 0==w; }
+    __attribute__ ((always_inline)) inline static bool _adjust(int32_t& x, int32_t& w) { if (w < 0) { x += w + 1; w = -w; } return 0==w; }
 
-    static bool _adj_width(int32_t& x, int32_t& dx, int32_t& dw, int32_t _width)
+    static bool _adjust_width(int32_t& x, int32_t& dx, int32_t& dw, int32_t _width)
     {
       if ((dw < 1) || (x >= _width)) return true;
       if (x < 0) { dw += x; dx = -x; x = 0; }
@@ -1111,7 +1171,6 @@ namespace lgfx
     uint8_t _glyph_ab;   // glyph delta Y (height) above baseline
     uint8_t _glyph_bb;   // glyph delta Y (height) below baseline
   #endif
-
 
     virtual rgb565_t readPixel16_impl(int32_t x, int32_t y) { return 0; }
 
@@ -1141,7 +1200,7 @@ namespace lgfx
 
     void read_rect(int32_t x, int32_t y, int32_t w, int32_t h, void* data, void(LGFXBase::*fp_read_pixels)(void*, int32_t, pixelcopy_param_t* param))
     {
-      if (_adj(x,w) || _adj(y,h)) return;
+      if (_adjust(x,w) || _adjust(y,h)) return;
       if ((x >= _width) || (y >= _height)) return;
       if (x < 0) { w += x; x = 0; }
       if ((x + w) > _width)  w = _width  - x;
@@ -1160,9 +1219,9 @@ namespace lgfx
     void push_image(int32_t x, int32_t y, int32_t w, int32_t h, const void* data, const rgb888_t* palette, const uint8_t bits, void(LGFXBase::*fp_write_pixels)(const void*, int32_t, pixelcopy_param_t*))
     {
       int32_t dx=0, dw=w;
-      if (_adj_width(x, dx, dw, _width)) return;
+      if (_adjust_width(x, dx, dw, _width)) return;
       int32_t dy=0, dh=h;
-      if (_adj_width(y, dy, dh, _height)) return;
+      if (_adjust_width(y, dy, dh, _height)) return;
 
       pixelcopy_param_t param;
       param.src_palette = palette;
@@ -1188,9 +1247,9 @@ namespace lgfx
     void push_image(int32_t x, int32_t y, int32_t w, int32_t h, const void* data, const rgb888_t* palette, uint32_t transp, const uint8_t bits, void(LGFXBase::*fp_write_pixels)(const void*, int32_t, pixelcopy_param_t*))
     {
       int32_t dx=0, dw=w;
-      if (_adj_width(x, dx, dw, _width)) return;
+      if (_adjust_width(x, dx, dw, _width)) return;
       int32_t dy=0, dh=h;
-      if (_adj_width(y, dy, dh, _height)) return;
+      if (_adjust_width(y, dy, dh, _height)) return;
 
       pixelcopy_param_t param;
       param.src_palette = palette;
@@ -1239,7 +1298,7 @@ namespace lgfx
     template<class T>
     auto get_read_pixels_fp(void) -> void(LGFXBase::*)(void*, int32_t, pixelcopy_param_t* param)
     {
-      switch (_readColorDepth) {
+      switch (_read_depth.depth) {
       case rgb888_3Byte: return &LGFXBase::read_pixels_template<T, swap888_t>;
       case rgb666_3Byte: return &LGFXBase::read_pixels_template<T, swap666_t>;
       case rgb565_2Byte: return &LGFXBase::read_pixels_template<T, swap565_t>;
@@ -1318,28 +1377,42 @@ namespace lgfx
     virtual void readWindow_impl(int32_t xs, int32_t ys, int32_t xe, int32_t ye) {}
     virtual void pushDMA_impl(const uint8_t* src, int32_t len) { write_bytes(src, len); }
     virtual void endRead_impl(void) {}
-
+//*
     virtual void copyRect_impl(int32_t dst_x, int32_t dst_y, int32_t w, int32_t h, int32_t src_x, int32_t src_y)
     {
-      auto fp_write_pixels = get_write_pixels_fp<swap888_t>();
+      void(LGFXBase::*fp_write_pixels)(const void*, int32_t, pixelcopy_param_t*);
+      switch (_read_depth.depth) {
+      case rgb888_3Byte: fp_write_pixels = get_write_pixels_fp<swap888_t>(); break;
+      case rgb666_3Byte: fp_write_pixels = get_write_pixels_fp<swap666_t>(); break;
+//    case rgb565_2Byte: fp_write_pixels = get_write_pixels_fp<swap565_t>(); break;
+//    case rgb332_1Byte: fp_write_pixels = get_write_pixels_fp<rgb332_t >(); break;
+      default: return;
+      }
+
       startWrite();
       if (w < h) {
-        swap888_t buf[h+2];
-        int32_t add = (src_x < dst_x) ? -1 : 1;
+        const uint32_t buflen = h * _read_depth.bytes;
+        uint8_t buf[buflen];
+        int32_t add = (src_x < dst_x) ?   - 1 : 1;
         int32_t pos = (src_x < dst_x) ? w - 1 : 0;
-        for (int count = 0; count < w; count++) {
-          readRect(src_x + pos, src_y, 1, h, buf);
-          setWindow(dst_x + pos, dst_y, dst_x + pos, dst_y + h - 1);
+        while (w--) {
+          readWindow_impl(src_x + pos, src_y, src_x + pos, src_y + h - 1);
+          read_bytes(buf, buflen);
+          endRead_impl();
+          setWindow_impl(dst_x + pos, dst_y, dst_x + pos, dst_y + h - 1);
           (this->*fp_write_pixels)(buf, h, nullptr);
           pos += add;
         }
       } else {
-        swap888_t buf[w+2];
-        int32_t add = (src_y < dst_y) ? -1 : 1;
+        const uint32_t buflen = w * _read_depth.bytes;
+        uint8_t buf[buflen];
+        int32_t add = (src_y < dst_y) ?   - 1 : 1;
         int32_t pos = (src_y < dst_y) ? h - 1 : 0;
-        for (int count = 0; count < h; count++) {
-          readRect(src_x, src_y + pos, w, 1, buf);
-          setWindow(dst_x, dst_y + pos, dst_x + w - 1, dst_y + pos);
+        while (h--) {
+          readWindow_impl(src_x, src_y + pos, src_x + w - 1, src_y + pos);
+          read_bytes(buf, buflen);
+          endRead_impl();
+          setWindow_impl(dst_x, dst_y + pos, dst_x + w - 1, dst_y + pos);
           (this->*fp_write_pixels)(buf, w, nullptr);
           pos += add;
         }
@@ -1413,69 +1486,120 @@ namespace lgfx
 //----------------------------------------------------------------------------
 //----------------------------------------------------------------------------
 
-#if defined (ARDUINO) && defined (_SD_H_)
+
+  struct FileWrapper {
+    uint16_t read16(void) {
+      uint16_t result;
+      read(reinterpret_cast<uint8_t*>(&result), 2);
+      return result;
+    }
+    uint32_t read32(void) {
+      uint32_t result;
+      read(reinterpret_cast<uint8_t*>(&result), 4);
+      return result;
+    }
+
+#if defined (ARDUINO) && defined (FS_H)
+    fs::File fp;
+    bool open(fs::FS& fs, const char* path, const char* mode) { return (fp = fs.open(path, mode)); }
+  #if defined (_SD_H_)
+    bool open(const char* path, const char* mode) { return ( fp = SD.open(path, mode)); }
+  #else
+    bool open(const char* path, const char* mode) { return false; }
+  #endif
+    bool seek(uint32_t offset) { return seek(offset, SeekSet); }
+    bool seek(uint32_t offset, SeekMode mode) { return fp.seek(offset, mode); }
+    void skip(uint32_t offset) { seek(offset, SeekCur); }
+    void read(uint8_t *buf, uint32_t len) { fp.read(buf, len); }
+    void close() { fp.close(); }
+#elif defined (CONFIG_IDF_TARGET_ESP32)  // ESP-IDF
+    FILE* fp;
+    bool open(const char* path, const char* mode) { return (fp = fopen(path, mode)); }
+    bool seek(uint32_t offset) { return seek(offset, SEEK_SET); }
+    bool seek(uint32_t offset, int origin) { return fseek(fp, offset, origin); }
+    void skip(uint32_t offset) { seek(offset, SEEK_CUR); }
+    void read(uint8_t *buf, uint32_t len) { fread((char*)buf, 1, len, fp); }
+    void close() { fclose(fp); }
+#else
+    bool open(const char* path, const char* mode) { return false; }
+    bool seek(uint32_t offset) { return false; }
+    bool seek(uint32_t offset, int origin) { return false; }
+    void skip(uint32_t offset) { }
+    void read(uint8_t *buf, uint32_t len) { }
+    void close() { }
+#endif
+
+  };
+
   template <class Base>
   class LGFX_SD_Support : public Base {
-    uint16_t read16(fs::File &f) {
-      uint16_t result;
-      f.read(reinterpret_cast<uint8_t*>(&result), 2);
-      return result;
-    }
-
-    uint32_t read32(fs::File &f) {
-      uint32_t result;
-      f.read(reinterpret_cast<uint8_t*>(&result), 4);
-      return result;
-    }
-
-    void skip(fs::File &f, uint16_t len) {
-      f.seek(len, SeekCur);
-    }
-
   public:
+#if defined (ARDUINO) && defined (FS_H)
+
     inline void drawBmp(fs::FS &fs, const char *path, int32_t x, int32_t y) { drawBmpFile(fs, path, x, y); }
     void drawBmpFile(fs::FS &fs, const char *path, int32_t x, int32_t y) {
-      if ((x >= this->_width) || (y >= this->_height)) return;
+      FileWrapper file;
+      bool need_transaction = this->_has_transaction && (&fs == &SD);
 
-      this->endTransaction();
-      // Open requested file on SD card
-      File bmpFS = fs.open(path, "r");
-
-      if (!bmpFS) {
+      if (need_transaction) this->endTransaction();
+      if (!file.open(fs, path, "rb")) {
 //Serial.print("file can't open :"); Serial.println(path);
-        if (this->_start_write_count) { this->beginTransaction(); }
+        if (need_transaction && this->_start_write_count) { this->beginTransaction(); }
         return;
       }
-Serial.println(path);
+      drawBmpFile(file, x, y, need_transaction);
+      file.close();
+      if (need_transaction && this->_start_write_count) { this->beginTransaction(); }
+    }
 
-      uint32_t startTime = millis();
+#elif defined (CONFIG_IDF_TARGET_ESP32)  // ESP-IDF
 
-      if (read16(bmpFS) == 0x4D42) {  // bmp header "BM"
-        skip(bmpFS, 8);
-        uint32_t seekOffset = read32(bmpFS);
-        skip(bmpFS, 4);
-        int32_t row, col;
-        int32_t w = read32(bmpFS);
-        int32_t h = read32(bmpFS);  // bcHeight Image height (pixels)
+    void drawBmpFile(const char *path, int32_t x, int32_t y) {
+      FileWrapper file;
+      bool need_transaction = this->_has_transaction;
+
+      if (need_transaction) this->endTransaction();
+      if (!file.open(path, "rb")) {
+        if (need_transaction && this->_start_write_count) { this->beginTransaction(); }
+        return;
+      }
+      drawBmpFile(file, x, y, need_transaction);
+      file.close();
+      if (need_transaction && this->_start_write_count) { this->beginTransaction(); }
+    }
+
+#endif
+
+    void drawBmpFile(FileWrapper& file, int32_t x, int32_t y, bool need_transaction = true) {
+      if ((x >= this->_width) || (y >= this->_height)) return;
+
+      //uint32_t startTime = millis();
+
+      if (file.read16() == 0x4D42) {  // bmp header "BM"
+        file.skip(8);
+        uint32_t seekOffset = file.read32();
+        file.skip(4);
+        //int32_t row, col;
+        int32_t w = file.read32();
+        int32_t h = file.read32();  // bcHeight Image height (pixels)
         //If the value of bcHeight is positive, the image data is from bottom to top
         //If the value of bcHeight is negative, the image data is from top to bottom.
         int32_t flow = (h > 0) ? -1 : 1;
         if (h < 0) h = -h;
         if (flow < 0) y += h - 1;
 
-        if (read16(bmpFS) == 1) {  // bcPlanes always 1
-          uint16_t bpp = read16(bmpFS); // 24 bcBitCount 24=RGB24bit
-          uint32_t biComp = read32(bmpFS); // biCompression 0=BI_RGB
+        if (file.read16() == 1) {  // bcPlanes always 1
+          uint16_t bpp = file.read16(); // 24 bcBitCount 24=RGB24bit
+          uint32_t biComp = file.read32(); // biCompression 0=BI_RGB
           if ((bpp == 24 || bpp == 16 || bpp == 32)
            && (biComp == 0 || biComp == 3)) {
-            bmpFS.seek(seekOffset);
-            //this->setSwapBytes(true);
+            file.seek(seekOffset);
             uint16_t padding = (4 - (w & 3)) & 3;
             uint8_t lineBuffer[w * (bpp >> 3) + padding];
             while (h--) {
-              this->endTransaction();
-              bmpFS.read(lineBuffer, sizeof(lineBuffer));
-              this->beginTransaction();
+              if (need_transaction) this->endTransaction();
+              file.read(lineBuffer, sizeof(lineBuffer));
+              if (need_transaction) this->beginTransaction();
               if (bpp == 24) {      this->pushImage(x, y, w, 1, reinterpret_cast<rgb888_t*>(lineBuffer));  }
               else if (bpp == 16) { this->pushImage(x, y, w, 1, reinterpret_cast<rgb565_t*>(lineBuffer));  }
               else if (bpp == 32) { this->pushImage(x, y, w, 1, reinterpret_cast<argb8888_t*>(lineBuffer)); }
@@ -1483,19 +1607,19 @@ Serial.println(path);
             }
           } else
           if ((bpp == 8 || bpp == 4 || bpp == 1) && biComp == 0) {
-            skip(bmpFS, 12);
-            uint32_t biClrUsed = read32(bmpFS);
-            skip(bmpFS, 4);
+            file.skip(12);
+            uint32_t biClrUsed = file.read32();
+            file.skip(4);
             argb8888_t palette[1<<bpp];
-            bmpFS.seek(seekOffset-(1<<bpp)*sizeof(argb8888_t));
-            bmpFS.read((uint8_t*)palette, (1<<bpp)*sizeof(argb8888_t)); // load palette
-            bmpFS.seek(seekOffset);
+            file.seek(seekOffset-(1<<bpp)*sizeof(argb8888_t));
+            file.read((uint8_t*)palette, (1<<bpp)*sizeof(argb8888_t)); // load palette
+            file.seek(seekOffset);
             if (bpp == 1) {
               uint8_t lineBuffer[((w+31) >> 5) << 2];
               while (h--) {
-                this->endTransaction();
-                bmpFS.read(lineBuffer, sizeof(lineBuffer));
-                this->beginTransaction();
+                if (need_transaction) this->endTransaction();
+                file.read(lineBuffer, sizeof(lineBuffer));
+                if (need_transaction) this->beginTransaction();
                 uint8_t* src = lineBuffer;
                 bool flg = lineBuffer[0] & 0x80;
                 int32_t len = 1;
@@ -1514,13 +1638,13 @@ Serial.println(path);
             } else {
               //this->setSwapBytes(true);
               uint16_t readlen = (bpp == 4)
-                               ? ((w+1)>>1) + ((4 - ((w+1)>>1) & 3) & 3)
-                               : (w + (4 - (w & 3) & 3));
+                               ? ((w+1)>>1) + (((4 - ((w+1)>>1)) & 3) & 3)
+                               : (w + ((4 - (w & 3)) & 3));
               uint8_t lineBuffer[w * 3];
               while (h--) {
-                this->endTransaction();
-                bmpFS.read(lineBuffer, readlen);
-                this->beginTransaction();
+                if (need_transaction) this->endTransaction();
+                file.read(lineBuffer, readlen);
+                if (need_transaction) this->beginTransaction();
                 if (bpp == 8) {
                   for (int16_t i = 1; i <= w; i++) {
                     reinterpret_cast<rgb888_t*>(lineBuffer)[w - i] = palette[lineBuffer[w - i]];
@@ -1535,29 +1659,25 @@ Serial.println(path);
               }
             }
           }
-          Serial.print("Loaded in "); Serial.print(millis() - startTime);   Serial.println(" ms");
+          //Serial.print("Loaded in "); Serial.print(millis() - startTime);   Serial.println(" ms");
         }
-        else Serial.println("BMP format not recognized.");
+        //else Serial.println("BMP format not recognized.");
       }
-
-      bmpFS.close();
-      if (this->_start_write_count) { this->beginTransaction(); }
     }
   };
-#endif
 
 //----------------------------------------------------------------------------
 
 //----------------------------------------------------------------------------
 
   class LovyanGFX : public  // ここで追加機能の実装を継承する
-  #if defined (ARDUINO) && defined (_SD_H_)
+//  #if defined (ARDUINO) && defined (_SD_H_)
     LGFX_SD_Support<
-  #endif
+//  #endif
     LGFXBase // これが本体
-  #if defined (ARDUINO) && defined (_SD_H_)
+//  #if defined (ARDUINO) && defined (_SD_H_)
     >
-  #endif
+//  #endif
   {
   protected:
   };

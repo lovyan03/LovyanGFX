@@ -126,7 +126,7 @@ namespace lgfx
       static constexpr uint32_t freq_write = 80000000;
       static constexpr uint32_t freq_read  = 16000000;
       static constexpr uint32_t freq_fill  = 80000000;
-      static constexpr bool spi_half_duplex = true;
+      static constexpr bool spi_3wire   = true;
       static constexpr bool invert      = true;
       static constexpr int panel_width  = 240;
       static constexpr int panel_height = 240;

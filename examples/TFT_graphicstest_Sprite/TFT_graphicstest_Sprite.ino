@@ -18,8 +18,8 @@
  #include <AXP192.h>
 #endif
 
-//#include <LGFX_TFT_eSPI.hpp>
-#include <TFT_eSPI.h>
+#include <LGFX_TFT_eSPI.hpp>
+//#include <TFT_eSPI.h>
 //#include <M5Stack.h>
 
 static TFT_eSPI tft_lcd;
@@ -80,8 +80,8 @@ void setup() {
   //tft.setColorDepth(lgfx::palette_2bit);  tft.createSprite(240,320);
   //tft.setColorDepth(lgfx::palette_4bit);  tft.createSprite(240,320);
   //tft.setColorDepth(lgfx::palette_8bit);  tft.createSprite(240,320);
-  tft.setColorDepth( 8);  tft.createSprite(240,320);
-  //tft.setColorDepth(16);  tft.createSprite(240,240);
+  //tft.setColorDepth( 8);  tft.createSprite(240,320);
+  tft.setColorDepth(16);  tft.createSprite(240,240);
   //tft.setColorDepth(24);  tft.createSprite(240,170);
   //tft.setColorDepth();
   //tft.createSprite(tft_lcd.width(), tft_lcd.height());

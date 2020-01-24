@@ -133,7 +133,7 @@ namespace lgfx
       static constexpr uint32_t freq_write = 40000000;
       static constexpr uint32_t freq_read  = 16000000;
       static constexpr uint32_t freq_fill  = 80000000;
-      static constexpr bool spi_half_duplex = true;
+      static constexpr bool spi_3wire = true;
     };
   };
 
@@ -153,9 +153,9 @@ namespace lgfx
       static constexpr int spi_cs = 14;
       static constexpr int spi_dc = 27;
       static constexpr uint32_t freq_write = 40000000;
-      static constexpr uint32_t freq_read  = 16000000;
+      static constexpr uint32_t freq_read  = 20000000;
       static constexpr uint32_t freq_fill  = 80000000;
-      static constexpr bool spi_half_duplex = true;
+      static constexpr bool spi_3wire = true;
     };
 
     uint8_t getMadCtl(uint8_t r) const override {

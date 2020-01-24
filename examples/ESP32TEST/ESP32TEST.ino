@@ -23,7 +23,7 @@ struct LGFX_Config {
   static constexpr int freq_write = 40000000;
   static constexpr int freq_read  = 16000000;
   static constexpr int freq_fill  = 40000000;
-  static constexpr bool spi_half_duplex = true;
+  static constexpr bool spi_3wire = true;
 };
 static LovyanGFX<lgfx::Esp32Spi<lgfx::Panel_M5Stack, LGFX_Config> > tft;
 

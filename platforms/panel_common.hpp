@@ -13,7 +13,7 @@ namespace lgfx
   template<class T, valuetype V> static constexpr std::integral_constant<valuetype, T::member> check(decltype(T::member)*); \
   template<class T, valuetype V> static constexpr std::integral_constant<valuetype, V> check(...); \
   };template<class T, valuetype V> class classname : public decltype(classname_impl::check<T, V>(nullptr)) {};
-  MEMBER_DETECTOR(spi_half_duplex ,get_spi_half_duplex ,get_spi_half_duplex_impl ,bool)
+  MEMBER_DETECTOR(spi_3wire    , get_spi_3wire    , get_spi_3wire_impl    , bool)
   MEMBER_DETECTOR(spi_mode     , get_spi_mode     , get_spi_mode_impl     , uint8_t)
   MEMBER_DETECTOR(spi_cs       , get_spi_cs       , get_spi_cs_impl       , int)
   MEMBER_DETECTOR(spi_dc       , get_spi_dc       , get_spi_dc_impl       , int)
@@ -45,7 +45,7 @@ namespace lgfx
     template <class CFG>
     void setConfig(void)
     {
-      spi_half_duplex = get_spi_half_duplex<CFG, false>::value;
+      spi_3wire = get_spi_3wire<CFG, false>::value;
       spi_mode        = get_spi_mode<  CFG,  0>::value;
       spi_cs          = get_spi_cs<    CFG, -1>::value;
       spi_dc          = get_spi_dc<    CFG, -1>::value;
@@ -132,11 +132,11 @@ namespace lgfx
     color_depth_t write_depth;
     color_depth_t read_depth;
 
-    bool spi_half_duplex;
+    bool spi_3wire;
     bool invert;
 
   protected:
-    virtual void setConfig_impl(void);
+    virtual void setConfig_impl(void) = 0;
     virtual color_depth_t getAdjustBpp(color_depth_t bpp) const { return (bpp > 16) ? rgb888_3Byte : rgb565_2Byte; }
 
     int32_t _panel_x;

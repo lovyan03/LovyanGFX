@@ -217,7 +217,7 @@ namespace lgfx
 
   private:
     struct cfg_t {
-      static constexpr bool spi_half_duplex = true;
+      static constexpr bool spi_3wire = true;
       static constexpr int spi_cs =  5;
       static constexpr int spi_dc = 23;
       static constexpr int freq_write = 27000000;

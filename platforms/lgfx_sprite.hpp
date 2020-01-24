@@ -1,6 +1,8 @@
 #ifndef LGFX_SPRITE_HPP_
 #define LGFX_SPRITE_HPP_
 
+#include <algorithm>
+
 #include "LovyanGFX.hpp"
 
 namespace lgfx
@@ -13,8 +15,10 @@ namespace lgfx
 
     LGFXSpriteBase(LovyanGFX* parent)
     : LovyanGFX()
+    , _parent(parent)
     , _img  (nullptr)
     , _palette(nullptr)
+    , _bitwidth(0)
     , _xptr (0)
     , _yptr (0)
     , _xs   (0)
@@ -22,9 +26,8 @@ namespace lgfx
     , _ys   (0)
     , _ye   (0)
     , _index(0)
-    , _malloc_cap(MALLOC_CAP_8BIT)
-    , _parent(parent)
     {
+      _has_transaction = false;
       _start_write_count = 0xFFFF;
     }
 
@@ -36,30 +39,25 @@ namespace lgfx
       deleteSprite();
     }
 
-    // set MALLOC_CAP_SPIRAM or MALLOC_CAP_DMA
-    void setMallocCap(uint32_t flg) {
-      _malloc_cap = flg;
-    }
-
     void* createSprite(int32_t w, int32_t h)
     {
       if (w < 1 || h < 1) return nullptr;
       if (_img) deleteSprite();
 
-      int32_t x_mask = (_color.bits & 7) ? (8 / (_color.bits & 7)) - 1 : 0;
+      int32_t x_mask = (_write_depth.bits & 7) ? (8 / (_write_depth.bits & 7)) - 1 : 0;
       _bitwidth = (w + x_mask) & ~x_mask;
-      _img = (uint8_t*)_mem_alloc((h * _bitwidth * _color.bits >> 3) + 1, _malloc_cap);
+      _img = (uint8_t*)_mem_alloc((h * _bitwidth * _write_depth.bits >> 3) + 1);
       if (!_img) return nullptr;
 
-      if (_color.depth <= palette_8bit) {
-        size_t palettes = 1 << _color.bits;
-        _palette = (rgb888_t*)_mem_alloc(sizeof(rgb888_t) * palettes, _malloc_cap);
+      if (_write_depth.depth <= palette_8bit) {
+        size_t palettes = 1 << _write_depth.bits;
+        _palette = (rgb888_t*)_mem_alloc(sizeof(rgb888_t) * palettes);
         if (!_palette) {
           deleteSprite();
           return nullptr;
         }
 /*
-if (_color.depth == palette_8bit) {
+if (_write_depth.depth == palette_8bit) {
   for (uint32_t i = 0; i < palettes; i++) {
     _palette[i] = *(rgb332_t*)&i;
   }
@@ -67,22 +65,25 @@ if (_color.depth == palette_8bit) {
 //*/
         { // create grayscale palette
           uint32_t k;
-          switch (_color.depth) {
+          switch (_write_depth.depth) {
           case palette_8bit: k = 0x010101; break;
           case palette_4bit: k = 0x111111; break;
           case palette_2bit: k = 0x555555; break;
           case palette_1bit: k = 0xFFFFFF; break;
+          default: k = 1; break;
           }
           for (uint32_t i = 0; i < palettes; i++) {
             _palette[i] = i * k;
           }
         }
       }
-      _width = w;
+      _sw = _width = w;
       _xe = w - 1;
-      _height = h;
+      _sh = _height = h;
       _ye = h - 1;
-      _rotation = _index = _xs = _ys = _xptr = _yptr = 0;
+      _rotation = 0;
+      _index = _sx = _sy = _xs = _ys = _xptr = _yptr = 0;
+
       clear();
       return _img;
     }
@@ -102,11 +103,11 @@ if (_color.depth == palette_8bit) {
     }
 
     void setPalette(size_t index, const rgb888_t& rgb) {
-      if (_palette) { _palette[index & ((1<<_color.bits)-1)] = rgb; }
+      if (_palette) { _palette[index & ((1<<_write_depth.bits)-1)] = rgb; }
     }
 
     void setPalette(size_t index, uint8_t r, uint8_t g, uint8_t b) {
-      if (_palette) { _palette[index & ((1<<_color.bits)-1)].set(r, g, b); }
+      if (_palette) { _palette[index & ((1<<_write_depth.bits)-1)].set(r, g, b); }
     }
 
     template<typename T>
@@ -133,7 +134,7 @@ if (_color.depth == palette_8bit) {
     template<typename T>
     void pushSprite(LovyanGFX* lgfx, int32_t x, int32_t y, const T& transparent)
     {
-      uint32_t transp = _color.convertColor(transparent);
+      uint32_t transp = _write_depth.convert(transparent);
       switch (getColorDepth()) {
       case rgb888_3Byte: lgfx->pushImage(x, y, _width, _height, (swap888_t*)_img, transp); return;
       case rgb666_3Byte: lgfx->pushImage(x, y, _width, _height, (swap666_t*)_img, transp); return;
@@ -269,9 +270,24 @@ if (_color.depth == palette_8bit) {
 //----------------------------------------------------------------------------
 
   protected:
-    LovyanGFX* _parent = nullptr;
+    LovyanGFX* _parent;
+    union {
+      uint8_t* _img;
+      uint16_t* _img16;
+      swap888_t* _img24;
+    };
+    rgb888_t* _palette;
+    int32_t _bitwidth;
+    int32_t _xptr;
+    int32_t _yptr;
+    int32_t _xs;
+    int32_t _xe;
+    int32_t _ys;
+    int32_t _ye;
+    uint32_t _index;
+    bool _disable_memcpy = false; // disable PSRAM to PSRAM memcpy flg.
 
-    virtual void* _mem_alloc(uint32_t bytes, uint32_t param) = 0;
+    virtual void* _mem_alloc(uint32_t bytes) = 0;
     virtual void _mem_free(void* buf) = 0;
 
     void set_window(int32_t xs, int32_t ys, int32_t xe, int32_t ye)
@@ -303,8 +319,8 @@ if (_color.depth == palette_8bit) {
 
     void* setColorDepth_impl(color_depth_t depth) override
     {
-      _color.setColorDepth(depth);
-      _readColorDepth = getColorDepth();
+      _write_depth.setColorDepth(depth);
+      _read_depth = _write_depth;
 
       if (_img == nullptr) return nullptr;
       deleteSprite();
@@ -324,15 +340,15 @@ if (_color.depth == palette_8bit) {
 
     void drawPixel_impl(int32_t x, int32_t y) override
     {
-      if (_color.bytes == 2) {
+      if (_write_depth.bytes == 2) {
         _img16[x + y * _bitwidth] = _color.rawL;
-      } else if (_color.bytes == 1) {
+      } else if (_write_depth.bytes == 1) {
         _img[x + y * _bitwidth] = _color.raw0;
-      } else if (_color.bytes == 3) {
+      } else if (_write_depth.bytes == 3) {
         _img24[x + y * _bitwidth] = *(swap888_t*)&_color;
       } else {
-        uint8_t mask = (uint8_t)(~(0xFF >> _color.bits)) >> (x * _color.bits & 7);
-        auto dst = &_img[(x + y * _bitwidth) * _color.bits >> 3];
+        uint8_t mask = (uint8_t)(~(0xFF >> _write_depth.bits)) >> (x * _write_depth.bits & 7);
+        auto dst = &_img[(x + y * _bitwidth) * _write_depth.bits >> 3];
         *dst = (*dst & ~mask) | (_color.raw0 & mask);
       }
     }
@@ -344,14 +360,14 @@ setWindow(x,y,x+w-1,y+h-1);
 writeColor_impl(w*h);
 return;
 //*/
-      if (_color.bytes == 0) {
-        size_t d = _bitwidth * _color.bits >> 3;
-        uint8_t* dst = &_img[(x + y * _bitwidth) * _color.bits >> 3];
-        size_t len = ((x + w) * _color.bits >> 3) - (x * _color.bits >> 3);
-        uint8_t mask = 0xFF >> (x * _color.bits & 7);
+      if (_write_depth.bytes == 0) {
+        size_t d = _bitwidth * _write_depth.bits >> 3;
+        uint8_t* dst = &_img[(x + y * _bitwidth) * _write_depth.bits >> 3];
+        size_t len = ((x + w) * _write_depth.bits >> 3) - (x * _write_depth.bits >> 3);
+        uint8_t mask = 0xFF >> (x * _write_depth.bits & 7);
         uint8_t c = _color.raw0;
         if (!len) {
-          mask ^= mask >> (w * _color.bits);
+          mask ^= mask >> (w * _write_depth.bits);
           c &= mask;
         } else {
           if (mask != 0xFF) {
@@ -361,7 +377,7 @@ return;
             do { *dst2 = (*dst2 & ~mask) | c; dst2 += d; } while (--h2);
             dst++; len--;
           }
-          mask = ~(0xFF>>((x+w) * _color.bits & 7));
+          mask = ~(0xFF>>((x+w) * _write_depth.bits & 7));
           if (mask == 0xFF) len--;
           c = _color.raw0;
           if (len) {
@@ -376,38 +392,38 @@ return;
         do { *dst = (*dst & ~mask) | c; dst += d; } while (--h);
       } else
       if (w == 1) {
-        uint8_t* dst = &_img[(x + y * _bitwidth) * _color.bytes];
-        if (_color.bytes == 2) {
+        uint8_t* dst = &_img[(x + y * _bitwidth) * _write_depth.bytes];
+        if (_write_depth.bytes == 2) {
           do { *(uint16_t*)dst = *(uint16_t*)&_color;   dst += _bitwidth << 1; } while (--h);
-        } else if (_color.bytes == 1) {
+        } else if (_write_depth.bytes == 1) {
           do {             *dst = _color.raw0;          dst += _bitwidth;      } while (--h);
-        } else if (_color.bytes == 3) {
+        } else if (_write_depth.bytes == 3) {
           do { *(swap888_t*)dst = *(swap888_t*)&_color; dst += _bitwidth * 3;  } while (--h);
         } else {
         }
       } else {
-        uint8_t* dst = &_img[(x + y * _bitwidth) * _color.bytes];
-        if (_color.bytes == 1 || (_color.raw0 == _color.raw1 && (_color.bytes == 2 || (_color.raw0 == _color.raw2)))) {
+        uint8_t* dst = &_img[(x + y * _bitwidth) * _write_depth.bytes];
+        if (_write_depth.bytes == 1 || (_color.raw0 == _color.raw1 && (_write_depth.bytes == 2 || (_color.raw0 == _color.raw2)))) {
           if (x == 0 && w == _width) {
-            memset(dst, _color.raw0, _width * h * _color.bytes);
+            memset(dst, _color.raw0, _width * h * _write_depth.bytes);
           } else {
             do {
-              memset(dst, _color.raw0, w * _color.bytes);
-              dst += _width * _color.bytes;
+              memset(dst, _color.raw0, w * _write_depth.bytes);
+              dst += _width * _write_depth.bytes;
             } while (--h);
           }
         } else {
-          size_t len = w * _color.bytes;
-          uint32_t down = _width * _color.bytes;
+          size_t len = w * _write_depth.bytes;
+          uint32_t down = _width * _write_depth.bytes;
           if (_disable_memcpy) {
             uint8_t linebuf[len];
-            memset_multi(linebuf, _color.raw, _color.bytes, w);
+            memset_multi(linebuf, _color.raw, _write_depth.bytes, w);
             do {
               memcpy(dst, linebuf, len);
               dst += down;
             } while (--h);
           } else {
-            memset_multi(dst, _color.raw, _color.bytes, w);
+            memset_multi(dst, _color.raw, _write_depth.bytes, w);
             while (--h) {
               memcpy(dst + down, dst, len);
               dst += down;
@@ -420,47 +436,47 @@ return;
     void writeColor_impl(int32_t length) override
     {
       if (0 >= length) return;
-      if (_color.bytes == 0) {
+      if (_write_depth.bytes == 0) {
         uint8_t c = _color.raw0;
-        uint8_t addrshift = (4 - _color.depth);
+        uint8_t addrshift = (4 - _write_depth.depth);
         int32_t linelength;
         do {
           uint8_t* dst = &_img[(_xptr + _yptr * _bitwidth) >> addrshift];
           linelength = std::min(_xe - _xptr + 1, length);
           size_t len = ((_xptr + linelength) >> addrshift) - (_xptr >> addrshift);
-          uint8_t mask = 0xFF >> ((_xptr & _color.x_mask) * _color.bits);
+          uint8_t mask = 0xFF >> ((_xptr & _write_depth.x_mask) * _write_depth.bits);
           if (!len) {
-            mask &= ~(mask >> (linelength * _color.bits));
+            mask &= ~(mask >> (linelength * _write_depth.bits));
           } else {
             *dst = (*dst & ~mask) | (c & mask);
             if (len != 1) {
               memset(dst+1, c, len-1);
             }
             dst += len;
-            mask = ~(0xFF>>(((_xptr + linelength) & _color.x_mask) * _color.bits));
+            mask = ~(0xFF>>(((_xptr + linelength) & _write_depth.x_mask) * _write_depth.bits));
           }
-          *dst = (*dst & ~mask) | c & mask;
+          *dst = (*dst & ~mask) | (c & mask);
           ptr_advance(linelength);
         } while (length -= linelength);
 
       } else
-      if (_color.bytes == 1 || (_color.raw0 == _color.raw1 && (_color.bytes == 2 || (_color.raw0 == _color.raw2)))) {
+      if (_write_depth.bytes == 1 || (_color.raw0 == _color.raw1 && (_write_depth.bytes == 2 || (_color.raw0 == _color.raw2)))) {
         int32_t linelength;
         do {
           linelength = std::min(_xe - _xptr + 1, length);
-          memset(&_img[_index * _color.bytes], _color.raw0, linelength * _color.bytes);
+          memset(&_img[_index * _write_depth.bytes], _color.raw0, linelength * _write_depth.bytes);
           ptr_advance(linelength);
         } while (length -= linelength);
       } else {
-        uint8_t* dst = &_img[_index * _color.bytes];
+        uint8_t* dst = &_img[_index * _write_depth.bytes];
         if (_disable_memcpy) {
           int32_t buflen = std::min(_xe - _xs + 1, length);
-          uint8_t linebuf[buflen * _color.bytes];
-          memset_multi(linebuf, _color.raw, _color.bytes, buflen);
+          uint8_t linebuf[buflen * _write_depth.bytes];
+          memset_multi(linebuf, _color.raw, _write_depth.bytes, buflen);
           uint32_t len;
           do  {
             len = std::min(length, _xe - _xptr + 1);
-            memcpy(&_img[_index * _color.bytes], linebuf, len * _color.bytes);
+            memcpy(&_img[_index * _write_depth.bytes], linebuf, len * _write_depth.bytes);
             ptr_advance(len);
           } while (length -= len);
           return;
@@ -468,24 +484,24 @@ return;
 
         uint32_t advance = std::min(_xe - _xptr + 1, length);
         if (_xs != _xptr) {
-          memset_multi(dst, _color.raw, _color.bytes, advance);
+          memset_multi(dst, _color.raw, _write_depth.bytes, advance);
           ptr_advance(advance);
           if (0 == (length -= advance)) return;
-          dst = &_img[_index * _color.bytes];
+          dst = &_img[_index * _write_depth.bytes];
           advance = std::min(_xe - _xptr + 1, length);
         }
-        memset_multi(dst, _color.raw, _color.bytes, advance);
+        memset_multi(dst, _color.raw, _write_depth.bytes, advance);
         ptr_advance(advance);
         if (0 == (length -= advance)) return;
-        uint32_t down = _width * _color.bytes;
+        uint32_t down = _width * _write_depth.bytes;
         while (length > advance) {
-          memcpy(dst+down, dst, advance * _color.bytes);
+          memcpy(dst+down, dst, advance * _write_depth.bytes);
           dst += down;
           ptr_advance(advance);
           length -= advance;
         }
         if (length) {
-          memcpy(dst + down, dst, length * _color.bytes);
+          memcpy(dst + down, dst, length * _write_depth.bytes);
           ptr_advance(length);
         }
       }
@@ -493,22 +509,22 @@ return;
 
     void copyRect_impl(int32_t dst_x, int32_t dst_y, int32_t w, int32_t h, int32_t src_x, int32_t src_y) override
     {
-      if (_color.bits < 8) {
+      if (_write_depth.bits < 8) {
 // unimplemented
 /*
-        int32_t sx = (src_x + (src_y + pos) * _bitwidth) * _color.bits;
-        int32_t dx = (dst_x + (dst_y + pos) * _bitwidth) * _color.bits;
+        int32_t sx = (src_x + (src_y + pos) * _bitwidth) * _write_depth.bits;
+        int32_t dx = (dst_x + (dst_y + pos) * _bitwidth) * _write_depth.bits;
         uint8_t* src = &_img[sx >> 3];
         uint8_t* dst = &_img[dx >> 3];
         uint8_t buf[w];
 //*/
       } else {
-        int32_t add = _bitwidth * _color.bytes;
+        int32_t add = _bitwidth * _write_depth.bytes;
         if (src_y < dst_y) add = -add;
         int32_t pos = (src_y < dst_y) ? h - 1 : 0;
-        uint8_t* src = &_img[(src_x + (src_y + pos) * _bitwidth) * _color.bytes];
-        uint8_t* dst = &_img[(dst_x + (dst_y + pos) * _bitwidth) * _color.bytes];
-        size_t len = w * _color.bytes;
+        uint8_t* src = &_img[(src_x + (src_y + pos) * _bitwidth) * _write_depth.bytes];
+        uint8_t* dst = &_img[(dst_x + (dst_y + pos) * _bitwidth) * _write_depth.bytes];
+        size_t len = w * _write_depth.bytes;
         if (_disable_memcpy) {
           uint8_t buf[len];
           for (int count = 0; count < h; count++) {
@@ -535,10 +551,10 @@ return;
 
       const uint8_t *src = ptr_img();
       rgb565_t res;
-      if (     _color.depth == rgb332_1Byte) { res = *(( rgb332_t*)src); return res;}
-      else if (_color.depth == rgb565_2Byte) { res = *((swap565_t*)src); return res;}
-//    else if (_color.depth == rgb666_3Byte) { res = *((swap888_t*)src); return res;}
-      else if (_color.depth == rgb888_3Byte) { res = *((swap888_t*)src); return res;}
+      if (     _write_depth.depth == rgb332_1Byte) { res = *(( rgb332_t*)src); return res;}
+      else if (_write_depth.depth == rgb565_2Byte) { res = *((swap565_t*)src); return res;}
+//    else if (_write_depth.depth == rgb666_3Byte) { res = *((swap888_t*)src); return res;}
+      else if (_write_depth.depth == rgb888_3Byte) { res = *((swap888_t*)src); return res;}
 
       return (bool)(*src & (0x80 >> (_index & 0x07)));
     }
@@ -654,7 +670,7 @@ return;
 
     void read_bytes(uint8_t* dst, int32_t length) override
     {
-      uint8_t b = _color.bytes ? _color.bytes : 1;
+      uint8_t b = _write_depth.bytes ? _write_depth.bytes : 1;
       length /= b;
       while (length) {
         int32_t linelength = std::min(_xe - _xptr + 1, length);
@@ -678,7 +694,7 @@ return;
 
     void write_bytes(const uint8_t* data, int32_t length) override
     {
-      uint8_t b = _color.bytes ? _color.bytes : 1;
+      uint8_t b = _write_depth.bytes ? _write_depth.bytes : 1;
       length /= b;
       while (length) {
         int32_t linelength = std::min(_xe - _xptr + 1, length);
@@ -703,45 +719,47 @@ return;
     }
 
     inline uint8_t* ptr_img() {
-      return &_img[_index * _color.bits >> 3];
+      return &_img[_index * _write_depth.bits >> 3];
     }
-    union {
-    uint8_t* _img;
-    uint16_t* _img16;
-    swap888_t* _img24;
-    };
-    rgb888_t* _palette;
-    bool _disable_memcpy = false;
-    int32_t _bitwidth;
-    int32_t _xptr;
-    int32_t _yptr;
-    int32_t _xs;
-    int32_t _xe;
-    int32_t _ys;
-    int32_t _ye;
-    uint32_t _index;
-    uint32_t _malloc_cap;
+
   };
 
+//----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
 
 #if defined (ESP32) || (CONFIG_IDF_TARGET_ESP32)
   class LGFXSprite : public LGFXSpriteBase
   {
   public:
-    LGFXSprite() : LGFXSpriteBase() {}
-    LGFXSprite(LovyanGFX* parent) : LGFXSpriteBase(parent) {}
+    LGFXSprite(LovyanGFX* parent)
+    : LGFXSpriteBase(parent)
+    , _malloc_cap(MALLOC_CAP_8BIT)
+    {}
+    LGFXSprite() : LGFXSprite(nullptr) {}
 
     void setPsram( bool enabled ) override {
       if (enabled) _malloc_cap |= MALLOC_CAP_SPIRAM;
       else         _malloc_cap &= ~MALLOC_CAP_SPIRAM;
     }
 
+    // set MALLOC_CAP_SPIRAM or MALLOC_CAP_DMA
+    void setMallocCap(uint32_t flg) {
+      _malloc_cap = flg;
+    }
+
   protected:
-    void* _mem_alloc(uint32_t bytes, uint32_t param) override
+    uint32_t _malloc_cap;
+    void* _mem_alloc(uint32_t bytes) override
     {
-      if ( !psramFound() ) param &= ~MALLOC_CAP_SPIRAM;
-      _disable_memcpy = (param & MALLOC_CAP_SPIRAM);
-      return heap_caps_malloc(bytes, param);
+      _disable_memcpy = (_malloc_cap & MALLOC_CAP_SPIRAM);
+      void* res = heap_caps_malloc(bytes, _malloc_cap);
+
+      // if can't malloc with PSRAM, try without using PSRAM malloc.
+      if (res == nullptr && _disable_memcpy) {
+        _disable_memcpy = false;
+        res = heap_caps_malloc(bytes, _malloc_cap & ~MALLOC_CAP_SPIRAM);
+      }
+      return res;
     }
     void _mem_free(void* buf) override
     {

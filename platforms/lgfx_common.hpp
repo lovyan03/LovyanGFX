@@ -92,6 +92,7 @@ namespace lgfx {
   struct swap565_t;   // 16bpp
   struct swap666_t;   // 18bpp
   struct swap888_t;   // 24bpp
+  struct raw_color_t;
   struct dev_color_t;
 
   struct palette8_t {
@@ -306,7 +307,7 @@ namespace lgfx {
     swap565_t(const swap565_t&) = default;
     swap565_t(uint8_t r8, uint8_t g8, uint8_t b8) : gh(g8>>5),r(r8>>3),b(b8>>3),gl(g8>>2) {}
     swap565_t(uint16_t raw) : raw(raw) {}
-    inline swap565_t& operator=(uint32_t rhs) { raw = rhs; }
+    inline swap565_t& operator=(uint32_t rhs) { raw = rhs; return *this; }
     inline swap565_t& operator=(const rgb332_t& rhs);
     inline swap565_t& operator=(const rgb565_t& rhs);
     inline swap565_t& operator=(const rgb888_t& rhs);
@@ -337,7 +338,7 @@ namespace lgfx {
     swap666_t() : r(0), g(0), b(0) {};
     swap666_t(const swap666_t&) = default;
     swap666_t(uint8_t r8, uint8_t g8, uint8_t b8) : r(r8>>2),g(g8>>2),b(b8>>2) {}
-    inline swap666_t& operator=(uint32_t rhs) { r = rhs; g = rhs>>8 ; b = rhs>>16; }
+    inline swap666_t& operator=(uint32_t rhs) { r = rhs; g = rhs>>8 ; b = rhs>>16; return *this; }
     inline swap666_t& operator=(const rgb332_t&);
     inline swap666_t& operator=(const rgb565_t&);
     inline swap666_t& operator=(const rgb888_t&);
@@ -374,7 +375,7 @@ namespace lgfx {
     swap888_t(const swap888_t&) = default;
     swap888_t(uint8_t r8, uint8_t g8, uint8_t b8) : r(r8),g(g8),b(b8) {}
     swap888_t(uint32_t bgr888) : r(bgr888), g(bgr888>>8), b(bgr888>>16) {}
-    inline swap888_t& operator=(uint32_t rhs) { r = rhs; g = rhs>>8 ; b = rhs>>16; }
+    inline swap888_t& operator=(uint32_t rhs) { r = rhs; g = rhs>>8 ; b = rhs>>16; return *this; }
     inline swap888_t& operator=(const rgb332_t&);
     inline swap888_t& operator=(const rgb565_t&);
     inline swap888_t& operator=(const rgb888_t&);
@@ -400,7 +401,8 @@ namespace lgfx {
     static constexpr uint8_t bits = 24;
   };
 
-  struct dev_color_t {
+  struct raw_color_t
+  {
     union {
       struct {
         uint8_t raw0;
@@ -414,7 +416,14 @@ namespace lgfx {
       };
       uint32_t raw;
     };
+    raw_color_t() : raw(0) {}
+    raw_color_t(const raw_color_t&) = default;
+    raw_color_t(const uint32_t& rhs) : raw(rhs) {}
+    inline operator bool() const { return raw & 0x00FFFFFF; }
+  };
 
+  struct dev_color_t
+  {
     uint32_t (*convert_rgb888)(uint32_t) = convert_rgb888_to_swap565;
     uint32_t (*convert_rgb565)(uint16_t) = convert_rgb565_to_swap565;
     uint32_t (*convert_rgb332)(uint8_t)  = convert_rgb332_to_swap565;
@@ -424,10 +433,8 @@ namespace lgfx {
     uint8_t bits   = 16;
     uint8_t x_mask = 0;
 
-    dev_color_t() : raw(0) {}
+    dev_color_t() = default;
     dev_color_t(const dev_color_t&) = default;
-    dev_color_t(const uint32_t& rhs) : raw(rhs) {}
-    inline operator bool() const { return raw & 0x00FFFFFF; }
 
     void setColorDepth(color_depth_t bpp) {
       x_mask = 0;
@@ -487,18 +494,17 @@ namespace lgfx {
     }
 
 #define TYPECHECK(dType) template < typename T, typename std::enable_if < (sizeof(T) == sizeof(dType)) && (std::is_signed<T>::value == std::is_signed<dType>::value), std::nullptr_t >::type=nullptr >
-    TYPECHECK(uint8_t ) __attribute__ ((always_inline)) inline uint32_t convertColor(T c) { return convert_rgb332(c); }
-    TYPECHECK(uint16_t) __attribute__ ((always_inline)) inline uint32_t convertColor(T c) { return convert_rgb565(c); }
-    TYPECHECK(uint32_t) __attribute__ ((always_inline)) inline uint32_t convertColor(T c) { return convert_rgb888(c); }
-    TYPECHECK(int     ) __attribute__ ((always_inline)) inline uint32_t convertColor(T c) { return convert_rgb565(c); }
+    TYPECHECK(uint8_t ) __attribute__ ((always_inline)) inline uint32_t convert(T c) { return convert_rgb332(c); }
+    TYPECHECK(uint16_t) __attribute__ ((always_inline)) inline uint32_t convert(T c) { return convert_rgb565(c); }
+    TYPECHECK(uint32_t) __attribute__ ((always_inline)) inline uint32_t convert(T c) { return convert_rgb888(c); }
+    TYPECHECK(int     ) __attribute__ ((always_inline)) inline uint32_t convert(T c) { return convert_rgb565(c); }
 #undef TYPECHECK
-    __attribute__ ((always_inline)) inline uint32_t convertColor(const argb8888_t& c) { return convert_rgb888(c.raw); }
-    __attribute__ ((always_inline)) inline uint32_t convertColor(const rgb888_t&   c) { return convert_rgb888(*(uint32_t*)&c); }
-    __attribute__ ((always_inline)) inline uint32_t convertColor(const rgb565_t&   c) { return convert_rgb565(c.raw); }
-    __attribute__ ((always_inline)) inline uint32_t convertColor(const rgb332_t&   c) { return convert_rgb332(c.raw); }
+    __attribute__ ((always_inline)) inline uint32_t convert(const argb8888_t& c) { return convert_rgb888(c.raw); }
+    __attribute__ ((always_inline)) inline uint32_t convert(const rgb888_t&   c) { return convert_rgb888(*(uint32_t*)&c); }
+    __attribute__ ((always_inline)) inline uint32_t convert(const rgb565_t&   c) { return convert_rgb565(c.raw); }
+    __attribute__ ((always_inline)) inline uint32_t convert(const rgb332_t&   c) { return convert_rgb332(c.raw); }
 
-    template<typename T>
-    __attribute__ ((always_inline)) inline void setColor(T c) { raw = convertColor(c); }
+//  template<typename T> __attribute__ ((always_inline)) inline void setColor(T c) { raw = convert(c); }
   };
 
 #pragma pack()
@@ -577,8 +583,8 @@ namespace lgfx {
   inline bool operator==(const swap888_t&  lhs, const swap888_t&  rhs) { return (*(uint32_t*)&lhs & 0xFCFCFC) == (*(uint32_t*)&rhs & 0xFCFCFC); }
   inline bool operator==(const argb8888_t& lhs, const argb8888_t& rhs) { return (*(uint32_t*)&lhs & 0xFCFCFC) == (*(uint32_t*)&rhs & 0xFCFCFC); }
 //*/
-  inline bool operator==(const dev_color_t& lhs, const dev_color_t& rhs) { return lhs.raw == rhs.raw; }
-  inline bool operator!=(const dev_color_t& lhs, const dev_color_t& rhs) { return lhs.raw != rhs.raw; }
+  inline bool operator==(const raw_color_t& lhs, const raw_color_t& rhs) { return lhs.raw == rhs.raw; }
+  inline bool operator!=(const raw_color_t& lhs, const raw_color_t& rhs) { return lhs.raw != rhs.raw; }
 
 }
 /*
