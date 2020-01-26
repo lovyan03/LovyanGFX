@@ -28,7 +28,7 @@ namespace lgfx
     , _index(0)
     {
       _has_transaction = false;
-      _start_write_count = 0xFFFF;
+      _transaction_count = 0xFFFF;
     }
 
     LGFXSpriteBase()

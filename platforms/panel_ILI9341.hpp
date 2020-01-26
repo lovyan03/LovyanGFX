@@ -8,7 +8,6 @@ namespace lgfx
   class Panel_ILI9341_Common : public PanelIlitekCommon
   {
   protected:
-
     void setConfig_impl(void) override
     {
       if (!_ram_width   ) _ram_width = 240;
@@ -137,19 +136,23 @@ namespace lgfx
     };
   };
 
+#if defined(ESP32) || (CONFIG_IDF_TARGET_ESP32)
   class Panel_M5Stack : public Panel_ILI9341_Common
   {
   public:
     Panel_M5Stack() : Panel_ILI9341_Common() {
-      setConfig<cfg_t>(); 
+      static constexpr int gpio_rst = 33;
+      TPin<gpio_rst>::init(GPIO_MODE_INPUT);
+      setConfig<cfg_t>();
+      invert = TPin<gpio_rst>::get();
+      TPin<gpio_rst>::hi();
+      TPin<gpio_rst>::init(GPIO_MODE_OUTPUT);
     }
   private:
     struct cfg_t {
     //static constexpr color_depth_t color_depth = rgb565_2Byte;
     //static constexpr bool rgb_order = false;
-    //static constexpr bool invert = false;
-    //static constexpr int rotation = 0;
-    //static constexpr int spi_mode = 0;
+      static constexpr int rotation = 1;
       static constexpr int spi_cs = 14;
       static constexpr int spi_dc = 27;
       static constexpr uint32_t freq_write = 40000000;
@@ -174,6 +177,7 @@ namespace lgfx
       return madctl_table[r];
     }
   };
+#endif
 }
 
 #endif

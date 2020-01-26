@@ -519,8 +519,8 @@ Serial.printf("colorDepth:%d  swapBytes:%d  rotation:%d \r\n"
              , tft_lgfx.getColorDepth(), tft_lgfx.getSwapBytes(), tft_lgfx.getRotation());
   drawRects(tft_lgfx, 0);
   copyRect(tft_lgfx, 0);
-  //blockReadWrite(tft_lgfx, 0);
-
+  blockReadWrite(tft_lgfx, 0);
+return;
   sprite.fillScreen(1);
 //  sprite.fillRect(80, 0,80,80,2);
 //  sprite.fillRect( 0,80,80,80,3);

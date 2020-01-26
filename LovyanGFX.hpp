@@ -78,8 +78,8 @@ namespace lgfx
     __attribute__ ((always_inline)) inline void* setColorDepth(uint8_t bpp)       { return setColorDepth_impl((color_depth_t)bpp); }
     __attribute__ ((always_inline)) inline void* setColorDepth(color_depth_t bpp) { return setColorDepth_impl(bpp); }
 
-    __attribute__ ((always_inline)) inline void startWrite(void) { if (0 == _start_write_count++) { beginTransaction(); } }
-    __attribute__ ((always_inline)) inline void endWrite(void)   { if (_start_write_count) { if (0 == (--_start_write_count)) endTransaction(); } }
+    __attribute__ ((always_inline)) inline void startWrite(void) { if (0 == _transaction_count++) { beginTransaction(); } }
+    __attribute__ ((always_inline)) inline void endWrite(void)   { if (_transaction_count) { if (0 == (--_transaction_count)) endTransaction(); } }
     __attribute__ ((always_inline)) inline void beginTransaction(void) { beginTransaction_impl(); }
     __attribute__ ((always_inline)) inline void endTransaction(void)   { endTransaction_impl(); }
     __attribute__ ((always_inline)) inline void flush(void) {}
@@ -638,9 +638,41 @@ namespace lgfx
       uint16_t uniCode = decodeUTF8(utf8);
       if (uniCode == 0) return 1;
 
-      _drawCharMoveCursor = true;
-      drawChar(uniCode, _cursor_x, _cursor_y, _textfont);
-      _drawCharMoveCursor = false;
+      if (uniCode == '\n') uniCode += 22; // Make it a valid space character to stop errors
+      else if (uniCode < 32) return 1;
+
+      auto fontsize = (this->*fpGetFontSize)(uniCode);
+      fontsize.width *= _textsize_x;
+      fontsize.height *= _textsize_y;
+
+      if (utf8 == '\n') {
+        _cursor_y += fontsize.height;
+        _cursor_x = 0;
+      } else {
+        if (_textscroll) {
+          if (_cursor_x < _sx) _cursor_x = _sx;
+          if (_cursor_y < _sy) _cursor_y = _sy;
+          if (_cursor_x + fontsize.width > _sx + _sw) {
+            _cursor_x = _sx;
+            _cursor_y += fontsize.height;
+          }
+          if (_cursor_y + fontsize.height > _sy + _sh) {
+            scroll(0, (_sy + _sh) - (_cursor_y + fontsize.height));
+            _cursor_x = _sx;
+            _cursor_y = _sy + _sh - fontsize.height;
+          }
+        } else {
+          if (_textwrapX && (_cursor_x + fontsize.width > _width)) {
+            _cursor_x = 0;
+            _cursor_y += fontsize.height;
+          }
+          if (_textwrapY && (_cursor_y + fontsize.height > _height)) {
+            _cursor_x = 0;
+            _cursor_y = 0;
+          }
+        }
+        _cursor_x += drawChar(uniCode, _cursor_x, _cursor_y, _textfont);
+      }
 
       return 1;
     }
@@ -694,12 +726,34 @@ namespace lgfx
       return (uint16_t)c; // fall-back to extended ASCII
     }
 
+    struct font_size_t {
+    int16_t width;
+    int16_t height;
+    font_size_t(int16_t w = 0, int16_t h = 0) : width(w), height(h) {}
+    };
+
+    font_size_t(LGFXBase::*fpGetFontSize)(uint16_t uniCode) = &LGFXBase::getFontSizeGLCD;
+    font_size_t getFontSizeGLCD(uint16_t uniCode) { return font_size_t(6, 8); }
+    font_size_t getFontSizeBMP(uint16_t uniCode) { return font_size_t((uniCode < 32 || uniCode > 127) ? 0 : (pgm_read_byte(widtbl_f16 + uniCode - 32) + 6)&(~7), chr_hgt_f16); }
+    font_size_t getFontSizeRLE(uint16_t uniCode) { return font_size_t((uniCode < 32 || uniCode > 127) ? 0 : pgm_read_byte( (uint8_t *)pgm_read_dword( &(fontdata[_textfont].widthtbl ) ) + uniCode - 32 )
+                                                                     ,pgm_read_byte( &fontdata[_textfont].height )); }
+    font_size_t getFontSizeGFXFF(uint16_t uniCode) {
+      font_size_t res;
+      res.height = (uint8_t)pgm_read_byte(&_gfxFont->yAdvance);
+      if (uniCode >= pgm_read_word(&_gfxFont->first)
+      &&  uniCode <= pgm_read_word(&_gfxFont->last )) {
+        uint16_t c = uniCode - pgm_read_word(&_gfxFont->first);
+        GFXglyph *glyph = &(((GFXglyph *)pgm_read_dword(&_gfxFont->glyph))[c]);
+        res.width = pgm_read_byte(&glyph->xAdvance);
+      }
+      return res;
+    }
+
     inline int16_t drawChar(uint16_t uniCode, int32_t x, int32_t y) { return drawChar(uniCode, x, y, _textfont); }
     inline int16_t drawChar(uint16_t uniCode, int32_t x, int32_t y, uint8_t font)
     {
       return drawChar(x, y, uniCode, _textcolor, _textbgcolor, _textsize_x, _textsize_y);
     }
-
     int16_t (LGFXBase::*fpDrawCharClassic)(int32_t x, int32_t y, uint16_t c, const uint32_t& color, const uint32_t& bg, uint8_t size_x, uint8_t size_y) = &LGFXBase::drawCharGLCD;
     inline int16_t drawChar(int32_t x, int32_t y, uint16_t c, const uint32_t& color, const uint32_t& bg, uint8_t size)                   { return (this->*fpDrawCharClassic)(x, y, c, color, bg, size, size); }
     inline int16_t drawChar(int32_t x, int32_t y, uint16_t c, const uint32_t& color, const uint32_t& bg, uint8_t size_x, uint8_t size_y) { return (this->*fpDrawCharClassic)(x, y, c, color, bg, size_x, size_y); }
@@ -708,25 +762,7 @@ namespace lgfx
       static constexpr int fontWidth  = 6;
       static constexpr int fontHeight = 8;
 
-      if (_drawCharMoveCursor) {
-        int32_t fh = (int16_t)size_y * fontHeight;
-        if (c == '\n') {
-          _cursor_x  = 0;
-          _cursor_y = y + fh;
-          return 0;
-        } else
-        if (_textwrapX && ((x + (int16_t)size_x * (fontWidth)) > _width)) {
-          x  = 0;
-          y += fh;
-        }
-        if (_textscroll && (y + fh >= (int32_t)_sy + _sh)) {
-          y -= fh;
-          scroll(0, -fh);
-        }
-        _cursor_x = x;
-        _cursor_y = y;
-      }
-      if (c < 32) return 0;
+      if (c < 32 || c > 255) return 0;
 
       if ((x < _width)
        && (x + fontWidth * size_x > 0)
@@ -792,9 +828,6 @@ namespace lgfx
           endWrite();
         }
       }
-      if (_drawCharMoveCursor) {
-        _cursor_x += fontWidth * size_x;
-      }
       return fontWidth * size_x;
     }
 
@@ -804,19 +837,6 @@ namespace lgfx
       const int fontWidth = ((c < 32) || (c > 127)) ? 0 : pgm_read_byte(widtbl_f16 + uniCode);
       constexpr int fontHeight = chr_hgt_f16;
 
-      if (_drawCharMoveCursor) {
-        if (c == '\n') {
-          _cursor_x  = 0;
-          _cursor_y += (int16_t)size_y * fontHeight;
-          return 0;
-        } else
-        if (_textwrapX && ((x + (int16_t)size_x * (fontWidth)) > _width)) {
-          _cursor_x  = 0;
-          _cursor_y += (int16_t)size_y * fontHeight;
-        }
-        x = _cursor_x;
-        y = _cursor_y;
-      }
       if ((c < 32) || (c > 127)) return 0;
       auto font_addr = (const uint8_t*)pgm_read_dword(&chrtbl_f16[uniCode]);
 
@@ -892,9 +912,6 @@ namespace lgfx
           endWrite();
         }
       }
-      if (_drawCharMoveCursor) {
-        _cursor_x += fontWidth * size_x;
-      }
 
       return fontWidth * size_x;
     }
@@ -905,19 +922,6 @@ namespace lgfx
       const int fontWidth = ((c < 32) || (c > 127)) ? 0 : pgm_read_byte( (uint8_t *)pgm_read_dword( &(fontdata[_textfont].widthtbl ) ) + uniCode );
       const int fontHeight = pgm_read_byte( &fontdata[_textfont].height );
 
-      if (_drawCharMoveCursor) {
-        if (c == '\n') {
-          _cursor_x  = 0;
-          _cursor_y += (int16_t)size_y * fontHeight;
-          return 0;
-        } else
-        if (_textwrapX && ((x + (int16_t)size_x * (fontWidth)) > _width)) {
-          _cursor_x  = 0;
-          _cursor_y += (int16_t)size_y * fontHeight;
-        }
-        x = _cursor_x;
-        y = _cursor_y;
-      }
       if ((c < 32) || (c > 127)) return 0;
       auto font_addr = (const uint8_t*)pgm_read_dword( (const void*)(pgm_read_dword( &(fontdata[_textfont].chartbl ) ) + uniCode*sizeof(void *)) );
       if ((x < _width)
@@ -965,9 +969,6 @@ namespace lgfx
           endWrite();
         }
       }
-      if (_drawCharMoveCursor) {
-        _cursor_x += fontWidth * size_x;
-      }
 
       return fontWidth * size_x;
     }
@@ -989,26 +990,6 @@ namespace lgfx
       int fontWidth = pgm_read_byte(&glyph->xAdvance);
       uint8_t   w     = pgm_read_byte(&glyph->width),
                 h     = pgm_read_byte(&glyph->height);
-
-      if (_drawCharMoveCursor) {
-
-        if ((w > 0) && (h > 0)) { // Is there an associated bitmap?
-          int16_t xo = (int8_t)pgm_read_byte(&glyph->xOffset);
-          if (_textwrapX && ((_cursor_x + (int16_t)size_x * (xo + w)) > _width)) {
-            _cursor_x  = 0;
-            _cursor_y += (int16_t)size_y * fontHeight;
-          }
-          if (_textscroll && (_cursor_y + _glyph_ab >= (int32_t)_sy + _sh)) {
-            scroll(0, -(int16_t)size_y * fontHeight);
-            _cursor_y -= (int16_t)size_y * fontHeight;
-          }
-          else if (_textwrapY && (_cursor_y + _glyph_ab >= (int32_t)_height)) {
-            _cursor_y = 0;
-          }
-        }
-        x = _cursor_x;
-        y = _cursor_y;
-      }
 
       if (c < 32) return 0;
 
@@ -1065,9 +1046,6 @@ namespace lgfx
           endWrite();
         }
       }
-      if (_drawCharMoveCursor) {
-        _cursor_x += fontWidth * size_x;
-      }
       return fontWidth * size_x;
     }
 
@@ -1077,20 +1055,25 @@ namespace lgfx
     void setCursor( int16_t x, int16_t y, uint8_t font) { _cursor_x = x; _cursor_y = y; _textfont = font; }
     void setTextSize(uint8_t s) { setTextSize(s,s); }
     void setTextSize(uint8_t sx, uint8_t sy) { _textsize_x = (sx > 0) ? sx : 1; _textsize_y = (sy > 0) ? sy : 1; }
+    int16_t getTextSizeX(void) const { return _textsize_x; }
+    int16_t getTextSizeY(void) const { return _textsize_y; }
 
     void setTextDatum( uint8_t datum) { _textdatum = datum; }
     void setTextWrap( bool wrapX, bool wrapY = false) { _textwrapX = wrapX; _textwrapY = wrapY; }
-    void setTextScroll(bool scrollY) { _textscroll = scrollY; }
+    void setTextScroll(bool scroll) { _textscroll = scroll; if (_cursor_x < _sx) { _cursor_x = _sx; } if (_cursor_y < _sy) { _cursor_y = _sy; } }
 
     void setTextFont(uint8_t f) {
       _textfont = (f > 0) ? f : 1;
       _gfxFont = nullptr; 
-      if (_textfont == 1) {
-        fpDrawCharClassic = &LGFXBase::drawCharGLCD;
-      } else if (_textfont == 2) {
+      if (_textfont == 2) {
         fpDrawCharClassic = &LGFXBase::drawCharBMP;
-      } else{
+        fpGetFontSize = &LGFXBase::getFontSizeBMP;
+      } else if (_textfont > 2 && fontdata[_textfont].height != 0) {
         fpDrawCharClassic = &LGFXBase::drawCharRLE;
+        fpGetFontSize = &LGFXBase::getFontSizeRLE;
+      } else {
+        fpDrawCharClassic = &LGFXBase::drawCharGLCD;
+        fpGetFontSize = &LGFXBase::getFontSizeGLCD;
       }
     }
 
@@ -1099,6 +1082,7 @@ namespace lgfx
   #ifdef LOAD_GFXFF
       if (f == nullptr) { setTextFont(1); return; } // Use GLCD font
       fpDrawCharClassic = &LGFXBase::drawCharGFXFF;
+      fpGetFontSize = &LGFXBase::getFontSizeGFXFF;
 
       _textfont = 1;
       _gfxFont = f; // (GFXfont *)f;
@@ -1123,7 +1107,7 @@ namespace lgfx
   //----------------------------------------------------------------------------
 
   protected:
-    uint32_t _start_write_count = 0;
+    uint32_t _transaction_count = 0;
     int32_t _width = 0;
     int32_t _height = 0;
     int32_t _cursor_x = 0;
@@ -1137,13 +1121,13 @@ namespace lgfx
     dev_color_t _write_depth;
     dev_color_t _read_depth;
 
+    int16_t _textsize_x = 1;
+    int16_t _textsize_y = 1;
     int16_t _xpivot;   // x pivot point coordinate
     int16_t _ypivot;   // x pivot point coordinate
     uint16_t _decoderBuffer= 0;   // Unicode code-point buffer
     uint8_t  _decoderState = 0;   // UTF8 decoder state
     uint8_t _rotation = 0;
-    uint8_t _textsize_x = 1;
-    uint8_t _textsize_y = 1;
     uint8_t _textfont = 1;
     uint8_t _textdatum;
     bool _has_transaction = true;
@@ -1152,7 +1136,6 @@ namespace lgfx
     bool _textwrapX = true;
     bool _textwrapY = false;
     bool _textscroll = false;
-    bool _drawCharMoveCursor = false;
 
     template <typename T>
     __attribute__ ((always_inline)) inline static void swap_coord(T& a, T& b) { T t = a; a = b; b = t; }
@@ -1500,6 +1483,7 @@ namespace lgfx
     }
 
 #if defined (ARDUINO) && defined (FS_H)
+
     fs::File fp;
     bool open(fs::FS& fs, const char* path, const char* mode) { return (fp = fs.open(path, mode)); }
   #if defined (_SD_H_)
@@ -1512,7 +1496,9 @@ namespace lgfx
     void skip(uint32_t offset) { seek(offset, SeekCur); }
     void read(uint8_t *buf, uint32_t len) { fp.read(buf, len); }
     void close() { fp.close(); }
+
 #elif defined (CONFIG_IDF_TARGET_ESP32)  // ESP-IDF
+
     FILE* fp;
     bool open(const char* path, const char* mode) { return (fp = fopen(path, mode)); }
     bool seek(uint32_t offset) { return seek(offset, SEEK_SET); }
@@ -1520,13 +1506,16 @@ namespace lgfx
     void skip(uint32_t offset) { seek(offset, SEEK_CUR); }
     void read(uint8_t *buf, uint32_t len) { fread((char*)buf, 1, len, fp); }
     void close() { fclose(fp); }
-#else
+
+#else  // dummy.
+
     bool open(const char* path, const char* mode) { return false; }
     bool seek(uint32_t offset) { return false; }
     bool seek(uint32_t offset, int origin) { return false; }
     void skip(uint32_t offset) { }
     void read(uint8_t *buf, uint32_t len) { }
     void close() { }
+
 #endif
 
   };
@@ -1544,12 +1533,12 @@ namespace lgfx
       if (need_transaction) this->endTransaction();
       if (!file.open(fs, path, "rb")) {
 //Serial.print("file can't open :"); Serial.println(path);
-        if (need_transaction && this->_start_write_count) { this->beginTransaction(); }
+        if (need_transaction && this->_transaction_count) { this->beginTransaction(); }
         return;
       }
       drawBmpFile(file, x, y, need_transaction);
       file.close();
-      if (need_transaction && this->_start_write_count) { this->beginTransaction(); }
+      if (need_transaction && this->_transaction_count) { this->beginTransaction(); }
     }
 
 #elif defined (CONFIG_IDF_TARGET_ESP32)  // ESP-IDF
@@ -1560,12 +1549,12 @@ namespace lgfx
 
       if (need_transaction) this->endTransaction();
       if (!file.open(path, "rb")) {
-        if (need_transaction && this->_start_write_count) { this->beginTransaction(); }
+        if (need_transaction && this->_transaction_count) { this->beginTransaction(); }
         return;
       }
       drawBmpFile(file, x, y, need_transaction);
       file.close();
-      if (need_transaction && this->_start_write_count) { this->beginTransaction(); }
+      if (need_transaction && this->_transaction_count) { this->beginTransaction(); }
     }
 
 #endif
@@ -1579,7 +1568,6 @@ namespace lgfx
         file.skip(8);
         uint32_t seekOffset = file.read32();
         file.skip(4);
-        //int32_t row, col;
         int32_t w = file.read32();
         int32_t h = file.read32();  // bcHeight Image height (pixels)
         //If the value of bcHeight is positive, the image data is from bottom to top

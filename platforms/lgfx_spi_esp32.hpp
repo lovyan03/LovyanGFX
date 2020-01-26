@@ -9,6 +9,8 @@
 #include "lgfx_sprite.hpp"
 #include "panel_common.hpp"
 
+//#define CONFIG_IDF_TARGET_ESP32 1
+
 namespace lgfx
 {
   #define MEMBER_DETECTOR(member, classname, classname_impl, valuetype) struct classname_impl { \
@@ -266,22 +268,22 @@ namespace lgfx
 
     void setRotation_impl(uint8_t r) override
     {
-      if (!_start_write_count) beginTransaction_impl();
+      if (!_transaction_count) beginTransaction_impl();
 
       commandList(_panel->getRotationCommands((uint8_t*)_regbuf, r));
       postSetRotation();
 
-      if (!_start_write_count) endTransaction_impl();
+      if (!_transaction_count) endTransaction_impl();
     }
 
     void* setColorDepth_impl(color_depth_t depth) override
     {
-      if (!_start_write_count) beginTransaction_impl();
+      if (!_transaction_count) beginTransaction_impl();
 
       commandList(_panel->getColorDepthCommands((uint8_t*)_regbuf, depth));
       postSetColorDepth();
 
-      if (!_start_write_count) endTransaction_impl();
+      if (!_transaction_count) endTransaction_impl();
 
       return nullptr;
     }
@@ -369,7 +371,7 @@ namespace lgfx
 
     void drawPixel_impl(int32_t x, int32_t y) override
     {
-      if (!_start_write_count) beginTransaction_impl();
+      if (!_transaction_count) beginTransaction_impl();
       set_window(x, y, x, y);
       if (_clkdiv_write != _clkdiv_fill && !_fill_mode) {
         wait_spi();
@@ -378,12 +380,12 @@ namespace lgfx
       }
       write_cmd(_cmd_ramwr);
       write_data(_color.raw, _write_depth.bits);
-      if (!_start_write_count) endTransaction_impl();
+      if (!_transaction_count) endTransaction_impl();
     }
 
     void fillRect_impl(int32_t x, int32_t y, int32_t w, int32_t h) override
     {
-      if (!_start_write_count) beginTransaction_impl();
+      if (!_transaction_count) beginTransaction_impl();
       set_window(x, y, x+w-1, y+h-1);
       if (_clkdiv_write != _clkdiv_fill && !_fill_mode) {
         wait_spi();
@@ -392,7 +394,7 @@ namespace lgfx
       }
       write_cmd(_cmd_ramwr);
       writeColor_impl(w*h);
-      if (!_start_write_count) endTransaction_impl();
+      if (!_transaction_count) endTransaction_impl();
     }
 
     void readWindow_impl(int32_t xs, int32_t ys, int32_t xe, int32_t ye) override
@@ -411,6 +413,7 @@ namespace lgfx
       if (length == 1) { write_data(_color.raw, _write_depth.bits); return; }
 
       uint32_t len;
+      // make 12Bytes data.
       if (_write_depth.bytes == 2) {
         _regbuf[0] = _color.raw | _color.raw << 16;
         memcpy(&_regbuf[1], _regbuf, 4);
@@ -427,16 +430,18 @@ namespace lgfx
       wait_spi();
       set_write_len(len * _write_depth.bits);
       dc_h();
+      // copy to SPI buffer register
       memcpy((void*)_spi_w0_reg, _regbuf, 12);
       exec_spi();
       if (0 == (length -= len)) return;
-
+      // make 28Byte data from 12Byte data.
       memcpy((void*)&_regbuf[ 3], _regbuf, 12);
       memcpy((void*)&_regbuf[ 6], _regbuf,  4);
+      // copy to SPI buffer register
       memcpy((void*)&_spi_w0_reg[ 3], _regbuf, 24);
       memcpy((void*)&_spi_w0_reg[ 9], _regbuf, 28);
 
-      const uint32_t limit = (_write_depth.bytes == 2) ? 32 : 21; // limit = 512 / bpp;
+      const uint32_t limit = (_write_depth.bytes == 2) ? 32 : 21; // limit = 64 / bytes;
       len = length % limit;
       if (len) {
         wait_spi();
@@ -533,6 +538,17 @@ namespace lgfx
       set_clock_read();
       dc_h();
       *_spi_user_reg = (_user_reg & ~SPI_USR_MOSI) | SPI_USR_MISO | (_panel->spi_3wire ? SPI_SIO : 0);
+//ESP_LOGE("start_read", "3wire : %d", _panel->spi_3wire);
+
+
+*reg(SPI_CTRL_REG (_spi_port)) = 0x0020a400;
+*reg(SPI_CTRL1_REG(_spi_port)) = 0x5fff0000;
+*reg(SPI_CTRL2_REG(_spi_port)) = 0x00000000;
+*reg(SPI_USER_REG (_spi_port)) = 0x10010050;
+*reg(SPI_USER1_REG(_spi_port)) = 0x5c000007;
+*reg(SPI_PIN_REG  (_spi_port)) = 0x00000018;
+*reg(SPI_SLAVE_REG(_spi_port)) = 0x04800210;
+
     }
 
     void endRead_impl(void) override
@@ -540,6 +556,15 @@ namespace lgfx
       end_read();
     }
     void end_read(void) {
+/*
+ESP_LOGE("test", "SPI_CTRL_REG  : %08x", *reg(SPI_CTRL_REG (_spi_port)));
+ESP_LOGE("test", "SPI_CTRL1_REG : %08x", *reg(SPI_CTRL1_REG(_spi_port)));
+ESP_LOGE("test", "SPI_CTRL2_REG : %08x", *reg(SPI_CTRL2_REG(_spi_port)));
+ESP_LOGE("test", "SPI_USER_REG  : %08x", *reg(SPI_USER_REG (_spi_port)));
+ESP_LOGE("test", "SPI_USER1_REG : %08x", *reg(SPI_USER1_REG(_spi_port)));
+ESP_LOGE("test", "SPI_PIN_REG   : %08x", *reg(SPI_PIN_REG  (_spi_port)));
+ESP_LOGE("test", "SPI_SLAVE_REG : %08x", *reg(SPI_SLAVE_REG(_spi_port)));
+*/
       cs_h();
       *_spi_user_reg = _user_reg;
       set_clock_write();

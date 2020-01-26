@@ -10,13 +10,16 @@ namespace lgfx
   protected:
     void setConfig_impl(void) override
     {
-      if (!_ram_width   ) this->_ram_width = 132;
-      if (!_ram_height  ) this->_ram_height = 162;
-      if (!_panel_width ) this->_panel_width = 132;
-      if (!_panel_height) this->_panel_height = 162;
+      if (!_ram_width   ) _ram_width = 132;
+      if (!_ram_height  ) _ram_height = 162;
+      if (!_panel_width ) _panel_width = 132;
+      if (!_panel_height) _panel_height = 162;
       if (!freq_write) freq_write = 20000000;
       if (!freq_read ) freq_read  = 10000000;
       if (!freq_fill ) freq_fill  = 20000000;
+
+      _madctl_rgb = MAD::RGB;
+      _madctl_bgr = MAD::BGR;
 
       len_dummy_read_pixel = 9;
       len_dummy_read_rddid = 1;
@@ -218,6 +221,7 @@ namespace lgfx
   private:
     struct cfg_t {
       static constexpr bool spi_3wire = true;
+      static constexpr bool invert = true;
       static constexpr int spi_cs =  5;
       static constexpr int spi_dc = 23;
       static constexpr int freq_write = 27000000;
