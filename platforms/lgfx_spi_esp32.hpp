@@ -539,8 +539,7 @@ namespace lgfx
       dc_h();
       *_spi_user_reg = (_user_reg & ~SPI_USR_MOSI) | SPI_USR_MISO | (_panel->spi_3wire ? SPI_SIO : 0);
 //ESP_LOGE("start_read", "3wire : %d", _panel->spi_3wire);
-
-
+/*
 *reg(SPI_CTRL_REG (_spi_port)) = 0x0020a400;
 *reg(SPI_CTRL1_REG(_spi_port)) = 0x5fff0000;
 *reg(SPI_CTRL2_REG(_spi_port)) = 0x00000000;
@@ -548,7 +547,7 @@ namespace lgfx
 *reg(SPI_USER1_REG(_spi_port)) = 0x5c000007;
 *reg(SPI_PIN_REG  (_spi_port)) = 0x00000018;
 *reg(SPI_SLAVE_REG(_spi_port)) = 0x04800210;
-
+//*/
     }
 
     void endRead_impl(void) override
