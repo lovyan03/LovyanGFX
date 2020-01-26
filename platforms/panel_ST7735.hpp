@@ -225,7 +225,7 @@ namespace lgfx
       static constexpr int spi_cs =  5;
       static constexpr int spi_dc = 23;
       static constexpr int freq_write = 27000000;
-      static constexpr int freq_read  = 14000000;
+      static constexpr int freq_read  = 16000000;
       static constexpr int freq_fill  = 27000000;
       static constexpr int panel_x      = 26;
       static constexpr int panel_y      = 1;

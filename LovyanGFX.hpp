@@ -642,8 +642,8 @@ namespace lgfx
       else if (uniCode < 32) return 1;
 
       auto fontsize = (this->*fpGetFontSize)(uniCode);
-      fontsize.width *= _textsize_x;
-      fontsize.height *= _textsize_y;
+      if (0 == (fontsize.width *= _textsize_x)) return 1;
+      if (0 == (fontsize.height *= _textsize_y)) return 1;
 
       if (utf8 == '\n') {
         _cursor_y += fontsize.height;
@@ -734,9 +734,17 @@ namespace lgfx
 
     font_size_t(LGFXBase::*fpGetFontSize)(uint16_t uniCode) = &LGFXBase::getFontSizeGLCD;
     font_size_t getFontSizeGLCD(uint16_t uniCode) { return font_size_t(6, 8); }
-    font_size_t getFontSizeBMP(uint16_t uniCode) { return font_size_t((uniCode < 32 || uniCode > 127) ? 0 : (pgm_read_byte(widtbl_f16 + uniCode - 32) + 6)&(~7), chr_hgt_f16); }
-    font_size_t getFontSizeRLE(uint16_t uniCode) { return font_size_t((uniCode < 32 || uniCode > 127) ? 0 : pgm_read_byte( (uint8_t *)pgm_read_dword( &(fontdata[_textfont].widthtbl ) ) + uniCode - 32 )
-                                                                     ,pgm_read_byte( &fontdata[_textfont].height )); }
+    font_size_t getFontSizeBMP(uint16_t uniCode)
+    {
+      uniCode -= 32;
+      return font_size_t((uniCode > 95) ? 0 : (pgm_read_byte(widtbl_f16 + uniCode) + 6)&(~7)
+                        , chr_hgt_f16);
+    }
+    font_size_t getFontSizeRLE(uint16_t uniCode) {
+      uniCode -= 32;
+      return font_size_t((uniCode > 95) ? 0 : pgm_read_byte( (uint8_t *)pgm_read_dword( &(fontdata[_textfont].widthtbl ) ) + uniCode )
+                        , pgm_read_byte( &fontdata[_textfont].height ));
+    }
     font_size_t getFontSizeGFXFF(uint16_t uniCode) {
       font_size_t res;
       res.height = (uint8_t)pgm_read_byte(&_gfxFont->yAdvance);
@@ -918,12 +926,12 @@ namespace lgfx
 
     int16_t drawCharRLE(int32_t x, int32_t y, uint16_t c, const uint32_t& color, const uint32_t& bg, uint8_t size_x, uint8_t size_y)
     { // RLE font
-      uint16_t uniCode = c - 32;
-      const int fontWidth = ((c < 32) || (c > 127)) ? 0 : pgm_read_byte( (uint8_t *)pgm_read_dword( &(fontdata[_textfont].widthtbl ) ) + uniCode );
+      uint16_t code = c - 32;
+      const int fontWidth = ((c < 32) || (c > 127)) ? 0 : pgm_read_byte( (uint8_t *)pgm_read_dword( &(fontdata[_textfont].widthtbl ) ) + code );
       const int fontHeight = pgm_read_byte( &fontdata[_textfont].height );
 
       if ((c < 32) || (c > 127)) return 0;
-      auto font_addr = (const uint8_t*)pgm_read_dword( (const void*)(pgm_read_dword( &(fontdata[_textfont].chartbl ) ) + uniCode*sizeof(void *)) );
+      auto font_addr = (const uint8_t*)pgm_read_dword( (const void*)(pgm_read_dword( &(fontdata[_textfont].chartbl ) ) + code * sizeof(void *)) );
       if ((x < _width)
        && (x + fontWidth * size_x > 0)
        && (y < _height)

@@ -33,7 +33,7 @@ PROGMEM const unsigned char widtbl_f64[96] =          // character width table
         12, 27, 12, 12, 12, 12, 12, 12,     // char 96 - 103
         12, 12, 12, 12, 12, 42, 12, 12,     // char 104 - 111
         29, 12, 12, 12, 12, 12, 12, 12,     // char 112 - 119
-        12, 12, 12, 12, 7, 12, 12, 12      // char 120 - 127
+        12, 12, 12, 12, 12, 12, 12, 12      // char 120 - 127
 };
 
 PROGMEM const unsigned char chr_f64_20[] = 
