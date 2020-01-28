@@ -457,7 +457,7 @@ namespace lgfx
     void pushDMA(const uint8_t* src, int32_t len)
     {
       startWrite();
-      pushDMA_impl(src, len);
+      write_bytes_dma(src, len);
       endWrite();
     }
 
@@ -635,41 +635,51 @@ namespace lgfx
     {
       if (utf8 == '\r') return 1;
 
-      uint16_t uniCode = decodeUTF8(utf8);
-      if (uniCode == 0) return 1;
+      uint16_t uniCode = utf8;
+      if (_decoderState != -1) {
+        uniCode = decodeUTF8(utf8);
+        if (uniCode == 0) return 1;
+        if (utf8 == '\n') uniCode = 32; // Make it a valid space character to stop errors
+        else if (uniCode < 32) return 1;
+      }
+      if (fpUpdateFontSize && !(this->*fpUpdateFontSize)(uniCode)) return 1;
 
-      if (uniCode == '\n') uniCode += 22; // Make it a valid space character to stop errors
-      else if (uniCode < 32) return 1;
-
-      auto fontsize = (this->*fpGetFontSize)(uniCode);
-      if (0 == (fontsize.width *= _textsize_x)) return 1;
-      if (0 == (fontsize.height *= _textsize_y)) return 1;
+      if ((0 == _font_size.width) || (0 == _font_size.height)) return 1;
 
       if (utf8 == '\n') {
-        _cursor_y += fontsize.height;
         _cursor_x = 0;
+        _cursor_y += _font_size.yadvance * _textsize_y;
       } else {
+        int16_t w  = _font_size.width    * _textsize_x;
+        int16_t xo = _font_size.xoffset  * _textsize_x;
+        int16_t h  = _font_size.height   * _textsize_y;
+        int16_t yo = _font_size.yoffset  * _textsize_y;
+        if (_textscroll || _textwrapX) {
+          int32_t left = _textscroll ? _sx : 0;
+          if (_cursor_x < left - xo) _cursor_x = left - xo;
+          else {
+            int32_t right = _textscroll ? _sx + _sw : _width;
+            if (_cursor_x + xo + w > right) {
+              _cursor_x = left - xo;
+              _cursor_y += _font_size.yadvance * _textsize_y;
+            }
+          }
+        }
         if (_textscroll) {
-          if (_cursor_x < _sx) _cursor_x = _sx;
-          if (_cursor_y < _sy) _cursor_y = _sy;
-          if (_cursor_x + fontsize.width > _sx + _sw) {
-            _cursor_x = _sx;
-            _cursor_y += fontsize.height;
+          if (_cursor_y < _sy - yo) _cursor_y = _sy - yo;
+          else {
+            int yshift = (_sy + _sh) - (_cursor_y + yo + h);
+            if (yshift < 0) {
+              scroll(0, yshift);
+              _cursor_y += yshift;
+            }
           }
-          if (_cursor_y + fontsize.height > _sy + _sh) {
-            scroll(0, (_sy + _sh) - (_cursor_y + fontsize.height));
-            _cursor_x = _sx;
-            _cursor_y = _sy + _sh - fontsize.height;
-          }
-        } else {
-          if (_textwrapX && (_cursor_x + fontsize.width > _width)) {
-            _cursor_x = 0;
-            _cursor_y += fontsize.height;
-          }
-          if (_textwrapY && (_cursor_y + fontsize.height > _height)) {
-            _cursor_x = 0;
-            _cursor_y = 0;
-          }
+        } else if (_textwrapY) {
+          if (_cursor_y + yo + h > _height) {
+            _cursor_x = - xo;
+            _cursor_y = - yo;
+          } else
+          if (_cursor_y < - yo) _cursor_y = - yo;
         }
         _cursor_x += drawChar(uniCode, _cursor_x, _cursor_y, _textfont);
       }
@@ -726,51 +736,543 @@ namespace lgfx
       return (uint16_t)c; // fall-back to extended ASCII
     }
 
-    struct font_size_t {
-    int16_t width;
-    int16_t height;
-    font_size_t(int16_t w = 0, int16_t h = 0) : width(w), height(h) {}
-    };
-
-    font_size_t(LGFXBase::*fpGetFontSize)(uint16_t uniCode) = &LGFXBase::getFontSizeGLCD;
-    font_size_t getFontSizeGLCD(uint16_t uniCode) { return font_size_t(6, 8); }
-    font_size_t getFontSizeBMP(uint16_t uniCode)
-    {
-      uniCode -= 32;
-      return font_size_t((uniCode > 95) ? 0 : (pgm_read_byte(widtbl_f16 + uniCode) + 6)&(~7)
-                        , chr_hgt_f16);
-    }
-    font_size_t getFontSizeRLE(uint16_t uniCode) {
-      uniCode -= 32;
-      return font_size_t((uniCode > 95) ? 0 : pgm_read_byte( (uint8_t *)pgm_read_dword( &(fontdata[_textfont].widthtbl ) ) + uniCode )
-                        , pgm_read_byte( &fontdata[_textfont].height ));
-    }
-    font_size_t getFontSizeGFXFF(uint16_t uniCode) {
-      font_size_t res;
-      res.height = (uint8_t)pgm_read_byte(&_gfxFont->yAdvance);
-      if (uniCode >= pgm_read_word(&_gfxFont->first)
-      &&  uniCode <= pgm_read_word(&_gfxFont->last )) {
-        uint16_t c = uniCode - pgm_read_word(&_gfxFont->first);
-        GFXglyph *glyph = &(((GFXglyph *)pgm_read_dword(&_gfxFont->glyph))[c]);
-        res.width = pgm_read_byte(&glyph->xAdvance);
-      }
-      return res;
-    }
-
     inline int16_t drawChar(uint16_t uniCode, int32_t x, int32_t y) { return drawChar(uniCode, x, y, _textfont); }
     inline int16_t drawChar(uint16_t uniCode, int32_t x, int32_t y, uint8_t font)
     {
       return drawChar(x, y, uniCode, _textcolor, _textbgcolor, _textsize_x, _textsize_y);
     }
-    int16_t (LGFXBase::*fpDrawCharClassic)(int32_t x, int32_t y, uint16_t c, const uint32_t& color, const uint32_t& bg, uint8_t size_x, uint8_t size_y) = &LGFXBase::drawCharGLCD;
     inline int16_t drawChar(int32_t x, int32_t y, uint16_t c, const uint32_t& color, const uint32_t& bg, uint8_t size)                   { return (this->*fpDrawCharClassic)(x, y, c, color, bg, size, size); }
     inline int16_t drawChar(int32_t x, int32_t y, uint16_t c, const uint32_t& color, const uint32_t& bg, uint8_t size_x, uint8_t size_y) { return (this->*fpDrawCharClassic)(x, y, c, color, bg, size_x, size_y); }
+
+    int16_t getCursorX(void) const { return _cursor_x; }
+    int16_t getCursorY(void) const { return _cursor_y; }
+    void setCursor( int16_t x, int16_t y)               { _cursor_x = x; _cursor_y = y; }
+    void setCursor( int16_t x, int16_t y, uint8_t font) { _cursor_x = x; _cursor_y = y; _textfont = font; }
+    void setTextSize(uint8_t s) { setTextSize(s,s); }
+    void setTextSize(uint8_t sx, uint8_t sy) { _textsize_x = (sx > 0) ? sx : 1; _textsize_y = (sy > 0) ? sy : 1; }
+    int16_t getTextSizeX(void) const { return _textsize_x; }
+    int16_t getTextSizeY(void) const { return _textsize_y; }
+
+    void setTextDatum( uint8_t datum) { _textdatum = datum; }
+    void setTextWrap( bool wrapX, bool wrapY = false) { _textwrapX = wrapX; _textwrapY = wrapY; }
+    void setTextScroll(bool scroll) { _textscroll = scroll; if (_cursor_x < _sx) { _cursor_x = _sx; } if (_cursor_y < _sy) { _cursor_y = _sy; } }
+
+    void setTextFont(uint8_t f) {
+      _textfont = (f > 0) ? f : 1;
+      _gfxFont = nullptr;
+      _decoderState = -1;
+      _font_size.xoffset = _font_size.yoffset = 0;
+      if (_textfont > 1 && fontdata[_textfont].height != 0) {
+        _font_size.height = _font_size.yadvance = pgm_read_byte( &fontdata[_textfont].height );
+        fpDrawCharClassic = (_textfont == 2) 
+                          ? &LGFXBase::drawCharBMP
+                          : &LGFXBase::drawCharRLE;
+        fpUpdateFontSize = &LGFXBase::updateFontSizeBMP;
+      } else {
+        _font_size.width  = _font_size.xadvance = 6;
+        _font_size.height = _font_size.yadvance = 8;
+        fpDrawCharClassic = &LGFXBase::drawCharGLCD;
+        fpUpdateFontSize = nullptr; // &LGFXBase::updateFontSizeGLCD;
+      }
+    }
+
+    void setFreeFont(const GFXfont *f = nullptr)
+    {
+  #ifdef LOAD_GFXFF
+      if (f == nullptr) { setTextFont(1); return; } // Use GLCD font
+      fpDrawCharClassic = &LGFXBase::drawCharGFXFF;
+      fpUpdateFontSize = &LGFXBase::updateFontSizeGFXFF;
+
+      _textfont = 1;
+      _gfxFont = f; // (GFXfont *)f;
+      if (_decoderState == -1) _decoderState = 0;
+
+      _glyph_ab = 0;
+      _glyph_bb = 0;
+      uint16_t numChars = pgm_read_word(&_gfxFont->last) - pgm_read_word(&_gfxFont->first);
+      
+      // Find the biggest above and below baseline offsets
+      for (uint8_t c = 0; c < numChars; c++)
+      {
+        GFXglyph *glyph1 = &(((GFXglyph *)pgm_read_dword(&_gfxFont->glyph))[c]);
+        int8_t ab = -pgm_read_byte(&glyph1->yOffset);
+        if (ab > _glyph_ab) _glyph_ab = ab;
+        int8_t bb = pgm_read_byte(&glyph1->height) - ab;
+        if (bb > _glyph_bb) _glyph_bb = bb;
+      }
+
+      _font_size.yoffset = - _glyph_ab;
+      _font_size.height = _glyph_bb + _glyph_ab;
+      _font_size.yadvance = (uint8_t)pgm_read_byte(&_gfxFont->yAdvance);
+
+  #endif
+    }
+
+  //----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+
+  protected:
+    uint32_t _transaction_count = 0;
+    int32_t _width = 0;
+    int32_t _height = 0;
+    int32_t _cursor_x = 0;
+    int32_t _cursor_y = 0;
+    int32_t  _sx, _sy, _sw, _sh; // for scroll zone
+    uint32_t _textcolor = 0xFFFFFFFF;
+    uint32_t _textbgcolor = 0;
+    uint32_t _scolor;  // gap fill colour for scroll zone
+    raw_color_t _color = 0xFFFFFFFF;
+
+    dev_color_t _write_depth;
+    dev_color_t _read_depth;
+
+    int16_t _textsize_x = 1;
+    int16_t _textsize_y = 1;
+    int16_t _xpivot;   // x pivot point coordinate
+    int16_t _ypivot;   // x pivot point coordinate
+    uint16_t _decoderBuffer= 0;   // Unicode code-point buffer
+    int8_t  _decoderState = -1;   // UTF8 decoder state
+    uint8_t _rotation = 0;
+    uint8_t _textfont = 1;
+    uint8_t _textdatum;
+    bool _has_transaction = true;
+    bool _invert = false;
+    bool _swapBytes = false;
+    bool _textwrapX = true;
+    bool _textwrapY = false;
+    bool _textscroll = false;
+
+    struct font_size_t {
+      int16_t xoffset = 0;
+      int16_t yoffset = 0;
+      int16_t width = 6;
+      int16_t height = 8;
+      int16_t xadvance = 6;
+      int16_t yadvance = 8;
+    };
+    font_size_t _font_size;
+
+    template <typename T>
+    __attribute__ ((always_inline)) inline static void swap_coord(T& a, T& b) { T t = a; a = b; b = t; }
+    __attribute__ ((always_inline)) inline static bool _adjust(int32_t& x, int32_t& w) { if (w < 0) { x += w + 1; w = -w; } return 0==w; }
+
+    static bool _adjust_width(int32_t& x, int32_t& dx, int32_t& dw, int32_t _width)
+    {
+      if ((dw < 1) || (x >= _width)) return true;
+      if (x < 0) { dw += x; dx = -x; x = 0; }
+      if ((x + dw) > _width ) dw = _width  - x;
+      return (dw < 1);
+    }
+
+  #ifdef LOAD_GFXFF
+    const GFXfont  *_gfxFont;
+    uint8_t _glyph_ab;   // glyph delta Y (height) above baseline
+    uint8_t _glyph_bb;   // glyph delta Y (height) below baseline
+  #endif
+
+    virtual rgb565_t readPixel16_impl(int32_t x, int32_t y) { return 0; }
+
+    struct pixelcopy_param_t {
+      int32_t src_offset = 0;
+    //int32_t dst_offset = 0;
+      const rgb888_t* src_palette = nullptr;
+    //const rgb888_t* dst_palette = nullptr;
+    };
+
+    template <class TDst, class TSrc>
+    static void pixel_to_pixel_template(void*& dst, const void* &src, int32_t len, pixelcopy_param_t* p) {
+      const TSrc*& s = (const TSrc*&)src;
+      TDst*& d = (TDst*&)dst;
+      do { *d++ = *s++; } while (--len);
+    }
+    static void pixel_to_pixel_memcpy(void*& dst, const void* &src, int32_t len, pixelcopy_param_t* p) {
+      memcpy(dst, src, len);
+      const uint8_t*& s = (const uint8_t*&)src;
+      s += len;
+      uint8_t*& d = (uint8_t*&)dst;
+      d += len;
+    }
+    template <class TDst, class TSrc>
+    static void palette_to_pixel_template(void*& dst, const void* &src, int32_t len, pixelcopy_param_t* p) {
+      const uint8_t*& s = (const uint8_t*&)src;
+      TDst*& d = (TDst*&)dst;
+      do {
+        p->src_offset = (p->src_offset + (8-TSrc::bits)) & 7;
+        *d++ = p->src_palette[(*s >> p->src_offset) & TSrc::mask];
+        if (!p->src_offset) { s++; }
+      } while (--len);
+    }
+
+    void read_rect(int32_t x, int32_t y, int32_t w, int32_t h, void* data, void(LGFXBase::*fp_read_pixels)(void*, int32_t, pixelcopy_param_t* param))
+    {
+      if (_adjust(x,w) || _adjust(y,h)) return;
+      if ((x >= _width) || (y >= _height)) return;
+      if (x < 0) { w += x; x = 0; }
+      if ((x + w) > _width)  w = _width  - x;
+      if (w < 1) return;
+      if (y < 0) { h += y; y = 0; }
+      if ((y + h) > _height) h = _height - y;
+      if (h < 1) return;
+
+      pixelcopy_param_t p;
+      startWrite();
+      readWindow_impl(x, y, x + w - 1, y + h - 1);
+      (this->*fp_read_pixels)(data, w * h, &p);
+      endRead_impl();
+      endWrite();
+    }
+    void push_image(int32_t x, int32_t y, int32_t w, int32_t h, const void* data, const rgb888_t* palette, const uint8_t bits, void(LGFXBase::*fp_write_pixels)(const void*, int32_t, pixelcopy_param_t*))
+    {
+      int32_t dx=0, dw=w;
+      if (_adjust_width(x, dx, dw, _width)) return;
+      int32_t dy=0, dh=h;
+      if (_adjust_width(y, dy, dh, _height)) return;
+
+      pixelcopy_param_t param;
+      param.src_palette = palette;
+
+      startWrite();
+      setWindow(x, y, x + dw - 1, y + dh - 1);
+      bool indivisible = (w * bits) & 7;
+      const int32_t len = indivisible + (w * bits >> 3);
+      const uint8_t* src = (const uint8_t*)data + (dx * bits >> 3) + dy * len;
+      if (dw == w && !indivisible) {
+        (this->*fp_write_pixels)(src, dw * dh, &param);
+      } else {
+        uint8_t offset = (-dx * bits) & 7;
+        do {
+          param.src_offset = offset;
+          (this->*fp_write_pixels)(src, dw, &param);
+          src += len;
+        } while (--dh);
+      }
+      endWrite();
+    }
+
+    void push_image(int32_t x, int32_t y, int32_t w, int32_t h, const void* data, const rgb888_t* palette, uint32_t transp, const uint8_t bits, void(LGFXBase::*fp_write_pixels)(const void*, int32_t, pixelcopy_param_t*))
+    {
+      int32_t dx=0, dw=w;
+      if (_adjust_width(x, dx, dw, _width)) return;
+      int32_t dy=0, dh=h;
+      if (_adjust_width(y, dy, dh, _height)) return;
+
+      pixelcopy_param_t param;
+      param.src_palette = palette;
+
+      startWrite();
+      bool indivisible = (w * bits) & 7;
+      const int32_t len = indivisible + (w * bits >> 3);
+      const uint8_t* src = (const uint8_t*)data + dy * len;
+      const uint32_t color_mask = (1<<bits)-1;
+      transp &= color_mask;
+      do {
+        int32_t i, j = 0;
+        uint8_t offset = (-dx * bits) & 7;
+        for (i = 0; i < dw; i++) {
+          offset = (offset - bits) & 7;
+          if ((((*(uint32_t*)&src[(dx+i)*bits >> 3]) >> offset) & color_mask) == transp) {
+            if (j != i) {
+              setWindow(x + j, y, x + i, y);
+              param.src_offset = (-(dx+j) * bits) & 7;
+              (this->*fp_write_pixels)(&src[(dx+j)*bits >> 3], i - j, &param);
+            }
+            j = i + 1;
+          }
+        }
+        if (j != i) {
+          setWindow(x + j, y, x + i, y);
+          param.src_offset = (-(dx+j) * bits) & 7;
+          (this->*fp_write_pixels)(&src[(dx+j)*bits >> 3], i - j, &param);
+        }
+        y++;
+        src += len;
+      } while (--dh);
+
+      endWrite();
+    }
+
+    template<class TDst, class TSrc>
+    void read_pixels_template(void* dst, int32_t length, pixelcopy_param_t* param)
+    {
+      if (std::is_same<TDst, TSrc>::value) {
+        read_bytes((uint8_t*)dst, length * (TDst::bits>>3));
+      } else {
+        read_pixels(dst, length, param, pixel_to_pixel_template<TDst, TSrc>);
+      }
+    }
+    template<class T>
+    auto get_read_pixels_fp(void) -> void(LGFXBase::*)(void*, int32_t, pixelcopy_param_t* param)
+    {
+      switch (_read_depth.depth) {
+      case rgb888_3Byte: return &LGFXBase::read_pixels_template<T, swap888_t>;
+      case rgb666_3Byte: return &LGFXBase::read_pixels_template<T, swap666_t>;
+      case rgb565_2Byte: return &LGFXBase::read_pixels_template<T, swap565_t>;
+      case rgb332_1Byte: return &LGFXBase::read_pixels_template<T, rgb332_t >;
+      case palette_8bit:
+      case palette_4bit:
+      case palette_2bit:
+      case palette_1bit:
+      default: break;
+      }
+      return &LGFXBase::read_pixels_template<T, T>;
+    }
+
+    template<class TDst, class TSrc>
+    void write_pixels_template(const void* src, int32_t length, pixelcopy_param_t* param)
+    {
+      if (std::is_same<TDst, TSrc>::value) {
+        write_bytes((const uint8_t*)src, length * (TSrc::bits>>3));
+      } else {
+        write_pixels(src, length, param, pixel_to_pixel_template<TDst, TSrc>);
+      }
+    }
+    template<class T>
+    auto get_write_pixels_fp(void) -> void(LGFXBase::*)(const void*, int32_t, pixelcopy_param_t*)
+    {
+      switch (getColorDepth()) {
+      case rgb888_3Byte: return &LGFXBase::write_pixels_template<swap888_t, T>;
+      case rgb666_3Byte: return &LGFXBase::write_pixels_template<swap666_t, T>;
+      case rgb565_2Byte: return &LGFXBase::write_pixels_template<swap565_t, T>;
+      case rgb332_1Byte: return &LGFXBase::write_pixels_template<rgb332_t , T>;
+      case palette_8bit:
+      case palette_4bit:
+      case palette_2bit:
+      case palette_1bit:
+      default: break;
+      }
+      return &LGFXBase::write_pixels_template<T, T>;
+    }
+
+    template<class TDst, class TSrc>
+    void write_palette_template(const void* src, int32_t length, pixelcopy_param_t* param)
+    {
+      write_pixels(src, length, param, palette_to_pixel_template<TDst, TSrc>);
+    }
+    template<class T>
+    auto get_write_palette_fp(void) -> void(LGFXBase::*)(const void*, int32_t, pixelcopy_param_t*)
+    {
+      switch (getColorDepth()) {
+      case rgb888_3Byte: return &LGFXBase::write_palette_template<swap888_t, T>;
+      case rgb666_3Byte: return &LGFXBase::write_palette_template<swap666_t, T>;
+      case rgb565_2Byte: return &LGFXBase::write_palette_template<swap565_t, T>;
+      case rgb332_1Byte: return &LGFXBase::write_palette_template<rgb332_t , T>;
+      case palette_8bit:
+      case palette_4bit:
+      case palette_2bit:
+      case palette_1bit:
+      default: break;
+      }
+      return nullptr; // &LGFXBase::write_palette_template<T, T>;
+    }
+
+    virtual void read_pixels(void* dst, int32_t length, pixelcopy_param_t* param, void(*fp_copy)(void*&, const void*&, int32_t, pixelcopy_param_t*)) {}
+    virtual void read_bytes(uint8_t* dst, int32_t length) {}
+    virtual void read_bytes_dma(uint8_t* dst, int32_t length) { read_bytes(dst, length); }
+    virtual void write_pixels(const void* src, int32_t length, pixelcopy_param_t* param, void(*fp_copy)(void*&, const void*&, int32_t, pixelcopy_param_t*)) {}
+    virtual void write_bytes(const uint8_t* data, int32_t length) {}
+    virtual void write_bytes_dma(const uint8_t* src, int32_t len) { write_bytes(src, len); }
+
+    virtual void beginTransaction_impl() {}
+    virtual void endTransaction_impl() {}
+    virtual void setRotation_impl(uint8_t rotation) {}
+    virtual void* setColorDepth_impl(color_depth_t bpp) { return nullptr; }
+    virtual void invertDisplay_impl(bool invert) {}
+    virtual void writeColor_impl(int32_t len) = 0;
+    virtual void drawPixel_impl(int32_t x, int32_t y) = 0;
+    virtual void fillRect_impl(int32_t x, int32_t y, int32_t w, int32_t h) = 0;
+    virtual void setWindow_impl(int32_t xs, int32_t ys, int32_t xe, int32_t ye) {}
+    virtual void readWindow_impl(int32_t xs, int32_t ys, int32_t xe, int32_t ye) {}
+    virtual void endRead_impl(void) {}
+
+/*
+    virtual void copyRect_impl(int32_t dst_x, int32_t dst_y, int32_t w, int32_t h, int32_t src_x, int32_t src_y)
+    {
+      void(*fp_pixel_to_pixel)(void*& dst, const void* &src, int32_t len, pixelcopy_param_t* p) = nullptr;
+
+      if (_read_depth.depth != _write_depth.depth) {
+        switch (_read_depth.depth) {
+        case rgb888_3Byte:
+          switch (_write_depth.depth) {
+          case rgb565_2Byte: fp_pixel_to_pixel = pixel_to_pixel_template<swap565_t, swap888_t>; break;
+          default: return;
+          }
+          break;
+        case rgb666_3Byte:
+          switch (_write_depth.depth) {
+          case rgb565_2Byte: fp_pixel_to_pixel = pixel_to_pixel_template<swap565_t, swap666_t>; break;
+          default: return;
+          }
+          break;
+        default: return;
+        }
+      }
+
+      startWrite();
+      const uint32_t readlen = w * _read_depth.bytes;
+      const uint32_t writelen = w * _write_depth.bytes;
+      uint8_t buf[2][(readlen < writelen) ? writelen : readlen];
+      bool flip = false;
+      int32_t add = (src_y < dst_y) ?   - 1 : 1;
+      int32_t pos = (src_y < dst_y) ? h - 1 : 0;
+      readWindow_impl(src_x, src_y + pos, src_x + w - 1, src_y + pos);
+      read_bytes_dma(buf[flip], readlen);
+      endRead_impl();
+      while (--h) {
+        pos += add;
+        flip = !flip;
+        readWindow_impl(src_x, src_y + pos, src_x + w - 1, src_y + pos);
+        read_bytes_dma(buf[flip], readlen);
+        if (fp_pixel_to_pixel) {
+          void* wb = buf[!flip];
+          const void* rb = wb;
+          fp_pixel_to_pixel(wb, rb, w, nullptr);
+        }
+        endRead_impl();
+        setWindow_impl(dst_x, dst_y + pos - add, dst_x + w - 1, dst_y + pos - add);
+        write_bytes_dma(buf[!flip], writelen);
+      }
+      if (fp_pixel_to_pixel) {
+        void* wb = buf[flip];
+        const void* rb = wb;
+        fp_pixel_to_pixel(wb, rb, w, nullptr);
+      }
+      setWindow_impl(dst_x, dst_y + pos, dst_x + w - 1, dst_y + pos);
+      write_bytes_dma(buf[flip], writelen);
+
+      endWrite();
+    }
+/*/
+    virtual void copyRect_impl(int32_t dst_x, int32_t dst_y, int32_t w, int32_t h, int32_t src_x, int32_t src_y)
+    {
+      void(LGFXBase::*fp_write_pixels)(const void*, int32_t, pixelcopy_param_t*);
+      switch (_read_depth.depth) {
+      case rgb888_3Byte: fp_write_pixels = get_write_pixels_fp<swap888_t>(); break;
+      case rgb666_3Byte: fp_write_pixels = get_write_pixels_fp<swap666_t>(); break;
+//    case rgb565_2Byte: fp_write_pixels = get_write_pixels_fp<swap565_t>(); break;
+//    case rgb332_1Byte: fp_write_pixels = get_write_pixels_fp<rgb332_t >(); break;
+      default: return;
+      }
+
+      startWrite();
+
+      if (w < h) {
+        const uint32_t buflen = h * _read_depth.bytes;
+        uint8_t buf[buflen+3];
+        int32_t add = (src_x < dst_x) ?   - 1 : 1;
+        int32_t pos = (src_x < dst_x) ? w - 1 : 0;
+        while (w--) {
+          readWindow_impl(src_x + pos, src_y, src_x + pos, src_y + h - 1);
+          read_bytes_dma(buf, buflen);
+          endRead_impl();
+          setWindow_impl(dst_x + pos, dst_y, dst_x + pos, dst_y + h - 1);
+          (this->*fp_write_pixels)(buf, h, nullptr);
+          pos += add;
+        }
+      } else {
+        const uint32_t buflen = w * _read_depth.bytes;
+        uint8_t buf[buflen+3];
+        int32_t add = (src_y < dst_y) ?   - 1 : 1;
+        int32_t pos = (src_y < dst_y) ? h - 1 : 0;
+        while (h--) {
+          readWindow_impl(src_x, src_y + pos, src_x + w - 1, src_y + pos);
+          read_bytes_dma(buf, buflen);
+          endRead_impl();
+          setWindow_impl(dst_x, dst_y + pos, dst_x + w - 1, dst_y + pos);
+          (this->*fp_write_pixels)(buf, w, nullptr);
+          pos += add;
+        }
+      }
+      endWrite();
+    }
+//*/
+
+  //----------------------------------------------------------------------------
+  // print & text support
+  //----------------------------------------------------------------------------
+  // Arduino Print.h compatible
+    size_t printNumber(unsigned long n, uint8_t base)
+    {
+      char buf[8 * sizeof(long) + 1]; // Assumes 8-bit chars plus zero byte.
+      char *str = &buf[sizeof(buf) - 1];
+
+      *str = '\0';
+
+      if (base < 2) { base = 10; }  // prevent crash if called with base == 1
+      do {
+        unsigned long m = n;
+        n /= base;
+        char c = m - base * n;
+        *--str = c < 10 ? c + '0' : c + 'A' - 10;
+      } while (n);
+
+      return write(str);
+    }
+
+    size_t printFloat(double number, uint8_t digits)
+    {
+      size_t n = 0;
+      if (std::isnan(number))    { return print("nan"); }
+      if (std::isinf(number))    { return print("inf"); }
+      if (number > 4294967040.0) { return print("ovf"); } // constant determined empirically
+      if (number <-4294967040.0) { return print("ovf"); } // constant determined empirically
+
+      // Handle negative numbers
+      if(number < 0.0) {
+        n += print('-');
+        number = -number;
+      }
+
+      // Round correctly so that print(1.999, 2) prints as "2.00"
+      double rounding = 0.5;
+      for(uint8_t i = 0; i < digits; ++i) {
+        rounding /= 10.0;
+      }
+
+      number += rounding;
+
+      // Extract the integer part of the number and print it
+      unsigned long int_part = (unsigned long) number;
+      double remainder = number - (double) int_part;
+      n += print(int_part);
+
+      // Print the decimal point, but only if there are digits beyond
+      if (digits > 0) n += print(".");
+
+      // Extract digits from the remainder one at a time
+      while (digits-- > 0) {
+        remainder *= 10.0;
+        unsigned int toPrint = (unsigned int)(remainder);
+        n += print(toPrint);
+        remainder -= toPrint;
+      }
+      return n;
+    }
+
+    bool(LGFXBase::*fpUpdateFontSize)(uint16_t uniCode) = nullptr;
+    bool updateFontSizeBMP(uint16_t uniCode) {
+      if ((uniCode -= 32) >= 96) return false;
+      _font_size.width  = _font_size.xadvance = pgm_read_byte( (uint8_t *)pgm_read_dword( &(fontdata[_textfont].widthtbl ) ) + uniCode );
+      return true;
+    }
+
+    bool updateFontSizeGFXFF(uint16_t uniCode) {
+      if (uniCode < pgm_read_word(&_gfxFont->first)
+      ||  uniCode > pgm_read_word(&_gfxFont->last )) return false;
+      uniCode -= pgm_read_word(&_gfxFont->first);
+      GFXglyph *glyph = &(((GFXglyph *)pgm_read_dword(&_gfxFont->glyph))[uniCode]);
+      _font_size.xoffset = (int8_t)pgm_read_byte(&glyph->xOffset),
+      _font_size.width  = pgm_read_byte(&glyph->width),
+      _font_size.xadvance = pgm_read_byte(&glyph->xAdvance);
+      return true;
+    }
+
+    int16_t (LGFXBase::*fpDrawCharClassic)(int32_t x, int32_t y, uint16_t c, const uint32_t& color, const uint32_t& bg, uint8_t size_x, uint8_t size_y) = &LGFXBase::drawCharGLCD;
     int16_t drawCharGLCD(int32_t x, int32_t y, uint16_t c, const uint32_t& color, const uint32_t& bg, uint8_t size_x, uint8_t size_y)
     { // glcd font
       static constexpr int fontWidth  = 6;
       static constexpr int fontHeight = 8;
 
-      if (c < 32 || c > 255) return 0;
+      if (c > 255) return 0;
 
       if ((x < _width)
        && (x + fontWidth * size_x > 0)
@@ -983,51 +1485,37 @@ namespace lgfx
 
     int16_t drawCharGFXFF(int32_t x, int32_t y, uint16_t c, const uint32_t& color, const uint32_t& bg, uint8_t size_x, uint8_t size_y)
     {
-      int fontHeight = pgm_read_byte(&_gfxFont->yAdvance);
-      if (c == '\n') {
-        _cursor_x  = 0;
-        _cursor_y += (int16_t)size_y * fontHeight;
-        return 0;
-      }
+      if (c < 32) return 0;
       if (c > pgm_read_word(&_gfxFont->last )) return 0;
       if (c < pgm_read_word(&_gfxFont->first)) return 0;
 
-      uint16_t c2 = c - pgm_read_word(&_gfxFont->first);
-      GFXglyph *glyph = &(((GFXglyph *)pgm_read_dword(&_gfxFont->glyph))[c2]);
-  //  int fontWidth = pgm_read_byte(&glyph->width);
-      int fontWidth = pgm_read_byte(&glyph->xAdvance);
-      uint8_t   w     = pgm_read_byte(&glyph->width),
-                h     = pgm_read_byte(&glyph->height);
+      c -= pgm_read_word(&_gfxFont->first);
+      GFXglyph *glyph = &(((GFXglyph *)pgm_read_dword(&_gfxFont->glyph))[c]);
 
-      if (c < 32) return 0;
+      uint16_t   w     = pgm_read_byte(&glyph->width),
+                 h     = pgm_read_byte(&glyph->height);
+
+      int16_t  xo = (int8_t)pgm_read_byte(&glyph->xOffset),
+               yo = (int8_t)pgm_read_byte(&glyph->yOffset);
 
       if ((x < _width)
-       && (x + fontWidth * size_x > 0)
+       && (x + (xo + w) * size_x > 0)
        && (y < _height)
-       && (y + fontHeight * size_y > 0)) {
+       && (y + (yo + h) * size_y > 0)) {
       //bool fillbg = (bg != color);
         _color.raw = color;
         // Filter out bad characters not present in font
-        if ((c >= pgm_read_word(&_gfxFont->first)) && (c <= pgm_read_word(&_gfxFont->last )))
+        //if ((c >= pgm_read_word(&_gfxFont->first)) && (c <= pgm_read_word(&_gfxFont->last )))
         {
-          c -= pgm_read_word(&_gfxFont->first);
-          GFXglyph *glyph  = &(((GFXglyph *)pgm_read_dword(&_gfxFont->glyph))[c]);
           uint8_t  *bitmap = (uint8_t *)pgm_read_dword(&_gfxFont->bitmap);
 
           uint32_t bo = pgm_read_word(&glyph->bitmapOffset);
-          uint8_t  w  = pgm_read_byte(&glyph->width),
-                   h  = pgm_read_byte(&glyph->height);
                    //xa = pgm_read_byte(&glyph->xAdvance);
-          int8_t  xo = pgm_read_byte(&glyph->xOffset),
-                  yo = pgm_read_byte(&glyph->yOffset);
           uint8_t  xx, yy, bits=0, bit=0;
 
           int16_t hpc = 0; // Horizontal foreground pixel count
 
           startWrite();
-
-          int16_t xo16 = xo;
-          int16_t yo16 = yo;
 
           for (yy=0; yy<h; yy++) {
             for (xx=0; xx<w; xx++) {
@@ -1038,7 +1526,7 @@ namespace lgfx
               if(bits & bit) hpc++;
               else {
                if (hpc) {
-                  fillRect(x+(xo16+xx-hpc)*size_x, y+(yo16+yy)*size_y, size_x*hpc, size_y);
+                  fillRect(x+(xo+xx-hpc)*size_x, y+(yo+yy)*size_y, size_x*hpc, size_y);
                   hpc=0;
                 }
               }
@@ -1046,7 +1534,7 @@ namespace lgfx
             }
           // Draw pixels for this line as we are about to increment yy
             if (hpc) {
-              fillRect(x+(xo16+xx-hpc)*size_x, y+(yo16+yy)*size_y, size_x*hpc, size_y);
+              fillRect(x+(xo+xx-hpc)*size_x, y+(yo+yy)*size_y, size_x*hpc, size_y);
               hpc=0;
             }
           }
@@ -1054,423 +1542,7 @@ namespace lgfx
           endWrite();
         }
       }
-      return fontWidth * size_x;
-    }
-
-    int16_t getCursorX(void) const { return _cursor_x; }
-    int16_t getCursorY(void) const { return _cursor_y; }
-    void setCursor( int16_t x, int16_t y)               { _cursor_x = x; _cursor_y = y; }
-    void setCursor( int16_t x, int16_t y, uint8_t font) { _cursor_x = x; _cursor_y = y; _textfont = font; }
-    void setTextSize(uint8_t s) { setTextSize(s,s); }
-    void setTextSize(uint8_t sx, uint8_t sy) { _textsize_x = (sx > 0) ? sx : 1; _textsize_y = (sy > 0) ? sy : 1; }
-    int16_t getTextSizeX(void) const { return _textsize_x; }
-    int16_t getTextSizeY(void) const { return _textsize_y; }
-
-    void setTextDatum( uint8_t datum) { _textdatum = datum; }
-    void setTextWrap( bool wrapX, bool wrapY = false) { _textwrapX = wrapX; _textwrapY = wrapY; }
-    void setTextScroll(bool scroll) { _textscroll = scroll; if (_cursor_x < _sx) { _cursor_x = _sx; } if (_cursor_y < _sy) { _cursor_y = _sy; } }
-
-    void setTextFont(uint8_t f) {
-      _textfont = (f > 0) ? f : 1;
-      _gfxFont = nullptr; 
-      if (_textfont == 2) {
-        fpDrawCharClassic = &LGFXBase::drawCharBMP;
-        fpGetFontSize = &LGFXBase::getFontSizeBMP;
-      } else if (_textfont > 2 && fontdata[_textfont].height != 0) {
-        fpDrawCharClassic = &LGFXBase::drawCharRLE;
-        fpGetFontSize = &LGFXBase::getFontSizeRLE;
-      } else {
-        fpDrawCharClassic = &LGFXBase::drawCharGLCD;
-        fpGetFontSize = &LGFXBase::getFontSizeGLCD;
-      }
-    }
-
-    void setFreeFont(const GFXfont *f = nullptr)
-    {
-  #ifdef LOAD_GFXFF
-      if (f == nullptr) { setTextFont(1); return; } // Use GLCD font
-      fpDrawCharClassic = &LGFXBase::drawCharGFXFF;
-      fpGetFontSize = &LGFXBase::getFontSizeGFXFF;
-
-      _textfont = 1;
-      _gfxFont = f; // (GFXfont *)f;
-
-      _glyph_ab = 0;
-      _glyph_bb = 0;
-      uint16_t numChars = pgm_read_word(&_gfxFont->last) - pgm_read_word(&_gfxFont->first);
-      
-      // Find the biggest above and below baseline offsets
-      for (uint8_t c = 0; c < numChars; c++)
-      {
-        GFXglyph *glyph1 = &(((GFXglyph *)pgm_read_dword(&_gfxFont->glyph))[c]);
-        int8_t ab = -pgm_read_byte(&glyph1->yOffset);
-        if (ab > _glyph_ab) _glyph_ab = ab;
-        int8_t bb = pgm_read_byte(&glyph1->height) - ab;
-        if (bb > _glyph_bb) _glyph_bb = bb;
-      }
-  #endif
-    }
-
-  //----------------------------------------------------------------------------
-  //----------------------------------------------------------------------------
-
-  protected:
-    uint32_t _transaction_count = 0;
-    int32_t _width = 0;
-    int32_t _height = 0;
-    int32_t _cursor_x = 0;
-    int32_t _cursor_y = 0;
-    int32_t  _sx, _sy, _sw, _sh; // for scroll zone
-    uint32_t _textcolor = 0xFFFFFFFF;
-    uint32_t _textbgcolor = 0;
-    uint32_t _scolor;  // gap fill colour for scroll zone
-    raw_color_t _color = 0xFFFFFFFF;
-
-    dev_color_t _write_depth;
-    dev_color_t _read_depth;
-
-    int16_t _textsize_x = 1;
-    int16_t _textsize_y = 1;
-    int16_t _xpivot;   // x pivot point coordinate
-    int16_t _ypivot;   // x pivot point coordinate
-    uint16_t _decoderBuffer= 0;   // Unicode code-point buffer
-    uint8_t  _decoderState = 0;   // UTF8 decoder state
-    uint8_t _rotation = 0;
-    uint8_t _textfont = 1;
-    uint8_t _textdatum;
-    bool _has_transaction = true;
-    bool _invert = false;
-    bool _swapBytes = false;
-    bool _textwrapX = true;
-    bool _textwrapY = false;
-    bool _textscroll = false;
-
-    template <typename T>
-    __attribute__ ((always_inline)) inline static void swap_coord(T& a, T& b) { T t = a; a = b; b = t; }
-    __attribute__ ((always_inline)) inline static bool _adjust(int32_t& x, int32_t& w) { if (w < 0) { x += w + 1; w = -w; } return 0==w; }
-
-    static bool _adjust_width(int32_t& x, int32_t& dx, int32_t& dw, int32_t _width)
-    {
-      if ((dw < 1) || (x >= _width)) return true;
-      if (x < 0) { dw += x; dx = -x; x = 0; }
-      if ((x + dw) > _width ) dw = _width  - x;
-      return (dw < 1);
-    }
-
-  #ifdef LOAD_GFXFF
-    const GFXfont  *_gfxFont;
-    uint8_t _glyph_ab;   // glyph delta Y (height) above baseline
-    uint8_t _glyph_bb;   // glyph delta Y (height) below baseline
-  #endif
-
-    virtual rgb565_t readPixel16_impl(int32_t x, int32_t y) { return 0; }
-
-    struct pixelcopy_param_t {
-      int32_t src_offset = 0;
-    //int32_t dst_offset = 0;
-      const rgb888_t* src_palette = nullptr;
-    //const rgb888_t* dst_palette = nullptr;
-    };
-
-    template <class TDst, class TSrc>
-    static void pixel_to_pixel_template(void*& dst, const void* &src, int32_t len, pixelcopy_param_t* p) {
-      const TSrc*& s = (const TSrc*&)src;
-      TDst*& d = (TDst*&)dst;
-      do { *d++ = *s++; } while (--len);
-    }
-    template <class TDst, class TSrc>
-    static void palette_to_pixel_template(void*& dst, const void* &src, int32_t len, pixelcopy_param_t* p) {
-      const uint8_t*& s = (const uint8_t*&)src;
-      TDst*& d = (TDst*&)dst;
-      do {
-        p->src_offset = (p->src_offset + (8-TSrc::bits)) & 7;
-        *d++ = p->src_palette[(*s >> p->src_offset) & TSrc::mask];
-        if (!p->src_offset) { s++; }
-      } while (--len);
-    }
-
-    void read_rect(int32_t x, int32_t y, int32_t w, int32_t h, void* data, void(LGFXBase::*fp_read_pixels)(void*, int32_t, pixelcopy_param_t* param))
-    {
-      if (_adjust(x,w) || _adjust(y,h)) return;
-      if ((x >= _width) || (y >= _height)) return;
-      if (x < 0) { w += x; x = 0; }
-      if ((x + w) > _width)  w = _width  - x;
-      if (w < 1) return;
-      if (y < 0) { h += y; y = 0; }
-      if ((y + h) > _height) h = _height - y;
-      if (h < 1) return;
-
-      pixelcopy_param_t p;
-      startWrite();
-      readWindow_impl(x, y, x + w - 1, y + h - 1);
-      (this->*fp_read_pixels)(data, w * h, &p);
-      endRead_impl();
-      endWrite();
-    }
-    void push_image(int32_t x, int32_t y, int32_t w, int32_t h, const void* data, const rgb888_t* palette, const uint8_t bits, void(LGFXBase::*fp_write_pixels)(const void*, int32_t, pixelcopy_param_t*))
-    {
-      int32_t dx=0, dw=w;
-      if (_adjust_width(x, dx, dw, _width)) return;
-      int32_t dy=0, dh=h;
-      if (_adjust_width(y, dy, dh, _height)) return;
-
-      pixelcopy_param_t param;
-      param.src_palette = palette;
-
-      startWrite();
-      setWindow(x, y, x + dw - 1, y + dh - 1);
-      bool indivisible = (w * bits) & 7;
-      const int32_t len = indivisible + (w * bits >> 3);
-      const uint8_t* src = (const uint8_t*)data + (dx * bits >> 3) + dy * len;
-      if (dw == w && !indivisible) {
-        (this->*fp_write_pixels)(src, dw * dh, &param);
-      } else {
-        uint8_t offset = (-dx * bits) & 7;
-        do {
-          param.src_offset = offset;
-          (this->*fp_write_pixels)(src, dw, &param);
-          src += len;
-        } while (--dh);
-      }
-      endWrite();
-    }
-
-    void push_image(int32_t x, int32_t y, int32_t w, int32_t h, const void* data, const rgb888_t* palette, uint32_t transp, const uint8_t bits, void(LGFXBase::*fp_write_pixels)(const void*, int32_t, pixelcopy_param_t*))
-    {
-      int32_t dx=0, dw=w;
-      if (_adjust_width(x, dx, dw, _width)) return;
-      int32_t dy=0, dh=h;
-      if (_adjust_width(y, dy, dh, _height)) return;
-
-      pixelcopy_param_t param;
-      param.src_palette = palette;
-
-      startWrite();
-      bool indivisible = (w * bits) & 7;
-      const int32_t len = indivisible + (w * bits >> 3);
-      const uint8_t* src = (const uint8_t*)data + dy * len;
-      const uint32_t color_mask = (1<<bits)-1;
-      transp &= color_mask;
-      do {
-        int32_t i, j = 0;
-        uint8_t offset = (-dx * bits) & 7;
-        for (i = 0; i < dw; i++) {
-          offset = (offset - bits) & 7;
-          if ((((*(uint32_t*)&src[(dx+i)*bits >> 3]) >> offset) & color_mask) == transp) {
-            if (j != i) {
-              setWindow(x + j, y, x + i, y);
-              param.src_offset = (-(dx+j) * bits) & 7;
-              (this->*fp_write_pixels)(&src[(dx+j)*bits >> 3], i - j, &param);
-            }
-            j = i + 1;
-          }
-        }
-        if (j != i) {
-          setWindow(x + j, y, x + i, y);
-          param.src_offset = (-(dx+j) * bits) & 7;
-          (this->*fp_write_pixels)(&src[(dx+j)*bits >> 3], i - j, &param);
-        }
-        y++;
-        src += len;
-      } while (--dh);
-
-      endWrite();
-    }
-
-    template<class TDst, class TSrc>
-    void read_pixels_template(void* dst, int32_t length, pixelcopy_param_t* param)
-    {
-      if (std::is_same<TDst, TSrc>::value) {
-        read_bytes((uint8_t*)dst, length * (TDst::bits>>3));
-      } else {
-        read_pixels(dst, length, param, pixel_to_pixel_template<TDst, TSrc>);
-      }
-    }
-    template<class T>
-    auto get_read_pixels_fp(void) -> void(LGFXBase::*)(void*, int32_t, pixelcopy_param_t* param)
-    {
-      switch (_read_depth.depth) {
-      case rgb888_3Byte: return &LGFXBase::read_pixels_template<T, swap888_t>;
-      case rgb666_3Byte: return &LGFXBase::read_pixels_template<T, swap666_t>;
-      case rgb565_2Byte: return &LGFXBase::read_pixels_template<T, swap565_t>;
-      case rgb332_1Byte: return &LGFXBase::read_pixels_template<T, rgb332_t >;
-      case palette_8bit:
-      case palette_4bit:
-      case palette_2bit:
-      case palette_1bit:
-      default: break;
-      }
-      return &LGFXBase::read_pixels_template<T, T>;
-    }
-
-    template<class TDst, class TSrc>
-    void write_pixels_template(const void* src, int32_t length, pixelcopy_param_t* param)
-    {
-      if (std::is_same<TDst, TSrc>::value) {
-        write_bytes((const uint8_t*)src, length * (TSrc::bits>>3));
-      } else {
-        write_pixels(src, length, param, pixel_to_pixel_template<TDst, TSrc>);
-      }
-    }
-    template<class T>
-    auto get_write_pixels_fp(void) -> void(LGFXBase::*)(const void*, int32_t, pixelcopy_param_t*)
-    {
-      switch (getColorDepth()) {
-      case rgb888_3Byte: return &LGFXBase::write_pixels_template<swap888_t, T>;
-      case rgb666_3Byte: return &LGFXBase::write_pixels_template<swap666_t, T>;
-      case rgb565_2Byte: return &LGFXBase::write_pixels_template<swap565_t, T>;
-      case rgb332_1Byte: return &LGFXBase::write_pixels_template<rgb332_t , T>;
-      case palette_8bit:
-      case palette_4bit:
-      case palette_2bit:
-      case palette_1bit:
-      default: break;
-      }
-      return &LGFXBase::write_pixels_template<T, T>;
-    }
-
-    template<class TDst, class TSrc>
-    void write_palette_template(const void* src, int32_t length, pixelcopy_param_t* param)
-    {
-      write_pixels(src, length, param, palette_to_pixel_template<TDst, TSrc>);
-    }
-    template<class T>
-    auto get_write_palette_fp(void) -> void(LGFXBase::*)(const void*, int32_t, pixelcopy_param_t*)
-    {
-      switch (getColorDepth()) {
-      case rgb888_3Byte: return &LGFXBase::write_palette_template<swap888_t, T>;
-      case rgb666_3Byte: return &LGFXBase::write_palette_template<swap666_t, T>;
-      case rgb565_2Byte: return &LGFXBase::write_palette_template<swap565_t, T>;
-      case rgb332_1Byte: return &LGFXBase::write_palette_template<rgb332_t , T>;
-      case palette_8bit:
-      case palette_4bit:
-      case palette_2bit:
-      case palette_1bit:
-      default: break;
-      }
-      return nullptr; // &LGFXBase::write_palette_template<T, T>;
-    }
-
-    virtual void read_pixels(void* dst, int32_t length, pixelcopy_param_t* param, void(*fp_copy)(void*&, const void*&, int32_t, pixelcopy_param_t*)) {}
-    virtual void read_bytes(uint8_t* dst, int32_t length) {}
-    virtual void write_pixels(const void* src, int32_t length, pixelcopy_param_t* param, void(*fp_copy)(void*&, const void*&, int32_t, pixelcopy_param_t*)) {}
-    virtual void write_bytes(const uint8_t* data, int32_t length) {}
-
-    virtual void beginTransaction_impl() {}
-    virtual void endTransaction_impl() {}
-    virtual void setRotation_impl(uint8_t rotation) {}
-    virtual void* setColorDepth_impl(color_depth_t bpp) { return nullptr; }
-    virtual void invertDisplay_impl(bool invert) {}
-    virtual void writeColor_impl(int32_t len) = 0;
-    virtual void drawPixel_impl(int32_t x, int32_t y) = 0;
-    virtual void fillRect_impl(int32_t x, int32_t y, int32_t w, int32_t h) = 0;
-    virtual void setWindow_impl(int32_t xs, int32_t ys, int32_t xe, int32_t ye) {}
-    virtual void readWindow_impl(int32_t xs, int32_t ys, int32_t xe, int32_t ye) {}
-    virtual void pushDMA_impl(const uint8_t* src, int32_t len) { write_bytes(src, len); }
-    virtual void endRead_impl(void) {}
-//*
-    virtual void copyRect_impl(int32_t dst_x, int32_t dst_y, int32_t w, int32_t h, int32_t src_x, int32_t src_y)
-    {
-      void(LGFXBase::*fp_write_pixels)(const void*, int32_t, pixelcopy_param_t*);
-      switch (_read_depth.depth) {
-      case rgb888_3Byte: fp_write_pixels = get_write_pixels_fp<swap888_t>(); break;
-      case rgb666_3Byte: fp_write_pixels = get_write_pixels_fp<swap666_t>(); break;
-//    case rgb565_2Byte: fp_write_pixels = get_write_pixels_fp<swap565_t>(); break;
-//    case rgb332_1Byte: fp_write_pixels = get_write_pixels_fp<rgb332_t >(); break;
-      default: return;
-      }
-
-      startWrite();
-      if (w < h) {
-        const uint32_t buflen = h * _read_depth.bytes;
-        uint8_t buf[buflen];
-        int32_t add = (src_x < dst_x) ?   - 1 : 1;
-        int32_t pos = (src_x < dst_x) ? w - 1 : 0;
-        while (w--) {
-          readWindow_impl(src_x + pos, src_y, src_x + pos, src_y + h - 1);
-          read_bytes(buf, buflen);
-          endRead_impl();
-          setWindow_impl(dst_x + pos, dst_y, dst_x + pos, dst_y + h - 1);
-          (this->*fp_write_pixels)(buf, h, nullptr);
-          pos += add;
-        }
-      } else {
-        const uint32_t buflen = w * _read_depth.bytes;
-        uint8_t buf[buflen];
-        int32_t add = (src_y < dst_y) ?   - 1 : 1;
-        int32_t pos = (src_y < dst_y) ? h - 1 : 0;
-        while (h--) {
-          readWindow_impl(src_x, src_y + pos, src_x + w - 1, src_y + pos);
-          read_bytes(buf, buflen);
-          endRead_impl();
-          setWindow_impl(dst_x, dst_y + pos, dst_x + w - 1, dst_y + pos);
-          (this->*fp_write_pixels)(buf, w, nullptr);
-          pos += add;
-        }
-      }
-      endWrite();
-    }
-
-  //----------------------------------------------------------------------------
-  // print & text support
-  //----------------------------------------------------------------------------
-  // Arduino Print.h compatible
-    size_t printNumber(unsigned long n, uint8_t base)
-    {
-      char buf[8 * sizeof(long) + 1]; // Assumes 8-bit chars plus zero byte.
-      char *str = &buf[sizeof(buf) - 1];
-
-      *str = '\0';
-
-      if (base < 2) { base = 10; }  // prevent crash if called with base == 1
-      do {
-        unsigned long m = n;
-        n /= base;
-        char c = m - base * n;
-        *--str = c < 10 ? c + '0' : c + 'A' - 10;
-      } while (n);
-
-      return write(str);
-    }
-
-    size_t printFloat(double number, uint8_t digits)
-    {
-      size_t n = 0;
-      if (std::isnan(number))    { return print("nan"); }
-      if (std::isinf(number))    { return print("inf"); }
-      if (number > 4294967040.0) { return print("ovf"); } // constant determined empirically
-      if (number <-4294967040.0) { return print("ovf"); } // constant determined empirically
-
-      // Handle negative numbers
-      if(number < 0.0) {
-        n += print('-');
-        number = -number;
-      }
-
-      // Round correctly so that print(1.999, 2) prints as "2.00"
-      double rounding = 0.5;
-      for(uint8_t i = 0; i < digits; ++i) {
-        rounding /= 10.0;
-      }
-
-      number += rounding;
-
-      // Extract the integer part of the number and print it
-      unsigned long int_part = (unsigned long) number;
-      double remainder = number - (double) int_part;
-      n += print(int_part);
-
-      // Print the decimal point, but only if there are digits beyond
-      if (digits > 0) n += print(".");
-
-      // Extract digits from the remainder one at a time
-      while (digits-- > 0) {
-        remainder *= 10.0;
-        unsigned int toPrint = (unsigned int)(remainder);
-        n += print(toPrint);
-        remainder -= toPrint;
-      }
-      return n;
+      return pgm_read_byte(&glyph->xAdvance) * size_x;
     }
   };
 
@@ -1603,9 +1675,9 @@ namespace lgfx
             }
           } else
           if ((bpp == 8 || bpp == 4 || bpp == 1) && biComp == 0) {
-            file.skip(12);
-            uint32_t biClrUsed = file.read32();
-            file.skip(4);
+            //file.skip(12);
+            //uint32_t biClrUsed = file.read32();
+            //file.skip(8);
             argb8888_t palette[1<<bpp];
             file.seek(seekOffset-(1<<bpp)*sizeof(argb8888_t));
             file.read((uint8_t*)palette, (1<<bpp)*sizeof(argb8888_t)); // load palette
@@ -1632,7 +1704,6 @@ namespace lgfx
                 y += flow;
               }
             } else {
-              //this->setSwapBytes(true);
               uint16_t readlen = (bpp == 4)
                                ? ((w+1)>>1) + (((4 - ((w+1)>>1)) & 3) & 3)
                                : (w + ((4 - (w & 3)) & 3));

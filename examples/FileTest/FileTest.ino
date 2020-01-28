@@ -13,15 +13,6 @@ static TFT_eSprite sprite(&tft);
 
 void setup()
 {
-  bool lcdver = false;
-#if defined(ARDUINO_M5Stack_Core_ESP32) || defined(ARDUINO_M5STACK_FIRE)
-  pinMode(33, INPUT);
-  delay(100);
-  lcdver = digitalRead(33);
-  pinMode(33, OUTPUT);
-  digitalWrite(33, HIGH);
-#endif
-
   Serial.begin(115200);
   SD.begin(4, SPI, 20000000);  // 4=TFCARD_CS_PIN
 
@@ -33,8 +24,7 @@ void setup()
   sprite.drawBmpFile(SD, "/m5stack_16color.bmp", 110,  10);
   sprite.drawBmpFile(SD, "/m5stack_256color.bmp",220,  10);
 
-  tft.initPanel();
-  tft.invertDisplay(lcdver);
+  tft.init();
   tft.setRotation(1);
 
   const int BLK_PWM_CHANNEL = 7;

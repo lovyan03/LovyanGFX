@@ -144,7 +144,7 @@ namespace lgfx
       static constexpr int gpio_rst = 33;
       TPin<gpio_rst>::init(GPIO_MODE_INPUT);
       setConfig<cfg_t>();
-      invert = TPin<gpio_rst>::get();
+      invert = TPin<gpio_rst>::get();  // get panel type (IPS or TN)
       TPin<gpio_rst>::hi();
       TPin<gpio_rst>::init(GPIO_MODE_OUTPUT);
     }

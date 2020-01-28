@@ -29,16 +29,6 @@ static TFT_eSPI tft;
 unsigned long total = 0;
 unsigned long tn = 0;
 void setup() {
-  bool lcdver = false;
-#if defined(ARDUINO_M5Stack_Core_ESP32) || defined(ARDUINO_M5STACK_FIRE)
-  pinMode(33, INPUT);
-  delay(100);
-  lcdver = digitalRead(33);
-  pinMode(33, OUTPUT);
-  digitalWrite(33, HIGH);
-#elif defined(ARDUINO_M5Stick_C) || defined ( ARDUINO_T )
-  lcdver = true;
-#endif
 
   Serial.begin(115200);
   while (!Serial);
@@ -69,8 +59,6 @@ void setup() {
 #endif
 
   tft.setRotation(0);
-
-  tft.invertDisplay(lcdver);
 
   //tft.setColorDepth(16);
   //tft.setColorDepth(24);
