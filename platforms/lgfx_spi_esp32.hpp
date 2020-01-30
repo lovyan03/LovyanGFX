@@ -5,7 +5,6 @@
 #include <esp_heap_caps.h>
 #include <driver/spi_common.h>
 
-#include "esp32_common.hpp"
 #include "lgfx_common.hpp"
 #include "lgfx_sprite.hpp"
 #include "panel_common.hpp"

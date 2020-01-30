@@ -145,6 +145,80 @@ namespace lgfx
   template<>
   struct TPin<-1> : public ESP32NOPIN {};
 
+//----------------------------------------------------------------------------
+
+  struct FileWrapper {
+    bool need_transaction = true;
+
+    uint16_t read16(void) {
+      uint16_t result;
+      read(reinterpret_cast<uint8_t*>(&result), 2);
+      return result;
+    }
+
+    uint32_t read32(void) {
+      uint32_t result;
+      read(reinterpret_cast<uint8_t*>(&result), 4);
+      return result;
+    }
+
+    __attribute__ ((always_inline)) inline uint16_t read16swap(void) {
+      return __builtin_bswap16(read16());
+    }
+
+    __attribute__ ((always_inline)) inline uint32_t read32swap(void) {
+      return __builtin_bswap32(read32());
+    }
+
+#if defined (ARDUINO) && defined (FS_H)
+    fs::File _fp;
+  #if defined (_SD_H_)
+    fs::FS& _fs = SD;
+    void setFS(fs::FS& fs) {
+      _fs = fs;
+      need_transaction = (&fs == &SD);
+    }
+  #else
+    fs::FS& _fs = SPIFFS;
+    void setFS(fs::FS& fs) {
+      _fs = fs;
+      need_transaction = (&fs != &SPIFFS);
+    }
+  #endif
+    bool open(fs::FS& fs, const char* path, const char* mode) {
+      setFS(fs);
+      return (_fp = fs.open(path, mode));
+    }
+    bool open(const char* path, const char* mode) { return ( _fp = _fs.open(path, mode)); }
+    bool seek(uint32_t offset) { return seek(offset, SeekSet); }
+    bool seek(uint32_t offset, SeekMode mode) { return _fp.seek(offset, mode); }
+    void skip(uint32_t offset) { seek(offset, SeekCur); }
+    void read(uint8_t *buf, uint32_t len) { _fp.read(buf, len); }
+    void close() { _fp.close(); }
+
+#elif defined (CONFIG_IDF_TARGET_ESP32)  // ESP-IDF
+
+    FILE* _fp;
+    bool open(const char* path, const char* mode) { return (_fp = fopen(path, mode)); }
+    bool seek(uint32_t offset) { return seek(offset, SEEK_SET); }
+    bool seek(uint32_t offset, int origin) { return fseek(_fp, offset, origin); }
+    void skip(uint32_t offset) { seek(offset, SEEK_CUR); }
+    void read(uint8_t *buf, uint32_t len) { fread((char*)buf, 1, len, _fp); }
+    void close() { fclose(_fp); }
+
+#else  // dummy.
+
+    bool open(const char* path, const char* mode) { return false; }
+    bool seek(uint32_t offset) { return false; }
+    bool seek(uint32_t offset, int origin) { return false; }
+    void skip(uint32_t offset) { }
+    void read(uint8_t *buf, uint32_t len) { }
+    void close() { }
+
+#endif
+
+  };
+
 };
 
 #endif

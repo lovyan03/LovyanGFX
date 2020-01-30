@@ -635,7 +635,7 @@ return;
       uint8_t* dst = buf;
       if (size == 2) {
         do { // 2byte speed tweak
-          *(uint16_t*)dst = *(uint16_t*)&c; dst += 2;
+          *(uint16_t*)dst = c; dst += 2;
         } while (--l);
       } else {
         size_t i = 0;

@@ -1,6 +1,12 @@
 #ifndef LGFX_COMMON_HPP_
 #define LGFX_COMMON_HPP_
 
+#if defined (ESP32) || (CONFIG_IDF_TARGET_ESP32)
+
+  #include "esp32_common.hpp"
+
+#endif
+
 #if defined (ARDUINO)
   #include <Arduino.h>
   #ifdef __AVR__
@@ -596,4 +602,5 @@ for (int i = 0; i < 24; i++) {
 }
 
 */
+
 #endif
