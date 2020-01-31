@@ -174,9 +174,9 @@ namespace lgfx
       0xFF,0xFF
     };
   };
-  constexpr uint8_t PROGMEM Panel_ST7735_Common::Bcmd[];
-  constexpr uint8_t PROGMEM Panel_ST7735_Common::Rcmd1[];
-  constexpr uint8_t PROGMEM Panel_ST7735_Common::Rcmd2[];
+  //constexpr uint8_t PROGMEM Panel_ST7735_Common::Bcmd[];
+  //constexpr uint8_t PROGMEM Panel_ST7735_Common::Rcmd1[];
+  //constexpr uint8_t PROGMEM Panel_ST7735_Common::Rcmd2[];
 
 
   template <class CFG>

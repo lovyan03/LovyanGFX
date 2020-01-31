@@ -58,9 +58,9 @@ namespace lgfx
     template<typename T> inline void pushImage     ( int32_t x, int32_t y, int32_t w, int32_t h, const T* data)                                                { push_image(x, y, w, h, data, nullptr                          , T::bits, get_write_pixels_fp<T>()); }
     template<typename T> inline void pushImage     ( int32_t x, int32_t y, int32_t w, int32_t h, const T* data                         , uint32_t transparent) { push_image(x, y, w, h, data, nullptr,              transparent, T::bits, get_write_pixels_fp<T>()); }
     template<typename T> inline void pushImage     ( int32_t x, int32_t y, int32_t w, int32_t h, const T* data                         , const T& transparent) { push_image(x, y, w, h, data, nullptr, *(uint32_t*)&transparent, T::bits, get_write_pixels_fp<T>()); }
-    template<typename T> inline void pushIndexImage( int32_t x, int32_t y, int32_t w, int32_t h, const T* data, const rgb888_t* palette)                       { push_image(x, y, w, h, data, palette                          , T::bits, get_write_palette_fp<T>()); }
-    template<typename T> inline void pushIndexImage( int32_t x, int32_t y, int32_t w, int32_t h, const T* data, const rgb888_t* palette, uint32_t transparent) { push_image(x, y, w, h, data, palette,              transparent, T::bits, get_write_palette_fp<T>()); }
-    template<typename T> inline void pushIndexImage( int32_t x, int32_t y, int32_t w, int32_t h, const T* data, const rgb888_t* palette, const T& transparent) { push_image(x, y, w, h, data, palette, *(uint32_t*)&transparent, T::bits, get_write_palette_fp<T>()); }
+    template<typename T, typename U> inline void pushIndexImage( int32_t x, int32_t y, int32_t w, int32_t h, const T* data, const U* palette)                       { push_image(x, y, w, h, data, palette                          , T::bits, get_write_palette_fp<T, U>()); }
+    template<typename T, typename U> inline void pushIndexImage( int32_t x, int32_t y, int32_t w, int32_t h, const T* data, const U* palette, uint32_t transparent) { push_image(x, y, w, h, data, palette,              transparent, T::bits, get_write_palette_fp<T, U>()); }
+    template<typename T, typename U> inline void pushIndexImage( int32_t x, int32_t y, int32_t w, int32_t h, const T* data, const U* palette, const T& transparent) { push_image(x, y, w, h, data, palette, *(uint32_t*)&transparent, T::bits, get_write_palette_fp<T, U>()); }
 
     __attribute__ ((always_inline)) inline static uint8_t  color332(uint8_t r, uint8_t g, uint8_t b) { return lgfx::color332(r, g, b); }
     __attribute__ ((always_inline)) inline static uint16_t color565(uint8_t r, uint8_t g, uint8_t b) { return lgfx::color565(r, g, b); }
@@ -84,12 +84,13 @@ namespace lgfx
     __attribute__ ((always_inline)) inline void* setColorDepth(uint8_t bpp)       { return setColorDepth_impl((color_depth_t)bpp); }
     __attribute__ ((always_inline)) inline void* setColorDepth(color_depth_t bpp) { return setColorDepth_impl(bpp); }
 
-    __attribute__ ((always_inline)) inline void startWrite(void) { if (0 == _transaction_count++) { beginTransaction(); } }
-    __attribute__ ((always_inline)) inline void endWrite(void)   { if (_transaction_count) { if (0 == (--_transaction_count)) endTransaction(); } }
     __attribute__ ((always_inline)) inline void beginTransaction(void) { beginTransaction_impl(); }
     __attribute__ ((always_inline)) inline void endTransaction(void)   { endTransaction_impl(); }
     __attribute__ ((always_inline)) inline void flush(void) {}
     __attribute__ ((always_inline)) inline void setWindow(int32_t xs, int32_t ys, int32_t xe, int32_t ye) { setWindow_impl(xs, ys, xe, ye); }
+
+    void startWrite(void) { if (0 == _transaction_count++) { beginTransaction(); } }
+    void endWrite(void)   { if (_transaction_count) { if (0 == (--_transaction_count)) endTransaction(); } }
 
     void setAddrWindow(int32_t x, int32_t y, int32_t w, int32_t h)
     {
@@ -100,7 +101,7 @@ namespace lgfx
       endWrite();
     }
 
-    __attribute__ ((always_inline)) inline void drawPixel(int32_t x, int32_t y)
+    void drawPixel(int32_t x, int32_t y)
     {
       if (x < 0 || (x >= _width) || y < 0 || (y >= _height)) return;
       drawPixel_impl(x, y);
@@ -851,37 +852,6 @@ namespace lgfx
 
     virtual rgb565_t readPixel16_impl(int32_t x, int32_t y) { return 0; }
 
-    struct pixelcopy_param_t {
-      int32_t src_offset = 0;
-    //int32_t dst_offset = 0;
-      const rgb888_t* src_palette = nullptr;
-    //const rgb888_t* dst_palette = nullptr;
-    };
-
-    template <class TDst, class TSrc>
-    static void pixel_to_pixel_template(void*& dst, const void* &src, int32_t len, pixelcopy_param_t* p) {
-      const TSrc*& s = (const TSrc*&)src;
-      TDst*& d = (TDst*&)dst;
-      do { *d++ = *s++; } while (--len);
-    }
-    static void pixel_to_pixel_memcpy(void*& dst, const void* &src, int32_t len, pixelcopy_param_t* p) {
-      memcpy(dst, src, len);
-      const uint8_t*& s = (const uint8_t*&)src;
-      s += len;
-      uint8_t*& d = (uint8_t*&)dst;
-      d += len;
-    }
-    template <class TDst, class TSrc>
-    static void palette_to_pixel_template(void*& dst, const void* &src, int32_t len, pixelcopy_param_t* p) {
-      const uint8_t*& s = (const uint8_t*&)src;
-      TDst*& d = (TDst*&)dst;
-      do {
-        p->src_offset = (p->src_offset + (8-TSrc::bits)) & 7;
-        *d++ = p->src_palette[(*s >> p->src_offset) & TSrc::mask];
-        if (!p->src_offset) { s++; }
-      } while (--len);
-    }
-
     void read_rect(int32_t x, int32_t y, int32_t w, int32_t h, void* data, void(LGFXBase::*fp_read_pixels)(void*, int32_t, pixelcopy_param_t* param))
     {
       if (_adjust(x,w) || _adjust(y,h)) return;
@@ -900,7 +870,7 @@ namespace lgfx
       endRead_impl();
       endWrite();
     }
-    void push_image(int32_t x, int32_t y, int32_t w, int32_t h, const void* data, const rgb888_t* palette, const uint8_t bits, void(LGFXBase::*fp_write_pixels)(const void*, int32_t, pixelcopy_param_t*))
+    void push_image(int32_t x, int32_t y, int32_t w, int32_t h, const void* data, const void* palette, const uint8_t bits, void(LGFXBase::*fp_write_pixels)(const void*, int32_t, pixelcopy_param_t*))
     {
       int32_t dx=0, dw=w;
       if (_adjust_width(x, dx, dw, _width)) return;
@@ -928,7 +898,7 @@ namespace lgfx
       endWrite();
     }
 
-    void push_image(int32_t x, int32_t y, int32_t w, int32_t h, const void* data, const rgb888_t* palette, uint32_t transp, const uint8_t bits, void(LGFXBase::*fp_write_pixels)(const void*, int32_t, pixelcopy_param_t*))
+    void push_image(int32_t x, int32_t y, int32_t w, int32_t h, const void* data, const void* palette, uint32_t transp, const uint8_t bits, void(LGFXBase::*fp_write_pixels)(const void*, int32_t, pixelcopy_param_t*))
     {
       int32_t dx=0, dw=w;
       if (_adjust_width(x, dx, dw, _width)) return;
@@ -970,6 +940,32 @@ namespace lgfx
       endWrite();
     }
 
+    template <class TDst, class TSrc>
+    static void pixel_to_pixel_template(void*& dst, const void* &src, int32_t len, pixelcopy_param_t* p) {
+      auto& s = (const TSrc*&)src;
+      auto& d = (TDst*&)dst;
+      if (std::is_same<TDst, TSrc>::value) {
+        memcpy(dst, src, len * sizeof(TDst));
+      } else {
+        do { *d++ = *s++; } while (--len);
+      }
+    }
+    template <class TDst, class TSrc, class TPalette>
+    static void palette_to_pixel_template(void*& dst, const void* &src, int32_t len, pixelcopy_param_t* p) {
+      auto& s = (const uint8_t*&)src;
+      auto& d = (TDst*&)dst;
+      auto& src_palette = (TPalette*&)(p->src_palette);
+      do {
+        if (8 == TSrc::bits) {
+          *d++ = src_palette[*s++];
+        } else {
+          p->src_offset = (p->src_offset + (8-TSrc::bits)) & 7;
+          *d++ = src_palette[(*s >> p->src_offset) & TSrc::mask];
+          if (!p->src_offset) { s++; }
+        }
+      } while (--len);
+    }
+
     template<class TDst, class TSrc>
     void read_pixels_template(void* dst, int32_t length, pixelcopy_param_t* param)
     {
@@ -989,7 +985,7 @@ namespace lgfx
       case rgb332_1Byte: return &LGFXBase::read_pixels_template<T, rgb332_t >;
       case palette_8bit:
       case palette_4bit:
-      case palette_2bit:
+//    case palette_2bit:
       case palette_1bit:
       default: break;
       }
@@ -1015,29 +1011,30 @@ namespace lgfx
       case rgb332_1Byte: return &LGFXBase::write_pixels_template<rgb332_t , T>;
       case palette_8bit:
       case palette_4bit:
-      case palette_2bit:
+//    case palette_2bit:
       case palette_1bit:
       default: break;
       }
       return &LGFXBase::write_pixels_template<T, T>;
     }
 
-    template<class TDst, class TSrc>
+    template<class TDst, class TSrc, class TPalette>
     void write_palette_template(const void* src, int32_t length, pixelcopy_param_t* param)
     {
-      write_pixels(src, length, param, palette_to_pixel_template<TDst, TSrc>);
+      write_pixels(src, length, param, palette_to_pixel_template<TDst, TSrc, TPalette>);
     }
-    template<class T>
+
+    template<class TSrc, class TPalette>
     auto get_write_palette_fp(void) -> void(LGFXBase::*)(const void*, int32_t, pixelcopy_param_t*)
     {
       switch (getColorDepth()) {
-      case rgb888_3Byte: return &LGFXBase::write_palette_template<swap888_t, T>;
-      case rgb666_3Byte: return &LGFXBase::write_palette_template<swap666_t, T>;
-      case rgb565_2Byte: return &LGFXBase::write_palette_template<swap565_t, T>;
-      case rgb332_1Byte: return &LGFXBase::write_palette_template<rgb332_t , T>;
+      case rgb888_3Byte: return &LGFXBase::write_palette_template<swap888_t, TSrc, TPalette>;
+      case rgb666_3Byte: return &LGFXBase::write_palette_template<swap666_t, TSrc, TPalette>;
+      case rgb565_2Byte: return &LGFXBase::write_palette_template<swap565_t, TSrc, TPalette>;
+      case rgb332_1Byte: return &LGFXBase::write_palette_template<rgb332_t , TSrc, TPalette>;
       case palette_8bit:
       case palette_4bit:
-      case palette_2bit:
+//    case palette_2bit:
       case palette_1bit:
       default: break;
       }
@@ -1574,13 +1571,20 @@ namespace lgfx
       unloadFont();
     }
 
+    void setTextFont(uint8_t f) override {
+      unloadFont();
+      Base::setTextFont(f);
+    }
+
     void unloadFont( void )
     {
+      if (!fontLoaded) return;
       fontLoaded = false;
-      if (gUnicode)  { free(gUnicode);  gUnicode  = nullptr; }
-      if (gWidth)    { free(gWidth);    gWidth    = nullptr; }
-      if (gdX)       { free(gdX);       gdX       = nullptr; }
-      if (gBitmap)   { free(gBitmap);   gBitmap   = nullptr; }
+      fontFile.close();
+      if (gUnicode)  { free(gUnicode);  gUnicode = nullptr; }
+      if (gWidth)    { free(gWidth);    gWidth   = nullptr; }
+      if (gdX)       { free(gdX);       gdX      = nullptr; }
+      if (gBitmap)   { free(gBitmap);   gBitmap  = nullptr; }
     }
 
     void showFont(uint32_t td);
@@ -1620,6 +1624,7 @@ namespace lgfx
       fontFile.need_transaction &= this->_has_transaction;
       if (fontFile.need_transaction && this->_transaction_count) this->endTransaction();
 
+      unloadFont();
       bool result = fontFile.open(path, "rb");
       if (!result) {
         std::string filename = "/";
@@ -1628,7 +1633,6 @@ namespace lgfx
         result = fontFile.open(filename.c_str(), "rb");
       }
       if (result) {
-        unloadFont();
         {
           uint32_t buf[6];
           fontFile.read((uint8_t*)buf, 6 * 4); // 24 Byte read
@@ -1661,6 +1665,8 @@ namespace lgfx
 
         this->_font_size.height   = gFont.yAdvance;
         this->_font_size.yadvance = gFont.yAdvance;
+      } else {
+        this->setTextFont(1);
       }
       if (fontFile.need_transaction && this->_transaction_count) { this->beginTransaction(); }
     }
@@ -1831,93 +1837,94 @@ me->fillRect(x * size_x + cx, cy, size_x, size_y);
       if ((x >= this->_width) || (y >= this->_height)) return;
 
       //uint32_t startTime = millis();
+      uint32_t seekOffset;
+      int32_t w;
+      int32_t h;
+      uint16_t bpp;
+      {
+        struct {
+          union {
+            uint8_t raw[34];
+    //      uint8_t raw[54];
 
-      if (file.read16() == 0x4D42) {  // bmp header "BM"
-        file.skip(8);
-        uint32_t seekOffset = file.read32();
-        file.skip(4);
-        int32_t w = file.read32();
-        int32_t h = file.read32();  // bcHeight Image height (pixels)
-        //If the value of bcHeight is positive, the image data is from bottom to top
-        //If the value of bcHeight is negative, the image data is from top to bottom.
-        int32_t flow = (h > 0) ? -1 : 1;
-        if (h < 0) h = -h;
-        if (flow < 0) y += h - 1;
-
-        if (file.read16() == 1) {  // bcPlanes always 1
-          uint16_t bpp = file.read16(); // 24 bcBitCount 24=RGB24bit
-          uint32_t biComp = file.read32(); // biCompression 0=BI_RGB
-          if ((bpp == 24 || bpp == 16 || bpp == 32)
-           && (biComp == 0 || biComp == 3)) {
-            file.seek(seekOffset);
-            uint16_t padding = (4 - (w & 3)) & 3;
-            uint8_t lineBuffer[w * (bpp >> 3) + padding];
-            while (h--) {
-              if (file.need_transaction) this->endTransaction();
-              file.read(lineBuffer, sizeof(lineBuffer));
-              if (file.need_transaction) this->beginTransaction();
-              if (bpp == 24) {      this->pushImage(x, y, w, 1, reinterpret_cast<rgb888_t*>(lineBuffer));  }
-              else if (bpp == 16) { this->pushImage(x, y, w, 1, reinterpret_cast<rgb565_t*>(lineBuffer));  }
-              else if (bpp == 32) { this->pushImage(x, y, w, 1, reinterpret_cast<argb8888_t*>(lineBuffer)); }
-              y += flow;
-            }
-          } else
-          if ((bpp == 8 || bpp == 4 || bpp == 1) && biComp == 0) {
-            //file.skip(12);
-            //uint32_t biClrUsed = file.read32();
-            //file.skip(8);
-            argb8888_t palette[1<<bpp];
-            file.seek(seekOffset-(1<<bpp)*sizeof(argb8888_t));
-            file.read((uint8_t*)palette, (1<<bpp)*sizeof(argb8888_t)); // load palette
-            file.seek(seekOffset);
-            if (bpp == 1) {
-              uint8_t lineBuffer[((w+31) >> 5) << 2];
-              while (h--) {
-                if (file.need_transaction) this->endTransaction();
-                file.read(lineBuffer, sizeof(lineBuffer));
-                if (file.need_transaction) this->beginTransaction();
-                uint8_t* src = lineBuffer;
-                bool flg = lineBuffer[0] & 0x80;
-                int32_t len = 1;
-                for (int32_t i = 1; i < w; i++) {
-                  if (0 == (i & 7)) src++;
-                  if (flg != (bool)(*src & (0x80 >> (i&7)))) {
-                    this->drawFastHLine(x + i - len, y, len, palette[flg]);
-                    flg = !flg;
-                    len = 0;
-                  }
-                  len++;
-                }
-                this->drawFastHLine(x + w - len, y, len, palette[flg]);
-                y += flow;
-              }
-            } else {
-              uint16_t readlen = (bpp == 4)
-                               ? ((w+1)>>1) + (((4 - ((w+1)>>1)) & 3) & 3)
-                               : (w + ((4 - (w & 3)) & 3));
-              uint8_t lineBuffer[w * 3];
-              while (h--) {
-                if (file.need_transaction) this->endTransaction();
-                file.read(lineBuffer, readlen);
-                if (file.need_transaction) this->beginTransaction();
-                if (bpp == 8) {
-                  for (int16_t i = 1; i <= w; i++) {
-                    reinterpret_cast<rgb888_t*>(lineBuffer)[w - i] = palette[lineBuffer[w - i]];
-                  }
-                } else {
-                  for (int16_t i = 1; i <= w; i++) {
-                    reinterpret_cast<rgb888_t*>(lineBuffer)[w - i] = palette[(lineBuffer[(w - i)>>1]>>((i&1)?0:4))&0x0F];
-                  }
-                }
-                this->pushImage(x, y, w, 1, reinterpret_cast<rgb888_t*>(lineBuffer));
-                y += flow;
-              }
-            }
-          }
-          //Serial.print("Loaded in "); Serial.print(millis() - startTime);   Serial.println(" ms");
+            #pragma pack(1)
+            struct {
+              uint16_t bfType; 
+              uint32_t bfSize;
+              uint16_t bfReserved1;
+              uint16_t bfReserved2;
+              uint32_t bfOffBits;
+              uint32_t biSize; 
+              int32_t  biWidth;
+              int32_t  biHeight;
+              uint16_t biPlanes; 
+              uint16_t biBitCount;
+              uint32_t biCompression;
+            //uint32_t biSizeImage; 
+            //int32_t  biXPelsPerMeter;
+            //int32_t  biYPelsPerMeter;
+            //uint32_t biClrUsed; 
+            //uint32_t biClrImportant;
+            };
+            #pragma pack()
+          };
+        } bmpdata;
+        file.read(bmpdata.raw, sizeof(bmpdata));
+        if ((bmpdata.bfType != 0x4D42)   // bmp header "BM"
+         || (bmpdata.biPlanes != 1)  // bcPlanes always 1
+         || (bmpdata.biWidth + x < 0)
+         || (bmpdata.biHeight + y < 0)
+         || (bmpdata.biBitCount > 32)
+         || (bmpdata.biBitCount == 0)
+         || (bmpdata.biCompression != 0 && bmpdata.biCompression != 3)) { // RLE not supported
+// Serial.println("BMP format not recognized.");
+          return;
         }
-        //else Serial.println("BMP format not recognized.");
+        seekOffset = bmpdata.bfOffBits;
+        w = bmpdata.biWidth;
+        h = bmpdata.biHeight;  // bcHeight Image height (pixels)
+        bpp = bmpdata.biBitCount; // 24 bcBitCount 24=RGB24bit
       }
+
+      void(LGFXBase::*fp)(const void*, int32_t, pixelcopy_param_t*) = nullptr;
+      switch (bpp) {
+      case  1: fp = this->template get_write_palette_fp<palette1_t, argb8888_t>(); break;
+      case  4: fp = this->template get_write_palette_fp<palette4_t, argb8888_t>(); break;
+      case  8: fp = this->template get_write_palette_fp<palette8_t, argb8888_t>(); break;
+      case 16: fp = this->template get_write_pixels_fp<rgb565_t>()               ; break;
+      case 24: fp = this->template get_write_pixels_fp<rgb888_t>()               ; break;
+      case 32: fp = this->template get_write_pixels_fp<argb8888_t>()             ; break;
+      default: return;
+      }
+
+        //If the value of Height is positive, the image data is from bottom to top
+        //If the value of Height is negative, the image data is from top to bottom.
+      int32_t flow = (h < 0) ? 1 : -1;
+      if (h < 0) h = -h;
+      else y += h - 1;
+
+      argb8888_t *palette = nullptr;
+      if (bpp <= 8) {
+        palette = new argb8888_t[1 << bpp];
+        file.seek(seekOffset-(1 << bpp)*sizeof(argb8888_t));
+        file.read((uint8_t*)palette, (1 << bpp)*sizeof(argb8888_t)); // load palette
+      }
+
+      file.seek(seekOffset);
+
+      uint8_t lineBuffer[((w * bpp + 31) >> 5) << 2];  // readline 4Byte align.
+
+      while (h--) {
+        if (file.need_transaction) this->endTransaction();
+        file.read(lineBuffer, sizeof(lineBuffer));
+        if (file.need_transaction) this->beginTransaction();
+
+        this->push_image(x, y, w, 1, lineBuffer, (void*)palette, bpp, fp);
+        y += flow;
+      }
+
+      if (palette) delete[] palette;
+      //Serial.print("Loaded in "); Serial.print(millis() - startTime);   Serial.println(" ms");
     }
   };
 
@@ -1925,17 +1932,17 @@ me->fillRect(x * size_x + cx, cy, size_x, size_y);
 
 //----------------------------------------------------------------------------
 
-  class LovyanGFX : public  // ここで追加機�Eの実裁E��継承する
+  class LovyanGFX : public
   #ifdef LOAD_GFXFF
-    LGFX_GFXFont_Support<
+   LGFX_GFXFont_Support<
   #endif
-     LGFX_VLWFont_Support<
-      LGFX_BMP_Support<
-       LGFXBase
-      >
+    LGFX_VLWFont_Support<
+     LGFX_BMP_Support<
+      LGFXBase
      >
-  #ifdef LOAD_GFXFF
     >
+  #ifdef LOAD_GFXFF
+   >
   #endif
   {};
 }

@@ -51,15 +51,17 @@ void loop() {
 
   //sprite.pushSprite(random(-20, 20), random(-20, 20), 0xFFFFFFFF);
   //sprite.pushSprite(random(-20, 20), random(-20, 20));
-  sprite.pushSprite(0,0);
-/*
+  //sprite.pushSprite(0,0);
+  uint64_t ms = micros();
   tft.drawBmpFile(SD, "/m5stack_mono.bmp",      0,  10);
   tft.drawBmpFile(SD, "/m5stack_16color.bmp", 110,  10);
   tft.drawBmpFile(SD, "/m5stack_256color.bmp",220,  10);
-  tft.drawBmpFile(SD, "/m5stack_16bpp.bmp",     0, 130);
-  tft.drawBmpFile(SD, "/m5stack_24bpp.bmp",   110, 130);
-  tft.drawBmpFile(SD, "/m5stack_32bpp.bmp",   220, 130);
+  //tft.drawBmpFile(SD, "/m5stack_16bpp.bmp",     0, 130);
+  //tft.drawBmpFile(SD, "/m5stack_24bpp.bmp",   110, 130);
+  //tft.drawBmpFile(SD, "/m5stack_32bpp.bmp",   220, 130);
+  ms = micros() - ms;
 //*/
+  Serial.printf("%d ms \r\n", ms);
   static uint32_t count, sec, psec=-1;
   count++;
   sec = millis()/1000;

@@ -85,8 +85,18 @@ void setup() {
   //tft.setColorDepth(24);  tft.createSprite(240,170);
   //tft.setColorDepth();
   //tft.createSprite(tft_lcd.width(), tft_lcd.height());
+  tft_lcd.setPivot(tft.width()>>1, tft.height()>>1);
 
 
+}
+
+static inline uint32_t micros_start() __attribute__ ((always_inline));
+static inline uint32_t micros_start()
+{
+	uint8_t oms = millis();
+	while ((uint8_t)millis() == oms)
+		;
+	return micros();
 }
 
 void loop(void)
@@ -317,7 +327,17 @@ taskENABLE_INTERRUPTS();
 
 	tft.pushSprite(0, 0);
 
-	delay(60 * 1000L);
+	uint32_t usecRotated = micros_start();
+    for (int i = 0; i < 360; i++) {
+      tft.pushRotated(i);
+      //tft.pushRotated_old(i);
+      //tft.pushRotated(i);
+    }
+	usecRotated = micros() - usecRotated;
+	Serial.print(F("Rotated       "));
+	Serial.println(usecRotated);
+	
+//	delay(60 * 1000L);
 }
 
 void printnice(int32_t v)
@@ -336,15 +356,6 @@ void printnice(int32_t v)
 		*str = ' ';
 	}
 	tft.println(str);
-}
-
-static inline uint32_t micros_start() __attribute__ ((always_inline));
-static inline uint32_t micros_start()
-{
-	uint8_t oms = millis();
-	while ((uint8_t)millis() == oms)
-		;
-	return micros();
 }
 
 uint32_t testHaD()

@@ -39,7 +39,7 @@ namespace lgfx {
 
   enum color_depth_t : uint8_t
   { palette_1bit =  1 //   2 color
-  , palette_2bit =  2 //   4 color
+//, palette_2bit =  2 //   4 color
   , palette_4bit =  3 //  16 color
   , palette_8bit =  4 // 256 color
   , rgb332_1Byte =  8 // RRRGGGBB
@@ -54,7 +54,7 @@ namespace lgfx {
   __attribute__ ((always_inline)) inline static uint16_t swap565( uint8_t r, uint8_t g, uint8_t b) { return ((b >> 3) << 8) | ((g >> 2) << 13) | ((g >> 5) | ((r>>3)<<3)); }
   __attribute__ ((always_inline)) inline static uint32_t swap888( uint8_t r, uint8_t g, uint8_t b) { return (b << 16) | (g << 8) | r; }
 
-  __attribute__ ((always_inline)) inline static uint16_t getSwap16(uint16_t c) { return c<<8 | c>>8; }
+  __attribute__ ((always_inline)) inline static uint16_t getSwap16(uint16_t c) { return __builtin_bswap16(c); }
   __attribute__ ((always_inline)) inline static uint32_t getSwap24(uint32_t c) { return ((uint8_t)c<<8 | (uint8_t)(c>>8))<<8 | (uint8_t)(c>>16); }
 
   inline uint16_t convert_rgb888_to_rgb565(uint32_t c) { return (c>>19)<<11 | (((uint16_t)c)>>10)<<5 | ((uint8_t)c)>>3; }
@@ -65,7 +65,7 @@ namespace lgfx {
   inline uint32_t convert_rgb888_to_rgb332( uint32_t c) { return ((c>>21)<<5) | ((((uint16_t)c)>>13) << 2) | ((c>>6) & 3); }
   inline uint32_t convert_rgb888_to_palette8(uint32_t c) { return (c&0xFF)*0x01010101; }
   inline uint32_t convert_rgb888_to_palette4(uint32_t c) { return (c&0x0F)*0x11111111; }
-  inline uint32_t convert_rgb888_to_palette2(uint32_t c) { return (c&0x03)*0x55555555; }
+//inline uint32_t convert_rgb888_to_palette2(uint32_t c) { return (c&0x03)*0x55555555; }
   inline uint32_t convert_rgb888_to_palette1(uint32_t c) { return c&1?~0:0; }
   inline uint32_t convert_rgb565_to_swap888(uint16_t c) { return ((((c&0x1F)*0x21)>>2)<<8 | ((((c>>5)&0x3F)*0x41)>>4))<<8 | (((c>>11)*0x21)>>2); }
   inline uint32_t convert_rgb565_to_swap666(uint16_t c) { return ((c&0x1F)<<17) | ((c&0x10)<<12) | ((c&0x7E0)<<3) | ((c>>10)&0xF8) | (c>>15); }
@@ -73,7 +73,7 @@ namespace lgfx {
   inline uint32_t convert_rgb565_to_rgb332( uint16_t c) { return ((c>>13) <<5) | ((c>>6) & 0x1C) | ((c>>3) & 3); }
   inline uint32_t convert_rgb565_to_palette8(uint16_t c) { return (c&0xFF)*0x01010101; }
   inline uint32_t convert_rgb565_to_palette4(uint16_t c) { return (c&0x0F)*0x11111111; }
-  inline uint32_t convert_rgb565_to_palette2(uint16_t c) { return (c&0x03)*0x55555555; }
+//inline uint32_t convert_rgb565_to_palette2(uint16_t c) { return (c&0x03)*0x55555555; }
   inline uint32_t convert_rgb565_to_palette1(uint16_t c) { return c&1?~0:0; }
   inline uint32_t convert_rgb332_to_swap888(uint8_t c) { return (((c&3)*0x55)<<8 | ((c&0x1C)*0x49)>>3)<<8 | (((c>>5)*0x49) >> 1); }
   inline uint32_t convert_rgb332_to_swap666(uint8_t c) { return (((c&0xE0)*9)>>5) | ((c&0x1C)*0x240) | ((c&3)*0x15)<<16; }
@@ -81,14 +81,14 @@ namespace lgfx {
   inline uint32_t convert_rgb332_to_rgb332( uint8_t c) { return c; }
   inline uint32_t convert_rgb332_to_palette8(uint8_t c) { return c * 0x01010101; }
   inline uint32_t convert_rgb332_to_palette4(uint8_t c) { return (c&0x0F)*0x11111111; }
-  inline uint32_t convert_rgb332_to_palette2(uint8_t c) { return (c&0x03)*0x55555555; }
+//inline uint32_t convert_rgb332_to_palette2(uint8_t c) { return (c&0x03)*0x55555555; }
   inline uint32_t convert_rgb332_to_palette1(uint8_t c) { return (c&1)?~0:0; }
 
 
 #pragma pack(1)
 
   struct palette1_t;
-  struct palette2_t;
+//struct palette2_t;
   struct palette4_t;
   struct palette8_t;
   struct rgb332_t;    //  8bpp
@@ -121,6 +121,7 @@ namespace lgfx {
     static constexpr uint8_t bits = 4;
     static constexpr uint8_t mask  = 0b00001111;
   };
+/*
   struct palette2_t {
     union {
       uint8_t raw;
@@ -131,6 +132,7 @@ namespace lgfx {
     static constexpr uint8_t bits = 2;
     static constexpr uint8_t mask  = 0b00000011;
   };
+*/
   struct palette1_t {
     union {
       uint8_t raw;
@@ -450,7 +452,7 @@ namespace lgfx {
       else if (bpp >  4) { bpp = rgb332_1Byte; bytes = 1; bits =  8; }
       else if (bpp == 4) { bpp = palette_8bit; bytes = 1; bits =  8; }
       else if (bpp == 3) { bpp = palette_4bit; bytes = 0; bits =  4; x_mask = 0b0001; }
-      else if (bpp == 2) { bpp = palette_2bit; bytes = 0; bits =  2; x_mask = 0b0011; }
+//    else if (bpp == 2) { bpp = palette_2bit; bytes = 0; bits =  2; x_mask = 0b0011; }
       else               { bpp = palette_1bit; bytes = 0; bits =  1; x_mask = 0b0111; }
 
       colormask = (1 << bits) - 1;
@@ -486,11 +488,11 @@ namespace lgfx {
         convert_rgb565 = convert_rgb565_to_palette4;
         convert_rgb332 = convert_rgb332_to_palette4;
         break;
-      case palette_2bit:
-        convert_rgb888 = convert_rgb888_to_palette2;
-        convert_rgb565 = convert_rgb565_to_palette2;
-        convert_rgb332 = convert_rgb332_to_palette2;
-        break;
+//    case palette_2bit:
+//      convert_rgb888 = convert_rgb888_to_palette2;
+//      convert_rgb565 = convert_rgb565_to_palette2;
+//      convert_rgb332 = convert_rgb332_to_palette2;
+//      break;
       case palette_1bit:
         convert_rgb888 = convert_rgb888_to_palette1;
         convert_rgb565 = convert_rgb565_to_palette1;
@@ -539,7 +541,7 @@ namespace lgfx {
   inline rgb332_t& rgb332_t::operator=(const argb8888_t& rhs) { raw = color332(rhs.r, rhs.g, rhs.b); return *this; }
 
   inline rgb565_t& rgb565_t::operator=(const rgb332_t&   rhs) { raw = color565(rhs.R8(), rhs.G8(), rhs.B8()); return *this; }
-  inline rgb565_t& rgb565_t::operator=(const swap565_t&  rhs) { raw = rhs.raw << 8 | rhs.raw >> 8;   return *this; }
+  inline rgb565_t& rgb565_t::operator=(const swap565_t&  rhs) { raw = __builtin_bswap16(rhs.raw);   return *this; }
   inline rgb565_t& rgb565_t::operator=(const rgb888_t&   rhs) { raw = color565(rhs.r, rhs.g, rhs.b); return *this; }
   inline rgb565_t& rgb565_t::operator=(const swap888_t&  rhs) { raw = color565(rhs.r, rhs.g, rhs.b); return *this; }
   inline rgb565_t& rgb565_t::operator=(const swap666_t&  rhs) { raw = color565(rhs.R8(), rhs.G8(), rhs.B8()); return *this; }
@@ -553,7 +555,7 @@ namespace lgfx {
   inline rgb888_t& rgb888_t::operator=(const argb8888_t& rhs) { r = rhs.r;    g = rhs.g;    b = rhs.b;    return *this; }
 
   inline swap565_t& swap565_t::operator=(const rgb332_t&   rhs) { raw = swap565(rhs.R8(), rhs.G8(), rhs.B8()); return *this; }
-  inline swap565_t& swap565_t::operator=(const rgb565_t&   rhs) { raw = rhs.raw << 8 | rhs.raw >> 8;           return *this; }
+  inline swap565_t& swap565_t::operator=(const rgb565_t&   rhs) { raw = __builtin_bswap16(rhs.raw);            return *this; }
   inline swap565_t& swap565_t::operator=(const rgb888_t&   rhs) { raw = swap565(rhs.r,    rhs.g,    rhs.b);    return *this; }
   inline swap565_t& swap565_t::operator=(const swap666_t&  rhs) { raw = swap565(rhs.R8(), rhs.G8(), rhs.B8()); return *this; }
   inline swap565_t& swap565_t::operator=(const swap888_t&  rhs) { raw = swap565(rhs.r,    rhs.g,    rhs.b);    return *this; }
@@ -592,6 +594,14 @@ namespace lgfx {
   inline bool operator==(const raw_color_t& lhs, const raw_color_t& rhs) { return lhs.raw == rhs.raw; }
   inline bool operator!=(const raw_color_t& lhs, const raw_color_t& rhs) { return lhs.raw != rhs.raw; }
 
+
+
+  struct pixelcopy_param_t {
+    int32_t src_offset = 0;
+    const void* src_palette = nullptr;
+  //int32_t dst_offset = 0;
+  //const rgb888_t* dst_palette = nullptr;
+  };
 }
 /*
 // test code

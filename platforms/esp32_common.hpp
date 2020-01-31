@@ -218,7 +218,6 @@ namespace lgfx
 #endif
 
   };
-
 };
 
 #endif

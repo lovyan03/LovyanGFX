@@ -49,7 +49,7 @@ namespace lgfx
     template <class T> inline void setPanel(void) { if (_panel) { delete _panel; } _panel = new T; postSetPanel(); }
 
     __attribute__ ((always_inline)) inline void begin(void) { init(); }
-    __attribute__ ((always_inline)) inline void init(void) { initBus(); initPanel(); }
+    void init(void) { initBus(); initPanel(); }
 
     void initBus(void)
     {
@@ -57,9 +57,9 @@ namespace lgfx
       TPin<_panel_rst>::lo();
 
       spi_bus_config_t buscfg = {
-          .mosi_io_num = (gpio_num_t)_spi_mosi,
-          .miso_io_num = (gpio_num_t)_spi_miso,
-          .sclk_io_num = (gpio_num_t)_spi_sclk,
+          .mosi_io_num = _spi_mosi,
+          .miso_io_num = _spi_miso,
+          .sclk_io_num = _spi_sclk,
           .quadwp_io_num = -1,
           .quadhd_io_num = -1,
           .max_transfer_sz = 1,
@@ -95,41 +95,69 @@ namespace lgfx
       }
 
 #else // Arduino ESP32
-      spicommon_bus_initialize_io(_spi_host, &buscfg, _dma_channel, SPICOMMON_BUSFLAG_MASTER, nullptr);
 
-      // periph_module_enable
-      if (_spi_host == HSPI_HOST) {
-        DPORT_SET_PERI_REG_MASK(DPORT_PERIP_CLK_EN_REG, DPORT_SPI_CLK_EN);
-        DPORT_CLEAR_PERI_REG_MASK(DPORT_PERIP_RST_EN_REG, DPORT_SPI_RST);
-      } else {  // VSPI
-        DPORT_SET_PERI_REG_MASK(DPORT_PERIP_CLK_EN_REG, DPORT_SPI_CLK_EN_2);
-        DPORT_CLEAR_PERI_REG_MASK(DPORT_PERIP_RST_EN_REG, DPORT_SPI_RST_2);
+      bool use_gpio_matrix = (
+         (_spi_sclk>=0 &&
+          _spi_sclk != spi_periph_signal[_spi_host].spiclk_iomux_pin)
+       || (_spi_mosi >= 0 &&
+           _spi_mosi != spi_periph_signal[_spi_host].spid_iomux_pin)
+       || (_spi_miso>=0 &&
+           _spi_miso != spi_periph_signal[_spi_host].spiq_iomux_pin));
+
+      if (use_gpio_matrix) {
+        ESP_LOGI("LGFX", "bus init: use gpio_matrix.");
+        if (_spi_mosi >= 0) {
+          TPin<_spi_mosi>::init(GPIO_MODE_INPUT_OUTPUT);
+          gpio_matrix_out(_spi_mosi, spi_periph_signal[_spi_host].spid_out, false, false);
+          gpio_matrix_in(_spi_mosi, spi_periph_signal[_spi_host].spid_in, false);
+        }
+        if (_spi_miso >= 0) {
+          TPin<_spi_miso>::init(GPIO_MODE_INPUT_OUTPUT);
+        //gpio_matrix_out(_spi_miso, spi_periph_signal[_spi_host].spiq_out, false, false);
+          gpio_matrix_in(_spi_miso, spi_periph_signal[_spi_host].spiq_in, false);
+        }
+        if (_spi_sclk >= 0) {
+          TPin<_spi_sclk>::init(GPIO_MODE_INPUT_OUTPUT);
+          //gpio_set_direction((gpio_num_t)_spi_sclk, GPIO_MODE_INPUT_OUTPUT);
+          gpio_matrix_out(_spi_sclk, spi_periph_signal[_spi_host].spiclk_out, false, false);
+          gpio_matrix_in(_spi_sclk, spi_periph_signal[_spi_host].spiclk_in, false);
+        }
+      } else {
+        ESP_LOGI("LGFX", "bus init: use iomux.");
+        if (_spi_mosi >= 0) {
+          gpio_iomux_in(_spi_mosi, spi_periph_signal[_spi_host].spid_in);
+          gpio_iomux_out(_spi_mosi, 1, false);
+        }
+        if (_spi_miso >= 0) {
+          gpio_iomux_in(_spi_miso, spi_periph_signal[_spi_host].spiq_in);
+          gpio_iomux_out(_spi_miso, 1, false);
+        }
+        if (_spi_sclk >= 0) {
+          gpio_iomux_in(_spi_sclk, spi_periph_signal[_spi_host].spiclk_in);
+          gpio_iomux_out(_spi_sclk, 1, false);
+        }
+      }
+
+      periph_module_enable(spi_periph_signal[_spi_host].module);
+      if (_dma_channel) {
+        periph_module_enable( PERIPH_SPI_DMA_MODULE );
+    //Select DMA channel.
+        DPORT_SET_PERI_REG_BITS(DPORT_SPI_DMA_CHAN_SEL_REG, 3, _dma_channel, (_spi_host * 2));
+      //Reset DMA
+        *reg(SPI_DMA_CONF_REG(_spi_port)) |= SPI_OUT_RST|SPI_IN_RST|SPI_AHBM_RST|SPI_AHBM_FIFO_RST;
+        *reg(SPI_DMA_OUT_LINK_REG(_spi_port)) = 0;
+        *reg(SPI_DMA_IN_LINK_REG(_spi_port)) = 0;
+        *reg(SPI_DMA_CONF_REG(_spi_port)) &= ~(SPI_OUT_RST|SPI_IN_RST|SPI_AHBM_RST|SPI_AHBM_FIFO_RST);
       }
 
       *reg(SPI_USER_REG (_spi_port)) = SPI_USR_MISO | SPI_USR_MOSI | SPI_DOUTDIN;  // need SD card access (full duplex setting)
       *reg(SPI_CTRL2_REG(_spi_port)) = 0;
       *reg(SPI_SLAVE_REG(_spi_port)) &= ~(SPI_SLAVE_MODE | SPI_TRANS_DONE);
 /*
-      if (0 != _dma_channel) {
-        spicommon_dma_chan_claim(_dma_channel);
-      }
       *reg(SPI_CTRL_REG (_spi_port)) = 0;
       *reg(SPI_USER1_REG(_spi_port)) = 0;
       *reg(SPI_USER2_REG(_spi_port)) = 0;
       *reg(SPI_PIN_REG  (_spi_port)) = 0;
-      if (_dma_channel) DPORT_SET_PERI_REG_BITS(DPORT_SPI_DMA_CHAN_SEL_REG, 3, _dma_channel, (_spi_host * 2));
-      if (_spi_sclk >= 0) { TPin<_spi_sclk>::init();                       pinMatrixOutAttach(_spi_sclk, (_spi_host == HSPI_HOST) ? HSPICLK_OUT_IDX : VSPICLK_OUT_IDX, false, false); }
-      if (_spi_mosi >= 0) { TPin<_spi_mosi>::init(GPIO_MODE_INPUT_OUTPUT); pinMatrixOutAttach(_spi_mosi, (_spi_host == HSPI_HOST) ? HSPID_IN_IDX : VSPID_IN_IDX, false, false); }
-      if (_spi_miso >= 0) { TPin<_spi_miso>::init(GPIO_MODE_INPUT);        pinMatrixInAttach( _spi_miso, (_spi_host == HSPI_HOST) ? HSPIQ_OUT_IDX : VSPIQ_OUT_IDX, false); }
-//*/
-      if (_dma_channel) {
-      //Reset DMA
-        *reg(SPI_DMA_CONF_REG(_spi_port)) |= SPI_OUT_RST|SPI_IN_RST|SPI_AHBM_RST|SPI_AHBM_FIFO_RST;
-        *reg(SPI_DMA_OUT_LINK_REG(_spi_port)) = 0;
-        *reg(SPI_DMA_IN_LINK_REG(_spi_port)) = 0;
-        *reg(SPI_DMA_CONF_REG(_spi_port)) &= ~(SPI_OUT_RST|SPI_IN_RST|SPI_AHBM_RST|SPI_AHBM_FIFO_RST);
-        periph_module_enable( PERIPH_SPI_DMA_MODULE );
-      }
 //*/
 #endif
       *reg(SPI_CTRL1_REG(_spi_port)) = 0;
@@ -275,8 +303,9 @@ namespace lgfx
 
     void invertDisplay_impl(bool i) override
     {
-      startWrite();
       _invert = i;
+      //writecommand(i ? _panel->cmd_invon : _panel->cmd_invoff);
+      startWrite();
       write_cmd(i ? _panel->cmd_invon : _panel->cmd_invoff);
       endWrite();
     }

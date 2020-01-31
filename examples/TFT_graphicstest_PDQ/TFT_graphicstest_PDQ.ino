@@ -19,8 +19,9 @@
 #endif
 
 
-//#include <TFT_eSPI.h>
-#include <LGFX_TFT_eSPI.hpp>
+#include <TFT_eSPI.h>
+//#include <LGFX_TFT_eSPI.hpp>
+#include <SD.h>
 
 
 static TFT_eSPI tft;
@@ -42,11 +43,11 @@ void setup() {
 //tft.setPanel<lgfx::Panel_M5Stack<lgfx::Panel_Config> >();
   tft.init();
 
-
 #if defined(ARDUINO_M5Stick_C)
   AXP192 axp;
   axp.begin();
 #elif defined(ARDUINO_M5Stack_Core_ESP32) || defined(ARDUINO_M5STACK_FIRE) // || defined ( ARDUINO_ESP32_DEV ) || defined ( ARDUINO_T )
+  SD.begin(4, SPI, 20000000);
   const int BLK_PWM_CHANNEL = 7;
   ledcSetup(BLK_PWM_CHANNEL, 12000, 8);
   ledcAttachPin(32, BLK_PWM_CHANNEL);

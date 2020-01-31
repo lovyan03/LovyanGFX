@@ -51,7 +51,7 @@ namespace lgfx
 
       if (_write_depth.depth <= palette_8bit) {
         size_t palettes = 1 << _write_depth.bits;
-        _palette = (rgb888_t*)_mem_alloc(sizeof(rgb888_t) * palettes);
+        _palette = (swap888_t*)_mem_alloc(sizeof(swap888_t) * palettes);
         if (!_palette) {
           deleteSprite();
           return nullptr;
@@ -68,7 +68,7 @@ if (_write_depth.depth == palette_8bit) {
           switch (_write_depth.depth) {
           case palette_8bit: k = 0x010101; break;
           case palette_4bit: k = 0x111111; break;
-          case palette_2bit: k = 0x555555; break;
+//        case palette_2bit: k = 0x555555; break;
           case palette_1bit: k = 0xFFFFFF; break;
           default: k = 1; break;
           }
@@ -79,8 +79,10 @@ if (_write_depth.depth == palette_8bit) {
       }
       _sw = _width = w;
       _xe = w - 1;
+      _xpivot = w >> 1;
       _sh = _height = h;
       _ye = h - 1;
+      _ypivot = h >> 1;
       _rotation = 0;
       _index = _sx = _sy = _xs = _ys = _xptr = _yptr = 0;
 
@@ -102,7 +104,7 @@ if (_write_depth.depth == palette_8bit) {
       }
     }
 
-    void setPalette(size_t index, const rgb888_t& rgb) {
+    void setPalette(size_t index, const swap888_t& rgb) {
       if (_palette) { _palette[index & ((1<<_write_depth.bits)-1)] = rgb; }
     }
 
@@ -123,7 +125,7 @@ if (_write_depth.depth == palette_8bit) {
       case rgb332_1Byte: lgfx->pushImage(x, y, _width, _height, (rgb332_t* )_img); return;
       case palette_8bit: lgfx->pushIndexImage(x, y, _width, _height, (palette8_t*)_img, _palette); return;
       case palette_4bit: lgfx->pushIndexImage(x, y, _width, _height, (palette4_t*)_img, _palette); return;
-      case palette_2bit: lgfx->pushIndexImage(x, y, _width, _height, (palette2_t*)_img, _palette); return;
+//    case palette_2bit: lgfx->pushIndexImage(x, y, _width, _height, (palette2_t*)_img, _palette); return;
       case palette_1bit: lgfx->pushIndexImage(x, y, _width, _height, (palette1_t*)_img, _palette); return;
       }
     }
@@ -142,11 +144,10 @@ if (_write_depth.depth == palette_8bit) {
       case rgb332_1Byte: lgfx->pushImage(x, y, _width, _height, (rgb332_t* )_img, transp); return;
       case palette_8bit: lgfx->pushIndexImage(x, y, _width, _height, (palette8_t*)_img, _palette, transp); return;
       case palette_4bit: lgfx->pushIndexImage(x, y, _width, _height, (palette4_t*)_img, _palette, transp); return;
-      case palette_2bit: lgfx->pushIndexImage(x, y, _width, _height, (palette2_t*)_img, _palette, transp); return;
+//    case palette_2bit: lgfx->pushIndexImage(x, y, _width, _height, (palette2_t*)_img, _palette, transp); return;
       case palette_1bit: lgfx->pushIndexImage(x, y, _width, _height, (palette1_t*)_img, _palette, transp); return;
       }
     }
-
 
     static void getRotatedBounds(float sina, float cosa, int16_t w, int16_t h, int16_t xp, int16_t yp,
                                        int16_t *min_x, int16_t *min_y, int16_t *max_x, int16_t *max_y)
@@ -191,9 +192,9 @@ if (_write_depth.depth == palette_8bit) {
     }
 
 
-    __attribute__ ((always_inline)) inline void pushRotated(int16_t angle, int32_t transp = -1) { pushRotated(_parent, angle, transp); }
+    __attribute__ ((always_inline)) inline void pushRotated_old(int16_t angle, int32_t transp = -1) { pushRotated_old(_parent, angle, transp); }
 
-    bool pushRotated(LovyanGFX* lgfx, int16_t angle, int32_t transp = -1)
+    bool pushRotated_old(LovyanGFX* lgfx, int16_t angle, int32_t transp = -1)
     {
       // Trig values for the rotation
       float radAngle = -angle * 0.0174532925; // Convert degrees to radians
@@ -233,29 +234,141 @@ if (_write_depth.depth == palette_8bit) {
 
       lgfx->startWrite();
       // Scan destination bounding box and fetch transformed pixels from source Sprite
-      for (int32_t x = min_x; x <= max_x; x++)
+      for (int32_t y = min_y; y <= max_y; y++)
       {
-        int32_t xt = x - lgfx->getPivotX();
-        float cxt = cosra * xt + _xpivot;
-        float sxt = sinra * xt + _ypivot;
-        bool column_drawn = false;
-        for (int32_t y = min_y; y <= max_y; y++)
+        int32_t yt = y - lgfx->getPivotY();
+        float cyt = cosra * yt + _xpivot;
+        float syt = sinra * yt - _ypivot;
+        bool drawed = false;
+        for (int32_t x = min_x; x <= max_x; x++)
         {
-          int32_t yt = y - lgfx->getPivotY();
-          int32_t xs = (int32_t)round(cxt - sinra * yt);
+          int32_t xt = x - lgfx->getPivotX();
+          int32_t xs = (int32_t)round(cosra * xt - syt);
           // Do not calculate ys unless xs is in bounds
           if (xs >= 0 && xs < width())
           {
-            int32_t ys = (int32_t)round(sxt + cosra * yt);
+            //int32_t ys = (int32_t)round(sxt + cosra * yt);
+            int32_t ys = (int32_t)round(sinra * xt + cyt);
             // Check if ys is in bounds
             if (ys >= 0 && ys < height())
             {
               int32_t rp = readPixel(xs, ys);
               if (rp != transp) lgfx->drawPixel(x, y, rp);
-              column_drawn = true;
+              drawed = true;
+            }
+            else if (drawed) x = max_x; // Skip the remaining pixels below the Sprite
+          }
+          else if (drawed) x = max_x; // Skip the remaining pixels below the Sprite
+        }
+      }
+      lgfx->endWrite();
+
+      return true;
+    }
+//*/
+    __attribute__ ((always_inline)) inline void pushRotated(int16_t angle, int32_t transp = -1) { pushRotated(_parent, angle, transp); }
+
+    bool pushRotated(LovyanGFX* lgfx, int16_t angle, int32_t transp = -1)
+    {
+      // Trig values for the rotation
+      float radAngle = -angle * 0.0174532925; // Convert degrees to radians
+      int32_t sin256 = round(sin(radAngle) * 256);
+      int32_t cos256 = round(cos(radAngle) * 256);
+
+      // Bounding box parameters
+      int32_t min_x;
+      int32_t min_y;
+      int32_t max_x;
+      int32_t max_y;
+
+      // Get the bounding box of this rotated source Sprite
+      //getRotatedBounds(&min_x, &min_y, &max_x, &max_y);
+      {
+        int32_t w = width() - _xpivot; // w is now right edge coordinate relative to xp
+        int32_t h = height() - _ypivot; // h is now bottom edge coordinate relative to yp
+
+        // Calculate new corner coordinates
+        min_x = max_x = -_xpivot * cos256 - _ypivot * sin256;
+        int32_t tmp =  w * cos256 - _ypivot * sin256;
+        if (     tmp < min_x) min_x = tmp;
+        else if (tmp > max_x) max_x = tmp;
+
+        tmp = h * sin256 + w * cos256;
+        if (     tmp < min_x) min_x = tmp;
+        else if (tmp > max_x) max_x = tmp;
+
+        tmp = h * sin256 - _xpivot * cos256;
+        if (     tmp < min_x) min_x = tmp;
+        else if (tmp > max_x) max_x = tmp;
+
+        min_y = max_y = _xpivot * sin256 - _ypivot * cos256;
+        tmp = -w * sin256 - _ypivot * cos256;
+        if (     tmp < min_y) min_y = tmp;
+        else if (tmp > max_y) max_y = tmp;
+
+        tmp = h * cos256 - w * sin256;
+        if (     tmp < min_y) min_y = tmp;
+        else if (tmp > max_y) max_y = tmp;
+
+        tmp = h * cos256 + _xpivot * sin256;
+        if (     tmp < min_y) min_y = tmp;
+        else if (tmp > max_y) max_y = tmp;
+      }
+
+      // Move bounding box so source Sprite pivot coincides with destination Sprite pivot
+      max_x >>= 8;
+      max_x += lgfx->getPivotX() + 2;
+      if (max_x < 0) return true;
+      if (max_x > lgfx->width()) max_x = lgfx->width();
+
+      min_x >>= 8;
+      min_x += lgfx->getPivotX() - 2;
+      if (min_x > lgfx->width()) return true;
+      if (min_x < 0) min_x = 0;
+
+      max_y >>= 8;
+      max_y += lgfx->getPivotY() + 2;
+      if (max_y < 0) return true;
+      if (max_y > lgfx->height()) max_y = lgfx->height();
+
+      min_y >>= 8;
+      min_y += lgfx->getPivotY() - 2;
+      if (min_y > lgfx->height()) return true;
+      if (min_y < 0) min_y = 0;
+
+      // Scan destination bounding box and fetch transformed pixels from source Sprite
+
+      int32_t xe256 = width() << 8;
+      int32_t ye256 = height() << 8;
+
+      rgb565_t buf[max_x - min_x];
+
+      lgfx->startWrite();
+      for (int32_t y = min_y; y <= max_y; y++)
+      {
+        size_t bufidx = 0;
+        int32_t yt = y - lgfx->getPivotY();
+        int32_t x = min_x;
+        int32_t xs256 = (cos256 * (x - lgfx->getPivotX()) - (sin256 * (y - lgfx->getPivotY()) - (_ypivot << 8)) + 127);
+        int32_t ys256 = (sin256 * (x - lgfx->getPivotX()) + (cos256 * (y - lgfx->getPivotY()) + (_xpivot << 8)) + 127);
+        for (; x <= max_x; x++, xs256 += cos256, ys256 += sin256)
+        {
+          if ((xs256 >= 0 && xs256 < xe256) // Do not calculate ys unless xs is in bounds
+           && (ys256 >= 0 && ys256 < ye256))
+          {
+            int32_t rp = readPixel(xs256 >> 8, ys256 >> 8);
+            if (rp != transp) {
+              buf[bufidx++] = rp;
+              continue;
             }
           }
-          else if (column_drawn) y = max_y; // Skip the remaining pixels below the Sprite
+          if (bufidx) {
+            lgfx->pushImage(x - bufidx, y, bufidx, 1, buf);
+            bufidx = 0;
+          }
+        }
+        if (bufidx) {
+          lgfx->pushImage(x - bufidx, y, bufidx, 1, buf);
         }
       }
       lgfx->endWrite();
@@ -276,7 +389,7 @@ if (_write_depth.depth == palette_8bit) {
       uint16_t* _img16;
       swap888_t* _img24;
     };
-    rgb888_t* _palette;
+    swap888_t* _palette;
     int32_t _bitwidth;
     int32_t _xptr;
     int32_t _yptr;
@@ -728,6 +841,7 @@ return;
 //----------------------------------------------------------------------------
 
 #if defined (ESP32) || (CONFIG_IDF_TARGET_ESP32)
+
   class LGFXSprite : public LGFXSpriteBase
   {
   public:
