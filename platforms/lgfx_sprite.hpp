@@ -342,34 +342,38 @@ if (_write_depth.depth == palette_8bit) {
       int32_t xe19 = width() << 19;
       int32_t ye19 = height() << 19;
 
-      rgb565_t buf[max_x - min_x];
-
+      swap565_t bufs[2][max_x - min_x];
+      bool flip = false;
       int32_t yt = min_y - lgfx->getPivotY();
       lgfx->startWrite();
-      for (int32_t y = min_y; y <= max_y; y++, yt++)
+      for (int32_t y = min_y; y < max_y; y++, yt++)
       {
         size_t bufidx = 0;
         int32_t x = min_x;
-        int32_t xs19 = (cos19 * (x - lgfx->getPivotX()) - (sin19 * yt - (_xpivot << 19)) + 262143);
-        int32_t ys19 = (sin19 * (x - lgfx->getPivotX()) + (cos19 * yt + (_ypivot << 19)) + 262143);
-        for (; x <= max_x; x++, xs19 += cos19, ys19 += sin19)
+        int32_t xs19 = (cos19 * (x - lgfx->getPivotX()) - (sin19 * yt - (_xpivot << 19)) + (1 << 18) - 1);
+        int32_t ys19 = (sin19 * (x - lgfx->getPivotX()) + (cos19 * yt + (_ypivot << 19)) + (1 << 18) - 1);
+        for (; x < max_x; x++, xs19 += cos19, ys19 += sin19)
         {
           if ((xs19 >= 0 && xs19 < xe19) // Do not calculate ys unless xs is in bounds
            && (ys19 >= 0 && ys19 < ye19))
           {
-            int32_t rp = readPixel(xs19 >> 19, ys19 >> 19);
+            int32_t rp = __builtin_bswap16( readPixel(xs19 >> 19, ys19 >> 19));
             if (rp != transp) {
-              buf[bufidx++] = rp;
+              bufs[flip][bufidx++] = rp;
               continue;
             }
           }
           if (bufidx) {
-            lgfx->pushImage(x - bufidx, y, bufidx, 1, buf);
+            lgfx->setWindow(x - bufidx, y, x - 1, y);
+            lgfx->writeBytesDMA((uint8_t*)bufs[flip], bufidx * 2);
+            flip = !flip;
             bufidx = 0;
           }
         }
         if (bufidx) {
-          lgfx->pushImage(x - bufidx, y, bufidx, 1, buf);
+          lgfx->setWindow(x - bufidx, y, x - 1, y);
+          lgfx->writeBytesDMA((uint8_t*)bufs[flip], bufidx * 2);
+          flip = !flip;
         }
       }
       lgfx->endWrite();

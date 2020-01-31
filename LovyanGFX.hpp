@@ -467,6 +467,14 @@ namespace lgfx
       write_bytes_dma(src, len);
       endWrite();
     }
+    void writeBytes(const uint8_t* src, int32_t len)
+    {
+      write_bytes(src, len);
+    }
+    void writeBytesDMA(const uint8_t* src, int32_t len)
+    {
+      write_bytes_dma(src, len);
+    }
 
     uint16_t readPixel(int32_t x, int32_t y)
     {

@@ -86,7 +86,7 @@ void setup() {
   //tft.setColorDepth();
   //tft.createSprite(tft_lcd.width(), tft_lcd.height());
   tft_lcd.setPivot(tft.width()>>1, tft.height()>>1);
-
+  tft    .setPivot(tft.width()>>1, tft.height()>>1);
 
 }
 
@@ -330,8 +330,17 @@ taskENABLE_INTERRUPTS();
 	uint32_t usecRotated = micros_start();
     for (int i = 0; i < 360; i++) {
       tft.pushRotated(i);
-      //tft.pushRotated_old(i);
-      //tft.pushRotated(i);
+/*
+      tft.pushRotated((float)i / 3.0);
+      tft.pushRotated_old(i);
+      tft.pushRotated(i);
+      tft.pushRotated_old(i);
+      tft.pushRotated(i);
+      tft.pushRotated_old(i);
+      tft.pushRotated(i);
+      tft.pushRotated_old(i);
+      tft.pushRotated(i);
+//*/
     }
 	usecRotated = micros() - usecRotated;
 	Serial.print(F("Rotated       "));
