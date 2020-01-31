@@ -43,9 +43,7 @@ namespace lgfx
     {
       if (w < 1 || h < 1) return nullptr;
       if (_img) deleteSprite();
-
-      int32_t x_mask = (_write_depth.bits & 7) ? (8 / (_write_depth.bits & 7)) - 1 : 0;
-      _bitwidth = (w + x_mask) & ~x_mask;
+      _bitwidth = (w + _write_depth.x_mask) & (~(uint32_t)_write_depth.x_mask);
       _img = (uint8_t*)_mem_alloc((h * _bitwidth * _write_depth.bits >> 3) + 1);
       if (!_img) return nullptr;
 
@@ -234,31 +232,29 @@ if (_write_depth.depth == palette_8bit) {
 
       lgfx->startWrite();
       // Scan destination bounding box and fetch transformed pixels from source Sprite
-      for (int32_t y = min_y; y <= max_y; y++)
+      for (int32_t x = min_x; x <= max_x; x++)
       {
-        int32_t yt = y - lgfx->getPivotY();
-        float cyt = cosra * yt + _xpivot;
-        float syt = sinra * yt - _ypivot;
-        bool drawed = false;
-        for (int32_t x = min_x; x <= max_x; x++)
+        int32_t xt = x - lgfx->getPivotX();
+        float cxt = cosra * xt + _xpivot;
+        float sxt = sinra * xt + _ypivot;
+        bool column_drawn = false;
+        for (int32_t y = min_y; y <= max_y; y++)
         {
-          int32_t xt = x - lgfx->getPivotX();
-          int32_t xs = (int32_t)round(cosra * xt - syt);
+          int32_t yt = y - lgfx->getPivotY();
+          int32_t xs = (int32_t)round(cxt - sinra * yt);
           // Do not calculate ys unless xs is in bounds
           if (xs >= 0 && xs < width())
           {
-            //int32_t ys = (int32_t)round(sxt + cosra * yt);
-            int32_t ys = (int32_t)round(sinra * xt + cyt);
+            int32_t ys = (int32_t)round(sxt + cosra * yt);
             // Check if ys is in bounds
             if (ys >= 0 && ys < height())
             {
               int32_t rp = readPixel(xs, ys);
               if (rp != transp) lgfx->drawPixel(x, y, rp);
-              drawed = true;
+              column_drawn = true;
             }
-            else if (drawed) x = max_x; // Skip the remaining pixels below the Sprite
           }
-          else if (drawed) x = max_x; // Skip the remaining pixels below the Sprite
+          else if (column_drawn) y = max_y; // Skip the remaining pixels below the Sprite
         }
       }
       lgfx->endWrite();
@@ -266,20 +262,28 @@ if (_write_depth.depth == palette_8bit) {
       return true;
     }
 //*/
-    __attribute__ ((always_inline)) inline void pushRotated(int16_t angle, int32_t transp = -1) { pushRotated(_parent, angle, transp); }
 
-    bool pushRotated(LovyanGFX* lgfx, int16_t angle, int32_t transp = -1)
+
+    __attribute__ ((always_inline)) inline void pushRotated(float angle, int32_t transp = -1)
+    {
+      pushRotated(_parent, angle, transp);
+    }
+
+    bool pushRotated(LovyanGFX* lgfx, float angle, int32_t transp = -1)
     {
       // Trig values for the rotation
       float radAngle = -angle * 0.0174532925; // Convert degrees to radians
-      int32_t sin256 = round(sin(radAngle) * 256);
-      int32_t cos256 = round(cos(radAngle) * 256);
+      int32_t sin19 = round(sin(radAngle) * (float)(1<<19));
+      int32_t cos19 = round(cos(radAngle) * (float)(1<<19));
 
       // Bounding box parameters
       int32_t min_x;
-      int32_t min_y;
       int32_t max_x;
+      min_x = max_x = -_xpivot * cos19 - _ypivot * sin19;
+
+      int32_t min_y;
       int32_t max_y;
+      min_y = max_y = _xpivot * sin19 - _ypivot * cos19;
 
       // Get the bounding box of this rotated source Sprite
       //getRotatedBounds(&min_x, &min_y, &max_x, &max_y);
@@ -287,76 +291,73 @@ if (_write_depth.depth == palette_8bit) {
         int32_t w = width() - _xpivot; // w is now right edge coordinate relative to xp
         int32_t h = height() - _ypivot; // h is now bottom edge coordinate relative to yp
 
-        // Calculate new corner coordinates
-        min_x = max_x = -_xpivot * cos256 - _ypivot * sin256;
-        int32_t tmp =  w * cos256 - _ypivot * sin256;
+        int32_t tmp =  w * cos19 - _ypivot * sin19;
         if (     tmp < min_x) min_x = tmp;
         else if (tmp > max_x) max_x = tmp;
 
-        tmp = h * sin256 + w * cos256;
+        tmp = h * sin19 + w * cos19;
         if (     tmp < min_x) min_x = tmp;
         else if (tmp > max_x) max_x = tmp;
 
-        tmp = h * sin256 - _xpivot * cos256;
+        tmp = h * sin19 - _xpivot * cos19;
         if (     tmp < min_x) min_x = tmp;
         else if (tmp > max_x) max_x = tmp;
 
-        min_y = max_y = _xpivot * sin256 - _ypivot * cos256;
-        tmp = -w * sin256 - _ypivot * cos256;
+        tmp = -w * sin19 - _ypivot * cos19;
         if (     tmp < min_y) min_y = tmp;
         else if (tmp > max_y) max_y = tmp;
 
-        tmp = h * cos256 - w * sin256;
+        tmp = h * cos19 - w * sin19;
         if (     tmp < min_y) min_y = tmp;
         else if (tmp > max_y) max_y = tmp;
 
-        tmp = h * cos256 + _xpivot * sin256;
+        tmp = h * cos19 + _xpivot * sin19;
         if (     tmp < min_y) min_y = tmp;
         else if (tmp > max_y) max_y = tmp;
       }
 
       // Move bounding box so source Sprite pivot coincides with destination Sprite pivot
-      max_x >>= 8;
+      max_x >>= 19;
       max_x += lgfx->getPivotX() + 2;
       if (max_x < 0) return true;
       if (max_x > lgfx->width()) max_x = lgfx->width();
 
-      min_x >>= 8;
+      min_x >>= 19;
       min_x += lgfx->getPivotX() - 2;
       if (min_x > lgfx->width()) return true;
       if (min_x < 0) min_x = 0;
 
-      max_y >>= 8;
+      max_y >>= 19;
       max_y += lgfx->getPivotY() + 2;
       if (max_y < 0) return true;
       if (max_y > lgfx->height()) max_y = lgfx->height();
 
-      min_y >>= 8;
+      min_y >>= 19;
       min_y += lgfx->getPivotY() - 2;
       if (min_y > lgfx->height()) return true;
       if (min_y < 0) min_y = 0;
 
       // Scan destination bounding box and fetch transformed pixels from source Sprite
 
-      int32_t xe256 = width() << 8;
-      int32_t ye256 = height() << 8;
+      int32_t xe19 = width() << 19;
+      int32_t ye19 = height() << 19;
 
       rgb565_t buf[max_x - min_x];
 
+      int32_t yt = min_y - lgfx->getPivotY();
       lgfx->startWrite();
-      for (int32_t y = min_y; y <= max_y; y++)
+      for (int32_t y = min_y; y <= max_y; y++, yt++)
       {
         size_t bufidx = 0;
-        int32_t yt = y - lgfx->getPivotY();
         int32_t x = min_x;
-        int32_t xs256 = (cos256 * (x - lgfx->getPivotX()) - (sin256 * (y - lgfx->getPivotY()) - (_ypivot << 8)) + 127);
-        int32_t ys256 = (sin256 * (x - lgfx->getPivotX()) + (cos256 * (y - lgfx->getPivotY()) + (_xpivot << 8)) + 127);
-        for (; x <= max_x; x++, xs256 += cos256, ys256 += sin256)
+        int32_t xs19 = (cos19 * (x - lgfx->getPivotX()) - (sin19 * yt - (_xpivot << 19)) + 262143);
+        int32_t ys19 = (sin19 * (x - lgfx->getPivotX()) + (cos19 * yt + (_ypivot << 19)) + 262143);
+        for (; x <= max_x; x++, xs19 += cos19, ys19 += sin19)
         {
-          if ((xs256 >= 0 && xs256 < xe256) // Do not calculate ys unless xs is in bounds
-           && (ys256 >= 0 && ys256 < ye256))
+          if ((xs19 >= 0 && xs19 < xe19) // Do not calculate ys unless xs is in bounds
+           && (ys19 >= 0 && ys19 < ye19))
           {
-            int32_t rp = readPixel(xs256 >> 8, ys256 >> 8);
+            int32_t rp = readPixel(xs19 >> 19, ys19 >> 19);
             if (rp != transp) {
               buf[bufidx++] = rp;
               continue;
@@ -625,11 +626,36 @@ return;
       if (_write_depth.bits < 8) {
 // unimplemented
 /*
+        const uint32_t color_mask = (1 << _write_depth.bits)-1;
+
+        int32_t add = _bitwidth * _write_depth.bits;
+        if (src_y < dst_y) add = -add;
+        int32_t pos = (src_y < dst_y) ? h - 1 : 0;
         int32_t sx = (src_x + (src_y + pos) * _bitwidth) * _write_depth.bits;
         int32_t dx = (dst_x + (dst_y + pos) * _bitwidth) * _write_depth.bits;
-        uint8_t* src = &_img[sx >> 3];
-        uint8_t* dst = &_img[dx >> 3];
-        uint8_t buf[w];
+
+        size_t len = (w * _write_depth.bits + 7) >> 3;
+        uint8_t buf[len];
+        for (int count = 0; count < h; count++) {
+          uint8_t* src = &_img[sx >> 3];
+          uint8_t* dst = &_img[dx >> 3];
+          memcpy(buf, src, len);
+
+          uint8_t offset = (-dx * bits) & 7;
+          for (int i = 0; i < w; i++) {
+            offset = (offset - bits) & 7;
+            (((*(uint32_t*)&src[(dx+i)*bits >> 3]) >> offset) & color_mask)
+
+            dx + i * _write_depth.bits
+
+          }
+
+          memcpy(dst, buf, len);
+
+          sx += add;
+          dx += add;
+        }
+
 //*/
       } else {
         int32_t add = _bitwidth * _write_depth.bytes;
