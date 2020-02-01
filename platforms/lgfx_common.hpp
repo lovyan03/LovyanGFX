@@ -436,7 +436,7 @@ namespace lgfx {
     uint32_t (*convert_rgb565)(uint16_t) = convert_rgb565_to_swap565;
     uint32_t (*convert_rgb332)(uint8_t)  = convert_rgb332_to_swap565;
     color_depth_t depth = rgb565_2Byte;
-    uint8_t colormask = 0;
+    uint32_t colormask = 0;
     uint8_t bytes  = 2;
     uint8_t bits   = 16;
     uint8_t x_mask = 0;
@@ -450,10 +450,10 @@ namespace lgfx {
       else if (bpp > 16) { bpp = rgb666_3Byte; bytes = 3; bits = 24; }
       else if (bpp >  8) { bpp = rgb565_2Byte; bytes = 2; bits = 16; }
       else if (bpp >  4) { bpp = rgb332_1Byte; bytes = 1; bits =  8; }
-      else if (bpp == 4) { bpp = palette_8bit; bytes = 1; bits =  8; }
-      else if (bpp == 3) { bpp = palette_4bit; bytes = 0; bits =  4; x_mask = 0b0001; }
-//    else if (bpp == 2) { bpp = palette_2bit; bytes = 0; bits =  2; x_mask = 0b0011; }
-      else               { bpp = palette_1bit; bytes = 0; bits =  1; x_mask = 0b0111; }
+      else if (bpp == palette_8bit) { bpp = palette_8bit; bytes = 1; bits =  8; } // 4
+      else if (bpp == palette_4bit) { bpp = palette_4bit; bytes = 0; bits =  4; x_mask = 0b0001; } // 3
+//    else if (bpp == palette_2bit) { bpp = palette_2bit; bytes = 0; bits =  2; x_mask = 0b0011; } // 2
+      else                          { bpp = palette_1bit; bytes = 0; bits =  1; x_mask = 0b0111; } // 1
 
       colormask = (1 << bits) - 1;
       depth = bpp;

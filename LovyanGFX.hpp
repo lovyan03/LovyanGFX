@@ -72,11 +72,13 @@ namespace lgfx
 
     __attribute__ ((always_inline)) inline int32_t width        (void) const { return _width; }
     __attribute__ ((always_inline)) inline int32_t height       (void) const { return _height; }
-    __attribute__ ((always_inline)) inline uint8_t getRotation  (void) const { return _rotation; }
-    __attribute__ ((always_inline)) inline color_depth_t getColorDepth(void) const { return _write_depth.depth; }
     __attribute__ ((always_inline)) inline bool getInvert       (void) const { return _invert; }
     __attribute__ ((always_inline)) inline bool getSwapBytes    (void) const { return _swapBytes; }
+    __attribute__ ((always_inline)) inline uint8_t getRotation  (void) const { return _rotation; }
     __attribute__ ((always_inline)) inline uint8_t getTextFont  (void) const { return _textfont; }
+    __attribute__ ((always_inline)) inline color_depth_t getColorDepth(void) const { return _write_depth.depth; }
+    __attribute__ ((always_inline)) inline dev_color_t getWriteDepth(void) const { return _write_depth; }
+    __attribute__ ((always_inline)) inline dev_color_t getReadDepth(void) const { return _read_depth; }
 
     __attribute__ ((always_inline)) inline void setSwapBytes(bool swap) { _swapBytes = swap; }
     __attribute__ ((always_inline)) inline void invertDisplay(bool invert) { invertDisplay_impl(invert); }
@@ -485,6 +487,12 @@ namespace lgfx
       return readPixel16_impl(x, y).raw;
     }
 
+    uint32_t readPixelRAW(int32_t x, int32_t y)
+    {
+      if (x < 0 || (x >= _width) || y < 0 || (y >= _height)) return 0;
+      return readPixelRAW_impl(x, y);
+    }
+
     void readRect(int32_t x, int32_t y, int32_t w, int32_t h, uint8_t* data)
     {
       read_rect(x, y, w, h, data, get_read_pixels_fp<rgb332_t>());
@@ -859,6 +867,7 @@ namespace lgfx
     }
 
     virtual rgb565_t readPixel16_impl(int32_t x, int32_t y) { return 0; }
+    virtual uint32_t readPixelRAW_impl(int32_t x, int32_t y) { return 0; }
 
     void read_rect(int32_t x, int32_t y, int32_t w, int32_t h, void* data, void(LGFXBase::*fp_read_pixels)(void*, int32_t, pixelcopy_param_t* param))
     {
@@ -1787,6 +1796,7 @@ namespace lgfx
               dl = 0;
             }
             if (*pixel) {
+// todo : alpha blending
 me->setColor(color888(*pixel,*pixel,*pixel)); // color);
 me->fillRect(x * size_x + cx, cy, size_x, size_y);
             }

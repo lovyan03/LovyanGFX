@@ -216,14 +216,19 @@ taskENABLE_INTERRUPTS();
 
 	Serial.println(F("Done!"));
 
+    for (int i = 0; i < 360; i++) {
+
 	uint16_t c = 4;
 	int8_t d = 1;
-	for (int32_t i = 0; i < tft.height(); i++)
+	int32_t y = i;
+	for (int32_t j = 0; j < tft.height(); j++)
 	{
-		tft.drawFastHLine(0, i, tft.width(), c);
+		while (y >= tft.height()) y -= tft.height();
+		tft.drawFastHLine(0, y, tft.width(), c);
 		c += d;
-		if (c <= 4 || c >= 11)
+		if (c <= 4 || c >= 12)
 			d = -d;
+		y++;
 	}
 	
 	tft.setCursor(0, 0);
@@ -253,79 +258,80 @@ taskENABLE_INTERRUPTS();
 	tft.setTextColor(TFT_CYAN); tft.setTextSize(1);
 	tft.print(F("HaD pushColor      "));
 	tft.setTextColor(TFT_YELLOW); tft.setTextSize(2);
-	printnice(usecHaD);
+	printnice(usecHaD * i / 360);
 
 	tft.setTextColor(TFT_CYAN); tft.setTextSize(1);
 	tft.print(F("Screen fill        "));
 	tft.setTextColor(TFT_YELLOW); tft.setTextSize(2);
-	printnice(usecFillScreen);
+	printnice(usecFillScreen * i / 360);
 
 	tft.setTextColor(TFT_CYAN); tft.setTextSize(1);
 	tft.print(F("Text               "));
 	tft.setTextColor(TFT_YELLOW); tft.setTextSize(2);
-	printnice(usecText);
+	printnice(usecText * i / 360);
 
 	tft.setTextColor(TFT_CYAN); tft.setTextSize(1);
 	tft.print(F("Pixels             "));
 	tft.setTextColor(TFT_YELLOW); tft.setTextSize(2);
-	printnice(usecPixels);
+	printnice(usecPixels * i / 360);
 
 	tft.setTextColor(TFT_CYAN); tft.setTextSize(1);
 	tft.print(F("Lines              "));
 	tft.setTextColor(TFT_YELLOW); tft.setTextSize(2);
-	printnice(usecLines);
+	printnice(usecLines * i / 360);
 
 	tft.setTextColor(TFT_CYAN); tft.setTextSize(1);
 	tft.print(F("Horiz/Vert Lines   "));
 	tft.setTextColor(TFT_YELLOW); tft.setTextSize(2);
-	printnice(usecFastLines);
+	printnice(usecFastLines * i / 360);
 
 	tft.setTextColor(TFT_CYAN); tft.setTextSize(1);
 	tft.print(F("Rectangles         "));
 	tft.setTextColor(TFT_YELLOW); tft.setTextSize(2);
-	printnice(usecRects);
+	printnice(usecRects * i / 360);
 
 	tft.setTextColor(TFT_CYAN); tft.setTextSize(1);
 	tft.print(F("Rectangles-filled  "));
 	tft.setTextColor(TFT_YELLOW); tft.setTextSize(2);
-	printnice(usecFilledRects);
+	printnice(usecFilledRects * i / 360);
 
 	tft.setTextColor(TFT_CYAN); tft.setTextSize(1);
 	tft.print(F("Circles            "));
 	tft.setTextColor(TFT_YELLOW); tft.setTextSize(2);
-	printnice(usecCircles);
+	printnice(usecCircles * i / 360);
 
 	tft.setTextColor(TFT_CYAN); tft.setTextSize(1);
 	tft.print(F("Circles-filled     "));
 	tft.setTextColor(TFT_YELLOW); tft.setTextSize(2);
-	printnice(usecFilledCircles);
+	printnice(usecFilledCircles * i / 360);
 
 	tft.setTextColor(TFT_CYAN); tft.setTextSize(1);
 	tft.print(F("Triangles          "));
 	tft.setTextColor(TFT_YELLOW); tft.setTextSize(2);
-	printnice(usecTriangles);
+	printnice(usecTriangles * i / 360);
 
 	tft.setTextColor(TFT_CYAN); tft.setTextSize(1);
 	tft.print(F("Triangles-filled   "));
 	tft.setTextColor(TFT_YELLOW); tft.setTextSize(2);
-	printnice(usecFilledTrangles);
+	printnice(usecFilledTrangles * i / 360);
 
 	tft.setTextColor(TFT_CYAN); tft.setTextSize(1);
 	tft.print(F("Rounded rects      "));
 	tft.setTextColor(TFT_YELLOW); tft.setTextSize(2);
-	printnice(usecRoundRects);
+	printnice(usecRoundRects * i / 360);
 
 	tft.setTextColor(TFT_CYAN); tft.setTextSize(1);
 	tft.print(F("Rounded rects-fill "));
 	tft.setTextColor(TFT_YELLOW); tft.setTextSize(2);
-	printnice(usedFilledRoundRects);
+	printnice(usedFilledRoundRects * i / 360);
 
 	tft.setTextSize(1);
 	tft.println(F(""));
 	tft.setTextColor(TFT_GREEN); tft.setTextSize(2);
 	tft.print(F("Benchmark Complete!"));
 
-	tft.pushSprite(0, 0);
+      tft.pushRotated(i);
+    }
 
 	uint32_t usecRotated = micros_start();
     for (int i = 0; i < 360; i++) {

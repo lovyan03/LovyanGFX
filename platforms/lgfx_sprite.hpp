@@ -147,114 +147,113 @@ if (_write_depth.depth == palette_8bit) {
       }
     }
 
-    static void getRotatedBounds(float sina, float cosa, int16_t w, int16_t h, int16_t xp, int16_t yp,
-                                       int16_t *min_x, int16_t *min_y, int16_t *max_x, int16_t *max_y)
-    {
-      w -= xp; // w is now right edge coordinate relative to xp
-      h -= yp; // h is now bottom edge coordinate relative to yp
-
-      // Calculate new corner coordinates
-      int16_t x0 = -xp * cosa - yp * sina;
-      int16_t y0 =  xp * sina - yp * cosa;
-
-      int16_t x1 =  w * cosa - yp * sina;
-      int16_t y1 = -w * sina - yp * cosa;
-
-      int16_t x2 =  h * sina + w * cosa;
-      int16_t y2 =  h * cosa - w * sina;
-
-      int16_t x3 =  h * sina - xp * cosa;
-      int16_t y3 =  h * cosa + xp * sina;
-
-      // Find bounding box extremes, enlarge box to accomodate rounding errors
-      *min_x = x0-2;
-      if (x1 < *min_x) *min_x = x1-2;
-      if (x2 < *min_x) *min_x = x2-2;
-      if (x3 < *min_x) *min_x = x3-2;
-
-      *max_x = x0+2;
-      if (x1 > *max_x) *max_x = x1+2;
-      if (x2 > *max_x) *max_x = x2+2;
-      if (x3 > *max_x) *max_x = x3+2;
-
-      *min_y = y0-2;
-      if (y1 < *min_y) *min_y = y1-2;
-      if (y2 < *min_y) *min_y = y2-2;
-      if (y3 < *min_y) *min_y = y3-2;
-
-      *max_y = y0+2;
-      if (y1 > *max_y) *max_y = y1+2;
-      if (y2 > *max_y) *max_y = y2+2;
-      if (y3 > *max_y) *max_y = y3+2;
-
-    }
-
 
     __attribute__ ((always_inline)) inline void pushRotated_old(int16_t angle, int32_t transp = -1) { pushRotated_old(_parent, angle, transp); }
 
     bool pushRotated_old(LovyanGFX* lgfx, int16_t angle, int32_t transp = -1)
     {
+      static constexpr int32_t FP_SCALE = 19;
       // Trig values for the rotation
       float radAngle = -angle * 0.0174532925; // Convert degrees to radians
-      float sinra = sin(radAngle);
-      float cosra = cos(radAngle);
+      int32_t sinra = round(sin(radAngle) * (float)(1 << FP_SCALE));
+      int32_t cosra = round(cos(radAngle) * (float)(1 << FP_SCALE));
 
       // Bounding box parameters
-      int16_t min_x;
-      int16_t min_y;
-      int16_t max_x;
-      int16_t max_y;
+      int32_t min_x;
+      int32_t max_x;
+      min_x = max_x = -_xpivot * cosra - _ypivot * sinra;
+
+      int32_t min_y;
+      int32_t max_y;
+      min_y = max_y = _xpivot * sinra - _ypivot * cosra;
 
       // Get the bounding box of this rotated source Sprite
-      getRotatedBounds(sinra, cosra, width(), height(), _xpivot, _ypivot, &min_x, &min_y, &max_x, &max_y);
+      //getRotatedBounds(&min_x, &min_y, &max_x, &max_y);
+      {
+        int32_t w = width() - _xpivot; // w is now right edge coordinate relative to xp
+        int32_t h = height() - _ypivot; // h is now bottom edge coordinate relative to yp
+
+        int32_t tmp =  w * cosra - _ypivot * sinra;
+        if (     tmp < min_x) min_x = tmp;
+        else if (tmp > max_x) max_x = tmp;
+
+        tmp = h * sinra + w * cosra;
+        if (     tmp < min_x) min_x = tmp;
+        else if (tmp > max_x) max_x = tmp;
+
+        tmp = h * sinra - _xpivot * cosra;
+        if (     tmp < min_x) min_x = tmp;
+        else if (tmp > max_x) max_x = tmp;
+
+
+        tmp = -w * sinra - _ypivot * cosra;
+        if (     tmp < min_y) min_y = tmp;
+        else if (tmp > max_y) max_y = tmp;
+
+        tmp = h * cosra - w * sinra;
+        if (     tmp < min_y) min_y = tmp;
+        else if (tmp > max_y) max_y = tmp;
+
+        tmp = h * cosra + _xpivot * sinra;
+        if (     tmp < min_y) min_y = tmp;
+        else if (tmp > max_y) max_y = tmp;
+      }
 
       // Move bounding box so source Sprite pivot coincides with destination Sprite pivot
-      min_x += lgfx->getPivotX();
-      max_x += lgfx->getPivotX();
-      min_y += lgfx->getPivotY();
-      max_y += lgfx->getPivotY();
-
-      // Test only to show bounding box
-      // lgfx->fillSprite(TFT_BLACK);
-      // lgfx->drawRect(min_x, min_y, max_x - min_x + 1, max_y - min_y + 1, 0x0F00);
-
-      // Return if bounding box is completely outside of destination Sprite
-      if (min_x > lgfx->width()) return true;
-      if (min_y > lgfx->height()) return true;
+      max_x = (max_x + (1 << (FP_SCALE - 1)) >> FP_SCALE) + lgfx->getPivotX() + 1;
       if (max_x < 0) return true;
-      if (max_y < 0) return true;
-
-      // Clip bounding box if it is partially within destination Sprite
-      if (min_x < 0) min_x = 0;
-      if (min_y < 0) min_y = 0;
       if (max_x > lgfx->width()) max_x = lgfx->width();
+
+      min_x = (min_x + (1 << (FP_SCALE - 1)) >> FP_SCALE) + lgfx->getPivotX();
+      if (min_x > lgfx->width()) return true;
+      if (min_x < 0) min_x = 0;
+
+      max_y = (max_y + (1 << (FP_SCALE - 1)) >> FP_SCALE) + lgfx->getPivotY() + 1;
+      if (max_y < 0) return true;
       if (max_y > lgfx->height()) max_y = lgfx->height();
 
-      lgfx->startWrite();
+      min_y = (min_y + (1 << (FP_SCALE - 1)) >> FP_SCALE) + lgfx->getPivotY();
+      if (min_y > lgfx->height()) return true;
+      if (min_y < 0) min_y = 0;
+
       // Scan destination bounding box and fetch transformed pixels from source Sprite
-      for (int32_t x = min_x; x <= max_x; x++)
+
+      int32_t xe = width() << FP_SCALE;
+      int32_t ye = height() << FP_SCALE;
+
+      swap565_t bufs[2][max_x - min_x];
+      bool flip = false;
+      int32_t yt = min_y - lgfx->getPivotY();
+      lgfx->startWrite();
+
+      for (int32_t y = min_y; y < max_y; y++, yt++)
       {
-        int32_t xt = x - lgfx->getPivotX();
-        float cxt = cosra * xt + _xpivot;
-        float sxt = sinra * xt + _ypivot;
-        bool column_drawn = false;
-        for (int32_t y = min_y; y <= max_y; y++)
+        size_t bufidx = 0;
+        int32_t x = min_x;
+        int32_t xs = (cosra * (x - lgfx->getPivotX()) - (sinra * yt - (_xpivot << FP_SCALE)) + (1 << (FP_SCALE - 1)) - 1);
+        int32_t ys = (sinra * (x - lgfx->getPivotX()) + (cosra * yt + (_ypivot << FP_SCALE)) + (1 << (FP_SCALE - 1)) - 1);
+        for (; x < max_x; x++, xs += cosra, ys += sinra)
         {
-          int32_t yt = y - lgfx->getPivotY();
-          int32_t xs = (int32_t)round(cxt - sinra * yt);
-          // Do not calculate ys unless xs is in bounds
-          if (xs >= 0 && xs < width())
+          if ((xs >= 0 && xs < xe) // Do not calculate ys unless xs is in bounds
+           && (ys >= 0 && ys < ye))
           {
-            int32_t ys = (int32_t)round(sxt + cosra * yt);
-            // Check if ys is in bounds
-            if (ys >= 0 && ys < height())
-            {
-              int32_t rp = readPixel(xs, ys);
-              if (rp != transp) lgfx->drawPixel(x, y, rp);
-              column_drawn = true;
+            int32_t rp = __builtin_bswap16( readPixel(xs >> FP_SCALE, ys >> FP_SCALE));
+            if (rp != transp) {
+              bufs[flip][bufidx++] = rp;
+              continue;
             }
           }
-          else if (column_drawn) y = max_y; // Skip the remaining pixels below the Sprite
+          if (bufidx) {
+            lgfx->setWindow(x - bufidx, y, x - 1, y);
+            lgfx->writeBytesDMA((uint8_t*)bufs[flip], bufidx * 2);
+            flip = !flip;
+            bufidx = 0;
+          }
+        }
+        if (bufidx) {
+          lgfx->setWindow(x - bufidx, y, x - 1, y);
+          lgfx->writeBytesDMA((uint8_t*)bufs[flip], bufidx * 2);
+          flip = !flip;
         }
       }
       lgfx->endWrite();
@@ -264,102 +263,75 @@ if (_write_depth.depth == palette_8bit) {
 //*/
 
 
-    __attribute__ ((always_inline)) inline void pushRotated(float angle, int32_t transp = -1)
-    {
-      pushRotated(_parent, angle, transp);
-    }
+    template<typename T> bool pushRotated(                 float angle, const T& transp) { return push_rotated(_parent, angle, _write_depth.convert(transp) & _write_depth.colormask); }
+    template<typename T> bool pushRotated(LovyanGFX* lgfx, float angle, const T& transp) { return push_rotated(lgfx   , angle, _write_depth.convert(transp) & _write_depth.colormask); }
+    bool pushRotated(                 float angle                 ) { return push_rotated(_parent, angle, -1); }
+    bool pushRotated(LovyanGFX* lgfx, float angle                 ) { return push_rotated(lgfx   , angle, -1); }
 
-    bool pushRotated(LovyanGFX* lgfx, float angle, int32_t transp = -1)
+    bool push_rotated(LovyanGFX* lgfx, float angle, uint32_t transp)
     {
-      // Trig values for the rotation
+      if (_img == nullptr) return false;
+      static constexpr int32_t FP_SCALE = 20;
+
       float radAngle = -angle * 0.0174532925; // Convert degrees to radians
-      int32_t sin19 = round(sin(radAngle) * (float)(1<<19));
-      int32_t cos19 = round(cos(radAngle) * (float)(1<<19));
+      int32_t sinra = round(sin(radAngle) * (float)(1 << FP_SCALE));
+      int32_t cosra = round(cos(radAngle) * (float)(1 << FP_SCALE));
 
-      // Bounding box parameters
       int32_t min_x;
       int32_t max_x;
-      min_x = max_x = -_xpivot * cos19 - _ypivot * sin19;
+      min_x = max_x = -_xpivot * cosra - _ypivot * sinra;
 
       int32_t min_y;
       int32_t max_y;
-      min_y = max_y = _xpivot * sin19 - _ypivot * cos19;
+      min_y = max_y = _xpivot * sinra - _ypivot * cosra;
 
-      // Get the bounding box of this rotated source Sprite
-      //getRotatedBounds(&min_x, &min_y, &max_x, &max_y);
       {
-        int32_t w = width() - _xpivot; // w is now right edge coordinate relative to xp
-        int32_t h = height() - _ypivot; // h is now bottom edge coordinate relative to yp
+        int32_t w = width() - _xpivot;
+        int32_t h = height() - _ypivot;
+        int32_t tmp;
+        tmp = w * cosra - _ypivot * sinra; if (tmp < min_x) min_x = tmp; else if (tmp > max_x) max_x = tmp;
+        tmp = h * sinra +       w * cosra; if (tmp < min_x) min_x = tmp; else if (tmp > max_x) max_x = tmp;
+        tmp = h * sinra - _xpivot * cosra; if (tmp < min_x) min_x = tmp; else if (tmp > max_x) max_x = tmp;
 
-        int32_t tmp =  w * cos19 - _ypivot * sin19;
-        if (     tmp < min_x) min_x = tmp;
-        else if (tmp > max_x) max_x = tmp;
-
-        tmp = h * sin19 + w * cos19;
-        if (     tmp < min_x) min_x = tmp;
-        else if (tmp > max_x) max_x = tmp;
-
-        tmp = h * sin19 - _xpivot * cos19;
-        if (     tmp < min_x) min_x = tmp;
-        else if (tmp > max_x) max_x = tmp;
-
-        tmp = -w * sin19 - _ypivot * cos19;
-        if (     tmp < min_y) min_y = tmp;
-        else if (tmp > max_y) max_y = tmp;
-
-        tmp = h * cos19 - w * sin19;
-        if (     tmp < min_y) min_y = tmp;
-        else if (tmp > max_y) max_y = tmp;
-
-        tmp = h * cos19 + _xpivot * sin19;
-        if (     tmp < min_y) min_y = tmp;
-        else if (tmp > max_y) max_y = tmp;
+        tmp = -w * sinra - _ypivot * cosra; if (tmp < min_y) min_y = tmp; else if (tmp > max_y) max_y = tmp;
+        tmp =  h * cosra -       w * sinra; if (tmp < min_y) min_y = tmp; else if (tmp > max_y) max_y = tmp;
+        tmp =  h * cosra + _xpivot * sinra; if (tmp < min_y) min_y = tmp; else if (tmp > max_y) max_y = tmp;
       }
 
-      // Move bounding box so source Sprite pivot coincides with destination Sprite pivot
-      max_x >>= 19;
-      max_x += lgfx->getPivotX() + 2;
+      max_x = (max_x + (1 << (FP_SCALE - 1)) >> FP_SCALE) + lgfx->getPivotX() + 1;
       if (max_x < 0) return true;
       if (max_x > lgfx->width()) max_x = lgfx->width();
 
-      min_x >>= 19;
-      min_x += lgfx->getPivotX() - 2;
+      min_x = (min_x + (1 << (FP_SCALE - 1)) >> FP_SCALE) + lgfx->getPivotX();
       if (min_x > lgfx->width()) return true;
       if (min_x < 0) min_x = 0;
 
-      max_y >>= 19;
-      max_y += lgfx->getPivotY() + 2;
+      max_y = (max_y + (1 << (FP_SCALE - 1)) >> FP_SCALE) + lgfx->getPivotY() + 1;
       if (max_y < 0) return true;
       if (max_y > lgfx->height()) max_y = lgfx->height();
 
-      min_y >>= 19;
-      min_y += lgfx->getPivotY() - 2;
+      min_y = (min_y + (1 << (FP_SCALE - 1)) >> FP_SCALE) + lgfx->getPivotY();
       if (min_y > lgfx->height()) return true;
       if (min_y < 0) min_y = 0;
 
-      // Scan destination bounding box and fetch transformed pixels from source Sprite
-
-      int32_t xe19 = width() << 19;
-      int32_t ye19 = height() << 19;
+      int32_t xe = width() << FP_SCALE;
+      int32_t ye = height() << FP_SCALE;
 
       swap565_t bufs[2][max_x - min_x];
       bool flip = false;
       int32_t yt = min_y - lgfx->getPivotY();
       lgfx->startWrite();
-      for (int32_t y = min_y; y < max_y; y++, yt++)
-      {
+
+      for (int32_t y = min_y; y < max_y; y++, yt++) {
         size_t bufidx = 0;
         int32_t x = min_x;
-        int32_t xs19 = (cos19 * (x - lgfx->getPivotX()) - (sin19 * yt - (_xpivot << 19)) + (1 << 18) - 1);
-        int32_t ys19 = (sin19 * (x - lgfx->getPivotX()) + (cos19 * yt + (_ypivot << 19)) + (1 << 18) - 1);
-        for (; x < max_x; x++, xs19 += cos19, ys19 += sin19)
-        {
-          if ((xs19 >= 0 && xs19 < xe19) // Do not calculate ys unless xs is in bounds
-           && (ys19 >= 0 && ys19 < ye19))
-          {
-            int32_t rp = __builtin_bswap16( readPixel(xs19 >> 19, ys19 >> 19));
+        int32_t xs = (cosra * (x - lgfx->getPivotX()) - (sinra * yt - (_xpivot << FP_SCALE)) + (1 << (FP_SCALE - 1)) - 1);
+        int32_t ys = (sinra * (x - lgfx->getPivotX()) + (cosra * yt + (_ypivot << FP_SCALE)) + (1 << (FP_SCALE - 1)) - 1);
+        for (; x < max_x; x++, xs += cosra, ys += sinra) {
+          if ((xs >= 0 && xs < xe) && (ys >= 0 && ys < ye)) {
+            uint32_t rp = readPixelRAW_impl(xs >> FP_SCALE, ys >> FP_SCALE);
             if (rp != transp) {
-              bufs[flip][bufidx++] = rp;
+              bufs[flip][bufidx++].raw = rp;
               continue;
             }
           }
@@ -700,6 +672,11 @@ return;
       else if (_write_depth.depth == rgb888_3Byte) { res = *((swap888_t*)src); return res;}
 
       return (bool)(*src & (0x80 >> (_index & 0x07)));
+    }
+
+    uint32_t readPixelRAW_impl(int32_t x, int32_t y) override
+    {
+      return _write_depth.colormask & (*(const uint32_t*)&_img[(x + y * _bitwidth) * _write_depth.bits >> 3]);
     }
 /*
     template<class T>
