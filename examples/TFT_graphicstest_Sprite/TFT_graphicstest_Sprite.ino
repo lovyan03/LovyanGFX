@@ -66,11 +66,11 @@ void setup() {
   ledcWrite(BLK_PWM_CHANNEL, 128);
 #endif
 
-  tft_lcd.setRotation(0);
+  //tft_lcd.setRotation(0);
 
   tft_lcd.invertDisplay(lcdver);
   //tft_lcd.fillSprite(-1);
-  //tft_lcd.setColorDepth(16);
+  tft_lcd.setColorDepth(16);
   //tft_lcd.setColorDepth(24);
 
   //tft.setPsram(true);
@@ -79,12 +79,13 @@ void setup() {
   //tft.setColorDepth(lgfx::palette_1bit);  tft.createSprite(240,320);
   //tft.setColorDepth(lgfx::palette_2bit);  tft.createSprite(240,320);
   //tft.setColorDepth(lgfx::palette_4bit);  tft.createSprite(240,320);
-  //tft.setColorDepth(lgfx::palette_8bit);  tft.createSprite(240,320);
   //tft.setColorDepth( 8);  tft.createSprite(240,320);
-  tft.setColorDepth(16);  tft.createSprite(240,240);
+  //tft.setColorDepth(16);  tft.createSprite(240,240);
   //tft.setColorDepth(24);  tft.createSprite(240,170);
   //tft.setColorDepth();
   //tft.createSprite(tft_lcd.width(), tft_lcd.height());
+  tft.setColorDepth(8);  tft.createSprite(240,240);
+  //tft.createPalette();
   tft_lcd.setPivot(tft.width()>>1, tft.height()>>1);
   tft    .setPivot(tft.width()>>1, tft.height()>>1);
 
@@ -216,7 +217,9 @@ taskENABLE_INTERRUPTS();
 
 	Serial.println(F("Done!"));
 
-    for (int i = 0; i < 360; i++) {
+    int i = 360;
+    //for (int i = 0; i < 360; i++)
+    {
 
 	uint16_t c = 4;
 	int8_t d = 1;
@@ -330,26 +333,24 @@ taskENABLE_INTERRUPTS();
 	tft.setTextColor(TFT_GREEN); tft.setTextSize(2);
 	tft.print(F("Benchmark Complete!"));
 
-      tft.pushRotated(i);
     }
 
 	uint32_t usecRotated = micros_start();
     for (int i = 0; i < 360; i++) {
       tft.pushRotated(i);
-/*
-      tft.pushRotated((float)i / 3.0);
-      tft.pushRotated_old(i);
-      tft.pushRotated(i);
-      tft.pushRotated_old(i);
-      tft.pushRotated(i);
-      tft.pushRotated_old(i);
-      tft.pushRotated(i);
-      tft.pushRotated_old(i);
-      tft.pushRotated(i);
-//*/
     }
 	usecRotated = micros() - usecRotated;
-	Serial.print(F("Rotated       "));
+	Serial.print(F("Normal Rotated       "));
+	Serial.println(usecRotated);
+
+//	tft.pushSprite(0, 0);	delay(2000);
+
+	usecRotated = micros_start();
+    for (int i = 0; i < 360; i++) {
+      tft.pushRotated(i,TFT_YELLOW);
+    }
+	usecRotated = micros() - usecRotated;
+	Serial.print(F("Transparent Rotated  "));
 	Serial.println(usecRotated);
 	
 //	delay(60 * 1000L);

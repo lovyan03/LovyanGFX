@@ -170,10 +170,9 @@ namespace lgfx
       while (p < 0) {
         dx+=2; p+=dx; i++;
       }
-      int32_t dy = r << 1;
-      dy -= 2;
+      int32_t dy = (r << 1) - 2;
       p -= dy;
-      int32_t len = (i << 1)+1;
+      int32_t len = (i << 1) + 1;
       drawFastHLine(x - i, y + r, len);
       drawFastHLine(x - i, y - r, len);
       drawFastVLine(x - r, y - i, len);
@@ -466,16 +465,16 @@ namespace lgfx
     void pushDMA(const uint8_t* src, int32_t len)
     {
       startWrite();
-      write_bytes_dma(src, len);
+      writeBytesDMA_impl(src, len);
       endWrite();
     }
     void writeBytes(const uint8_t* src, int32_t len)
     {
-      write_bytes(src, len);
+      writeBytes_impl(src, len);
     }
     void writeBytesDMA(const uint8_t* src, int32_t len)
     {
-      write_bytes_dma(src, len);
+      writeBytesDMA_impl(src, len);
     }
 
     uint16_t readPixel(int32_t x, int32_t y)
@@ -929,14 +928,14 @@ namespace lgfx
       bool indivisible = (w * bits) & 7;
       const int32_t len = indivisible + (w * bits >> 3);
       const uint8_t* src = (const uint8_t*)data + dy * len;
-      const uint32_t color_mask = (1<<bits)-1;
-      transp &= color_mask;
+      const uint32_t colormask = (1 << bits)-1;
+      transp &= colormask;
       do {
         int32_t i, j = 0;
         uint8_t offset = (-dx * bits) & 7;
         for (i = 0; i < dw; i++) {
           offset = (offset - bits) & 7;
-          if ((((*(uint32_t*)&src[(dx+i)*bits >> 3]) >> offset) & color_mask) == transp) {
+          if ((((*(uint32_t*)&src[(dx+i)*bits >> 3]) >> offset) & colormask) == transp) {
             if (j != i) {
               setWindow(x + j, y, x + i, y);
               param.src_offset = (-(dx+j) * bits) & 7;
@@ -957,27 +956,38 @@ namespace lgfx
       endWrite();
     }
 
+    template <int TByteSize>
+    static void pixel_to_pixel_memcpy(void*& dst, const void*& src, int32_t len, pixelcopy_param_t* p) {
+      auto& s = (const uint8_t*&)src;
+      auto& d = (uint8_t*&)dst;
+      memcpy(d, s, len * TByteSize);
+      s += len * TByteSize;
+      d += len * TByteSize;
+    }
+
     template <class TDst, class TSrc>
-    static void pixel_to_pixel_template(void*& dst, const void* &src, int32_t len, pixelcopy_param_t* p) {
+    static void pixel_to_pixel_template(void*& dst, const void*& src, int32_t len, pixelcopy_param_t* p) {
       auto& s = (const TSrc*&)src;
       auto& d = (TDst*&)dst;
       if (std::is_same<TDst, TSrc>::value) {
-        memcpy(dst, src, len * sizeof(TDst));
+        memcpy(d, s, len * sizeof(TDst));
+        s += len * sizeof(TDst);
+        d += len * sizeof(TDst);
       } else {
         do { *d++ = *s++; } while (--len);
       }
     }
     template <class TDst, class TSrc, class TPalette>
-    static void palette_to_pixel_template(void*& dst, const void* &src, int32_t len, pixelcopy_param_t* p) {
+    static void palette_to_pixel_template(void*& dst, const void*& src, int32_t len, pixelcopy_param_t* p) {
       auto& s = (const uint8_t*&)src;
       auto& d = (TDst*&)dst;
       auto& src_palette = (TPalette*&)(p->src_palette);
       do {
-        if (8 == TSrc::bits) {
+        if (8 <= TSrc::bits) {
           *d++ = src_palette[*s++];
         } else {
           p->src_offset = (p->src_offset + (8-TSrc::bits)) & 7;
-          *d++ = src_palette[(*s >> p->src_offset) & TSrc::mask];
+          *d++ = src_palette[(*s >> p->src_offset) & ((1 << TSrc::bits) - 1)];
           if (!p->src_offset) { s++; }
         }
       } while (--len);
@@ -1000,7 +1010,6 @@ namespace lgfx
       case rgb666_3Byte: return &LGFXBase::read_pixels_template<T, swap666_t>;
       case rgb565_2Byte: return &LGFXBase::read_pixels_template<T, swap565_t>;
       case rgb332_1Byte: return &LGFXBase::read_pixels_template<T, rgb332_t >;
-      case palette_8bit:
       case palette_4bit:
 //    case palette_2bit:
       case palette_1bit:
@@ -1013,7 +1022,7 @@ namespace lgfx
     void write_pixels_template(const void* src, int32_t length, pixelcopy_param_t* param)
     {
       if (std::is_same<TDst, TSrc>::value) {
-        write_bytes((const uint8_t*)src, length * (TSrc::bits>>3));
+        writeBytes_impl((const uint8_t*)src, length * (TSrc::bits>>3));
       } else {
         write_pixels(src, length, param, pixel_to_pixel_template<TDst, TSrc>);
       }
@@ -1026,7 +1035,6 @@ namespace lgfx
       case rgb666_3Byte: return &LGFXBase::write_pixels_template<swap666_t, T>;
       case rgb565_2Byte: return &LGFXBase::write_pixels_template<swap565_t, T>;
       case rgb332_1Byte: return &LGFXBase::write_pixels_template<rgb332_t , T>;
-      case palette_8bit:
       case palette_4bit:
 //    case palette_2bit:
       case palette_1bit:
@@ -1049,7 +1057,6 @@ namespace lgfx
       case rgb666_3Byte: return &LGFXBase::write_palette_template<swap666_t, TSrc, TPalette>;
       case rgb565_2Byte: return &LGFXBase::write_palette_template<swap565_t, TSrc, TPalette>;
       case rgb332_1Byte: return &LGFXBase::write_palette_template<rgb332_t , TSrc, TPalette>;
-      case palette_8bit:
       case palette_4bit:
 //    case palette_2bit:
       case palette_1bit:
@@ -1062,8 +1069,8 @@ namespace lgfx
     virtual void read_bytes(uint8_t* dst, int32_t length) {}
     virtual void read_bytes_dma(uint8_t* dst, int32_t length) { read_bytes(dst, length); }
     virtual void write_pixels(const void* src, int32_t length, pixelcopy_param_t* param, void(*fp_copy)(void*&, const void*&, int32_t, pixelcopy_param_t*)) {}
-    virtual void write_bytes(const uint8_t* data, int32_t length) {}
-    virtual void write_bytes_dma(const uint8_t* src, int32_t len) { write_bytes(src, len); }
+    virtual void writeBytes_impl(const uint8_t* data, int32_t length) {}
+    virtual void writeBytesDMA_impl(const uint8_t* src, int32_t len) { writeBytes_impl(src, len); }
 
     virtual void beginTransaction_impl() {}
     virtual void endTransaction_impl() {}
@@ -1908,7 +1915,7 @@ me->fillRect(x * size_x + cx, cy, size_x, size_y);
       switch (bpp) {
       case  1: fp = this->template get_write_palette_fp<palette1_t, argb8888_t>(); break;
       case  4: fp = this->template get_write_palette_fp<palette4_t, argb8888_t>(); break;
-      case  8: fp = this->template get_write_palette_fp<palette8_t, argb8888_t>(); break;
+      case  8: fp = this->template get_write_palette_fp<rgb332_t  , argb8888_t>(); break;
       case 16: fp = this->template get_write_pixels_fp<rgb565_t>()               ; break;
       case 24: fp = this->template get_write_pixels_fp<rgb888_t>()               ; break;
       case 32: fp = this->template get_write_pixels_fp<argb8888_t>()             ; break;

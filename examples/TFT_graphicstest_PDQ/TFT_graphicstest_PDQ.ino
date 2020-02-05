@@ -19,8 +19,8 @@
 #endif
 
 
-#include <TFT_eSPI.h>
-//#include <LGFX_TFT_eSPI.hpp>
+//include <TFT_eSPI.h>
+#include <LGFX_TFT_eSPI.hpp>
 #include <SD.h>
 
 

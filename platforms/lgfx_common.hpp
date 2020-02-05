@@ -39,9 +39,8 @@ namespace lgfx {
 
   enum color_depth_t : uint8_t
   { palette_1bit =  1 //   2 color
-//, palette_2bit =  2 //   4 color
-  , palette_4bit =  3 //  16 color
-  , palette_8bit =  4 // 256 color
+  , palette_2bit =  2 //   4 color
+  , palette_4bit =  4 //  16 color
   , rgb332_1Byte =  8 // RRRGGGBB
   , rgb565_2Byte = 16 // RRRRRGGG GGGBBBBB
   , rgb666_3Byte = 18 // xxRRRRRR xxGGGGGG xxBBBBBB
@@ -57,33 +56,30 @@ namespace lgfx {
   __attribute__ ((always_inline)) inline static uint16_t getSwap16(uint16_t c) { return __builtin_bswap16(c); }
   __attribute__ ((always_inline)) inline static uint32_t getSwap24(uint32_t c) { return ((uint8_t)c<<8 | (uint8_t)(c>>8))<<8 | (uint8_t)(c>>16); }
 
-  inline uint16_t convert_rgb888_to_rgb565(uint32_t c) { return (c>>19)<<11 | (((uint16_t)c)>>10)<<5 | ((uint8_t)c)>>3; }
-
-  inline uint32_t convert_rgb888_to_swap888(uint32_t c) { return getSwap24(c);  }
-  inline uint32_t convert_rgb888_to_swap666(uint32_t c) { return (c&0xFC)<<14 | ((c&0xFC00)>>2) | ((c>>18)&0x3F);  }
-  inline uint32_t convert_rgb888_to_swap565(uint32_t c) { return getSwap16(convert_rgb888_to_rgb565(c));  }
-  inline uint32_t convert_rgb888_to_rgb332( uint32_t c) { return ((c>>21)<<5) | ((((uint16_t)c)>>13) << 2) | ((c>>6) & 3); }
+  inline uint32_t convert_rgb888_to_swap888( uint32_t c) { return getSwap24(c);  }
+  inline uint32_t convert_rgb888_to_swap666( uint32_t c) { return (c&0xFC)<<14 | ((c&0xFC00)>>2) | ((c>>18)&0x3F);  }
+  inline uint32_t convert_rgb888_to_swap565( uint32_t c) { return getSwap16((c>>19)<<11 | (((uint16_t)c)>>10)<<5 | ((uint8_t)c)>>3);  }
+  inline uint32_t convert_rgb888_to_rgb332(  uint32_t c) { return ((c>>21)<<5) | ((((uint16_t)c)>>13) << 2) | ((c>>6) & 3); }
   inline uint32_t convert_rgb888_to_palette8(uint32_t c) { return (c&0xFF)*0x01010101; }
   inline uint32_t convert_rgb888_to_palette4(uint32_t c) { return (c&0x0F)*0x11111111; }
 //inline uint32_t convert_rgb888_to_palette2(uint32_t c) { return (c&0x03)*0x55555555; }
   inline uint32_t convert_rgb888_to_palette1(uint32_t c) { return c&1?~0:0; }
-  inline uint32_t convert_rgb565_to_swap888(uint16_t c) { return ((((c&0x1F)*0x21)>>2)<<8 | ((((c>>5)&0x3F)*0x41)>>4))<<8 | (((c>>11)*0x21)>>2); }
-  inline uint32_t convert_rgb565_to_swap666(uint16_t c) { return ((c&0x1F)<<17) | ((c&0x10)<<12) | ((c&0x7E0)<<3) | ((c>>10)&0xF8) | (c>>15); }
-  inline uint32_t convert_rgb565_to_swap565(uint16_t c) { return c<<8|c>>8; }
-  inline uint32_t convert_rgb565_to_rgb332( uint16_t c) { return ((c>>13) <<5) | ((c>>6) & 0x1C) | ((c>>3) & 3); }
-  inline uint32_t convert_rgb565_to_palette8(uint16_t c) { return (c&0xFF)*0x01010101; }
-  inline uint32_t convert_rgb565_to_palette4(uint16_t c) { return (c&0x0F)*0x11111111; }
-//inline uint32_t convert_rgb565_to_palette2(uint16_t c) { return (c&0x03)*0x55555555; }
-  inline uint32_t convert_rgb565_to_palette1(uint16_t c) { return c&1?~0:0; }
-  inline uint32_t convert_rgb332_to_swap888(uint8_t c) { return (((c&3)*0x55)<<8 | ((c&0x1C)*0x49)>>3)<<8 | (((c>>5)*0x49) >> 1); }
-  inline uint32_t convert_rgb332_to_swap666(uint8_t c) { return (((c&0xE0)*9)>>5) | ((c&0x1C)*0x240) | ((c&3)*0x15)<<16; }
-  inline uint32_t convert_rgb332_to_swap565(uint8_t c) { return (((c&3)*0x15)>>1)<<8 | ((c&0x1C)<<11) | ((c&0x1C)>>2) | (((c>>5)*0x24)&0xF8); }
-  inline uint32_t convert_rgb332_to_rgb332( uint8_t c) { return c; }
-  inline uint32_t convert_rgb332_to_palette8(uint8_t c) { return c * 0x01010101; }
-  inline uint32_t convert_rgb332_to_palette4(uint8_t c) { return (c&0x0F)*0x11111111; }
-//inline uint32_t convert_rgb332_to_palette2(uint8_t c) { return (c&0x03)*0x55555555; }
-  inline uint32_t convert_rgb332_to_palette1(uint8_t c) { return (c&1)?~0:0; }
-
+  inline uint32_t convert_rgb565_to_swap888( uint32_t c) { return ((((c&0x1F)*0x21)>>2)<<8 | ((((c>>5)&0x3F)*0x41)>>4))<<8 | (((c>>11)*0x21)>>2); }
+  inline uint32_t convert_rgb565_to_swap666( uint32_t c) { return ((c&0x1F)<<17) | ((c&0x10)<<12) | ((c&0x7E0)<<3) | ((c>>10)&0xF8) | (c>>15); }
+  inline uint32_t convert_rgb565_to_swap565( uint32_t c) { return c<<8|c>>8; }
+  inline uint32_t convert_rgb565_to_rgb332(  uint32_t c) { return ((c>>13) <<5) | ((c>>6) & 0x1C) | ((c>>3) & 3); }
+  inline uint32_t convert_rgb565_to_palette8(uint32_t c) { return (c&0xFF)*0x01010101; }
+  inline uint32_t convert_rgb565_to_palette4(uint32_t c) { return (c&0x0F)*0x11111111; }
+//inline uint32_t convert_rgb565_to_palette2(uint32_t c) { return (c&0x03)*0x55555555; }
+  inline uint32_t convert_rgb565_to_palette1(uint32_t c) { return c&1?~0:0; }
+  inline uint32_t convert_rgb332_to_swap888( uint32_t c) { return (((c&3)*0x55)<<8 | ((c&0x1C)*0x49)>>3)<<8 | (((c>>5)*0x49) >> 1); }
+  inline uint32_t convert_rgb332_to_swap666( uint32_t c) { return (((c&0xE0)*9)>>5) | ((c&0x1C)*0x240) | ((c&3)*0x15)<<16; }
+  inline uint32_t convert_rgb332_to_swap565( uint32_t c) { return (((c&3)*0x15)>>1)<<8 | ((c&0x1C)<<11) | ((c&0x1C)>>2) | (((c>>5)*0x24)&0xF8); }
+  inline uint32_t convert_rgb332_to_rgb332(  uint32_t c) { return c; }
+  inline uint32_t convert_rgb332_to_palette8(uint32_t c) { return c * 0x01010101; }
+  inline uint32_t convert_rgb332_to_palette4(uint32_t c) { return (c&0x0F)*0x11111111; }
+//inline uint32_t convert_rgb332_to_palette2(uint32_t c) { return (c&0x03)*0x55555555; }
+  inline uint32_t convert_rgb332_to_palette1(uint32_t c) { return (c&1)?~0:0; }
 
 #pragma pack(1)
 
@@ -433,10 +429,10 @@ namespace lgfx {
   struct dev_color_t
   {
     uint32_t (*convert_rgb888)(uint32_t) = convert_rgb888_to_swap565;
-    uint32_t (*convert_rgb565)(uint16_t) = convert_rgb565_to_swap565;
-    uint32_t (*convert_rgb332)(uint8_t)  = convert_rgb332_to_swap565;
+    uint32_t (*convert_rgb565)(uint32_t) = convert_rgb565_to_swap565;
+    uint32_t (*convert_rgb332)(uint32_t)  = convert_rgb332_to_swap565;
     color_depth_t depth = rgb565_2Byte;
-    uint32_t colormask = 0;
+    uint32_t colormask = 0xFFFF;
     uint8_t bytes  = 2;
     uint8_t bits   = 16;
     uint8_t x_mask = 0;
@@ -450,10 +446,9 @@ namespace lgfx {
       else if (bpp > 16) { bpp = rgb666_3Byte; bytes = 3; bits = 24; }
       else if (bpp >  8) { bpp = rgb565_2Byte; bytes = 2; bits = 16; }
       else if (bpp >  4) { bpp = rgb332_1Byte; bytes = 1; bits =  8; }
-      else if (bpp == palette_8bit) { bpp = palette_8bit; bytes = 1; bits =  8; } // 4
-      else if (bpp == palette_4bit) { bpp = palette_4bit; bytes = 0; bits =  4; x_mask = 0b0001; } // 3
-//    else if (bpp == palette_2bit) { bpp = palette_2bit; bytes = 0; bits =  2; x_mask = 0b0011; } // 2
-      else                          { bpp = palette_1bit; bytes = 0; bits =  1; x_mask = 0b0111; } // 1
+      else if (bpp == 4) { bpp = palette_4bit; bytes = 0; bits =  4; x_mask = 0b0001; }
+      else if (bpp == 2) { bpp = palette_2bit; bytes = 0; bits =  2; x_mask = 0b0011; }
+      else               { bpp = palette_1bit; bytes = 0; bits =  1; x_mask = 0b0111; }
 
       colormask = (1 << bits) - 1;
       depth = bpp;
@@ -478,21 +473,16 @@ namespace lgfx {
         convert_rgb565 = convert_rgb565_to_rgb332;
         convert_rgb332 = convert_rgb332_to_rgb332;
         break;
-      case palette_8bit:
-        convert_rgb888 = convert_rgb888_to_palette8;
-        convert_rgb565 = convert_rgb565_to_palette8;
-        convert_rgb332 = convert_rgb332_to_palette8;
-        break;
       case palette_4bit:
         convert_rgb888 = convert_rgb888_to_palette4;
         convert_rgb565 = convert_rgb565_to_palette4;
         convert_rgb332 = convert_rgb332_to_palette4;
         break;
-//    case palette_2bit:
-//      convert_rgb888 = convert_rgb888_to_palette2;
-//      convert_rgb565 = convert_rgb565_to_palette2;
-//      convert_rgb332 = convert_rgb332_to_palette2;
-//      break;
+      case palette_2bit:
+//        convert_rgb888 = convert_rgb888_to_palette2;
+//        convert_rgb565 = convert_rgb565_to_palette2;
+//        convert_rgb332 = convert_rgb332_to_palette2;
+        break;
       case palette_1bit:
         convert_rgb888 = convert_rgb888_to_palette1;
         convert_rgb565 = convert_rgb565_to_palette1;
@@ -597,11 +587,74 @@ namespace lgfx {
 
 
   struct pixelcopy_param_t {
+  //const uint8_t* src = nullptr;
+  //uint8_t* dst = nullptr;
+  //int32_t len = 0;
     int32_t src_offset = 0;
     const void* src_palette = nullptr;
   //int32_t dst_offset = 0;
   //const rgb888_t* dst_palette = nullptr;
   };
+
+
+  uint32_t conv_throw(uint32_t c, swap888_t*) { return c; }
+  uint32_t conv_rgb332_to_swap888( uint32_t c, swap888_t*  ) { return (((c&3)*0x55)<<8 | ((c&0x1C)*0x49)>>3)<<8 | (((c>>5)*0x49) >> 1); }
+  uint32_t conv_rgb332_to_swap666( uint32_t c, swap888_t*  ) { return (((c&0xE0)*9)>>5) | ((c&0x1C)*0x240) | ((c&3)*0x15)<<16; }
+  uint32_t conv_rgb332_to_swap565( uint32_t c, swap888_t*  ) { return (((c&3)*0x15)>>1)<<8 | ((c&0x1C)<<11) | ((c&0x1C)>>2) | (((c>>5)*0x24)&0xF8); }
+  uint32_t conv_swap565_to_rgb332 (uint32_t c, swap888_t*  ) { return convert_rgb565_to_rgb332 (c<<8|c>>8); }
+  uint32_t conv_swap565_to_swap666(uint32_t c, swap888_t*  ) { return convert_rgb565_to_swap666(c<<8|c>>8); }
+  uint32_t conv_swap565_to_swap888(uint32_t c, swap888_t*  ) { return convert_rgb565_to_swap888(c<<8|c>>8); }
+  uint32_t conv_swap888_to_rgb332 (uint32_t c, swap888_t*  ) { return color332(c,c>>8,c>>16); }
+  uint32_t conv_swap888_to_swap565(uint32_t c, swap888_t*  ) { return swap565(c,c>>8,c>>16); }
+  uint32_t conv_swap888_to_swap666(uint32_t c, swap888_t*  ) { return (c>>2) & 0x3F3F3F; }
+  uint32_t conv_palette_to_rgb332 (uint32_t c, swap888_t* p) { return color332(p[c].r,p[c].g,p[c].b); }
+  uint32_t conv_palette_to_swap565(uint32_t c, swap888_t* p) { return swap565(p[c].r,p[c].g,p[c].b); }
+  uint32_t conv_palette_to_swap666(uint32_t c, swap888_t* p) { return ((*(uint32_t*) & p[c])>>2) & 0x3F3F3F; }
+  uint32_t conv_palette_to_swap888(uint32_t c, swap888_t* p) { return  (*(uint32_t*) & p[c])     & 0xFFFFFF; }
+
+  auto get_conv_palette_to_pixel_fp(color_depth_t dst) -> uint32_t(*)(uint32_t, swap888_t* p)
+  {
+    switch (dst) {
+    case  8: return conv_palette_to_rgb332;
+    case 16: return conv_palette_to_swap565;
+    case 18: return conv_palette_to_swap666;
+    default: return conv_palette_to_swap888;
+    }
+  }
+  auto get_conv_pixel_to_pixel_fp(color_depth_t dst, color_depth_t src) -> uint32_t(*)(uint32_t, swap888_t* p)
+  {
+    if (dst != src) {
+      switch (src) {
+      case 8:
+        switch (dst) {
+        case 16: return conv_rgb332_to_swap565;
+        case 18: return conv_rgb332_to_swap666;
+        case 24: return conv_rgb332_to_swap888;
+        default: break;
+        }
+        break;
+      case 16:
+        switch (dst) {
+        case  8: return conv_swap565_to_rgb332;
+        case 18: return conv_swap565_to_swap666;
+        case 24: return conv_swap565_to_swap888;
+        default: break;
+        }
+        break;
+      case 24:
+        switch (dst) {
+        case  8: return conv_swap888_to_rgb332;
+        case 16: return conv_swap888_to_swap565;
+        case 18: return conv_swap888_to_swap666;
+        default: break;
+        }
+        break;
+      default: break;
+      }
+    }
+    return conv_throw;
+  }
+
 }
 /*
 // test code

@@ -361,6 +361,9 @@ namespace lgfx
 #else
       if (_dma_channel) {
         periph_module_reset( PERIPH_SPI_DMA_MODULE );
+        *reg(SPI_DMA_CONF_REG(_spi_port)) |= SPI_OUT_DATA_BURST_EN
+                                           | SPI_INDSCR_BURST_EN
+                                           | SPI_OUTDSCR_BURST_EN;
       }
 
 /*
@@ -456,23 +459,21 @@ namespace lgfx
     {
       if (length == 1) { write_data(_color.raw, _write_depth.bits); return; }
 
-      uint32_t len;
+      length *= _write_depth.bits;
       // make 12Bytes data.
       if (_write_depth.bytes == 2) {
         _regbuf[0] = _color.raw | _color.raw << 16;
         memcpy(&_regbuf[1], _regbuf, 4);
         memcpy(&_regbuf[2], _regbuf, 4);
-        len = 6;
       } else { // bytes == 3
         _regbuf[0] = _color.raw;
         memcpy(&((uint8_t*)_regbuf)[3], _regbuf, 3);
         memcpy(&((uint8_t*)_regbuf)[6], _regbuf, 6);
-        len = 4;
       }
 
-      if (length < len) len = length;
+      uint32_t len = std::min(96, length);
       wait_spi();
-      set_write_len(len * _write_depth.bits);
+      set_write_len(len);
       dc_h();
       // copy to SPI buffer register
       memcpy((void*)_spi_w0_reg, _regbuf, 12);
@@ -480,21 +481,20 @@ namespace lgfx
       if (0 == (length -= len)) return;
       // make 28Byte data from 12Byte data.
       memcpy((void*)&_regbuf[ 3], _regbuf, 12);
-      memcpy((void*)&_regbuf[ 6], _regbuf,  4);
+      memcpy((void*)&_regbuf[ 6], _regbuf, 4);
       // copy to SPI buffer register
       memcpy((void*)&_spi_w0_reg[ 3], _regbuf, 24);
       memcpy((void*)&_spi_w0_reg[ 9], _regbuf, 28);
 
-      const uint32_t limit = (_write_depth.bytes == 2) ? 32 : 21; // limit = 64 / bytes;
-      len = length % limit;
-      if (len) {
+      const uint32_t limit = (_write_depth.bytes == 2) ? 512 : 504; // limit = 64 / bytes;
+      if (0 != (len = length % limit)) {
         wait_spi();
-        set_write_len(len * _write_depth.bits);
+        set_write_len(len);
         exec_spi();
         if (0 == (length -= len)) return;
       }
       wait_spi();
-      set_write_len(limit * _write_depth.bits);
+      set_write_len(limit);
       exec_spi();
       while (length -= limit) {
         wait_spi();
@@ -645,7 +645,17 @@ namespace lgfx
       }
     }
 
-    void write_bytes(const uint8_t* data, int32_t length) override
+    void writeBytes_impl(const uint8_t* data, int32_t length) override
+    {
+      write_bytes(data, length);
+    }
+    void writeBytesDMA_impl(const uint8_t* data, int32_t length) override
+    {
+      if (!_dma_channel) write_bytes(data, length);
+      else write_bytes_dma(data, length);
+    }
+
+    void write_bytes(const uint8_t* data, int32_t length)
     {
       if (!length) return;
       constexpr uint32_t limit = 32;
@@ -748,7 +758,7 @@ namespace lgfx
       memcpy(dst, (void*)_spi_w0_reg, len);
     }
 
-    static void IRAM_ATTR _setup_dma_desc_links(lldesc_t *dmadesc, int len, const uint8_t *data)
+    static void _setup_dma_desc_links(lldesc_t *dmadesc, int len, const uint8_t *data)
     {          //spicommon_setup_dma_desc_links
       while (len > SPI_MAX_DMA_LEN) {
         dmadesc->buf = (uint8_t *)data;
@@ -763,15 +773,18 @@ namespace lgfx
       dmadesc->qe.stqe_next = nullptr;
     }
 
-    void write_bytes_dma(const uint8_t* data, int32_t length) override
+    void write_bytes_dma(const uint8_t* data, int32_t length)
     {
-      if (!_dma_channel) { write_bytes(data, length); return; }
       wait_spi();
-      set_write_len(length << 3);
       dc_h();
-      _setup_dma_desc_links(_dmadesc, length, data);
-      *reg(SPI_DMA_OUT_LINK_REG(_spi_port)) = SPI_OUTLINK_START | ((int)(&_dmadesc[0]) & 0xFFFFF);
-      spicommon_dmaworkaround_transfer_active(_dma_channel);
+      set_write_len(length << 3);
+      if (length <= 64) {
+        memcpy((void*)_spi_w0_reg, data, (length + 3) & (~3));
+      } else {
+        _setup_dma_desc_links(_dmadesc, length, data);
+        *reg(SPI_DMA_OUT_LINK_REG(_spi_port)) = SPI_OUTLINK_START | ((int)(&_dmadesc[0]) & 0xFFFFF);
+        spicommon_dmaworkaround_transfer_active(_dma_channel);
+      }
       exec_spi();
     }
 

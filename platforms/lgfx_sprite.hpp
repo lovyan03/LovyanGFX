@@ -27,6 +27,7 @@ namespace lgfx
     , _ye   (0)
     , _index(0)
     {
+      _read_depth = _write_depth;
       _has_transaction = false;
       _transaction_count = 0xFFFF;
     }
@@ -47,34 +48,6 @@ namespace lgfx
       _img = (uint8_t*)_mem_alloc((h * _bitwidth * _write_depth.bits >> 3) + 1);
       if (!_img) return nullptr;
 
-      if (_write_depth.depth <= palette_8bit) {
-        size_t palettes = 1 << _write_depth.bits;
-        _palette = (swap888_t*)_mem_alloc(sizeof(swap888_t) * palettes);
-        if (!_palette) {
-          deleteSprite();
-          return nullptr;
-        }
-/*
-if (_write_depth.depth == palette_8bit) {
-  for (uint32_t i = 0; i < palettes; i++) {
-    _palette[i] = *(rgb332_t*)&i;
-  }
-} else
-//*/
-        { // create grayscale palette
-          uint32_t k;
-          switch (_write_depth.depth) {
-          case palette_8bit: k = 0x010101; break;
-          case palette_4bit: k = 0x111111; break;
-//        case palette_2bit: k = 0x555555; break;
-          case palette_1bit: k = 0xFFFFFF; break;
-          default: k = 1; break;
-          }
-          for (uint32_t i = 0; i < palettes; i++) {
-            _palette[i] = i * k;
-          }
-        }
-      }
       _sw = _width = w;
       _xe = w - 1;
       _xpivot = w >> 1;
@@ -86,6 +59,40 @@ if (_write_depth.depth == palette_8bit) {
 
       clear();
       return _img;
+    }
+
+    bool createPalette(void)
+    {
+      if (_write_depth.depth > 8) return false;
+
+      if (_palette != nullptr) { _mem_free(_palette); _palette = nullptr; }
+
+      size_t palettes = 1 << _write_depth.bits;
+      _palette = (swap888_t*)_mem_alloc(sizeof(swap888_t) * palettes);
+      if (!_palette) {
+        return false;
+      }
+/*
+if (_write_depth.depth == palette_8bit) {
+for (uint32_t i = 0; i < palettes; i++) {
+  _palette[i] = *(rgb332_t*)&i;
+}
+} else
+//*/
+      { // create grayscale palette
+        uint32_t k;
+        switch (_write_depth.depth) {
+        case 8: k = 0x010101; break;
+        case 4: k = 0x111111; break;
+        case 2: k = 0x555555; break;
+        case 1: k = 0xFFFFFF; break;
+        default: k = 1; break;
+        }
+        for (uint32_t i = 0; i < palettes; i++) {
+          _palette[i] = i * k;
+        }
+      }
+      return true;
     }
 
     void deleteSprite(void)
@@ -116,15 +123,22 @@ if (_write_depth.depth == palette_8bit) {
     __attribute__ ((always_inline)) inline void pushSprite(int32_t x, int32_t y) { pushSprite(_parent, x, y); }
     void pushSprite(LovyanGFX* lgfx, int32_t x, int32_t y)
     {
-      switch (getColorDepth()) {
-      case rgb888_3Byte: lgfx->pushImage(x, y, _width, _height, (swap888_t*)_img); return;
-      case rgb666_3Byte: lgfx->pushImage(x, y, _width, _height, (swap666_t*)_img); return;
-      case rgb565_2Byte: lgfx->pushImage(x, y, _width, _height, (swap565_t*)_img); return;
-      case rgb332_1Byte: lgfx->pushImage(x, y, _width, _height, (rgb332_t* )_img); return;
-      case palette_8bit: lgfx->pushIndexImage(x, y, _width, _height, (palette8_t*)_img, _palette); return;
-      case palette_4bit: lgfx->pushIndexImage(x, y, _width, _height, (palette4_t*)_img, _palette); return;
-//    case palette_2bit: lgfx->pushIndexImage(x, y, _width, _height, (palette2_t*)_img, _palette); return;
-      case palette_1bit: lgfx->pushIndexImage(x, y, _width, _height, (palette1_t*)_img, _palette); return;
+      if (_palette) {
+        switch (getColorDepth()) {
+        case 8: lgfx->pushIndexImage(x, y, _width, _height, (palette8_t*)_img, _palette); return;
+        case 4: lgfx->pushIndexImage(x, y, _width, _height, (palette4_t*)_img, _palette); return;
+  //    case 2: lgfx->pushIndexImage(x, y, _width, _height, (palette2_t*)_img, _palette); return;
+        case 1: lgfx->pushIndexImage(x, y, _width, _height, (palette1_t*)_img, _palette); return;
+        default: return;
+        }
+      } else {
+        switch (getColorDepth()) {
+        case rgb888_3Byte: lgfx->pushImage(x, y, _width, _height, (swap888_t*)_img); return;
+        case rgb666_3Byte: lgfx->pushImage(x, y, _width, _height, (swap666_t*)_img); return;
+        case rgb565_2Byte: lgfx->pushImage(x, y, _width, _height, (swap565_t*)_img); return;
+        case rgb332_1Byte: lgfx->pushImage(x, y, _width, _height, (rgb332_t* )_img); return;
+        default: return;
+        }
       }
     }
 
@@ -135,15 +149,20 @@ if (_write_depth.depth == palette_8bit) {
     void pushSprite(LovyanGFX* lgfx, int32_t x, int32_t y, const T& transparent)
     {
       uint32_t transp = _write_depth.convert(transparent);
-      switch (getColorDepth()) {
-      case rgb888_3Byte: lgfx->pushImage(x, y, _width, _height, (swap888_t*)_img, transp); return;
-      case rgb666_3Byte: lgfx->pushImage(x, y, _width, _height, (swap666_t*)_img, transp); return;
-      case rgb565_2Byte: lgfx->pushImage(x, y, _width, _height, (swap565_t*)_img, transp); return;
-      case rgb332_1Byte: lgfx->pushImage(x, y, _width, _height, (rgb332_t* )_img, transp); return;
-      case palette_8bit: lgfx->pushIndexImage(x, y, _width, _height, (palette8_t*)_img, _palette, transp); return;
-      case palette_4bit: lgfx->pushIndexImage(x, y, _width, _height, (palette4_t*)_img, _palette, transp); return;
-//    case palette_2bit: lgfx->pushIndexImage(x, y, _width, _height, (palette2_t*)_img, _palette, transp); return;
-      case palette_1bit: lgfx->pushIndexImage(x, y, _width, _height, (palette1_t*)_img, _palette, transp); return;
+      if (_palette) {
+        switch (getColorDepth()) {
+        case 8: lgfx->pushIndexImage(x, y, _width, _height, (rgb332_t  *)_img, _palette, transp); return;
+        case 4: lgfx->pushIndexImage(x, y, _width, _height, (palette4_t*)_img, _palette, transp); return;
+  //    case 2: lgfx->pushIndexImage(x, y, _width, _height, (palette2_t*)_img, _palette, transp); return;
+        case 1: lgfx->pushIndexImage(x, y, _width, _height, (palette1_t*)_img, _palette, transp); return;
+        }
+      } else {
+        switch (getColorDepth()) {
+        case rgb888_3Byte: lgfx->pushImage(x, y, _width, _height, (swap888_t*)_img, transp); return;
+        case rgb666_3Byte: lgfx->pushImage(x, y, _width, _height, (swap666_t*)_img, transp); return;
+        case rgb565_2Byte: lgfx->pushImage(x, y, _width, _height, (swap565_t*)_img, transp); return;
+        case rgb332_1Byte: lgfx->pushImage(x, y, _width, _height, (rgb332_t* )_img, transp); return;
+        }
       }
     }
 
@@ -200,19 +219,19 @@ if (_write_depth.depth == palette_8bit) {
       }
 
       // Move bounding box so source Sprite pivot coincides with destination Sprite pivot
-      max_x = (max_x + (1 << (FP_SCALE - 1)) >> FP_SCALE) + lgfx->getPivotX() + 1;
+      max_x = ((max_x + (1 << (FP_SCALE - 1))) >> FP_SCALE) + lgfx->getPivotX() + 1;
       if (max_x < 0) return true;
       if (max_x > lgfx->width()) max_x = lgfx->width();
 
-      min_x = (min_x + (1 << (FP_SCALE - 1)) >> FP_SCALE) + lgfx->getPivotX();
+      min_x = ((min_x + (1 << (FP_SCALE - 1))) >> FP_SCALE) + lgfx->getPivotX();
       if (min_x > lgfx->width()) return true;
       if (min_x < 0) min_x = 0;
 
-      max_y = (max_y + (1 << (FP_SCALE - 1)) >> FP_SCALE) + lgfx->getPivotY() + 1;
+      max_y = ((max_y + (1 << (FP_SCALE - 1))) >> FP_SCALE) + lgfx->getPivotY() + 1;
       if (max_y < 0) return true;
       if (max_y > lgfx->height()) max_y = lgfx->height();
 
-      min_y = (min_y + (1 << (FP_SCALE - 1)) >> FP_SCALE) + lgfx->getPivotY();
+      min_y = ((min_y + (1 << (FP_SCALE - 1))) >> FP_SCALE) + lgfx->getPivotY();
       if (min_y > lgfx->height()) return true;
       if (min_y < 0) min_y = 0;
 
@@ -268,7 +287,8 @@ if (_write_depth.depth == palette_8bit) {
     bool pushRotated(                 float angle                 ) { return push_rotated(_parent, angle, -1); }
     bool pushRotated(LovyanGFX* lgfx, float angle                 ) { return push_rotated(lgfx   , angle, -1); }
 
-    bool push_rotated(LovyanGFX* lgfx, float angle, uint32_t transp)
+/*
+    bool push_rotated(LovyanGFX* dst, float angle, uint32_t transp)
     {
       if (_img == nullptr) return false;
       static constexpr int32_t FP_SCALE = 20;
@@ -298,61 +318,255 @@ if (_write_depth.depth == palette_8bit) {
         tmp =  h * cosra + _xpivot * sinra; if (tmp < min_y) min_y = tmp; else if (tmp > max_y) max_y = tmp;
       }
 
-      max_x = (max_x + (1 << (FP_SCALE - 1)) >> FP_SCALE) + lgfx->getPivotX() + 1;
+      max_x = (max_x + (1 << (FP_SCALE - 1)) >> FP_SCALE) + dst->getPivotX() + 1;
       if (max_x < 0) return true;
-      if (max_x > lgfx->width()) max_x = lgfx->width();
+      if (max_x > dst->width()) max_x = dst->width();
 
-      min_x = (min_x + (1 << (FP_SCALE - 1)) >> FP_SCALE) + lgfx->getPivotX();
-      if (min_x > lgfx->width()) return true;
+      min_x = (min_x + (1 << (FP_SCALE - 1)) >> FP_SCALE) + dst->getPivotX();
+      if (min_x > dst->width()) return true;
       if (min_x < 0) min_x = 0;
 
-      max_y = (max_y + (1 << (FP_SCALE - 1)) >> FP_SCALE) + lgfx->getPivotY() + 1;
+      max_y = (max_y + (1 << (FP_SCALE - 1)) >> FP_SCALE) + dst->getPivotY() + 1;
       if (max_y < 0) return true;
-      if (max_y > lgfx->height()) max_y = lgfx->height();
+      if (max_y > dst->height()) max_y = dst->height();
 
-      min_y = (min_y + (1 << (FP_SCALE - 1)) >> FP_SCALE) + lgfx->getPivotY();
-      if (min_y > lgfx->height()) return true;
+      min_y = (min_y + (1 << (FP_SCALE - 1)) >> FP_SCALE) + dst->getPivotY();
+      if (min_y > dst->height()) return true;
       if (min_y < 0) min_y = 0;
 
-      int32_t xe = width() << FP_SCALE;
-      int32_t ye = height() << FP_SCALE;
+      uint32_t xe = width() << FP_SCALE;
+      uint32_t ye = height() << FP_SCALE;
 
-      swap565_t bufs[2][max_x - min_x];
+      auto dst_depth = dst->getWriteDepth();
+//    auto fp_convert = get_convert_fp(dst_depth.depth, _palette ? rgb888_3Byte : _read_depth.depth);
+
+//      auto fp_ptp = dst->get_ptp_fp(dst_depth.depth, dst_depth.depth_palette ? rgb888_3Byte : _read_depth.depth);
+pixelcopy_param_t param;
+param.src_palette = _palette;
+void(*fp_ptp)(void*&, const void*&, int32_t, pixelcopy_param_t*);
+if (_palette) {
+  switch (_read_depth.depth) {
+  case 8: fp_ptp = dst->get_palette_to_pixel_fp<rgb332_t, swap888_t>(); break;
+  case 4: fp_ptp = dst->get_palette_to_pixel_fp<palette4_t, swap888_t>(); break;
+  case 1: fp_ptp = dst->get_palette_to_pixel_fp<palette1_t, swap888_t>(); break;
+  default: return false;
+  }
+} else {
+  switch (_read_depth.depth) {
+  case 24: fp_ptp = dst->get_pixel_to_pixel_fp<swap888_t>(); break;
+  case 16: fp_ptp = dst->get_pixel_to_pixel_fp<swap565_t>(); break;
+  case  8: fp_ptp = dst->get_pixel_to_pixel_fp<rgb332_t> (); break;
+  default: return false;
+  }
+}
+//      auto fp_ptp = dst->get_ptp_fp(dst_depth.depth, dst_depth.depth_palette ? rgb888_3Byte : _read_depth.depth);
+
+      uint32_t dst_step = dst_depth.bytes ? dst_depth.bytes : 1;
+      uint32_t src_bytes = _read_depth.bytes;
+      uint32_t src_bits = _read_depth.bits;
+      uint32_t colormask = _write_depth.colormask;
+
+      uint8_t bufs[2][((max_x - min_x) * dst_step) + 3];
+uint8_t rawbuf[(((max_x - min_x) * src_bits + 7) >> 3) + 3];
+memset(rawbuf, 0, (((max_x - min_x) * src_bits + 7) >> 3) + 3);
+
       bool flip = false;
-      int32_t yt = min_y - lgfx->getPivotY();
-      lgfx->startWrite();
-
+      int32_t yt = min_y - dst->getPivotY();
+      dst->startWrite();
       for (int32_t y = min_y; y < max_y; y++, yt++) {
         size_t bufidx = 0;
         int32_t x = min_x;
-        int32_t xs = (cosra * (x - lgfx->getPivotX()) - (sinra * yt - (_xpivot << FP_SCALE)) + (1 << (FP_SCALE - 1)) - 1);
-        int32_t ys = (sinra * (x - lgfx->getPivotX()) + (cosra * yt + (_ypivot << FP_SCALE)) + (1 << (FP_SCALE - 1)) - 1);
-        for (; x < max_x; x++, xs += cosra, ys += sinra) {
-          if ((xs >= 0 && xs < xe) && (ys >= 0 && ys < ye)) {
-            uint32_t rp = readPixelRAW_impl(xs >> FP_SCALE, ys >> FP_SCALE);
-            if (rp != transp) {
-              bufs[flip][bufidx++].raw = rp;
-              continue;
+        uint32_t xs = (cosra * (x - dst->getPivotX()) - (sinra * yt - (_xpivot << FP_SCALE)) + (1 << (FP_SCALE - 1)) - 1);
+        uint32_t ys = (sinra * (x - dst->getPivotX()) + (cosra * yt + (_ypivot << FP_SCALE)) + (1 << (FP_SCALE - 1)) - 1);
+
+        while ((xs >= xe || ys >= ye) && x < max_x) { x++; xs += cosra; ys += sinra; }
+        if (x == max_x) continue;
+
+        if (-1 == transp) {
+          do {
+            uint32_t idx = ((xs >> FP_SCALE) + (ys >> FP_SCALE) * _bitwidth) * src_bits;
+            uint32_t rawpixel = ((*(uint32_t*)&_img[idx >> 3]) >> (-(idx+src_bits) & 7)) & colormask;
+idx = bufidx * src_bits;
+*(uint32_t*)&rawbuf[idx >> 3] |= rawpixel << (-(idx+src_bits) & 7);
+//              *(uint32_t*)&bufs[flip][dst_step * bufidx] = fp_convert((*(uint32_t*)&_palette[rawpixel]) & 0xFFFFFF);
+            ++bufidx;
+          } while (++x < max_x && (xs += cosra) < xe && (ys += sinra) < ye);
+        } else {
+          do {
+            uint32_t idx = ((xs >> FP_SCALE) + (ys >> FP_SCALE) * _bitwidth) * src_bits;
+            uint32_t rawpixel = ((*(uint32_t*)&_img[idx >> 3]) >> (-(idx+src_bits) & 7)) & colormask;
+            if (rawpixel != transp) {
+idx = bufidx * src_bits;
+*(uint32_t*)&rawbuf[idx >> 3] |= rawpixel << (-(idx+src_bits) & 7);
+//                *(uint32_t*)&bufs[flip][dst_step * bufidx] = fp_convert((*(uint32_t*)&_palette[rawpixel]) & 0xFFFFFF);
+              ++bufidx;
+            } else
+            if (bufidx) {
+              dst->setWindow(x - bufidx, y, x - 1, y);
+param.src_offset = 0;
+void* d = &bufs[flip][0];
+const void* s = rawbuf;
+(*fp_ptp)(d, s, bufidx, &param);
+                dst->writeBytesDMA((uint8_t*)bufs[flip], bufidx * dst_step);
+memset(rawbuf, 0, bufidx * dst_step);
+              flip = !flip;
+              bufidx = 0;
             }
-          }
-          if (bufidx) {
-            lgfx->setWindow(x - bufidx, y, x - 1, y);
-            lgfx->writeBytesDMA((uint8_t*)bufs[flip], bufidx * 2);
-            flip = !flip;
-            bufidx = 0;
-          }
+          } while (++x < max_x && (xs += cosra) < xe && (ys += sinra) < ye);
         }
+
         if (bufidx) {
-          lgfx->setWindow(x - bufidx, y, x - 1, y);
-          lgfx->writeBytesDMA((uint8_t*)bufs[flip], bufidx * 2);
+          dst->setWindow(x - bufidx, y, x - 1, y);
+param.src_offset = 0;
+void* d = &bufs[flip][0];
+const void* s = rawbuf;
+(*fp_ptp)(d, s, bufidx, &param);
+          dst->writeBytesDMA((uint8_t*)bufs[flip], bufidx * dst_step);
+memset(rawbuf, 0, bufidx * dst_step);
           flip = !flip;
         }
       }
-      lgfx->endWrite();
+      dst->endWrite();
 
       return true;
     }
 
+/*/
+    bool push_rotated(LovyanGFX* dst, float angle, uint32_t transp)
+    {
+      if (_img == nullptr) return false;
+      static constexpr int32_t FP_SCALE = 20;
+
+      float radAngle = -angle * 0.0174532925; // Convert degrees to radians
+      int32_t sinra = round(sin(radAngle) * (float)(1 << FP_SCALE));
+      int32_t cosra = round(cos(radAngle) * (float)(1 << FP_SCALE));
+
+      int32_t min_x;
+      int32_t max_x;
+      min_x = max_x = -_xpivot * cosra - _ypivot * sinra;
+
+      int32_t min_y;
+      int32_t max_y;
+      min_y = max_y = _xpivot * sinra - _ypivot * cosra;
+
+      {
+        int32_t w = width() - _xpivot;
+        int32_t h = height() - _ypivot;
+        int32_t tmp;
+        tmp = w * cosra - _ypivot * sinra; if (tmp < min_x) min_x = tmp; else if (tmp > max_x) max_x = tmp;
+        tmp = h * sinra +       w * cosra; if (tmp < min_x) min_x = tmp; else if (tmp > max_x) max_x = tmp;
+        tmp = h * sinra - _xpivot * cosra; if (tmp < min_x) min_x = tmp; else if (tmp > max_x) max_x = tmp;
+
+        tmp = -w * sinra - _ypivot * cosra; if (tmp < min_y) min_y = tmp; else if (tmp > max_y) max_y = tmp;
+        tmp =  h * cosra -       w * sinra; if (tmp < min_y) min_y = tmp; else if (tmp > max_y) max_y = tmp;
+        tmp =  h * cosra + _xpivot * sinra; if (tmp < min_y) min_y = tmp; else if (tmp > max_y) max_y = tmp;
+      }
+
+      max_x = ((max_x + (1 << (FP_SCALE - 1))) >> FP_SCALE) + dst->getPivotX() + 1;
+      if (max_x < 0) return true;
+      if (max_x > dst->width()) max_x = dst->width();
+
+      min_x = ((min_x + (1 << (FP_SCALE - 1))) >> FP_SCALE) + dst->getPivotX();
+      if (min_x > dst->width()) return true;
+      if (min_x < 0) min_x = 0;
+
+      max_y = ((max_y + (1 << (FP_SCALE - 1))) >> FP_SCALE) + dst->getPivotY() + 1;
+      if (max_y < 0) return true;
+      if (max_y > dst->height()) max_y = dst->height();
+
+      min_y = ((min_y + (1 << (FP_SCALE - 1))) >> FP_SCALE) + dst->getPivotY();
+      if (min_y > dst->height()) return true;
+      if (min_y < 0) min_y = 0;
+
+      uint32_t xe = width() << FP_SCALE;
+      uint32_t ye = height() << FP_SCALE;
+
+      auto dst_depth = dst->getWriteDepth();
+      auto palette = _palette;
+      auto fp_convert = palette ? get_conv_palette_to_pixel_fp(dst_depth.depth)
+                                : get_conv_pixel_to_pixel_fp(dst_depth.depth, _read_depth.depth);
+
+      uint32_t dst_step = dst_depth.bytes ? dst_depth.bytes : 1;
+      uint32_t src_bytes = _read_depth.bytes;
+      uint32_t src_bits = _read_depth.bits;
+      uint32_t colormask = _write_depth.colormask;
+
+      uint8_t bufs[2][((max_x - min_x) * dst_step) + 3];
+//_palette[1].b += 192;
+//_palette[1].g += 128;
+//_palette[1].r += 96;
+      bool flip = false;
+      int32_t yt = min_y - dst->getPivotY();
+      dst->startWrite();
+      for (int32_t y = min_y; y < max_y; y++, yt++) {
+        size_t bufidx = 0;
+        int32_t x = min_x;
+        uint32_t xs = (cosra * (x - dst->getPivotX()) - (sinra * yt - (_xpivot << FP_SCALE)) + (1 << (FP_SCALE - 1)) - 1);
+        uint32_t ys = (sinra * (x - dst->getPivotX()) + (cosra * yt + (_ypivot << FP_SCALE)) + (1 << (FP_SCALE - 1)) - 1);
+
+        while ((xs >= xe || ys >= ye) && x < max_x) { x++; xs += cosra; ys += sinra; }
+        if (x == max_x) continue;
+
+        if (src_bytes == 0) {
+          if (-1 == transp) {
+            do {
+              uint32_t idx = ((xs >> FP_SCALE) + (ys >> FP_SCALE) * _bitwidth) * src_bits;
+              uint32_t rawpixel = ((*(uint32_t*)&_img[idx >> 3]) >> (-(idx+src_bits) & 7)) & colormask;
+              *(uint32_t*)&bufs[flip][dst_step * bufidx] = fp_convert(rawpixel, palette);
+              ++bufidx;
+            } while (++x < max_x && (xs += cosra) < xe && (ys += sinra) < ye);
+          } else {
+            do {
+              uint32_t idx = ((xs >> FP_SCALE) + (ys >> FP_SCALE) * _bitwidth) * src_bits;
+              uint32_t rawpixel = ((*(uint32_t*)&_img[idx >> 3]) >> (-(idx+src_bits) & 7)) & colormask;
+              if (rawpixel != transp) {
+                *(uint32_t*)&bufs[flip][dst_step * bufidx] = fp_convert(rawpixel, palette);
+                ++bufidx;
+              } else
+              if (bufidx) {
+                dst->setWindow(x - bufidx, y, x - 1, y);
+                dst->writeBytesDMA((uint8_t*)bufs[flip], bufidx * dst_step);
+                flip = !flip;
+                bufidx = 0;
+              }
+            } while (++x < max_x && (xs += cosra) < xe && (ys += sinra) < ye);
+          }
+        } else {
+          if (-1 == transp) {
+            do {
+              uint32_t idx = ((xs >> FP_SCALE) + (ys >> FP_SCALE) * _bitwidth) * src_bytes;
+              uint32_t rawpixel = (*(uint32_t*)&_img[idx]) & colormask;
+              *(uint32_t*)&bufs[flip][dst_step * bufidx] = fp_convert(rawpixel, palette);
+              ++bufidx;
+            } while (++x < max_x && (xs += cosra) < xe && (ys += sinra) < ye);
+          } else {
+            do {
+              uint32_t idx = ((xs >> FP_SCALE) + (ys >> FP_SCALE) * _bitwidth) * src_bytes;
+              uint32_t rawpixel = (*(uint32_t*)&_img[idx]) & colormask;
+              if (rawpixel != transp) {
+                *(uint32_t*)&bufs[flip][dst_step * bufidx] = fp_convert(rawpixel, palette);
+                ++bufidx;
+              } else
+              if (bufidx) {
+                dst->setWindow(x - bufidx, y, x - 1, y);
+                dst->writeBytesDMA((uint8_t*)bufs[flip], bufidx * dst_step);
+                flip = !flip;
+                bufidx = 0;
+              }
+            } while (++x < max_x && (xs += cosra) < xe && (ys += sinra) < ye);
+          }
+        }
+        if (bufidx) {
+          dst->setWindow(x - bufidx, y, x - 1, y);
+          dst->writeBytesDMA((uint8_t*)bufs[flip], bufidx * dst_step);
+          flip = !flip;
+        }
+      }
+      dst->endWrite();
+
+      return true;
+    }
+//*/
 
     inline void* buffer() { return _img; }
 
@@ -528,7 +742,8 @@ return;
       if (0 >= length) return;
       if (_write_depth.bytes == 0) {
         uint8_t c = _color.raw0;
-        uint8_t addrshift = (4 - _write_depth.depth);
+        //uint8_t addrshift = (4 - _write_depth.depth);
+        uint8_t addrshift = 2 / _write_depth.bits + 1;
         int32_t linelength;
         do {
           uint8_t* dst = &_img[(_xptr + _yptr * _bitwidth) >> addrshift];
@@ -602,7 +817,7 @@ return;
       if (_write_depth.bits < 8) {
 // unimplemented
 /*
-        const uint32_t color_mask = (1 << _write_depth.bits)-1;
+        const uint32_t colormask = (1 << _write_depth.bits)-1;
 
         int32_t add = _bitwidth * _write_depth.bits;
         if (src_y < dst_y) add = -add;
@@ -620,7 +835,7 @@ return;
           uint8_t offset = (-dx * bits) & 7;
           for (int i = 0; i < w; i++) {
             offset = (offset - bits) & 7;
-            (((*(uint32_t*)&src[(dx+i)*bits >> 3]) >> offset) & color_mask)
+            (((*(uint32_t*)&src[(dx+i)*bits >> 3]) >> offset) & colormask)
 
             dx + i * _write_depth.bits
 
@@ -812,7 +1027,7 @@ return;
       } while (length -= linelength);
     }
 
-    void write_bytes(const uint8_t* data, int32_t length) override
+    void writeBytes_impl(const uint8_t* data, int32_t length) override
     {
       uint8_t b = _write_depth.bytes ? _write_depth.bytes : 1;
       length /= b;

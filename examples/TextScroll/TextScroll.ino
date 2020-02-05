@@ -3,6 +3,7 @@
 #include <LGFX_TFT_eSPI.hpp>
 
 TFT_eSPI tft;
+TFT_eSprite sprite(&tft);
 
 #if defined(ARDUINO_M5Stack_Core_ESP32) || defined(ARDUINO_M5STACK_FIRE) // M5Stack
  #define BUTTON_A_PIN 39
@@ -17,8 +18,13 @@ TFT_eSPI tft;
  AXP192 axp;
 #endif
 
-void cursor_init(void)
+void cursor_init(lgfx::LovyanGFX& tft)
 {
+  tft.setTextScroll(true);
+  tft.setCursor(0,0);
+  tft.fillScreen(0);
+
+  tft.fillScreen(0xF800);
 #if defined(ARDUINO_M5Stack_Core_ESP32) || defined(ARDUINO_M5STACK_FIRE) // M5Stack
   tft.fillRect(19,19,202,202,0);
   tft.drawRect(18,18,204,204,0x001F);
@@ -28,41 +34,15 @@ void cursor_init(void)
   tft.drawRect(8,8,64,144,0x001F);
   tft.setScrollRect(10,10,60,140);
 #endif
-  tft.setCursor(0,0);
+//*/
 }
 
-
-void setup(void) {
-  lgfx::TPin<BUTTON_A_PIN>::init(GPIO_MODE_INPUT);
-  lgfx::TPin<BUTTON_B_PIN>::init(GPIO_MODE_INPUT);
-  lgfx::TPin<BUTTON_C_PIN>::init(GPIO_MODE_INPUT);
-
-  Serial.begin(115200);
-
-  SD.begin(4, SPI, 20000000);
-  tft.init();
-
-  //tft.setColorDepth(24);
-  tft.setTextScroll(true);
-  tft.fillScreen(0xF800);
-
-#if defined(ARDUINO_M5Stack_Core_ESP32) || defined(ARDUINO_M5STACK_FIRE) // M5Stack
-  const int BLK_PWM_CHANNEL = 7;
-  ledcSetup(BLK_PWM_CHANNEL, 12000, 8);
-  ledcAttachPin(32, BLK_PWM_CHANNEL);
-  ledcWrite(BLK_PWM_CHANNEL, 128);
-#else
-  axp.begin();
-#endif
-
-  cursor_init();
-}
 
 int16_t textsize_x = 1;
 int16_t textsize_y = 1;
 int16_t textfont = 0;
 
-void loop(void)
+void exec_text(lgfx::LovyanGFX& tft)
 {
 #if defined(ARDUINO_M5Stack_Core_ESP32) || defined(ARDUINO_M5STACK_FIRE) // M5Stack
   if (lgfx::TPin<BUTTON_B_PIN>::get() == 0) {
@@ -141,21 +121,59 @@ void loop(void)
     case 50: tft.setFreeFont(&FreeSerifBoldItalic18pt7b); break;
     case 51: tft.setFreeFont(&FreeSerifBoldItalic24pt7b); break;
     }
-    cursor_init();
+    cursor_init(tft);
   }
-
   static uint8_t count = 0;
-//  tft.printf("%02x", ++count);
-  tft.print((char)++count);
+  tft.printf("%02x ", count);
+//  tft.print((char)++count);
 //  tft.print("  ");
 /*  tft.printf("%d", ++count);
   if (7 == (count & 31))
     tft.printf("N\nN");
 */
-  if (count == 255) {
+  tft.print((char)count);
+  if (++count == 0) {
     tft.print("  ＡＢＣＤＥＦＧＨＩＪＫＬＭＮＯＰＱＲＳＴＵＶＷＸＹＺ");
     tft.print("あいうえおかきくけこさしすせそたちつてとなにぬねのはひふへほまみむめもやゆよわをん");
     tft.print("漢字入力テスト");
+  }
+}
+
+void setup(void) {
+  lgfx::TPin<BUTTON_A_PIN>::init(GPIO_MODE_INPUT);
+  lgfx::TPin<BUTTON_B_PIN>::init(GPIO_MODE_INPUT);
+  lgfx::TPin<BUTTON_C_PIN>::init(GPIO_MODE_INPUT);
+
+  Serial.begin(115200);
+
+  SD.begin(4, SPI, 20000000);
+  tft.init();
+
+  sprite.setColorDepth(3);
+  sprite.createSprite(tft.width(), tft.height());
+
+  //tft.setColorDepth(24);
+
+#if defined(ARDUINO_M5Stack_Core_ESP32) || defined(ARDUINO_M5STACK_FIRE) // M5Stack
+  const int BLK_PWM_CHANNEL = 7;
+  ledcSetup(BLK_PWM_CHANNEL, 12000, 8);
+  ledcAttachPin(32, BLK_PWM_CHANNEL);
+  ledcWrite(BLK_PWM_CHANNEL, 128);
+#else
+  axp.begin();
+#endif
+
+  cursor_init(sprite);
+}
+
+
+void loop(void)
+{
+  static uint64_t ms = 0;
+  exec_text(sprite);
+  if (ms + 16000 < micros()) {
+    sprite.pushSprite(0,0);
+    ms = micros();
   }
 }
 
