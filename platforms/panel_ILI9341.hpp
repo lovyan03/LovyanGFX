@@ -142,6 +142,7 @@ namespace lgfx
   public:
     Panel_M5Stack() : Panel_ILI9341_Common() {
       static constexpr int gpio_rst = 33;
+      TPin<gpio_rst>::lo();
       TPin<gpio_rst>::init(GPIO_MODE_INPUT);
       setConfig<cfg_t>();
       invert = TPin<gpio_rst>::get();  // get panel type (IPS or TN)

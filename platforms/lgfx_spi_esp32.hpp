@@ -336,9 +336,9 @@ namespace lgfx
       uint32_t apb_freq = getApbFrequency();
       if (_last_apb_freq != apb_freq) {
         _last_apb_freq = apb_freq;
-        _clkdiv_read  = spiFrequencyToClockDiv(_panel->freq_read);
-        _clkdiv_fill  = spiFrequencyToClockDiv(_panel->freq_fill);
-        _clkdiv_write = spiFrequencyToClockDiv(_panel->freq_write);
+        _clkdiv_read  = FreqToClockDiv(apb_freq, _panel->freq_read);
+        _clkdiv_fill  = FreqToClockDiv(apb_freq, _panel->freq_fill);
+        _clkdiv_write = FreqToClockDiv(apb_freq, _panel->freq_write);
       }
       _fill_mode = false;
 
@@ -404,9 +404,9 @@ namespace lgfx
     {
       set_window(xs, ys, xe, ye);
       if (_clkdiv_write != _clkdiv_fill && _fill_mode) {
+        _fill_mode = false;
         wait_spi();
         set_clock_write();
-        _fill_mode = false;
       }
       write_cmd(_cmd_ramwr);
     }
@@ -416,9 +416,9 @@ namespace lgfx
       if (!_transaction_count) beginTransaction_impl();
       set_window(x, y, x, y);
       if (_clkdiv_write != _clkdiv_fill && !_fill_mode) {
+        _fill_mode = true;
         wait_spi();
         set_clock_fill();
-        _fill_mode = true;
       }
       write_cmd(_cmd_ramwr);
       write_data(_color.raw, _write_depth.bits);
@@ -430,9 +430,9 @@ namespace lgfx
       if (!_transaction_count) beginTransaction_impl();
       set_window(x, y, x+w-1, y+h-1);
       if (_clkdiv_write != _clkdiv_fill && !_fill_mode) {
+        _fill_mode = true;
         wait_spi();
         set_clock_fill();
-        _fill_mode = true;
       }
       write_cmd(_cmd_ramwr);
       write_color(w*h);
@@ -459,6 +459,7 @@ namespace lgfx
     {
       if (length == 1) { write_data(_color.raw, _write_depth.bits); return; }
 
+      // convert to bitlength.
       length *= _write_depth.bits;
       // make 12Bytes data.
       if (_write_depth.bytes == 2) {
@@ -471,14 +472,17 @@ namespace lgfx
         memcpy(&((uint8_t*)_regbuf)[6], _regbuf, 6);
       }
 
+      // 1st send length = max (96bit) 12Byte. 
       uint32_t len = std::min(96, length);
       wait_spi();
       set_write_len(len);
       dc_h();
+
       // copy to SPI buffer register
       memcpy((void*)_spi_w0_reg, _regbuf, 12);
-      exec_spi();
+      exec_spi();   // 1st send.
       if (0 == (length -= len)) return;
+
       // make 28Byte data from 12Byte data.
       memcpy((void*)&_regbuf[ 3], _regbuf, 12);
       memcpy((void*)&_regbuf[ 6], _regbuf, 4);
@@ -486,8 +490,14 @@ namespace lgfx
       memcpy((void*)&_spi_w0_reg[ 3], _regbuf, 24);
       memcpy((void*)&_spi_w0_reg[ 9], _regbuf, 28);
 
-      const uint32_t limit = (_write_depth.bytes == 2) ? 512 : 504; // limit = 64 / bytes;
-      if (0 != (len = length % limit)) {
+      // limit = 64Byte / depth_bytes;
+      // When 3Byte color, 504 bits out of 512bit buffer are used.
+      // When 2Byte color, it uses exactly 512 bytes. but, it behaves like a ring buffer, can specify a larger size.
+      const uint32_t limit = (_write_depth.bytes == 3) ? 504 : (1 << 11);
+      len = (_write_depth.bytes == 3)
+          ? (length % limit)
+          : length & (limit - 1);
+      if (len) {
         wait_spi();
         set_write_len(len);
         exec_spi();
@@ -497,6 +507,7 @@ namespace lgfx
       set_write_len(limit);
       exec_spi();
       while (length -= limit) {
+        taskYIELD();
         wait_spi();
         exec_spi();
       }

@@ -32,6 +32,9 @@ namespace lgfx
       _transaction_count = 0xFFFF;
     }
 
+    inline void* buffer() { return _img; }
+    uint32_t bufferLength(void) const { return _bitwidth * _height * _write_depth.bits >> 3; }
+
     LGFXSpriteBase()
     : LGFXSpriteBase(nullptr)
     {}
@@ -435,7 +438,7 @@ memset(rawbuf, 0, bufidx * dst_step);
     bool push_rotated(LovyanGFX* dst, float angle, uint32_t transp)
     {
       if (_img == nullptr) return false;
-      static constexpr int32_t FP_SCALE = 20;
+      static constexpr uint32_t FP_SCALE = 20;
 
       float radAngle = -angle * 0.0174532925; // Convert degrees to radians
       int32_t sinra = round(sin(radAngle) * (float)(1 << FP_SCALE));
@@ -486,11 +489,10 @@ memset(rawbuf, 0, bufidx * dst_step);
       auto fp_convert = palette ? get_conv_palette_to_pixel_fp(dst_depth.depth)
                                 : get_conv_pixel_to_pixel_fp(dst_depth.depth, _read_depth.depth);
 
-      uint32_t dst_step = dst_depth.bytes ? dst_depth.bytes : 1;
       uint32_t src_bytes = _read_depth.bytes;
       uint32_t src_bits = _read_depth.bits;
-      uint32_t colormask = _write_depth.colormask;
-
+      uint32_t colormask = (1 << src_bits) - 1; //_read_depth.colormask;
+      uint32_t dst_step = dst_depth.bytes ? dst_depth.bytes : 1;
       uint8_t bufs[2][((max_x - min_x) * dst_step) + 3];
 //_palette[1].b += 192;
 //_palette[1].g += 128;
@@ -519,15 +521,16 @@ memset(rawbuf, 0, bufidx * dst_step);
             do {
               uint32_t idx = ((xs >> FP_SCALE) + (ys >> FP_SCALE) * _bitwidth) * src_bits;
               uint32_t rawpixel = ((*(uint32_t*)&_img[idx >> 3]) >> (-(idx+src_bits) & 7)) & colormask;
-              if (rawpixel != transp) {
+              if (rawpixel == transp) {
+                if (bufidx) {
+                  dst->setWindow(x - bufidx, y, x - 1, y);
+                  dst->writeBytesDMA((uint8_t*)bufs[flip], bufidx * dst_step);
+                  flip = !flip;
+                  bufidx = 0;
+                }
+              } else {
                 *(uint32_t*)&bufs[flip][dst_step * bufidx] = fp_convert(rawpixel, palette);
                 ++bufidx;
-              } else
-              if (bufidx) {
-                dst->setWindow(x - bufidx, y, x - 1, y);
-                dst->writeBytesDMA((uint8_t*)bufs[flip], bufidx * dst_step);
-                flip = !flip;
-                bufidx = 0;
               }
             } while (++x < max_x && (xs += cosra) < xe && (ys += sinra) < ye);
           }
@@ -543,21 +546,22 @@ memset(rawbuf, 0, bufidx * dst_step);
             do {
               uint32_t idx = ((xs >> FP_SCALE) + (ys >> FP_SCALE) * _bitwidth) * src_bytes;
               uint32_t rawpixel = (*(uint32_t*)&_img[idx]) & colormask;
-              if (rawpixel != transp) {
+              if (rawpixel == transp) {
+                if (bufidx) {
+                  dst->setWindow(x - bufidx, y, x - 1, y);
+                  dst->writeBytesDMA((uint8_t*)bufs[flip], bufidx * dst_step);
+                  flip = !flip;
+                  bufidx = 0;
+                }
+              } else {
                 *(uint32_t*)&bufs[flip][dst_step * bufidx] = fp_convert(rawpixel, palette);
                 ++bufidx;
-              } else
-              if (bufidx) {
-                dst->setWindow(x - bufidx, y, x - 1, y);
-                dst->writeBytesDMA((uint8_t*)bufs[flip], bufidx * dst_step);
-                flip = !flip;
-                bufidx = 0;
               }
             } while (++x < max_x && (xs += cosra) < xe && (ys += sinra) < ye);
           }
         }
         if (bufidx) {
-          dst->setWindow(x - bufidx, y, x - 1, y);
+          dst->setWindow(x - bufidx, y, max_x - 1, y);
           dst->writeBytesDMA((uint8_t*)bufs[flip], bufidx * dst_step);
           flip = !flip;
         }
@@ -567,8 +571,6 @@ memset(rawbuf, 0, bufidx * dst_step);
       return true;
     }
 //*/
-
-    inline void* buffer() { return _img; }
 
 //----------------------------------------------------------------------------
 //----------------------------------------------------------------------------

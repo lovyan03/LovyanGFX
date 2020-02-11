@@ -34,77 +34,37 @@
     }
     return (conf.source_freq_mhz * 1000000) / conf.div;
   }
-
-  uint32_t spiFrequencyToClockDiv(uint32_t freq) {
-    typedef union {
-        uint32_t value;
-        struct {
-                uint32_t clkcnt_l:       6;                     /*it must be equal to spi_clkcnt_N.*/
-                uint32_t clkcnt_h:       6;                     /*it must be floor((spi_clkcnt_N+1)/2-1).*/
-                uint32_t clkcnt_n:       6;                     /*it is the divider of spi_clk. So spi_clk frequency is system/(spi_clkdiv_pre+1)/(spi_clkcnt_N+1)*/
-                uint32_t clkdiv_pre:    13;                     /*it is pre-divider of spi_clk.*/
-                uint32_t clk_equ_sysclk: 1;                     /*1: spi_clk is eqaul to system 0: spi_clk is divided from system clock.*/
-        };
-    } spiClk_t;
-
-    uint32_t apb_freq = getApbFrequency();
-
-    if(freq >= apb_freq) {
-      return SPI_CLK_EQU_SYSCLK;
-    }
-
-    const spiClk_t minFreqReg = { 0x7FFFF000 };
-    uint32_t minFreq = apb_freq / ((minFreqReg.clkdiv_pre + 1) * (minFreqReg.clkcnt_n + 1));
-
-    if(freq < minFreq) {
-        return minFreqReg.value;
-    }
-
-    uint8_t calN = 1;
-    spiClk_t bestReg = { 0 };
-    int32_t bestFreq = 0;
-
-    while(calN <= 0x3F) {
-        spiClk_t reg = { 0 };
-        int32_t calFreq;
-        int32_t calPre;
-        int8_t calPreVari = -2;
-
-        reg.clkcnt_n = calN;
-
-        while(calPreVari++ <= 1) {
-            calPre = (((apb_freq / (reg.clkcnt_n + 1)) / freq) - 1) + calPreVari;
-            if(calPre > 0x1FFF) {
-                reg.clkdiv_pre = 0x1FFF;
-            } else if(calPre <= 0) {
-                reg.clkdiv_pre = 0;
-            } else {
-                reg.clkdiv_pre = calPre;
-            }
-            reg.clkcnt_l = ((reg.clkcnt_n + 1) / 2);
-            calFreq = apb_freq / ((reg.clkdiv_pre + 1) * (reg.clkcnt_n + 1));
-            if(calFreq == (int32_t) freq) {
-                memcpy(&bestReg, &reg, sizeof(bestReg));
-                break;
-            } else if(calFreq < (int32_t) freq) {
-                if(abs(freq - calFreq) < abs(freq - bestFreq)) {
-                    bestFreq = calFreq;
-                    memcpy(&bestReg, &reg, sizeof(bestReg));
-                }
-            }
-        }
-        if(calFreq == (int32_t) freq) {
-            break;
-        }
-        calN++;
-    }
-    return bestReg.value;
-  }
 #endif
 
 
 namespace lgfx
 {
+
+  static uint32_t FreqToClockDiv(uint32_t fapb, uint32_t hz)
+  {
+    if (hz > ((fapb >> 2) * 3)) {
+      return SPI_CLK_EQU_SYSCLK;
+    }
+    uint32_t besterr = fapb;
+    uint32_t halfhz = hz >> 1;
+    uint32_t bestn = 0;
+    uint32_t bestpre = 0;
+    for (uint32_t n = 2; n <= 64; n++) {
+      uint32_t pre = ((fapb / n) + halfhz) / hz;
+      if (pre == 0) pre = 1;
+      else if (pre > 8192) pre = 8192;
+
+      int errval = abs((int32_t)(fapb / (pre * n) - hz));
+      if (errval < besterr) {
+        besterr = errval;
+        bestn = n - 1;
+        bestpre = pre - 1;
+        if (!besterr) break;
+      }
+    }
+    return bestpre << 18 | bestn << 12 | ((bestn-1)>>1) << 6 | bestn;
+  }
+
   static void gpioInit(gpio_num_t pin, gpio_mode_t mode = GPIO_MODE_OUTPUT) {
     if (pin == -1) return;
     if (rtc_gpio_is_valid_gpio(pin)) rtc_gpio_deinit(pin);

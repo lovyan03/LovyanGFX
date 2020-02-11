@@ -59,6 +59,7 @@ namespace lgfx {
   inline uint32_t convert_rgb888_to_swap888( uint32_t c) { return getSwap24(c);  }
   inline uint32_t convert_rgb888_to_swap666( uint32_t c) { return (c&0xFC)<<14 | ((c&0xFC00)>>2) | ((c>>18)&0x3F);  }
   inline uint32_t convert_rgb888_to_swap565( uint32_t c) { return getSwap16((c>>19)<<11 | (((uint16_t)c)>>10)<<5 | ((uint8_t)c)>>3);  }
+  inline uint32_t convert_rgb888_to_rgb565(  uint32_t c) { return           (c>>19)<<11 | (((uint16_t)c)>>10)<<5 | ((uint8_t)c)>>3;   }
   inline uint32_t convert_rgb888_to_rgb332(  uint32_t c) { return ((c>>21)<<5) | ((((uint16_t)c)>>13) << 2) | ((c>>6) & 3); }
   inline uint32_t convert_rgb888_to_palette8(uint32_t c) { return (c&0xFF)*0x01010101; }
   inline uint32_t convert_rgb888_to_palette4(uint32_t c) { return (c&0x0F)*0x11111111; }
@@ -387,7 +388,7 @@ namespace lgfx {
     inline swap888_t& operator=(const swap565_t&);
     inline swap888_t& operator=(const swap666_t&);
     explicit inline operator bool() const { return r||g||b; }
-    //inline operator uint32_t() const { return (b<<16)|(g<<8)|r; }
+    explicit inline operator uint32_t() const { return (b<<16)|(g<<8)|r; }
     //inline operator rgb332_t() const { return rgb332_t(r,g,b); }
     explicit inline operator rgb565_t() const { return rgb565_t(r,g,b); }
     //inline operator rgb888_t() const { return rgb888_t(r,g,b); }

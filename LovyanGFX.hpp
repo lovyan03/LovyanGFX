@@ -971,8 +971,8 @@ namespace lgfx
       auto& d = (TDst*&)dst;
       if (std::is_same<TDst, TSrc>::value) {
         memcpy(d, s, len * sizeof(TDst));
-        s += len * sizeof(TDst);
-        d += len * sizeof(TDst);
+        s += len;
+        d += len;
       } else {
         do { *d++ = *s++; } while (--len);
       }
