@@ -121,10 +121,11 @@ namespace lgfx
 
   private:
     struct cfg_t {
+      static constexpr int spi_mode_read = 1;
       static constexpr int spi_cs =  5;
       static constexpr int spi_dc = 27;
       static constexpr uint32_t freq_write = 80000000;
-      static constexpr uint32_t freq_read  = 16000000;
+      static constexpr uint32_t freq_read  = 20000000;
       static constexpr uint32_t freq_fill  = 80000000;
       static constexpr bool spi_3wire   = true;
       static constexpr bool invert      = true;

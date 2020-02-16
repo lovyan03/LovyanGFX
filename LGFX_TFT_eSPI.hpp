@@ -67,12 +67,12 @@ namespace lgfx {
   struct LGFX_Config {
     static const Panel_TTGO_TWatch panel;
     static constexpr spi_host_device_t spi_host = VSPI_HOST;
+    static constexpr int dma_channel = 1;
     static constexpr int spi_mosi = 19;
     static constexpr int spi_miso = -1;
     static constexpr int spi_sclk = 18;
-    static constexpr int panel_rst = -1;
-    static constexpr int panel_bl  = 12;
-    static lgfx::Panel_ST7789_240x240 panel;
+//    static constexpr int panel_rst = -1;
+//    static constexpr int panel_bl  = 12;
   };
 
 #elif defined ( ARDUINO_ESP32_DEV ) // ESP-WROVER-KIT

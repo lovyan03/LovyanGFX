@@ -444,8 +444,9 @@ Serial.print("Arduino\r\n");
   //tft4.init();
   //tft5.init();
 
-  sprite.setColorDepth(2);
+  sprite.setColorDepth(4);
   sprite.createSprite(159,159);
+  sprite.createPalette();
 
 
 #if defined(ARDUINO_M5Stack_Core_ESP32) || defined(ARDUINO_M5STACK_FIRE)
@@ -520,7 +521,7 @@ Serial.printf("colorDepth:%d  swapBytes:%d  rotation:%d \r\n"
   drawRects(tft_lgfx, 0);
   copyRect(tft_lgfx, 0);
   blockReadWrite(tft_lgfx, 0);
-return;
+
   sprite.fillScreen(1);
 //  sprite.fillRect(80, 0,80,80,2);
 //  sprite.fillRect( 0,80,80,80,3);

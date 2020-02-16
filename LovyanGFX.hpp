@@ -79,16 +79,16 @@ namespace lgfx
     __attribute__ ((always_inline)) inline color_depth_t getColorDepth(void) const { return _write_depth.depth; }
     __attribute__ ((always_inline)) inline dev_color_t getWriteDepth(void) const { return _write_depth; }
     __attribute__ ((always_inline)) inline dev_color_t getReadDepth(void) const { return _read_depth; }
-
+    __attribute__ ((always_inline)) inline bool hasPalette    (void) const { return _has_palette; }
+    __attribute__ ((always_inline)) inline bool hasTransaction(void) const { return _has_transaction; }
     __attribute__ ((always_inline)) inline void setSwapBytes(bool swap) { _swapBytes = swap; }
-    __attribute__ ((always_inline)) inline void invertDisplay(bool invert) { invertDisplay_impl(invert); }
     __attribute__ ((always_inline)) inline void setRotation(uint8_t rotation) { setRotation_impl(rotation); }
     __attribute__ ((always_inline)) inline void* setColorDepth(uint8_t bpp)       { return setColorDepth_impl((color_depth_t)bpp); }
     __attribute__ ((always_inline)) inline void* setColorDepth(color_depth_t bpp) { return setColorDepth_impl(bpp); }
 
     __attribute__ ((always_inline)) inline void beginTransaction(void) { beginTransaction_impl(); }
     __attribute__ ((always_inline)) inline void endTransaction(void)   { endTransaction_impl(); }
-    __attribute__ ((always_inline)) inline void flush(void) {}
+    __attribute__ ((always_inline)) inline void flush(void) { flush_impl(); }
     __attribute__ ((always_inline)) inline void setWindow(int32_t xs, int32_t ys, int32_t xe, int32_t ye) { setWindow_impl(xs, ys, xe, ye); }
 
     void startWrite(void) { if (0 == _transaction_count++) { beginTransaction(); } }
@@ -828,6 +828,7 @@ namespace lgfx
     uint8_t _rotation = 0;
     uint8_t _textfont = 1;
     uint8_t _textdatum;
+    bool _has_palette = false;
     bool _has_transaction = true;
     bool _invert = false;
     bool _swapBytes = false;
@@ -913,6 +914,184 @@ namespace lgfx
       }
       endWrite();
     }
+/*
+    void push_image(int32_t x, int32_t y, int32_t w, int32_t h, const void* data, const void* palette, uint32_t transp, const uint8_t bits, void(LGFXBase::*fp_write_pixels)(const void*, int32_t, pixelcopy_param_t*))
+    {
+      int32_t dx=0, dw=w;
+      if (_adjust_width(x, dx, dw, _width)) return;
+      int32_t dy=0, dh=h;
+      if (_adjust_width(y, dy, dh, _height)) return;
+
+      pixelcopy_param_t param;
+      param.src_palette = palette;
+
+      startWrite();
+      bool indivisible = (w * bits) & 7;
+      const int32_t len = indivisible + (w * bits >> 3);
+      const uint8_t* src = (const uint8_t*)data + dy * len;
+      const uint32_t colormask = (1 << bits)-1;
+      transp &= colormask;
+      do {
+        int32_t i, j = 0;
+        uint8_t offset = (-dx * bits) & 7;
+        for (i = 0; i < dw; i++) {
+          offset = (offset - bits) & 7;
+          if ((((*(uint32_t*)&src[(dx+i)*bits >> 3]) >> offset) & colormask) == transp) {
+            if (j != i) {
+              setWindow(x + j, y, x + i, y);
+              param.src_offset = (-(dx+j) * bits) & 7;
+              (this->*fp_write_pixels)(&src[(dx+j)*bits >> 3], i - j, &param);
+            }
+            j = i + 1;
+          }
+        }
+        if (j != i) {
+          setWindow(x + j, y, x + i, y);
+          param.src_offset = (-(dx+j) * bits) & 7;
+          (this->*fp_write_pixels)(&src[(dx+j)*bits >> 3], i - j, &param);
+        }
+        y++;
+        src += len;
+      } while (--dh);
+
+      endWrite();
+    }
+/*/
+
+
+static constexpr uint32_t FP_SCALE = 16;
+
+struct pixelcopy_t {
+  int32_t src_x = 0;
+  int32_t src_x_add = 1 << FP_SCALE;
+  int32_t src_y = 0;
+  int32_t src_y_add = 0;
+  int32_t src_width = 0;
+  swap888_t* palette = nullptr;
+  uint32_t transp = ~0;
+  int32_t dst_index = 0;
+  uint32_t src_bits = 8;
+  uint32_t dst_bits = 8;
+  uint8_t src_mask = ~0;
+  uint8_t dst_mask = ~0;
+  __attribute__ ((always_inline)) inline int32_t idx(void) { return ((src_x += src_x_add) >> FP_SCALE) + ((src_y += src_y_add) >> FP_SCALE) * src_width; }
+
+static int32_t rotate_raw_template(uint8_t* dst, const uint8_t* src, int32_t len, pixelcopy_t& param)
+{
+  int32_t res = 0;
+  uint32_t transp = param.transp;
+  uint8_t src_bits = param.src_bits;
+  uint8_t src_mask = param.src_mask;
+  do {
+    int32_t idx = param.idx() * src_bits;
+    uint32_t raw = (src[idx >> 3] >> (-(idx + src_bits) & 7)) & src_mask;
+    if (transp != raw) {
+      idx = (param.dst_index + res) * param.dst_bits;
+      uint32_t shift = (-(idx + param.dst_bits) & 7);
+      dst[idx >> 3] = (dst[idx >> 3] & ~(param.dst_mask << shift)) | ((param.dst_mask & raw) << shift);
+    }
+  } while (++res < len);
+  return res;
+}
+template <typename TDst>
+static int32_t rotate_palette_template(uint8_t* dst, const uint8_t* src, int32_t len, pixelcopy_t& param)
+{
+  auto d = (TDst*)dst;
+  int32_t res = 0;
+  uint32_t transp = param.transp;
+  uint8_t src_mask = (1 << param.src_bits) - 1;
+//  if (transp != ~0) {
+    do {
+      int32_t idx = param.idx() * param.src_bits;
+      uint8_t raw = (src[idx >> 3] >> (-(idx + param.src_bits) & 7)) & src_mask;
+      if (transp == raw) break;
+      d[res] = param.palette[raw];
+    } while (++res < len);
+/*
+  } else {
+    do {
+      int32_t idx = param.idx() * param.bits;
+      d[res] = param.palette[(src[idx >> 3] >> (-(idx + param.bits) & 7)) & param.mask];
+    } while (++res < len);
+  }
+//*/
+  return res;
+}
+template <typename TDst, typename TSrc>
+static int32_t rotate_template(uint8_t* dst, const uint8_t* src, int32_t len, pixelcopy_t& param)
+{
+  auto s = (const TSrc*)src;
+  auto d = (TDst*)dst;
+  int32_t res = 0;
+  uint32_t transp = param.transp;
+//  if (transp != ~0) {
+    do {
+      int32_t idx = param.idx();
+      if (transp == (uint32_t)s[idx]) break;
+      d[res] = s[idx];
+    } while (++res < len);
+/*
+  } else {
+    do {
+      d[res] = s[param.idx()];
+    } while (++res < len);
+  }
+//*/
+  return res;
+}
+};
+
+auto get_rotate_palette_fp(LGFXBase* dst, LGFXBase* src) -> int32_t(*)(uint8_t*, const uint8_t*, int32_t, pixelcopy_t&)
+{
+  auto dst_depth = dst->getWriteDepth().depth;
+  if (dst->hasPalette()) {
+    return pixelcopy_t::rotate_raw_template;
+  }
+  switch (dst_depth) {
+  case rgb565_2Byte: return pixelcopy_t::rotate_palette_template<swap565_t>;
+  case rgb888_3Byte: return pixelcopy_t::rotate_palette_template<swap888_t>;
+  case rgb666_3Byte: return pixelcopy_t::rotate_palette_template<swap666_t>;
+  case rgb332_1Byte: return pixelcopy_t::rotate_palette_template<rgb332_t >;
+  default: break;
+  }
+  return nullptr;
+}
+
+auto get_rotate_fp(LGFXBase* dst, LGFXBase* src) -> int32_t(*)(uint8_t*, const uint8_t*, int32_t, pixelcopy_t&)
+{
+  auto dst_depth = dst->getWriteDepth().depth;
+  auto src_depth = src->getReadDepth().depth;
+  if (dst->hasPalette()) {
+    return pixelcopy_t::rotate_raw_template;
+  }
+  switch (dst_depth) {
+  case rgb565_2Byte:
+    if (     src_depth == rgb332_1Byte) { return pixelcopy_t::rotate_template<swap565_t, rgb332_t >; }
+    else if (src_depth == rgb565_2Byte) { return pixelcopy_t::rotate_template<swap565_t, swap565_t>; }
+    else if (src_depth == rgb666_3Byte) { return pixelcopy_t::rotate_template<swap565_t, swap666_t>; }
+    else if (src_depth == rgb888_3Byte) { return pixelcopy_t::rotate_template<swap565_t, swap888_t>; }
+    break;
+  case rgb888_3Byte:
+    if (     src_depth == rgb332_1Byte) { return pixelcopy_t::rotate_template<swap888_t, rgb332_t >; }
+    else if (src_depth == rgb565_2Byte) { return pixelcopy_t::rotate_template<swap888_t, swap565_t>; }
+    else if (src_depth == rgb666_3Byte) { return pixelcopy_t::rotate_template<swap888_t, swap666_t>; }
+    else if (src_depth == rgb888_3Byte) { return pixelcopy_t::rotate_template<swap888_t, swap888_t>; }
+    break;
+  case rgb666_3Byte:
+    if (     src_depth == rgb332_1Byte) { return pixelcopy_t::rotate_template<swap666_t, rgb332_t >; }
+    else if (src_depth == rgb565_2Byte) { return pixelcopy_t::rotate_template<swap666_t, swap565_t>; }
+    else if (src_depth == rgb666_3Byte) { return pixelcopy_t::rotate_template<swap888_t, swap888_t>; }// swap888_t is chosen to reduce the generation of template functions.
+    else if (src_depth == rgb888_3Byte) { return pixelcopy_t::rotate_template<swap666_t, swap888_t>; }
+    break;
+  case rgb332_1Byte:
+    if (     src_depth == rgb332_1Byte) { return pixelcopy_t::rotate_template<rgb332_t, rgb332_t >; }
+    else if (src_depth == rgb565_2Byte) { return pixelcopy_t::rotate_template<rgb332_t, swap565_t>; }
+    else if (src_depth == rgb666_3Byte) { return pixelcopy_t::rotate_template<rgb332_t, swap666_t>; }
+    else if (src_depth == rgb888_3Byte) { return pixelcopy_t::rotate_template<rgb332_t, swap888_t>; }
+    break;
+  }
+  return nullptr;
+}
 
     void push_image(int32_t x, int32_t y, int32_t w, int32_t h, const void* data, const void* palette, uint32_t transp, const uint8_t bits, void(LGFXBase::*fp_write_pixels)(const void*, int32_t, pixelcopy_param_t*))
     {
@@ -955,7 +1134,7 @@ namespace lgfx
 
       endWrite();
     }
-
+//*/
     template <int TByteSize>
     static void pixel_to_pixel_memcpy(void*& dst, const void*& src, int32_t len, pixelcopy_param_t* p) {
       auto& s = (const uint8_t*&)src;
@@ -997,7 +1176,7 @@ namespace lgfx
     void read_pixels_template(void* dst, int32_t length, pixelcopy_param_t* param)
     {
       if (std::is_same<TDst, TSrc>::value) {
-        read_bytes((uint8_t*)dst, length * (TDst::bits>>3));
+        readBytes_impl((uint8_t*)dst, length * (TDst::bits>>3));
       } else {
         read_pixels(dst, length, param, pixel_to_pixel_template<TDst, TSrc>);
       }
@@ -1066,17 +1245,15 @@ namespace lgfx
     }
 
     virtual void read_pixels(void* dst, int32_t length, pixelcopy_param_t* param, void(*fp_copy)(void*&, const void*&, int32_t, pixelcopy_param_t*)) {}
-    virtual void read_bytes(uint8_t* dst, int32_t length) {}
-    virtual void read_bytes_dma(uint8_t* dst, int32_t length) { read_bytes(dst, length); }
+    virtual void readBytes_impl(uint8_t* dst, int32_t length) {}
     virtual void write_pixels(const void* src, int32_t length, pixelcopy_param_t* param, void(*fp_copy)(void*&, const void*&, int32_t, pixelcopy_param_t*)) {}
     virtual void writeBytes_impl(const uint8_t* data, int32_t length) {}
     virtual void writeBytesDMA_impl(const uint8_t* src, int32_t len) { writeBytes_impl(src, len); }
-
     virtual void beginTransaction_impl() {}
     virtual void endTransaction_impl() {}
+    virtual void flush_impl() {}
     virtual void setRotation_impl(uint8_t rotation) {}
     virtual void* setColorDepth_impl(color_depth_t bpp) { return nullptr; }
-    virtual void invertDisplay_impl(bool invert) {}
     virtual void writeColor_impl(int32_t len) = 0;
     virtual void drawPixel_impl(int32_t x, int32_t y) = 0;
     virtual void fillRect_impl(int32_t x, int32_t y, int32_t w, int32_t h) = 0;
@@ -1115,13 +1292,13 @@ namespace lgfx
       int32_t add = (src_y < dst_y) ?   - 1 : 1;
       int32_t pos = (src_y < dst_y) ? h - 1 : 0;
       readWindow_impl(src_x, src_y + pos, src_x + w - 1, src_y + pos);
-      read_bytes_dma(buf[flip], readlen);
+      readBytes_impl(buf[flip], readlen);
       endRead_impl();
       while (--h) {
         pos += add;
         flip = !flip;
         readWindow_impl(src_x, src_y + pos, src_x + w - 1, src_y + pos);
-        read_bytes_dma(buf[flip], readlen);
+        readBytes_impl(buf[flip], readlen);
         if (fp_pixel_to_pixel) {
           void* wb = buf[!flip];
           const void* rb = wb;
@@ -1142,6 +1319,7 @@ namespace lgfx
       endWrite();
     }
 /*/
+//*
     virtual void copyRect_impl(int32_t dst_x, int32_t dst_y, int32_t w, int32_t h, int32_t src_x, int32_t src_y)
     {
       void(LGFXBase::*fp_write_pixels)(const void*, int32_t, pixelcopy_param_t*);
@@ -1162,7 +1340,7 @@ namespace lgfx
         int32_t pos = (src_x < dst_x) ? w - 1 : 0;
         while (w--) {
           readWindow_impl(src_x + pos, src_y, src_x + pos, src_y + h - 1);
-          read_bytes_dma(buf, buflen);
+          readBytes_impl(buf, buflen);
           endRead_impl();
           setWindow_impl(dst_x + pos, dst_y, dst_x + pos, dst_y + h - 1);
           (this->*fp_write_pixels)(buf, h, nullptr);
@@ -1175,13 +1353,63 @@ namespace lgfx
         int32_t pos = (src_y < dst_y) ? h - 1 : 0;
         while (h--) {
           readWindow_impl(src_x, src_y + pos, src_x + w - 1, src_y + pos);
-          read_bytes_dma(buf, buflen);
+          readBytes_impl(buf, buflen);
           endRead_impl();
           setWindow_impl(dst_x, dst_y + pos, dst_x + w - 1, dst_y + pos);
           (this->*fp_write_pixels)(buf, w, nullptr);
           pos += add;
         }
       }
+      endWrite();
+    }
+/*/
+    virtual void copyRect_impl(int32_t dst_x, int32_t dst_y, int32_t w, int32_t h, int32_t src_x, int32_t src_y)
+    {
+      void(LGFXBase::*fp_read_pixels)(void*, int32_t, pixelcopy_param_t*);
+      switch (_write_depth.depth) {
+      case rgb888_3Byte: fp_read_pixels = get_read_pixels_fp<swap888_t>(); break;
+      case rgb666_3Byte: fp_read_pixels = get_read_pixels_fp<swap666_t>(); break;
+      case rgb565_2Byte: fp_read_pixels = get_read_pixels_fp<swap565_t>(); break;
+//    case rgb332_1Byte: fp_read_pixels = get_read_pixels_fp<rgb332_t >(); break;
+      default: return;
+      }
+
+      startWrite();
+
+      if (w < h) {
+        //const uint32_t buflen = h * _read_depth.bytes;
+        const uint32_t buflen = h * _write_depth.bytes;
+        uint8_t buf[buflen+4];
+        int32_t add = (src_x < dst_x) ?   - 1 : 1;
+        int32_t pos = (src_x < dst_x) ? w - 1 : 0;
+        while (w--) {
+          readWindow_impl(src_x + pos, src_y, src_x + pos, src_y + h - 1);
+          //readBytes_impl(buf, buflen);
+          (this->*fp_read_pixels)(buf, h, nullptr);
+          endRead_impl();
+          setWindow_impl(dst_x + pos, dst_y, dst_x + pos, dst_y + h - 1);
+          //(this->*fp_write_pixels)(buf, h, nullptr);
+          writeBytesDMA(buf, buflen);
+          pos += add;
+        }
+      } else {
+        //const uint32_t buflen = w * _read_depth.bytes;
+        const uint32_t buflen = w * _write_depth.bytes;
+        uint8_t buf[buflen+4];
+        int32_t add = (src_y < dst_y) ?   - 1 : 1;
+        int32_t pos = (src_y < dst_y) ? h - 1 : 0;
+        while (h--) {
+          readWindow_impl(src_x, src_y + pos, src_x + w - 1, src_y + pos);
+          //readBytes_impl(buf, buflen);
+          (this->*fp_read_pixels)(buf, w, nullptr);
+          endRead_impl();
+          setWindow_impl(dst_x, dst_y + pos, dst_x + w - 1, dst_y + pos);
+          //(this->*fp_write_pixels)(buf, w, nullptr);
+          writeBytesDMA(buf, buflen);
+          pos += add;
+        }
+      }
+      flush();
       endWrite();
     }
 //*/

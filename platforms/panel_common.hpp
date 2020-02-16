@@ -15,6 +15,7 @@ namespace lgfx
   };template<class T, valuetype V> class classname : public decltype(classname_impl::check<T, V>(nullptr)) {};
   MEMBER_DETECTOR(spi_3wire    , get_spi_3wire    , get_spi_3wire_impl    , bool)
   MEMBER_DETECTOR(spi_mode     , get_spi_mode     , get_spi_mode_impl     , uint8_t)
+  MEMBER_DETECTOR(spi_mode_read, get_spi_mode_read, get_spi_mode_read_impl, uint8_t)
   MEMBER_DETECTOR(spi_cs       , get_spi_cs       , get_spi_cs_impl       , int)
   MEMBER_DETECTOR(spi_dc       , get_spi_dc       , get_spi_dc_impl       , int)
   MEMBER_DETECTOR(freq_write   , get_freq_write   , get_freq_write_impl   , uint32_t)
@@ -46,24 +47,25 @@ namespace lgfx
     void setConfig(void)
     {
       spi_3wire = get_spi_3wire<CFG, false>::value;
-      spi_mode        = get_spi_mode<  CFG,  0>::value;
-      spi_cs          = get_spi_cs<    CFG, -1>::value;
-      spi_dc          = get_spi_dc<    CFG, -1>::value;
-      freq_write      = get_freq_write<CFG, 0>::value;
-      freq_read       = get_freq_read< CFG, 0>::value;
-      freq_fill       = get_freq_fill< CFG, 0>::value;
+      spi_mode      = get_spi_mode     <CFG,  0>::value;
+      spi_mode_read = get_spi_mode_read<CFG, get_spi_mode<CFG, 0>::value>::value;
+      spi_cs        = get_spi_cs       <CFG, -1>::value;
+      spi_dc        = get_spi_dc       <CFG, -1>::value;
+      freq_write    = get_freq_write   <CFG, 0>::value;
+      freq_read     = get_freq_read    <CFG, 0>::value;
+      freq_fill     = get_freq_fill    <CFG, 0>::value;
 
-      write_depth   = get_color_depth <CFG, rgb565_2Byte>::value;
-      invert        = get_invert      <CFG, false>::value;
-      rotation      = get_rotation    <CFG, 0>::value;
+      write_depth   = get_color_depth  <CFG, rgb565_2Byte>::value;
+      invert        = get_invert       <CFG, false>::value;
+      rotation      = get_rotation     <CFG, 0>::value;
 
-      _rgb_order    = get_rgb_order   <CFG, false>::value;
-      _panel_x      = get_panel_x     <CFG, 0>::value;
-      _panel_y      = get_panel_y     <CFG, 0>::value;
-      _ram_width    = get_ram_width   <CFG, 0>::value;
-      _ram_height   = get_ram_height  <CFG, 0>::value;
-      _panel_width  = get_panel_width <CFG, 0>::value;
-      _panel_height = get_panel_height<CFG, 0>::value;
+      _rgb_order    = get_rgb_order    <CFG, false>::value;
+      _panel_x      = get_panel_x      <CFG, 0>::value;
+      _panel_y      = get_panel_y      <CFG, 0>::value;
+      _ram_width    = get_ram_width    <CFG, 0>::value;
+      _ram_height   = get_ram_height   <CFG, 0>::value;
+      _panel_width  = get_panel_width  <CFG, 0>::value;
+      _panel_height = get_panel_height <CFG, 0>::value;
 
       setConfig_impl();
     }
@@ -128,6 +130,7 @@ namespace lgfx
     uint16_t spi_cs;
     uint16_t spi_dc;
     uint8_t spi_mode;
+    uint8_t spi_mode_read;
     uint8_t rotation;
     color_depth_t write_depth;
     color_depth_t read_depth;

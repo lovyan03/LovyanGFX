@@ -16,11 +16,16 @@
 
 #if defined(ARDUINO_M5Stick_C)
  #include <AXP192.h>
+#elif defined(ARDUINO_M5Stack_Core_ESP32) || defined(ARDUINO_M5STACK_FIRE)
+ //#include <M5StackUpdater.h>
 #endif
 
-#include <LGFX_TFT_eSPI.hpp>
 //#include <TFT_eSPI.h>
 //#include <M5Stack.h>
+#include <driver/ledc.h>
+#include <LGFX_TFT_eSPI.hpp>
+#include <SPI.h>
+#include <SD.h>
 
 static TFT_eSPI tft_lcd;
 static TFT_eSprite tft(&tft_lcd);
@@ -28,17 +33,67 @@ static TFT_eSprite tft(&tft_lcd);
 
 unsigned long total = 0;
 unsigned long tn = 0;
+
 void setup() {
-  bool lcdver = false;
-#if defined(ARDUINO_M5Stack_Core_ESP32) || defined(ARDUINO_M5STACK_FIRE)
-  pinMode(33, INPUT);
-  delay(100);
-  lcdver = digitalRead(33);
-  pinMode(33, OUTPUT);
-  digitalWrite(33, HIGH);
-#elif defined(ARDUINO_M5Stick_C) || defined ( ARDUINO_T )
-  lcdver = true;
+#if defined(ARDUINO_M5Stick_C)
+  AXP192 axp;
+  axp.begin();
+#elif defined(ARDUINO_M5Stack_Core_ESP32) || defined(ARDUINO_M5STACK_FIRE)
+ #ifdef _SD_H_
+  SD.begin(4, SPI, 20000000);
+ #endif
+
+ #define GPIO_BL 32
+#elif defined ( ARDUINO_T ) // T-Watch
+ #define GPIO_BL 12
+#elif defined ( ARDUINO_ESP32_DEV )
+ #define GPIO_BL 5
 #endif
+
+#ifdef GPIO_BL
+  lgfx::TPin<GPIO_BL>::init();
+  lgfx::TPin<GPIO_BL>::hi();
+
+  const int BLK_PWM_CHANNEL = 7;
+  ledcSetup(BLK_PWM_CHANNEL, 12000, 8);
+  ledcAttachPin(GPIO_BL, BLK_PWM_CHANNEL);
+  ledcWrite(BLK_PWM_CHANNEL, 128);
+/*
+  ledc_timer_config_t ledc_timer;
+  {
+    ledc_timer.duty_resolution = LEDC_TIMER_13_BIT; // resolution of PWM duty
+    ledc_timer.freq_hz = 5000;                      // frequency of PWM signal
+    ledc_timer.speed_mode = LEDC_HIGH_SPEED_MODE;   // timer mode
+    ledc_timer.timer_num = LEDC_TIMER_0;            // timer index
+  };
+  ledc_timer_config(&ledc_timer);
+
+  ledc_channel_config_t ledc_channel;
+  {
+   ledc_channel.channel    = LEDC_CHANNEL_7;
+   ledc_channel.intr_type  = LEDC_INTR_DISABLE;
+   ledc_channel.duty       = 5000;
+   ledc_channel.gpio_num   = GPIO_BL;
+   ledc_channel.speed_mode = LEDC_HIGH_SPEED_MODE;
+   ledc_channel.hpoint     = 0;
+   ledc_channel.timer_sel  = LEDC_TIMER_0;
+  };
+  ledc_channel_config(&ledc_channel);
+//*/
+#endif
+
+
+ #ifdef __M5STACKUPDATER_H
+  #if defined(ARDUINO_M5Stack_Core_ESP32) || defined(ARDUINO_M5STACK_FIRE) // M5Stack
+   #define BUTTON_A_PIN 39
+  #endif
+  pinMode(BUTTON_A_PIN, INPUT);
+  if (digitalRead(BUTTON_A_PIN) == 0) {
+    Serial.println("Will Load menu binary");
+    updateFromFS(SD);
+    ESP.restart();
+  }
+ #endif
 
   Serial.begin(115200);
   while (!Serial);
@@ -51,26 +106,11 @@ void setup() {
 #endif
   tft_lcd.init();
 
-#if defined(ARDUINO_M5Stick_C)
-  AXP192 axp;
-  axp.begin();
-#elif defined(ARDUINO_M5Stack_Core_ESP32) || defined(ARDUINO_M5STACK_FIRE) // || defined ( ARDUINO_ESP32_DEV ) || defined ( ARDUINO_T )
-  const int BLK_PWM_CHANNEL = 7;
-  ledcSetup(BLK_PWM_CHANNEL, 12000, 8);
-  ledcAttachPin(32, BLK_PWM_CHANNEL);
-  ledcWrite(BLK_PWM_CHANNEL, 128);
-#elif defined ( ARDUINO_ESP32_DEV )
-  const int BLK_PWM_CHANNEL = 7;
-  ledcSetup(BLK_PWM_CHANNEL, 12000, 8);
-  ledcAttachPin(5, BLK_PWM_CHANNEL);
-  ledcWrite(BLK_PWM_CHANNEL, 128);
-#endif
 
-  //tft_lcd.setRotation(0);
+  tft_lcd.setRotation(1);
 
-  tft_lcd.invertDisplay(lcdver);
   //tft_lcd.fillSprite(-1);
-  tft_lcd.setColorDepth(16);
+  //tft_lcd.setColorDepth(16);
   //tft_lcd.setColorDepth(24);
 
   //tft.setPsram(true);
@@ -217,8 +257,8 @@ taskENABLE_INTERRUPTS();
 
 	Serial.println(F("Done!"));
 
-    int i = 360;
-    //for (int i = 0; i < 360; i++)
+    //int i = 360;
+    for (int i = 0; i < 360; i++)
     {
 
 	uint16_t c = 4;
@@ -333,21 +373,49 @@ taskENABLE_INTERRUPTS();
 	tft.setTextColor(TFT_GREEN); tft.setTextSize(2);
 	tft.print(F("Benchmark Complete!"));
 
+    //tft.pushRotateZoom(&tft_lcd, tft_lcd.getPivotX(), tft_lcd.getPivotY(), abs((float)(i/20)-9.5)/10.0, abs((float)((i+10)/20)-9.5)/10.0, 0.1+(float)i/100, 0);
+      tft.pushRotateZoom(&tft_lcd
+                        , i-20 // tft_lcd.getPivotX()
+                        , tft_lcd.getPivotY()
+                        , i
+                        , (float)(std::min(abs((i&127)-64),32)-16) / 16
+                        , (float)(std::min(abs(((i+64)&127)-64),32)-16) / 16
+                        , 0
+                        );
     }
 
+	uint32_t usecPushSprite = micros_start();
+    for (int i = 0; i <= 360; i++) {
+      tft.pushSprite(0, 0);
+      //tft.pushSprite(i - 180, i - 180);
+    }
+	usecPushSprite = micros() - usecPushSprite;
+	Serial.print(F("Normal pushSprite    "));
+	Serial.println(usecPushSprite);
+
+
 	uint32_t usecRotated = micros_start();
-    for (int i = 0; i < 360; i++) {
+    for (int i = 0; i <= 360; i++) {
       tft.pushRotated(i);
     }
 	usecRotated = micros() - usecRotated;
 	Serial.print(F("Normal Rotated       "));
 	Serial.println(usecRotated);
 
-//	tft.pushSprite(0, 0);	delay(2000);
+
+	usecPushSprite = micros_start();
+    for (int i = 0; i <= 360; i++) {
+      tft.pushSprite(0, 0, TFT_YELLOW);
+      //tft.pushSprite(i - 180, i - 180, TFT_YELLOW);
+    }
+	usecPushSprite = micros() - usecPushSprite;
+	Serial.print(F("Transparent Sprite   "));
+	Serial.println(usecPushSprite);
+
 
 	usecRotated = micros_start();
-    for (int i = 0; i < 360; i++) {
-      tft.pushRotated(i,TFT_YELLOW);
+    for (int i = 0; i <= 360; i++) {
+      tft.pushRotated(i, TFT_YELLOW);
     }
 	usecRotated = micros() - usecRotated;
 	Serial.print(F("Transparent Rotated  "));
