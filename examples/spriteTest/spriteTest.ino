@@ -111,10 +111,10 @@ void setup() {
     items[i]  ->createPalette();
   }
   for (int i = 0 ; i < 8; i++) {
-    items[i]->drawLine( 0,  0, items[i]->width()-1, items[i]->height()-1,  0xFA10);
-    items[i]->drawLine( 0, items[i]->height()-1, items[i]->width()-1,  0,  0x821F);
-    items[i]->drawFastVLine( items[i]->width()>>1, 0, items[i]->height(), 0xF0FF);
-    items[i]->drawFastHLine( 0, items[i]->height()>>1, items[i]->width(), 0xFF0F);
+    items[i]->drawLine( 0,  0, items[i]->width()-1, items[i]->height()-1,  0xCC33);
+    items[i]->drawLine( 0, items[i]->height()-1, items[i]->width()-1,  0,  0x33CC);
+    items[i]->drawFastVLine( items[i]->width()>>1, 0, items[i]->height(), 0x55AA);
+    items[i]->drawFastHLine( 0, items[i]->height()>>1, items[i]->width(), 0xAA55);
     items[i]->drawRect( 1,  1, items[i]->width()-2, items[i]->height()-2, 0xFFFF);
     items[i]->fillRect((items[i]->width()>>1)-1, (items[i]->height()>>1)-1,  3,  3, 0xFFFF);
     items[i]->drawPixel(items[i]->width()>>1, items[i]->height()>>1, 0);
@@ -134,18 +134,29 @@ void loop(void)
       auto buf = buffers[y];
       auto bw = buf->width();
       auto bh = buf->height();
-      for (int j = 0; j < 7; j++) {
+      if (y < 4) {
         for (int bx = 0; bx < bw; bx++) {
           buf->drawFastVLine( bx
-                            , 4 * j  +1
-                            , 4
-                            , lgfx::color888((j&4)?0:(0xFF * bx / bw)
-                                            ,(j&2)?0:(0xFF * bx / bw)
-                                            ,(j&1)?0:(0xFF * bx / bw)));
+                            , 0
+                            , bh
+                            , bx * (1 << (1 << y)) / bw);
+        }
+      } else {
+        for (int j = 0; j < 7; j++) {
+          for (int bx = 0; bx < bw; bx++) {
+            buf->drawFastVLine( bx
+                              , 4 * j  +1
+                              , 4
+                              , lgfx::color888((j&4)?0:(0xFF * bx / bw)
+                                              ,(j&2)?0:(0xFF * bx / bw)
+                                              ,(j&1)?0:(0xFF * bx / bw)));
+          }
         }
       }
 //      buf->fillSprite(0);
-      buf->drawRect(0, 0, buf->width(), buf->height(), 0xAAAA);
+      buf->drawRect(0, 0, bw, bh, 0x5555);
+      buf->drawFastVLine(buf->getPivotX(), 0, bh, 0xFFFF);
+      buf->drawFastHLine(0, buf->getPivotY(), bw, 0xFFFF);
       if ((count/20)&1) items[x]->pushRotateZoom(buf, buf->getPivotX(), buf->getPivotY(), (float)count*5, 1.0, 1.0);
       else              items[x]->pushRotateZoom(buf, buf->getPivotX(), buf->getPivotY(), (float)count*5, 1.0, 1.0, 0);
       buf->scroll( 0, 1);
@@ -154,7 +165,6 @@ void loop(void)
       buf->scroll(-2, 0);
       buf->scroll( 0, 1);
       buf->scroll( 1, 0);
-      //buf->scroll( 0, 11);  buf->scroll(21,  0);
       buf->pushSprite(x * tft.width() / 8, y * tft.height() / 8);
     }
   }

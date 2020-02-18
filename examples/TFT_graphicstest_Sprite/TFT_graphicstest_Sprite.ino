@@ -380,14 +380,14 @@ taskENABLE_INTERRUPTS();
                         , i
                         , (float)(std::min(abs((i&127)-64),32)-16) / 16
                         , (float)(std::min(abs(((i+64)&127)-64),32)-16) / 16
-                        , 0
+//                        , 0
                         );
     }
 
 	uint32_t usecPushSprite = micros_start();
     for (int i = 0; i <= 360; i++) {
-      tft.pushSprite(0, 0);
-      //tft.pushSprite(i - 180, i - 180);
+      //tft.pushSprite(0, 0);
+      tft.pushSprite(i - 180, i - 180);
     }
 	usecPushSprite = micros() - usecPushSprite;
 	Serial.print(F("Normal pushSprite    "));
@@ -405,8 +405,8 @@ taskENABLE_INTERRUPTS();
 
 	usecPushSprite = micros_start();
     for (int i = 0; i <= 360; i++) {
-      tft.pushSprite(0, 0, TFT_YELLOW);
-      //tft.pushSprite(i - 180, i - 180, TFT_YELLOW);
+      //tft.pushSprite(0, 0, TFT_YELLOW);
+      tft.pushSprite(i - 180, i - 180, 0); //TFT_YELLOW);
     }
 	usecPushSprite = micros() - usecPushSprite;
 	Serial.print(F("Transparent Sprite   "));
@@ -415,7 +415,7 @@ taskENABLE_INTERRUPTS();
 
 	usecRotated = micros_start();
     for (int i = 0; i <= 360; i++) {
-      tft.pushRotated(i, TFT_YELLOW);
+      tft.pushRotated(i, 0); //TFT_YELLOW);
     }
 	usecRotated = micros() - usecRotated;
 	Serial.print(F("Transparent Rotated  "));

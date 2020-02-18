@@ -593,7 +593,7 @@ namespace lgfx
     void start_read(void) {
       _fill_mode = false;
       uint32_t user = (_user_reg & ~(SPI_USR_MOSI | SPI_CK_OUT_EDGE))
-                    | (_panel->spi_mode_read == 1 | _panel->spi_mode_read == 2 ? SPI_CK_OUT_EDGE : 0)
+                    | ((_panel->spi_mode_read == 1 || _panel->spi_mode_read == 2) ? SPI_CK_OUT_EDGE : 0)
                     | (_panel->spi_3wire ? SPI_SIO : 0)
                     | SPI_USR_MISO;
       uint32_t pin = (_pin_reg & ~SPI_CK_IDLE_EDGE)

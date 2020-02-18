@@ -887,6 +887,7 @@ namespace lgfx
       endRead_impl();
       endWrite();
     }
+
     void push_image(int32_t x, int32_t y, int32_t w, int32_t h, const void* data, const void* palette, const uint8_t bits, void(LGFXBase::*fp_write_pixels)(const void*, int32_t, pixelcopy_param_t*))
     {
       int32_t dx=0, dw=w;
@@ -914,184 +915,6 @@ namespace lgfx
       }
       endWrite();
     }
-/*
-    void push_image(int32_t x, int32_t y, int32_t w, int32_t h, const void* data, const void* palette, uint32_t transp, const uint8_t bits, void(LGFXBase::*fp_write_pixels)(const void*, int32_t, pixelcopy_param_t*))
-    {
-      int32_t dx=0, dw=w;
-      if (_adjust_width(x, dx, dw, _width)) return;
-      int32_t dy=0, dh=h;
-      if (_adjust_width(y, dy, dh, _height)) return;
-
-      pixelcopy_param_t param;
-      param.src_palette = palette;
-
-      startWrite();
-      bool indivisible = (w * bits) & 7;
-      const int32_t len = indivisible + (w * bits >> 3);
-      const uint8_t* src = (const uint8_t*)data + dy * len;
-      const uint32_t colormask = (1 << bits)-1;
-      transp &= colormask;
-      do {
-        int32_t i, j = 0;
-        uint8_t offset = (-dx * bits) & 7;
-        for (i = 0; i < dw; i++) {
-          offset = (offset - bits) & 7;
-          if ((((*(uint32_t*)&src[(dx+i)*bits >> 3]) >> offset) & colormask) == transp) {
-            if (j != i) {
-              setWindow(x + j, y, x + i, y);
-              param.src_offset = (-(dx+j) * bits) & 7;
-              (this->*fp_write_pixels)(&src[(dx+j)*bits >> 3], i - j, &param);
-            }
-            j = i + 1;
-          }
-        }
-        if (j != i) {
-          setWindow(x + j, y, x + i, y);
-          param.src_offset = (-(dx+j) * bits) & 7;
-          (this->*fp_write_pixels)(&src[(dx+j)*bits >> 3], i - j, &param);
-        }
-        y++;
-        src += len;
-      } while (--dh);
-
-      endWrite();
-    }
-/*/
-
-
-static constexpr uint32_t FP_SCALE = 16;
-
-struct pixelcopy_t {
-  int32_t src_x = 0;
-  int32_t src_x_add = 1 << FP_SCALE;
-  int32_t src_y = 0;
-  int32_t src_y_add = 0;
-  int32_t src_width = 0;
-  swap888_t* palette = nullptr;
-  uint32_t transp = ~0;
-  int32_t dst_index = 0;
-  uint32_t src_bits = 8;
-  uint32_t dst_bits = 8;
-  uint8_t src_mask = ~0;
-  uint8_t dst_mask = ~0;
-  __attribute__ ((always_inline)) inline int32_t idx(void) { return ((src_x += src_x_add) >> FP_SCALE) + ((src_y += src_y_add) >> FP_SCALE) * src_width; }
-
-static int32_t rotate_raw_template(uint8_t* dst, const uint8_t* src, int32_t len, pixelcopy_t& param)
-{
-  int32_t res = 0;
-  uint32_t transp = param.transp;
-  uint8_t src_bits = param.src_bits;
-  uint8_t src_mask = param.src_mask;
-  do {
-    int32_t idx = param.idx() * src_bits;
-    uint32_t raw = (src[idx >> 3] >> (-(idx + src_bits) & 7)) & src_mask;
-    if (transp != raw) {
-      idx = (param.dst_index + res) * param.dst_bits;
-      uint32_t shift = (-(idx + param.dst_bits) & 7);
-      dst[idx >> 3] = (dst[idx >> 3] & ~(param.dst_mask << shift)) | ((param.dst_mask & raw) << shift);
-    }
-  } while (++res < len);
-  return res;
-}
-template <typename TDst>
-static int32_t rotate_palette_template(uint8_t* dst, const uint8_t* src, int32_t len, pixelcopy_t& param)
-{
-  auto d = (TDst*)dst;
-  int32_t res = 0;
-  uint32_t transp = param.transp;
-  uint8_t src_mask = (1 << param.src_bits) - 1;
-//  if (transp != ~0) {
-    do {
-      int32_t idx = param.idx() * param.src_bits;
-      uint8_t raw = (src[idx >> 3] >> (-(idx + param.src_bits) & 7)) & src_mask;
-      if (transp == raw) break;
-      d[res] = param.palette[raw];
-    } while (++res < len);
-/*
-  } else {
-    do {
-      int32_t idx = param.idx() * param.bits;
-      d[res] = param.palette[(src[idx >> 3] >> (-(idx + param.bits) & 7)) & param.mask];
-    } while (++res < len);
-  }
-//*/
-  return res;
-}
-template <typename TDst, typename TSrc>
-static int32_t rotate_template(uint8_t* dst, const uint8_t* src, int32_t len, pixelcopy_t& param)
-{
-  auto s = (const TSrc*)src;
-  auto d = (TDst*)dst;
-  int32_t res = 0;
-  uint32_t transp = param.transp;
-//  if (transp != ~0) {
-    do {
-      int32_t idx = param.idx();
-      if (transp == (uint32_t)s[idx]) break;
-      d[res] = s[idx];
-    } while (++res < len);
-/*
-  } else {
-    do {
-      d[res] = s[param.idx()];
-    } while (++res < len);
-  }
-//*/
-  return res;
-}
-};
-
-auto get_rotate_palette_fp(LGFXBase* dst, LGFXBase* src) -> int32_t(*)(uint8_t*, const uint8_t*, int32_t, pixelcopy_t&)
-{
-  auto dst_depth = dst->getWriteDepth().depth;
-  if (dst->hasPalette()) {
-    return pixelcopy_t::rotate_raw_template;
-  }
-  switch (dst_depth) {
-  case rgb565_2Byte: return pixelcopy_t::rotate_palette_template<swap565_t>;
-  case rgb888_3Byte: return pixelcopy_t::rotate_palette_template<swap888_t>;
-  case rgb666_3Byte: return pixelcopy_t::rotate_palette_template<swap666_t>;
-  case rgb332_1Byte: return pixelcopy_t::rotate_palette_template<rgb332_t >;
-  default: break;
-  }
-  return nullptr;
-}
-
-auto get_rotate_fp(LGFXBase* dst, LGFXBase* src) -> int32_t(*)(uint8_t*, const uint8_t*, int32_t, pixelcopy_t&)
-{
-  auto dst_depth = dst->getWriteDepth().depth;
-  auto src_depth = src->getReadDepth().depth;
-  if (dst->hasPalette()) {
-    return pixelcopy_t::rotate_raw_template;
-  }
-  switch (dst_depth) {
-  case rgb565_2Byte:
-    if (     src_depth == rgb332_1Byte) { return pixelcopy_t::rotate_template<swap565_t, rgb332_t >; }
-    else if (src_depth == rgb565_2Byte) { return pixelcopy_t::rotate_template<swap565_t, swap565_t>; }
-    else if (src_depth == rgb666_3Byte) { return pixelcopy_t::rotate_template<swap565_t, swap666_t>; }
-    else if (src_depth == rgb888_3Byte) { return pixelcopy_t::rotate_template<swap565_t, swap888_t>; }
-    break;
-  case rgb888_3Byte:
-    if (     src_depth == rgb332_1Byte) { return pixelcopy_t::rotate_template<swap888_t, rgb332_t >; }
-    else if (src_depth == rgb565_2Byte) { return pixelcopy_t::rotate_template<swap888_t, swap565_t>; }
-    else if (src_depth == rgb666_3Byte) { return pixelcopy_t::rotate_template<swap888_t, swap666_t>; }
-    else if (src_depth == rgb888_3Byte) { return pixelcopy_t::rotate_template<swap888_t, swap888_t>; }
-    break;
-  case rgb666_3Byte:
-    if (     src_depth == rgb332_1Byte) { return pixelcopy_t::rotate_template<swap666_t, rgb332_t >; }
-    else if (src_depth == rgb565_2Byte) { return pixelcopy_t::rotate_template<swap666_t, swap565_t>; }
-    else if (src_depth == rgb666_3Byte) { return pixelcopy_t::rotate_template<swap888_t, swap888_t>; }// swap888_t is chosen to reduce the generation of template functions.
-    else if (src_depth == rgb888_3Byte) { return pixelcopy_t::rotate_template<swap666_t, swap888_t>; }
-    break;
-  case rgb332_1Byte:
-    if (     src_depth == rgb332_1Byte) { return pixelcopy_t::rotate_template<rgb332_t, rgb332_t >; }
-    else if (src_depth == rgb565_2Byte) { return pixelcopy_t::rotate_template<rgb332_t, swap565_t>; }
-    else if (src_depth == rgb666_3Byte) { return pixelcopy_t::rotate_template<rgb332_t, swap666_t>; }
-    else if (src_depth == rgb888_3Byte) { return pixelcopy_t::rotate_template<rgb332_t, swap888_t>; }
-    break;
-  }
-  return nullptr;
-}
 
     void push_image(int32_t x, int32_t y, int32_t w, int32_t h, const void* data, const void* palette, uint32_t transp, const uint8_t bits, void(LGFXBase::*fp_write_pixels)(const void*, int32_t, pixelcopy_param_t*))
     {
@@ -1134,7 +957,7 @@ auto get_rotate_fp(LGFXBase* dst, LGFXBase* src) -> int32_t(*)(uint8_t*, const u
 
       endWrite();
     }
-//*/
+
     template <int TByteSize>
     static void pixel_to_pixel_memcpy(void*& dst, const void*& src, int32_t len, pixelcopy_param_t* p) {
       auto& s = (const uint8_t*&)src;
@@ -1413,6 +1236,190 @@ auto get_rotate_fp(LGFXBase* dst, LGFXBase* src) -> int32_t(*)(uint8_t*, const u
       endWrite();
     }
 //*/
+  static constexpr uint32_t FP_SCALE = 16;
+
+  struct pixelcopy_t {
+    int32_t src_x = -(1 << FP_SCALE);
+    int32_t src_x_add = 1 << FP_SCALE;
+    int32_t src_y = 0;
+    int32_t src_y_add = 0;
+    int32_t src_width = 0;
+    uint32_t src_bits = 8;
+    uint32_t dst_bits = 8;
+    uint32_t transp = ~0;
+    uint8_t src_mask = ~0;
+    uint8_t dst_mask = ~0;
+    void* palette = nullptr;
+
+    __attribute__ ((always_inline)) inline int32_t advance(void) {
+      return ((src_x += src_x_add) >> FP_SCALE) + ((src_y += src_y_add) >> FP_SCALE) * src_width;
+    }
+
+    static int32_t bitcopy_rotate(uint8_t* dst, const uint8_t* src, int32_t index, int32_t last, pixelcopy_t& param)
+    {
+      int32_t res = 0;
+      uint32_t transp = param.transp;
+      uint32_t src_bits = param.src_bits;
+      uint8_t src_mask = param.src_mask;
+      uint8_t dst_mask = param.dst_mask;
+      do {
+        int32_t idx = param.advance() * src_bits;
+        uint8_t raw = (src[idx >> 3] >> (-(idx + src_bits) & 7)) & src_mask;
+        if (transp != raw) {
+          idx = index * param.dst_bits;
+          int32_t shift = (-(idx + param.dst_bits) & 7);
+          auto d = &dst[idx >> 3];
+          *d = (*d & ~(dst_mask << shift)) | ((dst_mask & raw) << shift);
+        }
+      } while (++index < last);
+      return index;
+    }
+    template <typename TDst, typename TPalette>
+    static int32_t palettecopy_rotate(uint8_t* dst, const uint8_t* src, int32_t index, int32_t last, pixelcopy_t& param)
+    {
+      auto d = (TDst*)dst;
+      auto pal = (TPalette*)param.palette;
+      auto src_bits = param.src_bits;
+      uint8_t src_mask = param.src_mask;
+      uint32_t transp = param.transp;
+    //if (transp != ~0) {
+        do {
+          int32_t idx = param.advance() * src_bits;
+          uint8_t raw = (src[idx >> 3] >> (-(idx + src_bits) & 7)) & src_mask;
+          if (transp == raw) break;
+          d[index] = pal[raw];
+        } while (++index < last);
+  /*
+      } else {
+        do {
+          int32_t idx = param.advance() * src_bits;
+          uint8_t raw = (src[idx >> 3] >> (-(idx + src_bits) & 7)) & src_mask;
+          d[res] = pal[raw];
+        } while (++res < len);
+      }
+    //*/
+      return index;
+    }
+    template <typename TDst, typename TSrc>
+    static int32_t normalcopy_rotate(uint8_t* dst, const uint8_t* src, int32_t index, int32_t last, pixelcopy_t& param)
+    {
+      auto s = (const TSrc*)src;
+      auto d = (TDst*)dst;
+      uint32_t transp = param.transp;
+    //  if (transp != ~0) {
+        do {
+          int32_t idx = param.advance();
+          if (transp == (uint32_t)s[idx]) break;
+          d[index] = s[idx];
+        } while (++index < last);
+    /*
+      } else {
+        do {
+          d[res] = s[param.advance()];
+        } while (++res < len);
+      }
+    //*/
+      return index;
+    }
+
+    static int32_t skipbits_rotate(const uint8_t* src, int32_t index, int32_t last, pixelcopy_t& param)
+    {
+      uint32_t src_bits = param.src_bits;
+      uint8_t src_mask = param.src_mask;
+      uint32_t transp = param.transp;
+      while (++index < last) {
+        int32_t idx = param.advance() * src_bits;
+        if (transp != ((src[idx >> 3] >> (-(idx + src_bits) & 7)) & src_mask)) break;
+      }
+      param.src_x -= param.src_x_add;
+      param.src_y -= param.src_y_add;
+      return index;
+    }
+    template <typename TSrc>
+    static int32_t skip_rotate(const uint8_t* src, int32_t index, int32_t last, pixelcopy_t& param)
+    {
+      auto s = (const TSrc*)src;
+      uint32_t transp = param.transp;
+      while ((++index < last) && (transp == (uint32_t)s[param.advance()]));
+      param.src_x -= param.src_x_add;
+      param.src_y -= param.src_y_add;
+      return index;
+    }
+
+    template<typename TSrc>
+    static auto get_fp_normalcopy_rotate(color_depth_t dst_depth) -> int32_t(*)(uint8_t*, const uint8_t*, int32_t, int32_t, pixelcopy_t&)
+    {
+      if (dst_depth > rgb565_2Byte) {
+        if (dst_depth == rgb888_3Byte) {
+          return normalcopy_rotate<swap888_t, TSrc>;
+        } else { // dst_depth == rgb666_3Byte:
+          return normalcopy_rotate<swap666_t, TSrc>;
+        }
+      } else {
+        if (dst_depth == rgb565_2Byte) {
+          return normalcopy_rotate<swap565_t, TSrc>;
+        } else { // dst_depth == rgb332_1Byte:
+          return normalcopy_rotate<rgb332_t, TSrc>;
+        }
+      }
+    }
+
+    template<typename TPalette>
+    static auto get_fp_palettecopy_rotate(color_depth_t dst_depth) -> int32_t(*)(uint8_t*, const uint8_t*, int32_t, int32_t, pixelcopy_t&)
+    {
+      if (dst_depth > rgb565_2Byte) {
+        if (dst_depth == rgb888_3Byte) {
+          return palettecopy_rotate<swap888_t, TPalette>;
+        } else { // dst_depth == rgb666_3Byte:
+          return palettecopy_rotate<swap666_t, TPalette>;
+        }
+      } else {
+        if (dst_depth == rgb565_2Byte) {
+          return palettecopy_rotate<swap565_t, TPalette>;
+        } else { // dst_depth == rgb332_1Byte:
+          return palettecopy_rotate<rgb332_t, TPalette>;
+        }
+      }
+    }
+
+    static auto get_fp_copy_rotate(LGFXBase* dst, LGFXBase* src) -> int32_t(*)(uint8_t*, const uint8_t*, int32_t, int32_t, pixelcopy_t&)
+    {
+      if (dst->hasPalette()) {
+        return bitcopy_rotate;
+      }
+      auto dst_depth = dst->getWriteDepth().depth;
+      if (src->hasPalette()) {
+        return get_fp_palettecopy_rotate<swap888_t>(dst_depth);
+      }
+      auto src_depth = src->getReadDepth().depth;
+      if (src_depth > rgb565_2Byte) {
+        if (src_depth == rgb888_3Byte) {
+          return get_fp_normalcopy_rotate<swap888_t>(dst_depth);
+        } else { // src_depth == rgb666_3Byte:
+          return get_fp_normalcopy_rotate<swap666_t>(dst_depth);
+        }
+      } else {
+        if (src_depth == rgb565_2Byte) {
+          return get_fp_normalcopy_rotate<swap565_t>(dst_depth);
+        } else { // src_depth == rgb332_1Byte:
+          return get_fp_normalcopy_rotate<rgb332_t >(dst_depth);
+        }
+      }
+//    return nullptr;
+    }
+
+    static auto get_fp_skip(LGFXBase* src) -> int32_t(*)(const uint8_t*, int32_t, int32_t, pixelcopy_t&)
+    {
+      auto src_depth = src->getReadDepth().depth;
+        if (src_depth > rgb565_2Byte) {
+        if (src_depth == rgb888_3Byte) { return skip_rotate<swap888_t>; }
+        return skip_rotate<swap666_t>;
+      }
+      if (src_depth == rgb565_2Byte) { return skip_rotate<swap565_t>; }
+      if (src_depth == rgb332_1Byte) { return skip_rotate<uint8_t>; }
+      return skipbits_rotate;
+    }
+  };
 
   //----------------------------------------------------------------------------
   // print & text support
