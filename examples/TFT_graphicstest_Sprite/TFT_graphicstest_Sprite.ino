@@ -124,8 +124,8 @@ void setup() {
   //tft.setColorDepth(24);  tft.createSprite(240,170);
   //tft.setColorDepth();
   //tft.createSprite(tft_lcd.width(), tft_lcd.height());
-  tft.setColorDepth(8);  tft.createSprite(240,240);
-  //tft.createPalette();
+  tft.setColorDepth(4);  tft.createSprite(240,240);
+  tft.createPalette();
   tft_lcd.setPivot(tft.width()>>1, tft.height()>>1);
   tft    .setPivot(tft.width()>>1, tft.height()>>1);
 
@@ -142,7 +142,7 @@ static inline uint32_t micros_start()
 
 void loop(void)
 {
-	//tft.startWrite();
+	tft_lcd.startWrite();
 
 	Serial.println(F("Benchmark                Time (microseconds)"));
 
@@ -253,7 +253,6 @@ taskENABLE_INTERRUPTS();
 	Serial.print(F("Rounded rects (filled)   "));
 	Serial.println(usedFilledRoundRects);
 	delay(100);
-	//tft.endWrite();
 
 	Serial.println(F("Done!"));
 
@@ -421,13 +420,14 @@ taskENABLE_INTERRUPTS();
 	Serial.print(F("Transparent Rotated  "));
 	Serial.println(usecRotated);
 	
+	tft_lcd.endWrite();
 //	delay(60 * 1000L);
 }
 
 void printnice(int32_t v)
 {
 	char	str[32] = { 0 };
-	sprintf(str, "%lu", v);
+	sprintf(str, "%lu", (long unsigned int)v);
 	for (char *p = (str+strlen(str))-3; p > str; p -= 3)
 	{
 		memmove(p+1, p, strlen(p)+1);

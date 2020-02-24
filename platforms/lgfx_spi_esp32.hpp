@@ -36,6 +36,7 @@ namespace lgfx
         heap_caps_free(_dmadesc);
         _dmadesc = nullptr;
       }
+      delete_dmabuffer();
     }
 
     LGFX_SPI() : LovyanGFX()
@@ -56,6 +57,8 @@ namespace lgfx
       TPin<_panel_rst>::init();
       TPin<_panel_rst>::lo();
 
+#if defined (CONFIG_IDF_TARGET_ESP32) // ESP-IDF
+
       spi_bus_config_t buscfg = {
           .mosi_io_num = _spi_mosi,
           .miso_io_num = _spi_miso,
@@ -66,8 +69,6 @@ namespace lgfx
           .flags = SPICOMMON_BUSFLAG_MASTER,
           .intr_flags = 0,
       };
-
-#if defined (CONFIG_IDF_TARGET_ESP32) // ESP-IDF
 
       if (ESP_OK != spi_bus_initialize(_spi_host, &buscfg, _dma_channel)) {
         ESP_LOGE("LGFX", "Failed to spi_bus_initialize. ");
@@ -388,6 +389,7 @@ namespace lgfx
     void endTransaction_impl(void) override {
       wait_spi();
       cs_h();
+      delete_dmabuffer();
 #if defined (CONFIG_IDF_TARGET_ESP32) // ESP-IDF
       if (_spi_handle) {
         spi_device_release_bus(_spi_handle);
@@ -629,7 +631,52 @@ namespace lgfx
       return *_spi_w0_reg;
     }
 
-    void write_pixels(const void* src, int32_t length, pixelcopy_param_t* param, void(*fp_copy)(void*&, const void*&, int32_t, pixelcopy_param_t*)) override
+    void push_image_impl(int32_t x, int32_t y, int32_t w, int32_t h, pixelcopy_t* param) override
+    {
+      auto bytes = _write_depth.bytes;
+      auto src_x = param->src_x;
+      auto fp_copy = param->fp_copy;
+
+      if (param->transp == ~0) {
+        if (_dma_channel) {
+          auto buf = get_dmabuffer(w * bytes);
+          fp_copy(buf, 0, w, param);
+          setWindow_impl(x, y, x + w - 1, y + h - 1);
+          write_bytes(buf, w * bytes);
+          while (--h) {
+            param->src_x = src_x;
+            param->src_y++;
+            auto buf = get_dmabuffer(w * bytes);
+            fp_copy(buf, 0, w, param);
+            write_bytes(buf, w * bytes);
+          }
+        } else {
+          setWindow_impl(x, y, x + w - 1, y + h - 1);
+          do {
+            write_pixels_impl(w, param);
+            param->src_x = src_x;
+            param->src_y++;
+          } while (--h);
+        }
+      } else {
+        auto fp_skip = param->fp_skip;
+        do {
+          int32_t i = 0;
+          while (w != (i = fp_skip(i, w, param))) {
+            auto buf = get_dmabuffer(w * bytes);
+            int32_t len = fp_copy(buf, 0, w - i, param);
+            setWindow_impl(x + i, y, _width - 1, y);
+            write_bytes(buf, len * bytes);
+            if (w == (i += len)) break;
+          }
+          param->src_x = src_x;
+          param->src_y++;
+          y++;
+        } while (--h);
+      }
+    }
+
+    void write_pixels_impl(int32_t length, pixelcopy_t* param) override
     {
       if (!length) return;
       const uint8_t bytes = _write_depth.bytes;
@@ -637,8 +684,7 @@ namespace lgfx
       uint32_t len = (length - 1) / limit;
       uint32_t highpart = (len & 1) << 3;
       len = length - (len * limit);
-      void* dst = _regbuf;
-      fp_copy(dst, src, len, param);
+      param->fp_copy(_regbuf, 0, len, param);
       wait_spi();
       dc_h();
       set_write_len(len * bytes << 3);
@@ -648,8 +694,7 @@ namespace lgfx
       if (0 == (length -= len)) return;
 
       for (; length; length -= limit) {
-        dst = _regbuf;
-        fp_copy(dst, src, limit, param);
+        param->fp_copy(_regbuf, 0, limit, param);
         memcpy((void*)&_spi_w0_reg[highpart ^= 0x08], _regbuf, limit * bytes);
         uint32_t user = _user_reg;
         if (highpart) user |= SPI_USR_MOSI_HIGHPART;
@@ -667,19 +712,49 @@ namespace lgfx
       }
     }
 
+
+    static void _setup_dma_desc_links(lldesc_t *dmadesc, int len, const uint8_t *data)
+    {          //spicommon_setup_dma_desc_links
+      while (len > SPI_MAX_DMA_LEN) {
+        dmadesc->buf = (uint8_t *)data;
+        data += SPI_MAX_DMA_LEN;
+        *(uint32_t*)dmadesc = SPI_MAX_DMA_LEN | SPI_MAX_DMA_LEN<<12 | 0x80000000;
+        dmadesc->qe.stqe_next = dmadesc + 1;
+        dmadesc++;
+        len -= SPI_MAX_DMA_LEN;
+      }
+      *(uint32_t*)dmadesc = len | len<<12 | 0xC0000000;
+      dmadesc->buf = (uint8_t *)data;
+      dmadesc->qe.stqe_next = nullptr;
+    }
+
     void writeBytes_impl(const uint8_t* data, int32_t length) override
     {
       write_bytes(data, length);
-    }
-    void writeBytesDMA_impl(const uint8_t* data, int32_t length) override
-    {
-      if (!_dma_channel) write_bytes(data, length);
-      else write_bytes_dma(data, length);
     }
 
     void write_bytes(const uint8_t* data, int32_t length)
     {
       if (!length) return;
+
+      if (length <= 64) {
+        wait_spi();
+        dc_h();
+        set_write_len(length << 3);
+        memcpy((void*)_spi_w0_reg, data, (length + 3) & (~3));
+        exec_spi();
+        return;
+      } else if (_dma_channel) {
+        wait_spi();
+        dc_h();
+        set_write_len(length << 3);
+        _setup_dma_desc_links(_dmadesc, length, data);
+        *reg(SPI_DMA_OUT_LINK_REG(_spi_port)) = SPI_OUTLINK_START | ((int)(&_dmadesc[0]) & 0xFFFFF);
+        spicommon_dmaworkaround_transfer_active(_dma_channel);
+        exec_spi();
+        return;
+      }
+
       constexpr uint32_t limit = 32;
       uint32_t len = ((length - 1) & 0x1F) + 1;
       uint8_t highpart = ((length - 1) & limit) >> 2; // 8 or 0
@@ -791,36 +866,32 @@ namespace lgfx
       }
     }
 
-    static void _setup_dma_desc_links(lldesc_t *dmadesc, int len, const uint8_t *data)
-    {          //spicommon_setup_dma_desc_links
-      while (len > SPI_MAX_DMA_LEN) {
-        dmadesc->buf = (uint8_t *)data;
-        data += SPI_MAX_DMA_LEN;
-        *(uint32_t*)dmadesc = SPI_MAX_DMA_LEN | SPI_MAX_DMA_LEN<<12 | 0x80000000;
-        dmadesc->qe.stqe_next = dmadesc + 1;
-        dmadesc++;
-        len -= SPI_MAX_DMA_LEN;
+    struct dmabuf_t {
+      uint8_t* buffer = nullptr;
+      uint32_t length = 0;
+      void free(void) {
+        if (buffer) heap_caps_free(buffer);
+        buffer = nullptr;
+        length = 0;
       }
-      *(uint32_t*)dmadesc = len | len<<12 | 0xC0000000;
-      dmadesc->buf = (uint8_t *)data;
-      dmadesc->qe.stqe_next = nullptr;
-    }
+    };
 
-    void write_bytes_dma(const uint8_t* data, int32_t length)
+    uint8_t* get_dmabuffer(uint32_t length)
     {
-      wait_spi();
-      dc_h();
-      set_write_len(length << 3);
-      if (length <= 64) {
-        memcpy((void*)_spi_w0_reg, data, (length + 3) & (~3));
-      } else {
-        _setup_dma_desc_links(_dmadesc, length, data);
-        *reg(SPI_DMA_OUT_LINK_REG(_spi_port)) = SPI_OUTLINK_START | ((int)(&_dmadesc[0]) & 0xFFFFF);
-        spicommon_dmaworkaround_transfer_active(_dma_channel);
+      dmaflip = !dmaflip;
+      if (dmabuf[dmaflip].length < length) {
+        dmabuf[dmaflip].free();
+        dmabuf[dmaflip].buffer = (uint8_t*)heap_caps_malloc(length, MALLOC_CAP_DMA);
+        dmabuf[dmaflip].length = dmabuf[dmaflip].buffer ? length : 0;
       }
-      exec_spi();
+      return dmabuf[dmaflip].buffer;
     }
 
+    void delete_dmabuffer(void)
+    {
+      dmabuf[0].free();
+      dmabuf[1].free();
+    }
 
     __attribute__ ((always_inline)) inline volatile uint32_t* reg(uint32_t addr) { return (volatile uint32_t *)ETS_UNCACHED_ADDR(addr); }
     __attribute__ ((always_inline)) inline void set_clock_write(void) { *_spi_clock_reg = _clkdiv_write; }
@@ -884,6 +955,8 @@ namespace lgfx
     uint32_t _len_setwindow;
     uint32_t _len_read_pixel;
     uint32_t _len_dummy_read_pixel;
+    dmabuf_t dmabuf[2];
+    bool dmaflip = false;
     bool _fill_mode;
     static uint32_t _user_reg;
     static uint32_t _pin_reg;

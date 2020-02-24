@@ -147,9 +147,9 @@ void loop(void)
             buf->drawFastVLine( bx
                               , 4 * j  +1
                               , 4
-                              , lgfx::color888((j&4)?0:(0xFF * bx / bw)
+                              , lgfx::color888((j&1)?0:(0xFF * bx / bw)
                                               ,(j&2)?0:(0xFF * bx / bw)
-                                              ,(j&1)?0:(0xFF * bx / bw)));
+                                              ,(j&4)?0:(0xFF * bx / bw)));
           }
         }
       }
@@ -157,14 +157,23 @@ void loop(void)
       buf->drawRect(0, 0, bw, bh, 0x5555);
       buf->drawFastVLine(buf->getPivotX(), 0, bh, 0xFFFF);
       buf->drawFastHLine(0, buf->getPivotY(), bw, 0xFFFF);
-      if ((count/20)&1) items[x]->pushRotateZoom(buf, buf->getPivotX(), buf->getPivotY(), (float)count*5, 1.0, 1.0);
-      else              items[x]->pushRotateZoom(buf, buf->getPivotX(), buf->getPivotY(), (float)count*5, 1.0, 1.0, 0);
-      buf->scroll( 0, 1);
-      buf->scroll( 1, 0);
-      buf->scroll( 0,-2);
-      buf->scroll(-2, 0);
-      buf->scroll( 0, 1);
-      buf->scroll( 1, 0);
+
+//items[x]->setPivot(count & 31, count & 31);
+//if ((count/20)&1) items[x]->pushRotateZoom(buf, -12 + (count&63), -12 + (count&63), (float)count*5, 1.0, 1.0);
+//else              items[x]->pushRotateZoom(buf, -12 + (count&63), -12 + (count&63), (float)count*5, 1.0, 1.0, 0);
+
+      switch ((count>>6)&3) {
+      case 0:  items[x]->pushRotateZoom(buf, buf->getPivotX(), buf->getPivotY(), (float)count*5, 1.0, 1.0   ); break;
+      case 1:  items[x]->pushRotateZoom(buf, buf->getPivotX(), buf->getPivotY(), (float)count*5, 1.0, 1.0, 0); break;
+      case 2:  items[x]->pushSprite(buf, (count & 63) -29, (count & 63) -29   ); break;
+      case 3:  items[x]->pushSprite(buf, (count & 63) -29, (count & 63) -29, 0); break;
+      }
+      //buf->scroll( 0, 1);
+      //buf->scroll( 1, 0);
+      //buf->scroll( 0,-2);
+      //buf->scroll(-2, 0);
+      //buf->scroll( 0, 1);
+      //buf->scroll( 1, 0);
       buf->pushSprite(x * tft.width() / 8, y * tft.height() / 8);
     }
   }

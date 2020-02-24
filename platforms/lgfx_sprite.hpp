@@ -32,7 +32,7 @@ namespace lgfx
       _transaction_count = 0xFFFF;
     }
 
-    inline uint8_t* buffer() { return _img; }
+    void* buffer(void) override { return _img; }
     uint32_t bufferLength(void) const { return _bitwidth * _height * _write_depth.bits >> 3; }
 
     LGFXSpriteBase()
@@ -127,290 +127,26 @@ for (uint32_t i = 0; i < palettes; i++) {
     template<typename T>
     __attribute__ ((always_inline)) inline void fillSprite (const T& color) { fillRect(0, 0, _width, _height, color); }
 
-/*
-    __attribute__ ((always_inline)) inline void pushSprite(int32_t x, int32_t y) { pushSprite(_parent, x, y); }
-    void pushSprite(LovyanGFX* lgfx, int32_t x, int32_t y)
-    {
-      if (_palette) {
-        switch (getColorDepth()) {
-        case 8: lgfx->pushIndexImage(x, y, _width, _height, (rgb332_t*  )_img, _palette); return;
-        case 4: lgfx->pushIndexImage(x, y, _width, _height, (palette4_t*)_img, _palette); return;
-        case 2: lgfx->pushIndexImage(x, y, _width, _height, (palette2_t*)_img, _palette); return;
-        case 1: lgfx->pushIndexImage(x, y, _width, _height, (palette1_t*)_img, _palette); return;
-        default: return;
-        }
-      } else {
-        switch (getColorDepth()) {
-        case rgb888_3Byte: lgfx->pushImage(x, y, _width, _height, (swap888_t*)_img); return;
-        case rgb666_3Byte: lgfx->pushImage(x, y, _width, _height, (swap666_t*)_img); return;
-        case rgb565_2Byte: lgfx->pushImage(x, y, _width, _height, (swap565_t*)_img); return;
-        case rgb332_1Byte: lgfx->pushImage(x, y, _width, _height, (rgb332_t* )_img); return;
-        default: return;
-        }
-      }
-    }
+//*
 
     template<typename T>
-    __attribute__ ((always_inline)) inline void pushSprite(int32_t x, int32_t y, const T& transparent) { pushSprite(_parent, x, y, transparent); }
-
+    __attribute__ ((always_inline)) inline void pushSprite(                int32_t x, int32_t y, const T& transp) { push_sprite(_parent, x, y, _write_depth.convert(transp) & _write_depth.colormask); }
     template<typename T>
-    void pushSprite(LovyanGFX* lgfx, int32_t x, int32_t y, const T& transparent)
-    {
-      uint32_t transp = _write_depth.convert(transparent);
-      if (_palette) {
-        switch (getColorDepth()) {
-        case 8: lgfx->pushIndexImage(x, y, _width, _height, (rgb332_t*  )_img, _palette, transp); return;
-        case 4: lgfx->pushIndexImage(x, y, _width, _height, (palette4_t*)_img, _palette, transp); return;
-        case 2: lgfx->pushIndexImage(x, y, _width, _height, (palette2_t*)_img, _palette, transp); return;
-        case 1: lgfx->pushIndexImage(x, y, _width, _height, (palette1_t*)_img, _palette, transp); return;
-        }
-      } else {
-        switch (getColorDepth()) {
-        case rgb888_3Byte: lgfx->pushImage(x, y, _width, _height, (swap888_t*)_img, transp); return;
-        case rgb666_3Byte: lgfx->pushImage(x, y, _width, _height, (swap666_t*)_img, transp); return;
-        case rgb565_2Byte: lgfx->pushImage(x, y, _width, _height, (swap565_t*)_img, transp); return;
-        case rgb332_1Byte: lgfx->pushImage(x, y, _width, _height, (rgb332_t* )_img, transp); return;
-        }
-      }
-    }
-/*/
-    template<typename T>
-    bool pushSprite(LovyanGFX* dst, int32_t x, int32_t y, const T& transp) { return push_sprite(    dst, x, y, _write_depth.convert(transp) & _write_depth.colormask); }
-    template<typename T>
-    bool pushSprite(                int32_t x, int32_t y, const T& transp) { return push_sprite(_parent, x, y, _write_depth.convert(transp) & _write_depth.colormask); }
-    bool pushSprite(LovyanGFX* dst, int32_t x, int32_t y) { return push_sprite(    dst, x, y, -1); }
-    bool pushSprite(                int32_t x, int32_t y) { return push_sprite(_parent, x, y, -1); }
-//*/
+    __attribute__ ((always_inline)) inline void pushSprite(LovyanGFX* dst, int32_t x, int32_t y, const T& transp) { push_sprite(    dst, x, y, _write_depth.convert(transp) & _write_depth.colormask); }
+    __attribute__ ((always_inline)) inline void pushSprite(                int32_t x, int32_t y) { push_sprite(_parent, x, y); }
+    __attribute__ ((always_inline)) inline void pushSprite(LovyanGFX* dst, int32_t x, int32_t y) { push_sprite(    dst, x, y); }
 
-    template<typename T> bool pushRotated(                 float angle, const T& transp) { return push_rotate_zoom(_parent, _parent->getPivotX(), _parent->getPivotY(), angle, 1.0f, 1.0f, _write_depth.convert(transp) & _write_depth.colormask); }
-    template<typename T> bool pushRotated(LovyanGFX* lgfx, float angle, const T& transp) { return push_rotate_zoom(lgfx   , lgfx   ->getPivotX(), lgfx   ->getPivotY(), angle, 1.0f, 1.0f, _write_depth.convert(transp) & _write_depth.colormask); }
-    bool pushRotated(                 float angle) { return push_rotate_zoom(_parent, _parent->getPivotX(), _parent->getPivotY(), angle, 1.0f, 1.0f, -1); }
-    bool pushRotated(LovyanGFX* lgfx, float angle) { return push_rotate_zoom(lgfx   , lgfx   ->getPivotX(), lgfx   ->getPivotY(), angle, 1.0f, 1.0f, -1); }
-
+    template<typename T> bool pushRotated(                float angle, const T& transp) { return push_rotate_zoom(_parent, _parent->getPivotX(), _parent->getPivotY(), angle, 1.0f, 1.0f, _write_depth.convert(transp) & _write_depth.colormask); }
+    template<typename T> bool pushRotated(LovyanGFX* dst, float angle, const T& transp) { return push_rotate_zoom(dst    , dst    ->getPivotX(), dst    ->getPivotY(), angle, 1.0f, 1.0f, _write_depth.convert(transp) & _write_depth.colormask); }
+    bool pushRotated(                float angle) { return push_rotate_zoom(_parent, _parent->getPivotX(), _parent->getPivotY(), angle, 1.0f, 1.0f); }
+    bool pushRotated(LovyanGFX* dst, float angle) { return push_rotate_zoom(dst    , dst    ->getPivotX(), dst    ->getPivotY(), angle, 1.0f, 1.0f); }
 
     template<typename T> 
     bool pushRotateZoom(LovyanGFX* dst, int32_t dst_x, int32_t dst_y, float angle, float zoom_x, float zoom_y, const T& transp) {
       return push_rotate_zoom(dst, dst_x, dst_y, angle, zoom_x, zoom_y, _write_depth.convert(transp) & _write_depth.colormask);
     }
     bool pushRotateZoom(LovyanGFX* dst, int32_t dst_x, int32_t dst_y, float angle, float zoom_x, float zoom_y) {
-      return push_rotate_zoom(dst, dst_x, dst_y, angle, zoom_x, zoom_y, -1);
-    }
-
-
-    bool push_sprite(LovyanGFX* dst, int32_t dst_x, int32_t dst_y, uint32_t transp)
-    {
-      auto img = _img;
-      if (img == nullptr) return false;
-
-      int32_t min_x = std::max(0, dst_x);
-      int32_t max_x = std::min(dst->width() , dst_x + width() );
-      if (min_x >= max_x) return false;
-
-      int32_t min_y = std::max(0, dst_y);
-      int32_t max_y = std::min(dst->height(), dst_y + height());
-      if (min_y >= max_y) return false;
-
-      auto pixelcopy_fp = pixelcopy_t::get_fp_copy_rotate(dst, this);
-      if (!pixelcopy_fp) return false;
-      pixelcopy_t param;
-      param.palette = _palette;
-      param.src_width = _bitwidth;
-      param.src_mask = (1 << (param.src_bits = _read_depth.bits)) - 1;
-      param.dst_mask = (1 << (param.dst_bits = dst->getWriteDepth().bits)) - 1;
-      param.transp = transp;
-      param.src_y = (min_y - dst_y - 1) << FP_SCALE;
-      auto src_x = (min_x - dst_x - 1) << FP_SCALE;
-
-      if (!dst->hasTransaction()) {
-        auto dstsp = (LGFXSpriteBase*)dst;
-        auto dst_width = dstsp->_bitwidth;
-        auto dst_buf = dstsp->buffer();
-        auto img = _img;
-        for (int32_t y = min_y; y < max_y; y++) {
-          param.src_x = src_x;
-          param.src_y += 1 << FP_SCALE;
-          int32_t index = min_x + y * dst_width;
-          int32_t last = max_x + y * dst_width;
-          do {
-            index = pixelcopy_fp(dst_buf, img, index, last, param);
-          } while (++index < last);
-        }
-      } else {
-        int32_t len = max_x - min_x;
-        uint32_t dst_bytes = dst->getWriteDepth().bytes;
-        uint8_t bufs[2][len * dst_bytes];
-        dst->startWrite();
-        if (transp == ~0) {
-          dst->setWindow(min_x, min_y, max_x - 1, max_y - 1);
-          for (int32_t y = min_y; y < max_y; y++) {
-            param.src_x = src_x;
-            param.src_y += 1 << FP_SCALE;
-            pixelcopy_fp(bufs[y & 1], img, 0, len, param);
-            dst->writeBytesDMA(&bufs[y & 1][0], len * dst_bytes);
-          }
-        } else {
-          auto skip_fp = pixelcopy_t::get_fp_skip(this);
-          bool flip = false;
-          for (int32_t y = min_y; y < max_y; y++) {
-            param.src_x = src_x;
-            param.src_y += 1 << FP_SCALE;
-            int32_t x = min_x;
-            do {
-              int32_t idx = pixelcopy_fp(bufs[flip], img, 0, max_x - x, param);
-              if (idx) {
-                dst->setWindow(x, y, max_x - 1, y);
-                dst->writeBytesDMA(&bufs[flip][0], idx * dst_bytes);
-                flip = !flip;
-                if (max_x == (x += idx)) break;
-              }
-            } while (max_x > (x = skip_fp(img, x, max_x, param)));
-            // while (++x != max_x);
-          }
-        }
-        dst->flush();
-        dst->endWrite();
-      }
-      return true;
-    }
-
-    bool push_rotate_zoom(LovyanGFX* dst, int32_t dst_x, int32_t dst_y, float angle, float zoom_x, float zoom_y, uint32_t transp)
-    {
-      auto img = _img;
-      if (img == nullptr) return false;
-      if (zoom_x == 0.0 || zoom_y == 0.0) return true;
-//_palette[1].b += 192;
-//_palette[1].g += 128;
-//_palette[1].r += 96;
-
-      float radAngle = -angle * 0.0174532925; // Convert degrees to radians
-      float sin_f = sin(radAngle);
-      float cos_f = cos(radAngle);
-      int32_t min_y, max_y;
-      {
-        int32_t sinra = round(sin_f * (1 << FP_SCALE) * zoom_x);
-        int32_t cosra = round(cos_f * (1 << FP_SCALE) * zoom_y);
-        min_y = max_y = _xpivot * sinra - _ypivot * cosra;
-        int32_t w = width()  - _xpivot - 1;
-        int32_t h = height() - _ypivot - 1;
-        int32_t tmp;
-        tmp = -w * sinra - _ypivot * cosra; if (tmp < min_y) min_y = tmp; else if (tmp > max_y) max_y = tmp;
-        tmp =  h * cosra -       w * sinra; if (tmp < min_y) min_y = tmp; else if (tmp > max_y) max_y = tmp;
-        tmp =  h * cosra + _xpivot * sinra; if (tmp < min_y) min_y = tmp; else if (tmp > max_y) max_y = tmp;
-
-        max_y = ((max_y + (1 << (FP_SCALE - 1))) >> FP_SCALE) + dst_y + 1;
-        if (max_y < 0) return true;
-        auto dh = dst->height();
-        if (max_y > dh) max_y = dh;
-
-        min_y = ((min_y + (1 << (FP_SCALE - 1))) >> FP_SCALE) + dst_y;
-        if (min_y > dh) return true;
-        if (min_y < 0) min_y = 0;
-      }
-
-      auto pixelcopy_fp = pixelcopy_t::get_fp_copy_rotate(dst, this);
-      if (!pixelcopy_fp) return false;
-
-      pixelcopy_t param;
-      param.transp = transp;
-      param.palette = _palette;
-      param.src_width = _bitwidth;
-      param.src_mask = (1 << (param.src_bits = _read_depth.bits)) - 1;
-      param.dst_mask = (1 << (param.dst_bits = dst->getWriteDepth().bits)) - 1;
-
-      int32_t cos_x = param.src_x_add = round(cos_f * (1 << FP_SCALE) / zoom_x);
-      int32_t cos_y =                   round(cos_f * (1 << FP_SCALE) / zoom_y);
-      int32_t sin_y = param.src_y_add = round(sin_f * (1 << FP_SCALE) / zoom_y);
-      int32_t sin_x =                   round(sin_f * (1 << FP_SCALE) / zoom_x);
-
-      int32_t yt = min_y - dst_y - 1;
-      int32_t xstart = (cos_x * (-dst_x-1) - (sin_x * yt - (_xpivot << FP_SCALE)) + (1 << (FP_SCALE - 1)));
-      int32_t ystart = (sin_y * (-dst_x-1) + (cos_y * yt + (_ypivot << FP_SCALE)) + (1 << (FP_SCALE - 1)));
-
-      int32_t scale_w = width() << FP_SCALE;
-      int32_t xs1 = (cos_x < 0 ? scale_w : - 1) - xstart;
-      if (cos_x < 0) scale_w = -scale_w;
-
-      int32_t scale_h = height() << FP_SCALE;
-      int32_t ys1 = (sin_y < 0 ? scale_h : - 1) - ystart;
-      if (sin_y < 0) scale_h = -scale_h;
-
-      int32_t max_x = dst->width();
-
-//dst->drawRect(0, min_y, _width, max_y-min_y, 0x4108);
-//dst->drawRect(min_x, min_y, max_x-min_x, max_y-min_y, 0x4108);
-      if (!dst->hasTransaction()) {
-        auto dstsp = (LGFXSpriteBase*)dst;
-        auto dst_width = dstsp->_bitwidth;
-        auto dst_buf = dstsp->buffer();
-        for (int32_t y = min_y; y < max_y; y++) {
-          int32_t x = 0;
-          int32_t xend = max_x;
-/*
-          x    = std::max(x   , (xs1 += sin_x ) / cos_x);
-          xend = std::min(xend, (xs1 + scale_w) / cos_x);
-          x    = std::max(x   , (ys1 -= cos_y ) / sin_y);
-          xend = std::min(xend, (ys1 + scale_h) / sin_y);
-/*/
-          if (cos_x != 0) {
-            int32_t tmp = (xs1 += sin_x ) / cos_x; if (x    < tmp) x = tmp;
-                    tmp = (xs1 + scale_w) / cos_x; if (xend > tmp) xend = tmp;
-          }
-          if (sin_y != 0) {
-            int32_t tmp = (ys1 -= cos_y ) / sin_y; if (x    < tmp) x = tmp;
-                    tmp = (ys1 + scale_h) / sin_y; if (xend > tmp) xend = tmp;
-          }
-//*/
-          param.src_x = (xstart -= sin_x) + cos_x * x;
-          param.src_y = (ystart += cos_y) + sin_y * x;
-          if (x >= xend) continue;
-          int32_t index = x + y * dst_width;
-          int32_t last = xend + y * dst_width;
-          do {
-            index = pixelcopy_fp(dst_buf, img, index, last, param);
-          } while (++index < last);
-        }
-      } else {
-        auto skip_fp = pixelcopy_t::get_fp_skip(this);
-        bool flip = false;
-        uint32_t dst_bytes = dst->getWriteDepth().bytes;
-        uint8_t bufs[2][max_x * dst_bytes];
-        dst->startWrite();
-        for (int32_t y = min_y; y < max_y; y++) {
-          int32_t x = 0;
-          int32_t xend = max_x;
-/*
-          x    = std::max(x   , (xs1 += sin_x ) / cos_x);
-          xend = std::min(xend, (xs1 + scale_w) / cos_x);
-          x    = std::max(x   , (ys1 -= cos_y ) / sin_y);
-          xend = std::min(xend, (ys1 + scale_h) / sin_y);
-/*/
-          if (cos_x != 0) {
-            int32_t tmp = (xs1 += sin_x ) / cos_x; if (x    < tmp) x = tmp;
-                    tmp = (xs1 + scale_w) / cos_x; if (xend > tmp) xend = tmp;
-          }
-          if (sin_y != 0) {
-            int32_t tmp = (ys1 -= cos_y ) / sin_y; if (x    < tmp) x = tmp;
-                    tmp = (ys1 + scale_h) / sin_y; if (xend > tmp) xend = tmp;
-          }
-//*/
-          param.src_x = (xstart -= sin_x) + cos_x * x;
-          param.src_y = (ystart += cos_y) + sin_y * x;
-          if (x >= xend) continue;
-          do {
-            int32_t idx = pixelcopy_fp(bufs[flip], img, 0, xend - x, param);
-            if (idx) {
-              dst->setWindow(x, y, max_x - 1, y);
-              dst->writeBytesDMA(&bufs[flip][0], idx * dst_bytes);
-              flip = !flip;
-              if (xend == (x += idx)) break;
-            }
-          } while (xend > (x = skip_fp(img, x, xend, param)));
-          // while (++x != xend);
-        }
-        dst->flush();
-        dst->endWrite();
-      }
-      return true;
+      return push_rotate_zoom(dst, dst_x, dst_y, angle, zoom_x, zoom_y);
     }
 
 //----------------------------------------------------------------------------
@@ -419,8 +155,8 @@ for (uint32_t i = 0; i < palettes; i++) {
   protected:
     LovyanGFX* _parent;
     union {
-      uint8_t* _img;
-      uint16_t* _img16;
+      uint8_t*   _img;
+      uint16_t*  _img16;
       swap888_t* _img24;
     };
     swap888_t* _palette;
@@ -436,6 +172,20 @@ for (uint32_t i = 0; i < palettes; i++) {
 
     virtual void* _mem_alloc(uint32_t bytes) = 0;
     virtual void _mem_free(void* buf) = 0;
+
+    void push_sprite(LovyanGFX* dst, int32_t x, int32_t y, uint32_t transp = ~0)
+    {
+      pixelcopy_t p(_img, dst->getColorDepth(), getColorDepth(), dst->hasPalette(), _palette, transp);
+      dst->pushImage(x, y, _width, _height, &p);
+    }
+
+    bool push_rotate_zoom(LovyanGFX* dst, int32_t x, int32_t y, float angle, float zoom_x, float zoom_y, uint32_t transp = ~0)
+    {
+      if (_img == nullptr) return false;
+      pixelcopy_t p(_img, dst->getColorDepth(), getColorDepth(), dst->hasPalette(), _palette, transp);
+      dst->pushImageRotateZoom(x, y, _width, _height, _xpivot, _ypivot, angle, zoom_x, zoom_y, &p);
+      return true;
+    }
 
     void set_window(int32_t xs, int32_t ys, int32_t xe, int32_t ye)
     {
@@ -580,6 +330,20 @@ return;
       }
     }
 
+    void push_image_impl(int32_t x, int32_t y, int32_t w, int32_t h, pixelcopy_t* param) override
+    {
+      auto sx = param->src_x;
+      do {
+        int32_t pos = x + (y++) * _bitwidth;
+        int32_t end = pos + w;
+        while (end != (pos = param->fp_copy(_img, pos, end, param))) {
+          if ( end == (pos = param->fp_skip(      pos, end, param))) break;
+        }
+        param->src_x = sx;
+        param->src_y++;
+      } while (--h);
+    }
+
     void writeColor_impl(int32_t length) override
     {
       if (0 >= length) return;
@@ -658,33 +422,32 @@ return;
     void copyRect_impl(int32_t dst_x, int32_t dst_y, int32_t w, int32_t h, int32_t src_x, int32_t src_y) override
     {
       if (_write_depth.bits < 8) {
-        pixelcopy_t param;
+        pixelcopy_t param(_img, _write_depth.depth, _write_depth.depth);
         param.src_width = _bitwidth;
-        param.src_mask = param.dst_mask = (1 << (param.src_bits = param.dst_bits = _write_depth.bits)) - 1;
-        auto pixelcopy_fp = pixelcopy_t::bitcopy_rotate;
         int32_t add_y = (src_y < dst_y) ? -1 : 1;
         if (src_y != dst_y) {
           if (src_y < dst_y) {
             src_y += h - 1;
             dst_y += h - 1;
           }
-          param.src_y = src_y << FP_SCALE;
+          param.src_y = src_y;
           for (int count = 0; count < h; count++) {
-            param.src_x = (src_x - 1) << FP_SCALE;
+            param.src_x = src_x;
             auto idx = dst_x + dst_y * _bitwidth;
-            pixelcopy_fp(_img, _img, idx, idx + w, param);
+            param.fp_copy(_img, idx, idx + w, &param);
             dst_y += add_y;
-            param.src_y += add_y << FP_SCALE;
+            param.src_y += add_y;
           }
         } else {
-          param.src_y = 0;
           size_t len = (_bitwidth * _write_depth.bits) >> 3;
           uint8_t buf[len];
+          param.src_data = buf;
+          param.src_y32 = 0;
           for (int count = 0; count < h; count++) {
             memcpy(buf, &_img[src_y * len], len);
-            param.src_x = (src_x - 1) << FP_SCALE;
+            param.src_x = src_x;
             auto idx = dst_x + dst_y * _bitwidth;
-            pixelcopy_fp(_img, buf, idx, idx + w, param);
+            param.fp_copy(_img, idx, idx + w, &param);
             dst_y += add_y;
             src_y += add_y;
           }
@@ -857,13 +620,14 @@ return;
       }
     }
 
-    void write_pixels(const void* src, int32_t length, pixelcopy_param_t* param, void(*fp_copy)(void*&, const void*&, int32_t, pixelcopy_param_t*)) override
+//  void write_pixels(const void* src, int32_t length, pixelcopy_param_t* param, void(*fp_copy)(void*&, const void*&, int32_t, pixelcopy_param_t*)) override
+    void write_pixels_impl(int32_t length, pixelcopy_t* param) override
     {
+      auto k = _bitwidth * _write_depth.bits >> 3;
       int32_t linelength;
       do {
         linelength = std::min(_xe - _xptr + 1, length);
-        void* dst = ptr_img();
-        fp_copy(dst, src, linelength, param);
+        param->fp_copy(&_img[_yptr * k], _xptr, _xptr + linelength, param);
         ptr_advance(linelength);
       } while (length -= linelength);
     }
