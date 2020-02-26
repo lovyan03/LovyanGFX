@@ -77,6 +77,13 @@ namespace lgfx
       return buf;
     }
 
+    virtual const uint8_t* getInvertDisplayCommands(uint8_t* buf, bool invert) {
+      buf[2] = buf[0] = invert ? cmd_invon : cmd_invoff;
+      buf[3] = buf[1] = 0;
+      buf[5] = buf[4] = 0xFF;
+      return buf;
+    }
+
     virtual const uint8_t* getRotationCommands(uint8_t* buf, uint8_t r)
     {
       r = r & 7;
@@ -127,8 +134,8 @@ namespace lgfx
     int32_t rowstart;
     int32_t width;
     int32_t height;
-    uint16_t spi_cs;
-    uint16_t spi_dc;
+    int16_t spi_cs;
+    int16_t spi_dc;
     uint8_t spi_mode;
     uint8_t spi_mode_read;
     uint8_t rotation;

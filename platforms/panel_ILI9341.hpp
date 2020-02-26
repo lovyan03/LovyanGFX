@@ -140,12 +140,13 @@ namespace lgfx
   class Panel_M5Stack : public Panel_ILI9341_Common
   {
   public:
+    bool isIPS = false;
     Panel_M5Stack() : Panel_ILI9341_Common() {
       static constexpr int gpio_rst = 33;
       TPin<gpio_rst>::lo();
       TPin<gpio_rst>::init(GPIO_MODE_INPUT);
       setConfig<cfg_t>();
-      invert = TPin<gpio_rst>::get();  // get panel type (IPS or TN)
+      isIPS = invert = TPin<gpio_rst>::get();  // get panel type (IPS or TN)
       TPin<gpio_rst>::hi();
       TPin<gpio_rst>::init(GPIO_MODE_OUTPUT);
     }
@@ -161,6 +162,17 @@ namespace lgfx
       static constexpr uint32_t freq_fill  = 80000000;
       static constexpr bool spi_3wire = true;
     };
+
+    const uint8_t* getInvertDisplayCommands(uint8_t* buf, bool invert) override {
+      if (!isIPS) return Panel_ILI9341_Common::getInvertDisplayCommands(buf, invert);
+      buf[2] = buf[0] = invert ? cmd_invon : cmd_invoff;
+      buf[3] = buf[1] = 0;
+      buf[4] = CMD::GAMMASET;
+      buf[5] = 1;
+      buf[6] = 0x02;  // Gamma set, curve 2
+      buf[8] = buf[7] = 0xFF;
+      return buf;
+    }
 
     uint8_t getMadCtl(uint8_t r) const override {
       static constexpr uint8_t madctl_table[] = {

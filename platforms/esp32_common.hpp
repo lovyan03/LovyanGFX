@@ -39,7 +39,6 @@
 
 namespace lgfx
 {
-
   static uint32_t FreqToClockDiv(uint32_t fapb, uint32_t hz)
   {
     if (hz > ((fapb >> 2) * 3)) {
@@ -67,6 +66,13 @@ namespace lgfx
 
   static void gpioInit(gpio_num_t pin, gpio_mode_t mode = GPIO_MODE_OUTPUT) {
     if (pin == -1) return;
+#ifdef ARDUINO
+    uint8_t pm = 0;
+    if (mode & GPIO_MODE_DEF_INPUT)  pm |= INPUT;
+    if (mode & GPIO_MODE_DEF_OUTPUT) pm |= OUTPUT;
+    if (mode & GPIO_MODE_DEF_OD)     pm |= OPEN_DRAIN;
+    pinMode(pin, pm);
+#else
     if (rtc_gpio_is_valid_gpio(pin)) rtc_gpio_deinit(pin);
     gpio_config_t io_conf;
     io_conf.intr_type = GPIO_INTR_DISABLE;
@@ -75,6 +81,7 @@ namespace lgfx
     io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
     io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
     gpio_config(&io_conf);
+#endif
   }
 
   template<uint8_t PIN, uint32_t MASK>

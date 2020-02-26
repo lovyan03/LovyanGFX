@@ -116,12 +116,19 @@ for (uint32_t i = 0; i < palettes; i++) {
       }
     }
 
-    void setPalette(size_t index, const swap888_t& rgb) {
+    void setPalette(size_t index, const swap888_t& rgb)
+    {
       if (_palette) { _palette[index & ((1<<_write_depth.bits)-1)] = rgb; }
     }
 
-    void setPalette(size_t index, uint8_t r, uint8_t g, uint8_t b) {
+    void setPalette(size_t index, uint8_t r, uint8_t g, uint8_t b)
+    {
       if (_palette) { _palette[index & ((1<<_write_depth.bits)-1)].set(r, g, b); }
+    }
+
+    void* getPalette_impl(void) const override
+    {
+      return _palette;
     }
 
     template<typename T>
@@ -138,16 +145,17 @@ for (uint32_t i = 0; i < palettes; i++) {
 
     template<typename T> bool pushRotated(                float angle, const T& transp) { return push_rotate_zoom(_parent, _parent->getPivotX(), _parent->getPivotY(), angle, 1.0f, 1.0f, _write_depth.convert(transp) & _write_depth.colormask); }
     template<typename T> bool pushRotated(LovyanGFX* dst, float angle, const T& transp) { return push_rotate_zoom(dst    , dst    ->getPivotX(), dst    ->getPivotY(), angle, 1.0f, 1.0f, _write_depth.convert(transp) & _write_depth.colormask); }
-    bool pushRotated(                float angle) { return push_rotate_zoom(_parent, _parent->getPivotX(), _parent->getPivotY(), angle, 1.0f, 1.0f); }
-    bool pushRotated(LovyanGFX* dst, float angle) { return push_rotate_zoom(dst    , dst    ->getPivotX(), dst    ->getPivotY(), angle, 1.0f, 1.0f); }
+                         bool pushRotated(                float angle) { return push_rotate_zoom(_parent, _parent->getPivotX(), _parent->getPivotY(), angle, 1.0f, 1.0f); }
+                         bool pushRotated(LovyanGFX* dst, float angle) { return push_rotate_zoom(dst    , dst    ->getPivotX(), dst    ->getPivotY(), angle, 1.0f, 1.0f); }
 
-    template<typename T> 
-    bool pushRotateZoom(LovyanGFX* dst, int32_t dst_x, int32_t dst_y, float angle, float zoom_x, float zoom_y, const T& transp) {
-      return push_rotate_zoom(dst, dst_x, dst_y, angle, zoom_x, zoom_y, _write_depth.convert(transp) & _write_depth.colormask);
-    }
-    bool pushRotateZoom(LovyanGFX* dst, int32_t dst_x, int32_t dst_y, float angle, float zoom_x, float zoom_y) {
-      return push_rotate_zoom(dst, dst_x, dst_y, angle, zoom_x, zoom_y);
-    }
+    template<typename T> bool pushRotateZoom(                                              float angle, float zoom_x, float zoom_y, const T& transp) { return push_rotate_zoom(_parent, _parent->getPivotX(), _parent->getPivotY(), angle, zoom_x, zoom_y, _write_depth.convert(transp) & _write_depth.colormask); }
+    template<typename T> bool pushRotateZoom(LovyanGFX* dst                              , float angle, float zoom_x, float zoom_y, const T& transp) { return push_rotate_zoom(    dst, _parent->getPivotX(), _parent->getPivotY(), angle, zoom_x, zoom_y, _write_depth.convert(transp) & _write_depth.colormask); }
+    template<typename T> bool pushRotateZoom(                int32_t dst_x, int32_t dst_y, float angle, float zoom_x, float zoom_y, const T& transp) { return push_rotate_zoom(_parent,                dst_x,                dst_y, angle, zoom_x, zoom_y, _write_depth.convert(transp) & _write_depth.colormask); }
+    template<typename T> bool pushRotateZoom(LovyanGFX* dst, int32_t dst_x, int32_t dst_y, float angle, float zoom_x, float zoom_y, const T& transp) { return push_rotate_zoom(    dst,                dst_x,                dst_y, angle, zoom_x, zoom_y, _write_depth.convert(transp) & _write_depth.colormask); }
+                         bool pushRotateZoom(                                              float angle, float zoom_x, float zoom_y)                  { return push_rotate_zoom(_parent, _parent->getPivotX(), _parent->getPivotY(), angle, zoom_x, zoom_y); }
+                         bool pushRotateZoom(LovyanGFX* dst                              , float angle, float zoom_x, float zoom_y)                  { return push_rotate_zoom(    dst, _parent->getPivotX(), _parent->getPivotY(), angle, zoom_x, zoom_y); }
+                         bool pushRotateZoom(                int32_t dst_x, int32_t dst_y, float angle, float zoom_x, float zoom_y)                  { return push_rotate_zoom(_parent,                dst_x,                dst_y, angle, zoom_x, zoom_y); }
+                         bool pushRotateZoom(LovyanGFX* dst, int32_t dst_x, int32_t dst_y, float angle, float zoom_x, float zoom_y)                  { return push_rotate_zoom(    dst,                dst_x,                dst_y, angle, zoom_x, zoom_y); }
 
 //----------------------------------------------------------------------------
 //----------------------------------------------------------------------------
@@ -176,7 +184,7 @@ for (uint32_t i = 0; i < palettes; i++) {
     void push_sprite(LovyanGFX* dst, int32_t x, int32_t y, uint32_t transp = ~0)
     {
       pixelcopy_t p(_img, dst->getColorDepth(), getColorDepth(), dst->hasPalette(), _palette, transp);
-      dst->pushImage(x, y, _width, _height, &p);
+      dst->push_image(x, y, _width, _height, &p);
     }
 
     bool push_rotate_zoom(LovyanGFX* dst, int32_t x, int32_t y, float angle, float zoom_x, float zoom_y, uint32_t transp = ~0)
@@ -330,20 +338,6 @@ return;
       }
     }
 
-    void push_image_impl(int32_t x, int32_t y, int32_t w, int32_t h, pixelcopy_t* param) override
-    {
-      auto sx = param->src_x;
-      do {
-        int32_t pos = x + (y++) * _bitwidth;
-        int32_t end = pos + w;
-        while (end != (pos = param->fp_copy(_img, pos, end, param))) {
-          if ( end == (pos = param->fp_skip(      pos, end, param))) break;
-        }
-        param->src_x = sx;
-        param->src_y++;
-      } while (--h);
-    }
-
     void writeColor_impl(int32_t length) override
     {
       if (0 >= length) return;
@@ -431,48 +425,48 @@ return;
             dst_y += h - 1;
           }
           param.src_y = src_y;
-          for (int count = 0; count < h; count++) {
+          do {
             param.src_x = src_x;
             auto idx = dst_x + dst_y * _bitwidth;
             param.fp_copy(_img, idx, idx + w, &param);
             dst_y += add_y;
             param.src_y += add_y;
-          }
+          } while (--h);
         } else {
           size_t len = (_bitwidth * _write_depth.bits) >> 3;
           uint8_t buf[len];
           param.src_data = buf;
           param.src_y32 = 0;
-          for (int count = 0; count < h; count++) {
+          do {
             memcpy(buf, &_img[src_y * len], len);
             param.src_x = src_x;
             auto idx = dst_x + dst_y * _bitwidth;
             param.fp_copy(_img, idx, idx + w, &param);
             dst_y += add_y;
             src_y += add_y;
-          }
+          } while (--h);
         }
       } else {
-        int32_t add = _bitwidth * _write_depth.bits >> 3;
+        size_t len = w * _write_depth.bytes;
+        int32_t add = _bitwidth * _write_depth.bytes;
         if (src_y < dst_y) add = -add;
         int32_t pos = (src_y < dst_y) ? h - 1 : 0;
         uint8_t* src = &_img[(src_x + (src_y + pos) * _bitwidth) * _write_depth.bytes];
         uint8_t* dst = &_img[(dst_x + (dst_y + pos) * _bitwidth) * _write_depth.bytes];
-        size_t len = w * _write_depth.bytes;
         if (_disable_memcpy) {
           uint8_t buf[len];
-          for (int count = 0; count < h; count++) {
+          do {
             memcpy(buf, src, len);
             memcpy(dst, buf, len);
-            src += add;
             dst += add;
-          }
+            src += add;
+          } while (--h);
         } else {
-          for (int count = 0; count < h; count++) {
+          do {
             memmove(dst, src, len);
             src += add;
             dst += add;
-          }
+          } while (--h);
         }
       }
     }
@@ -497,72 +491,7 @@ return;
     {
       return _write_depth.colormask & (*(const uint32_t*)&_img[(x + y * _bitwidth) * _write_depth.bits >> 3]);
     }
-/*
-    template<class T>
-    __attribute__ ((always_inline)) inline void readRectTemplate(int32_t x, int32_t y, int32_t w, int32_t h, T* buf)
-    {
-      if (     _color.bpp ==  8) { read_pixels< rgb332_t>(x, y ,w ,h ,buf); }
-      else if (_color.bpp == 16) { read_pixels<swap565_t>(x, y ,w ,h ,buf); }
-      else if (_color.bpp == 24) { read_pixels<swap888_t>(x, y ,w ,h ,buf); }
-      else {
 
-        uint8_t p = 0;
-        const uint8_t *src = ptr_img();
-        for (;;) {
-          if (*src & (0x80 >> (_index & 0x07))) *buf |=  (0x80>>p);
-          else                                  *buf &= ~(0x80>>p);
-          if (0 == --length) return;
-          if (ptr_advance()) src = ptr_img();
-          else if (!(_index & 0x07)) ++src;
-          if (++p == 8) {
-            p = 0;
-            ++buf;
-          }
-        }
-
-      }
-    }
-*/
-/*
-    template <class TSrc>
-    void writePixelsTemplate(const TSrc* src, uint32_t length)
-    {
-      if (!length) return;
-      if (     _color.bpp ==  8) { write_pixels< rgb332_t>(src, length); }
-      else if (_color.bpp == 16) { write_pixels<swap565_t>(src, length); }
-      else if (_color.bpp == 24) { write_pixels<swap888_t>(src, length); }
-      else {
-
-        const uint8_t* s(static_cast<const uint8_t*>(src));
-        uint8_t p = 0;
-        uint8_t *dst = ptr_img();
-        for (;;) {
-          if (*s & (0x80 >> p)) *dst |=  (0x80>>(_index & 0x07));
-          else                  *dst &= ~(0x80>>(_index & 0x07));
-          if (0 == --length) return;
-          if (ptr_advance()) dst = ptr_img();
-          else if (!(_index & 0x07)) ++dst;
-          if (++p == 8) {
-            p = 0;
-            ++s;
-          }
-        }
-      }
-    }
-*/
-/*
-    static void dupe_fill(uint8_t* dst, const uint8_t* src, size_t len, size_t size) {
-      while (len > size) {
-        memcpy(dst, src, size);
-        dst += size;
-        len -= size;
-        size <<= 1;
-      }
-      if (len) {
-        memcpy(dst, src, len);
-      }
-    }
-//*/
     static void memset_multi(uint8_t* buf, uint32_t c, size_t size, size_t length) {
       size_t l = length;
       if (l & ~0xF) {
@@ -596,13 +525,26 @@ return;
       }
     }
 
-    void read_pixels(void* dst, int32_t length, pixelcopy_param_t* param, void(*fp_copy)(void*&, const void*&, int32_t, pixelcopy_param_t*)) override
+    void read_rect_impl(int32_t x, int32_t y, int32_t w, int32_t h, void* dst, pixelcopy_t* param) override
+    {
+      set_window(x, y, x + w - 1, y + h - 1);
+      if (param->no_convert) {
+        readBytes_impl((uint8_t*)dst, w * h * _read_depth.bytes);
+      } else {
+        read_pixels(dst, w * h, param);
+      }
+    }
+
+    void read_pixels(void* dst, int32_t length, pixelcopy_t* param)
     {
       int32_t linelength;
+      int32_t dstindex;
+      param->src_data = _img;
       do {
         linelength = std::min(_xe - _xptr + 1, length);
-        const void* src = ptr_img();
-        fp_copy(dst, src, linelength, param);
+        param->src_x = _xptr;
+        param->src_y = _yptr;
+        dstindex = param->fp_copy(dst, dstindex, dstindex + linelength, param);
         ptr_advance(linelength);
       } while (length -= linelength);
     }
@@ -620,8 +562,21 @@ return;
       }
     }
 
-//  void write_pixels(const void* src, int32_t length, pixelcopy_param_t* param, void(*fp_copy)(void*&, const void*&, int32_t, pixelcopy_param_t*)) override
-    void write_pixels_impl(int32_t length, pixelcopy_t* param) override
+    void push_image_impl(int32_t x, int32_t y, int32_t w, int32_t h, pixelcopy_t* param) override
+    {
+      auto sx = param->src_x;
+      do {
+        int32_t pos = x + (y++) * _bitwidth;
+        int32_t end = pos + w;
+        while (end != (pos = param->fp_copy(_img, pos, end, param))) {
+          if ( end == (pos = param->fp_skip(      pos, end, param))) break;
+        }
+        param->src_x = sx;
+        param->src_y++;
+      } while (--h);
+    }
+
+    void push_colors_impl(int32_t length, pixelcopy_t* param) override
     {
       auto k = _bitwidth * _write_depth.bits >> 3;
       int32_t linelength;

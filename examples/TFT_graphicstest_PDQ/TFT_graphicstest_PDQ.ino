@@ -64,8 +64,7 @@ void setup() {
   while (!Serial);
   Serial.println(""); Serial.println("");
 #ifdef LOVYANGFX_HPP_
-  Serial.println(F("Lovyan's LovyanGFX library Test!")); 
-//Serial.printf("LovyanGFX mosi:%d  miso:%d  sclk:%d  cs:%d  dc:%d  rst:%d \r\n", LGFX_Config::spi_mosi, LGFX_Config::spi_miso, LGFX_Config::spi_sclk, LGFX_Config::spi_cs, LGFX_Config::spi_dc, LGFX_Config::panel_rst);
+  Serial.println(F("LovyanGFX library Test!")); 
 #else
   Serial.println(F("TFT_eSPI library Test!")); 
 #endif
@@ -75,7 +74,6 @@ void setup() {
 
   tft.setRotation(0);
 
-  tft.setColorDepth(16);
   //tft.setColorDepth(24);
 
 }
