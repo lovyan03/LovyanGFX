@@ -129,6 +129,7 @@ namespace lgfx
     struct cfg_t {
       static constexpr int spi_cs =  5;
       static constexpr int spi_dc = 21;
+      static constexpr int gpio_bl = 14;
       static constexpr uint32_t freq_write = 40000000;
       static constexpr uint32_t freq_read  = 16000000;
       static constexpr uint32_t freq_fill  = 80000000;
@@ -157,6 +158,7 @@ namespace lgfx
       static constexpr int rotation = 1;
       static constexpr int spi_cs = 14;
       static constexpr int spi_dc = 27;
+      static constexpr int gpio_rst = 33;
       static constexpr uint32_t freq_write = 40000000;
       static constexpr uint32_t freq_read  = 20000000;
       static constexpr uint32_t freq_fill  = 80000000;

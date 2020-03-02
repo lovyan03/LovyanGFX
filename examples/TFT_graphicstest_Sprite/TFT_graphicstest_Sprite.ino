@@ -51,8 +51,10 @@ void setup() {
 #endif
 
 #ifdef GPIO_BL
-  lgfx::TPin<GPIO_BL>::init();
-  lgfx::TPin<GPIO_BL>::hi();
+  pinMode(GPIO_BL, OUTPUT);
+
+  //lgfx::TPin<GPIO_BL>::init();
+  //lgfx::TPin<GPIO_BL>::hi();
 
   const int BLK_PWM_CHANNEL = 7;
   ledcSetup(BLK_PWM_CHANNEL, 12000, 8);
@@ -100,7 +102,7 @@ void setup() {
   Serial.println(""); Serial.println("");
 #ifdef LOVYANGFX_HPP_
   Serial.println(F("Lovyan's LovyanGFX library Test!")); 
-//Serial.printf("LovyanGFX mosi:%d  miso:%d  sclk:%d  cs:%d  dc:%d  rst:%d \r\n", LGFX_Config::spi_mosi, LGFX_Config::spi_miso, LGFX_Config::spi_sclk, LGFX_Config::spi_cs, LGFX_Config::spi_dc, LGFX_Config::panel_rst);
+//Serial.printf("LovyanGFX mosi:%d  miso:%d  sclk:%d  cs:%d  dc:%d  rst:%d \r\n", LGFX_Config::spi_mosi, LGFX_Config::spi_miso, LGFX_Config::spi_sclk, LGFX_Config::spi_cs, LGFX_Config::spi_dc, LGFX_Config::gpio_rst);
 #else
   Serial.println(F("TFT_eSPI library Test!")); 
 #endif
@@ -124,8 +126,8 @@ void setup() {
   //tft.setColorDepth(24);  tft.createSprite(240,170);
   //tft.setColorDepth();
   //tft.createSprite(tft_lcd.width(), tft_lcd.height());
-  tft.setColorDepth(4);  tft.createSprite(240,240);
-  tft.createPalette();
+  tft.setColorDepth(8);  tft.createSprite(240,240);
+  //tft.createPalette();
   tft_lcd.setPivot(tft.width()>>1, tft.height()>>1);
   tft    .setPivot(tft.width()>>1, tft.height()>>1);
 
@@ -145,13 +147,15 @@ void loop(void)
 	tft_lcd.startWrite();
 
 	Serial.println(F("Benchmark                Time (microseconds)"));
-
+/*
+	uint32_t usecHaD = 0;
+/*/
 	uint32_t usecHaD = testHaD();
 	tft.pushSprite(0, 0);
 	Serial.print(F("HaD pushColor            "));
 	Serial.println(usecHaD);
 	delay(100);
-
+//*/
 taskDISABLE_INTERRUPTS();
 	uint32_t usecFillScreen = testFillScreen();
 taskENABLE_INTERRUPTS();
@@ -257,7 +261,7 @@ taskENABLE_INTERRUPTS();
 	Serial.println(F("Done!"));
 
     //int i = 360;
-    for (int i = 0; i < 360; i++)
+    for (int i = 0; i <= 360; i++)
     {
 
 	uint16_t c = 4;
@@ -372,7 +376,10 @@ taskENABLE_INTERRUPTS();
 	tft.setTextColor(TFT_GREEN); tft.setTextSize(2);
 	tft.print(F("Benchmark Complete!"));
 
-    //tft.pushRotateZoom(&tft_lcd, tft_lcd.getPivotX(), tft_lcd.getPivotY(), abs((float)(i/20)-9.5)/10.0, abs((float)((i+10)/20)-9.5)/10.0, 0.1+(float)i/100, 0);
+/*
+   tft.pushRotateZoom(&tft_lcd, tft_lcd.getPivotX(), tft_lcd.getPivotY(), i, (float)i/360, 0.1+(float)i/360);
+/*/
+//    tft.pushRotateZoom(&tft_lcd, tft_lcd.getPivotX(), tft_lcd.getPivotY(), (((float)i/20)-9.5)/10.0, ((((float)i+10)/20)-9.5)/10.0, 0.1+(float)i/100, 0);
       tft.pushRotateZoom(&tft_lcd
                         , i-20 // tft_lcd.getPivotX()
                         , tft_lcd.getPivotY()
@@ -381,12 +388,15 @@ taskENABLE_INTERRUPTS();
                         , (float)(std::min(abs(((i+64)&127)-64),32)-16) / 16
 //                        , 0
                         );
+//*/
     }
-
+/*
+tft.pushSprite(0, 0);
+/*/
 	uint32_t usecPushSprite = micros_start();
-    for (int i = 0; i <= 360; i++) {
+    for (int i = 0; i <= 480; i++) {
       //tft.pushSprite(0, 0);
-      tft.pushSprite(i - 180, i - 180);
+      tft.pushSprite(i - 240, i - 240);
     }
 	usecPushSprite = micros() - usecPushSprite;
 	Serial.print(F("Normal pushSprite    "));
@@ -403,9 +413,9 @@ taskENABLE_INTERRUPTS();
 
 
 	usecPushSprite = micros_start();
-    for (int i = 0; i <= 360; i++) {
+    for (int i = 0; i <= 480; i++) {
       //tft.pushSprite(0, 0, TFT_YELLOW);
-      tft.pushSprite(i - 180, i - 180, 0); //TFT_YELLOW);
+      tft.pushSprite(i - 240, i - 240, 0); //TFT_YELLOW);
     }
 	usecPushSprite = micros() - usecPushSprite;
 	Serial.print(F("Transparent Sprite   "));
@@ -419,7 +429,7 @@ taskENABLE_INTERRUPTS();
 	usecRotated = micros() - usecRotated;
 	Serial.print(F("Transparent Rotated  "));
 	Serial.println(usecRotated);
-	
+//*/	
 	tft_lcd.endWrite();
 //	delay(60 * 1000L);
 }

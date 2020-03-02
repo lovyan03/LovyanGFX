@@ -175,8 +175,8 @@ namespace lgfx
     };
   };
   //constexpr uint8_t PROGMEM Panel_ST7735_Common::Bcmd[];
-  //constexpr uint8_t PROGMEM Panel_ST7735_Common::Rcmd1[];
-  //constexpr uint8_t PROGMEM Panel_ST7735_Common::Rcmd2[];
+  constexpr uint8_t PROGMEM Panel_ST7735_Common::Rcmd1[];
+  constexpr uint8_t PROGMEM Panel_ST7735_Common::Rcmd2[];
 
 
   template <class CFG>
@@ -224,6 +224,7 @@ namespace lgfx
       static constexpr bool invert = true;
       static constexpr int spi_cs =  5;
       static constexpr int spi_dc = 23;
+      static constexpr int gpio_rst = 18;
       static constexpr int freq_write = 27000000;
       static constexpr int freq_read  = 16000000;
       static constexpr int freq_fill  = 27000000;

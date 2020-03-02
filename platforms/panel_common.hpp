@@ -18,6 +18,8 @@ namespace lgfx
   MEMBER_DETECTOR(spi_mode_read, get_spi_mode_read, get_spi_mode_read_impl, uint8_t)
   MEMBER_DETECTOR(spi_cs       , get_spi_cs       , get_spi_cs_impl       , int)
   MEMBER_DETECTOR(spi_dc       , get_spi_dc       , get_spi_dc_impl       , int)
+  MEMBER_DETECTOR(gpio_bl     , get_gpio_bl     , get_gpio_bl_impl     , int)
+  MEMBER_DETECTOR(gpio_rst    , get_gpio_rst    , get_gpio_rst_impl    , int)
   MEMBER_DETECTOR(freq_write   , get_freq_write   , get_freq_write_impl   , uint32_t)
   MEMBER_DETECTOR(freq_read    , get_freq_read    , get_freq_read_impl    , uint32_t)
   MEMBER_DETECTOR(freq_fill    , get_freq_fill    , get_freq_fill_impl    , uint32_t)
@@ -37,8 +39,8 @@ namespace lgfx
   {
   public:
 
-    static uint32_t getWindowAddr32(uint16_t H, uint16_t L) { return ((H)<<8 | (H)>>8) | (((L)<<8 | (L)>>8)<<16 ); }
-    static uint32_t getWindowAddr16(uint16_t H, uint16_t L) { return H | L<<8; }
+    static uint32_t getWindowAddr32(uint32_t H, uint32_t L) { return ((H)<<8 | (H)>>8) | (((L)<<8 | (L)>>8)<<16 ); }
+    static uint32_t getWindowAddr16(uint32_t H, uint32_t L) { return H | L<<8; }
 
     PanelCommon() {}
     virtual ~PanelCommon() {}
@@ -51,9 +53,11 @@ namespace lgfx
       spi_mode_read = get_spi_mode_read<CFG, get_spi_mode<CFG, 0>::value>::value;
       spi_cs        = get_spi_cs       <CFG, -1>::value;
       spi_dc        = get_spi_dc       <CFG, -1>::value;
-      freq_write    = get_freq_write   <CFG, 0>::value;
-      freq_read     = get_freq_read    <CFG, 0>::value;
-      freq_fill     = get_freq_fill    <CFG, 0>::value;
+      gpio_bl       = get_gpio_bl      <CFG, -1>::value;
+      gpio_rst      = get_gpio_rst     <CFG, -1>::value;
+      freq_write    = get_freq_write   <CFG,  0>::value;
+      freq_read     = get_freq_read    <CFG,  0>::value;
+      freq_fill     = get_freq_fill    <CFG,  0>::value;
 
       write_depth   = get_color_depth  <CFG, rgb565_2Byte>::value;
       invert        = get_invert       <CFG, false>::value;
@@ -119,6 +123,7 @@ namespace lgfx
     uint32_t len_setwindow;
     uint32_t len_dummy_read_pixel;
     uint32_t len_dummy_read_rddid;
+    uint32_t cmd_nop = 0;
     uint32_t cmd_caset;
     uint32_t cmd_raset;
     uint32_t cmd_ramrd;
@@ -136,8 +141,10 @@ namespace lgfx
     int32_t height;
     int16_t spi_cs;
     int16_t spi_dc;
-    uint8_t spi_mode;
+    int16_t gpio_rst;
+    int16_t gpio_bl;
     uint8_t spi_mode_read;
+    uint8_t spi_mode;
     uint8_t rotation;
     color_depth_t write_depth;
     color_depth_t read_depth;

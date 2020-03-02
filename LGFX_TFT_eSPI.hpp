@@ -34,7 +34,6 @@ namespace lgfx {
     static constexpr int spi_mosi = 23;
     static constexpr int spi_miso = 19;
     static constexpr int spi_sclk = 18;
-    static constexpr int panel_rst = 33;
   };
 
 #elif defined(ARDUINO_M5Stick_C) // M5Stick C
@@ -46,7 +45,6 @@ namespace lgfx {
     static constexpr int spi_mosi = 15;
     static constexpr int spi_miso = 14;
     static constexpr int spi_sclk = 13;
-    static constexpr int panel_rst = 18;
   };
 
 #elif defined(ARDUINO_ODROID_ESP32) // ODROID-GO
@@ -58,8 +56,6 @@ namespace lgfx {
     static constexpr int spi_mosi = 23;
     static constexpr int spi_miso = 19;
     static constexpr int spi_sclk = 18;
-    static constexpr int panel_rst = -1;
-    static constexpr int panel_bl  = 14;
   };
 
 #elif defined(ARDUINO_T) // TTGO T-Watch
@@ -71,8 +67,8 @@ namespace lgfx {
     static constexpr int spi_mosi = 19;
     static constexpr int spi_miso = -1;
     static constexpr int spi_sclk = 18;
-//    static constexpr int panel_rst = -1;
-//    static constexpr int panel_bl  = 12;
+//    static constexpr int gpio_rst = -1;
+//    static constexpr int gpio_bl  = 12;
   };
 
 #elif defined ( ARDUINO_ESP32_DEV ) // ESP-WROVER-KIT
@@ -85,8 +81,8 @@ namespace lgfx {
     static constexpr int spi_sclk = 19;
     static constexpr int spi_cs   = 22;
     static constexpr int spi_dc   = 21;
-    static constexpr int panel_rst = 18;
-    static constexpr int panel_bl  = 5;
+    static constexpr int gpio_rst = 18;
+    static constexpr int gpio_bl  = 5;
     static constexpr int freq_write = 40000000;
     static constexpr int freq_read  = 20000000;
     static constexpr int freq_fill  = 40000000;

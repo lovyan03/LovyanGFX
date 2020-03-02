@@ -80,18 +80,14 @@ namespace lgfx
 
     __attribute__ ((always_inline)) inline void beginTransaction(void) { beginTransaction_impl(); }
     __attribute__ ((always_inline)) inline void endTransaction(void)   { endTransaction_impl(); }
-    __attribute__ ((always_inline)) inline void flush(void) { flush_impl(); }
     __attribute__ ((always_inline)) inline void setWindow(int32_t xs, int32_t ys, int32_t xe, int32_t ye) { setWindow_impl(xs, ys, xe, ye); }
-
-    virtual void* buffer(void) { return nullptr; }
 
     void startWrite(void) { if (0 == _transaction_count++) { beginTransaction(); } }
     void endWrite(void)   { if (_transaction_count) { if (0 == (--_transaction_count)) endTransaction(); } }
 
     void setAddrWindow(int32_t x, int32_t y, int32_t w, int32_t h)
     {
-      _adjust(x,w);
-      _adjust(y,h);
+      if (_adjust(x, w)||_adjust(y, h)) return;
       startWrite();
       setWindow(x, y, x + w - 1, y + h - 1);
       endWrite();
@@ -100,15 +96,16 @@ namespace lgfx
     void drawPixel(int32_t x, int32_t y)
     {
       if (x < 0 || (x >= _width) || y < 0 || (y >= _height)) return;
-      drawPixel_impl(x, y);
+
+      fillRect_impl(x, y, 1, 1);
     }
 
     void drawFastVLine(int32_t x, int32_t y, int32_t h)
     {
       if ((x < 0) || (x >= _width)) return;
-      if (_adjust(y,h)) return; 
+      _adjust(y, h);
       if (y < 0) { h += y; y = 0; }
-      if ((y + h) > _height) h = _height - y;
+      if (h > _height - y) h = _height - y;
       if (h < 1) return;
 
       fillRect_impl(x, y, 1, h);
@@ -117,9 +114,9 @@ namespace lgfx
     void drawFastHLine(int32_t x, int32_t y, int32_t w)
     {
       if ((y < 0) || (y >= _height)) return;
-      if (_adjust(x,w)) return; 
+      _adjust(x, w);
       if (x < 0) { w += x; x = 0; }
-      if ((x + w) > _width) w = _width - x;
+      if (w > _width - x) w = _width - x;
       if (w < 1) return;
 
       fillRect_impl(x, y, w, 1);
@@ -127,13 +124,13 @@ namespace lgfx
 
     void fillRect(int32_t x, int32_t y, int32_t w, int32_t h)
     {
-      if (_adjust(x,w)||_adjust(y,h)) return; 
-      if ((x >= _width) || (y >= _height)) return;
+      _adjust(x, w);
       if (x < 0) { w += x; x = 0; }
-      if ((x + w) > _width)  w = _width  - x;
+      if (w > _width - x)  w = _width  - x;
       if (w < 1) return;
+      _adjust(y, h);
       if (y < 0) { h += y; y = 0; }
-      if ((y + h) > _height) h = _height - y;
+      if (h > _height - y) h = _height - y;
       if (h < 1) return;
 
       fillRect_impl(x, y, w, h);
@@ -141,7 +138,7 @@ namespace lgfx
 
     void drawRect(int32_t x, int32_t y, int32_t w, int32_t h)
     {
-      if (_adjust(x,w)||_adjust(y,h)) return;
+      if (_adjust(x, w)||_adjust(y, h)) return;
       startWrite();
       drawFastHLine(x, y        , w);
       if (--h) {
@@ -228,7 +225,7 @@ namespace lgfx
 
     void drawRoundRect(int32_t x, int32_t y, int32_t w, int32_t h, int32_t r)
     {
-      if (_adjust(x,w)||_adjust(y,h)) return; 
+      if (_adjust(x, w)||_adjust(y, h)) return; 
       startWrite();
 
       w--;
@@ -273,7 +270,7 @@ namespace lgfx
 
     void fillRoundRect(int32_t x, int32_t y, int32_t w, int32_t h, int32_t r)
     {
-      if (_adjust(x,w)||_adjust(y,h)) return; 
+      if (_adjust(x, w)||_adjust(y, h)) return; 
       startWrite();
       fillRect(x, y + r, w, h - (r << 1));
       int32_t x0 = x + r;
@@ -466,59 +463,41 @@ namespace lgfx
       endWrite();
     }
 
-    void writeBytes(const uint8_t* src, int32_t len)
-    {
-      writeBytes_impl(src, len);
-    }
-
     uint16_t readPixel(int32_t x, int32_t y)
     {
-      //rgb565_t buf;
-      //read_rect(x, y, 1, 1, &buf, get_read_pixels_fp<rgb565_t>());
-      //return buf.raw;
       if (x < 0 || (x >= _width) || y < 0 || (y >= _height)) return 0;
-      return readPixel16_impl(x, y).raw;
-    }
 
-    uint32_t readPixelRAW(int32_t x, int32_t y)
-    {
-      if (x < 0 || (x >= _width) || y < 0 || (y >= _height)) return 0;
-      return readPixelRAW_impl(x, y);
+      pixelcopy_t p(nullptr, swap565_t::depth, _read_depth.depth, false, getPalette());
+      uint16_t data;
+      read_rect(x, y, 1, 1, &data, &p);
+      return __builtin_bswap16(data);
     }
 
     template<typename T> inline
     void readRect( int32_t x, int32_t y, int32_t w, int32_t h, T* data)
     {
-//    read_rect(x, y, w, h, data, get_read_pixels_fp<T>());
-
       pixelcopy_t p(nullptr, T::depth, _read_depth.depth, false, getPalette());
       read_rect(x, y, w, h, data, &p);
     }
 
     void readRectRGB( int32_t x, int32_t y, int32_t w, int32_t h, uint8_t* data)
     {
-//    read_rect(x, y, w, h, data, get_read_pixels_fp<swap888_t>());
       pixelcopy_t p(nullptr, swap888_t::depth, _read_depth.depth, false, getPalette());
       read_rect(x, y, w, h, data, &p);
     }
 
     void readRect(int32_t x, int32_t y, int32_t w, int32_t h, uint8_t* data)
     {
-//    read_rect(x, y, w, h, data, get_read_pixels_fp<rgb332_t>());
       pixelcopy_t p(nullptr, rgb332_t::depth, _read_depth.depth, false, getPalette());
       read_rect(x, y, w, h, data, &p);
     }
     void readRect(int32_t x, int32_t y, int32_t w, int32_t h, uint16_t* data)
     {
-//      if (_swapBytes) read_rect(x, y, w, h, data, get_read_pixels_fp<rgb565_t>());
-//      else            read_rect(x, y, w, h, data, get_read_pixels_fp<swap565_t>());
       pixelcopy_t p(nullptr, swap565_t::depth, _read_depth.depth, false, getPalette());
       read_rect(x, y, w, h, data, &p);
     }
     void readRect(int32_t x, int32_t y, int32_t w, int32_t h, void* data)
     {
-//      if (_swapBytes) read_rect(x, y, w, h, data, get_read_pixels_fp<rgb888_t>());
-//      else            read_rect(x, y, w, h, data, get_read_pixels_fp<swap888_t>());
       pixelcopy_t p(nullptr, swap888_t::depth, _read_depth.depth, false, getPalette());
       read_rect(x, y, w, h, data, &p);
     }
@@ -618,7 +597,7 @@ namespace lgfx
       int32_t scale_w = w << FP_SCALE;
       int32_t xs1 = (cos_x < 0 ?   - scale_w :   1) - cos_x;
       int32_t xs2 = (cos_x < 0 ? 0 : (1 - scale_w)) - cos_x;
-      if (cos_x == 0) cos_x = 1;
+    //if (cos_x == 0) cos_x = 1;
       cos_x = -cos_x;
 
       int32_t sin_y = round(sin_f / zoom_y);
@@ -628,7 +607,7 @@ namespace lgfx
       int32_t scale_h = h << FP_SCALE;
       int32_t ys1 = (sin_y < 0 ?   - scale_h :   1) - sin_y;
       int32_t ys2 = (sin_y < 0 ? 0 : (1 - scale_h)) - sin_y;
-      if (sin_y == 0) sin_y = 1;
+    //if (sin_y == 0) sin_y = 1;
       sin_y = -sin_y;
 
       int32_t max_x = _width;
@@ -638,13 +617,13 @@ namespace lgfx
         int32_t left = 0;
         int32_t right = max_x;
         xstart += sin_x;
-        //if (cos_x != 0)
+        if (cos_x != 0)
         {
           int32_t tmp = (xstart + xs1) / cos_x; if (left  < tmp) left  = tmp;
                   tmp = (xstart + xs2) / cos_x; if (right > tmp) right = tmp;
         }
         ystart += cos_y;
-        //if (sin_y != 0)
+        if (sin_y != 0)
         {
           int32_t tmp = (ystart + ys1) / sin_y; if (left  < tmp) left  = tmp;
                   tmp = (ystart + ys2) / sin_y; if (right > tmp) right = tmp;
@@ -664,17 +643,18 @@ namespace lgfx
       setScrollRect(x, y, w, h);
     }
     void setScrollRect(int32_t x, int32_t y, int32_t w, int32_t h) {
-      _adjust(x,w);
-      _adjust(y,h);
+      _adjust(x, w);
       if (x < 0) { w += x; x = 0; }
-      if ((x + w) > _width)  w = _width  - x;
+      if (w > _width - x)  w = _width  - x;
       if (w < 0) w = 0;
-      if (y < 0) { h += y; y = 0; }
-      if ((y + h) > _height) h = _height - y;
-      if (h < 0) h = 0;
       _sx = x;
-      _sy = y;
       _sw = w;
+
+      _adjust(y, h);
+      if (y < 0) { h += y; y = 0; }
+      if (h > _height - y) h = _height - y;
+      if (h < 0) h = 0;
+      _sy = y;
       _sh = h;
     }
 
@@ -707,12 +687,12 @@ namespace lgfx
     void copyRect(int32_t dst_x, int32_t dst_y, int32_t w, int32_t h, int32_t src_x, int32_t src_y)
     {
       if ((src_x >= _width) || (dst_x >= _width)) return;
-      if (src_x < dst_x) { if (src_x < 0) { w += src_x; dst_x -= src_x; src_x = 0; } if ((dst_x + w) > _width )  w = _width  - dst_x; }
-      else               { if (dst_x < 0) { w += dst_x; src_x -= dst_x; dst_x = 0; } if ((src_x + w) > _width )  w = _width  - src_x; }
+      if (src_x < dst_x) { if (src_x < 0) { w += src_x; dst_x -= src_x; src_x = 0; } if (w > _width  - dst_x)  w = _width  - dst_x; }
+      else               { if (dst_x < 0) { w += dst_x; src_x -= dst_x; dst_x = 0; } if (w > _width  - src_x)  w = _width  - src_x; }
       if (w < 1) return;
       if ((src_y >= _height) || (dst_y >= _height)) return;
-      if (src_y < dst_y) { if (src_y < 0) { h += src_y; dst_y -= src_y; src_y = 0; } if ((dst_y + h) > _height)  h = _height - dst_y; }
-      else               { if (dst_y < 0) { h += dst_y; src_y -= dst_y; dst_y = 0; } if ((src_y + h) > _height)  h = _height - src_y; }
+      if (src_y < dst_y) { if (src_y < 0) { h += src_y; dst_y -= src_y; src_y = 0; } if (h > _height - dst_y)  h = _height - dst_y; }
+      else               { if (dst_y < 0) { h += dst_y; src_y -= dst_y; dst_y = 0; } if (h > _height - src_y)  h = _height - src_y; }
       if (h < 1) return;
 
       copyRect_impl(dst_x, dst_y, w, h, src_x, src_y);
@@ -996,25 +976,25 @@ namespace lgfx
 
     template <typename T>
     __attribute__ ((always_inline)) inline static void swap_coord(T& a, T& b) { T t = a; a = b; b = t; }
-    __attribute__ ((always_inline)) inline static bool _adjust(int32_t& x, int32_t& w) { if (w < 0) { x += w + 1; w = -w; } return 0==w; }
+    __attribute__ ((always_inline)) inline static bool _adjust(int32_t& x, int32_t& w) { if (w < 0) { x += w + 1; w = -w; } return !w; }
 
-    static bool _adjust_width(int32_t& x, int32_t& dx, int32_t& dw, int32_t _width)
+    static bool _adjust_width(int32_t& x, int32_t& dx, int32_t& dw, int32_t width)
     {
-      if ((dw < 1) || (x >= _width)) return true;
-      if (x < 0) { dw += x; dx = -x; x = 0; }
-      if ((x + dw) > _width ) dw = _width  - x;
+      if (x < 0) { dx = -x; dw += x; x = 0; }
+      if (dw > width - x) dw = width  - x;
       return (dw < 1);
     }
 
     void read_rect(int32_t x, int32_t y, int32_t w, int32_t h, void* dst, pixelcopy_t* param)
     {
-      if (_adjust(x,w) || _adjust(y,h)) return;
-      if ((x >= _width) || (y >= _height)) return;
+      _adjust(x, w);
       if (x < 0) { w += x; x = 0; }
-      if ((x + w) > _width)  w = _width  - x;
+      if (w > _width - x)  w = _width  - x;
       if (w < 1) return;
+
+      _adjust(y, h);
       if (y < 0) { h += y; y = 0; }
-      if ((y + h) > _height) h = _height - y;
+      if (h > _height - y) h = _height - y;
       if (h < 1) return;
 
       startWrite();
@@ -1024,27 +1004,23 @@ namespace lgfx
 
     virtual void beginTransaction_impl() {};
     virtual void endTransaction_impl() {};
-    virtual void flush_impl() {}
     virtual void endRead_impl(void) {}
     virtual void* setColorDepth_impl(color_depth_t bpp) { return nullptr; }
     virtual void* getPalette_impl(void) const { return nullptr; }
 
-    virtual rgb565_t readPixel16_impl(int32_t x, int32_t y) { return 0; }
-    virtual uint32_t readPixelRAW_impl(int32_t x, int32_t y) { return 0; }
+//    virtual rgb565_t readPixel16_impl(int32_t x, int32_t y) { return 0; }
+//    virtual uint32_t readPixelRAW_impl(int32_t x, int32_t y) { return 0; }
 
     virtual void setRotation_impl(uint8_t rotation) {}
-    virtual void drawPixel_impl(int32_t x, int32_t y) = 0;
     virtual void fillRect_impl(int32_t x, int32_t y, int32_t w, int32_t h) = 0;
     virtual void copyRect_impl(int32_t dst_x, int32_t dst_y, int32_t w, int32_t h, int32_t src_x, int32_t src_y) = 0;
     virtual void read_rect_impl(int32_t x, int32_t y, int32_t w, int32_t h, void* dst, pixelcopy_t* param) = 0;
     virtual void push_image_impl(int32_t x, int32_t y, int32_t w, int32_t h, pixelcopy_t* param) = 0;
     virtual void push_colors_impl(int32_t length, pixelcopy_t* param) = 0;
-    virtual void readBytes_impl(uint8_t* dst, int32_t length) = 0;
-    virtual void writeBytes_impl(const uint8_t* data, int32_t length) = 0;
     virtual void writeColor_impl(int32_t len) = 0;
 
     virtual void setWindow_impl(int32_t xs, int32_t ys, int32_t xe, int32_t ye) = 0;
-    virtual void readWindow_impl(int32_t xs, int32_t ys, int32_t xe, int32_t ye) = 0;
+//    virtual void readWindow_impl(int32_t xs, int32_t ys, int32_t xe, int32_t ye) = 0;
 
   //----------------------------------------------------------------------------
   // print & text support

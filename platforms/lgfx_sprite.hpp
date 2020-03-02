@@ -32,7 +32,7 @@ namespace lgfx
       _transaction_count = 0xFFFF;
     }
 
-    void* buffer(void) override { return _img; }
+    void* buffer(void) { return _img; }
     uint32_t bufferLength(void) const { return _bitwidth * _height * _write_depth.bits >> 3; }
 
     LGFXSpriteBase()
@@ -217,10 +217,6 @@ for (uint32_t i = 0; i < palettes; i++) {
     {
       set_window(xs, ys, xe, ye);
     }
-    void readWindow_impl(int32_t xs, int32_t ys, int32_t xe, int32_t ye) override
-    {
-      set_window(xs, ys, xe, ye);
-    }
 
     void* setColorDepth_impl(color_depth_t depth) override
     {
@@ -243,21 +239,6 @@ for (uint32_t i = 0; i < palettes; i++) {
       _rotation = r;
     }
 
-    void drawPixel_impl(int32_t x, int32_t y) override
-    {
-      if (_write_depth.bytes == 2) {
-        _img16[x + y * _bitwidth] = _color.rawL;
-      } else if (_write_depth.bytes == 1) {
-        _img[x + y * _bitwidth] = _color.raw0;
-      } else if (_write_depth.bytes == 3) {
-        _img24[x + y * _bitwidth] = *(swap888_t*)&_color;
-      } else {
-        uint8_t mask = (uint8_t)(~(0xFF >> _write_depth.bits)) >> (x * _write_depth.bits & 7);
-        auto dst = &_img[(x + y * _bitwidth) * _write_depth.bits >> 3];
-        *dst = (*dst & ~mask) | (_color.raw0 & mask);
-      }
-    }
-
     void fillRect_impl(int32_t x, int32_t y, int32_t w, int32_t h) override
     {
 /*
@@ -265,16 +246,14 @@ setWindow(x,y,x+w-1,y+h-1);
 writeColor_impl(w*h);
 return;
 //*/
-      if (_write_depth.bytes == 0) {
-        size_t d = _bitwidth * _write_depth.bits >> 3;
-        uint8_t* dst = &_img[(x + y * _bitwidth) * _write_depth.bits >> 3];
-        size_t len = ((x + w) * _write_depth.bits >> 3) - (x * _write_depth.bits >> 3);
-        uint8_t mask = 0xFF >> (x * _write_depth.bits & 7);
+      uint32_t bits = _write_depth.bits;
+      if (bits < 8) {
         uint8_t c = _color.raw0;
-        if (!len) {
-          mask ^= mask >> (w * _write_depth.bits);
-          c &= mask;
-        } else {
+        uint8_t mask = 0xFF >> (x * bits & 7);
+        size_t d = _bitwidth * bits >> 3;
+        uint8_t* dst = &_img[(x + y * _bitwidth) * bits >> 3];
+        size_t len = ((x + w) * bits >> 3) - (x * bits >> 3);
+        if (len) {
           if (mask != 0xFF) {
             auto dst2 = dst;
             auto h2 = h;
@@ -282,7 +261,7 @@ return;
             do { *dst2 = (*dst2 & ~mask) | c; dst2 += d; } while (--h2);
             dst++; len--;
           }
-          mask = ~(0xFF>>((x+w) * _write_depth.bits & 7));
+          mask = ~(0xFF>>((x+w) * bits & 7));
           if (mask == 0xFF) len--;
           c = _color.raw0;
           if (len) {
@@ -293,51 +272,53 @@ return;
           }
           if (mask == 0xFF) return;
           c &= mask;
+        } else {
+          mask ^= mask >> (w * bits);
+          c &= mask;
         }
         do { *dst = (*dst & ~mask) | c; dst += d; } while (--h);
-      } else
-      if (w == 1) {
-        uint8_t* dst = &_img[(x + y * _bitwidth) * _write_depth.bytes];
-        if (_write_depth.bytes == 2) {
-          do { *(uint16_t*)dst = *(uint16_t*)&_color;   dst += _bitwidth << 1; } while (--h);
-        } else if (_write_depth.bytes == 1) {
-          do {             *dst = _color.raw0;          dst += _bitwidth;      } while (--h);
-        } else if (_write_depth.bytes == 3) {
-          do { *(swap888_t*)dst = *(swap888_t*)&_color; dst += _bitwidth * 3;  } while (--h);
-        } else {
-        }
       } else {
-        uint8_t* dst = &_img[(x + y * _bitwidth) * _write_depth.bytes];
-        if (_write_depth.bytes == 1 || (_color.raw0 == _color.raw1 && (_write_depth.bytes == 2 || (_color.raw0 == _color.raw2)))) {
-          if (x == 0 && w == _width) {
-            memset(dst, _color.raw0, _width * h * _write_depth.bytes);
-          } else {
-            do {
-              memset(dst, _color.raw0, w * _write_depth.bytes);
-              dst += _width * _write_depth.bytes;
-            } while (--h);
+        if (w == 1) {
+          uint8_t* dst = &_img[(x + y * _bitwidth) * _write_depth.bytes];
+          if (_write_depth.bytes == 2) {
+            do { *(uint16_t* )dst = *(uint16_t*)&_color;  dst += _bitwidth << 1; } while (--h);
+          } else if (_write_depth.bytes == 1) {
+            do {             *dst = _color.raw0;          dst += _bitwidth;      } while (--h);
+          } else {  // if (_write_depth.bytes == 3)
+            do { *(swap888_t*)dst = *(swap888_t*)&_color; dst += _bitwidth * 3;  } while (--h);
           }
         } else {
-          size_t len = w * _write_depth.bytes;
-          uint32_t down = _width * _write_depth.bytes;
-          if (_disable_memcpy) {
-            uint8_t linebuf[len];
-            memset_multi(linebuf, _color.raw, _write_depth.bytes, w);
-            do {
-              memcpy(dst, linebuf, len);
-              dst += down;
-            } while (--h);
+          uint8_t* dst = &_img[(x + y * _bitwidth) * _write_depth.bytes];
+          if (_write_depth.bytes == 1 || (_color.raw0 == _color.raw1 && (_write_depth.bytes == 2 || (_color.raw0 == _color.raw2)))) {
+            if (x == 0 && w == _width) {
+              memset(dst, _color.raw0, _width * h * _write_depth.bytes);
+            } else {
+              do {
+                memset(dst, _color.raw0, w * _write_depth.bytes);
+                dst += _width * _write_depth.bytes;
+              } while (--h);
+            }
           } else {
-            memset_multi(dst, _color.raw, _write_depth.bytes, w);
-            while (--h) {
-              memcpy(dst + down, dst, len);
-              dst += down;
+            size_t len = w * _write_depth.bytes;
+            uint32_t down = _width * _write_depth.bytes;
+            if (_disable_memcpy) {
+              uint8_t linebuf[len];
+              memset_multi(linebuf, _color.raw, _write_depth.bytes, w);
+              do {
+                memcpy(dst, linebuf, len);
+                dst += down;
+              } while (--h);
+            } else {
+              memset_multi(dst, _color.raw, _write_depth.bytes, w);
+              while (--h) {
+                memcpy(dst + down, dst, len);
+                dst += down;
+              }
             }
           }
         }
       }
     }
-
     void writeColor_impl(int32_t length) override
     {
       if (0 >= length) return;
@@ -470,7 +451,7 @@ return;
         }
       }
     }
-
+/*
     rgb565_t readPixel16_impl(int32_t x, int32_t y) override
     {
       _xptr = _xs = _xe = x;
@@ -491,7 +472,7 @@ return;
     {
       return _write_depth.colormask & (*(const uint32_t*)&_img[(x + y * _bitwidth) * _write_depth.bits >> 3]);
     }
-
+//*/
     static void memset_multi(uint8_t* buf, uint32_t c, size_t size, size_t length) {
       size_t l = length;
       if (l & ~0xF) {
@@ -529,7 +510,7 @@ return;
     {
       set_window(x, y, x + w - 1, y + h - 1);
       if (param->no_convert) {
-        readBytes_impl((uint8_t*)dst, w * h * _read_depth.bytes);
+        read_bytes((uint8_t*)dst, w * h * _read_depth.bytes);
       } else {
         read_pixels(dst, w * h, param);
       }
@@ -549,7 +530,7 @@ return;
       } while (length -= linelength);
     }
 
-    void readBytes_impl(uint8_t* dst, int32_t length) override
+    void read_bytes(uint8_t* dst, int32_t length)
     {
       uint8_t b = _write_depth.bytes ? _write_depth.bytes : 1;
       length /= b;
@@ -586,7 +567,7 @@ return;
         ptr_advance(linelength);
       } while (length -= linelength);
     }
-
+/*
     void writeBytes_impl(const uint8_t* data, int32_t length) override
     {
       uint8_t b = _write_depth.bytes ? _write_depth.bytes : 1;
@@ -599,7 +580,7 @@ return;
         length -= linelength;
       }
     }
-
+//*/
     inline bool ptr_advance(int32_t length = 1) {
       if ((_xptr += length) > _xe) {
         _xptr = _xs;
