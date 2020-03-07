@@ -170,14 +170,15 @@ namespace lgfx
     void initPanel(void)
     {
       if (!_panel) return;
-      int32_t gpio_rst = _panel->gpio_rst;
+      auto gpio_rst = _panel->gpio_rst;
       if (gpio_rst >= 0) {
         gpioInit((gpio_num_t)gpio_rst);
         auto tmp = get_gpio_lo_reg(gpio_rst);
-        *tmp = (1 << (gpio_rst & 31));
+        auto mask = (1 << (gpio_rst & 31));
+        *tmp = mask;
         delay(1);
         tmp = get_gpio_hi_reg(gpio_rst);
-        *tmp = (1 << (gpio_rst & 31));
+        *tmp = mask;
       }
       if ( (0 != _dma_channel) && _dmadesc == nullptr ) {
         int dma_desc_ct=(320 * 240 * 2 + SPI_MAX_DMA_LEN-1)/SPI_MAX_DMA_LEN;
@@ -208,6 +209,19 @@ namespace lgfx
       _sh = _height;
     }
 
+    __attribute__ ((always_inline)) inline void setColorDepth(uint8_t bpp) { setColorDepth((color_depth_t)bpp); }
+    void setColorDepth(color_depth_t depth)
+    {
+      commandList(_panel->getColorDepthCommands((uint8_t*)_regbuf, depth));
+      postSetColorDepth();
+    }
+
+    void setRotation(uint8_t r)
+    {
+      commandList(_panel->getRotationCommands((uint8_t*)_regbuf, r));
+      postSetRotation();
+    }
+
     void invertDisplay(bool i)
     {
       _invert = i;
@@ -220,16 +234,16 @@ namespace lgfx
 
     void writecommand(uint32_t cmd)
     {
-      if (!_transaction_count) beginTransaction_impl();
+      startWrite();
       write_cmd(cmd);
-      if (!_transaction_count) endTransaction_impl();
+      endWrite();
     }
 
     void writedata(uint32_t data, uint32_t len = 8)
     {
-      if (!_transaction_count) beginTransaction_impl();
+      startWrite();
       write_data(data, len);
-      if (!_transaction_count) endTransaction_impl();
+      endWrite();
     }
 
     uint32_t readPanelID(void)
@@ -317,24 +331,10 @@ namespace lgfx
 
     void postSetColorDepth(void)
     {
-      _write_depth.setColorDepth(_panel->write_depth);
-      _read_depth.setColorDepth(_panel->read_depth);
-      _len_read_pixel  = _read_depth.bits;
+      _write_conv.setColorDepth(_panel->write_depth);
+      _read_conv.setColorDepth(_panel->read_depth);
+      _len_read_pixel  = _read_conv.bits;
       _len_dummy_read_pixel = _panel->len_dummy_read_pixel;
-    }
-
-    void setRotation_impl(uint8_t r) override
-    {
-      commandList(_panel->getRotationCommands((uint8_t*)_regbuf, r));
-      postSetRotation();
-    }
-
-    void* setColorDepth_impl(color_depth_t depth) override
-    {
-      commandList(_panel->getColorDepthCommands((uint8_t*)_regbuf, depth));
-      postSetColorDepth();
-
-      return nullptr;
     }
 
     void beginTransaction_impl(void) override {
@@ -439,12 +439,11 @@ namespace lgfx
 
     void write_color(int32_t length)
     {
-      if (length == 1) { write_data(_color.raw, _write_depth.bits); return; }
+      if (length == 1) { write_data(_color.raw, _write_conv.bits); return; }
 
-      // convert to bitlength.
-      length *= _write_depth.bits;
       // make 12Bytes data.
-      if (_write_depth.bytes == 2) {
+      auto bytes = _write_conv.bytes;
+      if (bytes == 2) {
         _regbuf[0] = _color.raw | _color.raw << 16;
         memcpy(&_regbuf[1], _regbuf, 4);
         memcpy(&_regbuf[2], _regbuf, 4);
@@ -454,13 +453,14 @@ namespace lgfx
         memcpy(&((uint8_t*)_regbuf)[6], _regbuf, 6);
       }
 
-      // 1st send length = max (96bit) 12Byte. 
-      uint32_t len = std::min(96, length);
+      length *= _write_conv.bits;          // convert to bitlength.
+      uint32_t len = std::min(96, length); // 1st send length = max (96bit) 12Byte. 
       dc_h();
       set_write_len(len);
 
       // copy to SPI buffer register
       memcpy((void*)_spi_w0_reg, _regbuf, 12);
+
       exec_spi();   // 1st send.
       if (0 == (length -= len)) return;
 
@@ -474,14 +474,15 @@ namespace lgfx
       // limit = 64Byte / depth_bytes;
       // When 3Byte color, 504 bits out of 512bit buffer are used.
       // When 2Byte color, it uses exactly 512 bytes. but, it behaves like a ring buffer, can specify a larger size.
-      const uint32_t limit = (_write_depth.bytes == 3) ? 504 : (1 << 11);
-      len = (_write_depth.bytes == 3)
+      const uint32_t limit = (bytes == 3) ? 504 : (1 << 11);
+
+      len = (bytes == 3)           // 2nd send length = Surplus of buffer size.
           ? (length % limit)
           : length & (limit - 1);
       if (len) {
         wait_spi();
         set_write_len(len);
-        exec_spi();
+        exec_spi();                // 2nd send.
         if (0 == (length -= len)) return;
       }
       wait_spi();
@@ -492,19 +493,9 @@ namespace lgfx
         wait_spi();
         exec_spi();
       }
-    }
-/*
-    rgb565_t readPixel16_impl(int32_t x, int32_t y) override
-    {
-      startWrite();
-      readWindow_impl(x, y, x, y);
-      //if (_len_read_pixel == 24) 
-      rgb565_t res = (rgb565_t)swap888_t(read_data(_len_read_pixel));
-      end_read();
-      endWrite();
-      return res;
-    }
 //*/
+    }
+
     bool commandList(const uint8_t *addr)
     {
       if (addr == nullptr) return false;
@@ -514,7 +505,7 @@ namespace lgfx
 
       _fill_mode = false;
       wait_spi();
-      if (!_transaction_count) beginTransaction_impl();
+      startWrite();
       set_clock_write();
       for (;;) {                // For each command...
         cmd     = pgm_read_byte(addr++);  // Read, issue command
@@ -532,7 +523,7 @@ namespace lgfx
           delay( (ms==255 ? 500 : ms) );
         }
       }
-      if (!_transaction_count) endTransaction_impl();
+      endWrite();
       return true;
     }
 
@@ -586,10 +577,6 @@ namespace lgfx
       set_clock_read();
     }
 
-    void endRead_impl(void) override
-    {
-      end_read();
-    }
     void end_read(void)
     {
       wait_spi();
@@ -613,29 +600,67 @@ namespace lgfx
       return *_spi_w0_reg;
     }
 
-    void push_image_impl(int32_t x, int32_t y, int32_t w, int32_t h, pixelcopy_t* param) override
+    void pushImage_impl(int32_t x, int32_t y, int32_t w, int32_t h, pixelcopy_t* param, bool use_localbuffer) override
     {
-      auto bytes = _write_depth.bytes;
+      auto bytes = _write_conv.bytes;
       auto src_x = param->src_x;
       auto fp_copy = param->fp_copy;
+
       if (param->transp == ~0) {
+        int32_t xr = ((h == 1) ? _width : (x + w)) - 1;
+        if (use_localbuffer) {
+          uint32_t i = (src_x + param->src_y * param->src_width) * bytes;
+          auto buf = get_dmabuffer(w * h * bytes);
+          if (param->no_convert) {
+            auto src = (const uint8_t*)param->src_data;
+            if (param->src_width == w) {
+              memcpy(buf, &src[i], w * h * bytes);
+            } else {
+              auto add = param->src_width * bytes;
+              size_t index = 0;
+              auto h2 = h;
+              do {
+                memcpy(&buf[index], &src[i], w * bytes);
+                i += add;
+                index += w * bytes;
+              } while (--h2);
+            }
+          } else {
+            if (param->src_width == w) {
+              fp_copy(buf, 0, w * h, param);
+            } else {
+              int32_t index = 0;
+              auto h2 = h;
+              do {
+                index = fp_copy(buf, index, index + w, param);
+                param->src_x = src_x;
+                param->src_y++;
+              } while (--h2);
+            }
+          }
+          setWindow_impl(x, y, xr, y + h - 1);
+          write_bytes(buf, w * h * bytes);
+          return;
+        }
+
         if (param->no_convert) {
-          setWindow_impl(x, y, x + w - 1, y + h - 1);
+          setWindow_impl(x, y, xr, y + h - 1);
           uint32_t i = (src_x + param->src_y * param->src_width) * bytes;
           auto src = (const uint8_t*)param->src_data;
           if (param->src_width == w) {
             write_bytes(&src[i], w * h * bytes);
           } else {
+            auto add = param->src_width * bytes;
             do {
               write_bytes(&src[i], w * bytes);
-              i += param->src_width * bytes;
+              i += add;
             } while (--h);
           }
         } else
         if (_dma_channel) {
           auto buf = get_dmabuffer(w * bytes);
           fp_copy(buf, 0, w, param);
-          setWindow_impl(x, y, x + w - 1, y + h - 1);
+          setWindow_impl(x, y, xr, y + h - 1);
           write_bytes(buf, w * bytes);
           while (--h) {
             param->src_x = src_x;
@@ -645,7 +670,7 @@ namespace lgfx
             write_bytes(buf, w * bytes);
           }
         } else {
-          setWindow_impl(x, y, x + w - 1, y + h - 1);
+          setWindow_impl(x, y, xr, y + h - 1);
           do {
             push_colors(w, param);
             param->src_x = src_x;
@@ -653,6 +678,7 @@ namespace lgfx
           } while (--h);
         }
       } else {
+        int32_t xr = _width - 1;
         auto fp_skip = param->fp_skip;
         h += y;
         do {
@@ -660,7 +686,7 @@ namespace lgfx
           while (w != (i = fp_skip(i, w, param))) {
             auto buf = get_dmabuffer(w * bytes);
             int32_t len = fp_copy(buf, 0, w - i, param);
-            setWindow_impl(x + i, y, _width - 1, y);
+            setWindow_impl(x + i, y, xr, y);
             write_bytes(buf, len * bytes);
             if (w == (i += len)) break;
           }
@@ -670,22 +696,23 @@ namespace lgfx
       }
     }
 
-    void push_colors_impl(int32_t length, pixelcopy_t* param) override
+    void pushColors_impl(int32_t length, pixelcopy_t* param) override
     {
       push_colors(length, param);
     }
 
     void push_colors(int32_t length, pixelcopy_t* param)
     {
-      if (!length) return;
-      const uint8_t bytes = _write_depth.bytes;
+      const uint8_t bytes = _write_conv.bytes;
       const uint32_t limit = (bytes == 2) ? 16 : 10; //  limit = 32/bytes (bytes==2 is 16   bytes==3 is 10)
       uint32_t len = (length - 1) / limit;
       uint32_t highpart = (len & 1) << 3;
       len = length - (len * limit);
       param->fp_copy(_regbuf, 0, len, param);
+
       dc_h();
       set_write_len(len * bytes << 3);
+
       memcpy((void*)&_spi_w0_reg[highpart], _regbuf, (len * bytes + 3) & (~3));
       if (highpart) *_spi_user_reg = _user_reg | SPI_USR_MOSI_HIGHPART;
       exec_spi();
@@ -712,7 +739,6 @@ namespace lgfx
 
     void write_bytes(const uint8_t* data, int32_t length)
     {
-      if (!length) return;
       if (length <= 64) {
         dc_h();
         set_write_len(length << 3);
@@ -759,7 +785,7 @@ namespace lgfx
       }
     }
 
-    void read_rect_impl(int32_t x, int32_t y, int32_t w, int32_t h, void* dst, pixelcopy_t* param) override
+    void readRect_impl(int32_t x, int32_t y, int32_t w, int32_t h, void* dst, pixelcopy_t* param) override
     {
       set_window(x, y, x + w - 1, y + h - 1);
       write_cmd(_cmd_ramrd);
@@ -768,8 +794,9 @@ namespace lgfx
         set_read_len(_len_dummy_read_pixel);
         exec_spi();
       }
+
       if (param->no_convert) {
-        read_bytes((uint8_t*)dst, w * h * _read_depth.bytes);
+        read_bytes((uint8_t*)dst, w * h * _read_conv.bytes);
       } else {
         read_pixels(dst, w * h, param);
       }
@@ -778,7 +805,6 @@ namespace lgfx
 
     void read_pixels(void* dst, int32_t length, pixelcopy_t* param)
     {
-      if (!length) return;
       int32_t len1 = std::min(length, 10); // 10 pixel read
       int32_t len2 = len1;
       wait_spi();
@@ -814,7 +840,6 @@ namespace lgfx
 
     void read_bytes(uint8_t* dst, int32_t length)
     {
-      if (!length) return;
       if (_dma_channel) {
         wait_spi();
         set_read_len(length << 3);
@@ -855,28 +880,28 @@ namespace lgfx
 //*/
     }
 
-    virtual void copyRect_impl(int32_t dst_x, int32_t dst_y, int32_t w, int32_t h, int32_t src_x, int32_t src_y)
+    void copyRect_impl(int32_t dst_x, int32_t dst_y, int32_t w, int32_t h, int32_t src_x, int32_t src_y) override
     {
       startWrite();
-      pixelcopy_t p(nullptr, _write_depth.depth, _read_depth.depth);
+      pixelcopy_t p(nullptr, _write_conv.depth, _read_conv.depth);
       if (w < h) {
-        const uint32_t buflen = h * _write_depth.bytes;
+        const uint32_t buflen = h * _write_conv.bytes;
         auto buf = get_dmabuffer(buflen);
         int32_t add = (src_x < dst_x) ?   - 1 : 1;
         int32_t pos = (src_x < dst_x) ? w - 1 : 0;
         do {
-          read_rect_impl(src_x + pos, src_y, 1, h, buf, &p);
+          readRect_impl(src_x + pos, src_y, 1, h, buf, &p);
           setWindow_impl(dst_x + pos, dst_y, dst_x + pos, dst_y + h - 1);
           write_bytes(buf, buflen);
           pos += add;
         } while (--w);
       } else {
-        const uint32_t buflen = w * _write_depth.bytes;
+        const uint32_t buflen = w * _write_conv.bytes;
         auto buf = get_dmabuffer(buflen);
         int32_t add = (src_y < dst_y) ?   - 1 : 1;
         int32_t pos = (src_y < dst_y) ? h - 1 : 0;
         do {
-          read_rect_impl(src_x, src_y + pos, w, 1, buf, &p);
+          readRect_impl(src_x, src_y + pos, w, 1, buf, &p);
           setWindow_impl(dst_x, dst_y + pos, dst_x + w - 1, dst_y + pos);
           write_bytes(buf, buflen);
           pos += add;

@@ -17,7 +17,6 @@ namespace lgfx
     : LovyanGFX()
     , _parent(parent)
     , _img  (nullptr)
-    , _palette(nullptr)
     , _bitwidth(0)
     , _xptr (0)
     , _yptr (0)
@@ -27,13 +26,13 @@ namespace lgfx
     , _ye   (0)
     , _index(0)
     {
-      _read_depth = _write_depth;
+      _read_conv = _write_conv;
       _has_transaction = false;
       _transaction_count = 0xFFFF;
     }
 
     void* buffer(void) { return _img; }
-    uint32_t bufferLength(void) const { return _bitwidth * _height * _write_depth.bits >> 3; }
+    uint32_t bufferLength(void) const { return _bitwidth * _height * _write_conv.bits >> 3; }
 
     LGFXSpriteBase()
     : LGFXSpriteBase(nullptr)
@@ -47,8 +46,8 @@ namespace lgfx
     {
       if (w < 1 || h < 1) return nullptr;
       if (_img) deleteSprite();
-      _bitwidth = (w + _write_depth.x_mask) & (~(uint32_t)_write_depth.x_mask);
-      _img = (uint8_t*)_mem_alloc((h * _bitwidth * _write_depth.bits >> 3) + 1);
+      _bitwidth = (w + _write_conv.x_mask) & (~(uint32_t)_write_conv.x_mask);
+      _img = (uint8_t*)_mem_alloc((h * _bitwidth * _write_conv.bits >> 3) + 1);
       if (!_img) return nullptr;
 
       _sw = _width = w;
@@ -66,20 +65,20 @@ namespace lgfx
 
     bool createPalette(void)
     {
-      if (_write_depth.depth > 8) return false;
+      if (_write_conv.depth > 8) return false;
 
       if (_palette != nullptr) { _mem_free(_palette); _palette = nullptr; }
       _has_palette = false;
 
-      size_t palettes = 1 << _write_depth.bits;
+      size_t palettes = 1 << _write_conv.bits;
       _palette = (swap888_t*)_mem_alloc(sizeof(swap888_t) * palettes);
       if (!_palette) {
         return false;
       }
       _has_palette = true;
-      _write_depth.setColorDepth(_write_depth.depth, _palette != nullptr);
+      _write_conv.setColorDepth(_write_conv.depth, _palette != nullptr);
 /*
-if (_write_depth.depth == palette_8bit) {
+if (_write_conv.depth == palette_8bit) {
 for (uint32_t i = 0; i < palettes; i++) {
   _palette[i] = *(rgb332_t*)&i;
 }
@@ -87,7 +86,7 @@ for (uint32_t i = 0; i < palettes; i++) {
 //*/
       { // create grayscale palette
         uint32_t k;
-        switch (_write_depth.depth) {
+        switch (_write_conv.depth) {
         case 8: k = 0x010101; break;
         case 4: k = 0x111111; break;
         case 2: k = 0x555555; break;
@@ -118,18 +117,37 @@ for (uint32_t i = 0; i < palettes; i++) {
 
     void setPalette(size_t index, const swap888_t& rgb)
     {
-      if (_palette) { _palette[index & ((1<<_write_depth.bits)-1)] = rgb; }
+      if (_palette) { _palette[index & ((1<<_write_conv.bits)-1)] = rgb; }
     }
 
     void setPalette(size_t index, uint8_t r, uint8_t g, uint8_t b)
     {
-      if (_palette) { _palette[index & ((1<<_write_depth.bits)-1)].set(r, g, b); }
+      if (_palette) { _palette[index & ((1<<_write_conv.bits)-1)].set(r, g, b); }
     }
 
-    void* getPalette_impl(void) const override
+    __attribute__ ((always_inline)) inline void* setColorDepth(uint8_t bpp) { return setColorDepth((color_depth_t)bpp); }
+    void* setColorDepth(color_depth_t depth)
     {
-      return _palette;
+      _write_conv.setColorDepth(depth, _palette != nullptr) ;
+      _read_conv = _write_conv;
+
+      if (_img == nullptr) return nullptr;
+      deleteSprite();
+      return createSprite(_width, _height);
     }
+
+/*
+    void setRotation(uint8_t r)
+    {
+      r = r & 7;
+      if ((_rotation&1) != (r&1)) {
+        uint32_t tmp = _width;
+        _width = _height;
+        _height = tmp;
+      }
+      _rotation = r;
+    }
+//*/
 
     template<typename T>
     __attribute__ ((always_inline)) inline void fillSprite (const T& color) { fillRect(0, 0, _width, _height, color); }
@@ -137,21 +155,21 @@ for (uint32_t i = 0; i < palettes; i++) {
 //*
 
     template<typename T>
-    __attribute__ ((always_inline)) inline void pushSprite(                int32_t x, int32_t y, const T& transp) { push_sprite(_parent, x, y, _write_depth.convert(transp) & _write_depth.colormask); }
+    __attribute__ ((always_inline)) inline void pushSprite(                int32_t x, int32_t y, const T& transp) { push_sprite(_parent, x, y, _write_conv.convert(transp) & _write_conv.colormask); }
     template<typename T>
-    __attribute__ ((always_inline)) inline void pushSprite(LovyanGFX* dst, int32_t x, int32_t y, const T& transp) { push_sprite(    dst, x, y, _write_depth.convert(transp) & _write_depth.colormask); }
+    __attribute__ ((always_inline)) inline void pushSprite(LovyanGFX* dst, int32_t x, int32_t y, const T& transp) { push_sprite(    dst, x, y, _write_conv.convert(transp) & _write_conv.colormask); }
     __attribute__ ((always_inline)) inline void pushSprite(                int32_t x, int32_t y) { push_sprite(_parent, x, y); }
     __attribute__ ((always_inline)) inline void pushSprite(LovyanGFX* dst, int32_t x, int32_t y) { push_sprite(    dst, x, y); }
 
-    template<typename T> bool pushRotated(                float angle, const T& transp) { return push_rotate_zoom(_parent, _parent->getPivotX(), _parent->getPivotY(), angle, 1.0f, 1.0f, _write_depth.convert(transp) & _write_depth.colormask); }
-    template<typename T> bool pushRotated(LovyanGFX* dst, float angle, const T& transp) { return push_rotate_zoom(dst    , dst    ->getPivotX(), dst    ->getPivotY(), angle, 1.0f, 1.0f, _write_depth.convert(transp) & _write_depth.colormask); }
+    template<typename T> bool pushRotated(                float angle, const T& transp) { return push_rotate_zoom(_parent, _parent->getPivotX(), _parent->getPivotY(), angle, 1.0f, 1.0f, _write_conv.convert(transp) & _write_conv.colormask); }
+    template<typename T> bool pushRotated(LovyanGFX* dst, float angle, const T& transp) { return push_rotate_zoom(dst    , dst    ->getPivotX(), dst    ->getPivotY(), angle, 1.0f, 1.0f, _write_conv.convert(transp) & _write_conv.colormask); }
                          bool pushRotated(                float angle) { return push_rotate_zoom(_parent, _parent->getPivotX(), _parent->getPivotY(), angle, 1.0f, 1.0f); }
                          bool pushRotated(LovyanGFX* dst, float angle) { return push_rotate_zoom(dst    , dst    ->getPivotX(), dst    ->getPivotY(), angle, 1.0f, 1.0f); }
 
-    template<typename T> bool pushRotateZoom(                                              float angle, float zoom_x, float zoom_y, const T& transp) { return push_rotate_zoom(_parent, _parent->getPivotX(), _parent->getPivotY(), angle, zoom_x, zoom_y, _write_depth.convert(transp) & _write_depth.colormask); }
-    template<typename T> bool pushRotateZoom(LovyanGFX* dst                              , float angle, float zoom_x, float zoom_y, const T& transp) { return push_rotate_zoom(    dst, _parent->getPivotX(), _parent->getPivotY(), angle, zoom_x, zoom_y, _write_depth.convert(transp) & _write_depth.colormask); }
-    template<typename T> bool pushRotateZoom(                int32_t dst_x, int32_t dst_y, float angle, float zoom_x, float zoom_y, const T& transp) { return push_rotate_zoom(_parent,                dst_x,                dst_y, angle, zoom_x, zoom_y, _write_depth.convert(transp) & _write_depth.colormask); }
-    template<typename T> bool pushRotateZoom(LovyanGFX* dst, int32_t dst_x, int32_t dst_y, float angle, float zoom_x, float zoom_y, const T& transp) { return push_rotate_zoom(    dst,                dst_x,                dst_y, angle, zoom_x, zoom_y, _write_depth.convert(transp) & _write_depth.colormask); }
+    template<typename T> bool pushRotateZoom(                                              float angle, float zoom_x, float zoom_y, const T& transp) { return push_rotate_zoom(_parent, _parent->getPivotX(), _parent->getPivotY(), angle, zoom_x, zoom_y, _write_conv.convert(transp) & _write_conv.colormask); }
+    template<typename T> bool pushRotateZoom(LovyanGFX* dst                              , float angle, float zoom_x, float zoom_y, const T& transp) { return push_rotate_zoom(    dst, _parent->getPivotX(), _parent->getPivotY(), angle, zoom_x, zoom_y, _write_conv.convert(transp) & _write_conv.colormask); }
+    template<typename T> bool pushRotateZoom(                int32_t dst_x, int32_t dst_y, float angle, float zoom_x, float zoom_y, const T& transp) { return push_rotate_zoom(_parent,                dst_x,                dst_y, angle, zoom_x, zoom_y, _write_conv.convert(transp) & _write_conv.colormask); }
+    template<typename T> bool pushRotateZoom(LovyanGFX* dst, int32_t dst_x, int32_t dst_y, float angle, float zoom_x, float zoom_y, const T& transp) { return push_rotate_zoom(    dst,                dst_x,                dst_y, angle, zoom_x, zoom_y, _write_conv.convert(transp) & _write_conv.colormask); }
                          bool pushRotateZoom(                                              float angle, float zoom_x, float zoom_y)                  { return push_rotate_zoom(_parent, _parent->getPivotX(), _parent->getPivotY(), angle, zoom_x, zoom_y); }
                          bool pushRotateZoom(LovyanGFX* dst                              , float angle, float zoom_x, float zoom_y)                  { return push_rotate_zoom(    dst, _parent->getPivotX(), _parent->getPivotY(), angle, zoom_x, zoom_y); }
                          bool pushRotateZoom(                int32_t dst_x, int32_t dst_y, float angle, float zoom_x, float zoom_y)                  { return push_rotate_zoom(_parent,                dst_x,                dst_y, angle, zoom_x, zoom_y); }
@@ -167,7 +185,6 @@ for (uint32_t i = 0; i < palettes; i++) {
       uint16_t*  _img16;
       swap888_t* _img24;
     };
-    swap888_t* _palette;
     int32_t _bitwidth;
     int32_t _xptr;
     int32_t _yptr;
@@ -218,27 +235,6 @@ for (uint32_t i = 0; i < palettes; i++) {
       set_window(xs, ys, xe, ye);
     }
 
-    void* setColorDepth_impl(color_depth_t depth) override
-    {
-      _write_depth.setColorDepth(depth, _palette != nullptr) ;
-      _read_depth = _write_depth;
-
-      if (_img == nullptr) return nullptr;
-      deleteSprite();
-      return createSprite(_width, _height);
-    }
-
-    void setRotation_impl(uint8_t r) override
-    {
-      r = r & 7;
-      if ((_rotation&1) != (r&1)) {
-        uint32_t tmp = _width;
-        _width = _height;
-        _height = tmp;
-      }
-      _rotation = r;
-    }
-
     void fillRect_impl(int32_t x, int32_t y, int32_t w, int32_t h) override
     {
 /*
@@ -246,70 +242,70 @@ setWindow(x,y,x+w-1,y+h-1);
 writeColor_impl(w*h);
 return;
 //*/
-      uint32_t bits = _write_depth.bits;
+      uint32_t bits = _write_conv.bits;
       if (bits < 8) {
+        x *= bits;
+        w *= bits;
+        size_t add_dst = _bitwidth * bits >> 3;
+        uint8_t* dst = &_img[y * add_dst + (x >> 3)];
+        size_t len = ((x + w) >> 3) - (x >> 3);
+        uint8_t mask = 0xFF >> (x & 7);
         uint8_t c = _color.raw0;
-        uint8_t mask = 0xFF >> (x * bits & 7);
-        size_t d = _bitwidth * bits >> 3;
-        uint8_t* dst = &_img[(x + y * _bitwidth) * bits >> 3];
-        size_t len = ((x + w) * bits >> 3) - (x * bits >> 3);
         if (len) {
           if (mask != 0xFF) {
-            auto dst2 = dst;
-            auto h2 = h;
-            c &= mask;
-            do { *dst2 = (*dst2 & ~mask) | c; dst2 += d; } while (--h2);
-            dst++; len--;
+            len--;
+            auto d = dst++;
+            uint8_t mc = c & mask;
+            auto i = h;
+            do { *d = (*d & ~mask) | mc; d += add_dst; } while (--i);
           }
-          mask = ~(0xFF>>((x+w) * bits & 7));
+          mask = ~(0xFF>>((x + w) & 7));
           if (mask == 0xFF) len--;
-          c = _color.raw0;
           if (len) {
-            auto dst2 = dst;
-            auto h2 = h;
-            do { memset(dst2, c, len); dst2 += d; } while (--h2);
+            auto d = dst;
+            auto i = h;
+            do { memset(d, c, len); d += add_dst; } while (--i);
             dst += len;
           }
           if (mask == 0xFF) return;
-          c &= mask;
         } else {
-          mask ^= mask >> (w * bits);
-          c &= mask;
+          mask ^= mask >> w;
         }
-        do { *dst = (*dst & ~mask) | c; dst += d; } while (--h);
+        c &= mask;
+        do { *dst = (*dst & ~mask) | c; dst += add_dst; } while (--h);
       } else {
         if (w == 1) {
-          uint8_t* dst = &_img[(x + y * _bitwidth) * _write_depth.bytes];
-          if (_write_depth.bytes == 2) {
+          uint8_t* dst = &_img[(x + y * _bitwidth) * _write_conv.bytes];
+          if (_write_conv.bytes == 2) {
             do { *(uint16_t* )dst = *(uint16_t*)&_color;  dst += _bitwidth << 1; } while (--h);
-          } else if (_write_depth.bytes == 1) {
+          } else if (_write_conv.bytes == 1) {
             do {             *dst = _color.raw0;          dst += _bitwidth;      } while (--h);
-          } else {  // if (_write_depth.bytes == 3)
+          } else {  // if (_write_conv.bytes == 3)
             do { *(swap888_t*)dst = *(swap888_t*)&_color; dst += _bitwidth * 3;  } while (--h);
           }
         } else {
-          uint8_t* dst = &_img[(x + y * _bitwidth) * _write_depth.bytes];
-          if (_write_depth.bytes == 1 || (_color.raw0 == _color.raw1 && (_write_depth.bytes == 2 || (_color.raw0 == _color.raw2)))) {
+          uint8_t* dst = &_img[(x + y * _bitwidth) * _write_conv.bytes];
+          if (_write_conv.bytes == 1 || (_color.raw0 == _color.raw1 && (_write_conv.bytes == 2 || (_color.raw0 == _color.raw2)))) {
             if (x == 0 && w == _width) {
-              memset(dst, _color.raw0, _width * h * _write_depth.bytes);
+              memset(dst, _color.raw0, _width * h * _write_conv.bytes);
             } else {
               do {
-                memset(dst, _color.raw0, w * _write_depth.bytes);
-                dst += _width * _write_depth.bytes;
+                memset(dst, _color.raw0, w * _write_conv.bytes);
+                dst += _width * _write_conv.bytes;
               } while (--h);
             }
           } else {
-            size_t len = w * _write_depth.bytes;
-            uint32_t down = _width * _write_depth.bytes;
+            size_t len = w * _write_conv.bytes;
+            uint32_t down = _width * _write_conv.bytes;
             if (_disable_memcpy) {
               uint8_t linebuf[len];
-              memset_multi(linebuf, _color.raw, _write_depth.bytes, w);
+              memset_multi(linebuf, _color.raw, _write_conv.bytes, w);
               do {
                 memcpy(dst, linebuf, len);
                 dst += down;
               } while (--h);
             } else {
-              memset_multi(dst, _color.raw, _write_depth.bytes, w);
+              memset_multi(dst, _color.raw, _write_conv.bytes, w);
               while (--h) {
                 memcpy(dst + down, dst, len);
                 dst += down;
@@ -322,48 +318,50 @@ return;
     void writeColor_impl(int32_t length) override
     {
       if (0 >= length) return;
-      if (_write_depth.bytes == 0) {
+      if (_write_conv.bytes == 0) {
+// if (bits==1) { addrshift=3 }
+// if (bits==2) { addrshift=2 }
+// if (bits==4) { addrshift=1 }
+        uint8_t shift = 3 & (~_write_conv.bits >> 1);
         uint8_t c = _color.raw0;
-        //uint8_t addrshift = (4 - _write_depth.depth);
-        uint8_t addrshift = 2 / _write_depth.bits + 1;
         int32_t linelength;
         do {
-          uint8_t* dst = &_img[(_xptr + _yptr * _bitwidth) >> addrshift];
+          uint8_t* dst = &_img[(_xptr + _yptr * _bitwidth) >> shift];
           linelength = std::min(_xe - _xptr + 1, length);
-          size_t len = ((_xptr + linelength) >> addrshift) - (_xptr >> addrshift);
-          uint8_t mask = 0xFF >> ((_xptr & _write_depth.x_mask) * _write_depth.bits);
+          size_t len = ((_xptr + linelength) >> shift) - (_xptr >> shift);
+          uint8_t mask = 0xFF >> ((_xptr & _write_conv.x_mask) * _write_conv.bits);
           if (!len) {
-            mask &= ~(mask >> (linelength * _write_depth.bits));
+            mask &= ~(mask >> (linelength * _write_conv.bits));
           } else {
             *dst = (*dst & ~mask) | (c & mask);
             if (len != 1) {
               memset(dst+1, c, len-1);
             }
             dst += len;
-            mask = ~(0xFF>>(((_xptr + linelength) & _write_depth.x_mask) * _write_depth.bits));
+            mask = ~(0xFF>>(((_xptr + linelength) & _write_conv.x_mask) * _write_conv.bits));
           }
           *dst = (*dst & ~mask) | (c & mask);
           ptr_advance(linelength);
         } while (length -= linelength);
 
       } else
-      if (_write_depth.bytes == 1 || (_color.raw0 == _color.raw1 && (_write_depth.bytes == 2 || (_color.raw0 == _color.raw2)))) {
+      if (_write_conv.bytes == 1 || (_color.raw0 == _color.raw1 && (_write_conv.bytes == 2 || (_color.raw0 == _color.raw2)))) {
         int32_t linelength;
         do {
           linelength = std::min(_xe - _xptr + 1, length);
-          memset(&_img[_index * _write_depth.bytes], _color.raw0, linelength * _write_depth.bytes);
+          memset(&_img[_index * _write_conv.bytes], _color.raw0, linelength * _write_conv.bytes);
           ptr_advance(linelength);
         } while (length -= linelength);
       } else {
-        uint8_t* dst = &_img[_index * _write_depth.bytes];
+        uint8_t* dst = &_img[_index * _write_conv.bytes];
         if (_disable_memcpy) {
           int32_t buflen = std::min(_xe - _xs + 1, length);
-          uint8_t linebuf[buflen * _write_depth.bytes];
-          memset_multi(linebuf, _color.raw, _write_depth.bytes, buflen);
+          uint8_t linebuf[buflen * _write_conv.bytes];
+          memset_multi(linebuf, _color.raw, _write_conv.bytes, buflen);
           uint32_t len;
           do  {
             len = std::min(length, _xe - _xptr + 1);
-            memcpy(&_img[_index * _write_depth.bytes], linebuf, len * _write_depth.bytes);
+            memcpy(&_img[_index * _write_conv.bytes], linebuf, len * _write_conv.bytes);
             ptr_advance(len);
           } while (length -= len);
           return;
@@ -371,24 +369,24 @@ return;
 
         uint32_t advance = std::min(_xe - _xptr + 1, length);
         if (_xs != _xptr) {
-          memset_multi(dst, _color.raw, _write_depth.bytes, advance);
+          memset_multi(dst, _color.raw, _write_conv.bytes, advance);
           ptr_advance(advance);
           if (0 == (length -= advance)) return;
-          dst = &_img[_index * _write_depth.bytes];
+          dst = &_img[_index * _write_conv.bytes];
           advance = std::min(_xe - _xptr + 1, length);
         }
-        memset_multi(dst, _color.raw, _write_depth.bytes, advance);
+        memset_multi(dst, _color.raw, _write_conv.bytes, advance);
         ptr_advance(advance);
         if (0 == (length -= advance)) return;
-        uint32_t down = _width * _write_depth.bytes;
+        uint32_t down = _width * _write_conv.bytes;
         while (length > advance) {
-          memcpy(dst+down, dst, advance * _write_depth.bytes);
+          memcpy(dst+down, dst, advance * _write_conv.bytes);
           dst += down;
           ptr_advance(advance);
           length -= advance;
         }
         if (length) {
-          memcpy(dst + down, dst, length * _write_depth.bytes);
+          memcpy(dst + down, dst, length * _write_conv.bytes);
           ptr_advance(length);
         }
       }
@@ -396,8 +394,8 @@ return;
 
     void copyRect_impl(int32_t dst_x, int32_t dst_y, int32_t w, int32_t h, int32_t src_x, int32_t src_y) override
     {
-      if (_write_depth.bits < 8) {
-        pixelcopy_t param(_img, _write_depth.depth, _write_depth.depth);
+      if (_write_conv.bits < 8) {
+        pixelcopy_t param(_img, _write_conv.depth, _write_conv.depth);
         param.src_width = _bitwidth;
         int32_t add_y = (src_y < dst_y) ? -1 : 1;
         if (src_y != dst_y) {
@@ -414,7 +412,7 @@ return;
             param.src_y += add_y;
           } while (--h);
         } else {
-          size_t len = (_bitwidth * _write_depth.bits) >> 3;
+          size_t len = (_bitwidth * _write_conv.bits) >> 3;
           uint8_t buf[len];
           param.src_data = buf;
           param.src_y32 = 0;
@@ -428,12 +426,12 @@ return;
           } while (--h);
         }
       } else {
-        size_t len = w * _write_depth.bytes;
-        int32_t add = _bitwidth * _write_depth.bytes;
+        size_t len = w * _write_conv.bytes;
+        int32_t add = _bitwidth * _write_conv.bytes;
         if (src_y < dst_y) add = -add;
         int32_t pos = (src_y < dst_y) ? h - 1 : 0;
-        uint8_t* src = &_img[(src_x + (src_y + pos) * _bitwidth) * _write_depth.bytes];
-        uint8_t* dst = &_img[(dst_x + (dst_y + pos) * _bitwidth) * _write_depth.bytes];
+        uint8_t* src = &_img[(src_x + (src_y + pos) * _bitwidth) * _write_conv.bytes];
+        uint8_t* dst = &_img[(dst_x + (dst_y + pos) * _bitwidth) * _write_conv.bytes];
         if (_disable_memcpy) {
           uint8_t buf[len];
           do {
@@ -451,28 +449,7 @@ return;
         }
       }
     }
-/*
-    rgb565_t readPixel16_impl(int32_t x, int32_t y) override
-    {
-      _xptr = _xs = _xe = x;
-      _yptr = _ys = _ye = y;
-      _index = x + y * _bitwidth;
 
-      const uint8_t *src = ptr_img();
-      rgb565_t res;
-      if (     _write_depth.depth == rgb332_1Byte) { res = *(( rgb332_t*)src); return res;}
-      else if (_write_depth.depth == rgb565_2Byte) { res = *((swap565_t*)src); return res;}
-//    else if (_write_depth.depth == rgb666_3Byte) { res = *((swap888_t*)src); return res;}
-      else if (_write_depth.depth == rgb888_3Byte) { res = *((swap888_t*)src); return res;}
-
-      return (bool)(*src & (0x80 >> (_index & 0x07)));
-    }
-
-    uint32_t readPixelRAW_impl(int32_t x, int32_t y) override
-    {
-      return _write_depth.colormask & (*(const uint32_t*)&_img[(x + y * _bitwidth) * _write_depth.bits >> 3]);
-    }
-//*/
     static void memset_multi(uint8_t* buf, uint32_t c, size_t size, size_t length) {
       size_t l = length;
       if (l & ~0xF) {
@@ -506,11 +483,11 @@ return;
       }
     }
 
-    void read_rect_impl(int32_t x, int32_t y, int32_t w, int32_t h, void* dst, pixelcopy_t* param) override
+    void readRect_impl(int32_t x, int32_t y, int32_t w, int32_t h, void* dst, pixelcopy_t* param) override
     {
       set_window(x, y, x + w - 1, y + h - 1);
       if (param->no_convert) {
-        read_bytes((uint8_t*)dst, w * h * _read_depth.bytes);
+        read_bytes((uint8_t*)dst, w * h * _read_conv.bytes);
       } else {
         read_pixels(dst, w * h, param);
       }
@@ -532,7 +509,7 @@ return;
 
     void read_bytes(uint8_t* dst, int32_t length)
     {
-      uint8_t b = _write_depth.bytes ? _write_depth.bytes : 1;
+      uint8_t b = _write_conv.bytes ? _write_conv.bytes : 1;
       length /= b;
       while (length) {
         int32_t linelength = std::min(_xe - _xptr + 1, length);
@@ -543,7 +520,7 @@ return;
       }
     }
 
-    void push_image_impl(int32_t x, int32_t y, int32_t w, int32_t h, pixelcopy_t* param) override
+    void pushImage_impl(int32_t x, int32_t y, int32_t w, int32_t h, pixelcopy_t* param, bool use_localbuffer) override
     {
       auto sx = param->src_x;
       do {
@@ -557,9 +534,9 @@ return;
       } while (--h);
     }
 
-    void push_colors_impl(int32_t length, pixelcopy_t* param) override
+    void pushColors_impl(int32_t length, pixelcopy_t* param) override
     {
-      auto k = _bitwidth * _write_depth.bits >> 3;
+      auto k = _bitwidth * _write_conv.bits >> 3;
       int32_t linelength;
       do {
         linelength = std::min(_xe - _xptr + 1, length);
@@ -567,10 +544,13 @@ return;
         ptr_advance(linelength);
       } while (length -= linelength);
     }
+
+    void beginTransaction_impl(void) override {}
+    void endTransaction_impl(void) override {}
 /*
     void writeBytes_impl(const uint8_t* data, int32_t length) override
     {
-      uint8_t b = _write_depth.bytes ? _write_depth.bytes : 1;
+      uint8_t b = _write_conv.bytes ? _write_conv.bytes : 1;
       length /= b;
       while (length) {
         int32_t linelength = std::min(_xe - _xptr + 1, length);
@@ -595,7 +575,7 @@ return;
     }
 
     inline uint8_t* ptr_img() {
-      return &_img[_index * _write_depth.bits >> 3];
+      return &_img[_index * _write_conv.bits >> 3];
     }
 
   };

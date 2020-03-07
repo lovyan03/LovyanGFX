@@ -28,8 +28,8 @@ static TFT_eSprite item_24b;
 static TFT_eSprite* buffers[] = { &buffer_p1, &buffer_p2, &buffer_p4, &buffer_p8, &buffer_256, &buffer_16b, &buffer_18b, &buffer_24b };
 static TFT_eSprite* items[] = { &item_p1, &item_p2, &item_p4, &item_p8, &item_256, &item_16b, &item_18b, &item_24b };
 
+/*
 auto transp = lgfx::color565(255,255,0);
-
 struct panel_config {
   static constexpr int freq_write = 40000000;
   static constexpr int freq_read  = 20000000;
@@ -43,14 +43,13 @@ struct panel_config {
   static constexpr bool invert    = true;
   static constexpr int panel_height = 240;
 };
-
 static lgfx::Panel_ST7789<panel_config> panel_st7789;
-
+*/
 void setup(void)
 {
   Serial.begin(115200);
 
-  tft.setPanel(panel_st7789);
+//  tft.setPanel(panel_st7789);
 
   tft.init();
 
@@ -191,6 +190,8 @@ void loop(void)
       buf->drawFastVLine(bpx, 0, bh, 0xFFFF);
       buf->drawFastHLine(0, bpy, bw, 0xFFFF);
 
+items[x]->pushRotateZoom(buf, bpx, bpy, 45/16, 1.0, 1.0   );
+/*
 //items[x]->setPivot(count & 31, count & 31);
 //if ((count/20)&1) items[x]->pushRotateZoom(buf, -12 + (count&63), -12 + (count&63), (float)count*5, 1.0, 1.0);
 //else              items[x]->pushRotateZoom(buf, -12 + (count&63), -12 + (count&63), (float)count*5, 1.0, 1.0, 0);

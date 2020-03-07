@@ -160,7 +160,7 @@ namespace lgfx
     bool seek(uint32_t offset) { return seek(offset, SeekSet); }
     bool seek(uint32_t offset, SeekMode mode) { return _fp.seek(offset, mode); }
     void skip(uint32_t offset) { seek(offset, SeekCur); }
-    void read(uint8_t *buf, uint32_t len) { _fp.read(buf, len); }
+    int read(uint8_t *buf, uint32_t len) { return _fp.read(buf, len); }
     void close() { _fp.close(); }
 
 #elif defined (CONFIG_IDF_TARGET_ESP32)  // ESP-IDF
@@ -170,7 +170,7 @@ namespace lgfx
     bool seek(uint32_t offset) { return seek(offset, SEEK_SET); }
     bool seek(uint32_t offset, int origin) { return fseek(_fp, offset, origin); }
     void skip(uint32_t offset) { seek(offset, SEEK_CUR); }
-    void read(uint8_t *buf, uint32_t len) { fread((char*)buf, 1, len, _fp); }
+    int read(uint8_t *buf, uint32_t len) { return fread((char*)buf, 1, len, _fp); }
     void close() { fclose(_fp); }
 
 #else  // dummy.
@@ -179,7 +179,7 @@ namespace lgfx
     bool seek(uint32_t offset) { return false; }
     bool seek(uint32_t offset, int origin) { return false; }
     void skip(uint32_t offset) { }
-    void read(uint8_t *buf, uint32_t len) { }
+    int read(uint8_t *buf, uint32_t len) { return 0; }
     void close() { }
 
 #endif

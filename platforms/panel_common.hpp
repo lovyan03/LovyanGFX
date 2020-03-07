@@ -18,8 +18,8 @@ namespace lgfx
   MEMBER_DETECTOR(spi_mode_read, get_spi_mode_read, get_spi_mode_read_impl, uint8_t)
   MEMBER_DETECTOR(spi_cs       , get_spi_cs       , get_spi_cs_impl       , int)
   MEMBER_DETECTOR(spi_dc       , get_spi_dc       , get_spi_dc_impl       , int)
-  MEMBER_DETECTOR(gpio_bl     , get_gpio_bl     , get_gpio_bl_impl     , int)
-  MEMBER_DETECTOR(gpio_rst    , get_gpio_rst    , get_gpio_rst_impl    , int)
+  MEMBER_DETECTOR(gpio_bl      , get_gpio_bl      , get_gpio_bl_impl      , int)
+  MEMBER_DETECTOR(gpio_rst     , get_gpio_rst     , get_gpio_rst_impl     , int)
   MEMBER_DETECTOR(freq_write   , get_freq_write   , get_freq_write_impl   , uint32_t)
   MEMBER_DETECTOR(freq_read    , get_freq_read    , get_freq_read_impl    , uint32_t)
   MEMBER_DETECTOR(freq_fill    , get_freq_fill    , get_freq_fill_impl    , uint32_t)
@@ -139,10 +139,10 @@ namespace lgfx
     int32_t rowstart;
     int32_t width;
     int32_t height;
-    int16_t spi_cs;
-    int16_t spi_dc;
-    int16_t gpio_rst;
-    int16_t gpio_bl;
+    int32_t spi_cs;
+    int32_t spi_dc;
+    int32_t gpio_rst;
+    int32_t gpio_bl;
     uint8_t spi_mode_read;
     uint8_t spi_mode;
     uint8_t rotation;

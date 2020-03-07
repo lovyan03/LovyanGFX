@@ -171,7 +171,8 @@ namespace lgfx
       buf[3] = buf[1] = 0;
       buf[4] = CMD::GAMMASET;
       buf[5] = 1;
-      buf[6] = 0x02;  // Gamma set, curve 2
+      buf[6] = 0x08;  // Gamma set, curve 8
+    //buf[6] = 0x02;  // Gamma set, curve 2
       buf[8] = buf[7] = 0xFF;
       return buf;
     }

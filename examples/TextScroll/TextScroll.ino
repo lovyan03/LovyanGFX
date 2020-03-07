@@ -149,7 +149,7 @@ void setup(void) {
   SD.begin(4, SPI, 20000000);
   tft.init();
 
-  sprite.setColorDepth(3);
+  sprite.setColorDepth(8);
   sprite.createSprite(tft.width(), tft.height());
 
   //tft.setColorDepth(24);
@@ -164,10 +164,16 @@ void setup(void) {
 #endif
 
   cursor_init(sprite);
+  cursor_init(tft);
 }
 
 
 void loop(void)
+{
+  exec_text(tft);
+}
+
+void loop_sprite(void)
 {
   static uint64_t ms = 0;
   exec_text(sprite);
