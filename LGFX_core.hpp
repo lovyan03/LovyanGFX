@@ -885,12 +885,11 @@ enum textdatum_t
 , baseline_right  = 18  // Right character baseline
 };
 
-  int16_t drawString(const char *string, int32_t poX, int32_t poY)
+  int16_t drawString(const char *string, int32_t x, int32_t y)
   {
     int16_t sumX = 0;
-    uint8_t padding = 1;
-    uint16_t cwidth = textWidth(string); // Find the pixel width of the string in the font
-    uint16_t cheight = _font_size_y.size * _textsize_y;
+    int32_t cwidth = textWidth(string); // Find the pixel width of the string in the font
+    int32_t cheight = _font_size_y.size * _textsize_y;
 
     if (fpUpdateFontSize) {
       uint16_t uniCode = *string;
@@ -905,25 +904,38 @@ enum textdatum_t
       }
     }
 
-    poY -= _font_size_y.offset * _textsize_y;
+    y -= _font_size_y.offset * _textsize_y;
 
-    padding = 101; // Different padding method used for Free Fonts
+    if (_textdatum & middle_left) {          // vertical: middle
+      y -= cheight / 2;
+    } else if (_textdatum & bottom_left) {   // vertical: bottom
+      y -= cheight;
+    } else if (_textdatum & baseline_left) { // vertical: baseline
+      y -= _font_baseline * _textsize_y;
+    }
 
-    if (_textdatum || _padding_x) {
-      if (_textdatum & middle_left) {          // vertical: middle
-        poY -= cheight / 2;
-      } else if (_textdatum & bottom_left) {   // vertical: bottom
-        poY -= cheight;
-      } else if (_textdatum & baseline_left) { // vertical: baseline
-        poY -= _font_baseline * _textsize_y;
+    int32_t padx = _padding_x;
+    if (_text_fore_rgb888 != _text_back_rgb888 && padx > cwidth) {
+      setColor(_text_back_rgb888);
+      auto py = y + _font_size_y.offset;
+      if (_textdatum & top_center) {
+        auto halfcwidth = cwidth >> 1;
+        auto halfpadx = (padx >> 1);
+        fillRect(x - halfpadx, py, halfpadx - halfcwidth, cheight);
+        halfcwidth = cwidth - halfcwidth;
+        halfpadx = padx - halfpadx;
+        fillRect(x + halfcwidth, py, halfpadx - halfcwidth, cheight);
+      } else if (_textdatum & top_right) {
+        fillRect(x - padx, py, padx - cwidth, cheight);
+      } else {
+        fillRect(x + cwidth, py, padx - cwidth, cheight);
       }
-      if (_textdatum & top_center) {           // Horizontal: middle
-        poX -= cwidth / 2;
-        padding += 1;
-      } else if (_textdatum & top_right) {     // Horizontal: right
-        poX -= cwidth;
-        padding += 2;
-      }
+    }
+
+    if (_textdatum & top_center) {           // Horizontal: middle
+      x -= cwidth >> 1;
+    } else if (_textdatum & top_right) {     // Horizontal: right
+      x -= cwidth;
     }
 
     _filled_x = 0;
@@ -933,7 +945,7 @@ enum textdatum_t
         uniCode = decodeUTF8(uniCode);
         if (uniCode == 0) continue;
       }
-      sumX += drawChar(uniCode, poX + sumX, poY);
+      sumX += drawChar(uniCode, x + sumX, y);
     } while (*(++string));
 
     return sumX;
