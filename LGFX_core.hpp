@@ -416,6 +416,52 @@ namespace lgfx
       endWrite();
     }
 
+    void drawGradientLine( int32_t x0, int32_t y0, int32_t x1, int32_t y1, bgr888_t colorstart, bgr888_t colorend )
+    {
+      if ( colorstart == colorend || (x0 == x1 && y0 == y1)) {
+        setColor(color888( colorstart.r, colorstart.g, colorstart.b ) );
+        drawLine( x0, y0, x1, y1);
+        return;
+      }
+
+      bool steep = abs(y1 - y0) > abs(x1 - x0);
+      if (steep) { // swap axis
+        swap_coord(x0, y0);
+        swap_coord(x1, y1);
+      }
+
+      if (x0 > x1) { // swap points
+        swap_coord(x0, x1);
+        swap_coord(y0, y1);
+        swap_coord(colorstart, colorend);
+      }
+
+      int32_t dx = x1 - x0, dy = abs(y1 - y0);;
+      int32_t err = dx >> 1;
+      int32_t ystep = (y0 < y1) ? 1 : -1;
+
+      int32_t diff_x = x1 - x0;
+      int32_t diff_r = colorend.r - colorstart.r;
+      int32_t diff_g = colorend.g - colorstart.g;
+      int32_t diff_b = colorend.b - colorstart.b;
+
+      startWrite();
+      for (int32_t x = x0; x <= x1; x++) {
+        setColor(color888( (x - x0) * diff_r / diff_x + colorstart.r
+                         , (x - x0) * diff_g / diff_x + colorstart.g
+                         , (x - x0) * diff_b / diff_x + colorstart.b));
+        if (steep) drawPixel(y0, x);
+        else       drawPixel(x, y0);
+        err -= dy;
+        if (err < 0) {
+          err += dx;
+          y0 += ystep;
+        }
+      }
+      endWrite();
+    }
+
+
     void pushColors(const uint8_t* data, int32_t len)
     {
       pushColors((rgb332_t*)data, len);
@@ -470,7 +516,7 @@ namespace lgfx
 
     void readRectRGB( int32_t x, int32_t y, int32_t w, int32_t h, uint8_t* data)
     {
-      pixelcopy_t p(nullptr, swap888_t::depth, _read_conv.depth, false, _palette);
+      pixelcopy_t p(nullptr, bgr888_t::depth, _read_conv.depth, false, _palette);
       read_rect(x, y, w, h, data, &p);
     }
 
@@ -486,15 +532,15 @@ namespace lgfx
     }
     void readRect(int32_t x, int32_t y, int32_t w, int32_t h, void* data)
     {
-      pixelcopy_t p(nullptr, swap888_t::depth, _read_conv.depth, false, _palette);
+      pixelcopy_t p(nullptr, bgr888_t::depth, _read_conv.depth, false, _palette);
       read_rect(x, y, w, h, data, &p);
     }
 
     template<typename T> void pushRect(  int32_t x, int32_t y, int32_t w, int32_t h, const T* data) { pushImage(x, y, w, h, data); }
     template<typename T> void pushImage( int32_t x, int32_t y, int32_t w, int32_t h, const T* data)                          { pixelcopy_t p(data, _write_conv.depth, T::depth, _has_palette, nullptr                                   ); push_image(x, y, w, h, &p); }
     template<typename T> void pushImage( int32_t x, int32_t y, int32_t w, int32_t h, const T* data   , const T& transparent) { pixelcopy_t p(data, _write_conv.depth, T::depth, _has_palette, nullptr, _write_conv.convert(transparent)); push_image(x, y, w, h, &p); }
-    template<typename T> void pushImage( int32_t x, int32_t y, int32_t w, int32_t h, const swap888_t* data                      , const uint8_t bits, const T* palette) { pixelcopy_t p(data, _write_conv.depth, (color_depth_t)bits, _has_palette, palette              ); push_image(x, y, w, h, &p); }
-    template<typename T> void pushImage( int32_t x, int32_t y, int32_t w, int32_t h, const swap888_t* data, uint32_t transparent, const uint8_t bits, const T* palette) { pixelcopy_t p(data, _write_conv.depth, (color_depth_t)bits, _has_palette, palette, transparent ); push_image(x, y, w, h, &p); }
+    template<typename T> void pushImage( int32_t x, int32_t y, int32_t w, int32_t h, const bgr888_t* data                      , const uint8_t bits, const T* palette) { pixelcopy_t p(data, _write_conv.depth, (color_depth_t)bits, _has_palette, palette              ); push_image(x, y, w, h, &p); }
+    template<typename T> void pushImage( int32_t x, int32_t y, int32_t w, int32_t h, const bgr888_t* data, uint32_t transparent, const uint8_t bits, const T* palette) { pixelcopy_t p(data, _write_conv.depth, (color_depth_t)bits, _has_palette, palette, transparent ); push_image(x, y, w, h, &p); }
 
     void pushImage(int32_t x, int32_t y, int32_t w, int32_t h, const uint16_t* data)
     {
@@ -917,7 +963,7 @@ enum textdatum_t
     int32_t padx = _padding_x;
     if (_text_fore_rgb888 != _text_back_rgb888 && padx > cwidth) {
       setColor(_text_back_rgb888);
-      auto py = y + _font_size_y.offset;
+      auto py = y + _font_size_y.offset * _textsize_y;
       if (_textdatum & top_center) {
         auto halfcwidth = cwidth >> 1;
         auto halfpadx = (padx >> 1);
@@ -1073,7 +1119,7 @@ enum textdatum_t
     color_conv_t _write_conv;
     color_conv_t _read_conv;
 
-    swap888_t* _palette = nullptr; // for sprite palette mode.
+    bgr888_t* _palette = nullptr; // for sprite palette mode.
 
     int16_t _textsize_x = 1;
     int16_t _textsize_y = 1;
@@ -1482,63 +1528,59 @@ enum textdatum_t
       c -= pgm_read_word(&gfxFont->first);
       GFXglyph *glyph = &(((GFXglyph *)pgm_read_dword(&gfxFont->glyph))[c]);
 
-      int16_t w = pgm_read_byte(&glyph->width),
+      int32_t w = pgm_read_byte(&glyph->width),
               h = pgm_read_byte(&glyph->height);
 
-      int16_t xoffset = (int8_t)pgm_read_byte(&glyph->xOffset) * size_x;
+      int32_t xAdvance = (int32_t)size_x * (int8_t)pgm_read_byte(&glyph->xAdvance);
+      int32_t xoffset  = (int32_t)size_x * (int8_t)pgm_read_byte(&glyph->xOffset);
+      int32_t yoffset  = (int32_t)size_y * (int8_t)pgm_read_byte(&glyph->yOffset);
+
+      me->startWrite();
+      uint32_t colortbl[2] = {me->_write_conv.convert(back_rgb888), me->_write_conv.convert(fore_rgb888)};
+      bool fillbg = (back_rgb888 != fore_rgb888);
+      if (fillbg) {
+        int32_t left  = std::max(me->_filled_x, x + (xoffset < 0 ? xoffset : 0));
+        int32_t right = x + std::max((int32_t)(w * size_x + xoffset), (int32_t)(xAdvance));
+        if (right > left) {
+          me->setColorRaw(colortbl[0]);
+          me->fillRect(left, y + me->_font_size_y.offset * size_y, right - left, (me->_glyph_bb + me->_glyph_ab) * size_y);
+          me->_filled_x = right;
+        }
+      } else {
+        me->_filled_x = 0;
+      }
+
       x += xoffset;
-      int16_t yoffset = (int8_t)pgm_read_byte(&glyph->yOffset) * size_y;
       y += yoffset;
-
-      int16_t xAdvance = (int8_t)pgm_read_byte(&glyph->xAdvance) * size_x;
-
-      if ((x < me->width())
-       && (x + w * size_x > 0)
-       && (y < me->height())
-       && (y + h * size_y > 0)) {
-      //bool fillbg = (bg != color);
+      if ((x < me->width())  && (x + w * size_x > 0)
+       && (y < me->height()) && (y + h * size_y > 0)) {
         uint8_t  *bitmap = (uint8_t *)pgm_read_dword(&gfxFont->bitmap)
                          + pgm_read_word(&glyph->bitmapOffset);
-        uint8_t  xx, bits=0, bit=0;
+        uint8_t bits=0, bit=0;
 
-        me->startWrite();
-
-        uint32_t colortbl[2] = {me->_write_conv.convert(back_rgb888), me->_write_conv.convert(fore_rgb888)};
-        bool fillbg = (back_rgb888 != fore_rgb888);
-        if (fillbg) {
-          int32_t left  = std::max(me->_filled_x, x - (xoffset < 0 ? 0 : xoffset));
-          int32_t right = x + std::max((int32_t)(w * size_x), (int32_t)(xAdvance - xoffset));
-          if (right > left) {
-            me->setColorRaw(colortbl[0]);
-            me->fillRect(left, y - yoffset + me->_font_size_y.offset * size_y, right - left, (me->_glyph_bb + me->_glyph_ab) * size_y);
-            me->_filled_x = right;
-          }
-        } else {
-          me->_filled_x = 0;
-        }
         me->setColorRaw(colortbl[1]);
         while (h--) {
-          int16_t len = 0;
-          for (xx=0; xx < w; xx++) {
+          int32_t len = 0;
+          int32_t i = 0;
+          for (i = 0; i < w; i++) {
             if (bit == 0) {
               bit  = 0x80;
               bits = pgm_read_byte(bitmap++);
             }
             if (bits & bit) len++;
             else if (len) {
-              me->fillRect(x + (xx-len) * size_x, y, size_x * len, size_y);
+              me->fillRect(x + (i-len) * size_x, y, size_x * len, size_y);
               len=0;
             }
             bit >>= 1;
           }
           if (len) {
-            me->fillRect(x + (xx-len) * size_x, y, size_x * len, size_y);
+            me->fillRect(x + (i-len) * size_x, y, size_x * len, size_y);
           }
           y += size_y;
         }
-
-        me->endWrite();
       }
+      me->endWrite();
       return xAdvance;
     }
   public:
@@ -1792,13 +1834,28 @@ enum textdatum_t
       file->seek(me->gBitmap[gNum]);  // headerPtr
       file->read(pixel, w * h);
       if (file->need_transaction) me->beginTransaction();
+      me->startWrite();
+
+      uint32_t colortbl[2] = {me->_write_conv.convert(back_rgb888), me->_write_conv.convert(fore_rgb888)};
+      bool fillbg = (back_rgb888 != fore_rgb888);
+      if (fillbg) {
+        int32_t left  = std::max(me->_filled_x, x + (xoffset < 0 ? xoffset : 0));
+        int32_t right = x + std::max((int32_t)(w * size_x + xoffset), (int32_t)(xAdvance));
+        if (right > left) {
+          me->setColorRaw(colortbl[0]);
+          me->fillRect(left, y, right - left, me->gFont.yAdvance * size_y);
+ //me->setColorRaw(colortbl[1]);
+ //me->drawRect(left, y, right - left, me->gFont.yAdvance * size_y);
+          me->_filled_x = right;
+        }
+      } else {
+        me->_filled_x = 0;
+      }
 
       y += yoffset;
       x += xoffset;
-      if ((x < me->width())
-       && (x + w * size_x > 0)
-       && (y < me->height())
-       && (y + h * size_y > 0)) {
+      if ((x < me->width())  && (x + w * size_x > 0)
+       && (y < me->height()) && (y + h * size_y > 0)) {
 
         uint32_t fore_r = ((fore_rgb888>>16)&0xFF);
         uint32_t fore_g = ((fore_rgb888>> 8)&0xFF);
@@ -1806,52 +1863,31 @@ enum textdatum_t
         uint32_t back_r = ((back_rgb888>>16)&0xFF);
         uint32_t back_g = ((back_rgb888>> 8)&0xFF);
         uint32_t back_b = ((back_rgb888)    &0xFF);
-        uint32_t colortbl[2] = {me->_write_conv.convert(back_rgb888), me->_write_conv.convert(fore_rgb888)};
-        bool fillbg = (back_rgb888 != fore_rgb888);
-
-        me->startWrite();
-
-        if (fillbg) {
-          int32_t left  = std::max(me->_filled_x, x - (xoffset < 0 ? 0 : xoffset));
-          int32_t right = x + std::max((int32_t)(w * size_x), (int32_t)(xAdvance - xoffset));
-          if (right > left) {
-            me->setColorRaw(colortbl[0]);
-            me->fillRect(left, y - yoffset, right - left, me->gFont.yAdvance * size_y);
-//me->setColorRaw(colortbl[1]);
-//me->drawRect(left, y, right - left, me->gFont.yAdvance * size_y);
-            me->_filled_x = right;
-          }
-        } else {
-          me->_filled_x = 0;
-        }
         do {
-          uint32_t dl = 0;
-          for (int32_t xx = 0; xx < w; xx++) {
-            if (*pixel == 0xFF) dl++;
-            else {
-              if (dl) {
-                me->setColorRaw(colortbl[1]);
-                me->fillRect((xx - dl) * size_x + x, y, dl * size_x, size_y);
-                dl = 0;
-              }
-              if (*pixel) {
-                int32_t p = 1 + (uint32_t)*pixel;
+          int32_t i = 0;
+          do {
+            while (pixel[i] != 0xFF) {
+              if (pixel[i] != 0) {
+                int32_t p = 1 + (uint32_t)pixel[i];
                 me->setColor(color888( ( fore_r * p + back_r * (257 - p)) >> 8
                                      , ( fore_g * p + back_g * (257 - p)) >> 8
                                      , ( fore_b * p + back_b * (257 - p)) >> 8 ));
-                me->fillRect(xx * size_x + x, y, size_x, size_y);
+                me->fillRect(i * size_x + x, y, size_x, size_y);
               }
+              if (++i == w) break;
             }
-            ++pixel;
-          }
-          if (dl) {
+            if (i == w) break;
+            int32_t dl = 1;
+            while (i + dl != w && pixel[i + dl] == 0xFF) { ++dl; }
             me->setColorRaw(colortbl[1]);
-            me->fillRect((w - dl) * size_x + x, y, dl * size_x, size_y);
-          }
+            me->fillRect(x + i * size_x, y, dl * size_x, size_y);
+            i += dl;
+          } while (i != w);
+          pixel += w;
           y += size_y;
         } while (--h);
-        me->endWrite();
       }
+      me->endWrite();
       return xAdvance;
     }
   };
@@ -2071,7 +2107,7 @@ static uint32_t jpgTinyColorPush(JDEC *decoder, void *bitmap, JRECT *rect) {
 
       jpg_file_decoder_t jpeg;
 
-      pixelcopy_t pc(nullptr, this->getColorDepth(), swap888_t::depth, this->hasPalette());
+      pixelcopy_t pc(nullptr, this->getColorDepth(), bgr888_t::depth, this->hasPalette());
       jpeg.pc = &pc;
       jpeg.tft = this;
       jpeg.src = &file;
@@ -2115,7 +2151,7 @@ static uint32_t jpgTinyColorPush(TJpgD *decoder, void *bitmap, JRECT *rect) {
 
       jpg_file_decoder_t jpeg;
 
-      pixelcopy_t pc(nullptr, this->getColorDepth(), swap888_t::depth, this->hasPalette());
+      pixelcopy_t pc(nullptr, this->getColorDepth(), bgr888_t::depth, this->hasPalette());
       jpeg.pc = &pc;
       jpeg.tft = this;
       jpeg.src = &file;
@@ -2176,7 +2212,7 @@ static uint8_t jpgPicoReadFile(uint8_t* pBuf, uint8_t len, uint8_t *readlen, voi
       //ESP_LOGI("LGFX", "pjpeg_decode_init: %d", status);
 
       uint8_t buffer[16*16*3];
-      pixelcopy_t pc(buffer, this->getColorDepth(), swap888_t::depth, this->hasPalette());
+      pixelcopy_t pc(buffer, this->getColorDepth(), bgr888_t::depth, this->hasPalette());
 
       auto mcuHeight = image_info.m_MCUHeight;
       auto mcuWidth  = image_info.m_MCUWidth;

@@ -161,7 +161,7 @@ namespace lgfx
       static constexpr int gpio_rst = 33;
       static constexpr uint32_t freq_write = 40000000;
       static constexpr uint32_t freq_read  = 20000000;
-      static constexpr uint32_t freq_fill  = 80000000;
+      static constexpr uint32_t freq_fill  = 40000000;
       static constexpr bool spi_3wire = true;
     };
 

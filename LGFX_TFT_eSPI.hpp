@@ -54,7 +54,9 @@
 #define TFT_SKYBLUE     0x867D      /* 135, 206, 235 */
 #define TFT_VIOLET      0x915C      /* 180,  46, 226 */
 
+#define TFT_TRANSPARENT 0x0120
 
+typedef lgfx::bgr888_t RGBColor;
 
 namespace lgfx {
 

@@ -368,8 +368,8 @@ void blockReadWrite(T& Lcd, int32_t offset = 0)
   int32_t width  = Lcd.width();
   int32_t height = Lcd.height();
   Lcd.startWrite();
-  lgfx::swap888_t buf[width*2];
-memset(buf, 0, width*2*sizeof(lgfx::swap888_t));
+  lgfx::bgr888_t buf[width*2];
+memset(buf, 0, width*2*sizeof(lgfx::bgr888_t));
   for (int count = 0; count < height; count+=2) {
     if (1 > (width - (count>>1))) break;
     Lcd.readRect(offset           , count, (width - (count>>1)) >> 1, 2, buf);

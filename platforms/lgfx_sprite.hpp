@@ -71,7 +71,7 @@ namespace lgfx
       _has_palette = false;
 
       size_t palettes = 1 << _write_conv.bits;
-      _palette = (swap888_t*)_mem_alloc(sizeof(swap888_t) * palettes);
+      _palette = (bgr888_t*)_mem_alloc(sizeof(bgr888_t) * palettes);
       if (!_palette) {
         return false;
       }
@@ -115,7 +115,7 @@ for (uint32_t i = 0; i < palettes; i++) {
       }
     }
 
-    void setPalette(size_t index, const swap888_t& rgb)
+    void setPalette(size_t index, const bgr888_t& rgb)
     {
       if (_palette) { _palette[index & ((1<<_write_conv.bits)-1)] = rgb; }
     }
@@ -183,7 +183,7 @@ for (uint32_t i = 0; i < palettes; i++) {
     union {
       uint8_t*   _img;
       uint16_t*  _img16;
-      swap888_t* _img24;
+      bgr888_t* _img24;
     };
     int32_t _bitwidth;
     int32_t _xptr;
@@ -281,7 +281,7 @@ return;
           } else if (_write_conv.bytes == 1) {
             do {             *dst = _color.raw0;          dst += _bitwidth;      } while (--h);
           } else {  // if (_write_conv.bytes == 3)
-            do { *(swap888_t*)dst = *(swap888_t*)&_color; dst += _bitwidth * 3;  } while (--h);
+            do { *(bgr888_t*)dst = *(bgr888_t*)&_color; dst += _bitwidth * 3;  } while (--h);
           }
         } else {
           uint8_t* dst = &_img[(x + y * _bitwidth) * _write_conv.bytes];
