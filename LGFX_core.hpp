@@ -943,7 +943,11 @@ enum textdatum_t
 , baseline_right  = 18  // Right character baseline
 };
 
-  int16_t drawString(const char *string, int32_t x, int32_t y)
+  __attribute__ ((always_inline)) inline int16_t drawString(const char *string, int32_t x, int32_t y)
+  {
+    return drawString(string, x, y, _textdatum);
+  }
+  int16_t drawString(const char *string, int32_t x, int32_t y, textdatum_t datum)
   {
     int16_t sumX = 0;
     int32_t cwidth = textWidth(string); // Find the pixel width of the string in the font
@@ -962,39 +966,38 @@ enum textdatum_t
       }
     }
 
-    y -= _font_size_y.offset * _textsize_y;
-
-    if (_textdatum & middle_left) {          // vertical: middle
-      y -= cheight / 2;
-    } else if (_textdatum & bottom_left) {   // vertical: bottom
+    if (datum & middle_left) {          // vertical: middle
+      y -= cheight >> 1;
+    } else if (datum & bottom_left) {   // vertical: bottom
       y -= cheight;
-    } else if (_textdatum & baseline_left) { // vertical: baseline
+    } else if (datum & baseline_left) { // vertical: baseline
       y -= _font_baseline * _textsize_y;
     }
 
     int32_t padx = _padding_x;
-    if (_text_fore_rgb888 != _text_back_rgb888 && padx > cwidth) {
+    if ((_text_fore_rgb888 != _text_back_rgb888) && (padx > cwidth)) {
       setColor(_text_back_rgb888);
-      auto py = y + _font_size_y.offset * _textsize_y;
-      if (_textdatum & top_center) {
+      if (datum & top_center) {
         auto halfcwidth = cwidth >> 1;
         auto halfpadx = (padx >> 1);
-        fillRect(x - halfpadx, py, halfpadx - halfcwidth, cheight);
+        fillRect(x - halfpadx, y, halfpadx - halfcwidth, cheight);
         halfcwidth = cwidth - halfcwidth;
         halfpadx = padx - halfpadx;
-        fillRect(x + halfcwidth, py, halfpadx - halfcwidth, cheight);
-      } else if (_textdatum & top_right) {
-        fillRect(x - padx, py, padx - cwidth, cheight);
+        fillRect(x + halfcwidth, y, halfpadx - halfcwidth, cheight);
+      } else if (datum & top_right) {
+        fillRect(x - padx, y, padx - cwidth, cheight);
       } else {
-        fillRect(x + cwidth, py, padx - cwidth, cheight);
+        fillRect(x + cwidth, y, padx - cwidth, cheight);
       }
     }
 
-    if (_textdatum & top_center) {           // Horizontal: middle
+    if (datum & top_center) {           // Horizontal: middle
       x -= cwidth >> 1;
-    } else if (_textdatum & top_right) {     // Horizontal: right
+    } else if (datum & top_right) {     // Horizontal: right
       x -= cwidth;
     }
+
+    y -= _font_size_y.offset * _textsize_y;
 
     _filled_x = 0;
     do {
@@ -1123,10 +1126,10 @@ enum textdatum_t
     int32_t _filled_x = 0;
     int32_t  _sx, _sy, _sw, _sh; // for scroll zone
     int32_t  _clip_x = 0, _clip_y = 0, _clip_w = 0, _clip_h = 0; // clip rect
-    uint32_t _text_fore_rgb888 = 0xFFFFFFFF;
+    uint32_t _text_fore_rgb888 = 0xFFFFFFU;
     uint32_t _text_back_rgb888 = 0;
     uint32_t _scolor;  // gap fill colour for scroll zone
-    raw_color_t _color = 0xFFFFFFFF;
+    raw_color_t _color = 0xFFFFFFU;
 
     color_conv_t _write_conv;
     color_conv_t _read_conv;
@@ -1864,39 +1867,82 @@ enum textdatum_t
       }
 
       y += yoffset;
-      x += xoffset;
-      if ((x < me->width())  && (x + w * size_x > 0)
-       && (y < me->height()) && (y + h * size_y > 0)) {
+/*
+      if (y < 0) {
+        auto tmp = -y / size_y;
+        y += tmp;
+        h -= tmp;
+        pixel += w * tmp;
+      }
+//*/
 
-        uint32_t fore_r = ((fore_rgb888>>16)&0xFF);
-        uint32_t fore_g = ((fore_rgb888>> 8)&0xFF);
-        uint32_t fore_b = ((fore_rgb888)    &0xFF);
-        uint32_t back_r = ((back_rgb888>>16)&0xFF);
-        uint32_t back_g = ((back_rgb888>> 8)&0xFF);
-        uint32_t back_b = ((back_rgb888)    &0xFF);
-        do {
-          int32_t i = 0;
+      x += xoffset;
+      int32_t left = 0;
+      int32_t bx = x;
+      int32_t bw = w * size_x;
+      if (x < 0) { left = -(x / size_x); bw += x; bx = 0; }
+      int32_t width = me->width();
+      if (bw > width - bx) bw = width - bx;
+      if (bw > 0
+       && (y < me->height()) && (y + h * size_y > 0)) {
+        int32_t fore_r = ((fore_rgb888>>16)&0xFF);
+        int32_t fore_g = ((fore_rgb888>> 8)&0xFF);
+        int32_t fore_b = ((fore_rgb888)    &0xFF);
+        if (fillbg) {
+          int32_t back_r = ((back_rgb888>>16)&0xFF);
+          int32_t back_g = ((back_rgb888>> 8)&0xFF);
+          int32_t back_b = ((back_rgb888)    &0xFF);
+          int32_t right = (width - x + size_x - 1) / size_x;
+          if (right > w) right = w;
           do {
-            while (pixel[i] != 0xFF) {
-              if (pixel[i] != 0) {
-                int32_t p = 1 + (uint32_t)pixel[i];
-                me->setColor(color888( ( fore_r * p + back_r * (257 - p)) >> 8
-                                     , ( fore_g * p + back_g * (257 - p)) >> 8
-                                     , ( fore_b * p + back_b * (257 - p)) >> 8 ));
-                me->fillRect(i * size_x + x, y, size_x, size_y);
+            int32_t i = left;
+            do {
+              while (pixel[i] != 0xFF) {
+                if (pixel[i] != 0) {
+                  int32_t p = 1 + (uint32_t)pixel[i];
+                  me->setColor(color888( ( fore_r * p + back_r * (257 - p)) >> 8
+                                       , ( fore_g * p + back_g * (257 - p)) >> 8
+                                       , ( fore_b * p + back_b * (257 - p)) >> 8 ));
+                  me->fillRect(i * size_x + x, y, size_x, size_y);
+                }
+                if (++i == right) break;
               }
-              if (++i == w) break;
+              if (i == right) break;
+              int32_t dl = 1;
+              while (i + dl != right && pixel[i + dl] == 0xFF) { ++dl; }
+              me->setColorRaw(colortbl[1]);
+              me->fillRect(x + i * size_x, y, dl * size_x, size_y);
+              i += dl;
+            } while (i != right);
+            pixel += w;
+            y += size_y;
+          } while (--h);
+        } else {
+          int32_t xshift = (bx - x) % size_x;
+          bgr888_t buf[bw * size_y];
+          pixelcopy_t p(buf, me->_write_conv.depth, rgb888_3Byte, me->hasPalette());
+          do {
+            int32_t by = y;
+            int32_t bh = size_y;
+            if (by < 0) { bh += by; by = 0; }
+            if (bh > 0) {
+              me->readRectRGB(bx, by, bw, bh, (uint8_t*)buf);
+              for (int32_t sx = 0; sx < bw; sx++) {
+                int32_t p = 1 + pixel[left + (sx+xshift) / size_x];
+                for (int32_t sy = 0; sy < bh; sy++) {
+                  auto bgr = buf[sx + sy * bw];
+                  bgr.r = ( fore_r * p + bgr.r * (257 - p)) >> 8;
+                  bgr.g = ( fore_g * p + bgr.g * (257 - p)) >> 8;
+                  bgr.b = ( fore_b * p + bgr.b * (257 - p)) >> 8;
+                  buf[sx + sy * bw] = bgr;
+                }
+              }
+              me->push_image(bx, by, bw, bh, &p);
             }
-            if (i == w) break;
-            int32_t dl = 1;
-            while (i + dl != w && pixel[i + dl] == 0xFF) { ++dl; }
-            me->setColorRaw(colortbl[1]);
-            me->fillRect(x + i * size_x, y, dl * size_x, size_y);
-            i += dl;
-          } while (i != w);
-          pixel += w;
-          y += size_y;
-        } while (--h);
+            pixel += w;
+            if ((y += size_y) >= me->height()) break;
+          } while (--h);
+        }
       }
       me->endWrite();
       return xAdvance;
@@ -1970,7 +2016,6 @@ enum textdatum_t
           union {
             uint8_t raw[34];
     //      uint8_t raw[54];
-
             #pragma pack(1)
             struct {
               uint16_t bfType; 
@@ -2053,6 +2098,7 @@ enum textdatum_t
     }
 
 
+#if defined _TJPGDEC_H_
     typedef struct {
       int32_t x;
       int32_t y;
@@ -2068,99 +2114,37 @@ enum textdatum_t
       file.need_transaction &= this->_has_transaction;
       if (file.need_transaction) this->endTransaction();
       if (file.open(path, "rb")) {
-//      drawJpgFile_tiny(file, x, y, maxWidth, maxHeight, offX, offY, scale);
         drawJpgFile_tjpgd(file, x, y, maxWidth, maxHeight, offX, offY, scale);
-//      drawJpgFile_pico(file, x, y, maxWidth, maxHeight, offX, offY, scale);
         file.close();
       }
       if (file.need_transaction && this->_transaction_count) { this->beginTransaction(); }
     }
 
-
-/*
-static uint32_t jpgTinyReadFile(JDEC *decoder, uint8_t *buf, uint32_t len) {
-  jpg_file_decoder_t *jpeg = (jpg_file_decoder_t *)decoder->device;
-  auto file = (FileWrapper*)jpeg->src;
-  auto res = len;
-  if (file->need_transaction) jpeg->tft->endTransaction();
-  if (buf) {
-    res = file->read(buf, len);
-  } else {
-    file->skip(len);
-  }
-  if (file->need_transaction) jpeg->tft->beginTransaction();
-  return res;
-}
-static uint32_t jpgTinyColorPush(JDEC *decoder, void *bitmap, JRECT *rect) {
-  jpg_file_decoder_t *jpeg = (jpg_file_decoder_t *)decoder->device;
-  jpeg->pc->src_data = bitmap;
-  jpeg->tft->push_image( jpeg->x + rect->left
-                       , jpeg->y + rect->top 
-                       , rect->right  - rect->left + 1
-                       , rect->bottom - rect->top + 1
-                       , jpeg->pc
-                       , true);
-  return 1;
-}
-    static bool jpgLegacyDecode(jpg_file_decoder_t *jpeg, uint32_t (*reader)(JDEC *, uint8_t *, uint32_t)) {
-      static uint8_t work[3100];
-      JDEC decoder;
-      JRESULT jres = jd_prepare(&decoder, reader, work, 3100, jpeg);
-      if (jres != JDR_OK) {
-//        log_e("jd_prepare failed! %s", jd_errors[jres]);
-        return false;
+    static uint32_t jpgTinyReadFile(TJpgD *decoder, uint8_t *buf, uint32_t len) {
+      jpg_file_decoder_t *jpeg = (jpg_file_decoder_t *)decoder->device;
+      auto file = (FileWrapper*)jpeg->src;
+      auto res = len;
+      if (file->need_transaction) jpeg->tft->endTransaction();
+      if (buf) {
+        res = file->read(buf, len);
+      } else {
+        file->skip(len);
       }
-      jres = jd_decomp(&decoder, jpgTinyColorPush, (uint8_t)jpeg->scale);
-      if (jres != JDR_OK) {
-//        log_e("jd_decomp failed! %s", jd_errors[jres]);
-        return false;
-      }
-      return true;
+      if (file->need_transaction) jpeg->tft->beginTransaction();
+      return res;
     }
-    void drawJpgFile_tiny(FileWrapper& file, int16_t x, int16_t y, int16_t maxWidth, int16_t maxHeight, int16_t offX, int16_t offY, jpeg_div_t scale)
-    {
-      this->set_clip_rect(x, y, maxWidth, maxHeight);
-
-      jpg_file_decoder_t jpeg;
-
-      pixelcopy_t pc(nullptr, this->getColorDepth(), bgr888_t::depth, this->hasPalette());
-      jpeg.pc = &pc;
-      jpeg.tft = this;
-      jpeg.src = &file;
-//      jpeg.index = 0;
-      jpeg.x = x - offX;
-      jpeg.y = y - offY;
-      jpeg.scale = scale;
-      this->startWrite();
-      jpgLegacyDecode(&jpeg, jpgTinyReadFile);
-      this->clear_clip_rect();
-      this->endWrite();
+    static uint32_t jpgTinyColorPush(TJpgD *decoder, void *bitmap, JRECT *rect) {
+      jpg_file_decoder_t *jpeg = (jpg_file_decoder_t *)decoder->device;
+      jpeg->pc->src_data = bitmap;
+      jpeg->tft->push_image( jpeg->x + rect->left
+                           , jpeg->y + rect->top 
+                           , rect->right  - rect->left + 1
+                           , rect->bottom - rect->top + 1
+                           , jpeg->pc
+                           , true);
+      return 1;
     }
-/*/
-static uint32_t jpgTinyReadFile(TJpgD *decoder, uint8_t *buf, uint32_t len) {
-  jpg_file_decoder_t *jpeg = (jpg_file_decoder_t *)decoder->device;
-  auto file = (FileWrapper*)jpeg->src;
-  auto res = len;
-  if (file->need_transaction) jpeg->tft->endTransaction();
-  if (buf) {
-    res = file->read(buf, len);
-  } else {
-    file->skip(len);
-  }
-  if (file->need_transaction) jpeg->tft->beginTransaction();
-  return res;
-}
-static uint32_t jpgTinyColorPush(TJpgD *decoder, void *bitmap, JRECT *rect) {
-  jpg_file_decoder_t *jpeg = (jpg_file_decoder_t *)decoder->device;
-  jpeg->pc->src_data = bitmap;
-  jpeg->tft->push_image( jpeg->x + rect->left
-                       , jpeg->y + rect->top 
-                       , rect->right  - rect->left + 1
-                       , rect->bottom - rect->top + 1
-                       , jpeg->pc
-                       , true);
-  return 1;
-}
+
     void drawJpgFile_tjpgd(FileWrapper& file, int16_t x, int16_t y, int16_t maxWidth, int16_t maxHeight, int16_t offX, int16_t offY, jpeg_div_t scale)
     {
       this->set_clip_rect(x, y, maxWidth, maxHeight);
@@ -2181,105 +2165,22 @@ static uint32_t jpgTinyColorPush(TJpgD *decoder, void *bitmap, JRECT *rect) {
       auto jres = jpegdec.prepare(jpgTinyReadFile, &jpeg);
 
       if (jres != JDR_OK) {
-ESP_LOGE("LGFX","jpeg prepare error:%x", jres);
-//        log_e("jd_prepare failed! %s", jd_errors[jres]);
+        ESP_LOGE("LGFX","jpeg prepare error:%x", jres);
         return;
       }
 
-//      jpegdec.multitask_begin();
       this->startWrite();
       jres = jpegdec.decomp(jpgTinyColorPush, nullptr);
-//      jres = jpegdec.decomp_multitask(jpgTinyColorPush, nullptr);
       this->clear_clip_rect();
       this->endWrite();
-//      jpegdec.multitask_end();
-//*/
     }
-
-
-//*/
-/*
-static uint8_t jpgPicoReadFile(uint8_t* pBuf, uint8_t len, uint8_t *readlen, void *pData) {
-  auto jpeg = (jpg_file_decoder_t *)pData;
-  auto file = (FileWrapper*)jpeg->src;
-  if (file->need_transaction) jpeg->tft->endTransaction();
-  if (pBuf) {
-    *readlen = file->read(pBuf, len);
-  } else {
-    file->skip(len);
-  }
-  if (file->need_transaction) jpeg->tft->beginTransaction();
-  return 0;
-}
-
-    void drawJpgFile_pico(FileWrapper& file, int16_t x, int16_t y, int16_t maxWidth, int16_t maxHeight, int16_t offX, int16_t offY, jpeg_div_t scale)
+#else
+    void drawJpgFile(FileWrapper& file, const char *path, int16_t x, int16_t y, int16_t maxWidth, int16_t maxHeight, int16_t offX, int16_t offY, jpeg_div_t scale) 
     {
-      this->set_clip_rect(x, y, maxWidth, maxHeight);
-
-      jpg_file_decoder_t jpeg;
-      jpeg.tft = this;
-      jpeg.src = &file;
-//      jpeg.index = 0;
-      jpeg.x = x - offX;
-      jpeg.y = y - offY;
-      jpeg.scale = scale;
-
-      pjpeg_image_info_t image_info;
-      auto status = pjpeg_decode_init(&image_info, jpgPicoReadFile, &jpeg, 0);
-
-      //ESP_LOGI("LGFX", "pjpeg_decode_init: %d", status);
-
-      uint8_t buffer[16*16*3];
-      pixelcopy_t pc(buffer, this->getColorDepth(), bgr888_t::depth, this->hasPalette());
-
-      auto mcuHeight = image_info.m_MCUHeight;
-      auto mcuWidth  = image_info.m_MCUWidth;
-
-      this->startWrite();
-
-      for (int col = 0; col < image_info.m_MCUSPerCol; col++) {
-        if ( 0 != status) break;
-
-        for (int row = 0; row < image_info.m_MCUSPerRow; row++) {
-          if ( 0 != (status = pjpeg_decode_mcu() )) break;
-
-          auto pR = image_info.m_pMCUBufR;
-          auto pG = image_info.m_pMCUBufG;
-          auto pB = image_info.m_pMCUBufB;
-
-          for (int y = 0; y < mcuHeight; y += 8) {
-            const int by_limit = std::min(8, image_info.m_height - (col * mcuHeight + y));
-
-            for (int x = 0; x < mcuWidth; x += 8) {
-              const int bx_limit = std::min(8, image_info.m_width  - (row * mcuWidth + x));
-              auto pDst = buffer + (x + y * 16) * 3;
-              for ( int h = 0; h < by_limit; h++ ) {
-                auto pBuf = pDst;
-                for ( int w = 0; w < bx_limit; w++ ) {
-                  *pBuf++ = *pR++;
-                  *pBuf++ = *pG++;
-                  *pBuf++ = *pB++;
-                }
-  //          pR += (8 - bx_limit);
-  //          pG += (8 - bx_limit);
-  //          pB += (8 - bx_limit);
-                pDst += mcuWidth*3;
-              }
-            }
-          }
-          this->push_image( jpeg.x + row * mcuWidth
-                          , jpeg.y + col * mcuHeight
-                          , mcuWidth
-                          , mcuHeight
-                          , &pc
-                          , true);
-        }
-      }
-
-      this->clear_clip_rect();
-      this->endWrite();
+      ESP_LOGI("LGFX","drawJpg need include utility/tjpgdClass.h");
     }
-//*/
+#endif
+
   };
 //----------------------------------------------------------------------------
 
@@ -2319,13 +2220,5 @@ static uint8_t jpgPicoReadFile(uint8_t* pBuf, uint8_t len, uint8_t *readlen, voi
   #include "platforms/lgfx_spi_avr.hpp"
 
 #endif
-
-#include "platforms/lgfx_sprite.hpp"
-
-#include "platforms/panel_ILI9341.hpp"
-#include "platforms/panel_ILI9163.hpp"
-#include "platforms/panel_ST7735.hpp"
-#include "platforms/panel_ST7789.hpp"
-#include "platforms/panel_ssd_common.hpp"
 
 #endif
