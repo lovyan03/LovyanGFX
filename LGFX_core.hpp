@@ -528,11 +528,23 @@ namespace lgfx
     void readRect(int32_t x, int32_t y, int32_t w, int32_t h, uint16_t* data)
     {
       pixelcopy_t p(nullptr, swap565_t::depth, _read_conv.depth, false, _palette);
+//*
+      if (_swapBytes && !_has_palette && _read_conv.depth >= 8) {
+        p.no_convert = false;
+        p.fp_copy = pixelcopy_t::get_fp_normalcopy_dst<rgb565_t>(_read_conv.depth);
+      }
+//*/
       read_rect(x, y, w, h, data, &p);
     }
     void readRect(int32_t x, int32_t y, int32_t w, int32_t h, void* data)
     {
       pixelcopy_t p(nullptr, bgr888_t::depth, _read_conv.depth, false, _palette);
+//*
+      if (_swapBytes && !_has_palette && _read_conv.depth >= 8) {
+        p.no_convert = false;
+        p.fp_copy = pixelcopy_t::get_fp_normalcopy_dst<rgb888_t>(_read_conv.depth);
+      }
+//*/
       read_rect(x, y, w, h, data, &p);
     }
 
@@ -1200,7 +1212,6 @@ enum textdatum_t
 
     virtual void beginTransaction_impl(void) = 0;
     virtual void endTransaction_impl(void) = 0;
-//    virtual void* setColorDepth_impl(color_depth_t bpp) { return nullptr; }
 
     virtual void fillRect_impl(int32_t x, int32_t y, int32_t w, int32_t h) = 0;
     virtual void copyRect_impl(int32_t dst_x, int32_t dst_y, int32_t w, int32_t h, int32_t src_x, int32_t src_y) = 0;
@@ -1928,6 +1939,11 @@ enum textdatum_t
       drawBmpFile(file, path, x, y);
     }
 
+    void drawJpgFile(const char *path, int16_t x=0, int16_t y=0, int16_t maxWidth=0, int16_t maxHeight=0, int16_t offX=0, int16_t offY=0, jpeg_div_t scale=JPEG_DIV_NONE) {
+      FileWrapper file;
+      drawJpgFile(file, path, x, y, maxWidth, maxHeight, offX, offY, scale);
+    }
+
 #endif
 
   private:
@@ -2163,8 +2179,9 @@ static uint32_t jpgTinyColorPush(TJpgD *decoder, void *bitmap, JRECT *rect) {
       TJpgD jpegdec;
 
       auto jres = jpegdec.prepare(jpgTinyReadFile, &jpeg);
+
       if (jres != JDR_OK) {
-ESP_LOGI("LGFX","jpeg prepare error:%x", jres);
+ESP_LOGE("LGFX","jpeg prepare error:%x", jres);
 //        log_e("jd_prepare failed! %s", jd_errors[jres]);
         return;
       }
@@ -2176,6 +2193,7 @@ ESP_LOGI("LGFX","jpeg prepare error:%x", jres);
       this->clear_clip_rect();
       this->endWrite();
 //      jpegdec.multitask_end();
+//*/
     }
 
 

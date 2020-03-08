@@ -731,7 +731,7 @@ JRESULT TJpgD::prepare (
 	static uint8_t pool[sz_pool];
 
 
-	if (!pool) return JDR_PAR;
+	//if (!pool) return JDR_PAR;
 
 	this->pool = pool;		/* Work memroy */
 	this->sz_pool = sz_pool;	/* Size of given work memory */
