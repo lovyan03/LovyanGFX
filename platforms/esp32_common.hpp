@@ -1,21 +1,40 @@
 #ifndef LGFX_ESP32_COMMON_HPP_
 #define LGFX_ESP32_COMMON_HPP_
 
-#include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
-#include <driver/periph_ctrl.h>
 #include <driver/rtc_io.h>
-#include <driver/spi_common.h>
-#include <driver/spi_master.h>
-#include <soc/dport_reg.h>
-#include <soc/periph_defs.h>
 #include <soc/rtc.h>
-#include <soc/spi_reg.h>
-#include <soc/spi_struct.h>
 
 #ifdef ARDUINO
+  #include <driver/periph_ctrl.h>
+  #include <soc/dport_reg.h>
+  #include <soc/periph_defs.h>
+  #include <soc/spi_reg.h>
+  #include <soc/spi_struct.h>
+
   #include <esp32-hal-cpu.h>
+  #include <pgmspace.h>
 #else
+
+  #ifndef pgm_read_byte
+    #define pgm_read_byte(addr) (*(const unsigned char *)(addr))
+    #define pgm_read_word(addr)  ({ typeof(addr) _addr = (addr); *(const unsigned short *)(_addr); })
+    #define pgm_read_dword(addr) ({ typeof(addr) _addr = (addr); *(const unsigned long *)(_addr); })
+    #define pgm_read_float(addr) ({ typeof(addr) _addr = (addr); *(const float *)(_addr); })
+    #define pgm_read_ptr(addr)   ({ typeof(addr) _addr = (addr); *(void * const *)(_addr); })
+    #define pgm_read_byte_near(addr)  pgm_read_byte(addr)
+    #define pgm_read_word_near(addr)  pgm_read_word(addr)
+    #define pgm_read_dword_near(addr) pgm_read_dword(addr)
+    #define pgm_read_float_near(addr) pgm_read_float(addr)
+    #define pgm_read_ptr_near(addr)   pgm_read_ptr(addr)
+    #define pgm_read_byte_far(addr)   pgm_read_byte(addr)
+    #define pgm_read_word_far(addr)   pgm_read_word(addr)
+    #define pgm_read_dword_far(addr)  pgm_read_dword(addr)
+    #define pgm_read_float_far(addr)  pgm_read_float(addr)
+    #define pgm_read_ptr_far(addr)    pgm_read_ptr(addr)
+    #define PROGMEM
+  #endif
+
   void delay(uint32_t ms) { vTaskDelay(ms / portTICK_PERIOD_MS); }
 
   static constexpr uint32_t MATRIX_DETACH_OUT_SIG = 0x100;
@@ -113,30 +132,7 @@ namespace lgfx
   struct TPin<-1> : public ESP32NOPIN {};
 
 //----------------------------------------------------------------------------
-
-  struct FileWrapper {
-    bool need_transaction = true;
-
-    uint16_t read16(void) {
-      uint16_t result;
-      read(reinterpret_cast<uint8_t*>(&result), 2);
-      return result;
-    }
-
-    uint32_t read32(void) {
-      uint32_t result;
-      read(reinterpret_cast<uint8_t*>(&result), 4);
-      return result;
-    }
-
-    __attribute__ ((always_inline)) inline uint16_t read16swap(void) {
-      return __builtin_bswap16(read16());
-    }
-
-    __attribute__ ((always_inline)) inline uint32_t read32swap(void) {
-      return __builtin_bswap32(read32());
-    }
-
+  struct FileWrapper : public DataWrapper {
 #if defined (ARDUINO) && defined (FS_H)
     fs::File _fp;
   #if defined (_SD_H_)
@@ -157,30 +153,52 @@ namespace lgfx
       return (_fp = fs.open(path, mode));
     }
     bool open(const char* path, const char* mode) { return ( _fp = _fs.open(path, mode)); }
-    bool seek(uint32_t offset) { return seek(offset, SeekSet); }
+    int read(uint8_t *buf, uint32_t len) override { return _fp.read(buf, len); }
+    void skip(int32_t offset) override { seek(offset, SeekCur); }
+    bool seek(uint32_t offset) override { return seek(offset, SeekSet); }
     bool seek(uint32_t offset, SeekMode mode) { return _fp.seek(offset, mode); }
-    void skip(uint32_t offset) { seek(offset, SeekCur); }
-    int read(uint8_t *buf, uint32_t len) { return _fp.read(buf, len); }
     void close() { _fp.close(); }
 
 #elif defined (CONFIG_IDF_TARGET_ESP32)  // ESP-IDF
 
     FILE* _fp;
     bool open(const char* path, const char* mode) { return (_fp = fopen(path, mode)); }
-    bool seek(uint32_t offset) { return seek(offset, SEEK_SET); }
+    int read(uint8_t *buf, uint32_t len) override { return fread((char*)buf, 1, len, _fp); }
+    void skip(int32_t offset) override { seek(offset, SEEK_CUR); }
+    bool seek(uint32_t offset) override { return seek(offset, SEEK_SET); }
     bool seek(uint32_t offset, int origin) { return fseek(_fp, offset, origin); }
-    void skip(uint32_t offset) { seek(offset, SEEK_CUR); }
-    int read(uint8_t *buf, uint32_t len) { return fread((char*)buf, 1, len, _fp); }
     void close() { fclose(_fp); }
 
 #else  // dummy.
 
     bool open(const char* path, const char* mode) { return false; }
-    bool seek(uint32_t offset) { return false; }
+    int read(uint8_t *buf, uint32_t len) override { return 0; }
+    void skip(int32_t offset) override { }
+    bool seek(uint32_t offset) override { return false; }
     bool seek(uint32_t offset, int origin) { return false; }
-    void skip(uint32_t offset) { }
-    int read(uint8_t *buf, uint32_t len) { return 0; }
     void close() { }
+
+#endif
+
+  };
+//----------------------------------------------------------------------------
+  struct StreamWrapper : public DataWrapper {
+#if defined (ARDUINO) && defined (Stream_h)
+    void set(Stream* src) { _stream = src; _index = 0; }
+
+    int read(uint8_t *buf, uint32_t len) override { _index += len; return _stream->readBytes((char*)buf, len); }
+    void skip(int32_t offset) override { if (0 < offset) { char dummy[offset]; _stream->readBytes(dummy, offset); _index += offset; } }
+    bool seek(uint32_t offset) override { if (offset < _index) { return false; } skip(offset - _index); return true; }
+
+private:
+    Stream* _stream;
+    uint32_t _index;
+
+#else  // dummy.
+
+    int read(uint8_t *buf, uint32_t len) override { return 0; }
+    void skip(int32_t offset) override { }
+    bool seek(uint32_t offset) override { return false; }
 
 #endif
 

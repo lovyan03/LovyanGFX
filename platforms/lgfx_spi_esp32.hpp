@@ -3,11 +3,14 @@
 
 #include <type_traits>
 #include <esp_heap_caps.h>
+#include <freertos/task.h>
 #include <driver/spi_common.h>
 
+#if defined (ARDUINO) // Arduino ESP32
+ #include <SPI.h>
+#endif
+
 #include "lgfx_common.hpp"
-#include "lgfx_sprite.hpp"
-#include "panel_common.hpp"
 
 namespace lgfx
 {
@@ -60,46 +63,15 @@ namespace lgfx
 
     void initBus(void)
     {
-#if defined (CONFIG_IDF_TARGET_ESP32) // ESP-IDF
-
-      spi_bus_config_t buscfg = {
-          .mosi_io_num = _spi_mosi,
-          .miso_io_num = _spi_miso,
-          .sclk_io_num = _spi_sclk,
-          .quadwp_io_num = -1,
-          .quadhd_io_num = -1,
-          .max_transfer_sz = 1,
-          .flags = SPICOMMON_BUSFLAG_MASTER,
-          .intr_flags = 0,
-      };
-
-      if (ESP_OK != spi_bus_initialize(_spi_host, &buscfg, _dma_channel)) {
-        ESP_LOGE("LGFX", "Failed to spi_bus_initialize. ");
+#if defined (ARDUINO) // Arduino ESP32
+//*
+      if (_spi_host == HSPI_HOST) {
+        SPIClass spi = SPIClass(HSPI);
+        spi.begin(_spi_sclk, _spi_miso, _spi_mosi, -1);
+      } else {
+        SPI.begin(_spi_sclk, _spi_miso, _spi_mosi, -1);
       }
-
-      if (_spi_handle == nullptr) {
-        spi_device_interface_config_t devcfg = {
-            .command_bits = 0,
-            .address_bits = 0,
-            .dummy_bits = 0,
-            .mode = 0,
-            .duty_cycle_pos = 0,
-            .cs_ena_pretrans = 0,
-            .cs_ena_posttrans = 0,
-            .clock_speed_hz = (int)getApbFrequency()>>1,
-            .input_delay_ns = 0,
-            .spics_io_num = -1,
-            .flags = SPI_DEVICE_3WIRE | SPI_DEVICE_HALFDUPLEX,
-            .queue_size = 1,
-            .pre_cb = nullptr,
-            .post_cb = nullptr};
-        if (ESP_OK != spi_bus_add_device(_spi_host, &devcfg, &_spi_handle)) {
-          ESP_LOGE("LGFX", "Failed to spi_bus_add_device. ");
-        }
-      }
-
-#else // Arduino ESP32
-
+/*/
       bool use_gpio_matrix = (
          (_spi_sclk>=0 &&
           _spi_sclk != spi_periph_signal[_spi_host].spiclk_iomux_pin)
@@ -141,7 +113,7 @@ namespace lgfx
           gpio_iomux_out(_spi_sclk, 1, false);
         }
       }
-
+//*/
       periph_module_enable(spi_periph_signal[_spi_host].module);
       if (_dma_channel) {
         periph_module_enable( PERIPH_SPI_DMA_MODULE );
@@ -163,6 +135,44 @@ namespace lgfx
       *reg(SPI_USER2_REG(_spi_port)) = 0;
       *reg(SPI_PIN_REG  (_spi_port)) = 0;
 //*/
+#elif defined (CONFIG_IDF_TARGET_ESP32) // ESP-IDF
+
+      spi_bus_config_t buscfg = {
+          .mosi_io_num = _spi_mosi,
+          .miso_io_num = _spi_miso,
+          .sclk_io_num = _spi_sclk,
+          .quadwp_io_num = -1,
+          .quadhd_io_num = -1,
+          .max_transfer_sz = 1,
+          .flags = SPICOMMON_BUSFLAG_MASTER,
+          .intr_flags = 0,
+      };
+
+      if (ESP_OK != spi_bus_initialize(_spi_host, &buscfg, _dma_channel)) {
+        ESP_LOGE("LGFX", "Failed to spi_bus_initialize. ");
+      }
+
+      if (_spi_handle == nullptr) {
+        spi_device_interface_config_t devcfg = {
+            .command_bits = 0,
+            .address_bits = 0,
+            .dummy_bits = 0,
+            .mode = 0,
+            .duty_cycle_pos = 0,
+            .cs_ena_pretrans = 0,
+            .cs_ena_posttrans = 0,
+            .clock_speed_hz = (int)getApbFrequency()>>1,
+            .input_delay_ns = 0,
+            .spics_io_num = -1,
+            .flags = SPI_DEVICE_3WIRE | SPI_DEVICE_HALFDUPLEX,
+            .queue_size = 1,
+            .pre_cb = nullptr,
+            .post_cb = nullptr};
+        if (ESP_OK != spi_bus_add_device(_spi_host, &devcfg, &_spi_handle)) {
+          ESP_LOGE("LGFX", "Failed to spi_bus_add_device. ");
+        }
+      }
+
 #endif
       *reg(SPI_CTRL1_REG(_spi_port)) = 0;
     }
@@ -232,7 +242,7 @@ namespace lgfx
       wait_spi();
     }
 
-    void writecommand(uint32_t cmd)
+    void writecommand(uint_fast8_t cmd)
     {
       startWrite();
       write_cmd(cmd);
@@ -314,19 +324,22 @@ namespace lgfx
     {
       bool fullscroll = (_sx == 0 && _sy == 0 && _sw == _width && _sh == _height);
 
-      _width     = _panel->width    ;
-      _height    = _panel->height   ;
       _rotation  = _panel->rotation ;
       _colstart  = _panel->colstart ;
       _rowstart  = _panel->rowstart ;
       _cmd_caset = _panel->cmd_caset;
       _cmd_raset = _panel->cmd_raset;
-      _last_xs = _last_xe = _last_ys = _last_ye = ~0;
+      _width     = _panel->width    ;
+      _height    = _panel->height   ;
+      _clip_r = _width - 1;
+      _clip_b = _height - 1;
 
       if (fullscroll) {
         _sw = _width;
         _sh = _height;
       }
+      _xs = _xe = _ys = _ye = ~0;
+      _clip_l = _clip_t = 0;
     }
 
     void postSetColorDepth(void)
@@ -359,13 +372,7 @@ namespace lgfx
       *_spi_user_reg = _user_reg;
       *_spi_pin_reg = _pin_reg;
 
-#if defined (CONFIG_IDF_TARGET_ESP32) // ESP-IDF
-      if (_spi_handle) {
-        if (ESP_OK != spi_device_acquire_bus(_spi_handle, portMAX_DELAY)) {
-          ESP_LOGE("LGFX", "Failed to spi_device_acquire_bus. ");
-        }
-      }
-#else
+#if defined (ARDUINO) // Arduino ESP32
       if (_dma_channel) {
         _next_dma_reset = true;
 //      *reg(SPI_DMA_CONF_REG(_spi_port)) |= SPI_OUT_DATA_BURST_EN | SPI_INDSCR_BURST_EN | SPI_OUTDSCR_BURST_EN;
@@ -376,6 +383,12 @@ namespace lgfx
 *reg(SPI_USER2_REG(_spi_port)) = 0;
 *reg(SPI_PIN_REG  (_spi_port)) = 0;
 //*/
+#elif defined (CONFIG_IDF_TARGET_ESP32) // ESP-IDF
+      if (_spi_handle) {
+        if (ESP_OK != spi_device_acquire_bus(_spi_handle, portMAX_DELAY)) {
+          ESP_LOGE("LGFX", "Failed to spi_device_acquire_bus. ");
+        }
+      }
 #endif
       *reg(SPI_CTRL_REG(_spi_port)) &= ~(SPI_WR_BIT_ORDER | SPI_RD_BIT_ORDER);
 
@@ -393,17 +406,17 @@ namespace lgfx
       dc_h();
       cs_h();
       delete_dmabuffer();
-#if defined (CONFIG_IDF_TARGET_ESP32) // ESP-IDF
-      if (_spi_handle) {
-        spi_device_release_bus(_spi_handle);
-      }
-#else
+#if defined (ARDUINO) // Arduino ESP32
       if (_dma_channel) {
         if (_next_dma_reset) spi_dma_reset();
       }
 
       *_spi_user_reg = _user_reg
                      | ((_spi_miso == -1) ? 0 : (SPI_USR_MISO | SPI_DOUTDIN)); // for other SPI device (SD)
+#elif defined (CONFIG_IDF_TARGET_ESP32) // ESP-IDF
+      if (_spi_handle) {
+        spi_device_release_bus(_spi_handle);
+      }
 #endif
     }
 
@@ -418,9 +431,22 @@ namespace lgfx
       write_cmd(_cmd_ramwr);
     }
 
-    void fillRect_impl(int32_t x, int32_t y, int32_t w, int32_t h) override
+    void drawPixel_impl(int32_t x, int32_t y) override
     {
       if (!_transaction_count) beginTransaction_impl();
+      set_window(x, y, x, y);
+      if (_clkdiv_write != _clkdiv_fill && !_fill_mode) {
+        _fill_mode = true;
+        wait_spi();
+        set_clock_fill();
+      }
+      write_cmd(_cmd_ramwr);
+      write_data(_color.raw, _write_conv.bits);
+      if (!_transaction_count) endTransaction_impl();
+    }
+
+    void fillRect_impl(int32_t x, int32_t y, int32_t w, int32_t h) override
+    {
       set_window(x, y, x+w-1, y+h-1);
       if (_clkdiv_write != _clkdiv_fill && !_fill_mode) {
         _fill_mode = true;
@@ -429,7 +455,6 @@ namespace lgfx
       }
       write_cmd(_cmd_ramwr);
       write_color(w*h);
-      if (!_transaction_count) endTransaction_impl();
     }
 
     void writeColor_impl(int32_t length) override
@@ -527,7 +552,7 @@ namespace lgfx
       return true;
     }
 
-    void write_cmd(uint32_t cmd)
+    void write_cmd(uint_fast8_t cmd)
     {
       auto spi_w0_reg = _spi_w0_reg;
       auto spi_mosi_dlen_reg = _spi_mosi_dlen_reg;
@@ -547,18 +572,18 @@ namespace lgfx
       exec_spi();
     }
 
-    void set_window(uint32_t xs, uint32_t ys, uint32_t xe, uint32_t ye)
+    void set_window(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye)
     {
-      if (_last_xs != xs || _last_xe != xe) {
+      if (_xs != xs || _xe != xe) {
         write_cmd(_cmd_caset);
-        _last_xs = xs;
-        _last_xe = xe;
+        _xs = xs;
+        _xe = xe;
         write_data(fpGetWindowAddr(xs += _colstart, xe += _colstart), _len_setwindow);
       }
-      if (_last_ys != ys || _last_ye != ye) {
+      if (_ys != ys || _ye != ye) {
         write_cmd(_cmd_raset);
-        _last_ys = ys;
-        _last_ye = ye;
+        _ys = ys;
+        _ye = ye;
         write_data(fpGetWindowAddr(ys += _rowstart, ye += _rowstart), _len_setwindow);
       }
     }
@@ -882,7 +907,6 @@ namespace lgfx
 
     void copyRect_impl(int32_t dst_x, int32_t dst_y, int32_t w, int32_t h, int32_t src_x, int32_t src_y) override
     {
-      startWrite();
       pixelcopy_t p(nullptr, _write_conv.depth, _read_conv.depth);
       if (w < h) {
         const uint32_t buflen = h * _write_conv.bytes;
@@ -907,7 +931,6 @@ namespace lgfx
           pos += add;
         } while (--h);
       }
-      endWrite();
     }
 
     struct _dmabufs_t {
@@ -992,9 +1015,9 @@ namespace lgfx
 
     static constexpr spi_host_device_t _spi_host = get_spi_host<CFG, VSPI_HOST>::value;
     static constexpr int _dma_channel= get_dma_channel<CFG,  0>::value;
-    static constexpr int _spi_mosi = get_spi_mosi<CFG, 23>::value;
-    static constexpr int _spi_miso = get_spi_miso<CFG, 19>::value;
-    static constexpr int _spi_sclk = get_spi_sclk<CFG, 18>::value;
+    static constexpr int _spi_mosi = get_spi_mosi<CFG, -1>::value;
+    static constexpr int _spi_miso = get_spi_miso<CFG, -1>::value;
+    static constexpr int _spi_sclk = get_spi_sclk<CFG, -1>::value;
 
     static constexpr uint8_t _spi_port = (_spi_host == HSPI_HOST) ? 2 : 3;  // FSPI=1  HSPI=2  VSPI=3;
     static constexpr volatile uint32_t *_spi_w0_reg        = (volatile uint32_t *)ETS_UNCACHED_ADDR(SPI_W0_REG(_spi_port));
@@ -1014,17 +1037,17 @@ namespace lgfx
     uint32_t _mask_reg_dc;
 
     PanelCommon* _panel;
-    uint32_t(*fpGetWindowAddr)(uint32_t, uint32_t);
-    int32_t _colstart;
-    int32_t _rowstart;
+    uint32_t(*fpGetWindowAddr)(uint_fast16_t, uint_fast16_t);
+    uint_fast16_t _colstart;
+    uint_fast16_t _rowstart;
+    uint_fast16_t _xs;
+    uint_fast16_t _xe;
+    uint_fast16_t _ys;
+    uint_fast16_t _ye;
     uint32_t _cmd_caset;
     uint32_t _cmd_raset;
     uint32_t _cmd_ramrd;
     uint32_t _cmd_ramwr;
-    uint32_t _last_xs;
-    uint32_t _last_xe;
-    uint32_t _last_ys;
-    uint32_t _last_ye;
     uint32_t _last_apb_freq;
     uint32_t _clkdiv_write;
     uint32_t _clkdiv_read;

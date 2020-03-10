@@ -1,39 +1,8 @@
 #ifndef LGFX_COMMON_HPP_
 #define LGFX_COMMON_HPP_
 
-#if defined (ESP32) || (CONFIG_IDF_TARGET_ESP32)
-
-  #include "esp32_common.hpp"
-
-#endif
-
-#if defined (ARDUINO)
-  #include <Arduino.h>
-  #ifdef __AVR__
-    #include <avr/pgmspace.h>
-  #elif defined(ESP8266) || defined(ESP32)
-    #include <pgmspace.h>
-  #endif
-#else
-  #ifndef pgm_read_byte
-    #define pgm_read_byte(addr) (*(const unsigned char *)(addr))
-    #define pgm_read_word(addr)  ({ typeof(addr) _addr = (addr); *(const unsigned short *)(_addr); })
-    #define pgm_read_dword(addr) ({ typeof(addr) _addr = (addr); *(const unsigned long *)(_addr); })
-    #define pgm_read_float(addr) ({ typeof(addr) _addr = (addr); *(const float *)(_addr); })
-    #define pgm_read_ptr(addr)   ({ typeof(addr) _addr = (addr); *(void * const *)(_addr); })
-    #define pgm_read_byte_near(addr)  pgm_read_byte(addr)
-    #define pgm_read_word_near(addr)  pgm_read_word(addr)
-    #define pgm_read_dword_near(addr) pgm_read_dword(addr)
-    #define pgm_read_float_near(addr) pgm_read_float(addr)
-    #define pgm_read_ptr_near(addr)   pgm_read_ptr(addr)
-    #define pgm_read_byte_far(addr)   pgm_read_byte(addr)
-    #define pgm_read_word_far(addr)   pgm_read_word(addr)
-    #define pgm_read_dword_far(addr)  pgm_read_dword(addr)
-    #define pgm_read_float_far(addr)  pgm_read_float(addr)
-    #define pgm_read_ptr_far(addr)    pgm_read_ptr(addr)
-    #define PROGMEM
-  #endif
-#endif
+#include <type_traits>
+#include <string.h>
 
 namespace lgfx {
 
@@ -373,7 +342,7 @@ namespace lgfx {
     inline void G8(uint8_t g8) { g = g8; }
     inline void B8(uint8_t b8) { b = b8; }
     inline void set(uint8_t r8, uint8_t g8, uint8_t b8) { r = r8; g = g8; b = b8; }
-    inline void set( uint16_t rgb565 ) { operator=(*(rgb565_t*)&color565); }
+//    inline void set( uint16_t rgb565 ) { operator=(*(rgb565_t*)&color565); }
   };
 
   struct raw_color_t
@@ -520,51 +489,51 @@ namespace lgfx {
 
   inline rgb332_t& rgb332_t::operator=(const rgb565_t&   rhs) { raw = ((rhs.r<<3)&0xE0) | ((rhs.g>>1)&0x1C) | (rhs.b>>3); return *this; }
   inline rgb332_t& rgb332_t::operator=(const swap565_t&  rhs) { raw = ((rhs.r<<3)&0xE0) | (rhs.gh<<2) | (rhs.b>>3); return *this; }
-  inline rgb332_t& rgb332_t::operator=(const bgr666_t&  rhs) { raw = ((rhs.r<<2)&0xE0) | ((rhs.g>>1)&0x1C) | (rhs.b>>4); return *this; }
+  inline rgb332_t& rgb332_t::operator=(const bgr666_t&   rhs) { raw = ((rhs.r<<2)&0xE0) | ((rhs.g>>1)&0x1C) | (rhs.b>>4); return *this; }
   inline rgb332_t& rgb332_t::operator=(const rgb888_t&   rhs) { raw = color332(rhs.r, rhs.g, rhs.b); return *this; }
-  inline rgb332_t& rgb332_t::operator=(const bgr888_t&  rhs) { raw = color332(rhs.r, rhs.g, rhs.b); return *this; }
+  inline rgb332_t& rgb332_t::operator=(const bgr888_t&   rhs) { raw = color332(rhs.r, rhs.g, rhs.b); return *this; }
   inline rgb332_t& rgb332_t::operator=(const argb8888_t& rhs) { raw = color332(rhs.r, rhs.g, rhs.b); return *this; }
 
   inline rgb565_t& rgb565_t::operator=(const rgb332_t&   rhs) { raw = color565(rhs.R8(), rhs.G8(), rhs.B8()); return *this; }
   inline rgb565_t& rgb565_t::operator=(const swap565_t&  rhs) { raw = __builtin_bswap16(rhs.raw);   return *this; }
   inline rgb565_t& rgb565_t::operator=(const rgb888_t&   rhs) { raw = color565(rhs.r, rhs.g, rhs.b); return *this; }
-  inline rgb565_t& rgb565_t::operator=(const bgr888_t&  rhs) { raw = color565(rhs.r, rhs.g, rhs.b); return *this; }
-  inline rgb565_t& rgb565_t::operator=(const bgr666_t&  rhs) { raw = color565(rhs.R8(), rhs.G8(), rhs.B8()); return *this; }
+  inline rgb565_t& rgb565_t::operator=(const bgr888_t&   rhs) { raw = color565(rhs.r, rhs.g, rhs.b); return *this; }
+  inline rgb565_t& rgb565_t::operator=(const bgr666_t&   rhs) { raw = color565(rhs.R8(), rhs.G8(), rhs.B8()); return *this; }
   inline rgb565_t& rgb565_t::operator=(const argb8888_t& rhs) { raw = color565(rhs.r, rhs.g, rhs.b); return *this; }
 
   inline rgb888_t& rgb888_t::operator=(const rgb332_t&   rhs) { r = rhs.R8(); g = rhs.G8(); b = rhs.B8(); return *this; }
   inline rgb888_t& rgb888_t::operator=(const rgb565_t&   rhs) { r = rhs.R8(); g = rhs.G8(); b = rhs.B8(); return *this; }
   inline rgb888_t& rgb888_t::operator=(const swap565_t&  rhs) { r = rhs.R8(); g = rhs.G8(); b = rhs.B8(); return *this; }
-  inline rgb888_t& rgb888_t::operator=(const bgr666_t&  rhs) { r = rhs.R8(); g = rhs.G8(); b = rhs.B8(); return *this; }
-  inline rgb888_t& rgb888_t::operator=(const bgr888_t&  rhs) { r = rhs.r;    g = rhs.g;    b = rhs.b;    return *this; }
+  inline rgb888_t& rgb888_t::operator=(const bgr666_t&   rhs) { r = rhs.R8(); g = rhs.G8(); b = rhs.B8(); return *this; }
+  inline rgb888_t& rgb888_t::operator=(const bgr888_t&   rhs) { r = rhs.r;    g = rhs.g;    b = rhs.b;    return *this; }
   inline rgb888_t& rgb888_t::operator=(const argb8888_t& rhs) { r = rhs.r;    g = rhs.g;    b = rhs.b;    return *this; }
 
   inline swap565_t& swap565_t::operator=(const rgb332_t&   rhs) { raw = ((rhs.b * 0x15)>>1)<<8 | rhs.g << 13 | rhs.g | ((rhs.r * 0x09) >> 1) << 3; return *this; }
   inline swap565_t& swap565_t::operator=(const rgb565_t&   rhs) { raw = __builtin_bswap16(rhs.raw);            return *this; }
   inline swap565_t& swap565_t::operator=(const rgb888_t&   rhs) { raw = swap565(rhs.r,    rhs.g,    rhs.b);    return *this; }
-  inline swap565_t& swap565_t::operator=(const bgr666_t&  rhs) { raw = (rhs.b>>1)<<8 | rhs.g << 13 | rhs.g >> 3 | (rhs.r >> 1) << 3; return *this; }
-  inline swap565_t& swap565_t::operator=(const bgr888_t&  rhs) { raw = swap565(rhs.r,    rhs.g,    rhs.b);    return *this; }
+  inline swap565_t& swap565_t::operator=(const bgr666_t&   rhs) { raw = (rhs.b>>1)<<8 | rhs.g << 13 | rhs.g >> 3 | (rhs.r >> 1) << 3; return *this; }
+  inline swap565_t& swap565_t::operator=(const bgr888_t&   rhs) { raw = swap565(rhs.r,    rhs.g,    rhs.b);    return *this; }
   inline swap565_t& swap565_t::operator=(const argb8888_t& rhs) { raw = swap565(rhs.r,    rhs.g,    rhs.b);    return *this; }
 
   inline bgr666_t& bgr666_t::operator=(const rgb332_t&   rhs) { r = rhs.R6(); g = rhs.G6(); b = rhs.B6(); return *this; }
   inline bgr666_t& bgr666_t::operator=(const rgb565_t&   rhs) { r = rhs.R6(); g = rhs.G6(); b = rhs.B6(); return *this; }
   inline bgr666_t& bgr666_t::operator=(const swap565_t&  rhs) { r = rhs.R6(); g = rhs.G6(); b = rhs.B6(); return *this; }
-  inline bgr666_t& bgr666_t::operator=(const bgr888_t&  rhs) { r = rhs.R6(); g = rhs.G6(); b = rhs.B6(); return *this; }
+  inline bgr666_t& bgr666_t::operator=(const bgr888_t&   rhs) { r = rhs.R6(); g = rhs.G6(); b = rhs.B6(); return *this; }
   inline bgr666_t& bgr666_t::operator=(const rgb888_t&   rhs) { r = rhs.R6(); g = rhs.G6(); b = rhs.B6(); return *this; }
   inline bgr666_t& bgr666_t::operator=(const argb8888_t& rhs) { r = rhs.R6(); g = rhs.G6(); b = rhs.B6(); return *this; }
 
   inline bgr888_t& bgr888_t::operator=(const rgb332_t&   rhs) { r = rhs.R8(); g = rhs.G8(); b = rhs.B8(); return *this; }
   inline bgr888_t& bgr888_t::operator=(const rgb565_t&   rhs) { r = rhs.R8(); g = rhs.G8(); b = rhs.B8(); return *this; }
   inline bgr888_t& bgr888_t::operator=(const swap565_t&  rhs) { r = rhs.R8(); g = rhs.G8(); b = rhs.B8(); return *this; }
-  inline bgr888_t& bgr888_t::operator=(const bgr666_t&  rhs) { r = rhs.R8(); g = rhs.G8(); b = rhs.B8(); return *this; }
+  inline bgr888_t& bgr888_t::operator=(const bgr666_t&   rhs) { r = rhs.R8(); g = rhs.G8(); b = rhs.B8(); return *this; }
   inline bgr888_t& bgr888_t::operator=(const rgb888_t&   rhs) { r = rhs.r   ; g = rhs.g   ; b = rhs.b   ; return *this; }
   inline bgr888_t& bgr888_t::operator=(const argb8888_t& rhs) { r = rhs.r   ; g = rhs.g   ; b = rhs.b   ; return *this; }
 
-  inline argb8888_t& argb8888_t::operator=(const rgb332_t&   rhs) { r = rhs.R8(); g = rhs.G8(); b = rhs.B8(); return *this; }
-  inline argb8888_t& argb8888_t::operator=(const rgb565_t&   rhs) { r = rhs.R8(); g = rhs.G8(); b = rhs.B8(); return *this; }
-  inline argb8888_t& argb8888_t::operator=(const swap565_t&  rhs) { r = rhs.R8(); g = rhs.G8(); b = rhs.B8(); return *this; }
+  inline argb8888_t& argb8888_t::operator=(const rgb332_t&  rhs) { r = rhs.R8(); g = rhs.G8(); b = rhs.B8(); return *this; }
+  inline argb8888_t& argb8888_t::operator=(const rgb565_t&  rhs) { r = rhs.R8(); g = rhs.G8(); b = rhs.B8(); return *this; }
+  inline argb8888_t& argb8888_t::operator=(const swap565_t& rhs) { r = rhs.R8(); g = rhs.G8(); b = rhs.B8(); return *this; }
   inline argb8888_t& argb8888_t::operator=(const bgr666_t&  rhs) { r = rhs.R8(); g = rhs.G8(); b = rhs.B8(); return *this; }
-  inline argb8888_t& argb8888_t::operator=(const rgb888_t&   rhs) { r = rhs.r   ; g = rhs.g   ; b = rhs.b   ; return *this; }
+  inline argb8888_t& argb8888_t::operator=(const rgb888_t&  rhs) { r = rhs.r   ; g = rhs.g   ; b = rhs.b   ; return *this; }
   inline argb8888_t& argb8888_t::operator=(const bgr888_t&  rhs) { r = rhs.r   ; g = rhs.g   ; b = rhs.b   ; return *this; }
 
   inline bool operator==(const rgb332_t&   lhs, const rgb332_t&   rhs) { return lhs.raw == rhs.raw; }
@@ -588,6 +557,7 @@ namespace lgfx {
 
 
 
+//----------------------------------------------------------------------------
   static constexpr uint32_t FP_SCALE = 16;
 
   struct pixelcopy_t {
@@ -873,15 +843,58 @@ namespace lgfx {
       return index;
     }
   };
-}
-/*
-// test code
 
-for (int i = 0; i < 24; i++) {
-  uint32_t src = 1<<i;
-  printf("src:%06x  res:%06x\r\n", src, getSwapColor565FromSwap24(src));
+//----------------------------------------------------------------------------
+
+
+//----------------------------------------------------------------------------
+  struct DataWrapper {
+    bool need_transaction = false;
+
+    uint16_t read16(void) {
+      uint16_t result;
+      read(reinterpret_cast<uint8_t*>(&result), 2);
+      return result;
+    }
+
+    uint32_t read32(void) {
+      uint32_t result;
+      read(reinterpret_cast<uint8_t*>(&result), 4);
+      return result;
+    }
+
+    __attribute__ ((always_inline)) inline uint16_t read16swap(void) {
+      return __builtin_bswap16(read16());
+    }
+
+    __attribute__ ((always_inline)) inline uint32_t read32swap(void) {
+      return __builtin_bswap32(read32());
+    }
+
+    virtual int read(uint8_t *buf, uint32_t len) = 0;
+    virtual void skip(int32_t offset) = 0;
+    virtual bool seek(uint32_t offset) = 0;
+  };
+//----------------------------------------------------------------------------
+  struct PointerWrapper : public DataWrapper {
+    void set(const uint8_t* src, uint32_t length) { _ptr = src; _length = length; _index = 0; }
+    int read(uint8_t *buf, uint32_t len) override { memcpy(buf, &_ptr[_index], len); _index += len; return len; }
+    void skip(int32_t offset) override { _index += offset; }
+    bool seek(uint32_t offset) override { _index = offset; return true; }
+
+  private:
+    const uint8_t* _ptr;
+    uint32_t _index = 0;
+    uint32_t _length = 0;
+  };
+//----------------------------------------------------------------------------
 }
 
-*/
+
+#if defined (ESP32) || (CONFIG_IDF_TARGET_ESP32)
+
+  #include "esp32_common.hpp"
+
+#endif
 
 #endif

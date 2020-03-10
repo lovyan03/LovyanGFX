@@ -39,8 +39,8 @@ namespace lgfx
   {
   public:
 
-    static uint32_t getWindowAddr32(uint32_t H, uint32_t L) { return ((H)<<8 | (H)>>8) | (((L)<<8 | (L)>>8)<<16 ); }
-    static uint32_t getWindowAddr16(uint32_t H, uint32_t L) { return H | L<<8; }
+    static uint32_t getWindowAddr32(uint_fast16_t H, uint_fast16_t L) { return ((H)<<8 | (H)>>8) | (((L)<<8 | (L)>>8)<<16 ); }
+    static uint32_t getWindowAddr16(uint_fast16_t H, uint_fast16_t L) { return H | L<<8; }
 
     PanelCommon() {}
     virtual ~PanelCommon() {}
@@ -123,20 +123,20 @@ namespace lgfx
     uint32_t len_setwindow;
     uint32_t len_dummy_read_pixel;
     uint32_t len_dummy_read_rddid;
-    uint32_t cmd_nop = 0;
-    uint32_t cmd_caset;
-    uint32_t cmd_raset;
-    uint32_t cmd_ramrd;
-    uint32_t cmd_ramwr;
-    uint32_t cmd_invon;
-    uint32_t cmd_invoff;
-    uint32_t cmd_rddid;
+    uint_fast8_t cmd_nop = 0;
+    uint_fast8_t cmd_caset;
+    uint_fast8_t cmd_raset;
+    uint_fast8_t cmd_ramrd;
+    uint_fast8_t cmd_ramwr;
+    uint_fast8_t cmd_invon;
+    uint_fast8_t cmd_invoff;
+    uint_fast8_t cmd_rddid;
 
     uint32_t freq_write;
     uint32_t freq_read;
     uint32_t freq_fill;
-    int32_t colstart;
-    int32_t rowstart;
+    uint_fast16_t colstart;
+    uint_fast16_t rowstart;
     int32_t width;
     int32_t height;
     int32_t spi_cs;

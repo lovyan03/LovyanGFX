@@ -17,15 +17,15 @@
 #if defined(ARDUINO_M5Stick_C)
  #include <AXP192.h>
 #elif defined(ARDUINO_M5Stack_Core_ESP32) || defined(ARDUINO_M5STACK_FIRE)
- //#include <M5StackUpdater.h>
+//#include <M5StackUpdater.h>
+//#include <SPI.h>
+//#include <SD.h>
 #endif
 
+#include <LGFX_TFT_eSPI.hpp>
 //#include <TFT_eSPI.h>
 //#include <M5Stack.h>
 #include <driver/ledc.h>
-#include <LGFX_TFT_eSPI.hpp>
-#include <SPI.h>
-#include <SD.h>
 
 static TFT_eSPI tft_lcd;
 static TFT_eSprite tft(&tft_lcd);
@@ -131,6 +131,12 @@ void setup() {
   tft_lcd.setPivot(tft.width()>>1, tft.height()>>1);
   tft    .setPivot(tft.width()>>1, tft.height()>>1);
 
+//  tft_lcd.fillScreen(0x00FF00U);
+//  auto xs = 14;
+//  auto ys = 14;
+//  tft_lcd.fillRect(xs, ys, tft.width() - (xs<<1), tft.height() - (ys<<1), 0xFFFF);
+//  tft_lcd.setClipRect(xs + 1, ys + 1, tft.width() - (xs<<1) - 2, tft.height() - (ys<<1) - 2);
+
 }
 
 static inline uint32_t micros_start() __attribute__ ((always_inline));
@@ -147,7 +153,7 @@ void loop(void)
 	tft_lcd.startWrite();
 
 	Serial.println(F("Benchmark                Time (microseconds)"));
-/*
+//*
 	uint32_t usecHaD = 0;
 /*/
 	uint32_t usecHaD = testHaD();
@@ -376,7 +382,7 @@ taskENABLE_INTERRUPTS();
 	tft.setTextColor(TFT_GREEN); tft.setTextSize(2);
 	tft.print(F("Benchmark Complete!"));
 
-/*
+
    tft.pushRotateZoom(&tft_lcd, tft_lcd.getPivotX(), tft_lcd.getPivotY(), i, (float)i/360, 0.1+(float)i/360);
 /*/
 //    tft.pushRotateZoom(&tft_lcd, tft_lcd.getPivotX(), tft_lcd.getPivotY(), (((float)i/20)-9.5)/10.0, ((((float)i+10)/20)-9.5)/10.0, 0.1+(float)i/100, 0);

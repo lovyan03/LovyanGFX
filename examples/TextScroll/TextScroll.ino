@@ -20,6 +20,7 @@ TFT_eSprite sprite(&tft);
 
 void cursor_init(lgfx::LovyanGFX& tft)
 {
+  tft.setTextColor(0xFFFF);
   tft.setTextScroll(true);
   tft.setCursor(0,0);
   tft.fillScreen(0);

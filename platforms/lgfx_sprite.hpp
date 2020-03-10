@@ -7,13 +7,11 @@
 
 namespace lgfx
 {
-  class LGFXSpriteBase : public LovyanGFX
+  class LGFXSprite : public LovyanGFX
   {
   public:
 
-    virtual void setPsram( bool enabled ) {};
-
-    LGFXSpriteBase(LovyanGFX* parent)
+    LGFXSprite(LovyanGFX* parent)
     : LovyanGFX()
     , _parent(parent)
     , _img  (nullptr)
@@ -34,11 +32,11 @@ namespace lgfx
     void* buffer(void) { return _img; }
     uint32_t bufferLength(void) const { return _bitwidth * _height * _write_conv.bits >> 3; }
 
-    LGFXSpriteBase()
-    : LGFXSpriteBase(nullptr)
+    LGFXSprite()
+    : LGFXSprite(nullptr)
     {}
 
-    virtual ~LGFXSpriteBase() {
+    virtual ~LGFXSprite() {
       deleteSprite();
     }
 
@@ -51,13 +49,15 @@ namespace lgfx
       if (!_img) return nullptr;
 
       _sw = _width = w;
-      _xe = w - 1;
+      _clip_r = _xe = w - 1;
       _xpivot = w >> 1;
+
       _sh = _height = h;
-      _ye = h - 1;
+      _clip_b = _ye = h - 1;
       _ypivot = h >> 1;
       _rotation = 0;
-      _index = _sx = _sy = _xs = _ys = _xptr = _yptr = 0;
+
+      _clip_l = _clip_t = _index = _sx = _sy = _xs = _ys = _xptr = _yptr = 0;
 
       clear();
       return _img;
@@ -181,8 +181,8 @@ for (uint32_t i = 0; i < palettes; i++) {
   protected:
     LovyanGFX* _parent;
     union {
-      uint8_t*   _img;
-      uint16_t*  _img16;
+      uint8_t*  _img;
+      uint16_t* _img16;
       bgr888_t* _img24;
     };
     int32_t _bitwidth;
@@ -194,9 +194,6 @@ for (uint32_t i = 0; i < palettes; i++) {
     int32_t _ye;
     uint32_t _index;
     bool _disable_memcpy = false; // disable PSRAM to PSRAM memcpy flg.
-
-    virtual void* _mem_alloc(uint32_t bytes) = 0;
-    virtual void _mem_free(void* buf) = 0;
 
     void push_sprite(LovyanGFX* dst, int32_t x, int32_t y, uint32_t transp = ~0)
     {
@@ -214,9 +211,8 @@ for (uint32_t i = 0; i < palettes; i++) {
 
     void set_window(int32_t xs, int32_t ys, int32_t xe, int32_t ye)
     {
-      if (xs > xe) swap_coord(xs, xe);
-      if (ys > ye) swap_coord(ys, ye);
-
+      if (xs > xe) std::swap(xs, xe);
+      if (ys > ye) std::swap(ys, ye);
       if ((xe < 0) || (ye < 0) || (xs >= _width) || (ys >= _height))
       {
         _xptr = _xs = _xe = 0;
@@ -224,8 +220,8 @@ for (uint32_t i = 0; i < palettes; i++) {
       } else {
         _xptr = _xs = (xs < 0) ? 0 : xs;
         _yptr = _ys = (ys < 0) ? 0 : ys;
-        _xe = (xe >= _width ) ? _width  - 1 : xe;
-        _ye = (ye >= _height) ? _height - 1 : ye;
+        _xe = std::min(xe, _width  - 1);
+        _ye = std::min(ye, _height - 1);
       }
       _index = xs + ys * _bitwidth;
     }
@@ -233,6 +229,28 @@ for (uint32_t i = 0; i < palettes; i++) {
     void setWindow_impl(int32_t xs, int32_t ys, int32_t xe, int32_t ye) override
     {
       set_window(xs, ys, xe, ye);
+    }
+
+    void drawPixel_impl(int32_t x, int32_t y) override
+    {
+      auto bits = _write_conv.bits;
+      int32_t index = (x + y * _bitwidth) * bits;
+      uint8_t* img = &_img[index >> 3];
+      if (bits & 8) {
+        if (bits == 8) {
+          *img = _color.raw0;
+        } else {
+          *(bgr888_t*)img = *(bgr888_t*)&_color;
+        }
+      } else {
+        if (bits == 16) {
+          *(uint16_t*)img = *(uint16_t*)&_color;
+        } else {
+          uint8_t mask = 0xFF >> (index & 7);
+          mask ^= mask >> bits;
+          *img = (*img & ~mask) | (_color.raw0 & mask);
+        }
+      }
     }
 
     void fillRect_impl(int32_t x, int32_t y, int32_t w, int32_t h) override
@@ -547,20 +565,7 @@ return;
 
     void beginTransaction_impl(void) override {}
     void endTransaction_impl(void) override {}
-/*
-    void writeBytes_impl(const uint8_t* data, int32_t length) override
-    {
-      uint8_t b = _write_conv.bytes ? _write_conv.bytes : 1;
-      length /= b;
-      while (length) {
-        int32_t linelength = std::min(_xe - _xptr + 1, length);
-        memcpy(ptr_img(), data, linelength * b);
-        data += linelength * b;
-        ptr_advance(linelength);
-        length -= linelength;
-      }
-    }
-//*/
+
     inline bool ptr_advance(int32_t length = 1) {
       if ((_xptr += length) > _xe) {
         _xptr = _xs;
@@ -578,23 +583,13 @@ return;
       return &_img[_index * _write_conv.bits >> 3];
     }
 
-  };
 
 //----------------------------------------------------------------------------
-//----------------------------------------------------------------------------
-
 #if defined (ESP32) || (CONFIG_IDF_TARGET_ESP32)
+//----------------------------------------------------------------------------
 
-  class LGFXSprite : public LGFXSpriteBase
-  {
   public:
-    LGFXSprite(LovyanGFX* parent)
-    : LGFXSpriteBase(parent)
-    , _malloc_cap(MALLOC_CAP_8BIT)
-    {}
-    LGFXSprite() : LGFXSprite(nullptr) {}
-
-    void setPsram( bool enabled ) override {
+    void setPsram( bool enabled ) {
       if (enabled) _malloc_cap |= MALLOC_CAP_SPIRAM;
       else         _malloc_cap &= ~MALLOC_CAP_SPIRAM;
     }
@@ -605,8 +600,8 @@ return;
     }
 
   protected:
-    uint32_t _malloc_cap;
-    void* _mem_alloc(uint32_t bytes) override
+    uint32_t _malloc_cap = MALLOC_CAP_8BIT;
+    void* _mem_alloc(uint32_t bytes)
     {
       _disable_memcpy = (_malloc_cap & MALLOC_CAP_SPIRAM);
       void* res = heap_caps_malloc(bytes, _malloc_cap);
@@ -618,19 +613,28 @@ return;
       }
       return res;
     }
-    void _mem_free(void* buf) override
+    void _mem_free(void* buf)
     {
       heap_caps_free(buf);
     }
-  };
 
+//----------------------------------------------------------------------------
 #elif defined (ESP8226)
-
+//----------------------------------------------------------------------------
+// not implemented.
+//----------------------------------------------------------------------------
 #elif defined (STM32F7)
-
+//----------------------------------------------------------------------------
+// not implemented.
+//----------------------------------------------------------------------------
 #elif defined (__AVR__)
+//----------------------------------------------------------------------------
+// not implemented.
+//----------------------------------------------------------------------------
 
 #endif
+
+  };
 
 }
 

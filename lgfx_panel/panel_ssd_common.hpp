@@ -63,27 +63,27 @@ namespace lgfx
     }
 
     struct CommandCommon {
-    static constexpr uint8_t NOP     = 0x00;
-    static constexpr uint8_t SWRESET = 0x01;
-//  static constexpr uint8_t RDDID   = 0x04;
-//  static constexpr uint8_t RDDST   = 0x09;
-    static constexpr uint8_t SLPIN   = 0xAE;
-    static constexpr uint8_t SLPOUT  = 0xAF;
-//  static constexpr uint8_t PTLON   = 0x12;
-//  static constexpr uint8_t NORON   = 0x13;
-    static constexpr uint8_t INVOFF  = 0xA6;
-    static constexpr uint8_t INVON   = 0xA7;
-//  static constexpr uint8_t GAMMASET= 0x26;
-    static constexpr uint8_t DISPOFF = 0xA4;
-    static constexpr uint8_t DISPON  = 0xA5;
-    static constexpr uint8_t CASET   = 0x15;
-    static constexpr uint8_t RASET   = 0x75; static constexpr uint8_t PASET = 0x75;
-    static constexpr uint8_t RAMWR   = 0x5C;
-    static constexpr uint8_t RAMRD   = 0x5D;
-    static constexpr uint8_t MADCTL  = 0xA0;
+    static constexpr uint_fast8_t NOP     = 0x00;
+    static constexpr uint_fast8_t SWRESET = 0x01;
+//  static constexpr uint_fast8_t RDDID   = 0x04;
+//  static constexpr uint_fast8_t RDDST   = 0x09;
+    static constexpr uint_fast8_t SLPIN   = 0xAE;
+    static constexpr uint_fast8_t SLPOUT  = 0xAF;
+//  static constexpr uint_fast8_t PTLON   = 0x12;
+//  static constexpr uint_fast8_t NORON   = 0x13;
+    static constexpr uint_fast8_t INVOFF  = 0xA6;
+    static constexpr uint_fast8_t INVON   = 0xA7;
+//  static constexpr uint_fast8_t GAMMASET= 0x26;
+    static constexpr uint_fast8_t DISPOFF = 0xA4;
+    static constexpr uint_fast8_t DISPON  = 0xA5;
+    static constexpr uint_fast8_t CASET   = 0x15;
+    static constexpr uint_fast8_t RASET   = 0x75; static constexpr uint8_t PASET = 0x75;
+    static constexpr uint_fast8_t RAMWR   = 0x5C;
+    static constexpr uint_fast8_t RAMRD   = 0x5D;
+    static constexpr uint_fast8_t MADCTL  = 0xA0;
 
-    static constexpr uint8_t CMDLOCK = 0xFD;
-    static constexpr uint8_t STARTLINE = 0xA1;
+    static constexpr uint_fast8_t CMDLOCK = 0xFD;
+    static constexpr uint_fast8_t STARTLINE = 0xA1;
     };
 
     color_depth_t getAdjustBpp(color_depth_t bpp) const override { return (bpp > 16) ? rgb666_3Byte : rgb565_2Byte; }

@@ -121,6 +121,7 @@ namespace lgfx
 
   private:
     struct cfg_t {
+      static constexpr int spi_mode = 0;
       static constexpr int spi_mode_read = 1;
       static constexpr int spi_cs =  5;
       static constexpr int spi_dc = 27;

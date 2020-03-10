@@ -20,10 +20,12 @@ namespace lgfx
     LGFXBase() {}
     virtual ~LGFXBase() {}
 
-
-                         __attribute__ ((always_inline)) inline void setColorRaw(uint32_t c) { _color.raw = c; }
+// color param format:
+// rgb888 : uint32_t
+// rgb565 : int & uint16_t
+// rgb332 : uint8_t
     template<typename T> __attribute__ ((always_inline)) inline void setColor(T c) { _color.raw = _write_conv.convert(c); }
-
+                         __attribute__ ((always_inline)) inline void setColorRaw(uint32_t c) { _color.raw = c; }
 
                          inline void clear         ( void )          { _color.raw = 0;  fillRect(0, 0, _width, _height); }
     template<typename T> inline void clear         ( const T& color) { setColor(color); fillRect(0, 0, _width, _height); }
@@ -70,8 +72,8 @@ namespace lgfx
     __attribute__ ((always_inline)) inline void endTransaction(void)   { endTransaction_impl(); }
     __attribute__ ((always_inline)) inline void setWindow(int32_t xs, int32_t ys, int32_t xe, int32_t ye) { setWindow_impl(xs, ys, xe, ye); }
 
-    void startWrite(void) { if (0 == _transaction_count++) { beginTransaction(); } }
-    void endWrite(void)   { if (_transaction_count) { if (0 == (--_transaction_count)) endTransaction(); } }
+    __attribute__ ((always_inline)) inline void startWrite(void) { if (1 == ++_transaction_count) { beginTransaction(); } }
+    __attribute__ ((always_inline)) inline void endWrite(void)   { if (_transaction_count) { if (0 == (--_transaction_count)) endTransaction(); } }
 
     void setAddrWindow(int32_t x, int32_t y, int32_t w, int32_t h)
     {
@@ -81,19 +83,56 @@ namespace lgfx
       endWrite();
     }
 
+    void setClipRect(int32_t x, int32_t y, int32_t w, int32_t h) {
+      if (x < 0) { w += x; x = 0; }
+      if (w > _width - x)  w = _width  - x;
+      if (w < 1) { x = 0; w = 0; }
+      _clip_l = x;
+      _clip_r = x + w - 1;
+
+      if (y < 0) { h += y; y = 0; }
+      if (h > _height - y) h = _height - y;
+      if (h < 1) { y = 0; h = 0; }
+      _clip_t = y;
+      _clip_b = y + h - 1;
+    }
+
+    void clearClipRect(void) {
+      _clip_l = 0;
+      _clip_t = 0;
+      _clip_r = _width - 1;
+      _clip_b = _height - 1;
+    }
+
     void drawPixel(int32_t x, int32_t y)
     {
-      if (x < 0 || (x >= _width) || y < 0 || (y >= _height)) return;
+      if (x < _clip_l || x > _clip_r || y < _clip_t || y > _clip_b) return;
+
+      drawPixel_impl(x, y);
+    }
+
+    void _drawPixel(int32_t x, int32_t y)
+    {
+      if (x < _clip_l || x > _clip_r || y < _clip_t || y > _clip_b) return;
 
       fillRect_impl(x, y, 1, 1);
     }
 
     void drawFastVLine(int32_t x, int32_t y, int32_t h)
     {
-      if ((x < 0) || (x >= _width)) return;
       _adjust_abs(y, h);
-      if (y < 0) { h += y; y = 0; }
-      if (h > _height - y) h = _height - y;
+      startWrite();
+      _drawFastVLine(x, y, h);
+      endWrite();
+    }
+
+    void _drawFastVLine(int32_t x, int32_t y, int32_t h)
+    {
+      if (x < _clip_l || x > _clip_r) return;
+      auto ct = _clip_t;
+      if (0 > y - ct) { h += y - ct; y = ct; }
+      auto cb = _clip_b + 1;
+      if (h > (cb - y)) h = (cb - y);
       if (h < 1) return;
 
       fillRect_impl(x, y, 1, h);
@@ -101,10 +140,19 @@ namespace lgfx
 
     void drawFastHLine(int32_t x, int32_t y, int32_t w)
     {
-      if ((y < 0) || (y >= _height)) return;
       _adjust_abs(x, w);
-      if (x < 0) { w += x; x = 0; }
-      if (w > _width - x) w = _width - x;
+      startWrite();
+      _drawFastHLine(x, y, w);
+      endWrite();
+    }
+
+    void _drawFastHLine(int32_t x, int32_t y, int32_t w)
+    {
+      if (y < _clip_t || y > _clip_b) return;
+      auto cl = _clip_l;
+      if (0 > x - cl) { w += x - cl; x = cl; }
+      auto cr = _clip_r + 1;
+      if (w > (cr - x)) w = (cr - x);
       if (w < 1) return;
 
       fillRect_impl(x, y, w, 1);
@@ -113,12 +161,24 @@ namespace lgfx
     void fillRect(int32_t x, int32_t y, int32_t w, int32_t h)
     {
       _adjust_abs(x, w);
-      if (x < 0) { w += x; x = 0; }
-      if (w > _width - x)  w = _width  - x;
-      if (w < 1) return;
       _adjust_abs(y, h);
-      if (y < 0) { h += y; y = 0; }
-      if (h > _height - y) h = _height - y;
+      startWrite();
+      _fillRect(x, y, w, h);
+      endWrite();
+    }
+
+    void _fillRect(int32_t x, int32_t y, int32_t w, int32_t h)
+    {
+      auto cl = _clip_l;
+      if (0 > x - cl) { w += x - cl; x = cl; }
+      auto cr = _clip_r + 1;
+      if (w > (cr - x)) w = (cr - x);
+      if (w < 1) return;
+
+      auto ct = _clip_t;
+      if (0 > y - ct) { h += y - ct; y = ct; }
+      auto cb = _clip_b + 1;
+      if (h > (cb - y)) h = (cb - y);
       if (h < 1) return;
 
       fillRect_impl(x, y, w, h);
@@ -128,12 +188,12 @@ namespace lgfx
     {
       if (_adjust_abs(x, w)||_adjust_abs(y, h)) return;
       startWrite();
-      drawFastHLine(x, y        , w);
+      _drawFastHLine(x, y        , w);
       if (--h) {
-        drawFastHLine(x, y + h    , w);
+        _drawFastHLine(x, y + h    , w);
         if (--h) {
-          drawFastVLine(x        , ++y, h);
-          drawFastVLine(x + w - 1,   y, h);
+          _drawFastVLine(x        , ++y, h);
+          _drawFastVLine(x + w - 1,   y, h);
         }
       }
       endWrite();
@@ -152,24 +212,24 @@ namespace lgfx
       int32_t dy = (r << 1) - 2;
       p -= dy;
       int32_t len = (i << 1) + 1;
-      drawFastHLine(x - i, y + r, len);
-      drawFastHLine(x - i, y - r, len);
-      drawFastVLine(x - r, y - i, len);
-      drawFastVLine(x + r, y - i, len);
+      _drawFastHLine(x - i, y + r, len);
+      _drawFastHLine(x - i, y - r, len);
+      _drawFastVLine(x - r, y - i, len);
+      _drawFastVLine(x + r, y - i, len);
       len = 0;
       for (r--; i <= r; i++) {
         if (p >= 0) {
-          drawFastHLine(x - i          , y + r, len);
-          drawFastHLine(x - i          , y - r, len);
-          drawFastHLine(x + i - len + 1, y + r, len);
-          drawFastHLine(x + i - len + 1, y - r, len);
+          _drawFastHLine(x - i          , y + r, len);
+          _drawFastHLine(x - i          , y - r, len);
+          _drawFastHLine(x + i - len + 1, y + r, len);
+          _drawFastHLine(x + i - len + 1, y - r, len);
           if (i == r && len == 1) break;
-          drawFastVLine(x - r, y - i          , len);
-          drawFastVLine(x + r, y - i          , len);
+          _drawFastVLine(x - r, y - i          , len);
+          _drawFastVLine(x + r, y - i          , len);
           dy -= 2;
           p -= dy;
-          drawFastVLine(x + r, y + i - len + 1, len);
-          drawFastVLine(x - r, y + i - len + 1, len);
+          _drawFastVLine(x + r, y + i - len + 1, len);
+          _drawFastVLine(x - r, y + i - len + 1, len);
           len = 0;
           r--;
         }
@@ -189,19 +249,19 @@ namespace lgfx
       int32_t dy = r << 1;
       int32_t p  = -(r >> 1);
       int32_t len = 0;
-      drawFastHLine(x - r, y, dy+1);
+      _drawFastHLine(x - r, y, dy+1);
 
       for (int32_t i  = 0; i <= r; i++) {
         len++;
         if (p >= 0) {
-          fillRect(x - r, y - i          , (r<<1) + 1, len);
-          fillRect(x - r, y + i - len + 1, (r<<1) + 1, len);
+          _fillRect(x - r, y - i          , (r<<1) + 1, len);
+          _fillRect(x - r, y + i - len + 1, (r<<1) + 1, len);
           if (i == r) break;
           dy -= 2;
           p -= dy;
           len = 0;
-          drawFastHLine(x - i, y + r, (i<<1) + 1);
-          drawFastHLine(x - i, y - r, (i<<1) + 1);
+          _drawFastHLine(x - i, y + r, (i<<1) + 1);
+          _drawFastHLine(x - i, y - r, (i<<1) + 1);
           r--;
         }
         dx+=2;
@@ -221,30 +281,30 @@ namespace lgfx
       int32_t len = (r << 1) + 1;
       int32_t y1 = y + h - r;
       int32_t y0 = y + r;
-      drawFastVLine(x      , y0 + 1, h - len);
-      drawFastVLine(x + w  , y0 + 1, h - len);
+      _drawFastVLine(x      , y0 + 1, h - len);
+      _drawFastVLine(x + w  , y0 + 1, h - len);
 
       int32_t x1 = x + w - r;
       int32_t x0 = x + r;
-      drawFastHLine(x0 + 1, y      , w - len);
-      drawFastHLine(x0 + 1, y + h  , w - len);
+      _drawFastHLine(x0 + 1, y      , w - len);
+      _drawFastHLine(x0 + 1, y + h  , w - len);
 
       int32_t f     = 1 - r;
+      int32_t ddF_y = -(r << 1);
       int32_t ddF_x = 1;
-      int32_t ddF_y = -2 * r;
 
       len = 0;
       for (int32_t i = 0; i <= r; i++) {
         len++;
         if (f >= 0) {
-          drawFastHLine(x0 - i          , y0 - r, len);
-          drawFastHLine(x0 - i          , y1 + r, len);
-          drawFastHLine(x1 + i - len + 1, y1 + r, len);
-          drawFastHLine(x1 + i - len + 1, y0 - r, len);
-          drawFastVLine(x1 + r, y1 + i - len + 1, len);
-          drawFastVLine(x0 - r, y1 + i - len + 1, len);
-          drawFastVLine(x1 + r, y0 - i, len);
-          drawFastVLine(x0 - r, y0 - i, len);
+          _drawFastHLine(x0 - i          , y0 - r, len);
+          _drawFastHLine(x0 - i          , y1 + r, len);
+          _drawFastHLine(x1 + i - len + 1, y1 + r, len);
+          _drawFastHLine(x1 + i - len + 1, y0 - r, len);
+          _drawFastVLine(x1 + r, y1 + i - len + 1, len);
+          _drawFastVLine(x0 - r, y1 + i - len + 1, len);
+          _drawFastVLine(x1 + r, y0 - i, len);
+          _drawFastVLine(x0 - r, y0 - i, len);
           len = 0;
           r--;
           ddF_y += 2;
@@ -260,27 +320,26 @@ namespace lgfx
     {
       if (_adjust_abs(x, w)||_adjust_abs(y, h)) return; 
       startWrite();
-      fillRect(x, y + r, w, h - (r << 1));
-      int32_t x0 = x + r;
-      int32_t y1 = y + h - r - 1;
       int32_t y2 = y + r;
-
-      int32_t delta = w - (r << 1);
+      int32_t y1 = y + h - r - 1;
+      int32_t ddF_y = - (r << 1);
+      int32_t delta = w + ddF_y;
+      _fillRect(x, y2, w, h + ddF_y);
+      int32_t x0 = x + r;
       int32_t f     = 1 - r;
       int32_t ddF_x = 1;
-      int32_t ddF_y = -r - r;
       int32_t len = 0;
       for (int32_t i = 0; i <= r; i++) {
         len++;
         if (f >= 0) {
-          fillRect(x0 - r, y2 - i          , (r << 1) + delta, len);
-          fillRect(x0 - r, y1 + i - len + 1, (r << 1) + delta, len);
+          _fillRect(x0 - r, y2 - i          , (r << 1) + delta, len);
+          _fillRect(x0 - r, y1 + i - len + 1, (r << 1) + delta, len);
           if (i == r) break;
           len = 0;
-          drawFastHLine(x0 - i, y1 + r, (i << 1) + delta);
+          _drawFastHLine(x0 - i, y1 + r, (i << 1) + delta);
           ddF_y += 2;
           f     += ddF_y;
-          drawFastHLine(x0 - i, y2 - r, (i << 1) + delta);
+          _drawFastHLine(x0 - i, y2 - r, (i << 1) + delta);
           r--;
         }
         ddF_x += 2;
@@ -293,16 +352,18 @@ namespace lgfx
     {
       bool steep = abs(y1 - y0) > abs(x1 - x0);
 
-      if (steep) {   swap_coord(x0, y0); swap_coord(x1, y1); }
-      if (x0 > x1) { swap_coord(x0, x1); swap_coord(y0, y1); }
+      if (steep) {   std::swap(x0, y0); std::swap(x1, y1); }
+      if (x0 > x1) { std::swap(x0, x1); std::swap(y0, y1); }
 
       int32_t dy = abs(y1 - y0);
-      int32_t ystep = (y0 < y1) ? 1 : -1;
+      int32_t ystep = (y1 > y0) ? 1 : -1;
       int32_t dx = x1 - x0;
       int32_t err = dx >> 1;
 
-      int32_t yend = steep ? _width : _height;
-      while (x0 < 0 || y0 < 0 || y0 >= yend) {
+      int32_t xstart = steep ? _clip_t : _clip_l;
+      int32_t ystart = steep ? _clip_l : _clip_t;
+      int32_t yend   = steep ? _clip_r : _clip_b;
+      while (x0 < xstart || y0 < ystart || y0 > yend) {
         err -= dy;
         if (err < 0) {
           err += dx;
@@ -315,26 +376,26 @@ namespace lgfx
 
       startWrite();
       if (steep) {
-        if (x1 >= _height) x1 = _height - 1;
+        if (x1 > (_clip_b)) x1 = (_clip_b);
         for (; x0 <= x1; x0++) {
           dlen++;
           if ((err -= dy) < 0) {
             fillRect_impl(y0, xs, 1, dlen);
             err += dx;
             xs = x0 + 1; dlen = 0; y0 += ystep;
-            if ((y0 < 0) || (y0 >= _width)) break;
+            if ((y0 < _clip_l) || (y0 > _clip_r)) break;
           }
         }
         if (dlen) fillRect_impl(y0, xs, 1, dlen);
       } else {
-        if (x1 >= _width) x1 = _width - 1;
+        if (x1 > (_clip_r)) x1 = (_clip_r);
         for (; x0 <= x1; x0++) {
           dlen++;
           if ((err -= dy) < 0) {
             fillRect_impl(xs, y0, dlen, 1);
             err += dx;
             xs = x0 + 1; dlen = 0; y0 += ystep;
-            if ((y0 < 0) || (y0 >= _height)) break;
+            if ((y0 < _clip_t) || (y0 > _clip_b)) break;
           }
         }
         if (dlen) fillRect_impl(xs, y0, dlen, 1);
@@ -356,9 +417,9 @@ namespace lgfx
       int32_t a, b, y, last;
 
       // Sort coordinates by Y order (y2 >= y1 >= y0)
-      if (y0 > y1) { swap_coord(y0, y1); swap_coord(x0, x1); }
-      if (y1 > y2) { swap_coord(y2, y1); swap_coord(x2, x1); }
-      if (y0 > y1) { swap_coord(y0, y1); swap_coord(x0, x1); }
+      if (y0 > y1) { std::swap(y0, y1); std::swap(x0, x1); }
+      if (y1 > y2) { std::swap(y2, y1); std::swap(x2, x1); }
+      if (y0 > y1) { std::swap(y0, y1); std::swap(x0, x1); }
 
       if (y0 == y2) { // Handle awkward all-on-same-line case as its own thing
         a = b = x0;
@@ -366,7 +427,7 @@ namespace lgfx
         else if (x1 > b) b = x1;
         if (x2 < a)      a = x2;
         else if (x2 > b) b = x2;
-        drawFastHLine(a, y0, b - a + 1);
+        _drawFastHLine(a, y0, b - a + 1);
         return;
       }
 
@@ -396,8 +457,8 @@ namespace lgfx
         sa += dx01;
         sb += dx02;
 
-        if (a > b) swap_coord(a, b);
-        drawFastHLine(a, y, b - a + 1);
+        if (a > b) std::swap(a, b);
+        _drawFastHLine(a, y, b - a + 1);
       }
 
       // For lower part of triangle, find scanline crossings for segments
@@ -410,8 +471,8 @@ namespace lgfx
         sa += dx12;
         sb += dx02;
 
-        if (a > b) swap_coord(a, b);
-        drawFastHLine(a, y, b - a + 1);
+        if (a > b) std::swap(a, b);
+        _drawFastHLine(a, y, b - a + 1);
       }
       endWrite();
     }
@@ -426,14 +487,14 @@ namespace lgfx
 
       bool steep = abs(y1 - y0) > abs(x1 - x0);
       if (steep) { // swap axis
-        swap_coord(x0, y0);
-        swap_coord(x1, y1);
+        std::swap(x0, y0);
+        std::swap(x1, y1);
       }
 
       if (x0 > x1) { // swap points
-        swap_coord(x0, x1);
-        swap_coord(y0, y1);
-        swap_coord(colorstart, colorend);
+        std::swap(x0, x1);
+        std::swap(y0, y1);
+        std::swap(colorstart, colorend);
       }
 
       int32_t dx = x1 - x0, dy = abs(y1 - y0);;
@@ -450,8 +511,8 @@ namespace lgfx
         setColor(color888( (x - x0) * diff_r / diff_x + colorstart.r
                          , (x - x0) * diff_g / diff_x + colorstart.g
                          , (x - x0) * diff_b / diff_x + colorstart.b));
-        if (steep) drawPixel(y0, x);
-        else       drawPixel(x, y0);
+        if (steep) _drawPixel(y0, x);
+        else       _drawPixel(x, y0);
         err -= dy;
         if (err < 0) {
           err += dx;
@@ -582,22 +643,15 @@ namespace lgfx
       }
 
       int32_t dx=0, dw=w;
-      int32_t width = _width;
-      if (_clip_w > 0) {
-        if (0 < _clip_x - x) { dx = _clip_x - x; dw -= dx; x = _clip_x; }
-        if (width  > _clip_x + _clip_w)  width  = _clip_x + _clip_w;
-      }
-      if (_adjust_width(x, dx, dw, width)) return;
+      if (0 < _clip_l - x) { dx = _clip_l - x; dw -= dx; x = _clip_l; }
+
+      if (_adjust_width(x, dx, dw, _clip_l, _clip_r - _clip_l + 1)) return;
       param->src_x = dx;
 
 
       int32_t dy=0, dh=h;
-      int32_t height = _height;
-      if (_clip_h > 0) {
-        if (0 < _clip_y - y) { dy = _clip_y - y; dh -= dy; y = _clip_y; }
-        if (height > _clip_y + _clip_h)  height = _clip_y + _clip_h;
-      }
-      if (_adjust_width(y, dy, dh, height)) return;
+      if (0 < _clip_t - y) { dy = _clip_t - y; dh -= dy; y = _clip_t; }
+      if (_adjust_width(y, dy, dh, _clip_t, _clip_b - _clip_t + 1)) return;
       param->src_y = dy;
 
       startWrite();
@@ -632,8 +686,8 @@ namespace lgfx
           max_y = tmp;
         }
       }
-      max_y = std::min(_height, ((max_y + (1 << (FP_SCALE - 1))) >> FP_SCALE) + dst_y + 1);
-      min_y = std::max(      0, ((min_y + (1 << (FP_SCALE - 1))) >> FP_SCALE) + dst_y    );
+      max_y = std::min(_clip_b, ((max_y + (1 << (FP_SCALE - 1))) >> FP_SCALE) + dst_y) + 1;
+      min_y = std::max(_clip_t, ((min_y + (1 << (FP_SCALE - 1))) >> FP_SCALE) + dst_y);
       if (min_y >= max_y) return;
 
       param->no_convert = false;
@@ -671,12 +725,13 @@ namespace lgfx
       if (sin_y == 0) sin_y = 1;
       sin_y = -sin_y;
 
-      int32_t max_x = _width;
+      int32_t cl = _clip_l;
+      int32_t cr = _clip_r + 1;
 
       startWrite();
       do {
-        int32_t left = 0;
-        int32_t right = max_x;
+        int32_t left = cl;
+        int32_t right = cr;
         xstart += sin_x;
         //if (cos_x != 0)
         {
@@ -725,7 +780,7 @@ namespace lgfx
       int32_t absx = abs(dx);
       int32_t absy = abs(dy);
       if (absx >= _sw || absy >= _sh) {
-        fillRect(_sx, _sy, _sw, _sh);
+        _fillRect(_sx, _sy, _sw, _sh);
         return;
       }
 
@@ -737,12 +792,14 @@ namespace lgfx
       int32_t src_y = dy < 0 ? _sy - dy : _sy;
       int32_t dst_y = src_y + dy;
 
+      startWrite();
       copyRect_impl(dst_x, dst_y, w, h, src_x, src_y);
 
-      if (     dx > 0) fillRect(_sx           , dst_y,  dx, h);
-      else if (dx < 0) fillRect(_sx + _sw + dx, dst_y, -dx, h);
-      if (     dy > 0) fillRect(_sx, _sy           , _sw,  dy);
-      else if (dy < 0) fillRect(_sx, _sy + _sh + dy, _sw, -dy);
+      if (     dx > 0) _fillRect(_sx           , dst_y,  dx, h);
+      else if (dx < 0) _fillRect(_sx + _sw + dx, dst_y, -dx, h);
+      if (     dy > 0) _fillRect(_sx, _sy           , _sw,  dy);
+      else if (dy < 0) _fillRect(_sx, _sy + _sh + dy, _sw, -dy);
+      endWrite();
     }
 
     void copyRect(int32_t dst_x, int32_t dst_y, int32_t w, int32_t h, int32_t src_x, int32_t src_y)
@@ -756,7 +813,9 @@ namespace lgfx
       else               { if (dst_y < 0) { h += dst_y; src_y -= dst_y; dst_y = 0; } if (h > _height - src_y)  h = _height - src_y; }
       if (h < 1) return;
 
+      startWrite();
       copyRect_impl(dst_x, dst_y, w, h, src_x, src_y);
+      endWrite();
     }
 
   //----------------------------------------------------------------------------
@@ -886,7 +945,8 @@ namespace lgfx
           } else
           if (_cursor_y < - yo) _cursor_y = - yo;
         }
-        _cursor_x += drawChar(uniCode, _cursor_x, _cursor_y);
+//      _cursor_x += drawChar(uniCode, _cursor_x, _cursor_y);
+        _cursor_x += (fpDrawCharClassic)(this, _cursor_x, _cursor_y, uniCode, _text_fore_rgb888, _text_back_rgb888, _textsize_x, _textsize_y);
       }
 
       return 1;
@@ -905,13 +965,7 @@ namespace lgfx
           if (uniCode == 0) continue;
         }
         if (fpUpdateFontSize && !(fpUpdateFontSize)(this, uniCode)) continue;
-/*
-        if (str_width == 0 && _font_size_x.offset < 0) str_width = -_font_size_x.offset;
-        //if (string[1] || isDigits) str_width += _font_size_x.advance;
-        if (string[1]) str_width += _font_size_x.advance;
-        else           str_width += _font_size_x.offset + _font_size_x.size;
-*/
-        if (right == 0 && _font_size_x.offset < 0) left = right = -_font_size_x.offset;
+        if (left == 0 && right == 0 && _font_size_x.offset < 0) left = right = -_font_size_x.offset;
         //if (string[1] || isDigits)
         right = left + std::max((int32_t)_font_size_x.advance, _font_size_x.size - _font_size_x.offset);
         left += _font_size_x.advance;
@@ -922,13 +976,8 @@ namespace lgfx
 
 
 enum textdatum_t
-//  0:left
-//  1:centre
-//  2:right
-//  0: top
-//  4: middle
-//  8: bottom
-// 16: baseline
+//  0:left   1:centre   2:right
+//  0:top    4:middle   8:bottom   16:baseline
 { top_left        =  0  // Top left (default)
 , top_center      =  1  // Top center
 , top_right       =  2  // Top right
@@ -974,20 +1023,21 @@ enum textdatum_t
       y -= _font_baseline * _textsize_y;
     }
 
+    startWrite();
     int32_t padx = _padding_x;
     if ((_text_fore_rgb888 != _text_back_rgb888) && (padx > cwidth)) {
       setColor(_text_back_rgb888);
       if (datum & top_center) {
         auto halfcwidth = cwidth >> 1;
         auto halfpadx = (padx >> 1);
-        fillRect(x - halfpadx, y, halfpadx - halfcwidth, cheight);
+        _fillRect(x - halfpadx, y, halfpadx - halfcwidth, cheight);
         halfcwidth = cwidth - halfcwidth;
         halfpadx = padx - halfpadx;
-        fillRect(x + halfcwidth, y, halfpadx - halfcwidth, cheight);
+        _fillRect(x + halfcwidth, y, halfpadx - halfcwidth, cheight);
       } else if (datum & top_right) {
-        fillRect(x - padx, y, padx - cwidth, cheight);
+        _fillRect(x - padx, y, padx - cwidth, cheight);
       } else {
-        fillRect(x + cwidth, y, padx - cwidth, cheight);
+        _fillRect(x + cwidth, y, padx - cwidth, cheight);
       }
     }
 
@@ -1006,8 +1056,10 @@ enum textdatum_t
         uniCode = decodeUTF8(uniCode);
         if (uniCode == 0) continue;
       }
-      sumX += drawChar(uniCode, x + sumX, y);
+//      sumX += drawChar(uniCode, x + sumX, y);
+      sumX += (fpDrawCharClassic)(this, x + sumX, y, uniCode, _text_fore_rgb888, _text_back_rgb888, _textsize_x, _textsize_y);
     } while (*(++string));
+    endWrite();
 
     return sumX;
   }
@@ -1068,11 +1120,11 @@ enum textdatum_t
     template<typename T> inline void setTextColor(T c)      { _text_fore_rgb888 = _text_back_rgb888 = convert_to_rgb888(c); }
     template<typename T> inline void setTextColor(T c, T b) { _text_fore_rgb888 = convert_to_rgb888(c); _text_back_rgb888 = convert_to_rgb888(b); }
 
-    inline int16_t drawChar(uint16_t uniCode, int32_t x, int32_t y) { return (fpDrawCharClassic)(this, x, y, uniCode, _text_fore_rgb888, _text_back_rgb888, _textsize_x, _textsize_y); }
+    inline int16_t drawChar(uint16_t uniCode, int32_t x, int32_t y) { _filled_x = 0; return (fpDrawCharClassic)(this, x, y, uniCode, _text_fore_rgb888, _text_back_rgb888, _textsize_x, _textsize_y); }
     template<typename T>
-    inline int16_t drawChar(int32_t x, int32_t y, uint16_t uniCode, T color, T bg, uint8_t size) { return (fpDrawCharClassic)(this, x, y, uniCode, convert_to_rgb888(color), convert_to_rgb888(bg), size, size); }
+    inline int16_t drawChar(int32_t x, int32_t y, uint16_t uniCode, T color, T bg, uint8_t size) { _filled_x = 0; return (fpDrawCharClassic)(this, x, y, uniCode, convert_to_rgb888(color), convert_to_rgb888(bg), size, size); }
     template<typename T>
-    inline int16_t drawChar(int32_t x, int32_t y, uint16_t uniCode, T color, T bg, uint8_t size_x, uint8_t size_y) { return (fpDrawCharClassic)(this, x, y, uniCode, convert_to_rgb888(color), convert_to_rgb888(bg), size_x, size_y); }
+    inline int16_t drawChar(int32_t x, int32_t y, uint16_t uniCode, T color, T bg, uint8_t size_x, uint8_t size_y) { _filled_x = 0; return (fpDrawCharClassic)(this, x, y, uniCode, convert_to_rgb888(color), convert_to_rgb888(bg), size_x, size_y); }
 
     int16_t getCursorX(void) const { return _cursor_x; }
     int16_t getCursorY(void) const { return _cursor_y; }
@@ -1092,25 +1144,30 @@ enum textdatum_t
 
 
     virtual void setTextFont(uint8_t f) {
-      _filled_x = 0; 
-      _textfont = (f > 0) ? f : 1;
       _decoderState = utf8_decode_state_t::utf8_no_use;
-      _font_size_x.offset = _font_size_y.offset = 0;
-      if (_textfont > 1 && fontdata[_textfont].height != 0) {
-        _font_size_y.size = _font_size_y.advance = pgm_read_byte( &fontdata[_textfont].height );
-        _font_size_y.offset = 0;
-        _font_baseline = pgm_read_byte( &fontdata[_textfont].baseline );
-        fpDrawCharClassic = (_textfont == 2) 
-                          ? drawCharBMP
-                          : drawCharRLE;
-        fpUpdateFontSize = updateFontSizeBMP;
-      } else {
-        _font_size_x.size = _font_size_x.advance = 6;
-        _font_size_y.size = _font_size_y.advance = 8;
-        _font_size_y.offset = 0;
-        _font_baseline = 6;
+      _filled_x = 0; 
+      _font_size_x.offset = 0;
+      _font_size_y.offset = 0;
+      if (f == 0) f = 1;
+      _textfont = f;
+      _font_size_y.size = _font_size_y.advance = pgm_read_byte( &fontdata[f].height );
+      _font_baseline = pgm_read_byte( &fontdata[f].baseline );
+
+      switch (pgm_read_byte( &fontdata[f].type)) {
+      default:
+      case font_type_t::ft_glcd:
         fpDrawCharClassic = drawCharGLCD;
         fpUpdateFontSize = nullptr; // updateFontSizeGLCD;
+        _font_size_x.size = _font_size_x.advance = 6;
+        break;
+      case font_type_t::ft_bmp:
+        fpDrawCharClassic = drawCharBMP;
+        fpUpdateFontSize = updateFontSizeBMP;
+        break;
+      case font_type_t::ft_rle:
+        fpDrawCharClassic = drawCharRLE;
+        fpUpdateFontSize = updateFontSizeBMP;
+        break;
       }
     }
 
@@ -1125,7 +1182,7 @@ enum textdatum_t
     int32_t _cursor_y = 0;
     int32_t _filled_x = 0;
     int32_t  _sx, _sy, _sw, _sh; // for scroll zone
-    int32_t  _clip_x = 0, _clip_y = 0, _clip_w = 0, _clip_h = 0; // clip rect
+    int32_t  _clip_l = 0, _clip_t = 0, _clip_r = 0, _clip_b = 0; // clip rect
     uint32_t _text_fore_rgb888 = 0xFFFFFFU;
     uint32_t _text_back_rgb888 = 0;
     uint32_t _scolor;  // gap fill colour for scroll zone
@@ -1171,14 +1228,12 @@ enum textdatum_t
     font_size_t _font_size_y = { 8, 8, 0 };
     int8_t _font_baseline = 6;
 
-    template <typename T>
-    __attribute__ ((always_inline)) inline static void swap_coord(T& a, T& b) { T t = a; a = b; b = t; }
     __attribute__ ((always_inline)) inline static bool _adjust_abs(int32_t& x, int32_t& w) { if (w < 0) { x += w + 1; w = -w; } return !w; }
 
-    static bool _adjust_width(int32_t& x, int32_t& dx, int32_t& dw, int32_t width)
+    static bool _adjust_width(int32_t& x, int32_t& dx, int32_t& dw, int32_t left, int32_t width)
     {
-      if (x < 0) { dx = -x; dw += x; x = 0; }
-      if (dw > width - x) dw = width  - x;
+      if (x < left) { dx = -x; dw += x; x = left; }
+      if (dw > left + width - x) dw = left + width  - x;
       return (dw <= 0);
     }
 
@@ -1199,23 +1254,10 @@ enum textdatum_t
       endWrite();
     }
 
-    void set_clip_rect(int32_t x, int32_t y, int32_t w, int32_t h) {
-      _clip_x = x;
-      _clip_y = y;
-      _clip_w = w;
-      _clip_h = h;
-    }
-
-    void clear_clip_rect(void) {
-      _clip_x = 0;
-      _clip_y = 0;
-      _clip_w = 0;
-      _clip_h = 0;
-    }
-
     virtual void beginTransaction_impl(void) = 0;
     virtual void endTransaction_impl(void) = 0;
 
+    virtual void drawPixel_impl(int32_t x, int32_t y) = 0;
     virtual void fillRect_impl(int32_t x, int32_t y, int32_t w, int32_t h) = 0;
     virtual void copyRect_impl(int32_t dst_x, int32_t dst_y, int32_t w, int32_t h, int32_t src_x, int32_t src_y) = 0;
     virtual void readRect_impl(int32_t x, int32_t y, int32_t w, int32_t h, void* dst, pixelcopy_t* param) = 0;
@@ -1302,14 +1344,49 @@ enum textdatum_t
 
       if (c > 255) return 0;
 
-      if ((x < me->width())
-       && (x + fontWidth * size_x > 0)
-       && (y < me->height())
-       && (y + fontHeight * size_y > 0)) {
-        auto font_addr = font + (c * 5);
-        uint32_t colortbl[2] = {me->_write_conv.convert(back_rgb888), me->_write_conv.convert(fore_rgb888)};
-        bool fillbg = (back_rgb888 != fore_rgb888);
-        if (fillbg && size_y == 1 && x >= 0 && y >= 0 && y + fontHeight <= me->height() && x + fontWidth * size_x <= me->width()) {
+      int32_t clip_left   = me->_clip_l;
+      int32_t clip_right  = me->_clip_r;
+      int32_t clip_top    = me->_clip_t;
+      int32_t clip_bottom = me->_clip_b;
+
+      auto font_addr = fontdata[me->getTextFont()].chartbl + (c * 5);
+      uint32_t colortbl[2] = {me->_write_conv.convert(back_rgb888), me->_write_conv.convert(fore_rgb888)};
+      bool fillbg = (back_rgb888 != fore_rgb888);
+
+      if ((x <= clip_right) && (clip_left < (x + fontWidth * size_x ))
+       && (y <= clip_bottom) && (clip_top < (y + fontHeight * size_y ))) {
+        if (!fillbg || size_y > 1 || x < clip_left || y < clip_top || y + fontHeight > clip_bottom || x + fontWidth * size_x > clip_right) {
+          int32_t xpos = x;
+          me->startWrite();
+          for (uint8_t i = 0; i < fontWidth-1; i++) {
+            uint32_t len = 1;
+            int32_t ypos = y;
+            uint8_t line = pgm_read_byte(font_addr + i);
+            bool flg = (line & 0x1);
+            for (uint8_t j = 1; j < fontHeight; j++) {
+              if (flg != (bool)(line & 1 << j)) {
+                if (flg || fillbg) {
+                  me->setColorRaw(colortbl[flg]);
+                  me->_fillRect(xpos, ypos, size_x, len * size_y);
+                }
+                ypos += len * size_y;
+                len = 0;
+                flg = !flg;
+              }
+              len++;
+            }
+            if (flg || fillbg) {
+              me->setColorRaw(colortbl[flg]);
+              me->_fillRect(xpos, ypos, size_x, len * size_y);
+            }
+            xpos += size_x;
+          }
+          if (fillbg) {
+            me->setColorRaw(colortbl[0]);
+            me->_fillRect(xpos, y, size_x, fontHeight * size_y); 
+          }
+          me->endWrite();
+        } else {
           uint8_t col[fontWidth];
           for (uint8_t i = 0; i < 5; i++) {
             col[i] = pgm_read_byte(font_addr + i);
@@ -1331,37 +1408,6 @@ enum textdatum_t
           }
           me->writeColorRaw(colortbl[0], len);
           me->endWrite();
-        } else {
-          int32_t xpos = x;
-          me->startWrite();
-          for (uint8_t i = 0; i < fontWidth-1; i++) {
-            uint32_t len = 1;
-            int32_t ypos = y;
-            uint8_t line = pgm_read_byte(font_addr + i);
-            bool flg = (line & 0x1);
-            for (uint8_t j = 1; j < fontHeight; j++) {
-              if (flg != (bool)(line & 1 << j)) {
-                if (flg || fillbg) {
-                  me->setColorRaw(colortbl[flg]);
-                  me->fillRect(xpos, ypos, size_x, len * size_y);
-                }
-                ypos += len * size_y;
-                len = 0;
-                flg = !flg;
-              }
-              len++;
-            }
-            if (flg || fillbg) {
-              me->setColorRaw(colortbl[flg]);
-              me->fillRect(xpos, ypos, size_x, len * size_y);
-            }
-            xpos += size_x;
-          }
-          if (fillbg) {
-            me->setColorRaw(colortbl[0]);
-            me->fillRect(xpos, y, size_x, fontHeight * size_y); 
-          }
-          me->endWrite();
         }
       }
       return fontWidth * size_x;
@@ -1376,15 +1422,54 @@ enum textdatum_t
       if ((c < 32) || (c > 127)) return 0;
       auto font_addr = (const uint8_t*)pgm_read_dword(&chrtbl_f16[uniCode]);
 
-      if ((x < me->width())
-       && (x + fontWidth * size_x > 0)
-       && (y < me->height())
-       && (y + fontHeight * size_y > 0)) {
-        int32_t ypos = y;
-        uint8_t w = (fontWidth + 6) >> 3;
-        uint32_t colortbl[2] = {me->_write_conv.convert(back_rgb888), me->_write_conv.convert(fore_rgb888)};
-        bool fillbg = (back_rgb888 != fore_rgb888);
-        if (fillbg && size_y == 1 && x >= 0 && y >= 0 && y + fontHeight <= me->height() && x + fontWidth * size_x <= me->width()) {
+      uint8_t w = (fontWidth + 6) >> 3;
+      uint32_t colortbl[2] = {me->_write_conv.convert(back_rgb888), me->_write_conv.convert(fore_rgb888)};
+      bool fillbg = (back_rgb888 != fore_rgb888);
+
+      int32_t clip_left   = me->_clip_l;
+      int32_t clip_right  = me->_clip_r;
+      int32_t clip_top    = me->_clip_t;
+      int32_t clip_bottom = me->_clip_b;
+
+      if ((x <= clip_right) && (clip_left < (x + fontWidth * size_x ))
+       && (y <= clip_bottom) && (clip_top < (y + fontHeight * size_y ))) {
+        if (!fillbg || size_y > 1 || x < clip_left || y < clip_top || y + fontHeight > clip_bottom || x + fontWidth * size_x > clip_right) {
+          me->startWrite();
+          if (fillbg) {
+            me->setColorRaw(colortbl[0]);
+            me->_fillRect( x + (fontWidth - 1) * size_x, y, size_x, fontHeight * size_y);
+          }
+          for (uint8_t i = 0; i < fontHeight; i++) {
+            uint8_t line = pgm_read_byte(font_addr);
+            bool flg = line & 0x80;
+            uint32_t len = 1;
+            uint_fast8_t j = 1;
+            for (; j < fontWidth-1; j++) {
+              if (j & 7) {
+                line <<= 1;
+              } else {
+                line = pgm_read_byte(font_addr + (j >> 3));
+              }
+              if (flg != (bool)(line & 0x80)) {
+                if (flg || fillbg) {
+                  me->setColorRaw(colortbl[flg]);
+                  me->_fillRect( x + (j - len) * size_x, y, len * size_x, size_y); 
+                }
+                len = 1;
+                flg = !flg;
+              } else {
+                len++;
+              }
+            }
+            if (flg || fillbg) {
+              me->setColorRaw(colortbl[flg]);
+              me->_fillRect( x + (j - len) * size_x, y, len * size_x, size_y); 
+            }
+            y += size_y;
+            font_addr += w;
+          }
+          me->endWrite();
+        } else {
           uint32_t len = 0;
           uint8_t line = 0;
           bool flg = false;
@@ -1408,42 +1493,6 @@ enum textdatum_t
           }
           me->writeColorRaw(colortbl[flg], len);
           me->endWrite();
-        } else {
-          me->startWrite();
-          for (uint8_t i = 0; i < fontHeight; i++) {
-            uint8_t line = pgm_read_byte(font_addr);
-            bool flg = line & 0x80;
-            uint32_t len = 1;
-            uint8_t j = 1;
-            for (; j < fontWidth-1; j++) {
-              if (j & 7) {
-                line <<= 1;
-              } else {
-                line = pgm_read_byte(font_addr + (j >> 3));
-              }
-              if (flg != (bool)(line & 0x80)) {
-                if (flg || fillbg) {
-                  me->setColorRaw(colortbl[flg]);
-                  me->fillRect( x + (j - len) * size_x, ypos, len * size_x, size_y); 
-                }
-                len = 1;
-                flg = !flg;
-              } else {
-                len++;
-              }
-            }
-            if (flg || fillbg) {
-              me->setColorRaw(colortbl[flg]);
-              me->fillRect( x + (j - len) * size_x, ypos, len * size_x, size_y); 
-            }
-            ypos += size_y;
-            font_addr += w;
-          }
-          if (fillbg) {
-            me->setColorRaw(colortbl[0]);
-            me->fillRect( x + (fontWidth - 1) * size_x, y, size_x, fontHeight * size_y);
-          }
-          me->endWrite();
         }
       }
 
@@ -1459,25 +1508,18 @@ enum textdatum_t
 
       if ((c < 32) || (c > 127)) return 0;
       auto font_addr = (const uint8_t*)pgm_read_dword( (const void*)(pgm_read_dword( &(fontdat->chartbl ) ) + code * sizeof(void *)) );
-      if ((x < me->width())
-       && (x + fontWidth * size_x > 0)
-       && (y < me->height())
-       && (y + fontHeight * size_y > 0)) {
-        uint32_t colortbl[2] = {me->_write_conv.convert(back_rgb888), me->_write_conv.convert(fore_rgb888)};
-        bool fillbg = (back_rgb888 != fore_rgb888);
-        if (fillbg && size_y == 1 && x >= 0 && y >= 0 && y + fontHeight <= me->height() && x + fontWidth * size_x <= me->width()) {
-          uint32_t line = 0;
-          me->startWrite();
-          uint32_t len = fontWidth * size_x * fontHeight;
-          me->setAddrWindow(x, y, fontWidth * size_x, fontHeight);
-          do {
-            line = pgm_read_byte(font_addr++);
-            bool flg = line & 0x80;
-            line = ((line & 0x7F) + 1) * size_x;
-            me->writeColorRaw(colortbl[flg], line);
-          } while (len -= line);
-          me->endWrite();
-        } else {
+
+      uint32_t colortbl[2] = {me->_write_conv.convert(back_rgb888), me->_write_conv.convert(fore_rgb888)};
+      bool fillbg = (back_rgb888 != fore_rgb888);
+
+      int32_t clip_left   = me->_clip_l;
+      int32_t clip_right  = me->_clip_r;
+      int32_t clip_top    = me->_clip_t;
+      int32_t clip_bottom = me->_clip_b;
+
+      if ((x <= clip_right) && (clip_left < (x + fontWidth * size_x ))
+       && (y <= clip_bottom) && (clip_top < (y + fontHeight * size_y ))) {
+        if (!fillbg || size_y > 1 || x < clip_left || y < clip_top || y + fontHeight > clip_bottom || x + fontWidth * size_x > clip_right) {
           bool flg = false;
           uint8_t line = 0, i = 0, j = 0;
           int32_t len;
@@ -1491,7 +1533,7 @@ enum textdatum_t
               line -= len;
               if (fillbg || flg) {
                 me->setColorRaw(colortbl[flg]);
-                me->fillRect( x + j * size_x, y + (i * size_y), len * size_x, size_y);
+                me->_fillRect( x + j * size_x, y + (i * size_y), len * size_x, size_y);
               }
               j += len;
               if (j == fontWidth) {
@@ -1500,6 +1542,18 @@ enum textdatum_t
               }
             } while (line);
           } while (i < fontHeight);
+          me->endWrite();
+        } else {
+          uint32_t line = 0;
+          me->startWrite();
+          uint32_t len = fontWidth * size_x * fontHeight;
+          me->setAddrWindow(x, y, fontWidth * size_x, fontHeight);
+          do {
+            line = pgm_read_byte(font_addr++);
+            bool flg = line & 0x80;
+            line = ((line & 0x7F) + 1) * size_x;
+            me->writeColorRaw(colortbl[flg], line);
+          } while (len -= line);
           me->endWrite();
         }
       }
@@ -1511,6 +1565,7 @@ enum textdatum_t
 
 //----------------------------------------------------------------------------
 //----------------------------------------------------------------------------
+#ifdef LOAD_GFXFF
 
   template <class Base>
   class LGFX_GFXFont_Support : public Base {
@@ -1557,7 +1612,7 @@ enum textdatum_t
         int32_t right = x + std::max((int32_t)(w * size_x + xoffset), (int32_t)(xAdvance));
         if (right > left) {
           me->setColorRaw(colortbl[0]);
-          me->fillRect(left, y + me->_font_size_y.offset * size_y, right - left, (me->_glyph_bb + me->_glyph_ab) * size_y);
+          me->_fillRect(left, y + me->_font_size_y.offset * size_y, right - left, (me->_glyph_bb + me->_glyph_ab) * size_y);
           me->_filled_x = right;
         }
       } else {
@@ -1566,8 +1621,14 @@ enum textdatum_t
 
       x += xoffset;
       y += yoffset;
-      if ((x < me->width())  && (x + w * size_x > 0)
-       && (y < me->height()) && (y + h * size_y > 0)) {
+
+      int32_t clip_left   = me->_clip_l;
+      int32_t clip_right  = me->_clip_r;
+      int32_t clip_top    = me->_clip_t;
+      int32_t clip_bottom = me->_clip_b;
+
+      if ((x <= clip_right) && (clip_left < (x + w * size_x ))
+       && (y <= clip_bottom) && (clip_top < (y + h * size_y ))) {
         uint8_t  *bitmap = (uint8_t *)pgm_read_dword(&gfxFont->bitmap)
                          + pgm_read_word(&glyph->bitmapOffset);
         uint8_t bits=0, bit=0;
@@ -1583,13 +1644,13 @@ enum textdatum_t
             }
             if (bits & bit) len++;
             else if (len) {
-              me->fillRect(x + (i-len) * size_x, y, size_x * len, size_y);
+              me->_fillRect(x + (i-len) * size_x, y, size_x * len, size_y);
               len=0;
             }
             bit >>= 1;
           }
           if (len) {
-            me->fillRect(x + (i-len) * size_x, y, size_x * len, size_y);
+            me->_fillRect(x + (i-len) * size_x, y, size_x * len, size_y);
           }
           y += size_y;
         }
@@ -1635,6 +1696,7 @@ enum textdatum_t
     }
   };
 
+#endif
 //----------------------------------------------------------------------------
 //----------------------------------------------------------------------------
 
@@ -1830,7 +1892,7 @@ enum textdatum_t
 
       auto file = &me->fontFile;
 
-      if (file->need_transaction) me->endTransaction();
+      if (file->need_transaction && me->_transaction_count) me->endTransaction();
 
       file->seek(28 + gNum * 28);  // headerPtr
       uint32_t buffer[6];
@@ -1847,7 +1909,8 @@ enum textdatum_t
 
       file->seek(me->gBitmap[gNum]);  // headerPtr
       file->read(pixel, w * h);
-      if (file->need_transaction) me->beginTransaction();
+
+      if (file->need_transaction && me->_transaction_count) me->beginTransaction();
       me->startWrite();
 
       uint32_t colortbl[2] = {me->_write_conv.convert(back_rgb888), me->_write_conv.convert(fore_rgb888)};
@@ -1857,7 +1920,7 @@ enum textdatum_t
         int32_t right = x + std::max((int32_t)(w * size_x + xoffset), (int32_t)(xAdvance));
         if (right > left) {
           me->setColorRaw(colortbl[0]);
-          me->fillRect(left, y, right - left, me->gFont.yAdvance * size_y);
+          me->_fillRect(left, y, right - left, me->gFont.yAdvance * size_y);
  //me->setColorRaw(colortbl[1]);
  //me->drawRect(left, y, right - left, me->gFont.yAdvance * size_y);
           me->_filled_x = right;
@@ -1867,24 +1930,15 @@ enum textdatum_t
       }
 
       y += yoffset;
-/*
-      if (y < 0) {
-        auto tmp = -y / size_y;
-        y += tmp;
-        h -= tmp;
-        pixel += w * tmp;
-      }
-//*/
-
       x += xoffset;
       int32_t left = 0;
       int32_t bx = x;
       int32_t bw = w * size_x;
-      if (x < 0) { left = -(x / size_x); bw += x; bx = 0; }
-      int32_t width = me->width();
-      if (bw > width - bx) bw = width - bx;
-      if (bw > 0
-       && (y < me->height()) && (y + h * size_y > 0)) {
+      int32_t clip_left = me->_clip_l;
+      if (x < clip_left) { left = -((x - clip_left) / size_x); bw += (x - clip_left); bx = clip_left; }
+      int32_t clip_right = me->_clip_r + 1;
+      if (bw > clip_right - bx) bw = clip_right - bx;
+      if (bw > 0 && (y <= me->_clip_b) && (me->_clip_t < (y + h * size_y))) {
         int32_t fore_r = ((fore_rgb888>>16)&0xFF);
         int32_t fore_g = ((fore_rgb888>> 8)&0xFF);
         int32_t fore_b = ((fore_rgb888)    &0xFF);
@@ -1892,7 +1946,7 @@ enum textdatum_t
           int32_t back_r = ((back_rgb888>>16)&0xFF);
           int32_t back_g = ((back_rgb888>> 8)&0xFF);
           int32_t back_b = ((back_rgb888)    &0xFF);
-          int32_t right = (width - x + size_x - 1) / size_x;
+          int32_t right = (clip_right - x + size_x - 1) / size_x;
           if (right > w) right = w;
           do {
             int32_t i = left;
@@ -1903,7 +1957,7 @@ enum textdatum_t
                   me->setColor(color888( ( fore_r * p + back_r * (257 - p)) >> 8
                                        , ( fore_g * p + back_g * (257 - p)) >> 8
                                        , ( fore_b * p + back_b * (257 - p)) >> 8 ));
-                  me->fillRect(i * size_x + x, y, size_x, size_y);
+                  me->_fillRect(i * size_x + x, y, size_x, size_y);
                 }
                 if (++i == right) break;
               }
@@ -1911,7 +1965,7 @@ enum textdatum_t
               int32_t dl = 1;
               while (i + dl != right && pixel[i + dl] == 0xFF) { ++dl; }
               me->setColorRaw(colortbl[1]);
-              me->fillRect(x + i * size_x, y, dl * size_x, size_y);
+              me->_fillRect(x + i * size_x, y, dl * size_x, size_y);
               i += dl;
             } while (i != right);
             pixel += w;
@@ -1930,11 +1984,11 @@ enum textdatum_t
               for (int32_t sx = 0; sx < bw; sx++) {
                 int32_t p = 1 + pixel[left + (sx+xshift) / size_x];
                 for (int32_t sy = 0; sy < bh; sy++) {
-                  auto bgr = buf[sx + sy * bw];
-                  bgr.r = ( fore_r * p + bgr.r * (257 - p)) >> 8;
-                  bgr.g = ( fore_g * p + bgr.g * (257 - p)) >> 8;
-                  bgr.b = ( fore_b * p + bgr.b * (257 - p)) >> 8;
-                  buf[sx + sy * bw] = bgr;
+                  auto bgr = &buf[sx + sy * bw];
+                  bgr->r = ( fore_r * p + bgr->r * (257 - p)) >> 8;
+                  bgr->g = ( fore_g * p + bgr->g * (257 - p)) >> 8;
+                  bgr->b = ( fore_b * p + bgr->b * (257 - p)) >> 8;
+                  //buf[sx + sy * bw] = bgr;
                 }
               }
               me->push_image(bx, by, bw, bh, &p);
@@ -1953,57 +2007,90 @@ enum textdatum_t
 //----------------------------------------------------------------------------
 
   template <class Base>
-  class LGFX_BMP_Support : public Base {
+  class LGFX_IMAGE_FORMAT_Support : public Base {
   public:
-    typedef enum {
+    enum jpeg_div_t {
       JPEG_DIV_NONE,
       JPEG_DIV_2,
       JPEG_DIV_4,
       JPEG_DIV_8,
       JPEG_DIV_MAX
-    } jpeg_div_t;
+    };
 
-#if defined (ARDUINO) && defined (FS_H)
+#if defined (ARDUINO)
+ #if defined (FS_H)
 
-    inline void drawBmp(fs::FS &fs, const char *path, int32_t x, int32_t y) { drawBmpFile(fs, path, x, y); }
-    void drawBmpFile(fs::FS &fs, const char *path, int32_t x, int32_t y) {
+    inline void drawBmp(fs::FS &fs, const char *path, int32_t x=0, int32_t y=0) { drawBmpFile(fs, path, x, y); }
+    void drawBmpFile(fs::FS &fs, const char *path, int32_t x=0, int32_t y=0) {
       FileWrapper file;
       file.setFS(fs);
-      drawBmpFile(file, path, x, y);
+      drawBmpFile(&file, path, x, y);
     }
 
     void drawJpgFile( fs::FS &fs, const char *path, int16_t x=0, int16_t y=0, int16_t maxWidth=0, int16_t maxHeight=0, int16_t offX=0, int16_t offY=0, jpeg_div_t scale=JPEG_DIV_NONE) {
       FileWrapper file;
       file.setFS(fs);
-      drawJpgFile(file, path, x, y, maxWidth, maxHeight, offX, offY, scale);
+//      drawJpgFile(&file, path, x, y, maxWidth, maxHeight, offX, offY, scale);
+
+      file.need_transaction &= this->_has_transaction;
+      if (file.need_transaction) this->endTransaction();
+      if (file.open(path, "rb")) {
+        draw_jpg(&file, x, y, maxWidth, maxHeight, offX, offY, scale);
+        file.close();
+      }
+      if (file.need_transaction && this->_transaction_count) { this->beginTransaction(); }
     }
+ #endif
+ #if defined (Stream_h)
+
+    void drawJpg(Stream *dataSource, int16_t x=0, int16_t y=0, int16_t maxWidth=0, int16_t maxHeight=0, int16_t offX=0, int16_t offY=0, jpeg_div_t scale=JPEG_DIV_NONE) {
+      StreamWrapper data;
+      data.set(dataSource);
+      draw_jpg(&data, x, y, maxWidth, maxHeight, offX, offY, scale);
+    }
+
+ #endif
 
 #elif defined (CONFIG_IDF_TARGET_ESP32)  // ESP-IDF
 
     void drawBmpFile(const char *path, int32_t x, int32_t y) {
       FileWrapper file;
-      drawBmpFile(file, path, x, y);
+      drawBmpFile(&file, path, x, y);
     }
 
     void drawJpgFile(const char *path, int16_t x=0, int16_t y=0, int16_t maxWidth=0, int16_t maxHeight=0, int16_t offX=0, int16_t offY=0, jpeg_div_t scale=JPEG_DIV_NONE) {
       FileWrapper file;
-      drawJpgFile(file, path, x, y, maxWidth, maxHeight, offX, offY, scale);
-    }
-
-#endif
-
-  private:
-
-    void drawBmpFile(FileWrapper& file, const char *path, int32_t x, int32_t y) {
+//      drawJpgFile(&file, path, x, y, maxWidth, maxHeight, offX, offY, scale);
       file.need_transaction &= this->_has_transaction;
       if (file.need_transaction) this->endTransaction();
       if (file.open(path, "rb")) {
-        drawBmpFile(file, x, y);
+        draw_jpg(&file, x, y, maxWidth, maxHeight, offX, offY, scale);
         file.close();
       }
       if (file.need_transaction && this->_transaction_count) { this->beginTransaction(); }
     }
-    void drawBmpFile(FileWrapper& file, int32_t x, int32_t y) {
+
+#endif
+
+    void drawJpg(const uint8_t *src, uint32_t len, int16_t x=0, int16_t y=0, int16_t maxWidth=0, int16_t maxHeight=0, int16_t offX=0, int16_t offY=0, jpeg_div_t scale=JPEG_DIV_NONE) {
+      PointerWrapper data;
+      data.set(src, len);
+      draw_jpg(&data, x, y, maxWidth, maxHeight, offX, offY, scale);
+    }
+
+  private:
+
+    void drawBmpFile(FileWrapper* file, const char *path, int32_t x, int32_t y) {
+      file->need_transaction &= this->_has_transaction;
+      if (file->need_transaction) this->endTransaction();
+      if (file->open(path, "rb")) {
+        draw_bmp(file, x, y);
+        file->close();
+      }
+      if (file->need_transaction && this->_transaction_count) { this->beginTransaction(); }
+    }
+
+    void draw_bmp(DataWrapper* data, int32_t x, int32_t y) {
       if ((x >= this->_width) || (y >= this->_height)) return;
 
       //uint32_t startTime = millis();
@@ -2038,7 +2125,7 @@ enum textdatum_t
             #pragma pack()
           };
         } bmpdata;
-        file.read(bmpdata.raw, sizeof(bmpdata));
+        data->read(bmpdata.raw, sizeof(bmpdata));
         if ((bmpdata.bfType != 0x4D42)   // bmp header "BM"
          || (bmpdata.biPlanes != 1)  // bcPlanes always 1
          || (bmpdata.biWidth + x < 0)
@@ -2063,11 +2150,11 @@ enum textdatum_t
       argb8888_t *palette = nullptr;
       if (bpp <= 8) {
         palette = new argb8888_t[1 << bpp];
-        file.seek(seekOffset-(1 << bpp)*sizeof(argb8888_t));
-        file.read((uint8_t*)palette, (1 << bpp)*sizeof(argb8888_t)); // load palette
+        data->seek(seekOffset - (1 << bpp) * sizeof(argb8888_t));
+        data->read((uint8_t*)palette, (1 << bpp)*sizeof(argb8888_t)); // load palette
       }
 
-      file.seek(seekOffset);
+      data->seek(seekOffset);
 
       auto dst_depth = this->_write_conv.depth;
       uint8_t lineBuffer[((w * bpp + 31) >> 5) << 2];  // readline 4Byte align.
@@ -2086,9 +2173,9 @@ enum textdatum_t
       }
 
       while (--h >= 0) {
-        if (file.need_transaction) this->endTransaction();
-        file.read(lineBuffer, sizeof(lineBuffer));
-        if (file.need_transaction) this->beginTransaction();
+        if (data->need_transaction) this->endTransaction();
+        data->read(lineBuffer, sizeof(lineBuffer));
+        if (data->need_transaction) this->beginTransaction();
         this->push_image(x, y, w, 1, &p);
         y += flow;
       }
@@ -2098,43 +2185,38 @@ enum textdatum_t
     }
 
 
-#if defined _TJPGDEC_H_
-    typedef struct {
+#if !defined (_TJPGDEC_H_)
+    void draw_jpg(DataWrapper* data, int16_t x, int16_t y, int16_t maxWidth, int16_t maxHeight, int16_t offX, int16_t offY, jpeg_div_t scale)
+    {
+      ESP_LOGI("LGFX","drawJpg need include utility/tjpgdClass.h");
+    }
+#else
+
+    struct draw_jpg_info_t {
       int32_t x;
       int32_t y;
       jpeg_div_t scale;
-      const void *src;
-    //  size_t len;
-    //  size_t index;
+      DataWrapper *data;
       LGFXBase *tft;
       pixelcopy_t *pc;
-    } jpg_file_decoder_t;
+    };
 
-    void drawJpgFile(FileWrapper& file, const char *path, int16_t x, int16_t y, int16_t maxWidth, int16_t maxHeight, int16_t offX, int16_t offY, jpeg_div_t scale) {
-      file.need_transaction &= this->_has_transaction;
-      if (file.need_transaction) this->endTransaction();
-      if (file.open(path, "rb")) {
-        drawJpgFile_tjpgd(file, x, y, maxWidth, maxHeight, offX, offY, scale);
-        file.close();
-      }
-      if (file.need_transaction && this->_transaction_count) { this->beginTransaction(); }
-    }
-
-    static uint32_t jpgTinyReadFile(TJpgD *decoder, uint8_t *buf, uint32_t len) {
-      jpg_file_decoder_t *jpeg = (jpg_file_decoder_t *)decoder->device;
-      auto file = (FileWrapper*)jpeg->src;
+    static uint32_t jpg_read_data(TJpgD *decoder, uint8_t *buf, uint32_t len) {
+      draw_jpg_info_t *jpeg = (draw_jpg_info_t *)decoder->device;
+      auto data = (DataWrapper*)jpeg->data;
       auto res = len;
-      if (file->need_transaction) jpeg->tft->endTransaction();
+      if (data->need_transaction) jpeg->tft->endTransaction();
       if (buf) {
-        res = file->read(buf, len);
+        res = data->read(buf, len);
       } else {
-        file->skip(len);
+        data->skip(len);
       }
-      if (file->need_transaction) jpeg->tft->beginTransaction();
+      if (data->need_transaction) jpeg->tft->beginTransaction();
       return res;
     }
-    static uint32_t jpgTinyColorPush(TJpgD *decoder, void *bitmap, JRECT *rect) {
-      jpg_file_decoder_t *jpeg = (jpg_file_decoder_t *)decoder->device;
+
+    static uint32_t jpg_push_image(TJpgD *decoder, void *bitmap, JRECT *rect) {
+      draw_jpg_info_t *jpeg = (draw_jpg_info_t *)decoder->device;
       jpeg->pc->src_data = bitmap;
       jpeg->tft->push_image( jpeg->x + rect->left
                            , jpeg->y + rect->top 
@@ -2145,39 +2227,49 @@ enum textdatum_t
       return 1;
     }
 
-    void drawJpgFile_tjpgd(FileWrapper& file, int16_t x, int16_t y, int16_t maxWidth, int16_t maxHeight, int16_t offX, int16_t offY, jpeg_div_t scale)
+    void draw_jpg(DataWrapper* data, int16_t x, int16_t y, int16_t maxWidth, int16_t maxHeight, int16_t offX, int16_t offY, jpeg_div_t scale)
     {
-      this->set_clip_rect(x, y, maxWidth, maxHeight);
-
-      jpg_file_decoder_t jpeg;
-
+      draw_jpg_info_t jpeg;
       pixelcopy_t pc(nullptr, this->getColorDepth(), bgr888_t::depth, this->hasPalette());
       jpeg.pc = &pc;
       jpeg.tft = this;
-      jpeg.src = &file;
-//      jpeg.index = 0;
+      jpeg.data = data;
       jpeg.x = x - offX;
       jpeg.y = y - offY;
       jpeg.scale = scale;
 
       TJpgD jpegdec;
 
-      auto jres = jpegdec.prepare(jpgTinyReadFile, &jpeg);
+      auto jres = jpegdec.prepare(jpg_read_data, &jpeg);
 
       if (jres != JDR_OK) {
         ESP_LOGE("LGFX","jpeg prepare error:%x", jres);
         return;
       }
 
+      if (!maxWidth) maxWidth = this->width();
+      auto cl = this->_clip_l;
+      if (0 > x - cl) { maxWidth += x - cl; x = cl; }
+      auto cr = this->_clip_r + 1;
+      if (maxWidth > (cr - x)) maxWidth = (cr - x);
+      if (maxWidth <= 0) return;
+
+      if (!maxHeight) maxHeight = this->maxHeight();
+      auto ct = this->_clip_t;
+      if (0 > y - ct) { maxHeight += y - ct; y = ct; }
+      auto cb = this->_clip_b + 1;
+      if (maxHeight > (cb - y)) maxHeight = (cb - y);
+      if (maxHeight <= 0) return;
+
+      this->setClipRect(x, y, maxWidth, maxHeight);
       this->startWrite();
-      jres = jpegdec.decomp(jpgTinyColorPush, nullptr);
-      this->clear_clip_rect();
+      jres = jpegdec.decomp(jpg_push_image, nullptr);
+      this->_clip_l = cl;
+      this->_clip_t = ct;
+      this->_clip_r = cr-1;
+      this->_clip_b = cb-1;
+//      this->setClipRect(cl, ct ,cw ,ch);
       this->endWrite();
-    }
-#else
-    void drawJpgFile(FileWrapper& file, const char *path, int16_t x, int16_t y, int16_t maxWidth, int16_t maxHeight, int16_t offX, int16_t offY, jpeg_div_t scale) 
-    {
-      ESP_LOGI("LGFX","drawJpg need include utility/tjpgdClass.h");
     }
 #endif
 
@@ -2191,7 +2283,7 @@ enum textdatum_t
    LGFX_GFXFont_Support<
   #endif
     LGFX_VLWFont_Support<
-     LGFX_BMP_Support<
+     LGFX_IMAGE_FORMAT_Support<
       LGFXBase
      >
     >
@@ -2202,23 +2294,5 @@ enum textdatum_t
 }
 //----------------------------------------------------------------------------
 //----------------------------------------------------------------------------
-
-#if defined (ESP32) || (CONFIG_IDF_TARGET_ESP32)
-
-  #include "platforms/lgfx_spi_esp32.hpp"
-
-#elif defined (ESP8266)
-
-  #include "platforms/lgfx_spi_esp8266.hpp"
-
-#elif defined (STM32F7)
-
-  #include "platforms/lgfx_spi_stm32_spi.hpp"
-
-#elif defined (__AVR__)
-
-  #include "platforms/lgfx_spi_avr.hpp"
-
-#endif
 
 #endif

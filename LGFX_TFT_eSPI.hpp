@@ -4,10 +4,13 @@
 #include <LovyanGFX.hpp>
 
 
-/***************************************************************************************
-**                         Section 5: Font datum enumeration
-***************************************************************************************/
-//These enumerate the text plotting alignment (reference datum point)
+typedef lgfx::bgr888_t RGBColor;
+
+
+// Font datum enumeration
+// LEFT=0   CENTER=1   RIGHT=2
+// TOP=0   MIDDLE=4   BOTTOM=8   BASELINE=16
+
 #define TL_DATUM 0 // Top left (default)
 #define TC_DATUM 1 // Top centre
 #define TR_DATUM 2 // Top right
@@ -25,9 +28,8 @@
 #define R_BASELINE 18 // Right character baseline
 
 
-/***************************************************************************************
-**                         Section 6: Colour enumeration
-***************************************************************************************/
+// Colour enumeration
+
 // Default color definitions
 #define TFT_BLACK       0x0000      /*   0,   0,   0 */
 #define TFT_NAVY        0x000F      /*   0,   0, 128 */
@@ -56,7 +58,7 @@
 
 #define TFT_TRANSPARENT 0x0120
 
-typedef lgfx::bgr888_t RGBColor;
+
 
 namespace lgfx {
 

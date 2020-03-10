@@ -15,33 +15,41 @@ const  uint8_t widtbl_null[1] = {0};
 PROGMEM const uint8_t chr_null[1] = {0};
 PROGMEM const uint8_t* const chrtbl_null[1] = {chr_null};
 
-typedef struct {
+enum font_type_t
+{ ft_unknown
+, ft_glcd
+, ft_bmp
+, ft_rle
+};
+
+struct fontinfo {
+  font_type_t type;
   const uint8_t *chartbl;
   const uint8_t *widthtbl;
   uint8_t height;
   uint8_t baseline;
-} fontinfo;
+};
 
 const PROGMEM fontinfo fontdata [] = {
-   { (const uint8_t *)font, widtbl_null, 0, 0 },
+   { ft_unknown, (const uint8_t *)chrtbl_null, widtbl_null, 0, 0 },
    // GLCD font (Font 1) does not have all parameters
-   { (const uint8_t *)chrtbl_null, widtbl_null, 8, 7 },
+   { ft_glcd, (const uint8_t *)font, widtbl_null, 8, 6 },
 
-   { (const uint8_t *)chrtbl_f16, widtbl_f16, chr_hgt_f16, baseline_f16},
+   { ft_bmp,  (const uint8_t *)chrtbl_f16, widtbl_f16, chr_hgt_f16, baseline_f16},
 
    // Font 3 current unused
-   { (const uint8_t *)chrtbl_null, widtbl_null, 0, 0 },
+   { ft_unknown, (const uint8_t *)chrtbl_null, widtbl_null, 0, 0 },
 
-   { (const uint8_t *)chrtbl_f32, widtbl_f32, chr_hgt_f32, baseline_f32},
+   { ft_rle, (const uint8_t *)chrtbl_f32, widtbl_f32, chr_hgt_f32, baseline_f32},
 
    // Font 5 current unused
-   { (const uint8_t *)chrtbl_null, widtbl_null, 0, 0 },
+   { ft_unknown, (const uint8_t *)chrtbl_null, widtbl_null, 0, 0 },
 
-   { (const uint8_t *)chrtbl_f64, widtbl_f64, chr_hgt_f64, baseline_f64},
+   { ft_rle, (const uint8_t *)chrtbl_f64, widtbl_f64, chr_hgt_f64, baseline_f64},
 
-   { (const uint8_t *)chrtbl_f7s, widtbl_f7s, chr_hgt_f7s, baseline_f7s},
+   { ft_rle, (const uint8_t *)chrtbl_f7s, widtbl_f7s, chr_hgt_f7s, baseline_f7s},
 
-   { (const uint8_t *)chrtbl_f72, widtbl_f72, chr_hgt_f72, baseline_f72}
+   { ft_rle, (const uint8_t *)chrtbl_f72, widtbl_f72, chr_hgt_f72, baseline_f72}
 };
 
 

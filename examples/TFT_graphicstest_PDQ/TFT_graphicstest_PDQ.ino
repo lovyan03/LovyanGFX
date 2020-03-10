@@ -22,7 +22,7 @@
 
 //#include <TFT_eSPI.h>
 #include <LGFX_TFT_eSPI.hpp>
-#include <SD.h>
+//#include <SD.h>
 
 
 static TFT_eSPI tft;
@@ -35,19 +35,25 @@ void setup() {
  #if defined(ARDUINO_M5Stick_C)
   AXP192 axp;
   axp.begin();
- #elif defined(ARDUINO_M5Stack_Core_ESP32) || defined(ARDUINO_M5STACK_FIRE) // || defined ( ARDUINO_ESP32_DEV ) || defined ( ARDUINO_T )
-  SD.begin(4, SPI, 20000000);
+ #else
+
+  #if defined(ARDUINO_M5Stack_Core_ESP32) || defined(ARDUINO_M5STACK_FIRE)
+   static constexpr int GPIO_BL = 32;
+  #elif defined ( ARDUINO_ESP32_DEV )
+   static constexpr int GPIO_BL = 5;
+  #elif defined ( ARDUINO_T )  // TTGO T-Watch
+   static constexpr int GPIO_BL = 12;
+  #endif
+
   const int BLK_PWM_CHANNEL = 7;
   ledcSetup(BLK_PWM_CHANNEL, 12000, 8);
-  ledcAttachPin(32, BLK_PWM_CHANNEL);
+  ledcAttachPin(GPIO_BL, BLK_PWM_CHANNEL);
   ledcWrite(BLK_PWM_CHANNEL, 128);
- #elif defined ( ARDUINO_ESP32_DEV )
-  const int BLK_PWM_CHANNEL = 7;
-  ledcSetup(BLK_PWM_CHANNEL, 12000, 8);
-  ledcAttachPin(5, BLK_PWM_CHANNEL);
-  ledcWrite(BLK_PWM_CHANNEL, 128);
+
  #endif
 
+#ifdef _SD_H_
+  SD.begin(4, SPI, 20000000);
  #ifdef __M5STACKUPDATER_H
   #if defined(ARDUINO_M5Stack_Core_ESP32) || defined(ARDUINO_M5STACK_FIRE) // M5Stack
    #define BUTTON_A_PIN 39
@@ -59,6 +65,7 @@ void setup() {
     ESP.restart();
   }
  #endif
+#endif
 
   Serial.begin(115200);
   while (!Serial);
@@ -73,9 +80,14 @@ void setup() {
 
 
   tft.setRotation(0);
-
   //tft.setColorDepth(24);
 
+//tft.setTextFont(2);
+//auto xs = 14;
+//auto ys = 14;
+//tft.fillScreen(0x00FF00U);
+//tft.fillRect(xs, ys, tft.width() - (xs<<1), tft.height() - (ys<<1), 0xFFFF);
+//tft.setClipRect(xs + 1, ys + 1, tft.width() - (xs<<1) - 2, tft.height() - (ys<<1) - 2);
 }
 
 void loop(void)
@@ -83,12 +95,14 @@ void loop(void)
 	tft.startWrite();
 
 	Serial.println(F("Benchmark                Time (microseconds)"));
-
+//*
+	uint32_t usecHaD = 0;
+/*/
 	uint32_t usecHaD = testHaD();
 	Serial.print(F("HaD pushColor            "));
 	Serial.println(usecHaD);
 	delay(100);
-
+//*/
 	uint32_t usecFillScreen = testFillScreen();
 	Serial.print(F("Screen fill              "));
 	Serial.println(usecFillScreen);
