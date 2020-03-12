@@ -153,7 +153,7 @@ void loop(void)
 	tft_lcd.startWrite();
 
 	Serial.println(F("Benchmark                Time (microseconds)"));
-//*
+/*
 	uint32_t usecHaD = 0;
 /*/
 	uint32_t usecHaD = testHaD();
@@ -382,9 +382,9 @@ taskENABLE_INTERRUPTS();
 	tft.setTextColor(TFT_GREEN); tft.setTextSize(2);
 	tft.print(F("Benchmark Complete!"));
 
-
-   tft.pushRotateZoom(&tft_lcd, tft_lcd.getPivotX(), tft_lcd.getPivotY(), i, (float)i/360, 0.1+(float)i/360);
-/*/
+/*
+   tft.pushRotateZoom(&tft_lcd, tft_lcd.getPivotX(), tft_lcd.getPivotY(), i, (float)i/360, (float)i/360);
+//
 //    tft.pushRotateZoom(&tft_lcd, tft_lcd.getPivotX(), tft_lcd.getPivotY(), (((float)i/20)-9.5)/10.0, ((((float)i+10)/20)-9.5)/10.0, 0.1+(float)i/100, 0);
       tft.pushRotateZoom(&tft_lcd
                         , i-20 // tft_lcd.getPivotX()

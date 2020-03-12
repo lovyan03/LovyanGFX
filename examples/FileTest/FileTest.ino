@@ -17,22 +17,20 @@ void setup()
   Serial.begin(115200);
   SD.begin(4, SPI, 20000000);  // 4=TFCARD_CS_PIN
 
-  //sprite.setPSRAM(true); // PSRAM使う場合
-  //sprite.setColorDepth(8); // 8 , 16 , 24
-  //sprite.createSprite(320,240);
-  //sprite.drawBmpFile(SD, "/m5stack_mono.bmp",      0,  10);
-  //sprite.drawBmpFile(SD, "/m5stack_16color.bmp", 110,  10);
-  //sprite.drawBmpFile(SD, "/m5stack_256color.bmp",220,  10);
-  //sprite.drawBmpFile(SD, "/m5stack_16bpp.bmp",     0, 130);
-  //sprite.drawBmpFile(SD, "/m5stack_24bpp.bmp",   110, 130);
-  //sprite.drawBmpFile(SD, "/m5stack_32bpp.bmp",   220, 130);
+  //sprite.setPsram(true); // PSRAM使う場合
+  sprite.setColorDepth(8); // 8 , 16 , 24
+  sprite.createSprite(320,240);
+  sprite.drawBmpFile(SD, "/m5stack_mono.bmp",      0,  10);
+  sprite.drawBmpFile(SD, "/m5stack_16color.bmp", 110,  10);
+  sprite.drawBmpFile(SD, "/m5stack_256color.bmp",220,  10);
+  sprite.drawBmpFile(SD, "/m5stack_16bpp.bmp",     0, 130);
+  sprite.drawBmpFile(SD, "/m5stack_24bpp.bmp",   110, 130);
+  sprite.drawBmpFile(SD, "/m5stack_32bpp.bmp",   220, 130);
 
   tft.init();
   tft.setRotation(1);
 
 //M5.begin();
-//M5.setJpgRenderer( true );
-
 
   const int BLK_PWM_CHANNEL = 7;
   ledcSetup(BLK_PWM_CHANNEL, 12000, 8);
@@ -50,7 +48,7 @@ void setup()
 
 void loop() {
   uint64_t ms = micros();
-/*
+
 //tft.fillScreen(++count<<4);
   sprite.pushSprite(random(-20, 20), random(-20, 20), 0xFFFFFFFF);
   //sprite.pushSprite(random(-20, 20), random(-20, 20));
@@ -62,7 +60,7 @@ void loop() {
   tft.drawBmpFile(SD, "/m5stack_24bpp.bmp",   110, 130);
   tft.drawBmpFile(SD, "/m5stack_32bpp.bmp",   220, 130);
 //*/
-//*
+/*
   tft.drawJpgFile(SD, "/umauma/image_001.jpg" , 0, 0); // , -10,  -5);
   tft.drawJpgFile(SD, "/umauma/image_002.jpg" , 0, 0); // ,  -5, -10);
   tft.drawJpgFile(SD, "/umauma/image_003.jpg" , 0, 0); // ,   0, -10);

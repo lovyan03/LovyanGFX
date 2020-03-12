@@ -3,9 +3,9 @@
  #include <AXP192.h>
 #endif
 
-#include <LGFX_TFT_eSPI.hpp>
 //#include <TFT_eSPI.h>
 //#include <M5Stack.h>
+#include <LGFX_TFT_eSPI.hpp>
 #include <driver/ledc.h>
 
 static TFT_eSPI tft;
@@ -149,18 +149,26 @@ void setup(void)
 //  tft.startWrite();
 }
 
-static uint32_t count = 0;
+static uint32_t count = 28800;
 void loop(void)
 {
-  uint64_t timer = micros();
   count++;
-  if ( count == 36000 ) count = 0;
+  if ( count == 288000 ) count = 0;
+
+  for (int j = 0; j < 4; j++) {
+    for (int i = 0; i < (1<<(1<<(j))); i++) {
+      buffers[j]->setPaletteColor(i, ~count, count>>(i >> j), count>>i);
+      items[j]->setPaletteColor(i, count>>i, count>>(i >> j), ~count);
+    }
+  }
+
+  uint64_t timer = micros();
   for (int x = 0; x < 8; x++) {
     for (int y = 0; y < 8; y++) {
       auto buf = buffers[y];
       auto bw = buf->width();
       auto bh = buf->height();
-      if (y < 4) {
+      if (y < 4) { // palette mode
         for (int bx = 0; bx < bw; bx++) {
           buf->drawFastVLine( bx
                             , 0
@@ -189,17 +197,17 @@ void loop(void)
       buf->drawRect(0, 0, bw, bh, 0x5555);
       buf->drawFastVLine(bpx, 0, bh, 0xFFFF);
       buf->drawFastHLine(0, bpy, bw, 0xFFFF);
-
-items[x]->pushRotateZoom(buf, bpx, bpy, 45/16, 1.0, 1.0   );
 /*
+items[x]->pushRotateZoom(buf, bpx, bpy, 45/16, 1.0, 1.0   );
+/*/
 //items[x]->setPivot(count & 31, count & 31);
 //if ((count/20)&1) items[x]->pushRotateZoom(buf, -12 + (count&63), -12 + (count&63), (float)count*5, 1.0, 1.0);
 //else              items[x]->pushRotateZoom(buf, -12 + (count&63), -12 + (count&63), (float)count*5, 1.0, 1.0, 0);
       switch ((count>>6)&3) {
       case 0:  items[x]->pushRotateZoom(buf, bpx, bpy, (float)count*45/16, 1.0, 1.0   ); break;
       case 2:  items[x]->pushRotateZoom(buf, bpx, bpy, (float)count*45/16, 1.0, 1.0, 0); break;
-      case 1:  items[x]->pushSprite(buf, bpx-(items[x]->getPivotX())+((count+32) & 63)-32, bpy-(items[x]->getPivotY())+((count+32) & 63)-32   ); break;
-      case 3:  items[x]->pushSprite(buf, bpx-(items[x]->getPivotX())+((count+32) & 63)-32, bpy-(items[x]->getPivotY())+((count+32) & 63)-32, 0); break;
+      case 1:  items[x]->pushSprite(buf, bpx-(items[x]->getPivotX())+((count+32) & 63)-31, bpy-(items[x]->getPivotY())+((count+32) & 63)-31   ); break;
+      case 3:  items[x]->pushSprite(buf, bpx-(items[x]->getPivotX())+((count+32) & 63)-31, bpy-(items[x]->getPivotY())+((count+32) & 63)-31, 0); break;
       }
 /*
       buf->scroll( 0, 1);
