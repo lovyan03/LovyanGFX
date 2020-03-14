@@ -133,7 +133,46 @@ namespace lgfx {
   };
 }
 
-class TFT_eSPI : public lgfx::LGFX_SPI<lgfx::LGFX_Config> {};
-typedef lgfx::LGFXSprite TFT_eSprite;
+class TFT_eSPI : public lgfx::LGFX_SPI<lgfx::LGFX_Config> {
+public:
+  void drawCircleHelper( int32_t x0, int32_t y0, int32_t r, uint8_t cornername, uint32_t color)
+  {
+    int32_t f     = 1 - r;
+    int32_t ddF_x = 1;
+    int32_t ddF_y = -2 * r;
+    int32_t x     = 0;
+
+    while (x < r) {
+      if (f >= 0) {
+        r--;
+        ddF_y += 2;
+        f     += ddF_y;
+      }
+      x++;
+      ddF_x += 2;
+      f     += ddF_x;
+      if (cornername & 0x4) {
+        drawPixel(x0 + x, y0 + r, color);
+        drawPixel(x0 + r, y0 + x, color);
+      }
+      if (cornername & 0x2) {
+        drawPixel(x0 + x, y0 - r, color);
+        drawPixel(x0 + r, y0 - x, color);
+      }
+      if (cornername & 0x8) {
+        drawPixel(x0 - r, y0 + x, color);
+        drawPixel(x0 - x, y0 + r, color);
+      }
+      if (cornername & 0x1) {
+        drawPixel(x0 - r, y0 - x, color);
+        drawPixel(x0 - x, y0 - r, color);
+      }
+    }
+  }
+};
+class TFT_eSprite : public lgfx::LGFXSprite {
+public:
+  void* frameBuffer(uint8_t dummy) { return buffer(); }
+}
 
 #endif

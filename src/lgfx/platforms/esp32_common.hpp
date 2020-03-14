@@ -85,13 +85,15 @@ namespace lgfx
     return bestpre << 18 | bestn << 12 | ((bestn-1)>>1) << 6 | bestn;
   }
 
-  static void initGPIO(int pin, gpio_mode_t mode = GPIO_MODE_OUTPUT) {
+  static void initGPIO(int pin, gpio_mode_t mode = GPIO_MODE_OUTPUT, bool pullup = false, bool pulldown = false) {
     if (pin == -1) return;
 #ifndef ARDUINO
     uint8_t pm = 0;
     if (mode & GPIO_MODE_DEF_INPUT)  pm |= INPUT;
     if (mode & GPIO_MODE_DEF_OUTPUT) pm |= OUTPUT;
     if (mode & GPIO_MODE_DEF_OD)     pm |= OPEN_DRAIN;
+    if (pullup)                      pm |= PULLUP;
+    if (pulldown)                    pm |= PULLDOWN;
     pinMode(pin, pm);
 #else
     if (rtc_gpio_is_valid_gpio((gpio_num_t)pin)) rtc_gpio_deinit((gpio_num_t)pin);
@@ -99,8 +101,8 @@ namespace lgfx
     io_conf.intr_type = GPIO_INTR_DISABLE;
     io_conf.mode = mode;
     io_conf.pin_bit_mask = (uint64_t)1 << pin;
-    io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
-    io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
+    io_conf.pull_down_en = pulldown ? GPIO_PULLDOWN_ENABLE : GPIO_PULLDOWN_DISABLE;
+    io_conf.pull_up_en = pullup ? GPIO_PULLUP_ENABLE : GPIO_PULLUP_DISABLE;
     gpio_config(&io_conf);
 #endif
   }

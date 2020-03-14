@@ -143,7 +143,7 @@ namespace lgfx
       static constexpr bool spi_3wire = true;
       static constexpr int spi_cs =  5;
       static constexpr int spi_dc = 21;
-      static constexpr int rotation = 0;
+      static constexpr int rotation = 1;
       static constexpr int gpio_bl = 14;
       static constexpr int pwm_ch_bl = 7;
     };
