@@ -529,6 +529,16 @@ namespace lgfx
       endWrite();
     }
 
+    __attribute__ ((always_inline)) inline
+    void drawGradientHLine( int32_t x, int32_t y, int32_t w, bgr888_t colorstart, bgr888_t colorend ) {
+      drawGradientLine( x, y, x + w - 1, y, colorstart, colorend );
+    }
+
+    __attribute__ ((always_inline)) inline
+    void drawGradientVLine( int32_t x, int32_t y, int32_t h, bgr888_t colorstart, bgr888_t colorend ) {
+      drawGradientLine( x, y, x, y + h - 1, colorstart, colorend );
+    }
+
     void drawGradientLine( int32_t x0, int32_t y0, int32_t x1, int32_t y1, bgr888_t colorstart, bgr888_t colorend )
     {
       if ( colorstart == colorend || (x0 == x1 && y0 == y1)) {
@@ -549,20 +559,20 @@ namespace lgfx
         std::swap(colorstart, colorend);
       }
 
-      int32_t dx = x1 - x0, dy = abs(y1 - y0);;
+      int32_t dx = x1 - x0;
       int32_t err = dx >> 1;
+      int32_t dy = abs(y1 - y0);
       int32_t ystep = (y0 < y1) ? 1 : -1;
 
-      int32_t diff_x = x1 - x0;
       int32_t diff_r = colorend.r - colorstart.r;
       int32_t diff_g = colorend.g - colorstart.g;
       int32_t diff_b = colorend.b - colorstart.b;
 
       startWrite();
       for (int32_t x = x0; x <= x1; x++) {
-        setColor(color888( (x - x0) * diff_r / diff_x + colorstart.r
-                         , (x - x0) * diff_g / diff_x + colorstart.g
-                         , (x - x0) * diff_b / diff_x + colorstart.b));
+        setColor(color888( (x - x0) * diff_r / dx + colorstart.r
+                         , (x - x0) * diff_g / dx + colorstart.g
+                         , (x - x0) * diff_b / dx + colorstart.b));
         if (steep) _drawPixel(y0, x);
         else       _drawPixel(x, y0);
         err -= dy;
@@ -667,18 +677,18 @@ namespace lgfx
     template<typename T> void pushImage( int32_t x, int32_t y, int32_t w, int32_t h, const bgr888_t* data                      , const uint8_t bits, const T* palette) { pixelcopy_t p(data, _write_conv.depth, (color_depth_t)bits, _palette_count, palette              ); push_image(x, y, w, h, &p); }
     template<typename T> void pushImage( int32_t x, int32_t y, int32_t w, int32_t h, const bgr888_t* data, uint32_t transparent, const uint8_t bits, const T* palette) { pixelcopy_t p(data, _write_conv.depth, (color_depth_t)bits, _palette_count, palette, transparent ); push_image(x, y, w, h, &p); }
 
-    void pushImage(int32_t x, int32_t y, int32_t w, int32_t h, const uint16_t* data, uint16_t transp = -1)
+    void pushImage(int32_t x, int32_t y, int32_t w, int32_t h, const uint16_t* data, uint32_t transp = ~0)
     {
-      pixelcopy_t p(data, _write_conv.depth, rgb565_2Byte, _palette_count, nullptr, transp == -1 ? -1 : _write_conv.convert(transp));
+      pixelcopy_t p(data, _write_conv.depth, rgb565_2Byte, _palette_count, nullptr, transp == ~0 ? ~0 : _write_conv.convert((uint16_t)transp));
       if (_swapBytes && !_palette_count && _write_conv.depth >= 8) {
         p.no_convert = false;
         p.fp_copy = pixelcopy_t::get_fp_normalcopy<rgb565_t>(_write_conv.depth);
       }
       push_image(x, y, w, h, &p);
     }
-    void pushImage(int32_t x, int32_t y, int32_t w, int32_t h, const void* data, uint32_t transp = -1)
+    void pushImage(int32_t x, int32_t y, int32_t w, int32_t h, const void* data, uint32_t transp = ~0)
     {
-      pixelcopy_t p(data, _write_conv.depth, rgb888_3Byte, _palette_count, nullptr, transp == -1 ? -1 : _write_conv.convert(transp));
+      pixelcopy_t p(data, _write_conv.depth, rgb888_3Byte, _palette_count, nullptr, transp == ~0 ? ~0 : _write_conv.convert(transp));
       if (_swapBytes && !_palette_count && _write_conv.depth >= 8) {
         p.no_convert = false;
         p.fp_copy = pixelcopy_t::get_fp_normalcopy<rgb888_t>(_write_conv.depth);
@@ -691,18 +701,18 @@ namespace lgfx
     template<typename T> void pushImageDMA( int32_t x, int32_t y, int32_t w, int32_t h, const bgr888_t* data                      , const uint8_t bits, const T* palette) { pixelcopy_t p(data, _write_conv.depth, (color_depth_t)bits, _palette_count, palette              ); push_image(x, y, w, h, &p, true); }
     template<typename T> void pushImageDMA( int32_t x, int32_t y, int32_t w, int32_t h, const bgr888_t* data, uint32_t transparent, const uint8_t bits, const T* palette) { pixelcopy_t p(data, _write_conv.depth, (color_depth_t)bits, _palette_count, palette, transparent ); push_image(x, y, w, h, &p, true); }
 
-    void pushImageDMA(int32_t x, int32_t y, int32_t w, int32_t h, const uint16_t* data, uint16_t transp = -1)
+    void pushImageDMA(int32_t x, int32_t y, int32_t w, int32_t h, const uint16_t* data, uint32_t transp = ~0)
     {
-      pixelcopy_t p(data, _write_conv.depth, rgb565_2Byte, _palette_count, nullptr, transp == -1 ? -1 : _write_conv.convert(transp));
+      pixelcopy_t p(data, _write_conv.depth, rgb565_2Byte, _palette_count, nullptr, transp == ~0 ? ~0 : _write_conv.convert((uint16_t)transp));
       if (_swapBytes && !_palette_count && _write_conv.depth >= 8) {
         p.no_convert = false;
         p.fp_copy = pixelcopy_t::get_fp_normalcopy<rgb565_t>(_write_conv.depth);
       }
       push_image(x, y, w, h, &p, true);
     }
-    void pushImageDMA(int32_t x, int32_t y, int32_t w, int32_t h, const void* data, uint32_t transp = -1)
+    void pushImageDMA(int32_t x, int32_t y, int32_t w, int32_t h, const void* data, uint32_t transp = ~0)
     {
-      pixelcopy_t p(data, _write_conv.depth, rgb888_3Byte, _palette_count, nullptr, transp == -1 ? -1 : _write_conv.convert(transp));
+      pixelcopy_t p(data, _write_conv.depth, rgb888_3Byte, _palette_count, nullptr, transp == ~0 ? ~0 : _write_conv.convert(transp));
       if (_swapBytes && !_palette_count && _write_conv.depth >= 8) {
         p.no_convert = false;
         p.fp_copy = pixelcopy_t::get_fp_normalcopy<rgb888_t>(_write_conv.depth);
@@ -2240,9 +2250,14 @@ ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
 
 #endif
 
-    void drawJpg(const uint8_t *src, uint32_t len, int16_t x=0, int16_t y=0, int16_t maxWidth=0, int16_t maxHeight=0, int16_t offX=0, int16_t offY=0, jpeg_div_t scale=JPEG_DIV_NONE) {
+    void drawBmp(const uint8_t *bmp_data, uint32_t bmp_len, int32_t x, int32_t y) {
       PointerWrapper data;
-      data.set(src, len);
+      data.set(bmp_data, bmp_len);
+      draw_bmp(&data, x, y);
+    }
+    void drawJpg(const uint8_t *jpg_data, uint32_t jpg_len, int16_t x=0, int16_t y=0, int16_t maxWidth=0, int16_t maxHeight=0, int16_t offX=0, int16_t offY=0, jpeg_div_t scale=JPEG_DIV_NONE) {
+      PointerWrapper data;
+      data.set(jpg_data, jpg_len);
       draw_jpg(&data, x, y, maxWidth, maxHeight, offX, offY, scale);
     }
 

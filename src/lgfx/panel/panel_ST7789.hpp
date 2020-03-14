@@ -116,22 +116,24 @@ namespace lgfx
   {
   public:
     Panel_TTGO_TWatch() : Panel_ST7789_Common() {
-      setConfig<cfg_t>(); 
+      setConfig<cfg_t>();
     }
 
   private:
     struct cfg_t {
-      static constexpr int spi_mode = 0;
-      static constexpr int spi_mode_read = 1;
-      static constexpr int spi_cs =  5;
-      static constexpr int spi_dc = 27;
       static constexpr uint32_t freq_write = 80000000;
       static constexpr uint32_t freq_read  = 20000000;
       static constexpr uint32_t freq_fill  = 80000000;
-      static constexpr bool spi_3wire   = true;
-      static constexpr bool invert      = true;
+      static constexpr bool spi_3wire = true;
+      static constexpr int spi_mode_read = 1;
+      static constexpr int spi_mode = 0;
+      static constexpr int spi_cs =  5;
+      static constexpr int spi_dc = 27;
+      static constexpr bool invert = true;
       static constexpr int panel_width  = 240;
       static constexpr int panel_height = 240;
+      static constexpr int gpio_bl  = 12;
+      static constexpr int pwm_ch_bl = 7;
     };
   };
 }

@@ -182,7 +182,7 @@ namespace lgfx
       if (!_panel) return;
       auto gpio_rst = _panel->gpio_rst;
       if (gpio_rst >= 0) {
-        gpioInit((gpio_num_t)gpio_rst);
+        initGPIO((gpio_num_t)gpio_rst);
         auto tmp = get_gpio_lo_reg(gpio_rst);
         auto mask = (1 << (gpio_rst & 31));
         *tmp = mask;
@@ -238,8 +238,15 @@ namespace lgfx
       commandList(_panel->getInvertDisplayCommands((uint8_t*)_regbuf, i));
     }
 
-    void flush() {
+    void display() {
       wait_spi();
+    }
+
+    void setBrightness(uint8_t brightness) {
+      auto pwm_ch_bl = _panel->pwm_ch_bl;
+      if (pwm_ch_bl >= 0) { // PWM
+        setPWMDuty(pwm_ch_bl, brightness);
+      }
     }
 
     void writecommand(uint_fast8_t cmd)
@@ -307,14 +314,29 @@ namespace lgfx
       _gpio_reg_dc_l = get_gpio_lo_reg(spi_dc);
       _mask_reg_dc = (spi_dc < 0) ? 0 : (1 << (spi_dc & 31));
       dc_h();
-      gpioInit((gpio_num_t)spi_dc);
+      initGPIO((gpio_num_t)spi_dc);
 
       int32_t spi_cs = _panel->spi_cs;
       _gpio_reg_cs_h = get_gpio_hi_reg(spi_cs);
       _gpio_reg_cs_l = get_gpio_lo_reg(spi_cs);
       _mask_reg_cs = (spi_cs < 0) ? 0 : (1 << (spi_cs & 31));
       cs_h();
-      gpioInit((gpio_num_t)spi_cs);
+      initGPIO((gpio_num_t)spi_cs);
+
+
+      gpio_num_t gpio_bl = (gpio_num_t)_panel->gpio_bl;
+      if (gpio_bl >= 0) { // Backlight control
+        auto pwm_ch_bl = _panel->pwm_ch_bl;
+        if (pwm_ch_bl < 0) { // nouse PWM
+          initGPIO(gpio_bl);
+          *(get_gpio_hi_reg(gpio_bl)) = (1 << (gpio_bl & 31));
+
+        } else {  // use PWM
+
+          initPWM(gpio_bl, pwm_ch_bl);
+
+        }
+      }
 
       postSetRotation();
       postSetColorDepth();

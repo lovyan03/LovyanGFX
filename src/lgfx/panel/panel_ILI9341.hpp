@@ -55,23 +55,23 @@ namespace lgfx
 
     struct CMD : public PanelIlitekCommon::CommandCommon
     {
-      static constexpr uint_fast8_t FRMCTR1 = 0xB1;
-      static constexpr uint_fast8_t FRMCTR2 = 0xB2;
-      static constexpr uint_fast8_t FRMCTR3 = 0xB3;
-      static constexpr uint_fast8_t INVCTR  = 0xB4;
-      static constexpr uint_fast8_t DFUNCTR = 0xB6;
-      static constexpr uint_fast8_t PWCTR1  = 0xC0;
-      static constexpr uint_fast8_t PWCTR2  = 0xC1;
-      static constexpr uint_fast8_t PWCTR3  = 0xC2;
-      static constexpr uint_fast8_t PWCTR4  = 0xC3;
-      static constexpr uint_fast8_t PWCTR5  = 0xC4;
-      static constexpr uint_fast8_t VMCTR1  = 0xC5;
-      static constexpr uint_fast8_t VMCTR2  = 0xC7;
-      static constexpr uint_fast8_t GMCTRP1 = 0xE0; // Positive Gamma Correction (E0h)
-      static constexpr uint_fast8_t GMCTRN1 = 0xE1; // Negative Gamma Correction (E1h)
+      static constexpr uint8_t FRMCTR1 = 0xB1;
+      static constexpr uint8_t FRMCTR2 = 0xB2;
+      static constexpr uint8_t FRMCTR3 = 0xB3;
+      static constexpr uint8_t INVCTR  = 0xB4;
+      static constexpr uint8_t DFUNCTR = 0xB6;
+      static constexpr uint8_t PWCTR1  = 0xC0;
+      static constexpr uint8_t PWCTR2  = 0xC1;
+      static constexpr uint8_t PWCTR3  = 0xC2;
+      static constexpr uint8_t PWCTR4  = 0xC3;
+      static constexpr uint8_t PWCTR5  = 0xC4;
+      static constexpr uint8_t VMCTR1  = 0xC5;
+      static constexpr uint8_t VMCTR2  = 0xC7;
+      static constexpr uint8_t GMCTRP1 = 0xE0; // Positive Gamma Correction (E0h)
+      static constexpr uint8_t GMCTRN1 = 0xE1; // Negative Gamma Correction (E1h)
 
-      static constexpr uint_fast8_t RDINDEX = 0xD9; // ili9341
-      static constexpr uint_fast8_t IDXRD   = 0xDD; // ILI9341 only, indexed control register read
+      static constexpr uint8_t RDINDEX = 0xD9; // ili9341
+      static constexpr uint8_t IDXRD   = 0xDD; // ILI9341 only, indexed control register read
     };
 
     const uint8_t* getInitCommands(uint8_t listno) const override {
@@ -153,16 +153,18 @@ namespace lgfx
     }
   private:
     struct cfg_t {
-    //static constexpr color_depth_t color_depth = rgb565_2Byte;
-    //static constexpr bool rgb_order = false;
-      static constexpr int rotation = 1;
-      static constexpr int spi_cs = 14;
-      static constexpr int spi_dc = 27;
-      static constexpr int gpio_rst = 33;
       static constexpr uint32_t freq_write = 40000000;
       static constexpr uint32_t freq_read  = 20000000;
       static constexpr uint32_t freq_fill  = 80000000;
+    //static constexpr color_depth_t color_depth = rgb565_2Byte;
+    //static constexpr bool rgb_order = false;
       static constexpr bool spi_3wire = true;
+      static constexpr int spi_cs = 14;
+      static constexpr int spi_dc = 27;
+      static constexpr int rotation = 1;
+      static constexpr int gpio_rst = 33;
+      static constexpr int gpio_bl  = 32;
+      static constexpr bool pwm_ch_bl = 7;
     };
 
     const uint8_t* getInvertDisplayCommands(uint8_t* buf, bool invert) override {

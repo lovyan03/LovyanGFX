@@ -1,17 +1,3 @@
-This LovyanGFX library has been developed from the TFT_eSPI library:
-
-https://github.com/Bodmer/TFT_eSPI/
-
-This TFT_eSPI library has been developed from the Adafruit_GFX library:
-
-https://github.com/adafruit/Adafruit-GFX-Library
-
-It has been modified extensively to improve rendering speed on
-ESP8266 processors.  There follows the original library license text.
-
-
-Original text follows:
-
 Software License Agreement (BSD License)
 
 Copyright (c) 2012 Adafruit Industries.  All rights reserved.

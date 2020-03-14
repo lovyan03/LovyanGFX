@@ -20,8 +20,9 @@ namespace lgfx
   MEMBER_DETECTOR(spi_mode_read, get_spi_mode_read, get_spi_mode_read_impl, uint8_t)
   MEMBER_DETECTOR(spi_cs       , get_spi_cs       , get_spi_cs_impl       , int)
   MEMBER_DETECTOR(spi_dc       , get_spi_dc       , get_spi_dc_impl       , int)
-  MEMBER_DETECTOR(gpio_bl      , get_gpio_bl      , get_gpio_bl_impl      , int)
   MEMBER_DETECTOR(gpio_rst     , get_gpio_rst     , get_gpio_rst_impl     , int)
+  MEMBER_DETECTOR(gpio_bl      , get_gpio_bl      , get_gpio_bl_impl      , int)
+  MEMBER_DETECTOR(pwm_ch_bl    , get_pwm_ch_bl    , get_pwm_ch_bl_impl    , int)
   MEMBER_DETECTOR(freq_write   , get_freq_write   , get_freq_write_impl   , uint32_t)
   MEMBER_DETECTOR(freq_read    , get_freq_read    , get_freq_read_impl    , uint32_t)
   MEMBER_DETECTOR(freq_fill    , get_freq_fill    , get_freq_fill_impl    , uint32_t)
@@ -56,8 +57,10 @@ namespace lgfx
       spi_mode_read = get_spi_mode_read<CFG, get_spi_mode<CFG, 0>::value>::value;
       spi_cs        = get_spi_cs       <CFG, -1>::value;
       spi_dc        = get_spi_dc       <CFG, -1>::value;
-      gpio_bl       = get_gpio_bl      <CFG, -1>::value;
       gpio_rst      = get_gpio_rst     <CFG, -1>::value;
+      gpio_bl       = get_gpio_bl      <CFG, -1>::value;
+      pwm_ch_bl     = get_pwm_ch_bl    <CFG, -1>::value;
+
       freq_write    = get_freq_write   <CFG,  0>::value;
       freq_read     = get_freq_read    <CFG,  0>::value;
       freq_fill     = get_freq_fill    <CFG,  0>::value;
@@ -146,6 +149,8 @@ namespace lgfx
     int_fast8_t spi_dc;
     int_fast8_t gpio_rst;
     int_fast8_t gpio_bl;
+    int_fast8_t pwm_ch_bl;
+
     uint_fast8_t spi_mode_read;
     uint_fast8_t spi_mode;
     uint_fast8_t rotation;

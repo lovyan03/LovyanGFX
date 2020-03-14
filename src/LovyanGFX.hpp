@@ -20,7 +20,6 @@ Author
 
 #include "lgfx/lgfx_common.hpp"  // common include (always include)
 
-//#include "lgfx/fontload.hpp"
 #include "lgfx/gfxfont.hpp"      // GFX font support (optional)
 
 #include "lgfx/utility/tjpgdClass.h" // JPEG decode support (optional)
@@ -32,7 +31,6 @@ Author
 #include "lgfx/panel/panel_SSD1351.hpp"
 #include "lgfx/panel/panel_ST7789.hpp"    // TTGO T-Watch
 #include "lgfx/panel/panel_ST7735.hpp"    // M5StickC
-
 
 
 #if defined (ESP32) || (CONFIG_IDF_TARGET_ESP32)

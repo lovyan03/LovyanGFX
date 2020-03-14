@@ -13,8 +13,10 @@
   #include <soc/spi_struct.h>
 
   #include <esp32-hal-cpu.h>
+  #include <esp32-hal-ledc.h>
   #include <pgmspace.h>
 #else
+  #include <driver/ledc.h>
 
   #ifndef pgm_read_byte
     #define pgm_read_byte(addr) (*(const unsigned char *)(addr))
@@ -83,9 +85,9 @@ namespace lgfx
     return bestpre << 18 | bestn << 12 | ((bestn-1)>>1) << 6 | bestn;
   }
 
-  static void gpioInit(gpio_num_t pin, gpio_mode_t mode = GPIO_MODE_OUTPUT) {
+  static void initGPIO(gpio_num_t pin, gpio_mode_t mode = GPIO_MODE_OUTPUT) {
     if (pin == -1) return;
-#ifdef ARDUINO
+#ifndef ARDUINO
     uint8_t pm = 0;
     if (mode & GPIO_MODE_DEF_INPUT)  pm |= INPUT;
     if (mode & GPIO_MODE_DEF_OUTPUT) pm |= OUTPUT;
@@ -103,9 +105,52 @@ namespace lgfx
 #endif
   }
 
+  static void initPWM(gpio_num_t pin, uint32_t pwm_ch, uint8_t duty = 128) {
+
+#ifdef ARDUINO
+
+    ledcSetup(pwm_ch, 12000, 8);
+    ledcAttachPin(pin, pwm_ch);
+    ledcWrite(pwm_ch, duty);
+
+#else
+
+    static ledc_channel_config_t ledc_channel;
+    {
+     ledc_channel.gpio_num   = pin;
+     ledc_channel.speed_mode = LEDC_HIGH_SPEED_MODE;
+     ledc_channel.channel    = (ledc_channel_t)pwm_ch;
+     ledc_channel.intr_type  = LEDC_INTR_DISABLE;
+     ledc_channel.timer_sel  = (ledc_timer_t)((pwm_ch >> 1) & 3);
+     ledc_channel.duty       = duty; // duty;
+     ledc_channel.hpoint     = 0;
+    };
+    ledc_channel_config(&ledc_channel);
+    static ledc_timer_config_t ledc_timer;
+    {
+      ledc_timer.speed_mode = LEDC_HIGH_SPEED_MODE;     // timer mode
+      ledc_timer.duty_resolution = (ledc_timer_bit_t)8; // resolution of PWM duty
+      ledc_timer.freq_hz = 12000;                        // frequency of PWM signal
+      ledc_timer.timer_num = ledc_channel.timer_sel;    // timer index
+    };
+    ledc_timer_config(&ledc_timer);
+
+#endif
+  }
+
+  static void setPWMDuty(uint32_t pwm_ch, uint8_t duty) {
+#ifdef ARDUINO
+    ledcWrite(pwm_ch, duty);
+#else
+    ledc_set_duty(LEDC_HIGH_SPEED_MODE, (ledc_channel_t)pwm_ch, duty);
+    ledc_update_duty(LEDC_HIGH_SPEED_MODE, (ledc_channel_t)pwm_ch);
+#endif
+  }
+
+
   template<uint8_t PIN, uint32_t MASK>
   struct ESP32PIN {
-    __attribute__ ((always_inline)) inline static void init(gpio_mode_t mode = GPIO_MODE_OUTPUT) { gpioInit((gpio_num_t)PIN, mode); }
+    __attribute__ ((always_inline)) inline static void init(gpio_mode_t mode = GPIO_MODE_OUTPUT) { initGPIO((gpio_num_t)PIN, mode); }
     __attribute__ ((always_inline)) inline static void enableOutput()  { if (PIN < 32) { GPIO.enable_w1ts = MASK; } else { GPIO.enable1_w1ts.val = MASK; } }
     __attribute__ ((always_inline)) inline static void disableOutput() { if (PIN < 32) { GPIO.enable_w1tc = MASK; } else { GPIO.enable1_w1tc.val = MASK; } }
     __attribute__ ((always_inline)) inline static void hi()    { if (PIN < 32) GPIO.out_w1ts = MASK; else GPIO.out1_w1ts.val = MASK; }
