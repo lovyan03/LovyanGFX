@@ -622,10 +622,8 @@ namespace lgfx
 
     uint16_t readPixel(int32_t x, int32_t y)
     {
-      if (x < 0 || (x >= _width) || y < 0 || (y >= _height)) return 0;
-
       pixelcopy_t p(nullptr, swap565_t::depth, _read_conv.depth, false, _palette);
-      uint16_t data;
+      uint16_t data = 0;
       read_rect(x, y, 1, 1, &data, &p);
       return __builtin_bswap16(data);
     }

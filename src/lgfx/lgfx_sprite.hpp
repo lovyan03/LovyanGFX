@@ -47,6 +47,7 @@ namespace lgfx
       _bitwidth = (w + _write_conv.x_mask) & (~(uint32_t)_write_conv.x_mask);
       _img = (uint8_t*)_mem_alloc((h * _bitwidth * _write_conv.bits >> 3) + 1);
       if (!_img) return nullptr;
+      if (0 == _write_conv.bytes) createPalette();
 
       _sw = _width = w;
       _clip_r = _xe = w - 1;
@@ -60,6 +61,7 @@ namespace lgfx
       _clip_l = _clip_t = _index = _sx = _sy = _xs = _ys = _xptr = _yptr = 0;
 
       clear();
+
       return _img;
     }
 
@@ -501,6 +503,7 @@ return;
       if (param->no_convert) {
         read_bytes((uint8_t*)dst, w * h * _read_conv.bytes);
       } else {
+        param->src_width = _bitwidth;
         read_pixels(dst, w * h, param);
       }
     }
