@@ -68,42 +68,37 @@ typedef lgfx::bgr888_t RGBColor;
 
 namespace lgfx {
 
+  struct LGFX_Config {
+
 #if defined(ARDUINO_M5Stack_Core_ESP32) || defined(ARDUINO_M5STACK_FIRE) // M5Stack
 
-  struct LGFX_Config {
     static const Panel_M5Stack panel;
     static constexpr spi_host_device_t spi_host = VSPI_HOST;
     static constexpr int dma_channel = 1;
     static constexpr int spi_mosi = 23;
     static constexpr int spi_miso = 19;
     static constexpr int spi_sclk = 18;
-  };
 
 #elif defined(ARDUINO_M5Stick_C) // M5Stick C
 
-  struct LGFX_Config {
     static const Panel_M5StickC panel;
     static constexpr spi_host_device_t spi_host = VSPI_HOST;
     static constexpr int dma_channel = 1;
     static constexpr int spi_mosi = 15;
     static constexpr int spi_miso = 14;
     static constexpr int spi_sclk = 13;
-  };
 
 #elif defined(ARDUINO_ODROID_ESP32) // ODROID-GO
 
-  struct LGFX_Config {
     static const Panel_ODROID_GO panel;
     static constexpr spi_host_device_t spi_host = VSPI_HOST;
     static constexpr int dma_channel = 1;
     static constexpr int spi_mosi = 23;
     static constexpr int spi_miso = 19;
     static constexpr int spi_sclk = 18;
-  };
 
 #elif defined(ARDUINO_T) // TTGO T-Watch
 
-  struct LGFX_Config {
     static const Panel_TTGO_TWatch panel;
     static constexpr spi_host_device_t spi_host = VSPI_HOST;
     static constexpr int dma_channel = 1;
@@ -112,28 +107,30 @@ namespace lgfx {
     static constexpr int spi_sclk = 18;
 //    static constexpr int gpio_rst = -1;
 //    static constexpr int gpio_bl  = 12;
-  };
 
 #elif defined ( ARDUINO_ESP32_DEV ) // ESP-WROVER-KIT
 
-  struct LGFX_Config {
+    struct Panel_Config {
+      static constexpr bool spi_3wire = false;
+      static constexpr int spi_cs   = 22;
+      static constexpr int spi_dc   = 21;
+      static constexpr int gpio_rst = 18;
+      static constexpr int gpio_bl  = 5;
+      static constexpr int pwm_ch_bl = 7;
+      static constexpr int freq_write = 40000000;
+      static constexpr int freq_read  = 20000000;
+      static constexpr int freq_fill  = 40000000;
+    };
+
+    static lgfx::Panel_ILI9341<Panel_Config> panel;
     static constexpr spi_host_device_t spi_host = VSPI_HOST;
-    static constexpr bool spi_3wire = false;
+    static constexpr int dma_channel = 1;
     static constexpr int spi_mosi = 23;
     static constexpr int spi_miso = 25;
     static constexpr int spi_sclk = 19;
-    static constexpr int spi_cs   = 22;
-    static constexpr int spi_dc   = 21;
-    static constexpr int gpio_rst = 18;
-    static constexpr int gpio_bl  = 5;
-    static constexpr int freq_write = 40000000;
-    static constexpr int freq_read  = 20000000;
-    static constexpr int freq_fill  = 40000000;
-    static lgfx::Panel_ILI9341_240x320 panel;
-  };
 
 #endif
-
+  };
 }
 
 class TFT_eSPI : public lgfx::LGFX_SPI<lgfx::LGFX_Config> {};

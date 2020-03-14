@@ -87,26 +87,27 @@ namespace lgfx
           CMD::PWCTR2, 1, 0x10,
           CMD::VMCTR1, 2, 0x3e,0x28,
           CMD::VMCTR2, 1, 0x86,
-  //      CMD::MADCTL, 1, 0xA8,
-  //      CMD::PIXSET, 1, (_bpp > 16) ? PIX::RGB666_3BYTE : PIX::RGB565_2BYTE,
           CMD::FRMCTR1,2, 0x00,0x18,
-          CMD::DFUNCTR,3, 0x08,0x82,0x27,
           0xF2       , 1, 0x00,
 
           CMD::GAMMASET,1, 0x01,  // Gamma set, curve 1
           CMD::GMCTRP1,15, 0x0F,0x31,0x2B,0x0C,0x0E,0x08,0x4E,0xF1,0x37,0x07,0x10,0x03,0x0E,0x09,0x00,
           CMD::GMCTRN1,15, 0x00,0x0E,0x14,0x03,0x11,0x07,0x31,0xC1,0x48,0x08,0x0F,0x0C,0x31,0x36,0x0F,
-
-          CMD::SLPOUT, 0,
           0xFF,0xFF, // end
       };
       static constexpr uint8_t list1[] = {
+          CMD::DFUNCTR,3, 0x08,0x82,0x27,
+          0xFF,0xFF, // end
+      };
+      static constexpr uint8_t list2[] = {
+          CMD::SLPOUT, 0,
           CMD::DISPON, 0,
           0xFF,0xFF, // end
       };
       switch (listno) {
       case 0: return list0;
       case 1: return list1;
+      case 2: return list2;
       default: return nullptr;
       }
     }
@@ -126,14 +127,25 @@ namespace lgfx
       setConfig<cfg_t>(); 
     }
   private:
+    const uint8_t* getInitCommands(uint8_t listno) const override {
+      static constexpr uint8_t list1[] = {
+          CMD::DFUNCTR,3, 0x0A,0xE2,0x27,
+          0xFF,0xFF, // end
+      };
+      if (listno == 1)  return list1;
+      return Panel_ILI9341_Common::getInitCommands(listno);
+    }
+
     struct cfg_t {
-      static constexpr int spi_cs =  5;
-      static constexpr int spi_dc = 21;
-      static constexpr int gpio_bl = 14;
       static constexpr uint32_t freq_write = 40000000;
-      static constexpr uint32_t freq_read  = 16000000;
+      static constexpr uint32_t freq_read  = 20000000;
       static constexpr uint32_t freq_fill  = 80000000;
       static constexpr bool spi_3wire = true;
+      static constexpr int spi_cs =  5;
+      static constexpr int spi_dc = 21;
+      static constexpr int rotation = 0;
+      static constexpr int gpio_bl = 14;
+      static constexpr int pwm_ch_bl = 7;
     };
   };
 
@@ -164,7 +176,7 @@ namespace lgfx
       static constexpr int rotation = 1;
       static constexpr int gpio_rst = 33;
       static constexpr int gpio_bl  = 32;
-      static constexpr bool pwm_ch_bl = 7;
+      static constexpr int pwm_ch_bl = 7;
     };
 
     const uint8_t* getInvertDisplayCommands(uint8_t* buf, bool invert) override {

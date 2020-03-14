@@ -20,7 +20,7 @@ namespace lgfx
       cmd_rddid  = CommandCommon::RDDID;
       read_depth = rgb888_3Byte;
       len_dummy_read_pixel = 8;
-      len_dummy_read_rddid = 0;
+      len_dummy_read_rddid = 1;
       len_setwindow = 32;
     }
 
@@ -46,25 +46,25 @@ namespace lgfx
     }
 
     struct CommandCommon {
-    static constexpr uint_fast8_t NOP     = 0x00;
-    static constexpr uint_fast8_t SWRESET = 0x01;
-    static constexpr uint_fast8_t RDDID   = 0x04;
-    static constexpr uint_fast8_t RDDST   = 0x09;
-    static constexpr uint_fast8_t SLPIN   = 0x10;
-    static constexpr uint_fast8_t SLPOUT  = 0x11;
-    static constexpr uint_fast8_t PTLON   = 0x12;
-    static constexpr uint_fast8_t NORON   = 0x13;
-    static constexpr uint_fast8_t INVOFF  = 0x20;
-    static constexpr uint_fast8_t INVON   = 0x21;
-    static constexpr uint_fast8_t GAMMASET= 0x26;
-    static constexpr uint_fast8_t DISPOFF = 0x28;
-    static constexpr uint_fast8_t DISPON  = 0x29;
-    static constexpr uint_fast8_t CASET   = 0x2A;
-    static constexpr uint_fast8_t RASET   = 0x2B; static constexpr uint_fast8_t PASET = 0x2B;
-    static constexpr uint_fast8_t RAMWR   = 0x2C;
-    static constexpr uint_fast8_t RAMRD   = 0x2E;
-    static constexpr uint_fast8_t MADCTL  = 0x36;
-    static constexpr uint_fast8_t COLMOD  = 0x3A; static constexpr uint_fast8_t PIXSET = 0x3A;
+    static constexpr uint8_t NOP     = 0x00;
+    static constexpr uint8_t SWRESET = 0x01;
+    static constexpr uint8_t RDDID   = 0x04;
+    static constexpr uint8_t RDDST   = 0x09;
+    static constexpr uint8_t SLPIN   = 0x10;
+    static constexpr uint8_t SLPOUT  = 0x11;
+    static constexpr uint8_t PTLON   = 0x12;
+    static constexpr uint8_t NORON   = 0x13;
+    static constexpr uint8_t INVOFF  = 0x20;
+    static constexpr uint8_t INVON   = 0x21;
+    static constexpr uint8_t GAMMASET= 0x26;
+    static constexpr uint8_t DISPOFF = 0x28;
+    static constexpr uint8_t DISPON  = 0x29;
+    static constexpr uint8_t CASET   = 0x2A;
+    static constexpr uint8_t RASET   = 0x2B; static constexpr uint_fast8_t PASET = 0x2B;
+    static constexpr uint8_t RAMWR   = 0x2C;
+    static constexpr uint8_t RAMRD   = 0x2E;
+    static constexpr uint8_t MADCTL  = 0x36;
+    static constexpr uint8_t COLMOD  = 0x3A; static constexpr uint_fast8_t PIXSET = 0x3A;
     };
 
     uint8_t _madctl_rgb = 0x00;

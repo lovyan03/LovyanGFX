@@ -14,6 +14,10 @@
  */
 
 
+#include <LGFX_TFT_eSPI.hpp>
+//#include <TFT_eSPI.h>
+//#include <M5Stack.h>
+
 #if defined(ARDUINO_M5Stick_C)
  #include <AXP192.h>
 #elif defined(ARDUINO_M5Stack_Core_ESP32) || defined(ARDUINO_M5STACK_FIRE)
@@ -22,12 +26,8 @@
 //#include <SD.h>
 #endif
 
-#include <LGFX_TFT_eSPI.hpp>
-//#include <TFT_eSPI.h>
-//#include <M5Stack.h>
-#include <driver/ledc.h>
-
 static TFT_eSPI tft_lcd;
+//static auto &tft_lcd ( M5.Lcd );
 static TFT_eSprite tft(&tft_lcd);
 
 
@@ -42,46 +42,6 @@ void setup() {
  #ifdef _SD_H_
   SD.begin(4, SPI, 20000000);
  #endif
-
- #define GPIO_BL 32
-#elif defined ( ARDUINO_T ) // T-Watch
- #define GPIO_BL 12
-#elif defined ( ARDUINO_ESP32_DEV )
- #define GPIO_BL 5
-#endif
-
-#ifdef GPIO_BL
-  pinMode(GPIO_BL, OUTPUT);
-
-  //lgfx::TPin<GPIO_BL>::init();
-  //lgfx::TPin<GPIO_BL>::hi();
-
-  const int BLK_PWM_CHANNEL = 7;
-  ledcSetup(BLK_PWM_CHANNEL, 12000, 8);
-  ledcAttachPin(GPIO_BL, BLK_PWM_CHANNEL);
-  ledcWrite(BLK_PWM_CHANNEL, 128);
-/*
-  ledc_timer_config_t ledc_timer;
-  {
-    ledc_timer.duty_resolution = LEDC_TIMER_13_BIT; // resolution of PWM duty
-    ledc_timer.freq_hz = 5000;                      // frequency of PWM signal
-    ledc_timer.speed_mode = LEDC_HIGH_SPEED_MODE;   // timer mode
-    ledc_timer.timer_num = LEDC_TIMER_0;            // timer index
-  };
-  ledc_timer_config(&ledc_timer);
-
-  ledc_channel_config_t ledc_channel;
-  {
-   ledc_channel.channel    = LEDC_CHANNEL_7;
-   ledc_channel.intr_type  = LEDC_INTR_DISABLE;
-   ledc_channel.duty       = 5000;
-   ledc_channel.gpio_num   = GPIO_BL;
-   ledc_channel.speed_mode = LEDC_HIGH_SPEED_MODE;
-   ledc_channel.hpoint     = 0;
-   ledc_channel.timer_sel  = LEDC_TIMER_0;
-  };
-  ledc_channel_config(&ledc_channel);
-//*/
 #endif
 
 
@@ -102,10 +62,11 @@ void setup() {
   Serial.println(""); Serial.println("");
 #ifdef LOVYANGFX_HPP_
   Serial.println(F("Lovyan's LovyanGFX library Test!")); 
-//Serial.printf("LovyanGFX mosi:%d  miso:%d  sclk:%d  cs:%d  dc:%d  rst:%d \r\n", LGFX_Config::spi_mosi, LGFX_Config::spi_miso, LGFX_Config::spi_sclk, LGFX_Config::spi_cs, LGFX_Config::spi_dc, LGFX_Config::gpio_rst);
 #else
   Serial.println(F("TFT_eSPI library Test!")); 
 #endif
+
+  //M5.begin();
   tft_lcd.init();
 
 
@@ -153,7 +114,7 @@ void loop(void)
 	tft_lcd.startWrite();
 
 	Serial.println(F("Benchmark                Time (microseconds)"));
-/*
+//*
 	uint32_t usecHaD = 0;
 /*/
 	uint32_t usecHaD = testHaD();

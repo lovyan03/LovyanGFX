@@ -888,11 +888,10 @@ namespace lgfx
 
     void copyRect(int32_t dst_x, int32_t dst_y, int32_t w, int32_t h, int32_t src_x, int32_t src_y)
     {
-      //if ((src_x >= _width) || (dst_x >= _width)) return;
       if (src_x < dst_x) { if (src_x < 0) { w += src_x; dst_x -= src_x; src_x = 0; } if (w > _width  - dst_x)  w = _width  - dst_x; }
       else               { if (dst_x < 0) { w += dst_x; src_x -= dst_x; dst_x = 0; } if (w > _width  - src_x)  w = _width  - src_x; }
       if (w < 1) return;
-      //if ((src_y >= _height) || (dst_y >= _height)) return;
+
       if (src_y < dst_y) { if (src_y < 0) { h += src_y; dst_y -= src_y; src_y = 0; } if (h > _height - dst_y)  h = _height - dst_y; }
       else               { if (dst_y < 0) { h += dst_y; src_y -= dst_y; dst_y = 0; } if (h > _height - src_y)  h = _height - src_y; }
       if (h < 1) return;
@@ -954,10 +953,7 @@ namespace lgfx
       va_copy(copy, arg);
       size_t len = vsnprintf(temp, sizeof(loc_buf), format, copy);
       va_end(copy);
-//    if (len < 0) {
-//      va_end(arg);
-//      return 0;
-//    };
+
       if (len >= sizeof(loc_buf)){
         temp = (char*) malloc(len+1);
         if (temp == nullptr) {
@@ -1028,7 +1024,7 @@ namespace lgfx
           if (_cursor_y < - yo) _cursor_y = - yo;
         }
 //      _cursor_x += drawChar(uniCode, _cursor_x, _cursor_y);
-        _cursor_x += (fpDrawCharClassic)(this, _cursor_x, _cursor_y, uniCode, _text_fore_rgb888, _text_back_rgb888, _textsize_x, _textsize_y);
+        _cursor_x += (fpDrawChar)(this, _cursor_x, _cursor_y, uniCode, _text_fore_rgb888, _text_back_rgb888, _textsize_x, _textsize_y);
       }
 
       return 1;
@@ -1121,8 +1117,8 @@ namespace lgfx
           uniCode = decodeUTF8(uniCode);
           if (uniCode == 0) continue;
         }
-  //      sumX += drawChar(uniCode, x + sumX, y);
-        sumX += (fpDrawCharClassic)(this, x + sumX, y, uniCode, _text_fore_rgb888, _text_back_rgb888, _textsize_x, _textsize_y);
+
+        sumX += (fpDrawChar)(this, x + sumX, y, uniCode, _text_fore_rgb888, _text_back_rgb888, _textsize_x, _textsize_y);
       } while (*(++string));
       endWrite();
 
@@ -1252,11 +1248,11 @@ namespace lgfx
     template<typename T> inline void setTextColor(T c)      { _text_fore_rgb888 = _text_back_rgb888 = convert_to_rgb888(c); }
     template<typename T> inline void setTextColor(T c, T b) { _text_fore_rgb888 = convert_to_rgb888(c); _text_back_rgb888 = convert_to_rgb888(b); }
 
-    inline int16_t drawChar(uint16_t uniCode, int32_t x, int32_t y) { _filled_x = 0; return (fpDrawCharClassic)(this, x, y, uniCode, _text_fore_rgb888, _text_back_rgb888, _textsize_x, _textsize_y); }
+    inline int16_t drawChar(uint16_t uniCode, int32_t x, int32_t y) { _filled_x = 0; return (fpDrawChar)(this, x, y, uniCode, _text_fore_rgb888, _text_back_rgb888, _textsize_x, _textsize_y); }
     template<typename T>
-    inline int16_t drawChar(int32_t x, int32_t y, uint16_t uniCode, T color, T bg, uint8_t size) { _filled_x = 0; return (fpDrawCharClassic)(this, x, y, uniCode, convert_to_rgb888(color), convert_to_rgb888(bg), size, size); }
+    inline int16_t drawChar(int32_t x, int32_t y, uint16_t uniCode, T color, T bg, uint8_t size) { _filled_x = 0; return (fpDrawChar)(this, x, y, uniCode, convert_to_rgb888(color), convert_to_rgb888(bg), size, size); }
     template<typename T>
-    inline int16_t drawChar(int32_t x, int32_t y, uint16_t uniCode, T color, T bg, uint8_t size_x, uint8_t size_y) { _filled_x = 0; return (fpDrawCharClassic)(this, x, y, uniCode, convert_to_rgb888(color), convert_to_rgb888(bg), size_x, size_y); }
+    inline int16_t drawChar(int32_t x, int32_t y, uint16_t uniCode, T color, T bg, uint8_t size_x, uint8_t size_y) { _filled_x = 0; return (fpDrawChar)(this, x, y, uniCode, convert_to_rgb888(color), convert_to_rgb888(bg), size_x, size_y); }
 
     int16_t getCursorX(void) const { return _cursor_x; }
     int16_t getCursorY(void) const { return _cursor_y; }
@@ -1288,16 +1284,16 @@ namespace lgfx
       switch (pgm_read_byte( &fontdata[f].type)) {
       default:
       case font_type_t::ft_glcd:
-        fpDrawCharClassic = drawCharGLCD;
+        fpDrawChar = drawCharGLCD;
         fpUpdateFontSize = nullptr; // updateFontSizeGLCD;
         _font_size_x.size = _font_size_x.advance = 6;
         break;
       case font_type_t::ft_bmp:
-        fpDrawCharClassic = drawCharBMP;
+        fpDrawChar = drawCharBMP;
         fpUpdateFontSize = updateFontSizeBMP;
         break;
       case font_type_t::ft_rle:
-        fpDrawCharClassic = drawCharRLE;
+        fpDrawChar = drawCharRLE;
         fpUpdateFontSize = updateFontSizeBMP;
         break;
       }
@@ -1464,7 +1460,7 @@ namespace lgfx
       return true;
     }
 
-    int16_t (*fpDrawCharClassic)(LGFXBase* me, int32_t x, int32_t y, uint16_t c, uint32_t fore_rgb888, uint32_t back_rgb888, uint8_t size_x, uint8_t size_y) = &LGFXBase::drawCharGLCD;
+    int16_t (*fpDrawChar)(LGFXBase* me, int32_t x, int32_t y, uint16_t c, uint32_t fore_rgb888, uint32_t back_rgb888, uint8_t size_x, uint8_t size_y) = &LGFXBase::drawCharGLCD;
 
     static int16_t drawCharGLCD(LGFXBase* me, int32_t x, int32_t y, uint16_t c, uint32_t fore_rgb888, uint32_t back_rgb888, uint8_t size_x, uint8_t size_y)
     { // glcd font
@@ -1797,7 +1793,7 @@ namespace lgfx
     void setFreeFont(const GFXfont *f = nullptr)
     {
       if (f == nullptr) { this->setTextFont(1); return; } // Use GLCD font
-      this->fpDrawCharClassic = drawCharGFXFF;
+      this->fpDrawChar = drawCharGFXFF;
       this->fpUpdateFontSize = updateFontSizeGFXFF;
 
       this->_textfont = 1;
@@ -1987,7 +1983,7 @@ ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
 
     _fontLoaded = true;
     this->_decoderState = Base::utf8_decode_state_t::utf8_state0;
-    this->fpDrawCharClassic = drawCharVLW;
+    this->fpDrawChar = drawCharVLW;
     this->fpUpdateFontSize = updateFontSizeVLW;
     this->_font_size_x.offset = 0;
     this->_font_size_y.offset = 0;
@@ -2404,7 +2400,7 @@ ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
                            , rect->right  - rect->left + 1
                            , rect->bottom - rect->top + 1
                            , jpeg->pc
-                           , false);
+                           , true);
       return 1;
     }
 
@@ -2421,7 +2417,10 @@ ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
 
       TJpgD jpegdec;
 
-      auto jres = jpegdec.prepare(jpg_read_data, &jpeg);
+      const uint16_t sz_pool = 2500;
+      uint8_t pool[sz_pool];
+
+      auto jres = jpegdec.prepare(jpg_read_data, pool, sz_pool, &jpeg);
 
       if (jres != JDR_OK) {
         ESP_LOGE("LGFX","jpeg prepare error:%x", jres);

@@ -77,7 +77,27 @@ namespace lgfx
       _panel_width  = get_panel_width  <CFG, 0>::value;
       _panel_height = get_panel_height <CFG, 0>::value;
 
+      if (gpio_bl >= 0) { // Backlight control
+        if (pwm_ch_bl < 0) { // nouse PWM
+
+          initGPIO(gpio_bl);
+          TPin<get_gpio_bl<CFG, -1>::value>::hi();
+//          *(get_gpio_hi_reg(gpio_bl)) = (1 << (gpio_bl & 31));
+
+        } else {  // use PWM
+
+          initPWM(gpio_bl, pwm_ch_bl);
+
+        }
+      }
+
       setConfig_impl();
+    }
+
+    virtual void setBrightness(uint8_t brightness) {
+      if (pwm_ch_bl >= 0) { // PWM
+        setPWMDuty(pwm_ch_bl, brightness);
+      }
     }
 
     virtual const uint8_t* getInitCommands(uint8_t listno = 0) const { return nullptr; }

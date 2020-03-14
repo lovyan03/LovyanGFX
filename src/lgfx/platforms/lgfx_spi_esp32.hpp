@@ -243,10 +243,7 @@ namespace lgfx
     }
 
     void setBrightness(uint8_t brightness) {
-      auto pwm_ch_bl = _panel->pwm_ch_bl;
-      if (pwm_ch_bl >= 0) { // PWM
-        setPWMDuty(pwm_ch_bl, brightness);
-      }
+      _panel->setBrightness(brightness);
     }
 
     void writecommand(uint_fast8_t cmd)
@@ -276,7 +273,7 @@ namespace lgfx
       endWrite();
       return res;
     }
-/*
+//*
     uint32_t readPanelIDSub(uint8_t cmd)
     {
       startWrite();
@@ -284,6 +281,7 @@ namespace lgfx
       //write_data(0x10, 8);
       write_cmd(cmd);
       start_read();
+      if (_panel->len_dummy_read_rddid) read_data(_panel->len_dummy_read_rddid);
       uint32_t res = read_data(32);
       end_read();
       endWrite();
@@ -322,21 +320,6 @@ namespace lgfx
       _mask_reg_cs = (spi_cs < 0) ? 0 : (1 << (spi_cs & 31));
       cs_h();
       initGPIO((gpio_num_t)spi_cs);
-
-
-      gpio_num_t gpio_bl = (gpio_num_t)_panel->gpio_bl;
-      if (gpio_bl >= 0) { // Backlight control
-        auto pwm_ch_bl = _panel->pwm_ch_bl;
-        if (pwm_ch_bl < 0) { // nouse PWM
-          initGPIO(gpio_bl);
-          *(get_gpio_hi_reg(gpio_bl)) = (1 << (gpio_bl & 31));
-
-        } else {  // use PWM
-
-          initPWM(gpio_bl, pwm_ch_bl);
-
-        }
-      }
 
       postSetRotation();
       postSetColorDepth();
@@ -707,103 +690,7 @@ namespace lgfx
         } while (++y != h);
       }
     }
-/*
-    void pushImage_impl(int32_t x, int32_t y, int32_t w, int32_t h, pixelcopy_t* param, bool use_localbuffer) override
-    {
-      auto bytes = _write_conv.bytes;
-      auto src_x = param->src_x;
-      auto fp_copy = param->fp_copy;
 
-      if (param->transp == ~0) {
-        int32_t xr = ((h == 1) ? _width : (x + w)) - 1;
-        if (use_localbuffer) {
-          uint32_t i = (src_x + param->src_y * param->src_width) * bytes;
-          auto buf = get_dmabuffer(w * h * bytes);
-          if (param->no_convert) {
-            auto src = (const uint8_t*)param->src_data;
-            if (param->src_width == w) {
-              memcpy(buf, &src[i], w * h * bytes);
-            } else {
-              auto add = param->src_width * bytes;
-              size_t index = 0;
-              auto h2 = h;
-              do {
-                memcpy(&buf[index], &src[i], w * bytes);
-                i += add;
-                index += w * bytes;
-              } while (--h2);
-            }
-          } else {
-            if (param->src_width == w) {
-              fp_copy(buf, 0, w * h, param);
-            } else {
-              int32_t index = 0;
-              auto h2 = h;
-              do {
-                index = fp_copy(buf, index, index + w, param);
-                param->src_x = src_x;
-                param->src_y++;
-              } while (--h2);
-            }
-          }
-          setWindow_impl(x, y, xr, y + h - 1);
-          write_bytes(buf, w * h * bytes);
-          return;
-        }
-
-        if (param->no_convert) {
-          setWindow_impl(x, y, xr, y + h - 1);
-          uint32_t i = (src_x + param->src_y * param->src_width) * bytes;
-          auto src = (const uint8_t*)param->src_data;
-          if (param->src_width == w) {
-            write_bytes(&src[i], w * h * bytes);
-          } else {
-            auto add = param->src_width * bytes;
-            do {
-              write_bytes(&src[i], w * bytes);
-              i += add;
-            } while (--h);
-          }
-        } else
-        if (_dma_channel) {
-          auto buf = get_dmabuffer(w * bytes);
-          fp_copy(buf, 0, w, param);
-          setWindow_impl(x, y, xr, y + h - 1);
-          write_bytes(buf, w * bytes);
-          while (--h) {
-            param->src_x = src_x;
-            param->src_y++;
-            buf = get_dmabuffer(w * bytes);
-            fp_copy(buf, 0, w, param);
-            write_bytes(buf, w * bytes);
-          }
-        } else {
-          setWindow_impl(x, y, xr, y + h - 1);
-          do {
-            push_colors(w, param);
-            param->src_x = src_x;
-            param->src_y++;
-          } while (--h);
-        }
-      } else {
-        int32_t xr = _width - 1;
-        auto fp_skip = param->fp_skip;
-        h += y;
-        do {
-          int32_t i = 0;
-          while (w != (i = fp_skip(i, w, param))) {
-            auto buf = get_dmabuffer(w * bytes);
-            int32_t len = fp_copy(buf, 0, w - i, param);
-            setWindow_impl(x + i, y, xr, y);
-            write_bytes(buf, len * bytes);
-            if (w == (i += len)) break;
-          }
-          param->src_x = src_x;
-          param->src_y++;
-        } while (++y != h);
-      }
-    }
-//*/
     void pushColors_impl(int32_t length, pixelcopy_t* param) override
     {
       push_colors(length, param);

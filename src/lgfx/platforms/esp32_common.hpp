@@ -85,7 +85,7 @@ namespace lgfx
     return bestpre << 18 | bestn << 12 | ((bestn-1)>>1) << 6 | bestn;
   }
 
-  static void initGPIO(gpio_num_t pin, gpio_mode_t mode = GPIO_MODE_OUTPUT) {
+  static void initGPIO(int pin, gpio_mode_t mode = GPIO_MODE_OUTPUT) {
     if (pin == -1) return;
 #ifndef ARDUINO
     uint8_t pm = 0;
@@ -94,7 +94,7 @@ namespace lgfx
     if (mode & GPIO_MODE_DEF_OD)     pm |= OPEN_DRAIN;
     pinMode(pin, pm);
 #else
-    if (rtc_gpio_is_valid_gpio(pin)) rtc_gpio_deinit(pin);
+    if (rtc_gpio_is_valid_gpio((gpio_num_t)pin)) rtc_gpio_deinit((gpio_num_t)pin);
     gpio_config_t io_conf;
     io_conf.intr_type = GPIO_INTR_DISABLE;
     io_conf.mode = mode;
@@ -105,7 +105,7 @@ namespace lgfx
 #endif
   }
 
-  static void initPWM(gpio_num_t pin, uint32_t pwm_ch, uint8_t duty = 128) {
+  static void initPWM(int pin, uint32_t pwm_ch, uint8_t duty = 128) {
 
 #ifdef ARDUINO
 
@@ -117,7 +117,7 @@ namespace lgfx
 
     static ledc_channel_config_t ledc_channel;
     {
-     ledc_channel.gpio_num   = pin;
+     ledc_channel.gpio_num   = (gpio_num_t)pin;
      ledc_channel.speed_mode = LEDC_HIGH_SPEED_MODE;
      ledc_channel.channel    = (ledc_channel_t)pwm_ch;
      ledc_channel.intr_type  = LEDC_INTR_DISABLE;
