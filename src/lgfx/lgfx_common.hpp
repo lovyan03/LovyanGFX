@@ -478,8 +478,9 @@ namespace lgfx
 #define TYPECHECK(dType) template < typename T, typename std::enable_if < (sizeof(T) == sizeof(dType)) && (std::is_signed<T>::value == std::is_signed<dType>::value), std::nullptr_t >::type=nullptr >
     TYPECHECK(uint8_t ) __attribute__ ((always_inline)) inline uint32_t convert(T c) { return convert_rgb332(c); }
     TYPECHECK(uint16_t) __attribute__ ((always_inline)) inline uint32_t convert(T c) { return convert_rgb565(c); }
-    TYPECHECK(uint32_t) __attribute__ ((always_inline)) inline uint32_t convert(T c) { return convert_rgb888(c); }
+    TYPECHECK(int16_t ) __attribute__ ((always_inline)) inline uint32_t convert(T c) { return convert_rgb565(c); }
     TYPECHECK(int     ) __attribute__ ((always_inline)) inline uint32_t convert(T c) { return convert_rgb565(c); }
+    TYPECHECK(uint32_t) __attribute__ ((always_inline)) inline uint32_t convert(T c) { return convert_rgb888(c); }
 
     __attribute__ ((always_inline)) inline uint32_t convert(const argb8888_t& c) { return convert_rgb888(c.raw); }
     __attribute__ ((always_inline)) inline uint32_t convert(const rgb888_t&   c) { return convert_rgb888(*(uint32_t*)&c); }
@@ -492,8 +493,9 @@ namespace lgfx
 
   TYPECHECK(uint8_t ) __attribute__ ((always_inline)) inline uint32_t convert_to_rgb888(T c) { return convert_rgb332_to_rgb888(c); }
   TYPECHECK(uint16_t) __attribute__ ((always_inline)) inline uint32_t convert_to_rgb888(T c) { return convert_rgb565_to_rgb888(c); }
-  TYPECHECK(uint32_t) __attribute__ ((always_inline)) inline uint32_t convert_to_rgb888(T c) { return c; }
+  TYPECHECK(int16_t ) __attribute__ ((always_inline)) inline uint32_t convert_to_rgb888(T c) { return convert_rgb565_to_rgb888(c); }
   TYPECHECK(int     ) __attribute__ ((always_inline)) inline uint32_t convert_to_rgb888(T c) { return convert_rgb565_to_rgb888(c); }
+  TYPECHECK(uint32_t) __attribute__ ((always_inline)) inline uint32_t convert_to_rgb888(T c) { return c; }
 
 #undef TYPECHECK
 
