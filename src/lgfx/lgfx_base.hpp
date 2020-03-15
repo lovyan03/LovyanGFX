@@ -1127,70 +1127,16 @@ namespace lgfx
 
     int16_t drawNumber(long long_num, int32_t poX, int32_t poY)
     {
-      char str[12];
-      ltoa(long_num, str, 10);
-      return drawString(str, poX, poY);
+      constexpr size_t len = 8 * sizeof(long) + 1;
+      char buf[len];
+      return drawString(numberToStr(long_num, buf, len, 10), poX, poY);
     }
 
     int16_t drawFloat(float floatNumber, uint8_t dp, int32_t poX, int32_t poY)
     {
-      char str[14];               // Array to contain decimal string
-      uint8_t ptr = 0;            // Initialise pointer for array
-      int8_t  digits = 1;         // Count the digits to avoid array overflow
-      float rounding = 0.5;       // Round up down delta
-
-      if (dp > 7) dp = 7; // Limit the size of decimal portion
-
-      // Adjust the rounding value
-      for (uint8_t i = 0; i < dp; ++i) rounding /= 10.0;
-
-      if (floatNumber < -rounding) {   // add sign, avoid adding - sign to 0.0!
-        str[ptr++] = '-'; // Negative number
-        str[ptr] = 0; // Put a null in the array as a precaution
-        digits = 0;   // Set digits to 0 to compensate so pointer value can be used later
-        floatNumber = -floatNumber; // Make positive
-      }
-
-      floatNumber += rounding; // Round up or down
-
-      // For error put ... in string and return (all TFT_eSPI library fonts contain . character)
-      if (floatNumber >= 2147483647) {
-        strcpy(str, "...");
-        return drawString(str, poX, poY);
-      }
-      // No chance of overflow from here on
-
-      // Get integer part
-      uint32_t temp = (uint32_t)floatNumber;
-
-      // Put integer part into array
-      ltoa(temp, str + ptr, 10);
-
-      // Find out where the null is to get the digit count loaded
-      while ((uint8_t)str[ptr] != 0) ptr++; // Move the pointer along
-      digits += ptr;                  // Count the digits
-
-      str[ptr++] = '.'; // Add decimal point
-      str[ptr] = '0';   // Add a dummy zero
-      str[ptr + 1] = 0; // Add a null but don't increment pointer so it can be overwritten
-
-      // Get the decimal portion
-      floatNumber = floatNumber - temp;
-
-      // Get decimal digits one by one and put in array
-      // Limit digit count so we don't get a false sense of resolution
-      uint8_t i = 0;
-      while ((i < dp) && (digits < 9)) { // while (i < dp) for no limit but array size must be increased
-        i++;
-        floatNumber *= 10;       // for the next decimal
-        temp = floatNumber;      // get the decimal
-        ltoa(temp, str + ptr, 10);
-        ptr++; digits++;         // Increment pointer and digits count
-        floatNumber -= temp;     // Remove that digit
-      }
-
-      // Finally we can plot the string and return pixel length
-      return drawString(str, poX, poY);
+      size_t len = 14 + dp;
+      char buf[len];
+      return drawString(floatToStr(floatNumber, buf, len, dp), poX, poY);
     }
 
     uint16_t decodeUTF8(uint8_t c)
@@ -1397,8 +1343,29 @@ namespace lgfx
 // Arduino Print.h compatible
     size_t printNumber(unsigned long n, uint8_t base)
     {
-      char buf[8 * sizeof(long) + 1]; // Assumes 8-bit chars plus zero byte.
-      char *str = &buf[sizeof(buf) - 1];
+      size_t len = 8 * sizeof(long) + 1;
+      char buf[len];
+      return write(numberToStr(n, buf, len, base));
+    }
+
+    size_t printFloat(double number, uint8_t digits)
+    {
+      size_t len = 14 + digits;
+      char buf[len];
+      return write(floatToStr(number, buf, len, digits));
+    }
+
+    char* numberToStr(long n, char* buf, size_t buflen, uint8_t base)
+    {
+      if (n >= 0) return numberToStr((unsigned long) n, buf, buflen, base);
+      auto res = numberToStr(- n, buf, buflen, 10) - 1;
+      res[0] = '-';
+      return res;
+    }
+
+    char* numberToStr(unsigned long n, char* buf, size_t buflen, uint8_t base)
+    {
+      char *str = &buf[buflen - 1];
 
       *str = '\0';
 
@@ -1410,21 +1377,22 @@ namespace lgfx
         *--str = c < 10 ? c + '0' : c + 'A' - 10;
       } while (n);
 
-      return write(str);
+      return str;
     }
 
-    size_t printFloat(double number, uint8_t digits)
+    char* floatToStr(double number, char* buf, size_t buflen, uint8_t digits)
     {
-      size_t n = 0;
-      if (std::isnan(number))    { return print("nan"); }
-      if (std::isinf(number))    { return print("inf"); }
-      if (number > 4294967040.0) { return print("ovf"); } // constant determined empirically
-      if (number <-4294967040.0) { return print("ovf"); } // constant determined empirically
+      if (std::isnan(number))    { return strcpy(buf, "nan"); }
+      if (std::isinf(number))    { return strcpy(buf, "inf"); }
+      if (number > 4294967040.0) { return strcpy(buf, "ovf"); } // constant determined empirically
+      if (number <-4294967040.0) { return strcpy(buf, "ovf"); } // constant determined empirically
 
+      char* dst = buf;
       // Handle negative numbers
-      if(number < 0.0) {
-        n += print('-');
+      //bool negative = (number < 0.0);
+      if (number < 0.0) {
         number = -number;
+        *dst++ = '-';
       }
 
       // Round correctly so that print(1.999, 2) prints as "2.00"
@@ -1438,19 +1406,31 @@ namespace lgfx
       // Extract the integer part of the number and print it
       unsigned long int_part = (unsigned long) number;
       double remainder = number - (double) int_part;
-      n += print(int_part);
+
+      {
+        constexpr size_t len = 14;
+        char numstr[len];
+        auto tmp = numberToStr(int_part, numstr, len, 10);
+        auto slen = strlen(tmp);
+        memcpy(dst, tmp, slen);
+        dst += slen;
+      }
 
       // Print the decimal point, but only if there are digits beyond
-      if (digits > 0) n += print(".");
-
+      if (digits > 0) {
+        dst[0] = '.';
+        ++dst;
+      }
       // Extract digits from the remainder one at a time
       while (digits-- > 0) {
         remainder *= 10.0;
         unsigned int toPrint = (unsigned int)(remainder);
-        n += print(toPrint);
+        dst[0] = '0' + toPrint;
+        ++dst;
         remainder -= toPrint;
       }
-      return n;
+      dst[0] = 0;
+      return buf;
     }
 
     bool(*fpUpdateFontSize)(LGFXBase* me, uint16_t uniCode) = nullptr;
@@ -1925,7 +1905,7 @@ namespace lgfx
 
         this->drawChar(gUnicode[i], x, y);
         x += gxAdvance[i];
-        yield();
+        //yield();
       }
 
       delay(timeDelay);

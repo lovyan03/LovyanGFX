@@ -87,7 +87,7 @@ namespace lgfx
 
   static void initGPIO(int pin, gpio_mode_t mode = GPIO_MODE_OUTPUT, bool pullup = false, bool pulldown = false) {
     if (pin == -1) return;
-#ifndef ARDUINO
+#ifdef ARDUINO
     uint8_t pm = 0;
     if (mode & GPIO_MODE_DEF_INPUT)  pm |= INPUT;
     if (mode & GPIO_MODE_DEF_OUTPUT) pm |= OUTPUT;

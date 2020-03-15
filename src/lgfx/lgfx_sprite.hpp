@@ -518,19 +518,17 @@ return;
 
     void readRect_impl(int32_t x, int32_t y, int32_t w, int32_t h, void* dst, pixelcopy_t* param) override
     {
-      //set_window(x, y, x + w - 1, y + h - 1);
       h += y;
       if (param->no_convert && _read_conv.bytes) {
-        //read_bytes((uint8_t*)dst, w * h * _read_conv.bytes);
         auto b = _read_conv.bytes;
         auto bw = _bitwidth;
+        auto d = (uint8_t*)dst;
         do {
-          memcpy(dst, &_img[(x + y * bw) * b], w * b);
-          dst += w * b;
+          memcpy(d, &_img[(x + y * bw) * b], w * b);
+          d += w * b;
         } while (++y != h);
       } else {
         param->src_width = _bitwidth;
-        //read_pixels(dst, w * h, param);
         param->src_data = _img;
         int32_t dstindex = 0;
         do {
@@ -538,33 +536,6 @@ return;
           param->src_y = y;
           dstindex = param->fp_copy(dst, dstindex, dstindex + w, param);
         } while (++y != h);
-      }
-    }
-
-    void read_pixels(void* dst, int32_t length, pixelcopy_t* param)
-    {
-      int32_t linelength;
-      int32_t dstindex = 0;
-      param->src_data = _img;
-      do {
-        linelength = std::min(_xe - _xptr + 1, length);
-        param->src_x = _xptr;
-        param->src_y = _yptr;
-        dstindex = param->fp_copy(dst, dstindex, dstindex + linelength, param);
-        ptr_advance(linelength);
-      } while (length -= linelength);
-    }
-
-    void read_bytes(uint8_t* dst, int32_t length)
-    {
-      uint8_t b = _write_conv.bytes ? _write_conv.bytes : 1;
-      length /= b;
-      while (length) {
-        int32_t linelength = std::min(_xe - _xptr + 1, length);
-        memcpy(dst, &_img[_index * _write_conv.bytes], linelength * b);
-        dst += linelength * b;
-        ptr_advance(linelength);
-        length -= linelength;
       }
     }
 
