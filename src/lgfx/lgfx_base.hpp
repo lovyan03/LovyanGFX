@@ -97,6 +97,8 @@ namespace lgfx
     template<typename T> inline void fillRoundRect ( int32_t x, int32_t y, int32_t w, int32_t h, int32_t r, const T& color) { setColor(color); fillRoundRect(x, y, w, h, r); }
     template<typename T> inline void drawCircle    ( int32_t x, int32_t y                      , int32_t r, const T& color) { setColor(color); drawCircle(x, y, r   ); }
     template<typename T> inline void fillCircle    ( int32_t x, int32_t y                      , int32_t r, const T& color) { setColor(color); fillCircle(x, y, r   ); }
+    template<typename T> inline void drawEllipse   ( int32_t x, int32_t y, int32_t rx, int32_t ry         , const T& color) { setColor(color); drawEllipse(x, y, rx, ry); }
+    template<typename T> inline void fillEllipse   ( int32_t x, int32_t y, int32_t rx, int32_t ry         , const T& color) { setColor(color); fillEllipse(x, y, rx, ry); }
     template<typename T> inline void drawLine      ( int32_t x0, int32_t y0, int32_t x1, int32_t y1                        , const T& color)  { setColor(color); drawLine(    x0, y0, x1, y1        ); }
     template<typename T> inline void drawTriangle  ( int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t x2, int32_t y2, const T& color)  { setColor(color); drawTriangle(x0, y0, x1, y1, x2, y2); }
     template<typename T> inline void fillTriangle  ( int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t x2, int32_t y2, const T& color)  { setColor(color); fillTriangle(x0, y0, x1, y1, x2, y2); }
@@ -322,6 +324,90 @@ namespace lgfx
 
       endWrite();
     }
+
+    void drawEllipse(int32_t x0, int32_t y0, int32_t rx, int32_t ry)
+    {
+      if (rx<2) return;
+      if (ry<2) return;
+      int32_t x, y;
+      int32_t rx2 = rx * rx;
+      int32_t fx2 = rx2 << 2;
+      int32_t ry2 = ry * ry;
+      int32_t fy2 = ry2 << 2;
+      int32_t s;
+
+      startWrite();
+
+      for (x = 0, y = ry, s = 2*ry2+rx2*(1-2*ry); ry2*x <= rx2*y; x++) {
+        // These are ordered to minimise coordinate changes in x or y
+        // drawPixel can then send fewer bounding box commands
+        drawPixel(x0 + x, y0 + y);
+        drawPixel(x0 - x, y0 + y);
+        drawPixel(x0 - x, y0 - y);
+        drawPixel(x0 + x, y0 - y);
+        if (s >= 0) {
+          s += fx2 * (1 - y);
+          y--;
+        }
+        s += ry2 * ((4 * x) + 6);
+      }
+
+      for (x = rx, y = 0, s = 2*rx2+ry2*(1-2*rx); rx2*y <= ry2*x; y++) {
+        // These are ordered to minimise coordinate changes in x or y
+        // drawPixel can then send fewer bounding box commands
+        drawPixel(x0 + x, y0 + y);
+        drawPixel(x0 - x, y0 + y);
+        drawPixel(x0 - x, y0 - y);
+        drawPixel(x0 + x, y0 - y);
+        if (s >= 0)
+        {
+          s += fy2 * (1 - x);
+          x--;
+        }
+        s += rx2 * ((4 * y) + 6);
+      }
+
+      endWrite();
+    }
+
+    void fillEllipse(int32_t x0, int32_t y0, int32_t rx, int32_t ry)
+    {
+      if (rx<2) return;
+      if (ry<2) return;
+      int32_t x, y;
+      int32_t rx2 = rx * rx;
+      int32_t fx2 = rx2 << 2;
+      int32_t ry2 = ry * ry;
+      int32_t fy2 = ry2 << 2;
+      int32_t s;
+
+      startWrite();
+
+      for (x = 0, y = ry, s = 2*ry2+rx2*(1-2*ry); ry2*x <= rx2*y; x++) {
+        drawFastHLine(x0 - x, y0 - y, x + x + 1);
+        drawFastHLine(x0 - x, y0 + y, x + x + 1);
+
+        if (s >= 0) {
+          s += fx2 * (1 - y);
+          y--;
+        }
+        s += ry2 * ((x << 2) + 6);
+      }
+
+      for (x = rx, y = 0, s = 2*rx2+ry2*(1-2*rx); rx2*y <= ry2*x; y++) {
+        drawFastHLine(x0 - x, y0 - y, x + x + 1);
+        drawFastHLine(x0 - x, y0 + y, x + x + 1);
+
+        if (s >= 0) {
+          s += fy2 * (1 - x);
+          x--;
+        }
+        s += rx2 * ((y << 2) + 6);
+      }
+
+      endWrite();
+    }
+
 
     void drawRoundRect(int32_t x, int32_t y, int32_t w, int32_t h, int32_t r)
     {
