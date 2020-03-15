@@ -170,9 +170,13 @@ public:
     }
   }
 };
+
 class TFT_eSprite : public lgfx::LGFXSprite {
 public:
+  TFT_eSprite() : LGFXSprite() {}
+  TFT_eSprite(LovyanGFX* parent) : LGFXSprite(parent) {}
+
   void* frameBuffer(uint8_t dummy) { return buffer(); }
-}
+};
 
 #endif
