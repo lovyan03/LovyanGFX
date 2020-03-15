@@ -154,8 +154,8 @@ namespace lgfx
         }
       } else {
         int32_t index = (x + y * _bitwidth) * bits;
-        uint8_t mask = (uint8_t)(~(0xFF >> bits)) >> (index & 7);
-        return _img[index >> 3] & ~mask;
+        uint8_t mask = (1 << bits) - 1;
+        return (_img[index >> 3] >> (-(index + bits) & 7)) & mask;
       }
     }
 
@@ -518,12 +518,26 @@ return;
 
     void readRect_impl(int32_t x, int32_t y, int32_t w, int32_t h, void* dst, pixelcopy_t* param) override
     {
-      set_window(x, y, x + w - 1, y + h - 1);
-      if (param->no_convert) {
-        read_bytes((uint8_t*)dst, w * h * _read_conv.bytes);
+      //set_window(x, y, x + w - 1, y + h - 1);
+      h += y;
+      if (param->no_convert && _read_conv.bytes) {
+        //read_bytes((uint8_t*)dst, w * h * _read_conv.bytes);
+        auto b = _read_conv.bytes;
+        auto bw = _bitwidth;
+        do {
+          memcpy(dst, &_img[(x + y * bw) * b], w * b);
+          dst += w * b;
+        } while (++y != h);
       } else {
         param->src_width = _bitwidth;
-        read_pixels(dst, w * h, param);
+        //read_pixels(dst, w * h, param);
+        param->src_data = _img;
+        int32_t dstindex = 0;
+        do {
+          param->src_x = x;
+          param->src_y = y;
+          dstindex = param->fp_copy(dst, dstindex, dstindex + w, param);
+        } while (++y != h);
       }
     }
 
