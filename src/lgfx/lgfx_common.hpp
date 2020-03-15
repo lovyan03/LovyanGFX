@@ -355,7 +355,7 @@ namespace lgfx
     inline bgr888_t& operator=(const swap565_t&);
     inline bgr888_t& operator=(const bgr666_t&);
     explicit inline operator bool() const { return r||g||b; }
-//  explicit inline operator uint32_t() const { return *(uint32_t*)this & ((1<<24)-1); }
+    explicit inline operator uint32_t() const { return *(uint32_t*)this & ((1<<24)-1); }
     //inline operator rgb332_t() const { return rgb332_t(r,g,b); }
     explicit inline operator rgb565_t() const { return rgb565_t(r,g,b); }
     //inline operator rgb888_t() const { return rgb888_t(r,g,b); }

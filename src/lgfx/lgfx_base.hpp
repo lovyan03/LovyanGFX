@@ -2338,7 +2338,7 @@ ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
       pixelcopy_t p(lineBuffer, dst_depth, (color_depth_t)bpp, this->_palette_count, palette);
       p.no_convert = false;
       if (8 >= bpp && !this->_palette_count) {
-        p.fp_copy = pixelcopy_t::get_fp_palettecopy<argb8888_t>(this->_write_conv.depth);
+        p.fp_copy = pixelcopy_t::get_fp_palettecopy<argb8888_t>(dst_depth);
       } else {
         if (bpp == 16) {
           p.fp_copy = pixelcopy_t::get_fp_normalcopy<rgb565_t>(dst_depth);

@@ -140,6 +140,25 @@ namespace lgfx
       return createSprite(_width, _height);
     }
 
+    uint32_t readPixelValue(int32_t x, int32_t y)
+    {
+      auto bits = _read_conv.bits;
+      if (bits >= 8) {
+        int32_t index = x + y * _bitwidth;
+        if (bits == 8) {
+          return _img[index];
+        } else if (bits == 16) {
+          return _img16[index];
+        } else {
+          return (uint32_t)_img24[index];
+        }
+      } else {
+        int32_t index = (x + y * _bitwidth) * bits;
+        uint8_t mask = (uint8_t)(~(0xFF >> bits)) >> (index & 7);
+        return _img[index >> 3] & ~mask;
+      }
+    }
+
 /*
     void setRotation(uint8_t r)
     {
