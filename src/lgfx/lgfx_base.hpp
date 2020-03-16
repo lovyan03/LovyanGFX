@@ -2490,20 +2490,20 @@ ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
       JDEC jpegdec;
 
       static constexpr uint16_t sz_pool = 3100;
-      uint8_t *pool = new uint8_t[sz_pool];
-
-      if (!pool) {
-        ESP_LOGE("LGFX","memory allocation failure");
-        delete[] pool;
-        return false;
-      }
+      uint8_t pool[sz_pool];
+//    uint8_t *pool = new uint8_t[sz_pool];
+//      if (!pool) {
+//        ESP_LOGE("LGFX","memory allocation failure");
+//        delete[] pool;
+//        return false;
+//      }
 
 //      auto jres = jpegdec.prepare(jpg_read_data, pool, sz_pool, &jpeg);
       auto jres = jd_prepare(&jpegdec, jpg_read_data, pool, sz_pool, &jpeg);
 
       if (jres != JDR_OK) {
         ESP_LOGE("LGFX","jpeg prepare error:%x", jres);
-        delete[] pool;
+//        delete[] pool;
         return false;
       }
 
@@ -2531,7 +2531,7 @@ ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
         this->_clip_b = cb-1;
         this->endWrite();
       }
-      delete[] pool;
+//      delete[] pool;
 
       if (jres != JDR_OK) {
         ESP_LOGE("LGFX","jpeg decomp error:%x", jres);
