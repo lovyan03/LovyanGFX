@@ -54,8 +54,8 @@ typedef struct {
 /* Decompressor object structure */
 typedef struct JDEC JDEC;
 struct JDEC {
-	int32_t dctr;				/* Number of bytes available in the input buffer */
 	uint8_t* dptr;				/* Current data read ptr */
+	uint8_t* dpend;				/* data end ptr */
 	uint8_t* inbuf;				/* Bit stream input buffer */
 	uint_fast8_t dmsk;			/* Current bit in the current read byte */
 	uint_fast8_t scale;			/* Output scaling ratio */
@@ -68,8 +68,7 @@ struct JDEC {
 	uint16_t* huffcode[2][2];	/* Huffman code word tables [id][dcac] */
 	uint8_t* huffdata[2][2];	/* Huffman decoded data tables [id][dcac] */
 	int32_t* qttbl[4];			/* Dequantizer tables [id] */
-	void* workbuf[2];			/* Working buffer for IDCT and RGB output */
-	uint8_t flip;				/* flip buffer index */
+	void* workbuf;				/* Working buffer for IDCT and RGB output */
 	uint8_t* mcubuf;			/* Working buffer for the MCU */
 	void* pool;					/* Pointer to available memory pool */
 	uint16_t sz_pool;			/* Size of momory pool (bytes available) */

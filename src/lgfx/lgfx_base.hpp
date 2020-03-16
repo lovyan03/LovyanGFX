@@ -2433,13 +2433,13 @@ ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
 
 
 //#if !defined (_TJPGDEC_H_)
-//#if !defined (DEF_TJPGDEC)
-#if defined (DUMMYDUMMYDUMMY)
+#if !defined (DEF_TJPGDEC)
 
     bool draw_jpg(DataWrapper* data, int16_t x, int16_t y, int16_t maxWidth, int16_t maxHeight, int16_t offX, int16_t offY, jpeg_div_t scale)
     {
       ESP_LOGI("LGFX","drawJpg need include utility/tjpgdClass.h");
     }
+
 #else
 
     struct draw_jpg_info_t {
@@ -2472,7 +2472,7 @@ ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
                            , rect->right  - rect->left + 1
                            , rect->bottom - rect->top + 1
                            , jpeg->pc
-                           , true);
+                           , false);
       return 1;
     }
 
@@ -2489,7 +2489,7 @@ ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
       //TJpgD jpegdec;
       JDEC jpegdec;
 
-      static constexpr uint16_t sz_pool = 4096;
+      static constexpr uint16_t sz_pool = 3100;
       uint8_t *pool = new uint8_t[sz_pool];
 
       if (!pool) {
