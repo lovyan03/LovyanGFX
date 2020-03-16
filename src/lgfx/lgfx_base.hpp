@@ -2265,7 +2265,8 @@ ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
       drawBmpFile(&file, path, x, y);
     }
 
-    void drawJpgFile( fs::FS &fs, const char *path, int16_t x=0, int16_t y=0, int16_t maxWidth=0, int16_t maxHeight=0, int16_t offX=0, int16_t offY=0, jpeg_div_t scale=JPEG_DIV_NONE) {
+    bool drawJpgFile( fs::FS &fs, const char *path, int16_t x=0, int16_t y=0, int16_t maxWidth=0, int16_t maxHeight=0, int16_t offX=0, int16_t offY=0, jpeg_div_t scale=JPEG_DIV_NONE) {
+      bool res;
       FileWrapper file;
       file.setFS(fs);
 //      drawJpgFile(&file, path, x, y, maxWidth, maxHeight, offX, offY, scale);
@@ -2273,10 +2274,11 @@ ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
       file.need_transaction &= this->_has_transaction;
       if (file.need_transaction) this->endTransaction();
       if (file.open(path, "rb")) {
-        draw_jpg(&file, x, y, maxWidth, maxHeight, offX, offY, scale);
+        res = draw_jpg(&file, x, y, maxWidth, maxHeight, offX, offY, scale);
         file.close();
       }
       if (file.need_transaction && this->_transaction_count) { this->beginTransaction(); }
+      return res;
     }
  #endif
  #if defined (Stream_h)
@@ -2284,7 +2286,7 @@ ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
     void drawJpg(Stream *dataSource, int16_t x=0, int16_t y=0, int16_t maxWidth=0, int16_t maxHeight=0, int16_t offX=0, int16_t offY=0, jpeg_div_t scale=JPEG_DIV_NONE) {
       StreamWrapper data;
       data.set(dataSource);
-      draw_jpg(&data, x, y, maxWidth, maxHeight, offX, offY, scale);
+      return draw_jpg(&data, x, y, maxWidth, maxHeight, offX, offY, scale);
     }
 
  #endif
@@ -2296,16 +2298,18 @@ ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
       drawBmpFile(&file, path, x, y);
     }
 
-    void drawJpgFile(const char *path, int16_t x=0, int16_t y=0, int16_t maxWidth=0, int16_t maxHeight=0, int16_t offX=0, int16_t offY=0, jpeg_div_t scale=JPEG_DIV_NONE) {
+    bool drawJpgFile(const char *path, int16_t x=0, int16_t y=0, int16_t maxWidth=0, int16_t maxHeight=0, int16_t offX=0, int16_t offY=0, jpeg_div_t scale=JPEG_DIV_NONE) {
+      bool res;
       FileWrapper file;
 //      drawJpgFile(&file, path, x, y, maxWidth, maxHeight, offX, offY, scale);
       file.need_transaction &= this->_has_transaction;
       if (file.need_transaction) this->endTransaction();
       if (file.open(path, "rb")) {
-        draw_jpg(&file, x, y, maxWidth, maxHeight, offX, offY, scale);
+        res = draw_jpg(&file, x, y, maxWidth, maxHeight, offX, offY, scale);
         file.close();
       }
       if (file.need_transaction && this->_transaction_count) { this->beginTransaction(); }
+      return res;
     }
 
 #endif
@@ -2315,10 +2319,10 @@ ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
       data.set(bmp_data, bmp_len);
       draw_bmp(&data, x, y);
     }
-    void drawJpg(const uint8_t *jpg_data, uint32_t jpg_len, int16_t x=0, int16_t y=0, int16_t maxWidth=0, int16_t maxHeight=0, int16_t offX=0, int16_t offY=0, jpeg_div_t scale=JPEG_DIV_NONE) {
+    bool drawJpg(const uint8_t *jpg_data, uint32_t jpg_len, int16_t x=0, int16_t y=0, int16_t maxWidth=0, int16_t maxHeight=0, int16_t offX=0, int16_t offY=0, jpeg_div_t scale=JPEG_DIV_NONE) {
       PointerWrapper data;
       data.set(jpg_data, jpg_len);
-      draw_jpg(&data, x, y, maxWidth, maxHeight, offX, offY, scale);
+      return draw_jpg(&data, x, y, maxWidth, maxHeight, offX, offY, scale);
     }
 
   private:
@@ -2428,8 +2432,11 @@ ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
     }
 
 
-#if !defined (_TJPGDEC_H_)
-    void draw_jpg(DataWrapper* data, int16_t x, int16_t y, int16_t maxWidth, int16_t maxHeight, int16_t offX, int16_t offY, jpeg_div_t scale)
+//#if !defined (_TJPGDEC_H_)
+//#if !defined (DEF_TJPGDEC)
+#if defined (DUMMYDUMMYDUMMY)
+
+    bool draw_jpg(DataWrapper* data, int16_t x, int16_t y, int16_t maxWidth, int16_t maxHeight, int16_t offX, int16_t offY, jpeg_div_t scale)
     {
       ESP_LOGI("LGFX","drawJpg need include utility/tjpgdClass.h");
     }
@@ -2438,13 +2445,12 @@ ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
     struct draw_jpg_info_t {
       int32_t x;
       int32_t y;
-      jpeg_div_t scale;
       DataWrapper *data;
       LGFXBase *tft;
       pixelcopy_t *pc;
     };
 
-    static uint32_t jpg_read_data(TJpgD *decoder, uint8_t *buf, uint32_t len) {
+    static uint32_t jpg_read_data(JDEC  *decoder, uint8_t *buf, uint32_t len) {
       draw_jpg_info_t *jpeg = (draw_jpg_info_t *)decoder->device;
       auto data = (DataWrapper*)jpeg->data;
       auto res = len;
@@ -2458,7 +2464,7 @@ ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
       return res;
     }
 
-    static uint32_t jpg_push_image(TJpgD *decoder, void *bitmap, JRECT *rect) {
+    static uint32_t jpg_push_image(JDEC  *decoder, void *bitmap, JRECT *rect) {
       draw_jpg_info_t *jpeg = (draw_jpg_info_t *)decoder->device;
       jpeg->pc->src_data = bitmap;
       jpeg->tft->push_image( jpeg->x + rect->left
@@ -2470,7 +2476,7 @@ ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
       return 1;
     }
 
-    void draw_jpg(DataWrapper* data, int16_t x, int16_t y, int16_t maxWidth, int16_t maxHeight, int16_t offX, int16_t offY, jpeg_div_t scale)
+    bool draw_jpg(DataWrapper* data, int16_t x, int16_t y, int16_t maxWidth, int16_t maxHeight, int16_t offX, int16_t offY, jpeg_div_t scale)
     {
       draw_jpg_info_t jpeg;
       pixelcopy_t pc(nullptr, this->getColorDepth(), bgr888_t::depth, this->hasPalette());
@@ -2479,18 +2485,19 @@ ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
       jpeg.data = data;
       jpeg.x = x - offX;
       jpeg.y = y - offY;
-      jpeg.scale = scale;
 
-      TJpgD jpegdec;
+      //TJpgD jpegdec;
+      JDEC jpegdec;
 
-      const uint16_t sz_pool = 2500;
+      static constexpr uint16_t sz_pool = 4096;
       uint8_t pool[sz_pool];
 
-      auto jres = jpegdec.prepare(jpg_read_data, pool, sz_pool, &jpeg);
+//      auto jres = jpegdec.prepare(jpg_read_data, pool, sz_pool, &jpeg);
+      auto jres = jd_prepare(&jpegdec, jpg_read_data, pool, sz_pool, &jpeg);
 
       if (jres != JDR_OK) {
         ESP_LOGE("LGFX","jpeg prepare error:%x", jres);
-        return;
+        return false;
       }
 
       if (!maxWidth) maxWidth = this->width();
@@ -2498,24 +2505,31 @@ ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
       if (0 > x - cl) { maxWidth += x - cl; x = cl; }
       auto cr = this->_clip_r + 1;
       if (maxWidth > (cr - x)) maxWidth = (cr - x);
-      if (maxWidth <= 0) return;
+      if (maxWidth <= 0) return true;
 
       if (!maxHeight) maxHeight = this->height();
       auto ct = this->_clip_t;
       if (0 > y - ct) { maxHeight += y - ct; y = ct; }
       auto cb = this->_clip_b + 1;
       if (maxHeight > (cb - y)) maxHeight = (cb - y);
-      if (maxHeight <= 0) return;
+      if (maxHeight <= 0) return true;
 
       this->setClipRect(x, y, maxWidth, maxHeight);
       this->startWrite();
-      jres = jpegdec.decomp(jpg_push_image, nullptr);
+//      jres = jpegdec.decomp(jpg_push_image, nullptr);
+      jres = jd_decomp(&jpegdec, jpg_push_image, scale);
+
       this->_clip_l = cl;
       this->_clip_t = ct;
       this->_clip_r = cr-1;
       this->_clip_b = cb-1;
-//      this->setClipRect(cl, ct ,cw ,ch);
       this->endWrite();
+
+      if (jres != JDR_OK) {
+        ESP_LOGE("LGFX","jpeg decomp error:%x", jres);
+        return false;
+      }
+      return true;
     }
 #endif
 

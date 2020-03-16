@@ -22,7 +22,9 @@ Author
 
 #include "lgfx/gfxfont.hpp"      // GFX font support (optional)
 
-#include "lgfx/utility/tjpgdClass.h" // JPEG decode support (optional)
+//#include "lgfx/utility/tjpgdClass.h" // JPEG decode support (optional)
+#include "lgfx/utility/tjpgd.h" // JPEG decode support (optional)
+//#include <rom/tjpgd.h>
 
 #include "lgfx/lgfx_sprite.hpp"   // sprite class (optional)
 
