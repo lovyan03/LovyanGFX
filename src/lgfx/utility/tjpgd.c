@@ -1,6 +1,8 @@
 /*----------------------------------------------------------------------------/
 / TJpgDec - Tiny JPEG Decompressor R0.01c                     (C)ChaN, 2019
 /-----------------------------------------------------------------------------/
+/ Modified by lovyan03
+/-----------------------------------------------------------------------------/
 / The TJpgDec is a generic JPEG decompressor module for tiny embedded systems.
 / This is a free software that opened for education, research and commercial
 /  developments under license policy of following terms.
@@ -21,7 +23,7 @@
 
 #include "tjpgd.h"
 
-#include <string.h> // for memset
+#include <string.h> // for memcpy memset
 
 
 /*-----------------------------------------------*/
@@ -65,7 +67,7 @@ static const uint16_t Ipsf[64] = {	/* See also aa_idct.png */
 
 #if JD_TBLCLIP
 
-#define BYTECLIP(v) Clip8[(uint16_t)(v) & 0x3FF]
+//#define BYTECLIP(v) Clip8[(uint16_t)(v) & 0x3FF]
 
 static const uint8_t Clip8[1024] = {
 	/* 0..255 */
@@ -170,8 +172,9 @@ static int create_qt_tbl (	/* 0:OK, !0:Failed */
 		jd->qttbl[i] = pb;						/* Register the table */
 		for (i = 0; i < 64; ++i) {				/* Load the table */
 			z = Zig[i];							/* Zigzag-order to raster-order conversion */
-			pb[z] = (int32_t)((uint32_t)*data++ * Ipsf[z]);	/* Apply scale factor of Arai algorithm to the de-quantizers */
+			pb[z] = (int32_t)((uint32_t)data[i] * Ipsf[z]);	/* Apply scale factor of Arai algorithm to the de-quantizers */
 		}
+		data += 64;
 	} while (ndata -= 65);
 
 	return JDR_OK;

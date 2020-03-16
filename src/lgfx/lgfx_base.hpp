@@ -2490,13 +2490,20 @@ ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
       JDEC jpegdec;
 
       static constexpr uint16_t sz_pool = 4096;
-      uint8_t pool[sz_pool];
+      uint8_t *pool = new uint8_t[sz_pool];
+
+      if (!pool) {
+        ESP_LOGE("LGFX","memory allocation failure");
+        delete[] pool;
+        return false;
+      }
 
 //      auto jres = jpegdec.prepare(jpg_read_data, pool, sz_pool, &jpeg);
       auto jres = jd_prepare(&jpegdec, jpg_read_data, pool, sz_pool, &jpeg);
 
       if (jres != JDR_OK) {
         ESP_LOGE("LGFX","jpeg prepare error:%x", jres);
+        delete[] pool;
         return false;
       }
 
@@ -2505,25 +2512,26 @@ ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
       if (0 > x - cl) { maxWidth += x - cl; x = cl; }
       auto cr = this->_clip_r + 1;
       if (maxWidth > (cr - x)) maxWidth = (cr - x);
-      if (maxWidth <= 0) return true;
 
       if (!maxHeight) maxHeight = this->height();
       auto ct = this->_clip_t;
       if (0 > y - ct) { maxHeight += y - ct; y = ct; }
       auto cb = this->_clip_b + 1;
       if (maxHeight > (cb - y)) maxHeight = (cb - y);
-      if (maxHeight <= 0) return true;
 
-      this->setClipRect(x, y, maxWidth, maxHeight);
-      this->startWrite();
-//      jres = jpegdec.decomp(jpg_push_image, nullptr);
-      jres = jd_decomp(&jpegdec, jpg_push_image, scale);
+      if (maxWidth > 0 && maxHeight > 0) {
+        this->setClipRect(x, y, maxWidth, maxHeight);
+        this->startWrite();
+  //      jres = jpegdec.decomp(jpg_push_image, nullptr);
+        jres = jd_decomp(&jpegdec, jpg_push_image, scale);
 
-      this->_clip_l = cl;
-      this->_clip_t = ct;
-      this->_clip_r = cr-1;
-      this->_clip_b = cb-1;
-      this->endWrite();
+        this->_clip_l = cl;
+        this->_clip_t = ct;
+        this->_clip_r = cr-1;
+        this->_clip_b = cb-1;
+        this->endWrite();
+      }
+      delete[] pool;
 
       if (jres != JDR_OK) {
         ESP_LOGE("LGFX","jpeg decomp error:%x", jres);
