@@ -70,8 +70,8 @@ struct JDEC {
 	int32_t* qttbl[4];			/* Dequantizer tables [id] */
 	void* workbuf;				/* Working buffer for IDCT and RGB output */
 	uint8_t* mcubuf;			/* Working buffer for the MCU */
-	void* pool;					/* Pointer to available memory pool */
-	uint16_t sz_pool;			/* Size of momory pool (bytes available) */
+	uint8_t* pool;				/* Pointer to available memory pool */
+	int32_t sz_pool;			/* Size of momory pool (bytes available) */
 	uint32_t (*infunc)(JDEC*, uint8_t*, uint32_t);/* Pointer to jpeg stream input function */
 	void* device;				/* Pointer to I/O device identifiler for the session */
 	uint8_t comps_in_frame;		/* 1=Y(grayscale)  3=YCrCb */

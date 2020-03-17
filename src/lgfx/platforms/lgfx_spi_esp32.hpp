@@ -641,14 +641,21 @@ namespace lgfx
         if (param->no_convert) {
           setWindow_impl(x, y, xr, y + h - 1);
           uint32_t i = (src_x + param->src_y * param->src_width) * bytes;
-          auto src = (const uint8_t*)param->src_data;
+          auto src = &((const uint8_t*)param->src_data)[i];
           if (param->src_width == w) {
-            write_bytes(&src[i], w * h * bytes, use_dma);
+            int32_t len = w * h * bytes;
+            if (!use_dma && (64 < len) && (len <= 1024)) {
+              auto buf = get_dmabuffer(len);
+              memcpy(buf, src, len);
+              write_bytes(buf, len, true);
+            } else {
+              write_bytes(src, len, false);
+            }
           } else {
             auto add = param->src_width * bytes;
             do {
-              write_bytes(&src[i], w * bytes, use_dma);
-              i += add;
+              write_bytes(src, w * bytes, use_dma);
+              src += add;
             } while (--h);
           }
         } else
