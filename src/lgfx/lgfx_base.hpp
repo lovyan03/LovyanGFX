@@ -2625,6 +2625,8 @@ ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
     {
       png_file_decoder_t *p = (png_file_decoder_t *)pngle_get_user_data(pngle);
 
+      if (rgba[3] < p->alphaThreshold) return ;
+
       if (x < p->offX || y < p->offY) return ;
       x -= p->offX;
       y -= p->offY;
@@ -2647,10 +2649,9 @@ ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
       x += p->x;
       y += p->y;
 
-      if (rgba[3] >= p->alphaThreshold) {
-        p->tft->setColor(*(uint32_t*)rgba);
-        p->tft->fillRect(x, y, w, h);
-      }
+      rgba[3] = 0;
+      p->tft->setColor(*(uint32_t*)rgba);
+      p->tft->fillRect(x, y, w, h);
     }
 
     bool draw_png(DataWrapper* data, int16_t x, int16_t y, int16_t maxWidth, int16_t maxHeight, int16_t offX, int16_t offY, double scale, uint8_t alphaThreshold)

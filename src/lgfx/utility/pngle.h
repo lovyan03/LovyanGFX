@@ -25,6 +25,8 @@
 #ifndef __PNGLE_H__
 #define __PNGLE_H__
 
+#define PNGLE_NO_GAMMA_CORRECTION 1
+
 #include <stdint.h>
 
 #ifdef __cplusplus

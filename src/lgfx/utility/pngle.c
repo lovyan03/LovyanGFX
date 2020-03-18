@@ -162,18 +162,12 @@ void pngle_reset(pngle_t *pngle)
   pngle->state = PNGLE_STATE_INITIAL;
   pngle->error = "No error";
 
-  if (pngle->scanline_ringbuf) free(pngle->scanline_ringbuf);
-  if (pngle->palette) free(pngle->palette);
-  if (pngle->trans_palette) free(pngle->trans_palette);
-#ifndef PNGLE_NO_GAMMA_CORRECTION
-  if (pngle->gamma_table) free(pngle->gamma_table);
-#endif
+  if (pngle->scanline_ringbuf) { free(pngle->scanline_ringbuf); pngle->scanline_ringbuf = NULL; }
+  if (pngle->palette         ) { free(pngle->palette         ); pngle->palette = NULL;}
+  if (pngle->trans_palette   ) { free(pngle->trans_palette   ); pngle->trans_palette = NULL; }
 
-  pngle->scanline_ringbuf = NULL;
-  pngle->palette = NULL;
-  pngle->trans_palette = NULL;
 #ifndef PNGLE_NO_GAMMA_CORRECTION
-  pngle->gamma_table = NULL;
+  if (pngle->gamma_table     ) { free(pngle->gamma_table     ); pngle->gamma_table = NULL; }
 #endif
 
   pngle->channels = 0; // indicates IHDR hasn't been processed yet
@@ -231,11 +225,11 @@ pngle_ihdr_t *pngle_get_ihdr(pngle_t *pngle)
 }
 
 
-static int is_trans_color(pngle_t *pngle, uint16_t *value, size_t n)
+static int is_trans_color(pngle_t *pngle, uint_fast16_t *value, size_t n)
 {
   if (pngle->n_trans_palettes != 1) return 0; // false (none or indexed)
 
-  for (size_t i = 0; i < n; i++) {
+  for (size_t i = 0; i < n; ++i) {
     if (value[i] != (pngle->trans_palette[i * 2 + 0] << 8 |  pngle->trans_palette[i * 2 + 1])) return 0; // false
   }
   return 1; // true
@@ -243,13 +237,17 @@ static int is_trans_color(pngle_t *pngle, uint16_t *value, size_t n)
 
 static inline void scanline_ringbuf_push(pngle_t *pngle, uint_fast8_t value)
 {
-  pngle->scanline_ringbuf[pngle->scanline_ringbuf_cidx] = value;
-  pngle->scanline_ringbuf_cidx = (pngle->scanline_ringbuf_cidx + 1) % pngle->scanline_ringbuf_size;
-}
+  size_t cidx = pngle->scanline_ringbuf_cidx;
+  pngle->scanline_ringbuf[cidx++] = value;
+  pngle->scanline_ringbuf_cidx = (cidx != pngle->scanline_ringbuf_size) ? cidx : 0;
 
-static inline uint16_t get_value(pngle_t *pngle, size_t *ridx, int *bitcount, int depth)
+//  pngle->scanline_ringbuf[pngle->scanline_ringbuf_cidx] = value;
+//  pngle->scanline_ringbuf_cidx = (pngle->scanline_ringbuf_cidx + 1) % pngle->scanline_ringbuf_size;
+}
+/*
+static inline uint_fast16_t get_value(pngle_t *pngle, size_t *ridx, int *bitcount, int depth)
 {
-  uint16_t v;
+  uint_fast16_t v;
 
   if (!(depth & 7)) {
     v = pngle->scanline_ringbuf[*ridx];
@@ -261,91 +259,90 @@ static inline uint16_t get_value(pngle_t *pngle, size_t *ridx, int *bitcount, in
     return v;
   }
 
+  uint_fast8_t mask = ((1UL << depth) - 1);
+  *bitcount += depth;
+  uint_fast8_t shift = (8 - *bitcount);
+  v = (pngle->scanline_ringbuf[*ridx] >> shift) & mask;
   if (*bitcount >= 8) {
     *bitcount = 0;
     *ridx = (*ridx + 1) % pngle->scanline_ringbuf_size;
   }
-  *bitcount += depth;
-  uint_fast8_t mask = ((1UL << depth) - 1);
-  uint_fast8_t shift = (8 - *bitcount);
-  return (pngle->scanline_ringbuf[*ridx] >> shift) & mask;
-/*
-  switch (depth) {
-  case 1:
-  case 2:
-  case 4:
-    if (*bitcount >= 8) {
-      *bitcount = 0;
-      *ridx = (*ridx + 1) % pngle->scanline_ringbuf_size;
-    }
-    *bitcount += depth;
-    uint_fast8_t mask = ((1UL << depth) - 1);
-    uint_fast8_t shift = (8 - *bitcount);
-    return (pngle->scanline_ringbuf[*ridx] >> shift) & mask;
-
-  case 8:
-    v = pngle->scanline_ringbuf[*ridx];
-    *ridx = (*ridx + 1) % pngle->scanline_ringbuf_size;
-    return v;
-
-  case 16:
-    v = pngle->scanline_ringbuf[*ridx];
-//    if (++ridx[0] == pngle->scanline_ringbuf_size) ridx[0] = 0;
-    *ridx = (*ridx + 1) % pngle->scanline_ringbuf_size;
-
-    v = (v << 8) | pngle->scanline_ringbuf[*ridx];
-    *ridx = (*ridx + 1) % pngle->scanline_ringbuf_size;
-    return v;
-  }
+  return v;
+}
 //*/
-  return 0;
+static inline size_t get_value(pngle_t *pngle, uint_fast16_t* v, size_t ridx, int depth)
+{
+  *v = pngle->scanline_ringbuf[ridx];
+  ridx = (ridx + 1) % pngle->scanline_ringbuf_size;
+  if (depth == 8) return ridx;
+
+  *v = (*v << 8) | pngle->scanline_ringbuf[ridx];
+  ridx = (ridx + 1) % pngle->scanline_ringbuf_size;
+  return ridx;
+}
+
+static inline size_t get_bitvalue(pngle_t *pngle, uint_fast16_t* v, size_t ridx, int *bitcount, int depth)
+{
+  uint_fast8_t mask = ((1UL << depth) - 1);
+  *bitcount += depth;
+  uint_fast8_t shift = (8 - *bitcount);
+  *v = (pngle->scanline_ringbuf[ridx] >> shift) & mask;
+  if (*bitcount < 8) return ridx;
+  *bitcount = 0;
+  return (ridx + 1) % pngle->scanline_ringbuf_size;
 }
 
 static int pngle_draw_pixels(pngle_t *pngle, size_t scanline_ringbuf_xidx)  //, uint_fast16_t magni)
 {
-  uint16_t v[4]; // MAX_CHANNELS
+  uint_fast16_t v[4]; // MAX_CHANNELS
   int bitcount = 0;
   uint_fast8_t pixel_depth = pngle->pixel_depth;
-  uint_fast16_t maxval = (1UL << pixel_depth) - 1;
+//  uint_fast16_t maxval = (1UL << pixel_depth) - 1;
 
   int n_pixels = pngle->hdr.depth == 16 ? 1 : (8 / pngle->hdr.depth);
 
   do {
     uint_fast8_t c = 0;
-    do {
-      v[c] = get_value(pngle, &scanline_ringbuf_xidx, &bitcount, pngle->hdr.depth);
-    } while (++c < pngle->channels);
+    if (!(pngle->hdr.depth & 7)) {
+      do {
+        scanline_ringbuf_xidx = get_value(pngle, &v[c], scanline_ringbuf_xidx, pngle->hdr.depth);
+      } while (++c < pngle->channels);
+    } else {
+      do {
+        scanline_ringbuf_xidx = get_bitvalue(pngle, &v[c], scanline_ringbuf_xidx, &bitcount, pngle->hdr.depth);
+      } while (++c < pngle->channels);
+    }
 
     // color type: 0000 0111
     //                     ^-- indexed color (palette)
     //                    ^--- Color
     //                   ^---- Alpha channel
 
-    if (pngle->hdr.color_type & 2) {
-      // color
-      if (pngle->hdr.color_type & 1) {
-        // indexed color: type 3
-
-        // lookup palette info
-        uint16_t pidx = v[0];
-        if (pidx >= pngle->n_palettes) return PNGLE_ERROR("Color index is out of range");
-
-        v[0] = pngle->palette[pidx * 3 + 0];
-        v[1] = pngle->palette[pidx * 3 + 1];
-        v[2] = pngle->palette[pidx * 3 + 2];
-
-        // tRNS as an indexed alpha value table (for color type 3)
-        v[3] = pidx < pngle->n_trans_palettes ? pngle->trans_palette[pidx] : maxval;
-      } else {
+    if (0 == (pngle->hdr.color_type & 1)) {
+      // not indexed color
+      if (pngle->hdr.color_type & 2) {
         // true color: 2, and 6
-        v[3] = (pngle->hdr.color_type & 4) ? v[3] : is_trans_color(pngle, v, 3) ? 0 : maxval;
+        v[3] = (pngle->hdr.color_type & 4) ? v[3] : is_trans_color(pngle, v, 3) ? 0 : ~0;
+      } else {
+        // alpha, tRNS, or opaque
+        v[3] = (pngle->hdr.color_type & 4) ? v[1] : is_trans_color(pngle, v, 1) ? 0 : ~0;
+
+        // monochrome
+        v[1] = v[2] = v[0];
       }
     } else {
-      // alpha, tRNS, or opaque
-      v[3] = (pngle->hdr.color_type & 4) ? v[1] : is_trans_color(pngle, v, 1) ? 0 : maxval;
+      // indexed color: type 3
 
-      // monochrome
-      v[1] = v[2] = v[0];
+      // lookup palette info
+      uint16_t pidx = v[0];
+      if (pidx >= pngle->n_palettes) return PNGLE_ERROR("Color index is out of range");
+
+      v[0] = pngle->palette[pidx * 3 + 0];
+      v[1] = pngle->palette[pidx * 3 + 1];
+      v[2] = pngle->palette[pidx * 3 + 2];
+
+      // tRNS as an indexed alpha value table (for color type 3)
+      v[3] = pidx < pngle->n_trans_palettes ? pngle->trans_palette[pidx] : ~0;
     }
 
     if (pngle->draw_callback) {
@@ -355,10 +352,6 @@ static int pngle_draw_pixels(pngle_t *pngle, size_t scanline_ringbuf_xidx)  //, 
         ((v[1] * magni) >> pixel_depth),
         ((v[2] * magni) >> pixel_depth),
         ((v[3] * magni) >> pixel_depth)
-//        (v[0] * 255 + maxval / 2) / maxval,
-//        (v[1] * 255 + maxval / 2) / maxval,
-//        (v[2] * 255 + maxval / 2) / maxval,
-//        (v[3] * 255 + maxval / 2) / maxval
       };
 
 #ifndef PNGLE_NO_GAMMA_CORRECTION
@@ -483,8 +476,8 @@ static int pngle_on_data(pngle_t *pngle, const uint8_t *p, int len)
     }
 
     size_t cidx =  pngle->scanline_ringbuf_cidx;
-    size_t bidx = (pngle->scanline_ringbuf_cidx                                + bytes_per_pixel) % pngle->scanline_ringbuf_size;
-    size_t aidx = (pngle->scanline_ringbuf_cidx + pngle->scanline_ringbuf_size - bytes_per_pixel) % pngle->scanline_ringbuf_size;
+    size_t bidx = (cidx                                + bytes_per_pixel) % pngle->scanline_ringbuf_size;
+    size_t aidx = (cidx + pngle->scanline_ringbuf_size - bytes_per_pixel) % pngle->scanline_ringbuf_size;
     // debug_printf("[pngle] cidx = %zd, bidx = %zd, aidx = %zd\n", cidx, bidx, aidx);
 
     uint_fast8_t c = pngle->scanline_ringbuf[cidx]; // left-up
@@ -765,10 +758,10 @@ static int pngle_feed_internal(pngle_t *pngle, const uint8_t *buf, size_t len)
       default:
         return PNGLE_ERROR("PLTE chunk is prohibited on the color type");
       }
-
-      if (pngle->chunk_remain % 3) return PNGLE_ERROR("Invalid PLTE chunk size");
-      if (pngle->chunk_remain / 3 > MIN(256, (1UL << pngle->hdr.depth))) return PNGLE_ERROR("Too many palettes in PLTE");
-      if ((pngle->palette = PNGLE_CALLOC(pngle->chunk_remain / 3, 3, "palette")) == NULL) return PNGLE_ERROR("Insufficient memory");
+      uint32_t chunk_remain_3 = pngle->chunk_remain / 3;
+      if (pngle->chunk_remain != chunk_remain_3 * 3) return PNGLE_ERROR("Invalid PLTE chunk size");
+      if (chunk_remain_3 > MIN(256, (1UL << pngle->hdr.depth))) return PNGLE_ERROR("Too many palettes in PLTE");
+      if ((pngle->palette = PNGLE_CALLOC(chunk_remain_3, 3, "palette")) == NULL) return PNGLE_ERROR("Insufficient memory");
       pngle->n_palettes = 0;
       break;
 
