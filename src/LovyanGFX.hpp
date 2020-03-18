@@ -24,6 +24,7 @@ Author
 
 //#include "lgfx/utility/tjpgdClass.h" // JPEG decode support (optional)
 #include "lgfx/utility/tjpgd.h" // JPEG decode support (optional)
+#include "lgfx/utility/pngle.h" // PNG decode support (optional)
 //#include <rom/tjpgd.h>
 
 #include "lgfx/lgfx_sprite.hpp"   // sprite class (optional)

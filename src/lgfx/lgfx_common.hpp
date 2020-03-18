@@ -907,7 +907,13 @@ namespace lgfx
 //----------------------------------------------------------------------------
   struct PointerWrapper : public DataWrapper {
     void set(const uint8_t* src, uint32_t length = ~0) { _ptr = src; _length = length; _index = 0; }
-    int read(uint8_t *buf, uint32_t len) override { memcpy(buf, &_ptr[_index], len); _index += len; return len; }
+    int read(uint8_t *buf, uint32_t len) override {
+      if (len > _length - _index) { len = _length - _index; }
+      len = std::min(len, _length - _index);
+      memcpy(buf, &_ptr[_index], len);
+      _index += len;
+      return len;
+    }
     void skip(int32_t offset) override { _index += offset; }
     bool seek(uint32_t offset) override { _index = offset; return true; }
     void close(void) override { }

@@ -12,6 +12,7 @@
 #define JD_FORMAT		0	/* Output pixel format 0:RGB888 (3 BYTE/pix), 1:RGB565 (1 WORD/pix) */
 #define	JD_USE_SCALE	1	/* Use descaling feature for output */
 #define JD_TBLCLIP		0	/* Use table for saturation (might be a bit faster but increases 1K bytes of code size) */
+#define JD_BAYER		0	/* Use bayer pattern table */
 
 /*---------------------------------------------------------------------------*/
 
@@ -60,7 +61,7 @@ struct JDEC {
 	uint_fast8_t dmsk;			/* Current bit in the current read byte */
 	uint_fast8_t scale;			/* Output scaling ratio */
 	uint_fast8_t msx, msy;		/* MCU size in unit of block (width, height) */
-	uint8_t qtid[3];			/* Quantization table ID of each component */
+	uint_fast8_t qtid[3];		/* Quantization table ID of each component */
 	int32_t dcv[3];				/* Previous DC element of each component */
 	uint16_t nrst;				/* Restart inverval */
 	uint_fast16_t width, height;/* Size of the input image (pixel) */

@@ -2280,6 +2280,26 @@ ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
       if (file.need_transaction && this->_transaction_count) { this->beginTransaction(); }
       return res;
     }
+
+    bool drawPngFile( fs::FS &fs, const char *path
+                    , int16_t x = 0, int16_t y = 0
+                    , int16_t maxWidth = 0, int16_t maxHeight = 0
+                    , int16_t offX = 0, int16_t offY = 0
+                    , double scale = 1.0, uint8_t alphaThreshold = 127)
+    {
+      bool res;
+      FileWrapper file;
+      file.setFS(fs);
+      file.need_transaction &= this->_has_transaction;
+      if (file.need_transaction) this->endTransaction();
+      if (file.open(path, "rb")) {
+        res = draw_png(&file, x, y, maxWidth, maxHeight, offX, offY, scale, alphaThreshold);
+        file.close();
+      }
+      if (file.need_transaction && this->_transaction_count) { this->beginTransaction(); }
+      return res;
+    }
+
  #endif
  #if defined (Stream_h)
 
@@ -2287,6 +2307,16 @@ ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
       StreamWrapper data;
       data.set(dataSource);
       return draw_jpg(&data, x, y, maxWidth, maxHeight, offX, offY, scale);
+    }
+
+    void drawPng( Stream *dataSource
+                , int16_t x = 0, int16_t y = 0
+                , int16_t maxWidth = 0, int16_t maxHeight = 0
+                , int16_t offX = 0, int16_t offY = 0
+                , double scale = 1.0, uint8_t alphaThreshold = 127) {
+      StreamWrapper data;
+      data.set(dataSource);
+      return draw_png(&data, x, y, maxWidth, maxHeight, offX, offY, scale, alphaThreshold);
     }
 
  #endif
@@ -2301,11 +2331,27 @@ ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
     bool drawJpgFile(const char *path, int16_t x=0, int16_t y=0, int16_t maxWidth=0, int16_t maxHeight=0, int16_t offX=0, int16_t offY=0, jpeg_div_t scale=JPEG_DIV_NONE) {
       bool res;
       FileWrapper file;
-//      drawJpgFile(&file, path, x, y, maxWidth, maxHeight, offX, offY, scale);
       file.need_transaction &= this->_has_transaction;
       if (file.need_transaction) this->endTransaction();
       if (file.open(path, "rb")) {
         res = draw_jpg(&file, x, y, maxWidth, maxHeight, offX, offY, scale);
+        file.close();
+      }
+      if (file.need_transaction && this->_transaction_count) { this->beginTransaction(); }
+      return res;
+    }
+    bool drawPngFile( const char *path
+                    , int16_t x = 0, int16_t y = 0
+                    , int16_t maxWidth = 0, int16_t maxHeight = 0
+                    , int16_t offX = 0, int16_t offY = 0
+                    , double scale = 1.0, uint8_t alphaThreshold = 127)
+    {
+      bool res;
+      FileWrapper file;
+      file.need_transaction &= this->_has_transaction;
+      if (file.need_transaction) this->endTransaction();
+      if (file.open(path, "rb")) {
+        res = draw_png(&file, x, y, maxWidth, maxHeight, offX, offY, scale, alphaThreshold);
         file.close();
       }
       if (file.need_transaction && this->_transaction_count) { this->beginTransaction(); }
@@ -2323,6 +2369,16 @@ ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
       PointerWrapper data;
       data.set(jpg_data, jpg_len);
       return draw_jpg(&data, x, y, maxWidth, maxHeight, offX, offY, scale);
+    }
+    bool drawPng( const uint8_t *png_data, uint32_t png_len
+                    , int16_t x = 0, int16_t y = 0
+                    , int16_t maxWidth = 0, int16_t maxHeight = 0
+                    , int16_t offX = 0, int16_t offY = 0
+                    , double scale = 1.0, uint8_t alphaThreshold = 127)
+    {
+      PointerWrapper data;
+      data.set(png_data, png_len);
+      return draw_png(&data, x, y, maxWidth, maxHeight, offX, offY, scale, alphaThreshold);
     }
 
   private:
@@ -2437,7 +2493,8 @@ ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
 
     bool draw_jpg(DataWrapper* data, int16_t x, int16_t y, int16_t maxWidth, int16_t maxHeight, int16_t offX, int16_t offY, jpeg_div_t scale)
     {
-      ESP_LOGI("LGFX","drawJpg need include utility/tjpgdClass.h");
+      ESP_LOGI("LGFX","drawJpg need include utility/tjpgd.h");
+      return false;
     }
 
 #else
@@ -2540,6 +2597,113 @@ ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
       return true;
     }
 #endif
+
+#ifndef __PNGLE_H__
+
+    bool draw_png(DataWrapper* data, int16_t x, int16_t y, int16_t maxWidth, int16_t maxHeight, int16_t offX, int16_t offY, double scale, uint8_t alphaThreshold)
+    {
+      ESP_LOGI("LGFX","drawPng need include utility/pngle.h");
+      return false;
+    }
+
+#else
+
+    typedef struct _png_draw_params {
+      uint16_t x;
+      uint16_t y;
+      uint16_t maxWidth;
+      uint16_t maxHeight;
+      uint16_t offX;
+      uint16_t offY;
+      double scale;
+      uint8_t alphaThreshold;
+
+      LGFXBase *tft;
+    } png_file_decoder_t;
+
+    static void pngle_draw_callback(pngle_t *pngle, uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint8_t rgba[4])
+    {
+      png_file_decoder_t *p = (png_file_decoder_t *)pngle_get_user_data(pngle);
+
+      if (x < p->offX || y < p->offY) return ;
+      x -= p->offX;
+      y -= p->offY;
+
+      // An interlaced file with alpha channel causes disaster, so use 1 here for simplicity
+      w = 1;
+      h = 1;
+
+      if (p->scale != 1.0) {
+        x = (uint32_t)ceil(x * p->scale);
+        y = (uint32_t)ceil(y * p->scale);
+        w = (uint32_t)ceil(w * p->scale);
+        h = (uint32_t)ceil(h * p->scale);
+      }
+
+      if (x >= p->maxWidth || y >= p->maxHeight) return ;
+      if (x + w >= p->maxWidth) w = p->maxWidth - x;
+      if (y + h >= p->maxHeight) h = p->maxHeight - y;
+
+      x += p->x;
+      y += p->y;
+
+      if (rgba[3] >= p->alphaThreshold) {
+        p->tft->setColor(*(uint32_t*)rgba);
+        p->tft->fillRect(x, y, w, h);
+      }
+    }
+
+    bool draw_png(DataWrapper* data, int16_t x, int16_t y, int16_t maxWidth, int16_t maxHeight, int16_t offX, int16_t offY, double scale, uint8_t alphaThreshold)
+    {
+      pngle_t *pngle = pngle_new();
+
+      png_file_decoder_t png;
+
+      if (!maxWidth) {
+        maxWidth = this->width() - x;
+      }
+      if (!maxHeight) {
+        maxHeight = this->height() - y;
+      }
+
+      png.x = x;
+      png.y = y;
+      png.maxWidth = maxWidth;
+      png.maxHeight = maxHeight;
+      png.offX = offX;
+      png.offY = offY;
+      png.scale = scale;
+      png.alphaThreshold = alphaThreshold;
+      png.tft = this;
+
+      pngle_set_user_data(pngle, &png);
+      pngle_set_draw_callback(pngle, pngle_draw_callback);
+
+      // Feed data to pngle
+      uint8_t buf[1024];
+      int remain = 0;
+      int len;
+      bool res = true;
+      this->startWrite();
+      while ((len = data->read(buf + remain, sizeof(buf) - remain)) > 0) {
+        int fed = pngle_feed(pngle, buf, remain + len);
+        if (fed < 0) {
+          log_e("[pngle error] %s", pngle_error(pngle));
+          res = false;
+          break;
+        }
+
+        remain = remain + len - fed;
+        if (remain > 0) memmove(buf, buf + fed, remain);
+      }
+      this->endWrite();
+
+      pngle_destroy(pngle);
+      return res;
+    }
+
+#endif
+
 
   };
 //----------------------------------------------------------------------------
