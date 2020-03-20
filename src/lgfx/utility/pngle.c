@@ -119,6 +119,7 @@ struct _pngle_t {
 
   pngle_init_callback_t init_callback;
   pngle_draw_callback_t draw_callback;
+  pngle_line_callback_t line_callback;
   pngle_done_callback_t done_callback;
 
   void *user_data;
@@ -126,10 +127,10 @@ struct _pngle_t {
 
 // magic
 static const uint8_t png_sig[] = { 137, 80, 78, 71, 13, 10, 26, 10 };
-static uint32_t interlace_off_x[8] = { 0,  0, 4, 0, 2, 0, 1, 0 };
-static uint32_t interlace_off_y[8] = { 0,  0, 0, 4, 0, 2, 0, 1 };
-static uint32_t interlace_div_x[8] = { 1,  8, 8, 4, 4, 2, 2, 1 };
-static uint32_t interlace_div_y[8] = { 1,  8, 8, 8, 4, 4, 2, 2 };
+static uint_fast8_t interlace_off_x[8] = { 0,  0, 4, 0, 2, 0, 1, 0 };
+static uint_fast8_t interlace_off_y[8] = { 0,  0, 0, 4, 0, 2, 0, 1 };
+static uint_fast8_t interlace_div_x[8] = { 1,  8, 8, 4, 4, 2, 2, 1 };
+static uint_fast8_t interlace_div_y[8] = { 1,  8, 8, 8, 4, 4, 2, 2 };
 
 
 static inline uint8_t  read_uint8(const uint8_t *p)
@@ -145,7 +146,7 @@ static inline uint32_t read_uint32(const uint8_t *p)
        | (p[3] <<  0)
   ;
 }
-
+/*
 static inline uint32_t U32_CLAMP_ADD(uint32_t a, uint32_t b, uint32_t top)
 {
   uint32_t v = a + b;
@@ -153,7 +154,7 @@ static inline uint32_t U32_CLAMP_ADD(uint32_t a, uint32_t b, uint32_t top)
   if (v > top) return top; // clamp
   return v;
 }
-
+//*/
 
 void pngle_reset(pngle_t *pngle)
 {
@@ -277,8 +278,7 @@ static inline size_t get_value(pngle_t *pngle, uint_fast16_t* v, size_t ridx, in
   if (depth == 8) return ridx;
 
   *v = (*v << 8) | pngle->scanline_ringbuf[ridx];
-  ridx = (ridx + 1) % pngle->scanline_ringbuf_size;
-  return ridx;
+  return (ridx + 1) % pngle->scanline_ringbuf_size;
 }
 
 static inline size_t get_bitvalue(pngle_t *pngle, uint_fast16_t* v, size_t ridx, int *bitcount, int depth)
@@ -294,58 +294,56 @@ static inline size_t get_bitvalue(pngle_t *pngle, uint_fast16_t* v, size_t ridx,
 
 static int pngle_draw_pixels(pngle_t *pngle, size_t scanline_ringbuf_xidx)  //, uint_fast16_t magni)
 {
-  uint_fast16_t v[4]; // MAX_CHANNELS
-  int bitcount = 0;
-  uint_fast8_t pixel_depth = pngle->pixel_depth;
-//  uint_fast16_t maxval = (1UL << pixel_depth) - 1;
+  int n_pixels = (pngle->hdr.depth & 7) ? (8 / pngle->hdr.depth) : 1;
 
-  int n_pixels = pngle->hdr.depth == 16 ? 1 : (8 / pngle->hdr.depth);
-
-  do {
-    uint_fast8_t c = 0;
-    if (!(pngle->hdr.depth & 7)) {
-      do {
-        scanline_ringbuf_xidx = get_value(pngle, &v[c], scanline_ringbuf_xidx, pngle->hdr.depth);
-      } while (++c < pngle->channels);
-    } else {
-      do {
-        scanline_ringbuf_xidx = get_bitvalue(pngle, &v[c], scanline_ringbuf_xidx, &bitcount, pngle->hdr.depth);
-      } while (++c < pngle->channels);
-    }
-
-    // color type: 0000 0111
-    //                     ^-- indexed color (palette)
-    //                    ^--- Color
-    //                   ^---- Alpha channel
-
-    if (0 == (pngle->hdr.color_type & 1)) {
-      // not indexed color
-      if (pngle->hdr.color_type & 2) {
-        // true color: 2, and 6
-        v[3] = (pngle->hdr.color_type & 4) ? v[3] : is_trans_color(pngle, v, 3) ? 0 : ~0;
+  if (pngle->draw_callback) {
+    uint_fast16_t v[4]; // MAX_CHANNELS
+    int bitcount = 0;
+    do {
+      uint_fast8_t c = 0;
+      if (!(pngle->hdr.depth & 7)) {
+        do {
+          scanline_ringbuf_xidx = get_value(pngle, &v[c], scanline_ringbuf_xidx, pngle->hdr.depth);
+        } while (++c < pngle->channels);
       } else {
-        // alpha, tRNS, or opaque
-        v[3] = (pngle->hdr.color_type & 4) ? v[1] : is_trans_color(pngle, v, 1) ? 0 : ~0;
-
-        // monochrome
-        v[1] = v[2] = v[0];
+        do {
+          scanline_ringbuf_xidx = get_bitvalue(pngle, &v[c], scanline_ringbuf_xidx, &bitcount, pngle->hdr.depth);
+        } while (++c < pngle->channels);
       }
-    } else {
-      // indexed color: type 3
 
-      // lookup palette info
-      uint16_t pidx = v[0];
-      if (pidx >= pngle->n_palettes) return PNGLE_ERROR("Color index is out of range");
+      // color type: 0000 0111
+      //                     ^-- indexed color (palette)
+      //                    ^--- Color
+      //                   ^---- Alpha channel
 
-      v[0] = pngle->palette[pidx * 3 + 0];
-      v[1] = pngle->palette[pidx * 3 + 1];
-      v[2] = pngle->palette[pidx * 3 + 2];
+      if (0 == (pngle->hdr.color_type & 1)) {
+        // not indexed color
+        if (pngle->hdr.color_type & 2) {
+          // true color: 2, and 6
+          v[3] = (pngle->hdr.color_type & 4) ? v[3] : is_trans_color(pngle, v, 3) ? 0 : ~0;
+        } else {
+          // alpha, tRNS, or opaque
+          v[3] = (pngle->hdr.color_type & 4) ? v[1] : is_trans_color(pngle, v, 1) ? 0 : ~0;
 
-      // tRNS as an indexed alpha value table (for color type 3)
-      v[3] = pidx < pngle->n_trans_palettes ? pngle->trans_palette[pidx] : ~0;
-    }
+          // monochrome
+          v[1] = v[2] = v[0];
+        }
+      } else {
+        // indexed color: type 3
 
-    if (pngle->draw_callback) {
+        // lookup palette info
+        uint_fast16_t pidx = v[0];
+        if (pidx >= pngle->n_palettes) return PNGLE_ERROR("Color index is out of range");
+
+        v[0] = pngle->palette[pidx * 3 + 0];
+        v[1] = pngle->palette[pidx * 3 + 1];
+        v[2] = pngle->palette[pidx * 3 + 2];
+
+        // tRNS as an indexed alpha value table (for color type 3)
+        v[3] = pidx < pngle->n_trans_palettes ? pngle->trans_palette[pidx] : ~0;
+      }
+
+      uint_fast8_t pixel_depth = pngle->pixel_depth;
       uint_fast16_t magni = pngle->magni;
       uint8_t rgba[4] = {
         ((v[0] * magni) >> pixel_depth),
@@ -362,17 +360,31 @@ static int pngle_draw_pixels(pngle_t *pngle, size_t scanline_ringbuf_xidx)  //, 
       }
 #endif
 
-      pngle->draw_callback(pngle, pngle->drawing_x, pngle->drawing_y
-        , MIN(interlace_div_x[pngle->interlace_pass] - interlace_off_x[pngle->interlace_pass], pngle->hdr.width  - pngle->drawing_x)
-        , MIN(interlace_div_y[pngle->interlace_pass] - interlace_off_y[pngle->interlace_pass], pngle->hdr.height - pngle->drawing_y)
-        , rgba
-      );
+      pngle->draw_callback(pngle, pngle->drawing_x, pngle->drawing_y, rgba);
+
+      pngle->drawing_x += interlace_div_x[pngle->interlace_pass];
+    } while (--n_pixels && pngle->drawing_x < pngle->hdr.width);
+
+  } else {
+
+    do {
+      pngle->drawing_x += interlace_div_x[pngle->interlace_pass];
+    } while (--n_pixels && pngle->drawing_x < pngle->hdr.width);
+  }
+  if (pngle->drawing_x >= pngle->hdr.width && pngle->line_callback) {
+    uint32_t next_y = pngle->drawing_y + interlace_div_y[pngle->interlace_pass];
+    if (next_y >= pngle->hdr.height) {
+      next_y = (pngle->interlace_pass == 0 || pngle->interlace_pass >= 7)
+             ? ~0
+             : interlace_off_y[pngle->interlace_pass + 1];
     }
-    pngle->drawing_x = U32_CLAMP_ADD(pngle->drawing_x, interlace_div_x[pngle->interlace_pass], pngle->hdr.width);
-  } while (--n_pixels && pngle->drawing_x < pngle->hdr.width);
+    pngle->line_callback(pngle, pngle->drawing_y, next_y);
+
+  }
 
   return 0;
 }
+//*/
 
 static inline int paeth(int a, int b, int c)
 {
@@ -445,7 +457,8 @@ static int pngle_on_data(pngle_t *pngle, const uint8_t *p, int len)
     if (pngle->drawing_x >= pngle->hdr.width) {
       // New row
       pngle->drawing_x = interlace_off_x[pngle->interlace_pass];
-      pngle->drawing_y = U32_CLAMP_ADD(pngle->drawing_y, interlace_div_y[pngle->interlace_pass], pngle->hdr.height);
+      pngle->drawing_y += interlace_div_y[pngle->interlace_pass];
+//      pngle->drawing_y = U32_CLAMP_ADD(pngle->drawing_y, interlace_div_y[pngle->interlace_pass], pngle->hdr.height);
       pngle->filter_type = -1; // Indicate new line
     }
 
@@ -491,7 +504,7 @@ static int pngle_on_data(pngle_t *pngle, const uint8_t *p, int len)
     case 0: break; // None
     case 1: x += a; break; // Sub
     case 2: x += b; break; // Up
-    case 3: x += (a + b) / 2; break; // Average
+    case 3: x += (a + b) >> 1; break; // Average
     case 4: x += paeth(a, b, c); break; // Paeth
     }
 
@@ -585,7 +598,7 @@ static int pngle_handle_chunk(pngle_t *pngle, const uint8_t *buf, size_t len)
     if (set_interlace_pass(pngle, pngle->hdr.interlace ? 1 : 0) < 0) return -1;
 
     // callback
-    if (pngle->init_callback) pngle->init_callback(pngle, pngle->hdr.width, pngle->hdr.height);
+    if (pngle->init_callback) pngle->init_callback(pngle, pngle->hdr.width, pngle->hdr.height, pngle->trans_palette || (pngle->hdr.color_type & 4));
 
     break;
 
@@ -791,6 +804,7 @@ static int pngle_feed_internal(pngle_t *pngle, const uint8_t *buf, size_t len)
       }
       if ((pngle->trans_palette = PNGLE_CALLOC(pngle->chunk_remain, 1, "trans palette")) == NULL) return PNGLE_ERROR("Insufficient memory");
       pngle->n_trans_palettes = 0;
+      if (pngle->init_callback) pngle->init_callback(pngle, pngle->hdr.width, pngle->hdr.height, 1);
       break;
 
     default:
@@ -881,6 +895,12 @@ void pngle_set_draw_callback(pngle_t *pngle, pngle_draw_callback_t callback)
 {
   if (!pngle) return ;
   pngle->draw_callback = callback;
+}
+
+void pngle_set_line_callback(pngle_t *pngle, pngle_line_callback_t callback)
+{
+  if (!pngle) return ;
+  pngle->line_callback = callback;
 }
 
 void pngle_set_done_callback(pngle_t *pngle, pngle_done_callback_t callback)

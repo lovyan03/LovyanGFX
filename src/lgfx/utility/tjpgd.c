@@ -18,7 +18,10 @@
 / Sep 03, 2012 R0.01b Added JD_TBLCLIP option.
 / Mar 16, 2019 R0.01c Supprted stdint.h.
 /-----------------------------------------------------------------------------/
-/ Modified by lovyan03
+/ Modified for ESP32  by lovyan03, 2020
+/ add support grayscale jpeg
+/ add bayer pattern
+/ tweak for 32bit processor
 /----------------------------------------------------------------------------*/
 
 #include "tjpgd.h"
@@ -123,10 +126,10 @@ inline uint_fast8_t BYTECLIP (
 
 
 /*---------------------------------------------*/
-/* Output 4x4 bayer pattern table                  */
+/* Output 4x4 bayer pattern table              */
 /*---------------------------------------------*/
 
-static const int32_t Bayer[16] = { 0, 4, 1, 5,-2, 2,-1, 3, 1, 5, 0, 4,-1, 3,-2, 2};
+static const int_fast8_t Bayer[16] = { 0, 4, 1, 5,-2, 2,-1, 3, 1, 5, 0, 4,-1, 3,-2, 2};
 
 
 /*-----------------------------------------------------------------------*/

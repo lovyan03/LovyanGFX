@@ -1,7 +1,7 @@
 /*----------------------------------------------------------------------------/
 / TJpgDec - Tiny JPEG Decompressor include file               (C)ChaN, 2019
 /-----------------------------------------------------------------------------/
-/ Modified by lovyan03
+/ Modified for ESP32  by lovyan03, 2020
 /----------------------------------------------------------------------------*/
 #ifndef DEF_TJPGDEC
 #define DEF_TJPGDEC
@@ -12,7 +12,7 @@
 #define JD_FORMAT		0	/* Output pixel format 0:RGB888 (3 BYTE/pix), 1:RGB565 (1 WORD/pix) */
 #define	JD_USE_SCALE	1	/* Use descaling feature for output */
 #define JD_TBLCLIP		0	/* Use table for saturation (might be a bit faster but increases 1K bytes of code size) */
-#define JD_BAYER		0	/* Use bayer pattern table */
+#define JD_BAYER		1	/* Use bayer pattern table */
 
 /*---------------------------------------------------------------------------*/
 

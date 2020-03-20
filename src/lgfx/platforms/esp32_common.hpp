@@ -60,6 +60,16 @@
 
 namespace lgfx
 {
+  static void* alloc_dmabuffer(size_t length)
+  {
+    return heap_caps_malloc((length + 3) & ~3, MALLOC_CAP_DMA);
+  }
+
+  static void free_dmabuffer(void* dmabuffer)
+  {
+    heap_caps_free(dmabuffer);
+  }
+
   static uint32_t FreqToClockDiv(uint32_t fapb, uint32_t hz)
   {
     if (hz > ((fapb >> 2) * 3)) {
