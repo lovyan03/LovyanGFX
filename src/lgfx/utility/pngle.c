@@ -321,12 +321,6 @@ static int pngle_draw_pixels(pngle_t *pngle, size_t scanline_ringbuf_xidx, uint_
 
       uint_fast8_t pixel_depth = pngle->pixel_depth;
       uint_fast16_t magni = pngle->magni;
-//      uint8_t rgba[4] = {
-//        ((v[0] * magni) >> pixel_depth),
-//        ((v[1] * magni) >> pixel_depth),
-//        ((v[2] * magni) >> pixel_depth),
-//        ((v[3] * magni) >> pixel_depth)
-//      };
       rgba[0] = ((v[0] * magni) >> pixel_depth);
       rgba[1] = ((v[1] * magni) >> pixel_depth);
       rgba[2] = ((v[2] * magni) >> pixel_depth);

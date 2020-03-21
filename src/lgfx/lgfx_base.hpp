@@ -2387,44 +2387,44 @@ ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
       int32_t w;
       int32_t h;
       uint16_t bpp;
-      {
-        struct {
-          union {
-            uint8_t raw[34];
-    //      uint8_t raw[54];
-            #pragma pack(1)
-            struct {
-              uint16_t bfType; 
-              uint32_t bfSize;
-              uint16_t bfReserved1;
-              uint16_t bfReserved2;
-              uint32_t bfOffBits;
-              uint32_t biSize; 
-              int32_t  biWidth;
-              int32_t  biHeight;
-              uint16_t biPlanes; 
-              uint16_t biBitCount;
-              uint32_t biCompression;
-            //uint32_t biSizeImage; 
-            //int32_t  biXPelsPerMeter;
-            //int32_t  biYPelsPerMeter;
-            //uint32_t biClrUsed; 
-            //uint32_t biClrImportant;
-            };
-            #pragma pack()
+
+      struct {
+        union {
+          uint8_t raw[34];
+  //      uint8_t raw[54];
+          #pragma pack(1)
+          struct {
+            uint16_t bfType; 
+            uint32_t bfSize;
+            uint16_t bfReserved1;
+            uint16_t bfReserved2;
+            uint32_t bfOffBits;
+            uint32_t biSize; 
+            int32_t  biWidth;
+            int32_t  biHeight;
+            uint16_t biPlanes; 
+            uint16_t biBitCount;
+            uint32_t biCompression;
+          //uint32_t biSizeImage; 
+          //int32_t  biXPelsPerMeter;
+          //int32_t  biYPelsPerMeter;
+          //uint32_t biClrUsed; 
+          //uint32_t biClrImportant;
           };
-        } bmpdata;
-        data->read(bmpdata.raw, sizeof(bmpdata));
-        if ((bmpdata.bfType != 0x4D42)   // bmp header "BM"
-         || (bmpdata.biPlanes != 1)  // bcPlanes always 1
-         || (bmpdata.biWidth + x < 0)
-         || (bmpdata.biHeight + y < 0)
-         || (bmpdata.biBitCount > 32)
-         || (bmpdata.biBitCount == 0)
-         || (bmpdata.biCompression != 0 && bmpdata.biCompression != 3)) { // RLE not supported
+          #pragma pack()
+        };
+      } bmpdata;
+      data->read(bmpdata.raw, sizeof(bmpdata));
+      if ((bmpdata.bfType != 0x4D42)   // bmp header "BM"
+       || (bmpdata.biPlanes != 1)  // bcPlanes always 1
+       || (bmpdata.biWidth + x < 0)
+       || (bmpdata.biHeight + y < 0)
+       || (bmpdata.biBitCount > 32)
+       || (bmpdata.biBitCount == 0)
+       || (bmpdata.biCompression != 0 && bmpdata.biCompression != 3)) { // RLE not supported
 // Serial.println("BMP format not recognized.");
-          return;
-        }
+        return;
+
         seekOffset = bmpdata.bfOffBits;
         w = bmpdata.biWidth;
         h = bmpdata.biHeight;  // bcHeight Image height (pixels)
@@ -2439,7 +2439,7 @@ ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
       argb8888_t *palette = nullptr;
       if (bpp <= 8) {
         palette = new argb8888_t[1 << bpp];
-        data->seek(seekOffset - (1 << bpp) * sizeof(argb8888_t));
+        data->seek(bmpdata.biSize + 14);
         data->read((uint8_t*)palette, (1 << bpp)*sizeof(argb8888_t)); // load palette
       }
 

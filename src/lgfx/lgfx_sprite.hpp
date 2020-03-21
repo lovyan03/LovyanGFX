@@ -65,6 +65,153 @@ namespace lgfx
       return _img;
     }
 
+
+#if defined (ARDUINO)
+ #if defined (FS_H)
+
+    inline void createFromBmp(fs::FS &fs, const char *path) { createFromBmpFile(fs, path); }
+    void createFromBmpFile(fs::FS &fs, const char *path) {
+      FileWrapper file;
+      file.setFS(fs);
+      createFromBmpFile(&file, path);
+    }
+
+ #endif
+
+#elif defined (CONFIG_IDF_TARGET_ESP32)  // ESP-IDF
+
+    void createFromBmpFile(const char *path) {
+      FileWrapper file;
+      createFromBmpFile(&file, path);
+    }
+
+#endif
+
+    void createFromBmpFile(FileWrapper* file, const char *path) {
+      file->need_transaction = false;
+      if (file->open(path, "rb")) {
+        create_from_bmp(file);
+        file->close();
+      }
+    }
+
+    struct bitmap_header_t {
+      union {
+        uint8_t raw[54];
+        #pragma pack(1)
+        struct {
+          uint16_t bfType; 
+          uint32_t bfSize;
+          uint16_t bfReserved1;
+          uint16_t bfReserved2;
+          uint32_t bfOffBits;
+
+          uint32_t biSize; 
+          int32_t  biWidth;
+          int32_t  biHeight;
+          uint16_t biPlanes; 
+          uint16_t biBitCount;
+          uint32_t biCompression;
+          uint32_t biSizeImage; 
+          int32_t  biXPelsPerMeter;
+          int32_t  biYPelsPerMeter;
+          uint32_t biClrUsed; 
+          uint32_t biClrImportant;
+        };
+        #pragma pack()
+      };
+    };
+
+    bool load_bmp_header(DataWrapper* data, bitmap_header_t* result) {
+      data->read((uint8_t*)result, sizeof(bitmap_header_t));
+      return ((result->bfType == 0x4D42)   // bmp header "BM"
+           && (result->biPlanes == 1)  // bcPlanes always 1
+           && (result->biWidth > 0)
+           && (result->biHeight > 0)
+           && (result->biBitCount <= 32)
+           && (result->biBitCount != 0));
+    }
+
+    bool create_from_bmp(DataWrapper* data) {
+      //uint32_t startTime = millis();
+      uint32_t seekOffset;
+      bitmap_header_t bmpdata;
+
+      if (!load_bmp_header(data, &bmpdata)
+       || (bmpdata.biCompression != 0 && bmpdata.biCompression != 3)) { // RLE not supported
+        return false;
+      }
+      seekOffset = bmpdata.bfOffBits;
+      uint16_t bpp = bmpdata.biBitCount; // 24 bcBitCount 24=RGB24bit
+      int32_t w = bmpdata.biWidth;
+      int32_t h = bmpdata.biHeight;  // bcHeight Image height (pixels)
+      setColorDepth(bpp);
+      if (!createSprite(w, h)) return false;
+
+        //If the value of Height is positive, the image data is from bottom to top
+        //If the value of Height is negative, the image data is from top to bottom.
+      int32_t flow = (h < 0) ? 1 : -1;
+      int32_t y = 0;
+      if (h < 0) h = -h;
+      else y = h - 1;
+
+      argb8888_t *palette = nullptr;
+      if (bpp <= 8) {
+        if (!_palette) createPalette();
+        uint_fast16_t palettecount = 1 << bpp;
+        palette = new argb8888_t[palettecount];
+        data->seek(bmpdata.biSize + 14);
+        data->read((uint8_t*)palette, (palettecount * sizeof(argb8888_t))); // load palette
+        for (uint_fast16_t i = 0; i < _palette_count; ++i) {
+          _palette[i] = palette[i];
+        }
+        if (palette) delete[] palette;
+      }
+
+      data->seek(seekOffset);
+
+      uint8_t lineBuffer[((w * bpp + 31) >> 5) << 2];  // readline 4Byte align.
+      if (bpp <= 8) {
+        do {
+          data->read(lineBuffer, sizeof(lineBuffer));
+          memcpy(&_img[y * _bitwidth * bpp >> 3], lineBuffer, w * bpp >> 3);
+          y += flow;
+        } while (--h);
+      } else if (bpp == 16) {
+        do {
+          data->read(lineBuffer, sizeof(lineBuffer));
+          auto img = &_img[y * _bitwidth * bpp >> 3];
+          for (size_t i = 0; i < sizeof(lineBuffer); ++i) {
+            img[i] = lineBuffer[i ^ 1];
+          }
+          y += flow;
+        } while (--h);
+      } else if (bpp == 24) {
+        do {
+          data->read(lineBuffer, sizeof(lineBuffer));
+          auto img = &_img[y * _bitwidth * bpp >> 3];
+          for (size_t i = 0; i < sizeof(lineBuffer); i += 3) {
+            img[i    ] = lineBuffer[i + 2];
+            img[i + 1] = lineBuffer[i + 1];
+            img[i + 2] = lineBuffer[i    ];
+          }
+          y += flow;
+        } while (--h);
+      } else if (bpp == 32) {
+        do {
+          data->read(lineBuffer, sizeof(lineBuffer));
+          auto img = &_img[y * _bitwidth * 3];
+          for (size_t i = 0; i < sizeof(lineBuffer); i += 4) {
+            img[(i>>2)*3    ] = lineBuffer[i + 2];
+            img[(i>>2)*3 + 1] = lineBuffer[i + 1];
+            img[(i>>2)*3 + 2] = lineBuffer[i + 0];
+          }
+          y += flow;
+        } while (--h);
+      }
+      return true;
+    }
+
     bool createPalette(void)
     {
       if (!create_palette()) return false;
