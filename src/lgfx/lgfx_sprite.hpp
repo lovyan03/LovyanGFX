@@ -100,7 +100,9 @@ namespace lgfx
       bitmap_header_t bmpdata;
 
       if (!load_bmp_header(data, &bmpdata)
-       || (bmpdata.biCompression != 0 && bmpdata.biCompression != 3)) { // RLE not supported
+       || ( bmpdata.biCompression != 0
+         && bmpdata.biCompression != 1
+         && bmpdata.biCompression != 3)) {
         return false;
       }
       uint32_t seekOffset = bmpdata.bfOffBits;
@@ -135,7 +137,41 @@ namespace lgfx
       uint8_t lineBuffer[((w * bpp + 31) >> 5) << 2];  // readline 4Byte align.
       if (bpp <= 8) {
         do {
-          data->read(lineBuffer, sizeof(lineBuffer));
+          if (bmpdata.biCompression == 1) {
+            uint_fast8_t state= 0;
+            uint8_t code[2];
+            uint_fast16_t xidx = 0;
+            bool eol = false;
+            while (!eol) {
+              data->read(code, 2);
+              if (code[0] == 0) {
+                switch (code[1]) {
+                case 0x00: // EOL
+                case 0x01: // EOB
+                  eol = true;
+                  break;
+
+                case 0x02: // move info  (not support)
+                  break;
+
+                default:
+                  data->read(&lineBuffer[xidx], (code[1] + 1) & ~1); // word align
+                  xidx += code[1];
+                  break;
+                }
+              } else if (xidx + code[0] <= w) {
+                memset(&lineBuffer[xidx], code[1], code[0]);
+                xidx += code[0];
+              } else {
+                // error
+                eol = true;
+                break;
+              }
+            }
+
+          } else {
+            data->read(lineBuffer, sizeof(lineBuffer));
+          }
           memcpy(&_img[y * _bitwidth * bpp >> 3], lineBuffer, w * bpp >> 3);
           y += flow;
         } while (--h);

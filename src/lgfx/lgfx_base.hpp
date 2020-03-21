@@ -2423,7 +2423,9 @@ ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
 
       bitmap_header_t bmpdata;
       if (!load_bmp_header(data, &bmpdata)
-       || (bmpdata.biCompression != 0 && bmpdata.biCompression != 3)) { // RLE not supported
+       || ( bmpdata.biCompression != 0
+         && bmpdata.biCompression != 1
+         && bmpdata.biCompression != 3)) {
         return;
       }
 
@@ -2464,14 +2466,53 @@ ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
         }
       }
 
-      while (--h >= 0) {
-        if (data->need_transaction) this->endTransaction();
-        data->read(lineBuffer, sizeof(lineBuffer));
-        if (data->need_transaction) this->beginTransaction();
-        this->push_image(x, y, w, 1, &p);
-        y += flow;
-      }
+      if (bmpdata.biCompression == 1) {
+        do {
+          uint_fast8_t state= 0;
+          uint8_t code[2];
 
+          if (data->need_transaction) this->endTransaction();
+          uint_fast16_t xidx = 0;
+          bool eol = false;
+          while (!eol) {
+            data->read(code, 2);
+            if (code[0] == 0) {
+              switch (code[1]) {
+              case 0x00: // EOL
+              case 0x01: // EOB
+                eol = true;
+                break;
+
+              case 0x02: // move info  (not support)
+                break;
+
+              default:
+                data->read(&lineBuffer[xidx], (code[1] + 1) & ~1); // word align
+                xidx += code[1];
+                break;
+              }
+            } else if (xidx + code[0] <= w) {
+              memset(&lineBuffer[xidx], code[1], code[0]);
+              xidx += code[0];
+            } else {
+              // error
+              eol = true;
+              break;
+            }
+          }
+          if (data->need_transaction) this->beginTransaction();
+          this->push_image(x, y, w, 1, &p);
+          y += flow;
+        } while (--h);
+      } else {
+        do {
+          if (data->need_transaction) this->endTransaction();
+          data->read(lineBuffer, sizeof(lineBuffer));
+          if (data->need_transaction) this->beginTransaction();
+          this->push_image(x, y, w, 1, &p);
+          y += flow;
+        } while (--h);
+      }
       if (palette) delete[] palette;
       //Serial.print("Loaded in "); Serial.print(millis() - startTime);   Serial.println(" ms");
     }
