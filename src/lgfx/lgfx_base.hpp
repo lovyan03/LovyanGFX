@@ -2367,6 +2367,45 @@ ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
       return draw_png(&data, x, y, maxWidth, maxHeight, offX, offY, scale, alphaThreshold);
     }
 
+  protected:
+
+    struct bitmap_header_t {
+      union {
+        uint8_t raw[54];
+        #pragma pack(1)
+        struct {
+          uint16_t bfType; 
+          uint32_t bfSize;
+          uint16_t bfReserved1;
+          uint16_t bfReserved2;
+          uint32_t bfOffBits;
+
+          uint32_t biSize; 
+          int32_t  biWidth;
+          int32_t  biHeight;
+          uint16_t biPlanes; 
+          uint16_t biBitCount;
+          uint32_t biCompression;
+          uint32_t biSizeImage; 
+          int32_t  biXPelsPerMeter;
+          int32_t  biYPelsPerMeter;
+          uint32_t biClrUsed; 
+          uint32_t biClrImportant;
+        };
+        #pragma pack()
+      };
+    };
+
+    bool load_bmp_header(DataWrapper* data, bitmap_header_t* result) {
+      data->read((uint8_t*)result, sizeof(bitmap_header_t));
+      return ((result->bfType == 0x4D42)   // bmp header "BM"
+           && (result->biPlanes == 1)  // bcPlanes always 1
+           && (result->biWidth > 0)
+           && (result->biHeight > 0)
+           && (result->biBitCount <= 32)
+           && (result->biBitCount != 0));
+    }
+
   private:
 
     void drawBmpFile(FileWrapper* file, const char *path, int32_t x=0, int32_t y=0) {
@@ -2382,54 +2421,18 @@ ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
     void draw_bmp(DataWrapper* data, int32_t x, int32_t y) {
       if ((x >= this->_width) || (y >= this->_height)) return;
 
-      //uint32_t startTime = millis();
-      uint32_t seekOffset;
-      int32_t w;
-      int32_t h;
-      uint16_t bpp;
-
-      struct {
-        union {
-          uint8_t raw[34];
-  //      uint8_t raw[54];
-          #pragma pack(1)
-          struct {
-            uint16_t bfType; 
-            uint32_t bfSize;
-            uint16_t bfReserved1;
-            uint16_t bfReserved2;
-            uint32_t bfOffBits;
-            uint32_t biSize; 
-            int32_t  biWidth;
-            int32_t  biHeight;
-            uint16_t biPlanes; 
-            uint16_t biBitCount;
-            uint32_t biCompression;
-          //uint32_t biSizeImage; 
-          //int32_t  biXPelsPerMeter;
-          //int32_t  biYPelsPerMeter;
-          //uint32_t biClrUsed; 
-          //uint32_t biClrImportant;
-          };
-          #pragma pack()
-        };
-      } bmpdata;
-      data->read(bmpdata.raw, sizeof(bmpdata));
-      if ((bmpdata.bfType != 0x4D42)   // bmp header "BM"
-       || (bmpdata.biPlanes != 1)  // bcPlanes always 1
-       || (bmpdata.biWidth + x < 0)
-       || (bmpdata.biHeight + y < 0)
-       || (bmpdata.biBitCount > 32)
-       || (bmpdata.biBitCount == 0)
+      bitmap_header_t bmpdata;
+      if (!load_bmp_header(data, &bmpdata)
        || (bmpdata.biCompression != 0 && bmpdata.biCompression != 3)) { // RLE not supported
-// Serial.println("BMP format not recognized.");
         return;
-
-        seekOffset = bmpdata.bfOffBits;
-        w = bmpdata.biWidth;
-        h = bmpdata.biHeight;  // bcHeight Image height (pixels)
-        bpp = bmpdata.biBitCount; // 24 bcBitCount 24=RGB24bit
       }
+
+      //uint32_t startTime = millis();
+      uint32_t seekOffset = bmpdata.bfOffBits;
+      int32_t w = bmpdata.biWidth;
+      int32_t h = bmpdata.biHeight;  // bcHeight Image height (pixels)
+      uint_fast16_t bpp = bmpdata.biBitCount; // 24 bcBitCount 24=RGB24bit
+
         //If the value of Height is positive, the image data is from bottom to top
         //If the value of Height is negative, the image data is from top to bottom.
       int32_t flow = (h < 0) ? 1 : -1;

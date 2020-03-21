@@ -95,57 +95,19 @@ namespace lgfx
       }
     }
 
-    struct bitmap_header_t {
-      union {
-        uint8_t raw[54];
-        #pragma pack(1)
-        struct {
-          uint16_t bfType; 
-          uint32_t bfSize;
-          uint16_t bfReserved1;
-          uint16_t bfReserved2;
-          uint32_t bfOffBits;
-
-          uint32_t biSize; 
-          int32_t  biWidth;
-          int32_t  biHeight;
-          uint16_t biPlanes; 
-          uint16_t biBitCount;
-          uint32_t biCompression;
-          uint32_t biSizeImage; 
-          int32_t  biXPelsPerMeter;
-          int32_t  biYPelsPerMeter;
-          uint32_t biClrUsed; 
-          uint32_t biClrImportant;
-        };
-        #pragma pack()
-      };
-    };
-
-    bool load_bmp_header(DataWrapper* data, bitmap_header_t* result) {
-      data->read((uint8_t*)result, sizeof(bitmap_header_t));
-      return ((result->bfType == 0x4D42)   // bmp header "BM"
-           && (result->biPlanes == 1)  // bcPlanes always 1
-           && (result->biWidth > 0)
-           && (result->biHeight > 0)
-           && (result->biBitCount <= 32)
-           && (result->biBitCount != 0));
-    }
-
     bool create_from_bmp(DataWrapper* data) {
       //uint32_t startTime = millis();
-      uint32_t seekOffset;
       bitmap_header_t bmpdata;
 
       if (!load_bmp_header(data, &bmpdata)
        || (bmpdata.biCompression != 0 && bmpdata.biCompression != 3)) { // RLE not supported
         return false;
       }
-      seekOffset = bmpdata.bfOffBits;
-      uint16_t bpp = bmpdata.biBitCount; // 24 bcBitCount 24=RGB24bit
+      uint32_t seekOffset = bmpdata.bfOffBits;
+      uint_fast16_t bpp = bmpdata.biBitCount; // 24 bcBitCount 24=RGB24bit
+      setColorDepth(bpp);
       int32_t w = bmpdata.biWidth;
       int32_t h = bmpdata.biHeight;  // bcHeight Image height (pixels)
-      setColorDepth(bpp);
       if (!createSprite(w, h)) return false;
 
         //If the value of Height is positive, the image data is from bottom to top
