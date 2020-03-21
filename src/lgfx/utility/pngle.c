@@ -109,6 +109,7 @@ struct _pngle_t {
   const char *error;
 
   // for pngle_draw_pixels
+  uint_fast8_t n_pixels;
   uint_fast8_t pixel_depth;
   uint_fast16_t magni;
 
@@ -226,14 +227,14 @@ pngle_ihdr_t *pngle_get_ihdr(pngle_t *pngle)
 }
 
 
-static int is_trans_color(pngle_t *pngle, uint_fast16_t *value, size_t n)
+static uint_fast16_t check_trans_color(pngle_t *pngle, uint_fast16_t *value, size_t n)
 {
-  if (pngle->n_trans_palettes != 1) return 0; // false (none or indexed)
+  if (pngle->n_trans_palettes != 1) return ~0; // (none or indexed)
 
   for (size_t i = 0; i < n; ++i) {
-    if (value[i] != (pngle->trans_palette[i * 2 + 0] << 8 |  pngle->trans_palette[i * 2 + 1])) return 0; // false
+    if (value[i] != (pngle->trans_palette[i * 2 + 0] << 8 |  pngle->trans_palette[i * 2 + 1])) return ~0; // not transcolor
   }
-  return 1; // true
+  return 0; // transcolor
 }
 
 static inline void scanline_ringbuf_push(pngle_t *pngle, uint_fast8_t value)
@@ -245,33 +246,8 @@ static inline void scanline_ringbuf_push(pngle_t *pngle, uint_fast8_t value)
 //  pngle->scanline_ringbuf[pngle->scanline_ringbuf_cidx] = value;
 //  pngle->scanline_ringbuf_cidx = (pngle->scanline_ringbuf_cidx + 1) % pngle->scanline_ringbuf_size;
 }
-/*
-static inline uint_fast16_t get_value(pngle_t *pngle, size_t *ridx, int *bitcount, int depth)
-{
-  uint_fast16_t v;
 
-  if (!(depth & 7)) {
-    v = pngle->scanline_ringbuf[*ridx];
-    *ridx = (*ridx + 1) % pngle->scanline_ringbuf_size;
-    if (depth == 8) return v;
-
-    v = (v << 8) | pngle->scanline_ringbuf[*ridx];
-    *ridx = (*ridx + 1) % pngle->scanline_ringbuf_size;
-    return v;
-  }
-
-  uint_fast8_t mask = ((1UL << depth) - 1);
-  *bitcount += depth;
-  uint_fast8_t shift = (8 - *bitcount);
-  v = (pngle->scanline_ringbuf[*ridx] >> shift) & mask;
-  if (*bitcount >= 8) {
-    *bitcount = 0;
-    *ridx = (*ridx + 1) % pngle->scanline_ringbuf_size;
-  }
-  return v;
-}
-//*/
-static inline size_t get_value(pngle_t *pngle, uint_fast16_t* v, size_t ridx, int depth)
+static inline size_t get_value(pngle_t *pngle, uint_fast16_t* v, size_t ridx, uint_fast8_t depth)
 {
   *v = pngle->scanline_ringbuf[ridx];
   ridx = (ridx + 1) % pngle->scanline_ringbuf_size;
@@ -281,7 +257,7 @@ static inline size_t get_value(pngle_t *pngle, uint_fast16_t* v, size_t ridx, in
   return (ridx + 1) % pngle->scanline_ringbuf_size;
 }
 
-static inline size_t get_bitvalue(pngle_t *pngle, uint_fast16_t* v, size_t ridx, int *bitcount, int depth)
+static inline size_t get_bitvalue(pngle_t *pngle, uint_fast16_t* v, size_t ridx, uint_fast8_t *bitcount, uint_fast8_t depth)
 {
   uint_fast8_t mask = ((1UL << depth) - 1);
   *bitcount += depth;
@@ -292,23 +268,23 @@ static inline size_t get_bitvalue(pngle_t *pngle, uint_fast16_t* v, size_t ridx,
   return (ridx + 1) % pngle->scanline_ringbuf_size;
 }
 
-static int pngle_draw_pixels(pngle_t *pngle, size_t scanline_ringbuf_xidx)  //, uint_fast16_t magni)
+static int pngle_draw_pixels(pngle_t *pngle, size_t scanline_ringbuf_xidx, uint_fast16_t v[], uint8_t rgba[])
 {
-  int n_pixels = (pngle->hdr.depth & 7) ? (8 / pngle->hdr.depth) : 1;
+  uint_fast8_t n_pixels = pngle->n_pixels;
 
   if (pngle->draw_callback) {
-    uint_fast16_t v[4]; // MAX_CHANNELS
-    int bitcount = 0;
+    uint_fast8_t bitcount = 0;
     do {
       uint_fast8_t c = 0;
-      if (!(pngle->hdr.depth & 7)) {
+      uint_fast8_t ce = pngle->channels;
+      if (pngle->n_pixels == 1) {
         do {
           scanline_ringbuf_xidx = get_value(pngle, &v[c], scanline_ringbuf_xidx, pngle->hdr.depth);
-        } while (++c < pngle->channels);
+        } while (++c < ce);
       } else {
         do {
           scanline_ringbuf_xidx = get_bitvalue(pngle, &v[c], scanline_ringbuf_xidx, &bitcount, pngle->hdr.depth);
-        } while (++c < pngle->channels);
+        } while (++c < ce);
       }
 
       // color type: 0000 0111
@@ -320,10 +296,10 @@ static int pngle_draw_pixels(pngle_t *pngle, size_t scanline_ringbuf_xidx)  //, 
         // not indexed color
         if (pngle->hdr.color_type & 2) {
           // true color: 2, and 6
-          v[3] = (pngle->hdr.color_type & 4) ? v[3] : is_trans_color(pngle, v, 3) ? 0 : ~0;
+          v[3] = (pngle->hdr.color_type & 4) ? v[3] : check_trans_color(pngle, v, 3);
         } else {
           // alpha, tRNS, or opaque
-          v[3] = (pngle->hdr.color_type & 4) ? v[1] : is_trans_color(pngle, v, 1) ? 0 : ~0;
+          v[3] = (pngle->hdr.color_type & 4) ? v[1] : check_trans_color(pngle, v, 1);
 
           // monochrome
           v[1] = v[2] = v[0];
@@ -345,12 +321,16 @@ static int pngle_draw_pixels(pngle_t *pngle, size_t scanline_ringbuf_xidx)  //, 
 
       uint_fast8_t pixel_depth = pngle->pixel_depth;
       uint_fast16_t magni = pngle->magni;
-      uint8_t rgba[4] = {
-        ((v[0] * magni) >> pixel_depth),
-        ((v[1] * magni) >> pixel_depth),
-        ((v[2] * magni) >> pixel_depth),
-        ((v[3] * magni) >> pixel_depth)
-      };
+//      uint8_t rgba[4] = {
+//        ((v[0] * magni) >> pixel_depth),
+//        ((v[1] * magni) >> pixel_depth),
+//        ((v[2] * magni) >> pixel_depth),
+//        ((v[3] * magni) >> pixel_depth)
+//      };
+      rgba[0] = ((v[0] * magni) >> pixel_depth);
+      rgba[1] = ((v[1] * magni) >> pixel_depth);
+      rgba[2] = ((v[2] * magni) >> pixel_depth);
+      rgba[3] = ((v[3] * magni) >> pixel_depth);
 
 #ifndef PNGLE_NO_GAMMA_CORRECTION
       if (pngle->gamma_table) {
@@ -452,6 +432,8 @@ static int pngle_on_data(pngle_t *pngle, const uint8_t *p, int len)
   const uint8_t *ep = p + len;
 
   uint_fast8_t bytes_per_pixel = (pngle->channels * pngle->hdr.depth + 7) >> 3; // 1 if depth <= 8
+  uint_fast16_t v[4]; // MAX_CHANNELS
+  uint8_t rgba[4];
 
   while (p < ep) {
     if (pngle->drawing_x >= pngle->hdr.width) {
@@ -514,7 +496,7 @@ static int pngle_on_data(pngle_t *pngle, const uint8_t *p, int len)
     if (--pngle->scanline_remain_bytes_to_render == 0) {
       size_t xidx = (pngle->scanline_ringbuf_cidx + pngle->scanline_ringbuf_size - bytes_per_pixel) % pngle->scanline_ringbuf_size;
 
-      if (pngle_draw_pixels(pngle, xidx) < 0) return -1;
+      if (pngle_draw_pixels(pngle, xidx, v, rgba) < 0) return -1;
 
       pngle->scanline_remain_bytes_to_render = -1; // reset
     }
@@ -545,6 +527,8 @@ static int pngle_handle_chunk(pngle_t *pngle, const uint8_t *buf, size_t len)
     pngle->hdr.interlace   = read_uint8 (buf + 12);
 
     pngle->pixel_depth = (pngle->hdr.color_type & 1) ? 8 : pngle->hdr.depth;
+
+    pngle->n_pixels = (pngle->hdr.depth & 7) ? (8 / pngle->hdr.depth) : 1;
 
     pngle->magni = (pngle->pixel_depth == 1) ? 0x1FF
                  : (pngle->pixel_depth == 2) ? 0x155

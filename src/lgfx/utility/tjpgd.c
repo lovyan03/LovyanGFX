@@ -573,7 +573,7 @@ static JRESULT mcu_output (
 		iy = 0;
 		do {
 #if JD_BAYER
-			int32_t* btbl = &Bayer[(iy & 3) << 2];
+			const int_fast8_t* btbl = &Bayer[(iy & 3) << 2];
 #endif
 			py = &jd->mcubuf[((iy & 8) + iy) << 3];
 			pc = &jd->mcubuf[((mx << iyshift) + (iy >> iyshift)) << 3];
