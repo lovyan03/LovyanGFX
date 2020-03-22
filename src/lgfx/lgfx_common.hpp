@@ -2,6 +2,7 @@
 #define LGFX_COMMON_HPP_
 
 #include <type_traits>
+#include <algorithm>
 #include <string.h>
 
 namespace lgfx
