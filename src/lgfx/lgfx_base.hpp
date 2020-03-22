@@ -83,10 +83,13 @@ namespace lgfx
     template<typename T> inline void clear         ( const T& color) { setColor(color); fillRect(0, 0, _width, _height); }
     template<typename T> inline void fillScreen    ( const T& color) { setColor(color); fillRect(0, 0, _width, _height); }
 
-    template<typename T> inline void writeColor    ( const T& color, int32_t length) { if (0 >= length) return; setColor(color);               writeColor_impl(length);             }
-                         inline void writeColorRaw ( uint32_t color, int32_t length) { if (0 >= length) return; setColorRaw(color);            writeColor_impl(length);             }
-    template<typename T> inline void pushColor     ( const T& color, int32_t length) { if (0 >= length) return; setColor(color); startWrite(); writeColor_impl(length); endWrite(); }
-    template<typename T> inline void pushColor     ( const T& color                ) {                          setColor(color); startWrite(); writeColor_impl(1);      endWrite(); }
+    template<typename T> inline void pushBlock     ( const T& color, int32_t length) { if (0 >= length) return; setColor(color); startWrite(); pushBlock_impl(length); endWrite(); }
+
+// Deprecated, use pushBlock()
+    template<typename T> inline void pushColor     ( const T& color, int32_t length) { if (0 >= length) return; setColor(color); startWrite(); pushBlock_impl(length); endWrite(); }
+    template<typename T> inline void pushColor     ( const T& color                ) {                          setColor(color); startWrite(); pushBlock_impl(1);      endWrite(); }
+    template<typename T> inline void writeColor    ( const T& color, int32_t length) { if (0 >= length) return; setColor(color);               pushBlock_impl(length);             }
+                         inline void writeColorRaw ( uint32_t color, int32_t length) { if (0 >= length) return; setColorRaw(color);            pushBlock_impl(length);             }
 
     template<typename T> inline void drawPixel     ( int32_t x, int32_t y                                 , const T& color) { setColor(color); drawPixel    (x, y      ); }
     template<typename T> inline void drawFastVLine ( int32_t x, int32_t y           , int32_t h           , const T& color) { setColor(color); drawFastVLine(x, y   , h); }
@@ -676,6 +679,95 @@ namespace lgfx
       endWrite();
     }
 
+    template<typename T>
+    void drawBitmap(int32_t x, int32_t y, const uint8_t *bitmap, int32_t w, int32_t h, const T& color)
+    {
+      if (w < 1 || h < 1) return;
+      setColor(color);
+      int32_t byteWidth = (w + 7) >> 3;
+
+      int32_t j = 0;
+      startWrite();
+      do {
+        int32_t i = 0;
+        do {
+          if ((pgm_read_byte(bitmap + (i >> 3)) >> ((~i) & 7)) & 1) {
+            _drawPixel(x + i, y + j);
+          }
+        } while (++i < w);
+        bitmap += byteWidth;
+      } while (++j < h);
+      endWrite();
+    }
+
+    template<typename T>
+    void drawBitmap(int32_t x, int32_t y, const uint8_t *bitmap, int32_t w, int32_t h, const T& fgcolor, const T& bgcolor)
+    {
+      if (w < 1 || h < 1) return;
+      setColor(fgcolor);
+      int32_t byteWidth = (w + 7) >> 3;
+
+      bool fg = true;
+      int32_t j = 0;
+      startWrite();
+      do {
+        int32_t i = 0;
+        do {
+          if (fg != (pgm_read_byte(bitmap + (i >> 3)) >> ((~i) & 7)) & 1) {
+            fg = !fg;
+            setColor(fg ? fgcolor : bgcolor);
+          }
+          _drawPixel(x + i, y + j);
+        } while (++i < w);
+        bitmap += byteWidth;
+      } while (++j < h);
+      endWrite();
+    }
+
+    template<typename T>
+    void drawXBitmap(int32_t x, int32_t y, const uint8_t *bitmap, int32_t w, int32_t h, const T& color)
+    {
+      if (w < 1 || h < 1) return;
+      setColor(color);
+      int32_t byteWidth = (w + 7) >> 3;
+
+      int32_t j = 0;
+      startWrite();
+      do {
+        int32_t i = 0;
+        do {
+          if ((pgm_read_byte(bitmap + (i >> 3)) >> (i & 7)) & 1) {
+            _drawPixel(x + i, y + j);
+          }
+        } while (++i < w);
+        bitmap += byteWidth;
+      } while (++j < h);
+      endWrite();
+    }
+
+    template<typename T>
+    void drawXBitmap(int32_t x, int32_t y, const uint8_t *bitmap, int32_t w, int32_t h, const T& fgcolor, const T& bgcolor)
+    {
+      if (w < 1 || h < 1) return;
+      setColor(fgcolor);
+      int32_t byteWidth = (w + 7) >> 3;
+
+      bool fg = true;
+      int32_t j = 0;
+      startWrite();
+      do {
+        int32_t i = 0;
+        do {
+          if (fg != (pgm_read_byte(bitmap + (i >> 3)) >> (i & 7)) & 1) {
+            fg = !fg;
+            setColor(fg ? fgcolor : bgcolor);
+          }
+          _drawPixel(x + i, y + j);
+        } while (++i < w);
+        bitmap += byteWidth;
+      } while (++j < h);
+      endWrite();
+    }
 
     void pushColors(const uint8_t* data, int32_t len)
     {
@@ -1428,7 +1520,7 @@ namespace lgfx
     virtual void readRect_impl(int32_t x, int32_t y, int32_t w, int32_t h, void* dst, pixelcopy_t* param) = 0;
     virtual void pushImage_impl(int32_t x, int32_t y, int32_t w, int32_t h, pixelcopy_t* param, bool use_dma) = 0;
     virtual void pushColors_impl(int32_t length, pixelcopy_t* param) = 0;
-    virtual void writeColor_impl(int32_t len) = 0;
+    virtual void pushBlock_impl(int32_t len) = 0;
     virtual void setWindow_impl(int32_t xs, int32_t ys, int32_t xe, int32_t ye) = 0;
 
 //----------------------------------------------------------------------------

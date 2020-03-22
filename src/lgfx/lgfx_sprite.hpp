@@ -408,9 +408,9 @@ namespace lgfx
 
     void fillRect_impl(int32_t x, int32_t y, int32_t w, int32_t h) override
     {
-/* // for debug writeColor_impl
+/* // for debug pushBlock_impl
 setWindow(x,y,x+w-1,y+h-1);
-writeColor_impl(w*h);
+pushBlock_impl(w*h);
 return;
 //*/
       uint32_t bits = _write_conv.bits;
@@ -502,7 +502,7 @@ return;
       }
     }
 
-    void writeColor_impl(int32_t length) override
+    void pushBlock_impl(int32_t length) override
     {
       if (0 >= length) return;
       if (_write_conv.bytes == 0) {

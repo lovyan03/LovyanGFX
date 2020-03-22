@@ -464,15 +464,15 @@ namespace lgfx
         set_clock_fill();
       }
       write_cmd(_cmd_ramwr);
-      write_color(w*h);
+      push_block(w*h);
     }
 
-    void writeColor_impl(int32_t length) override
+    void pushBlock_impl(int32_t length) override
     {
-      write_color(length);
+      push_block(length);
     }
 
-    void write_color(int32_t length)
+    void push_block(int32_t length)
     {
       if (length == 1) { write_data(_color.raw, _write_conv.bits); return; }
 
