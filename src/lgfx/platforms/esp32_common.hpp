@@ -60,12 +60,19 @@
 
 namespace lgfx
 {
-  static void* alloc_dmabuffer(size_t length)
+  static void* heap_alloc_psram(size_t length)
+  {
+    void* res = heap_caps_malloc(length, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    if (!res) res = heap_caps_malloc(length, MALLOC_CAP_8BIT);
+    return res;
+  }
+
+  static void* heap_alloc_dma(size_t length)
   {
     return heap_caps_malloc((length + 3) & ~3, MALLOC_CAP_DMA);
   }
 
-  static void free_dmabuffer(void* dmabuffer)
+  static void heap_free(void* dmabuffer)
   {
     heap_caps_free(dmabuffer);
   }

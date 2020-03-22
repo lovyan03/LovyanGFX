@@ -146,17 +146,17 @@ namespace lgfx
       return buf;
     }
 
-    uint32_t len_setwindow;
-    uint32_t len_dummy_read_pixel;
-    uint32_t len_dummy_read_rddid;
-    uint_fast8_t cmd_nop = 0;
-    uint_fast8_t cmd_caset;
-    uint_fast8_t cmd_raset;
-    uint_fast8_t cmd_ramrd;
-    uint_fast8_t cmd_ramwr;
-    uint_fast8_t cmd_invon;
-    uint_fast8_t cmd_invoff;
-    uint_fast8_t cmd_rddid;
+    uint_fast8_t len_setwindow;
+    uint_fast8_t len_dummy_read_pixel;
+    uint_fast8_t len_dummy_read_rddid;
+    uint8_t cmd_nop = 0;
+    uint8_t cmd_caset;
+    uint8_t cmd_raset;
+    uint8_t cmd_ramrd;
+    uint8_t cmd_ramwr;
+    uint8_t cmd_invon;
+    uint8_t cmd_invoff;
+    uint8_t cmd_rddid;
 
     uint32_t freq_write;
     uint32_t freq_read;

@@ -300,7 +300,6 @@ namespace lgfx
     void postSetPanel(void)
     {
       _last_apb_freq = -1;
-      _cmd_ramrd      = _panel->cmd_ramrd;
       _cmd_ramwr      = _panel->cmd_ramwr;
       _invert         = _panel->invert   ;
       _rotation       = _panel->rotation ;
@@ -314,12 +313,8 @@ namespace lgfx
       dc_h();
       initGPIO((gpio_num_t)spi_dc);
 
-      int32_t spi_cs = _panel->spi_cs;
-      _gpio_reg_cs_h = get_gpio_hi_reg(spi_cs);
-      _gpio_reg_cs_l = get_gpio_lo_reg(spi_cs);
-      _mask_reg_cs = (spi_cs < 0) ? 0 : (1 << (spi_cs & 31));
       cs_h();
-      initGPIO((gpio_num_t)spi_cs);
+      initGPIO(_panel->spi_cs);
 
       postSetRotation();
       postSetColorDepth();
@@ -351,11 +346,15 @@ namespace lgfx
     {
       _write_conv.setColorDepth(_panel->write_depth);
       _read_conv.setColorDepth(_panel->read_depth);
-      _len_read_pixel  = _read_conv.bits;
-      _len_dummy_read_pixel = _panel->len_dummy_read_pixel;
     }
 
     void beginTransaction_impl(void) override {
+      if (_begun_tr) return;
+      _begun_tr = true;
+      begin_transaction();
+    }
+
+    void begin_transaction(void) {
       uint32_t apb_freq = getApbFrequency();
       if (_last_apb_freq != apb_freq) {
         _last_apb_freq = apb_freq;
@@ -405,7 +404,13 @@ namespace lgfx
     }
 
     void endTransaction_impl(void) override {
-      if (!_mask_reg_cs) {
+      if (!_begun_tr) return;
+      _begun_tr = false;
+      end_transaction();
+    }
+
+    void end_transaction(void) {
+      if (_panel->spi_cs < 0) {
         write_cmd(_panel->cmd_nop);
       }
       dc_h();
@@ -438,7 +443,7 @@ namespace lgfx
 
     void drawPixel_impl(int32_t x, int32_t y) override
     {
-      if (!_transaction_count) beginTransaction_impl();
+      if (!_begun_tr) begin_transaction();
       set_window(x, y, x, y);
       if (_clkdiv_write != _clkdiv_fill && !_fill_mode) {
         _fill_mode = true;
@@ -447,7 +452,7 @@ namespace lgfx
       }
       write_cmd(_cmd_ramwr);
       write_data(_color.raw, _write_conv.bits);
-      if (!_transaction_count) endTransaction_impl();
+      if (!_begun_tr) end_transaction();
     }
 
     void fillRect_impl(int32_t x, int32_t y, int32_t w, int32_t h) override
@@ -613,7 +618,7 @@ namespace lgfx
       cs_h();
       *_spi_user_reg = _user_reg;
       *_spi_pin_reg = _pin_reg;
-      if (!_mask_reg_cs) {
+      if (_panel->spi_cs < 0) {
         write_cmd(_panel->cmd_nop);
       }
       set_clock_write();
@@ -790,10 +795,11 @@ namespace lgfx
     void readRect_impl(int32_t x, int32_t y, int32_t w, int32_t h, void* dst, pixelcopy_t* param) override
     {
       set_window(x, y, x + w - 1, y + h - 1);
-      write_cmd(_cmd_ramrd);
+      write_cmd(_panel->cmd_ramrd);
+      auto len_dummy_read_pixel = _panel->len_dummy_read_pixel;
       start_read();
-      if (_len_dummy_read_pixel) {;
-        set_read_len(_len_dummy_read_pixel);
+      if (len_dummy_read_pixel) {;
+        set_read_len(len_dummy_read_pixel);
         exec_spi();
       }
 
@@ -809,8 +815,9 @@ namespace lgfx
     {
       int32_t len1 = std::min(length, 10); // 10 pixel read
       int32_t len2 = len1;
+      auto len_read_pixel  = _read_conv.bits;
       wait_spi();
-      set_read_len(_len_read_pixel * len1);
+      set_read_len(len_read_pixel * len1);
       exec_spi();
       param->src_data = _regbuf;
       int32_t dstindex = 0;
@@ -827,14 +834,14 @@ namespace lgfx
           if (length < len1) {
             len1 = length;
             wait_spi();
-            set_read_len(_len_read_pixel * len1);
+            set_read_len(len_read_pixel * len1);
           } else {
             wait_spi();
           }
           *_spi_user_reg = user;
           exec_spi();
         }
-        memcpy(_regbuf, (void*)&_spi_w0_reg[highpart ^= 8], len2 * _len_read_pixel >> 3);
+        memcpy(_regbuf, (void*)&_spi_w0_reg[highpart ^= 8], len2 * len_read_pixel >> 3);
         param->src_x = 0;
         dstindex = param->fp_copy(dst, dstindex, dstindex + len2, param);
       } while (length);
@@ -968,9 +975,18 @@ namespace lgfx
     __attribute__ ((always_inline)) inline void set_write_len(uint32_t len) { *_spi_mosi_dlen_reg = len - 1; }
     __attribute__ ((always_inline)) inline void set_read_len( uint32_t len) { *_spi_miso_dlen_reg = len - 1; }
 
+    void cs_h(void) {
+      int32_t spi_cs = _panel->spi_cs;
+      if (spi_cs >= 0) *get_gpio_hi_reg(spi_cs) = (1 << (spi_cs & 31));
+    }
+    void cs_l(void) {
+      int32_t spi_cs = _panel->spi_cs;
+      if (spi_cs >= 0) *get_gpio_lo_reg(spi_cs) = (1 << (spi_cs & 31));
+    }
+/*
     __attribute__ ((always_inline)) inline void cs_h(void) { *_gpio_reg_cs_h = _mask_reg_cs; }
     __attribute__ ((always_inline)) inline void cs_l(void) { *_gpio_reg_cs_l = _mask_reg_cs; }
-/*/
+//
     __attribute__ ((always_inline)) inline void cs_h(void) { if (_mask_reg_cs) *_gpio_reg_cs_h = _mask_reg_cs; else cs_h_impl(); }
     __attribute__ ((always_inline)) inline void cs_l(void) { if (_mask_reg_cs) *_gpio_reg_cs_l = _mask_reg_cs; else cs_l_impl(); }
     virtual void cs_h_impl(void) {}
@@ -1004,17 +1020,14 @@ namespace lgfx
     static constexpr volatile uint32_t *_spi_clock_reg     = (volatile uint32_t *)ETS_UNCACHED_ADDR(SPI_CLOCK_REG(_spi_port));
     static constexpr volatile uint32_t *_spi_mosi_dlen_reg = (volatile uint32_t *)ETS_UNCACHED_ADDR(SPI_MOSI_DLEN_REG(_spi_port));
     static constexpr volatile uint32_t *_spi_miso_dlen_reg = (volatile uint32_t *)ETS_UNCACHED_ADDR(SPI_MISO_DLEN_REG(_spi_port));
-//    static constexpr volatile spi_dev_t *_hw           = (volatile spi_dev_t *)REG_SPI_BASE(_spi_port);
 
-    volatile uint32_t* _gpio_reg_cs_h;
-    volatile uint32_t* _gpio_reg_cs_l;
     volatile uint32_t* _gpio_reg_dc_h;
     volatile uint32_t* _gpio_reg_dc_l;
-    uint32_t _mask_reg_cs;
     uint32_t _mask_reg_dc;
 
     PanelCommon* _panel;
     uint32_t(*fpGetWindowAddr)(uint_fast16_t, uint_fast16_t);
+    bool _begun_tr = false;
     uint_fast16_t _colstart;
     uint_fast16_t _rowstart;
     uint_fast16_t _xs;
@@ -1023,15 +1036,12 @@ namespace lgfx
     uint_fast16_t _ye;
     uint32_t _cmd_caset;
     uint32_t _cmd_raset;
-    uint32_t _cmd_ramrd;
     uint32_t _cmd_ramwr;
     uint32_t _last_apb_freq;
     uint32_t _clkdiv_write;
     uint32_t _clkdiv_read;
     uint32_t _clkdiv_fill;
     uint32_t _len_setwindow;
-    uint32_t _len_read_pixel;
-    uint32_t _len_dummy_read_pixel;
     _dmabufs_t _dmabufs[2];
     bool _dma_flip = false;
     bool _fill_mode;

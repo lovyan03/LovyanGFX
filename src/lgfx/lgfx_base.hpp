@@ -238,6 +238,7 @@ namespace lgfx
       fillRect_impl(x, y, w, h);
     }
 
+    __attribute__ ((always_inline)) inline 
     void fillRect_preclipped(int32_t x, int32_t y, int32_t w, int32_t h)
     {
       fillRect_impl(x, y, w, h);
@@ -1356,6 +1357,7 @@ namespace lgfx
     color_conv_t _read_conv;
 
     bgr888_t* _palette = nullptr; // for sprite palette mode.
+    uint32_t _palette_count = 0;
 
     int16_t _textsize_x = 1;
     int16_t _textsize_y = 1;
@@ -1367,7 +1369,6 @@ namespace lgfx
     textdatum_t _textdatum;
     int16_t _padding_x = 0;
 
-    uint32_t _palette_count = 0;
     bool _has_transaction = true;
     bool _invert = false;
     bool _swapBytes = false;
@@ -1917,11 +1918,11 @@ namespace lgfx
       if (!_fontLoaded) return;
       _fontLoaded = false;
       _fontData->close();
-      if (gUnicode)  { free(gUnicode);  gUnicode  = nullptr; }
-      if (gWidth)    { free(gWidth);    gWidth    = nullptr; }
-      if (gxAdvance) { free(gxAdvance); gxAdvance = nullptr; }
-      if (gdX)       { free(gdX);       gdX       = nullptr; }
-      if (gBitmap)   { free(gBitmap);   gBitmap   = nullptr; }
+      if (gUnicode)  { heap_free(gUnicode);  gUnicode  = nullptr; }
+      if (gWidth)    { heap_free(gWidth);    gWidth    = nullptr; }
+      if (gxAdvance) { heap_free(gxAdvance); gxAdvance = nullptr; }
+      if (gdX)       { heap_free(gdX);       gdX       = nullptr; }
+      if (gBitmap)   { heap_free(gBitmap);   gBitmap   = nullptr; }
     }
 
 #if defined (ARDUINO) && defined (FS_H)
@@ -2033,39 +2034,44 @@ namespace lgfx
     FileWrapper _fontFile;
     PointerWrapper _fontPointer;
 
-    void load_font(void) {
+    bool load_font(void)
     {
-      uint32_t buf[6];
-      _fontData->read((uint8_t*)buf, 6 * 4); // 24 Byte read
+      {
+        uint32_t buf[6];
+        _fontData->read((uint8_t*)buf, 6 * 4); // 24 Byte read
 
-      gFont.gCount   = __builtin_bswap32(buf[0]); // glyph count in file
-                     //__builtin_bswap32(buf[1]); // vlw encoder version - discard
-      gFont.yAdvance = __builtin_bswap32(buf[2]); // Font size in points, not pixels
-                     //__builtin_bswap32(buf[3]); // discard
-      gFont.ascent   = __builtin_bswap32(buf[4]); // top of "d"
-      gFont.descent  = __builtin_bswap32(buf[5]); // bottom of "p"
-    }
+        gFont.gCount   = __builtin_bswap32(buf[0]); // glyph count in file
+                       //__builtin_bswap32(buf[1]); // vlw encoder version - discard
+        gFont.yAdvance = __builtin_bswap32(buf[2]); // Font size in points, not pixels
+                       //__builtin_bswap32(buf[3]); // discard
+        gFont.ascent   = __builtin_bswap32(buf[4]); // top of "d"
+        gFont.descent  = __builtin_bswap32(buf[5]); // bottom of "p"
+      }
 
-    // These next gFont values might be updated when the Metrics are fetched
-    gFont.maxAscent  = gFont.ascent;   // Determined from metrics
-    gFont.maxDescent = gFont.descent;  // Determined from metrics
-    gFont.yAdvance   = gFont.ascent + gFont.descent;
-    gFont.spaceWidth = gFont.yAdvance * 2 / 7;  // Guess at space width
+      // These next gFont values might be updated when the Metrics are fetched
+      gFont.maxAscent  = gFont.ascent;   // Determined from metrics
+      gFont.maxDescent = gFont.descent;  // Determined from metrics
+      gFont.yAdvance   = gFont.ascent + gFont.descent;
+      gFont.spaceWidth = gFont.yAdvance * 2 / 7;  // Guess at space width
 
-ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
+  ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
 
-    _fontLoaded = true;
-    this->_decoderState = Base::utf8_decode_state_t::utf8_state0;
-    this->fpDrawChar = drawCharVLW;
-    this->fpUpdateFontSize = updateFontSizeVLW;
-    this->_font_size_x.offset = 0;
-    this->_font_size_y.offset = 0;
+      this->_decoderState = Base::utf8_decode_state_t::utf8_state0;
+      this->fpDrawChar = drawCharVLW;
+      this->fpUpdateFontSize = updateFontSizeVLW;
+      this->_font_size_x.offset = 0;
+      this->_font_size_y.offset = 0;
 
-    // Fetch the metrics for each glyph
-    loadMetrics(gFont.gCount);
-
-    this->_font_size_y.size    = gFont.yAdvance;
-    this->_font_size_y.advance = gFont.yAdvance;
+      _fontLoaded = true;
+      // Fetch the metrics for each glyph
+      bool res = loadMetrics(gFont.gCount);
+      if (res) {
+        this->_font_size_y.size    = gFont.yAdvance;
+        this->_font_size_y.advance = gFont.yAdvance;
+        return true;
+      }
+      unloadFont();
+      return false;
     }
 
     void loadMetrics(uint16_t gCount)
@@ -2075,11 +2081,29 @@ ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
       uint32_t bitmapPtr = 24 + (uint32_t)gCount * 28;
 
       {
-        gBitmap   = (uint32_t*)malloc( gCount * 4); // seek pointer to glyph bitmap in the file
-        gUnicode  = (uint16_t*)malloc( gCount * 2); // Unicode 16 bit Basic Multilingual Plane (0-FFFF)
-        gWidth    =  (uint8_t*)malloc( gCount );    // Width of glyph
-        gxAdvance =  (uint8_t*)malloc( gCount );    // xAdvance - to move x cursor
-        gdX       =   (int8_t*)malloc( gCount );    // offset for bitmap left edge relative to cursor X
+        ESP_LOGI("LGFX", "font count:%d", gCount);
+
+        gBitmap   = (uint32_t*)heap_alloc_psram( gCount * 4); // seek pointer to glyph bitmap in the file
+        gUnicode  = (uint16_t*)heap_alloc_psram( gCount * 2); // Unicode 16 bit Basic Multilingual Plane (0-FFFF)
+        gWidth    =  (uint8_t*)heap_alloc_psram( gCount );    // Width of glyph
+        gxAdvance =  (uint8_t*)heap_alloc_psram( gCount );    // xAdvance - to move x cursor
+        gdX       =   (int8_t*)heap_alloc_psram( gCount );    // offset for bitmap left edge relative to cursor X
+
+        if (!gUnicode) {
+          ESP_LOGE("LGFX", "can not alloc unicode table");
+        }
+        if (!gBitmap) {
+          ESP_LOGE("LGFX", "can not alloc bitmap table");
+        }
+        if (!gWidth) {
+          ESP_LOGE("LGFX", "can not alloc width table");
+        }
+        if (!gxAdvance) {
+          ESP_LOGE("LGFX", "can not alloc x_advance table");
+        }
+        if (!gdX) {
+          ESP_LOGE("LGFX", "can not alloc x_offset table");
+        }
       }
 
       uint16_t gNum = 0;
@@ -2088,31 +2112,32 @@ ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
       do {
         _fontData->read((uint8_t*)buffer, 7 * 4); // 28 Byte read
         uint16_t unicode = __builtin_bswap32(buffer[0]); // Unicode code point value
-        gUnicode[gNum]  = unicode;
-        gWidth[gNum]    = (uint8_t)__builtin_bswap32(buffer[2]); // Width of glyph
-        gxAdvance[gNum] = (uint8_t)__builtin_bswap32(buffer[3]); // xAdvance - to move x cursor
-        gdX[gNum]       =  (int8_t)__builtin_bswap32(buffer[5]); // x delta from cursor
+        uint32_t w = (uint8_t)__builtin_bswap32(buffer[2]); // Width of glyph
+        if (gUnicode)   gUnicode[gNum]  = unicode;
+        if (gWidth)     gWidth[gNum]    = w;
+        if (gxAdvance)  gxAdvance[gNum] = (uint8_t)__builtin_bswap32(buffer[3]); // xAdvance - to move x cursor
+        if (gdX)        gdX[gNum]       =  (int8_t)__builtin_bswap32(buffer[5]); // x delta from cursor
 
         uint16_t height = __builtin_bswap32(buffer[1]); // Height of glyph
         if ((unicode > 0xFF) || ((unicode > 0x20) && (unicode < 0xA0) && (unicode != 0x7F))) {
           int16_t dY =  (int16_t)__builtin_bswap32(buffer[4]); // y delta from baseline
-//ESP_LOGI("LGFX", "unicode:%x  dY:%d", unicode, dY);
+ESP_LOGI("LGFX", "unicode:%x  dY:%d", unicode, dY);
           if (gFont.maxAscent < dY) {
             gFont.maxAscent = dY;
           }
           if (gFont.maxDescent < (height - dY)) {
-//ESP_LOGI("LGFX", "maxDescent:%d", gFont.maxDescent);
+ESP_LOGI("LGFX", "maxDescent:%d", gFont.maxDescent);
             gFont.maxDescent = height - dY;
           }
         }
 
-        gBitmap[gNum] = bitmapPtr;
-        bitmapPtr += (uint16_t)gWidth[gNum] * height;
+        if (gBitmap)  gBitmap[gNum] = bitmapPtr;
+        bitmapPtr += w * height;
       } while (++gNum < gCount);
 
       this->_font_baseline = gFont.maxAscent;
       this->_font_size_y.advance = gFont.yAdvance = gFont.maxAscent + gFont.maxDescent;
-//ESP_LOGI("LGFX", "maxDescent:%d", gFont.maxDescent);
+ESP_LOGI("LGFX", "maxDescent:%d", gFont.maxDescent);
     }
 
     bool getUnicodeIndex(uint16_t unicode, uint16_t *index)
@@ -2126,9 +2151,24 @@ ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
       auto me = (LGFX_VLWFont_Support*)lgfxbase;
       uint16_t gNum = 0;
       if (me->getUnicodeIndex(uniCode, &gNum)) {
-        me->_font_size_x.size    = me->gWidth[gNum];
-        me->_font_size_x.advance = me->gxAdvance[gNum];
-        me->_font_size_x.offset  = me->gdX[gNum];
+        if (me->gWidth && me->gxAdvance && me->gdX[gNum]) {
+          me->_font_size_x.size    = me->gWidth[gNum];
+          me->_font_size_x.advance = me->gxAdvance[gNum];
+          me->_font_size_x.offset  = me->gdX[gNum];
+        } else {
+          auto file = me->_fontData;
+
+          if (file->need_transaction && me->_transaction_count) me->endTransaction();
+
+          file->seek(28 + gNum * 28);  // headerPtr
+          uint32_t buffer[6];
+          file->read((uint8_t*)buffer, 24);
+          me->_font_size_x.size    = __builtin_bswap32(buffer[1]); // Width of glyph
+          me->_font_size_x.advance = __builtin_bswap32(buffer[2]); // xAdvance - to move x cursor
+          me->_font_size_x.offset  = (int32_t)((int8_t)__builtin_bswap32(buffer[4])); // x delta from cursor
+
+          if (file->need_transaction && me->_transaction_count) me->beginTransaction();
+        }
         return true;
       }
       return false;
@@ -2795,7 +2835,7 @@ ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
       if (p->offY < 0) { p->offY = 0; }
 
       if (hasTransparent) { // need pixel read ?
-        p->lineBuffer = (bgr888_t*)alloc_dmabuffer(sizeof(bgr888_t) * p->maxWidth * ceil(p->scale));
+        p->lineBuffer = (bgr888_t*)heap_alloc_dma(sizeof(bgr888_t) * p->maxWidth * ceil(p->scale));
         p->pc->src_data = p->lineBuffer;
         p->tft->readRectRGB(p->x, p->y - p->offY, p->maxWidth, ceil(p->scale), p->lineBuffer);
         pngle_set_line_callback(pngle, pngle_line_alpha_callback);
@@ -2880,7 +2920,7 @@ ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
       }
       this->endWrite();
 
-      if (png.lineBuffer)      free_dmabuffer(png.lineBuffer);
+      if (png.lineBuffer) heap_free(png.lineBuffer);
 
       pngle_destroy(pngle);
       return res;

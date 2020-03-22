@@ -159,7 +159,7 @@ namespace lgfx
       TPin<gpio_rst>::lo();
       TPin<gpio_rst>::init(GPIO_MODE_INPUT);
       setConfig<cfg_t>();
-      isIPS = invert = TPin<gpio_rst>::get();  // get panel type (IPS or TN)
+      isIPS = TPin<gpio_rst>::get();  // get panel type (IPS or TN)
       TPin<gpio_rst>::hi();
       TPin<gpio_rst>::init(GPIO_MODE_OUTPUT);
     }
@@ -181,7 +181,7 @@ namespace lgfx
 
     const uint8_t* getInvertDisplayCommands(uint8_t* buf, bool invert) override {
       if (!isIPS) return Panel_ILI9341_Common::getInvertDisplayCommands(buf, invert);
-      buf[2] = buf[0] = invert ? cmd_invon : cmd_invoff;
+      buf[2] = buf[0] = invert ? cmd_invoff : cmd_invon;
       buf[3] = buf[1] = 0;
       buf[4] = CMD::GAMMASET;
       buf[5] = 1;
