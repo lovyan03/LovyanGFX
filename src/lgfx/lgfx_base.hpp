@@ -238,6 +238,11 @@ namespace lgfx
       fillRect_impl(x, y, w, h);
     }
 
+    void fillRect_preclipped(int32_t x, int32_t y, int32_t w, int32_t h)
+    {
+      fillRect_impl(x, y, w, h);
+    }
+
     void drawRect(int32_t x, int32_t y, int32_t w, int32_t h)
     {
       if (_adjust_abs(x, w)||_adjust_abs(y, h)) return;
@@ -2283,7 +2288,7 @@ ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
       return res;
     }
 
-    bool drawPngFile( fs::FS &fs, const char *path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, double scale = 1.0, uint8_t alphaThreshold = 127)
+    bool drawPngFile( fs::FS &fs, const char *path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, double scale = 1.0)
     {
       bool res;
       FileWrapper file;
@@ -2291,7 +2296,7 @@ ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
       file.need_transaction &= this->_has_transaction;
       if (file.need_transaction) this->endTransaction();
       if (file.open(path, "rb")) {
-        res = draw_png(&file, x, y, maxWidth, maxHeight, offX, offY, scale, alphaThreshold);
+        res = draw_png(&file, x, y, maxWidth, maxHeight, offX, offY, scale);
         file.close();
       }
       if (file.need_transaction && this->_transaction_count) { this->beginTransaction(); }
@@ -2307,10 +2312,10 @@ ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
       return draw_jpg(&data, x, y, maxWidth, maxHeight, offX, offY, scale);
     }
 
-    void drawPng( Stream *dataSource, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, double scale = 1.0, uint8_t alphaThreshold = 127) {
+    void drawPng( Stream *dataSource, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, double scale = 1.0) {
       StreamWrapper data;
       data.set(dataSource);
-      return draw_png(&data, x, y, maxWidth, maxHeight, offX, offY, scale, alphaThreshold);
+      return draw_png(&data, x, y, maxWidth, maxHeight, offX, offY, scale);
     }
 
  #endif
@@ -2334,14 +2339,14 @@ ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
       if (file.need_transaction && this->_transaction_count) { this->beginTransaction(); }
       return res;
     }
-    bool drawPngFile( const char *path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, double scale = 1.0, uint8_t alphaThreshold = 127)
+    bool drawPngFile( const char *path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, double scale = 1.0)
     {
       bool res;
       FileWrapper file;
       file.need_transaction &= this->_has_transaction;
       if (file.need_transaction) this->endTransaction();
       if (file.open(path, "rb")) {
-        res = draw_png(&file, x, y, maxWidth, maxHeight, offX, offY, scale, alphaThreshold);
+        res = draw_png(&file, x, y, maxWidth, maxHeight, offX, offY, scale);
         file.close();
       }
       if (file.need_transaction && this->_transaction_count) { this->beginTransaction(); }
@@ -2360,11 +2365,11 @@ ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
       data.set(jpg_data, jpg_len);
       return draw_jpg(&data, x, y, maxWidth, maxHeight, offX, offY, scale);
     }
-    bool drawPng( const uint8_t *png_data, uint32_t png_len, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, double scale = 1.0, uint8_t alphaThreshold = 127)
+    bool drawPng( const uint8_t *png_data, uint32_t png_len, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, double scale = 1.0)
     {
       PointerWrapper data;
       data.set(png_data, png_len);
-      return draw_png(&data, x, y, maxWidth, maxHeight, offX, offY, scale, alphaThreshold);
+      return draw_png(&data, x, y, maxWidth, maxHeight, offX, offY, scale);
     }
 
   protected:
@@ -2630,7 +2635,7 @@ ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
 
 #ifndef __PNGLE_H__
 
-    bool draw_png(DataWrapper* data, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, double scale, uint8_t alphaThreshold)
+    bool draw_png(DataWrapper* data, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, double scale)
     {
       ESP_LOGI("LGFX","drawPng need include utility/pngle.h");
       return false;
@@ -2646,14 +2651,46 @@ ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
       int32_t maxWidth;
       int32_t maxHeight;
       double scale;
-      uint8_t alphaThreshold;
-      bgr888_t* linebuf;
+      bgr888_t* lineBuffer;
       pixelcopy_t *pc;
-
       LGFXBase *tft;
     };
 
-    static void pngle_draw_callback(pngle_t *pngle, uint32_t x, uint32_t y, uint8_t rgba[4])
+    static void pngle_draw_normal_callback(pngle_t *pngle, uint32_t x, uint32_t y, uint8_t rgba[4])
+    {
+      auto p = (png_file_decoder_t *)pngle_get_user_data(pngle);
+
+      int32_t t = y - p->offY;
+      if (t < 0 || t >= p->maxHeight) return;
+
+      int32_t l = x - p->offX;
+      if (l < 0 || l >= p->maxWidth) return;
+
+      p->tft->setColor(color888(rgba[0], rgba[1], rgba[2]));
+      p->tft->fillRect_preclipped(p->x + l, p->y + t, 1, 1);
+    }
+
+    static void pngle_draw_normal_scale_callback(pngle_t *pngle, uint32_t x, uint32_t y, uint8_t rgba[4])
+    {
+      auto p = (png_file_decoder_t *)pngle_get_user_data(pngle);
+
+      int32_t t = ceil( y      * p->scale) - p->offY;
+      if (t < 0) t = 0;
+      int32_t b = ceil((y + 1) * p->scale) - p->offY;
+      if (b > p->maxHeight) b = p->maxHeight;
+      if (t >= b) return;
+
+      int32_t l = ceil( x      * p->scale) - p->offX;
+      if (l < 0) l = 0;
+      int32_t r = ceil((x + 1) * p->scale) - p->offX;
+      if (r > p->maxWidth) r = p->maxWidth;
+      if (l >= r) return;
+
+      p->tft->setColor(color888(rgba[0], rgba[1], rgba[2]));
+      p->tft->fillRect_preclipped(p->x + l, p->y + t, r - l, b - t);
+    }
+
+    static void pngle_draw_alpha_callback(pngle_t *pngle, uint32_t x, uint32_t y, uint8_t rgba[4])
     {
       auto p = (png_file_decoder_t *)pngle_get_user_data(pngle);
 
@@ -2665,77 +2702,26 @@ ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
       if (r > p->maxWidth) r = p->maxWidth;
       if (l >= r) return;
 
-      memcpy(&p->linebuf[l], rgba, 3);
-    }
-
-    static void pngle_draw_scale_callback(pngle_t *pngle, uint32_t x, uint32_t y, uint8_t rgba[4])
-    {
-      auto p = (png_file_decoder_t *)pngle_get_user_data(pngle);
-
-      int32_t t = ceil( y      * p->scale) - p->offY;
-      if (t < 0) return;
-      int32_t b = ceil((y + 1) * p->scale) - p->offY;
-      if (b > p->maxHeight) b = p->maxHeight;
-      if (t >= b) return;
-
-      int32_t l = ceil( x      * p->scale) - p->offX;
-      if (l < 0) return;
-      int32_t r = ceil((x + 1) * p->scale) - p->offX;
-      if (r > p->maxWidth) r = p->maxWidth;
-      if (l >= r) return;
-
-      for (uint32_t i = l; i < r; ++i) {
-        for (uint32_t j = 0; j < b - t; ++j) {
-          auto data = &p->linebuf[i + j * p->maxWidth];
-          memcpy(data, rgba, 3);
-        }
-      }
-    }
-
-    static void pngle_draw_alpha_callback(pngle_t *pngle, uint32_t x, uint32_t y, uint8_t rgba[4])
-    {
-      if (rgba[3] == 0) return;
       if (rgba[3] == 255) {
-        pngle_draw_callback(pngle, x, y, rgba);
-        return;
+        memcpy(&p->lineBuffer[l], rgba, 3);
+      } else {
+        auto data = &p->lineBuffer[l];
+        uint_fast8_t alpha = rgba[3] + 1;
+        data->r = (rgba[0] * alpha + data->r * (257 - alpha)) >> 8;
+        data->g = (rgba[1] * alpha + data->g * (257 - alpha)) >> 8;
+        data->b = (rgba[2] * alpha + data->b * (257 - alpha)) >> 8;
       }
-
-      auto p = (png_file_decoder_t *)pngle_get_user_data(pngle);
-
-      int32_t t = ( y      ) - p->offY;
-      if (t < 0) t = 0;
-      int32_t b = ((y + 1) ) - p->offY;
-      if (b > p->maxHeight) b = p->maxHeight;
-      if (t >= b) return;
-
-      int32_t l = ( x      ) - p->offX;
-      if (l < 0) l = 0;
-      int32_t r = ((x + 1) ) - p->offX;
-      if (r > p->maxWidth) r = p->maxWidth;
-      if (l >= r) return;
-
-      auto data = &p->linebuf[l];
-      uint_fast8_t alpha = rgba[3] + 1;
-      data->r = (rgba[0] * alpha + data->r * (257 - alpha)) >> 8;
-      data->g = (rgba[1] * alpha + data->g * (257 - alpha)) >> 8;
-      data->b = (rgba[2] * alpha + data->b * (257 - alpha)) >> 8;
     }
 
     static void pngle_draw_alpha_scale_callback(pngle_t *pngle, uint32_t x, uint32_t y, uint8_t rgba[4])
     {
-      if (rgba[3] == 0) return;
-      if (rgba[3] == 255) {
-        pngle_draw_scale_callback(pngle, x, y, rgba);
-        return;
-      }
-
       auto p = (png_file_decoder_t *)pngle_get_user_data(pngle);
 
       int32_t t = ceil( y      * p->scale) - p->offY;
       if (t < 0) t = 0;
       int32_t b = ceil((y + 1) * p->scale) - p->offY;
       if (b > p->maxHeight) b = p->maxHeight;
-      if (t >= b) return;
+      if ((b -= t) < 0) return;
 
       int32_t l = ceil( x      * p->scale) - p->offX;
       if (l < 0) l = 0;
@@ -2743,28 +2729,24 @@ ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
       if (r > p->maxWidth) r = p->maxWidth;
       if (l >= r) return;
 
-      uint_fast8_t alpha = rgba[3] + 1;
-      for (uint32_t i = l; i < r; ++i) {
-        for (uint32_t j = 0; j < b - t; ++j) {
-          auto data = &p->linebuf[i + j * p->maxWidth];
-          data->r = (rgba[0] * alpha + data->r * (257 - alpha)) >> 8;
-          data->g = (rgba[1] * alpha + data->g * (257 - alpha)) >> 8;
-          data->b = (rgba[2] * alpha + data->b * (257 - alpha)) >> 8;
+      if (rgba[3] == 255) {
+        for (size_t i = l; i < r; ++i) {
+          for (size_t j = 0; j < b; ++j) {
+            auto data = &p->lineBuffer[i + j * p->maxWidth];
+            memcpy(data, rgba, 3);
+          }
+        }
+      } else {
+        uint_fast8_t alpha = rgba[3] + 1;
+        for (size_t i = l; i < r; ++i) {
+          for (size_t j = 0; j < b; ++j) {
+            auto data = &p->lineBuffer[i + j * p->maxWidth];
+            data->r = (rgba[0] * alpha + data->r * (257 - alpha)) >> 8;
+            data->g = (rgba[1] * alpha + data->g * (257 - alpha)) >> 8;
+            data->b = (rgba[2] * alpha + data->b * (257 - alpha)) >> 8;
+          }
         }
       }
-    }
-
-    static void pngle_line_callback(pngle_t *pngle, uint32_t y, uint32_t next_y)
-    {
-      auto p = (png_file_decoder_t *)pngle_get_user_data(pngle);
-
-      int32_t t = ceil( y      * p->scale) - p->offY;
-      if (t < 0) t = 0;
-      int32_t b = ceil((y + 1) * p->scale) - p->offY;
-      if (b > p->maxHeight) b = p->maxHeight;
-      if (t >= b) return;
-
-      p->tft->push_image(p->x, p->y + t, p->maxWidth, b - t, p->pc, true);
     }
 
     static void pngle_line_alpha_callback(pngle_t *pngle, uint32_t y, uint32_t next_y)
@@ -2788,7 +2770,7 @@ ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
       if (t >= b) return;
 
       // read next line
-      p->tft->readRectRGB(p->x, p->y + t, p->maxWidth, b - t, p->linebuf);
+      p->tft->readRectRGB(p->x, p->y + t, p->maxWidth, b - t, p->lineBuffer);
     }
 
     static void pngle_init_callback(pngle_t *pngle, uint32_t w, uint32_t h, uint_fast8_t hasTransparent)
@@ -2812,13 +2794,11 @@ ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
       if (p->maxHeight < 0) return;
       if (p->offY < 0) { p->offY = 0; }
 
-      if (ihdr->interlace || hasTransparent) { // need pixel read ?
-        p->tft->readRectRGB(p->x, p->y - p->offY, p->maxWidth, ceil(p->scale), p->linebuf);
+      if (hasTransparent) { // need pixel read ?
+        p->lineBuffer = (bgr888_t*)alloc_dmabuffer(sizeof(bgr888_t) * p->maxWidth * ceil(p->scale));
+        p->pc->src_data = p->lineBuffer;
+        p->tft->readRectRGB(p->x, p->y - p->offY, p->maxWidth, ceil(p->scale), p->lineBuffer);
         pngle_set_line_callback(pngle, pngle_line_alpha_callback);
-      } else {
-        pngle_set_line_callback(pngle, pngle_line_callback);
-      }
-      if (hasTransparent) {
         if (p->scale == 1.0) {
           pngle_set_draw_callback(pngle, pngle_draw_alpha_callback);
         } else {
@@ -2826,40 +2806,33 @@ ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
         }
       } else {
         if (p->scale == 1.0) {
-          pngle_set_draw_callback(pngle, pngle_draw_callback);
+          pngle_set_draw_callback(pngle, pngle_draw_normal_callback);
         } else {
-          pngle_set_draw_callback(pngle, pngle_draw_scale_callback);
+          pngle_set_draw_callback(pngle, pngle_draw_normal_scale_callback);
         }
+        return;
       }
     }
 
-    bool draw_png(DataWrapper* data, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, double scale, uint8_t alphaThreshold)
+    bool draw_png(DataWrapper* data, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, double scale)
     {
-      if (!maxHeight) maxHeight = this->height() - offY;
+      if (!maxHeight) maxHeight = INT32_MAX;
       auto ct = this->_clip_t;
-      if (0 > y - ct) { maxHeight += y - ct; y = ct; }
+      if (0 > y - ct) { maxHeight += y - ct; offY -= y - ct; y = ct; }
+      if (0 > offY) { y -= offY; maxHeight += offY; offY = 0; }
       auto cb = this->_clip_b + 1;
       if (maxHeight > (cb - y)) maxHeight = (cb - y);
+      if (maxHeight < 0) return true;
 
-      if (!maxWidth) maxWidth = this->width() - offX;
+      if (!maxWidth) maxWidth = INT32_MAX;
       auto cl = this->_clip_l;
-      if (0 > x - cl) { maxWidth += x - cl; x = cl; }
+      if (0 > x - cl) { maxWidth += x - cl; offX -= x - cl; x = cl; }
+      if (0 > offX) { x -= offX; maxWidth  += offX; offX = 0; }
       auto cr = this->_clip_r + 1;
       if (maxWidth > (cr - x)) maxWidth = (cr - x);
-
-      if (offX < 0) { x -= offX; maxWidth  += offX; }
-      if (offY < 0) { y -= offY; maxHeight += offY; }
-
-      if (maxWidth < 0 || maxHeight < 0) return true;
-
-      pngle_t *pngle = pngle_new();
+      if (maxWidth < 0) return true;
 
       png_file_decoder_t png;
-
-      auto linebuf = (bgr888_t*)alloc_dmabuffer(sizeof(bgr888_t) * maxWidth * ceil(scale));
-
-      pixelcopy_t pc(linebuf, this->getColorDepth(), bgr888_t::depth, this->_palette_count);
-
       png.x = x;
       png.y = y;
       png.offX = offX;
@@ -2867,21 +2840,25 @@ ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
       png.maxWidth = maxWidth;
       png.maxHeight = maxHeight;
       png.scale = scale;
-      png.alphaThreshold = alphaThreshold;
       png.tft = this;
+      png.lineBuffer = nullptr;
+
+      pixelcopy_t pc(nullptr, this->getColorDepth(), bgr888_t::depth, this->_palette_count);
       png.pc = &pc;
-      png.linebuf = linebuf;
+
+      pngle_t *pngle = pngle_new();
+
       pngle_set_user_data(pngle, &png);
 
       pngle_set_init_callback(pngle, pngle_init_callback);
 
       // Feed data to pngle
-      uint8_t buf[1024];
+      uint8_t buf[512];
       int remain = 0;
       int len;
       bool res = true;
 
-      len = data->read(buf + remain, sizeof(buf) - remain);
+      len = data->read(buf, sizeof(buf));
 
       if (data->need_transaction && this->_transaction_count) this->beginTransaction();
       this->startWrite();
@@ -2903,7 +2880,7 @@ ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
       }
       this->endWrite();
 
-      free_dmabuffer(linebuf);
+      if (png.lineBuffer)      free_dmabuffer(png.lineBuffer);
 
       pngle_destroy(pngle);
       return res;
