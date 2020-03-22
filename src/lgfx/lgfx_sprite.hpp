@@ -119,17 +119,16 @@ namespace lgfx
       if (h < 0) h = -h;
       else y = h - 1;
 
-      argb8888_t *palette = nullptr;
       if (bpp <= 8) {
         if (!_palette) createPalette();
         uint_fast16_t palettecount = 1 << bpp;
-        palette = new argb8888_t[palettecount];
+        argb8888_t *palette = new argb8888_t[palettecount];
         data->seek(bmpdata.biSize + 14);
         data->read((uint8_t*)palette, (palettecount * sizeof(argb8888_t))); // load palette
         for (uint_fast16_t i = 0; i < _palette_count; ++i) {
           _palette[i] = palette[i];
         }
-        if (palette) delete[] palette;
+        delete[] palette;
       }
 
       data->seek(seekOffset);
@@ -138,37 +137,7 @@ namespace lgfx
       if (bpp <= 8) {
         do {
           if (bmpdata.biCompression == 1) {
-            uint_fast8_t state= 0;
-            uint8_t code[2];
-            uint_fast16_t xidx = 0;
-            bool eol = false;
-            while (!eol) {
-              data->read(code, 2);
-              if (code[0] == 0) {
-                switch (code[1]) {
-                case 0x00: // EOL
-                case 0x01: // EOB
-                  eol = true;
-                  break;
-
-                case 0x02: // move info  (not support)
-                  break;
-
-                default:
-                  data->read(&lineBuffer[xidx], (code[1] + 1) & ~1); // word align
-                  xidx += code[1];
-                  break;
-                }
-              } else if (xidx + code[0] <= w) {
-                memset(&lineBuffer[xidx], code[1], code[0]);
-                xidx += code[0];
-              } else {
-                // error
-                eol = true;
-                break;
-              }
-            }
-
+            load_bmp_rle8(data, lineBuffer, w);
           } else {
             data->read(lineBuffer, sizeof(lineBuffer));
           }

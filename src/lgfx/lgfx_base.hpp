@@ -1288,11 +1288,11 @@ namespace lgfx
     template<typename T> inline void setTextColor(T c)      { _text_fore_rgb888 = _text_back_rgb888 = convert_to_rgb888(c); }
     template<typename T> inline void setTextColor(T c, T b) { _text_fore_rgb888 = convert_to_rgb888(c); _text_back_rgb888 = convert_to_rgb888(b); }
 
-    inline int16_t drawChar(uint16_t uniCode, int32_t x, int32_t y) { _filled_x = 0; return (fpDrawChar)(this, x, y, uniCode, _text_fore_rgb888, _text_back_rgb888, _textsize_x, _textsize_y); }
+    inline int_fast16_t drawChar(uint16_t uniCode, int32_t x, int32_t y) { _filled_x = 0; return (fpDrawChar)(this, x, y, uniCode, _text_fore_rgb888, _text_back_rgb888, _textsize_x, _textsize_y); }
     template<typename T>
-    inline int16_t drawChar(int32_t x, int32_t y, uint16_t uniCode, T color, T bg, uint8_t size) { _filled_x = 0; return (fpDrawChar)(this, x, y, uniCode, convert_to_rgb888(color), convert_to_rgb888(bg), size, size); }
+    inline int_fast16_t drawChar(int32_t x, int32_t y, uint16_t uniCode, T color, T bg, int_fast8_t size) { _filled_x = 0; return (fpDrawChar)(this, x, y, uniCode, convert_to_rgb888(color), convert_to_rgb888(bg), size, size); }
     template<typename T>
-    inline int16_t drawChar(int32_t x, int32_t y, uint16_t uniCode, T color, T bg, uint8_t size_x, uint8_t size_y) { _filled_x = 0; return (fpDrawChar)(this, x, y, uniCode, convert_to_rgb888(color), convert_to_rgb888(bg), size_x, size_y); }
+    inline int_fast16_t drawChar(int32_t x, int32_t y, uint16_t uniCode, T color, T bg, int_fast8_t size_x, int_fast8_t size_y) { _filled_x = 0; return (fpDrawChar)(this, x, y, uniCode, convert_to_rgb888(color), convert_to_rgb888(bg), size_x, size_y); }
 
     int16_t getCursorX(void) const { return _cursor_x; }
     int16_t getCursorY(void) const { return _cursor_y; }
@@ -1534,9 +1534,9 @@ namespace lgfx
       return true;
     }
 
-    int16_t (*fpDrawChar)(LGFXBase* me, int32_t x, int32_t y, uint16_t c, uint32_t fore_rgb888, uint32_t back_rgb888, uint8_t size_x, uint8_t size_y) = &LGFXBase::drawCharGLCD;
+    int_fast16_t (*fpDrawChar)(LGFXBase* me, int32_t x, int32_t y, uint16_t c, uint32_t fore_rgb888, uint32_t back_rgb888, int_fast8_t size_x, int_fast8_t size_y) = &LGFXBase::drawCharGLCD;
 
-    static int16_t drawCharGLCD(LGFXBase* me, int32_t x, int32_t y, uint16_t c, uint32_t fore_rgb888, uint32_t back_rgb888, uint8_t size_x, uint8_t size_y)
+    static int_fast16_t drawCharGLCD(LGFXBase* me, int32_t x, int32_t y, uint16_t c, uint32_t fore_rgb888, uint32_t back_rgb888, int_fast8_t size_x, int_fast8_t size_y)
     { // glcd font
       const int32_t fontWidth  = me->_font_size_x.size;
       const int32_t fontHeight = me->_font_size_y.size;
@@ -1612,7 +1612,7 @@ namespace lgfx
       return fontWidth * size_x;
     }
 
-    static int16_t drawCharBMP(LGFXBase* me, int32_t x, int32_t y, uint16_t c, uint32_t fore_rgb888, uint32_t back_rgb888, uint8_t size_x, uint8_t size_y)
+    static int_fast16_t drawCharBMP(LGFXBase* me, int32_t x, int32_t y, uint16_t c, uint32_t fore_rgb888, uint32_t back_rgb888, int_fast8_t size_x, int_fast8_t size_y)
     { // BMP font
       uint16_t uniCode = c - 32;
       const int fontWidth = ((c < 32) || (c > 127)) ? 0 : pgm_read_byte(widtbl_f16 + uniCode);
@@ -1698,7 +1698,7 @@ namespace lgfx
       return fontWidth * size_x;
     }
 
-    static int16_t drawCharRLE(LGFXBase* me, int32_t x, int32_t y, uint16_t c, uint32_t fore_rgb888, uint32_t back_rgb888, uint8_t size_x, uint8_t size_y)
+    static int_fast16_t drawCharRLE(LGFXBase* me, int32_t x, int32_t y, uint16_t c, uint32_t fore_rgb888, uint32_t back_rgb888, int_fast8_t size_x, int_fast8_t size_y)
     { // RLE font
       auto fontdat = &fontdata[me->getTextFont()];
       uint16_t code = c - 32;
@@ -1786,7 +1786,7 @@ namespace lgfx
       return true;
     }
 
-    static int16_t drawCharGFXFF(LGFXBase* lgfxbase, int32_t x, int32_t y, uint16_t c, uint32_t fore_rgb888, uint32_t back_rgb888, uint8_t size_x, uint8_t size_y)
+    static int_fast16_t drawCharGFXFF(LGFXBase* lgfxbase, int32_t x, int32_t y, uint16_t c, uint32_t fore_rgb888, uint32_t back_rgb888, int_fast8_t size_x, int_fast8_t size_y)
     {
       auto me = (LGFX_GFXFont_Support*)lgfxbase;
       auto gfxFont = me->_gfxFont;
@@ -2174,7 +2174,7 @@ ESP_LOGI("LGFX", "maxDescent:%d", gFont.maxDescent);
       return false;
     }
 
-    static int16_t drawCharVLW(LGFXBase* lgfxbase, int32_t x, int32_t y, uint16_t code, uint32_t fore_rgb888, uint32_t back_rgb888, uint8_t size_x, uint8_t size_y)
+    static int_fast16_t drawCharVLW(LGFXBase* lgfxbase, int32_t x, int32_t y, uint16_t code, uint32_t fore_rgb888, uint32_t back_rgb888, int_fast8_t size_x, int_fast8_t size_y)
     {
       auto me = (LGFX_VLWFont_Support*)lgfxbase;
 
@@ -2316,7 +2316,6 @@ ESP_LOGI("LGFX", "maxDescent:%d", gFont.maxDescent);
       bool res;
       FileWrapper file;
       file.setFS(fs);
-//      drawJpgFile(&file, path, x, y, maxWidth, maxHeight, offX, offY, scale);
 
       file.need_transaction &= this->_has_transaction;
       if (file.need_transaction) this->endTransaction();
@@ -2451,6 +2450,41 @@ ESP_LOGI("LGFX", "maxDescent:%d", gFont.maxDescent);
            && (result->biBitCount != 0));
     }
 
+    bool load_bmp_rle8(DataWrapper* data, uint8_t* linebuf, uint_fast16_t width) {
+      uint8_t code[2];
+      uint_fast8_t state= 0;
+      uint_fast16_t xidx = 0;
+      bool eol = false;
+      while (!eol) {
+        data->read(code, 2);
+        if (code[0] == 0) {
+          switch (code[1]) {
+          case 0x00: // EOL
+          case 0x01: // EOB
+            eol = true;
+            break;
+
+          case 0x02: // move info  (not support)
+            return false;
+            break;
+
+          default:
+            data->read(&linebuf[xidx], (code[1] + 1) & ~1); // word align
+            xidx += code[1];
+            break;
+          }
+        } else if (xidx + code[0] <= width) {
+          memset(&linebuf[xidx], code[1], code[0]);
+          xidx += code[0];
+        } else {
+          // error
+          eol = true;
+          break;
+        }
+      }
+      return true;
+    }
+
   private:
 
     void drawBmpFile(FileWrapper* file, const char *path, int32_t x=0, int32_t y=0) {
@@ -2512,48 +2546,20 @@ ESP_LOGI("LGFX", "maxDescent:%d", gFont.maxDescent);
       }
 
       if (bmpdata.biCompression == 1) {
+        auto nt = data->need_transaction;
         do {
-          uint_fast8_t state= 0;
-          uint8_t code[2];
-
-          if (data->need_transaction) this->endTransaction();
-          uint_fast16_t xidx = 0;
-          bool eol = false;
-          while (!eol) {
-            data->read(code, 2);
-            if (code[0] == 0) {
-              switch (code[1]) {
-              case 0x00: // EOL
-              case 0x01: // EOB
-                eol = true;
-                break;
-
-              case 0x02: // move info  (not support)
-                break;
-
-              default:
-                data->read(&lineBuffer[xidx], (code[1] + 1) & ~1); // word align
-                xidx += code[1];
-                break;
-              }
-            } else if (xidx + code[0] <= w) {
-              memset(&lineBuffer[xidx], code[1], code[0]);
-              xidx += code[0];
-            } else {
-              // error
-              eol = true;
-              break;
-            }
-          }
-          if (data->need_transaction) this->beginTransaction();
+          if (nt) this->endTransaction();
+          load_bmp_rle8(data, lineBuffer, w);
+          if (nt) this->beginTransaction();
           this->push_image(x, y, w, 1, &p);
           y += flow;
         } while (--h);
       } else {
+        auto nt = data->need_transaction;
         do {
-          if (data->need_transaction) this->endTransaction();
+          if (nt) this->endTransaction();
           data->read(lineBuffer, sizeof(lineBuffer));
-          if (data->need_transaction) this->beginTransaction();
+          if (nt) this->beginTransaction();
           this->push_image(x, y, w, 1, &p);
           y += flow;
         } while (--h);
