@@ -1,3 +1,40 @@
+/*
+MIT License
+
+Copyright (c) 2020 lovyan03
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+/*----------------------------------------------------------------------------/
+  Lovyan GFX library - ESP32 hardware SPI graphics library .  
+  
+    for Arduino and ESP-IDF  
+  
+Original Source  
+ https://github.com/lovyan03/LovyanGFX/  
+
+Licence  
+ [MIT](https://github.com/lovyan03/LovyanGFX/blob/master/LICENSE)  
+
+Author  
+ [lovyan03](https://twitter.com/lovyan03)  
+/----------------------------------------------------------------------------*/
 #ifndef LGFX_SPRITE_HPP_
 #define LGFX_SPRITE_HPP_
 
@@ -86,6 +123,12 @@ namespace lgfx
     }
 
 #endif
+
+    void createFromBmp(const uint8_t *bmp_data, uint32_t bmp_len) {
+      PointerWrapper data;
+      data.set(bmp_data, bmp_len);
+      create_from_bmp(&data);
+    }
 
     void createFromBmpFile(FileWrapper* file, const char *path) {
       file->need_transaction = false;
@@ -427,9 +470,9 @@ return;
             auto img = &_img16[index];
             do { *img = c;  img += bw; } while (--h);
           } else {  // if (_write_conv.bytes == 3)
+            auto c = _color;
             auto img = &_img24[index];
-            uint32_t c = _color.raw;
-            do { *img = *(bgr888_t*)&c; img += bw; } while (--h);
+            do { img->r = c.raw0; img->g = c.raw1; img->b = c.raw2; img += bw; } while (--h);
           }
         } else {
           uint32_t bytes = bits >> 3;

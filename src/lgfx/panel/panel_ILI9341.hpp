@@ -155,13 +155,12 @@ namespace lgfx
   public:
     bool isIPS = false;
     Panel_M5Stack() : Panel_ILI9341_Common() {
-      static constexpr int gpio_rst = 33;
-      TPin<gpio_rst>::lo();
-      TPin<gpio_rst>::init(GPIO_MODE_INPUT);
+      TPin<cfg_t::gpio_rst>::lo();
+      initGPIO(cfg_t::gpio_rst, GPIO_MODE_INPUT);
       setConfig<cfg_t>();
-      isIPS = TPin<gpio_rst>::get();  // get panel type (IPS or TN)
-      TPin<gpio_rst>::hi();
-      TPin<gpio_rst>::init(GPIO_MODE_OUTPUT);
+      isIPS = TPin<cfg_t::gpio_rst>::get();  // get panel type (IPS or TN)
+//    TPin<gpio_rst>::hi();
+//    TPin<gpio_rst>::init(GPIO_MODE_OUTPUT);
     }
   private:
     struct cfg_t {

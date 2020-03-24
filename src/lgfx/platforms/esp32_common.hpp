@@ -1,17 +1,16 @@
 #ifndef LGFX_ESP32_COMMON_HPP_
 #define LGFX_ESP32_COMMON_HPP_
 
-#include <freertos/task.h>
 #include <driver/rtc_io.h>
+#include <freertos/task.h>
+#include <soc/dport_reg.h>
 #include <soc/rtc.h>
+#include <soc/spi_reg.h>
+#include <soc/spi_struct.h>
 
 #ifdef ARDUINO
   #include <driver/periph_ctrl.h>
-  #include <soc/dport_reg.h>
   #include <soc/periph_defs.h>
-  #include <soc/spi_reg.h>
-  #include <soc/spi_struct.h>
-
   #include <esp32-hal-cpu.h>
   #include <esp32-hal-ledc.h>
   #include <pgmspace.h>

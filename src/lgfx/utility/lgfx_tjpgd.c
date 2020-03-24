@@ -18,13 +18,13 @@
 / Sep 03, 2012 R0.01b Added JD_TBLCLIP option.
 / Mar 16, 2019 R0.01c Supprted stdint.h.
 /-----------------------------------------------------------------------------/
-/ Modified for ESP32  by lovyan03, 2020
+/ Modified for LGFX  by lovyan03, 2020
 / add support grayscale jpeg
 / add bayer pattern
 / tweak for 32bit processor
 /----------------------------------------------------------------------------*/
 
-#include "tjpgd.h"
+#include "lgfx_tjpgd.h"
 
 #include <string.h> // for memcpy memset
 
@@ -258,7 +258,7 @@ static int32_t bitext (	/* >=0: extracted data, <0: error code */
 
 	do {
 		if (!msk) {				/* Next byte? */
-			msk = 8;		/* Read from MSB */
+			msk = 8;			/* Read from MSB */
 			if (++dp == dpend) {			/* No input data is available, re-fill input buffer */
 				dp = jd->inbuf;	/* Top of input buffer */
 				dpend = dp + jd->infunc(jd, dp, JD_SZBUF);
@@ -298,15 +298,14 @@ static int32_t huffext (	/* >=0: decoded data, <0: error code */
 )
 {
 	uint8_t *dp, *dpend;
-	uint_fast8_t msk, s, f, bl;
+	uint_fast8_t msk, s, bl;
 	uint32_t v;
 
 	msk = jd->dmsk; dp = jd->dptr; dpend = jd->dpend;
-	s = *dp; v = f = 0;
+	s = *dp; v = 0;
 	bl = 16;	/* Max code length */
 	do {
 		if (!msk) {		/* Next byte? */
-			msk = 8;		/* Read from MSB */
 huffext_goto:
 			if (++dp == dpend) {	/* No input data is available, re-fill input buffer */
 				dp = jd->inbuf;	/* Top of input buffer */
@@ -314,14 +313,13 @@ huffext_goto:
 				if (dp == dpend) return 0 - (int32_t)JDR_INP;	/* Err: read error or wrong stream termination */
 			}
 
-			if (!f) {		/* Not in flag sequence? */
+			if (!msk) {		/* Not in flag sequence? */
+				msk = 8;		/* Read from MSB */
 				s = *dp;				/* Get next data byte */
 				if (s == 0xFF) {		/* Is start of flag sequence? */
-					f = 1;
 					goto huffext_goto;	/* Enter flag sequence, get trailing byte */
 				}
 			} else {
-				f = 0;		/* Exit flag sequence */
 				if (*dp != 0) return 0 - (int32_t)JDR_FMT1;	/* Err: unexpected flag is detected (may be collapted data) */
 				*dp = s = 0xFF;			/* The flag is a data 0xFF */
 			}
@@ -491,7 +489,7 @@ static JRESULT mcu_load (
 			b = 1 << (b - 1);					/* MSB position */
 			if (!(e & b)) e -= (b << 1) - 1;	/* Restore sign if needed */
 			d += e;								/* Get current value */
-			jd->dcv[cmp] = d;			/* Save current DC value for next block */
+			jd->dcv[cmp] = d;					/* Save current DC value for next block */
 		}
 		const int32_t *dqf = jd->qttbl[jd->qtid[cmp]];			/* De-quantizer table ID for this component */
 		tmp[0] = d * dqf[0] >> 8;				/* De-quantize, apply scale factor of Arai algorithm and descale 8 bits */
@@ -870,12 +868,11 @@ JRESULT jd_prepare (
 			}
 
 			/* Pre-load the JPEG data to extract it from the bit stream */
-			jd->dptr = seg; jd->dmsk = 0;	/* Prepare to read bit stream */
-			if (ofs %= JD_SZBUF) {						/* Align read offset to JD_SZBUF */
-				int32_t dc = infunc(jd, seg + ofs, JD_SZBUF - ofs);
-				jd->dptr = seg + ofs - 1;
-				jd->dpend = seg + ofs + dc;
-			}
+			ofs %= JD_SZBUF;						/* Align read offset to JD_SZBUF */
+			int32_t dc = infunc(jd, seg + ofs, JD_SZBUF - ofs);
+			jd->dptr = seg + ofs - 1;
+			jd->dpend = seg + ofs + dc;
+			jd->dmsk = 0;	/* Prepare to read bit stream */
 
 			return JDR_OK;		/* Initialization succeeded. Ready to decompress the JPEG image. */
 
@@ -931,8 +928,10 @@ JRESULT jd_decomp (
 	rst = rsc = 0;
 
 	rc = JDR_OK;
+
 	for (y = 0; y < jd->height; y += my) {		/* Vertical loop of MCUs */
-		for (x = 0; x < jd->width; x += mx) {	/* Horizontal loop of MCUs */
+		x = 0;
+		do {	/* Horizontal loop of MCUs */
 			if (jd->nrst && rst++ == jd->nrst) {	/* Process restart interval if enabled */
 				rc = restart(jd, rsc++);
 				if (rc != JDR_OK) return rc;
@@ -942,7 +941,7 @@ JRESULT jd_decomp (
 			if (rc != JDR_OK) return rc;
 			rc = mcu_output(jd, outfunc, x, y);	/* Output the MCU (color space conversion, scaling and output) */
 			if (rc != JDR_OK) return rc;
-		}
+		} while ( (x += mx) < jd->width);
 	}
 
 	return rc;

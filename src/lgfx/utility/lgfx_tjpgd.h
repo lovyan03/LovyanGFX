@@ -1,10 +1,13 @@
 /*----------------------------------------------------------------------------/
 / TJpgDec - Tiny JPEG Decompressor include file               (C)ChaN, 2019
 /-----------------------------------------------------------------------------/
-/ Modified for ESP32  by lovyan03, 2020
+/ Modified for LGFX  by lovyan03, 2020
+/ add support grayscale jpeg
+/ add bayer pattern
+/ tweak for 32bit processor
 /----------------------------------------------------------------------------*/
-#ifndef DEF_TJPGDEC
-#define DEF_TJPGDEC
+#ifndef __LGFX_TJPGDEC_H__
+#define __LGFX_TJPGDEC_H__
 /*---------------------------------------------------------------------------*/
 /* System Configurations */
 

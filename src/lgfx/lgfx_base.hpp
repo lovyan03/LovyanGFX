@@ -1,3 +1,40 @@
+/*
+MIT License
+
+Copyright (c) 2020 lovyan03
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+/*----------------------------------------------------------------------------/
+  Lovyan GFX library - ESP32 hardware SPI graphics library .  
+  
+    for Arduino and ESP-IDF  
+  
+Original Source  
+ https://github.com/lovyan03/LovyanGFX/  
+
+Licence  
+ [MIT](https://github.com/lovyan03/LovyanGFX/blob/master/LICENSE)  
+
+Author  
+ [lovyan03](https://twitter.com/lovyan03)  
+/----------------------------------------------------------------------------*/
 #ifndef LGFX_BASE_HPP_
 #define LGFX_BASE_HPP_
 
@@ -9,6 +46,7 @@
 #include <cfloat>
 #include <type_traits>
 #include <algorithm>
+#include <string>
 
 #include "lgfx_common.hpp"
 
@@ -2652,8 +2690,7 @@ namespace lgfx
     }
 
 
-//#if !defined (_TJPGDEC_H_)
-#if !defined (DEF_TJPGDEC)
+#if !defined (__LGFX_TJPGDEC_H__)
 
     bool draw_jpg(DataWrapper* data, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, jpeg_div_t scale)
     {
@@ -2762,7 +2799,7 @@ namespace lgfx
     }
 #endif
 
-#ifndef __PNGLE_H__
+#ifndef __LGFX_PNGLE_H__
 
     bool draw_png(DataWrapper* data, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, double scale)
     {

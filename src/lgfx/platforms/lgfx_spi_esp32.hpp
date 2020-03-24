@@ -8,19 +8,23 @@
 
 #if defined (ARDUINO) // Arduino ESP32
  #include <SPI.h>
+#else
+ #include <driver/spi_common_internal.h>
 #endif
 
+#include "esp32_common.hpp"
 #include "../lgfx_base.hpp"
 
 namespace lgfx
 {
-  static portMUX_TYPE periph_spinlock = portMUX_INITIALIZER_UNLOCKED;
   static void spi_dma_reset(void) //periph_module_reset( PERIPH_SPI_DMA_MODULE );
   {
-    vTaskEnterCritical(&periph_spinlock);
-    DPORT_SET_PERI_REG_MASK(DPORT_PERIP_RST_EN_REG, DPORT_SPI_DMA_CLK_EN);
-    DPORT_CLEAR_PERI_REG_MASK(DPORT_PERIP_RST_EN_REG, DPORT_SPI_DMA_CLK_EN);
-    vTaskExitCritical(&periph_spinlock);
+    periph_module_reset( PERIPH_SPI_DMA_MODULE );
+//  static portMUX_TYPE periph_spinlock = portMUX_INITIALIZER_UNLOCKED;
+//    vTaskEnterCritical(&periph_spinlock);
+//    DPORT_SET_PERI_REG_MASK(DPORT_PERIP_RST_EN_REG, DPORT_SPI_DMA_CLK_EN);
+//    DPORT_CLEAR_PERI_REG_MASK(DPORT_PERIP_RST_EN_REG, DPORT_SPI_DMA_CLK_EN);
+//    vTaskExitCritical(&periph_spinlock);
   }
 
   #define MEMBER_DETECTOR(member, classname, classname_impl, valuetype) struct classname_impl { \
@@ -364,7 +368,7 @@ namespace lgfx
       }
       _fill_mode = false;
 
-      _user_reg = (*_spi_user_reg & ~(SPI_USR_MISO | SPI_DOUTDIN | SPI_SIO | SPI_CK_OUT_EDGE | SPI_USR_COMMAND))
+      _user_reg = (*reg(SPI_USER_REG(_spi_port)) & ~(SPI_USR_MISO | SPI_DOUTDIN | SPI_SIO | SPI_CK_OUT_EDGE | SPI_USR_COMMAND))
                 | ((_panel->spi_mode == 1 || _panel->spi_mode == 2) ? SPI_CK_OUT_EDGE : 0)
                 | SPI_USR_MOSI;
 
@@ -373,8 +377,8 @@ namespace lgfx
 
       wait_spi();
 
-      *_spi_user_reg = _user_reg;
-      *_spi_pin_reg = _pin_reg;
+      *reg(SPI_USER_REG(_spi_port)) = _user_reg;
+      *reg(SPI_PIN_REG(_spi_port))  = _pin_reg;
 
 #if defined (ARDUINO) // Arduino ESP32
       if (_dma_channel) {
@@ -421,7 +425,7 @@ namespace lgfx
         if (_next_dma_reset) spi_dma_reset();
       }
 
-      *_spi_user_reg = _user_reg
+      *reg(SPI_USER_REG(_spi_port)) = _user_reg
                      | ((_spi_miso == -1) ? 0 : (SPI_USR_MISO | SPI_DOUTDIN)); // for other SPI device (SD)
 #elif defined (CONFIG_IDF_TARGET_ESP32) // ESP-IDF
       if (_spi_handle) {
@@ -483,28 +487,30 @@ namespace lgfx
         memcpy(&_regbuf[1], _regbuf, 4);
         memcpy(&_regbuf[2], _regbuf, 4);
       } else { // bytes == 3
-        _regbuf[0] = _color.raw;
-        memcpy(&((uint8_t*)_regbuf)[3], _regbuf, 3);
-        memcpy(&((uint8_t*)_regbuf)[6], _regbuf, 6);
+        uint8_t* bufs = (uint8_t*)_regbuf;
+        bufs[0] = bufs[3] = bufs[6] = bufs[ 9] = _color.raw0;
+        bufs[1] = bufs[4] = bufs[7] = bufs[10] = _color.raw1;
+        bufs[2] = bufs[5] = bufs[8] = bufs[11] = _color.raw2;
       }
 
       length *= _write_conv.bits;          // convert to bitlength.
       uint32_t len = std::min(96, length); // 1st send length = max (96bit) 12Byte. 
+      auto spi_w0_reg = reg(SPI_W0_REG(_spi_port));
       dc_h();
       set_write_len(len);
 
       // copy to SPI buffer register
-      memcpy((void*)_spi_w0_reg, _regbuf, 12);
+      memcpy((void*)spi_w0_reg, _regbuf, 12);
 
       exec_spi();   // 1st send.
       if (0 == (length -= len)) return;
 
       // make 28Byte data from 12Byte data.
-      memcpy((void*)&_regbuf[ 3], _regbuf, 12);
-      memcpy((void*)&_regbuf[ 6], _regbuf, 4);
+      memcpy((void*)&_regbuf[3], _regbuf, 12);
+      memcpy((void*)&_regbuf[6], _regbuf, 4);
       // copy to SPI buffer register
-      memcpy((void*)&_spi_w0_reg[ 3], _regbuf, 24);
-      memcpy((void*)&_spi_w0_reg[ 9], _regbuf, 28);
+      memcpy((void*)&spi_w0_reg[3], _regbuf, 24);
+      memcpy((void*)&spi_w0_reg[9], _regbuf, 28);
 
       // limit = 64Byte / depth_bytes;
       // When 3Byte color, 504 bits out of 512bit buffer are used.
@@ -513,7 +519,7 @@ namespace lgfx
 
       len = (bytes == 3)           // 2nd send length = Surplus of buffer size.
           ? (length % limit)
-          : length & (limit - 1);
+          : (length & (limit - 1));
       if (len) {
         wait_spi();
         set_write_len(len);
@@ -564,8 +570,8 @@ namespace lgfx
 
     void write_cmd(uint_fast8_t cmd)
     {
-      auto spi_w0_reg = _spi_w0_reg;
-      auto spi_mosi_dlen_reg = _spi_mosi_dlen_reg;
+      auto spi_w0_reg        = reg(SPI_W0_REG(_spi_port));
+      auto spi_mosi_dlen_reg = reg(SPI_MOSI_DLEN_REG(_spi_port));
       dc_l();
       *spi_mosi_dlen_reg = 7;
       *spi_w0_reg = cmd;
@@ -574,8 +580,8 @@ namespace lgfx
 
     void write_data(uint32_t data, uint32_t bit_length)
     {
-      auto spi_w0_reg = _spi_w0_reg;
-      auto spi_mosi_dlen_reg = _spi_mosi_dlen_reg;
+      auto spi_w0_reg        = reg(SPI_W0_REG(_spi_port));
+      auto spi_mosi_dlen_reg = reg(SPI_MOSI_DLEN_REG(_spi_port));
       dc_h();
       *spi_mosi_dlen_reg = bit_length - 1;
       *spi_w0_reg = data;
@@ -607,8 +613,8 @@ namespace lgfx
       uint32_t pin = (_pin_reg & ~SPI_CK_IDLE_EDGE)
                    | ((_panel->spi_mode_read & 2) ? SPI_CK_IDLE_EDGE : 0);
       dc_h();
-      *_spi_user_reg = user;
-      *_spi_pin_reg = pin;
+      *reg(SPI_USER_REG(_spi_port)) = user;
+      *reg(SPI_PIN_REG(_spi_port)) = pin;
       set_clock_read();
     }
 
@@ -616,8 +622,8 @@ namespace lgfx
     {
       wait_spi();
       cs_h();
-      *_spi_user_reg = _user_reg;
-      *_spi_pin_reg = _pin_reg;
+      *reg(SPI_USER_REG(_spi_port)) = _user_reg;
+      *reg(SPI_PIN_REG(_spi_port)) = _pin_reg;
       if (_panel->spi_cs < 0) {
         write_cmd(_panel->cmd_nop);
       }
@@ -632,7 +638,8 @@ namespace lgfx
       set_read_len(length);
       exec_spi();
       wait_spi();
-      return *_spi_w0_reg;
+      return *reg(SPI_W0_REG(_spi_port));
+
     }
 
     void pushImage_impl(int32_t x, int32_t y, int32_t w, int32_t h, pixelcopy_t* param, bool use_dma) override
@@ -717,28 +724,30 @@ namespace lgfx
       len = length - (len * limit);
       param->fp_copy(_regbuf, 0, len, param);
 
+      auto spi_w0_reg = reg(SPI_W0_REG(_spi_port));
+
       dc_h();
       set_write_len(len * bytes << 3);
 
-      memcpy((void*)&_spi_w0_reg[highpart], _regbuf, (len * bytes + 3) & (~3));
-      if (highpart) *_spi_user_reg = _user_reg | SPI_USR_MOSI_HIGHPART;
+      memcpy((void*)&spi_w0_reg[highpart], _regbuf, (len * bytes + 3) & (~3));
+      if (highpart) *reg(SPI_USER_REG(_spi_port)) = _user_reg | SPI_USR_MOSI_HIGHPART;
       exec_spi();
       if (0 == (length -= len)) return;
 
       for (; length; length -= limit) {
         param->fp_copy(_regbuf, 0, limit, param);
-        memcpy((void*)&_spi_w0_reg[highpart ^= 0x08], _regbuf, limit * bytes);
+        memcpy((void*)&spi_w0_reg[highpart ^= 0x08], _regbuf, limit * bytes);
         uint32_t user = _user_reg;
         if (highpart) user |= SPI_USR_MOSI_HIGHPART;
         if (len != limit) {
           len = limit;
           wait_spi();
           set_write_len(limit * bytes << 3);
-          *_spi_user_reg = user;
+          *reg(SPI_USER_REG(_spi_port)) = user;
           exec_spi();
         } else {
           wait_spi();
-          *_spi_user_reg = user;
+          *reg(SPI_USER_REG(_spi_port)) = user;
           exec_spi();
         }
       }
@@ -747,9 +756,10 @@ namespace lgfx
     void write_bytes(const uint8_t* data, int32_t length, bool use_dma = false)
     {
       if (length <= 64) {
+        auto spi_w0_reg = reg(SPI_W0_REG(_spi_port));
         dc_h();
         set_write_len(length << 3);
-        memcpy((void*)_spi_w0_reg, data, (length + 3) & (~3));
+        memcpy((void*)spi_w0_reg, data, (length + 3) & (~3));
         exec_spi();
         return;
       } else if (_dma_channel && use_dma) {
@@ -765,28 +775,29 @@ namespace lgfx
       uint32_t len = ((length - 1) & 0x1F) + 1;
       uint32_t highpart = ((length - 1) & limit) >> 2; // 8 or 0
 
+      auto spi_w0_reg = reg(SPI_W0_REG(_spi_port));
       dc_h();
       set_write_len(len << 3);
 
-      memcpy((void*)&_spi_w0_reg[highpart], data, (len + 3) & (~3));
-      if (highpart) *_spi_user_reg = _user_reg | SPI_USR_MOSI_HIGHPART;
+      memcpy((void*)&spi_w0_reg[highpart], data, (len + 3) & (~3));
+      if (highpart) *reg(SPI_USER_REG(_spi_port)) = _user_reg | SPI_USR_MOSI_HIGHPART;
       exec_spi();
       if (0 == (length -= len)) return;
 
       for (; length; length -= limit) {
         data += len;
-        memcpy((void*)&_spi_w0_reg[highpart ^= 0x08], data, limit);
+        memcpy((void*)&spi_w0_reg[highpart ^= 0x08], data, limit);
         uint32_t user = _user_reg;
         if (highpart) user |= SPI_USR_MOSI_HIGHPART;
         if (len != limit) {
           len = limit;
           wait_spi();
           set_write_len(limit << 3);
-          *_spi_user_reg = user;
+          *reg(SPI_USER_REG(_spi_port)) = user;
           exec_spi();
         } else {
           wait_spi();
-          *_spi_user_reg = user;
+          *reg(SPI_USER_REG(_spi_port)) = user;
           exec_spi();
         }
       }
@@ -822,12 +833,13 @@ namespace lgfx
       param->src_data = _regbuf;
       int32_t dstindex = 0;
       uint32_t highpart = 8;
-      uint32_t userreg = *_spi_user_reg;
+      uint32_t userreg = *reg(SPI_USER_REG(_spi_port));
+      auto spi_w0_reg = reg(SPI_W0_REG(_spi_port));
       do {
         if (0 == (length -= len1)) {
           len2 = len1;
           wait_spi();
-          *_spi_user_reg = userreg;
+          *reg(SPI_USER_REG(_spi_port)) = userreg;
         } else {
           uint32_t user = userreg;
           if (highpart) user = userreg | SPI_USR_MISO_HIGHPART;
@@ -838,10 +850,10 @@ namespace lgfx
           } else {
             wait_spi();
           }
-          *_spi_user_reg = user;
+          *reg(SPI_USER_REG(_spi_port)) = user;
           exec_spi();
         }
-        memcpy(_regbuf, (void*)&_spi_w0_reg[highpart ^= 8], len2 * len_read_pixel >> 3);
+        memcpy(_regbuf, (void*)&spi_w0_reg[highpart ^= 8], len2 * len_read_pixel >> 3);
         param->src_x = 0;
         dstindex = param->fp_copy(dst, dstindex, dstindex + len2, param);
       } while (length);
@@ -863,12 +875,13 @@ namespace lgfx
         set_read_len(len1 << 3);
         exec_spi();
         uint32_t highpart = 8;
-        uint32_t userreg = *_spi_user_reg;
+        uint32_t userreg = *reg(SPI_USER_REG(_spi_port));
+        auto spi_w0_reg = reg(SPI_W0_REG(_spi_port));
         do {
           if (0 == (length -= len1)) {
             len2 = len1;
             wait_spi();
-            *_spi_user_reg = userreg;
+            *reg(SPI_USER_REG(_spi_port)) = userreg;
           } else {
             uint32_t user = userreg;
             if (highpart) user = userreg | SPI_USR_MISO_HIGHPART;
@@ -879,10 +892,10 @@ namespace lgfx
             } else {
               wait_spi();
             }
-            *_spi_user_reg = user;
+            *reg(SPI_USER_REG(_spi_port)) = user;
             exec_spi();
           }
-          memcpy(dst, (void*)&_spi_w0_reg[highpart ^= 8], len2);
+          memcpy(dst, (void*)&spi_w0_reg[highpart ^= 8], len2);
           dst += len2;
         } while (length);
       }
@@ -967,13 +980,13 @@ namespace lgfx
     }
 
     __attribute__ ((always_inline)) inline volatile uint32_t* reg(uint32_t addr) { return (volatile uint32_t *)ETS_UNCACHED_ADDR(addr); }
-    __attribute__ ((always_inline)) inline void set_clock_write(void) { *_spi_clock_reg = _clkdiv_write; }
-    __attribute__ ((always_inline)) inline void set_clock_read(void)  { *_spi_clock_reg = _clkdiv_read;  }
-    __attribute__ ((always_inline)) inline void set_clock_fill(void)  { *_spi_clock_reg = _clkdiv_fill;  }
-    __attribute__ ((always_inline)) inline void exec_spi(void) {        *_spi_cmd_reg = SPI_USR; }
-    __attribute__ ((always_inline)) inline void wait_spi(void) { while (*_spi_cmd_reg & SPI_USR); }
-    __attribute__ ((always_inline)) inline void set_write_len(uint32_t len) { *_spi_mosi_dlen_reg = len - 1; }
-    __attribute__ ((always_inline)) inline void set_read_len( uint32_t len) { *_spi_miso_dlen_reg = len - 1; }
+    __attribute__ ((always_inline)) inline void set_clock_write(void) { *reg(SPI_CLOCK_REG(_spi_port)) = _clkdiv_write; }
+    __attribute__ ((always_inline)) inline void set_clock_read(void)  { *reg(SPI_CLOCK_REG(_spi_port)) = _clkdiv_read;  }
+    __attribute__ ((always_inline)) inline void set_clock_fill(void)  { *reg(SPI_CLOCK_REG(_spi_port)) = _clkdiv_fill;  }
+    __attribute__ ((always_inline)) inline void exec_spi(void) {        *reg(SPI_CMD_REG(_spi_port)) = SPI_USR; }
+    __attribute__ ((always_inline)) inline void wait_spi(void) { while (*reg(SPI_CMD_REG(_spi_port)) & SPI_USR); }
+    __attribute__ ((always_inline)) inline void set_write_len(uint32_t len) { *reg(SPI_MOSI_DLEN_REG(_spi_port)) = len - 1; }
+    __attribute__ ((always_inline)) inline void set_read_len( uint32_t len) { *reg(SPI_MISO_DLEN_REG(_spi_port)) = len - 1; }
 
     void cs_h(void) {
       int32_t spi_cs = _panel->spi_cs;
@@ -1006,20 +1019,12 @@ namespace lgfx
       *gpio_reg_dc_l = mask_reg_dc;
     }
 
-    static constexpr spi_host_device_t _spi_host = get_spi_host<CFG, VSPI_HOST>::value;
     static constexpr int _dma_channel= get_dma_channel<CFG,  0>::value;
     static constexpr int _spi_mosi = get_spi_mosi<CFG, -1>::value;
     static constexpr int _spi_miso = get_spi_miso<CFG, -1>::value;
     static constexpr int _spi_sclk = get_spi_sclk<CFG, -1>::value;
-
+    static constexpr spi_host_device_t _spi_host = get_spi_host<CFG, VSPI_HOST>::value;
     static constexpr uint8_t _spi_port = (_spi_host == HSPI_HOST) ? 2 : 3;  // FSPI=1  HSPI=2  VSPI=3;
-    static constexpr volatile uint32_t *_spi_w0_reg        = (volatile uint32_t *)ETS_UNCACHED_ADDR(SPI_W0_REG(_spi_port));
-    static constexpr volatile uint32_t *_spi_cmd_reg       = (volatile uint32_t *)ETS_UNCACHED_ADDR(SPI_CMD_REG(_spi_port));
-    static constexpr volatile uint32_t *_spi_pin_reg       = (volatile uint32_t *)ETS_UNCACHED_ADDR(SPI_PIN_REG(_spi_port));
-    static constexpr volatile uint32_t *_spi_user_reg      = (volatile uint32_t *)ETS_UNCACHED_ADDR(SPI_USER_REG(_spi_port));
-    static constexpr volatile uint32_t *_spi_clock_reg     = (volatile uint32_t *)ETS_UNCACHED_ADDR(SPI_CLOCK_REG(_spi_port));
-    static constexpr volatile uint32_t *_spi_mosi_dlen_reg = (volatile uint32_t *)ETS_UNCACHED_ADDR(SPI_MOSI_DLEN_REG(_spi_port));
-    static constexpr volatile uint32_t *_spi_miso_dlen_reg = (volatile uint32_t *)ETS_UNCACHED_ADDR(SPI_MISO_DLEN_REG(_spi_port));
 
     volatile uint32_t* _gpio_reg_dc_h;
     volatile uint32_t* _gpio_reg_dc_l;
