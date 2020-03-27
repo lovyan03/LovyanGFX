@@ -236,6 +236,9 @@ namespace lgfx
       postSetRotation();
     }
 
+    __attribute__ ((always_inline)) inline
+    bool getInvert(void) const { return _invert; }
+
     void invertDisplay(bool i)
     {
       _invert = i;
@@ -447,7 +450,7 @@ namespace lgfx
 
     void drawPixel_impl(int32_t x, int32_t y) override
     {
-      if (!_begun_tr) begin_transaction();
+      if (!_transaction_count) beginTransaction_impl();
       set_window(x, y, x, y);
       if (_clkdiv_write != _clkdiv_fill && !_fill_mode) {
         _fill_mode = true;
@@ -456,10 +459,10 @@ namespace lgfx
       }
       write_cmd(_cmd_ramwr);
       write_data(_color.raw, _write_conv.bits);
-      if (!_begun_tr) end_transaction();
+      if (!_transaction_count) endTransaction_impl();
     }
 
-    void fillRect_impl(int32_t x, int32_t y, int32_t w, int32_t h) override
+    void writeFillRect_impl(int32_t x, int32_t y, int32_t w, int32_t h) override
     {
       set_window(x, y, x+w-1, y+h-1);
       if (_clkdiv_write != _clkdiv_fill && !_fill_mode) {
@@ -1032,7 +1035,6 @@ namespace lgfx
 
     PanelCommon* _panel;
     uint32_t(*fpGetWindowAddr)(uint_fast16_t, uint_fast16_t);
-    bool _begun_tr = false;
     uint_fast16_t _colstart;
     uint_fast16_t _rowstart;
     uint_fast16_t _xs;
@@ -1048,6 +1050,8 @@ namespace lgfx
     uint32_t _clkdiv_fill;
     uint32_t _len_setwindow;
     _dmabufs_t _dmabufs[2];
+    bool _begun_tr = false;
+    bool _invert = false;
     bool _dma_flip = false;
     bool _fill_mode;
     static uint32_t _user_reg;

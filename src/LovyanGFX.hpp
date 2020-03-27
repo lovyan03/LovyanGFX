@@ -138,6 +138,17 @@ namespace lgfx {
     static constexpr int spi_sclk = 19;
   };
 
+#else
+
+  struct LGFX_Config {
+//    static const Panel_M5Stack panel;
+    static constexpr spi_host_device_t spi_host = VSPI_HOST;
+//    static constexpr int dma_channel = 1;
+//    static constexpr int spi_mosi = 23;
+//    static constexpr int spi_miso = 19;
+//    static constexpr int spi_sclk = 18;
+  };
+
 #endif
 }
 

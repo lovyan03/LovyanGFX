@@ -449,7 +449,7 @@ namespace lgfx
       }
     }
 
-    void fillRect_impl(int32_t x, int32_t y, int32_t w, int32_t h) override
+    void writeFillRect_impl(int32_t x, int32_t y, int32_t w, int32_t h) override
     {
 /* // for debug pushBlock_impl
 setWindow(x,y,x+w-1,y+h-1);
