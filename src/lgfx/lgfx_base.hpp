@@ -1029,12 +1029,8 @@ namespace lgfx
         }
       }
 
-      max_y += ((max_y + (1 << (FP_SCALE - 1))) >> FP_SCALE) + dst_y + 1;
-      if (max_y > _clip_b + 1) max_y = _clip_b + 1;
-      min_y += ((min_y + (1 << (FP_SCALE - 1))) >> FP_SCALE) + dst_y;
-      if (min_y > _clip_t) max_y = _clip_t;
-//    max_y = std::min(_clip_b, ((max_y + (1 << (FP_SCALE - 1))) >> FP_SCALE) + dst_y) + 1;
-//    min_y = std::max(_clip_t, ((min_y + (1 << (FP_SCALE - 1))) >> FP_SCALE) + dst_y);
+      max_y = std::min(_clip_b, ((max_y + (1 << (FP_SCALE - 1))) >> FP_SCALE) + dst_y) + 1;
+      min_y = std::max(_clip_t, ((min_y + (1 << (FP_SCALE - 1))) >> FP_SCALE) + dst_y);
       if (min_y >= max_y) return;
 
       param->no_convert = false;
@@ -1516,21 +1512,7 @@ namespace lgfx
     int32_t _width = 0, _height = 0;
     int32_t  _sx, _sy, _sw, _sh; // for scroll zone
 
-    union {
-      uint32_t _clip_lr;
-      struct {
-        int16_t _clip_l;
-        int16_t _clip_r;
-      };
-    };
-    union {
-      uint32_t _clip_tb;
-      struct {
-        int16_t _clip_t;
-        int16_t _clip_b;
-      };
-    };
-//int32_t  _clip_l = 0, _clip_t = 0, _clip_r = 0, _clip_b = 0; // clip rect
+    int32_t  _clip_l = 0, _clip_t = 0, _clip_r = 0, _clip_b = 0; // clip rect
     int32_t _cursor_x = 0, _cursor_y = 0, _filled_x = 0;
     uint32_t _text_fore_rgb888 = 0xFFFFFFU;
     uint32_t _text_back_rgb888 = 0;
