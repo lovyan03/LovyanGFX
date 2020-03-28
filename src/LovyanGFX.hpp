@@ -38,6 +38,10 @@ Author
 #ifndef LOVYANGFX_HPP_
 #define LOVYANGFX_HPP_
 
+#ifdef min
+#undef min
+#endif
+
 #include "lgfx/lgfx_common.hpp"  // common include (always include)
 
 #if !defined LOAD_GFXFF
