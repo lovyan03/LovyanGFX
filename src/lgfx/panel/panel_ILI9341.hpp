@@ -166,7 +166,7 @@ namespace lgfx
     struct cfg_t {
       static constexpr uint32_t freq_write = 40000000;
       static constexpr uint32_t freq_read  = 20000000;
-      static constexpr uint32_t freq_fill  = 80000000;
+      static constexpr uint32_t freq_fill  = 40000000;
     //static constexpr color_depth_t color_depth = rgb565_2Byte;
     //static constexpr bool rgb_order = false;
       static constexpr bool spi_3wire = true;
