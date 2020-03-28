@@ -40,7 +40,9 @@ Author
 
 #include "lgfx/lgfx_common.hpp"  // common include (always include)
 
+#if !defined LOAD_GFXFF
 #include "lgfx/gfxfont.hpp"      // GFX font support (optional)
+#endif
 
 #include "lgfx/utility/lgfx_tjpgd.h" // JPEG decode support (optional)
 #include "lgfx/utility/lgfx_pngle.h" // PNG decode support (optional)
