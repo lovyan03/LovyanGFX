@@ -36,7 +36,6 @@ Usage
 ```C
     
     #include <LGFX_TFT_eSPI.hpp>
-    #include <driver/ledc.h>
     
     static TFT_eSPI tft;
     static TFT_eSprite sprite( &tft );

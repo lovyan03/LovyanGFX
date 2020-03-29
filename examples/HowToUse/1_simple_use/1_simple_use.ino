@@ -1,48 +1,11 @@
-# LovyanGFX
-（画像と動画を挿入）
-youtubeにあげるとリンク可能
-
-# ベータ版の注意
-  LovyanGFXベータ版は動作テストおよび意見公募を目的として公開しているものです。ベータ版ソフトウェアは現在も開発途中のものであり、何らかの障害を引き起こすことがあります。また、大きな仕様変更を行う場合があります。予めご了承ください。
-
-# 概要
-ESP32とSPI接続のLCDの組み合わせで動作するグラフィックライブラリです。  
-既存の [AdafruitGFX](https://github.com/adafruit/Adafruit-GFX-Library) や [TFT_eSPI](https://github.com/Bodmer/TFT_eSPI) と互換性をある程度持ちつつ、より高機能・高速動作を目標としています。  
-  
-既存のライブラリに対して、以下のアドバンテージがあります。  
-・ArduinoESP32 / ESP-IDF 両対応  
-・16bit / 24bitカラーモード両対応(実際の色数はLCDの仕様によります)  
-・DMA転送を用いた通信動作中の別処理実行  
-・オフスクリーンバッファ（スプライト）の高速な回転/拡縮描画  
-・複数LCDの同時利用  
-
-# 対応機種
-- ILI9342
-    - (M5Stack Basic,Gray,Fire,Go)
-- ILI9341
-    - (ODROID-GO)
-    - (ESP-WROVER-KIT v4.1)
-- ILI9163
-- ST7735
-    - (M5StickC)
-- ST7789
-    - (TTGO T-Watch)
-- SSD1351
-
-  対応機種については[src/lgfx/panel](src/lgfx/panel)をご参照ください。  
-  上記対応機種とコマンド体系の類似した液晶パネルであれば対応可能ですが、当方で入手し動作確認が取れたもののみ正式対応としています。  
-  対応要望を頂けた機種には優先的に対応を検討致します。  
-  接続するピンの初期設定は[src/LovyanGFX.hpp](src/LovyanGFX.hpp)にあります。
+// LovyanGFX 使い方
 
 
-# 使い方
-[examples](examples/)に具体的なサンプルがあります。
-## 基本的な使い方
-```c
 // ヘッダをincludeします。
 #include <LovyanGFX.hpp>
 
 // Arduino環境で対応機種にある製品を使う場合は、特別な設定は不要です。
+// 対応機種はREADME.mdを参照してください。
 static LGFX lcd;                // LGFXのインスタンスを作成。
 static LGFXSprite sprite(&lcd); // スプライトを使う場合はLGFXSpriteのインスタンスを作成。
 
@@ -73,10 +36,8 @@ void setup(void)
 
 
 // 必要に応じてカラーモードを設定します。（初期値は16）
-// 16の方が通信量が少なく高速に動作しますが、赤と青の諧調が5bitになります。
-// 24の方が通信量が多くなりますが、諧調表現が綺麗になります。
 //lcd.setColorDepth(16);  // RGB565の16ビットに設定
-  lcd.setColorDepth(24);  // RGB888の24ビットに設定(表示される色数はパネル性能によりRGB666の18ビットになります)
+  lcd.setColorDepth(24);  // RGB888の24ビットに設定(ただし表示される色数はパネル性能により18ビットになります)
 
 
 // clearまたはfillScreenで画面全体を塗り潰します。
@@ -224,43 +185,4 @@ void loop(void)
 {
   lcd.fillRect(0, 0, random(lcd.width()), random(lcd.height()), lcd.color888(random(256),random(256),random(256)));
 }
-```
-
-# 
-
-# API
-　（APIドキュメントのリンクを入れる。もしくはソース参照？）
-
-# 注意・制限事項
-## M5Stack.h(M5StickC.h)との共存は不可
-TFT_eSPIと定義が重複するため利用できません。
-
-## カラーパレットを使った場合の色指定
-
-カラーパレットを作成した場合はカラーコードではなくパレットのColorIndexを指定します。（例、4bitだったら0～15を指定。）
-
-
-# included library:
-[tjpgd](http://elm-chan.org/fsw/tjpgd/00index.html)
-[pngle](https://github.com/kikuchan/pngle)
-
-
-# Credits
--------
-
-  - Inspiration: [Bodmer](https://github.com/Bodmer)
-  - Author: [Lovyan03](https://github.com/lovyan03)
-  - Contributors:
-    - [ciniml](https://github.com/ciniml)
-    - [mongonta0716](https://github.com/mongonta0716)
-    - [tobozo](https://github.com/tobozo)
-
-
-# License
-main:[MIT](https://github.com/lovyan03/LovyanGFX/blob/master/LICENSE)  
-
-GFXFont and GLCDFont:[BSD](https://github.com/adafruit/Adafruit-GFX-Library/blob/master/license.txt)
-
-
-
 

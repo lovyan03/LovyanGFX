@@ -133,7 +133,7 @@ namespace lgfx {
       static constexpr int pwm_ch_bl = 7;
       static constexpr int freq_write = 40000000;
       static constexpr int freq_read  = 20000000;
-      static constexpr int freq_fill  = 40000000;
+      static constexpr int freq_fill  = 80000000;
     };
 
     static lgfx::Panel_ILI9341<Panel_Config> panel;
@@ -144,7 +144,7 @@ namespace lgfx {
     static constexpr int spi_sclk = 19;
   };
 
-#else
+#else   // ESP-IDF  ( or other panel )
 
   struct LGFX_Config {
 //    static const Panel_M5Stack panel;

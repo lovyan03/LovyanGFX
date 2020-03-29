@@ -480,7 +480,7 @@ namespace lgfx
     TYPECHECK(uint8_t ) __attribute__ ((always_inline)) inline uint32_t convert(T c) { return convert_rgb332(c); }
     TYPECHECK(uint16_t) __attribute__ ((always_inline)) inline uint32_t convert(T c) { return convert_rgb565(c); }
     TYPECHECK(int16_t ) __attribute__ ((always_inline)) inline uint32_t convert(T c) { return convert_rgb565(c); }
-    TYPECHECK(int     ) __attribute__ ((always_inline)) inline uint32_t convert(T c) { return convert_rgb565(c); }
+    TYPECHECK(int32_t ) __attribute__ ((always_inline)) inline uint32_t convert(T c) { return convert_rgb565(c); }
     TYPECHECK(uint32_t) __attribute__ ((always_inline)) inline uint32_t convert(T c) { return convert_rgb888(c); }
 
     __attribute__ ((always_inline)) inline uint32_t convert(const argb8888_t& c) { return convert_rgb888(c.raw); }
@@ -495,7 +495,7 @@ namespace lgfx
   TYPECHECK(uint8_t ) __attribute__ ((always_inline)) inline uint32_t convert_to_rgb888(T c) { return convert_rgb332_to_rgb888(c); }
   TYPECHECK(uint16_t) __attribute__ ((always_inline)) inline uint32_t convert_to_rgb888(T c) { return convert_rgb565_to_rgb888(c); }
   TYPECHECK(int16_t ) __attribute__ ((always_inline)) inline uint32_t convert_to_rgb888(T c) { return convert_rgb565_to_rgb888(c); }
-  TYPECHECK(int     ) __attribute__ ((always_inline)) inline uint32_t convert_to_rgb888(T c) { return convert_rgb565_to_rgb888(c); }
+  TYPECHECK(int32_t ) __attribute__ ((always_inline)) inline uint32_t convert_to_rgb888(T c) { return convert_rgb565_to_rgb888(c); }
   TYPECHECK(uint32_t) __attribute__ ((always_inline)) inline uint32_t convert_to_rgb888(T c) { return c; }
 
 #undef TYPECHECK
