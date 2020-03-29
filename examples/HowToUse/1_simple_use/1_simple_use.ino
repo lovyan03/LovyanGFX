@@ -1,5 +1,4 @@
-// LovyanGFX 使い方
-
+// LovyanGFX 基本的な使い方
 
 // ヘッダをincludeします。
 #include <LovyanGFX.hpp>
@@ -36,8 +35,10 @@ void setup(void)
 
 
 // 必要に応じてカラーモードを設定します。（初期値は16）
+// 16の方が通信量が少なく高速に動作しますが、赤と青の諧調が5bitになります。
+// 24の方が通信量が多くなりますが、諧調表現が綺麗になります。
 //lcd.setColorDepth(16);  // RGB565の16ビットに設定
-  lcd.setColorDepth(24);  // RGB888の24ビットに設定(ただし表示される色数はパネル性能により18ビットになります)
+  lcd.setColorDepth(24);  // RGB888の24ビットに設定(表示される色数はパネル性能によりRGB666の18ビットになります)
 
 
 // clearまたはfillScreenで画面全体を塗り潰します。
@@ -146,7 +147,7 @@ void setup(void)
 
 
 // startWriteのカウントの状態に依らず、強制的にSPIバスを解放・確保したい場合は、
-// beginTransaction、endTransactionを使用します。
+// endTransaction・beginTransactionを使用します。
 // カウントはクリアされないので、辻褄が合わなくならないよう注意してください。
   lcd.startWrite();       // カウント+1、SPIバス確保
   lcd.startWrite();       // カウント+1

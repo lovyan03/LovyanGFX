@@ -185,7 +185,7 @@ void setup(void)
 
 
 // startWriteのカウントの状態に依らず、強制的にSPIバスを解放・確保したい場合は、
-// beginTransaction、endTransactionを使用します。
+// endTransaction・beginTransactionを使用します。
 // カウントはクリアされないので、辻褄が合わなくならないよう注意してください。
   lcd.startWrite();       // カウント+1、SPIバス確保
   lcd.startWrite();       // カウント+1
@@ -241,15 +241,15 @@ TFT_eSPIと定義が重複するため利用できません。
 
 
 # included library:
-[tjpgd](http://elm-chan.org/fsw/tjpgd/00index.html)
-[pngle](https://github.com/kikuchan/pngle)
+[tjpgd](http://elm-chan.org/fsw/tjpgd/00index.html)  ChaN  
+[pngle](https://github.com/kikuchan/pngle)  kikuchan  
 
 
 # Credits
 -------
 
   - Inspiration: [Bodmer](https://github.com/Bodmer)
-  - Author: [Lovyan03](https://github.com/lovyan03)
+  - Author: [lovyan03](https://github.com/lovyan03)
   - Contributors:
     - [ciniml](https://github.com/ciniml)
     - [mongonta0716](https://github.com/mongonta0716)
@@ -257,9 +257,9 @@ TFT_eSPIと定義が重複するため利用できません。
 
 
 # License
-main:[MIT](https://github.com/lovyan03/LovyanGFX/blob/master/LICENSE)  
+main : [MIT](https://github.com/lovyan03/LovyanGFX/blob/master/LICENSE)  
 
-GFXFont and GLCDFont:[BSD](https://github.com/adafruit/Adafruit-GFX-Library/blob/master/license.txt)
+GFX font and GLCD font : [BSD](https://github.com/adafruit/Adafruit-GFX-Library/blob/master/license.txt) Adafruit Industries  
 
 
 
