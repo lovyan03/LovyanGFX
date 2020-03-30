@@ -125,7 +125,6 @@ struct _pngle_t {
 
   pngle_init_callback_t init_callback;
   pngle_draw_callback_t draw_callback;
-  pngle_line_callback_t line_callback;
   pngle_done_callback_t done_callback;
 
   void *user_data;
@@ -339,15 +338,6 @@ static int pngle_draw_pixels(pngle_t *pngle, size_t scanline_ringbuf_xidx, uint_
       pngle->drawing_x += interlace_div_x[pngle->interlace_pass];
     } while (--n_pixels && pngle->drawing_x < pngle->hdr.width);
 
-    if (pngle->drawing_x >= pngle->hdr.width && pngle->line_callback) {
-      uint32_t next_y = pngle->drawing_y + interlace_div_y[pngle->interlace_pass];
-      if (next_y >= pngle->hdr.height) {
-        next_y = (pngle->interlace_pass == 0 || pngle->interlace_pass >= 7)
-               ? ~0
-               : interlace_off_y[pngle->interlace_pass + 1];
-      }
-      pngle->line_callback(pngle, pngle->drawing_y, next_y);
-    }
     return 0;
   }
 
@@ -870,12 +860,6 @@ void pngle_set_draw_callback(pngle_t *pngle, pngle_draw_callback_t callback)
 {
   if (!pngle) return ;
   pngle->draw_callback = callback;
-}
-
-void pngle_set_line_callback(pngle_t *pngle, pngle_line_callback_t callback)
-{
-  if (!pngle) return ;
-  pngle->line_callback = callback;
 }
 
 void pngle_set_done_callback(pngle_t *pngle, pngle_done_callback_t callback)

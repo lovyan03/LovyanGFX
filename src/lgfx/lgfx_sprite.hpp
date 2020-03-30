@@ -44,11 +44,11 @@ Author
 
 namespace lgfx
 {
-  class LGFXSprite : public LovyanGFX
+  class LGFX_Sprite : public LovyanGFX
   {
   public:
 
-    LGFXSprite(LovyanGFX* parent)
+    LGFX_Sprite(LovyanGFX* parent)
     : LovyanGFX()
     , _parent(parent)
     , _img  (nullptr)
@@ -69,11 +69,11 @@ namespace lgfx
     void* buffer(void) { return _img; }
     uint32_t bufferLength(void) const { return _bitwidth * _height * _write_conv.bits >> 3; }
 
-    LGFXSprite()
-    : LGFXSprite(nullptr)
+    LGFX_Sprite()
+    : LGFX_Sprite(nullptr)
     {}
 
-    virtual ~LGFXSprite() {
+    virtual ~LGFX_Sprite() {
       deleteSprite();
     }
 
@@ -136,90 +136,6 @@ namespace lgfx
         create_from_bmp(file);
         file->close();
       }
-    }
-
-    bool create_from_bmp(DataWrapper* data) {
-      //uint32_t startTime = millis();
-      bitmap_header_t bmpdata;
-
-      if (!load_bmp_header(data, &bmpdata)
-       || ( bmpdata.biCompression != 0
-         && bmpdata.biCompression != 1
-         && bmpdata.biCompression != 3)) {
-        return false;
-      }
-      uint32_t seekOffset = bmpdata.bfOffBits;
-      uint_fast16_t bpp = bmpdata.biBitCount; // 24 bcBitCount 24=RGB24bit
-      setColorDepth(bpp);
-      int32_t w = bmpdata.biWidth;
-      int32_t h = bmpdata.biHeight;  // bcHeight Image height (pixels)
-      if (!createSprite(w, h)) return false;
-
-        //If the value of Height is positive, the image data is from bottom to top
-        //If the value of Height is negative, the image data is from top to bottom.
-      int32_t flow = (h < 0) ? 1 : -1;
-      int32_t y = 0;
-      if (h < 0) h = -h;
-      else y = h - 1;
-
-      if (bpp <= 8) {
-        if (!_palette) createPalette();
-        uint_fast16_t palettecount = 1 << bpp;
-        argb8888_t *palette = new argb8888_t[palettecount];
-        data->seek(bmpdata.biSize + 14);
-        data->read((uint8_t*)palette, (palettecount * sizeof(argb8888_t))); // load palette
-        for (uint_fast16_t i = 0; i < _palette_count; ++i) {
-          _palette[i] = palette[i];
-        }
-        delete[] palette;
-      }
-
-      data->seek(seekOffset);
-
-      uint8_t lineBuffer[((w * bpp + 31) >> 5) << 2];  // readline 4Byte align.
-      if (bpp <= 8) {
-        do {
-          if (bmpdata.biCompression == 1) {
-            load_bmp_rle8(data, lineBuffer, w);
-          } else {
-            data->read(lineBuffer, sizeof(lineBuffer));
-          }
-          memcpy(&_img[y * _bitwidth * bpp >> 3], lineBuffer, w * bpp >> 3);
-          y += flow;
-        } while (--h);
-      } else if (bpp == 16) {
-        do {
-          data->read(lineBuffer, sizeof(lineBuffer));
-          auto img = &_img[y * _bitwidth * bpp >> 3];
-          for (size_t i = 0; i < sizeof(lineBuffer); ++i) {
-            img[i] = lineBuffer[i ^ 1];
-          }
-          y += flow;
-        } while (--h);
-      } else if (bpp == 24) {
-        do {
-          data->read(lineBuffer, sizeof(lineBuffer));
-          auto img = &_img[y * _bitwidth * bpp >> 3];
-          for (size_t i = 0; i < sizeof(lineBuffer); i += 3) {
-            img[i    ] = lineBuffer[i + 2];
-            img[i + 1] = lineBuffer[i + 1];
-            img[i + 2] = lineBuffer[i    ];
-          }
-          y += flow;
-        } while (--h);
-      } else if (bpp == 32) {
-        do {
-          data->read(lineBuffer, sizeof(lineBuffer));
-          auto img = &_img[y * _bitwidth * 3];
-          for (size_t i = 0; i < sizeof(lineBuffer); i += 4) {
-            img[(i>>2)*3    ] = lineBuffer[i + 2];
-            img[(i>>2)*3 + 1] = lineBuffer[i + 1];
-            img[(i>>2)*3 + 2] = lineBuffer[i + 0];
-          }
-          y += flow;
-        } while (--h);
-      }
-      return true;
     }
 
     bool createPalette(void)
@@ -316,23 +232,8 @@ namespace lgfx
       }
     }
 
-/*
-    void setRotation(uint8_t r)
-    {
-      r = r & 7;
-      if ((_rotation&1) != (r&1)) {
-        uint32_t tmp = _width;
-        _width = _height;
-        _height = tmp;
-      }
-      _rotation = r;
-    }
-//*/
-
     template<typename T>
     __attribute__ ((always_inline)) inline void fillSprite (const T& color) { fillRect(0, 0, _width, _height, color); }
-
-//*
 
     template<typename T>
     __attribute__ ((always_inline)) inline void pushSprite(                int32_t x, int32_t y, const T& transp) { push_sprite(_parent, x, y, _write_conv.convert(transp) & _write_conv.colormask); }
@@ -390,6 +291,90 @@ namespace lgfx
       }
       _palette_count = palettes;
       _write_conv.setColorDepth(_write_conv.depth, true);
+      return true;
+    }
+
+    bool create_from_bmp(DataWrapper* data) {
+      //uint32_t startTime = millis();
+      bitmap_header_t bmpdata;
+
+      if (!load_bmp_header(data, &bmpdata)
+       || ( bmpdata.biCompression != 0
+         && bmpdata.biCompression != 1
+         && bmpdata.biCompression != 3)) {
+        return false;
+      }
+      uint32_t seekOffset = bmpdata.bfOffBits;
+      uint_fast16_t bpp = bmpdata.biBitCount; // 24 bcBitCount 24=RGB24bit
+      setColorDepth(bpp);
+      int32_t w = bmpdata.biWidth;
+      int32_t h = bmpdata.biHeight;  // bcHeight Image height (pixels)
+      if (!createSprite(w, h)) return false;
+
+        //If the value of Height is positive, the image data is from bottom to top
+        //If the value of Height is negative, the image data is from top to bottom.
+      int32_t flow = (h < 0) ? 1 : -1;
+      int32_t y = 0;
+      if (h < 0) h = -h;
+      else y = h - 1;
+
+      if (bpp <= 8) {
+        if (!_palette) createPalette();
+        uint_fast16_t palettecount = 1 << bpp;
+        argb8888_t *palette = new argb8888_t[palettecount];
+        data->seek(bmpdata.biSize + 14);
+        data->read((uint8_t*)palette, (palettecount * sizeof(argb8888_t))); // load palette
+        for (uint_fast16_t i = 0; i < _palette_count; ++i) {
+          _palette[i] = palette[i];
+        }
+        delete[] palette;
+      }
+
+      data->seek(seekOffset);
+
+      uint8_t lineBuffer[((w * bpp + 31) >> 5) << 2];  // readline 4Byte align.
+      if (bpp <= 8) {
+        do {
+          if (bmpdata.biCompression == 1) {
+            load_bmp_rle8(data, lineBuffer, w);
+          } else {
+            data->read(lineBuffer, sizeof(lineBuffer));
+          }
+          memcpy(&_img[y * _bitwidth * bpp >> 3], lineBuffer, w * bpp >> 3);
+          y += flow;
+        } while (--h);
+      } else if (bpp == 16) {
+        do {
+          data->read(lineBuffer, sizeof(lineBuffer));
+          auto img = &_img[y * _bitwidth * bpp >> 3];
+          for (size_t i = 0; i < sizeof(lineBuffer); ++i) {
+            img[i] = lineBuffer[i ^ 1];
+          }
+          y += flow;
+        } while (--h);
+      } else if (bpp == 24) {
+        do {
+          data->read(lineBuffer, sizeof(lineBuffer));
+          auto img = &_img[y * _bitwidth * bpp >> 3];
+          for (size_t i = 0; i < sizeof(lineBuffer); i += 3) {
+            img[i    ] = lineBuffer[i + 2];
+            img[i + 1] = lineBuffer[i + 1];
+            img[i + 2] = lineBuffer[i    ];
+          }
+          y += flow;
+        } while (--h);
+      } else if (bpp == 32) {
+        do {
+          data->read(lineBuffer, sizeof(lineBuffer));
+          auto img = &_img[y * _bitwidth * 3];
+          for (size_t i = 0; i < sizeof(lineBuffer); i += 4) {
+            img[(i>>2)*3    ] = lineBuffer[i + 2];
+            img[(i>>2)*3 + 1] = lineBuffer[i + 1];
+            img[(i>>2)*3 + 2] = lineBuffer[i + 0];
+          }
+          y += flow;
+        } while (--h);
+      }
       return true;
     }
 
@@ -723,6 +708,7 @@ return;
 
     void beginTransaction_impl(void) override {}
     void endTransaction_impl(void) override {}
+    void waitDMA_impl(void) override {}
 
     inline int32_t ptr_advance(int32_t length = 1) {
       if ((_xptr += length) > _xe) {

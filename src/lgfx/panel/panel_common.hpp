@@ -61,9 +61,9 @@ namespace lgfx
       gpio_bl       = get_gpio_bl      <CFG, -1>::value;
       pwm_ch_bl     = get_pwm_ch_bl    <CFG, -1>::value;
 
-      freq_write    = get_freq_write   <CFG,  0>::value;
-      freq_read     = get_freq_read    <CFG,  0>::value;
-      freq_fill     = get_freq_fill    <CFG,  0>::value;
+      freq_write    = get_freq_write   <CFG, 4000000>::value;
+      freq_read     = get_freq_read    <CFG, 4000000>::value;
+      freq_fill     = get_freq_fill    <CFG, 4000000>::value;
 
       write_depth   = get_color_depth  <CFG, rgb565_2Byte>::value;
       invert        = get_invert       <CFG, false>::value;

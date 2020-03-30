@@ -437,6 +437,11 @@ namespace lgfx
 #endif
     }
 
+    void waitDMA_impl(void) override
+    {
+      wait_spi();
+    }
+
     void setWindow_impl(int32_t xs, int32_t ys, int32_t xe, int32_t ye) override
     {
       set_window(xs, ys, xe, ye);

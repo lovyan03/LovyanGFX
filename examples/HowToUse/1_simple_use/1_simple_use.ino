@@ -5,7 +5,7 @@
 
 // 対応機種をArduino環境で使う場合は、特別な設定は不要です。
 static LGFX lcd;                // LGFXのインスタンスを作成。
-static LGFXSprite sprite(&lcd); // スプライトを使う場合はLGFXSpriteのインスタンスを作成。
+static LGFX_Sprite sprite(&lcd); // スプライトを使う場合はLGFX_Spriteのインスタンスを作成。
 
 // ESP-IDF環境で使う場合や、Arduino環境でもSPIバスやパネルを設定したい場合は、
 // examples/HowToUse/2_spi_setting.ino を参照してください。
@@ -14,7 +14,7 @@ static LGFXSprite sprite(&lcd); // スプライトを使う場合はLGFXSprite�
 // もし現在 TFT_eSPI を使用中で、ソースをなるべく変更したくない場合は、こちらのヘッダを利用できます。
 // #include <LGFX_TFT_eSPI.hpp>
 // static TFT_eSPI lcd;               // TFT_eSPIがLGFXの別名として定義されます。
-// static TFT_eSprite sprite(&lcd);   // TFT_eSpriteがLGFXSpriteの別名として定義されます。
+// static TFT_eSprite sprite(&lcd);   // TFT_eSpriteがLGFX_Spriteの別名として定義されます。
 
 
 void setup(void)

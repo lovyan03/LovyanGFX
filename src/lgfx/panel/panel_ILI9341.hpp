@@ -120,6 +120,27 @@ namespace lgfx
     Panel_ILI9341() : Panel_ILI9341_Common() { setConfig<CFG>(); }
   };
 
+  template <typename CFG>
+  class Panel_ILI9342 : public Panel_ILI9341_Common
+  {
+  public:
+    Panel_ILI9342() : Panel_ILI9341_Common() { setConfig<CFG>(); }
+  protected:
+    void setConfig_impl(void) override
+    {
+      if (!_ram_width   ) _ram_width = 320;
+      if (!_ram_height  ) _ram_height = 240;
+      if (!_panel_width ) _panel_width = 320;
+      if (!_panel_height) _panel_height = 240;
+      if (!freq_write) freq_write = 20000000;
+      if (!freq_read ) freq_read  = 10000000;
+      if (!freq_fill ) freq_fill  = 40000000;
+
+      _madctl_rgb = MAD::RGB;
+      _madctl_bgr = MAD::BGR;
+    }
+  };
+
   class Panel_ODROID_GO : public Panel_ILI9341_Common
   {
   public:

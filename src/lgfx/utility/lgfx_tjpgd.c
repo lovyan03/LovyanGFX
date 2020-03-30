@@ -176,7 +176,7 @@ static int32_t create_qt_tbl (	/* 0:OK, !0:Failed */
 		if (!pb) return JDR_MEM1;					/* Err: not enough memory */
 		jd->qttbl[d & 3] = pb;						/* Register the table */
 		for (size_t i = 0; i < 64; ++i) {			/* Load the table */
-			size_t z = Zig[i];						/* Zigzag-order to raster-order conversion */
+			uint_fast8_t z = Zig[i];						/* Zigzag-order to raster-order conversion */
 			pb[z] = (int32_t)((uint32_t)data[i] * Ipsf[z]);	/* Apply scale factor of Arai algorithm to the de-quantizers */
 		}
 	} while (dataend != (data += 64));
@@ -356,39 +356,42 @@ static void block_idct (
 
 	/* Process columns */
 	for (size_t i = 0; i < 8; ++i) {
-		v0 = src[8 * 0];	/* Get even elements */
-		v1 = src[8 * 2];
-		v2 = src[8 * 4];
-		v3 = src[8 * 6];
-
-		t10 = v0 + v2;		/* Process the even elements */
-		t12 = v0 - v2;
-		t11 = (v1 - v3) * M13 >> 8;
-		v3 += v1;
-		t11 -= v3;
-		v0 = t10 + v3;
-		v3 = t10 - v3;
-		v1 = t11 + t12;
-		v2 = t12 - t11;
-
-		v4 = src[8 * 7];	/* Get odd elements */
+		/* Get and Process the odd elements */
+		v4 = src[8 * 7];
 		v5 = src[8 * 1];
 		v6 = src[8 * 5];
 		v7 = src[8 * 3];
 
-		t10 = v5 - v4;		/* Process the odd elements */
+		t10 = v5 - v4;
 		t11 = v5 + v4;
 		t12 = v6 - v7;
 		v7 += v6;
 		v5 = (t11 - v7) * M13 >> 8;
 		v7 += t11;
 		t13 = (t10 + t12) * M5 >> 8;
-		v4 = t13 - (t10 * M2 >> 8);
-		v6 = t13 - (t12 * M4 >> 8) - v7;
+		v6 = t13 - ((t12 * M4 >> 8) + v7);
 		v5 -= v6;
-		v4 -= v5;
+		v4 = t13 - ((t10 * M2 >> 8) + v5);
 
-		src[8 * 0] = v0 + v7;	/* Write-back transformed values */
+		/* Get and Process the even elements */
+		v0 = src[8 * 0];
+		v2 = src[8 * 4];
+		t10 = v0 + v2;
+		t12 = v0 - v2;
+
+		v1 = src[8 * 2];
+		v3 = src[8 * 6];
+		t11 = (v1 - v3) * M13 >> 8;
+		v3 += v1;
+		t11 -= v3;
+
+		v0 = t10 + v3;
+		v3 = t10 - v3;
+		v1 = t12 + t11;
+		v2 = t12 - t11;
+
+		/* Write-back transformed values */
+		src[8 * 0] = v0 + v7;
 		src[8 * 7] = v0 - v7;
 		src[8 * 1] = v1 + v6;
 		src[8 * 6] = v1 - v6;
@@ -403,28 +406,13 @@ static void block_idct (
 	/* Process rows */
 	src -= 8;
 	for (size_t i = 0; i < 8; ++i) {
-		v0 = src[0] + (128L << 8);	/* Get even elements (remove DC offset (-128) here) */
-		v1 = src[2];
-		v2 = src[4];
-		v3 = src[6];
-
-		t10 = v0 + v2;				/* Process the even elements */
-		t12 = v0 - v2;
-		t11 = (v1 - v3) * M13 >> 8;
-		v3 += v1;
-		t11 -= v3;
-		v0 = t10 + v3;
-		v3 = t10 - v3;
-		v1 = t12 + t11;
-		v2 = t12 - t11;
-
-		v4 = src[7];				/* Get odd elements */
+		/* Get and Process the odd elements */
+		v4 = src[7];
 		v5 = src[1];
-		t10 = v5 - v4;				/* Process the odd elements */
-		t11 = v5 + v4;
-
 		v6 = src[5];
 		v7 = src[3];
+		t10 = v5 - v4;
+		t11 = v5 + v4;
 		t12 = v6 - v7;
 		v7 += v6;
 		v5 = (t11 - v7) * M13 >> 8;
@@ -435,7 +423,25 @@ static void block_idct (
 		v5 -= v6;
 		v4 -= v5;
 
-		dst[0] = BYTECLIP((v0 + v7) >> 8);	/* Descale the transformed values 8 bits and output */
+		/* Get and Process the even elements */
+		v0 = src[0] + (128L << 8);	/* remove DC offset (-128) here */
+		v2 = src[4];
+		t10 = v0 + v2;
+		t12 = v0 - v2;
+
+		v1 = src[2];
+		v3 = src[6];
+		t11 = (v1 - v3) * M13 >> 8;
+		v3 += v1;
+		t11 -= v3;
+
+		v0 = t10 + v3;
+		v3 = t10 - v3;
+		v1 = t12 + t11;
+		v2 = t12 - t11;
+
+		/* Descale the transformed values 8 bits and output */
+		dst[0] = BYTECLIP((v0 + v7) >> 8);
 		dst[7] = BYTECLIP((v0 - v7) >> 8);
 		dst[1] = BYTECLIP((v1 + v6) >> 8);
 		dst[6] = BYTECLIP((v1 - v6) >> 8);
@@ -443,8 +449,8 @@ static void block_idct (
 		dst[5] = BYTECLIP((v2 - v5) >> 8);
 		dst[3] = BYTECLIP((v3 + v4) >> 8);
 		dst[4] = BYTECLIP((v3 - v4) >> 8);
-		dst += 8;
 
+		dst += 8;
 		src += 8;	/* Next row */
 	}
 }
@@ -495,7 +501,7 @@ static JRESULT mcu_load (
 		tmp[0] = d * dqf[0] >> 8;				/* De-quantize, apply scale factor of Arai algorithm and descale 8 bits */
 
 		/* Extract following 63 AC elements from input stream */
-		memset(&tmp[1], 0, 4 * 63);				/* Clear rest of elements */
+		memset(&tmp[1], 0, 63*sizeof(int32_t));	/* Clear rest of elements */
 		hb = jd->huffbits[id][1];				/* Huffman table for the AC elements */
 		hc = jd->huffcode[id][1];
 		hd = jd->huffdata[id][1];
@@ -548,8 +554,8 @@ static JRESULT mcu_output (
 	JRECT rect;
 
 	mx = jd->msx << 3; my = jd->msy << 3;					/* MCU size (pixel) */
-	rx = (x + mx <= jd->width) ? mx : jd->width - x;	/* Output rectangular size (it may be clipped at right/bottom end) */
-	ry = (y + my <= jd->height) ? my : jd->height - y;
+	rx = (mx < jd->width - x) ? mx : jd->width - x;	/* Output rectangular size (it may be clipped at right/bottom end) */
+	ry = (my < jd->height - y) ? my : jd->height - y;
 
 	if (JD_USE_SCALE) {
 		rx >>= jd->scale; ry >>= jd->scale;

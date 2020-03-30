@@ -158,7 +158,7 @@ namespace lgfx {
 #endif
 }
 
-typedef lgfx::LGFXSprite LGFXSprite;
+typedef lgfx::LGFX_Sprite LGFX_Sprite;
 typedef lgfx::LGFX_SPI<lgfx::LGFX_Config> LGFX;
 
 

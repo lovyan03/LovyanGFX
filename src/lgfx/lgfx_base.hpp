@@ -178,6 +178,7 @@ namespace lgfx
 
     __attribute__ ((always_inline)) inline void beginTransaction(void) { beginTransaction_impl(); }
     __attribute__ ((always_inline)) inline void endTransaction(void)   { endTransaction_impl(); }
+    __attribute__ ((always_inline)) inline void waitDMA(void)  { waitDMA_impl(); }
     __attribute__ ((always_inline)) inline void setWindow(int32_t xs, int32_t ys, int32_t xe, int32_t ye) { setWindow_impl(xs, ys, xe, ye); }
 
     void setAddrWindow(int32_t x, int32_t y, int32_t w, int32_t h)
@@ -980,7 +981,11 @@ namespace lgfx
     {
       param->src_width = w;
       if (param->src_bits < 8) {        // get bitwidth
-        uint32_t x_mask = (1 << ((~(param->src_bits>>1)) & 3)) - 1;
+//      uint32_t x_mask = (1 << (4 - __builtin_ffs(param->src_bits))) - 1;
+//      uint32_t x_mask = (1 << ((~(param->src_bits>>1)) & 3)) - 1;
+        uint32_t x_mask = (param->src_bits == 1) ? 7
+                        : (param->src_bits == 2) ? 3
+                                                 : 1;
         param->src_width = (w + x_mask) & (~x_mask);
       }
 
@@ -1586,6 +1591,7 @@ namespace lgfx
 
     virtual void beginTransaction_impl(void) = 0;
     virtual void endTransaction_impl(void) = 0;
+    virtual void waitDMA_impl(void) = 0;
 
     virtual void drawPixel_impl(int32_t x, int32_t y) = 0;
     virtual void writeFillRect_impl(int32_t x, int32_t y, int32_t w, int32_t h) = 0;
@@ -2871,11 +2877,43 @@ private:
       bgr888_t* lineBuffer;
       pixelcopy_t *pc;
       LGFXBase *tft;
+      int32_t last_y;
+      int32_t scale_y0;
+      int32_t scale_y1;
     };
 
-    static void pngle_draw_normal_callback(pngle_t *pngle, uint32_t x, uint32_t y, uint8_t rgba[4])
+    static bool png_ypos_update(png_file_decoder_t *p, uint32_t y)
+    {
+      p->scale_y0 = ceil( y      * p->scale) - p->offY;
+      if (p->scale_y0 < 0) p->scale_y0 = 0;
+      p->scale_y1 = ceil((y + 1) * p->scale) - p->offY;
+      if (p->scale_y1 > p->maxHeight) p->scale_y1 = p->maxHeight;
+      return (p->scale_y0 < p->scale_y1);
+    }
+
+    static void png_post_line(png_file_decoder_t *p, uint32_t y)
+    {
+      int32_t h = p->scale_y1 - p->scale_y0;
+      if (0 < h)
+        p->tft->push_image(p->x, p->y + p->scale_y0, p->maxWidth, h, p->pc, true);
+    }
+
+    static void png_prepare_line(png_file_decoder_t *p, uint32_t y)
+    {
+      p->last_y = y;
+      if (png_ypos_update(p, y))      // read next line
+        p->tft->readRectRGB(p->x, p->y + p->scale_y0, p->maxWidth, p->scale_y1 - p->scale_y0, p->lineBuffer);
+    }
+
+    static void png_done_callback(pngle_t *pngle)
     {
       auto p = (png_file_decoder_t *)pngle_get_user_data(pngle);
+      png_post_line(p, p->last_y);
+    }
+
+    static void png_draw_normal_callback(pngle_t *pngle, uint32_t x, uint32_t y, uint8_t rgba[4])
+    {
+      auto p = (png_file_decoder_t*)pngle_get_user_data(pngle);
 
       int32_t t = y - p->offY;
       if (t < 0 || t >= p->maxHeight) return;
@@ -2887,15 +2925,18 @@ private:
       p->tft->writeFillRectPreclipped(p->x + l, p->y + t, 1, 1);
     }
 
-    static void pngle_draw_normal_scale_callback(pngle_t *pngle, uint32_t x, uint32_t y, uint8_t rgba[4])
+    static void png_draw_normal_scale_callback(pngle_t *pngle, uint32_t x, uint32_t y, uint8_t rgba[4])
     {
-      auto p = (png_file_decoder_t *)pngle_get_user_data(pngle);
+      auto p = (png_file_decoder_t*)pngle_get_user_data(pngle);
 
-      int32_t t = ceil( y      * p->scale) - p->offY;
-      if (t < 0) t = 0;
-      int32_t b = ceil((y + 1) * p->scale) - p->offY;
-      if (b > p->maxHeight) b = p->maxHeight;
-      if (t >= b) return;
+      if (y != p->last_y) {
+        p->last_y = y;
+        png_ypos_update(p, y);
+      }
+
+      int32_t t = p->scale_y0;
+      int32_t h = p->scale_y1 - t;
+      if (h <= 0) return;
 
       int32_t l = ceil( x      * p->scale) - p->offX;
       if (l < 0) l = 0;
@@ -2904,14 +2945,18 @@ private:
       if (l >= r) return;
 
       p->tft->setColor(color888(rgba[0], rgba[1], rgba[2]));
-      p->tft->writeFillRectPreclipped(p->x + l, p->y + t, r - l, b - t);
+      p->tft->writeFillRectPreclipped(p->x + l, p->y + t, r - l, h);
     }
 
-    static void pngle_draw_alpha_callback(pngle_t *pngle, uint32_t x, uint32_t y, uint8_t rgba[4])
+    static void png_draw_alpha_callback(pngle_t *pngle, uint32_t x, uint32_t y, uint8_t rgba[4])
     {
-      auto p = (png_file_decoder_t *)pngle_get_user_data(pngle);
+      auto p = (png_file_decoder_t*)pngle_get_user_data(pngle);
+      if (y != p->last_y) {
+        png_post_line(p, p->last_y);
+        png_prepare_line(p, y);
+      }
 
-      if (y < p->offY) return;
+      if (p->scale_y0 >= p->scale_y1) return;
 
       int32_t l = ( x      ) - p->offX;
       if (l < 0) l = 0;
@@ -2930,15 +2975,16 @@ private:
       }
     }
 
-    static void pngle_draw_alpha_scale_callback(pngle_t *pngle, uint32_t x, uint32_t y, uint8_t rgba[4])
+    static void png_draw_alpha_scale_callback(pngle_t *pngle, uint32_t x, uint32_t y, uint8_t rgba[4])
     {
-      auto p = (png_file_decoder_t *)pngle_get_user_data(pngle);
+      auto p = (png_file_decoder_t*)pngle_get_user_data(pngle);
+      if (y != p->last_y) {
+        png_post_line(p, p->last_y);
+        png_prepare_line(p, y);
+      }
 
-      int32_t t = ceil( y      * p->scale) - p->offY;
-      if (t < 0) t = 0;
-      int32_t b = ceil((y + 1) * p->scale) - p->offY;
-      if (b > p->maxHeight) b = p->maxHeight;
-      if ((b -= t) < 0) return;
+      int32_t b = p->scale_y1 - p->scale_y0;
+      if (b <= 0) return;
 
       int32_t l = ceil( x      * p->scale) - p->offX;
       if (l < 0) l = 0;
@@ -2947,54 +2993,32 @@ private:
       if (l >= r) return;
 
       if (rgba[3] == 255) {
-        for (size_t i = l; i < r; ++i) {
-          for (size_t j = 0; j < b; ++j) {
+        int32_t i = l;
+        do {
+          for (int32_t j = 0; j < b; ++j) {
             auto data = &p->lineBuffer[i + j * p->maxWidth];
             memcpy(data, rgba, 3);
           }
-        }
+        } while (++i < r);
       } else {
         uint_fast8_t alpha = rgba[3] + 1;
-        for (size_t i = l; i < r; ++i) {
-          for (size_t j = 0; j < b; ++j) {
+        int32_t i = l;
+        do {
+          for (int32_t j = 0; j < b; ++j) {
             auto data = &p->lineBuffer[i + j * p->maxWidth];
             data->r = (rgba[0] * alpha + data->r * (257 - alpha)) >> 8;
             data->g = (rgba[1] * alpha + data->g * (257 - alpha)) >> 8;
             data->b = (rgba[2] * alpha + data->b * (257 - alpha)) >> 8;
           }
-        }
+        } while (++i < r);
       }
     }
 
-    static void pngle_line_alpha_callback(pngle_t *pngle, uint32_t y, uint32_t next_y)
-    {
-      auto p = (png_file_decoder_t *)pngle_get_user_data(pngle);
-
-      int32_t t = ceil( y      * p->scale) - p->offY;
-      if (t < 0) t = 0;
-      int32_t b = ceil((y + 1) * p->scale) - p->offY;
-      if (b > p->maxHeight) b = p->maxHeight;
-
-      if (t < b)
-        p->tft->push_image(p->x, p->y + t, p->maxWidth, b - t, p->pc, true);
-
-      if (next_y == ~0) return;
-
-      t = ceil( next_y      * p->scale) - p->offY;
-      if (t < 0) t = 0;
-      b = ceil((next_y + 1) * p->scale) - p->offY;
-      if (b > p->maxHeight) b = p->maxHeight;
-      if (t >= b) return;
-
-      // read next line
-      p->tft->readRectRGB(p->x, p->y + t, p->maxWidth, b - t, p->lineBuffer);
-    }
-
-    static void pngle_init_callback(pngle_t *pngle, uint32_t w, uint32_t h, uint_fast8_t hasTransparent)
+    static void png_init_callback(pngle_t *pngle, uint32_t w, uint32_t h, uint_fast8_t hasTransparent)
     {
       auto ihdr = pngle_get_ihdr(pngle);
 
-      auto p = (png_file_decoder_t *)pngle_get_user_data(pngle);
+      auto p = (png_file_decoder_t*)pngle_get_user_data(pngle);
 
       if (p->scale != 1.0) {
         w = ceil(w * p->scale);
@@ -3014,18 +3038,21 @@ private:
       if (hasTransparent) { // need pixel read ?
         p->lineBuffer = (bgr888_t*)heap_alloc_dma(sizeof(bgr888_t) * p->maxWidth * ceil(p->scale));
         p->pc->src_data = p->lineBuffer;
-        p->tft->readRectRGB(p->x, p->y - p->offY, p->maxWidth, ceil(p->scale), p->lineBuffer);
-        pngle_set_line_callback(pngle, pngle_line_alpha_callback);
+        png_prepare_line(p, 0);
+        pngle_set_done_callback(pngle, png_done_callback);
+
         if (p->scale == 1.0) {
-          pngle_set_draw_callback(pngle, pngle_draw_alpha_callback);
+          pngle_set_draw_callback(pngle, png_draw_alpha_callback);
         } else {
-          pngle_set_draw_callback(pngle, pngle_draw_alpha_scale_callback);
+          pngle_set_draw_callback(pngle, png_draw_alpha_scale_callback);
         }
       } else {
         if (p->scale == 1.0) {
-          pngle_set_draw_callback(pngle, pngle_draw_normal_callback);
+          pngle_set_draw_callback(pngle, png_draw_normal_callback);
         } else {
-          pngle_set_draw_callback(pngle, pngle_draw_normal_scale_callback);
+          p->last_y = 0;
+          png_ypos_update(p, 0);
+          pngle_set_draw_callback(pngle, png_draw_normal_scale_callback);
         }
         return;
       }
@@ -3067,7 +3094,7 @@ private:
 
       pngle_set_user_data(pngle, &png);
 
-      pngle_set_init_callback(pngle, pngle_init_callback);
+      pngle_set_init_callback(pngle, png_init_callback);
 
       // Feed data to pngle
       uint8_t buf[512];
@@ -3096,9 +3123,10 @@ private:
         if (data->need_transaction) this->beginTransaction();
       }
       this->endWrite();
-
-      if (png.lineBuffer) heap_free(png.lineBuffer);
-
+      if (png.lineBuffer) {
+        this->waitDMA();
+        heap_free(png.lineBuffer);
+      }
       pngle_destroy(pngle);
       return res;
     }

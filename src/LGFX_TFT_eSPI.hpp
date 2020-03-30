@@ -68,10 +68,10 @@ typedef lgfx::bgr888_t RGBColor;
 
 class TFT_eSPI : public lgfx::LGFX_SPI<lgfx::LGFX_Config> {};
 
-class TFT_eSprite : public lgfx::LGFXSprite {
+class TFT_eSprite : public lgfx::LGFX_Sprite {
 public:
-  TFT_eSprite() : LGFXSprite() {}
-  TFT_eSprite(LovyanGFX* parent) : LGFXSprite(parent) {}
+  TFT_eSprite() : LGFX_Sprite() {}
+  TFT_eSprite(LovyanGFX* parent) : LGFX_Sprite(parent) {}
 
   void* frameBuffer(uint8_t dummy) { return buffer(); }
 };
