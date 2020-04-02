@@ -14,37 +14,47 @@
  */
 
 
-#include <LGFX_TFT_eSPI.hpp>
-//#include <TFT_eSPI.h>
-//#include <M5Stack.h>
-
 #if defined(ARDUINO_M5Stick_C)
  #include <AXP192.h>
-#elif defined(ARDUINO_M5Stack_Core_ESP32) || defined(ARDUINO_M5STACK_FIRE)
-//#include <M5StackUpdater.h>
-//#include <SPI.h>
-//#include <SD.h>
+#elif defined(ARDUINO_M5Stack_Core_ESP32) || defined(ARDUINO_M5STACK_FIRE) // || defined ( ARDUINO_ESP32_DEV ) || defined ( ARDUINO_T )
+// #include <M5StackUpdater.h>
 #endif
 
-static TFT_eSPI tft_lcd;
-//static auto &tft_lcd ( M5.Lcd );
-static TFT_eSprite tft(&tft_lcd);
+//#include <TFT_eSPI.h>
+#include <LGFX_TFT_eSPI.hpp>
+//#include <SD.h>
+
+
+static TFT_eSPI tft;
 
 
 unsigned long total = 0;
 unsigned long tn = 0;
 
 void setup() {
-#if defined(ARDUINO_M5Stick_C)
+ #if defined(ARDUINO_M5Stick_C)
   AXP192 axp;
   axp.begin();
-#elif defined(ARDUINO_M5Stack_Core_ESP32) || defined(ARDUINO_M5STACK_FIRE)
- #ifdef _SD_H_
-  SD.begin(4, SPI, 20000000);
+/*
+ #else
+
+  #if defined(ARDUINO_M5Stack_Core_ESP32) || defined(ARDUINO_M5STACK_FIRE)
+   static constexpr int GPIO_BL = 32;
+  #elif defined ( ARDUINO_ESP32_DEV )
+   static constexpr int GPIO_BL = 5;
+  #elif defined ( ARDUINO_T )  // TTGO T-Watch
+   static constexpr int GPIO_BL = 12;
+  #endif
+
+  const int BLK_PWM_CHANNEL = 7;
+  ledcSetup(BLK_PWM_CHANNEL, 12000, 8);
+  ledcAttachPin(GPIO_BL, BLK_PWM_CHANNEL);
+  ledcWrite(BLK_PWM_CHANNEL, 128);
+//*/
  #endif
-#endif
 
-
+#ifdef _SD_H_
+  SD.begin(4, SPI, 20000000);
  #ifdef __M5STACKUPDATER_H
   #if defined(ARDUINO_M5Stack_Core_ESP32) || defined(ARDUINO_M5STACK_FIRE) // M5Stack
    #define BUTTON_A_PIN 39
@@ -56,192 +66,120 @@ void setup() {
     ESP.restart();
   }
  #endif
+#endif
 
   Serial.begin(115200);
   while (!Serial);
   Serial.println(""); Serial.println("");
 #ifdef LOVYANGFX_HPP_
-  Serial.println(F("Lovyan's LovyanGFX library Test!")); 
+  Serial.println(F("LovyanGFX library Test!")); 
 #else
   Serial.println(F("TFT_eSPI library Test!")); 
 #endif
+//tft.setPanel<lgfx::Panel_M5Stack<lgfx::Panel_Config> >();
+  tft.init();
 
-  //M5.begin();
-  tft_lcd.init();
 
+  tft.setRotation(0);
+  //tft.setColorDepth(24);
 
-  tft_lcd.setRotation(1);
-
-  //tft_lcd.fillSprite(-1);
-  //tft_lcd.setColorDepth(16);
-  //tft_lcd.setColorDepth(24);
-
-  //tft.setPsram(true);
-
-  //tft.setColorDepth(1);  tft.createSprite(240,320);
-  //tft.setColorDepth(lgfx::palette_1bit);  tft.createSprite(240,320);
-  //tft.setColorDepth(lgfx::palette_2bit);  tft.createSprite(240,320);
-  //tft.setColorDepth(lgfx::palette_4bit);  tft.createSprite(240,320);
-  //tft.setColorDepth( 8);  tft.createSprite(240,320);
-  //tft.setColorDepth(16);  tft.createSprite(240,240);
-  //tft.setColorDepth(24);  tft.createSprite(240,170);
-  //tft.setColorDepth();
-  //tft.createSprite(tft_lcd.width(), tft_lcd.height());
-  tft.setColorDepth(8);  tft.createSprite(240,240);
-  //tft.createPalette();
-  tft_lcd.setPivot(tft.width()>>1, tft.height()>>1);
-  tft    .setPivot(tft.width()>>1, tft.height()>>1);
-
-//  tft_lcd.fillScreen(0x00FF00U);
-//  auto xs = 14;
-//  auto ys = 14;
-//  tft_lcd.fillRect(xs, ys, tft.width() - (xs<<1), tft.height() - (ys<<1), 0xFFFF);
-//  tft_lcd.setClipRect(xs + 1, ys + 1, tft.width() - (xs<<1) - 2, tft.height() - (ys<<1) - 2);
-
-}
-
-static inline uint32_t micros_start() __attribute__ ((always_inline));
-static inline uint32_t micros_start()
-{
-	uint8_t oms = millis();
-	while ((uint8_t)millis() == oms)
-		;
-	return micros();
+//tft.setTextFont(2);
+//auto xs = 14;
+//auto ys = 14;
+//tft.fillScreen(0x00FF00U);
+//tft.fillRect(xs, ys, tft.width() - (xs<<1), tft.height() - (ys<<1), 0xFFFF);
+//tft.setClipRect(xs + 1, ys + 1, tft.width() - (xs<<1) - 2, tft.height() - (ys<<1) - 2);
 }
 
 void loop(void)
 {
-	tft_lcd.startWrite();
+	tft.startWrite();
 
 	Serial.println(F("Benchmark                Time (microseconds)"));
-//*
+/*
 	uint32_t usecHaD = 0;
 /*/
 	uint32_t usecHaD = testHaD();
-	tft.pushSprite(0, 0);
 	Serial.print(F("HaD pushColor            "));
 	Serial.println(usecHaD);
 	delay(100);
 //*/
-taskDISABLE_INTERRUPTS();
 	uint32_t usecFillScreen = testFillScreen();
-taskENABLE_INTERRUPTS();
-	tft.pushSprite(0, 0);
 	Serial.print(F("Screen fill              "));
 	Serial.println(usecFillScreen);
 	delay(100);
 
-taskDISABLE_INTERRUPTS();
 	uint32_t usecText = testText();
-taskENABLE_INTERRUPTS();
-	tft.pushSprite(0, 0);
 	Serial.print(F("Text                     "));
 	Serial.println(usecText);
-	delay(100);
+	delay(1000);
 
-taskDISABLE_INTERRUPTS();
 	uint32_t usecPixels = testPixels();
-taskENABLE_INTERRUPTS();
-	tft.pushSprite(0, 0);
 	Serial.print(F("Pixels                   "));
 	Serial.println(usecPixels);
 	delay(100);
 
-taskDISABLE_INTERRUPTS();
 	uint32_t usecLines = testLines(TFT_BLUE);
-taskENABLE_INTERRUPTS();
-	tft.pushSprite(0, 0);
 	Serial.print(F("Lines                    "));
 	Serial.println(usecLines);
 	delay(100);
 
-taskDISABLE_INTERRUPTS();
 	uint32_t usecFastLines = testFastLines(TFT_RED, TFT_BLUE);
-taskENABLE_INTERRUPTS();
-	tft.pushSprite(0, 0);
 	Serial.print(F("Horiz/Vert Lines         "));
 	Serial.println(usecFastLines);
 	delay(100);
 
-taskDISABLE_INTERRUPTS();
 	uint32_t usecRects = testRects(TFT_GREEN);
-taskENABLE_INTERRUPTS();
-	tft.pushSprite(0, 0);
 	Serial.print(F("Rectangles (outline)     "));
 	Serial.println(usecRects);
 	delay(100);
 
-taskDISABLE_INTERRUPTS();
 	uint32_t usecFilledRects = testFilledRects(TFT_YELLOW, TFT_MAGENTA);
-taskENABLE_INTERRUPTS();
-	tft.pushSprite(0, 0);
 	Serial.print(F("Rectangles (filled)      "));
 	Serial.println(usecFilledRects);
 	delay(100);
 
-taskDISABLE_INTERRUPTS();
 	uint32_t usecFilledCircles = testFilledCircles(10, TFT_MAGENTA);
-taskENABLE_INTERRUPTS();
-	tft.pushSprite(0, 0);
 	Serial.print(F("Circles (filled)         "));
 	Serial.println(usecFilledCircles);
 	delay(100);
 
-taskDISABLE_INTERRUPTS();
 	uint32_t usecCircles = testCircles(10, TFT_WHITE);
-taskENABLE_INTERRUPTS();
-	tft.pushSprite(0, 0);
 	Serial.print(F("Circles (outline)        "));
 	Serial.println(usecCircles);
 	delay(100);
 
-taskDISABLE_INTERRUPTS();
 	uint32_t usecTriangles = testTriangles();
-taskENABLE_INTERRUPTS();
-	tft.pushSprite(0, 0);
 	Serial.print(F("Triangles (outline)      "));
 	Serial.println(usecTriangles);
 	delay(100);
 
-taskDISABLE_INTERRUPTS();
 	uint32_t usecFilledTrangles = testFilledTriangles();
-taskENABLE_INTERRUPTS();
-	tft.pushSprite(0, 0);
 	Serial.print(F("Triangles (filled)       "));
 	Serial.println(usecFilledTrangles);
 	delay(100);
 
-taskDISABLE_INTERRUPTS();
 	uint32_t usecRoundRects = testRoundRects();
-taskENABLE_INTERRUPTS();
-	tft.pushSprite(0, 0);
 	Serial.print(F("Rounded rects (outline)  "));
 	Serial.println(usecRoundRects);
 	delay(100);
 
 	uint32_t usedFilledRoundRects = testFilledRoundRects();
-	tft.pushSprite(0, 0);
 	Serial.print(F("Rounded rects (filled)   "));
 	Serial.println(usedFilledRoundRects);
 	delay(100);
+	tft.endWrite();
 
 	Serial.println(F("Done!"));
 
-    //int i = 360;
-    for (int i = 0; i <= 360; i++)
-    {
-
 	uint16_t c = 4;
 	int8_t d = 1;
-	int32_t y = i;
-	for (int32_t j = 0; j < tft.height(); j++)
+	for (int32_t i = 0; i < tft.height(); i++)
 	{
-		while (y >= tft.height()) y -= tft.height();
-		tft.drawFastHLine(0, y, tft.width(), c);
+		tft.drawFastHLine(0, i, tft.width(), c);
 		c += d;
-		if (c <= 4 || c >= 12)
+		if (c <= 4 || c >= 11)
 			d = -d;
-		y++;
 	}
 	
 	tft.setCursor(0, 0);
@@ -249,9 +187,9 @@ taskENABLE_INTERRUPTS();
 	tft.setTextSize(2);
 
 #ifdef LOVYANGFX_HPP_
-	tft.println(F("  LGFX_Sprite test"));
+	tft.println(F("   LovyanGFX test"));
 #else
-	tft.println(F("  TFT_eSprite test"));
+	tft.println(F("   TFT_eSPI test"));
 #endif
 	tft.setTextSize(1);
 	tft.setTextColor(TFT_WHITE);
@@ -271,140 +209,85 @@ taskENABLE_INTERRUPTS();
 	tft.setTextColor(TFT_CYAN); tft.setTextSize(1);
 	tft.print(F("HaD pushColor      "));
 	tft.setTextColor(TFT_YELLOW); tft.setTextSize(2);
-	printnice(usecHaD * i / 360);
+	printnice(usecHaD);
 
 	tft.setTextColor(TFT_CYAN); tft.setTextSize(1);
 	tft.print(F("Screen fill        "));
 	tft.setTextColor(TFT_YELLOW); tft.setTextSize(2);
-	printnice(usecFillScreen * i / 360);
+	printnice(usecFillScreen);
 
 	tft.setTextColor(TFT_CYAN); tft.setTextSize(1);
 	tft.print(F("Text               "));
 	tft.setTextColor(TFT_YELLOW); tft.setTextSize(2);
-	printnice(usecText * i / 360);
+	printnice(usecText);
 
 	tft.setTextColor(TFT_CYAN); tft.setTextSize(1);
 	tft.print(F("Pixels             "));
 	tft.setTextColor(TFT_YELLOW); tft.setTextSize(2);
-	printnice(usecPixels * i / 360);
+	printnice(usecPixels);
 
 	tft.setTextColor(TFT_CYAN); tft.setTextSize(1);
 	tft.print(F("Lines              "));
 	tft.setTextColor(TFT_YELLOW); tft.setTextSize(2);
-	printnice(usecLines * i / 360);
+	printnice(usecLines);
 
 	tft.setTextColor(TFT_CYAN); tft.setTextSize(1);
 	tft.print(F("Horiz/Vert Lines   "));
 	tft.setTextColor(TFT_YELLOW); tft.setTextSize(2);
-	printnice(usecFastLines * i / 360);
+	printnice(usecFastLines);
 
 	tft.setTextColor(TFT_CYAN); tft.setTextSize(1);
 	tft.print(F("Rectangles         "));
 	tft.setTextColor(TFT_YELLOW); tft.setTextSize(2);
-	printnice(usecRects * i / 360);
+	printnice(usecRects);
 
 	tft.setTextColor(TFT_CYAN); tft.setTextSize(1);
 	tft.print(F("Rectangles-filled  "));
 	tft.setTextColor(TFT_YELLOW); tft.setTextSize(2);
-	printnice(usecFilledRects * i / 360);
+	printnice(usecFilledRects);
 
 	tft.setTextColor(TFT_CYAN); tft.setTextSize(1);
 	tft.print(F("Circles            "));
 	tft.setTextColor(TFT_YELLOW); tft.setTextSize(2);
-	printnice(usecCircles * i / 360);
+	printnice(usecCircles);
 
 	tft.setTextColor(TFT_CYAN); tft.setTextSize(1);
 	tft.print(F("Circles-filled     "));
 	tft.setTextColor(TFT_YELLOW); tft.setTextSize(2);
-	printnice(usecFilledCircles * i / 360);
+	printnice(usecFilledCircles);
 
 	tft.setTextColor(TFT_CYAN); tft.setTextSize(1);
 	tft.print(F("Triangles          "));
 	tft.setTextColor(TFT_YELLOW); tft.setTextSize(2);
-	printnice(usecTriangles * i / 360);
+	printnice(usecTriangles);
 
 	tft.setTextColor(TFT_CYAN); tft.setTextSize(1);
 	tft.print(F("Triangles-filled   "));
 	tft.setTextColor(TFT_YELLOW); tft.setTextSize(2);
-	printnice(usecFilledTrangles * i / 360);
+	printnice(usecFilledTrangles);
 
 	tft.setTextColor(TFT_CYAN); tft.setTextSize(1);
 	tft.print(F("Rounded rects      "));
 	tft.setTextColor(TFT_YELLOW); tft.setTextSize(2);
-	printnice(usecRoundRects * i / 360);
+	printnice(usecRoundRects);
 
 	tft.setTextColor(TFT_CYAN); tft.setTextSize(1);
 	tft.print(F("Rounded rects-fill "));
 	tft.setTextColor(TFT_YELLOW); tft.setTextSize(2);
-	printnice(usedFilledRoundRects * i / 360);
+	printnice(usedFilledRoundRects);
 
 	tft.setTextSize(1);
 	tft.println(F(""));
 	tft.setTextColor(TFT_GREEN); tft.setTextSize(2);
 	tft.print(F("Benchmark Complete!"));
 
-/*
-   tft.pushRotateZoom(&tft_lcd, tft_lcd.getPivotX(), tft_lcd.getPivotY(), i, (float)i/360, (float)i/360);
-//
-//    tft.pushRotateZoom(&tft_lcd, tft_lcd.getPivotX(), tft_lcd.getPivotY(), (((float)i/20)-9.5)/10.0, ((((float)i+10)/20)-9.5)/10.0, 0.1+(float)i/100, 0);
-      tft.pushRotateZoom(&tft_lcd
-                        , i-20 // tft_lcd.getPivotX()
-                        , tft_lcd.getPivotY()
-                        , i
-                        , (float)(std::min(abs((i&127)-64),32)-16) / 16
-                        , (float)(std::min(abs(((i+64)&127)-64),32)-16) / 16
-//                        , 0
-                        );
-//*/
-    }
-/*
-tft.pushSprite(0, 0);
-/*/
-	uint32_t usecPushSprite = micros_start();
-    for (int i = 0; i <= 480; i++) {
-      //tft.pushSprite(0, 0);
-      tft.pushSprite(i - 240, i - 240);
-    }
-	usecPushSprite = micros() - usecPushSprite;
-	Serial.print(F("Normal pushSprite    "));
-	Serial.println(usecPushSprite);
-
-
-	uint32_t usecRotated = micros_start();
-    for (int i = 0; i <= 360; i++) {
-      tft.pushRotated(i);
-    }
-	usecRotated = micros() - usecRotated;
-	Serial.print(F("Normal Rotated       "));
-	Serial.println(usecRotated);
-
-
-	usecPushSprite = micros_start();
-    for (int i = 0; i <= 480; i++) {
-      //tft.pushSprite(0, 0, TFT_YELLOW);
-      tft.pushSprite(i - 240, i - 240, 0); //TFT_YELLOW);
-    }
-	usecPushSprite = micros() - usecPushSprite;
-	Serial.print(F("Transparent Sprite   "));
-	Serial.println(usecPushSprite);
-
-
-	usecRotated = micros_start();
-    for (int i = 0; i <= 360; i++) {
-      tft.pushRotated(i, 0); //TFT_YELLOW);
-    }
-	usecRotated = micros() - usecRotated;
-	Serial.print(F("Transparent Rotated  "));
-	Serial.println(usecRotated);
-//*/	
-	tft_lcd.endWrite();
-//	delay(60 * 1000L);
+	delay(60 * 1000L);
 }
 
 void printnice(int32_t v)
 {
 	char	str[32] = { 0 };
-	sprintf(str, "%lu", (long unsigned int)v);
+	sprintf(str, "%lu", v);
 	for (char *p = (str+strlen(str))-3; p > str; p -= 3)
 	{
 		memmove(p+1, p, strlen(p)+1);
@@ -419,6 +302,15 @@ void printnice(int32_t v)
 	tft.println(str);
 }
 
+static inline uint32_t micros_start() __attribute__ ((always_inline));
+static inline uint32_t micros_start()
+{
+	uint8_t oms = millis();
+	while ((uint8_t)millis() == oms)
+		;
+	return micros();
+}
+
 uint32_t testHaD()
 {
 	// pseudo-code for cheesy RLE
@@ -427,7 +319,7 @@ uint32_t testHaD()
 	// 	count =  0nnnnnnn = 1 byte or 1nnnnnnn nnnnnnnn 2 bytes (0 - 32767)
 	// 	repeat color count times
 	// 	toggle color1/color2
-	static constexpr uint8_t HaD_240x320[] PROGMEM =
+	static const uint8_t HaD_240x320[] PROGMEM =
 	{
 		0xb9, 0x50, 0x0e, 0x80, 0x93, 0x0e, 0x41, 0x11, 0x80, 0x8d, 0x11, 0x42, 0x12, 0x80, 0x89, 0x12, 
 		0x45, 0x12, 0x80, 0x85, 0x12, 0x48, 0x12, 0x80, 0x83, 0x12, 0x4a, 0x13, 0x7f, 0x13, 0x4c, 0x13, 
@@ -518,8 +410,8 @@ uint32_t testHaD()
 		tft.setAddrWindow(0, 0, 240, 320);
 
 		uint16_t cnt = 0;
-		auto color = tft.color565((i << 4) | i, (i << 4) | i, (i << 4) | i);
-		auto curcolor = tft.color565(0,0,0);
+		uint16_t color = tft.color565((i << 4) | i, (i << 4) | i, (i << 4) | i);
+		uint16_t curcolor = 0;
 
 		const uint8_t *cmp = &HaD_240x320[0];
 
@@ -532,7 +424,6 @@ uint32_t testHaD()
 			curcolor ^= color;
 		}
 		tft.endWrite();
-//	tft.pushSprite(0, 0);
 	}
 
 	uint32_t t = micros() - start;
@@ -544,7 +435,7 @@ uint32_t testHaD()
 	tft.setCursor(96, 302);
 	tft.print(F("Xark"));
 
-//	delay(3 * 1000L);
+	delay(3 * 1000L);
 	
 	return t;
 }
@@ -601,7 +492,7 @@ uint32_t testText()
 	tft.setTextSize(6);
 	tft.println(F("Woot!"));
 	uint32_t t = micros() - start;
-//	delay(1000);
+	delay(1000);
 	return t;
 }
 

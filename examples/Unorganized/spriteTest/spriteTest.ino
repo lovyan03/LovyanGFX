@@ -5,28 +5,27 @@
 
 //#include <TFT_eSPI.h>
 //#include <M5Stack.h>
-#include <LGFX_TFT_eSPI.hpp>
-#include <driver/ledc.h>
+#include <LovyanGFX.hpp>
 
-static TFT_eSPI tft;
-static TFT_eSprite buffer_p1(&tft);
-static TFT_eSprite buffer_p2(&tft);
-static TFT_eSprite buffer_p4(&tft);
-static TFT_eSprite buffer_p8(&tft);
-static TFT_eSprite buffer_256(&tft);
-static TFT_eSprite buffer_16b(&tft);
-static TFT_eSprite buffer_18b(&tft);
-static TFT_eSprite buffer_24b(&tft);
-static TFT_eSprite item_p1;
-static TFT_eSprite item_p2;
-static TFT_eSprite item_p4;
-static TFT_eSprite item_p8;
-static TFT_eSprite item_256;
-static TFT_eSprite item_16b;
-static TFT_eSprite item_18b;
-static TFT_eSprite item_24b;
-static TFT_eSprite* buffers[] = { &buffer_p1, &buffer_p2, &buffer_p4, &buffer_p8, &buffer_256, &buffer_16b, &buffer_18b, &buffer_24b };
-static TFT_eSprite* items[] = { &item_p1, &item_p2, &item_p4, &item_p8, &item_256, &item_16b, &item_18b, &item_24b };
+static LGFX tft;
+static LGFX_Sprite buffer_p1(&tft);
+static LGFX_Sprite buffer_p2(&tft);
+static LGFX_Sprite buffer_p4(&tft);
+static LGFX_Sprite buffer_p8(&tft);
+static LGFX_Sprite buffer_256(&tft);
+static LGFX_Sprite buffer_16b(&tft);
+static LGFX_Sprite buffer_18b(&tft);
+static LGFX_Sprite buffer_24b(&tft);
+static LGFX_Sprite item_p1;
+static LGFX_Sprite item_p2;
+static LGFX_Sprite item_p4;
+static LGFX_Sprite item_p8;
+static LGFX_Sprite item_256;
+static LGFX_Sprite item_16b;
+static LGFX_Sprite item_18b;
+static LGFX_Sprite item_24b;
+static LGFX_Sprite* buffers[] = { &buffer_p1, &buffer_p2, &buffer_p4, &buffer_p8, &buffer_256, &buffer_16b, &buffer_18b, &buffer_24b };
+static LGFX_Sprite* items[] = { &item_p1, &item_p2, &item_p4, &item_p8, &item_256, &item_16b, &item_18b, &item_24b };
 
 /*
 auto transp = lgfx::color565(255,255,0);
@@ -63,39 +62,8 @@ void setup(void)
  #ifdef _SD_H_
   SD.begin(4, SPI, 20000000);
  #endif
-
- #define GPIO_BL 32
-#elif defined ( ARDUINO_T ) // T-Watch
- #define GPIO_BL 12
-#elif defined ( ARDUINO_ESP32_DEV )
- #define GPIO_BL 5
 #endif
 
-#ifdef GPIO_BL
-  lgfx::TPin<GPIO_BL>::init();
-  lgfx::TPin<GPIO_BL>::hi();
-
-  ledc_timer_config_t ledc_timer;
-  {
-    ledc_timer.duty_resolution = LEDC_TIMER_13_BIT; // resolution of PWM duty
-    ledc_timer.freq_hz = 5000;                      // frequency of PWM signal
-    ledc_timer.speed_mode = LEDC_HIGH_SPEED_MODE;   // timer mode
-    ledc_timer.timer_num = LEDC_TIMER_0;            // timer index
-  };
-  ledc_timer_config(&ledc_timer);
-
-  ledc_channel_config_t ledc_channel;
-  {
-   ledc_channel.channel    = LEDC_CHANNEL_7;
-   ledc_channel.intr_type  = LEDC_INTR_DISABLE;
-   ledc_channel.duty       = 5000;
-   ledc_channel.gpio_num   = GPIO_BL;
-   ledc_channel.speed_mode = LEDC_HIGH_SPEED_MODE;
-   ledc_channel.hpoint     = 0;
-   ledc_channel.timer_sel  = LEDC_TIMER_0;
-  };
-  ledc_channel_config(&ledc_channel);
-#endif
 
   //needle.setColorDepth(1);  needle.createSprite(240,320);
   //needle.setColorDepth(lgfx::palette_1bit);  needle.createSprite(240,320);

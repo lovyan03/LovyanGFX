@@ -77,13 +77,29 @@ namespace lgfx
       deleteSprite();
     }
 
+    void deletePalette(void)
+    {
+      if (_palette != nullptr) { _mem_free(_palette); _palette = nullptr; }
+      _palette_count = 0;
+    }
+
+    void deleteSprite(void)
+    {
+      deletePalette();
+      if (_img     != nullptr) { _mem_free(_img    ); _img     = nullptr; }
+      _width = 0;
+      _height = 0;
+    }
+
     void* createSprite(int32_t w, int32_t h)
     {
       if (w < 1 || h < 1) return nullptr;
       if (_img) deleteSprite();
       _bitwidth = (w + _write_conv.x_mask) & (~(uint32_t)_write_conv.x_mask);
-      _img = (uint8_t*)_mem_alloc((h * _bitwidth * _write_conv.bits >> 3) + 1);
+      size_t len = (h * _bitwidth * _write_conv.bits >> 3) + 1;
+      _img = (uint8_t*)_mem_alloc(len);
       if (!_img) return nullptr;
+      memset(_img, 0, len);
       if (0 == _write_conv.bytes) createPalette();
 
       _sw = _width = w;
@@ -96,8 +112,6 @@ namespace lgfx
       _rotation = 0;
 
       _clip_l = _clip_t = _index = _sx = _sy = _xs = _ys = _xptr = _yptr = 0;
-
-      clear();
 
       return _img;
     }
@@ -154,13 +168,6 @@ namespace lgfx
         _palette[i] = convert_rgb565_to_bgr888(pgm_read_word(colors++));
       }
       return true;
-    }
-
-    void deleteSprite(void)
-    {
-      if (_img     != nullptr) { _mem_free(_img    ); _img     = nullptr; }
-      if (_palette != nullptr) { _mem_free(_palette); _palette = nullptr; }
-      _palette_count = 0;
     }
 
     void setPaletteGrayscale(void)
@@ -280,8 +287,7 @@ namespace lgfx
     {
       if (_write_conv.depth > 8) return false;
 
-      if (_palette != nullptr) { _mem_free(_palette); _palette = nullptr; }
-      _palette_count = 0;
+      deletePalette();
 
       size_t palettes = 1 << _write_conv.bits;
       _palette = (bgr888_t*)_mem_alloc(sizeof(bgr888_t) * palettes);

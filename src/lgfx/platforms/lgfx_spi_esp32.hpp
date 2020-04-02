@@ -50,6 +50,7 @@ namespace lgfx
       if ((0 != _dma_channel) && _dmadesc) {
         heap_caps_free(_dmadesc);
         _dmadesc = nullptr;
+        _dmadesc_len = 0;
       }
       delete_dmabuffer();
     }
@@ -68,7 +69,7 @@ namespace lgfx
     void initBus(void)
     {
 #if defined (ARDUINO) // Arduino ESP32
-//*
+/*
       if (_spi_host == HSPI_HOST) {
         SPIClass spi = SPIClass(HSPI);
         spi.begin(_spi_sclk, _spi_miso, _spi_mosi, -1);
@@ -76,16 +77,16 @@ namespace lgfx
         SPI.begin(_spi_sclk, _spi_miso, _spi_mosi, -1);
       }
 /*/
-      bool use_gpio_matrix = (
-         (_spi_sclk>=0 &&
-          _spi_sclk != spi_periph_signal[_spi_host].spiclk_iomux_pin)
-       || (_spi_mosi >= 0 &&
-           _spi_mosi != spi_periph_signal[_spi_host].spid_iomux_pin)
-       || (_spi_miso>=0 &&
-           _spi_miso != spi_periph_signal[_spi_host].spiq_iomux_pin));
-
-      if (use_gpio_matrix) {
-        ESP_LOGI("LGFX", "bus init: use gpio_matrix.");
+//      bool use_gpio_matrix = (
+//         (_spi_sclk>=0 &&
+//          _spi_sclk != spi_periph_signal[_spi_host].spiclk_iomux_pin)
+//       || (_spi_mosi >= 0 &&
+//           _spi_mosi != spi_periph_signal[_spi_host].spid_iomux_pin)
+//       || (_spi_miso>=0 &&
+//           _spi_miso != spi_periph_signal[_spi_host].spiq_iomux_pin));
+//
+//      if (use_gpio_matrix) {
+//        ESP_LOGI("LGFX", "bus init: use gpio_matrix.");
         if (_spi_mosi >= 0) {
           TPin<_spi_mosi>::init(GPIO_MODE_INPUT_OUTPUT);
           gpio_matrix_out(_spi_mosi, spi_periph_signal[_spi_host].spid_out, false, false);
@@ -102,21 +103,21 @@ namespace lgfx
           gpio_matrix_out(_spi_sclk, spi_periph_signal[_spi_host].spiclk_out, false, false);
           gpio_matrix_in(_spi_sclk, spi_periph_signal[_spi_host].spiclk_in, false);
         }
-      } else {
-        ESP_LOGI("LGFX", "bus init: use iomux.");
-        if (_spi_mosi >= 0) {
-          gpio_iomux_in(_spi_mosi, spi_periph_signal[_spi_host].spid_in);
-          gpio_iomux_out(_spi_mosi, 1, false);
-        }
-        if (_spi_miso >= 0) {
-          gpio_iomux_in(_spi_miso, spi_periph_signal[_spi_host].spiq_in);
-          gpio_iomux_out(_spi_miso, 1, false);
-        }
-        if (_spi_sclk >= 0) {
-          gpio_iomux_in(_spi_sclk, spi_periph_signal[_spi_host].spiclk_in);
-          gpio_iomux_out(_spi_sclk, 1, false);
-        }
-      }
+//      } else {
+//        ESP_LOGI("LGFX", "bus init: use iomux.");
+//        if (_spi_mosi >= 0) {
+//          gpio_iomux_in(_spi_mosi, spi_periph_signal[_spi_host].spid_in);
+//          gpio_iomux_out(_spi_mosi, 1, false);
+//        }
+//        if (_spi_miso >= 0) {
+//          gpio_iomux_in(_spi_miso, spi_periph_signal[_spi_host].spiq_in);
+//          gpio_iomux_out(_spi_miso, 1, false);
+//        }
+//        if (_spi_sclk >= 0) {
+//          gpio_iomux_in(_spi_sclk, spi_periph_signal[_spi_host].spiclk_in);
+//          gpio_iomux_out(_spi_sclk, 1, false);
+//        }
+//      }
 //*/
       periph_module_enable(spi_periph_signal[_spi_host].module);
       if (_dma_channel) {
@@ -193,10 +194,6 @@ namespace lgfx
         delay(1);
         tmp = get_gpio_hi_reg(gpio_rst);
         *tmp = mask;
-      }
-      if ( (0 != _dma_channel) && _dmadesc == nullptr ) {
-        int dma_desc_ct=(320 * 240 * 2 + SPI_MAX_DMA_LEN-1)/SPI_MAX_DMA_LEN;
-        _dmadesc = (lldesc_t*)heap_caps_malloc(sizeof(lldesc_t)*dma_desc_ct, MALLOC_CAP_DMA);
       }
 
       startWrite();
@@ -295,6 +292,34 @@ namespace lgfx
       return res;
     }
 //*/
+
+    void setupOffscreenDMA(uint8_t** data, int32_t w, int32_t h, bool endless)
+    {
+      if (!_dma_channel) return;
+      setAddrWindow(0, 0, w, h);
+      _setup_dma_desc_links(data, w * _write_conv.bytes, h, endless);
+    }
+
+    void drawOffscreenDMA(bool endless)
+    {
+      if (!_dma_channel) return;
+      dc_h();
+      set_write_len(-1);
+      *reg(SPI_DMA_CONF_REG(_spi_port)) &= ~(SPI_OUTDSCR_BURST_EN | SPI_OUT_DATA_BURST_EN);
+      *reg(SPI_DMA_CONF_REG(_spi_port)) |= SPI_DMA_CONTINUE;
+//        *reg(SPI_DMA_CONF_REG(_spi_port)) |= SPI_DMA_CONTINUE | SPI_OUTDSCR_BURST_EN | SPI_OUT_DATA_BURST_EN;
+      *reg(SPI_DMA_OUT_LINK_REG(_spi_port)) = SPI_OUTLINK_START | ((int)(&_dmadesc[0]) & 0xFFFFF);
+      spicommon_dmaworkaround_transfer_active(_dma_channel);
+      exec_spi();
+    }
+
+    void stopOffscreenDMA(void)
+    {
+      if (!_dma_channel) return;
+      *reg(SPI_DMA_CONF_REG(_spi_port)) |= SPI_DMA_TX_STOP;
+      periph_module_reset( PERIPH_SPI_DMA_MODULE );
+    }
+
 //----------------------------------------------------------------------------
   protected:
     template<class T> static PanelCommon* createPanel(const T&) { return new T; }
@@ -385,7 +410,7 @@ namespace lgfx
 
 #if defined (ARDUINO) // Arduino ESP32
       if (_dma_channel) {
-        _next_dma_reset = true;
+//        _next_dma_reset = true;
 //      *reg(SPI_DMA_CONF_REG(_spi_port)) |= SPI_OUT_DATA_BURST_EN | SPI_INDSCR_BURST_EN | SPI_OUTDSCR_BURST_EN;
       }
 /*
@@ -425,7 +450,7 @@ namespace lgfx
       delete_dmabuffer();
 #if defined (ARDUINO) // Arduino ESP32
       if (_dma_channel) {
-        if (_next_dma_reset) spi_dma_reset();
+//        if (_next_dma_reset) spi_dma_reset();
       }
 
       *reg(SPI_USER_REG(_spi_port)) = _user_reg
@@ -773,7 +798,7 @@ namespace lgfx
       } else if (_dma_channel && use_dma) {
         dc_h();
         set_write_len(length << 3);
-        _setup_dma_desc_links(_dmadesc, length, data, _clkdiv_write == SPI_CLK_EQU_SYSCLK);
+        _setup_dma_desc_links(length, data);
         *reg(SPI_DMA_OUT_LINK_REG(_spi_port)) = SPI_OUTLINK_START | ((int)(&_dmadesc[0]) & 0xFFFFF);
         spicommon_dmaworkaround_transfer_active(_dma_channel);
         exec_spi();
@@ -872,7 +897,7 @@ namespace lgfx
       if (_dma_channel) {
         wait_spi();
         set_read_len(length << 3);
-        _setup_dma_desc_links(_dmadesc, length, dst);
+        _setup_dma_desc_links(length, dst);
         *reg(SPI_DMA_IN_LINK_REG(_spi_port)) = SPI_INLINK_START | ((int)(&_dmadesc[0]) & 0xFFFFF);
         spicommon_dmaworkaround_transfer_active(_dma_channel);
         exec_spi();
@@ -912,7 +937,7 @@ namespace lgfx
 
     void copyRect_impl(int32_t dst_x, int32_t dst_y, int32_t w, int32_t h, int32_t src_x, int32_t src_y) override
     {
-      pixelcopy_t p(nullptr, _write_conv.depth, _read_conv.depth);
+      pixelcopy_t p((void*)nullptr, _write_conv.depth, _read_conv.depth);
       if (w < h) {
         const uint32_t buflen = h * _write_conv.bytes;
         auto buf = get_dmabuffer(buflen);
@@ -968,23 +993,61 @@ namespace lgfx
       _dmabufs[1].free();
     }
 
-    static void _setup_dma_desc_links(lldesc_t *dmadesc, int len, const uint8_t *data, bool align = true)
+    static void _setup_dma_desc_links(int len, const uint8_t *data)
     {          //spicommon_setup_dma_desc_links
-      if (_next_dma_reset) spi_dma_reset();
-      // length is 4Byte align, and need reset with next dma.
-      _next_dma_reset = align && (len & 3);
-      if (_next_dma_reset) len = ( len + 3 ) & ( ~3 );
+      if (!_dma_channel) return;
+
+//      if (_next_dma_reset) {
+//        _next_dma_reset = false;
+//        spi_dma_reset();
+//      }
+      if (_dmadesc_len * SPI_MAX_DMA_LEN < len) {
+        _dmadesc_len = len / SPI_MAX_DMA_LEN + 1;
+        if (_dmadesc) heap_caps_free(_dmadesc);
+        _dmadesc = (lldesc_t*)heap_caps_malloc(sizeof(lldesc_t) * _dmadesc_len, MALLOC_CAP_DMA);
+      }
+      lldesc_t *dmadesc = _dmadesc;
+
       while (len > SPI_MAX_DMA_LEN) {
+        len -= SPI_MAX_DMA_LEN;
         dmadesc->buf = (uint8_t *)data;
         data += SPI_MAX_DMA_LEN;
         *(uint32_t*)dmadesc = SPI_MAX_DMA_LEN | SPI_MAX_DMA_LEN<<12 | 0x80000000;
         dmadesc->qe.stqe_next = dmadesc + 1;
         dmadesc++;
-        len -= SPI_MAX_DMA_LEN;
       }
-      *(uint32_t*)dmadesc = len | len<<12 | 0xC0000000;
+      *(uint32_t*)dmadesc = ((len + 3) & ( ~3 )) | len << 12 | 0xC0000000;
       dmadesc->buf = (uint8_t *)data;
       dmadesc->qe.stqe_next = nullptr;
+    }
+
+    static void _setup_dma_desc_links(uint8_t** data, int32_t w, int32_t h, bool endless)
+    {          //spicommon_setup_dma_desc_links
+      if (!_dma_channel) return;
+
+//      if (_next_dma_reset) spi_dma_reset();
+
+      if (_dmadesc_len < h) {
+        _dmadesc_len = h;
+        if (_dmadesc) heap_caps_free(_dmadesc);
+        _dmadesc = (lldesc_t*)heap_caps_malloc(sizeof(lldesc_t) * _dmadesc_len, MALLOC_CAP_DMA);
+      }
+
+      lldesc_t *dmadesc = _dmadesc;
+      int32_t idx = 0;
+      do {
+        dmadesc[idx].buf = (uint8_t *)data[idx];
+        *(uint32_t*)(&dmadesc[idx]) = w | w<<12 | 0x80000000;
+        dmadesc[idx].qe.stqe_next = &dmadesc[idx + 1];
+      } while (++idx < h);
+      --idx;
+      if (endless) {
+        dmadesc[idx].qe.stqe_next = &dmadesc[0];
+      } else {
+        dmadesc[idx].eof = 1;
+//        *(uint32_t*)(&dmadesc[idx]) |= 0xC0000000;
+        dmadesc[idx].qe.stqe_next = 0;
+      }
     }
 
     __attribute__ ((always_inline)) inline volatile uint32_t* reg(uint32_t addr) { return (volatile uint32_t *)ETS_UNCACHED_ADDR(addr); }
@@ -1063,6 +1126,7 @@ namespace lgfx
     static uint32_t _pin_reg;
     static uint32_t _regbuf[8];
     static lldesc_t* _dmadesc;
+    static uint32_t _dmadesc_len;
     static bool _next_dma_reset;
 
 //    static bool _dma_chan_claimed;
@@ -1075,7 +1139,8 @@ namespace lgfx
   template <class T> uint32_t LGFX_SPI<T>::_user_reg;
   template <class T> uint32_t LGFX_SPI<T>::_pin_reg;
   template <class T> uint32_t LGFX_SPI<T>::_regbuf[];
-  template <class T> lldesc_t* LGFX_SPI<T>::_dmadesc;
+  template <class T> lldesc_t* LGFX_SPI<T>::_dmadesc = nullptr;
+  template <class T> uint32_t LGFX_SPI<T>::_dmadesc_len = 0;
   template <class T> bool LGFX_SPI<T>::_next_dma_reset;
 //  template <class T> bool LGFX_SPI<T>::_dma_chan_claimed;
 //  template <class T> volatile spi_dev_t *LGFX_SPI<T>::_hw;
