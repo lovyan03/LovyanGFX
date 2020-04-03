@@ -194,6 +194,21 @@ namespace lgfx
       }
     }
 
+    template<typename T> inline int32_t getPaletteIndex(const T& color)
+    {
+      uint32_t rgb = convert_to_rgb888(color);
+      bgr888_t bgr((uint8_t)(rgb >> 16), (uint8_t)(rgb >> 8), (uint8_t)rgb);
+      return getPaletteIndex(bgr);
+    }
+    int32_t getPaletteIndex(const bgr888_t& color)
+    {
+      size_t res = 0;
+      do {
+        if (_palette[res] == color) return res;
+      } while (++res < _palette_count);
+      return -1;
+    }
+
     void setPaletteColor(size_t index, uint16_t rgb565)
     {
       if (_palette && index < _palette_count) { _palette[index] = *(rgb565_t*)&rgb565; }

@@ -1455,8 +1455,8 @@ namespace lgfx
       return drawChar(x, y, uniCode, _textcolor, _textbgcolor, _textsize_x, _textsize_y, font);
     }
 */
-    template<typename T> inline void setTextColor(T c)      { _text_fore_rgb888 = _text_back_rgb888 = convert_to_rgb888(c); }
-    template<typename T> inline void setTextColor(T c, T b) { _text_fore_rgb888 = convert_to_rgb888(c); _text_back_rgb888 = convert_to_rgb888(b); }
+    template<typename T> void setTextColor(T c)      { if (hasPalette()) { _text_fore_rgb888 =    _text_back_rgb888 = c; } else { _text_fore_rgb888 = _text_back_rgb888 = convert_to_rgb888(c); } }
+    template<typename T> void setTextColor(T c, T b) { if (hasPalette()) { _text_fore_rgb888 = c; _text_back_rgb888 = b; } else { _text_fore_rgb888 = convert_to_rgb888(c); _text_back_rgb888 = convert_to_rgb888(b); } }
 
     inline int_fast16_t drawChar(uint16_t uniCode, int32_t x, int32_t y) { _filled_x = 0; return (fpDrawChar)(this, x, y, uniCode, _text_fore_rgb888, _text_back_rgb888, _textsize_x, _textsize_y); }
     template<typename T>
@@ -2230,7 +2230,7 @@ namespace lgfx
       gFont.yAdvance   = gFont.ascent + gFont.descent;
       gFont.spaceWidth = gFont.yAdvance * 2 / 7;  // Guess at space width
 
-  ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
+//ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
 
       this->_decoderState = Base::utf8_decode_state_t::utf8_state0;
       this->fpDrawChar = drawCharVLW;
@@ -2254,7 +2254,7 @@ namespace lgfx
     {
       if (!gCount) return false;
 
-      ESP_LOGI("LGFX", "font count:%d", gCount);
+//ESP_LOGI("LGFX", "font count:%d", gCount);
 
       uint32_t bitmapPtr = 24 + (uint32_t)gCount * 28;
 
@@ -2269,7 +2269,7 @@ namespace lgfx
        || !gWidth
        || !gxAdvance
        || !gdX) {
-        ESP_LOGE("LGFX", "can not alloc font table");
+//ESP_LOGE("LGFX", "can not alloc font table");
         return false;
       }
 
@@ -2288,12 +2288,12 @@ namespace lgfx
         uint16_t height = __builtin_bswap32(buffer[1]); // Height of glyph
         if ((unicode > 0xFF) || ((unicode > 0x20) && (unicode < 0xA0) && (unicode != 0x7F))) {
           int16_t dY =  (int16_t)__builtin_bswap32(buffer[4]); // y delta from baseline
-//        ESP_LOGI("LGFX", "unicode:%x  dY:%d", unicode, dY);
+//ESP_LOGI("LGFX", "unicode:%x  dY:%d", unicode, dY);
           if (gFont.maxAscent < dY) {
             gFont.maxAscent = dY;
           }
           if (gFont.maxDescent < (height - dY)) {
-//          ESP_LOGI("LGFX", "maxDescent:%d", gFont.maxDescent);
+//ESP_LOGI("LGFX", "maxDescent:%d", gFont.maxDescent);
             gFont.maxDescent = height - dY;
           }
         }
@@ -2304,7 +2304,7 @@ namespace lgfx
 
       this->_font_baseline = gFont.maxAscent;
       this->_font_size_y.advance = gFont.yAdvance = gFont.maxAscent + gFont.maxDescent;
-      ESP_LOGI("LGFX", "maxDescent:%d", gFont.maxDescent);
+//ESP_LOGI("LGFX", "maxDescent:%d", gFont.maxDescent);
       return true;
     }
 
@@ -2746,7 +2746,7 @@ namespace lgfx
 public:
     bool drawJpg(DataWrapper* data, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, jpeg_div_t scale)
     {
-      ESP_LOGI("LGFX","drawJpg need include utility/tjpgd.h");
+//ESP_LOGI("LGFX","drawJpg need include utility/tjpgd.h");
       return false;
     }
 
@@ -2781,7 +2781,7 @@ public:
       auto jres = jd_prepare(&jpegdec, jpg_read_data, pool, sz_pool, &jpeg);
 
       if (jres != JDR_OK) {
-        ESP_LOGE("LGFX","jpeg prepare error:%x", jres);
+//ESP_LOGE("LGFX","jpeg prepare error:%x", jres);
 //        delete[] pool;
         return false;
       }
@@ -2813,7 +2813,7 @@ public:
 //      delete[] pool;
 
       if (jres != JDR_OK) {
-        ESP_LOGE("LGFX","jpeg decomp error:%x", jres);
+//ESP_LOGE("LGFX","jpeg decomp error:%x", jres);
         return false;
       }
       return true;
@@ -2860,7 +2860,7 @@ private:
 
     bool draw_png(DataWrapper* data, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, double scale)
     {
-      ESP_LOGI("LGFX","drawPng need include utility/pngle.h");
+//ESP_LOGI("LGFX","drawPng need include utility/pngle.h");
       return false;
     }
 
@@ -3111,7 +3111,7 @@ private:
         int fed = pngle_feed(pngle, buf, remain + len);
 
         if (fed < 0) {
-          ESP_LOGE("LGFX", "[pngle error] %s", pngle_error(pngle));
+//ESP_LOGE("LGFX", "[pngle error] %s", pngle_error(pngle));
           res = false;
           break;
         }

@@ -61,25 +61,25 @@ namespace lgfx
   uint32_t convert_bgr888_to_rgb565( uint32_t c) { return  (((uint8_t)c) >> 3) << 11 | (((uint16_t)c)>>10)<<5 | c>>19; }
   uint32_t convert_bgr888_to_rgb332( uint32_t c) { return ((uint8_t)c >> 5) << 5 | (((uint16_t)c)>>13) << 2 | c>>22; }
 //*/
-  uint32_t convert_rgb565_to_rgb888( uint32_t c) { return ((((c>>11)*0x21)>>2)<<8 | ((((c>>5)&0x3F)*0x41)>>4))<<8 | (((c&0x1F)*0x21)>>2); }
-  uint32_t convert_rgb332_to_rgb888( uint32_t c) { return ((((c>>5)*0x49) >> 1)<<8 | ((c&0x1C)*0x49)>>3)<<8 | ((c&3)*0x55); }
-  uint32_t convert_rgb888_to_bgr888( uint32_t c) { return getSwap24(c);  }
-  uint32_t convert_rgb888_to_bgr666( uint32_t c) { return ((c>>2) & 0x3F) << 16 | ((c >> 10) & 0x3F) << 8 | ((c>>18)&0x3F);  }
-  uint32_t convert_rgb888_to_swap565(uint32_t c) { return  (c>>19) << 3 |  ((uint16_t)c) >> 13 | (c & 0x1C00) << 3 | (((uint8_t)c) >> 3) << 8; }
-  uint32_t convert_rgb888_to_rgb565( uint32_t c) { return  (c>>19) << 11 | (((uint16_t)c)>>10)<<5 | ((uint8_t)c) >> 3;   }
-  uint32_t convert_rgb888_to_rgb332( uint32_t c) { return ((c>>21) << 5) | ((((uint16_t)c)>>13) << 2) | ((c>>6) & 3); }
-  uint32_t convert_rgb565_to_bgr888( uint32_t c) { return ((((c&0x1F)*0x21)>>2)<<8 | ((((c>>5)&0x3F)*0x41)>>4))<<8 | (((c>>11)*0x21)>>2); }
-  uint32_t convert_rgb565_to_bgr666( uint32_t c) { return ((c&0x1F)<<17) | ((c&0x10)<<12) | ((c&0x7E0)<<3) | ((c>>10)&0xF8) | (c>>15); }
-  uint32_t convert_rgb565_to_swap565(uint32_t c) { return c<<8|c>>8; }
-  uint32_t convert_rgb565_to_rgb332( uint32_t c) { return ((c>>13) <<5) | ((c>>6) & 0x1C) | ((c>>3) & 3); }
-  uint32_t convert_rgb332_to_bgr888( uint32_t c) { return (((c&3)*0x55)<<8 | ((c&0x1C)*0x49)>>3)<<8 | (((c>>5)*0x49) >> 1); }
-  uint32_t convert_rgb332_to_bgr666( uint32_t c) { return (((c&0xE0)*9)>>5) | ((c&0x1C)*0x240) | ((c&3)*0x15)<<16; }
-  uint32_t convert_rgb332_to_swap565(uint32_t c) { return (((c&3)*0x15)>>1)<<8 | ((c&0x1C)<<11) | ((c&0x1C)>>2) | (((c>>5)*0x24)&0xF8); }
-  uint32_t convert_uint32_to_palette8(uint32_t c) { return  c&0xFF; }
-  uint32_t convert_uint32_to_palette4(uint32_t c) { return (c&0x0F) * 0x11; }
-  uint32_t convert_uint32_to_palette2(uint32_t c) { return (c&0x03) * 0x55; }
-  uint32_t convert_uint32_to_palette1(uint32_t c) { return (c&1)?0xFF:0; }
-  uint32_t no_convert(uint32_t c) { return c; }
+  static uint32_t convert_rgb565_to_rgb888( uint32_t c) { return ((((c>>11)*0x21)>>2)<<8 | ((((c>>5)&0x3F)*0x41)>>4))<<8 | (((c&0x1F)*0x21)>>2); }
+  static uint32_t convert_rgb332_to_rgb888( uint32_t c) { return ((((c>>5)*0x49) >> 1)<<8 | ((c&0x1C)*0x49)>>3)<<8 | ((c&3)*0x55); }
+  static uint32_t convert_rgb888_to_bgr888( uint32_t c) { return getSwap24(c);  }
+  static uint32_t convert_rgb888_to_bgr666( uint32_t c) { return ((c>>2) & 0x3F) << 16 | ((c >> 10) & 0x3F) << 8 | ((c>>18)&0x3F);  }
+  static uint32_t convert_rgb888_to_swap565(uint32_t c) { return  (c>>19) << 3 |  ((uint16_t)c) >> 13 | (c & 0x1C00) << 3 | (((uint8_t)c) >> 3) << 8; }
+  static uint32_t convert_rgb888_to_rgb565( uint32_t c) { return  (c>>19) << 11 | (((uint16_t)c)>>10)<<5 | ((uint8_t)c) >> 3;   }
+  static uint32_t convert_rgb888_to_rgb332( uint32_t c) { return ((c>>21) << 5) | ((((uint16_t)c)>>13) << 2) | ((c>>6) & 3); }
+  static uint32_t convert_rgb565_to_bgr888( uint32_t c) { return ((((c&0x1F)*0x21)>>2)<<8 | ((((c>>5)&0x3F)*0x41)>>4))<<8 | (((c>>11)*0x21)>>2); }
+  static uint32_t convert_rgb565_to_bgr666( uint32_t c) { return ((c&0x1F)<<17) | ((c&0x10)<<12) | ((c&0x7E0)<<3) | ((c>>10)&0xF8) | (c>>15); }
+  static uint32_t convert_rgb565_to_swap565(uint32_t c) { return c<<8|c>>8; }
+  static uint32_t convert_rgb565_to_rgb332( uint32_t c) { return ((c>>13) <<5) | ((c>>6) & 0x1C) | ((c>>3) & 3); }
+  static uint32_t convert_rgb332_to_bgr888( uint32_t c) { return (((c&3)*0x55)<<8 | ((c&0x1C)*0x49)>>3)<<8 | (((c>>5)*0x49) >> 1); }
+  static uint32_t convert_rgb332_to_bgr666( uint32_t c) { return (((c&0xE0)*9)>>5) | ((c&0x1C)*0x240) | ((c&3)*0x15)<<16; }
+  static uint32_t convert_rgb332_to_swap565(uint32_t c) { return (((c&3)*0x15)>>1)<<8 | ((c&0x1C)<<11) | ((c&0x1C)>>2) | (((c>>5)*0x24)&0xF8); }
+  static uint32_t convert_uint32_to_palette8(uint32_t c) { return  c&0xFF; }
+  static uint32_t convert_uint32_to_palette4(uint32_t c) { return (c&0x0F) * 0x11; }
+  static uint32_t convert_uint32_to_palette2(uint32_t c) { return (c&0x03) * 0x55; }
+  static uint32_t convert_uint32_to_palette1(uint32_t c) { return (c&1)?0xFF:0; }
+  static uint32_t no_convert(uint32_t c)                 { return c; }
 
 #pragma pack(1)
   struct rgb332_t;    //  8bpp
@@ -892,13 +892,8 @@ namespace lgfx
       return result;
     }
 
-    __attribute__ ((always_inline)) inline uint16_t read16swap(void) {
-      return __builtin_bswap16(read16());
-    }
-
-    __attribute__ ((always_inline)) inline uint32_t read32swap(void) {
-      return __builtin_bswap32(read32());
-    }
+    __attribute__ ((always_inline)) inline uint16_t read16swap(void) { return __builtin_bswap16(read16()); }
+    __attribute__ ((always_inline)) inline uint32_t read32swap(void) { return __builtin_bswap32(read32()); }
 
     virtual int read(uint8_t *buf, uint32_t len) = 0;
     virtual void skip(int32_t offset) = 0;

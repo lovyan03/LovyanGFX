@@ -2,6 +2,7 @@
 #define LGFX_ESP32_COMMON_HPP_
 
 #include <driver/rtc_io.h>
+#include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <soc/dport_reg.h>
 #include <soc/rtc.h>
@@ -9,6 +10,7 @@
 #include <soc/spi_struct.h>
 
 #ifdef ARDUINO
+  #include <Arduino.h>
   #include <driver/periph_ctrl.h>
   #include <soc/periph_defs.h>
   #include <esp32-hal-cpu.h>
@@ -41,10 +43,10 @@
   static constexpr uint32_t MATRIX_DETACH_OUT_SIG = 0x100;
   static constexpr uint32_t MATRIX_DETACH_IN_LOW_PIN = 0x30;
   static constexpr uint32_t MATRIX_DETACH_IN_LOW_HIGH = 0x38;
-  void IRAM_ATTR pinMatrixOutAttach(uint8_t pin, uint8_t function, bool invertOut, bool invertEnable) { gpio_matrix_out(pin,              function, invertOut, invertEnable); }
-  void IRAM_ATTR pinMatrixOutDetach(uint8_t pin                  , bool invertOut, bool invertEnable) { gpio_matrix_out(pin, MATRIX_DETACH_OUT_SIG, invertOut, invertEnable); }
-  void IRAM_ATTR pinMatrixInAttach( uint8_t pin, uint8_t signal           , bool inverted) { gpio_matrix_in(pin, signal, inverted); }
-  void IRAM_ATTR pinMatrixInDetach(              uint8_t signal, bool high, bool inverted) { gpio_matrix_in(high?MATRIX_DETACH_IN_LOW_HIGH:MATRIX_DETACH_IN_LOW_PIN, signal, inverted); }
+  static void IRAM_ATTR pinMatrixOutAttach(uint8_t pin, uint8_t function, bool invertOut, bool invertEnable) { gpio_matrix_out(pin,              function, invertOut, invertEnable); }
+  static void IRAM_ATTR pinMatrixOutDetach(uint8_t pin                  , bool invertOut, bool invertEnable) { gpio_matrix_out(pin, MATRIX_DETACH_OUT_SIG, invertOut, invertEnable); }
+  static void IRAM_ATTR pinMatrixInAttach( uint8_t pin, uint8_t signal           , bool inverted) { gpio_matrix_in(pin, signal, inverted); }
+  static void IRAM_ATTR pinMatrixInDetach(              uint8_t signal, bool high, bool inverted) { gpio_matrix_in(high?MATRIX_DETACH_IN_LOW_HIGH:MATRIX_DETACH_IN_LOW_PIN, signal, inverted); }
 
   uint32_t getApbFrequency() {
     rtc_cpu_freq_config_t conf;
