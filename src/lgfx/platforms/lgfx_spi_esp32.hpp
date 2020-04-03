@@ -410,7 +410,7 @@ namespace lgfx
 
 #if defined (ARDUINO) // Arduino ESP32
       if (_dma_channel) {
-//        _next_dma_reset = true;
+        _next_dma_reset = true;
 //      *reg(SPI_DMA_CONF_REG(_spi_port)) |= SPI_OUT_DATA_BURST_EN | SPI_INDSCR_BURST_EN | SPI_OUTDSCR_BURST_EN;
       }
 /*
@@ -450,7 +450,7 @@ namespace lgfx
       delete_dmabuffer();
 #if defined (ARDUINO) // Arduino ESP32
       if (_dma_channel) {
-//        if (_next_dma_reset) spi_dma_reset();
+        if (_next_dma_reset) spi_dma_reset();
       }
 
       *reg(SPI_USER_REG(_spi_port)) = _user_reg
@@ -997,10 +997,10 @@ namespace lgfx
     {          //spicommon_setup_dma_desc_links
       if (!_dma_channel) return;
 
-//      if (_next_dma_reset) {
-//        _next_dma_reset = false;
-//        spi_dma_reset();
-//      }
+      if (_next_dma_reset) {
+        _next_dma_reset = false;
+        spi_dma_reset();
+      }
       if (_dmadesc_len * SPI_MAX_DMA_LEN < len) {
         _dmadesc_len = len / SPI_MAX_DMA_LEN + 1;
         if (_dmadesc) heap_caps_free(_dmadesc);
