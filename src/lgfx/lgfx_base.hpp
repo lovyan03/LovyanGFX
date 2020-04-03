@@ -2645,13 +2645,11 @@ namespace lgfx
             xidx += code[1];
             break;
           }
-        } else if (xidx + code[0] <= width) {
-          memset(&linebuf[xidx], code[1], code[0]);
-          xidx += code[0];
         } else {
-          // error
-          eol = true;
-          break;
+          if (xidx + code[0] <= width) {
+            memset(&linebuf[xidx], code[1], code[0]);
+            xidx += code[0];
+          }
         }
       }
       return true;
@@ -2702,7 +2700,8 @@ namespace lgfx
       data->seek(seekOffset);
 
       auto dst_depth = this->_write_conv.depth;
-      uint8_t lineBuffer[((w * bpp + 31) >> 5) << 2];  // readline 4Byte align.
+      uint32_t buffersize = ((w * bpp + 31) >> 5) << 2;  // readline 4Byte align.
+      uint8_t lineBuffer[buffersize + 4];
       pixelcopy_t p(lineBuffer, dst_depth, (color_depth_t)bpp, this->_palette_count, palette);
       p.no_convert = false;
       if (8 >= bpp && !this->_palette_count) {
@@ -2730,7 +2729,7 @@ namespace lgfx
         auto nt = data->need_transaction;
         do {
           if (nt) this->endTransaction();
-          data->read(lineBuffer, sizeof(lineBuffer));
+          data->read(lineBuffer, buffersize);
           if (nt) this->beginTransaction();
           this->push_image(x, y, w, 1, &p);
           y += flow;
