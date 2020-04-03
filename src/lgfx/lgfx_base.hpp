@@ -2624,10 +2624,11 @@ namespace lgfx
     }
 
     bool load_bmp_rle8(DataWrapper* data, uint8_t* linebuf, uint_fast16_t width) {
+      width = (width + 3) & ~3;
       uint8_t code[2];
       uint_fast16_t xidx = 0;
       bool eol = false;
-      while (!eol) {
+      do {
         data->read(code, 2);
         if (code[0] == 0) {
           switch (code[1]) {
@@ -2638,23 +2639,71 @@ namespace lgfx
 
           case 0x02: // move info  (not support)
             return false;
-            break;
 
           default:
             data->read(&linebuf[xidx], (code[1] + 1) & ~1); // word align
             xidx += code[1];
             break;
           }
+        } else if (xidx + code[0] <= width) {
+          memset(&linebuf[xidx], code[1], code[0]);
+          xidx += code[0];
         } else {
-          if (xidx + code[0] <= width) {
-            memset(&linebuf[xidx], code[1], code[0]);
-            xidx += code[0];
-          }
+          return false;
         }
-      }
+      } while (!eol);
       return true;
     }
 
+    bool load_bmp_rle4(DataWrapper* data, uint8_t* linebuf, uint_fast16_t width) {
+      width = (width + 3) & ~3;
+      uint8_t code[2];
+      uint_fast16_t xidx = 0;
+      bool eol = false;
+      do {
+        data->read(code, 2);
+        if (code[0] == 0) { // 1バイト目が 0 ならエンコードデータ以外
+          switch (code[1]) {
+          case 0x00: // EOL
+          case 0x01: // EOB
+            eol = true;
+            break;
+
+          case 0x02: // move info  (not support)
+            return false;
+
+          default:  // 絶対モードデータ
+            {
+              int_fast16_t len = code[1];
+              int_fast16_t dbyte = ((int_fast16_t)code[1] + 1) >> 1;
+
+              data->read(&linebuf[(xidx + 1) >> 1], (dbyte + 1) & ~1); // word align
+              if (xidx & 1) {
+                linebuf[xidx >> 1] |= linebuf[(xidx >> 1) + 1] >> 4;
+                for (long i = 1; i < dbyte; ++i) {
+                  linebuf[((xidx + i) >> 1)] = (linebuf[((xidx + i) >> 1)    ] << 4)
+                                             |  linebuf[((xidx + i) >> 1) + 1] >> 4;
+                }
+              }
+              xidx += len;
+            }
+            break;
+          }
+        } else if (xidx + code[0] <= width) {
+          if (xidx & 1) {
+            linebuf[xidx >> 1] |= code[1] >> 4;
+            code[1] = (code[1] >> 4) | (code[1] << 4);
+          }
+          memset(&linebuf[(xidx + 1) >> 1], code[1], (code[0] + 1) >> 1);
+          xidx += code[0];
+          if (xidx & 1) linebuf[xidx >> 1] &= 0xF0;
+        } else {
+          return false;
+        }
+      } while (!eol);
+      return true;
+    }
+//*/
   private:
 
     void drawBmpFile(FileWrapper* file, const char *path, int32_t x=0, int32_t y=0) {
@@ -2672,9 +2721,7 @@ namespace lgfx
 
       bitmap_header_t bmpdata;
       if (!load_bmp_header(data, &bmpdata)
-       || ( bmpdata.biCompression != 0
-         && bmpdata.biCompression != 1
-         && bmpdata.biCompression != 3)) {
+       || (bmpdata.biCompression > 3)) {
         return;
       }
 
@@ -2716,8 +2763,8 @@ namespace lgfx
         }
       }
 
+      auto nt = data->need_transaction;
       if (bmpdata.biCompression == 1) {
-        auto nt = data->need_transaction;
         do {
           if (nt) this->endTransaction();
           load_bmp_rle8(data, lineBuffer, w);
@@ -2725,8 +2772,16 @@ namespace lgfx
           this->push_image(x, y, w, 1, &p);
           y += flow;
         } while (--h);
+      } else
+      if (bmpdata.biCompression == 2) {
+        do {
+          if (nt) this->endTransaction();
+          load_bmp_rle4(data, lineBuffer, w);
+          if (nt) this->beginTransaction();
+          this->push_image(x, y, w, 1, &p);
+          y += flow;
+        } while (--h);
       } else {
-        auto nt = data->need_transaction;
         do {
           if (nt) this->endTransaction();
           data->read(lineBuffer, buffersize);

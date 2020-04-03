@@ -320,9 +320,7 @@ namespace lgfx
       bitmap_header_t bmpdata;
 
       if (!load_bmp_header(data, &bmpdata)
-       || ( bmpdata.biCompression != 0
-         && bmpdata.biCompression != 1
-         && bmpdata.biCompression != 3)) {
+       || ( bmpdata.biCompression > 3)) {
         return false;
       }
       uint32_t seekOffset = bmpdata.bfOffBits;
@@ -353,47 +351,51 @@ namespace lgfx
 
       data->seek(seekOffset);
 
-      uint8_t lineBuffer[((w * bpp + 31) >> 5) << 2];  // readline 4Byte align.
+      size_t buffersize = ((w * bpp + 31) >> 5) << 2;  // readline 4Byte align.
+      uint8_t lineBuffer[buffersize];  // readline 4Byte align.
       if (bpp <= 8) {
         do {
           if (bmpdata.biCompression == 1) {
             load_bmp_rle8(data, lineBuffer, w);
+          } else
+          if (bmpdata.biCompression == 2) {
+            load_bmp_rle4(data, lineBuffer, w);
           } else {
-            data->read(lineBuffer, sizeof(lineBuffer));
+            data->read(lineBuffer, buffersize);
           }
           memcpy(&_img[y * _bitwidth * bpp >> 3], lineBuffer, w * bpp >> 3);
           y += flow;
         } while (--h);
       } else if (bpp == 16) {
         do {
-          data->read(lineBuffer, sizeof(lineBuffer));
+          data->read(lineBuffer, buffersize);
           auto img = &_img[y * _bitwidth * bpp >> 3];
-          for (size_t i = 0; i < sizeof(lineBuffer); ++i) {
+          y += flow;
+          for (size_t i = 0; i < buffersize; ++i) {
             img[i] = lineBuffer[i ^ 1];
           }
-          y += flow;
         } while (--h);
       } else if (bpp == 24) {
         do {
-          data->read(lineBuffer, sizeof(lineBuffer));
+          data->read(lineBuffer, buffersize);
           auto img = &_img[y * _bitwidth * bpp >> 3];
-          for (size_t i = 0; i < sizeof(lineBuffer); i += 3) {
+          y += flow;
+          for (size_t i = 0; i < buffersize; i += 3) {
             img[i    ] = lineBuffer[i + 2];
             img[i + 1] = lineBuffer[i + 1];
             img[i + 2] = lineBuffer[i    ];
           }
-          y += flow;
         } while (--h);
       } else if (bpp == 32) {
         do {
-          data->read(lineBuffer, sizeof(lineBuffer));
+          data->read(lineBuffer, buffersize);
           auto img = &_img[y * _bitwidth * 3];
-          for (size_t i = 0; i < sizeof(lineBuffer); i += 4) {
+          y += flow;
+          for (size_t i = 0; i < buffersize; i += 4) {
             img[(i>>2)*3    ] = lineBuffer[i + 2];
             img[(i>>2)*3 + 1] = lineBuffer[i + 1];
             img[(i>>2)*3 + 2] = lineBuffer[i + 0];
           }
-          y += flow;
         } while (--h);
       }
       return true;
