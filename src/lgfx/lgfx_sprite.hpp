@@ -170,6 +170,18 @@ namespace lgfx
       return true;
     }
 
+    // create palette from RGB888(uint32_t) array
+    bool createPalette(const uint32_t* colors, uint32_t count)
+    {
+      if (!create_palette()) return false;
+
+      if (count > _palette_count) count = _palette_count;
+      for (uint32_t i = 0; i < count; ++i) {
+        _palette[i] = convert_rgb888_to_bgr888(pgm_read_word(colors++));
+      }
+      return true;
+    }
+
     void setPaletteGrayscale(void)
     { // create grayscale palette
       if (!_palette) return;
