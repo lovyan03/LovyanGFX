@@ -114,6 +114,7 @@ namespace lgfx
 // rgb888 : uint32_t
 // rgb565 : uint16_t & int16_t & int
 // rgb332 : uint8_t
+    __attribute__ ((always_inline)) inline void setColor(uint8_t r, uint8_t g, uint8_t b) { _color.raw = _write_conv.convert(lgfx::color888(r,g,b)); }
     template<typename T> __attribute__ ((always_inline)) inline void setColor(T c) { _color.raw = _write_conv.convert(c); }
                          __attribute__ ((always_inline)) inline void setRawColor(uint32_t c) { _color.raw = c; }
 
@@ -624,27 +625,27 @@ namespace lgfx
       startWrite();
       if (steep) {
         if (x1 > (_clip_b)) x1 = (_clip_b);
-        for (; x0 <= x1; x0++) {
-          dlen++;
+        do {
+          ++dlen;
           if ((err -= dy) < 0) {
             writeFillRect_impl(y0, xs, 1, dlen);
             err += dx;
             xs = x0 + 1; dlen = 0; y0 += ystep;
             if ((y0 < _clip_l) || (y0 > _clip_r)) break;
           }
-        }
+        } while (++x0 <= x1);
         if (dlen) writeFillRect_impl(y0, xs, 1, dlen);
       } else {
         if (x1 > (_clip_r)) x1 = (_clip_r);
-        for (; x0 <= x1; x0++) {
-          dlen++;
+        do {
+          ++dlen;
           if ((err -= dy) < 0) {
             writeFillRect_impl(xs, y0, dlen, 1);
             err += dx;
             xs = x0 + 1; dlen = 0; y0 += ystep;
             if ((y0 < _clip_t) || (y0 > _clip_b)) break;
           }
-        }
+        } while (++x0 <= x1);
         if (dlen) writeFillRect_impl(xs, y0, dlen, 1);
       }
       endWrite();
@@ -661,7 +662,7 @@ namespace lgfx
 
     void fillTriangle(int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t x2, int32_t y2)
     {
-      int32_t a, b, y, last;
+      int32_t a, b;
 
       // Sort coordinates by Y order (y2 >= y1 >= y0)
       if (y0 > y1) { std::swap(y0, y1); std::swap(x0, x1); }
@@ -674,53 +675,72 @@ namespace lgfx
         else if (x1 > b) b = x1;
         if (x2 < a)      a = x2;
         else if (x2 > b) b = x2;
-        writeFastHLine(a, y0, b - a + 1);
+        drawFastHLine(a, y0, b - a + 1);
+        return;
+      }
+      if ((x1-x0) * (y2-y0) == (x2-x0) * (y1-y0)) {
+        drawLine(x0,y0,x2,y2);
         return;
       }
 
-      int32_t
-      dx01 = x1 - x0,
-      dy01 = y1 - y0,
-      dx02 = x2 - x0,
-      dy02 = y2 - y0,
-      dx12 = x2 - x1,
-      dy12 = y2 - y1,
-      sa   = 0,
-      sb   = 0;
-
-      // For upper part of triangle, find scanline crossings for segments
-      // 0-1 and 0-2.  If y1=y2 (flat-bottomed triangle), the scanline y1
-      // is included here (and second loop will be skipped, avoiding a /0
-      // error there), otherwise scanline y1 is skipped here and handled
-      // in the second loop...which also avoids a /0 error here if y0=y1
-      // (flat-topped triangle).
-      if (y1 == y2) last = y1;  // Include y1 scanline
-      else         last = y1 - 1; // Skip it
-
+      int32_t dy1 = y1 - y0;
+      int32_t dy2 = y2 - y0;
+      bool change = ((x1 - x0) * dy2 > (x2 - x0) * dy1);
+      int32_t dx1 = abs(x1 - x0);
+      int32_t dx2 = abs(x2 - x0);
+      int32_t xstep1 = x1 < x0 ? -1 : 1;
+      int32_t xstep2 = x2 < x0 ? -1 : 1;
+      a = b = x0;
+      if (change) {
+        std::swap(dx1, dx2);
+        std::swap(dy1, dy2);
+        std::swap(xstep1, xstep2);
+      }
+      int32_t err1 = (std::max(dx1, dy1) >> 1)
+                   + (xstep1 < 0
+                     ? std::min(dx1, dy1)
+                     : dx1);
+      int32_t err2 = (std::max(dx2, dy2) >> 1)
+                   + (xstep2 > 0
+                     ? std::min(dx2, dy2)
+                     : dx2);
       startWrite();
-      for (y = y0; y <= last; y++) {
-        a   = x0 + sa / dy01;
-        b   = x0 + sb / dy02;
-        sa += dx01;
-        sb += dx02;
-
-        if (a > b) std::swap(a, b);
-        writeFastHLine(a, y, b - a + 1);
+      if (y0 != y1) {
+        do {
+          err1 -= dx1;
+          while (err1 < 0) { err1 += dy1; a += xstep1; }
+          err2 -= dx2;
+          while (err2 < 0) { err2 += dy2; b += xstep2; }
+          writeFastHLine(a, y0, b - a + 1);
+        } while (++y0 < y1);
       }
 
-      // For lower part of triangle, find scanline crossings for segments
-      // 0-2 and 1-2.  This loop is skipped if y1=y2.
-      sa = dx12 * (y - y1);
-      sb = dx02 * (y - y0);
-      for (; y <= y2; y++) {
-        a   = x1 + sa / dy12;
-        b   = x0 + sb / dy02;
-        sa += dx12;
-        sb += dx02;
-
-        if (a > b) std::swap(a, b);
-        writeFastHLine(a, y, b - a + 1);
+      if (change) {
+        b = x1;
+        xstep2 = x2 < x1 ? -1 : 1;
+        dx2 = abs(x2 - x1);
+        dy2 = y2 - y1;
+        err2 = (std::max(dx2, dy2) >> 1)
+             + (xstep2 > 0
+               ? std::min(dx2, dy2)
+               : dx2);
+      } else {
+        a = x1;
+        dx1 = abs(x2 - x1);
+        dy1 = y2 - y1;
+        xstep1 = x2 < x1 ? -1 : 1;
+        err1 = (std::max(dx1, dy1) >> 1)
+             + (xstep1 < 0
+               ? std::min(dx1, dy1)
+               : dx1);
       }
+      do {
+        err1 -= dx1;
+        while (err1 < 0) { err1 += dy1; if ((a += xstep1) == x2) break; }
+        err2 -= dx2;
+        while (err2 < 0) { err2 += dy2; if ((b += xstep2) == x2) break; }
+        writeFastHLine(a, y0, b - a + 1);
+      } while (++y0 <= y2);
       endWrite();
     }
 
