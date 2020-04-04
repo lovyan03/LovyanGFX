@@ -53,7 +53,7 @@ namespace lgfx
   __attribute__ ((always_inline)) inline static uint32_t swap888( uint8_t r, uint8_t g, uint8_t b) { return (b << 16) | (g << 8) | r; }
 
   __attribute__ ((always_inline)) inline static uint16_t getSwap16(uint16_t c) { return __builtin_bswap16(c); }
-  __attribute__ ((always_inline)) inline static uint32_t getSwap24(uint32_t c) { return ((uint8_t)c<<8 | (uint8_t)(c>>8))<<8 | (uint8_t)(c>>16); }
+  __attribute__ ((always_inline)) inline static uint32_t getSwap24(uint32_t c) { return ((uint8_t)c)<<16 | ((uint8_t)(c>>8))<<8 | (uint8_t)(c>>16); }
 /*
   uint32_t convert_bgr888_to_rgb888( uint32_t c) { return getSwap24(c);  }
   uint32_t convert_bgr888_to_bgr666( uint32_t c) { return (c>>2) & 0x3F3F3F;  }
