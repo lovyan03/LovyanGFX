@@ -184,7 +184,7 @@ namespace lgfx
     }
 
     void setPaletteGrayscale(void)
-    { // create grayscale palette
+    {
       if (!_palette) return;
       uint32_t k;
       switch (_write_conv.depth) {

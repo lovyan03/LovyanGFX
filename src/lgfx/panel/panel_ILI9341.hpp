@@ -96,7 +96,7 @@ namespace lgfx
           0xFF,0xFF, // end
       };
       static constexpr uint8_t list1[] = {
-          CMD::DFUNCTR,3, 0x08,0x82,0x27,
+          CMD::DFUNCTR,3, 0x08,0xC2,0x27,
           0xFF,0xFF, // end
       };
       static constexpr uint8_t list2[] = {
@@ -120,11 +120,10 @@ namespace lgfx
     Panel_ILI9341() : Panel_ILI9341_Common() { setConfig<CFG>(); }
   };
 
-  template <typename CFG>
-  class Panel_ILI9342 : public Panel_ILI9341_Common
+  class Panel_ILI9342_Common : public Panel_ILI9341_Common
   {
   public:
-    Panel_ILI9342() : Panel_ILI9341_Common() { setConfig<CFG>(); }
+    Panel_ILI9342_Common() : Panel_ILI9341_Common() {}
   protected:
     void setConfig_impl(void) override
     {

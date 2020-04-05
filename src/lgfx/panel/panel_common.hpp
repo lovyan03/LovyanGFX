@@ -116,32 +116,37 @@ namespace lgfx
 
     virtual const uint8_t* getRotationCommands(uint8_t* buf, uint8_t r)
     {
-      r = r & 7;
-      rotation = r;
-      switch (r & 3) {
+      auto px = _panel_x;
+      auto py = _panel_y;
+      auto pw = _panel_width;
+      auto ph = _panel_height;
+      auto rw = _ram_width;
+      auto rh = _ram_height;
+      rotation = r & 7;
+      switch (rotation & 3) {
       default:
-        colstart = _panel_x;
-        rowstart = _panel_y;
+        colstart = px;
+        rowstart = py;
         break;
       case 1:
-        colstart = _panel_y;
-        rowstart = _ram_width - (_panel_width + _panel_x);
+        colstart = py;
+        rowstart = rw - (pw + px);
         break;
       case 2:
-        colstart = _ram_width  - (_panel_width  + _panel_x);
-        rowstart = _ram_height - (_panel_height + _panel_y);
+        colstart = rw - (pw + px);
+        rowstart = rh - (ph + py);
         break;
       case 3:
-        colstart = _ram_height - (_panel_height + _panel_y);
-        rowstart = _panel_x;
+        colstart = rh - (ph + py);
+        rowstart = px;
         break;
       }
       if (r & 1) {
-        width  = _panel_height;
-        height = _panel_width;
+        width  = ph;
+        height = pw;
       } else {
-        width  = _panel_width;
-        height = _panel_height;
+        width  = pw;
+        height = ph;
       }
       return buf;
     }
