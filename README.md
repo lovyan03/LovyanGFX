@@ -5,17 +5,16 @@ SPI LCD graphics library (for ESP32). (open beta edition.)
 ベータ版の注意
 ----------------
 LovyanGFXベータ版は動作テストおよび意見公募を目的として公開しているものです。ベータ版ソフトウェアは現在も開発途中のものであり、何らかの障害を引き起こすことがあります。また、大きな仕様変更を行う場合があります。予めご了承ください。  
-The LovyanGFX beta version is open to the public for the purpose of testing and soliciting opinions. The beta software is still under development and may cause some failure. In addition, major specification changes may be made. Thank you for your understanding in advance.  
+The LovyanGFX beta version is open to the public for the purpose of testing and gathering feedback. This software is still under development and may fail in different ways. Additionally, major specification changes may occur. Thank you for your understanding.  
 
 概要 Overview.
 ----------------
 ESP32とSPI接続のLCDの組み合わせで動作するグラフィックライブラリです。  
-This is a graphics library that runs on a combination of ESP32 and an SPI-connected LCD.
+This is a graphics library that runs on ESP32 connected to a SPI LCD (see compatibility list below).
 
  [AdafruitGFX](https://github.com/adafruit/Adafruit-GFX-Library) や [TFT_eSPI](https://github.com/Bodmer/TFT_eSPI) と互換性をある程度持ちつつ、より高機能・高速動作を目標としています。  
 
-It aims to have some compatibility with [AdafruitGFX](https://github.com/adafruit/Adafruit-GFX-Library) and [TFT_eSPI](https://github.com/Bodmer/TFT_eSPI), while aiming for higher functionality and faster operation.  
-
+This library mimics [AdafruitGFX](https://github.com/adafruit/Adafruit-GFX-Library) and [TFT_eSPI](https://github.com/Bodmer/TFT_eSPI) APIs while aiming for higher functional coverage and performances.
   
 既存のライブラリに対して、以下のアドバンテージがあります。  
   - ArduinoESP32 / ESP-IDF 両対応  
@@ -24,12 +23,12 @@ It aims to have some compatibility with [AdafruitGFX](https://github.com/adafrui
   - オフスクリーンバッファ（スプライト）の高速な回転/拡縮描画  
   - 複数LCDの同時利用  
 
-This library has the following advantages.  
-  - Both ArduinoESP32 and ESP-IDF are supported.  
-  - Both 16bit and 24bit color modes are supported. (actual number of colors depends on LCD specifications)  
-  - Execute another process during communication operation using DMA transfer.  
-  - Fast rotation/expansion of the off-screen buffer (sprite).  
-  - Simultaneous use of multiple LCDs.  
+This library has the following advantages.
+  - Both ArduinoESP32 and ESP-IDF are supported.
+  - Both 16bit and 24bit color modes are supported. (actual number of colors depends on LCD specifications)
+  - Execute another process during communication operation using DMA transfer.
+  - Fast rotation/expansion of the off-screen buffer (sprite).
+  - Simultaneous use of multiple LCDs.
 
 
 対応環境 support environments
@@ -53,7 +52,7 @@ This library has the following advantages.
 上記対応機種とコマンド体系の類似した液晶パネルであれば対応可能ですが、当方で入手し動作確認が取れたもののみ正式対応としています。  
 対応要望を頂けた機種には優先的に対応を検討致します。  
   
-This is also compatible with the above models and LCD panels with a similar command system,
+This library is also compatible with the above models and LCD panels with a similar command system,
  but only those that have been obtained and confirmed to work are officially supported.  
 
 使い方 How to use
