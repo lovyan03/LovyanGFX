@@ -66,6 +66,17 @@ namespace lgfx
     __attribute__ ((always_inline)) inline void begin(void) { init(); }
     void init(void) { initBus(); initPanel(); }
 
+
+    // Write single byte as COMMAND
+    void writeCommand(uint_fast8_t cmd) { write_cmd(cmd); }
+
+    // Write single byte as DATA
+    void spiWrite(uint_fast8_t data)       { write_data(data, 8); }
+
+    // Write multi bytes as DATA (max 4byte)
+    void writeData(uint32_t data, uint32_t len = 1) { write_data(data, len << 3); }
+
+
     void initBus(void)
     {
 #if defined (ARDUINO) // Arduino ESP32
@@ -242,26 +253,12 @@ namespace lgfx
       commandList(_panel->getInvertDisplayCommands((uint8_t*)_regbuf, i));
     }
 
-    void display() {
+    void dmaWait(void) {
       wait_spi();
     }
 
     void setBrightness(uint8_t brightness) {
       _panel->setBrightness(brightness);
-    }
-
-    void writecommand(uint_fast8_t cmd)
-    {
-      startWrite();
-      write_cmd(cmd);
-      endWrite();
-    }
-
-    void writedata(uint32_t data, uint32_t len = 8)
-    {
-      startWrite();
-      write_data(data, len);
-      endWrite();
     }
 
     uint32_t readPanelID(void)
@@ -687,6 +684,19 @@ namespace lgfx
           setWindow_impl(x, y, xr, y + h - 1);
           uint32_t i = (src_x + param->src_y * param->src_width) * bytes;
           auto src = &((const uint8_t*)param->src_data)[i];
+          if (_dma_channel && use_dma) {
+            if (param->src_width == w) {
+              _setup_dma_desc_links(src, w * h * bytes);
+            } else {
+              _setup_dma_desc_links(src, w * bytes, h, param->src_width * bytes);
+            }
+            dc_h();
+            set_write_len(w * h * bytes << 3);
+            *reg(SPI_DMA_OUT_LINK_REG(_spi_port)) = SPI_OUTLINK_START | ((int)(&_dmadesc[0]) & 0xFFFFF);
+            spicommon_dmaworkaround_transfer_active(_dma_channel);
+            exec_spi();
+            return;
+          }
           if (param->src_width == w) {
             int32_t len = w * h * bytes;
             if (!use_dma && (64 < len) && (len <= 1024)) {
@@ -798,7 +808,7 @@ namespace lgfx
       } else if (_dma_channel && use_dma) {
         dc_h();
         set_write_len(length << 3);
-        _setup_dma_desc_links(length, data);
+        _setup_dma_desc_links(data, length);
         *reg(SPI_DMA_OUT_LINK_REG(_spi_port)) = SPI_OUTLINK_START | ((int)(&_dmadesc[0]) & 0xFFFFF);
         spicommon_dmaworkaround_transfer_active(_dma_channel);
         exec_spi();
@@ -897,7 +907,7 @@ namespace lgfx
       if (_dma_channel) {
         wait_spi();
         set_read_len(length << 3);
-        _setup_dma_desc_links(length, dst);
+        _setup_dma_desc_links(dst, length);
         *reg(SPI_DMA_IN_LINK_REG(_spi_port)) = SPI_INLINK_START | ((int)(&_dmadesc[0]) & 0xFFFFF);
         spicommon_dmaworkaround_transfer_active(_dma_channel);
         exec_spi();
@@ -993,7 +1003,14 @@ namespace lgfx
       _dmabufs[1].free();
     }
 
-    static void _setup_dma_desc_links(int len, const uint8_t *data)
+    static void _alloc_dmadesc(size_t len)
+    {
+      if (_dmadesc) heap_caps_free(_dmadesc);
+      _dmadesc_len = len;
+      _dmadesc = (lldesc_t*)heap_caps_malloc(sizeof(lldesc_t) * len, MALLOC_CAP_DMA);
+    }
+
+    static void _setup_dma_desc_links(const uint8_t *data, int32_t len)
     {          //spicommon_setup_dma_desc_links
       if (!_dma_channel) return;
 
@@ -1002,9 +1019,7 @@ namespace lgfx
         spi_dma_reset();
       }
       if (_dmadesc_len * SPI_MAX_DMA_LEN < len) {
-        _dmadesc_len = len / SPI_MAX_DMA_LEN + 1;
-        if (_dmadesc) heap_caps_free(_dmadesc);
-        _dmadesc = (lldesc_t*)heap_caps_malloc(sizeof(lldesc_t) * _dmadesc_len, MALLOC_CAP_DMA);
+        _alloc_dmadesc(len / SPI_MAX_DMA_LEN + 1);
       }
       lldesc_t *dmadesc = _dmadesc;
 
@@ -1021,6 +1036,31 @@ namespace lgfx
       dmadesc->qe.stqe_next = nullptr;
     }
 
+    static void _setup_dma_desc_links(const uint8_t *data, int32_t w, int32_t h, int32_t width)
+    {          //spicommon_setup_dma_desc_links
+      if (!_dma_channel) return;
+
+      if (_next_dma_reset) {
+        _next_dma_reset = false;
+        spi_dma_reset();
+      }
+      if (_dmadesc_len < h) {
+        _alloc_dmadesc(h);
+      }
+      lldesc_t *dmadesc = _dmadesc;
+      int32_t idx = 0;
+      do {
+        dmadesc[idx].buf = (uint8_t *)data;
+        data += width;
+        *(uint32_t*)(&dmadesc[idx]) = ((w + 3) & (~3)) | w<<12 | 0x80000000;
+        dmadesc[idx].qe.stqe_next = &dmadesc[idx + 1];
+      } while (++idx < h);
+      --idx;
+      dmadesc[idx].eof = 1;
+//    *(uint32_t*)(&dmadesc[idx]) |= 0xC0000000;
+      dmadesc[idx].qe.stqe_next = 0;
+    }
+
     static void _setup_dma_desc_links(uint8_t** data, int32_t w, int32_t h, bool endless)
     {          //spicommon_setup_dma_desc_links
       if (!_dma_channel) return;
@@ -1028,9 +1068,7 @@ namespace lgfx
 //      if (_next_dma_reset) spi_dma_reset();
 
       if (_dmadesc_len < h) {
-        _dmadesc_len = h;
-        if (_dmadesc) heap_caps_free(_dmadesc);
-        _dmadesc = (lldesc_t*)heap_caps_malloc(sizeof(lldesc_t) * _dmadesc_len, MALLOC_CAP_DMA);
+        _alloc_dmadesc(h);
       }
 
       lldesc_t *dmadesc = _dmadesc;
