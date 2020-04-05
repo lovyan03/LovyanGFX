@@ -1,33 +1,49 @@
 # LovyanGFX
-（画像と動画を挿入）
-youtubeにあげるとリンク可能
+
+SPI LCD graphics library (for ESP32). (open beta edition.)
 
 # ベータ版の注意
-  LovyanGFXベータ版は動作テストおよび意見公募を目的として公開しているものです。ベータ版ソフトウェアは現在も開発途中のものであり、何らかの障害を引き起こすことがあります。また、大きな仕様変更を行う場合があります。予めご了承ください。
+LovyanGFXベータ版は動作テストおよび意見公募を目的として公開しているものです。ベータ版ソフトウェアは現在も開発途中のものであり、何らかの障害を引き起こすことがあります。また、大きな仕様変更を行う場合があります。予めご了承ください。  
+The LovyanGFX beta version is open to the public for the purpose of testing and soliciting opinions. The beta software is still under development and may cause some failure. In addition, major specification changes may be made. Thank you for your understanding in advance.  
 
-# 概要
+# 概要 Overview.
 ESP32とSPI接続のLCDの組み合わせで動作するグラフィックライブラリです。  
-既存の [AdafruitGFX](https://github.com/adafruit/Adafruit-GFX-Library) や [TFT_eSPI](https://github.com/Bodmer/TFT_eSPI) と互換性をある程度持ちつつ、より高機能・高速動作を目標としています。  
+This is a graphics library that runs on a combination of ESP32 and an SPI-connected LCD.
+
+ [AdafruitGFX](https://github.com/adafruit/Adafruit-GFX-Library) や [TFT_eSPI](https://github.com/Bodmer/TFT_eSPI) と互換性をある程度持ちつつ、より高機能・高速動作を目標としています。  
+
+It aims to have some compatibility with [AdafruitGFX](https://github.com/adafruit/Adafruit-GFX-Library) and [TFT_eSPI](https://github.com/Bodmer/TFT_eSPI), while aiming for higher functionality and faster operation.  
+
   
 既存のライブラリに対して、以下のアドバンテージがあります。  
-・ArduinoESP32 / ESP-IDF 両対応  
-・16bit / 24bitカラーモード両対応(実際の色数はLCDの仕様によります)  
-・DMA転送を用いた通信動作中の別処理実行  
-・オフスクリーンバッファ（スプライト）の高速な回転/拡縮描画  
-・複数LCDの同時利用  
+  - ArduinoESP32 / ESP-IDF 両対応  
+  - 16bit / 24bitカラーモード両対応(実際の色数はLCDの仕様によります)  
+  - DMA転送を用いた通信動作中の別処理実行  
+  - オフスクリーンバッファ（スプライト）の高速な回転/拡縮描画  
+  - 複数LCDの同時利用  
 
-# 対応機種
-- ILI9342
-    - (M5Stack Basic,Gray,Fire,Go)
-- ILI9341
-    - (ODROID-GO)
-    - (ESP-WROVER-KIT v4.1)
-- ILI9163
-- ST7735
-    - (M5StickC)
-- ST7789
-    - (TTGO T-Watch)
-- SSD1351
+This library has the following advantages.  
+  - Both ArduinoESP32 and ESP-IDF are supported.  
+  - Both 16bit and 24bit color modes are supported. (actual number of colors depends on LCD specifications)  
+  - Execute another process during communication operation using DMA transfer.  
+  - Fast rotation/expansion of the off-screen buffer (sprite).  
+  - Simultaneous use of multiple LCDs.  
+
+
+対応環境 support environments
+---------------
+  - Platform プラットフォーム
+    - ESP-IDF
+    - Arduino ESP32
+    - Platformio
+
+  - Displays ディスプレイ
+    - ILI9342 (M5Stack Basic,Gray,Fire,Go)
+    - ILI9341 (ODROID-GO, ESP-WROVER-KIT v4.1)
+    - ILI9163
+    - ST7735 (M5StickC)
+    - ST7789 (TTGO T-Watch)
+    - SSD1351
 
   対応機種については[src/lgfx/panel](src/lgfx/panel)をご参照ください。  
   上記対応機種とコマンド体系の類似した液晶パネルであれば対応可能ですが、当方で入手し動作確認が取れたもののみ正式対応としています。  
@@ -243,8 +259,10 @@ TFT_eSPIと定義が重複するため利用できません。
 # ライブラリを作成した経緯
 
 TFT_eSPIは素晴らしいライブラリです。しかし、複数のアーキテクチャを対象とするため構造的に複雑となっており、ESP-IDFへの対応や18bitカラーへの対応など、求める機能の追加を行う事が非常に困難となっていました。  
-
 LovyanGFX はこれらの機能の追加とパフォーマンスの最適化を実現するために作成しました。  
+
+TFT_eSPI is a great library. However, it is structurally complex because it targets multiple architectures, making it very difficult to add required functions such as ESP-IDF support and 18-bit color support.  
+LovyanGFX has been created to add these features and optimize performance.  
 
 
 # 謝辞

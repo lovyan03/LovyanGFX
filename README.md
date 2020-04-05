@@ -2,33 +2,26 @@
 
 An [TFT_eSPI](https://github.com/Bodmer/TFT_eSPI) based LCD/TFT driver to simultaneously drive up to 8 (or more?) SPI displays
 
-Devices support
----------------
-  - MCU
-    - ESP32
-    - ESP8266
-    - ~~AVR~~
-    - ~~STM32~~
-  - Displays
-    - ILI9341
-    - ILI9163
-    - SSD1351
-    - ST7735
-    - ST7789
-  - Boards
-    - M5Stack Classic/Go/Fire
-    - M5StickC
-    - OdroidGo
-    - TTGO T-Watch
-    - ESP-WROVER-KIT
-    - 
-
 Platform support
 ----------------
   - ESP-IDF
   - Arduino
   - Platformio
 
+Devices support
+---------------
+  - MCU
+    - ESP32
+
+  - Displays
+    - ILI9342 (M5Stack Basic,Gray,Fire,Go)
+    - ILI9341 (ODROID-GO, ESP-WROVER-KIT v4.1)
+    - ILI9163
+    - ST7735 (M5StickC)
+    - ST7789 (TTGO T-Watch)
+    - SSD1351
+
+This is also compatible with the above models and LCD panels with a similar command system, but only those that have been obtained and confirmed to work are officially supported.  
 
 Usage
 -----
