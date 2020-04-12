@@ -1,0 +1,23 @@
+{
+  "name": "LovyanGFX",
+  "description": "LCD Graphics driver for ESP32",
+  "keywords": "LCD, TFT, GFX, LGFX, m5stack, esp32",
+  "authors": {
+    "name": "lovyan03",
+    "url": "https://github.com/lovyan03",
+    "maintainer": true
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lovyan03/LovyanGFX"
+  },
+  "dependencies": {
+  	"name": "ESP32"
+  },
+  "version": "0.1.0",
+  "framework": "arduino",
+  "platforms": "espressif32",
+  "build": {
+    "libArchive": false
+  }
+}
