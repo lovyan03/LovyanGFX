@@ -15,6 +15,8 @@ namespace lgfx
       freq_read  = 20000000;
       freq_fill  = 80000000;
 
+      spi_mode = 3;
+
       len_dummy_read_pixel = 16;
     }
 
@@ -83,7 +85,6 @@ namespace lgfx
       freq_fill  = 80000000;
       spi_3wire = true;
       spi_mode_read = 1;
-      spi_mode = 0;
       spi_cs =  5;
       spi_dc = 27;
       invert = true;
@@ -96,12 +97,11 @@ namespace lgfx
   struct Panel_DDUINO32_XS : public Panel_ST7789
   {
     Panel_DDUINO32_XS() : Panel_ST7789() {
-      freq_write = 80000000;
+      freq_write = 40000000;
       freq_read  = 20000000;
-      freq_fill  = 80000000;
+      freq_fill  = 40000000;
       spi_3wire = true;
-      spi_mode_read = 1;
-      spi_mode = 0;
+      spi_read = false;
       spi_cs = -1;
       spi_dc = 23;
       invert = true;

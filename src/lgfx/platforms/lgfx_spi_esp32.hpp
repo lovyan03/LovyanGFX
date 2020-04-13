@@ -96,11 +96,16 @@ namespace lgfx
 
     // Write multi bytes as DATA (max 4byte)
     void spiWrite(uint32_t data, uint32_t len = 1)  { startWrite(); write_data(data, len << 3); endWrite(); } // AdafruitGFX compatible
+    void writeData(uint32_t data, uint32_t len = 1) { startWrite(); write_data(data, len << 3); endWrite(); } // TFT_eSPI compatible
     void writedata(uint32_t data, uint32_t len = 1) { startWrite(); write_data(data, len << 3); endWrite(); } // TFT_eSPI compatible
 
-    uint8_t  readcommand8( uint_fast8_t commandByte, uint_fast8_t index) { return read_command(commandByte, index << 3, 8); }
-    uint16_t readcommand16(uint_fast8_t commandByte, uint_fast8_t index) { return __builtin_bswap16(read_command(commandByte, index << 3, 16)); }
-    uint32_t readcommand32(uint_fast8_t commandByte, uint_fast8_t index) { return __builtin_bswap32(read_command(commandByte, index << 3, 32)); }
+    // Read data
+    uint8_t  readCommand8( uint_fast8_t commandByte, uint_fast8_t index=0) { return read_command(commandByte, index << 3, 8); }
+    uint8_t  readcommand8( uint_fast8_t commandByte, uint_fast8_t index=0) { return read_command(commandByte, index << 3, 8); }
+    uint16_t readCommand16(uint_fast8_t commandByte, uint_fast8_t index=0) { return __builtin_bswap16(read_command(commandByte, index << 3, 16)); }
+    uint16_t readcommand16(uint_fast8_t commandByte, uint_fast8_t index=0) { return __builtin_bswap16(read_command(commandByte, index << 3, 16)); }
+    uint32_t readCommand32(uint_fast8_t commandByte, uint_fast8_t index=0) { return __builtin_bswap32(read_command(commandByte, index << 3, 32)); }
+    uint32_t readcommand32(uint_fast8_t commandByte, uint_fast8_t index=0) { return __builtin_bswap32(read_command(commandByte, index << 3, 32)); }
 
     void setColorDepth(uint8_t bpp) { setColorDepth((color_depth_t)bpp); }
 

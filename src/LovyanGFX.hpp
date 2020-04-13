@@ -119,7 +119,7 @@ namespace lgfx {
     static constexpr int spi_sclk = 18;
   };
 
-#elif defined( ARDUINO_DDUINO32_XS )
+#elif defined( ARDUINO_D ) || defined( ARDUINO_DDUINO32_XS )
 
   typedef Panel_DDUINO32_XS Panel_default;
   struct LGFX_Config {
