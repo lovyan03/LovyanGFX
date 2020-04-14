@@ -28,7 +28,7 @@ Contributors:
 #if defined (ARDUINO) // Arduino ESP32
  #include <SPI.h>
 #else
- #include <driver/spi_common.h>
+// #include <driver/spi_common_internal.h> // ESP-IDF4.0
 #endif
 
 #include "esp32_common.hpp"
@@ -36,6 +36,11 @@ Contributors:
 
 namespace lgfx
 {
+  static void spi_dma_transfer_active(int dmachan)
+  {
+    spicommon_dmaworkaround_transfer_active(dmachan);
+  }
+
   static void spi_dma_reset(void) //periph_module_reset( PERIPH_SPI_DMA_MODULE );
   {
     periph_module_reset( PERIPH_SPI_DMA_MODULE );
@@ -205,14 +210,13 @@ namespace lgfx
         *reg(SPI_DMA_CONF_REG(_spi_port)) &= ~(SPI_OUT_RST|SPI_IN_RST|SPI_AHBM_RST|SPI_AHBM_FIFO_RST);
       }
 
-      *reg(SPI_USER_REG (_spi_port)) = SPI_USR_MISO | SPI_USR_MOSI | SPI_DOUTDIN;  // need SD card access (full duplex setting)
+      *reg(SPI_USER_REG (_spi_port)) = SPI_USR_MOSI | SPI_USR_MISO | SPI_DOUTDIN;  // need SD card access (full duplex setting)
+      *reg(SPI_CTRL_REG(_spi_port)) = 0;
       *reg(SPI_CTRL2_REG(_spi_port)) = 0;
       *reg(SPI_SLAVE_REG(_spi_port)) &= ~(SPI_SLAVE_MODE | SPI_TRANS_DONE);
 /*
-      *reg(SPI_CTRL_REG (_spi_port)) = 0;
       *reg(SPI_USER1_REG(_spi_port)) = 0;
       *reg(SPI_USER2_REG(_spi_port)) = 0;
-      *reg(SPI_PIN_REG  (_spi_port)) = 0;
 //*/
 #elif defined (CONFIG_IDF_TARGET_ESP32) // ESP-IDF
 
@@ -302,7 +306,7 @@ namespace lgfx
       *reg(SPI_DMA_CONF_REG(_spi_port)) |= SPI_DMA_CONTINUE;
 //        *reg(SPI_DMA_CONF_REG(_spi_port)) |= SPI_DMA_CONTINUE | SPI_OUTDSCR_BURST_EN | SPI_OUT_DATA_BURST_EN;
       *reg(SPI_DMA_OUT_LINK_REG(_spi_port)) = SPI_OUTLINK_START | ((int)(&_dmadesc[0]) & 0xFFFFF);
-      spicommon_dmaworkaround_transfer_active(_dma_channel);
+      spi_dma_transfer_active(_dma_channel);
       exec_spi();
     }
 
@@ -388,30 +392,27 @@ namespace lgfx
       }
       _fill_mode = false;
 
-      _user_reg = (*reg(SPI_USER_REG(_spi_port)) & ~(SPI_USR_MISO | SPI_DOUTDIN | SPI_SIO | SPI_CK_OUT_EDGE | SPI_USR_COMMAND))
-                | ((_panel->spi_mode == 1 || _panel->spi_mode == 2) ? SPI_CK_OUT_EDGE : 0)
-                | SPI_USR_MOSI;
-
-      _pin_reg = (*reg(SPI_PIN_REG(_spi_port)) & ~(SPI_CK_IDLE_EDGE | SPI_CS0_DIS | SPI_CS1_DIS | SPI_CS2_DIS))
-               | ((_panel->spi_mode & 2) ? SPI_CK_IDLE_EDGE : 0);
+      auto spi_mode = _panel->spi_mode;
+      uint32_t user = (spi_mode == 1 || spi_mode == 2) ? SPI_CK_OUT_EDGE | SPI_USR_MOSI : SPI_USR_MOSI;
+      uint32_t pin = (spi_mode & 2) ? SPI_CK_IDLE_EDGE : 0;
 
       wait_spi();
 
-      *reg(SPI_USER_REG(_spi_port)) = _user_reg;
-      *reg(SPI_PIN_REG(_spi_port))  = _pin_reg;
+      *reg(SPI_USER_REG(_spi_port)) = user;
+      *reg(SPI_PIN_REG(_spi_port))  = pin;
+
+      set_clock_write();
 
 #if defined (ARDUINO) // Arduino ESP32
       spiSimpleTransaction(_spi_handle);
 
       if (_dma_channel) {
         _next_dma_reset = true;
-//      *reg(SPI_DMA_CONF_REG(_spi_port)) |= SPI_OUT_DATA_BURST_EN | SPI_INDSCR_BURST_EN | SPI_OUTDSCR_BURST_EN;
       }
 /*
 *reg(SPI_CTRL1_REG(_spi_port)) = 0;
 *reg(SPI_USER1_REG(_spi_port)) = 0;
 *reg(SPI_USER2_REG(_spi_port)) = 0;
-*reg(SPI_PIN_REG  (_spi_port)) = 0;
 //*/
 #elif defined (CONFIG_IDF_TARGET_ESP32) // ESP-IDF
       if (_spi_handle) {
@@ -420,9 +421,6 @@ namespace lgfx
         }
       }
 #endif
-      *reg(SPI_CTRL_REG(_spi_port)) &= ~(SPI_WR_BIT_ORDER | SPI_RD_BIT_ORDER);
-
-      set_clock_write();
 
       cs_l();
 
@@ -441,14 +439,12 @@ namespace lgfx
       }
       dc_h();
       cs_h();
-      delete_dmabuffer();
 #if defined (ARDUINO) // Arduino ESP32
-      if (_dma_channel) {
-        if (_next_dma_reset) spi_dma_reset();
-      }
+//      if (_dma_channel) {
+//        if (_next_dma_reset) spi_dma_reset();
+//      }
 
-      *reg(SPI_USER_REG(_spi_port)) = _user_reg
-                     | ((_spi_miso == -1) ? 0 : (SPI_USR_MISO | SPI_DOUTDIN)); // for other SPI device (SD)
+      *reg(SPI_USER_REG(_spi_port)) = SPI_USR_MOSI | SPI_USR_MISO | SPI_DOUTDIN; // for other SPI device (SD)
       spiEndTransaction(_spi_handle);
 #elif defined (CONFIG_IDF_TARGET_ESP32) // ESP-IDF
       if (_spi_handle) {
@@ -475,7 +471,7 @@ namespace lgfx
 
     void drawPixel_impl(int32_t x, int32_t y) override
     {
-      if (_transaction_count) {
+      if (_begun_tr) {
         if (_fill_mode) {
           _fill_mode = false;
           wait_spi();
@@ -487,11 +483,11 @@ namespace lgfx
         return;
       }
 
-      beginTransaction_impl();
+      begin_transaction();
       set_window(x, y, x, y);
       write_cmd(_cmd_ramwr);
       write_data(_color.raw, _write_conv.bits);
-      endTransaction_impl();
+      end_transaction();
     }
 
     void writeFillRect_impl(int32_t x, int32_t y, int32_t w, int32_t h) override
@@ -649,12 +645,9 @@ namespace lgfx
 
     void start_read(void) {
       _fill_mode = false;
-      uint32_t user = (_user_reg & ~(SPI_USR_MOSI | SPI_CK_OUT_EDGE))
-                    | ((_panel->spi_mode_read == 1 || _panel->spi_mode_read == 2) ? SPI_CK_OUT_EDGE : 0)
-                    | (_panel->spi_3wire ? SPI_SIO : 0)
-                    | SPI_USR_MISO;
-      uint32_t pin = (_pin_reg & ~SPI_CK_IDLE_EDGE)
-                   | ((_panel->spi_mode_read & 2) ? SPI_CK_IDLE_EDGE : 0);
+      uint32_t user = ((_panel->spi_mode_read == 1 || _panel->spi_mode_read == 2) ? SPI_CK_OUT_EDGE | SPI_USR_MISO : SPI_USR_MISO)
+                    | (_panel->spi_3wire ? SPI_SIO : 0);
+      uint32_t pin = (_panel->spi_mode_read & 2) ? SPI_CK_IDLE_EDGE : 0;
       dc_h();
       *reg(SPI_USER_REG(_spi_port)) = user;
       *reg(SPI_PIN_REG(_spi_port)) = pin;
@@ -663,10 +656,12 @@ namespace lgfx
 
     void end_read(void)
     {
+      uint32_t user = (_panel->spi_mode == 1 || _panel->spi_mode == 2) ? SPI_CK_OUT_EDGE | SPI_USR_MOSI : SPI_USR_MOSI;
+      uint32_t pin = (_panel->spi_mode & 2) ? SPI_CK_IDLE_EDGE : 0;
       wait_spi();
       cs_h();
-      *reg(SPI_USER_REG(_spi_port)) = _user_reg;
-      *reg(SPI_PIN_REG(_spi_port)) = _pin_reg;
+      *reg(SPI_USER_REG(_spi_port)) = user;
+      *reg(SPI_PIN_REG(_spi_port)) = pin;
       if (_panel->spi_cs < 0) {
         write_cmd(0); // NOP command
       }
@@ -718,7 +713,7 @@ namespace lgfx
             dc_h();
             set_write_len(w * h * bytes << 3);
             *reg(SPI_DMA_OUT_LINK_REG(_spi_port)) = SPI_OUTLINK_START | ((int)(&_dmadesc[0]) & 0xFFFFF);
-            spicommon_dmaworkaround_transfer_active(_dma_channel);
+            spi_dma_transfer_active(_dma_channel);
             exec_spi();
             return;
           }
@@ -793,18 +788,20 @@ namespace lgfx
 
       auto spi_w0_reg = reg(SPI_W0_REG(_spi_port));
 
+      uint32_t user_reg = *reg(SPI_USER_REG(_spi_port));
+
       dc_h();
       set_write_len(len * bytes << 3);
 
       memcpy((void*)&spi_w0_reg[highpart], _regbuf, (len * bytes + 3) & (~3));
-      if (highpart) *reg(SPI_USER_REG(_spi_port)) = _user_reg | SPI_USR_MOSI_HIGHPART;
+      if (highpart) *reg(SPI_USER_REG(_spi_port)) = user_reg | SPI_USR_MOSI_HIGHPART;
       exec_spi();
       if (0 == (length -= len)) return;
 
       for (; length; length -= limit) {
         param->fp_copy(_regbuf, 0, limit, param);
         memcpy((void*)&spi_w0_reg[highpart ^= 0x08], _regbuf, limit * bytes);
-        uint32_t user = _user_reg;
+        uint32_t user = user_reg;
         if (highpart) user |= SPI_USR_MOSI_HIGHPART;
         if (len != limit) {
           len = limit;
@@ -834,7 +831,7 @@ namespace lgfx
         set_write_len(length << 3);
         _setup_dma_desc_links(data, length);
         *reg(SPI_DMA_OUT_LINK_REG(_spi_port)) = SPI_OUTLINK_START | ((int)(&_dmadesc[0]) & 0xFFFFF);
-        spicommon_dmaworkaround_transfer_active(_dma_channel);
+        spi_dma_transfer_active(_dma_channel);
         exec_spi();
         return;
       }
@@ -843,18 +840,20 @@ namespace lgfx
       uint32_t highpart = ((length - 1) & limit) >> 2; // 8 or 0
 
       auto spi_w0_reg = reg(SPI_W0_REG(_spi_port));
+
+      uint32_t user_reg = *reg(SPI_USER_REG(_spi_port));
       dc_h();
       set_write_len(len << 3);
 
       memcpy((void*)&spi_w0_reg[highpart], data, (len + 3) & (~3));
-      if (highpart) *reg(SPI_USER_REG(_spi_port)) = _user_reg | SPI_USR_MOSI_HIGHPART;
+      if (highpart) *reg(SPI_USER_REG(_spi_port)) = user_reg | SPI_USR_MOSI_HIGHPART;
       exec_spi();
       if (0 == (length -= len)) return;
 
       for (; length; length -= limit) {
         data += len;
         memcpy((void*)&spi_w0_reg[highpart ^= 0x08], data, limit);
-        uint32_t user = _user_reg;
+        uint32_t user = user_reg;
         if (highpart) user |= SPI_USR_MOSI_HIGHPART;
         if (len != limit) {
           len = limit;
@@ -933,7 +932,7 @@ namespace lgfx
         set_read_len(length << 3);
         _setup_dma_desc_links(dst, length);
         *reg(SPI_DMA_IN_LINK_REG(_spi_port)) = SPI_INLINK_START | ((int)(&_dmadesc[0]) & 0xFFFFF);
-        spicommon_dmaworkaround_transfer_active(_dma_channel);
+        spi_dma_transfer_active(_dma_channel);
         exec_spi();
       } else {
         int32_t len1 = std::min(length, 32);  // 32 Byte read.
@@ -1182,14 +1181,11 @@ namespace lgfx
     uint32_t _mask_reg_dc;
     volatile uint32_t* _gpio_reg_dc_h;
     volatile uint32_t* _gpio_reg_dc_l;
-    static uint32_t _user_reg;
-    static uint32_t _pin_reg;
     static uint32_t _regbuf[8];
     static lldesc_t* _dmadesc;
     static uint32_t _dmadesc_len;
     static bool _next_dma_reset;
 
-//    static bool _dma_chan_claimed;
 //    static volatile spi_dev_t *_hw;
 #if defined ( ARDUINO )
     static spi_t* _spi_handle;
@@ -1197,13 +1193,10 @@ namespace lgfx
     static spi_device_handle_t _spi_handle;
 #endif
   };
-  template <class T> uint32_t LGFX_SPI<T>::_user_reg;
-  template <class T> uint32_t LGFX_SPI<T>::_pin_reg;
   template <class T> uint32_t LGFX_SPI<T>::_regbuf[];
   template <class T> lldesc_t* LGFX_SPI<T>::_dmadesc = nullptr;
   template <class T> uint32_t LGFX_SPI<T>::_dmadesc_len = 0;
   template <class T> bool LGFX_SPI<T>::_next_dma_reset;
-//  template <class T> bool LGFX_SPI<T>::_dma_chan_claimed;
 //  template <class T> volatile spi_dev_t *LGFX_SPI<T>::_hw;
 
 #if defined ( ARDUINO )

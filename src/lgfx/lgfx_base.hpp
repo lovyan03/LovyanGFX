@@ -1156,7 +1156,7 @@ namespace lgfx
       _sh = h;
     }
 
-    void scroll(int16_t dx, int16_t dy)
+    void scroll(int_fast16_t dx, int_fast16_t dy = 0)
     {
       _color.raw = _scolor;
       int32_t absx = abs(dx);
@@ -1322,7 +1322,7 @@ namespace lgfx
           if (_cursor_y < - yo) _cursor_y = - yo;
         }
 //      _cursor_x += drawChar(uniCode, _cursor_x, _cursor_y);
-        _cursor_x += (fpDrawChar)(this, _cursor_x, _cursor_y, uniCode, _text_fore_rgb888, _text_back_rgb888, _textsize_x, _textsize_y);
+        _cursor_x += (fpDrawChar)(this, _cursor_x, _cursor_y, uniCode, _text_fore_rgb888, _text_back_rgb888, _textsize_x, _textsize_y, &fontdata[_textfont]);
       }
 
       return 1;
@@ -1462,23 +1462,23 @@ namespace lgfx
       }
     }
 
-    inline int_fast16_t drawChar(uint16_t uniCode, int32_t x, int32_t y) { _filled_x = 0; return (fpDrawChar)(this, x, y, uniCode, _text_fore_rgb888, _text_back_rgb888, _textsize_x, _textsize_y); }
+    inline int_fast16_t drawChar(uint16_t uniCode, int32_t x, int32_t y) { _filled_x = 0; return (fpDrawChar)(this, x, y, uniCode, _text_fore_rgb888, _text_back_rgb888, _textsize_x, _textsize_y, &fontdata[_textfont]); }
 
     int_fast16_t drawChar(uint16_t uniCode, int32_t x, int32_t y, uint8_t font) {
       if (font == _textfont) return drawChar(uniCode, x, y);
       _filled_x = 0;
       switch (pgm_read_byte( &fontdata[font].type)) {
       default:
-      case font_type_t::ft_glcd: return drawCharGLCD(this, x, y, uniCode, _text_fore_rgb888, _text_back_rgb888, _textsize_x, _textsize_y);
-      case font_type_t::ft_bmp:  return drawCharBMP(this, x, y, uniCode, _text_fore_rgb888, _text_back_rgb888, _textsize_x, _textsize_y);
-      case font_type_t::ft_rle:  return drawCharRLE(this, x, y, uniCode, _text_fore_rgb888, _text_back_rgb888, _textsize_x, _textsize_y);
+      case font_type_t::ft_glcd: return drawCharGLCD(this, x, y, uniCode, _text_fore_rgb888, _text_back_rgb888, _textsize_x, _textsize_y, &fontdata[font]);
+      case font_type_t::ft_bmp:  return drawCharBMP( this, x, y, uniCode, _text_fore_rgb888, _text_back_rgb888, _textsize_x, _textsize_y, &fontdata[font]);
+      case font_type_t::ft_rle:  return drawCharRLE( this, x, y, uniCode, _text_fore_rgb888, _text_back_rgb888, _textsize_x, _textsize_y, &fontdata[font]);
       }
     }
 
     template<typename T>
-    inline int_fast16_t drawChar(int32_t x, int32_t y, uint16_t uniCode, T color, T bg, int_fast8_t size) { _filled_x = 0; return (fpDrawChar)(this, x, y, uniCode, convert_to_rgb888(color), convert_to_rgb888(bg), size, size); }
+    inline int_fast16_t drawChar(int32_t x, int32_t y, uint16_t uniCode, T color, T bg, int_fast8_t size) { _filled_x = 0; return (fpDrawChar)(this, x, y, uniCode, convert_to_rgb888(color), convert_to_rgb888(bg), size, size, &fontdata[_textfont]); }
     template<typename T>
-    inline int_fast16_t drawChar(int32_t x, int32_t y, uint16_t uniCode, T color, T bg, int_fast8_t size_x, int_fast8_t size_y) { _filled_x = 0; return (fpDrawChar)(this, x, y, uniCode, convert_to_rgb888(color), convert_to_rgb888(bg), size_x, size_y); }
+    inline int_fast16_t drawChar(int32_t x, int32_t y, uint16_t uniCode, T color, T bg, int_fast8_t size_x, int_fast8_t size_y) { _filled_x = 0; return (fpDrawChar)(this, x, y, uniCode, convert_to_rgb888(color), convert_to_rgb888(bg), size_x, size_y, &fontdata[_textfont]); }
 
     int16_t getCursorX(void) const { return _cursor_x; }
     int16_t getCursorY(void) const { return _cursor_y; }
@@ -1490,6 +1490,7 @@ namespace lgfx
     int16_t getTextSizeY(void) const { return _textsize_y; }
     int16_t fontHeight(void) const { return _font_size_y.size * _textsize_y; }
     int16_t fontHeight(uint8_t font) const { if (_textfont == font) return fontHeight(); return pgm_read_byte( &fontdata[font].height ); }
+    textdatum_t getTextDatum(void) const { return _textdatum; }
 
     void setTextDatum(uint8_t datum) { _textdatum = (textdatum_t)datum; }
     void setTextDatum(textdatum_t datum) { _textdatum = datum; }
@@ -1775,7 +1776,7 @@ namespace lgfx
           if (uniCode == 0) continue;
         }
 
-        sumX += (fpDrawChar)(this, x + sumX, y, uniCode, _text_fore_rgb888, _text_back_rgb888, _textsize_x, _textsize_y);
+        sumX += (fpDrawChar)(this, x + sumX, y, uniCode, _text_fore_rgb888, _text_back_rgb888, _textsize_x, _textsize_y, &fontdata[_textfont]);
       } while (*(++string));
       endWrite();
 
@@ -1789,16 +1790,16 @@ namespace lgfx
       return true;
     }
 
-    int_fast16_t (*fpDrawChar)(LGFXBase* me, int32_t x, int32_t y, uint16_t c, uint32_t fore_rgb888, uint32_t back_rgb888, int_fast8_t size_x, int_fast8_t size_y) = &LGFXBase::drawCharGLCD;
+    int_fast16_t (*fpDrawChar)(LGFXBase* me, int32_t x, int32_t y, uint16_t c, uint32_t fore_rgb888, uint32_t back_rgb888, int_fast8_t size_x, int_fast8_t size_y, const fontinfo* font) = &LGFXBase::drawCharGLCD;
 
-    static int_fast16_t drawCharGLCD(LGFXBase* me, int32_t x, int32_t y, uint16_t c, uint32_t fore_rgb888, uint32_t back_rgb888, int_fast8_t size_x, int_fast8_t size_y)
+    static int_fast16_t drawCharGLCD(LGFXBase* me, int32_t x, int32_t y, uint16_t c, uint32_t fore_rgb888, uint32_t back_rgb888, int_fast8_t size_x, int_fast8_t size_y, const fontinfo* fontdat)
     { // glcd font
       if (c > 255) return 0;
 
       const int32_t fontWidth  = me->_font_size_x.size;
       const int32_t fontHeight = me->_font_size_y.size;
 
-      auto font_addr = fontdata[me->getTextFont()].chartbl + (c * 5);
+      auto font_addr = fontdat->chartbl + (c * 5);
       uint32_t colortbl[2] = {me->_write_conv.convert(back_rgb888), me->_write_conv.convert(fore_rgb888)};
       bool fillbg = (back_rgb888 != fore_rgb888);
 
@@ -1869,14 +1870,15 @@ namespace lgfx
       return fontWidth * size_x;
     }
 
-    static int_fast16_t drawCharBMP(LGFXBase* me, int32_t x, int32_t y, uint16_t c, uint32_t fore_rgb888, uint32_t back_rgb888, int_fast8_t size_x, int_fast8_t size_y)
+    static int_fast16_t drawCharBMP(LGFXBase* me, int32_t x, int32_t y, uint16_t c, uint32_t fore_rgb888, uint32_t back_rgb888, int_fast8_t size_x, int_fast8_t size_y, const fontinfo* fontdat)
     { // BMP font
       if ((c < 32) || (c > 127)) return 0;
       uint16_t uniCode = c - 32;
-      const int fontWidth = pgm_read_byte(widtbl_f16 + uniCode);
-      constexpr int fontHeight = chr_hgt_f16;
 
-      auto font_addr = (const uint8_t*)pgm_read_dword(&chrtbl_f16[uniCode]);
+      const int fontWidth = pgm_read_byte(fontdat->widthtbl + uniCode);
+      const int fontHeight = pgm_read_byte(&fontdat->height);
+
+      auto font_addr = (const uint8_t*)pgm_read_dword(&((const uint8_t**)fontdat->chartbl)[uniCode]);
 
       uint8_t w = (fontWidth + 6) >> 3;
       uint32_t colortbl[2] = {me->_write_conv.convert(back_rgb888), me->_write_conv.convert(fore_rgb888)};
@@ -1958,10 +1960,9 @@ namespace lgfx
       return fontWidth * size_x;
     }
 
-    static int_fast16_t drawCharRLE(LGFXBase* me, int32_t x, int32_t y, uint16_t c, uint32_t fore_rgb888, uint32_t back_rgb888, int_fast8_t size_x, int_fast8_t size_y)
+    static int_fast16_t drawCharRLE(LGFXBase* me, int32_t x, int32_t y, uint16_t c, uint32_t fore_rgb888, uint32_t back_rgb888, int_fast8_t size_x, int_fast8_t size_y, const fontinfo* fontdat)
     { // RLE font
       if ((c < 32) || (c > 127)) return 0;
-      auto fontdat = &fontdata[me->getTextFont()];
       uint16_t code = c - 32;
       const int fontWidth = pgm_read_byte( (uint8_t *)pgm_read_dword( &(fontdat->widthtbl ) ) + code );
       const int fontHeight = pgm_read_byte( &fontdat->height );
@@ -2046,7 +2047,7 @@ namespace lgfx
       return true;
     }
 
-    static int_fast16_t drawCharGFXFF(LGFXBase* lgfxbase, int32_t x, int32_t y, uint16_t c, uint32_t fore_rgb888, uint32_t back_rgb888, int_fast8_t size_x, int_fast8_t size_y)
+    static int_fast16_t drawCharGFXFF(LGFXBase* lgfxbase, int32_t x, int32_t y, uint16_t c, uint32_t fore_rgb888, uint32_t back_rgb888, int_fast8_t size_x, int_fast8_t size_y, const fontinfo* fontdat)
     {
       auto me = (LGFX_GFXFont_Support*)lgfxbase;
       auto gfxFont = me->_gfxFont;
@@ -2427,7 +2428,7 @@ namespace lgfx
       return false;
     }
 
-    static int_fast16_t drawCharVLW(LGFXBase* lgfxbase, int32_t x, int32_t y, uint16_t code, uint32_t fore_rgb888, uint32_t back_rgb888, int_fast8_t size_x, int_fast8_t size_y)
+    static int_fast16_t drawCharVLW(LGFXBase* lgfxbase, int32_t x, int32_t y, uint16_t code, uint32_t fore_rgb888, uint32_t back_rgb888, int_fast8_t size_x, int_fast8_t size_y, const fontinfo*)
     {
       auto me = (LGFX_VLWFont_Support*)lgfxbase;
 
