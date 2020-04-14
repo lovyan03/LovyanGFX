@@ -9,7 +9,7 @@ namespace lgfx
   {
     Panel_ST7735(void)
     {
-// The ST7735 is available in two resolutions, 132x162 and 128x160, depending on the mode select pin status.
+// The ST7735 is available in three resolutions, 132x162 / 128x160 / 132x132, depending on the mode select pin status.
       panel_width  = memory_width  = 132;  // or 128
       panel_height = memory_height = 162;  // or 160 or 132
 
@@ -170,19 +170,16 @@ namespace lgfx
   struct Panel_M5StickC : public Panel_ST7735S
   {
     Panel_M5StickC() {
-      freq_write = 27000000;
-      freq_read  = 16000000;
-      freq_fill  = 27000000;
       spi_3wire  = true;
       invert     = true;
       spi_cs     =  5;
       spi_dc     = 23;
       gpio_rst   = 18;
-      offset_x      = 26;
-      offset_y      = 1;
-      offset_rotation = 2;
       panel_width  = 80;
       panel_height = 160;
+      offset_x     = 26;
+      offset_y     = 1;
+      offset_rotation = 2;
     }
   protected:
     const uint8_t* getInitCommands(uint8_t listno) const override {
@@ -198,10 +195,13 @@ namespace lgfx
   struct Panel_TTGO_TS : public Panel_ST7735S
   {
     Panel_TTGO_TS(void) {
+      freq_write = 20000000;
       panel_width  = 128;
       panel_height = 160;
-      offset_x  = 2;
-      offset_y  = 3;
+      offset_x     = 2;
+      offset_y     = 1;
+      offset_rotation = 2;
+      rgb_order = true;
       spi_3wire = true;
       spi_cs    = 16;
       spi_dc    = 17;
