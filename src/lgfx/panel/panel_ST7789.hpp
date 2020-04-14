@@ -98,7 +98,6 @@ namespace lgfx
   {
     Panel_DDUINO32_XS() : Panel_ST7789() {
       freq_write = 40000000;
-      freq_read  = 20000000;
       freq_fill  = 40000000;
       spi_3wire = true;
       spi_read = false;

@@ -121,7 +121,6 @@ namespace lgfx
     bool isIPS = false;
 
     Panel_M5Stack(void) {
-      freq_fill  = 80000000;
       spi_3wire = true;
       spi_cs = 14;
       spi_dc = 27;
