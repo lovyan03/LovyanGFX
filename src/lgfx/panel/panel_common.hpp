@@ -26,7 +26,7 @@ namespace lgfx
     bool spi_read  = true;            // Use SPI read
     bool spi_3wire = false;           // SPI 3wire mode (read from MOSI)
     bool invert    = false;           // panel invert
-    bool backlignt_level = true;      // turn ON back-light backlight level (true = high / false = low)
+    bool backlight_level = true;      // turn ON back-light backlight level (true = high / false = low)
 
     int_fast16_t memory_width  = 240; // width of driver VRAM
     int_fast16_t memory_height = 240; // height of driver VRAM
@@ -55,7 +55,7 @@ namespace lgfx
 
           initGPIO(gpio_bl);
 
-          if (backlignt_level) gpio_hi(gpio_bl);
+          if (backlight_level) gpio_hi(gpio_bl);
           else                 gpio_lo(gpio_bl);
 
         } else {  // use PWM
@@ -73,7 +73,7 @@ namespace lgfx
 
     virtual void setBrightness(uint8_t brightness) {
       if (pwm_ch_bl >= 0) { // PWM
-        setPWMDuty(pwm_ch_bl, backlignt_level ? brightness : (255 - brightness));
+        setPWMDuty(pwm_ch_bl, backlight_level ? brightness : (255 - brightness));
       }
     }
 

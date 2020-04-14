@@ -156,7 +156,7 @@ namespace lgfx {
       freq_write = 40000000;
       freq_read  = 20000000;
       freq_fill  = 80000000;
-      backlignt_level = false;
+      backlight_level = false;
     }
   };
   struct Panel_default2 : public lgfx::Panel_ST7789 {
@@ -170,7 +170,7 @@ namespace lgfx {
       freq_write = 80000000;
       freq_read  = 20000000;
       freq_fill  = 80000000;
-      backlignt_level = false;
+      backlight_level = false;
     }
   };
 
@@ -211,6 +211,9 @@ public:
 #if defined( ARDUINO_ESP32_DEV ) // ESP-WROVER-KIT
 
   void initPanel(void) override {
+    if (!_panel) return;
+    _panel->init();
+
     if (readPanelID() > 0) {  // check panel (ILI9341 or ST7789)
       static lgfx::Panel_default2 panel;
       setPanel(&panel);
