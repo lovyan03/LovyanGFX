@@ -7,7 +7,7 @@ Original Source:
  https://github.com/lovyan03/LovyanGFX/  
 
 Licence:  
- [BSD and MIT mixed](https://github.com/lovyan03/LovyanGFX/blob/master/license.txt)  
+ [BSD](https://github.com/lovyan03/LovyanGFX/blob/master/license.txt)  
 
 Author:  
  [lovyan03](https://twitter.com/lovyan03)  
@@ -182,7 +182,7 @@ namespace lgfx {
     static constexpr int spi_sclk = 19;
   };
 
-#elif defined (ESP32) || (CONFIG_IDF_TARGET_ESP32) // ESP-IDF ( or other panel )
+#elif defined( ESP32 ) || ( CONFIG_IDF_TARGET_ESP32 ) // ESP-IDF ( or other panel )
 
   typedef Panel_M5Stack Panel_default;
 
@@ -209,10 +209,14 @@ public:
   }
 
 #if defined( ARDUINO_ESP32_DEV ) // ESP-WROVER-KIT
+
   void initPanel(void) override {
     if (readPanelID() > 0) {  // check panel (ILI9341 or ST7789)
-      lgfx::Panel_default2 panel;
+      static lgfx::Panel_default2 panel;
       setPanel(&panel);
+      ESP_LOGI("LGFX", "[Autodetect] Using Panel_ST7789");
+    } else {
+      ESP_LOGI("LGFX", "[Autodetect] Using Panel_ILI9341");
     }
     lgfx::LGFX_SPI<lgfx::LGFX_Config>::initPanel();
   }
