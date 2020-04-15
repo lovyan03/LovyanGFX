@@ -872,6 +872,11 @@ namespace lgfx
     void readRect_impl(int32_t x, int32_t y, int32_t w, int32_t h, void* dst, pixelcopy_t* param) override
     {
       set_window(x, y, x + w - 1, y + h - 1);
+      auto len = w * h;
+      if (!_panel->spi_read) {
+        memset(dst, 0, len * _read_conv.bytes);
+        return;
+      }
       write_cmd(_panel->getCmdRamrd());
       uint32_t len_dummy_read_pixel = _panel->len_dummy_read_pixel;
       start_read();
@@ -881,9 +886,9 @@ namespace lgfx
       }
 
       if (param->no_convert) {
-        read_bytes((uint8_t*)dst, w * h * _read_conv.bytes);
+        read_bytes((uint8_t*)dst, len * _read_conv.bytes);
       } else {
-        read_pixels(dst, w * h, param);
+        read_pixels(dst, len, param);
       }
       end_read();
     }
