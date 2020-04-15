@@ -9,6 +9,7 @@ namespace lgfx
   {
     Panel_ILI9163(void)
     {
+// The ILI9163 is available in six resolutions, 132x162 / 128x128 / 120x160 / 128x160 / 130x130 / 132x132, depending on the mode select pin status.
       panel_width  = memory_width  = 132;
       panel_height = memory_height = 162;
 

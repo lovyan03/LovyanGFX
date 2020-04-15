@@ -10,23 +10,24 @@ namespace lgfx
 
   struct PanelCommon
   {
-    uint32_t freq_write = 4000000;    // SPI freq (write pixel)
-    uint32_t freq_read  = 2000000;    // SPI freq (read pixel )
-    uint32_t freq_fill  = 8000000;    // SPI freq (fill pixel )
+    uint32_t freq_write = 2700000;    // SPI freq (write pixel)
+    uint32_t freq_read  = 1600000;    // SPI freq (read pixel )
+    uint32_t freq_fill  = 4000000;    // SPI freq (fill pixel )
     int_fast8_t spi_cs    = -1;       // SPI CS pin number
     int_fast8_t spi_dc    = -1;       // SPI dc pin number
     int_fast8_t spi_mode  = 0;        // SPI mode (0~3)
-    int_fast8_t spi_mode_read = 0;    // SPI mode when read pixel
+    int_fast8_t spi_mode_read = 0;    // SPI mode (0~3) when read pixel
     int_fast8_t rotation  = 0;        // default rotation (0~3)
     int_fast8_t offset_rotation = 0;  // rotation offset (0~3)
     int_fast8_t gpio_rst  = -1;       // hardware reset pin number
     int_fast8_t gpio_bl   = -1;       // backlight pin number
     int_fast8_t pwm_ch_bl = -1;       // backlight PWM channel number
 
+    bool backlight_level = true;      // turn ON back-light backlight level (true = high / false = low)
     bool spi_read  = true;            // Use SPI read
     bool spi_3wire = false;           // SPI 3wire mode (read from MOSI)
     bool invert    = false;           // panel invert
-    bool backlight_level = true;      // turn ON back-light backlight level (true = high / false = low)
+    bool rgb_order = false;           // true:RGB / false: BGR
 
     int_fast16_t memory_width  = 240; // width of driver VRAM
     int_fast16_t memory_height = 240; // height of driver VRAM
@@ -34,7 +35,6 @@ namespace lgfx
     int_fast16_t panel_height  = 240; // height of panel
     int_fast16_t offset_x      = 0;   // panel offset x axis
     int_fast16_t offset_y      = 0;   // panel offset y axis
-    bool rgb_order = false;           // true:RGB / false: BGR
 
     color_depth_t write_depth = rgb565_2Byte;
     color_depth_t read_depth  = rgb888_3Byte;
