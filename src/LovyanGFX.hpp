@@ -143,8 +143,6 @@ namespace lgfx {
 
 #elif defined( ARDUINO_ESP32_DEV ) // ESP-WROVER-KIT
 
-  // ESP-WROVER-KIT is available in two types of panels. (ILI9341 or ST7789)
-
   struct Panel_default : public lgfx::Panel_ILI9341 {
     Panel_default(void) {
       spi_3wire = false;
@@ -154,20 +152,6 @@ namespace lgfx {
       gpio_bl  = 5;
       pwm_ch_bl = 7;
       freq_write = 40000000;
-      freq_read  = 20000000;
-      freq_fill  = 80000000;
-      backlight_level = false;
-    }
-  };
-  struct Panel_default2 : public lgfx::Panel_ST7789 {
-    Panel_default2(void) {
-      spi_3wire = false;
-      spi_cs   = 22;
-      spi_dc   = 21;
-      gpio_rst = 18;
-      gpio_bl  = 5;
-      pwm_ch_bl = 7;
-      freq_write = 80000000;
       freq_read  = 20000000;
       freq_fill  = 80000000;
       backlight_level = false;
@@ -209,20 +193,34 @@ public:
   }
 
 #if defined( ARDUINO_ESP32_DEV ) // ESP-WROVER-KIT
+  // ESP-WROVER-KIT is available in two types of panels. (ILI9341 or ST7789)
+    void initPanel(void) override {
+      if (!_panel) return;
+      _panel->init();
 
-  void initPanel(void) override {
-    if (!_panel) return;
-    _panel->init();
+      if (readPanelID() > 0) {  // check panel (ILI9341 or ST7789)
+        ESP_LOGI("LovyanGFX", "[Autodetect] Using Panel_ST7789");
 
-    if (readPanelID() > 0) {  // check panel (ILI9341 or ST7789)
-      static lgfx::Panel_default2 panel;
-      setPanel(&panel);
-      ESP_LOGI("LGFX", "[Autodetect] Using Panel_ST7789");
-    } else {
-      ESP_LOGI("LGFX", "[Autodetect] Using Panel_ILI9341");
+        static lgfx::Panel_ST7789 panel;
+        panel.spi_3wire = false;
+        panel.spi_cs   = 22;
+        panel.spi_dc   = 21;
+        panel.gpio_rst = 18;
+        panel.gpio_bl  = 5;
+        panel.pwm_ch_bl = 7;
+        panel.freq_write = 80000000;
+        panel.freq_read  = 20000000;
+        panel.freq_fill  = 80000000;
+        panel.backlight_level = false;
+        panel.spi_mode_read = 1;
+        panel.len_dummy_read_pixel = 16;
+
+        setPanel(&panel);
+      } else {
+        ESP_LOGI("LovyanGFX", "[Autodetect] Using Panel_ILI9341");
+      }
+      lgfx::LGFX_SPI<lgfx::LGFX_Config>::initPanel();
     }
-    lgfx::LGFX_SPI<lgfx::LGFX_Config>::initPanel();
-  }
 #endif
 
 };
