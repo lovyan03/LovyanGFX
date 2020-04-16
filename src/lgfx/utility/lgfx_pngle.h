@@ -23,6 +23,8 @@
  */
 
 /*----------------------------------------------------------------------------/
+/ original source is here : https://github.com/kikuchan/pngle/
+/
 / Modified for LGFX  by lovyan03, 2020
 / tweak for 32bit processor
 /----------------------------------------------------------------------------*/

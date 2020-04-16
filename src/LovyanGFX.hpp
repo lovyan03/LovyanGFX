@@ -27,7 +27,7 @@ Contributors:
 #include "lgfx/lgfx_common.hpp"  // common include (always include)
 
 #if !defined LOAD_GFXFF
-#include "lgfx/gfxfont.hpp"      // GFX font support (optional)
+#include "Fonts/gfxfont.hpp"      // GFX font support (optional)
 #endif
 
 #include "lgfx/utility/lgfx_tjpgd.h" // JPEG decode support (optional)
@@ -209,7 +209,7 @@ public:
         panel.gpio_bl  = 5;
         panel.pwm_ch_bl = 7;
         panel.freq_write = 80000000;
-        panel.freq_read  = 20000000;
+        panel.freq_read  = 16000000;
         panel.freq_fill  = 80000000;
         panel.backlight_level = false;
         panel.spi_mode_read = 1;

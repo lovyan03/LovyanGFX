@@ -23,6 +23,8 @@
  */
 
 /*----------------------------------------------------------------------------/
+/ original source is here : https://github.com/kikuchan/pngle/
+/
 / Modified for LGFX  by lovyan03, 2020
 / tweak for 32bit processor
 /----------------------------------------------------------------------------*/
@@ -132,10 +134,10 @@ struct _pngle_t {
 
 // magic
 static const uint8_t png_sig[] = { 137, 80, 78, 71, 13, 10, 26, 10 };
-static uint_fast8_t interlace_off_x[8] = { 0,  0, 4, 0, 2, 0, 1, 0 };
-static uint_fast8_t interlace_off_y[8] = { 0,  0, 0, 4, 0, 2, 0, 1 };
-static uint_fast8_t interlace_div_x[8] = { 1,  8, 8, 4, 4, 2, 2, 1 };
-static uint_fast8_t interlace_div_y[8] = { 1,  8, 8, 8, 4, 4, 2, 2 };
+static const uint_fast8_t interlace_div_x[8] = { 1,  8, 8, 4, 4, 2, 2, 1 };
+static const uint_fast8_t interlace_div_y[8] = { 1,  8, 8, 8, 4, 4, 2, 2 };
+static const uint_fast8_t interlace_off_y[9] = { 0,  0, 0, 4, 0, 2, 0, 1, 0 };
+static const uint_fast8_t* interlace_off_x = &interlace_off_y[1];
 
 
 static inline uint8_t  read_uint8(const uint8_t *p)

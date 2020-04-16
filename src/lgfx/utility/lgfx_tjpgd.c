@@ -18,6 +18,8 @@
 / Sep 03, 2012 R0.01b Added JD_TBLCLIP option.
 / Mar 16, 2019 R0.01c Supprted stdint.h.
 /-----------------------------------------------------------------------------/
+/ original source is here : http://elm-chan.org/fsw/tjpgd/00index.html
+/
 / Modified for LGFX  by lovyan03, 2020
 / add support grayscale jpeg
 / add bayer pattern

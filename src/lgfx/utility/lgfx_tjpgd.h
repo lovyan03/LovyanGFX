@@ -1,6 +1,8 @@
 /*----------------------------------------------------------------------------/
 / TJpgDec - Tiny JPEG Decompressor include file               (C)ChaN, 2019
 /-----------------------------------------------------------------------------/
+/ original source is here : http://elm-chan.org/fsw/tjpgd/00index.html
+/
 / Modified for LGFX  by lovyan03, 2020
 / add support grayscale jpeg
 / add bayer pattern
