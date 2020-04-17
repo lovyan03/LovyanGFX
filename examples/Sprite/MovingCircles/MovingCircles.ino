@@ -1,4 +1,3 @@
-
 #if defined(ARDUINO_M5Stick_C)
 #include <AXP192.h>
 #endif
@@ -42,7 +41,7 @@ struct obj_info_t {
 static constexpr size_t obj_count = 500;
 static obj_info_t objects[obj_count];
 
-static LGFX tft;
+static LGFX lcd;
 static LGFX_Sprite sprites[2];
 static int_fast16_t sprite_height;
 
@@ -53,10 +52,10 @@ void setup(void)
   axp.begin();
 #endif
 
-  tft.init();
+  lcd.init();
 
-  tft_width = tft.width();
-  tft_height = tft.height();
+  tft_width = lcd.width();
+  tft_height = lcd.height();
   obj_info_t *a;
   for (size_t i = 0; i < obj_count; ++i) {
     a = &objects[i];
@@ -72,8 +71,8 @@ void setup(void)
   sprites[0].createSprite(tft_width, sprite_height);
   sprites[1].createSprite(tft_width, sprite_height);
 
-  tft.startWrite();
-  tft.setAddrWindow(0, 0, tft_width, tft_height);
+  lcd.startWrite();
+  lcd.setAddrWindow(0, 0, tft_width, tft_height);
 }
 
 void loop(void)
@@ -102,9 +101,9 @@ void loop(void)
     }
     size_t len = sprites[flip].bufferLength();
     if (y + sprite_height > tft_height) {
-      len = (tft_height - y) * tft_width * tft.getColorConverter()->bytes;
+      len = (tft_height - y) * tft_width * lcd.getColorConverter()->bytes;
     }
-    tft.pushPixelsDMA(sprites[flip].getBuffer(), len);
+    lcd.pushPixelsDMA(sprites[flip].getBuffer(), len);
   }
 
   ++frame_count;
@@ -113,7 +112,7 @@ void loop(void)
     psec = sec;
     fps = frame_count;
     frame_count = 0;
-    tft.setAddrWindow(0, 0, tft.width(), tft.height());
+    lcd.setAddrWindow(0, 0, lcd.width(), lcd.height());
   }
 }
 

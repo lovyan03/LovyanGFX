@@ -4,8 +4,8 @@
 
 #include <LovyanGFX.hpp>
 
-static LGFX tft;
-static LGFX_Sprite sprite(&tft);
+static LGFX lcd;
+static LGFX_Sprite sprite(&lcd);
 
 struct meter_t
 {
@@ -23,7 +23,7 @@ struct meter_t
 
   void drawGauge(uint32_t color)
   {
-    tft.setPivot(pivot_x, pivot_y);
+    lcd.setPivot(pivot_x, pivot_y);
     sprite.setPaletteColor(1, color);
     sprite.pushRotated(angle - 127);
     advance();
@@ -32,44 +32,44 @@ struct meter_t
 
 struct meter_t meter1, meter2, meter3;
 
-void setup()
+void setup(void)
 {
 #if defined(ARDUINO_M5Stick_C)
   AXP192 axp;
   axp.begin();
 #endif
 
-  tft.init();
+  lcd.init();
 
-  if (tft.width() < tft.height()) {
-    tft.setRotation((tft.getRotation() + 1) & 3);
+  if (lcd.width() < lcd.height()) {
+    lcd.setRotation((lcd.getRotation() + 1) & 3);
   }
 
   sprite.setColorDepth(2);
 
-  sprite.createSprite(3,tft.height() / 8);
-  sprite.setPivot(1, tft.height() / 4);
+  sprite.createSprite(3,lcd.height() / 8);
+  sprite.setPivot(1, lcd.height() / 4);
 
   sprite.drawFastVLine(1, 0, sprite.height()    , 3);
   sprite.drawFastVLine(0, 2, sprite.height() - 4, 1);
 
-  meter1.pivot_x = tft.width() >> 1;
-  meter1.pivot_y = (tft.height() >> 2) + 2;
+  meter1.pivot_x = lcd.width() >> 1;
+  meter1.pivot_y = (lcd.height() >> 2) + 2;
   meter1.add = 0.01;
 
-  meter2.pivot_x = tft.width() >> 2;
-  meter2.pivot_y = (tft.height() * 3) >>2;
+  meter2.pivot_x = lcd.width() >> 2;
+  meter2.pivot_y = (lcd.height() * 3) >>2;
   meter2.add = 0.11;
 
-  meter3.pivot_x = (tft.width() * 3) >> 2;
-  meter3.pivot_y = (tft.height() * 3) >> 2;
+  meter3.pivot_x = (lcd.width() * 3) >> 2;
+  meter3.pivot_y = (lcd.height() * 3) >> 2;
   meter3.add = 0.57;
 
-  tft.fillScreen(tft.color565(0,0,127));
+  lcd.fillScreen(lcd.color565(0,0,127));
 
   for (int i = 0; i < 20; i++) {
-    tft.drawFastHLine(0,  (i*2+1) * tft.height() / 40, tft.width(), 0xFFFF);
-    tft.drawFastVLine((i*2+1) * tft.width() / 40, 0, tft.height() , 0xFFFF);
+    lcd.drawFastHLine(0,  (i*2+1) * lcd.height() / 40, lcd.width(), 0xFFFF);
+    lcd.drawFastVLine((i*2+1) * lcd.width() / 40, 0, lcd.height() , 0xFFFF);
   }
 }
 

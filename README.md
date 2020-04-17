@@ -314,14 +314,20 @@ LovyanGFX has been created to add these features and optimize performance.
 TFT_eSPIのベースとなった、[AdafruitGFX](https://github.com/adafruit/Adafruit-GFX-Library)を公開している[Adafruit Industries](https://github.com/adafruit/)へ感謝いたします。  
 [TJpgDec](http://elm-chan.org/fsw/tjpgd/00index.html) (Tiny JPEG Decompressor) の作者 [ChaN](http://elm-chan.org/)氏へ感謝いたします。  
 [Pngle](https://github.com/kikuchan/pngle) (PNG Loader for Embedding) の作者 [kikuchan](https://github.com/kikuchan/)氏へ感謝いたします。  
+多くの技術的なアドバイスやESP-IDF環境での検証に協力してくれた[ciniml](https://github.com/ciniml)氏へ感謝いたします。  
+不具合の多い開発初期からの動作検証および多数の助言をくださった[mongonta0716](https://github.com/mongonta0716)氏へ感謝いたします。  
+多数のボードでの動作検証や英語への翻訳および多数の助言をくださった[tobozo](https://github.com/tobozo)氏へ感謝いたします。  
 
 Thanks to [Bodmer](https://github.com/Bodmer/), author of the [TFT_eSPI](https://github.com/Bodmer/TFT_eSPI) library, for the inspiration to create this library.  
 Thanks to [Adafruit Industries](https://github.com/adafruit/) for publishing [AdafruitGFX](https://github.com/adafruit/Adafruit-GFX-Library), which is the basis for TFT_eSPI.  
 Thanks to [ChaN](http://elm-chan.org/), author of [TJpgDec](http://elm-chan.org/fsw/tjpgd/00index.html) (Tiny JPEG Decompressor).  
 Thanks to [kikuchan](https://github.com/kikuchan/), author of [Pngle](https://github.com/kikuchan/pngle) (PNG Loader for Embedding).  
+Thanks to [ciniml](https://github.com/ciniml), for many technical tips and help with validation in the ESP-IDF environment.  
+Thanks to [mongonta0716](https://github.com/mongonta0716), for verifying the work from the beginning of the development with many bugs and for his advice.  
+Thanks to [tobozo](https://github.com/tobozo), for testing it on various boards, translating it into English and giving me a lot of advice.  
 
 
-使用ライブラリ included library
+使用ライブラリ included library  
 ----------------
 [TJpgDec](http://elm-chan.org/fsw/tjpgd/00index.html)  [ChaN](http://elm-chan.org/)  
 [Pngle](https://github.com/kikuchan/pngle)  [kikuchan](https://github.com/kikuchan/)  

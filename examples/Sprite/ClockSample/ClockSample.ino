@@ -1,4 +1,3 @@
-
 #if defined(ARDUINO_M5Stick_C)
 #include <AXP192.h>
 static AXP192 axp;
@@ -6,7 +5,7 @@ static AXP192 axp;
 
 #include <LovyanGFX.hpp>
 
-static LGFX tft;
+static LGFX lcd;
 static LGFX_Sprite offscreen;
 static LGFX_Sprite clockbase;
 static LGFX_Sprite needle1(&offscreen);
@@ -17,17 +16,17 @@ static uint64_t count = 0;
 
 static auto transp = lgfx::color888(255,255,0);
 
-void setup() {
+void setup(void) {
   Serial.begin(115200);
 
 #if defined(ARDUINO_M5Stick_C)
   axp.begin();
 #endif
 
-  tft.init();
+  lcd.init();
 
-  int32_t width = tft.width() - 1;
-  if (width > tft.height() - 1) width = tft.height() - 1;
+  int32_t width = lcd.width() - 1;
+  if (width > lcd.height() - 1) width = lcd.height() - 1;
 
   int32_t halfwidth = width >> 1;
 
@@ -110,12 +109,12 @@ void setup() {
   offscreen.setTextDatum(lgfx::middle_center);
   offscreen.setTextColor(lgfx::color888(255,255,200));
 
-  tft.startWrite();
+  lcd.startWrite();
 
-//  shadow1.pushSprite(&tft,  0, 0);
-//  needle1.pushSprite(&tft, 10, 0);
-//  shadow2.pushSprite(&tft, 20, 0);
-//  needle2.pushSprite(&tft, 25, 0);
+//  shadow1.pushSprite(&lcd,  0, 0);
+//  needle1.pushSprite(&lcd, 10, 0);
+//  shadow2.pushSprite(&lcd, 20, 0);
+//  needle2.pushSprite(&lcd, 25, 0);
 }
 
 void drawClock(uint64_t time)
@@ -136,7 +135,7 @@ void drawClock(uint64_t time)
   needle1.pushRotated((float)time /  100.0, 0);
   needle2.pushRotated((float)time * 6/10.0, 0);
 
-  offscreen.pushSprite(&tft, tft.width() - offscreen.width() >> 1, tft.height() - offscreen.height() >> 1, transp);
+  offscreen.pushSprite(&lcd, lcd.width() - offscreen.width() >> 1, lcd.height() - offscreen.height() >> 1, transp);
 }
 
 void loop(void)
