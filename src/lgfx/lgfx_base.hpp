@@ -2163,7 +2163,7 @@ namespace lgfx
 #endif
 //----------------------------------------------------------------------------
 //----------------------------------------------------------------------------
-#ifdef EFONT_ENABLE
+#ifdef __EFONT_ENABLE_0X0030__
 
   template <class Base>
   class LGFX_efont_Support : public Base {
@@ -3330,7 +3330,7 @@ private:
 }
 
 class LovyanGFX : public
-#ifdef EFONT_ENABLE
+#ifdef __EFONT_ENABLE_0X0030__
  lgfx::LGFX_efont_Support<
 #endif
 #ifdef LGFX_GFXFONT_HPP_
@@ -3344,7 +3344,7 @@ class LovyanGFX : public
 #ifdef LGFX_GFXFONT_HPP_
   >
 #endif
-#ifdef EFONT_ENABLE
+#ifdef __EFONT_ENABLE_0X0030__
  >
 #endif
 {};

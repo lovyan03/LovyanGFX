@@ -6,16 +6,19 @@
 //
 
 // 使用する文字セットに応じたヘッダをincludeします。
-#include <efontEnableJa.h>
-//#include <efontEnableAscii.h>
+// Include a header corresponding to the character set used.
 //#include <efontEnableAll.h>
+//#include <efontEnableAscii.h>
 //#include <efontEnableCJK.h>
 //#include <efontEnableCn.h>
-//#include <efontEnableJa.h>
+#include <efontEnableJa.h>
 //#include <efontEnableJaMini.h>
 //#include <efontEnableKr.h>
 //#include <efontEnableTw.h>
-#include <efont.h>
+
+// efontのフォントデータをincludeします。
+// Include the font data of efont.
+#include <efontFontData.h>
 
 // LovyanGFXより先に efontのincludeが必要です。
 // need to include efont before LovyanGFX.
