@@ -19,7 +19,6 @@ void setup(void)
 #endif
 
   lcd.init();
-  lcd.setBrightness(255);
   lcd.setPivot(lcd.width()>>1, lcd.height()>>1);
   width = (std::max(lcd.width(), lcd.height())+10) | 1;
   for (int i = 0; i < 2; ++i) {

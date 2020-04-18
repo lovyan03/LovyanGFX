@@ -138,6 +138,7 @@ namespace lgfx
       if (!create_palette()) return false;
 
       setPaletteGrayscale();
+      return true;
     }
 
     // create palette from RGB565(uint16_t) array

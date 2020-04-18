@@ -1879,8 +1879,11 @@ namespace lgfx
       const int fontHeight = pgm_read_byte(&fontdat->height);
 
       auto font_addr = (const uint8_t*)pgm_read_dword(&((const uint8_t**)fontdat->chartbl)[uniCode]);
+      return draw_char_bmp(me, x, y, fore_rgb888, back_rgb888, size_x, size_y, font_addr, fontWidth, fontHeight, (fontWidth + 6) >> 3);
+    }
 
-      uint8_t w = (fontWidth + 6) >> 3;
+    static int_fast16_t draw_char_bmp(LGFXBase* me, int32_t x, int32_t y, uint32_t fore_rgb888, uint32_t back_rgb888, int_fast8_t size_x, int_fast8_t size_y, const uint8_t* font_addr, int32_t fontWidth, int32_t fontHeight, int32_t w )
+    {
       uint32_t colortbl[2] = {me->_write_conv.convert(back_rgb888), me->_write_conv.convert(fore_rgb888)};
       bool fillbg = (back_rgb888 != fore_rgb888);
 
@@ -2154,6 +2157,52 @@ namespace lgfx
       this->_font_size_y.offset = - _glyph_ab;
       this->_font_size_y.size = _glyph_bb + _glyph_ab;
       this->_font_size_y.advance = (uint8_t)pgm_read_byte(&_gfxFont->yAdvance);
+    }
+  };
+
+#endif
+//----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+#ifdef EFONT_ENABLE
+
+  template <class Base>
+  class LGFX_efont_Support : public Base {
+
+    static bool updateFontSizeEFONT(LGFXBase* lgfxbase, uint16_t uniCode) {
+      auto me = (LGFX_efont_Support*)lgfxbase;
+      me->_font_size_x.offset  = 0;
+      me->_font_size_x.size    = me->_font_size_x.advance = uniCode < 0x0100 ? 8 : 16;
+      return true;
+    }
+
+    static int_fast16_t drawCharEFONT(LGFXBase* lgfxbase, int32_t x, int32_t y, uint16_t c, uint32_t fore_rgb888, uint32_t back_rgb888, int_fast8_t size_x, int_fast8_t size_y, const fontinfo* fontdat)
+    {
+      const int32_t fontWidth = ((c < 0x0100) ? 8 : 16);
+      const int32_t fontHeight = 16;
+      auto it = std::lower_bound(efontFontList, &efontFontList[sizeof(efontFontList)>>1], c);
+      if (*it != c) {
+        if (fore_rgb888 != back_rgb888) {
+          lgfxbase->fillRect(x, y, fontWidth * size_x, fontHeight * size_y, back_rgb888);
+        }
+        return fontWidth * size_x;
+      }
+      const uint8_t* font_addr = &efontFontData[(std::distance(efontFontList, it))*32];
+      return LGFXBase::draw_char_bmp(lgfxbase, x, y, fore_rgb888, back_rgb888, size_x, size_y, font_addr, fontWidth, fontHeight, 2);
+    }
+  public:
+
+    void setTextEFont(void)
+    {
+      this->fpDrawChar = drawCharEFONT;
+      this->fpUpdateFontSize = updateFontSizeEFONT;
+
+      this->_textfont = 1;
+      this->_decoderState = Base::utf8_decode_state_t::utf8_state0;
+
+      this->_font_baseline = 14;
+      this->_font_size_y.offset = 0;
+      this->_font_size_y.size = 16;
+      this->_font_size_y.advance = 16;
     }
   };
 
@@ -3281,15 +3330,21 @@ private:
 }
 
 class LovyanGFX : public
-#ifdef LGFX_GFXFONT_HPP_
- lgfx::LGFX_GFXFont_Support<
+#ifdef EFONT_ENABLE
+ lgfx::LGFX_efont_Support<
 #endif
-  lgfx::LGFX_VLWFont_Support<
-   lgfx::LGFX_IMAGE_FORMAT_Support<
-    lgfx::LGFXBase
-   >
-  >
 #ifdef LGFX_GFXFONT_HPP_
+  lgfx::LGFX_GFXFont_Support<
+#endif
+   lgfx::LGFX_VLWFont_Support<
+    lgfx::LGFX_IMAGE_FORMAT_Support<
+     lgfx::LGFXBase
+    >
+   >
+#ifdef LGFX_GFXFONT_HPP_
+  >
+#endif
+#ifdef EFONT_ENABLE
  >
 #endif
 {};
