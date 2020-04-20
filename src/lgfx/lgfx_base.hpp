@@ -1567,7 +1567,7 @@ namespace lgfx
       switch (attr_id) {
         case cp437_switch: return _cp437;
         case utf8_switch: return _utf8;
-        default: break;
+        default: return 0;
       }
     }
 
