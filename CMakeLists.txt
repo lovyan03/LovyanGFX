@@ -2,6 +2,7 @@ set(COMPONENT_ADD_INCLUDEDIRS
     src
     src/lgfx
     src/lgfx/platforms
+    src/lgfx/utility
     src/Fonts
     )
 file(GLOB FONT_SRCS src/lgfx/utility/*.c)

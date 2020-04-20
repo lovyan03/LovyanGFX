@@ -2650,51 +2650,31 @@ namespace lgfx
 
     inline void drawBmp(fs::FS &fs, const char *path, int32_t x=0, int32_t y=0) { drawBmpFile(fs, path, x, y); }
     void drawBmpFile(fs::FS &fs, const char *path, int32_t x=0, int32_t y=0) {
-      FileWrapper file;
-      file.setFS(fs);
+      FileWrapper file(fs);
       drawBmpFile(&file, path, x, y);
     }
 
-    bool drawJpgFile( fs::FS &fs, const char *path, int32_t x=0, int32_t y=0, int32_t maxWidth=0, int32_t maxHeight=0, int32_t offX=0, int32_t offY=0, jpeg_div_t scale=JPEG_DIV_NONE) {
-      bool res;
-      FileWrapper file;
-      file.setFS(fs);
-
-      file.need_transaction &= this->isSPIShared();
-      if (file.need_transaction) this->endTransaction();
-      if (file.open(path, "rb")) {
-        res = drawJpg(&file, x, y, maxWidth, maxHeight, offX, offY, scale);
-        file.close();
-      }
-      if (file.need_transaction && this->_transaction_count) { this->beginTransaction(); }
-      return res;
+    inline bool drawJpgFile( fs::FS &fs, const char *path, int32_t x=0, int32_t y=0, int32_t maxWidth=0, int32_t maxHeight=0, int32_t offX=0, int32_t offY=0, jpeg_div_t scale=JPEG_DIV_NONE) {
+      FileWrapper file(fs);
+      return drawJpgFile(&file, path, x, y, maxWidth, maxHeight, offX, offY, scale);
     }
 
-    bool drawPngFile( fs::FS &fs, const char *path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, double scale = 1.0)
+    inline bool drawPngFile( fs::FS &fs, const char *path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, double scale = 1.0)
     {
-      bool res;
-      FileWrapper file;
-      file.setFS(fs);
-      file.need_transaction &= this->isSPIShared();
-      if (file.need_transaction) this->endTransaction();
-      if (file.open(path, "rb")) {
-        res = draw_png(&file, x, y, maxWidth, maxHeight, offX, offY, scale);
-        file.close();
-      }
-      if (file.need_transaction && this->_transaction_count) { this->beginTransaction(); }
-      return res;
+      FileWrapper file(fs);
+      return drawPngFile( &file, path, x, y, maxWidth, maxHeight, offX, offY, scale);
     }
 
  #endif
  #if defined (Stream_h)
 
-    bool drawJpg(Stream *dataSource, int32_t x=0, int32_t y=0, int32_t maxWidth=0, int32_t maxHeight=0, int32_t offX=0, int32_t offY=0, jpeg_div_t scale=JPEG_DIV_NONE) {
+    inline bool drawJpg(Stream *dataSource, int32_t x=0, int32_t y=0, int32_t maxWidth=0, int32_t maxHeight=0, int32_t offX=0, int32_t offY=0, jpeg_div_t scale=JPEG_DIV_NONE) {
       StreamWrapper data;
       data.set(dataSource);
       return drawJpg(&data, x, y, maxWidth, maxHeight, offX, offY, scale);
     }
 
-    void drawPng( Stream *dataSource, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, double scale = 1.0) {
+    inline void drawPng( Stream *dataSource, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, double scale = 1.0) {
       StreamWrapper data;
       data.set(dataSource);
       return draw_png(&data, x, y, maxWidth, maxHeight, offX, offY, scale);
@@ -2704,35 +2684,19 @@ namespace lgfx
 
 #elif defined (CONFIG_IDF_TARGET_ESP32)  // ESP-IDF
 
-    void drawBmpFile(const char *path, int32_t x, int32_t y) {
+    inline void drawBmpFile(const char *path, int32_t x, int32_t y) {
       FileWrapper file;
       drawBmpFile(&file, path, x, y);
     }
 
-    bool drawJpgFile(const char *path, int32_t x=0, int32_t y=0, int32_t maxWidth=0, int32_t maxHeight=0, int32_t offX=0, int32_t offY=0, jpeg_div_t scale=JPEG_DIV_NONE) {
-      bool res;
+    inline bool drawJpgFile(const char *path, int32_t x=0, int32_t y=0, int32_t maxWidth=0, int32_t maxHeight=0, int32_t offX=0, int32_t offY=0, jpeg_div_t scale=JPEG_DIV_NONE) {
       FileWrapper file;
-      file.need_transaction &= this->isSPIShared();
-      if (file.need_transaction) this->endTransaction();
-      if (file.open(path, "rb")) {
-        res = drawJpg(&file, x, y, maxWidth, maxHeight, offX, offY, scale);
-        file.close();
-      }
-      if (file.need_transaction && this->_transaction_count) { this->beginTransaction(); }
-      return res;
+      return drawJpgFile(&file, path, x, y, maxWidth, maxHeight, offX, offY, scale);
     }
-    bool drawPngFile( const char *path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, double scale = 1.0)
+    inline bool drawPngFile( const char *path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, double scale = 1.0)
     {
-      bool res;
       FileWrapper file;
-      file.need_transaction &= this->isSPIShared();
-      if (file.need_transaction) this->endTransaction();
-      if (file.open(path, "rb")) {
-        res = draw_png(&file, x, y, maxWidth, maxHeight, offX, offY, scale);
-        file.close();
-      }
-      if (file.need_transaction && this->_transaction_count) { this->beginTransaction(); }
-      return res;
+      return drawPngFile( &file, path, x, y, maxWidth, maxHeight, offX, offY, scale);
     }
 
 #endif
@@ -2832,7 +2796,7 @@ namespace lgfx
       bool eol = false;
       do {
         data->read(code, 2);
-        if (code[0] == 0) { // 1バイト目が 0 ならエンコードデータ以外
+        if (code[0] == 0) { // 1バイト目ぁE0 ならエンコードデータ以夁E
           switch (code[1]) {
           case 0x00: // EOL
           case 0x01: // EOB
@@ -2965,6 +2929,18 @@ namespace lgfx
     }
 
 
+    bool drawJpgFile(FileWrapper* file, const char *path, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, jpeg_div_t scale) {
+      bool res = false;
+      file->need_transaction &= this->isSPIShared();
+      if (file->need_transaction) this->endTransaction();
+      if (file->open(path, "rb")) {
+        res = drawJpg(file, x, y, maxWidth, maxHeight, offX, offY, scale);
+        file->close();
+      }
+      if (file->need_transaction && this->_transaction_count) { this->beginTransaction(); }
+      return res;
+    }
+
 #if !defined (__LGFX_TJPGDEC_H__)
 
 public:
@@ -3079,6 +3055,21 @@ private:
     }
 
 #endif
+
+
+    bool drawPngFile( FileWrapper* file, const char *path, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, double scale)
+    {
+      bool res = false;
+      file->need_transaction &= this->isSPIShared();
+      if (file->need_transaction) this->endTransaction();
+      if (file->open(path, "rb")) {
+        res = draw_png(file, x, y, maxWidth, maxHeight, offX, offY, scale);
+        file->close();
+      }
+      if (file->need_transaction && this->_transaction_count) { this->beginTransaction(); }
+      return res;
+    }
+
 
 #ifndef __LGFX_PNGLE_H__
 
@@ -3240,7 +3231,7 @@ private:
 
     static void png_init_callback(pngle_t *pngle, uint32_t w, uint32_t h, uint_fast8_t hasTransparent)
     {
-      auto ihdr = pngle_get_ihdr(pngle);
+//    auto ihdr = pngle_get_ihdr(pngle);
 
       auto p = (png_file_decoder_t*)pngle_get_user_data(pngle);
 
