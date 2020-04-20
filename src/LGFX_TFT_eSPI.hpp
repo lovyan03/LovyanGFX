@@ -65,6 +65,9 @@ typedef lgfx::bgr888_t RGBColor;
 #define TFT_TRANSPARENT 0x0120
 
 
+#define CP437_SWITCH lgfx::attribute_t::cp437_switch
+#define UTF8_SWITCH  lgfx::attribute_t::utf8_switch
+
 
 typedef LGFX TFT_eSPI;
 

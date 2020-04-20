@@ -28,7 +28,6 @@ Contributors:
 #if defined (ARDUINO) // Arduino ESP32
  #include <SPI.h>
 #else
-// #include <driver/spi_common_internal.h> // ESP-IDF4.0
 #endif
 
 #include "esp32_common.hpp"
@@ -36,10 +35,10 @@ Contributors:
 
 namespace lgfx
 {
-  static void spi_dma_transfer_active(int dmachan)
-  {
-    spicommon_dmaworkaround_transfer_active(dmachan);
-  }
+//  static void spi_dma_transfer_active(int dmachan)
+//  {
+//    spicommon_dmaworkaround_transfer_active(dmachan);
+//  }
 
   static void spi_dma_reset(void) //periph_module_reset( PERIPH_SPI_DMA_MODULE );
   {
@@ -306,7 +305,7 @@ namespace lgfx
       *reg(SPI_DMA_CONF_REG(_spi_port)) |= SPI_DMA_CONTINUE;
 //        *reg(SPI_DMA_CONF_REG(_spi_port)) |= SPI_DMA_CONTINUE | SPI_OUTDSCR_BURST_EN | SPI_OUT_DATA_BURST_EN;
       *reg(SPI_DMA_OUT_LINK_REG(_spi_port)) = SPI_OUTLINK_START | ((int)(&_dmadesc[0]) & 0xFFFFF);
-      spi_dma_transfer_active(_dma_channel);
+//      spi_dma_transfer_active(_dma_channel);
       exec_spi();
     }
 
@@ -383,6 +382,7 @@ namespace lgfx
     }
 
     void begin_transaction(void) {
+      _fill_mode = false;
       uint32_t apb_freq = getApbFrequency();
       if (_last_apb_freq != apb_freq) {
         _last_apb_freq = apb_freq;
@@ -390,18 +390,12 @@ namespace lgfx
         _clkdiv_fill  = FreqToClockDiv(apb_freq, _panel->freq_fill);
         _clkdiv_write = FreqToClockDiv(apb_freq, _panel->freq_write);
       }
-      _fill_mode = false;
 
       auto spi_mode = _panel->spi_mode;
       uint32_t user = (spi_mode == 1 || spi_mode == 2) ? SPI_CK_OUT_EDGE | SPI_USR_MOSI : SPI_USR_MOSI;
       uint32_t pin = (spi_mode & 2) ? SPI_CK_IDLE_EDGE : 0;
 
-      wait_spi();
-
-      *reg(SPI_USER_REG(_spi_port)) = user;
-      *reg(SPI_PIN_REG(_spi_port))  = pin;
-
-      set_clock_write();
+//    wait_spi();
 
 #if defined (ARDUINO) // Arduino ESP32
       spiSimpleTransaction(_spi_handle);
@@ -421,6 +415,10 @@ namespace lgfx
         }
       }
 #endif
+
+      *reg(SPI_USER_REG(_spi_port)) = user;
+      *reg(SPI_PIN_REG(_spi_port))  = pin;
+      set_clock_write();
 
       cs_l();
 
@@ -713,7 +711,7 @@ namespace lgfx
             dc_h();
             set_write_len(w * h * bytes << 3);
             *reg(SPI_DMA_OUT_LINK_REG(_spi_port)) = SPI_OUTLINK_START | ((int)(&_dmadesc[0]) & 0xFFFFF);
-            spi_dma_transfer_active(_dma_channel);
+//            spi_dma_transfer_active(_dma_channel);
             exec_spi();
             return;
           }
@@ -831,7 +829,7 @@ namespace lgfx
         set_write_len(length << 3);
         _setup_dma_desc_links(data, length);
         *reg(SPI_DMA_OUT_LINK_REG(_spi_port)) = SPI_OUTLINK_START | ((int)(&_dmadesc[0]) & 0xFFFFF);
-        spi_dma_transfer_active(_dma_channel);
+//        spi_dma_transfer_active(_dma_channel);
         exec_spi();
         return;
       }
@@ -937,7 +935,7 @@ namespace lgfx
         set_read_len(length << 3);
         _setup_dma_desc_links(dst, length);
         *reg(SPI_DMA_IN_LINK_REG(_spi_port)) = SPI_INLINK_START | ((int)(&_dmadesc[0]) & 0xFFFFF);
-        spi_dma_transfer_active(_dma_channel);
+//        spi_dma_transfer_active(_dma_channel);
         exec_spi();
       } else {
         int32_t len1 = std::min(length, 32);  // 32 Byte read.
