@@ -2238,8 +2238,8 @@ namespace lgfx
       this->_textfont = 1;
       this->_decoderState = Base::utf8_decode_state_t::utf8_state0;
 
-      uint_fast8_t glyph_ab = 0;   // glyph delta Y (height) above baseline
-      uint_fast8_t glyph_bb = 0;   // glyph delta Y (height) below baseline
+      int_fast8_t glyph_ab = 0;   // glyph delta Y (height) above baseline
+      int_fast8_t glyph_bb = 0;   // glyph delta Y (height) below baseline
       uint16_t numChars = pgm_read_word(&_gfxFont->last) - pgm_read_word(&_gfxFont->first);
       
       // Find the biggest above and below baseline offsets
