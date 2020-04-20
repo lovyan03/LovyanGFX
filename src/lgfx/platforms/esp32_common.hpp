@@ -217,15 +217,16 @@ namespace lgfx
       _fs = fs;
       need_transaction = (&fs == &SD);
     }
+    FileWrapper(fs::FS& fs) : DataWrapper(), _fs(fs) { need_transaction = (&fs == &SD); }
   #else
     fs::FS& _fs = SPIFFS;
     void setFS(fs::FS& fs) {
       _fs = fs;
       need_transaction = (&fs != &SPIFFS);
     }
+    FileWrapper(fs::FS& fs) : DataWrapper(), _fs(fs) { need_transaction = (&fs != &SPIFFS); }
   #endif
     FileWrapper() : DataWrapper() {}
-    FileWrapper(fs::FS& fs) : DataWrapper(), _fs(fs) { need_transaction = (&fs != &SPIFFS); }
 
     bool open(fs::FS& fs, const char* path, const char* mode) {
       setFS(fs);

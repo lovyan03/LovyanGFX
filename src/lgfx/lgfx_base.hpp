@@ -1310,6 +1310,7 @@ namespace lgfx
           else {
             int32_t right = _textscroll ? _sx + _sw : _width;
             if (_cursor_x + xo + w > right) {
+              _filled_x = 0;
               _cursor_x = left - xo;
               _cursor_y += _font_size_y.advance * _textsize_y;
             }
@@ -2115,8 +2116,6 @@ namespace lgfx
   class LGFX_GFXFont_Support : public Base {
 
     const GFXfont  *_gfxFont;
-    uint8_t _glyph_ab;   // glyph delta Y (height) above baseline
-    uint8_t _glyph_bb;   // glyph delta Y (height) below baseline
 
     static bool updateFontSizeGFXFF(LGFXBase* lgfxbase, uint16_t uniCode) {
       auto me = (LGFX_GFXFont_Support*)lgfxbase;
@@ -2151,16 +2150,11 @@ namespace lgfx
       me->startWrite();
       uint32_t colortbl[2] = {me->_write_conv.convert(back_rgb888), me->_write_conv.convert(fore_rgb888)};
       bool fillbg = (back_rgb888 != fore_rgb888);
+      int32_t left  = 0;
+      int32_t right = 0;
       if (fillbg) {
-        int32_t left  = std::max(me->_filled_x, x + (xoffset < 0 ? xoffset : 0));
-        int32_t right = x + std::max((int32_t)(w * size_x + xoffset), (int32_t)(xAdvance));
-        if (right > left) {
-          me->setRawColor(colortbl[0]);
-          me->writeFillRect(left, y + me->_font_size_y.offset * size_y, right - left, (me->_glyph_bb + me->_glyph_ab) * size_y);
-          me->_filled_x = right;
-        }
-      } else {
-        me->_filled_x = 0;
+        left  = std::max(me->_filled_x, x + (xoffset < 0 ? xoffset : 0));
+        right = x + std::max((int32_t)(w * size_x + xoffset), (int32_t)(xAdvance));
       }
 
       x += xoffset;
@@ -2173,12 +2167,30 @@ namespace lgfx
 
       if ((x <= clip_right) && (clip_left < (x + w * size_x ))
        && (y <= clip_bottom) && (clip_top < (y + h * size_y ))) {
+
+        if (right > left) {
+          me->setRawColor(colortbl[0]);
+          int tmp = yoffset - (me->_font_size_y.offset * size_y);
+          if (tmp > 0)
+            me->writeFillRect(left, y - yoffset + me->_font_size_y.offset * size_y, right - left, tmp);
+
+          tmp = (me->_font_size_y.offset + me->_font_size_y.size - h) * size_y - yoffset;
+          if (tmp > 0)
+            me->writeFillRect(left, y + h * size_y, right - left, tmp);
+        }
+
         uint8_t  *bitmap = (uint8_t *)pgm_read_dword(&gfxFont->bitmap)
                          + pgm_read_word(&glyph->bitmapOffset);
         uint8_t bits=0, bit=0;
 
         me->setRawColor(colortbl[1]);
         while (h--) {
+          if (right > left) {
+            me->setRawColor(colortbl[0]);
+            me->writeFillRect(left, y, right - left, size_y);
+            me->setRawColor(colortbl[1]);
+          }
+
           int32_t len = 0;
           int32_t i = 0;
           for (i = 0; i < w; i++) {
@@ -2198,7 +2210,13 @@ namespace lgfx
           }
           y += size_y;
         }
+      } else {
+        if (right > left) {
+          me->setRawColor(colortbl[0]);
+          me->writeFillRect(left, y - yoffset + me->_font_size_y.offset * size_y, right - left, (me->_font_size_y.size) * size_y);
+        }
       }
+      me->_filled_x = right;
       me->endWrite();
       return xAdvance;
     }
@@ -2220,8 +2238,8 @@ namespace lgfx
       this->_textfont = 1;
       this->_decoderState = Base::utf8_decode_state_t::utf8_state0;
 
-      _glyph_ab = 0;
-      _glyph_bb = 0;
+      uint_fast8_t glyph_ab = 0;   // glyph delta Y (height) above baseline
+      uint_fast8_t glyph_bb = 0;   // glyph delta Y (height) below baseline
       uint16_t numChars = pgm_read_word(&_gfxFont->last) - pgm_read_word(&_gfxFont->first);
       
       // Find the biggest above and below baseline offsets
@@ -2229,14 +2247,14 @@ namespace lgfx
       {
         GFXglyph *glyph1 = &(((GFXglyph *)pgm_read_dword(&_gfxFont->glyph))[c]);
         int8_t ab = -pgm_read_byte(&glyph1->yOffset);
-        if (ab > _glyph_ab) _glyph_ab = ab;
+        if (ab > glyph_ab) glyph_ab = ab;
         int8_t bb = pgm_read_byte(&glyph1->height) - ab;
-        if (bb > _glyph_bb) _glyph_bb = bb;
+        if (bb > glyph_bb) glyph_bb = bb;
       }
 
-      this->_font_baseline = _glyph_ab;
-      this->_font_size_y.offset = - _glyph_ab;
-      this->_font_size_y.size = _glyph_bb + _glyph_ab;
+      this->_font_baseline = glyph_ab;
+      this->_font_size_y.offset = - glyph_ab;
+      this->_font_size_y.size = glyph_bb + glyph_ab;
       this->_font_size_y.advance = (uint8_t)pgm_read_byte(&_gfxFont->yAdvance);
     }
   };
