@@ -28,6 +28,9 @@ Contributors:
 #if defined (ARDUINO) // Arduino ESP32
  #include <SPI.h>
 #else
+ #if ESP_IDF_VERSION_MAJOR > 3
+  #include <driver/spi_common_internal.h>
+ #endif
 #endif
 
 #include "esp32_common.hpp"
@@ -35,19 +38,14 @@ Contributors:
 
 namespace lgfx
 {
-//  static void spi_dma_transfer_active(int dmachan)
-//  {
-//    spicommon_dmaworkaround_transfer_active(dmachan);
-//  }
+  inline static void spi_dma_transfer_active(int dmachan)
+  {
+    spicommon_dmaworkaround_transfer_active(dmachan);
+  }
 
-  static void spi_dma_reset(void) //periph_module_reset( PERIPH_SPI_DMA_MODULE );
+  static void spi_dma_reset(void)
   {
     periph_module_reset( PERIPH_SPI_DMA_MODULE );
-//  static portMUX_TYPE periph_spinlock = portMUX_INITIALIZER_UNLOCKED;
-//    vTaskEnterCritical(&periph_spinlock);
-//    DPORT_SET_PERI_REG_MASK(DPORT_PERIP_RST_EN_REG, DPORT_SPI_DMA_CLK_EN);
-//    DPORT_CLEAR_PERI_REG_MASK(DPORT_PERIP_RST_EN_REG, DPORT_SPI_DMA_CLK_EN);
-//    vTaskExitCritical(&periph_spinlock);
   }
 
   #define MEMBER_DETECTOR(member, classname, classname_impl, valuetype) struct classname_impl { \
@@ -305,7 +303,7 @@ namespace lgfx
       *reg(SPI_DMA_CONF_REG(_spi_port)) |= SPI_DMA_CONTINUE;
 //        *reg(SPI_DMA_CONF_REG(_spi_port)) |= SPI_DMA_CONTINUE | SPI_OUTDSCR_BURST_EN | SPI_OUT_DATA_BURST_EN;
       *reg(SPI_DMA_OUT_LINK_REG(_spi_port)) = SPI_OUTLINK_START | ((int)(&_dmadesc[0]) & 0xFFFFF);
-//      spi_dma_transfer_active(_dma_channel);
+      spi_dma_transfer_active(_dma_channel);
       exec_spi();
     }
 
@@ -438,10 +436,6 @@ namespace lgfx
       dc_h();
       cs_h();
 #if defined (ARDUINO) // Arduino ESP32
-//      if (_dma_channel) {
-//        if (_next_dma_reset) spi_dma_reset();
-//      }
-
       *reg(SPI_USER_REG(_spi_port)) = SPI_USR_MOSI | SPI_USR_MISO | SPI_DOUTDIN; // for other SPI device (SD)
       spiEndTransaction(_spi_handle);
 #elif defined (CONFIG_IDF_TARGET_ESP32) // ESP-IDF
@@ -711,7 +705,7 @@ namespace lgfx
             dc_h();
             set_write_len(w * h * bytes << 3);
             *reg(SPI_DMA_OUT_LINK_REG(_spi_port)) = SPI_OUTLINK_START | ((int)(&_dmadesc[0]) & 0xFFFFF);
-//            spi_dma_transfer_active(_dma_channel);
+            spi_dma_transfer_active(_dma_channel);
             exec_spi();
             return;
           }
@@ -829,7 +823,7 @@ namespace lgfx
         set_write_len(length << 3);
         _setup_dma_desc_links(data, length);
         *reg(SPI_DMA_OUT_LINK_REG(_spi_port)) = SPI_OUTLINK_START | ((int)(&_dmadesc[0]) & 0xFFFFF);
-//        spi_dma_transfer_active(_dma_channel);
+        spi_dma_transfer_active(_dma_channel);
         exec_spi();
         return;
       }
@@ -935,7 +929,7 @@ namespace lgfx
         set_read_len(length << 3);
         _setup_dma_desc_links(dst, length);
         *reg(SPI_DMA_IN_LINK_REG(_spi_port)) = SPI_INLINK_START | ((int)(&_dmadesc[0]) & 0xFFFFF);
-//        spi_dma_transfer_active(_dma_channel);
+        spi_dma_transfer_active(_dma_channel);
         exec_spi();
       } else {
         int32_t len1 = std::min(length, 32);  // 32 Byte read.
@@ -1091,7 +1085,10 @@ namespace lgfx
     {          //spicommon_setup_dma_desc_links
       if (!_dma_channel) return;
 
-//      if (_next_dma_reset) spi_dma_reset();
+      if (_next_dma_reset) {
+        _next_dma_reset = false;
+        spi_dma_reset();
+      }
 
       if (_dmadesc_len < h) {
         _alloc_dmadesc(h);
