@@ -922,9 +922,9 @@ namespace lgfx
       } while (length);
     }
 
-    void read_bytes(uint8_t* dst, int32_t length)
+    void read_bytes(uint8_t* dst, int32_t length, bool use_dma = false)
     {
-      if (_dma_channel) {
+      if (_dma_channel && use_dma) {
         wait_spi();
         set_read_len(length << 3);
         _setup_dma_desc_links(dst, length);
