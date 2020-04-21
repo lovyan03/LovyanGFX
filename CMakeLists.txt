@@ -5,7 +5,7 @@ set(COMPONENT_ADD_INCLUDEDIRS
     src/lgfx/utility
     src/Fonts
     )
-file(GLOB FONT_SRCS src/lgfx/utility/*.c)
-set(COMPONENT_SRCS ${FONT_SRCS})
+file(GLOB UTIL_SRCS src/lgfx/utility/*.c)
+set(COMPONENT_SRCS ${UTIL_SRCS})
 
 register_component()

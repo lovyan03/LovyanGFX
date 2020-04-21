@@ -115,7 +115,7 @@ static const uint8_t Clip8[1024] = {
 
 #else	/* JD_TBLCLIP */
 
-inline uint_fast8_t BYTECLIP (
+static inline uint_fast8_t BYTECLIP (
 	int32_t val
 )
 {
@@ -139,7 +139,7 @@ static const int_fast8_t Bayer[16] = { 0, 4, 1, 5,-2, 2,-1, 3, 1, 5, 0, 4,-1, 3,
 /*-----------------------------------------------------------------------*/
 
 static uint8_t* alloc_pool (	/* Pointer to allocated memory block (NULL:no memory available) */
-	JDEC* jd,		/* Pointer to the decompressor object */
+	lgfxJdec* jd,		/* Pointer to the decompressor object */
 	uint_fast16_t nd		/* Number of bytes to allocate */
 )
 {
@@ -165,7 +165,7 @@ static uint8_t* alloc_pool (	/* Pointer to allocated memory block (NULL:no memor
 /*-----------------------------------------------------------------------*/
 
 static int32_t create_qt_tbl (	/* 0:OK, !0:Failed */
-	JDEC* jd,				/* Pointer to the decompressor object */
+	lgfxJdec* jd,				/* Pointer to the decompressor object */
 	const uint8_t* data,	/* Pointer to the quantizer tables */
 	uint_fast16_t ndata		/* Size of input data */
 )
@@ -194,7 +194,7 @@ static int32_t create_qt_tbl (	/* 0:OK, !0:Failed */
 /*-----------------------------------------------------------------------*/
 
 static int32_t create_huffman_tbl (	/* 0:OK, !0:Failed */
-	JDEC* jd,					/* Pointer to the decompressor object */
+	lgfxJdec* jd,					/* Pointer to the decompressor object */
 	const uint8_t* data,		/* Pointer to the packed huffman tables */
 	int_fast16_t ndata				/* Size of input data */
 )
@@ -247,7 +247,7 @@ static int32_t create_huffman_tbl (	/* 0:OK, !0:Failed */
 /*-----------------------------------------------------------------------*/
 
 static int32_t bitext (	/* >=0: extracted data, <0: error code */
-	JDEC* jd,		/* Pointer to the decompressor object */
+	lgfxJdec* jd,		/* Pointer to the decompressor object */
 	int32_t nbit		/* Number of bits to extract (1 to 11) */
 )
 {
@@ -293,7 +293,7 @@ static int32_t bitext (	/* >=0: extracted data, <0: error code */
 /*-----------------------------------------------------------------------*/
 
 static int32_t huffext (	/* >=0: decoded data, <0: error code */
-	JDEC* jd,				/* Pointer to the decompressor object */
+	lgfxJdec* jd,				/* Pointer to the decompressor object */
 	const uint8_t* hbits,	/* Pointer to the bit distribution table */
 	const uint16_t* hcode,	/* Pointer to the code word table */
 	const uint8_t* hdata	/* Pointer to the data table */
@@ -465,7 +465,7 @@ static void block_idct (
 /*-----------------------------------------------------------------------*/
 
 static JRESULT mcu_load (
-	JDEC* jd		/* Pointer to the decompressor object */
+	lgfxJdec* jd		/* Pointer to the decompressor object */
 )
 {
 	int32_t *tmp = (int32_t*)jd->workbuf;	/* Block working buffer for de-quantize and IDCT */
@@ -543,8 +543,8 @@ static JRESULT mcu_load (
 /*-----------------------------------------------------------------------*/
 
 static JRESULT mcu_output (
-	JDEC* jd,		/* Pointer to the decompressor object */
-	uint32_t (*outfunc)(JDEC*, void*, JRECT*),	/* RGB output function */
+	lgfxJdec* jd,		/* Pointer to the decompressor object */
+	uint32_t (*outfunc)(lgfxJdec*, void*, JRECT*),	/* RGB output function */
 	uint32_t x,		/* MCU position in the image (left of the MCU) */
 	uint32_t y		/* MCU position in the image (top of the MCU) */
 )
@@ -698,7 +698,7 @@ static JRESULT mcu_output (
 /*-----------------------------------------------------------------------*/
 
 static JRESULT restart (
-	JDEC* jd,		/* Pointer to the decompressor object */
+	lgfxJdec* jd,		/* Pointer to the decompressor object */
 	uint16_t rstn	/* Expected restert sequense number */
 )
 {
@@ -742,9 +742,9 @@ static inline uint16_t LDB_WORD(uint8_t* ptr) {
 }
 
 
-JRESULT jd_prepare (
-	JDEC* jd,			/* Blank decompressor object */
-	uint32_t (*infunc)(JDEC*, uint8_t*, uint32_t),	/* JPEG strem input function */
+JRESULT lgfx_jd_prepare (
+	lgfxJdec* jd,			/* Blank decompressor object */
+	uint32_t (*infunc)(lgfxJdec*, uint8_t*, uint32_t),	/* JPEG strem input function */
 	void* pool,			/* Working buffer for the decompression session */
 	uint_fast16_t sz_pool,	/* Size of working buffer */
 	void* dev			/* I/O device identifier for the session */
@@ -915,9 +915,9 @@ JRESULT jd_prepare (
 /* Start to decompress the JPEG picture                                  */
 /*-----------------------------------------------------------------------*/
 
-JRESULT jd_decomp (
-	JDEC* jd,								/* Initialized decompression object */
-	uint32_t (*outfunc)(JDEC*, void*, JRECT*),	/* RGB output function */
+JRESULT lgfx_jd_decomp (
+	lgfxJdec* jd,								/* Initialized decompression object */
+	uint32_t (*outfunc)(lgfxJdec*, void*, JRECT*),	/* RGB output function */
 	uint_fast8_t scale							/* Output de-scaling factor (0 to 3) */
 )
 {
@@ -940,7 +940,7 @@ JRESULT jd_decomp (
 	for (y = 0; y < jd->height; y += my) {		/* Vertical loop of MCUs */
 		x = 0;
 		do {	/* Horizontal loop of MCUs */
-			if (jd->nrst && rst++ == jd->nrst) {	/* Process restart interval if enabled */
+			if (nrst && rst++ == nrst) {	/* Process restart interval if enabled */
 				rc = restart(jd, rsc++);
 				if (rc != JDR_OK) return rc;
 				rst = 1;
