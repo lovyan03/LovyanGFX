@@ -84,8 +84,8 @@ void setup(void) {
     shadow1.fillTriangle(4, - 24 - (i<<1), 8, shadow1.height() - (i<<1), 0, shadow1.height() - (i<<1),  1 + i);
   }
   for (int i = 0; i < 8; ++i) {
-    needle1.fillTriangle(4, 16 + i<<1, 8, needle1.height() + 40 + (i<<1), 0, needle1.height() + 40 + (i<<1), 15 - i);
-    shadow1.fillTriangle(4, 16 + i<<1, 8, shadow1.height() + 40 + (i<<1), 0, shadow1.height() + 40 + (i<<1),  1 + i);
+    needle1.fillTriangle(4, 16 + (i<<1), 8, needle1.height() + 40 + (i<<1), 0, needle1.height() + 40 + (i<<1), 15 - i);
+    shadow1.fillTriangle(4, 16 + (i<<1), 8, shadow1.height() + 40 + (i<<1), 0, shadow1.height() + 40 + (i<<1),  1 + i);
   }
   needle1.fillTriangle(4, 48, 8, needle1.height() + 72, 0, needle1.height() + 72, 0);
   shadow1.fillTriangle(4, 48, 8, shadow1.height() + 72, 0, shadow1.height() + 72, 0);
@@ -135,7 +135,7 @@ void drawClock(uint64_t time)
   needle1.pushRotated((float)time /  100.0, 0);
   needle2.pushRotated((float)time * 6/10.0, 0);
 
-  offscreen.pushSprite(&lcd, lcd.width() - offscreen.width() >> 1, lcd.height() - offscreen.height() >> 1, transp);
+  offscreen.pushSprite(&lcd, lcd.width() - (offscreen.width()>>1), lcd.height() - (offscreen.height()>>1), transp);
 }
 
 void loop(void)
