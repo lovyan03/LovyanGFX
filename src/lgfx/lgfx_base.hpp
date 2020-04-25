@@ -1745,8 +1745,8 @@ namespace lgfx
         float yeslope = (y + ewidth) * eslope;
         int len = 0;
         do {
-          bool flg1 = start180 != x <= ysslope;
-          bool flg2 =   end180 != x <= yeslope;
+          bool flg1 = start180 != (x <= ysslope);
+          bool flg2 =   end180 != (x <= yeslope);
           int distance = x * x + y2;
           if (distance >= ir2
            && ((flg1 && flg2) || (reversed && (flg1 || flg2)))
