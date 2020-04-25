@@ -41,9 +41,12 @@ static lgfx::LGFX_SPI<LGFX_Config> lcd;
 //static lgfx::Panel_TTGO_TS panel;
 //static lgfx::Panel_TTGO_TWatch panel;
 
+//static lgfx::Panel_HX8357B panel;
+//static lgfx::Panel_HX8357D panel;
 //static lgfx::Panel_ILI9163 panel;
 //static lgfx::Panel_ILI9341 panel;
 static lgfx::Panel_ILI9342 panel;
+//static lgfx::Panel_ILI9486 panel;
 //static lgfx::Panel_SSD1351 panel;
 //static lgfx::Panel_ST7789 panel;
 //static lgfx::Panel_ST7735S panel;
