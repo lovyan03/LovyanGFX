@@ -63,6 +63,8 @@ void setup(void)
   drawLine      ( x0, y0, x1, y1        , color); // ２点間の直線
   drawTriangle  ( x0, y0, x1, y1, x2, y2, color); // ３点間の三角形の外周
   fillTriangle  ( x0, y0, x1, y1, x2, y2, color); // ３点間の三角形の塗り
+  drawArc       ( x, y, r1, r1, angle1, angle2, color);  // 円弧の外周
+  fillArc       ( x, y, r1, r1, angle1, angle2, color);  // 円弧の塗り
 */
 
 
@@ -111,24 +113,28 @@ void setup(void)
 // 描画関数の引数の色は省略できます。
 // 省略した場合、setColor関数で設定した色 または最後に使用した色で描画できます。
 // 同じ色で繰り返し描画する場合は、省略した方がわずかに速く動作します。
-  lcd.setColor(0xFF0000U);           // 赤色を指定
-  lcd.fillEllipse( 80, 40, 10, 20);  // 赤色で楕円の塗り
-  lcd.fillCircle ( 40, 80, 20    );  // 赤色で円の塗り
-  lcd.setColor(0x0000FFU);           // 青色を指定
-  lcd.drawEllipse( 80, 40, 10, 20);  // 青色で楕円の外周
-  lcd.drawCircle ( 40, 80, 20    );  // 青色で円の外周
+  lcd.setColor(0xFF0000U);                 // 赤色を指定
+  lcd.fillCircle ( 40, 80, 20    );        // 赤色で円の塗り
+  lcd.fillEllipse( 80, 40, 10, 20);        // 赤色で楕円の塗り
+  lcd.fillArc    ( 80, 80, 20, 10, 0, 90); // 赤色で円弧の塗り
+  lcd.fillTriangle(80, 80, 60, 80, 80, 60);// 赤色で三角の塗り
+  lcd.setColor(0x0000FFU);                 // 青色を指定
+  lcd.drawCircle ( 40, 80, 20    );        // 青色で円の外周
+  lcd.drawEllipse( 80, 40, 10, 20);        // 青色で楕円の外周
+  lcd.drawArc    ( 80, 80, 20, 10, 0, 90); // 青色で円弧の外周
+  lcd.drawTriangle(80, 80, 60, 80, 80, 60);// 青色で三角の外周
 
 
 // SPIバスの確保と解放は描画関数を呼び出した時に自動的に行われます。
 // 描画スピードを重視する場合は、描画処理の前後に startWriteとendWriteを使用します。
 // SPIバスの確保と解放が抑制され、速度が向上します。
-  lcd.drawPixel(0, 0);  // SPIバス確保、描画、SPIバス解放
-  lcd.drawPixel(0, 0);  // SPIバス確保、描画、SPIバス解放
-  lcd.startWrite();     // SPIバス確保
-  lcd.drawPixel(0, 0);  // 描画
-  lcd.drawPixel(0, 0);  // 描画
-  lcd.drawPixel(0, 0);  // 描画
-  lcd.endWrite();       // SPIバス解放
+  lcd.drawLine(0, 1, 39, 40, red);       // SPIバス確保、線を描画、SPIバス解放
+  lcd.drawLine(1, 0, 40, 39, blue);      // SPIバス確保、線を描画、SPIバス解放
+  lcd.startWrite();                      // SPIバス確保
+  lcd.drawLine(38, 0, 0, 38, 0xFFFF00U); // 線を描画
+  lcd.drawLine(39, 1, 1, 39, 0xFF00FFU); // 線を描画
+  lcd.drawLine(40, 2, 2, 40, 0x00FFFFU); // 線を描画
+  lcd.endWrite();                        // SPIバス解放
 
 
 // startWriteとendWriteは呼出し回数を内部でカウントしており、
