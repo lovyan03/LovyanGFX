@@ -34,6 +34,8 @@ enum jpeg_div_t {
 
 namespace lgfx
 {
+  static constexpr float deg_to_rad = 0.017453292519943295769236907684886;
+
   enum textdatum_t : uint8_t
   //  0:left   1:centre   2:right
   //  0:top    4:middle   8:bottom   16:baseline

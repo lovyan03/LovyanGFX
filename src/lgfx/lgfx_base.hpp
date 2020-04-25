@@ -351,9 +351,9 @@ namespace lgfx
         writeFastHLine(x + j + 1, y - r, i - j);
         writeFastHLine(x + j + 1, y + r, i - j);
 
-        writeFastVLine(x - r, y - i    , i - j);
-        writeFastVLine(x + r, y - i    , i - j);
         writeFastVLine(x + r, y + j + 1, i - j);
+        writeFastVLine(x + r, y - i    , i - j);
+        writeFastVLine(x - r, y - i    , i - j);
         writeFastVLine(x - r, y + j + 1, i - j);
         j = i;
       } while (i < --r);
@@ -819,40 +819,18 @@ namespace lgfx
       if (r1 < 1) r1 = 1;
       if (r2 < 1) r2 = 1;
 
-      bool diff = start > end || start < end;
-      float astart = fmodf(start, 360);
-      float aend = fmodf(end, 360);
-
-      if (astart < 0) astart += (float)360;
-      if (aend < 0) aend += (float)360;
-      if (diff && aend == 0) aend = (float)360;
+      bool equal = fabsf(start - end) < std::numeric_limits<float>::epsilon();
+      start = fmodf(start, 360);
+      end = fmodf(end, 360);
+      if (start < 0) start += 360.0;
+      if (end < 0) end += 360.0;
 
       startWrite();
-      if (astart > aend) {
-        fill_arc_helper(x, y, r1, 1, astart, 360);
-        fill_arc_helper(x, y, r1, 1, 0, aend);
-        fill_arc_helper(x, y, r2, 1, astart, 360);
-        fill_arc_helper(x, y, r2, 1, 0, aend);
-      } else {
-        fill_arc_helper(x, y, r1, 1, astart, aend);
-        fill_arc_helper(x, y, r2, 1, astart, aend);
-      }
-      if (--r1 > ++r2) {
-        int32_t cos_tmp = cos(astart * DEG_TO_RAD) * (1 << FP_SCALE);
-        int32_t sin_tmp = sin(astart * DEG_TO_RAD) * (1 << FP_SCALE);
-//        for ( int r = r2; r < r1; ++r) {
-//          drawPixel(x + (r * cos_tmp+(1<<(FP_SCALE - 1)) >> FP_SCALE), y + (r * sin_tmp+(1<<(FP_SCALE - 1)) >> FP_SCALE));
-//        }
-        drawLine(x + ((r1 * cos_tmp+(1<<(FP_SCALE-1))) >> FP_SCALE), y + ((r1 * sin_tmp+(1<<(FP_SCALE-1))) >> FP_SCALE),
-                 x + ((r2 * cos_tmp+(1<<(FP_SCALE-1))) >> FP_SCALE), y + ((r2 * sin_tmp+(1<<(FP_SCALE-1))) >> FP_SCALE));
-        cos_tmp = cos(aend * DEG_TO_RAD) * (1 << FP_SCALE);
-        sin_tmp = sin(aend * DEG_TO_RAD) * (1 << FP_SCALE);
-//        for ( int r = r2; r < r1; ++r) {
-//          drawPixel(x + (r * cos_tmp+(1<<(FP_SCALE - 1)) >> FP_SCALE), y + (r * sin_tmp+(1<<(FP_SCALE - 1)) >> FP_SCALE));
-//        }
-        drawLine(x + ((r1 * cos_tmp+(1<<(FP_SCALE-1))) >> FP_SCALE), y + ((r1 * sin_tmp+(1<<(FP_SCALE-1))) >> FP_SCALE),
-                 x + ((r2 * cos_tmp+(1<<(FP_SCALE-1))) >> FP_SCALE), y + ((r2 * sin_tmp+(1<<(FP_SCALE-1))) >> FP_SCALE));
-      }
+      fill_arc_helper(x, y, r1, r2, start, start);
+      fill_arc_helper(x, y, r1, r2, end  , end);
+      if (!equal && (fabsf(start - end) <= 0.0001)) { start = .0; end = 360.0; }
+      fill_arc_helper(x, y, r1, r1, start, end);
+      fill_arc_helper(x, y, r2, r2, start, end);
       endWrite();
     }
 
@@ -862,22 +840,15 @@ namespace lgfx
       if (r1 < 1) r1 = 1;
       if (r2 < 1) r2 = 1;
 
-      bool diff = start > end || start < end;
-      float astart = fmodf(start, 360);
-      float aend = fmodf(end, 360);
+      bool equal = fabsf(start - end) < std::numeric_limits<float>::epsilon();
+      start = fmodf(start, 360);
+      end = fmodf(end, 360);
+      if (start < 0) start += 360.0;
+      if (end < 0) end += 360.0;
+      if (!equal && (fabsf(start - end) <= 0.0001)) { start = .0; end = 360.0; }
 
-      if (astart < 0) astart += (float)360;
-      if (aend < 0) aend += (float)360;
-      if (diff && aend == 0) aend = (float)360;
-
-      int32_t th = r1 - r2 + 1;
       startWrite();
-      if (astart > aend) {
-        fill_arc_helper(x, y, r1, th, astart, 360);
-        fill_arc_helper(x, y, r1, th, 0, aend);
-      } else {
-        fill_arc_helper(x, y, r1, th, astart, aend);
-      }
+      fill_arc_helper(x, y, r1, r2, start, end);
       endWrite();
     }
 
@@ -1134,7 +1105,7 @@ namespace lgfx
 
     void push_image_rotate_zoom(int32_t dst_x, int32_t dst_y, int32_t src_x, int32_t src_y, int32_t w, int32_t h, float angle, float zoom_x, float zoom_y, pixelcopy_t *param)
     {
-      angle *= - 0.0174532925; // Convert degrees to radians
+      angle *= - deg_to_rad; // Convert degrees to radians
       float sin_f = sin(angle) * (1 << FP_SCALE);
       float cos_f = cos(angle) * (1 << FP_SCALE);
       int32_t min_y, max_y;
@@ -1736,43 +1707,63 @@ namespace lgfx
       readRect_impl(x, y, w, h, dst, param);
       endWrite();
     }
-
-    void fill_arc_helper(int32_t cx, int32_t cy, int32_t radius, int32_t thickness, float start, float end)
+    void fill_arc_helper(int32_t cx, int32_t cy, int32_t oradius, int32_t iradius, float start, float end)
     {
-      float sslope = (cos(start * DEG_TO_RAD)) / (sin(start * DEG_TO_RAD));
-    //float eslope = (cos(end   * DEG_TO_RAD)) / (sin(end   * DEG_TO_RAD));
+      float s_cos = (cos(start * deg_to_rad));
+      float e_cos = (cos(end * deg_to_rad));
+      float sslope = s_cos / (sin(start * deg_to_rad));
       float eslope = -1000000;
-      if (end != 360.0) eslope = (cos(end * DEG_TO_RAD)) / (sin(end * DEG_TO_RAD));
+      if (end != 360.0) eslope = e_cos / (sin(end * deg_to_rad));
+      float swidth =  0.5 / s_cos;
+      float ewidth = -0.5 / e_cos;
+      --iradius;
+      int ir2 = iradius * iradius + iradius;
+      int or2 = oradius * oradius + oradius;
 
-      int ir2 = (radius - thickness) * (radius - thickness) + (radius - thickness);
-      int or2 = radius * radius + radius;
+      bool start180 = !(start < 180);
+      bool end180 = end < 180;
+      bool reversed = start + 180 < end || (end < start && start < end + 180);
 
-      int y = -radius;
+      int xs = -oradius;
+      int y = -oradius;
+      int ye = oradius;
+      int xe = oradius + 1;
+      if (!reversed) {
+        if (   (end >= 270 || end < 90) && (start >= 270 || start < 90)) xs = 0;
+        else if (end < 270 && end >= 90 && start < 270 && start >= 90) xe = 1;
+        if (     end >= 180 && start >= 180) ye = 0;
+        else if (end < 180 && start < 180) y = 0;
+      }
       do {
         int y2 = y * y;
-        int ysslope = y * sslope;
-        int yeslope = y * eslope;
+        int x = xs;
+        if (x < 0) {
+          while (x * x + y2 >= or2) ++x;
+          if (xe != 1) xe = 1 - x;
+        }
+        float ysslope = (y + swidth) * sslope;
+        float yeslope = (y + ewidth) * eslope;
         int len = 0;
-        int x = -radius;
         do {
+          bool flg1 = start180 != x <= ysslope;
+          bool flg2 =   end180 != x <= yeslope;
           int distance = x * x + y2;
-          if ((distance < or2 && distance >= ir2)
-            && ( (y >= 0 && (start < 180 && x <= ysslope)
-                         && ( end >= 180 || x >= yeslope)
-                 )
-              || (y < 0 && (start <= 180 || x >= ysslope)
-                        && (   end > 180 && x <= yeslope)
-                 )
-//            || (y == 0 && ((start == 0 && x > 0) || (x < 0 && start <= 180 && end >= 180)))
-              )
+          if (distance >= ir2
+           && ((flg1 && flg2) || (reversed && (flg1 || flg2)))
+           && x != xe
+           && distance < or2
             ) {
             ++len;
-          } else if (len) {
-            writeFastHLine(cx + x - len, cy + y, len);
-            len = 0;
+          } else {
+            if (len) {
+              writeFastHLine(cx + x - len, cy + y, len);
+              len = 0;
+            }
+            if (distance >= or2) break;
+            if (x < 0 && distance < ir2) { x = -x; }
           }
-        } while (++x <= radius + 1);
-      } while (++y <= radius);
+        } while (++x <= xe);
+      } while (++y <= ye);
     }
 
     virtual void beginTransaction_impl(void) = 0;
