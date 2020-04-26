@@ -65,6 +65,8 @@ namespace lgfx
     , MAD_ML  = 0x10
     , MAD_BGR = 0x08
     , MAD_MH  = 0x04
+    , MAD_SS  = 0x02
+    , MAD_GS  = 0x01
     , MAD_RGB = 0x00
     };
 

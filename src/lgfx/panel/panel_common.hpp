@@ -40,7 +40,6 @@ namespace lgfx
     color_depth_t read_depth  = rgb888_3Byte;
 
     uint8_t len_setwindow = 32;
-    uint8_t len_command = 8;
     uint8_t len_dummy_read_pixel = 8;
     uint8_t len_dummy_read_rddid = 1;
 

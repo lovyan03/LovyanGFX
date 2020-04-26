@@ -26,6 +26,11 @@ struct LGFX_Config {
   // SDカード等と共通のSPIバスを使う場合はMISOも必ず設定してください。
   // 使わない場合は省略するか-1を設定します。
   static constexpr int spi_miso = 19;
+
+  // SPI通信のデータ長を指定します。
+  // RaspberryPi用のLCD等を使用する場合に16を指定します。
+  // 省略時は 8 です。大抵のパネルは8ですので、基本的には省略してください。
+//static constexpr int spi_dlen = 16;
 };
 
 // 用意した設定用の構造体を、LGFX_SPIクラスにテンプレート引数として設定し、インスタンスを作成します。
@@ -83,7 +88,7 @@ void setup(void)
   // 画素読出しでビットずれが起きる場合に調整してください。
   panel.len_dummy_read_pixel = 8;
 
-  // データの読取りが可能なパネルの場合はtrueを設定します。
+  // データの読取りが可能なパネルの場合はtrueを、不可の場合はfalseを設定します。
   // 省略時はtrueになります。
   panel.spi_read = true;
 

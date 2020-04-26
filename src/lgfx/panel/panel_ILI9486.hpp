@@ -15,8 +15,6 @@ namespace lgfx
       freq_write = 27000000;
       freq_read  = 20000000;
       freq_fill  = 27000000;
-
-      len_command = 16;
     }
 
   protected:
