@@ -329,6 +329,7 @@ namespace lgfx
     {
       _last_apb_freq = -1;
       _cmd_ramwr      = _panel->getCmdRamwr();
+      _len_command    = _panel->len_command;
       _len_setwindow  = _panel->len_setwindow;
       fpGetWindowAddr = _len_setwindow == 32 ? PanelCommon::getWindowAddr32 : PanelCommon::getWindowAddr16;
 
@@ -599,9 +600,10 @@ namespace lgfx
     {
       auto spi_w0_reg        = reg(SPI_W0_REG(_spi_port));
       auto spi_mosi_dlen_reg = reg(SPI_MOSI_DLEN_REG(_spi_port));
+      uint32_t len = _len_command - 1;
       dc_l();
       *spi_w0_reg = cmd;
-      *spi_mosi_dlen_reg = 7;
+      *spi_mosi_dlen_reg = len;
       exec_spi();
     }
 
@@ -1173,6 +1175,7 @@ namespace lgfx
     uint32_t _clkdiv_write;
     uint32_t _clkdiv_read;
     uint32_t _clkdiv_fill;
+    uint32_t _len_command;
     uint32_t _len_setwindow;
     _dmabufs_t _dmabufs[2];
     bool _begun_tr = false;
