@@ -640,11 +640,11 @@ namespace lgfx
           dc_h();
           *spi_w0_reg = tmp;
         } else if (_spi_dlen == 16) {
-          _regbuf[0] = (tmp & 0xFF00) | tmp << 24;
+          _regbuf[0] = (tmp & 0xFF) << 8 | (tmp >> 8) << 24;
           tmp >>= 16;
-          _regbuf[1] = (tmp & 0xFF00) | tmp << 24;
+          _regbuf[1] = (tmp & 0xFF) << 8 | (tmp >> 8) << 24;
           dc_h();
-          memcpy((void*)spi_w0_reg, _regbuf, _len_setwindow >> 3);
+          memcpy((void*)spi_w0_reg, _regbuf, _len_setwindow >> 2);
         }
         *spi_mosi_dlen_reg = len;
         exec_spi();
@@ -660,11 +660,11 @@ namespace lgfx
           dc_h();
           *spi_w0_reg = tmp;
         } else if (_spi_dlen == 16) {
-          _regbuf[0] = (tmp & 0xFF00) | tmp << 24;
+          _regbuf[0] = (tmp & 0xFF) << 8 | (tmp >> 8) << 24;
           tmp >>= 16;
-          _regbuf[1] = (tmp & 0xFF00) | tmp << 24;
+          _regbuf[1] = (tmp & 0xFF) << 8 | (tmp >> 8) << 24;
           dc_h();
-          memcpy((void*)spi_w0_reg, _regbuf, _len_setwindow >> 3);
+          memcpy((void*)spi_w0_reg, _regbuf, _len_setwindow >> 2);
         }
         *spi_mosi_dlen_reg = len;
         exec_spi();
