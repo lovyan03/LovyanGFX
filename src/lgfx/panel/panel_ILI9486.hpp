@@ -42,8 +42,6 @@ namespace lgfx
           CMD::PWCTR3 , 1, 0x44,       // Power control 3
           CMD::VMCTR1 , 4, 0x00, 0x00, 0x00, 0x00,
 
-          CMD::DFUNCTR, 3, 0x80,0x21,0x3B,
-
           CMD::GMCTRP1,15, 0x0F, 0x1F, 0x1C, 0x0C, 0x0F, 0x08, 0x48, 0x98,
                            0x37, 0x0A, 0x13, 0x04, 0x11, 0x0D, 0x00,
 
@@ -60,6 +58,20 @@ namespace lgfx
       case 1: return list1;
       default: return nullptr;
       }
+    }
+    uint8_t getMadCtl(uint8_t r) const override {
+      static constexpr uint8_t madctl_table[] = {
+               MAD_MX|MAD_MH              ,
+        MAD_MV                            ,
+                             MAD_MY|MAD_ML,
+        MAD_MV|MAD_MX|MAD_MY|MAD_MH|MAD_ML,
+               MAD_MX|MAD_MH|MAD_MY|MAD_ML,
+        MAD_MV|MAD_MX|MAD_MH              ,
+                                         0,
+        MAD_MV|              MAD_MY|MAD_ML,
+      };
+      r = (((r + offset_rotation) & 3) | (r & 4));
+      return madctl_table[r];
     }
   };
 }
