@@ -61,16 +61,29 @@ namespace lgfx
 
     void deletePalette(void)
     {
-      if (_palette != nullptr) { _mem_free(_palette); _palette = nullptr; }
       _palette_count = 0;
+      if (_palette != nullptr) {
+        _mem_free(_palette);
+        _palette = nullptr;
+      }
     }
 
     void deleteSprite(void)
     {
-      deletePalette();
-      if (_img     != nullptr) { _mem_free(_img    ); _img     = nullptr; }
+      _bitwidth = 0;
       _width = 0;
       _height = 0;
+      _clip_l = 0;
+      _clip_t = 0;
+      _clip_r = -1;
+      _clip_b = -1;
+      _sw = 0;
+      _sh = 0;
+      deletePalette();
+      if (_img != nullptr) {
+        _mem_free(_img);
+        _img = nullptr;
+      }
     }
 
     void* createSprite(int32_t w, int32_t h)

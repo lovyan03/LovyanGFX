@@ -207,15 +207,15 @@ namespace lgfx
 
     void getClipRect(int32_t *x, int32_t *y, int32_t *w, int32_t *h) {
       *x = _clip_l;
+      *w = _clip_r - *x + 1;
       *y = _clip_t;
-      *w = _clip_r - _clip_l + 1;
-      *h = _clip_b - _clip_t + 1;
+      *h = _clip_b - *y + 1;
     }
 
     void clearClipRect(void) {
       _clip_l = 0;
-      _clip_t = 0;
       _clip_r = _width - 1;
+      _clip_t = 0;
       _clip_b = _height - 1;
     }
 
@@ -1636,7 +1636,7 @@ namespace lgfx
     int32_t _width = 0, _height = 0;
     int32_t  _sx, _sy, _sw, _sh; // for scroll zone
 
-    int32_t _clip_l = 0, _clip_t = 0, _clip_r = 0, _clip_b = 0; // clip rect
+    int32_t _clip_l = 0, _clip_r = -1, _clip_t = 0, _clip_b = -1; // clip rect
     int32_t _cursor_x = 0, _cursor_y = 0, _filled_x = 0;
     uint32_t _text_fore_rgb888 = 0xFFFFFFU;
     uint32_t _text_back_rgb888 = 0;
