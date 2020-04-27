@@ -2678,27 +2678,21 @@ namespace lgfx
 
       uint32_t colortbl[2] = {me->_write_conv.convert(back_rgb888), me->_write_conv.convert(fore_rgb888)};
       bool fillbg = (back_rgb888 != fore_rgb888);
+      int32_t left  = 0;
+      int32_t right = 0;
       if (fillbg) {
-        int32_t left  = std::max(me->_filled_x, x + (xoffset < 0 ? xoffset : 0));
-        int32_t right = x + std::max((int32_t)(w * size_x + xoffset), (int32_t)(xAdvance));
-        if (right > left) {
-          me->setRawColor(colortbl[0]);
-          me->writeFillRect(left, y, right - left, me->gFont.yAdvance * size_y);
- //me->setRawColor(colortbl[1]);
- //me->drawRect(left, y, right - left, me->gFont.yAdvance * size_y);
-          me->_filled_x = right;
-        }
-      } else {
-        me->_filled_x = 0;
+        left  = std::max(me->_filled_x, x + (xoffset < 0 ? xoffset : 0));
+        right = x + std::max((int32_t)(w * size_x + xoffset), (int32_t)(xAdvance));
       }
+      me->_filled_x = right;
 
       y += yoffset;
       x += xoffset;
-      int32_t left = 0;
+      int32_t l = 0;
       int32_t bx = x;
       int32_t bw = w * size_x;
       int32_t clip_left = me->_clip_l;
-      if (x < clip_left) { left = -((x - clip_left) / size_x); bw += (x - clip_left); bx = clip_left; }
+      if (x < clip_left) { l = -((x - clip_left) / size_x); bw += (x - clip_left); bx = clip_left; }
       int32_t clip_right = me->_clip_r + 1;
       if (bw > clip_right - bx) bw = clip_right - bx;
       if (bw > 0 && (y <= me->_clip_b) && (me->_clip_t < (y + h * size_y))) {
@@ -2707,14 +2701,28 @@ namespace lgfx
         int32_t fore_b = ((fore_rgb888)    &0xFF);
 
         if (fillbg) { // fill background mode
+          if (right > left) {
+            me->setRawColor(colortbl[0]);
+            int tmp = yoffset - (me->_font_size_y.offset * size_y);
+            if (tmp > 0)
+              me->writeFillRect(left, y - yoffset + me->_font_size_y.offset * size_y, right - left, tmp);
+
+            tmp = (me->_font_size_y.offset + me->_font_size_y.size - h) * size_y - yoffset;
+            if (tmp > 0)
+              me->writeFillRect(left, y + h * size_y, right - left, tmp);
+          }
 
           int32_t back_r = ((back_rgb888>>16)&0xFF);
           int32_t back_g = ((back_rgb888>> 8)&0xFF);
           int32_t back_b = ((back_rgb888)    &0xFF);
-          int32_t right = (clip_right - x + size_x - 1) / size_x;
-          if (right > w) right = w;
+          int32_t r = (clip_right - x + size_x - 1) / size_x;
+          if (r > w) r = w;
           do {
-            int32_t i = left;
+            if (right > left) {
+              me->setRawColor(colortbl[0]);
+              me->writeFillRect(left, y, right - left, size_y);
+            }
+            int32_t i = l;
             do {
               while (pixel[i] != 0xFF) {
                 if (pixel[i] != 0) {
@@ -2724,15 +2732,15 @@ namespace lgfx
                                        , ( fore_b * p + back_b * (257 - p)) >> 8 ));
                   me->writeFillRect(i * size_x + x, y, size_x, size_y);
                 }
-                if (++i == right) break;
+                if (++i == r) break;
               }
-              if (i == right) break;
+              if (i == r) break;
               int32_t dl = 1;
-              while (i + dl != right && pixel[i + dl] == 0xFF) { ++dl; }
+              while (i + dl != r && pixel[i + dl] == 0xFF) { ++dl; }
               me->setRawColor(colortbl[1]);
               me->writeFillRect(x + i * size_x, y, dl * size_x, size_y);
               i += dl;
-            } while (i != right);
+            } while (i != r);
             pixel += w;
             y += size_y;
           } while (--h);
