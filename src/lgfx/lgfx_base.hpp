@@ -1412,7 +1412,7 @@ namespace lgfx
         }
         if (!(fpUpdateFontSize)(this, uniCode)) continue;
         if (left == 0 && right == 0 && _font_size_x.offset < 0) left = right = -_font_size_x.offset;
-        right = left + std::max((int32_t)_font_size_x.advance, _font_size_x.size - _font_size_x.offset);
+        right = left + std::max((int32_t)_font_size_x.advance, _font_size_x.size + _font_size_x.offset);
         left += _font_size_x.advance;
       } while (*(++string));
 
