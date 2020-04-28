@@ -8,11 +8,54 @@ struct GFXglyph { // Data stored PER GLYPH
   int8_t   xOffset, yOffset; // Dist from cursor pos to UL corner
 };
 
+struct EncodeRange {
+  uint16_t start;
+  uint16_t end;
+  uint16_t base;
+};
+
 struct GFXfont { // Data stored for FONT AS A WHOLE:
   uint8_t  *bitmap;      // Glyph bitmaps, concatenated
   GFXglyph *glyph;       // Glyph array
   uint16_t  first, last; // ASCII extents
   uint8_t   yAdvance;    // Newline distance (y axis)
+
+  uint16_t range_num;    // Number of EncodeRange
+  EncodeRange *range;    // Array ofEncodeRange
+
+  GFXfont ( uint8_t *bitmap = nullptr
+          , GFXglyph *glyph = nullptr
+          , uint16_t first  = 0
+          , uint16_t last   = 0
+          , uint8_t yAdvance = 0
+          , uint16_t range_num = 0
+          , EncodeRange *range = nullptr)
+  : bitmap   (bitmap   )
+  , glyph    (glyph    )
+  , first    (first    )
+  , last     (last     )
+  , yAdvance (yAdvance )
+  , range_num(range_num)
+  , range    (range    )
+  {}
+
+  GFXglyph* getGlyph(uint16_t uniCode) const {
+    if (uniCode > pgm_read_word(&last )
+    ||  uniCode < pgm_read_word(&first)) return nullptr;
+    uint16_t custom_range_num = pgm_read_word(&range_num);
+    if (custom_range_num == 0) {
+      uniCode -= pgm_read_word(&first);
+      return &(((GFXglyph *)pgm_read_dword(&glyph))[uniCode]);
+    }
+    auto range_pst = (EncodeRange*)pgm_read_dword(&range);
+    size_t i = 0;
+    while ((uniCode > pgm_read_word(&range_pst[i].end)) 
+        || (uniCode < pgm_read_word(&range_pst[i].start))) {
+      if (++i == custom_range_num) return nullptr;
+    }
+    uniCode -= pgm_read_word(&range_pst[i].start) - pgm_read_word(&range_pst[i].base);
+    return &(((GFXglyph *)pgm_read_dword(&glyph))[uniCode]);
+  }
 };
 
 
