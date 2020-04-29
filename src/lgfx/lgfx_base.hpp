@@ -3258,13 +3258,13 @@ protected:
 
     static void png_done_callback(pngle_t *pngle)
     {
-      auto p = (png_file_decoder_t *)pngle_get_user_data(pngle);
+      auto p = (png_file_decoder_t *)lgfx_pngle_get_user_data(pngle);
       png_post_line(p, p->last_y);
     }
 
     static void png_draw_normal_callback(pngle_t *pngle, uint32_t x, uint32_t y, uint8_t rgba[4])
     {
-      auto p = (png_file_decoder_t*)pngle_get_user_data(pngle);
+      auto p = (png_file_decoder_t*)lgfx_pngle_get_user_data(pngle);
 
       int32_t t = y - p->offY;
       if (t < 0 || t >= p->maxHeight) return;
@@ -3278,7 +3278,7 @@ protected:
 
     static void png_draw_normal_scale_callback(pngle_t *pngle, uint32_t x, uint32_t y, uint8_t rgba[4])
     {
-      auto p = (png_file_decoder_t*)pngle_get_user_data(pngle);
+      auto p = (png_file_decoder_t*)lgfx_pngle_get_user_data(pngle);
 
       if (y != p->last_y) {
         p->last_y = y;
@@ -3301,7 +3301,7 @@ protected:
 
     static void png_draw_alpha_callback(pngle_t *pngle, uint32_t x, uint32_t y, uint8_t rgba[4])
     {
-      auto p = (png_file_decoder_t*)pngle_get_user_data(pngle);
+      auto p = (png_file_decoder_t*)lgfx_pngle_get_user_data(pngle);
       if (y != p->last_y) {
         png_post_line(p, p->last_y);
         png_prepare_line(p, y);
@@ -3328,7 +3328,7 @@ protected:
 
     static void png_draw_alpha_scale_callback(pngle_t *pngle, uint32_t x, uint32_t y, uint8_t rgba[4])
     {
-      auto p = (png_file_decoder_t*)pngle_get_user_data(pngle);
+      auto p = (png_file_decoder_t*)lgfx_pngle_get_user_data(pngle);
       if (y != p->last_y) {
         png_post_line(p, p->last_y);
         png_prepare_line(p, y);
@@ -3367,9 +3367,9 @@ protected:
 
     static void png_init_callback(pngle_t *pngle, uint32_t w, uint32_t h, uint_fast8_t hasTransparent)
     {
-//    auto ihdr = pngle_get_ihdr(pngle);
+//    auto ihdr = lgfx_pngle_get_ihdr(pngle);
 
-      auto p = (png_file_decoder_t*)pngle_get_user_data(pngle);
+      auto p = (png_file_decoder_t*)lgfx_pngle_get_user_data(pngle);
 
       if (p->scale != 1.0) {
         w = ceil(w * p->scale);
@@ -3390,20 +3390,20 @@ protected:
         p->lineBuffer = (bgr888_t*)heap_alloc_dma(sizeof(bgr888_t) * p->maxWidth * ceil(p->scale));
         p->pc->src_data = p->lineBuffer;
         png_prepare_line(p, 0);
-        pngle_set_done_callback(pngle, png_done_callback);
+        lgfx_pngle_set_done_callback(pngle, png_done_callback);
 
         if (p->scale == 1.0) {
-          pngle_set_draw_callback(pngle, png_draw_alpha_callback);
+          lgfx_pngle_set_draw_callback(pngle, png_draw_alpha_callback);
         } else {
-          pngle_set_draw_callback(pngle, png_draw_alpha_scale_callback);
+          lgfx_pngle_set_draw_callback(pngle, png_draw_alpha_scale_callback);
         }
       } else {
         if (p->scale == 1.0) {
-          pngle_set_draw_callback(pngle, png_draw_normal_callback);
+          lgfx_pngle_set_draw_callback(pngle, png_draw_normal_callback);
         } else {
           p->last_y = 0;
           png_ypos_update(p, 0);
-          pngle_set_draw_callback(pngle, png_draw_normal_scale_callback);
+          lgfx_pngle_set_draw_callback(pngle, png_draw_normal_scale_callback);
         }
         return;
       }
@@ -3441,11 +3441,11 @@ protected:
       pixelcopy_t pc(nullptr, this->getColorDepth(), bgr888_t::depth, this->_palette_count);
       png.pc = &pc;
 
-      pngle_t *pngle = pngle_new();
+      pngle_t *pngle = lgfx_pngle_new();
 
-      pngle_set_user_data(pngle, &png);
+      lgfx_pngle_set_user_data(pngle, &png);
 
-      pngle_set_init_callback(pngle, png_init_callback);
+      lgfx_pngle_set_init_callback(pngle, png_init_callback);
 
       // Feed data to pngle
       uint8_t buf[512];
@@ -3459,10 +3459,10 @@ protected:
       this->startWrite();
       while (len > 0) {
 
-        int fed = pngle_feed(pngle, buf, remain + len);
+        int fed = lgfx_pngle_feed(pngle, buf, remain + len);
 
         if (fed < 0) {
-//ESP_LOGE("LGFX", "[pngle error] %s", pngle_error(pngle));
+//ESP_LOGE("LGFX", "[pngle error] %s", lgfx_pngle_error(pngle));
           res = false;
           break;
         }
@@ -3478,7 +3478,7 @@ protected:
         this->waitDMA();
         heap_free(png.lineBuffer);
       }
-      pngle_destroy(pngle);
+      lgfx_pngle_destroy(pngle);
       return res;
     }
 
