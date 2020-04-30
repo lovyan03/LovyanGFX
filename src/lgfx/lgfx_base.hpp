@@ -32,68 +32,24 @@ Contributors:
 
 #include "lgfx_common.hpp"
 
+
 namespace lgfx
 {
-  #include "../Fonts/glcdfont.h"
-
-  #include "../Fonts/Font16.h"
-  #include "../Fonts/Font32rle.h"
-  #include "../Fonts/Font64rle.h"
-  #include "../Fonts/Font7srle.h"
-  #include "../Fonts/Font72rle.h"
-
-  const  uint8_t widtbl_null[1] = {0};
-  PROGMEM const uint8_t chr_null[1] = {0};
-  PROGMEM const uint8_t* const chrtbl_null[1] = {chr_null};
-
-  enum font_type_t
-  { ft_unknown
-  , ft_glcd
-  , ft_bmp
-  , ft_bdf
-  , ft_rle
-  };
-
   enum attribute_t
   { cp437_switch = 1
   , utf8_switch  = 2
   };
 
-  struct fontinfo {
-    font_type_t type;
-    const uint8_t *chartbl;
-    const uint8_t *widthtbl;
-    uint8_t height;
-    uint8_t baseline;
-    const uint16_t *indextbl;
-    const uint16_t indexsize;
-  };
-
-  const PROGMEM fontinfo fontdata [] = {
-    // GLCD font (Font 0)
-    { ft_glcd, (const uint8_t *)font, widtbl_null, 8, 6, nullptr, 0},
-    // GLCD font (or GFX font)
-    { ft_glcd, (const uint8_t *)font, widtbl_null, 8, 6, nullptr, 0 },
-
-    { ft_bmp,  (const uint8_t *)chrtbl_f16, widtbl_f16, chr_hgt_f16, baseline_f16, nullptr, 0},
-#ifdef __EFONT_FONT_DATA_H__
-    // Font 3 efont
-    { ft_bdf, (const uint8_t *)efontFontData, nullptr, 16, 14, efontFontList, sizeof(efontFontList)>>1 },
-#else
-    // Font 3 current unused
-    { ft_unknown, (const uint8_t *)chrtbl_null, widtbl_null, 0, 0, nullptr, 0 },
-#endif
-    { ft_rle, (const uint8_t *)chrtbl_f32, widtbl_f32, chr_hgt_f32, baseline_f32, nullptr, 0},
-
-    // Font 5 current unused
-    { ft_unknown, (const uint8_t *)chrtbl_null, widtbl_null, 0, 0, nullptr, 0 },
-
-    { ft_rle, (const uint8_t *)chrtbl_f64, widtbl_f64, chr_hgt_f64, baseline_f64, nullptr, 0},
-
-    { ft_rle, (const uint8_t *)chrtbl_f7s, widtbl_f7s, chr_hgt_f7s, baseline_f7s, nullptr, 0},
-
-    { ft_rle, (const uint8_t *)chrtbl_f72, widtbl_f72, chr_hgt_f72, baseline_f72, nullptr, 0}
-
+  static PROGMEM const IFont* fontdata [] = {
+    &fonts::font0,  // GLCD font (Font 0)
+    &fonts::font0,  // GLCD font (or GFX font)
+    &fonts::font2,
+    &fonts::font0,  // Font 3 current unused
+    &fonts::font4,
+    &fonts::font0,  // Font 5 current unused
+    &fonts::font6,
+    &fonts::font7,
+    &fonts::font8,
   };
 
 //----------------------------------------------------------------------------
@@ -103,7 +59,7 @@ namespace lgfx
   {
   public:
     LGFXBase() {}
-    virtual ~LGFXBase() {}
+    virtual ~LGFXBase() { unloadFont(); }
 
 // color param format:
 // rgb888 : uint32_t
@@ -167,7 +123,7 @@ namespace lgfx
 
     __attribute__ ((always_inline)) inline int32_t width        (void) const { return _width; }
     __attribute__ ((always_inline)) inline int32_t height       (void) const { return _height; }
-    __attribute__ ((always_inline)) inline uint8_t getTextFont  (void) const { return _textfont; }
+    __attribute__ ((always_inline)) inline const IFont* getFont (void) const { return _font; }
     __attribute__ ((always_inline)) inline color_depth_t getColorDepth(void) const { return _write_conv.depth; }
     __attribute__ ((always_inline)) inline color_conv_t* getColorConverter(void) { return &_write_conv; }
     __attribute__ ((always_inline)) inline bool hasPalette    (void) const { return _palette_count; }
@@ -1345,21 +1301,22 @@ namespace lgfx
       if (utf8 == '\n') {
         _filled_x = 0;
         _cursor_x = 0;
-        _cursor_y += _font_size_y.advance * _textsize_y;
+        _cursor_y += _font_size.y_advance * _textsize_y;
       } else {
         uint16_t uniCode = utf8;
         if (_utf8) {
           uniCode = decodeUTF8(utf8);
           if (uniCode < 32) return 1;
         }
-        if (!(fpUpdateFontSize)(this, uniCode)) return 1;
+        //if (!(fpUpdateFontSize)(this, uniCode)) return 1;
+        if (!_font->updateFontMetric(&_font_size, uniCode)) return 1;
 
-        if (0 == _font_size_x.size) return 1;
+        if (0 == _font_size.x_size) return 1;
 
-        int16_t w  = _font_size_x.size    * _textsize_x;
-        int16_t xo = _font_size_x.offset  * _textsize_x;
-        int16_t h  = _font_size_y.size    * _textsize_y;
-        int16_t yo = _font_size_y.offset  * _textsize_y;
+        int16_t w  = _font_size.x_size    * _textsize_x;
+        int16_t xo = _font_size.x_offset  * _textsize_x;
+        int16_t h  = _font_size.y_size    * _textsize_y;
+        int16_t yo = _font_size.y_offset  * _textsize_y;
         if (_textscroll || _textwrap_x) {
           int32_t left = _textscroll ? _sx : 0;
           if (_cursor_x < left - xo) _cursor_x = left - xo;
@@ -1368,7 +1325,7 @@ namespace lgfx
             if (_cursor_x + xo + w > right) {
               _filled_x = 0;
               _cursor_x = left - xo;
-              _cursor_y += _font_size_y.advance * _textsize_y;
+              _cursor_y += _font_size.y_advance * _textsize_y;
             }
           }
         }
@@ -1389,8 +1346,8 @@ namespace lgfx
           } else
           if (_cursor_y < - yo) _cursor_y = - yo;
         }
-//      _cursor_x += drawChar(uniCode, _cursor_x, _cursor_y);
-        _cursor_x += (fpDrawChar)(this, _cursor_x, _cursor_y, uniCode, _text_fore_rgb888, _text_back_rgb888, _textsize_x, _textsize_y, &fontdata[_textfont]);
+//      _cursor_x += (fpDrawChar)(this, _cursor_x, _cursor_y, uniCode, _text_fore_rgb888, _text_back_rgb888, _textsize_x, _textsize_y, fontdata[_textfont]);
+        _cursor_x += (fpDrawChar)(this, _cursor_x, _cursor_y, uniCode, _text_fore_rgb888, _text_back_rgb888, _textsize_x, _textsize_y, _font);
       }
 
       return 1;
@@ -1410,10 +1367,11 @@ namespace lgfx
           } while (uniCode < 32 && *(++string));
           if (uniCode < 32) break;
         }
-        if (!(fpUpdateFontSize)(this, uniCode)) continue;
-        if (left == 0 && right == 0 && _font_size_x.offset < 0) left = right = -_font_size_x.offset;
-        right = left + std::max((int32_t)_font_size_x.advance, _font_size_x.size + _font_size_x.offset);
-        left += _font_size_x.advance;
+        //if (!(fpUpdateFontSize)(this, uniCode)) continue;
+        if (!_font->updateFontMetric(&_font_size, uniCode)) continue;
+        if (left == 0 && right == 0 && _font_size.x_offset < 0) left = right = -_font_size.x_offset;
+        right = left + std::max((int32_t)_font_size.x_advance, _font_size.x_size + _font_size.x_offset);
+        left += _font_size.x_advance;
       } while (*(++string));
 
       return right * _textsize_x;
@@ -1425,33 +1383,33 @@ namespace lgfx
     inline int_fast16_t drawString(const String& string, int32_t x, int32_t y) { return draw_string(string.c_str(), x, y, _textdatum); }
 
     [[deprecated("use setTextDatum() and drawString()")]]
-    inline int_fast16_t drawCentreString(const String& string, int32_t x, int32_t y, uint8_t font) { setTextFont(font); return draw_string(string.c_str(), x, y, textdatum_t::top_center); }
+    inline int_fast16_t drawCentreString(const String& string, int32_t x, int32_t y, uint8_t font) { setFont(fontdata[font]); return draw_string(string.c_str(), x, y, textdatum_t::top_center); }
 
     [[deprecated("use setTextDatum() and drawString()")]]
-    inline int_fast16_t drawCenterString(const String& string, int32_t x, int32_t y, uint8_t font) { setTextFont(font); return draw_string(string.c_str(), x, y, textdatum_t::top_center); }
+    inline int_fast16_t drawCenterString(const String& string, int32_t x, int32_t y, uint8_t font) { setFont(fontdata[font]); return draw_string(string.c_str(), x, y, textdatum_t::top_center); }
 
     [[deprecated("use setTextDatum() and drawString()")]]
-    inline int_fast16_t drawRightString( const String& string, int32_t x, int32_t y, uint8_t font) { setTextFont(font); return draw_string(string.c_str(), x, y, textdatum_t::top_right); }
+    inline int_fast16_t drawRightString( const String& string, int32_t x, int32_t y, uint8_t font) { setFont(fontdata[font]); return draw_string(string.c_str(), x, y, textdatum_t::top_right); }
 
-    inline int_fast16_t drawString(const String& string, int32_t x, int32_t y, uint8_t font) { setTextFont(font); return draw_string(string.c_str(), x, y, _textdatum); }
+    inline int_fast16_t drawString(const String& string, int32_t x, int32_t y, uint8_t font) { setFont(fontdata[font]); return draw_string(string.c_str(), x, y, _textdatum); }
 
   #endif
     inline int_fast16_t drawString(const char *string, int32_t x, int32_t y) { return draw_string(string, x, y, _textdatum); }
 
     [[deprecated("use setTextDatum() and drawString()")]]
-    inline int_fast16_t drawCentreString(const char *string, int32_t x, int32_t y, uint8_t font) { setTextFont(font); return draw_string(string, x, y, textdatum_t::top_center); }
+    inline int_fast16_t drawCentreString(const char *string, int32_t x, int32_t y, uint8_t font) { setFont(fontdata[font]); return draw_string(string, x, y, textdatum_t::top_center); }
 
     [[deprecated("use setTextDatum() and drawString()")]]
-    inline int_fast16_t drawCenterString(const char *string, int32_t x, int32_t y, uint8_t font) { setTextFont(font); return draw_string(string, x, y, textdatum_t::top_center); }
+    inline int_fast16_t drawCenterString(const char *string, int32_t x, int32_t y, uint8_t font) { setFont(fontdata[font]); return draw_string(string, x, y, textdatum_t::top_center); }
 
     [[deprecated("use setTextDatum() and drawString()")]]
-    inline int_fast16_t drawRightString( const char *string, int32_t x, int32_t y, uint8_t font) { setTextFont(font); return draw_string(string, x, y, textdatum_t::top_right); }
+    inline int_fast16_t drawRightString( const char *string, int32_t x, int32_t y, uint8_t font) { setFont(fontdata[font]); return draw_string(string, x, y, textdatum_t::top_right); }
 
-    inline int_fast16_t drawString(const char *string, int32_t x, int32_t y, uint8_t font) { setTextFont(font); return draw_string(string, x, y, _textdatum); }
+    inline int_fast16_t drawString(const char *string, int32_t x, int32_t y, uint8_t font) { setFont(fontdata[font]); return draw_string(string, x, y, _textdatum); }
 
-    inline int_fast16_t drawNumber(long long_num, int32_t poX, int32_t poY, uint8_t font) { setTextFont(font); return drawNumber(long_num, poX, poY); }
+    inline int_fast16_t drawNumber(long long_num, int32_t poX, int32_t poY, uint8_t font) { setFont(fontdata[font]); return drawNumber(long_num, poX, poY); }
 
-    inline int_fast16_t drawFloat(float floatNumber, uint8_t dp, int32_t poX, int32_t poY, uint8_t font) { setTextFont(font); return drawFloat(floatNumber, dp, poX, poY); }
+    inline int_fast16_t drawFloat(float floatNumber, uint8_t dp, int32_t poX, int32_t poY, uint8_t font) { setFont(fontdata[font]); return drawFloat(floatNumber, dp, poX, poY); }
 
     int_fast16_t drawNumber(long long_num, int32_t poX, int32_t poY)
     {
@@ -1532,36 +1490,36 @@ namespace lgfx
       }
     }
 
-    inline int_fast16_t drawChar(uint16_t uniCode, int32_t x, int32_t y) { _filled_x = 0; return (fpDrawChar)(this, x, y, uniCode, _text_fore_rgb888, _text_back_rgb888, _textsize_x, _textsize_y, &fontdata[_textfont]); }
+    inline int_fast16_t drawChar(uint16_t uniCode, int32_t x, int32_t y) { _filled_x = 0; return (fpDrawChar)(this, x, y, uniCode, _text_fore_rgb888, _text_back_rgb888, _textsize_x, _textsize_y, _font); }
 
     int_fast16_t drawChar(uint16_t uniCode, int32_t x, int32_t y, uint8_t font) {
-      if (font == _textfont) return drawChar(uniCode, x, y);
+      if (_font == fontdata[font]) return drawChar(uniCode, x, y);
       _filled_x = 0;
-      switch (pgm_read_byte( &fontdata[font].type)) {
+      switch (fontdata[font]->getType()) {
       default:
-      case font_type_t::ft_glcd: return drawCharGLCD(this, x, y, uniCode, _text_fore_rgb888, _text_back_rgb888, _textsize_x, _textsize_y, &fontdata[font]);
-      case font_type_t::ft_bmp:  return drawCharBMP( this, x, y, uniCode, _text_fore_rgb888, _text_back_rgb888, _textsize_x, _textsize_y, &fontdata[font]);
-      case font_type_t::ft_rle:  return drawCharRLE( this, x, y, uniCode, _text_fore_rgb888, _text_back_rgb888, _textsize_x, _textsize_y, &fontdata[font]);
-      case font_type_t::ft_bdf:  return drawCharBDF( this, x, y, uniCode, _text_fore_rgb888, _text_back_rgb888, _textsize_x, _textsize_y, &fontdata[font]);
+      case font_type_t::ft_glcd: return drawCharGLCD(this, x, y, uniCode, _text_fore_rgb888, _text_back_rgb888, _textsize_x, _textsize_y, fontdata[font]);
+      case font_type_t::ft_bmp:  return drawCharBMP( this, x, y, uniCode, _text_fore_rgb888, _text_back_rgb888, _textsize_x, _textsize_y, fontdata[font]);
+      case font_type_t::ft_rle:  return drawCharRLE( this, x, y, uniCode, _text_fore_rgb888, _text_back_rgb888, _textsize_x, _textsize_y, fontdata[font]);
+      case font_type_t::ft_bdf:  return drawCharBDF( this, x, y, uniCode, _text_fore_rgb888, _text_back_rgb888, _textsize_x, _textsize_y, fontdata[font]);
       }
     }
 
     template<typename T>
-    inline int_fast16_t drawChar(int32_t x, int32_t y, uint16_t uniCode, T color, T bg, int_fast8_t size) { _filled_x = 0; return (fpDrawChar)(this, x, y, uniCode, convert_to_rgb888(color), convert_to_rgb888(bg), size, size, &fontdata[_textfont]); }
+    inline int_fast16_t drawChar(int32_t x, int32_t y, uint16_t uniCode, T color, T bg, int_fast8_t size) { _filled_x = 0; return (fpDrawChar)(this, x, y, uniCode, convert_to_rgb888(color), convert_to_rgb888(bg), size, size, _font); }
     template<typename T>
-    inline int_fast16_t drawChar(int32_t x, int32_t y, uint16_t uniCode, T color, T bg, int_fast8_t size_x, int_fast8_t size_y) { _filled_x = 0; return (fpDrawChar)(this, x, y, uniCode, convert_to_rgb888(color), convert_to_rgb888(bg), size_x, size_y, &fontdata[_textfont]); }
+    inline int_fast16_t drawChar(int32_t x, int32_t y, uint16_t uniCode, T color, T bg, int_fast8_t size_x, int_fast8_t size_y) { _filled_x = 0; return (fpDrawChar)(this, x, y, uniCode, convert_to_rgb888(color), convert_to_rgb888(bg), size_x, size_y, _font); }
 
     int16_t getCursorX(void) const { return _cursor_x; }
     int16_t getCursorY(void) const { return _cursor_y; }
     void setCursor( int16_t x, int16_t y)               { _filled_x = 0; _cursor_x = x; _cursor_y = y; }
-    void setCursor( int16_t x, int16_t y, uint8_t font) { _filled_x = 0; _cursor_x = x; _cursor_y = y; _textfont = font; }
+    void setCursor( int16_t x, int16_t y, uint8_t font) { _filled_x = 0; _cursor_x = x; _cursor_y = y; _font = fontdata[font]; }
     void setTextSize(uint8_t s) { setTextSize(s,s); }
     void setTextSize(uint8_t sx, uint8_t sy) { _textsize_x = (sx > 0) ? sx : 1; _textsize_y = (sy > 0) ? sy : 1; }
     int16_t getTextSizeX(void) const { return _textsize_x; }
     int16_t getTextSizeY(void) const { return _textsize_y; }
-    int16_t fontHeight(void) const { return _font_size_y.size * _textsize_y; }
-    int16_t fontHeight(uint8_t font) const { if (_textfont == font) return fontHeight(); return pgm_read_byte( &fontdata[font].height ); }
     textdatum_t getTextDatum(void) const { return _textdatum; }
+    int16_t fontHeight(void) const { return _font_size.y_size * _textsize_y; }
+    int16_t fontHeight(uint8_t font) const { return pgm_read_byte( &((const BaseFont*)fontdata[font])->height ) * _textsize_y; }
 
     void setTextDatum(uint8_t datum) { _textdatum = (textdatum_t)datum; }
     void setTextDatum(textdatum_t datum) { _textdatum = datum; }
@@ -1569,37 +1527,60 @@ namespace lgfx
     void setTextWrap( bool wrapX, bool wrapY = false) { _textwrap_x = wrapX; _textwrap_y = wrapY; }
     void setTextScroll(bool scroll) { _textscroll = scroll; if (_cursor_x < _sx) { _cursor_x = _sx; } if (_cursor_y < _sy) { _cursor_y = _sy; } }
 
-    void setTextEFont() { setTextFont(3); }
 
-    virtual void setTextFont(uint8_t f) {
-      _decoderState = utf8_decode_state_t::utf8_state0;
-      _filled_x = 0; 
-      _font_size_x.offset = 0;
-      _font_size_y.offset = 0;
+#ifdef __EFONT_FONT_DATA_H__
+    [[deprecated("use setFont(&fonts::efont)")]]
+    void setTextEFont() { setFont(&fonts::efont); }
+#endif
 
-      _textfont = f;
-      _font_size_y.size = _font_size_y.advance = pgm_read_byte( &fontdata[f].height );
-      _font_baseline = pgm_read_byte( &fontdata[f].baseline );
+    uint8_t getTextFont(void) const {
+      size_t ie = sizeof(fontdata) / sizeof(fontdata[0]);
+      for (size_t i = 0; i < ie; ++i)
+        if (fontdata[i] == _font) return i;
+      return 0;
+    }
 
-      switch (pgm_read_byte( &fontdata[f].type)) {
+    [[deprecated("use setFont(&fonts::font0)")]]
+    void setTextFont(int f) {
+      if (f == 1 && _font && _font->getType() == ft_gfx) return;
+
+      setFont(fontdata[f]);
+    }
+
+    [[deprecated("use setFont(&fonts::font0)")]]
+    void setTextFont(const IFont* font = nullptr) { setFont(font); }
+
+    [[deprecated("use setFont(&fonts::font0)")]]
+    void setFreeFont(const IFont* font = nullptr) { setFont(font); }
+
+    void unloadFont(void) {
+      if (_dynamic_font) {
+        //_dynamic_font->unloadFont();
+        delete _dynamic_font;
+        _dynamic_font = nullptr;
+      }
+      setFont(&fonts::font0);
+    }
+
+    void setFont(const IFont* font) {
+      if (_dynamic_font) {
+        delete _dynamic_font;
+        _dynamic_font = nullptr;
+      }
+      if (font == nullptr) font = &fonts::font0;
+      _font = font;
+      _filled_x = 0;
+      //_decoderState = utf8_decode_state_t::utf8_state0;
+
+      font->getDefaultMetric(&_font_size);
+
+      switch (font->getType()) {
       default:
-      case font_type_t::ft_glcd:
-        fpDrawChar = drawCharGLCD;
-        fpUpdateFontSize = updateFontSizeGLCD;
-        _font_size_x.size = _font_size_x.advance = 6;
-        break;
-      case font_type_t::ft_bmp:
-        fpDrawChar = drawCharBMP;
-        fpUpdateFontSize = updateFontSizeBMP;
-        break;
-      case font_type_t::ft_rle:
-        fpDrawChar = drawCharRLE;
-        fpUpdateFontSize = updateFontSizeBMP;
-        break;
-      case font_type_t::ft_bdf:
-        fpDrawChar = drawCharBDF;
-        fpUpdateFontSize = updateFontSizeBDF;
-        break;
+      case font_type_t::ft_glcd: fpDrawChar = drawCharGLCD;  break;
+      case font_type_t::ft_bmp:  fpDrawChar = drawCharBMP;   break;
+      case font_type_t::ft_rle:  fpDrawChar = drawCharRLE;   break;
+      case font_type_t::ft_bdf:  fpDrawChar = drawCharBDF;   break;
+      case font_type_t::ft_gfx:  fpDrawChar = drawCharGFXFF; break;
       }
     }
 
@@ -1654,7 +1635,11 @@ namespace lgfx
     int16_t _xpivot;   // x pivot point coordinate
     int16_t _ypivot;   // x pivot point coordinate
     uint16_t _unicode_buffer = 0;   // Unicode code-point buffer
-    uint8_t _textfont = 1;
+    //uint8_t _textfont = 1;
+
+    const IFont* _font = &fonts::font0;
+    IFont* _dynamic_font = nullptr;  // run-time generated font
+
     textdatum_t _textdatum;
     int16_t _padding_x = 0;
 
@@ -1673,14 +1658,10 @@ namespace lgfx
     };
     utf8_decode_state_t _decoderState = utf8_state0;   // UTF8 decoder state
 
-    struct font_size_t {
-      int16_t size;
-      int16_t advance;
-      int16_t offset;
-    };
-    font_size_t _font_size_x = { 6, 6, 0 };
-    font_size_t _font_size_y = { 8, 8, 0 };
-    int8_t _font_baseline = 6;
+    font_size_t _font_size = { 6, 6, 0, 8, 8, 0, 6 };
+//  font_size_t _font_size_x = { 6, 6, 0 };
+//  font_size_t _font_size_y = { 8, 8, 0 };
+//  int8_t _font_size.baseline = 6;
 
     __attribute__ ((always_inline)) inline static bool _adjust_abs(int32_t& x, int32_t& w) { if (w < 0) { x += w + 1; w = -w; } return !w; }
 
@@ -1879,7 +1860,7 @@ namespace lgfx
     {
       int16_t sumX = 0;
       int32_t cwidth = textWidth(string); // Find the pixel width of the string in the font
-      int32_t cheight = _font_size_y.size * _textsize_y;
+      int32_t cheight = _font_size.y_size * _textsize_y;
 
       {
         auto tmp = string;
@@ -1891,8 +1872,9 @@ namespace lgfx
             } while (uniCode < 32 && *++tmp);
             if (uniCode < 32) break;
           }
-          if ((fpUpdateFontSize)(this, uniCode)) {
-            if (_font_size_x.offset < 0) sumX = - _font_size_x.offset * _textsize_x;
+        //if ((fpUpdateFontSize)(this, uniCode)) {
+          if (_font->updateFontMetric(&_font_size, uniCode)) {
+            if (_font_size.x_offset < 0) sumX = - _font_size.x_offset * _textsize_x;
             break;
           }
         } while (*++tmp);
@@ -1902,7 +1884,7 @@ namespace lgfx
       } else if (datum & bottom_left) {   // vertical: bottom
         y -= cheight;
       } else if (datum & baseline_left) { // vertical: baseline
-        y -= _font_baseline * _textsize_y;
+        y -= _font_size.baseline * _textsize_y;
       }
 
       startWrite();
@@ -1929,7 +1911,7 @@ namespace lgfx
         x -= cwidth;
       }
 
-      y -= _font_size_y.offset * _textsize_y;
+      y -= _font_size.y_offset * _textsize_y;
 
       _filled_x = 0;
       do {
@@ -1940,41 +1922,40 @@ namespace lgfx
           } while (uniCode < 32 && *++string);
           if (uniCode < 32) break;
         }
-        sumX += (fpDrawChar)(this, x + sumX, y, uniCode, _text_fore_rgb888, _text_back_rgb888, _textsize_x, _textsize_y, &fontdata[_textfont]);
+        sumX += (fpDrawChar)(this, x + sumX, y, uniCode, _text_fore_rgb888, _text_back_rgb888, _textsize_x, _textsize_y, _font);
       } while (*(++string));
       endWrite();
 
       return sumX;
     }
 
-    bool(*fpUpdateFontSize)(LGFXBase* me, uint16_t uniCode) = updateFontSizeGLCD;
+    //bool(*fpUpdateFontSize)(LGFXBase* me, uint16_t uniCode) = updateFontSizeGLCD;
+//    static bool updateFontSizeGLCD(LGFXBase* me, uint16_t uniCode) {
+//      return uniCode < 256;
+//    }
+//    static bool updateFontSizeBMP(LGFXBase* me, uint16_t uniCode) {
+//      if ((uniCode -= 32) >= 96) return false;
+//      auto font = (const GLCDfont*)me->_font;
+//      me->_font_size.x_advance = me->_font_size.x_size = pgm_read_byte( (uint8_t *)pgm_read_dword( & font->widthtbl ) + uniCode );
+//      return true;
+//    }
+//    static bool updateFontSizeBDF(LGFXBase* me, uint16_t uniCode) {
+//      auto fontd = (BDFfont*)(me->_font);
+//      me->_font_size.x_size = me->_font_size.x_advance = (uniCode < 0x0100) ? fontd->halfwidth : fontd->width;
+//      return true;
+//    }
 
-    static bool updateFontSizeGLCD(LGFXBase* me, uint16_t uniCode) {
-      return uniCode < 256;
-    }
+    int_fast16_t (*fpDrawChar)(LGFXBase* me, int32_t x, int32_t y, uint16_t c, uint32_t fore_rgb888, uint32_t back_rgb888, int_fast8_t size_x, int_fast8_t size_y, const IFont* font) = &LGFXBase::drawCharGLCD;
 
-    static bool updateFontSizeBMP(LGFXBase* me, uint16_t uniCode) {
-      if ((uniCode -= 32) >= 96) return false;
-      me->_font_size_x.advance = me->_font_size_x.size = pgm_read_byte( (uint8_t *)pgm_read_dword( &(fontdata[me->_textfont].widthtbl ) ) + uniCode );
-      return true;
-    }
-
-    static bool updateFontSizeBDF(LGFXBase* me, uint16_t uniCode) {
-      auto size = me->_font_size_y.size;
-      me->_font_size_x.size = me->_font_size_x.advance = (uniCode < 0x0100) ? size >> 1 : size;
-      return true;
-    }
-
-    int_fast16_t (*fpDrawChar)(LGFXBase* me, int32_t x, int32_t y, uint16_t c, uint32_t fore_rgb888, uint32_t back_rgb888, int_fast8_t size_x, int_fast8_t size_y, const fontinfo* font) = &LGFXBase::drawCharGLCD;
-
-    static int_fast16_t drawCharGLCD(LGFXBase* me, int32_t x, int32_t y, uint16_t c, uint32_t fore_rgb888, uint32_t back_rgb888, int_fast8_t size_x, int_fast8_t size_y, const fontinfo* fontdat)
+    static int_fast16_t drawCharGLCD(LGFXBase* me, int32_t x, int32_t y, uint16_t c, uint32_t fore_rgb888, uint32_t back_rgb888, int_fast8_t size_x, int_fast8_t size_y, const IFont* font)
     { // glcd font
+      auto fontdat = (const GLCDfont*)font;
       if (c > 255) return 0;
 
       if (!me->_cp437 && (c >= 176)) c++; // Handle 'classic' charset behavior
 
-      const int32_t fontWidth  = me->_font_size_x.size;
-      const int32_t fontHeight = me->_font_size_y.size;
+      const int32_t fontWidth  = me->_font_size.x_size;
+      const int32_t fontHeight = me->_font_size.y_size;
 
       auto font_addr = fontdat->chartbl + (c * 5);
       uint32_t colortbl[2] = {me->_write_conv.convert(back_rgb888), me->_write_conv.convert(fore_rgb888)};
@@ -2047,11 +2028,11 @@ namespace lgfx
       return fontWidth * size_x;
     }
 
-    static int_fast16_t drawCharBMP(LGFXBase* me, int32_t x, int32_t y, uint16_t c, uint32_t fore_rgb888, uint32_t back_rgb888, int_fast8_t size_x, int_fast8_t size_y, const fontinfo* fontdat)
+    static int_fast16_t drawCharBMP(LGFXBase* me, int32_t x, int32_t y, uint16_t uniCode, uint32_t fore_rgb888, uint32_t back_rgb888, int_fast8_t size_x, int_fast8_t size_y, const IFont* font)
     { // BMP font
-      if ((c < 32) || (c > 127)) return 0;
-      uint16_t uniCode = c - 32;
+      auto fontdat = (const BMPfont*)font;
 
+      if ((uniCode -= 32) >= 96) return 0;
       const int_fast8_t fontWidth = pgm_read_byte(fontdat->widthtbl + uniCode);
       const int_fast8_t fontHeight = pgm_read_byte(&fontdat->height);
 
@@ -2059,19 +2040,20 @@ namespace lgfx
       return draw_char_bmp(me, x, y, fore_rgb888, back_rgb888, size_x, size_y, font_addr, fontWidth, fontHeight, (fontWidth + 6) >> 3, 1);
     }
 
-    static int_fast16_t drawCharBDF(LGFXBase* me, int32_t x, int32_t y, uint16_t c, uint32_t fore_rgb888, uint32_t back_rgb888, int_fast8_t size_x, int_fast8_t size_y, const fontinfo* fontdat)
+    static int_fast16_t drawCharBDF(LGFXBase* me, int32_t x, int32_t y, uint16_t c, uint32_t fore_rgb888, uint32_t back_rgb888, int_fast8_t size_x, int_fast8_t size_y, const IFont* font)
     {
+      auto fontd = (BDFfont*)font;
       const int_fast8_t bytesize = 2;
-      const int_fast8_t fontHeight = fontdat->height;
-      const int_fast8_t fontWidth = (c < 0x0100) ? fontHeight >> 1 : fontHeight;
-      auto it = std::lower_bound(fontdat->indextbl, &fontdat->indextbl[fontdat->indexsize], c);
+      const int_fast8_t fontHeight = fontd->height;
+      const int_fast8_t fontWidth = (c < 0x0100) ? fontd->halfwidth : fontd->width;
+      auto it = std::lower_bound(fontd->indextbl, &fontd->indextbl[fontd->indexsize], c);
       if (*it != c) {
         if (fore_rgb888 != back_rgb888) {
           me->fillRect(x, y, fontWidth * size_x, fontHeight * size_y, back_rgb888);
         }
         return fontWidth * size_x;
       }
-      const uint8_t* font_addr = &fontdat->chartbl[std::distance(fontdat->indextbl, it) * fontHeight * bytesize];
+      const uint8_t* font_addr = &fontd->chartbl[std::distance(fontd->indextbl, it) * fontHeight * bytesize];
       return LGFXBase::draw_char_bmp(me, x, y, fore_rgb888, back_rgb888, size_x, size_y, font_addr, fontWidth, fontHeight, bytesize, 0);
     }
 
@@ -2159,10 +2141,11 @@ namespace lgfx
       return fontWidth * size_x;
     }
 
-    static int_fast16_t drawCharRLE(LGFXBase* me, int32_t x, int32_t y, uint16_t c, uint32_t fore_rgb888, uint32_t back_rgb888, int_fast8_t size_x, int_fast8_t size_y, const fontinfo* fontdat)
+    static int_fast16_t drawCharRLE(LGFXBase* me, int32_t x, int32_t y, uint16_t code, uint32_t fore_rgb888, uint32_t back_rgb888, int_fast8_t size_x, int_fast8_t size_y, const IFont* font)
     { // RLE font
-      if ((c < 32) || (c > 127)) return 0;
-      uint16_t code = c - 32;
+      auto fontdat = (RLEfont*)font;
+      if ((code -= 32) >= 96) return 0;
+
       const int fontWidth = pgm_read_byte( (uint8_t *)pgm_read_dword( &(fontdat->widthtbl ) ) + code );
       const int fontHeight = pgm_read_byte( &fontdat->height );
 
@@ -2220,31 +2203,18 @@ namespace lgfx
       return fontWidth * size_x;
     }
 
-  };
+//    static bool updateFontSizeGFXFF(LGFXBase* me, uint16_t uniCode) {
+//      auto glyph = ((const GFXfont*)me->_font)->getGlyph(uniCode);
+//      if (!glyph) return false;
+//      me->_font_size.x_offset  = (int8_t)pgm_read_byte(&glyph->xOffset);
+//      me->_font_size.x_size    = pgm_read_byte(&glyph->width);
+//      me->_font_size.x_advance = pgm_read_byte(&glyph->xAdvance);
+//      return true;
+//    }
 
-//----------------------------------------------------------------------------
-//----------------------------------------------------------------------------
-#ifdef LGFX_GFXFONT_HPP_
-
-  template <class Base>
-  class LGFX_GFXFont_Support : public Base {
-
-    const GFXfont  *_gfxFont;
-
-    static bool updateFontSizeGFXFF(LGFXBase* lgfxbase, uint16_t uniCode) {
-      auto me = (LGFX_GFXFont_Support*)lgfxbase;
-      auto glyph = me->_gfxFont->getGlyph(uniCode);
-      if (!glyph) return false;
-      me->_font_size_x.offset  = (int8_t)pgm_read_byte(&glyph->xOffset);
-      me->_font_size_x.size    = pgm_read_byte(&glyph->width);
-      me->_font_size_x.advance = pgm_read_byte(&glyph->xAdvance);
-      return true;
-    }
-
-    static int_fast16_t drawCharGFXFF(LGFXBase* lgfxbase, int32_t x, int32_t y, uint16_t uniCode, uint32_t fore_rgb888, uint32_t back_rgb888, int_fast8_t size_x, int_fast8_t size_y, const fontinfo* fontdat)
+    static int_fast16_t drawCharGFXFF(LGFXBase* me, int32_t x, int32_t y, uint16_t uniCode, uint32_t fore_rgb888, uint32_t back_rgb888, int_fast8_t size_x, int_fast8_t size_y, const IFont* fontdat)
     {
-      auto me = (LGFX_GFXFont_Support*)lgfxbase;
-      auto gfxFont = me->_gfxFont;
+      auto gfxFont = (const GFXfont*)me->_font;
       auto glyph = gfxFont->getGlyph(uniCode);
       if (!glyph) return 0;
 
@@ -2278,11 +2248,11 @@ namespace lgfx
 
         if (right > left) {
           me->setRawColor(colortbl[0]);
-          int tmp = yoffset - (me->_font_size_y.offset * size_y);
+          int tmp = yoffset - (me->_font_size.y_offset * size_y);
           if (tmp > 0)
-            me->writeFillRect(left, y - yoffset + me->_font_size_y.offset * size_y, right - left, tmp);
+            me->writeFillRect(left, y - yoffset + me->_font_size.y_offset * size_y, right - left, tmp);
 
-          tmp = (me->_font_size_y.offset + me->_font_size_y.size - h) * size_y - yoffset;
+          tmp = (me->_font_size.y_offset + me->_font_size.y_size - h) * size_y - yoffset;
           if (tmp > 0)
             me->writeFillRect(left, y + h * size_y, right - left, tmp);
         }
@@ -2321,187 +2291,35 @@ namespace lgfx
       } else {
         if (right > left) {
           me->setRawColor(colortbl[0]);
-          me->writeFillRect(left, y - yoffset + me->_font_size_y.offset * size_y, right - left, (me->_font_size_y.size) * size_y);
+          me->writeFillRect(left, y - yoffset + me->_font_size.y_offset * size_y, right - left, (me->_font_size.y_size) * size_y);
         }
       }
       me->_filled_x = right;
       me->endWrite();
       return xAdvance;
     }
-  public:
 
-    void setTextFont(uint8_t f) override {
-      if (f == 1 && _gfxFont) return;
-      _gfxFont = nullptr;
-      Base::setTextFont(f);
+    static void tmpBeginTransaction(void* lgfx) {
+      auto me = (LGFXBase*)lgfx;
+      if (me->_transaction_count) me->beginTransaction();
+    }
+    static void tmpEndTransaction(void* lgfx) {
+      auto me = (LGFXBase*)lgfx;
+      if (me->_transaction_count) me->endTransaction();
     }
 
-    void setFreeFont(const GFXfont *f = nullptr)
-    {
-      _gfxFont = f;
-      if (f == nullptr) { this->setTextFont(1); return; } // Use GLCD font
-      this->fpDrawChar = drawCharGFXFF;
-      this->fpUpdateFontSize = updateFontSizeGFXFF;
-
-      this->_textfont = 1;
-      this->_decoderState = Base::utf8_decode_state_t::utf8_state0;
-
-      int_fast8_t glyph_ab = 0;   // glyph delta Y (height) above baseline
-      int_fast8_t glyph_bb = 0;   // glyph delta Y (height) below baseline
-      size_t numChars = pgm_read_word(&f->last) - pgm_read_word(&f->first);
-
-      size_t range_num = pgm_read_word(&f->range_num);
-      if (range_num != 0) {
-        EncodeRange *range_pst = (EncodeRange *)pgm_read_dword(&f->range);
-        size_t i = 0;
-        numChars = range_num;
-        do {
-          numChars += pgm_read_word(&range_pst[i].end) - pgm_read_word(&range_pst[i].start);
-        } while (++i < range_num);
-      }
-
-      // Find the biggest above and below baseline offsets
-      for (size_t c = 0; c < numChars; c++)
-      {
-        GFXglyph *glyph1 = &(((GFXglyph *)pgm_read_dword(&f->glyph))[c]);
-        int8_t ab = -pgm_read_byte(&glyph1->yOffset);
-        if (ab > glyph_ab) glyph_ab = ab;
-        int8_t bb = pgm_read_byte(&glyph1->height) - ab;
-        if (bb > glyph_bb) glyph_bb = bb;
-      }
-
-      this->_font_baseline = glyph_ab;
-      this->_font_size_y.offset = - glyph_ab;
-      this->_font_size_y.size = glyph_bb + glyph_ab;
-      this->_font_size_y.advance = (uint8_t)pgm_read_byte(&f->yAdvance);
-    }
   };
 
-#endif
-//----------------------------------------------------------------------------
 //----------------------------------------------------------------------------
 
-  template <class Base>
-  class LGFX_VLWFont_Support : public Base {
-  public:
-
-    ~LGFX_VLWFont_Support()
-    {
-      unloadFont();
-    }
-
-    void setTextFont(uint8_t f) override {
-      unloadFont();
-      Base::setTextFont(f);
-    }
-
-    void unloadFont( void )
-    {
-      if (!_fontLoaded) return;
-      _fontLoaded = false;
-      _fontData->close();
-      if (gUnicode)  { heap_free(gUnicode);  gUnicode  = nullptr; }
-      if (gWidth)    { heap_free(gWidth);    gWidth    = nullptr; }
-      if (gxAdvance) { heap_free(gxAdvance); gxAdvance = nullptr; }
-      if (gdX)       { heap_free(gdX);       gdX       = nullptr; }
-      if (gBitmap)   { heap_free(gBitmap);   gBitmap   = nullptr; }
-    }
-
-#if defined (ARDUINO) && defined (FS_H)
-
-    void loadFont(const char *path, fs::FS &fs) {
-      unloadFont();
-
-      _fontFile.setFS(fs);
-
-      loadFont(path);
-    }
-
-#endif
-
-    void loadFont(const uint8_t* array) {
-      unloadFont();
-
-      _fontPointer.set(array);
-      _fontData = &_fontPointer;
-
-      load_font();
-    }
-
-    void loadFont(const char *path) {
-      unloadFont();
-
-      _fontData = &_fontFile;
-      _fontFile.need_transaction &= this->isSPIShared();
-
-      if (_fontFile.need_transaction && this->_transaction_count) this->endTransaction();
-
-      bool result = _fontFile.open(path, "rb");
-      if (!result) {
-        std::string filename = "/";
-        filename += path;
-        filename += ".vlw";
-        result = _fontFile.open(filename.c_str(), "rb");
-      }
-      if (result) {
-        load_font();
-      } else {
-        this->setTextFont(1);
-      }
-
-      if (_fontFile.need_transaction && this->_transaction_count) { this->beginTransaction(); }
-    }
-
-
-    void showFont(uint32_t td)
-    {
-      if(!_fontLoaded) return;
-
-      int16_t x = this->width();
-      int16_t y = this->height();
-      uint32_t timeDelay = 0;    // No delay before first page
-
-      this->fillScreen(this->_text_back_rgb888);
-
-      for (uint16_t i = 0; i < gFont.gCount; i++)
-      {
-        // Check if this will need a new screen
-        if (x + gdX[i] + gWidth[i] >= this->width())  {
-          x = -gdX[i];
-
-          y += gFont.yAdvance;
-          if (y + gFont.maxAscent + gFont.descent >= this->height()) {
-            x = -gdX[i];
-            y = 0;
-            delay(timeDelay);
-            timeDelay = td;
-            this->fillScreen(this->_text_back_rgb888);
-          }
-        }
-
-        this->drawChar(gUnicode[i], x, y);
-        x += gxAdvance[i];
-        //yield();
-      }
-
-      delay(timeDelay);
-      this->fillScreen(this->_text_back_rgb888);
-      //fontFile.close();
-    }
-
-  protected:
-    typedef struct
-    {
-      uint16_t gCount;     // Total number of characters
-      uint16_t yAdvance;   // Line advance
-      uint16_t spaceWidth; // Width of a space character
-      int16_t  ascent;     // Height of top of 'd' above baseline, other characters may be taller
-      int16_t  descent;    // Offset to bottom of 'p', other characters may have a larger descent
-      uint16_t maxAscent;  // Maximum ascent found in font
-      uint16_t maxDescent; // Maximum descent found in font
-    } fontMetrics;
-
-    fontMetrics gFont = { 0, 0, 0, 0, 0, 0, 0 };
+  struct VLWfont : public IFont {
+    uint16_t gCount;     // Total number of characters
+    uint16_t yAdvance;   // Line advance
+    uint16_t spaceWidth; // Width of a space character
+    int16_t  ascent;     // Height of top of 'd' above baseline, other characters may be taller
+    int16_t  descent;    // Offset to bottom of 'p', other characters may have a larger descent
+    uint16_t maxAscent;  // Maximum ascent found in font
+    uint16_t maxDescent; // Maximum descent found in font
 
     // These are for the metrics for each individual glyph (so we don't need to seek this in file and waste time)
     uint16_t* gUnicode  = nullptr;  //UTF-16 code, the codes are searched so do not need to be sequential
@@ -2510,54 +2328,92 @@ namespace lgfx
     int8_t*   gdX       = nullptr;  //leftExtent
     uint32_t* gBitmap   = nullptr;  //file pointer to greyscale bitmap
 
-    bool     _fontLoaded = false; // Flags when a anti-aliased font is loaded
-
     DataWrapper* _fontData;
-    FileWrapper _fontFile;
-    PointerWrapper _fontPointer;
+    bool _fontLoaded = false; // Flags when a anti-aliased font is loaded
 
-    bool load_font(void)
+    font_type_t getType(void) const override { return ft_vlw;  } 
+
+    void getDefaultMetric(font_size_t *sizedata) const override {
+      sizedata->x_offset  = 0;
+      sizedata->y_offset  = 0;
+      sizedata->baseline  = maxAscent;
+      sizedata->y_advance = yAdvance;
+      sizedata->y_size    = yAdvance;
+    }
+
+    virtual ~VLWfont() {
+      unloadFont();
+    }
+
+    bool unloadFont(void) override {
+      _fontLoaded = false;
+      if (_fontData) { _fontData->close();   _fontData = nullptr; }
+      if (gUnicode)  { heap_free(gUnicode);  gUnicode  = nullptr; }
+      if (gWidth)    { heap_free(gWidth);    gWidth    = nullptr; }
+      if (gxAdvance) { heap_free(gxAdvance); gxAdvance = nullptr; }
+      if (gdX)       { heap_free(gdX);       gdX       = nullptr; }
+      if (gBitmap)   { heap_free(gBitmap);   gBitmap   = nullptr; }
+      return true;
+    }
+
+    bool getUnicodeIndex(uint16_t unicode, uint16_t *index) const
     {
-      {
-        uint32_t buf[6];
-        _fontData->read((uint8_t*)buf, 6 * 4); // 24 Byte read
+      auto poi = std::lower_bound(gUnicode, &gUnicode[gCount], unicode);
+      *index = std::distance(gUnicode, poi);
+      return (*poi == unicode);
+    }
 
-        gFont.gCount   = __builtin_bswap32(buf[0]); // glyph count in file
-                       //__builtin_bswap32(buf[1]); // vlw encoder version - discard
-        gFont.yAdvance = __builtin_bswap32(buf[2]); // Font size in points, not pixels
-                       //__builtin_bswap32(buf[3]); // discard
-        gFont.ascent   = __builtin_bswap32(buf[4]); // top of "d"
-        gFont.descent  = __builtin_bswap32(buf[5]); // bottom of "p"
-      }
+    bool updateFontMetric(font_size_t *sizedata, uint16_t uniCode) const override {
+      uint16_t gNum = 0;
+      if (getUnicodeIndex(uniCode, &gNum)) {
+        if (gWidth && gxAdvance && gdX[gNum]) {
+          sizedata->x_size    = gWidth[gNum];
+          sizedata->x_advance = gxAdvance[gNum];
+          sizedata->x_offset  = gdX[gNum];
+        } else {
+          auto file = _fontData;
 
-      // These next gFont values might be updated when the Metrics are fetched
-      gFont.maxAscent  = gFont.ascent;   // Determined from metrics
-      gFont.maxDescent = gFont.descent;  // Determined from metrics
-      gFont.yAdvance   = gFont.ascent + gFont.descent;
-      gFont.spaceWidth = gFont.yAdvance * 2 / 7;  // Guess at space width
+          file->preRead();
+          //if (file->need_transaction && me->_transaction_count) me->endTransaction();
 
-//ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
+          file->seek(28 + gNum * 28);  // headerPtr
+          uint32_t buffer[6];
+          file->read((uint8_t*)buffer, 24);
+          sizedata->x_size    = __builtin_bswap32(buffer[1]); // Width of glyph
+          sizedata->x_advance = __builtin_bswap32(buffer[2]); // xAdvance - to move x cursor
+          sizedata->x_offset  = (int32_t)((int8_t)__builtin_bswap32(buffer[4])); // x delta from cursor
 
-      this->_decoderState = Base::utf8_decode_state_t::utf8_state0;
-      this->fpDrawChar = drawCharVLW;
-      this->fpUpdateFontSize = updateFontSizeVLW;
-      this->_font_size_x.offset = 0;
-      this->_font_size_y.offset = 0;
-
-      _fontLoaded = true;
-      // Fetch the metrics for each glyph
-      bool res = loadMetrics(gFont.gCount);
-      if (res) {
-        this->_font_size_y.size    = gFont.yAdvance;
-        this->_font_size_y.advance = gFont.yAdvance;
+          file->postRead();
+          //if (file->need_transaction && me->_transaction_count) me->beginTransaction();
+        }
         return true;
       }
-      unloadFont();
       return false;
     }
 
-    bool loadMetrics(uint16_t gCount)
-    {
+
+    bool loadFont(DataWrapper* data) {
+      _fontData = data;
+      {
+        uint32_t buf[6];
+        data->read((uint8_t*)buf, 6 * 4); // 24 Byte read
+
+        gCount   = __builtin_bswap32(buf[0]); // glyph count in file
+                 //__builtin_bswap32(buf[1]); // vlw encoder version - discard
+        yAdvance = __builtin_bswap32(buf[2]); // Font size in points, not pixels
+                 //__builtin_bswap32(buf[3]); // discard
+        ascent   = __builtin_bswap32(buf[4]); // top of "d"
+        descent  = __builtin_bswap32(buf[5]); // bottom of "p"
+      }
+
+      // These next gFont values might be updated when the Metrics are fetched
+      maxAscent  = ascent;   // Determined from metrics
+      maxDescent = descent;  // Determined from metrics
+      yAdvance   = std::max((int)yAdvance, ascent + descent);
+      spaceWidth = yAdvance * 2 / 7;  // Guess at space width
+
+//ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
+
       if (!gCount) return false;
 
 //ESP_LOGI("LGFX", "font count:%d", gCount);
@@ -2579,6 +2435,8 @@ namespace lgfx
         return false;
       }
 
+      _fontLoaded = true;
+
       size_t gNum = 0;
       _fontData->seek(24);  // headerPtr
       uint32_t buffer[7];
@@ -2595,12 +2453,12 @@ namespace lgfx
         if ((unicode > 0xFF) || ((unicode > 0x20) && (unicode < 0xA0) && (unicode != 0x7F))) {
           int16_t dY =  (int16_t)__builtin_bswap32(buffer[4]); // y delta from baseline
 //ESP_LOGI("LGFX", "unicode:%x  dY:%d", unicode, dY);
-          if (gFont.maxAscent < dY) {
-            gFont.maxAscent = dY;
+          if (maxAscent < dY) {
+            maxAscent = dY;
           }
-          if (gFont.maxDescent < (height - dY)) {
-//ESP_LOGI("LGFX", "maxDescent:%d", gFont.maxDescent);
-            gFont.maxDescent = height - dY;
+          if (maxDescent < (height - dY)) {
+//ESP_LOGI("LGFX", "maxDescent:%d", maxDescent);
+            maxDescent = height - dY;
           }
         }
 
@@ -2608,56 +2466,139 @@ namespace lgfx
         bitmapPtr += w * height;
       } while (++gNum < gCount);
 
-      this->_font_baseline = gFont.maxAscent;
-      this->_font_size_y.advance = gFont.yAdvance = gFont.maxAscent + gFont.maxDescent;
-//ESP_LOGI("LGFX", "maxDescent:%d", gFont.maxDescent);
+      yAdvance = maxAscent + maxDescent;
+
+//ESP_LOGI("LGFX", "maxDescent:%d", maxDescent);
       return true;
     }
+  };
 
-    bool getUnicodeIndex(uint16_t unicode, uint16_t *index)
-    {
-      auto poi = std::lower_bound(gUnicode, &gUnicode[gFont.gCount], unicode);
-      *index = std::distance(gUnicode, poi);
-      return (*poi == unicode);
+//----------------------------------------------------------------------------
+
+  template <class Base>
+  class LGFX_VLWFont_Support : public Base {
+  public:
+
+#if defined (ARDUINO) && defined (FS_H)
+
+    void loadFont(const char *path, fs::FS &fs) {
+      this->unloadFont();
+
+      _fontFile.setFS(fs);
+
+      loadFont(path);
     }
 
-    static bool updateFontSizeVLW(LGFXBase* lgfxbase, uint16_t uniCode) {
-      auto me = (LGFX_VLWFont_Support*)lgfxbase;
-      uint16_t gNum = 0;
-      if (me->getUnicodeIndex(uniCode, &gNum)) {
-        if (me->gWidth && me->gxAdvance && me->gdX[gNum]) {
-          me->_font_size_x.size    = me->gWidth[gNum];
-          me->_font_size_x.advance = me->gxAdvance[gNum];
-          me->_font_size_x.offset  = me->gdX[gNum];
-        } else {
-          auto file = me->_fontData;
+#endif
 
-          if (file->need_transaction && me->_transaction_count) me->endTransaction();
-
-          file->seek(28 + gNum * 28);  // headerPtr
-          uint32_t buffer[6];
-          file->read((uint8_t*)buffer, 24);
-          me->_font_size_x.size    = __builtin_bswap32(buffer[1]); // Width of glyph
-          me->_font_size_x.advance = __builtin_bswap32(buffer[2]); // xAdvance - to move x cursor
-          me->_font_size_x.offset  = (int32_t)((int8_t)__builtin_bswap32(buffer[4])); // x delta from cursor
-
-          if (file->need_transaction && me->_transaction_count) me->beginTransaction();
-        }
-        return true;
+    void loadFont(const uint8_t* array) {
+      this->unloadFont();
+      _fontPointer.set(array);
+      auto font = new VLWfont();
+      this->_dynamic_font = font;
+      if (font->loadFont(&_fontPointer)) {
+        this->_font = font;
+        this->fpDrawChar = drawCharVLW;
+        //this->fpUpdateFontSize = updateFontSizeVLW;
+        this->_font->getDefaultMetric(&this->_font_size);
+      } else {
+        this->unloadFont();
       }
-      return false;
     }
 
-    static int_fast16_t drawCharVLW(LGFXBase* lgfxbase, int32_t x, int32_t y, uint16_t code, uint32_t fore_rgb888, uint32_t back_rgb888, int_fast8_t size_x, int_fast8_t size_y, const fontinfo*)
+    void loadFont(const char *path) {
+      this->unloadFont();
+
+      _fontFile.need_transaction &= this->isSPIShared();
+
+      if (_fontFile.need_transaction) {
+        _fontFile.parent = this;
+        _fontFile.fp_pre_read  = &LGFXBase::tmpEndTransaction;
+        _fontFile.fp_post_read = &LGFXBase::tmpBeginTransaction;
+        this->endTransaction();
+      } else {
+        _fontFile.parent = nullptr;
+        _fontFile.fp_pre_read  = nullptr;
+        _fontFile.fp_post_read = nullptr;
+      }
+      bool result = _fontFile.open(path, "rb");
+      if (!result) {
+        std::string filename = "/";
+        filename += path;
+        filename += ".vlw";
+        result = _fontFile.open(filename.c_str(), "rb");
+      }
+      if (result) {
+        auto font = new VLWfont();
+        this->_dynamic_font = font;
+        if (font->loadFont(&_fontPointer)) {
+          this->_font = font;
+          this->fpDrawChar = drawCharVLW;
+          //this->fpUpdateFontSize = updateFontSizeVLW;
+          this->_font->getDefaultMetric(&this->_font_size);
+        } else {
+          this->unloadFont();
+        }
+      } else {
+        this->unloadFont();
+      }
+
+      if (_fontFile.need_transaction && this->_transaction_count) { this->beginTransaction(); }
+    }
+
+    void showFont(uint32_t td)
+    {
+      auto font = (const VLWfont*)this->_font;
+      if(!font->_fontLoaded) return;
+
+      int16_t x = this->width();
+      int16_t y = this->height();
+      uint32_t timeDelay = 0;    // No delay before first page
+
+      this->fillScreen(this->_text_back_rgb888);
+
+      for (uint16_t i = 0; i < font->gCount; i++)
+      {
+        // Check if this will need a new screen
+        if (x + font->gdX[i] + font->gWidth[i] >= this->width())  {
+          x = - font->gdX[i];
+
+          y += font->yAdvance;
+          if (y + font->maxAscent + font->descent >= this->height()) {
+            x = - font->gdX[i];
+            y = 0;
+            delay(timeDelay);
+            timeDelay = td;
+            this->fillScreen(this->_text_back_rgb888);
+          }
+        }
+
+        this->drawChar(font->gUnicode[i], x, y);
+        x += font->gxAdvance[i];
+        //yield();
+      }
+
+      delay(timeDelay);
+      this->fillScreen(this->_text_back_rgb888);
+      //fontFile.close();
+    }
+
+  protected:
+
+    FileWrapper _fontFile;
+    PointerWrapper _fontPointer;
+
+    static int_fast16_t drawCharVLW(LGFXBase* lgfxbase, int32_t x, int32_t y, uint16_t code, uint32_t fore_rgb888, uint32_t back_rgb888, int_fast8_t size_x, int_fast8_t size_y, const IFont*)
     {
       auto me = (LGFX_VLWFont_Support*)lgfxbase;
+      auto font = (const VLWfont*)me->_font;
 
       uint16_t gNum = 0;
-      if (!me->getUnicodeIndex(code, &gNum)) {
+      if (!font->getUnicodeIndex(code, &gNum)) {
         return 0;
       }
 
-      auto file = me->_fontData;
+      auto file = font->_fontData;
 
       if (file->need_transaction && me->_transaction_count) me->endTransaction();
 
@@ -2669,12 +2610,12 @@ namespace lgfx
       uint32_t xAdvance = __builtin_bswap32(buffer[2]) * size_x; // xAdvance - to move x cursor
       int32_t xoffset   = (int32_t)((int8_t)__builtin_bswap32(buffer[4])) * size_x; // x delta from cursor
       int32_t dY        = (int16_t)__builtin_bswap32(buffer[3]); // y delta from baseline
-      int32_t yoffset = ((int32_t)me->gFont.maxAscent - dY) * (int32_t)size_y;
+      int32_t yoffset = ((int32_t)font->maxAscent - dY) * (int32_t)size_y;
 
       uint8_t pbuffer[w * h];
       uint8_t* pixel = pbuffer;
 
-      file->seek(me->gBitmap[gNum]);  // headerPtr
+      file->seek(font->gBitmap[gNum]);  // headerPtr
       file->read(pixel, w * h);
 
       if (file->need_transaction && me->_transaction_count) me->beginTransaction();
@@ -2707,11 +2648,11 @@ namespace lgfx
         if (fillbg) { // fill background mode
           if (right > left) {
             me->setRawColor(colortbl[0]);
-            int tmp = yoffset - (me->_font_size_y.offset * size_y);
+            int tmp = yoffset - (me->_font_size.y_offset * size_y);
             if (tmp > 0)
-              me->writeFillRect(left, y - yoffset + me->_font_size_y.offset * size_y, right - left, tmp);
+              me->writeFillRect(left, y - yoffset + me->_font_size.y_offset * size_y, right - left, tmp);
 
-            tmp = (me->_font_size_y.offset + me->_font_size_y.size - h) * size_y - yoffset;
+            tmp = (me->_font_size.y_offset + me->_font_size.y_size - h) * size_y - yoffset;
             if (tmp > 0)
               me->writeFillRect(left, y + h * size_y, right - left, tmp);
           }
@@ -2939,7 +2880,7 @@ namespace lgfx
       bool eol = false;
       do {
         data->read(code, 2);
-        if (code[0] == 0) { // 1バイト目ぁE0 ならエンコードデータ以夁E
+        if (code[0] == 0) {
           switch (code[1]) {
           case 0x00: // EOL
           case 0x01: // EOB
@@ -3492,17 +3433,11 @@ protected:
 }
 
 class LovyanGFX : public
-#ifdef LGFX_GFXFONT_HPP_
-  lgfx::LGFX_GFXFont_Support<
-#endif
    lgfx::LGFX_VLWFont_Support<
     lgfx::LGFX_IMAGE_FORMAT_Support<
      lgfx::LGFXBase
     >
    >
-#ifdef LGFX_GFXFONT_HPP_
-  >
-#endif
 {};
 //----------------------------------------------------------------------------
 //----------------------------------------------------------------------------

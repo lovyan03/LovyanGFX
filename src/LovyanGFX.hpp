@@ -26,9 +26,7 @@ Contributors:
 
 #include "lgfx/lgfx_common.hpp"  // common include (always include)
 
-#if !defined LOAD_GFXFF
-#include "Fonts/gfxfont.hpp"      // GFX font support (optional)
-#endif
+#include "Fonts/lgfx_fonts.hpp"
 
 #include "lgfx/utility/lgfx_tjpgd.h" // JPEG decode support (optional)
 #include "lgfx/utility/lgfx_pngle.h" // PNG decode support (optional)

@@ -14,7 +14,7 @@ struct EncodeRange {
   uint16_t base;
 };
 
-struct GFXfont { // Data stored for FONT AS A WHOLE:
+struct GFXfont : public lgfx::IFont { // Data stored for FONT AS A WHOLE:
   uint8_t  *bitmap;      // Glyph bitmaps, concatenated
   GFXglyph *glyph;       // Glyph array
   uint16_t  first, last; // ASCII extents
@@ -55,6 +55,48 @@ struct GFXfont { // Data stored for FONT AS A WHOLE:
     }
     uniCode -= pgm_read_word(&range_pst[i].start) - pgm_read_word(&range_pst[i].base);
     return &(((GFXglyph *)pgm_read_dword(&glyph))[uniCode]);
+  }
+
+  lgfx::font_type_t getType(void) const override { return lgfx::font_type_t::ft_gfx; }
+
+  void getDefaultMetric(lgfx::font_size_t *sizedata) const override {
+    int_fast8_t glyph_ab = 0;   // glyph delta Y (height) above baseline
+    int_fast8_t glyph_bb = 0;   // glyph delta Y (height) below baseline
+    size_t numChars = pgm_read_word(&last) - pgm_read_word(&first);
+
+    size_t custom_range_num = pgm_read_word(&range_num);
+    if (custom_range_num != 0) {
+      EncodeRange *range_pst = (EncodeRange *)pgm_read_dword(&range);
+      size_t i = 0;
+      numChars = custom_range_num;
+      do {
+        numChars += pgm_read_word(&range_pst[i].end) - pgm_read_word(&range_pst[i].start);
+      } while (++i < custom_range_num);
+    }
+
+    // Find the biggest above and below baseline offsets
+    for (size_t c = 0; c < numChars; c++)
+    {
+      GFXglyph *glyph1 = &(((GFXglyph *)pgm_read_dword(&glyph))[c]);
+      int8_t ab = -pgm_read_byte(&glyph1->yOffset);
+      if (ab > glyph_ab) glyph_ab = ab;
+      int8_t bb = pgm_read_byte(&glyph1->height) - ab;
+      if (bb > glyph_bb) glyph_bb = bb;
+    }
+
+    sizedata->baseline = glyph_ab;
+    sizedata->y_offset = - glyph_ab;
+    sizedata->y_size = glyph_bb + glyph_ab;
+    sizedata->y_advance = (uint8_t)pgm_read_byte(&yAdvance);
+  }
+
+  bool updateFontMetric(lgfx::font_size_t *sizedata, uint16_t uniCode) const override {
+    auto glyph = getGlyph(uniCode);
+    if (!glyph) return false;
+    sizedata->x_offset  = (int8_t)pgm_read_byte(&glyph->xOffset);
+    sizedata->x_size    = pgm_read_byte(&glyph->width);
+    sizedata->x_advance = pgm_read_byte(&glyph->xAdvance);
+    return true;
   }
 };
 
