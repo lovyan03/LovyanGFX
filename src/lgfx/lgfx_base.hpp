@@ -2043,7 +2043,7 @@ namespace lgfx
     static int_fast16_t drawCharBDF(LGFXBase* me, int32_t x, int32_t y, uint16_t c, uint32_t fore_rgb888, uint32_t back_rgb888, int_fast8_t size_x, int_fast8_t size_y, const IFont* font)
     {
       auto fontd = (BDFfont*)font;
-      const int_fast8_t bytesize = 2;
+      const int_fast8_t bytesize = (fontd->width + 7) >> 3;
       const int_fast8_t fontHeight = fontd->height;
       const int_fast8_t fontWidth = (c < 0x0100) ? fontd->halfwidth : fontd->width;
       auto it = std::lower_bound(fontd->indextbl, &fontd->indextbl[fontd->indexsize], c);
