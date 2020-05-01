@@ -334,7 +334,7 @@ namespace lgfx
     inline size_t drawChar(int32_t x, int32_t y, uint16_t uniCode, T color, T bg, int_fast8_t size) { return drawChar(x, y, uniCode, color, bg, size, size); }
     template<typename T>
     inline size_t drawChar(int32_t x, int32_t y, uint16_t uniCode, T color, T bg, int_fast8_t size_x, int_fast8_t size_y) {
-      FontStyle style = _font_style;
+      TextStyle style = _font_style;
       style.back_rgb888 = convert_to_rgb888(color);
       style.fore_rgb888 = convert_to_rgb888(bg);
       style.size_x = size_x;
@@ -361,18 +361,18 @@ namespace lgfx
     void setTextWrap( bool wrapX, bool wrapY = false) { _textwrap_x = wrapX; _textwrap_y = wrapY; }
     void setTextScroll(bool scroll) { _textscroll = scroll; if (_cursor_x < this->_sx) { _cursor_x = this->_sx; } if (_cursor_y < this->_sy) { _cursor_y = this->_sy; } }
 
-
-#ifdef __EFONT_FONT_DATA_H__
-    [[deprecated("use setFont(&fonts::efont)")]]
-    void setTextEFont() { setFont(&fonts::efont); }
-#endif
-
+    [[deprecated("use getFont()")]]
     uint8_t getTextFont(void) const {
       size_t ie = sizeof(fontdata) / sizeof(fontdata[0]);
       for (size_t i = 0; i < ie; ++i)
         if (fontdata[i] == _font) return i;
       return 0;
     }
+
+#ifdef __EFONT_FONT_DATA_H__
+    [[deprecated("use setFont(&fonts::efont)")]]
+    void setTextEFont() { setFont(&fonts::efont); }
+#endif
 
     [[deprecated("use setFont(&fonts::Font0)")]]
     void setTextFont(int f) {
@@ -548,13 +548,20 @@ namespace lgfx
 
   protected:
 
+    enum utf8_decode_state_t
+    { utf8_state0 = 0
+    , utf8_state1 = 1
+    , utf8_state2 = 2
+    };
+    utf8_decode_state_t _decoderState = utf8_state0;   // UTF8 decoder state
+    uint16_t _unicode_buffer = 0;   // Unicode code-point buffer
+
     int32_t _cursor_x = 0;
     int32_t _cursor_y = 0;
     int32_t _filled_x = 0;
 
-    FontStyle _font_style;
-
-    font_size_t _font_size = { 6, 6, 0, 8, 8, 0, 7 }; // Font0 Metric
+    TextStyle _font_style;
+    FontMetrics _font_size = { 6, 6, 0, 8, 8, 0, 7 }; // Font0 Metric
     const IFont* _font = &fonts::Font0;
 
     IFont* _dynamic_font = nullptr;  // run-time generated font
@@ -566,17 +573,6 @@ namespace lgfx
     bool _textwrap_x = true;
     bool _textwrap_y = false;
     bool _textscroll = false;
-//  bool _font_style.cp437      = false;
-//  bool _font_style.utf8       = true;
-
-    enum utf8_decode_state_t
-    { utf8_state0 = 0
-    , utf8_state1 = 1
-    , utf8_state2 = 2
-    };
-    utf8_decode_state_t _decoderState = utf8_state0;   // UTF8 decoder state
-    uint16_t _unicode_buffer = 0;   // Unicode code-point buffer
-    //uint8_t _textfont = 1;
 
 //----------------------------------------------------------------------------
 // print & text support
@@ -746,9 +742,9 @@ namespace lgfx
       return sumX;
     }
 
-    size_t (*fpDrawChar)(LGFX_Font_Support* me, int32_t x, int32_t y, uint16_t c, const FontStyle* style, const IFont* font) = &LGFX_Font_Support::drawCharGLCD;
+    size_t (*fpDrawChar)(LGFX_Font_Support* me, int32_t x, int32_t y, uint16_t c, const TextStyle* style, const IFont* font) = &LGFX_Font_Support::drawCharGLCD;
 
-    static size_t drawCharGLCD(LGFX_Font_Support* me, int32_t x, int32_t y, uint16_t c, const FontStyle* style, const IFont* ifont)
+    static size_t drawCharGLCD(LGFX_Font_Support* me, int32_t x, int32_t y, uint16_t c, const TextStyle* style, const IFont* ifont)
     { // glcd font
       auto font = (const GLCDfont*)ifont;
       if (c > 255) return 0;
@@ -829,7 +825,7 @@ namespace lgfx
       return fontWidth * style->size_x;
     }
 
-    static size_t drawCharBMP(LGFX_Font_Support* me, int32_t x, int32_t y, uint16_t uniCode, const FontStyle* style, const IFont* ifont)
+    static size_t drawCharBMP(LGFX_Font_Support* me, int32_t x, int32_t y, uint16_t uniCode, const TextStyle* style, const IFont* ifont)
     { // BMP font
       auto font = (const BMPfont*)ifont;
 
@@ -841,7 +837,7 @@ namespace lgfx
       return draw_char_bmp(me, x, y, style, font_addr, fontWidth, fontHeight, (fontWidth + 6) >> 3, 1);
     }
 
-    static size_t drawCharBDF(LGFX_Font_Support* me, int32_t x, int32_t y, uint16_t c, const FontStyle* style, const IFont* ifont)
+    static size_t drawCharBDF(LGFX_Font_Support* me, int32_t x, int32_t y, uint16_t c, const TextStyle* style, const IFont* ifont)
     {
       auto font = (BDFfont*)ifont;
       const int_fast8_t bytesize = (font->width + 7) >> 3;
@@ -858,7 +854,7 @@ namespace lgfx
       return LGFX_Font_Support::draw_char_bmp(me, x, y, style, font_addr, fontWidth, fontHeight, bytesize, 0);
     }
 
-    static size_t draw_char_bmp(LGFX_Font_Support* me, int32_t x, int32_t y, const FontStyle* style, const uint8_t* font_addr, int_fast8_t fontWidth, int_fast8_t fontHeight, int_fast8_t w, int_fast8_t margin )
+    static size_t draw_char_bmp(LGFX_Font_Support* me, int32_t x, int32_t y, const TextStyle* style, const uint8_t* font_addr, int_fast8_t fontWidth, int_fast8_t fontHeight, int_fast8_t w, int_fast8_t margin )
     {
       uint32_t colortbl[2] = {me->_write_conv.convert(style->back_rgb888), me->_write_conv.convert(style->fore_rgb888)};
       bool fillbg = (style->back_rgb888 != style->fore_rgb888);
@@ -942,7 +938,7 @@ namespace lgfx
       return fontWidth * style->size_x;
     }
 
-    static size_t drawCharRLE(LGFX_Font_Support* me, int32_t x, int32_t y, uint16_t code, const FontStyle* style, const IFont* ifont)
+    static size_t drawCharRLE(LGFX_Font_Support* me, int32_t x, int32_t y, uint16_t code, const TextStyle* style, const IFont* ifont)
     { // RLE font
       auto font = (RLEfont*)ifont;
       if ((code -= 32) >= 96) return 0;
@@ -1004,7 +1000,7 @@ namespace lgfx
       return fontWidth * style->size_x;
     }
 
-    static size_t drawCharGFXFF(LGFX_Font_Support* me, int32_t x, int32_t y, uint16_t uniCode, const FontStyle* style, const IFont* ifont)
+    static size_t drawCharGFXFF(LGFX_Font_Support* me, int32_t x, int32_t y, uint16_t uniCode, const TextStyle* style, const IFont* ifont)
     {
       auto font = (const GFXfont*)ifont;
       auto glyph = font->getGlyph(uniCode);
@@ -1091,7 +1087,7 @@ namespace lgfx
       return xAdvance;
     }
 
-    static size_t drawCharVLW(LGFX_Font_Support* lgfxbase, int32_t x, int32_t y, uint16_t code, const FontStyle* style, const IFont*)
+    static size_t drawCharVLW(LGFX_Font_Support* lgfxbase, int32_t x, int32_t y, uint16_t code, const TextStyle* style, const IFont*)
     {
       auto me = (LGFX_Font_Support*)lgfxbase;
       auto font = (const VLWfont*)me->_font;

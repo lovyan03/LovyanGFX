@@ -33,17 +33,7 @@ namespace lgfx
   , ft_vlw
   };
 
-  struct FontStyle {
-    uint32_t back_rgb888 = 0;
-    uint32_t fore_rgb888 = 0xFFFFFFU;
-    int_fast8_t size_x = 1;
-    int_fast8_t size_y = 1;
-    textdatum_t datum = textdatum_t::top_left;
-    bool utf8 = true;
-    bool cp437 = false;
-  };
-
-  struct font_size_t {
+  struct FontMetrics {
     int16_t x_size;
     int16_t x_advance;
     int16_t x_offset;
@@ -53,12 +43,22 @@ namespace lgfx
     int16_t baseline;
   };
 
+  struct TextStyle {
+    uint32_t fore_rgb888 = 0xFFFFFFU;
+    uint32_t back_rgb888 = 0;
+    int_fast8_t size_x = 1;
+    int_fast8_t size_y = 1;
+    textdatum_t datum = textdatum_t::top_left;
+    bool utf8 = true;
+    bool cp437 = false;
+  };
+
   struct IFont
   {
     virtual ~IFont() {}
     virtual font_type_t getType(void) const { return ft_unknown; }
-    virtual void getDefaultMetric(font_size_t *sizedata) const = 0;
-    virtual bool updateFontMetric(font_size_t *sizedata, uint16_t uniCode) const = 0;
+    virtual void getDefaultMetric(FontMetrics *metrics) const = 0;
+    virtual bool updateFontMetric(FontMetrics *metrics, uint16_t uniCode) const = 0;
     virtual bool unloadFont(void) { return false; }
   };
 
@@ -76,14 +76,14 @@ namespace lgfx
      , height   (height   )
      , baseline (baseline )
     {}
-    void getDefaultMetric(font_size_t *sizedata) const override {
-      sizedata->x_size    = width;
-      sizedata->x_advance = width;
-      sizedata->x_offset  = 0;
-      sizedata->y_size    = height;
-      sizedata->y_advance = height;
-      sizedata->y_offset  = 0;
-      sizedata->baseline  = baseline;
+    void getDefaultMetric(FontMetrics *metrics) const override {
+      metrics->x_size    = width;
+      metrics->x_advance = width;
+      metrics->x_offset  = 0;
+      metrics->y_size    = height;
+      metrics->y_advance = height;
+      metrics->y_offset  = 0;
+      metrics->baseline  = baseline;
     }
   };
 
@@ -91,7 +91,7 @@ namespace lgfx
     GLCDfont(const uint8_t *chartbl, const uint8_t *widthtbl, uint8_t width, uint8_t height, uint8_t baseline) : BaseFont(chartbl, widthtbl, width, height, baseline ) {}
     font_type_t getType(void) const override { return ft_glcd; }
 
-    bool updateFontMetric(font_size_t *sizedata, uint16_t uniCode) const override {
+    bool updateFontMetric(FontMetrics *metrics, uint16_t uniCode) const override {
       return uniCode < 256;
     }
   };
@@ -100,9 +100,9 @@ namespace lgfx
     BMPfont(const uint8_t *chartbl, const uint8_t *widthtbl, uint8_t width, uint8_t height, uint8_t baseline) : BaseFont(chartbl, widthtbl, width, height, baseline ) {}
     font_type_t getType(void) const override { return ft_bmp;  } 
 
-    bool updateFontMetric(font_size_t *sizedata, uint16_t uniCode) const override {
+    bool updateFontMetric(FontMetrics *metrics, uint16_t uniCode) const override {
       if ((uniCode -= 32) >= 96) return false;
-      sizedata->x_advance = sizedata->x_size = pgm_read_byte( (uint8_t *)pgm_read_dword( &widthtbl ) + uniCode );
+      metrics->x_advance = metrics->x_size = pgm_read_byte( (uint8_t *)pgm_read_dword( &widthtbl ) + uniCode );
       return true;
     }
   };
@@ -125,8 +125,8 @@ namespace lgfx
      {}
     font_type_t getType(void) const override { return ft_bdf;  }
 
-    bool updateFontMetric(font_size_t *sizedata, uint16_t uniCode) const override {
-      sizedata->x_advance = sizedata->x_size = pgm_read_byte( (uniCode < 0x0100) ? &halfwidth : &width );
+    bool updateFontMetric(FontMetrics *metrics, uint16_t uniCode) const override {
+      metrics->x_advance = metrics->x_size = pgm_read_byte( (uniCode < 0x0100) ? &halfwidth : &width );
       return true;
     }
   };
@@ -152,12 +152,12 @@ namespace lgfx
 
     font_type_t getType(void) const override { return ft_vlw;  } 
 
-    void getDefaultMetric(font_size_t *sizedata) const override {
-      sizedata->x_offset  = 0;
-      sizedata->y_offset  = 0;
-      sizedata->baseline  = maxAscent;
-      sizedata->y_advance = yAdvance;
-      sizedata->y_size    = yAdvance;
+    void getDefaultMetric(FontMetrics *metrics) const override {
+      metrics->x_offset  = 0;
+      metrics->y_offset  = 0;
+      metrics->baseline  = maxAscent;
+      metrics->y_advance = yAdvance;
+      metrics->y_size    = yAdvance;
     }
 
     virtual ~VLWfont() {
@@ -182,13 +182,13 @@ namespace lgfx
       return (*poi == unicode);
     }
 
-    bool updateFontMetric(font_size_t *sizedata, uint16_t uniCode) const override {
+    bool updateFontMetric(FontMetrics *metrics, uint16_t uniCode) const override {
       uint16_t gNum = 0;
       if (getUnicodeIndex(uniCode, &gNum)) {
         if (gWidth && gxAdvance && gdX[gNum]) {
-          sizedata->x_size    = gWidth[gNum];
-          sizedata->x_advance = gxAdvance[gNum];
-          sizedata->x_offset  = gdX[gNum];
+          metrics->x_size    = gWidth[gNum];
+          metrics->x_advance = gxAdvance[gNum];
+          metrics->x_offset  = gdX[gNum];
         } else {
           auto file = _fontData;
 
@@ -198,9 +198,9 @@ namespace lgfx
           file->seek(28 + gNum * 28);  // headerPtr
           uint32_t buffer[6];
           file->read((uint8_t*)buffer, 24);
-          sizedata->x_size    = __builtin_bswap32(buffer[1]); // Width of glyph
-          sizedata->x_advance = __builtin_bswap32(buffer[2]); // xAdvance - to move x cursor
-          sizedata->x_offset  = (int32_t)((int8_t)__builtin_bswap32(buffer[4])); // x delta from cursor
+          metrics->x_size    = __builtin_bswap32(buffer[1]); // Width of glyph
+          metrics->x_advance = __builtin_bswap32(buffer[2]); // xAdvance - to move x cursor
+          metrics->x_offset  = (int32_t)((int8_t)__builtin_bswap32(buffer[4])); // x delta from cursor
 
           file->postRead();
           //if (file->need_transaction && me->_transaction_count) me->beginTransaction();
