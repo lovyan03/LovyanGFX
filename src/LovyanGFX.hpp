@@ -25,32 +25,15 @@ Contributors:
 #endif
 
 #include "lgfx/lgfx_common.hpp"         // common include (always include)
-#include "lgfx/lgfx_base.hpp"           // base class (always include)
 
 #include "lgfx/utility/lgfx_tjpgd.h"    // JPEG decode support (optional)
 #include "lgfx/utility/lgfx_pngle.h"    // PNG decode support (optional)
-
-#include "lgfx/lgfx_font_support.hpp"   // font extention (optional)
 #include "lgfx/lgfx_img_support.hpp"    // image format extention (optional)
+#include "lgfx/lgfx_font_support.hpp"   // font extention (optional)
 
+#include "lgfx/lgfx_base.hpp"           // base class (always include)
 
-class LovyanGFX : public
-#ifdef LGFX_FONT_SUPPORT_HPP_
-   lgfx::LGFX_Font_Support<
-#endif
-#ifdef LGFX_IMG_SUPPORT_HPP_
-    lgfx::LGFX_IMG_Support<
-#endif
-     lgfx::LGFXBase
-#ifdef LGFX_IMG_SUPPORT_HPP_
-    >
-#endif
-#ifdef LGFX_FONT_SUPPORT_HPP_
-   >
-#endif
-{};
-
-#include "lgfx/lgfx_sprite.hpp"   // sprite class (optional)
+#include "lgfx/lgfx_sprite.hpp"         // sprite class (optional)
 
 #include "lgfx/panel/panel_HX8357.hpp"
 #include "lgfx/panel/panel_ILI9163.hpp"

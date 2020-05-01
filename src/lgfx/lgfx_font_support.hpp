@@ -389,7 +389,6 @@ namespace lgfx
 
     void unloadFont(void) {
       if (_dynamic_font) {
-        //_dynamic_font->unloadFont();
         delete _dynamic_font;
         _dynamic_font = nullptr;
       }
@@ -448,7 +447,6 @@ namespace lgfx
 
 #if defined (ARDUINO) && defined (FS_H)
     void loadFont(const char *path, fs::FS &fs) {
-      this->unloadFont();
       _fontFile.setFS(fs);
       loadFont(path);
     }
@@ -462,7 +460,6 @@ namespace lgfx
       if (font->loadFont(&_fontPointer)) {
         this->_font = font;
         this->fpDrawChar = drawCharVLW;
-        //this->fpUpdateFontSize = updateFontSizeVLW;
         this->_font->getDefaultMetric(&this->_font_size);
       } else {
         this->unloadFont();
@@ -476,8 +473,8 @@ namespace lgfx
 
       if (_fontFile.need_transaction) {
         _fontFile.parent = this;
-        _fontFile.fp_pre_read  = &LGFXBase::tmpEndTransaction;
-        _fontFile.fp_post_read = &LGFXBase::tmpBeginTransaction;
+        _fontFile.fp_pre_read  = this->tmpEndTransaction;
+        _fontFile.fp_post_read = this->tmpBeginTransaction;
         this->endTransaction();
       } else {
         _fontFile.parent = nullptr;
@@ -491,21 +488,18 @@ namespace lgfx
         filename += ".vlw";
         result = _fontFile.open(filename.c_str(), "rb");
       }
+      auto font = new VLWfont();
+      this->_dynamic_font = font;
       if (result) {
-        auto font = new VLWfont();
-        this->_dynamic_font = font;
-        if (font->loadFont(&_fontPointer)) {
-          this->_font = font;
-          this->fpDrawChar = drawCharVLW;
-          //this->fpUpdateFontSize = updateFontSizeVLW;
-          this->_font->getDefaultMetric(&this->_font_size);
-        } else {
-          this->unloadFont();
-        }
+        result = font->loadFont(&_fontFile);
+      }
+      if (result) {
+        this->_font = font;
+        this->_font->getDefaultMetric(&this->_font_size);
+        this->fpDrawChar = drawCharVLW;
       } else {
         this->unloadFont();
       }
-
       if (_fontFile.need_transaction && this->_transaction_count) { this->beginTransaction(); }
     }
 
@@ -1221,8 +1215,6 @@ namespace lgfx
       return xAdvance;
     }
   };
-
-//----------------------------------------------------------------------------
 //----------------------------------------------------------------------------
 //----------------------------------------------------------------------------
 }

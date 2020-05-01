@@ -1324,7 +1324,6 @@ namespace lgfx
     virtual void pushBlock_impl(int32_t len) = 0;
     virtual void setWindow_impl(int32_t xs, int32_t ys, int32_t xe, int32_t ye) = 0;
 
-
     static void tmpBeginTransaction(void* lgfx) {
       auto me = (LGFXBase*)lgfx;
       if (me->_transaction_count) me->beginTransaction();
@@ -1335,5 +1334,22 @@ namespace lgfx
     }
   };
 }
+
+
+class LovyanGFX : public
+#ifdef LGFX_FONT_SUPPORT_HPP_
+   lgfx::LGFX_Font_Support<
+#endif
+#ifdef LGFX_IMG_SUPPORT_HPP_
+    lgfx::LGFX_IMG_Support<
+#endif
+     lgfx::LGFXBase
+#ifdef LGFX_IMG_SUPPORT_HPP_
+    >
+#endif
+#ifdef LGFX_FONT_SUPPORT_HPP_
+   >
+#endif
+{};
 
 #endif

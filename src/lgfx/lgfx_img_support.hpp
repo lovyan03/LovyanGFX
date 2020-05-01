@@ -410,7 +410,7 @@ protected:
       int32_t x;
       int32_t y;
       DataWrapper *data;
-      LGFXBase *lgfx;
+      LGFX_IMG_Support *lgfx;
       pixelcopy_t *pc;
     };
 
@@ -464,7 +464,7 @@ protected:
       double scale;
       bgr888_t* lineBuffer;
       pixelcopy_t *pc;
-      LGFXBase *lgfx;
+      LGFX_IMG_Support *lgfx;
       int32_t last_y;
       int32_t scale_y0;
       int32_t scale_y1;
