@@ -30,8 +30,8 @@ void setup()
 {
   lcd.init();
 
-  // setTextEFont関数を呼ぶと、printやdrawString等でefontを使用できます。
-  lcd.setTextEFont();
+  // setFont関数に引数efontを指定すると、printやdrawString等でefontを使用できます。
+  lcd.setFont(&fonts::efont);
 
   lcd.setTextWrap(true, true);
 }
