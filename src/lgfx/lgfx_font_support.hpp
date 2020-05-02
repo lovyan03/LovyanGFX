@@ -50,6 +50,313 @@ namespace lgfx
   public:
     virtual ~LGFX_Font_Support() { unloadFont(); }
 
+    int16_t getCursorX(void) const { return _cursor_x; }
+    int16_t getCursorY(void) const { return _cursor_y; }
+    int16_t getTextSizeX(void) const { return _text_style.size_x; }
+    int16_t getTextSizeY(void) const { return _text_style.size_y; }
+    textdatum_t getTextDatum(void) const { return _text_style.datum; }
+    int16_t fontHeight(void) const { return _font_size.y_size * _text_style.size_y; }
+    int16_t fontHeight(uint8_t font) const { return pgm_read_byte( &((const BaseFont*)fontdata[font])->height ) * _text_style.size_y; }
+
+    void setCursor( int16_t x, int16_t y)               { _filled_x = 0; _cursor_x = x; _cursor_y = y; }
+    void setCursor( int16_t x, int16_t y, uint8_t font) { _filled_x = 0; _cursor_x = x; _cursor_y = y; _font = fontdata[font]; }
+    void setTextSize(uint8_t s) { setTextSize(s,s); }
+    void setTextSize(uint8_t sx, uint8_t sy) { _text_style.size_x = (sx > 0) ? sx : 1; _text_style.size_y = (sy > 0) ? sy : 1; }
+    void setTextDatum(uint8_t datum) { _text_style.datum = (textdatum_t)datum; }
+    void setTextDatum(textdatum_t datum) { _text_style.datum = datum; }
+    void setTextPadding(uint16_t padding_x) { _padding_x = padding_x; }
+    void setTextWrap( bool wrapX, bool wrapY = false) { _textwrap_x = wrapX; _textwrap_y = wrapY; }
+    void setTextScroll(bool scroll) { _textscroll = scroll; if (_cursor_x < this->_sx) { _cursor_x = this->_sx; } if (_cursor_y < this->_sy) { _cursor_y = this->_sy; } }
+
+    template<typename T>
+    void setTextColor(T color) {
+      if (this->hasPalette()) {
+        _text_style.fore_rgb888 = _text_style.back_rgb888 = color;
+      } else {
+        _text_style.fore_rgb888 = _text_style.back_rgb888 = convert_to_rgb888(color);
+      }
+    }
+    template<typename T1, typename T2>
+    void setTextColor(T1 fgcolor, T2 bgcolor) {
+      if (this->hasPalette()) {
+        _text_style.fore_rgb888 = fgcolor;
+        _text_style.back_rgb888 = bgcolor;
+      } else {
+        _text_style.fore_rgb888 = convert_to_rgb888(fgcolor);
+        _text_style.back_rgb888 = convert_to_rgb888(bgcolor);
+      }
+    }
+
+    int32_t textWidth(const char *string) {
+      if (!string) return 0;
+
+      int32_t left = 0;
+      int32_t right = 0;
+      do {
+        uint16_t uniCode = *string;
+        if (_text_style.utf8) {
+          do {
+            uniCode = decodeUTF8(*string);
+          } while (uniCode < 32 && *(++string));
+          if (uniCode < 32) break;
+        }
+        //if (!(fpUpdateFontSize)(this, uniCode)) continue;
+        if (!_font->updateFontMetric(&_font_size, uniCode)) continue;
+        if (left == 0 && right == 0 && _font_size.x_offset < 0) left = right = -_font_size.x_offset;
+        right = left + std::max((int32_t)_font_size.x_advance, _font_size.x_size + _font_size.x_offset);
+        left += _font_size.x_advance;
+      } while (*(++string));
+
+      return right * _text_style.size_x;
+    }
+
+  #if defined (ARDUINO)
+    inline int32_t textWidth(const String& string) { return textWidth(string.c_str()); }
+
+    inline size_t drawString(const String& string, int32_t x, int32_t y) { return draw_string(string.c_str(), x, y, _text_style.datum); }
+
+    [[deprecated("use setTextDatum() and drawString()")]]
+    inline size_t drawCentreString(const String& string, int32_t x, int32_t y, uint8_t font) { setFont(fontdata[font]); return draw_string(string.c_str(), x, y, textdatum_t::top_center); }
+
+    [[deprecated("use setTextDatum() and drawString()")]]
+    inline size_t drawCenterString(const String& string, int32_t x, int32_t y, uint8_t font) { setFont(fontdata[font]); return draw_string(string.c_str(), x, y, textdatum_t::top_center); }
+
+    [[deprecated("use setTextDatum() and drawString()")]]
+    inline size_t drawRightString( const String& string, int32_t x, int32_t y, uint8_t font) { setFont(fontdata[font]); return draw_string(string.c_str(), x, y, textdatum_t::top_right); }
+
+    inline size_t drawString(const String& string, int32_t x, int32_t y, uint8_t font) { setFont(fontdata[font]); return draw_string(string.c_str(), x, y, _text_style.datum); }
+
+  #endif
+    inline size_t drawString(const char *string, int32_t x, int32_t y) { return draw_string(string, x, y, _text_style.datum); }
+
+    [[deprecated("use setTextDatum() and drawString()")]]
+    inline size_t drawCentreString(const char *string, int32_t x, int32_t y, uint8_t font) { setFont(fontdata[font]); return draw_string(string, x, y, textdatum_t::top_center); }
+
+    [[deprecated("use setTextDatum() and drawString()")]]
+    inline size_t drawCenterString(const char *string, int32_t x, int32_t y, uint8_t font) { setFont(fontdata[font]); return draw_string(string, x, y, textdatum_t::top_center); }
+
+    [[deprecated("use setTextDatum() and drawString()")]]
+    inline size_t drawRightString( const char *string, int32_t x, int32_t y, uint8_t font) { setFont(fontdata[font]); return draw_string(string, x, y, textdatum_t::top_right); }
+
+    inline size_t drawString(const char *string, int32_t x, int32_t y, uint8_t font) { setFont(fontdata[font]); return draw_string(string, x, y, _text_style.datum); }
+
+    inline size_t drawNumber(long long_num, int32_t poX, int32_t poY, uint8_t font) { setFont(fontdata[font]); return drawNumber(long_num, poX, poY); }
+
+    inline size_t drawFloat(float floatNumber, uint8_t dp, int32_t poX, int32_t poY, uint8_t font) { setFont(fontdata[font]); return drawFloat(floatNumber, dp, poX, poY); }
+
+    size_t drawNumber(long long_num, int32_t poX, int32_t poY)
+    {
+      constexpr size_t len = 8 * sizeof(long) + 1;
+      char buf[len];
+      return drawString(numberToStr(long_num, buf, len, 10), poX, poY);
+    }
+
+    size_t drawFloat(float floatNumber, uint8_t dp, int32_t poX, int32_t poY)
+    {
+      size_t len = 14 + dp;
+      char buf[len];
+      return drawString(floatToStr(floatNumber, buf, len, dp), poX, poY);
+    }
+
+    size_t drawChar(uint16_t uniCode, int32_t x, int32_t y, uint8_t font) {
+      if (_font == fontdata[font]) return drawChar(uniCode, x, y);
+      _filled_x = 0;
+      switch (fontdata[font]->getType()) {
+      default:
+      case font_type_t::ft_glcd: return drawCharGLCD(this, x, y, uniCode, &_text_style, fontdata[font]);
+      case font_type_t::ft_bmp:  return drawCharBMP( this, x, y, uniCode, &_text_style, fontdata[font]);
+      case font_type_t::ft_rle:  return drawCharRLE( this, x, y, uniCode, &_text_style, fontdata[font]);
+      case font_type_t::ft_bdf:  return drawCharBDF( this, x, y, uniCode, &_text_style, fontdata[font]);
+      }
+    }
+
+    inline size_t drawChar(uint16_t uniCode, int32_t x, int32_t y) { _filled_x = 0; return (fpDrawChar)(this, x, y, uniCode, &_text_style, _font); }
+
+    template<typename T>
+    inline size_t drawChar(int32_t x, int32_t y, uint16_t uniCode, T color, T bg, int_fast8_t size) { return drawChar(x, y, uniCode, color, bg, size, size); }
+    template<typename T>
+    inline size_t drawChar(int32_t x, int32_t y, uint16_t uniCode, T color, T bg, int_fast8_t size_x, int_fast8_t size_y) {
+      TextStyle style = _text_style;
+      style.back_rgb888 = convert_to_rgb888(color);
+      style.fore_rgb888 = convert_to_rgb888(bg);
+      style.size_x = size_x;
+      style.size_y = size_y;
+      _filled_x = 0;
+      return (fpDrawChar)(this, x, y, uniCode, &style, _font);
+    }
+
+    [[deprecated("use getFont()")]]
+    uint8_t getTextFont(void) const {
+      size_t ie = sizeof(fontdata) / sizeof(fontdata[0]);
+      for (size_t i = 0; i < ie; ++i)
+        if (fontdata[i] == _font) return i;
+      return 0;
+    }
+
+#ifdef __EFONT_FONT_DATA_H__
+    [[deprecated("use setFont(&fonts::efont)")]]
+    void setTextEFont() { setFont(&fonts::efont); }
+#endif
+
+    [[deprecated("use setFont(&fonts::Font0)")]]
+    void setTextFont(int f) {
+      if (f == 1 && _font && _font->getType() == ft_gfx) return;
+
+      setFont(fontdata[f]);
+    }
+
+    [[deprecated("use setFont(&fonts::Font0)")]]
+    void setTextFont(const IFont* font = nullptr) { setFont(font); }
+
+    [[deprecated("use setFont(&fonts::Font0)")]]
+    void setFreeFont(const IFont* font = nullptr) { setFont(font); }
+
+    void unloadFont(void) {
+      if (_dynamic_font) {
+        delete _dynamic_font;
+        _dynamic_font = nullptr;
+      }
+      setFont(&fonts::Font0);
+    }
+
+    __attribute__ ((always_inline)) inline const IFont* getFont (void) const { return _font; }
+
+    void setFont(const IFont* font) {
+      if (_dynamic_font) {
+        delete _dynamic_font;
+        _dynamic_font = nullptr;
+      }
+      if (font == nullptr) font = &fonts::Font0;
+      _font = font;
+      _filled_x = 0;
+      //_decoderState = utf8_decode_state_t::utf8_state0;
+
+      font->getDefaultMetric(&_font_size);
+
+      switch (font->getType()) {
+      default:
+      case font_type_t::ft_glcd: fpDrawChar = drawCharGLCD;  break;
+      case font_type_t::ft_bmp:  fpDrawChar = drawCharBMP;   break;
+      case font_type_t::ft_rle:  fpDrawChar = drawCharRLE;   break;
+      case font_type_t::ft_bdf:  fpDrawChar = drawCharBDF;   break;
+      case font_type_t::ft_gfx:  fpDrawChar = drawCharGFXFF; break;
+      }
+    }
+
+    void cp437(bool enable = true) { _text_style.cp437 = enable; }  // AdafruitGFX compatible.
+
+    void setAttribute(uint8_t attr_id, uint8_t param) { setAttribute((attribute_t)attr_id, param); }
+    void setAttribute(attribute_t attr_id, uint8_t param) {
+      switch (attr_id) {
+        case cp437_switch:
+            _text_style.cp437 = param;
+            break;
+        case utf8_switch:
+            _text_style.utf8  = param;
+            _decoderState = utf8_decode_state_t::utf8_state0;
+            break;
+        default: break;
+      }
+    }
+
+    uint8_t getAttribute(uint8_t attr_id) { return getAttribute((attribute_t)attr_id); }
+    uint8_t getAttribute(attribute_t attr_id) {
+      switch (attr_id) {
+        case cp437_switch: return _text_style.cp437;
+        case utf8_switch: return _text_style.utf8;
+        default: return 0;
+      }
+    }
+
+
+#if defined (ARDUINO) && defined (FS_H)
+    void loadFont(const char *path, fs::FS &fs) {
+      _font_file.setFS(fs);
+      loadFont(path);
+    }
+#endif
+
+    void loadFont(const uint8_t* array) {
+      this->unloadFont();
+      _font_data.set(array);
+      auto font = new VLWfont();
+      this->_dynamic_font = font;
+      if (font->loadFont(&_font_data)) {
+        this->_font = font;
+        this->fpDrawChar = drawCharVLW;
+        this->_font->getDefaultMetric(&this->_font_size);
+      } else {
+        this->unloadFont();
+      }
+    }
+
+    void loadFont(const char *path) {
+      this->unloadFont();
+
+      this->prepareTmpTransaction(&_font_file);
+      _font_file.preRead();
+
+      bool result = _font_file.open(path, "rb");
+      if (!result) {
+        std::string filename = "/";
+        if (path[0] == '/') filename = path;
+        else filename += path;
+        filename += ".vlw";
+        result = _font_file.open(filename.c_str(), "rb");
+      }
+      auto font = new VLWfont();
+      this->_dynamic_font = font;
+      if (result) {
+        result = font->loadFont(&_font_file);
+      }
+      if (result) {
+        this->_font = font;
+        this->_font->getDefaultMetric(&this->_font_size);
+        this->fpDrawChar = drawCharVLW;
+      } else {
+        this->unloadFont();
+      }
+      _font_file.postRead();
+    }
+
+    void showFont(uint32_t td)
+    {
+      auto font = (const VLWfont*)this->_font;
+      if(!font->_fontLoaded) return;
+
+      int16_t x = this->width();
+      int16_t y = this->height();
+      uint32_t timeDelay = 0;    // No delay before first page
+
+      this->fillScreen(this->_text_style.back_rgb888);
+
+      for (uint16_t i = 0; i < font->gCount; i++)
+      {
+        // Check if this will need a new screen
+        if (x + font->gdX[i] + font->gWidth[i] >= this->width())  {
+          x = - font->gdX[i];
+
+          y += font->yAdvance;
+          if (y + font->maxAscent + font->descent >= this->height()) {
+            x = - font->gdX[i];
+            y = 0;
+            delay(timeDelay);
+            timeDelay = td;
+            this->fillScreen(this->_text_style.back_rgb888);
+          }
+        }
+
+        this->drawChar(font->gUnicode[i], x, y);
+        x += font->gxAdvance[i];
+        //yield();
+      }
+
+      delay(timeDelay);
+      this->fillScreen(this->_text_style.back_rgb888);
+      //fontFile.close();
+    }
+
+
 //----------------------------------------------------------------------------
 // print & text support
 //----------------------------------------------------------------------------
@@ -128,10 +435,10 @@ namespace lgfx
       if (utf8 == '\n') {
         _filled_x = 0;
         _cursor_x = 0;
-        _cursor_y += _font_size.y_advance * _font_style.size_y;
+        _cursor_y += _font_size.y_advance * _text_style.size_y;
       } else {
         uint16_t uniCode = utf8;
-        if (_font_style.utf8) {
+        if (_text_style.utf8) {
           uniCode = decodeUTF8(utf8);
           if (uniCode < 32) return 1;
         }
@@ -140,10 +447,8 @@ namespace lgfx
 
         if (0 == _font_size.x_size) return 1;
 
-        int16_t w  = _font_size.x_size    * _font_style.size_x;
-        int16_t xo = _font_size.x_offset  * _font_style.size_x;
-        int16_t h  = _font_size.y_size    * _font_style.size_y;
-        int16_t yo = _font_size.y_offset  * _font_style.size_y;
+        int_fast16_t w  = _font_size.x_size    * _text_style.size_x;
+        int_fast16_t xo = _font_size.x_offset  * _text_style.size_x;
         if (_textscroll || _textwrap_x) {
           int32_t left = _textscroll ? this->_sx : 0;
           if (_cursor_x < left - xo) _cursor_x = left - xo;
@@ -152,103 +457,46 @@ namespace lgfx
             if (_cursor_x + xo + w > right) {
               _filled_x = 0;
               _cursor_x = left - xo;
-              _cursor_y += _font_size.y_advance * _font_style.size_y;
+              _cursor_y += _font_size.y_advance * _text_style.size_y;
             }
           }
         }
+
+        int_fast16_t h  = _font_size.y_size    * _text_style.size_y;
+
+        int_fast16_t ydiff = 0;
+        if (_text_style.datum & middle_left) {          // vertical: middle
+          ydiff -= h >> 1;
+        } else if (_text_style.datum & bottom_left) {   // vertical: bottom
+          ydiff -= h;
+        } else if (_text_style.datum & baseline_left) { // vertical: baseline
+          ydiff -= _font_size.baseline * _text_style.size_y;
+        }
+        int_fast16_t y = _cursor_y + ydiff;
+
         if (_textscroll) {
-          if (_cursor_y < this->_sy - yo) _cursor_y = this->_sy - yo;
+          if (y < this->_sy) y = this->_sy;
           else {
-            int yshift = (this->_sy + this->_sh) - (_cursor_y + yo + h);
+            int yshift = (this->_sy + this->_sh) - (y + h);
             if (yshift < 0) {
               this->scroll(0, yshift);
-              _cursor_y += yshift;
+              y += yshift;
             }
           }
         } else if (_textwrap_y) {
-          if (_cursor_y + yo + h > this->_height) {
+          if (y + h > this->_height) {
             _filled_x = 0;
             _cursor_x = - xo;
-            _cursor_y = - yo;
+            y = 0;
           } else
-          if (_cursor_y < - yo) _cursor_y = - yo;
+          if (y < 0) y = 0;
         }
-        _cursor_x += (fpDrawChar)(this, _cursor_x, _cursor_y, uniCode, &_font_style, _font);
+        _cursor_y = y - ydiff;
+        y -= _font_size.y_offset  * _text_style.size_y;
+        _cursor_x += (fpDrawChar)(this, _cursor_x, y, uniCode, &_text_style, _font);
       }
 
       return 1;
-    }
-
-    int32_t textWidth(const char *string)
-    {
-      if (!string) return 0;
-
-      int32_t left = 0;
-      int32_t right = 0;
-      do {
-        uint16_t uniCode = *string;
-        if (_font_style.utf8) {
-          do {
-            uniCode = decodeUTF8(*string);
-          } while (uniCode < 32 && *(++string));
-          if (uniCode < 32) break;
-        }
-        //if (!(fpUpdateFontSize)(this, uniCode)) continue;
-        if (!_font->updateFontMetric(&_font_size, uniCode)) continue;
-        if (left == 0 && right == 0 && _font_size.x_offset < 0) left = right = -_font_size.x_offset;
-        right = left + std::max((int32_t)_font_size.x_advance, _font_size.x_size + _font_size.x_offset);
-        left += _font_size.x_advance;
-      } while (*(++string));
-
-      return right * _font_style.size_x;
-    }
-
-  #if defined (ARDUINO)
-    inline int32_t textWidth(const String& string) { return textWidth(string.c_str()); }
-
-    inline size_t drawString(const String& string, int32_t x, int32_t y) { return draw_string(string.c_str(), x, y, _font_style.datum); }
-
-    [[deprecated("use setTextDatum() and drawString()")]]
-    inline size_t drawCentreString(const String& string, int32_t x, int32_t y, uint8_t font) { setFont(fontdata[font]); return draw_string(string.c_str(), x, y, textdatum_t::top_center); }
-
-    [[deprecated("use setTextDatum() and drawString()")]]
-    inline size_t drawCenterString(const String& string, int32_t x, int32_t y, uint8_t font) { setFont(fontdata[font]); return draw_string(string.c_str(), x, y, textdatum_t::top_center); }
-
-    [[deprecated("use setTextDatum() and drawString()")]]
-    inline size_t drawRightString( const String& string, int32_t x, int32_t y, uint8_t font) { setFont(fontdata[font]); return draw_string(string.c_str(), x, y, textdatum_t::top_right); }
-
-    inline size_t drawString(const String& string, int32_t x, int32_t y, uint8_t font) { setFont(fontdata[font]); return draw_string(string.c_str(), x, y, _font_style.datum); }
-
-  #endif
-    inline size_t drawString(const char *string, int32_t x, int32_t y) { return draw_string(string, x, y, _font_style.datum); }
-
-    [[deprecated("use setTextDatum() and drawString()")]]
-    inline size_t drawCentreString(const char *string, int32_t x, int32_t y, uint8_t font) { setFont(fontdata[font]); return draw_string(string, x, y, textdatum_t::top_center); }
-
-    [[deprecated("use setTextDatum() and drawString()")]]
-    inline size_t drawCenterString(const char *string, int32_t x, int32_t y, uint8_t font) { setFont(fontdata[font]); return draw_string(string, x, y, textdatum_t::top_center); }
-
-    [[deprecated("use setTextDatum() and drawString()")]]
-    inline size_t drawRightString( const char *string, int32_t x, int32_t y, uint8_t font) { setFont(fontdata[font]); return draw_string(string, x, y, textdatum_t::top_right); }
-
-    inline size_t drawString(const char *string, int32_t x, int32_t y, uint8_t font) { setFont(fontdata[font]); return draw_string(string, x, y, _font_style.datum); }
-
-    inline size_t drawNumber(long long_num, int32_t poX, int32_t poY, uint8_t font) { setFont(fontdata[font]); return drawNumber(long_num, poX, poY); }
-
-    inline size_t drawFloat(float floatNumber, uint8_t dp, int32_t poX, int32_t poY, uint8_t font) { setFont(fontdata[font]); return drawFloat(floatNumber, dp, poX, poY); }
-
-    size_t drawNumber(long long_num, int32_t poX, int32_t poY)
-    {
-      constexpr size_t len = 8 * sizeof(long) + 1;
-      char buf[len];
-      return drawString(numberToStr(long_num, buf, len, 10), poX, poY);
-    }
-
-    size_t drawFloat(float floatNumber, uint8_t dp, int32_t poX, int32_t poY)
-    {
-      size_t len = 14 + dp;
-      char buf[len];
-      return drawString(floatToStr(floatNumber, buf, len, dp), poX, poY);
     }
 
     uint16_t decodeUTF8(uint8_t c)
@@ -297,240 +545,6 @@ namespace lgfx
       return (uint16_t)c; // fall-back to extended ASCII
     }
 
-    template<typename T>
-    void setTextColor(T color) {
-      if (this->hasPalette()) {
-        _font_style.fore_rgb888 = _font_style.back_rgb888 = color;
-      } else {
-        _font_style.fore_rgb888 = _font_style.back_rgb888 = convert_to_rgb888(color);
-      }
-    }
-    template<typename T1, typename T2>
-    void setTextColor(T1 fgcolor, T2 bgcolor) {
-      if (this->hasPalette()) {
-        _font_style.fore_rgb888 = fgcolor;
-        _font_style.back_rgb888 = bgcolor;
-      } else {
-        _font_style.fore_rgb888 = convert_to_rgb888(fgcolor);
-        _font_style.back_rgb888 = convert_to_rgb888(bgcolor);
-      }
-    }
-
-    size_t drawChar(uint16_t uniCode, int32_t x, int32_t y, uint8_t font) {
-      if (_font == fontdata[font]) return drawChar(uniCode, x, y);
-      _filled_x = 0;
-      switch (fontdata[font]->getType()) {
-      default:
-      case font_type_t::ft_glcd: return drawCharGLCD(this, x, y, uniCode, &_font_style, fontdata[font]);
-      case font_type_t::ft_bmp:  return drawCharBMP( this, x, y, uniCode, &_font_style, fontdata[font]);
-      case font_type_t::ft_rle:  return drawCharRLE( this, x, y, uniCode, &_font_style, fontdata[font]);
-      case font_type_t::ft_bdf:  return drawCharBDF( this, x, y, uniCode, &_font_style, fontdata[font]);
-      }
-    }
-
-    inline size_t drawChar(uint16_t uniCode, int32_t x, int32_t y) { _filled_x = 0; return (fpDrawChar)(this, x, y, uniCode, &_font_style, _font); }
-
-    template<typename T>
-    inline size_t drawChar(int32_t x, int32_t y, uint16_t uniCode, T color, T bg, int_fast8_t size) { return drawChar(x, y, uniCode, color, bg, size, size); }
-    template<typename T>
-    inline size_t drawChar(int32_t x, int32_t y, uint16_t uniCode, T color, T bg, int_fast8_t size_x, int_fast8_t size_y) {
-      TextStyle style = _font_style;
-      style.back_rgb888 = convert_to_rgb888(color);
-      style.fore_rgb888 = convert_to_rgb888(bg);
-      style.size_x = size_x;
-      style.size_y = size_y;
-      _filled_x = 0;
-      return (fpDrawChar)(this, x, y, uniCode, &style, _font);
-    }
-
-    int16_t getCursorX(void) const { return _cursor_x; }
-    int16_t getCursorY(void) const { return _cursor_y; }
-    int16_t getTextSizeX(void) const { return _font_style.size_x; }
-    int16_t getTextSizeY(void) const { return _font_style.size_y; }
-    textdatum_t getTextDatum(void) const { return _font_style.datum; }
-    int16_t fontHeight(void) const { return _font_size.y_size * _font_style.size_y; }
-    int16_t fontHeight(uint8_t font) const { return pgm_read_byte( &((const BaseFont*)fontdata[font])->height ) * _font_style.size_y; }
-
-    void setCursor( int16_t x, int16_t y)               { _filled_x = 0; _cursor_x = x; _cursor_y = y; }
-    void setCursor( int16_t x, int16_t y, uint8_t font) { _filled_x = 0; _cursor_x = x; _cursor_y = y; _font = fontdata[font]; }
-    void setTextSize(uint8_t s) { setTextSize(s,s); }
-    void setTextSize(uint8_t sx, uint8_t sy) { _font_style.size_x = (sx > 0) ? sx : 1; _font_style.size_y = (sy > 0) ? sy : 1; }
-    void setTextDatum(uint8_t datum) { _font_style.datum = (textdatum_t)datum; }
-    void setTextDatum(textdatum_t datum) { _font_style.datum = datum; }
-    void setTextPadding(uint16_t padding_x) { _padding_x = padding_x; }
-    void setTextWrap( bool wrapX, bool wrapY = false) { _textwrap_x = wrapX; _textwrap_y = wrapY; }
-    void setTextScroll(bool scroll) { _textscroll = scroll; if (_cursor_x < this->_sx) { _cursor_x = this->_sx; } if (_cursor_y < this->_sy) { _cursor_y = this->_sy; } }
-
-    [[deprecated("use getFont()")]]
-    uint8_t getTextFont(void) const {
-      size_t ie = sizeof(fontdata) / sizeof(fontdata[0]);
-      for (size_t i = 0; i < ie; ++i)
-        if (fontdata[i] == _font) return i;
-      return 0;
-    }
-
-#ifdef __EFONT_FONT_DATA_H__
-    [[deprecated("use setFont(&fonts::efont)")]]
-    void setTextEFont() { setFont(&fonts::efont); }
-#endif
-
-    [[deprecated("use setFont(&fonts::Font0)")]]
-    void setTextFont(int f) {
-      if (f == 1 && _font && _font->getType() == ft_gfx) return;
-
-      setFont(fontdata[f]);
-    }
-
-    [[deprecated("use setFont(&fonts::Font0)")]]
-    void setTextFont(const IFont* font = nullptr) { setFont(font); }
-
-    [[deprecated("use setFont(&fonts::Font0)")]]
-    void setFreeFont(const IFont* font = nullptr) { setFont(font); }
-
-    void unloadFont(void) {
-      if (_dynamic_font) {
-        delete _dynamic_font;
-        _dynamic_font = nullptr;
-      }
-      setFont(&fonts::Font0);
-    }
-
-    __attribute__ ((always_inline)) inline const IFont* getFont (void) const { return _font; }
-
-    void setFont(const IFont* font) {
-      if (_dynamic_font) {
-        delete _dynamic_font;
-        _dynamic_font = nullptr;
-      }
-      if (font == nullptr) font = &fonts::Font0;
-      _font = font;
-      _filled_x = 0;
-      //_decoderState = utf8_decode_state_t::utf8_state0;
-
-      font->getDefaultMetric(&_font_size);
-
-      switch (font->getType()) {
-      default:
-      case font_type_t::ft_glcd: fpDrawChar = drawCharGLCD;  break;
-      case font_type_t::ft_bmp:  fpDrawChar = drawCharBMP;   break;
-      case font_type_t::ft_rle:  fpDrawChar = drawCharRLE;   break;
-      case font_type_t::ft_bdf:  fpDrawChar = drawCharBDF;   break;
-      case font_type_t::ft_gfx:  fpDrawChar = drawCharGFXFF; break;
-      }
-    }
-
-    void cp437(bool enable = true) { _font_style.cp437 = enable; }  // AdafruitGFX compatible.
-
-    void setAttribute(uint8_t attr_id, uint8_t param) { setAttribute((attribute_t)attr_id, param); }
-    void setAttribute(attribute_t attr_id, uint8_t param) {
-      switch (attr_id) {
-        case cp437_switch:
-            _font_style.cp437 = param;
-            break;
-        case utf8_switch:
-            _font_style.utf8  = param;
-            _decoderState = utf8_decode_state_t::utf8_state0;
-            break;
-        default: break;
-      }
-    }
-
-    uint8_t getAttribute(uint8_t attr_id) { return getAttribute((attribute_t)attr_id); }
-    uint8_t getAttribute(attribute_t attr_id) {
-      switch (attr_id) {
-        case cp437_switch: return _font_style.cp437;
-        case utf8_switch: return _font_style.utf8;
-        default: return 0;
-      }
-    }
-
-
-#if defined (ARDUINO) && defined (FS_H)
-    void loadFont(const char *path, fs::FS &fs) {
-      _fontFile.setFS(fs);
-      loadFont(path);
-    }
-#endif
-
-    void loadFont(const uint8_t* array) {
-      this->unloadFont();
-      _fontPointer.set(array);
-      auto font = new VLWfont();
-      this->_dynamic_font = font;
-      if (font->loadFont(&_fontPointer)) {
-        this->_font = font;
-        this->fpDrawChar = drawCharVLW;
-        this->_font->getDefaultMetric(&this->_font_size);
-      } else {
-        this->unloadFont();
-      }
-    }
-
-    void loadFont(const char *path) {
-      this->unloadFont();
-
-      this->prepareTmpTransaction(&_fontFile);
-      _fontFile.preRead();
-
-      bool result = _fontFile.open(path, "rb");
-      if (!result) {
-        std::string filename = "/";
-        filename += path;
-        filename += ".vlw";
-        result = _fontFile.open(filename.c_str(), "rb");
-      }
-      auto font = new VLWfont();
-      this->_dynamic_font = font;
-      if (result) {
-        result = font->loadFont(&_fontFile);
-      }
-      if (result) {
-        this->_font = font;
-        this->_font->getDefaultMetric(&this->_font_size);
-        this->fpDrawChar = drawCharVLW;
-      } else {
-        this->unloadFont();
-      }
-      _fontFile.postRead();
-    }
-
-    void showFont(uint32_t td)
-    {
-      auto font = (const VLWfont*)this->_font;
-      if(!font->_fontLoaded) return;
-
-      int16_t x = this->width();
-      int16_t y = this->height();
-      uint32_t timeDelay = 0;    // No delay before first page
-
-      this->fillScreen(this->_font_style.back_rgb888);
-
-      for (uint16_t i = 0; i < font->gCount; i++)
-      {
-        // Check if this will need a new screen
-        if (x + font->gdX[i] + font->gWidth[i] >= this->width())  {
-          x = - font->gdX[i];
-
-          y += font->yAdvance;
-          if (y + font->maxAscent + font->descent >= this->height()) {
-            x = - font->gdX[i];
-            y = 0;
-            delay(timeDelay);
-            timeDelay = td;
-            this->fillScreen(this->_font_style.back_rgb888);
-          }
-        }
-
-        this->drawChar(font->gUnicode[i], x, y);
-        x += font->gxAdvance[i];
-        //yield();
-      }
-
-      delay(timeDelay);
-      this->fillScreen(this->_font_style.back_rgb888);
-      //fontFile.close();
-    }
-
   protected:
 
     enum utf8_decode_state_t
@@ -545,13 +559,13 @@ namespace lgfx
     int32_t _cursor_y = 0;
     int32_t _filled_x = 0;
 
-    TextStyle _font_style;
+    TextStyle _text_style;
     FontMetrics _font_size = { 6, 6, 0, 8, 8, 0, 7 }; // Font0 Metric
     const IFont* _font = &fonts::Font0;
 
     IFont* _dynamic_font = nullptr;  // run-time generated font
-    FileWrapper _fontFile;
-    PointerWrapper _fontPointer;
+    FileWrapper _font_file;
+    PointerWrapper _font_data;
 
     int16_t _padding_x = 0;
 
@@ -559,10 +573,8 @@ namespace lgfx
     bool _textwrap_y = false;
     bool _textscroll = false;
 
-//----------------------------------------------------------------------------
-// print & text support
-//----------------------------------------------------------------------------
-// Arduino Print.h compatible
+
+
     size_t printNumber(unsigned long n, uint8_t base)
     {
       size_t len = 8 * sizeof(long) + 1;
@@ -659,20 +671,20 @@ namespace lgfx
     {
       int16_t sumX = 0;
       int32_t cwidth = textWidth(string); // Find the pixel width of the string in the font
-      int32_t cheight = _font_size.y_size * _font_style.size_y;
+      int32_t cheight = _font_size.y_size * _text_style.size_y;
 
       {
         auto tmp = string;
         do {
           uint16_t uniCode = *tmp;
-          if (_font_style.utf8) {
+          if (_text_style.utf8) {
             do {
               uniCode = decodeUTF8(*tmp); 
             } while (uniCode < 32 && *++tmp);
             if (uniCode < 32) break;
           }
           if (_font->updateFontMetric(&_font_size, uniCode)) {
-            if (_font_size.x_offset < 0) sumX = - _font_size.x_offset * _font_style.size_x;
+            if (_font_size.x_offset < 0) sumX = - _font_size.x_offset * _text_style.size_x;
             break;
           }
         } while (*++tmp);
@@ -682,13 +694,13 @@ namespace lgfx
       } else if (datum & bottom_left) {   // vertical: bottom
         y -= cheight;
       } else if (datum & baseline_left) { // vertical: baseline
-        y -= _font_size.baseline * _font_style.size_y;
+        y -= _font_size.baseline * _text_style.size_y;
       }
 
       this->startWrite();
       int32_t padx = _padding_x;
-      if ((_font_style.fore_rgb888 != _font_style.back_rgb888) && (padx > cwidth)) {
-        this->setColor(_font_style.back_rgb888);
+      if ((_text_style.fore_rgb888 != _text_style.back_rgb888) && (padx > cwidth)) {
+        this->setColor(_text_style.back_rgb888);
         if (datum & top_center) {
           auto halfcwidth = cwidth >> 1;
           auto halfpadx = (padx >> 1);
@@ -709,18 +721,18 @@ namespace lgfx
         x -= cwidth;
       }
 
-      y -= _font_size.y_offset * _font_style.size_y;
+      y -= _font_size.y_offset * _text_style.size_y;
 
       _filled_x = 0;
       do {
         uint16_t uniCode = *string;
-        if (_font_style.utf8) {
+        if (_text_style.utf8) {
           do {
             uniCode = decodeUTF8(*string);
           } while (uniCode < 32 && *++string);
           if (uniCode < 32) break;
         }
-        sumX += (fpDrawChar)(this, x + sumX, y, uniCode, &_font_style, _font);
+        sumX += (fpDrawChar)(this, x + sumX, y, uniCode, &_text_style, _font);
       } while (*(++string));
       this->endWrite();
 

@@ -147,7 +147,7 @@ namespace lgfx
     int8_t*   gdX       = nullptr;  //leftExtent
     uint32_t* gBitmap   = nullptr;  //file pointer to greyscale bitmap
 
-    DataWrapper* _fontData;
+    DataWrapper* _fontData = nullptr;
     bool _fontLoaded = false; // Flags when a anti-aliased font is loaded
 
     font_type_t getType(void) const override { return ft_vlw;  } 
@@ -166,12 +166,17 @@ namespace lgfx
 
     bool unloadFont(void) override {
       _fontLoaded = false;
-      if (_fontData) { _fontData->close();   _fontData = nullptr; }
       if (gUnicode)  { heap_free(gUnicode);  gUnicode  = nullptr; }
       if (gWidth)    { heap_free(gWidth);    gWidth    = nullptr; }
       if (gxAdvance) { heap_free(gxAdvance); gxAdvance = nullptr; }
       if (gdX)       { heap_free(gdX);       gdX       = nullptr; }
       if (gBitmap)   { heap_free(gBitmap);   gBitmap   = nullptr; }
+      if (_fontData) {
+        _fontData->preRead();
+        _fontData->close();
+        _fontData->postRead();
+        _fontData = nullptr;
+      }
       return true;
     }
 
