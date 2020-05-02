@@ -1332,6 +1332,16 @@ namespace lgfx
       auto me = (LGFXBase*)lgfx;
       if (me->_transaction_count) me->endTransaction();
     }
+    void prepareTmpTransaction(DataWrapper* data) {
+      if (data->need_transaction && isSPIShared()) {
+        data->parent = this;
+        data->fp_pre_read  = tmpEndTransaction;
+        data->fp_post_read = tmpBeginTransaction;
+      }
+    }
+    __attribute__ ((always_inline)) inline void startWrite(bool transaction) {
+      if (1 == ++_transaction_count && transaction) beginTransaction();
+    }
   };
 }
 

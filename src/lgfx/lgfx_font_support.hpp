@@ -469,18 +469,9 @@ namespace lgfx
     void loadFont(const char *path) {
       this->unloadFont();
 
-      _fontFile.need_transaction &= this->isSPIShared();
+      this->prepareTmpTransaction(&_fontFile);
+      _fontFile.preRead();
 
-      if (_fontFile.need_transaction) {
-        _fontFile.parent = this;
-        _fontFile.fp_pre_read  = this->tmpEndTransaction;
-        _fontFile.fp_post_read = this->tmpBeginTransaction;
-        this->endTransaction();
-      } else {
-        _fontFile.parent = nullptr;
-        _fontFile.fp_pre_read  = nullptr;
-        _fontFile.fp_post_read = nullptr;
-      }
       bool result = _fontFile.open(path, "rb");
       if (!result) {
         std::string filename = "/";
@@ -500,7 +491,7 @@ namespace lgfx
       } else {
         this->unloadFont();
       }
-      if (_fontFile.need_transaction && this->_transaction_count) { this->beginTransaction(); }
+      _fontFile.postRead();
     }
 
     void showFont(uint32_t td)
@@ -1093,7 +1084,7 @@ namespace lgfx
 
       auto file = font->_fontData;
 
-      if (file->need_transaction && me->_transaction_count) me->endTransaction();
+      file->preRead();
 
       file->seek(28 + gNum * 28);  // headerPtr
       uint32_t buffer[6];
@@ -1111,7 +1102,8 @@ namespace lgfx
       file->seek(font->gBitmap[gNum]);  // headerPtr
       file->read(pixel, w * h);
 
-      if (file->need_transaction && me->_transaction_count) me->beginTransaction();
+      file->postRead();
+
       me->startWrite();
 
       uint32_t colortbl[2] = {me->_write_conv.convert(style->back_rgb888), me->_write_conv.convert(style->fore_rgb888)};

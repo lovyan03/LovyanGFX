@@ -193,7 +193,6 @@ namespace lgfx
           auto file = _fontData;
 
           file->preRead();
-          //if (file->need_transaction && me->_transaction_count) me->endTransaction();
 
           file->seek(28 + gNum * 28);  // headerPtr
           uint32_t buffer[6];
@@ -203,7 +202,6 @@ namespace lgfx
           metrics->x_offset  = (int32_t)((int8_t)__builtin_bswap32(buffer[4])); // x delta from cursor
 
           file->postRead();
-          //if (file->need_transaction && me->_transaction_count) me->beginTransaction();
         }
         return true;
       }

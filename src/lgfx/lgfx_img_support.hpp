@@ -217,41 +217,41 @@ namespace lgfx
       } while (!eol);
       return true;
     }
-//*/
+
   private:
 
     void drawBmpFile(FileWrapper* file, const char *path, int32_t x=0, int32_t y=0) {
-      file->need_transaction &= this->isSPIShared();
-      if (file->need_transaction) this->endTransaction();
+      this->prepareTmpTransaction(file);
+      file->preRead();
       if (file->open(path, "rb")) {
         draw_bmp(file, x, y);
         file->close();
       }
-      if (file->need_transaction && this->_transaction_count) { this->beginTransaction(); }
+      file->postRead();
     }
 
     bool drawJpgFile(FileWrapper* file, const char *path, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, jpeg_div_t scale) {
       bool res = false;
-      file->need_transaction &= this->isSPIShared();
-      if (file->need_transaction) this->endTransaction();
+      this->prepareTmpTransaction(file);
+      file->preRead();
       if (file->open(path, "rb")) {
         res = draw_jpg(file, x, y, maxWidth, maxHeight, offX, offY, scale);
         file->close();
       }
-//    if (file->need_transaction && this->_transaction_count) { this->beginTransaction(); }
+      file->postRead();
       return res;
     }
 
     bool drawPngFile( FileWrapper* file, const char *path, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, double scale)
     {
       bool res = false;
-      file->need_transaction &= this->isSPIShared();
-      if (file->need_transaction) this->endTransaction();
+      this->prepareTmpTransaction(file);
+      file->preRead();
       if (file->open(path, "rb")) {
         res = draw_png(file, x, y, maxWidth, maxHeight, offX, offY, scale);
         file->close();
       }
-      if (file->need_transaction && this->_transaction_count) { this->beginTransaction(); }
+      file->postRead();
       return res;
     }
 
@@ -302,34 +302,35 @@ namespace lgfx
         }
       }
 
-      auto nt = data->need_transaction;
+      this->startWrite(false);
       if (bmpdata.biCompression == 1) {
         do {
-          if (nt) this->endTransaction();
+          data->preRead();
           load_bmp_rle8(data, lineBuffer, w);
-          if (nt) this->beginTransaction();
+          data->postRead();
           this->push_image(x, y, w, 1, &p);
           y += flow;
         } while (--h);
       } else
       if (bmpdata.biCompression == 2) {
         do {
-          if (nt) this->endTransaction();
+          data->preRead();
           load_bmp_rle4(data, lineBuffer, w);
-          if (nt) this->beginTransaction();
+          data->postRead();
           this->push_image(x, y, w, 1, &p);
           y += flow;
         } while (--h);
       } else {
         do {
-          if (nt) this->endTransaction();
+          data->preRead();
           data->read(lineBuffer, buffersize);
-          if (nt) this->beginTransaction();
+          data->postRead();
           this->push_image(x, y, w, 1, &p);
           y += flow;
         } while (--h);
       }
       if (palette) delete[] palette;
+      this->endWrite();
       //Serial.print("Loaded in "); Serial.print(millis() - startTime);   Serial.println(" ms");
     }
 
@@ -418,7 +419,7 @@ protected:
       auto jpeg = (draw_jpg_info_t *)decoder->device;
       auto data = (DataWrapper*)jpeg->data;
       auto res = len;
-      if (data->need_transaction) jpeg->lgfx->endTransaction();
+      data->preRead();
       if (buf) {
         res = data->read(buf, len);
       } else {
@@ -431,7 +432,7 @@ protected:
       draw_jpg_info_t *jpeg = (draw_jpg_info_t *)decoder->device;
       jpeg->pc->src_data = bitmap;
       auto data = (DataWrapper*)jpeg->data;
-      if (data->need_transaction) jpeg->lgfx->beginTransaction();
+      data->postRead();
       jpeg->lgfx->push_image( jpeg->x + rect->left
                            , jpeg->y + rect->top 
                            , rect->right  - rect->left + 1
@@ -690,11 +691,9 @@ protected:
       int len;
       bool res = true;
 
-      len = data->read(buf, sizeof(buf));
-
-      if (data->need_transaction && this->_transaction_count) this->beginTransaction();
-      this->startWrite();
-      while (len > 0) {
+      this->startWrite(false);
+      while (0 < (len = data->read(buf + remain, sizeof(buf) - remain))) {
+        data->postRead();
 
         int fed = lgfx_pngle_feed(pngle, buf, remain + len);
 
@@ -706,9 +705,7 @@ protected:
 
         remain = remain + len - fed;
         if (remain > 0) memmove(buf, buf + fed, remain);
-        if (data->need_transaction) this->endTransaction();
-        len = data->read(buf + remain, sizeof(buf) - remain);
-        if (data->need_transaction) this->beginTransaction();
+        data->preRead();
       }
       this->endWrite();
       if (png.lineBuffer) {

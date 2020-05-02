@@ -908,8 +908,8 @@ namespace lgfx
     virtual bool seek(uint32_t offset) = 0;
     virtual void close(void) = 0;
 
-    void preRead(void) { if (fp_pre_read) fp_pre_read(parent); }
-    void postRead(void) { if (fp_post_read) fp_post_read(parent); }
+    __attribute__ ((always_inline)) inline void preRead(void) { if (fp_pre_read) fp_pre_read(parent); }
+    __attribute__ ((always_inline)) inline void postRead(void) { if (fp_post_read) fp_post_read(parent); }
     void* parent = nullptr;
     void (*fp_pre_read)(void*) = nullptr;
     void (*fp_post_read)(void*) = nullptr;
