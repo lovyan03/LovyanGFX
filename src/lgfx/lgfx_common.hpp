@@ -36,27 +36,6 @@ namespace lgfx
 {
   static constexpr float deg_to_rad = 0.017453292519943295769236907684886;
 
-  enum textdatum_t : uint8_t
-  //  0:left   1:centre   2:right
-  //  0:top    4:middle   8:bottom   16:baseline
-  { top_left        =  0  // Top left (default)
-  , top_center      =  1  // Top center
-  , top_centre      =  1  // Top center
-  , top_right       =  2  // Top right
-  , middle_left     =  4  // Middle left
-  , middle_center   =  5  // Middle center
-  , middle_centre   =  5  // Middle center
-  , middle_right    =  6  // Middle right
-  , bottom_left     =  8  // Bottom left
-  , bottom_center   =  9  // Bottom center
-  , bottom_centre   =  9  // Bottom center
-  , bottom_right    = 10  // Bottom right
-  , baseline_left   = 16  // Baseline left (Line the 'A' character would sit on)
-  , baseline_center = 17  // Baseline center
-  , baseline_centre = 17  // Baseline center
-  , baseline_right  = 18  // Baseline right
-  };
-
   enum color_depth_t : uint8_t
   { palette_1bit   =  1 //   2 color
   , palette_2bit   =  2 //   4 color
@@ -928,6 +907,12 @@ namespace lgfx
     virtual void skip(int32_t offset) = 0;
     virtual bool seek(uint32_t offset) = 0;
     virtual void close(void) = 0;
+
+    __attribute__ ((always_inline)) inline void preRead(void) { if (fp_pre_read) fp_pre_read(parent); }
+    __attribute__ ((always_inline)) inline void postRead(void) { if (fp_post_read) fp_post_read(parent); }
+    void* parent = nullptr;
+    void (*fp_pre_read)(void*) = nullptr;
+    void (*fp_post_read)(void*) = nullptr;
   };
 //----------------------------------------------------------------------------
   struct PointerWrapper : public DataWrapper {

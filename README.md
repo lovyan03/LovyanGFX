@@ -330,6 +330,7 @@ Thanks to [Bodmer](https://github.com/Bodmer/), author of the [TFT_eSPI](https:/
 Thanks to [Adafruit Industries](https://github.com/adafruit/) for publishing [AdafruitGFX](https://github.com/adafruit/Adafruit-GFX-Library), which is the basis for TFT_eSPI.  
 Thanks to [ChaN](http://elm-chan.org/), author of [TJpgDec](http://elm-chan.org/fsw/tjpgd/00index.html) (Tiny JPEG Decompressor).  
 Thanks to [kikuchan](https://github.com/kikuchan/), author of [Pngle](https://github.com/kikuchan/pngle) (PNG Loader for Embedding).  
+Thanks to [Richard Moore](https://github.com/ricmoo/), author of [QRCode](https://github.com/ricmoo/QRCode/) (QR code generation library).  
 Thanks to [ciniml](https://github.com/ciniml), for many technical tips and help with validation in the ESP-IDF environment.  
 Thanks to [mongonta0716](https://github.com/mongonta0716), for verifying the work from the beginning of the development with many bugs and for his advice.  
 Thanks to [tobozo](https://github.com/tobozo), for testing it on various boards, translating it into English and giving me a lot of advice.  
@@ -339,6 +340,7 @@ Thanks to [tobozo](https://github.com/tobozo), for testing it on various boards,
 ----------------
 [TJpgDec](http://elm-chan.org/fsw/tjpgd/00index.html)  [ChaN](http://elm-chan.org/)  
 [Pngle](https://github.com/kikuchan/pngle)  [kikuchan](https://github.com/kikuchan/)  
+[QRCode](https://github.com/ricmoo/QRCode/)  [Richard Moore](https://github.com/ricmoo/)
 
 
 クレジット Credits

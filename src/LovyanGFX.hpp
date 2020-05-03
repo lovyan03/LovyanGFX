@@ -24,16 +24,17 @@ Contributors:
 #undef min
 #endif
 
-#include "lgfx/lgfx_common.hpp"  // common include (always include)
+#include "lgfx/lgfx_common.hpp"         // common include (always include)
 
-#if !defined LOAD_GFXFF
-#include "Fonts/gfxfont.hpp"      // GFX font support (optional)
-#endif
+#include "lgfx/utility/lgfx_tjpgd.h"    // JPEG decode support (optional)
+#include "lgfx/utility/lgfx_pngle.h"    // PNG decode support (optional)
+#include "lgfx/utility/lgfx_qrcode.h"   // QR code support (optional)
+#include "lgfx/lgfx_img_support.hpp"    // image format extention (optional)
+#include "lgfx/lgfx_font_support.hpp"   // font extention (optional)
 
-#include "lgfx/utility/lgfx_tjpgd.h" // JPEG decode support (optional)
-#include "lgfx/utility/lgfx_pngle.h" // PNG decode support (optional)
+#include "lgfx/lgfx_base.hpp"           // base class (always include)
 
-#include "lgfx/lgfx_sprite.hpp"   // sprite class (optional)
+#include "lgfx/lgfx_sprite.hpp"         // sprite class (optional)
 
 #include "lgfx/panel/panel_HX8357.hpp"
 #include "lgfx/panel/panel_ILI9163.hpp"

@@ -14,7 +14,7 @@ struct EncodeRange {
   uint16_t base;
 };
 
-struct GFXfont { // Data stored for FONT AS A WHOLE:
+struct GFXfont : public lgfx::IFont { // Data stored for FONT AS A WHOLE:
   uint8_t  *bitmap;      // Glyph bitmaps, concatenated
   GFXglyph *glyph;       // Glyph array
   uint16_t  first, last; // ASCII extents
@@ -55,6 +55,48 @@ struct GFXfont { // Data stored for FONT AS A WHOLE:
     }
     uniCode -= pgm_read_word(&range_pst[i].start) - pgm_read_word(&range_pst[i].base);
     return &(((GFXglyph *)pgm_read_dword(&glyph))[uniCode]);
+  }
+
+  lgfx::font_type_t getType(void) const override { return lgfx::font_type_t::ft_gfx; }
+
+  void getDefaultMetric(lgfx::FontMetrics *metrics) const override {
+    int_fast8_t glyph_ab = 0;   // glyph delta Y (height) above baseline
+    int_fast8_t glyph_bb = 0;   // glyph delta Y (height) below baseline
+    size_t numChars = pgm_read_word(&last) - pgm_read_word(&first);
+
+    size_t custom_range_num = pgm_read_word(&range_num);
+    if (custom_range_num != 0) {
+      EncodeRange *range_pst = (EncodeRange *)pgm_read_dword(&range);
+      size_t i = 0;
+      numChars = custom_range_num;
+      do {
+        numChars += pgm_read_word(&range_pst[i].end) - pgm_read_word(&range_pst[i].start);
+      } while (++i < custom_range_num);
+    }
+
+    // Find the biggest above and below baseline offsets
+    for (size_t c = 0; c < numChars; c++)
+    {
+      GFXglyph *glyph1 = &(((GFXglyph *)pgm_read_dword(&glyph))[c]);
+      int8_t ab = -pgm_read_byte(&glyph1->yOffset);
+      if (ab > glyph_ab) glyph_ab = ab;
+      int8_t bb = pgm_read_byte(&glyph1->height) - ab;
+      if (bb > glyph_bb) glyph_bb = bb;
+    }
+
+    metrics->baseline = glyph_ab;
+    metrics->y_offset = - glyph_ab;
+    metrics->y_size = glyph_bb + glyph_ab;
+    metrics->y_advance = (uint8_t)pgm_read_byte(&yAdvance);
+  }
+
+  bool updateFontMetric(lgfx::FontMetrics *metrics, uint16_t uniCode) const override {
+    auto glyph = getGlyph(uniCode);
+    if (!glyph) return false;
+    metrics->x_offset  = (int8_t)pgm_read_byte(&glyph->xOffset);
+    metrics->x_size    = pgm_read_byte(&glyph->width);
+    metrics->x_advance = pgm_read_byte(&glyph->xAdvance);
+    return true;
   }
 };
 
@@ -124,5 +166,70 @@ struct GFXfont { // Data stored for FONT AS A WHOLE:
 #include "GFXFF/FreeSerifBoldItalic18pt7b.h" // FF47 or FSBI18
 #include "GFXFF/FreeSerifBoldItalic24pt7b.h" // FF48 or FSBI24
 
+#include "Custom/Orbitron_Light_24.h"
+#include "Custom/Orbitron_Light_32.h"
+#include "Custom/Roboto_Thin_24.h"
+#include "Custom/Satisfy_24.h"
+#include "Custom/Yellowtail_32.h"
+
+namespace fonts {
+
+  static PROGMEM const GFXfont& TomThumb                  = ::TomThumb                 ;
+  static PROGMEM const GFXfont& FreeMono9pt7b             = ::FreeMono9pt7b            ;
+  static PROGMEM const GFXfont& FreeMono12pt7b            = ::FreeMono12pt7b           ;
+  static PROGMEM const GFXfont& FreeMono18pt7b            = ::FreeMono18pt7b           ;
+  static PROGMEM const GFXfont& FreeMono24pt7b            = ::FreeMono24pt7b           ;
+  static PROGMEM const GFXfont& FreeMonoBold9pt7b         = ::FreeMonoBold9pt7b        ;
+  static PROGMEM const GFXfont& FreeMonoBold12pt7b        = ::FreeMonoBold12pt7b       ;
+  static PROGMEM const GFXfont& FreeMonoBold18pt7b        = ::FreeMonoBold18pt7b       ;
+  static PROGMEM const GFXfont& FreeMonoBold24pt7b        = ::FreeMonoBold24pt7b       ;
+  static PROGMEM const GFXfont& FreeMonoOblique9pt7b      = ::FreeMonoOblique9pt7b     ;
+  static PROGMEM const GFXfont& FreeMonoOblique12pt7b     = ::FreeMonoOblique12pt7b    ;
+  static PROGMEM const GFXfont& FreeMonoOblique18pt7b     = ::FreeMonoOblique18pt7b    ;
+  static PROGMEM const GFXfont& FreeMonoOblique24pt7b     = ::FreeMonoOblique24pt7b    ;
+  static PROGMEM const GFXfont& FreeMonoBoldOblique9pt7b  = ::FreeMonoBoldOblique9pt7b ;
+  static PROGMEM const GFXfont& FreeMonoBoldOblique12pt7b = ::FreeMonoBoldOblique12pt7b;
+  static PROGMEM const GFXfont& FreeMonoBoldOblique18pt7b = ::FreeMonoBoldOblique18pt7b;
+  static PROGMEM const GFXfont& FreeMonoBoldOblique24pt7b = ::FreeMonoBoldOblique24pt7b;
+  static PROGMEM const GFXfont& FreeSans9pt7b             = ::FreeSans9pt7b            ;
+  static PROGMEM const GFXfont& FreeSans12pt7b            = ::FreeSans12pt7b           ;
+  static PROGMEM const GFXfont& FreeSans18pt7b            = ::FreeSans18pt7b           ;
+  static PROGMEM const GFXfont& FreeSans24pt7b            = ::FreeSans24pt7b           ;
+  static PROGMEM const GFXfont& FreeSansBold9pt7b         = ::FreeSansBold9pt7b        ;
+  static PROGMEM const GFXfont& FreeSansBold12pt7b        = ::FreeSansBold12pt7b       ;
+  static PROGMEM const GFXfont& FreeSansBold18pt7b        = ::FreeSansBold18pt7b       ;
+  static PROGMEM const GFXfont& FreeSansBold24pt7b        = ::FreeSansBold24pt7b       ;
+  static PROGMEM const GFXfont& FreeSansOblique9pt7b      = ::FreeSansOblique9pt7b     ;
+  static PROGMEM const GFXfont& FreeSansOblique12pt7b     = ::FreeSansOblique12pt7b    ;
+  static PROGMEM const GFXfont& FreeSansOblique18pt7b     = ::FreeSansOblique18pt7b    ;
+  static PROGMEM const GFXfont& FreeSansOblique24pt7b     = ::FreeSansOblique24pt7b    ;
+  static PROGMEM const GFXfont& FreeSansBoldOblique9pt7b  = ::FreeSansBoldOblique9pt7b ;
+  static PROGMEM const GFXfont& FreeSansBoldOblique12pt7b = ::FreeSansBoldOblique12pt7b;
+  static PROGMEM const GFXfont& FreeSansBoldOblique18pt7b = ::FreeSansBoldOblique18pt7b;
+  static PROGMEM const GFXfont& FreeSansBoldOblique24pt7b = ::FreeSansBoldOblique24pt7b;
+  static PROGMEM const GFXfont& FreeSerif9pt7b            = ::FreeSerif9pt7b           ;
+  static PROGMEM const GFXfont& FreeSerif12pt7b           = ::FreeSerif12pt7b          ;
+  static PROGMEM const GFXfont& FreeSerif18pt7b           = ::FreeSerif18pt7b          ;
+  static PROGMEM const GFXfont& FreeSerif24pt7b           = ::FreeSerif24pt7b          ;
+  static PROGMEM const GFXfont& FreeSerifItalic9pt7b      = ::FreeSerifItalic9pt7b     ;
+  static PROGMEM const GFXfont& FreeSerifItalic12pt7b     = ::FreeSerifItalic12pt7b    ;
+  static PROGMEM const GFXfont& FreeSerifItalic18pt7b     = ::FreeSerifItalic18pt7b    ;
+  static PROGMEM const GFXfont& FreeSerifItalic24pt7b     = ::FreeSerifItalic24pt7b    ;
+  static PROGMEM const GFXfont& FreeSerifBold9pt7b        = ::FreeSerifBold9pt7b       ;
+  static PROGMEM const GFXfont& FreeSerifBold12pt7b       = ::FreeSerifBold12pt7b      ;
+  static PROGMEM const GFXfont& FreeSerifBold18pt7b       = ::FreeSerifBold18pt7b      ;
+  static PROGMEM const GFXfont& FreeSerifBold24pt7b       = ::FreeSerifBold24pt7b      ;
+  static PROGMEM const GFXfont& FreeSerifBoldItalic9pt7b  = ::FreeSerifBoldItalic9pt7b ;
+  static PROGMEM const GFXfont& FreeSerifBoldItalic12pt7b = ::FreeSerifBoldItalic12pt7b;
+  static PROGMEM const GFXfont& FreeSerifBoldItalic18pt7b = ::FreeSerifBoldItalic18pt7b;
+  static PROGMEM const GFXfont& FreeSerifBoldItalic24pt7b = ::FreeSerifBoldItalic24pt7b;
+
+  static PROGMEM const GFXfont& Orbitron_Light_24         = ::Orbitron_Light_24        ;
+  static PROGMEM const GFXfont& Orbitron_Light_32         = ::Orbitron_Light_32        ;
+  static PROGMEM const GFXfont& Roboto_Thin_24            = ::Roboto_Thin_24           ;
+  static PROGMEM const GFXfont& Satisfy_24                = ::Satisfy_24               ;
+  static PROGMEM const GFXfont& Yellowtail_32             = ::Yellowtail_32            ;
+
+}
 
 #endif
