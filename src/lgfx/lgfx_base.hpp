@@ -577,25 +577,25 @@ namespace lgfx
         do {
           ++dlen;
           if ((err -= dy) < 0) {
-            writeFillRect_impl(y0, xs, 1, dlen);
+            writeFillRect(y0, xs, 1, dlen);
             err += dx;
             xs = x0 + 1; dlen = 0; y0 += ystep;
             if ((y0 < _clip_l) || (y0 > _clip_r)) break;
           }
         } while (++x0 <= x1);
-        if (dlen) writeFillRect_impl(y0, xs, 1, dlen);
+        if (dlen) writeFillRect(y0, xs, 1, dlen);
       } else {
         if (x1 > (_clip_r)) x1 = (_clip_r);
         do {
           ++dlen;
           if ((err -= dy) < 0) {
-            writeFillRect_impl(xs, y0, dlen, 1);
+            writeFillRect(xs, y0, dlen, 1);
             err += dx;
             xs = x0 + 1; dlen = 0; y0 += ystep;
             if ((y0 < _clip_t) || (y0 > _clip_b)) break;
           }
         } while (++x0 <= x1);
-        if (dlen) writeFillRect_impl(xs, y0, dlen, 1);
+        if (dlen) writeFillRect(xs, y0, dlen, 1);
       }
       endWrite();
     }
