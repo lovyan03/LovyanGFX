@@ -1203,6 +1203,48 @@ namespace lgfx
     }
 
 
+#ifdef _LGFX_QRCODE_H_
+#ifdef ARDUINO
+    void qrcode(const String &string, int_fast16_t x = -1, int_fast16_t y = -1, int_fast16_t width = -1, uint8_t version = 1) {
+      qrcode(string.c_str(), x, y, width, version);
+    }
+#endif
+    void qrcode(const char *string, int_fast16_t x = -1, int_fast16_t y = -1, int_fast16_t width = -1, uint8_t version = 1) {
+      if (width == -1) {
+        width = std::min(_width, _height) * 9 / 10;
+      }
+      if (x == -1 || y == -1) {
+        x = (_width - width) >> 1;
+        y = (_height- width) >> 1;
+      }
+
+      setColor(0xFFFFFFU);
+      startWrite();
+      writeFillRect(x, y, width, width);
+      for (; version <= 40; ++version) {
+        QRCode qrcode;
+        uint8_t qrcodeData[lgfx_qrcode_getBufferSize(version)];
+        if (0 != lgfx_qrcode_initText(&qrcode, qrcodeData, version, 0, string)) continue;
+        int_fast16_t thickness = width / qrcode.size;
+        if (!thickness) break;
+        int_fast16_t lineLength = qrcode.size * thickness;
+        int_fast16_t xOffset = x + ((width - lineLength) >> 1);
+        int_fast16_t yOffset = y + ((width - lineLength) >> 1);
+        setColor(0);
+        y = 0;
+        do {
+          x = 0;
+          do {
+            if (lgfx_qrcode_getModule(&qrcode, x, y)) writeFillRect(x * thickness + xOffset, y * thickness + yOffset, thickness, thickness);
+          } while (++x < qrcode.size);
+        } while (++y < qrcode.size);
+        break;
+      }
+      endWrite();
+    }
+#endif
+
+
 //----------------------------------------------------------------------------
 //----------------------------------------------------------------------------
 

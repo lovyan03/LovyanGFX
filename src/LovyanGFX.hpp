@@ -28,6 +28,7 @@ Contributors:
 
 #include "lgfx/utility/lgfx_tjpgd.h"    // JPEG decode support (optional)
 #include "lgfx/utility/lgfx_pngle.h"    // PNG decode support (optional)
+#include "lgfx/utility/lgfx_qrcode.h"   // QR code support (optional)
 #include "lgfx/lgfx_img_support.hpp"    // image format extention (optional)
 #include "lgfx/lgfx_font_support.hpp"   // font extention (optional)
 
