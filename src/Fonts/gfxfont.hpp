@@ -86,7 +86,7 @@ struct GFXfont : public lgfx::IFont { // Data stored for FONT AS A WHOLE:
 
     metrics->baseline = glyph_ab;
     metrics->y_offset = - glyph_ab;
-    metrics->y_size = glyph_bb + glyph_ab;
+    metrics->height   = glyph_bb + glyph_ab;
     metrics->y_advance = (uint8_t)pgm_read_byte(&yAdvance);
   }
 
@@ -94,7 +94,7 @@ struct GFXfont : public lgfx::IFont { // Data stored for FONT AS A WHOLE:
     auto glyph = getGlyph(uniCode);
     if (!glyph) return false;
     metrics->x_offset  = (int8_t)pgm_read_byte(&glyph->xOffset);
-    metrics->x_size    = pgm_read_byte(&glyph->width);
+    metrics->width     = pgm_read_byte(&glyph->width);
     metrics->x_advance = pgm_read_byte(&glyph->xAdvance);
     return true;
   }

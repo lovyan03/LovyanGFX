@@ -29,6 +29,7 @@ Contributors:
 #include <type_traits>
 #include <algorithm>
 #include <string>
+#include <list>
 
 #include "lgfx_common.hpp"
 
@@ -51,6 +52,7 @@ namespace lgfx
 
                          inline void clear      ( void )          { _color.raw = 0;  fillRect(0, 0, _width, _height); }
     template<typename T> inline void clear      ( const T& color) { setColor(color); fillRect(0, 0, _width, _height); }
+                         inline void fillScreen ( void )          {                  fillRect(0, 0, _width, _height); }
     template<typename T> inline void fillScreen ( const T& color) { setColor(color); fillRect(0, 0, _width, _height); }
 
     template<typename T> inline void pushBlock  ( const T& color, int32_t length) { if (0 >= length) return; setColor(color); startWrite(); pushBlock_impl(length); endWrite(); }
@@ -1244,6 +1246,104 @@ namespace lgfx
     }
 #endif
 
+    template<typename T> inline void paint( int32_t x, int32_t y, const T& color) { setColor(color); paint(x, y); }
+    void paint(int32_t x, int32_t y) {
+      if (x < _clip_l || x > _clip_r || y < _clip_t || y > _clip_b) return;
+      bgr888_t target;
+      readRectRGB(x, y, 1, 1, &target);
+      if (_color.raw == _write_conv.convert(lgfx::color888(target.r, target.g, target.b))) return;
+
+      pixelcopy_t p;
+      p.transp = _read_conv.convert(lgfx::color888(target.r, target.g, target.b));
+      switch (_read_conv.depth) {
+      case 24: p.fp_copy = pixelcopy_t::normalcompare<bgr888_t>;  break;
+      case 18: p.fp_copy = pixelcopy_t::normalcompare<bgr666_t>;  break;
+      case 16: p.fp_copy = pixelcopy_t::normalcompare<swap565_t>; break;
+      case  8: p.fp_copy = pixelcopy_t::normalcompare<rgb332_t>;  break;
+      default: p.fp_copy = pixelcopy_t::bitcompare;
+        p.src_bits = _read_conv.depth;
+        p.src_mask = (1 << p.src_bits) - 1;
+        p.transp &= p.src_mask;
+        break;
+      }
+
+      int32_t cl = _clip_l;
+      int w = _clip_r - cl + 1;
+      uint8_t bufIdx = 0;
+      bool buf0[w], buf1[w], buf2[w];
+      bool* linebufs[3] = { buf0, buf1, buf2 };
+      int32_t bufY[3] = {-2, -2, -2};
+      bufY[0] = y;
+      read_rect(cl, y, w, 1, linebufs[0], &p);
+      std::list<paint_point_t> points;
+      points.push_back({x, x, y, y});
+
+      startWrite();
+      while (!points.empty()) {
+        int32_t y0 = bufY[bufIdx];
+        auto it = points.begin();
+        int32_t counter = 0;
+        while (it->y != y0 && ++it != points.end()) ++counter;
+        if (it == points.end()) {
+          if (counter < 256) {
+            ++bufIdx;
+            int32_t y1 = bufY[(bufIdx  )%3];
+            int32_t y2 = bufY[(bufIdx+1)%3];
+            it = points.begin();
+            while ((it->y != y1) && (it->y != y2) && (++it != points.end()));
+          }
+        }
+
+        bufIdx = 0;
+        if (it == points.end()) {
+          it = points.begin();
+          bufY[0] = it->y;
+          read_rect(cl, it->y, w, 1, linebufs[0], &p);
+        } else {
+          for (; bufIdx < 2; ++bufIdx) if (it->y == bufY[bufIdx]) break;
+        }
+        bool* linebuf = &linebufs[bufIdx][- cl];
+
+        int lx = it->lx;
+        int rx = it->rx;
+        int ly = it->y;
+        int oy = it->oy;
+        points.erase(it);
+        if (!linebuf[lx]) continue;
+
+        int lxsav = lx - 1;
+        int rxsav = rx + 1;
+
+        int cr = _clip_r;
+        while (lx > cl && linebuf[lx - 1]) --lx;
+        while (rx < cr && linebuf[rx + 1]) ++rx;
+
+        writeFastHLine(lx, ly, rx - lx + 1);
+        memset(&linebuf[lx], 0, rx - lx + 1);
+
+        int newy = ly - 1;
+        do {
+          if (newy == oy && lx >= lxsav && rxsav >= rx) continue;
+          if (newy < _clip_t) continue;
+          if (newy > _clip_b) continue;
+          int bidx = 0;
+          for (; bidx < 3; ++bidx) if (newy == bufY[bidx]) break;
+          if (bidx == 3) {
+            for (bidx = 0; bidx < 2 && (abs(bufY[bidx] - ly) <= 1); ++bidx);
+            bufY[bidx] = newy;
+            read_rect(cl, newy, w, 1, linebufs[bidx], &p);
+          }
+          bool* linebuf = &linebufs[bidx][- cl];
+          if (newy == oy) {
+            paint_add_points(points, lx ,lxsav, newy, ly, linebuf);
+            paint_add_points(points, rxsav ,rx, newy, ly, linebuf);
+          } else {
+            paint_add_points(points, lx ,rx, newy, ly, linebuf);
+          }
+        } while ((newy += 2) < ly + 2);
+      }
+      endWrite();
+    }
 
 //----------------------------------------------------------------------------
 //----------------------------------------------------------------------------
@@ -1351,6 +1451,19 @@ namespace lgfx
           }
         } while (++x <= xe);
       } while (++y <= ye);
+    }
+
+    struct paint_point_t { int32_t lx,rx,y,oy; };
+    static void paint_add_points(std::list<paint_point_t>& points, int lx, int rx, int y, int oy, bool* linebuf) {
+      paint_point_t pt { 0, 0, y, oy };
+      while (lx <= rx) {
+        while (lx < rx && !linebuf[lx]) ++lx;
+        if (!linebuf[lx]) break;
+        pt.lx = lx;
+        while (++lx <= rx && linebuf[lx]);
+        pt.rx = lx - 1;
+        points.push_back(pt);
+      }
     }
 
     virtual void beginTransaction_impl(void) = 0;
