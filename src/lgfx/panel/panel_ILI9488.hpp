@@ -13,7 +13,7 @@ namespace lgfx
       panel_height = memory_height = 480;
 
       freq_write = 40000000;
-      freq_read  = 16000000;
+      freq_read  = 20000000;
       freq_fill  = 40000000;
       read_depth  = rgb888_3Byte;
       write_depth = rgb888_3Byte;
