@@ -44,6 +44,7 @@ This library has the following advantages.
     - ILI9342 (M5Stack Basic,Gray,Fire,Go)
     - ILI9341 (ODROID-GO, ESP-WROVER-KIT)
     - ILI9486
+    - ILI9488
     - ST7735 (M5StickC, TTGO TS, LoLin D32 Pro)
     - ST7789 (TTGO T-Watch, DSTIKE D-duino-32 XS, ESP-WROVER-KIT)
     - SSD1351

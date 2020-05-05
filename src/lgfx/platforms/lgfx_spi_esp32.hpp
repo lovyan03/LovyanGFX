@@ -28,6 +28,7 @@ Contributors:
 #if defined (ARDUINO) // Arduino ESP32
  #include <SPI.h>
 #else
+ #include <driver/spi_master.h>
  #if ESP_IDF_VERSION_MAJOR > 3
   #include <driver/spi_common_internal.h>
  #endif

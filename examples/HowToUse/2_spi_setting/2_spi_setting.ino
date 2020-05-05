@@ -52,6 +52,7 @@ static lgfx::LGFX_SPI<LGFX_Config> lcd;
 //static lgfx::Panel_ILI9341 panel;
 static lgfx::Panel_ILI9342 panel;
 //static lgfx::Panel_ILI9486 panel;
+//static lgfx::Panel_ILI9488 panel;
 //static lgfx::Panel_SSD1351 panel;
 //static lgfx::Panel_ST7789 panel;
 //static lgfx::Panel_ST7735S panel;
@@ -68,12 +69,12 @@ void setup(void)
   // 通常動作時のSPIクロックを設定します。
   // ESP32のSPIは80MHzを整数で割った値のみ使用可能です。
   // 設定した値に一番近い設定可能な値が使用されます。
-  panel.freq_write = 27000000;
+  panel.freq_write = 20000000;
 
   // 単色の塗り潰し処理時のSPIクロックを設定します。
   // 基本的にはfreq_writeと同じ値を設定しますが、
   // より高い値を設定しても動作する場合があります。
-  panel.freq_fill  = 40000000;
+  panel.freq_fill  = 27000000;
 
   // LCDから画素データを読取る際のSPIクロックを設定します。
   panel.freq_read  = 16000000;

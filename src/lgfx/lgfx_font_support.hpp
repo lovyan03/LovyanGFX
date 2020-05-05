@@ -55,7 +55,7 @@ namespace lgfx
     int16_t getTextSizeX(void) const { return _text_style.size_x; }
     int16_t getTextSizeY(void) const { return _text_style.size_y; }
     textdatum_t getTextDatum(void) const { return _text_style.datum; }
-    int16_t fontHeight(void) const { return _font_size.y_size * _text_style.size_y; }
+    int16_t fontHeight(void) const { return _font_metrics.height * _text_style.size_y; }
     int16_t fontHeight(uint8_t font) const { return pgm_read_byte( &((const BaseFont*)fontdata[font])->height ) * _text_style.size_y; }
 
     void setCursor( int16_t x, int16_t y)               { _filled_x = 0; _cursor_x = x; _cursor_y = y; }
@@ -100,11 +100,11 @@ namespace lgfx
           } while (uniCode < 32 && *(++string));
           if (uniCode < 32) break;
         }
-        //if (!(fpUpdateFontSize)(this, uniCode)) continue;
-        if (!_font->updateFontMetric(&_font_size, uniCode)) continue;
-        if (left == 0 && right == 0 && _font_size.x_offset < 0) left = right = -_font_size.x_offset;
-        right = left + std::max((int32_t)_font_size.x_advance, _font_size.x_size + _font_size.x_offset);
-        left += _font_size.x_advance;
+
+        if (!_font->updateFontMetric(&_font_metrics, uniCode)) continue;
+        if (left == 0 && right == 0 && _font_metrics.x_offset < 0) left = right = -_font_metrics.x_offset;
+        right = left + std::max((int32_t)_font_metrics.x_advance, _font_metrics.width + _font_metrics.x_offset);
+        left += _font_metrics.x_advance;
       } while (*(++string));
 
       return right * _text_style.size_x;
@@ -231,7 +231,7 @@ namespace lgfx
       _filled_x = 0;
       //_decoderState = utf8_decode_state_t::utf8_state0;
 
-      font->getDefaultMetric(&_font_size);
+      font->getDefaultMetric(&_font_metrics);
 
       switch (font->getType()) {
       default:
@@ -284,7 +284,7 @@ namespace lgfx
       if (font->loadFont(&_font_data)) {
         this->_font = font;
         this->fpDrawChar = drawCharVLW;
-        this->_font->getDefaultMetric(&this->_font_size);
+        this->_font->getDefaultMetric(&this->_font_metrics);
       } else {
         this->unloadFont();
       }
@@ -311,7 +311,7 @@ namespace lgfx
       }
       if (result) {
         this->_font = font;
-        this->_font->getDefaultMetric(&this->_font_size);
+        this->_font->getDefaultMetric(&this->_font_metrics);
         this->fpDrawChar = drawCharVLW;
       } else {
         this->unloadFont();
@@ -435,7 +435,7 @@ namespace lgfx
       if (utf8 == '\n') {
         _filled_x = 0;
         _cursor_x = 0;
-        _cursor_y += _font_size.y_advance * _text_style.size_y;
+        _cursor_y += _font_metrics.y_advance * _text_style.size_y;
       } else {
         uint16_t uniCode = utf8;
         if (_text_style.utf8) {
@@ -443,12 +443,12 @@ namespace lgfx
           if (uniCode < 32) return 1;
         }
         //if (!(fpUpdateFontSize)(this, uniCode)) return 1;
-        if (!_font->updateFontMetric(&_font_size, uniCode)) return 1;
+        if (!_font->updateFontMetric(&_font_metrics, uniCode)) return 1;
 
-        if (0 == _font_size.x_size) return 1;
+        if (0 == _font_metrics.width) return 1;
 
-        int_fast16_t w  = _font_size.x_size    * _text_style.size_x;
-        int_fast16_t xo = _font_size.x_offset  * _text_style.size_x;
+        int_fast16_t w  = _font_metrics.width    * _text_style.size_x;
+        int_fast16_t xo = _font_metrics.x_offset  * _text_style.size_x;
         if (_textscroll || _textwrap_x) {
           int32_t left = _textscroll ? this->_sx : 0;
           if (_cursor_x < left - xo) _cursor_x = left - xo;
@@ -457,12 +457,12 @@ namespace lgfx
             if (_cursor_x + xo + w > right) {
               _filled_x = 0;
               _cursor_x = left - xo;
-              _cursor_y += _font_size.y_advance * _text_style.size_y;
+              _cursor_y += _font_metrics.y_advance * _text_style.size_y;
             }
           }
         }
 
-        int_fast16_t h  = _font_size.y_size    * _text_style.size_y;
+        int_fast16_t h  = _font_metrics.height    * _text_style.size_y;
 
         int_fast16_t ydiff = 0;
         if (_text_style.datum & middle_left) {          // vertical: middle
@@ -470,7 +470,7 @@ namespace lgfx
         } else if (_text_style.datum & bottom_left) {   // vertical: bottom
           ydiff -= h;
         } else if (_text_style.datum & baseline_left) { // vertical: baseline
-          ydiff -= _font_size.baseline * _text_style.size_y;
+          ydiff -= _font_metrics.baseline * _text_style.size_y;
         }
         int_fast16_t y = _cursor_y + ydiff;
 
@@ -492,7 +492,8 @@ namespace lgfx
           if (y < 0) y = 0;
         }
         _cursor_y = y - ydiff;
-        y -= _font_size.y_offset  * _text_style.size_y;
+        y -= _font_metrics.y_offset  * _text_style.size_y;
+        IFont::param param = { this->_clip_l, this->_clip_r, this->_clip_t, this->_clip_b, _filled_x, &_text_style };
         _cursor_x += (fpDrawChar)(this, _cursor_x, y, uniCode, &_text_style, _font);
       }
 
@@ -560,7 +561,7 @@ namespace lgfx
     int32_t _filled_x = 0;
 
     TextStyle _text_style;
-    FontMetrics _font_size = { 6, 6, 0, 8, 8, 0, 7 }; // Font0 Metric
+    FontMetrics _font_metrics = { 6, 6, 0, 8, 8, 0, 7 }; // Font0 Metric
     const IFont* _font = &fonts::Font0;
 
     IFont* _dynamic_font = nullptr;  // run-time generated font
@@ -671,7 +672,7 @@ namespace lgfx
     {
       int16_t sumX = 0;
       int32_t cwidth = textWidth(string); // Find the pixel width of the string in the font
-      int32_t cheight = _font_size.y_size * _text_style.size_y;
+      int32_t cheight = _font_metrics.height * _text_style.size_y;
 
       {
         auto tmp = string;
@@ -683,8 +684,8 @@ namespace lgfx
             } while (uniCode < 32 && *++tmp);
             if (uniCode < 32) break;
           }
-          if (_font->updateFontMetric(&_font_size, uniCode)) {
-            if (_font_size.x_offset < 0) sumX = - _font_size.x_offset * _text_style.size_x;
+          if (_font->updateFontMetric(&_font_metrics, uniCode)) {
+            if (_font_metrics.x_offset < 0) sumX = - _font_metrics.x_offset * _text_style.size_x;
             break;
           }
         } while (*++tmp);
@@ -694,7 +695,7 @@ namespace lgfx
       } else if (datum & bottom_left) {   // vertical: bottom
         y -= cheight;
       } else if (datum & baseline_left) { // vertical: baseline
-        y -= _font_size.baseline * _text_style.size_y;
+        y -= _font_metrics.baseline * _text_style.size_y;
       }
 
       this->startWrite();
@@ -721,7 +722,7 @@ namespace lgfx
         x -= cwidth;
       }
 
-      y -= _font_size.y_offset * _text_style.size_y;
+      y -= _font_metrics.y_offset * _text_style.size_y;
 
       _filled_x = 0;
       do {
@@ -752,7 +753,7 @@ namespace lgfx
       const int32_t fontHeight = font->height;
 
       auto font_addr = font->chartbl + (c * 5);
-      uint32_t colortbl[2] = {me->_write_conv.convert(style->back_rgb888), me->_write_conv.convert(style->fore_rgb888)};
+      uint32_t colortbl[2] = {me->getColorConverter()->convert(style->back_rgb888), me->getColorConverter()->convert(style->fore_rgb888)};
       bool fillbg = (style->back_rgb888 != style->fore_rgb888);
 
       int32_t clip_left   = me->_clip_l;
@@ -853,7 +854,7 @@ namespace lgfx
 
     static size_t draw_char_bmp(LGFX_Font_Support* me, int32_t x, int32_t y, const TextStyle* style, const uint8_t* font_addr, int_fast8_t fontWidth, int_fast8_t fontHeight, int_fast8_t w, int_fast8_t margin )
     {
-      uint32_t colortbl[2] = {me->_write_conv.convert(style->back_rgb888), me->_write_conv.convert(style->fore_rgb888)};
+      uint32_t colortbl[2] = {me->getColorConverter()->convert(style->back_rgb888), me->getColorConverter()->convert(style->fore_rgb888)};
       bool fillbg = (style->back_rgb888 != style->fore_rgb888);
 
       int32_t clip_left   = me->_clip_l;
@@ -945,7 +946,7 @@ namespace lgfx
 
       auto font_addr = (const uint8_t*)pgm_read_dword( (const void*)(pgm_read_dword( &(font->chartbl ) ) + code * sizeof(void *)) );
 
-      uint32_t colortbl[2] = {me->_write_conv.convert(style->back_rgb888), me->_write_conv.convert(style->fore_rgb888)};
+      uint32_t colortbl[2] = {me->getColorConverter()->convert(style->back_rgb888), me->getColorConverter()->convert(style->fore_rgb888)};
       bool fillbg = (style->back_rgb888 != style->fore_rgb888);
 
       int32_t clip_left   = me->_clip_l;
@@ -1011,7 +1012,7 @@ namespace lgfx
       int32_t yoffset  = (int32_t)style->size_y * (int8_t)pgm_read_byte(&glyph->yOffset);
 
       me->startWrite();
-      uint32_t colortbl[2] = {me->_write_conv.convert(style->back_rgb888), me->_write_conv.convert(style->fore_rgb888)};
+      uint32_t colortbl[2] = {me->getColorConverter()->convert(style->back_rgb888), me->getColorConverter()->convert(style->fore_rgb888)};
       bool fillbg = (style->back_rgb888 != style->fore_rgb888);
       int32_t left  = 0;
       int32_t right = 0;
@@ -1033,11 +1034,11 @@ namespace lgfx
 
         if (right > left) {
           me->setRawColor(colortbl[0]);
-          int tmp = yoffset - (me->_font_size.y_offset * style->size_y);
+          int tmp = yoffset - (me->_font_metrics.y_offset * style->size_y);
           if (tmp > 0)
-            me->writeFillRect(left, y - yoffset + me->_font_size.y_offset * style->size_y, right - left, tmp);
+            me->writeFillRect(left, y - yoffset + me->_font_metrics.y_offset * style->size_y, right - left, tmp);
 
-          tmp = (me->_font_size.y_offset + me->_font_size.y_size - h) * style->size_y - yoffset;
+          tmp = (me->_font_metrics.y_offset + me->_font_metrics.height - h) * style->size_y - yoffset;
           if (tmp > 0)
             me->writeFillRect(left, y + h * style->size_y, right - left, tmp);
         }
@@ -1076,7 +1077,7 @@ namespace lgfx
       } else {
         if (right > left) {
           me->setRawColor(colortbl[0]);
-          me->writeFillRect(left, y - yoffset + me->_font_size.y_offset * style->size_y, right - left, (me->_font_size.y_size) * style->size_y);
+          me->writeFillRect(left, y - yoffset + me->_font_metrics.y_offset * style->size_y, right - left, (me->_font_metrics.height) * style->size_y);
         }
       }
       me->_filled_x = right;
@@ -1118,7 +1119,7 @@ namespace lgfx
 
       me->startWrite();
 
-      uint32_t colortbl[2] = {me->_write_conv.convert(style->back_rgb888), me->_write_conv.convert(style->fore_rgb888)};
+      uint32_t colortbl[2] = {me->getColorConverter()->convert(style->back_rgb888), me->getColorConverter()->convert(style->fore_rgb888)};
       bool fillbg = (style->back_rgb888 != style->fore_rgb888);
       int32_t left  = 0;
       int32_t right = 0;
@@ -1145,11 +1146,11 @@ namespace lgfx
         if (fillbg) { // fill background mode
           if (right > left) {
             me->setRawColor(colortbl[0]);
-            int tmp = yoffset - (me->_font_size.y_offset * style->size_y);
+            int tmp = yoffset - (me->_font_metrics.y_offset * style->size_y);
             if (tmp > 0)
-              me->writeFillRect(left, y - yoffset + me->_font_size.y_offset * style->size_y, right - left, tmp);
+              me->writeFillRect(left, y - yoffset + me->_font_metrics.y_offset * style->size_y, right - left, tmp);
 
-            tmp = (me->_font_size.y_offset + me->_font_size.y_size - h) * style->size_y - yoffset;
+            tmp = (me->_font_metrics.y_offset + me->_font_metrics.height - h) * style->size_y - yoffset;
             if (tmp > 0)
               me->writeFillRect(left, y + h * style->size_y, right - left, tmp);
           }
@@ -1191,7 +1192,7 @@ namespace lgfx
 
           int32_t xshift = (bx - x) % style->size_x;
           bgr888_t buf[bw * style->size_y];
-          pixelcopy_t p(buf, me->_write_conv.depth, rgb888_3Byte, me->hasPalette());
+          pixelcopy_t p(buf, me->getColorConverter()->depth, rgb888_3Byte, me->hasPalette());
           do {
             int32_t by = y;
             int32_t bh = style->size_y;

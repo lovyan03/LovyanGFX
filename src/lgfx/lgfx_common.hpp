@@ -75,7 +75,7 @@ namespace lgfx
   static uint32_t convert_rgb888_to_rgb332( uint32_t c) { return ((c>>21) << 5) | ((((uint16_t)c)>>13) << 2) | ((c>>6) & 3); }
   static uint32_t convert_rgb565_to_bgr888( uint32_t c) { return ((((c&0x1F)*0x21)>>2)<<8 | ((((c>>5)&0x3F)*0x41)>>4))<<8 | (((c>>11)*0x21)>>2); }
   static uint32_t convert_rgb565_to_bgr666( uint32_t c) { return ((c&0x1F)<<17) | ((c&0x10)<<12) | ((c&0x7E0)<<3) | ((c>>10)&0xF8) | (c>>15); }
-  static uint32_t convert_rgb565_to_swap565(uint32_t c) { return c<<8|c>>8; }
+  static uint32_t convert_rgb565_to_swap565(uint32_t c) { return (0xFF & c)<<8|c>>8; }
   static uint32_t convert_rgb565_to_rgb332( uint32_t c) { return ((c>>13) <<5) | ((c>>6) & 0x1C) | ((c>>3) & 3); }
   static uint32_t convert_rgb332_to_bgr888( uint32_t c) { return (((c&3)*0x55)<<8 | ((c&0x1C)*0x49)>>3)<<8 | (((c>>5)*0x49) >> 1); }
   static uint32_t convert_rgb332_to_bgr666( uint32_t c) { return (((c&0xE0)*9)>>5) | ((c&0x1C)*0x240) | ((c&3)*0x15)<<16; }
@@ -703,7 +703,6 @@ namespace lgfx
 //*/
     }
 
-//  protected:
     void init( color_depth_t dst_depth
              , color_depth_t src_depth
              , bool dst_palette
@@ -876,6 +875,51 @@ namespace lgfx
         if (!(s[i] == transp)) break;
         src_x32 += src_x32_add;
         src_y32 += src_y32_add;
+      } while (++index != last);
+      param->src_x32 = src_x32;
+      param->src_y32 = src_y32;
+      return index;
+    }
+
+    template <typename TSrc>
+    static int32_t normalcompare(void* dst, int32_t index, int32_t last, pixelcopy_t* param)
+    {
+      auto s = (const TSrc*)param->src_data;
+      auto d = (bool*)dst;
+      auto src_x32     = param->src_x32;
+      auto src_y32     = param->src_y32;
+      auto src_x32_add = param->src_x32_add;
+      auto src_y32_add = param->src_y32_add;
+      auto src_width   = param->src_width;
+      auto transp      = param->transp;
+      do {
+        uint32_t i = (src_x32 >> FP_SCALE) + (src_y32 >> FP_SCALE) * src_width;
+        src_x32 += src_x32_add;
+        src_y32 += src_y32_add;
+        d[index] = s[i] == transp;
+      } while (++index != last);
+      param->src_x32 = src_x32;
+      param->src_y32 = src_y32;
+      return index;
+    }
+
+    static int32_t bitcompare(void* dst, int32_t index, int32_t last, pixelcopy_t* param)
+    {
+      auto s = (const uint8_t*)param->src_data;
+      auto d = (bool*)dst;
+      auto src_x32     = param->src_x32;
+      auto src_y32     = param->src_y32;
+      auto src_x32_add = param->src_x32_add;
+      auto src_y32_add = param->src_y32_add;
+      auto src_width   = param->src_width;
+      auto transp      = param->transp;
+      auto src_bits    = param->src_bits;
+      auto src_mask    = param->src_mask;
+      do {
+        uint32_t i = ((src_x32 >> FP_SCALE) + (src_y32 >> FP_SCALE) * src_width) * src_bits;
+        src_x32 += src_x32_add;
+        src_y32 += src_y32_add;
+        d[index] = transp == ((s[i >> 3] >> (-(i + src_bits) & 7)) & src_mask);
       } while (++index != last);
       param->src_x32 = src_x32;
       param->src_y32 = src_y32;
