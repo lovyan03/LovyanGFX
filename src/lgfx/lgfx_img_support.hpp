@@ -103,7 +103,6 @@ namespace lgfx
     struct bitmap_header_t {
       union {
         uint8_t raw[54];
-        #pragma pack(1)
         struct {
           uint16_t bfType; 
           uint32_t bfSize;
@@ -122,8 +121,7 @@ namespace lgfx
           int32_t  biYPelsPerMeter;
           uint32_t biClrUsed; 
           uint32_t biClrImportant;
-        };
-        #pragma pack()
+        } __attribute__((packed));
       };
     };
 

@@ -322,7 +322,7 @@ namespace lgfx
     void showFont(uint32_t td)
     {
       auto font = (const VLWfont*)this->_font;
-      if(!font->_fontLoaded) return;
+      if (!font->_fontLoaded) return;
 
       int16_t x = this->width();
       int16_t y = this->height();
@@ -493,7 +493,6 @@ namespace lgfx
         }
         _cursor_y = y - ydiff;
         y -= _font_metrics.y_offset  * _text_style.size_y;
-        IFont::param param = { this->_clip_l, this->_clip_r, this->_clip_t, this->_clip_b, _filled_x, &_text_style };
         _cursor_x += (fpDrawChar)(this, _cursor_x, y, uniCode, &_text_style, _font);
       }
 

@@ -86,6 +86,7 @@ namespace lgfx
   static uint32_t convert_uint32_to_palette1(uint32_t c) { return (c&1)?0xFF:0; }
   static uint32_t no_convert(uint32_t c)                 { return c; }
 
+#pragma pack(push)
 #pragma pack(1)
   struct rgb332_t;    //  8bpp
   struct rgb565_t;    // 16bpp
@@ -505,7 +506,7 @@ namespace lgfx
 
 #undef TYPECHECK
 
-#pragma pack()
+#pragma pack(pop)
 
   //inline rgb332_t::operator rgb565_t() const   { return rgb565_t(((r*0x2400) & 0xF800) | (g*0x0120) | ((b*0x15)>>1)); }
   //inline rgb332_t::operator rgb888_t() const   { return rgb888_t(R8(),G8(),B8()); }

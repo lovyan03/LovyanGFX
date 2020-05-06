@@ -1,5 +1,7 @@
 #include <stdint.h>
 
+#include "../lgfx/lgfx_common.hpp"
+
 namespace lgfx
 {
   enum textdatum_t : uint8_t
@@ -305,21 +307,15 @@ namespace lgfx
   };
 }
 
-#include "glcdfont.h"
-#include "Font16.h"
-#include "Font32rle.h"
-#include "Font64rle.h"
-#include "Font7srle.h"
-#include "Font72rle.h"
 #include "gfxfont.hpp"
 
 namespace fonts {
-  static PROGMEM const lgfx::GLCDfont Font0 = { (const uint8_t *)font, nullptr, 6, 8, 7};
-  static PROGMEM const lgfx::BMPfont  Font2 = { (const uint8_t *)chrtbl_f16, widtbl_f16, 0, chr_hgt_f16, baseline_f16 };
-  static PROGMEM const lgfx::RLEfont  Font4 = { (const uint8_t *)chrtbl_f32, widtbl_f32, 0, chr_hgt_f32, baseline_f32 };
-  static PROGMEM const lgfx::RLEfont  Font6 = { (const uint8_t *)chrtbl_f64, widtbl_f64, 0, chr_hgt_f64, baseline_f64 };
-  static PROGMEM const lgfx::RLEfont  Font7 = { (const uint8_t *)chrtbl_f7s, widtbl_f7s, 0, chr_hgt_f7s, baseline_f7s };
-  static PROGMEM const lgfx::RLEfont  Font8 = { (const uint8_t *)chrtbl_f72, widtbl_f72, 0, chr_hgt_f72, baseline_f72 };
+  extern const lgfx::GLCDfont Font0;
+  extern const lgfx::BMPfont  Font2;
+  extern const lgfx::RLEfont  Font4;
+  extern const lgfx::RLEfont  Font6;
+  extern const lgfx::RLEfont  Font7;
+  extern const lgfx::RLEfont  Font8;
 
 #ifdef __EFONT_FONT_DATA_H__
   static PROGMEM const lgfx::BDFfont efont = { (const uint8_t *)efontFontData, efontFontList, sizeof(efontFontList)>>1, 16, 8, 16, 14 };
