@@ -977,49 +977,18 @@ namespace lgfx
     uint32_t _index = 0;
     uint32_t _length = 0;
   };
-//----------------------------------------------------------------------------
 
-  static void memset_multi(uint8_t* buf, uint32_t c, size_t size, size_t length)
-  {
-    size_t l = length;
-    if (l & ~0xF) {
-      while ((l >>= 1) & ~0xF);
-      ++l;
-    }
-    size_t len = l * size;
-    length = (length * size) - len;
-    uint8_t* dst = buf;
-    if (size == 2) {
-      do { // 2byte speed tweak
-        *(uint16_t*)dst = c;
-        dst += 2;
-      } while (--l);
-    } else {
-      do {
-        size_t i = 0;
-        do {
-          *dst++ = *(((uint8_t*)&c) + i);
-        } while (++i != size);
-      } while (--l);
-    }
-    if (!length) return;
-    while (length > len) {
-      memcpy(dst, buf, len);
-      dst += len;
-      length -= len;
-      len <<= 1;
-    }
-    if (length) {
-      memcpy(dst, buf, length);
-    }
-  }
 //----------------------------------------------------------------------------
 }
 
 
-#if defined (ESP32) || (CONFIG_IDF_TARGET_ESP32)
+#if defined (ESP32) || (CONFIG_IDF_TARGET_ESP32) || (ESP_PLATFORM)
 
   #include "platforms/esp32_common.hpp"
+
+#elif defined (__SAMD51__)
+
+  #include "platforms/samd51_common.hpp"
 
 #elif defined (__AVR__)
 

@@ -38,7 +38,7 @@
     #define PROGMEM
   #endif
 
-  void delay(uint32_t ms) { vTaskDelay(ms / portTICK_PERIOD_MS); }
+  static void delay(uint32_t ms) { vTaskDelay(ms / portTICK_PERIOD_MS); }
 
 //  static constexpr uint32_t MATRIX_DETACH_OUT_SIG = 0x100;
 //  static constexpr uint32_t MATRIX_DETACH_IN_LOW_PIN = 0x30;
@@ -48,7 +48,7 @@
 //  static void IRAM_ATTR pinMatrixInAttach( uint8_t pin, uint8_t signal           , bool inverted) { gpio_matrix_in(pin, signal, inverted); }
 //  static void IRAM_ATTR pinMatrixInDetach(              uint8_t signal, bool high, bool inverted) { gpio_matrix_in(high?MATRIX_DETACH_IN_LOW_HIGH:MATRIX_DETACH_IN_LOW_PIN, signal, inverted); }
 
-  uint32_t getApbFrequency() {
+  static uint32_t getApbFrequency() {
     rtc_cpu_freq_config_t conf;
     rtc_clk_cpu_freq_get_config(&conf);
     if (conf.freq_mhz >= 80){
@@ -63,9 +63,7 @@ namespace lgfx
 {
   static void* heap_alloc_psram(size_t length)
   {
-    void* res = heap_caps_malloc(length, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-    if (!res) res = heap_caps_malloc(length, MALLOC_CAP_8BIT);
-    return res;
+    return heap_caps_malloc(length, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
   }
 
   __attribute__((__used__))
@@ -73,6 +71,11 @@ namespace lgfx
   static void* heap_alloc_dma(size_t length)
   {
     return heap_caps_malloc((length + 3) & ~3, MALLOC_CAP_DMA);
+  }
+
+  static void* heap_alloc(size_t length)
+  {
+    return heap_caps_malloc(length, MALLOC_CAP_8BIT);
   }
 
   __attribute__((__used__))

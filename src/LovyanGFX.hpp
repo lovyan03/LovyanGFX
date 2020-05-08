@@ -23,6 +23,9 @@ Contributors:
 #ifdef min
 #undef min
 #endif
+#ifdef max
+#undef max
+#endif
 
 #include "lgfx/lgfx_common.hpp"         // common include (always include)
 
@@ -49,6 +52,10 @@ Contributors:
 #if defined (ESP32) || (CONFIG_IDF_TARGET_ESP32)
 
   #include "lgfx/platforms/lgfx_spi_esp32.hpp"
+
+#elif defined (__SAMD51__)
+
+  #include "lgfx/platforms/lgfx_spi_samd51.hpp"
 
 #elif defined (ESP8266)
 // not implemented.
@@ -180,6 +187,18 @@ namespace lgfx {
     static constexpr int spi_mosi = 23;
     static constexpr int spi_miso = 19;
     static constexpr int spi_sclk = 18;
+  };
+
+#elif defined (ARDUINO_WIO_TERMINAL)
+
+  typedef Panel_ILI9341 Panel_default;
+
+  struct LGFX_Config {
+//    static constexpr spi_host_device_t spi_host = VSPI_HOST;
+//    static constexpr int dma_channel = 1;
+    static constexpr int spi_mosi = 67;
+    static constexpr int spi_miso = 66;
+    static constexpr int spi_sclk = 68;
   };
 
 #endif

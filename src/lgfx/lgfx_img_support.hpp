@@ -20,6 +20,8 @@ Contributors:
 #ifndef LGFX_IMG_SUPPORT_HPP_
 #define LGFX_IMG_SUPPORT_HPP_
 
+#include <cmath>
+
 namespace lgfx
 {
   template <class Base>
