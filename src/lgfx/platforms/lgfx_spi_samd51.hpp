@@ -429,7 +429,7 @@ namespace lgfx
     void write_cmd(uint_fast8_t cmd)
     {
       dc_l();
-      SPI3.transfer(cmd);
+//      SPI3.transfer(cmd);
 /*
       if (_spi_dlen == 16) { cmd <<= 8; }
       auto spi_w0_reg        = reg(SPI_W0_REG(_spi_port));
