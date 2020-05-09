@@ -23,7 +23,8 @@ Contributors:
 #include "samd51_common.hpp"
 #include "../lgfx_base.hpp"
 
-#include "SERCOM.h"
+#include <SERCOM.h>
+#include <wiring_private.h>
 
 namespace lgfx
 {
@@ -50,6 +51,9 @@ namespace lgfx
     LGFX_SPI() : LovyanGFX()
     {
       _panel = nullptr;
+
+_sercom = SERCOM7;
+
     }
 
     void setPanel(PanelCommon* panel) { _panel = panel; postSetPanel(); }
@@ -117,6 +121,34 @@ namespace lgfx
 
     void initBus(void)
     {
+      pinPeripheral(_spi_miso, g_APinDescription[_spi_miso].ulPinType);
+      pinPeripheral(_spi_sclk, g_APinDescription[_spi_sclk].ulPinType);
+      pinPeripheral(_spi_mosi, g_APinDescription[_spi_mosi].ulPinType);
+
+      while(_sercom->SPI.SYNCBUSY.bit.ENABLE);
+      _sercom->SPI.CTRLA.bit.ENABLE = 0;
+
+
+      _sercom->SPI.CTRLA.bit.SWRST = 1;
+      while(_sercom->SPI.CTRLA.bit.SWRST || _sercom->SPI.SYNCBUSY.bit.SWRST);
+
+      uint8_t clk_id = SERCOM7_GCLK_ID_CORE;
+      GCLK->PCHCTRL[clk_id].reg = GCLK_PCHCTRL_GEN_GCLK0_Val | (1 << GCLK_PCHCTRL_CHEN_Pos);
+
+      _sercom->SPI.CTRLA.reg = SERCOM_SPI_CTRLA_MODE(0x3)  |  // master mode
+                                   SERCOM_SPI_CTRLA_DOPO(SPI_PAD_3_SCK_1) |
+                                   SERCOM_SPI_CTRLA_DIPO(SERCOM_RX_PAD_2) |
+                                   SercomDataOrder::MSB_FIRST << SERCOM_SPI_CTRLA_DORD_Pos;
+
+      //Setting the CTRLB register
+      _sercom->SPI.CTRLB.reg = SERCOM_SPI_CTRLB_CHSIZE(SPI_CHAR_SIZE_8_BITS) |
+                                   SERCOM_SPI_CTRLB_RXEN; //Active the SPI receiver.
+
+      while( _sercom->SPI.SYNCBUSY.bit.CTRLB == 1 );
+
+      _sercom->SPI.CTRLA.bit.ENABLE = 1;
+      while(_sercom->SPI.SYNCBUSY.bit.ENABLE);
+
     }
 
     virtual void initPanel(void)
@@ -165,10 +197,15 @@ namespace lgfx
       fpGetWindowAddr = _len_setwindow == 32 ? PanelCommon::getWindowAddr32 : PanelCommon::getWindowAddr16;
 
       int32_t spi_dc = _panel->spi_dc;
+
+      EPortType port = g_APinDescription[spi_dc].ulPort;
+      uint32_t pin = g_APinDescription[spi_dc].ulPin;
+      _mask_reg_dc = (1ul << pin);
+      _port_reg_dc = &PORT->Group[port];
       //_gpio_reg_dc_h = get_gpio_hi_reg(spi_dc);
       //_gpio_reg_dc_l = get_gpio_lo_reg(spi_dc);
       //_mask_reg_dc = (spi_dc < 0) ? 0 : (1 << (spi_dc & 31));
-      dc_h();
+      _port_reg_dc->OUTSET.reg = _mask_reg_dc;
       pinMode(spi_dc, OUTPUT);
 
       cs_h();
@@ -213,6 +250,17 @@ namespace lgfx
 
     void begin_transaction(void) {
 /*
+      int cpha = _panel->spi_mode & 1;
+      int cpol = (_panel->spi_mode & 2) >> 1;
+
+      //Setting the CTRLA register
+      _sercom->SPI.CTRLA.reg |= ( cpha << SERCOM_SPI_CTRLA_CPHA_Pos ) |
+                                    ( cpol << SERCOM_SPI_CTRLA_CPOL_Pos );
+
+      //Synchronous arithmetic
+      _sercom->SPI.BAUD.reg = 4; //calculateBaudrateSynchronous(_panel->freq_write);
+
+/*
       _fill_mode = false;
       uint32_t apb_freq = getApbFrequency();
       if (_last_apb_freq != apb_freq) {
@@ -229,14 +277,14 @@ namespace lgfx
 //    wait_spi();
 
 #if defined (ARDUINO) // Arduino ESP32
-      spiSimpleTransaction(_spi_handle);
+      spiSimpleTransaction(_sercom);
 
       if (_dma_channel) {
         _next_dma_reset = true;
       }
 #elif defined (CONFIG_IDF_TARGET_ESP32) // ESP-IDF
-      if (_spi_handle) {
-        if (ESP_OK != spi_device_acquire_bus(_spi_handle, portMAX_DELAY)) {
+      if (_sercom) {
+        if (ESP_OK != spi_device_acquire_bus(_sercom, portMAX_DELAY)) {
           ESP_LOGE("LGFX", "Failed to spi_device_acquire_bus. ");
         }
       }
@@ -248,7 +296,6 @@ namespace lgfx
 
 //*/
       cs_l();
-
     }
 
     void endTransaction_impl(void) override {
@@ -258,6 +305,7 @@ namespace lgfx
     }
 
     void end_transaction(void) {
+      while (_sercom->SPI.INTFLAG.bit.TXC == 0); // Waiting Complete Reception
       if (_panel->spi_cs < 0) {
         write_cmd(0); // NOP command
       }
@@ -266,10 +314,10 @@ namespace lgfx
 /*
 #if defined (ARDUINO) // Arduino ESP32
       *reg(SPI_USER_REG(_spi_port)) = SPI_USR_MOSI | SPI_USR_MISO | SPI_DOUTDIN; // for other SPI device (SD)
-      spiEndTransaction(_spi_handle);
+      spiEndTransaction(_sercom);
 #elif defined (CONFIG_IDF_TARGET_ESP32) // ESP-IDF
-      if (_spi_handle) {
-        spi_device_release_bus(_spi_handle);
+      if (_sercom) {
+        spi_device_release_bus(_sercom);
       }
 #endif
 //*/
@@ -331,6 +379,28 @@ namespace lgfx
 
     void push_block(int32_t length, bool fillclock = false)
     {
+//    do { write_data(_color.raw, _write_conv.bits); } while (--length);
+      int bytes = _write_conv.bytes;
+      uint32_t data = _color.raw;
+      auto *reg = &_sercom->SPI.DATA;
+      int i = 0;
+      dc_h();
+      reg->bit.DATA = data;
+      while (++i < bytes) {
+        data >>= 8;
+        wait_spi();
+        reg->bit.DATA = data;
+      }
+      while (--length) {
+        int i = 0;
+        data = _color.raw;
+        do {
+          wait_spi();
+          reg->bit.DATA = data;
+          data >>= 8;
+        } while (++i < bytes);
+      };
+
 /*
       if (length == 1) { write_data(_color.raw, _write_conv.bits); return; }
 
@@ -428,8 +498,11 @@ namespace lgfx
 
     void write_cmd(uint_fast8_t cmd)
     {
+      auto *reg = &_sercom->SPI.DATA;
+//      auto *intflag = &_sercom->SPI.INTFLAG;
+//      while (intflag->bit.TXC == 0); // Waiting Complete Reception
       dc_l();
-//      SPI3.transfer(cmd);
+      reg->bit.DATA = cmd; // Writing data into Data register
 /*
       if (_spi_dlen == 16) { cmd <<= 8; }
       auto spi_w0_reg        = reg(SPI_W0_REG(_spi_port));
@@ -443,6 +516,16 @@ namespace lgfx
 
     void write_data(uint32_t data, uint32_t bit_length)
     {
+      auto *reg = &_sercom->SPI.DATA;
+      dc_h();
+      reg->bit.DATA = data;
+      while (bit_length > 8) {
+        bit_length -= 8;
+        data >>= 8;
+        wait_spi();
+        reg->bit.DATA = data;
+//        _sercom->SPI.DATA.bit.DATA = data; // Writing data into Data register
+      };
 /*
       auto spi_w0_reg        = reg(SPI_W0_REG(_spi_port));
       auto spi_mosi_dlen_reg = reg(SPI_MOSI_DLEN_REG(_spi_port));
@@ -455,15 +538,12 @@ namespace lgfx
 
     void set_window(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye)
     {
-/*
       uint32_t len;
       if (_spi_dlen == 8) {
-        len = _len_setwindow - 1;
+        len = _len_setwindow;
       } else {
-        len = (_len_setwindow << 1) - 1;
+        len = (_len_setwindow << 1);
       }
-      auto spi_w0_reg        = reg(SPI_W0_REG(_spi_port));
-      auto spi_mosi_dlen_reg = reg(SPI_MOSI_DLEN_REG(_spi_port));
       auto fp = fpGetWindowAddr;
 
       if (_xs != xs || _xe != xe) {
@@ -474,17 +554,12 @@ namespace lgfx
 
         tmp = fp(xs + tmp, xe + tmp);
         if (_spi_dlen == 8) {
-          dc_h();
-          *spi_w0_reg = tmp;
+          write_data(tmp, len);
         } else if (_spi_dlen == 16) {
-          _regbuf[0] = (tmp & 0xFF) << 8 | (tmp >> 8) << 24;
+          write_data((tmp & 0xFF) << 8 | (tmp >> 8) << 24, 32);
           tmp >>= 16;
-          _regbuf[1] = (tmp & 0xFF) << 8 | (tmp >> 8) << 24;
-          dc_h();
-          memcpy((void*)spi_w0_reg, _regbuf, _len_setwindow >> 2);
+          write_data((tmp & 0xFF) << 8 | (tmp >> 8) << 24, 32);
         }
-        *spi_mosi_dlen_reg = len;
-        exec_spi();
       }
       if (_ys != ys || _ye != ye) {
         write_cmd(_cmd_raset);
@@ -494,19 +569,13 @@ namespace lgfx
 
         tmp = fp(ys + tmp, ye + tmp);
         if (_spi_dlen == 8) {
-          dc_h();
-          *spi_w0_reg = tmp;
+          write_data(tmp, len);
         } else if (_spi_dlen == 16) {
-          _regbuf[0] = (tmp & 0xFF) << 8 | (tmp >> 8) << 24;
+          write_data((tmp & 0xFF) << 8 | (tmp >> 8) << 24, 32);
           tmp >>= 16;
-          _regbuf[1] = (tmp & 0xFF) << 8 | (tmp >> 8) << 24;
-          dc_h();
-          memcpy((void*)spi_w0_reg, _regbuf, _len_setwindow >> 2);
+          write_data((tmp & 0xFF) << 8 | (tmp >> 8) << 24, 32);
         }
-        *spi_mosi_dlen_reg = len;
-        exec_spi();
       }
-//*/
     }
 
     void start_read(void) {
@@ -920,27 +989,21 @@ namespace lgfx
     __attribute__ ((always_inline)) inline void set_clock_read(void)  { /* *reg(SPI_CLOCK_REG(_spi_port)) = _clkdiv_read;  */ }
     __attribute__ ((always_inline)) inline void set_clock_fill(void)  { /* *reg(SPI_CLOCK_REG(_spi_port)) = _clkdiv_fill;  */ }
     __attribute__ ((always_inline)) inline void exec_spi(void) { /*        *reg(SPI_CMD_REG(_spi_port)) = SPI_USR;  */ }
-    __attribute__ ((always_inline)) inline void wait_spi(void) { /* while (*reg(SPI_CMD_REG(_spi_port)) & SPI_USR); */ }
+    __attribute__ ((always_inline)) inline void wait_spi(void) { auto *intflag = &_sercom->SPI.INTFLAG.bit; while (intflag->TXC == 0); }
     __attribute__ ((always_inline)) inline void set_write_len(uint32_t bitlen) { /* *reg(SPI_MOSI_DLEN_REG(_spi_port)) = bitlen - 1; */ }
     __attribute__ ((always_inline)) inline void set_read_len( uint32_t bitlen) { /* *reg(SPI_MISO_DLEN_REG(_spi_port)) = bitlen - 1; */ }
 
     __attribute__ ((always_inline)) inline void dc_h(void) {
-      digitalWrite(_panel->spi_dc, HIGH);
-/*
       auto mask_reg_dc = _mask_reg_dc;
-      auto gpio_reg_dc_h = _gpio_reg_dc_h;
+      auto *outset = &_port_reg_dc->OUTSET;
       wait_spi();
-      *gpio_reg_dc_h = mask_reg_dc;
-*/
+      outset->reg = mask_reg_dc;
     }
     __attribute__ ((always_inline)) inline void dc_l(void) {
-      digitalWrite(_panel->spi_dc, LOW);
-/*
       auto mask_reg_dc = _mask_reg_dc;
-      auto gpio_reg_dc_l = _gpio_reg_dc_l;
+      auto *outclr = &_port_reg_dc->OUTCLR;
       wait_spi();
-      *gpio_reg_dc_l = mask_reg_dc;
-*/
+      outclr->reg = mask_reg_dc;
     }
 
     void cs_h(void) {
@@ -988,7 +1051,7 @@ namespace lgfx
     bool _dma_flip = false;
     bool _fill_mode;
     uint32_t _mask_reg_dc;
-    volatile uint32_t* _gpio_reg_dc_h;
+    volatile PortGroup* _port_reg_dc;
     volatile uint32_t* _gpio_reg_dc_l;
     static uint32_t _regbuf[8];
 //    static lldesc_t* _dmadesc;
@@ -996,14 +1059,14 @@ namespace lgfx
     static bool _next_dma_reset;
 
 //    static volatile spi_dev_t *_hw;
-//    static spi_t* _spi_handle;
+    static Sercom* _sercom;
   };
   template <class T> uint32_t LGFX_SPI<T>::_regbuf[];
 //  template <class T> lldesc_t* LGFX_SPI<T>::_dmadesc = nullptr;
 //  template <class T> uint32_t LGFX_SPI<T>::_dmadesc_len = 0;
   template <class T> bool LGFX_SPI<T>::_next_dma_reset;
 
-//  template <class T> spi_t* LGFX_SPI<T>::_spi_handle;
+  template <class T> Sercom* LGFX_SPI<T>::_sercom;
 
 //----------------------------------------------------------------------------
 
