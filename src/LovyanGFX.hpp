@@ -191,13 +191,25 @@ namespace lgfx {
 
 #elif defined (ARDUINO_WIO_TERMINAL)
 
-  typedef Panel_ILI9341 Panel_default;
+  struct Panel_default : public lgfx::Panel_ILI9341 {
+    Panel_default(void) {
+      spi_3wire = false;
+      spi_cs   = 69;    // LCD_SS_PIN PIN_SPI3_SS
+      spi_dc   = 70;    // LCD_DC
+      gpio_rst = 71;    // LCD_RESET
+      gpio_bl  = 72;    // LCD_BACKLIGHT
+      //pwm_ch_bl = 7;
+      freq_write = 50000000;
+      freq_read  = 20000000;
+      freq_fill  = 50000000;
+    }
+  };
 
   struct LGFX_Config {
     static constexpr int spi_host = 3;
-    static constexpr int spi_mosi = 67;
-    static constexpr int spi_miso = 66;
-    static constexpr int spi_sclk = 68;
+    static constexpr int spi_mosi = 67; // PIN_SPI3_MOSI
+    static constexpr int spi_miso = 66; // PIN_SPI3_MISO
+    static constexpr int spi_sclk = 68; // PIN_SPI3_SCK
   };
 
 #endif
