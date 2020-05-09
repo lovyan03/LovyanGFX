@@ -139,29 +139,7 @@ namespace lgfx
     gpio_config(&io_conf);
   }
 #endif
-/*
-  static void initGPIO(int_fast8_t pin, gpio_mode_t mode = GPIO_MODE_OUTPUT, bool pullup = false, bool pulldown = false) {
-    if (pin == -1) return;
-#ifdef ARDUINO
-    uint8_t pm = 0;
-    if (mode & GPIO_MODE_DEF_INPUT)  pm |= INPUT;
-    if (mode & GPIO_MODE_DEF_OUTPUT) pm |= OUTPUT;
-    if (mode & GPIO_MODE_DEF_OD)     pm |= OPEN_DRAIN;
-    if (pullup)                      pm |= PULLUP;
-    if (pulldown)                    pm |= PULLDOWN;
-    pinMode(pin, pm);
-#else
-    if (rtc_gpio_is_valid_gpio((gpio_num_t)pin)) rtc_gpio_deinit((gpio_num_t)pin);
-    gpio_config_t io_conf;
-    io_conf.intr_type = GPIO_INTR_DISABLE;
-    io_conf.mode = mode;
-    io_conf.pin_bit_mask = (uint64_t)1 << pin;
-    io_conf.pull_down_en = pulldown ? GPIO_PULLDOWN_ENABLE : GPIO_PULLDOWN_DISABLE;
-    io_conf.pull_up_en = pullup ? GPIO_PULLUP_ENABLE : GPIO_PULLUP_DISABLE;
-    gpio_config(&io_conf);
-#endif
-  }
-//*/
+
   static volatile uint32_t* get_gpio_hi_reg(int_fast8_t pin) { return (pin & 32) ? &GPIO.out1_w1ts.val : &GPIO.out_w1ts; }
   static volatile uint32_t* get_gpio_lo_reg(int_fast8_t pin) { return (pin & 32) ? &GPIO.out1_w1tc.val : &GPIO.out_w1tc; }
 
@@ -212,6 +190,28 @@ namespace lgfx
   }
 
 
+/*
+  static void initGPIO(int_fast8_t pin, gpio_mode_t mode = GPIO_MODE_OUTPUT, bool pullup = false, bool pulldown = false) {
+    if (pin == -1) return;
+#ifdef ARDUINO
+    uint8_t pm = 0;
+    if (mode & GPIO_MODE_DEF_INPUT)  pm |= INPUT;
+    if (mode & GPIO_MODE_DEF_OUTPUT) pm |= OUTPUT;
+    if (mode & GPIO_MODE_DEF_OD)     pm |= OPEN_DRAIN;
+    if (pullup)                      pm |= PULLUP;
+    if (pulldown)                    pm |= PULLDOWN;
+    pinMode(pin, pm);
+#else
+    if (rtc_gpio_is_valid_gpio((gpio_num_t)pin)) rtc_gpio_deinit((gpio_num_t)pin);
+    gpio_config_t io_conf;
+    io_conf.intr_type = GPIO_INTR_DISABLE;
+    io_conf.mode = mode;
+    io_conf.pin_bit_mask = (uint64_t)1 << pin;
+    io_conf.pull_down_en = pulldown ? GPIO_PULLDOWN_ENABLE : GPIO_PULLDOWN_DISABLE;
+    io_conf.pull_up_en = pullup ? GPIO_PULLUP_ENABLE : GPIO_PULLUP_DISABLE;
+    gpio_config(&io_conf);
+#endif
+  }
   template<uint8_t PIN, uint32_t MASK>
   struct ESP32PIN {
     __attribute__ ((always_inline)) inline static void init(gpio_mode_t mode = GPIO_MODE_OUTPUT) { initGPIO((gpio_num_t)PIN, mode); }
@@ -239,7 +239,7 @@ namespace lgfx
 
   template<>
   struct TPin<-1> : public ESP32NOPIN {};
-
+//*/
 //----------------------------------------------------------------------------
   struct FileWrapper : public DataWrapper {
     FileWrapper() : DataWrapper() { need_transaction = true; }
