@@ -201,11 +201,8 @@ _sercom = SERCOM7;
       EPortType port = g_APinDescription[spi_dc].ulPort;
       uint32_t pin = g_APinDescription[spi_dc].ulPin;
       _mask_reg_dc = (1ul << pin);
-      _port_reg_dc = &PORT->Group[port];
-      //_gpio_reg_dc_h = get_gpio_hi_reg(spi_dc);
-      //_gpio_reg_dc_l = get_gpio_lo_reg(spi_dc);
-      //_mask_reg_dc = (spi_dc < 0) ? 0 : (1 << (spi_dc & 31));
-      _port_reg_dc->OUTSET.reg = _mask_reg_dc;
+      _gpio_reg_dc_h = &PORT->Group[port].OUTSET.reg;
+      _gpio_reg_dc_l = &PORT->Group[port].OUTCLR.reg;
       pinMode(spi_dc, OUTPUT);
 
       cs_h();
@@ -249,6 +246,7 @@ _sercom = SERCOM7;
     }
 
     void begin_transaction(void) {
+      _sercom->SPI.BAUD.reg = 0;
 /*
       int cpha = _panel->spi_mode & 1;
       int cpol = (_panel->spi_mode & 2) >> 1;
@@ -342,11 +340,11 @@ _sercom = SERCOM7;
     void drawPixel_impl(int32_t x, int32_t y) override
     {
       if (_begun_tr) {
-        if (_fill_mode) {
-          _fill_mode = false;
-          wait_spi();
-          set_clock_write();
-        }
+//        if (_fill_mode) {
+//          _fill_mode = false;
+//          wait_spi();
+//          set_clock_write();
+//        }
         set_window(x, y, x, y);
         write_cmd(_cmd_ramwr);
         write_data(_color.raw, _write_conv.bits);
@@ -362,11 +360,11 @@ _sercom = SERCOM7;
 
     void writeFillRect_impl(int32_t x, int32_t y, int32_t w, int32_t h) override
     {
-      if (_fill_mode) {
-        _fill_mode = false;
-        wait_spi();
-        set_clock_write();
-      }
+//      if (_fill_mode) {
+//        _fill_mode = false;
+//        wait_spi();
+//        set_clock_write();
+//      }
       set_window(x, y, x+w-1, y+h-1);
       write_cmd(_cmd_ramwr);
       push_block(w*h, _clkdiv_write != _clkdiv_fill);
@@ -382,23 +380,23 @@ _sercom = SERCOM7;
 //    do { write_data(_color.raw, _write_conv.bits); } while (--length);
       int bytes = _write_conv.bytes;
       uint32_t data = _color.raw;
-      auto *reg = &_sercom->SPI.DATA;
+      auto *bit = &_sercom->SPI.DATA.bit;
       int i = 0;
       dc_h();
-      reg->bit.DATA = data;
-      while (++i < bytes) {
+      bit->DATA = data;
+      while (++i != bytes) {
         data >>= 8;
         wait_spi();
-        reg->bit.DATA = data;
+        bit->DATA = data;
       }
       while (--length) {
         int i = 0;
         data = _color.raw;
         do {
           wait_spi();
-          reg->bit.DATA = data;
+          bit->DATA = data;
           data >>= 8;
-        } while (++i < bytes);
+        } while (++i != bytes);
       };
 
 /*
@@ -498,11 +496,11 @@ _sercom = SERCOM7;
 
     void write_cmd(uint_fast8_t cmd)
     {
-      auto *reg = &_sercom->SPI.DATA;
+      auto *bit = &_sercom->SPI.DATA.bit;
 //      auto *intflag = &_sercom->SPI.INTFLAG;
 //      while (intflag->bit.TXC == 0); // Waiting Complete Reception
       dc_l();
-      reg->bit.DATA = cmd; // Writing data into Data register
+      bit->DATA = cmd; // Writing data into Data register
 /*
       if (_spi_dlen == 16) { cmd <<= 8; }
       auto spi_w0_reg        = reg(SPI_W0_REG(_spi_port));
@@ -516,14 +514,14 @@ _sercom = SERCOM7;
 
     void write_data(uint32_t data, uint32_t bit_length)
     {
-      auto *reg = &_sercom->SPI.DATA;
+      auto *bit = &_sercom->SPI.DATA.bit;
       dc_h();
-      reg->bit.DATA = data;
+      bit->DATA = data;
       while (bit_length > 8) {
         bit_length -= 8;
         data >>= 8;
         wait_spi();
-        reg->bit.DATA = data;
+        bit->DATA = data;
 //        _sercom->SPI.DATA.bit.DATA = data; // Writing data into Data register
       };
 /*
@@ -995,15 +993,15 @@ _sercom = SERCOM7;
 
     __attribute__ ((always_inline)) inline void dc_h(void) {
       auto mask_reg_dc = _mask_reg_dc;
-      auto *outset = &_port_reg_dc->OUTSET;
+      auto gpio_reg_dc_h = _gpio_reg_dc_h;
       wait_spi();
-      outset->reg = mask_reg_dc;
+      *gpio_reg_dc_h = mask_reg_dc;
     }
     __attribute__ ((always_inline)) inline void dc_l(void) {
       auto mask_reg_dc = _mask_reg_dc;
-      auto *outclr = &_port_reg_dc->OUTCLR;
+      auto gpio_reg_dc_l = _gpio_reg_dc_l;
       wait_spi();
-      outclr->reg = mask_reg_dc;
+      *gpio_reg_dc_l = mask_reg_dc;
     }
 
     void cs_h(void) {
@@ -1051,7 +1049,7 @@ _sercom = SERCOM7;
     bool _dma_flip = false;
     bool _fill_mode;
     uint32_t _mask_reg_dc;
-    volatile PortGroup* _port_reg_dc;
+    volatile uint32_t* _gpio_reg_dc_h;
     volatile uint32_t* _gpio_reg_dc_l;
     static uint32_t _regbuf[8];
 //    static lldesc_t* _dmadesc;
