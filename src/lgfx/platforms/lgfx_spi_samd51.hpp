@@ -513,7 +513,7 @@ SercomSpiCharSize charSize = SPI_CHAR_SIZE_8_BITS;
 
     void push_block(int32_t length, bool fillclock = false)
     {
-      auto *bit = &_sercom->SPI.DATA.bit;
+      auto *reg = &_sercom->SPI.DATA.reg;
       uint32_t data = _color.raw;
       int bytes = _write_conv.bytes;
       if (bytes == 2 && length > 1) {
@@ -521,7 +521,7 @@ SercomSpiCharSize charSize = SPI_CHAR_SIZE_8_BITS;
           --length;
           dc_h();
           _sercom->SPI.LENGTH.reg = 2 | 256;
-          bit->DATA = data;
+          *reg = data;
           if (!length) return;
         }
         data |= _color.raw << 16;
@@ -530,74 +530,11 @@ SercomSpiCharSize charSize = SPI_CHAR_SIZE_8_BITS;
       }
       dc_h();
       _sercom->SPI.LENGTH.reg = bytes|256;
-      bit->DATA = data;
+      *reg = data;
       while (--length) {
         wait_spi();
-        bit->DATA = data;
+        *reg = data;
       };
-
-/*
-      if (length == 1) { write_data(_color.raw, _write_conv.bits); return; }
-
-      // make 12Bytes data.
-      auto bytes = _write_conv.bytes;
-      if (bytes == 2) {
-        _regbuf[0] = _color.raw | _color.raw << 16;
-        memcpy(&_regbuf[1], _regbuf, 4);
-        memcpy(&_regbuf[2], _regbuf, 4);
-      } else { // bytes == 3
-        uint8_t* bufs = (uint8_t*)_regbuf;
-        bufs[0] = bufs[3] = bufs[6] = bufs[ 9] = _color.raw0;
-        bufs[1] = bufs[4] = bufs[7] = bufs[10] = _color.raw1;
-        bufs[2] = bufs[5] = bufs[8] = bufs[11] = _color.raw2;
-      }
-
-      length *= _write_conv.bits;          // convert to bitlength.
-      uint32_t len = std::min(96, length); // 1st send length = max 12Byte (96bit). 
-      auto spi_w0_reg = reg(SPI_W0_REG(_spi_port));
-      dc_h();
-      if (fillclock) {
-        _fill_mode = true;
-        set_clock_fill();  // fillmode clockup
-      }
-      set_write_len(len);
-
-      // copy to SPI buffer register
-      memcpy((void*)spi_w0_reg, _regbuf, 12);
-
-      exec_spi();   // 1st send.
-      if (0 == (length -= len)) return;
-
-      // make 28Byte data from 12Byte data.
-      memcpy((void*)&_regbuf[3], _regbuf, 12);
-      memcpy((void*)&_regbuf[6], _regbuf, 4);
-      // copy to SPI buffer register
-      memcpy((void*)&spi_w0_reg[3], _regbuf, 24);
-      memcpy((void*)&spi_w0_reg[9], _regbuf, 28);
-
-      // limit = 64Byte / depth_bytes;
-      // When 3Byte color, 504 bits out of 512bit buffer are used.
-      // When 2Byte color, it uses exactly 512 bytes. but, it behaves like a ring buffer, can specify a larger size.
-      const uint32_t limit = (bytes == 3) ? 504 : (1 << 11);
-
-      len = (bytes == 3)           // 2nd send length = Surplus of buffer size.
-          ? (length % limit)
-          : (length & (limit - 1));
-      if (len) {
-        wait_spi();
-        set_write_len(len);
-        exec_spi();                // 2nd send.
-        if (0 == (length -= len)) return;
-      }
-      wait_spi();
-      set_write_len(limit);
-      exec_spi();
-      while (length -= limit) {
-        taskYIELD();
-        wait_spi();
-        exec_spi();
-      }
-//*/
     }
 
     bool commandList(const uint8_t *addr)
@@ -772,17 +709,18 @@ SercomSpiCharSize charSize = SPI_CHAR_SIZE_8_BITS;
 
     void pushImage_impl(int32_t x, int32_t y, int32_t w, int32_t h, pixelcopy_t* param, bool use_dma) override
     {
-/*
       auto bytes = _write_conv.bytes;
       auto src_x = param->src_x;
       auto fp_copy = param->fp_copy;
 
       int32_t xr = (x + w) - 1;
+
       if (param->transp == ~0) {
         if (param->no_convert) {
           setWindow_impl(x, y, xr, y + h - 1);
           uint32_t i = (src_x + param->src_y * param->src_width) * bytes;
           auto src = &((const uint8_t*)param->src_data)[i];
+/*
           if (_dma_channel && use_dma) {
             if (param->src_width == w) {
               _setup_dma_desc_links(src, w * h * bytes);
@@ -805,7 +743,9 @@ SercomSpiCharSize charSize = SPI_CHAR_SIZE_8_BITS;
             } else {
               write_bytes(src, len, false);
             }
-          } else {
+          } else
+*/
+          {
             auto add = param->src_width * bytes;
             do {
               write_bytes(src, w * bytes, use_dma);
@@ -813,7 +753,8 @@ SercomSpiCharSize charSize = SPI_CHAR_SIZE_8_BITS;
             } while (--h);
           }
         } else
-        if (_dma_channel && use_dma) {
+//        if (_dma_channel && use_dma)
+        {
           auto buf = get_dmabuffer(w * bytes);
           fp_copy(buf, 0, w, param);
           setWindow_impl(x, y, xr, y + h - 1);
@@ -825,6 +766,7 @@ SercomSpiCharSize charSize = SPI_CHAR_SIZE_8_BITS;
             fp_copy(buf, 0, w, param);
             write_bytes(buf, w * bytes, use_dma);
           }
+/*
         } else {
           setWindow_impl(x, y, xr, y + h - 1);
           do {
@@ -832,6 +774,7 @@ SercomSpiCharSize charSize = SPI_CHAR_SIZE_8_BITS;
             param->src_x = src_x;
             param->src_y++;
           } while (--h);
+//*/
         }
       } else {
         auto fp_skip = param->fp_skip;
@@ -901,6 +844,23 @@ SercomSpiCharSize charSize = SPI_CHAR_SIZE_8_BITS;
 
     void write_bytes(const uint8_t* data, int32_t length, bool use_dma = false)
     {
+      auto *reg = &_sercom->SPI.DATA.reg;
+      int32_t idx = length & 0x03;
+      if (idx) {
+        dc_h();
+        _sercom->SPI.LENGTH.reg = (idx) | 256;
+        *reg = *(uint32_t*)data;
+        length -= idx;
+        if (!length) return;
+      }
+      dc_h();
+      _sercom->SPI.LENGTH.reg = 4|256;
+      *reg = *(uint32_t*)&data[idx];
+      while (length != (idx += 4)) {
+        wait_spi();
+        *reg = *(uint32_t*)&data[idx];
+      };
+
 /*
       if (length <= 64) {
         auto spi_w0_reg = reg(SPI_W0_REG(_spi_port));
@@ -1096,9 +1056,8 @@ SercomSpiCharSize charSize = SPI_CHAR_SIZE_8_BITS;
       uint8_t* buffer = nullptr;
       uint32_t length = 0;
       void free(void) {
-/*
         if (buffer) {
-          heap_caps_free(buffer);
+          heap_free(buffer);
           buffer = nullptr;
           length = 0;
         }
@@ -1108,12 +1067,11 @@ SercomSpiCharSize charSize = SPI_CHAR_SIZE_8_BITS;
 
     uint8_t* get_dmabuffer(uint32_t length)
     {
-/*
       _dma_flip = !_dma_flip;
       length = (length + 3) & ~3;
       if (_dmabufs[_dma_flip].length < length) {
         _dmabufs[_dma_flip].free();
-        _dmabufs[_dma_flip].buffer = (uint8_t*)heap_caps_malloc(length, MALLOC_CAP_DMA);
+        _dmabufs[_dma_flip].buffer = (uint8_t*)heap_alloc_dma(length);
         _dmabufs[_dma_flip].length = _dmabufs[_dma_flip].buffer ? length : 0;
       }
       return _dmabufs[_dma_flip].buffer;
