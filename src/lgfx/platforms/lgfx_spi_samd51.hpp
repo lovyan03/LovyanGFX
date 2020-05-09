@@ -40,9 +40,40 @@ namespace lgfx
   MEMBER_DETECTOR(dma_channel, get_dma_channel, get_dma_channel_impl, int)
   #undef MEMBER_DETECTOR
 
+
+static const struct {
+  Sercom   *sercomPtr;
+  uint8_t   id_core;
+  uint8_t   id_slow;
+  IRQn_Type irq[4];
+} sercomData[] = {
+  { SERCOM0, SERCOM0_GCLK_ID_CORE, SERCOM0_GCLK_ID_SLOW,
+    SERCOM0_0_IRQn, SERCOM0_1_IRQn, SERCOM0_2_IRQn, SERCOM0_3_IRQn },
+  { SERCOM1, SERCOM1_GCLK_ID_CORE, SERCOM1_GCLK_ID_SLOW,
+    SERCOM1_0_IRQn, SERCOM1_1_IRQn, SERCOM1_2_IRQn, SERCOM1_3_IRQn },
+  { SERCOM2, SERCOM2_GCLK_ID_CORE, SERCOM2_GCLK_ID_SLOW,
+    SERCOM2_0_IRQn, SERCOM2_1_IRQn, SERCOM2_2_IRQn, SERCOM2_3_IRQn },
+  { SERCOM3, SERCOM3_GCLK_ID_CORE, SERCOM3_GCLK_ID_SLOW,
+    SERCOM3_0_IRQn, SERCOM3_1_IRQn, SERCOM3_2_IRQn, SERCOM3_3_IRQn },
+  { SERCOM4, SERCOM4_GCLK_ID_CORE, SERCOM4_GCLK_ID_SLOW,
+    SERCOM4_0_IRQn, SERCOM4_1_IRQn, SERCOM4_2_IRQn, SERCOM4_3_IRQn },
+  { SERCOM5, SERCOM5_GCLK_ID_CORE, SERCOM5_GCLK_ID_SLOW,
+    SERCOM5_0_IRQn, SERCOM5_1_IRQn, SERCOM5_2_IRQn, SERCOM5_3_IRQn },
+#if defined(SERCOM6)
+  { SERCOM6, SERCOM6_GCLK_ID_CORE, SERCOM6_GCLK_ID_SLOW,
+    SERCOM6_0_IRQn, SERCOM6_1_IRQn, SERCOM6_2_IRQn, SERCOM6_3_IRQn },
+#endif
+#if defined(SERCOM7)
+  { SERCOM7, SERCOM7_GCLK_ID_CORE, SERCOM7_GCLK_ID_SLOW,
+    SERCOM7_0_IRQn, SERCOM7_1_IRQn, SERCOM7_2_IRQn, SERCOM7_3_IRQn },
+#endif
+};
+
+
   template <class CFG>
   class LGFX_SPI : public LovyanGFX
   {
+
   public:
 
     virtual ~LGFX_SPI() {
@@ -119,36 +150,136 @@ _sercom = SERCOM7;
       return read_command(_panel->getCmdRddid(), _panel->len_dummy_read_rddid, 32);
     }
 
+
+uint32_t freqRef; // Frequency corresponding to clockSource
+
+void setClockSource(int8_t idx, SercomClockSource src, bool core) {
+
+  if(src == SERCOM_CLOCK_SOURCE_NO_CHANGE) return;
+
+  uint8_t clk_id = core ? sercomData[idx].id_core : sercomData[idx].id_slow;
+
+  GCLK->PCHCTRL[clk_id].bit.CHEN = 0;     // Disable timer
+  while(GCLK->PCHCTRL[clk_id].bit.CHEN);  // Wait for disable
+
+//  if(core) clockSource = src; // Save SercomClockSource value
+
+  // From cores/arduino/startup.c:
+  // GCLK0 = F_CPU
+  // GCLK1 = 48 MHz
+  // GCLK2 = 100 MHz
+  // GCLK3 = XOSC32K
+  // GCLK4 = 12 MHz
+  if(src == SERCOM_CLOCK_SOURCE_FCPU) {
+    GCLK->PCHCTRL[clk_id].reg =
+      GCLK_PCHCTRL_GEN_GCLK0_Val | (1 << GCLK_PCHCTRL_CHEN_Pos);
+    if(core) freqRef = F_CPU; // Save clock frequency value
+  } else if(src == SERCOM_CLOCK_SOURCE_48M) {
+    GCLK->PCHCTRL[clk_id].reg =
+      GCLK_PCHCTRL_GEN_GCLK1_Val | (1 << GCLK_PCHCTRL_CHEN_Pos);
+    if(core) freqRef = 48000000;
+  } else if(src == SERCOM_CLOCK_SOURCE_100M) {
+    GCLK->PCHCTRL[clk_id].reg =
+      GCLK_PCHCTRL_GEN_GCLK2_Val | (1 << GCLK_PCHCTRL_CHEN_Pos);
+    if(core) freqRef = 100000000;
+  } else if(src == SERCOM_CLOCK_SOURCE_32K) {
+    GCLK->PCHCTRL[clk_id].reg =
+      GCLK_PCHCTRL_GEN_GCLK3_Val | (1 << GCLK_PCHCTRL_CHEN_Pos);
+    if(core) freqRef = 32768;
+  } else if(src == SERCOM_CLOCK_SOURCE_12M) {
+    GCLK->PCHCTRL[clk_id].reg =
+      GCLK_PCHCTRL_GEN_GCLK4_Val | (1 << GCLK_PCHCTRL_CHEN_Pos);
+    if(core) freqRef = 12000000;
+  }
+
+  while(!GCLK->PCHCTRL[clk_id].bit.CHEN); // Wait for clock enable
+}
+
+void resetSPI()
+{
+  //Setting the Software Reset bit to 1
+  _sercom->SPI.CTRLA.bit.SWRST = 1;
+
+  //Wait both bits Software Reset from CTRLA and SYNCBUSY are equal to 0
+  while(_sercom->SPI.CTRLA.bit.SWRST || _sercom->SPI.SYNCBUSY.bit.SWRST);
+}
+
+void enableSPI()
+{
+  //Setting the enable bit to 1
+  _sercom->SPI.CTRLA.bit.ENABLE = 1;
+
+  while(_sercom->SPI.SYNCBUSY.bit.ENABLE)
+  {
+    //Waiting then enable bit from SYNCBUSY is equal to 0;
+  }
+}
+
+void disableSPI()
+{
+  while(_sercom->SPI.SYNCBUSY.bit.ENABLE)
+  {
+    //Waiting then enable bit from SYNCBUSY is equal to 0;
+  }
+
+  //Setting the enable bit to 0
+  _sercom->SPI.CTRLA.bit.ENABLE = 0;
+}
     void initBus(void)
     {
       pinPeripheral(_spi_miso, g_APinDescription[_spi_miso].ulPinType);
       pinPeripheral(_spi_sclk, g_APinDescription[_spi_sclk].ulPinType);
       pinPeripheral(_spi_mosi, g_APinDescription[_spi_mosi].ulPinType);
 
-      while(_sercom->SPI.SYNCBUSY.bit.ENABLE);
-      _sercom->SPI.CTRLA.bit.ENABLE = 0;
 
+      disableSPI();
 
-      _sercom->SPI.CTRLA.bit.SWRST = 1;
-      while(_sercom->SPI.CTRLA.bit.SWRST || _sercom->SPI.SYNCBUSY.bit.SWRST);
+//    initSPI(_padTx, _padRx, SPI_CHAR_SIZE_8_BITS, settings.bitOrder);
+      resetSPI();
 
-      uint8_t clk_id = SERCOM7_GCLK_ID_CORE;
-      GCLK->PCHCTRL[clk_id].reg = GCLK_PCHCTRL_GEN_GCLK0_Val | (1 << GCLK_PCHCTRL_CHEN_Pos);
+//      initClockNVIC();
+  int8_t idx = CFG::sercom_index;
+  for(uint8_t i=0; i<4; i++) {
+    NVIC_ClearPendingIRQ(sercomData[idx].irq[i]);
+    NVIC_SetPriority(sercomData[idx].irq[i], SERCOM_NVIC_PRIORITY);
+    NVIC_EnableIRQ(sercomData[idx].irq[i]);
+  }
+
+  // SPI DMA speed is dictated by the "slow clock" (I think...maybe) so
+  // BOTH are set to the same clock source (clk_slow isn't sourced from
+  // XOSC32K as in prior versions of SAMD core).
+  // This might have power implications for sleep code.
+SercomClockSource clockSource;
+  clockSource = SERCOM_CLOCK_SOURCE_FCPU;
+//  clockSource = SERCOM_CLOCK_SOURCE_48M;
+//  clockSource = SERCOM_CLOCK_SOURCE_100M;
+
+  setClockSource(idx, clockSource, true);  // true  = core clock
+  setClockSource(idx, clockSource, false); // false = slow clock
+  setClockSource(idx, clockSource, true);  // true  = core clock
+
+SercomSpiTXPad mosi = PAD_SPI3_TX;
+SercomRXPad    miso = PAD_SPI3_RX;
+SercomDataOrder dataOrder = MSB_FIRST;
+SercomSpiCharSize charSize = SPI_CHAR_SIZE_8_BITS;
 
       _sercom->SPI.CTRLA.reg = SERCOM_SPI_CTRLA_MODE(0x3)  |  // master mode
-                                   SERCOM_SPI_CTRLA_DOPO(SPI_PAD_3_SCK_1) |
-                                   SERCOM_SPI_CTRLA_DIPO(SERCOM_RX_PAD_2) |
-                                   SercomDataOrder::MSB_FIRST << SERCOM_SPI_CTRLA_DORD_Pos;
+                              SERCOM_SPI_CTRLA_DOPO(mosi) |
+                              SERCOM_SPI_CTRLA_DIPO(miso) |
+                              dataOrder << SERCOM_SPI_CTRLA_DORD_Pos;
 
       //Setting the CTRLB register
-      _sercom->SPI.CTRLB.reg = SERCOM_SPI_CTRLB_CHSIZE(SPI_CHAR_SIZE_8_BITS) |
-                                   SERCOM_SPI_CTRLB_RXEN; //Active the SPI receiver.
+      _sercom->SPI.CTRLB.reg = SERCOM_SPI_CTRLB_CHSIZE(charSize) |
+                              SERCOM_SPI_CTRLB_RXEN; //Active the SPI receiver.
+
+      _sercom->SPI.BAUD.reg = 1;
 
       while( _sercom->SPI.SYNCBUSY.bit.CTRLB == 1 );
 
-      _sercom->SPI.CTRLA.bit.ENABLE = 1;
-      while(_sercom->SPI.SYNCBUSY.bit.ENABLE);
 
+      enableSPI();
+
+_sercom->SPI.DATA.bit.DATA = 0;
     }
 
     virtual void initPanel(void)
@@ -246,7 +377,10 @@ _sercom = SERCOM7;
     }
 
     void begin_transaction(void) {
-      _sercom->SPI.BAUD.reg = 0;
+//      _sercom->SPI.BAUD.reg = 5;
+
+//      initSPIClock(settings.dataMode, settings.clockFreq);
+
 /*
       int cpha = _panel->spi_mode & 1;
       int cpol = (_panel->spi_mode & 2) >> 1;

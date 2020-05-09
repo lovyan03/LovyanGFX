@@ -122,7 +122,7 @@ namespace lgfx
     uint8_t getCmdSlpin(void) const { return cmd_slpin; }
     uint8_t getCmdSlpout(void)const { return cmd_slpout; }
 
-    static uint32_t getWindowAddr32(uint_fast16_t H, uint_fast16_t L) { return (((uint8_t)H)<<8 | (H)>>8) | (((L)<<8 | (L)>>8)<<16 ); }
+    static uint32_t getWindowAddr32(uint_fast16_t H, uint_fast16_t L) { return (((uint8_t)H)<<8 | (H)>>8) | ((uint32_t)((L)<<8 | (L)>>8))<<16; }
     static uint32_t getWindowAddr16(uint_fast16_t H, uint_fast16_t L) { return H | L<<8; }
 
   protected:
