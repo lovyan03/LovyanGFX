@@ -32,6 +32,7 @@ namespace lgfx
   , utf8_switch  = 2
   };
 
+/*
   // deprecated array.
   static PROGMEM const IFont* fontdata [] = {
     &fonts::Font0,  // GLCD font (Font 0)
@@ -44,6 +45,7 @@ namespace lgfx
     &fonts::Font7,
     &fonts::Font8,
   };
+//*/
 
 //----------------------------------------------------------------------------
 

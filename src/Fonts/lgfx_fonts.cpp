@@ -4,7 +4,11 @@
 #include <stddef.h>
 
 #ifdef ARDUINO
-#include <pgmspace.h>
+ #ifdef ESP_PLATFORM
+  #include <pgmspace.h>
+ #else
+  #include <avr/pgmspace.h>
+ #endif
 #endif
 
 #ifndef pgm_read_byte
@@ -41,65 +45,69 @@ namespace lgfx {
     metrics->x_advance = metrics->width = pgm_read_byte( (uniCode < 0x0100) ? &halfwidth : &width );
     return true;
   }
+}
 
-  bool GFXfont::updateFontMetric(FontMetrics *metrics, uint16_t uniCode) const {
-    auto glyph = getGlyph(uniCode);
-    if (!glyph) return false;
-    metrics->x_offset  = (int8_t)pgm_read_byte(&glyph->xOffset);
-    metrics->width     = pgm_read_byte(&glyph->width);
-    metrics->x_advance = pgm_read_byte(&glyph->xAdvance);
-    return true;
-  }
+//----------------------------------------------------------------------------
 
-  GFXglyph* GFXfont::getGlyph(uint16_t uniCode) const {
-    if (uniCode > pgm_read_word(&last )
-    ||  uniCode < pgm_read_word(&first)) return nullptr;
-    uint16_t custom_range_num = pgm_read_word(&range_num);
-    if (custom_range_num == 0) {
-      uniCode -= pgm_read_word(&first);
-      return &(((GFXglyph *)pgm_read_dword(&glyph))[uniCode]);
-    }
-    auto range_pst = (EncodeRange*)pgm_read_dword(&range);
-    size_t i = 0;
-    while ((uniCode > pgm_read_word(&range_pst[i].end)) 
-        || (uniCode < pgm_read_word(&range_pst[i].start))) {
-      if (++i == custom_range_num) return nullptr;
-    }
-    uniCode -= pgm_read_word(&range_pst[i].start) - pgm_read_word(&range_pst[i].base);
+bool GFXfont::updateFontMetric(lgfx::FontMetrics *metrics, uint16_t uniCode) const {
+  auto glyph = getGlyph(uniCode);
+  if (!glyph) return false;
+  metrics->x_offset  = (int8_t)pgm_read_byte(&glyph->xOffset);
+  metrics->width     = pgm_read_byte(&glyph->width);
+  metrics->x_advance = pgm_read_byte(&glyph->xAdvance);
+  return true;
+}
+
+GFXglyph* GFXfont::getGlyph(uint16_t uniCode) const {
+  if (uniCode > pgm_read_word(&last )
+  ||  uniCode < pgm_read_word(&first)) return nullptr;
+  uint16_t custom_range_num = pgm_read_word(&range_num);
+  if (custom_range_num == 0) {
+    uniCode -= pgm_read_word(&first);
     return &(((GFXglyph *)pgm_read_dword(&glyph))[uniCode]);
   }
-
-  void GFXfont::getDefaultMetric(FontMetrics *metrics) const {
-    int_fast8_t glyph_ab = 0;   // glyph delta Y (height) above baseline
-    int_fast8_t glyph_bb = 0;   // glyph delta Y (height) below baseline
-    size_t numChars = pgm_read_word(&last) - pgm_read_word(&first);
-
-    size_t custom_range_num = pgm_read_word(&range_num);
-    if (custom_range_num != 0) {
-      EncodeRange *range_pst = (EncodeRange *)pgm_read_dword(&range);
-      size_t i = 0;
-      numChars = custom_range_num;
-      do {
-        numChars += pgm_read_word(&range_pst[i].end) - pgm_read_word(&range_pst[i].start);
-      } while (++i < custom_range_num);
-    }
-
-    // Find the biggest above and below baseline offsets
-    for (size_t c = 0; c < numChars; c++)
-    {
-      GFXglyph *glyph1 = &(((GFXglyph *)pgm_read_dword(&glyph))[c]);
-      int8_t ab = -pgm_read_byte(&glyph1->yOffset);
-      if (ab > glyph_ab) glyph_ab = ab;
-      int8_t bb = pgm_read_byte(&glyph1->height) - ab;
-      if (bb > glyph_bb) glyph_bb = bb;
-    }
-
-    metrics->baseline = glyph_ab;
-    metrics->y_offset = - glyph_ab;
-    metrics->height   = glyph_bb + glyph_ab;
-    metrics->y_advance = (uint8_t)pgm_read_byte(&yAdvance);
+  auto range_pst = (EncodeRange*)pgm_read_dword(&range);
+  size_t i = 0;
+  while ((uniCode > pgm_read_word(&range_pst[i].end)) 
+      || (uniCode < pgm_read_word(&range_pst[i].start))) {
+    if (++i == custom_range_num) return nullptr;
   }
+  uniCode -= pgm_read_word(&range_pst[i].start) - pgm_read_word(&range_pst[i].base);
+  return &(((GFXglyph *)pgm_read_dword(&glyph))[uniCode]);
 }
+
+void GFXfont::getDefaultMetric(lgfx::FontMetrics *metrics) const {
+  int_fast8_t glyph_ab = 0;   // glyph delta Y (height) above baseline
+  int_fast8_t glyph_bb = 0;   // glyph delta Y (height) below baseline
+  size_t numChars = pgm_read_word(&last) - pgm_read_word(&first);
+
+  size_t custom_range_num = pgm_read_word(&range_num);
+  if (custom_range_num != 0) {
+    EncodeRange *range_pst = (EncodeRange *)pgm_read_dword(&range);
+    size_t i = 0;
+    numChars = custom_range_num;
+    do {
+      numChars += pgm_read_word(&range_pst[i].end) - pgm_read_word(&range_pst[i].start);
+    } while (++i < custom_range_num);
+  }
+
+  // Find the biggest above and below baseline offsets
+  for (size_t c = 0; c < numChars; c++)
+  {
+    GFXglyph *glyph1 = &(((GFXglyph *)pgm_read_dword(&glyph))[c]);
+    int8_t ab = -pgm_read_byte(&glyph1->yOffset);
+    if (ab > glyph_ab) glyph_ab = ab;
+    int8_t bb = pgm_read_byte(&glyph1->height) - ab;
+    if (bb > glyph_bb) glyph_bb = bb;
+  }
+
+  metrics->baseline = glyph_ab;
+  metrics->y_offset = - glyph_ab;
+  metrics->height   = glyph_bb + glyph_ab;
+  metrics->y_advance = (uint8_t)pgm_read_byte(&yAdvance);
+}
+
+//----------------------------------------------------------------------------
 
 namespace fonts {
   using namespace lgfx;
@@ -190,5 +198,23 @@ namespace fonts {
   const RLEfont  Font6 = { (const uint8_t *)chrtbl_f64, widtbl_f64, 0, chr_hgt_f64, baseline_f64 };
   const RLEfont  Font7 = { (const uint8_t *)chrtbl_f7s, widtbl_f7s, 0, chr_hgt_f7s, baseline_f7s };
   const RLEfont  Font8 = { (const uint8_t *)chrtbl_f72, widtbl_f72, 0, chr_hgt_f72, baseline_f72 };
+}
+
+//----------------------------------------------------------------------------
+
+namespace lgfx
+{
+  // deprecated array.
+  PROGMEM const IFont* fontdata [] = {
+    &fonts::Font0,  // GLCD font (Font 0)
+    &fonts::Font0,  // GLCD font (or GFX font)
+    &fonts::Font2,
+    &fonts::Font0,  // Font 3 current unused
+    &fonts::Font4,
+    &fonts::Font0,  // Font 5 current unused
+    &fonts::Font6,
+    &fonts::Font7,
+    &fonts::Font8,
+  };
 }
 

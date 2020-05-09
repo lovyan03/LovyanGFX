@@ -194,8 +194,7 @@ namespace lgfx {
   typedef Panel_ILI9341 Panel_default;
 
   struct LGFX_Config {
-//    static constexpr spi_host_device_t spi_host = VSPI_HOST;
-//    static constexpr int dma_channel = 1;
+    static constexpr int spi_host = 3;
     static constexpr int spi_mosi = 67;
     static constexpr int spi_miso = 66;
     static constexpr int spi_sclk = 68;

@@ -138,6 +138,9 @@ namespace lgfx
     bool updateFontMetric(FontMetrics *metrics, uint16_t uniCode) const override;
   };
 
+  // deprecated array.
+  extern const IFont* fontdata [];
+}
 //----------------------------------------------------------------------------
 // Adafruit GFX font 
 
@@ -188,7 +191,7 @@ namespace lgfx
 
     bool updateFontMetric(lgfx::FontMetrics *metrics, uint16_t uniCode) const override;
   };
-}
+
 
 //----------------------------------------------------------------------------
 
@@ -208,61 +211,61 @@ namespace fonts {
   extern const lgfx::RLEfont  Font7;
   extern const lgfx::RLEfont  Font8;
 
-  extern const lgfx::GFXfont TomThumb                 ;
-  extern const lgfx::GFXfont FreeMono9pt7b            ;
-  extern const lgfx::GFXfont FreeMono12pt7b           ;
-  extern const lgfx::GFXfont FreeMono18pt7b           ;
-  extern const lgfx::GFXfont FreeMono24pt7b           ;
-  extern const lgfx::GFXfont FreeMonoBold9pt7b        ;
-  extern const lgfx::GFXfont FreeMonoBold12pt7b       ;
-  extern const lgfx::GFXfont FreeMonoBold18pt7b       ;
-  extern const lgfx::GFXfont FreeMonoBold24pt7b       ;
-  extern const lgfx::GFXfont FreeMonoOblique9pt7b     ;
-  extern const lgfx::GFXfont FreeMonoOblique12pt7b    ;
-  extern const lgfx::GFXfont FreeMonoOblique18pt7b    ;
-  extern const lgfx::GFXfont FreeMonoOblique24pt7b    ;
-  extern const lgfx::GFXfont FreeMonoBoldOblique9pt7b ;
-  extern const lgfx::GFXfont FreeMonoBoldOblique12pt7b;
-  extern const lgfx::GFXfont FreeMonoBoldOblique18pt7b;
-  extern const lgfx::GFXfont FreeMonoBoldOblique24pt7b;
-  extern const lgfx::GFXfont FreeSans9pt7b            ;
-  extern const lgfx::GFXfont FreeSans12pt7b           ;
-  extern const lgfx::GFXfont FreeSans18pt7b           ;
-  extern const lgfx::GFXfont FreeSans24pt7b           ;
-  extern const lgfx::GFXfont FreeSansBold9pt7b        ;
-  extern const lgfx::GFXfont FreeSansBold12pt7b       ;
-  extern const lgfx::GFXfont FreeSansBold18pt7b       ;
-  extern const lgfx::GFXfont FreeSansBold24pt7b       ;
-  extern const lgfx::GFXfont FreeSansOblique9pt7b     ;
-  extern const lgfx::GFXfont FreeSansOblique12pt7b    ;
-  extern const lgfx::GFXfont FreeSansOblique18pt7b    ;
-  extern const lgfx::GFXfont FreeSansOblique24pt7b    ;
-  extern const lgfx::GFXfont FreeSansBoldOblique9pt7b ;
-  extern const lgfx::GFXfont FreeSansBoldOblique12pt7b;
-  extern const lgfx::GFXfont FreeSansBoldOblique18pt7b;
-  extern const lgfx::GFXfont FreeSansBoldOblique24pt7b;
-  extern const lgfx::GFXfont FreeSerif9pt7b           ;
-  extern const lgfx::GFXfont FreeSerif12pt7b          ;
-  extern const lgfx::GFXfont FreeSerif18pt7b          ;
-  extern const lgfx::GFXfont FreeSerif24pt7b          ;
-  extern const lgfx::GFXfont FreeSerifItalic9pt7b     ;
-  extern const lgfx::GFXfont FreeSerifItalic12pt7b    ;
-  extern const lgfx::GFXfont FreeSerifItalic18pt7b    ;
-  extern const lgfx::GFXfont FreeSerifItalic24pt7b    ;
-  extern const lgfx::GFXfont FreeSerifBold9pt7b       ;
-  extern const lgfx::GFXfont FreeSerifBold12pt7b      ;
-  extern const lgfx::GFXfont FreeSerifBold18pt7b      ;
-  extern const lgfx::GFXfont FreeSerifBold24pt7b      ;
-  extern const lgfx::GFXfont FreeSerifBoldItalic9pt7b ;
-  extern const lgfx::GFXfont FreeSerifBoldItalic12pt7b;
-  extern const lgfx::GFXfont FreeSerifBoldItalic18pt7b;
-  extern const lgfx::GFXfont FreeSerifBoldItalic24pt7b;
+  extern const GFXfont TomThumb                 ;
+  extern const GFXfont FreeMono9pt7b            ;
+  extern const GFXfont FreeMono12pt7b           ;
+  extern const GFXfont FreeMono18pt7b           ;
+  extern const GFXfont FreeMono24pt7b           ;
+  extern const GFXfont FreeMonoBold9pt7b        ;
+  extern const GFXfont FreeMonoBold12pt7b       ;
+  extern const GFXfont FreeMonoBold18pt7b       ;
+  extern const GFXfont FreeMonoBold24pt7b       ;
+  extern const GFXfont FreeMonoOblique9pt7b     ;
+  extern const GFXfont FreeMonoOblique12pt7b    ;
+  extern const GFXfont FreeMonoOblique18pt7b    ;
+  extern const GFXfont FreeMonoOblique24pt7b    ;
+  extern const GFXfont FreeMonoBoldOblique9pt7b ;
+  extern const GFXfont FreeMonoBoldOblique12pt7b;
+  extern const GFXfont FreeMonoBoldOblique18pt7b;
+  extern const GFXfont FreeMonoBoldOblique24pt7b;
+  extern const GFXfont FreeSans9pt7b            ;
+  extern const GFXfont FreeSans12pt7b           ;
+  extern const GFXfont FreeSans18pt7b           ;
+  extern const GFXfont FreeSans24pt7b           ;
+  extern const GFXfont FreeSansBold9pt7b        ;
+  extern const GFXfont FreeSansBold12pt7b       ;
+  extern const GFXfont FreeSansBold18pt7b       ;
+  extern const GFXfont FreeSansBold24pt7b       ;
+  extern const GFXfont FreeSansOblique9pt7b     ;
+  extern const GFXfont FreeSansOblique12pt7b    ;
+  extern const GFXfont FreeSansOblique18pt7b    ;
+  extern const GFXfont FreeSansOblique24pt7b    ;
+  extern const GFXfont FreeSansBoldOblique9pt7b ;
+  extern const GFXfont FreeSansBoldOblique12pt7b;
+  extern const GFXfont FreeSansBoldOblique18pt7b;
+  extern const GFXfont FreeSansBoldOblique24pt7b;
+  extern const GFXfont FreeSerif9pt7b           ;
+  extern const GFXfont FreeSerif12pt7b          ;
+  extern const GFXfont FreeSerif18pt7b          ;
+  extern const GFXfont FreeSerif24pt7b          ;
+  extern const GFXfont FreeSerifItalic9pt7b     ;
+  extern const GFXfont FreeSerifItalic12pt7b    ;
+  extern const GFXfont FreeSerifItalic18pt7b    ;
+  extern const GFXfont FreeSerifItalic24pt7b    ;
+  extern const GFXfont FreeSerifBold9pt7b       ;
+  extern const GFXfont FreeSerifBold12pt7b      ;
+  extern const GFXfont FreeSerifBold18pt7b      ;
+  extern const GFXfont FreeSerifBold24pt7b      ;
+  extern const GFXfont FreeSerifBoldItalic9pt7b ;
+  extern const GFXfont FreeSerifBoldItalic12pt7b;
+  extern const GFXfont FreeSerifBoldItalic18pt7b;
+  extern const GFXfont FreeSerifBoldItalic24pt7b;
 
-  extern const lgfx::GFXfont Orbitron_Light_24        ;
-  extern const lgfx::GFXfont Orbitron_Light_32        ;
-  extern const lgfx::GFXfont Roboto_Thin_24           ;
-  extern const lgfx::GFXfont Satisfy_24               ;
-  extern const lgfx::GFXfont Yellowtail_32            ;
+  extern const GFXfont Orbitron_Light_24        ;
+  extern const GFXfont Orbitron_Light_32        ;
+  extern const GFXfont Roboto_Thin_24           ;
+  extern const GFXfont Satisfy_24               ;
+  extern const GFXfont Yellowtail_32            ;
 }
 using namespace fonts;
 
