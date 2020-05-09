@@ -272,14 +272,16 @@ SercomSpiCharSize charSize = SPI_CHAR_SIZE_8_BITS;
       _sercom->SPI.CTRLB.reg = SERCOM_SPI_CTRLB_CHSIZE(charSize) |
                               SERCOM_SPI_CTRLB_RXEN; //Active the SPI receiver.
 
-      _sercom->SPI.BAUD.reg = 1;
+      _sercom->SPI.CTRLC.bit.DATA32B = 1;  // 4Byte transfer enable
+
+      _sercom->SPI.BAUD.reg = 0;
 
       while( _sercom->SPI.SYNCBUSY.bit.CTRLB == 1 );
 
 
       enableSPI();
 
-_sercom->SPI.DATA.bit.DATA = 0;
+      _sercom->SPI.DATA.bit.DATA = 0;   // dummy send data
     }
 
     virtual void initPanel(void)
@@ -511,26 +513,27 @@ _sercom->SPI.DATA.bit.DATA = 0;
 
     void push_block(int32_t length, bool fillclock = false)
     {
-//    do { write_data(_color.raw, _write_conv.bits); } while (--length);
-      int bytes = _write_conv.bytes;
-      uint32_t data = _color.raw;
       auto *bit = &_sercom->SPI.DATA.bit;
-      int i = 0;
+      uint32_t data = _color.raw;
+      int bytes = _write_conv.bytes;
+      if (bytes == 2 && length > 1) {
+        if (length & 0x01) {
+          --length;
+          dc_h();
+          _sercom->SPI.LENGTH.reg = 2 | 256;
+          bit->DATA = data;
+          if (!length) return;
+        }
+        data |= _color.raw << 16;
+        length >>= 1;
+        bytes = 4;
+      }
       dc_h();
+      _sercom->SPI.LENGTH.reg = bytes|256;
       bit->DATA = data;
-      while (++i != bytes) {
-        data >>= 8;
+      while (--length) {
         wait_spi();
         bit->DATA = data;
-      }
-      while (--length) {
-        int i = 0;
-        data = _color.raw;
-        do {
-          wait_spi();
-          bit->DATA = data;
-          data >>= 8;
-        } while (++i != bytes);
       };
 
 /*
@@ -630,11 +633,12 @@ _sercom->SPI.DATA.bit.DATA = 0;
 
     void write_cmd(uint_fast8_t cmd)
     {
-      auto *bit = &_sercom->SPI.DATA.bit;
+      auto *reg = &_sercom->SPI.DATA.reg;
 //      auto *intflag = &_sercom->SPI.INTFLAG;
 //      while (intflag->bit.TXC == 0); // Waiting Complete Reception
       dc_l();
-      bit->DATA = cmd; // Writing data into Data register
+      _sercom->SPI.LENGTH.reg = 1|256;
+      *reg = cmd; // Writing data into Data register
 /*
       if (_spi_dlen == 16) { cmd <<= 8; }
       auto spi_w0_reg        = reg(SPI_W0_REG(_spi_port));
@@ -648,14 +652,16 @@ _sercom->SPI.DATA.bit.DATA = 0;
 
     void write_data(uint32_t data, uint32_t bit_length)
     {
-      auto *bit = &_sercom->SPI.DATA.bit;
+      auto *reg = &_sercom->SPI.DATA.reg;
       dc_h();
-      bit->DATA = data;
+      _sercom->SPI.LENGTH.reg = (bit_length>>3)|256;
+      *reg = data;
+/*
       while (bit_length > 8) {
         bit_length -= 8;
         data >>= 8;
         wait_spi();
-        bit->DATA = data;
+        *reg = data;
 //        _sercom->SPI.DATA.bit.DATA = data; // Writing data into Data register
       };
 /*
