@@ -25,6 +25,7 @@ Contributors:
 
 #include <SERCOM.h>
 #include <wiring_private.h>
+#include <malloc.h>
 
 namespace lgfx
 {
@@ -41,33 +42,33 @@ namespace lgfx
   #undef MEMBER_DETECTOR
 
 
-static const struct {
-  Sercom   *sercomPtr;
-  uint8_t   id_core;
-  uint8_t   id_slow;
-  IRQn_Type irq[4];
-} sercomData[] = {
-  { SERCOM0, SERCOM0_GCLK_ID_CORE, SERCOM0_GCLK_ID_SLOW,
-    SERCOM0_0_IRQn, SERCOM0_1_IRQn, SERCOM0_2_IRQn, SERCOM0_3_IRQn },
-  { SERCOM1, SERCOM1_GCLK_ID_CORE, SERCOM1_GCLK_ID_SLOW,
-    SERCOM1_0_IRQn, SERCOM1_1_IRQn, SERCOM1_2_IRQn, SERCOM1_3_IRQn },
-  { SERCOM2, SERCOM2_GCLK_ID_CORE, SERCOM2_GCLK_ID_SLOW,
-    SERCOM2_0_IRQn, SERCOM2_1_IRQn, SERCOM2_2_IRQn, SERCOM2_3_IRQn },
-  { SERCOM3, SERCOM3_GCLK_ID_CORE, SERCOM3_GCLK_ID_SLOW,
-    SERCOM3_0_IRQn, SERCOM3_1_IRQn, SERCOM3_2_IRQn, SERCOM3_3_IRQn },
-  { SERCOM4, SERCOM4_GCLK_ID_CORE, SERCOM4_GCLK_ID_SLOW,
-    SERCOM4_0_IRQn, SERCOM4_1_IRQn, SERCOM4_2_IRQn, SERCOM4_3_IRQn },
-  { SERCOM5, SERCOM5_GCLK_ID_CORE, SERCOM5_GCLK_ID_SLOW,
-    SERCOM5_0_IRQn, SERCOM5_1_IRQn, SERCOM5_2_IRQn, SERCOM5_3_IRQn },
-#if defined(SERCOM6)
-  { SERCOM6, SERCOM6_GCLK_ID_CORE, SERCOM6_GCLK_ID_SLOW,
-    SERCOM6_0_IRQn, SERCOM6_1_IRQn, SERCOM6_2_IRQn, SERCOM6_3_IRQn },
-#endif
-#if defined(SERCOM7)
-  { SERCOM7, SERCOM7_GCLK_ID_CORE, SERCOM7_GCLK_ID_SLOW,
-    SERCOM7_0_IRQn, SERCOM7_1_IRQn, SERCOM7_2_IRQn, SERCOM7_3_IRQn },
-#endif
-};
+  static constexpr struct {
+    Sercom   *sercomPtr;
+    uint8_t   id_core;
+    uint8_t   id_slow;
+    IRQn_Type irq[4];
+  } sercomData[] = {
+    { SERCOM0, SERCOM0_GCLK_ID_CORE, SERCOM0_GCLK_ID_SLOW,
+      SERCOM0_0_IRQn, SERCOM0_1_IRQn, SERCOM0_2_IRQn, SERCOM0_3_IRQn },
+    { SERCOM1, SERCOM1_GCLK_ID_CORE, SERCOM1_GCLK_ID_SLOW,
+      SERCOM1_0_IRQn, SERCOM1_1_IRQn, SERCOM1_2_IRQn, SERCOM1_3_IRQn },
+    { SERCOM2, SERCOM2_GCLK_ID_CORE, SERCOM2_GCLK_ID_SLOW,
+      SERCOM2_0_IRQn, SERCOM2_1_IRQn, SERCOM2_2_IRQn, SERCOM2_3_IRQn },
+    { SERCOM3, SERCOM3_GCLK_ID_CORE, SERCOM3_GCLK_ID_SLOW,
+      SERCOM3_0_IRQn, SERCOM3_1_IRQn, SERCOM3_2_IRQn, SERCOM3_3_IRQn },
+    { SERCOM4, SERCOM4_GCLK_ID_CORE, SERCOM4_GCLK_ID_SLOW,
+      SERCOM4_0_IRQn, SERCOM4_1_IRQn, SERCOM4_2_IRQn, SERCOM4_3_IRQn },
+    { SERCOM5, SERCOM5_GCLK_ID_CORE, SERCOM5_GCLK_ID_SLOW,
+      SERCOM5_0_IRQn, SERCOM5_1_IRQn, SERCOM5_2_IRQn, SERCOM5_3_IRQn },
+  #if defined(SERCOM6)
+    { SERCOM6, SERCOM6_GCLK_ID_CORE, SERCOM6_GCLK_ID_SLOW,
+      SERCOM6_0_IRQn, SERCOM6_1_IRQn, SERCOM6_2_IRQn, SERCOM6_3_IRQn },
+  #endif
+  #if defined(SERCOM7)
+    { SERCOM7, SERCOM7_GCLK_ID_CORE, SERCOM7_GCLK_ID_SLOW,
+      SERCOM7_0_IRQn, SERCOM7_1_IRQn, SERCOM7_2_IRQn, SERCOM7_3_IRQn },
+  #endif
+  };
 
 
   template <class CFG>
@@ -77,6 +78,12 @@ static const struct {
   public:
 
     virtual ~LGFX_SPI() {
+      if ((0 != _dma_channel) && _dmadesc) {
+        heap_free(_dmadesc);
+        _dmadesc = nullptr;
+        _dmadesc_len = 0;
+      }
+      delete_dmabuffer();
     }
 
     LGFX_SPI() : LovyanGFX()
@@ -153,48 +160,6 @@ _sercom = SERCOM7;
 
 uint32_t freqRef; // Frequency corresponding to clockSource
 
-void setClockSource(int8_t idx, SercomClockSource src, bool core) {
-
-  if(src == SERCOM_CLOCK_SOURCE_NO_CHANGE) return;
-
-  uint8_t clk_id = core ? sercomData[idx].id_core : sercomData[idx].id_slow;
-
-  GCLK->PCHCTRL[clk_id].bit.CHEN = 0;     // Disable timer
-  while(GCLK->PCHCTRL[clk_id].bit.CHEN);  // Wait for disable
-
-//  if(core) clockSource = src; // Save SercomClockSource value
-
-  // From cores/arduino/startup.c:
-  // GCLK0 = F_CPU
-  // GCLK1 = 48 MHz
-  // GCLK2 = 100 MHz
-  // GCLK3 = XOSC32K
-  // GCLK4 = 12 MHz
-  if(src == SERCOM_CLOCK_SOURCE_FCPU) {
-    GCLK->PCHCTRL[clk_id].reg =
-      GCLK_PCHCTRL_GEN_GCLK0_Val | (1 << GCLK_PCHCTRL_CHEN_Pos);
-    if(core) freqRef = F_CPU; // Save clock frequency value
-  } else if(src == SERCOM_CLOCK_SOURCE_48M) {
-    GCLK->PCHCTRL[clk_id].reg =
-      GCLK_PCHCTRL_GEN_GCLK1_Val | (1 << GCLK_PCHCTRL_CHEN_Pos);
-    if(core) freqRef = 48000000;
-  } else if(src == SERCOM_CLOCK_SOURCE_100M) {
-    GCLK->PCHCTRL[clk_id].reg =
-      GCLK_PCHCTRL_GEN_GCLK2_Val | (1 << GCLK_PCHCTRL_CHEN_Pos);
-    if(core) freqRef = 100000000;
-  } else if(src == SERCOM_CLOCK_SOURCE_32K) {
-    GCLK->PCHCTRL[clk_id].reg =
-      GCLK_PCHCTRL_GEN_GCLK3_Val | (1 << GCLK_PCHCTRL_CHEN_Pos);
-    if(core) freqRef = 32768;
-  } else if(src == SERCOM_CLOCK_SOURCE_12M) {
-    GCLK->PCHCTRL[clk_id].reg =
-      GCLK_PCHCTRL_GEN_GCLK4_Val | (1 << GCLK_PCHCTRL_CHEN_Pos);
-    if(core) freqRef = 12000000;
-  }
-
-  while(!GCLK->PCHCTRL[clk_id].bit.CHEN); // Wait for clock enable
-}
-
 void resetSPI()
 {
   //Setting the Software Reset bit to 1
@@ -208,80 +173,171 @@ void enableSPI()
 {
   //Setting the enable bit to 1
   _sercom->SPI.CTRLA.bit.ENABLE = 1;
+  _need_wait = false;
 
-  while(_sercom->SPI.SYNCBUSY.bit.ENABLE)
-  {
     //Waiting then enable bit from SYNCBUSY is equal to 0;
-  }
+  while(_sercom->SPI.SYNCBUSY.bit.ENABLE);
 }
 
 void disableSPI()
 {
-  while(_sercom->SPI.SYNCBUSY.bit.ENABLE)
-  {
     //Waiting then enable bit from SYNCBUSY is equal to 0;
-  }
+  while(_sercom->SPI.SYNCBUSY.bit.ENABLE);
 
   //Setting the enable bit to 0
   _sercom->SPI.CTRLA.bit.ENABLE = 0;
 }
+
+
+    void _set_freq(uint32_t freq)
+    {
+      static constexpr uint8_t id_core = sercomData[CFG::sercom_index].id_core;
+      static constexpr uint8_t id_slow = sercomData[CFG::sercom_index].id_slow;
+
+      GCLK->PCHCTRL[id_core].bit.CHEN = 0;     // Disable timer
+      GCLK->PCHCTRL[id_slow].bit.CHEN = 0;     // Disable timer
+
+      freq <<= 1;
+      static constexpr uint32_t srcfreq[] = { F_CPU, 48000000ul, 100000000ul };
+      uint32_t usefreq = 0;
+      int useindex = 0;
+      uint8_t usedivider = 0;
+      for (int i = 0; i < 3; ++i) {
+        uint32_t div = srcfreq[i] / freq;
+        if (div == 0) div = 1;
+        uint32_t tmp = srcfreq[i] / div;
+        if (usefreq > tmp) continue;
+        usefreq = tmp;
+        useindex = i;
+        usedivider = div - 1;
+      }
+
+      auto gclk_reg_value = GCLK_PCHCTRL_GEN_GCLK0_Val;
+      if      (useindex == 1) { gclk_reg_value = GCLK_PCHCTRL_GEN_GCLK1_Val; }
+      else if (useindex == 2) { gclk_reg_value = GCLK_PCHCTRL_GEN_GCLK2_Val; }
+
+      gclk_reg_value |= (1 << GCLK_PCHCTRL_CHEN_Pos);
+
+      while (GCLK->PCHCTRL[id_core].bit.CHEN || GCLK->PCHCTRL[id_slow].bit.CHEN);  // Wait for disable
+
+      GCLK->PCHCTRL[id_core].reg = gclk_reg_value;
+      GCLK->PCHCTRL[id_slow].reg = gclk_reg_value;
+
+      _sercom->SPI.BAUD.reg = usedivider;
+
+      while (!GCLK->PCHCTRL[id_core].bit.CHEN || !GCLK->PCHCTRL[id_slow].bit.CHEN);  // Wait for clock enable
+    }
+
+    uint32_t FreqToClockDiv(uint32_t freq)
+    {
+      uint32_t div = round((float)CFG::sercom_clkfreq / (freq<<1));
+      if (div > 0) --div;
+      return div;
+    }
+
+    void setFreqDiv(uint32_t div)
+    {
+      disableSPI();
+      _sercom->SPI.BAUD.reg = div;
+      _sercom->SPI.BAUD.reg = div;
+      enableSPI();
+    }
+
     void initBus(void)
     {
+      disableSPI();
+
       pinPeripheral(_spi_miso, g_APinDescription[_spi_miso].ulPinType);
       pinPeripheral(_spi_sclk, g_APinDescription[_spi_sclk].ulPinType);
       pinPeripheral(_spi_mosi, g_APinDescription[_spi_mosi].ulPinType);
 
-
-      disableSPI();
-
-//    initSPI(_padTx, _padRx, SPI_CHAR_SIZE_8_BITS, settings.bitOrder);
       resetSPI();
 
-//      initClockNVIC();
-  int8_t idx = CFG::sercom_index;
-  for(uint8_t i=0; i<4; i++) {
-    NVIC_ClearPendingIRQ(sercomData[idx].irq[i]);
-    NVIC_SetPriority(sercomData[idx].irq[i], SERCOM_NVIC_PRIORITY);
-    NVIC_EnableIRQ(sercomData[idx].irq[i]);
-  }
+      int8_t idx = CFG::sercom_index;
+      for(uint8_t i=0; i<4; i++) {
+        NVIC_ClearPendingIRQ(sercomData[idx].irq[i]);
+        NVIC_SetPriority(sercomData[idx].irq[i], SERCOM_NVIC_PRIORITY);
+        NVIC_EnableIRQ(sercomData[idx].irq[i]);
+      }
 
-  // SPI DMA speed is dictated by the "slow clock" (I think...maybe) so
-  // BOTH are set to the same clock source (clk_slow isn't sourced from
-  // XOSC32K as in prior versions of SAMD core).
-  // This might have power implications for sleep code.
-SercomClockSource clockSource;
-  clockSource = SERCOM_CLOCK_SOURCE_FCPU;
-//  clockSource = SERCOM_CLOCK_SOURCE_48M;
-//  clockSource = SERCOM_CLOCK_SOURCE_100M;
-
-  setClockSource(idx, clockSource, true);  // true  = core clock
-  setClockSource(idx, clockSource, false); // false = slow clock
-  setClockSource(idx, clockSource, true);  // true  = core clock
-
-SercomSpiTXPad mosi = PAD_SPI3_TX;
-SercomRXPad    miso = PAD_SPI3_RX;
-SercomDataOrder dataOrder = MSB_FIRST;
-SercomSpiCharSize charSize = SPI_CHAR_SIZE_8_BITS;
-
-      _sercom->SPI.CTRLA.reg = SERCOM_SPI_CTRLA_MODE(0x3)  |  // master mode
-                              SERCOM_SPI_CTRLA_DOPO(mosi) |
-                              SERCOM_SPI_CTRLA_DIPO(miso) |
-                              dataOrder << SERCOM_SPI_CTRLA_DORD_Pos;
-
-      //Setting the CTRLB register
-      _sercom->SPI.CTRLB.reg = SERCOM_SPI_CTRLB_CHSIZE(charSize) |
-                              SERCOM_SPI_CTRLB_RXEN; //Active the SPI receiver.
+#if defined(__SAMD51__)
+  auto mastermode = SERCOM_SPI_CTRLA_MODE(0x3);
+#else
+  auto mastermode = SERCOM_SPI_CTRLA_MODE_SPI_MASTER;
+#endif
+      SercomDataOrder dataOrder = MSB_FIRST;
+      //Setting the CTRLA register
+          _sercom->SPI.CTRLA.reg = mastermode
+                                 | SERCOM_SPI_CTRLA_DOPO(CFG::pad_mosi)
+                                 | SERCOM_SPI_CTRLA_DIPO(CFG::pad_miso)
+                                 | dataOrder << SERCOM_SPI_CTRLA_DORD_Pos;
 
       _sercom->SPI.CTRLC.bit.DATA32B = 1;  // 4Byte transfer enable
 
-      _sercom->SPI.BAUD.reg = 0;
+      SercomSpiCharSize charSize = SPI_CHAR_SIZE_8_BITS;
+      //Setting the CTRLB register
+      _sercom->SPI.CTRLB.reg = SERCOM_SPI_CTRLB_CHSIZE(SPI_CHAR_SIZE_8_BITS)
+                             | SERCOM_SPI_CTRLB_RXEN; //Active the SPI receiver.
 
-      while( _sercom->SPI.SYNCBUSY.bit.CTRLB == 1 );
+//      while( _sercom->SPI.SYNCBUSY.bit.CTRLB == 1 );
 
+      _clkdiv_read  = FreqToClockDiv(_panel->freq_read);
+      _clkdiv_fill  = FreqToClockDiv(_panel->freq_fill);
+      _clkdiv_write = FreqToClockDiv(_panel->freq_write);
+
+//while (!Serial);
+//Serial.printf("F_CPU  %d r\n", F_CPU );
+//Serial.printf("_clkdiv_read  %08x\r\n", _clkdiv_read  );
+//Serial.printf("_clkdiv_fill  %08x\r\n", _clkdiv_fill  );
+//Serial.printf("_clkdiv_write %08x\r\n", _clkdiv_write );
+
+      if (CFG::sercom_clksrc >= 0) {
+        static constexpr uint8_t id_core = sercomData[CFG::sercom_index].id_core;
+        static constexpr uint8_t id_slow = sercomData[CFG::sercom_index].id_slow;
+
+        GCLK->PCHCTRL[id_core].bit.CHEN = 0;     // Disable timer
+        GCLK->PCHCTRL[id_slow].bit.CHEN = 0;     // Disable timer
+
+        uint32_t gclk_reg_value = GCLK_PCHCTRL_CHEN | CFG::sercom_clksrc << GCLK_PCHCTRL_GEN_Pos;
+
+        while (GCLK->PCHCTRL[id_core].bit.CHEN || GCLK->PCHCTRL[id_slow].bit.CHEN);  // Wait for disable
+
+        GCLK->PCHCTRL[id_core].reg = gclk_reg_value;
+        GCLK->PCHCTRL[id_slow].reg = gclk_reg_value;
+
+        while (!GCLK->PCHCTRL[id_core].bit.CHEN || !GCLK->PCHCTRL[id_slow].bit.CHEN);  // Wait for clock enable
+      }
+      _sercom->SPI.BAUD.reg = _clkdiv_write;
+
+      if (_dma_channel) {
+        uint8_t channel = 0;
+        MCLK->AHBMASK.bit.DMAC_     = 1; // Initialize DMA clocks
+        DMAC->CTRL.reg = DMAC_CTRL_DMAENABLE | DMAC_CTRL_LVLEN(0xF);
+
+//        IRQn_Type irqs[] = { DMAC_0_IRQn, DMAC_1_IRQn, DMAC_2_IRQn,
+//                             DMAC_3_IRQn, DMAC_4_IRQn };
+//        for(uint8_t i=0; i<(sizeof irqs / sizeof irqs[0]); i++) {
+//            NVIC_EnableIRQ(irqs[i]);
+//            NVIC_SetPriority(irqs[i], (1<<__NVIC_PRIO_BITS)-1);
+//        }
+
+        DMAC->Channel[channel].CHCTRLA.bit.ENABLE  = 0;
+        DMAC->Channel[channel].CHCTRLA.bit.SWRST   = 1;
+
+        DMAC->SWTRIGCTRL.reg     &= ~(1 << channel);
+
+        DMAC->Channel[channel].CHPRILVL.bit.PRILVL = 0;
+        DMAC->Channel[channel].CHCTRLA.bit.TRIGSRC = 0; // peripheralTrigger;
+        DMAC->Channel[channel].CHCTRLA.bit.TRIGACT = DMAC_CHCTRLA_TRIGACT_TRANSACTION_Val; // triggerAction;
+        DMAC->Channel[channel].CHCTRLA.bit.BURSTLEN = DMAC_CHCTRLA_BURSTLEN_SINGLE_Val; // Single-beat burst length
+
+        DMAC->Channel[channel].CHINTENSET.reg = 0;
+        DMAC->Channel[channel].CHINTENCLR.reg = DMAC_CHINTENCLR_MASK;
+        DMAC->Channel[channel].CHCTRLA.bit.ENABLE = 1;
+
+      }
 
       enableSPI();
-
-      _sercom->SPI.DATA.bit.DATA = 0;   // dummy send data
     }
 
     virtual void initPanel(void)
@@ -379,6 +435,9 @@ SercomSpiCharSize charSize = SPI_CHAR_SIZE_8_BITS;
     }
 
     void begin_transaction(void) {
+      _need_wait = false;
+      _fill_mode = false;
+      set_clock_write();
 //      _sercom->SPI.BAUD.reg = 5;
 
 //      initSPIClock(settings.dataMode, settings.clockFreq);
@@ -395,7 +454,6 @@ SercomSpiCharSize charSize = SPI_CHAR_SIZE_8_BITS;
       _sercom->SPI.BAUD.reg = 4; //calculateBaudrateSynchronous(_panel->freq_write);
 
 /*
-      _fill_mode = false;
       uint32_t apb_freq = getApbFrequency();
       if (_last_apb_freq != apb_freq) {
         _last_apb_freq = apb_freq;
@@ -439,7 +497,7 @@ SercomSpiCharSize charSize = SPI_CHAR_SIZE_8_BITS;
     }
 
     void end_transaction(void) {
-      while (_sercom->SPI.INTFLAG.bit.TXC == 0); // Waiting Complete Reception
+      wait_spi();
       if (_panel->spi_cs < 0) {
         write_cmd(0); // NOP command
       }
@@ -476,11 +534,11 @@ SercomSpiCharSize charSize = SPI_CHAR_SIZE_8_BITS;
     void drawPixel_impl(int32_t x, int32_t y) override
     {
       if (_begun_tr) {
-//        if (_fill_mode) {
-//          _fill_mode = false;
-//          wait_spi();
-//          set_clock_write();
-//        }
+        if (_fill_mode) {
+          _fill_mode = false;
+          wait_spi();
+          set_clock_write();
+        }
         set_window(x, y, x, y);
         write_cmd(_cmd_ramwr);
         write_data(_color.raw, _write_conv.bits);
@@ -496,13 +554,14 @@ SercomSpiCharSize charSize = SPI_CHAR_SIZE_8_BITS;
 
     void writeFillRect_impl(int32_t x, int32_t y, int32_t w, int32_t h) override
     {
-//      if (_fill_mode) {
-//        _fill_mode = false;
-//        wait_spi();
-//        set_clock_write();
-//      }
+      if (_fill_mode) {
+        _fill_mode = false;
+        wait_spi();
+        set_clock_write();
+      }
       set_window(x, y, x+w-1, y+h-1);
       write_cmd(_cmd_ramwr);
+
       push_block(w*h, _clkdiv_write != _clkdiv_fill);
     }
 
@@ -520,7 +579,7 @@ SercomSpiCharSize charSize = SPI_CHAR_SIZE_8_BITS;
         if (length & 0x01) {
           --length;
           dc_h();
-          _sercom->SPI.LENGTH.reg = 2 | 256;
+          _sercom->SPI.LENGTH.reg = 2 | SERCOM_SPI_LENGTH_LENEN;
           *reg = data;
           if (!length) return;
         }
@@ -528,9 +587,11 @@ SercomSpiCharSize charSize = SPI_CHAR_SIZE_8_BITS;
         length >>= 1;
         bytes = 4;
       }
-      dc_h();
-      _sercom->SPI.LENGTH.reg = bytes|256;
+      if (fillclock && 2 <= length) { _fill_mode = true; dc_h(); set_clock_fill(); }
+      else { dc_h(); }
+      _sercom->SPI.LENGTH.reg = bytes | SERCOM_SPI_LENGTH_LENEN;
       *reg = data;
+      _need_wait = true;
       while (--length) {
         wait_spi();
         *reg = data;
@@ -570,45 +631,24 @@ SercomSpiCharSize charSize = SPI_CHAR_SIZE_8_BITS;
 
     void write_cmd(uint_fast8_t cmd)
     {
-      auto *reg = &_sercom->SPI.DATA.reg;
-//      auto *intflag = &_sercom->SPI.INTFLAG;
-//      while (intflag->bit.TXC == 0); // Waiting Complete Reception
-      dc_l();
-      _sercom->SPI.LENGTH.reg = 1|256;
-      *reg = cmd; // Writing data into Data register
-/*
       if (_spi_dlen == 16) { cmd <<= 8; }
-      auto spi_w0_reg        = reg(SPI_W0_REG(_spi_port));
-      auto spi_mosi_dlen_reg = reg(SPI_MOSI_DLEN_REG(_spi_port));
+      auto *datreg = &_sercom->SPI.DATA.reg;
+      auto *lenreg = &_sercom->SPI.LENGTH.reg;
       dc_l();
-      *spi_mosi_dlen_reg = _spi_dlen - 1;
-      *spi_w0_reg = cmd;
-      exec_spi();
-//*/
+      *lenreg = (_spi_dlen>>3) | SERCOM_SPI_LENGTH_LENEN;
+      *datreg = cmd;
+      _need_wait = true;
     }
 
     void write_data(uint32_t data, uint32_t bit_length)
     {
-      auto *reg = &_sercom->SPI.DATA.reg;
+      auto *datreg = &_sercom->SPI.DATA.reg;
+      auto *lenreg = &_sercom->SPI.LENGTH.reg;
+      auto len = (bit_length>>3) | SERCOM_SPI_LENGTH_LENEN;
       dc_h();
-      _sercom->SPI.LENGTH.reg = (bit_length>>3)|256;
-      *reg = data;
-/*
-      while (bit_length > 8) {
-        bit_length -= 8;
-        data >>= 8;
-        wait_spi();
-        *reg = data;
-//        _sercom->SPI.DATA.bit.DATA = data; // Writing data into Data register
-      };
-/*
-      auto spi_w0_reg        = reg(SPI_W0_REG(_spi_port));
-      auto spi_mosi_dlen_reg = reg(SPI_MOSI_DLEN_REG(_spi_port));
-      dc_h();
-      *spi_mosi_dlen_reg = bit_length - 1;
-      *spi_w0_reg = data;
-      exec_spi();
-//*/
+      *lenreg = len;
+      *datreg = data;
+      _need_wait = true;
     }
 
     void set_window(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye)
@@ -753,7 +793,7 @@ SercomSpiCharSize charSize = SPI_CHAR_SIZE_8_BITS;
             } while (--h);
           }
         } else
-//        if (_dma_channel && use_dma)
+        if (_dma_channel && use_dma)
         {
           auto buf = get_dmabuffer(w * bytes);
           fp_copy(buf, 0, w, param);
@@ -766,7 +806,7 @@ SercomSpiCharSize charSize = SPI_CHAR_SIZE_8_BITS;
             fp_copy(buf, 0, w, param);
             write_bytes(buf, w * bytes, use_dma);
           }
-/*
+//*
         } else {
           setWindow_impl(x, y, xr, y + h - 1);
           do {
@@ -802,63 +842,111 @@ SercomSpiCharSize charSize = SPI_CHAR_SIZE_8_BITS;
 
     void push_colors(int32_t length, pixelcopy_t* param)
     {
-/*
       const uint8_t bytes = _write_conv.bytes;
-      const uint32_t limit = (bytes == 2) ? 16 : 10; //  limit = 32/bytes (bytes==2 is 16   bytes==3 is 10)
-      uint32_t len = (length - 1) / limit;
-      uint32_t highpart = (len & 1) << 3;
-      len = length - (len * limit);
-      param->fp_copy(_regbuf, 0, len, param);
-
-      auto spi_w0_reg = reg(SPI_W0_REG(_spi_port));
-
-      uint32_t user_reg = *reg(SPI_USER_REG(_spi_port));
-
-      dc_h();
-      set_write_len(len * bytes << 3);
-
-      memcpy((void*)&spi_w0_reg[highpart], _regbuf, (len * bytes + 3) & (~3));
-      if (highpart) *reg(SPI_USER_REG(_spi_port)) = user_reg | SPI_USR_MOSI_HIGHPART;
-      exec_spi();
-      if (0 == (length -= len)) return;
-
-      for (; length; length -= limit) {
-        param->fp_copy(_regbuf, 0, limit, param);
-        memcpy((void*)&spi_w0_reg[highpart ^= 0x08], _regbuf, limit * bytes);
-        uint32_t user = user_reg;
-        if (highpart) user |= SPI_USR_MOSI_HIGHPART;
-        if (len != limit) {
-          len = limit;
-          wait_spi();
-          set_write_len(limit * bytes << 3);
-          *reg(SPI_USER_REG(_spi_port)) = user;
-          exec_spi();
-        } else {
-          wait_spi();
-          *reg(SPI_USER_REG(_spi_port)) = user;
-          exec_spi();
-        }
+      const uint32_t limit = (bytes == 2) ? 2 : 1;
+      uint32_t buf;
+      auto *reg = &_sercom->SPI.DATA.reg;
+      auto *lenreg = &_sercom->SPI.LENGTH.reg;
+      int32_t idx = length & 0x01;
+      if (bytes == 2 && (length & 0x01)) {
+        param->fp_copy(&buf, 0, 1, param);
+        dc_h();
+        *lenreg = 2 | SERCOM_SPI_LENGTH_LENEN;
+        *reg = buf;
+        --length;
+        if (!length) return;
       }
-//*/
+      param->fp_copy(&buf, 0, limit, param);
+      dc_h();
+      *lenreg = (limit*bytes) | SERCOM_SPI_LENGTH_LENEN;
+      *reg = buf;
+      while (0 != (length -= limit)) {
+        param->fp_copy(&buf, 0, limit, param);
+        wait_spi();
+        *reg = buf;
+      };
     }
 
     void write_bytes(const uint8_t* data, int32_t length, bool use_dma = false)
     {
+      if (false && length > 2 && use_dma) {
+static DmacDescriptor* desc      = (DmacDescriptor *)memalign(16, sizeof(DmacDescriptor));
+static DmacDescriptor* writeback = (DmacDescriptor *)memalign(16, sizeof(DmacDescriptor));
+        if (desc) {
+
+        dc_h();
+      _sercom->SPI.LENGTH.reg = 1 | SERCOM_SPI_LENGTH_LENEN;
+
+uint8_t channel = 0;
+        memset(desc, 0, sizeof(desc));
+        memset(writeback , 0, sizeof(writeback));
+
+        DMAC->Channel[channel].CHCTRLA.bit.ENABLE  = 0;
+
+          desc->BTCTRL.bit.VALID     = true;
+          desc->BTCTRL.bit.EVOSEL    = 0; // DMA_EVENT_OUTPUT_DISABLE;
+          desc->BTCTRL.bit.BLOCKACT  = 0; // DMA_BLOCK_ACTION_NOACT;
+          desc->BTCTRL.bit.BEATSIZE  = 0; // DMA_BEAT_SIZE_BYTE;   // size;
+          desc->BTCTRL.bit.SRCINC    = true;                 // srcInc;
+          desc->BTCTRL.bit.DSTINC    = false;                // dstInc;
+          desc->BTCTRL.bit.STEPSEL   = 0; // DMA_STEPSEL_DST;      // stepSel;
+          desc->BTCTRL.bit.STEPSIZE  = 0; // DMA_ADDRESS_INCREMENT_STEP_SIZE_1; // stepSize;
+          desc->BTCNT.reg            = length >> 1;   // count;
+          desc->SRCADDR.reg          = 0;   // (uint32_t)src;
+
+          desc->SRCADDR.reg          = (uint32_t)data;
+
+
+//    cpu_irq_enter_critical(); // Job status is volatile
+        MCLK->AHBMASK.bit.DMAC_     = 1; // Initialize DMA clocks
+
+        DMAC->BASEADDR.bit.BASEADDR = (uint32_t)desc;
+        DMAC->WRBADDR.bit.WRBADDR   = (uint32_t)writeback;
+
+        DMAC->CTRL.reg = DMAC_CTRL_DMAENABLE | DMAC_CTRL_LVLEN(0xF);
+
+//        IRQn_Type irqs[] = { DMAC_0_IRQn, DMAC_1_IRQn, DMAC_2_IRQn,
+//                             DMAC_3_IRQn, DMAC_4_IRQn };
+//        for(uint8_t i=0; i<(sizeof irqs / sizeof irqs[0]); i++) {
+//            NVIC_EnableIRQ(irqs[i]);
+//            NVIC_SetPriority(irqs[i], (1<<__NVIC_PRIO_BITS)-1);
+//        }
+
+        DMAC->Channel[channel].CHCTRLA.bit.SWRST   = 1;
+
+        DMAC->SWTRIGCTRL.reg     &= ~(1 << channel);
+
+        DMAC->Channel[channel].CHPRILVL.bit.PRILVL = 0;
+        DMAC->Channel[channel].CHCTRLA.bit.TRIGSRC = 0; // peripheralTrigger;
+        DMAC->Channel[channel].CHCTRLA.bit.TRIGACT = DMAC_CHCTRLA_TRIGACT_TRANSACTION_Val; // triggerAction;
+        DMAC->Channel[channel].CHCTRLA.bit.BURSTLEN = DMAC_CHCTRLA_BURSTLEN_SINGLE_Val; // Single-beat burst length
+
+        DMAC->Channel[channel].CHINTENSET.reg = 0;
+        DMAC->Channel[channel].CHINTENCLR.reg = DMAC_CHINTENCLR_MASK;
+        DMAC->Channel[channel].CHCTRLA.bit.ENABLE = 1;
+//    cpu_irq_leave_critical();
+
+    return;
+
+        }
+      }
+
       auto *reg = &_sercom->SPI.DATA.reg;
       int32_t idx = length & 0x03;
       if (idx) {
         dc_h();
-        _sercom->SPI.LENGTH.reg = (idx) | 256;
+        _sercom->SPI.LENGTH.reg = idx | SERCOM_SPI_LENGTH_LENEN;
         *reg = *(uint32_t*)data;
         length -= idx;
         if (!length) return;
       }
       dc_h();
-      _sercom->SPI.LENGTH.reg = 4|256;
+      _sercom->SPI.LENGTH.reg = 4 | SERCOM_SPI_LENGTH_LENEN;
       *reg = *(uint32_t*)&data[idx];
       while (length != (idx += 4)) {
+        uint32_t buf = *(uint32_t*)&data[idx];
         wait_spi();
-        *reg = *(uint32_t*)&data[idx];
+        *reg = buf;
       };
 
 /*
@@ -1079,13 +1167,26 @@ SercomSpiCharSize charSize = SPI_CHAR_SIZE_8_BITS;
       return nullptr;
     }
 
+    void delete_dmabuffer(void)
+    {
+      _dmabufs[0].free();
+      _dmabufs[1].free();
+    }
+
+    static void _alloc_dmadesc(size_t len)
+    {
+      if (_dmadesc) heap_free(_dmadesc);
+      _dmadesc_len = len;
+      _dmadesc = (DmacDescriptor*)memalign(16, sizeof(DmacDescriptor) * len);
+    }
+
 
 //    __attribute__ ((always_inline)) inline volatile uint32_t* reg(uint32_t addr) { return (volatile uint32_t *)ETS_UNCACHED_ADDR(addr); }
-    __attribute__ ((always_inline)) inline void set_clock_write(void) { /* *reg(SPI_CLOCK_REG(_spi_port)) = _clkdiv_write; */ }
-    __attribute__ ((always_inline)) inline void set_clock_read(void)  { /* *reg(SPI_CLOCK_REG(_spi_port)) = _clkdiv_read;  */ }
-    __attribute__ ((always_inline)) inline void set_clock_fill(void)  { /* *reg(SPI_CLOCK_REG(_spi_port)) = _clkdiv_fill;  */ }
+    __attribute__ ((always_inline)) inline void set_clock_write(void) { setFreqDiv(_clkdiv_write); }
+    __attribute__ ((always_inline)) inline void set_clock_read(void)  { setFreqDiv(_clkdiv_read ); }
+    __attribute__ ((always_inline)) inline void set_clock_fill(void)  { setFreqDiv(_clkdiv_fill ); }
     __attribute__ ((always_inline)) inline void exec_spi(void) { /*        *reg(SPI_CMD_REG(_spi_port)) = SPI_USR;  */ }
-    __attribute__ ((always_inline)) inline void wait_spi(void) { auto *intflag = &_sercom->SPI.INTFLAG.bit; while (intflag->TXC == 0); }
+    __attribute__ ((always_inline)) inline void wait_spi(void) { if (_need_wait != true) return; auto *intflag = &_sercom->SPI.INTFLAG.bit; while (intflag->TXC == 0); }
     __attribute__ ((always_inline)) inline void set_write_len(uint32_t bitlen) { /* *reg(SPI_MOSI_DLEN_REG(_spi_port)) = bitlen - 1; */ }
     __attribute__ ((always_inline)) inline void set_read_len( uint32_t bitlen) { /* *reg(SPI_MISO_DLEN_REG(_spi_port)) = bitlen - 1; */ }
 
@@ -1150,17 +1251,19 @@ SercomSpiCharSize charSize = SPI_CHAR_SIZE_8_BITS;
     volatile uint32_t* _gpio_reg_dc_h;
     volatile uint32_t* _gpio_reg_dc_l;
     static uint32_t _regbuf[8];
-//    static lldesc_t* _dmadesc;
-//    static uint32_t _dmadesc_len;
+    static DmacDescriptor* _dmadesc;
+    static uint32_t _dmadesc_len;
     static bool _next_dma_reset;
+    static bool _need_wait;
 
 //    static volatile spi_dev_t *_hw;
     static Sercom* _sercom;
   };
   template <class T> uint32_t LGFX_SPI<T>::_regbuf[];
-//  template <class T> lldesc_t* LGFX_SPI<T>::_dmadesc = nullptr;
-//  template <class T> uint32_t LGFX_SPI<T>::_dmadesc_len = 0;
+  template <class T> DmacDescriptor* LGFX_SPI<T>::_dmadesc = nullptr;
+  template <class T> uint32_t LGFX_SPI<T>::_dmadesc_len = 0;
   template <class T> bool LGFX_SPI<T>::_next_dma_reset;
+  template <class T> bool LGFX_SPI<T>::_need_wait;
 
   template <class T> Sercom* LGFX_SPI<T>::_sercom;
 

@@ -5,6 +5,8 @@
   #include <avr/pgmspace.h>
 #endif
 
+#include <malloc.h>
+
 namespace lgfx
 {
   static void* heap_alloc_psram(size_t length)
@@ -16,7 +18,7 @@ namespace lgfx
   __attribute__((always_inline)) inline 
   static void* heap_alloc_dma(size_t length)
   {
-    return malloc(length);
+    return memalign(16, length);
   }
 
   __attribute__((__used__))
