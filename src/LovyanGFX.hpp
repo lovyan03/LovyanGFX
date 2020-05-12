@@ -200,8 +200,9 @@ namespace lgfx {
       gpio_bl  = 72;    // LCD_BACKLIGHT
       //pwm_ch_bl = 7;
       freq_fill  = 100000000;
-      freq_write =  66000000;
+      freq_write =  60000000;
       freq_read  =  20000000;
+      rotation = 1;
     }
   };
 
@@ -209,7 +210,7 @@ namespace lgfx {
     static constexpr int sercom_index = 7;
     static constexpr int sercom_clksrc = 0;   // -1=notchange / 0=select GCLK0
     static constexpr int sercom_clkfreq = F_CPU;
-    static constexpr int dma_channel = 1;
+    static constexpr int dma_channel = 0;
     static constexpr int spi_host = 3;
     static constexpr int spi_mosi = 67; // PIN_SPI3_MOSI
     static constexpr int spi_miso = 66; // PIN_SPI3_MISO

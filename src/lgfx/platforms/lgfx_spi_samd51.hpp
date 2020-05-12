@@ -25,10 +25,70 @@ Contributors:
 
 #include <SERCOM.h>
 #include <wiring_private.h>
-#include <malloc.h>
+
+
+//#include <Adafruit_ZeroDMA.h>
+//#include "utility/dma.h"
+
+
+void _IRQhandler(uint8_t flags) {
+    int channel = flags;
+#ifdef __SAMD51__
+    flags = DMAC->Channel[flags].CHINTFLAG.reg;
+#endif
+    if(flags & DMAC_CHINTENCLR_TERR) {
+        // Clear error flag
+#ifdef __SAMD51__
+        DMAC->Channel[channel].CHINTFLAG.reg = DMAC_CHINTENCLR_TERR;
+#else
+        DMAC->CHINTFLAG.reg = DMAC_CHINTENCLR_TERR;
+#endif
+    } else if(flags & DMAC_CHINTENCLR_TCMPL) {
+        // Clear transfer complete flag
+#ifdef __SAMD51__
+        DMAC->Channel[channel].CHINTFLAG.reg = DMAC_CHINTENCLR_TCMPL;
+#else
+        DMAC->CHINTFLAG.reg = DMAC_CHINTENCLR_TCMPL;
+#endif
+    } else if(flags & DMAC_CHINTENCLR_SUSP) {
+        // Clear channel suspend flag
+#ifdef __SAMD51__
+        DMAC->Channel[channel].CHINTFLAG.reg = DMAC_CHINTENCLR_SUSP;
+#else
+        DMAC->CHINTFLAG.reg = DMAC_CHINTENCLR_SUSP;
+#endif
+    }
+}
+#ifdef __SAMD51__
+void DMAC_0_Handler(void)
+#else
+void DMAC_Handler(void)
+#endif
+{
+while (!Serial);
+//    cpu_irq_enter_critical();
+
+    uint8_t channel = DMAC->INTPEND.bit.ID; // Channel # causing interrupt
+    if(channel < DMAC_CH_NUM) {
+            _IRQhandler(channel);
+    }
+
+//    cpu_irq_leave_critical();
+}
+
+#ifdef __SAMD51__
+void DMAC_1_Handler(void) __attribute__((weak, alias("DMAC_0_Handler")));
+void DMAC_2_Handler(void) __attribute__((weak, alias("DMAC_0_Handler")));
+void DMAC_3_Handler(void) __attribute__((weak, alias("DMAC_0_Handler")));
+void DMAC_4_Handler(void) __attribute__((weak, alias("DMAC_0_Handler")));
+#endif
+//*/
 
 namespace lgfx
 {
+//  static Adafruit_ZeroDMA myDMA;
+//  static DmacDescriptor* mydesc;
+
   #define MEMBER_DETECTOR(member, classname, classname_impl, valuetype) struct classname_impl { \
   template<class T, valuetype V> static constexpr std::integral_constant<valuetype, T::member> check(decltype(T::member)*); \
   template<class T, valuetype V> static constexpr std::integral_constant<valuetype, V> check(...); \
@@ -47,26 +107,20 @@ namespace lgfx
     uint8_t   id_core;
     uint8_t   id_slow;
     IRQn_Type irq[4];
+    int       dmac_id_tx;
+    int       dmac_id_rx;
   } sercomData[] = {
-    { SERCOM0, SERCOM0_GCLK_ID_CORE, SERCOM0_GCLK_ID_SLOW,
-      SERCOM0_0_IRQn, SERCOM0_1_IRQn, SERCOM0_2_IRQn, SERCOM0_3_IRQn },
-    { SERCOM1, SERCOM1_GCLK_ID_CORE, SERCOM1_GCLK_ID_SLOW,
-      SERCOM1_0_IRQn, SERCOM1_1_IRQn, SERCOM1_2_IRQn, SERCOM1_3_IRQn },
-    { SERCOM2, SERCOM2_GCLK_ID_CORE, SERCOM2_GCLK_ID_SLOW,
-      SERCOM2_0_IRQn, SERCOM2_1_IRQn, SERCOM2_2_IRQn, SERCOM2_3_IRQn },
-    { SERCOM3, SERCOM3_GCLK_ID_CORE, SERCOM3_GCLK_ID_SLOW,
-      SERCOM3_0_IRQn, SERCOM3_1_IRQn, SERCOM3_2_IRQn, SERCOM3_3_IRQn },
-    { SERCOM4, SERCOM4_GCLK_ID_CORE, SERCOM4_GCLK_ID_SLOW,
-      SERCOM4_0_IRQn, SERCOM4_1_IRQn, SERCOM4_2_IRQn, SERCOM4_3_IRQn },
-    { SERCOM5, SERCOM5_GCLK_ID_CORE, SERCOM5_GCLK_ID_SLOW,
-      SERCOM5_0_IRQn, SERCOM5_1_IRQn, SERCOM5_2_IRQn, SERCOM5_3_IRQn },
+    { SERCOM0, SERCOM0_GCLK_ID_CORE, SERCOM0_GCLK_ID_SLOW, SERCOM0_0_IRQn, SERCOM0_1_IRQn, SERCOM0_2_IRQn, SERCOM0_3_IRQn, SERCOM0_DMAC_ID_TX, SERCOM0_DMAC_ID_RX },
+    { SERCOM1, SERCOM1_GCLK_ID_CORE, SERCOM1_GCLK_ID_SLOW, SERCOM1_0_IRQn, SERCOM1_1_IRQn, SERCOM1_2_IRQn, SERCOM1_3_IRQn, SERCOM1_DMAC_ID_TX, SERCOM1_DMAC_ID_RX },
+    { SERCOM2, SERCOM2_GCLK_ID_CORE, SERCOM2_GCLK_ID_SLOW, SERCOM2_0_IRQn, SERCOM2_1_IRQn, SERCOM2_2_IRQn, SERCOM2_3_IRQn, SERCOM2_DMAC_ID_TX, SERCOM2_DMAC_ID_RX },
+    { SERCOM3, SERCOM3_GCLK_ID_CORE, SERCOM3_GCLK_ID_SLOW, SERCOM3_0_IRQn, SERCOM3_1_IRQn, SERCOM3_2_IRQn, SERCOM3_3_IRQn, SERCOM3_DMAC_ID_TX, SERCOM3_DMAC_ID_RX },
+    { SERCOM4, SERCOM4_GCLK_ID_CORE, SERCOM4_GCLK_ID_SLOW, SERCOM4_0_IRQn, SERCOM4_1_IRQn, SERCOM4_2_IRQn, SERCOM4_3_IRQn, SERCOM4_DMAC_ID_TX, SERCOM4_DMAC_ID_RX },
+    { SERCOM5, SERCOM5_GCLK_ID_CORE, SERCOM5_GCLK_ID_SLOW, SERCOM5_0_IRQn, SERCOM5_1_IRQn, SERCOM5_2_IRQn, SERCOM5_3_IRQn, SERCOM5_DMAC_ID_TX, SERCOM5_DMAC_ID_RX },
   #if defined(SERCOM6)
-    { SERCOM6, SERCOM6_GCLK_ID_CORE, SERCOM6_GCLK_ID_SLOW,
-      SERCOM6_0_IRQn, SERCOM6_1_IRQn, SERCOM6_2_IRQn, SERCOM6_3_IRQn },
+    { SERCOM6, SERCOM6_GCLK_ID_CORE, SERCOM6_GCLK_ID_SLOW, SERCOM6_0_IRQn, SERCOM6_1_IRQn, SERCOM6_2_IRQn, SERCOM6_3_IRQn, SERCOM6_DMAC_ID_TX, SERCOM6_DMAC_ID_RX },
   #endif
   #if defined(SERCOM7)
-    { SERCOM7, SERCOM7_GCLK_ID_CORE, SERCOM7_GCLK_ID_SLOW,
-      SERCOM7_0_IRQn, SERCOM7_1_IRQn, SERCOM7_2_IRQn, SERCOM7_3_IRQn },
+    { SERCOM7, SERCOM7_GCLK_ID_CORE, SERCOM7_GCLK_ID_SLOW, SERCOM7_0_IRQn, SERCOM7_1_IRQn, SERCOM7_2_IRQn, SERCOM7_3_IRQn, SERCOM7_DMAC_ID_TX, SERCOM7_DMAC_ID_RX },
   #endif
   };
 
@@ -78,7 +132,7 @@ namespace lgfx
   public:
 
     virtual ~LGFX_SPI() {
-      if ((0 != _dma_channel) && _dmadesc) {
+      if ((-1 != _dma_channel) && _dmadesc) {
         heap_free(_dmadesc);
         _dmadesc = nullptr;
         _dmadesc_len = 0;
@@ -90,8 +144,7 @@ namespace lgfx
     {
       _panel = nullptr;
 
-_sercom = SERCOM7;
-
+      _sercom = sercomData[CFG::sercom_index].sercomPtr;
     }
 
     void setPanel(PanelCommon* panel) { _panel = panel; postSetPanel(); }
@@ -309,35 +362,88 @@ void disableSPI()
       }
       _sercom->SPI.BAUD.reg = _clkdiv_write;
 
-      if (_dma_channel) {
-        uint8_t channel = 0;
+      enableSPI();
+
+
+      if (-1 != _dma_channel) {
+        _alloc_dmadesc(4);
+
+//  Serial.print("Allocating DMA channel...");
+//  myDMA.allocate();
+//
+//  Serial.println("Setting up transfer");
+
+        uint8_t channel = _dma_channel;
+//*
+#if (SAML21) || (SAML22) || (SAMC20) || (SAMC21)
+        PM->AHBMASK.bit.DMAC_       = 1;
+#elif defined(__SAMD51__)
         MCLK->AHBMASK.bit.DMAC_     = 1; // Initialize DMA clocks
+#else
+        PM->AHBMASK.bit.DMAC_       = 1; // Initialize DMA clocks
+        PM->APBBMASK.bit.DMAC_      = 1;
+#endif
+
+        DMAC->CTRL.bit.DMAENABLE    = 0; // Disable DMA controller
+        DMAC->CTRL.bit.SWRST        = 1; // Perform software reset
+
+        // Initialize descriptor list addresses
+        DMAC->BASEADDR.bit.BASEADDR = (uint32_t)&_dmadesc[1];
+        DMAC->WRBADDR.bit.WRBADDR   = (uint32_t)&_dmadesc[0];
+
+        // Re-enable DMA controller with all priority levels
         DMAC->CTRL.reg = DMAC_CTRL_DMAENABLE | DMAC_CTRL_LVLEN(0xF);
+//*/
 
-//        IRQn_Type irqs[] = { DMAC_0_IRQn, DMAC_1_IRQn, DMAC_2_IRQn,
-//                             DMAC_3_IRQn, DMAC_4_IRQn };
-//        for(uint8_t i=0; i<(sizeof irqs / sizeof irqs[0]); i++) {
-//            NVIC_EnableIRQ(irqs[i]);
-//            NVIC_SetPriority(irqs[i], (1<<__NVIC_PRIO_BITS)-1);
-//        }
+        // Enable DMA interrupt at lowest priority
+#ifdef __SAMD51__
+        IRQn_Type irqs[] = { DMAC_0_IRQn, DMAC_1_IRQn, DMAC_2_IRQn,
+                             DMAC_3_IRQn, DMAC_4_IRQn };
+        for(uint8_t i=0; i<(sizeof irqs / sizeof irqs[0]); i++) {
+            NVIC_EnableIRQ(irqs[i]);
+            NVIC_SetPriority(irqs[i], (1<<__NVIC_PRIO_BITS)-1);
+        }
+#else
+        NVIC_EnableIRQ(DMAC_IRQn);
+        NVIC_SetPriority(DMAC_IRQn, (1 << __NVIC_PRIO_BITS) - 1);
+#endif
+//*/
 
+    // Reset the allocated channel
+#ifdef __SAMD51__
         DMAC->Channel[channel].CHCTRLA.bit.ENABLE  = 0;
         DMAC->Channel[channel].CHCTRLA.bit.SWRST   = 1;
+#else
+        DMAC->CHID.bit.ID         = channel;
+        DMAC->CHCTRLA.bit.ENABLE  = 0;
+        DMAC->CHCTRLA.bit.SWRST   = 1;
+#endif
 
+    // Clear software trigger
         DMAC->SWTRIGCTRL.reg     &= ~(1 << channel);
-
+//*/
+    // Configure default behaviors
+#ifdef __SAMD51__
         DMAC->Channel[channel].CHPRILVL.bit.PRILVL = 0;
-        DMAC->Channel[channel].CHCTRLA.bit.TRIGSRC = 0; // peripheralTrigger;
-        DMAC->Channel[channel].CHCTRLA.bit.TRIGACT = DMAC_CHCTRLA_TRIGACT_TRANSACTION_Val; // triggerAction;
+        DMAC->Channel[channel].CHCTRLA.bit.TRIGSRC = sercomData[CFG::sercom_index].dmac_id_tx;
+        DMAC->Channel[channel].CHCTRLA.bit.TRIGACT = DMAC_CHCTRLA_TRIGACT_BURST_Val;
         DMAC->Channel[channel].CHCTRLA.bit.BURSTLEN = DMAC_CHCTRLA_BURSTLEN_SINGLE_Val; // Single-beat burst length
-
-        DMAC->Channel[channel].CHINTENSET.reg = 0;
-        DMAC->Channel[channel].CHINTENCLR.reg = DMAC_CHINTENCLR_MASK;
-        DMAC->Channel[channel].CHCTRLA.bit.ENABLE = 1;
-
+#else
+        DMAC->CHCTRLB.bit.LVL     = 0;
+        DMAC->CHCTRLB.bit.TRIGSRC = sercomData[CFG::sercom_index].dmac_id_tx;
+        DMAC->CHCTRLB.bit.TRIGACT = DMAC_CHCTRLB_TRIGACT_BEAT_Val;
+#endif
+/*
+mydesc = myDMA.addDescriptor(
+  nullptr,                    // move data from here
+//   (void *)(&SERCOM7->SPI.DATA.reg), // to here (M4)
+  (void *)&_sercom->SPI.DATA.reg,
+  100,                      // this many...
+  DMA_BEAT_SIZE_WORD,               // bytes/hword/words
+  true,                             // increment source addr?
+  false);                           // increment dest addr?
+//*/
       }
-
-      enableSPI();
     }
 
     virtual void initPanel(void)
@@ -471,7 +577,7 @@ void disableSPI()
 #if defined (ARDUINO) // Arduino ESP32
       spiSimpleTransaction(_sercom);
 
-      if (_dma_channel) {
+      if (-1 != _dma_channel) {
         _next_dma_reset = true;
       }
 #elif defined (CONFIG_IDF_TARGET_ESP32) // ESP-IDF
@@ -761,7 +867,7 @@ void disableSPI()
           uint32_t i = (src_x + param->src_y * param->src_width) * bytes;
           auto src = &((const uint8_t*)param->src_data)[i];
 /*
-          if (_dma_channel && use_dma) {
+          if (-1 != _dma_channel && use_dma) {
             if (param->src_width == w) {
               _setup_dma_desc_links(src, w * h * bytes);
             } else {
@@ -776,7 +882,7 @@ void disableSPI()
           }
           if (param->src_width == w) {
             int32_t len = w * h * bytes;
-            if (_dma_channel && !use_dma && (64 < len) && (len <= 1024)) {
+            if (-1 != _dma_channel && !use_dma && (64 < len) && (len <= 1024)) {
               auto buf = get_dmabuffer(len);
               memcpy(buf, src, len);
               write_bytes(buf, len, true);
@@ -793,7 +899,7 @@ void disableSPI()
             } while (--h);
           }
         } else
-        if (_dma_channel && use_dma)
+        if (-1 != _dma_channel && use_dma)
         {
           auto buf = get_dmabuffer(w * bytes);
           fp_copy(buf, 0, w, param);
@@ -869,80 +975,88 @@ void disableSPI()
 
     void write_bytes(const uint8_t* data, int32_t length, bool use_dma = false)
     {
-      if (false && length > 2 && use_dma) {
-static DmacDescriptor* desc      = (DmacDescriptor *)memalign(16, sizeof(DmacDescriptor));
-static DmacDescriptor* writeback = (DmacDescriptor *)memalign(16, sizeof(DmacDescriptor));
-        if (desc) {
-
-        dc_h();
-      _sercom->SPI.LENGTH.reg = 1 | SERCOM_SPI_LENGTH_LENEN;
-
-uint8_t channel = 0;
-        memset(desc, 0, sizeof(desc));
-        memset(writeback , 0, sizeof(writeback));
-
-        DMAC->Channel[channel].CHCTRLA.bit.ENABLE  = 0;
-
-          desc->BTCTRL.bit.VALID     = true;
-          desc->BTCTRL.bit.EVOSEL    = 0; // DMA_EVENT_OUTPUT_DISABLE;
-          desc->BTCTRL.bit.BLOCKACT  = 0; // DMA_BLOCK_ACTION_NOACT;
-          desc->BTCTRL.bit.BEATSIZE  = 0; // DMA_BEAT_SIZE_BYTE;   // size;
-          desc->BTCTRL.bit.SRCINC    = true;                 // srcInc;
-          desc->BTCTRL.bit.DSTINC    = false;                // dstInc;
-          desc->BTCTRL.bit.STEPSEL   = 0; // DMA_STEPSEL_DST;      // stepSel;
-          desc->BTCTRL.bit.STEPSIZE  = 0; // DMA_ADDRESS_INCREMENT_STEP_SIZE_1; // stepSize;
-          desc->BTCNT.reg            = length >> 1;   // count;
-          desc->SRCADDR.reg          = 0;   // (uint32_t)src;
-
-          desc->SRCADDR.reg          = (uint32_t)data;
-
-
-//    cpu_irq_enter_critical(); // Job status is volatile
-        MCLK->AHBMASK.bit.DMAC_     = 1; // Initialize DMA clocks
-
-        DMAC->BASEADDR.bit.BASEADDR = (uint32_t)desc;
-        DMAC->WRBADDR.bit.WRBADDR   = (uint32_t)writeback;
-
-        DMAC->CTRL.reg = DMAC_CTRL_DMAENABLE | DMAC_CTRL_LVLEN(0xF);
-
-//        IRQn_Type irqs[] = { DMAC_0_IRQn, DMAC_1_IRQn, DMAC_2_IRQn,
-//                             DMAC_3_IRQn, DMAC_4_IRQn };
-//        for(uint8_t i=0; i<(sizeof irqs / sizeof irqs[0]); i++) {
-//            NVIC_EnableIRQ(irqs[i]);
-//            NVIC_SetPriority(irqs[i], (1<<__NVIC_PRIO_BITS)-1);
-//        }
-
-        DMAC->Channel[channel].CHCTRLA.bit.SWRST   = 1;
-
-        DMAC->SWTRIGCTRL.reg     &= ~(1 << channel);
-
-        DMAC->Channel[channel].CHPRILVL.bit.PRILVL = 0;
-        DMAC->Channel[channel].CHCTRLA.bit.TRIGSRC = 0; // peripheralTrigger;
-        DMAC->Channel[channel].CHCTRLA.bit.TRIGACT = DMAC_CHCTRLA_TRIGACT_TRANSACTION_Val; // triggerAction;
-        DMAC->Channel[channel].CHCTRLA.bit.BURSTLEN = DMAC_CHCTRLA_BURSTLEN_SINGLE_Val; // Single-beat burst length
-
-        DMAC->Channel[channel].CHINTENSET.reg = 0;
-        DMAC->Channel[channel].CHINTENCLR.reg = DMAC_CHINTENCLR_MASK;
-        DMAC->Channel[channel].CHCTRLA.bit.ENABLE = 1;
-//    cpu_irq_leave_critical();
-
-    return;
-
-        }
-      }
-
       auto *reg = &_sercom->SPI.DATA.reg;
       int32_t idx = length & 0x03;
       if (idx) {
         dc_h();
         _sercom->SPI.LENGTH.reg = idx | SERCOM_SPI_LENGTH_LENEN;
         *reg = *(uint32_t*)data;
+        _need_wait = true;
         length -= idx;
         if (!length) return;
       }
+
+      if (-1 != _dma_channel && length > 2 && use_dma) {
+        DmacDescriptor* desc      = &_dmadesc[1];
+        DmacDescriptor* writeback = &_dmadesc[0];
+//        if (desc) {
+
+        dc_h();
+      set_clock_write();
+//        _sercom->SPI.LENGTH.reg = 1 | SERCOM_SPI_LENGTH_LENEN;
+        _sercom->SPI.LENGTH.reg = 0;
+/*
+myDMA.changeDescriptor(mydesc, const_cast<uint8_t*>(data), nullptr, length>>2);
+//*/
+        uint8_t channel = _dma_channel;
+//
+          DMAC->Channel[channel].CHCTRLA.bit.ENABLE  = 0;
+
+          desc->BTCTRL.bit.VALID     = true;
+          desc->BTCTRL.bit.EVOSEL    = 0; // DMA_EVENT_OUTPUT_DISABLE;
+          desc->BTCTRL.bit.BLOCKACT  = 0; // DMA_BLOCK_ACTION_NOACT;
+          desc->BTCTRL.bit.BEATSIZE  = 2; // DMA_BEAT_SIZE_BYTE;   // size;
+          desc->BTCTRL.bit.SRCINC    = true;                 // srcInc;
+          desc->BTCTRL.bit.DSTINC    = false;                // dstInc;
+          desc->BTCTRL.bit.STEPSEL   = 0; // DMA_STEPSEL_DST;      // stepSel;
+          desc->BTCTRL.bit.STEPSIZE  = 0; // DMA_ADDRESS_INCREMENT_STEP_SIZE_1; // stepSize;
+          desc->BTCNT.reg            = length >> 2;   // count;
+
+          desc->DSTADDR.reg          = (uint32_t)(&_sercom->SPI.DATA.reg);
+          desc->SRCADDR.reg          = (uint32_t)data;
+
+        if (desc->BTCTRL.bit.SRCINC) {
+            if (desc->BTCTRL.bit.STEPSEL) {
+                desc->SRCADDR.reg += desc->BTCNT.reg * 4 * (1 << desc->BTCTRL.bit.STEPSIZE);
+            } else {
+                desc->SRCADDR.reg += desc->BTCNT.reg * 4;
+            }
+        }
+
+//        desc->DESCADDR.reg         = (uint32_t)desc;
+//*/
+
+        //DMAC->CTRL.bit.DMAENABLE    = 0; // Disable DMA controller
+        //DMAC->BASEADDR.bit.BASEADDR = (uint32_t)&_dmadesc[1];
+        //DMAC->WRBADDR.bit.WRBADDR   = (uint32_t)&_dmadesc[0];
+        //DMAC->CTRL.reg = DMAC_CTRL_DMAENABLE | DMAC_CTRL_LVLEN(0xF);
+
+
+        uint8_t interruptMask = 2;
+#ifdef __SAMD51__
+        //DMAC->Channel[channel].CHCTRLA.bit.TRIGACT = DMAC_CHCTRLA_TRIGACT_BURST_Val; // triggerAction;
+        //DMAC->Channel[channel].CHCTRLA.bit.BURSTLEN = DMAC_CHCTRLA_BURSTLEN_SINGLE_Val; // Single-beat burst length
+        DMAC->Channel[channel].CHINTENSET.reg = DMAC_CHINTENSET_MASK &  interruptMask;
+        DMAC->Channel[channel].CHINTENCLR.reg = DMAC_CHINTENCLR_MASK & ~interruptMask;
+        DMAC->Channel[channel].CHCTRLA.bit.ENABLE = 1;
+#else
+        DMAC->CHID.bit.ID    = channel;
+        DMAC->CHINTENSET.reg = DMAC_CHINTENSET_MASK &  interruptMask;
+        DMAC->CHINTENCLR.reg = DMAC_CHINTENCLR_MASK & ~interruptMask;
+        DMAC->CHCTRLA.bit.ENABLE = 1; // Enable the transfer channel
+#endif
+//    cpu_irq_leave_critical();
+      _need_wait = true;
+
+    return;
+
+//        }
+      }
+
       dc_h();
       _sercom->SPI.LENGTH.reg = 4 | SERCOM_SPI_LENGTH_LENEN;
       *reg = *(uint32_t*)&data[idx];
+      _need_wait = true;
       while (length != (idx += 4)) {
         uint32_t buf = *(uint32_t*)&data[idx];
         wait_spi();
@@ -957,7 +1071,7 @@ uint8_t channel = 0;
         memcpy((void*)spi_w0_reg, data, (length + 3) & (~3));
         exec_spi();
         return;
-      } else if (_dma_channel && use_dma) {
+      } else if (-1 != _dma_channel && use_dma) {
         dc_h();
         set_write_len(length << 3);
         _setup_dma_desc_links(data, length);
@@ -1069,7 +1183,7 @@ uint8_t channel = 0;
     void read_bytes(uint8_t* dst, int32_t length, bool use_dma = false)
     {
 /*
-      if (_dma_channel && use_dma) {
+      if (-1 != _dma_channel && use_dma) {
         wait_spi();
         set_read_len(length << 3);
         _setup_dma_desc_links(dst, length);
@@ -1178,6 +1292,7 @@ uint8_t channel = 0;
       if (_dmadesc) heap_free(_dmadesc);
       _dmadesc_len = len;
       _dmadesc = (DmacDescriptor*)memalign(16, sizeof(DmacDescriptor) * len);
+      if (_dmadesc) memset(_dmadesc, 0, sizeof(DmacDescriptor) * len);
     }
 
 
@@ -1218,7 +1333,7 @@ uint8_t channel = 0;
 */
     }
 
-    static constexpr int _dma_channel= get_dma_channel<CFG,  0>::value;
+    static constexpr int _dma_channel= get_dma_channel<CFG, -1>::value;
     static constexpr int _spi_mosi = get_spi_mosi<CFG, -1>::value;
     static constexpr int _spi_miso = get_spi_miso<CFG, -1>::value;
     static constexpr int _spi_sclk = get_spi_sclk<CFG, -1>::value;
