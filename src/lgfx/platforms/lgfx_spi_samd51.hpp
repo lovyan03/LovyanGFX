@@ -26,11 +26,12 @@ Contributors:
 #include <SERCOM.h>
 #include <wiring_private.h>
 
-
-//#include <Adafruit_ZeroDMA.h>
-//#include "utility/dma.h"
-
-
+#if defined (ARDUINO)
+#include <Adafruit_ZeroDMA.h>
+#include "utility/dma.h"
+static void dmaCallback(Adafruit_ZeroDMA*) {}
+#endif
+/*
 void _IRQhandler(uint8_t flags) {
     int channel = flags;
 #ifdef __SAMD51__
@@ -66,16 +67,11 @@ void DMAC_Handler(void)
 #endif
 {
 while (!Serial);
-//    cpu_irq_enter_critical();
-
     uint8_t channel = DMAC->INTPEND.bit.ID; // Channel # causing interrupt
     if(channel < DMAC_CH_NUM) {
             _IRQhandler(channel);
     }
-
-//    cpu_irq_leave_critical();
 }
-
 #ifdef __SAMD51__
 void DMAC_1_Handler(void) __attribute__((weak, alias("DMAC_0_Handler")));
 void DMAC_2_Handler(void) __attribute__((weak, alias("DMAC_0_Handler")));
@@ -86,8 +82,6 @@ void DMAC_4_Handler(void) __attribute__((weak, alias("DMAC_0_Handler")));
 
 namespace lgfx
 {
-//  static Adafruit_ZeroDMA myDMA;
-//  static DmacDescriptor* mydesc;
 
   #define MEMBER_DETECTOR(member, classname, classname_impl, valuetype) struct classname_impl { \
   template<class T, valuetype V> static constexpr std::integral_constant<valuetype, T::member> check(decltype(T::member)*); \
@@ -98,7 +92,6 @@ namespace lgfx
   MEMBER_DETECTOR(spi_miso   , get_spi_miso   , get_spi_miso_impl   , int)
   MEMBER_DETECTOR(spi_sclk   , get_spi_sclk   , get_spi_sclk_impl   , int)
   MEMBER_DETECTOR(spi_dlen   , get_spi_dlen   , get_spi_dlen_impl   , int)
-  MEMBER_DETECTOR(dma_channel, get_dma_channel, get_dma_channel_impl, int)
   #undef MEMBER_DETECTOR
 
 
@@ -132,11 +125,14 @@ namespace lgfx
   public:
 
     virtual ~LGFX_SPI() {
-      if ((-1 != _dma_channel) && _dmadesc) {
-        heap_free(_dmadesc);
-        _dmadesc = nullptr;
-        _dmadesc_len = 0;
-      }
+#if defined (ARDUINO)
+      _dma_adafruit.free();
+#endif
+      //if (_dmadesc) {
+      //  heap_free(_dmadesc);
+      //  _dmadesc = nullptr;
+      //  _dmadesc_len = 0;
+      //}
       delete_dmabuffer();
     }
 
@@ -186,19 +182,22 @@ namespace lgfx
 
     void setColorDepth(color_depth_t depth)
     {
-      commandList(_panel->getColorDepthCommands((uint8_t*)_regbuf, depth));
+      uint8_t buf[32];
+      commandList(_panel->getColorDepthCommands(buf, depth));
       postSetColorDepth();
     }
 
     void setRotation(int_fast8_t r)
     {
-      commandList(_panel->getRotationCommands((uint8_t*)_regbuf, r));
+      uint8_t buf[32];
+      commandList(_panel->getRotationCommands(buf, r));
       postSetRotation();
     }
 
     void invertDisplay(bool i)
     {
-      commandList(_panel->getInvertDisplayCommands((uint8_t*)_regbuf, i));
+      uint8_t buf[32];
+      commandList(_panel->getInvertDisplayCommands(buf, i));
     }
 
     void setBrightness(uint8_t brightness) {
@@ -376,85 +375,72 @@ void disableSPI()
       enableSPI();
 
 
-      if (-1 != _dma_channel) {
-        _alloc_dmadesc(4);
-
-//  Serial.print("Allocating DMA channel...");
-//  myDMA.allocate();
-//
-//  Serial.println("Setting up transfer");
-
-        uint8_t channel = _dma_channel;
-//*
-#if (SAML21) || (SAML22) || (SAMC20) || (SAMC21)
-        PM->AHBMASK.bit.DMAC_       = 1;
-#elif defined(__SAMD51__)
-        MCLK->AHBMASK.bit.DMAC_     = 1; // Initialize DMA clocks
-#else
-        PM->AHBMASK.bit.DMAC_       = 1; // Initialize DMA clocks
-        PM->APBBMASK.bit.DMAC_      = 1;
-#endif
-
-        DMAC->CTRL.bit.DMAENABLE    = 0; // Disable DMA controller
-        DMAC->CTRL.bit.SWRST        = 1; // Perform software reset
-
-        // Initialize descriptor list addresses
-        DMAC->BASEADDR.bit.BASEADDR = (uint32_t)&_dmadesc[1];
-        DMAC->WRBADDR.bit.WRBADDR   = (uint32_t)&_dmadesc[0];
-
-        // Re-enable DMA controller with all priority levels
-        DMAC->CTRL.reg = DMAC_CTRL_DMAENABLE | DMAC_CTRL_LVLEN(0xF);
-//*/
-
-        // Enable DMA interrupt at lowest priority
-#ifdef __SAMD51__
-        IRQn_Type irqs[] = { DMAC_0_IRQn, DMAC_1_IRQn, DMAC_2_IRQn,
-                             DMAC_3_IRQn, DMAC_4_IRQn };
-        for(uint8_t i=0; i<(sizeof irqs / sizeof irqs[0]); i++) {
-            NVIC_EnableIRQ(irqs[i]);
-            NVIC_SetPriority(irqs[i], (1<<__NVIC_PRIO_BITS)-1);
-        }
-#else
-        NVIC_EnableIRQ(DMAC_IRQn);
-        NVIC_SetPriority(DMAC_IRQn, (1 << __NVIC_PRIO_BITS) - 1);
-#endif
-//*/
-
-    // Reset the allocated channel
-#ifdef __SAMD51__
-        DMAC->Channel[channel].CHCTRLA.bit.ENABLE  = 0;
-        DMAC->Channel[channel].CHCTRLA.bit.SWRST   = 1;
-#else
-        DMAC->CHID.bit.ID         = channel;
-        DMAC->CHCTRLA.bit.ENABLE  = 0;
-        DMAC->CHCTRLA.bit.SWRST   = 1;
-#endif
-
-    // Clear software trigger
-        DMAC->SWTRIGCTRL.reg     &= ~(1 << channel);
-//*/
-    // Configure default behaviors
-#ifdef __SAMD51__
-        DMAC->Channel[channel].CHPRILVL.bit.PRILVL = 0;
-        DMAC->Channel[channel].CHCTRLA.bit.TRIGSRC = sercomData[CFG::sercom_index].dmac_id_tx;
-        DMAC->Channel[channel].CHCTRLA.bit.TRIGACT = DMAC_CHCTRLA_TRIGACT_BURST_Val;
-        DMAC->Channel[channel].CHCTRLA.bit.BURSTLEN = DMAC_CHCTRLA_BURSTLEN_SINGLE_Val; // Single-beat burst length
-#else
-        DMAC->CHCTRLB.bit.LVL     = 0;
-        DMAC->CHCTRLB.bit.TRIGSRC = sercomData[CFG::sercom_index].dmac_id_tx;
-        DMAC->CHCTRLB.bit.TRIGACT = DMAC_CHCTRLB_TRIGACT_BEAT_Val;
-#endif
+      _dma_adafruit.allocate();
+      _dma_adafruit.setTrigger(sercomData[CFG::sercom_index].dmac_id_tx);
+      _dma_adafruit.setAction(DMA_TRIGGER_ACTON_BEAT);
+      _dma_adafruit.setCallback(dmaCallback);
+      _dma_desc = _dma_adafruit.addDescriptor(nullptr, nullptr);
 /*
-mydesc = myDMA.addDescriptor(
-  nullptr,                    // move data from here
-//   (void *)(&SERCOM7->SPI.DATA.reg), // to here (M4)
-  (void *)&_sercom->SPI.DATA.reg,
-  100,                      // this many...
-  DMA_BEAT_SIZE_WORD,               // bytes/hword/words
-  true,                             // increment source addr?
-  false);                           // increment dest addr?
-//*/
+      _alloc_dmadesc(4);
+
+      uint8_t channel = _dma_channel;
+#if (SAML21) || (SAML22) || (SAMC20) || (SAMC21)
+      PM->AHBMASK.bit.DMAC_       = 1;
+#elif defined(__SAMD51__)
+      MCLK->AHBMASK.bit.DMAC_     = 1; // Initialize DMA clocks
+#else
+      PM->AHBMASK.bit.DMAC_       = 1; // Initialize DMA clocks
+      PM->APBBMASK.bit.DMAC_      = 1;
+#endif
+
+      DMAC->CTRL.bit.DMAENABLE    = 0; // Disable DMA controller
+      DMAC->CTRL.bit.SWRST        = 1; // Perform software reset
+
+      // Initialize descriptor list addresses
+      DMAC->BASEADDR.bit.BASEADDR = (uint32_t)&_dmadesc[1];
+      DMAC->WRBADDR.bit.WRBADDR   = (uint32_t)&_dmadesc[0];
+
+      // Re-enable DMA controller with all priority levels
+      DMAC->CTRL.reg = DMAC_CTRL_DMAENABLE | DMAC_CTRL_LVLEN(0xF);
+
+      // Enable DMA interrupt at lowest priority
+#ifdef __SAMD51__
+      IRQn_Type irqs[] = { DMAC_0_IRQn, DMAC_1_IRQn, DMAC_2_IRQn,
+                           DMAC_3_IRQn, DMAC_4_IRQn };
+      for(uint8_t i=0; i<(sizeof irqs / sizeof irqs[0]); i++) {
+          NVIC_EnableIRQ(irqs[i]);
+          NVIC_SetPriority(irqs[i], (1<<__NVIC_PRIO_BITS)-1);
       }
+#else
+      NVIC_EnableIRQ(DMAC_IRQn);
+      NVIC_SetPriority(DMAC_IRQn, (1 << __NVIC_PRIO_BITS) - 1);
+#endif
+
+  // Reset the allocated channel
+#ifdef __SAMD51__
+      DMAC->Channel[channel].CHCTRLA.bit.ENABLE  = 0;
+      DMAC->Channel[channel].CHCTRLA.bit.SWRST   = 1;
+#else
+      DMAC->CHID.bit.ID         = channel;
+      DMAC->CHCTRLA.bit.ENABLE  = 0;
+      DMAC->CHCTRLA.bit.SWRST   = 1;
+#endif
+
+  // Clear software trigger
+      DMAC->SWTRIGCTRL.reg     &= ~(1 << channel);
+
+  // Configure default behaviors
+#ifdef __SAMD51__
+      DMAC->Channel[channel].CHPRILVL.bit.PRILVL = 0;
+      DMAC->Channel[channel].CHCTRLA.bit.TRIGSRC = sercomData[CFG::sercom_index].dmac_id_tx;
+      DMAC->Channel[channel].CHCTRLA.bit.TRIGACT = DMAC_CHCTRLA_TRIGACT_BURST_Val;
+      DMAC->Channel[channel].CHCTRLA.bit.BURSTLEN = DMAC_CHCTRLA_BURSTLEN_SINGLE_Val; // Single-beat burst length
+#else
+      DMAC->CHCTRLB.bit.LVL     = 0;
+      DMAC->CHCTRLB.bit.TRIGSRC = sercomData[CFG::sercom_index].dmac_id_tx;
+      DMAC->CHCTRLB.bit.TRIGACT = DMAC_CHCTRLB_TRIGACT_BEAT_Val;
+#endif
+//*/
     }
 
     virtual void initPanel(void)
@@ -584,11 +570,10 @@ mydesc = myDMA.addDescriptor(
 
 //    wait_spi();
 
-#if defined (ARDUINO) // Arduino ESP32
+#if defined (ARDUINO)
       spiSimpleTransaction(_sercom);
 
       if (-1 != _dma_channel) {
-        _next_dma_reset = true;
       }
 #elif defined (CONFIG_IDF_TARGET_ESP32) // ESP-IDF
       if (_sercom) {
@@ -620,7 +605,7 @@ mydesc = myDMA.addDescriptor(
       dc_h();
       cs_h();
 /*
-#if defined (ARDUINO) // Arduino ESP32
+#if defined (ARDUINO)
       *reg(SPI_USER_REG(_spi_port)) = SPI_USR_MOSI | SPI_USR_MISO | SPI_DOUTDIN; // for other SPI device (SD)
       spiEndTransaction(_sercom);
 #elif defined (CONFIG_IDF_TARGET_ESP32) // ESP-IDF
@@ -761,6 +746,11 @@ mydesc = myDMA.addDescriptor(
       auto *datreg = &_sercom->SPI.DATA.reg;
       auto *lenreg = &_sercom->SPI.LENGTH.reg;
       auto len = (bit_length>>3) | SERCOM_SPI_LENGTH_LENEN;
+if (len > 1 && !_sercom->SPI.CTRLC.bit.DATA32B) {
+disableSPI();
+_sercom->SPI.CTRLC.bit.DATA32B = 1;  // 4Byte transfer enable
+enableSPI();
+}
       dc_h();
       *lenreg = len;
       *datreg = data;
@@ -811,16 +801,7 @@ mydesc = myDMA.addDescriptor(
 
     void start_read(void) {
       _fill_mode = false;
-/*
-      uint32_t user = ((_panel->spi_mode_read == 1 || _panel->spi_mode_read == 2) ? SPI_CK_OUT_EDGE | SPI_USR_MISO : SPI_USR_MISO)
-                    | (_panel->spi_3wire ? SPI_SIO : 0);
-      uint32_t pin = (_panel->spi_mode_read & 2) ? SPI_CK_IDLE_EDGE : 0;
-*/
       dc_h();
-/*
-      *reg(SPI_USER_REG(_spi_port)) = user;
-      *reg(SPI_PIN_REG(_spi_port)) = pin;
-//*/
       set_clock_read();
     }
 
@@ -840,12 +821,9 @@ mydesc = myDMA.addDescriptor(
 
     uint32_t read_data(uint32_t length)
     {
-/*
-      set_read_len(length);
-      exec_spi();
-      wait_spi();
-      return *reg(SPI_W0_REG(_spi_port));
-//*/
+      dc_h();
+      write_data(0, length);
+      return _sercom->SPI.DATA.reg;
     }
 
     uint32_t read_command(uint_fast8_t command, uint32_t bitindex = 0, uint32_t bitlen = 8)
@@ -876,9 +854,9 @@ mydesc = myDMA.addDescriptor(
 /*
           if (-1 != _dma_channel && use_dma) {
             if (param->src_width == w) {
-              _setup_dma_desc_links(src, w * h * bytes);
+              _setup__dma_desc_links(src, w * h * bytes);
             } else {
-              _setup_dma_desc_links(src, w * bytes, h, param->src_width * bytes);
+              _setup__dma_desc_links(src, w * bytes, h, param->src_width * bytes);
             }
             dc_h();
             set_write_len(w * h * bytes << 3);
@@ -906,7 +884,7 @@ mydesc = myDMA.addDescriptor(
             } while (--h);
           }
         } else
-        if (-1 != _dma_channel && use_dma)
+        if (use_dma)
         {
           auto buf = get_dmabuffer(w * bytes);
           fp_copy(buf, 0, w, param);
@@ -982,9 +960,73 @@ mydesc = myDMA.addDescriptor(
 
     void write_bytes(const uint8_t* data, int32_t length, bool use_dma = false)
     {
+      if (use_dma && length > 16) {
+        //DmacDescriptor* desc      = &_dmadesc[1];
+        //DmacDescriptor* writeback = &_dmadesc[0];
+
+        dc_h();
+        set_clock_write();
+        _sercom->SPI.LENGTH.reg = 0;
+        uint_fast8_t beatsize = _sercom->SPI.CTRLC.bit.DATA32B ? 2 : 0;
+        if ((bool)(beatsize) == (bool)(length & 3)) {
+          disableSPI();
+          beatsize = 2 - beatsize;
+          _sercom->SPI.CTRLC.bit.DATA32B = (bool)(beatsize);
+          enableSPI();
+        }
+        auto desc = _dma_desc;
+        desc->BTCNT.reg            = length >> beatsize;   // count;
+        desc->BTCTRL.bit.BEATSIZE  = beatsize; // DMA_BEAT_SIZE_BYTE;   // size;
+        desc->BTCTRL.bit.VALID     = true;
+        desc->BTCTRL.bit.EVOSEL    = 0; // DMA_EVENT_OUTPUT_DISABLE;
+        desc->BTCTRL.bit.BLOCKACT  = 0; // DMA_BLOCK_ACTION_NOACT;
+        desc->BTCTRL.bit.SRCINC    = true;                 // srcInc;
+        desc->BTCTRL.bit.DSTINC    = false;                // dstInc;
+        desc->BTCTRL.bit.STEPSEL   = 0; // DMA_STEPSEL_DST;      // stepSel;
+        desc->BTCTRL.bit.STEPSIZE  = 0; // DMA_ADDRESS_INCREMENT_STEP_SIZE_1; // stepSize;
+        desc->DSTADDR.reg          = (uint32_t)(&_sercom->SPI.DATA.reg);
+        desc->SRCADDR.reg          = (uint32_t)data;
+        
+        if (desc->BTCTRL.bit.SRCINC) {
+          if (desc->BTCTRL.bit.STEPSEL) {
+            desc->SRCADDR.reg += length * (1 << desc->BTCTRL.bit.STEPSIZE);
+          } else {
+            desc->SRCADDR.reg += length;
+          }
+        }
+
+        //_dma_adafruit.changeDescriptor(desc, const_cast<uint8_t*>(data), nullptr, length>>beatsize);
+        _dma_adafruit.startJob();
+
+/*
+//        uint8_t channel = _dma_channel;
+//        DMAC->Channel[channel].CHCTRLA.bit.ENABLE  = 0;
+        //DMAC->CTRL.bit.DMAENABLE    = 0; // Disable DMA controller
+        //DMAC->BASEADDR.bit.BASEADDR = (uint32_t)&_dmadesc[1];
+        //DMAC->WRBADDR.bit.WRBADDR   = (uint32_t)&_dmadesc[0];
+        //DMAC->CTRL.reg = DMAC_CTRL_DMAENABLE | DMAC_CTRL_LVLEN(0xF);
+        uint8_t interruptMask = 2;
+#ifdef __SAMD51__
+        //DMAC->Channel[channel].CHCTRLA.bit.TRIGACT = DMAC_CHCTRLA_TRIGACT_BURST_Val; // triggerAction;
+        //DMAC->Channel[channel].CHCTRLA.bit.BURSTLEN = DMAC_CHCTRLA_BURSTLEN_SINGLE_Val; // Single-beat burst length
+        DMAC->Channel[channel].CHINTENSET.reg = DMAC_CHINTENSET_MASK &  interruptMask;
+        DMAC->Channel[channel].CHINTENCLR.reg = DMAC_CHINTENCLR_MASK & ~interruptMask;
+        DMAC->Channel[channel].CHCTRLA.bit.ENABLE = 1;
+#else
+        DMAC->CHID.bit.ID    = channel;
+        DMAC->CHINTENSET.reg = DMAC_CHINTENSET_MASK &  interruptMask;
+        DMAC->CHINTENCLR.reg = DMAC_CHINTENCLR_MASK & ~interruptMask;
+        DMAC->CHCTRLA.bit.ENABLE = 1; // Enable the transfer channel
+#endif
+//*/
+        _need_wait = true;
+        return;
+
+      }
+
+
       auto *reg = &_sercom->SPI.DATA.reg;
       int32_t idx = length & 0x03;
-//*
       if (idx) {
         do {
           write_data(*data++, 8);
@@ -1003,72 +1045,6 @@ mydesc = myDMA.addDescriptor(
         idx = 0;
       }
 //*/
-      if (false && -1 != _dma_channel && length > 2 && use_dma) {
-        DmacDescriptor* desc      = &_dmadesc[1];
-        DmacDescriptor* writeback = &_dmadesc[0];
-//        if (desc) {
-
-        dc_h();
-      set_clock_write();
-//        _sercom->SPI.LENGTH.reg = 1 | SERCOM_SPI_LENGTH_LENEN;
-        _sercom->SPI.LENGTH.reg = 0;
-/*
-myDMA.changeDescriptor(mydesc, const_cast<uint8_t*>(data), nullptr, length>>2);
-//*/
-        uint8_t channel = _dma_channel;
-//
-          DMAC->Channel[channel].CHCTRLA.bit.ENABLE  = 0;
-
-          desc->BTCTRL.bit.VALID     = true;
-          desc->BTCTRL.bit.EVOSEL    = 0; // DMA_EVENT_OUTPUT_DISABLE;
-          desc->BTCTRL.bit.BLOCKACT  = 0; // DMA_BLOCK_ACTION_NOACT;
-          desc->BTCTRL.bit.BEATSIZE  = 2; // DMA_BEAT_SIZE_BYTE;   // size;
-          desc->BTCTRL.bit.SRCINC    = true;                 // srcInc;
-          desc->BTCTRL.bit.DSTINC    = false;                // dstInc;
-          desc->BTCTRL.bit.STEPSEL   = 0; // DMA_STEPSEL_DST;      // stepSel;
-          desc->BTCTRL.bit.STEPSIZE  = 0; // DMA_ADDRESS_INCREMENT_STEP_SIZE_1; // stepSize;
-          desc->BTCNT.reg            = length >> 2;   // count;
-
-          desc->DSTADDR.reg          = (uint32_t)(&_sercom->SPI.DATA.reg);
-          desc->SRCADDR.reg          = (uint32_t)data;
-
-        if (desc->BTCTRL.bit.SRCINC) {
-            if (desc->BTCTRL.bit.STEPSEL) {
-                desc->SRCADDR.reg += desc->BTCNT.reg * 4 * (1 << desc->BTCTRL.bit.STEPSIZE);
-            } else {
-                desc->SRCADDR.reg += desc->BTCNT.reg * 4;
-            }
-        }
-
-//        desc->DESCADDR.reg         = (uint32_t)desc;
-//*/
-
-        //DMAC->CTRL.bit.DMAENABLE    = 0; // Disable DMA controller
-        //DMAC->BASEADDR.bit.BASEADDR = (uint32_t)&_dmadesc[1];
-        //DMAC->WRBADDR.bit.WRBADDR   = (uint32_t)&_dmadesc[0];
-        //DMAC->CTRL.reg = DMAC_CTRL_DMAENABLE | DMAC_CTRL_LVLEN(0xF);
-
-
-        uint8_t interruptMask = 2;
-#ifdef __SAMD51__
-        //DMAC->Channel[channel].CHCTRLA.bit.TRIGACT = DMAC_CHCTRLA_TRIGACT_BURST_Val; // triggerAction;
-        //DMAC->Channel[channel].CHCTRLA.bit.BURSTLEN = DMAC_CHCTRLA_BURSTLEN_SINGLE_Val; // Single-beat burst length
-        DMAC->Channel[channel].CHINTENSET.reg = DMAC_CHINTENSET_MASK &  interruptMask;
-        DMAC->Channel[channel].CHINTENCLR.reg = DMAC_CHINTENCLR_MASK & ~interruptMask;
-        DMAC->Channel[channel].CHCTRLA.bit.ENABLE = 1;
-#else
-        DMAC->CHID.bit.ID    = channel;
-        DMAC->CHINTENSET.reg = DMAC_CHINTENSET_MASK &  interruptMask;
-        DMAC->CHINTENCLR.reg = DMAC_CHINTENCLR_MASK & ~interruptMask;
-        DMAC->CHCTRLA.bit.ENABLE = 1; // Enable the transfer channel
-#endif
-//    cpu_irq_leave_critical();
-      _need_wait = true;
-
-    return;
-
-//        }
-      }
 
       dc_h();
       _sercom->SPI.LENGTH.reg = 4 | SERCOM_SPI_LENGTH_LENEN;
@@ -1091,7 +1067,7 @@ myDMA.changeDescriptor(mydesc, const_cast<uint8_t*>(data), nullptr, length>>2);
       } else if (-1 != _dma_channel && use_dma) {
         dc_h();
         set_write_len(length << 3);
-        _setup_dma_desc_links(data, length);
+        _setup__dma_desc_links(data, length);
         *reg(SPI_DMA_OUT_LINK_REG(_spi_port)) = SPI_OUTLINK_START | ((int)(&_dmadesc[0]) & 0xFFFFF);
         spi_dma_transfer_active(_dma_channel);
         exec_spi();
@@ -1148,7 +1124,7 @@ myDMA.changeDescriptor(mydesc, const_cast<uint8_t*>(data), nullptr, length>>2);
       }
 
       if (param->no_convert) {
-        read_bytes((uint8_t*)dst, len * _read_conv.bytes);
+        read_bytes((uint8_t*)dst, len * _read_conv.bytes, true);
       } else {
         read_pixels(dst, len, param);
       }
@@ -1158,66 +1134,61 @@ myDMA.changeDescriptor(mydesc, const_cast<uint8_t*>(data), nullptr, length>>2);
 
     void read_pixels(void* dst, int32_t length, pixelcopy_t* param)
     {
-      
-/*
-      int32_t len1 = std::min(length, 10); // 10 pixel read
-      int32_t len2 = len1;
-      auto len_read_pixel  = _read_conv.bits;
-      wait_spi();
-      set_read_len(len_read_pixel * len1);
-      exec_spi();
-      param->src_data = _regbuf;
+      int32_t bytes = _read_conv.bytes;
       int32_t dstindex = 0;
-      uint32_t highpart = 8;
-      uint32_t userreg = *reg(SPI_USER_REG(_spi_port));
-      auto spi_w0_reg = reg(SPI_W0_REG(_spi_port));
+      int32_t len = 4;
+      uint8_t buf[24];
+      param->src_data = buf;
       do {
-        if (0 == (length -= len1)) {
-          len2 = len1;
-          wait_spi();
-          *reg(SPI_USER_REG(_spi_port)) = userreg;
-        } else {
-          uint32_t user = userreg;
-          if (highpart) user = userreg | SPI_USR_MISO_HIGHPART;
-          if (length < len1) {
-            len1 = length;
-            wait_spi();
-            set_read_len(len_read_pixel * len1);
-          } else {
-            wait_spi();
-          }
-          *reg(SPI_USER_REG(_spi_port)) = user;
-          exec_spi();
-        }
-        memcpy(_regbuf, (void*)&spi_w0_reg[highpart ^= 8], len2 * len_read_pixel >> 3);
+        if (len > length) len = length;
+        read_bytes(buf, len * bytes);
         param->src_x = 0;
-        dstindex = param->fp_copy(dst, dstindex, dstindex + len2, param);
+        dstindex = param->fp_copy(dst, dstindex, dstindex + len, param);
+        length -= len;
       } while (length);
-//*/
     }
 
     void read_bytes(uint8_t* dst, int32_t length, bool use_dma = false)
     {
 /*
-      auto *datreg = &_sercom->SPI.DATA.reg;
-      auto *lenreg = &_sercom->SPI.LENGTH.reg;
-      auto *intflag = &_sercom->SPI.INTFLAG.bit; 
-      wait_spi();
-      while (intflag->RXC == 0);
-      dst[0] = *datreg;
-      *lenreg = 1 | SERCOM_SPI_LENGTH_LENEN;
-      *datreg = 0;
-      _need_wait = true;
-      int32_t index = 0;
-      do {
-        wait_spi();
-        while (intflag->RXC == 0);
-        dst[index] = *datreg;
-        if (++index < length) *datreg = 0;
-      } while (index < length);
-      _need_wait = false;
+      if (use_dma && length > 16) {
+        _sercom->SPI.LENGTH.reg = 0;
+        uint_fast8_t beatsize = _sercom->SPI.CTRLC.bit.DATA32B ? 2 : 0;
+        if (beatsize && (length & 3)) {
+          disableSPI();
+          beatsize = 0;
+          _sercom->SPI.CTRLC.bit.DATA32B = 0;  // 4Byte transfer enable
+          enableSPI();
+        }
+        auto desc = _dma_desc;
+        desc->BTCNT.reg            = length >> beatsize;   // count;
+        desc->BTCTRL.bit.BEATSIZE  = beatsize; // DMA_BEAT_SIZE_BYTE;   // size;
+        desc->BTCTRL.bit.VALID     = true;
+        desc->BTCTRL.bit.EVOSEL    = 0; // DMA_EVENT_OUTPUT_DISABLE;
+        desc->BTCTRL.bit.BLOCKACT  = 0; // DMA_BLOCK_ACTION_NOACT;
+        desc->BTCTRL.bit.SRCINC    = false;                 // srcInc;
+        desc->BTCTRL.bit.DSTINC    = true;                // dstInc;
+        desc->BTCTRL.bit.STEPSEL   = 0; // DMA_STEPSEL_DST;      // stepSel;
+        desc->BTCTRL.bit.STEPSIZE  = 0; // DMA_ADDRESS_INCREMENT_STEP_SIZE_1; // stepSize;
+        desc->DSTADDR.reg          = (uint32_t)dst;
+        desc->SRCADDR.reg          = (uint32_t)(&_sercom->SPI.DATA.reg);
 
-/*/
+        if (desc->BTCTRL.bit.DSTINC) {
+          if (desc->BTCTRL.bit.STEPSEL) {
+            desc->DSTADDR.reg += length * (1 << desc->BTCTRL.bit.STEPSIZE);
+          } else {
+            desc->DSTADDR.reg += length;
+          }
+        }
+
+//        _dma_adafruit.setTrigger(sercomData[CFG::sercom_index].dmac_id_rx);
+        //_dma_adafruit.changeDescriptor(desc, nullptr, const_cast<uint8_t*>(dst), length>>beatsize);
+        _dma_adafruit.startJob();
+        _need_wait = true;
+        return;
+      }
+//*/
+
       auto *datreg = &_sercom->SPI.DATA.reg;
       auto *lenreg = &_sercom->SPI.LENGTH.reg;
       auto *intflag = &_sercom->SPI.INTFLAG.bit; 
@@ -1231,17 +1202,14 @@ myDMA.changeDescriptor(mydesc, const_cast<uint8_t*>(data), nullptr, length>>2);
       do {
         if (0 == (length -= len1)) {
           len2 = len1;
-          wait_spi();
-//          while (intflag->RXC == 0);
+          while (intflag->RXC == 0);
         } else {
           if (length < len1) {
             len1 = length;
-            wait_spi();
-//            while (intflag->RXC == 0);
+            while (intflag->RXC == 0);
             *lenreg = len1 | SERCOM_SPI_LENGTH_LENEN;
           } else {
-            wait_spi();
-//          while (intflag->RXC == 0);
+            while (intflag->RXC == 0);
           }
           *datreg = 0;
         }
@@ -1250,46 +1218,6 @@ myDMA.changeDescriptor(mydesc, const_cast<uint8_t*>(data), nullptr, length>>2);
         dst += len2;
       } while (length);
       _need_wait = false;
-/*
-      if (-1 != _dma_channel && use_dma) {
-        wait_spi();
-        set_read_len(length << 3);
-        _setup_dma_desc_links(dst, length);
-        *reg(SPI_DMA_IN_LINK_REG(_spi_port)) = SPI_INLINK_START | ((int)(&_dmadesc[0]) & 0xFFFFF);
-        spi_dma_transfer_active(_dma_channel);
-        exec_spi();
-      } else {
-        int32_t len1 = std::min(length, 32);  // 32 Byte read.
-        int32_t len2 = len1;
-        wait_spi();
-        set_read_len(len1 << 3);
-        exec_spi();
-        uint32_t highpart = 8;
-        uint32_t userreg = *reg(SPI_USER_REG(_spi_port));
-        auto spi_w0_reg = reg(SPI_W0_REG(_spi_port));
-        do {
-          if (0 == (length -= len1)) {
-            len2 = len1;
-            wait_spi();
-            *reg(SPI_USER_REG(_spi_port)) = userreg;
-          } else {
-            uint32_t user = userreg;
-            if (highpart) user = userreg | SPI_USR_MISO_HIGHPART;
-            if (length < len1) {
-              len1 = length;
-              wait_spi();
-              set_read_len(len1 << 3);
-            } else {
-              wait_spi();
-            }
-            *reg(SPI_USER_REG(_spi_port)) = user;
-            exec_spi();
-          }
-          memcpy(dst, (void*)&spi_w0_reg[highpart ^= 8], len2);
-          dst += len2;
-        } while (length);
-      }
-//*/
     }
 
     void copyRect_impl(int32_t dst_x, int32_t dst_y, int32_t w, int32_t h, int32_t src_x, int32_t src_y) override
@@ -1303,7 +1231,7 @@ myDMA.changeDescriptor(mydesc, const_cast<uint8_t*>(data), nullptr, length>>2);
         do {
           readRect_impl(src_x + pos, src_y, 1, h, buf, &p);
           setWindow_impl(dst_x + pos, dst_y, dst_x + pos, dst_y + h - 1);
-          write_bytes(buf, buflen);
+          write_bytes(buf, buflen, true);
           pos += add;
         } while (--w);
       } else {
@@ -1314,7 +1242,7 @@ myDMA.changeDescriptor(mydesc, const_cast<uint8_t*>(data), nullptr, length>>2);
         do {
           readRect_impl(src_x, src_y + pos, w, 1, buf, &p);
           setWindow_impl(dst_x, dst_y + pos, dst_x + w - 1, dst_y + pos);
-          write_bytes(buf, buflen);
+          write_bytes(buf, buflen, true);
           pos += add;
         } while (--h);
       }
@@ -1354,13 +1282,13 @@ myDMA.changeDescriptor(mydesc, const_cast<uint8_t*>(data), nullptr, length>>2);
       _dmabufs[1].free();
     }
 
-    static void _alloc_dmadesc(size_t len)
-    {
-      if (_dmadesc) heap_free(_dmadesc);
-      _dmadesc_len = len;
-      _dmadesc = (DmacDescriptor*)memalign(16, sizeof(DmacDescriptor) * len);
-      if (_dmadesc) memset(_dmadesc, 0, sizeof(DmacDescriptor) * len);
-    }
+    //static void _alloc_dmadesc(size_t len)
+    //{
+    //  if (_dmadesc) heap_free(_dmadesc);
+    //  _dmadesc_len = len;
+    //  _dmadesc = (DmacDescriptor*)memalign(16, sizeof(DmacDescriptor) * len);
+    //  if (_dmadesc) memset(_dmadesc, 0, sizeof(DmacDescriptor) * len);
+    //}
 
 
 //    __attribute__ ((always_inline)) inline volatile uint32_t* reg(uint32_t addr) { return (volatile uint32_t *)ETS_UNCACHED_ADDR(addr); }
@@ -1400,7 +1328,6 @@ myDMA.changeDescriptor(mydesc, const_cast<uint8_t*>(data), nullptr, length>>2);
 */
     }
 
-    static constexpr int _dma_channel= get_dma_channel<CFG, -1>::value;
     static constexpr int _spi_mosi = get_spi_mosi<CFG, -1>::value;
     static constexpr int _spi_miso = get_spi_miso<CFG, -1>::value;
     static constexpr int _spi_sclk = get_spi_sclk<CFG, -1>::value;
@@ -1432,19 +1359,21 @@ myDMA.changeDescriptor(mydesc, const_cast<uint8_t*>(data), nullptr, length>>2);
     uint32_t _mask_reg_dc;
     volatile uint32_t* _gpio_reg_dc_h;
     volatile uint32_t* _gpio_reg_dc_l;
-    static uint32_t _regbuf[8];
+
+#if defined (ARDUINO)
+    Adafruit_ZeroDMA _dma_adafruit;
+    DmacDescriptor* _dma_desc;
+#endif
+
     static DmacDescriptor* _dmadesc;
     static uint32_t _dmadesc_len;
-    static bool _next_dma_reset;
     static bool _need_wait;
 
 //    static volatile spi_dev_t *_hw;
     static Sercom* _sercom;
   };
-  template <class T> uint32_t LGFX_SPI<T>::_regbuf[];
   template <class T> DmacDescriptor* LGFX_SPI<T>::_dmadesc = nullptr;
   template <class T> uint32_t LGFX_SPI<T>::_dmadesc_len = 0;
-  template <class T> bool LGFX_SPI<T>::_next_dma_reset;
   template <class T> bool LGFX_SPI<T>::_need_wait;
 
   template <class T> Sercom* LGFX_SPI<T>::_sercom;

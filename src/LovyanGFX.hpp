@@ -200,7 +200,7 @@ namespace lgfx {
       gpio_bl  = 0x0205; // PORTC  5
       freq_fill  = 100000000;
       freq_write =  60000000;
-      freq_read  =  18000000;
+      freq_read  =  20000000;
       rotation = 1;
     }
   };
@@ -209,7 +209,6 @@ namespace lgfx {
     static constexpr int sercom_index = 7;
     static constexpr int sercom_clksrc = 0;   // -1=notchange / 0=select GCLK0
     static constexpr int sercom_clkfreq = F_CPU;
-    static constexpr int dma_channel = 0;
     static constexpr int spi_miso = 0x0112; // PORTB 18
     static constexpr int spi_mosi = 0x0113; // PORTB 19
     static constexpr int spi_sclk = 0x0114; // PORTB 20;
