@@ -404,7 +404,6 @@ namespace lgfx
       }
       if (font == nullptr) font = &fonts::Font0;
       _font = font;
-      _filled_x = 0;
       //_decoderState = utf8_decode_state_t::utf8_state0;
 
       font->getDefaultMetric(&_font_metrics);
@@ -609,8 +608,8 @@ namespace lgfx
     {
       if (utf8 == '\r') return 1;
       if (utf8 == '\n') {
-        _filled_x = 0;
-        _cursor_x = 0;
+        _filled_x = (_textscroll) ? this->_sx : 0;
+        _cursor_x = _filled_x;
         _cursor_y += _font_metrics.y_advance * _text_style.size_y;
       } else {
         uint16_t uniCode = utf8;
@@ -623,16 +622,16 @@ namespace lgfx
 
         if (0 == _font_metrics.width) return 1;
 
-        int_fast16_t w  = _font_metrics.width    * _text_style.size_x;
         int_fast16_t xo = _font_metrics.x_offset  * _text_style.size_x;
+        int_fast16_t w  = std::max(xo + _font_metrics.width * _text_style.size_x, _font_metrics.x_advance * _text_style.size_x);
         if (_textscroll || _textwrap_x) {
-          int32_t left = _textscroll ? this->_sx : 0;
-          if (_cursor_x < left - xo) _cursor_x = left - xo;
+          int32_t llimit = _textscroll ? this->_sx : 0;
+          if (_cursor_x < llimit - xo) _cursor_x = llimit - xo;
           else {
-            int32_t right = _textscroll ? this->_sx + this->_sw : this->_width;
-            if (_cursor_x + xo + w > right) {
-              _filled_x = 0;
-              _cursor_x = left - xo;
+            int32_t rlimit = _textscroll ? this->_sx + this->_sw : this->_width;
+            if (_cursor_x + w > rlimit) {
+              _filled_x = llimit;
+              _cursor_x = llimit - xo;
               _cursor_y += _font_metrics.y_advance * _text_style.size_y;
             }
           }

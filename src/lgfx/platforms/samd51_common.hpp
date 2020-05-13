@@ -37,7 +37,7 @@ namespace lgfx
 
   static void gpio_hi(uint32_t pin) { PORT->Group[pin>>8].OUTSET.reg = (1ul << (pin & 0xFF)); }
   static void gpio_lo(uint32_t pin) { PORT->Group[pin>>8].OUTCLR.reg = (1ul << (pin & 0xFF)); }
-//  static bool gpio_in(uint32_t pin) { return digitalRead(pin); }
+  static bool gpio_in(uint32_t pin) { return PORT->Group[pin>>8].IN.reg = (1ul << (pin & 0xFF)); }
 //*/
 
   __attribute__((__used__))
