@@ -46,14 +46,14 @@ namespace lgfx
 
     virtual void init(void) {
       if (gpio_rst >= 0) { // RST on
-        initGPIO(gpio_rst);
+        lgfxPinMode(gpio_rst, pin_mode_t::output);
         gpio_lo(gpio_rst);
       }
 
       if (gpio_bl >= 0) { // Backlight control
         if (pwm_ch_bl < 0) { // nouse PWM
 
-          initGPIO(gpio_bl);
+          lgfxPinMode(gpio_bl, pin_mode_t::output);
 
           if (backlight_level) gpio_hi(gpio_bl);
           else                 gpio_lo(gpio_bl);
@@ -122,7 +122,7 @@ namespace lgfx
     uint8_t getCmdSlpin(void) const { return cmd_slpin; }
     uint8_t getCmdSlpout(void)const { return cmd_slpout; }
 
-    static uint32_t getWindowAddr32(uint_fast16_t H, uint_fast16_t L) { return (((uint8_t)H)<<8 | (H)>>8) | (((L)<<8 | (L)>>8)<<16 ); }
+    static uint32_t getWindowAddr32(uint_fast16_t H, uint_fast16_t L) { return (((uint8_t)H)<<8 | (H)>>8) | ((uint32_t)((L)<<8 | (L)>>8))<<16; }
     static uint32_t getWindowAddr16(uint_fast16_t H, uint_fast16_t L) { return H | L<<8; }
 
   protected:

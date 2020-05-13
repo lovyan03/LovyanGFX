@@ -23,6 +23,9 @@ Contributors:
 #ifdef min
 #undef min
 #endif
+#ifdef max
+#undef max
+#endif
 
 #include "lgfx/lgfx_common.hpp"         // common include (always include)
 
@@ -49,6 +52,10 @@ Contributors:
 #if defined (ESP32) || (CONFIG_IDF_TARGET_ESP32)
 
   #include "lgfx/platforms/lgfx_spi_esp32.hpp"
+
+#elif defined (__SAMD51__)
+
+  #include "lgfx/platforms/lgfx_spi_samd51.hpp"
 
 #elif defined (ESP8266)
 // not implemented.
@@ -180,6 +187,33 @@ namespace lgfx {
     static constexpr int spi_mosi = 23;
     static constexpr int spi_miso = 19;
     static constexpr int spi_sclk = 18;
+  };
+
+#elif defined (ARDUINO_WIO_TERMINAL)
+
+  struct Panel_default : public lgfx::Panel_ILI9341 {
+    Panel_default(void) {
+      spi_3wire = false;
+      spi_cs   = 0x0115; // PORTB 21
+      spi_dc   = 0x0206; // PORTC  6
+      gpio_rst = 0x0207; // PORTC  7
+      gpio_bl  = 0x0205; // PORTC  5
+      freq_fill  = 100000000;
+      freq_write =  50000000;
+      freq_read  =  20000000;
+      rotation = 1;
+    }
+  };
+
+  struct LGFX_Config {
+    static constexpr int sercom_index = 7;
+    static constexpr int sercom_clksrc = 0;   // -1=notchange / 0=select GCLK0
+    static constexpr int sercom_clkfreq = F_CPU;
+    static constexpr int spi_miso = 0x0112; // PORTB 18
+    static constexpr int spi_mosi = 0x0113; // PORTB 19
+    static constexpr int spi_sclk = 0x0114; // PORTB 20;
+    static constexpr SercomSpiTXPad pad_mosi = SPI_PAD_3_SCK_1;  // PAD_SPI3_TX;
+    static constexpr SercomRXPad    pad_miso = SERCOM_RX_PAD_2;  // PAD_SPI3_RX;
   };
 
 #endif

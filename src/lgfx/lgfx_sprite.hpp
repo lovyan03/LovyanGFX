@@ -86,6 +86,11 @@ namespace lgfx
       }
     }
 
+    void setPsram( bool enabled )
+    {
+      _psram = enabled;
+    }
+
     void* createSprite(int32_t w, int32_t h)
     {
       if (w < 1 || h < 1) return nullptr;
@@ -306,7 +311,8 @@ namespace lgfx
     int32_t _ys;
     int32_t _ye;
     int32_t _index;
-    bool _use_spiram = false; // disable PSRAM to PSRAM memcpy flg.
+    bool _disable_memcpy = false; // disable PSRAM to PSRAM memcpy flg.
+    bool _psram = false;
 
     bool create_palette(void)
     {
@@ -414,7 +420,7 @@ namespace lgfx
     void push_sprite(LovyanGFX* dst, int32_t x, int32_t y, uint32_t transp = ~0)
     {
       pixelcopy_t p(_img, dst->getColorDepth(), getColorDepth(), dst->hasPalette(), _palette, transp);
-      dst->push_image(x, y, _width, _height, &p, !_use_spiram); // DMA disable with use SPIRAM
+      dst->push_image(x, y, _width, _height, &p, !_disable_memcpy); // DMA disable with use SPIRAM
     }
 
     inline bool push_rotate_zoom(LovyanGFX* dst, int32_t x, int32_t y, float angle, float zoom_x, float zoom_y, uint32_t transp = ~0)
@@ -508,7 +514,7 @@ return;
             size_t len = w * bytes;
             uint32_t add_dst = bw * bytes;
             uint32_t color = _color.raw;
-            if (_use_spiram) {
+            if (_disable_memcpy) {
               uint8_t linebuf[len];
               memset_multi(linebuf, color, bytes, w);
               do {
@@ -605,7 +611,7 @@ return;
             index = ptr_advance(ll);
           } while (length -= ll);
         } else
-        if (_use_spiram) {
+        if (_disable_memcpy) {
           int32_t buflen = std::min(_xe - _xs + 1, length);
           uint8_t linebuf[buflen * bytes];
           memset_multi(linebuf, _color.raw, bytes, buflen);
@@ -670,7 +676,7 @@ return;
         int32_t pos = (src_y < dst_y) ? h - 1 : 0;
         uint8_t* src = &_img[(src_x + (src_y + pos) * _bitwidth) * _write_conv.bytes];
         uint8_t* dst = &_img[(dst_x + (dst_y + pos) * _bitwidth) * _write_conv.bytes];
-        if (_use_spiram) {
+        if (_disable_memcpy) {
           uint8_t buf[len];
           do {
             memcpy(buf, src, len);
@@ -752,57 +758,59 @@ return;
       }
     }
 
-
-
-//----------------------------------------------------------------------------
-#if defined (ESP32) || (CONFIG_IDF_TARGET_ESP32)
-//----------------------------------------------------------------------------
-
-  public:
-    void setPsram( bool enabled ) {
-      if (enabled) _malloc_cap |= MALLOC_CAP_SPIRAM;
-      else         _malloc_cap &= ~MALLOC_CAP_SPIRAM;
+    static void memset_multi(uint8_t* buf, uint32_t c, size_t size, size_t length)
+    {
+      size_t l = length;
+      if (l & ~0xF) {
+        while ((l >>= 1) & ~0xF);
+        ++l;
+      }
+      size_t len = l * size;
+      length = (length * size) - len;
+      uint8_t* dst = buf;
+      if (size == 2) {
+        do { // 2byte speed tweak
+          *(uint16_t*)dst = c;
+          dst += 2;
+        } while (--l);
+      } else {
+        do {
+          size_t i = 0;
+          do {
+            *dst++ = *(((uint8_t*)&c) + i);
+          } while (++i != size);
+        } while (--l);
+      }
+      if (!length) return;
+      while (length > len) {
+        memcpy(dst, buf, len);
+        dst += len;
+        length -= len;
+        len <<= 1;
+      }
+      if (length) {
+        memcpy(dst, buf, length);
+      }
     }
 
-    // set MALLOC_CAP_SPIRAM or MALLOC_CAP_DMA
-    void setMallocCap(uint32_t flg) {
-      _malloc_cap = flg;
-    }
-
-  protected:
-    uint32_t _malloc_cap = MALLOC_CAP_8BIT;
     void* _mem_alloc(uint32_t bytes)
     {
-      _use_spiram = (_malloc_cap & MALLOC_CAP_SPIRAM);
-      void* res = heap_caps_malloc(bytes, _malloc_cap);
-
-      // if can't malloc with PSRAM, try without using PSRAM malloc.
-      if (res == nullptr && _use_spiram) {
-        _use_spiram = false;
-        res = heap_caps_malloc(bytes, _malloc_cap & ~MALLOC_CAP_SPIRAM);
+      if (_psram)
+      {
+        void* res = heap_alloc_psram(bytes);
+        if (res != nullptr) {
+          _disable_memcpy = true;
+          return res;
+        }
       }
-      return res;
+
+      _disable_memcpy = false;
+      return heap_alloc_dma(bytes);
     }
     void _mem_free(void* buf)
     {
-      heap_caps_free(buf);
+      heap_free(buf);
     }
-
-//----------------------------------------------------------------------------
-#elif defined (ESP8226)
-//----------------------------------------------------------------------------
-// not implemented.
-//----------------------------------------------------------------------------
-#elif defined (STM32F7)
-//----------------------------------------------------------------------------
-// not implemented.
-//----------------------------------------------------------------------------
-#elif defined (__AVR__)
-//----------------------------------------------------------------------------
-// not implemented.
-//----------------------------------------------------------------------------
-
-#endif
 
   };
 

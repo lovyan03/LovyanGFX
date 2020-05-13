@@ -133,7 +133,7 @@ namespace lgfx
 
     void init(void) override {
       gpio_lo(gpio_rst);
-      initGPIO(gpio_rst, GPIO_MODE_INPUT);
+      lgfxPinMode(gpio_rst, pin_mode_t::input);
 
       isIPS = gpio_in(gpio_rst);       // get panel type (IPS or TN)
 

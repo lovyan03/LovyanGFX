@@ -1,3 +1,6 @@
+#ifndef LGFX_FONTS_HPP_
+#define LGFX_FONTS_HPP_
+
 #include <stdint.h>
 
 namespace lgfx
@@ -23,16 +26,6 @@ namespace lgfx
   , baseline_right  = 18  // Baseline right
   };
 
-  enum font_type_t
-  { ft_unknown
-  , ft_glcd
-  , ft_bmp
-  , ft_rle
-  , ft_gfx
-  , ft_bdf
-  , ft_vlw
-  };
-
   struct FontMetrics {
     int16_t width;
     int16_t x_advance;
@@ -55,12 +48,21 @@ namespace lgfx
 
   struct IFont
   {
-    virtual ~IFont() {}
-    virtual font_type_t getType(void) const { return ft_unknown; }
+    enum font_type_t
+    { ft_unknown
+    , ft_glcd
+    , ft_bmp
+    , ft_rle
+    , ft_gfx
+    , ft_bdf
+    , ft_vlw
+    };
+
+    virtual font_type_t getType(void) const = 0;
     virtual void getDefaultMetric(FontMetrics *metrics) const = 0;
     virtual bool updateFontMetric(FontMetrics *metrics, uint16_t uniCode) const = 0;
     virtual bool unloadFont(void) { return false; }
-
+/*
     struct param {
       int32_t clip_left  ;
       int32_t clip_right ;
@@ -69,6 +71,11 @@ namespace lgfx
       int32_t filled_x   ;
       TextStyle* style   ;
     };
+//*/
+  };
+
+  struct RunTimeFont : public IFont {
+    virtual ~RunTimeFont() {}
   };
 
   struct BaseFont : public IFont {
@@ -78,7 +85,7 @@ namespace lgfx
     const uint8_t height;
     const uint8_t baseline;
     BaseFont() = default;
-    BaseFont(const uint8_t *chartbl, const uint8_t *widthtbl, uint8_t width, uint8_t height, uint8_t baseline)
+    constexpr BaseFont(const uint8_t *chartbl, const uint8_t *widthtbl, uint8_t width, uint8_t height, uint8_t baseline)
      : chartbl  (chartbl  )
      , widthtbl (widthtbl )
      , width    (width    )
@@ -97,28 +104,22 @@ namespace lgfx
   };
 
   struct GLCDfont : public BaseFont {
-    GLCDfont(const uint8_t *chartbl, const uint8_t *widthtbl, uint8_t width, uint8_t height, uint8_t baseline) : BaseFont(chartbl, widthtbl, width, height, baseline ) {}
-    font_type_t getType(void) const override { return ft_glcd; }
+    constexpr GLCDfont(const uint8_t *chartbl, const uint8_t *widthtbl, uint8_t width, uint8_t height, uint8_t baseline) : BaseFont(chartbl, widthtbl, width, height, baseline ) {}
+    constexpr font_type_t getType(void) const override { return ft_glcd; }
 
-    bool updateFontMetric(FontMetrics *metrics, uint16_t uniCode) const override {
-      return uniCode < 256;
-    }
+    bool updateFontMetric(FontMetrics *metrics, uint16_t uniCode) const override;
   };
 
   struct BMPfont : public BaseFont {
-    BMPfont(const uint8_t *chartbl, const uint8_t *widthtbl, uint8_t width, uint8_t height, uint8_t baseline) : BaseFont(chartbl, widthtbl, width, height, baseline ) {}
-    font_type_t getType(void) const override { return ft_bmp;  } 
+    constexpr BMPfont(const uint8_t *chartbl, const uint8_t *widthtbl, uint8_t width, uint8_t height, uint8_t baseline) : BaseFont(chartbl, widthtbl, width, height, baseline ) {}
+    constexpr font_type_t getType(void) const override { return ft_bmp;  } 
 
-    bool updateFontMetric(FontMetrics *metrics, uint16_t uniCode) const override {
-      if ((uniCode -= 32) >= 96) return false;
-      metrics->x_advance = metrics->width = pgm_read_byte( (uint8_t *)pgm_read_dword( &widthtbl ) + uniCode );
-      return true;
-    }
+    bool updateFontMetric(FontMetrics *metrics, uint16_t uniCode) const override;
   };
 
   struct RLEfont : public BMPfont {
-    RLEfont(const uint8_t *chartbl, const uint8_t *widthtbl, uint8_t width, uint8_t height, uint8_t baseline) : BMPfont(chartbl, widthtbl, width, height, baseline ) {}
-    font_type_t getType(void) const override { return ft_rle;  }
+    constexpr RLEfont(const uint8_t *chartbl, const uint8_t *widthtbl, uint8_t width, uint8_t height, uint8_t baseline) : BMPfont(chartbl, widthtbl, width, height, baseline ) {}
+    constexpr font_type_t getType(void) const override { return ft_rle; }
   };
 
   struct BDFfont : public BaseFont {
@@ -126,208 +127,146 @@ namespace lgfx
     uint16_t indexsize;
     uint8_t halfwidth;
     BDFfont() = default;
-    BDFfont(const uint8_t *chartbl, const uint16_t *indextbl, uint16_t indexsize, uint8_t width, uint8_t halfwidth, uint8_t height, uint8_t baseline) 
+    constexpr BDFfont(const uint8_t *chartbl, const uint16_t *indextbl, uint16_t indexsize, uint8_t width, uint8_t halfwidth, uint8_t height, uint8_t baseline) 
      : BaseFont(chartbl, nullptr, width, height, baseline )
      , indextbl(indextbl)
      , indexsize(indexsize)
      , halfwidth(halfwidth)
      {}
-    font_type_t getType(void) const override { return ft_bdf;  }
+    constexpr font_type_t getType(void) const override { return ft_bdf;  }
 
-    bool updateFontMetric(FontMetrics *metrics, uint16_t uniCode) const override {
-      metrics->x_advance = metrics->width = pgm_read_byte( (uniCode < 0x0100) ? &halfwidth : &width );
-      return true;
-    }
+    bool updateFontMetric(FontMetrics *metrics, uint16_t uniCode) const override;
   };
 
-  struct VLWfont : public IFont {
-    uint16_t gCount;     // Total number of characters
-    uint16_t yAdvance;   // Line advance
-    uint16_t spaceWidth; // Width of a space character
-    int16_t  ascent;     // Height of top of 'd' above baseline, other characters may be taller
-    int16_t  descent;    // Offset to bottom of 'p', other characters may have a larger descent
-    uint16_t maxAscent;  // Maximum ascent found in font
-    uint16_t maxDescent; // Maximum descent found in font
-
-    // These are for the metrics for each individual glyph (so we don't need to seek this in file and waste time)
-    uint16_t* gUnicode  = nullptr;  //UTF-16 code, the codes are searched so do not need to be sequential
-    uint8_t*  gWidth    = nullptr;  //cwidth
-    uint8_t*  gxAdvance = nullptr;  //setWidth
-    int8_t*   gdX       = nullptr;  //leftExtent
-    uint32_t* gBitmap   = nullptr;  //file pointer to greyscale bitmap
-
-    DataWrapper* _fontData = nullptr;
-    bool _fontLoaded = false; // Flags when a anti-aliased font is loaded
-
-    font_type_t getType(void) const override { return ft_vlw;  } 
-
-    void getDefaultMetric(FontMetrics *metrics) const override {
-      metrics->x_offset  = 0;
-      metrics->y_offset  = 0;
-      metrics->baseline  = maxAscent;
-      metrics->y_advance = yAdvance;
-      metrics->height    = yAdvance;
-    }
-
-    virtual ~VLWfont() {
-      unloadFont();
-    }
-
-    bool unloadFont(void) override {
-      _fontLoaded = false;
-      if (gUnicode)  { heap_free(gUnicode);  gUnicode  = nullptr; }
-      if (gWidth)    { heap_free(gWidth);    gWidth    = nullptr; }
-      if (gxAdvance) { heap_free(gxAdvance); gxAdvance = nullptr; }
-      if (gdX)       { heap_free(gdX);       gdX       = nullptr; }
-      if (gBitmap)   { heap_free(gBitmap);   gBitmap   = nullptr; }
-      if (_fontData) {
-        _fontData->preRead();
-        _fontData->close();
-        _fontData->postRead();
-        _fontData = nullptr;
-      }
-      return true;
-    }
-
-    bool getUnicodeIndex(uint16_t unicode, uint16_t *index) const
-    {
-      auto poi = std::lower_bound(gUnicode, &gUnicode[gCount], unicode);
-      *index = std::distance(gUnicode, poi);
-      return (*poi == unicode);
-    }
-
-    bool updateFontMetric(FontMetrics *metrics, uint16_t uniCode) const override {
-      uint16_t gNum = 0;
-      if (getUnicodeIndex(uniCode, &gNum)) {
-        if (gWidth && gxAdvance && gdX[gNum]) {
-          metrics->width     = gWidth[gNum];
-          metrics->x_advance = gxAdvance[gNum];
-          metrics->x_offset  = gdX[gNum];
-        } else {
-          auto file = _fontData;
-
-          file->preRead();
-
-          file->seek(28 + gNum * 28);  // headerPtr
-          uint32_t buffer[6];
-          file->read((uint8_t*)buffer, 24);
-          metrics->width    = __builtin_bswap32(buffer[1]); // Width of glyph
-          metrics->x_advance = __builtin_bswap32(buffer[2]); // xAdvance - to move x cursor
-          metrics->x_offset  = (int32_t)((int8_t)__builtin_bswap32(buffer[4])); // x delta from cursor
-
-          file->postRead();
-        }
-        return true;
-      }
-      return false;
-    }
-
-
-    bool loadFont(DataWrapper* data) {
-      _fontData = data;
-      {
-        uint32_t buf[6];
-        data->read((uint8_t*)buf, 6 * 4); // 24 Byte read
-
-        gCount   = __builtin_bswap32(buf[0]); // glyph count in file
-                 //__builtin_bswap32(buf[1]); // vlw encoder version - discard
-        yAdvance = __builtin_bswap32(buf[2]); // Font size in points, not pixels
-                 //__builtin_bswap32(buf[3]); // discard
-        ascent   = __builtin_bswap32(buf[4]); // top of "d"
-        descent  = __builtin_bswap32(buf[5]); // bottom of "p"
-      }
-
-      // These next gFont values might be updated when the Metrics are fetched
-      maxAscent  = ascent;   // Determined from metrics
-      maxDescent = descent;  // Determined from metrics
-      yAdvance   = std::max((int)yAdvance, ascent + descent);
-      spaceWidth = yAdvance * 2 / 7;  // Guess at space width
-
-//ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
-
-      if (!gCount) return false;
-
-//ESP_LOGI("LGFX", "font count:%d", gCount);
-
-      uint32_t bitmapPtr = 24 + (uint32_t)gCount * 28;
-
-      gBitmap   = (uint32_t*)heap_alloc_psram( gCount * 4); // seek pointer to glyph bitmap in the file
-      gUnicode  = (uint16_t*)heap_alloc_psram( gCount * 2); // Unicode 16 bit Basic Multilingual Plane (0-FFFF)
-      gWidth    =  (uint8_t*)heap_alloc_psram( gCount );    // Width of glyph
-      gxAdvance =  (uint8_t*)heap_alloc_psram( gCount );    // xAdvance - to move x cursor
-      gdX       =   (int8_t*)heap_alloc_psram( gCount );    // offset for bitmap left edge relative to cursor X
-
-      if (!gUnicode
-       || !gBitmap
-       || !gWidth
-       || !gxAdvance
-       || !gdX) {
-//ESP_LOGE("LGFX", "can not alloc font table");
-        return false;
-      }
-
-      _fontLoaded = true;
-
-      size_t gNum = 0;
-      _fontData->seek(24);  // headerPtr
-      uint32_t buffer[7];
-      do {
-        _fontData->read((uint8_t*)buffer, 7 * 4); // 28 Byte read
-        uint16_t unicode = __builtin_bswap32(buffer[0]); // Unicode code point value
-        uint32_t w = (uint8_t)__builtin_bswap32(buffer[2]); // Width of glyph
-        if (gUnicode)   gUnicode[gNum]  = unicode;
-        if (gWidth)     gWidth[gNum]    = w;
-        if (gxAdvance)  gxAdvance[gNum] = (uint8_t)__builtin_bswap32(buffer[3]); // xAdvance - to move x cursor
-        if (gdX)        gdX[gNum]       =  (int8_t)__builtin_bswap32(buffer[5]); // x delta from cursor
-
-        uint16_t height = __builtin_bswap32(buffer[1]); // Height of glyph
-        if ((unicode > 0xFF) || ((unicode > 0x20) && (unicode < 0xA0) && (unicode != 0x7F))) {
-          int16_t dY =  (int16_t)__builtin_bswap32(buffer[4]); // y delta from baseline
-//ESP_LOGI("LGFX", "unicode:%x  dY:%d", unicode, dY);
-          if (maxAscent < dY) {
-            maxAscent = dY;
-          }
-          if (maxDescent < (height - dY)) {
-//ESP_LOGI("LGFX", "maxDescent:%d", maxDescent);
-            maxDescent = height - dY;
-          }
-        }
-
-        if (gBitmap)  gBitmap[gNum] = bitmapPtr;
-        bitmapPtr += w * height;
-      } while (++gNum < gCount);
-
-      yAdvance = maxAscent + maxDescent;
-
-//ESP_LOGI("LGFX", "maxDescent:%d", maxDescent);
-      return true;
-    }
-  };
+  // deprecated array.
+  extern const IFont* fontdata [];
 }
+//----------------------------------------------------------------------------
+// Adafruit GFX font 
 
-#include "glcdfont.h"
-#include "Font16.h"
-#include "Font32rle.h"
-#include "Font64rle.h"
-#include "Font7srle.h"
-#include "Font72rle.h"
-#include "gfxfont.hpp"
+  struct GFXglyph { // Data stored PER GLYPH
+    uint32_t bitmapOffset;     // Pointer into GFXfont->bitmap
+    uint8_t  width, height;    // Bitmap dimensions in pixels
+    uint8_t  xAdvance;         // Distance to advance cursor (x axis)
+    int8_t   xOffset, yOffset; // Dist from cursor pos to UL corner
+  };
+
+  struct GFXfont : public lgfx::IFont { // Data stored for FONT AS A WHOLE:
+    struct EncodeRange {
+      uint16_t start;
+      uint16_t end;
+      uint16_t base;
+    };
+
+    uint8_t  *bitmap;      // Glyph bitmaps, concatenated
+    GFXglyph *glyph;       // Glyph array
+    uint16_t  first, last; // ASCII extents
+    uint8_t   yAdvance;    // Newline distance (y axis)
+
+    uint16_t range_num;    // Number of EncodeRange
+    EncodeRange *range;    // Array ofEncodeRange
+
+    constexpr GFXfont ( uint8_t *bitmap
+                      , GFXglyph *glyph
+                      , uint16_t first
+                      , uint16_t last
+                      , uint8_t yAdvance
+                      , uint16_t range_num = 0
+                      , EncodeRange *range = nullptr
+                      )
+    : bitmap   (bitmap   )
+    , glyph    (glyph    )
+    , first    (first    )
+    , last     (last     )
+    , yAdvance (yAdvance )
+    , range_num(range_num)
+    , range    (range    )
+    {}
+
+    GFXglyph* getGlyph(uint16_t uniCode) const;
+
+    constexpr font_type_t getType(void) const override { return font_type_t::ft_gfx; }
+
+    void getDefaultMetric(lgfx::FontMetrics *metrics) const;
+
+    bool updateFontMetric(lgfx::FontMetrics *metrics, uint16_t uniCode) const override;
+  };
+
+
+//----------------------------------------------------------------------------
 
 namespace fonts {
-  static PROGMEM const lgfx::GLCDfont Font0 = { (const uint8_t *)font, nullptr, 6, 8, 7};
-  static PROGMEM const lgfx::BMPfont  Font2 = { (const uint8_t *)chrtbl_f16, widtbl_f16, 0, chr_hgt_f16, baseline_f16 };
-  static PROGMEM const lgfx::RLEfont  Font4 = { (const uint8_t *)chrtbl_f32, widtbl_f32, 0, chr_hgt_f32, baseline_f32 };
-  static PROGMEM const lgfx::RLEfont  Font6 = { (const uint8_t *)chrtbl_f64, widtbl_f64, 0, chr_hgt_f64, baseline_f64 };
-  static PROGMEM const lgfx::RLEfont  Font7 = { (const uint8_t *)chrtbl_f7s, widtbl_f7s, 0, chr_hgt_f7s, baseline_f7s };
-  static PROGMEM const lgfx::RLEfont  Font8 = { (const uint8_t *)chrtbl_f72, widtbl_f72, 0, chr_hgt_f72, baseline_f72 };
-
 #ifdef __EFONT_FONT_DATA_H__
-  static PROGMEM const lgfx::BDFfont efont = { (const uint8_t *)efontFontData, efontFontList, sizeof(efontFontList)>>1, 16, 8, 16, 14 };
+  static constexpr lgfx::BDFfont efont = { (const uint8_t *)efontFontData, efontFontList, sizeof(efontFontList)>>1, 16, 8, 16, 14 };
 #endif
 
 #ifdef misakiUTF16FontData_h
-  static PROGMEM const lgfx::BDFfont misaki = { (const uint8_t *)fdata, ftable, sizeof(ftable)>>1, 8, 4, 7, 6 };
+  static constexpr lgfx::BDFfont misaki = { (const uint8_t *)fdata, ftable, sizeof(ftable)>>1, 8, 4, 7, 6 };
 #endif
+
+  extern const lgfx::GLCDfont Font0;
+  extern const lgfx::BMPfont  Font2;
+  extern const lgfx::RLEfont  Font4;
+  extern const lgfx::RLEfont  Font6;
+  extern const lgfx::RLEfont  Font7;
+  extern const lgfx::RLEfont  Font8;
+
+  extern const GFXfont TomThumb                 ;
+  extern const GFXfont FreeMono9pt7b            ;
+  extern const GFXfont FreeMono12pt7b           ;
+  extern const GFXfont FreeMono18pt7b           ;
+  extern const GFXfont FreeMono24pt7b           ;
+  extern const GFXfont FreeMonoBold9pt7b        ;
+  extern const GFXfont FreeMonoBold12pt7b       ;
+  extern const GFXfont FreeMonoBold18pt7b       ;
+  extern const GFXfont FreeMonoBold24pt7b       ;
+  extern const GFXfont FreeMonoOblique9pt7b     ;
+  extern const GFXfont FreeMonoOblique12pt7b    ;
+  extern const GFXfont FreeMonoOblique18pt7b    ;
+  extern const GFXfont FreeMonoOblique24pt7b    ;
+  extern const GFXfont FreeMonoBoldOblique9pt7b ;
+  extern const GFXfont FreeMonoBoldOblique12pt7b;
+  extern const GFXfont FreeMonoBoldOblique18pt7b;
+  extern const GFXfont FreeMonoBoldOblique24pt7b;
+  extern const GFXfont FreeSans9pt7b            ;
+  extern const GFXfont FreeSans12pt7b           ;
+  extern const GFXfont FreeSans18pt7b           ;
+  extern const GFXfont FreeSans24pt7b           ;
+  extern const GFXfont FreeSansBold9pt7b        ;
+  extern const GFXfont FreeSansBold12pt7b       ;
+  extern const GFXfont FreeSansBold18pt7b       ;
+  extern const GFXfont FreeSansBold24pt7b       ;
+  extern const GFXfont FreeSansOblique9pt7b     ;
+  extern const GFXfont FreeSansOblique12pt7b    ;
+  extern const GFXfont FreeSansOblique18pt7b    ;
+  extern const GFXfont FreeSansOblique24pt7b    ;
+  extern const GFXfont FreeSansBoldOblique9pt7b ;
+  extern const GFXfont FreeSansBoldOblique12pt7b;
+  extern const GFXfont FreeSansBoldOblique18pt7b;
+  extern const GFXfont FreeSansBoldOblique24pt7b;
+  extern const GFXfont FreeSerif9pt7b           ;
+  extern const GFXfont FreeSerif12pt7b          ;
+  extern const GFXfont FreeSerif18pt7b          ;
+  extern const GFXfont FreeSerif24pt7b          ;
+  extern const GFXfont FreeSerifItalic9pt7b     ;
+  extern const GFXfont FreeSerifItalic12pt7b    ;
+  extern const GFXfont FreeSerifItalic18pt7b    ;
+  extern const GFXfont FreeSerifItalic24pt7b    ;
+  extern const GFXfont FreeSerifBold9pt7b       ;
+  extern const GFXfont FreeSerifBold12pt7b      ;
+  extern const GFXfont FreeSerifBold18pt7b      ;
+  extern const GFXfont FreeSerifBold24pt7b      ;
+  extern const GFXfont FreeSerifBoldItalic9pt7b ;
+  extern const GFXfont FreeSerifBoldItalic12pt7b;
+  extern const GFXfont FreeSerifBoldItalic18pt7b;
+  extern const GFXfont FreeSerifBoldItalic24pt7b;
+
+  extern const GFXfont Orbitron_Light_24        ;
+  extern const GFXfont Orbitron_Light_32        ;
+  extern const GFXfont Roboto_Thin_24           ;
+  extern const GFXfont Satisfy_24               ;
+  extern const GFXfont Yellowtail_32            ;
 }
+using namespace fonts;
 
-
+#endif

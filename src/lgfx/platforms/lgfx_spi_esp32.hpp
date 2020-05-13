@@ -28,6 +28,7 @@ Contributors:
 #if defined (ARDUINO) // Arduino ESP32
  #include <SPI.h>
 #else
+ #include <esp_log.h>
  #include <driver/spi_master.h>
  #if ESP_IDF_VERSION_MAJOR > 3
   #include <driver/spi_common_internal.h>
@@ -166,17 +167,17 @@ namespace lgfx
 //      if (use_gpio_matrix) {
 //        ESP_LOGI("LGFX", "bus init: use gpio_matrix.");
         if (_spi_mosi >= 0) {
-          initGPIO(_spi_mosi, GPIO_MODE_INPUT_OUTPUT);
+          lgfxPinMode(_spi_mosi, pin_mode_t::output);
           gpio_matrix_out(_spi_mosi, spi_periph_signal[_spi_host].spid_out, false, false);
           gpio_matrix_in(_spi_mosi, spi_periph_signal[_spi_host].spid_in, false);
         }
         if (_spi_miso >= 0) {
-          initGPIO(_spi_miso, GPIO_MODE_INPUT_OUTPUT);
+          lgfxPinMode(_spi_miso, pin_mode_t::input);
         //gpio_matrix_out(_spi_miso, spi_periph_signal[_spi_host].spiq_out, false, false);
           gpio_matrix_in(_spi_miso, spi_periph_signal[_spi_host].spiq_in, false);
         }
         if (_spi_sclk >= 0) {
-          initGPIO(_spi_sclk, GPIO_MODE_INPUT_OUTPUT);
+          lgfxPinMode(_spi_sclk, pin_mode_t::output);
           //gpio_set_direction((gpio_num_t)_spi_sclk, GPIO_MODE_INPUT_OUTPUT);
           gpio_matrix_out(_spi_sclk, spi_periph_signal[_spi_host].spiclk_out, false, false);
           gpio_matrix_in(_spi_sclk, spi_periph_signal[_spi_host].spiclk_in, false);
@@ -339,10 +340,10 @@ namespace lgfx
       _gpio_reg_dc_l = get_gpio_lo_reg(spi_dc);
       _mask_reg_dc = (spi_dc < 0) ? 0 : (1 << (spi_dc & 31));
       dc_h();
-      initGPIO((gpio_num_t)spi_dc);
+      lgfxPinMode(spi_dc, pin_mode_t::output);
 
       cs_h();
-      initGPIO(_panel->spi_cs);
+      lgfxPinMode(_panel->spi_cs, pin_mode_t::output);
 
       postSetRotation();
       postSetColorDepth();

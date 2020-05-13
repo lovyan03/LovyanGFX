@@ -20,6 +20,8 @@ Contributors:
 #ifndef LGFX_IMG_SUPPORT_HPP_
 #define LGFX_IMG_SUPPORT_HPP_
 
+#include <cmath>
+
 namespace lgfx
 {
   template <class Base>
@@ -27,10 +29,10 @@ namespace lgfx
   public:
 
 #if defined (ARDUINO)
- #if defined (FS_H)
+ #if defined (FS_H) || defined (__SEEED_FS__)
 
     inline void drawBmp(fs::FS &fs, const char *path, int32_t x=0, int32_t y=0) { drawBmpFile(fs, path, x, y); }
-    void drawBmpFile(fs::FS &fs, const char *path, int32_t x=0, int32_t y=0) {
+    inline void drawBmpFile(fs::FS &fs, const char *path, int32_t x=0, int32_t y=0) {
       FileWrapper file(fs);
       drawBmpFile(&file, path, x, y);
     }
@@ -103,7 +105,6 @@ namespace lgfx
     struct bitmap_header_t {
       union {
         uint8_t raw[54];
-        #pragma pack(1)
         struct {
           uint16_t bfType; 
           uint32_t bfSize;
@@ -122,8 +123,7 @@ namespace lgfx
           int32_t  biYPelsPerMeter;
           uint32_t biClrUsed; 
           uint32_t biClrImportant;
-        };
-        #pragma pack()
+        } __attribute__((packed));
       };
     };
 

@@ -38,7 +38,7 @@ struct obj_info_t {
   }
 };
 
-static constexpr size_t obj_count = 500;
+static constexpr size_t obj_count = 200;
 static obj_info_t objects[obj_count];
 
 static LGFX lcd;
