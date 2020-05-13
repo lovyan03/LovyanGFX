@@ -35,9 +35,9 @@ namespace lgfx
     free(buf);
   }
 
-  static void gpio_hi(uint32_t pin) { digitalWrite(pin, HIGH); }
-  static void gpio_lo(uint32_t pin) { digitalWrite(pin, LOW); }
-  static bool gpio_in(uint32_t pin) { return digitalRead(pin); }
+  static void gpio_hi(uint32_t pin) { PORT->Group[pin>>8].OUTSET.reg = (1ul << (pin & 0xFF)); }
+  static void gpio_lo(uint32_t pin) { PORT->Group[pin>>8].OUTCLR.reg = (1ul << (pin & 0xFF)); }
+//  static bool gpio_in(uint32_t pin) { return digitalRead(pin); }
 //*/
 
   static void initPWM(int_fast8_t pin, uint32_t pwm_ch, uint8_t duty = 128) {
@@ -46,6 +46,60 @@ namespace lgfx
 
   static void setPWMDuty(uint32_t pwm_ch, uint8_t duty) {
 // unimplemented 
+  }
+
+  enum pin_mode_t
+  { output
+  , input
+  , input_pullup
+  , input_pulldown
+  };
+
+  static void lgfxPinMode(int_fast8_t pin, pin_mode_t mode)
+  {
+    uint32_t port = pin>>8;
+    pin &= 0xFF;
+    uint32_t pinMask = (1ul << pin);
+
+    // Set pin mode according to chapter '22.6.3 I/O Pin Configuration'
+    switch ( mode )
+    {
+      case pin_mode_t::input:
+        // Set pin to input mode
+        PORT->Group[port].PINCFG[pin].reg=(uint8_t)(PORT_PINCFG_INEN) ;
+        PORT->Group[port].DIRCLR.reg = pinMask ;
+      break ;
+
+      case pin_mode_t::input_pullup:
+        // Set pin to input mode with pull-up resistor enabled
+        PORT->Group[port].PINCFG[pin].reg=(uint8_t)(PORT_PINCFG_INEN|PORT_PINCFG_PULLEN) ;
+        PORT->Group[port].DIRCLR.reg = pinMask ;
+
+        // Enable pull level (cf '22.6.3.2 Input Configuration' and '22.8.7 Data Output Value Set')
+        PORT->Group[port].OUTSET.reg = pinMask ;
+      break ;
+
+      case pin_mode_t::input_pulldown:
+        // Set pin to input mode with pull-down resistor enabled
+        PORT->Group[port].PINCFG[pin].reg=(uint8_t)(PORT_PINCFG_INEN|PORT_PINCFG_PULLEN) ;
+        PORT->Group[port].DIRCLR.reg = pinMask ;
+
+        // Enable pull level (cf '22.6.3.2 Input Configuration' and '22.8.6 Data Output Value Clear')
+        PORT->Group[port].OUTCLR.reg = pinMask ;
+      break ;
+
+      case pin_mode_t::output:
+        // enable input, to support reading back values, with pullups disabled
+        PORT->Group[port].PINCFG[pin].reg=(uint8_t)(PORT_PINCFG_INEN) ;
+
+        // Set pin to output mode
+        PORT->Group[port].DIRSET.reg = pinMask ;
+      break ;
+
+      default:
+        // do nothing
+      break ;
+    }
   }
 
 //----------------------------------------------------------------------------

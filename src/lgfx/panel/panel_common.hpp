@@ -46,14 +46,14 @@ namespace lgfx
 
     virtual void init(void) {
       if (gpio_rst >= 0) { // RST on
-        pinMode(gpio_rst, OUTPUT);
+        lgfxPinMode(gpio_rst, pin_mode_t::output);
         gpio_lo(gpio_rst);
       }
 
       if (gpio_bl >= 0) { // Backlight control
         if (pwm_ch_bl < 0) { // nouse PWM
 
-          pinMode(gpio_bl, OUTPUT);
+          lgfxPinMode(gpio_bl, pin_mode_t::output);
 
           if (backlight_level) gpio_hi(gpio_bl);
           else                 gpio_lo(gpio_bl);

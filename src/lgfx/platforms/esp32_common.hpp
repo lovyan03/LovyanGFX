@@ -110,32 +110,41 @@ namespace lgfx
     return bestpre << 18 | bestn << 12 | ((bestn-1)>>1) << 6 | bestn;
   }
 
-#if !defined (ARDUINO)
   enum pin_mode_t
-  { INPUT
-  , OUTPUT
-  , INPUT_PULLUP
-  , INPUT_PULLDOWN
-  , INPUT_OUTPUT
+  { output
+  , input
+  , input_pullup
+  , input_pulldown
   };
 
-  static void pinMode(int_fast8_t pin, pin_mode_t mode) {
+#if defined (ARDUINO)
+  static void lgfxPinMode(int_fast8_t pin, int mode) {
+    switch (mode) {
+    case pin_mode_t::output:         mode = OUTPUT;         break;
+    case pin_mode_t::input:          mode = INPUT;          break;
+    case pin_mode_t::input_pullup:   mode = INPUT_PULLUP;   break;
+    case pin_mode_t::input_pulldown: mode = INPUT_PULLDOWN; break;
+    }
+    pinMode(pin, mode);
+  };
+#else
+  static void lgfxPinMode(int_fast8_t pin, pin_mode_t mode) {
     if (pin == -1) return;
     if (rtc_gpio_is_valid_gpio((gpio_num_t)pin)) rtc_gpio_deinit((gpio_num_t)pin);
     gpio_config_t io_conf;
     io_conf.intr_type = GPIO_INTR_DISABLE;
     io_conf.pin_bit_mask = (uint64_t)1 << pin;
     switch (mode) {
+    case pin_mode_t::output:
+      io_conf.mode = GPIO_MODE_OUTPUT;
+      break;
     default:
-    case pin_mode_t::OUTPUT:         io_conf.mode = GPIO_MODE_OUTPUT; break;
-    case pin_mode_t::INPUT:       
-    case pin_mode_t::INPUT_PULLUP:
-    case pin_mode_t::INPUT_PULLDOWN: io_conf.mode = GPIO_MODE_INPUT;  break;
-    case pin_mode_t::INPUT_OUTPUT:   io_conf.mode = GPIO_MODE_INPUT_OUTPUT; break;
+      io_conf.mode = GPIO_MODE_INPUT;
+      break;
     }
-    io_conf.mode         = (mode == pin_mode_t::OUTPUT) ? GPIO_MODE_OUTPUT : GPIO_MODE_INPUT;
-    io_conf.pull_down_en = (mode == pin_mode_t::INPUT_PULLDOWN) ? GPIO_PULLDOWN_ENABLE : GPIO_PULLDOWN_DISABLE;
-    io_conf.pull_up_en   = (mode == pin_mode_t::INPUT_PULLUP  ) ? GPIO_PULLUP_ENABLE   : GPIO_PULLUP_DISABLE;
+    io_conf.mode         = (mode == pin_mode_t::output) ? GPIO_MODE_OUTPUT : GPIO_MODE_INPUT;
+    io_conf.pull_down_en = (mode == pin_mode_t::input_pulldown) ? GPIO_PULLDOWN_ENABLE : GPIO_PULLDOWN_DISABLE;
+    io_conf.pull_up_en   = (mode == pin_mode_t::input_pullup  ) ? GPIO_PULLUP_ENABLE   : GPIO_PULLUP_DISABLE;
     gpio_config(&io_conf);
   }
 #endif

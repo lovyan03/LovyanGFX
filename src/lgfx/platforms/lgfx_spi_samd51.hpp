@@ -219,7 +219,7 @@ void resetSPI()
   _sercom->SPI.CTRLA.bit.SWRST = 1;
 
   //Wait both bits Software Reset from CTRLA and SYNCBUSY are equal to 0
-  while(_sercom->SPI.CTRLA.bit.SWRST || _sercom->SPI.SYNCBUSY.bit.SWRST);
+  while (_sercom->SPI.CTRLA.bit.SWRST || _sercom->SPI.SYNCBUSY.bit.SWRST);
 }
 
 void enableSPI()
@@ -229,13 +229,13 @@ void enableSPI()
   _need_wait = false;
 
     //Waiting then enable bit from SYNCBUSY is equal to 0;
-  while(_sercom->SPI.SYNCBUSY.bit.ENABLE);
+  while (_sercom->SPI.SYNCBUSY.bit.ENABLE);
 }
 
 void disableSPI()
 {
     //Waiting then enable bit from SYNCBUSY is equal to 0;
-  while(_sercom->SPI.SYNCBUSY.bit.ENABLE);
+  while (_sercom->SPI.SYNCBUSY.bit.ENABLE);
 
   //Setting the enable bit to 0
   _sercom->SPI.CTRLA.bit.ENABLE = 0;
@@ -291,18 +291,29 @@ void disableSPI()
     void setFreqDiv(uint32_t div)
     {
       disableSPI();
-      _sercom->SPI.BAUD.reg = div;
+      while( _sercom->SPI.SYNCBUSY.bit.CTRLB == 1 );
       _sercom->SPI.BAUD.reg = div;
       enableSPI();
+    }
+
+    void pinAssignSercom(int cfgport, int type = 3) {
+      uint_fast8_t port = (cfgport >> 8) & 0xFF;
+      uint_fast8_t pin = cfgport & 0xFF;
+      uint32_t temp;
+
+      if (pin&1) temp = PORT_PMUX_PMUXO( type ) | ((PORT->Group[port].PMUX[pin >> 1].reg) & PORT_PMUX_PMUXE( 0xF )) ;
+      else       temp = PORT_PMUX_PMUXE( type ) | ((PORT->Group[port].PMUX[pin >> 1].reg) & PORT_PMUX_PMUXO( 0xF )) ;
+      PORT->Group[port].PMUX[pin >> 1].reg = temp ;
+      PORT->Group[port].PINCFG[pin].reg |= PORT_PINCFG_PMUXEN | PORT_PINCFG_DRVSTR;
     }
 
     void initBus(void)
     {
       disableSPI();
 
-      pinPeripheral(_spi_miso, g_APinDescription[_spi_miso].ulPinType);
-      pinPeripheral(_spi_sclk, g_APinDescription[_spi_sclk].ulPinType);
-      pinPeripheral(_spi_mosi, g_APinDescription[_spi_mosi].ulPinType);
+      if (-1 != _spi_miso) pinAssignSercom(_spi_miso);
+      if (-1 != _spi_mosi) pinAssignSercom(_spi_mosi);
+      if (-1 != _spi_sclk) pinAssignSercom(_spi_sclk);
 
       resetSPI();
 
@@ -320,10 +331,10 @@ void disableSPI()
 #endif
       SercomDataOrder dataOrder = MSB_FIRST;
       //Setting the CTRLA register
-          _sercom->SPI.CTRLA.reg = mastermode
-                                 | SERCOM_SPI_CTRLA_DOPO(CFG::pad_mosi)
-                                 | SERCOM_SPI_CTRLA_DIPO(CFG::pad_miso)
-                                 | dataOrder << SERCOM_SPI_CTRLA_DORD_Pos;
+      _sercom->SPI.CTRLA.reg = mastermode
+                             | SERCOM_SPI_CTRLA_DOPO(CFG::pad_mosi)
+                             | SERCOM_SPI_CTRLA_DIPO(CFG::pad_miso)
+                             | dataOrder << SERCOM_SPI_CTRLA_DORD_Pos;
 
       _sercom->SPI.CTRLC.bit.DATA32B = 1;  // 4Byte transfer enable
 
@@ -492,16 +503,15 @@ mydesc = myDMA.addDescriptor(
       fpGetWindowAddr = _len_setwindow == 32 ? PanelCommon::getWindowAddr32 : PanelCommon::getWindowAddr16;
 
       int32_t spi_dc = _panel->spi_dc;
-
-      EPortType port = g_APinDescription[spi_dc].ulPort;
-      uint32_t pin = g_APinDescription[spi_dc].ulPin;
-      _mask_reg_dc = (1ul << pin);
+      _mask_reg_dc = (1ul << (spi_dc & 0xFF));
+      uint32_t port = spi_dc >> 8;
       _gpio_reg_dc_h = &PORT->Group[port].OUTSET.reg;
       _gpio_reg_dc_l = &PORT->Group[port].OUTCLR.reg;
-      pinMode(spi_dc, OUTPUT);
+      dc_h();
+      lgfxPinMode(spi_dc, pin_mode_t::output);
 
       cs_h();
-      pinMode(_panel->spi_cs, OUTPUT);
+      lgfxPinMode(_panel->spi_cs, pin_mode_t::output);
 
       postSetRotation();
       postSetColorDepth();
@@ -800,27 +810,25 @@ mydesc = myDMA.addDescriptor(
     }
 
     void start_read(void) {
-/*
       _fill_mode = false;
+/*
       uint32_t user = ((_panel->spi_mode_read == 1 || _panel->spi_mode_read == 2) ? SPI_CK_OUT_EDGE | SPI_USR_MISO : SPI_USR_MISO)
                     | (_panel->spi_3wire ? SPI_SIO : 0);
       uint32_t pin = (_panel->spi_mode_read & 2) ? SPI_CK_IDLE_EDGE : 0;
+*/
       dc_h();
+/*
       *reg(SPI_USER_REG(_spi_port)) = user;
       *reg(SPI_PIN_REG(_spi_port)) = pin;
-      set_clock_read();
 //*/
+      set_clock_read();
     }
 
     void end_read(void)
     {
-/*
-      uint32_t user = (_panel->spi_mode == 1 || _panel->spi_mode == 2) ? SPI_CK_OUT_EDGE | SPI_USR_MOSI : SPI_USR_MOSI;
-      uint32_t pin = (_panel->spi_mode & 2) ? SPI_CK_IDLE_EDGE : 0;
       wait_spi();
       cs_h();
-      *reg(SPI_USER_REG(_spi_port)) = user;
-      *reg(SPI_PIN_REG(_spi_port)) = pin;
+
       if (_panel->spi_cs < 0) {
         write_cmd(0); // NOP command
       }
@@ -828,7 +836,6 @@ mydesc = myDMA.addDescriptor(
       _fill_mode = false;
 
       cs_l();
-//*/
     }
 
     uint32_t read_data(uint32_t length)
@@ -846,8 +853,8 @@ mydesc = myDMA.addDescriptor(
       startWrite();
       write_cmd(command);
       start_read();
-      if (bitindex) read_data(bitindex);
-      uint32_t res = read_data(bitlen);
+      if (bitindex) read_data(bitindex>>3);
+      uint32_t res = read_data(bitlen>>3);
       end_read();
       endWrite();
       return res;
@@ -977,6 +984,15 @@ mydesc = myDMA.addDescriptor(
     {
       auto *reg = &_sercom->SPI.DATA.reg;
       int32_t idx = length & 0x03;
+//*
+      if (idx) {
+        do {
+          write_data(*data++, 8);
+        } while (--length & 0x03);
+        if (!length) return;
+        idx = 0;
+      }
+/*/
       if (idx) {
         dc_h();
         _sercom->SPI.LENGTH.reg = idx | SERCOM_SPI_LENGTH_LENEN;
@@ -984,9 +1000,10 @@ mydesc = myDMA.addDescriptor(
         _need_wait = true;
         length -= idx;
         if (!length) return;
+        idx = 0;
       }
-
-      if (-1 != _dma_channel && length > 2 && use_dma) {
+//*/
+      if (false && -1 != _dma_channel && length > 2 && use_dma) {
         DmacDescriptor* desc      = &_dmadesc[1];
         DmacDescriptor* writeback = &_dmadesc[0];
 //        if (desc) {
@@ -1117,7 +1134,6 @@ myDMA.changeDescriptor(mydesc, const_cast<uint8_t*>(data), nullptr, length>>2);
 
     void readRect_impl(int32_t x, int32_t y, int32_t w, int32_t h, void* dst, pixelcopy_t* param) override
     {
-/*
       set_window(x, y, x + w - 1, y + h - 1);
       auto len = w * h;
       if (!_panel->spi_read) {
@@ -1128,8 +1144,7 @@ myDMA.changeDescriptor(mydesc, const_cast<uint8_t*>(data), nullptr, length>>2);
       uint32_t len_dummy_read_pixel = _panel->len_dummy_read_pixel;
       start_read();
       if (len_dummy_read_pixel) {;
-        set_read_len(len_dummy_read_pixel);
-        exec_spi();
+        write_data(0, len_dummy_read_pixel);
       }
 
       if (param->no_convert) {
@@ -1137,12 +1152,13 @@ myDMA.changeDescriptor(mydesc, const_cast<uint8_t*>(data), nullptr, length>>2);
       } else {
         read_pixels(dst, len, param);
       }
-      end_read();
 //*/
+      end_read();
     }
 
     void read_pixels(void* dst, int32_t length, pixelcopy_t* param)
     {
+      
 /*
       int32_t len1 = std::min(length, 10); // 10 pixel read
       int32_t len2 = len1;
@@ -1182,6 +1198,58 @@ myDMA.changeDescriptor(mydesc, const_cast<uint8_t*>(data), nullptr, length>>2);
 
     void read_bytes(uint8_t* dst, int32_t length, bool use_dma = false)
     {
+/*
+      auto *datreg = &_sercom->SPI.DATA.reg;
+      auto *lenreg = &_sercom->SPI.LENGTH.reg;
+      auto *intflag = &_sercom->SPI.INTFLAG.bit; 
+      wait_spi();
+      while (intflag->RXC == 0);
+      dst[0] = *datreg;
+      *lenreg = 1 | SERCOM_SPI_LENGTH_LENEN;
+      *datreg = 0;
+      _need_wait = true;
+      int32_t index = 0;
+      do {
+        wait_spi();
+        while (intflag->RXC == 0);
+        dst[index] = *datreg;
+        if (++index < length) *datreg = 0;
+      } while (index < length);
+      _need_wait = false;
+
+/*/
+      auto *datreg = &_sercom->SPI.DATA.reg;
+      auto *lenreg = &_sercom->SPI.LENGTH.reg;
+      auto *intflag = &_sercom->SPI.INTFLAG.bit; 
+      int32_t len1 = length > 3 ? 4 : length;
+      int32_t len2 = len1;
+      wait_spi();
+      dst[0] = *datreg;
+      *lenreg = len1 | SERCOM_SPI_LENGTH_LENEN;
+      *datreg = 0;
+      _need_wait = true;
+      do {
+        if (0 == (length -= len1)) {
+          len2 = len1;
+          wait_spi();
+//          while (intflag->RXC == 0);
+        } else {
+          if (length < len1) {
+            len1 = length;
+            wait_spi();
+//            while (intflag->RXC == 0);
+            *lenreg = len1 | SERCOM_SPI_LENGTH_LENEN;
+          } else {
+            wait_spi();
+//          while (intflag->RXC == 0);
+          }
+          *datreg = 0;
+        }
+        uint32_t d = *datreg;
+        memcpy(dst, &d, len2);
+        dst += len2;
+      } while (length);
+      _need_wait = false;
 /*
       if (-1 != _dma_channel && use_dma) {
         wait_spi();
@@ -1226,7 +1294,6 @@ myDMA.changeDescriptor(mydesc, const_cast<uint8_t*>(data), nullptr, length>>2);
 
     void copyRect_impl(int32_t dst_x, int32_t dst_y, int32_t w, int32_t h, int32_t src_x, int32_t src_y) override
     {
-/*
       pixelcopy_t p((void*)nullptr, _write_conv.depth, _read_conv.depth);
       if (w < h) {
         const uint32_t buflen = h * _write_conv.bytes;
@@ -1319,14 +1386,14 @@ myDMA.changeDescriptor(mydesc, const_cast<uint8_t*>(data), nullptr, length>>2);
     }
 
     void cs_h(void) {
-      digitalWrite(_panel->spi_cs, HIGH);
+      gpio_hi(_panel->spi_cs);
 /*
       int32_t spi_cs = _panel->spi_cs;
       if (spi_cs >= 0) *get_gpio_hi_reg(spi_cs) = (1 << (spi_cs & 31));
 */
     }
     void cs_l(void) {
-      digitalWrite(_panel->spi_cs, LOW);
+      gpio_lo(_panel->spi_cs);
 /*
       int32_t spi_cs = _panel->spi_cs;
       if (spi_cs >= 0) *get_gpio_lo_reg(spi_cs) = (1 << (spi_cs & 31));
