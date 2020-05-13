@@ -975,15 +975,15 @@ enableSPI();
           enableSPI();
         }
         auto desc = _dma_desc;
-        desc->BTCNT.reg            = length >> beatsize;   // count;
-        desc->BTCTRL.bit.BEATSIZE  = beatsize; // DMA_BEAT_SIZE_BYTE;   // size;
+        desc->BTCNT.reg            = length >> beatsize;
+        desc->BTCTRL.bit.BEATSIZE  = beatsize;
         desc->BTCTRL.bit.VALID     = true;
-        desc->BTCTRL.bit.EVOSEL    = 0; // DMA_EVENT_OUTPUT_DISABLE;
-        desc->BTCTRL.bit.BLOCKACT  = 0; // DMA_BLOCK_ACTION_NOACT;
-        desc->BTCTRL.bit.SRCINC    = true;                 // srcInc;
-        desc->BTCTRL.bit.DSTINC    = false;                // dstInc;
-        desc->BTCTRL.bit.STEPSEL   = 0; // DMA_STEPSEL_DST;      // stepSel;
-        desc->BTCTRL.bit.STEPSIZE  = 0; // DMA_ADDRESS_INCREMENT_STEP_SIZE_1; // stepSize;
+        //desc->BTCTRL.bit.EVOSEL    = 0;
+        //desc->BTCTRL.bit.BLOCKACT  = 0;
+        desc->BTCTRL.bit.SRCINC    = true;
+        desc->BTCTRL.bit.DSTINC    = false;
+        //desc->BTCTRL.bit.STEPSEL   = 0;
+        //desc->BTCTRL.bit.STEPSIZE  = 0;
         desc->DSTADDR.reg          = (uint32_t)(&_sercom->SPI.DATA.reg);
         desc->SRCADDR.reg          = (uint32_t)data;
         

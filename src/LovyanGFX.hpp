@@ -199,7 +199,7 @@ namespace lgfx {
       gpio_rst = 0x0207; // PORTC  7
       gpio_bl  = 0x0205; // PORTC  5
       freq_fill  = 100000000;
-      freq_write =  60000000;
+      freq_write =  50000000;
       freq_read  =  20000000;
       rotation = 1;
     }

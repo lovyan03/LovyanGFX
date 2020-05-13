@@ -1049,15 +1049,17 @@ namespace lgfx
       {
         int32_t sinra = round(sin_f * zoom_x);
         int32_t cosra = round(cos_f * zoom_y);
-        int32_t wp = (src_x - w + 1);
-        int32_t hp = h - src_y - 1;
+        int32_t wp = (src_x - w) * sinra;
+        int32_t sx = (src_x + 1) * sinra;
+        int32_t hp = (h - src_y) * cosra;
+        int32_t sy = (-1 -src_y) * cosra;
         int32_t tmp;
         if ((sinra < 0) == (cosra < 0)) {
-          min_y = max_y =    wp * sinra - src_y * cosra;
-          tmp           = src_x * sinra +    hp * cosra;
+          min_y = max_y = wp + sy;
+          tmp           = sx + hp;
         } else {
-          min_y = max_y = src_x * sinra - src_y * cosra;
-          tmp           =    wp * sinra +    hp * cosra;
+          min_y = max_y = sx + sy;
+          tmp           = wp + hp;
         }
         if (tmp < min_y) {
           min_y = tmp;

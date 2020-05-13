@@ -40,10 +40,12 @@ namespace lgfx
 //  static bool gpio_in(uint32_t pin) { return digitalRead(pin); }
 //*/
 
-  static void initPWM(int_fast8_t pin, uint32_t pwm_ch, uint8_t duty = 128) {
+  __attribute__((__used__))
+  static void initPWM(uint32_t pin, uint32_t pwm_ch, uint8_t duty = 128) {
 // unimplemented 
   }
 
+  __attribute__((__used__))
   static void setPWMDuty(uint32_t pwm_ch, uint8_t duty) {
 // unimplemented 
   }
@@ -55,7 +57,7 @@ namespace lgfx
   , input_pulldown
   };
 
-  static void lgfxPinMode(int_fast8_t pin, pin_mode_t mode)
+  static void lgfxPinMode(uint32_t pin, pin_mode_t mode)
   {
     uint32_t port = pin>>8;
     pin &= 0xFF;
