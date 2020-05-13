@@ -29,10 +29,10 @@ namespace lgfx
   public:
 
 #if defined (ARDUINO)
- #if defined (FS_H)
+ #if defined (FS_H) || defined (__SEEED_FS__)
 
     inline void drawBmp(fs::FS &fs, const char *path, int32_t x=0, int32_t y=0) { drawBmpFile(fs, path, x, y); }
-    void drawBmpFile(fs::FS &fs, const char *path, int32_t x=0, int32_t y=0) {
+    inline void drawBmpFile(fs::FS &fs, const char *path, int32_t x=0, int32_t y=0) {
       FileWrapper file(fs);
       drawBmpFile(&file, path, x, y);
     }
