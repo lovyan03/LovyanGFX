@@ -25,6 +25,10 @@ Contributors:
 #include <cmath>
 #include <stdarg.h>
 
+#if defined (ARDUINO)
+#include <Print.h>
+#endif
+
 namespace lgfx
 {
   enum attribute_t
@@ -222,7 +226,11 @@ namespace lgfx
 //----------------------------------------------------------------------------
 
   template <class Base>
-  class LGFX_Font_Support : public Base {
+  class LGFX_Font_Support : public Base
+#if defined (ARDUINO)
+  , public Print
+#endif
+  {
   public:
     virtual ~LGFX_Font_Support() { unloadFont(); }
 
@@ -536,6 +544,7 @@ namespace lgfx
 // print & text support
 //----------------------------------------------------------------------------
 // Arduino Print.h compatible
+  #if !defined (ARDUINO)
     size_t print(const char str[])      { return write(str); }
     size_t print(char c)                { return write(c); }
     size_t print(int  n, int base = 10) { return print((long)n, base); }
@@ -567,12 +576,10 @@ namespace lgfx
     size_t println(unsigned long n, int base = 10) { size_t t = print(n,base); return println() + t; }
     size_t println(double        n, int digits= 2) { size_t t = print(n, digits); return println() + t; }
 
-  #if defined (ARDUINO)
     size_t print(const String &s) { return write(s.c_str(), s.length()); }
     size_t print(const __FlashStringHelper *s)   { return print(reinterpret_cast<const char *>(s)); }
     size_t println(const String &s)              { size_t t = print(s); return println() + t; }
     size_t println(const __FlashStringHelper *s) { size_t t = print(s); return println() + t; }
-  #endif
 
     size_t printf(const char * format, ...)  __attribute__ ((format (printf, 2, 3)))
     {
@@ -603,6 +610,7 @@ namespace lgfx
 
     size_t write(const char* str)                 { return (!str) ? 0 : write((const uint8_t*)str, strlen(str)); }
     size_t write(const char *buf, size_t size)    { return write((const uint8_t *) buf, size); }
+  #endif
     size_t write(const uint8_t *buf, size_t size) { size_t n = 0; this->startWrite(); while (size--) { n += write(*buf++); } this->endWrite(); return n; }
     size_t write(uint8_t utf8)
     {

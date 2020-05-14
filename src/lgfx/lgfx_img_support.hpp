@@ -37,27 +37,31 @@ namespace lgfx
       drawBmpFile(&file, path, x, y);
     }
 
-    inline bool drawJpgFile( fs::FS &fs, const char *path, int32_t x=0, int32_t y=0, int32_t maxWidth=0, int32_t maxHeight=0, int32_t offX=0, int32_t offY=0, jpeg_div_t scale=JPEG_DIV_NONE) {
+    inline bool drawJpgFile(fs::FS &fs, const char *path, int32_t x=0, int32_t y=0, int32_t maxWidth=0, int32_t maxHeight=0, int32_t offX=0, int32_t offY=0, jpeg_div_t scale=JPEG_DIV_NONE) {
       FileWrapper file(fs);
       return drawJpgFile(&file, path, x, y, maxWidth, maxHeight, offX, offY, scale);
     }
 
-    inline bool drawPngFile( fs::FS &fs, const char *path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, double scale = 1.0)
+    inline bool drawPngFile(fs::FS &fs, const char *path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, double scale = 1.0)
     {
       FileWrapper file(fs);
-      return drawPngFile( &file, path, x, y, maxWidth, maxHeight, offX, offY, scale);
+      return drawPngFile(&file, path, x, y, maxWidth, maxHeight, offX, offY, scale);
     }
 
  #endif
  #if defined (Stream_h)
 
+    inline void drawBmp(Stream *dataSource, int32_t x=0, int32_t y=0) {
+      StreamWrapper data;
+      data.set(dataSource);
+      draw_bmp(&data, x, y);
+    }
     inline bool drawJpg(Stream *dataSource, int32_t x=0, int32_t y=0, int32_t maxWidth=0, int32_t maxHeight=0, int32_t offX=0, int32_t offY=0, jpeg_div_t scale=JPEG_DIV_NONE) {
       StreamWrapper data;
       data.set(dataSource);
       return draw_jpg(&data, x, y, maxWidth, maxHeight, offX, offY, scale);
     }
-
-    inline void drawPng( Stream *dataSource, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, double scale = 1.0) {
+    inline void drawPng(Stream *dataSource, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, double scale = 1.0) {
       StreamWrapper data;
       data.set(dataSource);
       return draw_png(&data, x, y, maxWidth, maxHeight, offX, offY, scale);
@@ -75,10 +79,10 @@ namespace lgfx
       FileWrapper file;
       return drawJpgFile(&file, path, x, y, maxWidth, maxHeight, offX, offY, scale);
     }
-    inline bool drawPngFile( const char *path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, double scale = 1.0)
+    inline bool drawPngFile(const char *path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, double scale = 1.0)
     {
       FileWrapper file;
-      return drawPngFile( &file, path, x, y, maxWidth, maxHeight, offX, offY, scale);
+      return drawPngFile(&file, path, x, y, maxWidth, maxHeight, offX, offY, scale);
     }
 
 #endif
@@ -93,11 +97,21 @@ namespace lgfx
       data.set(jpg_data, jpg_len);
       return draw_jpg(&data, x, y, maxWidth, maxHeight, offX, offY, scale);
     }
-    bool drawPng( const uint8_t *png_data, uint32_t png_len, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, double scale = 1.0)
+    bool drawPng(const uint8_t *png_data, uint32_t png_len, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, double scale = 1.0)
     {
       PointerWrapper data;
       data.set(png_data, png_len);
       return draw_png(&data, x, y, maxWidth, maxHeight, offX, offY, scale);
+    }
+
+    inline void drawBmp(DataWrapper *data, int32_t x=0, int32_t y=0) {
+      draw_bmp(data, x, y);
+    }
+    inline bool drawJpg(DataWrapper *data, int32_t x=0, int32_t y=0, int32_t maxWidth=0, int32_t maxHeight=0, int32_t offX=0, int32_t offY=0, jpeg_div_t scale=JPEG_DIV_NONE) {
+      return draw_jpg(data, x, y, maxWidth, maxHeight, offX, offY, scale);
+    }
+    inline void drawPng(DataWrapper *data, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, double scale = 1.0) {
+      return draw_png(data, x, y, maxWidth, maxHeight, offX, offY, scale);
     }
 
   protected:
@@ -223,7 +237,7 @@ namespace lgfx
     void drawBmpFile(FileWrapper* file, const char *path, int32_t x=0, int32_t y=0) {
       this->prepareTmpTransaction(file);
       file->preRead();
-      if (file->open(path, "rb")) {
+      if (file->open(path, "r")) {
         draw_bmp(file, x, y);
         file->close();
       }
@@ -234,7 +248,7 @@ namespace lgfx
       bool res = false;
       this->prepareTmpTransaction(file);
       file->preRead();
-      if (file->open(path, "rb")) {
+      if (file->open(path, "r")) {
         res = draw_jpg(file, x, y, maxWidth, maxHeight, offX, offY, scale);
         file->close();
       }
@@ -247,7 +261,7 @@ namespace lgfx
       bool res = false;
       this->prepareTmpTransaction(file);
       file->preRead();
-      if (file->open(path, "rb")) {
+      if (file->open(path, "r")) {
         res = draw_png(file, x, y, maxWidth, maxHeight, offX, offY, scale);
         file->close();
       }
@@ -466,7 +480,7 @@ protected:
       bgr888_t* lineBuffer;
       pixelcopy_t *pc;
       LGFX_IMG_Support *lgfx;
-      int32_t last_y;
+      uint32_t last_y;
       int32_t scale_y0;
       int32_t scale_y1;
     };
@@ -480,7 +494,7 @@ protected:
       return (p->scale_y0 < p->scale_y1);
     }
 
-    static void png_post_line(png_file_decoder_t *p, uint32_t y)
+    static void png_post_line(png_file_decoder_t *p)
     {
       int32_t h = p->scale_y1 - p->scale_y0;
       if (0 < h)
@@ -497,7 +511,7 @@ protected:
     static void png_done_callback(pngle_t *pngle)
     {
       auto p = (png_file_decoder_t *)lgfx_pngle_get_user_data(pngle);
-      png_post_line(p, p->last_y);
+      png_post_line(p);
     }
 
     static void png_draw_normal_callback(pngle_t *pngle, uint32_t x, uint32_t y, uint8_t rgba[4])
@@ -541,7 +555,7 @@ protected:
     {
       auto p = (png_file_decoder_t*)lgfx_pngle_get_user_data(pngle);
       if (y != p->last_y) {
-        png_post_line(p, p->last_y);
+        png_post_line(p);
         png_prepare_line(p, y);
       }
 
@@ -568,7 +582,7 @@ protected:
     {
       auto p = (png_file_decoder_t*)lgfx_pngle_get_user_data(pngle);
       if (y != p->last_y) {
-        png_post_line(p, p->last_y);
+        png_post_line(p);
         png_prepare_line(p, y);
       }
 

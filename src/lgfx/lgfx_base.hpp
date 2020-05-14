@@ -794,7 +794,7 @@ namespace lgfx
     template<typename T> void drawXBitmap(int32_t x, int32_t y, const uint8_t *bitmap, int32_t w, int32_t h, const T& color                    ) { draw_xbitmap(x, y, bitmap, w, h, _write_conv.convert(color)); }
     template<typename T> void drawXBitmap(int32_t x, int32_t y, const uint8_t *bitmap, int32_t w, int32_t h, const T& fgcolor, const T& bgcolor) { draw_xbitmap(x, y, bitmap, w, h, _write_conv.convert(fgcolor), _write_conv.convert(bgcolor)); }
 
-    void draw_bitmap(int32_t x, int32_t y, const uint8_t *bitmap, int32_t w, int32_t h, uint32_t fg_rawcolor, uint32_t bg_rawcolor = ~0)
+    void draw_bitmap(int32_t x, int32_t y, const uint8_t *bitmap, int32_t w, int32_t h, uint32_t fg_rawcolor, uint32_t bg_rawcolor = ~0u)
     {
       if (w < 1 || h < 1) return;
       setRawColor(fg_rawcolor);
@@ -813,18 +813,18 @@ namespace lgfx
             if (fg != (bool)(byte & 0x80) || (++i >= w)) break;
             byte <<= 1;
           }
-          if ((ip != i) && (fg || bg_rawcolor != ~0)) {
+          if ((ip != i) && (fg || bg_rawcolor != ~0u)) {
             writeFastHLine(x + ip, y + j, i - ip);
           }
           fg = !fg;
-          if (bg_rawcolor != ~0) setRawColor(fg ? fg_rawcolor : bg_rawcolor);
+          if (bg_rawcolor != ~0u) setRawColor(fg ? fg_rawcolor : bg_rawcolor);
         } while (i < w);
         bitmap += byteWidth;
       } while (++j < h);
       endWrite();
     }
 
-    void draw_xbitmap(int32_t x, int32_t y, const uint8_t *bitmap, int32_t w, int32_t h, uint32_t fg_rawcolor, uint32_t bg_rawcolor = ~0)
+    void draw_xbitmap(int32_t x, int32_t y, const uint8_t *bitmap, int32_t w, int32_t h, uint32_t fg_rawcolor, uint32_t bg_rawcolor = ~0u)
     {
       if (w < 1 || h < 1) return;
       setRawColor(fg_rawcolor);
@@ -843,11 +843,11 @@ namespace lgfx
             if (fg != (bool)(byte & 0x01) || (++i >= w)) break;
             byte >>= 1;
           }
-          if ((ip != i) && (fg || bg_rawcolor != ~0)) {
+          if ((ip != i) && (fg || bg_rawcolor != ~0u)) {
             writeFastHLine(x + ip, y + j, i - ip);
           }
           fg = !fg;
-          if (bg_rawcolor != ~0) setRawColor(fg ? fg_rawcolor : bg_rawcolor);
+          if (bg_rawcolor != ~0u) setRawColor(fg ? fg_rawcolor : bg_rawcolor);
         } while (i < w);
         bitmap += byteWidth;
       } while (++j < h);
@@ -960,18 +960,18 @@ namespace lgfx
       push_image(x, y, w, h, &p);
     }
 
-    void pushImage(int32_t x, int32_t y, int32_t w, int32_t h, const uint16_t* data, uint32_t transp = ~0)
+    void pushImage(int32_t x, int32_t y, int32_t w, int32_t h, const uint16_t* data, uint32_t transp = ~0u)
     {
-      pixelcopy_t p(data, _write_conv.depth, rgb565_2Byte, _palette_count, nullptr, transp == ~0 ? ~0 : _write_conv.convert((uint16_t)transp));
+      pixelcopy_t p(data, _write_conv.depth, rgb565_2Byte, _palette_count, nullptr, transp == ~0u ? ~0u : _write_conv.convert((uint16_t)transp));
       if (_swapBytes && !_palette_count && _write_conv.depth >= 8) {
         p.no_convert = false;
         p.fp_copy = pixelcopy_t::get_fp_normalcopy<rgb565_t>(_write_conv.depth);
       }
       push_image(x, y, w, h, &p);
     }
-    void pushImage(int32_t x, int32_t y, int32_t w, int32_t h, const void* data, uint32_t transp = ~0)
+    void pushImage(int32_t x, int32_t y, int32_t w, int32_t h, const void* data, uint32_t transp = ~0u)
     {
-      pixelcopy_t p(data, _write_conv.depth, rgb888_3Byte, _palette_count, nullptr, transp == ~0 ? ~0 : _write_conv.convert(transp));
+      pixelcopy_t p(data, _write_conv.depth, rgb888_3Byte, _palette_count, nullptr, transp == ~0u ? ~0u : _write_conv.convert(transp));
       if (_swapBytes && !_palette_count && _write_conv.depth >= 8) {
         p.no_convert = false;
         p.fp_copy = pixelcopy_t::get_fp_normalcopy<rgb888_t>(_write_conv.depth);
@@ -984,18 +984,18 @@ namespace lgfx
     template<typename T> void pushImageDMA( int32_t x, int32_t y, int32_t w, int32_t h, const void* data                      , const uint8_t bits, const T* palette) { pixelcopy_t p(data, _write_conv.depth, (color_depth_t)bits, _palette_count, palette              ); push_image(x, y, w, h, &p, true); }
     template<typename T> void pushImageDMA( int32_t x, int32_t y, int32_t w, int32_t h, const void* data, uint32_t transparent, const uint8_t bits, const T* palette) { pixelcopy_t p(data, _write_conv.depth, (color_depth_t)bits, _palette_count, palette, transparent ); push_image(x, y, w, h, &p, true); }
 
-    void pushImageDMA(int32_t x, int32_t y, int32_t w, int32_t h, const uint16_t* data, uint32_t transp = ~0)
+    void pushImageDMA(int32_t x, int32_t y, int32_t w, int32_t h, const uint16_t* data, uint32_t transp = ~0u)
     {
-      pixelcopy_t p(data, _write_conv.depth, rgb565_2Byte, _palette_count, nullptr, transp == ~0 ? ~0 : _write_conv.convert((uint16_t)transp));
+      pixelcopy_t p(data, _write_conv.depth, rgb565_2Byte, _palette_count, nullptr, transp == ~0u? ~0u : _write_conv.convert((uint16_t)transp));
       if (_swapBytes && !_palette_count && _write_conv.depth >= 8) {
         p.no_convert = false;
         p.fp_copy = pixelcopy_t::get_fp_normalcopy<rgb565_t>(_write_conv.depth);
       }
       push_image(x, y, w, h, &p, true);
     }
-    void pushImageDMA(int32_t x, int32_t y, int32_t w, int32_t h, const void* data, uint32_t transp = ~0)
+    void pushImageDMA(int32_t x, int32_t y, int32_t w, int32_t h, const void* data, uint32_t transp = ~0u)
     {
-      pixelcopy_t p(data, _write_conv.depth, rgb888_3Byte, _palette_count, nullptr, transp == ~0 ? ~0 : _write_conv.convert(transp));
+      pixelcopy_t p(data, _write_conv.depth, rgb888_3Byte, _palette_count, nullptr, transp == ~0u ? ~0u : _write_conv.convert(transp));
       if (_swapBytes && !_palette_count && _write_conv.depth >= 8) {
         p.no_convert = false;
         p.fp_copy = pixelcopy_t::get_fp_normalcopy<rgb888_t>(_write_conv.depth);

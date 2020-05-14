@@ -193,11 +193,10 @@ namespace lgfx {
 
   struct Panel_default : public lgfx::Panel_ILI9341 {
     Panel_default(void) {
-      spi_3wire = false;
-      spi_cs   = 0x0115; // PORTB 21
-      spi_dc   = 0x0206; // PORTC  6
-      gpio_rst = 0x0207; // PORTC  7
-      gpio_bl  = 0x0205; // PORTC  5
+      spi_cs   = 0x0115; // PORTB 21  (PORTB=0x0100 | 21=0x0015)
+      spi_dc   = 0x0206; // PORTC  6  (PORTC=0x0200 |  6=0x0006)
+      gpio_rst = 0x0207; // PORTC  7  (PORTC=0x0200 |  7=0x0007)
+      gpio_bl  = 0x0205; // PORTC  5  (PORTC=0x0200 |  5=0x0005)
       freq_fill  = 100000000;
       freq_write =  50000000;
       freq_read  =  20000000;
@@ -209,9 +208,9 @@ namespace lgfx {
     static constexpr int sercom_index = 7;
     static constexpr int sercom_clksrc = 0;   // -1=notchange / 0=select GCLK0
     static constexpr int sercom_clkfreq = F_CPU;
-    static constexpr int spi_miso = 0x0112; // PORTB 18
-    static constexpr int spi_mosi = 0x0113; // PORTB 19
-    static constexpr int spi_sclk = 0x0114; // PORTB 20;
+    static constexpr int spi_miso = 0x0112; // PORTB 18 (PORTB=0x0100 | 18=0x0012)
+    static constexpr int spi_mosi = 0x0113; // PORTB 19 (PORTB=0x0100 | 19=0x0013)
+    static constexpr int spi_sclk = 0x0114; // PORTB 20 (PORTB=0x0100 | 20=0x0014)
     static constexpr SercomSpiTXPad pad_mosi = SPI_PAD_3_SCK_1;  // PAD_SPI3_TX;
     static constexpr SercomRXPad    pad_miso = SERCOM_RX_PAD_2;  // PAD_SPI3_RX;
   };
