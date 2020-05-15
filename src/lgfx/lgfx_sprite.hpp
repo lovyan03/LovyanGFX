@@ -145,7 +145,7 @@ namespace lgfx
 
     void createFromBmpFile(FileWrapper* file, const char *path) {
       file->need_transaction = false;
-      if (file->open(path, "rb")) {
+      if (file->open(path, "r")) {
         create_from_bmp(file);
         file->close();
       }

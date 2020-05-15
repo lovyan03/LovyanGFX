@@ -452,11 +452,13 @@ namespace lgfx
     }
 
 
-#if defined (ARDUINO) && defined (FS_H)
+#if defined (ARDUINO)
+ #if defined (FS_H) || defined (__SEEED_FS__)
     void loadFont(const char *path, fs::FS &fs) {
       _font_file.setFS(fs);
       loadFont(path);
     }
+ #endif
 #endif
 
     void loadFont(const uint8_t* array) {
@@ -479,13 +481,13 @@ namespace lgfx
       this->prepareTmpTransaction(&_font_file);
       _font_file.preRead();
 
-      bool result = _font_file.open(path, "rb");
+      bool result = _font_file.open(path, "r");
       if (!result) {
         std::string filename = "/";
         if (path[0] == '/') filename = path;
         else filename += path;
         filename += ".vlw";
-        result = _font_file.open(filename.c_str(), "rb");
+        result = _font_file.open(filename.c_str(), "r");
       }
       auto font = new VLWfont();
       this->_dynamic_font = font;

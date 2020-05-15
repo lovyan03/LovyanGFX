@@ -109,7 +109,7 @@ namespace lgfx
 //----------------------------------------------------------------------------
   struct FileWrapper : public DataWrapper {
     FileWrapper() : DataWrapper() { need_transaction = true; }
-#if defined (ARDUINO) && defined (__SD_H__)
+#if defined (ARDUINO) && defined (__SEEED_FS__) && defined (__SD_H__)
     fs::File _fp;
 
     fs::FS& _fs = SD;

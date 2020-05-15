@@ -56,11 +56,13 @@ namespace lgfx
       data.set(dataSource);
       draw_bmp(&data, x, y);
     }
+
     inline bool drawJpg(Stream *dataSource, int32_t x=0, int32_t y=0, int32_t maxWidth=0, int32_t maxHeight=0, int32_t offX=0, int32_t offY=0, jpeg_div_t scale=JPEG_DIV_NONE) {
       StreamWrapper data;
       data.set(dataSource);
       return draw_jpg(&data, x, y, maxWidth, maxHeight, offX, offY, scale);
     }
+
     inline void drawPng(Stream *dataSource, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, double scale = 1.0) {
       StreamWrapper data;
       data.set(dataSource);
