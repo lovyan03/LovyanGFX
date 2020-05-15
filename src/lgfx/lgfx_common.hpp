@@ -68,6 +68,7 @@ namespace lgfx
   __attribute__ ((always_inline)) inline static uint32_t convert_rgb332_to_rgb888( uint32_t c) { return ((((c>>5)*0x49) >> 1)<<8 | ((c&0x1C)*0x49)>>3)<<8 | ((c&3)*0x55); }
   __attribute__ ((always_inline)) inline static uint32_t convert_rgb888_to_rgb565( uint32_t c) { return  (c>>19) << 11 | (((uint16_t)c)>>10)<<5 | ((uint8_t)c) >> 3;   }
 
+  __attribute__((__used__))
   static uint32_t convert_rgb565_to_rgb888( uint32_t c) { return ((((c>>11)*0x21)>>2)<<8 | ((((c>>5)&0x3F)*0x41)>>4))<<8 | (((c&0x1F)*0x21)>>2); }
   static uint32_t convert_rgb888_to_bgr888( uint32_t c) { return getSwap24(c);  }
   static uint32_t convert_rgb888_to_bgr666( uint32_t c) { return ((c>>2) & 0x3F) << 16 | ((c >> 10) & 0x3F) << 8 | ((c>>18)&0x3F);  }

@@ -37,16 +37,18 @@ namespace lgfx
 
   static void gpio_hi(uint32_t pin) { PORT->Group[pin>>8].OUTSET.reg = (1ul << (pin & 0xFF)); }
   static void gpio_lo(uint32_t pin) { PORT->Group[pin>>8].OUTCLR.reg = (1ul << (pin & 0xFF)); }
-  static bool gpio_in(uint32_t pin) { return PORT->Group[pin>>8].IN.reg = (1ul << (pin & 0xFF)); }
-//*/
+  __attribute__((__used__))
+  static bool gpio_in(uint32_t pin) { return PORT->Group[pin>>8].IN.reg & (1ul << (pin & 0xFF)); }
 
   __attribute__((__used__))
-  static void initPWM(uint32_t pin, uint32_t pwm_ch, uint8_t duty = 128) {
+//  static void initPWM(uint32_t pin, uint32_t pwm_ch, uint8_t duty = 128) 
+  static void initPWM(uint32_t , uint32_t , uint8_t = 0) {
 // unimplemented 
   }
 
   __attribute__((__used__))
-  static void setPWMDuty(uint32_t pwm_ch, uint8_t duty) {
+//  static void setPWMDuty(uint32_t pwm_ch, uint8_t duty = 128) 
+  static void setPWMDuty(uint32_t , uint8_t = 0 ) {
 // unimplemented 
   }
 
@@ -107,29 +109,31 @@ namespace lgfx
 //----------------------------------------------------------------------------
   struct FileWrapper : public DataWrapper {
     FileWrapper() : DataWrapper() { need_transaction = true; }
-#if defined (ARDUINO) && defined (__SEEED_FS__)
+#if defined (ARDUINO) && defined (__SEEED_FS__) && defined (__SD_H__)
     fs::File _fp;
-  #if defined (__SD_H__)
+
     fs::FS& _fs = SD;
     void setFS(fs::FS& fs) {
       _fs = fs;
       need_transaction = (&fs == &SD);
     }
     FileWrapper(fs::FS& fs) : DataWrapper(), _fs(fs) { need_transaction = (&fs == &SD); }
-  #else
-    fs::FS& _fs = SPIFFS;
-    void setFS(fs::FS& fs) {
-      _fs = fs;
-      need_transaction = (&fs != &SPIFFS);
-    }
-    FileWrapper(fs::FS& fs) : DataWrapper(), _fs(fs) { need_transaction = (&fs != &SPIFFS); }
-  #endif
 
     bool open(fs::FS& fs, const char* path, const char* mode) {
       setFS(fs);
-      return (_fp = fs.open(path, mode));
+      return open(path, mode);
     }
-    bool open(const char* path, const char* mode) { return ( _fp = _fs.open(path, mode)); }
+
+    bool open(const char* path, const char* mode) { 
+      fs::File fp = _fs.open(path, mode);
+      // この邪悪なmemcpyは、Seeed_FSのFile実装が所有権moveを提供してくれないのにデストラクタでcloseを呼ぶ実装になっているため、
+      // 正攻法ではFileをクラスメンバに保持できない状況を打開すべく応急処置的に実装したものです。
+      memcpy(&_fp, &fp, sizeof(fs::File));
+      // memsetにより一時変数の中身を吹っ飛ばし、デストラクタによるcloseを予防します。
+      memset(&fp, 0, sizeof(fs::File));
+      return _fp;
+    }
+
     int read(uint8_t *buf, uint32_t len) override { return _fp.read(buf, len); }
     void skip(int32_t offset) override { seek(offset, SeekCur); }
     bool seek(uint32_t offset) override { return seek(offset, SeekSet); }
@@ -151,7 +155,7 @@ namespace lgfx
 //----------------------------------------------------------------------------
   struct StreamWrapper : public DataWrapper {
 #if defined (ARDUINO) && defined (Stream_h)
-    void set(Stream* src, uint32_t length = ~0) { _stream = src; _length = length; _index = 0; }
+    void set(Stream* src, uint32_t length = ~0u) { _stream = src; _length = length; _index = 0; }
 
     int read(uint8_t *buf, uint32_t len) override {
       if (len > _length - _index) { len = _length - _index; }

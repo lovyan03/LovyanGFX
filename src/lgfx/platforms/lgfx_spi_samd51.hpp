@@ -316,12 +316,12 @@ void disableSPI()
 
       resetSPI();
 
-      int8_t idx = CFG::sercom_index;
-      for(uint8_t i=0; i<4; i++) {
-        NVIC_ClearPendingIRQ(sercomData[idx].irq[i]);
-        NVIC_SetPriority(sercomData[idx].irq[i], SERCOM_NVIC_PRIORITY);
-        NVIC_EnableIRQ(sercomData[idx].irq[i]);
-      }
+//      int8_t idx = CFG::sercom_index;
+//      for(uint8_t i=0; i<4; i++) {
+//        NVIC_ClearPendingIRQ(sercomData[idx].irq[i]);
+//        NVIC_SetPriority(sercomData[idx].irq[i], SERCOM_NVIC_PRIORITY);
+//        NVIC_EnableIRQ(sercomData[idx].irq[i]);
+//      }
 
 #if defined(__SAMD51__)
   auto mastermode = SERCOM_SPI_CTRLA_MODE(0x3);
@@ -337,22 +337,15 @@ void disableSPI()
 
       _sercom->SPI.CTRLC.bit.DATA32B = 1;  // 4Byte transfer enable
 
-      SercomSpiCharSize charSize = SPI_CHAR_SIZE_8_BITS;
       //Setting the CTRLB register
       _sercom->SPI.CTRLB.reg = SERCOM_SPI_CTRLB_CHSIZE(SPI_CHAR_SIZE_8_BITS)
                              | SERCOM_SPI_CTRLB_RXEN; //Active the SPI receiver.
 
-//      while( _sercom->SPI.SYNCBUSY.bit.CTRLB == 1 );
+      while( _sercom->SPI.SYNCBUSY.bit.CTRLB == 1 );
 
       _clkdiv_read  = FreqToClockDiv(_panel->freq_read);
       _clkdiv_fill  = FreqToClockDiv(_panel->freq_fill);
       _clkdiv_write = FreqToClockDiv(_panel->freq_write);
-
-//while (!Serial);
-//Serial.printf("F_CPU  %d r\n", F_CPU );
-//Serial.printf("_clkdiv_read  %08x\r\n", _clkdiv_read  );
-//Serial.printf("_clkdiv_fill  %08x\r\n", _clkdiv_fill  );
-//Serial.printf("_clkdiv_write %08x\r\n", _clkdiv_write );
 
       if (CFG::sercom_clksrc >= 0) {
         static constexpr uint8_t id_core = sercomData[CFG::sercom_index].id_core;
@@ -540,54 +533,6 @@ void disableSPI()
       _need_wait = false;
       _fill_mode = false;
       set_clock_write();
-//      _sercom->SPI.BAUD.reg = 5;
-
-//      initSPIClock(settings.dataMode, settings.clockFreq);
-
-/*
-      int cpha = _panel->spi_mode & 1;
-      int cpol = (_panel->spi_mode & 2) >> 1;
-
-      //Setting the CTRLA register
-      _sercom->SPI.CTRLA.reg |= ( cpha << SERCOM_SPI_CTRLA_CPHA_Pos ) |
-                                    ( cpol << SERCOM_SPI_CTRLA_CPOL_Pos );
-
-      //Synchronous arithmetic
-      _sercom->SPI.BAUD.reg = 4; //calculateBaudrateSynchronous(_panel->freq_write);
-
-/*
-      uint32_t apb_freq = getApbFrequency();
-      if (_last_apb_freq != apb_freq) {
-        _last_apb_freq = apb_freq;
-        _clkdiv_read  = FreqToClockDiv(apb_freq, _panel->freq_read);
-        _clkdiv_fill  = FreqToClockDiv(apb_freq, _panel->freq_fill);
-        _clkdiv_write = FreqToClockDiv(apb_freq, _panel->freq_write);
-      }
-
-      auto spi_mode = _panel->spi_mode;
-      uint32_t user = (spi_mode == 1 || spi_mode == 2) ? SPI_CK_OUT_EDGE | SPI_USR_MOSI : SPI_USR_MOSI;
-      uint32_t pin = (spi_mode & 2) ? SPI_CK_IDLE_EDGE : 0;
-
-//    wait_spi();
-
-#if defined (ARDUINO)
-      spiSimpleTransaction(_sercom);
-
-      if (-1 != _dma_channel) {
-      }
-#elif defined (CONFIG_IDF_TARGET_ESP32) // ESP-IDF
-      if (_sercom) {
-        if (ESP_OK != spi_device_acquire_bus(_sercom, portMAX_DELAY)) {
-          ESP_LOGE("LGFX", "Failed to spi_device_acquire_bus. ");
-        }
-      }
-#endif
-
-      *reg(SPI_USER_REG(_spi_port)) = user;
-      *reg(SPI_PIN_REG(_spi_port))  = pin;
-      set_clock_write();
-
-//*/
       cs_l();
     }
 
@@ -604,16 +549,6 @@ void disableSPI()
       }
       dc_h();
       cs_h();
-/*
-#if defined (ARDUINO)
-      *reg(SPI_USER_REG(_spi_port)) = SPI_USR_MOSI | SPI_USR_MISO | SPI_DOUTDIN; // for other SPI device (SD)
-      spiEndTransaction(_sercom);
-#elif defined (CONFIG_IDF_TARGET_ESP32) // ESP-IDF
-      if (_sercom) {
-        spi_device_release_bus(_sercom);
-      }
-#endif
-//*/
     }
 
     void waitDMA_impl(void) override
@@ -746,11 +681,11 @@ void disableSPI()
       auto *datreg = &_sercom->SPI.DATA.reg;
       auto *lenreg = &_sercom->SPI.LENGTH.reg;
       auto len = (bit_length>>3) | SERCOM_SPI_LENGTH_LENEN;
-if (len > 1 && !_sercom->SPI.CTRLC.bit.DATA32B) {
-disableSPI();
-_sercom->SPI.CTRLC.bit.DATA32B = 1;  // 4Byte transfer enable
-enableSPI();
-}
+      if (len > 1 && !_sercom->SPI.CTRLC.bit.DATA32B) {
+        disableSPI();
+        _sercom->SPI.CTRLC.bit.DATA32B = 1;  // 4Byte transfer enable
+        enableSPI();
+      }
       dc_h();
       *lenreg = len;
       *datreg = data;
@@ -846,7 +781,7 @@ enableSPI();
 
       int32_t xr = (x + w) - 1;
 
-      if (param->transp == ~0) {
+      if (param->transp == ~0u) {
         if (param->no_convert) {
           setWindow_impl(x, y, xr, y + h - 1);
           uint32_t i = (src_x + param->src_y * param->src_width) * bytes;
@@ -938,7 +873,7 @@ enableSPI();
       uint32_t buf;
       auto *reg = &_sercom->SPI.DATA.reg;
       auto *lenreg = &_sercom->SPI.LENGTH.reg;
-      int32_t idx = length & 0x01;
+
       if (bytes == 2 && (length & 0x01)) {
         param->fp_copy(&buf, 0, 1, param);
         dc_h();
@@ -1124,7 +1059,7 @@ enableSPI();
       }
 
       if (param->no_convert) {
-        read_bytes((uint8_t*)dst, len * _read_conv.bytes, true);
+        read_bytes((uint8_t*)dst, len * _read_conv.bytes);
       } else {
         read_pixels(dst, len, param);
       }
@@ -1148,7 +1083,7 @@ enableSPI();
       } while (length);
     }
 
-    void read_bytes(uint8_t* dst, int32_t length, bool use_dma = false)
+    void read_bytes(uint8_t* dst, int32_t length)
     {
 /*
       if (use_dma && length > 16) {

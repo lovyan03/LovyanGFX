@@ -76,7 +76,7 @@ public:
   TFT_eSprite() : LGFX_Sprite() {}
   TFT_eSprite(LovyanGFX* parent) : LGFX_Sprite(parent) {}
 
-  void* frameBuffer(uint8_t dummy) { return getBuffer(); }
+  void* frameBuffer(uint8_t) { return getBuffer(); }
 };
 
 #endif

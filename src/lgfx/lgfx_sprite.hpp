@@ -145,7 +145,7 @@ namespace lgfx
 
     void createFromBmpFile(FileWrapper* file, const char *path) {
       file->need_transaction = false;
-      if (file->open(path, "rb")) {
+      if (file->open(path, "r")) {
         create_from_bmp(file);
         file->close();
       }
@@ -497,7 +497,7 @@ return;
           }
         } else {
           uint32_t bytes = bits >> 3;
-          uint32_t bw = _bitwidth;
+          int32_t bw = _bitwidth;
           uint8_t* dst = &_img[(x + y * bw) * bytes];
           uint8_t c = _color.raw0;
           if (bytes == 1 || (c == _color.raw1 && (bytes == 2 || (c == _color.raw2)))) {
@@ -717,7 +717,7 @@ return;
       }
     }
 
-    void pushImage_impl(int32_t x, int32_t y, int32_t w, int32_t h, pixelcopy_t* param, bool use_dma) override
+    void pushImage_impl(int32_t x, int32_t y, int32_t w, int32_t h, pixelcopy_t* param, bool) override
     {
       auto sx = param->src_x;
       do {

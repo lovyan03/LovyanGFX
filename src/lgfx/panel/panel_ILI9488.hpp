@@ -93,7 +93,7 @@ namespace lgfx
       return madctl_table[r];
     }
 
-    uint8_t getColMod(uint8_t bpp) const override { return RGB666_3BYTE; }
+    uint8_t getColMod(uint8_t) const override { return RGB666_3BYTE; }
   };
 }
 
