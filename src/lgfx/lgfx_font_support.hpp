@@ -202,12 +202,12 @@ namespace lgfx
         uint16_t height = __builtin_bswap32(buffer[1]); // Height of glyph
         if ((unicode > 0xFF) || ((unicode > 0x20) && (unicode < 0xA0) && (unicode != 0x7F))) {
           int16_t dY =  (int16_t)__builtin_bswap32(buffer[4]); // y delta from baseline
-//ESP_LOGI("LGFX", "unicode:%x  dY:%d", unicode, dY);
-          if (maxAscent < dY) {
+//Serial.printf("LGFX:unicode:%x  dY:%d\r\n", unicode, dY);
+          if (maxAscent < dY && unicode != 0x3000) {
             maxAscent = dY;
           }
-          if (maxDescent < (height - dY)) {
-//ESP_LOGI("LGFX", "maxDescent:%d", maxDescent);
+          if (maxDescent < (height - dY) && unicode != 0x3000) {
+//Serial.printf("LGFX:maxDescent:%d\r\n", maxDescent);
             maxDescent = height - dY;
           }
         }
@@ -218,7 +218,7 @@ namespace lgfx
 
       yAdvance = maxAscent + maxDescent;
 
-//ESP_LOGI("LGFX", "maxDescent:%d", maxDescent);
+//Serial.printf("LGFX:maxDescent:%d\r\n", maxDescent);
       return true;
     }
   };
@@ -486,7 +486,10 @@ namespace lgfx
         std::string filename = "/";
         if (path[0] == '/') filename = path;
         else filename += path;
-        filename += ".vlw";
+        int len = strlen(path);
+        if (memcmp(&path[len - 4], ".vlw", 4)) {
+          filename += ".vlw";
+        }
         result = _font_file.open(filename.c_str(), "r");
       }
       auto font = new VLWfont();
