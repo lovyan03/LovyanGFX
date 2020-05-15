@@ -1286,9 +1286,11 @@ namespace lgfx
       uint32_t buffer[6] = {0};
       uint16_t gNum = 0;
 
-      if (!font->getUnicodeIndex(code, &gNum) || code == 0x20) {
+      if (code == 0x20) {
         gNum = 0xFFFF;
         buffer[2] = __builtin_bswap32(font->spaceWidth);
+      } else if (!font->getUnicodeIndex(code, &gNum)) {
+        return 0;
       } else {
         file->preRead();
         file->seek(28 + gNum * 28);
@@ -1346,12 +1348,13 @@ namespace lgfx
             if (tmp > 0)
               me->writeFillRect(left, y + h * style->size_y, right - left, tmp);
           }
-          if (w) {
+
+          int32_t r = (clip_right - x + style->size_x - 1) / style->size_x;
+          if (r > w) r = w;
+          if (l < r) {
             int32_t back_r = ((style->back_rgb888>>16)&0xFF);
             int32_t back_g = ((style->back_rgb888>> 8)&0xFF);
             int32_t back_b = ((style->back_rgb888)    &0xFF);
-            int32_t r = (clip_right - x + style->size_x - 1) / style->size_x;
-            if (r > w) r = w;
             do {
               if (right > left) {
                 me->setRawColor(colortbl[0]);
