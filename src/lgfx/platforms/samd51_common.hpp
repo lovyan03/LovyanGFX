@@ -142,11 +142,11 @@ namespace lgfx
 
 #else  // dummy.
 
-    bool open(const char* path, const char* mode) { return false; }
-    int read(uint8_t *buf, uint32_t len) override { return 0; }
-    void skip(int32_t offset) override { }
-    bool seek(uint32_t offset) override { return false; }
-    bool seek(uint32_t offset, int origin) { return false; }
+    bool open(const char*, const char*) { return false; }
+    int read(uint8_t*, uint32_t) override { return 0; }
+    void skip(int32_t) override { }
+    bool seek(uint32_t) override { return false; }
+    bool seek(uint32_t, int) { return false; }
     void close() override { }
 
 #endif
@@ -173,9 +173,9 @@ namespace lgfx
 
 #else  // dummy.
 
-    int read(uint8_t *buf, uint32_t len) override { return 0; }
-    void skip(int32_t offset) override { }
-    bool seek(uint32_t offset) override { return false; }
+    int read(uint8_t*, uint32_t) override { return 0; }
+    void skip(int32_t) override { }
+    bool seek(uint32_t) override { return false; }
 
 #endif
 
