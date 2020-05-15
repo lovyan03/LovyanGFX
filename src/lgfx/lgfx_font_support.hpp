@@ -170,11 +170,11 @@ namespace lgfx
       gxAdvance =  (uint8_t*)heap_alloc_psram( gCount );    // xAdvance - to move x cursor
       gdX       =   (int8_t*)heap_alloc_psram( gCount );    // offset for bitmap left edge relative to cursor X
 
-      if (!gBitmap  ) gBitmap   = (uint32_t*)heap_alloc( gCount * 4); // seek pointer to glyph bitmap in the file
-      if (!gUnicode ) gUnicode  = (uint16_t*)heap_alloc( gCount * 2); // Unicode 16 bit Basic Multilingual Plane (0-FFFF)
-      if (!gWidth   ) gWidth    =  (uint8_t*)heap_alloc( gCount );    // Width of glyph
-      if (!gxAdvance) gxAdvance =  (uint8_t*)heap_alloc( gCount );    // xAdvance - to move x cursor
-      if (!gdX      ) gdX       =   (int8_t*)heap_alloc( gCount );    // offset for bitmap left edge relative to cursor X
+      if (nullptr == gBitmap  ) gBitmap   = (uint32_t*)heap_alloc( gCount * 4); // seek pointer to glyph bitmap in the file
+      if (nullptr == gUnicode ) gUnicode  = (uint16_t*)heap_alloc( gCount * 2); // Unicode 16 bit Basic Multilingual Plane (0-FFFF)
+      if (nullptr == gWidth   ) gWidth    =  (uint8_t*)heap_alloc( gCount );    // Width of glyph
+      if (nullptr == gxAdvance) gxAdvance =  (uint8_t*)heap_alloc( gCount );    // xAdvance - to move x cursor
+      if (nullptr == gdX      ) gdX       =   (int8_t*)heap_alloc( gCount );    // offset for bitmap left edge relative to cursor X
 
       if (!gUnicode
        || !gBitmap
@@ -1286,9 +1286,9 @@ namespace lgfx
       file->seek(28 + gNum * 28);  // headerPtr
       uint32_t buffer[6];
       file->read((uint8_t*)buffer, 24);
-      uint32_t h        = __builtin_bswap32(buffer[0]); // Height of glyph
-      uint32_t w        = __builtin_bswap32(buffer[1]); // Width of glyph
-      uint32_t xAdvance = __builtin_bswap32(buffer[2]) * style->size_x; // xAdvance - to move x cursor
+      int32_t h        = __builtin_bswap32(buffer[0]); // Height of glyph
+      int32_t w        = __builtin_bswap32(buffer[1]); // Width of glyph
+      int32_t xAdvance = __builtin_bswap32(buffer[2]) * style->size_x; // xAdvance - to move x cursor
       int32_t xoffset   = (int32_t)((int8_t)__builtin_bswap32(buffer[4])) * style->size_x; // x delta from cursor
       int32_t dY        = (int16_t)__builtin_bswap32(buffer[3]); // y delta from baseline
       int32_t yoffset = ((int32_t)font->maxAscent - dY) * (int32_t)style->size_y;
@@ -1322,7 +1322,7 @@ namespace lgfx
       if (x < clip_left) { l = -((x - clip_left) / style->size_x); bw += (x - clip_left); bx = clip_left; }
       int32_t clip_right = me->_clip_r + 1;
       if (bw > clip_right - bx) bw = clip_right - bx;
-      if (bw > 0 && (y <= me->_clip_b) && (me->_clip_t < (y + h * style->size_y))) {
+      if (bw > 0 && (y <= me->_clip_b) && (me->_clip_t < (int32_t)(y + h * style->size_y))) {
         int32_t fore_r = ((style->fore_rgb888>>16)&0xFF);
         int32_t fore_g = ((style->fore_rgb888>> 8)&0xFF);
         int32_t fore_b = ((style->fore_rgb888)    &0xFF);
