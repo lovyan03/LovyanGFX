@@ -126,7 +126,10 @@ namespace lgfx
 
     bool open(const char* path, const char* mode) { 
       fs::File fp = _fs.open(path, mode);
+      // この邪悪なmemcpyは、Seeed_FSのFile実装が所有権moveを提供してくれないのにデストラクタでcloseを呼ぶ実装になっているため、
+      // 正攻法ではFileをクラスメンバに保持できない状況を打開すべく応急処置的に実装したものです。
       memcpy(&_fp, &fp, sizeof(fs::File));
+      // memsetにより一時変数の中身を吹っ飛ばし、デストラクタによるcloseを予防します。
       memset(&fp, 0, sizeof(fs::File));
       return _fp;
     }
