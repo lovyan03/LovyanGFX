@@ -132,6 +132,11 @@ namespace lgfx
         }
         return true;
       }
+      if (uniCode == 0x20) {
+        metrics->width = metrics->x_advance = metrics->y_advance * 2 / 7;
+        metrics->x_offset = 0;
+        return true;
+      }
       return false;
     }
 
@@ -1276,19 +1281,20 @@ namespace lgfx
     {
       auto me = (LGFX_Font_Support*)lgfxbase;
       auto font = (const VLWfont*)me->_font;
-
-      uint16_t gNum = 0;
-      if (!font->getUnicodeIndex(code, &gNum)) {
-        return 0;
-      }
-
       auto file = font->_fontData;
 
-      file->preRead();
+      uint32_t buffer[6] = {0};
+      uint16_t gNum = 0;
 
-      file->seek(28 + gNum * 28);  // headerPtr
-      uint32_t buffer[6];
-      file->read((uint8_t*)buffer, 24);
+      if (!font->getUnicodeIndex(code, &gNum) || code == 0x20) {
+        gNum = 0xFFFF;
+        buffer[2] = __builtin_bswap32(font->spaceWidth);
+      } else {
+        file->preRead();
+        file->seek(28 + gNum * 28);
+        file->read((uint8_t*)buffer, 24);
+        file->seek(font->gBitmap[gNum]);
+      }
       int32_t h        = __builtin_bswap32(buffer[0]); // Height of glyph
       int32_t w        = __builtin_bswap32(buffer[1]); // Width of glyph
       int32_t xAdvance = __builtin_bswap32(buffer[2]) * style->size_x; // xAdvance - to move x cursor
@@ -1298,11 +1304,10 @@ namespace lgfx
 
       uint8_t pbuffer[w * h];
       uint8_t* pixel = pbuffer;
-
-      file->seek(font->gBitmap[gNum]);  // headerPtr
-      file->read(pixel, w * h);
-
-      file->postRead();
+      if (gNum != 0xFFFF) {
+        file->read(pixel, w * h);
+        file->postRead();
+      }
 
       me->startWrite();
 
@@ -1316,8 +1321,8 @@ namespace lgfx
       }
       me->_filled_x = right;
 
-      y += yoffset;
       x += xoffset;
+      y += yoffset;
       int32_t l = 0;
       int32_t bx = x;
       int32_t bw = w * style->size_x;
@@ -1325,7 +1330,7 @@ namespace lgfx
       if (x < clip_left) { l = -((x - clip_left) / style->size_x); bw += (x - clip_left); bx = clip_left; }
       int32_t clip_right = me->_clip_r + 1;
       if (bw > clip_right - bx) bw = clip_right - bx;
-      if (bw > 0 && (y <= me->_clip_b) && (me->_clip_t < (int32_t)(y + h * style->size_y))) {
+      if (bw >= 0 && (y <= me->_clip_b) && (me->_clip_t < (int32_t)(y + h * style->size_y))) {
         int32_t fore_r = ((style->fore_rgb888>>16)&0xFF);
         int32_t fore_g = ((style->fore_rgb888>> 8)&0xFF);
         int32_t fore_b = ((style->fore_rgb888)    &0xFF);
@@ -1341,40 +1346,40 @@ namespace lgfx
             if (tmp > 0)
               me->writeFillRect(left, y + h * style->size_y, right - left, tmp);
           }
-
-          int32_t back_r = ((style->back_rgb888>>16)&0xFF);
-          int32_t back_g = ((style->back_rgb888>> 8)&0xFF);
-          int32_t back_b = ((style->back_rgb888)    &0xFF);
-          int32_t r = (clip_right - x + style->size_x - 1) / style->size_x;
-          if (r > w) r = w;
-          do {
-            if (right > left) {
-              me->setRawColor(colortbl[0]);
-              me->writeFillRect(left, y, right - left, style->size_y);
-            }
-            int32_t i = l;
+          if (w) {
+            int32_t back_r = ((style->back_rgb888>>16)&0xFF);
+            int32_t back_g = ((style->back_rgb888>> 8)&0xFF);
+            int32_t back_b = ((style->back_rgb888)    &0xFF);
+            int32_t r = (clip_right - x + style->size_x - 1) / style->size_x;
+            if (r > w) r = w;
             do {
-              while (pixel[i] != 0xFF) {
-                if (pixel[i] != 0) {
-                  int32_t p = 1 + (uint32_t)pixel[i];
-                  me->setColor(color888( ( fore_r * p + back_r * (257 - p)) >> 8
-                                       , ( fore_g * p + back_g * (257 - p)) >> 8
-                                       , ( fore_b * p + back_b * (257 - p)) >> 8 ));
-                  me->writeFillRect(i * style->size_x + x, y, style->size_x, style->size_y);
-                }
-                if (++i == r) break;
+              if (right > left) {
+                me->setRawColor(colortbl[0]);
+                me->writeFillRect(left, y, right - left, style->size_y);
               }
-              if (i == r) break;
-              int32_t dl = 1;
-              while (i + dl != r && pixel[i + dl] == 0xFF) { ++dl; }
-              me->setRawColor(colortbl[1]);
-              me->writeFillRect(x + i * style->size_x, y, dl * style->size_x, style->size_y);
-              i += dl;
-            } while (i != r);
-            pixel += w;
-            y += style->size_y;
-          } while (--h);
-
+              int32_t i = l;
+              do {
+                while (pixel[i] != 0xFF) {
+                  if (pixel[i] != 0) {
+                    int32_t p = 1 + (uint32_t)pixel[i];
+                    me->setColor(color888( ( fore_r * p + back_r * (257 - p)) >> 8
+                                         , ( fore_g * p + back_g * (257 - p)) >> 8
+                                         , ( fore_b * p + back_b * (257 - p)) >> 8 ));
+                    me->writeFillRect(i * style->size_x + x, y, style->size_x, style->size_y);
+                  }
+                  if (++i == r) break;
+                }
+                if (i == r) break;
+                int32_t dl = 1;
+                while (i + dl != r && pixel[i + dl] == 0xFF) { ++dl; }
+                me->setRawColor(colortbl[1]);
+                me->writeFillRect(x + i * style->size_x, y, dl * style->size_x, style->size_y);
+                i += dl;
+              } while (i != r);
+              pixel += w;
+              y += style->size_y;
+            } while (--h);
+          }
         } else { // alpha blend mode
 
           int32_t xshift = (bx - x) % style->size_x;
