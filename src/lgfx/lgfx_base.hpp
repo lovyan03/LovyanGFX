@@ -809,7 +809,7 @@ namespace lgfx
         do {
           std::int32_t ip = i;
           for (;;) {
-            if (!(i & 7)) byte = pgm_read_byte(&bitmap[i >> 3]);
+            if (!(i & 7)) byte = bitmap[i >> 3];
             if (fg != (bool)(byte & 0x80) || (++i >= w)) break;
             byte <<= 1;
           }
@@ -839,7 +839,7 @@ namespace lgfx
         do {
           std::int32_t ip = i;
           for (;;) {
-            if (!(i & 7)) byte = pgm_read_byte(&bitmap[i >> 3]);
+            if (!(i & 7)) byte = bitmap[i >> 3];
             if (fg != (bool)(byte & 0x01) || (++i >= w)) break;
             byte >>= 1;
           }

@@ -245,7 +245,7 @@ namespace lgfx
     std::int16_t getTextSizeY(void) const { return _text_style.size_y; }
     textdatum_t getTextDatum(void) const { return _text_style.datum; }
     std::int16_t fontHeight(void) const { return _font_metrics.height * _text_style.size_y; }
-    std::int16_t fontHeight(std::uint8_t font) const { return pgm_read_byte( &((const BaseFont*)fontdata[font])->height ) * _text_style.size_y; }
+    std::int16_t fontHeight(std::uint8_t font) const { return ((const BaseFont*)fontdata[font])->height * _text_style.size_y; }
 
     void setCursor( std::int16_t x, std::int16_t y)               { _filled_x = 0; _cursor_x = x; _cursor_y = y; }
     void setCursor( std::int16_t x, std::int16_t y, std::uint8_t font) { _filled_x = 0; _cursor_x = x; _cursor_y = y; _font = fontdata[font]; }
@@ -962,7 +962,7 @@ namespace lgfx
           std::int_fast8_t i = 0;
           do {
             std::int_fast16_t ypos = y;
-            std::uint8_t line = pgm_read_byte(&font_addr[i]);
+            std::uint8_t line = font_addr[i];
             std::uint8_t flg = (line & 0x01);
             std::int_fast8_t j = 1;
             std::int_fast8_t jp = 0;
@@ -989,7 +989,7 @@ namespace lgfx
           std::uint8_t col[fontWidth];
           std::int_fast8_t i = 0;
           do {
-            col[i] = pgm_read_byte(&font_addr[i]);
+            col[i] = font_addr[i];
           } while (++i < 5);
           col[5] = 0;
           me->startWrite();
@@ -1020,10 +1020,10 @@ namespace lgfx
       auto font = (const BMPfont*)ifont;
 
       if ((uniCode -= 32) >= 96) return 0;
-      const std::int_fast8_t fontWidth = pgm_read_byte(font->widthtbl + uniCode);
-      const std::int_fast8_t fontHeight = pgm_read_byte(&font->height);
+      const std::int_fast8_t fontWidth = font->widthtbl[uniCode];
+      const std::int_fast8_t fontHeight = font->height;
 
-      auto font_addr = (const std::uint8_t*)pgm_read_dword(&((const std::uint8_t**)font->chartbl)[uniCode]);
+      auto font_addr = ((const std::uint8_t**)font->chartbl)[uniCode];
       return draw_char_bmp(me, x, y, style, font_addr, fontWidth, fontHeight, (fontWidth + 6) >> 3, 1);
     }
 
@@ -1065,7 +1065,7 @@ namespace lgfx
           }
           std::int_fast8_t i = 0;
           do {
-            std::uint8_t line = pgm_read_byte(font_addr);
+            std::uint8_t line = font_addr[0];
             bool flg = line & 0x80;
             std::int_fast8_t len = 1;
             std::int_fast8_t j = 1;
@@ -1074,7 +1074,7 @@ namespace lgfx
               if (j & 7) {
                 line <<= 1;
               } else {
-                line = pgm_read_byte(&font_addr[j >> 3]);
+                line = font_addr[j >> 3];
               }
               if (flg != (bool)(line & 0x80)) {
                 if (flg || fillbg) {
@@ -1109,7 +1109,7 @@ namespace lgfx
               if (j & 7) {
                 line <<= 1;
               } else {
-                line = (j == je) ? 0 : pgm_read_byte(&font_addr[j >> 3]);
+                line = (j == je) ? 0 : font_addr[j >> 3];
               }
               if (flg != (bool)(line & 0x80)) {
                 me->writeRawColor(colortbl[flg], len);
@@ -1133,10 +1133,10 @@ namespace lgfx
       auto font = (RLEfont*)ifont;
       if ((code -= 32) >= 96) return 0;
 
-      const int fontWidth = pgm_read_byte( (std::uint8_t *)pgm_read_dword( &(font->widthtbl ) ) + code );
-      const int fontHeight = pgm_read_byte( &font->height );
+      const int fontWidth = font->widthtbl[code];
+      const int fontHeight = font->height;
 
-      auto font_addr = (const std::uint8_t*)pgm_read_dword( (const void*)(pgm_read_dword( &(font->chartbl ) ) + code * sizeof(void *)) );
+      auto font_addr = ((const std::uint8_t**)font->chartbl)[code];
 
       std::uint32_t colortbl[2] = {me->getColorConverter()->convert(style->back_rgb888), me->getColorConverter()->convert(style->fore_rgb888)};
       bool fillbg = (style->back_rgb888 != style->fore_rgb888);
@@ -1154,7 +1154,7 @@ namespace lgfx
           std::int32_t len;
           me->startWrite();
           do {
-            line = pgm_read_byte(font_addr++);
+            line = *font_addr++;
             flg = line & 0x80;
             line = (line & 0x7F)+1;
             do {
@@ -1178,7 +1178,7 @@ namespace lgfx
           me->setAddrWindow(x, y, fontWidth * style->size_x, fontHeight);
           std::uint32_t len = fontWidth * style->size_x * fontHeight;
           do {
-            line = pgm_read_byte(font_addr++);
+            line = *font_addr++;
             bool flg = line & 0x80;
             line = ((line & 0x7F) + 1) * style->size_x;
             me->writeRawColor(colortbl[flg], line);
@@ -1196,12 +1196,12 @@ namespace lgfx
       auto glyph = font->getGlyph(uniCode);
       if (!glyph) return 0;
 
-      std::int32_t w = pgm_read_byte(&glyph->width),
-                   h = pgm_read_byte(&glyph->height);
+      std::int32_t w = glyph->width,
+                   h = glyph->height;
 
-      std::int32_t xAdvance = (std::int32_t)style->size_x * (std::int8_t)pgm_read_byte(&glyph->xAdvance);
-      std::int32_t xoffset  = (std::int32_t)style->size_x * (std::int8_t)pgm_read_byte(&glyph->xOffset);
-      std::int32_t yoffset  = (std::int32_t)style->size_y * (std::int8_t)pgm_read_byte(&glyph->yOffset);
+      std::int32_t xAdvance = (std::int32_t)style->size_x * glyph->xAdvance;
+      std::int32_t xoffset  = (std::int32_t)style->size_x * glyph->xOffset;
+      std::int32_t yoffset  = (std::int32_t)style->size_y * glyph->yOffset;
 
       me->startWrite();
       std::uint32_t colortbl[2] = {me->getColorConverter()->convert(style->back_rgb888), me->getColorConverter()->convert(style->fore_rgb888)};
@@ -1235,8 +1235,7 @@ namespace lgfx
             me->writeFillRect(left, y + h * style->size_y, right - left, tmp);
         }
 
-        std::uint8_t  *bitmap = (std::uint8_t *)pgm_read_dword(&font->bitmap)
-                         + pgm_read_dword(&glyph->bitmapOffset);
+        std::uint8_t *bitmap = &font->bitmap[glyph->bitmapOffset];
         std::uint8_t bits=0, bit=0;
 
         me->setRawColor(colortbl[1]);
@@ -1252,7 +1251,7 @@ namespace lgfx
           for (i = 0; i < w; i++) {
             if (bit == 0) {
               bit  = 0x80;
-              bits = pgm_read_byte(bitmap++);
+              bits = *bitmap++;
             }
             if (bits & bit) len++;
             else if (len) {

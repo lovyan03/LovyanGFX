@@ -166,7 +166,7 @@ namespace lgfx
 
       if (count > _palette_count) count = _palette_count;
       for (std::uint32_t i = 0; i < count; ++i) {
-        _palette[i] = convert_rgb565_to_bgr888(pgm_read_word(&colors[i]));
+        _palette[i] = convert_rgb565_to_bgr888(colors[i]);
       }
       return true;
     }
@@ -178,7 +178,7 @@ namespace lgfx
 
       if (count > _palette_count) count = _palette_count;
       for (std::uint32_t i = 0; i < count; ++i) {
-        _palette[i] = convert_rgb888_to_bgr888(pgm_read_dword(&colors[i]));
+        _palette[i] = convert_rgb888_to_bgr888(colors[i]);
       }
       return true;
     }

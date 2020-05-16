@@ -1,10 +1,6 @@
 #ifndef LGFX_SAMD51_COMMON_HPP_
 #define LGFX_SAMD51_COMMON_HPP_
 
-#ifdef ARDUINO
-  #include <avr/pgmspace.h>
-#endif
-
 #include <malloc.h>
 #include <sam.h>
 
