@@ -49,7 +49,7 @@ namespace lgfx
     }
 
     __attribute__ ((always_inline)) inline void* getBuffer(void) const { return _img; }
-    uint32_t bufferLength(void) const { return _bitwidth * _height * _write_conv.bits >> 3; }
+    uint32_t bufferLength(void) const { return (_bitwidth * _write_conv.bits >> 3) * _height; }
 
     LGFX_Sprite()
     : LGFX_Sprite(nullptr)
@@ -720,6 +720,31 @@ return;
     void pushImage_impl(int32_t x, int32_t y, int32_t w, int32_t h, pixelcopy_t* param, bool) override
     {
       auto sx = param->src_x;
+      if (param->transp == ~0 && param->no_convert && !_disable_memcpy) {
+        auto bits = param->src_bits;
+        uint_fast8_t mask = (bits == 1) ? 7
+                          : (bits == 2) ? 3
+                                        : 1;
+        if (0 == (bits & 7) || ((sx & mask) == (x & mask) && (w == this->_width || 0 == (w & mask)))) {
+          auto bw = _bitwidth * bits >> 3;
+          auto dd = &_img[bw * y];
+          auto sw = param->src_width * bits >> 3;
+          auto sd = &((uint8_t*)param->src_data)[param->src_y * sw];
+          if (param->src_width == this->_bitwidth && this->_width == w && sx == 0 && x == 0) {
+            memcpy(dd, sd, bw * h);
+            return;
+          }
+          y = 0;
+          w =   w * bits >> 3;
+          x =   x * bits >> 3;
+          sx = sx * bits >> 3;
+          do {
+            memcpy(&dd[y * bw + x], &sd[y * sw + sx], w);
+          } while (++y != h);
+          return;
+        }
+      }
+
       do {
         int32_t pos = x + (y++) * _bitwidth;
         int32_t end = pos + w;

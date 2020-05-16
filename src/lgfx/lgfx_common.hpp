@@ -715,9 +715,9 @@ namespace lgfx
       src_bits = src_depth > 8 ? (src_depth + 7) & ~7 : src_depth;
       src_mask = (1 << src_bits) - 1;
 
+      no_convert = (src_depth == dst_depth);
       if (dst_palette || dst_depth < 8) {
         if (src_palette && (dst_depth == 8) && (src_depth == 8)) {
-          no_convert = true;
           fp_copy = pixelcopy_t::normalcopy<rgb332_t, rgb332_t>;
           fp_skip = pixelcopy_t::normalskip<rgb332_t>;
         } else {
@@ -729,7 +729,6 @@ namespace lgfx
         fp_copy = pixelcopy_t::get_fp_palettecopy<bgr888_t>(dst_depth);
         fp_skip = pixelcopy_t::bitskip;
       } else {
-        no_convert = (src_depth == dst_depth);
         if (src_depth > rgb565_2Byte) {
           fp_skip = pixelcopy_t::normalskip<bgr888_t>;
           if (src_depth == rgb888_3Byte) {

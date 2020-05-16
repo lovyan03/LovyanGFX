@@ -1128,8 +1128,11 @@ namespace lgfx
         }
         if (left < right) {
           param->src_x32 = xstart - left * cos_x;
-          param->src_y32 = ystart - left * sin_y;
-          pushImage_impl(left, min_y, right - left, 1, param, true);
+          int32_t y32 = ystart - left * sin_y;
+          if (y32 >= 0) {
+            param->src_y32 = y32;
+            pushImage_impl(left, min_y, right - left, 1, param, true);
+          }
         }
       } while (++min_y != max_y);
       endWrite();
