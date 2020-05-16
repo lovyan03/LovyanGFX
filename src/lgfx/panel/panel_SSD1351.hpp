@@ -31,7 +31,7 @@ namespace lgfx
 
   protected:
 
-    const uint8_t* getInvertDisplayCommands(uint8_t* buf, bool invert) override
+    const std::uint8_t* getInvertDisplayCommands(std::uint8_t* buf, bool invert) override
     {
       this->invert = invert;
       buf[2] = buf[0] = invert ? CommandCommon::INVON : CommandCommon::INVOFF;
@@ -40,7 +40,7 @@ namespace lgfx
       return buf;
     }
 
-    const uint8_t* getRotationCommands(uint8_t* buf, int_fast8_t r) override
+    const std::uint8_t* getRotationCommands(std::uint8_t* buf, std::int_fast8_t r) override
     {
       rotation = r & 7;
       buf[0] = CommandCommon::MADCTL;
@@ -50,7 +50,7 @@ namespace lgfx
       return buf;
     }
 
-    const uint8_t* getColorDepthCommands(uint8_t* buf, color_depth_t depth) override
+    const std::uint8_t* getColorDepthCommands(std::uint8_t* buf, color_depth_t depth) override
     {
       PanelCommon::getColorDepthCommands(buf, depth);
       buf[0] = CommandCommon::MADCTL;
@@ -61,33 +61,33 @@ namespace lgfx
     }
 
     struct CommandCommon {
-    static constexpr uint_fast8_t NOP     = 0x00;
-    static constexpr uint_fast8_t SWRESET = 0x01;
-//  static constexpr uint_fast8_t RDDID   = 0x04;
-//  static constexpr uint_fast8_t RDDST   = 0x09;
-    static constexpr uint_fast8_t SLPIN   = 0xAE;
-    static constexpr uint_fast8_t SLPOUT  = 0xAF;
-//  static constexpr uint_fast8_t PTLON   = 0x12;
-//  static constexpr uint_fast8_t NORON   = 0x13;
-    static constexpr uint_fast8_t INVOFF  = 0xA6;
-    static constexpr uint_fast8_t INVON   = 0xA7;
-//  static constexpr uint_fast8_t GAMMASET= 0x26;
-    static constexpr uint_fast8_t DISPOFF = 0xA4;
-    static constexpr uint_fast8_t DISPON  = 0xA5;
-    static constexpr uint_fast8_t CASET   = 0x15;
-    static constexpr uint_fast8_t RASET   = 0x75; static constexpr uint8_t PASET = 0x75;
-    static constexpr uint_fast8_t RAMWR   = 0x5C;
-    static constexpr uint_fast8_t RAMRD   = 0x5D;
-    static constexpr uint_fast8_t MADCTL  = 0xA0;
+    static constexpr std::uint_fast8_t NOP     = 0x00;
+    static constexpr std::uint_fast8_t SWRESET = 0x01;
+//  static constexpr std::uint_fast8_t RDDID   = 0x04;
+//  static constexpr std::uint_fast8_t RDDST   = 0x09;
+    static constexpr std::uint_fast8_t SLPIN   = 0xAE;
+    static constexpr std::uint_fast8_t SLPOUT  = 0xAF;
+//  static constexpr std::uint_fast8_t PTLON   = 0x12;
+//  static constexpr std::uint_fast8_t NORON   = 0x13;
+    static constexpr std::uint_fast8_t INVOFF  = 0xA6;
+    static constexpr std::uint_fast8_t INVON   = 0xA7;
+//  static constexpr std::uint_fast8_t GAMMASET= 0x26;
+    static constexpr std::uint_fast8_t DISPOFF = 0xA4;
+    static constexpr std::uint_fast8_t DISPON  = 0xA5;
+    static constexpr std::uint_fast8_t CASET   = 0x15;
+    static constexpr std::uint_fast8_t RASET   = 0x75; static constexpr std::uint8_t PASET = 0x75;
+    static constexpr std::uint_fast8_t RAMWR   = 0x5C;
+    static constexpr std::uint_fast8_t RAMRD   = 0x5D;
+    static constexpr std::uint_fast8_t MADCTL  = 0xA0;
 
-    static constexpr uint_fast8_t CMDLOCK = 0xFD;
-    static constexpr uint_fast8_t STARTLINE = 0xA1;
+    static constexpr std::uint_fast8_t CMDLOCK = 0xFD;
+    static constexpr std::uint_fast8_t STARTLINE = 0xA1;
     };
 
     color_depth_t getAdjustBpp(color_depth_t bpp) const override { return (bpp > 16) ? rgb666_3Byte : rgb565_2Byte; }
 
-    const uint8_t* getInitCommands(uint8_t listno) const override {
-      static constexpr uint8_t list0[] = {
+    const std::uint8_t* getInitCommands(std::uint8_t listno) const override {
+      static constexpr std::uint8_t list0[] = {
           CommandCommon::CMDLOCK, 1, 0x12,
           CommandCommon::CMDLOCK, 1, 0xB1,
           CommandCommon::SLPIN  , 0,
@@ -117,9 +117,9 @@ namespace lgfx
     }
 
   private:
-    uint8_t getMadCtl(uint_fast8_t r, uint_fast8_t bpp) {
+    std::uint8_t getMadCtl(std::uint_fast8_t r, std::uint_fast8_t bpp) {
 // Set Re-map & Dual COM Line Mode (A0h) 
-      static constexpr uint8_t madctl_table[] = {
+      static constexpr std::uint8_t madctl_table[] = {
         0b00110100,
         0b00110111,
         0b00100110,

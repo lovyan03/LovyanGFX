@@ -24,7 +24,7 @@ namespace lgfx
 
   protected:
 
-    const uint8_t* getInvertDisplayCommands(uint8_t* buf, bool invert) override
+    const std::uint8_t* getInvertDisplayCommands(std::uint8_t* buf, bool invert) override
     {
       this->invert = invert;
       buf[2] = buf[0] = invert ? CommandCommon::INVON : CommandCommon::INVOFF;
@@ -33,7 +33,7 @@ namespace lgfx
       return buf;
     }
 
-    const uint8_t* getRotationCommands(uint8_t* buf, int_fast8_t r) override
+    const std::uint8_t* getRotationCommands(std::uint8_t* buf, int_fast8_t r) override
     {
       rotation = r & 7;
       buf[0] = CommandCommon::MADCTL;
@@ -43,8 +43,8 @@ namespace lgfx
       return buf;
     }
 
-    virtual uint8_t getMadCtl(uint8_t r) const {
-      static constexpr uint8_t madctl_table[] = {
+    virtual std::uint8_t getMadCtl(std::uint8_t r) const {
+      static constexpr std::uint8_t madctl_table[] = {
                                          0,
         MAD_MV|MAD_MX|MAD_MH              ,
                MAD_MX|MAD_MH|MAD_MY|MAD_ML,
@@ -70,7 +70,7 @@ namespace lgfx
     , MAD_RGB = 0x00
     };
 
-    const uint8_t* getColorDepthCommands(uint8_t* buf, color_depth_t depth) override
+    const std::uint8_t* getColorDepthCommands(std::uint8_t* buf, color_depth_t depth) override
     {
       PanelCommon::getColorDepthCommands(buf, depth);
       buf[0] = CommandCommon::COLMOD;
@@ -81,32 +81,32 @@ namespace lgfx
     }
 
     struct CommandCommon {
-    static constexpr uint8_t NOP     = 0x00;
-    static constexpr uint8_t SWRESET = 0x01;
-    static constexpr uint8_t RDDID   = 0x04;
-    static constexpr uint8_t RDDST   = 0x09;
-    static constexpr uint8_t SLPIN   = 0x10;
-    static constexpr uint8_t SLPOUT  = 0x11;
-    static constexpr uint8_t PTLON   = 0x12;
-    static constexpr uint8_t NORON   = 0x13;
-    static constexpr uint8_t INVOFF  = 0x20;
-    static constexpr uint8_t INVON   = 0x21;
-    static constexpr uint8_t GAMMASET= 0x26;
-    static constexpr uint8_t DISPOFF = 0x28;
-    static constexpr uint8_t DISPON  = 0x29;
-    static constexpr uint8_t CASET   = 0x2A;
-    static constexpr uint8_t RASET   = 0x2B; static constexpr uint8_t PASET = 0x2B;
-    static constexpr uint8_t RAMWR   = 0x2C;
-    static constexpr uint8_t RAMRD   = 0x2E;
-    static constexpr uint8_t MADCTL  = 0x36;
-    static constexpr uint8_t COLMOD  = 0x3A; static constexpr uint8_t PIXSET = 0x3A;
+    static constexpr std::uint8_t NOP     = 0x00;
+    static constexpr std::uint8_t SWRESET = 0x01;
+    static constexpr std::uint8_t RDDID   = 0x04;
+    static constexpr std::uint8_t RDDST   = 0x09;
+    static constexpr std::uint8_t SLPIN   = 0x10;
+    static constexpr std::uint8_t SLPOUT  = 0x11;
+    static constexpr std::uint8_t PTLON   = 0x12;
+    static constexpr std::uint8_t NORON   = 0x13;
+    static constexpr std::uint8_t INVOFF  = 0x20;
+    static constexpr std::uint8_t INVON   = 0x21;
+    static constexpr std::uint8_t GAMMASET= 0x26;
+    static constexpr std::uint8_t DISPOFF = 0x28;
+    static constexpr std::uint8_t DISPON  = 0x29;
+    static constexpr std::uint8_t CASET   = 0x2A;
+    static constexpr std::uint8_t RASET   = 0x2B; static constexpr std::uint8_t PASET = 0x2B;
+    static constexpr std::uint8_t RAMWR   = 0x2C;
+    static constexpr std::uint8_t RAMRD   = 0x2E;
+    static constexpr std::uint8_t MADCTL  = 0x36;
+    static constexpr std::uint8_t COLMOD  = 0x3A; static constexpr std::uint8_t PIXSET = 0x3A;
     };
 
     enum colmod_t
     { RGB565_2BYTE = 0x55
     , RGB666_3BYTE = 0x66
     };
-    virtual uint8_t getColMod(uint8_t bpp) const { return (bpp > 16) ? RGB666_3BYTE : RGB565_2BYTE; }
+    virtual std::uint8_t getColMod(std::uint8_t bpp) const { return (bpp > 16) ? RGB666_3BYTE : RGB565_2BYTE; }
   };
 }
 

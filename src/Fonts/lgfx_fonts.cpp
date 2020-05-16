@@ -1,7 +1,7 @@
 #include "lgfx_fonts.hpp"
 
-#include <stdint.h>
-#include <stddef.h>
+#include <cstdint>
+#include <cstddef>
 
 #ifdef ARDUINO
  #ifdef ESP_PLATFORM
@@ -31,17 +31,17 @@
 #endif
 
 namespace lgfx {
-  bool GLCDfont::updateFontMetric(FontMetrics *metrics, uint16_t uniCode) const {
+  bool GLCDfont::updateFontMetric(FontMetrics*, std::uint16_t uniCode) const {
     return uniCode < 256;
   }
 
-  bool BMPfont::updateFontMetric(FontMetrics *metrics, uint16_t uniCode) const {
+  bool BMPfont::updateFontMetric(FontMetrics *metrics, std::uint16_t uniCode) const {
     if ((uniCode -= 32) >= 96) return false;
     metrics->x_advance = metrics->width = pgm_read_byte( (uint8_t *)pgm_read_dword( &widthtbl ) + uniCode );
     return true;
   }
 
-  bool BDFfont::updateFontMetric(FontMetrics *metrics, uint16_t uniCode) const {
+  bool BDFfont::updateFontMetric(FontMetrics *metrics, std::uint16_t uniCode) const {
     metrics->x_advance = metrics->width = pgm_read_byte( (uniCode < 0x0100) ? &halfwidth : &width );
     return true;
   }
@@ -49,19 +49,19 @@ namespace lgfx {
 
 //----------------------------------------------------------------------------
 
-bool GFXfont::updateFontMetric(lgfx::FontMetrics *metrics, uint16_t uniCode) const {
+bool GFXfont::updateFontMetric(lgfx::FontMetrics *metrics, std::uint16_t uniCode) const {
   auto glyph = getGlyph(uniCode);
   if (!glyph) return false;
-  metrics->x_offset  = (int8_t)pgm_read_byte(&glyph->xOffset);
+  metrics->x_offset  = (std::int8_t)pgm_read_byte(&glyph->xOffset);
   metrics->width     = pgm_read_byte(&glyph->width);
   metrics->x_advance = pgm_read_byte(&glyph->xAdvance);
   return true;
 }
 
-GFXglyph* GFXfont::getGlyph(uint16_t uniCode) const {
+GFXglyph* GFXfont::getGlyph(std::uint16_t uniCode) const {
   if (uniCode > pgm_read_word(&last )
   ||  uniCode < pgm_read_word(&first)) return nullptr;
-  uint16_t custom_range_num = pgm_read_word(&range_num);
+  std::uint16_t custom_range_num = pgm_read_word(&range_num);
   if (custom_range_num == 0) {
     uniCode -= pgm_read_word(&first);
     return &(((GFXglyph *)pgm_read_dword(&glyph))[uniCode]);
@@ -77,8 +77,8 @@ GFXglyph* GFXfont::getGlyph(uint16_t uniCode) const {
 }
 
 void GFXfont::getDefaultMetric(lgfx::FontMetrics *metrics) const {
-  int_fast8_t glyph_ab = 0;   // glyph delta Y (height) above baseline
-  int_fast8_t glyph_bb = 0;   // glyph delta Y (height) below baseline
+  std::int_fast8_t glyph_ab = 0;   // glyph delta Y (height) above baseline
+  std::int_fast8_t glyph_bb = 0;   // glyph delta Y (height) below baseline
   size_t numChars = pgm_read_word(&last) - pgm_read_word(&first);
 
   size_t custom_range_num = pgm_read_word(&range_num);
@@ -95,9 +95,9 @@ void GFXfont::getDefaultMetric(lgfx::FontMetrics *metrics) const {
   for (size_t c = 0; c < numChars; c++)
   {
     GFXglyph *glyph1 = &(((GFXglyph *)pgm_read_dword(&glyph))[c]);
-    int8_t ab = -pgm_read_byte(&glyph1->yOffset);
+    std::int_fast8_t ab = -pgm_read_byte(&glyph1->yOffset);
     if (ab > glyph_ab) glyph_ab = ab;
-    int8_t bb = pgm_read_byte(&glyph1->height) - ab;
+    std::int_fast8_t bb = pgm_read_byte(&glyph1->height) - ab;
     if (bb > glyph_bb) glyph_bb = bb;
   }
 

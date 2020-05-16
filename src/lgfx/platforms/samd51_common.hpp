@@ -6,6 +6,7 @@
 #endif
 
 #include <malloc.h>
+#include <sam.h>
 
 namespace lgfx
 {
@@ -35,20 +36,20 @@ namespace lgfx
     free(buf);
   }
 
-  static void gpio_hi(uint32_t pin) { PORT->Group[pin>>8].OUTSET.reg = (1ul << (pin & 0xFF)); }
-  static void gpio_lo(uint32_t pin) { PORT->Group[pin>>8].OUTCLR.reg = (1ul << (pin & 0xFF)); }
+  static void gpio_hi(std::uint32_t pin) { PORT->Group[pin>>8].OUTSET.reg = (1ul << (pin & 0xFF)); }
+  static void gpio_lo(std::uint32_t pin) { PORT->Group[pin>>8].OUTCLR.reg = (1ul << (pin & 0xFF)); }
   __attribute__((__used__))
-  static bool gpio_in(uint32_t pin) { return PORT->Group[pin>>8].IN.reg & (1ul << (pin & 0xFF)); }
+  static bool gpio_in(std::uint32_t pin) { return PORT->Group[pin>>8].IN.reg & (1ul << (pin & 0xFF)); }
 
   __attribute__((__used__))
-//  static void initPWM(uint32_t pin, uint32_t pwm_ch, uint8_t duty = 128) 
-  static void initPWM(uint32_t , uint32_t , uint8_t = 0) {
+//  static void initPWM(std::uint32_t pin, std::uint32_t pwm_ch, std::uint8_t duty = 128) 
+  static void initPWM(std::uint32_t , std::uint32_t , std::uint8_t = 0) {
 // unimplemented 
   }
 
   __attribute__((__used__))
-//  static void setPWMDuty(uint32_t pwm_ch, uint8_t duty = 128) 
-  static void setPWMDuty(uint32_t , uint8_t = 0 ) {
+//  static void setPWMDuty(std::uint32_t pwm_ch, std::uint8_t duty = 128) 
+  static void setPWMDuty(std::uint32_t , std::uint8_t = 0 ) {
 // unimplemented 
   }
 
@@ -59,24 +60,24 @@ namespace lgfx
   , input_pulldown
   };
 
-  static void lgfxPinMode(uint32_t pin, pin_mode_t mode)
+  static void lgfxPinMode(std::uint32_t pin, pin_mode_t mode)
   {
-    uint32_t port = pin>>8;
+    std::uint32_t port = pin>>8;
     pin &= 0xFF;
-    uint32_t pinMask = (1ul << pin);
+    std::uint32_t pinMask = (1ul << pin);
 
     // Set pin mode according to chapter '22.6.3 I/O Pin Configuration'
     switch ( mode )
     {
       case pin_mode_t::input:
         // Set pin to input mode
-        PORT->Group[port].PINCFG[pin].reg=(uint8_t)(PORT_PINCFG_INEN) ;
+        PORT->Group[port].PINCFG[pin].reg=(std::uint8_t)(PORT_PINCFG_INEN) ;
         PORT->Group[port].DIRCLR.reg = pinMask ;
       break ;
 
       case pin_mode_t::input_pullup:
         // Set pin to input mode with pull-up resistor enabled
-        PORT->Group[port].PINCFG[pin].reg=(uint8_t)(PORT_PINCFG_INEN|PORT_PINCFG_PULLEN) ;
+        PORT->Group[port].PINCFG[pin].reg=(std::uint8_t)(PORT_PINCFG_INEN|PORT_PINCFG_PULLEN) ;
         PORT->Group[port].DIRCLR.reg = pinMask ;
 
         // Enable pull level (cf '22.6.3.2 Input Configuration' and '22.8.7 Data Output Value Set')
@@ -85,7 +86,7 @@ namespace lgfx
 
       case pin_mode_t::input_pulldown:
         // Set pin to input mode with pull-down resistor enabled
-        PORT->Group[port].PINCFG[pin].reg=(uint8_t)(PORT_PINCFG_INEN|PORT_PINCFG_PULLEN) ;
+        PORT->Group[port].PINCFG[pin].reg=(std::uint8_t)(PORT_PINCFG_INEN|PORT_PINCFG_PULLEN) ;
         PORT->Group[port].DIRCLR.reg = pinMask ;
 
         // Enable pull level (cf '22.6.3.2 Input Configuration' and '22.8.6 Data Output Value Clear')
@@ -94,7 +95,7 @@ namespace lgfx
 
       case pin_mode_t::output:
         // enable input, to support reading back values, with pullups disabled
-        PORT->Group[port].PINCFG[pin].reg=(uint8_t)(PORT_PINCFG_INEN) ;
+        PORT->Group[port].PINCFG[pin].reg=(std::uint8_t)(PORT_PINCFG_INEN) ;
 
         // Set pin to output mode
         PORT->Group[port].DIRSET.reg = pinMask ;
@@ -134,19 +135,19 @@ namespace lgfx
       return _fp;
     }
 
-    int read(uint8_t *buf, uint32_t len) override { return _fp.read(buf, len); }
-    void skip(int32_t offset) override { seek(offset, SeekCur); }
-    bool seek(uint32_t offset) override { return seek(offset, SeekSet); }
-    bool seek(uint32_t offset, SeekMode mode) { return _fp.seek(offset, mode); }
+    int read(std::uint8_t *buf, std::uint32_t len) override { return _fp.read(buf, len); }
+    void skip(std::int32_t offset) override { seek(offset, SeekCur); }
+    bool seek(std::uint32_t offset) override { return seek(offset, SeekSet); }
+    bool seek(std::uint32_t offset, SeekMode mode) { return _fp.seek(offset, mode); }
     void close() override { _fp.close(); }
 
 #else  // dummy.
 
     bool open(const char*, const char*) { return false; }
-    int read(uint8_t*, uint32_t) override { return 0; }
-    void skip(int32_t) override { }
-    bool seek(uint32_t) override { return false; }
-    bool seek(uint32_t, int) { return false; }
+    int read(std::uint8_t*, std::uint32_t) override { return 0; }
+    void skip(std::int32_t) override { }
+    bool seek(std::uint32_t) override { return false; }
+    bool seek(std::uint32_t, int) { return false; }
     void close() override { }
 
 #endif
@@ -155,27 +156,27 @@ namespace lgfx
 //----------------------------------------------------------------------------
   struct StreamWrapper : public DataWrapper {
 #if defined (ARDUINO) && defined (Stream_h)
-    void set(Stream* src, uint32_t length = ~0u) { _stream = src; _length = length; _index = 0; }
+    void set(Stream* src, std::uint32_t length = ~0u) { _stream = src; _length = length; _index = 0; }
 
-    int read(uint8_t *buf, uint32_t len) override {
+    int read(std::uint8_t *buf, std::uint32_t len) override {
       if (len > _length - _index) { len = _length - _index; }
       _index += len;
       return _stream->readBytes((char*)buf, len);
     }
-    void skip(int32_t offset) override { if (0 < offset) { char dummy[offset]; _stream->readBytes(dummy, offset); _index += offset; } }
-    bool seek(uint32_t offset) override { if (offset < _index) { return false; } skip(offset - _index); return true; }
+    void skip(std::int32_t offset) override { if (0 < offset) { char dummy[offset]; _stream->readBytes(dummy, offset); _index += offset; } }
+    bool seek(std::uint32_t offset) override { if (offset < _index) { return false; } skip(offset - _index); return true; }
     void close() override { }
 
   private:
     Stream* _stream;
-    uint32_t _index;
-    uint32_t _length = 0;
+    std::uint32_t _index;
+    std::uint32_t _length = 0;
 
 #else  // dummy.
 
-    int read(uint8_t*, uint32_t) override { return 0; }
-    void skip(int32_t) override { }
-    bool seek(uint32_t) override { return false; }
+    int read(std::uint8_t*, std::uint32_t) override { return 0; }
+    void skip(std::int32_t) override { }
+    bool seek(std::uint32_t) override { return false; }
 
 #endif
 

@@ -24,30 +24,30 @@ namespace lgfx
 //    { RGB565_2BYTE = 0x55
 //    , RGB666_3BYTE = 0x66
 //    };
-//    uint8_t getColMod(uint8_t bpp) const override { return (bpp > 16) ? RGB666_3BYTE : RGB565_2BYTE; }
+//    std::uint8_t getColMod(std::uint8_t bpp) const override { return (bpp > 16) ? RGB666_3BYTE : RGB565_2BYTE; }
 
     struct CMD : public CommandCommon
     {
-      static constexpr uint8_t FRMCTR1 = 0xB1;
-      static constexpr uint8_t FRMCTR2 = 0xB2;
-      static constexpr uint8_t FRMCTR3 = 0xB3;
-      static constexpr uint8_t INVCTR  = 0xB4;
-      static constexpr uint8_t DFUNCTR = 0xB6;
-      static constexpr uint8_t PWCTR1  = 0xC0;
-      static constexpr uint8_t PWCTR2  = 0xC1;
-      static constexpr uint8_t PWCTR3  = 0xC2;
-      static constexpr uint8_t PWCTR4  = 0xC3;
-      static constexpr uint8_t PWCTR5  = 0xC4;
-      static constexpr uint8_t VMCTR1  = 0xC5;
-      static constexpr uint8_t VMCTR2  = 0xC7;
-      static constexpr uint8_t GMCTRP1 = 0xE0; // Positive Gamma Correction (E0h)
-      static constexpr uint8_t GMCTRN1 = 0xE1; // Negative Gamma Correction (E1h)
+      static constexpr std::uint8_t FRMCTR1 = 0xB1;
+      static constexpr std::uint8_t FRMCTR2 = 0xB2;
+      static constexpr std::uint8_t FRMCTR3 = 0xB3;
+      static constexpr std::uint8_t INVCTR  = 0xB4;
+      static constexpr std::uint8_t DFUNCTR = 0xB6;
+      static constexpr std::uint8_t PWCTR1  = 0xC0;
+      static constexpr std::uint8_t PWCTR2  = 0xC1;
+      static constexpr std::uint8_t PWCTR3  = 0xC2;
+      static constexpr std::uint8_t PWCTR4  = 0xC3;
+      static constexpr std::uint8_t PWCTR5  = 0xC4;
+      static constexpr std::uint8_t VMCTR1  = 0xC5;
+      static constexpr std::uint8_t VMCTR2  = 0xC7;
+      static constexpr std::uint8_t GMCTRP1 = 0xE0; // Positive Gamma Correction (E0h)
+      static constexpr std::uint8_t GMCTRN1 = 0xE1; // Negative Gamma Correction (E1h)
 
-      static constexpr uint8_t RDINDEX = 0xD9; // ili9341
-      static constexpr uint8_t IDXRD   = 0xDD; // ILI9163 only, indexed control register read
+      static constexpr std::uint8_t RDINDEX = 0xD9; // ili9341
+      static constexpr std::uint8_t IDXRD   = 0xDD; // ILI9163 only, indexed control register read
     };
-    const uint8_t* getInitCommands(uint8_t listno) const override {
-      static constexpr uint8_t list0[] = {
+    const std::uint8_t* getInitCommands(std::uint8_t listno) const override {
+      static constexpr std::uint8_t list0[] = {
           CMD::SWRESET, CMD_INIT_DELAY, 120,  // Software reset
           CMD::SLPOUT,  CMD_INIT_DELAY, 5,    // Exit sleep mode
           CMD::FRMCTR1, 2, 0x08, 0x08, // Frame rate control 1
@@ -65,7 +65,7 @@ namespace lgfx
                            0x3D, 0x18, 0x25, 0x2A, 0x2B, 0x2B, 0x3A, // Negative Gamma
           0xFF,0xFF, // end
       };
-      static constexpr uint8_t list1[] = {
+      static constexpr std::uint8_t list1[] = {
           CMD::DISPON, 0,     // Set display on
           0xFF,0xFF, // end
       };

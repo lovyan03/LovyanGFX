@@ -248,7 +248,7 @@ static int32_t create_huffman_tbl (	/* 0:OK, !0:Failed */
 
 static int32_t bitext (	/* >=0: extracted data, <0: error code */
 	lgfxJdec* jd,		/* Pointer to the decompressor object */
-	int32_t nbit		/* Number of bits to extract (1 to 11) */
+	uint_fast8_t nbit		/* Number of bits to extract (1 to 11) */
 )
 {
 	uint8_t *dp, *dpend;
@@ -778,8 +778,8 @@ JRESULT lgfx_jd_prepare (
 
 	for (;;) {
 		if (infunc(jd, seg, 4) != 4) return JDR_INP;
-		int_fast16_t len = LDB_WORD(seg + 2) - 2;	/* Length field */
-		if (len < 0 || seg[0] != 0xFF) return JDR_FMT1;	/* Check a JPEG marker */
+		uint_fast16_t len = LDB_WORD(seg + 2) - 2;	/* Length field */
+		if (seg[0] != 0xFF) return JDR_FMT1;	/* Check a JPEG marker */
 		ofs += 4 + len;	/* Number of bytes loaded */
 
 		switch (seg[1]) {	/* Marker */
