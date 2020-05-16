@@ -20,7 +20,8 @@ static int32_t halfwidth = width >> 1;  // 時計盤の中心座標
 static auto transpalette = 0;           // 透過色パレット番号
 static float zoom;                      // 表示倍率
 
-void setup(void) {
+void setup(void)
+{
   Serial.begin(115200);
 
 #if defined(ARDUINO_M5Stick_C)
@@ -119,8 +120,8 @@ void setup(void) {
 
 void update7Seg(int32_t hour, int32_t min)
 { // 時計盤のデジタル表示部の描画
-  int x = clockbase.getPivotX() - 70;
-  int y = clockbase.getPivotY() - 22;
+  int x = clockbase.getPivotX() - 69;
+  int y = clockbase.getPivotY();
   clockbase.setCursor(x, y);
   clockbase.setTextColor(5);  // 消去色で 88:88 を描画する
   clockbase.print("88:88");
@@ -147,7 +148,7 @@ void drawClock(uint64_t time)
     p_min = min;
     update7Seg(min / 60, min % 60);
   }
-  clockbase.pushSprite(0, 0, 0);  // 描画用バッファに時計盤の画像を上書き
+  clockbase.pushSprite(0, 0);  // 描画用バッファに時計盤の画像を上書き
 
   drawDot(sec % 60, 14);
   drawDot(min % 60, 15);
