@@ -23,31 +23,31 @@ namespace lgfx
 //    { RGB565_2BYTE = 0x55
 //    , RGB666_3BYTE = 0x66
 //    };
-//    uint8_t getColMod(uint8_t bpp) const override { return (bpp > 16) ? RGB666_3BYTE : RGB565_2BYTE; }
+//    std::uint8_t getColMod(std::uint8_t bpp) const override { return (bpp > 16) ? RGB666_3BYTE : RGB565_2BYTE; }
 
     struct CMD : public PanelIlitekCommon::CommandCommon
     {
-      static constexpr uint8_t FRMCTR1 = 0xB1;
-      static constexpr uint8_t FRMCTR2 = 0xB2;
-      static constexpr uint8_t FRMCTR3 = 0xB3;
-      static constexpr uint8_t INVCTR  = 0xB4;
-      static constexpr uint8_t DFUNCTR = 0xB6;
-      static constexpr uint8_t PWCTR1  = 0xC0;
-      static constexpr uint8_t PWCTR2  = 0xC1;
-      static constexpr uint8_t PWCTR3  = 0xC2;
-      static constexpr uint8_t PWCTR4  = 0xC3;
-      static constexpr uint8_t PWCTR5  = 0xC4;
-      static constexpr uint8_t VMCTR1  = 0xC5;
-      static constexpr uint8_t VMCTR2  = 0xC7;
-      static constexpr uint8_t GMCTRP1 = 0xE0; // Positive Gamma Correction (E0h)
-      static constexpr uint8_t GMCTRN1 = 0xE1; // Negative Gamma Correction (E1h)
+      static constexpr std::uint8_t FRMCTR1 = 0xB1;
+      static constexpr std::uint8_t FRMCTR2 = 0xB2;
+      static constexpr std::uint8_t FRMCTR3 = 0xB3;
+      static constexpr std::uint8_t INVCTR  = 0xB4;
+      static constexpr std::uint8_t DFUNCTR = 0xB6;
+      static constexpr std::uint8_t PWCTR1  = 0xC0;
+      static constexpr std::uint8_t PWCTR2  = 0xC1;
+      static constexpr std::uint8_t PWCTR3  = 0xC2;
+      static constexpr std::uint8_t PWCTR4  = 0xC3;
+      static constexpr std::uint8_t PWCTR5  = 0xC4;
+      static constexpr std::uint8_t VMCTR1  = 0xC5;
+      static constexpr std::uint8_t VMCTR2  = 0xC7;
+      static constexpr std::uint8_t GMCTRP1 = 0xE0; // Positive Gamma Correction (E0h)
+      static constexpr std::uint8_t GMCTRN1 = 0xE1; // Negative Gamma Correction (E1h)
 
-      static constexpr uint8_t RDINDEX = 0xD9; // ili9341
-      static constexpr uint8_t IDXRD   = 0xDD; // ILI9341 only, indexed control register read
+      static constexpr std::uint8_t RDINDEX = 0xD9; // ili9341
+      static constexpr std::uint8_t IDXRD   = 0xDD; // ILI9341 only, indexed control register read
     };
 
-    const uint8_t* getInitCommands(uint8_t listno) const override {
-      static constexpr uint8_t list0[] = {
+    const std::uint8_t* getInitCommands(std::uint8_t listno) const override {
+      static constexpr std::uint8_t list0[] = {
           0xEF       , 3, 0x03,0x80,0x02,
           0xCF       , 3, 0x00,0xC1,0x30,
           0xED       , 4, 0x64,0x03,0x12,0x81,
@@ -67,11 +67,11 @@ namespace lgfx
           CMD::GMCTRN1,15, 0x00,0x0E,0x14,0x03,0x11,0x07,0x31,0xC1,0x48,0x08,0x0F,0x0C,0x31,0x36,0x0F,
           0xFF,0xFF, // end
       };
-      static constexpr uint8_t list1[] = {
+      static constexpr std::uint8_t list1[] = {
           CMD::DFUNCTR,3, 0x08,0xC2,0x27,
           0xFF,0xFF, // end
       };
-      static constexpr uint8_t list2[] = {
+      static constexpr std::uint8_t list2[] = {
           CMD::SLPOUT, 0,
           CMD::DISPON, 0,
           0xFF,0xFF, // end
@@ -92,8 +92,8 @@ namespace lgfx
       panel_height = memory_height = 240;
     }
   protected:
-    const uint8_t* getInitCommands(uint8_t listno) const override {
-      static constexpr uint8_t list1[] = {
+    const std::uint8_t* getInitCommands(std::uint8_t listno) const override {
+      static constexpr std::uint8_t list1[] = {
           CMD::DFUNCTR,4, 0x08,0x82,0x1D,0x04,
           0xFF,0xFF, // end
       };
@@ -142,7 +142,7 @@ namespace lgfx
 
   protected:
 
-    const uint8_t* getInvertDisplayCommands(uint8_t* buf, bool invert) override {
+    const std::uint8_t* getInvertDisplayCommands(std::uint8_t* buf, bool invert) override {
       if (!isIPS) return Panel_ILI9342::getInvertDisplayCommands(buf, invert);
       this->invert = invert;
       buf[2] = buf[0] = invert ? CommandCommon::INVOFF : CommandCommon::INVON;
@@ -224,7 +224,7 @@ namespace lgfx
       Panel_ILI9341::init();
     }
 
-    void setBrightness(uint8_t brightness) override
+    void setBrightness(std::uint8_t brightness) override
     {
       this->currentBrightness = brightness < this->maxBrightness ? brightness : this->maxBrightness;
       TC0->COUNT8.CC[0].reg = this->currentBrightness;

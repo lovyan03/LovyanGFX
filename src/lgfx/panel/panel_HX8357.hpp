@@ -26,17 +26,17 @@ namespace lgfx
   protected:
     struct CMD : public CommandCommon
     {
-      static constexpr uint8_t SETDISPMODE       = 0xB4;
-      static constexpr uint8_t SET_PANEL_DRIVING = 0xC0;
-      static constexpr uint8_t SETDISPLAYFRAME   = 0xC5;
-      static constexpr uint8_t SETGAMMA          = 0xC8;
-      static constexpr uint8_t SETPOWER          = 0xD0;
-      static constexpr uint8_t SETVCOM           = 0xD1;
-      static constexpr uint8_t SETPWRNORMAL      = 0xD2;
-      static constexpr uint8_t SETPANELRELATED   = 0xE9;
+      static constexpr std::uint8_t SETDISPMODE       = 0xB4;
+      static constexpr std::uint8_t SET_PANEL_DRIVING = 0xC0;
+      static constexpr std::uint8_t SETDISPLAYFRAME   = 0xC5;
+      static constexpr std::uint8_t SETGAMMA          = 0xC8;
+      static constexpr std::uint8_t SETPOWER          = 0xD0;
+      static constexpr std::uint8_t SETVCOM           = 0xD1;
+      static constexpr std::uint8_t SETPWRNORMAL      = 0xD2;
+      static constexpr std::uint8_t SETPANELRELATED   = 0xE9;
     };
-    const uint8_t* getInitCommands(uint8_t listno) const override {
-      static constexpr uint8_t list0[] = {
+    const std::uint8_t* getInitCommands(std::uint8_t listno) const override {
+      static constexpr std::uint8_t list0[] = {
           CMD::SETPOWER,         3, 0x44, 0x41, 0x06,
           CMD::SETVCOM,          2, 0x40, 0x10,
           CMD::SETPWRNORMAL,     2, 0x05, 0x12,
@@ -63,22 +63,22 @@ namespace lgfx
   protected:
     struct CMD : public CommandCommon
     {
-      static constexpr uint8_t TEON   = 0x35;
-      static constexpr uint8_t TEARLINE=0x44;
+      static constexpr std::uint8_t TEON   = 0x35;
+      static constexpr std::uint8_t TEARLINE=0x44;
 
-      static constexpr uint8_t SETOSC = 0xB0;
-      static constexpr uint8_t SETPWR1= 0xB1;
-      static constexpr uint8_t SETRGB = 0xB3;
-      static constexpr uint8_t SETCYC = 0xB4;
-      static constexpr uint8_t SETCOM = 0xB6;
-      static constexpr uint8_t SETC   = 0xB9;
-      static constexpr uint8_t SETSTBA= 0xC0;
+      static constexpr std::uint8_t SETOSC = 0xB0;
+      static constexpr std::uint8_t SETPWR1= 0xB1;
+      static constexpr std::uint8_t SETRGB = 0xB3;
+      static constexpr std::uint8_t SETCYC = 0xB4;
+      static constexpr std::uint8_t SETCOM = 0xB6;
+      static constexpr std::uint8_t SETC   = 0xB9;
+      static constexpr std::uint8_t SETSTBA= 0xC0;
 
-      static constexpr uint8_t SETPANEL= 0xCC;
-      static constexpr uint8_t SETGAMMA= 0xE0;
+      static constexpr std::uint8_t SETPANEL= 0xCC;
+      static constexpr std::uint8_t SETGAMMA= 0xE0;
     };
-    const uint8_t* getInitCommands(uint8_t listno) const override {
-      static constexpr uint8_t list0[] = {
+    const std::uint8_t* getInitCommands(std::uint8_t listno) const override {
+      static constexpr std::uint8_t list0[] = {
           CMD::SWRESET, CMD_INIT_DELAY, 20, 
           CMD::SETC   , 3+CMD_INIT_DELAY, 0xFF, 0x83, 0x57, 100, 
           CMD::SETRGB , 4, 0x80, 0x00, 0x06, 0x06,
