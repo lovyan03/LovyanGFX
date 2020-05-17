@@ -1,11 +1,6 @@
 # LovyanGFX
 
-SPI LCD graphics library (for ESP32 / SAMD51). (open beta edition.)
-
-ベータ版の注意
-----------------
-LovyanGFXベータ版は動作テストおよび意見公募を目的として公開しているものです。ベータ版ソフトウェアは現在も開発途中のものであり、何らかの障害を引き起こす可能性があります。また、大きな仕様変更を行う場合があります。予めご了承ください。  
-The LovyanGFX beta version is open to the public for the purpose of testing and gathering feedback. This software is still under development and may fail in different ways. Additionally, major specification changes may occur. Thank you for your understanding.  
+SPI LCD graphics library (for ESP32 / SAMD51).
 
 概要 Overview.
 ----------------
