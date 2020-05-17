@@ -21,6 +21,7 @@ Contributors:
 #define LGFX_IMG_SUPPORT_HPP_
 
 #include <cmath>
+#include <cstring>
 
 namespace lgfx
 {

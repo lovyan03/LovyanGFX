@@ -50,7 +50,7 @@ namespace lgfx
     };
 
     const std::uint8_t* getInitCommands(std::uint8_t listno) const override {
-      static constexpr std::uint8_t PROGMEM Bcmd[] = {                  // Initialization commands for 7735B screens
+      static constexpr std::uint8_t Bcmd[] = {                  // Initialization commands for 7735B screens
         CMD::SWRESET,   CMD_INIT_DELAY, 50,   // Software reset, no args, w/delay
         CMD::SLPOUT ,   CMD_INIT_DELAY, 255,  // Out of sleep mode, no args, w/delay
         CMD::FRMCTR1, 3+CMD_INIT_DELAY,  // Frame rate control, 3 args + delay:
@@ -108,7 +108,7 @@ namespace lgfx
   protected:
     const std::uint8_t* getInitCommands(std::uint8_t listno) const override {
 
-      static constexpr std::uint8_t PROGMEM Rcmd1[] = {                 // Init for 7735R, part 1 (red or green tab)
+      static constexpr std::uint8_t Rcmd1[] = {                 // Init for 7735R, part 1 (red or green tab)
         CMD::SWRESET,   CMD_INIT_DELAY,  //  1: Software reset, 0 args, w/delay
           150,                    //     150 ms delay
         CMD::SLPOUT ,   CMD_INIT_DELAY,  //  2: Out of sleep mode, 0 args, w/delay
@@ -140,7 +140,7 @@ namespace lgfx
           0x0E,
         0xFF,0xFF
       };
-      static constexpr std::uint8_t PROGMEM Rcmd2[] = {  // Init for 7735R, part 2 (red or green tab)
+      static constexpr std::uint8_t Rcmd2[] = {  // Init for 7735R, part 2 (red or green tab)
         CMD::GMCTRP1, 16      , //  1: 16 args, no delay:
           0x02, 0x1c, 0x07, 0x12,
           0x37, 0x32, 0x29, 0x2d,

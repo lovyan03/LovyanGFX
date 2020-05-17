@@ -1,51 +1,30 @@
 #ifndef LGFX_SAMD51_COMMON_HPP_
 #define LGFX_SAMD51_COMMON_HPP_
 
+#include "../lgfx_common.hpp"
+
 #include <malloc.h>
 #include <sam.h>
 
 namespace lgfx
 {
-  static void* heap_alloc_psram(size_t length)
-  {
-    return malloc(length);
-  }
+  static inline void* heap_alloc(      size_t length) { return malloc(length); }
+  static inline void* heap_alloc_psram(size_t length) { return malloc(length); }
+  static inline void* heap_alloc_dma(  size_t length) { return memalign(16, length); }
+  static inline void heap_free(void* buf) { free(buf); }
 
-  __attribute__((__used__))
-  __attribute__((always_inline)) inline 
-  static void* heap_alloc_dma(size_t length)
-  {
-    return memalign(16, length);
-  }
+  static inline void gpio_hi(std::uint32_t pin) { PORT->Group[pin>>8].OUTSET.reg = (1ul << (pin & 0xFF)); }
+  static inline void gpio_lo(std::uint32_t pin) { PORT->Group[pin>>8].OUTCLR.reg = (1ul << (pin & 0xFF)); }
+  static inline bool gpio_in(std::uint32_t pin) { return PORT->Group[pin>>8].IN.reg & (1ul << (pin & 0xFF)); }
 
-  __attribute__((__used__))
-  __attribute__((always_inline)) inline 
-  static void* heap_alloc(size_t length)
-  {
-    return malloc(length);
-  }
 
-  __attribute__((__used__))
-  __attribute__((always_inline)) inline 
-  static void heap_free(void* buf)
-  {
-    free(buf);
-  }
-
-  static void gpio_hi(std::uint32_t pin) { PORT->Group[pin>>8].OUTSET.reg = (1ul << (pin & 0xFF)); }
-  static void gpio_lo(std::uint32_t pin) { PORT->Group[pin>>8].OUTCLR.reg = (1ul << (pin & 0xFF)); }
-  __attribute__((__used__))
-  static bool gpio_in(std::uint32_t pin) { return PORT->Group[pin>>8].IN.reg & (1ul << (pin & 0xFF)); }
-
-  __attribute__((__used__))
 //  static void initPWM(std::uint32_t pin, std::uint32_t pwm_ch, std::uint8_t duty = 128) 
-  static void initPWM(std::uint32_t , std::uint32_t , std::uint8_t = 0) {
+  static inline void initPWM(std::uint32_t , std::uint32_t , std::uint8_t = 0) {
 // unimplemented 
   }
 
-  __attribute__((__used__))
 //  static void setPWMDuty(std::uint32_t pwm_ch, std::uint8_t duty = 128) 
-  static void setPWMDuty(std::uint32_t , std::uint8_t = 0 ) {
+  static inline void setPWMDuty(std::uint32_t , std::uint8_t = 0 ) {
 // unimplemented 
   }
 
@@ -56,52 +35,7 @@ namespace lgfx
   , input_pulldown
   };
 
-  static void lgfxPinMode(std::uint32_t pin, pin_mode_t mode)
-  {
-    std::uint32_t port = pin>>8;
-    pin &= 0xFF;
-    std::uint32_t pinMask = (1ul << pin);
-
-    // Set pin mode according to chapter '22.6.3 I/O Pin Configuration'
-    switch ( mode )
-    {
-      case pin_mode_t::input:
-        // Set pin to input mode
-        PORT->Group[port].PINCFG[pin].reg=(std::uint8_t)(PORT_PINCFG_INEN) ;
-        PORT->Group[port].DIRCLR.reg = pinMask ;
-      break ;
-
-      case pin_mode_t::input_pullup:
-        // Set pin to input mode with pull-up resistor enabled
-        PORT->Group[port].PINCFG[pin].reg=(std::uint8_t)(PORT_PINCFG_INEN|PORT_PINCFG_PULLEN) ;
-        PORT->Group[port].DIRCLR.reg = pinMask ;
-
-        // Enable pull level (cf '22.6.3.2 Input Configuration' and '22.8.7 Data Output Value Set')
-        PORT->Group[port].OUTSET.reg = pinMask ;
-      break ;
-
-      case pin_mode_t::input_pulldown:
-        // Set pin to input mode with pull-down resistor enabled
-        PORT->Group[port].PINCFG[pin].reg=(std::uint8_t)(PORT_PINCFG_INEN|PORT_PINCFG_PULLEN) ;
-        PORT->Group[port].DIRCLR.reg = pinMask ;
-
-        // Enable pull level (cf '22.6.3.2 Input Configuration' and '22.8.6 Data Output Value Clear')
-        PORT->Group[port].OUTCLR.reg = pinMask ;
-      break ;
-
-      case pin_mode_t::output:
-        // enable input, to support reading back values, with pullups disabled
-        PORT->Group[port].PINCFG[pin].reg=(std::uint8_t)(PORT_PINCFG_INEN) ;
-
-        // Set pin to output mode
-        PORT->Group[port].DIRSET.reg = pinMask ;
-      break ;
-
-      default:
-        // do nothing
-      break ;
-    }
-  }
+  void lgfxPinMode(std::uint32_t pin, pin_mode_t mode);
 
 //----------------------------------------------------------------------------
   struct FileWrapper : public DataWrapper {

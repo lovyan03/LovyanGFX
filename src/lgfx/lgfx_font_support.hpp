@@ -22,6 +22,7 @@ Contributors:
 
 #include "../Fonts/lgfx_fonts.hpp"
 #include <string>
+#include <cstring>
 #include <cmath>
 #include <cstdarg>
 

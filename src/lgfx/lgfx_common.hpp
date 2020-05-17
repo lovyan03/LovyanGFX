@@ -21,8 +21,7 @@ Contributors:
 #define LGFX_COMMON_HPP_
 
 #include <type_traits>
-#include <algorithm>
-#include <string.h>
+#include <cstring>
 #include <cstdint>
 
 enum jpeg_div_t {
@@ -47,8 +46,6 @@ namespace lgfx
   , rgb888_3Byte   = 24 // RRRRRRRR GGGGGGGG BBBBBBBB
   , argb8888_4Byte = 32 // AAAAAAAA RRRRRRRR GGGGGGGG BBBBBBBB
   };
-
-
 
 
   __attribute__ ((always_inline)) inline static std::uint8_t  color332(std::uint8_t r, std::uint8_t g, std::uint8_t b) { return (r >> 5) << 5 | (g >> 5) << 2 | b >> 6; }

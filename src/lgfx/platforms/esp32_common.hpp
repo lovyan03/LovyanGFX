@@ -1,94 +1,26 @@
 #ifndef LGFX_ESP32_COMMON_HPP_
 #define LGFX_ESP32_COMMON_HPP_
 
-#include <driver/rtc_io.h>
-#include <freertos/FreeRTOS.h>
-#include <freertos/task.h>
-#include <soc/dport_reg.h>
-#include <soc/rtc.h>
-#include <soc/spi_reg.h>
-#include <soc/spi_struct.h>
+#include "../lgfx_common.hpp"
 
-#ifdef ARDUINO
+#include <cstdint>
+
+#if defined ARDUINO
   #include <Arduino.h>
-  #include <driver/periph_ctrl.h>
   #include <soc/periph_defs.h>
-  #include <esp32-hal-cpu.h>
-  #include <esp32-hal-ledc.h>
 #else
-  #include <driver/ledc.h>
+  #include <freertos/FreeRTOS.h>
+  #include <freertos/task.h>
 
-  static void delay(std::uint32_t ms) { vTaskDelay(ms / portTICK_PERIOD_MS); }
-
-//  static constexpr std::uint32_t MATRIX_DETACH_OUT_SIG = 0x100;
-//  static constexpr std::uint32_t MATRIX_DETACH_IN_LOW_PIN = 0x30;
-//  static constexpr std::uint32_t MATRIX_DETACH_IN_LOW_HIGH = 0x38;
-//  static void IRAM_ATTR pinMatrixOutAttach(std::uint8_t pin, std::uint8_t function, bool invertOut, bool invertEnable) { gpio_matrix_out(pin,              function, invertOut, invertEnable); }
-//  static void IRAM_ATTR pinMatrixOutDetach(std::uint8_t pin                  , bool invertOut, bool invertEnable) { gpio_matrix_out(pin, MATRIX_DETACH_OUT_SIG, invertOut, invertEnable); }
-//  static void IRAM_ATTR pinMatrixInAttach( std::uint8_t pin, std::uint8_t signal           , bool inverted) { gpio_matrix_in(pin, signal, inverted); }
-//  static void IRAM_ATTR pinMatrixInDetach(              std::uint8_t signal, bool high, bool inverted) { gpio_matrix_in(high?MATRIX_DETACH_IN_LOW_HIGH:MATRIX_DETACH_IN_LOW_PIN, signal, inverted); }
-
-  static std::uint32_t getApbFrequency() {
-    rtc_cpu_freq_config_t conf;
-    rtc_clk_cpu_freq_get_config(&conf);
-    if (conf.freq_mhz >= 80){
-      return 80 * 1000000;
-    }
-    return (conf.source_freq_mhz * 1000000) / conf.div;
-  }
+  static inline void delay(std::uint32_t ms) { vTaskDelay(ms / portTICK_PERIOD_MS); }
 #endif
-
 
 namespace lgfx
 {
-  static void* heap_alloc_psram(size_t length)
-  {
-    return heap_caps_malloc(length, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-  }
-
-  __attribute__((__used__))
-  __attribute__((always_inline)) inline 
-  static void* heap_alloc_dma(size_t length)
-  {
-    return heap_caps_malloc((length + 3) & ~3, MALLOC_CAP_DMA);
-  }
-
-  static void* heap_alloc(size_t length)
-  {
-    return heap_caps_malloc(length, MALLOC_CAP_8BIT);
-  }
-
-  __attribute__((__used__))
-  __attribute__((always_inline)) inline 
-  static void heap_free(void* dmabuffer)
-  {
-    heap_caps_free(dmabuffer);
-  }
-
-  static std::uint32_t FreqToClockDiv(std::uint32_t fapb, std::uint32_t hz)
-  {
-    if (hz > ((fapb >> 2) * 3)) {
-      return SPI_CLK_EQU_SYSCLK;
-    }
-    std::uint32_t besterr = fapb;
-    std::uint32_t halfhz = hz >> 1;
-    std::uint32_t bestn = 0;
-    std::uint32_t bestpre = 0;
-    for (std::uint32_t n = 2; n <= 64; n++) {
-      std::uint32_t pre = ((fapb / n) + halfhz) / hz;
-      if (pre == 0) pre = 1;
-      else if (pre > 8192) pre = 8192;
-
-      int errval = abs((std::int32_t)(fapb / (pre * n) - hz));
-      if (errval < besterr) {
-        besterr = errval;
-        bestn = n - 1;
-        bestpre = pre - 1;
-        if (!besterr) break;
-      }
-    }
-    return bestpre << 18 | bestn << 12 | ((bestn-1)>>1) << 6 | bestn;
-  }
+  static inline void* heap_alloc(      size_t length) { return heap_caps_malloc(length, MALLOC_CAP_8BIT);  }
+  static inline void* heap_alloc_dma(  size_t length) { return heap_caps_malloc((length + 3) & ~3, MALLOC_CAP_DMA);  }
+  static inline void* heap_alloc_psram(size_t length) { return heap_caps_malloc(length, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);  }
+  static inline void heap_free(void* buf) { heap_caps_free(buf); }
 
   enum pin_mode_t
   { output
@@ -97,86 +29,17 @@ namespace lgfx
   , input_pulldown
   };
 
-#if defined (ARDUINO)
-  static void lgfxPinMode(std::int_fast8_t pin, int mode) {
-    switch (mode) {
-    case pin_mode_t::output:         mode = OUTPUT;         break;
-    case pin_mode_t::input:          mode = INPUT;          break;
-    case pin_mode_t::input_pullup:   mode = INPUT_PULLUP;   break;
-    case pin_mode_t::input_pulldown: mode = INPUT_PULLDOWN; break;
-    }
-    pinMode(pin, mode);
-  };
-#else
-  static void lgfxPinMode(std::int_fast8_t pin, pin_mode_t mode) {
-    if (pin == -1) return;
-    if (rtc_gpio_is_valid_gpio((gpio_num_t)pin)) rtc_gpio_deinit((gpio_num_t)pin);
-    gpio_config_t io_conf;
-    io_conf.intr_type = GPIO_INTR_DISABLE;
-    io_conf.pin_bit_mask = (std::uint64_t)1 << pin;
-    switch (mode) {
-    case pin_mode_t::output:
-      io_conf.mode = GPIO_MODE_OUTPUT;
-      break;
-    default:
-      io_conf.mode = GPIO_MODE_INPUT;
-      break;
-    }
-    io_conf.mode         = (mode == pin_mode_t::output) ? GPIO_MODE_OUTPUT : GPIO_MODE_INPUT;
-    io_conf.pull_down_en = (mode == pin_mode_t::input_pulldown) ? GPIO_PULLDOWN_ENABLE : GPIO_PULLDOWN_DISABLE;
-    io_conf.pull_up_en   = (mode == pin_mode_t::input_pullup  ) ? GPIO_PULLUP_ENABLE   : GPIO_PULLUP_DISABLE;
-    gpio_config(&io_conf);
-  }
-#endif
+  void lgfxPinMode(std::int_fast8_t pin, pin_mode_t mode);
 
-  static volatile std::uint32_t* get_gpio_hi_reg(std::int_fast8_t pin) { return (pin & 32) ? &GPIO.out1_w1ts.val : &GPIO.out_w1ts; }
-  static volatile std::uint32_t* get_gpio_lo_reg(std::int_fast8_t pin) { return (pin & 32) ? &GPIO.out1_w1tc.val : &GPIO.out_w1tc; }
+  void initPWM(std::int_fast8_t pin, std::uint32_t pwm_ch, std::uint8_t duty = 128);
 
-  static void gpio_hi(std::int_fast8_t pin) { *get_gpio_hi_reg(pin) = 1 << (pin & 31); }
-  static void gpio_lo(std::int_fast8_t pin) { *get_gpio_lo_reg(pin) = 1 << (pin & 31); }
-  static bool gpio_in(std::int_fast8_t pin) { return ((pin & 32) ? GPIO.in1.data : GPIO.in) & (1 << (pin & 31)); }
+  void setPWMDuty(std::uint32_t pwm_ch, std::uint8_t duty);
 
-  static void initPWM(std::int_fast8_t pin, std::uint32_t pwm_ch, std::uint8_t duty = 128) {
-
-#ifdef ARDUINO
-
-    ledcSetup(pwm_ch, 12000, 8);
-    ledcAttachPin(pin, pwm_ch);
-    ledcWrite(pwm_ch, duty);
-
-#else
-
-    static ledc_channel_config_t ledc_channel;
-    {
-     ledc_channel.gpio_num   = (gpio_num_t)pin;
-     ledc_channel.speed_mode = LEDC_HIGH_SPEED_MODE;
-     ledc_channel.channel    = (ledc_channel_t)pwm_ch;
-     ledc_channel.intr_type  = LEDC_INTR_DISABLE;
-     ledc_channel.timer_sel  = (ledc_timer_t)((pwm_ch >> 1) & 3);
-     ledc_channel.duty       = duty; // duty;
-     ledc_channel.hpoint     = 0;
-    };
-    ledc_channel_config(&ledc_channel);
-    static ledc_timer_config_t ledc_timer;
-    {
-      ledc_timer.speed_mode = LEDC_HIGH_SPEED_MODE;     // timer mode
-      ledc_timer.duty_resolution = (ledc_timer_bit_t)8; // resolution of PWM duty
-      ledc_timer.freq_hz = 12000;                        // frequency of PWM signal
-      ledc_timer.timer_num = ledc_channel.timer_sel;    // timer index
-    };
-    ledc_timer_config(&ledc_timer);
-
-#endif
-  }
-
-  static void setPWMDuty(std::uint32_t pwm_ch, std::uint8_t duty) {
-#ifdef ARDUINO
-    ledcWrite(pwm_ch, duty);
-#else
-    ledc_set_duty(LEDC_HIGH_SPEED_MODE, (ledc_channel_t)pwm_ch, duty);
-    ledc_update_duty(LEDC_HIGH_SPEED_MODE, (ledc_channel_t)pwm_ch);
-#endif
-  }
+  static inline volatile std::uint32_t* get_gpio_hi_reg(std::int_fast8_t pin) { return (pin & 32) ? &GPIO.out1_w1ts.val : &GPIO.out_w1ts; }
+  static inline volatile std::uint32_t* get_gpio_lo_reg(std::int_fast8_t pin) { return (pin & 32) ? &GPIO.out1_w1tc.val : &GPIO.out_w1tc; }
+  static inline void gpio_hi(std::int_fast8_t pin) { *get_gpio_hi_reg(pin) = 1 << (pin & 31); }
+  static inline void gpio_lo(std::int_fast8_t pin) { *get_gpio_lo_reg(pin) = 1 << (pin & 31); }
+  static inline bool gpio_in(std::int_fast8_t pin) { return ((pin & 32) ? GPIO.in1.data : GPIO.in) & (1 << (pin & 31)); }
 
 
 /*
