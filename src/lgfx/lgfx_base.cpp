@@ -212,7 +212,7 @@ namespace lgfx
     endWrite();
   }
 
-  void LGFXBase::drawCircleHelper(std::int32_t x, std::int32_t y, std::int32_t r, std::uint8_t cornername)
+  void LGFXBase::drawCircleHelper(std::int32_t x, std::int32_t y, std::int32_t r, std::uint_fast8_t cornername)
   {
     if (r <= 0) return;
     std::int32_t f     = 1 - r;
@@ -290,96 +290,96 @@ namespace lgfx
     endWrite();
   }
 
-  void LGFXBase::drawEllipse(std::int32_t x0, std::int32_t y0, std::int32_t rx, std::int32_t ry)
+  void LGFXBase::drawEllipse(std::int32_t x, std::int32_t y, std::int32_t rx, std::int32_t ry)
   {
     if (ry == 0) {
-      drawFastHLine(x0 - rx, y0, (ry << 2) + 1);
+      drawFastHLine(x - rx, y, (ry << 2) + 1);
       return;
     }
     if (rx == 0) {
-      drawFastVLine(x0, y0 - ry, (rx << 2) + 1);
+      drawFastVLine(x, y - ry, (rx << 2) + 1);
       return;
     }
     if (rx < 0 || ry < 0) return;
 
-    std::int32_t x, y, s, i;
+    std::int32_t xt, yt, s, i;
     std::int32_t rx2 = rx * rx;
     std::int32_t ry2 = ry * ry;
 
     startWrite();
 
     i = -1;
-    x = 0;
-    y = ry;
+    xt = 0;
+    yt = ry;
     s = (ry2 << 1) + rx2 * (1 - (ry << 1));
     do {
-      while ( s < 0 ) s += ry2 * ((++x << 2) + 2);
-      writeFastHLine(x0 - x    , y0 - y, x - i);
-      writeFastHLine(x0 + i + 1, y0 - y, x - i);
-      writeFastHLine(x0 + i + 1, y0 + y, x - i);
-      writeFastHLine(x0 - x    , y0 + y, x - i);
-      i = x;
-      s -= (--y) * rx2 << 2;
-    } while (ry2 * x <= rx2 * y);
+      while ( s < 0 ) s += ry2 * ((++xt << 2) + 2);
+      writeFastHLine(x - xt   , y - yt, xt - i);
+      writeFastHLine(x + i + 1, y - yt, xt - i);
+      writeFastHLine(x + i + 1, y + yt, xt - i);
+      writeFastHLine(x - xt   , y + yt, xt - i);
+      i = xt;
+      s -= (--yt) * rx2 << 2;
+    } while (ry2 * xt <= rx2 * yt);
 
     i = -1;
-    y = 0;
-    x = rx;
+    yt = 0;
+    xt = rx;
     s = (rx2 << 1) + ry2 * (1 - (rx << 1));
     do {
-      while ( s < 0 ) s += rx2 * ((++y << 2) + 2);
-      writeFastVLine(x0 - x, y0 - y    , y - i);
-      writeFastVLine(x0 - x, y0 + i + 1, y - i);
-      writeFastVLine(x0 + x, y0 + i + 1, y - i);
-      writeFastVLine(x0 + x, y0 - y    , y - i);
-      i = y;
-      s -= (--x) * ry2 << 2;
-    } while (rx2 * y <= ry2 * x);
+      while ( s < 0 ) s += rx2 * ((++yt << 2) + 2);
+      writeFastVLine(x - xt, y - yt   , yt - i);
+      writeFastVLine(x - xt, y + i + 1, yt - i);
+      writeFastVLine(x + xt, y + i + 1, yt - i);
+      writeFastVLine(x + xt, y - yt   , yt - i);
+      i = yt;
+      s -= (--xt) * ry2 << 2;
+    } while (rx2 * yt <= ry2 * xt);
 
     endWrite();
   }
 
-  void LGFXBase::fillEllipse(std::int32_t x0, std::int32_t y0, std::int32_t rx, std::int32_t ry)
+  void LGFXBase::fillEllipse(std::int32_t x, std::int32_t y, std::int32_t rx, std::int32_t ry)
   {
     if (ry == 0) {
-      drawFastHLine(x0 - rx, y0, (ry << 2) + 1);
+      drawFastHLine(x - rx, y, (ry << 2) + 1);
       return;
     }
     if (rx == 0) {
-      drawFastVLine(x0, y0 - ry, (rx << 2) + 1);
+      drawFastVLine(x, y - ry, (rx << 2) + 1);
       return;
     }
     if (rx < 0 || ry < 0) return;
 
-    std::int32_t x, y, i;
+    std::int32_t xt, yt, i;
     std::int32_t rx2 = rx * rx;
     std::int32_t ry2 = ry * ry;
     std::int32_t s;
 
     startWrite();
 
-    writeFastHLine(x0 - rx, y0, (rx << 1) + 1);
+    writeFastHLine(x - rx, y, (rx << 1) + 1);
     i = 0;
-    y = 0;
-    x = rx;
+    yt = 0;
+    xt = rx;
     s = (rx2 << 1) + ry2 * (1 - (rx << 1));
     do {
-      while (s < 0) s += rx2 * ((++y << 2) + 2);
-      writeFillRect(x0 - x, y0 - y    , (x << 1) + 1, y - i);
-      writeFillRect(x0 - x, y0 + i + 1, (x << 1) + 1, y - i);
-      i = y;
-      s -= (--x) * ry2 << 2;
-    } while (rx2 * y <= ry2 * x);
+      while (s < 0) s += rx2 * ((++yt << 2) + 2);
+      writeFillRect(x - xt, y - yt   , (xt << 1) + 1, yt - i);
+      writeFillRect(x - xt, y + i + 1, (xt << 1) + 1, yt - i);
+      i = yt;
+      s -= (--xt) * ry2 << 2;
+    } while (rx2 * yt <= ry2 * xt);
 
-    x = 0;
-    y = ry;
+    xt = 0;
+    yt = ry;
     s = (ry2 << 1) + rx2 * (1 - (ry << 1));
     do {
-      while (s < 0) s += ry2 * ((++x << 2) + 2);
-      writeFastHLine(x0 - x, y0 - y, (x << 1) + 1);
-      writeFastHLine(x0 - x, y0 + y, (x << 1) + 1);
-      s -= (--y) * rx2 << 2;
-    } while(ry2 * x <= rx2 * y);
+      while (s < 0) s += ry2 * ((++xt << 2) + 2);
+      writeFastHLine(x - xt, y - yt, (xt << 1) + 1);
+      writeFastHLine(x - xt, y + yt, (xt << 1) + 1);
+      s -= (--yt) * rx2 << 2;
+    } while(ry2 * xt <= rx2 * yt);
 
     endWrite();
   }
@@ -654,11 +654,11 @@ namespace lgfx
     endWrite();
   }
 
-  void LGFXBase::drawArc(std::int32_t x, std::int32_t y, std::int32_t r1, std::int32_t r2, float start, float end)
+  void LGFXBase::drawArc(std::int32_t x, std::int32_t y, std::int32_t r0, std::int32_t r1, float start, float end)
   {
-    if (r1 < r2) std::swap(r1, r2);
+    if (r0 < r1) std::swap(r0, r1);
+    if (r0 < 1) r0 = 1;
     if (r1 < 1) r1 = 1;
-    if (r2 < 1) r2 = 1;
 
     bool equal = fabsf(start - end) < std::numeric_limits<float>::epsilon();
     start = fmodf(start, 360);
@@ -667,19 +667,19 @@ namespace lgfx
     if (end < 0) end += 360.0;
 
     startWrite();
-    fill_arc_helper(x, y, r1, r2, start, start);
-    fill_arc_helper(x, y, r1, r2, end  , end);
+    fill_arc_helper(x, y, r0, r1, start, start);
+    fill_arc_helper(x, y, r0, r1, end  , end);
     if (!equal && (fabsf(start - end) <= 0.0001)) { start = .0; end = 360.0; }
+    fill_arc_helper(x, y, r0, r0, start, end);
     fill_arc_helper(x, y, r1, r1, start, end);
-    fill_arc_helper(x, y, r2, r2, start, end);
     endWrite();
   }
 
-  void LGFXBase::fillArc(std::int32_t x, std::int32_t y, std::int32_t r1, std::int32_t r2, float start, float end)
+  void LGFXBase::fillArc(std::int32_t x, std::int32_t y, std::int32_t r0, std::int32_t r1, float start, float end)
   {
-    if (r1 < r2) std::swap(r1, r2);
+    if (r0 < r1) std::swap(r0, r1);
+    if (r0 < 1) r0 = 1;
     if (r1 < 1) r1 = 1;
-    if (r2 < 1) r2 = 1;
 
     bool equal = fabsf(start - end) < std::numeric_limits<float>::epsilon();
     start = fmodf(start, 360);
@@ -689,7 +689,7 @@ namespace lgfx
     if (!equal && (fabsf(start - end) <= 0.0001)) { start = .0; end = 360.0; }
 
     startWrite();
-    fill_arc_helper(x, y, r1, r2, start, end);
+    fill_arc_helper(x, y, r0, r1, start, end);
     endWrite();
   }
 
