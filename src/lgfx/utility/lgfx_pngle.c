@@ -242,7 +242,7 @@ static uint_fast16_t check_trans_color(pngle_t *pngle, uint_fast16_t *value, siz
   if (pngle->n_trans_palettes != 1) return ~0; // (none or indexed)
 
   for (size_t i = 0; i < n; ++i) {
-    if (value[i] != (pngle->trans_palette[i * 2 + 0] << 8 |  pngle->trans_palette[i * 2 + 1])) return ~0; // not transcolor
+    if (value[i] != (uint_fast16_t)(pngle->trans_palette[i * 2 + 0] << 8 | pngle->trans_palette[i * 2 + 1])) return ~0; // not transcolor
   }
   return 0; // transcolor
 }
