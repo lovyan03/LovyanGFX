@@ -9,66 +9,6 @@
 
 #include <LovyanGFX.hpp>
 
-
-typedef lgfx::bgr888_t RGBColor;
-
-
-// Font datum enumeration
-// LEFT=0   CENTER=1   RIGHT=2
-// TOP=0   MIDDLE=4   BOTTOM=8   BASELINE=16
-
-#define TL_DATUM 0 // Top left (default)
-#define TC_DATUM 1 // Top centre
-#define TR_DATUM 2 // Top right
-#define ML_DATUM 4 // Middle left
-#define CL_DATUM 4 // Centre left, same as above
-#define MC_DATUM 5 // Middle centre
-#define CC_DATUM 5 // Centre centre, same as above
-#define MR_DATUM 6 // Middle right
-#define CR_DATUM 6 // Centre right, same as above
-#define BL_DATUM 8 // Bottom left
-#define BC_DATUM 9// Bottom centre
-#define BR_DATUM 10 // Bottom right
-#define L_BASELINE 16 // Left character baseline (Line the 'A' character would sit on)
-#define C_BASELINE 17 // Centre character baseline
-#define R_BASELINE 18 // Right character baseline
-
-
-// Colour enumeration
-
-// Default color definitions
-#define TFT_BLACK       0x0000      /*   0,   0,   0 */
-#define TFT_NAVY        0x000F      /*   0,   0, 128 */
-#define TFT_DARKGREEN   0x03E0      /*   0, 128,   0 */
-#define TFT_DARKCYAN    0x03EF      /*   0, 128, 128 */
-#define TFT_MAROON      0x7800      /* 128,   0,   0 */
-#define TFT_PURPLE      0x780F      /* 128,   0, 128 */
-#define TFT_OLIVE       0x7BE0      /* 128, 128,   0 */
-#define TFT_LIGHTGREY   0xD69A      /* 211, 211, 211 */
-#define TFT_DARKGREY    0x7BEF      /* 128, 128, 128 */
-#define TFT_BLUE        0x001F      /*   0,   0, 255 */
-#define TFT_GREEN       0x07E0      /*   0, 255,   0 */
-#define TFT_CYAN        0x07FF      /*   0, 255, 255 */
-#define TFT_RED         0xF800      /* 255,   0,   0 */
-#define TFT_MAGENTA     0xF81F      /* 255,   0, 255 */
-#define TFT_YELLOW      0xFFE0      /* 255, 255,   0 */
-#define TFT_WHITE       0xFFFF      /* 255, 255, 255 */
-#define TFT_ORANGE      0xFDA0      /* 255, 180,   0 */
-#define TFT_GREENYELLOW 0xB7E0      /* 180, 255,   0 */
-#define TFT_PINK        0xFE19      /* 255, 192, 203 */ //Lighter pink, was 0xFC9F      
-#define TFT_BROWN       0x9A60      /* 150,  75,   0 */
-#define TFT_GOLD        0xFEA0      /* 255, 215,   0 */
-#define TFT_SILVER      0xC618      /* 192, 192, 192 */
-#define TFT_SKYBLUE     0x867D      /* 135, 206, 235 */
-#define TFT_VIOLET      0x915C      /* 180,  46, 226 */
-
-#define TFT_TRANSPARENT 0x0120
-
-
-#define CP437_SWITCH lgfx::attribute_t::cp437_switch
-#define UTF8_SWITCH  lgfx::attribute_t::utf8_switch
-
-
 typedef LGFX TFT_eSPI;
 
 class TFT_eSprite : public lgfx::LGFX_Sprite {
@@ -78,5 +18,34 @@ public:
 
   void* frameBuffer(uint8_t) { return getBuffer(); }
 };
+
+namespace textdatum
+{
+  static constexpr textdatum_t TL_DATUM   = textdatum_t::top_left;
+  static constexpr textdatum_t TC_DATUM   = textdatum_t::top_center;
+  static constexpr textdatum_t TR_DATUM   = textdatum_t::top_right;
+  static constexpr textdatum_t ML_DATUM   = textdatum_t::middle_left;
+  static constexpr textdatum_t CL_DATUM   = textdatum_t::middle_left;
+  static constexpr textdatum_t MC_DATUM   = textdatum_t::middle_center;
+  static constexpr textdatum_t CC_DATUM   = textdatum_t::middle_center;
+  static constexpr textdatum_t MR_DATUM   = textdatum_t::middle_right;
+  static constexpr textdatum_t CR_DATUM   = textdatum_t::middle_right;
+  static constexpr textdatum_t BL_DATUM   = textdatum_t::bottom_left;
+  static constexpr textdatum_t BC_DATUM   = textdatum_t::bottom_center;
+  static constexpr textdatum_t BR_DATUM   = textdatum_t::bottom_right;
+  static constexpr textdatum_t L_BASELINE = textdatum_t::baseline_left;
+  static constexpr textdatum_t C_BASELINE = textdatum_t::baseline_center;
+  static constexpr textdatum_t R_BASELINE = textdatum_t::baseline_right;
+};
+
+namespace attribute
+{
+  static constexpr attribute_t CP437_SWITCH = attribute_t::cp437_switch;
+  static constexpr attribute_t UTF8_SWITCH  = attribute_t::utf8_switch;
+}
+
+using namespace textdatum;
+using namespace attribute;
+
 
 #endif

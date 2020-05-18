@@ -182,7 +182,7 @@ namespace fonts {
 namespace lgfx
 {
   // deprecated array.
-  PROGMEM const IFont* fontdata [] = {
+  const IFont* fontdata [] = {
     &fonts::Font0,  // GLCD font (Font 0)
     &fonts::Font0,  // GLCD font (or GFX font)
     &fonts::Font2,

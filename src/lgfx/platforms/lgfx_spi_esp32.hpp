@@ -775,7 +775,7 @@ namespace lgfx
               memcpy(buf, src, len);
               write_bytes(buf, len, true);
             } else {
-              write_bytes(src, len, false);
+              write_bytes(src, len, use_dma);
             }
           } else {
             auto add = param->src_width * bytes;

@@ -26,6 +26,7 @@ Contributors:
 
 namespace lgfx
 {
+  static constexpr float deg_to_rad = 0.017453292519943295769236907684886;
 
   void LGFXBase::setAddrWindow(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h)
   {

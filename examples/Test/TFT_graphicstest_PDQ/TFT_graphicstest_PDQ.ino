@@ -28,6 +28,7 @@ void setup() {
   Serial.println("Lovyan's LovyanGFX library Test!"); 
  
   tft.init();
+  tft.setRotation(0);
   tft.startWrite();
 }
 
