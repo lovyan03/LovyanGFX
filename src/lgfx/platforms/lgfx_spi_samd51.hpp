@@ -371,7 +371,11 @@ void disableSPI()
       _dma_adafruit.setTrigger(sercomData[CFG::sercom_index].dmac_id_tx);
       _dma_adafruit.setAction(DMA_TRIGGER_ACTON_BEAT);
       _dma_adafruit.setCallback(dmaCallback);
-      _dma_desc = _dma_adafruit.addDescriptor(nullptr, nullptr);
+      _dma_write_desc = _dma_adafruit.addDescriptor(nullptr, (void*)&_sercom->SPI.DATA.reg);
+      _dma_write_desc->BTCTRL.bit.VALID  = true;
+      _dma_write_desc->BTCTRL.bit.SRCINC = true;
+      _dma_write_desc->BTCTRL.bit.DSTINC = false;
+
 /*
       _alloc_dmadesc(4);
 
@@ -785,32 +789,11 @@ void disableSPI()
           setWindow_impl(x, y, xr, y + h - 1);
           std::uint32_t i = (src_x + param->src_y * param->src_width) * bytes;
           auto src = &((const std::uint8_t*)param->src_data)[i];
-/*
-          if (-1 != _dma_channel && use_dma) {
-            if (param->src_width == w) {
-              _setup__dma_desc_links(src, w * h * bytes);
-            } else {
-              _setup__dma_desc_links(src, w * bytes, h, param->src_width * bytes);
-            }
-            dc_h();
-            set_write_len(w * h * bytes << 3);
-            *reg(SPI_DMA_OUT_LINK_REG(_spi_port)) = SPI_OUTLINK_START | ((int)(&_dmadesc[0]) & 0xFFFFF);
-            spi_dma_transfer_active(_dma_channel);
-            exec_spi();
-            return;
-          }
-          if (param->src_width == w) {
+
+          if (param->src_width == w || h == 1) {
             std::int32_t len = w * h * bytes;
-            if (-1 != _dma_channel && !use_dma && (64 < len) && (len <= 1024)) {
-              auto buf = get_dmabuffer(len);
-              memcpy(buf, src, len);
-              write_bytes(buf, len, true);
-            } else {
-              write_bytes(src, len, false);
-            }
-          } else
-*/
-          {
+            write_bytes(src, len, use_dma);
+          } else {
             auto add = param->src_width * bytes;
             do {
               write_bytes(src, w * bytes, use_dma);
@@ -831,7 +814,6 @@ void disableSPI()
             fp_copy(buf, 0, w, param);
             write_bytes(buf, w * bytes, use_dma);
           }
-//*
         } else {
           setWindow_impl(x, y, xr, y + h - 1);
           do {
@@ -894,42 +876,23 @@ void disableSPI()
 
     void write_bytes(const std::uint8_t* data, std::int32_t length, bool use_dma = false)
     {
-      if (use_dma && length > 16) {
-        //DmacDescriptor* desc      = &_dmadesc[1];
-        //DmacDescriptor* writeback = &_dmadesc[0];
-
-        dc_h();
-        set_clock_write();
-        _sercom->SPI.LENGTH.reg = 0;
+      if (use_dma && length > 31) {
         std::uint_fast8_t beatsize = _sercom->SPI.CTRLC.bit.DATA32B ? 2 : 0;
-        if ((bool)(beatsize) == (bool)(length & 3)) {
-          disableSPI();
+        if ((bool)(beatsize) == ((length & 3) || ((std::uint32_t)data & 3))) {
           beatsize = 2 - beatsize;
+          disableSPI();
           _sercom->SPI.CTRLC.bit.DATA32B = (bool)(beatsize);
           enableSPI();
         }
-        auto desc = _dma_desc;
+        dc_h();
+
+        _sercom->SPI.LENGTH.reg = 0;
+
+        auto desc = _dma_write_desc;
+        desc->SRCADDR.reg = (std::uint32_t)data + length;
         desc->BTCNT.reg            = length >> beatsize;
         desc->BTCTRL.bit.BEATSIZE  = beatsize;
-        desc->BTCTRL.bit.VALID     = true;
-        //desc->BTCTRL.bit.EVOSEL    = 0;
-        //desc->BTCTRL.bit.BLOCKACT  = 0;
-        desc->BTCTRL.bit.SRCINC    = true;
-        desc->BTCTRL.bit.DSTINC    = false;
-        //desc->BTCTRL.bit.STEPSEL   = 0;
-        //desc->BTCTRL.bit.STEPSIZE  = 0;
-        desc->DSTADDR.reg          = (std::uint32_t)(&_sercom->SPI.DATA.reg);
-        desc->SRCADDR.reg          = (std::uint32_t)data;
-        
-        if (desc->BTCTRL.bit.SRCINC) {
-          if (desc->BTCTRL.bit.STEPSEL) {
-            desc->SRCADDR.reg += length * (1 << desc->BTCTRL.bit.STEPSIZE);
-          } else {
-            desc->SRCADDR.reg += length;
-          }
-        }
 
-        //_dma_adafruit.changeDescriptor(desc, const_cast<std::uint8_t*>(data), nullptr, length>>beatsize);
         _dma_adafruit.startJob();
 
 /*
@@ -958,88 +921,27 @@ void disableSPI()
 
       }
 
-
       auto *reg = &_sercom->SPI.DATA.reg;
       std::int32_t idx = length & 0x03;
-      if (idx) {
-        do {
-          write_data(*data++, 8);
-        } while (--length & 0x03);
-        if (!length) return;
-        idx = 0;
-      }
-/*/
+      std::uint32_t buf = *(std::uint32_t*)data;
       if (idx) {
         dc_h();
         _sercom->SPI.LENGTH.reg = idx | SERCOM_SPI_LENGTH_LENEN;
-        *reg = *(std::uint32_t*)data;
+        *reg = buf;
         _need_wait = true;
-        length -= idx;
-        if (!length) return;
-        idx = 0;
+        if (length == idx) return;
+        buf = *(std::uint32_t*)&data[idx];
       }
-//*/
 
       dc_h();
       _sercom->SPI.LENGTH.reg = 4 | SERCOM_SPI_LENGTH_LENEN;
-      *reg = *(std::uint32_t*)&data[idx];
+      *reg = buf;
       _need_wait = true;
       while (length != (idx += 4)) {
-        std::uint32_t buf = *(std::uint32_t*)&data[idx];
+        buf = *(std::uint32_t*)&data[idx];
         wait_spi();
         *reg = buf;
       };
-
-/*
-      if (length <= 64) {
-        auto spi_w0_reg = reg(SPI_W0_REG(_spi_port));
-        dc_h();
-        set_write_len(length << 3);
-        memcpy((void*)spi_w0_reg, data, (length + 3) & (~3));
-        exec_spi();
-        return;
-      } else if (-1 != _dma_channel && use_dma) {
-        dc_h();
-        set_write_len(length << 3);
-        _setup__dma_desc_links(data, length);
-        *reg(SPI_DMA_OUT_LINK_REG(_spi_port)) = SPI_OUTLINK_START | ((int)(&_dmadesc[0]) & 0xFFFFF);
-        spi_dma_transfer_active(_dma_channel);
-        exec_spi();
-        return;
-      }
-      constexpr std::uint32_t limit = 32;
-      std::uint32_t len = ((length - 1) & 0x1F) + 1;
-      std::uint32_t highpart = ((length - 1) & limit) >> 2; // 8 or 0
-
-      auto spi_w0_reg = reg(SPI_W0_REG(_spi_port));
-
-      std::uint32_t user_reg = *reg(SPI_USER_REG(_spi_port));
-      dc_h();
-      set_write_len(len << 3);
-
-      memcpy((void*)&spi_w0_reg[highpart], data, (len + 3) & (~3));
-      if (highpart) *reg(SPI_USER_REG(_spi_port)) = user_reg | SPI_USR_MOSI_HIGHPART;
-      exec_spi();
-      if (0 == (length -= len)) return;
-
-      for (; length; length -= limit) {
-        data += len;
-        memcpy((void*)&spi_w0_reg[highpart ^= 0x08], data, limit);
-        std::uint32_t user = user_reg;
-        if (highpart) user |= SPI_USR_MOSI_HIGHPART;
-        if (len != limit) {
-          len = limit;
-          wait_spi();
-          set_write_len(limit << 3);
-          *reg(SPI_USER_REG(_spi_port)) = user;
-          exec_spi();
-        } else {
-          wait_spi();
-          *reg(SPI_USER_REG(_spi_port)) = user;
-          exec_spi();
-        }
-      }
-//*/
     }
 
     void readRect_impl(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, void* dst, pixelcopy_t* param) override
@@ -1094,7 +996,7 @@ void disableSPI()
           _sercom->SPI.CTRLC.bit.DATA32B = 0;  // 4Byte transfer enable
           enableSPI();
         }
-        auto desc = _dma_desc;
+        auto desc = _dma_write_desc;
         desc->BTCNT.reg            = length >> beatsize;   // count;
         desc->BTCTRL.bit.BEATSIZE  = beatsize; // DMA_BEAT_SIZE_BYTE;   // size;
         desc->BTCTRL.bit.VALID     = true;
@@ -1180,7 +1082,6 @@ void disableSPI()
           pos += add;
         } while (--h);
       }
-//*/
     }
 
     struct _dmabufs_t {
@@ -1192,7 +1093,6 @@ void disableSPI()
           buffer = nullptr;
           length = 0;
         }
-//*/
       }
     };
 
@@ -1206,7 +1106,6 @@ void disableSPI()
         _dmabufs[_dma_flip].length = _dmabufs[_dma_flip].buffer ? length : 0;
       }
       return _dmabufs[_dma_flip].buffer;
-//*/
       return nullptr;
     }
 
@@ -1224,15 +1123,10 @@ void disableSPI()
     //  if (_dmadesc) memset(_dmadesc, 0, sizeof(DmacDescriptor) * len);
     //}
 
-
-//    __attribute__ ((always_inline)) inline volatile std::uint32_t* reg(std::uint32_t addr) { return (volatile std::uint32_t *)ETS_UNCACHED_ADDR(addr); }
     __attribute__ ((always_inline)) inline void set_clock_write(void) { setFreqDiv(_clkdiv_write); }
     __attribute__ ((always_inline)) inline void set_clock_read(void)  { setFreqDiv(_clkdiv_read ); }
     __attribute__ ((always_inline)) inline void set_clock_fill(void)  { setFreqDiv(_clkdiv_fill ); }
-    __attribute__ ((always_inline)) inline void exec_spi(void) { /*        *reg(SPI_CMD_REG(_spi_port)) = SPI_USR;  */ }
     __attribute__ ((always_inline)) inline void wait_spi(void) { if (_need_wait != true) return; auto *intflag = &_sercom->SPI.INTFLAG.bit; while (intflag->TXC == 0); }
-    __attribute__ ((always_inline)) inline void set_write_len(std::uint32_t bitlen) { /* *reg(SPI_MOSI_DLEN_REG(_spi_port)) = bitlen - 1; */ }
-    __attribute__ ((always_inline)) inline void set_read_len( std::uint32_t bitlen) { /* *reg(SPI_MISO_DLEN_REG(_spi_port)) = bitlen - 1; */ }
 
     __attribute__ ((always_inline)) inline void dc_h(void) {
       auto mask_reg_dc = _mask_reg_dc;
@@ -1249,26 +1143,15 @@ void disableSPI()
 
     void cs_h(void) {
       gpio_hi(_panel->spi_cs);
-/*
-      std::int32_t spi_cs = _panel->spi_cs;
-      if (spi_cs >= 0) *get_gpio_hi_reg(spi_cs) = (1 << (spi_cs & 31));
-*/
     }
     void cs_l(void) {
       gpio_lo(_panel->spi_cs);
-/*
-      std::int32_t spi_cs = _panel->spi_cs;
-      if (spi_cs >= 0) *get_gpio_lo_reg(spi_cs) = (1 << (spi_cs & 31));
-*/
     }
 
     static constexpr int _spi_mosi = get_spi_mosi<CFG, -1>::value;
     static constexpr int _spi_miso = get_spi_miso<CFG, -1>::value;
     static constexpr int _spi_sclk = get_spi_sclk<CFG, -1>::value;
     static constexpr int _spi_dlen = get_spi_dlen<CFG,  8>::value;
-
-//    static constexpr spi_host_device_t _spi_host = get_spi_host<CFG, VSPI_HOST>::value;
-//    static constexpr std::uint8_t _spi_port = (_spi_host == HSPI_HOST) ? 2 : 3;  // FSPI=1  HSPI=2  VSPI=3;
 
     PanelCommon* _panel = nullptr;
     std::uint32_t(*fpGetWindowAddr)(std::uint_fast16_t, std::uint_fast16_t);
@@ -1296,14 +1179,13 @@ void disableSPI()
 
 #if defined (ARDUINO)
     Adafruit_ZeroDMA _dma_adafruit;
-    DmacDescriptor* _dma_desc;
+    DmacDescriptor* _dma_write_desc;
 #endif
 
     static DmacDescriptor* _dmadesc;
     static std::uint32_t _dmadesc_len;
     static bool _need_wait;
 
-//    static volatile spi_dev_t *_hw;
     static Sercom* _sercom;
   };
   template <class T> DmacDescriptor* LGFX_SPI<T>::_dmadesc = nullptr;

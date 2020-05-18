@@ -34,7 +34,60 @@ enum jpeg_div_t {
 
 namespace lgfx
 {
-  static constexpr float deg_to_rad = 0.017453292519943295769236907684886;
+  namespace colors  // Colour enumeration
+  {
+    static constexpr int TFT_BLACK       = 0x0000;      /*   0,   0,   0 */
+    static constexpr int TFT_NAVY        = 0x000F;      /*   0,   0, 128 */
+    static constexpr int TFT_DARKGREEN   = 0x03E0;      /*   0, 128,   0 */
+    static constexpr int TFT_DARKCYAN    = 0x03EF;      /*   0, 128, 128 */
+    static constexpr int TFT_MAROON      = 0x7800;      /* 128,   0,   0 */
+    static constexpr int TFT_PURPLE      = 0x780F;      /* 128,   0, 128 */
+    static constexpr int TFT_OLIVE       = 0x7BE0;      /* 128, 128,   0 */
+    static constexpr int TFT_LIGHTGREY   = 0xD69A;      /* 211, 211, 211 */
+    static constexpr int TFT_DARKGREY    = 0x7BEF;      /* 128, 128, 128 */
+    static constexpr int TFT_BLUE        = 0x001F;      /*   0,   0, 255 */
+    static constexpr int TFT_GREEN       = 0x07E0;      /*   0, 255,   0 */
+    static constexpr int TFT_CYAN        = 0x07FF;      /*   0, 255, 255 */
+    static constexpr int TFT_RED         = 0xF800;      /* 255,   0,   0 */
+    static constexpr int TFT_MAGENTA     = 0xF81F;      /* 255,   0, 255 */
+    static constexpr int TFT_YELLOW      = 0xFFE0;      /* 255, 255,   0 */
+    static constexpr int TFT_WHITE       = 0xFFFF;      /* 255, 255, 255 */
+    static constexpr int TFT_ORANGE      = 0xFDA0;      /* 255, 180,   0 */
+    static constexpr int TFT_GREENYELLOW = 0xB7E0;      /* 180, 255,   0 */
+    static constexpr int TFT_PINK        = 0xFE19;      /* 255, 192, 203 */ //Lighter pink, was 0xFC9F      
+    static constexpr int TFT_BROWN       = 0x9A60;      /* 150,  75,   0 */
+    static constexpr int TFT_GOLD        = 0xFEA0;      /* 255, 215,   0 */
+    static constexpr int TFT_SILVER      = 0xC618;      /* 192, 192, 192 */
+    static constexpr int TFT_SKYBLUE     = 0x867D;      /* 135, 206, 235 */
+    static constexpr int TFT_VIOLET      = 0x915C;      /* 180,  46, 226 */
+    static constexpr int TFT_TRANSPARENT = 0x0120;
+  }
+
+  enum textdatum_t : std::uint8_t
+  //  0:left   1:centre   2:right
+  //  0:top    4:middle   8:bottom   16:baseline
+  { top_left        =  0  // Top left (default)
+  , top_center      =  1  // Top center
+  , top_centre      =  1  // Top center
+  , top_right       =  2  // Top right
+  , middle_left     =  4  // Middle left
+  , middle_center   =  5  // Middle center
+  , middle_centre   =  5  // Middle center
+  , middle_right    =  6  // Middle right
+  , bottom_left     =  8  // Bottom left
+  , bottom_center   =  9  // Bottom center
+  , bottom_centre   =  9  // Bottom center
+  , bottom_right    = 10  // Bottom right
+  , baseline_left   = 16  // Baseline left (Line the 'A' character would sit on)
+  , baseline_center = 17  // Baseline center
+  , baseline_centre = 17  // Baseline center
+  , baseline_right  = 18  // Baseline right
+  };
+
+  enum attribute_t
+  { cp437_switch = 1
+  , utf8_switch  = 2
+  };
 
   enum color_depth_t : std::uint8_t
   { palette_1bit   =  1 //   2 color
@@ -46,7 +99,6 @@ namespace lgfx
   , rgb888_3Byte   = 24 // RRRRRRRR GGGGGGGG BBBBBBBB
   , argb8888_4Byte = 32 // AAAAAAAA RRRRRRRR GGGGGGGG BBBBBBBB
   };
-
 
   __attribute__ ((always_inline)) inline static std::uint8_t  color332(std::uint8_t r, std::uint8_t g, std::uint8_t b) { return (r >> 5) << 5 | (g >> 5) << 2 | b >> 6; }
   __attribute__ ((always_inline)) inline static std::uint16_t color565(std::uint8_t r, std::uint8_t g, std::uint8_t b) { return (r >> 3) <<11 | (g >> 2) << 5 | b >> 3; }
@@ -92,7 +144,7 @@ namespace lgfx
   struct rgb888_t;    // 24bpp
   struct argb8888_t;  // 32bpp
   struct swap565_t;   // 16bpp
-  struct bgr666_t;    // 18bpp
+  struct bgr666_t;    // 18bpp (24bpp xxRRRRRRxxGGGGGGxxBBBBBB (for OLED SSD1351)
   struct bgr888_t;    // 24bpp
 
 
@@ -979,6 +1031,12 @@ namespace lgfx
 //----------------------------------------------------------------------------
 }
 
+using namespace lgfx::colors;
+
+using lgfx::textdatum_t;
+using lgfx::attribute_t;
+
+typedef lgfx::bgr888_t RGBColor;
 
 #if defined (ESP32) || (CONFIG_IDF_TARGET_ESP32) || (ESP_PLATFORM)
 
