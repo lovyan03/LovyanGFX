@@ -258,6 +258,8 @@ namespace lgfx
     void setTextSize(std::uint8_t s) { setTextSize(s,s); }
     void setTextSize(std::uint8_t sx, std::uint8_t sy) { _text_style.size_x = (sx > 0) ? sx : 1; _text_style.size_y = (sy > 0) ? sy : 1; }
     void setTextDatum(textdatum_t datum) { _text_style.datum = datum; }
+    [[deprecated("use textdatum_t")]]
+    void setTextDatum(std::uint8_t datum) { _text_style.datum = (textdatum_t)datum; }
     void setTextPadding(std::uint16_t padding_x) { _padding_x = padding_x; }
     void setTextWrap( bool wrapX, bool wrapY = false) { _textwrap_x = wrapX; _textwrap_y = wrapY; }
     void setTextScroll(bool scroll) { _textscroll = scroll; if (_cursor_x < this->_sx) { _cursor_x = this->_sx; } if (_cursor_y < this->_sy) { _cursor_y = this->_sy; } }
