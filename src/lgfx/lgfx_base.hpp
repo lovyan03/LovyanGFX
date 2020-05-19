@@ -143,6 +143,7 @@ namespace lgfx
     }
     void setScrollRect(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h);
     void getScrollRect(std::int32_t *x, std::int32_t *y, std::int32_t *w, std::int32_t *h);
+    void clearScrollRect(void);
 
     __attribute__ ((always_inline))
     inline void drawPixel(std::int32_t x, std::int32_t y)

@@ -63,31 +63,37 @@ namespace lgfx
     static constexpr int TFT_TRANSPARENT = 0x0120;
   }
 
-  enum textdatum_t : std::uint8_t
-  //  0:left   1:centre   2:right
-  //  0:top    4:middle   8:bottom   16:baseline
-  { top_left        =  0  // Top left (default)
-  , top_center      =  1  // Top center
-  , top_centre      =  1  // Top center
-  , top_right       =  2  // Top right
-  , middle_left     =  4  // Middle left
-  , middle_center   =  5  // Middle center
-  , middle_centre   =  5  // Middle center
-  , middle_right    =  6  // Middle right
-  , bottom_left     =  8  // Bottom left
-  , bottom_center   =  9  // Bottom center
-  , bottom_centre   =  9  // Bottom center
-  , bottom_right    = 10  // Bottom right
-  , baseline_left   = 16  // Baseline left (Line the 'A' character would sit on)
-  , baseline_center = 17  // Baseline center
-  , baseline_centre = 17  // Baseline center
-  , baseline_right  = 18  // Baseline right
+  namespace textdatum
+  {
+    enum textdatum_t : std::uint8_t
+    //  0:left   1:centre   2:right
+    //  0:top    4:middle   8:bottom   16:baseline
+    { top_left        =  0  // Top left (default)
+    , top_center      =  1  // Top center
+    , top_centre      =  1  // Top center
+    , top_right       =  2  // Top right
+    , middle_left     =  4  // Middle left
+    , middle_center   =  5  // Middle center
+    , middle_centre   =  5  // Middle center
+    , middle_right    =  6  // Middle right
+    , bottom_left     =  8  // Bottom left
+    , bottom_center   =  9  // Bottom center
+    , bottom_centre   =  9  // Bottom center
+    , bottom_right    = 10  // Bottom right
+    , baseline_left   = 16  // Baseline left (Line the 'A' character would sit on)
+    , baseline_center = 17  // Baseline center
+    , baseline_centre = 17  // Baseline center
+    , baseline_right  = 18  // Baseline right
+    };
   };
 
-  enum attribute_t
-  { cp437_switch = 1
-  , utf8_switch  = 2
-  };
+  namespace attribute
+  {
+    enum attribute_t
+    { cp437_switch = 1
+    , utf8_switch  = 2
+    };
+  }
 
   enum color_depth_t : std::uint8_t
   { palette_1bit   =  1 //   2 color
@@ -1032,9 +1038,9 @@ namespace lgfx
 }
 
 using namespace lgfx::colors;
+using namespace lgfx::textdatum;
+using namespace lgfx::attribute;
 
-using lgfx::textdatum_t;
-using lgfx::attribute_t;
 
 typedef lgfx::bgr888_t RGBColor;
 

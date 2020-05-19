@@ -184,7 +184,7 @@ namespace lgfx
   // deprecated array.
   const IFont* fontdata [] = {
     &fonts::Font0,  // GLCD font (Font 0)
-    &fonts::Font0,  // GLCD font (or GFX font)
+    &fonts::Font0,  // Font 1 current unused
     &fonts::Font2,
     &fonts::Font0,  // Font 3 current unused
     &fonts::Font4,

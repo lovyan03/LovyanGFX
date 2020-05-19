@@ -790,7 +790,7 @@ void disableSPI()
           std::uint32_t i = (src_x + param->src_y * param->src_width) * bytes;
           auto src = &((const std::uint8_t*)param->src_data)[i];
 
-          if (param->src_width == w || h == 1) {
+          if ((std::int32_t)param->src_width == w || h == 1) {
             std::int32_t len = w * h * bytes;
             write_bytes(src, len, use_dma);
           } else {

@@ -647,10 +647,10 @@ namespace lgfx
         std::int_fast16_t xo = _font_metrics.x_offset  * _text_style.size_x;
         std::int_fast16_t w  = std::max(xo + _font_metrics.width * _text_style.size_x, _font_metrics.x_advance * _text_style.size_x);
         if (_textscroll || _textwrap_x) {
-          std::int32_t llimit = _textscroll ? this->_sx : 0;
+          std::int32_t llimit = _textscroll ? this->_sx : this->_clip_l;
           if (_cursor_x < llimit - xo) _cursor_x = llimit - xo;
           else {
-            std::int32_t rlimit = _textscroll ? this->_sx + this->_sw : this->_width;
+            std::int32_t rlimit = _textscroll ? this->_sx + this->_sw : (this->_clip_r + 1);
             if (_cursor_x + w > rlimit) {
               _filled_x = llimit;
               _cursor_x = llimit - xo;
@@ -659,7 +659,7 @@ namespace lgfx
           }
         }
 
-        std::int_fast16_t h  = _font_metrics.height    * _text_style.size_y;
+        std::int_fast16_t h  = _font_metrics.height * _text_style.size_y;
 
         std::int_fast16_t ydiff = 0;
         if (_text_style.datum & middle_left) {          // vertical: middle
@@ -681,12 +681,12 @@ namespace lgfx
             }
           }
         } else if (_textwrap_y) {
-          if (y + h > this->_height) {
+          if (y + h > (this->_clip_b + 1)) {
             _filled_x = 0;
             _cursor_x = - xo;
             y = 0;
           } else
-          if (y < 0) y = 0;
+          if (y < this->_clip_t) y = this->_clip_t;
         }
         _cursor_y = y - ydiff;
         y -= _font_metrics.y_offset  * _text_style.size_y;
