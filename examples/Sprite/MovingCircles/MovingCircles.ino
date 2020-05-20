@@ -95,7 +95,7 @@ void loop(void)
 
     if (y == 0) {
       sprites[flip].setCursor(0,0);
-      sprites[flip].setTextFont(2);
+      sprites[flip].setFont(&fonts::Font2);
       sprites[flip].setTextColor(0xFFFFFFU);
       sprites[flip].printf("obj:%d  fps:%d", obj_count, fps);
     }
