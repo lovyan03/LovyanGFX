@@ -790,7 +790,7 @@ void disableSPI()
           std::uint32_t i = (src_x + param->src_y * param->src_width) * bytes;
           auto src = &((const std::uint8_t*)param->src_data)[i];
 
-          if (param->src_width == w || h == 1) {
+          if ((std::int32_t)param->src_width == w || h == 1) {
             std::int32_t len = w * h * bytes;
             write_bytes(src, len, use_dma);
           } else {
@@ -832,7 +832,7 @@ void disableSPI()
             auto buf = get_dmabuffer(w * bytes);
             std::int32_t len = fp_copy(buf, 0, w - i, param);
             setWindow_impl(x + i, y, x + i + len - 1, y);
-            write_bytes(buf, len * bytes, use_dma);
+            write_bytes(buf, len * bytes, true);
             if (w == (i += len)) break;
           }
           param->src_x = src_x;

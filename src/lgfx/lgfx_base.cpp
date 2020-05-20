@@ -93,6 +93,14 @@ namespace lgfx
     *h = _sh;
   }
 
+  void LGFXBase::clearScrollRect(void)
+  {
+    _sx = 0;
+    _sw = _width;
+    _sy = 0;
+    _sh = _height;
+  }
+
   void LGFXBase::drawFastVLine(std::int32_t x, std::int32_t y, std::int32_t h)
   {
     _adjust_abs(y, h);
