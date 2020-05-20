@@ -458,6 +458,56 @@ namespace lgfx
     inline operator bool() const { return raw & 0x00FFFFFF; }
   };
 
+  struct get_depth_impl {
+  template<typename T> static constexpr std::integral_constant<color_depth_t, T::depth> check(decltype(T::depth)*);
+  template<typename T> static constexpr std::integral_constant<color_depth_t, (color_depth_t)(sizeof(T) << 3) > check(...);
+  };
+  template<typename T> class get_depth : public decltype(get_depth_impl::check<T>(nullptr)) {};
+
+  template <typename TSrc>
+  static auto get_fp_convert_src(color_depth_t dst_depth, bool has_palette) -> std::uint32_t(*)(std::uint32_t)
+  {
+    if (std::is_same<TSrc, rgb332_t>::value || std::is_same<TSrc, std::uint8_t>::value) {
+      switch (dst_depth) {
+      case rgb888_3Byte: return convert_rgb332_to_bgr888;
+      case rgb666_3Byte: return convert_rgb332_to_bgr666;
+      case rgb565_2Byte: return convert_rgb332_to_swap565;
+      case rgb332_1Byte: return has_palette
+                              ? convert_uint32_to_palette8
+                              : no_convert;
+      default: break;
+      }
+    } else if (std::is_same<TSrc, rgb565_t>::value || std::is_same<TSrc, std::uint16_t>::value || std::is_same<TSrc, int>::value) {
+      switch (dst_depth) {
+      case rgb888_3Byte: return convert_rgb565_to_bgr888;
+      case rgb666_3Byte: return convert_rgb565_to_bgr666;
+      case rgb565_2Byte: return convert_rgb565_to_swap565;
+      case rgb332_1Byte: return has_palette
+                              ? convert_uint32_to_palette8
+                              : convert_rgb565_to_rgb332;
+      default: break;
+      }
+    } else if (std::is_same<TSrc, rgb888_t>::value || std::is_same<TSrc, std::uint32_t>::value) {
+      switch (dst_depth) {
+      case rgb888_3Byte: return convert_rgb888_to_bgr888;
+      case rgb666_3Byte: return convert_rgb888_to_bgr666;
+      case rgb565_2Byte: return convert_rgb888_to_swap565;
+      case rgb332_1Byte: return has_palette
+                              ? convert_uint32_to_palette8
+                              : convert_rgb888_to_rgb332;
+      default: break;
+      }
+    }
+
+    switch (dst_depth) {
+    case palette_4bit: return convert_uint32_to_palette4;
+    case palette_2bit: return convert_uint32_to_palette2;
+    case palette_1bit: return convert_uint32_to_palette1;
+    default:           return no_convert;
+    }
+  }
+
+
   struct color_conv_t
   {
 //    std::uint32_t (*convert_bgr888)(std::uint32_t) = convert_bgr888_to_swap565;
@@ -473,7 +523,7 @@ namespace lgfx
     color_conv_t() = default;
     color_conv_t(const color_conv_t&) = default;
 
-    void setColorDepth(color_depth_t bpp, bool hasPalette = false) {
+    void setColorDepth(color_depth_t bpp, bool has_palette = false) {
       x_mask = 0;
       if (     bpp > 18) { bpp = rgb888_3Byte; bytes = 3; bits = 24; }
       else if (bpp > 16) { bpp = rgb666_3Byte; bytes = 3; bits = 24; }
@@ -485,6 +535,10 @@ namespace lgfx
 
       colormask = (1 << bits) - 1;
       depth = bpp;
+      convert_rgb888 = get_fp_convert_src<rgb888_t>(bpp, has_palette);
+      convert_rgb565 = get_fp_convert_src<rgb565_t>(bpp, has_palette);
+      convert_rgb332 = get_fp_convert_src<rgb332_t>(bpp, has_palette);
+/*
       switch (bpp) {
       case rgb888_3Byte:
 //        convert_bgr888 = no_convert;
@@ -537,6 +591,7 @@ namespace lgfx
         convert_rgb332 = convert_uint32_to_palette1;
         break;
       }
+//*/
     }
 
 #define TYPECHECK(dType) template < typename T, typename std::enable_if < (sizeof(T) == sizeof(dType)) && (std::is_signed<T>::value == std::is_signed<dType>::value), std::nullptr_t >::type=nullptr >

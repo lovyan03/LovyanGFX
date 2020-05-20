@@ -213,7 +213,7 @@ namespace lgfx
     template <typename T>
     void pushColors(const T *src, std::int32_t len)
     {
-      pixelcopy_t p(src, _write_conv.depth, T::depth, _palette_count);
+      pixelcopy_t p(src, _write_conv.depth, get_depth<T>::value, _palette_count);
       startWrite();
       pushColors_impl(len, &p);
       endWrite();
@@ -238,7 +238,7 @@ namespace lgfx
     template<typename T> inline
     void readRect( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, T* data)
     {
-      pixelcopy_t p(nullptr, T::depth, _read_conv.depth, false, _palette);
+      pixelcopy_t p(nullptr, get_depth<T>::value, _read_conv.depth, false, _palette);
       if (p.fp_copy==nullptr) { p.fp_copy = pixelcopy_t::get_fp_normalcopy_dst<T>(_read_conv.depth); }
       read_rect(x, y, w, h, data, &p);
     }
@@ -268,19 +268,82 @@ namespace lgfx
     }
 
     template<typename T> void pushRect(  std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const T* data) { pushImage(x, y, w, h, data); }
-    template<typename T> void pushImage( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const T* data) {
-      pixelcopy_t p(data, _write_conv.depth, T::depth, _palette_count, nullptr);
+    template<typename T> void pushImage( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const T* data)
+    {
+      pixelcopy_t p(data, _write_conv.depth, get_depth<T>::value, _palette_count, nullptr);
+      if (std::is_same<rgb565_t, T>::value) {
+        p.no_convert = false;
+        p.fp_copy = pixelcopy_t::get_fp_normalcopy<rgb565_t>(_write_conv.depth);
+      }
+      if (std::is_same<rgb888_t, T>::value) {
+        p.no_convert = false;
+        p.fp_copy = pixelcopy_t::get_fp_normalcopy<rgb888_t>(_write_conv.depth);
+      }
       if (p.fp_copy==nullptr) { p.fp_copy = pixelcopy_t::get_fp_normalcopy<T>(_write_conv.depth); }
       push_image(x, y, w, h, &p);
     }
-    template<typename T> void pushImage( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const T* data, const T& transparent) {
-      pixelcopy_t p(data, _write_conv.depth, T::depth, _palette_count, nullptr, _write_conv.convert(transparent));
+
+    template<typename T, typename U> void pushImage( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const T* data, const U& transparent)
+    {
+      uint32_t tr = (std::is_same<T, U>::value)
+                  ? transparent
+                  : get_fp_convert_src<U>(get_depth<T>::value, false)(transparent);
+      pixelcopy_t p(data, _write_conv.depth, get_depth<T>::value, _palette_count, nullptr, tr);
+      if (std::is_same<rgb565_t, T>::value) {
+        p.transp = getSwap16(tr);
+        p.no_convert = false;
+        p.fp_copy = pixelcopy_t::get_fp_normalcopy<rgb565_t>(_write_conv.depth);
+      }
+      if (std::is_same<rgb888_t, T>::value) {
+        p.transp = getSwap24(tr);
+        p.no_convert = false;
+        p.fp_copy = pixelcopy_t::get_fp_normalcopy<rgb888_t>(_write_conv.depth);
+      }
       if (p.fp_copy==nullptr) { p.fp_copy = pixelcopy_t::get_fp_normalcopy<T>(_write_conv.depth); }
       if (p.fp_skip==nullptr) { p.fp_skip = pixelcopy_t::normalskip<T>; }
       push_image(x, y, w, h, &p);
     }
-    template<typename T> void pushImage( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const void* data                      , const std::uint8_t bits, const T* palette) {
-      pixelcopy_t p(data, _write_conv.depth, (color_depth_t)bits, _palette_count, palette              );
+
+    void pushImage(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const std::uint16_t* data)
+    {
+      if (_swapBytes && !_palette_count && _write_conv.depth >= 8) {
+        pushImage(x, y, w, h, (const rgb565_t*)data);
+      } else {
+        pushImage(x, y, w, h, (const swap565_t*)data);
+      }
+    }
+
+    void pushImage(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const void* data)
+    {
+      if (_swapBytes && !_palette_count && _write_conv.depth >= 8) {
+        pushImage(x, y, w, h, (const rgb888_t*)data);
+      } else {
+        pushImage(x, y, w, h, (const bgr888_t*)data);
+      }
+    }
+
+    template<typename U>
+    void pushImage(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const std::uint16_t* data, const U& transparent)
+    {
+      if (_swapBytes && !_palette_count && _write_conv.depth >= 8) {
+        pushImage(x, y, w, h, (const rgb565_t*)data, transparent);
+      } else {
+        pushImage(x, y, w, h, (const swap565_t*)data, transparent);
+      }
+    }
+
+    template<typename U>
+    void pushImage(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const void* data, const U& transparent)
+    {
+      if (_swapBytes && !_palette_count && _write_conv.depth >= 8) {
+        pushImage(x, y, w, h, (const rgb888_t*)data, transparent);
+      } else {
+        pushImage(x, y, w, h, (const bgr888_t*)data, transparent);
+      }
+    }
+
+    template<typename T> void pushImage( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const void* data, const std::uint8_t bits, const T* palette) {
+      pixelcopy_t p(data, _write_conv.depth, (color_depth_t)bits, _palette_count, palette);
       p.fp_copy = pixelcopy_t::get_fp_palettecopy<T>(_write_conv.depth);
       push_image(x, y, w, h, &p);
     }
@@ -290,42 +353,30 @@ namespace lgfx
       push_image(x, y, w, h, &p);
     }
 
-    void pushImage(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const std::uint16_t* data, std::uint32_t transp = ~0u)
+    template<typename T> void pushImageDMA( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const T* data)
     {
-      pixelcopy_t p(data, _write_conv.depth, rgb565_2Byte, _palette_count, nullptr, transp == ~0u ? ~0u : _write_conv.convert((std::uint16_t)transp));
-      if (_swapBytes && !_palette_count && _write_conv.depth >= 8) {
-        p.no_convert = false;
-        p.fp_copy = pixelcopy_t::get_fp_normalcopy<rgb565_t>(_write_conv.depth);
-      }
-      push_image(x, y, w, h, &p);
-    }
-    void pushImage(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const void* data, std::uint32_t transp = ~0u)
-    {
-      pixelcopy_t p(data, _write_conv.depth, rgb888_3Byte, _palette_count, nullptr, transp == ~0u ? ~0u : _write_conv.convert(transp));
-      if (_swapBytes && !_palette_count && _write_conv.depth >= 8) {
-        p.no_convert = false;
-        p.fp_copy = pixelcopy_t::get_fp_normalcopy<rgb888_t>(_write_conv.depth);
-      }
-      push_image(x, y, w, h, &p);
+      pixelcopy_t p(data, _write_conv.depth, get_depth<T>::value, _palette_count, nullptr  );
+      push_image(x, y, w, h, &p, true);
     }
 
-    template<typename T> void pushImageDMA( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const T* data)                          { pixelcopy_t p(data, _write_conv.depth, T::depth, _palette_count, nullptr                                   ); push_image(x, y, w, h, &p, true); }
-    template<typename T> void pushImageDMA( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const T* data   , const T& transparent) { pixelcopy_t p(data, _write_conv.depth, T::depth, _palette_count, nullptr, _write_conv.convert(transparent)); push_image(x, y, w, h, &p, true); }
-    template<typename T> void pushImageDMA( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const void* data                      , const std::uint8_t bits, const T* palette) { pixelcopy_t p(data, _write_conv.depth, (color_depth_t)bits, _palette_count, palette              ); push_image(x, y, w, h, &p, true); }
-    template<typename T> void pushImageDMA( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const void* data, std::uint32_t transparent, const std::uint8_t bits, const T* palette) { pixelcopy_t p(data, _write_conv.depth, (color_depth_t)bits, _palette_count, palette, transparent ); push_image(x, y, w, h, &p, true); }
-
-    void pushImageDMA(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const std::uint16_t* data, std::uint32_t transp = ~0u)
+    template<typename T> void pushImageDMA( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const void* data, const std::uint8_t bits, const T* palette)
     {
-      pixelcopy_t p(data, _write_conv.depth, rgb565_2Byte, _palette_count, nullptr, transp == ~0u? ~0u : _write_conv.convert((std::uint16_t)transp));
+      pixelcopy_t p(data, _write_conv.depth, (color_depth_t)bits, _palette_count, palette);
+      push_image(x, y, w, h, &p, true);
+    }
+
+    void pushImageDMA(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const std::uint16_t* data)
+    {
+      pixelcopy_t p(data, _write_conv.depth, rgb565_2Byte, _palette_count, nullptr);
       if (_swapBytes && !_palette_count && _write_conv.depth >= 8) {
         p.no_convert = false;
         p.fp_copy = pixelcopy_t::get_fp_normalcopy<rgb565_t>(_write_conv.depth);
       }
       push_image(x, y, w, h, &p, true);
     }
-    void pushImageDMA(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const void* data, std::uint32_t transp = ~0u)
+    void pushImageDMA(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const void* data)
     {
-      pixelcopy_t p(data, _write_conv.depth, rgb888_3Byte, _palette_count, nullptr, transp == ~0u ? ~0u : _write_conv.convert(transp));
+      pixelcopy_t p(data, _write_conv.depth, rgb888_3Byte, _palette_count, nullptr);
       if (_swapBytes && !_palette_count && _write_conv.depth >= 8) {
         p.no_convert = false;
         p.fp_copy = pixelcopy_t::get_fp_normalcopy<rgb888_t>(_write_conv.depth);
