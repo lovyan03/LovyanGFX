@@ -19,12 +19,6 @@ namespace lgfx
 
   protected:
 
-//    enum colmod_t
-//    { RGB565_2BYTE = 0x55
-//    , RGB666_3BYTE = 0x66
-//    };
-//    std::uint8_t getColMod(std::uint8_t bpp) const override { return (bpp > 16) ? RGB666_3BYTE : RGB565_2BYTE; }
-
     struct CMD : public PanelIlitekCommon::CommandCommon
     {
       static constexpr std::uint8_t FRMCTR1 = 0xB1;

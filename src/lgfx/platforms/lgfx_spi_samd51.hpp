@@ -281,8 +281,7 @@ void disableSPI()
 
     std::uint32_t FreqToClockDiv(std::uint32_t freq)
     {
-      std::uint32_t div = round((float)CFG::sercom_clkfreq / (freq<<1));
-      if (div > 0) --div;
+      std::uint32_t div = CFG::sercom_clkfreq / (1+(freq<<1));
       return div;
     }
 
@@ -333,8 +332,6 @@ void disableSPI()
                              | SERCOM_SPI_CTRLA_DOPO(CFG::pad_mosi)
                              | SERCOM_SPI_CTRLA_DIPO(CFG::pad_miso)
                              | dataOrder << SERCOM_SPI_CTRLA_DORD_Pos;
-
-      _sercom->SPI.CTRLC.bit.DATA32B = 1;  // 4Byte transfer enable
 
       //Setting the CTRLB register
       _sercom->SPI.CTRLB.reg = SERCOM_SPI_CTRLB_CHSIZE(SPI_CHAR_SIZE_8_BITS)
@@ -806,13 +803,13 @@ void disableSPI()
           auto buf = get_dmabuffer(w * bytes);
           fp_copy(buf, 0, w, param);
           setWindow_impl(x, y, xr, y + h - 1);
-          write_bytes(buf, w * bytes, use_dma);
+          write_bytes(buf, w * bytes, true);
           while (--h) {
             param->src_x = src_x;
             param->src_y++;
             buf = get_dmabuffer(w * bytes);
             fp_copy(buf, 0, w, param);
-            write_bytes(buf, w * bytes, use_dma);
+            write_bytes(buf, w * bytes, true);
           }
         } else {
           setWindow_impl(x, y, xr, y + h - 1);
@@ -821,7 +818,6 @@ void disableSPI()
             param->src_x = src_x;
             param->src_y++;
           } while (--h);
-//*/
         }
       } else {
         auto fp_skip = param->fp_skip;
@@ -878,6 +874,7 @@ void disableSPI()
     {
       if (use_dma && length > 31) {
         std::uint_fast8_t beatsize = _sercom->SPI.CTRLC.bit.DATA32B ? 2 : 0;
+        // If the data is 4 bytes aligned, the DATA32B can be enabled.
         if ((bool)(beatsize) == ((length & 3) || ((std::uint32_t)data & 3))) {
           beatsize = 2 - beatsize;
           disableSPI();

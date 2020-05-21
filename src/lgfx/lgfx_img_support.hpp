@@ -319,7 +319,7 @@ namespace lgfx
         }
       }
 
-      this->startWrite(false);
+      this->startWrite(!data->hasParent());
       if (bmpdata.biCompression == 1) {
         do {
           data->preRead();
@@ -406,7 +406,7 @@ protected:
 
       if (maxWidth > 0 && maxHeight > 0) {
         this->setClipRect(x, y, maxWidth, maxHeight);
-        this->startWrite();
+        this->startWrite(!data->hasParent());
         jres = lgfx_jd_decomp(&jpegdec, jpg_push_image, scale);
 
         this->_clip_l = cl;
@@ -451,11 +451,11 @@ protected:
       auto data = (DataWrapper*)jpeg->data;
       data->postRead();
       jpeg->lgfx->push_image( jpeg->x + rect->left
-                           , jpeg->y + rect->top 
-                           , rect->right  - rect->left + 1
-                           , rect->bottom - rect->top + 1
-                           , jpeg->pc
-                           , false);
+                            , jpeg->y + rect->top
+                            , rect->right  - rect->left + 1
+                            , rect->bottom - rect->top + 1
+                            , jpeg->pc
+                            , false);
       return 1;
     }
 
@@ -708,7 +708,7 @@ protected:
       int len;
       bool res = true;
 
-      this->startWrite(false);
+      this->startWrite(!data->hasParent());
       while (0 < (len = data->read(buf + remain, sizeof(buf) - remain))) {
         data->postRead();
 
