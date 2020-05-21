@@ -86,6 +86,7 @@ namespace lgfx
     , baseline_right  = 18  // Baseline right
     };
   };
+  using namespace textdatum;
 
   namespace attribute
   {
@@ -94,6 +95,7 @@ namespace lgfx
     , utf8_switch  = 2
     };
   }
+  using namespace attribute;
 
   enum color_depth_t : std::uint8_t
   { palette_1bit   =  1 //   2 color
@@ -560,7 +562,7 @@ namespace lgfx
         convert_rgb332 = convert_rgb332_to_swap565;
         break;
       case rgb332_1Byte:
-        if (!hasPalette) {
+        if (!has_palette) {
 //          convert_bgr888 = convert_bgr888_to_rgb332;
           convert_rgb888 = convert_rgb888_to_rgb332;
           convert_rgb565 = convert_rgb565_to_rgb332;
@@ -1066,6 +1068,7 @@ namespace lgfx
 
     __attribute__ ((always_inline)) inline void preRead(void) { if (fp_pre_read) fp_pre_read(parent); }
     __attribute__ ((always_inline)) inline void postRead(void) { if (fp_post_read) fp_post_read(parent); }
+    __attribute__ ((always_inline)) inline bool hasParent(void) const { return parent; }
     void* parent = nullptr;
     void (*fp_pre_read)(void*) = nullptr;
     void (*fp_post_read)(void*) = nullptr;
