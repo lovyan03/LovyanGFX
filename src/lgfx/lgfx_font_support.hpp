@@ -1070,9 +1070,12 @@ namespace lgfx
             }
           }
           std::int_fast8_t i = 0;
-          std::int32_t y0 = 0;
+          std::int32_t y1 = 0;
+          std::int32_t y0 = - 1;
           do {
-            std::int32_t y1 = (i + 1) * sy;
+            bool fill = y0 != y1;
+            y0 = y1;
+            y1 = ++i * sy;
             std::uint8_t line = font_addr[0];
             bool flg = line & 0x80;
             std::int_fast8_t j = 1;
@@ -1083,16 +1086,16 @@ namespace lgfx
                 if (0 == (j & 7)) line = font_addr[j >> 3];
               } while (flg == (bool)(line & (0x80) >> (j&7)) && ++j < je);
               std::int32_t x1 = j * sx;
-              if (flg || fillbg) {
+              if (flg || (fillbg && fill)) {
                 me->setRawColor(colortbl[flg]);
-                me->writeFillRect(x + x0, y + y0, x1 - x0, y1 - y0);
+                if (flg && x1 == std::int32_t((j-1)*sx)) ++x1;
+                me->writeFillRect(x + x0, y + y0, x1 - x0, std::max(1, y1 - y0));
               }
               x0 = x1;
               flg = !flg;
             } while (j < je);
             font_addr += w;
-            y0 = y1;
-          } while (++i < fontHeight);
+          } while (i < fontHeight);
           me->endWrite();
 /*
         } else {
