@@ -9,9 +9,9 @@
 // Include the font data of Arduino-misakiUTF16.
 #include "misakiUTF16FontData.h"
 
-
 #include <LovyanGFX.hpp>
 
+static LGFX lcd;
 
 // lgfx::BDFfontクラスを使って、Arduino-misakiUTF16を使用できるように設定します。
 static constexpr lgfx::BDFfont misaki_font = 
@@ -26,8 +26,6 @@ static constexpr lgfx::BDFfont misaki_font =
   };
 
 
-static LGFX lcd;
-
 void setup()
 {
   lcd.init();
@@ -41,7 +39,6 @@ void setup()
 void loop()
 {
   lcd.setTextColor(0x808080U|random(0xFFFFFF), 0x7F7F7FU&random(0x10000));
-//  lcd.setTextSize((float)random(5,40) / 10, (float)random(5,40) / 10);
 
   lcd.print("美さきフォントは8x8のコンパクトなフォントです。");
   lcd.print("Arduino-misakiUTF16は、教育漢字1,006字(小学校で習う漢字）＋ひらがな・カタカナ・記号・半角等の1,710字にしぼって収録されています。");
