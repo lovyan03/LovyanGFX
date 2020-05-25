@@ -1089,7 +1089,7 @@ namespace lgfx
               if (flg || (fillbg && fill)) {
                 me->setRawColor(colortbl[flg]);
                 if (flg && x1 == std::int32_t((j-1)*sx)) ++x1;
-                me->writeFillRect(x + x0, y + y0, x1 - x0, std::max(1, y1 - y0));
+                me->writeFillRect(x + x0, y + y0, x1 - x0, std::max<std::int32_t>(1, y1 - y0));
               }
               x0 = x1;
               flg = !flg;
