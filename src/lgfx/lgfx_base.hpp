@@ -38,6 +38,8 @@ namespace lgfx
     template<typename T> __attribute__ ((always_inline)) inline void setColor(T c) { _color.raw = _write_conv.convert(c); }
                          __attribute__ ((always_inline)) inline void setRawColor(std::uint32_t c) { _color.raw = c; }
 
+    template<typename T> __attribute__ ((always_inline)) inline void setBaseColor(T c) { _base_rgb888 = convert_to_rgb888(c); }
+
                          inline void clear      ( void )          { _color.raw = 0;  fillRect(0, 0, _width, _height); }
     template<typename T> inline void clear      ( const T& color) { setColor(color); fillRect(0, 0, _width, _height); }
                          inline void fillScreen ( void )          {                  fillRect(0, 0, _width, _height); }
@@ -121,6 +123,7 @@ namespace lgfx
     __attribute__ ((always_inline)) inline color_conv_t* getColorConverter(void) { return &_write_conv; }
     __attribute__ ((always_inline)) inline bool hasPalette    (void) const { return _palette_count; }
     __attribute__ ((always_inline)) inline bool isSPIShared(void) const { return _spi_shared; }
+    __attribute__ ((always_inline)) inline bool isReadable(void) const { return isReadable_impl(); }
     __attribute__ ((always_inline)) inline bool getSwapBytes    (void) const { return _swapBytes; }
     __attribute__ ((always_inline)) inline void setSwapBytes(bool swap) { _swapBytes = swap; }
 
@@ -138,7 +141,7 @@ namespace lgfx
 
     template <typename T>
     void setScrollRect(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const T& color) {
-      _scolor = _write_conv.convert(color);
+      _base_rgb888 = convert_to_rgb888(color);
       setScrollRect(x, y, w, h);
     }
     void setScrollRect(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h);
@@ -445,7 +448,7 @@ namespace lgfx
     std::int32_t  _sx, _sy, _sw, _sh; // for scroll zone
 
     std::int32_t _clip_l = 0, _clip_r = -1, _clip_t = 0, _clip_b = -1; // clip rect
-    std::uint32_t _scolor;  // gap fill colour for scroll zone
+    std::uint32_t _base_rgb888 = 0;  // gap fill colour for scroll zone 
     raw_color_t _color = 0xFFFFFFU;
 
     color_conv_t _write_conv;
@@ -503,6 +506,7 @@ namespace lgfx
     virtual void pushColors_impl(std::int32_t length, pixelcopy_t* param) = 0;
     virtual void pushBlock_impl(std::int32_t len) = 0;
     virtual void setWindow_impl(std::int32_t xs, std::int32_t ys, std::int32_t xe, std::int32_t ye) = 0;
+    virtual bool isReadable_impl(void) const { return true; }
 
     static void tmpBeginTransaction(void* lgfx) {
       auto me = (LGFXBase*)lgfx;

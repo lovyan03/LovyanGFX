@@ -959,7 +959,7 @@ namespace lgfx
 
   void LGFXBase::scroll(std::int_fast16_t dx, std::int_fast16_t dy)
   {
-    _color.raw = _scolor;
+    setColor(_base_rgb888);
     std::int32_t absx = abs(dx);
     std::int32_t absy = abs(dy);
     if (absx >= _sw || absy >= _sh) {

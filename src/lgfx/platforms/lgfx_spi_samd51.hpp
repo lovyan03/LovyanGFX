@@ -474,6 +474,8 @@ void disableSPI()
 //----------------------------------------------------------------------------
   protected:
 
+    bool isReadable_impl(void) const override { return _panel->spi_read; }
+
     void postSetPanel(void)
     {
       _last_apb_freq = -1;

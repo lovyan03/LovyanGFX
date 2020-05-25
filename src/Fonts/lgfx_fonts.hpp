@@ -51,15 +51,7 @@ namespace lgfx
      , height   (height   )
      , baseline (baseline )
     {}
-    void getDefaultMetric(FontMetrics *metrics) const override {
-      metrics->width    = width;
-      metrics->x_advance = width;
-      metrics->x_offset  = 0;
-      metrics->height    = height;
-      metrics->y_advance = height;
-      metrics->y_offset  = 0;
-      metrics->baseline  = baseline;
-    }
+    void getDefaultMetric(FontMetrics *metrics) const override;
   };
 
   struct GLCDfont : public BaseFont {
@@ -85,15 +77,18 @@ namespace lgfx
     const std::uint16_t *indextbl;
     std::uint16_t indexsize;
     std::uint8_t halfwidth;
+    std::uint8_t y_advance;
     BDFfont() = default;
-    constexpr BDFfont(const std::uint8_t *chartbl, const std::uint16_t *indextbl, std::uint16_t indexsize, std::uint8_t width, std::uint8_t halfwidth, std::uint8_t height, std::uint8_t baseline) 
+    constexpr BDFfont(const std::uint8_t *chartbl, const std::uint16_t *indextbl, std::uint16_t indexsize, std::uint8_t width, std::uint8_t halfwidth, std::uint8_t height, std::uint8_t baseline, std::uint8_t y_advance) 
      : BaseFont(chartbl, nullptr, width, height, baseline )
      , indextbl(indextbl)
      , indexsize(indexsize)
      , halfwidth(halfwidth)
+     , y_advance(y_advance)
      {}
     constexpr font_type_t getType(void) const override { return ft_bdf;  }
 
+    void getDefaultMetric(FontMetrics *metrics) const override;
     bool updateFontMetric(FontMetrics *metrics, std::uint16_t uniCode) const override;
   };
 
@@ -103,64 +98,60 @@ namespace lgfx
 //----------------------------------------------------------------------------
 // Adafruit GFX font 
 
-  struct GFXglyph { // Data stored PER GLYPH
-    std::uint32_t bitmapOffset;     // Pointer into GFXfont->bitmap
-    std::uint8_t  width, height;    // Bitmap dimensions in pixels
-    std::uint8_t  xAdvance;         // Distance to advance cursor (x axis)
-    std::int8_t   xOffset, yOffset; // Dist from cursor pos to UL corner
-  };
+struct EncodeRange {
+  std::uint16_t start;
+  std::uint16_t end;
+  std::uint16_t base;
+};
 
-  struct GFXfont : public lgfx::IFont { // Data stored for FONT AS A WHOLE:
-    struct EncodeRange {
-      std::uint16_t start;
-      std::uint16_t end;
-      std::uint16_t base;
-    };
+struct GFXglyph { // Data stored PER GLYPH
+  std::uint32_t bitmapOffset;     // Pointer into GFXfont->bitmap
+  std::uint8_t  width, height;    // Bitmap dimensions in pixels
+  std::uint8_t  xAdvance;         // Distance to advance cursor (x axis)
+  std::int8_t   xOffset, yOffset; // Dist from cursor pos to UL corner
+};
 
-    std::uint8_t  *bitmap;      // Glyph bitmaps, concatenated
-    GFXglyph *glyph;       // Glyph array
-    std::uint16_t  first, last; // ASCII extents
-    std::uint8_t   yAdvance;    // Newline distance (y axis)
+struct GFXfont : public lgfx::IFont { // Data stored for FONT AS A WHOLE:
+  std::uint8_t  *bitmap;      // Glyph bitmaps, concatenated
+  GFXglyph *glyph;            // Glyph array
+  std::uint16_t  first, last; // ASCII extents
+  std::uint8_t   yAdvance;    // Newline distance (y axis)
 
-    std::uint16_t range_num;    // Number of EncodeRange
-    EncodeRange *range;    // Array ofEncodeRange
+  std::uint16_t range_num;    // Number of EncodeRange
+  EncodeRange *range;         // Array ofEncodeRange
 
-    constexpr GFXfont ( std::uint8_t *bitmap
-                      , GFXglyph *glyph
-                      , std::uint16_t first
-                      , std::uint16_t last
-                      , std::uint8_t yAdvance
-                      , std::uint16_t range_num = 0
-                      , EncodeRange *range = nullptr
-                      )
-    : bitmap   (bitmap   )
-    , glyph    (glyph    )
-    , first    (first    )
-    , last     (last     )
-    , yAdvance (yAdvance )
-    , range_num(range_num)
-    , range    (range    )
-    {}
+  constexpr GFXfont ( std::uint8_t *bitmap
+                    , GFXglyph *glyph
+                    , std::uint16_t first
+                    , std::uint16_t last
+                    , std::uint8_t yAdvance
+                    , std::uint16_t range_num = 0
+                    , EncodeRange *range = nullptr
+                    )
+  : bitmap   (bitmap   )
+  , glyph    (glyph    )
+  , first    (first    )
+  , last     (last     )
+  , yAdvance (yAdvance )
+  , range_num(range_num)
+  , range    (range    )
+  {}
 
-    GFXglyph* getGlyph(std::uint16_t uniCode) const;
+  GFXglyph* getGlyph(std::uint16_t uniCode) const;
 
-    constexpr font_type_t getType(void) const override { return font_type_t::ft_gfx; }
+  constexpr font_type_t getType(void) const override { return font_type_t::ft_gfx; }
 
-    void getDefaultMetric(lgfx::FontMetrics *metrics) const;
+  void getDefaultMetric(lgfx::FontMetrics *metrics) const;
 
-    bool updateFontMetric(lgfx::FontMetrics *metrics, std::uint16_t uniCode) const override;
-  };
+  bool updateFontMetric(lgfx::FontMetrics *metrics, std::uint16_t uniCode) const override;
+};
 
 
 //----------------------------------------------------------------------------
 
 namespace fonts {
 #ifdef __EFONT_FONT_DATA_H__
-  static constexpr lgfx::BDFfont efont = { (const std::uint8_t *)efontFontData, efontFontList, sizeof(efontFontList)>>1, 16, 8, 16, 14 };
-#endif
-
-#ifdef misakiUTF16FontData_h
-  static constexpr lgfx::BDFfont misaki = { (const std::uint8_t *)fdata, ftable, sizeof(ftable)>>1, 8, 4, 7, 6 };
+  static constexpr lgfx::BDFfont efont = { (const std::uint8_t *)efontFontData, efontFontList, sizeof(efontFontList)>>1, 16, 8, 16, 14, 16 };
 #endif
 
   extern const lgfx::GLCDfont Font0;
