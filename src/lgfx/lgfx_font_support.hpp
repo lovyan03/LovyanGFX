@@ -240,6 +240,8 @@ namespace lgfx
 
     void setCursor( std::int16_t x, std::int16_t y)               { _filled_x = 0; _cursor_x = x; _cursor_y = y; }
     void setCursor( std::int16_t x, std::int16_t y, std::uint8_t font) { _filled_x = 0; _cursor_x = x; _cursor_y = y; _font = fontdata[font]; }
+    void setTextStyle(const TextStyle& text_style) { _text_style = text_style; }
+    const TextStyle& getTextStyle(void) const { return _text_style; }
     void setTextSize(float size) { setTextSize(size, size); }
     void setTextSize(float sx, float sy) { _text_style.size_x = (sx > 0) ? sx : 1; _text_style.size_y = (sy > 0) ? sy : 1; }
     void setTextDatum(textdatum_t datum) { _text_style.datum = datum; }
