@@ -94,10 +94,14 @@ namespace lgfx
                                 void drawTriangle  ( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2);
     template<typename T> inline void fillTriangle  ( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2, const T& color)  { setColor(color); fillTriangle(x0, y0, x1, y1, x2, y2); }
                                 void fillTriangle  ( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2);
-    template<typename T> inline void drawArc       ( std::int32_t x, std::int32_t y, std::int32_t r0, std::int32_t r1, float start, float end, const T& color) { setColor(color); drawArc( x, y, r0, r1, start, end); }
-                                void drawArc       ( std::int32_t x, std::int32_t y, std::int32_t r0, std::int32_t r1, float start, float end);
-    template<typename T> inline void fillArc       ( std::int32_t x, std::int32_t y, std::int32_t r0, std::int32_t r1, float start, float end, const T& color) { setColor(color); fillArc( x, y, r0, r1, start, end); }
-                                void fillArc       ( std::int32_t x, std::int32_t y, std::int32_t r0, std::int32_t r1, float start, float end);
+    template<typename T> inline void drawBezier    ( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2, const T& color)  { setColor(color); drawBezier(x0, y0, x1, y1, x2, y2); }
+                                void drawBezier    ( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2);
+    template<typename T> inline void drawBezierHelper(std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2, const T& color)  { setColor(color); drawBezierHelper(x0, y0, x1, y1, x2, y2); }
+                                void drawBezierHelper(std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2);
+    template<typename T> inline void drawArc       ( std::int32_t x, std::int32_t y, std::int32_t r0, std::int32_t r1, float angle0, float angle1, const T& color) { setColor(color); drawArc( x, y, r0, r1, angle0, angle1); }
+                                void drawArc       ( std::int32_t x, std::int32_t y, std::int32_t r0, std::int32_t r1, float angle0, float angle1);
+    template<typename T> inline void fillArc       ( std::int32_t x, std::int32_t y, std::int32_t r0, std::int32_t r1, float angle0, float angle1, const T& color) { setColor(color); fillArc( x, y, r0, r1, angle0, angle1); }
+                                void fillArc       ( std::int32_t x, std::int32_t y, std::int32_t r0, std::int32_t r1, float angle0, float angle1);
     template<typename T> inline void drawCircleHelper(std::int32_t x, std::int32_t y, std::int32_t r, std::uint_fast8_t cornername            , const T& color)  { setColor(color); drawCircleHelper(x, y, r, cornername    ); }
                                 void drawCircleHelper(std::int32_t x, std::int32_t y, std::int32_t r, std::uint_fast8_t cornername);
     template<typename T> inline void fillCircleHelper(std::int32_t x, std::int32_t y, std::int32_t r, std::uint_fast8_t corners, std::int32_t delta, const T& color)  { setColor(color); fillCircleHelper(x, y, r, corners, delta); }

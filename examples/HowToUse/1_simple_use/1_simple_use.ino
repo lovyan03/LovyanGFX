@@ -63,8 +63,9 @@ void setup(void)
   drawLine      ( x0, y0, x1, y1        , color); // ２点間の直線
   drawTriangle  ( x0, y0, x1, y1, x2, y2, color); // ３点間の三角形の外周
   fillTriangle  ( x0, y0, x1, y1, x2, y2, color); // ３点間の三角形の塗り
-  drawArc       ( x, y, r1, r2, angle1, angle2, color);  // 円弧の外周
-  fillArc       ( x, y, r1, r2, angle1, angle2, color);  // 円弧の塗り
+  drawBezier    ( x0, y0, x1, y1, x2, y2, color); // ３点間のベジエ曲線
+  drawArc       ( x, y, r0, r1, angle0, angle1, color);  // 円弧の外周
+  fillArc       ( x, y, r0, r1, angle0, angle1, color);  // 円弧の塗り
 */
 
 
