@@ -94,13 +94,19 @@ namespace lgfx
     void* createSprite(std::int32_t w, std::int32_t h)
     {
       if (w < 1 || h < 1) return nullptr;
-      if (_img) deleteSprite();
+      if (_img != nullptr) {
+        _mem_free(_img);
+        _img = nullptr;
+      }
       _bitwidth = (w + _write_conv.x_mask) & (~(std::uint32_t)_write_conv.x_mask);
       size_t len = (h * _bitwidth * _write_conv.bits >> 3) + 1;
       _img = (std::uint8_t*)_mem_alloc(len);
-      if (!_img) return nullptr;
+      if (!_img) {
+        deleteSprite();
+        return nullptr;
+      }
       memset(_img, 0, len);
-      if (0 == _write_conv.bytes) createPalette();
+      if (_palette == nullptr && 0 == _write_conv.bytes) createPalette();
 
       _sw = _width = w;
       _clip_r = _xe = w - 1;

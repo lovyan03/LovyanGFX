@@ -345,9 +345,8 @@ namespace lgfx
 
 //----------------------------------------------------------------------------
   protected:
-//    template<class T> static PanelCommon* createPanel(const T&) { return new T; }
-//    template<class T> static PanelCommon* createPanelFromConfig(decltype(T::panel)*) { return createPanel(T::panel); }
-//    template<class T> static PanelCommon* createPanelFromConfig(...) { return nullptr; }
+
+    bool isReadable_impl(void) const override { return _panel->spi_read; }
 
     void postSetPanel(void)
     {
@@ -357,9 +356,10 @@ namespace lgfx
       fpGetWindowAddr = _len_setwindow == 32 ? PanelCommon::getWindowAddr32 : PanelCommon::getWindowAddr16;
 
       std::int32_t spi_dc = _panel->spi_dc;
+      _mask_reg_dc = (spi_dc < 0) ? 0 : (1 << (spi_dc & 31));
+
       _gpio_reg_dc_h = get_gpio_hi_reg(spi_dc);
       _gpio_reg_dc_l = get_gpio_lo_reg(spi_dc);
-      _mask_reg_dc = (spi_dc < 0) ? 0 : (1 << (spi_dc & 31));
       dc_h();
       lgfxPinMode(spi_dc, pin_mode_t::output);
 

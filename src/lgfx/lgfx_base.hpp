@@ -38,6 +38,8 @@ namespace lgfx
     template<typename T> __attribute__ ((always_inline)) inline void setColor(T c) { _color.raw = _write_conv.convert(c); }
                          __attribute__ ((always_inline)) inline void setRawColor(std::uint32_t c) { _color.raw = c; }
 
+    template<typename T> __attribute__ ((always_inline)) inline void setBaseColor(T c) { _base_rgb888 = convert_to_rgb888(c); }
+
                          inline void clear      ( void )          { _color.raw = 0;  fillRect(0, 0, _width, _height); }
     template<typename T> inline void clear      ( const T& color) { setColor(color); fillRect(0, 0, _width, _height); }
                          inline void fillScreen ( void )          {                  fillRect(0, 0, _width, _height); }
@@ -92,10 +94,14 @@ namespace lgfx
                                 void drawTriangle  ( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2);
     template<typename T> inline void fillTriangle  ( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2, const T& color)  { setColor(color); fillTriangle(x0, y0, x1, y1, x2, y2); }
                                 void fillTriangle  ( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2);
-    template<typename T> inline void drawArc       ( std::int32_t x, std::int32_t y, std::int32_t r0, std::int32_t r1, float start, float end, const T& color) { setColor(color); drawArc( x, y, r0, r1, start, end); }
-                                void drawArc       ( std::int32_t x, std::int32_t y, std::int32_t r0, std::int32_t r1, float start, float end);
-    template<typename T> inline void fillArc       ( std::int32_t x, std::int32_t y, std::int32_t r0, std::int32_t r1, float start, float end, const T& color) { setColor(color); fillArc( x, y, r0, r1, start, end); }
-                                void fillArc       ( std::int32_t x, std::int32_t y, std::int32_t r0, std::int32_t r1, float start, float end);
+    template<typename T> inline void drawBezier    ( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2, const T& color)  { setColor(color); drawBezier(x0, y0, x1, y1, x2, y2); }
+                                void drawBezier    ( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2);
+    template<typename T> inline void drawBezierHelper(std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2, const T& color)  { setColor(color); drawBezierHelper(x0, y0, x1, y1, x2, y2); }
+                                void drawBezierHelper(std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2);
+    template<typename T> inline void drawArc       ( std::int32_t x, std::int32_t y, std::int32_t r0, std::int32_t r1, float angle0, float angle1, const T& color) { setColor(color); drawArc( x, y, r0, r1, angle0, angle1); }
+                                void drawArc       ( std::int32_t x, std::int32_t y, std::int32_t r0, std::int32_t r1, float angle0, float angle1);
+    template<typename T> inline void fillArc       ( std::int32_t x, std::int32_t y, std::int32_t r0, std::int32_t r1, float angle0, float angle1, const T& color) { setColor(color); fillArc( x, y, r0, r1, angle0, angle1); }
+                                void fillArc       ( std::int32_t x, std::int32_t y, std::int32_t r0, std::int32_t r1, float angle0, float angle1);
     template<typename T> inline void drawCircleHelper(std::int32_t x, std::int32_t y, std::int32_t r, std::uint_fast8_t cornername            , const T& color)  { setColor(color); drawCircleHelper(x, y, r, cornername    ); }
                                 void drawCircleHelper(std::int32_t x, std::int32_t y, std::int32_t r, std::uint_fast8_t cornername);
     template<typename T> inline void fillCircleHelper(std::int32_t x, std::int32_t y, std::int32_t r, std::uint_fast8_t corners, std::int32_t delta, const T& color)  { setColor(color); fillCircleHelper(x, y, r, corners, delta); }
@@ -121,6 +127,7 @@ namespace lgfx
     __attribute__ ((always_inline)) inline color_conv_t* getColorConverter(void) { return &_write_conv; }
     __attribute__ ((always_inline)) inline bool hasPalette    (void) const { return _palette_count; }
     __attribute__ ((always_inline)) inline bool isSPIShared(void) const { return _spi_shared; }
+    __attribute__ ((always_inline)) inline bool isReadable(void) const { return isReadable_impl(); }
     __attribute__ ((always_inline)) inline bool getSwapBytes    (void) const { return _swapBytes; }
     __attribute__ ((always_inline)) inline void setSwapBytes(bool swap) { _swapBytes = swap; }
 
@@ -138,7 +145,7 @@ namespace lgfx
 
     template <typename T>
     void setScrollRect(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const T& color) {
-      _scolor = _write_conv.convert(color);
+      _base_rgb888 = convert_to_rgb888(color);
       setScrollRect(x, y, w, h);
     }
     void setScrollRect(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h);
@@ -445,7 +452,7 @@ namespace lgfx
     std::int32_t  _sx, _sy, _sw, _sh; // for scroll zone
 
     std::int32_t _clip_l = 0, _clip_r = -1, _clip_t = 0, _clip_b = -1; // clip rect
-    std::uint32_t _scolor;  // gap fill colour for scroll zone
+    std::uint32_t _base_rgb888 = 0;  // gap fill colour for scroll zone 
     raw_color_t _color = 0xFFFFFFU;
 
     color_conv_t _write_conv;
@@ -503,6 +510,7 @@ namespace lgfx
     virtual void pushColors_impl(std::int32_t length, pixelcopy_t* param) = 0;
     virtual void pushBlock_impl(std::int32_t len) = 0;
     virtual void setWindow_impl(std::int32_t xs, std::int32_t ys, std::int32_t xe, std::int32_t ye) = 0;
+    virtual bool isReadable_impl(void) const { return true; }
 
     static void tmpBeginTransaction(void* lgfx) {
       auto me = (LGFXBase*)lgfx;

@@ -8,6 +8,22 @@
 #endif
 
 namespace lgfx {
+  void BaseFont::getDefaultMetric(FontMetrics *metrics) const
+  {
+    metrics->width    = width;
+    metrics->x_advance = width;
+    metrics->x_offset  = 0;
+    metrics->height    = height;
+    metrics->y_advance = height;
+    metrics->y_offset  = 0;
+    metrics->baseline  = baseline;
+  }
+  void BDFfont::getDefaultMetric(FontMetrics *metrics) const
+  {
+    BaseFont::getDefaultMetric(metrics);
+    metrics->y_advance = y_advance;
+  }
+
   bool GLCDfont::updateFontMetric(FontMetrics*, std::uint16_t uniCode) const {
     return uniCode < 256;
   }

@@ -63,8 +63,9 @@ void setup(void)
   drawLine      ( x0, y0, x1, y1        , color); // ２点間の直線
   drawTriangle  ( x0, y0, x1, y1, x2, y2, color); // ３点間の三角形の外周
   fillTriangle  ( x0, y0, x1, y1, x2, y2, color); // ３点間の三角形の塗り
-  drawArc       ( x, y, r1, r2, angle1, angle2, color);  // 円弧の外周
-  fillArc       ( x, y, r1, r2, angle1, angle2, color);  // 円弧の塗り
+  drawBezier    ( x0, y0, x1, y1, x2, y2, color); // ３点間のベジエ曲線
+  drawArc       ( x, y, r0, r1, angle0, angle1, color);  // 円弧の外周
+  fillArc       ( x, y, r0, r1, angle0, angle1, color);  // 円弧の塗り
 */
 
 
@@ -122,7 +123,9 @@ void setup(void)
   lcd.drawCircle ( 40, 80, 20    );        // 青色で円の外周
   lcd.drawEllipse( 80, 40, 10, 20);        // 青色で楕円の外周
   lcd.drawArc    ( 80, 80, 20, 10, 0, 90); // 青色で円弧の外周
-  lcd.drawTriangle(80, 80, 60, 80, 80, 60);// 青色で三角の外周
+  lcd.drawTriangle(60, 80, 80, 80, 80, 60);// 青色で三角の外周
+  lcd.setColor(0x00FF00U);                 // 緑色を指定
+  lcd.drawBezier(  60, 80, 80, 80, 80, 60);// 緑色でベジエ曲線
 
 
 // SPIバスの確保と解放は描画関数を呼び出した時に自動的に行われます。

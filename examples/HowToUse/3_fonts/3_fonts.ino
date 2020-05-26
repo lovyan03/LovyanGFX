@@ -148,14 +148,22 @@ void setup(void)
   // setTextSize 関数で 文字の拡大率を指定します。
   // 第１引数で横方向の倍率、第２引数で縦方向の倍率を指定します。
   // 第２引数を省略した場合は、第１引数の倍率が縦と横の両方に反映されます。
-  lcd.setTextSize(3, 4);
-  lcd.println("Size 3 x 4");
+  lcd.setTextSize(2.7, 4);
+  lcd.println("Size 2.7 x 4");
 
-  lcd.setTextSize(2);
-  lcd.println("Size 2 x 2");
+  lcd.setTextSize(2.5);
+  lcd.println("Size 2.5 x 2.5");
 
-  lcd.setTextSize(1, 2);
-  lcd.println("Size 1 x 2");
+  lcd.setTextSize(1.5, 2);
+  lcd.println("Size 1.5 x 2");
+
+  delay(1000);
+
+  lcd.setTextColor(0xFFFFFFU, 0);
+  for (float i = 0; i < 30; i += 0.01) {
+    lcd.setTextSize(sin(i)+1.1, cos(i)+1.1);
+    lcd.drawString("size test", 10, 10);
+  }
 
   lcd.setTextSize(1);
 
@@ -163,7 +171,6 @@ void setup(void)
   // 第１引数をtrueにすると、右端到達後に左端へ移動します。
   // 第２引数をtrueにすると、下端到達後に上端へ移動します。(省略時:false)
   lcd.setTextWrap(false);
-  lcd.setTextColor(0x00FFFFU, 0);
   lcd.println("setTextWrap(false) testing... long long long long string wrap test string ");
   // false指定時は位置調整されず、描画範囲外にはみ出した部分は描画されません。
 
@@ -251,27 +258,27 @@ void drawNumberTest(const lgfx::IFont* font)
 void loop(void)
 {
 // ※ 名前が"Free"で始まるフォントは 9pt 12pt 18pt 24ptの４種類があります。
-  drawNumberTest(&Font0);
-  drawNumberTest(&Font2);
-  drawNumberTest(&Font4);
-  drawNumberTest(&Font6);
-  drawNumberTest(&Font7);
-  drawNumberTest(&Font8);
-  drawNumberTest(&TomThumb);
-  drawNumberTest(&FreeMono9pt7b);
-  drawNumberTest(&FreeMonoBold9pt7b);
-  drawNumberTest(&FreeMonoOblique9pt7b);
-  drawNumberTest(&FreeMonoBoldOblique9pt7b);
-  drawNumberTest(&FreeSans9pt7b);
-  drawNumberTest(&FreeSansBold9pt7b);
-  drawNumberTest(&FreeSansOblique9pt7b);
-  drawNumberTest(&FreeSansBoldOblique9pt7b);
-  drawNumberTest(&FreeSerif9pt7b);
-  drawNumberTest(&FreeSerifBold9pt7b);
-  drawNumberTest(&FreeSerifItalic9pt7b);
-  drawNumberTest(&FreeSerifBoldItalic9pt7b);
-  drawNumberTest(&Orbitron_Light_24);
-  drawNumberTest(&Roboto_Thin_24);
-  drawNumberTest(&Satisfy_24);
-  drawNumberTest(&Yellowtail_32);
+  drawNumberTest( &Font0                   );
+  drawNumberTest( &Font2                   );
+  drawNumberTest( &Font4                   );
+  drawNumberTest( &Font6                   );
+  drawNumberTest( &Font7                   );
+  drawNumberTest( &Font8                   );
+  drawNumberTest( &TomThumb                );
+  drawNumberTest( &FreeMono9pt7b           );
+  drawNumberTest( &FreeMonoBold9pt7b       );
+  drawNumberTest( &FreeMonoOblique9pt7b    );
+  drawNumberTest( &FreeMonoBoldOblique9pt7b);
+  drawNumberTest( &FreeSans9pt7b           );
+  drawNumberTest( &FreeSansBold9pt7b       );
+  drawNumberTest( &FreeSansOblique9pt7b    );
+  drawNumberTest( &FreeSansBoldOblique9pt7b);
+  drawNumberTest( &FreeSerif9pt7b          );
+  drawNumberTest( &FreeSerifBold9pt7b      );
+  drawNumberTest( &FreeSerifItalic9pt7b    );
+  drawNumberTest( &FreeSerifBoldItalic9pt7b);
+  drawNumberTest( &Orbitron_Light_24       );
+  drawNumberTest( &Roboto_Thin_24          );
+  drawNumberTest( &Satisfy_24              );
+  drawNumberTest( &Yellowtail_32           );
 }

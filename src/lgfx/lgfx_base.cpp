@@ -618,6 +618,89 @@ namespace lgfx
     endWrite();
   }
 
+  void LGFXBase::drawBezier( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2)
+  {
+    std::int32_t x = x0 - x1, y = y0 - y1;
+    double t = x0 - 2 * x1 + x2, r;
+
+    startWrite();
+
+    if (x * (x2 - x1) > 0) {
+      if (y * (y2 - y1) > 0)
+        if (fabs((y0 - 2 * y1 + y2) / t * x) > abs(y)) {
+          x0 = x2; x2 = x + x1; y0 = y2; y2 = y + y1;
+        }
+      t = (x0 - x1) / t;
+      r = (1 - t) * ((1 - t) * y0 + 2.0 * t * y1) + t * t * y2;
+      t = (x0 * x2 - x1 * x1) * t / (x0 - x1);
+      x = floor(t + 0.5); y = floor(r + 0.5);
+      r = (y1 - y0) * (t - x0) / (x1 - x0) + y0;
+      drawBezierHelper(x0, y0, x, floor(r + 0.5), x, y);
+      r = (y1 - y2) * (t - x2) / (x1 - x2) + y2;
+      x0 = x1 = x; y0 = y; y1 = floor(r + 0.5);
+    }
+    if ((y0 - y1) * (y2 - y1) > 0) {
+      t = y0 - 2 * y1 + y2; t = (y0 - y1) / t;
+      r = (1 - t) * ((1 - t) * x0 + 2.0 * t * x1) + t * t * x2;
+      t = (y0 * y2 - y1 * y1) * t / (y0 - y1);
+      x = floor(r + 0.5); y = floor(t + 0.5);
+      r = (x1 - x0) * (t - y0) / (y1 - y0) + x0;
+      drawBezierHelper(x0, y0, floor(r + 0.5), y, x, y);
+      r = (x1 - x2) * (t - y2) / (y1 - y2) + x2;
+      x0 = x; x1 = floor(r + 0.5); y0 = y1 = y;
+    }
+    drawBezierHelper(x0, y0, x1, y1, x2, y2);
+
+    endWrite();
+  }
+
+  void LGFXBase::drawBezierHelper( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2)
+  {
+    // Check if coordinates are sequential (replaces assert)
+    if (((x2 >= x1 && x1 >= x0) || (x2 <= x1 && x1 <= x0))
+        && ((y2 >= y1 && y1 >= y0) || (y2 <= y1 && y1 <= y0)))
+    {
+      // Coordinates are sequential
+      std::int32_t sx = x2 - x1, sy = y2 - y1;
+      std::int32_t xx = x0 - x1, yy = y0 - y1, xy;
+      float dx, dy, err, cur = xx * sy - yy * sx;
+
+      if (sx * (std::int32_t)sx + sy * (std::int32_t)sy > xx * xx + yy * yy) {
+        x2 = x0; x0 = sx + x1; y2 = y0; y0 = sy + y1; cur = -cur;
+      }
+      if (cur != 0) {
+        xx += sx; xx *= sx = x0 < x2 ? 1 : -1;
+        yy += sy; yy *= sy = y0 < y2 ? 1 : -1;
+        xy = 2 * xx * yy; xx *= xx; yy *= yy;
+        if (cur * sx * sy < 0) {
+          xx = -xx; yy = -yy; xy = -xy; cur = -cur;
+        }
+        dx = 4.0 * sy * cur * (x1 - x0) + xx - xy;
+        dy = 4.0 * sx * cur * (y0 - y1) + yy - xy;
+        xx += xx; yy += yy; err = dx + dy + xy;
+        do {
+          drawPixel(x0, y0);
+          if (x0 == x2 && y0 == y2)
+          {
+            return;
+          }
+          y1 = 2 * err < dx;
+          if (2 * err > dy) {
+            x0 += sx;
+            dx -= xy;
+            err += dy += yy;
+          }
+          if (    y1    ) {
+            y0 += sy;
+            dy -= xy;
+            err += dx += xx;
+          }
+        } while (dy < dx );
+      }
+      drawLine(x0, y0, x2, y2);
+    }
+  }
+
   void LGFXBase::drawGradientLine( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, bgr888_t colorstart, bgr888_t colorend )
   {
     if ( colorstart == colorend || (x0 == x1 && y0 == y1)) {
@@ -828,8 +911,8 @@ namespace lgfx
 //      std::uint32_t x_mask = (1 << (4 - __builtin_ffs(param->src_bits))) - 1;
 //      std::uint32_t x_mask = (1 << ((~(param->src_bits>>1)) & 3)) - 1;
       std::uint32_t x_mask = (param->src_bits == 1) ? 7
-                      : (param->src_bits == 2) ? 3
-                                               : 1;
+                           : (param->src_bits == 2) ? 3
+                                                    : 1;
       param->src_width = (w + x_mask) & (~x_mask);
     }
 
@@ -896,8 +979,8 @@ namespace lgfx
 //      std::uint32_t x_mask = (1 << (4 - __builtin_ffs(param->src_bits))) - 1;
 //      std::uint32_t x_mask = (1 << ((~(param->src_bits>>1)) & 3)) - 1;
       std::uint32_t x_mask = (param->src_bits == 1) ? 7
-                      : (param->src_bits == 2) ? 3
-                                               : 1;
+                           : (param->src_bits == 2) ? 3
+                                                    : 1;
       param->src_width = (w + x_mask) & (~x_mask);
     } else {
       param->src_width = w;
@@ -959,7 +1042,7 @@ namespace lgfx
 
   void LGFXBase::scroll(std::int_fast16_t dx, std::int_fast16_t dy)
   {
-    _color.raw = _scolor;
+    setColor(_base_rgb888);
     std::int32_t absx = abs(dx);
     std::int32_t absy = abs(dy);
     if (absx >= _sw || absy >= _sh) {
