@@ -1,7 +1,7 @@
 {
   "name": "LovyanGFX",
-  "description": "LCD Graphics driver",
-  "keywords": "LCD, TFT, GFX, LGFX, m5stack, esp32, wioterminal",
+  "description": "LCD Graphics driver for ESP32 and SAMD51",
+  "keywords": "LCD, TFT, GFX, LGFX, M5Stack, esp32, WioTerminal, ODROID-GO, TTGO T-Watch, ESP-WROVER-KIT, WioTerminal, HX8357, ILI9163, ILI9342, ILI9341, ILI9486, ILI9488, ST7735, ST7789, SSD1351",
   "authors": {
     "name": "lovyan03",
     "url": "https://github.com/lovyan03",
@@ -11,7 +11,7 @@
     "type": "git",
     "url": "https://github.com/lovyan03/LovyanGFX"
   },
-  "version": "0.1.9",
+  "version": "0.1.10",
   "framework": "arduino",
   "platforms": "espressif32, atmelsam",
   "build": {
