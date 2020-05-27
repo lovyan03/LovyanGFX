@@ -363,7 +363,7 @@ void disableSPI()
 
       enableSPI();
 
-
+#if defined (ARDUINO)
       _dma_adafruit.allocate();
       _dma_adafruit.setTrigger(sercomData[CFG::sercom_index].dmac_id_tx);
       _dma_adafruit.setAction(DMA_TRIGGER_ACTON_BEAT);
@@ -372,6 +372,7 @@ void disableSPI()
       _dma_write_desc->BTCTRL.bit.VALID  = true;
       _dma_write_desc->BTCTRL.bit.SRCINC = true;
       _dma_write_desc->BTCTRL.bit.DSTINC = false;
+#endif
 
 /*
       _alloc_dmadesc(4);
@@ -874,6 +875,7 @@ void disableSPI()
 
     void write_bytes(const std::uint8_t* data, std::int32_t length, bool use_dma = false)
     {
+#if defined (ARDUINO)
       if (use_dma && length > 31) {
         std::uint_fast8_t beatsize = _sercom->SPI.CTRLC.bit.DATA32B ? 2 : 0;
         // If the data is 4 bytes aligned, the DATA32B can be enabled.
@@ -917,8 +919,8 @@ void disableSPI()
 //*/
         _need_wait = true;
         return;
-
       }
+#endif
 
       auto *reg = &_sercom->SPI.DATA.reg;
       std::int32_t idx = length & 0x03;
