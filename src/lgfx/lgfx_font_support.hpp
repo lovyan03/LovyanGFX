@@ -370,6 +370,7 @@ namespace lgfx
       return (fpDrawChar)(this, x, y, uniCode, &style, _font);
     }
 
+#ifdef ARDUINO
     [[deprecated("use getFont()")]]
     std::uint8_t getTextFont(void) const {
       size_t ie = sizeof(fontdata) / sizeof(fontdata[0]);
@@ -377,6 +378,7 @@ namespace lgfx
         if (fontdata[i] == _font) return i;
       return 0;
     }
+#endif
 
 #ifdef __EFONT_FONT_DATA_H__
     [[deprecated("use setFont(&fonts::efont)")]]
