@@ -7,6 +7,8 @@
 #ifdef ARDUINO
 #include <sam.h>
 #else
+
+#include <config/default/system/fs/sys_fs.h>
 #include "samd51_arduino_compat.hpp"
 
 #undef PORT_PINCFG_PULLEN
@@ -84,6 +86,44 @@ namespace lgfx
     bool seek(std::uint32_t offset) override { return seek(offset, SeekSet); }
     bool seek(std::uint32_t offset, SeekMode mode) { return _fp.seek(offset, mode); }
     void close() override { _fp.close(); }
+
+#elif __SAMD51_HARMONY__
+    SYS_FS_HANDLE handle = SYS_FS_HANDLE_INVALID;
+
+    bool open(const char* path, const char* mode) 
+    { 
+      SYS_FS_FILE_OPEN_ATTRIBUTES attributes = SYS_FS_FILE_OPEN_ATTRIBUTES::SYS_FS_FILE_OPEN_READ;
+      switch(mode[0])
+      {
+        case 'r': attributes = SYS_FS_FILE_OPEN_ATTRIBUTES::SYS_FS_FILE_OPEN_READ; break;
+        case 'w': attributes = SYS_FS_FILE_OPEN_ATTRIBUTES::SYS_FS_FILE_OPEN_WRITE; break;
+      }
+      this->handle = SYS_FS_FileOpen(path, attributes);
+      return this->handle != SYS_FS_HANDLE_INVALID;
+    }
+    int read(std::uint8_t* buffer, std::uint32_t length) override 
+    {
+      return SYS_FS_FileRead(this->handle, buffer, length);
+    }
+    void skip(std::int32_t offset) override 
+    { 
+      SYS_FS_FileSeek(this->handle, offset, SYS_FS_FILE_SEEK_CONTROL::SYS_FS_SEEK_CUR);
+    }
+    bool seek(std::uint32_t offset) override 
+    {
+      return SYS_FS_FileSeek(this->handle, offset, SYS_FS_FILE_SEEK_CONTROL::SYS_FS_SEEK_SET) >= 0;
+    }
+    bool seek(std::uint32_t offset, SYS_FS_FILE_SEEK_CONTROL mode) 
+    {
+      return SYS_FS_FileSeek(this->handle, offset, mode) >= 0;
+    }
+    void close() override 
+    {
+      if( this->handle != SYS_FS_HANDLE_INVALID ) {
+        SYS_FS_FileClose(this->handle);
+        this->handle = SYS_FS_HANDLE_INVALID;
+      }
+    }
 
 #else  // dummy.
 
