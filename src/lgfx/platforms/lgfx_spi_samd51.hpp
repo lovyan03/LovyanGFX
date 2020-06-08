@@ -23,12 +23,90 @@ Contributors:
 #include "samd51_common.hpp"
 #include "../lgfx_base.hpp"
 
-#include <SERCOM.h>
-
 #if defined (ARDUINO)
+#include <SERCOM.h>
 #include <Adafruit_ZeroDMA.h>
 #include "utility/dma.h"
 static void dmaCallback(Adafruit_ZeroDMA*) {}
+#else
+#include "samd51_arduino_compat.hpp"
+
+#undef PORT_PINCFG_PMUXEN_Pos
+#undef PORT_PINCFG_PMUXEN
+#undef PORT_PINCFG_INEN_Pos
+#undef PORT_PINCFG_INEN
+#undef PORT_PINCFG_PULLEN_Pos
+#undef PORT_PINCFG_PULLEN
+#undef PORT_PINCFG_DRVSTR_Pos
+#undef PORT_PINCFG_DRVSTR
+#undef PORT_PINCFG_MASK
+
+#undef SERCOM_SPI_CTRLA_MODE_Pos
+#undef SERCOM_SPI_CTRLA_MODE_Msk
+#undef SERCOM_SPI_CTRLA_MODE
+#undef SERCOM_SPI_CTRLA_DORD_Pos
+#undef SERCOM_SPI_CTRLA_DORD
+#undef SERCOM_SPI_CTRLB_RXEN_Pos
+#undef SERCOM_SPI_CTRLB_RXEN
+#undef SERCOM_SPI_CTRLB_CHSIZE_Pos
+#undef SERCOM_SPI_CTRLB_CHSIZE_Msk
+#undef SERCOM_SPI_CTRLB_CHSIZE
+#undef SERCOM_SPI_LENGTH_LEN_Pos
+#undef SERCOM_SPI_LENGTH_LEN_Msk
+#undef SERCOM_SPI_LENGTH_LEN
+#undef SERCOM_SPI_LENGTH_LENEN_Pos
+#undef SERCOM_SPI_LENGTH_LENEN
+#undef SERCOM_SPI_CTRLA_DIPO_Pos
+#undef SERCOM_SPI_CTRLA_DIPO_Msk
+#undef SERCOM_SPI_CTRLA_DIPO
+#undef SERCOM_SPI_CTRLA_DOPO_Pos
+#undef SERCOM_SPI_CTRLA_DOPO_Msk
+#undef SERCOM_SPI_CTRLA_DOPO
+#undef SPI_CHAR_SIZE_8_BITS
+#undef MSB_FIRST
+#undef GCLK_PCHCTRL_CHEN_Pos
+#undef GCLK_PCHCTRL_CHEN
+
+#define _Ul(n) (static_cast<std::uint32_t>((n)))
+#define PORT_PINCFG_PMUXEN_Pos      0            /**< \brief (PORT_PINCFG) Peripheral Multiplexer Enable */
+#define PORT_PINCFG_PMUXEN          (_Ul(0x1) << PORT_PINCFG_PMUXEN_Pos)
+#define PORT_PINCFG_INEN_Pos        1            /**< \brief (PORT_PINCFG) Input Enable */
+#define PORT_PINCFG_INEN            (_Ul(0x1) << PORT_PINCFG_INEN_Pos)
+#define PORT_PINCFG_PULLEN_Pos      2            /**< \brief (PORT_PINCFG) Pull Enable */
+#define PORT_PINCFG_PULLEN          (_Ul(0x1) << PORT_PINCFG_PULLEN_Pos)
+#define PORT_PINCFG_DRVSTR_Pos      6            /**< \brief (PORT_PINCFG) Output Driver Strength Selection */
+#define PORT_PINCFG_DRVSTR          (_Ul(0x1) << PORT_PINCFG_DRVSTR_Pos)
+#define PORT_PINCFG_MASK            _Ul(0x47)     /**< \brief (PORT_PINCFG) MASK Register */
+
+typedef std::uint8_t SercomDataOrder;
+#define SERCOM_SPI_CTRLA_MODE_Pos   2            /**< \brief (SERCOM_SPI_CTRLA) Operating Mode */
+#define SERCOM_SPI_CTRLA_MODE_Msk   (_Ul(0x7) << SERCOM_SPI_CTRLA_MODE_Pos)
+#define SERCOM_SPI_CTRLA_MODE(value) (SERCOM_SPI_CTRLA_MODE_Msk & ((value) << SERCOM_SPI_CTRLA_MODE_Pos))
+#define SERCOM_SPI_CTRLA_DORD_Pos   30           /**< \brief (SERCOM_SPI_CTRLA) Data Order */
+#define SERCOM_SPI_CTRLA_DORD       (_Ul(0x1) << SERCOM_SPI_CTRLA_DORD_Pos)
+#define SERCOM_SPI_CTRLB_RXEN_Pos   17           /**< \brief (SERCOM_SPI_CTRLB) Receiver Enable */
+#define SERCOM_SPI_CTRLB_RXEN       (_Ul(0x1) << SERCOM_SPI_CTRLB_RXEN_Pos)
+#define SERCOM_SPI_CTRLB_CHSIZE_Pos 0            /**< \brief (SERCOM_SPI_CTRLB) Character Size */
+#define SERCOM_SPI_CTRLB_CHSIZE_Msk (_Ul(0x7) << SERCOM_SPI_CTRLB_CHSIZE_Pos)
+#define SERCOM_SPI_CTRLB_CHSIZE(value) (SERCOM_SPI_CTRLB_CHSIZE_Msk & ((value) << SERCOM_SPI_CTRLB_CHSIZE_Pos))
+#define SERCOM_SPI_LENGTH_LEN_Pos   0            /**< \brief (SERCOM_SPI_LENGTH) Data Length */
+#define SERCOM_SPI_LENGTH_LEN_Msk   (_Ul(0xFF) << SERCOM_SPI_LENGTH_LEN_Pos)
+#define SERCOM_SPI_LENGTH_LEN(value) (SERCOM_SPI_LENGTH_LEN_Msk & ((value) << SERCOM_SPI_LENGTH_LEN_Pos))
+#define SERCOM_SPI_LENGTH_LENEN_Pos 8            /**< \brief (SERCOM_SPI_LENGTH) Data Length Enable */
+#define SERCOM_SPI_LENGTH_LENEN     (_Ul(0x1) << SERCOM_SPI_LENGTH_LENEN_Pos)
+#define SERCOM_SPI_CTRLA_DIPO_Pos   20           /**< \brief (SERCOM_SPI_CTRLA) Data In Pinout */
+#define SERCOM_SPI_CTRLA_DIPO_Msk   (_Ul(0x3) << SERCOM_SPI_CTRLA_DIPO_Pos)
+#define SERCOM_SPI_CTRLA_DIPO(value) (SERCOM_SPI_CTRLA_DIPO_Msk & ((value) << SERCOM_SPI_CTRLA_DIPO_Pos))
+#define SERCOM_SPI_CTRLA_DOPO_Pos   16           /**< \brief (SERCOM_SPI_CTRLA) Data Out Pinout */
+#define SERCOM_SPI_CTRLA_DOPO_Msk   (_Ul(0x3) << SERCOM_SPI_CTRLA_DOPO_Pos)
+#define SERCOM_SPI_CTRLA_DOPO(value) (SERCOM_SPI_CTRLA_DOPO_Msk & ((value) << SERCOM_SPI_CTRLA_DOPO_Pos))
+
+#define SPI_CHAR_SIZE_8_BITS 0
+#define MSB_FIRST 0
+
+#define GCLK_PCHCTRL_CHEN_Pos       6            /**< \brief (GCLK_PCHCTRL) Channel Enable */
+#define GCLK_PCHCTRL_CHEN           (_Ul(0x1) << GCLK_PCHCTRL_CHEN_Pos)
+
 #endif
 /*
 void _IRQhandler(std::uint8_t flags) {
@@ -79,6 +157,7 @@ void DMAC_4_Handler(void) __attribute__((weak, alias("DMAC_0_Handler")));
 #endif
 //*/
 
+
 namespace lgfx
 {
 
@@ -95,7 +174,11 @@ namespace lgfx
 
 
   static constexpr struct {
+#ifdef ARDUINO
     Sercom   *sercomPtr;
+#else
+    std::uintptr_t sercomPtr;
+#endif
     std::uint8_t   id_core;
     std::uint8_t   id_slow;
     IRQn_Type irq[4];
@@ -139,7 +222,7 @@ namespace lgfx
     {
       _panel = nullptr;
 
-      _sercom = sercomData[CFG::sercom_index].sercomPtr;
+      _sercom = reinterpret_cast<Sercom*>(sercomData[CFG::sercom_index].sercomPtr);
     }
 
     void setPanel(PanelCommon* panel) { _panel = panel; postSetPanel(); }
@@ -1181,21 +1264,64 @@ void disableSPI()
 #if defined (ARDUINO)
     Adafruit_ZeroDMA _dma_adafruit;
     DmacDescriptor* _dma_write_desc;
-#endif
-
     static DmacDescriptor* _dmadesc;
     static std::uint32_t _dmadesc_len;
+#endif
     static bool _need_wait;
-
     static Sercom* _sercom;
   };
+
+#if defined (ARDUINO)
   template <class T> DmacDescriptor* LGFX_SPI<T>::_dmadesc = nullptr;
   template <class T> std::uint32_t LGFX_SPI<T>::_dmadesc_len = 0;
-  template <class T> bool LGFX_SPI<T>::_need_wait;
+#endif
 
+  template <class T> bool LGFX_SPI<T>::_need_wait;
   template <class T> Sercom* LGFX_SPI<T>::_sercom;
 
 //----------------------------------------------------------------------------
 
 }
+
+#if !defined(ARDUINO)
+#undef _Ul
+
+#undef PORT_PINCFG_PMUXEN_Pos
+#undef PORT_PINCFG_PMUXEN
+#undef PORT_PINCFG_INEN_Pos
+#undef PORT_PINCFG_INEN
+#undef PORT_PINCFG_PULLEN_Pos
+#undef PORT_PINCFG_PULLEN
+#undef PORT_PINCFG_DRVSTR_Pos
+#undef PORT_PINCFG_DRVSTR
+#undef PORT_PINCFG_MASK
+
+#undef SERCOM_SPI_CTRLA_MODE_Pos
+#undef SERCOM_SPI_CTRLA_MODE_Msk
+#undef SERCOM_SPI_CTRLA_MODE
+#undef SERCOM_SPI_CTRLA_DORD_Pos
+#undef SERCOM_SPI_CTRLA_DORD
+#undef SERCOM_SPI_CTRLB_RXEN_Pos
+#undef SERCOM_SPI_CTRLB_RXEN
+#undef SERCOM_SPI_CTRLB_CHSIZE_Pos
+#undef SERCOM_SPI_CTRLB_CHSIZE_Msk
+#undef SERCOM_SPI_CTRLB_CHSIZE
+#undef SERCOM_SPI_LENGTH_LEN_Pos
+#undef SERCOM_SPI_LENGTH_LEN_Msk
+#undef SERCOM_SPI_LENGTH_LEN
+#undef SERCOM_SPI_LENGTH_LENEN_Pos
+#undef SERCOM_SPI_LENGTH_LENEN
+#undef SERCOM_SPI_CTRLA_DIPO_Pos
+#undef SERCOM_SPI_CTRLA_DIPO_Msk
+#undef SERCOM_SPI_CTRLA_DIPO
+#undef SERCOM_SPI_CTRLA_DOPO_Pos
+#undef SERCOM_SPI_CTRLA_DOPO_Msk
+#undef SERCOM_SPI_CTRLA_DOPO
+#undef SPI_CHAR_SIZE_8_BITS
+#undef MSB_FIRST
+#undef GCLK_PCHCTRL_CHEN_Pos
+#undef GCLK_PCHCTRL_CHEN
+
+#endif
+
 #endif

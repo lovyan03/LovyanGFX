@@ -54,9 +54,7 @@ Contributors:
   #include "lgfx/platforms/lgfx_spi_esp32.hpp"
 
 #elif defined (__SAMD51__)
-
   #include "lgfx/platforms/lgfx_spi_samd51.hpp"
-
 //#elif defined (STM32F7)
 // not implemented.
 //  #include "lgfx/platforms/lgfx_spi_stm32_spi.hpp"
@@ -181,7 +179,7 @@ namespace lgfx {
     static constexpr int spi_sclk = 18;
   };
 
-#elif defined (ARDUINO_WIO_TERMINAL)
+#elif defined (ARDUINO_WIO_TERMINAL) || defined(WIO_TERMINAL)
 
   typedef Panel_WioTerminal Panel_default;
 

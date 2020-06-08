@@ -2,6 +2,18 @@
 
 #include "samd51_common.hpp"
 
+#undef PORT_PINCFG_PULLEN
+#undef PORT_PINCFG_PULLEN_Pos
+#undef PORT_PINCFG_INEN
+#undef PORT_PINCFG_INEN_Pos
+
+#define _Ul(n) (static_cast<std::uint32_t>((n)))
+#define PORT_PINCFG_INEN_Pos        1            /**< \brief (PORT_PINCFG) Input Enable */
+#define PORT_PINCFG_INEN            (_Ul(0x1) << PORT_PINCFG_INEN_Pos)
+#define PORT_PINCFG_PULLEN_Pos      2            /**< \brief (PORT_PINCFG) Pull Enable */
+#define PORT_PINCFG_PULLEN          (_Ul(0x1) << PORT_PINCFG_PULLEN_Pos)
+
+
 namespace lgfx
 {
 
