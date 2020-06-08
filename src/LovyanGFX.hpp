@@ -56,12 +56,13 @@ Contributors:
 #elif defined (__SAMD51__)
   #include "lgfx/platforms/LGFX_SPI_SAMD51.hpp"
 
-//#elif defined (STM32F7)
-// not implemented.
-//  #include "lgfx/platforms/LGFX_SPI_STM32.hpp"
-//
 #endif
 
+
+// When using the Arduino IDE, the configuration for the board selected in the Board Manager will be loaded.
+// When using ESP-IDF or Harmony, please specify a #define LGFX_M5STACK or other #define before the #include<LovyanGFX.hpp> .
+// ArduinoIDEで利用する場合、ボードマネージャで選択したボードに合うConfigが読み込まれます。
+// ESP-IDFやHarmonyで利用する場合は、#include<LovyanGFX.hpp> より前に #define LGFX_M5STACK 等の #define を記述してください。
 
 #if defined( LGFX_M5STACK ) || defined( ARDUINO_M5Stack_Core_ESP32 ) || defined( ARDUINO_M5STACK_FIRE ) // M5Stack
   #include "config/LGFX_Config_M5Stack.hpp"
