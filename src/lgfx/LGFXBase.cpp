@@ -17,7 +17,7 @@ Contributors:
  [mongonta0716](https://github.com/mongonta0716)  
  [tobozo](https://github.com/tobozo)  
 /----------------------------------------------------------------------------*/
-#include "lgfx_base.hpp"
+#include "LGFXBase.hpp"
 
 #include <algorithm>
 #include <cmath>

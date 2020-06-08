@@ -22,7 +22,7 @@ Contributors:
 
 #include <algorithm>
 
-#include "lgfx_base.hpp"
+#include "LGFXBase.hpp"
 
 namespace lgfx
 {

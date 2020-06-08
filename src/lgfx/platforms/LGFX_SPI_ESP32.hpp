@@ -57,7 +57,7 @@ Contributors:
 #endif
 
 #include "esp32_common.hpp"
-#include "../lgfx_base.hpp"
+#include "../LGFXBase.hpp"
 
 namespace lgfx
 {

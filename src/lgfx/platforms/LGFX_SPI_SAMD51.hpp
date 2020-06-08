@@ -21,7 +21,7 @@ Contributors:
 #define LGFX_SPI_SAMD51_HPP_
 
 #include "samd51_common.hpp"
-#include "../lgfx_base.hpp"
+#include "../LGFXBase.hpp"
 
 #if defined (ARDUINO)
 #include <SERCOM.h>

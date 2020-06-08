@@ -1,7 +1,7 @@
 #ifndef LGFX_PANEL_SSD1351_HPP_
 #define LGFX_PANEL_SSD1351_HPP_
 
-#include "panel_common.hpp"
+#include "PanelCommon.hpp"
 
 namespace lgfx
 {

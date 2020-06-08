@@ -1,7 +1,7 @@
 #ifndef LGFX_PANEL_ILITEK_COMMON_HPP_
 #define LGFX_PANEL_ILITEK_COMMON_HPP_
 
-#include "panel_common.hpp"
+#include "PanelCommon.hpp"
 
 namespace lgfx
 {

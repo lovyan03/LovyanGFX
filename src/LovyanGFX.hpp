@@ -35,30 +35,30 @@ Contributors:
 #include "lgfx/lgfx_img_support.hpp"    // image format extention (optional)
 #include "lgfx/lgfx_font_support.hpp"   // font extention (optional)
 
-#include "lgfx/lgfx_base.hpp"           // base class (always include)
+#include "lgfx/LGFXBase.hpp"           // base class (always include)
 
-#include "lgfx/lgfx_sprite.hpp"         // sprite class (optional)
+#include "lgfx/LGFX_Sprite.hpp"         // sprite class (optional)
 
-#include "lgfx/panel/panel_HX8357.hpp"
-#include "lgfx/panel/panel_ILI9163.hpp"
-#include "lgfx/panel/panel_ILI9341.hpp"   // and ILI9342 / M5Stack / ODROID-GO / ESP-WROVER-KIT4.1
-#include "lgfx/panel/panel_ILI9486.hpp"
-#include "lgfx/panel/panel_ILI9488.hpp"
-#include "lgfx/panel/panel_SSD1351.hpp"
-#include "lgfx/panel/panel_ST7789.hpp"    // LilyGO TTGO T-Watch
-#include "lgfx/panel/panel_ST7735.hpp"    // M5StickC
+#include "lgfx/panel/Panel_HX8357.hpp"
+#include "lgfx/panel/Panel_ILI9163.hpp"
+#include "lgfx/panel/Panel_ILI9341.hpp"   // and ILI9342 / M5Stack / ODROID-GO / ESP-WROVER-KIT4.1
+#include "lgfx/panel/Panel_ILI9486.hpp"
+#include "lgfx/panel/Panel_ILI9488.hpp"
+#include "lgfx/panel/Panel_SSD1351.hpp"
+#include "lgfx/panel/Panel_ST7789.hpp"    // LilyGO TTGO T-Watch
+#include "lgfx/panel/Panel_ST7735.hpp"    // M5StickC
 
 
 #if defined (ESP32) || (CONFIG_IDF_TARGET_ESP32)
 
-  #include "lgfx/platforms/lgfx_spi_esp32.hpp"
+  #include "lgfx/platforms/LGFX_SPI_ESP32.hpp"
 
 #elif defined (__SAMD51__)
-  #include "lgfx/platforms/lgfx_spi_samd51.hpp"
+  #include "lgfx/platforms/LGFX_SPI_SAMD51.hpp"
 
 //#elif defined (STM32F7)
 // not implemented.
-//  #include "lgfx/platforms/lgfx_spi_stm32_spi.hpp"
+//  #include "lgfx/platforms/LGFX_SPI_STM32.hpp"
 //
 #endif
 
