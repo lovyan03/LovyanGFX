@@ -92,11 +92,11 @@ Contributors:
 
 #else
 
-  // If none of the above apply, Put a copy of "config/LGFX_Config" in this folder,
+  // If none of the above apply, Put a copy of "config/LGFX_Config_Custom" in this folder,
   // and modify the content according to the environment.
-  // 上記のいずれにも該当しない場合、"config/LGFX_Config" のコピーをこのフォルダに配置し、
+  // 上記のいずれにも該当しない場合、"config/LGFX_Config_Custom" のコピーをこのフォルダに配置し、
   // 動作環境に応じて内容を修正してください。
-  #include "LGFX_Config.hpp"
+  #include "LGFX_Config_Custom.hpp"
 
 #endif
 
