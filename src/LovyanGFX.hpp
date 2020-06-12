@@ -26,6 +26,9 @@ Contributors:
 #ifdef max
 #undef max
 #endif
+#ifdef setFont
+#undef setFont
+#endif
 
 #include "lgfx/lgfx_common.hpp"         // common include (always include)
 
@@ -93,11 +96,11 @@ Contributors:
 
 #else
 
-  // If none of the above apply, Put a copy of "config/LGFX_Config_Custom" in this folder,
+  // If none of the above apply, Put a copy of "config/LGFX_Config_Custom" in libraries folder,
   // and modify the content according to the environment.
-  // 上記のいずれにも該当しない場合、"config/LGFX_Config_Custom" のコピーをこのフォルダに配置し、
+  // 上記のいずれにも該当しない場合、"config/LGFX_Config_Custom" のコピーをライブラリフォルダに配置し、
   // 動作環境に応じて内容を修正してください。
-  #include "LGFX_Config_Custom.hpp"
+  #include "../LGFX_Config_Custom.hpp"
 
 #endif
 

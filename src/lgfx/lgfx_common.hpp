@@ -24,18 +24,47 @@ Contributors:
 #include <cstring>
 #include <cstdint>
 
-enum jpeg_div_t {
-  JPEG_DIV_NONE,
-  JPEG_DIV_2,
-  JPEG_DIV_4,
-  JPEG_DIV_8,
-  JPEG_DIV_MAX
-};
-
 namespace lgfx
 {
+  enum jpeg_div_t
+  {
+    JPEG_DIV_NONE,
+    JPEG_DIV_2,
+    JPEG_DIV_4,
+    JPEG_DIV_8,
+    JPEG_DIV_MAX
+  };
+
   namespace colors  // Colour enumeration
   {
+    #ifdef TFT_BLACK
+    #undef TFT_BLACK
+    #undef TFT_NAVY
+    #undef TFT_DARKGREEN
+    #undef TFT_DARKCYAN
+    #undef TFT_MAROON
+    #undef TFT_PURPLE
+    #undef TFT_OLIVE
+    #undef TFT_LIGHTGREY
+    #undef TFT_DARKGREY
+    #undef TFT_BLUE
+    #undef TFT_GREEN
+    #undef TFT_CYAN
+    #undef TFT_RED
+    #undef TFT_MAGENTA
+    #undef TFT_YELLOW
+    #undef TFT_WHITE
+    #undef TFT_ORANGE
+    #undef TFT_GREENYELLOW
+    #undef TFT_PINK
+    #undef TFT_BROWN
+    #undef TFT_GOLD
+    #undef TFT_SILVER
+    #undef TFT_SKYBLUE
+    #undef TFT_VIOLET
+    #undef TFT_TRANSPARENT
+    #endif
+
     static constexpr int TFT_BLACK       = 0x0000;      /*   0,   0,   0 */
     static constexpr int TFT_NAVY        = 0x000F;      /*   0,   0, 128 */
     static constexpr int TFT_DARKGREEN   = 0x03E0;      /*   0, 128,   0 */
@@ -1095,6 +1124,7 @@ namespace lgfx
 //----------------------------------------------------------------------------
 }
 
+using lgfx::jpeg_div_t;
 using namespace lgfx::colors;
 using namespace lgfx::textdatum;
 using namespace lgfx::attribute;
