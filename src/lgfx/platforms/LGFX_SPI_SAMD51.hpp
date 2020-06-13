@@ -229,8 +229,6 @@ namespace lgfx
 
     __attribute__ ((always_inline)) inline PanelCommon* getPanel(void) const { return _panel; }
 
-    __attribute__ ((always_inline)) inline std::int_fast8_t getRotation(void) const { return _panel->rotation; }
-
     __attribute__ ((always_inline)) inline bool getInvert(void) const { return _panel->invert; }
 
     __attribute__ ((always_inline)) inline void dmaWait(void) const { wait_spi(); }
@@ -559,6 +557,7 @@ void disableSPI()
   protected:
 
     bool isReadable_impl(void) const override { return _panel->spi_read; }
+    std::int_fast8_t getRotation_impl(void) const override { return _panel->rotation; }
 
     void postSetPanel(void)
     {

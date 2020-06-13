@@ -128,6 +128,7 @@ namespace lgfx
     __attribute__ ((always_inline)) inline color_conv_t* getColorConverter(void) { return &_write_conv; }
     __attribute__ ((always_inline)) inline bgr888_t* getPalette(void) const { return _palette; }
     __attribute__ ((always_inline)) inline std::uint32_t getPaletteCount(void) const { return _palette_count; }
+    __attribute__ ((always_inline)) inline std::int_fast8_t getRotation(void) const { return getRotation_impl(); }
     __attribute__ ((always_inline)) inline bool hasPalette    (void) const { return _palette_count; }
     __attribute__ ((always_inline)) inline bool isSPIShared(void) const { return _spi_shared; }
     __attribute__ ((always_inline)) inline bool isReadable(void) const { return isReadable_impl(); }
@@ -513,7 +514,8 @@ namespace lgfx
     virtual void pushColors_impl(std::int32_t length, pixelcopy_t* param) = 0;
     virtual void pushBlock_impl(std::int32_t len) = 0;
     virtual void setWindow_impl(std::int32_t xs, std::int32_t ys, std::int32_t xe, std::int32_t ye) = 0;
-    virtual bool isReadable_impl(void) const { return true; }
+    virtual bool isReadable_impl(void) const = 0;
+    virtual std::int_fast8_t getRotation_impl(void) const = 0;
 
     static void tmpBeginTransaction(void* lgfx) {
       auto me = (LGFXBase*)lgfx;

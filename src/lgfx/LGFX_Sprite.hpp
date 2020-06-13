@@ -842,6 +842,8 @@ return;
       heap_free(buf);
     }
 
+    bool isReadable_impl(void) const { return true; }
+    std::int_fast8_t getRotation_impl(void) const { return 0; }
   };
 
 }
