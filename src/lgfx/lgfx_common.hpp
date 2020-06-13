@@ -26,14 +26,18 @@ Contributors:
 
 namespace lgfx
 {
-  enum jpeg_div_t
+
+  namespace jpeg_div
   {
-    JPEG_DIV_NONE,
-    JPEG_DIV_2,
-    JPEG_DIV_4,
-    JPEG_DIV_8,
-    JPEG_DIV_MAX
-  };
+    enum jpeg_div_t
+    {
+      JPEG_DIV_NONE,
+      JPEG_DIV_2,
+      JPEG_DIV_4,
+      JPEG_DIV_8,
+      JPEG_DIV_MAX
+    };
+  }
 
   namespace colors  // Colour enumeration
   {
@@ -1124,7 +1128,7 @@ namespace lgfx
 //----------------------------------------------------------------------------
 }
 
-using lgfx::jpeg_div_t;
+using namespace lgfx::jpeg_div;
 using namespace lgfx::colors;
 using namespace lgfx::textdatum;
 using namespace lgfx::attribute;

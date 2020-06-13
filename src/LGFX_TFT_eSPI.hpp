@@ -7,7 +7,7 @@
 #ifndef LGFX_TFT_ESPI_HPP_
 #define LGFX_TFT_ESPI_HPP_
 
-#include <LovyanGFX.hpp>
+#include "LovyanGFX.hpp"
 
 typedef LGFX TFT_eSPI;
 
