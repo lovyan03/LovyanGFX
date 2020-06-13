@@ -7,8 +7,10 @@
 // SPI設定用の構造体を用意します。
 // 構造体の名称に決まりはありませんが、
 // 構造体の各メンバ変数の名前と型は例の通りにしてください。
-struct LGFX_Config {
 
+// for ESP32
+struct LGFX_Config
+{
   // 使用するSPIを VSPI_HOST または HSPI_HOST で設定します。
   static constexpr spi_host_device_t spi_host = VSPI_HOST;
 
@@ -30,14 +32,53 @@ struct LGFX_Config {
   // SPI通信のデータ長を指定します。
   // RaspberryPi用のLCD等を使用する場合に16を指定します。
   // 省略時は 8 です。大抵のパネルは8ですので、基本的には省略してください。
-//static constexpr int spi_dlen = 16;
+  static constexpr int spi_dlen = 8;
 };
+
+/* 
+// for SAMD51
+struct LGFX_Config
+{
+// 使用するSPIのSERCOM番号を設定します。
+  static constexpr int sercom_index = 7;
+
+// SERCOMのクロックソースを設定します。
+// -1を指定した場合、クロックソースを設定せずに動作しますので別途設定を行ってください。
+  static constexpr int sercom_clksrc = 0;   // -1=notchange / 0=select GCLK0
+
+// 上記で設定したクロックソースの動作周波数を設定します。
+// Harmony等で行った設定値をそのまま設定してください。
+  static constexpr int sercom_clkfreq = 120000000;
+
+// SPIのSCLKのピン番号を設定します。 PORTA=0x000 / PORTB=0x100 / PORTC=0x200 / PORTD=0x300…
+  static constexpr int spi_sclk = 0x0100 | 20; // PORTB 20 (PORTB=0x0100)
+
+// SPIのMOSIのピン番号を設定します。
+  static constexpr int spi_mosi = 0x0100 | 19; // PORTB 19 (PORTB=0x0100)
+
+// SPIのMISOのピン番号を設定します。
+  static constexpr int spi_miso = 0x0100 | 18; // PORTB 18 (PORTB=0x0100)
+
+// SPIで使用するTX Padを設定します。
+  static constexpr SercomSpiTXPad pad_mosi = SPI_PAD_3_SCK_1;  // PAD_SPI3_TX;
+
+// SPIで使用するRX Padを設定します。
+  static constexpr SercomRXPad    pad_miso = SERCOM_RX_PAD_2;  // PAD_SPI3_RX;
+
+  // SPI通信のデータ長を指定します。
+  // RaspberryPi用のLCD等を使用する場合に16を指定します。
+  // 省略時は 8 です。大抵のパネルは8ですので、基本的には省略してください。
+  static constexpr int spi_dlen = 8;
+};
+//*/
+
 
 // 用意した設定用の構造体を、LGFX_SPIクラスにテンプレート引数として設定し、インスタンスを作成します。
 static lgfx::LGFX_SPI<LGFX_Config> lcd;
 
 
 // Panelクラスのインスタンスを作成します。使用するパネルにあったクラスを選択してください。
+// ★LCD一体型製品の対応機種の場合はこちらから選択できます。
 //static lgfx::Panel_DDUINO32_XS panel;
 //static lgfx::Panel_LoLinD32 panel;
 //static lgfx::Panel_M5Stack panel;
@@ -45,7 +86,9 @@ static lgfx::LGFX_SPI<LGFX_Config> lcd;
 //static lgfx::Panel_ODROID_GO panel;
 //static lgfx::Panel_TTGO_TS panel;
 //static lgfx::Panel_TTGO_TWatch panel;
+//static lgfx::Panel_WioTerminal panel;
 
+// ★対応機種以外の場合はこちらから選択できます。
 //static lgfx::Panel_HX8357B panel;
 //static lgfx::Panel_HX8357D panel;
 //static lgfx::Panel_ILI9163 panel;
@@ -128,13 +171,13 @@ void setup(void)
   // 省略時はfalse。赤と青が入れ替わっている場合は設定を変更してください。
   panel.rgb_order = false;
 
-  // パネルのメモリが持っているピクセル数（幅と高さ）を設定します。
+  // LCDコントローラのメモリ上のピクセル数（幅と高さ）を設定します。
   // 設定が合っていない場合、setRotationを使用した際の座標がずれます。
   // （例：ST7735は 132x162 / 128x160 / 132x132 の３通りが存在します）
   panel.memory_width  = 320;
   panel.memory_height = 240;
 
-  // パネルの実際のピクセル数（幅と高さ）を設定します。
+  // パネルが実際に表示可能なピクセル数（幅と高さ）を設定します。
   // 省略時はパネルクラスのデフォルト値が使用されます。
   panel.panel_width  = 320;
   panel.panel_height = 240;

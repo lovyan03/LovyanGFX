@@ -38,66 +38,67 @@ namespace lgfx {
     metrics->x_advance = metrics->width = (uniCode < 0x0100) ? halfwidth : width;
     return true;
   }
-}
+
 
 //----------------------------------------------------------------------------
 
-bool GFXfont::updateFontMetric(lgfx::FontMetrics *metrics, std::uint16_t uniCode) const {
-  auto glyph = getGlyph(uniCode);
-  if (!glyph) return false;
-  metrics->x_offset  = glyph->xOffset;
-  metrics->width     = glyph->width;
-  metrics->x_advance = glyph->xAdvance;
-  return true;
-}
+  bool GFXfont::updateFontMetric(lgfx::FontMetrics *metrics, std::uint16_t uniCode) const {
+    auto glyph = getGlyph(uniCode);
+    if (!glyph) return false;
+    metrics->x_offset  = glyph->xOffset;
+    metrics->width     = glyph->width;
+    metrics->x_advance = glyph->xAdvance;
+    return true;
+  }
 
-GFXglyph* GFXfont::getGlyph(std::uint16_t uniCode) const {
-  if (uniCode > last 
-  ||  uniCode < first) return nullptr;
-  std::uint16_t custom_range_num = range_num;
-  if (custom_range_num == 0) {
-    uniCode -= first;
+  GFXglyph* GFXfont::getGlyph(std::uint16_t uniCode) const {
+    if (uniCode > last 
+    ||  uniCode < first) return nullptr;
+    std::uint16_t custom_range_num = range_num;
+    if (custom_range_num == 0) {
+      uniCode -= first;
+      return &glyph[uniCode];
+    }
+    auto range_pst = range;
+    size_t i = 0;
+    while ((uniCode > range_pst[i].end) 
+        || (uniCode < range_pst[i].start)) {
+      if (++i == custom_range_num) return nullptr;
+    }
+    uniCode -= range_pst[i].start - range_pst[i].base;
     return &glyph[uniCode];
   }
-  auto range_pst = range;
-  size_t i = 0;
-  while ((uniCode > range_pst[i].end) 
-      || (uniCode < range_pst[i].start)) {
-    if (++i == custom_range_num) return nullptr;
+
+  void GFXfont::getDefaultMetric(lgfx::FontMetrics *metrics) const {
+    std::int_fast8_t glyph_ab = 0;   // glyph delta Y (height) above baseline
+    std::int_fast8_t glyph_bb = 0;   // glyph delta Y (height) below baseline
+    size_t numChars = last - first;
+
+    size_t custom_range_num = range_num;
+    if (custom_range_num != 0) {
+      EncodeRange *range_pst = range;
+      size_t i = 0;
+      numChars = custom_range_num;
+      do {
+        numChars += range_pst[i].end - range_pst[i].start;
+      } while (++i < custom_range_num);
+    }
+
+    // Find the biggest above and below baseline offsets
+    for (size_t c = 0; c < numChars; c++)
+    {
+      GFXglyph *glyph1 = &glyph[c];
+      std::int_fast8_t ab = -glyph1->yOffset;
+      if (ab > glyph_ab) glyph_ab = ab;
+      std::int_fast8_t bb = glyph1->height - ab;
+      if (bb > glyph_bb) glyph_bb = bb;
+    }
+
+    metrics->baseline = glyph_ab;
+    metrics->y_offset = - glyph_ab;
+    metrics->height   = glyph_bb + glyph_ab;
+    metrics->y_advance = yAdvance;
   }
-  uniCode -= range_pst[i].start - range_pst[i].base;
-  return &glyph[uniCode];
-}
-
-void GFXfont::getDefaultMetric(lgfx::FontMetrics *metrics) const {
-  std::int_fast8_t glyph_ab = 0;   // glyph delta Y (height) above baseline
-  std::int_fast8_t glyph_bb = 0;   // glyph delta Y (height) below baseline
-  size_t numChars = last - first;
-
-  size_t custom_range_num = range_num;
-  if (custom_range_num != 0) {
-    EncodeRange *range_pst = range;
-    size_t i = 0;
-    numChars = custom_range_num;
-    do {
-      numChars += range_pst[i].end - range_pst[i].start;
-    } while (++i < custom_range_num);
-  }
-
-  // Find the biggest above and below baseline offsets
-  for (size_t c = 0; c < numChars; c++)
-  {
-    GFXglyph *glyph1 = &glyph[c];
-    std::int_fast8_t ab = -glyph1->yOffset;
-    if (ab > glyph_ab) glyph_ab = ab;
-    std::int_fast8_t bb = glyph1->height - ab;
-    if (bb > glyph_bb) glyph_bb = bb;
-  }
-
-  metrics->baseline = glyph_ab;
-  metrics->y_offset = - glyph_ab;
-  metrics->height   = glyph_bb + glyph_ab;
-  metrics->y_advance = yAdvance;
 }
 
 //----------------------------------------------------------------------------

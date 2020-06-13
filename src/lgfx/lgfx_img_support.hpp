@@ -72,7 +72,7 @@ namespace lgfx
 
  #endif
 
-#elif defined (CONFIG_IDF_TARGET_ESP32)  // ESP-IDF
+#elif defined (CONFIG_IDF_TARGET_ESP32)  || defined(__SAMD51_HARMONY__) // ESP-IDF or Harmony
 
     inline void drawBmpFile(const char *path, std::int32_t x, std::int32_t y) {
       FileWrapper file;

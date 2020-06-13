@@ -240,6 +240,8 @@ namespace lgfx
 
     void setCursor( std::int16_t x, std::int16_t y)               { _filled_x = 0; _cursor_x = x; _cursor_y = y; }
     void setCursor( std::int16_t x, std::int16_t y, std::uint8_t font) { _filled_x = 0; _cursor_x = x; _cursor_y = y; _font = fontdata[font]; }
+    void setTextStyle(const TextStyle& text_style) { _text_style = text_style; }
+    const TextStyle& getTextStyle(void) const { return _text_style; }
     void setTextSize(float size) { setTextSize(size, size); }
     void setTextSize(float sx, float sy) { _text_style.size_x = (sx > 0) ? sx : 1; _text_style.size_y = (sy > 0) ? sy : 1; }
     void setTextDatum(textdatum_t datum) { _text_style.datum = datum; }
@@ -280,8 +282,8 @@ namespace lgfx
         if (_text_style.utf8) {
           do {
             uniCode = decodeUTF8(*string);
-          } while (uniCode < 32 && *(++string));
-          if (uniCode < 32) break;
+          } while (uniCode < 0x20 && *(++string));
+          if (uniCode < 0x20) break;
         }
 
         if (!_font->updateFontMetric(&_font_metrics, uniCode)) continue;
@@ -368,6 +370,7 @@ namespace lgfx
       return (fpDrawChar)(this, x, y, uniCode, &style, _font);
     }
 
+#ifdef ARDUINO
     [[deprecated("use getFont()")]]
     std::uint8_t getTextFont(void) const {
       size_t ie = sizeof(fontdata) / sizeof(fontdata[0]);
@@ -375,6 +378,7 @@ namespace lgfx
         if (fontdata[i] == _font) return i;
       return 0;
     }
+#endif
 
 #ifdef __EFONT_FONT_DATA_H__
     [[deprecated("use setFont(&fonts::efont)")]]
@@ -626,12 +630,10 @@ namespace lgfx
         std::uint16_t uniCode = utf8;
         if (_text_style.utf8) {
           uniCode = decodeUTF8(utf8);
-          if (uniCode < 32) return 1;
+          if (uniCode < 0x20) return 1;
         }
         //if (!(fpUpdateFontSize)(this, uniCode)) return 1;
         if (!_font->updateFontMetric(&_font_metrics, uniCode)) return 1;
-
-        if (0 == _font_metrics.width) return 1;
 
         std::int_fast16_t xo = _font_metrics.x_offset  * _text_style.size_x;
         std::int_fast16_t w  = std::max(xo + _font_metrics.width * _text_style.size_x, _font_metrics.x_advance * _text_style.size_x);
@@ -865,8 +867,8 @@ namespace lgfx
           if (_text_style.utf8) {
             do {
               uniCode = decodeUTF8(*tmp); 
-            } while (uniCode < 32 && *++tmp);
-            if (uniCode < 32) break;
+            } while (uniCode < 0x20 && *++tmp);
+            if (uniCode < 0x20) break;
           }
           if (_font->updateFontMetric(&_font_metrics, uniCode)) {
             if (_font_metrics.x_offset < 0) sumX = - _font_metrics.x_offset * _text_style.size_x;
@@ -914,8 +916,8 @@ namespace lgfx
         if (_text_style.utf8) {
           do {
             uniCode = decodeUTF8(*string);
-          } while (uniCode < 32 && *++string);
-          if (uniCode < 32) break;
+          } while (uniCode < 0x20 && *++string);
+          if (uniCode < 0x20) break;
         }
         sumX += (fpDrawChar)(this, x + sumX, y, uniCode, &_text_style, _font);
       } while (*(++string));
@@ -1016,7 +1018,7 @@ namespace lgfx
     { // BMP font
       auto font = (const BMPfont*)ifont;
 
-      if ((uniCode -= 32) >= 96) return 0;
+      if ((uniCode -= 0x20) >= 96) return 0;
       const std::int_fast8_t fontWidth = font->widthtbl[uniCode];
       const std::int_fast8_t fontHeight = font->height;
 
@@ -1134,7 +1136,7 @@ namespace lgfx
     static size_t drawCharRLE(LGFX_Font_Support* me, std::int32_t x, std::int32_t y, std::uint16_t code, const TextStyle* style, const IFont* ifont)
     { // RLE font
       auto font = (RLEfont*)ifont;
-      if ((code -= 32) >= 96) return 0;
+      if ((code -= 0x20) >= 96) return 0;
 
       const int fontWidth = font->widthtbl[code];
       const int fontHeight = font->height;

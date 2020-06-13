@@ -39,6 +39,7 @@ namespace lgfx
                          __attribute__ ((always_inline)) inline void setRawColor(std::uint32_t c) { _color.raw = c; }
 
     template<typename T> __attribute__ ((always_inline)) inline void setBaseColor(T c) { _base_rgb888 = convert_to_rgb888(c); }
+    std::uint32_t getBaseColor(void) const { return _base_rgb888; }
 
                          inline void clear      ( void )          { _color.raw = 0;  fillRect(0, 0, _width, _height); }
     template<typename T> inline void clear      ( const T& color) { setColor(color); fillRect(0, 0, _width, _height); }
@@ -125,6 +126,9 @@ namespace lgfx
     __attribute__ ((always_inline)) inline std::int32_t height       (void) const { return _height; }
     __attribute__ ((always_inline)) inline color_depth_t getColorDepth(void) const { return _write_conv.depth; }
     __attribute__ ((always_inline)) inline color_conv_t* getColorConverter(void) { return &_write_conv; }
+    __attribute__ ((always_inline)) inline bgr888_t* getPalette(void) const { return _palette; }
+    __attribute__ ((always_inline)) inline std::uint32_t getPaletteCount(void) const { return _palette_count; }
+    __attribute__ ((always_inline)) inline std::int_fast8_t getRotation(void) const { return getRotation_impl(); }
     __attribute__ ((always_inline)) inline bool hasPalette    (void) const { return _palette_count; }
     __attribute__ ((always_inline)) inline bool isSPIShared(void) const { return _spi_shared; }
     __attribute__ ((always_inline)) inline bool isReadable(void) const { return isReadable_impl(); }
@@ -510,7 +514,8 @@ namespace lgfx
     virtual void pushColors_impl(std::int32_t length, pixelcopy_t* param) = 0;
     virtual void pushBlock_impl(std::int32_t len) = 0;
     virtual void setWindow_impl(std::int32_t xs, std::int32_t ys, std::int32_t xe, std::int32_t ye) = 0;
-    virtual bool isReadable_impl(void) const { return true; }
+    virtual bool isReadable_impl(void) const = 0;
+    virtual std::int_fast8_t getRotation_impl(void) const = 0;
 
     static void tmpBeginTransaction(void* lgfx) {
       auto me = (LGFXBase*)lgfx;

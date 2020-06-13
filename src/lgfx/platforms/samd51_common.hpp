@@ -4,8 +4,24 @@
 #include "../lgfx_common.hpp"
 
 #include <malloc.h>
+#ifdef ARDUINO
 #include <sam.h>
+#else
 
+#include <config/default/system/fs/sys_fs.h>
+#include "samd51_arduino_compat.hpp"
+
+#undef PORT_PINCFG_PULLEN
+#undef PORT_PINCFG_PULLEN_Pos
+#undef PORT_PINCFG_INEN
+#undef PORT_PINCFG_INEN_Pos
+
+#define _Ul(n) (static_cast<std::uint32_t>((n)))
+#define PORT_PINCFG_INEN_Pos        1            /**< \brief (PORT_PINCFG) Input Enable */
+#define PORT_PINCFG_INEN            (_Ul(0x1) << PORT_PINCFG_INEN_Pos)
+#define PORT_PINCFG_PULLEN_Pos      2            /**< \brief (PORT_PINCFG) Pull Enable */
+#define PORT_PINCFG_PULLEN          (_Ul(0x1) << PORT_PINCFG_PULLEN_Pos)
+#endif
 namespace lgfx
 {
   static inline void* heap_alloc(      size_t length) { return malloc(length); }
@@ -71,6 +87,44 @@ namespace lgfx
     bool seek(std::uint32_t offset, SeekMode mode) { return _fp.seek(offset, mode); }
     void close() override { _fp.close(); }
 
+#elif __SAMD51_HARMONY__
+    SYS_FS_HANDLE handle = SYS_FS_HANDLE_INVALID;
+
+    bool open(const char* path, const char* mode) 
+    { 
+      SYS_FS_FILE_OPEN_ATTRIBUTES attributes = SYS_FS_FILE_OPEN_ATTRIBUTES::SYS_FS_FILE_OPEN_READ;
+      switch(mode[0])
+      {
+        case 'r': attributes = SYS_FS_FILE_OPEN_ATTRIBUTES::SYS_FS_FILE_OPEN_READ; break;
+        case 'w': attributes = SYS_FS_FILE_OPEN_ATTRIBUTES::SYS_FS_FILE_OPEN_WRITE; break;
+      }
+      this->handle = SYS_FS_FileOpen(path, attributes);
+      return this->handle != SYS_FS_HANDLE_INVALID;
+    }
+    int read(std::uint8_t* buffer, std::uint32_t length) override 
+    {
+      return SYS_FS_FileRead(this->handle, buffer, length);
+    }
+    void skip(std::int32_t offset) override 
+    { 
+      SYS_FS_FileSeek(this->handle, offset, SYS_FS_FILE_SEEK_CONTROL::SYS_FS_SEEK_CUR);
+    }
+    bool seek(std::uint32_t offset) override 
+    {
+      return SYS_FS_FileSeek(this->handle, offset, SYS_FS_FILE_SEEK_CONTROL::SYS_FS_SEEK_SET) >= 0;
+    }
+    bool seek(std::uint32_t offset, SYS_FS_FILE_SEEK_CONTROL mode) 
+    {
+      return SYS_FS_FileSeek(this->handle, offset, mode) >= 0;
+    }
+    void close() override 
+    {
+      if( this->handle != SYS_FS_HANDLE_INVALID ) {
+        SYS_FS_FileClose(this->handle);
+        this->handle = SYS_FS_HANDLE_INVALID;
+      }
+    }
+
 #else  // dummy.
 
     bool open(const char*, const char*) { return false; }
@@ -112,5 +166,15 @@ namespace lgfx
 
   };
 };
+
+#ifndef ARDUINO
+
+#include <FreeRTOS.h>
+#include <task.h>
+static void delay(std::size_t milliseconds) 
+{
+  vTaskDelay(pdMS_TO_TICKS(milliseconds));
+}
+#endif
 
 #endif
