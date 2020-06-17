@@ -26,8 +26,8 @@ static std::uint32_t ball_count = 0;
 static std::uint32_t sec, psec;
 static std::uint32_t fps = 0, frame_count = 0;
 
-static std::uint32_t _width = 320;
-static std::uint32_t _height = 240;
+static std::uint32_t _width;
+static std::uint32_t _height;
 
 volatile bool _is_running;
 volatile std::uint32_t _draw_count;
@@ -66,30 +66,35 @@ static void drawfunc(void)
   sprite->setCursor(0,0);
   sprite->printf("obj:%d fps:%d", _ball_count, _fps);
 
-  auto s = (std::uint8_t*)sprite->getBuffer();
-  auto p = (std::uint8_t*)_sprites[!flip].getBuffer();
-  for (std::int32_t y = 0; y < height; ++y)
+  auto s32 = (std::uint32_t*)sprite->getBuffer();
+  auto p32 = (std::uint32_t*)_sprites[!flip].getBuffer();
+  auto w = (width+3) >> 2;
+  std::int32_t y = 0;
+  do
   {
+    auto s = (std::uint8_t*)s32;
+    auto p = (std::uint8_t*)p32;
     std::int32_t x = 0;
     do
     {
-      do { if (s[x] != p[x]) break; } while (++x < width);
-      if (x == width) break;
+      while (s32[x] == p32[x] && ++x < w);
+      if (x == w) break;
 
-      std::int32_t hitcount = 0;
-      std::int32_t xx = x;
-      while (++xx < width)
-      {
-        if (s[xx] != p[xx]) { hitcount = 0; continue; }
-        if (hitcount > 6) break; 
-        ++hitcount;
-      }
-      lcd.pushImage(x, y, xx - x - hitcount, 1, &s[x]);
-      x = xx+1;
-    } while (x < width);
-    s += width;
-    p += width;
-  }
+      std::int32_t xs = x<<2;
+
+      while (++x < w && s32[x] != p32[x]);
+
+      std::int32_t xe = (x << 2) - 1;
+      if (xe >= width) xe = width - 1;
+
+      while (s[xs] == p[xs] && ++xs != xe);
+      while (s[xe] == p[xe] && xs != --xe);
+
+      lcd.pushImage(xs, y, xe - xs + 1, 1, &s[xs]);
+    } while (x < w);
+    s32 += w;
+    p32 += w;
+  } while (++y < height);
   ++_draw_count;
 }
 
