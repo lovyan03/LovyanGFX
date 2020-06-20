@@ -15,7 +15,7 @@ struct ball_info_t {
 };
 
 static constexpr std::uint32_t SHIFTSIZE = 8;
-static constexpr std::uint32_t BALL_MAX = 200;
+static constexpr std::uint32_t BALL_MAX = 256;
 
 static LGFX lcd;
 static LGFX_Sprite _sprites[2];
@@ -47,7 +47,7 @@ static void drawfunc(void)
   balls = &_balls[flip][0];
 
   sprite = &(_sprites[flip]);
-  sprite->fillSprite(TFT_BLACK);
+  sprite->clear();
 
   for (int32_t i = 8; i < width; i += 16) {
     sprite->drawFastVLine(i, 0, height, 0x1F);
@@ -63,44 +63,56 @@ static void drawfunc(void)
                       , a->color);
   }
 
+  sprite->setCursor(1,1);
+  sprite->setTextColor(TFT_BLACK);
+  sprite->printf("obj:%d fps:%d", _ball_count, _fps);
   sprite->setCursor(0,0);
+  sprite->setTextColor(TFT_WHITE);
   sprite->printf("obj:%d fps:%d", _ball_count, _fps);
 
-  auto s32 = (std::uint32_t*)sprite->getBuffer();
-  auto p32 = (std::uint32_t*)_sprites[!flip].getBuffer();
-  auto w = (width+3) >> 2;
+  union
+  {
+    std::uint32_t* s32;
+    std::uint8_t* s;
+  };
+  union
+  {
+    std::uint32_t* p32;
+    std::uint8_t* p;
+  };
+  s32 = (std::uint32_t*)sprite->getBuffer();
+  p32 = (std::uint32_t*)_sprites[!flip].getBuffer();
+
+  auto w32 = (width+3) >> 2;
   std::int32_t y = 0;
   do
   {
-    auto s = (std::uint8_t*)s32;
-    auto p = (std::uint8_t*)p32;
-    std::int32_t x = 0;
+    std::int32_t x32 = 0;
     do
     {
-      while (s32[x] == p32[x] && ++x < w);
-      if (x == w) break;
+      while (s32[x32] == p32[x32] && ++x32 < w32);
+      if (x32 == w32) break;
 
-      std::int32_t xs = x<<2;
+      std::int32_t xs = x32 << 2;
+      while (s[xs] == p[xs]) ++xs;
 
-      while (++x < w && s32[x] != p32[x]);
+      while (++x32 < w32 && s32[x32] != p32[x32]);
 
-      std::int32_t xe = (x << 2) - 1;
+      std::int32_t xe = (x32 << 2) - 1;
       if (xe >= width) xe = width - 1;
-
-      while (s[xs] == p[xs] && ++xs != xe);
-      while (s[xe] == p[xe] && xs != --xe);
+      while (s[xe] == p[xe]) --xe;
 
       lcd.pushImage(xs, y, xe - xs + 1, 1, &s[xs]);
-    } while (x < w);
-    s32 += w;
-    p32 += w;
+    } while (x32 < w32);
+    s32 += w32;
+    p32 += w32;
   } while (++y < height);
   ++_draw_count;
 }
 
 static void mainfunc(void)
 {
-  float e = 1;
+  static constexpr float e = 0.999; // Coefficient of friction
 
   sec = millis() / 1000;
   if (psec != sec) {
@@ -133,21 +145,23 @@ static void mainfunc(void)
 
   for (int i = 0; i != ball_count; i++) {
     a = &balls[i];
+//  a->dy += 4; // gravity
+
     a->x += a->dx;
     if (a->x < a->r) {
       a->x = a->r;
-      if (a->dx < 0) a->dx = - a->dx;
+      if (a->dx < 0) a->dx = - a->dx*e;
     } else if (a->x >= _width - a->r) {
       a->x = _width - a->r -1;
-      if (a->dx > 0) a->dx = - a->dx;
+      if (a->dx > 0) a->dx = - a->dx*e;
     }
     a->y += a->dy;
     if (a->y < a->r) {
       a->y = a->r;
-      if (a->dy < 0) a->dy = - a->dy;
+      if (a->dy < 0) a->dy = - a->dy*e;
     } else if (a->y >= _height - a->r) {
       a->y = _height - a->r -1;
-      if (a->dy > 0) a->dy = - a->dy;
+      if (a->dy > 0) a->dy = - a->dy*e;
     }
     for (int j = i + 1; j != ball_count; j++) {
       b = &balls[j];
@@ -239,7 +253,6 @@ void setup(void)
     _sprites[i].createSprite(lcd_width, lcd_height);
     _sprites[i].setTextSize(2);
     _sprites[i].setTextFont(&fonts::Font0);
-    _sprites[i].setTextColor(0xFFFFFFU);
   }
   _width = lcd_width << SHIFTSIZE;
   _height = lcd_height << SHIFTSIZE;
@@ -262,7 +275,7 @@ void setup(void)
 
 #if defined (ESP32) || (CONFIG_IDF_TARGET_ESP32) || (ESP_PLATFORM)
   disableCore0WDT();
-  xTaskCreate(taskDraw, "taskDraw", 4096, NULL, 0, NULL);
+  xTaskCreate(taskDraw, "taskDraw", 2048, NULL, 0, NULL);
 #endif
 }
 

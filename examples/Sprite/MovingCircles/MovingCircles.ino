@@ -4,18 +4,18 @@
 
 #include <LovyanGFX.hpp>
 
-static uint32_t sec, psec;
-static size_t fps = 0, frame_count = 0;
-static uint32_t tft_width ;
-static uint32_t tft_height;
+static std::uint32_t sec, psec;
+static std::uint32_t fps = 0, frame_count = 0;
+static std::int32_t lcd_width ;
+static std::int32_t lcd_height;
 
 struct obj_info_t {
-  int_fast16_t x;
-  int_fast16_t y;
-  int_fast16_t r;
-  int_fast16_t dx;
-  int_fast16_t dy;
-  uint32_t color;
+  std::int32_t x;
+  std::int32_t y;
+  std::int32_t r;
+  std::int32_t dx;
+  std::int32_t dy;
+  std::uint32_t color;
 
   void move()
   {
@@ -24,21 +24,21 @@ struct obj_info_t {
     if (x < 0) {
       x = 0;
       if (dx < 0) dx = - dx;
-    } else if (x >= tft_width) {
-      x = tft_width -1;
+    } else if (x >= lcd_width) {
+      x = lcd_width -1;
       if (dx > 0) dx = - dx;
     }
     if (y < 0) {
       y = 0;
       if (dy < 0) dy = - dy;
-    } else if (y >= tft_height) {
-      y = tft_height - 1;
+    } else if (y >= lcd_height) {
+      y = lcd_height - 1;
       if (dy > 0) dy = - dy;
     }
   }
 };
 
-static constexpr size_t obj_count = 200;
+static constexpr std::uint32_t obj_count = 200;
 static obj_info_t objects[obj_count];
 
 static LGFX lcd;
@@ -47,61 +47,64 @@ static int_fast16_t sprite_height;
 
 void setup(void)
 {
+  lcd.init();
+
 #if defined(ARDUINO_M5Stick_C)
   AXP192 axp;
   axp.begin();
 #endif
 
-  lcd.init();
-
-  tft_width = lcd.width();
-  tft_height = lcd.height();
+  lcd_width = lcd.width();
+  lcd_height = lcd.height();
   obj_info_t *a;
-  for (size_t i = 0; i < obj_count; ++i) {
+  for (std::uint32_t i = 0; i < obj_count; ++i) {
     a = &objects[i];
     a->color = (uint32_t)rand() | 0x808080U;
-    a->x = random(tft_width);
-    a->y = random(tft_height);
+    a->x = random(lcd_width);
+    a->y = random(lcd_height);
     a->dx = random(1, 4) * (i & 1 ? 1 : -1);
     a->dy = random(1, 4) * (i & 2 ? 1 : -1);
     a->r = 8 + (i & 0x07);
   }
 
-  sprite_height = (tft_height + 2) / 3;
-  sprites[0].createSprite(tft_width, sprite_height);
-  sprites[1].createSprite(tft_width, sprite_height);
-
+  sprite_height = (lcd_height + 2) / 3;
+  for (std::uint32_t i = 0; i < 2; ++i)
+  {
+    sprites[i].createSprite(lcd_width, sprite_height);
+    sprites[i].setFont(&fonts::Font2);
+  }
   lcd.startWrite();
-  lcd.setAddrWindow(0, 0, tft_width, tft_height);
+  lcd.setAddrWindow(0, 0, lcd_width, lcd_height);
 }
 
 void loop(void)
 {
-  static uint8_t flip = 0;
+  static std::uint_fast8_t flip = 0;
 
   obj_info_t *a;
-  for (int i = 0; i != obj_count; i++) {
+  for (std::uint32_t i = 0; i != obj_count; i++) {
     objects[i].move();
   }
-  for (int_fast16_t y = 0; y < tft_height; y += sprite_height) {
+  for (std::int32_t y = 0; y < lcd_height; y += sprite_height) {
     flip = flip ? 0 : 1;
     sprites[flip].clear();
-    for (size_t i = 0; i != obj_count; i++) {
+    for (std::uint32_t i = 0; i != obj_count; i++) {
       a = &objects[i];
       if (( a->y + a->r >= y ) && ( a->y - a->r <= y + sprite_height ))
         sprites[flip].drawCircle(a->x, a->y - y, a->r, a->color);
     }
 
-
     if (y == 0) {
+      sprites[flip].setCursor(1,1);
+      sprites[flip].setTextColor(TFT_BLACK);
+      sprites[flip].printf("obj:%d fps:%d", obj_count, fps);
       sprites[flip].setCursor(0,0);
-      sprites[flip].setFont(&fonts::Font2);
-      sprites[flip].setTextColor(0xFFFFFFU);
-      sprites[flip].printf("obj:%d  fps:%d", obj_count, fps);
+      sprites[flip].setTextColor(TFT_WHITE);
+      sprites[flip].printf("obj:%d fps:%d", obj_count, fps);
     }
-    size_t len = sprites[flip].bufferLength();
-    if (y + sprite_height > tft_height) {
-      len = (tft_height - y) * tft_width * lcd.getColorConverter()->bytes;
+    std::int32_t len = sprites[flip].bufferLength();
+    if (y + sprite_height > lcd_height) {
+      len = (lcd_height - y) * lcd_width * lcd.getColorConverter()->bytes;
     }
     lcd.pushPixelsDMA(sprites[flip].getBuffer(), len);
   }
