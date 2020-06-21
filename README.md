@@ -1,7 +1,7 @@
 # LovyanGFX
 
 SPI LCD graphics library (for ESP32 / SAMD51).  
-M5Stack / M5StickC / TTG T-Watch / ODROID-GO / ESP-WROVER-KIT / WioTerminal  
+M5Stack / M5StickC / TTGO T-Watch / ODROID-GO / ESP-WROVER-KIT / WioTerminal / and more...
 
 [![examples](http://img.youtube.com/vi/ClR-75mbyU4/0.jpg)](http://www.youtube.com/watch?v=ClR-75mbyU4 "MovingIcons")
 [![examples](http://img.youtube.com/vi/vzQ6La0HgCg/0.jpg)](http://www.youtube.com/watch?v=vzQ6La0HgCg "MeterSample")
@@ -308,8 +308,12 @@ void loop(void)
 
 
 # 注意・制限事項
-## M5Stack.h(M5StickC.h)と共存させたい場合は、  
-ESP32-Chimera-Core のlgfxブランチを利用してください。  
+## M5Stack.h(M5StickC.h)と共存させる方法  
+### 方法1
+include <M5Stack.h> より後に include <LovyanGFX.hpp> を書いてください。  
+M5.Lcdは使わずに、別途LGFXのインスタンスを用意して使用してください。  
+### 方法2
+[ESP32-Chimera-Core](https://github.com/tobozo/ESP32-Chimera-Core) を利用すると、M5.Lcd が LovyanGFX になります。  
 
 
 作成動機 Motivation behind this library
