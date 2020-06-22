@@ -395,7 +395,7 @@ namespace lgfx
     [[deprecated("use setFont(&fonts::Font0)")]]
     void setTextFont(const IFont* font = nullptr) { setFont(font); }
 
-    [[deprecated("use setFont(&fonts::Font0)")]]
+    [[deprecated("use setFont()")]]
     void setFreeFont(const IFont* font = nullptr) { setFont(font); }
 
     void unloadFont(void) {
