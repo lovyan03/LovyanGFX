@@ -220,4 +220,6 @@ namespace fonts {
 }
 using namespace fonts;
 
+typedef lgfx::GFXfont GFXfont;
+
 #endif
