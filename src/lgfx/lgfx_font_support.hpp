@@ -279,6 +279,7 @@ namespace lgfx
       std::int32_t right = 0;
       do {
         std::uint16_t uniCode = *string;
+        if (!uniCode) break;
         if (_text_style.utf8) {
           do {
             uniCode = decodeUTF8(*string);
@@ -864,6 +865,7 @@ namespace lgfx
         auto tmp = string;
         do {
           std::uint16_t uniCode = *tmp;
+          if (!tmp) break;
           if (_text_style.utf8) {
             do {
               uniCode = decodeUTF8(*tmp); 
@@ -913,6 +915,7 @@ namespace lgfx
       _filled_x = 0;
       do {
         std::uint16_t uniCode = *string;
+        if (!uniCode) break;
         if (_text_style.utf8) {
           do {
             uniCode = decodeUTF8(*string);
