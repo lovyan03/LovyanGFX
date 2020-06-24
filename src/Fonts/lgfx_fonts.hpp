@@ -221,7 +221,9 @@ namespace fonts {
 using namespace fonts;
 
 #ifndef _GFXFONT_H_
+#define _GFXFONT_H_
 typedef lgfx::GFXfont GFXfont;
+typedef lgfx::GFXglyph GFXglyph;
 #endif
 
 #endif
