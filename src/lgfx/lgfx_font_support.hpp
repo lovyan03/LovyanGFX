@@ -271,7 +271,7 @@ namespace lgfx
     }
 
     std::int32_t textWidth(const char *string) {
-      if (!string) return 0;
+      if (!string || !string[0]) return 0;
 
       auto sx = _text_style.size_x;
 
@@ -860,7 +860,7 @@ namespace lgfx
       std::int32_t cwidth = textWidth(string); // Find the pixel width of the string in the font
       std::int32_t cheight = _font_metrics.height * _text_style.size_y;
 
-      {
+      if (string && string[0]) {
         auto tmp = string;
         do {
           std::uint16_t uniCode = *tmp;
@@ -911,16 +911,18 @@ namespace lgfx
       y -= int(_font_metrics.y_offset * _text_style.size_y);
 
       _filled_x = 0;
-      do {
-        std::uint16_t uniCode = *string;
-        if (_text_style.utf8) {
-          do {
-            uniCode = decodeUTF8(*string);
-          } while (uniCode < 0x20 && *++string);
-          if (uniCode < 0x20) break;
-        }
-        sumX += (fpDrawChar)(this, x + sumX, y, uniCode, &_text_style, _font);
-      } while (*(++string));
+      if (string && string[0]) {
+        do {
+          std::uint16_t uniCode = *string;
+          if (_text_style.utf8) {
+            do {
+              uniCode = decodeUTF8(*string);
+            } while (uniCode < 0x20 && *++string);
+            if (uniCode < 0x20) break;
+          }
+          sumX += (fpDrawChar)(this, x + sumX, y, uniCode, &_text_style, _font);
+        } while (*(++string));
+      }
       this->endWrite();
 
       return sumX;
