@@ -11,7 +11,7 @@
     "type": "git",
     "url": "https://github.com/lovyan03/LovyanGFX"
   },
-  "version": "0.1.12",
+  "version": "0.1.13",
   "framework": "arduino",
   "platforms": "espressif32, atmelsam",
   "build": {

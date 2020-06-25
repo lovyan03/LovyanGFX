@@ -271,7 +271,7 @@ namespace lgfx
     }
 
     std::int32_t textWidth(const char *string) {
-      if (!string) return 0;
+      if (!string || !string[0]) return 0;
 
       auto sx = _text_style.size_x;
 
@@ -860,7 +860,7 @@ namespace lgfx
       std::int32_t cwidth = textWidth(string); // Find the pixel width of the string in the font
       std::int32_t cheight = _font_metrics.height * _text_style.size_y;
 
-      {
+      if (string && string[0]) {
         auto tmp = string;
         do {
           std::uint16_t uniCode = *tmp;
@@ -911,16 +911,18 @@ namespace lgfx
       y -= int(_font_metrics.y_offset * _text_style.size_y);
 
       _filled_x = 0;
-      do {
-        std::uint16_t uniCode = *string;
-        if (_text_style.utf8) {
-          do {
-            uniCode = decodeUTF8(*string);
-          } while (uniCode < 0x20 && *++string);
-          if (uniCode < 0x20) break;
-        }
-        sumX += (fpDrawChar)(this, x + sumX, y, uniCode, &_text_style, _font);
-      } while (*(++string));
+      if (string && string[0]) {
+        do {
+          std::uint16_t uniCode = *string;
+          if (_text_style.utf8) {
+            do {
+              uniCode = decodeUTF8(*string);
+            } while (uniCode < 0x20 && *++string);
+            if (uniCode < 0x20) break;
+          }
+          sumX += (fpDrawChar)(this, x + sumX, y, uniCode, &_text_style, _font);
+        } while (*(++string));
+      }
       this->endWrite();
 
       return sumX;
@@ -1054,10 +1056,10 @@ namespace lgfx
       std::int32_t clip_bottom = me->_clip_b;
 
       float sx = style->size_x;
-      float sy = style->size_y;
+      std::int32_t sh = fontHeight * style->size_y;
 
       if ((x <= clip_right) && (clip_left < (x + fontWidth * sx ))
-       && (y <= clip_bottom) && (clip_top < (y + fontHeight * sy ))) {
+       && (y <= clip_bottom) && (clip_top < (y + sh ))) {
 //      if (!fillbg || sy != 1 || x < clip_left || y < clip_top || y + fontHeight > clip_bottom || x + fontWidth * sx > clip_right) {
           me->startWrite();
           if (fillbg) {
@@ -1066,17 +1068,17 @@ namespace lgfx
               std::int32_t x0 = (fontWidth - margin) * sx;
               std::int32_t x1 = (fontWidth         ) * sx;
               if (x0 < x1) {
-                me->writeFillRect(x + x0, y, x1 - x0, fontHeight * sy);
+                me->writeFillRect(x + x0, y, x1 - x0, sh);
               }
             }
           }
-          std::int_fast8_t i = 0;
+          std::int32_t i = 0;
           std::int32_t y1 = 0;
           std::int32_t y0 = - 1;
           do {
             bool fill = y0 != y1;
             y0 = y1;
-            y1 = ++i * sy;
+            y1 = ++i * sh / fontHeight;
             std::uint8_t line = font_addr[0];
             bool flg = line & 0x80;
             std::int_fast8_t j = 1;
