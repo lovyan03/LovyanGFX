@@ -70,6 +70,35 @@ namespace lgfx
       return draw_png(&data, x, y, maxWidth, maxHeight, offX, offY, scale);
     }
 
+  #if defined (FS_H) || defined (__SEEED_FS__)
+
+    inline void drawBmp(fs::File *dataSource, std::int32_t x=0, std::int32_t y=0) {
+      StreamWrapper data;
+      data.set(dataSource);
+      data.need_transaction = true;
+      this->prepareTmpTransaction(&data);
+      draw_bmp(&data, x, y);
+    }
+
+    inline bool drawJpg(fs::File *dataSource, std::int32_t x=0, std::int32_t y=0, std::int32_t maxWidth=0, std::int32_t maxHeight=0, std::int32_t offX=0, std::int32_t offY=0, jpeg_div::jpeg_div_t scale=jpeg_div::jpeg_div_t::JPEG_DIV_NONE) {
+      StreamWrapper data;
+      data.set(dataSource);
+      data.need_transaction = true;
+      this->prepareTmpTransaction(&data);
+      return draw_jpg(&data, x, y, maxWidth, maxHeight, offX, offY, scale);
+    }
+
+    inline void drawPng(fs::File *dataSource, std::int32_t x = 0, std::int32_t y = 0, std::int32_t maxWidth = 0, std::int32_t maxHeight = 0, std::int32_t offX = 0, std::int32_t offY = 0, double scale = 1.0) {
+      StreamWrapper data;
+      data.set(dataSource);
+      data.need_transaction = true;
+      this->prepareTmpTransaction(&data);
+      return draw_png(&data, x, y, maxWidth, maxHeight, offX, offY, scale);
+    }
+
+  #endif
+
+
  #endif
 
 #elif defined (CONFIG_IDF_TARGET_ESP32)  || defined(__SAMD51_HARMONY__) // ESP-IDF or Harmony
