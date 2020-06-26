@@ -57,14 +57,16 @@ namespace lgfx
   struct FileWrapper : public DataWrapper {
     FileWrapper() : DataWrapper() { need_transaction = true; }
 #if defined (ARDUINO) && defined (__SEEED_FS__) && defined (__SD_H__)
-    fs::File _fp;
+    fs::File _file;
+    fs::File *_fp;
 
     fs::FS& _fs = SD;
     void setFS(fs::FS& fs) {
       _fs = fs;
       need_transaction = (&fs == &SD);
     }
-    FileWrapper(fs::FS& fs) : DataWrapper(), _fs(fs) { need_transaction = (&fs == &SD); }
+    FileWrapper(fs::FS& fs) : DataWrapper(), _fp(nullptr), _fs(fs) { need_transaction = (&fs == &SD); }
+    FileWrapper(fs::FS& fs, fs::File* fp) : DataWrapper(), _fp(fp), _fs(fs) { need_transaction = (&fs == &SD); }
 
     bool open(fs::FS& fs, const char* path, const char* mode) {
       setFS(fs);
@@ -72,20 +74,21 @@ namespace lgfx
     }
 
     bool open(const char* path, const char* mode) { 
-      fs::File fp = _fs.open(path, mode);
+      fs::File file = _fs.open(path, mode);
       // この邪悪なmemcpyは、Seeed_FSのFile実装が所有権moveを提供してくれないのにデストラクタでcloseを呼ぶ実装になっているため、
       // 正攻法ではFileをクラスメンバに保持できない状況を打開すべく応急処置的に実装したものです。
-      memcpy(&_fp, &fp, sizeof(fs::File));
+      memcpy(&_file, &file, sizeof(fs::File));
       // memsetにより一時変数の中身を吹っ飛ばし、デストラクタによるcloseを予防します。
-      memset(&fp, 0, sizeof(fs::File));
-      return _fp;
+      memset(&file, 0, sizeof(fs::File));
+      _fp = &_file;
+      return _file;
     }
 
-    int read(std::uint8_t *buf, std::uint32_t len) override { return _fp.read(buf, len); }
+    int read(std::uint8_t *buf, std::uint32_t len) override { return _fp->read(buf, len); }
     void skip(std::int32_t offset) override { seek(offset, SeekCur); }
     bool seek(std::uint32_t offset) override { return seek(offset, SeekSet); }
-    bool seek(std::uint32_t offset, SeekMode mode) { return _fp.seek(offset, mode); }
-    void close() override { _fp.close(); }
+    bool seek(std::uint32_t offset, SeekMode mode) { return _fp->seek(offset, mode); }
+    void close() override { _fp->close(); }
 
 #elif __SAMD51_HARMONY__
     SYS_FS_HANDLE handle = SYS_FS_HANDLE_INVALID;
