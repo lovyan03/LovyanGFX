@@ -82,28 +82,33 @@ Contributors:
 #elif defined( LGFX_TTGO_TWATCH ) || defined( ARDUINO_T ) // TTGO T-Watch
   #include "config/LGFX_Config_TTGO_TWatch.hpp"
 
+#elif defined( LGFX_TTGO_TWRISTBAND )
+  #include "config/LGFX_Config_TTGO_TWristband.hpp"
+
 #elif defined( LGFX_DDUINO32_XS ) || defined( ARDUINO_D ) || defined( ARDUINO_DDUINO32_XS )
   #include "config/LGFX_Config_DDUINO32_XS.hpp"
 
 #elif defined( LGFX_LOLIN_D32 ) || defined( ARDUINO_LOLIN_D32_PRO ) // LoLin D32 Pro
   #include "config/LGFX_Config_LoLinD32.hpp"
 
-#elif defined( LGFX_ESP_WROVER_KIT ) || defined( ARDUINO_ESP32_DEV ) // ESP-WROVER-KIT
+#elif defined( LGFX_ESP_WROVER_KIT ) || defined( ARDUINO_ESP32_WROVER_KIT ) // ESP-WROVER-KIT
   #include "config/LGFX_Config_ESP_WROVER_KIT.hpp"
 
 #elif defined( LGFX_WIO_TERMINAL ) || defined (ARDUINO_WIO_TERMINAL) || defined(WIO_TERMINAL)
   #include "config/LGFX_Config_WioTerminal.hpp"
 
+#elif defined( LGFX_CUSTOM )
+
+  #include "../../LGFX_Config_Custom.hpp"
+
 #else
 
-  // If none of the above apply, Put a copy of "config/LGFX_Config_Custom" in libraries folder,
-  // and modify the content according to the environment.
-  // 上記のいずれにも該当しない場合、"config/LGFX_Config_Custom" のコピーをライブラリフォルダに配置し、
-  // 動作環境に応じて内容を修正してください。
-  #include "../LGFX_Config_Custom.hpp"
+// If none of the above apply, Put a copy of "config/LGFX_Config_Custom" in your project folder,
+// and include it with modifications to the content to suit your environment.
+// 上記のいずれにも該当しない場合、"config/LGFX_Config_Custom" のコピーをプロジェクトフォルダに配置し、
+// 動作環境に応じて内容に修正を加えて include してください。
 
 #endif
-
 
 
 #endif
