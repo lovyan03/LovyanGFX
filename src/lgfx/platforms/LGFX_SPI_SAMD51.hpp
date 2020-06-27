@@ -548,8 +548,8 @@ void disableSPI()
       _sh = _height;
     }
 
-    void pushPixelsDMA(const void* data, std::uint32_t length) {
-      write_bytes((const std::uint8_t*)data, length, true);
+    void pushPixelsDMA_impl(const void* data, std::uint32_t length) override {
+      write_bytes((const std::uint8_t*)data, length * _write_conv.bytes, true);
     }
 
 
