@@ -336,7 +336,7 @@ namespace lgfx
       periph_module_reset( PERIPH_SPI_DMA_MODULE );
     }
 
-    void pushPixelsDMA_impl(const void* data, std::uint32_t length) override {
+    void pushPixelsDMA_impl(const void* data, std::int32_t length) override {
       write_bytes((const std::uint8_t*)data, length * _write_conv.bytes, true);
     }
 
