@@ -18,18 +18,18 @@
 // ヘッダをincludeします。
 #include <LovyanGFX.hpp>
 
-// 対応機種をArduino環境で使う場合は、特別な設定は不要です。
-static LGFX lcd;                // LGFXのインスタンスを作成。
+static LGFX lcd;                 // LGFXのインスタンスを作成。
 static LGFX_Sprite sprite(&lcd); // スプライトを使う場合はLGFX_Spriteのインスタンスを作成。
-
-// ESP-IDF環境で使う場合や、Arduino環境でもSPIバスやパネルを設定したい場合は、
-// examples/HowToUse/2_spi_setting.ino を参照してください。
-
 
 // もし現在 TFT_eSPI を使用中で、ソースをなるべく変更したくない場合は、こちらのヘッダを利用できます。
 // #include <LGFX_TFT_eSPI.hpp>
 // static TFT_eSPI lcd;               // TFT_eSPIがLGFXの別名として定義されます。
 // static TFT_eSprite sprite(&lcd);   // TFT_eSpriteがLGFX_Spriteの別名として定義されます。
+
+
+// 対応機種に無い構成で使う場合は、 examples/HowToUse/2_spi_setting.ino を参照してください。
+// configフォルダのLGFX_Config_Custom.hppをコピーして環境に合わせて編集して、
+// ここでincludeをするか、ファイルの内容をそのまま貼り付けて使用してください。
 
 
 void setup(void)
