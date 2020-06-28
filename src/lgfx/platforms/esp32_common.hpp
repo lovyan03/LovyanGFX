@@ -96,33 +96,42 @@ namespace lgfx
   struct FileWrapper : public DataWrapper {
     FileWrapper() : DataWrapper() { need_transaction = true; }
 #if defined (ARDUINO) && defined (FS_H)
-    fs::File _fp;
+    fs::File _file;
+    fs::File *_fp;
   #if defined (_SD_H_)
     fs::FS& _fs = SD;
     void setFS(fs::FS& fs) {
       _fs = fs;
       need_transaction = (&fs == &SD);
     }
-    FileWrapper(fs::FS& fs) : DataWrapper(), _fs(fs) { need_transaction = (&fs == &SD); }
+    FileWrapper(fs::FS& fs) : DataWrapper(), _fp(nullptr), _fs(fs) { need_transaction = (&fs == &SD); }
+    FileWrapper(fs::FS& fs, fs::File* fp) : DataWrapper(), _fp(fp), _fs(fs) { need_transaction = (&fs == &SD); }
   #else
     fs::FS& _fs = SPIFFS;
     void setFS(fs::FS& fs) {
       _fs = fs;
       need_transaction = (&fs != &SPIFFS);
     }
-    FileWrapper(fs::FS& fs) : DataWrapper(), _fs(fs) { need_transaction = (&fs != &SPIFFS); }
+    FileWrapper(fs::FS& fs) : DataWrapper(), _fp(nullptr), _fs(fs) { need_transaction = (&fs != &SPIFFS); }
+    FileWrapper(fs::FS& fs, fs::File* fp) : DataWrapper(), _fp(fp), _fs(fs) { need_transaction = (&fs != &SPIFFS); }
   #endif
 
     bool open(fs::FS& fs, const char* path, const char* mode) {
       setFS(fs);
-      return (_fp = fs.open(path, mode));
+      _file = fs.open(path, mode);
+      _fp = &_file;
+      return _file;
     }
-    bool open(const char* path, const char* mode) { return ( _fp = _fs.open(path, mode)); }
-    int read(std::uint8_t *buf, std::uint32_t len) override { return _fp.read(buf, len); }
+    bool open(const char* path, const char* mode) {
+      _file = _fs.open(path, mode);
+      _fp = &_file;
+      return _file;
+    }
+    int read(std::uint8_t *buf, std::uint32_t len) override { return _fp->read(buf, len); }
     void skip(std::int32_t offset) override { seek(offset, SeekCur); }
     bool seek(std::uint32_t offset) override { return seek(offset, SeekSet); }
-    bool seek(std::uint32_t offset, SeekMode mode) { return _fp.seek(offset, mode); }
-    void close() override { _fp.close(); }
+    bool seek(std::uint32_t offset, SeekMode mode) { return _fp->seek(offset, mode); }
+    void close() override { _fp->close(); }
 
 #elif defined (CONFIG_IDF_TARGET_ESP32)  // ESP-IDF
 

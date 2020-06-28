@@ -129,7 +129,7 @@ void loop(void)
       sprites[flip].setTextColor(0xFFFFFFU);
       sprites[flip].printf("obj:%d  fps:%d", obj_count, fps);
     }
-    size_t len = sprites[flip].bufferLength();
+    size_t len = sprites[flip].bufferLength() >> 1;
     if (y + sprite_height > tft_height) {
       len = (tft_height - y) * tft_width * lcd.getColorConverter()->bytes;
     }

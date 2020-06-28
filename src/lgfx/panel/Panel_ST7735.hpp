@@ -14,7 +14,7 @@ namespace lgfx
       panel_height = memory_height = 162;  // or 160 or 132
 
       freq_write = 27000000;
-      freq_read  = 16000000;
+      freq_read  = 14000000;
       freq_fill  = 27000000;
 
       len_dummy_read_pixel = 9;

@@ -137,6 +137,7 @@ namespace lgfx
 
     __attribute__ ((always_inline)) inline void beginTransaction(void) { beginTransaction_impl(); }
     __attribute__ ((always_inline)) inline void endTransaction(void)   { endTransaction_impl(); }
+    __attribute__ ((always_inline)) inline void initDMA(void)  { }  // TFT_eSPI compatible
     __attribute__ ((always_inline)) inline void waitDMA(void)  { waitDMA_impl(); }
     __attribute__ ((always_inline)) inline void setWindow(std::int32_t xs, std::int32_t ys, std::int32_t xe, std::int32_t ye) { setWindow_impl(xs, ys, xe, ye); }
 
@@ -194,6 +195,10 @@ namespace lgfx
     template<typename T> void drawBitmap(std::int32_t x, std::int32_t y, const std::uint8_t *bitmap, std::int32_t w, std::int32_t h, const T& fgcolor, const T& bgcolor) { draw_bitmap(x, y, bitmap, w, h, _write_conv.convert(fgcolor), _write_conv.convert(bgcolor)); }
     template<typename T> void drawXBitmap(std::int32_t x, std::int32_t y, const std::uint8_t *bitmap, std::int32_t w, std::int32_t h, const T& color                    ) { draw_xbitmap(x, y, bitmap, w, h, _write_conv.convert(color)); }
     template<typename T> void drawXBitmap(std::int32_t x, std::int32_t y, const std::uint8_t *bitmap, std::int32_t w, std::int32_t h, const T& fgcolor, const T& bgcolor) { draw_xbitmap(x, y, bitmap, w, h, _write_conv.convert(fgcolor), _write_conv.convert(bgcolor)); }
+
+    void pushPixelsDMA(const void* data, std::int32_t len) { if (len < 0) return; pushPixelsDMA_impl(data, len); }
+
+    void writePixels(std::uint16_t* colors, std::int32_t len) { pushColors(colors, len, true); }
 
     void pushColors(const std::uint8_t* data, std::int32_t len)
     {
@@ -510,6 +515,7 @@ namespace lgfx
     virtual void beginTransaction_impl(void) = 0;
     virtual void endTransaction_impl(void) = 0;
     virtual void waitDMA_impl(void) = 0;
+    virtual void pushPixelsDMA_impl(const void* data, std::int32_t length) = 0;
 
     virtual void drawPixel_impl(std::int32_t x, std::int32_t y) = 0;
     virtual void writeFillRect_impl(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h) = 0;

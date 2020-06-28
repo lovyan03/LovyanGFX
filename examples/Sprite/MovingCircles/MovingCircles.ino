@@ -102,7 +102,7 @@ void loop(void)
       sprites[flip].setTextColor(TFT_WHITE);
       sprites[flip].printf("obj:%d fps:%d", obj_count, fps);
     }
-    std::int32_t len = sprites[flip].bufferLength();
+    std::int32_t len = sprites[flip].bufferLength() >> 1;
     if (y + sprite_height > lcd_height) {
       len = (lcd_height - y) * lcd_width * lcd.getColorConverter()->bytes;
     }

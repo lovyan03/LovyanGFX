@@ -5,7 +5,7 @@
 
 
 // SPI設定用の構造体を用意します。
-// 構造体の名称に決まりはありませんが、
+// 構造体の名称 "LGFX_Config" は変更しても構いませんが、
 // 構造体の各メンバ変数の名前と型は例の通りにしてください。
 
 // for ESP32
@@ -77,18 +77,7 @@ struct LGFX_Config
 static lgfx::LGFX_SPI<LGFX_Config> lcd;
 
 
-// Panelクラスのインスタンスを作成します。使用するパネルにあったクラスを選択してください。
-// ★LCD一体型製品の対応機種の場合はこちらから選択できます。
-//static lgfx::Panel_DDUINO32_XS panel;
-//static lgfx::Panel_LoLinD32 panel;
-//static lgfx::Panel_M5Stack panel;
-//static lgfx::Panel_M5StickC panel;
-//static lgfx::Panel_ODROID_GO panel;
-//static lgfx::Panel_TTGO_TS panel;
-//static lgfx::Panel_TTGO_TWatch panel;
-//static lgfx::Panel_WioTerminal panel;
-
-// ★対応機種以外の場合はこちらから選択できます。
+// Panelクラスのインスタンスを作成します。使用するパネルにあった記述をコメントアウトしてください。
 //static lgfx::Panel_HX8357B panel;
 //static lgfx::Panel_HX8357D panel;
 //static lgfx::Panel_ILI9163 panel;
@@ -133,6 +122,7 @@ void setup(void)
   panel.len_dummy_read_pixel = 8;
 
   // データの読取りが可能なパネルの場合はtrueを、不可の場合はfalseを設定します。
+  // ※ CSピンのないST7789等はfalseにしてください。
   // 省略時はtrueになります。
   panel.spi_read = true;
 

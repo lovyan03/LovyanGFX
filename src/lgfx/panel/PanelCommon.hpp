@@ -48,6 +48,7 @@ namespace lgfx
       if (gpio_rst >= 0) { // RST on
         lgfxPinMode(gpio_rst, pin_mode_t::output);
         gpio_lo(gpio_rst);
+        delay(1);
       }
 
       if (gpio_bl >= 0) { // Backlight control
