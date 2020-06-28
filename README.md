@@ -64,6 +64,22 @@ This library is also compatible with the above models and LCD panels with a simi
 [examples](examples/)に具体的なサンプルがあります。
 ### 基本的な使い方
 ```c
+
+// ※  もし対応機種を ArduinoIDE以外の環境で使用する場合や、
+// 対応機種がボードマネージャに無い場合 ( TTGO T-Wristband や ESP-WROVER-KIT等 ) は、
+// LovyanGFX.hppのincludeより前に、define LGFX_～ を記述してください。
+
+// #define LGFX_M5STACK          // M5Stack
+// #define LGFX_M5STICKC         // M5Stick C
+// #define LGFX_ODROID_GO        // ODROID-GO
+// #define LGFX_TTGO_TS          // TTGO TS
+// #define LGFX_TTGO_TWATCH      // TTGO T-Watch
+// #define LGFX_TTGO_TWRISTBAND  // TTGO T-Wristband
+// #define LGFX_DDUINO32_XS      // DSTIKE D-duino-32 XS
+// #define LGFX_LOLIN_D32        // LoLin D32 Pro
+// #define LGFX_ESP_WROVER_KIT   // ESP-WROVER-KIT
+// #define LGFX_WIO_TERMINAL     // Wio Terminal
+
 // ヘッダをincludeします。
 #include <LovyanGFX.hpp>
 

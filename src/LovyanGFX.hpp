@@ -53,7 +53,6 @@ Contributors:
 
 
 #if defined (ESP32) || (CONFIG_IDF_TARGET_ESP32)
-
   #include "lgfx/platforms/LGFX_SPI_ESP32.hpp"
 
 #elif defined (__SAMD51__)
@@ -61,11 +60,15 @@ Contributors:
 
 #endif
 
+// ArduinoIDEで利用する場合、ボードマネージャで選択したボードに合うConfigが読み込まれます。
+// ESP-IDFやHarmonyで利用する場合は、#include<LovyanGFX.hpp> より前に #define LGFX_ボード名 の記述をしてください。
+// お使いのボードが対応機種にない場合、"config/LGFX_Config_Custom" をコピーしてプロジェクトフォルダに配置し、
+// 動作環境に応じて内容に修正を加えて include して使用してください。
 
 // When using the Arduino IDE, the configuration for the board selected in the Board Manager will be loaded.
-// When using ESP-IDF or Harmony, please specify a #define LGFX_M5STACK or other #define before the #include<LovyanGFX.hpp> .
-// ArduinoIDEで利用する場合、ボードマネージャで選択したボードに合うConfigが読み込まれます。
-// ESP-IDFやHarmonyで利用する場合は、#include<LovyanGFX.hpp> より前に #define LGFX_M5STACK 等の #define を記述してください。
+// When using ESP-IDF or Harmony, please specify a #define LGFX_YOUR_BOARD before the #include<LovyanGFX.hpp> .
+// If the board you are using is not supported,  Put a copy of "config/LGFX_Config_Custom" in your project folder,
+// and include it with modifications to the content to suit your environment.
 
 #if defined( LGFX_M5STACK ) || defined( ARDUINO_M5Stack_Core_ESP32 ) || defined( ARDUINO_M5STACK_FIRE ) // M5Stack
   #include "config/LGFX_Config_M5Stack.hpp"
@@ -82,10 +85,10 @@ Contributors:
 #elif defined( LGFX_TTGO_TWATCH ) || defined( ARDUINO_T ) // TTGO T-Watch
   #include "config/LGFX_Config_TTGO_TWatch.hpp"
 
-#elif defined( LGFX_TTGO_TWRISTBAND )
+#elif defined( LGFX_TTGO_TWRISTBAND )  // TTGO T-Wristband
   #include "config/LGFX_Config_TTGO_TWristband.hpp"
 
-#elif defined( LGFX_DDUINO32_XS ) || defined( ARDUINO_D ) || defined( ARDUINO_DDUINO32_XS )
+#elif defined( LGFX_DDUINO32_XS ) || defined( ARDUINO_D ) || defined( ARDUINO_DDUINO32_XS ) // DSTIKE D-duino-32 XS
   #include "config/LGFX_Config_DDUINO32_XS.hpp"
 
 #elif defined( LGFX_LOLIN_D32 ) || defined( ARDUINO_LOLIN_D32_PRO ) // LoLin D32 Pro
@@ -95,18 +98,8 @@ Contributors:
   #include "config/LGFX_Config_ESP_WROVER_KIT.hpp"
 
 #elif defined( LGFX_WIO_TERMINAL ) || defined (ARDUINO_WIO_TERMINAL) || defined(WIO_TERMINAL)
+  #include "lgfx/platforms/LGFX_SPI_SAMD51.hpp"
   #include "config/LGFX_Config_WioTerminal.hpp"
-
-#elif defined( LGFX_CUSTOM )
-
-  #include "../../LGFX_Config_Custom.hpp"
-
-#else
-
-// If none of the above apply, Put a copy of "config/LGFX_Config_Custom" in your project folder,
-// and include it with modifications to the content to suit your environment.
-// 上記のいずれにも該当しない場合、"config/LGFX_Config_Custom" のコピーをプロジェクトフォルダに配置し、
-// 動作環境に応じて内容に修正を加えて include してください。
 
 #endif
 
