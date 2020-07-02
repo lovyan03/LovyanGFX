@@ -1120,9 +1120,8 @@ namespace lgfx
     std::int32_t cl = _clip_l;
     int w = _clip_r - cl + 1;
     std::uint8_t bufIdx = 0;
-    bool buf0[w], buf1[w], buf2[w];
-    bool* linebufs[3] = { buf0, buf1, buf2 };
-    std::int32_t bufY[3] = {-2, -2, -2};  // default is out of range.
+    bool* linebufs[3] = { new bool[w], new bool[w], new bool[w] };
+    std::int32_t bufY[3] = {-2, -2, -2};  // 3 line buffer (default: out of range.)
     bufY[0] = y;
     read_rect(cl, y, w, 1, linebufs[0], &p);
     std::list<paint_point_t> points;
@@ -1177,7 +1176,7 @@ namespace lgfx
         if (newy < _clip_t) continue;
         if (newy > _clip_b) continue;
         int bidx = 0;
-        for (; bidx < 3; ++bidx) if (newy == bufY[bidx]) break;
+        while (newy != bufY[bidx] && ++bidx != 3);
         if (bidx == 3) {
           for (bidx = 0; bidx < 2 && (abs(bufY[bidx] - ly) <= 1); ++bidx);
           bufY[bidx] = newy;
@@ -1192,6 +1191,8 @@ namespace lgfx
         }
       } while ((newy += 2) < ly + 2);
     }
+    int i = 0;
+    do { delete[] linebufs[i]; } while (++i != 3);
     endWrite();
   }
 
