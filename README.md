@@ -2,9 +2,7 @@
 
 SPI LCD graphics library (for ESP32 / SAMD51).  
 M5Stack / M5StickC / TTGO T-Watch / ODROID-GO / ESP-WROVER-KIT / WioTerminal / and more...
-
-[![examples](http://img.youtube.com/vi/ClR-75mbyU4/0.jpg)](http://www.youtube.com/watch?v=ClR-75mbyU4 "MovingIcons")
-[![examples](http://img.youtube.com/vi/vzQ6La0HgCg/0.jpg)](http://www.youtube.com/watch?v=vzQ6La0HgCg "MeterSample")
+[![examples](http://img.youtube.com/vi/SMOHRPqUZcQ/0.jpg)](http://www.youtube.com/watch?v=SMOHRPqUZcQ "examples")
 [![examples](http://img.youtube.com/vi/F5gsp41Elac/0.jpg)](http://www.youtube.com/watch?v=F5gsp41Elac "MultiPanel")
 
 概要 Overview.
