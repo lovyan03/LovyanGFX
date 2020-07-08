@@ -763,13 +763,14 @@ return;
 
     void pushPixelsDMA_impl(const void* data, std::int32_t length) override
     {
+      auto src = static_cast<const uint8_t*>(data);
       auto k = _bitwidth * _write_conv.bits >> 3;
       std::int32_t linelength;
       do {
         linelength = std::min<int>(_xe - _xptr + 1, length);
-        auto len = length * _write_conv.bits >> 3;
-        memcpy(&_img[(_xptr * _write_conv.bits >> 3) + _yptr * k], data, len);
-        data += len;
+        auto len = linelength * _write_conv.bits >> 3;
+        memcpy(&_img[(_xptr * _write_conv.bits >> 3) + _yptr * k], src, len);
+        src += len;
         ptr_advance(linelength);
       } while (length -= linelength);
     }

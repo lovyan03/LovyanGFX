@@ -131,7 +131,7 @@ void loop(void)
     }
     size_t len = sprites[flip].bufferLength() >> 1;
     if (y + sprite_height > tft_height) {
-      len = (tft_height - y) * tft_width * lcd.getColorConverter()->bytes;
+      len = (tft_height - y) * tft_width;
     }
     lcd.pushPixelsDMA(sprites[flip].getBuffer(), len);
   }

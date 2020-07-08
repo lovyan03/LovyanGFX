@@ -701,6 +701,69 @@ namespace lgfx
     }
   }
 
+  void LGFXBase::drawBezier( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2, std::int32_t x3, std::int32_t y3)
+  {
+    std::int32_t w = x0-x1;
+    std::int32_t h = y0-y1;
+    std::int32_t len = w*w+h*h;
+    w = x1-x2;
+    h = y1-y2;
+    std::int32_t len2 = w*w+h*h;
+    if (len < len2) len = len2;
+    w = x2-x3;
+    h = y2-y3;
+    len2 = w*w+h*h;
+    if (len < len2) len = len2;
+    len = (std::int32_t)round(sqrt(len)) >> 2;
+
+    float fx0 = x0;
+    float fy0 = y0;
+    float fx1 = x1;
+    float fy1 = y1;
+    float fx2 = x2;
+    float fy2 = y2;
+    float fx3 = x3;
+    float fy3 = y3;
+
+    std::int32_t i = 0;
+    startWrite();
+//drawLine(x0, y0, x1, y1);
+//drawLine(x1, y1, x2, y2);
+//drawLine(x2, y2, x3, y3);
+//drawCircle(x0, y0, 3);
+//drawCircle(x1, y1, 3);
+//drawCircle(x2, y2, 3);
+//drawCircle(x3, y3, 3);
+    do {
+      float t = i;
+      t = t / (len<<1);
+      float tr = 1 - t;
+      float f0 = tr * tr;
+      float f1 = f0 * t * 3;
+      f0 = f0 * tr;
+      float f3 = t * t;
+      float f2 = tr * f3 * 3;
+      f3 = f3 * t;
+      x1 = round( fx0 * f0 + fx1 * f1 + fx2 * f2 + fx3 * f3);
+      y1 = round( fy0 * f0 + fy1 * f1 + fy2 * f2 + fy3 * f3);
+      if (x0 != x1 || y0 != y1) {
+        drawLine(x0, y0, x1, y1);
+//drawCircle(x1, y1, 3);
+        x0 = x1;
+        y0 = y1;
+      }
+      x2 = round( fx0 * f3 + fx1 * f2 + fx2 * f1 + fx3 * f0);
+      y2 = round( fy0 * f3 + fy1 * f2 + fy2 * f1 + fy3 * f0);
+      if (x3 != x2 || y3 != y2) {
+        drawLine(x3, y3, x2, y2);
+//drawCircle(x2, y2, 3);
+        x3 = x2;
+        y3 = y2;
+      }
+    } while (++i <= len);
+    endWrite();
+  }
+
   void LGFXBase::drawGradientLine( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, bgr888_t colorstart, bgr888_t colorend )
   {
     if ( colorstart == colorend || (x0 == x1 && y0 == y1)) {
@@ -1120,9 +1183,8 @@ namespace lgfx
     std::int32_t cl = _clip_l;
     int w = _clip_r - cl + 1;
     std::uint8_t bufIdx = 0;
-    bool buf0[w], buf1[w], buf2[w];
-    bool* linebufs[3] = { buf0, buf1, buf2 };
-    std::int32_t bufY[3] = {-2, -2, -2};  // default is out of range.
+    bool* linebufs[3] = { new bool[w], new bool[w], new bool[w] };
+    std::int32_t bufY[3] = {-2, -2, -2};  // 3 line buffer (default: out of range.)
     bufY[0] = y;
     read_rect(cl, y, w, 1, linebufs[0], &p);
     std::list<paint_point_t> points;
@@ -1177,7 +1239,7 @@ namespace lgfx
         if (newy < _clip_t) continue;
         if (newy > _clip_b) continue;
         int bidx = 0;
-        for (; bidx < 3; ++bidx) if (newy == bufY[bidx]) break;
+        while (newy != bufY[bidx] && ++bidx != 3);
         if (bidx == 3) {
           for (bidx = 0; bidx < 2 && (abs(bufY[bidx] - ly) <= 1); ++bidx);
           bufY[bidx] = newy;
@@ -1192,8 +1254,9 @@ namespace lgfx
         }
       } while ((newy += 2) < ly + 2);
     }
+    int i = 0;
+    do { delete[] linebufs[i]; } while (++i != 3);
     endWrite();
   }
-
 }
 

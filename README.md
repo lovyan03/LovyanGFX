@@ -44,7 +44,7 @@ This library has the following advantages.
     - ILI9341 (ODROID-GO, ESP-WROVER-KIT, WioTerminal)
     - ILI9486
     - ILI9488
-    - ST7735 (M5StickC, TTGO TS, LoLin D32 Pro)
+    - ST7735 (M5StickC, TTGO T-Wristband, TTGO TS, LoLin D32 Pro)
     - ST7789 (TTGO T-Watch, DSTIKE D-duino-32 XS, ESP-WROVER-KIT)
     - SSD1351
 
@@ -81,18 +81,18 @@ This library is also compatible with the above models and LCD panels with a simi
 // ヘッダをincludeします。
 #include <LovyanGFX.hpp>
 
-// 対応機種をArduino環境で使う場合は、特別な設定は不要です。
-static LGFX lcd;                // LGFXのインスタンスを作成。
+static LGFX lcd;                 // LGFXのインスタンスを作成。
 static LGFX_Sprite sprite(&lcd); // スプライトを使う場合はLGFX_Spriteのインスタンスを作成。
-
-// ESP-IDF環境で使う場合や、Arduino環境でもSPIバスやパネルを設定したい場合は、
-// examples/HowToUse/2_spi_setting.ino を参照してください。
-
 
 // もし現在 TFT_eSPI を使用中で、ソースをなるべく変更したくない場合は、こちらのヘッダを利用できます。
 // #include <LGFX_TFT_eSPI.hpp>
 // static TFT_eSPI lcd;               // TFT_eSPIがLGFXの別名として定義されます。
 // static TFT_eSprite sprite(&lcd);   // TFT_eSpriteがLGFX_Spriteの別名として定義されます。
+
+
+// 対応機種に無い構成で使う場合は、 examples/HowToUse/2_spi_setting.ino を参照してください。
+// configフォルダのLGFX_Config_Custom.hppをコピーして環境に合わせて編集して、
+// ここでincludeをするか、ファイルの内容をそのまま貼り付けて使用してください。
 
 
 void setup(void)
@@ -345,6 +345,7 @@ LovyanGFX has been created to add these features and optimize performance.
 TFT_eSPIのベースとなった、[AdafruitGFX](https://github.com/adafruit/Adafruit-GFX-Library)を公開している[Adafruit Industries](https://github.com/adafruit/)へ感謝いたします。  
 [TJpgDec](http://elm-chan.org/fsw/tjpgd/00index.html) (Tiny JPEG Decompressor) の作者 [ChaN](http://elm-chan.org/)氏へ感謝いたします。  
 [Pngle](https://github.com/kikuchan/pngle) (PNG Loader for Embedding) の作者 [kikuchan](https://github.com/kikuchan/)氏へ感謝いたします。  
+[QRCode](https://github.com/ricmoo/QRCode/) (QR code generation library) の作者 [Richard Moore](https://github.com/ricmoo/)氏へ感謝いたします。  
 多くの技術的なアドバイスやESP-IDF環境での検証に協力してくれた[ciniml](https://github.com/ciniml)氏へ感謝いたします。  
 不具合の多い開発初期からの動作検証および多数の助言をくださった[mongonta0716](https://github.com/mongonta0716)氏へ感謝いたします。  
 多数のボードでの動作検証や英語への翻訳および多数の助言をくださった[tobozo](https://github.com/tobozo)氏へ感謝いたします。  

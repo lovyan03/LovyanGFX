@@ -104,7 +104,7 @@ void loop(void)
     }
     std::int32_t len = sprites[flip].bufferLength() >> 1;
     if (y + sprite_height > lcd_height) {
-      len = (lcd_height - y) * lcd_width * lcd.getColorConverter()->bytes;
+      len = (lcd_height - y) * lcd_width;
     }
     lcd.pushPixelsDMA(sprites[flip].getBuffer(), len);
   }
