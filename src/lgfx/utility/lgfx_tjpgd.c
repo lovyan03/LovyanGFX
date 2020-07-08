@@ -115,7 +115,7 @@ static const uint8_t Clip8[1024] = {
 
 #else	/* JD_TBLCLIP */
 
-static inline uint_fast8_t BYTECLIP (
+static inline int32_t BYTECLIP (
 	int32_t val
 )
 {
@@ -258,34 +258,35 @@ static int32_t bitext (	/* >=0: extracted data, <0: error code */
 	msk = jd->dmsk; dp = jd->dptr; dpend = jd->dpend;
 	s = *dp; v = 0;
 
-	do {
+	for (;;) {
 		if (!msk) {				/* Next byte? */
 			msk = 8;			/* Read from MSB */
-			if (++dp == dpend) {			/* No input data is available, re-fill input buffer */
+			if (++dp == dpend) {	/* No input data is available, re-fill input buffer */
 				dp = jd->inbuf;	/* Top of input buffer */
-				dpend = dp + jd->infunc(jd, dp, JD_SZBUF);
+				jd->dpend = dpend = dp + jd->infunc(jd, dp, JD_SZBUF);
 				if (dp == dpend) return 0 - (int32_t)JDR_INP;	/* Err: read error or wrong stream termination */
 			}
 			s = *dp;				/* Get next data byte */
 			if (s == 0xFF) {		/* Is start of flag sequence? */
-				if (++dp == dpend) {			/* No input data is available, re-fill input buffer */
+				if (++dp == dpend) {	/* No input data is available, re-fill input buffer */
 					dp = jd->inbuf;	/* Top of input buffer */
-					dpend = dp + jd->infunc(jd, dp, JD_SZBUF);
+					jd->dpend = dpend = dp + jd->infunc(jd, dp, JD_SZBUF);
 					if (dp == dpend) return 0 - (int32_t)JDR_INP;	/* Err: read error or wrong stream termination */
 				}
 				if (*dp != 0) return 0 - (int32_t)JDR_FMT1;	/* Err: unexpected flag is detected (may be collapted data) */
 				*dp = s;			/* The flag is a data 0xFF */
 			}
 		}
-		shift = msk < nbit ? msk : nbit;
-		msk -= shift;
-		v = (v << shift) | ((s >> msk) & ((1 << shift) - 1));	/* Get a bit */
-	} while (nbit -= shift);
-	jd->dmsk = msk; jd->dptr = dp;  jd->dpend = dpend;
-
-	return v;
+		if (msk >= nbit) {
+			msk -= nbit;
+			jd->dmsk = msk; jd->dptr = dp;
+			return v + ((s >> msk) & ((1 << nbit) - 1));	/* Get bits */
+		}
+		nbit -= msk;
+		v += (s & ((1 << msk) - 1)) << nbit;	/* Get bits */
+		msk = 0;
+	}
 }
-
 
 
 /*-----------------------------------------------------------------------*/
@@ -306,38 +307,40 @@ static int32_t huffext (	/* >=0: decoded data, <0: error code */
 	msk = jd->dmsk; dp = jd->dptr; dpend = jd->dpend;
 	s = *dp; v = 0;
 	bl = 16;	/* Max code length */
-	do {
-		if (!msk) {		/* Next byte? */
-huffext_goto:
+	for (;;) {
+		if (!msk) {				/* Next byte? */
+			msk = 8;			/* Read from MSB */
 			if (++dp == dpend) {	/* No input data is available, re-fill input buffer */
 				dp = jd->inbuf;	/* Top of input buffer */
-				dpend = dp + jd->infunc(jd, dp, JD_SZBUF);
+				jd->dpend = dpend = dp + jd->infunc(jd, dp, JD_SZBUF);
 				if (dp == dpend) return 0 - (int32_t)JDR_INP;	/* Err: read error or wrong stream termination */
 			}
-
-			if (!msk) {		/* Not in flag sequence? */
-				msk = 8;		/* Read from MSB */
-				s = *dp;				/* Get next data byte */
-				if (s == 0xFF) {		/* Is start of flag sequence? */
-					goto huffext_goto;	/* Enter flag sequence, get trailing byte */
+			s = *dp;				/* Get next data byte */
+			if (s == 0xFF) {		/* Is start of flag sequence? */
+				if (++dp == dpend) {	/* No input data is available, re-fill input buffer */
+					dp = jd->inbuf;	/* Top of input buffer */
+					jd->dpend = dpend = dp + jd->infunc(jd, dp, JD_SZBUF);
+					if (dp == dpend) return 0 - (int32_t)JDR_INP;	/* Err: read error or wrong stream termination */
 				}
-			} else {
 				if (*dp != 0) return 0 - (int32_t)JDR_FMT1;	/* Err: unexpected flag is detected (may be collapted data) */
-				*dp = s = 0xFF;			/* The flag is a data 0xFF */
+				*dp = s;			/* The flag is a data 0xFF */
 			}
 		}
-		v = (v << 1) | ((s >> (--msk)) & 1);	/* Get a bit */
-
-		for (size_t nd = *++hbits; nd; --nd) {	/* Search the code word in this bit length */
-			++hdata;
-			if (v == *++hcode) {		/* Matched? */
-				jd->dmsk = msk; jd->dptr = dp; jd->dpend = dpend;
-				return *hdata;			/* Return the decoded data */
+		do {
+			v = (v << 1) + ((s >> (--msk)) & 1);	/* Get a bit */
+			size_t nd = *++hbits;
+			if (nd) {
+				do {	/* Search the code word in this bit length */
+					++hdata;
+				} while (v != *++hcode && --nd);	/* Matched? */
+				if (nd) {		/* Matched? */
+					jd->dmsk = msk; jd->dptr = dp;
+					return *hdata;			/* Return the decoded data */
+				}
 			}
-		}
-	} while (--bl);
-
-	return 0 - (int32_t)JDR_FMT1;	/* Err: code not found (may be collapted data) */
+			if (!--bl) return 0 - (int32_t)JDR_FMT1;	/* Err: code not found (may be collapted data) */
+		} while (msk);
+	}
 }
 
 
@@ -357,7 +360,7 @@ static void block_idct (
 	int32_t t10, t11, t12, t13;
 
 	/* Process columns */
-	for (size_t i = 0; i < 8; ++i) {
+	for (int i = 0; i < 8; ++i) {
 		/* Get and Process the odd elements */
 		v4 = src[8 * 7];
 		v5 = src[8 * 1];
@@ -369,11 +372,9 @@ static void block_idct (
 		t12 = v6 - v7;
 		v7 += v6;
 		v5 = (t11 - v7) * M13 >> 8;
-		v7 += t11;
 		t13 = (t10 + t12) * M5 >> 8;
-		v6 = t13 - ((t12 * M4 >> 8) + v7);
-		v5 -= v6;
-		v4 = t13 - ((t10 * M2 >> 8) + v5);
+		v6 = t13 - ((t12 * M4 >> 8) + (v7 += t11));
+		v4 = t13 - ((t10 * M2 >> 8) + (v5 -= v6));
 
 		/* Get and Process the even elements */
 		v0 = src[8 * 0];
@@ -407,23 +408,29 @@ static void block_idct (
 
 	/* Process rows */
 	src -= 8;
-	for (size_t i = 0; i < 8; ++i) {
+	for (int i = 0; i < 8; ++i) {
 		/* Get and Process the odd elements */
-		v4 = src[7];
-		v5 = src[1];
+		v4 = src[1];
+		v5 = src[7] + v4;
+		v4 = (v4 << 1) - v5;
+
 		v6 = src[5];
-		v7 = src[3];
-		t10 = v5 - v4;
-		t11 = v5 + v4;
-		t12 = v6 - v7;
-		v7 += v6;
-		v5 = (t11 - v7) * M13 >> 8;
-		v7 += t11;
-		t13 = (t10 + t12) * M5 >> 8;
-		v6 = t13 - (t12 * M4 >> 8) - v7;
-		v4 = t13 - (t10 * M2 >> 8);
+		v7 = src[3] + v6;
+		v6 = (v6 << 1) - v7;
+
+		v7 += v5;
+		v5 = (v5 << 1) - v7;
+
+		t13 = v4 + v6;
+		t13 = t13 * M5 >> 8;
+		v6 = v6 * M4 >> 8;
+		v6 += v7;
+		v6 = t13 - v6;
+		v5 = v5 * M13 >> 8;
 		v5 -= v6;
-		v4 -= v5;
+		v4 = v4 * M2 >> 8;
+		v4 += v5;
+		v4 = t13 - v4;
 
 		/* Get and Process the even elements */
 		v0 = src[0] + (128L << 8);	/* remove DC offset (-128) here */
@@ -432,9 +439,9 @@ static void block_idct (
 		t12 = v0 - v2;
 
 		v1 = src[2];
-		v3 = src[6];
-		t11 = (v1 - v3) * M13 >> 8;
-		v3 += v1;
+		v3 = src[6] + v1;
+		t11 = (v1 << 1) - v3;
+		t11 = t11 * M13 >> 8;
 		t11 -= v3;
 
 		v0 = t10 + v3;
@@ -443,6 +450,34 @@ static void block_idct (
 		v2 = t12 - t11;
 
 		/* Descale the transformed values 8 bits and output */
+#if defined (ESP32) || (CONFIG_IDF_TARGET_ESP32) || (ESP_PLATFORM)
+		int32_t d0 = (v0 + v7) >> 8;
+		int32_t d7 = (v0 - v7) >> 8;
+		int32_t d1 = (v1 + v6) >> 8;
+		int32_t d6 = (v1 - v6) >> 8;
+		int32_t d2 = (v2 + v5) >> 8;
+		int32_t d5 = (v2 - v5) >> 8;
+		int32_t d3 = (v3 + v4) >> 8;
+		int32_t d4 = (v3 - v4) >> 8;
+
+		if (d0 < 0) d0 = 0; else if (d0 > 255) d0 = 255;
+		if (d1 < 0) d1 = 0; else if (d1 > 255) d1 = 255;
+		if (d2 < 0) d2 = 0; else if (d2 > 255) d2 = 255;
+		if (d3 < 0) d3 = 0; else if (d3 > 255) d3 = 255;
+		if (d4 < 0) d4 = 0; else if (d4 > 255) d4 = 255;
+		if (d5 < 0) d5 = 0; else if (d5 > 255) d5 = 255;
+		if (d6 < 0) d6 = 0; else if (d6 > 255) d6 = 255;
+		if (d7 < 0) d7 = 0; else if (d7 > 255) d7 = 255;
+
+		dst[0] = d0;
+		dst[1] = d1;
+		dst[2] = d2;
+		dst[3] = d3;
+		dst[4] = d4;
+		dst[5] = d5;
+		dst[6] = d6;
+		dst[7] = d7;
+#else
 		dst[0] = BYTECLIP((v0 + v7) >> 8);
 		dst[7] = BYTECLIP((v0 - v7) >> 8);
 		dst[1] = BYTECLIP((v1 + v6) >> 8);
@@ -451,7 +486,7 @@ static void block_idct (
 		dst[5] = BYTECLIP((v2 - v5) >> 8);
 		dst[3] = BYTECLIP((v3 + v4) >> 8);
 		dst[4] = BYTECLIP((v3 - v4) >> 8);
-
+#endif
 		dst += 8;
 		src += 8;	/* Next row */
 	}
@@ -549,7 +584,7 @@ static JRESULT mcu_output (
 	uint32_t y		/* MCU position in the image (top of the MCU) */
 )
 {
-	const int_fast16_t FP_SHIFT = 16;
+	const int_fast16_t FP_SHIFT = 8;
 	uint32_t ix, iy, mx, my, rx, ry;
 	int32_t yy, cb, cr;
 	uint8_t *py, *pc, *rgb24;
@@ -586,34 +621,41 @@ static JRESULT mcu_output (
 			ix = 0;
 			do {
 				do {
-#if JD_BAYER
-					yy = py[ix] + btbl[ix & 3];		/* Get Y component */
-#else
-					yy = py[ix];					/* Get Y component */
-#endif
 					size_t idx = ix >> ixshift;
 					cb = (pc[idx] - 128); 	/* Get Cb/Cr component and restore right level */
 					cr = (pc[idx + 64] - 128);
 
+				/* Convert CbCr to RGB */
+					uint_fast16_t rr = ((int32_t)(1.402   * (1<<FP_SHIFT)) * cr) >> FP_SHIFT;
+					uint_fast16_t gg = ((int32_t)(0.34414 * (1<<FP_SHIFT)) * cb
+									  + (int32_t)(0.71414 * (1<<FP_SHIFT)) * cr) >> FP_SHIFT;
+					uint_fast16_t bb = ((int32_t)(1.772   * (1<<FP_SHIFT)) * cb) >> FP_SHIFT;
+					do {
+#if JD_BAYER
+						yy = py[ix] + btbl[ix & 3];		/* Get Y component */
+#else
+						yy = py[ix];					/* Get Y component */
+#endif
+
 					/* Convert YCbCr to RGB */
-					*rgb24++ = BYTECLIP(yy + (((int32_t)(1.402   * (1<<FP_SHIFT)) * cr) >> FP_SHIFT));
-					*rgb24++ = BYTECLIP(yy - (((int32_t)(0.34414 * (1<<FP_SHIFT)) * cb
-											 + (int32_t)(0.71414 * (1<<FP_SHIFT)) * cr) >> FP_SHIFT));
-					*rgb24++ = BYTECLIP(yy + (((int32_t)(1.772   * (1<<FP_SHIFT)) * cb) >> FP_SHIFT));
-				} while (++ix & 7);
+						rgb24[ix*3  ] = BYTECLIP(yy + rr);
+						rgb24[ix*3+1] = BYTECLIP(yy - gg);
+						rgb24[ix*3+2] = BYTECLIP(yy + bb);
+					} while (++ix & ixshift);
+				} while (ix & 7);
 				py += 64 - 8;	/* Jump to next block if double block heigt */
 			} while (ix != mx);
+			rgb24 += ix * 3;
 		} while (++iy < my);
 
 		/* Descale the MCU rectangular if needed */
 		if (JD_USE_SCALE && jd->scale) {
-			uint32_t x, y, r, g, b, s, w, a;
+			uint32_t x, y, r, g, b, s, w;
 			uint8_t *op;
 
 			/* Get averaged RGB value of each square correcponds to a pixel */
 			s = jd->scale * 2;	/* Bumber of shifts for averaging */
 			w = 1 << jd->scale;	/* Width of square */
-			a = (mx - w) * 3;	/* Bytes to skip for next line in the square */
 			op = workbuf;
 			iy = 0;
 			do {
@@ -623,17 +665,19 @@ static JRESULT mcu_output (
 					r = g = b = 0;
 					y = 0;
 					do {	/* Accumulate RGB value in the square */
-						for (x = 0; x < w; ++x) {
-							r += *rgb24++;
-							g += *rgb24++;
-							b += *rgb24++;
-						}
-						rgb24 += a;
+						x = 0;
+						do {
+							r += rgb24[x*3  ];
+							g += rgb24[x*3+1];
+							b += rgb24[x*3+2];
+						} while (++x < w);
+						rgb24 += mx * 3;
 					} while (++y < w);
 					/* Put the averaged RGB value as a pixel */
-					*op++ = (uint8_t)(r >> s);
-					*op++ = (uint8_t)(g >> s);
-					*op++ = (uint8_t)(b >> s);
+					op[0] = r >> s;
+					op[1] = g >> s;
+					op[2] = b >> s;
+					op += 3;
 				} while ((ix += w) < mx);
 			} while ((iy += w) < my);
 		}
@@ -645,20 +689,23 @@ static JRESULT mcu_output (
 		pc = jd->mcubuf + mx * my;
 		cb = pc[0] - 128;		/* Get Cb/Cr component and restore right level */
 		cr = pc[64] - 128;
-		for (iy = 0; iy < my; iy += 8) {
+		iy = 0;
+		do {
 			py = jd->mcubuf;
 			if (iy == 8) py += 64 * 2;
-			for (ix = 0; ix < mx; ix += 8) {
+			ix = 0;
+			do {
 				yy = *py;	/* Get Y component */
 				py += 64;
 
 				/* Convert YCbCr to RGB */
-				*rgb24++ = BYTECLIP(yy + (((int32_t)(1.402   * (1<<FP_SHIFT)) * cr) >> FP_SHIFT));
-				*rgb24++ = BYTECLIP(yy - (((int32_t)(0.34414 * (1<<FP_SHIFT)) * cb
+				rgb24[0] = BYTECLIP(yy + (((int32_t)(1.402   * (1<<FP_SHIFT)) * cr) >> FP_SHIFT));
+				rgb24[1] = BYTECLIP(yy - (((int32_t)(0.34414 * (1<<FP_SHIFT)) * cb
 										 + (int32_t)(0.71414 * (1<<FP_SHIFT)) * cr) >> FP_SHIFT));
-				*rgb24++ = BYTECLIP(yy + (((int32_t)(1.772   * (1<<FP_SHIFT)) * cb) >> FP_SHIFT));
-			}
-		}
+				rgb24[2] = BYTECLIP(yy + (((int32_t)(1.772   * (1<<FP_SHIFT)) * cb) >> FP_SHIFT));
+				rgb24 += 3;
+			} while ((ix += 8) < mx);
+		} while ((iy += 8) < my);
 	}
 
 	/* Squeeze up pixel table if a part of MCU is to be truncated */
@@ -710,12 +757,12 @@ static JRESULT restart (
 	for (int i = 0; i < 2; ++i) {
 		if (++dp == dpend) {	/* No input data is available, re-fill input buffer */
 			dp = jd->inbuf;
-			dpend = dp + jd->infunc(jd, dp, JD_SZBUF);
+			jd->dpend = dpend = dp + jd->infunc(jd, dp, JD_SZBUF);
 			if (dp == dpend) return JDR_INP;
 		}
 		d = (d << 8) | *dp;	/* Get a byte */
 	}
-	jd->dptr = dp; jd->dpend = dpend; jd->dmsk = 0;
+	jd->dptr = dp; jd->dmsk = 0;
 
 	/* Check the marker */
 	if ((d & 0xFFD8) != 0xFFD0 || (d & 7) != (rstn & 7)) {
