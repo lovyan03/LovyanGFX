@@ -261,6 +261,10 @@ namespace lgfx
     void readRect( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, T* data)
     {
       pixelcopy_t p(nullptr, get_depth<T>::value, _read_conv.depth, false, _palette);
+      if (std::is_same<rgb565_t, T>::value || std::is_same<rgb888_t, T>::value) {
+        p.no_convert = false;
+        p.fp_copy = pixelcopy_t::get_fp_normalcopy_dst<T>(_read_conv.depth);
+      }
       if (p.fp_copy==nullptr) { p.fp_copy = pixelcopy_t::get_fp_normalcopy_dst<T>(_read_conv.depth); }
       read_rect(x, y, w, h, data, &p);
     }
