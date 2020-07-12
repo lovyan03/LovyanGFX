@@ -1092,12 +1092,12 @@ namespace lgfx
                      tmp = (ystart + ys2) / sin_y; if (right > tmp) right = tmp;
       }
       if (left < right) {
-        std::int32_t x32 = xstart - left * cos_x;
-        std::int32_t y32 = ystart - left * sin_y;
-        if (x32 >= 0 && y32 >= 0) {
-          param->src_x32 = x32;
-          param->src_y32 = y32;
-          pushImage_impl(left, min_y, right - left, 1, param, true);
+        param->src_x32 = xstart - left * cos_x;
+        if (param->src_x < param->src_width) {
+          param->src_y32 = ystart - left * sin_y;
+          if (param->src_y < h) {
+            pushImage_impl(left, min_y, right - left, 1, param, true);
+          }
         }
       }
     } while (++min_y != max_y);
