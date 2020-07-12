@@ -251,32 +251,33 @@ static int32_t bitext (	/* >=0: extracted data, <0: error code */
 	uint_fast8_t nbit		/* Number of bits to extract (1 to 11) */
 )
 {
-	uint8_t *dp, *dpend;
-	uint_fast8_t msk, s, shift;
+	uint8_t *dp;
+	uint_fast8_t msk, shift;
 	uint32_t v;
 
-	msk = jd->dmsk; dp = jd->dptr; dpend = jd->dpend;
-	s = *dp; v = 0;
+	msk = jd->dmsk; dp = jd->dptr;
+	v = 0;
 
 	for (;;) {
 		if (!msk) {				/* Next byte? */
-			msk = 8;			/* Read from MSB */
+			uint8_t *dpend = jd->dpend;
 			if (++dp == dpend) {	/* No input data is available, re-fill input buffer */
 				dp = jd->inbuf;	/* Top of input buffer */
 				jd->dpend = dpend = dp + jd->infunc(jd, dp, JD_SZBUF);
 				if (dp == dpend) return 0 - (int32_t)JDR_INP;	/* Err: read error or wrong stream termination */
 			}
-			s = *dp;				/* Get next data byte */
-			if (s == 0xFF) {		/* Is start of flag sequence? */
+			if (*dp == 0xff) {		/* Is start of flag sequence? */
 				if (++dp == dpend) {	/* No input data is available, re-fill input buffer */
 					dp = jd->inbuf;	/* Top of input buffer */
 					jd->dpend = dpend = dp + jd->infunc(jd, dp, JD_SZBUF);
 					if (dp == dpend) return 0 - (int32_t)JDR_INP;	/* Err: read error or wrong stream termination */
 				}
 				if (*dp != 0) return 0 - (int32_t)JDR_FMT1;	/* Err: unexpected flag is detected (may be collapted data) */
-				*dp = s;			/* The flag is a data 0xFF */
+				*dp = 0xff;			/* The flag is a data 0xFF */
 			}
+			msk = 8;			/* Read from MSB */
 		}
+		uint_fast8_t s = *dp;	/* Get next data byte */
 		if (msk >= nbit) {
 			msk -= nbit;
 			jd->dmsk = msk; jd->dptr = dp;
@@ -300,32 +301,33 @@ static int32_t huffext (	/* >=0: decoded data, <0: error code */
 	const uint8_t* hdata	/* Pointer to the data table */
 )
 {
-	uint8_t *dp, *dpend;
-	uint_fast8_t msk, s, bl;
+	uint8_t *dp;
+	uint_fast8_t msk, bl;
 	uint32_t v;
 
-	msk = jd->dmsk; dp = jd->dptr; dpend = jd->dpend;
-	s = *dp; v = 0;
+	msk = jd->dmsk; dp = jd->dptr;
+	v = 0;
 	bl = 16;	/* Max code length */
 	for (;;) {
 		if (!msk) {				/* Next byte? */
-			msk = 8;			/* Read from MSB */
+			uint8_t *dpend = jd->dpend;
 			if (++dp == dpend) {	/* No input data is available, re-fill input buffer */
 				dp = jd->inbuf;	/* Top of input buffer */
 				jd->dpend = dpend = dp + jd->infunc(jd, dp, JD_SZBUF);
 				if (dp == dpend) return 0 - (int32_t)JDR_INP;	/* Err: read error or wrong stream termination */
 			}
-			s = *dp;				/* Get next data byte */
-			if (s == 0xFF) {		/* Is start of flag sequence? */
+			if (*dp == 0xff) {		/* Is start of flag sequence? */
 				if (++dp == dpend) {	/* No input data is available, re-fill input buffer */
 					dp = jd->inbuf;	/* Top of input buffer */
 					jd->dpend = dpend = dp + jd->infunc(jd, dp, JD_SZBUF);
 					if (dp == dpend) return 0 - (int32_t)JDR_INP;	/* Err: read error or wrong stream termination */
 				}
 				if (*dp != 0) return 0 - (int32_t)JDR_FMT1;	/* Err: unexpected flag is detected (may be collapted data) */
-				*dp = s;			/* The flag is a data 0xFF */
+				*dp = 0xff;			/* The flag is a data 0xFF */
 			}
+			msk = 8;			/* Read from MSB */
 		}
+		uint_fast8_t s = *dp;	/* Get next data byte */
 		do {
 			v = (v << 1) + ((s >> (--msk)) & 1);	/* Get a bit */
 			size_t nd = *++hbits;
@@ -636,7 +638,6 @@ static JRESULT mcu_output (
 #else
 						yy = py[ix];					/* Get Y component */
 #endif
-
 					/* Convert YCbCr to RGB */
 						rgb24[ix*3  ] = BYTECLIP(yy + rr);
 						rgb24[ix*3+1] = BYTECLIP(yy - gg);
