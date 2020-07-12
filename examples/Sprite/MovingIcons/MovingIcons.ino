@@ -133,7 +133,7 @@ void loop(void)
     if (y + sprite_height > tft_height) {
       len = (tft_height - y) * tft_width;
     }
-    lcd.pushPixelsDMA(sprites[flip].getBuffer(), len);
+    lcd.pushPixelsDMA((uint16_t*)sprites[flip].getBuffer(), len);
   }
 
   ++frame_count;
