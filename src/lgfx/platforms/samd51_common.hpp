@@ -6,6 +6,7 @@
 #include <malloc.h>
 #ifdef ARDUINO
 #include <sam.h>
+#include <delay.h>
 #else
 
 #include <config/default/system/fs/sys_fs.h>
