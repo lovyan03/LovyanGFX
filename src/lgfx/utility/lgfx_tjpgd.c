@@ -334,15 +334,16 @@ static int32_t huffext (	/* >=0: decoded data, <0: error code */
 			if (nd) {
 				do {	/* Search the code word in this bit length */
 					++hdata;
-				} while (v != *++hcode && --nd);	/* Matched? */
-				if (nd) {		/* Matched? */
-					jd->dmsk = msk; jd->dptr = dp;
-					return *hdata;			/* Return the decoded data */
-				}
+					if (v == *++hcode) goto huffext_match;	/* Matched? */
+				} while (--nd);
 			}
 			if (!--bl) return 0 - (int32_t)JDR_FMT1;	/* Err: code not found (may be collapted data) */
 		} while (msk);
 	}
+huffext_match:
+	jd->dmsk = msk;
+	jd->dptr = dp;
+	return *hdata;					/* Return the decoded data */
 }
 
 
@@ -623,9 +624,9 @@ static JRESULT mcu_output (
 			ix = 0;
 			do {
 				do {
-					size_t idx = ix >> ixshift;
-					cb = (pc[idx] - 128); 	/* Get Cb/Cr component and restore right level */
-					cr = (pc[idx + 64] - 128);
+					cb = (pc[ 0] - 128); 	/* Get Cb/Cr component and restore right level */
+					cr = (pc[64] - 128);
+					++pc;
 
 				/* Convert CbCr to RGB */
 					uint_fast16_t rr = ((int32_t)(1.402   * (1<<FP_SHIFT)) * cr) >> FP_SHIFT;
@@ -634,19 +635,20 @@ static JRESULT mcu_output (
 					uint_fast16_t bb = ((int32_t)(1.772   * (1<<FP_SHIFT)) * cb) >> FP_SHIFT;
 					do {
 #if JD_BAYER
-						yy = py[ix] + btbl[ix & 3];		/* Get Y component */
+						yy = *py + btbl[ix & 3];		/* Get Y component */
 #else
-						yy = py[ix];					/* Get Y component */
+						yy = *py;					/* Get Y component */
 #endif
+						++py;
 					/* Convert YCbCr to RGB */
-						rgb24[ix*3  ] = BYTECLIP(yy + rr);
-						rgb24[ix*3+1] = BYTECLIP(yy - gg);
-						rgb24[ix*3+2] = BYTECLIP(yy + bb);
+						rgb24[0] = BYTECLIP(yy + rr);
+						rgb24[1] = BYTECLIP(yy - gg);
+						rgb24[2] = BYTECLIP(yy + bb);
+						rgb24 += 3;
 					} while (++ix & ixshift);
 				} while (ix & 7);
 				py += 64 - 8;	/* Jump to next block if double block heigt */
 			} while (ix != mx);
-			rgb24 += ix * 3;
 		} while (++iy < my);
 
 		/* Descale the MCU rectangular if needed */
