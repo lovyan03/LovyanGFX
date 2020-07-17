@@ -141,6 +141,7 @@ namespace lgfx
     __attribute__ ((always_inline)) inline void endTransaction(void)   { endTransaction_impl(); }
     __attribute__ ((always_inline)) inline void initDMA(void)  { }  // TFT_eSPI compatible
     __attribute__ ((always_inline)) inline void waitDMA(void)  { waitDMA_impl(); }
+    __attribute__ ((always_inline)) inline bool dmaBusy(void)  { return dmaBusy_impl(); }
     __attribute__ ((always_inline)) inline void setWindow(std::int32_t xs, std::int32_t ys, std::int32_t xe, std::int32_t ye) { setWindow_impl(xs, ys, xe, ye); }
 
     void setSPIShared(bool shared) { _spi_shared = shared; }
@@ -521,6 +522,7 @@ namespace lgfx
     virtual void beginTransaction_impl(void) = 0;
     virtual void endTransaction_impl(void) = 0;
     virtual void waitDMA_impl(void) = 0;
+    virtual bool dmaBusy_impl(void) = 0;
     virtual void pushPixelsDMA_impl(const void* data, std::int32_t length) = 0;
 
     virtual void drawPixel_impl(std::int32_t x, std::int32_t y) = 0;

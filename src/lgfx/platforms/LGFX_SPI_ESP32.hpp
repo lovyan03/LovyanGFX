@@ -468,6 +468,11 @@ namespace lgfx
 #endif
     }
 
+    bool dmaBusy_impl(void) override
+    {
+      return *reg(SPI_CMD_REG(_spi_port)) & SPI_USR;
+    }
+
     void waitDMA_impl(void) override
     {
       wait_spi();

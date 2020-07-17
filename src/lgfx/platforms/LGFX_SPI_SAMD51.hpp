@@ -636,6 +636,11 @@ void disableSPI()
       cs_h();
     }
 
+    bool dmaBusy_impl(void) override
+    {
+      return _need_wait && (_sercom->SPI.INTFLAG.bit.TXC == 0);
+    }
+
     void waitDMA_impl(void) override
     {
       wait_spi();
