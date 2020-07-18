@@ -468,14 +468,22 @@ namespace lgfx
 #endif
     }
 
-    bool dmaBusy_impl(void) override
+    void initDMA_impl(void) override
     {
-      return *reg(SPI_CMD_REG(_spi_port)) & SPI_USR;
+      if (_dma_channel) {
+        periph_module_reset( PERIPH_SPI_DMA_MODULE );
+        _next_dma_reset = false;
+      }
     }
 
     void waitDMA_impl(void) override
     {
       wait_spi();
+    }
+
+    bool dmaBusy_impl(void) override
+    {
+      return *reg(SPI_CMD_REG(_spi_port)) & SPI_USR;
     }
 
     void setWindow_impl(std::int32_t xs, std::int32_t ys, std::int32_t xe, std::int32_t ye) override

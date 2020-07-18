@@ -788,6 +788,7 @@ return;
 
     void beginTransaction_impl(void) override {}
     void endTransaction_impl(void) override {}
+    void initDMA_impl(void) override {}
     void waitDMA_impl(void) override {}
     bool dmaBusy_impl(void) override { return false; }
 
