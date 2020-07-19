@@ -10,8 +10,8 @@
 
 static uint32_t sec, psec;
 static size_t fps = 0, frame_count = 0;
-static uint32_t tft_width ;
-static uint32_t tft_height;
+static uint32_t lcd_width ;
+static uint32_t lcd_height;
 
 struct obj_info_t {
   int_fast16_t x;
@@ -31,16 +31,16 @@ struct obj_info_t {
     if (x < 0) {
       x = 0;
       if (dx < 0) dx = - dx;
-    } else if (x >= tft_width) {
-      x = tft_width -1;
+    } else if (x >= lcd_width) {
+      x = lcd_width -1;
       if (dx > 0) dx = - dx;
     }
     y += dy;
     if (y < 0) {
       y = 0;
       if (dy < 0) dy = - dy;
-    } else if (y >= tft_height) {
-      y = tft_height - 1;
+    } else if (y >= lcd_height) {
+      y = lcd_height - 1;
       if (dy > 0) dy = - dy;
     }
     z += dz;
@@ -71,14 +71,14 @@ void setup(void)
 
   lcd.init();
 
-  tft_width = lcd.width();
-  tft_height = lcd.height();
+  lcd_width = lcd.width();
+  lcd_height = lcd.height();
   obj_info_t *a;
   for (size_t i = 0; i < obj_count; ++i) {
     a = &objects[i];
     a->img = i % 3;
-    a->x = random(tft_width);
-    a->y = random(tft_height);
+    a->x = random(lcd_width);
+    a->y = random(lcd_height);
     a->dx = random(1, 4) * (i & 1 ? 1 : -1);
     a->dy = random(1, 4) * (i & 2 ? 1 : -1);
     a->dr = random(1, 4) * (i & 2 ? 1 : -1);
@@ -87,9 +87,12 @@ void setup(void)
     a->dz = (float)(random(1, 10)) / 100;
   }
 
-  sprite_height = (tft_height + 2) / 3;
-  sprites[0].createSprite(tft_width, sprite_height);
-  sprites[1].createSprite(tft_width, sprite_height);
+  sprite_height = (lcd_height + 2) / 3;
+  for (std::uint32_t i = 0; i < 2; ++i)
+  {
+    sprites[i].setColorDepth(lcd.getColorDepth());
+    sprites[i].createSprite(lcd_width, sprite_height);
+  }
 
   icons[0].createSprite(infoWidth, infoHeight);
   icons[1].createSprite(alertWidth, alertHeight);
@@ -104,7 +107,7 @@ void setup(void)
   icons[2].pushImage(0, 0, closeWidth,  closeHeight, closeX);
 
   lcd.startWrite();
-  lcd.setAddrWindow(0, 0, tft_width, tft_height);
+  lcd.setAddrWindow(0, 0, lcd_width, lcd_height);
 }
 
 void loop(void)
@@ -115,7 +118,7 @@ void loop(void)
   for (int i = 0; i != obj_count; i++) {
     objects[i].move();
   }
-  for (int_fast16_t y = 0; y < tft_height; y += sprite_height) {
+  for (int_fast16_t y = 0; y < lcd_height; y += sprite_height) {
     flip = flip ? 0 : 1;
     sprites[flip].clear();
     for (size_t i = 0; i != obj_count; i++) {
@@ -129,11 +132,11 @@ void loop(void)
       sprites[flip].setTextColor(0xFFFFFFU);
       sprites[flip].printf("obj:%d  fps:%d", obj_count, fps);
     }
-    size_t len = sprites[flip].bufferLength() >> 1;
-    if (y + sprite_height > tft_height) {
-      len = (tft_height - y) * tft_width;
+    size_t len = sprite_height * lcd_width;
+    if (y + sprite_height > lcd_height) {
+      len = (lcd_height - y) * lcd_width;
     }
-    lcd.pushPixelsDMA((uint16_t*)sprites[flip].getBuffer(), len);
+    lcd.pushPixelsDMA(sprites[flip].getBuffer(), len);
   }
 
   ++frame_count;
