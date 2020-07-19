@@ -243,9 +243,12 @@ void setup(void)
   lcd.begin();
   lcd.setBrightness(160);
   lcd.startWrite();
+  if (lcd.width() < lcd.height()) lcd.setRotation(lcd.getRotation() ^ 1);
 
   auto lcd_width = lcd.width();
   auto lcd_height = lcd.height();
+  if (lcd_width > 320) lcd_width = 320;
+  if (lcd_height > 240) lcd_height = 240;
 
   for (std::uint32_t i = 0; i < 2; ++i)
   {
