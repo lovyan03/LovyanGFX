@@ -87,11 +87,22 @@ void setup(void)
     a->dz = (float)(random(1, 10)) / 100;
   }
 
-  sprite_height = (lcd_height + 2) / 3;
-  for (std::uint32_t i = 0; i < 2; ++i)
-  {
-    sprites[i].setColorDepth(lcd.getColorDepth());
-    sprites[i].createSprite(lcd_width, sprite_height);
+  uint32_t div = 2;
+  for (;;) {
+    sprite_height = (lcd_height + div - 1) / div;
+    bool fail = false;
+    for (std::uint32_t i = 0; !fail && i < 2; ++i)
+    {
+      sprites[i].setColorDepth(lcd.getColorDepth());
+      sprites[i].setFont(&fonts::Font2);
+      fail = !sprites[i].createSprite(lcd_width, sprite_height);
+    }
+    if (!fail) break;
+    for (std::uint32_t i = 0; i < 2; ++i)
+    {
+      sprites[i].deleteSprite();
+    }
+    ++div;
   }
 
   icons[0].createSprite(infoWidth, infoHeight);
