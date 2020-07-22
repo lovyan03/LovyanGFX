@@ -167,31 +167,6 @@ namespace lgfx
   };
 
 #if defined(ESP32) || (CONFIG_IDF_TARGET_ESP32)
-  struct Panel_M5StickC : public Panel_ST7735S
-  {
-    Panel_M5StickC() {
-      spi_3wire  = true;
-      invert     = true;
-      spi_cs     =  5;
-      spi_dc     = 23;
-      gpio_rst   = 18;
-      panel_width  = 80;
-      panel_height = 160;
-      offset_x     = 26;
-      offset_y     = 1;
-      offset_rotation = 2;
-    }
-  protected:
-    const std::uint8_t* getInitCommands(std::uint8_t listno) const override {
-      static constexpr std::uint8_t list[] = {
-          CMD::GAMMASET, 1, 0x08,  // Gamma set, curve 4
-          0xFF,0xFF, // end
-      };
-      if (listno == 2)  return list;
-      return Panel_ST7735S::getInitCommands(listno);
-    }
-  };
-
   struct Panel_TTGO_TS : public Panel_ST7735S
   {
     Panel_TTGO_TS(void) {
