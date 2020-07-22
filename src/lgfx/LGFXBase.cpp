@@ -1059,7 +1059,7 @@ namespace lgfx
     std::int32_t scale_w = w << FP_SCALE;
     std::int32_t xs1 = (cos_x < 0 ?   - scale_w :   1) - cos_x;
     std::int32_t xs2 = (cos_x < 0 ? 0 : (1 - scale_w)) - cos_x;
-    if (cos_x == 0) cos_x = 1;
+//    if (cos_x == 0) cos_x = 1;
     cos_x = -cos_x;
 
     std::int32_t sin_y = round(sin_f / zoom_y);
@@ -1069,7 +1069,7 @@ namespace lgfx
     std::int32_t scale_h = h << FP_SCALE;
     std::int32_t ys1 = (sin_y < 0 ?   - scale_h :   1) - sin_y;
     std::int32_t ys2 = (sin_y < 0 ? 0 : (1 - scale_h)) - sin_y;
-    if (sin_y == 0) sin_y = 1;
+//    if (sin_y == 0) sin_y = 1;
     sin_y = -sin_y;
 
     std::int32_t cl = _clip_l;
@@ -1080,23 +1080,24 @@ namespace lgfx
       std::int32_t left = cl;
       std::int32_t right = cr;
       xstart += sin_x;
-      //if (cos_x != 0)
+      if (cos_x != 0)
       {
         std::int32_t tmp = (xstart + xs1) / cos_x; if (left  < tmp) left  = tmp;
-                tmp = (xstart + xs2) / cos_x; if (right > tmp) right = tmp;
+                     tmp = (xstart + xs2) / cos_x; if (right > tmp) right = tmp;
       }
       ystart += cos_y;
-      //if (sin_y != 0)
+      if (sin_y != 0)
       {
         std::int32_t tmp = (ystart + ys1) / sin_y; if (left  < tmp) left  = tmp;
-                tmp = (ystart + ys2) / sin_y; if (right > tmp) right = tmp;
+                     tmp = (ystart + ys2) / sin_y; if (right > tmp) right = tmp;
       }
       if (left < right) {
         param->src_x32 = xstart - left * cos_x;
-        std::int32_t y32 = ystart - left * sin_y;
-        if (y32 >= 0) {
-          param->src_y32 = y32;
-          pushImage_impl(left, min_y, right - left, 1, param, true);
+        if (param->src_x < param->src_width) {
+          param->src_y32 = ystart - left * sin_y;
+          if (param->src_y < h) {
+            pushImage_impl(left, min_y, right - left, 1, param, true);
+          }
         }
       }
     } while (++min_y != max_y);

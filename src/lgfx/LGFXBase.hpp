@@ -139,8 +139,9 @@ namespace lgfx
 
     __attribute__ ((always_inline)) inline void beginTransaction(void) { beginTransaction_impl(); }
     __attribute__ ((always_inline)) inline void endTransaction(void)   { endTransaction_impl(); }
-    __attribute__ ((always_inline)) inline void initDMA(void)  { }  // TFT_eSPI compatible
+    __attribute__ ((always_inline)) inline void initDMA(void)  { initDMA_impl(); }
     __attribute__ ((always_inline)) inline void waitDMA(void)  { waitDMA_impl(); }
+    __attribute__ ((always_inline)) inline bool dmaBusy(void)  { return dmaBusy_impl(); }
     __attribute__ ((always_inline)) inline void setWindow(std::int32_t xs, std::int32_t ys, std::int32_t xe, std::int32_t ye) { setWindow_impl(xs, ys, xe, ye); }
 
     void setSPIShared(bool shared) { _spi_shared = shared; }
@@ -261,6 +262,10 @@ namespace lgfx
     void readRect( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, T* data)
     {
       pixelcopy_t p(nullptr, get_depth<T>::value, _read_conv.depth, false, _palette);
+      if (std::is_same<rgb565_t, T>::value || std::is_same<rgb888_t, T>::value) {
+        p.no_convert = false;
+        p.fp_copy = pixelcopy_t::get_fp_normalcopy_dst<T>(_read_conv.depth);
+      }
       if (p.fp_copy==nullptr) { p.fp_copy = pixelcopy_t::get_fp_normalcopy_dst<T>(_read_conv.depth); }
       read_rect(x, y, w, h, data, &p);
     }
@@ -516,7 +521,9 @@ namespace lgfx
 
     virtual void beginTransaction_impl(void) = 0;
     virtual void endTransaction_impl(void) = 0;
+    virtual void initDMA_impl(void) = 0;
     virtual void waitDMA_impl(void) = 0;
+    virtual bool dmaBusy_impl(void) = 0;
     virtual void pushPixelsDMA_impl(const void* data, std::int32_t length) = 0;
 
     virtual void drawPixel_impl(std::int32_t x, std::int32_t y) = 0;

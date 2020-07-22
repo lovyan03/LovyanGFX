@@ -636,9 +636,16 @@ void disableSPI()
       cs_h();
     }
 
+    void initDMA_impl(void) override {}
+
     void waitDMA_impl(void) override
     {
       wait_spi();
+    }
+
+    bool dmaBusy_impl(void) override
+    {
+      return _need_wait && (_sercom->SPI.INTFLAG.bit.TXC == 0);
     }
 
     void setWindow_impl(std::int32_t xs, std::int32_t ys, std::int32_t xe, std::int32_t ye) override

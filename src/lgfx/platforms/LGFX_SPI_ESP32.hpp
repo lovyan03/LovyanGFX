@@ -468,9 +468,22 @@ namespace lgfx
 #endif
     }
 
+    void initDMA_impl(void) override
+    {
+      if (_dma_channel) {
+        periph_module_reset( PERIPH_SPI_DMA_MODULE );
+        _next_dma_reset = false;
+      }
+    }
+
     void waitDMA_impl(void) override
     {
       wait_spi();
+    }
+
+    bool dmaBusy_impl(void) override
+    {
+      return *reg(SPI_CMD_REG(_spi_port)) & SPI_USR;
     }
 
     void setWindow_impl(std::int32_t xs, std::int32_t ys, std::int32_t xe, std::int32_t ye) override
@@ -749,6 +762,7 @@ namespace lgfx
       auto fp_copy = param->fp_copy;
 
       std::int32_t xr = (x + w) - 1;
+      std::int32_t whb = w * h * bytes;
       if (param->transp == ~0) {
         if (param->no_convert) {
           setWindow_impl(x, y, xr, y + h - 1);
@@ -761,20 +775,19 @@ namespace lgfx
               _setup_dma_desc_links(src, w * bytes, h, param->src_width * bytes);
             }
             dc_h();
-            set_write_len(w * h * bytes << 3);
+            set_write_len(whb << 3);
             *reg(SPI_DMA_OUT_LINK_REG(_spi_port)) = SPI_OUTLINK_START | ((int)(&_dmadesc[0]) & 0xFFFFF);
             spi_dma_transfer_active(_dma_channel);
             exec_spi();
             return;
           }
           if (param->src_width == w) {
-            std::int32_t len = w * h * bytes;
-            if (_dma_channel && !use_dma && (64 < len) && (len <= 1024)) {
-              auto buf = get_dmabuffer(len);
-              memcpy(buf, src, len);
-              write_bytes(buf, len, true);
+            if (_dma_channel && !use_dma && (64 < whb) && (whb <= 1024)) {
+              auto buf = get_dmabuffer(whb);
+              memcpy(buf, src, whb);
+              write_bytes(buf, whb, true);
             } else {
-              write_bytes(src, len, use_dma);
+              write_bytes(src, whb, use_dma);
             }
           } else {
             auto add = param->src_width * bytes;
@@ -784,17 +797,25 @@ namespace lgfx
             } while (--h);
           }
         } else
-        if (_dma_channel && use_dma) {
-          auto buf = get_dmabuffer(w * bytes);
-          fp_copy(buf, 0, w, param);
-          setWindow_impl(x, y, xr, y + h - 1);
-          write_bytes(buf, w * bytes, use_dma);
-          while (--h) {
-            param->src_x = src_x;
-            param->src_y++;
-            buf = get_dmabuffer(w * bytes);
+        if (_dma_channel && (64 < whb)) {
+          if (param->src_width == w && (whb <= 1024)) {
+            auto buf = get_dmabuffer(whb);
+            fp_copy(buf, 0, w * h, param);
+            setWindow_impl(x, y, xr, y + h - 1);
+            write_bytes(buf, whb, true);
+          } else {
+            std::int32_t wb = w * bytes;
+            auto buf = get_dmabuffer(wb);
             fp_copy(buf, 0, w, param);
-            write_bytes(buf, w * bytes, use_dma);
+            setWindow_impl(x, y, xr, y + h - 1);
+            write_bytes(buf, wb, true);
+            while (--h) {
+              param->src_x = src_x;
+              param->src_y++;
+              buf = get_dmabuffer(wb);
+              fp_copy(buf, 0, w, param);
+              write_bytes(buf, wb, true);
+            }
           }
         } else {
           setWindow_impl(x, y, xr, y + h - 1);

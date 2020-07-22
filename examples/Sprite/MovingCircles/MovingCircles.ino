@@ -47,12 +47,12 @@ static int_fast16_t sprite_height;
 
 void setup(void)
 {
-  lcd.init();
-
 #if defined(ARDUINO_M5Stick_C)
   AXP192 axp;
   axp.begin();
 #endif
+
+  lcd.init();
 
   lcd_width = lcd.width();
   lcd_height = lcd.height();
@@ -67,11 +67,22 @@ void setup(void)
     a->r = 8 + (i & 0x07);
   }
 
-  sprite_height = (lcd_height + 2) / 3;
-  for (std::uint32_t i = 0; i < 2; ++i)
-  {
-    sprites[i].createSprite(lcd_width, sprite_height);
-    sprites[i].setFont(&fonts::Font2);
+  uint32_t div = 2;
+  for (;;) {
+    sprite_height = (lcd_height + div - 1) / div;
+    bool fail = false;
+    for (std::uint32_t i = 0; !fail && i < 2; ++i)
+    {
+      sprites[i].setColorDepth(lcd.getColorDepth());
+      sprites[i].setFont(&fonts::Font2);
+      fail = !sprites[i].createSprite(lcd_width, sprite_height);
+    }
+    if (!fail) break;
+    for (std::uint32_t i = 0; i < 2; ++i)
+    {
+      sprites[i].deleteSprite();
+    }
+    ++div;
   }
   lcd.startWrite();
   lcd.setAddrWindow(0, 0, lcd_width, lcd_height);
@@ -102,7 +113,7 @@ void loop(void)
       sprites[flip].setTextColor(TFT_WHITE);
       sprites[flip].printf("obj:%d fps:%d", obj_count, fps);
     }
-    std::int32_t len = sprites[flip].bufferLength() >> 1;
+    std::uint32_t len = sprite_height * lcd_width;
     if (y + sprite_height > lcd_height) {
       len = (lcd_height - y) * lcd_width;
     }

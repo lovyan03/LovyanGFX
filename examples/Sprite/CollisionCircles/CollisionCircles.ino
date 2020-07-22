@@ -243,17 +243,51 @@ void setup(void)
   lcd.begin();
   lcd.setBrightness(160);
   lcd.startWrite();
+  if (lcd.width() < lcd.height()) lcd.setRotation(lcd.getRotation() ^ 1);
 
   auto lcd_width = lcd.width();
   auto lcd_height = lcd.height();
 
   for (std::uint32_t i = 0; i < 2; ++i)
   {
-    _sprites[i].setColorDepth(8);
-    _sprites[i].createSprite(lcd_width, lcd_height);
     _sprites[i].setTextSize(2);
-    _sprites[i].setTextFont(&fonts::Font0);
+    _sprites[i].setColorDepth(8);
   }
+
+  bool fail = false;
+  for (std::uint32_t i = 0; !fail && i < 2; ++i)
+  {
+    fail = !_sprites[i].createSprite(lcd_width, lcd_height);
+  }
+
+  if (fail)
+  {
+    fail = false;
+    for (std::uint32_t i = 0; !fail && i < 2; ++i)
+    {
+      _sprites[i].setPsram(true);
+      fail = !_sprites[i].createSprite(lcd_width, lcd_height);
+    }
+
+    if (fail)
+    {
+      fail = false;
+      if (lcd_width > 320) lcd_width = 320;
+      if (lcd_height > 240) lcd_height = 240;
+
+      for (std::uint32_t i = 0; !fail && i < 2; ++i)
+      {
+        _sprites[i].setPsram(true);
+        fail = !_sprites[i].createSprite(lcd_width, lcd_height);
+      }
+      if (fail)
+      {
+        lcd.print("createSprite fail...");
+        delay(3000);
+      }
+    }
+  }
+
   _width = lcd_width << SHIFTSIZE;
   _height = lcd_height << SHIFTSIZE;
 

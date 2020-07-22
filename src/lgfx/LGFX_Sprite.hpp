@@ -788,7 +788,9 @@ return;
 
     void beginTransaction_impl(void) override {}
     void endTransaction_impl(void) override {}
+    void initDMA_impl(void) override {}
     void waitDMA_impl(void) override {}
+    bool dmaBusy_impl(void) override { return false; }
 
     inline std::int32_t ptr_advance(std::int32_t length = 1) {
       if ((_xptr += length) > _xe) {
