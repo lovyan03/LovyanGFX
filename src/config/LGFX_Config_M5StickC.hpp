@@ -48,7 +48,6 @@ public:
       panel.panel_height = 240;
       panel.offset_x = 52;
       panel.offset_y = 40;
-      panel.offset_rotation = 2;
 
       setPanel(&panel);
       lgfx::LGFX_SPI<lgfx::LGFX_Config>::initPanel();
