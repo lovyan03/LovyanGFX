@@ -11,7 +11,7 @@
 #else
   #include <freertos/FreeRTOS.h>
   #include <freertos/task.h>
-
+  #include <soc/gpio_struct.h>
   static inline void delay(std::uint32_t ms) { vTaskDelay(ms / portTICK_PERIOD_MS); }
 #endif
 
