@@ -377,6 +377,7 @@ namespace lgfx
     }
 
     void end_transaction(void) {
+      wait();
       if (_panel->spi_cs < 0) {
         write_cmd(0); // NOP command
       }
