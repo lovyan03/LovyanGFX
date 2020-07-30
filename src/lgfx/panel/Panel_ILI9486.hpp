@@ -74,6 +74,12 @@ namespace lgfx
       return madctl_table[r];
     }
   };
+
+  struct Panel_ILI9486L : public Panel_ILI9486
+  {
+    std::uint8_t getColMod(std::uint8_t) const override { return RGB666_3BYTE; }
+  };
+
 }
 
 #endif

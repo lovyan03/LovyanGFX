@@ -54,6 +54,7 @@ Contributors:
 
 #if defined (ESP32) || (CONFIG_IDF_TARGET_ESP32)
   #include "lgfx/platforms/LGFX_SPI_ESP32.hpp"
+  #include "lgfx/platforms/LGFX_I2S_ESP32.hpp"
 
 #elif defined (__SAMD51__)
   #include "lgfx/platforms/LGFX_SPI_SAMD51.hpp"
