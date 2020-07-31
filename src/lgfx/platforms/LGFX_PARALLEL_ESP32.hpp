@@ -1,5 +1,5 @@
 /*----------------------------------------------------------------------------/
-  Lovyan GFX library - ESP32 hardware SPI graphics library .  
+  Lovyan GFX library - ESP32 hardware graphics library .  
   
     for Arduino and ESP-IDF  
   
@@ -17,8 +17,8 @@ Contributors:
  [mongonta0716](https://github.com/mongonta0716)  
  [tobozo](https://github.com/tobozo)  
 /----------------------------------------------------------------------------*/
-#ifndef LGFX_I2S_ESP32_HPP_
-#define LGFX_I2S_ESP32_HPP_
+#ifndef LGFX_PARALLEL_ESP32_HPP_
+#define LGFX_PARALLEL_ESP32_HPP_
 
 #include <cstring>
 #include <type_traits>
@@ -61,6 +61,10 @@ namespace lgfx
   #define I2S_FIFO_WR_REG(i) (REG_I2S_BASE(i))
   #endif
 
+  #ifndef I2S_FIFO_RD_REG
+  #define I2S_FIFO_RD_REG(i) (REG_I2S_BASE(i+4))
+  #endif
+
 /*
   inline static void spi_dma_transfer_active(int dmachan)
   {
@@ -76,36 +80,35 @@ namespace lgfx
   template<class T, valuetype V> static constexpr std::integral_constant<valuetype, T::member> check(decltype(T::member)*); \
   template<class T, valuetype V> static constexpr std::integral_constant<valuetype, V> check(...); \
   };template<class T, valuetype V> class classname : public decltype(classname_impl::check<T, V>(nullptr)) {};
-  MEMBER_DETECTOR(i2s_port   , get_i2s_port   , get_i2s_port_impl   , i2s_port_t)
-  MEMBER_DETECTOR(i2s_d0     , get_i2s_d0     , get_i2s_d0_impl     , int)
-  MEMBER_DETECTOR(i2s_d1     , get_i2s_d1     , get_i2s_d1_impl     , int)
-  MEMBER_DETECTOR(i2s_d2     , get_i2s_d2     , get_i2s_d2_impl     , int)
-  MEMBER_DETECTOR(i2s_d3     , get_i2s_d3     , get_i2s_d3_impl     , int)
-  MEMBER_DETECTOR(i2s_d4     , get_i2s_d4     , get_i2s_d4_impl     , int)
-  MEMBER_DETECTOR(i2s_d5     , get_i2s_d5     , get_i2s_d5_impl     , int)
-  MEMBER_DETECTOR(i2s_d6     , get_i2s_d6     , get_i2s_d6_impl     , int)
-  MEMBER_DETECTOR(i2s_d7     , get_i2s_d7     , get_i2s_d7_impl     , int)
-  MEMBER_DETECTOR(i2s_d8     , get_i2s_d8     , get_i2s_d8_impl     , int)
-  MEMBER_DETECTOR(i2s_d9     , get_i2s_d9     , get_i2s_d9_impl     , int)
-  MEMBER_DETECTOR(i2s_d10    , get_i2s_d10    , get_i2s_d10_impl    , int)
-  MEMBER_DETECTOR(i2s_d11    , get_i2s_d11    , get_i2s_d11_impl    , int)
-  MEMBER_DETECTOR(i2s_d12    , get_i2s_d12    , get_i2s_d12_impl    , int)
-  MEMBER_DETECTOR(i2s_d13    , get_i2s_d13    , get_i2s_d13_impl    , int)
-  MEMBER_DETECTOR(i2s_d14    , get_i2s_d14    , get_i2s_d14_impl    , int)
-  MEMBER_DETECTOR(i2s_d15    , get_i2s_d15    , get_i2s_d15_impl    , int)
-
-  MEMBER_DETECTOR(i2s_wr     , get_i2s_wr     , get_i2s_wr_impl     , int)
-  MEMBER_DETECTOR(i2s_rd     , get_i2s_rd     , get_i2s_rd_impl     , int)
-  MEMBER_DETECTOR(i2s_rs     , get_i2s_rs     , get_i2s_rs_impl     , int)
-  MEMBER_DETECTOR(i2s_dlen   , get_i2s_dlen   , get_i2s_dlen_impl   , int)
+  MEMBER_DETECTOR(i2s_port, get_i2s_port, get_i2s_port_impl, i2s_port_t)
+  MEMBER_DETECTOR(gpio_d0  , get_gpio_d0  , get_gpio_d0_impl  , int)
+  MEMBER_DETECTOR(gpio_d1  , get_gpio_d1  , get_gpio_d1_impl  , int)
+  MEMBER_DETECTOR(gpio_d2  , get_gpio_d2  , get_gpio_d2_impl  , int)
+  MEMBER_DETECTOR(gpio_d3  , get_gpio_d3  , get_gpio_d3_impl  , int)
+  MEMBER_DETECTOR(gpio_d4  , get_gpio_d4  , get_gpio_d4_impl  , int)
+  MEMBER_DETECTOR(gpio_d5  , get_gpio_d5  , get_gpio_d5_impl  , int)
+  MEMBER_DETECTOR(gpio_d6  , get_gpio_d6  , get_gpio_d6_impl  , int)
+  MEMBER_DETECTOR(gpio_d7  , get_gpio_d7  , get_gpio_d7_impl  , int)
+  MEMBER_DETECTOR(gpio_d8  , get_gpio_d8  , get_gpio_d8_impl  , int)
+  MEMBER_DETECTOR(gpio_d9  , get_gpio_d9  , get_gpio_d9_impl  , int)
+  MEMBER_DETECTOR(gpio_d10 , get_gpio_d10 , get_gpio_d10_impl , int)
+  MEMBER_DETECTOR(gpio_d11 , get_gpio_d11 , get_gpio_d11_impl , int)
+  MEMBER_DETECTOR(gpio_d12 , get_gpio_d12 , get_gpio_d12_impl , int)
+  MEMBER_DETECTOR(gpio_d13 , get_gpio_d13 , get_gpio_d13_impl , int)
+  MEMBER_DETECTOR(gpio_d14 , get_gpio_d14 , get_gpio_d14_impl , int)
+  MEMBER_DETECTOR(gpio_d15 , get_gpio_d15 , get_gpio_d15_impl , int)
+  MEMBER_DETECTOR(gpio_wr  , get_gpio_wr  , get_gpio_wr_impl  , int)
+  MEMBER_DETECTOR(gpio_rd  , get_gpio_rd  , get_gpio_rd_impl  , int)
+  MEMBER_DETECTOR(gpio_rs  , get_gpio_rs  , get_gpio_rs_impl  , int)
+  MEMBER_DETECTOR(bus_dlen, get_bus_dlen, get_bus_dlen_impl, int)
   #undef MEMBER_DETECTOR
 
   template <class CFG>
-  class LGFX_I2S : public LovyanGFX
+  class LGFX_PARALLEL : public LovyanGFX
   {
   public:
 
-    virtual ~LGFX_I2S() {
+    virtual ~LGFX_PARALLEL() {
       if (_dmadesc) {
         heap_caps_free(_dmadesc);
         _dmadesc = nullptr;
@@ -114,7 +117,7 @@ namespace lgfx
       delete_dmabuffer();
     }
 
-    LGFX_I2S() : LovyanGFX()
+    LGFX_PARALLEL() : LovyanGFX()
     {
       _panel = nullptr;
     }
@@ -201,49 +204,7 @@ namespace lgfx
 
     void initBus(void)
     {
-      gpio_pad_select_gpio(_i2s_d0);
-      gpio_pad_select_gpio(_i2s_d1);
-      gpio_pad_select_gpio(_i2s_d2);
-      gpio_pad_select_gpio(_i2s_d3);
-      gpio_pad_select_gpio(_i2s_d4);
-      gpio_pad_select_gpio(_i2s_d5);
-      gpio_pad_select_gpio(_i2s_d6);
-      gpio_pad_select_gpio(_i2s_d7);
-
-      gpio_pad_select_gpio(_i2s_rd);
-      gpio_pad_select_gpio(_i2s_wr);
-      gpio_pad_select_gpio(_i2s_rs);
-
-      gpio_set_level(_i2s_rd, 1);
-      gpio_set_level(_i2s_wr, 1);
-      gpio_set_level(_i2s_rs, 1);
-
-      gpio_set_direction(_i2s_rd, GPIO_MODE_OUTPUT);
-      gpio_set_direction(_i2s_wr, GPIO_MODE_OUTPUT);
-      gpio_set_direction(_i2s_rs, GPIO_MODE_OUTPUT);
-
-      /* Route I2S peripheral outputs -> GPIO_MUXs */
-      auto idx_base = (_i2s_port == I2S_NUM_0) ? I2S0O_DATA_OUT8_IDX : I2S1O_DATA_OUT8_IDX;
-
-      gpio_matrix_out(_i2s_d7, idx_base + 7, 0, 0); // MSB
-      gpio_matrix_out(_i2s_d6, idx_base + 6, 0, 0);
-      gpio_matrix_out(_i2s_d5, idx_base + 5, 0, 0);
-      gpio_matrix_out(_i2s_d4, idx_base + 4, 0, 0);
-      gpio_matrix_out(_i2s_d3, idx_base + 3, 0, 0);
-      gpio_matrix_out(_i2s_d2, idx_base + 2, 0, 0);
-      gpio_matrix_out(_i2s_d1, idx_base + 1, 0, 0);
-      gpio_matrix_out(_i2s_d0, idx_base    , 0, 0); // LSB
-      gpio_matrix_out(_i2s_rs, idx_base + 8, 0, 0); // RS (Command/Data select: 0=CMD, 1=DATA)
-
-      if (_i2s_port == I2S_NUM_0) {
-        gpio_matrix_out(_i2s_wr, I2S0O_WS_OUT_IDX    ,1,0); // WR (Write-strobe in 8080 mode, Active-low)
-        DPORT_SET_PERI_REG_MASK(DPORT_PERIP_CLK_EN_REG,DPORT_I2S0_CLK_EN);
-        DPORT_CLEAR_PERI_REG_MASK(DPORT_PERIP_RST_EN_REG,DPORT_I2S0_RST);
-      } else {
-        gpio_matrix_out(_i2s_wr, I2S1O_WS_OUT_IDX    ,1,0); // WR (Write-strobe in 8080 mode, Active-low)
-        DPORT_SET_PERI_REG_MASK(DPORT_PERIP_CLK_EN_REG, DPORT_I2S1_CLK_EN);
-        DPORT_CLEAR_PERI_REG_MASK(DPORT_PERIP_RST_EN_REG, DPORT_I2S1_RST);
-      }
+      attach_i2s();
 
       //Reset I2S subsystem
       *reg(I2S_CONF_REG(_i2s_port)) = I2S_TX_RESET | I2S_RX_RESET | I2S_TX_FIFO_RESET | I2S_RX_FIFO_RESET;
@@ -253,10 +214,7 @@ namespace lgfx
       *reg(I2S_LC_CONF_REG(_i2s_port)) = I2S_IN_RST | I2S_OUT_RST | I2S_AHBM_RST | I2S_AHBM_FIFO_RST;
       *reg(I2S_LC_CONF_REG(_i2s_port)) = I2S_OUT_EOF_MODE;
 
-      *reg(I2S_CONF2_REG(_i2s_port))
-            = I2S_LCD_EN
-  //          | I2S_LCD_TX_WRX2_EN
-            ;
+      *reg(I2S_CONF2_REG(_i2s_port)) = I2S_LCD_EN ;
 
       *reg(I2S_CONF1_REG(_i2s_port))
             = I2S_TX_PCM_BYPASS
@@ -353,19 +311,16 @@ namespace lgfx
       begin_transaction();
     }
 
-    void begin_transaction(void) {
-
+    void begin_transaction(void)
+    {
       // I2S_CLKM_DIV_NUM 4=20MHz  /  5=16MHz  /  8=10MHz  /  10=8MHz
       // clock = 80MHz / I2S_CLKM_DIV_NUM
-
-      _clkdiv_write = I2S_CLKA_ENA
+      *reg(I2S_CLKM_CONF_REG(_i2s_port))
+                    = I2S_CLKA_ENA
                     | 63 << I2S_CLKM_DIV_A_S
                     |  0 << I2S_CLKM_DIV_B_S
                     |  4 << I2S_CLKM_DIV_NUM_S
                     ;
-      _clkdiv_read = _clkdiv_write;
-
-      set_clock_write();
 
       cs_l();
     }
@@ -377,10 +332,10 @@ namespace lgfx
     }
 
     void end_transaction(void) {
-      wait();
       if (_panel->spi_cs < 0) {
         write_cmd(0); // NOP command
       }
+      wait_i2s();
       //dc_h();
       cs_h();
     }
@@ -486,10 +441,8 @@ namespace lgfx
       std::uint8_t  numArgs;
       std::uint8_t  ms;
 
-      _fill_mode = false;
       wait_i2s();
       startWrite();
-      set_clock_write();
       for (;;) {                // For each command...
         cmd     = *addr++;  // Read, issue command
         numArgs = *addr++;  // Number of args to follow
@@ -620,45 +573,107 @@ namespace lgfx
 //*/
     }
 
-    void start_read(void) {
+    void start_read(void)
+    {
+      wait();
+      gpio_lo(_gpio_rd);
+//      gpio_pad_select_gpio(_gpio_rd);
+//      gpio_set_direction(_gpio_rd, GPIO_MODE_OUTPUT);
+      gpio_pad_select_gpio(_gpio_wr);
+      gpio_hi(_gpio_wr);
+      gpio_set_direction(_gpio_wr, GPIO_MODE_OUTPUT);
+      gpio_pad_select_gpio(_gpio_rs);
+      gpio_hi(_gpio_rs);
+      gpio_set_direction(_gpio_rs, GPIO_MODE_OUTPUT);
+//      if (_i2s_port == I2S_NUM_0) {
+////        gpio_matrix_out(_gpio_rd, I2S0O_WS_OUT_IDX    ,1,0);
+//        gpio_matrix_out(_gpio_rd, I2S0O_BCK_OUT_IDX    ,1,0);
+//      } else {
+////        gpio_matrix_out(_gpio_rd, I2S1O_WS_OUT_IDX    ,1,0);
+//        gpio_matrix_out(_gpio_rd, I2S1O_BCK_OUT_IDX    ,1,0);
+//      }
+//*
+//      auto idx_base = (_i2s_port == I2S_NUM_0) ? I2S0O_DATA_OUT8_IDX : I2S1O_DATA_OUT8_IDX;
+//      gpio_matrix_in(_gpio_d7, idx_base + 7, 0); // MSB
+//      gpio_matrix_in(_gpio_d6, idx_base + 6, 0);
+//      gpio_matrix_in(_gpio_d5, idx_base + 5, 0);
+//      gpio_matrix_in(_gpio_d4, idx_base + 4, 0);
+//      gpio_matrix_in(_gpio_d3, idx_base + 3, 0);
+//      gpio_matrix_in(_gpio_d2, idx_base + 2, 0);
+//      gpio_matrix_in(_gpio_d1, idx_base + 1, 0);
+//      gpio_matrix_in(_gpio_d0, idx_base    , 0); // LSB
+//*/
 /*
-      _fill_mode = false;
-      std::uint32_t user = ((_panel->spi_mode_read == 1 || _panel->spi_mode_read == 2) ? SPI_CK_OUT_EDGE | SPI_USR_MISO : SPI_USR_MISO)
-                    | (_panel->spi_3wire ? SPI_SIO : 0);
-      std::uint32_t pin = (_panel->spi_mode_read & 2) ? SPI_CK_IDLE_EDGE : 0;
-      dc_h();
-      *reg(SPI_USER_REG(_i2s_port)) = user;
-      *reg(SPI_PIN_REG(_i2s_port)) = pin;
+      gpio_pad_select_gpio(_gpio_d7); gpio_set_direction(_gpio_d7, GPIO_MODE_INPUT);
+      gpio_pad_select_gpio(_gpio_d6); gpio_set_direction(_gpio_d6, GPIO_MODE_INPUT);
+      gpio_pad_select_gpio(_gpio_d5); gpio_set_direction(_gpio_d5, GPIO_MODE_INPUT);
+      gpio_pad_select_gpio(_gpio_d4); gpio_set_direction(_gpio_d4, GPIO_MODE_INPUT);
+      gpio_pad_select_gpio(_gpio_d3); gpio_set_direction(_gpio_d3, GPIO_MODE_INPUT);
+      gpio_pad_select_gpio(_gpio_d2); gpio_set_direction(_gpio_d2, GPIO_MODE_INPUT);
+      gpio_pad_select_gpio(_gpio_d1); gpio_set_direction(_gpio_d1, GPIO_MODE_INPUT);
+      gpio_pad_select_gpio(_gpio_d0); gpio_set_direction(_gpio_d0, GPIO_MODE_INPUT);
       set_clock_read();
+/*/
+      gpio_matrix_out(_gpio_d7, 0x100, 0, 0); // MSB
+      gpio_matrix_out(_gpio_d6, 0x100, 0, 0);
+      gpio_matrix_out(_gpio_d5, 0x100, 0, 0);
+      gpio_matrix_out(_gpio_d4, 0x100, 0, 0);
+      gpio_matrix_out(_gpio_d3, 0x100, 0, 0);
+      gpio_matrix_out(_gpio_d2, 0x100, 0, 0);
+      gpio_matrix_out(_gpio_d1, 0x100, 0, 0);
+      gpio_matrix_out(_gpio_d0, 0x100, 0, 0); // LSB
+
+      lgfxPinMode(_gpio_d7, pin_mode_t::input);
+      lgfxPinMode(_gpio_d6, pin_mode_t::input);
+      lgfxPinMode(_gpio_d5, pin_mode_t::input);
+      lgfxPinMode(_gpio_d4, pin_mode_t::input);
+      lgfxPinMode(_gpio_d3, pin_mode_t::input);
+      lgfxPinMode(_gpio_d2, pin_mode_t::input);
+      lgfxPinMode(_gpio_d1, pin_mode_t::input);
+      lgfxPinMode(_gpio_d0, pin_mode_t::input);
 //*/
     }
 
     void end_read(void)
     {
-/*
-      std::uint32_t user = (_panel->spi_mode == 1 || _panel->spi_mode == 2) ? SPI_CK_OUT_EDGE | SPI_USR_MOSI : SPI_USR_MOSI;
-      std::uint32_t pin = (_panel->spi_mode & 2) ? SPI_CK_IDLE_EDGE : 0;
-      wait_i2s();
+      wait();
       cs_h();
-      *reg(SPI_USER_REG(_i2s_port)) = user;
-      *reg(SPI_PIN_REG(_i2s_port)) = pin;
+      attach_i2s();
+/*
+      gpio_pad_select_gpio(_gpio_rd);
+      gpio_set_level(_gpio_rd, 1);
+      gpio_set_direction(_gpio_rd, GPIO_MODE_OUTPUT);
+      if (_i2s_port == I2S_NUM_0) {
+        gpio_matrix_out(_gpio_wr, I2S0O_WS_OUT_IDX    ,1,0); // WR (Write-strobe in 8080 mode, Active-low)
+      } else {
+        gpio_matrix_out(_gpio_wr, I2S1O_WS_OUT_IDX    ,1,0); // WR (Write-strobe in 8080 mode, Active-low)
+      }
+      auto idx_base = (_i2s_port == I2S_NUM_0) ? I2S0O_DATA_OUT8_IDX : I2S1O_DATA_OUT8_IDX;
+      gpio_matrix_out(_gpio_rs, idx_base + 8, 0, 0); // RS (Command/Data select: 0=CMD, 1=DATA)
+*/
       if (_panel->spi_cs < 0) {
         write_cmd(0); // NOP command
       }
-      set_clock_write();
-      _fill_mode = false;
-
       cs_l();
-//*/
     }
 
     std::uint32_t read_data(std::uint32_t length)
     {
-      set_read_len(length);
-      exec_spi();
-      wait_i2s();
-      return *reg(SPI_W0_REG(_i2s_port));
+      union {
+        std::uint32_t res;
+        std::uint8_t raw[4];
+      };
+      length = (length + 7) & ~7;
 
+      auto buf = raw;
+      do {
+        std::uint32_t tmp = GPIO.in;   // dummy read speed tweak.
+        tmp = GPIO.in;
+        gpio_hi(_gpio_rd);
+        gpio_lo(_gpio_rd);
+        *buf++ = reg_to_value(tmp);
+      } while (length -= 8);
+      return res;
     }
 
     std::uint32_t read_command(std::uint_fast8_t command, std::uint32_t bitindex = 0, std::uint32_t bitlen = 8)
@@ -697,20 +712,19 @@ namespace lgfx
           }
         } else
         if (param->src_width == w && (whb <= 1024)) {
-          auto buf = get_dmabuffer(whb);
+          std::uint8_t buf[whb];
           fp_copy(buf, 0, w * h, param);
           setWindow_impl(x, y, xr, y + h - 1);
           write_bytes(buf, whb, true);
         } else {
           std::int32_t wb = w * bytes;
-          auto buf = get_dmabuffer(wb);
+          std::uint8_t buf[wb];
           fp_copy(buf, 0, w, param);
           setWindow_impl(x, y, xr, y + h - 1);
           write_bytes(buf, wb, true);
           while (--h) {
             param->src_x = src_x;
             param->src_y++;
-            buf = get_dmabuffer(wb);
             fp_copy(buf, 0, w, param);
             write_bytes(buf, wb, true);
           }
@@ -718,10 +732,10 @@ namespace lgfx
       } else {
         auto fp_skip = param->fp_skip;
         h += y;
+        std::uint8_t buf[w * bytes];
         do {
           std::int32_t i = 0;
           while (w != (i = fp_skip(i, w, param))) {
-            auto buf = get_dmabuffer(w * bytes);
             std::int32_t len = fp_copy(buf, 0, w - i, param);
             setWindow_impl(x + i, y, x + i + len - 1, y);
             write_bytes(buf, len * bytes, true);
@@ -831,110 +845,65 @@ namespace lgfx
 
     void readRect_impl(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, void* dst, pixelcopy_t* param) override
     {
-/*
       set_window(x, y, x + w - 1, y + h - 1, _panel->getCmdRamrd());
       auto len = w * h;
-      if (!_panel->spi_read) {
-        memset(dst, 0, len * _read_conv.bytes);
-        return;
-      }
-      std::uint32_t len_dummy_read_pixel = _panel->len_dummy_read_pixel;
       start_read();
-      if (len_dummy_read_pixel) {;
-        set_read_len(len_dummy_read_pixel);
-        exec_spi();
-      }
-
+      GPIO.in;
+      gpio_hi(_gpio_rd);
+      GPIO.in;
+      gpio_lo(_gpio_rd);
+      taskYIELD();
       if (param->no_convert) {
         read_bytes((std::uint8_t*)dst, len * _read_conv.bytes);
       } else {
         read_pixels(dst, len, param);
       }
       end_read();
-//*/
+    }
+
+    static std::uint_fast8_t reg_to_value(std::uint32_t raw_value)
+    {
+      return ((raw_value >> _gpio_d7) & 1) << 7
+           | ((raw_value >> _gpio_d6) & 1) << 6
+           | ((raw_value >> _gpio_d5) & 1) << 5
+           | ((raw_value >> _gpio_d4) & 1) << 4
+           | ((raw_value >> _gpio_d3) & 1) << 3
+           | ((raw_value >> _gpio_d2) & 1) << 2
+           | ((raw_value >> _gpio_d1) & 1) << 1
+           | ((raw_value >> _gpio_d0) & 1) ;
     }
 
     void read_pixels(void* dst, std::int32_t length, pixelcopy_t* param)
     {
-/*
-      std::int32_t len1 = std::min(length, 10); // 10 pixel read
-      std::int32_t len2 = len1;
-      auto len_read_pixel  = _read_conv.bits;
-      wait_i2s();
-      set_read_len(len_read_pixel * len1);
-      exec_spi();
+      const auto bytes = _read_conv.bytes;
+      std::uint32_t limit = (bytes == 2) ? 16 : 10;
       param->src_data = _regbuf;
       std::int32_t dstindex = 0;
-      std::uint32_t highpart = 8;
-      std::uint32_t userreg = *reg(SPI_USER_REG(_i2s_port));
-      auto spi_w0_reg = reg(SPI_W0_REG(_i2s_port));
       do {
-        if (0 == (length -= len1)) {
-          len2 = len1;
-          wait_i2s();
-          *reg(SPI_USER_REG(_i2s_port)) = userreg;
-        } else {
-          std::uint32_t user = userreg;
-          if (highpart) user = userreg | SPI_USR_MISO_HIGHPART;
-          if (length < len1) {
-            len1 = length;
-            wait_i2s();
-            set_read_len(len_read_pixel * len1);
-          } else {
-            wait_i2s();
-          }
-          *reg(SPI_USER_REG(_i2s_port)) = user;
-          exec_spi();
-        }
-        memcpy(_regbuf, (void*)&spi_w0_reg[highpart ^= 8], len2 * len_read_pixel >> 3);
+        std::uint32_t len2 = (limit > length) ? length : limit;
+        length -= len2;
+        std::uint32_t i = len2 * bytes;
+        auto d = (std::uint8_t*)_regbuf;
+        do {
+          std::uint32_t tmp = GPIO.in;
+          gpio_hi(_gpio_rd);
+          gpio_lo(_gpio_rd);
+          *d++ = reg_to_value(tmp);
+        } while (--i);
         param->src_x = 0;
         dstindex = param->fp_copy(dst, dstindex, dstindex + len2, param);
       } while (length);
-//*/
     }
 
-    void read_bytes(std::uint8_t* dst, std::int32_t length, bool use_dma = false)
+    void read_bytes(std::uint8_t* dst, std::int32_t length)
     {
-/*
-      if (_dma_channel && use_dma) {
-        wait_i2s();
-        set_read_len(length << 3);
-        _setup_dma_desc_links(dst, length);
-        *reg(SPI_DMA_IN_LINK_REG(_i2s_port)) = SPI_INLINK_START | ((int)(&_dmadesc[0]) & 0xFFFFF);
-        spi_dma_transfer_active(_dma_channel);
-        exec_spi();
-      } else {
-        std::int32_t len1 = std::min(length, 32);  // 32 Byte read.
-        std::int32_t len2 = len1;
-        wait_i2s();
-        set_read_len(len1 << 3);
-        exec_spi();
-        std::uint32_t highpart = 8;
-        std::uint32_t userreg = *reg(SPI_USER_REG(_i2s_port));
-        auto spi_w0_reg = reg(SPI_W0_REG(_i2s_port));
-        do {
-          if (0 == (length -= len1)) {
-            len2 = len1;
-            wait_i2s();
-            *reg(SPI_USER_REG(_i2s_port)) = userreg;
-          } else {
-            std::uint32_t user = userreg;
-            if (highpart) user = userreg | SPI_USR_MISO_HIGHPART;
-            if (length < len1) {
-              len1 = length;
-              wait_i2s();
-              set_read_len(len1 << 3);
-            } else {
-              wait_i2s();
-            }
-            *reg(SPI_USER_REG(_i2s_port)) = user;
-            exec_spi();
-          }
-          memcpy(dst, (void*)&spi_w0_reg[highpart ^= 8], len2);
-          dst += len2;
-        } while (length);
-      }
-//*/
+      do {
+        std::uint32_t tmp = GPIO.in;   // dummy read speed tweak.
+        tmp = GPIO.in;
+        gpio_hi(_gpio_rd);
+        gpio_lo(_gpio_rd);
+        *dst++ = reg_to_value(tmp);
+      } while (--length);
     }
 
     void copyRect_impl(std::int32_t dst_x, std::int32_t dst_y, std::int32_t w, std::int32_t h, std::int32_t src_x, std::int32_t src_y) override
@@ -942,7 +911,7 @@ namespace lgfx
       pixelcopy_t p((void*)nullptr, _write_conv.depth, _read_conv.depth);
       if (w < h) {
         const std::uint32_t buflen = h * _write_conv.bytes;
-        auto buf = get_dmabuffer(buflen);
+        std::uint8_t buf[buflen];
         std::int32_t add = (src_x < dst_x) ?   - 1 : 1;
         std::int32_t pos = (src_x < dst_x) ? w - 1 : 0;
         do {
@@ -953,7 +922,7 @@ namespace lgfx
         } while (--w);
       } else {
         const std::uint32_t buflen = w * _write_conv.bytes;
-        auto buf = get_dmabuffer(buflen);
+        std::uint8_t buf[buflen];
         std::int32_t add = (src_y < dst_y) ?   - 1 : 1;
         std::int32_t pos = (src_y < dst_y) ? h - 1 : 0;
         do {
@@ -1002,80 +971,7 @@ namespace lgfx
       _dmadesc = (lldesc_t*)heap_caps_malloc(sizeof(lldesc_t) * len, MALLOC_CAP_DMA);
     }
 
-    static void _setup_dma_desc_links(const std::uint8_t *data, std::int32_t len)
-    {          //spicommon_setup_dma_desc_links
-/*
-      if (_dmadesc_len * SPI_MAX_DMA_LEN < len) {
-        _alloc_dmadesc(len / SPI_MAX_DMA_LEN + 1);
-      }
-      lldesc_t *dmadesc = _dmadesc;
-
-      while (len > SPI_MAX_DMA_LEN) {
-        len -= SPI_MAX_DMA_LEN;
-        dmadesc->buf = (std::uint8_t *)data;
-        data += SPI_MAX_DMA_LEN;
-        *(std::uint32_t*)dmadesc = SPI_MAX_DMA_LEN | SPI_MAX_DMA_LEN<<12 | 0x80000000;
-        dmadesc->qe.stqe_next = dmadesc + 1;
-        dmadesc++;
-      }
-      *(std::uint32_t*)dmadesc = ((len + 3) & ( ~3 )) | len << 12 | 0xC0000000;
-      dmadesc->buf = (std::uint8_t *)data;
-      dmadesc->qe.stqe_next = nullptr;
-//*/
-    }
-
-    static void _setup_dma_desc_links(const std::uint8_t *data, std::int32_t w, std::int32_t h, std::int32_t width)
-    {          //spicommon_setup_dma_desc_links
-/*
-      if (_dmadesc_len < h) {
-        _alloc_dmadesc(h);
-      }
-      lldesc_t *dmadesc = _dmadesc;
-      std::int32_t idx = 0;
-      do {
-        dmadesc[idx].buf = (std::uint8_t *)data;
-        data += width;
-        *(std::uint32_t*)(&dmadesc[idx]) = ((w + 3) & (~3)) | w<<12 | 0x80000000;
-        dmadesc[idx].qe.stqe_next = &dmadesc[idx + 1];
-      } while (++idx < h);
-      --idx;
-      dmadesc[idx].eof = 1;
-//    *(std::uint32_t*)(&dmadesc[idx]) |= 0xC0000000;
-      dmadesc[idx].qe.stqe_next = 0;
-//*/
-    }
-
-    static void _setup_dma_desc_links(std::uint8_t** data, std::int32_t w, std::int32_t h, bool endless)
-    {          //spicommon_setup_dma_desc_links
-/*
-      if (_dmadesc_len < h) {
-        _alloc_dmadesc(h);
-      }
-
-      lldesc_t *dmadesc = _dmadesc;
-      std::int32_t idx = 0;
-      do {
-        dmadesc[idx].buf = (std::uint8_t *)data[idx];
-        *(std::uint32_t*)(&dmadesc[idx]) = w | w<<12 | 0x80000000;
-        dmadesc[idx].qe.stqe_next = &dmadesc[idx + 1];
-      } while (++idx < h);
-      --idx;
-      if (endless) {
-        dmadesc[idx].qe.stqe_next = &dmadesc[0];
-      } else {
-        dmadesc[idx].eof = 1;
-//        *(std::uint32_t*)(&dmadesc[idx]) |= 0xC0000000;
-        dmadesc[idx].qe.stqe_next = 0;
-      }
-//*/
-    }
-
     __attribute__ ((always_inline)) inline volatile std::uint32_t* reg(std::uint32_t addr) const { return (volatile std::uint32_t *)ETS_UNCACHED_ADDR(addr); }
-    __attribute__ ((always_inline)) inline void set_clock_write(void) { *reg(I2S_CLKM_CONF_REG(_i2s_port)) = _clkdiv_write; }
-    __attribute__ ((always_inline)) inline void set_clock_read(void)  { *reg(I2S_CLKM_CONF_REG(_i2s_port)) = _clkdiv_read;  }
-    __attribute__ ((always_inline)) inline void exec_spi(void) {        *reg(SPI_CMD_REG(_i2s_port)) = SPI_USR; }
-    __attribute__ ((always_inline)) inline void set_write_len(std::uint32_t bitlen) { *reg(SPI_MOSI_DLEN_REG(_i2s_port)) = bitlen - 1; }
-    __attribute__ ((always_inline)) inline void set_read_len( std::uint32_t bitlen) { *reg(SPI_MISO_DLEN_REG(_i2s_port)) = bitlen - 1; }
 
     __attribute__ ((always_inline)) inline void dc_h(void) {
       auto mask_reg_dc = _mask_reg_dc;
@@ -1091,17 +987,13 @@ namespace lgfx
     }
 
     void wait_i2s(void) const {
-      auto conf_reg1 = _conf_reg_default | I2S_TX_RESET;
-//      auto conf_reg1 = (*reg(I2S_CONF_REG(_i2s_port)) | I2S_TX_RESET) & ~I2S_TX_START;
+      auto conf_reg1 = _conf_reg_default | I2S_TX_RESET | I2S_RX_RESET | I2S_RX_FIFO_RESET;
       while (!(*reg(I2S_STATE_REG(_i2s_port)) & I2S_TX_IDLE));
-
-//      while (!(*reg(I2S_INT_RAW_REG(_i2s_port)) & I2S_TX_REMPTY_INT_RAW && *reg(I2S_STATE_REG(_i2s_port)) & I2S_TX_IDLE));
       *reg(I2S_CONF_REG(_i2s_port)) = conf_reg1;
-//      while (*reg(I2S_STATE_REG(_i2s_port)) & I2S_TX_FIFO_RESET_BACK);
     }
 
     void wait(void) const {
-      auto conf_reg1 = _conf_reg_default | I2S_TX_RESET;
+      auto conf_reg1 = _conf_reg_default | I2S_TX_RESET | I2S_RX_RESET | I2S_RX_FIFO_RESET;
 
       while (!(*reg(I2S_INT_RAW_REG(_i2s_port)) & I2S_TX_REMPTY_INT_RAW));
       *reg(I2S_INT_CLR_REG(_i2s_port)) = I2S_TX_REMPTY_INT_CLR;
@@ -1118,21 +1010,59 @@ namespace lgfx
       std::int32_t spi_cs = _panel->spi_cs;
       if (spi_cs >= 0) *get_gpio_lo_reg(spi_cs) = (1 << (spi_cs & 31));
     }
-/*
 
-    void _set_write_dir(void)
+    void attach_i2s(void)
     {
-      // Set in-out modes of IO pads.
-      gpio_set_direction(_i2s_d0, GPIO_MODE_OUTPUT);
-      gpio_set_direction(_i2s_d1, GPIO_MODE_OUTPUT);
-      gpio_set_direction(_i2s_d2, GPIO_MODE_OUTPUT);
-      gpio_set_direction(_i2s_d3, GPIO_MODE_OUTPUT);
-      gpio_set_direction(_i2s_d4, GPIO_MODE_OUTPUT);
-      gpio_set_direction(_i2s_d5, GPIO_MODE_OUTPUT);
-      gpio_set_direction(_i2s_d6, GPIO_MODE_OUTPUT);
-      gpio_set_direction(_i2s_d7, GPIO_MODE_OUTPUT);
+      gpio_pad_select_gpio(_gpio_d0);
+      gpio_pad_select_gpio(_gpio_d1);
+      gpio_pad_select_gpio(_gpio_d2);
+      gpio_pad_select_gpio(_gpio_d3);
+      gpio_pad_select_gpio(_gpio_d4);
+      gpio_pad_select_gpio(_gpio_d5);
+      gpio_pad_select_gpio(_gpio_d6);
+      gpio_pad_select_gpio(_gpio_d7);
+
+      gpio_pad_select_gpio(_gpio_rd);
+      gpio_pad_select_gpio(_gpio_wr);
+      gpio_pad_select_gpio(_gpio_rs);
+
+      gpio_hi(_gpio_rd);
+      gpio_hi(_gpio_wr);
+      gpio_hi(_gpio_rs);
+
+      gpio_set_direction(_gpio_rd, GPIO_MODE_OUTPUT);
+      gpio_set_direction(_gpio_wr, GPIO_MODE_OUTPUT);
+      gpio_set_direction(_gpio_rs, GPIO_MODE_OUTPUT);
+
+      auto idx_base = (_i2s_port == I2S_NUM_0) ? I2S0O_DATA_OUT8_IDX : I2S1O_DATA_OUT8_IDX;
+      gpio_matrix_out(_gpio_rs, idx_base + 8, 0, 0);
+      gpio_matrix_out(_gpio_d7, idx_base + 7, 0, 0);
+      gpio_matrix_out(_gpio_d6, idx_base + 6, 0, 0);
+      gpio_matrix_out(_gpio_d5, idx_base + 5, 0, 0);
+      gpio_matrix_out(_gpio_d4, idx_base + 4, 0, 0);
+      gpio_matrix_out(_gpio_d3, idx_base + 3, 0, 0);
+      gpio_matrix_out(_gpio_d2, idx_base + 2, 0, 0);
+      gpio_matrix_out(_gpio_d1, idx_base + 1, 0, 0);
+      gpio_matrix_out(_gpio_d0, idx_base    , 0, 0);
+
+      std::uint32_t dport_clk_en;
+      std::uint32_t dport_rst;
+
+      if (_i2s_port == I2S_NUM_0) {
+        idx_base = I2S0O_WS_OUT_IDX;
+        dport_clk_en = DPORT_I2S0_CLK_EN;
+        dport_rst = DPORT_I2S0_RST;
+      } else {
+        idx_base = I2S1O_WS_OUT_IDX;
+        dport_clk_en = DPORT_I2S1_CLK_EN;
+        dport_rst = DPORT_I2S1_RST;
+      }
+      gpio_matrix_out(_gpio_wr, idx_base, 1, 0); // WR (Write-strobe in 8080 mode, Active-low)
+
+      DPORT_SET_PERI_REG_MASK(DPORT_PERIP_CLK_EN_REG, dport_clk_en);
+      DPORT_CLEAR_PERI_REG_MASK(DPORT_PERIP_RST_EN_REG, dport_rst);
     }
-//*/
+
     static constexpr std::uint32_t _conf_reg_default = I2S_TX_MSB_RIGHT | I2S_TX_RIGHT_FIRST | I2S_RX_RIGHT_FIRST;
     static constexpr std::uint32_t _conf_reg_start   = _conf_reg_default | I2S_TX_START;
     static constexpr std::uint32_t _sample_rate_conf_reg_32bit = 32 << I2S_TX_BITS_MOD_S | 32 << I2S_RX_BITS_MOD_S | 1 << I2S_TX_BCK_DIV_NUM_S | 1 << I2S_RX_BCK_DIV_NUM_S;
@@ -1140,27 +1070,27 @@ namespace lgfx
     static constexpr std::uint32_t _fifo_conf_default = 1 << I2S_TX_FIFO_MOD | 1 << I2S_RX_FIFO_MOD | 32 << I2S_TX_DATA_NUM_S | 32 << I2S_RX_DATA_NUM_S;
     static constexpr std::uint32_t _fifo_conf_dma     = 1 << I2S_TX_FIFO_MOD | 1 << I2S_RX_FIFO_MOD | 32 << I2S_TX_DATA_NUM_S | 32 << I2S_RX_DATA_NUM_S | I2S_DSCR_EN;
 
-    static constexpr gpio_num_t _i2s_wr  = (gpio_num_t)get_i2s_wr <CFG, -1>::value;
-    static constexpr gpio_num_t _i2s_rd  = (gpio_num_t)get_i2s_rd <CFG, -1>::value;
-    static constexpr gpio_num_t _i2s_rs  = (gpio_num_t)get_i2s_rs <CFG, -1>::value;
-    static constexpr gpio_num_t _i2s_d0  = (gpio_num_t)get_i2s_d0 <CFG, -1>::value;
-    static constexpr gpio_num_t _i2s_d1  = (gpio_num_t)get_i2s_d1 <CFG, -1>::value;
-    static constexpr gpio_num_t _i2s_d2  = (gpio_num_t)get_i2s_d2 <CFG, -1>::value;
-    static constexpr gpio_num_t _i2s_d3  = (gpio_num_t)get_i2s_d3 <CFG, -1>::value;
-    static constexpr gpio_num_t _i2s_d4  = (gpio_num_t)get_i2s_d4 <CFG, -1>::value;
-    static constexpr gpio_num_t _i2s_d5  = (gpio_num_t)get_i2s_d5 <CFG, -1>::value;
-    static constexpr gpio_num_t _i2s_d6  = (gpio_num_t)get_i2s_d6 <CFG, -1>::value;
-    static constexpr gpio_num_t _i2s_d7  = (gpio_num_t)get_i2s_d7 <CFG, -1>::value;
-    static constexpr gpio_num_t _i2s_d8  = (gpio_num_t)get_i2s_d8 <CFG, -1>::value;
-    static constexpr gpio_num_t _i2s_d9  = (gpio_num_t)get_i2s_d9 <CFG, -1>::value;
-    static constexpr gpio_num_t _i2s_d10 = (gpio_num_t)get_i2s_d10<CFG, -1>::value;
-    static constexpr gpio_num_t _i2s_d11 = (gpio_num_t)get_i2s_d11<CFG, -1>::value;
-    static constexpr gpio_num_t _i2s_d12 = (gpio_num_t)get_i2s_d12<CFG, -1>::value;
-    static constexpr gpio_num_t _i2s_d13 = (gpio_num_t)get_i2s_d13<CFG, -1>::value;
-    static constexpr gpio_num_t _i2s_d14 = (gpio_num_t)get_i2s_d14<CFG, -1>::value;
-    static constexpr gpio_num_t _i2s_d15 = (gpio_num_t)get_i2s_d15<CFG, -1>::value;
+    static constexpr gpio_num_t _gpio_wr  = (gpio_num_t)get_gpio_wr <CFG, -1>::value;
+    static constexpr gpio_num_t _gpio_rd  = (gpio_num_t)get_gpio_rd <CFG, -1>::value;
+    static constexpr gpio_num_t _gpio_rs  = (gpio_num_t)get_gpio_rs <CFG, -1>::value;
+    static constexpr gpio_num_t _gpio_d0  = (gpio_num_t)get_gpio_d0 <CFG, -1>::value;
+    static constexpr gpio_num_t _gpio_d1  = (gpio_num_t)get_gpio_d1 <CFG, -1>::value;
+    static constexpr gpio_num_t _gpio_d2  = (gpio_num_t)get_gpio_d2 <CFG, -1>::value;
+    static constexpr gpio_num_t _gpio_d3  = (gpio_num_t)get_gpio_d3 <CFG, -1>::value;
+    static constexpr gpio_num_t _gpio_d4  = (gpio_num_t)get_gpio_d4 <CFG, -1>::value;
+    static constexpr gpio_num_t _gpio_d5  = (gpio_num_t)get_gpio_d5 <CFG, -1>::value;
+    static constexpr gpio_num_t _gpio_d6  = (gpio_num_t)get_gpio_d6 <CFG, -1>::value;
+    static constexpr gpio_num_t _gpio_d7  = (gpio_num_t)get_gpio_d7 <CFG, -1>::value;
+    static constexpr gpio_num_t _gpio_d8  = (gpio_num_t)get_gpio_d8 <CFG, -1>::value;
+    static constexpr gpio_num_t _gpio_d9  = (gpio_num_t)get_gpio_d9 <CFG, -1>::value;
+    static constexpr gpio_num_t _gpio_d10 = (gpio_num_t)get_gpio_d10<CFG, -1>::value;
+    static constexpr gpio_num_t _gpio_d11 = (gpio_num_t)get_gpio_d11<CFG, -1>::value;
+    static constexpr gpio_num_t _gpio_d12 = (gpio_num_t)get_gpio_d12<CFG, -1>::value;
+    static constexpr gpio_num_t _gpio_d13 = (gpio_num_t)get_gpio_d13<CFG, -1>::value;
+    static constexpr gpio_num_t _gpio_d14 = (gpio_num_t)get_gpio_d14<CFG, -1>::value;
+    static constexpr gpio_num_t _gpio_d15 = (gpio_num_t)get_gpio_d15<CFG, -1>::value;
 
-    static constexpr int _i2s_dlen = get_i2s_dlen<CFG, 8>::value;
+    static constexpr int _bus_dlen = (get_bus_dlen<CFG, 8>::value + 7) & ~7;
 
     static constexpr i2s_port_t _i2s_port = get_i2s_port<CFG, I2S_NUM_0>::value;
 
@@ -1175,41 +1105,25 @@ namespace lgfx
     std::uint32_t _cmd_caset;
     std::uint32_t _cmd_raset;
     std::uint32_t _cmd_ramwr;
-    std::uint32_t _clkdiv_write;
-    std::uint32_t _clkdiv_read;
     std::uint32_t _len_setwindow;
     _dmabufs_t _dmabufs[2];
     bool _begun_tr = false;
     bool _dma_flip = false;
-    bool _fill_mode;
     std::uint32_t _mask_reg_dc;
     volatile std::uint32_t* _gpio_reg_dc_h;
     volatile std::uint32_t* _gpio_reg_dc_l;
     static std::uint32_t _regbuf[8];
     static lldesc_t* _dmadesc;
     static std::uint32_t _dmadesc_len;
-    static bool _next_dma_reset;
-
-//    static volatile spi_dev_t *_hw;
-#if defined ( ARDUINO )
-    static spi_t* _spi_handle;
-#elif defined (CONFIG_IDF_TARGET_ESP32) // ESP-IDF
-    static spi_device_handle_t _spi_handle;
-#endif
   };
-  template <class T> std::uint32_t LGFX_I2S<T>::_regbuf[];
-  template <class T> lldesc_t* LGFX_I2S<T>::_dmadesc = nullptr;
-  template <class T> std::uint32_t LGFX_I2S<T>::_dmadesc_len = 0;
-  template <class T> bool LGFX_I2S<T>::_next_dma_reset;
-//  template <class T> volatile spi_dev_t *LGFX_I2S<T>::_hw;
-
-#if defined ( ARDUINO )
-  template <class T> spi_t* LGFX_I2S<T>::_spi_handle;
-#elif defined (CONFIG_IDF_TARGET_ESP32) // ESP-IDF
-  template <class T> spi_device_handle_t LGFX_I2S<T>::_spi_handle;
-#endif
+  template <class T> std::uint32_t LGFX_PARALLEL<T>::_regbuf[];
+  template <class T> lldesc_t* LGFX_PARALLEL<T>::_dmadesc = nullptr;
+  template <class T> std::uint32_t LGFX_PARALLEL<T>::_dmadesc_len = 0;
 
 //----------------------------------------------------------------------------
 
 }
+
+using lgfx::LGFX_PARALLEL;
+
 #endif

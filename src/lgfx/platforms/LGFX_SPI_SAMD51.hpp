@@ -1289,6 +1289,8 @@ void disableSPI()
 
 }
 
+using lgfx::LGFX_SPI;
+
 #if !defined(ARDUINO)
 #undef _Ul
 

@@ -49,27 +49,27 @@ struct LGFX_Config
   static constexpr int spi_dlen = 8;
 };
 
-/* for ESP32 I2S (Parallel) パラレル
+/* for ESP32 Parallel
 struct LGFX_Config
 {
   // Select the type of I2S  (I2S_NUM_0 or I2S_NUM_1)
   // 使用するI2Sを I2S_NUM_0 または I2S_NUM_1 で設定します。
+  // 省略時は I2S_NUM_0です。
   static constexpr i2s_port_t i2s_port = I2S_NUM_0;
 
   // Set the parallel pin number
   // パラレル接続の各種ピン番号を設定します。
-  static constexpr int i2s_wr  =  4;
-  static constexpr int i2s_rd  =  2;
-  static constexpr int i2s_rs  = 15;
-
-  static constexpr int i2s_d0  = 12;
-  static constexpr int i2s_d1  = 13;
-  static constexpr int i2s_d2  = 26;
-  static constexpr int i2s_d3  = 25;
-  static constexpr int i2s_d4  = 17;
-  static constexpr int i2s_d5  = 16;
-  static constexpr int i2s_d6  = 27;
-  static constexpr int i2s_d7  = 14;
+  static constexpr int gpio_wr  =  4;
+  static constexpr int gpio_rd  =  2;
+  static constexpr int gpio_rs  = 15;
+  static constexpr int gpio_d0  = 12;
+  static constexpr int gpio_d1  = 13;
+  static constexpr int gpio_d2  = 26;
+  static constexpr int gpio_d3  = 25;
+  static constexpr int gpio_d4  = 17;
+  static constexpr int gpio_d5  = 16;
+  static constexpr int gpio_d6  = 27;
+  static constexpr int gpio_d7  = 14;
 };
 
 //*/
@@ -115,9 +115,9 @@ struct LGFX_Config
 
 // Create an LGFX_SPI instance with the configuration structure you just created as a template argument.
 // 用意した設定用の構造体を、LGFX_SPIクラスにテンプレート引数として設定し、インスタンスを作成します。
-// パラレル接続の場合は LGFX_I2Sクラスを使用します。
+// パラレル接続の場合は LGFX_PARALLELクラスを使用します。
 static lgfx::LGFX_SPI<LGFX_Config> lcd;
-//static lgfx::LGFX_I2S<LGFX_Config> lcd;
+//static lgfx::LGFX_PARALLEL<LGFX_Config> lcd;
 
 
 // Create an instance of the Panel class. Comment out the description of the panel you want to use.
