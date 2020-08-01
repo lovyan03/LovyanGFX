@@ -242,6 +242,15 @@ namespace lgfx
       endWrite();
     }
 
+    template <typename T>
+    void writeIndexedPixels(const uint8_t *data, T* palette, std::int32_t len, lgfx::color_depth_t colordepth = lgfx::rgb332_1Byte)
+    {
+      pixelcopy_t p(data, _write_conv.depth, colordepth, _palette_count, palette);
+      p.no_convert = false;
+      p.fp_copy = pixelcopy_t::get_fp_palettecopy<T>(_write_conv.depth);
+      pushColors_impl(len, &p);
+    }
+
     std::uint16_t readPixel(std::int32_t x, std::int32_t y)
     {
       pixelcopy_t p(nullptr, swap565_t::depth, _read_conv.depth, false, _palette);
