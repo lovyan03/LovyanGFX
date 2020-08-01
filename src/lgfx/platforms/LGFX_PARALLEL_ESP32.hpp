@@ -754,44 +754,20 @@ namespace lgfx
 
     void push_colors(std::int32_t length, pixelcopy_t* param)
     {
-/*
-      const std::uint8_t bytes = _write_conv.bytes;
-      const std::uint32_t limit = (bytes == 2) ? 16 : 10; //  limit = 32/bytes (bytes==2 is 16   bytes==3 is 10)
-      std::uint32_t len = (length - 1) / limit;
-      std::uint32_t highpart = (len & 1) << 3;
-      len = length - (len * limit);
-      param->fp_copy(_regbuf, 0, len, param);
-
-      auto spi_w0_reg = reg(SPI_W0_REG(_i2s_port));
-
-      std::uint32_t user_reg = *reg(SPI_USER_REG(_i2s_port));
-
-      dc_h();
-      set_write_len(len * bytes << 3);
-
-      memcpy((void*)&spi_w0_reg[highpart], _regbuf, (len * bytes + 3) & (~3));
-      if (highpart) *reg(SPI_USER_REG(_i2s_port)) = user_reg | SPI_USR_MOSI_HIGHPART;
-      exec_spi();
-      if (0 == (length -= len)) return;
-
-      for (; length; length -= limit) {
-        param->fp_copy(_regbuf, 0, limit, param);
-        memcpy((void*)&spi_w0_reg[highpart ^= 0x08], _regbuf, limit * bytes);
-        std::uint32_t user = user_reg;
-        if (highpart) user |= SPI_USR_MOSI_HIGHPART;
-        if (len != limit) {
-          len = limit;
-          wait_i2s();
-          set_write_len(limit * bytes << 3);
-          *reg(SPI_USER_REG(_i2s_port)) = user;
-          exec_spi();
-        } else {
-          wait_i2s();
-          *reg(SPI_USER_REG(_i2s_port)) = user;
-          exec_spi();
-        }
+      std::uint8_t buf[512];
+      const std::uint32_t bytes = _write_conv.bytes;
+      auto fp_copy = param->fp_copy;
+      const std::uint32_t limit = (bytes == 2) ? 256 : 170;
+      std::uint8_t len = length % limit;
+      if (len) {
+        fp_copy(buf, 0, len, param);
+        write_bytes(buf, len * bytes);
+        if (0 == (length -= len)) return;
       }
-//*/
+      do {
+        fp_copy(buf, 0, limit, param);
+        write_bytes(buf, limit * bytes);
+      } while (length -= limit);
     }
 
     void write_bytes(const std::uint8_t* data, std::int32_t length, bool use_dma = false)
