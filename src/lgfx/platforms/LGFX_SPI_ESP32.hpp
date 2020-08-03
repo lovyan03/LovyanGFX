@@ -336,7 +336,7 @@ namespace lgfx
       periph_module_reset( PERIPH_SPI_DMA_MODULE );
     }
 
-    void pushPixelsDMA_impl(const void* data, std::int32_t length) override {
+    void writePixelsDMA_impl(const void* data, std::int32_t length) override {
       write_bytes((const std::uint8_t*)data, length * _write_conv.bytes, true);
     }
 
@@ -820,7 +820,7 @@ namespace lgfx
         } else {
           setWindow_impl(x, y, xr, y + h - 1);
           do {
-            push_colors(w, param);
+            write_pixels(w, param);
             param->src_x = src_x;
             param->src_y++;
           } while (--h);
@@ -843,12 +843,12 @@ namespace lgfx
       }
     }
 
-    void pushColors_impl(std::int32_t length, pixelcopy_t* param) override
+    void writePixels_impl(std::int32_t length, pixelcopy_t* param) override
     {
-      push_colors(length, param);
+      write_pixels(length, param);
     }
 
-    void push_colors(std::int32_t length, pixelcopy_t* param)
+    void write_pixels(std::int32_t length, pixelcopy_t* param)
     {
       const std::uint8_t bytes = _write_conv.bytes;
       const std::uint32_t limit = (bytes == 2) ? 16 : 10; //  limit = 32/bytes (bytes==2 is 16   bytes==3 is 10)

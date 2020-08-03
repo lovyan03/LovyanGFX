@@ -267,7 +267,7 @@ namespace lgfx
     }
 
 
-    void pushPixelsDMA_impl(const void* data, std::int32_t length) override {
+    void writePixelsDMA_impl(const void* data, std::int32_t length) override {
       write_bytes((const std::uint8_t*)data, length * _write_conv.bytes, true);
     }
 
@@ -747,12 +747,12 @@ namespace lgfx
       }
     }
 
-    void pushColors_impl(std::int32_t length, pixelcopy_t* param) override
+    void writePixels_impl(std::int32_t length, pixelcopy_t* param) override
     {
-      push_colors(length, param);
+      write_pixels(length, param);
     }
 
-    void push_colors(std::int32_t length, pixelcopy_t* param)
+    void write_pixels(std::int32_t length, pixelcopy_t* param)
     {
       std::uint8_t buf[512];
       const std::uint32_t bytes = _write_conv.bytes;

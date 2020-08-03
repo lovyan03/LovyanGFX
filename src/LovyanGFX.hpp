@@ -44,12 +44,12 @@ Contributors:
 
 #include "lgfx/panel/Panel_HX8357.hpp"
 #include "lgfx/panel/Panel_ILI9163.hpp"
-#include "lgfx/panel/Panel_ILI9341.hpp"   // and ILI9342 / M5Stack / ODROID-GO / ESP-WROVER-KIT4.1
+#include "lgfx/panel/Panel_ILI9341.hpp"   // and ILI9342 / M5Stack / ODROID-GO / ESP-WROVER-KIT4.1 / WioTerminal
 #include "lgfx/panel/Panel_ILI9486.hpp"
 #include "lgfx/panel/Panel_ILI9488.hpp"
 #include "lgfx/panel/Panel_SSD1351.hpp"
-#include "lgfx/panel/Panel_ST7789.hpp"    // LilyGO TTGO T-Watch
-#include "lgfx/panel/Panel_ST7735.hpp"    // M5StickC
+#include "lgfx/panel/Panel_ST7789.hpp"    // M5StickCPlus / LilyGO TTGO T-Watch / ESP-WROVER-KIT4.1
+#include "lgfx/panel/Panel_ST7735.hpp"    // M5StickC / LilyGO TTGO T-Wristband
 
 
 #if defined (ESP32) || (CONFIG_IDF_TARGET_ESP32)
