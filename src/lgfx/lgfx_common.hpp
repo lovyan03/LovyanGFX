@@ -650,6 +650,13 @@ namespace lgfx
   TYPECHECK(std::int16_t ) __attribute__ ((always_inline)) inline std::uint32_t convert_to_rgb888(T c) { return convert_rgb565_to_rgb888(c); }
   TYPECHECK(std::int32_t ) __attribute__ ((always_inline)) inline std::uint32_t convert_to_rgb888(T c) { return convert_rgb565_to_rgb888(c); }
   TYPECHECK(std::uint32_t) __attribute__ ((always_inline)) inline std::uint32_t convert_to_rgb888(T c) { return c; }
+  __attribute__ ((always_inline)) inline std::uint32_t convert_to_rgb888(const argb8888_t& c) { return c.r   <<16|c.g   <<8|c.b;    }
+  __attribute__ ((always_inline)) inline std::uint32_t convert_to_rgb888(const rgb888_t&   c) { return c.r   <<16|c.g   <<8|c.b;    }
+  __attribute__ ((always_inline)) inline std::uint32_t convert_to_rgb888(const rgb565_t&   c) { return c.R8()<<16|c.G8()<<8|c.B8(); }
+  __attribute__ ((always_inline)) inline std::uint32_t convert_to_rgb888(const rgb332_t&   c) { return c.R8()<<16|c.G8()<<8|c.B8(); }
+  __attribute__ ((always_inline)) inline std::uint32_t convert_to_rgb888(const bgr888_t&   c) { return c.r   <<16|c.g   <<8|c.b;    }
+  __attribute__ ((always_inline)) inline std::uint32_t convert_to_rgb888(const bgr666_t&   c) { return c.R8()<<16|c.G8()<<8|c.B8(); }
+  __attribute__ ((always_inline)) inline std::uint32_t convert_to_rgb888(const swap565_t&  c) { return c.R8()<<16|c.G8()<<8|c.B8(); }
 
 #undef TYPECHECK
 

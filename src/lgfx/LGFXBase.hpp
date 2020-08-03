@@ -104,6 +104,10 @@ namespace lgfx
     template<typename T> inline void floodFill( std::int32_t x, std::int32_t y, const T& color) { setColor(color); paint(x, y); }
                          inline void floodFill( std::int32_t x, std::int32_t y                ) {                  paint(x, y); }
 
+    template<typename T> inline void drawGradientHLine( std::int32_t x, std::int32_t y, std::int32_t w, const T& colorstart, const T& colorend ) { drawGradientLine( x, y, x + w - 1, y, colorstart, colorend ); }
+    template<typename T> inline void drawGradientVLine( std::int32_t x, std::int32_t y, std::int32_t h, const T& colorstart, const T& colorend ) { drawGradientLine( x, y, x, y + h - 1, colorstart, colorend ); }
+    template<typename T> inline void drawGradientLine( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, const T& colorstart, const T& colorend ) { draw_gradient_line( x0, y0, x1, y1, convert_to_rgb888(colorstart), convert_to_rgb888(colorend) ); }
+
                          inline void clear      ( void )          { setColor(_base_rgb888); fillRect(0, 0, _width, _height); }
     template<typename T> inline void clear      ( const T& color) { setColor(color);        fillRect(0, 0, _width, _height); }
                          inline void fillScreen ( void )          {                         fillRect(0, 0, _width, _height); }
@@ -172,10 +176,6 @@ namespace lgfx
 
       writeFillRect_impl(x, y, 1, 1);
     }
-
-    __attribute__ ((always_inline)) inline void drawGradientHLine( std::int32_t x, std::int32_t y, std::int32_t w, bgr888_t colorstart, bgr888_t colorend ) { drawGradientLine( x, y, x + w - 1, y, colorstart, colorend ); }
-    __attribute__ ((always_inline)) inline void drawGradientVLine( std::int32_t x, std::int32_t y, std::int32_t h, bgr888_t colorstart, bgr888_t colorend ) { drawGradientLine( x, y, x, y + h - 1, colorstart, colorend ); }
-                                           void drawGradientLine( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, bgr888_t colorstart, bgr888_t colorend );
 
     template<typename T> void drawBitmap(std::int32_t x, std::int32_t y, const std::uint8_t *bitmap, std::int32_t w, std::int32_t h, const T& color                    ) { draw_bitmap(x, y, bitmap, w, h, _write_conv.convert(color)); }
     template<typename T> void drawBitmap(std::int32_t x, std::int32_t y, const std::uint8_t *bitmap, std::int32_t w, std::int32_t h, const T& fgcolor, const T& bgcolor) { draw_bitmap(x, y, bitmap, w, h, _write_conv.convert(fgcolor), _write_conv.convert(bgcolor)); }
@@ -528,6 +528,7 @@ namespace lgfx
       endWrite();
     }
 
+    void draw_gradient_line( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, uint32_t colorstart, uint32_t colorend );
     void fill_arc_helper(std::int32_t cx, std::int32_t cy, std::int32_t oradius, std::int32_t iradius, float start, float end);
     void draw_bitmap(std::int32_t x, std::int32_t y, const std::uint8_t *bitmap, std::int32_t w, std::int32_t h, std::uint32_t fg_rawcolor, std::uint32_t bg_rawcolor = ~0u);
     void draw_xbitmap(std::int32_t x, std::int32_t y, const std::uint8_t *bitmap, std::int32_t w, std::int32_t h, std::uint32_t fg_rawcolor, std::uint32_t bg_rawcolor = ~0u);
