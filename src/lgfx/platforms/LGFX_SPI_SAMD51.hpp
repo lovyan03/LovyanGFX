@@ -1,7 +1,9 @@
 /*----------------------------------------------------------------------------/
-  Lovyan GFX library - SAMD51 hardware SPI graphics library .  
+  Lovyan GFX library - LCD graphics library .
   
-    for Arduino  
+  support platform:
+    ESP32 (SPI/I2S) with Arduino/ESP-IDF
+    ATSAMD51 (SPI) with Arduino
   
 Original Source:  
  https://github.com/lovyan03/LovyanGFX/  
@@ -548,7 +550,7 @@ void disableSPI()
       _sh = _height;
     }
 
-    void pushPixelsDMA_impl(const void* data, std::int32_t length) override {
+    void writePixelsDMA_impl(const void* data, std::int32_t length) override {
       write_bytes((const std::uint8_t*)data, length * _write_conv.bytes, true);
     }
 
@@ -906,7 +908,7 @@ void disableSPI()
         } else {
           setWindow_impl(x, y, xr, y + h - 1);
           do {
-            push_colors(w, param);
+            write_pixels(w, param);
             param->src_x = src_x;
             param->src_y++;
           } while (--h);
@@ -930,12 +932,12 @@ void disableSPI()
 //*/
     }
 
-    void pushColors_impl(std::int32_t length, pixelcopy_t* param) override
+    void writePixels_impl(std::int32_t length, pixelcopy_t* param) override
     {
-      push_colors(length, param);
+      write_pixels(length, param);
     }
 
-    void push_colors(std::int32_t length, pixelcopy_t* param)
+    void write_pixels(std::int32_t length, pixelcopy_t* param)
     {
       const std::uint8_t bytes = _write_conv.bytes;
       const std::uint32_t limit = (bytes == 2) ? 2 : 1;
@@ -1288,6 +1290,8 @@ void disableSPI()
 //----------------------------------------------------------------------------
 
 }
+
+using lgfx::LGFX_SPI;
 
 #if !defined(ARDUINO)
 #undef _Ul

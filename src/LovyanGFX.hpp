@@ -1,7 +1,9 @@
 /*----------------------------------------------------------------------------/
-  Lovyan GFX library - ESP32 hardware SPI graphics library .  
+  Lovyan GFX library - LCD graphics library .
   
-    for Arduino and ESP-IDF  
+  support platform:
+    ESP32 (SPI/I2S) with Arduino/ESP-IDF
+    ATSAMD51 (SPI) with Arduino
   
 Original Source:  
  https://github.com/lovyan03/LovyanGFX/  
@@ -44,16 +46,17 @@ Contributors:
 
 #include "lgfx/panel/Panel_HX8357.hpp"
 #include "lgfx/panel/Panel_ILI9163.hpp"
-#include "lgfx/panel/Panel_ILI9341.hpp"   // and ILI9342 / M5Stack / ODROID-GO / ESP-WROVER-KIT4.1
+#include "lgfx/panel/Panel_ILI9341.hpp"   // and ILI9342 / M5Stack / ODROID-GO / ESP-WROVER-KIT4.1 / WioTerminal
 #include "lgfx/panel/Panel_ILI9486.hpp"
 #include "lgfx/panel/Panel_ILI9488.hpp"
 #include "lgfx/panel/Panel_SSD1351.hpp"
-#include "lgfx/panel/Panel_ST7789.hpp"    // LilyGO TTGO T-Watch
-#include "lgfx/panel/Panel_ST7735.hpp"    // M5StickC
+#include "lgfx/panel/Panel_ST7789.hpp"    // M5StickCPlus / LilyGO TTGO T-Watch / ESP-WROVER-KIT4.1
+#include "lgfx/panel/Panel_ST7735.hpp"    // M5StickC / LilyGO TTGO T-Wristband
 
 
 #if defined (ESP32) || (CONFIG_IDF_TARGET_ESP32)
   #include "lgfx/platforms/LGFX_SPI_ESP32.hpp"
+  #include "lgfx/platforms/LGFX_PARALLEL_ESP32.hpp"
 
 #elif defined (__SAMD51__)
   #include "lgfx/platforms/LGFX_SPI_SAMD51.hpp"
@@ -70,7 +73,10 @@ Contributors:
 // If the board you are using is not supported,  Put a copy of "config/LGFX_Config_Custom" in your project folder,
 // and include it with modifications to the content to suit your environment.
 
-#if defined( LGFX_M5STACK ) || defined( ARDUINO_M5Stack_Core_ESP32 ) || defined( ARDUINO_M5STACK_FIRE ) // M5Stack
+#if defined( LGFX_AUTODETECT )
+  #include "config/LGFX_Config_AutoDetect.hpp"
+
+#elif defined( LGFX_M5STACK ) || defined( ARDUINO_M5Stack_Core_ESP32 ) || defined( ARDUINO_M5STACK_FIRE ) // M5Stack
   #include "config/LGFX_Config_M5Stack.hpp"
 
 #elif defined( LGFX_M5STICKC ) || defined( ARDUINO_M5Stick_C ) // M5Stick C

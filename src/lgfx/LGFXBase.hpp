@@ -1,7 +1,9 @@
 /*----------------------------------------------------------------------------/
-  Lovyan GFX library - ESP32 hardware SPI graphics library .  
+  Lovyan GFX library - LCD graphics library .
   
-    for Arduino and ESP-IDF  
+  support platform:
+    ESP32 (SPI/I2S) with Arduino/ESP-IDF
+    ATSAMD51 (SPI) with Arduino
   
 Original Source:  
  https://github.com/lovyan03/LovyanGFX/  
@@ -24,8 +26,11 @@ Contributors:
 
 namespace lgfx
 {
+  class LGFX_Sprite;
+
   class LGFXBase
   {
+  friend LGFX_Sprite;
   public:
     LGFXBase() {}
     virtual ~LGFXBase() {}
@@ -41,78 +46,81 @@ namespace lgfx
     template<typename T> __attribute__ ((always_inline)) inline void setBaseColor(T c) { _base_rgb888 = convert_to_rgb888(c); }
     std::uint32_t getBaseColor(void) const { return _base_rgb888; }
 
-                         inline void clear      ( void )          { _color.raw = 0;  fillRect(0, 0, _width, _height); }
-    template<typename T> inline void clear      ( const T& color) { setColor(color); fillRect(0, 0, _width, _height); }
-                         inline void fillScreen ( void )          {                  fillRect(0, 0, _width, _height); }
-    template<typename T> inline void fillScreen ( const T& color) { setColor(color); fillRect(0, 0, _width, _height); }
-
-    template<typename T> inline void pushBlock  ( const T& color, std::int32_t length) { if (0 >= length) return; setColor(color); startWrite(); pushBlock_impl(length); endWrite(); }
-
-// Deprecated, use pushBlock()
-    template<typename T> inline void pushColor  ( const T& color, std::int32_t length) { if (0 >= length) return; setColor(color); startWrite(); pushBlock_impl(length); endWrite(); }
-    template<typename T> inline void pushColor  ( const T& color                ) {                          setColor(color); startWrite(); pushBlock_impl(1);      endWrite(); }
-
-
 // AdafruitGFX compatible functions.
 // However, startWrite and endWrite have an internal counter and are executed when the counter is 0.
 // If you do not want to the counter, call the transaction function directly.
     __attribute__ ((always_inline)) inline void startWrite(void) {                           if (1 == ++_transaction_count) beginTransaction(); }
     __attribute__ ((always_inline)) inline void endWrite(void)   { if (_transaction_count) { if (0 == --_transaction_count) endTransaction(); } }
-    template<typename T> inline void writePixel    ( std::int32_t x, std::int32_t y                                , const T& color) { setColor(color); writePixel    (x, y         ); }
-    template<typename T> inline void writeFastVLine( std::int32_t x, std::int32_t y                , std::int32_t h, const T& color) { setColor(color); writeFastVLine(x, y   , h   ); }
+    template<typename T> inline void writePixel    ( std::int32_t x, std::int32_t y                                , const T& color) { setColor(color); writePixel    (x, y      ); }
+    template<typename T> inline void writeFastVLine( std::int32_t x, std::int32_t y                , std::int32_t h, const T& color) { setColor(color); writeFastVLine(x, y   , h); }
                                 void writeFastVLine( std::int32_t x, std::int32_t y                , std::int32_t h);
-    template<typename T> inline void writeFastHLine( std::int32_t x, std::int32_t y, std::int32_t w                , const T& color) { setColor(color); writeFastHLine(x, y, w      ); }
+    template<typename T> inline void writeFastHLine( std::int32_t x, std::int32_t y, std::int32_t w                , const T& color) { setColor(color); writeFastHLine(x, y, w   ); }
                                 void writeFastHLine( std::int32_t x, std::int32_t y, std::int32_t w);
-    template<typename T> inline void writeFillRect ( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const T& color) { setColor(color); writeFillRect (x, y, w, h   ); }
+    template<typename T> inline void writeFillRect ( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const T& color) { setColor(color); writeFillRect (x, y, w, h); }
                                 void writeFillRect ( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h);
     template<typename T> inline void writeColor    ( const T& color, std::int32_t length) {      if (0 >= length) return; setColor(color);    pushBlock_impl(length); }
                          inline void writeRawColor ( std::uint32_t color, std::int32_t length) { if (0 >= length) return; setRawColor(color); pushBlock_impl(length); }
+    template<typename T> inline void writeFillRectPreclipped( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const T& color) { setColor(color); writeFillRect_impl (x, y, w, h); }
+                                void writeFillRectPreclipped( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h)                 {                  writeFillRect_impl (x, y, w, h); }
+//
 
-    template<typename T> inline void drawPixel     ( std::int32_t x, std::int32_t y                                           , const T& color) { setColor(color); drawPixel    (x, y         ); }
-    template<typename T> inline void drawFastVLine ( std::int32_t x, std::int32_t y                , std::int32_t h           , const T& color) { setColor(color); drawFastVLine(x, y   , h   ); }
-                                void drawFastVLine ( std::int32_t x, std::int32_t y                , std::int32_t h);
-    template<typename T> inline void drawFastHLine ( std::int32_t x, std::int32_t y, std::int32_t w                           , const T& color) { setColor(color); drawFastHLine(x, y, w      ); }
-                                void drawFastHLine ( std::int32_t x, std::int32_t y, std::int32_t w);
-    template<typename T> inline void fillRect      ( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h           , const T& color) { setColor(color); fillRect     (x, y, w, h   ); }
-                                void fillRect      ( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h);
-    template<typename T> inline void drawRect      ( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h           , const T& color) { setColor(color); drawRect     (x, y, w, h   ); }
-                                void drawRect      ( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h);
-    template<typename T> inline void drawRoundRect ( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, std::int32_t r, const T& color) { setColor(color); drawRoundRect(x, y, w, h, r); }
-                                void drawRoundRect ( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, std::int32_t r);
-    template<typename T> inline void fillRoundRect ( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, std::int32_t r, const T& color) { setColor(color); fillRoundRect(x, y, w, h, r); }
-                                void fillRoundRect ( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, std::int32_t r);
-    template<typename T> inline void drawCircle    ( std::int32_t x, std::int32_t y                                , std::int32_t r, const T& color) { setColor(color); drawCircle   (x, y      , r); }
-                                void drawCircle    ( std::int32_t x, std::int32_t y                                , std::int32_t r);
-    template<typename T> inline void fillCircle    ( std::int32_t x, std::int32_t y                                , std::int32_t r, const T& color) { setColor(color); fillCircle   (x, y      , r); }
-                                void fillCircle    ( std::int32_t x, std::int32_t y                                , std::int32_t r);
-    template<typename T> inline void drawEllipse   ( std::int32_t x, std::int32_t y, std::int32_t rx, std::int32_t ry         , const T& color) { setColor(color); drawEllipse  (x, y, rx, ry ); }
-                                void drawEllipse   ( std::int32_t x, std::int32_t y, std::int32_t rx, std::int32_t ry);
-    template<typename T> inline void fillEllipse   ( std::int32_t x, std::int32_t y, std::int32_t rx, std::int32_t ry         , const T& color) { setColor(color); fillEllipse  (x, y, rx, ry ); }
-                                void fillEllipse   ( std::int32_t x, std::int32_t y, std::int32_t rx, std::int32_t ry);
-    template<typename T> inline void drawLine      ( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1                        , const T& color)  { setColor(color); drawLine(    x0, y0, x1, y1        ); }
-                                void drawLine      ( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1);
-    template<typename T> inline void drawTriangle  ( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2, const T& color)  { setColor(color); drawTriangle(x0, y0, x1, y1, x2, y2); }
-                                void drawTriangle  ( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2);
-    template<typename T> inline void fillTriangle  ( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2, const T& color)  { setColor(color); fillTriangle(x0, y0, x1, y1, x2, y2); }
-                                void fillTriangle  ( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2);
-    template<typename T> inline void drawBezier    ( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2, const T& color)  { setColor(color); drawBezier(x0, y0, x1, y1, x2, y2); }
-                                void drawBezier    ( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2);
-    template<typename T> inline void drawBezier    ( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2, std::int32_t x3, std::int32_t y3, const T& color)  { setColor(color); drawBezier(x0, y0, x1, y1, x2, y2, x3, y3); }
-                                void drawBezier    ( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2, std::int32_t x3, std::int32_t y3);
-    template<typename T> inline void drawBezierHelper(std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2, const T& color)  { setColor(color); drawBezierHelper(x0, y0, x1, y1, x2, y2); }
-                                void drawBezierHelper(std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2);
-    template<typename T> inline void drawArc       ( std::int32_t x, std::int32_t y, std::int32_t r0, std::int32_t r1, float angle0, float angle1, const T& color) { setColor(color); drawArc( x, y, r0, r1, angle0, angle1); }
-                                void drawArc       ( std::int32_t x, std::int32_t y, std::int32_t r0, std::int32_t r1, float angle0, float angle1);
-    template<typename T> inline void fillArc       ( std::int32_t x, std::int32_t y, std::int32_t r0, std::int32_t r1, float angle0, float angle1, const T& color) { setColor(color); fillArc( x, y, r0, r1, angle0, angle1); }
-                                void fillArc       ( std::int32_t x, std::int32_t y, std::int32_t r0, std::int32_t r1, float angle0, float angle1);
-    template<typename T> inline void drawCircleHelper(std::int32_t x, std::int32_t y, std::int32_t r, std::uint_fast8_t cornername            , const T& color)  { setColor(color); drawCircleHelper(x, y, r, cornername    ); }
-                                void drawCircleHelper(std::int32_t x, std::int32_t y, std::int32_t r, std::uint_fast8_t cornername);
-    template<typename T> inline void fillCircleHelper(std::int32_t x, std::int32_t y, std::int32_t r, std::uint_fast8_t corners, std::int32_t delta, const T& color)  { setColor(color); fillCircleHelper(x, y, r, corners, delta); }
-                                void fillCircleHelper(std::int32_t x, std::int32_t y, std::int32_t r, std::uint_fast8_t corners, std::int32_t delta);
+    template<typename T> inline void drawPixel       ( std::int32_t x, std::int32_t y                                                , const T& color) { setColor(color); drawPixel    (x, y         ); }
+    template<typename T> inline void drawFastVLine   ( std::int32_t x, std::int32_t y                , std::int32_t h                , const T& color) { setColor(color); drawFastVLine(x, y   , h   ); }
+                                void drawFastVLine   ( std::int32_t x, std::int32_t y                , std::int32_t h);
+    template<typename T> inline void drawFastHLine   ( std::int32_t x, std::int32_t y, std::int32_t w                                , const T& color) { setColor(color); drawFastHLine(x, y, w      ); }
+                                void drawFastHLine   ( std::int32_t x, std::int32_t y, std::int32_t w);
+    template<typename T> inline void fillRect        ( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h                , const T& color) { setColor(color); fillRect     (x, y, w, h   ); }
+                                void fillRect        ( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h);
+    template<typename T> inline void drawRect        ( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h                , const T& color) { setColor(color); drawRect     (x, y, w, h   ); }
+                                void drawRect        ( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h);
+    template<typename T> inline void drawRoundRect   ( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, std::int32_t r, const T& color) { setColor(color); drawRoundRect(x, y, w, h, r); }
+                                void drawRoundRect   ( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, std::int32_t r);
+    template<typename T> inline void fillRoundRect   ( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, std::int32_t r, const T& color) { setColor(color); fillRoundRect(x, y, w, h, r); }
+                                void fillRoundRect   ( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, std::int32_t r);
+    template<typename T> inline void drawCircle      ( std::int32_t x, std::int32_t y                                , std::int32_t r, const T& color) { setColor(color); drawCircle   (x, y      , r); }
+                                void drawCircle      ( std::int32_t x, std::int32_t y                                , std::int32_t r);
+    template<typename T> inline void fillCircle      ( std::int32_t x, std::int32_t y                                , std::int32_t r, const T& color) { setColor(color); fillCircle   (x, y      , r); }
+                                void fillCircle      ( std::int32_t x, std::int32_t y                                , std::int32_t r);
+    template<typename T> inline void drawEllipse     ( std::int32_t x, std::int32_t y, std::int32_t rx, std::int32_t ry              , const T& color) { setColor(color); drawEllipse  (x, y, rx, ry ); }
+                                void drawEllipse     ( std::int32_t x, std::int32_t y, std::int32_t rx, std::int32_t ry);     
+    template<typename T> inline void fillEllipse     ( std::int32_t x, std::int32_t y, std::int32_t rx, std::int32_t ry              , const T& color) { setColor(color); fillEllipse  (x, y, rx, ry ); }
+                                void fillEllipse     ( std::int32_t x, std::int32_t y, std::int32_t rx, std::int32_t ry);
+    template<typename T> inline void drawLine        ( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1            , const T& color)  { setColor(color); drawLine(    x0, y0, x1, y1        ); }
+                                void drawLine        ( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1);
+    template<typename T> inline void drawTriangle    ( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2, const T& color)  { setColor(color); drawTriangle(x0, y0, x1, y1, x2, y2); }
+                                void drawTriangle    ( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2);
+    template<typename T> inline void fillTriangle    ( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2, const T& color)  { setColor(color); fillTriangle(x0, y0, x1, y1, x2, y2); }
+                                void fillTriangle    ( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2);
+    template<typename T> inline void drawBezier      ( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2, const T& color)  { setColor(color); drawBezier(x0, y0, x1, y1, x2, y2); }
+                                void drawBezier      ( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2);
+    template<typename T> inline void drawBezier      ( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2, std::int32_t x3, std::int32_t y3, const T& color)  { setColor(color); drawBezier(x0, y0, x1, y1, x2, y2, x3, y3); }
+                                void drawBezier      ( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2, std::int32_t x3, std::int32_t y3);
+    template<typename T> inline void drawBezierHelper( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2, const T& color)  { setColor(color); drawBezierHelper(x0, y0, x1, y1, x2, y2); }
+                                void drawBezierHelper( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2);
+    template<typename T> inline void drawArc         ( std::int32_t x, std::int32_t y, std::int32_t r0, std::int32_t r1, float angle0, float angle1, const T& color) { setColor(color); drawArc( x, y, r0, r1, angle0, angle1); }
+                                void drawArc         ( std::int32_t x, std::int32_t y, std::int32_t r0, std::int32_t r1, float angle0, float angle1);
+    template<typename T> inline void fillArc         ( std::int32_t x, std::int32_t y, std::int32_t r0, std::int32_t r1, float angle0, float angle1, const T& color) { setColor(color); fillArc( x, y, r0, r1, angle0, angle1); }
+                                void fillArc         ( std::int32_t x, std::int32_t y, std::int32_t r0, std::int32_t r1, float angle0, float angle1);
+    template<typename T> inline void drawCircleHelper( std::int32_t x, std::int32_t y, std::int32_t r, std::uint_fast8_t cornername                 , const T& color)  { setColor(color); drawCircleHelper(x, y, r, cornername    ); }
+                                void drawCircleHelper( std::int32_t x, std::int32_t y, std::int32_t r, std::uint_fast8_t cornername);
+    template<typename T> inline void fillCircleHelper( std::int32_t x, std::int32_t y, std::int32_t r, std::uint_fast8_t corners, std::int32_t delta, const T& color)  { setColor(color); fillCircleHelper(x, y, r, corners, delta); }
+                                void fillCircleHelper( std::int32_t x, std::int32_t y, std::int32_t r, std::uint_fast8_t corners, std::int32_t delta);
 
     template<typename T> inline void paint    ( std::int32_t x, std::int32_t y, const T& color) { setColor(color); paint(x, y); }
     template<typename T> inline void floodFill( std::int32_t x, std::int32_t y, const T& color) { setColor(color); paint(x, y); }
                          inline void floodFill( std::int32_t x, std::int32_t y                ) {                  paint(x, y); }
+
+    template<typename T> inline void drawGradientHLine( std::int32_t x, std::int32_t y, std::int32_t w, const T& colorstart, const T& colorend ) { drawGradientLine( x, y, x + w - 1, y, colorstart, colorend ); }
+    template<typename T> inline void drawGradientVLine( std::int32_t x, std::int32_t y, std::int32_t h, const T& colorstart, const T& colorend ) { drawGradientLine( x, y, x, y + h - 1, colorstart, colorend ); }
+    template<typename T> inline void drawGradientLine( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, const T& colorstart, const T& colorend ) { draw_gradient_line( x0, y0, x1, y1, convert_to_rgb888(colorstart), convert_to_rgb888(colorend) ); }
+
+                         inline void clear      ( void )          { setColor(_base_rgb888); fillRect(0, 0, _width, _height); }
+    template<typename T> inline void clear      ( const T& color) { setColor(color);        fillRect(0, 0, _width, _height); }
+                         inline void fillScreen ( void )          {                         fillRect(0, 0, _width, _height); }
+    template<typename T> inline void fillScreen ( const T& color) { setColor(color);        fillRect(0, 0, _width, _height); }
+
+    template<typename T> inline void pushBlock  ( const T& color, std::int32_t length) { if (0 >= length) return; setColor(color); startWrite(); pushBlock_impl(length); endWrite(); }
+
 
     __attribute__ ((always_inline)) inline static std::uint8_t  color332(std::uint8_t r, std::uint8_t g, std::uint8_t b) { return lgfx::color332(r, g, b); }
     __attribute__ ((always_inline)) inline static std::uint16_t color565(std::uint8_t r, std::uint8_t g, std::uint8_t b) { return lgfx::color565(r, g, b); }
@@ -136,6 +144,7 @@ namespace lgfx
     __attribute__ ((always_inline)) inline bool isReadable(void) const { return isReadable_impl(); }
     __attribute__ ((always_inline)) inline bool getSwapBytes    (void) const { return _swapBytes; }
     __attribute__ ((always_inline)) inline void setSwapBytes(bool swap) { _swapBytes = swap; }
+    __attribute__ ((always_inline)) inline void setSPIShared(bool shared) { _spi_shared = shared; }
 
     __attribute__ ((always_inline)) inline void beginTransaction(void) { beginTransaction_impl(); }
     __attribute__ ((always_inline)) inline void endTransaction(void)   { endTransaction_impl(); }
@@ -143,8 +152,6 @@ namespace lgfx
     __attribute__ ((always_inline)) inline void waitDMA(void)  { waitDMA_impl(); }
     __attribute__ ((always_inline)) inline bool dmaBusy(void)  { return dmaBusy_impl(); }
     __attribute__ ((always_inline)) inline void setWindow(std::int32_t xs, std::int32_t ys, std::int32_t xe, std::int32_t ye) { setWindow_impl(xs, ys, xe, ye); }
-
-    void setSPIShared(bool shared) { _spi_shared = shared; }
 
     void setAddrWindow(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h);
     void setClipRect(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h);
@@ -176,70 +183,66 @@ namespace lgfx
       writeFillRect_impl(x, y, 1, 1);
     }
 
-    __attribute__ ((always_inline)) inline 
-    void writeFillRectPreclipped(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h)
-    {
-      writeFillRect_impl(x, y, w, h);
-    }
-
-    __attribute__ ((always_inline)) inline
-    void drawGradientHLine( std::int32_t x, std::int32_t y, std::int32_t w, bgr888_t colorstart, bgr888_t colorend ) {
-      drawGradientLine( x, y, x + w - 1, y, colorstart, colorend );
-    }
-
-    __attribute__ ((always_inline)) inline
-    void drawGradientVLine( std::int32_t x, std::int32_t y, std::int32_t h, bgr888_t colorstart, bgr888_t colorend ) {
-      drawGradientLine( x, y, x, y + h - 1, colorstart, colorend );
-    }
-
-    void drawGradientLine( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, bgr888_t colorstart, bgr888_t colorend );
-
     template<typename T> void drawBitmap(std::int32_t x, std::int32_t y, const std::uint8_t *bitmap, std::int32_t w, std::int32_t h, const T& color                    ) { draw_bitmap(x, y, bitmap, w, h, _write_conv.convert(color)); }
     template<typename T> void drawBitmap(std::int32_t x, std::int32_t y, const std::uint8_t *bitmap, std::int32_t w, std::int32_t h, const T& fgcolor, const T& bgcolor) { draw_bitmap(x, y, bitmap, w, h, _write_conv.convert(fgcolor), _write_conv.convert(bgcolor)); }
     template<typename T> void drawXBitmap(std::int32_t x, std::int32_t y, const std::uint8_t *bitmap, std::int32_t w, std::int32_t h, const T& color                    ) { draw_xbitmap(x, y, bitmap, w, h, _write_conv.convert(color)); }
     template<typename T> void drawXBitmap(std::int32_t x, std::int32_t y, const std::uint8_t *bitmap, std::int32_t w, std::int32_t h, const T& fgcolor, const T& bgcolor) { draw_xbitmap(x, y, bitmap, w, h, _write_conv.convert(fgcolor), _write_conv.convert(bgcolor)); }
 
-    void pushPixelsDMA(const void* data, std::int32_t len) { if (len < 0) return; pushPixelsDMA_impl(data, len); }
+    __attribute__ ((always_inline)) inline void pushPixelsDMA( const void* data, std::int32_t len) { if (len < 0) return; startWrite(); writePixelsDMA_impl(data, len); endWrite(); }
+    __attribute__ ((always_inline)) inline void writePixelsDMA(const void* data, std::int32_t len) { if (len < 0) return;               writePixelsDMA_impl(data, len);             }
 
-    void writePixels(std::uint16_t* colors, std::int32_t len) { pushColors(colors, len, true); }
+    template <typename T>
+    __attribute__ ((always_inline)) inline void pushPixels(T*                   data, std::int32_t len) { startWrite(); writePixels(data, len            ); endWrite(); }
+    __attribute__ ((always_inline)) inline void pushPixels(const void*          data, std::int32_t len) { startWrite(); writePixels(data, len, _swapBytes); endWrite(); }
+    __attribute__ ((always_inline)) inline void pushPixels(const std::uint16_t* data, std::int32_t len) { startWrite(); writePixels(data, len, _swapBytes); endWrite(); }
+    __attribute__ ((always_inline)) inline void pushPixels(const std::uint8_t*  data, std::int32_t len) { startWrite(); writePixels((const rgb332_t*)data, len); endWrite(); }
 
-    void pushColors(const std::uint8_t* data, std::int32_t len)
-    {
-      pushColors((rgb332_t*)data, len);
-    }
-    void pushColors(const std::uint16_t* data, std::int32_t len, bool swap = true)
+    template <typename T>
+    __attribute__ ((always_inline)) inline void pushPixels(T*                   data, std::int32_t len, bool swap) { startWrite(); writePixels(data, len, swap); endWrite(); }
+    __attribute__ ((always_inline)) inline void pushPixels(const void*          data, std::int32_t len, bool swap) { startWrite(); writePixels(data, len, swap); endWrite(); }
+    __attribute__ ((always_inline)) inline void pushPixels(const std::uint16_t* data, std::int32_t len, bool swap) { startWrite(); writePixels(data, len, swap); endWrite(); }
+
+    __attribute__ ((always_inline)) inline void writePixels(const void*          data, std::int32_t len) { writePixels(data, len, _swapBytes); }
+    __attribute__ ((always_inline)) inline void writePixels(const std::uint16_t* data, std::int32_t len) { writePixels(data, len, _swapBytes); }
+    __attribute__ ((always_inline)) inline void writePixels(const std::uint8_t*  data, std::int32_t len) { writePixels((const rgb332_t*)data, len); }
+
+    void writePixels(const std::uint16_t* data, std::int32_t len, bool swap)
     {
       pixelcopy_t p(data, _write_conv.depth, rgb565_2Byte, _palette_count);
       if (swap && !_palette_count && _write_conv.depth >= 8) {
         p.no_convert = false;
         p.fp_copy = pixelcopy_t::get_fp_normalcopy<rgb565_t>(_write_conv.depth);
       }
-      startWrite();
-      pushColors_impl(len, &p);
-      endWrite();
+      writePixels_impl(len, &p);
     }
-    void pushColors(const void* data, std::int32_t len, bool swap = true)
+
+    void writePixels(const void* data, std::int32_t len, bool swap)
     {
       pixelcopy_t p(data, _write_conv.depth, rgb888_3Byte, _palette_count);
       if (swap && !_palette_count && _write_conv.depth >= 8) {
         p.no_convert = false;
         p.fp_copy = pixelcopy_t::get_fp_normalcopy<rgb888_t>(_write_conv.depth);
       }
-      startWrite();
-      pushColors_impl(len, &p);
-      endWrite();
+      writePixels_impl(len, &p);
     }
     template <typename T>
-    void pushColors(const T *data, std::int32_t len)
+    void writePixels(const T *data, std::int32_t len)
     {
       pixelcopy_t p(data, _write_conv.depth, get_depth<T>::value, _palette_count, nullptr);
       if (std::is_same<rgb565_t, T>::value || std::is_same<rgb888_t, T>::value) {
         p.no_convert = false;
         p.fp_copy = pixelcopy_t::get_fp_normalcopy<T>(_write_conv.depth);
       }
-      startWrite();
-      pushColors_impl(len, &p);
-      endWrite();
+      writePixels_impl(len, &p);
+    }
+
+    template <typename T>
+    void writeIndexedPixels(const uint8_t *data, T* palette, std::int32_t len, lgfx::color_depth_t colordepth = lgfx::rgb332_1Byte)
+    {
+      pixelcopy_t p(data, _write_conv.depth, colordepth, _palette_count, palette);
+      p.no_convert = false;
+      p.fp_copy = pixelcopy_t::get_fp_palettecopy<T>(_write_conv.depth);
+      writePixels_impl(len, &p);
     }
 
     std::uint16_t readPixel(std::int32_t x, std::int32_t y)
@@ -412,8 +415,6 @@ namespace lgfx
       push_image(x, y, w, h, &p, true);
     }
 
-    void push_image(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, pixelcopy_t *param, bool use_dma = false);
-
     bool pushImageRotateZoom(std::int32_t dst_x, std::int32_t dst_y, const void* data, std::int32_t src_x, std::int32_t src_y, std::int32_t w, std::int32_t h, float angle, float zoom_x, float zoom_y, std::uint32_t transparent, const std::uint8_t bits, const bgr888_t* palette);
 
     void scroll(std::int_fast16_t dx, std::int_fast16_t dy = 0);
@@ -463,6 +464,23 @@ namespace lgfx
       endWrite();
     }
 #endif
+
+
+    template<typename T>
+    [[deprecated("use pushBlock")]] void pushColor(const T& color, std::int32_t length) { if (0 >= length) return; setColor(color); startWrite(); pushBlock_impl(length); endWrite(); }
+    template<typename T>
+    [[deprecated("use pushBlock")]] void pushColor(const T& color                     ) {                          setColor(color); startWrite(); pushBlock_impl(1);      endWrite(); }
+
+    template <typename T>
+    [[deprecated("use pushPixels")]] void pushColors(T*                   data, std::int32_t len) { startWrite(); writePixels(data, len            ); endWrite(); }
+    [[deprecated("use pushPixels")]] void pushColors(const void*          data, std::int32_t len) { startWrite(); writePixels(data, len, _swapBytes); endWrite(); }
+    [[deprecated("use pushPixels")]] void pushColors(const std::uint16_t* data, std::int32_t len) { startWrite(); writePixels(data, len, _swapBytes); endWrite(); }
+    [[deprecated("use pushPixels")]] void pushColors(const std::uint8_t*  data, std::int32_t len) { startWrite(); writePixels((const rgb332_t*)data, len); endWrite(); }
+
+    template <typename T>
+    [[deprecated("use pushPixels")]] void pushColors(T*                   data, std::int32_t len, bool swap) { startWrite(); writePixels(data, len, swap); endWrite(); }
+    [[deprecated("use pushPixels")]] void pushColors(const void*          data, std::int32_t len, bool swap) { startWrite(); writePixels(data, len, swap); endWrite(); }
+    [[deprecated("use pushPixels")]] void pushColors(const std::uint16_t* data, std::int32_t len, bool swap) { startWrite(); writePixels(data, len, swap); endWrite(); }
 
 //----------------------------------------------------------------------------
 //----------------------------------------------------------------------------
@@ -514,9 +532,11 @@ namespace lgfx
       endWrite();
     }
 
+    void draw_gradient_line( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, uint32_t colorstart, uint32_t colorend );
     void fill_arc_helper(std::int32_t cx, std::int32_t cy, std::int32_t oradius, std::int32_t iradius, float start, float end);
     void draw_bitmap(std::int32_t x, std::int32_t y, const std::uint8_t *bitmap, std::int32_t w, std::int32_t h, std::uint32_t fg_rawcolor, std::uint32_t bg_rawcolor = ~0u);
     void draw_xbitmap(std::int32_t x, std::int32_t y, const std::uint8_t *bitmap, std::int32_t w, std::int32_t h, std::uint32_t fg_rawcolor, std::uint32_t bg_rawcolor = ~0u);
+    void push_image(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, pixelcopy_t *param, bool use_dma = false);
     void push_image_rotate_zoom(std::int32_t dst_x, std::int32_t dst_y, std::int32_t src_x, std::int32_t src_y, std::int32_t w, std::int32_t h, float angle, float zoom_x, float zoom_y, pixelcopy_t *param);
 
     virtual void beginTransaction_impl(void) = 0;
@@ -524,16 +544,16 @@ namespace lgfx
     virtual void initDMA_impl(void) = 0;
     virtual void waitDMA_impl(void) = 0;
     virtual bool dmaBusy_impl(void) = 0;
-    virtual void pushPixelsDMA_impl(const void* data, std::int32_t length) = 0;
 
-    virtual void drawPixel_impl(std::int32_t x, std::int32_t y) = 0;
+    virtual void setWindow_impl(std::int32_t xs, std::int32_t ys, std::int32_t xe, std::int32_t ye) = 0;
     virtual void writeFillRect_impl(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h) = 0;
+    virtual void drawPixel_impl(std::int32_t x, std::int32_t y) = 0;
     virtual void copyRect_impl(std::int32_t dst_x, std::int32_t dst_y, std::int32_t w, std::int32_t h, std::int32_t src_x, std::int32_t src_y) = 0;
     virtual void readRect_impl(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, void* dst, pixelcopy_t* param) = 0;
     virtual void pushImage_impl(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, pixelcopy_t* param, bool use_dma) = 0;
-    virtual void pushColors_impl(std::int32_t length, pixelcopy_t* param) = 0;
+    virtual void writePixels_impl(std::int32_t length, pixelcopy_t* param) = 0;
+    virtual void writePixelsDMA_impl(const void* data, std::int32_t length) = 0;
     virtual void pushBlock_impl(std::int32_t len) = 0;
-    virtual void setWindow_impl(std::int32_t xs, std::int32_t ys, std::int32_t xe, std::int32_t ye) = 0;
     virtual bool isReadable_impl(void) const = 0;
     virtual std::int_fast8_t getRotation_impl(void) const = 0;
 

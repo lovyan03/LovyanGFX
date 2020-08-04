@@ -1,7 +1,9 @@
 /*----------------------------------------------------------------------------/
-  Lovyan GFX library - ESP32 hardware SPI graphics library .  
+  Lovyan GFX library - LCD graphics library .
   
-    for Arduino and ESP-IDF  
+  support platform:
+    ESP32 (SPI/I2S) with Arduino/ESP-IDF
+    ATSAMD51 (SPI) with Arduino
   
 Original Source:  
  https://github.com/lovyan03/LovyanGFX/  
@@ -761,7 +763,7 @@ return;
       } while (--h);
     }
 
-    void pushPixelsDMA_impl(const void* data, std::int32_t length) override
+    void writePixelsDMA_impl(const void* data, std::int32_t length) override
     {
       auto src = static_cast<const uint8_t*>(data);
       auto k = _bitwidth * _write_conv.bits >> 3;
@@ -775,7 +777,7 @@ return;
       } while (length -= linelength);
     }
 
-    void pushColors_impl(std::int32_t length, pixelcopy_t* param) override
+    void writePixels_impl(std::int32_t length, pixelcopy_t* param) override
     {
       auto k = _bitwidth * _write_conv.bits >> 3;
       std::int32_t linelength;

@@ -1,7 +1,9 @@
 /*----------------------------------------------------------------------------/
-  Lovyan GFX library - ESP32 hardware SPI graphics library .  
+  Lovyan GFX library - LCD graphics library .
   
-    for Arduino and ESP-IDF  
+  support platform:
+    ESP32 (SPI/I2S) with Arduino/ESP-IDF
+    ATSAMD51 (SPI) with Arduino
   
 Original Source:  
  https://github.com/lovyan03/LovyanGFX/  
@@ -764,10 +766,10 @@ namespace lgfx
     endWrite();
   }
 
-  void LGFXBase::drawGradientLine( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, bgr888_t colorstart, bgr888_t colorend )
+  void LGFXBase::draw_gradient_line( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, uint32_t colorstart, uint32_t colorend )
   {
     if ( colorstart == colorend || (x0 == x1 && y0 == y1)) {
-      setColor(color888( colorstart.r, colorstart.g, colorstart.b ) );
+      setColor(colorstart);
       drawLine( x0, y0, x1, y1);
       return;
     }
@@ -789,15 +791,19 @@ namespace lgfx
     std::int32_t dy = abs(y1 - y0);
     std::int32_t ystep = (y0 < y1) ? 1 : -1;
 
-    std::int32_t diff_r = colorend.r - colorstart.r;
-    std::int32_t diff_g = colorend.g - colorstart.g;
-    std::int32_t diff_b = colorend.b - colorstart.b;
+    std::int32_t r = (colorstart >> 16)&0xFF;
+    std::int32_t g = (colorstart >> 8 )&0xFF;
+    std::int32_t b = (colorstart      )&0xFF;
+
+    std::int32_t diff_r = ((colorend >> 16)&0xFF) - r;
+    std::int32_t diff_g = ((colorend >> 8 )&0xFF) - g;
+    std::int32_t diff_b = ((colorend      )&0xFF) - b;
 
     startWrite();
     for (std::int32_t x = x0; x <= x1; x++) {
-      setColor(color888( (x - x0) * diff_r / dx + colorstart.r
-                       , (x - x0) * diff_g / dx + colorstart.g
-                       , (x - x0) * diff_b / dx + colorstart.b));
+      setColor(color888( (x - x0) * diff_r / dx + r
+                       , (x - x0) * diff_g / dx + g
+                       , (x - x0) * diff_b / dx + b));
       if (steep) writePixel(y0, x);
       else       writePixel(x, y0);
       err -= dy;

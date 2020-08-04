@@ -7,7 +7,7 @@
 // Create a structure for SPI configuration
 // SPI設定用の構造体を作成します。
 
-// for ESP32
+// for ESP32 SPI
 struct LGFX_Config
 {
 // You can change the name of the structure from "LGFX_Config"
@@ -49,8 +49,32 @@ struct LGFX_Config
   static constexpr int spi_dlen = 8;
 };
 
+/* for ESP32 Parallel
+struct LGFX_Config
+{
+  // Select the type of I2S  (I2S_NUM_0 or I2S_NUM_1)
+  // 使用するI2Sを I2S_NUM_0 または I2S_NUM_1 で設定します。
+  // 省略時は I2S_NUM_0です。
+  static constexpr i2s_port_t i2s_port = I2S_NUM_0;
+
+  // Set the parallel pin number
+  // パラレル接続の各種ピン番号を設定します。
+  static constexpr int gpio_wr  =  4;
+  static constexpr int gpio_rd  =  2;
+  static constexpr int gpio_rs  = 15;
+  static constexpr int gpio_d0  = 12;
+  static constexpr int gpio_d1  = 13;
+  static constexpr int gpio_d2  = 26;
+  static constexpr int gpio_d3  = 25;
+  static constexpr int gpio_d4  = 17;
+  static constexpr int gpio_d5  = 16;
+  static constexpr int gpio_d6  = 27;
+  static constexpr int gpio_d7  = 14;
+};
+
+//*/
 /* 
-// for SAMD51
+// for SAMD51 SPI
 struct LGFX_Config
 {
 // 使用するSPIのSERCOM番号を設定します。
@@ -91,7 +115,9 @@ struct LGFX_Config
 
 // Create an LGFX_SPI instance with the configuration structure you just created as a template argument.
 // 用意した設定用の構造体を、LGFX_SPIクラスにテンプレート引数として設定し、インスタンスを作成します。
+// パラレル接続の場合は LGFX_PARALLELクラスを使用します。
 static lgfx::LGFX_SPI<LGFX_Config> lcd;
+//static lgfx::LGFX_PARALLEL<LGFX_Config> lcd;
 
 
 // Create an instance of the Panel class. Comment out the description of the panel you want to use.
@@ -102,6 +128,7 @@ static lgfx::LGFX_SPI<LGFX_Config> lcd;
 //static lgfx::Panel_ILI9341 panel;
 static lgfx::Panel_ILI9342 panel;
 //static lgfx::Panel_ILI9486 panel;
+//static lgfx::Panel_ILI9486L panel;
 //static lgfx::Panel_ILI9488 panel;
 //static lgfx::Panel_SSD1351 panel;
 //static lgfx::Panel_ST7789 panel;

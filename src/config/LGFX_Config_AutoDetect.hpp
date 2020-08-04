@@ -56,6 +56,48 @@ namespace lgfx
       offset_y = 40;
     }
   };
+
+  struct Panel_M5Stack : public Panel_ILI9342
+  {
+    bool isIPS = false;
+
+    Panel_M5Stack(void) {
+      spi_3wire = true;
+      spi_cs = 14;
+      spi_dc = 27;
+      rotation = 1;
+      offset_rotation = 3;
+      gpio_rst = 33;
+      gpio_bl  = 32;
+      pwm_ch_bl = 7;
+    }
+
+    void init(void) override {
+      gpio_lo(gpio_rst);
+      lgfxPinMode(gpio_rst, pin_mode_t::input);
+      delay(1);
+      isIPS = gpio_in(gpio_rst);       // get panel type (IPS or TN)
+
+      Panel_ILI9342::init();
+    }
+
+  protected:
+
+    const std::uint8_t* getInvertDisplayCommands(std::uint8_t* buf, bool invert) override {
+      if (!isIPS) return Panel_ILI9342::getInvertDisplayCommands(buf, invert);
+      this->invert = invert;
+      buf[2] = buf[0] = invert ? CommandCommon::INVOFF : CommandCommon::INVON;
+      buf[3] = buf[1] = 0;
+      buf[4] = CMD::GAMMASET;
+      buf[5] = 1;
+    //buf[6] = 0x08;  // Gamma set, curve 8
+    //buf[6] = 0x04;  // Gamma set, curve 4
+      buf[6] = 0x02;  // Gamma set, curve 2
+    //buf[6] = 0x01;  // Gamma set, curve 1
+      buf[8] = buf[7] = 0xFF;
+      return buf;
+    }
+  };
 }
 
 class LGFX : public lgfx::LGFX_SPI<lgfx::LGFX_Config>
@@ -68,26 +110,52 @@ public:
     setPanel(&panel);
   }
 
-  void initPanel(void) override
+  enum board_t
+  { board_unknown
+  , board_M5Stack
+  , board_M5StickC
+  , board_M5StickCPlus
+  };
+
+  board_t getBoard(void) const { return board; }
+
+  void init(void) override
   {
-    if (!_panel) return;
-    _panel->init();
-    lgfx::LGFX_SPI<lgfx::LGFX_Config>::initPanel();
+    initBus();
+    initPanel();
 
     std::uint32_t id = readPanelID();
     ESP_LOGI("LovyanGFX", "[Autodetect] panel id:%08x", id);
+    if (id == 0) {  // M5Stack
+      ESP_LOGI("LovyanGFX", "[Autodetect] M5Stack");
+      board = board_M5Stack;
+
+      _spi_mosi = 23;
+      _spi_miso = 19;
+      _spi_sclk = 18;
+      initBus();
+
+      static lgfx::Panel_M5Stack panel;
+
+      setPanel(&panel);
+
+      initPanel();
+    } else
     if ((id & 0xFF) == 0x85) {  //  check panel (ST7735 or ST7789)
-      ESP_LOGI("LovyanGFX", "[Autodetect] Using Panel_ST7789");
+      ESP_LOGI("LovyanGFX", "[Autodetect] M5StickCPlus");
+      board = board_M5StickCPlus;
 
       static lgfx::Panel_M5StickCPlus panel;
 
       setPanel(&panel);
-      lgfx::LGFX_SPI<lgfx::LGFX_Config>::initPanel();
+      initPanel();
     } else {  // 0x7C
-      ESP_LOGI("LovyanGFX", "[Autodetect] Using Panel_ST7735");
+      ESP_LOGI("LovyanGFX", "[Autodetect] M5StickC");
+      board = board_M5StickC;
     }
   }
-
+private:
+  board_t board = board_unknown;
 };
 
 #endif

@@ -1,7 +1,9 @@
 /*----------------------------------------------------------------------------/
-  Lovyan GFX library - ESP32 hardware SPI graphics library .  
+  Lovyan GFX library - LCD graphics library .
   
-    for Arduino and ESP-IDF  
+  support platform:
+    ESP32 (SPI/I2S) with Arduino/ESP-IDF
+    ATSAMD51 (SPI) with Arduino
   
 Original Source:  
  https://github.com/lovyan03/LovyanGFX/  
@@ -112,7 +114,7 @@ namespace lgfx
 
     __attribute__ ((always_inline)) inline void begin(void) { init(); }
 
-    void init(void) { initBus(); initPanel(); }
+    virtual void init(void) { initBus(); initPanel(); }
 
     // Write single byte as COMMAND
     void writeCommand(std::uint_fast8_t cmd) { startWrite(); write_cmd(cmd); endWrite(); } // AdafruitGFX compatible
@@ -336,7 +338,7 @@ namespace lgfx
       periph_module_reset( PERIPH_SPI_DMA_MODULE );
     }
 
-    void pushPixelsDMA_impl(const void* data, std::int32_t length) override {
+    void writePixelsDMA_impl(const void* data, std::int32_t length) override {
       write_bytes((const std::uint8_t*)data, length * _write_conv.bytes, true);
     }
 
@@ -820,7 +822,7 @@ namespace lgfx
         } else {
           setWindow_impl(x, y, xr, y + h - 1);
           do {
-            push_colors(w, param);
+            write_pixels(w, param);
             param->src_x = src_x;
             param->src_y++;
           } while (--h);
@@ -843,12 +845,12 @@ namespace lgfx
       }
     }
 
-    void pushColors_impl(std::int32_t length, pixelcopy_t* param) override
+    void writePixels_impl(std::int32_t length, pixelcopy_t* param) override
     {
-      push_colors(length, param);
+      write_pixels(length, param);
     }
 
-    void push_colors(std::int32_t length, pixelcopy_t* param)
+    void write_pixels(std::int32_t length, pixelcopy_t* param)
     {
       const std::uint8_t bytes = _write_conv.bytes;
       const std::uint32_t limit = (bytes == 2) ? 16 : 10; //  limit = 32/bytes (bytes==2 is 16   bytes==3 is 10)
@@ -1255,10 +1257,10 @@ namespace lgfx
       return bestpre << 18 | bestn << 12 | ((bestn-1)>>1) << 6 | bestn;
     }
 
+    int _spi_mosi = get_spi_mosi<CFG, -1>::value;
+    int _spi_miso = get_spi_miso<CFG, -1>::value;
+    int _spi_sclk = get_spi_sclk<CFG, -1>::value;
     static constexpr int _dma_channel= get_dma_channel<CFG,  0>::value;
-    static constexpr int _spi_mosi = get_spi_mosi<CFG, -1>::value;
-    static constexpr int _spi_miso = get_spi_miso<CFG, -1>::value;
-    static constexpr int _spi_sclk = get_spi_sclk<CFG, -1>::value;
     static constexpr int _spi_dlen = get_spi_dlen<CFG,  8>::value;
 
     static constexpr spi_host_device_t _spi_host = get_spi_host<CFG, VSPI_HOST>::value;
@@ -1314,4 +1316,7 @@ namespace lgfx
 //----------------------------------------------------------------------------
 
 }
+
+using lgfx::LGFX_SPI;
+
 #endif

@@ -36,7 +36,8 @@ namespace lgfx
       static constexpr std::uint8_t GMCTRP1 = 0xE0; // Positive Gamma Correction
       static constexpr std::uint8_t GMCTRN1 = 0xE1; // Negative Gamma Correction
     };
-    const std::uint8_t* getInitCommands(std::uint8_t listno) const override {
+    const std::uint8_t* getInitCommands(std::uint8_t listno) const override
+    {
       static constexpr std::uint8_t list0[] = {
           CMD::SLPOUT,  CMD_INIT_DELAY, 5,    // Exit sleep mode
           CMD::PWCTR3 , 1, 0x44,       // Power control 3
@@ -59,7 +60,9 @@ namespace lgfx
       default: return nullptr;
       }
     }
-    std::uint8_t getMadCtl(std::uint8_t r) const override {
+
+    std::uint8_t getMadCtl(std::uint8_t r) const override
+    {
       static constexpr std::uint8_t madctl_table[] = {
                MAD_MX|MAD_MH              ,
         MAD_MV                            ,
@@ -73,7 +76,21 @@ namespace lgfx
       r = (((r + offset_rotation) & 3) | (r & 4));
       return madctl_table[r];
     }
+
+    const std::uint8_t* getColorDepthCommands(std::uint8_t* buf, color_depth_t depth) override
+    {
+      auto res = PanelIlitekCommon::getColorDepthCommands(buf, depth);
+      // ILI9486 読込時のデータは書込と同じ並びになる (パラレル接続ILI9486で確認)
+      read_depth = write_depth;
+      return res;
+    }
   };
+
+  struct Panel_ILI9486L : public Panel_ILI9486
+  {
+    std::uint8_t getColMod(std::uint8_t) const override { return RGB666_3BYTE; }
+  };
+
 }
 
 #endif

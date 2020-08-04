@@ -165,46 +165,6 @@ namespace lgfx
       }
     }
   };
-
-#if defined(ESP32) || (CONFIG_IDF_TARGET_ESP32)
-  struct Panel_TTGO_TS : public Panel_ST7735S
-  {
-    Panel_TTGO_TS(void) {
-      freq_write = 20000000;
-      panel_width  = 128;
-      panel_height = 160;
-      offset_x     = 2;
-      offset_y     = 1;
-      offset_rotation = 2;
-      rgb_order = true;
-      spi_3wire = true;
-      spi_cs    = 16;
-      spi_dc    = 17;
-      gpio_rst  = 9;
-      gpio_bl   = 27;
-      pwm_ch_bl = 7;
-    }
-  };
-
-  struct Panel_LoLinD32 : public Panel_ST7735S
-  {
-    Panel_LoLinD32(void) {
-      panel_width  = 128;
-      panel_height = 128;
-      memory_width  = 132;
-      memory_height = 132;
-      offset_x  = 2;
-      offset_y  = 1;
-      spi_3wire = true;
-      spi_cs    = 14;
-      spi_dc    = 27;
-      gpio_rst  = 33;
-      gpio_bl   = 32;
-      pwm_ch_bl = 7;
-    }
-  };
-
-#endif
 }
 
 #endif
