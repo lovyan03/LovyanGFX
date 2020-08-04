@@ -1,7 +1,9 @@
 /*----------------------------------------------------------------------------/
-  Lovyan GFX library - ESP32 hardware SPI graphics library .  
+  Lovyan GFX library - LCD graphics library .
   
-    for Arduino and ESP-IDF  
+  support platform:
+    ESP32 (SPI/I2S) with Arduino/ESP-IDF
+    ATSAMD51 (SPI) with Arduino
   
 Original Source:  
  https://github.com/lovyan03/LovyanGFX/  
@@ -24,8 +26,11 @@ Contributors:
 
 namespace lgfx
 {
+  class LGFX_Sprite;
+
   class LGFXBase
   {
+  friend LGFX_Sprite;
   public:
     LGFXBase() {}
     virtual ~LGFXBase() {}
@@ -57,6 +62,7 @@ namespace lgfx
                          inline void writeRawColor ( std::uint32_t color, std::int32_t length) { if (0 >= length) return; setRawColor(color); pushBlock_impl(length); }
     template<typename T> inline void writeFillRectPreclipped( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const T& color) { setColor(color); writeFillRect_impl (x, y, w, h); }
                                 void writeFillRectPreclipped( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h)                 {                  writeFillRect_impl (x, y, w, h); }
+//
 
     template<typename T> inline void drawPixel       ( std::int32_t x, std::int32_t y                                                , const T& color) { setColor(color); drawPixel    (x, y         ); }
     template<typename T> inline void drawFastVLine   ( std::int32_t x, std::int32_t y                , std::int32_t h                , const T& color) { setColor(color); drawFastVLine(x, y   , h   ); }
@@ -409,8 +415,6 @@ namespace lgfx
       push_image(x, y, w, h, &p, true);
     }
 
-    void push_image(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, pixelcopy_t *param, bool use_dma = false);
-
     bool pushImageRotateZoom(std::int32_t dst_x, std::int32_t dst_y, const void* data, std::int32_t src_x, std::int32_t src_y, std::int32_t w, std::int32_t h, float angle, float zoom_x, float zoom_y, std::uint32_t transparent, const std::uint8_t bits, const bgr888_t* palette);
 
     void scroll(std::int_fast16_t dx, std::int_fast16_t dy = 0);
@@ -532,6 +536,7 @@ namespace lgfx
     void fill_arc_helper(std::int32_t cx, std::int32_t cy, std::int32_t oradius, std::int32_t iradius, float start, float end);
     void draw_bitmap(std::int32_t x, std::int32_t y, const std::uint8_t *bitmap, std::int32_t w, std::int32_t h, std::uint32_t fg_rawcolor, std::uint32_t bg_rawcolor = ~0u);
     void draw_xbitmap(std::int32_t x, std::int32_t y, const std::uint8_t *bitmap, std::int32_t w, std::int32_t h, std::uint32_t fg_rawcolor, std::uint32_t bg_rawcolor = ~0u);
+    void push_image(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, pixelcopy_t *param, bool use_dma = false);
     void push_image_rotate_zoom(std::int32_t dst_x, std::int32_t dst_y, std::int32_t src_x, std::int32_t src_y, std::int32_t w, std::int32_t h, float angle, float zoom_x, float zoom_y, pixelcopy_t *param);
 
     virtual void beginTransaction_impl(void) = 0;

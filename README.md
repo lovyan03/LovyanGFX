@@ -1,14 +1,14 @@
 # LovyanGFX
 
-SPI LCD graphics library (for ESP32 / SAMD51).  
+LCD graphics library (for ESP32 SPI or 8bit Parallel / ATSAMD51 SPI).  
 M5Stack / M5StickC / TTGO T-Watch / ODROID-GO / ESP-WROVER-KIT / WioTerminal / and more...
 [![examples](http://img.youtube.com/vi/SMOHRPqUZcQ/0.jpg)](http://www.youtube.com/watch?v=SMOHRPqUZcQ "examples")
 [![examples](http://img.youtube.com/vi/F5gsp41Elac/0.jpg)](http://www.youtube.com/watch?v=F5gsp41Elac "MultiPanel")
 
 概要 Overview.
 ----------------
-ESP32/SAMD51とSPI接続のLCDの組み合わせで動作するグラフィックライブラリです。  
-This is a graphics library that runs on ESP32/SAMD51 connected to a SPI LCD (see compatibility list below).
+ESP32とSPIまたは8ビットパラレル接続のLCD / ATSAMD51とSPI接続のLCDの組み合わせで動作するグラフィックライブラリです。  
+This is a graphics library that works with a combination of ESP32 with SPI or 8-bit parallel connection and ATSAMD51 with SPI connection to the LCD. (see compatibility list below).
 
  [AdafruitGFX](https://github.com/adafruit/Adafruit-GFX-Library) や [TFT_eSPI](https://github.com/Bodmer/TFT_eSPI) と互換性をある程度持ちつつ、より高機能・高速動作を目標としています。  
 
@@ -34,7 +34,7 @@ This library has the following advantages.
   - プラットフォーム Platform
     - ESP-IDF
     - Arduino ESP32
-    - Arduino SAMD51 (Seeed)
+    - Arduino ATSAMD51 (Seeed)
     - Platformio
 
   - ディスプレイ Displays
@@ -45,13 +45,13 @@ This library has the following advantages.
     - ILI9486
     - ILI9488
     - ST7735 (M5StickC, TTGO T-Wristband, TTGO TS, LoLin D32 Pro)
-    - ST7789 (TTGO T-Watch, DSTIKE D-duino-32 XS, ESP-WROVER-KIT)
+    - ST7789 (M5StickCPlus, TTGO T-Watch, DSTIKE D-duino-32 XS, ESP-WROVER-KIT)
     - SSD1351
 
 
 対応機種については[src/lgfx/panel](src/lgfx/panel)をご参照ください。  
 接続するピンの初期設定は[src/LovyanGFX.hpp](src/LovyanGFX.hpp)にあります。  
-上記対応機種とコマンド体系の類似した液晶パネルであれば対応可能ですが、当方で入手し動作確認が取れたもののみ正式対応としています。  
+上記対応機種とコマンド体系の類似したLCDパネルであれば対応可能ですが、当方で入手し動作確認が取れたもののみ正式対応としています。  
 対応要望を頂けた機種には優先的に対応を検討致します。  
   
 This library is also compatible with the above models and LCD panels with a similar command system,
@@ -142,8 +142,9 @@ void setup(void)
   drawTriangle  ( x0, y0, x1, y1, x2, y2, color); // ３点間の三角形の外周
   fillTriangle  ( x0, y0, x1, y1, x2, y2, color); // ３点間の三角形の塗り
   drawBezier    ( x0, y0, x1, y1, x2, y2, color); // ３点間のベジエ曲線
-  drawArc       ( x, y, r0, r1, angle0, angle1, color);  // 円弧の外周
-  fillArc       ( x, y, r0, r1, angle0, angle1, color);  // 円弧の塗り
+  drawBezier    ( x0, y0, x1, y1, x2, y2, x3, y3, color); // ４点間のベジエ曲線
+  drawArc       ( x, y, r0, r1, angle0, angle1, color);   // 円弧の外周
+  fillArc       ( x, y, r0, r1, angle0, angle1, color);   // 円弧の塗り
 */
 
 
@@ -192,21 +193,26 @@ void setup(void)
 // 描画関数の引数の色は省略できます。
 // 省略した場合、setColor関数で設定した色 または最後に使用した色で描画できます。
 // 同じ色で繰り返し描画する場合は、省略した方がわずかに速く動作します。
-  lcd.setColor(0xFF0000U);                 // 赤色を指定
-  lcd.fillCircle ( 40, 80, 20    );        // 赤色で円の塗り
-  lcd.fillEllipse( 80, 40, 10, 20);        // 赤色で楕円の塗り
-  lcd.fillArc    ( 80, 80, 20, 10, 0, 90); // 赤色で円弧の塗り
-  lcd.fillTriangle(80, 80, 60, 80, 80, 60);// 赤色で三角の塗り
-  lcd.setColor(0x0000FFU);                 // 青色を指定
-  lcd.drawCircle ( 40, 80, 20    );        // 青色で円の外周
-  lcd.drawEllipse( 80, 40, 10, 20);        // 青色で楕円の外周
-  lcd.drawArc    ( 80, 80, 20, 10, 0, 90); // 青色で円弧の外周
-  lcd.drawTriangle(60, 80, 80, 80, 80, 60);// 青色で三角の外周
-  lcd.setColor(0x00FF00U);                 // 緑色を指定
-  lcd.drawBezier(  60, 80, 80, 80, 80, 60);// 緑色でベジエ曲線
+  lcd.setColor(0xFF0000U);                        // 赤色を指定
+  lcd.fillCircle ( 40, 80, 20    );               // 赤色で円の塗り
+  lcd.fillEllipse( 80, 40, 10, 20);               // 赤色で楕円の塗り
+  lcd.fillArc    ( 80, 80, 20, 10, 0, 90);        // 赤色で円弧の塗り
+  lcd.fillTriangle(80, 80, 60, 80, 80, 60);       // 赤色で三角の塗り
+  lcd.setColor(0x0000FFU);                        // 青色を指定
+  lcd.drawCircle ( 40, 80, 20    );               // 青色で円の外周
+  lcd.drawEllipse( 80, 40, 10, 20);               // 青色で楕円の外周
+  lcd.drawArc    ( 80, 80, 20, 10, 0, 90);        // 青色で円弧の外周
+  lcd.drawTriangle(60, 80, 80, 80, 80, 60);       // 青色で三角の外周
+  lcd.setColor(0x00FF00U);                        // 緑色を指定
+  lcd.drawBezier( 60, 80, 80, 80, 80, 60);        // 緑色で二次ベジエ曲線
+  lcd.drawBezier( 60, 80, 80, 20, 20, 80, 80, 60);// 緑色で三次ベジエ曲線
 
 
-// SPIバスの確保と解放は描画関数を呼び出した時に自動的に行われます。
+// グラデーションの線を描画するdrawGradientLine は色の指定を省略できません。
+  lcd.drawGradientLine( 0, 80, 80, 0, 0xFF0000U, 0x0000FFU);// 赤から青へのグラデーション直線
+
+
+// SPIバスの確保と解放は描画関数を呼び出した時に自動的に行われますが、
 // 描画スピードを重視する場合は、描画処理の前後に startWriteとendWriteを使用します。
 // SPIバスの確保と解放が抑制され、速度が向上します。
   lcd.drawLine(0, 1, 39, 40, red);       // SPIバス確保、線を描画、SPIバス解放
@@ -273,13 +279,18 @@ void setup(void)
 //sprite.setColorDepth(16);  // RGB565の16ビットに設定
   sprite.setColorDepth(24);  // RGB888の24ビットに設定
 
+
+// ※ setColorDepth(8);を設定後に createPalette()を呼ぶ事で、256色パレットモードになります
+// sprite.createPalette();
+
+
 // createSpriteで幅と高さを指定してメモリを確保します。
 // 消費するメモリは色深度と面積に比例します。大きすぎるとメモリ確保に失敗しますので注意してください。
   sprite.createSprite(65, 65); // 幅65、高さ65でスプライトを作成。
 
   for (uint32_t x = 0; x < 64; ++x) {
     for (uint32_t y = 0; y < 64; ++y) {
-      sprite.drawPixel(x, y, sprite.color888(255 - x*4, (x + y)*2, 255 - y*4));  // スプライトに描画
+      sprite.drawPixel(x, y, lcd.color888(255 - x*4, (x + y)*2, 255 - y*4));  // スプライトに描画
     }
   }
   sprite.drawRect(0, 0, 65, 65, 0xFFFF);
@@ -304,21 +315,55 @@ void setup(void)
   }
 
   delay(1000);
+
+  // 使用しなくなったスプライトのメモリを解放するには deleteSprite を使用します。
+  sprite.deleteSprite();
+
+  // deleteSprite の後でも、同じインスタンスの再利用が可能です。
+  sprite.setColorDepth(4);     // 4ビット(16色)パレットモードに設定
+  sprite.createSprite(65, 65);
+
+  // パレットモードのスプライトでは、描画関数の引数の色をパレット番号として扱います。
+  // pushSprite等で描画する際に、パレットを参照して実際の描画色が決まります。
+
+  // 4ビット(16色)パレットモードの場合、パレット番号は0～15が使用可能です。
+  // パレットの初期色は、0が黒,末尾のパレットが白で、0から末尾にかけてグラデーションになっています。
+  // パレットの色を設定するには setPaletteColor を使用します。
+  sprite.setPaletteColor(1, 0x0000FFU);    // パレット1番を青に設定
+  sprite.setPaletteColor(2, 0x00FF00U);    // パレット2番を緑に設定
+  sprite.setPaletteColor(3, 0xFF0000U);    // パレット3番を赤に設定
+
+  sprite.fillRect(10, 10, 45, 45, 1);             // パレット1番で矩形の塗り
+  sprite.fillCircle(32, 32, 22, 2);               // パレット2番で円の塗り
+  sprite.fillTriangle(32, 12, 15, 43, 49, 43, 3); // パレット3番で三角の塗り
+
+  // pushSpriteの最後の引数で、描画しない色を指定することができます。
+  sprite.pushSprite( 0,  0, 0);  // パレット0を透過扱いでスプライトを描画
+  sprite.pushSprite(65,  0, 1);  // パレット1を透過扱いでスプライトを描画
+  sprite.pushSprite( 0, 65, 2);  // パレット2を透過扱いでスプライトを描画
+  sprite.pushSprite(65, 65, 3);  // パレット3を透過扱いでスプライトを描画
+
+  delay(5000);
 }
 
 void loop(void)
 {
+  static int count = 0;
+  static int a = 0;
+  static int x = 0;
+  static int y = 0;
+  static float zoom = 3;
+  ++count;
+  if ((a += 1) >= 360) a -= 360;
+  if ((x += 2) >= lcd.width()) x -= lcd.width();
+  if ((y += 1) >= lcd.height()) y -= lcd.height();
+  sprite.setPaletteColor(1, lcd.color888( 0, 0, count & 0xFF));
+  sprite.setPaletteColor(2, lcd.color888( 0,~count & 0xFF, 0));
+  sprite.setPaletteColor(3, lcd.color888( count & 0xFF, 0, 0));
 
-  float zoom = (float)random(20) / 10;
-  sprite.pushRotateZoom(random(lcd.width()), random(lcd.height()), random(360), zoom, zoom);
-
+  sprite.pushRotateZoom(x, y, a, zoom, zoom, 0);
 }
 ```
-
-
-### スプライトの使い方
-（作成中 under construction. )
-カラーパレットを作成した場合はカラーコードではなくパレットのColorIndexを指定します。（例、4bitの場合は0～15を指定。）  
 
 
 # 注意・制限事項

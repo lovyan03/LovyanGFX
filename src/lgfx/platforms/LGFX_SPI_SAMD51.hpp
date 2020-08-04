@@ -1,7 +1,9 @@
 /*----------------------------------------------------------------------------/
-  Lovyan GFX library - SAMD51 hardware SPI graphics library .  
+  Lovyan GFX library - LCD graphics library .
   
-    for Arduino  
+  support platform:
+    ESP32 (SPI/I2S) with Arduino/ESP-IDF
+    ATSAMD51 (SPI) with Arduino
   
 Original Source:  
  https://github.com/lovyan03/LovyanGFX/  
