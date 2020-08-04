@@ -73,7 +73,10 @@ Contributors:
 // If the board you are using is not supported,  Put a copy of "config/LGFX_Config_Custom" in your project folder,
 // and include it with modifications to the content to suit your environment.
 
-#if defined( LGFX_M5STACK ) || defined( ARDUINO_M5Stack_Core_ESP32 ) || defined( ARDUINO_M5STACK_FIRE ) // M5Stack
+#if defined( LGFX_AUTODETECT )
+  #include "config/LGFX_Config_AutoDetect.hpp"
+
+#elif defined( LGFX_M5STACK ) || defined( ARDUINO_M5Stack_Core_ESP32 ) || defined( ARDUINO_M5STACK_FIRE ) // M5Stack
   #include "config/LGFX_Config_M5Stack.hpp"
 
 #elif defined( LGFX_M5STICKC ) || defined( ARDUINO_M5Stick_C ) // M5Stick C

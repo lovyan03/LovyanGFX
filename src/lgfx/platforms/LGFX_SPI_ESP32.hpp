@@ -114,7 +114,7 @@ namespace lgfx
 
     __attribute__ ((always_inline)) inline void begin(void) { init(); }
 
-    void init(void) { initBus(); initPanel(); }
+    virtual void init(void) { initBus(); initPanel(); }
 
     // Write single byte as COMMAND
     void writeCommand(std::uint_fast8_t cmd) { startWrite(); write_cmd(cmd); endWrite(); } // AdafruitGFX compatible
@@ -1257,10 +1257,10 @@ namespace lgfx
       return bestpre << 18 | bestn << 12 | ((bestn-1)>>1) << 6 | bestn;
     }
 
+    int _spi_mosi = get_spi_mosi<CFG, -1>::value;
+    int _spi_miso = get_spi_miso<CFG, -1>::value;
+    int _spi_sclk = get_spi_sclk<CFG, -1>::value;
     static constexpr int _dma_channel= get_dma_channel<CFG,  0>::value;
-    static constexpr int _spi_mosi = get_spi_mosi<CFG, -1>::value;
-    static constexpr int _spi_miso = get_spi_miso<CFG, -1>::value;
-    static constexpr int _spi_sclk = get_spi_sclk<CFG, -1>::value;
     static constexpr int _spi_dlen = get_spi_dlen<CFG,  8>::value;
 
     static constexpr spi_host_device_t _spi_host = get_spi_host<CFG, VSPI_HOST>::value;
