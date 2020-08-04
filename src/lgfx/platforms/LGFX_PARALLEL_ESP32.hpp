@@ -42,16 +42,6 @@ Contributors:
 #else
  #include <esp_log.h>
 
-  static std::uint32_t getApbFrequency()
-  {
-    rtc_cpu_freq_config_t conf;
-    rtc_clk_cpu_freq_get_config(&conf);
-    if (conf.freq_mhz >= 80){
-      return 80 * 1000000;
-    }
-    return (conf.source_freq_mhz * 1000000) / conf.div;
-  }
-
 #endif
 
 #include "esp32_common.hpp"
@@ -67,17 +57,6 @@ namespace lgfx
   #define I2S_FIFO_RD_REG(i) (REG_I2S_BASE(i+4))
   #endif
 
-/*
-  inline static void spi_dma_transfer_active(int dmachan)
-  {
-    spicommon_dmaworkaround_transfer_active(dmachan);
-  }
-
-  static void spi_dma_reset(void)
-  {
-    periph_module_reset( PERIPH_SPI_DMA_MODULE );
-  }
-//*/
   #define MEMBER_DETECTOR(member, classname, classname_impl, valuetype) struct classname_impl { \
   template<class T, valuetype V> static constexpr std::integral_constant<valuetype, T::member> check(decltype(T::member)*); \
   template<class T, valuetype V> static constexpr std::integral_constant<valuetype, V> check(...); \
@@ -91,14 +70,14 @@ namespace lgfx
   MEMBER_DETECTOR(gpio_d5  , get_gpio_d5  , get_gpio_d5_impl  , int)
   MEMBER_DETECTOR(gpio_d6  , get_gpio_d6  , get_gpio_d6_impl  , int)
   MEMBER_DETECTOR(gpio_d7  , get_gpio_d7  , get_gpio_d7_impl  , int)
-  MEMBER_DETECTOR(gpio_d8  , get_gpio_d8  , get_gpio_d8_impl  , int)
-  MEMBER_DETECTOR(gpio_d9  , get_gpio_d9  , get_gpio_d9_impl  , int)
-  MEMBER_DETECTOR(gpio_d10 , get_gpio_d10 , get_gpio_d10_impl , int)
-  MEMBER_DETECTOR(gpio_d11 , get_gpio_d11 , get_gpio_d11_impl , int)
-  MEMBER_DETECTOR(gpio_d12 , get_gpio_d12 , get_gpio_d12_impl , int)
-  MEMBER_DETECTOR(gpio_d13 , get_gpio_d13 , get_gpio_d13_impl , int)
-  MEMBER_DETECTOR(gpio_d14 , get_gpio_d14 , get_gpio_d14_impl , int)
-  MEMBER_DETECTOR(gpio_d15 , get_gpio_d15 , get_gpio_d15_impl , int)
+  //MEMBER_DETECTOR(gpio_d8  , get_gpio_d8  , get_gpio_d8_impl  , int)
+  //MEMBER_DETECTOR(gpio_d9  , get_gpio_d9  , get_gpio_d9_impl  , int)
+  //MEMBER_DETECTOR(gpio_d10 , get_gpio_d10 , get_gpio_d10_impl , int)
+  //MEMBER_DETECTOR(gpio_d11 , get_gpio_d11 , get_gpio_d11_impl , int)
+  //MEMBER_DETECTOR(gpio_d12 , get_gpio_d12 , get_gpio_d12_impl , int)
+  //MEMBER_DETECTOR(gpio_d13 , get_gpio_d13 , get_gpio_d13_impl , int)
+  //MEMBER_DETECTOR(gpio_d14 , get_gpio_d14 , get_gpio_d14_impl , int)
+  //MEMBER_DETECTOR(gpio_d15 , get_gpio_d15 , get_gpio_d15_impl , int)
   MEMBER_DETECTOR(gpio_wr  , get_gpio_wr  , get_gpio_wr_impl  , int)
   MEMBER_DETECTOR(gpio_rd  , get_gpio_rd  , get_gpio_rd_impl  , int)
   MEMBER_DETECTOR(gpio_rs  , get_gpio_rs  , get_gpio_rs_impl  , int)
@@ -1059,14 +1038,14 @@ namespace lgfx
     static constexpr gpio_num_t _gpio_d5  = (gpio_num_t)get_gpio_d5 <CFG, -1>::value;
     static constexpr gpio_num_t _gpio_d6  = (gpio_num_t)get_gpio_d6 <CFG, -1>::value;
     static constexpr gpio_num_t _gpio_d7  = (gpio_num_t)get_gpio_d7 <CFG, -1>::value;
-    static constexpr gpio_num_t _gpio_d8  = (gpio_num_t)get_gpio_d8 <CFG, -1>::value;
-    static constexpr gpio_num_t _gpio_d9  = (gpio_num_t)get_gpio_d9 <CFG, -1>::value;
-    static constexpr gpio_num_t _gpio_d10 = (gpio_num_t)get_gpio_d10<CFG, -1>::value;
-    static constexpr gpio_num_t _gpio_d11 = (gpio_num_t)get_gpio_d11<CFG, -1>::value;
-    static constexpr gpio_num_t _gpio_d12 = (gpio_num_t)get_gpio_d12<CFG, -1>::value;
-    static constexpr gpio_num_t _gpio_d13 = (gpio_num_t)get_gpio_d13<CFG, -1>::value;
-    static constexpr gpio_num_t _gpio_d14 = (gpio_num_t)get_gpio_d14<CFG, -1>::value;
-    static constexpr gpio_num_t _gpio_d15 = (gpio_num_t)get_gpio_d15<CFG, -1>::value;
+    //static constexpr gpio_num_t _gpio_d8  = (gpio_num_t)get_gpio_d8 <CFG, -1>::value;
+    //static constexpr gpio_num_t _gpio_d9  = (gpio_num_t)get_gpio_d9 <CFG, -1>::value;
+    //static constexpr gpio_num_t _gpio_d10 = (gpio_num_t)get_gpio_d10<CFG, -1>::value;
+    //static constexpr gpio_num_t _gpio_d11 = (gpio_num_t)get_gpio_d11<CFG, -1>::value;
+    //static constexpr gpio_num_t _gpio_d12 = (gpio_num_t)get_gpio_d12<CFG, -1>::value;
+    //static constexpr gpio_num_t _gpio_d13 = (gpio_num_t)get_gpio_d13<CFG, -1>::value;
+    //static constexpr gpio_num_t _gpio_d14 = (gpio_num_t)get_gpio_d14<CFG, -1>::value;
+    //static constexpr gpio_num_t _gpio_d15 = (gpio_num_t)get_gpio_d15<CFG, -1>::value;
 
     static constexpr int _bus_dlen = (get_bus_dlen<CFG, 8>::value + 7) & ~7;
 
