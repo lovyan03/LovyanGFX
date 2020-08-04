@@ -75,14 +75,15 @@ public:
     lgfx::LGFX_SPI<lgfx::LGFX_Config>::initPanel();
 
     std::uint32_t id = readPanelID();
-    if (id != 0xf0897c) {  // check panel (ST7735 or ST7789)
+    ESP_LOGI("LovyanGFX", "[Autodetect] panel id:%08x", id);
+    if ((id & 0xFF) == 0x85) {  //  check panel (ST7735 or ST7789)
       ESP_LOGI("LovyanGFX", "[Autodetect] Using Panel_ST7789");
 
       static lgfx::Panel_M5StickCPlus panel;
 
       setPanel(&panel);
       lgfx::LGFX_SPI<lgfx::LGFX_Config>::initPanel();
-    } else {
+    } else {  // 0x7C
       ESP_LOGI("LovyanGFX", "[Autodetect] Using Panel_ST7735");
     }
   }
