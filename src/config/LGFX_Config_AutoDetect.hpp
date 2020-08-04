@@ -7,9 +7,9 @@ namespace lgfx
   {
     static constexpr spi_host_device_t spi_host = VSPI_HOST;
     static constexpr int dma_channel = 1;
-    static constexpr int spi_mosi = 15;
-    static constexpr int spi_miso = 14;
-    static constexpr int spi_sclk = 13;
+    static constexpr int spi_mosi = 23;
+    static constexpr int spi_miso = 19;
+    static constexpr int spi_sclk = 18;
   };
 
   struct Panel_M5StickC : public Panel_ST7735S
@@ -105,7 +105,7 @@ class LGFX : public lgfx::LGFX_SPI<lgfx::LGFX_Config>
 public:
   LGFX(void) : lgfx::LGFX_SPI<lgfx::LGFX_Config>()
   {
-    static lgfx::Panel_M5StickC panel;
+    static lgfx::Panel_M5Stack panel;
 
     setPanel(&panel);
   }
@@ -126,21 +126,28 @@ public:
 
     std::uint32_t id = readPanelID();
     ESP_LOGI("LovyanGFX", "[Autodetect] panel id:%08x", id);
-    if (id == 0) {  // M5Stack
-      ESP_LOGI("LovyanGFX", "[Autodetect] M5Stack");
+    if ((id & 0xFF) == 0xE3) {  // M5Stack
       board = board_M5Stack;
+      ESP_LOGI("LovyanGFX", "[Autodetect] M5Stack");
+      return;
+    }
 
-      _spi_mosi = 23;
-      _spi_miso = 19;
-      _spi_sclk = 18;
-      initBus();
+    gpio_matrix_out(_spi_mosi, 0x100, 0, 0);
+    gpio_matrix_out(_spi_miso, 0x100, 0, 0);
+    gpio_matrix_out(_spi_sclk, 0x100, 0, 0);
 
-      static lgfx::Panel_M5Stack panel;
+    _spi_mosi = 15;
+    _spi_miso = 14;
+    _spi_sclk = 13;
+    initBus();
 
-      setPanel(&panel);
+    static lgfx::Panel_M5StickC panel;
+    setPanel(&panel);
+    initPanel();
 
-      initPanel();
-    } else
+    id = readPanelID();
+    ESP_LOGI("LovyanGFX", "[Autodetect] panel id:%08x", id);
+
     if ((id & 0xFF) == 0x85) {  //  check panel (ST7735 or ST7789)
       ESP_LOGI("LovyanGFX", "[Autodetect] M5StickCPlus");
       board = board_M5StickCPlus;
@@ -149,7 +156,7 @@ public:
 
       setPanel(&panel);
       initPanel();
-    } else {  // 0x7C
+    } else {  // if ((id & 0xFF) == 0x7C) 
       ESP_LOGI("LovyanGFX", "[Autodetect] M5StickC");
       board = board_M5StickC;
     }
