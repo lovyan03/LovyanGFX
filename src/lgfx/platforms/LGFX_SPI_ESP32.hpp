@@ -281,6 +281,19 @@ namespace lgfx
       *reg(SPI_CTRL1_REG(_spi_port)) = 0;
     }
 
+    void releaseBus(void)
+    {
+      if (_spi_mosi >= 0) gpio_matrix_out(_spi_mosi, 0x100, 0, 0);
+      if (_spi_miso >= 0) gpio_matrix_out(_spi_miso, 0x100, 0, 0);
+      if (_spi_sclk >= 0) gpio_matrix_out(_spi_sclk, 0x100, 0, 0);
+#if defined (ARDUINO) // Arduino ESP32
+      spiStopBus(_spi_handle);
+#elif defined (CONFIG_IDF_TARGET_ESP32) // ESP-IDF
+      spi_bus_remove_device(_spi_handle);
+      spi_bus_free(_spi_host);
+#endif
+    }
+
     virtual void initPanel(void)
     {
       if (!_panel) return;
@@ -1308,9 +1321,9 @@ namespace lgfx
 //  template <class T> volatile spi_dev_t *LGFX_SPI<T>::_hw;
 
 #if defined ( ARDUINO )
-  template <class T> spi_t* LGFX_SPI<T>::_spi_handle;
+  template <class T> spi_t* LGFX_SPI<T>::_spi_handle = nullptr;
 #elif defined (CONFIG_IDF_TARGET_ESP32) // ESP-IDF
-  template <class T> spi_device_handle_t LGFX_SPI<T>::_spi_handle;
+  template <class T> spi_device_handle_t LGFX_SPI<T>::_spi_handle = nullptr;
 #endif
 
 //----------------------------------------------------------------------------

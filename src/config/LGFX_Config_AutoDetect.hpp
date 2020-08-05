@@ -98,6 +98,23 @@ namespace lgfx
       return buf;
     }
   };
+
+  struct Panel_TTGO_TWatch : public Panel_ST7789
+  {
+    Panel_TTGO_TWatch() : Panel_ST7789() {
+      freq_write = 80000000;
+      freq_read  = 20000000;
+      freq_fill  = 80000000;
+      panel_height = 240;
+      invert    = true;
+      spi_3wire = true;
+      spi_cs    =  5;
+      spi_dc    = 27;
+      gpio_bl   = 12;
+      pwm_ch_bl = 7;
+    }
+  };
+//*/
 }
 
 class LGFX : public lgfx::LGFX_SPI<lgfx::LGFX_Config>
@@ -112,68 +129,99 @@ public:
   , board_M5Stack
   , board_M5StickC
   , board_M5StickCPlus
+  , board_TTGO_TWatch
   };
 
   board_t getBoard(void) const { return board; }
 
   void init(void) override
   {
+
+    releaseBus();
+    {
+      static lgfx::Panel_TTGO_TWatch panel;
+      setPanel(&panel);
+
+      _spi_mosi = 19;
+      _spi_miso = -1;
+      _spi_sclk = 18;
+      initBus();
+
+      delay(10);
+
+      auto id = readPanelID();
+      ESP_LOGI("LovyanGFX", "[Autodetect] panel id:%08x", id);
+
+      if ((id & 0xFF) == 0x85) {  //  check panel (ST7789)
+        ESP_LOGI("LovyanGFX", "[Autodetect] TWatch");
+        board = board_TTGO_TWatch;
+
+        static lgfx::Panel_TTGO_TWatch panel;
+        setPanel(&panel);
+
+        initPanel();
+        return;
+      }
+    }
+//*/
+
+    releaseBus();
     {
       static lgfx::Panel_M5Stack panel;
       setPanel(&panel);
+      lgfx::lgfxPinMode(panel.gpio_rst, lgfx::pin_mode_t::output);
+      lgfx::gpio_lo(panel.gpio_rst);
+      delay(1);
+      lgfx::gpio_hi(panel.gpio_rst);
+
+      _spi_mosi = 23;
+      _spi_miso = 19;
+      _spi_sclk = 18;
+      initBus();
+
+      delay(10);
+
+      auto id = readPanelID();
+      ESP_LOGI("LovyanGFX", "[Autodetect] panel id:%08x", id);
+      if (id != 0 && id != ~0) {   // M5Stack
+        board = board_M5Stack;
+        ESP_LOGI("LovyanGFX", "[Autodetect] M5Stack");
+        initPanel();
+        return;
+      }
     }
-    _panel->init();
 
-    gpio_matrix_out(_spi_mosi, 0x100, 0, 0);
-    gpio_matrix_out(_spi_miso, 0x100, 0, 0);
-    gpio_matrix_out(_spi_sclk, 0x100, 0, 0);
-
-    _spi_mosi = 23;
-    _spi_miso = 19;
-    _spi_sclk = 18;
-    initBus();
-
-    delay(10);
-
-    std::uint32_t id = readPanelID();
-    ESP_LOGI("LovyanGFX", "[Autodetect] panel id:%08x", id);
-    if (id != 0 && id != ~0) {   // M5Stack
-      board = board_M5Stack;
-      ESP_LOGI("LovyanGFX", "[Autodetect] M5Stack");
-      initPanel();
-      return;
-    }
-
+    releaseBus();
     {
       static lgfx::Panel_M5StickC panel;
       setPanel(&panel);
+      lgfx::lgfxPinMode(panel.gpio_rst, lgfx::pin_mode_t::output);
+      lgfx::gpio_lo(panel.gpio_rst);
+      delay(1);
+      lgfx::gpio_hi(panel.gpio_rst);
+
+      _spi_mosi = 15;
+      _spi_miso = 14;
+      _spi_sclk = 13;
+      initBus();
+
+      delay(10);
+
+      auto id = readPanelID();
+      ESP_LOGI("LovyanGFX", "[Autodetect] panel id:%08x", id);
+
+      if ((id & 0xFF) == 0x85) {  //  check panel (ST7735 or ST7789)
+        ESP_LOGI("LovyanGFX", "[Autodetect] M5StickCPlus");
+        board = board_M5StickCPlus;
+
+        static lgfx::Panel_M5StickCPlus panel;
+        setPanel(&panel);
+
+        initPanel();
+        return;
+      }
     }
-    _panel->init();
 
-    gpio_matrix_out(_spi_mosi, 0x100, 0, 0);
-    gpio_matrix_out(_spi_miso, 0x100, 0, 0);
-    gpio_matrix_out(_spi_sclk, 0x100, 0, 0);
-
-    _spi_mosi = 15;
-    _spi_miso = 14;
-    _spi_sclk = 13;
-    initBus();
-
-    delay(10);
-
-    id = readPanelID();
-    ESP_LOGI("LovyanGFX", "[Autodetect] panel id:%08x", id);
-
-    if ((id & 0xFF) == 0x85) {  //  check panel (ST7735 or ST7789)
-      ESP_LOGI("LovyanGFX", "[Autodetect] M5StickCPlus");
-      board = board_M5StickCPlus;
-
-      static lgfx::Panel_M5StickCPlus panel;
-      setPanel(&panel);
-
-      initPanel();
-      return;
-    }
     // if ((id & 0xFF) == 0x7C) 
     ESP_LOGI("LovyanGFX", "[Autodetect] M5StickC");
     board = board_M5StickC;
