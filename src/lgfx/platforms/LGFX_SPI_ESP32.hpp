@@ -292,6 +292,7 @@ namespace lgfx
       spi_bus_remove_device(_spi_handle);
       spi_bus_free(_spi_host);
 #endif
+      _spi_handle = nullptr;
     }
 
     virtual void initPanel(void)
