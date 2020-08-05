@@ -114,7 +114,7 @@ namespace lgfx
 
     __attribute__ ((always_inline)) inline void begin(void) { init(); }
 
-    virtual void init(void) { initBus(); initPanel(); }
+    virtual void init(void) { initBus(); initPanel(); clear(); }
 
     // Write single byte as COMMAND
     void writeCommand(std::uint_fast8_t cmd) { startWrite(); write_cmd(cmd); endWrite(); } // AdafruitGFX compatible
@@ -301,6 +301,10 @@ namespace lgfx
 
       _panel->init();
 
+      _sx = _sy = 0;
+      _sw = _width;
+      _sh = _height;
+
       startWrite();
 
       const std::uint8_t *cmds;
@@ -316,13 +320,8 @@ namespace lgfx
       invertDisplay(getInvert());
       setColorDepth(getColorDepth());
       setRotation(getRotation());
-      clear();
 
       endWrite();
-
-      _sx = _sy = 0;
-      _sw = _width;
-      _sh = _height;
     }
 
     void setupOffscreenDMA(std::uint8_t** data, std::int32_t w, std::int32_t h, bool endless)

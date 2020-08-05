@@ -160,6 +160,7 @@ public:
         setPanel(&panel);
 
         initPanel();
+        clear();
         return;
       }
     }
@@ -187,6 +188,7 @@ public:
         board = board_M5Stack;
         ESP_LOGI("LovyanGFX", "[Autodetect] M5Stack");
         initPanel();
+        clear();
         return;
       }
     }
@@ -218,6 +220,7 @@ public:
         setPanel(&panel);
 
         initPanel();
+        clear();
         return;
       }
 
@@ -225,14 +228,13 @@ public:
         ESP_LOGI("LovyanGFX", "[Autodetect] M5StickC");
         board = board_M5StickC;
         initPanel();
+        clear();
         return;
       }
     }
 
     ESP_LOGI("LovyanGFX", "[Autodetect] detect fail.");
     board = board_unknown;
-
-    initPanel();
   }
 private:
   board_t board = board_unknown;
