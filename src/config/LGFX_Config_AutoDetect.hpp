@@ -220,11 +220,18 @@ public:
         initPanel();
         return;
       }
+
+      if ((id & 0xFF) == 0x7C) {
+        ESP_LOGI("LovyanGFX", "[Autodetect] M5StickC");
+        board = board_M5StickC;
+        initPanel();
+        return;
+      }
     }
 
-    // if ((id & 0xFF) == 0x7C) 
-    ESP_LOGI("LovyanGFX", "[Autodetect] M5StickC");
-    board = board_M5StickC;
+    ESP_LOGI("LovyanGFX", "[Autodetect] detect fail.");
+    board = board_unknown;
+
     initPanel();
   }
 private:
