@@ -73,39 +73,46 @@ Contributors:
 // If the board you are using is not supported,  Put a copy of "config/LGFX_Config_Custom" in your project folder,
 // and include it with modifications to the content to suit your environment.
 
-#if defined( LGFX_AUTODETECT )
-  #include "config/LGFX_Config_AutoDetect.hpp"
+#if defined (ESP32) || (CONFIG_IDF_TARGET_ESP32)
 
-#elif defined( LGFX_M5STACK ) || defined( ARDUINO_M5Stack_Core_ESP32 ) || defined( ARDUINO_M5STACK_FIRE ) // M5Stack
+ #if defined( LGFX_AUTODETECT )
+  #include "config/LGFX_Config_AutoDetectESP32.hpp"
+
+ #elif defined( LGFX_M5STACK ) || defined( ARDUINO_M5Stack_Core_ESP32 ) || defined( ARDUINO_M5STACK_FIRE ) // M5Stack
   #include "config/LGFX_Config_M5Stack.hpp"
 
-#elif defined( LGFX_M5STICKC ) || defined( ARDUINO_M5Stick_C ) // M5Stick C
+ #elif defined( LGFX_M5STICKC ) || defined( ARDUINO_M5Stick_C ) // M5Stick C
   #include "config/LGFX_Config_M5StickC.hpp"
 
-#elif defined( LGFX_ODROID_GO ) || defined( ARDUINO_ODROID_ESP32 ) // ODROID-GO
+ #elif defined( LGFX_ODROID_GO ) || defined( ARDUINO_ODROID_ESP32 ) // ODROID-GO
   #include "config/LGFX_Config_ODROID_GO.hpp"
 
-#elif defined( LGFX_TTGO_TS ) || defined( ARDUINO_TTGO_T1 ) // TTGO TS
+ #elif defined( LGFX_TTGO_TS ) || defined( ARDUINO_TTGO_T1 ) // TTGO TS
   #include "config/LGFX_Config_TTGO_TS.hpp"
 
-#elif defined( LGFX_TTGO_TWATCH ) || defined( ARDUINO_T ) // TTGO T-Watch
+ #elif defined( LGFX_TTGO_TWATCH ) || defined( ARDUINO_T ) // TTGO T-Watch
   #include "config/LGFX_Config_TTGO_TWatch.hpp"
 
-#elif defined( LGFX_TTGO_TWRISTBAND )  // TTGO T-Wristband
+ #elif defined( LGFX_TTGO_TWRISTBAND )  // TTGO T-Wristband
   #include "config/LGFX_Config_TTGO_TWristband.hpp"
 
-#elif defined( LGFX_DDUINO32_XS ) || defined( ARDUINO_D ) || defined( ARDUINO_DDUINO32_XS ) // DSTIKE D-duino-32 XS
+ #elif defined( LGFX_DDUINO32_XS ) || defined( ARDUINO_D ) || defined( ARDUINO_DDUINO32_XS ) // DSTIKE D-duino-32 XS
   #include "config/LGFX_Config_DDUINO32_XS.hpp"
 
-#elif defined( LGFX_LOLIN_D32 ) || defined( ARDUINO_LOLIN_D32_PRO ) // LoLin D32 Pro
+ #elif defined( LGFX_LOLIN_D32 ) || defined( ARDUINO_LOLIN_D32_PRO ) // LoLin D32 Pro
   #include "config/LGFX_Config_LoLinD32.hpp"
 
-#elif defined( LGFX_ESP_WROVER_KIT ) || defined( ARDUINO_ESP32_WROVER_KIT ) // ESP-WROVER-KIT
+ #elif defined( LGFX_ESP_WROVER_KIT ) || defined( ARDUINO_ESP32_WROVER_KIT ) // ESP-WROVER-KIT
   #include "config/LGFX_Config_ESP_WROVER_KIT.hpp"
 
-#elif defined( LGFX_WIO_TERMINAL ) || defined (ARDUINO_WIO_TERMINAL) || defined(WIO_TERMINAL)
-  #include "lgfx/platforms/LGFX_SPI_SAMD51.hpp"
+ #endif
+
+#elif defined (__SAMD51__)
+
+ #if defined( LGFX_WIO_TERMINAL ) || defined (ARDUINO_WIO_TERMINAL) || defined(WIO_TERMINAL)
   #include "config/LGFX_Config_WioTerminal.hpp"
+
+ #endif
 
 #endif
 

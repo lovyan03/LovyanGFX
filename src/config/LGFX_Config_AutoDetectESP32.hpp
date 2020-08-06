@@ -164,6 +164,7 @@ public:
     static lgfx::Panel_Dummy panel_dummy;
     board = board_unknown;
 
+// TTGO T-Watch 判定 (GPIO33を使う判定を先に行うと振動モーターが作動する事に注意)
     releaseBus();
     panel_dummy.spi_cs =  5;
     panel_dummy.spi_dc = 27;
@@ -184,17 +185,23 @@ public:
       goto init_clear;
     }
 
+// M5Stack 判定 (GPIO15を使う判定を先に行うとbottomのLEDが点灯する事に注意)
     releaseBus();
     lgfx::gpio_lo(panel_dummy.spi_dc);
     lgfx::gpio_lo(panel_dummy.spi_cs);
 
     panel_dummy.spi_cs = 14;
     panel_dummy.spi_dc = 27;
+    panel_dummy.gpio_rst = 33;
     setPanel(&panel_dummy);
     _spi_mosi = 23;
     _spi_miso = 19;
     _spi_sclk = 18;
     initBus();
+    lgfx::lgfxPinMode(panel_dummy.gpio_rst, lgfx::pin_mode_t::output);
+    lgfx::gpio_lo(panel_dummy.gpio_rst);
+    delay(1);
+    lgfx::gpio_hi(panel_dummy.gpio_rst);
     delay(10);
 
     id = readPanelID();
@@ -207,17 +214,15 @@ public:
       goto init_clear;
     }
 
+// ODROID_GO 判定 (ボードマネージャでM5StickCを選択していると判定失敗する事に注意)
+// M5StackとSPIのピン番号が同じなのでinitBusは省略できる
     lgfx::gpio_lo(panel_dummy.spi_dc);
     lgfx::gpio_lo(panel_dummy.spi_cs);
+    lgfx::gpio_lo(panel_dummy.gpio_rst);
 
     panel_dummy.spi_cs =  5;
     panel_dummy.spi_dc = 21;
     setPanel(&panel_dummy);
-    _spi_mosi = 23;
-    _spi_miso = 19;
-    _spi_sclk = 18;
-    initBus();
-    delay(10);
 
     id = readPanelID();
     if (id == 0 && readCommand32(0x09) != 0) {   // ODROID_GO
@@ -228,6 +233,7 @@ public:
       goto init_clear;
     }
 
+// M5StickC / CPlus 判定
     releaseBus();
     lgfx::gpio_lo(panel_dummy.spi_dc);
     lgfx::gpio_lo(panel_dummy.spi_cs);
@@ -267,13 +273,14 @@ public:
     releaseBus();
     lgfx::gpio_lo(panel_dummy.spi_dc);
     lgfx::gpio_lo(panel_dummy.spi_cs);
+    lgfx::gpio_lo(panel_dummy.gpio_rst);
 
     ESP_LOGI("LovyanGFX", "[Autodetect] detect fail.");
     return;
 
 init_clear:
-    startWrite();
     initPanel();
+    startWrite();
     clear();
     setWindow(0,0,0,0);
     endWrite();
