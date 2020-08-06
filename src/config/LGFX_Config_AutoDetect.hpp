@@ -109,6 +109,19 @@ namespace lgfx
     }
   };
 
+  struct Panel_ODROID_GO : public Panel_ILI9341
+  {
+    Panel_ODROID_GO(void) {
+      freq_fill  = 80000000;
+      spi_3wire = true;
+      spi_cs =  5;
+      spi_dc = 21;
+      rotation = 1;
+      gpio_bl = 14;
+      pwm_ch_bl = 7;
+    }
+  };
+
   struct Panel_TTGO_TWatch : public Panel_ST7789
   {
     Panel_TTGO_TWatch() : Panel_ST7789() {
@@ -141,6 +154,7 @@ public:
   , board_M5StickC
   , board_M5StickCPlus
   , board_TTGO_TWatch
+  , board_ODROID_GO
   };
 
   board_t getBoard(void) const { return board; }
@@ -167,8 +181,7 @@ public:
       board = board_TTGO_TWatch;
       static lgfx::Panel_TTGO_TWatch panel;
       setPanel(&panel);
-      initPanel();
-      return;
+      goto init_clear;
     }
 
     releaseBus();
@@ -191,8 +204,28 @@ public:
       board = board_M5Stack;
       static lgfx::Panel_M5Stack panel;
       setPanel(&panel);
-      initPanel();
-      return;
+      goto init_clear;
+    }
+
+    lgfx::gpio_lo(panel_dummy.spi_dc);
+    lgfx::gpio_lo(panel_dummy.spi_cs);
+
+    panel_dummy.spi_cs =  5;
+    panel_dummy.spi_dc = 21;
+    setPanel(&panel_dummy);
+    _spi_mosi = 23;
+    _spi_miso = 19;
+    _spi_sclk = 18;
+    initBus();
+    delay(10);
+
+    id = readPanelID();
+    if (id == 0 && readCommand32(0x09) != 0) {   // ODROID_GO
+      ESP_LOGI("LovyanGFX", "[Autodetect] ODROID_GO");
+      board = board_ODROID_GO;
+      static lgfx::Panel_ODROID_GO panel;
+      setPanel(&panel);
+      goto init_clear;
     }
 
     releaseBus();
@@ -220,9 +253,7 @@ public:
       board = board_M5StickCPlus;
       static lgfx::Panel_M5StickCPlus panel;
       setPanel(&panel);
-
-      initPanel();
-      return;
+      goto init_clear;
     }
 
     if ((id & 0xFF) == 0x7C) {  //  check panel (ST7735)
@@ -230,9 +261,7 @@ public:
       board = board_M5StickC;
       static lgfx::Panel_M5StickC panel;
       setPanel(&panel);
-
-      initPanel();
-      return;
+      goto init_clear;
     }
 
     releaseBus();
@@ -240,6 +269,14 @@ public:
     lgfx::gpio_lo(panel_dummy.spi_cs);
 
     ESP_LOGI("LovyanGFX", "[Autodetect] detect fail.");
+    return;
+
+init_clear:
+    startWrite();
+    initPanel();
+    clear();
+    setWindow(0,0,0,0);
+    endWrite();
   }
 private:
   board_t board = board_unknown;
