@@ -22,6 +22,25 @@ namespace lgfx
     }
   };
 
+  struct Panel_TTGO_TWristband : public lgfx::Panel_ST7735S
+  {
+    Panel_TTGO_TWristband() {
+      len_dummy_read_pixel = 17;
+      spi_3wire  = true;
+      invert     = true;
+      spi_cs     =  5;
+      spi_dc     = 23;
+      gpio_rst   = 26;
+      gpio_bl    = 27;
+      pwm_ch_bl  = 7;
+      panel_width  = 80;
+      panel_height = 160;
+      offset_x     = 26;
+      offset_y     = 1;
+      offset_rotation = 2;
+    }
+  };
+
   struct Panel_M5StickC : public Panel_ST7735S
   {
     Panel_M5StickC() {
@@ -154,7 +173,9 @@ public:
   , board_M5StickC
   , board_M5StickCPlus
   , board_TTGO_TWatch
+  , board_TTGO_TWristband
   , board_ODROID_GO
+  , board_ESP_WROVER_KIT
   };
 
   board_t getBoard(void) const { return board; }
@@ -181,6 +202,29 @@ public:
       ESP_LOGI("LovyanGFX", "[Autodetect] TWatch");
       board = board_TTGO_TWatch;
       static lgfx::Panel_TTGO_TWatch panel;
+      setPanel(&panel);
+      goto init_clear;
+    }
+
+    lgfx::gpio_lo(panel_dummy.spi_dc);
+
+// TTGO T-Wristband 判定
+// T-WatchとSPIのピン番号が同じなのでinitBusは省略できる
+    panel_dummy.spi_dc   = 23;
+    panel_dummy.gpio_rst = 26;
+    setPanel(&panel_dummy);
+    lgfx::lgfxPinMode(panel_dummy.gpio_rst, lgfx::pin_mode_t::output);
+    lgfx::gpio_lo(panel_dummy.gpio_rst);
+    delay(1);
+    lgfx::gpio_hi(panel_dummy.gpio_rst);
+    delay(10);
+
+    id = readPanelID();
+    ESP_LOGI("LovyanGFX", "[Autodetect] panel id:%08x", id);
+    if ((id & 0xFF) == 0x7C) {  //  check panel (ST7735)
+      ESP_LOGI("LovyanGFX", "[Autodetect] TWristband");
+      board = board_TTGO_TWristband;
+      static lgfx::Panel_TTGO_TWristband panel;
       setPanel(&panel);
       goto init_clear;
     }
@@ -266,6 +310,68 @@ public:
       ESP_LOGI("LovyanGFX", "[Autodetect] M5StickC");
       board = board_M5StickC;
       static lgfx::Panel_M5StickC panel;
+      setPanel(&panel);
+      goto init_clear;
+    }
+
+    releaseBus();
+    lgfx::gpio_lo(panel_dummy.spi_dc);
+    lgfx::gpio_lo(panel_dummy.spi_cs);
+    lgfx::gpio_lo(panel_dummy.gpio_rst);
+
+    panel_dummy.spi_cs = 22;
+    panel_dummy.spi_dc = 21;
+    panel_dummy.gpio_rst = 18;
+    panel_dummy.spi_3wire = false;
+    setPanel(&panel_dummy);
+    _spi_mosi = 23;
+    _spi_miso = 25;
+    _spi_sclk = 19;
+    initBus();
+    lgfx::lgfxPinMode(panel_dummy.gpio_rst, lgfx::pin_mode_t::output);
+    lgfx::gpio_lo(panel_dummy.gpio_rst);
+    delay(1);
+    lgfx::gpio_hi(panel_dummy.gpio_rst);
+    delay(10);
+
+    id = readPanelID();
+    ESP_LOGI("LovyanGFX", "[Autodetect] panel id:%08x", id);
+    if ((id & 0xFF) == 0x85) {  //  check panel (ST7789)
+      ESP_LOGI("LovyanGFX", "[Autodetect] ESP-WROVER-KIT ST7789");
+      board = board_ESP_WROVER_KIT;
+      static lgfx::Panel_ST7789 panel;
+      panel.spi_3wire = false;
+      panel.spi_cs   = 22;
+      panel.spi_dc   = 21;
+      panel.gpio_rst = 18;
+      panel.gpio_bl  = 5;
+      panel.pwm_ch_bl = 7;
+      panel.freq_write = 80000000;
+      panel.freq_read  = 16000000;
+      panel.freq_fill  = 80000000;
+      panel.backlight_level = false;
+      panel.spi_mode_read = 1;
+      panel.len_dummy_read_pixel = 16;
+
+      setPanel(&panel);
+      goto init_clear;
+    }
+
+    if (id == 0 && readCommand32(0x09) != 0) {   // ILI9341
+      ESP_LOGI("LovyanGFX", "[Autodetect] ESP-WROVER-KIT ILI9341");
+      board = board_ESP_WROVER_KIT;
+      static lgfx::Panel_ILI9341 panel;
+      panel.spi_3wire = false;
+      panel.spi_cs   = 22;
+      panel.spi_dc   = 21;
+      panel.gpio_rst = 18;
+      panel.gpio_bl  = 5;
+      panel.pwm_ch_bl = 7;
+      panel.freq_write = 40000000;
+      panel.freq_read  = 20000000;
+      panel.freq_fill  = 80000000;
+      panel.backlight_level = false;
+
       setPanel(&panel);
       goto init_clear;
     }
