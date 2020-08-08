@@ -7,9 +7,6 @@ namespace lgfx
   {
     static constexpr spi_host_device_t spi_host = VSPI_HOST;
     static constexpr int dma_channel = 1;
-    static constexpr int spi_mosi = 23;
-    static constexpr int spi_miso = 19;
-    static constexpr int spi_sclk = 18;
   };
 
   struct Panel_Dummy : public Panel_ST7735S
@@ -184,6 +181,7 @@ public:
   {
     static lgfx::Panel_Dummy panel_dummy;
     board = board_unknown;
+    std::uint32_t id;
 
 // TTGO T-Watch 判定 (GPIO33を使う判定を先に行うと振動モーターが作動する事に注意)
     releaseBus();
@@ -196,7 +194,7 @@ public:
     initBus();
     delay(10);
 
-    auto id = readPanelID();
+    id = readPanelID();
     ESP_LOGI("LovyanGFX", "[Autodetect] panel id:%08x", id);
     if ((id & 0xFF) == 0x85) {  //  check panel (ST7789)
       ESP_LOGI("LovyanGFX", "[Autodetect] TWatch");
@@ -228,12 +226,11 @@ public:
       setPanel(&panel);
       goto init_clear;
     }
-
-// M5Stack 判定 (GPIO15を使う判定を先に行うとbottomのLEDが点灯する事に注意)
     releaseBus();
     lgfx::gpio_lo(panel_dummy.spi_dc);
     lgfx::gpio_lo(panel_dummy.spi_cs);
 
+// M5Stack 判定 (GPIO15を使う判定を先に行うとbottomのLEDが点灯する事に注意)
     panel_dummy.spi_cs = 14;
     panel_dummy.spi_dc = 27;
     panel_dummy.gpio_rst = 33;
@@ -269,19 +266,18 @@ public:
     setPanel(&panel_dummy);
 
     id = readPanelID();
-    if (id == 0 && readCommand32(0x09) != 0) {   // ODROID_GO
+    if (id == 0 && readCommand32(0x09) != 0) {   // ODROID_GOはpanelIDが0なのでステータスリードを併用する
       ESP_LOGI("LovyanGFX", "[Autodetect] ODROID_GO");
       board = board_ODROID_GO;
       static lgfx::Panel_ODROID_GO panel;
       setPanel(&panel);
       goto init_clear;
     }
-
-// M5StickC / CPlus 判定
     releaseBus();
     lgfx::gpio_lo(panel_dummy.spi_dc);
     lgfx::gpio_lo(panel_dummy.spi_cs);
 
+// M5StickC / CPlus 判定
     panel_dummy.spi_cs =  5;
     panel_dummy.spi_dc = 23;
     panel_dummy.gpio_rst = 18;
@@ -319,6 +315,7 @@ public:
     lgfx::gpio_lo(panel_dummy.spi_cs);
     lgfx::gpio_lo(panel_dummy.gpio_rst);
 
+// ESP-WROVER-KIT 判定
     panel_dummy.spi_cs = 22;
     panel_dummy.spi_dc = 21;
     panel_dummy.gpio_rst = 18;
@@ -350,6 +347,7 @@ public:
       panel.freq_read  = 16000000;
       panel.freq_fill  = 80000000;
       panel.backlight_level = false;
+      panel.offset_rotation = 2;
       panel.spi_mode_read = 1;
       panel.len_dummy_read_pixel = 16;
 
@@ -357,7 +355,7 @@ public:
       goto init_clear;
     }
 
-    if (id == 0 && readCommand32(0x09) != 0) {   // ILI9341
+    if (id == 0 && readCommand32(0x09) != 0) {   // ILI9341モデルはpanelIDが0なのでステータスリードを併用する
       ESP_LOGI("LovyanGFX", "[Autodetect] ESP-WROVER-KIT ILI9341");
       board = board_ESP_WROVER_KIT;
       static lgfx::Panel_ILI9341 panel;

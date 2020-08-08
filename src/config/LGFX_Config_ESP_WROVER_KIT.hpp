@@ -59,6 +59,7 @@ public:
       panel.freq_read  = 16000000;
       panel.freq_fill  = 80000000;
       panel.backlight_level = false;
+      panel.offset_rotation = 2;
       panel.spi_mode_read = 1;
       panel.len_dummy_read_pixel = 16;
 
