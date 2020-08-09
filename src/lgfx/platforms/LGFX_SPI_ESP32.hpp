@@ -108,9 +108,27 @@ namespace lgfx
 
     __attribute__ ((always_inline)) inline void dmaWait(void) const { wait_spi(); }
 
+    __attribute__ ((always_inline)) inline void begin(std::int_fast8_t sclk, std::int_fast8_t miso, std::int_fast8_t mosi, spi_host_device_t host = VSPI_HOST)
+    {
+      init(sclk, miso, mosi, host);
+    }
+
+    void init(std::int_fast8_t sclk, std::int_fast8_t miso, std::int_fast8_t mosi, spi_host_device_t host = VSPI_HOST)
+    {
+      _spi_sclk = sclk;
+      _spi_miso = miso;
+      _spi_mosi = mosi;
+      _spi_host = host;
+
+      initBus();
+      initPanel();
+      clear();
+      setWindow(0,0,0,0);
+    }
+
     __attribute__ ((always_inline)) inline void begin(void) { init(); }
 
-    virtual void init(void) { initBus(); initPanel(); clear(); }
+    virtual void init(void) { initBus(); initPanel(); clear(); setWindow(0,0,0,0); }
 
     // Write single byte as COMMAND
     void writeCommand(std::uint_fast8_t cmd) { startWrite(); write_cmd(cmd); endWrite(); } // AdafruitGFX compatible
