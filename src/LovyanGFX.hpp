@@ -75,37 +75,32 @@ Contributors:
 
 #if defined (ESP32) || (CONFIG_IDF_TARGET_ESP32)
 
- #if defined( LGFX_AUTODETECT )
-  #include "config/LGFX_Config_AutoDetectESP32.hpp"
-
- #elif defined( LGFX_M5STACK ) || defined( ARDUINO_M5Stack_Core_ESP32 ) || defined( ARDUINO_M5STACK_FIRE ) // M5Stack
-  #include "config/LGFX_Config_M5Stack.hpp"
-
- #elif defined( LGFX_M5STICKC ) || defined( ARDUINO_M5Stick_C ) // M5Stick C
-  #include "config/LGFX_Config_M5StickC.hpp"
-
- #elif defined( LGFX_ODROID_GO ) || defined( ARDUINO_ODROID_ESP32 ) // ODROID-GO
-  #include "config/LGFX_Config_ODROID_GO.hpp"
-
- #elif defined( LGFX_TTGO_TS ) || defined( ARDUINO_TTGO_T1 ) // TTGO TS
-  #include "config/LGFX_Config_TTGO_TS.hpp"
-
- #elif defined( LGFX_TTGO_TWATCH ) || defined( ARDUINO_T ) // TTGO T-Watch
-  #include "config/LGFX_Config_TTGO_TWatch.hpp"
-
- #elif defined( LGFX_TTGO_TWRISTBAND )  // TTGO T-Wristband
-  #include "config/LGFX_Config_TTGO_TWristband.hpp"
-
- #elif defined( LGFX_DDUINO32_XS ) || defined( ARDUINO_D ) || defined( ARDUINO_DDUINO32_XS ) // DSTIKE D-duino-32 XS
-  #include "config/LGFX_Config_DDUINO32_XS.hpp"
-
- #elif defined( LGFX_LOLIN_D32 ) || defined( ARDUINO_LOLIN_D32_PRO ) // LoLin D32 Pro
-  #include "config/LGFX_Config_LoLinD32.hpp"
-
- #elif defined( LGFX_ESP_WROVER_KIT ) || defined( ARDUINO_ESP32_WROVER_KIT ) // ESP-WROVER-KIT
-  #include "config/LGFX_Config_ESP_WROVER_KIT.hpp"
-
+ #if defined( ARDUINO_M5Stack_Core_ESP32 ) || defined( ARDUINO_M5STACK_FIRE )
+  #define LGFX_M5STACK
  #endif
+ #if defined( ARDUINO_M5Stick_C ) // M5Stick C / CPlus
+  #define LGFX_M5STICKC
+ #endif
+ #if defined( ARDUINO_ODROID_ESP32 ) // ODROID-GO
+  #define LGFX_ODROID_GO
+ #endif
+ #if defined( ARDUINO_TTGO_T1 ) // TTGO TS
+  #define LGFX_TTGO_TS
+ #endif
+ #if defined( ARDUINO_TWatch ) || defined( ARDUINO_T ) // TTGO T-Watch
+  #define LGFX_TTGO_TWATCH
+ #endif
+ #if defined( ARDUINO_D ) || defined( ARDUINO_DDUINO32_XS ) // DSTIKE D-duino-32 XS
+  #define LGFX_DDUINO32_XS
+ #endif
+ #if defined( ARDUINO_LOLIN_D32_PRO )
+  #define LGFX_LOLIN_D32_PRO
+ #endif
+ #if defined( ARDUINO_ESP32_WROVER_KIT )
+  #define LGFX_ESP_WROVER_KIT
+ #endif
+
+ #include "config/LGFX_Config_AutoDetectESP32.hpp"
 
 #elif defined (__SAMD51__)
 

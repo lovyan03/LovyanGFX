@@ -2,7 +2,7 @@
 
 // ※  もし対応機種を ArduinoIDE以外の環境で使用する場合や、
 // 対応機種がボードマネージャに無い場合 ( TTGO T-Wristband や ESP-WROVER-KIT等 ) は、
-// LovyanGFX.hppのincludeより前に、define LGFX_～ を記述してください。
+// LovyanGFX.hppのincludeより前に、define LGFX_～ の定義を記述してください。
 
 // #define LGFX_M5STACK          // M5Stack
 // #define LGFX_M5STICKC         // M5Stick C
@@ -11,9 +11,14 @@
 // #define LGFX_TTGO_TWATCH      // TTGO T-Watch
 // #define LGFX_TTGO_TWRISTBAND  // TTGO T-Wristband
 // #define LGFX_DDUINO32_XS      // DSTIKE D-duino-32 XS
-// #define LGFX_LOLIN_D32        // LoLin D32 Pro
+// #define LGFX_LOLIN_D32_PRO    // LoLin D32 Pro
 // #define LGFX_ESP_WROVER_KIT   // ESP-WROVER-KIT
 // #define LGFX_WIO_TERMINAL     // Wio Terminal
+
+// #define LGFX_AUTODETECT  // 自動認識 (M5Stack, M5StickC/CPlus, ODROID-GO, TTGO T-Watch, TTGO T-Wristband, ESP-WROVER-KIT)
+// LGFX_AUTODETECT を定義した場合や、複数の定義を記述した場合は、
+// 実行時にパネルと通信を試みてボードの自動認識を行います。
+
 
 // ヘッダをincludeします。
 #include <LovyanGFX.hpp>
