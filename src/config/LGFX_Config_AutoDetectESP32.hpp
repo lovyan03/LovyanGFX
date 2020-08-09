@@ -195,10 +195,13 @@ public:
     delay(10);
 
     id = readPanelID();
-    ESP_LOGI("LovyanGFX", "[Autodetect] panel id:%08x", id);
+    ESP_LOGW("LovyanGFX", "[Autodetect] panel id:%08x", id);
     if ((id & 0xFF) == 0x85) {  //  check panel (ST7789)
-      ESP_LOGI("LovyanGFX", "[Autodetect] TWatch");
+      ESP_LOGW("LovyanGFX", "[Autodetect] TWatch");
       board = board_TTGO_TWatch;
+      releaseBus();
+      _spi_host = HSPI_HOST;
+      initBus();
       static lgfx::Panel_TTGO_TWatch panel;
       setPanel(&panel);
       goto init_clear;
@@ -218,9 +221,9 @@ public:
     delay(10);
 
     id = readPanelID();
-    ESP_LOGI("LovyanGFX", "[Autodetect] panel id:%08x", id);
+    ESP_LOGW("LovyanGFX", "[Autodetect] panel id:%08x", id);
     if ((id & 0xFF) == 0x7C) {  //  check panel (ST7735)
-      ESP_LOGI("LovyanGFX", "[Autodetect] TWristband");
+      ESP_LOGW("LovyanGFX", "[Autodetect] TWristband");
       board = board_TTGO_TWristband;
       static lgfx::Panel_TTGO_TWristband panel;
       setPanel(&panel);
@@ -246,9 +249,9 @@ public:
     delay(10);
 
     id = readPanelID();
-    ESP_LOGI("LovyanGFX", "[Autodetect] panel id:%08x", id);
+    ESP_LOGW("LovyanGFX", "[Autodetect] panel id:%08x", id);
     if (id != 0 && id != ~0) {   // M5Stack
-      ESP_LOGI("LovyanGFX", "[Autodetect] M5Stack");
+      ESP_LOGW("LovyanGFX", "[Autodetect] M5Stack");
       board = board_M5Stack;
       static lgfx::Panel_M5Stack panel;
       setPanel(&panel);
@@ -267,7 +270,7 @@ public:
 
     id = readPanelID();
     if (id == 0 && readCommand32(0x09) != 0) {   // ODROID_GOはpanelIDが0なのでステータスリードを併用する
-      ESP_LOGI("LovyanGFX", "[Autodetect] ODROID_GO");
+      ESP_LOGW("LovyanGFX", "[Autodetect] ODROID_GO");
       board = board_ODROID_GO;
       static lgfx::Panel_ODROID_GO panel;
       setPanel(&panel);
@@ -293,9 +296,9 @@ public:
     delay(10);
 
     id = readPanelID();
-    ESP_LOGI("LovyanGFX", "[Autodetect] panel id:%08x", id);
+    ESP_LOGW("LovyanGFX", "[Autodetect] panel id:%08x", id);
     if ((id & 0xFF) == 0x85) {  //  check panel (ST7789)
-      ESP_LOGI("LovyanGFX", "[Autodetect] M5StickCPlus");
+      ESP_LOGW("LovyanGFX", "[Autodetect] M5StickCPlus");
       board = board_M5StickCPlus;
       static lgfx::Panel_M5StickCPlus panel;
       setPanel(&panel);
@@ -303,7 +306,7 @@ public:
     }
 
     if ((id & 0xFF) == 0x7C) {  //  check panel (ST7735)
-      ESP_LOGI("LovyanGFX", "[Autodetect] M5StickC");
+      ESP_LOGW("LovyanGFX", "[Autodetect] M5StickC");
       board = board_M5StickC;
       static lgfx::Panel_M5StickC panel;
       setPanel(&panel);
@@ -332,9 +335,9 @@ public:
     delay(10);
 
     id = readPanelID();
-    ESP_LOGI("LovyanGFX", "[Autodetect] panel id:%08x", id);
+    ESP_LOGW("LovyanGFX", "[Autodetect] panel id:%08x", id);
     if ((id & 0xFF) == 0x85) {  //  check panel (ST7789)
-      ESP_LOGI("LovyanGFX", "[Autodetect] ESP-WROVER-KIT ST7789");
+      ESP_LOGW("LovyanGFX", "[Autodetect] ESP-WROVER-KIT ST7789");
       board = board_ESP_WROVER_KIT;
       static lgfx::Panel_ST7789 panel;
       panel.spi_3wire = false;
@@ -356,7 +359,7 @@ public:
     }
 
     if (id == 0 && readCommand32(0x09) != 0) {   // ILI9341モデルはpanelIDが0なのでステータスリードを併用する
-      ESP_LOGI("LovyanGFX", "[Autodetect] ESP-WROVER-KIT ILI9341");
+      ESP_LOGW("LovyanGFX", "[Autodetect] ESP-WROVER-KIT ILI9341");
       board = board_ESP_WROVER_KIT;
       static lgfx::Panel_ILI9341 panel;
       panel.spi_3wire = false;
@@ -379,7 +382,7 @@ public:
     lgfx::gpio_lo(panel_dummy.spi_cs);
     lgfx::gpio_lo(panel_dummy.gpio_rst);
 
-    ESP_LOGI("LovyanGFX", "[Autodetect] detect fail.");
+    ESP_LOGW("LovyanGFX", "[Autodetect] detect fail.");
     return;
 
 init_clear:
