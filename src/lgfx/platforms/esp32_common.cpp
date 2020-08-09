@@ -16,6 +16,8 @@ namespace lgfx
 
   void lgfxPinMode(std::int_fast8_t pin, pin_mode_t mode)
   {
+    if (pin < 0) return;
+    gpio_matrix_out(pin, 0x100, 0, 0);
 #if defined (ARDUINO)
     int m;
     switch (mode)
