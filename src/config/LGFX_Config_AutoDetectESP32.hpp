@@ -67,7 +67,7 @@ namespace lgfx
       spi_3wire = true;
       spi_cs    = 16;
       spi_dc    = 17;
-      gpio_rst  = -1; //9;
+      gpio_rst  =  9;
       gpio_bl   = 27;
       pwm_ch_bl = 7;
     }
@@ -475,9 +475,7 @@ public:
     panel_dummy.spi_3wire = true;
 #endif
 
-
-
-#if defined ( LGFX_TTGO_TS )
+#if defined ( LGFX_AUTODETECT ) || defined ( LGFX_TTGO_TS )
     releaseBus();
     _spi_mosi = 23;
     _spi_miso = -1;
@@ -486,13 +484,13 @@ public:
 
     panel_dummy.spi_cs   = 16;
     panel_dummy.spi_dc   = 17;
-    panel_dummy.gpio_rst = -1; // 9;
+    panel_dummy.gpio_rst =  9;
     setPanel(&panel_dummy);
+    _reset();
 
     id = readPanelID();
     ESP_LOGW("LovyanGFX", "[Autodetect] panel id:%08x", id);
-    if ((id & 0xFF) == 0x7C)   //  check panel (ST7735)
-    {  //  check panel (ST7735)
+    if ((id & 0xFF) == 0x7C) {  //  check panel (ST7735)
       ESP_LOGW("LovyanGFX", "[Autodetect] TTGO TS");
       board = board_TTGO_TS;
       static lgfx::Panel_TTGO_TS panel;
