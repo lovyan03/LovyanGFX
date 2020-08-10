@@ -67,7 +67,7 @@ namespace lgfx
       spi_3wire = true;
       spi_cs    = 16;
       spi_dc    = 17;
-      gpio_rst  = 9;
+      gpio_rst  = -1; //9;
       gpio_bl   = 27;
       pwm_ch_bl = 7;
     }
@@ -486,18 +486,22 @@ public:
 
     panel_dummy.spi_cs   = 16;
     panel_dummy.spi_dc   = 17;
-    panel_dummy.gpio_rst =  9;
+    panel_dummy.gpio_rst = -1; // 9;
     setPanel(&panel_dummy);
 
     id = readPanelID();
     ESP_LOGW("LovyanGFX", "[Autodetect] panel id:%08x", id);
-    if (id != 0 && id != ~0) {
+    if ((id & 0xFF) == 0x7C)   //  check panel (ST7735)
+    {  //  check panel (ST7735)
       ESP_LOGW("LovyanGFX", "[Autodetect] TTGO TS");
       board = board_TTGO_TS;
       static lgfx::Panel_TTGO_TS panel;
       setPanel(&panel);
       goto init_clear;
     }
+    lgfx::gpio_lo(panel_dummy.spi_cs);
+    lgfx::gpio_lo(panel_dummy.spi_dc);
+    lgfx::gpio_lo(panel_dummy.gpio_rst);
 #endif
 
 #if defined ( LGFX_DDUINO32_XS )
