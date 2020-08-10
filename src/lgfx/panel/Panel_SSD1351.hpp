@@ -129,7 +129,7 @@ namespace lgfx
         0b00110110,
         0b00100111,
       };
-      r = (((r + offset_rotation) & 3) | (r & 4));
+      r = ((r + offset_rotation) & 3) | ((r & 4) ^ (offset_rotation & 4));
       if (r & 1) {
         cmd_caset = CommandCommon::RASET;
         cmd_raset = CommandCommon::CASET;

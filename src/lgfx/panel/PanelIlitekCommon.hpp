@@ -54,7 +54,7 @@ namespace lgfx
                MAD_MX|MAD_MH              ,
         MAD_MV|MAD_MX|MAD_MY|MAD_MH|MAD_ML,
       };
-      r = (((r + offset_rotation) & 3) | (r & 4));
+      r = ((r + offset_rotation) & 3) | ((r & 4) ^ (offset_rotation & 4));
       return madctl_table[r];
     }
 
