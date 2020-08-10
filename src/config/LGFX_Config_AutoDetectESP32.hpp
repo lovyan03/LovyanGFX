@@ -318,6 +318,20 @@ public:
       setPanel(&panel);
       goto init_clear;
     }
+
+    if ((id & 0xFF) == 0x7F) {  //  check panel (ILI9341)
+      ESP_LOGW("LovyanGFX", "[Autodetect] LoLinD32Pro ILI9341");
+      board = board_LoLinD32;
+      static lgfx::Panel_ILI9341 panel;
+      panel.spi_3wire = true;
+      panel.spi_cs    = 14;
+      panel.spi_dc    = 27;
+      panel.gpio_rst  = 33;
+      panel.gpio_bl   = 32;
+      panel.pwm_ch_bl = 7;
+      setPanel(&panel);
+      goto init_clear;
+    }
  #endif
 
 // M5Stack 判定
