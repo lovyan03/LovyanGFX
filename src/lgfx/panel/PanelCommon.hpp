@@ -109,7 +109,7 @@ namespace lgfx
       return buf;
     }
 
-    virtual const std::uint8_t* getInitCommands(std::uint8_t listno = 0) const = 0;
+    virtual const std::uint8_t* getInitCommands(std::uint8_t listno = 0) const { return nullptr; }
 
     virtual const std::uint8_t* getInvertDisplayCommands(std::uint8_t* buf, bool invert) = 0;
 

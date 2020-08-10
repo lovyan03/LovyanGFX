@@ -16,6 +16,8 @@ namespace lgfx
 
   void lgfxPinMode(std::int_fast8_t pin, pin_mode_t mode)
   {
+    if (pin < 0) return;
+    gpio_set_direction((gpio_num_t)pin, GPIO_MODE_DISABLE);
 #if defined (ARDUINO)
     int m;
     switch (mode)

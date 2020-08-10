@@ -15,9 +15,9 @@ namespace lgfx
 
 class LGFX : public lgfx::LGFX_SPI<lgfx::LGFX_Config>
 {
-  struct Panel_default : public lgfx::Panel_ST7735S
+  struct Panel_TTGO_TWristband : public lgfx::Panel_ST7735S
   {
-    Panel_default() {
+    Panel_TTGO_TWristband() {
       len_dummy_read_pixel = 17;
       spi_3wire  = true;
       invert     = true;
@@ -48,7 +48,7 @@ class LGFX : public lgfx::LGFX_SPI<lgfx::LGFX_Config>
 public:
   LGFX(void) : lgfx::LGFX_SPI<lgfx::LGFX_Config>()
   {
-    static Panel_default panel;
+    static Panel_TTGO_TWristband panel;
 
     setPanel(&panel);
   }

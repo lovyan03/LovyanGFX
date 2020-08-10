@@ -46,7 +46,7 @@ public:
     _panel->init();
 
     if (readPanelID() > 0) {  // check panel (ILI9341 or ST7789)
-      ESP_LOGI("LovyanGFX", "[Autodetect] Using Panel_ST7789");
+      ESP_LOGW("LovyanGFX", "[Autodetect] Using Panel_ST7789");
 
       static lgfx::Panel_ST7789 panel;
       panel.spi_3wire = false;
@@ -59,12 +59,13 @@ public:
       panel.freq_read  = 16000000;
       panel.freq_fill  = 80000000;
       panel.backlight_level = false;
+      panel.offset_rotation = 2;
       panel.spi_mode_read = 1;
       panel.len_dummy_read_pixel = 16;
 
       setPanel(&panel);
     } else {
-      ESP_LOGI("LovyanGFX", "[Autodetect] Using Panel_ILI9341");
+      ESP_LOGW("LovyanGFX", "[Autodetect] Using Panel_ILI9341");
     }
     lgfx::LGFX_SPI<lgfx::LGFX_Config>::initPanel();
   }
