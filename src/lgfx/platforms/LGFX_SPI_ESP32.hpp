@@ -100,35 +100,29 @@ namespace lgfx
       setup_port();
     }
 
-    void setPanel(PanelCommon* panel) { _panel = panel; postSetPanel(); }
-
-    __attribute__ ((always_inline)) inline PanelCommon* getPanel(void) const { return _panel; }
-
-    __attribute__ ((always_inline)) inline bool getInvert(void) const { return _panel->invert; }
-
-    __attribute__ ((always_inline)) inline void dmaWait(void) const { wait_spi(); }
-
-    __attribute__ ((always_inline)) inline void begin(std::int_fast8_t sclk, std::int_fast8_t miso, std::int_fast8_t mosi, spi_host_device_t host = VSPI_HOST)
-    {
-      init(sclk, miso, mosi, host);
-    }
-
-    void init(std::int_fast8_t sclk, std::int_fast8_t miso, std::int_fast8_t mosi, spi_host_device_t host = VSPI_HOST)
+    void init(int sclk, int miso, int mosi, spi_host_device_t host = VSPI_HOST)
     {
       _spi_sclk = sclk;
       _spi_miso = miso;
       _spi_mosi = mosi;
       _spi_host = host;
 
-      initBus();
-      initPanel();
-      clear();
-      setWindow(0,0,0,0);
+      init_impl();
     }
 
-    __attribute__ ((always_inline)) inline void begin(void) { init(); }
+    __attribute__ ((always_inline)) inline void begin(int sclk, int miso, int mosi, spi_host_device_t host = VSPI_HOST) { init(sclk, miso, mosi, host); }
 
-    virtual void init(void) { initBus(); initPanel(); clear(); setWindow(0,0,0,0); }
+    __attribute__ ((always_inline)) inline void init(void) { init_impl(); }
+
+    __attribute__ ((always_inline)) inline void begin(void) { init_impl(); }
+
+    __attribute__ ((always_inline)) inline void dmaWait(void) const { wait_spi(); }
+
+    __attribute__ ((always_inline)) inline bool getInvert(void) const { return _panel->invert; }
+
+    __attribute__ ((always_inline)) inline PanelCommon* getPanel(void) const { return _panel; }
+
+    void setPanel(PanelCommon* panel) { _panel = panel; postSetPanel(); }
 
     // Write single byte as COMMAND
     void writeCommand(std::uint_fast8_t cmd) { startWrite(); write_cmd(cmd); endWrite(); } // AdafruitGFX compatible
@@ -377,6 +371,8 @@ namespace lgfx
 
 //----------------------------------------------------------------------------
   protected:
+
+    virtual void init_impl(void) { initBus(); initPanel(); clear(); setWindow(0,0,0,0); }
 
     bool isReadable_impl(void) const override { return _panel->spi_read; }
     std::int_fast8_t getRotation_impl(void) const override { return _panel->rotation; }

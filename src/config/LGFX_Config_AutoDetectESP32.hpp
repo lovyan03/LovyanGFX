@@ -9,70 +9,6 @@ namespace lgfx
     static constexpr int dma_channel = 1;
   };
 
-  struct Panel_Dummy : public Panel_ST7735S
-  {
-    Panel_Dummy() {
-      spi_3wire  = true;
-      freq_read  = 8000000;
-      panel_width  = 0;
-      panel_height = 0;
-    }
-  };
-
-  struct Panel_TTGO_TWatch : public Panel_ST7789
-  {
-    Panel_TTGO_TWatch() : Panel_ST7789() {
-      freq_write = 80000000;
-      freq_read  = 20000000;
-      freq_fill  = 80000000;
-      panel_height = 240;
-      invert    = true;
-      spi_3wire = true;
-      spi_cs    =  5;
-      spi_dc    = 27;
-      gpio_bl   = 12;
-      pwm_ch_bl = 7;
-    }
-  };
-
-  struct Panel_TTGO_TWristband : public lgfx::Panel_ST7735S
-  {
-    Panel_TTGO_TWristband() {
-      len_dummy_read_pixel = 17;
-      spi_3wire  = true;
-      invert     = true;
-      spi_cs     =  5;
-      spi_dc     = 23;
-      gpio_rst   = 26;
-      gpio_bl    = 27;
-      pwm_ch_bl  = 7;
-      panel_width  = 80;
-      panel_height = 160;
-      offset_x     = 26;
-      offset_y     = 1;
-      offset_rotation = 2;
-    }
-  };
-
-  struct Panel_TTGO_TS : public Panel_ST7735S
-  {
-    Panel_TTGO_TS(void) {
-      freq_write = 20000000;
-      panel_width  = 128;
-      panel_height = 160;
-      offset_x     = 2;
-      offset_y     = 1;
-      offset_rotation = 2;
-      rgb_order = true;
-      spi_3wire = true;
-      spi_cs    = 16;
-      spi_dc    = 17;
-      gpio_rst  =  9;
-      gpio_bl   = 27;
-      pwm_ch_bl = 7;
-    }
-  };
-
   struct Panel_M5StickC : public Panel_ST7735S
   {
     Panel_M5StickC() {
@@ -159,36 +95,6 @@ namespace lgfx
       return buf;
     }
   };
-
-  struct Panel_ODROID_GO : public Panel_ILI9341
-  {
-    Panel_ODROID_GO(void) {
-      freq_fill  = 80000000;
-      spi_3wire = true;
-      spi_cs =  5;
-      spi_dc = 21;
-      rotation = 1;
-      gpio_bl = 14;
-      pwm_ch_bl = 7;
-    }
-  };
-
-  struct Panel_DDUINO32_XS : public Panel_ST7789
-  {
-    Panel_DDUINO32_XS() : Panel_ST7789() {
-      freq_write = 40000000;
-      freq_fill  = 40000000;
-      panel_height = 240;
-      invert    = true;
-      spi_3wire = true;
-      spi_read  = false;
-      spi_cs    = -1;
-      spi_dc    = 23;
-      gpio_rst  = 32;
-      gpio_bl   = 22;
-      pwm_ch_bl = 7;
-    }
-  };
 }
 
 class LGFX : public lgfx::LGFX_SPI<lgfx::LGFX_Config>
@@ -214,9 +120,19 @@ public:
 
   board_t getBoard(void) const { return board; }
 
-  void init(void) override
+private:
+  void init_impl(void) override
   {
-    static lgfx::Panel_Dummy panel_dummy;
+    if (_spi_mosi != -1 && _spi_sclk != -1) {
+      lgfx::LGFX_SPI<lgfx::LGFX_Config>::init_impl();
+      return;
+    }
+
+    static lgfx::PanelIlitekCommon panel_dummy;
+    panel_dummy.spi_3wire  = true;
+    panel_dummy.freq_read  = 8000000;
+    panel_dummy.panel_width  = 0;
+    panel_dummy.panel_height = 0;
     board = board_unknown;
     std::uint32_t id;
 
@@ -242,7 +158,18 @@ public:
       releaseBus();
       _spi_host = HSPI_HOST;
       initBus();
-      static lgfx::Panel_TTGO_TWatch panel;
+      static lgfx::Panel_ST7789 panel;
+      panel.freq_write = 80000000;
+      panel.freq_read  = 20000000;
+      panel.freq_fill  = 80000000;
+      panel.panel_height = 240;
+      panel.invert    = true;
+      panel.spi_3wire = true;
+      panel.spi_cs    =  5;
+      panel.spi_dc    = 27;
+      panel.gpio_bl   = 12;
+      panel.pwm_ch_bl = 7;
+
       setPanel(&panel);
       goto init_clear;
     }
@@ -270,7 +197,20 @@ public:
     if ((id & 0xFF) == 0x7C) {  //  check panel (ST7735)
       ESP_LOGW("LovyanGFX", "[Autodetect] TWristband");
       board = board_TTGO_TWristband;
-      static lgfx::Panel_TTGO_TWristband panel;
+      static lgfx::Panel_ST7735S panel;
+      panel.len_dummy_read_pixel = 17;
+      panel.spi_3wire  = true;
+      panel.invert     = true;
+      panel.spi_cs     =  5;
+      panel.spi_dc     = 23;
+      panel.gpio_rst   = 26;
+      panel.gpio_bl    = 27;
+      panel.pwm_ch_bl  = 7;
+      panel.panel_width  = 80;
+      panel.panel_height = 160;
+      panel.offset_x     = 26;
+      panel.offset_y     = 1;
+      panel.offset_rotation = 2;
       setPanel(&panel);
       goto init_clear;
     }
@@ -368,7 +308,14 @@ public:
     if (id == 0 && readCommand32(0x09) != 0) {   // ODROID_GOはpanelIDが0なのでステータスリードを併用する
       ESP_LOGW("LovyanGFX", "[Autodetect] ODROID_GO");
       board = board_ODROID_GO;
-      static lgfx::Panel_ODROID_GO panel;
+      static lgfx::Panel_ILI9341 panel;
+      panel.freq_fill  = 80000000;
+      panel.spi_3wire = true;
+      panel.spi_cs =  5;
+      panel.spi_dc = 21;
+      panel.rotation = 1;
+      panel.gpio_bl = 14;
+      panel.pwm_ch_bl = 7;
       setPanel(&panel);
       goto init_clear;
     }
@@ -475,6 +422,7 @@ public:
     panel_dummy.spi_3wire = true;
 #endif
 
+// TTGO TS判定
 #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_TTGO_TS )
     releaseBus();
     _spi_mosi = 23;
@@ -493,7 +441,20 @@ public:
     if ((id & 0xFF) == 0x7C) {  //  check panel (ST7735)
       ESP_LOGW("LovyanGFX", "[Autodetect] TTGO TS");
       board = board_TTGO_TS;
-      static lgfx::Panel_TTGO_TS panel;
+      static lgfx::Panel_ST7735S panel;
+      panel.freq_write = 20000000;
+      panel.panel_width  = 128;
+      panel.panel_height = 160;
+      panel.offset_x     = 2;
+      panel.offset_y     = 1;
+      panel.offset_rotation = 2;
+      panel.rgb_order = true;
+      panel.spi_3wire = true;
+      panel.spi_cs    = 16;
+      panel.spi_dc    = 17;
+      panel.gpio_rst  =  9;
+      panel.gpio_bl   = 27;
+      panel.pwm_ch_bl = 7;
       setPanel(&panel);
       goto init_clear;
     }
@@ -502,6 +463,8 @@ public:
     lgfx::gpio_lo(panel_dummy.gpio_rst);
 #endif
 
+// DSTIKE D-Duino32XS については読出しが出来ないため無条件設定となる。
+// そのためLGFX_AUTO_DETECTでは機能しないようにしておく。
 #if defined ( LGFX_DDUINO32_XS )
     releaseBus();
     _spi_mosi = 26;
@@ -511,7 +474,18 @@ public:
     {
       ESP_LOGW("LovyanGFX", "[Autodetect] D-Duino32 XS");
       board = board_DDUINO32_XS;
-      static lgfx::Panel_DDUINO32_XS panel;
+      static lgfx::Panel_ST7789 panel;
+      panel.freq_write = 40000000;
+      panel.freq_fill  = 40000000;
+      panel.panel_height = 240;
+      panel.invert    = true;
+      panel.spi_3wire = true;
+      panel.spi_read  = false;
+      panel.spi_cs    = -1;
+      panel.spi_dc    = 23;
+      panel.gpio_rst  = 32;
+      panel.gpio_bl   = 22;
+      panel.pwm_ch_bl = 7;
       setPanel(&panel);
       goto init_clear;
     }
@@ -530,7 +504,6 @@ init_clear:
     endWrite();
   }
 
-private:
   board_t board = board_unknown;
 
   void _reset(void) {
