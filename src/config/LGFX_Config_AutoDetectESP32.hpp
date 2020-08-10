@@ -483,7 +483,16 @@ public:
     _spi_miso = -1;
     _spi_sclk =  5;
     initBus();
-    {
+
+    panel_dummy.spi_cs   = 16;
+    panel_dummy.spi_dc   = 17;
+    panel_dummy.gpio_rst =  9;
+    setPanel(&panel_dummy);
+
+    id = readPanelID();
+    ESP_LOGW("LovyanGFX", "[Autodetect] panel id:%08x", id);
+    if (id != 0 && id != ~0) {
+      ESP_LOGW("LovyanGFX", "[Autodetect] TTGO TS");
       board = board_TTGO_TS;
       static lgfx::Panel_TTGO_TS panel;
       setPanel(&panel);
@@ -498,6 +507,7 @@ public:
     _spi_sclk = 27;
     initBus();
     {
+      ESP_LOGW("LovyanGFX", "[Autodetect] D-Duino32 XS");
       board = board_DDUINO32_XS;
       static lgfx::Panel_DDUINO32_XS panel;
       setPanel(&panel);
