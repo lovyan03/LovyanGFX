@@ -128,11 +128,17 @@ private:
       return;
     }
 
-    static lgfx::PanelIlitekCommon panel_dummy;
-    panel_dummy.spi_3wire  = true;
-    panel_dummy.freq_read  = 8000000;
-    panel_dummy.panel_width  = 0;
-    panel_dummy.panel_height = 0;
+    static lgfx::PanelCommon* panel_last = nullptr;
+    if (panel_last) {
+      delete panel_last;
+      panel_last = nullptr;
+    }
+
+    auto panel = new lgfx::PanelIlitekCommon();
+    panel->spi_3wire  = true;
+    panel->freq_read  = 8000000;
+    panel->panel_width  = 0;
+    panel->panel_height = 0;
     board = board_unknown;
     std::uint32_t id;
 
@@ -145,10 +151,10 @@ private:
     _spi_sclk = 18;
     initBus();
 
-    panel_dummy.spi_cs   =  5;
-    panel_dummy.spi_dc   = 27;
-    panel_dummy.gpio_rst = -1;
-    setPanel(&panel_dummy);
+    panel->spi_cs   =  5;
+    panel->spi_dc   = 27;
+    panel->gpio_rst = -1;
+    setPanel(panel);
 
     id = readPanelID();
     ESP_LOGW("LovyanGFX", "[Autodetect] panel id:%08x", id);
@@ -158,23 +164,23 @@ private:
       releaseBus();
       _spi_host = HSPI_HOST;
       initBus();
-      static lgfx::Panel_ST7789 panel;
-      panel.freq_write = 80000000;
-      panel.freq_read  = 20000000;
-      panel.freq_fill  = 80000000;
-      panel.panel_height = 240;
-      panel.invert    = true;
-      panel.spi_3wire = true;
-      panel.spi_cs    =  5;
-      panel.spi_dc    = 27;
-      panel.gpio_bl   = 12;
-      panel.pwm_ch_bl = 7;
+      auto p = new lgfx::Panel_ST7789();
+      p->freq_write = 80000000;
+      p->freq_read  = 20000000;
+      p->freq_fill  = 80000000;
+      p->panel_height = 240;
+      p->invert    = true;
+      p->spi_3wire = true;
+      p->spi_cs    =  5;
+      p->spi_dc    = 27;
+      p->gpio_bl   = 12;
+      p->pwm_ch_bl = 7;
 
-      setPanel(&panel);
+      setPanel(p);
       goto init_clear;
     }
-    lgfx::gpio_lo(panel_dummy.spi_cs);
-    lgfx::gpio_lo(panel_dummy.spi_dc);
+    lgfx::gpio_lo(panel->spi_cs);
+    lgfx::gpio_lo(panel->spi_dc);
 #endif
 
 
@@ -186,10 +192,10 @@ private:
     _spi_sclk = 18;
     initBus();
 
-    panel_dummy.spi_cs   =  5;
-    panel_dummy.spi_dc   = 23;
-    panel_dummy.gpio_rst = 26;
-    setPanel(&panel_dummy);
+    panel->spi_cs   =  5;
+    panel->spi_dc   = 23;
+    panel->gpio_rst = 26;
+    setPanel(panel);
     _reset();
 
     id = readPanelID();
@@ -197,26 +203,26 @@ private:
     if ((id & 0xFF) == 0x7C) {  //  check panel (ST7735)
       ESP_LOGW("LovyanGFX", "[Autodetect] TWristband");
       board = board_TTGO_TWristband;
-      static lgfx::Panel_ST7735S panel;
-      panel.len_dummy_read_pixel = 17;
-      panel.spi_3wire  = true;
-      panel.invert     = true;
-      panel.spi_cs     =  5;
-      panel.spi_dc     = 23;
-      panel.gpio_rst   = 26;
-      panel.gpio_bl    = 27;
-      panel.pwm_ch_bl  = 7;
-      panel.panel_width  = 80;
-      panel.panel_height = 160;
-      panel.offset_x     = 26;
-      panel.offset_y     = 1;
-      panel.offset_rotation = 2;
-      setPanel(&panel);
+      auto p = new lgfx::Panel_ST7735S();
+      p->len_dummy_read_pixel = 17;
+      p->spi_3wire  = true;
+      p->invert     = true;
+      p->spi_cs     =  5;
+      p->spi_dc     = 23;
+      p->gpio_rst   = 26;
+      p->gpio_bl    = 27;
+      p->pwm_ch_bl  = 7;
+      p->panel_width  = 80;
+      p->panel_height = 160;
+      p->offset_x     = 26;
+      p->offset_y     = 1;
+      p->offset_rotation = 2;
+      setPanel(p);
       goto init_clear;
     }
-    lgfx::gpio_lo(panel_dummy.spi_cs);
-    lgfx::gpio_lo(panel_dummy.spi_dc);
-    lgfx::gpio_lo(panel_dummy.gpio_rst);
+    lgfx::gpio_lo(panel->spi_cs);
+    lgfx::gpio_lo(panel->spi_dc);
+    lgfx::gpio_lo(panel->gpio_rst);
 #endif
 
 
@@ -228,48 +234,65 @@ private:
     _spi_sclk = 18;
     initBus();
 
-    panel_dummy.spi_cs   = 14;
-    panel_dummy.spi_dc   = 27;
-    panel_dummy.gpio_rst = 33;
-    setPanel(&panel_dummy);
+    panel->spi_cs   = 14;
+    panel->spi_dc   = 27;
+    panel->gpio_rst = 33;
+    setPanel(panel);
     _reset();
 
+ #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_M5STACK )
+    lgfx::lgfxPinMode(4, lgfx::pin_mode_t::output); // M5Stack TF card CS
+    lgfx::gpio_hi(4);
+ #endif
+ #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_LOLIN_D32_PRO )
+    lgfx::lgfxPinMode(5, lgfx::pin_mode_t::output); // LoLinD32 TF card CS
+    lgfx::gpio_hi(5);
+    lgfx::lgfxPinMode(12, lgfx::pin_mode_t::output); // LoLinD32 TouchScreen CS
+    lgfx::gpio_hi(12);
+ #endif
     id = readPanelID();
+
     ESP_LOGW("LovyanGFX", "[Autodetect] panel id:%08x", id);
 
 // LoLinD32Pro 判定
  #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_LOLIN_D32_PRO )
     if ((id & 0xFF) == 0x7C) {  //  check panel (ST7735)
+ #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_M5STACK )
+      lgfx::gpio_lo(4);
+ #endif
       ESP_LOGW("LovyanGFX", "[Autodetect] LoLinD32Pro ST7735");
       board = board_LoLinD32;
-      static lgfx::Panel_ST7735S panel;
-      panel.panel_width  = 128;
-      panel.panel_height = 128;
-      panel.memory_width  = 132;
-      panel.memory_height = 132;
-      panel.offset_x  = 2;
-      panel.offset_y  = 1;
-      panel.spi_3wire = true;
-      panel.spi_cs    = 14;
-      panel.spi_dc    = 27;
-      panel.gpio_rst  = 33;
-      panel.gpio_bl   = 32;
-      panel.pwm_ch_bl = 7;
-      setPanel(&panel);
+      auto p = new lgfx::Panel_ST7735S();
+      p->panel_width  = 128;
+      p->panel_height = 128;
+      p->memory_width  = 132;
+      p->memory_height = 132;
+      p->offset_x  = 2;
+      p->offset_y  = 1;
+      p->spi_3wire = true;
+      p->spi_cs    = 14;
+      p->spi_dc    = 27;
+      p->gpio_rst  = 33;
+      p->gpio_bl   = 32;
+      p->pwm_ch_bl = 7;
+      setPanel(p);
       goto init_clear;
     }
 
     if ((id & 0xFF) == 0x7F) {  //  check panel (ILI9341)
+ #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_M5STACK )
+      lgfx::gpio_lo(4);
+ #endif
       ESP_LOGW("LovyanGFX", "[Autodetect] LoLinD32Pro ILI9341");
       board = board_LoLinD32;
-      static lgfx::Panel_ILI9341 panel;
-      panel.spi_3wire = true;
-      panel.spi_cs    = 14;
-      panel.spi_dc    = 27;
-      panel.gpio_rst  = 33;
-      panel.gpio_bl   = 32;
-      panel.pwm_ch_bl = 7;
-      setPanel(&panel);
+      auto p = new lgfx::Panel_ILI9341();
+      p->spi_3wire = true;
+      p->spi_cs    = 14;
+      p->spi_dc    = 27;
+      p->gpio_rst  = 33;
+      p->gpio_bl   = 32;
+      p->pwm_ch_bl = 7;
+      setPanel(p);
       goto init_clear;
     }
  #endif
@@ -277,17 +300,24 @@ private:
 // M5Stack 判定
  #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_M5STACK )
     if (id != 0 && id != ~0) {   // M5Stack
+ #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_LOLIN_D32_PRO )
+      lgfx::gpio_lo(5);
+      lgfx::gpio_lo(12);
+ #endif
       ESP_LOGW("LovyanGFX", "[Autodetect] M5Stack");
       board = board_M5Stack;
-      static lgfx::Panel_M5Stack panel;
-      setPanel(&panel);
+      auto p = new lgfx::Panel_M5Stack();
+      setPanel(p);
       goto init_clear;
     }
  #endif
 
-    lgfx::gpio_lo(panel_dummy.spi_cs);
-    lgfx::gpio_lo(panel_dummy.spi_dc);
-    lgfx::gpio_lo(panel_dummy.gpio_rst);
+    lgfx::gpio_lo(panel->spi_cs);
+    lgfx::gpio_lo(panel->spi_dc);
+    lgfx::gpio_lo(panel->gpio_rst);
+    lgfx::gpio_lo(4);
+    lgfx::gpio_lo(5);
+    lgfx::gpio_lo(12);
 #endif
 
 
@@ -299,28 +329,32 @@ private:
     _spi_sclk = 18;
     initBus();
 
-    panel_dummy.spi_cs   =  5;
-    panel_dummy.spi_dc   = 21;
-    panel_dummy.gpio_rst = -1;
-    setPanel(&panel_dummy);
+    panel->spi_cs   =  5;
+    panel->spi_dc   = 21;
+    panel->gpio_rst = -1;
+    setPanel(panel);
+
+    lgfx::lgfxPinMode(22, lgfx::pin_mode_t::output); // ODROID-GO TF card CS
+    lgfx::gpio_hi(22);
 
     id = readPanelID();
     if (id == 0 && readCommand32(0x09) != 0) {   // ODROID_GOはpanelIDが0なのでステータスリードを併用する
       ESP_LOGW("LovyanGFX", "[Autodetect] ODROID_GO");
       board = board_ODROID_GO;
-      static lgfx::Panel_ILI9341 panel;
-      panel.freq_fill  = 80000000;
-      panel.spi_3wire = true;
-      panel.spi_cs =  5;
-      panel.spi_dc = 21;
-      panel.rotation = 1;
-      panel.gpio_bl = 14;
-      panel.pwm_ch_bl = 7;
-      setPanel(&panel);
+      auto p = new lgfx::Panel_ILI9341();
+      p->freq_fill  = 80000000;
+      p->spi_3wire = true;
+      p->spi_cs =  5;
+      p->spi_dc = 21;
+      p->rotation = 1;
+      p->gpio_bl = 14;
+      p->pwm_ch_bl = 7;
+      setPanel(p);
       goto init_clear;
     }
-    lgfx::gpio_lo(panel_dummy.spi_cs);
-    lgfx::gpio_lo(panel_dummy.spi_dc);
+    lgfx::gpio_lo(panel->spi_cs);
+    lgfx::gpio_lo(panel->spi_dc);
+    lgfx::gpio_lo(22);
 #endif
 
 // M5StickC / CPlus 判定
@@ -331,10 +365,10 @@ private:
     _spi_sclk = 13;
     initBus();
 
-    panel_dummy.spi_cs   =  5;
-    panel_dummy.spi_dc   = 23;
-    panel_dummy.gpio_rst = 18;
-    setPanel(&panel_dummy);
+    panel->spi_cs   =  5;
+    panel->spi_dc   = 23;
+    panel->gpio_rst = 18;
+    setPanel(panel);
     _reset();
 
     id = readPanelID();
@@ -342,21 +376,21 @@ private:
     if ((id & 0xFF) == 0x85) {  //  check panel (ST7789)
       ESP_LOGW("LovyanGFX", "[Autodetect] M5StickCPlus");
       board = board_M5StickCPlus;
-      static lgfx::Panel_M5StickCPlus panel;
-      setPanel(&panel);
+      auto p = new lgfx::Panel_M5StickCPlus();
+      setPanel(p);
       goto init_clear;
     }
 
     if ((id & 0xFF) == 0x7C) {  //  check panel (ST7735)
       ESP_LOGW("LovyanGFX", "[Autodetect] M5StickC");
       board = board_M5StickC;
-      static lgfx::Panel_M5StickC panel;
-      setPanel(&panel);
+      auto p = new lgfx::Panel_M5StickC();
+      setPanel(p);
       goto init_clear;
     }
-    lgfx::gpio_lo(panel_dummy.spi_cs);
-    lgfx::gpio_lo(panel_dummy.spi_dc);
-    lgfx::gpio_lo(panel_dummy.gpio_rst);
+    lgfx::gpio_lo(panel->spi_cs);
+    lgfx::gpio_lo(panel->spi_dc);
+    lgfx::gpio_lo(panel->gpio_rst);
 #endif
 
 // ESP-WROVER-KIT 判定
@@ -367,11 +401,11 @@ private:
     _spi_sclk = 19;
     initBus();
 
-    panel_dummy.spi_3wire = false;
-    panel_dummy.spi_cs   = 22;
-    panel_dummy.spi_dc   = 21;
-    panel_dummy.gpio_rst = 18;
-    setPanel(&panel_dummy);
+    panel->spi_3wire = false;
+    panel->spi_cs   = 22;
+    panel->spi_dc   = 21;
+    panel->gpio_rst = 18;
+    setPanel(panel);
     _reset();
 
     id = readPanelID();
@@ -379,47 +413,47 @@ private:
     if ((id & 0xFF) == 0x85) {  //  check panel (ST7789)
       ESP_LOGW("LovyanGFX", "[Autodetect] ESP-WROVER-KIT ST7789");
       board = board_ESP_WROVER_KIT;
-      static lgfx::Panel_ST7789 panel;
-      panel.spi_3wire = false;
-      panel.spi_cs   = 22;
-      panel.spi_dc   = 21;
-      panel.gpio_rst = 18;
-      panel.gpio_bl  = 5;
-      panel.pwm_ch_bl = 7;
-      panel.freq_write = 80000000;
-      panel.freq_read  = 16000000;
-      panel.freq_fill  = 80000000;
-      panel.backlight_level = false;
-      panel.offset_rotation = 2;
-      panel.spi_mode_read = 1;
-      panel.len_dummy_read_pixel = 16;
+      auto p = new lgfx::Panel_ST7789();
+      p->spi_3wire = false;
+      p->spi_cs   = 22;
+      p->spi_dc   = 21;
+      p->gpio_rst = 18;
+      p->gpio_bl  = 5;
+      p->pwm_ch_bl = 7;
+      p->freq_write = 80000000;
+      p->freq_read  = 16000000;
+      p->freq_fill  = 80000000;
+      p->backlight_level = false;
+      p->offset_rotation = 2;
+      p->spi_mode_read = 1;
+      p->len_dummy_read_pixel = 16;
 
-      setPanel(&panel);
+      setPanel(p);
       goto init_clear;
     }
 
     if (id == 0 && readCommand32(0x09) != 0) {   // ILI9341モデルはpanelIDが0なのでステータスリードを併用する
       ESP_LOGW("LovyanGFX", "[Autodetect] ESP-WROVER-KIT ILI9341");
       board = board_ESP_WROVER_KIT;
-      static lgfx::Panel_ILI9341 panel;
-      panel.spi_3wire = false;
-      panel.spi_cs   = 22;
-      panel.spi_dc   = 21;
-      panel.gpio_rst = 18;
-      panel.gpio_bl  = 5;
-      panel.pwm_ch_bl = 7;
-      panel.freq_write = 40000000;
-      panel.freq_read  = 20000000;
-      panel.freq_fill  = 80000000;
-      panel.backlight_level = false;
+      auto p = new lgfx::Panel_ILI9341();
+      p->spi_3wire = false;
+      p->spi_cs   = 22;
+      p->spi_dc   = 21;
+      p->gpio_rst = 18;
+      p->gpio_bl  = 5;
+      p->pwm_ch_bl = 7;
+      p->freq_write = 40000000;
+      p->freq_read  = 20000000;
+      p->freq_fill  = 80000000;
+      p->backlight_level = false;
 
-      setPanel(&panel);
+      setPanel(p);
       goto init_clear;
     }
-    lgfx::gpio_lo(panel_dummy.spi_cs);
-    lgfx::gpio_lo(panel_dummy.spi_dc);
-    lgfx::gpio_lo(panel_dummy.gpio_rst);
-    panel_dummy.spi_3wire = true;
+    lgfx::gpio_lo(panel->spi_cs);
+    lgfx::gpio_lo(panel->spi_dc);
+    lgfx::gpio_lo(panel->gpio_rst);
+    panel->spi_3wire = true;
 #endif
 
 // TTGO TS判定
@@ -430,10 +464,10 @@ private:
     _spi_sclk =  5;
     initBus();
 
-    panel_dummy.spi_cs   = 16;
-    panel_dummy.spi_dc   = 17;
-    panel_dummy.gpio_rst =  9;
-    setPanel(&panel_dummy);
+    panel->spi_cs   = 16;
+    panel->spi_dc   = 17;
+    panel->gpio_rst =  9;
+    setPanel(panel);
     _reset();
 
     id = readPanelID();
@@ -441,26 +475,26 @@ private:
     if ((id & 0xFF) == 0x7C) {  //  check panel (ST7735)
       ESP_LOGW("LovyanGFX", "[Autodetect] TTGO TS");
       board = board_TTGO_TS;
-      static lgfx::Panel_ST7735S panel;
-      panel.freq_write = 20000000;
-      panel.panel_width  = 128;
-      panel.panel_height = 160;
-      panel.offset_x     = 2;
-      panel.offset_y     = 1;
-      panel.offset_rotation = 2;
-      panel.rgb_order = true;
-      panel.spi_3wire = true;
-      panel.spi_cs    = 16;
-      panel.spi_dc    = 17;
-      panel.gpio_rst  =  9;
-      panel.gpio_bl   = 27;
-      panel.pwm_ch_bl = 7;
-      setPanel(&panel);
+      auto p = new lgfx::Panel_ST7735S();
+      p->freq_write = 20000000;
+      p->panel_width  = 128;
+      p->panel_height = 160;
+      p->offset_x     = 2;
+      p->offset_y     = 1;
+      p->offset_rotation = 2;
+      p->rgb_order = true;
+      p->spi_3wire = true;
+      p->spi_cs    = 16;
+      p->spi_dc    = 17;
+      p->gpio_rst  =  9;
+      p->gpio_bl   = 27;
+      p->pwm_ch_bl = 7;
+      setPanel(p);
       goto init_clear;
     }
-    lgfx::gpio_lo(panel_dummy.spi_cs);
-    lgfx::gpio_lo(panel_dummy.spi_dc);
-    lgfx::gpio_lo(panel_dummy.gpio_rst);
+    lgfx::gpio_lo(panel->spi_cs);
+    lgfx::gpio_lo(panel->spi_dc);
+    lgfx::gpio_lo(panel->gpio_rst);
 #endif
 
 // DSTIKE D-Duino32XS については読出しが出来ないため無条件設定となる。
@@ -474,19 +508,19 @@ private:
     {
       ESP_LOGW("LovyanGFX", "[Autodetect] D-Duino32 XS");
       board = board_DDUINO32_XS;
-      static lgfx::Panel_ST7789 panel;
-      panel.freq_write = 40000000;
-      panel.freq_fill  = 40000000;
-      panel.panel_height = 240;
-      panel.invert    = true;
-      panel.spi_3wire = true;
-      panel.spi_read  = false;
-      panel.spi_cs    = -1;
-      panel.spi_dc    = 23;
-      panel.gpio_rst  = 32;
-      panel.gpio_bl   = 22;
-      panel.pwm_ch_bl = 7;
-      setPanel(&panel);
+      auto p = new lgfx::Panel_ST7789();
+      p->freq_write = 40000000;
+      p->freq_fill  = 40000000;
+      p->panel_height = 240;
+      p->invert    = true;
+      p->spi_3wire = true;
+      p->spi_read  = false;
+      p->spi_cs    = -1;
+      p->spi_dc    = 23;
+      p->gpio_rst  = 32;
+      p->gpio_bl   = 22;
+      p->pwm_ch_bl = 7;
+      setPanel(p);
       goto init_clear;
     }
 #endif
@@ -494,9 +528,12 @@ private:
     releaseBus();
 
     ESP_LOGW("LovyanGFX", "[Autodetect] detect fail.");
+    panel_last = getPanel();
     return;
 
 init_clear:
+    delete panel;
+    panel_last = getPanel();
     initPanel();
     startWrite();
     clear();

@@ -250,6 +250,7 @@ namespace lgfx
     [[deprecated("use textdatum_t")]]
     void setTextDatum(std::uint8_t datum) { _text_style.datum = (textdatum_t)datum; }
     void setTextPadding(std::uint32_t padding_x) { _padding_x = padding_x; }
+    std::uint32_t getTextPadding(void) const { return _padding_x; }
     void setTextWrap( bool wrapX, bool wrapY = false) { _textwrap_x = wrapX; _textwrap_y = wrapY; }
     void setTextScroll(bool scroll) { _textscroll = scroll; if (_cursor_x < this->_sx) { _cursor_x = this->_sx; } if (_cursor_y < this->_sy) { _cursor_y = this->_sy; } }
 

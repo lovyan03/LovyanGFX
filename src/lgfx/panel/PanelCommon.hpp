@@ -10,6 +10,7 @@ namespace lgfx
 
   struct PanelCommon
   {
+    virtual ~PanelCommon() = default;
     std::uint32_t freq_write = 2700000;    // SPI freq (write pixel)
     std::uint32_t freq_read  = 1600000;    // SPI freq (read pixel )
     std::uint32_t freq_fill  = 4000000;    // SPI freq (fill pixel )
