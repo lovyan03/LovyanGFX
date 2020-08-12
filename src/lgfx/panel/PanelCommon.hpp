@@ -10,6 +10,7 @@ namespace lgfx
 
   struct PanelCommon
   {
+    virtual ~PanelCommon() = default;
     std::uint32_t freq_write = 2700000;    // SPI freq (write pixel)
     std::uint32_t freq_read  = 1600000;    // SPI freq (read pixel )
     std::uint32_t freq_fill  = 4000000;    // SPI freq (fill pixel )
@@ -22,6 +23,7 @@ namespace lgfx
     std::int_fast8_t gpio_rst  = -1;       // hardware reset pin number
     std::int_fast8_t gpio_bl   = -1;       // backlight pin number
     std::int_fast8_t pwm_ch_bl = -1;       // backlight PWM channel number
+    bool reverse_invert = false;           // Reverse the effect of the invert command.
 
     bool backlight_level = true;      // turn ON back-light backlight level (true = high / false = low)
     bool spi_read  = true;            // Use SPI read
