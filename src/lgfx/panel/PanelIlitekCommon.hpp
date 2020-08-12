@@ -27,7 +27,7 @@ namespace lgfx
     const std::uint8_t* getInvertDisplayCommands(std::uint8_t* buf, bool invert) override
     {
       this->invert = invert;
-      buf[2] = buf[0] = invert ? CommandCommon::INVON : CommandCommon::INVOFF;
+      buf[2] = buf[0] = (invert ^ reverse_invert) ? CommandCommon::INVON : CommandCommon::INVOFF;
       buf[3] = buf[1] = 0;
       buf[5] = buf[4] = 0xFF;
       return buf;

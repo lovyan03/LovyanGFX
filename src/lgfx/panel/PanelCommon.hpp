@@ -23,6 +23,7 @@ namespace lgfx
     std::int_fast8_t gpio_rst  = -1;       // hardware reset pin number
     std::int_fast8_t gpio_bl   = -1;       // backlight pin number
     std::int_fast8_t pwm_ch_bl = -1;       // backlight PWM channel number
+    bool reverse_invert = false;           // Reverse the effect of the invert command.
 
     bool backlight_level = true;      // turn ON back-light backlight level (true = high / false = low)
     bool spi_read  = true;            // Use SPI read

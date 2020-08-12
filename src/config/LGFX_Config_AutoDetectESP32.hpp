@@ -12,8 +12,8 @@ namespace lgfx
   struct Panel_M5StickC : public Panel_ST7735S
   {
     Panel_M5StickC() {
+      reverse_invert = true;
       spi_3wire  = true;
-      invert     = true;
       spi_cs     =  5;
       spi_dc     = 23;
       gpio_rst   = 18;
@@ -37,8 +37,8 @@ namespace lgfx
   struct Panel_M5StickCPlus: public Panel_ST7789
   {
     Panel_M5StickCPlus() {
+      reverse_invert = true;
       spi_3wire  = true;
-      invert     = true;
       spi_cs     =  5;
       spi_dc     = 23;
       gpio_rst   = 18;
@@ -56,8 +56,6 @@ namespace lgfx
 
   struct Panel_M5Stack : public Panel_ILI9342
   {
-    bool isIPS = false;
-
     Panel_M5Stack(void) {
       spi_3wire = true;
       spi_cs = 14;
@@ -73,26 +71,9 @@ namespace lgfx
       gpio_lo(gpio_rst);
       lgfxPinMode(gpio_rst, pin_mode_t::input);
       delay(1);
-      isIPS = gpio_in(gpio_rst);       // get panel type (IPS or TN)
+      reverse_invert = gpio_in(gpio_rst);       // get panel type (IPS or TN)
 
       Panel_ILI9342::init();
-    }
-
-  protected:
-
-    const std::uint8_t* getInvertDisplayCommands(std::uint8_t* buf, bool invert) override {
-      if (!isIPS) return Panel_ILI9342::getInvertDisplayCommands(buf, invert);
-      this->invert = invert;
-      buf[2] = buf[0] = invert ? CommandCommon::INVOFF : CommandCommon::INVON;
-      buf[3] = buf[1] = 0;
-      buf[4] = CMD::GAMMASET;
-      buf[5] = 1;
-    //buf[6] = 0x08;  // Gamma set, curve 8
-    //buf[6] = 0x04;  // Gamma set, curve 4
-      buf[6] = 0x02;  // Gamma set, curve 2
-    //buf[6] = 0x01;  // Gamma set, curve 1
-      buf[8] = buf[7] = 0xFF;
-      return buf;
     }
   };
 }
@@ -163,11 +144,11 @@ private:
       _spi_host = HSPI_HOST;
       initBus();
       auto p = new lgfx::Panel_ST7789();
+      p->reverse_invert = true;
       p->freq_write = 80000000;
       p->freq_read  = 20000000;
       p->freq_fill  = 80000000;
       p->panel_height = 240;
-      p->invert    = true;
       p->spi_3wire = true;
       p->spi_cs    =  5;
       p->spi_dc    = 27;
@@ -202,9 +183,9 @@ private:
       ESP_LOGW("LovyanGFX", "[Autodetect] TWristband");
       board = board_TTGO_TWristband;
       auto p = new lgfx::Panel_ST7735S();
+      p->reverse_invert = true;
       p->len_dummy_read_pixel = 17;
       p->spi_3wire  = true;
-      p->invert     = true;
       p->spi_cs     =  5;
       p->spi_dc     = 23;
       p->gpio_rst   = 26;
@@ -507,10 +488,10 @@ private:
       ESP_LOGW("LovyanGFX", "[Autodetect] D-Duino32 XS");
       board = board_DDUINO32_XS;
       auto p = new lgfx::Panel_ST7789();
+      p->reverse_invert = true;
       p->freq_write = 40000000;
       p->freq_fill  = 40000000;
       p->panel_height = 240;
-      p->invert    = true;
       p->spi_3wire = true;
       p->spi_read  = false;
       p->spi_cs    = -1;

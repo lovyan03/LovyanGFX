@@ -79,20 +79,55 @@ namespace lgfx
     }
   };
 
-  struct Panel_ILI9342 : public Panel_ILI9341
+  struct Panel_ILI9342 : public PanelIlitekCommon
   {
     Panel_ILI9342(void) {
       panel_width  = memory_width  = 320;
       panel_height = memory_height = 240;
+
+      freq_write = 40000000;
+      freq_read  = 16000000;
+      freq_fill  = 40000000;
     }
   protected:
+
+    struct CMD : public PanelIlitekCommon::CommandCommon
+    {
+      static constexpr std::uint8_t DFUNCTR = 0xB6;
+      static constexpr std::uint8_t PWCTR1  = 0xC0;
+      static constexpr std::uint8_t PWCTR2  = 0xC1;
+      static constexpr std::uint8_t VMCTR1  = 0xC5;
+      static constexpr std::uint8_t GMCTRP1 = 0xE0; // Positive Gamma Correction (E0h)
+      static constexpr std::uint8_t GMCTRN1 = 0xE1; // Negative Gamma Correction (E1h)
+    };
+
     const std::uint8_t* getInitCommands(std::uint8_t listno) const override {
+      static constexpr std::uint8_t list0[] = {
+          0xC8       ,  3, 0xFF,0x93,0x42,   // Turn on the external command
+          CMD::PWCTR1,  2, 0x12, 0x12,
+          CMD::PWCTR2,  1, 0x03,
+          CMD::VMCTR1,  1, 0xF2,
+          0xB0       ,  1, 0xE0,
+          0xF6       ,  3, 0x00, 0x01, 0x01,
+          CMD::GMCTRP1,15, 0x00,0x0C,0x11,0x04,0x11,0x08,0x37,0x89,0x4C,0x06,0x0C,0x0A,0x2E,0x34,0x0F,
+          CMD::GMCTRN1,15, 0x00,0x0B,0x11,0x05,0x13,0x09,0x33,0x67,0x48,0x07,0x0E,0x0B,0x2E,0x33,0x0F,
+          0xFF,0xFF, // end
+      };
       static constexpr std::uint8_t list1[] = {
           CMD::DFUNCTR,4, 0x08,0x82,0x1D,0x04,
           0xFF,0xFF, // end
       };
-      if (listno == 1)  return list1;
-      return Panel_ILI9341::getInitCommands(listno);
+      static constexpr std::uint8_t list2[] = {
+          CMD::SLPOUT, 0,
+          CMD::DISPON, 0,
+          0xFF,0xFF, // end
+      };
+      switch (listno) {
+      case 0: return list0;
+      case 1: return list1;
+      case 2: return list2;
+      default: return nullptr;
+      }
     }
   };
 }
