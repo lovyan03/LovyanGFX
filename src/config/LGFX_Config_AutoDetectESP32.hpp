@@ -134,11 +134,9 @@ private:
       panel_last = nullptr;
     }
 
-    auto panel = new lgfx::PanelIlitekCommon();
-    panel->spi_3wire  = true;
-    panel->freq_read  = 8000000;
-    panel->panel_width  = 0;
-    panel->panel_height = 0;
+    lgfx::PanelIlitekCommon panel;
+    panel.spi_3wire  = true;
+    panel.freq_read  = 8000000;
     board = board_unknown;
     std::uint32_t id;
 
@@ -151,10 +149,10 @@ private:
     _spi_sclk = 18;
     initBus();
 
-    panel->spi_cs   =  5;
-    panel->spi_dc   = 27;
-    panel->gpio_rst = -1;
-    setPanel(panel);
+    panel.spi_cs   =  5;
+    panel.spi_dc   = 27;
+    panel.gpio_rst = -1;
+    setPanel(&panel);
 
     id = readPanelID();
     ESP_LOGW("LovyanGFX", "[Autodetect] panel id:%08x", id);
@@ -179,8 +177,8 @@ private:
       setPanel(p);
       goto init_clear;
     }
-    lgfx::gpio_lo(panel->spi_cs);
-    lgfx::gpio_lo(panel->spi_dc);
+    lgfx::gpio_lo(panel.spi_cs);
+    lgfx::gpio_lo(panel.spi_dc);
 #endif
 
 
@@ -192,10 +190,10 @@ private:
     _spi_sclk = 18;
     initBus();
 
-    panel->spi_cs   =  5;
-    panel->spi_dc   = 23;
-    panel->gpio_rst = 26;
-    setPanel(panel);
+    panel.spi_cs   =  5;
+    panel.spi_dc   = 23;
+    panel.gpio_rst = 26;
+    setPanel(&panel);
     _reset();
 
     id = readPanelID();
@@ -220,9 +218,9 @@ private:
       setPanel(p);
       goto init_clear;
     }
-    lgfx::gpio_lo(panel->spi_cs);
-    lgfx::gpio_lo(panel->spi_dc);
-    lgfx::gpio_lo(panel->gpio_rst);
+    lgfx::gpio_lo(panel.spi_cs);
+    lgfx::gpio_lo(panel.spi_dc);
+    lgfx::gpio_lo(panel.gpio_rst);
 #endif
 
 
@@ -234,10 +232,10 @@ private:
     _spi_sclk = 18;
     initBus();
 
-    panel->spi_cs   = 14;
-    panel->spi_dc   = 27;
-    panel->gpio_rst = 33;
-    setPanel(panel);
+    panel.spi_cs   = 14;
+    panel.spi_dc   = 27;
+    panel.gpio_rst = 33;
+    setPanel(&panel);
     _reset();
 
  #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_M5STACK )
@@ -312,9 +310,9 @@ private:
     }
  #endif
 
-    lgfx::gpio_lo(panel->spi_cs);
-    lgfx::gpio_lo(panel->spi_dc);
-    lgfx::gpio_lo(panel->gpio_rst);
+    lgfx::gpio_lo(panel.spi_cs);
+    lgfx::gpio_lo(panel.spi_dc);
+    lgfx::gpio_lo(panel.gpio_rst);
     lgfx::gpio_lo(4);
     lgfx::gpio_lo(5);
     lgfx::gpio_lo(12);
@@ -329,10 +327,10 @@ private:
     _spi_sclk = 18;
     initBus();
 
-    panel->spi_cs   =  5;
-    panel->spi_dc   = 21;
-    panel->gpio_rst = -1;
-    setPanel(panel);
+    panel.spi_cs   =  5;
+    panel.spi_dc   = 21;
+    panel.gpio_rst = -1;
+    setPanel(&panel);
 
     lgfx::lgfxPinMode(22, lgfx::pin_mode_t::output); // ODROID-GO TF card CS
     lgfx::gpio_hi(22);
@@ -352,8 +350,8 @@ private:
       setPanel(p);
       goto init_clear;
     }
-    lgfx::gpio_lo(panel->spi_cs);
-    lgfx::gpio_lo(panel->spi_dc);
+    lgfx::gpio_lo(panel.spi_cs);
+    lgfx::gpio_lo(panel.spi_dc);
     lgfx::gpio_lo(22);
 #endif
 
@@ -365,10 +363,10 @@ private:
     _spi_sclk = 13;
     initBus();
 
-    panel->spi_cs   =  5;
-    panel->spi_dc   = 23;
-    panel->gpio_rst = 18;
-    setPanel(panel);
+    panel.spi_cs   =  5;
+    panel.spi_dc   = 23;
+    panel.gpio_rst = 18;
+    setPanel(&panel);
     _reset();
 
     id = readPanelID();
@@ -388,9 +386,9 @@ private:
       setPanel(p);
       goto init_clear;
     }
-    lgfx::gpio_lo(panel->spi_cs);
-    lgfx::gpio_lo(panel->spi_dc);
-    lgfx::gpio_lo(panel->gpio_rst);
+    lgfx::gpio_lo(panel.spi_cs);
+    lgfx::gpio_lo(panel.spi_dc);
+    lgfx::gpio_lo(panel.gpio_rst);
 #endif
 
 // ESP-WROVER-KIT 判定
@@ -401,11 +399,11 @@ private:
     _spi_sclk = 19;
     initBus();
 
-    panel->spi_3wire = false;
-    panel->spi_cs   = 22;
-    panel->spi_dc   = 21;
-    panel->gpio_rst = 18;
-    setPanel(panel);
+    panel.spi_3wire = false;
+    panel.spi_cs   = 22;
+    panel.spi_dc   = 21;
+    panel.gpio_rst = 18;
+    setPanel(&panel);
     _reset();
 
     id = readPanelID();
@@ -450,10 +448,10 @@ private:
       setPanel(p);
       goto init_clear;
     }
-    lgfx::gpio_lo(panel->spi_cs);
-    lgfx::gpio_lo(panel->spi_dc);
-    lgfx::gpio_lo(panel->gpio_rst);
-    panel->spi_3wire = true;
+    lgfx::gpio_lo(panel.spi_cs);
+    lgfx::gpio_lo(panel.spi_dc);
+    lgfx::gpio_lo(panel.gpio_rst);
+    panel.spi_3wire = true;
 #endif
 
 // TTGO TS判定
@@ -464,10 +462,10 @@ private:
     _spi_sclk =  5;
     initBus();
 
-    panel->spi_cs   = 16;
-    panel->spi_dc   = 17;
-    panel->gpio_rst =  9;
-    setPanel(panel);
+    panel.spi_cs   = 16;
+    panel.spi_dc   = 17;
+    panel.gpio_rst =  9;
+    setPanel(&panel);
     _reset();
 
     id = readPanelID();
@@ -492,9 +490,9 @@ private:
       setPanel(p);
       goto init_clear;
     }
-    lgfx::gpio_lo(panel->spi_cs);
-    lgfx::gpio_lo(panel->spi_dc);
-    lgfx::gpio_lo(panel->gpio_rst);
+    lgfx::gpio_lo(panel.spi_cs);
+    lgfx::gpio_lo(panel.spi_dc);
+    lgfx::gpio_lo(panel.gpio_rst);
 #endif
 
 // DSTIKE D-Duino32XS については読出しが出来ないため無条件設定となる。
@@ -528,11 +526,12 @@ private:
     releaseBus();
 
     ESP_LOGW("LovyanGFX", "[Autodetect] detect fail.");
-    panel_last = getPanel();
+    panel_last = new lgfx::PanelIlitekCommon();
+    panel_last->panel_width  = 0;
+    panel_last->panel_height = 0;
     return;
 
 init_clear:
-    delete panel;
     panel_last = getPanel();
     initPanel();
     startWrite();

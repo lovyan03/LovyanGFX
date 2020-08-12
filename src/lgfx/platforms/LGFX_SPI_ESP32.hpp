@@ -564,43 +564,54 @@ namespace lgfx
 
     void push_block(std::int32_t length, bool fillclock = false)
     {
-      if (length == 1) { write_data(_color.raw, _write_conv.bits); return; }
+      auto bits = _write_conv.bits;
+      std::uint32_t regbuf0 = _color.raw;
+      if (length == 1) { write_data(regbuf0, bits); return; }
 
-      std::uint32_t regbuf[8];
+      length *= bits;          // convert to bitlength.
+      std::uint32_t len = std::min(96, length); // 1st send length = max 12Byte (96bit). 
+      bool bits16 = bits == 16;
 
+      std::uint32_t regbuf1;
+      std::uint32_t regbuf2;
       // make 12Bytes data.
-      auto bytes = _write_conv.bytes;
-      if (bytes == 2) {
-        std::uint32_t tmp = _color.raw | _color.raw << 16;
-        regbuf[0] = tmp;
-        regbuf[1] = tmp;
-        regbuf[2] = tmp;
-      } else { // bytes == 3
-        std::uint8_t* bufs = (std::uint8_t*)regbuf;
-        bufs[0] = bufs[3] = bufs[6] = bufs[ 9] = _color.raw0;
-        bufs[1] = bufs[4] = bufs[7] = bufs[10] = _color.raw1;
-        bufs[2] = bufs[5] = bufs[8] = bufs[11] = _color.raw2;
+      if (bits16) {
+        regbuf0 = regbuf0 | regbuf0 << 16;
+        regbuf1 = regbuf0;
+        regbuf2 = regbuf0;
+      } else {
+        regbuf0 = regbuf0      | regbuf0 << 24;
+        regbuf1 = regbuf0 >> 8 | regbuf0 << 16;
+        regbuf2 = regbuf0 >>16 | regbuf0 <<  8;
       }
 
-      length *= _write_conv.bits;          // convert to bitlength.
-      std::uint32_t len = std::min(96, length); // 1st send length = max 12Byte (96bit). 
       auto spi_w0_reg = _spi_w0_reg;
       dc_h();
-      if (fillclock) {
-        _fill_mode = true;
-        set_clock_fill();  // fillmode clockup
-      }
-      set_write_len(len);
 
       // copy to SPI buffer register
-      memcpy((void*)spi_w0_reg, regbuf, 12);
+      spi_w0_reg[0] = regbuf0;
+      spi_w0_reg[1] = regbuf1;
+      spi_w0_reg[2] = regbuf2;
+
+      set_write_len(len);
+
+      if (fillclock) {
+        set_clock_fill();  // fillmode clockup
+        _fill_mode = true;
+      }
 
       exec_spi();   // 1st send.
       if (0 == (length -= len)) return;
 
-      // make 28Byte data from 12Byte data.
-      memcpy((void*)&regbuf[3], regbuf, 12);
-      memcpy((void*)&regbuf[6], regbuf, 4);
+      std::uint32_t regbuf[7];
+      regbuf[0] = regbuf0;
+      regbuf[1] = regbuf1;
+      regbuf[2] = regbuf2;
+      regbuf[3] = regbuf0;
+      regbuf[4] = regbuf1;
+      regbuf[5] = regbuf2;
+      regbuf[6] = regbuf0;
+
       // copy to SPI buffer register
       memcpy((void*)&spi_w0_reg[3], regbuf, 24);
       memcpy((void*)&spi_w0_reg[9], regbuf, 28);
@@ -608,11 +619,14 @@ namespace lgfx
       // limit = 64Byte / depth_bytes;
       // When 3Byte color, 504 bits out of 512bit buffer are used.
       // When 2Byte color, it uses exactly 512 bytes. but, it behaves like a ring buffer, can specify a larger size.
-      const std::uint32_t limit = (bytes == 3) ? 504 : (1 << 11);
-
-      len = (bytes == 3)           // 2nd send length = Surplus of buffer size.
-          ? (length % limit)
-          : (length & (limit - 1));
+      std::uint32_t limit;
+      if (bits16) {
+        limit = (1 << 11);
+        len = length & (limit - 1);
+      } else {
+        limit = 504;
+        len = length % limit;
+      }
       if (len) {
         wait_spi();
         set_write_len(len);
@@ -627,7 +641,6 @@ namespace lgfx
         wait_spi();
         exec_spi();
       }
-//*/
     }
 
     bool commandList(const std::uint8_t *addr)
@@ -690,7 +703,6 @@ namespace lgfx
       } else {
         len = (_len_setwindow << 1) - 1;
       }
-      auto spi_w0_reg        = _spi_w0_reg;
       auto spi_mosi_dlen_reg = _spi_mosi_dlen_reg;
       auto fp = fpGetWindowAddr;
 
@@ -701,6 +713,7 @@ namespace lgfx
         std::uint32_t tmp = _colstart;
 
         tmp = fp(xs + tmp, xe + tmp);
+        auto spi_w0_reg = _spi_w0_reg;
         if (_spi_dlen == 8) {
           dc_h();
           *spi_w0_reg = tmp;
@@ -722,6 +735,7 @@ namespace lgfx
         std::uint32_t tmp = _rowstart;
 
         tmp = fp(ys + tmp, ye + tmp);
+        auto spi_w0_reg = _spi_w0_reg;
         if (_spi_dlen == 8) {
           dc_h();
           *spi_w0_reg = tmp;
