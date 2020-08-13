@@ -708,8 +708,6 @@ namespace lgfx
 
       if (_xs != xs || _xe != xe) {
         write_cmd(_cmd_caset);
-        _xs = xs;
-        _xe = xe;
         std::uint32_t tmp = _colstart;
 
         tmp = fp(xs + tmp, xe + tmp);
@@ -717,7 +715,7 @@ namespace lgfx
         if (_spi_dlen == 8) {
           dc_h();
           *spi_w0_reg = tmp;
-        } else if (_spi_dlen == 16) {
+        } else {
           std::uint32_t r0 = (tmp & 0xFF) << 8 | (tmp >> 8) << 24;
           tmp >>= 16;
           std::uint32_t r1 = (tmp & 0xFF) << 8 | (tmp >> 8) << 24;
@@ -727,11 +725,11 @@ namespace lgfx
         }
         *spi_mosi_dlen_reg = len;
         exec_spi();
+        _xs = xs;
+        _xe = xe;
       }
       if (_ys != ys || _ye != ye) {
         write_cmd(_cmd_raset);
-        _ys = ys;
-        _ye = ye;
         std::uint32_t tmp = _rowstart;
 
         tmp = fp(ys + tmp, ye + tmp);
@@ -739,7 +737,7 @@ namespace lgfx
         if (_spi_dlen == 8) {
           dc_h();
           *spi_w0_reg = tmp;
-        } else if (_spi_dlen == 16) {
+        } else {
           std::uint32_t r0 = (tmp & 0xFF) << 8 | (tmp >> 8) << 24;
           tmp >>= 16;
           std::uint32_t r1 = (tmp & 0xFF) << 8 | (tmp >> 8) << 24;
@@ -749,6 +747,8 @@ namespace lgfx
         }
         *spi_mosi_dlen_reg = len;
         exec_spi();
+        _ys = ys;
+        _ye = ye;
       }
     }
 

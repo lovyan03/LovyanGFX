@@ -167,6 +167,7 @@ namespace lgfx
   template<class T, valuetype V> static constexpr std::integral_constant<valuetype, T::member> check(decltype(T::member)*); \
   template<class T, valuetype V> static constexpr std::integral_constant<valuetype, V> check(...); \
   };template<class T, valuetype V> class classname : public decltype(classname_impl::check<T, V>(nullptr)) {};
+  MEMBER_DETECTOR(spi_host   , get_spi_host   , get_spi_host_impl   , int)
   MEMBER_DETECTOR(spi_mosi   , get_spi_mosi   , get_spi_mosi_impl   , int)
   MEMBER_DETECTOR(spi_miso   , get_spi_miso   , get_spi_miso_impl   , int)
   MEMBER_DETECTOR(spi_sclk   , get_spi_sclk   , get_spi_sclk_impl   , int)
@@ -756,7 +757,14 @@ void disableSPI()
 
     void write_cmd(std::uint_fast8_t cmd)
     {
-      if (_spi_dlen == 16) { cmd <<= 8; }
+      if (_spi_dlen == 16) {
+        cmd <<= 8;
+        if (!_sercom->SPI.CTRLC.bit.DATA32B) {
+          disableSPI();
+          _sercom->SPI.CTRLC.bit.DATA32B = 1;  // 4Byte transfer enable
+          enableSPI();
+        }
+      }
       auto *datreg = &_sercom->SPI.DATA.reg;
       auto *lenreg = &_sercom->SPI.LENGTH.reg;
       dc_l();
@@ -767,14 +775,15 @@ void disableSPI()
 
     void write_data(std::uint32_t data, std::uint32_t bit_length)
     {
-      auto *datreg = &_sercom->SPI.DATA.reg;
-      auto *lenreg = &_sercom->SPI.LENGTH.reg;
-      auto len = (bit_length>>3) | SERCOM_SPI_LENGTH_LENEN;
-      if (len > 1 && !_sercom->SPI.CTRLC.bit.DATA32B) {
+      bit_length >>= 3;
+      auto len = bit_length | SERCOM_SPI_LENGTH_LENEN;
+      if (bit_length > 1 && !_sercom->SPI.CTRLC.bit.DATA32B) {
         disableSPI();
         _sercom->SPI.CTRLC.bit.DATA32B = 1;  // 4Byte transfer enable
         enableSPI();
       }
+      auto *datreg = &_sercom->SPI.DATA.reg;
+      auto *lenreg = &_sercom->SPI.LENGTH.reg;
       dc_h();
       *lenreg = len;
       *datreg = data;
@@ -793,8 +802,6 @@ void disableSPI()
 
       if (_xs != xs || _xe != xe) {
         write_cmd(_cmd_caset);
-        _xs = xs;
-        _xe = xe;
         std::uint32_t tmp = _colstart;
 
         tmp = fp(xs + tmp, xe + tmp);
@@ -805,11 +812,11 @@ void disableSPI()
           tmp >>= 16;
           write_data((tmp & 0xFF) << 8 | (tmp >> 8) << 24, 32);
         }
+        _xs = xs;
+        _xe = xe;
       }
       if (_ys != ys || _ye != ye) {
         write_cmd(_cmd_raset);
-        _ys = ys;
-        _ye = ye;
         std::uint32_t tmp = _rowstart;
 
         tmp = fp(ys + tmp, ye + tmp);
@@ -820,6 +827,8 @@ void disableSPI()
           tmp >>= 16;
           write_data((tmp & 0xFF) << 8 | (tmp >> 8) << 24, 32);
         }
+        _ys = ys;
+        _ye = ye;
       }
     }
 
