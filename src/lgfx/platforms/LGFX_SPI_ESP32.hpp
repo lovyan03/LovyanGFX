@@ -301,8 +301,10 @@ namespace lgfx
 #if defined (ARDUINO) // Arduino ESP32
       spiStopBus(_spi_handle);
 #elif defined (CONFIG_IDF_TARGET_ESP32) // ESP-IDF
-      spi_bus_remove_device(_spi_handle);
-      spi_bus_free(_spi_host);
+      if (_spi_handle != nullptr) {
+        spi_bus_remove_device(_spi_handle);
+        spi_bus_free(_spi_host);
+      }
 #endif
       _spi_handle = nullptr;
     }
