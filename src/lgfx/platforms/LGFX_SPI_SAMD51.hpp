@@ -718,8 +718,9 @@ void disableSPI()
       _sercom->SPI.LENGTH.reg = bytes | SERCOM_SPI_LENGTH_LENEN;
       *reg = data;
       _need_wait = true;
+      auto *intflag = &_sercom->SPI.INTFLAG.bit; 
       while (--length) {
-        wait_spi();
+        while (intflag->TXC == 0);
         *reg = data;
       };
     }
