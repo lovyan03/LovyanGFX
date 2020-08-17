@@ -830,17 +830,17 @@ void disableSPI()
     {
       bit_length >>= 3;
       auto len = bit_length | SERCOM_SPI_LENGTH_LENEN;
-      if (!_sercom->SPI.CTRLC.bit.DATA32B) {
-        disableSPI();
-        _sercom->SPI.CTRLC.bit.DATA32B = 1;  // 4Byte transfer enable
-        enableSPI();
-      }
       auto *spi = &_sercom->SPI;
-      auto *datreg = &spi->DATA.reg;
-      auto *lenreg = &spi->LENGTH.reg;
       dc_h();
-      *lenreg = len;
-      *datreg = data;
+      if (!_sercom->SPI.CTRLC.bit.DATA32B) {
+        while (spi->SYNCBUSY.reg);
+        spi->CTRLA.bit.ENABLE = 0;
+        spi->CTRLC.bit.DATA32B = 1;  // 4Byte transfer enable
+        spi->CTRLA.bit.ENABLE = 1;
+        while (spi->SYNCBUSY.reg);
+      }
+      spi->LENGTH.reg = len;
+      spi->DATA.reg = data;
       _need_wait = true;
     }
 
