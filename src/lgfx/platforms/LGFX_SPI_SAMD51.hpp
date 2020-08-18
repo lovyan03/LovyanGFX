@@ -658,11 +658,6 @@ void disableSPI()
 
     void setWindow_impl(std::int32_t xs, std::int32_t ys, std::int32_t xe, std::int32_t ye) override
     {
-      if (_fill_mode) {
-        _fill_mode = false;
-        wait_spi();
-        set_clock_write();
-      }
       set_window(xs, ys, xe, ye);
       write_cmd(_cmd_ramwr);
     }
@@ -670,11 +665,6 @@ void disableSPI()
     void drawPixel_impl(std::int32_t x, std::int32_t y) override
     {
       if (_begun_tr) {
-        if (_fill_mode) {
-          _fill_mode = false;
-          wait_spi();
-          set_clock_write();
-        }
         set_window(x, y, x, y);
         write_cmd(_cmd_ramwr);
         write_data(_color.raw, _write_conv.bits);
@@ -690,11 +680,6 @@ void disableSPI()
 
     void writeFillRect_impl(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h) override
     {
-      if (_fill_mode) {
-        _fill_mode = false;
-        wait_spi();
-        set_clock_write();
-      }
       set_window(x, y, x+w-1, y+h-1);
       write_cmd(_cmd_ramwr);
 
@@ -862,32 +847,82 @@ void disableSPI()
       }
       auto fp = fpGetWindowAddr;
 
+      auto *spi = &_sercom->SPI;
+      bool d32b = !spi->CTRLC.bit.DATA32B;
+      if (d32b || _fill_mode) {
+        wait_spi();
+        while (spi->SYNCBUSY.reg);
+        spi->CTRLA.bit.ENABLE = 0;
+        if (d32b) spi->CTRLC.bit.DATA32B = 1;  // 4Byte transfer enable
+        if (_fill_mode) {
+          _fill_mode = false;
+          while (spi->SYNCBUSY.reg);
+          spi->BAUD.reg = _clkdiv_write;
+        }
+        spi->CTRLA.bit.ENABLE = 1;
+        while (spi->SYNCBUSY.reg);
+      }
+
       if (_xs != xs || _xe != xe) {
-        write_cmd(_cmd_caset);
+        dc_l();
+        if (_spi_dlen != 16) {
+          spi->LENGTH.reg = 1 | SERCOM_SPI_LENGTH_LENEN;
+          spi->DATA.reg = _cmd_caset;
+        } else {
+          spi->LENGTH.reg = 2 | SERCOM_SPI_LENGTH_LENEN;
+          spi->DATA.reg = _cmd_caset << 8;
+        }
+        _need_wait = true;
+
         std::uint32_t tmp = _colstart;
 
         tmp = fp(xs + tmp, xe + tmp);
         if (_spi_dlen == 8) {
-          write_data(tmp, len);
+          auto l = len >> 3 | SERCOM_SPI_LENGTH_LENEN;
+          dc_h();
+          spi->LENGTH.reg = l;
+          spi->DATA.reg = tmp;
         } else if (_spi_dlen == 16) {
-          write_data((tmp & 0xFF) << 8 | (tmp >> 8) << 24, 32);
+          auto t = (tmp & 0xFF) << 8 | (tmp >> 8) << 24;
+          dc_h();
+          spi->LENGTH.reg = 0;
+          spi->DATA.reg = t;
           tmp >>= 16;
-          write_data((tmp & 0xFF) << 8 | (tmp >> 8) << 24, 32);
+          t = (tmp & 0xFF) << 8 | (tmp >> 8) << 24;
+          while (spi->INTFLAG.bit.TXC == 0);
+          spi->DATA.reg = t;
         }
         _xs = xs;
         _xe = xe;
       }
       if (_ys != ys || _ye != ye) {
-        write_cmd(_cmd_raset);
+        dc_l();
+        if (_spi_dlen != 16) {
+          spi->LENGTH.reg = 1 | SERCOM_SPI_LENGTH_LENEN;
+          spi->DATA.reg = _cmd_raset;
+        } else {
+          spi->LENGTH.reg = 2 | SERCOM_SPI_LENGTH_LENEN;
+          spi->DATA.reg = _cmd_raset << 8;
+        }
+        _need_wait = true;
+
         std::uint32_t tmp = _rowstart;
 
         tmp = fp(ys + tmp, ye + tmp);
         if (_spi_dlen == 8) {
-          write_data(tmp, len);
+          auto l = len >> 3 | SERCOM_SPI_LENGTH_LENEN;
+          dc_h();
+          spi->LENGTH.reg = l;
+          spi->DATA.reg = tmp;
         } else if (_spi_dlen == 16) {
-          write_data((tmp & 0xFF) << 8 | (tmp >> 8) << 24, 32);
+          auto t = (tmp & 0xFF) << 8 | (tmp >> 8) << 24;
+          dc_h();
+          spi->LENGTH.reg = 0;
+          spi->DATA.reg = t;
           tmp >>= 16;
-          write_data((tmp & 0xFF) << 8 | (tmp >> 8) << 24, 32);
+          t = (tmp & 0xFF) << 8 | (tmp >> 8) << 24;
+          while (spi->INTFLAG.bit.TXC == 0);
+          spi->DATA.reg = t;
         }
         _ys = ys;
         _ye = ye;
