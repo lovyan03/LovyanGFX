@@ -233,7 +233,7 @@ namespace lgfx
 
     __attribute__ ((always_inline)) inline void begin(void) { init(); }
 
-    void init(void) { initBus(); initPanel(); }
+    void init(void) { initBus(); initPanel(); clear(); }
 
     // Write single byte as COMMAND
     void writeCommand(std::uint_fast8_t cmd) { startWrite(); write_cmd(cmd); endWrite(); } // AdafruitGFX compatible
@@ -373,13 +373,13 @@ void disableSPI()
     void setFreqDiv(std::uint32_t div)
     {
       auto *spi = &_sercom->SPI;
-      while (spi->SYNCBUSY.bit.ENABLE);
+      while (spi->SYNCBUSY.reg);
       spi->CTRLA.bit.ENABLE = 0;
-      while( spi->SYNCBUSY.bit.CTRLB == 1 );
+      while (spi->SYNCBUSY.reg);
       spi->BAUD.reg = div;
       spi->CTRLA.bit.ENABLE = 1;
       _need_wait = false;
-      while (spi->SYNCBUSY.bit.ENABLE);
+      while (spi->SYNCBUSY.reg);
     }
 
     void pinAssignSercom(int cfgport, int type = 3) {
@@ -548,7 +548,6 @@ void disableSPI()
       invertDisplay(getInvert());
       setColorDepth(getColorDepth());
       setRotation(getRotation());
-      clear();
 
       endWrite();
 
@@ -711,11 +710,12 @@ void disableSPI()
     {
       auto *spi = &_sercom->SPI;
       fillclock &= (length > 4);
+      bool d32b = spi->CTRLC.bit.DATA32B;
       dc_h();
-      if (fillclock || !spi->CTRLC.bit.DATA32B) {
+      if (fillclock || !d32b) {
         while (spi->SYNCBUSY.reg);
         spi->CTRLA.bit.ENABLE = 0;
-        spi->CTRLC.bit.DATA32B = 1;  // 4Byte transfer enable
+        if (!d32b) spi->CTRLC.bit.DATA32B = 1;  // 4Byte transfer enable
         if (fillclock) {
           _fill_mode = true; 
           spi->BAUD.reg = _clkdiv_fill;
@@ -726,22 +726,21 @@ void disableSPI()
       std::uint32_t data = _color.raw;
       if (_write_conv.bytes == 2) { // 16bit color
         if (length & 0x01) {
-          --length;
           spi->LENGTH.reg = 2 | SERCOM_SPI_LENGTH_LENEN;
           _need_wait = true;
           spi->DATA.reg = data;
-          if (!length) return;
-          while (spi->INTFLAG.bit.TXC == 0);
+          if (!--length) return;
+          while (spi->INTFLAG.bit.TXC == 0); // LENEN有効の時はTXC待ち(DRE待ちを使うと挙動がおかしくなる)
         }
         spi->LENGTH.reg = 0;
         data |= data << 16;
-        length >>= 1;
         spi->DATA.reg = data;
         _need_wait = true;
+        length >>= 1;
         while (--length) {
           while (spi->INTFLAG.bit.DRE == 0);
           spi->DATA.reg = data;
-        };
+        }
 
       } else {  // 24bit color
 
@@ -770,13 +769,13 @@ void disableSPI()
         spi->DATA.reg = buf[0];
         if (!--length) return;
         do {
-          while (!(spi->INTFLAG.reg & 3)); // wait TXC or DRE
+          while (spi->INTFLAG.bit.DRE == 0);
           spi->DATA.reg = buf[1];
           if (!--length) return;
-          while (!(spi->INTFLAG.reg & 3)); // wait TXC or DRE
+          while (spi->INTFLAG.bit.DRE == 0);
           spi->DATA.reg = buf[2];
           if (!--length) return;
-          while (!(spi->INTFLAG.reg & 3)); // wait TXC or DRE
+          while (spi->INTFLAG.bit.DRE == 0);
           spi->DATA.reg = buf[0];
         } while (--length);
       }
@@ -817,13 +816,22 @@ void disableSPI()
     {
       auto *spi = &_sercom->SPI;
       dc_l();
-      spi->LENGTH.reg = 1 | SERCOM_SPI_LENGTH_LENEN;
-      if (_spi_dlen == 16) {
-        spi->DATA.reg = 0;
-        while ((spi->INTFLAG.reg & 3) == 0);
+      if (_spi_dlen != 16) {
+        spi->LENGTH.reg = 1 | SERCOM_SPI_LENGTH_LENEN;
+        spi->DATA.reg = cmd;
+        _need_wait = true;
+      } else {
+        if (!_sercom->SPI.CTRLC.bit.DATA32B) {
+          while (spi->SYNCBUSY.reg);
+          spi->CTRLA.bit.ENABLE = 0;
+          spi->CTRLC.bit.DATA32B = 1;  // 4Byte transfer enable
+          spi->CTRLA.bit.ENABLE = 1;
+          while (spi->SYNCBUSY.reg);
+        }
+        spi->LENGTH.reg = 2 | SERCOM_SPI_LENGTH_LENEN;
+        spi->DATA.reg = cmd << 8;
+        _need_wait = true;
       }
-      spi->DATA.reg = cmd;
-      _need_wait = true;
     }
 
     void write_data(std::uint32_t data, std::uint32_t bit_length)
@@ -1018,7 +1026,7 @@ void disableSPI()
           _need_wait = true;
           --length;
           if (!length) return;
-          wait_spi();
+          while (spi->INTFLAG.bit.TXC == 0);
         }
         spi->LENGTH.reg = 0;
         const std::uint32_t limit = 2;
@@ -1028,7 +1036,7 @@ void disableSPI()
         if (0 == (length -= limit)) return;
         do {
           param->fp_copy(&buf, 0, limit, param);
-          while (!(spi->INTFLAG.reg & 3)); // wait TXC or DRE
+          while (spi->INTFLAG.bit.DRE == 0);
           spi->DATA.reg = buf;
         } while (length -= limit);
       } else {
@@ -1040,7 +1048,7 @@ void disableSPI()
         if (0 == (length -= limit)) return;
         do {
           param->fp_copy(&buf, 0, limit, param);
-          while (!(spi->INTFLAG.bit.TXC)); // wait TXC
+          while (spi->INTFLAG.bit.TXC == 0);
           spi->DATA.reg = buf;
         } while (length -= limit);
       }
@@ -1112,7 +1120,7 @@ void disableSPI()
         length -= surplus;
         if (!length) return;
         data = &data[surplus];
-        wait_spi();
+        while (spi->INTFLAG.bit.TXC == 0);
       }
       _sercom->SPI.LENGTH.reg = 0;
       std::uint32_t buf = *(std::uint32_t*)data;
@@ -1122,7 +1130,7 @@ void disableSPI()
       if (length == idx) return;
       do {
         buf = *(std::uint32_t*)&data[idx];
-        while ((spi->INTFLAG.reg & 3) == 0);
+        while (spi->INTFLAG.bit.DRE == 0);
         spi->DATA.reg = buf;
       } while (length != (idx += 4));
     }
