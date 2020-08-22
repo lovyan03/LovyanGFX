@@ -512,13 +512,10 @@ private:
     panel_last->panel_height = 0;
     return;
 
+    goto init_clear;
 init_clear:
     panel_last = getPanel();
-    initPanel();
-    startWrite();
-    clear();
-    setWindow(0,0,0,0);
-    endWrite();
+    lgfx::LGFX_SPI<lgfx::LGFX_Config>::init_impl();
   }
 
   board_t board = board_unknown;

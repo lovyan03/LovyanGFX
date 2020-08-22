@@ -149,7 +149,7 @@ namespace lgfx
     __attribute__ ((always_inline)) inline void beginTransaction(void) { beginTransaction_impl(); }
     __attribute__ ((always_inline)) inline void endTransaction(void)   { endTransaction_impl(); }
     __attribute__ ((always_inline)) inline void initDMA(void)  { initDMA_impl(); }
-    __attribute__ ((always_inline)) inline void waitDMA(void)  { waitDMA_impl(); }
+    __attribute__ ((always_inline)) inline void waitDMA(void) { waitDMA_impl(); }
     __attribute__ ((always_inline)) inline bool dmaBusy(void)  { return dmaBusy_impl(); }
     __attribute__ ((always_inline)) inline void setWindow(std::int32_t xs, std::int32_t ys, std::int32_t xe, std::int32_t ye) { setWindow_impl(xs, ys, xe, ye); }
 
@@ -576,23 +576,29 @@ namespace lgfx
       if (1 == ++_transaction_count && transaction) beginTransaction();
     }
   };
+
+//----------------------------------------------------------------------------
+
+  class LovyanGFX : public
+  #ifdef LGFX_FONT_SUPPORT_HPP_
+     lgfx::LGFX_Font_Support<
+  #endif
+  #ifdef LGFX_IMG_SUPPORT_HPP_
+      lgfx::LGFX_IMG_Support<
+  #endif
+       lgfx::LGFXBase
+  #ifdef LGFX_IMG_SUPPORT_HPP_
+      >
+  #endif
+  #ifdef LGFX_FONT_SUPPORT_HPP_
+     >
+  #endif
+  {};
+
+//----------------------------------------------------------------------------
+
 }
 
-
-class LovyanGFX : public
-#ifdef LGFX_FONT_SUPPORT_HPP_
-   lgfx::LGFX_Font_Support<
-#endif
-#ifdef LGFX_IMG_SUPPORT_HPP_
-    lgfx::LGFX_IMG_Support<
-#endif
-     lgfx::LGFXBase
-#ifdef LGFX_IMG_SUPPORT_HPP_
-    >
-#endif
-#ifdef LGFX_FONT_SUPPORT_HPP_
-   >
-#endif
-{};
+using lgfx::LovyanGFX;
 
 #endif
