@@ -4,6 +4,7 @@
 #include "../lgfx_common.hpp"
 
 #include <cstdint>
+#include <driver/i2c.h>
 
 #if defined ARDUINO
   #include <Arduino.h>
@@ -93,6 +94,10 @@ namespace lgfx
   template<>
   struct TPin<-1> : public ESP32NOPIN {};
 //*/
+
+  std::uint32_t getApbFrequency(void);
+  std::uint32_t FreqToClockDiv(std::uint32_t fapb, std::uint32_t hz);
+
 //----------------------------------------------------------------------------
   struct FileWrapper : public DataWrapper {
     FileWrapper() : DataWrapper() { need_transaction = true; }

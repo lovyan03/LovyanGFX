@@ -2,11 +2,14 @@
 
 #include "esp32_common.hpp"
 
+#include <driver/i2c.h>
+#include <driver/spi_common.h>
 #include <driver/rtc_io.h>
 #include <soc/rtc.h>
 
 #if defined ARDUINO
  #include <esp32-hal-ledc.h>
+ #include <Wire.h>
 #else
  #include <driver/ledc.h>
 #endif
@@ -17,7 +20,9 @@ namespace lgfx
   void lgfxPinMode(std::int_fast8_t pin, pin_mode_t mode)
   {
     if (pin < 0) return;
-    gpio_set_direction((gpio_num_t)pin, GPIO_MODE_DISABLE);
+    if (pin < 6 || pin > 11) {
+      gpio_set_direction((gpio_num_t)pin, GPIO_MODE_DISABLE);
+    }
 #if defined (ARDUINO)
     int m;
     switch (mode)
@@ -93,7 +98,191 @@ namespace lgfx
 #endif
   }
 
+  std::uint32_t getApbFrequency(void)
+  {
+    rtc_cpu_freq_config_t conf;
+    rtc_clk_cpu_freq_get_config(&conf);
+    if (conf.freq_mhz >= 80){
+      return 80 * 1000000;
+    }
+    return (conf.source_freq_mhz * 1000000) / conf.div;
+  }
 
-};
+  std::uint32_t FreqToClockDiv(std::uint32_t fapb, std::uint32_t hz)
+  {
+    if (hz > ((fapb >> 2) * 3)) {
+      return SPI_CLK_EQU_SYSCLK;
+    }
+    std::uint32_t besterr = fapb;
+    std::uint32_t halfhz = hz >> 1;
+    std::uint32_t bestn = 0;
+    std::uint32_t bestpre = 0;
+    for (std::uint32_t n = 2; n <= 64; n++) {
+      std::uint32_t pre = ((fapb / n) + halfhz) / hz;
+      if (pre == 0) pre = 1;
+      else if (pre > 8192) pre = 8192;
+
+      int errval = abs((std::int32_t)(fapb / (pre * n) - hz));
+      if (errval < besterr) {
+        besterr = errval;
+        bestn = n - 1;
+        bestpre = pre - 1;
+        if (!besterr) break;
+      }
+    }
+    return bestpre << 18 | bestn << 12 | ((bestn-1)>>1) << 6 | bestn;
+  }
+
+//----------------------------------------------------------------------------
+
+  namespace spi
+  {
+    void beginTransaction(int spi_host, int spi_cs, int freq, int spi_mode)
+    {
+      std::uint32_t spi_port = (spi_host == HSPI_HOST) ? 2 : 3;  // FSPI=1  HSPI=2  VSPI=3;
+      std::uint32_t clkdiv = FreqToClockDiv(getApbFrequency(), freq);
+
+      std::uint32_t user = SPI_USR_MOSI | SPI_USR_MISO | SPI_DOUTDIN;
+      if (spi_mode == 1 || spi_mode == 2) user |= SPI_CK_OUT_EDGE;
+      std::uint32_t pin = 0;
+      if (spi_mode & 2) pin = SPI_CK_IDLE_EDGE;
+
+      WRITE_PERI_REG(SPI_USER_REG(spi_port), user);
+      WRITE_PERI_REG(SPI_PIN_REG( spi_port), pin);
+      WRITE_PERI_REG(SPI_CLOCK_REG(spi_port), clkdiv);
+      gpio_lo(spi_cs);
+    }
+
+    void endTransaction(int spi_host, int spi_cs)
+    {
+      gpio_hi(spi_cs);
+    }
+
+    void writeData(int spi_host, const std::uint8_t* data, std::uint32_t len)
+    {
+      std::uint32_t spi_port = (spi_host == HSPI_HOST) ? 2 : 3;  // FSPI=1  HSPI=2  VSPI=3;
+      if (len > 64) len = 64;
+      memcpy(reinterpret_cast<void*>(SPI_W0_REG(spi_port)), data, len);
+      WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), (len << 3) - 1);
+      WRITE_PERI_REG(SPI_CMD_REG(      spi_port), SPI_USR);
+      while (READ_PERI_REG(SPI_CMD_REG(spi_port)) & SPI_USR);
+    }
+
+    void readData(int spi_host, std::uint8_t* data, std::uint32_t len)
+    {
+      std::uint32_t spi_port = (spi_host == HSPI_HOST) ? 2 : 3;  // FSPI=1  HSPI=2  VSPI=3;
+      if (len > 64) len = 64;
+      memcpy(reinterpret_cast<void*>(SPI_W0_REG(spi_port)), data, len);
+      WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), (len << 3) - 1);
+      WRITE_PERI_REG(SPI_CMD_REG(      spi_port), SPI_USR);
+      while (READ_PERI_REG(SPI_CMD_REG(spi_port)) & SPI_USR);
+
+      memcpy(data, reinterpret_cast<const void*>(SPI_W0_REG(spi_port)), len);
+    }
+  }
+
+//----------------------------------------------------------------------------
+
+  namespace i2c
+  {
+
+    void init(int i2c_port, int pin_sda, int pin_scl, int freq)
+    {
+#if defined (ARDUINO) // Arduino ESP32
+      auto &twowire = (i2c_port) ? Wire1 : Wire;
+      twowire.begin(pin_sda, pin_scl);
+      twowire.setClock(freq);
+
+#elif defined (CONFIG_IDF_TARGET_ESP32) // ESP-IDF
+      i2c_config_t conf;
+      conf.mode = I2C_MODE_MASTER;
+      conf.sda_io_num = (gpio_num_t)pin_sda;
+      conf.scl_io_num = (gpio_num_t)pin_scl;
+      conf.sda_pullup_en = GPIO_PULLUP_ENABLE;
+      conf.scl_pullup_en = GPIO_PULLUP_ENABLE;
+      conf.master.clk_speed = freq;
+
+      i2c_param_config(static_cast<i2c_port_t>(i2c_port), &conf);
+      i2c_driver_install(static_cast<i2c_port_t>(i2c_port), I2C_MODE_MASTER, 0, 0, 0);
+#endif
+    }
+
+    bool writeRegister(int i2c_port, std::uint8_t addr, std::uint8_t reg, const std::uint8_t *data, uint16_t len)
+    {
+#if defined (ARDUINO) // Arduino ESP32
+      auto &twowire = (i2c_port) ? Wire1 : Wire;
+      twowire.beginTransmission(addr);
+      twowire.write(reg);
+      twowire.write(data, len);
+      return 0 == twowire.endTransmission();
+
+#elif defined (CONFIG_IDF_TARGET_ESP32) // ESP-IDF
+      auto cmd = i2c_cmd_link_create();
+      i2c_master_start(cmd);
+      i2c_master_write_byte(cmd, (addr << 1) | I2C_MASTER_WRITE, true);
+      i2c_master_write_byte(cmd, reg, true);
+      i2c_master_write(cmd, const_cast<std::uint8_t*>(data), len, true);
+      i2c_master_stop(cmd);
+
+      auto result = i2c_master_cmd_begin(static_cast<i2c_port_t>(i2c_port), cmd, 10/portTICK_PERIOD_MS);
+      i2c_cmd_link_delete(cmd);
+
+      return result == ESP_OK;
+#endif
+    }
+
+    bool readRegister(int i2c_port, std::uint8_t addr, std::uint8_t reg, std::uint8_t *data, uint16_t len)
+    {
+#if defined (ARDUINO) // Arduino ESP32
+      auto &twowire = (i2c_port) ? Wire1 : Wire;
+      twowire.beginTransmission(addr);
+      twowire.write(reg);
+      if (twowire.endTransmission()) return false;
+      twowire.requestFrom(addr, len);
+      for (int i = 0; i < len; ++i) {
+        data[i] = twowire.read();
+      }
+      return true;
+
+#elif defined (CONFIG_IDF_TARGET_ESP32) // ESP-IDF
+      auto cmd = i2c_cmd_link_create();
+      i2c_master_start(cmd);
+      i2c_master_write_byte(cmd, (addr << 1) | I2C_MASTER_WRITE, true);
+      i2c_master_write_byte(cmd, reg, true);
+      i2c_master_start(cmd);
+      i2c_master_write_byte(cmd, (addr << 1) | I2C_MASTER_READ, true);
+      i2c_master_read(cmd, data, len, I2C_MASTER_LAST_NACK);
+      i2c_master_stop(cmd);
+
+      auto result = i2c_master_cmd_begin(static_cast<i2c_port_t>(i2c_port), cmd, 10/portTICK_PERIOD_MS);
+      i2c_cmd_link_delete(cmd);
+
+      return result == ESP_OK;
+#endif
+    }
+
+    bool writeByte(int i2c_port, std::uint8_t addr, std::uint8_t reg, std::uint8_t data)
+    {
+      std::uint8_t tmp[1] = { data };
+      return writeRegister(i2c_port, addr, reg, tmp, 1);
+    }
+
+    bool bitOn(int i2c_port, std::uint8_t addr, std::uint8_t reg, std::uint8_t bit)
+    {
+      std::uint8_t tmp[1];
+      if (!readRegister(i2c_port, addr, reg, tmp, 1)) return false;
+      tmp[0] |= bit;
+      return writeRegister(i2c_port, addr, reg, tmp, 1);
+    }
+
+    bool bitOff(int i2c_port, std::uint8_t addr, std::uint8_t reg, std::uint8_t bit)
+    {
+      std::uint8_t tmp[1];
+      if (!readRegister(i2c_port, addr, reg, tmp, 1)) return false;
+      tmp[0] &= ~bit;
+      return writeRegister(i2c_port, addr, reg, tmp, 1);
+    }
+  }
+}
 
 #endif

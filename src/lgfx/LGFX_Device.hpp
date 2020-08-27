@@ -62,13 +62,15 @@ namespace lgfx
     __attribute__ ((always_inline)) inline void setPanel(PanelCommon* panel) { _panel = panel; postSetPanel(); }
     __attribute__ ((always_inline)) inline void panel(PanelCommon* panel) { _panel = panel; postSetPanel(); }
 
+    __attribute__ ((always_inline)) inline TouchCommon* touch(void) const { return _touch; }
+    __attribute__ ((always_inline)) inline void touch(TouchCommon* touch_) { _touch = touch_; postSetTouch(); }
+
     bool isReadable_impl(void) const override { return _panel->spi_read; }
     std::int_fast8_t getRotation_impl(void) const override { return _panel->rotation; }
 
-    // TODO: BackLight off/on
-    void sleep()  { writeCommand(_panel->getCmdSlpin()); }
+    void sleep()  { writeCommand(_panel->getCmdSlpin()); _panel->sleep(); }
 
-    void wakeup() { writeCommand(_panel->getCmdSlpout()); }
+    void wakeup() { writeCommand(_panel->getCmdSlpout()); _panel->wakeup(); }
 
     void setColorDepth(std::uint8_t bpp) { setColorDepth((color_depth_t)bpp); }
     void setColorDepth(color_depth_t depth)
@@ -126,6 +128,52 @@ namespace lgfx
       endWrite();
     }
 
+    void initTouch(void)
+    {
+      if (!_touch) return;
+
+      _touch->init();
+      _touch->wakeup();
+    }
+
+    bool getTouch(std::int32_t *px, std::int32_t *py, std::uint_fast8_t number = 0)
+    {
+      if (!_touch) {
+        return false;
+      }
+
+      bool res = _touch->getTouch(px, py, number);
+
+      auto touch_min = _touch->x_min;
+      auto touch_max = _touch->x_max;
+      std::int32_t diff = (touch_max - touch_min) + 1;
+      std::int32_t x = (*px - touch_min) * _panel->panel_width / diff;
+
+      touch_min = _touch->y_min;
+      touch_max = _touch->y_max;
+      diff = (touch_max - touch_min) + 1;
+      std::int32_t y = (*py - touch_min) * _panel->panel_height / diff;
+
+      int r = _panel->rotation & 7;
+      if (r & 1) {
+        std::swap(x, y);
+      }
+
+      std::int32_t w = _width-1;
+      if (x < 0) x = 0;
+      if (x > w) x = w;
+      if (r & 2) x = w - x;
+      *px = x;
+
+      std::int32_t h = _height-1;
+      if (y < 0) y = 0;
+      if (y > h) y = h;
+      if ((0 == ((r + 1) & 2)) != (0 == (r & 4))) y = h - y;
+      *py = y;
+
+      return res;
+    }
+
     bool commandList(const std::uint8_t *addr)
     {
       if (addr == nullptr) return false;
@@ -158,10 +206,19 @@ namespace lgfx
 
   protected:
     PanelCommon* _panel = nullptr;
+    TouchCommon* _touch = nullptr;
+
+    std::uint_fast16_t _touch_xmin;
+    std::uint_fast16_t _touch_xmax;
+    std::uint_fast16_t _touch_ymin;
+    std::uint_fast16_t _touch_ymax;
+    bool _touch_calibration = false;
+    bool _last_touched = false;
 
     virtual void init_impl(void) {
       initBus(); 
       initPanel(); 
+      initTouch(); 
       startWrite(); 
       clear(); 
       setWindow(0,0,0,0); 
@@ -173,6 +230,13 @@ namespace lgfx
     virtual void postCommandList(void) {}
     virtual void postSetPanel(void) {}
     virtual void postSetRotation(void) {}
+    virtual void postSetTouch(void)
+    {
+      _touch_xmin = _touch->x_min;
+      _touch_xmax = _touch->x_max;
+      _touch_ymin = _touch->y_min;
+      _touch_ymax = _touch->y_max;
+    }
 
     void postSetColorDepth(void)
     {

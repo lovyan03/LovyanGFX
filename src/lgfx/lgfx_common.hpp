@@ -1135,6 +1135,26 @@ namespace lgfx
   };
 
 //----------------------------------------------------------------------------
+
+  namespace spi
+  {
+    void beginTransaction(int spi_host, int spi_cs, int freq, int spi_mode = 0);
+    void endTransaction(int spi_host, int spi_cs);
+    void writeData(int spi_host, const std::uint8_t* data, std::uint32_t len);
+    void readData(int spi_host, std::uint8_t* data, std::uint32_t len);
+  }
+
+  namespace i2c
+  {
+    void init(int i2c_port, int pin_sda, int pin_scl, int freq);
+    bool writeRegister(int i2c_port, std::uint8_t addr, std::uint8_t reg, const std::uint8_t *data, uint16_t len);
+    bool readRegister(int i2c_port, std::uint8_t addr, std::uint8_t reg, std::uint8_t *data, uint16_t len);
+    bool writeByte(int i2c_port, std::uint8_t addr, std::uint8_t reg, std::uint8_t data);
+    bool bitOn(int i2c_port, std::uint8_t addr, std::uint8_t reg, std::uint8_t bit);
+    bool bitOff(int i2c_port, std::uint8_t addr, std::uint8_t reg, std::uint8_t bit);
+  }
+
+//----------------------------------------------------------------------------
 }
 
 using namespace lgfx::jpeg_div;

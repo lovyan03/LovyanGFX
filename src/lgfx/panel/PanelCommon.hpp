@@ -14,14 +14,14 @@ namespace lgfx
     std::uint32_t freq_write = 2700000;    // SPI freq (write pixel)
     std::uint32_t freq_read  = 1600000;    // SPI freq (read pixel )
     std::uint32_t freq_fill  = 4000000;    // SPI freq (fill pixel )
-    std::int_fast8_t spi_cs    = -1;       // SPI CS pin number
-    std::int_fast8_t spi_dc    = -1;       // SPI dc pin number
+    std::int_fast16_t spi_cs    = -1;      // SPI CS pin number
+    std::int_fast16_t spi_dc    = -1;      // SPI dc pin number
+    std::int_fast16_t gpio_rst  = -1;      // hardware reset pin number
+    std::int_fast16_t gpio_bl   = -1;      // backlight pin number
     std::int_fast8_t spi_mode  = 0;        // SPI mode (0~3)
     std::int_fast8_t spi_mode_read = 0;    // SPI mode (0~3) when read pixel
     std::int_fast8_t rotation  = 0;        // default rotation (0~3)
     std::int_fast8_t offset_rotation = 0;  // rotation offset (0~3)
-    std::int_fast8_t gpio_rst  = -1;       // hardware reset pin number
-    std::int_fast8_t gpio_bl   = -1;       // backlight pin number
     std::int_fast8_t pwm_ch_bl = -1;       // backlight PWM channel number
     bool reverse_invert = false;           // Reverse the effect of the invert command.
 
@@ -79,6 +79,10 @@ namespace lgfx
         setPWMDuty(pwm_ch_bl, backlight_level ? brightness : (255 - brightness));
       }
     }
+
+    virtual void sleep(void) {}
+
+    virtual void wakeup(void) {}
 
     std::int_fast16_t getWidth(void) const {
       return ((rotation + offset_rotation) & 1) ? panel_height : panel_width;
