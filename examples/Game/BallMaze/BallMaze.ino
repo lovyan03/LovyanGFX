@@ -235,8 +235,6 @@ void setup(void)
   sp.setColorDepth(2);
   sp.createSprite(257, 257);
   game_init();
-
-  lcd.setBrightness(160);
 }
 
 void loop(void)

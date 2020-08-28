@@ -1,7 +1,3 @@
-#if defined(ARDUINO_M5Stick_C)
-#include <AXP192.h>
-#endif
-
 #include <LovyanGFX.hpp>
 
 static std::uint32_t sec, psec;
@@ -47,11 +43,6 @@ static int_fast16_t sprite_height;
 
 void setup(void)
 {
-#if defined(ARDUINO_M5Stick_C)
-  AXP192 axp;
-  axp.begin();
-#endif
-
   lcd.init();
 
   lcd_width = lcd.width();

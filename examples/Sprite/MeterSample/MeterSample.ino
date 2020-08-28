@@ -1,8 +1,3 @@
-#if defined(ARDUINO_M5Stick_C)
-#include <AXP192.h>
-static AXP192 axp;
-#endif
-
 #include <LovyanGFX.hpp>
 
 static LGFX lcd;
@@ -18,10 +13,6 @@ static float zoom;                      // 表示倍率
 void setup(void)
 {
   Serial.begin(115200);
-
-#if defined(ARDUINO_M5Stick_C)
-  axp.begin();
-#endif
 
   lcd.init();
   int lw = std::min(lcd.width(), lcd.height());

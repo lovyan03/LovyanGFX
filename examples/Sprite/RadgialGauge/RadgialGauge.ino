@@ -1,7 +1,3 @@
-#if defined(ARDUINO_M5Stick_C)
- #include <AXP192.h>
-#endif
-
 #include <LovyanGFX.hpp>
 
 static LGFX lcd;
@@ -34,11 +30,6 @@ struct meter_t meter1, meter2, meter3;
 
 void setup(void)
 {
-#if defined(ARDUINO_M5Stick_C)
-  AXP192 axp;
-  axp.begin();
-#endif
-
   lcd.init();
 
   if (lcd.width() < lcd.height()) {

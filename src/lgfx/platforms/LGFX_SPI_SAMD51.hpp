@@ -487,8 +487,8 @@ void enableSPI()
     }
 
     void beginTransaction_impl(void) override {
-      if (_begun_tr) return;
-      _begun_tr = true;
+      if (_in_transaction) return;
+      _in_transaction = true;
       begin_transaction();
     }
 
@@ -500,8 +500,8 @@ void enableSPI()
     }
 
     void endTransaction_impl(void) override {
-      if (!_begun_tr) return;
-      _begun_tr = false;
+      if (!_in_transaction) return;
+      _in_transaction = false;
       end_transaction();
     }
 
@@ -538,7 +538,7 @@ void enableSPI()
 
     void drawPixel_impl(std::int32_t x, std::int32_t y) override
     {
-      if (_begun_tr) {
+      if (_in_transaction) {
         set_window(x, y, x, y);
         write_cmd(_cmd_ramwr);
         write_data(_color.raw, _write_conv.bits);
@@ -1168,7 +1168,6 @@ void enableSPI()
     std::uint32_t _clkdiv_read;
     std::uint32_t _clkdiv_fill;
     std::uint32_t _len_setwindow;
-    bool _begun_tr = false;
     bool _fill_mode;
     std::uint32_t _mask_reg_dc;
     volatile std::uint32_t* _gpio_reg_dc_h;

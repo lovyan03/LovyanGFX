@@ -93,6 +93,8 @@ namespace lgfx
       commandList(_panel->getInvertDisplayCommands(buf, i));
     }
 
+    std::uint8_t getBrightness(void) const { return _panel->brightness; }
+
     void setBrightness(std::uint8_t brightness) {
       _panel->setBrightness(brightness);
     }
@@ -124,6 +126,7 @@ namespace lgfx
       invertDisplay(getInvert());
       setColorDepth(getColorDepth());
       setRotation(getRotation());
+      setBrightness(getBrightness());
 
       endWrite();
     }
@@ -142,8 +145,11 @@ namespace lgfx
         return 0;
       }
 
+      bool need_transaction = (_touch->bus_shared && _in_transaction);
       std::int32_t x, y;
+      if (need_transaction) { endTransaction(); }
       std::uint_fast8_t res = _touch->getTouch(&x, &y, number);
+      if (need_transaction) { beginTransaction(); }
       if (0 == res) return 0;
 
       auto touch_min = _touch->x_min;
@@ -215,8 +221,7 @@ namespace lgfx
     std::uint_fast16_t _touch_xmax;
     std::uint_fast16_t _touch_ymin;
     std::uint_fast16_t _touch_ymax;
-    bool _touch_calibration = false;
-    bool _last_touched = false;
+    bool _in_transaction = false;
 
     virtual void init_impl(void) {
       initBus(); 

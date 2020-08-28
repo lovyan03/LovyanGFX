@@ -29,7 +29,6 @@ namespace lgfx
       rotation = 1;
     }
 
-    std::uint8_t currentBrightness = 127;
     std::uint8_t maxBrightness = 255;
 
     void init(void) override
@@ -66,7 +65,7 @@ namespace lgfx
       TC0->COUNT8.WAVE.reg  = 0x02; // WAVEGEN=NPWM;
       TC0->COUNT8.CTRLBSET.reg = (1u<<1); // LUPD
       TC0->COUNT8.PER.reg = this->maxBrightness;
-      TC0->COUNT8.CC[0].reg = this->currentBrightness;
+      TC0->COUNT8.CC[0].reg = this->brightness;
       TC0->COUNT8.CC[1].reg = 0u;
       TC0->COUNT8.DBGCTRL.bit.DBGRUN = 1;
       TC0->COUNT8.INTFLAG.reg = 0x33;    // Clear all flags
@@ -80,8 +79,8 @@ namespace lgfx
 
     void setBrightness(std::uint8_t brightness) override
     {
-      this->currentBrightness = brightness < this->maxBrightness ? brightness : this->maxBrightness;
-      TC0->COUNT8.CC[0].reg = this->currentBrightness;
+      this->brightness = brightness < this->maxBrightness ? brightness : this->maxBrightness;
+      TC0->COUNT8.CC[0].reg = this->brightness;
       while(TC0->COUNT8.SYNCBUSY.bit.CC0);
     }
   };

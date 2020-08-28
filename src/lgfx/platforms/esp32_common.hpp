@@ -33,7 +33,7 @@ namespace lgfx
 
   void lgfxPinMode(std::int_fast8_t pin, pin_mode_t mode);
 
-  void initPWM(std::int_fast8_t pin, std::uint32_t pwm_ch, std::uint8_t duty = 128);
+  void initPWM(std::int_fast8_t pin, std::uint32_t pwm_ch, std::uint32_t freq = 12000, std::uint8_t duty = 128);
 
   void setPWMDuty(std::uint32_t pwm_ch, std::uint8_t duty);
 

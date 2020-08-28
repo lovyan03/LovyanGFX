@@ -342,8 +342,8 @@ namespace lgfx
     }
 
     void beginTransaction_impl(void) override {
-      if (_begun_tr) return;
-      _begun_tr = true;
+      if (_in_transaction) return;
+      _in_transaction = true;
       begin_transaction();
     }
 
@@ -390,8 +390,8 @@ namespace lgfx
     }
 
     void endTransaction_impl(void) override {
-      if (!_begun_tr) return;
-      _begun_tr = false;
+      if (!_in_transaction) return;
+      _in_transaction = false;
       end_transaction();
     }
 
@@ -446,7 +446,7 @@ namespace lgfx
 
     void drawPixel_impl(std::int32_t x, std::int32_t y) override
     {
-      if (_begun_tr) {
+      if (_in_transaction) {
         if (_fill_mode) {
           _fill_mode = false;
           wait_spi();
@@ -1146,7 +1146,6 @@ namespace lgfx
     std::uint32_t _clkdiv_read;
     std::uint32_t _clkdiv_fill;
     std::uint32_t _len_setwindow;
-    bool _begun_tr = false;
     bool _fill_mode;
     bool _align_data = false;
     std::uint32_t _mask_reg_dc;

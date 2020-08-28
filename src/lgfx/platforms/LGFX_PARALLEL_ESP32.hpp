@@ -201,8 +201,8 @@ namespace lgfx
     }
 
     void beginTransaction_impl(void) override {
-      if (_begun_tr) return;
-      _begun_tr = true;
+      if (_in_transaction) return;
+      _in_transaction = true;
       begin_transaction();
     }
 
@@ -221,8 +221,8 @@ namespace lgfx
     }
 
     void endTransaction_impl(void) override {
-      if (!_begun_tr) return;
-      _begun_tr = false;
+      if (!_in_transaction) return;
+      _in_transaction = false;
       end_transaction();
     }
 
@@ -261,7 +261,7 @@ namespace lgfx
 
     void drawPixel_impl(std::int32_t x, std::int32_t y) override
     {
-      if (_begun_tr) {
+      if (_in_transaction) {
         set_window(x, y, x, y, _cmd_ramwr);
         push_block(1);
         return;
@@ -884,7 +884,6 @@ namespace lgfx
     std::uint32_t _cmd_raset;
     std::uint32_t _cmd_ramwr;
     std::uint32_t _len_setwindow;
-    bool _begun_tr = false;
     std::uint32_t _mask_reg_dc;
     volatile std::uint32_t* _gpio_reg_dc_h;
     volatile std::uint32_t* _gpio_reg_dc_l;

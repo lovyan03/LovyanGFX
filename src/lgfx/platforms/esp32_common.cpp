@@ -55,11 +55,11 @@ namespace lgfx
 #endif
   }
 
-  void initPWM(std::int_fast8_t pin, std::uint32_t pwm_ch, std::uint8_t duty)
+  void initPWM(std::int_fast8_t pin, std::uint32_t pwm_ch, std::uint32_t freq, std::uint8_t duty)
   {
 #ifdef ARDUINO
 
-    ledcSetup(pwm_ch, 12000, 8);
+    ledcSetup(pwm_ch, freq, 8);
     ledcAttachPin(pin, pwm_ch);
     ledcWrite(pwm_ch, duty);
 
@@ -80,7 +80,7 @@ namespace lgfx
     {
       ledc_timer.speed_mode = LEDC_HIGH_SPEED_MODE;     // timer mode
       ledc_timer.duty_resolution = (ledc_timer_bit_t)8; // resolution of PWM duty
-      ledc_timer.freq_hz = 12000;                        // frequency of PWM signal
+      ledc_timer.freq_hz = freq;                        // frequency of PWM signal
       ledc_timer.timer_num = ledc_channel.timer_sel;    // timer index
     };
     ledc_timer_config(&ledc_timer);
