@@ -10,11 +10,10 @@ namespace lgfx
     return _inited; 
   }
 
-  bool Touch_XPT2046::getTouch(std::int32_t* x, std::int32_t* y, std::int_fast8_t number)
+  std::uint_fast8_t Touch_XPT2046::getTouch(std::int32_t* x, std::int32_t* y, std::int_fast8_t number)
   {
-    if (!_inited || number != 0) return false;
-
-    if (!isSPI()) return false;
+    if (!_inited || number != 0) return 0;
+    if (!isSPI()) return 0;
 
     int xt[24], yt[24];
     uint8_t data[61];
@@ -36,7 +35,7 @@ namespace lgfx
         int tmp = 0xFFF
              + (data[5 + j * 8] << 5 | data[6 + j * 8] >> 3)
              - (data[7 + j * 8] << 5 | data[8 + j * 8] >> 3);
-        if (tmp < threshold) return false;
+        if (tmp < threshold) return 0;
       }
       for (int j = 0; j < 8; ++j) {
         xt[i * 8 + j] = data[1 + j * 8] << 5 | data[2 + j * 8] >> 3;
@@ -52,7 +51,7 @@ namespace lgfx
       std::sort(yt, yt+24);
       *y = (yt[10]+yt[11]+yt[12]+yt[13]) >> 2;
     }
-    return true;
+    return 1;
   }
 }
 

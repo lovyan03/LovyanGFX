@@ -136,41 +136,44 @@ namespace lgfx
       _touch->wakeup();
     }
 
-    bool getTouch(std::int32_t *px, std::int32_t *py, std::uint_fast8_t number = 0)
+    std::uint_fast8_t getTouch(std::int32_t *px = nullptr, std::int32_t *py = nullptr, std::uint_fast8_t number = 0)
     {
       if (!_touch) {
-        return false;
+        return 0;
       }
 
-      bool res = _touch->getTouch(px, py, number);
+      std::int32_t x, y;
+      std::uint_fast8_t res = _touch->getTouch(&x, &y, number);
+      if (0 == res) return 0;
 
       auto touch_min = _touch->x_min;
       auto touch_max = _touch->x_max;
       std::int32_t diff = (touch_max - touch_min) + 1;
-      std::int32_t x = (*px - touch_min) * _panel->panel_width / diff;
+      x = (x - touch_min) * _panel->panel_width / diff;
 
       touch_min = _touch->y_min;
       touch_max = _touch->y_max;
       diff = (touch_max - touch_min) + 1;
-      std::int32_t y = (*py - touch_min) * _panel->panel_height / diff;
+      y = (y - touch_min) * _panel->panel_height / diff;
 
       int r = _panel->rotation & 7;
       if (r & 1) {
         std::swap(x, y);
       }
-
-      std::int32_t w = _width-1;
-      if (x < 0) x = 0;
-      if (x > w) x = w;
-      if (r & 2) x = w - x;
-      *px = x;
-
-      std::int32_t h = _height-1;
-      if (y < 0) y = 0;
-      if (y > h) y = h;
-      if ((0 == ((r + 1) & 2)) != (0 == (r & 4))) y = h - y;
-      *py = y;
-
+      if (px) {
+        std::int32_t w = _width-1;
+        if (x < 0) x = 0;
+        if (x > w) x = w;
+        if (r & 2) x = w - x;
+        *px = x;
+      }
+      if (py) {
+        std::int32_t h = _height-1;
+        if (y < 0) y = 0;
+        if (y > h) y = h;
+        if ((0 == ((r + 1) & 2)) != (0 == (r & 4))) y = h - y;
+        *py = y;
+      }
       return res;
     }
 

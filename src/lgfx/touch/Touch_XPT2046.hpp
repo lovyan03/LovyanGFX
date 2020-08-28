@@ -18,7 +18,7 @@ namespace lgfx
     }
     bool init(void) override;
 
-    bool getTouch(std::int32_t* x, std::int32_t* y, std::int_fast8_t number) override;
+    std::uint_fast8_t getTouch(std::int32_t* x, std::int32_t* y, std::int_fast8_t number) override;
   };
 
 //----------------------------------------------------------------------------

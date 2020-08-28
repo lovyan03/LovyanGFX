@@ -55,16 +55,16 @@ for (int i = 0; i < 256; i += 16) {
     lgfx::i2c::writeRegister(i2c_port, i2c_addr, FT5x06_POWER_REG, &FT5x06_SLEEP_IN, 1);
   }
 
-  bool Touch_FT5x06::getTouch(std::int32_t* x, std::int32_t* y, std::int_fast8_t number)
+  std::uint_fast8_t Touch_FT5x06::getTouch(std::int32_t* x, std::int32_t* y, std::int_fast8_t number)
   {
-    if (!_inited) return false;
+    if (!_inited) return 0;
     std::uint8_t tmp[16];
     std::uint32_t base = (number == 0) ? 0 : 6;
     lgfx::i2c::readRegister(i2c_port, i2c_addr, 2, tmp, 5 + base);
-    if (number >= tmp[0]) return false;
+    if (number >= tmp[0]) return 0;
     if (x) *x = (tmp[base + 1] & 0x0F) << 8 | tmp[base + 2];
     if (y) *y = (tmp[base + 3] & 0x0F) << 8 | tmp[base + 4];
-    return true;
+    return tmp[0];
   }
 
 //----------------------------------------------------------------------------

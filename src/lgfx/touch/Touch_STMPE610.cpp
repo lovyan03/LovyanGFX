@@ -186,9 +186,9 @@ namespace lgfx
     return true;
   }
 
-  bool Touch_STMPE610::getTouch(std::int32_t* x, std::int32_t* y, std::int_fast8_t number)
+  std::uint_fast8_t Touch_STMPE610::getTouch(std::int32_t* x, std::int32_t* y, std::int_fast8_t number)
   {
-    if (!_inited || number != 0) return false;
+    if (!_inited || number != 0) return 0;
 
     if (isSPI()) {
       uint8_t data[8];
@@ -217,10 +217,10 @@ namespace lgfx
       if (x) *x =  data[1] << 4 | data[2] >> 4;
       if (y) *y = (data[2] & 0x0F) << 8 | data[3];
 
-      return press;
+      return press ? 1 : 0;
     }
 
-    return false;
+    return 0;
   }
 }
 
