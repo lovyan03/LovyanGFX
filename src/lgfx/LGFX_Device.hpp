@@ -139,28 +139,34 @@ namespace lgfx
       _touch->wakeup();
     }
 
-    std::uint_fast8_t getTouch(std::int32_t *px = nullptr, std::int32_t *py = nullptr, std::uint_fast8_t number = 0)
+    std::uint_fast8_t getTouchRaw(std::int32_t *x = nullptr, std::int32_t *y = nullptr, std::uint_fast8_t number = 0)
     {
-      if (!_touch) {
-        return 0;
-      }
+      if (!_touch) return 0;
 
       bool need_transaction = (_touch->bus_shared && _in_transaction);
-      std::int32_t x, y;
       if (need_transaction) { endTransaction(); }
-      std::uint_fast8_t res = _touch->getTouch(&x, &y, number);
+      std::uint_fast8_t res = _touch->getTouch(x, y, number);
       if (need_transaction) { beginTransaction(); }
+      return res;
+    }
+
+    std::uint_fast8_t getTouch(std::uint16_t *px, std::uint16_t *py, std::uint_fast8_t number = 0)
+    {
+      std::int32_t x, y;
+      auto res = getTouch(&x, &y, number);
+      if (px) *px = x;
+      if (py) *py = y;
+      return res;
+    }
+
+    std::uint_fast8_t getTouch(std::int32_t *px, std::int32_t *py, std::uint_fast8_t number = 0)
+    {
+      std::int32_t tx, ty;
+      std::uint_fast8_t res = getTouchRaw(&tx, &ty, number);
       if (0 == res) return 0;
 
-      auto touch_min = _touch->x_min;
-      auto touch_max = _touch->x_max;
-      std::int32_t diff = (touch_max - touch_min) + 1;
-      x = (x - touch_min) * _panel->panel_width / diff;
-
-      touch_min = _touch->y_min;
-      touch_max = _touch->y_max;
-      diff = (touch_max - touch_min) + 1;
-      y = (y - touch_min) * _panel->panel_height / diff;
+      int x = (_touch_affin[0] * (float)tx + _touch_affin[1] * (float)ty) + _touch_affin[2];
+      int y = (_touch_affin[3] * (float)tx + _touch_affin[4] * (float)ty) + _touch_affin[5];
 
       int r = _panel->rotation & 7;
       if (r & 1) {
@@ -182,6 +188,16 @@ namespace lgfx
       }
       return res;
     }
+
+    // This requires a uint16_t array with 8 elements. ( or nullptr )
+    template <typename T>
+    void calibrateTouch(uint16_t *parameters, const T& color_fg, const T& color_bg, uint8_t size = 10)
+    {
+      calibrate_touch(parameters, _write_conv.convert(color_fg), _write_conv.convert(color_bg), size);
+    }
+
+    // This requires a uint16_t array with 8 elements.
+    void setTouchCalibrate(std::uint16_t *parameters) { set_touch_calibrate(parameters); }
 
     bool commandList(const std::uint8_t *addr)
     {
@@ -217,10 +233,8 @@ namespace lgfx
     PanelCommon* _panel = nullptr;
     TouchCommon* _touch = nullptr;
 
-    std::uint_fast16_t _touch_xmin;
-    std::uint_fast16_t _touch_xmax;
-    std::uint_fast16_t _touch_ymin;
-    std::uint_fast16_t _touch_ymax;
+    float _touch_affin[6] = {1,0,0,0,1,0};
+
     bool _in_transaction = false;
 
     virtual void init_impl(void) {
@@ -240,10 +254,16 @@ namespace lgfx
     virtual void postSetRotation(void) {}
     virtual void postSetTouch(void)
     {
-      _touch_xmin = _touch->x_min;
-      _touch_xmax = _touch->x_max;
-      _touch_ymin = _touch->y_min;
-      _touch_ymax = _touch->y_max;
+      std::uint16_t xmin = _touch->x_min;
+      std::uint16_t xmax = _touch->x_max;
+      std::uint16_t ymin = _touch->y_min;
+      std::uint16_t ymax = _touch->y_max;
+      std::uint16_t parameters[8] = 
+       { xmin, ymin
+       , xmin, ymax
+       , xmax, ymin
+       , xmax, ymax };
+      set_touch_calibrate(parameters);
     }
 
     void postSetColorDepth(void)
@@ -324,6 +344,135 @@ namespace lgfx
     bool _dma_flip = false;
     _dmabufs_t _dmabufs[2];
 
+
+    void draw_calibrate_point(std::int32_t x, std::int32_t y, std::int32_t r, std::uint32_t fg_rawcolor, std::uint32_t bg_rawcolor)
+    {
+      setRawColor(bg_rawcolor);
+      fillRect(x - r, y - r, r * 2 + 1, r * 2 + 1);
+      if (fg_rawcolor == bg_rawcolor) return;
+      setRawColor(fg_rawcolor);
+      fillRect(x - 1, y - r, 3, r * 2 + 1);
+      fillRect(x - r, y - 1, r * 2 + 1, 3);
+      drawLine(x - r, y - r, x + r, y + r);
+      drawLine(x - r, y + r, x + r, y - r);
+    }
+
+    void calibrate_touch(std::uint16_t *parameters, std::uint32_t fg_rawcolor, std::uint32_t bg_rawcolor, std::uint8_t size)
+    {
+      if (nullptr == _touch) return;
+      auto rot = getRotation();
+      setRotation(0);
+
+      std::uint16_t orig[8];
+      for (int i = 0; i < 4; ++i) {
+        std::int32_t px = (_width -  1) * ((i>>1) & 1);
+        std::int32_t py = (_height - 1) * ( i     & 1);
+        draw_calibrate_point( px, py, size, fg_rawcolor, bg_rawcolor);
+
+        std::int32_t x_touch = 0, y_touch = 0;
+        static constexpr int _RAWERR = 20;
+        std::int32_t x_tmp, y_tmp, x_tmp2, y_tmp2;
+        for (int j = 0; j < 8; ++j) {
+          do {
+            do { delay(1); } while (!getTouchRaw(&x_tmp,&y_tmp));
+            delay(2); // Small delay to the next sample
+          } while (!getTouchRaw(&x_tmp2,&y_tmp2)
+                 || (abs(x_tmp - x_tmp2) > _RAWERR)
+                 || (abs(y_tmp - y_tmp2) > _RAWERR));
+
+          x_touch += x_tmp;
+          x_touch += x_tmp2;
+          y_touch += y_tmp;
+          y_touch += y_tmp2;
+        }
+        orig[i*2  ] = x_touch >> 4;
+        orig[i*2+1] = y_touch >> 4;
+        draw_calibrate_point( px, py, size, bg_rawcolor, bg_rawcolor);
+        while (getTouchRaw());
+      }
+      if (nullptr != parameters) {
+        memcpy(parameters, orig, sizeof(std::uint16_t) * 8);
+      }
+      set_touch_calibrate(orig);
+      setRotation(rot);
+    }
+
+    void set_touch_calibrate(std::uint16_t *parameters)
+    {
+      std::uint32_t vect[6] = {0,0,0,0,0,0};
+      float mat[3][3] = {{0,0,0},{0,0,0},{0,0,0}};
+
+      bool r = getRotation() & 1;
+      std::int32_t w = r ? _height : _width;
+      std::int32_t h = r ? _width : _height;
+      --w;
+      --h;
+      float a;
+      for ( int i = 0; i < 4; ++i ) {
+        std::int32_t tx = w * ((i>>1) & 1);
+        std::int32_t ty = h * ( i     & 1);
+        std::int32_t px = parameters[i*2  ];
+        std::int32_t py = parameters[i*2+1];
+        a = px * px;
+        mat[0][0] += a;
+        a = px * py;
+        mat[0][1] += a;
+        mat[1][0] += a;
+        a = px;
+        mat[0][2] += a;
+        mat[2][0] += a;
+        a = py * py;
+        mat[1][1] += a;
+        a = py;
+        mat[1][2] += a;
+        mat[2][1] += a;
+        mat[2][2] += 1;
+ 
+        vect[0] += px * tx;
+        vect[1] += py * tx;
+        vect[2] +=      tx;
+        vect[3] += px * ty;
+        vect[4] += py * ty;
+        vect[5] +=      ty;
+      }
+
+      {
+        float det = 1;
+        for ( int k = 0; k < 3; ++k )
+        {
+          float t = mat[k][k];
+          det *= t;
+          for ( int i = 0; i < 3; ++i ) mat[k][i] /= t;
+
+          mat[k][k] = 1 / t;
+          for ( int j = 0; j < 3; ++j )
+          {
+            if ( j == k ) continue;
+
+            float u = mat[j][k];
+
+            for ( int i = 0; i < 3; ++i )
+            {
+              if ( i != k ) mat[j][i] -= mat[k][i] * u;
+              else mat[j][i] = -u / t;
+            }
+          }
+        }
+      }
+
+      float v0 = vect[0];
+      float v1 = vect[1];
+      float v2 = vect[2];
+      _touch_affin[0] = mat[0][0] * v0 + mat[0][1] * v1 + mat[0][2] * v2;
+      _touch_affin[1] = mat[1][0] * v0 + mat[1][1] * v1 + mat[1][2] * v2;
+      _touch_affin[2] = mat[2][0] * v0 + mat[2][1] * v1 + mat[2][2] * v2;
+      float v3 = vect[3];
+      float v4 = vect[4];
+      float v5 = vect[5];
+      _touch_affin[3] = mat[0][0] * v3 + mat[0][1] * v4 + mat[0][2] * v5;
+      _touch_affin[4] = mat[1][0] * v3 + mat[1][1] * v4 + mat[1][2] * v5;
+      _touch_affin[5] = mat[2][0] * v3 + mat[2][1] * v4 + mat[2][2] * v5;
+    }
   };
 
 //----------------------------------------------------------------------------
