@@ -58,11 +58,11 @@ namespace lgfx
 
     __attribute__ ((always_inline)) inline PanelCommon* getPanel(void) const { return _panel; }
     __attribute__ ((always_inline)) inline PanelCommon* panel(void) const { return _panel; }
-
     __attribute__ ((always_inline)) inline void setPanel(PanelCommon* panel) { _panel = panel; postSetPanel(); }
     __attribute__ ((always_inline)) inline void panel(PanelCommon* panel) { _panel = panel; postSetPanel(); }
 
     __attribute__ ((always_inline)) inline TouchCommon* touch(void) const { return _touch; }
+    __attribute__ ((always_inline)) inline void setTouch(TouchCommon* touch_) { _touch = touch_; postSetTouch(); }
     __attribute__ ((always_inline)) inline void touch(TouchCommon* touch_) { _touch = touch_; postSetTouch(); }
 
     bool isReadable_impl(void) const override { return _panel->spi_read; }
