@@ -93,9 +93,18 @@ namespace colors  // Color definitions for backwards compatibility with old sket
   [[deprecated("use TFT_PINK"       )]] static constexpr int ILI9341_PINK        = 0xF81F;
 }
 
+namespace tft_command
+{
+  static constexpr int TFT_DISPOFF = 0x28;
+  static constexpr int TFT_DISPON  = 0x29;
+  static constexpr int TFT_SLPIN   = 0x10;
+  static constexpr int TFT_SLPOUT  = 0x11;
+}
+
 using namespace textdatum;
 using namespace attribute;
 using namespace colors;
+using namespace tft_command;
 
 
 #endif

@@ -36,7 +36,7 @@ namespace lgfx
 
 
 //  static void initPWM(std::uint32_t pin, std::uint32_t pwm_ch, std::uint8_t duty = 128) 
-  static inline void initPWM(std::uint32_t , std::uint32_t , std::uint8_t = 0) {
+  static inline void initPWM(std::uint32_t , std::uint32_t , std::uint32_t , std::uint8_t = 0) {
 // unimplemented 
   }
 

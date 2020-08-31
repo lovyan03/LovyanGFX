@@ -866,6 +866,6 @@ return;
 
 }
 
-typedef lgfx::LGFX_Sprite LGFX_Sprite;
+using lgfx::LGFX_Sprite;
 
 #endif

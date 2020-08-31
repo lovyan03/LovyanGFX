@@ -86,8 +86,8 @@ struct LGFX_Config
 
 // 上記で設定したクロックソースの動作周波数を設定します。
 // Harmony等で行った設定値をそのまま設定してください。
-  static constexpr int sercom_clkfreq = 120000000;
-//static constexpr int sercom_clkfreq = F_CPU; // Seeeduino環境ではF_CPU定数でCPUクロック値が利用できます。
+//static constexpr int sercom_clkfreq = 120000000;
+  static constexpr int sercom_clkfreq = F_CPU; // Seeeduino環境ではF_CPU定数でCPUクロック値が利用できます。
 
 // SAMD51でのピン番号の設定はArduino向けの番号ではなく、SAMD51のポート+ピン番号で設定します。
 
@@ -134,6 +134,11 @@ static lgfx::Panel_ILI9342 panel;
 //static lgfx::Panel_ST7789 panel;
 //static lgfx::Panel_ST7735S panel;
 
+// If you want to use a touch panel, create an instance of the Touch class.
+// タッチパネルを使用する場合、Touchクラスのインスタンスを作成します。
+//static lgfx::Touch_SPI_STMPE610 touch;
+//static lgfx::Touch_FT5x06 touch;
+//static lgfx::Touch_XPT2046 touch;
 
 
 void setup(void)
@@ -250,23 +255,72 @@ void setup(void)
   panel.offset_rotation = 0;
 
   // After setting up, you can pass the panel pointer to the lcd.setPanel function.
-  // 設定を終えたら、lcdのsetPanel関数でパネルのポインタを渡します。
+  // 設定を終えたら、lcdのsetPanel関数でパネルクラスのポインタを渡します。
   lcd.setPanel(&panel);
+
+
+/*
+  // If you use a touch panel, you will assign various setting values to the touch class.
+  // タッチパネルを使用する場合、タッチクラスに各種設定値を代入していきます。
+
+  // for SPI setting.  (XPT2046 / STMPE610)
+  // SPI接続のタッチパネルの場合
+  touch.spi_host = VSPI_HOST;  // VSPI_HOST or HSPI_HOST
+  touch.spi_sclk = 18;
+  touch.spi_mosi = 23;
+  touch.spi_miso = 19;
+  touch.spi_cs   =  5;
+  touch.freq = 1000000;
+  touch.bus_shared = true;  // If the LCD and touch share SPI, set to true.
+
+  // for I2C setting. (FT5x06)
+  // I2C接続のタッチパネルの場合
+  touch.i2c_port = I2C_NUM_1;
+  touch.i2c_sda  = 21;
+  touch.i2c_scl  = 22;
+  touch.i2c_addr = 0x38;
+  touch.freq = 400000;
+
+  // タッチパネルから得られるレンジを設定
+  // (キャリブレーションを実施する場合は省略可)
+  // (This can be omitted if calibration is performed.)
+  touch.x_min = 0;
+  touch.x_max = 319;
+  touch.y_min = 0;
+  touch.y_max = 319;
+
+  // After setting up, you can pass the touch pointer to the lcd.setTouch function.
+  // 設定を終えたら、lcdのsetTouch関数でタッチクラスのポインタを渡します。
+  lcd.setTouch(&touch);
+*/
+
 
   // Initializing the SPI bus and panel will make it available.
   // SPIバスとパネルの初期化を実行すると使用可能になります。
   lcd.init();
 
+  if (lcd.width() > 240 || lcd.height() > 240) lcd.setTextSize(2);
 
+  if (lcd.touch())
+  {
+    if (lcd.width() < lcd.height()) lcd.setRotation(3 & (lcd.getRotation() + 1));
 
-  lcd.drawRect(0,0,lcd.width(),lcd.height(),0xFFFF);
+    // Draw the information text.
+    // 画面に案内文章を描画します。
+    lcd.drawString("touch the arrow marker.", 0, lcd.height()>>1);
 
-  lcd.setTextSize(2);
+    // If the touch is enabled, perform calibration. Touch the arrow tips that appear in the four corners of the screen in order.
+    // タッチを使用する場合、キャリブレーションを行います。画面の四隅に表示される矢印の先端を順にタッチしてください。
+    lcd.calibrateTouch(nullptr, 0xFFFFFFU, 0x000000U, 30);
+
+    lcd.clear();
+  }
 }
 
 uint32_t count = ~0;
 void loop(void)
 {
+  delay(10);
   lcd.startWrite();
   lcd.setRotation(++count & 7);
 
@@ -281,6 +335,12 @@ void loop(void)
   lcd.drawString("B", 50, 16);
 
   lcd.drawRect(30,30,lcd.width()-60,lcd.height()-60,random(65536));
+
   lcd.endWrite();
+
+  int32_t x, y;
+  if (lcd.getTouch(&x, &y)) {
+    lcd.fillRect(x-2, y-2, 5, 5, random(65536));
+  }
 }
 

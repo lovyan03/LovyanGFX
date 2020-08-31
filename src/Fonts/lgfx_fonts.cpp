@@ -209,6 +209,7 @@ namespace lgfx
     &fonts::Font6,
     &fonts::Font7,
     &fonts::Font8,
+    nullptr,
   };
 }
 

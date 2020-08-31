@@ -63,6 +63,56 @@ namespace lgfx
       break ;
     }
   }
+
+//----------------------------------------------------------------------------
+
+  namespace spi // TODO: implement.
+  {
+    void beginTransaction(int spi_host, int spi_cs, int freq, int spi_mode)
+    {}
+
+    void endTransaction(int spi_host, int spi_cs)
+    {}
+
+    void writeData(int spi_host, const std::uint8_t* data, std::uint32_t len)
+    {}
+
+    void readData(int spi_host, std::uint8_t* data, std::uint32_t len)
+    {}
+  }
+
+//----------------------------------------------------------------------------
+
+  namespace i2c // TODO: implement.
+  {
+    void init(int i2c_port, int sda, int scl, int freq) { }
+
+    bool writeRegister(int i2c_port, std::uint8_t addr, std::uint8_t reg, const std::uint8_t *data, uint16_t len)
+    {
+      return false;
+    }
+
+    bool readRegister(int i2c_port, std::uint8_t addr, std::uint8_t reg, std::uint8_t *data, uint16_t len)
+    {
+      return false;
+    }
+
+    bool writeByte(int i2c_port, std::uint8_t addr, std::uint8_t reg, std::uint8_t data)
+    {
+      return false;
+    }
+
+    bool bitOn(int i2c_port, std::uint8_t addr, std::uint8_t reg, std::uint8_t bit)
+    {
+      return false;
+    }
+
+    bool bitOff(int i2c_port, std::uint8_t addr, std::uint8_t reg, std::uint8_t bit)
+    {
+      return false;
+    }
+  }
+
 }
 
 #endif

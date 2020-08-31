@@ -252,7 +252,7 @@ static int32_t bitext (	/* >=0: extracted data, <0: error code */
 )
 {
 	uint8_t *dp;
-	uint_fast8_t msk, shift;
+	uint_fast8_t msk;
 	uint32_t v;
 
 	msk = jd->dmsk; dp = jd->dptr;

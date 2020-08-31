@@ -376,9 +376,10 @@ namespace lgfx
 #ifdef ARDUINO
     [[deprecated("use getFont()")]]
     std::uint8_t getTextFont(void) const {
-      size_t ie = sizeof(fontdata) / sizeof(fontdata[0]);
-      for (size_t i = 0; i < ie; ++i)
+      size_t i = 0;
+      do {
         if (fontdata[i] == _font) return i;
+      } while (fontdata[++i]);
       return 0;
     }
 #endif

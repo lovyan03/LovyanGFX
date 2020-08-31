@@ -45,7 +45,7 @@ Contributors:
 #endif
 
 #include "esp32_common.hpp"
-#include "../LGFXBase.hpp"
+#include "../LGFX_Device.hpp"
 
 namespace lgfx
 {
@@ -85,107 +85,36 @@ namespace lgfx
   #undef MEMBER_DETECTOR
 
   template <class CFG>
-  class LGFX_PARALLEL : public LovyanGFX
+  class LGFX_PARALLEL : public LGFX_Device
   {
   public:
 
     virtual ~LGFX_PARALLEL() {
       if (_dmadesc) {
-        heap_caps_free(_dmadesc);
+        heap_free(_dmadesc);
         _dmadesc = nullptr;
         _dmadesc_len = 0;
       }
       delete_dmabuffer();
     }
 
-    LGFX_PARALLEL() : LovyanGFX()
+    LGFX_PARALLEL() : LGFX_Device()
     {
-      _panel = nullptr;
     }
 
-    void setPanel(PanelCommon* panel)
+    __attribute__ ((always_inline)) inline void begin(void) { init_impl(); }
+
+    __attribute__ ((always_inline)) inline void init(void) { init_impl(); }
+
+    void writeCommand(std::uint_fast8_t cmd) override { startWrite(); write_cmd(cmd); endWrite(); }
+
+    void writeData(std::uint_fast8_t data) override { startWrite(); write_data(data, 8); endWrite(); }
+
+    std::uint32_t readCommand(std::uint_fast8_t commandByte, std::uint_fast8_t index=0, std::uint_fast8_t len=4) override { startWrite(); auto res = read_command(commandByte, index << 3, len << 3); endWrite(); return res; }
+
+    void initBus(void) override
     {
-      _panel = panel; 
-      _cmd_ramwr      = _panel->getCmdRamwr();
-      _len_setwindow  = _panel->len_setwindow;
-      fpGetWindowAddr = _len_setwindow == 32 ? PanelCommon::getWindowAddr32 : PanelCommon::getWindowAddr16;
-/*
-      std::int32_t spi_dc = _panel->spi_dc;
-      _mask_reg_dc = (spi_dc < 0) ? 0 : (1 << (spi_dc & 31));
-      _gpio_reg_dc_h = get_gpio_hi_reg(spi_dc);
-      _gpio_reg_dc_l = get_gpio_lo_reg(spi_dc);
-      dc_h();
-      lgfxPinMode(spi_dc, pin_mode_t::output);
-//*/
-      cs_h();
-      lgfxPinMode(_panel->spi_cs, pin_mode_t::output);
-
-      postSetRotation();
-      postSetColorDepth();
-    }
-
-    __attribute__ ((always_inline)) inline PanelCommon* getPanel(void) const { return _panel; }
-
-    __attribute__ ((always_inline)) inline bool getInvert(void) const { return _panel->invert; }
-
-    __attribute__ ((always_inline)) inline void dmaWait(void) const { wait_i2s(); }
-
-    __attribute__ ((always_inline)) inline void begin(void) { init(); }
-
-    void init(void) { initBus(); initPanel(); }
-
-    // Write single byte as COMMAND
-    void writeCommand(std::uint_fast8_t cmd) { startWrite(); write_cmd(cmd); endWrite(); } // AdafruitGFX compatible
-    void writecommand(std::uint_fast8_t cmd) { startWrite(); write_cmd(cmd); endWrite(); } // TFT_eSPI compatible
-
-    // Write single bytes as DATA
-    void spiWrite( std::uint_fast8_t data) { startWrite(); write_data(data, 8); endWrite(); } // AdafruitGFX compatible
-    void writeData(std::uint_fast8_t data) { startWrite(); write_data(data, 8); endWrite(); } // TFT_eSPI compatible
-    void writedata(std::uint_fast8_t data) { startWrite(); write_data(data, 8); endWrite(); } // TFT_eSPI compatible
-
-    // Read data
-    std::uint8_t  readCommand8( std::uint_fast8_t commandByte, std::uint_fast8_t index=0) { return read_command(commandByte, index << 3, 8); }
-    std::uint8_t  readcommand8( std::uint_fast8_t commandByte, std::uint_fast8_t index=0) { return read_command(commandByte, index << 3, 8); }
-    std::uint16_t readCommand16(std::uint_fast8_t commandByte, std::uint_fast8_t index=0) { return __builtin_bswap16(read_command(commandByte, index << 3, 16)); }
-    std::uint16_t readcommand16(std::uint_fast8_t commandByte, std::uint_fast8_t index=0) { return __builtin_bswap16(read_command(commandByte, index << 3, 16)); }
-    std::uint32_t readCommand32(std::uint_fast8_t commandByte, std::uint_fast8_t index=0) { return __builtin_bswap32(read_command(commandByte, index << 3, 32)); }
-    std::uint32_t readcommand32(std::uint_fast8_t commandByte, std::uint_fast8_t index=0) { return __builtin_bswap32(read_command(commandByte, index << 3, 32)); }
-
-    void setColorDepth(std::uint8_t bpp) { setColorDepth((color_depth_t)bpp); }
-
-    void sleep()  { writeCommand(_panel->getCmdSlpin()); }
-
-    void wakeup() { writeCommand(_panel->getCmdSlpout()); }
-
-    void setColorDepth(color_depth_t depth)
-    {
-      commandList(_panel->getColorDepthCommands((std::uint8_t*)_regbuf, depth));
-      postSetColorDepth();
-    }
-
-    void setRotation(std::int_fast8_t r)
-    {
-      commandList(_panel->getRotationCommands((std::uint8_t*)_regbuf, r));
-      postSetRotation();
-    }
-
-    void invertDisplay(bool i)
-    {
-      commandList(_panel->getInvertDisplayCommands((std::uint8_t*)_regbuf, i));
-    }
-
-    void setBrightness(std::uint8_t brightness) {
-      _panel->setBrightness(brightness);
-    }
-
-    std::uint32_t readPanelID(void)
-    {
-      return read_command(_panel->getCmdRddid(), _panel->len_dummy_read_rddid, 32);
-    }
-
-    void initBus(void)
-    {
-      attach_i2s();
+      preInit();
 
       //Reset I2S subsystem
       *reg(I2S_CONF_REG(_i2s_port)) = I2S_TX_RESET | I2S_RX_RESET | I2S_TX_FIFO_RESET | I2S_RX_FIFO_RESET;
@@ -217,47 +146,38 @@ namespace lgfx
       memset(_dmadesc, 0, sizeof(lldesc_t));
     }
 
-    virtual void initPanel(void)
-    {
-      if (!_panel) return;
-
-      _panel->init();
-
-      startWrite();
-
-      const std::uint8_t *cmds;
-      for (std::uint8_t i = 0; (cmds = _panel->getInitCommands(i)); i++) {
-        delay(120);
-        cs_l();
-        commandList(cmds);
-        wait_i2s();
-        cs_h();
-      }
-      cs_l();
-
-      invertDisplay(getInvert());
-      setColorDepth(getColorDepth());
-      setRotation(getRotation());
-      clear();
-
-      endWrite();
-
-      _sx = _sy = 0;
-      _sw = _width;
-      _sh = _height;
-    }
-
-
-    void writePixelsDMA_impl(const void* data, std::int32_t length) override {
-      write_bytes((const std::uint8_t*)data, length * _write_conv.bytes, true);
-    }
-
-
 //----------------------------------------------------------------------------
   protected:
 
-    bool isReadable_impl(void) const override { return _panel->spi_read; }
-    std::int_fast8_t getRotation_impl(void) const override { return _panel->rotation; }
+    void preCommandList(void) override
+    {
+      wait_i2s();
+    }
+
+    void postCommandList(void) override
+    {
+      wait_i2s();
+    }
+
+    void postSetPanel(void) override
+    {
+      _cmd_ramwr      = _panel->getCmdRamwr();
+      _len_setwindow  = _panel->len_setwindow;
+      fpGetWindowAddr = _len_setwindow == 32 ? PanelCommon::getWindowAddr32 : PanelCommon::getWindowAddr16;
+/*
+      std::int32_t spi_dc = _panel->spi_dc;
+      _mask_reg_dc = (spi_dc < 0) ? 0 : (1 << (spi_dc & 31));
+      _gpio_reg_dc_h = get_gpio_hi_reg(spi_dc);
+      _gpio_reg_dc_l = get_gpio_lo_reg(spi_dc);
+      dc_h();
+      lgfxPinMode(spi_dc, pin_mode_t::output);
+//*/
+      cs_h();
+      lgfxPinMode(_panel->spi_cs, pin_mode_t::output);
+
+      postSetRotation();
+      postSetColorDepth();
+    }
 
     void postSetRotation(void)
     {
@@ -280,15 +200,9 @@ namespace lgfx
       _clip_l = _clip_t = 0;
     }
 
-    void postSetColorDepth(void)
-    {
-      _write_conv.setColorDepth(_panel->write_depth);
-      _read_conv.setColorDepth(_panel->read_depth);
-    }
-
     void beginTransaction_impl(void) override {
-      if (_begun_tr) return;
-      _begun_tr = true;
+      if (_in_transaction) return;
+      _in_transaction = true;
       begin_transaction();
     }
 
@@ -307,8 +221,8 @@ namespace lgfx
     }
 
     void endTransaction_impl(void) override {
-      if (!_begun_tr) return;
-      _begun_tr = false;
+      if (!_in_transaction) return;
+      _in_transaction = false;
       end_transaction();
     }
 
@@ -336,6 +250,10 @@ namespace lgfx
       return !(*reg(I2S_STATE_REG(_i2s_port)) & I2S_TX_IDLE);
     }
 
+    void writePixelsDMA_impl(const void* data, std::int32_t length) override {
+      write_bytes((const std::uint8_t*)data, length * _write_conv.bytes, true);
+    }
+
     void setWindow_impl(std::int32_t xs, std::int32_t ys, std::int32_t xe, std::int32_t ye) override
     {
       set_window(xs, ys, xe, ye, _cmd_ramwr);
@@ -343,7 +261,7 @@ namespace lgfx
 
     void drawPixel_impl(std::int32_t x, std::int32_t y) override
     {
-      if (_begun_tr) {
+      if (_in_transaction) {
         set_window(x, y, x, y, _cmd_ramwr);
         push_block(1);
         return;
@@ -413,35 +331,6 @@ namespace lgfx
           limit = 10;
         } while (length);
       }
-    }
-
-    bool commandList(const std::uint8_t *addr)
-    {
-      if (addr == nullptr) return false;
-      std::uint8_t  cmd;
-      std::uint8_t  numArgs;
-      std::uint8_t  ms;
-
-      wait_i2s();
-      startWrite();
-      for (;;) {                // For each command...
-        cmd     = *addr++;  // Read, issue command
-        numArgs = *addr++;  // Number of args to follow
-        if (0xFF == (cmd & numArgs)) break;
-        write_cmd(cmd);
-        ms = numArgs & CMD_INIT_DELAY;       // If hibit set, delay follows args
-        numArgs &= ~CMD_INIT_DELAY;          // Mask out delay bit
-
-        while (numArgs--) {                   // For each argument...
-          writeData(*addr++);  // Read, issue argument
-        }
-        if (ms) {
-          ms = *addr++;        // Read post-command delay time (ms)
-          delay( (ms==255 ? 500 : ms) );
-        }
-      }
-      endWrite();
-      return true;
     }
 
     void write_cmd(std::uint_fast8_t cmd)
@@ -619,7 +508,7 @@ namespace lgfx
     {
       wait();
       cs_h();
-      attach_i2s();
+      preInit();
 /*
       gpio_pad_select_gpio(_gpio_rd);
       gpio_set_level(_gpio_rd, 1);
@@ -863,64 +752,6 @@ namespace lgfx
       } while (--length);
     }
 
-    void copyRect_impl(std::int32_t dst_x, std::int32_t dst_y, std::int32_t w, std::int32_t h, std::int32_t src_x, std::int32_t src_y) override
-    {
-      pixelcopy_t p((void*)nullptr, _write_conv.depth, _read_conv.depth);
-      if (w < h) {
-        const std::uint32_t buflen = h * _write_conv.bytes;
-        std::uint8_t buf[buflen];
-        std::int32_t add = (src_x < dst_x) ?   - 1 : 1;
-        std::int32_t pos = (src_x < dst_x) ? w - 1 : 0;
-        do {
-          readRect_impl(src_x + pos, src_y, 1, h, buf, &p);
-          setWindow_impl(dst_x + pos, dst_y, dst_x + pos, dst_y + h - 1);
-          write_bytes(buf, buflen);
-          pos += add;
-        } while (--w);
-      } else {
-        const std::uint32_t buflen = w * _write_conv.bytes;
-        std::uint8_t buf[buflen];
-        std::int32_t add = (src_y < dst_y) ?   - 1 : 1;
-        std::int32_t pos = (src_y < dst_y) ? h - 1 : 0;
-        do {
-          readRect_impl(src_x, src_y + pos, w, 1, buf, &p);
-          setWindow_impl(dst_x, dst_y + pos, dst_x + w - 1, dst_y + pos);
-          write_bytes(buf, buflen);
-          pos += add;
-        } while (--h);
-      }
-    }
-
-    struct _dmabufs_t {
-      std::uint8_t* buffer = nullptr;
-      std::uint32_t length = 0;
-      void free(void) {
-        if (buffer) {
-          heap_caps_free(buffer);
-          buffer = nullptr;
-          length = 0;
-        }
-      }
-    };
-
-    std::uint8_t* get_dmabuffer(std::uint32_t length)
-    {
-      _dma_flip = !_dma_flip;
-      length = (length + 3) & ~3;
-      if (_dmabufs[_dma_flip].length < length) {
-        _dmabufs[_dma_flip].free();
-        _dmabufs[_dma_flip].buffer = (std::uint8_t*)heap_caps_malloc(length, MALLOC_CAP_DMA);
-        _dmabufs[_dma_flip].length = _dmabufs[_dma_flip].buffer ? length : 0;
-      }
-      return _dmabufs[_dma_flip].buffer;
-    }
-
-    void delete_dmabuffer(void)
-    {
-      _dmabufs[0].free();
-      _dmabufs[1].free();
-    }
-
     static void _alloc_dmadesc(size_t len)
     {
       if (_dmadesc) heap_caps_free(_dmadesc);
@@ -959,16 +790,7 @@ namespace lgfx
       *reg(I2S_CONF_REG(_i2s_port)) = conf_reg1;
     }
 
-    void cs_h(void) {
-      std::int32_t spi_cs = _panel->spi_cs;
-      if (spi_cs >= 0) *get_gpio_hi_reg(spi_cs) = (1 << (spi_cs & 31));
-    }
-    void cs_l(void) {
-      std::int32_t spi_cs = _panel->spi_cs;
-      if (spi_cs >= 0) *get_gpio_lo_reg(spi_cs) = (1 << (spi_cs & 31));
-    }
-
-    void attach_i2s(void)
+    void preInit(void)
     {
       gpio_pad_select_gpio(_gpio_d0);
       gpio_pad_select_gpio(_gpio_d1);
@@ -1051,7 +873,6 @@ namespace lgfx
 
     static constexpr i2s_port_t _i2s_port = get_i2s_port<CFG, I2S_NUM_0>::value;
 
-    PanelCommon* _panel = nullptr;
     std::uint32_t(*fpGetWindowAddr)(std::uint_fast16_t, std::uint_fast16_t);
     std::uint_fast16_t _colstart;
     std::uint_fast16_t _rowstart;
@@ -1063,9 +884,6 @@ namespace lgfx
     std::uint32_t _cmd_raset;
     std::uint32_t _cmd_ramwr;
     std::uint32_t _len_setwindow;
-    _dmabufs_t _dmabufs[2];
-    bool _begun_tr = false;
-    bool _dma_flip = false;
     std::uint32_t _mask_reg_dc;
     volatile std::uint32_t* _gpio_reg_dc_h;
     volatile std::uint32_t* _gpio_reg_dc_l;

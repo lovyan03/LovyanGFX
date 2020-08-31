@@ -23,13 +23,12 @@ namespace lgfx
       spi_dc   = 0x0206; // PORTC  6  (PORTC=0x0200 |  6=0x0006)
       gpio_rst = 0x0207; // PORTC  7  (PORTC=0x0200 |  7=0x0007)
       gpio_bl  = 0x0205; // PORTC  5  (PORTC=0x0200 |  5=0x0005)
-      freq_fill  = 100000000;
+      freq_fill  =  75000000;
       freq_write =  60000000;
       freq_read  =  20000000;
       rotation = 1;
     }
 
-    std::uint8_t currentBrightness = 127;
     std::uint8_t maxBrightness = 255;
 
     void init(void) override
@@ -66,7 +65,7 @@ namespace lgfx
       TC0->COUNT8.WAVE.reg  = 0x02; // WAVEGEN=NPWM;
       TC0->COUNT8.CTRLBSET.reg = (1u<<1); // LUPD
       TC0->COUNT8.PER.reg = this->maxBrightness;
-      TC0->COUNT8.CC[0].reg = this->currentBrightness;
+      TC0->COUNT8.CC[0].reg = this->brightness;
       TC0->COUNT8.CC[1].reg = 0u;
       TC0->COUNT8.DBGCTRL.bit.DBGRUN = 1;
       TC0->COUNT8.INTFLAG.reg = 0x33;    // Clear all flags
@@ -80,8 +79,8 @@ namespace lgfx
 
     void setBrightness(std::uint8_t brightness) override
     {
-      this->currentBrightness = brightness < this->maxBrightness ? brightness : this->maxBrightness;
-      TC0->COUNT8.CC[0].reg = this->currentBrightness;
+      this->brightness = brightness < this->maxBrightness ? brightness : this->maxBrightness;
+      TC0->COUNT8.CC[0].reg = this->brightness;
       while(TC0->COUNT8.SYNCBUSY.bit.CC0);
     }
   };

@@ -4,6 +4,7 @@
 #include "../lgfx_common.hpp"
 
 #include <cstdint>
+#include <driver/i2c.h>
 
 #if defined ARDUINO
   #include <Arduino.h>
@@ -32,14 +33,14 @@ namespace lgfx
 
   void lgfxPinMode(std::int_fast8_t pin, pin_mode_t mode);
 
-  void initPWM(std::int_fast8_t pin, std::uint32_t pwm_ch, std::uint8_t duty = 128);
+  void initPWM(std::int_fast8_t pin, std::uint32_t pwm_ch, std::uint32_t freq = 12000, std::uint8_t duty = 128);
 
   void setPWMDuty(std::uint32_t pwm_ch, std::uint8_t duty);
 
   static inline volatile std::uint32_t* get_gpio_hi_reg(std::int_fast8_t pin) { return (pin & 32) ? &GPIO.out1_w1ts.val : &GPIO.out_w1ts; }
   static inline volatile std::uint32_t* get_gpio_lo_reg(std::int_fast8_t pin) { return (pin & 32) ? &GPIO.out1_w1tc.val : &GPIO.out_w1tc; }
-  static inline void gpio_hi(std::int_fast8_t pin) { *get_gpio_hi_reg(pin) = 1 << (pin & 31); }
-  static inline void gpio_lo(std::int_fast8_t pin) { *get_gpio_lo_reg(pin) = 1 << (pin & 31); }
+  static inline void gpio_hi(std::int_fast8_t pin) { if (pin >= 0) *get_gpio_hi_reg(pin) = 1 << (pin & 31); }
+  static inline void gpio_lo(std::int_fast8_t pin) { if (pin >= 0) *get_gpio_lo_reg(pin) = 1 << (pin & 31); }
   static inline bool gpio_in(std::int_fast8_t pin) { return ((pin & 32) ? GPIO.in1.data : GPIO.in) & (1 << (pin & 31)); }
 
 
@@ -93,6 +94,10 @@ namespace lgfx
   template<>
   struct TPin<-1> : public ESP32NOPIN {};
 //*/
+
+  std::uint32_t getApbFrequency(void);
+  std::uint32_t FreqToClockDiv(std::uint32_t fapb, std::uint32_t hz);
+
 //----------------------------------------------------------------------------
   struct FileWrapper : public DataWrapper {
     FileWrapper() : DataWrapper() { need_transaction = true; }

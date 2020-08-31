@@ -13,7 +13,6 @@
 
 #elif defined ( LGFX_M5STICKC ) || defined ( ARDUINO_M5Stick_C )
 
- #include <AXP192.h>
  #define BUTTON_A_PIN 37
  #define BUTTON_B_PIN 39
 
@@ -132,7 +131,9 @@ static void game_init(void)
 
 static bool game_main(void)
 {
-  if (BUTTON_A_PIN >=0 && BUTTON_B_PIN >=0 && (lgfx::gpio_in(BUTTON_A_PIN) == 0 && lgfx::gpio_in(BUTTON_B_PIN) == 0))
+  std::int32_t tx, ty, tc;
+  tc = lcd.getTouch(&tx, &ty);
+  if ((BUTTON_A_PIN >=0 && BUTTON_B_PIN >=0 && (lgfx::gpio_in(BUTTON_A_PIN) == 0 && lgfx::gpio_in(BUTTON_B_PIN) == 0)) || tc > 1)
   {
     zoom *= 1.0 - zoom_speed;
     if (zoom < zoom_min) { zoom = zoom_min; }
@@ -144,7 +145,11 @@ static bool game_main(void)
 
     add_angle -= add_angle / 10;
 
-    if (BUTTON_A_PIN >= 0 && BUTTON_B_PIN >= 0)
+    if (tc)
+    {
+      add_angle += (tx > lcd.width()>>1) ? 0.6 : -0.6;
+    }
+    else if (BUTTON_A_PIN >= 0 && BUTTON_B_PIN >= 0)
     {
       if (BUTTON_A_PIN >=0 && lgfx::gpio_in(BUTTON_A_PIN) == 0) add_angle += 0.6;
       if (BUTTON_B_PIN >=0 && lgfx::gpio_in(BUTTON_B_PIN) == 0) add_angle -= 0.6;
@@ -230,18 +235,6 @@ void setup(void)
   sp.setColorDepth(2);
   sp.createSprite(257, 257);
   game_init();
-
-#if defined ( LGFX_M5STICKC ) || defined ( ARDUINO_M5Stick_C )
-
-  AXP192 axp;
-  axp.begin();
-  axp.ScreenBreath(8);
-
-#else
-
-  lcd.setBrightness(128);
-
-#endif
 }
 
 void loop(void)
@@ -270,6 +263,7 @@ void loop(void)
         zoom = zoom_min;
         if ((BUTTON_A_PIN >=0 && lgfx::gpio_in(BUTTON_A_PIN) == 0)
          || (BUTTON_B_PIN >=0 && lgfx::gpio_in(BUTTON_B_PIN) == 0)
+         || lcd.getTouch()
          ) break;
       }
     }

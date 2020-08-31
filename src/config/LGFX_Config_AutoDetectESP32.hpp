@@ -23,6 +23,39 @@ namespace lgfx
       offset_y     = 1;
       offset_rotation = 2;
     }
+
+    static constexpr std::int32_t freq = 400000;
+    static constexpr std::uint_fast8_t i2c_addr = 0x34;
+    static constexpr std::int_fast16_t i2c_port = I2C_NUM_1;
+    static constexpr std::int_fast16_t i2c_sda = 21;
+    static constexpr std::int_fast16_t i2c_scl = 22;
+    static constexpr std::uint_fast8_t axp_ldo = 2;
+
+    void init(void) override
+    {
+      lgfx::i2c::init(i2c_port, i2c_sda, i2c_scl, freq);
+      uint8_t tmp[1];
+      lgfx::i2c::readRegister(i2c_port, i2c_addr, 0x12, tmp, 1);
+      tmp[0] |= 0x4D;
+      lgfx::i2c::writeRegister(i2c_port, i2c_addr, 0x12, tmp, 1);
+
+      Panel_ST7735S::init();
+    }
+
+    void setBrightness(std::uint8_t brightness) override
+    {
+      this->brightness = brightness;
+      brightness = (((brightness >> 1) + 8) / 13) + 5;
+      uint8_t tmp[1];
+      lgfx::i2c::readRegister(i2c_port, i2c_addr, 0x28, tmp, 1);
+      tmp[0] = (tmp[0] & 0x0F) | brightness << 4;
+      lgfx::i2c::writeRegister(i2c_port, i2c_addr, 0x28, tmp, 1);
+    }
+
+    void sleep(void) override { lgfx::i2c::bitOff(i2c_port, i2c_addr, 0x12, 1 << 2); }
+
+    void wakeup(void) override { lgfx::i2c::bitOn(i2c_port, i2c_addr, 0x12, 1 << 2); }
+
   protected:
     const std::uint8_t* getInitCommands(std::uint8_t listno) const override {
       static constexpr std::uint8_t list[] = {
@@ -52,6 +85,37 @@ namespace lgfx
       offset_x = 52;
       offset_y = 40;
     }
+
+    static constexpr std::int32_t freq = 400000;
+    static constexpr std::uint_fast8_t i2c_addr = 0x34;
+    static constexpr std::int_fast16_t i2c_port = I2C_NUM_1;
+    static constexpr std::int_fast16_t i2c_sda = 21;
+    static constexpr std::int_fast16_t i2c_scl = 22;
+
+    void init(void) override
+    {
+      lgfx::i2c::init(i2c_port, i2c_sda, i2c_scl, freq);
+      uint8_t tmp[1];
+      lgfx::i2c::readRegister(i2c_port, i2c_addr, 0x12, tmp, 1);
+      tmp[0] |= 0x4D;
+      lgfx::i2c::writeRegister(i2c_port, i2c_addr, 0x12, tmp, 1);
+
+      Panel_ST7789::init();
+    }
+
+    void setBrightness(std::uint8_t brightness) override
+    {
+      this->brightness = brightness;
+      brightness = (((brightness >> 1) + 8) / 13) + 5;
+      uint8_t tmp[1];
+      lgfx::i2c::readRegister(i2c_port, i2c_addr, 0x28, tmp, 1);
+      tmp[0] = (tmp[0] & 0x0F) | brightness << 4;
+      lgfx::i2c::writeRegister(i2c_port, i2c_addr, 0x28, tmp, 1);
+    }
+
+    void sleep(void) override { lgfx::i2c::bitOff(i2c_port, i2c_addr, 0x12, 1 << 2); }
+
+    void wakeup(void) override { lgfx::i2c::bitOn(i2c_port, i2c_addr, 0x12, 1 << 2); }
   };
 
   struct Panel_M5Stack : public Panel_ILI9342
@@ -65,6 +129,7 @@ namespace lgfx
       gpio_rst = 33;
       gpio_bl  = 32;
       pwm_ch_bl = 7;
+      pwm_freq  = 44100;
     }
 
     void init(void) override {
@@ -88,6 +153,7 @@ public:
   enum board_t
   { board_unknown
   , board_M5Stack
+  , board_M5StackCore2
   , board_M5StickC
   , board_M5StickCPlus
   , board_TTGO_TS
@@ -115,9 +181,9 @@ private:
       panel_last = nullptr;
     }
 
-    lgfx::PanelIlitekCommon panel;
-    panel.spi_3wire  = true;
-    panel.freq_read  = 8000000;
+    lgfx::PanelIlitekCommon p_tmp;
+    p_tmp.spi_3wire  = true;
+    p_tmp.freq_read  = 8000000;
     board = board_unknown;
     std::uint32_t id;
 
@@ -130,10 +196,10 @@ private:
     _spi_sclk = 18;
     initBus();
 
-    panel.spi_cs   =  5;
-    panel.spi_dc   = 27;
-    panel.gpio_rst = -1;
-    setPanel(&panel);
+    p_tmp.spi_cs   =  5;
+    p_tmp.spi_dc   = 27;
+    p_tmp.gpio_rst = -1;
+    setPanel(&p_tmp);
 
     id = readPanelID();
     ESP_LOGW("LovyanGFX", "[Autodetect] panel id:%08x", id);
@@ -154,12 +220,26 @@ private:
       p->spi_dc    = 27;
       p->gpio_bl   = 12;
       p->pwm_ch_bl = 7;
+      p->pwm_freq  = 1200;
 
       setPanel(p);
+
+      auto t = new lgfx::Touch_FT5x06();
+      t->i2c_sda  = 23;   // I2C SDA pin number
+      t->i2c_scl  = 32;   // I2C SCL pin number
+      t->i2c_addr = 0x38; // I2C device addr
+      t->i2c_port = I2C_NUM_1;// I2C port number
+      t->freq = 400000;   // I2C freq
+      t->x_min = 0;
+      t->x_max = 319;
+      t->y_min = 0;
+      t->y_max = 319;
+      touch(t);
+
       goto init_clear;
     }
-    lgfx::gpio_lo(panel.spi_cs);
-    lgfx::gpio_lo(panel.spi_dc);
+    lgfx::gpio_lo(p_tmp.spi_cs);
+    lgfx::gpio_lo(p_tmp.spi_dc);
 #endif
 
 
@@ -171,10 +251,10 @@ private:
     _spi_sclk = 18;
     initBus();
 
-    panel.spi_cs   =  5;
-    panel.spi_dc   = 23;
-    panel.gpio_rst = 26;
-    setPanel(&panel);
+    p_tmp.spi_cs   =  5;
+    p_tmp.spi_dc   = 23;
+    p_tmp.gpio_rst = 26;
+    setPanel(&p_tmp);
     _reset();
 
     id = readPanelID();
@@ -199,9 +279,9 @@ private:
       setPanel(p);
       goto init_clear;
     }
-    lgfx::gpio_lo(panel.spi_cs);
-    lgfx::gpio_lo(panel.spi_dc);
-    lgfx::gpio_lo(panel.gpio_rst);
+    lgfx::gpio_lo(p_tmp.spi_cs);
+    lgfx::gpio_lo(p_tmp.spi_dc);
+    lgfx::gpio_lo(p_tmp.gpio_rst);
 #endif
 
 
@@ -213,12 +293,6 @@ private:
     _spi_sclk = 18;
     initBus();
 
-    panel.spi_cs   = 14;
-    panel.spi_dc   = 27;
-    panel.gpio_rst = 33;
-    setPanel(&panel);
-    _reset();
-
  #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_M5STACK )
     lgfx::lgfxPinMode(4, lgfx::pin_mode_t::output); // M5Stack TF card CS
     lgfx::gpio_hi(4);
@@ -229,12 +303,64 @@ private:
     lgfx::lgfxPinMode(12, lgfx::pin_mode_t::output); // LoLinD32 TouchScreen CS
     lgfx::gpio_hi(12);
  #endif
+
+    p_tmp.spi_cs   = 14;
+    p_tmp.spi_dc   = 27;
+    p_tmp.gpio_rst = 33;
+
+ #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_LOLIN_D32_PRO )
+
+    p_tmp.spi_3wire = false;
+    setPanel(&p_tmp);
+    _reset();
+
     id = readPanelID();
 
     ESP_LOGW("LovyanGFX", "[Autodetect] panel id:%08x", id);
 
-// LoLinD32Pro 判定
+// LoLinD32Pro (ILI9341) 判定
+    if ((id & 0xFF )== 0 && readCommand32(0x09) != 0) {   // check panel (ILI9341) panelIDが0なのでステータスリードを併用する
+ #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_M5STACK )
+      lgfx::gpio_lo(4);
+ #endif
+      ESP_LOGW("LovyanGFX", "[Autodetect] LoLinD32Pro ILI9341");
+      board = board_LoLinD32;
+      auto p = new lgfx::Panel_ILI9341();
+      p->spi_3wire = false;
+      p->spi_cs    = 14;
+      p->spi_dc    = 27;
+      p->gpio_rst  = 33;
+      p->gpio_bl   = 32;
+      p->pwm_ch_bl = 7;
+      setPanel(p);
+
+      auto t = new lgfx::Touch_XPT2046();
+      t->spi_mosi = 23;
+      t->spi_miso = 19;
+      t->spi_sclk = 18;
+      t->spi_cs   = 12;
+      t->spi_host = VSPI_HOST;
+      t->freq     = 2500000;
+
+      touch(t);
+
+      goto init_clear;
+    }
+
+    p_tmp.spi_3wire = true;
+
+ #endif
+
+    setPanel(&p_tmp);
+    _reset();
+
+    id = readPanelID();
+
+    ESP_LOGW("LovyanGFX", "[Autodetect] panel id:%08x", id);
+
+// LoLinD32Pro (ST7735) 判定
  #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_LOLIN_D32_PRO )
+
     if ((id & 0xFF) == 0x7C) {  //  check panel (ST7735)
  #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_M5STACK )
       lgfx::gpio_lo(4);
@@ -258,27 +384,12 @@ private:
       goto init_clear;
     }
 
-    if ((id & 0xFF) == 0x7F) {  //  check panel (ILI9341)
- #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_M5STACK )
-      lgfx::gpio_lo(4);
- #endif
-      ESP_LOGW("LovyanGFX", "[Autodetect] LoLinD32Pro ILI9341");
-      board = board_LoLinD32;
-      auto p = new lgfx::Panel_ILI9341();
-      p->spi_3wire = true;
-      p->spi_cs    = 14;
-      p->spi_dc    = 27;
-      p->gpio_rst  = 33;
-      p->gpio_bl   = 32;
-      p->pwm_ch_bl = 7;
-      setPanel(p);
-      goto init_clear;
-    }
  #endif
 
 // M5Stack 判定
  #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_M5STACK )
     if (id != 0 && id != ~0) {   // M5Stack
+
  #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_LOLIN_D32_PRO )
       lgfx::gpio_lo(5);
       lgfx::gpio_lo(12);
@@ -291,12 +402,59 @@ private:
     }
  #endif
 
-    lgfx::gpio_lo(panel.spi_cs);
-    lgfx::gpio_lo(panel.spi_dc);
-    lgfx::gpio_lo(panel.gpio_rst);
+    lgfx::gpio_lo(p_tmp.spi_cs);
+    lgfx::gpio_lo(p_tmp.spi_dc);
+    lgfx::gpio_lo(p_tmp.gpio_rst);
     lgfx::gpio_lo(4);
     lgfx::gpio_lo(5);
     lgfx::gpio_lo(12);
+#endif
+
+
+// M5StackCore2 判定
+#if defined ( LGFX_AUTODETECT ) || defined ( LGFX_M5STACK )
+    releaseBus();
+    _spi_mosi = 23;
+    _spi_miso = 38;
+    _spi_sclk = 18;
+    initBus();
+
+    p_tmp.spi_cs   =  5;
+    p_tmp.spi_dc   = 15;
+    p_tmp.gpio_rst = -1;
+    setPanel(&p_tmp);
+
+    lgfx::lgfxPinMode(4, lgfx::pin_mode_t::output); // TF card CS
+    lgfx::gpio_hi(4);
+
+    id = readPanelID();
+    if (id != 0 && id != ~0 && readCommand32(0x09) != 0) {
+      ESP_LOGW("LovyanGFX", "[Autodetect] M5StackCore2");
+      board = board_M5StackCore2;
+      auto p = new lgfx::Panel_ILI9342();
+      p->reverse_invert = true;
+      p->spi_3wire = true;
+      p->spi_cs    =  5;
+      p->spi_dc    = 15;
+      setPanel(p);
+
+      auto t = new lgfx::Touch_FT5x06();
+      t->i2c_sda  = 21;   // I2C SDA pin number
+      t->i2c_scl  = 22;   // I2C SCL pin number
+      t->i2c_addr = 0x38; // I2C device addr
+      t->i2c_port = I2C_NUM_1;// I2C port number
+      t->freq = 400000;   // I2C freq
+      t->x_min = 0;
+      t->x_max = 319;
+      t->y_min = 0;
+      t->y_max = 319;
+      touch(t);
+
+      goto init_clear;
+    }
+    lgfx::gpio_lo(p_tmp.spi_cs);
+    lgfx::gpio_lo(p_tmp.spi_dc);
+    lgfx::gpio_lo(4);
 #endif
 
 
@@ -308,10 +466,10 @@ private:
     _spi_sclk = 18;
     initBus();
 
-    panel.spi_cs   =  5;
-    panel.spi_dc   = 21;
-    panel.gpio_rst = -1;
-    setPanel(&panel);
+    p_tmp.spi_cs   =  5;
+    p_tmp.spi_dc   = 21;
+    p_tmp.gpio_rst = -1;
+    setPanel(&p_tmp);
 
     lgfx::lgfxPinMode(22, lgfx::pin_mode_t::output); // ODROID-GO TF card CS
     lgfx::gpio_hi(22);
@@ -331,8 +489,8 @@ private:
       setPanel(p);
       goto init_clear;
     }
-    lgfx::gpio_lo(panel.spi_cs);
-    lgfx::gpio_lo(panel.spi_dc);
+    lgfx::gpio_lo(p_tmp.spi_cs);
+    lgfx::gpio_lo(p_tmp.spi_dc);
     lgfx::gpio_lo(22);
 #endif
 
@@ -344,10 +502,10 @@ private:
     _spi_sclk = 13;
     initBus();
 
-    panel.spi_cs   =  5;
-    panel.spi_dc   = 23;
-    panel.gpio_rst = 18;
-    setPanel(&panel);
+    p_tmp.spi_cs   =  5;
+    p_tmp.spi_dc   = 23;
+    p_tmp.gpio_rst = 18;
+    setPanel(&p_tmp);
     _reset();
 
     id = readPanelID();
@@ -367,9 +525,9 @@ private:
       setPanel(p);
       goto init_clear;
     }
-    lgfx::gpio_lo(panel.spi_cs);
-    lgfx::gpio_lo(panel.spi_dc);
-    lgfx::gpio_lo(panel.gpio_rst);
+    lgfx::gpio_lo(p_tmp.spi_cs);
+    lgfx::gpio_lo(p_tmp.spi_dc);
+    lgfx::gpio_lo(p_tmp.gpio_rst);
 #endif
 
 // ESP-WROVER-KIT 判定
@@ -380,11 +538,11 @@ private:
     _spi_sclk = 19;
     initBus();
 
-    panel.spi_3wire = false;
-    panel.spi_cs   = 22;
-    panel.spi_dc   = 21;
-    panel.gpio_rst = 18;
-    setPanel(&panel);
+    p_tmp.spi_3wire = false;
+    p_tmp.spi_cs   = 22;
+    p_tmp.spi_dc   = 21;
+    p_tmp.gpio_rst = 18;
+    setPanel(&p_tmp);
     _reset();
 
     id = readPanelID();
@@ -429,10 +587,10 @@ private:
       setPanel(p);
       goto init_clear;
     }
-    lgfx::gpio_lo(panel.spi_cs);
-    lgfx::gpio_lo(panel.spi_dc);
-    lgfx::gpio_lo(panel.gpio_rst);
-    panel.spi_3wire = true;
+    lgfx::gpio_lo(p_tmp.spi_cs);
+    lgfx::gpio_lo(p_tmp.spi_dc);
+    lgfx::gpio_lo(p_tmp.gpio_rst);
+    p_tmp.spi_3wire = true;
 #endif
 
 // TTGO TS判定
@@ -443,10 +601,10 @@ private:
     _spi_sclk =  5;
     initBus();
 
-    panel.spi_cs   = 16;
-    panel.spi_dc   = 17;
-    panel.gpio_rst =  9;
-    setPanel(&panel);
+    p_tmp.spi_cs   = 16;
+    p_tmp.spi_dc   = 17;
+    p_tmp.gpio_rst =  9;
+    setPanel(&p_tmp);
     _reset();
 
     id = readPanelID();
@@ -471,9 +629,9 @@ private:
       setPanel(p);
       goto init_clear;
     }
-    lgfx::gpio_lo(panel.spi_cs);
-    lgfx::gpio_lo(panel.spi_dc);
-    lgfx::gpio_lo(panel.gpio_rst);
+    lgfx::gpio_lo(p_tmp.spi_cs);
+    lgfx::gpio_lo(p_tmp.spi_dc);
+    lgfx::gpio_lo(p_tmp.gpio_rst);
 #endif
 
 // DSTIKE D-Duino32XS については読出しが出来ないため無条件設定となる。
@@ -512,13 +670,10 @@ private:
     panel_last->panel_height = 0;
     return;
 
+    goto init_clear;
 init_clear:
     panel_last = getPanel();
-    initPanel();
-    startWrite();
-    clear();
-    setWindow(0,0,0,0);
-    endWrite();
+    lgfx::LGFX_SPI<lgfx::LGFX_Config>::init_impl();
   }
 
   board_t board = board_unknown;

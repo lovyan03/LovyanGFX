@@ -1,10 +1,6 @@
 
 #include <stdio.h>
 
-#if defined( ARDUINO_M5Stick_C )
-#include <AXP192.h>
-#endif
-
 #include <LovyanGFX.hpp>
 
 static LGFX lcd;
@@ -112,11 +108,6 @@ static void drawTestPattern(void)
 
 void setup(void)
 {
-#if defined(ARDUINO_M5Stick_C)
-  AXP192 axp;
-  axp.begin();
-#endif
-
   lcd.init();
 
   lcd.fillScreen(0x00FF);
@@ -124,16 +115,25 @@ void setup(void)
 
 void loop()
 {
+  static int count = 0;
+
   lcd.startWrite();
 
   lcd.fillScreen(0);
+  lcd.setColorDepth((count & 1) ? 24 : 16);
+  lcd.setRotation((count>>1) & 7);
+  ++count;
 
   drawTestPattern();
+  lcd.setCursor(0, 10);
+  lcd.printf("color %d\nrotation %d", lcd.getColorDepth(), lcd.getRotation());
+  delay(500);
 
   int16_t ie = min(lcd.width() , lcd.height()) - 2;
   for (int i = 0; i < ie; ++i) {
     lcd.copyRect(i, i+1, lcd.width() - (i<<1), lcd.height() - i - 1, i, i);
   }
+  delay(500);
   lcd.endWrite();
 
   return;

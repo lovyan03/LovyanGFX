@@ -15,9 +15,9 @@
 // #define LGFX_ESP_WROVER_KIT   // ESP-WROVER-KIT
 // #define LGFX_WIO_TERMINAL     // Wio Terminal
 
-// #define LGFX_AUTODETECT  // 自動認識 (M5Stack, M5StickC/CPlus, ODROID-GO, TTGO T-Watch, TTGO T-Wristband, ESP-WROVER-KIT)
-// LGFX_AUTODETECT を定義した場合や、複数の定義を記述した場合は、
-// 実行時にパネルと通信を試みてボードの自動認識を行います。
+// #define LGFX_AUTODETECT // 自動認識 (M5Stack, M5StickC/CPlus, ODROID-GO, TTGO T-Watch, TTGO T-Wristband, LoLin D32 Pro, ESP-WROVER-KIT)
+
+// 複数機種の定義を行うか、LGFX_AUTODETECTを定義することで、実行時にボードを自動認識します。
 
 
 // ヘッダをincludeします。
@@ -49,8 +49,6 @@ void setup(void)
 
 // バックライトの輝度を 0～255 の範囲で設定します。
   lcd.setBrightness(255); // の範囲で設定
-// M5Stick-Cのバックライト調整は現在非対応です。
-// AXP192ライブラリを別途includeして設定してください。
 
 
 // 必要に応じてカラーモードを設定します。（初期値は16）

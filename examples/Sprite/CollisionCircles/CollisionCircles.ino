@@ -1,7 +1,3 @@
-#if defined(ARDUINO_M5Stick_C)
-#include <AXP192.h>
-#endif
-
 #include <LovyanGFX.hpp>
 
 struct ball_info_t {
@@ -235,13 +231,7 @@ static void taskDraw(void*)
 
 void setup(void)
 {
-#if defined(ARDUINO_M5Stick_C)
-  AXP192 axp;
-  axp.begin();
-#endif
-
   lcd.begin();
-  lcd.setBrightness(160);
   lcd.startWrite();
   if (lcd.width() < lcd.height()) lcd.setRotation(lcd.getRotation() ^ 1);
 
