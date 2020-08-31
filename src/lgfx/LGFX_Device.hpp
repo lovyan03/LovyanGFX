@@ -259,10 +259,10 @@ namespace lgfx
       std::uint16_t ymin = _touch->y_min;
       std::uint16_t ymax = _touch->y_max;
       std::uint16_t parameters[8] = 
-       { xmin, ymin
-       , xmin, ymax
-       , xmax, ymin
-       , xmax, ymax };
+        { xmin, ymin
+        , xmin, ymax
+        , xmax, ymin
+        , xmax, ymax };
       set_touch_calibrate(parameters);
     }
 
@@ -350,11 +350,19 @@ namespace lgfx
       setRawColor(bg_rawcolor);
       fillRect(x - r, y - r, r * 2 + 1, r * 2 + 1);
       if (fg_rawcolor == bg_rawcolor) return;
+      startWrite();
       setRawColor(fg_rawcolor);
       fillRect(x - 1, y - r, 3, r * 2 + 1);
       fillRect(x - r, y - 1, r * 2 + 1, 3);
-      drawLine(x - r, y - r, x + r, y + r);
-      drawLine(x - r, y + r, x + r, y - r);
+      for (std::int32_t i = - r + 1; i < r; ++i) {
+        drawFastHLine(x + i - 1, y + i, 3);
+        drawFastHLine(x - i - 1, y + i, 3);
+      }
+      drawFastHLine(x + r - 1, y + r, 2);
+      drawFastHLine(x - r    , y + r, 2);
+      drawFastHLine(x - r    , y - r, 2);
+      drawFastHLine(x + r - 1, y - r, 2);
+      endWrite();
     }
 
     void calibrate_touch(std::uint16_t *parameters, std::uint32_t fg_rawcolor, std::uint32_t bg_rawcolor, std::uint8_t size)

@@ -299,16 +299,28 @@ void setup(void)
   // SPIバスとパネルの初期化を実行すると使用可能になります。
   lcd.init();
 
+  if (lcd.width() > 240 || lcd.height() > 240) lcd.setTextSize(2);
 
+  if (lcd.touch())
+  {
+    if (lcd.width() < lcd.height()) lcd.setRotation(3 & (lcd.getRotation() + 1));
 
-  lcd.drawRect(0,0,lcd.width(),lcd.height(),0xFFFF);
+    // Draw the information text.
+    // 画面に案内文章を描画します。
+    lcd.drawString("touch the arrow marker.", 0, lcd.height()>>1);
 
-  lcd.setTextSize(2);
+    // If the touch is enabled, perform calibration. Touch the arrow tips that appear in the four corners of the screen in order.
+    // タッチを使用する場合、キャリブレーションを行います。画面の四隅に表示される矢印の先端を順にタッチしてください。
+    lcd.calibrateTouch(nullptr, 0xFFFFFFU, 0x000000U, 30);
+
+    lcd.clear();
+  }
 }
 
 uint32_t count = ~0;
 void loop(void)
 {
+  delay(10);
   lcd.startWrite();
   lcd.setRotation(++count & 7);
 
@@ -323,6 +335,12 @@ void loop(void)
   lcd.drawString("B", 50, 16);
 
   lcd.drawRect(30,30,lcd.width()-60,lcd.height()-60,random(65536));
+
   lcd.endWrite();
+
+  int32_t x, y;
+  if (lcd.getTouch(&x, &y)) {
+    lcd.fillRect(x-2, y-2, 5, 5, random(65536));
+  }
 }
 
