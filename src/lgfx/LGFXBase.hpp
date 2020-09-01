@@ -599,6 +599,6 @@ namespace lgfx
 
 }
 
-using lgfx::LovyanGFX;
+typedef lgfx::LovyanGFX LovyanGFX;
 
 #endif

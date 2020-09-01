@@ -380,7 +380,7 @@ private:
     ESP_LOGW("LovyanGFX", "[Autodetect] panel id:%08x", id);
 
 // LoLinD32Pro (ILI9341) 判定
-    if ((id & 0xFF )== 0 && readCommand32(0x09) != 0) {   // check panel (ILI9341) panelIDが0なのでステータスリードを併用する
+    if ((id & 0xFF) == 0 && readCommand32(0x09) != 0) {   // check panel (ILI9341) panelIDが0なのでステータスリードを併用する
  #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_M5STACK )
       lgfx::gpio_lo(4);
  #endif
@@ -449,7 +449,7 @@ private:
 
 // M5Stack 判定
  #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_M5STACK )
-    if (id != 0 && id != ~0) {   // M5Stack
+    if ((id & 0xFF) == 0xE3) {   // M5Stack
 
  #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_LOLIN_D32_PRO )
       lgfx::gpio_lo(5);
@@ -489,7 +489,9 @@ private:
     lgfx::gpio_hi(4);
 
     id = readPanelID();
-    if (id != 0 && id != ~0 && readCommand32(0x09) != 0) {
+    ESP_LOGW("LovyanGFX", "[Autodetect] panel id:%08x", id);
+
+    if ((id & 0xFF) == 0xE3) {   // M5Stack
       ESP_LOGW("LovyanGFX", "[Autodetect] M5StackCore2");
       board = board_M5StackCore2;
       auto p = new lgfx::Panel_M5StackCore2();
