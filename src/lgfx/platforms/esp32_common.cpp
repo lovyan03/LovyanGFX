@@ -137,6 +137,11 @@ namespace lgfx
 
   namespace spi
   {
+    void init(int spi_host, int spi_sclk, int spi_miso, int spi_mosi)
+    {
+      // TODO: implement
+    }
+
     void beginTransaction(int spi_host, int spi_cs, int freq, int spi_mode)
     {
       std::uint32_t spi_port = (spi_host == HSPI_HOST) ? 2 : 3;  // FSPI=1  HSPI=2  VSPI=3;
@@ -205,7 +210,7 @@ namespace lgfx
       i2c_param_config(static_cast<i2c_port_t>(i2c_port), &conf);
       i2c_driver_install(static_cast<i2c_port_t>(i2c_port), I2C_MODE_MASTER, 0, 0, 0);
 #endif
-    }
+      }
 
     bool writeRegister(int i2c_port, std::uint16_t addr, std::uint8_t reg, const std::uint8_t *data, uint8_t len)
     {

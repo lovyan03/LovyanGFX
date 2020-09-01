@@ -6,8 +6,13 @@ namespace lgfx
 {
   bool Touch_XPT2046::init(void)
   {
-    if (isSPI()) _inited = true;
-    return _inited; 
+    _inited = false;
+    if (!isSPI()) return false;
+
+    lgfx::spi::init(spi_host, spi_sclk, spi_miso, spi_mosi);
+
+    _inited = true;
+    return true;
   }
 
   std::uint_fast8_t Touch_XPT2046::getTouch(std::int32_t* x, std::int32_t* y, std::int_fast8_t number)

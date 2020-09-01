@@ -68,6 +68,9 @@ namespace lgfx
 
   namespace spi // TODO: implement.
   {
+    void init(int spi_host, int spi_sclk, int spi_miso, int spi_mosi)
+    {}
+
     void beginTransaction(int spi_host, int spi_cs, int freq, int spi_mode)
     {}
 

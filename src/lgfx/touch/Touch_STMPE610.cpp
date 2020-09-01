@@ -141,9 +141,11 @@ namespace lgfx
 
   bool Touch_STMPE610::init(void)
   {
+    _inited = false;
     if (!isSPI()) return false;
 
-    _inited = false;
+    lgfx::spi::init(spi_host, spi_sclk, spi_miso, spi_mosi);
+
     _spi_mode = 0;
     if (0x811 != getVersion()) {
       _spi_mode = 1;
