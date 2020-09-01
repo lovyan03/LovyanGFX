@@ -1147,11 +1147,11 @@ namespace lgfx
   namespace i2c
   {
     void init(int i2c_port, int pin_sda, int pin_scl, int freq);
-    bool writeRegister(int i2c_port, std::uint8_t addr, std::uint8_t reg, const std::uint8_t *data, uint16_t len);
-    bool readRegister(int i2c_port, std::uint8_t addr, std::uint8_t reg, std::uint8_t *data, uint16_t len);
-    bool writeByte(int i2c_port, std::uint8_t addr, std::uint8_t reg, std::uint8_t data);
-    bool bitOn(int i2c_port, std::uint8_t addr, std::uint8_t reg, std::uint8_t bit);
-    bool bitOff(int i2c_port, std::uint8_t addr, std::uint8_t reg, std::uint8_t bit);
+    bool writeRegister(int i2c_port, std::uint16_t addr, std::uint8_t reg, const std::uint8_t *data, uint8_t len);
+    bool readRegister(int i2c_port, std::uint16_t addr, std::uint8_t reg, std::uint8_t *data, uint8_t len);
+    bool writeByte(int i2c_port, std::uint16_t addr, std::uint8_t reg, std::uint8_t data, std::uint8_t mask = 0);
+    inline bool bitOn(int i2c_port, std::uint16_t addr, std::uint8_t reg, std::uint8_t bit)  { return writeByte(i2c_port, addr, reg, bit, ~0); }
+    inline bool bitOff(int i2c_port, std::uint16_t addr, std::uint8_t reg, std::uint8_t bit) { return writeByte(i2c_port, addr, reg, 0, ~bit); }
   }
 
 //----------------------------------------------------------------------------

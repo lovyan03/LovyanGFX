@@ -11,6 +11,16 @@ namespace lgfx
 
   struct Panel_M5StickC : public Panel_ST7735S
   {
+  private:
+
+    static constexpr std::int32_t freq = 400000;
+    static constexpr std::uint_fast8_t i2c_addr = 0x34;
+    static constexpr std::int_fast16_t i2c_port = I2C_NUM_1;
+    static constexpr std::int_fast16_t i2c_sda = 21;
+    static constexpr std::int_fast16_t i2c_scl = 22;
+
+  public:
+
     Panel_M5StickC() {
       reverse_invert = true;
       spi_3wire  = true;
@@ -24,20 +34,11 @@ namespace lgfx
       offset_rotation = 2;
     }
 
-    static constexpr std::int32_t freq = 400000;
-    static constexpr std::uint_fast8_t i2c_addr = 0x34;
-    static constexpr std::int_fast16_t i2c_port = I2C_NUM_1;
-    static constexpr std::int_fast16_t i2c_sda = 21;
-    static constexpr std::int_fast16_t i2c_scl = 22;
-    static constexpr std::uint_fast8_t axp_ldo = 2;
-
     void init(void) override
     {
       lgfx::i2c::init(i2c_port, i2c_sda, i2c_scl, freq);
-      uint8_t tmp[1];
-      lgfx::i2c::readRegister(i2c_port, i2c_addr, 0x12, tmp, 1);
-      tmp[0] |= 0x4D;
-      lgfx::i2c::writeRegister(i2c_port, i2c_addr, 0x12, tmp, 1);
+
+      lgfx::i2c::writeByte(i2c_port, i2c_addr, 0x12, 0x4D, ~0);
 
       Panel_ST7735S::init();
     }
@@ -46,10 +47,7 @@ namespace lgfx
     {
       this->brightness = brightness;
       brightness = (((brightness >> 1) + 8) / 13) + 5;
-      uint8_t tmp[1];
-      lgfx::i2c::readRegister(i2c_port, i2c_addr, 0x28, tmp, 1);
-      tmp[0] = (tmp[0] & 0x0F) | brightness << 4;
-      lgfx::i2c::writeRegister(i2c_port, i2c_addr, 0x28, tmp, 1);
+      lgfx::i2c::writeByte(i2c_port, i2c_addr, 0x28, brightness << 4, 0x0F);
     }
 
     void sleep(void) override { lgfx::i2c::bitOff(i2c_port, i2c_addr, 0x12, 1 << 2); }
@@ -69,6 +67,16 @@ namespace lgfx
 
   struct Panel_M5StickCPlus: public Panel_ST7789
   {
+  private:
+
+    static constexpr std::int32_t freq = 400000;
+    static constexpr std::uint_fast8_t i2c_addr = 0x34;
+    static constexpr std::int_fast16_t i2c_port = I2C_NUM_1;
+    static constexpr std::int_fast16_t i2c_sda = 21;
+    static constexpr std::int_fast16_t i2c_scl = 22;
+
+  public:
+
     Panel_M5StickCPlus() {
       reverse_invert = true;
       spi_3wire  = true;
@@ -86,19 +94,11 @@ namespace lgfx
       offset_y = 40;
     }
 
-    static constexpr std::int32_t freq = 400000;
-    static constexpr std::uint_fast8_t i2c_addr = 0x34;
-    static constexpr std::int_fast16_t i2c_port = I2C_NUM_1;
-    static constexpr std::int_fast16_t i2c_sda = 21;
-    static constexpr std::int_fast16_t i2c_scl = 22;
-
     void init(void) override
     {
       lgfx::i2c::init(i2c_port, i2c_sda, i2c_scl, freq);
-      uint8_t tmp[1];
-      lgfx::i2c::readRegister(i2c_port, i2c_addr, 0x12, tmp, 1);
-      tmp[0] |= 0x4D;
-      lgfx::i2c::writeRegister(i2c_port, i2c_addr, 0x12, tmp, 1);
+
+      lgfx::i2c::writeByte(i2c_port, i2c_addr, 0x12, 0x4D, ~0);
 
       Panel_ST7789::init();
     }
@@ -107,10 +107,7 @@ namespace lgfx
     {
       this->brightness = brightness;
       brightness = (((brightness >> 1) + 8) / 13) + 5;
-      uint8_t tmp[1];
-      lgfx::i2c::readRegister(i2c_port, i2c_addr, 0x28, tmp, 1);
-      tmp[0] = (tmp[0] & 0x0F) | brightness << 4;
-      lgfx::i2c::writeRegister(i2c_port, i2c_addr, 0x28, tmp, 1);
+      lgfx::i2c::writeByte(i2c_port, i2c_addr, 0x28, brightness << 4, 0x0F);
     }
 
     void sleep(void) override { lgfx::i2c::bitOff(i2c_port, i2c_addr, 0x12, 1 << 2); }
@@ -140,6 +137,70 @@ namespace lgfx
 
       Panel_ILI9342::init();
     }
+  };
+
+  struct Panel_M5StackCore2 : public Panel_ILI9342
+  {
+  private:
+
+    static constexpr std::int32_t freq = 400000;
+    static constexpr std::uint_fast8_t i2c_addr = 0x34;
+    static constexpr std::int_fast16_t i2c_port = I2C_NUM_1;
+    static constexpr std::int_fast16_t i2c_sda = 21;
+    static constexpr std::int_fast16_t i2c_scl = 22;
+
+  public:
+
+    Panel_M5StackCore2(void) {
+      reverse_invert = true;
+      spi_3wire = true;
+      spi_cs =  5;
+      spi_dc = 15;
+      rotation = 1;
+      offset_rotation = 3;
+    }
+
+    void resetPanel(void)
+    {
+      // AXP192 reg 0x96 = GPIO3&4 control
+      lgfx::i2c::writeByte(i2c_port, i2c_addr, 0x96, 0, ~0x02);
+      delay(10);
+      lgfx::i2c::writeByte(i2c_port, i2c_addr, 0x96, 2, ~0);
+    }
+
+    void init(void) override
+    {
+      // AXP192_LDO2 = LCD PWR
+      // AXP192_DC3  = LCD BL
+      // AXP192_IO4  = LCD RST
+
+      lgfx::i2c::init(i2c_port, i2c_sda, i2c_scl, freq);
+      // AXP192 reg 0x28 = LDO2&3
+      lgfx::i2c::writeByte(i2c_port, i2c_addr, 0x28, 0xF0, ~0); // set LDO2 3300mv
+
+      // AXP192 reg 0x12 = output control
+      lgfx::i2c::writeByte(i2c_port, i2c_addr, 0x12, 0x06, ~0); // LDO2 and DC3 enable
+
+      // AXP192 reg 0x95 = GPIO3&4 setting
+      lgfx::i2c::writeByte(i2c_port, i2c_addr, 0x95, 0x84, 0x72); // GPIO4 enable
+
+      resetPanel();
+
+      Panel_ILI9342::init();
+    }
+
+    void setBrightness(std::uint8_t brightness) override
+    {
+      this->brightness = brightness;
+      brightness = (brightness >> 3) + 72;
+      // AXP192 reg 0x27 = DC3
+      lgfx::i2c::writeByte(i2c_port, i2c_addr, 0x27, brightness, 0x80);
+    }
+
+    void sleep(void) override { lgfx::i2c::bitOff(i2c_port, i2c_addr, 0x12, 0x02); } // DC3 disable
+
+    void wakeup(void) override { lgfx::i2c::bitOn(i2c_port, i2c_addr, 0x12, 0x02); } // DC3 enable
+
   };
 }
 
@@ -431,11 +492,7 @@ private:
     if (id != 0 && id != ~0 && readCommand32(0x09) != 0) {
       ESP_LOGW("LovyanGFX", "[Autodetect] M5StackCore2");
       board = board_M5StackCore2;
-      auto p = new lgfx::Panel_ILI9342();
-      p->reverse_invert = true;
-      p->spi_3wire = true;
-      p->spi_cs    =  5;
-      p->spi_dc    = 15;
+      auto p = new lgfx::Panel_M5StackCore2();
       setPanel(p);
 
       auto t = new lgfx::Touch_FT5x06();
