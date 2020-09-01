@@ -46,6 +46,7 @@ This library has the following advantages.
     - ILI9488
     - ST7735 (M5StickC, TTGO T-Wristband, TTGO TS, LoLin D32 Pro)
     - ST7789 (M5StickCPlus, TTGO T-Watch, DSTIKE D-duino-32 XS, ESP-WROVER-KIT)
+    - ST7796
     - SSD1351
 
 
