@@ -28,6 +28,25 @@ Contributors:
 
 namespace lgfx
 {
+  namespace boards
+  {
+    enum board_t
+    { board_unknown
+    , board_M5Stack
+    , board_M5StackCore2
+    , board_M5StickC
+    , board_M5StickCPlus
+    , board_TTGO_TS
+    , board_TTGO_TWatch
+    , board_TTGO_TWristband
+    , board_ODROID_GO
+    , board_DDUINO32_XS
+    , board_ESP_WROVER_KIT
+    , board_LoLinD32
+    , board_WioTerminal
+    };
+  }
+  using namespace boards;
 
   namespace jpeg_div
   {
@@ -1138,6 +1157,7 @@ namespace lgfx
 
   namespace spi
   {
+    void init(int spi_host, int spi_sclk, int spi_miso, int spi_mosi);
     void beginTransaction(int spi_host, int spi_cs, int freq, int spi_mode = 0);
     void endTransaction(int spi_host, int spi_cs);
     void writeData(int spi_host, const std::uint8_t* data, std::uint32_t len);
@@ -1147,11 +1167,11 @@ namespace lgfx
   namespace i2c
   {
     void init(int i2c_port, int pin_sda, int pin_scl, int freq);
-    bool writeRegister(int i2c_port, std::uint8_t addr, std::uint8_t reg, const std::uint8_t *data, uint16_t len);
-    bool readRegister(int i2c_port, std::uint8_t addr, std::uint8_t reg, std::uint8_t *data, uint16_t len);
-    bool writeByte(int i2c_port, std::uint8_t addr, std::uint8_t reg, std::uint8_t data);
-    bool bitOn(int i2c_port, std::uint8_t addr, std::uint8_t reg, std::uint8_t bit);
-    bool bitOff(int i2c_port, std::uint8_t addr, std::uint8_t reg, std::uint8_t bit);
+    bool writeRegister(int i2c_port, std::uint16_t addr, std::uint8_t reg, const std::uint8_t *data, uint8_t len);
+    bool readRegister(int i2c_port, std::uint16_t addr, std::uint8_t reg, std::uint8_t *data, uint8_t len);
+    bool writeByte(int i2c_port, std::uint16_t addr, std::uint8_t reg, std::uint8_t data, std::uint8_t mask = 0);
+    inline bool bitOn(int i2c_port, std::uint16_t addr, std::uint8_t reg, std::uint8_t bit)  { return writeByte(i2c_port, addr, reg, bit, ~0); }
+    inline bool bitOff(int i2c_port, std::uint16_t addr, std::uint8_t reg, std::uint8_t bit) { return writeByte(i2c_port, addr, reg, 0, ~bit); }
   }
 
 //----------------------------------------------------------------------------

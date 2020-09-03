@@ -50,8 +50,9 @@ Contributors:
 #include "lgfx/panel/Panel_ILI9486.hpp"
 #include "lgfx/panel/Panel_ILI9488.hpp"
 #include "lgfx/panel/Panel_SSD1351.hpp"
-#include "lgfx/panel/Panel_ST7789.hpp"    // M5StickCPlus / LilyGO TTGO T-Watch / ESP-WROVER-KIT4.1
 #include "lgfx/panel/Panel_ST7735.hpp"    // M5StickC / LilyGO TTGO T-Wristband
+#include "lgfx/panel/Panel_ST7789.hpp"    // M5StickCPlus / LilyGO TTGO T-Watch / ESP-WROVER-KIT4.1
+#include "lgfx/panel/Panel_ST7796.hpp"
 
 #include "lgfx/touch/Touch_XPT2046.hpp"
 #include "lgfx/touch/Touch_STMPE610.hpp"

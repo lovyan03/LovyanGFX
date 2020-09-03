@@ -91,8 +91,8 @@ class LGFX : public lgfx::LGFX_SPI<lgfx::LGFX_Config>
 public:
   LGFX(void) : lgfx::LGFX_SPI<lgfx::LGFX_Config>()
   {
+    board = lgfx::board_t::board_WioTerminal;
     static lgfx::Panel_WioTerminal panel;
-
     setPanel(&panel);
   }
 };

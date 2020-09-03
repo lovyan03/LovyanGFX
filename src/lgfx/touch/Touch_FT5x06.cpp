@@ -19,23 +19,7 @@ namespace lgfx
     if (!lgfx::i2c::readRegister(i2c_port, i2c_addr, FT5x06_VENDID_REG, tmp, 1)) {
       return false;
     }
-/*
-ESP_LOGI("FT5x06", "vid:%04x", tmp[0]);
-    tmp[0] = 0x40; // Test
-    lgfx::i2c::writeRegister(i2c_port, i2c_addr, 0x00, tmp, 1);
-delay(1);
-for (int i = 0; i < 256; i += 16) {
-  lgfx::i2c::readRegister(i2c_port, i2c_addr, i, tmp, 16);
-  ESP_LOGI("FT5x06", "%02x : %02x %02x %02x %02x  %02x %02x %02x %02x  %02x %02x %02x %02x  %02x %02x %02x %02x ", i, tmp[0], tmp[1], tmp[2], tmp[3], tmp[4], tmp[5], tmp[6], tmp[7], tmp[8], tmp[9], tmp[10], tmp[11], tmp[12], tmp[13], tmp[14], tmp[15]);
-}
-    tmp[0] = 0x00; // OperationMode
-    lgfx::i2c::writeRegister(i2c_port, i2c_addr, 0x00, tmp, 1);
-delay(1);
-for (int i = 0; i < 256; i += 16) {
-  lgfx::i2c::readRegister(i2c_port, i2c_addr, i, tmp, 16);
-  ESP_LOGI("FT5x06", "%02x : %02x %02x %02x %02x  %02x %02x %02x %02x  %02x %02x %02x %02x  %02x %02x %02x %02x ", i, tmp[0], tmp[1], tmp[2], tmp[3], tmp[4], tmp[5], tmp[6], tmp[7], tmp[8], tmp[9], tmp[10], tmp[11], tmp[12], tmp[13], tmp[14], tmp[15]);
-}
-//*/
+
     tmp[0] = 0x00; // OperatingMode
     lgfx::i2c::writeRegister(i2c_port, i2c_addr, 0x00, tmp, 1);
 

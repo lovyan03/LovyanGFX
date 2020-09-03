@@ -13,7 +13,7 @@ namespace lgfx
       panel_height = memory_height = 480;
 
       freq_write = 40000000;
-      freq_read  = 20000000;
+      freq_read  = 16000000;
       freq_fill  = 40000000;
       read_depth  = rgb888_3Byte;
       write_depth = rgb888_3Byte;
@@ -93,7 +93,7 @@ namespace lgfx
       return madctl_table[r];
     }
 
-    std::uint8_t getColMod(std::uint8_t) const override { return RGB666_3BYTE; }
+    color_depth_t getAdjustBpp(color_depth_t bpp) const override { return rgb888_3Byte; }
   };
 }
 

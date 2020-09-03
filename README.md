@@ -40,13 +40,14 @@ This library has the following advantages.
   - ディスプレイ Displays
     - HX8357
     - ILI9163
-    - ILI9342 (M5Stack Basic,Gray,Fire,Go)
-    - ILI9341 (ODROID-GO, ESP-WROVER-KIT, WioTerminal)
+    - ILI9341 (ODROID-GO, ESP-WROVER-KIT, LoLin D32 Pro, WioTerminal)
+    - ILI9342 (M5Stack Basic,Gray,Fire,Go,Core2)
     - ILI9486
     - ILI9488
+    - SSD1351
     - ST7735 (M5StickC, TTGO T-Wristband, TTGO TS, LoLin D32 Pro)
     - ST7789 (M5StickCPlus, TTGO T-Watch, DSTIKE D-duino-32 XS, ESP-WROVER-KIT)
-    - SSD1351
+    - ST7796
 
 
 対応機種については[src/lgfx/panel](src/lgfx/panel)をご参照ください。  
@@ -67,8 +68,8 @@ This library is also compatible with the above models and LCD panels with a simi
 // 対応機種がボードマネージャに無い場合 ( TTGO T-Wristband や ESP-WROVER-KIT等 ) は、
 // LovyanGFX.hppのincludeより前に、define LGFX_～ の定義を記述してください。
 
-// #define LGFX_M5STACK          // M5Stack
-// #define LGFX_M5STICKC         // M5Stick C
+// #define LGFX_M5STACK          // M5Stack / Core2
+// #define LGFX_M5STICKC         // M5Stick C / CPlus
 // #define LGFX_ODROID_GO        // ODROID-GO
 // #define LGFX_TTGO_TS          // TTGO TS
 // #define LGFX_TTGO_TWATCH      // TTGO T-Watch

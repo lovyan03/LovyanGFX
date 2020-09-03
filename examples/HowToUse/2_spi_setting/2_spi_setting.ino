@@ -131,8 +131,9 @@ static lgfx::Panel_ILI9342 panel;
 //static lgfx::Panel_ILI9486L panel;
 //static lgfx::Panel_ILI9488 panel;
 //static lgfx::Panel_SSD1351 panel;
-//static lgfx::Panel_ST7789 panel;
 //static lgfx::Panel_ST7735S panel;
+//static lgfx::Panel_ST7789 panel;
+//static lgfx::Panel_ST7796 panel;
 
 // If you want to use a touch panel, create an instance of the Touch class.
 // タッチパネルを使用する場合、Touchクラスのインスタンスを作成します。
@@ -323,6 +324,7 @@ void loop(void)
   delay(10);
   lcd.startWrite();
   lcd.setRotation(++count & 7);
+  lcd.setColorDepth((count & 8) ? 16 : 24);
 
   lcd.setTextColor(random(65536));
   lcd.drawNumber(lcd.getRotation(), 16, 0);
