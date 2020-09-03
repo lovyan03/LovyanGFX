@@ -232,7 +232,7 @@ private:
     p_tmp.freq_read  = 8000000;
     board = lgfx::board_t::board_unknown;
     std::uint32_t id;
-
+    (void)id; // Suppressing Compiler Warnings
 
 // TTGO T-Watch 判定 (GPIO33を使う判定を先に行うと振動モーターが作動する事に注意)
 #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_TTGO_TWATCH )

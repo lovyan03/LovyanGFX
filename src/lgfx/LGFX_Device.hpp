@@ -145,42 +145,56 @@ namespace lgfx
 
       bool need_transaction = (_touch->bus_shared && _in_transaction);
       if (need_transaction) { endTransaction(); }
-      std::uint_fast8_t res = _touch->getTouch(x, y, number);
+      auto res = _touch->getTouch(x, y, number);
       if (need_transaction) { beginTransaction(); }
       return res;
     }
 
-    std::uint_fast8_t getTouch(std::uint16_t *px, std::uint16_t *py, std::uint_fast8_t number = 0)
+    std::uint_fast8_t getTouch(std::uint16_t *x, std::uint16_t *y, std::uint_fast8_t number = 0)
     {
-      std::int32_t x, y;
-      auto res = getTouch(&x, &y, number);
-      if (px) *px = x;
-      if (py) *py = y;
+      std::int32_t tx, ty;
+      auto res = getTouch(&tx, &ty, number);
+      if (x) *x = tx;
+      if (y) *y = ty;
       return res;
     }
 
-    std::uint_fast8_t getTouch(std::int32_t *px, std::int32_t *py, std::uint_fast8_t number = 0)
+    std::uint_fast8_t getTouch(std::int32_t *x, std::int32_t *y, std::uint_fast8_t number = 0)
     {
       std::int32_t tx, ty;
-      std::uint_fast8_t res = getTouchRaw(&tx, &ty, number);
+      auto res = getTouchRaw(&tx, &ty, number);
       if (0 == res) return 0;
-
-      int x = (_touch_affin[0] * (float)tx + _touch_affin[1] * (float)ty) + _touch_affin[2];
-      int y = (_touch_affin[3] * (float)tx + _touch_affin[4] * (float)ty) + _touch_affin[5];
-
-      int r = _panel->rotation & 7;
-      if (r & 1) {
-        std::swap(x, y);
-      }
-      if (px) {
-        if (r & 2) x = (_width-1) - x;
-        *px = x;
-      }
-      if (py) {
-        if ((0 == ((r + 1) & 2)) != (0 == (r & 4))) y = (_height-1) - y;
-        *py = y;
-      }
+      convertRawXY(&tx, &ty);
+      if (x) *x = tx;
+      if (y) *y = ty;
       return res;
+    }
+
+    void convertRawXY(std::uint16_t *x, std::uint16_t *y)
+    {
+      std::int32_t tx = *x, ty = *y;
+      convertRawXY(&tx, &ty);
+      *x = tx;
+      *y = ty;
+    }
+
+    void convertRawXY(std::int32_t *x, std::int32_t *y)
+    {
+      std::int32_t tx = (_touch_affin[0] * (float)*x + _touch_affin[1] * (float)*y) + _touch_affin[2];
+      std::int32_t ty = (_touch_affin[3] * (float)*x + _touch_affin[4] * (float)*y) + _touch_affin[5];
+
+      std::uint_fast8_t r = _panel->rotation & 7;
+      if (r & 1) {
+        std::swap(tx, ty);
+      }
+      if (x) {
+        if (r & 2) tx = (_width-1) - tx;
+        *x = tx;
+      }
+      if (y) {
+        if ((0 == ((r + 1) & 2)) != (0 == (r & 4))) ty = (_height-1) - ty;
+        *y = ty;
+      }
     }
 
     // This requires a uint16_t array with 8 elements. ( or nullptr )
@@ -374,7 +388,7 @@ namespace lgfx
         std::int32_t px = (_width -  1) * ((i>>1) & 1);
         std::int32_t py = (_height - 1) * ( i     & 1);
         draw_calibrate_point( px, py, size, fg_rawcolor, bg_rawcolor);
-
+        delay(500);
         std::int32_t x_touch = 0, y_touch = 0;
         static constexpr int _RAWERR = 20;
         std::int32_t x_tmp, y_tmp, x_tmp2, y_tmp2;
