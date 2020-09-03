@@ -4,8 +4,8 @@
 // 対応機種がボードマネージャに無い場合 ( TTGO T-Wristband や ESP-WROVER-KIT等 ) は、
 // LovyanGFX.hppのincludeより前に、define LGFX_～ の定義を記述してください。
 
-// #define LGFX_M5STACK          // M5Stack
-// #define LGFX_M5STICKC         // M5Stick C
+// #define LGFX_M5STACK          // M5Stack / Core2
+// #define LGFX_M5STICKC         // M5Stick C / CPlus
 // #define LGFX_ODROID_GO        // ODROID-GO
 // #define LGFX_TTGO_TS          // TTGO TS
 // #define LGFX_TTGO_TWATCH      // TTGO T-Watch

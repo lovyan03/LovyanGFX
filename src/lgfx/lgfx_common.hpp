@@ -28,6 +28,25 @@ Contributors:
 
 namespace lgfx
 {
+  namespace boards
+  {
+    enum board_t
+    { board_unknown
+    , board_M5Stack
+    , board_M5StackCore2
+    , board_M5StickC
+    , board_M5StickCPlus
+    , board_TTGO_TS
+    , board_TTGO_TWatch
+    , board_TTGO_TWristband
+    , board_ODROID_GO
+    , board_DDUINO32_XS
+    , board_ESP_WROVER_KIT
+    , board_LoLinD32
+    , board_WioTerminal
+    };
+  }
+  using namespace boards;
 
   namespace jpeg_div
   {

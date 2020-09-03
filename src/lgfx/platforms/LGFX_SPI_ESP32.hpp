@@ -385,8 +385,6 @@ namespace lgfx
       set_clock_write();
 
       cs_l();
-
-      // MSB first
     }
 
     void endTransaction_impl(void) override {

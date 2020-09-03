@@ -68,39 +68,43 @@ namespace lgfx
 
   namespace spi // TODO: implement.
   {
-    void init(int spi_host, int spi_sclk, int spi_miso, int spi_mosi)
-    {}
+    //void init(int spi_host, int spi_sclk, int spi_miso, int spi_mosi)
+    void init(int, int, int, int) {}
 
-    void beginTransaction(int spi_host, int spi_cs, int freq, int spi_mode)
-    {}
+    //void beginTransaction(int spi_host, int spi_cs, int freq, int spi_mode)
+    void beginTransaction(int, int, int, int) {}
 
-    void endTransaction(int spi_host, int spi_cs)
-    {}
+    //void endTransaction(int spi_host, int spi_cs)
+    void endTransaction(int, int) {}
 
-    void writeData(int spi_host, const std::uint8_t* data, std::uint32_t len)
-    {}
+    //void writeData(int spi_host, const std::uint8_t* data, std::uint32_t len)
+    void writeData(int, const std::uint8_t*, std::uint32_t) {}
 
-    void readData(int spi_host, std::uint8_t* data, std::uint32_t len)
-    {}
+    //void readData(int spi_host, std::uint8_t* data, std::uint32_t len)
+    void readData(int, std::uint8_t*, std::uint32_t) {}
   }
 
 //----------------------------------------------------------------------------
 
   namespace i2c // TODO: implement.
   {
-    void init(int i2c_port, int sda, int scl, int freq) { }
+    //void init(int i2c_port, int sda, int scl, int freq) { }
+    void init(int, int, int, int) {}
 
-    bool writeRegister(int i2c_port, std::uint16_t addr, std::uint8_t reg, const std::uint8_t *data, uint8_t len)
+    //bool writeRegister(int i2c_port, std::uint16_t addr, std::uint8_t reg, const std::uint8_t *data, uint8_t len)
+    bool writeRegister(int, std::uint16_t, std::uint8_t, const std::uint8_t*, uint8_t)
     {
       return false;
     }
 
-    bool readRegister(int i2c_port, std::uint16_t addr, std::uint8_t reg, std::uint8_t *data, uint8_t len)
+    //bool readRegister(int i2c_port, std::uint16_t addr, std::uint8_t reg, std::uint8_t *data, uint8_t len)
+    bool readRegister(int, std::uint16_t, std::uint8_t, std::uint8_t*, uint8_t)
     {
       return false;
     }
 
-    bool writeByte(int i2c_port, std::uint16_t addr, std::uint8_t reg, std::uint8_t data, std::uint8_t mask)
+    //bool writeByte(int i2c_port, std::uint16_t addr, std::uint8_t reg, std::uint8_t data, std::uint8_t mask)
+    bool writeByte(int, std::uint16_t, std::uint8_t, std::uint8_t, std::uint8_t)
     {
       return false;
     }

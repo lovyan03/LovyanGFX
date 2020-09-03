@@ -173,17 +173,11 @@ namespace lgfx
         std::swap(x, y);
       }
       if (px) {
-        std::int32_t w = _width-1;
-        if (x < 0) x = 0;
-        if (x > w) x = w;
-        if (r & 2) x = w - x;
+        if (r & 2) x = (_width-1) - x;
         *px = x;
       }
       if (py) {
-        std::int32_t h = _height-1;
-        if (y < 0) y = 0;
-        if (y > h) y = h;
-        if ((0 == ((r + 1) & 2)) != (0 == (r & 4))) y = h - y;
+        if ((0 == ((r + 1) & 2)) != (0 == (r & 4))) y = (_height-1) - y;
         *py = y;
       }
       return res;
@@ -229,9 +223,13 @@ namespace lgfx
       return true;
     }
 
+    board_t getBoard(void) const { return board; }
+
   protected:
     PanelCommon* _panel = nullptr;
     TouchCommon* _touch = nullptr;
+
+    board_t board = lgfx::board_t::board_unknown;
 
     float _touch_affin[6] = {1,0,0,0,1,0};
 
