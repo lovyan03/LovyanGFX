@@ -995,27 +995,27 @@ void enableSPI()
         spi->CTRLA.bit.ENABLE = 1;
         while (spi->SYNCBUSY.reg);
       }
-      std::int32_t surplus = length & 0x03;
-      if (surplus) {
-        spi->LENGTH.reg = surplus | SERCOM_SPI_LENGTH_LENEN;
-        spi->DATA.reg = data[0];
-        _need_wait = true;
-        length -= surplus;
-        if (!length) return;
-        data = &data[surplus];
-        while (spi->INTFLAG.bit.TXC == 0);
+      std::int32_t idx = 0;
+      if (length >= 4) {
+        spi->LENGTH.reg = 0;
+        spi->DATA.reg = *(std::uint32_t*)data;
+        data += 4;
+        length -= 4;
+        if (4 <= length) {
+          do {
+            while (spi->INTFLAG.bit.DRE == 0);
+            spi->DATA.reg = *(std::uint32_t*)data;
+            data += 4;
+          } while (4 <= (length -= 4));
+        }
       }
-      _sercom->SPI.LENGTH.reg = 0;
-      std::uint32_t buf = *(std::uint32_t*)data;
-      spi->DATA.reg = buf;
       _need_wait = true;
-      std::int32_t idx = 4;
-      if (length == idx) return;
-      do {
-        buf = *(std::uint32_t*)&data[idx];
-        while (spi->INTFLAG.bit.DRE == 0);
-        spi->DATA.reg = buf;
-      } while (length != (idx += 4));
+      if (length) {
+        std::uint32_t tmp = *(std::uint32_t*)data;
+        while (spi->INTFLAG.bit.TXC == 0);
+        spi->LENGTH.reg = length | SERCOM_SPI_LENGTH_LENEN;
+        spi->DATA.reg = tmp;
+      }
     }
 
     void readRect_impl(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, void* dst, pixelcopy_t* param) override
