@@ -123,27 +123,29 @@ void loop(void)
   lcd.startWrite();
 
 // pushImage関数は X, Y, Width, Height, data の5つの引数を指定して使います。
-// dataの型に応じて色変換が行われます。実データと型が一致していない場合はキャストしてください。
+// dataの型に応じて色変換が行われますので、実データと型が一致していない場合はキャストしてください。
 // ※ void* が指定された場合は24bitカラー(3Byte)のデータと見なして扱います。
 
 // データがリトルエンディアンの場合は事前にsetSwapBytes(true)を実行しておきます。
+// 設定とデータのエンディアンが不一致の場合は色化けが生じます。
   lcd.setSwapBytes(true);
-  lcd.pushImage(  0,  0, image_width, image_height, (void*)bgr888);  // bad
-  lcd.pushImage( 32,  0, image_width, image_height,        swap565); // bad
-  lcd.pushImage( 64,  0, image_width, image_height, (void*)rgb888);  // good
-  lcd.pushImage( 96,  0, image_width, image_height,        rgb565);  // good
-  lcd.pushImage(128,  0, image_width, image_height,        rgb332);  // good
+  lcd.pushImage(  0,  0, image_width, image_height, (void*    )bgr888);  // endian no match
+  lcd.pushImage( 32,  0, image_width, image_height, (uint16_t*)swap565); // endian no match
+  lcd.pushImage( 64,  0, image_width, image_height, (void*    )rgb888);  // good
+  lcd.pushImage( 96,  0, image_width, image_height, (uint16_t*)rgb565);  // good
+  lcd.pushImage(128,  0, image_width, image_height, (uint8_t* )rgb332);  // good
 
 // データがビッグエンディアンの場合は事前にsetSwapBytes(false)を実行しておきます。
   lcd.setSwapBytes(false);
-  lcd.pushImage(  0, 40, image_width, image_height, (void*)bgr888);  // good
-  lcd.pushImage( 32, 40, image_width, image_height,        swap565); // good
-  lcd.pushImage( 64, 40, image_width, image_height, (void*)rgb888);  // bad
-  lcd.pushImage( 96, 40, image_width, image_height,        rgb565);  // bad
-  lcd.pushImage(128, 40, image_width, image_height,        rgb332);  // good
+  lcd.pushImage(  0, 40, image_width, image_height, (void*    )bgr888);  // good
+  lcd.pushImage( 32, 40, image_width, image_height, (uint16_t*)swap565); // good
+  lcd.pushImage( 64, 40, image_width, image_height, (void*    )rgb888);  // endian no match
+  lcd.pushImage( 96, 40, image_width, image_height, (uint16_t*)rgb565);  // endian no match
+  lcd.pushImage(128, 40, image_width, image_height, (uint8_t* )rgb332);  // good
 
 // LCDへ送信する際は基本的にビッグエンディアンで扱われます。
-// 例えばLCDが16bitカラーの場合、swap565のデータは無変換で送信できるため高速な処理が期待できます。
+// LCDが16bitカラーモードの場合、swap565のデータは無変換で送信できます。
+// LCDが24bitカラーモードの場合、bgr888のデータは無変換で送信できます。
 
 // lgfx名前空間に定義されている各種画像データ型を利用する事もできます。
 // これらの型にキャストする場合はsetSwapBytesの設定は無視されます。
@@ -153,7 +155,7 @@ void loop(void)
   lcd.pushImage( 96, 80, image_width, image_height, (lgfx:: rgb565_t*) rgb565); // good
   lcd.pushImage(128, 80, image_width, image_height, (lgfx:: rgb332_t*) rgb332); // good
 
-// pushImageDMAを使用し、かつ引数のデータがLCDへ無変換で送信できる場合は、
+// pushImageDMAを使用し、かつ引数のデータが無変換で送信できる場合は、
 // 引数のポインタをそのままDMAコントローラに渡してDMA転送を行います。
 // ※ DMAに対応していないメモリ空間のポインタを渡さないように注意してください。
   lcd.pushImageDMA(  0, 120, image_width, image_height, (lgfx:: bgr888_t*) bgr888); // use DMA (if colorDepth is 24)
