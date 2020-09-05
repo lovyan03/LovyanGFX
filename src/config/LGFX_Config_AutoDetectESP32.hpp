@@ -197,22 +197,6 @@ public:
   {
   }
 
-  // deprecated. use lgfx::board_t.
-  enum board_t
-  { board_unknown
-  , board_M5Stack
-  , board_M5StackCore2
-  , board_M5StickC
-  , board_M5StickCPlus
-  , board_TTGO_TS
-  , board_TTGO_TWatch
-  , board_TTGO_TWristband
-  , board_ODROID_GO
-  , board_DDUINO32_XS
-  , board_ESP_WROVER_KIT
-  , board_LoLinD32
-  };
-
 private:
   void init_impl(void) override
   {
@@ -271,6 +255,7 @@ private:
       setPanel(p);
 
       auto t = new lgfx::Touch_FT5x06();
+      t->gpio_int = 38;   // INT pin number
       t->i2c_sda  = 23;   // I2C SDA pin number
       t->i2c_scl  = 32;   // I2C SCL pin number
       t->i2c_addr = 0x38; // I2C device addr
@@ -671,6 +656,7 @@ private:
         setPanel(p);
 
         auto t = new lgfx::Touch_FT5x06();
+        t->gpio_int = 39;   // INT pin number
         t->i2c_sda  = 21;   // I2C SDA pin number
         t->i2c_scl  = 22;   // I2C SCL pin number
         t->i2c_addr = 0x38; // I2C device addr

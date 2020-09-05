@@ -27,11 +27,12 @@ namespace lgfx
       };
     };
 
-    int freq = 1000000;
-    int x_min = 0;
-    int x_max = 3600;
-    int y_min = 0;
-    int y_max = 3600;
+    std::int_fast16_t gpio_int = -1;
+    std::int32_t freq = 1000000;
+    std::int32_t x_min = 0;
+    std::int32_t x_max = 3600;
+    std::int32_t y_min = 0;
+    std::int32_t y_max = 3600;
     bool bus_shared = false;
 
     TouchCommon()
