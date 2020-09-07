@@ -189,6 +189,12 @@ namespace lgfx
 #endif
 
   };
+
+//----------------------------------------------------------------------------
+  namespace spi
+  {
+    void init(int spi_host, int spi_sclk, int spi_miso, int spi_mosi, int dma_channel);
+  }
 };
 
 #endif

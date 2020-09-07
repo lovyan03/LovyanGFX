@@ -38,7 +38,7 @@ namespace lgfx
     {
       lgfx::i2c::init(axp_i2c_port, axp_i2c_sda, axp_i2c_scl, freq);
 
-      lgfx::i2c::writeByte(axp_i2c_port, axp_i2c_addr, 0x12, 0x4D, ~0);
+      lgfx::i2c::writeRegister8(axp_i2c_port, axp_i2c_addr, 0x12, 0x4D, ~0);
 
       Panel_ST7735S::init();
     }
@@ -47,7 +47,7 @@ namespace lgfx
     {
       this->brightness = brightness;
       brightness = (((brightness >> 1) + 8) / 13) + 5;
-      lgfx::i2c::writeByte(axp_i2c_port, axp_i2c_addr, 0x28, brightness << 4, 0x0F);
+      lgfx::i2c::writeRegister8(axp_i2c_port, axp_i2c_addr, 0x28, brightness << 4, 0x0F);
     }
 
     void sleep(void) override { lgfx::i2c::bitOff(axp_i2c_port, axp_i2c_addr, 0x12, 1 << 2); }
@@ -98,7 +98,7 @@ namespace lgfx
     {
       lgfx::i2c::init(axp_i2c_port, axp_i2c_sda, axp_i2c_scl, freq);
 
-      lgfx::i2c::writeByte(axp_i2c_port, axp_i2c_addr, 0x12, 0x4D, ~0);
+      lgfx::i2c::writeRegister8(axp_i2c_port, axp_i2c_addr, 0x12, 0x4D, ~0);
 
       Panel_ST7789::init();
     }
@@ -107,7 +107,7 @@ namespace lgfx
     {
       this->brightness = brightness;
       brightness = (((brightness >> 1) + 8) / 13) + 5;
-      lgfx::i2c::writeByte(axp_i2c_port, axp_i2c_addr, 0x28, brightness << 4, 0x0F);
+      lgfx::i2c::writeRegister8(axp_i2c_port, axp_i2c_addr, 0x28, brightness << 4, 0x0F);
     }
 
     void sleep(void) override { lgfx::i2c::bitOff(axp_i2c_port, axp_i2c_addr, 0x12, 1 << 2); }
@@ -163,9 +163,9 @@ namespace lgfx
     void resetPanel(void)
     {
       // AXP192 reg 0x96 = GPIO3&4 control
-      lgfx::i2c::writeByte(axp_i2c_port, axp_i2c_addr, 0x96, 0, ~0x02);
+      lgfx::i2c::writeRegister8(axp_i2c_port, axp_i2c_addr, 0x96, 0, ~0x02);
       delay(10);
-      lgfx::i2c::writeByte(axp_i2c_port, axp_i2c_addr, 0x96, 2, ~0);
+      lgfx::i2c::writeRegister8(axp_i2c_port, axp_i2c_addr, 0x96, 2, ~0);
     }
 
     void init(void) override
@@ -180,7 +180,7 @@ namespace lgfx
       this->brightness = brightness;
       brightness = (brightness >> 3) + 72;
       // AXP192 reg 0x27 = DC3
-      lgfx::i2c::writeByte(axp_i2c_port, axp_i2c_addr, 0x27, brightness, 0x80);
+      lgfx::i2c::writeRegister8(axp_i2c_port, axp_i2c_addr, 0x27, brightness, 0x80);
     }
 
     void sleep(void) override { lgfx::i2c::bitOff(axp_i2c_port, axp_i2c_addr, 0x12, 0x02); } // DC3 disable
@@ -622,14 +622,14 @@ private:
 // M5StackCore2 判定
 #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_M5STACK )
     lgfx::i2c::init(I2C_NUM_1, 21, 22, 400000);
-    if (lgfx::i2c::writeByte(I2C_NUM_1, 0x34, 0x96, 0, ~0x02)) { // GPIO4 LOW (LCD RST)
+    if (lgfx::i2c::writeRegister8(I2C_NUM_1, 0x34, 0x96, 0, ~0x02)) { // GPIO4 LOW (LCD RST)
       // AXP192_LDO2 = LCD PWR
       // AXP192_DC3  = LCD BL
       // AXP192_IO4  = LCD RST
-      lgfx::i2c::writeByte(I2C_NUM_1, 0x34, 0x95, 0x84, 0x72); // GPIO4 enable
-      lgfx::i2c::writeByte(I2C_NUM_1, 0x34, 0x28, 0xF0, ~0);   // set LDO2 3300mv // LCD PWR
-      lgfx::i2c::writeByte(I2C_NUM_1, 0x34, 0x12, 0x06, ~0);   // LDO2 and DC3 enable (DC3 = LCD BL)
-      lgfx::i2c::writeByte(I2C_NUM_1, 0x34, 0x96, 2, ~0);      // GPIO4 HIGH (LCD RST)
+      lgfx::i2c::writeRegister8(I2C_NUM_1, 0x34, 0x95, 0x84, 0x72); // GPIO4 enable
+      lgfx::i2c::writeRegister8(I2C_NUM_1, 0x34, 0x28, 0xF0, ~0);   // set LDO2 3300mv // LCD PWR
+      lgfx::i2c::writeRegister8(I2C_NUM_1, 0x34, 0x12, 0x06, ~0);   // LDO2 and DC3 enable (DC3 = LCD BL)
+      lgfx::i2c::writeRegister8(I2C_NUM_1, 0x34, 0x96, 2, ~0);      // GPIO4 HIGH (LCD RST)
 
       releaseBus();
       delay(100);

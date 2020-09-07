@@ -113,118 +113,7 @@ namespace lgfx
     void initBus(void) override
     {
       preInit();
-#if defined (ARDUINO) // Arduino ESP32
-      _spi_handle = spiStartBus(_spi_port, SPI_CLK_EQU_SYSCLK, 0, 0);
-/*
-      if (_spi_host == HSPI_HOST) {
-        SPIClass spi = SPIClass(HSPI);
-        spi.begin(_spi_sclk, _spi_miso, _spi_mosi, -1);
-      } else {
-        SPI.begin(_spi_sclk, _spi_miso, _spi_mosi, -1);
-      }
-/*/
-//      bool use_gpio_matrix = (
-//         (_spi_sclk>=0 &&
-//          _spi_sclk != spi_periph_signal[_spi_host].spiclk_iomux_pin)
-//       || (_spi_mosi >= 0 &&
-//           _spi_mosi != spi_periph_signal[_spi_host].spid_iomux_pin)
-//       || (_spi_miso>=0 &&
-//           _spi_miso != spi_periph_signal[_spi_host].spiq_iomux_pin));
-//
-//      if (use_gpio_matrix) {
-//        ESP_LOGI("LGFX", "bus init: use gpio_matrix.");
-        if (_spi_mosi >= 0) {
-          lgfxPinMode(_spi_mosi, pin_mode_t::output);
-          gpio_matrix_out(_spi_mosi, spi_periph_signal[_spi_host].spid_out, false, false);
-          gpio_matrix_in(_spi_mosi, spi_periph_signal[_spi_host].spid_in, false);
-        }
-        if (_spi_miso >= 0) {
-          lgfxPinMode(_spi_miso, pin_mode_t::input);
-        //gpio_matrix_out(_spi_miso, spi_periph_signal[_spi_host].spiq_out, false, false);
-          gpio_matrix_in(_spi_miso, spi_periph_signal[_spi_host].spiq_in, false);
-        }
-        if (_spi_sclk >= 0) {
-          lgfxPinMode(_spi_sclk, pin_mode_t::output);
-          //gpio_set_direction((gpio_num_t)_spi_sclk, GPIO_MODE_INPUT_OUTPUT);
-          gpio_matrix_out(_spi_sclk, spi_periph_signal[_spi_host].spiclk_out, false, false);
-          gpio_matrix_in(_spi_sclk, spi_periph_signal[_spi_host].spiclk_in, false);
-        }
-//      } else {
-//        ESP_LOGI("LGFX", "bus init: use iomux.");
-//        if (_spi_mosi >= 0) {
-//          gpio_iomux_in(_spi_mosi, spi_periph_signal[_spi_host].spid_in);
-//          gpio_iomux_out(_spi_mosi, 1, false);
-//        }
-//        if (_spi_miso >= 0) {
-//          gpio_iomux_in(_spi_miso, spi_periph_signal[_spi_host].spiq_in);
-//          gpio_iomux_out(_spi_miso, 1, false);
-//        }
-//        if (_spi_sclk >= 0) {
-//          gpio_iomux_in(_spi_sclk, spi_periph_signal[_spi_host].spiclk_in);
-//          gpio_iomux_out(_spi_sclk, 1, false);
-//        }
-//      }
-//*/
-      periph_module_enable(spi_periph_signal[_spi_host].module);
-      if (_dma_channel) {
-        periph_module_enable( PERIPH_SPI_DMA_MODULE );
-    //Select DMA channel.
-        DPORT_SET_PERI_REG_BITS(DPORT_SPI_DMA_CHAN_SEL_REG, 3, _dma_channel, (_spi_host * 2));
-      //Reset DMA
-        *reg(SPI_DMA_CONF_REG(_spi_port)) |= SPI_OUT_RST|SPI_IN_RST|SPI_AHBM_RST|SPI_AHBM_FIFO_RST;
-        *reg(SPI_DMA_IN_LINK_REG(_spi_port)) = 0;
-        *reg(SPI_DMA_CONF_REG(_spi_port)) &= ~(SPI_OUT_RST|SPI_IN_RST|SPI_AHBM_RST|SPI_AHBM_FIFO_RST);
-        *_spi_dma_out_link_reg = 0;
-      }
-
-      *reg(SPI_USER_REG (_spi_port)) = SPI_USR_MOSI | SPI_USR_MISO | SPI_DOUTDIN;  // need SD card access (full duplex setting)
-      *reg(SPI_CTRL_REG(_spi_port)) = 0;
-      *reg(SPI_CTRL2_REG(_spi_port)) = 0;
-      *reg(SPI_SLAVE_REG(_spi_port)) &= ~(SPI_SLAVE_MODE | SPI_TRANS_DONE);
-/*
-      *reg(SPI_USER1_REG(_spi_port)) = 0;
-      *reg(SPI_USER2_REG(_spi_port)) = 0;
-//*/
-#elif defined (CONFIG_IDF_TARGET_ESP32) // ESP-IDF
-
-      spi_bus_config_t buscfg = {
-          .mosi_io_num = _spi_mosi,
-          .miso_io_num = _spi_miso,
-          .sclk_io_num = _spi_sclk,
-          .quadwp_io_num = -1,
-          .quadhd_io_num = -1,
-          .max_transfer_sz = 1,
-          .flags = SPICOMMON_BUSFLAG_MASTER,
-          .intr_flags = 0,
-      };
-
-      if (ESP_OK != spi_bus_initialize(_spi_host, &buscfg, _dma_channel)) {
-        ESP_LOGE("LGFX", "Failed to spi_bus_initialize. ");
-      }
-
-      if (_spi_handle == nullptr) {
-        spi_device_interface_config_t devcfg = {
-            .command_bits = 0,
-            .address_bits = 0,
-            .dummy_bits = 0,
-            .mode = 0,
-            .duty_cycle_pos = 0,
-            .cs_ena_pretrans = 0,
-            .cs_ena_posttrans = 0,
-            .clock_speed_hz = (int)getApbFrequency()>>1,
-            .input_delay_ns = 0,
-            .spics_io_num = -1,
-            .flags = SPI_DEVICE_3WIRE | SPI_DEVICE_HALFDUPLEX,
-            .queue_size = 1,
-            .pre_cb = nullptr,
-            .post_cb = nullptr};
-        if (ESP_OK != spi_bus_add_device(_spi_host, &devcfg, &_spi_handle)) {
-          ESP_LOGE("LGFX", "Failed to spi_bus_add_device. ");
-        }
-      }
-
-#endif
-      *reg(SPI_CTRL1_REG(_spi_port)) = 0;
+      spi::init(_spi_host, _spi_sclk, _spi_miso, _spi_mosi, _dma_channel);
     }
 
     void releaseBus(void)
@@ -232,44 +121,8 @@ namespace lgfx
       lgfxPinMode(_spi_mosi, pin_mode_t::output);
       lgfxPinMode(_spi_miso, pin_mode_t::output);
       lgfxPinMode(_spi_sclk, pin_mode_t::output);
-#if defined (ARDUINO) // Arduino ESP32
-      spiStopBus(_spi_handle);
-#elif defined (CONFIG_IDF_TARGET_ESP32) // ESP-IDF
-      if (_spi_handle != nullptr) {
-        spi_bus_remove_device(_spi_handle);
-        spi_bus_free(_spi_host);
-      }
-#endif
-      _spi_handle = nullptr;
+      spi::release(_spi_host);
     }
-/*
-    void setupOffscreenDMA(std::uint8_t** data, std::int32_t w, std::int32_t h, bool endless)
-    {
-      if (!_dma_channel) return;
-      setAddrWindow(0, 0, w, h);
-      _setup_dma_desc_links(data, w * _write_conv.bytes, h, endless);
-    }
-
-    void drawOffscreenDMA(bool endless)
-    {
-      if (!_dma_channel) return;
-      dc_h();
-      set_write_len(-1);
-      *reg(SPI_DMA_CONF_REG(_spi_port)) &= ~(SPI_OUTDSCR_BURST_EN | SPI_OUT_DATA_BURST_EN);
-      *reg(SPI_DMA_CONF_REG(_spi_port)) |= SPI_DMA_CONTINUE;
-//        *reg(SPI_DMA_CONF_REG(_spi_port)) |= SPI_DMA_CONTINUE | SPI_OUTDSCR_BURST_EN | SPI_OUT_DATA_BURST_EN;
-      *_spi_dma_out_link_reg = SPI_OUTLINK_START | ((int)(&_dmadesc[0]) & 0xFFFFF);
-      spi_dma_transfer_active(_dma_channel);
-      exec_spi();
-    }
-
-    void stopOffscreenDMA(void)
-    {
-      if (!_dma_channel) return;
-      *reg(SPI_DMA_CONF_REG(_spi_port)) |= SPI_DMA_TX_STOP;
-      periph_module_reset( PERIPH_SPI_DMA_MODULE );
-    }
-//*/
 
 //----------------------------------------------------------------------------
   protected:
@@ -361,22 +214,11 @@ namespace lgfx
       std::uint32_t user = (spi_mode == 1 || spi_mode == 2) ? SPI_CK_OUT_EDGE | SPI_USR_MOSI : SPI_USR_MOSI;
       std::uint32_t pin = (spi_mode & 2) ? SPI_CK_IDLE_EDGE : 0;
 
-#if defined (ARDUINO) // Arduino ESP32
-      spiSimpleTransaction(_spi_handle);
+      spi::beginTransaction(_spi_host);
 
+#if defined (ARDUINO) // Arduino ESP32
       if (_dma_channel) {
         _next_dma_reset = true;
-      }
-/*
-*reg(SPI_CTRL1_REG(_spi_port)) = 0;
-*reg(SPI_USER1_REG(_spi_port)) = 0;
-*reg(SPI_USER2_REG(_spi_port)) = 0;
-//*/
-#elif defined (CONFIG_IDF_TARGET_ESP32) // ESP-IDF
-      if (_spi_handle) {
-        if (ESP_OK != spi_device_acquire_bus(_spi_handle, portMAX_DELAY)) {
-          ESP_LOGE("LGFX", "Failed to spi_device_acquire_bus. ");
-        }
       }
 #endif
 
@@ -399,14 +241,9 @@ namespace lgfx
         write_cmd(0); // NOP command
       }
       dc_h();
-      cs_h();
+      spi::endTransaction(_spi_host, _panel->spi_cs);
 #if defined (ARDUINO) // Arduino ESP32
       *_spi_user_reg = SPI_USR_MOSI | SPI_USR_MISO | SPI_DOUTDIN; // for other SPI device (SD)
-      spiEndTransaction(_spi_handle);
-#elif defined (CONFIG_IDF_TARGET_ESP32) // ESP-IDF
-      if (_spi_handle) {
-        spi_device_release_bus(_spi_handle);
-      }
 #endif
     }
 
@@ -1159,12 +996,6 @@ namespace lgfx
     static std::uint32_t _dmadesc_len;
     static bool _next_dma_reset;
 
-//    static volatile spi_dev_t *_hw;
-#if defined ( ARDUINO )
-    spi_t* _spi_handle;
-#elif defined (CONFIG_IDF_TARGET_ESP32) // ESP-IDF
-    spi_device_handle_t _spi_handle;
-#endif
   };
   template <class T> lldesc_t* LGFX_SPI<T>::_dmadesc = nullptr;
   template <class T> std::uint32_t LGFX_SPI<T>::_dmadesc_len = 0;

@@ -16,16 +16,16 @@ namespace lgfx
 
     lgfx::i2c::init(i2c_port, i2c_sda, i2c_scl, freq);
 
+    lgfx::i2c::writeRegister8(i2c_port, i2c_addr, 0x00, 0x00); // OperatingMode
+
     std::uint8_t tmp[2];
     if (!lgfx::i2c::readRegister(i2c_port, i2c_addr, FT5x06_VENDID_REG, tmp, 1)) {
       return false;
     }
 
-    lgfx::i2c::writeByte(i2c_port, i2c_addr, 0x00, 0); // OperatingMode
-
     if (gpio_int >= 0)
     {
-      lgfx::i2c::writeByte(i2c_port, i2c_addr, FT5x06_INTMODE_REG, 0); // INT Polling mode
+      lgfx::i2c::writeRegister8(i2c_port, i2c_addr, FT5x06_INTMODE_REG, 0x00); // INT Polling mode
       lgfx::lgfxPinMode(gpio_int, pin_mode_t::input);
     }
     _inited = true;
@@ -35,13 +35,13 @@ namespace lgfx
   void Touch_FT5x06::wakeup(void)
   {
     if (!_inited) return;
-    lgfx::i2c::writeRegister(i2c_port, i2c_addr, FT5x06_POWER_REG, &FT5x06_MONITOR, 1);
+    lgfx::i2c::writeRegister8(i2c_port, i2c_addr, FT5x06_POWER_REG, FT5x06_MONITOR);
   }
 
   void Touch_FT5x06::sleep(void)
   {
     if (!_inited) return;
-    lgfx::i2c::writeRegister(i2c_port, i2c_addr, FT5x06_POWER_REG, &FT5x06_SLEEP_IN, 1);
+    lgfx::i2c::writeRegister8(i2c_port, i2c_addr, FT5x06_POWER_REG, FT5x06_SLEEP_IN);
   }
 
   std::uint_fast8_t Touch_FT5x06::getTouch(std::int32_t* x, std::int32_t* y, std::int_fast8_t number)

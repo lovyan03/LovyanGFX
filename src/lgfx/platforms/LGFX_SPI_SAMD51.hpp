@@ -995,7 +995,7 @@ void enableSPI()
         spi->CTRLA.bit.ENABLE = 1;
         while (spi->SYNCBUSY.reg);
       }
-      std::int32_t idx = 0;
+
       if (length >= 4) {
         spi->LENGTH.reg = 0;
         spi->DATA.reg = *(std::uint32_t*)data;
