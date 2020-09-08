@@ -227,6 +227,7 @@ private:
     if (0 == nvs_open(NVS_NAME, NVS_READONLY, &nvs_handle)) {
       nvs_get_u32(nvs_handle, NVS_KEY, static_cast<uint32_t*>(&nvs_board));
       nvs_close(nvs_handle);
+      ESP_LOGW("LovyanGFX", "[Autodetect] load from NVS : board:%d", nvs_board);
     }
 
 // TTGO T-Watch 判定 (GPIO33を使う判定を先に行うと振動モーターが作動する事に注意)
@@ -645,7 +646,6 @@ private:
     }
 #endif
 
-
 // M5StackCore2 判定
 #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_M5STACKCORE2 )
     if (nvs_board == 0 || nvs_board == lgfx::board_t::board_M5StackCore2) {
@@ -711,7 +711,6 @@ private:
     }
 #endif
 
-
 // DSTIKE D-Duino32XS については読出しが出来ないため無条件設定となる。
 // そのためLGFX_AUTO_DETECTでは機能しないようにしておく。
 #if defined ( LGFX_DDUINO32_XS )
@@ -743,19 +742,19 @@ private:
 #endif
 
     releaseBus();
-
-    ESP_LOGW("LovyanGFX", "[Autodetect] detect fail.");
-    panel_last = new lgfx::PanelIlitekCommon();
-    panel_last->panel_width  = 0;
-    panel_last->panel_height = 0;
-
-    if (0 == nvs_open(NVS_NAME, NVS_READWRITE, &nvs_handle)) {
-      ESP_LOGW("LovyanGFX", "[Autodetect] save to NVS.");
-      nvs_set_u32(nvs_handle, NVS_KEY, 0);
-      nvs_close(nvs_handle);
+    {
+      ESP_LOGW("LovyanGFX", "[Autodetect] detect fail.");
+      auto p = new lgfx::PanelIlitekCommon();
+      p->panel_width  = 0;
+      p->panel_height = 0;
+      setPanel(p);
     }
-
-    return;
+// LGFX_NON_PANELはパネル無しの環境を対象とする。(M5ATOM等)
+#if defined ( LGFX_NON_PANEL )
+    board = lgfx::board_t::board_Non_Panel;
+#else
+    board = lgfx::board_t::board_unknown;
+#endif
 
     goto init_clear;
 init_clear:
@@ -764,7 +763,7 @@ init_clear:
 
     if (nvs_board != board) {
       if (0 == nvs_open(NVS_NAME, NVS_READWRITE, &nvs_handle)) {
-        ESP_LOGW("LovyanGFX", "[Autodetect] save to NVS.");
+        ESP_LOGW("LovyanGFX", "[Autodetect] save to NVS : board:%d", board);
         nvs_set_u32(nvs_handle, NVS_KEY, board);
         nvs_close(nvs_handle);
       }

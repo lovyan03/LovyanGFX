@@ -32,6 +32,7 @@ namespace lgfx
   {
     enum board_t
     { board_unknown
+    , board_Non_Panel
     , board_M5Stack
     , board_M5StackCore2
     , board_M5StickC
