@@ -145,7 +145,7 @@ namespace lgfx
 
 #endif
 
-    void createFromBmp(const std::uint8_t *bmp_data, std::uint32_t bmp_len) {
+    void createFromBmp(const std::uint8_t *bmp_data, std::uint32_t bmp_len = ~0u) {
       PointerWrapper data;
       data.set(bmp_data, bmp_len);
       create_from_bmp(&data);
