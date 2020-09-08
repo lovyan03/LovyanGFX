@@ -160,6 +160,7 @@ namespace lgfx
       // TODO: implement
 #if defined (ARDUINO) // Arduino ESP32
       if (spi_host == VSPI_HOST) {
+        SPI.end();
         SPI.begin(spi_sclk, spi_miso, spi_mosi);
       }
 
