@@ -217,7 +217,7 @@ static void mainfunc(void)
   _ball_count = ball_count;
 }
 
-#if defined (ESP32) || (CONFIG_IDF_TARGET_ESP32) || (ESP_PLATFORM)
+#if defined (ESP32) || defined (CONFIG_IDF_TARGET_ESP32) || defined (ESP_PLATFORM)
 static void taskDraw(void*)
 {
   while ( _is_running )
@@ -297,7 +297,7 @@ void setup(void)
   _draw_count = 0;
   _loop_count = 0;
 
-#if defined (ESP32) || (CONFIG_IDF_TARGET_ESP32) || (ESP_PLATFORM)
+#if defined (ESP32) || defined (CONFIG_IDF_TARGET_ESP32) || defined (ESP_PLATFORM)
   disableCore0WDT();
   xTaskCreate(taskDraw, "taskDraw", 2048, NULL, 0, NULL);
 #endif
@@ -306,7 +306,7 @@ void setup(void)
 void loop(void)
 {
   mainfunc();
-#if defined (ESP32) || (CONFIG_IDF_TARGET_ESP32) || (ESP_PLATFORM)
+#if defined (ESP32) || defined (CONFIG_IDF_TARGET_ESP32) || defined (ESP_PLATFORM)
   while (_loop_count != _draw_count) taskYIELD();
 #else
   drawfunc();

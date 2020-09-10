@@ -1188,7 +1188,7 @@ using namespace lgfx::attribute;
 
 typedef lgfx::bgr888_t RGBColor;
 
-#if defined (ESP32) || (CONFIG_IDF_TARGET_ESP32) || (ESP_PLATFORM)
+#if defined (ESP32) || defined (CONFIG_IDF_TARGET_ESP32) || defined (ESP_PLATFORM)
 
   #include "platforms/esp32_common.hpp"
 

@@ -58,7 +58,7 @@ Contributors:
 #include "lgfx/touch/Touch_STMPE610.hpp"
 #include "lgfx/touch/Touch_FT5x06.hpp"
 
-#if defined (ESP32) || (CONFIG_IDF_TARGET_ESP32) || (ESP_PLATFORM)
+#if defined (ESP32) || defined (CONFIG_IDF_TARGET_ESP32) || defined (ESP_PLATFORM)
   #include "lgfx/platforms/LGFX_SPI_ESP32.hpp"
   #include "lgfx/platforms/LGFX_PARALLEL_ESP32.hpp"
 
@@ -77,7 +77,7 @@ Contributors:
 // If the board you are using is not supported,  Put a copy of "config/LGFX_Config_Custom" in your project folder,
 // and include it with modifications to the content to suit your environment.
 
-#if defined (ESP32) || (CONFIG_IDF_TARGET_ESP32) || (ESP_PLATFORM)
+#if defined (ESP32) || defined (CONFIG_IDF_TARGET_ESP32) || defined (ESP_PLATFORM)
 
  #if defined( ARDUINO_M5Stack_Core_ESP32 ) || defined( ARDUINO_M5STACK_FIRE )
   #define LGFX_M5STACK
