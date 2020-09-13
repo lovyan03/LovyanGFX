@@ -49,13 +49,18 @@ namespace lgfx
     if (!_inited) return 0;
 
     if (gpio_int >= 0 && gpio_in(gpio_int)) return 0;
-
+    std::uint_fast16_t tx, ty;
     std::uint8_t tmp[16];
-    std::uint32_t base = (number == 0) ? 0 : 6;
-    lgfx::i2c::readRegister(i2c_port, i2c_addr, 2, tmp, 5 + base);
-    if (number >= tmp[0]) return 0;
-    if (x) *x = (tmp[base + 1] & 0x0F) << 8 | tmp[base + 2];
-    if (y) *y = (tmp[base + 3] & 0x0F) << 8 | tmp[base + 4];
+    std::int32_t retry = 3;
+    do {
+      std::uint32_t base = (number == 0) ? 0 : 6;
+      lgfx::i2c::readRegister(i2c_port, i2c_addr, 2, tmp, 5 + base);
+      if (number >= tmp[0]) return 0;
+      tx = (tmp[base + 1] & 0x0F) << 8 | tmp[base + 2];
+      ty = (tmp[base + 3] & 0x0F) << 8 | tmp[base + 4];
+    } while ((tx > x_max || ty > y_max) && --retry);
+    if (x) *x = tx;
+    if (y) *y = ty;
     return tmp[0];
   }
 

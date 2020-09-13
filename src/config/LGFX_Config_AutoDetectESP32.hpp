@@ -693,7 +693,7 @@ private:
           t->x_min = 0;
           t->x_max = 319;
           t->y_min = 0;
-          t->y_max = 319;
+          t->y_max = 279;
           touch(t);
           _touch_affin[0] =  0;
           _touch_affin[1] = -1;
