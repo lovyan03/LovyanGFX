@@ -216,11 +216,9 @@ namespace lgfx
 
       spi::beginTransaction(_spi_host);
 
-#if defined (ARDUINO) // Arduino ESP32
       if (_dma_channel) {
         _next_dma_reset = true;
       }
-#endif
 
       *_spi_user_reg = user;
       *reg(SPI_PIN_REG(_spi_port))  = pin;
