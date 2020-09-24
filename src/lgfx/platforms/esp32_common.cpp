@@ -9,6 +9,7 @@
 #include <soc/rtc.h>
 
 #if defined ARDUINO
+ #include <SPIFFS.h>
  #include <SPI.h>
  #include <esp32-hal-ledc.h>
  #include <Wire.h>
@@ -136,6 +137,28 @@ namespace lgfx
     }
     return bestpre << 18 | bestn << 12 | ((bestn-1)>>1) << 6 | bestn;
   }
+
+//----------------------------------------------------------------------------
+
+  FileWrapper::FileWrapper()
+  : DataWrapper()
+  {
+#if defined (ARDUINO)
+    _fs = &SPIFFS;
+    need_transaction = false;
+#else
+    need_transaction = true;
+#endif
+  }
+
+#if defined (ARDUINO)
+  FileWrapper::FileWrapper(fs::FS& fs) : DataWrapper(), _fs(&fs), _fp(nullptr) { need_transaction = (_fs != &SPIFFS); }
+  FileWrapper::FileWrapper(fs::FS& fs, fs::File* fp) : DataWrapper(), _fs(&fs), _fp(fp) { need_transaction = (_fs != &SPIFFS); }
+  void FileWrapper::setFS(fs::FS& fs) {
+    _fs = &fs;
+    need_transaction = (_fs != &SPIFFS);
+  }
+#endif
 
 //----------------------------------------------------------------------------
 
@@ -345,7 +368,7 @@ namespace lgfx
       i2c_param_config(static_cast<i2c_port_t>(i2c_port), &conf);
       i2c_driver_install(static_cast<i2c_port_t>(i2c_port), I2C_MODE_MASTER, 0, 0, 0);
 #endif
-    }
+      }
 
     bool writeBytes(int i2c_port, std::uint16_t addr, std::uint8_t *data, std::uint8_t len)
     {

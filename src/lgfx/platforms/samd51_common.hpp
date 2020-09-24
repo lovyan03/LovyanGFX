@@ -4,9 +4,11 @@
 #include "../lgfx_common.hpp"
 
 #include <malloc.h>
-#ifdef ARDUINO
-#include <sam.h>
-#include <delay.h>
+#if defined ( ARDUINO )
+ #include <sam.h>
+ #include <delay.h>
+ #include <Arduino.h>
+ #include <Seeed_FS.h>
 #else
 
 #include <config/default/system/fs/sys_fs.h>
