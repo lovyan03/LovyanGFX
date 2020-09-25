@@ -58,7 +58,7 @@ Contributors:
 #include "lgfx/touch/Touch_STMPE610.hpp"
 #include "lgfx/touch/Touch_FT5x06.hpp"
 
-#if defined (ESP32) || (CONFIG_IDF_TARGET_ESP32)
+#if defined (ESP32) || defined (CONFIG_IDF_TARGET_ESP32) || defined (ESP_PLATFORM)
   #include "lgfx/platforms/LGFX_SPI_ESP32.hpp"
   #include "lgfx/platforms/LGFX_PARALLEL_ESP32.hpp"
 
@@ -77,30 +77,26 @@ Contributors:
 // If the board you are using is not supported,  Put a copy of "config/LGFX_Config_Custom" in your project folder,
 // and include it with modifications to the content to suit your environment.
 
-#if defined (ESP32) || (CONFIG_IDF_TARGET_ESP32)
+#if defined (ESP32) || defined (CONFIG_IDF_TARGET_ESP32) || defined (ESP_PLATFORM)
 
- #if defined( ARDUINO_M5Stack_Core_ESP32 ) || defined( ARDUINO_M5STACK_FIRE ) || defined( ARDUINO_M5STACK_Core2 )
+ #if defined( ARDUINO_M5Stack_Core_ESP32 ) || defined( ARDUINO_M5STACK_FIRE )
   #define LGFX_M5STACK
- #endif
- #if defined( ARDUINO_M5Stick_C ) // M5Stick C / CPlus
+  #define LGFX_M5STACKCORE2
+ #elif defined( ARDUINO_M5STACK_Core2 ) // M5Stack Core2
+  #define LGFX_M5STACKCORE2
+ #elif defined( ARDUINO_M5Stick_C ) // M5Stick C / CPlus
   #define LGFX_M5STICKC
- #endif
- #if defined( ARDUINO_ODROID_ESP32 ) // ODROID-GO
+ #elif defined( ARDUINO_ODROID_ESP32 ) // ODROID-GO
   #define LGFX_ODROID_GO
- #endif
- #if defined( ARDUINO_TTGO_T1 ) // TTGO TS
+ #elif defined( ARDUINO_TTGO_T1 ) // TTGO TS
   #define LGFX_TTGO_TS
- #endif
- #if defined( ARDUINO_TWatch ) || defined( ARDUINO_T ) // TTGO T-Watch
+ #elif defined( ARDUINO_TWatch ) || defined( ARDUINO_T ) // TTGO T-Watch
   #define LGFX_TTGO_TWATCH
- #endif
- #if defined( ARDUINO_D ) || defined( ARDUINO_DDUINO32_XS ) // DSTIKE D-duino-32 XS
+ #elif defined( ARDUINO_D ) || defined( ARDUINO_DDUINO32_XS ) // DSTIKE D-duino-32 XS
   #define LGFX_DDUINO32_XS
- #endif
- #if defined( ARDUINO_LOLIN_D32_PRO )
+ #elif defined( ARDUINO_LOLIN_D32_PRO )
   #define LGFX_LOLIN_D32_PRO
- #endif
- #if defined( ARDUINO_ESP32_WROVER_KIT )
+ #elif defined( ARDUINO_ESP32_WROVER_KIT )
   #define LGFX_ESP_WROVER_KIT
  #endif
 

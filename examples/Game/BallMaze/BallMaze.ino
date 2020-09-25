@@ -260,10 +260,11 @@ void loop(void)
       zoom *= 1 - zoom_speed;
       if (zoom < zoom_min)
       {
+        std::int32_t tx, ty;
         zoom = zoom_min;
         if ((BUTTON_A_PIN >=0 && lgfx::gpio_in(BUTTON_A_PIN) == 0)
          || (BUTTON_B_PIN >=0 && lgfx::gpio_in(BUTTON_B_PIN) == 0)
-         || lcd.getTouch()
+         || lcd.getTouch(&tx, &ty)
          ) break;
       }
     }

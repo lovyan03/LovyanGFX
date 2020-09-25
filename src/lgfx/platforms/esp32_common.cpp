@@ -1,17 +1,22 @@
-#if defined (ESP32) || (CONFIG_IDF_TARGET_ESP32) || (ESP_PLATFORM)
+#if defined (ESP32) || defined (CONFIG_IDF_TARGET_ESP32) || defined (ESP_PLATFORM)
 
 #include "esp32_common.hpp"
 
 #include <driver/i2c.h>
 #include <driver/spi_common.h>
 #include <driver/rtc_io.h>
+#include <driver/periph_ctrl.h>
 #include <soc/rtc.h>
 
 #if defined ARDUINO
+ #include <SPIFFS.h>
+ #include <SPI.h>
  #include <esp32-hal-ledc.h>
  #include <Wire.h>
 #else
  #include <driver/ledc.h>
+ #include <driver/spi_master.h>
+ #include <esp_log.h>
 #endif
 
 namespace lgfx
@@ -135,11 +140,156 @@ namespace lgfx
 
 //----------------------------------------------------------------------------
 
+  FileWrapper::FileWrapper()
+  : DataWrapper()
+  {
+#if defined (ARDUINO)
+    _fs = &SPIFFS;
+    need_transaction = false;
+#else
+    need_transaction = true;
+#endif
+  }
+
+#if defined (ARDUINO)
+  FileWrapper::FileWrapper(fs::FS& fs) : DataWrapper(), _fs(&fs), _fp(nullptr) { need_transaction = (_fs != &SPIFFS); }
+  FileWrapper::FileWrapper(fs::FS& fs, fs::File* fp) : DataWrapper(), _fs(&fs), _fp(fp) { need_transaction = (_fs != &SPIFFS); }
+  void FileWrapper::setFS(fs::FS& fs) {
+    _fs = &fs;
+    need_transaction = (_fs != &SPIFFS);
+  }
+#endif
+
+//----------------------------------------------------------------------------
+
   namespace spi
   {
+#if defined ( ARDUINO )
+    static spi_t* _spi_handle[VSPI_HOST+1] = {nullptr};
+#elif defined (CONFIG_IDF_TARGET_ESP32) // ESP-IDF
+    static spi_device_handle_t _spi_handle[VSPI_HOST+1] = {nullptr};
+#endif
+
     void init(int spi_host, int spi_sclk, int spi_miso, int spi_mosi)
     {
+      init(spi_host, spi_sclk, spi_miso, spi_mosi, 0);
+    }
+
+    void init(int spi_host, int spi_sclk, int spi_miso, int spi_mosi, int dma_channel)
+    {
+      if (_spi_handle[spi_host]) return;
+
+      std::uint32_t spi_port = (spi_host == HSPI_HOST) ? 2 : 3;  // FSPI=1  HSPI=2  VSPI=3;
       // TODO: implement
+#if defined (ARDUINO) // Arduino ESP32
+      if (spi_host == VSPI_HOST) {
+        SPI.end();
+        SPI.begin(spi_sclk, spi_miso, spi_mosi);
+      }
+
+      _spi_handle[spi_host] = spiStartBus(spi_port, SPI_CLK_EQU_SYSCLK, 0, 0);
+      if (spi_mosi >= 0) {
+        lgfxPinMode(spi_mosi, pin_mode_t::output);
+        gpio_matrix_out(spi_mosi, spi_periph_signal[spi_host].spid_out, false, false);
+        gpio_matrix_in(spi_mosi, spi_periph_signal[spi_host].spid_in, false);
+      }
+      if (spi_miso >= 0) {
+        lgfxPinMode(spi_miso, pin_mode_t::input);
+      //gpio_matrix_out(spi_miso, spi_periph_signal[spi_host].spiq_out, false, false);
+        gpio_matrix_in(spi_miso, spi_periph_signal[spi_host].spiq_in, false);
+      }
+      if (spi_sclk >= 0) {
+        lgfxPinMode(spi_sclk, pin_mode_t::output);
+        //gpio_set_direction((gpio_num_t)_spi_sclk, GPIO_MODE_INPUT_OUTPUT);
+        gpio_matrix_out(spi_sclk, spi_periph_signal[spi_host].spiclk_out, false, false);
+        gpio_matrix_in(spi_sclk, spi_periph_signal[spi_host].spiclk_in, false);
+      }
+      periph_module_enable(spi_periph_signal[spi_host].module);
+      if (dma_channel) {
+        periph_module_enable( PERIPH_SPI_DMA_MODULE );
+    //Select DMA channel.
+        DPORT_SET_PERI_REG_BITS(DPORT_SPI_DMA_CHAN_SEL_REG, 3, dma_channel, (spi_host * 2));
+      //Reset DMA
+        WRITE_PERI_REG(SPI_DMA_CONF_REG(spi_port), READ_PERI_REG(SPI_DMA_CONF_REG(spi_port)) | SPI_OUT_RST|SPI_IN_RST|SPI_AHBM_RST|SPI_AHBM_FIFO_RST);
+        WRITE_PERI_REG(SPI_DMA_IN_LINK_REG(spi_port), 0);
+        WRITE_PERI_REG(SPI_DMA_OUT_LINK_REG(spi_port), 0);
+        WRITE_PERI_REG(SPI_DMA_CONF_REG(spi_port), READ_PERI_REG(SPI_DMA_CONF_REG(spi_port)) & ~(SPI_OUT_RST|SPI_IN_RST|SPI_AHBM_RST|SPI_AHBM_FIFO_RST));
+      }
+
+      WRITE_PERI_REG(SPI_USER_REG (spi_port), SPI_USR_MOSI | SPI_USR_MISO | SPI_DOUTDIN);  // need SD card access (full duplex setting)
+      WRITE_PERI_REG(SPI_CTRL_REG( spi_port), 0);
+      WRITE_PERI_REG(SPI_CTRL2_REG(spi_port), 0);
+      WRITE_PERI_REG(SPI_SLAVE_REG(spi_port), READ_PERI_REG(SPI_SLAVE_REG(spi_port)) & ~(SPI_SLAVE_MODE | SPI_TRANS_DONE));
+
+#elif defined (CONFIG_IDF_TARGET_ESP32) // ESP-IDF
+
+      spi_bus_config_t buscfg = {
+          .mosi_io_num = spi_mosi,
+          .miso_io_num = spi_miso,
+          .sclk_io_num = spi_sclk,
+          .quadwp_io_num = -1,
+          .quadhd_io_num = -1,
+          .max_transfer_sz = 1,
+          .flags = SPICOMMON_BUSFLAG_MASTER,
+          .intr_flags = 0,
+      };
+
+      if (ESP_OK != spi_bus_initialize(static_cast<spi_host_device_t>(spi_host), &buscfg, dma_channel)) {
+        ESP_LOGE("LGFX", "Failed to spi_bus_initialize. ");
+      }
+
+      if (_spi_handle[spi_host] == nullptr) {
+        spi_device_interface_config_t devcfg = {
+            .command_bits = 0,
+            .address_bits = 0,
+            .dummy_bits = 0,
+            .mode = 0,
+            .duty_cycle_pos = 0,
+            .cs_ena_pretrans = 0,
+            .cs_ena_posttrans = 0,
+            .clock_speed_hz = (int)getApbFrequency()>>1,
+            .input_delay_ns = 0,
+            .spics_io_num = -1,
+            .flags = SPI_DEVICE_3WIRE | SPI_DEVICE_HALFDUPLEX,
+            .queue_size = 1,
+            .pre_cb = nullptr,
+            .post_cb = nullptr};
+        if (ESP_OK != spi_bus_add_device(static_cast<spi_host_device_t>(spi_host), &devcfg, &_spi_handle[spi_host])) {
+          ESP_LOGE("LGFX", "Failed to spi_bus_add_device. ");
+        }
+      }
+
+#endif
+      WRITE_PERI_REG(SPI_CTRL1_REG(spi_port), 0);
+    }
+
+    void release(int spi_host)
+    {
+      if (_spi_handle[spi_host] != nullptr) {
+#if defined (ARDUINO) // Arduino ESP32
+        if (spi_host == VSPI_HOST) {
+          SPI.end();
+        }
+        spiStopBus(_spi_handle[spi_host]);
+#elif defined (CONFIG_IDF_TARGET_ESP32) // ESP-IDF
+        spi_bus_remove_device(_spi_handle[spi_host]);
+        spi_bus_free(static_cast<spi_host_device_t>(spi_host));
+#endif
+        _spi_handle[spi_host] = nullptr;
+      }
+    }
+
+    void beginTransaction(int spi_host)
+    {
+#if defined (ARDUINO) // Arduino ESP32
+      spiSimpleTransaction(_spi_handle[spi_host]);
+#elif defined (CONFIG_IDF_TARGET_ESP32) // ESP-IDF
+      if (_spi_handle[spi_host]) {
+        if (ESP_OK != spi_device_acquire_bus(_spi_handle[spi_host], portMAX_DELAY)) {
+          ESP_LOGE("LGFX", "Failed to spi_device_acquire_bus. ");
+        }
+      }
+#endif
     }
 
     void beginTransaction(int spi_host, int spi_cs, int freq, int spi_mode)
@@ -152,6 +302,8 @@ namespace lgfx
       std::uint32_t pin = 0;
       if (spi_mode & 2) pin = SPI_CK_IDLE_EDGE;
 
+      beginTransaction(spi_host);
+
       WRITE_PERI_REG(SPI_USER_REG(spi_port), user);
       WRITE_PERI_REG(SPI_PIN_REG( spi_port), pin);
       WRITE_PERI_REG(SPI_CLOCK_REG(spi_port), clkdiv);
@@ -160,6 +312,13 @@ namespace lgfx
 
     void endTransaction(int spi_host, int spi_cs)
     {
+      if (_spi_handle[spi_host]) {
+#if defined (ARDUINO) // Arduino ESP32
+        spiEndTransaction(_spi_handle[spi_host]);
+#elif defined (CONFIG_IDF_TARGET_ESP32) // ESP-IDF
+        spi_device_release_bus(_spi_handle[spi_host]);
+#endif
+      }
       gpio_hi(spi_cs);
     }
 
@@ -190,7 +349,6 @@ namespace lgfx
 
   namespace i2c
   {
-
     void init(int i2c_port, int pin_sda, int pin_scl, int freq)
     {
 #if defined (ARDUINO) // Arduino ESP32
@@ -212,21 +370,17 @@ namespace lgfx
 #endif
       }
 
-    bool writeRegister(int i2c_port, std::uint16_t addr, std::uint8_t reg, const std::uint8_t *data, uint8_t len)
+    bool writeBytes(int i2c_port, std::uint16_t addr, std::uint8_t *data, std::uint8_t len)
     {
 #if defined (ARDUINO) // Arduino ESP32
       auto &twowire = (i2c_port) ? Wire1 : Wire;
-      twowire.beginTransmission(addr);
-      twowire.write(reg);
-      twowire.write(data, len);
-      return 0 == twowire.endTransmission();
+      return 0 == twowire.writeTransmission(addr, data, len);
 
 #elif defined (CONFIG_IDF_TARGET_ESP32) // ESP-IDF
       auto cmd = i2c_cmd_link_create();
       i2c_master_start(cmd);
       i2c_master_write_byte(cmd, (addr << 1) | I2C_MASTER_WRITE, true);
-      i2c_master_write_byte(cmd, reg, true);
-      i2c_master_write(cmd, const_cast<std::uint8_t*>(data), len, true);
+      i2c_master_write(cmd, data, len, true);
       i2c_master_stop(cmd);
 
       auto result = i2c_master_cmd_begin(static_cast<i2c_port_t>(i2c_port), cmd, 10/portTICK_PERIOD_MS);
@@ -236,19 +390,13 @@ namespace lgfx
 #endif
     }
 
-    bool readRegister(int i2c_port, std::uint16_t addr, std::uint8_t reg, std::uint8_t *data, uint8_t len)
+    bool readRegister(int i2c_port, std::uint16_t addr, std::uint8_t reg, std::uint8_t *data, std::uint8_t len)
     {
 #if defined (ARDUINO) // Arduino ESP32
       auto &twowire = (i2c_port) ? Wire1 : Wire;
-      twowire.beginTransmission(addr);
-      twowire.write(reg);
-      if (twowire.endTransmission()) return false;
-      twowire.requestFrom(addr, len);
-      for (int i = 0; i < len; ++i) {
-        data[i] = twowire.read();
-      }
-      return true;
-
+      std::uint8_t tmp[2] = { reg };
+      if (0 != twowire.writeTransmission(addr, tmp, 1)) return false;
+      return (0 == twowire.readTransmission(addr, data, len));
 #elif defined (CONFIG_IDF_TARGET_ESP32) // ESP-IDF
       auto cmd = i2c_cmd_link_create();
       i2c_master_start(cmd);
@@ -266,14 +414,14 @@ namespace lgfx
 #endif
     }
 
-    bool writeByte(int i2c_port, std::uint16_t addr, std::uint8_t reg, std::uint8_t data, std::uint8_t mask)
+    bool writeRegister8(int i2c_port, std::uint16_t addr, std::uint8_t reg, std::uint8_t data, std::uint8_t mask)
     {
-      std::uint8_t tmp[1] = { data };
+      std::uint8_t tmp[2] = { reg, data };
       if (mask) {
-        if (!readRegister(i2c_port, addr, reg, tmp, 1)) return false;
-        tmp[0] = (tmp[0] & mask) | data;
+        if (!readRegister(i2c_port, addr, reg, &tmp[1], 1)) return false;
+        tmp[1] = (tmp[1] & mask) | data;
       }
-      return writeRegister(i2c_port, addr, reg, tmp, 1);
+      return writeBytes(i2c_port, addr, tmp, 2);
     }
   }
 }

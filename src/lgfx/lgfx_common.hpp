@@ -32,6 +32,7 @@ namespace lgfx
   {
     enum board_t
     { board_unknown
+    , board_Non_Panel
     , board_M5Stack
     , board_M5StackCore2
     , board_M5StickC
@@ -1158,7 +1159,9 @@ namespace lgfx
   namespace spi
   {
     void init(int spi_host, int spi_sclk, int spi_miso, int spi_mosi);
+    void release(int spi_host);
     void beginTransaction(int spi_host, int spi_cs, int freq, int spi_mode = 0);
+    void beginTransaction(int spi_host);
     void endTransaction(int spi_host, int spi_cs);
     void writeData(int spi_host, const std::uint8_t* data, std::uint32_t len);
     void readData(int spi_host, std::uint8_t* data, std::uint32_t len);
@@ -1167,11 +1170,11 @@ namespace lgfx
   namespace i2c
   {
     void init(int i2c_port, int pin_sda, int pin_scl, int freq);
-    bool writeRegister(int i2c_port, std::uint16_t addr, std::uint8_t reg, const std::uint8_t *data, uint8_t len);
-    bool readRegister(int i2c_port, std::uint16_t addr, std::uint8_t reg, std::uint8_t *data, uint8_t len);
-    bool writeByte(int i2c_port, std::uint16_t addr, std::uint8_t reg, std::uint8_t data, std::uint8_t mask = 0);
-    inline bool bitOn(int i2c_port, std::uint16_t addr, std::uint8_t reg, std::uint8_t bit)  { return writeByte(i2c_port, addr, reg, bit, ~0); }
-    inline bool bitOff(int i2c_port, std::uint16_t addr, std::uint8_t reg, std::uint8_t bit) { return writeByte(i2c_port, addr, reg, 0, ~bit); }
+    bool writeBytes(int i2c_port, std::uint16_t addr, std::uint8_t *data, std::uint8_t len);
+    bool readRegister(int i2c_port, std::uint16_t addr, std::uint8_t reg, std::uint8_t *data, std::uint8_t len);
+    bool writeRegister8(int i2c_port, std::uint16_t addr, std::uint8_t reg, std::uint8_t data, std::uint8_t mask = 0);
+    inline bool bitOn(int i2c_port, std::uint16_t addr, std::uint8_t reg, std::uint8_t bit)  { return writeRegister8(i2c_port, addr, reg, bit, ~0); }
+    inline bool bitOff(int i2c_port, std::uint16_t addr, std::uint8_t reg, std::uint8_t bit) { return writeRegister8(i2c_port, addr, reg, 0, ~bit); }
   }
 
 //----------------------------------------------------------------------------
@@ -1185,7 +1188,7 @@ using namespace lgfx::attribute;
 
 typedef lgfx::bgr888_t RGBColor;
 
-#if defined (ESP32) || (CONFIG_IDF_TARGET_ESP32) || (ESP_PLATFORM)
+#if defined (ESP32) || defined (CONFIG_IDF_TARGET_ESP32) || defined (ESP_PLATFORM)
 
   #include "platforms/esp32_common.hpp"
 

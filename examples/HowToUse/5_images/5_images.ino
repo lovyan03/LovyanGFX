@@ -15,7 +15,7 @@ static constexpr int image_height = 30;
 #define W 0xFF,0xFF,0xFF,
 #define _ 0x00,0x00,0x00,
 static uint8_t rgb888[] = {
-#include "image.h"
+#include "image.txt"
 };
 #undef R
 #undef G
@@ -35,7 +35,7 @@ static uint8_t rgb888[] = {
 #define W 0xFF,0xFF,0xFF,
 #define _ 0x00,0x00,0x00,
 uint8_t bgr888[] = {
-#include "image.h"
+#include "image.txt"
 };
 #undef R
 #undef G
@@ -55,7 +55,7 @@ uint8_t bgr888[] = {
 #define W 0xFFFF,
 #define _ 0x0000,
 uint16_t swap565[] = {
-#include "image.h"
+#include "image.txt"
 };
 #undef R
 #undef G
@@ -75,7 +75,7 @@ uint16_t swap565[] = {
 #define W 0xFFFF,
 #define _ 0x0000,
 uint16_t rgb565[] = {
-#include "image.h"
+#include "image.txt"
 };
 #undef R
 #undef G
@@ -95,7 +95,7 @@ uint16_t rgb565[] = {
 #define W 0xFF,
 #define _ 0x00,
 uint8_t rgb332[] = {
-#include "image.h"
+#include "image.txt"
 };
 #undef R
 #undef G
@@ -164,6 +164,11 @@ void loop(void)
   lcd.pushImageDMA( 96, 120, image_width, image_height, (lgfx:: rgb565_t*) rgb565); // no DMA
   lcd.pushImageDMA(128, 120, image_width, image_height, (lgfx:: rgb332_t*) rgb332); // no DMA
 
+  lcd.pushImageDMA(  0, 160, image_width, image_height, (void*    )bgr888);  // good
+  lcd.pushImageDMA( 32, 160, image_width, image_height, (uint16_t*)swap565); // good
+  lcd.pushImageDMA( 64, 160, image_width, image_height, (void*    )rgb888);  // endian no match
+  lcd.pushImageDMA( 96, 160, image_width, image_height, (uint16_t*)rgb565);  // endian no match
+  lcd.pushImageDMA(128, 160, image_width, image_height, (uint8_t* )rgb332);  // good
 // DMA転送を使用した場合は、データ送信中にも処理が進みます。
 // そのため、送信中のデータを意図せず書き換えてしまう可能性が生じます。
 // 送信中のデータに変更を加えたい場合は、waitDMA関数を使用して送信完了を待機します。

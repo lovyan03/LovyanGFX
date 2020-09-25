@@ -88,7 +88,7 @@ namespace lgfx
 
   struct Panel_ILI9486L : public Panel_ILI9486
   {
-    color_depth_t getAdjustBpp(color_depth_t bpp) const override { return rgb888_3Byte; }
+    color_depth_t getAdjustBpp(color_depth_t) const override { return rgb888_3Byte; }
   };
 
 }

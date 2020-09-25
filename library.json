@@ -1,7 +1,7 @@
 {
   "name": "LovyanGFX",
-  "description": "LCD Graphics driver for ESP32 and SAMD51",
-  "keywords": "LCD, TFT, GFX, LGFX, M5Stack, esp32, WioTerminal, ODROID-GO, TTGO T-Watch, ESP-WROVER-KIT, WioTerminal, HX8357, ILI9163, ILI9342, ILI9341, ILI9486, ILI9488, ST7735, ST7789, SSD1351",
+  "description": "LCD Graphics driver with touch for ESP32 and SAMD51",
+  "keywords": "LCD, TFT, GFX, LGFX, ESP32, M5Stack, M5StackCore2, M5StickC, M5StickCPlus, ODROID-GO, TTGO T-Watch, TTGO T-Wristband, ESP-WROVER-KIT, WioTerminal, HX8357, ILI9163, ILI9342, ILI9341, ILI9486, ILI9488, ST7735, ST7789, ST7796, SSD1351",
   "authors": {
     "name": "lovyan03",
     "url": "https://github.com/lovyan03",

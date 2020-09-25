@@ -9,6 +9,8 @@
 #if defined ARDUINO
   #include <Arduino.h>
   #include <soc/periph_defs.h>
+
+  #include <FS.h>
 #else
   #include <freertos/FreeRTOS.h>
   #include <freertos/task.h>
@@ -100,27 +102,16 @@ namespace lgfx
 
 //----------------------------------------------------------------------------
   struct FileWrapper : public DataWrapper {
-    FileWrapper() : DataWrapper() { need_transaction = true; }
-#if defined (ARDUINO) && defined (FS_H)
-    fs::File _file;
+    FileWrapper();
+#if defined (ARDUINO)
+    fs::FS* _fs;
     fs::File *_fp;
-  #if defined (_SD_H_)
-    fs::FS& _fs = SD;
-    void setFS(fs::FS& fs) {
-      _fs = fs;
-      need_transaction = (&fs == &SD);
-    }
-    FileWrapper(fs::FS& fs) : DataWrapper(), _fp(nullptr), _fs(fs) { need_transaction = (&fs == &SD); }
-    FileWrapper(fs::FS& fs, fs::File* fp) : DataWrapper(), _fp(fp), _fs(fs) { need_transaction = (&fs == &SD); }
-  #else
-    fs::FS& _fs = SPIFFS;
-    void setFS(fs::FS& fs) {
-      _fs = fs;
-      need_transaction = (&fs != &SPIFFS);
-    }
-    FileWrapper(fs::FS& fs) : DataWrapper(), _fp(nullptr), _fs(fs) { need_transaction = (&fs != &SPIFFS); }
-    FileWrapper(fs::FS& fs, fs::File* fp) : DataWrapper(), _fp(fp), _fs(fs) { need_transaction = (&fs != &SPIFFS); }
-  #endif
+    fs::File _file;
+
+    FileWrapper(fs::FS& fs);
+    FileWrapper(fs::FS& fs, fs::File* fp);
+
+    void setFS(fs::FS& fs);
 
     bool open(fs::FS& fs, const char* path, const char* mode) {
       setFS(fs);
@@ -129,7 +120,7 @@ namespace lgfx
       return _file;
     }
     bool open(const char* path, const char* mode) {
-      _file = _fs.open(path, mode);
+      _file = _fs->open(path, mode);
       _fp = &_file;
       return _file;
     }
@@ -139,7 +130,7 @@ namespace lgfx
     bool seek(std::uint32_t offset, SeekMode mode) { return _fp->seek(offset, mode); }
     void close() override { _fp->close(); }
 
-#elif defined (CONFIG_IDF_TARGET_ESP32)  // ESP-IDF
+#else // ESP-IDF
 
     FILE* _fp;
     bool open(const char* path, const char* mode) { return (_fp = fopen(path, mode)); }
@@ -148,15 +139,6 @@ namespace lgfx
     bool seek(std::uint32_t offset) override { return seek(offset, SEEK_SET); }
     bool seek(std::uint32_t offset, int origin) { return fseek(_fp, offset, origin); }
     void close() override { fclose(_fp); }
-
-#else  // dummy.
-
-    bool open(const char* path, const char* mode) { return false; }
-    int read(std::uint8_t *buf, std::uint32_t len) override { return 0; }
-    void skip(std::int32_t offset) override { }
-    bool seek(std::uint32_t offset) override { return false; }
-    bool seek(std::uint32_t offset, int origin) { return false; }
-    void close() override { }
 
 #endif
 
@@ -189,6 +171,12 @@ namespace lgfx
 #endif
 
   };
+
+//----------------------------------------------------------------------------
+  namespace spi
+  {
+    void init(int spi_host, int spi_sclk, int spi_miso, int spi_mosi, int dma_channel);
+  }
 };
 
 #endif

@@ -1,7 +1,7 @@
 # LovyanGFX
 
 LCD graphics library (for ESP32 SPI or 8bit Parallel / ATSAMD51 SPI).  
-M5Stack / M5StickC / TTGO T-Watch / ODROID-GO / ESP-WROVER-KIT / WioTerminal / and more...
+M5Stack / M5StickC / TTGO T-Watch / ODROID-GO / ESP-WROVER-KIT / WioTerminal / and more...  
 [![examples](http://img.youtube.com/vi/SMOHRPqUZcQ/0.jpg)](http://www.youtube.com/watch?v=SMOHRPqUZcQ "examples")
 [![examples](http://img.youtube.com/vi/F5gsp41Elac/0.jpg)](http://www.youtube.com/watch?v=F5gsp41Elac "MultiPanel")
 
@@ -35,19 +35,24 @@ This library has the following advantages.
     - ESP-IDF
     - Arduino ESP32
     - Arduino ATSAMD51 (Seeed)
-    - Platformio
+    - PlatformIO
 
   - ディスプレイ Displays
     - HX8357
     - ILI9163
     - ILI9341 (ODROID-GO, ESP-WROVER-KIT, LoLin D32 Pro, WioTerminal)
-    - ILI9342 (M5Stack Basic,Gray,Fire,Go,Core2)
+    - ILI9342 (M5Stack, M5Stack Core2)
     - ILI9486
     - ILI9488
     - SSD1351
     - ST7735 (M5StickC, TTGO T-Wristband, TTGO TS, LoLin D32 Pro)
     - ST7789 (M5StickCPlus, TTGO T-Watch, DSTIKE D-duino-32 XS, ESP-WROVER-KIT)
     - ST7796
+
+  - タッチパネル TouchScreens (only ESP32)
+    - I2C FT5x06
+    - SPI XPT2046
+    - SPI STMPE610
 
 
 対応機種については[src/lgfx/panel](src/lgfx/panel)をご参照ください。  
@@ -68,7 +73,8 @@ This library is also compatible with the above models and LCD panels with a simi
 // 対応機種がボードマネージャに無い場合 ( TTGO T-Wristband や ESP-WROVER-KIT等 ) は、
 // LovyanGFX.hppのincludeより前に、define LGFX_～ の定義を記述してください。
 
-// #define LGFX_M5STACK          // M5Stack / Core2
+// #define LGFX_M5STACK          // M5Stack (Basic / Gray / Go / Fire)
+// #define LGFX_M5STACKCORE2     // M5StackCore2
 // #define LGFX_M5STICKC         // M5Stick C / CPlus
 // #define LGFX_ODROID_GO        // ODROID-GO
 // #define LGFX_TTGO_TS          // TTGO TS

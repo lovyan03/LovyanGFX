@@ -150,7 +150,8 @@ namespace lgfx
       return res;
     }
 
-    std::uint_fast8_t getTouch(std::uint16_t *x, std::uint16_t *y, std::uint_fast8_t number = 0)
+    template <typename T>
+    std::uint_fast8_t getTouch(T *x, T *y, std::uint_fast8_t number = 0)
     {
       std::int32_t tx, ty;
       auto res = getTouch(&tx, &ty, number);

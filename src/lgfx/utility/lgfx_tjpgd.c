@@ -453,7 +453,7 @@ static void block_idct (
 		v2 = t12 - t11;
 
 		/* Descale the transformed values 8 bits and output */
-#if defined (ESP32) || (CONFIG_IDF_TARGET_ESP32) || (ESP_PLATFORM)
+#if defined (ESP32) || defined (CONFIG_IDF_TARGET_ESP32) || defined (ESP_PLATFORM)
 		int32_t d0 = (v0 + v7) >> 8;
 		int32_t d7 = (v0 - v7) >> 8;
 		int32_t d1 = (v1 + v6) >> 8;

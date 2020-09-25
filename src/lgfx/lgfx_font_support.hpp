@@ -273,6 +273,33 @@ namespace lgfx
       }
     }
 
+    std::int32_t textLength(const char *string, std::int32_t width) {
+      if (!string || !string[0]) return 0;
+
+      auto sx = _text_style.size_x;
+
+      std::int32_t left = 0;
+      std::int32_t right = 0;
+      auto str = string;
+      do {
+        std::uint16_t uniCode = *string;
+        if (_text_style.utf8) {
+          do {
+            uniCode = decodeUTF8(*string);
+          } while (uniCode < 0x20 && *(++string));
+          if (uniCode < 0x20) break;
+        }
+
+        if (!_font->updateFontMetric(&_font_metrics, uniCode)) continue;
+        if (left == 0 && right == 0 && _font_metrics.x_offset < 0) left = right = - (int)(_font_metrics.x_offset * sx);
+        right = left + std::max<int>(_font_metrics.x_advance * sx, int(_font_metrics.width * sx) + int(_font_metrics.x_offset * sx));
+        //right = left + (int)(std::max<int>(_font_metrics.x_advance, _font_metrics.width + _font_metrics.x_offset) * sx);
+        left += (int)(_font_metrics.x_advance * sx);
+        if (width <= right) return string - str;
+      } while (*(++string));
+      return string - str;
+    }
+
     std::int32_t textWidth(const char *string) {
       if (!string || !string[0]) return 0;
 
@@ -299,6 +326,8 @@ namespace lgfx
     }
 
   #if defined (ARDUINO)
+    inline std::int32_t textLength(const String& string, std::int32_t width) { return textLength(string.c_str(), width); }
+
     inline std::int32_t textWidth(const String& string) { return textWidth(string.c_str()); }
 
     inline size_t drawString(const String& string, std::int32_t x, std::int32_t y) { return draw_string(string.c_str(), x, y, _text_style.datum); }
