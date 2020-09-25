@@ -59,17 +59,19 @@ namespace lgfx
 //----------------------------------------------------------------------------
   struct FileWrapper : public DataWrapper {
     FileWrapper() : DataWrapper() { need_transaction = true; }
-#if defined (ARDUINO) && defined (__SEEED_FS__) && defined (__SD_H__)
+#if defined (ARDUINO) && defined (__SEEED_FS__)
     fs::File _file;
     fs::File *_fp;
 
-    fs::FS& _fs = SD;
+    fs::FS *_fs = nullptr;
     void setFS(fs::FS& fs) {
-      _fs = fs;
-      need_transaction = (&fs == &SD);
+      _fs = &fs;
+ #if defined (__SD_H__)
+      need_transaction = (_fs == &SD);
+ #endif
     }
-    FileWrapper(fs::FS& fs) : DataWrapper(), _fp(nullptr), _fs(fs) { need_transaction = (&fs == &SD); }
-    FileWrapper(fs::FS& fs, fs::File* fp) : DataWrapper(), _fp(fp), _fs(fs) { need_transaction = (&fs == &SD); }
+    FileWrapper(fs::FS& fs) : DataWrapper(), _fp(nullptr) { setFS(fs); }
+    FileWrapper(fs::FS& fs, fs::File* fp) : DataWrapper(), _fp(fp) { setFS(fs); }
 
     bool open(fs::FS& fs, const char* path, const char* mode) {
       setFS(fs);
@@ -77,7 +79,7 @@ namespace lgfx
     }
 
     bool open(const char* path, const char* mode) { 
-      fs::File file = _fs.open(path, mode);
+      fs::File file = _fs->open(path, mode);
       // この邪悪なmemcpyは、Seeed_FSのFile実装が所有権moveを提供してくれないのにデストラクタでcloseを呼ぶ実装になっているため、
       // 正攻法ではFileをクラスメンバに保持できない状況を打開すべく応急処置的に実装したものです。
       memcpy(&_file, &file, sizeof(fs::File));
