@@ -36,6 +36,7 @@ namespace lgfx
     : LovyanGFX()
     , _parent(parent)
     , _img  (nullptr)
+    , _alloclen(0)
     , _bitwidth(0)
     , _xptr (0)
     , _yptr (0)
@@ -59,6 +60,7 @@ namespace lgfx
 
     virtual ~LGFX_Sprite() {
       deleteSprite();
+      deletePalette();
     }
 
     void deletePalette(void)
@@ -79,10 +81,20 @@ namespace lgfx
       _clip_t = 0;
       _clip_r = -1;
       _clip_b = -1;
+      _sx = 0;
+      _sy = 0;
       _sw = 0;
       _sh = 0;
-      deletePalette();
-      if (_img != nullptr) {
+      _xs = 0;
+      _xe = 0;
+      _ys = 0;
+      _ye = 0;
+      _xptr = 0;
+      _yptr = 0;
+      _index = 0;
+
+      if (_alloclen) {
+        _alloclen = 0;
         _mem_free(_img);
         _img = nullptr;
       }
@@ -93,23 +105,51 @@ namespace lgfx
       _psram = enabled;
     }
 
+    void setBuffer(void* buffer, std::int32_t w, std::int32_t h, std::uint8_t bpp = 0)
+    {
+      deleteSprite();
+      if (bpp != 0) _write_conv.setColorDepth((color_depth_t)bpp, _palette != nullptr) ;
+
+      _img = static_cast<std::uint8_t*>(buffer);
+      _bitwidth = (w + _write_conv.x_mask) & (~(std::uint32_t)_write_conv.x_mask);
+      _sw = _width = w;
+      _clip_r = _xe = w - 1;
+      _xpivot = w >> 1;
+
+      _sh = _height = h;
+      _clip_b = _ye = h - 1;
+      _ypivot = h >> 1;
+    }
+
     void* createSprite(std::int32_t w, std::int32_t h)
     {
       if (w < 1 || h < 1) return nullptr;
-      if (_img != nullptr) {
+
+      _bitwidth = (w + _write_conv.x_mask) & (~(std::uint32_t)_write_conv.x_mask);
+      size_t len = h * (_bitwidth * _write_conv.bits >> 3) + 1;
+      if (_alloclen && _alloclen < len)
+      {
+        _alloclen = 0;
         _mem_free(_img);
         _img = nullptr;
       }
-      _bitwidth = (w + _write_conv.x_mask) & (~(std::uint32_t)_write_conv.x_mask);
-      size_t len = (h * _bitwidth * _write_conv.bits >> 3) + 1;
-      _img = (std::uint8_t*)_mem_alloc(len);
-      if (!_img) {
-        deleteSprite();
-        return nullptr;
+
+      if (_img == nullptr)
+      {
+        _img = (std::uint8_t*)_mem_alloc(len);
+
+        if (_img == nullptr)
+        {
+          deleteSprite();
+          return nullptr;
+        }
+        _alloclen = len;
       }
       memset(_img, 0, len);
-      if (_palette == nullptr && 0 == _write_conv.bytes) createPalette();
-
+      if (_palette == nullptr && 0 == _write_conv.bytes)
+      {
+        createPalette();
+      }
       _sw = _width = w;
       _clip_r = _xe = w - 1;
       _xpivot = w >> 1;
@@ -247,6 +287,7 @@ namespace lgfx
 
       if (_img == nullptr) return nullptr;
       deleteSprite();
+      deletePalette();
       return createSprite(_width, _height);
     }
 
@@ -303,6 +344,7 @@ namespace lgfx
       std::uint16_t* _img16;
       bgr888_t* _img24;
     };
+    std::uint32_t _alloclen;
     std::int32_t _bitwidth;
     std::int32_t _xptr;
     std::int32_t _yptr;
