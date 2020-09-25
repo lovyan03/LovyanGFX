@@ -188,16 +188,16 @@ void setup(void)
   // 省略時はfalseになります。
   panel.spi_3wire = false;
 
-  // Set the SPI CS pin number.
+  // Set the pin number for connecting the CS pins of the LCD.
   // LCDのCSを接続したピン番号を設定します。
   // 使わない場合は省略するか-1を設定します。
   panel.spi_cs = 14;
 
-  // Set the SPI D/C pin number.
+  // Set the pin number for connecting the D/C pins of the LCD.
   // LCDのD/Cを接続したピン番号を設定します。
   panel.spi_dc = 27;
 
-  // Set the reset pin number.
+  // Set the pin number for connecting the RST pins of the LCD.
   // LCDのRSTを接続したピン番号を設定します。
   // 使わない場合は省略するか-1を設定します。
   panel.gpio_rst = 33;
