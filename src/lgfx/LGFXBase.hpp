@@ -33,6 +33,7 @@ namespace lgfx
   friend LGFX_Sprite;
   public:
     LGFXBase() {}
+    LGFXBase(const LGFXBase&) = delete;
     virtual ~LGFXBase() {}
 
 // color param format:
@@ -598,7 +599,9 @@ namespace lgfx
   #ifdef LGFX_FONT_SUPPORT_HPP_
      >
   #endif
-  {};
+  {
+
+  };
 
 //----------------------------------------------------------------------------
 
