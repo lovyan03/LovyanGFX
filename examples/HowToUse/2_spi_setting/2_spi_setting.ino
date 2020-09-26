@@ -131,6 +131,7 @@ static lgfx::Panel_ILI9342 panel;
 //static lgfx::Panel_ILI9486L panel;
 //static lgfx::Panel_ILI9488 panel;
 //static lgfx::Panel_SSD1351 panel;
+//static lgfx::Panel_ST7735  panel;
 //static lgfx::Panel_ST7735S panel;
 //static lgfx::Panel_ST7789 panel;
 //static lgfx::Panel_ST7796 panel;
@@ -218,9 +219,9 @@ void setup(void)
   panel.backlight_level = true;
 
   // Set the panel color inversion.
-  // invertDisplayの初期値を設定します。trueを設定すると反転します。
+  // パネルの色反転設定です。trueを設定すると色が反転します。(例:黒が白に、青が黄色に)
   // 省略時は false。画面の色が反転している場合は設定を変更してください。
-  panel.invert = false;
+  panel.reverse_invert = false;
 
   // Set the RGB/BGR color order.
   // パネルの色順がを設定します。  RGB=true / BGR=false
