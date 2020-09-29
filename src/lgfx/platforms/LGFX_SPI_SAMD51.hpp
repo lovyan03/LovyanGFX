@@ -1020,26 +1020,30 @@ void enableSPI()
 
     void readRect_impl(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, void* dst, pixelcopy_t* param) override
     {
+      startWrite();
       set_window(x, y, x + w - 1, y + h - 1);
       auto len = w * h;
-      if (!_panel->spi_read) {
-        memset(dst, 0, len * _read_conv.bytes);
-        return;
+      if (!_panel->spi_read)
+      {
+        memset(dst, 0, len * param->dst_bits >> 3);
       }
-      write_cmd(_panel->getCmdRamrd());
-      std::uint32_t len_dummy_read_pixel = _panel->len_dummy_read_pixel;
-      start_read();
-      if (len_dummy_read_pixel) {;
-        write_data(0, len_dummy_read_pixel);
-      }
+      else
+      {
+        write_cmd(_panel->getCmdRamrd());
+        std::uint32_t len_dummy_read_pixel = _panel->len_dummy_read_pixel;
+        start_read();
+        if (len_dummy_read_pixel) {;
+          write_data(0, len_dummy_read_pixel);
+        }
 
-      if (param->no_convert) {
-        read_bytes((std::uint8_t*)dst, len * _read_conv.bytes);
-      } else {
-        read_pixels(dst, len, param);
+        if (param->no_convert) {
+          read_bytes((std::uint8_t*)dst, len * _read_conv.bytes);
+        } else {
+          read_pixels(dst, len, param);
+        }
+        end_read();
       }
-//*/
-      end_read();
+      endWrite();
     }
 
     void read_pixels(void* dst, std::int32_t length, pixelcopy_t* param)

@@ -1153,6 +1153,21 @@ namespace lgfx
     endWrite();
   }
 
+  void LGFXBase::read_rect(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, void* dst, pixelcopy_t* param)
+  {
+    _adjust_abs(x, w);
+    if (x < 0) { w += x; x = 0; }
+    if (w > _width - x)  w = _width  - x;
+    if (w < 1) return;
+
+    _adjust_abs(y, h);
+    if (y < 0) { h += y; y = 0; }
+    if (h > _height - y) h = _height - y;
+    if (h < 1) return;
+
+    readRect_impl(x, y, w, h, dst, param);
+  }
+
   struct paint_point_t { std::int32_t lx,rx,y,oy; };
 
   static void paint_add_points(std::list<paint_point_t>& points, int lx, int rx, int y, int oy, bool* linebuf)
@@ -1167,7 +1182,7 @@ namespace lgfx
       points.push_back(pt);
     }
   }
-  void LGFXBase::paint(std::int32_t x, std::int32_t y) {
+  void LGFXBase::floodFill(std::int32_t x, std::int32_t y) {
     if (x < _clip_l || x > _clip_r || y < _clip_t || y > _clip_b) return;
     bgr888_t target;
     readRectRGB(x, y, 1, 1, &target);

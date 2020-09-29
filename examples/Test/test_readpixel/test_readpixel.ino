@@ -74,7 +74,7 @@ static void drawTestPattern(void)
 {
   int w = lcd.width() >> 5;
   int h = (lcd.height() >> 5)+1;
-  int minwh = min(w,h);
+  int minwh = std::min(w,h);
 
   drawGrad(h* 0, h,    255,   0,   0);
   drawStep(h* 1, h,32 ,255,   0,   0);
@@ -129,7 +129,7 @@ void loop()
   lcd.printf("color %d\nrotation %d", lcd.getColorDepth(), lcd.getRotation());
   delay(500);
 
-  int16_t ie = min(lcd.width() , lcd.height()) - 2;
+  int16_t ie = std::min(lcd.width() , lcd.height()) - 2;
   for (int i = 0; i < ie; ++i) {
     lcd.copyRect(i, i+1, lcd.width() - (i<<1), lcd.height() - i - 1, i, i);
   }

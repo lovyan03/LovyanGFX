@@ -106,13 +106,14 @@ namespace lgfx
     template<typename T> inline void fillCircleHelper( std::int32_t x, std::int32_t y, std::int32_t r, std::uint_fast8_t corners, std::int32_t delta, const T& color)  { setColor(color); fillCircleHelper(x, y, r, corners, delta); }
                                 void fillCircleHelper( std::int32_t x, std::int32_t y, std::int32_t r, std::uint_fast8_t corners, std::int32_t delta);
 
-    template<typename T> inline void paint    ( std::int32_t x, std::int32_t y, const T& color) { setColor(color); paint(x, y); }
-    template<typename T> inline void floodFill( std::int32_t x, std::int32_t y, const T& color) { setColor(color); paint(x, y); }
-                         inline void floodFill( std::int32_t x, std::int32_t y                ) {                  paint(x, y); }
+    template<typename T> inline void floodFill( std::int32_t x, std::int32_t y, const T& color) { setColor(color); floodFill(x, y); }
+                                void floodFill( std::int32_t x, std::int32_t y                );
+    template<typename T> inline void paint    ( std::int32_t x, std::int32_t y, const T& color) { setColor(color); floodFill(x, y); }
+                         inline void paint    ( std::int32_t x, std::int32_t y                ) {                  floodFill(x, y); }
 
     template<typename T> inline void drawGradientHLine( std::int32_t x, std::int32_t y, std::int32_t w, const T& colorstart, const T& colorend ) { drawGradientLine( x, y, x + w - 1, y, colorstart, colorend ); }
     template<typename T> inline void drawGradientVLine( std::int32_t x, std::int32_t y, std::int32_t h, const T& colorstart, const T& colorend ) { drawGradientLine( x, y, x, y + h - 1, colorstart, colorend ); }
-    template<typename T> inline void drawGradientLine( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, const T& colorstart, const T& colorend ) { draw_gradient_line( x0, y0, x1, y1, convert_to_rgb888(colorstart), convert_to_rgb888(colorend) ); }
+    template<typename T> inline void drawGradientLine ( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, const T& colorstart, const T& colorend ) { draw_gradient_line( x0, y0, x1, y1, convert_to_rgb888(colorstart), convert_to_rgb888(colorend) ); }
 
                          inline void clear      ( void )          { setColor(_base_rgb888); fillRect(0, 0, _width, _height); }
     template<typename T> inline void clear      ( const T& color) { setColor(color);        fillRect(0, 0, _width, _height); }
@@ -247,15 +248,31 @@ namespace lgfx
 
     std::uint16_t readPixel(std::int32_t x, std::int32_t y)
     {
+      if (x < _clip_l || x > _clip_r || y < _clip_t || y > _clip_b) return 0;
+
       pixelcopy_t p(nullptr, swap565_t::depth, _read_conv.depth, false, _palette);
       std::uint_fast16_t data = 0;
-      read_rect(x, y, 1, 1, &data, &p);
+
+      readRect_impl(x, y, 1, 1, &data, &p);
+
       return __builtin_bswap16(data);
+    }
+
+    RGBColor readPixelRGB(std::int32_t x, std::int32_t y)
+    {
+      RGBColor data[1];
+      if (x < _clip_l || x > _clip_r || y < _clip_t || y > _clip_b) return data[0];
+
+      pixelcopy_t p(nullptr, bgr888_t::depth, _read_conv.depth, false, _palette);
+
+      readRect_impl(x, y, 1, 1, data, &p);
+
+      return data[0];
     }
 
     __attribute__ ((always_inline)) inline
     void readRectRGB( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, std::uint8_t* data) { readRectRGB(x, y, w, h, (bgr888_t*)data); }
-    void readRectRGB( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, bgr888_t* data)
+    void readRectRGB( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, RGBColor* data)
     {
       pixelcopy_t p(nullptr, bgr888_t::depth, _read_conv.depth, false, _palette);
       read_rect(x, y, w, h, data, &p);
@@ -297,8 +314,11 @@ namespace lgfx
       read_rect(x, y, w, h, data, &p);
     }
 
-    template<typename T> void pushRect(  std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const T* data) { pushImage(x, y, w, h, data); }
-    template<typename T> void pushImage( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const T* data)
+    template<typename T> [[deprecated("use pushImage")]]
+    void pushRect(  std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const T* data) { pushImage(x, y, w, h, data); }
+
+    template<typename T>
+    void pushImage( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const T* data)
     {
       pixelcopy_t p(data, _write_conv.depth, get_depth<T>::value, _palette_count, nullptr);
       if (std::is_same<rgb565_t, T>::value || std::is_same<rgb888_t, T>::value) {
@@ -426,8 +446,6 @@ namespace lgfx
 
     void copyRect(std::int32_t dst_x, std::int32_t dst_y, std::int32_t w, std::int32_t h, std::int32_t src_x, std::int32_t src_y);
 
-    void paint(std::int32_t x, std::int32_t y);
-
 
 #ifdef _LGFX_QRCODE_H_
 #ifdef ARDUINO
@@ -520,23 +538,7 @@ namespace lgfx
       return (dw <= 0);
     }
 
-    void read_rect(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, void* dst, pixelcopy_t* param)
-    {
-      _adjust_abs(x, w);
-      if (x < 0) { w += x; x = 0; }
-      if (w > _width - x)  w = _width  - x;
-      if (w < 1) return;
-
-      _adjust_abs(y, h);
-      if (y < 0) { h += y; y = 0; }
-      if (h > _height - y) h = _height - y;
-      if (h < 1) return;
-
-      startWrite();
-      readRect_impl(x, y, w, h, dst, param);
-      endWrite();
-    }
-
+    void read_rect(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, void* dst, pixelcopy_t* param);
     void draw_gradient_line( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, uint32_t colorstart, uint32_t colorend );
     void fill_arc_helper(std::int32_t cx, std::int32_t cy, std::int32_t oradius, std::int32_t iradius, float start, float end);
     void draw_bitmap(std::int32_t x, std::int32_t y, const std::uint8_t *bitmap, std::int32_t w, std::int32_t h, std::uint32_t fg_rawcolor, std::uint32_t bg_rawcolor = ~0u);
