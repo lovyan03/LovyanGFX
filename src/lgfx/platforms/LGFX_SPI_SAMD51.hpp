@@ -885,52 +885,15 @@ void enableSPI()
     void write_pixels(std::int32_t length, pixelcopy_t* param)
     {
       const std::uint8_t bytes = _write_conv.bytes;
-      std::uint32_t buf;
-      auto *spi = &_sercom->SPI;
-
-      dc_h();
-      if (!spi->CTRLC.bit.DATA32B) {
-        while (spi->SYNCBUSY.reg);
-        spi->CTRLA.bit.ENABLE = 0;
-        spi->CTRLC.bit.DATA32B = 1;  // 4Byte transfer enable
-        spi->CTRLA.bit.ENABLE = 1;
-        while (spi->SYNCBUSY.reg);
-      }
-
-      if (bytes == 2) {
-        if (length & 0x01) {
-          spi->LENGTH.reg = 2 | SERCOM_SPI_LENGTH_LENEN;
-          param->fp_copy(&buf, 0, 1, param);
-          spi->DATA.reg = buf;
-          _need_wait = true;
-          --length;
-          if (!length) return;
-          while (spi->INTFLAG.bit.TXC == 0);
-        }
-        spi->LENGTH.reg = 0;
-        const std::uint32_t limit = 2;
-        param->fp_copy(&buf, 0, limit, param);
-        spi->DATA.reg = buf;
-        _need_wait = true;
-        if (0 == (length -= limit)) return;
-        do {
-          param->fp_copy(&buf, 0, limit, param);
-          while (spi->INTFLAG.bit.DRE == 0);
-          spi->DATA.reg = buf;
-        } while (length -= limit);
-      } else {
-        spi->LENGTH.reg = 3 | SERCOM_SPI_LENGTH_LENEN;
-        const std::uint32_t limit = 1;
-        param->fp_copy(&buf, 0, limit, param);
-        spi->DATA.reg = buf;
-        _need_wait = true;
-        if (0 == (length -= limit)) return;
-        do {
-          param->fp_copy(&buf, 0, limit, param);
-          while (spi->INTFLAG.bit.TXC == 0);
-          spi->DATA.reg = buf;
-        } while (length -= limit);
-      }
+      std::uint32_t limit = (bytes == 2) ? 16 : 12;
+      std::uint32_t len;
+      do {
+        len = ((length - 1) % limit) + 1;
+        if (limit <= 256) limit <<= 1;
+        auto dmabuf = get_dmabuffer(len * bytes);
+        param->fp_copy(dmabuf, 0, len, param);
+        write_bytes(dmabuf, len * bytes, true);
+      } while (length -= len);
     }
 
     void write_bytes(const std::uint8_t* data, std::int32_t length, bool use_dma = false)

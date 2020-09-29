@@ -315,10 +315,10 @@ namespace lgfx
     }
 
     template<typename T> [[deprecated("use pushImage")]]
-    void pushRect(  std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const T* data) { pushImage(x, y, w, h, data); }
+    void pushRect( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const T* data) { pushImage(x, y, w, h, data); }
 
     template<typename T>
-    void pushImage( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const T* data)
+    void pushImage(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const T* data)
     {
       pixelcopy_t p(data, _write_conv.depth, get_depth<T>::value, _palette_count, nullptr);
       if (std::is_same<rgb565_t, T>::value || std::is_same<rgb888_t, T>::value) {
@@ -366,6 +366,12 @@ namespace lgfx
       } else {
         pushImage(x, y, w, h, (const bgr888_t*)data);
       }
+    }
+
+    void pushImage(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const std::uint8_t* data)
+    {
+      pixelcopy_t p(data, _write_conv.depth, rgb332_1Byte, _palette_count, nullptr);
+      push_image(x, y, w, h, &p);
     }
 
     template<typename U>
@@ -417,6 +423,12 @@ namespace lgfx
     void pushImageDMA( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const void* data, const std::uint8_t bits, const T* palette)
     {
       pixelcopy_t p(data, _write_conv.depth, (color_depth_t)bits, _palette_count, palette);
+      push_image(x, y, w, h, &p, true);
+    }
+
+    void pushImageDMA(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const std::uint8_t* data)
+    {
+      pixelcopy_t p(data, _write_conv.depth, rgb332_1Byte, _palette_count, nullptr);
       push_image(x, y, w, h, &p, true);
     }
 
