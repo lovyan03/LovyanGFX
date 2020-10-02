@@ -567,7 +567,7 @@ namespace lgfx
             exec_spi();
             return;
           }
-          if (param->src_width == w) {
+          if (param->src_width == w || h == 1) {
             if (_dma_channel && !use_dma && (64 < whb) && (whb <= 1024)) {
               auto buf = get_dmabuffer(whb);
               memcpy(buf, src, whb);

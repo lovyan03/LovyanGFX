@@ -825,10 +825,15 @@ void enableSPI()
           setWindow_impl(x, y, xr, y + h - 1);
           std::uint32_t i = (src_x + param->src_y * param->src_width) * bytes;
           auto src = &((const std::uint8_t*)param->src_data)[i];
-
-          if ((std::int32_t)param->src_width == w || h == 1) {
-            std::int32_t len = w * h * bytes;
-            write_bytes(src, len, use_dma);
+          if (param->src_width == w || h == 1) {
+            std::int32_t whb = w * h * bytes;
+            if (!use_dma && (32 < whb) && (whb <= 1024)) {
+              auto buf = get_dmabuffer(whb);
+              memcpy(buf, src, whb);
+              write_bytes(buf, whb, true);
+            } else {
+              write_bytes(src, whb, use_dma);
+            }
           } else {
             auto add = param->src_width * bytes;
             do {
@@ -889,7 +894,7 @@ void enableSPI()
       std::uint32_t len;
       do {
         len = ((length - 1) % limit) + 1;
-        if (limit <= 256) limit <<= 1;
+        if (limit <= 256) limit <<= 2;
         auto dmabuf = get_dmabuffer(len * bytes);
         param->fp_copy(dmabuf, 0, len, param);
         write_bytes(dmabuf, len * bytes, true);
