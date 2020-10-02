@@ -5,6 +5,9 @@
 
 namespace lgfx
 {
+  struct LGFXBase;
+  struct TextStyle;
+
   struct FontMetrics {
     std::int16_t width;
     std::int16_t x_advance;
@@ -31,10 +34,7 @@ namespace lgfx
     virtual void getDefaultMetric(FontMetrics *metrics) const = 0;
     virtual bool updateFontMetric(FontMetrics *metrics, std::uint16_t uniCode) const = 0;
     virtual bool unloadFont(void) { return false; }
-  };
-
-  struct RunTimeFont : public IFont {
-    virtual ~RunTimeFont() {}
+    virtual std::size_t drawChar(LGFXBase* gfx, std::int32_t x, std::int32_t y, std::uint16_t c, const TextStyle* style) const = 0;
   };
 
   struct BaseFont : public IFont {
@@ -56,21 +56,24 @@ namespace lgfx
 
   struct GLCDfont : public BaseFont {
     constexpr GLCDfont(const std::uint8_t *chartbl, const std::uint8_t *widthtbl, std::uint8_t width, std::uint8_t height, std::uint8_t baseline) : BaseFont(chartbl, widthtbl, width, height, baseline ) {}
-    constexpr font_type_t getType(void) const override { return ft_glcd; }
+    font_type_t getType(void) const override { return ft_glcd; }
 
     bool updateFontMetric(FontMetrics *metrics, std::uint16_t uniCode) const override;
+    std::size_t drawChar(LGFXBase* gfx, std::int32_t x, std::int32_t y, std::uint16_t c, const TextStyle* style) const override;
   };
 
   struct BMPfont : public BaseFont {
     constexpr BMPfont(const std::uint8_t *chartbl, const std::uint8_t *widthtbl, std::uint8_t width, std::uint8_t height, std::uint8_t baseline) : BaseFont(chartbl, widthtbl, width, height, baseline ) {}
-    constexpr font_type_t getType(void) const override { return ft_bmp;  } 
+    font_type_t getType(void) const override { return ft_bmp;  } 
 
     bool updateFontMetric(FontMetrics *metrics, std::uint16_t uniCode) const override;
+    std::size_t drawChar(LGFXBase* gfx, std::int32_t x, std::int32_t y, std::uint16_t c, const TextStyle* style) const override;
   };
 
   struct RLEfont : public BMPfont {
     constexpr RLEfont(const std::uint8_t *chartbl, const std::uint8_t *widthtbl, std::uint8_t width, std::uint8_t height, std::uint8_t baseline) : BMPfont(chartbl, widthtbl, width, height, baseline ) {}
-    constexpr font_type_t getType(void) const override { return ft_rle; }
+    font_type_t getType(void) const override { return ft_rle; }
+    std::size_t drawChar(LGFXBase* gfx, std::int32_t x, std::int32_t y, std::uint16_t c, const TextStyle* style) const override;
   };
 
   struct BDFfont : public BaseFont {
@@ -86,10 +89,11 @@ namespace lgfx
      , halfwidth(halfwidth)
      , y_advance(y_advance)
      {}
-    constexpr font_type_t getType(void) const override { return ft_bdf;  }
+    font_type_t getType(void) const override { return ft_bdf;  }
 
     void getDefaultMetric(FontMetrics *metrics) const override;
     bool updateFontMetric(FontMetrics *metrics, std::uint16_t uniCode) const override;
+    std::size_t drawChar(LGFXBase* gfx, std::int32_t x, std::int32_t y, std::uint16_t c, const TextStyle* style) const override;
   };
 
   // deprecated array.
@@ -139,13 +143,59 @@ namespace lgfx
 
     GFXglyph* getGlyph(std::uint16_t uniCode) const;
 
-    constexpr font_type_t getType(void) const override { return font_type_t::ft_gfx; }
+    font_type_t getType(void) const override { return font_type_t::ft_gfx; }
 
     void getDefaultMetric(lgfx::FontMetrics *metrics) const;
 
     bool updateFontMetric(lgfx::FontMetrics *metrics, std::uint16_t uniCode) const override;
+
+    std::size_t drawChar(LGFXBase* gfx, std::int32_t x, std::int32_t y, std::uint16_t c, const TextStyle* style) const override;
   };
 
+//----------------------------------------------------------------------------
+// VLW font 
+  struct DataWrapper;
+
+  struct RunTimeFont : public IFont {
+    virtual ~RunTimeFont() {}
+  };
+
+  struct VLWfont : public RunTimeFont
+  {
+    std::uint16_t gCount;     // Total number of characters
+    std::uint16_t yAdvance;   // Line advance
+    std::uint16_t spaceWidth; // Width of a space character
+    std::int16_t  ascent;     // Height of top of 'd' above baseline, other characters may be taller
+    std::int16_t  descent;    // Offset to bottom of 'p', other characters may have a larger descent
+    std::uint16_t maxAscent;  // Maximum ascent found in font
+    std::uint16_t maxDescent; // Maximum descent found in font
+
+    // These are for the metrics for each individual glyph (so we don't need to seek this in file and waste time)
+    std::uint16_t* gUnicode  = nullptr;  //UTF-16 code, the codes are searched so do not need to be sequential
+    std::uint8_t*  gWidth    = nullptr;  //cwidth
+    std::uint8_t*  gxAdvance = nullptr;  //setWidth
+    std::int8_t*   gdX       = nullptr;  //leftExtent
+    std::uint32_t* gBitmap   = nullptr;  //file pointer to greyscale bitmap
+
+    DataWrapper* _fontData = nullptr;
+    bool _fontLoaded = false; // Flags when a anti-aliased font is loaded
+
+    font_type_t getType(void) const override { return ft_vlw; } 
+
+    std::size_t drawChar(LGFXBase* gfx, std::int32_t x, std::int32_t y, std::uint16_t c, const TextStyle* style) const override;
+
+    void getDefaultMetric(FontMetrics *metrics) const override;
+
+    virtual ~VLWfont();
+
+    bool unloadFont(void) override;
+
+    bool updateFontMetric(FontMetrics *metrics, std::uint16_t uniCode) const override;
+
+    bool getUnicodeIndex(std::uint16_t unicode, std::uint16_t *index) const;
+
+    bool loadFont(DataWrapper* data);
+  };
 }
 
 //----------------------------------------------------------------------------

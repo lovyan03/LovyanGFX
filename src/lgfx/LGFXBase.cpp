@@ -21,10 +21,17 @@ Contributors:
 /----------------------------------------------------------------------------*/
 #include "LGFXBase.hpp"
 
+#include "utility/lgfx_tjpgd.h"    // JPEG decode support
+#include "utility/lgfx_pngle.h"    // PNG decode support
+#include "utility/lgfx_qrcode.h"   // QR code support
+
 #include <algorithm>
 #include <cmath>
+#include <cstdarg>
 #include <cstdint>
+#include <cstring>
 #include <list>
+#include <string>
 
 namespace lgfx
 {
@@ -33,6 +40,13 @@ namespace lgfx
   void LGFXBase::setAddrWindow(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h)
   {
     if (_adjust_abs(x, w)||_adjust_abs(y, h)) return;
+    if (x < 0) { w += x; x = 0; }
+    if (w > _width - x)  w = _width  - x;
+    if (w < 1) { x = 0; w = 0; }
+    if (y < 0) { h += y; y = 0; }
+    if (h > _height - y) h = _height - y;
+    if (h < 1) { y = 0; h = 0; }
+
     bool tr = !_transaction_count;
     if (tr) beginTransaction();
     setWindow(x, y, x + w - 1, y + h - 1);
@@ -973,7 +987,77 @@ namespace lgfx
     endWrite();
   }
 
-  void LGFXBase::push_image(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, pixelcopy_t *param, bool use_dma)
+  void LGFXBase::writePixels(const std::uint16_t* data, std::int32_t len, bool swap)
+  {
+    pixelcopy_t p(data, _write_conv.depth, rgb565_2Byte, _palette_count);
+    if (swap && !_palette_count && _write_conv.depth >= 8) {
+      p.no_convert = false;
+      p.fp_copy = pixelcopy_t::get_fp_normalcopy<rgb565_t>(_write_conv.depth);
+    }
+    writePixels_impl(len, &p);
+  }
+
+  void LGFXBase::writePixels(const void* data, std::int32_t len, bool swap)
+  {
+    pixelcopy_t p(data, _write_conv.depth, rgb888_3Byte, _palette_count);
+    if (swap && !_palette_count && _write_conv.depth >= 8) {
+      p.no_convert = false;
+      p.fp_copy = pixelcopy_t::get_fp_normalcopy<rgb888_t>(_write_conv.depth);
+    }
+    writePixels_impl(len, &p);
+  }
+
+  void LGFXBase::pushImage(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const std::uint16_t* data)
+  {
+    if (_swapBytes && !_palette_count && _write_conv.depth >= 8) {
+      pushImage(x, y, w, h, (const rgb565_t*)data);
+    } else {
+      pushImage(x, y, w, h, (const swap565_t*)data);
+    }
+  }
+
+  void LGFXBase::pushImage(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const void* data)
+  {
+    if (_swapBytes && !_palette_count && _write_conv.depth >= 8) {
+      pushImage(x, y, w, h, (const rgb888_t*)data);
+    } else {
+      pushImage(x, y, w, h, (const bgr888_t*)data);
+    }
+  }
+
+  void LGFXBase::pushImage(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const std::uint8_t* data)
+  {
+    pixelcopy_t p(data, _write_conv.depth, rgb332_1Byte, _palette_count, nullptr);
+    pushImage(x, y, w, h, &p);
+  }
+
+    void LGFXBase::pushImageDMA(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const std::uint8_t* data)
+    {
+      pixelcopy_t p(data, _write_conv.depth, rgb332_1Byte, _palette_count, nullptr);
+      pushImage(x, y, w, h, &p, true);
+    }
+
+    void LGFXBase::pushImageDMA(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const std::uint16_t* data)
+    {
+      pixelcopy_t p(data, _write_conv.depth, rgb565_2Byte, _palette_count, nullptr);
+      if (_swapBytes && !_palette_count && _write_conv.depth >= 8) {
+        p.no_convert = false;
+        p.fp_copy = pixelcopy_t::get_fp_normalcopy<rgb565_t>(_write_conv.depth);
+      }
+      pushImage(x, y, w, h, &p, true);
+    }
+
+    void LGFXBase::pushImageDMA(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const void* data)
+    {
+      pixelcopy_t p(data, _write_conv.depth, rgb888_3Byte, _palette_count, nullptr);
+      if (_swapBytes && !_palette_count && _write_conv.depth >= 8) {
+        p.no_convert = false;
+        p.fp_copy = pixelcopy_t::get_fp_normalcopy<rgb888_t>(_write_conv.depth);
+      }
+      pushImage(x, y, w, h, &p, true);
+    }
+
+  void LGFXBase::pushImage(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, pixelcopy_t *param, bool use_dma)
   {
     param->src_width = w;
     if (param->src_bits < 8) {        // get bitwidth
@@ -1002,7 +1086,7 @@ namespace lgfx
     endWrite();
   }
 
-  bool LGFXBase::pushImageRotateZoom(std::int32_t dst_x, std::int32_t dst_y, const void* data, std::int32_t src_x, std::int32_t src_y, std::int32_t w, std::int32_t h, float angle, float zoom_x, float zoom_y, std::uint32_t transparent, const std::uint8_t bits, const bgr888_t* palette)
+  bool LGFXBase::pushImageRotateZoom(std::int32_t dst_x, std::int32_t dst_y, std::int32_t src_x, std::int32_t src_y, std::int32_t w, std::int32_t h, float angle, float zoom_x, float zoom_y, const void* data, std::uint32_t transparent, const std::uint8_t bits, const bgr888_t* palette)
   {
     if (nullptr == data) return false;
     if (zoom_x == 0.0 || zoom_y == 0.0) return true;
@@ -1108,6 +1192,30 @@ namespace lgfx
       }
     } while (++min_y != max_y);
     endWrite();
+  }
+
+  void LGFXBase::readRect(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, std::uint8_t* data)
+  {
+    pixelcopy_t p(nullptr, rgb332_t::depth, _read_conv.depth, false, _palette);
+    read_rect(x, y, w, h, data, &p);
+  }
+  void LGFXBase::readRect(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, std::uint16_t* data)
+  {
+    pixelcopy_t p(nullptr, swap565_t::depth, _read_conv.depth, false, _palette);
+    if (_swapBytes && !_palette_count && _read_conv.depth >= 8) {
+      p.no_convert = false;
+      p.fp_copy = pixelcopy_t::get_fp_normalcopy_dst<rgb565_t>(_read_conv.depth);
+    }
+    read_rect(x, y, w, h, data, &p);
+  }
+  void LGFXBase::readRect(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, void* data)
+  {
+    pixelcopy_t p(nullptr, bgr888_t::depth, _read_conv.depth, false, _palette);
+    if (_swapBytes && !_palette_count && _read_conv.depth >= 8) {
+      p.no_convert = false;
+      p.fp_copy = pixelcopy_t::get_fp_normalcopy_dst<rgb888_t>(_read_conv.depth);
+    }
+    read_rect(x, y, w, h, data, &p);
   }
 
   void LGFXBase::scroll(std::int_fast16_t dx, std::int_fast16_t dy)
@@ -1280,5 +1388,970 @@ namespace lgfx
     do { delete[] linebufs[i]; } while (++i != 3);
     endWrite();
   }
-}
 
+//----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+
+    static char* numberToStr(unsigned long n, char* buf, std::size_t buflen, std::uint8_t base)
+    {
+      char *str = &buf[buflen - 1];
+
+      *str = '\0';
+
+      if (base < 2) { base = 10; }  // prevent crash if called with base == 1
+      do {
+        unsigned long m = n;
+        n /= base;
+        char c = m - base * n;
+        *--str = c < 10 ? c + '0' : c + 'A' - 10;
+      } while (n);
+
+      return str;
+    }
+
+    static char* numberToStr(long n, char* buf, std::size_t buflen, std::uint8_t base)
+    {
+      if (n >= 0) return numberToStr((unsigned long) n, buf, buflen, base);
+      auto res = numberToStr(- n, buf, buflen, 10) - 1;
+      res[0] = '-';
+      return res;
+    }
+
+    static char* floatToStr(double number, char* buf, std::size_t buflen, std::uint8_t digits)
+    {
+      if (std::isnan(number))    { return strcpy(buf, "nan"); }
+      if (std::isinf(number))    { return strcpy(buf, "inf"); }
+      if (number > 4294967040.0) { return strcpy(buf, "ovf"); } // constant determined empirically
+      if (number <-4294967040.0) { return strcpy(buf, "ovf"); } // constant determined empirically
+
+      char* dst = buf;
+      // Handle negative numbers
+      //bool negative = (number < 0.0);
+      if (number < 0.0) {
+        number = -number;
+        *dst++ = '-';
+      }
+
+      // Round correctly so that print(1.999, 2) prints as "2.00"
+      double rounding = 0.5;
+      for(std::uint8_t i = 0; i < digits; ++i) {
+        rounding /= 10.0;
+      }
+
+      number += rounding;
+
+      // Extract the integer part of the number and print it
+      unsigned long int_part = (unsigned long) number;
+      double remainder = number - (double) int_part;
+
+      {
+        constexpr std::size_t len = 14;
+        char numstr[len];
+        auto tmp = numberToStr(int_part, numstr, len, 10);
+        auto slen = strlen(tmp);
+        memcpy(dst, tmp, slen);
+        dst += slen;
+      }
+
+      // Print the decimal point, but only if there are digits beyond
+      if (digits > 0) {
+        dst[0] = '.';
+        ++dst;
+      }
+      // Extract digits from the remainder one at a time
+      while (digits-- > 0) {
+        remainder *= 10.0;
+        unsigned int toPrint = (unsigned int)(remainder);
+        dst[0] = '0' + toPrint;
+        ++dst;
+        remainder -= toPrint;
+      }
+      dst[0] = 0;
+      return buf;
+    }
+
+    std::uint16_t LGFXBase::decodeUTF8(std::uint8_t c)
+    {
+      // 7 bit Unicode Code Point
+      if (!(c & 0x80)) {
+        _decoderState = utf8_decode_state_t::utf8_state0;
+        return c;
+      }
+
+      if (_decoderState == utf8_decode_state_t::utf8_state0)
+      {
+        // 11 bit Unicode Code Point
+        if ((c & 0xE0) == 0xC0)
+        {
+          _unicode_buffer = ((c & 0x1F)<<6);
+          _decoderState = utf8_decode_state_t::utf8_state1;
+          return 0;
+        }
+
+        // 16 bit Unicode Code Point
+        if ((c & 0xF0) == 0xE0)
+        {
+          _unicode_buffer = ((c & 0x0F)<<12);
+          _decoderState = utf8_decode_state_t::utf8_state2;
+          return 0;
+        }
+        // 21 bit Unicode  Code Point not supported so fall-back to extended ASCII
+        //if ((c & 0xF8) == 0xF0) return (std::uint16_t)c;
+      }
+      else
+      {
+        if (_decoderState == utf8_decode_state_t::utf8_state2)
+        {
+          _unicode_buffer |= ((c & 0x3F)<<6);
+          _decoderState = utf8_decode_state_t::utf8_state1;
+          return 0;
+        }
+        _unicode_buffer |= (c & 0x3F);
+        _decoderState = utf8_decode_state_t::utf8_state0;
+        return _unicode_buffer;
+      }
+
+      _decoderState = utf8_decode_state_t::utf8_state0;
+
+      return (std::uint16_t)c; // fall-back to extended ASCII
+    }
+
+    std::int32_t LGFXBase::textLength(const char *string, std::int32_t width)
+    {
+      if (!string || !string[0]) return 0;
+
+      auto sx = _text_style.size_x;
+
+      std::int32_t left = 0;
+      std::int32_t right = 0;
+      auto str = string;
+      do {
+        std::uint16_t uniCode = *string;
+        if (_text_style.utf8) {
+          do {
+            uniCode = decodeUTF8(*string);
+          } while (uniCode < 0x20 && *(++string));
+          if (uniCode < 0x20) break;
+        }
+
+        if (!_font->updateFontMetric(&_font_metrics, uniCode)) continue;
+        if (left == 0 && right == 0 && _font_metrics.x_offset < 0) left = right = - (int)(_font_metrics.x_offset * sx);
+        right = left + std::max<int>(_font_metrics.x_advance * sx, int(_font_metrics.width * sx) + int(_font_metrics.x_offset * sx));
+        //right = left + (int)(std::max<int>(_font_metrics.x_advance, _font_metrics.width + _font_metrics.x_offset) * sx);
+        left += (int)(_font_metrics.x_advance * sx);
+        if (width <= right) return string - str;
+      } while (*(++string));
+      return string - str;
+    }
+
+    std::int32_t LGFXBase::textWidth(const char *string)
+    {
+      if (!string || !string[0]) return 0;
+
+      auto sx = _text_style.size_x;
+
+      std::int32_t left = 0;
+      std::int32_t right = 0;
+      do {
+        std::uint16_t uniCode = *string;
+        if (_text_style.utf8) {
+          do {
+            uniCode = decodeUTF8(*string);
+          } while (uniCode < 0x20 && *(++string));
+          if (uniCode < 0x20) break;
+        }
+
+        if (!_font->updateFontMetric(&_font_metrics, uniCode)) continue;
+        if (left == 0 && right == 0 && _font_metrics.x_offset < 0) left = right = - (int)(_font_metrics.x_offset * sx);
+        right = left + std::max<int>(_font_metrics.x_advance*sx, int(_font_metrics.width*sx) + int(_font_metrics.x_offset * sx));
+        //right = left + (int)(std::max<int>(_font_metrics.x_advance, _font_metrics.width + _font_metrics.x_offset) * sx);
+        left += (int)(_font_metrics.x_advance * sx);
+      } while (*(++string));
+      return right;
+    }
+
+
+    std::size_t LGFXBase::drawNumber(long long_num, std::int32_t poX, std::int32_t poY)
+    {
+      constexpr std::size_t len = 8 * sizeof(long) + 1;
+      char buf[len];
+      return drawString(numberToStr(long_num, buf, len, 10), poX, poY);
+    }
+
+    std::size_t LGFXBase::drawFloat(float floatNumber, std::uint8_t dp, std::int32_t poX, std::int32_t poY)
+    {
+      std::size_t len = 14 + dp;
+      char buf[len];
+      return drawString(floatToStr(floatNumber, buf, len, dp), poX, poY);
+    }
+
+    std::size_t LGFXBase::drawChar(std::uint16_t uniCode, std::int32_t x, std::int32_t y, std::uint8_t font) {
+      if (_font == fontdata[font]) return drawChar(uniCode, x, y);
+      _filled_x = 0;
+      return fontdata[font]->drawChar(this, x, y, uniCode, &_text_style);
+    }
+
+
+    std::size_t LGFXBase::draw_string(const char *string, std::int32_t x, std::int32_t y, textdatum_t datum)
+    {
+      std::int16_t sumX = 0;
+      std::int32_t cwidth = textWidth(string); // Find the pixel width of the string in the font
+      std::int32_t cheight = _font_metrics.height * _text_style.size_y;
+
+      if (string && string[0]) {
+        auto tmp = string;
+        do {
+          std::uint16_t uniCode = *tmp;
+          if (_text_style.utf8) {
+            do {
+              uniCode = decodeUTF8(*tmp); 
+            } while (uniCode < 0x20 && *++tmp);
+            if (uniCode < 0x20) break;
+          }
+          if (_font->updateFontMetric(&_font_metrics, uniCode)) {
+            if (_font_metrics.x_offset < 0) sumX = - _font_metrics.x_offset * _text_style.size_x;
+            break;
+          }
+        } while (*++tmp);
+      }
+      if (datum & middle_left) {          // vertical: middle
+        y -= cheight >> 1;
+      } else if (datum & bottom_left) {   // vertical: bottom
+        y -= cheight;
+      } else if (datum & baseline_left) { // vertical: baseline
+        y -= (int)(_font_metrics.baseline * _text_style.size_y);
+      }
+
+      this->startWrite();
+      std::int32_t padx = _padding_x;
+      if ((_text_style.fore_rgb888 != _text_style.back_rgb888) && (padx > cwidth)) {
+        this->setColor(_text_style.back_rgb888);
+        if (datum & top_center) {
+          auto halfcwidth = cwidth >> 1;
+          auto halfpadx = (padx >> 1);
+          this->writeFillRect(x - halfpadx, y, halfpadx - halfcwidth, cheight);
+          halfcwidth = cwidth - halfcwidth;
+          halfpadx = padx - halfpadx;
+          this->writeFillRect(x + halfcwidth, y, halfpadx - halfcwidth, cheight);
+        } else if (datum & top_right) {
+          this->writeFillRect(x - padx, y, padx - cwidth, cheight);
+        } else {
+          this->writeFillRect(x + cwidth, y, padx - cwidth, cheight);
+        }
+      }
+
+      if (datum & top_center) {           // Horizontal: middle
+        x -= cwidth >> 1;
+      } else if (datum & top_right) {     // Horizontal: right
+        x -= cwidth;
+      }
+
+      y -= int(_font_metrics.y_offset * _text_style.size_y);
+
+      _filled_x = 0;
+      if (string && string[0]) {
+        do {
+          std::uint16_t uniCode = *string;
+          if (_text_style.utf8) {
+            do {
+              uniCode = decodeUTF8(*string);
+            } while (uniCode < 0x20 && *++string);
+            if (uniCode < 0x20) break;
+          }
+//          sumX += (fpDrawChar)(this, x + sumX, y, uniCode, &_text_style, _font);
+          sumX += _font->drawChar(this, x + sumX, y, uniCode, &_text_style);
+        } while (*(++string));
+      }
+      this->endWrite();
+
+      return sumX;
+    }
+
+    std::size_t LGFXBase::write(std::uint8_t utf8)
+    {
+      if (utf8 == '\r') return 1;
+      if (utf8 == '\n') {
+        _filled_x = (_textscroll) ? this->_sx : 0;
+        _cursor_x = _filled_x;
+        _cursor_y += _font_metrics.y_advance * _text_style.size_y;
+      } else {
+        std::uint16_t uniCode = utf8;
+        if (_text_style.utf8) {
+          uniCode = decodeUTF8(utf8);
+          if (uniCode < 0x20) return 1;
+        }
+        //if (!(fpUpdateFontSize)(this, uniCode)) return 1;
+        if (!_font->updateFontMetric(&_font_metrics, uniCode)) return 1;
+
+        std::int_fast16_t xo = _font_metrics.x_offset  * _text_style.size_x;
+        std::int_fast16_t w  = std::max(xo + _font_metrics.width * _text_style.size_x, _font_metrics.x_advance * _text_style.size_x);
+        if (_textscroll || _textwrap_x) {
+          std::int32_t llimit = _textscroll ? this->_sx : this->_clip_l;
+          if (_cursor_x < llimit - xo) _cursor_x = llimit - xo;
+          else {
+            std::int32_t rlimit = _textscroll ? this->_sx + this->_sw : (this->_clip_r + 1);
+            if (_cursor_x + w > rlimit) {
+              _filled_x = llimit;
+              _cursor_x = llimit - xo;
+              _cursor_y += _font_metrics.y_advance * _text_style.size_y;
+            }
+          }
+        }
+
+        std::int_fast16_t h  = _font_metrics.height * _text_style.size_y;
+
+        std::int_fast16_t ydiff = 0;
+        if (_text_style.datum & middle_left) {          // vertical: middle
+          ydiff -= h >> 1;
+        } else if (_text_style.datum & bottom_left) {   // vertical: bottom
+          ydiff -= h;
+        } else if (_text_style.datum & baseline_left) { // vertical: baseline
+          ydiff -= (int)(_font_metrics.baseline * _text_style.size_y);
+        }
+        std::int_fast16_t y = _cursor_y + ydiff;
+
+        if (_textscroll) {
+          if (y < this->_sy) y = this->_sy;
+          else {
+            int yshift = (this->_sy + this->_sh) - (y + h);
+            if (yshift < 0) {
+              this->scroll(0, yshift);
+              y += yshift;
+            }
+          }
+        } else if (_textwrap_y) {
+          if (y + h > (this->_clip_b + 1)) {
+            _filled_x = 0;
+            _cursor_x = - xo;
+            y = 0;
+          } else
+          if (y < this->_clip_t) y = this->_clip_t;
+        }
+        _cursor_y = y - ydiff;
+        y -= int(_font_metrics.y_offset  * _text_style.size_y);
+        //_cursor_x += (fpDrawChar)(this, _cursor_x, y, uniCode, &_text_style, _font);
+        _cursor_x += _font->drawChar(this, _cursor_x, y, uniCode, &_text_style);
+      }
+
+      return 1;
+    }
+
+    std::size_t LGFXBase::printNumber(unsigned long n, std::uint8_t base)
+    {
+      std::size_t len = 8 * sizeof(long) + 1;
+      char buf[len];
+      return write(numberToStr(n, buf, len, base));
+    }
+
+    std::size_t LGFXBase::printFloat(double number, std::uint8_t digits)
+    {
+      std::size_t len = 14 + digits;
+      char buf[len];
+      return write(floatToStr(number, buf, len, digits));
+    }
+
+  #if !defined (ARDUINO)
+    std::size_t LGFXBase::printf(const char * format, ...) 
+    {
+      char loc_buf[64];
+      char * temp = loc_buf;
+      va_list arg;
+      va_list copy;
+      va_start(arg, format);
+      va_copy(copy, arg);
+      std::size_t len = vsnprintf(temp, sizeof(loc_buf), format, copy);
+      va_end(copy);
+
+      if (len >= sizeof(loc_buf)){
+        temp = (char*) malloc(len+1);
+        if (temp == nullptr) {
+          va_end(arg);
+          return 0;
+        }
+        len = vsnprintf(temp, len+1, format, arg);
+      }
+      va_end(arg);
+      len = write((std::uint8_t*)temp, len);
+      if (temp != loc_buf){
+        free(temp);
+      }
+      return len;
+    }
+  #endif
+
+    void LGFXBase::setFont(const IFont* font) {
+      if (_runtime_font) {
+        delete _runtime_font;
+        _runtime_font = nullptr;
+      }
+      if (font == nullptr) font = &fonts::Font0;
+      _font = font;
+      //_decoderState = utf8_decode_state_t::utf8_state0;
+
+      font->getDefaultMetric(&_font_metrics);
+
+      //switch (font->getType()) {
+      //default:
+      //case IFont::font_type_t::ft_glcd: fpDrawChar = drawCharGLCD;  break;
+      //case IFont::font_type_t::ft_bmp:  fpDrawChar = drawCharBMP;   break;
+      //case IFont::font_type_t::ft_rle:  fpDrawChar = drawCharRLE;   break;
+      //case IFont::font_type_t::ft_bdf:  fpDrawChar = drawCharBDF;   break;
+      //case IFont::font_type_t::ft_gfx:  fpDrawChar = drawCharGFXFF; break;
+      //}
+    }
+
+    void LGFXBase::loadFont(const std::uint8_t* array) {
+      this->unloadFont();
+      _font_data.set(array);
+      auto font = new VLWfont();
+      this->_runtime_font = font;
+      if (font->loadFont(&_font_data)) {
+        this->_font = font;
+        //this->fpDrawChar = drawCharVLW;
+        this->_font->getDefaultMetric(&this->_font_metrics);
+      } else {
+        this->unloadFont();
+      }
+    }
+
+    void LGFXBase::unloadFont(void) {
+      if (_runtime_font) {
+        delete _runtime_font;
+        _runtime_font = nullptr;
+      }
+      setFont(&fonts::Font0);
+    }
+
+    void LGFXBase::showFont(std::uint32_t td)
+    {
+      auto font = (const VLWfont*)this->_font;
+      if (!font->_fontLoaded) return;
+
+      std::int16_t x = this->width();
+      std::int16_t y = this->height();
+      std::uint32_t timeDelay = 0;    // No delay before first page
+
+      this->fillScreen(this->_text_style.back_rgb888);
+
+      for (std::uint16_t i = 0; i < font->gCount; i++)
+      {
+        // Check if this will need a new screen
+        if (x + font->gdX[i] + font->gWidth[i] >= this->width())  {
+          x = - font->gdX[i];
+
+          y += font->yAdvance;
+          if (y + font->maxAscent + font->descent >= this->height()) {
+            x = - font->gdX[i];
+            y = 0;
+            delay(timeDelay);
+            timeDelay = td;
+            this->fillScreen(this->_text_style.back_rgb888);
+          }
+        }
+
+        this->drawChar(font->gUnicode[i], x, y);
+        x += font->gxAdvance[i];
+        //yield();
+      }
+
+      delay(timeDelay);
+      this->fillScreen(this->_text_style.back_rgb888);
+      //fontFile.close();
+    }
+
+    void LGFXBase::setAttribute(attribute_t attr_id, std::uint8_t param) {
+      switch (attr_id) {
+        case cp437_switch:
+            _text_style.cp437 = param;
+            break;
+        case utf8_switch:
+            _text_style.utf8  = param;
+            _decoderState = utf8_decode_state_t::utf8_state0;
+            break;
+        default: break;
+      }
+    }
+
+    std::uint8_t LGFXBase::getAttribute(attribute_t attr_id) {
+      switch (attr_id) {
+        case cp437_switch: return _text_style.cp437;
+        case utf8_switch: return _text_style.utf8;
+        default: return 0;
+      }
+    }
+
+//----------------------------------------------------------------------------
+    void LGFXBase::qrcode(const char *string, std::int32_t x, std::int32_t y, std::int32_t width, std::uint8_t version) {
+      if (width == -1) {
+        width = std::min(_width, _height) * 9 / 10;
+      }
+      if (x == -1 || y == -1) {
+        x = (_width - width) >> 1;
+        y = (_height- width) >> 1;
+      }
+
+      setColor(0xFFFFFFU);
+      startWrite();
+      writeFillRect(x, y, width, width);
+      for (; version <= 40; ++version) {
+        QRCode qrcode;
+        std::uint8_t qrcodeData[lgfx_qrcode_getBufferSize(version)];
+        if (0 != lgfx_qrcode_initText(&qrcode, qrcodeData, version, 0, string)) continue;
+        std::int_fast16_t thickness = width / qrcode.size;
+        if (!thickness) break;
+        std::int_fast16_t lineLength = qrcode.size * thickness;
+        std::int_fast16_t xOffset = x + ((width - lineLength) >> 1);
+        std::int_fast16_t yOffset = y + ((width - lineLength) >> 1);
+        setColor(0);
+        y = 0;
+        do {
+          x = 0;
+          do {
+            if (lgfx_qrcode_getModule(&qrcode, x, y)) writeFillRect(x * thickness + xOffset, y * thickness + yOffset, thickness, thickness);
+          } while (++x < qrcode.size);
+        } while (++y < qrcode.size);
+        break;
+      }
+      endWrite();
+    }
+//----------------------------------------------------------------------------
+
+  bool LGFXBase::draw_bmp(DataWrapper* data, std::int32_t x, std::int32_t y)
+  {
+    if ((x >= this->_width) || (y >= this->_height)) return true;
+
+    bitmap_header_t bmpdata;
+    if (!bmpdata.load_bmp_header(data)
+      || (bmpdata.biCompression > 3)) {
+      return false;
+    }
+
+    //std::uint32_t startTime = millis();
+    std::uint32_t seekOffset = bmpdata.bfOffBits;
+    std::int32_t w = bmpdata.biWidth;
+    std::int32_t h = bmpdata.biHeight;  // bcHeight Image height (pixels)
+    uint_fast16_t bpp = bmpdata.biBitCount; // 24 bcBitCount 24=RGB24bit
+
+      //If the value of Height is positive, the image data is from bottom to top
+      //If the value of Height is negative, the image data is from top to bottom.
+    std::int32_t flow = (h < 0) ? 1 : -1;
+    if (h < 0) h = -h;
+    else y += h - 1;
+
+    argb8888_t *palette = nullptr;
+    if (bpp <= 8) {
+      palette = new argb8888_t[1 << bpp];
+      data->seek(bmpdata.biSize + 14);
+      data->read((std::uint8_t*)palette, (1 << bpp)*sizeof(argb8888_t)); // load palette
+    }
+
+    data->seek(seekOffset);
+
+    auto dst_depth = this->_write_conv.depth;
+    std::uint32_t buffersize = ((w * bpp + 31) >> 5) << 2;  // readline 4Byte align.
+    std::uint8_t lineBuffer[buffersize + 4];
+    pixelcopy_t p(lineBuffer, dst_depth, (color_depth_t)bpp, this->_palette_count, palette);
+    p.no_convert = false;
+    if (8 >= bpp && !this->_palette_count) {
+      p.fp_copy = pixelcopy_t::get_fp_palettecopy<argb8888_t>(dst_depth);
+    } else {
+      if (bpp == 16) {
+        p.fp_copy = pixelcopy_t::get_fp_normalcopy<rgb565_t>(dst_depth);
+      } else if (bpp == 24) {
+        p.fp_copy = pixelcopy_t::get_fp_normalcopy<rgb888_t>(dst_depth);
+      } else if (bpp == 32) {
+        p.fp_copy = pixelcopy_t::get_fp_normalcopy<argb8888_t>(dst_depth);
+      }
+    }
+
+    this->startWrite(!data->hasParent());
+    if (bmpdata.biCompression == 1) {
+      do {
+        data->preRead();
+        bmpdata.load_bmp_rle8(data, lineBuffer, w);
+        data->postRead();
+        this->pushImage(x, y, w, 1, &p);
+        y += flow;
+      } while (--h);
+    } else
+    if (bmpdata.biCompression == 2) {
+      do {
+        data->preRead();
+        bmpdata.load_bmp_rle4(data, lineBuffer, w);
+        data->postRead();
+        this->pushImage(x, y, w, 1, &p);
+        y += flow;
+      } while (--h);
+    } else {
+      do {
+        data->preRead();
+        data->read(lineBuffer, buffersize);
+        data->postRead();
+        this->pushImage(x, y, w, 1, &p);
+        y += flow;
+      } while (--h);
+    }
+    if (palette) delete[] palette;
+    this->endWrite();
+    return true;
+  }
+
+
+  struct draw_jpg_info_t {
+    std::int32_t x;
+    std::int32_t y;
+    DataWrapper *data;
+    LGFXBase *lgfx;
+    pixelcopy_t *pc;
+  };
+
+  static std::uint32_t jpg_read_data(lgfxJdec  *decoder, std::uint8_t *buf, std::uint32_t len) {
+    auto jpeg = (draw_jpg_info_t *)decoder->device;
+    auto data = (DataWrapper*)jpeg->data;
+    auto res = len;
+    data->preRead();
+    if (buf) {
+      res = data->read(buf, len);
+    } else {
+      data->skip(len);
+    }
+    return res;
+  }
+
+  static std::uint32_t jpg_push_image(lgfxJdec *decoder, void *bitmap, JRECT *rect) {
+    draw_jpg_info_t *jpeg = static_cast<draw_jpg_info_t*>(decoder->device);
+    jpeg->pc->src_data = bitmap;
+    auto data = static_cast<DataWrapper*>(jpeg->data);
+    data->postRead();
+    jpeg->lgfx->pushImage( jpeg->x + rect->left
+                         , jpeg->y + rect->top
+                         , rect->right  - rect->left + 1
+                         , rect->bottom - rect->top + 1
+                         , jpeg->pc
+                         , false);
+    return 1;
+  }
+
+  bool LGFXBase::draw_jpg(DataWrapper* data, std::int32_t x, std::int32_t y, std::int32_t maxWidth, std::int32_t maxHeight, std::int32_t offX, std::int32_t offY, jpeg_div::jpeg_div_t scale)
+  {
+    draw_jpg_info_t jpeg;
+    pixelcopy_t pc(nullptr, this->getColorDepth(), bgr888_t::depth, this->hasPalette());
+    jpeg.pc = &pc;
+    jpeg.lgfx = this;
+    jpeg.data = data;
+    jpeg.x = x - offX;
+    jpeg.y = y - offY;
+
+    //TJpgD jpegdec;
+    lgfxJdec jpegdec;
+
+    static constexpr std::uint16_t sz_pool = 3100;
+    std::uint8_t *pool = (std::uint8_t*)heap_alloc_dma(sz_pool);
+    if (!pool) {
+//        ESP_LOGE("LGFX","memory allocation failure");
+      return false;
+    }
+
+    auto jres = lgfx_jd_prepare(&jpegdec, jpg_read_data, pool, sz_pool, &jpeg);
+
+    if (jres != JDR_OK) {
+//ESP_LOGE("LGFX","jpeg prepare error:%x", jres);
+      heap_free(pool);
+      return false;
+    }
+
+    if (!maxWidth) maxWidth = this->width();
+    auto cl = this->_clip_l;
+    if (0 > x - cl) { maxWidth += x - cl; x = cl; }
+    auto cr = this->_clip_r + 1;
+    if (maxWidth > (cr - x)) maxWidth = (cr - x);
+
+    if (!maxHeight) maxHeight = this->height();
+    auto ct = this->_clip_t;
+    if (0 > y - ct) { maxHeight += y - ct; y = ct; }
+    auto cb = this->_clip_b + 1;
+    if (maxHeight > (cb - y)) maxHeight = (cb - y);
+
+    if (maxWidth > 0 && maxHeight > 0) {
+      this->setClipRect(x, y, maxWidth, maxHeight);
+      this->startWrite(!data->hasParent());
+      jres = lgfx_jd_decomp(&jpegdec, jpg_push_image, scale);
+
+      this->_clip_l = cl;
+      this->_clip_t = ct;
+      this->_clip_r = cr-1;
+      this->_clip_b = cb-1;
+      this->endWrite();
+    }
+    heap_free(pool);
+
+    if (jres != JDR_OK) {
+//ESP_LOGE("LGFX","jpeg decomp error:%x", jres);
+      return false;
+    }
+    return true;
+  }
+
+
+
+  struct png_file_decoder_t {
+    std::int32_t x;
+    std::int32_t y;
+    std::int32_t offX;
+    std::int32_t offY;
+    std::int32_t maxWidth;
+    std::int32_t maxHeight;
+    double scale;
+    bgr888_t* lineBuffer;
+    pixelcopy_t *pc;
+    LGFXBase *lgfx;
+    std::uint32_t last_y;
+    std::int32_t scale_y0;
+    std::int32_t scale_y1;
+  };
+
+  static bool png_ypos_update(png_file_decoder_t *p, std::uint32_t y)
+  {
+    p->scale_y0 = ceil( y      * p->scale) - p->offY;
+    if (p->scale_y0 < 0) p->scale_y0 = 0;
+    p->scale_y1 = ceil((y + 1) * p->scale) - p->offY;
+    if (p->scale_y1 > p->maxHeight) p->scale_y1 = p->maxHeight;
+    return (p->scale_y0 < p->scale_y1);
+  }
+
+  static void png_post_line(png_file_decoder_t *p)
+  {
+    std::int32_t h = p->scale_y1 - p->scale_y0;
+    if (0 < h)
+      p->lgfx->pushImage(p->x, p->y + p->scale_y0, p->maxWidth, h, p->pc, true);
+  }
+
+  static void png_prepare_line(png_file_decoder_t *p, std::uint32_t y)
+  {
+    p->last_y = y;
+    if (png_ypos_update(p, y))      // read next line
+      p->lgfx->readRectRGB(p->x, p->y + p->scale_y0, p->maxWidth, p->scale_y1 - p->scale_y0, p->lineBuffer);
+  }
+
+  static void png_done_callback(pngle_t *pngle)
+  {
+    auto p = (png_file_decoder_t *)lgfx_pngle_get_user_data(pngle);
+    png_post_line(p);
+  }
+
+  static void png_draw_normal_callback(pngle_t *pngle, std::uint32_t x, std::uint32_t y, std::uint8_t rgba[4])
+  {
+    auto p = (png_file_decoder_t*)lgfx_pngle_get_user_data(pngle);
+
+    std::int32_t t = y - p->offY;
+    if (t < 0 || t >= p->maxHeight) return;
+
+    std::int32_t l = x - p->offX;
+    if (l < 0 || l >= p->maxWidth) return;
+
+    p->lgfx->setColor(color888(rgba[0], rgba[1], rgba[2]));
+    p->lgfx->writeFillRectPreclipped(p->x + l, p->y + t, 1, 1);
+  }
+
+  static void png_draw_normal_scale_callback(pngle_t *pngle, std::uint32_t x, std::uint32_t y, std::uint8_t rgba[4])
+  {
+    auto p = (png_file_decoder_t*)lgfx_pngle_get_user_data(pngle);
+
+    if (y != p->last_y) {
+      p->last_y = y;
+      png_ypos_update(p, y);
+    }
+
+    std::int32_t t = p->scale_y0;
+    std::int32_t h = p->scale_y1 - t;
+    if (h <= 0) return;
+
+    std::int32_t l = ceil( x      * p->scale) - p->offX;
+    if (l < 0) l = 0;
+    std::int32_t r = ceil((x + 1) * p->scale) - p->offX;
+    if (r > p->maxWidth) r = p->maxWidth;
+    if (l >= r) return;
+
+    p->lgfx->setColor(color888(rgba[0], rgba[1], rgba[2]));
+    p->lgfx->writeFillRectPreclipped(p->x + l, p->y + t, r - l, h);
+  }
+
+  static void png_draw_alpha_callback(pngle_t *pngle, std::uint32_t x, std::uint32_t y, std::uint8_t rgba[4])
+  {
+    auto p = (png_file_decoder_t*)lgfx_pngle_get_user_data(pngle);
+    if (y != p->last_y) {
+      png_post_line(p);
+      png_prepare_line(p, y);
+    }
+
+    if (p->scale_y0 >= p->scale_y1) return;
+
+    std::int32_t l = ( x      ) - p->offX;
+    if (l < 0) l = 0;
+    std::int32_t r = ((x + 1) ) - p->offX;
+    if (r > p->maxWidth) r = p->maxWidth;
+    if (l >= r) return;
+
+    if (rgba[3] == 255) {
+      memcpy(&p->lineBuffer[l], rgba, 3);
+    } else {
+      auto data = &p->lineBuffer[l];
+      uint_fast8_t alpha = rgba[3] + 1;
+      data->r = (rgba[0] * alpha + data->r * (257 - alpha)) >> 8;
+      data->g = (rgba[1] * alpha + data->g * (257 - alpha)) >> 8;
+      data->b = (rgba[2] * alpha + data->b * (257 - alpha)) >> 8;
+    }
+  }
+
+  static void png_draw_alpha_scale_callback(pngle_t *pngle, std::uint32_t x, std::uint32_t y, std::uint8_t rgba[4])
+  {
+    auto p = (png_file_decoder_t*)lgfx_pngle_get_user_data(pngle);
+    if (y != p->last_y) {
+      png_post_line(p);
+      png_prepare_line(p, y);
+    }
+
+    std::int32_t b = p->scale_y1 - p->scale_y0;
+    if (b <= 0) return;
+
+    std::int32_t l = ceil( x      * p->scale) - p->offX;
+    if (l < 0) l = 0;
+    std::int32_t r = ceil((x + 1) * p->scale) - p->offX;
+    if (r > p->maxWidth) r = p->maxWidth;
+    if (l >= r) return;
+
+    if (rgba[3] == 255) {
+      std::int32_t i = l;
+      do {
+        for (std::int32_t j = 0; j < b; ++j) {
+          auto data = &p->lineBuffer[i + j * p->maxWidth];
+          memcpy(data, rgba, 3);
+        }
+      } while (++i < r);
+    } else {
+      uint_fast8_t alpha = rgba[3] + 1;
+      std::int32_t i = l;
+      do {
+        for (std::int32_t j = 0; j < b; ++j) {
+          auto data = &p->lineBuffer[i + j * p->maxWidth];
+          data->r = (rgba[0] * alpha + data->r * (257 - alpha)) >> 8;
+          data->g = (rgba[1] * alpha + data->g * (257 - alpha)) >> 8;
+          data->b = (rgba[2] * alpha + data->b * (257 - alpha)) >> 8;
+        }
+      } while (++i < r);
+    }
+  }
+
+  static void png_init_callback(pngle_t *pngle, std::uint32_t w, std::uint32_t h, uint_fast8_t hasTransparent)
+  {
+//    auto ihdr = lgfx_pngle_get_ihdr(pngle);
+
+    auto p = (png_file_decoder_t*)lgfx_pngle_get_user_data(pngle);
+
+    if (p->scale != 1.0) {
+      w = ceil(w * p->scale);
+      h = ceil(h * p->scale);
+    }
+
+    std::int32_t ww = w - abs(p->offX);
+    if (p->maxWidth > ww) p->maxWidth = ww;
+    if (p->maxWidth < 0) return;
+    if (p->offX < 0) { p->offX = 0; }
+
+    std::int32_t hh = h - abs(p->offY);
+    if (p->maxHeight > hh) p->maxHeight = hh;
+    if (p->maxHeight < 0) return;
+    if (p->offY < 0) { p->offY = 0; }
+
+    if (hasTransparent) { // need pixel read ?
+      p->lineBuffer = (bgr888_t*)heap_alloc_dma(sizeof(bgr888_t) * p->maxWidth * ceil(p->scale));
+      p->pc->src_data = p->lineBuffer;
+      png_prepare_line(p, 0);
+      lgfx_pngle_set_done_callback(pngle, png_done_callback);
+
+      if (p->scale == 1.0) {
+        lgfx_pngle_set_draw_callback(pngle, png_draw_alpha_callback);
+      } else {
+        lgfx_pngle_set_draw_callback(pngle, png_draw_alpha_scale_callback);
+      }
+    } else {
+      if (p->scale == 1.0) {
+        lgfx_pngle_set_draw_callback(pngle, png_draw_normal_callback);
+      } else {
+        p->last_y = 0;
+        png_ypos_update(p, 0);
+        lgfx_pngle_set_draw_callback(pngle, png_draw_normal_scale_callback);
+      }
+      return;
+    }
+  }
+
+  bool LGFXBase::draw_png(DataWrapper* data, std::int32_t x, std::int32_t y, std::int32_t maxWidth, std::int32_t maxHeight, std::int32_t offX, std::int32_t offY, double scale)
+  {
+    if (!maxHeight) maxHeight = INT32_MAX;
+    auto ct = this->_clip_t;
+    if (0 > y - ct) { maxHeight += y - ct; offY -= y - ct; y = ct; }
+    if (0 > offY) { y -= offY; maxHeight += offY; offY = 0; }
+    auto cb = this->_clip_b + 1;
+    if (maxHeight > (cb - y)) maxHeight = (cb - y);
+    if (maxHeight < 0) return true;
+
+    if (!maxWidth) maxWidth = INT32_MAX;
+    auto cl = this->_clip_l;
+    if (0 > x - cl) { maxWidth += x - cl; offX -= x - cl; x = cl; }
+    if (0 > offX) { x -= offX; maxWidth  += offX; offX = 0; }
+    auto cr = this->_clip_r + 1;
+    if (maxWidth > (cr - x)) maxWidth = (cr - x);
+    if (maxWidth < 0) return true;
+
+    png_file_decoder_t png;
+    png.x = x;
+    png.y = y;
+    png.offX = offX;
+    png.offY = offY;
+    png.maxWidth = maxWidth;
+    png.maxHeight = maxHeight;
+    png.scale = scale;
+    png.lgfx = this;
+    png.lineBuffer = nullptr;
+
+    pixelcopy_t pc(nullptr, this->getColorDepth(), bgr888_t::depth, this->_palette_count);
+    png.pc = &pc;
+
+    pngle_t *pngle = lgfx_pngle_new();
+
+    lgfx_pngle_set_user_data(pngle, &png);
+
+    lgfx_pngle_set_init_callback(pngle, png_init_callback);
+
+    // Feed data to pngle
+    std::uint8_t buf[512];
+    int remain = 0;
+    int len;
+    bool res = true;
+
+    this->startWrite(!data->hasParent());
+    while (0 < (len = data->read(buf + remain, sizeof(buf) - remain))) {
+      data->postRead();
+
+      int fed = lgfx_pngle_feed(pngle, buf, remain + len);
+
+      if (fed < 0) {
+//ESP_LOGE("LGFX", "[pngle error] %s", lgfx_pngle_error(pngle));
+        res = false;
+        break;
+      }
+
+      remain = remain + len - fed;
+      if (remain > 0) memmove(buf, buf + fed, remain);
+      data->preRead();
+    }
+    this->endWrite();
+    if (png.lineBuffer) {
+      this->waitDMA();
+      heap_free(png.lineBuffer);
+    }
+    lgfx_pngle_destroy(pngle);
+    return res;
+  }
+}

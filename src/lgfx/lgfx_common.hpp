@@ -464,9 +464,14 @@ namespace lgfx
   };
 
   struct bgr888_t {
-    std::uint8_t r;
-    std::uint8_t g;
-    std::uint8_t b;
+    union {
+      struct {
+        std::uint8_t r;
+        std::uint8_t g;
+        std::uint8_t b;
+      };
+      std::uint16_t rg;
+    };
     static constexpr std::uint8_t bits = 24;
     static constexpr bool swapped = true;
     static constexpr color_depth_t depth = rgb888_3Byte;
@@ -699,8 +704,8 @@ namespace lgfx
   inline bgr666_t& bgr666_t::operator=(const argb8888_t& rhs) { r = rhs.R6(); g = rhs.G6(); b = rhs.B6(); return *this; }
 
   inline bgr888_t& bgr888_t::operator=(const rgb332_t&   rhs) { r = rhs.R8(); g = rhs.G8(); b = rhs.B8(); return *this; }
-  inline bgr888_t& bgr888_t::operator=(const rgb565_t&   rhs) { r = rhs.R8(); g = rhs.G8(); b = rhs.B8(); return *this; }
-  inline bgr888_t& bgr888_t::operator=(const swap565_t&  rhs) { r = rhs.R8(); g = rhs.G8(); b = rhs.B8(); return *this; }
+  inline bgr888_t& bgr888_t::operator=(const rgb565_t&   rhs) { rg = rhs.R8() | rhs.G8()<<8; b = rhs.B8(); return *this; }
+  inline bgr888_t& bgr888_t::operator=(const swap565_t&  rhs) { rg = rhs.R8() | rhs.G8()<<8; b = rhs.B8(); return *this; }
   inline bgr888_t& bgr888_t::operator=(const bgr666_t&   rhs) { r = rhs.R8(); g = rhs.G8(); b = rhs.B8(); return *this; }
   inline bgr888_t& bgr888_t::operator=(const rgb888_t&   rhs) { r = rhs.r   ; g = rhs.g   ; b = rhs.b   ; return *this; }
   inline bgr888_t& bgr888_t::operator=(const argb8888_t& rhs) { r = rhs.r   ; g = rhs.g   ; b = rhs.b   ; return *this; }
@@ -794,17 +799,6 @@ namespace lgfx
                                            ? normalcopy<bgr888_t, bgr888_t>
                                            : normalcopy<bgr666_t, TSrc>)
            : nullptr;
-/*
-           : (dst_depth == rgb888_3Byte) ? normalcopy<bgr888_t, TSrc>
-      switch (dst_depth) {
-      case rgb332_1Byte: return normalcopy<rgb332_t , TSrc>;
-      case rgb565_2Byte: return normalcopy<swap565_t, TSrc>;
-      case rgb666_3Byte: return normalcopy<bgr666_t, TSrc>;
-      case rgb888_3Byte: return normalcopy<bgr888_t, TSrc>;
-      default:
-        break;
-      }
-//*/
     }
 
     template<typename TDst>
@@ -1067,7 +1061,6 @@ namespace lgfx
   };
 
 //----------------------------------------------------------------------------
-//----------------------------------------------------------------------------
   struct DataWrapper {
     bool need_transaction = false;
 
@@ -1115,6 +1108,139 @@ namespace lgfx
     const std::uint8_t* _ptr;
     std::uint32_t _index = 0;
     std::uint32_t _length = 0;
+  };
+
+//----------------------------------------------------------------------------
+
+  struct bitmap_header_t {
+    union {
+      std::uint8_t raw[54];
+      struct {
+        std::uint16_t bfType; 
+        std::uint32_t bfSize;
+        std::uint16_t bfReserved1;
+        std::uint16_t bfReserved2;
+        std::uint32_t bfOffBits;
+
+        std::uint32_t biSize; 
+        std::int32_t  biWidth;
+        std::int32_t  biHeight;
+        std::uint16_t biPlanes; 
+        std::uint16_t biBitCount;
+        std::uint32_t biCompression;
+        std::uint32_t biSizeImage; 
+        std::int32_t  biXPelsPerMeter;
+        std::int32_t  biYPelsPerMeter;
+        std::uint32_t biClrUsed; 
+        std::uint32_t biClrImportant;
+      } __attribute__((packed));
+    };
+
+    bool load_bmp_header(DataWrapper* data)
+    {
+      data->read((std::uint8_t*)this, sizeof(bitmap_header_t));
+      return ( (bfType == 0x4D42)   // bmp header "BM"
+            && (biPlanes == 1)  // bcPlanes always 1
+            && (biWidth > 0)
+            && (biHeight > 0)
+            && (biBitCount <= 32)
+            && (biBitCount != 0));
+    }
+
+    static bool load_bmp_rle8(DataWrapper* data, std::uint8_t* linebuf, uint_fast16_t width)
+    {
+      width = (width + 3) & ~3;
+      std::uint8_t code[2];
+      uint_fast16_t xidx = 0;
+      bool eol = false;
+      do {
+        data->read(code, 2);
+        if (code[0] == 0) {
+          switch (code[1]) {
+          case 0x00: // EOL
+          case 0x01: // EOB
+            eol = true;
+            break;
+
+          case 0x02: // move info  (not support)
+            return false;
+
+          default:
+            data->read(&linebuf[xidx], (code[1] + 1) & ~1); // word align
+            xidx += code[1];
+            break;
+          }
+        } else if (xidx + code[0] <= width) {
+          memset(&linebuf[xidx], code[1], code[0]);
+          xidx += code[0];
+        } else {
+          return false;
+        }
+      } while (!eol);
+      return true;
+    }
+
+    static bool load_bmp_rle4(DataWrapper* data, std::uint8_t* linebuf, uint_fast16_t width)
+    {
+      width = (width + 3) & ~3;
+      std::uint8_t code[2];
+      uint_fast16_t xidx = 0;
+      bool eol = false;
+      do {
+        data->read(code, 2);
+        if (code[0] == 0) {
+          switch (code[1]) {
+          case 0x00: // EOL
+          case 0x01: // EOB
+            eol = true;
+            break;
+
+          case 0x02: // move info  (not support)
+            return false;
+
+          default:  // 絶対モードデータ
+            {
+              int_fast16_t len = code[1];
+              int_fast16_t dbyte = ((int_fast16_t)code[1] + 1) >> 1;
+
+              data->read(&linebuf[(xidx + 1) >> 1], (dbyte + 1) & ~1); // word align
+              if (xidx & 1) {
+                linebuf[xidx >> 1] |= linebuf[(xidx >> 1) + 1] >> 4;
+                for (long i = 1; i < dbyte; ++i) {
+                  linebuf[((xidx + i) >> 1)] = (linebuf[((xidx + i) >> 1)    ] << 4)
+                                              |  linebuf[((xidx + i) >> 1) + 1] >> 4;
+                }
+              }
+              xidx += len;
+            }
+            break;
+          }
+        } else if (xidx + code[0] <= width) {
+          if (xidx & 1) {
+            linebuf[xidx >> 1] |= code[1] >> 4;
+            code[1] = (code[1] >> 4) | (code[1] << 4);
+          }
+          memset(&linebuf[(xidx + 1) >> 1], code[1], (code[0] + 1) >> 1);
+          xidx += code[0];
+          if (xidx & 1) linebuf[xidx >> 1] &= 0xF0;
+        } else {
+          return false;
+        }
+      } while (!eol);
+      return true;
+    }
+  };
+
+//----------------------------------------------------------------------------
+
+  struct TextStyle {
+    std::uint32_t fore_rgb888 = 0xFFFFFFU;
+    std::uint32_t back_rgb888 = 0;
+    float size_x = 1;
+    float size_y = 1;
+    textdatum_t datum = textdatum_t::top_left;
+    bool utf8 = true;
+    bool cp437 = false;
   };
 
 //----------------------------------------------------------------------------

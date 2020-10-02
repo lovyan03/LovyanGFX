@@ -311,7 +311,7 @@ namespace lgfx
     }
 
     template<typename T>
-    __attribute__ ((always_inline)) inline void fillSprite (const T& color) { fillRect(0, 0, _width, _height, color); }
+    __attribute__ ((always_inline)) inline void fillSprite (const T& color) { fillScreen(color); }
 
     template<typename T>
     __attribute__ ((always_inline)) inline void pushSprite(                std::int32_t x, std::int32_t y, const T& transp) { push_sprite(_parent, x, y, _write_conv.convert(transp) & _write_conv.colormask); }
@@ -320,19 +320,19 @@ namespace lgfx
     __attribute__ ((always_inline)) inline void pushSprite(                std::int32_t x, std::int32_t y) { push_sprite(_parent, x, y); }
     __attribute__ ((always_inline)) inline void pushSprite(LovyanGFX* dst, std::int32_t x, std::int32_t y) { push_sprite(    dst, x, y); }
 
-    template<typename T> bool pushRotated(                float angle, const T& transp) { return push_rotate_zoom(_parent, _parent->getPivotX(), _parent->getPivotY(), angle, 1.0f, 1.0f, _write_conv.convert(transp) & _write_conv.colormask); }
-    template<typename T> bool pushRotated(LovyanGFX* dst, float angle, const T& transp) { return push_rotate_zoom(dst    , dst    ->getPivotX(), dst    ->getPivotY(), angle, 1.0f, 1.0f, _write_conv.convert(transp) & _write_conv.colormask); }
-                         bool pushRotated(                float angle) { return push_rotate_zoom(_parent, _parent->getPivotX(), _parent->getPivotY(), angle, 1.0f, 1.0f); }
-                         bool pushRotated(LovyanGFX* dst, float angle) { return push_rotate_zoom(dst    , dst    ->getPivotX(), dst    ->getPivotY(), angle, 1.0f, 1.0f); }
+    template<typename T> inline bool pushRotated(                float angle, const T& transp) { return push_rotate_zoom(_parent, _parent->getPivotX(), _parent->getPivotY(), angle, 1.0f, 1.0f, _write_conv.convert(transp) & _write_conv.colormask); }
+    template<typename T> inline bool pushRotated(LovyanGFX* dst, float angle, const T& transp) { return push_rotate_zoom(dst    , dst    ->getPivotX(), dst    ->getPivotY(), angle, 1.0f, 1.0f, _write_conv.convert(transp) & _write_conv.colormask); }
+                         inline bool pushRotated(                float angle                 ) { return push_rotate_zoom(_parent, _parent->getPivotX(), _parent->getPivotY(), angle, 1.0f, 1.0f); }
+                         inline bool pushRotated(LovyanGFX* dst, float angle                 ) { return push_rotate_zoom(dst    , dst    ->getPivotX(), dst    ->getPivotY(), angle, 1.0f, 1.0f); }
 
-    template<typename T> bool pushRotateZoom(                                              float angle, float zoom_x, float zoom_y, const T& transp) { return push_rotate_zoom(_parent, _parent->getPivotX(), _parent->getPivotY(), angle, zoom_x, zoom_y, _write_conv.convert(transp) & _write_conv.colormask); }
-    template<typename T> bool pushRotateZoom(LovyanGFX* dst                              , float angle, float zoom_x, float zoom_y, const T& transp) { return push_rotate_zoom(    dst,     dst->getPivotX(),     dst->getPivotY(), angle, zoom_x, zoom_y, _write_conv.convert(transp) & _write_conv.colormask); }
-    template<typename T> bool pushRotateZoom(                std::int32_t dst_x, std::int32_t dst_y, float angle, float zoom_x, float zoom_y, const T& transp) { return push_rotate_zoom(_parent,                dst_x,                dst_y, angle, zoom_x, zoom_y, _write_conv.convert(transp) & _write_conv.colormask); }
-    template<typename T> bool pushRotateZoom(LovyanGFX* dst, std::int32_t dst_x, std::int32_t dst_y, float angle, float zoom_x, float zoom_y, const T& transp) { return push_rotate_zoom(    dst,                dst_x,                dst_y, angle, zoom_x, zoom_y, _write_conv.convert(transp) & _write_conv.colormask); }
-                         bool pushRotateZoom(                                              float angle, float zoom_x, float zoom_y)                  { return push_rotate_zoom(_parent, _parent->getPivotX(), _parent->getPivotY(), angle, zoom_x, zoom_y); }
-                         bool pushRotateZoom(LovyanGFX* dst                              , float angle, float zoom_x, float zoom_y)                  { return push_rotate_zoom(    dst,     dst->getPivotX(),     dst->getPivotY(), angle, zoom_x, zoom_y); }
-                         bool pushRotateZoom(                std::int32_t dst_x, std::int32_t dst_y, float angle, float zoom_x, float zoom_y)                  { return push_rotate_zoom(_parent,                dst_x,                dst_y, angle, zoom_x, zoom_y); }
-                         bool pushRotateZoom(LovyanGFX* dst, std::int32_t dst_x, std::int32_t dst_y, float angle, float zoom_x, float zoom_y)                  { return push_rotate_zoom(    dst,                dst_x,                dst_y, angle, zoom_x, zoom_y); }
+    template<typename T> inline bool pushRotateZoom(                                                        float angle, float zoom_x, float zoom_y, const T& transp) { return push_rotate_zoom(_parent, _parent->getPivotX(), _parent->getPivotY(), angle, zoom_x, zoom_y, _write_conv.convert(transp) & _write_conv.colormask); }
+    template<typename T> inline bool pushRotateZoom(LovyanGFX* dst                                        , float angle, float zoom_x, float zoom_y, const T& transp) { return push_rotate_zoom(    dst,     dst->getPivotX(),     dst->getPivotY(), angle, zoom_x, zoom_y, _write_conv.convert(transp) & _write_conv.colormask); }
+    template<typename T> inline bool pushRotateZoom(                std::int32_t dst_x, std::int32_t dst_y, float angle, float zoom_x, float zoom_y, const T& transp) { return push_rotate_zoom(_parent,                dst_x,                dst_y, angle, zoom_x, zoom_y, _write_conv.convert(transp) & _write_conv.colormask); }
+    template<typename T> inline bool pushRotateZoom(LovyanGFX* dst, std::int32_t dst_x, std::int32_t dst_y, float angle, float zoom_x, float zoom_y, const T& transp) { return push_rotate_zoom(    dst,                dst_x,                dst_y, angle, zoom_x, zoom_y, _write_conv.convert(transp) & _write_conv.colormask); }
+                         inline bool pushRotateZoom(                                                        float angle, float zoom_x, float zoom_y)                  { return push_rotate_zoom(_parent, _parent->getPivotX(), _parent->getPivotY(), angle, zoom_x, zoom_y); }
+                         inline bool pushRotateZoom(LovyanGFX* dst                                        , float angle, float zoom_x, float zoom_y)                  { return push_rotate_zoom(    dst,     dst->getPivotX(),     dst->getPivotY(), angle, zoom_x, zoom_y); }
+                         inline bool pushRotateZoom(                std::int32_t dst_x, std::int32_t dst_y, float angle, float zoom_x, float zoom_y)                  { return push_rotate_zoom(_parent,                dst_x,                dst_y, angle, zoom_x, zoom_y); }
+                         inline bool pushRotateZoom(LovyanGFX* dst, std::int32_t dst_x, std::int32_t dst_y, float angle, float zoom_x, float zoom_y)                  { return push_rotate_zoom(    dst,                dst_x,                dst_y, angle, zoom_x, zoom_y); }
 
 //----------------------------------------------------------------------------
 //----------------------------------------------------------------------------
@@ -384,7 +384,7 @@ namespace lgfx
     bool create_from_bmp(DataWrapper* data) {
       bitmap_header_t bmpdata;
 
-      if (!load_bmp_header(data, &bmpdata)
+      if (!bmpdata.load_bmp_header(data)
        || ( bmpdata.biCompression > 3)) {
         return false;
       }
@@ -421,10 +421,10 @@ namespace lgfx
       if (bpp <= 8) {
         do {
           if (bmpdata.biCompression == 1) {
-            load_bmp_rle8(data, lineBuffer, w);
+            bmpdata.load_bmp_rle8(data, lineBuffer, w);
           } else
           if (bmpdata.biCompression == 2) {
-            load_bmp_rle4(data, lineBuffer, w);
+            bmpdata.load_bmp_rle4(data, lineBuffer, w);
           } else {
             data->read(lineBuffer, buffersize);
           }
@@ -469,12 +469,12 @@ namespace lgfx
     void push_sprite(LovyanGFX* dst, std::int32_t x, std::int32_t y, std::uint32_t transp = ~0)
     {
       pixelcopy_t p(_img, dst->getColorDepth(), getColorDepth(), dst->hasPalette(), _palette, transp);
-      dst->push_image(x, y, _width, _height, &p, !_disable_memcpy); // DMA disable with use SPIRAM
+      dst->pushImage(x, y, _width, _height, &p, !_disable_memcpy); // DMA disable with use SPIRAM
     }
 
     inline bool push_rotate_zoom(LovyanGFX* dst, std::int32_t x, std::int32_t y, float angle, float zoom_x, float zoom_y, std::uint32_t transp = ~0)
     {
-      return dst->pushImageRotateZoom(x, y, _img, _xpivot, _ypivot, _width, _height, angle, zoom_x, zoom_y, transp, getColorDepth(), _palette);
+      return dst->pushImageRotateZoom(x, y, _xpivot, _ypivot, _width, _height, angle, zoom_x, zoom_y, _img, transp, getColorDepth(), _palette);
     }
 
     void set_window(std::int32_t xs, std::int32_t ys, std::int32_t xe, std::int32_t ye)
