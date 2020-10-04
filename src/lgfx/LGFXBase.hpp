@@ -39,8 +39,6 @@ namespace lgfx
   {
   friend LGFX_Sprite;
   friend IFont;
-  friend GFXfont;
-  friend VLWfont;
   public:
     LGFXBase() {}
     virtual ~LGFXBase() { unloadFont(); }
@@ -50,7 +48,7 @@ namespace lgfx
 // rgb565 : std::uint16_t & std::int16_t & int
 // rgb332 : std::uint8_t
     __attribute__ ((always_inline)) inline void setColor(std::uint8_t r, std::uint8_t g, std::uint8_t b) { _color.raw = _write_conv.convert(lgfx::color888(r,g,b)); }
-    template<typename T> __attribute__ ((always_inline)) inline void setColor(T c) { _color.raw = _write_conv.convert(c); }
+    template<typename T> __attribute__ ((always_inline)) inline void setColor(T color) { _color.raw = _write_conv.convert(color); }
                          __attribute__ ((always_inline)) inline void setRawColor(std::uint32_t c) { _color.raw = c; }
 
     template<typename T> __attribute__ ((always_inline)) inline void setBaseColor(T c) { _base_rgb888 = convert_to_rgb888(c); }
@@ -70,7 +68,6 @@ namespace lgfx
     template<typename T> inline void writeFillRect ( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const T& color) { setColor(color); writeFillRect (x, y, w, h); }
                                 void writeFillRect ( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h);
     template<typename T> inline void writeColor    ( const T& color, std::int32_t length) {      if (0 >= length) return; setColor(color);    pushBlock_impl(length); }
-                         inline void writeRawColor ( std::uint32_t color, std::int32_t length) { if (0 >= length) return; setRawColor(color); pushBlock_impl(length); }
     template<typename T> inline void writeFillRectPreclipped( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const T& color) { setColor(color); writeFillRect_impl (x, y, w, h); }
                                 void writeFillRectPreclipped( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h)                 {                  writeFillRect_impl (x, y, w, h); }
 
@@ -509,6 +506,10 @@ namespace lgfx
     std::uint8_t getAttribute(attribute_t attr_id);
     std::uint8_t getAttribute(std::uint8_t attr_id) { return getAttribute((attribute_t)attr_id); }
 
+    std::int32_t _get_text_filled_x(void) const { return _filled_x; }
+    void _set_text_filled_x(std::int32_t x) { _filled_x = x; }
+    FontMetrics _get_font_metrics(void) const { return _font_metrics; }
+
 //----------------------------------------------------------------------------
 // print & text support
 //----------------------------------------------------------------------------
@@ -677,14 +678,14 @@ namespace lgfx
       return (dw <= 0);
     }
 
-
+    void writeRawColor( std::uint32_t color, std::int32_t length) { if (0 >= length) return; setRawColor(color); pushBlock_impl(length); }
     void read_rect(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, void* dst, pixelcopy_t* param);
     void draw_gradient_line( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, uint32_t colorstart, uint32_t colorend );
     void fill_arc_helper(std::int32_t cx, std::int32_t cy, std::int32_t oradius, std::int32_t iradius, float start, float end);
     void draw_bitmap(std::int32_t x, std::int32_t y, const std::uint8_t *bitmap, std::int32_t w, std::int32_t h, std::uint32_t fg_rawcolor, std::uint32_t bg_rawcolor = ~0u);
     void draw_xbitmap(std::int32_t x, std::int32_t y, const std::uint8_t *bitmap, std::int32_t w, std::int32_t h, std::uint32_t fg_rawcolor, std::uint32_t bg_rawcolor = ~0u);
     void push_image_rotate_zoom(std::int32_t dst_x, std::int32_t dst_y, std::int32_t src_x, std::int32_t src_y, std::int32_t w, std::int32_t h, float angle, float zoom_x, float zoom_y, pixelcopy_t *param);
-
+    void draw_bezier_helper(std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2);
 
     std::uint16_t decodeUTF8(std::uint8_t c);
 
@@ -739,13 +740,19 @@ namespace lgfx
 
   class LovyanGFX : public
   #ifdef LGFX_FILESYSTEM_SUPPORT_HPP_
-      lgfx::LGFX_FILESYSTEM_Support<
+      LGFX_FILESYSTEM_Support<
   #endif
-       lgfx::LGFXBase
+       LGFXBase
   #ifdef LGFX_FILESYSTEM_SUPPORT_HPP_
       >
   #endif
-  {};
+  {
+  private:
+    using LGFXBase::_get_text_filled_x;
+    using LGFXBase::_set_text_filled_x;
+    using LGFXBase::_get_font_metrics;
+    using LGFXBase::writeRawColor;
+  };
 
 //----------------------------------------------------------------------------
 

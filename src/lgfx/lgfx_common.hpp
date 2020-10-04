@@ -1061,7 +1061,8 @@ namespace lgfx
   };
 
 //----------------------------------------------------------------------------
-  struct DataWrapper {
+  struct DataWrapper
+  {
     bool need_transaction = false;
 
     std::uint16_t read16(void) {
@@ -1092,7 +1093,8 @@ namespace lgfx
     void (*fp_post_read)(void*) = nullptr;
   };
 //----------------------------------------------------------------------------
-  struct PointerWrapper : public DataWrapper {
+  struct PointerWrapper : public DataWrapper
+  {
     void set(const std::uint8_t* src, std::uint32_t length = ~0) { _ptr = src; _length = length; _index = 0; }
     int read(std::uint8_t *buf, std::uint32_t len) override {
       if (len > _length - _index) { len = _length - _index; }
@@ -1112,8 +1114,10 @@ namespace lgfx
 
 //----------------------------------------------------------------------------
 
-  struct bitmap_header_t {
-    union {
+  struct bitmap_header_t
+  {
+    union
+    {
       std::uint8_t raw[54];
       struct {
         std::uint16_t bfType; 
@@ -1233,7 +1237,8 @@ namespace lgfx
 
 //----------------------------------------------------------------------------
 
-  struct TextStyle {
+  struct TextStyle
+  {
     std::uint32_t fore_rgb888 = 0xFFFFFFU;
     std::uint32_t back_rgb888 = 0;
     float size_x = 1;

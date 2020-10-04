@@ -64,7 +64,6 @@ namespace lgfx
       if (result) {
         this->_font = font;
         this->_font->getDefaultMetric(&this->_font_metrics);
-        //this->fpDrawChar = this->drawCharVLW;
       } else {
         this->unloadFont();
       }

@@ -825,7 +825,7 @@ void enableSPI()
           setWindow_impl(x, y, xr, y + h - 1);
           std::uint32_t i = (src_x + param->src_y * param->src_width) * bytes;
           auto src = &((const std::uint8_t*)param->src_data)[i];
-          if (param->src_width == w || h == 1) {
+          if (static_cast<std::int32_t>(param->src_width) == w || h == 1) {
             std::int32_t whb = w * h * bytes;
             if (!use_dma && (32 < whb) && (whb <= 1024)) {
               auto buf = get_dmabuffer(whb);

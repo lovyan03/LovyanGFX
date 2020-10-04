@@ -8,7 +8,6 @@
  #include <sam.h>
  #include <delay.h>
  #include <Arduino.h>
- #include <Seeed_FS.h>
 #else
 
 #include <config/default/system/fs/sys_fs.h>
@@ -66,9 +65,7 @@ namespace lgfx
     fs::FS *_fs = nullptr;
     void setFS(fs::FS& fs) {
       _fs = &fs;
- #if defined (__SD_H__)
-      need_transaction = (_fs == &SD);
- #endif
+      need_transaction = false;
     }
     FileWrapper(fs::FS& fs) : DataWrapper(), _fp(nullptr) { setFS(fs); }
     FileWrapper(fs::FS& fs, fs::File* fp) : DataWrapper(), _fp(fp) { setFS(fs); }

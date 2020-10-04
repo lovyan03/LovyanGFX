@@ -651,7 +651,7 @@ namespace lgfx
       t = (x0 * x2 - x1 * x1) * t / (x0 - x1);
       x = floor(t + 0.5); y = floor(r + 0.5);
       r = (y1 - y0) * (t - x0) / (x1 - x0) + y0;
-      drawBezierHelper(x0, y0, x, floor(r + 0.5), x, y);
+      draw_bezier_helper(x0, y0, x, floor(r + 0.5), x, y);
       r = (y1 - y2) * (t - x2) / (x1 - x2) + y2;
       x0 = x1 = x; y0 = y; y1 = floor(r + 0.5);
     }
@@ -661,16 +661,16 @@ namespace lgfx
       t = (y0 * y2 - y1 * y1) * t / (y0 - y1);
       x = floor(r + 0.5); y = floor(t + 0.5);
       r = (x1 - x0) * (t - y0) / (y1 - y0) + x0;
-      drawBezierHelper(x0, y0, floor(r + 0.5), y, x, y);
+      draw_bezier_helper(x0, y0, floor(r + 0.5), y, x, y);
       r = (x1 - x2) * (t - y2) / (y1 - y2) + x2;
       x0 = x; x1 = floor(r + 0.5); y0 = y1 = y;
     }
-    drawBezierHelper(x0, y0, x1, y1, x2, y2);
+    draw_bezier_helper(x0, y0, x1, y1, x2, y2);
 
     endWrite();
   }
 
-  void LGFXBase::drawBezierHelper( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2)
+  void LGFXBase::draw_bezier_helper( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2)
   {
     // Check if coordinates are sequential (replaces assert)
     if (((x2 >= x1 && x1 >= x0) || (x2 <= x1 && x1 <= x0))

@@ -65,9 +65,6 @@ namespace lgfx
     __attribute__ ((always_inline)) inline void setTouch(TouchCommon* touch_) { _touch = touch_; postSetTouch(); }
     __attribute__ ((always_inline)) inline void touch(TouchCommon* touch_) { _touch = touch_; postSetTouch(); }
 
-    bool isReadable_impl(void) const override { return _panel->spi_read; }
-    std::int_fast8_t getRotation_impl(void) const override { return _panel->rotation; }
-
     void sleep()  { writeCommand(_panel->getCmdSlpin()); _panel->sleep(); }
 
     void wakeup() { writeCommand(_panel->getCmdSlpout()); _panel->wakeup(); }
@@ -250,16 +247,6 @@ namespace lgfx
 
     bool _in_transaction = false;
 
-    virtual void init_impl(void) {
-      initBus(); 
-      initPanel(); 
-      initTouch(); 
-      startWrite(); 
-      clear(); 
-      setWindow(0,0,0,0); 
-      endWrite();
-    }
-
     virtual void preInit(void) {}
     virtual void preCommandList(void) {}
     virtual void postCommandList(void) {}
@@ -284,6 +271,19 @@ namespace lgfx
       _write_conv.setColorDepth(_panel->write_depth);
       _read_conv.setColorDepth(_panel->read_depth);
     }
+
+    virtual void init_impl(void) {
+      initBus(); 
+      initPanel(); 
+      initTouch(); 
+      startWrite(); 
+      clear(); 
+      setWindow(0,0,0,0); 
+      endWrite();
+    }
+
+    bool isReadable_impl(void) const override { return _panel->spi_read; }
+    std::int_fast8_t getRotation_impl(void) const override { return _panel->rotation; }
 
     void copyRect_impl(std::int32_t dst_x, std::int32_t dst_y, std::int32_t w, std::int32_t h, std::int32_t src_x, std::int32_t src_y) override
     {

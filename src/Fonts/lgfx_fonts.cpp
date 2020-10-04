@@ -11,7 +11,8 @@
 #define PROGMEM
 #endif
 
-namespace lgfx {
+namespace lgfx
+{
   void BaseFont::getDefaultMetric(FontMetrics *metrics) const
   {
     metrics->width    = width;
@@ -32,7 +33,7 @@ namespace lgfx {
     return uniCode < 256;
   }
 
-  std::size_t GLCDfont::drawChar(LGFXBase* me, std::int32_t x, std::int32_t y, std::uint16_t c, const TextStyle* style) const
+  std::size_t GLCDfont::drawChar(LGFXBase* gfx, std::int32_t x, std::int32_t y, std::uint16_t c, const TextStyle* style) const
   {
     if (c > 255) return 0;
 
@@ -42,13 +43,13 @@ namespace lgfx {
     const std::int32_t fontHeight = this->height;
 
     auto font_addr = this->chartbl + (c * 5);
-    std::uint32_t colortbl[2] = {me->getColorConverter()->convert(style->back_rgb888), me->getColorConverter()->convert(style->fore_rgb888)};
+    std::uint32_t colortbl[2] = {gfx->getColorConverter()->convert(style->back_rgb888), gfx->getColorConverter()->convert(style->fore_rgb888)};
     bool fillbg = (style->back_rgb888 != style->fore_rgb888);
 
-    //std::int32_t clip_left   = me->_clip_l;
-    //std::int32_t clip_right  = me->_clip_r;
-    //std::int32_t clip_top    = me->_clip_t;
-    //std::int32_t clip_bottom = me->_clip_b;
+    //std::int32_t clip_left   = gfx->_clip_l;
+    //std::int32_t clip_right  = gfx->_clip_r;
+    //std::int32_t clip_top    = gfx->_clip_t;
+    //std::int32_t clip_bottom = gfx->_clip_b;
 
     float sy = style->size_y;
     float sx = style->size_x;
@@ -58,7 +59,7 @@ namespace lgfx {
 //      if (!fillbg || style->size_y != 1.0 || x < clip_left || y < clip_top || y + fontHeight > clip_bottom || x + fontWidth * sx > clip_right) {
         std::int32_t x1 = sx;
         std::int32_t x0 = 0;
-        me->startWrite();
+        gfx->startWrite();
 
         std::int_fast8_t i = 0;
         do {
@@ -71,8 +72,8 @@ namespace lgfx {
             while (flg == ((line >> j) & 0x01) && ++j < fontHeight);
             y1 = j * sy;
             if (flg || fillbg) {
-              me->setRawColor(colortbl[flg]);
-              me->writeFillRect(x + x0, y + y0, x1 - x0, y1 - y0);
+              gfx->setRawColor(colortbl[flg]);
+              gfx->writeFillRect(x + x0, y + y0, x1 - x0, y1 - y0);
             }
             y0 = y1;
             flg = !flg;
@@ -82,10 +83,10 @@ namespace lgfx {
         } while (i < fontWidth - 1);
 
         if (fillbg) {
-          me->setRawColor(colortbl[0]);
-          me->writeFillRect(x + x0, y, x1 - x0, fontHeight * style->size_y); 
+          gfx->setRawColor(colortbl[0]);
+          gfx->writeFillRect(x + x0, y, x1 - x0, fontHeight * style->size_y); 
         }
-        me->endWrite();
+        gfx->endWrite();
 /*
       } else {
         std::uint8_t col[fontWidth];
@@ -94,8 +95,8 @@ namespace lgfx {
           col[i] = font_addr[i];
         } while (++i < 5);
         col[5] = 0;
-        me->startWrite();
-        me->setAddrWindow(x, y, fontWidth * style->size_x, fontHeight);
+        gfx->startWrite();
+        gfx->setAddrWindow(x, y, fontWidth * style->size_x, fontHeight);
         std::uint8_t flg = col[0] & 1;
         std::uint32_t len = 0;
         i = 0;
@@ -103,30 +104,30 @@ namespace lgfx {
           std::int_fast8_t j = 0;
           do {
             if (flg != ((col[j] >> i) & 1)) {
-              me->writeRawColor(colortbl[flg], len);
+              gfx->writeRawColor(colortbl[flg], len);
               len = 0;
               flg = !flg;
             }
             len += style->size_x;
           } while (++j < fontWidth);
         } while (++i < fontHeight);
-        me->writeRawColor(colortbl[0], len);
-        me->endWrite();
+        gfx->writeRawColor(colortbl[0], len);
+        gfx->endWrite();
       }
 //*/
     }
     return fontWidth * sx;
   }
 
-  static std::size_t draw_char_bmp(LGFXBase* me, std::int32_t x, std::int32_t y, const TextStyle* style, const std::uint8_t* font_addr, std::int_fast8_t fontWidth, std::int_fast8_t fontHeight, std::int_fast8_t w, std::int_fast8_t margin )
+  static std::size_t draw_char_bmp(LGFXBase* gfx, std::int32_t x, std::int32_t y, const TextStyle* style, const std::uint8_t* font_addr, std::int_fast8_t fontWidth, std::int_fast8_t fontHeight, std::int_fast8_t w, std::int_fast8_t margin )
   {
-    std::uint32_t colortbl[2] = {me->getColorConverter()->convert(style->back_rgb888), me->getColorConverter()->convert(style->fore_rgb888)};
+    std::uint32_t colortbl[2] = {gfx->getColorConverter()->convert(style->back_rgb888), gfx->getColorConverter()->convert(style->fore_rgb888)};
     bool fillbg = (style->back_rgb888 != style->fore_rgb888);
 
-    //std::int32_t clip_left   = me->_clip_l;
-    //std::int32_t clip_right  = me->_clip_r;
-    //std::int32_t clip_top    = me->_clip_t;
-    //std::int32_t clip_bottom = me->_clip_b;
+    //std::int32_t clip_left   = gfx->_clip_l;
+    //std::int32_t clip_right  = gfx->_clip_r;
+    //std::int32_t clip_top    = gfx->_clip_t;
+    //std::int32_t clip_bottom = gfx->_clip_b;
 
     float sx = style->size_x;
     std::int32_t sh = fontHeight * style->size_y;
@@ -135,14 +136,14 @@ namespace lgfx {
     // && (y <= clip_bottom) && (clip_top < (y + sh )))
     {
 //      if (!fillbg || sy != 1 || x < clip_left || y < clip_top || y + fontHeight > clip_bottom || x + fontWidth * sx > clip_right) {
-        me->startWrite();
+        gfx->startWrite();
         if (fillbg) {
-          me->setRawColor(colortbl[0]);
+          gfx->setRawColor(colortbl[0]);
           if (margin) {
             std::int32_t x0 = (fontWidth - margin) * sx;
             std::int32_t x1 = (fontWidth         ) * sx;
             if (x0 < x1) {
-              me->writeFillRect(x + x0, y, x1 - x0, sh);
+              gfx->writeFillRect(x + x0, y, x1 - x0, sh);
             }
           }
         }
@@ -164,23 +165,23 @@ namespace lgfx {
             } while (flg == (bool)(line & (0x80) >> (j&7)) && ++j < je);
             std::int32_t x1 = j * sx;
             if (flg || (fillbg && fill)) {
-              me->setRawColor(colortbl[flg]);
+              gfx->setRawColor(colortbl[flg]);
               if (flg && x1 == std::int32_t((j-1)*sx)) ++x1;
-              me->writeFillRect(x + x0, y + y0, x1 - x0, std::max<std::int32_t>(1, y1 - y0));
+              gfx->writeFillRect(x + x0, y + y0, x1 - x0, std::max<std::int32_t>(1, y1 - y0));
             }
             x0 = x1;
             flg = !flg;
           } while (j < je);
           font_addr += w;
         } while (i < fontHeight);
-        me->endWrite();
+        gfx->endWrite();
 /*
       } else {
         std::int_fast8_t len = 0;
         std::uint8_t line = 0;
         bool flg = false;
-        me->startWrite();
-        me->setAddrWindow(x, y, fontWidth * style->size_x, fontHeight);
+        gfx->startWrite();
+        gfx->setAddrWindow(x, y, fontWidth * style->size_x, fontHeight);
         std::int_fast8_t i = 0;
         std::int_fast8_t je = fontWidth - margin;
         do {
@@ -192,7 +193,7 @@ namespace lgfx {
               line = (j == je) ? 0 : font_addr[j >> 3];
             }
             if (flg != (bool)(line & 0x80)) {
-              me->writeRawColor(colortbl[flg], len);
+              gfx->writeRawColor(colortbl[flg], len);
               flg = !flg;
               len = 0;
             }
@@ -200,8 +201,8 @@ namespace lgfx {
           } while (++j < fontWidth);
           font_addr += w;
         } while (++i < fontHeight);
-        me->writeRawColor(colortbl[flg], len);
-        me->endWrite();
+        gfx->writeRawColor(colortbl[flg], len);
+        gfx->endWrite();
       }
 //*/
     }
@@ -221,17 +222,17 @@ namespace lgfx {
     return true;
   }
 
-  std::size_t BMPfont::drawChar(LGFXBase* me, std::int32_t x, std::int32_t y, std::uint16_t uniCode, const TextStyle* style) const
+  std::size_t BMPfont::drawChar(LGFXBase* gfx, std::int32_t x, std::int32_t y, std::uint16_t uniCode, const TextStyle* style) const
   { // BMP font
     if ((uniCode -= 0x20) >= 96) return 0;
     const std::int_fast8_t fontWidth = this->widthtbl[uniCode];
     const std::int_fast8_t fontHeight = this->height;
 
     auto font_addr = ((const std::uint8_t**)this->chartbl)[uniCode];
-    return draw_char_bmp(me, x, y, style, font_addr, fontWidth, fontHeight, (fontWidth + 6) >> 3, 1);
+    return draw_char_bmp(gfx, x, y, style, font_addr, fontWidth, fontHeight, (fontWidth + 6) >> 3, 1);
   }
 
-  std::size_t BDFfont::drawChar(LGFXBase* me, std::int32_t x, std::int32_t y, std::uint16_t c, const TextStyle* style) const
+  std::size_t BDFfont::drawChar(LGFXBase* gfx, std::int32_t x, std::int32_t y, std::uint16_t c, const TextStyle* style) const
   {
     const std::int_fast8_t bytesize = (this->width + 7) >> 3;
     const std::int_fast8_t fontHeight = this->height;
@@ -239,15 +240,15 @@ namespace lgfx {
     auto it = std::lower_bound(this->indextbl, &this->indextbl[this->indexsize], c);
     if (*it != c) {
       if (style->fore_rgb888 != style->back_rgb888) {
-        me->fillRect(x, y, fontWidth * style->size_x, fontHeight * style->size_y, style->back_rgb888);
+        gfx->fillRect(x, y, fontWidth * style->size_x, fontHeight * style->size_y, style->back_rgb888);
       }
       return fontWidth * style->size_x;
     }
     const std::uint8_t* font_addr = &this->chartbl[std::distance(this->indextbl, it) * fontHeight * bytesize];
-    return draw_char_bmp(me, x, y, style, font_addr, fontWidth, fontHeight, bytesize, 0);
+    return draw_char_bmp(gfx, x, y, style, font_addr, fontWidth, fontHeight, bytesize, 0);
   }
 
-  std::size_t RLEfont::drawChar(LGFXBase* me, std::int32_t x, std::int32_t y, std::uint16_t code, const TextStyle* style) const
+  std::size_t RLEfont::drawChar(LGFXBase* gfx, std::int32_t x, std::int32_t y, std::uint16_t code, const TextStyle* style) const
   { // RLE font
     if ((code -= 0x20) >= 96) return 0;
 
@@ -256,13 +257,13 @@ namespace lgfx {
 
     auto font_addr = ((const std::uint8_t**)this->chartbl)[code];
 
-    std::uint32_t colortbl[2] = {me->getColorConverter()->convert(style->back_rgb888), me->getColorConverter()->convert(style->fore_rgb888)};
+    std::uint32_t colortbl[2] = {gfx->getColorConverter()->convert(style->back_rgb888), gfx->getColorConverter()->convert(style->fore_rgb888)};
     bool fillbg = (style->back_rgb888 != style->fore_rgb888);
 
-    //std::int32_t clip_left   = me->_clip_l;
-    //std::int32_t clip_right  = me->_clip_r;
-    //std::int32_t clip_top    = me->_clip_t;
-    //std::int32_t clip_bottom = me->_clip_b;
+    //std::int32_t clip_left   = gfx->_clip_l;
+    //std::int32_t clip_right  = gfx->_clip_r;
+    //std::int32_t clip_top    = gfx->_clip_t;
+    //std::int32_t clip_bottom = gfx->_clip_b;
 
     float sx = style->size_x;
     float sy = style->size_y;
@@ -277,7 +278,7 @@ namespace lgfx {
         std::int32_t y0 = 0;
         std::int32_t y1 = sy;
         std::int32_t x0 = 0;
-        me->startWrite();
+        gfx->startWrite();
         do {
           line = *font_addr++;
           flg = line & 0x80;
@@ -288,8 +289,8 @@ namespace lgfx {
             j += len;
             std::int32_t x1 = j * sx;
             if (fillbg || flg) {
-              me->setRawColor(colortbl[flg]);
-              me->writeFillRect( x + x0, y + y0, x1 - x0, y1 - y0);
+              gfx->setRawColor(colortbl[flg]);
+              gfx->writeFillRect( x + x0, y + y0, x1 - x0, y1 - y0);
             }
             x0 = x1;
             if (j == fontWidth) {
@@ -300,20 +301,20 @@ namespace lgfx {
             }
           } while (line);
         } while (i < fontHeight);
-        me->endWrite();
+        gfx->endWrite();
 /*
       } else {
         std::uint32_t line = 0;
-        me->startWrite();
-        me->setAddrWindow(x, y, fontWidth * style->size_x, fontHeight);
+        gfx->startWrite();
+        gfx->setAddrWindow(x, y, fontWidth * style->size_x, fontHeight);
         std::uint32_t len = fontWidth * style->size_x * fontHeight;
         do {
           line = *font_addr++;
           bool flg = line & 0x80;
           line = ((line & 0x7F) + 1) * style->size_x;
-          me->writeRawColor(colortbl[flg], line);
+          gfx->writeRawColor(colortbl[flg], line);
         } while (len -= line);
-        me->endWrite();
+        gfx->endWrite();
       }
 //*/
     }
@@ -539,13 +540,13 @@ namespace lgfx {
 
 //----------------------------------------------------------------------------
 
-  std::size_t GFXfont::drawChar(LGFXBase* me, std::int32_t x, std::int32_t y, std::uint16_t uniCode, const TextStyle* style) const
+  std::size_t GFXfont::drawChar(LGFXBase* gfx, std::int32_t x, std::int32_t y, std::uint16_t uniCode, const TextStyle* style) const
   {
     auto glyph = this->getGlyph(uniCode);
     if (!glyph) return 0;
 
-    std::int32_t w = glyph->width,
-                  h = glyph->height;
+    std::int32_t w = glyph->width;
+    std::int32_t h = glyph->height;
 
     float sx = style->size_x;
     float sy = style->size_y;
@@ -553,25 +554,26 @@ namespace lgfx {
     std::int32_t xAdvance = sx * glyph->xAdvance;
     std::int32_t xoffset  = sx * glyph->xOffset;
 
-    me->startWrite();
-    std::uint32_t colortbl[2] = {me->getColorConverter()->convert(style->back_rgb888), me->getColorConverter()->convert(style->fore_rgb888)};
+    gfx->startWrite();
+    std::uint32_t colortbl[2] = {gfx->getColorConverter()->convert(style->back_rgb888), gfx->getColorConverter()->convert(style->fore_rgb888)};
     bool fillbg = (style->back_rgb888 != style->fore_rgb888);
     std::int32_t left  = 0;
     std::int32_t right = 0;
     if (fillbg) {
-      left  = std::max<int>(me->_filled_x, x + (xoffset < 0 ? xoffset : 0));
+      left  = std::max<int>(gfx->_get_text_filled_x(), x + (xoffset < 0 ? xoffset : 0));
       right = x + std::max<int>(w * sx + xoffset, xAdvance);
-      me->setRawColor(colortbl[0]);
+      gfx->setRawColor(colortbl[0]);
     }
 
+    auto font_metrics = gfx->_get_font_metrics();
     x += xoffset;
-    y += int(me->_font_metrics.y_offset * sy);
-    std::int32_t yoffset = (- me->_font_metrics.y_offset) + glyph->yOffset;
+    y += int(font_metrics.y_offset * sy);
+    std::int32_t yoffset = (- font_metrics.y_offset) + glyph->yOffset;
 
-    //std::int32_t clip_left   = me->_clip_l;
-    //std::int32_t clip_right  = me->_clip_r;
-    //std::int32_t clip_top    = me->_clip_t;
-    //std::int32_t clip_bottom = me->_clip_b;
+    //std::int32_t clip_left   = gfx->_clip_l;
+    //std::int32_t clip_right  = gfx->_clip_r;
+    //std::int32_t clip_top    = gfx->_clip_t;
+    //std::int32_t clip_bottom = gfx->_clip_b;
 
     //if ((x <= clip_right) && (clip_left < (x + w * sx ))
     // && (y <= clip_bottom) && (clip_top < (y + h * sy )))
@@ -579,19 +581,19 @@ namespace lgfx {
 
       if (left < right) {
         if (yoffset > 0) {
-          me->writeFillRect(left, y, right - left, yoffset * sy);
+          gfx->writeFillRect(left, y, right - left, yoffset * sy);
         }
         std::int32_t y0 = (yoffset + h) * sy;
-        std::int32_t y1 = me->_font_metrics.height * sy;
+        std::int32_t y1 = font_metrics.height * sy;
         if (y0 < y1) {
-          me->writeFillRect(left, y + y0, right - left, y1 - y0);
+          gfx->writeFillRect(left, y + y0, right - left, y1 - y0);
         }
       }
 
       std::uint8_t *bitmap = &this->bitmap[glyph->bitmapOffset];
       std::uint8_t mask=0x80;
 
-      me->setRawColor(colortbl[1]);
+      gfx->setRawColor(colortbl[1]);
       std::int_fast8_t i = 0;
       std::int32_t y1 = yoffset * sy;
       std::int32_t y0 = y1 - 1;
@@ -602,9 +604,9 @@ namespace lgfx {
         std::int32_t fh = y1 - y0;
         if (!fh) fh = 1;
         if (left < right && fill) {
-          me->setRawColor(colortbl[0]);
-          me->writeFillRect(left, y + y0, right - left, fh);
-          me->setRawColor(colortbl[1]);
+          gfx->setRawColor(colortbl[0]);
+          gfx->writeFillRect(left, y + y0, right - left, fh);
+          gfx->setRawColor(colortbl[1]);
         }
 
         std::int32_t j = 0;
@@ -621,7 +623,7 @@ namespace lgfx {
           std::int32_t x1 = j * sx;
           if (flg) {
             std::int32_t fw = (x0 < x1) ? x1 - x0 : 1;
-            me->writeFillRect(x + x0, y + y0, fw, fh);
+            gfx->writeFillRect(x + x0, y + y0, fw, fh);
           }
           x0 = x1;
           flg = !flg;
@@ -629,17 +631,16 @@ namespace lgfx {
       } while (i < h);
     //} else {
     //  if (left < right) {
-    //    me->writeFillRect(left, y, right - left, (me->_font_metrics.height) * sy);
+    //    gfx->writeFillRect(left, y, right - left, (gfx->_font_metrics.height) * sy);
     //  }
     }
-    me->_filled_x = right;
-    me->endWrite();
+    gfx->_set_text_filled_x(right);
+    gfx->endWrite();
     return xAdvance;
   }
 
-  std::size_t VLWfont::drawChar(LGFXBase* lgfxbase, std::int32_t x, std::int32_t y, std::uint16_t code, const TextStyle* style) const
+  std::size_t VLWfont::drawChar(LGFXBase* gfx, std::int32_t x, std::int32_t y, std::uint16_t code, const TextStyle* style) const
   {
-    auto me = (LGFXBase*)lgfxbase;
     auto file = this->_fontData;
 
     std::uint32_t buffer[6] = {0};
@@ -666,7 +667,7 @@ namespace lgfx {
     std::int32_t dY        = (std::int16_t)__builtin_bswap32(buffer[3]); // y delta from baseline
     float sy = style->size_y;
     std::int32_t yoffset = (this->maxAscent - dY);
-//      std::int32_t yoffset = (me->_font_metrics.y_offset) - dY;
+//      std::int32_t yoffset = (gfx->_font_metrics.y_offset) - dY;
 
     std::uint8_t pbuffer[w * h];
     std::uint8_t* pixel = pbuffer;
@@ -675,27 +676,34 @@ namespace lgfx {
       file->postRead();
     }
 
-    me->startWrite();
+    gfx->startWrite();
 
-    std::uint32_t colortbl[2] = {me->getColorConverter()->convert(style->back_rgb888), me->getColorConverter()->convert(style->fore_rgb888)};
+    std::uint32_t colortbl[2] = {gfx->getColorConverter()->convert(style->back_rgb888), gfx->getColorConverter()->convert(style->fore_rgb888)};
     bool fillbg = (style->back_rgb888 != style->fore_rgb888);
     std::int32_t left  = 0;
     std::int32_t right = 0;
     if (fillbg) {
-      left  = std::max(me->_filled_x, x + (xoffset < 0 ? xoffset : 0));
+      left  = std::max(gfx->_get_text_filled_x(), x + (xoffset < 0 ? xoffset : 0));
       right = x + std::max<int>(w * sx + xoffset, xAdvance);
     }
-    me->_filled_x = right;
-
+    gfx->_set_text_filled_x(right);
+    auto font_metrics = gfx->_get_font_metrics();
     x += xoffset;
-    y += int(me->_font_metrics.y_offset * sy);
+    y += int(font_metrics.y_offset * sy);
+
+    std::int32_t clip_left;
+    std::int32_t clip_top;
+    std::int32_t clip_w;
+    std::int32_t clip_h;
+
+    gfx->getClipRect(&clip_left, &clip_top, &clip_w, &clip_h);
+    std::int32_t clip_right = clip_left + clip_w-1;
+    std::int32_t clip_bottom = clip_top + clip_h-1;
 
     std::int32_t bx = x;
     std::int32_t bw = w * sx;
-    std::int32_t clip_left = me->_clip_l;
     if (x < clip_left) { bw += (x - clip_left); bx = clip_left; }
 
-    std::int32_t clip_right = me->_clip_r;
     if (bw > clip_right+1 - bx) bw = clip_right+1 - bx;
 
     if (bw >= 0)
@@ -704,22 +712,22 @@ namespace lgfx {
       std::int32_t fore_g = ((style->fore_rgb888>> 8)&0xFF);
       std::int32_t fore_b = ((style->fore_rgb888)    &0xFF);
 
-      if (fillbg || !me->isReadable() || me->hasPalette())
+      if (fillbg || !gfx->isReadable() || gfx->hasPalette())
       { // fill background mode  or unreadable panel  or palette sprite mode
         if (left < right && fillbg) {
-          me->setRawColor(colortbl[0]);
+          gfx->setRawColor(colortbl[0]);
           if (yoffset > 0) {
-            me->writeFillRect(left, y, right - left, yoffset * sy);
+            gfx->writeFillRect(left, y, right - left, yoffset * sy);
           }
           std::int32_t y0 = (yoffset + h) * sy;
-          std::int32_t y1 = me->_font_metrics.height * sy;
+          std::int32_t y1 = font_metrics.height * sy;
           if (y0 < y1) {
-            me->writeFillRect(left, y + y0, right - left, y1 - y0);
+            gfx->writeFillRect(left, y + y0, right - left, y1 - y0);
           }
         }
 
         if (0 < w) {
-          uint32_t back = fillbg ? style->back_rgb888 : me->_base_rgb888;
+          uint32_t back = fillbg ? style->back_rgb888 : gfx->getBaseColor();
           std::int32_t back_r = ((back>>16)&0xFF);
           std::int32_t back_g = ((back>> 8)&0xFF);
           std::int32_t back_b = ( back     &0xFF);
@@ -727,11 +735,11 @@ namespace lgfx {
           std::int32_t y0, y1 = yoffset * sy;
           do {
             y0 = y1;
-            if (y0 > me->_clip_b) break;
+            if (y0 > clip_bottom) break;
             y1 = (yoffset + i + 1) * sy;
             if (left < right) {
-              me->setRawColor(colortbl[0]);
-              me->writeFillRect(left, y + y0, right - left, y1 - y0);
+              gfx->setRawColor(colortbl[0]);
+              gfx->writeFillRect(left, y + y0, right - left, y1 - y0);
             }
             std::int32_t j = 0;
             do {
@@ -740,18 +748,18 @@ namespace lgfx {
                 std::int32_t x1 =(j+1)* sx;
                 if (pixel[j] != 0 && x0 < x1) {
                   std::int32_t p = 1 + (std::uint32_t)pixel[j];
-                  me->setColor(color888( ( fore_r * p + back_r * (257 - p)) >> 8
+                  gfx->setColor(color888( ( fore_r * p + back_r * (257 - p)) >> 8
                                         , ( fore_g * p + back_g * (257 - p)) >> 8
                                         , ( fore_b * p + back_b * (257 - p)) >> 8 ));
-                  me->writeFillRect(x + x0, y + y0, x1 - x0, y1 - y0);
+                  gfx->writeFillRect(x + x0, y + y0, x1 - x0, y1 - y0);
                 }
                 x0 = x1;
                 if (++j == w || clip_right < x0) break;
               }
               if (j == w || clip_right < x0) break;
-              me->setRawColor(colortbl[1]);
+              gfx->setRawColor(colortbl[1]);
               do { ++j; } while (j != w && pixel[j] == 0xFF);
-              me->writeFillRect(x + x0, y + y0, (j * sx) - x0, y1 - y0);
+              gfx->writeFillRect(x + x0, y + y0, (j * sx) - x0, y1 - y0);
             } while (j != w);
             pixel += w;
           } while (++i < h);
@@ -760,18 +768,17 @@ namespace lgfx {
       else // alpha blend mode
       {
         bgr888_t buf[bw * (int)ceil(sy)];
-        pixelcopy_t p(buf, me->getColorConverter()->depth, rgb888_3Byte, me->hasPalette());
+        pixelcopy_t p(buf, gfx->getColorConverter()->depth, rgb888_3Byte, gfx->hasPalette());
         std::int32_t y0, y1 = yoffset * sy;
         std::int32_t i = 0;
         do {
           y0 = y1;
-          if (y0 > me->_clip_b) break;
+          if (y0 > clip_bottom) break;
           y1 = (yoffset + i + 1) * sy;
           std::int32_t by = y + y0;
           std::int32_t bh = y1 - y0;
 
-          auto ct = me->_clip_t;
-          if (by < ct) { bh += by - ct; by = ct; }
+          if (by < clip_top) { bh += by - clip_top; by = clip_top; }
           if (bh > 0) {
             std::int32_t j0 = 0;
             std::int32_t j1 = w;
@@ -788,7 +795,7 @@ namespace lgfx {
               rw -= rx;
 
               if (0 < rw) {
-                me->readRectRGB(x + rx, by, rw, bh, (std::uint8_t*)buf);
+                gfx->readRectRGB(x + rx, by, rw, bh, (std::uint8_t*)buf);
 
                 std::int32_t x0, x1 = (j0 * sx) - rx;
                 do {
@@ -809,7 +816,7 @@ namespace lgfx {
                     } while (++x0 != x1);
                   }
                 } while (++j0 < j1);
-                me->pushImage(x + rx, by, rw, bh, &p);
+                gfx->pushImage(x + rx, by, rw, bh, &p);
               }
             }
           }
@@ -817,7 +824,7 @@ namespace lgfx {
         } while (++i < h);
       }
     }
-    me->endWrite();
+    gfx->endWrite();
     return xAdvance;
   }
 

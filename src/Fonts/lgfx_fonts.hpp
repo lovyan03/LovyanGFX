@@ -8,7 +8,8 @@ namespace lgfx
   struct LGFXBase;
   struct TextStyle;
 
-  struct FontMetrics {
+  struct FontMetrics
+  {
     std::int16_t width;
     std::int16_t x_advance;
     std::int16_t x_offset;
