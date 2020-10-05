@@ -25,8 +25,9 @@ Contributors:
 #include "lgfx_common.hpp"
 #include "../Fonts/lgfx_fonts.hpp"
 
-#include <string>
 #include <cmath>
+#include <string>
+#include <memory>
 
 namespace lgfx
 {
@@ -41,7 +42,7 @@ namespace lgfx
   friend IFont;
   public:
     LGFXBase() {}
-    virtual ~LGFXBase() { unloadFont(); }
+    virtual ~LGFXBase() {} // unloadFont();
 
 // color param format:
 // rgb888 : std::uint32_t
@@ -661,8 +662,7 @@ namespace lgfx
     FontMetrics _font_metrics = { 6, 6, 0, 8, 8, 0, 7 }; // Font0 Metric
     const IFont* _font = &fonts::Font0;
 
-    RunTimeFont* _runtime_font = nullptr;  // run-time generated font
-    FileWrapper _font_file;
+    std::shared_ptr<RunTimeFont> _runtime_font;  // run-time generated font
     PointerWrapper _font_data;
 
     bool _textwrap_x = true;

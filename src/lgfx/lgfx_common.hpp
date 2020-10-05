@@ -1120,22 +1120,22 @@ namespace lgfx
     {
       std::uint8_t raw[54];
       struct {
-        std::uint16_t bfType; 
+        std::uint16_t bfType;
         std::uint32_t bfSize;
         std::uint16_t bfReserved1;
         std::uint16_t bfReserved2;
         std::uint32_t bfOffBits;
 
-        std::uint32_t biSize; 
+        std::uint32_t biSize;
         std::int32_t  biWidth;
         std::int32_t  biHeight;
         std::uint16_t biPlanes; 
         std::uint16_t biBitCount;
         std::uint32_t biCompression;
-        std::uint32_t biSizeImage; 
+        std::uint32_t biSizeImage;
         std::int32_t  biXPelsPerMeter;
         std::int32_t  biYPelsPerMeter;
-        std::uint32_t biClrUsed; 
+        std::uint32_t biClrUsed;
         std::uint32_t biClrImportant;
       } __attribute__((packed));
     };

@@ -31,7 +31,9 @@ Contributors:
 namespace lgfx
 {
   template <class Base>
-  class LGFX_FILESYSTEM_Support : public Base {
+  class LGFX_FILESYSTEM_Support : public Base
+  {
+    FileWrapper _font_file;
   public:
 
     using Base::drawBmp;
@@ -57,7 +59,7 @@ namespace lgfx
         result = this->_font_file.open(filename.c_str(), "r");
       }
       auto font = new VLWfont();
-      this->_runtime_font = font;
+      this->_runtime_font.reset(font);
       if (result) {
         result = font->loadFont(&this->_font_file);
       }

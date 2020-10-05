@@ -1683,8 +1683,8 @@ namespace lgfx
         //if (!(fpUpdateFontSize)(this, uniCode)) return 1;
         if (!_font->updateFontMetric(&_font_metrics, uniCode)) return 1;
 
-        std::int_fast16_t xo = _font_metrics.x_offset  * _text_style.size_x;
-        std::int_fast16_t w  = std::max(xo + _font_metrics.width * _text_style.size_x, _font_metrics.x_advance * _text_style.size_x);
+        std::int32_t xo = _font_metrics.x_offset  * _text_style.size_x;
+        std::int32_t w  = std::max(xo + _font_metrics.width * _text_style.size_x, _font_metrics.x_advance * _text_style.size_x);
         if (_textscroll || _textwrap_x) {
           std::int32_t llimit = _textscroll ? this->_sx : this->_clip_l;
           if (_cursor_x < llimit - xo) _cursor_x = llimit - xo;
@@ -1698,9 +1698,9 @@ namespace lgfx
           }
         }
 
-        std::int_fast16_t h  = _font_metrics.height * _text_style.size_y;
+        std::int32_t h  = _font_metrics.height * _text_style.size_y;
 
-        std::int_fast16_t ydiff = 0;
+        std::int32_t ydiff = 0;
         if (_text_style.datum & middle_left) {          // vertical: middle
           ydiff -= h >> 1;
         } else if (_text_style.datum & bottom_left) {   // vertical: bottom
@@ -1708,7 +1708,7 @@ namespace lgfx
         } else if (_text_style.datum & baseline_left) { // vertical: baseline
           ydiff -= (int)(_font_metrics.baseline * _text_style.size_y);
         }
-        std::int_fast16_t y = _cursor_y + ydiff;
+        std::int32_t y = _cursor_y + ydiff;
 
         if (_textscroll) {
           if (y < this->_sy) y = this->_sy;
@@ -1779,11 +1779,9 @@ namespace lgfx
     }
   #endif
 
-    void LGFXBase::setFont(const IFont* font) {
-      if (_runtime_font) {
-        delete _runtime_font;
-        _runtime_font = nullptr;
-      }
+    void LGFXBase::setFont(const IFont* font)
+    {
+      _runtime_font.reset();
       if (font == nullptr) font = &fonts::Font0;
       _font = font;
       //_decoderState = utf8_decode_state_t::utf8_state0;
@@ -1800,26 +1798,26 @@ namespace lgfx
       //}
     }
 
-    void LGFXBase::loadFont(const std::uint8_t* array) {
+    /// load VLW font
+    void LGFXBase::loadFont(const std::uint8_t* array)
+    {
       this->unloadFont();
       _font_data.set(array);
+
       auto font = new VLWfont();
-      this->_runtime_font = font;
+      this->_runtime_font.reset(font);
+
       if (font->loadFont(&_font_data)) {
         this->_font = font;
-        //this->fpDrawChar = drawCharVLW;
         this->_font->getDefaultMetric(&this->_font_metrics);
       } else {
         this->unloadFont();
       }
     }
 
-    void LGFXBase::unloadFont(void) {
-      if (_runtime_font) {
-        delete _runtime_font;
-        _runtime_font = nullptr;
-      }
-      setFont(&fonts::Font0);
+    void LGFXBase::unloadFont(void)
+    {
+      if (_runtime_font.get() != nullptr) { setFont(&fonts::Font0); }
     }
 
     void LGFXBase::showFont(std::uint32_t td)
