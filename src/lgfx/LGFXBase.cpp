@@ -1196,12 +1196,12 @@ namespace lgfx
 
   void LGFXBase::readRect(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, std::uint8_t* data)
   {
-    pixelcopy_t p(nullptr, rgb332_t::depth, _read_conv.depth, false, _palette);
+    pixelcopy_t p(nullptr, rgb332_t::depth, _read_conv.depth, false, getPalette());
     read_rect(x, y, w, h, data, &p);
   }
   void LGFXBase::readRect(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, std::uint16_t* data)
   {
-    pixelcopy_t p(nullptr, swap565_t::depth, _read_conv.depth, false, _palette);
+    pixelcopy_t p(nullptr, swap565_t::depth, _read_conv.depth, false, getPalette());
     if (_swapBytes && !_palette_count && _read_conv.depth >= 8) {
       p.no_convert = false;
       p.fp_copy = pixelcopy_t::get_fp_normalcopy_dst<rgb565_t>(_read_conv.depth);
@@ -1210,7 +1210,7 @@ namespace lgfx
   }
   void LGFXBase::readRect(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, void* data)
   {
-    pixelcopy_t p(nullptr, bgr888_t::depth, _read_conv.depth, false, _palette);
+    pixelcopy_t p(nullptr, bgr888_t::depth, _read_conv.depth, false, getPalette());
     if (_swapBytes && !_palette_count && _read_conv.depth >= 8) {
       p.no_convert = false;
       p.fp_copy = pixelcopy_t::get_fp_normalcopy_dst<rgb888_t>(_read_conv.depth);
@@ -1799,7 +1799,7 @@ namespace lgfx
     }
 
     /// load VLW font
-    void LGFXBase::loadFont(const std::uint8_t* array)
+    bool LGFXBase::loadFont(const std::uint8_t* array)
     {
       this->unloadFont();
       _font_data.set(array);
@@ -1810,8 +1810,10 @@ namespace lgfx
       if (font->loadFont(&_font_data)) {
         this->_font = font;
         this->_font->getDefaultMetric(&this->_font_metrics);
+        return true;
       } else {
         this->unloadFont();
+        return false;
       }
     }
 

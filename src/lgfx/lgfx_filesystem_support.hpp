@@ -41,7 +41,8 @@ namespace lgfx
     using Base::drawPng;
     using Base::loadFont;
 
-    void loadFont(const char *path) {
+    bool loadFont(const char *path)
+    {
       this->unloadFont();
 
       this->prepareTmpTransaction(&this->_font_file);
@@ -70,12 +71,14 @@ namespace lgfx
         this->unloadFont();
       }
       this->_font_file.postRead();
+      return result;
     }
 
 #if defined (ARDUINO)
  #if defined (FS_H) || defined (__SEEED_FS__)
 
-    void loadFont(const char *path, fs::FS &fs) {
+    void loadFont(const char *path, fs::FS &fs)
+    {
       this->_font_file.setFS(fs);
       loadFont(path);
     }
@@ -207,7 +210,7 @@ namespace lgfx
       return res;
     }
 
-    bool drawPngFile( FileWrapper* file, const char *path, std::int32_t x, std::int32_t y, std::int32_t maxWidth, std::int32_t maxHeight, std::int32_t offX, std::int32_t offY, double scale)
+    bool drawPngFile(FileWrapper* file, const char *path, std::int32_t x, std::int32_t y, std::int32_t maxWidth, std::int32_t maxHeight, std::int32_t offX, std::int32_t offY, double scale)
     {
       bool res = false;
       this->prepareTmpTransaction(file);

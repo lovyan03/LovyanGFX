@@ -145,11 +145,11 @@ namespace lgfx
 
     __attribute__ ((always_inline)) inline std::int32_t width        (void) const { return _width; }
     __attribute__ ((always_inline)) inline std::int32_t height       (void) const { return _height; }
+    __attribute__ ((always_inline)) inline std::int_fast8_t getRotation(void) const { return getRotation_impl(); }
     __attribute__ ((always_inline)) inline color_depth_t getColorDepth(void) const { return _write_conv.depth; }
     __attribute__ ((always_inline)) inline color_conv_t* getColorConverter(void) { return &_write_conv; }
-    __attribute__ ((always_inline)) inline RGBColor*     getPalette(void) const { return _palette; }
+    __attribute__ ((always_inline)) inline RGBColor*     getPalette(void) const { return getPalette_impl(); }
     __attribute__ ((always_inline)) inline std::uint32_t getPaletteCount(void) const { return _palette_count; }
-    __attribute__ ((always_inline)) inline std::int_fast8_t getRotation(void) const { return getRotation_impl(); }
     __attribute__ ((always_inline)) inline bool hasPalette    (void) const { return _palette_count; }
     __attribute__ ((always_inline)) inline bool isSPIShared(void) const { return _spi_shared; }
     __attribute__ ((always_inline)) inline bool isReadable(void) const { return isReadable_impl(); }
@@ -199,7 +199,7 @@ namespace lgfx
     template <typename T>
     void writePixels(const T *data, std::int32_t len)
     {
-      pixelcopy_t p(data, _write_conv.depth, get_depth<T>::value, _palette_count, nullptr);
+      pixelcopy_t p(data, _write_conv.depth, get_depth<T>::value, hasPalette(), nullptr);
       if (std::is_same<rgb565_t, T>::value || std::is_same<rgb888_t, T>::value) {
         p.no_convert = false;
         p.fp_copy = pixelcopy_t::get_fp_normalcopy<T>(_write_conv.depth);
@@ -210,7 +210,7 @@ namespace lgfx
     template <typename T>
     void writeIndexedPixels(const uint8_t *data, T* palette, std::int32_t len, lgfx::color_depth_t colordepth = lgfx::rgb332_1Byte)
     {
-      pixelcopy_t p(data, _write_conv.depth, colordepth, _palette_count, palette);
+      pixelcopy_t p(data, _write_conv.depth, colordepth, hasPalette(), palette);
       p.no_convert = false;
       p.fp_copy = pixelcopy_t::get_fp_palettecopy<T>(_write_conv.depth);
       writePixels_impl(len, &p);
@@ -228,7 +228,7 @@ namespace lgfx
     template<typename T>
     void pushImage(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const T* data)
     {
-      pixelcopy_t p(data, _write_conv.depth, get_depth<T>::value, _palette_count, nullptr);
+      pixelcopy_t p(data, _write_conv.depth, get_depth<T>::value, hasPalette(), nullptr);
       if (std::is_same<rgb565_t, T>::value || std::is_same<rgb888_t, T>::value) {
         p.no_convert = false;
         p.fp_copy = pixelcopy_t::get_fp_normalcopy<T>(_write_conv.depth);
@@ -243,7 +243,7 @@ namespace lgfx
       uint32_t tr = (std::is_same<T, U>::value)
                   ? transparent
                   : get_fp_convert_src<U>(get_depth<T>::value, false)(transparent);
-      pixelcopy_t p(data, _write_conv.depth, get_depth<T>::value, _palette_count, nullptr, tr);
+      pixelcopy_t p(data, _write_conv.depth, get_depth<T>::value, hasPalette, nullptr, tr);
       if (std::is_same<rgb565_t, T>::value || std::is_same<rgb888_t, T>::value) {
         if (std::is_same<rgb565_t, T>::value) {
           p.transp = getSwap16(tr);
@@ -261,7 +261,7 @@ namespace lgfx
     template<typename U>
     void pushImage(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const std::uint16_t* data, const U& transparent)
     {
-      if (_swapBytes && !_palette_count && _write_conv.depth >= 8) {
+      if (_swapBytes && _write_conv.depth >= 8 && !hasPalette()) {
         pushImage(x, y, w, h, (const rgb565_t*)data, transparent);
       } else {
         pushImage(x, y, w, h, (const swap565_t*)data, transparent);
@@ -271,7 +271,7 @@ namespace lgfx
     template<typename U>
     void pushImage(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const void* data, const U& transparent)
     {
-      if (_swapBytes && !_palette_count && _write_conv.depth >= 8) {
+      if (_swapBytes && _write_conv.depth >= 8 && !hasPalette()) {
         pushImage(x, y, w, h, (const rgb888_t*)data, transparent);
       } else {
         pushImage(x, y, w, h, (const bgr888_t*)data, transparent);
@@ -280,13 +280,13 @@ namespace lgfx
 
     template<typename T>
     void pushImage( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const void* data, const std::uint8_t bits, const T* palette) {
-      pixelcopy_t p(data, _write_conv.depth, (color_depth_t)bits, _palette_count, palette);
+      pixelcopy_t p(data, _write_conv.depth, (color_depth_t)bits, hasPalette(), palette);
       p.fp_copy = pixelcopy_t::get_fp_palettecopy<T>(_write_conv.depth);
       pushImage(x, y, w, h, &p);
     }
     template<typename T>
     void pushImage( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const void* data, std::uint32_t transparent, const std::uint8_t bits, const T* palette) {
-      pixelcopy_t p(data, _write_conv.depth, (color_depth_t)bits, _palette_count, palette, transparent );
+      pixelcopy_t p(data, _write_conv.depth, (color_depth_t)bits, hasPalette(), palette, transparent );
       p.fp_copy = pixelcopy_t::get_fp_palettecopy<T>(_write_conv.depth);
       pushImage(x, y, w, h, &p);
     }
@@ -298,7 +298,7 @@ namespace lgfx
     template<typename T>
     void pushImageDMA( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const T* data)
     {
-      pixelcopy_t p(data, _write_conv.depth, get_depth<T>::value, _palette_count, nullptr  );
+      pixelcopy_t p(data, _write_conv.depth, get_depth<T>::value, hasPalette(), nullptr  );
       if (std::is_same<rgb565_t, T>::value || std::is_same<rgb888_t, T>::value) {
         p.no_convert = false;
         p.fp_copy = pixelcopy_t::get_fp_normalcopy<T>(_write_conv.depth);
@@ -310,7 +310,7 @@ namespace lgfx
     template<typename T>
     void pushImageDMA( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const void* data, const std::uint8_t bits, const T* palette)
     {
-      pixelcopy_t p(data, _write_conv.depth, (color_depth_t)bits, _palette_count, palette);
+      pixelcopy_t p(data, _write_conv.depth, (color_depth_t)bits, hasPalette(), palette);
       pushImage(x, y, w, h, &p, true);
     }
 
@@ -323,7 +323,7 @@ namespace lgfx
     {
       if (x < _clip_l || x > _clip_r || y < _clip_t || y > _clip_b) return 0;
 
-      pixelcopy_t p(nullptr, swap565_t::depth, _read_conv.depth, false, _palette);
+      pixelcopy_t p(nullptr, swap565_t::depth, _read_conv.depth, false, getPalette());
       std::uint_fast16_t data = 0;
 
       readRect_impl(x, y, 1, 1, &data, &p);
@@ -337,7 +337,7 @@ namespace lgfx
       RGBColor data[1];
       if (x < _clip_l || x > _clip_r || y < _clip_t || y > _clip_b) return data[0];
 
-      pixelcopy_t p(nullptr, bgr888_t::depth, _read_conv.depth, false, _palette);
+      pixelcopy_t p(nullptr, bgr888_t::depth, _read_conv.depth, false, getPalette());
 
       readRect_impl(x, y, 1, 1, data, &p);
 
@@ -348,14 +348,14 @@ namespace lgfx
     void readRectRGB( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, std::uint8_t* data) { readRectRGB(x, y, w, h, (bgr888_t*)data); }
     void readRectRGB( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, RGBColor* data)
     {
-      pixelcopy_t p(nullptr, bgr888_t::depth, _read_conv.depth, false, _palette);
+      pixelcopy_t p(nullptr, bgr888_t::depth, _read_conv.depth, false, getPalette());
       read_rect(x, y, w, h, data, &p);
     }
 
     template<typename T> inline
     void readRect( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, T* data)
     {
-      pixelcopy_t p(nullptr, get_depth<T>::value, _read_conv.depth, false, _palette);
+      pixelcopy_t p(nullptr, get_depth<T>::value, _read_conv.depth, false, getPalette());
       if (std::is_same<rgb565_t, T>::value || std::is_same<rgb888_t, T>::value) {
         p.no_convert = false;
         p.fp_copy = pixelcopy_t::get_fp_normalcopy_dst<T>(_read_conv.depth);
@@ -493,7 +493,7 @@ namespace lgfx
     void setFont(const IFont* font);
 
     /// load VLW font
-    void loadFont(const std::uint8_t* array);
+    bool loadFont(const std::uint8_t* array);
 
     /// unload VLW font
     void unloadFont(void);
@@ -635,7 +635,6 @@ namespace lgfx
     color_conv_t _write_conv;
     color_conv_t _read_conv;
 
-    bgr888_t* _palette = nullptr; // for sprite palette mode.
     std::uint32_t _palette_count = 0;
 
     std::int16_t _xpivot;   // x pivot point coordinate
@@ -709,6 +708,7 @@ namespace lgfx
     virtual void pushBlock_impl(std::int32_t len) = 0;
     virtual bool isReadable_impl(void) const = 0;
     virtual std::int_fast8_t getRotation_impl(void) const = 0;
+    virtual RGBColor* getPalette_impl(void) const { return nullptr; }
 
     virtual void initDMA_impl(void) = 0;
     virtual void waitDMA_impl(void) = 0;
@@ -716,23 +716,30 @@ namespace lgfx
     virtual void beginTransaction_impl(void) = 0;
     virtual void endTransaction_impl(void) = 0;
 
-    static void tmpBeginTransaction(void* lgfx) {
+    static void tmpBeginTransaction(void* lgfx)
+    {
       auto me = (LGFXBase*)lgfx;
-      if (me->_transaction_count) me->beginTransaction();
+      if (me->_transaction_count) { me->beginTransaction(); }
     }
-    static void tmpEndTransaction(void* lgfx) {
+
+    static void tmpEndTransaction(void* lgfx)
+    {
       auto me = (LGFXBase*)lgfx;
-      if (me->_transaction_count) me->endTransaction();
+      if (me->_transaction_count) { me->endTransaction(); }
     }
-    void prepareTmpTransaction(DataWrapper* data) {
-      if (data->need_transaction && isSPIShared()) {
+
+    void prepareTmpTransaction(DataWrapper* data)
+    {
+      if (data->need_transaction && isSPIShared())
+      {
         data->parent = this;
         data->fp_pre_read  = tmpEndTransaction;
         data->fp_post_read = tmpBeginTransaction;
       }
     }
-    __attribute__ ((always_inline)) inline void startWrite(bool transaction) {
-      if (1 == ++_transaction_count && transaction) beginTransaction();
+    __attribute__ ((always_inline)) inline void startWrite(bool transaction)
+    {
+      if (1 == ++_transaction_count && transaction) { beginTransaction(); }
     }
   };
 
