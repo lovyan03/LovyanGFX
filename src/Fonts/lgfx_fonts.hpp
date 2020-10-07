@@ -29,9 +29,10 @@ namespace lgfx
     , ft_gfx
     , ft_bdf
     , ft_vlw
+    , ft_u8g2
     };
 
-    virtual font_type_t getType(void) const = 0;
+    virtual font_type_t getType(void) const { return font_type_t::ft_unknown; }
     virtual void getDefaultMetric(FontMetrics *metrics) const = 0;
     virtual bool updateFontMetric(FontMetrics *metrics, std::uint16_t uniCode) const = 0;
     virtual bool unloadFont(void) { return false; }
@@ -116,7 +117,8 @@ namespace lgfx
     std::int8_t   xOffset, yOffset; // Dist from cursor pos to UL corner
   };
 
-  struct GFXfont : public lgfx::IFont { // Data stored for FONT AS A WHOLE:
+  struct GFXfont : public lgfx::IFont
+  { // Data stored for FONT AS A WHOLE:
     std::uint8_t  *bitmap;      // Glyph bitmaps, concatenated
     GFXglyph *glyph;            // Glyph array
     std::uint16_t  first, last; // ASCII extents
@@ -142,15 +144,52 @@ namespace lgfx
     , range    (range    )
     {}
 
-    GFXglyph* getGlyph(std::uint16_t uniCode) const;
-
     font_type_t getType(void) const override { return font_type_t::ft_gfx; }
-
-    void getDefaultMetric(lgfx::FontMetrics *metrics) const;
-
-    bool updateFontMetric(lgfx::FontMetrics *metrics, std::uint16_t uniCode) const override;
-
+    void getDefaultMetric(FontMetrics *metrics) const override;
+    bool updateFontMetric(FontMetrics *metrics, std::uint16_t uniCode) const override;
     std::size_t drawChar(LGFXBase* gfx, std::int32_t x, std::int32_t y, std::uint16_t c, const TextStyle* style) const override;
+
+  private:
+    GFXglyph* getGlyph(std::uint16_t uniCode) const;
+  };
+
+//----------------------------------------------------------------------------
+// u8g2 font 
+
+  struct U8g2font : public lgfx::IFont
+  {
+    U8g2font(const std::uint8_t *u8g2_font) : _font(u8g2_font) {}
+    font_type_t getType(void) const override { return ft_u8g2; }
+
+    std::uint8_t glyph_cnt (void) const { return _font[0]; }
+    std::uint8_t bbx_mode  (void) const { return _font[1]; }
+    std::uint8_t bits_per_0(void) const { return _font[2]; }
+    std::uint8_t bits_per_1(void) const { return _font[3]; }
+    std::uint8_t bits_per_char_width (void) const { return _font[4]; }
+    std::uint8_t bits_per_char_height(void) const { return _font[5]; }
+    std::uint8_t bits_per_char_x     (void) const { return _font[6]; }
+    std::uint8_t bits_per_char_y     (void) const { return _font[7]; }
+    std::uint8_t bits_per_delta_x    (void) const { return _font[8]; }
+    std::int8_t max_char_width (void) const { return _font[ 9]; }
+    std::int8_t max_char_height(void) const { return _font[10]; } /* overall height, NOT ascent. Instead ascent = max_char_height + y_offset */
+    std::int8_t x_offset       (void) const { return _font[11]; }
+    std::int8_t y_offset       (void) const { return _font[12]; }
+    std::int8_t ascent_A    (void) const { return _font[13]; }
+    std::int8_t descent_g   (void) const { return _font[14]; }  /* usually a negative value */
+    std::int8_t ascent_para (void) const { return _font[15]; }
+    std::int8_t descent_para(void) const { return _font[16]; }
+
+    std::uint16_t start_pos_upper_A(void) const { return _font[17] << 8 | _font[18]; }
+    std::uint16_t start_pos_lower_a(void) const { return _font[19] << 8 | _font[20]; }
+    std::uint16_t start_pos_unicode(void) const { return _font[21] << 8 | _font[22]; }
+
+    void getDefaultMetric(FontMetrics *metrics) const override;
+    bool updateFontMetric(FontMetrics *metrics, std::uint16_t uniCode) const override;
+    std::size_t drawChar(LGFXBase* gfx, std::int32_t x, std::int32_t y, std::uint16_t c, const TextStyle* style) const override;
+
+  private:
+    const uint8_t* getGlyph(std::uint16_t encoding) const;
+    const std::uint8_t* _font;
   };
 
 //----------------------------------------------------------------------------

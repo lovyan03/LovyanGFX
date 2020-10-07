@@ -67,10 +67,12 @@ namespace lgfx
   void lgfxPinMode(std::uint32_t pin, pin_mode_t mode);
 
 //----------------------------------------------------------------------------
-#if defined (ARDUINO) && defined (__SEEED_FS__)
   struct FileWrapper : public DataWrapper
   {
     FileWrapper() : DataWrapper() { need_transaction = true; }
+
+#if defined (ARDUINO) && defined (__SEEED_FS__)
+
     fs::File _file;
     fs::File *_fp;
 
@@ -103,13 +105,9 @@ namespace lgfx
     bool seek(std::uint32_t offset) override { return seek(offset, SeekSet); }
     bool seek(std::uint32_t offset, SeekMode mode) { return _fp->seek(offset, mode); }
     void close() override { _fp->close(); }
-  };
 
 #elif __SAMD51_HARMONY__
 
-  struct FileWrapper : public DataWrapper
-  {
-    FileWrapper() : DataWrapper() { need_transaction = true; }
     SYS_FS_HANDLE handle = SYS_FS_HANDLE_INVALID;
 
     bool open(const char* path, const char* mode) 
@@ -146,9 +144,19 @@ namespace lgfx
         this->handle = SYS_FS_HANDLE_INVALID;
       }
     }
-  };
+
+#else  // dummy.
+
+    bool open(const char*, const char*) { return false; }
+    int read(std::uint8_t*, std::uint32_t) override { return 0; }
+    void skip(std::int32_t) override { }
+    bool seek(std::uint32_t) override { return false; }
+    bool seek(std::uint32_t, int) { return false; }
+    void close() override { }
 
 #endif
+
+  };
 
 //----------------------------------------------------------------------------
 
