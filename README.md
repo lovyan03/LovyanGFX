@@ -436,7 +436,7 @@ Thanks to [TANAKA Masayuki](https://github.com/tanakamasayuki), for creating the
 
 ライセンス License
 ----------------
-main : [2-clause BSD](license.txt)  
+main : [FreeBSD](license.txt)  
 GFX font and GLCD font : [2-clause BSD](https://github.com/adafruit/Adafruit-GFX-Library/blob/master/license.txt) Adafruit Industries  
 Font 2,4,6,7,8 :  [FreeBSD](https://github.com/Bodmer/TFT_eSPI/blob/master/license.txt) Bodmer  
 converted IPA font : [IPA Font License](src/Fonts/IPA/IPA_Font_License_Agreement_v1.0.txt)  
