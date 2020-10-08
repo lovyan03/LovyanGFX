@@ -404,6 +404,7 @@ TFT_eSPIのベースとなった、[AdafruitGFX](https://github.com/adafruit/Ada
 多くの技術的なアドバイスやESP-IDF環境での検証に協力してくれた[ciniml](https://github.com/ciniml)氏へ感謝いたします。  
 不具合の多い開発初期からの動作検証および多数の助言をくださった[mongonta0716](https://github.com/mongonta0716)氏へ感謝いたします。  
 多数のボードでの動作検証や英語への翻訳および多数の助言をくださった[tobozo](https://github.com/tobozo)氏へ感謝いたします。  
+フォントデータの作成に協力してくださった[TANAKA Masayuki](https://github.com/tanakamasayuki)氏へ感謝いたします。  
 
 Thanks to [Bodmer](https://github.com/Bodmer/), author of the [TFT_eSPI](https://github.com/Bodmer/TFT_eSPI) library, for the inspiration to create this library.  
 Thanks to [Adafruit Industries](https://github.com/adafruit/) for publishing [AdafruitGFX](https://github.com/adafruit/Adafruit-GFX-Library), which is the basis for TFT_eSPI.  
@@ -413,6 +414,7 @@ Thanks to [Richard Moore](https://github.com/ricmoo/), author of [QRCode](https:
 Thanks to [ciniml](https://github.com/ciniml), for many technical tips and help with validation in the ESP-IDF environment.  
 Thanks to [mongonta0716](https://github.com/mongonta0716), for verifying the work from the beginning of the development with many bugs and for his advice.  
 Thanks to [tobozo](https://github.com/tobozo), for testing it on various boards, translating it into English and giving me a lot of advice.  
+Thanks to [TANAKA Masayuki](https://github.com/tanakamasayuki), for creating the font data.  
 
 
 使用ライブラリ included library  
@@ -434,10 +436,9 @@ Thanks to [tobozo](https://github.com/tobozo), for testing it on various boards,
 
 ライセンス License
 ----------------
-main : [BSD](https://github.com/lovyan03/LovyanGFX/blob/master/license.txt)  
-GFX font and GLCD font : [BSD](https://github.com/adafruit/Adafruit-GFX-Library/blob/master/license.txt) Adafruit Industries  
-Font 2,4,6,7,8 :  [BSD](https://github.com/Bodmer/TFT_eSPI/blob/master/license.txt) Bodmer  
-
-
+main : [2-clause BSD](https://github.com/lovyan03/LovyanGFX/blob/master/license.txt)  
+GFX font and GLCD font : [2-clause BSD](https://github.com/adafruit/Adafruit-GFX-Library/blob/master/license.txt) Adafruit Industries  
+Font 2,4,6,7,8 :  [FreeBSD](https://github.com/Bodmer/TFT_eSPI/blob/master/license.txt) Bodmer  
+converted IPA font : [IPA Font License](https://github.com/lovyan03/LovyanGFX/blob/master/src/Fonts/IPA/IPA_Font_License_Agreement_v1.0.txt)  
 
 

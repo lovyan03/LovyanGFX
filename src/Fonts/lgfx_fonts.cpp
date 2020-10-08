@@ -3,6 +3,8 @@
 #include "../lgfx/lgfx_common.hpp"
 #include "../lgfx/LGFXBase.hpp"
 
+#include "IPA/lgfx_font_japan.h"
+
 #include <algorithm>
 #include <cstdint>
 #include <cstddef>
@@ -634,56 +636,48 @@ namespace lgfx
         }
       }
       left -= x;
+      std::uint32_t ab[2];
       std::int32_t lx = 0;
       std::int32_t ly = 0;
-      std::uint32_t ab[2];
+      std::int32_t y0 = (yoffset    ) * sy;
+      std::int32_t y1 = (yoffset + 1) * sy;
       do
       {
         ab[0] = decode.get_unsigned_bits(bits_per_0());
         ab[1] = decode.get_unsigned_bits(bits_per_1());
-        std::int32_t y0 = (ly+yoffset  ) * sy;
-        std::int32_t y1 = (ly+yoffset+1) * sy;
+        bool i = 0;
         do
         {
-          int i = 0;
-          do
+          std::uint32_t length = ab[i];
+          while (length)
           {
-            if (ab[i])
+            std::uint32_t len = (length > w - lx) ? w - lx : length;
+            length -= len;
+            if (i || fillbg)
             {
-              std::uint32_t length = ab[i];
-              std::uint32_t len;
-              do {
-                len = length;
-                if (w - lx < len) len = w - lx;
-                if (len)
-                {
-                  if (i || fillbg)
-                  {
-                    std::int32_t x0 = lx * sx;
-                    if (!i && x0 < left) x0 = left;
-                    std::int32_t x1 = (lx + len) * sx;
-                    if (x0 < x1)
-                    {
-                      gfx->setRawColor(colortbl[i]);
-                      gfx->writeFillRect( x + x0
-                                        , y + y0
-                                        , x1 - x0
-                                        , y1 - y0);
-                    }
-                  }
-                  lx += len;
-                  if (lx == w)
-                  {
-                    lx = 0;
-                    ++ly;
-                    y0 = y1;
-                    y1 = (ly+yoffset+1) * sy; 
-                  }
-                }
-              } while (length -= len);
+              std::int32_t x0 = lx * sx;
+              if (!i && x0 < left) x0 = left;
+              std::int32_t x1 = (lx + len) * sx;
+              if (x0 < x1)
+              {
+                gfx->setRawColor(colortbl[i]);
+                gfx->writeFillRect( x + x0
+                                  , y + y0
+                                  , x1 - x0
+                                  , y1 - y0);
+              }
             }
-          } while (++i < 2);
-        } while( decode.get_unsigned_bits(1) != 0 );
+            lx += len;
+            if (lx == w)
+            {
+              lx = 0;
+              ++ly;
+              y0 = y1;
+              y1 = (ly+yoffset + 1) * sy; 
+            }
+          }
+          i = !i;
+        } while (i || decode.get_unsigned_bits(1) != 0 );
       } while (ly < h);
     }
     gfx->endWrite();
@@ -1115,7 +1109,6 @@ namespace fonts {
   #include "Custom/Satisfy_24.h"
   #include "Custom/Yellowtail_32.h"
 
-
   #include "glcdfont.h"
   #include "Font16.h"
   #include "Font32rle.h"
@@ -1129,6 +1122,43 @@ namespace fonts {
   const RLEfont  Font6 = { (const uint8_t *)chrtbl_f64, widtbl_f64, 0, chr_hgt_f64, baseline_f64 };
   const RLEfont  Font7 = { (const uint8_t *)chrtbl_f7s, widtbl_f7s, 0, chr_hgt_f7s, baseline_f7s };
   const RLEfont  Font8 = { (const uint8_t *)chrtbl_f72, widtbl_f72, 0, chr_hgt_f72, baseline_f72 };
+
+  const U8g2font lgfxJapanMincho_8   = { lgfx_font_japan_mincho_8    };
+  const U8g2font lgfxJapanMincho_12  = { lgfx_font_japan_mincho_12   };
+  const U8g2font lgfxJapanMincho_16  = { lgfx_font_japan_mincho_16   };
+  const U8g2font lgfxJapanMincho_20  = { lgfx_font_japan_mincho_20   };
+  const U8g2font lgfxJapanMincho_24  = { lgfx_font_japan_mincho_24   };
+  const U8g2font lgfxJapanMincho_28  = { lgfx_font_japan_mincho_28   };
+  const U8g2font lgfxJapanMincho_32  = { lgfx_font_japan_mincho_32   };
+  const U8g2font lgfxJapanMincho_36  = { lgfx_font_japan_mincho_36   };
+  const U8g2font lgfxJapanMincho_40  = { lgfx_font_japan_mincho_40   };
+  const U8g2font lgfxJapanMinchoP_8  = { lgfx_font_japan_mincho_p_8  };
+  const U8g2font lgfxJapanMinchoP_12 = { lgfx_font_japan_mincho_p_12 };
+  const U8g2font lgfxJapanMinchoP_16 = { lgfx_font_japan_mincho_p_16 };
+  const U8g2font lgfxJapanMinchoP_20 = { lgfx_font_japan_mincho_p_20 };
+  const U8g2font lgfxJapanMinchoP_24 = { lgfx_font_japan_mincho_p_24 };
+  const U8g2font lgfxJapanMinchoP_28 = { lgfx_font_japan_mincho_p_28 };
+  const U8g2font lgfxJapanMinchoP_32 = { lgfx_font_japan_mincho_p_32 };
+  const U8g2font lgfxJapanMinchoP_36 = { lgfx_font_japan_mincho_p_36 };
+  const U8g2font lgfxJapanMinchoP_40 = { lgfx_font_japan_mincho_p_40 };
+  const U8g2font lgfxJapanGothic_8   = { lgfx_font_japan_gothic_8    };
+  const U8g2font lgfxJapanGothic_12  = { lgfx_font_japan_gothic_12   };
+  const U8g2font lgfxJapanGothic_16  = { lgfx_font_japan_gothic_16   };
+  const U8g2font lgfxJapanGothic_20  = { lgfx_font_japan_gothic_20   };
+  const U8g2font lgfxJapanGothic_24  = { lgfx_font_japan_gothic_24   };
+  const U8g2font lgfxJapanGothic_28  = { lgfx_font_japan_gothic_28   };
+  const U8g2font lgfxJapanGothic_32  = { lgfx_font_japan_gothic_32   };
+  const U8g2font lgfxJapanGothic_36  = { lgfx_font_japan_gothic_36   };
+  const U8g2font lgfxJapanGothic_40  = { lgfx_font_japan_gothic_40   };
+  const U8g2font lgfxJapanGothicP_8  = { lgfx_font_japan_gothic_p_8  };
+  const U8g2font lgfxJapanGothicP_12 = { lgfx_font_japan_gothic_p_12 };
+  const U8g2font lgfxJapanGothicP_16 = { lgfx_font_japan_gothic_p_16 };
+  const U8g2font lgfxJapanGothicP_20 = { lgfx_font_japan_gothic_p_20 };
+  const U8g2font lgfxJapanGothicP_24 = { lgfx_font_japan_gothic_p_24 };
+  const U8g2font lgfxJapanGothicP_28 = { lgfx_font_japan_gothic_p_28 };
+  const U8g2font lgfxJapanGothicP_32 = { lgfx_font_japan_gothic_p_32 };
+  const U8g2font lgfxJapanGothicP_36 = { lgfx_font_japan_gothic_p_36 };
+  const U8g2font lgfxJapanGothicP_40 = { lgfx_font_japan_gothic_p_40 };
 }
 
 //----------------------------------------------------------------------------

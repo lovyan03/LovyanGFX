@@ -42,7 +42,7 @@ namespace lgfx
   friend IFont;
   public:
     LGFXBase() {}
-    virtual ~LGFXBase() {} // unloadFont();
+    virtual ~LGFXBase() {}
 
 // color param format:
 // rgb888 : std::uint32_t

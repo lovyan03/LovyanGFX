@@ -158,7 +158,7 @@ namespace lgfx
 
   struct U8g2font : public lgfx::IFont
   {
-    U8g2font(const std::uint8_t *u8g2_font) : _font(u8g2_font) {}
+    constexpr U8g2font(const std::uint8_t *u8g2_font) : _font(u8g2_font) {}
     font_type_t getType(void) const override { return ft_u8g2; }
 
     std::uint8_t glyph_cnt (void) const { return _font[0]; }
@@ -302,11 +302,48 @@ namespace fonts {
   extern const lgfx::GFXfont FreeSerifBoldItalic18pt7b;
   extern const lgfx::GFXfont FreeSerifBoldItalic24pt7b;
 
-  extern const lgfx::GFXfont Orbitron_Light_24        ;
-  extern const lgfx::GFXfont Orbitron_Light_32        ;
-  extern const lgfx::GFXfont Roboto_Thin_24           ;
-  extern const lgfx::GFXfont Satisfy_24               ;
-  extern const lgfx::GFXfont Yellowtail_32            ;
+  extern const lgfx::GFXfont Orbitron_Light_24;
+  extern const lgfx::GFXfont Orbitron_Light_32;
+  extern const lgfx::GFXfont Roboto_Thin_24   ;
+  extern const lgfx::GFXfont Satisfy_24       ;
+  extern const lgfx::GFXfont Yellowtail_32    ;
+
+  extern const lgfx::U8g2font lgfxJapanMincho_8  ;
+  extern const lgfx::U8g2font lgfxJapanMincho_12 ;
+  extern const lgfx::U8g2font lgfxJapanMincho_16 ;
+  extern const lgfx::U8g2font lgfxJapanMincho_20 ;
+  extern const lgfx::U8g2font lgfxJapanMincho_24 ;
+  extern const lgfx::U8g2font lgfxJapanMincho_28 ;
+  extern const lgfx::U8g2font lgfxJapanMincho_32 ;
+  extern const lgfx::U8g2font lgfxJapanMincho_36 ;
+  extern const lgfx::U8g2font lgfxJapanMincho_40 ;
+  extern const lgfx::U8g2font lgfxJapanMinchoP_8 ;
+  extern const lgfx::U8g2font lgfxJapanMinchoP_12;
+  extern const lgfx::U8g2font lgfxJapanMinchoP_16;
+  extern const lgfx::U8g2font lgfxJapanMinchoP_20;
+  extern const lgfx::U8g2font lgfxJapanMinchoP_24;
+  extern const lgfx::U8g2font lgfxJapanMinchoP_28;
+  extern const lgfx::U8g2font lgfxJapanMinchoP_32;
+  extern const lgfx::U8g2font lgfxJapanMinchoP_36;
+  extern const lgfx::U8g2font lgfxJapanMinchoP_40;
+  extern const lgfx::U8g2font lgfxJapanGothic_8  ;
+  extern const lgfx::U8g2font lgfxJapanGothic_12 ;
+  extern const lgfx::U8g2font lgfxJapanGothic_16 ;
+  extern const lgfx::U8g2font lgfxJapanGothic_20 ;
+  extern const lgfx::U8g2font lgfxJapanGothic_24 ;
+  extern const lgfx::U8g2font lgfxJapanGothic_28 ;
+  extern const lgfx::U8g2font lgfxJapanGothic_32 ;
+  extern const lgfx::U8g2font lgfxJapanGothic_36 ;
+  extern const lgfx::U8g2font lgfxJapanGothic_40 ;
+  extern const lgfx::U8g2font lgfxJapanGothicP_8 ;
+  extern const lgfx::U8g2font lgfxJapanGothicP_12;
+  extern const lgfx::U8g2font lgfxJapanGothicP_16;
+  extern const lgfx::U8g2font lgfxJapanGothicP_20;
+  extern const lgfx::U8g2font lgfxJapanGothicP_24;
+  extern const lgfx::U8g2font lgfxJapanGothicP_28;
+  extern const lgfx::U8g2font lgfxJapanGothicP_32;
+  extern const lgfx::U8g2font lgfxJapanGothicP_36;
+  extern const lgfx::U8g2font lgfxJapanGothicP_40;
 }
 using namespace fonts;
 
