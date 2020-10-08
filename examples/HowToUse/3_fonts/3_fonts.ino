@@ -6,9 +6,10 @@ void drawGradation(void)
 {
   // 背景にグラデーションを描画する
   lcd.startWrite();
-  for (int y = 0; y < 512; ++y) {
-    for (int x = 0; x < 512; ++x) {
-      lcd.writePixel(x, y, lcd.color888(x>>1, (x + y) >> 2, y>>1));
+  lcd.setAddrWindow(0, 0, lcd.width(), lcd.height());
+  for (int y = 0; y < lcd.height(); ++y) {
+    for (int x = 0; x < lcd.width(); ++x) {
+      lcd.writeColor(lcd.color888(x>>1, (x + y) >> 2, y>>1), 1);
     }
   }
   lcd.endWrite();
@@ -80,6 +81,23 @@ void setup(void)
   // Font8は数字のみが収録されています。
   lcd.setFont(&fonts::Font8);
   lcd.print(".:-258");
+
+
+  delay(3000);
+  drawGradation();
+
+// IPAフォントをコンバートした日本語フォントが４種類ｘ９サイズ = 36通りプリセットされています。
+// 末尾の数字がサイズを表しており、8, 12, 16, 20, 24, 28, 32, 36, 40 が用意されています。
+// fonts::lgfxJapanMincho_16      // 明朝体 固定幅フォント
+// fonts::lgfxJapanMinchoP_16     // 明朝体 プロポーショナルフォント
+// fonts::lgfxJapanGothic_16      // ゴシック体 固定幅フォント
+// fonts::lgfxJapanGothicP_16     // ゴシック体 プロポーショナルフォント
+
+  lcd.setCursor(0, 0);
+  lcd.setFont(&fonts::lgfxJapanMincho_16);   lcd.print("明朝体 16 Hello World\nこんにちは世界\n");
+//lcd.setFont(&fonts::lgfxJapanMinchoP_16);  lcd.print("明朝 P 16 Hello World\nこんにちは世界\n");
+  lcd.setFont(&fonts::lgfxJapanGothic_16);   lcd.print("ゴシック体 16 Hello World\nこんにちは世界\n");
+//lcd.setFont(&fonts::lgfxJapanGothicP_16);  lcd.print("ゴシック P 16 Hello World\nこんにちは世界\n");
 
 
   delay(3000);
@@ -240,45 +258,45 @@ void drawNumberTest(const lgfx::IFont* font)
   lcd.drawFastHLine(0, 195, 320);
 
   for (int i = 0; i < 200; ++i) {
-    lcd.setTextDatum( bottom_right    );     lcd.drawNumber(i,  80,  45);
-    lcd.setTextDatum( bottom_center   );     lcd.drawNumber(i, 160,  45);
-    lcd.setTextDatum( bottom_left     );     lcd.drawNumber(i, 240,  45);
-    lcd.setTextDatum( baseline_right  );     lcd.drawNumber(i,  80,  95);
-    lcd.setTextDatum( baseline_center );     lcd.drawNumber(i, 160,  95);
-    lcd.setTextDatum( baseline_left   );     lcd.drawNumber(i, 240,  95);
-    lcd.setTextDatum( middle_right    );     lcd.drawNumber(i,  80, 145);
-    lcd.setTextDatum( middle_center   );     lcd.drawNumber(i, 160, 145);
-    lcd.setTextDatum( middle_left     );     lcd.drawNumber(i, 240, 145);
-    lcd.setTextDatum( top_right       );     lcd.drawNumber(i,  80, 195);
-    lcd.setTextDatum( top_center      );     lcd.drawNumber(i, 160, 195);
-    lcd.setTextDatum( top_left        );     lcd.drawNumber(i, 240, 195);
+    lcd.setTextDatum( textdatum_t::bottom_right    );     lcd.drawNumber(i,  80,  45);
+    lcd.setTextDatum( textdatum_t::bottom_center   );     lcd.drawNumber(i, 160,  45);
+    lcd.setTextDatum( textdatum_t::bottom_left     );     lcd.drawNumber(i, 240,  45);
+    lcd.setTextDatum( textdatum_t::baseline_right  );     lcd.drawNumber(i,  80,  95);
+    lcd.setTextDatum( textdatum_t::baseline_center );     lcd.drawNumber(i, 160,  95);
+    lcd.setTextDatum( textdatum_t::baseline_left   );     lcd.drawNumber(i, 240,  95);
+    lcd.setTextDatum( textdatum_t::middle_right    );     lcd.drawNumber(i,  80, 145);
+    lcd.setTextDatum( textdatum_t::middle_center   );     lcd.drawNumber(i, 160, 145);
+    lcd.setTextDatum( textdatum_t::middle_left     );     lcd.drawNumber(i, 240, 145);
+    lcd.setTextDatum( textdatum_t::top_right       );     lcd.drawNumber(i,  80, 195);
+    lcd.setTextDatum( textdatum_t::top_center      );     lcd.drawNumber(i, 160, 195);
+    lcd.setTextDatum( textdatum_t::top_left        );     lcd.drawNumber(i, 240, 195);
   }
 }
 
 void loop(void)
 {
 // ※ 名前が"Free"で始まるフォントは 9pt 12pt 18pt 24ptの４種類があります。
-  drawNumberTest( &Font0                   );
-  drawNumberTest( &Font2                   );
-  drawNumberTest( &Font4                   );
-  drawNumberTest( &Font6                   );
-  drawNumberTest( &Font7                   );
-  drawNumberTest( &Font8                   );
-  drawNumberTest( &TomThumb                );
-  drawNumberTest( &FreeMono9pt7b           );
-  drawNumberTest( &FreeMonoBold9pt7b       );
-  drawNumberTest( &FreeMonoOblique9pt7b    );
-  drawNumberTest( &FreeMonoBoldOblique9pt7b);
-  drawNumberTest( &FreeSans9pt7b           );
-  drawNumberTest( &FreeSansBold9pt7b       );
-  drawNumberTest( &FreeSansOblique9pt7b    );
-  drawNumberTest( &FreeSansBoldOblique9pt7b);
-  drawNumberTest( &FreeSerif9pt7b          );
-  drawNumberTest( &FreeSerifBold9pt7b      );
-  drawNumberTest( &FreeSerifItalic9pt7b    );
-  drawNumberTest( &FreeSerifBoldItalic9pt7b);
-  drawNumberTest( &Orbitron_Light_24       );
-  drawNumberTest( &Roboto_Thin_24          );
-  drawNumberTest( &Satisfy_24              );
-  drawNumberTest( &Yellowtail_32           );
+  drawNumberTest( &fonts::Font0                   );
+  drawNumberTest( &fonts::Font2                   );
+  drawNumberTest( &fonts::Font4                   );
+  drawNumberTest( &fonts::Font6                   );
+  drawNumberTest( &fonts::Font7                   );
+  drawNumberTest( &fonts::Font8                   );
+  drawNumberTest( &fonts::TomThumb                );
+  drawNumberTest( &fonts::FreeMono9pt7b           );
+  drawNumberTest( &fonts::FreeMonoBold9pt7b       );
+  drawNumberTest( &fonts::FreeMonoOblique9pt7b    );
+  drawNumberTest( &fonts::FreeMonoBoldOblique9pt7b);
+  drawNumberTest( &fonts::FreeSans9pt7b           );
+  drawNumberTest( &fonts::FreeSansBold9pt7b       );
+  drawNumberTest( &fonts::FreeSansOblique9pt7b    );
+  drawNumberTest( &fonts::FreeSansBoldOblique9pt7b);
+  drawNumberTest( &fonts::FreeSerif9pt7b          );
+  drawNumberTest( &fonts::FreeSerifBold9pt7b      );
+  drawNumberTest( &fonts::FreeSerifItalic9pt7b    );
+  drawNumberTest( &fonts::FreeSerifBoldItalic9pt7b);
+  drawNumberTest( &fonts::Orbitron_Light_24       );
+  drawNumberTest( &fonts::Roboto_Thin_24          );
+  drawNumberTest( &fonts::Satisfy_24              );
+  drawNumberTest( &fonts::Yellowtail_32           );
 }
