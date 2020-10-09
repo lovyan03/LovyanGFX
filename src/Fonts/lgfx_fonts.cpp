@@ -580,8 +580,8 @@ namespace lgfx
     u8g2_font_decode_t decode(getGlyph(uniCode));
     if ( decode.decode_ptr == nullptr ) return 0;
 
-    std::int32_t w = decode.get_unsigned_bits(bits_per_char_width());
-    std::int32_t h = decode.get_unsigned_bits(bits_per_char_height());
+    std::uint32_t w = decode.get_unsigned_bits(bits_per_char_width());
+    std::uint32_t h = decode.get_unsigned_bits(bits_per_char_height());
 
     auto font_metrics = gfx->_get_font_metrics();
     float sx = style->size_x;
@@ -637,8 +637,8 @@ namespace lgfx
       }
       left -= x;
       std::uint32_t ab[2];
-      std::int32_t lx = 0;
-      std::int32_t ly = 0;
+      std::uint32_t lx = 0;
+      std::uint32_t ly = 0;
       std::int32_t y0 = (yoffset    ) * sy;
       std::int32_t y1 = (yoffset + 1) * sy;
       do
