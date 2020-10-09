@@ -332,7 +332,7 @@ namespace lgfx
     {
       _dma_flip = !_dma_flip;
       length = (length + 3) & ~3;
-      if (_dmabufs[_dma_flip].length < length) {
+      if (_dmabufs[_dma_flip].length != length) {
         _dmabufs[_dma_flip].free();
         _dmabufs[_dma_flip].buffer = (std::uint8_t*)heap_alloc_dma(length);
         _dmabufs[_dma_flip].length = _dmabufs[_dma_flip].buffer ? length : 0;

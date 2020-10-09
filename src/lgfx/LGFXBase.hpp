@@ -240,9 +240,9 @@ namespace lgfx
     template<typename T, typename U>
     void pushImage( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const T* data, const U& transparent)
     {
-      uint32_t tr = (std::is_same<T, U>::value)
-                  ? transparent
-                  : get_fp_convert_src<U>(get_depth<T>::value, false)(transparent);
+      std::uint32_t tr = (std::is_same<T, U>::value)
+                       ? transparent
+                       : get_fp_convert_src<U>(get_depth<T>::value, false)(transparent);
       pixelcopy_t p(data, _write_conv.depth, get_depth<T>::value, hasPalette, nullptr, tr);
       if (std::is_same<rgb565_t, T>::value || std::is_same<rgb888_t, T>::value) {
         if (std::is_same<rgb565_t, T>::value) {
