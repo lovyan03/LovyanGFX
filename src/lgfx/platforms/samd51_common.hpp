@@ -4,26 +4,36 @@
 #include "../lgfx_common.hpp"
 
 #include <malloc.h>
+
 #if defined ( ARDUINO )
+
  #include <sam.h>
  #include <delay.h>
  #include <Arduino.h>
- #include <Seeed_FS.h>
+
 #else
 
-#include <config/default/system/fs/sys_fs.h>
-#include "samd51_arduino_compat.hpp"
+ #include <FreeRTOS.h>
+ #include <task.h>
+ #include <config/default/system/fs/sys_fs.h>
+ #include "samd51_arduino_compat.hpp"
 
-#undef PORT_PINCFG_PULLEN
-#undef PORT_PINCFG_PULLEN_Pos
-#undef PORT_PINCFG_INEN
-#undef PORT_PINCFG_INEN_Pos
+ #undef PORT_PINCFG_PULLEN
+ #undef PORT_PINCFG_PULLEN_Pos
+ #undef PORT_PINCFG_INEN
+ #undef PORT_PINCFG_INEN_Pos
 
-#define _Ul(n) (static_cast<std::uint32_t>((n)))
-#define PORT_PINCFG_INEN_Pos        1            /**< \brief (PORT_PINCFG) Input Enable */
-#define PORT_PINCFG_INEN            (_Ul(0x1) << PORT_PINCFG_INEN_Pos)
-#define PORT_PINCFG_PULLEN_Pos      2            /**< \brief (PORT_PINCFG) Pull Enable */
-#define PORT_PINCFG_PULLEN          (_Ul(0x1) << PORT_PINCFG_PULLEN_Pos)
+ #define _Ul(n) (static_cast<std::uint32_t>((n)))
+ #define PORT_PINCFG_INEN_Pos        1            /**< \brief (PORT_PINCFG) Input Enable */
+ #define PORT_PINCFG_INEN            (_Ul(0x1) << PORT_PINCFG_INEN_Pos)
+ #define PORT_PINCFG_PULLEN_Pos      2            /**< \brief (PORT_PINCFG) Pull Enable */
+ #define PORT_PINCFG_PULLEN          (_Ul(0x1) << PORT_PINCFG_PULLEN_Pos)
+
+ static void delay(std::size_t milliseconds)
+ {
+   vTaskDelay(pdMS_TO_TICKS(milliseconds));
+ }
+
 #endif
 namespace lgfx
 {
@@ -57,18 +67,19 @@ namespace lgfx
   void lgfxPinMode(std::uint32_t pin, pin_mode_t mode);
 
 //----------------------------------------------------------------------------
-  struct FileWrapper : public DataWrapper {
+  struct FileWrapper : public DataWrapper
+  {
     FileWrapper() : DataWrapper() { need_transaction = true; }
+
 #if defined (ARDUINO) && defined (__SEEED_FS__)
+
     fs::File _file;
     fs::File *_fp;
 
     fs::FS *_fs = nullptr;
     void setFS(fs::FS& fs) {
       _fs = &fs;
- #if defined (__SD_H__)
-      need_transaction = (_fs == &SD);
- #endif
+      need_transaction = false;
     }
     FileWrapper(fs::FS& fs) : DataWrapper(), _fp(nullptr) { setFS(fs); }
     FileWrapper(fs::FS& fs, fs::File* fp) : DataWrapper(), _fp(fp) { setFS(fs); }
@@ -96,6 +107,7 @@ namespace lgfx
     void close() override { _fp->close(); }
 
 #elif __SAMD51_HARMONY__
+
     SYS_FS_HANDLE handle = SYS_FS_HANDLE_INVALID;
 
     bool open(const char* path, const char* mode) 
@@ -145,9 +157,13 @@ namespace lgfx
 #endif
 
   };
+
 //----------------------------------------------------------------------------
-  struct StreamWrapper : public DataWrapper {
+
 #if defined (ARDUINO) && defined (Stream_h)
+
+  struct StreamWrapper : public DataWrapper
+  {
     void set(Stream* src, std::uint32_t length = ~0u) { _stream = src; _length = length; _index = 0; }
 
     int read(std::uint8_t *buf, std::uint32_t len) override {
@@ -164,25 +180,12 @@ namespace lgfx
     std::uint32_t _index;
     std::uint32_t _length = 0;
 
-#else  // dummy.
-
-    int read(std::uint8_t*, std::uint32_t) override { return 0; }
-    void skip(std::int32_t) override { }
-    bool seek(std::uint32_t) override { return false; }
-
-#endif
-
   };
-};
 
-#ifndef ARDUINO
-
-#include <FreeRTOS.h>
-#include <task.h>
-static void delay(std::size_t milliseconds) 
-{
-  vTaskDelay(pdMS_TO_TICKS(milliseconds));
-}
 #endif
+
+//----------------------------------------------------------------------------
+
+}
 
 #endif

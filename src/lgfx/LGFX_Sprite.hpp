@@ -23,6 +23,7 @@ Contributors:
 #define LGFX_SPRITE_HPP_
 
 #include <algorithm>
+#include <cassert>
 
 #include "LGFXBase.hpp"
 
@@ -35,8 +36,6 @@ namespace lgfx
     LGFX_Sprite(LovyanGFX* parent)
     : LovyanGFX()
     , _parent(parent)
-    , _img  (nullptr)
-    , _alloclen(0)
     , _bitwidth(0)
     , _xptr (0)
     , _yptr (0)
@@ -66,10 +65,7 @@ namespace lgfx
     void deletePalette(void)
     {
       _palette_count = 0;
-      if (_palette != nullptr) {
-        _mem_free(_palette);
-        _palette = nullptr;
-      }
+      _palette.release();
     }
 
     void deleteSprite(void)
@@ -93,11 +89,7 @@ namespace lgfx
       _yptr = 0;
       _index = 0;
 
-      if (_alloclen) {
-        _alloclen = 0;
-        _mem_free(_img);
-        _img = nullptr;
-      }
+      _img.release();
     }
 
     void setPsram( bool enabled )
@@ -108,9 +100,9 @@ namespace lgfx
     void setBuffer(void* buffer, std::int32_t w, std::int32_t h, std::uint8_t bpp = 0)
     {
       deleteSprite();
-      if (bpp != 0) _write_conv.setColorDepth((color_depth_t)bpp, _palette != nullptr) ;
+      if (bpp != 0) _write_conv.setColorDepth((color_depth_t)bpp, hasPalette());
 
-      _img = static_cast<std::uint8_t*>(buffer);
+      _img.reset(buffer);
       _bitwidth = (w + _write_conv.x_mask) & (~(std::uint32_t)_write_conv.x_mask);
       _sw = _width = w;
       _clip_r = _xe = w - 1;
@@ -127,26 +119,16 @@ namespace lgfx
 
       _bitwidth = (w + _write_conv.x_mask) & (~(std::uint32_t)_write_conv.x_mask);
       size_t len = h * (_bitwidth * _write_conv.bits >> 3) + 1;
-      if (_alloclen && _alloclen < len)
-      {
-        _alloclen = 0;
-        _mem_free(_img);
-        _img = nullptr;
-      }
 
-      if (_img == nullptr)
-      {
-        _img = (std::uint8_t*)_mem_alloc(len);
+      _img.reset(len, _psram ? AllocationSource::Psram : AllocationSource::Dma);
 
-        if (_img == nullptr)
-        {
-          deleteSprite();
-          return nullptr;
-        }
-        _alloclen = len;
+      if (!_img)
+      {
+        deleteSprite();
+        return nullptr;
       }
       memset(_img, 0, len);
-      if (_palette == nullptr && 0 == _write_conv.bytes)
+      if (!_palette && 0 == _write_conv.bytes)
       {
         createPalette();
       }
@@ -206,7 +188,7 @@ namespace lgfx
 
       if (count > _palette_count) count = _palette_count;
       for (std::uint32_t i = 0; i < count; ++i) {
-        _palette[i] = convert_rgb565_to_bgr888(colors[i]);
+        _palette.img24()[i] = convert_rgb565_to_bgr888(colors[i]);
       }
       return true;
     }
@@ -218,7 +200,7 @@ namespace lgfx
 
       if (count > _palette_count) count = _palette_count;
       for (std::uint32_t i = 0; i < count; ++i) {
-        _palette[i] = convert_rgb888_to_bgr888(colors[i]);
+        _palette.img24()[i] = convert_rgb888_to_bgr888(colors[i]);
       }
       return true;
     }
@@ -235,15 +217,15 @@ namespace lgfx
       default: k = 1; break;
       }
       for (std::uint32_t i = 0; i < _palette_count; i++) {
-        _palette[i] = i * k;
+        _palette.img24()[i] = i * k;
       }
     }
 
     void setBitmapColor(std::uint16_t fgcolor, std::uint16_t bgcolor)  // For 1bpp sprites
     {
       if (_palette) {
-        _palette[0] = *(rgb565_t*)&bgcolor;
-        _palette[1] = *(rgb565_t*)&fgcolor;
+        _palette.img24()[0] = *(rgb565_t*)&bgcolor;
+        _palette.img24()[1] = *(rgb565_t*)&fgcolor;
       }
     }
 
@@ -257,7 +239,7 @@ namespace lgfx
     {
       size_t res = 0;
       do {
-        if (_palette[res] == color) return res;
+        if (_palette.img24()[res] == color) return res;
       } while (++res < _palette_count);
       return -1;
     }
@@ -266,23 +248,23 @@ namespace lgfx
     void setPaletteColor(size_t index, T color) {
       if (!_palette || index >= _palette_count) return;
       rgb888_t c = convert_to_rgb888(color);
-      _palette[index] = c;
+      _palette.img24()[index] = c;
     }
 
     void setPaletteColor(size_t index, const bgr888_t& rgb)
     {
-      if (_palette && index < _palette_count) { _palette[index] = rgb; }
+      if (_palette && index < _palette_count) { _palette.img24()[index] = rgb; }
     }
 
     void setPaletteColor(size_t index, std::uint8_t r, std::uint8_t g, std::uint8_t b)
     {
-      if (_palette && index < _palette_count) { _palette[index].set(r, g, b); }
+      if (_palette && index < _palette_count) { _palette.img24()[index].set(r, g, b); }
     }
 
     __attribute__ ((always_inline)) inline void* setColorDepth(std::uint8_t bpp) { return setColorDepth((color_depth_t)bpp); }
     void* setColorDepth(color_depth_t depth)
     {
-      _write_conv.setColorDepth(depth, _palette != nullptr) ;
+      _write_conv.setColorDepth(depth, hasPalette()) ;
       _read_conv = _write_conv;
 
       if (_img == nullptr) return nullptr;
@@ -297,21 +279,21 @@ namespace lgfx
       if (bits >= 8) {
         std::int32_t index = x + y * _bitwidth;
         if (bits == 8) {
-          return _img[index];
+          return _img.img8()[index];
         } else if (bits == 16) {
-          return _img16[index];
+          return _img.img16()[index];
         } else {
-          return (std::uint32_t)_img24[index];
+          return (std::uint32_t)_img.img24()[index];
         }
       } else {
         std::int32_t index = (x + y * _bitwidth) * bits;
         std::uint8_t mask = (1 << bits) - 1;
-        return (_img[index >> 3] >> (-(index + bits) & 7)) & mask;
+        return (_img.img8()[index >> 3] >> (-(index + bits) & 7)) & mask;
       }
     }
 
     template<typename T>
-    __attribute__ ((always_inline)) inline void fillSprite (const T& color) { fillRect(0, 0, _width, _height, color); }
+    __attribute__ ((always_inline)) inline void fillSprite (const T& color) { fillScreen(color); }
 
     template<typename T>
     __attribute__ ((always_inline)) inline void pushSprite(                std::int32_t x, std::int32_t y, const T& transp) { push_sprite(_parent, x, y, _write_conv.convert(transp) & _write_conv.colormask); }
@@ -320,31 +302,177 @@ namespace lgfx
     __attribute__ ((always_inline)) inline void pushSprite(                std::int32_t x, std::int32_t y) { push_sprite(_parent, x, y); }
     __attribute__ ((always_inline)) inline void pushSprite(LovyanGFX* dst, std::int32_t x, std::int32_t y) { push_sprite(    dst, x, y); }
 
-    template<typename T> bool pushRotated(                float angle, const T& transp) { return push_rotate_zoom(_parent, _parent->getPivotX(), _parent->getPivotY(), angle, 1.0f, 1.0f, _write_conv.convert(transp) & _write_conv.colormask); }
-    template<typename T> bool pushRotated(LovyanGFX* dst, float angle, const T& transp) { return push_rotate_zoom(dst    , dst    ->getPivotX(), dst    ->getPivotY(), angle, 1.0f, 1.0f, _write_conv.convert(transp) & _write_conv.colormask); }
-                         bool pushRotated(                float angle) { return push_rotate_zoom(_parent, _parent->getPivotX(), _parent->getPivotY(), angle, 1.0f, 1.0f); }
-                         bool pushRotated(LovyanGFX* dst, float angle) { return push_rotate_zoom(dst    , dst    ->getPivotX(), dst    ->getPivotY(), angle, 1.0f, 1.0f); }
+    template<typename T> inline bool pushRotated(                float angle, const T& transp) { return push_rotate_zoom(_parent, _parent->getPivotX(), _parent->getPivotY(), angle, 1.0f, 1.0f, _write_conv.convert(transp) & _write_conv.colormask); }
+    template<typename T> inline bool pushRotated(LovyanGFX* dst, float angle, const T& transp) { return push_rotate_zoom(dst    , dst    ->getPivotX(), dst    ->getPivotY(), angle, 1.0f, 1.0f, _write_conv.convert(transp) & _write_conv.colormask); }
+                         inline bool pushRotated(                float angle                 ) { return push_rotate_zoom(_parent, _parent->getPivotX(), _parent->getPivotY(), angle, 1.0f, 1.0f); }
+                         inline bool pushRotated(LovyanGFX* dst, float angle                 ) { return push_rotate_zoom(dst    , dst    ->getPivotX(), dst    ->getPivotY(), angle, 1.0f, 1.0f); }
 
-    template<typename T> bool pushRotateZoom(                                              float angle, float zoom_x, float zoom_y, const T& transp) { return push_rotate_zoom(_parent, _parent->getPivotX(), _parent->getPivotY(), angle, zoom_x, zoom_y, _write_conv.convert(transp) & _write_conv.colormask); }
-    template<typename T> bool pushRotateZoom(LovyanGFX* dst                              , float angle, float zoom_x, float zoom_y, const T& transp) { return push_rotate_zoom(    dst,     dst->getPivotX(),     dst->getPivotY(), angle, zoom_x, zoom_y, _write_conv.convert(transp) & _write_conv.colormask); }
-    template<typename T> bool pushRotateZoom(                std::int32_t dst_x, std::int32_t dst_y, float angle, float zoom_x, float zoom_y, const T& transp) { return push_rotate_zoom(_parent,                dst_x,                dst_y, angle, zoom_x, zoom_y, _write_conv.convert(transp) & _write_conv.colormask); }
-    template<typename T> bool pushRotateZoom(LovyanGFX* dst, std::int32_t dst_x, std::int32_t dst_y, float angle, float zoom_x, float zoom_y, const T& transp) { return push_rotate_zoom(    dst,                dst_x,                dst_y, angle, zoom_x, zoom_y, _write_conv.convert(transp) & _write_conv.colormask); }
-                         bool pushRotateZoom(                                              float angle, float zoom_x, float zoom_y)                  { return push_rotate_zoom(_parent, _parent->getPivotX(), _parent->getPivotY(), angle, zoom_x, zoom_y); }
-                         bool pushRotateZoom(LovyanGFX* dst                              , float angle, float zoom_x, float zoom_y)                  { return push_rotate_zoom(    dst,     dst->getPivotX(),     dst->getPivotY(), angle, zoom_x, zoom_y); }
-                         bool pushRotateZoom(                std::int32_t dst_x, std::int32_t dst_y, float angle, float zoom_x, float zoom_y)                  { return push_rotate_zoom(_parent,                dst_x,                dst_y, angle, zoom_x, zoom_y); }
-                         bool pushRotateZoom(LovyanGFX* dst, std::int32_t dst_x, std::int32_t dst_y, float angle, float zoom_x, float zoom_y)                  { return push_rotate_zoom(    dst,                dst_x,                dst_y, angle, zoom_x, zoom_y); }
+    template<typename T> inline bool pushRotateZoom(                                                        float angle, float zoom_x, float zoom_y, const T& transp) { return push_rotate_zoom(_parent, _parent->getPivotX(), _parent->getPivotY(), angle, zoom_x, zoom_y, _write_conv.convert(transp) & _write_conv.colormask); }
+    template<typename T> inline bool pushRotateZoom(LovyanGFX* dst                                        , float angle, float zoom_x, float zoom_y, const T& transp) { return push_rotate_zoom(    dst,     dst->getPivotX(),     dst->getPivotY(), angle, zoom_x, zoom_y, _write_conv.convert(transp) & _write_conv.colormask); }
+    template<typename T> inline bool pushRotateZoom(                std::int32_t dst_x, std::int32_t dst_y, float angle, float zoom_x, float zoom_y, const T& transp) { return push_rotate_zoom(_parent,                dst_x,                dst_y, angle, zoom_x, zoom_y, _write_conv.convert(transp) & _write_conv.colormask); }
+    template<typename T> inline bool pushRotateZoom(LovyanGFX* dst, std::int32_t dst_x, std::int32_t dst_y, float angle, float zoom_x, float zoom_y, const T& transp) { return push_rotate_zoom(    dst,                dst_x,                dst_y, angle, zoom_x, zoom_y, _write_conv.convert(transp) & _write_conv.colormask); }
+                         inline bool pushRotateZoom(                                                        float angle, float zoom_x, float zoom_y)                  { return push_rotate_zoom(_parent, _parent->getPivotX(), _parent->getPivotY(), angle, zoom_x, zoom_y); }
+                         inline bool pushRotateZoom(LovyanGFX* dst                                        , float angle, float zoom_x, float zoom_y)                  { return push_rotate_zoom(    dst,     dst->getPivotX(),     dst->getPivotY(), angle, zoom_x, zoom_y); }
+                         inline bool pushRotateZoom(                std::int32_t dst_x, std::int32_t dst_y, float angle, float zoom_x, float zoom_y)                  { return push_rotate_zoom(_parent,                dst_x,                dst_y, angle, zoom_x, zoom_y); }
+                         inline bool pushRotateZoom(LovyanGFX* dst, std::int32_t dst_x, std::int32_t dst_y, float angle, float zoom_x, float zoom_y)                  { return push_rotate_zoom(    dst,                dst_x,                dst_y, angle, zoom_x, zoom_y); }
 
 //----------------------------------------------------------------------------
 //----------------------------------------------------------------------------
 
   protected:
-    LovyanGFX* _parent;
-    union {
-      std::uint8_t*  _img;
-      std::uint16_t* _img16;
-      bgr888_t* _img24;
+
+    enum AllocationSource
+    {
+      Normal,
+      Dma,
+      Psram,
+      Preallocated,
     };
-    std::uint32_t _alloclen;
+
+    class SpriteBuffer
+    {
+    private:
+      std::size_t _length;
+      AllocationSource _source;
+      std::uint8_t* _buffer;
+
+    public:
+      SpriteBuffer(void) : _length(0), _source(Dma), _buffer(nullptr) {}
+
+      SpriteBuffer(std::size_t length, AllocationSource source = AllocationSource::Dma) : _length(0), _source(source), _buffer(nullptr)
+      {
+        if (length)
+        {
+          assert (source != AllocationSource::Preallocated);
+          this->reset(length, source);
+        }
+      }
+
+      SpriteBuffer(std::uint8_t* buffer, std::size_t length) : _length(length), _source(AllocationSource::Preallocated), _buffer(buffer)
+      {
+      }
+
+      SpriteBuffer(const SpriteBuffer& rhs) : _buffer(nullptr)
+      {
+        if ( rhs._source == AllocationSource::Preallocated )
+        {
+          this->_buffer = rhs._buffer;
+          this->_length = rhs._length;
+          this->_source = rhs._source;
+        }
+        else
+        {
+          this->reset(rhs._length, rhs._source);
+          if( _buffer != nullptr && rhs._buffer != nullptr )
+          {
+            std::copy(rhs._buffer, rhs._buffer + _length, _buffer);
+          }
+        }
+      }
+
+      SpriteBuffer(SpriteBuffer&& rhs) : _buffer(nullptr)
+      {
+        if ( rhs._source == AllocationSource::Preallocated ) {
+          this->_buffer = rhs._buffer;
+          this->_length = rhs._length;
+          this->_source = rhs._source;
+        }
+        else {
+          this->reset(rhs._length, rhs._source);
+          if( _buffer != nullptr && rhs._buffer != nullptr ) {
+            std::copy(rhs._buffer, rhs._buffer + _length, _buffer);
+            rhs.release();
+          }
+        }
+      }
+
+      SpriteBuffer& operator=(const SpriteBuffer& rhs)
+      {
+        if ( rhs._source == AllocationSource::Preallocated ) {
+          this->_buffer = rhs._buffer;
+          this->_length = rhs._length;
+          this->_source = rhs._source;
+        }
+        else {
+          this->reset(rhs._length, rhs._source);
+          if ( _buffer != nullptr && rhs._buffer != nullptr ) {
+            std::copy(rhs._buffer, rhs._buffer + _length, _buffer);
+          }
+        }
+        return *this;
+      }
+
+      SpriteBuffer& operator=(SpriteBuffer&& rhs)
+      {
+        if( rhs._source == AllocationSource::Preallocated ) {
+          this->_buffer = rhs._buffer;
+          this->_length = rhs._length;
+          this->_source = rhs._source;
+        }
+        else {
+          this->reset(rhs._length, rhs._source);
+          if( _buffer != nullptr && rhs._buffer != nullptr ) {
+            std::copy(rhs._buffer, rhs._buffer + _length, _buffer);
+            rhs.release();
+          }
+        }
+        return *this;
+      }
+
+      operator std::uint8_t*() const { return _buffer; }
+      operator bool() const { return _buffer != nullptr; }
+
+      std::uint8_t* get() const { return _buffer; }
+      std::uint8_t* img8() const { return _buffer; }
+      std::uint16_t* img16() const { return reinterpret_cast<std::uint16_t*>(_buffer); }
+      bgr888_t* img24() const { return reinterpret_cast<bgr888_t*>(_buffer); }
+
+      void reset(void* buffer)
+      {
+        this->release();
+        _source = AllocationSource::Preallocated;
+        _buffer = reinterpret_cast<std::uint8_t*>(buffer);
+        _length = 0;
+      }
+
+      void reset(std::size_t length, AllocationSource source)
+      {
+        this->release();
+        void* buffer = nullptr;
+        switch (source)
+        {
+          default:
+          case AllocationSource::Normal:
+            buffer = heap_alloc(length);
+            break;
+          case AllocationSource::Dma:
+            buffer = heap_alloc_dma(length);
+            break;
+          case AllocationSource::Psram:
+            buffer = heap_alloc_psram(length);
+            break;
+        }
+        _buffer = reinterpret_cast<std::uint8_t*>(buffer);
+        if ( _buffer != nullptr ) {
+          _length = length;
+        }
+      }
+
+      void release() {
+        _length = 0;
+        if ( _buffer != nullptr ) {
+          heap_free(_buffer);
+          _buffer = nullptr;
+        }
+      }
+    };
+
+    LovyanGFX* _parent;
+
+    SpriteBuffer _img;
+    SpriteBuffer _palette;
+    //bgr888_t* _palette = nullptr;
+
     std::int32_t _bitwidth;
     std::int32_t _xptr;
     std::int32_t _yptr;
@@ -362,8 +490,8 @@ namespace lgfx
 
       deletePalette();
 
-      size_t palettes = 1 << _write_conv.bits;
-      _palette = (bgr888_t*)_mem_alloc(sizeof(bgr888_t) * palettes);
+      std::size_t palettes = 1 << _write_conv.bits;
+      _palette.reset(palettes * sizeof(bgr888_t), AllocationSource::Normal);
       if (!_palette) {
         _write_conv.setColorDepth(_write_conv.depth, false);
         return false;
@@ -384,7 +512,7 @@ namespace lgfx
     bool create_from_bmp(DataWrapper* data) {
       bitmap_header_t bmpdata;
 
-      if (!load_bmp_header(data, &bmpdata)
+      if (!bmpdata.load_bmp_header(data)
        || ( bmpdata.biCompression > 3)) {
         return false;
       }
@@ -409,7 +537,7 @@ namespace lgfx
         data->seek(bmpdata.biSize + 14);
         data->read((std::uint8_t*)palette, (palettecount * sizeof(argb8888_t))); // load palette
         for (std::uint_fast16_t i = 0; i < _palette_count; ++i) {
-          _palette[i] = palette[i];
+          _palette.img24()[i] = palette[i];
         }
         delete[] palette;
       }
@@ -421,10 +549,10 @@ namespace lgfx
       if (bpp <= 8) {
         do {
           if (bmpdata.biCompression == 1) {
-            load_bmp_rle8(data, lineBuffer, w);
+            bmpdata.load_bmp_rle8(data, lineBuffer, w);
           } else
           if (bmpdata.biCompression == 2) {
-            load_bmp_rle4(data, lineBuffer, w);
+            bmpdata.load_bmp_rle4(data, lineBuffer, w);
           } else {
             data->read(lineBuffer, buffersize);
           }
@@ -454,7 +582,7 @@ namespace lgfx
       } else if (bpp == 32) {
         do {
           data->read(lineBuffer, buffersize);
-          auto img = &_img[y * _bitwidth * 3];
+          auto img = &_img.img8()[y * _bitwidth * 3];
           y += flow;
           for (size_t i = 0; i < buffersize; i += 4) {
             img[(i>>2)*3    ] = lineBuffer[i + 2];
@@ -469,12 +597,12 @@ namespace lgfx
     void push_sprite(LovyanGFX* dst, std::int32_t x, std::int32_t y, std::uint32_t transp = ~0)
     {
       pixelcopy_t p(_img, dst->getColorDepth(), getColorDepth(), dst->hasPalette(), _palette, transp);
-      dst->push_image(x, y, _width, _height, &p, !_disable_memcpy); // DMA disable with use SPIRAM
+      dst->pushImage(x, y, _width, _height, &p, !_disable_memcpy); // DMA disable with use SPIRAM
     }
 
     inline bool push_rotate_zoom(LovyanGFX* dst, std::int32_t x, std::int32_t y, float angle, float zoom_x, float zoom_y, std::uint32_t transp = ~0)
     {
-      return dst->pushImageRotateZoom(x, y, _img, _xpivot, _ypivot, _width, _height, angle, zoom_x, zoom_y, transp, getColorDepth(), _palette);
+      return dst->pushImageRotateZoom(x, y, _xpivot, _ypivot, _width, _height, angle, zoom_x, zoom_y, _img, transp, getColorDepth(), _palette.img24());
     }
 
     void set_window(std::int32_t xs, std::int32_t ys, std::int32_t xe, std::int32_t ye)
@@ -505,15 +633,15 @@ namespace lgfx
       if (bits >= 8) {
         std::int32_t index = x + y * _bitwidth;
         if (bits == 8) {
-          _img[index] = _color.raw0;
+          _img.img8()[index] = _color.raw0;
         } else if (bits == 16) {
-          _img16[index] = _color.rawL;
+          _img.img16()[index] = _color.rawL;
         } else {
-          _img24[index] = *(bgr888_t*)&_color;
+          _img.img24()[index] = *(bgr888_t*)&_color;
         }
       } else {
         std::int32_t index = (x + y * _bitwidth) * bits;
-        std::uint8_t* dst = &_img[index >> 3];
+        std::uint8_t* dst = &_img.img8()[index >> 3];
         std::uint8_t mask = (std::uint8_t)(~(0xFF >> bits)) >> (index & 7);
         *dst = (*dst & ~mask) | (_color.raw0 & mask);
       }
@@ -537,11 +665,11 @@ return;
             do { *img = c;  img += bw; } while (--h);
           } else if (bits == 16) {
             std::uint16_t c = _color.rawL;
-            auto img = &_img16[index];
+            auto img = &_img.img16()[index];
             do { *img = c;  img += bw; } while (--h);
           } else {  // if (_write_conv.bytes == 3)
             auto c = _color;
-            auto img = &_img24[index];
+            auto img = &_img.img24()[index];
             do { img->r = c.raw0; img->g = c.raw1; img->b = c.raw2; img += bw; } while (--h);
           }
         } else {
@@ -624,7 +752,7 @@ return;
         std::int32_t ll;
         std::int32_t index = _index;
         do {
-          std::uint8_t* dst = &_img[index * bits >> 3];
+          std::uint8_t* dst = &_img.img8()[index * bits >> 3];
           ll = std::min(_xe - _xptr + 1, length);
           std::int32_t w = ll * bits;
           std::int32_t x = _xptr * bits;
@@ -723,8 +851,8 @@ return;
         std::int32_t add = _bitwidth * _write_conv.bytes;
         if (src_y < dst_y) add = -add;
         std::int32_t pos = (src_y < dst_y) ? h - 1 : 0;
-        std::uint8_t* src = &_img[(src_x + (src_y + pos) * _bitwidth) * _write_conv.bytes];
-        std::uint8_t* dst = &_img[(dst_x + (dst_y + pos) * _bitwidth) * _write_conv.bytes];
+        std::uint8_t* src = &_img.img8()[(src_x + (src_y + pos) * _bitwidth) * _write_conv.bytes];
+        std::uint8_t* dst = &_img.img8()[(dst_x + (dst_y + pos) * _bitwidth) * _write_conv.bytes];
         if (_disable_memcpy) {
           std::uint8_t buf[len];
           do {
@@ -751,7 +879,7 @@ return;
         auto bw = _bitwidth;
         auto d = (std::uint8_t*)dst;
         do {
-          memcpy(d, &_img[(x + y * bw) * b], w * b);
+          memcpy(d, &_img.img8()[(x + y * bw) * b], w * b);
           d += w * b;
         } while (++y != h);
       } else {
@@ -813,7 +941,7 @@ return;
       do {
         linelength = std::min<int>(_xe - _xptr + 1, length);
         auto len = linelength * _write_conv.bits >> 3;
-        memcpy(&_img[(_xptr * _write_conv.bits >> 3) + _yptr * k], src, len);
+        memcpy(&_img.img8()[(_xptr * _write_conv.bits >> 3) + _yptr * k], src, len);
         src += len;
         ptr_advance(linelength);
       } while (length -= linelength);
@@ -825,16 +953,19 @@ return;
       std::int32_t linelength;
       do {
         linelength = std::min(_xe - _xptr + 1, length);
-        param->fp_copy(&_img[_yptr * k], _xptr, _xptr + linelength, param);
+        param->fp_copy(&_img.img8()[_yptr * k], _xptr, _xptr + linelength, param);
         ptr_advance(linelength);
       } while (length -= linelength);
     }
 
+    bool isReadable_impl(void) const override { return true; }
+    std::int_fast8_t getRotation_impl(void) const override { return 0; }
     void beginTransaction_impl(void) override {}
     void endTransaction_impl(void) override {}
     void initDMA_impl(void) override {}
     void waitDMA_impl(void) override {}
     bool dmaBusy_impl(void) override { return false; }
+    RGBColor* getPalette_impl(void) const override { return _palette.img24(); }
 
     inline std::int32_t ptr_advance(std::int32_t length = 1) {
       if ((_xptr += length) > _xe) {
@@ -882,30 +1013,7 @@ return;
         memcpy(dst, buf, length);
       }
     }
-
-    void* _mem_alloc(std::uint32_t bytes)
-    {
-      if (_psram)
-      {
-        void* res = heap_alloc_psram(bytes);
-        if (res != nullptr) {
-          _disable_memcpy = true;
-          return res;
-        }
-      }
-
-      _disable_memcpy = false;
-      return heap_alloc_dma(bytes);
-    }
-    void _mem_free(void* buf)
-    {
-      heap_free(buf);
-    }
-
-    bool isReadable_impl(void) const { return true; }
-    std::int_fast8_t getRotation_impl(void) const { return 0; }
   };
-
 }
 
 typedef lgfx::LGFX_Sprite LGFX_Sprite;

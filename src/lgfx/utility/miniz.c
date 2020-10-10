@@ -191,7 +191,7 @@
 //#define MINIZ_NO_MALLOC
 
 // 
-#define MINIZ_NO_COMPRESSION
+//#define MINIZ_NO_COMPRESSION
 
 
 #if defined(__TINYC__) && (defined(__linux) || defined(__linux__))
@@ -951,9 +951,18 @@ typedef unsigned char mz_validate_uint64[sizeof(mz_uint64)==8 ? 1 : -1];
   #define MZ_FREE(x) (void)x, ((void)0)
   #define MZ_REALLOC(p, x) NULL
 #else
-  #define MZ_MALLOC(x) malloc(x)
-  #define MZ_FREE(x) free(x)
-  #define MZ_REALLOC(p, x) realloc(p, x)
+  #ifdef BOARD_HAS_PSRAM
+    #include "esp_spiram.h"
+    #include "soc/efuse_reg.h"
+    #include "esp_heap_caps.h"
+    #define MZ_MALLOC(x) heap_caps_malloc(x, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT)
+    #define MZ_FREE(x) free(x)
+    #define MZ_REALLOC(p, x) heap_caps_realloc(p, x, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT)
+  #else
+    #define MZ_MALLOC(x) malloc(x)
+    #define MZ_FREE(x) free(x)
+    #define MZ_REALLOC(p, x) realloc(p, x)
+  #endif
 #endif
 
 #define MZ_MAX(a,b) (((a)>(b))?(a):(b))
@@ -2331,7 +2340,12 @@ static MZ_FORCEINLINE void tdefl_find_match(tdefl_compressor *d, mz_uint lookahe
         if ((d->m_dict[probe_pos + match_len] == c0) && (d->m_dict[probe_pos + match_len - 1] == c1)) break;
       TDEFL_PROBE; TDEFL_PROBE; TDEFL_PROBE;
     }
-    if (!dist) break; p = s; q = d->m_dict + probe_pos; for (probe_len = 0; probe_len < max_match_len; probe_len++) if (*p++ != *q++) break;
+    if (!dist) break;
+    p = s; q = d->m_dict + probe_pos;
+    for (probe_len = 0; probe_len < max_match_len; probe_len++)
+    {
+      if (*p++ != *q++) break;
+    }
     if (probe_len > match_len)
     {
       *pMatch_dist = dist; if ((*pMatch_len = match_len = probe_len) == max_match_len) return;

@@ -691,6 +691,7 @@ namespace lgfx
 
     void readRect_impl(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, void* dst, pixelcopy_t* param) override
     {
+      startWrite();
       set_window(x, y, x + w - 1, y + h - 1, _panel->getCmdRamrd());
       auto len = w * h;
       start_read();
@@ -705,6 +706,7 @@ namespace lgfx
         read_pixels(dst, len, param);
       }
       end_read();
+      endWrite();
     }
 
     static std::uint_fast8_t reg_to_value(std::uint32_t raw_value)

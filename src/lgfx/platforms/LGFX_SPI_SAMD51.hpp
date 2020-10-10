@@ -825,10 +825,15 @@ void enableSPI()
           setWindow_impl(x, y, xr, y + h - 1);
           std::uint32_t i = (src_x + param->src_y * param->src_width) * bytes;
           auto src = &((const std::uint8_t*)param->src_data)[i];
-
-          if ((std::int32_t)param->src_width == w || h == 1) {
-            std::int32_t len = w * h * bytes;
-            write_bytes(src, len, use_dma);
+          if (static_cast<std::int32_t>(param->src_width) == w || h == 1) {
+            std::int32_t whb = w * h * bytes;
+            if (!use_dma && (32 < whb) && (whb <= 1024)) {
+              auto buf = get_dmabuffer(whb);
+              memcpy(buf, src, whb);
+              write_bytes(buf, whb, true);
+            } else {
+              write_bytes(src, whb, use_dma);
+            }
           } else {
             auto add = param->src_width * bytes;
             do {
@@ -885,52 +890,15 @@ void enableSPI()
     void write_pixels(std::int32_t length, pixelcopy_t* param)
     {
       const std::uint8_t bytes = _write_conv.bytes;
-      std::uint32_t buf;
-      auto *spi = &_sercom->SPI;
-
-      dc_h();
-      if (!spi->CTRLC.bit.DATA32B) {
-        while (spi->SYNCBUSY.reg);
-        spi->CTRLA.bit.ENABLE = 0;
-        spi->CTRLC.bit.DATA32B = 1;  // 4Byte transfer enable
-        spi->CTRLA.bit.ENABLE = 1;
-        while (spi->SYNCBUSY.reg);
-      }
-
-      if (bytes == 2) {
-        if (length & 0x01) {
-          spi->LENGTH.reg = 2 | SERCOM_SPI_LENGTH_LENEN;
-          param->fp_copy(&buf, 0, 1, param);
-          spi->DATA.reg = buf;
-          _need_wait = true;
-          --length;
-          if (!length) return;
-          while (spi->INTFLAG.bit.TXC == 0);
-        }
-        spi->LENGTH.reg = 0;
-        const std::uint32_t limit = 2;
-        param->fp_copy(&buf, 0, limit, param);
-        spi->DATA.reg = buf;
-        _need_wait = true;
-        if (0 == (length -= limit)) return;
-        do {
-          param->fp_copy(&buf, 0, limit, param);
-          while (spi->INTFLAG.bit.DRE == 0);
-          spi->DATA.reg = buf;
-        } while (length -= limit);
-      } else {
-        spi->LENGTH.reg = 3 | SERCOM_SPI_LENGTH_LENEN;
-        const std::uint32_t limit = 1;
-        param->fp_copy(&buf, 0, limit, param);
-        spi->DATA.reg = buf;
-        _need_wait = true;
-        if (0 == (length -= limit)) return;
-        do {
-          param->fp_copy(&buf, 0, limit, param);
-          while (spi->INTFLAG.bit.TXC == 0);
-          spi->DATA.reg = buf;
-        } while (length -= limit);
-      }
+      std::uint32_t limit = (bytes == 2) ? 16 : 12;
+      std::uint32_t len;
+      do {
+        len = ((length - 1) % limit) + 1;
+        if (limit <= 256) limit <<= 2;
+        auto dmabuf = get_dmabuffer(len * bytes);
+        param->fp_copy(dmabuf, 0, len, param);
+        write_bytes(dmabuf, len * bytes, true);
+      } while (length -= len);
     }
 
     void write_bytes(const std::uint8_t* data, std::int32_t length, bool use_dma = false)
@@ -1020,26 +988,30 @@ void enableSPI()
 
     void readRect_impl(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, void* dst, pixelcopy_t* param) override
     {
+      startWrite();
       set_window(x, y, x + w - 1, y + h - 1);
       auto len = w * h;
-      if (!_panel->spi_read) {
-        memset(dst, 0, len * _read_conv.bytes);
-        return;
+      if (!_panel->spi_read)
+      {
+        memset(dst, 0, len * param->dst_bits >> 3);
       }
-      write_cmd(_panel->getCmdRamrd());
-      std::uint32_t len_dummy_read_pixel = _panel->len_dummy_read_pixel;
-      start_read();
-      if (len_dummy_read_pixel) {;
-        write_data(0, len_dummy_read_pixel);
-      }
+      else
+      {
+        write_cmd(_panel->getCmdRamrd());
+        std::uint32_t len_dummy_read_pixel = _panel->len_dummy_read_pixel;
+        start_read();
+        if (len_dummy_read_pixel) {;
+          write_data(0, len_dummy_read_pixel);
+        }
 
-      if (param->no_convert) {
-        read_bytes((std::uint8_t*)dst, len * _read_conv.bytes);
-      } else {
-        read_pixels(dst, len, param);
+        if (param->no_convert) {
+          read_bytes((std::uint8_t*)dst, len * _read_conv.bytes);
+        } else {
+          read_pixels(dst, len, param);
+        }
+        end_read();
       }
-//*/
-      end_read();
+      endWrite();
     }
 
     void read_pixels(void* dst, std::int32_t length, pixelcopy_t* param)

@@ -35,15 +35,7 @@
 #include <stdint.h>
 #include <math.h>
 
-#if defined (ESP32) || defined (CONFIG_IDF_TARGET_ESP32) || defined (ESP_PLATFORM)
- #if ESP_IDF_VERSION_MAJOR > 3
-  #include <esp32/rom/miniz.h>
- #else
-  #include <rom/miniz.h>
- #endif
-#else
- #include "miniz.h"
-#endif
+#include "miniz.h"
 #include "lgfx_pngle.h"
 
 #ifndef MIN
