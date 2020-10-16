@@ -243,7 +243,7 @@ namespace lgfx
       std::uint32_t tr = (std::is_same<T, U>::value)
                        ? transparent
                        : get_fp_convert_src<U>(get_depth<T>::value, false)(transparent);
-      pixelcopy_t p(data, _write_conv.depth, get_depth<T>::value, hasPalette, nullptr, tr);
+      pixelcopy_t p(data, _write_conv.depth, get_depth<T>::value, hasPalette(), nullptr, tr);
       if (std::is_same<rgb565_t, T>::value || std::is_same<rgb888_t, T>::value) {
         if (std::is_same<rgb565_t, T>::value) {
           p.transp = getSwap16(tr);
@@ -256,6 +256,12 @@ namespace lgfx
       if (p.fp_copy==nullptr) { p.fp_copy = pixelcopy_t::get_fp_normalcopy<T>(_write_conv.depth); }
       if (p.fp_skip==nullptr) { p.fp_skip = pixelcopy_t::normalskip<T>; }
       pushImage(x, y, w, h, &p);
+    }
+
+    template<typename U>
+    void pushImage(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const std::uint8_t* data, const U& transparent)
+    {
+      pushImage(x, y, w, h, (const rgb332_t*)data, transparent);
     }
 
     template<typename U>
