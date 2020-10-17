@@ -52,7 +52,7 @@ otf2bdf 3.1(http://sofia.nmsu.edu/~mleisher/Software/otf2bdf/)
 https://github.com/olikraus/u8g2/blob/master/tools/font/bdfconv/bdfconv.exe
 https://github.com/olikraus/u8g2/blob/master/tools/font/build/japanese3.map
 
-上記を利用しています。
+上記のbdfconv.exeと、japanese3.mapを元に、文字を追加したja.mapを利用しています。
 
 ```
 bdfconv.exe -v -b 0 -f 1 -M "japanese3.map" ..\bdf\lgfx_font_japan_mincho_8.bdf    -o ..\output\lgfx_font_japan_mincho_8.c    -n lgfx_font_japan_mincho_8
