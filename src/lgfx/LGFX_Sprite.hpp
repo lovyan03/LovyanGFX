@@ -307,14 +307,14 @@ namespace lgfx
                          inline bool pushRotated(                float angle                 ) { return push_rotate_zoom(_parent, _parent->getPivotX(), _parent->getPivotY(), angle, 1.0f, 1.0f); }
                          inline bool pushRotated(LovyanGFX* dst, float angle                 ) { return push_rotate_zoom(dst    , dst    ->getPivotX(), dst    ->getPivotY(), angle, 1.0f, 1.0f); }
 
-    template<typename T> inline bool pushRotateZoom(                                                        float angle, float zoom_x, float zoom_y, const T& transp) { return push_rotate_zoom(_parent, _parent->getPivotX(), _parent->getPivotY(), angle, zoom_x, zoom_y, _write_conv.convert(transp) & _write_conv.colormask); }
-    template<typename T> inline bool pushRotateZoom(LovyanGFX* dst                                        , float angle, float zoom_x, float zoom_y, const T& transp) { return push_rotate_zoom(    dst,     dst->getPivotX(),     dst->getPivotY(), angle, zoom_x, zoom_y, _write_conv.convert(transp) & _write_conv.colormask); }
-    template<typename T> inline bool pushRotateZoom(                std::int32_t dst_x, std::int32_t dst_y, float angle, float zoom_x, float zoom_y, const T& transp) { return push_rotate_zoom(_parent,                dst_x,                dst_y, angle, zoom_x, zoom_y, _write_conv.convert(transp) & _write_conv.colormask); }
-    template<typename T> inline bool pushRotateZoom(LovyanGFX* dst, std::int32_t dst_x, std::int32_t dst_y, float angle, float zoom_x, float zoom_y, const T& transp) { return push_rotate_zoom(    dst,                dst_x,                dst_y, angle, zoom_x, zoom_y, _write_conv.convert(transp) & _write_conv.colormask); }
-                         inline bool pushRotateZoom(                                                        float angle, float zoom_x, float zoom_y)                  { return push_rotate_zoom(_parent, _parent->getPivotX(), _parent->getPivotY(), angle, zoom_x, zoom_y); }
-                         inline bool pushRotateZoom(LovyanGFX* dst                                        , float angle, float zoom_x, float zoom_y)                  { return push_rotate_zoom(    dst,     dst->getPivotX(),     dst->getPivotY(), angle, zoom_x, zoom_y); }
-                         inline bool pushRotateZoom(                std::int32_t dst_x, std::int32_t dst_y, float angle, float zoom_x, float zoom_y)                  { return push_rotate_zoom(_parent,                dst_x,                dst_y, angle, zoom_x, zoom_y); }
-                         inline bool pushRotateZoom(LovyanGFX* dst, std::int32_t dst_x, std::int32_t dst_y, float angle, float zoom_x, float zoom_y)                  { return push_rotate_zoom(    dst,                dst_x,                dst_y, angle, zoom_x, zoom_y); }
+    template<typename T> inline bool pushRotateZoom(                                          float angle, float zoom_x, float zoom_y, const T& transp) { return push_rotate_zoom(_parent, _parent->getPivotX(), _parent->getPivotY(), angle, zoom_x, zoom_y, _write_conv.convert(transp) & _write_conv.colormask); }
+    template<typename T> inline bool pushRotateZoom(LovyanGFX* dst                          , float angle, float zoom_x, float zoom_y, const T& transp) { return push_rotate_zoom(    dst,     dst->getPivotX(),     dst->getPivotY(), angle, zoom_x, zoom_y, _write_conv.convert(transp) & _write_conv.colormask); }
+    template<typename T> inline bool pushRotateZoom(                float dst_x, float dst_y, float angle, float zoom_x, float zoom_y, const T& transp) { return push_rotate_zoom(_parent,                dst_x,                dst_y, angle, zoom_x, zoom_y, _write_conv.convert(transp) & _write_conv.colormask); }
+    template<typename T> inline bool pushRotateZoom(LovyanGFX* dst, float dst_x, float dst_y, float angle, float zoom_x, float zoom_y, const T& transp) { return push_rotate_zoom(    dst,                dst_x,                dst_y, angle, zoom_x, zoom_y, _write_conv.convert(transp) & _write_conv.colormask); }
+                         inline bool pushRotateZoom(                                          float angle, float zoom_x, float zoom_y)                  { return push_rotate_zoom(_parent, _parent->getPivotX(), _parent->getPivotY(), angle, zoom_x, zoom_y); }
+                         inline bool pushRotateZoom(LovyanGFX* dst                          , float angle, float zoom_x, float zoom_y)                  { return push_rotate_zoom(    dst,     dst->getPivotX(),     dst->getPivotY(), angle, zoom_x, zoom_y); }
+                         inline bool pushRotateZoom(                float dst_x, float dst_y, float angle, float zoom_x, float zoom_y)                  { return push_rotate_zoom(_parent,                dst_x,                dst_y, angle, zoom_x, zoom_y); }
+                         inline bool pushRotateZoom(LovyanGFX* dst, float dst_x, float dst_y, float angle, float zoom_x, float zoom_y)                  { return push_rotate_zoom(    dst,                dst_x,                dst_y, angle, zoom_x, zoom_y); }
 
 //----------------------------------------------------------------------------
 //----------------------------------------------------------------------------
@@ -600,7 +600,7 @@ namespace lgfx
       dst->pushImage(x, y, _width, _height, &p, !_disable_memcpy); // DMA disable with use SPIRAM
     }
 
-    inline bool push_rotate_zoom(LovyanGFX* dst, std::int32_t x, std::int32_t y, float angle, float zoom_x, float zoom_y, std::uint32_t transp = ~0)
+    inline bool push_rotate_zoom(LovyanGFX* dst, float x, float y, float angle, float zoom_x, float zoom_y, std::uint32_t transp = ~0)
     {
       return dst->pushImageRotateZoom(x, y, _xpivot, _ypivot, _width, _height, angle, zoom_x, zoom_y, _img, transp, getColorDepth(), _palette.img24());
     }
@@ -609,17 +609,22 @@ namespace lgfx
     {
       if (xs > xe) std::swap(xs, xe);
       if (ys > ye) std::swap(ys, ye);
-      if ((xe < 0) || (ye < 0) || (xs >= _width) || (ys >= _height))
+      if ((xe >= 0) && (ye >= 0) && (xs < _width) && (ys < _height))
       {
-        _xptr = _xs = _xe = 0;
-        _yptr = _ys = _ye = _height;
-      } else {
-        _xptr = _xs = (xs < 0) ? 0 : xs;
-        _yptr = _ys = (ys < 0) ? 0 : ys;
+        xs = std::max<std::int32_t>(xs, 0);
+        ys = std::max<std::int32_t>(ys, 0);
+        _xptr = _xs = xs;
+        _yptr = _ys = ys;
+        _index = xs + ys * _bitwidth;
         _xe = std::min(xe, _width  - 1);
         _ye = std::min(ye, _height - 1);
       }
-      _index = xs + ys * _bitwidth;
+      else 
+      {
+        _xptr = _xs = _xe = 0;
+        _yptr = _ys = _ye = _height;
+        _index = _height * _bitwidth;
+      }
     }
 
     void setWindow_impl(std::int32_t xs, std::int32_t ys, std::int32_t xe, std::int32_t ye) override
@@ -817,7 +822,7 @@ return;
     {
       if (_write_conv.bits < 8) {
         pixelcopy_t param(_img, _write_conv.depth, _write_conv.depth);
-        param.src_width = _bitwidth;
+        param.src_bitwidth = _bitwidth;
         std::int32_t add_y = (src_y < dst_y) ? -1 : 1;
         if (src_y != dst_y) {
           if (src_y < dst_y) {
@@ -883,7 +888,7 @@ return;
           d += w * b;
         } while (++y != h);
       } else {
-        param->src_width = _bitwidth;
+        param->src_bitwidth = _bitwidth;
         param->src_data = _img;
         std::int32_t dstindex = 0;
         do {
@@ -905,7 +910,7 @@ return;
         if (0 == (bits & 7) || ((sx & mask) == (x & mask) && (w == this->_width || 0 == (w & mask)))) {
           auto bw = _bitwidth * bits >> 3;
           auto dd = &_img[bw * y];
-          auto sw = param->src_width * bits >> 3;
+          auto sw = param->src_bitwidth * bits >> 3;
           auto sd = &((std::uint8_t*)param->src_data)[param->src_y * sw];
           if (sw == bw && this->_width == w && sx == 0 && x == 0) {
             memcpy(dd, sd, bw * h);
@@ -939,7 +944,7 @@ return;
       auto k = _bitwidth * _write_conv.bits >> 3;
       std::int32_t linelength;
       do {
-        linelength = std::min<int>(_xe - _xptr + 1, length);
+        linelength = std::min<std::int32_t>(_xe - _xptr + 1, length);
         auto len = linelength * _write_conv.bits >> 3;
         memcpy(&_img.img8()[(_xptr * _write_conv.bits >> 3) + _yptr * k], src, len);
         src += len;
@@ -952,7 +957,7 @@ return;
       auto k = _bitwidth * _write_conv.bits >> 3;
       std::int32_t linelength;
       do {
-        linelength = std::min(_xe - _xptr + 1, length);
+        linelength = std::min<std::int32_t>(_xe - _xptr + 1, length);
         param->fp_copy(&_img.img8()[_yptr * k], _xptr, _xptr + linelength, param);
         ptr_advance(linelength);
       } while (length -= linelength);

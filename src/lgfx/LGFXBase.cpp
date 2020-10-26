@@ -760,16 +760,16 @@ namespace lgfx
       float f3 = t * t;
       float f2 = tr * f3 * 3;
       f3 = f3 * t;
-      x1 = round( fx0 * f0 + fx1 * f1 + fx2 * f2 + fx3 * f3);
-      y1 = round( fy0 * f0 + fy1 * f1 + fy2 * f2 + fy3 * f3);
+      x1 = roundf( fx0 * f0 + fx1 * f1 + fx2 * f2 + fx3 * f3);
+      y1 = roundf( fy0 * f0 + fy1 * f1 + fy2 * f2 + fy3 * f3);
       if (x0 != x1 || y0 != y1) {
         drawLine(x0, y0, x1, y1);
 //drawCircle(x1, y1, 3);
         x0 = x1;
         y0 = y1;
       }
-      x2 = round( fx0 * f3 + fx1 * f2 + fx2 * f1 + fx3 * f0);
-      y2 = round( fy0 * f3 + fy1 * f2 + fy2 * f1 + fy3 * f0);
+      x2 = roundf( fx0 * f3 + fx1 * f2 + fx2 * f1 + fx3 * f0);
+      y2 = roundf( fy0 * f3 + fy1 * f2 + fy2 * f1 + fy3 * f0);
       if (x3 != x2 || y3 != y2) {
         drawLine(x3, y3, x2, y2);
 //drawCircle(x2, y2, 3);
@@ -1059,14 +1059,14 @@ namespace lgfx
 
   void LGFXBase::pushImage(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, pixelcopy_t *param, bool use_dma)
   {
-    param->src_width = w;
+    param->src_bitwidth = w;
     if (param->src_bits < 8) {        // get bitwidth
 //      std::uint32_t x_mask = (1 << (4 - __builtin_ffs(param->src_bits))) - 1;
 //      std::uint32_t x_mask = (1 << ((~(param->src_bits>>1)) & 3)) - 1;
       std::uint32_t x_mask = (param->src_bits == 1) ? 7
                            : (param->src_bits == 2) ? 3
                                                     : 1;
-      param->src_width = (w + x_mask) & (~x_mask);
+      param->src_bitwidth = (w + x_mask) & (~x_mask);
     }
 
     std::int32_t dx=0, dw=w;
@@ -1086,107 +1086,107 @@ namespace lgfx
     endWrite();
   }
 
-  bool LGFXBase::pushImageRotateZoom(std::int32_t dst_x, std::int32_t dst_y, std::int32_t src_x, std::int32_t src_y, std::int32_t w, std::int32_t h, float angle, float zoom_x, float zoom_y, const void* data, std::uint32_t transparent, const std::uint8_t bits, const bgr888_t* palette)
+  bool LGFXBase::pushImageRotateZoom(float dst_x, float dst_y, float src_x, float src_y, std::int32_t w, std::int32_t h, float angle, float zoom_x, float zoom_y, const void* data, std::uint32_t transparent, const std::uint8_t bits, const bgr888_t* palette)
   {
     if (nullptr == data) return false;
-    if (zoom_x == 0.0 || zoom_y == 0.0) return true;
+
     pixelcopy_t pc(data, getColorDepth(), (color_depth_t)bits, hasPalette(), palette, transparent );
-    push_image_rotate_zoom(dst_x, dst_y, src_x, src_y, w, h, angle, zoom_x, zoom_y, &pc);
+    pc.no_convert = false;
+    pc.src_bitwidth = w;
+    pc.src_width = w;
+    pc.src_height = h;
+    if (pc.src_bits < 8) {
+      std::uint32_t x_mask = (pc.src_bits == 1) ? 7
+                           : (pc.src_bits == 2) ? 3
+                                                : 1;
+      pc.src_bitwidth = (w + x_mask) & (~x_mask);
+    }
+    float affine_matrix[6];
+    make_rotation_matrix(affine_matrix, dst_x + 0.5, dst_y + 0.5, src_x + 0.5, src_y + 0.5, angle, zoom_x, zoom_y);
+    push_image_affine(affine_matrix, &pc);
     return true;
   }
 
-  void LGFXBase::push_image_rotate_zoom(std::int32_t dst_x, std::int32_t dst_y, std::int32_t src_x, std::int32_t src_y, std::int32_t w, std::int32_t h, float angle, float zoom_x, float zoom_y, pixelcopy_t *param)
+  void LGFXBase::make_rotation_matrix(float* result, float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y)
   {
-    angle *= - deg_to_rad; // Convert degrees to radians
-    float sin_f = sin(angle) * (1 << FP_SCALE);
-    float cos_f = cos(angle) * (1 << FP_SCALE);
-    std::int32_t min_y, max_y;
+    float rad = fmodf(angle, 360) * deg_to_rad;
+    float sin_f = sin(rad);
+    float cos_f = cos(rad);
+    result[0] =  cos_f * zoom_x;
+    result[1] = -sin_f * zoom_x;
+    result[2] =  dst_x - src_x * result[0] - src_y * result[1];
+    result[3] =  sin_f * zoom_y;
+    result[4] =  cos_f * zoom_y;
+    result[5] =  dst_y - src_x * result[3] - src_y * result[4];
+  }
+
+  static bool make_invert_affine32(std::int32_t iA[6], float affine[6])
+  {
+    float det = affine[0] * affine[4] - affine[1] * affine[3];
+    if (det == 0.0) return false;
+    iA[0] = roundf((1 << FP_SCALE) * affine[4] / det);
+    iA[1] = roundf((1 << FP_SCALE) *-affine[1] / det);
+    iA[2] = roundf((1 << FP_SCALE) *(affine[1] * affine[5] - affine[2] * affine[4]) / det);
+    iA[3] = roundf((1 << FP_SCALE) *-affine[3] / det);
+    iA[4] = roundf((1 << FP_SCALE) * affine[0] / det);
+    iA[5] = roundf((1 << FP_SCALE) *(affine[2] * affine[3] - affine[0] * affine[5]) / det);
+    return true;
+  }
+
+  void LGFXBase::push_image_affine(float* affine, pixelcopy_t *pc)
+  {
+    std::int32_t min_y = affine[3] * (pc->src_width  << FP_SCALE);
+    std::int32_t max_y = affine[4] * (pc->src_height << FP_SCALE);
+    if ((min_y < 0) == (max_y < 0))
     {
-      std::int32_t sinra = round(sin_f * zoom_x);
-      std::int32_t cosra = round(cos_f * zoom_y);
-      std::int32_t wp = (src_x - w) * sinra;
-      std::int32_t sx = (src_x + 1) * sinra;
-      std::int32_t hp = (h - src_y) * cosra;
-      std::int32_t sy = (-1 -src_y) * cosra;
-      std::int32_t tmp;
-      if ((sinra < 0) == (cosra < 0)) {
-        min_y = max_y = wp + sy;
-        tmp           = sx + hp;
-      } else {
-        min_y = max_y = sx + sy;
-        tmp           = wp + hp;
-      }
-      if (tmp < min_y) {
-        min_y = tmp;
-      } else {
-        max_y = tmp;
-      }
+      max_y += min_y;
+      min_y = 0;
+    }
+    if (min_y > max_y) std::swap(min_y, max_y);
+    {
+      std::int32_t offset_y32 = affine[5] * (1 << FP_SCALE);
+      min_y = std::max(_clip_t, (offset_y32 + min_y) >> FP_SCALE);
+      max_y = std::min(_clip_b, (offset_y32 + max_y) >> FP_SCALE) + 1;
     }
 
-    max_y = std::min(_clip_b, ((max_y + (1 << (FP_SCALE - 1))) >> FP_SCALE) + dst_y) + 1;
-    min_y = std::max(_clip_t, ((min_y + (1 << (FP_SCALE - 1))) >> FP_SCALE) + dst_y);
     if (min_y >= max_y) return;
 
-    param->no_convert = false;
-    if (param->src_bits < 8) {        // get bitwidth
-//      std::uint32_t x_mask = (1 << (4 - __builtin_ffs(param->src_bits))) - 1;
-//      std::uint32_t x_mask = (1 << ((~(param->src_bits>>1)) & 3)) - 1;
-      std::uint32_t x_mask = (param->src_bits == 1) ? 7
-                           : (param->src_bits == 2) ? 3
-                                                    : 1;
-      param->src_width = (w + x_mask) & (~x_mask);
-    } else {
-      param->src_width = w;
-    }
+    std::int32_t iA[6];
+    if (!make_invert_affine32(iA, affine)) return;
 
-    std::int32_t xt =       - dst_x;
-    std::int32_t yt = min_y - dst_y - 1;
+    pc->src_x32_add = iA[0];
+    pc->src_y32_add = iA[3];
 
-    std::int32_t cos_x = round(cos_f / zoom_x);
-    param->src_x32_add = cos_x;
-    std::int32_t sin_x = - round(sin_f / zoom_x);
-    std::int32_t xstart = cos_x * xt + sin_x * yt + (src_x << FP_SCALE) + (1 << (FP_SCALE - 1));
-    std::int32_t scale_w = w << FP_SCALE;
-    std::int32_t xs1 = (cos_x < 0 ?   - scale_w :   1) - cos_x;
-    std::int32_t xs2 = (cos_x < 0 ? 0 : (1 - scale_w)) - cos_x;
-//    if (cos_x == 0) cos_x = 1;
-    cos_x = -cos_x;
+    std::int32_t offset = (min_y << 1) - 1;
+    iA[2] += ((iA[0] + iA[1] * offset) >> 1);
+    iA[5] += ((iA[3] + iA[4] * offset) >> 1);
 
-    std::int32_t sin_y = round(sin_f / zoom_y);
-    param->src_y32_add = sin_y;
-    std::int32_t cos_y = round(cos_f / zoom_y);
-    std::int32_t ystart = sin_y * xt + cos_y * yt + (src_y << FP_SCALE) + (1 << (FP_SCALE - 1));
-    std::int32_t scale_h = h << FP_SCALE;
-    std::int32_t ys1 = (sin_y < 0 ?   - scale_h :   1) - sin_y;
-    std::int32_t ys2 = (sin_y < 0 ? 0 : (1 - scale_h)) - sin_y;
-//    if (sin_y == 0) sin_y = 1;
-    sin_y = -sin_y;
+    std::int32_t scale_w = pc->src_width << FP_SCALE;
+    std::int32_t xs1 = (iA[0] < 0 ?   - scale_w :   1) - iA[0];
+    std::int32_t xs2 = (iA[0] < 0 ? 0 : (1 - scale_w)) - iA[0];
 
-    std::int32_t cl = _clip_l;
+    std::int32_t scale_h = pc->src_height << FP_SCALE;
+    std::int32_t ys1 = (iA[3] < 0 ?   - scale_h :   1) - iA[3];
+    std::int32_t ys2 = (iA[3] < 0 ? 0 : (1 - scale_h)) - iA[3];
+
+    std::int32_t cl = _clip_l    ;
     std::int32_t cr = _clip_r + 1;
+
+    std::int32_t div1 = iA[0] ? - iA[0] : -1;
+    std::int32_t div2 = iA[3] ? - iA[3] : -1;
 
     startWrite();
     do {
-      std::int32_t left = cl;
-      std::int32_t right = cr;
-      xstart += sin_x;
-      if (cos_x != 0)
-      {
-        std::int32_t tmp = (xstart + xs1) / cos_x; if (left  < tmp) left  = tmp;
-                     tmp = (xstart + xs2) / cos_x; if (right > tmp) right = tmp;
-      }
-      ystart += cos_y;
-      if (sin_y != 0)
-      {
-        std::int32_t tmp = (ystart + ys1) / sin_y; if (left  < tmp) left  = tmp;
-                     tmp = (ystart + ys2) / sin_y; if (right > tmp) right = tmp;
-      }
+      iA[2] += iA[1];
+      iA[5] += iA[4];
+      std::int32_t left  = std::max(cl, std::max((iA[2] + xs1) / div1, (iA[5] + ys1) / div2));
+      std::int32_t right = std::min(cr, std::min((iA[2] + xs2) / div1, (iA[5] + ys2) / div2));
       if (left < right) {
-        param->src_x32 = xstart - left * cos_x;
-        if (static_cast<std::uint16_t>(param->src_x) < param->src_width) {
-          param->src_y32 = ystart - left * sin_y;
-          if (static_cast<std::uint16_t>(param->src_y) < h) {
-            pushImage_impl(left, min_y, right - left, 1, param, true);
+        pc->src_x32 = iA[2] + left * iA[0];
+        if (static_cast<std::uint32_t>(pc->src_x) < pc->src_width) {
+          pc->src_y32 = iA[5] + left * iA[3];
+          if (static_cast<std::uint32_t>(pc->src_y) < pc->src_height) {
+            pushImage_impl(left, min_y, right - left, 1, pc, true);
           }
         }
       }

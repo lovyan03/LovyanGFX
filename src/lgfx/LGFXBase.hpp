@@ -139,9 +139,9 @@ namespace lgfx
     __attribute__ ((always_inline)) inline static std::uint16_t swap565( std::uint8_t r, std::uint8_t g, std::uint8_t b) { return lgfx::swap565( r, g, b); }
     __attribute__ ((always_inline)) inline static std::uint32_t swap888( std::uint8_t r, std::uint8_t g, std::uint8_t b) { return lgfx::swap888( r, g, b); }
 
-    __attribute__ ((always_inline)) inline void setPivot(std::int16_t x, std::int16_t y) { _xpivot = x; _ypivot = y; }
-    __attribute__ ((always_inline)) inline std::int16_t getPivotX(void) const { return _xpivot; }
-    __attribute__ ((always_inline)) inline std::int16_t getPivotY(void) const { return _ypivot; }
+    __attribute__ ((always_inline)) inline void setPivot(float x, float y) { _xpivot = x; _ypivot = y; }
+    __attribute__ ((always_inline)) inline float getPivotX(void) const { return _xpivot; }
+    __attribute__ ((always_inline)) inline float getPivotY(void) const { return _ypivot; }
 
     __attribute__ ((always_inline)) inline std::int32_t width        (void) const { return _width; }
     __attribute__ ((always_inline)) inline std::int32_t height       (void) const { return _height; }
@@ -322,7 +322,7 @@ namespace lgfx
 
     void pushImage(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, pixelcopy_t *param, bool use_dma = false);
 
-    bool pushImageRotateZoom(std::int32_t dst_x, std::int32_t dst_y, std::int32_t src_x, std::int32_t src_y, std::int32_t w, std::int32_t h, float angle, float zoom_x, float zoom_y, const void* data, std::uint32_t transparent, const std::uint8_t bits, const bgr888_t* palette);
+    bool pushImageRotateZoom(float dst_x, float dst_y, float src_x, float src_y, std::int32_t w, std::int32_t h, float angle, float zoom_x, float zoom_y, const void* data, std::uint32_t transparent, const std::uint8_t bits, const bgr888_t* palette);
 
     /// read RGB565 16bit color
     std::uint16_t readPixel(std::int32_t x, std::int32_t y)
@@ -643,8 +643,8 @@ namespace lgfx
 
     std::uint32_t _palette_count = 0;
 
-    std::int16_t _xpivot;   // x pivot point coordinate
-    std::int16_t _ypivot;   // x pivot point coordinate
+    float _xpivot;   // x pivot point coordinate
+    float _ypivot;   // x pivot point coordinate
 
     bool _spi_shared = true;
     bool _swapBytes = false;
@@ -683,13 +683,15 @@ namespace lgfx
       return (dw <= 0);
     }
 
+    static void make_rotation_matrix(float* result, float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y);
+
     void writeRawColor( std::uint32_t color, std::int32_t length) { if (0 >= length) return; setRawColor(color); pushBlock_impl(length); }
     void read_rect(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, void* dst, pixelcopy_t* param);
     void draw_gradient_line( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, uint32_t colorstart, uint32_t colorend );
     void fill_arc_helper(std::int32_t cx, std::int32_t cy, std::int32_t oradius, std::int32_t iradius, float start, float end);
     void draw_bitmap(std::int32_t x, std::int32_t y, const std::uint8_t *bitmap, std::int32_t w, std::int32_t h, std::uint32_t fg_rawcolor, std::uint32_t bg_rawcolor = ~0u);
     void draw_xbitmap(std::int32_t x, std::int32_t y, const std::uint8_t *bitmap, std::int32_t w, std::int32_t h, std::uint32_t fg_rawcolor, std::uint32_t bg_rawcolor = ~0u);
-    void push_image_rotate_zoom(std::int32_t dst_x, std::int32_t dst_y, std::int32_t src_x, std::int32_t src_y, std::int32_t w, std::int32_t h, float angle, float zoom_x, float zoom_y, pixelcopy_t *param);
+    void push_image_affine(float* affine, pixelcopy_t *pc);
     void draw_bezier_helper(std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2);
 
     std::uint16_t decodeUTF8(std::uint8_t c);
