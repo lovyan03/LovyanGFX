@@ -325,6 +325,9 @@ namespace lgfx
     bool pushImageRotateZoom(float dst_x, float dst_y, float src_x, float src_y, std::int32_t w, std::int32_t h, float angle, float zoom_x, float zoom_y, const void* data, std::uint32_t transparent, const std::uint8_t bits, const bgr888_t* palette);
     bool pushImageRotateZoomA(float dst_x, float dst_y, float src_x, float src_y, std::int32_t w, std::int32_t h, float angle, float zoom_x, float zoom_y, const void* data, std::uint32_t transparent, const std::uint8_t bits, const bgr888_t* palette);
 
+    bool pushImageAffine(float matrix[6], const void* data, std::int32_t w, std::int32_t h, std::uint32_t transparent, const std::uint8_t bits, const bgr888_t* palette);
+    bool pushImageAffineA(float matrix[6], const void* data, std::int32_t w, std::int32_t h, std::uint32_t transparent, const std::uint8_t bits, const bgr888_t* palette);
+
     /// read RGB565 16bit color
     std::uint16_t readPixel(std::int32_t x, std::int32_t y)
     {

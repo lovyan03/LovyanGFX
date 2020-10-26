@@ -1088,6 +1088,13 @@ namespace lgfx
 
   bool LGFXBase::pushImageRotateZoom(float dst_x, float dst_y, float src_x, float src_y, std::int32_t w, std::int32_t h, float angle, float zoom_x, float zoom_y, const void* data, std::uint32_t transparent, const std::uint8_t bits, const bgr888_t* palette)
   {
+    float affine_matrix[6];
+    make_rotation_matrix(affine_matrix, dst_x + 0.5, dst_y + 0.5, src_x + 0.5, src_y + 0.5, angle, zoom_x, zoom_y);
+    return pushImageAffine(affine_matrix, data, w, h, transparent, bits, palette);
+  }
+
+  bool LGFXBase::pushImageAffine(float matrix[6], const void* data, std::int32_t w, std::int32_t h, std::uint32_t transparent, const std::uint8_t bits, const bgr888_t* palette)
+  {
     if (nullptr == data) return false;
 
     pixelcopy_t pc(data, getColorDepth(), (color_depth_t)bits, hasPalette(), palette, transparent );
@@ -1101,13 +1108,18 @@ namespace lgfx
                                                 : 1;
       pc.src_bitwidth = (w + x_mask) & (~x_mask);
     }
-    float affine_matrix[6];
-    make_rotation_matrix(affine_matrix, dst_x + 0.5, dst_y + 0.5, src_x + 0.5, src_y + 0.5, angle, zoom_x, zoom_y);
-    push_image_affine(affine_matrix, &pc);
+    push_image_affine(matrix, &pc);
     return true;
   }
 
   bool LGFXBase::pushImageRotateZoomA(float dst_x, float dst_y, float src_x, float src_y, std::int32_t w, std::int32_t h, float angle, float zoom_x, float zoom_y, const void* data, std::uint32_t transparent, const std::uint8_t bits, const bgr888_t* palette)
+  {
+    float affine_matrix[6];
+    make_rotation_matrix(affine_matrix, dst_x + 0.5, dst_y + 0.5, src_x + 0.5, src_y + 0.5, angle, zoom_x, zoom_y);
+    return pushImageAffineA(affine_matrix, data, w, h, transparent, bits, palette);
+  }
+
+  bool LGFXBase::pushImageAffineA(float matrix[6], const void* data, std::int32_t w, std::int32_t h, std::uint32_t transparent, const std::uint8_t bits, const bgr888_t* palette)
   {
     if (nullptr == data) return false;
 
@@ -1166,9 +1178,7 @@ namespace lgfx
         pc2.fp_copy = pixelcopy_t::blend_rgb_fast<rgb332_t>;
       }
     }
-    float affine_matrix[6];
-    make_rotation_matrix(affine_matrix, dst_x + 0.5, dst_y + 0.5, src_x + 0.5, src_y + 0.5, angle, zoom_x, zoom_y);
-    push_image_affine_a(affine_matrix, &pc1, &pc2);
+    push_image_affine_a(matrix, &pc1, &pc2);
     return true;
   }
 

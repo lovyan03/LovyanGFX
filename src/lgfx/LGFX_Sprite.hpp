@@ -325,6 +325,15 @@ namespace lgfx
                          bool pushRotateZoomA(                float dst_x, float dst_y, float angle, float zoom_x, float zoom_y)                  { return push_rotate_zoom_a(_parent,                dst_x,                dst_y, angle, zoom_x, zoom_y); }
                          bool pushRotateZoomA(LovyanGFX* dst, float dst_x, float dst_y, float angle, float zoom_x, float zoom_y)                  { return push_rotate_zoom_a(    dst,                dst_x,                dst_y, angle, zoom_x, zoom_y); }
 
+    template<typename T> void pushAffine (                float matrix[6], const T& transp) { push_affine  (_parent, matrix, _write_conv.convert(transp) & _write_conv.colormask); }
+    template<typename T> void pushAffine (LovyanGFX* dst, float matrix[6], const T& transp) { push_affine  (    dst, matrix, _write_conv.convert(transp) & _write_conv.colormask); }
+                         void pushAffine (                float matrix[6])                  { push_affine  (_parent, matrix); } 
+                         void pushAffine (LovyanGFX* dst, float matrix[6])                  { push_affine  (    dst, matrix); } 
+    template<typename T> void pushAffineA(                float matrix[6], const T& transp) { push_affine_a(_parent, matrix, _write_conv.convert(transp) & _write_conv.colormask); }
+    template<typename T> void pushAffineA(LovyanGFX* dst, float matrix[6], const T& transp) { push_affine_a(    dst, matrix, _write_conv.convert(transp) & _write_conv.colormask); }
+                         void pushAffineA(                float matrix[6])                  { push_affine_a(_parent, matrix); } 
+                         void pushAffineA(LovyanGFX* dst, float matrix[6])                  { push_affine_a(    dst, matrix); } 
+
 //----------------------------------------------------------------------------
 //----------------------------------------------------------------------------
 
@@ -619,6 +628,16 @@ namespace lgfx
     inline bool push_rotate_zoom_a(LovyanGFX* dst, float x, float y, float angle, float zoom_x, float zoom_y, std::uint32_t transp = ~0)
     {
       return dst->pushImageRotateZoomA(x, y, _xpivot, _ypivot, _width, _height, angle, zoom_x, zoom_y, _img, transp, getColorDepth(), _palette.img24());
+    }
+
+    inline bool push_affine(LovyanGFX* dst, float matrix[6], std::uint32_t transp = ~0)
+    {
+      return dst->pushImageAffine(matrix, _img, _width, _height, transp, getColorDepth(), _palette.img24());
+    }
+
+    inline bool push_affine_a(LovyanGFX* dst, float matrix[6], std::uint32_t transp = ~0)
+    {
+      return dst->pushImageAffineA(matrix, _img, _width, _height, transp, getColorDepth(), _palette.img24());
     }
 
     void set_window(std::int32_t xs, std::int32_t ys, std::int32_t xe, std::int32_t ye)
