@@ -992,7 +992,7 @@ namespace lgfx
     pixelcopy_t p(data, _write_conv.depth, rgb565_2Byte, _palette_count);
     if (swap && !_palette_count && _write_conv.depth >= 8) {
       p.no_convert = false;
-      p.fp_copy = pixelcopy_t::get_fp_normalcopy<rgb565_t>(_write_conv.depth);
+      p.fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<rgb565_t>(_write_conv.depth);
     }
     writePixels_impl(len, &p);
   }
@@ -1002,7 +1002,7 @@ namespace lgfx
     pixelcopy_t p(data, _write_conv.depth, rgb888_3Byte, _palette_count);
     if (swap && !_palette_count && _write_conv.depth >= 8) {
       p.no_convert = false;
-      p.fp_copy = pixelcopy_t::get_fp_normalcopy<rgb888_t>(_write_conv.depth);
+      p.fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<rgb888_t>(_write_conv.depth);
     }
     writePixels_impl(len, &p);
   }
@@ -1042,7 +1042,7 @@ namespace lgfx
       pixelcopy_t p(data, _write_conv.depth, rgb565_2Byte, _palette_count, nullptr);
       if (_swapBytes && !_palette_count && _write_conv.depth >= 8) {
         p.no_convert = false;
-        p.fp_copy = pixelcopy_t::get_fp_normalcopy<rgb565_t>(_write_conv.depth);
+        p.fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<rgb565_t>(_write_conv.depth);
       }
       pushImage(x, y, w, h, &p, true);
     }
@@ -1052,7 +1052,7 @@ namespace lgfx
       pixelcopy_t p(data, _write_conv.depth, rgb888_3Byte, _palette_count, nullptr);
       if (_swapBytes && !_palette_count && _write_conv.depth >= 8) {
         p.no_convert = false;
-        p.fp_copy = pixelcopy_t::get_fp_normalcopy<rgb888_t>(_write_conv.depth);
+        p.fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<rgb888_t>(_write_conv.depth);
       }
       pushImage(x, y, w, h, &p, true);
     }
@@ -1183,9 +1183,9 @@ namespace lgfx
       }
       if (left < right) {
         param->src_x32 = xstart - left * cos_x;
-        if (param->src_x < param->src_width) {
+        if (static_cast<std::uint16_t>(param->src_x) < param->src_width) {
           param->src_y32 = ystart - left * sin_y;
-          if (param->src_y < h) {
+          if (static_cast<std::uint16_t>(param->src_y) < h) {
             pushImage_impl(left, min_y, right - left, 1, param, true);
           }
         }
@@ -1204,7 +1204,7 @@ namespace lgfx
     pixelcopy_t p(nullptr, swap565_t::depth, _read_conv.depth, false, getPalette());
     if (_swapBytes && !_palette_count && _read_conv.depth >= 8) {
       p.no_convert = false;
-      p.fp_copy = pixelcopy_t::get_fp_normalcopy_dst<rgb565_t>(_read_conv.depth);
+      p.fp_copy = pixelcopy_t::get_fp_copy_rgb_fast_dst<rgb565_t>(_read_conv.depth);
     }
     read_rect(x, y, w, h, data, &p);
   }
@@ -1213,7 +1213,7 @@ namespace lgfx
     pixelcopy_t p(nullptr, bgr888_t::depth, _read_conv.depth, false, getPalette());
     if (_swapBytes && !_palette_count && _read_conv.depth >= 8) {
       p.no_convert = false;
-      p.fp_copy = pixelcopy_t::get_fp_normalcopy_dst<rgb888_t>(_read_conv.depth);
+      p.fp_copy = pixelcopy_t::get_fp_copy_rgb_fast_dst<rgb888_t>(_read_conv.depth);
     }
     read_rect(x, y, w, h, data, &p);
   }
@@ -1299,11 +1299,11 @@ namespace lgfx
     pixelcopy_t p;
     p.transp = _read_conv.convert(lgfx::color888(target.r, target.g, target.b));
     switch (_read_conv.depth) {
-    case 24: p.fp_copy = pixelcopy_t::normalcompare<bgr888_t>;  break;
-    case 18: p.fp_copy = pixelcopy_t::normalcompare<bgr666_t>;  break;
-    case 16: p.fp_copy = pixelcopy_t::normalcompare<swap565_t>; break;
-    case  8: p.fp_copy = pixelcopy_t::normalcompare<rgb332_t>;  break;
-    default: p.fp_copy = pixelcopy_t::bitcompare;
+    case 24: p.fp_copy = pixelcopy_t::compare_rgb_fast<bgr888_t>;  break;
+    case 18: p.fp_copy = pixelcopy_t::compare_rgb_fast<bgr666_t>;  break;
+    case 16: p.fp_copy = pixelcopy_t::compare_rgb_fast<swap565_t>; break;
+    case  8: p.fp_copy = pixelcopy_t::compare_rgb_fast<rgb332_t>;  break;
+    default: p.fp_copy = pixelcopy_t::compare_bit_fast;
       p.src_bits = _read_conv.depth;
       p.src_mask = (1 << p.src_bits) - 1;
       p.transp &= p.src_mask;
@@ -1417,7 +1417,7 @@ namespace lgfx
       return res;
     }
 
-    static char* floatToStr(double number, char* buf, std::size_t buflen, std::uint8_t digits)
+    static char* floatToStr(double number, char* buf, std::size_t /*buflen*/, std::uint8_t digits)
     {
       if (std::isnan(number))    { return strcpy(buf, "nan"); }
       if (std::isinf(number))    { return strcpy(buf, "inf"); }
@@ -1953,14 +1953,14 @@ namespace lgfx
     pixelcopy_t p(lineBuffer, dst_depth, (color_depth_t)bpp, this->_palette_count, palette);
     p.no_convert = false;
     if (8 >= bpp && !this->_palette_count) {
-      p.fp_copy = pixelcopy_t::get_fp_palettecopy<argb8888_t>(dst_depth);
+      p.fp_copy = pixelcopy_t::get_fp_copy_palette_affine<argb8888_t>(dst_depth);
     } else {
       if (bpp == 16) {
-        p.fp_copy = pixelcopy_t::get_fp_normalcopy<rgb565_t>(dst_depth);
+        p.fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<rgb565_t>(dst_depth);
       } else if (bpp == 24) {
-        p.fp_copy = pixelcopy_t::get_fp_normalcopy<rgb888_t>(dst_depth);
+        p.fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<rgb888_t>(dst_depth);
       } else if (bpp == 32) {
-        p.fp_copy = pixelcopy_t::get_fp_normalcopy<argb8888_t>(dst_depth);
+        p.fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<argb8888_t>(dst_depth);
       }
     }
 

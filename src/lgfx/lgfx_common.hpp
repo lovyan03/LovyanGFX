@@ -744,17 +744,16 @@ namespace lgfx
 
   struct pixelcopy_t {
     union {
-      std::uint32_t src_x32 = 0;
+      std::uint32_t positions[2] = {0};
       struct {
-        std::uint16_t src_xl;
-        std::uint16_t src_x;
+        std::uint32_t src_x32;
+        std::uint32_t src_y32;
       };
-    };
-    union {
-      std::uint32_t src_y32 = 0;
       struct {
-        std::uint16_t src_yl;
-        std::uint16_t src_y;
+        std::uint16_t xs_lo;
+        std:: int16_t src_x;
+        std::uint16_t ys_lo;
+        std:: int16_t src_y;
       };
     };
 
@@ -790,48 +789,48 @@ namespace lgfx
     }
 
     template<typename TSrc>
-    static auto get_fp_normalcopy(color_depth_t dst_depth) -> std::int32_t(*)(void*, std::int32_t, std::int32_t, pixelcopy_t*)
+    static auto get_fp_copy_rgb_affine(color_depth_t dst_depth) -> std::int32_t(*)(void*, std::int32_t, std::int32_t, pixelcopy_t*)
     {
-      return (dst_depth == rgb565_2Byte) ? normalcopy<swap565_t, TSrc>
-           : (dst_depth == rgb332_1Byte) ? normalcopy<rgb332_t , TSrc>
-           : (dst_depth == rgb888_3Byte) ? normalcopy<bgr888_t, TSrc>
+      return (dst_depth == rgb565_2Byte) ? copy_rgb_affine<swap565_t, TSrc>
+           : (dst_depth == rgb332_1Byte) ? copy_rgb_affine<rgb332_t , TSrc>
+           : (dst_depth == rgb888_3Byte) ? copy_rgb_affine<bgr888_t, TSrc>
            : (dst_depth == rgb666_3Byte) ? (std::is_same<bgr666_t, TSrc>::value
-                                           ? normalcopy<bgr888_t, bgr888_t>
-                                           : normalcopy<bgr666_t, TSrc>)
+                                           ? copy_rgb_affine<bgr888_t, bgr888_t>
+                                           : copy_rgb_affine<bgr666_t, TSrc>)
            : nullptr;
     }
 
     template<typename TDst>
-    static auto get_fp_normalcopy_dst(color_depth_t src_depth) -> std::int32_t(*)(void*, std::int32_t, std::int32_t, pixelcopy_t*)
+    static auto get_fp_copy_rgb_fast_dst(color_depth_t src_depth) -> std::int32_t(*)(void*, std::int32_t, std::int32_t, pixelcopy_t*)
     {
-      return (src_depth == rgb565_2Byte) ? normalcopy<TDst, swap565_t>
-           : (src_depth == rgb332_1Byte) ? normalcopy<TDst, rgb332_t >
-           : (src_depth == rgb888_3Byte) ? normalcopy<TDst, bgr888_t >
+      return (src_depth == rgb565_2Byte) ? copy_rgb_fast<TDst, swap565_t>
+           : (src_depth == rgb332_1Byte) ? copy_rgb_fast<TDst, rgb332_t >
+           : (src_depth == rgb888_3Byte) ? copy_rgb_fast<TDst, bgr888_t >
                                          : (std::is_same<bgr666_t, TDst>::value)
-                                           ? normalcopy<bgr888_t, bgr888_t>
-                                           : normalcopy<TDst, bgr666_t>;
+                                           ? copy_rgb_fast<bgr888_t, bgr888_t>
+                                           : copy_rgb_fast<TDst, bgr666_t>;
     }
 
     template<typename TPalette>
-    static auto get_fp_palettecopy(color_depth_t dst_depth) -> std::int32_t(*)(void*, std::int32_t, std::int32_t, pixelcopy_t*)
+    static auto get_fp_copy_palette_affine(color_depth_t dst_depth) -> std::int32_t(*)(void*, std::int32_t, std::int32_t, pixelcopy_t*)
     {
-      return (dst_depth == rgb565_2Byte) ? palettecopy<swap565_t, TPalette>
-           : (dst_depth == rgb332_1Byte) ? palettecopy<rgb332_t , TPalette>
-           : (dst_depth == rgb888_3Byte) ? palettecopy<bgr888_t, TPalette>
-           : (dst_depth == rgb666_3Byte) ? palettecopy<bgr666_t, TPalette>
+      return (dst_depth == rgb565_2Byte) ? copy_palette_affine<swap565_t, TPalette>
+           : (dst_depth == rgb332_1Byte) ? copy_palette_affine<rgb332_t , TPalette>
+           : (dst_depth == rgb888_3Byte) ? copy_palette_affine<bgr888_t, TPalette>
+           : (dst_depth == rgb666_3Byte) ? copy_palette_affine<bgr666_t, TPalette>
            : nullptr;
 /*
       if (dst_depth > rgb565_2Byte) {
         if (dst_depth == rgb888_3Byte) {
-          return palettecopy<bgr888_t, TPalette>;
+          return copy_palette_affine<bgr888_t, TPalette>;
         } else { // dst_depth == rgb666_3Byte:
-          return palettecopy<bgr666_t, TPalette>;
+          return copy_palette_affine<bgr666_t, TPalette>;
         }
       } else {
         if (dst_depth == rgb565_2Byte) {
-          return palettecopy<swap565_t, TPalette>;
+          return copy_palette_affine<swap565_t, TPalette>;
         } else { // dst_depth == rgb332_1Byte:
-          return palettecopy<rgb332_t, TPalette>;
+          return copy_palette_affine<rgb332_t, TPalette>;
         }
       }
 //*/
@@ -850,37 +849,37 @@ namespace lgfx
       no_convert = (src_depth == dst_depth);
       if (dst_palette || dst_depth < 8) {
         if (src_palette && (dst_depth == 8) && (src_depth == 8)) {
-          fp_copy = pixelcopy_t::normalcopy<rgb332_t, rgb332_t>;
-          fp_skip = pixelcopy_t::normalskip<rgb332_t>;
+          fp_copy = pixelcopy_t::copy_rgb_affine<rgb332_t, rgb332_t>;
+          fp_skip = pixelcopy_t::skip_rgb_affine<rgb332_t>;
         } else {
-          fp_copy = pixelcopy_t::bitcopy;
-          fp_skip = pixelcopy_t::bitskip;
+          fp_copy = pixelcopy_t::copy_bit_affine;
+          fp_skip = pixelcopy_t::skip_bit_affine;
         }
       } else 
       if (src_palette || src_depth < 8) {
-        fp_copy = pixelcopy_t::get_fp_palettecopy<bgr888_t>(dst_depth);
-        fp_skip = pixelcopy_t::bitskip;
+        fp_copy = pixelcopy_t::get_fp_copy_palette_affine<bgr888_t>(dst_depth);
+        fp_skip = pixelcopy_t::skip_bit_affine;
       } else {
         if (src_depth > rgb565_2Byte) {
-          fp_skip = pixelcopy_t::normalskip<bgr888_t>;
+          fp_skip = pixelcopy_t::skip_rgb_affine<bgr888_t>;
           if (src_depth == rgb888_3Byte) {
-            fp_copy = pixelcopy_t::get_fp_normalcopy<bgr888_t>(dst_depth);
+            fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<bgr888_t>(dst_depth);
           } else if (src_depth == rgb666_3Byte) {
-            fp_copy = pixelcopy_t::get_fp_normalcopy<bgr666_t>(dst_depth);
+            fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<bgr666_t>(dst_depth);
           }
         } else {
           if (src_depth == rgb565_2Byte) {
-            fp_copy = pixelcopy_t::get_fp_normalcopy<swap565_t>(dst_depth);
-            fp_skip = pixelcopy_t::normalskip<swap565_t>;
+            fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<swap565_t>(dst_depth);
+            fp_skip = pixelcopy_t::skip_rgb_affine<swap565_t>;
           } else { // src_depth == rgb332_1Byte:
-            fp_copy = pixelcopy_t::get_fp_normalcopy<rgb332_t >(dst_depth);
-            fp_skip = pixelcopy_t::normalskip<rgb332_t>;
+            fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<rgb332_t >(dst_depth);
+            fp_skip = pixelcopy_t::skip_rgb_affine<rgb332_t>;
           }
         }
       }
     }
 
-    static std::int32_t bitcopy(void* dst, std::int32_t index, std::int32_t last, pixelcopy_t* param)
+    static std::int32_t copy_bit_affine(void* dst, std::int32_t index, std::int32_t last, pixelcopy_t* param)
     {
       auto s = (const std::uint8_t*)param->src_data;
       auto d = (std::uint8_t*)dst;
@@ -912,7 +911,7 @@ namespace lgfx
     }
 
     template <typename TDst, typename TPalette>
-    static std::int32_t palettecopy(void* dst, std::int32_t index, std::int32_t last, pixelcopy_t* param)
+    static std::int32_t copy_palette_affine(void* dst, std::int32_t index, std::int32_t last, pixelcopy_t* param)
     {
       auto s = (const std::uint8_t*)param->src_data;
       auto d = (TDst*)dst;
@@ -939,7 +938,28 @@ namespace lgfx
     }
 
     template <typename TDst, typename TSrc>
-    static std::int32_t normalcopy(void* dst, std::int32_t index, std::int32_t last, pixelcopy_t* param)
+    static std::int32_t copy_rgb_fast(void* dst, std::int32_t index, std::int32_t last, pixelcopy_t* param)
+    {
+      auto s = (const TSrc*)param->src_data;
+      auto d = (TDst*)dst;
+      if (std::is_same<TSrc, TDst>::value)
+      {
+        std::uint32_t i = param->src_x + param->src_y * param->src_width;
+        memcpy(static_cast<void*>(&d[index]), &s[i], (last - index) * sizeof(TSrc));
+        return last;
+      }
+      else
+      {
+        std::uint32_t i = param->src_x + param->src_y * param->src_width - 1;
+        do {
+          d[index] = s[++i];
+        } while (++index != last);
+        return index;
+      }
+    }
+
+    template <typename TDst, typename TSrc>
+    static std::int32_t copy_rgb_affine(void* dst, std::int32_t index, std::int32_t last, pixelcopy_t* param)
     {
       auto s = (const TSrc*)param->src_data;
       auto d = (TDst*)dst;
@@ -960,17 +980,8 @@ namespace lgfx
       param->src_y32 = src_y32;
       return index;
     }
-/*
-    static std::int32_t directcopy(void* dst, std::int32_t index, std::int32_t last, pixelcopy_t* param)
-    {
-      auto s = (const std::uint8_t*)param->src_data;
-      auto d = (std::uint8_t*)dst;
-      memcpy(&d[index], &s[param->src_x + param->src_y * param->src_width], (last - index) * param->src_bits >> 3);
-      param->src_x += last - index;
-      return last;
-    }
-//*/
-    static std::int32_t bitskip(std::int32_t index, std::int32_t last, pixelcopy_t* param)
+
+    static std::int32_t skip_bit_affine(std::int32_t index, std::int32_t last, pixelcopy_t* param)
     {
       auto s = (const std::uint8_t*)param->src_data;
       auto src_x32     = param->src_x32;
@@ -994,7 +1005,7 @@ namespace lgfx
     }
 
     template <typename TSrc>
-    static std::int32_t normalskip(std::int32_t index, std::int32_t last, pixelcopy_t* param)
+    static std::int32_t skip_rgb_affine(std::int32_t index, std::int32_t last, pixelcopy_t* param)
     {
       auto s = (const TSrc*)param->src_data;
       auto src_x32     = param->src_x32;
@@ -1015,47 +1026,30 @@ namespace lgfx
     }
 
     template <typename TSrc>
-    static std::int32_t normalcompare(void* dst, std::int32_t index, std::int32_t last, pixelcopy_t* param)
+    static std::int32_t compare_rgb_fast(void* dst, std::int32_t index, std::int32_t last, pixelcopy_t* param)
     {
       auto s = (const TSrc*)param->src_data;
       auto d = (bool*)dst;
-      auto src_x32     = param->src_x32;
-      auto src_y32     = param->src_y32;
-      auto src_x32_add = param->src_x32_add;
-      auto src_y32_add = param->src_y32_add;
-      auto src_width   = param->src_width;
-      auto transp      = param->transp;
+      auto transp = param->transp;
+      std::uint32_t i = param->src_x + param->src_y * param->src_width - 1;
       do {
-        std::uint32_t i = (src_x32 >> FP_SCALE) + (src_y32 >> FP_SCALE) * src_width;
-        src_x32 += src_x32_add;
-        src_y32 += src_y32_add;
-        d[index] = s[i] == transp;
+        d[index] = s[++i] == transp;
       } while (++index != last);
-      param->src_x32 = src_x32;
-      param->src_y32 = src_y32;
       return index;
     }
 
-    static std::int32_t bitcompare(void* dst, std::int32_t index, std::int32_t last, pixelcopy_t* param)
+    static std::int32_t compare_bit_fast(void* dst, std::int32_t index, std::int32_t last, pixelcopy_t* param)
     {
       auto s = (const std::uint8_t*)param->src_data;
       auto d = (bool*)dst;
-      auto src_x32     = param->src_x32;
-      auto src_y32     = param->src_y32;
-      auto src_x32_add = param->src_x32_add;
-      auto src_y32_add = param->src_y32_add;
-      auto src_width   = param->src_width;
       auto transp      = param->transp;
       auto src_bits    = param->src_bits;
       auto src_mask    = param->src_mask;
+      std::uint32_t i = (param->src_x + param->src_y * param->src_width) * src_bits;
       do {
-        std::uint32_t i = ((src_x32 >> FP_SCALE) + (src_y32 >> FP_SCALE) * src_width) * src_bits;
-        src_x32 += src_x32_add;
-        src_y32 += src_y32_add;
         d[index] = transp == ((s[i >> 3] >> (-(i + src_bits) & 7)) & src_mask);
+        i += src_bits;
       } while (++index != last);
-      param->src_x32 = src_x32;
-      param->src_y32 = src_y32;
       return index;
     }
   };

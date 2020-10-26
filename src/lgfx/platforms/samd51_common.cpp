@@ -6,6 +6,7 @@
 #undef PORT_PINCFG_PULLEN_Pos
 #undef PORT_PINCFG_INEN
 #undef PORT_PINCFG_INEN_Pos
+#undef _Ul
 
 #define _Ul(n) (static_cast<std::uint32_t>((n)))
 #define PORT_PINCFG_INEN_Pos        1            /**< \brief (PORT_PINCFG) Input Enable */
