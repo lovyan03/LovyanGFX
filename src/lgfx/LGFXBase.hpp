@@ -202,7 +202,7 @@ namespace lgfx
       pixelcopy_t p(data, _write_conv.depth, get_depth<T>::value, hasPalette(), nullptr);
       if (std::is_same<rgb565_t, T>::value || std::is_same<rgb888_t, T>::value) {
         p.no_convert = false;
-        p.fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<T>(_write_conv.depth);
+        p.fp_copy = pixelcopy_t::get_fp_copy_rgb_fast<T>(_write_conv.depth);
       }
       writePixels_impl(len, &p);
     }
@@ -231,9 +231,9 @@ namespace lgfx
       pixelcopy_t p(data, _write_conv.depth, get_depth<T>::value, hasPalette(), nullptr);
       if (std::is_same<rgb565_t, T>::value || std::is_same<rgb888_t, T>::value) {
         p.no_convert = false;
-        p.fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<T>(_write_conv.depth);
+        p.fp_copy = pixelcopy_t::get_fp_copy_rgb_fast<T>(_write_conv.depth);
       }
-      if (p.fp_copy==nullptr) { p.fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<T>(_write_conv.depth); }
+      if (p.fp_copy==nullptr) { p.fp_copy = pixelcopy_t::get_fp_copy_rgb_fast<T>(_write_conv.depth); }
       pushImage(x, y, w, h, &p);
     }
 
@@ -307,9 +307,9 @@ namespace lgfx
       pixelcopy_t p(data, _write_conv.depth, get_depth<T>::value, hasPalette(), nullptr  );
       if (std::is_same<rgb565_t, T>::value || std::is_same<rgb888_t, T>::value) {
         p.no_convert = false;
-        p.fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<T>(_write_conv.depth);
+        p.fp_copy = pixelcopy_t::get_fp_copy_rgb_fast<T>(_write_conv.depth);
       }
-      if (p.fp_copy==nullptr) { p.fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<T>(_write_conv.depth); }
+      if (p.fp_copy==nullptr) { p.fp_copy = pixelcopy_t::get_fp_copy_rgb_fast<T>(_write_conv.depth); }
       pushImage(x, y, w, h, &p, true);
     }
 
@@ -323,6 +323,7 @@ namespace lgfx
     void pushImage(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, pixelcopy_t *param, bool use_dma = false);
 
     bool pushImageRotateZoom(float dst_x, float dst_y, float src_x, float src_y, std::int32_t w, std::int32_t h, float angle, float zoom_x, float zoom_y, const void* data, std::uint32_t transparent, const std::uint8_t bits, const bgr888_t* palette);
+    bool pushImageRotateZoomA(float dst_x, float dst_y, float src_x, float src_y, std::int32_t w, std::int32_t h, float angle, float zoom_x, float zoom_y, const void* data, std::uint32_t transparent, const std::uint8_t bits, const bgr888_t* palette);
 
     /// read RGB565 16bit color
     std::uint16_t readPixel(std::int32_t x, std::int32_t y)
@@ -692,6 +693,7 @@ namespace lgfx
     void draw_bitmap(std::int32_t x, std::int32_t y, const std::uint8_t *bitmap, std::int32_t w, std::int32_t h, std::uint32_t fg_rawcolor, std::uint32_t bg_rawcolor = ~0u);
     void draw_xbitmap(std::int32_t x, std::int32_t y, const std::uint8_t *bitmap, std::int32_t w, std::int32_t h, std::uint32_t fg_rawcolor, std::uint32_t bg_rawcolor = ~0u);
     void push_image_affine(float* affine, pixelcopy_t *pc);
+    void push_image_affine_a(float* affine, pixelcopy_t *pre_pc, pixelcopy_t *post_pc);
     void draw_bezier_helper(std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2);
 
     std::uint16_t decodeUTF8(std::uint8_t c);
@@ -711,6 +713,7 @@ namespace lgfx
     virtual void copyRect_impl(std::int32_t dst_x, std::int32_t dst_y, std::int32_t w, std::int32_t h, std::int32_t src_x, std::int32_t src_y) = 0;
     virtual void readRect_impl(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, void* dst, pixelcopy_t* param) = 0;
     virtual void pushImage_impl(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, pixelcopy_t* param, bool use_dma) = 0;
+    virtual void pushImageARGB_impl(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, pixelcopy_t* param) = 0;
     virtual void writePixels_impl(std::int32_t length, pixelcopy_t* param) = 0;
     virtual void writePixelsDMA_impl(const void* data, std::int32_t length) = 0;
     virtual void pushBlock_impl(std::int32_t len) = 0;

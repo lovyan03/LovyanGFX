@@ -25,6 +25,7 @@ Contributors:
 #include <type_traits>
 #include <cstring>
 #include <cstdint>
+#include <algorithm>
 
 namespace lgfx
 {
@@ -760,13 +761,13 @@ namespace lgfx
         std::uint32_t src_ye32;
       };
       struct {
-        std::uint16_t xs_lo;
+        std::uint16_t src_x_lo;
         std:: int16_t src_x;
-        std::uint16_t ys_lo;
+        std::uint16_t src_y_lo;
         std:: int16_t src_y;
-        std::uint16_t xe_lo;
+        std::uint16_t src_xe_lo;
         std:: int16_t src_xe;
-        std::uint16_t ye_lo;
+        std::uint16_t src_ye_lo;
         std:: int16_t src_ye;
       };
     };
@@ -813,6 +814,18 @@ namespace lgfx
            : (dst_depth == rgb666_3Byte) ? (std::is_same<bgr666_t, TSrc>::value
                                            ? copy_rgb_affine<bgr888_t, bgr888_t>
                                            : copy_rgb_affine<bgr666_t, TSrc>)
+           : nullptr;
+    }
+
+    template<typename TSrc>
+    static auto get_fp_copy_rgb_fast(color_depth_t dst_depth) -> std::int32_t(*)(void*, std::int32_t, std::int32_t, pixelcopy_t*)
+    {
+      return (dst_depth == rgb565_2Byte) ? copy_rgb_fast<swap565_t, TSrc>
+           : (dst_depth == rgb332_1Byte) ? copy_rgb_fast<rgb332_t , TSrc>
+           : (dst_depth == rgb888_3Byte) ? copy_rgb_fast<bgr888_t, TSrc>
+           : (dst_depth == rgb666_3Byte) ? (std::is_same<bgr666_t, TSrc>::value
+                                           ? copy_rgb_fast<bgr888_t, bgr888_t>
+                                           : copy_rgb_fast<bgr666_t, TSrc>)
            : nullptr;
     }
 
@@ -903,7 +916,7 @@ namespace lgfx
       auto src_y32     = param->src_y32;
       auto src_x32_add = param->src_x32_add;
       auto src_y32_add = param->src_y32_add;
-      auto src_bitwidth   = param->src_bitwidth;
+      auto src_bitwidth= param->src_bitwidth;
       auto transp      = param->transp;
       auto src_bits    = param->src_bits;
       auto dst_bits    = param->dst_bits;
@@ -935,7 +948,7 @@ namespace lgfx
       auto src_y32     = param->src_y32;
       auto src_x32_add = param->src_x32_add;
       auto src_y32_add = param->src_y32_add;
-      auto src_bitwidth   = param->src_bitwidth;
+      auto src_bitwidth= param->src_bitwidth;
       auto transp      = param->transp;
       auto src_bits    = param->src_bits;
       auto src_mask    = param->src_mask;
@@ -983,7 +996,7 @@ namespace lgfx
       auto src_y32     = param->src_y32;
       auto src_x32_add = param->src_x32_add;
       auto src_y32_add = param->src_y32_add;
-      auto src_bitwidth   = param->src_bitwidth;
+      auto src_bitwidth= param->src_bitwidth;
       auto transp      = param->transp;
       do {
         std::uint32_t i = (src_x32 >> FP_SCALE) + (src_y32 >> FP_SCALE) * src_bitwidth;
@@ -997,6 +1010,271 @@ namespace lgfx
       return index;
     }
 
+    template <typename TPalette>
+    static std::int32_t copy_palette_antialias(void* dst, std::int32_t index, std::int32_t last, pixelcopy_t* param)
+    {
+      auto s = (const std::uint8_t*)param->src_data;
+      auto d = static_cast<argb8888_t*>(dst);
+      auto src_bitwidth= param->src_bitwidth;
+      auto src_width   = param->src_width;
+      auto src_height  = param->src_height;
+      auto transp      = param->transp;
+      auto src_bits    = param->src_bits;
+      auto src_mask    = param->src_mask;
+      auto pal  = (const TPalette*)param->palette;
+
+      param->src_x32 -= param->src_x32_add;
+      param->src_xe32 -= param->src_x32_add;
+      param->src_y32 -= param->src_y32_add;
+      param->src_ye32 -= param->src_y32_add;
+      do
+      {
+        param->src_x32 += param->src_x32_add;
+        param->src_xe32 += param->src_x32_add;
+        param->src_y32 += param->src_y32_add;
+        param->src_ye32 += param->src_y32_add;
+
+        if (param->src_x == param->src_xe && param->src_y == param->src_ye)
+        {
+          std::uint32_t x = param->src_x;
+          std::uint32_t y = param->src_y;
+          if (x < src_width && y < src_height)
+          {
+            std::uint32_t i = (param->src_x + param->src_y * src_bitwidth) * src_bits;
+            std::uint32_t raw = (s[i >> 3] >> (-(i + src_bits) & 7)) & src_mask;
+            if (!(raw == transp))
+            {
+              d[index] = pal[raw];
+              continue;
+            }
+          }
+          *reinterpret_cast<std::uint32_t*>(&d[index]) = 0;
+        }
+        else
+        {
+          std::uint32_t rgbt[4] = {0};
+          std::uint32_t a = 0;
+          {
+            std::uint32_t rate_x = (param->src_x == param->src_xe) ? 65535u : static_cast<std::uint16_t>(~param->src_x_lo);
+            std::uint32_t rate_y = (param->src_y == param->src_ye) ? 65535u : static_cast<std::uint16_t>(~param->src_y_lo);
+            std::uint32_t shift = 24;
+            if (param->src_x + 1 >= param->src_xe && param->src_y + 1 >= param->src_ye)
+            {
+              std::uint32_t max_value = std::max<std::uint32_t>(rate_x, param->src_xe_lo)
+                                      * std::max<std::uint32_t>(rate_y, param->src_ye_lo) + 1;
+              while (max_value < 16777216) { max_value <<= 8; shift -= 8; }
+            }
+
+            std::int32_t x = param->src_x;
+            std::int32_t y = param->src_y;
+            std::uint32_t rate = rate_x;
+            for (;;)
+            {
+              rate = 1 + (rate * rate_y >> shift);
+              rgbt[3] += rate;
+              if (static_cast<std::uint32_t>(x) < src_width && static_cast<std::uint32_t>(y) < src_height)
+              {
+                std::uint32_t k = (x + y * src_bitwidth) * src_bits;
+                std::uint32_t raw = (s[k >> 3] >> (-(k + src_bits) & 7)) & src_mask;
+                if (!(raw == transp))
+                {
+                  rate *= pal[raw].A8();
+                  rgbt[2] += pal[raw].R8() * rate;
+                  rgbt[1] += pal[raw].G8() * rate;
+                  rgbt[0] += pal[raw].B8() * rate;
+                  a += rate;
+                }
+              }
+              if (++x <= param->src_xe)
+              {
+                rate = (x == param->src_xe) ? param->src_xe_lo : 65535u;
+              }
+              else
+              {
+                if (++y > param->src_ye) break;
+                rate_y = (y == param->src_ye) ? param->src_ye_lo : 65535u;
+                rate = rate_x;
+                x = param->src_x;
+              }
+            }
+          }
+          if (!a)
+          {
+            *reinterpret_cast<std::uint32_t*>(&d[index]) = 0;
+          }
+          else
+          {
+            d[index].b = rgbt[0] / a;
+            d[index].g = rgbt[1] / a;
+            d[index].r = rgbt[2] / a;
+            d[index].a = a / rgbt[3];
+          }
+        }
+      } while (++index != last);
+      return index;
+    }
+
+    template <typename TSrc>
+    static std::int32_t copy_rgb_antialias(void* dst, std::int32_t index, std::int32_t last, pixelcopy_t* param)
+    {
+      auto s = static_cast<const TSrc*>(param->src_data);
+      auto d = static_cast<argb8888_t*>(dst);
+      auto src_width   = param->src_width;
+      auto src_height  = param->src_height;
+      auto transp      = param->transp;
+
+      param->src_x32 -= param->src_x32_add;
+      param->src_xe32 -= param->src_x32_add;
+      param->src_y32 -= param->src_y32_add;
+      param->src_ye32 -= param->src_y32_add;
+      do
+      {
+        param->src_x32 += param->src_x32_add;
+        param->src_xe32 += param->src_x32_add;
+        param->src_y32 += param->src_y32_add;
+        param->src_ye32 += param->src_y32_add;
+
+        if (param->src_x == param->src_xe && param->src_y == param->src_ye)
+        {
+          std::uint32_t x = param->src_x;
+          std::uint32_t y = param->src_y;
+          if (x < src_width && y < src_height)
+          {
+            std::uint32_t i = x + y * src_width;
+            if (!(s[i] == transp))
+            {
+              d[index] = s[i];
+              continue;
+            }
+          }
+          *reinterpret_cast<std::uint32_t*>(&d[index]) = 0;
+        }
+        else
+        {
+          std::uint32_t rgbt[4] = {0};
+          std::uint32_t a = 0;
+          {
+            std::uint32_t rate_x = (param->src_x == param->src_xe) ? 65535u : static_cast<std::uint16_t>(~param->src_x_lo);
+            std::uint32_t rate_y = (param->src_y == param->src_ye) ? 65535u : static_cast<std::uint16_t>(~param->src_y_lo);
+            std::uint32_t shift = 24;
+            if (param->src_x + 1 >= param->src_xe && param->src_y + 1 >= param->src_ye)
+            {
+              std::uint32_t max_value = std::max<std::uint32_t>(rate_x, param->src_xe_lo)
+                                      * std::max<std::uint32_t>(rate_y, param->src_ye_lo) + 1;
+              while (max_value < 16777216) { max_value <<= 8; shift -= 8; }
+            }
+
+            std::int32_t x = param->src_x;
+            std::int32_t y = param->src_y;
+            std::uint32_t rate = rate_x;
+            for (;;)
+            {
+              rate = 1 + (rate * rate_y >> shift);
+              rgbt[3] += rate;
+              if (static_cast<std::uint32_t>(x) < src_width && static_cast<std::uint32_t>(y) < src_height)
+              {
+                auto color = &s[x + y * src_width];
+                if (!(*color == transp))
+                {
+                  rate *= color->A8();
+                  rgbt[2] += color->R8() * rate;
+                  rgbt[1] += color->G8() * rate;
+                  rgbt[0] += color->B8() * rate;
+                  a += rate;
+                }
+              }
+              if (++x <= param->src_xe)
+              {
+                rate = (x == param->src_xe) ? param->src_xe_lo : 65535u;
+              }
+              else
+              {
+                if (++y > param->src_ye) break;
+                rate_y = (y == param->src_ye) ? param->src_ye_lo : 65535u;
+                x = param->src_x;
+                rate = rate_x;
+              }
+            }
+          }
+          if (!a)
+          {
+            *reinterpret_cast<std::uint32_t*>(&d[index]) = 0;
+          }
+          else
+          {
+            d[index].b = rgbt[0] / a;
+            d[index].g = rgbt[1] / a;
+            d[index].r = rgbt[2] / a;
+            d[index].a = a / rgbt[3];
+          }
+        }
+//d[index].a = 255;
+//d[index].b = 255;
+      } while (++index != last);
+      return index;
+    }
+
+
+    static std::int32_t blend_palette_fast(void* dst, std::int32_t index, std::int32_t last, pixelcopy_t* param)
+    {
+      auto s = (const argb8888_t*)param->src_data;
+      auto d = (std::uint8_t*)dst;
+      auto dst_bits    = param->dst_bits;
+      auto dst_mask    = param->dst_mask;
+      std::uint32_t k = (dst_bits == 1) ? 0xFF
+                      : (dst_bits == 2) ? 0x55
+                      : (dst_bits == 4) ? 0x11
+                                        : 0x01
+                                        ;
+      std::uint32_t i = param->src_x + param->src_y * param->src_bitwidth - 1;
+
+      do {
+        std::uint_fast16_t a = s[++i].a;
+        if (a)
+        {
+          std::uint32_t raw = (s[i].R8() + s[i].G8() + s[i].B8()) / 3;
+          auto dstidx = index * dst_bits;
+          auto shift = (-(dstidx + dst_bits)) & 7;
+          auto tmp = &d[dstidx >> 3];
+          if (a != 255)
+          {
+            std::uint_fast16_t inv = 256 - a;
+            raw = (((*tmp >> shift) & dst_mask) * k * inv + raw * ++a) >> 8;
+          }
+          *tmp = (*tmp & ~(dst_mask << shift)) | ((dst_mask & (raw >> (8 - dst_bits)))) << shift;
+        }
+      } while (++index != last);
+      return index;
+    }
+
+    template <typename TDst>
+    static std::int32_t blend_rgb_fast(void* dst, std::int32_t index, std::int32_t last, pixelcopy_t* param)
+    {
+      auto s = (const argb8888_t*)param->src_data;
+      auto d = (TDst*)dst;
+      std::uint32_t i = param->src_x + param->src_y * param->src_bitwidth - 1;
+      do {
+        std::uint_fast16_t a = s[++i].a;
+        if (a)
+        {
+          if (a == 255)
+          {
+            d[index] = s[i];
+          }
+          else
+          {
+            std::uint_fast16_t inv = 256 - a;
+            ++a;
+            d[index].set( (d[index].R8() * inv + s[i].R8() * a) >> 8
+                        , (d[index].G8() * inv + s[i].G8() * a) >> 8
+                        , (d[index].B8() * inv + s[i].B8() * a) >> 8
+                        );
+          }
+        }
+      } while (++index != last);
+      return index;
+    }
+
     static std::int32_t skip_bit_affine(std::int32_t index, std::int32_t last, pixelcopy_t* param)
     {
       auto s = (const std::uint8_t*)param->src_data;
@@ -1004,7 +1282,7 @@ namespace lgfx
       auto src_y32     = param->src_y32;
       auto src_x32_add = param->src_x32_add;
       auto src_y32_add = param->src_y32_add;
-      auto src_bitwidth   = param->src_bitwidth;
+      auto src_bitwidth= param->src_bitwidth;
       auto transp      = param->transp;
       auto src_bits    = param->src_bits;
       auto src_mask    = param->src_mask;
@@ -1028,7 +1306,7 @@ namespace lgfx
       auto src_y32     = param->src_y32;
       auto src_x32_add = param->src_x32_add;
       auto src_y32_add = param->src_y32_add;
-      auto src_bitwidth   = param->src_bitwidth;
+      auto src_bitwidth= param->src_bitwidth;
       auto transp      = param->transp;
       do {
         std::uint32_t i = (src_x32 >> FP_SCALE) + (src_y32 >> FP_SCALE) * src_bitwidth;

@@ -302,19 +302,28 @@ namespace lgfx
     __attribute__ ((always_inline)) inline void pushSprite(                std::int32_t x, std::int32_t y) { push_sprite(_parent, x, y); }
     __attribute__ ((always_inline)) inline void pushSprite(LovyanGFX* dst, std::int32_t x, std::int32_t y) { push_sprite(    dst, x, y); }
 
-    template<typename T> inline bool pushRotated(                float angle, const T& transp) { return push_rotate_zoom(_parent, _parent->getPivotX(), _parent->getPivotY(), angle, 1.0f, 1.0f, _write_conv.convert(transp) & _write_conv.colormask); }
-    template<typename T> inline bool pushRotated(LovyanGFX* dst, float angle, const T& transp) { return push_rotate_zoom(dst    , dst    ->getPivotX(), dst    ->getPivotY(), angle, 1.0f, 1.0f, _write_conv.convert(transp) & _write_conv.colormask); }
-                         inline bool pushRotated(                float angle                 ) { return push_rotate_zoom(_parent, _parent->getPivotX(), _parent->getPivotY(), angle, 1.0f, 1.0f); }
-                         inline bool pushRotated(LovyanGFX* dst, float angle                 ) { return push_rotate_zoom(dst    , dst    ->getPivotX(), dst    ->getPivotY(), angle, 1.0f, 1.0f); }
+    template<typename T> bool pushRotated(                float angle, const T& transp) { return push_rotate_zoom(_parent, _parent->getPivotX(), _parent->getPivotY(), angle, 1.0f, 1.0f, _write_conv.convert(transp) & _write_conv.colormask); }
+    template<typename T> bool pushRotated(LovyanGFX* dst, float angle, const T& transp) { return push_rotate_zoom(dst    , dst    ->getPivotX(), dst    ->getPivotY(), angle, 1.0f, 1.0f, _write_conv.convert(transp) & _write_conv.colormask); }
+                         bool pushRotated(                float angle                 ) { return push_rotate_zoom(_parent, _parent->getPivotX(), _parent->getPivotY(), angle, 1.0f, 1.0f); }
+                         bool pushRotated(LovyanGFX* dst, float angle                 ) { return push_rotate_zoom(dst    , dst    ->getPivotX(), dst    ->getPivotY(), angle, 1.0f, 1.0f); }
 
-    template<typename T> inline bool pushRotateZoom(                                          float angle, float zoom_x, float zoom_y, const T& transp) { return push_rotate_zoom(_parent, _parent->getPivotX(), _parent->getPivotY(), angle, zoom_x, zoom_y, _write_conv.convert(transp) & _write_conv.colormask); }
-    template<typename T> inline bool pushRotateZoom(LovyanGFX* dst                          , float angle, float zoom_x, float zoom_y, const T& transp) { return push_rotate_zoom(    dst,     dst->getPivotX(),     dst->getPivotY(), angle, zoom_x, zoom_y, _write_conv.convert(transp) & _write_conv.colormask); }
-    template<typename T> inline bool pushRotateZoom(                float dst_x, float dst_y, float angle, float zoom_x, float zoom_y, const T& transp) { return push_rotate_zoom(_parent,                dst_x,                dst_y, angle, zoom_x, zoom_y, _write_conv.convert(transp) & _write_conv.colormask); }
-    template<typename T> inline bool pushRotateZoom(LovyanGFX* dst, float dst_x, float dst_y, float angle, float zoom_x, float zoom_y, const T& transp) { return push_rotate_zoom(    dst,                dst_x,                dst_y, angle, zoom_x, zoom_y, _write_conv.convert(transp) & _write_conv.colormask); }
-                         inline bool pushRotateZoom(                                          float angle, float zoom_x, float zoom_y)                  { return push_rotate_zoom(_parent, _parent->getPivotX(), _parent->getPivotY(), angle, zoom_x, zoom_y); }
-                         inline bool pushRotateZoom(LovyanGFX* dst                          , float angle, float zoom_x, float zoom_y)                  { return push_rotate_zoom(    dst,     dst->getPivotX(),     dst->getPivotY(), angle, zoom_x, zoom_y); }
-                         inline bool pushRotateZoom(                float dst_x, float dst_y, float angle, float zoom_x, float zoom_y)                  { return push_rotate_zoom(_parent,                dst_x,                dst_y, angle, zoom_x, zoom_y); }
-                         inline bool pushRotateZoom(LovyanGFX* dst, float dst_x, float dst_y, float angle, float zoom_x, float zoom_y)                  { return push_rotate_zoom(    dst,                dst_x,                dst_y, angle, zoom_x, zoom_y); }
+    template<typename T> bool pushRotateZoom(                                          float angle, float zoom_x, float zoom_y, const T& transp) { return push_rotate_zoom(_parent, _parent->getPivotX(), _parent->getPivotY(), angle, zoom_x, zoom_y, _write_conv.convert(transp) & _write_conv.colormask); }
+    template<typename T> bool pushRotateZoom(LovyanGFX* dst                          , float angle, float zoom_x, float zoom_y, const T& transp) { return push_rotate_zoom(    dst,     dst->getPivotX(),     dst->getPivotY(), angle, zoom_x, zoom_y, _write_conv.convert(transp) & _write_conv.colormask); }
+    template<typename T> bool pushRotateZoom(                float dst_x, float dst_y, float angle, float zoom_x, float zoom_y, const T& transp) { return push_rotate_zoom(_parent,                dst_x,                dst_y, angle, zoom_x, zoom_y, _write_conv.convert(transp) & _write_conv.colormask); }
+    template<typename T> bool pushRotateZoom(LovyanGFX* dst, float dst_x, float dst_y, float angle, float zoom_x, float zoom_y, const T& transp) { return push_rotate_zoom(    dst,                dst_x,                dst_y, angle, zoom_x, zoom_y, _write_conv.convert(transp) & _write_conv.colormask); }
+                         bool pushRotateZoom(                                          float angle, float zoom_x, float zoom_y)                  { return push_rotate_zoom(_parent, _parent->getPivotX(), _parent->getPivotY(), angle, zoom_x, zoom_y); }
+                         bool pushRotateZoom(LovyanGFX* dst                          , float angle, float zoom_x, float zoom_y)                  { return push_rotate_zoom(    dst,     dst->getPivotX(),     dst->getPivotY(), angle, zoom_x, zoom_y); }
+                         bool pushRotateZoom(                float dst_x, float dst_y, float angle, float zoom_x, float zoom_y)                  { return push_rotate_zoom(_parent,                dst_x,                dst_y, angle, zoom_x, zoom_y); }
+                         bool pushRotateZoom(LovyanGFX* dst, float dst_x, float dst_y, float angle, float zoom_x, float zoom_y)                  { return push_rotate_zoom(    dst,                dst_x,                dst_y, angle, zoom_x, zoom_y); }
+
+    template<typename T> bool pushRotateZoomA(                                          float angle, float zoom_x, float zoom_y, const T& transp) { return push_rotate_zoom_a(_parent, _parent->getPivotX(), _parent->getPivotY(), angle, zoom_x, zoom_y, _write_conv.convert(transp) & _write_conv.colormask); }
+    template<typename T> bool pushRotateZoomA(LovyanGFX* dst                          , float angle, float zoom_x, float zoom_y, const T& transp) { return push_rotate_zoom_a(    dst,     dst->getPivotX(),     dst->getPivotY(), angle, zoom_x, zoom_y, _write_conv.convert(transp) & _write_conv.colormask); }
+    template<typename T> bool pushRotateZoomA(                float dst_x, float dst_y, float angle, float zoom_x, float zoom_y, const T& transp) { return push_rotate_zoom_a(_parent,                dst_x,                dst_y, angle, zoom_x, zoom_y, _write_conv.convert(transp) & _write_conv.colormask); }
+    template<typename T> bool pushRotateZoomA(LovyanGFX* dst, float dst_x, float dst_y, float angle, float zoom_x, float zoom_y, const T& transp) { return push_rotate_zoom_a(    dst,                dst_x,                dst_y, angle, zoom_x, zoom_y, _write_conv.convert(transp) & _write_conv.colormask); }
+                         bool pushRotateZoomA(                                          float angle, float zoom_x, float zoom_y)                  { return push_rotate_zoom_a(_parent, _parent->getPivotX(), _parent->getPivotY(), angle, zoom_x, zoom_y); }
+                         bool pushRotateZoomA(LovyanGFX* dst                          , float angle, float zoom_x, float zoom_y)                  { return push_rotate_zoom_a(    dst,     dst->getPivotX(),     dst->getPivotY(), angle, zoom_x, zoom_y); }
+                         bool pushRotateZoomA(                float dst_x, float dst_y, float angle, float zoom_x, float zoom_y)                  { return push_rotate_zoom_a(_parent,                dst_x,                dst_y, angle, zoom_x, zoom_y); }
+                         bool pushRotateZoomA(LovyanGFX* dst, float dst_x, float dst_y, float angle, float zoom_x, float zoom_y)                  { return push_rotate_zoom_a(    dst,                dst_x,                dst_y, angle, zoom_x, zoom_y); }
 
 //----------------------------------------------------------------------------
 //----------------------------------------------------------------------------
@@ -465,6 +474,9 @@ namespace lgfx
           _buffer = nullptr;
         }
       }
+
+      bool use_dma() { return _source == AllocationSource::Dma; }
+      bool use_memcpy() { return _source != AllocationSource::Psram; }
     };
 
     LovyanGFX* _parent;
@@ -481,7 +493,6 @@ namespace lgfx
     std::int32_t _ys;
     std::int32_t _ye;
     std::int32_t _index;
-    bool _disable_memcpy = false; // disable PSRAM to PSRAM memcpy flg.
     bool _psram = false;
 
     bool create_palette(void)
@@ -597,12 +608,17 @@ namespace lgfx
     void push_sprite(LovyanGFX* dst, std::int32_t x, std::int32_t y, std::uint32_t transp = ~0)
     {
       pixelcopy_t p(_img, dst->getColorDepth(), getColorDepth(), dst->hasPalette(), _palette, transp);
-      dst->pushImage(x, y, _width, _height, &p, !_disable_memcpy); // DMA disable with use SPIRAM
+      dst->pushImage(x, y, _width, _height, &p, _img.use_dma()); // DMA disable with use SPIRAM
     }
 
     inline bool push_rotate_zoom(LovyanGFX* dst, float x, float y, float angle, float zoom_x, float zoom_y, std::uint32_t transp = ~0)
     {
       return dst->pushImageRotateZoom(x, y, _xpivot, _ypivot, _width, _height, angle, zoom_x, zoom_y, _img, transp, getColorDepth(), _palette.img24());
+    }
+
+    inline bool push_rotate_zoom_a(LovyanGFX* dst, float x, float y, float angle, float zoom_x, float zoom_y, std::uint32_t transp = ~0)
+    {
+      return dst->pushImageRotateZoomA(x, y, _xpivot, _ypivot, _width, _height, angle, zoom_x, zoom_y, _img, transp, getColorDepth(), _palette.img24());
     }
 
     void set_window(std::int32_t xs, std::int32_t ys, std::int32_t xe, std::int32_t ye)
@@ -696,14 +712,7 @@ return;
             size_t len = w * bytes;
             std::uint32_t add_dst = bw * bytes;
             std::uint32_t color = _color.raw;
-            if (_disable_memcpy) {
-              std::uint8_t linebuf[len];
-              memset_multi(linebuf, color, bytes, w);
-              do {
-                memcpy(dst, linebuf, len);
-                dst += add_dst;
-              } while (--h);
-            } else {
+            if (_img.use_memcpy()) {
               if (w == bw) {
                 memset_multi(dst, color, bytes, w * h);
               } else {
@@ -713,6 +722,13 @@ return;
                   dst += add_dst;
                 }
               }
+            } else {
+              std::uint8_t linebuf[len];
+              memset_multi(linebuf, color, bytes, w);
+              do {
+                memcpy(dst, linebuf, len);
+                dst += add_dst;
+              } while (--h);
             }
           }
         }
@@ -793,7 +809,16 @@ return;
             index = ptr_advance(ll);
           } while (length -= ll);
         } else
-        if (_disable_memcpy) {
+        if (_img.use_memcpy()) {
+          std::uint32_t color = _color.raw;
+          std::int32_t ll;
+          std::int32_t index = _index;
+          do {
+            ll = std::min(_xe - _xptr + 1, length);
+            memset_multi(&_img[index * bytes], color, bytes, ll);
+            index = ptr_advance(ll);
+          } while (length -= ll);
+        } else {
           std::int32_t buflen = std::min(_xe - _xs + 1, length);
           std::uint8_t linebuf[buflen * bytes];
           memset_multi(linebuf, _color.raw, bytes, buflen);
@@ -802,16 +827,6 @@ return;
           do  {
             ll = std::min(_xe - _xptr + 1, length);
             memcpy(&_img[index * bytes], linebuf, ll * bytes);
-            index = ptr_advance(ll);
-          } while (length -= ll);
-          return;
-        } else {
-          std::uint32_t color = _color.raw;
-          std::int32_t ll;
-          std::int32_t index = _index;
-          do {
-            ll = std::min(_xe - _xptr + 1, length);
-            memset_multi(&_img[index * bytes], color, bytes, ll);
             index = ptr_advance(ll);
           } while (length -= ll);
         }
@@ -858,19 +873,19 @@ return;
         std::int32_t pos = (src_y < dst_y) ? h - 1 : 0;
         std::uint8_t* src = &_img.img8()[(src_x + (src_y + pos) * _bitwidth) * _write_conv.bytes];
         std::uint8_t* dst = &_img.img8()[(dst_x + (dst_y + pos) * _bitwidth) * _write_conv.bytes];
-        if (_disable_memcpy) {
+        if (_img.use_memcpy()) {
+          do {
+            memmove(dst, src, len);
+            src += add;
+            dst += add;
+          } while (--h);
+        } else {
           std::uint8_t buf[len];
           do {
             memcpy(buf, src, len);
             memcpy(dst, buf, len);
             dst += add;
             src += add;
-          } while (--h);
-        } else {
-          do {
-            memmove(dst, src, len);
-            src += add;
-            dst += add;
           } while (--h);
         }
       }
@@ -902,7 +917,7 @@ return;
     void pushImage_impl(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, pixelcopy_t* param, bool) override
     {
       auto sx = param->src_x;
-      if (param->transp == ~0u && param->no_convert && !_disable_memcpy) {
+      if (param->transp == ~0u && param->no_convert && _img.use_memcpy()) {
         auto bits = param->src_bits;
         std::uint_fast8_t mask = (bits == 1) ? 7
                                : (bits == 2) ? 3
@@ -936,6 +951,22 @@ return;
         param->src_x = sx;
         param->src_y++;
       } while (--h);
+    }
+
+    void pushImageARGB_impl(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, pixelcopy_t* param) override
+    {
+      auto src_x = param->src_x32;
+      std::int32_t pos = x + y * _bitwidth;
+      std::int32_t end = pos + w;
+      param->fp_copy(_img, pos, end, param);
+      while (--h)
+      {
+        param->src_x32 = src_x;
+        param->src_y++;
+        pos += _bitwidth;
+        end = pos + w;
+        param->fp_copy(_img, pos, end, param);
+      }
     }
 
     void writePixelsDMA_impl(const void* data, std::int32_t length) override

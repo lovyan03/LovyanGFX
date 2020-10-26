@@ -315,6 +315,62 @@ namespace lgfx
       }
     }
 
+    void pushImageARGB_impl(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, pixelcopy_t* param) override
+    {
+      auto src_x = param->src_x;
+      auto buffer = reinterpret_cast<argb8888_t*>(const_cast<void*>(param->src_data));
+      auto bytes = _write_conv.bytes;
+/*
+      this->setWindow(x, y, x + w, y);
+      std::uint8_t* dmabuf = get_dmabuffer(w * bytes);
+      memset(dmabuf, 0, w * bytes);
+      param->fp_copy(dmabuf, 0, w, param);
+      this->writePixelsDMA_impl(dmabuf, w);
+      return;
+      pixelcopy_t p(nullptr, static_cast<color_depth_t>(_write_conv.depth), _read_conv.depth);
+//*/
+      pixelcopy_t pc_read(nullptr, static_cast<color_depth_t>(_write_conv.depth), _read_conv.depth);
+      for (;;)
+      {
+        std::uint8_t* dmabuf = get_dmabuffer((w+1) * bytes);
+        std::int32_t xstart = 0, drawed_x = 0;
+        do
+        {
+          std::uint_fast8_t a = buffer[xstart].a;
+          if (!a)
+          {
+            if (drawed_x < xstart)
+            {
+              param->src_x = drawed_x;
+              param->fp_copy(dmabuf, drawed_x, xstart, param);
+              this->setWindow(x + drawed_x, y, x + xstart, y);
+              this->writePixelsDMA_impl(dmabuf + drawed_x * bytes, (xstart - drawed_x));
+            }
+            drawed_x = xstart + 1;
+          }
+          else
+          {
+            while (255 == buffer[xstart].a && ++xstart != w);
+            if (xstart == w) break;
+            std::int32_t j = xstart;
+            while (++j != w && buffer[j].a && buffer[j].a != 255);
+            read_rect(x + xstart, y, j - xstart + 1, 1, &dmabuf[xstart * bytes], &pc_read);
+            if (w == (xstart = j)) break;
+          }
+        } while (++xstart != w);
+        if (drawed_x < xstart)
+        {
+          param->src_x = drawed_x;
+          param->fp_copy(dmabuf, drawed_x, xstart, param);
+          this->setWindow(x + drawed_x, y, x + xstart, y);
+          this->writePixelsDMA_impl(dmabuf + drawed_x * bytes, (xstart - drawed_x));
+        }
+        if (!--h) return;
+        param->src_x = src_x;
+        param->src_y++;
+        ++y;
+      }
+    }
 
     struct _dmabufs_t {
       std::uint8_t* buffer = nullptr;
