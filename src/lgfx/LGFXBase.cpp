@@ -24,6 +24,7 @@ Contributors:
 #include "utility/lgfx_tjpgd.h"    // JPEG decode support
 #include "utility/lgfx_pngle.h"    // PNG decode support
 #include "utility/lgfx_qrcode.h"   // QR code support
+#include "utility/miniz.h"
 
 #include <algorithm>
 #include <cmath>
@@ -2497,6 +2498,43 @@ namespace lgfx
       heap_free(png.lineBuffer);
     }
     lgfx_pngle_destroy(pngle);
+    return res;
+  }
+
+  struct png_encoder_t
+  {
+    LGFXBase* lcd;
+    std::int32_t x;
+    std::int32_t y;
+  };
+
+  static uint8_t *png_encoder_get_row( std::uint8_t *pImage, int flip, int w, int h, int y, int bpl, void *target )
+  {
+    auto enc = static_cast<png_encoder_t*>(target);
+    uint32_t ypos = (flip ? (h - 1 - y) : y);
+    enc->lcd->readRectRGB( enc->x, enc->y + ypos, w, 1, pImage );
+    return pImage;
+  }
+
+  void* LGFXBase::createPng(std::size_t* datalen, std::int32_t x, std::int32_t y, std::int32_t width, std::int32_t height)
+  {
+    if (x < 0) x = 0;
+    if (y < 0) y = 0;
+    if (width  == 0) width  = _width  - x;
+    if (height == 0) height = _height - y;
+    if (width  > _width  - x) width  = _width  - x;
+    if (height > _height - y) height = _height - y;
+
+    if (width < 0 || height < 0) return nullptr;
+
+    void* rgbBuffer = heap_alloc_dma(width * 3);
+
+    png_encoder_t enc = { this, x, y };
+    
+    auto res = tdefl_write_image_to_png_file_in_memory_ex_with_cb(rgbBuffer, width, height, 3, datalen, 6, 0, (tdefl_get_png_row_func)png_encoder_get_row, &enc);
+
+    heap_free(rgbBuffer);
+
     return res;
   }
 }
