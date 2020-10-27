@@ -249,7 +249,7 @@ namespace lgfx
 //  inline operator argb8888_t() const;
 //  inline operator swap565_t() const;
 //  inline operator bgr888_t() const;
-    inline std::uint8_t A8() const { return 255; }
+    static constexpr std::uint8_t A8() { return 255; }
     inline std::uint8_t R8() const { return (r * 0x49) >> 1; } // (r<<5)|(r<<2)|(r>>1);
     inline std::uint8_t G8() const { return (g * 0x49) >> 1; } // (g<<5)|(g<<2)|(g>>1);
     inline std::uint8_t B8() const { return  b * 0x55; }       // (b<<6)|(b<<4)|(b<<2)|b;
@@ -292,7 +292,7 @@ namespace lgfx
     //inline operator argb8888_t() const;
     //inline operator swap565_t() const;
     //inline operator bgr888_t() const;
-    inline std::uint8_t A8() const { return 255; }
+    static constexpr std::uint8_t A8() { return 255; }
     inline std::uint8_t R8() const { return (r * 0x21) >> 2; } // (r << 3) | (r >> 2);
     inline std::uint8_t G8() const { return (g * 0x41) >> 4; } // (g << 2) | (g >> 4);
     inline std::uint8_t B8() const { return (b * 0x21) >> 2; } // (b << 3) | (b >> 2);
@@ -334,7 +334,7 @@ namespace lgfx
     //inline operator argb8888_t() const;
     //inline operator swap565_t() const;
     //inline operator bgr888_t() const;
-    inline std::uint8_t A8() const { return 255; }
+    static constexpr std::uint8_t A8() { return 255; }
     inline std::uint8_t R8() const { return r; }
     inline std::uint8_t G8() const { return g; }
     inline std::uint8_t B8() const { return b; }
@@ -420,7 +420,7 @@ namespace lgfx
     explicit inline operator bool() const { return r||gh||gl||b; }
     //inline operator rgb565_t() const { return rgb565_t(raw<<8 | raw>>8); }
     //inline operator bgr888_t() const;
-    inline std::uint8_t A8() const { return 255; }
+    static constexpr std::uint8_t A8() { return 255; }
     inline std::uint8_t R8() const { return ( r * 0x21) >> 2; }
     inline std::uint8_t G8() const { return ((gh* 0x41) >> 1)|(gl << 2); }
     inline std::uint8_t B8() const { return ( b * 0x21) >> 2; }
@@ -457,7 +457,7 @@ namespace lgfx
     //explicit inline operator rgb565_t() const { return rgb565_t(r,g,b); }
     //inline operator rgb888_t() const { return rgb888_t(r,g,b); }
     //inline operator swap565_t() const { return swap565_t(r,g,b); }
-    inline std::uint8_t A8() const { return 255; }
+    static constexpr std::uint8_t A8() { return 255; }
     inline std::uint8_t R8() const { return r<<2; }
     inline std::uint8_t G8() const { return g<<2; }
     inline std::uint8_t B8() const { return b<<2; }
@@ -499,7 +499,7 @@ namespace lgfx
     explicit inline operator rgb565_t() const { return rgb565_t(r,g,b); }
     //inline operator rgb888_t() const { return rgb888_t(r,g,b); }
     //inline operator swap565_t() const { return swap565_t(r,g,b); }
-    inline std::uint8_t A8() const { return 255; }
+    static constexpr std::uint8_t A8() { return 255; }
     inline std::uint8_t R8() const { return r; }
     inline std::uint8_t G8() const { return g; }
     inline std::uint8_t B8() const { return b; }
@@ -912,8 +912,6 @@ namespace lgfx
     {
       auto s = (const std::uint8_t*)param->src_data;
       auto d = (std::uint8_t*)dst;
-      auto src_x32     = param->src_x32;
-      auto src_y32     = param->src_y32;
       auto src_x32_add = param->src_x32_add;
       auto src_y32_add = param->src_y32_add;
       auto src_bitwidth= param->src_bitwidth;
@@ -923,9 +921,9 @@ namespace lgfx
       auto src_mask    = param->src_mask;
       auto dst_mask    = param->dst_mask;
       do {
-        std::uint32_t i = ((src_x32 >> FP_SCALE) + (src_y32 >> FP_SCALE) * src_bitwidth) * src_bits;
-        src_x32 += src_x32_add;
-        src_y32 += src_y32_add;
+        std::uint32_t i = (param->src_x + param->src_y * src_bitwidth) * src_bits;
+        param->src_x32 += src_x32_add;
+        param->src_y32 += src_y32_add;
         std::uint32_t raw = (s[i >> 3] >> (-(i + src_bits) & 7)) & src_mask;
         if (raw != transp) {
           auto dstidx = index * dst_bits;
@@ -934,8 +932,6 @@ namespace lgfx
           *tmp = (*tmp & ~(dst_mask << shift)) | ((dst_mask & raw) << shift);
         }
       } while (++index != last);
-      param->src_x32 = src_x32;
-      param->src_y32 = src_y32;
       return index;
     }
 
@@ -944,25 +940,18 @@ namespace lgfx
     {
       auto s = (const std::uint8_t*)param->src_data;
       auto d = (TDst*)dst;
-      auto src_x32     = param->src_x32;
-      auto src_y32     = param->src_y32;
-      auto src_x32_add = param->src_x32_add;
-      auto src_y32_add = param->src_y32_add;
-      auto src_bitwidth= param->src_bitwidth;
       auto transp      = param->transp;
       auto src_bits    = param->src_bits;
       auto src_mask    = param->src_mask;
       auto pal  = (const TPalette*)param->palette;
       do {
-        std::uint32_t i = ((src_x32 >> FP_SCALE) + (src_y32 >> FP_SCALE) * src_bitwidth) * src_bits;
-        std::uint32_t raw = (s[i >> 3] >> (-(i + src_bits) & 7)) & src_mask;
+        std::uint32_t i = param->src_x + param->src_y * param->src_bitwidth;
+        std::uint32_t raw = (s[(i * src_bits) >> 3] >> ((~i * src_bits) & 7)) & src_mask;
         if (raw == transp) break;
         d[index] = pal[raw];
-        src_x32 += src_x32_add;
-        src_y32 += src_y32_add;
+        param->src_x32 += param->src_x32_add;
+        param->src_y32 += param->src_y32_add;
       } while (++index != last);
-      param->src_x32 = src_x32;
-      param->src_y32 = src_y32;
       return index;
     }
 
@@ -1062,7 +1051,7 @@ namespace lgfx
             {
               std::uint32_t max_value = std::max<std::uint32_t>(rate_x, param->src_xe_lo)
                                       * std::max<std::uint32_t>(rate_y, param->src_ye_lo) + 1;
-              while (max_value < 16777216) { max_value <<= 8; shift -= 8; }
+              while (max_value < (1u << 24)) { max_value <<= 8; shift -= 8; }
             }
 
             std::int32_t x = param->src_x;
@@ -1098,16 +1087,16 @@ namespace lgfx
               }
             }
           }
-          if (!a)
-          {
-            *reinterpret_cast<std::uint32_t*>(&d[index]) = 0;
-          }
-          else
+          if (a)
           {
             d[index].b = rgbt[0] / a;
             d[index].g = rgbt[1] / a;
             d[index].r = rgbt[2] / a;
             d[index].a = a / rgbt[3];
+          }
+          else
+          {
+            *reinterpret_cast<std::uint32_t*>(&d[index]) = 0;
           }
         }
       } while (++index != last);
@@ -1161,7 +1150,7 @@ namespace lgfx
             {
               std::uint32_t max_value = std::max<std::uint32_t>(rate_x, param->src_xe_lo)
                                       * std::max<std::uint32_t>(rate_y, param->src_ye_lo) + 1;
-              while (max_value < 16777216) { max_value <<= 8; shift -= 8; }
+              while (max_value < (1u << 24)) { max_value <<= 8; shift -= 8; }
             }
 
             std::int32_t x = param->src_x;
@@ -1196,16 +1185,16 @@ namespace lgfx
               }
             }
           }
-          if (!a)
-          {
-            *reinterpret_cast<std::uint32_t*>(&d[index]) = 0;
-          }
-          else
+          if (a)
           {
             d[index].b = rgbt[0] / a;
             d[index].g = rgbt[1] / a;
             d[index].r = rgbt[2] / a;
             d[index].a = a / rgbt[3];
+          }
+          else
+          {
+            *reinterpret_cast<std::uint32_t*>(&d[index]) = 0;
           }
         }
 //d[index].a = 255;

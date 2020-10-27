@@ -695,12 +695,12 @@ private:
           t->y_min = 0;
           t->y_max = 279;
           touch(t);
-          _touch_affin[0] =  0;
-          _touch_affin[1] = -1;
-          _touch_affin[2] = 240;
-          _touch_affin[3] =  1;
-          _touch_affin[4] =  0;
-          _touch_affin[5] =  0;
+          _touch_affine[0] =  0;
+          _touch_affine[1] = -1;
+          _touch_affine[2] = 240;
+          _touch_affine[3] =  1;
+          _touch_affine[4] =  0;
+          _touch_affine[5] =  0;
 
           goto init_clear;
         }

@@ -29,6 +29,49 @@ volatile bool _is_running;
 volatile std::uint32_t _draw_count;
 volatile std::uint32_t _loop_count;
 
+static void diffDraw(LGFX_Sprite* sp0, LGFX_Sprite* sp1)
+{
+  union
+  {
+    std::uint32_t* s32;
+    std::uint8_t* s;
+  };
+  union
+  {
+    std::uint32_t* p32;
+    std::uint8_t* p;
+  };
+  s32 = (std::uint32_t*)sp0->getBuffer();
+  p32 = (std::uint32_t*)sp1->getBuffer();
+
+  auto width  = sp0->width();
+  auto height = sp0->height();
+
+  auto w32 = (width+3) >> 2;
+  std::int32_t y = 0;
+  do
+  {
+    std::int32_t x32 = 0;
+    do
+    {
+      while (s32[x32] == p32[x32] && ++x32 < w32);
+      if (x32 == w32) break;
+
+      std::int32_t xs = x32 << 2;
+      while (s[xs] == p[xs]) ++xs;
+
+      while (++x32 < w32 && s32[x32] != p32[x32]);
+
+      std::int32_t xe = (x32 << 2) - 1;
+      if (xe >= width) xe = width - 1;
+      while (s[xe] == p[xe]) --xe;
+
+      lcd.pushImage(xs, y, xe - xs + 1, 1, &s[xs]);
+    } while (x32 < w32);
+    s32 += w32;
+    p32 += w32;
+  } while (++y < height);
+}
 
 static void drawfunc(void)
 {
@@ -65,44 +108,7 @@ static void drawfunc(void)
   sprite->setCursor(0,0);
   sprite->setTextColor(TFT_WHITE);
   sprite->printf("obj:%d fps:%d", _ball_count, _fps);
-
-  union
-  {
-    std::uint32_t* s32;
-    std::uint8_t* s;
-  };
-  union
-  {
-    std::uint32_t* p32;
-    std::uint8_t* p;
-  };
-  s32 = (std::uint32_t*)sprite->getBuffer();
-  p32 = (std::uint32_t*)_sprites[!flip].getBuffer();
-
-  auto w32 = (width+3) >> 2;
-  std::int32_t y = 0;
-  do
-  {
-    std::int32_t x32 = 0;
-    do
-    {
-      while (s32[x32] == p32[x32] && ++x32 < w32);
-      if (x32 == w32) break;
-
-      std::int32_t xs = x32 << 2;
-      while (s[xs] == p[xs]) ++xs;
-
-      while (++x32 < w32 && s32[x32] != p32[x32]);
-
-      std::int32_t xe = (x32 << 2) - 1;
-      if (xe >= width) xe = width - 1;
-      while (s[xe] == p[xe]) --xe;
-
-      lcd.pushImage(xs, y, xe - xs + 1, 1, &s[xs]);
-    } while (x32 < w32);
-    s32 += w32;
-    p32 += w32;
-  } while (++y < height);
+  diffDraw(&_sprites[flip], &_sprites[!flip]);
   ++_draw_count;
 }
 

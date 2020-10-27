@@ -178,8 +178,8 @@ namespace lgfx
 
     void convertRawXY(std::int32_t *x, std::int32_t *y)
     {
-      std::int32_t tx = (_touch_affin[0] * (float)*x + _touch_affin[1] * (float)*y) + _touch_affin[2];
-      std::int32_t ty = (_touch_affin[3] * (float)*x + _touch_affin[4] * (float)*y) + _touch_affin[5];
+      std::int32_t tx = (_touch_affine[0] * (float)*x + _touch_affine[1] * (float)*y) + _touch_affine[2];
+      std::int32_t ty = (_touch_affine[3] * (float)*x + _touch_affine[4] * (float)*y) + _touch_affine[5];
 
       std::uint_fast8_t r = _panel->rotation & 7;
       if (r & 1) {
@@ -243,7 +243,7 @@ namespace lgfx
 
     board_t board = lgfx::board_t::board_unknown;
 
-    float _touch_affin[6] = {1,0,0,0,1,0};
+    float _touch_affine[6] = {1,0,0,0,1,0};
 
     bool _in_transaction = false;
 
@@ -540,15 +540,15 @@ namespace lgfx
       float v0 = vect[0];
       float v1 = vect[1];
       float v2 = vect[2];
-      _touch_affin[0] = mat[0][0] * v0 + mat[0][1] * v1 + mat[0][2] * v2;
-      _touch_affin[1] = mat[1][0] * v0 + mat[1][1] * v1 + mat[1][2] * v2;
-      _touch_affin[2] = mat[2][0] * v0 + mat[2][1] * v1 + mat[2][2] * v2;
+      _touch_affine[0] = mat[0][0] * v0 + mat[0][1] * v1 + mat[0][2] * v2;
+      _touch_affine[1] = mat[1][0] * v0 + mat[1][1] * v1 + mat[1][2] * v2;
+      _touch_affine[2] = mat[2][0] * v0 + mat[2][1] * v1 + mat[2][2] * v2;
       float v3 = vect[3];
       float v4 = vect[4];
       float v5 = vect[5];
-      _touch_affin[3] = mat[0][0] * v3 + mat[0][1] * v4 + mat[0][2] * v5;
-      _touch_affin[4] = mat[1][0] * v3 + mat[1][1] * v4 + mat[1][2] * v5;
-      _touch_affin[5] = mat[2][0] * v3 + mat[2][1] * v4 + mat[2][2] * v5;
+      _touch_affine[3] = mat[0][0] * v3 + mat[0][1] * v4 + mat[0][2] * v5;
+      _touch_affine[4] = mat[1][0] * v3 + mat[1][1] * v4 + mat[1][2] * v5;
+      _touch_affine[5] = mat[2][0] * v3 + mat[2][1] * v4 + mat[2][2] * v5;
     }
   };
 
