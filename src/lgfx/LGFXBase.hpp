@@ -202,7 +202,7 @@ namespace lgfx
       pixelcopy_t p(data, _write_conv.depth, get_depth<T>::value, hasPalette(), nullptr);
       if (std::is_same<rgb565_t, T>::value || std::is_same<rgb888_t, T>::value) {
         p.no_convert = false;
-        p.fp_copy = pixelcopy_t::get_fp_copy_rgb_fast<T>(_write_conv.depth);
+        p.fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<T>(_write_conv.depth);
       }
       writePixels_impl(len, &p);
     }
@@ -231,9 +231,9 @@ namespace lgfx
       pixelcopy_t p(data, _write_conv.depth, get_depth<T>::value, hasPalette(), nullptr);
       if (std::is_same<rgb565_t, T>::value || std::is_same<rgb888_t, T>::value) {
         p.no_convert = false;
-        p.fp_copy = pixelcopy_t::get_fp_copy_rgb_fast<T>(_write_conv.depth);
-      }
-      if (p.fp_copy==nullptr) { p.fp_copy = pixelcopy_t::get_fp_copy_rgb_fast<T>(_write_conv.depth); }
+        p.fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<T>(_write_conv.depth);
+      } else
+      if (p.fp_copy==nullptr) { p.fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<T>(_write_conv.depth); }
       pushImage(x, y, w, h, &p);
     }
 
@@ -243,16 +243,15 @@ namespace lgfx
       std::uint32_t tr = (std::is_same<T, U>::value)
                        ? transparent
                        : get_fp_convert_src<U>(get_depth<T>::value, false)(transparent);
+      if (std::is_same<rgb565_t, T>::value) { tr = getSwap16(tr); }
+      if (std::is_same<rgb888_t, T>::value) { tr = getSwap24(tr); }
+
       pixelcopy_t p(data, _write_conv.depth, get_depth<T>::value, hasPalette(), nullptr, tr);
       if (std::is_same<rgb565_t, T>::value || std::is_same<rgb888_t, T>::value) {
-        if (std::is_same<rgb565_t, T>::value) {
-          p.transp = getSwap16(tr);
-        } else {
-          p.transp = getSwap24(tr);
-        }
         p.no_convert = false;
         p.fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<T>(_write_conv.depth);
       }
+      else
       if (p.fp_copy==nullptr) { p.fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<T>(_write_conv.depth); }
       if (p.fp_skip==nullptr) { p.fp_skip = pixelcopy_t::skip_rgb_affine<T>; }
       pushImage(x, y, w, h, &p);
@@ -261,16 +260,16 @@ namespace lgfx
     template<typename U>
     void pushImage(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const std::uint8_t* data, const U& transparent)
     {
-      pushImage(x, y, w, h, (const rgb332_t*)data, transparent);
+      pushImage(x, y, w, h, reinterpret_cast<const rgb332_t*>(data), transparent);
     }
 
     template<typename U>
     void pushImage(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const std::uint16_t* data, const U& transparent)
     {
       if (_swapBytes && _write_conv.depth >= 8 && !hasPalette()) {
-        pushImage(x, y, w, h, (const rgb565_t*)data, transparent);
+        pushImage(x, y, w, h, reinterpret_cast<const rgb565_t*>(data), transparent);
       } else {
-        pushImage(x, y, w, h, (const swap565_t*)data, transparent);
+        pushImage(x, y, w, h, reinterpret_cast<const swap565_t*>(data), transparent);
       }
     }
 
@@ -278,9 +277,9 @@ namespace lgfx
     void pushImage(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const void* data, const U& transparent)
     {
       if (_swapBytes && _write_conv.depth >= 8 && !hasPalette()) {
-        pushImage(x, y, w, h, (const rgb888_t*)data, transparent);
+        pushImage(x, y, w, h, reinterpret_cast<const rgb888_t*>(data), transparent);
       } else {
-        pushImage(x, y, w, h, (const bgr888_t*)data, transparent);
+        pushImage(x, y, w, h, reinterpret_cast<const bgr888_t*>(data), transparent);
       }
     }
 
@@ -304,12 +303,12 @@ namespace lgfx
     template<typename T>
     void pushImageDMA( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const T* data)
     {
-      pixelcopy_t p(data, _write_conv.depth, get_depth<T>::value, hasPalette(), nullptr  );
+      pixelcopy_t p(data, _write_conv.depth, get_depth<T>::value, hasPalette(), nullptr );
       if (std::is_same<rgb565_t, T>::value || std::is_same<rgb888_t, T>::value) {
         p.no_convert = false;
-        p.fp_copy = pixelcopy_t::get_fp_copy_rgb_fast<T>(_write_conv.depth);
-      }
-      if (p.fp_copy==nullptr) { p.fp_copy = pixelcopy_t::get_fp_copy_rgb_fast<T>(_write_conv.depth); }
+        p.fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<T>(_write_conv.depth);
+      } else
+      if (p.fp_copy==nullptr) { p.fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<T>(_write_conv.depth); }
       pushImage(x, y, w, h, &p, true);
     }
 
@@ -368,9 +367,9 @@ namespace lgfx
       pixelcopy_t p(nullptr, get_depth<T>::value, _read_conv.depth, false, getPalette());
       if (std::is_same<rgb565_t, T>::value || std::is_same<rgb888_t, T>::value) {
         p.no_convert = false;
-        p.fp_copy = pixelcopy_t::get_fp_copy_rgb_fast_dst<T>(_read_conv.depth);
+        p.fp_copy = pixelcopy_t::get_fp_copy_rgb_affine_dst<T>(_read_conv.depth);
       }
-      if (p.fp_copy==nullptr) { p.fp_copy = pixelcopy_t::get_fp_copy_rgb_fast_dst<T>(_read_conv.depth); }
+      if (p.fp_copy==nullptr) { p.fp_copy = pixelcopy_t::get_fp_copy_rgb_affine_dst<T>(_read_conv.depth); }
       read_rect(x, y, w, h, data, &p);
     }
 

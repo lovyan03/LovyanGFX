@@ -118,7 +118,7 @@ namespace lgfx
       if (w < 1 || h < 1) return nullptr;
 
       _bitwidth = (w + _write_conv.x_mask) & (~(std::uint32_t)_write_conv.x_mask);
-      size_t len = h * (_bitwidth * _write_conv.bits >> 3) + 1;
+      std::size_t len = h * (_bitwidth * _write_conv.bits >> 3) + 1;
 
       _img.reset(len, _psram ? AllocationSource::Psram : AllocationSource::Dma);
 
@@ -237,7 +237,7 @@ namespace lgfx
     }
     std::int32_t getPaletteIndex(const bgr888_t& color)
     {
-      size_t res = 0;
+      std::size_t res = 0;
       do {
         if (_palette.img24()[res] == color) return res;
       } while (++res < _palette_count);
@@ -245,18 +245,18 @@ namespace lgfx
     }
 
     template<typename T> __attribute__ ((always_inline)) inline 
-    void setPaletteColor(size_t index, T color) {
+    void setPaletteColor(std::size_t index, T color) {
       if (!_palette || index >= _palette_count) return;
       rgb888_t c = convert_to_rgb888(color);
       _palette.img24()[index] = c;
     }
 
-    void setPaletteColor(size_t index, const bgr888_t& rgb)
+    void setPaletteColor(std::size_t index, const bgr888_t& rgb)
     {
       if (_palette && index < _palette_count) { _palette.img24()[index] = rgb; }
     }
 
-    void setPaletteColor(size_t index, std::uint8_t r, std::uint8_t g, std::uint8_t b)
+    void setPaletteColor(std::size_t index, std::uint8_t r, std::uint8_t g, std::uint8_t b)
     {
       if (_palette && index < _palette_count) { _palette.img24()[index].set(r, g, b); }
     }
@@ -564,7 +564,7 @@ namespace lgfx
 
       data->seek(seekOffset);
 
-      size_t buffersize = ((w * bpp + 31) >> 5) << 2;  // readline 4Byte align.
+      std::size_t buffersize = ((w * bpp + 31) >> 5) << 2;  // readline 4Byte align.
       std::uint8_t lineBuffer[buffersize];  // readline 4Byte align.
       if (bpp <= 8) {
         do {
@@ -584,7 +584,7 @@ namespace lgfx
           data->read(lineBuffer, buffersize);
           auto img = &_img[y * _bitwidth * bpp >> 3];
           y += flow;
-          for (size_t i = 0; i < buffersize; ++i) {
+          for (std::size_t i = 0; i < buffersize; ++i) {
             img[i] = lineBuffer[i ^ 1];
           }
         } while (--h);
@@ -593,7 +593,7 @@ namespace lgfx
           data->read(lineBuffer, buffersize);
           auto img = &_img[y * _bitwidth * bpp >> 3];
           y += flow;
-          for (size_t i = 0; i < buffersize; i += 3) {
+          for (std::size_t i = 0; i < buffersize; i += 3) {
             img[i    ] = lineBuffer[i + 2];
             img[i + 1] = lineBuffer[i + 1];
             img[i + 2] = lineBuffer[i    ];
@@ -604,7 +604,7 @@ namespace lgfx
           data->read(lineBuffer, buffersize);
           auto img = &_img.img8()[y * _bitwidth * 3];
           y += flow;
-          for (size_t i = 0; i < buffersize; i += 4) {
+          for (std::size_t i = 0; i < buffersize; i += 4) {
             img[(i>>2)*3    ] = lineBuffer[i + 2];
             img[(i>>2)*3 + 1] = lineBuffer[i + 1];
             img[(i>>2)*3 + 2] = lineBuffer[i + 0];
@@ -728,7 +728,7 @@ return;
               } while (--h);
             }
           } else {
-            size_t len = w * bytes;
+            std::size_t len = w * bytes;
             std::uint32_t add_dst = bw * bytes;
             std::uint32_t color = _color.raw;
             if (_img.use_memcpy()) {
@@ -754,7 +754,7 @@ return;
       } else {
         x *= bits;
         w *= bits;
-        size_t add_dst = _bitwidth * bits >> 3;
+        std::size_t add_dst = _bitwidth * bits >> 3;
         std::uint8_t* dst = &_img[y * add_dst + (x >> 3)];
         std::uint32_t len = ((x + w) >> 3) - (x >> 3);
         std::uint8_t mask = 0xFF >> (x & 7);
@@ -796,7 +796,7 @@ return;
           ll = std::min(_xe - _xptr + 1, length);
           std::int32_t w = ll * bits;
           std::int32_t x = _xptr * bits;
-          size_t len = ((x + w) >> 3) - (x >> 3);
+          std::size_t len = ((x + w) >> 3) - (x >> 3);
           std::uint8_t mask = 0xFF >> (x & 7);
           if (!len) {
             mask ^= mask >> w;
@@ -872,7 +872,7 @@ return;
             param.src_y += add_y;
           } while (--h);
         } else {
-          size_t len = (_bitwidth * _write_conv.bits) >> 3;
+          std::size_t len = (_bitwidth * _write_conv.bits) >> 3;
           std::uint8_t buf[len];
           param.src_data = buf;
           param.src_y32 = 0;
@@ -886,7 +886,7 @@ return;
           } while (--h);
         }
       } else {
-        size_t len = w * _write_conv.bytes;
+        std::size_t len = w * _write_conv.bytes;
         std::int32_t add = _bitwidth * _write_conv.bytes;
         if (src_y < dst_y) add = -add;
         std::int32_t pos = (src_y < dst_y) ? h - 1 : 0;
@@ -1034,14 +1034,14 @@ return;
       }
     }
 
-    static void memset_multi(std::uint8_t* buf, std::uint32_t c, size_t size, size_t length)
+    static void memset_multi(std::uint8_t* buf, std::uint32_t c, std::size_t size, std::size_t length)
     {
-      size_t l = length;
+      std::size_t l = length;
       if (l & ~0xF) {
         while ((l >>= 1) & ~0xF);
         ++l;
       }
-      size_t len = l * size;
+      std::size_t len = l * size;
       length = (length * size) - len;
       std::uint8_t* dst = buf;
       if (size == 2) {
@@ -1051,7 +1051,7 @@ return;
         } while (--l);
       } else {
         do {
-          size_t i = 0;
+          std::size_t i = 0;
           do {
             *dst++ = *(((std::uint8_t*)&c) + i);
           } while (++i != size);

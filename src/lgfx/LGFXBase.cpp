@@ -993,7 +993,7 @@ namespace lgfx
     pixelcopy_t p(data, _write_conv.depth, rgb565_2Byte, _palette_count);
     if (swap && !_palette_count && _write_conv.depth >= 8) {
       p.no_convert = false;
-      p.fp_copy = pixelcopy_t::get_fp_copy_rgb_fast<rgb565_t>(_write_conv.depth);
+      p.fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<rgb565_t>(_write_conv.depth);
     }
     writePixels_impl(len, &p);
   }
@@ -1003,7 +1003,7 @@ namespace lgfx
     pixelcopy_t p(data, _write_conv.depth, rgb888_3Byte, _palette_count);
     if (swap && !_palette_count && _write_conv.depth >= 8) {
       p.no_convert = false;
-      p.fp_copy = pixelcopy_t::get_fp_copy_rgb_fast<rgb888_t>(_write_conv.depth);
+      p.fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<rgb888_t>(_write_conv.depth);
     }
     writePixels_impl(len, &p);
   }
@@ -1011,18 +1011,18 @@ namespace lgfx
   void LGFXBase::pushImage(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const std::uint16_t* data)
   {
     if (_swapBytes && !_palette_count && _write_conv.depth >= 8) {
-      pushImage(x, y, w, h, (const rgb565_t*)data);
+      pushImage(x, y, w, h, reinterpret_cast<const rgb565_t*>(data));
     } else {
-      pushImage(x, y, w, h, (const swap565_t*)data);
+      pushImage(x, y, w, h, reinterpret_cast<const swap565_t*>(data));
     }
   }
 
   void LGFXBase::pushImage(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const void* data)
   {
     if (_swapBytes && !_palette_count && _write_conv.depth >= 8) {
-      pushImage(x, y, w, h, (const rgb888_t*)data);
+      pushImage(x, y, w, h, reinterpret_cast<const rgb888_t*>(data));
     } else {
-      pushImage(x, y, w, h, (const bgr888_t*)data);
+      pushImage(x, y, w, h, reinterpret_cast<const bgr888_t*>(data));
     }
   }
 
@@ -1032,31 +1032,31 @@ namespace lgfx
     pushImage(x, y, w, h, &p);
   }
 
-    void LGFXBase::pushImageDMA(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const std::uint8_t* data)
-    {
-      pixelcopy_t p(data, _write_conv.depth, rgb332_1Byte, _palette_count, nullptr);
-      pushImage(x, y, w, h, &p, true);
-    }
+  void LGFXBase::pushImageDMA(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const std::uint8_t* data)
+  {
+    pixelcopy_t p(data, _write_conv.depth, rgb332_1Byte, _palette_count, nullptr);
+    pushImage(x, y, w, h, &p, true);
+  }
 
-    void LGFXBase::pushImageDMA(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const std::uint16_t* data)
-    {
-      pixelcopy_t p(data, _write_conv.depth, rgb565_2Byte, _palette_count, nullptr);
-      if (_swapBytes && !_palette_count && _write_conv.depth >= 8) {
-        p.no_convert = false;
-        p.fp_copy = pixelcopy_t::get_fp_copy_rgb_fast<rgb565_t>(_write_conv.depth);
-      }
-      pushImage(x, y, w, h, &p, true);
+  void LGFXBase::pushImageDMA(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const std::uint16_t* data)
+  {
+    pixelcopy_t p(data, _write_conv.depth, rgb565_2Byte, _palette_count, nullptr);
+    if (_swapBytes && !_palette_count && _write_conv.depth >= 8) {
+      p.no_convert = false;
+      p.fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<rgb565_t>(_write_conv.depth);
     }
+    pushImage(x, y, w, h, &p, true);
+  }
 
-    void LGFXBase::pushImageDMA(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const void* data)
-    {
-      pixelcopy_t p(data, _write_conv.depth, rgb888_3Byte, _palette_count, nullptr);
-      if (_swapBytes && !_palette_count && _write_conv.depth >= 8) {
-        p.no_convert = false;
-        p.fp_copy = pixelcopy_t::get_fp_copy_rgb_fast<rgb888_t>(_write_conv.depth);
-      }
-      pushImage(x, y, w, h, &p, true);
+  void LGFXBase::pushImageDMA(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const void* data)
+  {
+    pixelcopy_t p(data, _write_conv.depth, rgb888_3Byte, _palette_count, nullptr);
+    if (_swapBytes && !_palette_count && _write_conv.depth >= 8) {
+      p.no_convert = false;
+      p.fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<rgb888_t>(_write_conv.depth);
     }
+    pushImage(x, y, w, h, &p, true);
+  }
 
   void LGFXBase::pushImage(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, pixelcopy_t *param, bool use_dma)
   {
@@ -1350,7 +1350,7 @@ namespace lgfx
     pixelcopy_t p(nullptr, swap565_t::depth, _read_conv.depth, false, getPalette());
     if (_swapBytes && !_palette_count && _read_conv.depth >= 8) {
       p.no_convert = false;
-      p.fp_copy = pixelcopy_t::get_fp_copy_rgb_fast_dst<rgb565_t>(_read_conv.depth);
+      p.fp_copy = pixelcopy_t::get_fp_copy_rgb_affine_dst<rgb565_t>(_read_conv.depth);
     }
     read_rect(x, y, w, h, data, &p);
   }
@@ -1359,7 +1359,7 @@ namespace lgfx
     pixelcopy_t p(nullptr, bgr888_t::depth, _read_conv.depth, false, getPalette());
     if (_swapBytes && !_palette_count && _read_conv.depth >= 8) {
       p.no_convert = false;
-      p.fp_copy = pixelcopy_t::get_fp_copy_rgb_fast_dst<rgb888_t>(_read_conv.depth);
+      p.fp_copy = pixelcopy_t::get_fp_copy_rgb_affine_dst<rgb888_t>(_read_conv.depth);
     }
     read_rect(x, y, w, h, data, &p);
   }
@@ -2503,16 +2503,16 @@ namespace lgfx
 
   struct png_encoder_t
   {
-    LGFXBase* lcd;
+    LGFXBase* gfx;
     std::int32_t x;
     std::int32_t y;
   };
 
-  static uint8_t *png_encoder_get_row( std::uint8_t *pImage, int flip, int w, int h, int y, int bpl, void *target )
+  static uint8_t *png_encoder_get_row( std::uint8_t *pImage, int flip, int w, int h, int y, int, void *target )
   {
     auto enc = static_cast<png_encoder_t*>(target);
     uint32_t ypos = (flip ? (h - 1 - y) : y);
-    enc->lcd->readRectRGB( enc->x, enc->y + ypos, w, 1, pImage );
+    enc->gfx->readRectRGB( enc->x, enc->y + ypos, w, 1, pImage );
     return pImage;
   }
 

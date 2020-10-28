@@ -780,16 +780,15 @@ namespace lgfx
     std::uint32_t transp   = ~0u;
     std::uint32_t src_bits = 8;
     std::uint32_t dst_bits = 8;
-    std::uint8_t src_mask  = ~0;
-    std::uint8_t dst_mask  = ~0;
-    bool no_convert = false;
     const void* src_data = nullptr;
     const void* palette = nullptr;
     std::int32_t (*fp_copy)(void*, std::int32_t, std::int32_t, pixelcopy_t*) = nullptr;
     std::int32_t (*fp_skip)(       std::int32_t, std::int32_t, pixelcopy_t*) = nullptr;
+    std::uint8_t src_mask  = ~0;
+    std::uint8_t dst_mask  = ~0;
+    bool no_convert = false;
 
-    pixelcopy_t(void) {}
-
+    pixelcopy_t(void) = default;
 
     pixelcopy_t( const void* src_data
                , color_depth_t dst_depth
@@ -799,83 +798,14 @@ namespace lgfx
                , std::uint32_t src_transp = ~0u
                ) 
     : transp    ( src_transp )
+    , src_bits  ( src_depth > 8 ? (src_depth + 7) & ~7 : src_depth)
+    , dst_bits  ( dst_depth > 8 ? (dst_depth + 7) & ~7 : dst_depth)
     , src_data  ( src_data   )
     , palette   ( src_palette)
+    , src_mask  ( (1 << src_bits) - 1 )
+    , dst_mask  ( (1 << dst_bits) - 1 )
+    , no_convert( src_depth == dst_depth )
     {
-      init(dst_depth, src_depth, dst_palette, src_palette);
-    }
-
-    template<typename TSrc>
-    static auto get_fp_copy_rgb_affine(color_depth_t dst_depth) -> std::int32_t(*)(void*, std::int32_t, std::int32_t, pixelcopy_t*)
-    {
-      return (dst_depth == rgb565_2Byte) ? copy_rgb_affine<swap565_t, TSrc>
-           : (dst_depth == rgb332_1Byte) ? copy_rgb_affine<rgb332_t , TSrc>
-           : (dst_depth == rgb888_3Byte) ? copy_rgb_affine<bgr888_t, TSrc>
-           : (dst_depth == rgb666_3Byte) ? (std::is_same<bgr666_t, TSrc>::value
-                                           ? copy_rgb_affine<bgr888_t, bgr888_t>
-                                           : copy_rgb_affine<bgr666_t, TSrc>)
-           : nullptr;
-    }
-
-    template<typename TSrc>
-    static auto get_fp_copy_rgb_fast(color_depth_t dst_depth) -> std::int32_t(*)(void*, std::int32_t, std::int32_t, pixelcopy_t*)
-    {
-      return (dst_depth == rgb565_2Byte) ? copy_rgb_fast<swap565_t, TSrc>
-           : (dst_depth == rgb332_1Byte) ? copy_rgb_fast<rgb332_t , TSrc>
-           : (dst_depth == rgb888_3Byte) ? copy_rgb_fast<bgr888_t, TSrc>
-           : (dst_depth == rgb666_3Byte) ? (std::is_same<bgr666_t, TSrc>::value
-                                           ? copy_rgb_fast<bgr888_t, bgr888_t>
-                                           : copy_rgb_fast<bgr666_t, TSrc>)
-           : nullptr;
-    }
-
-    template<typename TDst>
-    static auto get_fp_copy_rgb_fast_dst(color_depth_t src_depth) -> std::int32_t(*)(void*, std::int32_t, std::int32_t, pixelcopy_t*)
-    {
-      return (src_depth == rgb565_2Byte) ? copy_rgb_fast<TDst, swap565_t>
-           : (src_depth == rgb332_1Byte) ? copy_rgb_fast<TDst, rgb332_t >
-           : (src_depth == rgb888_3Byte) ? copy_rgb_fast<TDst, bgr888_t >
-                                         : (std::is_same<bgr666_t, TDst>::value)
-                                           ? copy_rgb_fast<bgr888_t, bgr888_t>
-                                           : copy_rgb_fast<TDst, bgr666_t>;
-    }
-
-    template<typename TPalette>
-    static auto get_fp_copy_palette_affine(color_depth_t dst_depth) -> std::int32_t(*)(void*, std::int32_t, std::int32_t, pixelcopy_t*)
-    {
-      return (dst_depth == rgb565_2Byte) ? copy_palette_affine<swap565_t, TPalette>
-           : (dst_depth == rgb332_1Byte) ? copy_palette_affine<rgb332_t , TPalette>
-           : (dst_depth == rgb888_3Byte) ? copy_palette_affine<bgr888_t, TPalette>
-           : (dst_depth == rgb666_3Byte) ? copy_palette_affine<bgr666_t, TPalette>
-           : nullptr;
-/*
-      if (dst_depth > rgb565_2Byte) {
-        if (dst_depth == rgb888_3Byte) {
-          return copy_palette_affine<bgr888_t, TPalette>;
-        } else { // dst_depth == rgb666_3Byte:
-          return copy_palette_affine<bgr666_t, TPalette>;
-        }
-      } else {
-        if (dst_depth == rgb565_2Byte) {
-          return copy_palette_affine<swap565_t, TPalette>;
-        } else { // dst_depth == rgb332_1Byte:
-          return copy_palette_affine<rgb332_t, TPalette>;
-        }
-      }
-//*/
-    }
-
-    void init( color_depth_t dst_depth
-             , color_depth_t src_depth
-             , bool dst_palette
-             , bool src_palette)
-    {
-      dst_bits = dst_depth > 8 ? (dst_depth + 7) & ~7 : dst_depth;
-      dst_mask = (1 << dst_bits) - 1;
-      src_bits = src_depth > 8 ? (src_depth + 7) & ~7 : src_depth;
-      src_mask = (1 << src_bits) - 1;
-
-      no_convert = (src_depth == dst_depth);
       if (dst_palette || dst_depth < 8) {
         if (src_palette && (dst_depth == 8) && (src_depth == 8)) {
           fp_copy = pixelcopy_t::copy_rgb_affine<rgb332_t, rgb332_t>;
@@ -906,6 +836,39 @@ namespace lgfx
           }
         }
       }
+    }
+
+    template<typename TSrc>
+    static auto get_fp_copy_rgb_affine(color_depth_t dst_depth) -> std::int32_t(*)(void*, std::int32_t, std::int32_t, pixelcopy_t*)
+    {
+      return (dst_depth == rgb565_2Byte) ? copy_rgb_affine<swap565_t, TSrc>
+           : (dst_depth == rgb332_1Byte) ? copy_rgb_affine<rgb332_t , TSrc>
+           : (dst_depth == rgb888_3Byte) ? copy_rgb_affine<bgr888_t, TSrc>
+           : (dst_depth == rgb666_3Byte) ? (std::is_same<bgr666_t, TSrc>::value
+                                           ? copy_rgb_affine<bgr888_t, bgr888_t>
+                                           : copy_rgb_affine<bgr666_t, TSrc>)
+           : nullptr;
+    }
+
+    template<typename TDst>
+    static auto get_fp_copy_rgb_affine_dst(color_depth_t src_depth) -> std::int32_t(*)(void*, std::int32_t, std::int32_t, pixelcopy_t*)
+    {
+      return (src_depth == rgb565_2Byte) ? copy_rgb_affine<TDst, swap565_t>
+           : (src_depth == rgb332_1Byte) ? copy_rgb_affine<TDst, rgb332_t >
+           : (src_depth == rgb888_3Byte) ? copy_rgb_affine<TDst, bgr888_t >
+                                         : (std::is_same<bgr666_t, TDst>::value)
+                                           ? copy_rgb_affine<bgr888_t, bgr888_t>
+                                           : copy_rgb_affine<TDst, bgr666_t>;
+    }
+
+    template<typename TPalette>
+    static auto get_fp_copy_palette_affine(color_depth_t dst_depth) -> std::int32_t(*)(void*, std::int32_t, std::int32_t, pixelcopy_t*)
+    {
+      return (dst_depth == rgb565_2Byte) ? copy_palette_affine<swap565_t, TPalette>
+           : (dst_depth == rgb332_1Byte) ? copy_palette_affine<rgb332_t , TPalette>
+           : (dst_depth == rgb888_3Byte) ? copy_palette_affine<bgr888_t, TPalette>
+           : (dst_depth == rgb666_3Byte) ? copy_palette_affine<bgr666_t, TPalette>
+           : nullptr;
     }
 
     static std::int32_t copy_bit_affine(void* dst, std::int32_t index, std::int32_t last, pixelcopy_t* param)
@@ -953,27 +916,6 @@ namespace lgfx
         param->src_y32 += param->src_y32_add;
       } while (++index != last);
       return index;
-    }
-
-    template <typename TDst, typename TSrc>
-    static std::int32_t copy_rgb_fast(void* dst, std::int32_t index, std::int32_t last, pixelcopy_t* param)
-    {
-      auto s = (const TSrc*)param->src_data;
-      auto d = (TDst*)dst;
-      if (std::is_same<TSrc, TDst>::value)
-      {
-        std::uint32_t i = param->src_x + param->src_y * param->src_bitwidth;
-        memcpy(static_cast<void*>(&d[index]), &s[i], (last - index) * sizeof(TSrc));
-        return last;
-      }
-      else
-      {
-        std::uint32_t i = param->src_x + param->src_y * param->src_bitwidth - 1;
-        do {
-          d[index] = s[++i];
-        } while (++index != last);
-        return index;
-      }
     }
 
     template <typename TDst, typename TSrc>
