@@ -2832,6 +2832,7 @@ mz_uint tdefl_create_comp_flags_from_zip_params(int level, int window_bits, int 
 
 mz_uint8 *tdefl_get_png_row_default( mz_uint8 *pImage, mz_bool flip, int w, int h, int y, int bpl, void *target ) {
   (void)target; // unused here
+  (void)w;
   return (mz_uint8*)pImage + (flip ? (h - 1 - y) : y) * bpl;
 }
 
