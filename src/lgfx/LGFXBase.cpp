@@ -988,76 +988,6 @@ namespace lgfx
     endWrite();
   }
 
-  void LGFXBase::writePixels(const std::uint16_t* data, std::int32_t len, bool swap)
-  {
-    pixelcopy_t p(data, _write_conv.depth, rgb565_2Byte, _palette_count);
-    if (swap && !_palette_count && _write_conv.depth >= 8) {
-      p.no_convert = false;
-      p.fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<rgb565_t>(_write_conv.depth);
-    }
-    writePixels_impl(len, &p);
-  }
-
-  void LGFXBase::writePixels(const void* data, std::int32_t len, bool swap)
-  {
-    pixelcopy_t p(data, _write_conv.depth, rgb888_3Byte, _palette_count);
-    if (swap && !_palette_count && _write_conv.depth >= 8) {
-      p.no_convert = false;
-      p.fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<rgb888_t>(_write_conv.depth);
-    }
-    writePixels_impl(len, &p);
-  }
-
-  void LGFXBase::pushImage(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const std::uint16_t* data)
-  {
-    if (_swapBytes && !_palette_count && _write_conv.depth >= 8) {
-      pushImage(x, y, w, h, reinterpret_cast<const rgb565_t*>(data));
-    } else {
-      pushImage(x, y, w, h, reinterpret_cast<const swap565_t*>(data));
-    }
-  }
-
-  void LGFXBase::pushImage(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const void* data)
-  {
-    if (_swapBytes && !_palette_count && _write_conv.depth >= 8) {
-      pushImage(x, y, w, h, reinterpret_cast<const rgb888_t*>(data));
-    } else {
-      pushImage(x, y, w, h, reinterpret_cast<const bgr888_t*>(data));
-    }
-  }
-
-  void LGFXBase::pushImage(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const std::uint8_t* data)
-  {
-    pixelcopy_t p(data, _write_conv.depth, rgb332_1Byte, _palette_count, nullptr);
-    pushImage(x, y, w, h, &p);
-  }
-
-  void LGFXBase::pushImageDMA(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const std::uint8_t* data)
-  {
-    pixelcopy_t p(data, _write_conv.depth, rgb332_1Byte, _palette_count, nullptr);
-    pushImage(x, y, w, h, &p, true);
-  }
-
-  void LGFXBase::pushImageDMA(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const std::uint16_t* data)
-  {
-    pixelcopy_t p(data, _write_conv.depth, rgb565_2Byte, _palette_count, nullptr);
-    if (_swapBytes && !_palette_count && _write_conv.depth >= 8) {
-      p.no_convert = false;
-      p.fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<rgb565_t>(_write_conv.depth);
-    }
-    pushImage(x, y, w, h, &p, true);
-  }
-
-  void LGFXBase::pushImageDMA(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const void* data)
-  {
-    pixelcopy_t p(data, _write_conv.depth, rgb888_3Byte, _palette_count, nullptr);
-    if (_swapBytes && !_palette_count && _write_conv.depth >= 8) {
-      p.no_convert = false;
-      p.fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<rgb888_t>(_write_conv.depth);
-    }
-    pushImage(x, y, w, h, &p, true);
-  }
-
   void LGFXBase::pushImage(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, pixelcopy_t *param, bool use_dma)
   {
     param->src_bitwidth = w;
@@ -1087,100 +1017,57 @@ namespace lgfx
     endWrite();
   }
 
-  bool LGFXBase::pushImageRotateZoom(float dst_x, float dst_y, float src_x, float src_y, std::int32_t w, std::int32_t h, float angle, float zoom_x, float zoom_y, const void* data, std::uint32_t transparent, const std::uint8_t bits, const bgr888_t* palette)
+  void LGFXBase::pushImageAffine(float matrix[6], std::int32_t w, std::int32_t h, pixelcopy_t *pc)
   {
-    float affine_matrix[6];
-    make_rotation_matrix(affine_matrix, dst_x + 0.5, dst_y + 0.5, src_x + 0.5, src_y + 0.5, angle, zoom_x, zoom_y);
-    return pushImageAffine(affine_matrix, data, w, h, transparent, bits, palette);
-  }
-
-  bool LGFXBase::pushImageAffine(float matrix[6], const void* data, std::int32_t w, std::int32_t h, std::uint32_t transparent, const std::uint8_t bits, const bgr888_t* palette)
-  {
-    if (nullptr == data) return false;
-
-    pixelcopy_t pc(data, getColorDepth(), (color_depth_t)bits, hasPalette(), palette, transparent );
-    pc.no_convert = false;
-    pc.src_bitwidth = w;
-    pc.src_width = w;
-    pc.src_height = h;
-    if (pc.src_bits < 8) {
-      std::uint32_t x_mask = (pc.src_bits == 1) ? 7
-                           : (pc.src_bits == 2) ? 3
-                                                : 1;
-      pc.src_bitwidth = (w + x_mask) & (~x_mask);
+    pc->no_convert = false;
+    pc->src_height = h;
+    pc->src_width = w;
+    pc->src_bitwidth = w;
+    if (pc->src_bits < 8) {
+      std::uint32_t x_mask = (pc->src_bits == 1) ? 7
+                           : (pc->src_bits == 2) ? 3
+                                                 : 1;
+      pc->src_bitwidth = (w + x_mask) & (~x_mask);
     }
-    push_image_affine(matrix, &pc);
-    return true;
+    push_image_affine(matrix, pc);
   }
 
-  bool LGFXBase::pushImageRotateZoomA(float dst_x, float dst_y, float src_x, float src_y, std::int32_t w, std::int32_t h, float angle, float zoom_x, float zoom_y, const void* data, std::uint32_t transparent, const std::uint8_t bits, const bgr888_t* palette)
+  void LGFXBase::pushImageAffineA(float matrix[6], std::int32_t w, std::int32_t h, pixelcopy_t *pc)
   {
-    float affine_matrix[6];
-    make_rotation_matrix(affine_matrix, dst_x + 0.5, dst_y + 0.5, src_x + 0.5, src_y + 0.5, angle, zoom_x, zoom_y);
-    return pushImageAffineA(affine_matrix, data, w, h, transparent, bits, palette);
-  }
-
-  bool LGFXBase::pushImageAffineA(float matrix[6], const void* data, std::int32_t w, std::int32_t h, std::uint32_t transparent, const std::uint8_t bits, const bgr888_t* palette)
-  {
-    if (nullptr == data) return false;
-
-    auto src_depth = (color_depth_t)bits;
-    pixelcopy_t pc1;
-    pc1.src_data = data;
-    pc1.palette = palette;
-    pc1.transp = transparent;
-    pc1.src_width = w;
-    pc1.src_height = h;
-    if (palette || src_depth < 8) {
-      pc1.src_bits = src_depth > 8 ? (src_depth + 7) & ~7 : src_depth;
-      pc1.src_mask = (1 << pc1.src_bits) - 1;
-      pc1.fp_copy = pixelcopy_t::copy_palette_antialias<bgr888_t>;
-      std::uint32_t x_mask = (bits == 1) ? 7
-                           : (bits == 2) ? 3
-                           : (bits == 4) ? 1
-                                         : 0;
-      pc1.src_bitwidth = (w + x_mask) & (~x_mask);
-    } else {
-      pc1.src_bitwidth = w;
-      if (src_depth > rgb565_2Byte) {
-        if (src_depth == rgb888_3Byte) {
-          pc1.fp_copy = pixelcopy_t::copy_rgb_antialias<bgr888_t>;
-        } else if (src_depth == rgb666_3Byte) {
-          pc1.fp_copy = pixelcopy_t::copy_rgb_antialias<bgr666_t>;
-        }
-      } else {
-        if (src_depth == rgb565_2Byte) {
-          pc1.fp_copy = pixelcopy_t::copy_rgb_antialias<swap565_t>;
-        } else { // src_depth == rgb332_1Byte:
-          pc1.fp_copy = pixelcopy_t::copy_rgb_antialias<rgb332_t>;
-        }
-      }
+    pc->no_convert = false;
+    pc->src_height = h;
+    pc->src_width = w;
+    pc->src_bitwidth = w;
+    if (pc->src_bits < 8) {
+      std::uint32_t x_mask = (pc->src_bits == 1) ? 7
+                           : (pc->src_bits == 2) ? 3
+                                                 : 1;
+      pc->src_bitwidth = (w + x_mask) & (~x_mask);
     }
 
+    pixelcopy_t pc_post;
     auto dst_depth = getColorDepth();
-    pixelcopy_t pc2;
     if (hasPalette() || dst_depth < 8)
     {
-      pc2.dst_bits = dst_depth;
-      pc2.dst_mask = (1 << dst_depth) - 1;
-      pc2.fp_copy = pixelcopy_t::blend_palette_fast;
+      pc_post.dst_bits = dst_depth;
+      pc_post.dst_mask = (1 << dst_depth) - 1;
+      pc_post.fp_copy = pixelcopy_t::blend_palette_fast;
     }
     else
     if (dst_depth > rgb565_2Byte) {
       if (dst_depth == rgb888_3Byte) {
-        pc2.fp_copy = pixelcopy_t::blend_rgb_fast<bgr888_t>;
+        pc_post.fp_copy = pixelcopy_t::blend_rgb_fast<bgr888_t>;
       } else {
-        pc2.fp_copy = pixelcopy_t::blend_rgb_fast<bgr666_t>;
+        pc_post.fp_copy = pixelcopy_t::blend_rgb_fast<bgr666_t>;
       }
     } else {
       if (dst_depth == rgb565_2Byte) {
-        pc2.fp_copy = pixelcopy_t::blend_rgb_fast<swap565_t>;
+        pc_post.fp_copy = pixelcopy_t::blend_rgb_fast<swap565_t>;
       } else { // src_depth == rgb332_1Byte:
-        pc2.fp_copy = pixelcopy_t::blend_rgb_fast<rgb332_t>;
+        pc_post.fp_copy = pixelcopy_t::blend_rgb_fast<rgb332_t>;
       }
     }
-    push_image_affine_a(matrix, &pc1, &pc2);
-    return true;
+    push_image_affine_a(matrix, pc, &pc_post);
   }
 
   void LGFXBase::make_rotation_matrix(float* result, float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y)
@@ -1189,9 +1076,9 @@ namespace lgfx
     float sin_f = sin(rad);
     float cos_f = cos(rad);
     result[0] =  cos_f * zoom_x;
-    result[1] = -sin_f * zoom_x;
+    result[1] = -sin_f * zoom_y;
     result[2] =  dst_x - src_x * result[0] - src_y * result[1];
-    result[3] =  sin_f * zoom_y;
+    result[3] =  sin_f * zoom_x;
     result[4] =  cos_f * zoom_y;
     result[5] =  dst_y - src_x * result[3] - src_y * result[4];
   }
