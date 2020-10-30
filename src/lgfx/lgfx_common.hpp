@@ -989,7 +989,7 @@ namespace lgfx
             std::uint32_t rate_x = (param->src_x == param->src_xe) ? 65535u : static_cast<std::uint16_t>(~param->src_x_lo);
             std::uint32_t rate_y = (param->src_y == param->src_ye) ? 65535u : static_cast<std::uint16_t>(~param->src_y_lo);
             std::uint32_t shift = 24;
-            if (param->src_x + 1 >= param->src_xe && param->src_y + 1 >= param->src_ye)
+            if (rate_x * rate_y < (1u << 24))
             {
               std::uint32_t max_value = std::max<std::uint32_t>(rate_x, param->src_xe_lo)
                                       * std::max<std::uint32_t>(rate_y, param->src_ye_lo) + 1;
@@ -1088,7 +1088,7 @@ namespace lgfx
             std::uint32_t rate_x = (param->src_x == param->src_xe) ? 65535u : static_cast<std::uint16_t>(~param->src_x_lo);
             std::uint32_t rate_y = (param->src_y == param->src_ye) ? 65535u : static_cast<std::uint16_t>(~param->src_y_lo);
             std::uint32_t shift = 24;
-            if (param->src_x + 1 >= param->src_xe && param->src_y + 1 >= param->src_ye)
+            if (rate_x * rate_y < (1u << 24))
             {
               std::uint32_t max_value = std::max<std::uint32_t>(rate_x, param->src_xe_lo)
                                       * std::max<std::uint32_t>(rate_y, param->src_ye_lo) + 1;
@@ -1148,7 +1148,7 @@ namespace lgfx
 
     static std::int32_t blend_palette_fast(void* dst, std::int32_t index, std::int32_t last, pixelcopy_t* param)
     {
-      auto s = (const argb8888_t*)param->src_data;
+      auto s = &((const argb8888_t*)param->src_data)[param->src_x + param->src_y * param->src_bitwidth - index];
       auto d = (std::uint8_t*)dst;
       auto dst_bits    = param->dst_bits;
       auto dst_mask    = param->dst_mask;
@@ -1157,22 +1157,20 @@ namespace lgfx
                       : (dst_bits == 4) ? 0x11
                                         : 0x01
                                         ;
-      std::uint32_t i = param->src_x + param->src_y * param->src_bitwidth - 1;
-
       do {
-        std::uint_fast16_t a = s[++i].a;
+        std::uint_fast16_t a = s[index].a;
         if (a)
         {
-          std::uint32_t raw = (s[i].R8() + s[i].G8() + s[i].B8()) / 3;
+          std::uint32_t raw = (s[index].R8() + s[index].G8() + s[index].B8()) / 3;
           auto dstidx = index * dst_bits;
           auto shift = (-(dstidx + dst_bits)) & 7;
-          auto tmp = &d[dstidx >> 3];
+          auto tmp = d[dstidx >> 3];
           if (a != 255)
           {
             std::uint_fast16_t inv = 256 - a;
-            raw = (((*tmp >> shift) & dst_mask) * k * inv + raw * ++a) >> 8;
+            raw = (((tmp >> shift) & dst_mask) * k * inv + raw * ++a) >> 8;
           }
-          *tmp = (*tmp & ~(dst_mask << shift)) | ((dst_mask & (raw >> (8 - dst_bits)))) << shift;
+          d[dstidx >> 3] = (tmp & ~(dst_mask << shift)) | ((dst_mask & (raw >> (8 - dst_bits)))) << shift;
         }
       } while (++index != last);
       return index;
@@ -1181,24 +1179,23 @@ namespace lgfx
     template <typename TDst>
     static std::int32_t blend_rgb_fast(void* dst, std::int32_t index, std::int32_t last, pixelcopy_t* param)
     {
-      auto s = (const argb8888_t*)param->src_data;
+      auto s = &((const argb8888_t*)param->src_data)[param->src_x + param->src_y * param->src_bitwidth - index];
       auto d = (TDst*)dst;
-      std::uint32_t i = param->src_x + param->src_y * param->src_bitwidth - 1;
       do {
-        std::uint_fast16_t a = s[++i].a;
+        std::uint_fast16_t a = s[index].a;
         if (a)
         {
           if (a == 255)
           {
-            d[index] = s[i];
+            d[index] = s[index];
           }
           else
           {
             std::uint_fast16_t inv = 256 - a;
             ++a;
-            d[index].set( (d[index].R8() * inv + s[i].R8() * a) >> 8
-                        , (d[index].G8() * inv + s[i].G8() * a) >> 8
-                        , (d[index].B8() * inv + s[i].B8() * a) >> 8
+            d[index].set( (d[index].R8() * inv + s[index].R8() * a) >> 8
+                        , (d[index].G8() * inv + s[index].G8() * a) >> 8
+                        , (d[index].B8() * inv + s[index].B8() * a) >> 8
                         );
           }
         }

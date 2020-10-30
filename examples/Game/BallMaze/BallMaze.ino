@@ -108,9 +108,7 @@ static void draw(void)
   float fy = (cy - oy);
   float len = sqrtf(fx * fx + fy * fy) * zoom;
   float theta = atan2f(fx, fy) + rad;
-  std::int32_t vx = roundf(sinf(theta) * len);
-  std::int32_t vy = roundf(cosf(theta) * len);
-  sp.pushRotateZoom(px - vx, py - vy, angle, zoom, zoom);
+  sp.pushRotateZoom(px - sinf(theta) * len, py - cosf(theta) * len, angle, zoom, zoom);
 }
 
 static void game_init(void)
