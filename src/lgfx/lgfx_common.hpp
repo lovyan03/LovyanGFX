@@ -971,7 +971,7 @@ namespace lgfx
           std::uint32_t y = param->src_y;
           if (x < src_width && y < src_height)
           {
-            std::uint32_t i = (param->src_x + param->src_y * src_bitwidth) * src_bits;
+            std::uint32_t i = (x + y * src_bitwidth) * src_bits;
             std::uint32_t raw = (s[i >> 3] >> (-(i + src_bits) & 7)) & src_mask;
             if (!(raw == transp))
             {

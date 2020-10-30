@@ -871,11 +871,11 @@ namespace lgfx
 
   void LGFXBase::fill_arc_helper(std::int32_t cx, std::int32_t cy, std::int32_t oradius, std::int32_t iradius, float start, float end)
   {
-    float s_cos = (cos(start * deg_to_rad));
-    float e_cos = (cos(end * deg_to_rad));
-    float sslope = s_cos / (sin(start * deg_to_rad));
+    float s_cos = (cosf(start * deg_to_rad));
+    float e_cos = (cosf(end * deg_to_rad));
+    float sslope = s_cos / (sinf(start * deg_to_rad));
     float eslope = -1000000;
-    if (end != 360.0) eslope = e_cos / (sin(end * deg_to_rad));
+    if (end != 360.0) eslope = e_cos / (sinf(end * deg_to_rad));
     float swidth =  0.5 / s_cos;
     float ewidth = -0.5 / e_cos;
     --iradius;
@@ -1017,7 +1017,33 @@ namespace lgfx
     endWrite();
   }
 
-  void LGFXBase::pushImageAffine(float matrix[6], std::int32_t w, std::int32_t h, pixelcopy_t *pc)
+  void LGFXBase::make_rotation_matrix(float* result, float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y)
+  {
+    float rad = fmodf(angle, 360) * deg_to_rad;
+    float sin_f = sinf(rad);
+    float cos_f = cosf(rad);
+    result[0] =  cos_f * zoom_x;
+    result[1] = -sin_f * zoom_y;
+    result[2] =  dst_x - src_x * result[0] - src_y * result[1];
+    result[3] =  sin_f * zoom_x;
+    result[4] =  cos_f * zoom_y;
+    result[5] =  dst_y - src_x * result[3] - src_y * result[4];
+  }
+
+  static bool make_invert_affine32(std::int32_t result[6], float matrix[6])
+  {
+    float det = matrix[0] * matrix[4] - matrix[1] * matrix[3];
+    if (det == 0.0) return false;
+    result[0] = roundf((1 << FP_SCALE) * matrix[4] / det);
+    result[1] = roundf((1 << FP_SCALE) *-matrix[1] / det);
+    result[2] = roundf((1 << FP_SCALE) *(matrix[1] * matrix[5] - matrix[2] * matrix[4]) / det);
+    result[3] = roundf((1 << FP_SCALE) *-matrix[3] / det);
+    result[4] = roundf((1 << FP_SCALE) * matrix[0] / det);
+    result[5] = roundf((1 << FP_SCALE) *(matrix[2] * matrix[3] - matrix[0] * matrix[5]) / det);
+    return true;
+  }
+
+  static void update_pc_width_height(pixelcopy_t* pc, std::int32_t w, std::int32_t h)
   {
     pc->no_convert = false;
     pc->src_height = h;
@@ -1029,22 +1055,31 @@ namespace lgfx
                                                  : 1;
       pc->src_bitwidth = (w + x_mask) & (~x_mask);
     }
+  }
+
+  void LGFXBase::push_image_rotate_zoom(float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y, std::int32_t w, std::int32_t h, pixelcopy_t* pc)
+  {
+    float matrix[6];
+    make_rotation_matrix(matrix, dst_x + 0.5, dst_y + 0.5, src_x + 0.5, src_y + 0.5, angle, zoom_x, zoom_y);
+    push_image_affine(matrix, w, h, pc);
+  }
+
+  void LGFXBase::push_image_rotate_zoom_aa(float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y, std::int32_t w, std::int32_t h, pixelcopy_t* pc)
+  {
+    float matrix[6];
+    make_rotation_matrix(matrix, dst_x + 0.5, dst_y + 0.5, src_x + 0.5, src_y + 0.5, angle, zoom_x, zoom_y);
+    push_image_affine_aa(matrix, w, h, pc);
+  }
+
+  void LGFXBase::push_image_affine(float *matrix, std::int32_t w, std::int32_t h, pixelcopy_t *pc)
+  {
+    update_pc_width_height(pc, w, h);
     push_image_affine(matrix, pc);
   }
 
-  void LGFXBase::pushImageAffineA(float matrix[6], std::int32_t w, std::int32_t h, pixelcopy_t *pc)
+  void LGFXBase::push_image_affine_aa(float *matrix, std::int32_t w, std::int32_t h, pixelcopy_t *pc)
   {
-    pc->no_convert = false;
-    pc->src_height = h;
-    pc->src_width = w;
-    pc->src_bitwidth = w;
-    if (pc->src_bits < 8) {
-      std::uint32_t x_mask = (pc->src_bits == 1) ? 7
-                           : (pc->src_bits == 2) ? 3
-                                                 : 1;
-      pc->src_bitwidth = (w + x_mask) & (~x_mask);
-    }
-
+    update_pc_width_height(pc, w, h);
     pixelcopy_t pc_post;
     auto dst_depth = getColorDepth();
     if (hasPalette() || dst_depth < 8)
@@ -1067,55 +1102,30 @@ namespace lgfx
         pc_post.fp_copy = pixelcopy_t::blend_rgb_fast<rgb332_t>;
       }
     }
-    push_image_affine_a(matrix, pc, &pc_post);
+    push_image_affine_aa(matrix, pc, &pc_post);
   }
 
-  void LGFXBase::make_rotation_matrix(float* result, float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y)
+  void LGFXBase::push_image_affine(float *matrix, pixelcopy_t *pc)
   {
-    float rad = fmodf(angle, 360) * deg_to_rad;
-    float sin_f = sin(rad);
-    float cos_f = cos(rad);
-    result[0] =  cos_f * zoom_x;
-    result[1] = -sin_f * zoom_y;
-    result[2] =  dst_x - src_x * result[0] - src_y * result[1];
-    result[3] =  sin_f * zoom_x;
-    result[4] =  cos_f * zoom_y;
-    result[5] =  dst_y - src_x * result[3] - src_y * result[4];
-  }
-
-  static bool make_invert_affine32(std::int32_t iA[6], float affine[6])
-  {
-    float det = affine[0] * affine[4] - affine[1] * affine[3];
-    if (det == 0.0) return false;
-    iA[0] = roundf((1 << FP_SCALE) * affine[4] / det);
-    iA[1] = roundf((1 << FP_SCALE) *-affine[1] / det);
-    iA[2] = roundf((1 << FP_SCALE) *(affine[1] * affine[5] - affine[2] * affine[4]) / det);
-    iA[3] = roundf((1 << FP_SCALE) *-affine[3] / det);
-    iA[4] = roundf((1 << FP_SCALE) * affine[0] / det);
-    iA[5] = roundf((1 << FP_SCALE) *(affine[2] * affine[3] - affine[0] * affine[5]) / det);
-    return true;
-  }
-
-  void LGFXBase::push_image_affine(float* affine, pixelcopy_t *pc)
-  {
-    std::int32_t min_y = affine[3] * (pc->src_width  << FP_SCALE);
-    std::int32_t max_y = affine[4] * (pc->src_height << FP_SCALE);
+    std::int32_t min_y = matrix[3] * (pc->src_width  << FP_SCALE);
+    std::int32_t max_y = matrix[4] * (pc->src_height << FP_SCALE);
     if ((min_y < 0) == (max_y < 0))
     {
       max_y += min_y;
       min_y = 0;
     }
     if (min_y > max_y) std::swap(min_y, max_y);
+
     {
-      std::int32_t offset_y32 = affine[5] * (1 << FP_SCALE);
+      std::int32_t offset_y32 = matrix[5] * (1 << FP_SCALE);
       min_y = std::max(_clip_t, (offset_y32 + min_y) >> FP_SCALE);
       max_y = std::min(_clip_b, (offset_y32 + max_y) >> FP_SCALE) + 1;
+      if (min_y >= max_y) return;
     }
 
-    if (min_y >= max_y) return;
 
     std::int32_t iA[6];
-    if (!make_invert_affine32(iA, affine)) return;
+    if (!make_invert_affine32(iA, matrix)) return;
 
     pc->src_x32_add = iA[0];
     pc->src_y32_add = iA[3];
@@ -1137,6 +1147,7 @@ namespace lgfx
 
     std::int32_t div1 = iA[0] ? - iA[0] : -1;
     std::int32_t div2 = iA[3] ? - iA[3] : -1;
+    std::int32_t y = min_y - max_y;
 
     startWrite();
     do {
@@ -1149,33 +1160,34 @@ namespace lgfx
         if (static_cast<std::uint32_t>(pc->src_x) < pc->src_width) {
           pc->src_y32 = iA[5] + left * iA[3];
           if (static_cast<std::uint32_t>(pc->src_y) < pc->src_height) {
-            pushImage_impl(left, min_y, right - left, 1, pc, true);
+            pushImage_impl(left, y + max_y, right - left, 1, pc, true);
           }
         }
       }
-    } while (++min_y != max_y);
+    } while (++y);
     endWrite();
   }
 
-  void LGFXBase::push_image_affine_a(float* affine, pixelcopy_t *pc, pixelcopy_t *pc2)
+  void LGFXBase::push_image_affine_aa(float *matrix, pixelcopy_t *pc, pixelcopy_t *pc2)
   {
-    std::int32_t min_y = affine[3] * (pc->src_width  << FP_SCALE);
-    std::int32_t max_y = affine[4] * (pc->src_height << FP_SCALE);
+    std::int32_t min_y = matrix[3] * (pc->src_width  << FP_SCALE);
+    std::int32_t max_y = matrix[4] * (pc->src_height << FP_SCALE);
     if ((min_y < 0) == (max_y < 0))
     {
       max_y += min_y;
       min_y = 0;
     }
     if (min_y > max_y) std::swap(min_y, max_y);
+
     {
-      std::int32_t offset_y32 = affine[5] * (1 << FP_SCALE);
+      std::int32_t offset_y32 = matrix[5] * (1 << FP_SCALE);
       min_y = std::max(_clip_t, (offset_y32 + min_y) >> FP_SCALE);
       max_y = std::min(_clip_b, (offset_y32 + max_y) >> FP_SCALE) + 1;
+      if (min_y >= max_y) return;
     }
 
-    if (min_y >= max_y) return;
     std::int32_t iA[6];
-    if (!make_invert_affine32(iA, affine)) return;
+    if (!make_invert_affine32(iA, matrix)) return;
 
     pc->src_x32_add = iA[0];
     pc->src_y32_add = iA[3];
@@ -1209,7 +1221,7 @@ namespace lgfx
       std::int32_t left  = std::max(cl, std::max((iA[2] + xs1) / div1, (iA[5] + ys1) / div2));
       std::int32_t right = std::min(cr, std::min((iA[2] + xs2) / div1, (iA[5] + ys2) / div2));
       if (left < right) {
-        std::uint32_t len = right - left;
+        std::int32_t len = right - left;
 
         std::uint32_t xs = iA[2] + left * iA[0];
         pc->src_x32 = xs - x32_diff;
@@ -1546,7 +1558,7 @@ namespace lgfx
 
       _decoderState = utf8_decode_state_t::utf8_state0;
 
-      return (std::uint16_t)c; // fall-back to extended ASCII
+      return c; // fall-back to extended ASCII
     }
 
     std::int32_t LGFXBase::textLength(const char *string, std::int32_t width)

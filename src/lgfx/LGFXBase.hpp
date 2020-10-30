@@ -254,70 +254,57 @@ namespace lgfx
     void pushImageRotateZoom(float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y, std::int32_t w, std::int32_t h, const T* data)
     {
       auto pc = create_pc(data);
-      pushImageRotateZoom(dst_x, dst_y, src_x, src_y, angle, zoom_x, zoom_y, w, h, &pc);
+      push_image_rotate_zoom(dst_x, dst_y, src_x, src_y, angle, zoom_x, zoom_y, w, h, &pc);
     }
 
     template<typename T1, typename T2>
     void pushImageRotateZoom(float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y, std::int32_t w, std::int32_t h, const T1* data, const T2& transparent)
     {
       auto pc = create_pc_tr(data, transparent);
-      pushImageRotateZoom(dst_x, dst_y, src_x, src_y, angle, zoom_x, zoom_y, w, h, &pc);
+      push_image_rotate_zoom(dst_x, dst_y, src_x, src_y, angle, zoom_x, zoom_y, w, h, &pc);
     }
 
     template<typename T>
     void pushImageRotateZoom(float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y, std::int32_t w, std::int32_t h, const void* data, color_depth_t depth, const T* palette)
     {
       auto pc = create_pc_palette(data, palette, depth);
-      pushImageRotateZoom(dst_x, dst_y, src_x, src_y, angle, zoom_x, zoom_y, w, h, &pc);
+      push_image_rotate_zoom(dst_x, dst_y, src_x, src_y, angle, zoom_x, zoom_y, w, h, &pc);
     }
 
     template<typename T>
     void pushImageRotateZoom(float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y, std::int32_t w, std::int32_t h, const void* data, std::uint32_t transparent, color_depth_t depth, const T* palette)
     {
       auto pc = create_pc_palette(data, palette, depth, transparent);
-      pushImageRotateZoom(dst_x, dst_y, src_x, src_y, angle, zoom_x, zoom_y, w, h, &pc);
+      push_image_rotate_zoom(dst_x, dst_y, src_x, src_y, angle, zoom_x, zoom_y, w, h, &pc);
     }
 
-    void pushImageRotateZoom(float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y, std::int32_t w, std::int32_t h, pixelcopy_t* pc)
-    {
-      float affine_matrix[6];
-      make_rotation_matrix(affine_matrix, dst_x + 0.5, dst_y + 0.5, src_x + 0.5, src_y + 0.5, angle, zoom_x, zoom_y);
-      pushImageAffine(affine_matrix, w, h, pc);
-    }
 
     template<typename T>
-    void pushImageRotateZoomA(float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y, std::int32_t w, std::int32_t h, const T* data)
+    void pushImageRotateZoomWithAA(float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y, std::int32_t w, std::int32_t h, const T* data)
     {
       auto pc = create_pc_antialias(data);
-      pushImageRotateZoomA(dst_x, dst_y, src_x, src_y, angle, zoom_x, zoom_y, w, h, &pc);
+      push_image_rotate_zoom_aa(dst_x, dst_y, src_x, src_y, angle, zoom_x, zoom_y, w, h, &pc);
     }
 
     template<typename T1, typename T2>
-    void pushImageRotateZoomA(float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y, std::int32_t w, std::int32_t h, const T1* data, const T2& transparent)
+    void pushImageRotateZoomWithAA(float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y, std::int32_t w, std::int32_t h, const T1* data, const T2& transparent)
     {
       auto pc = create_pc_tr_antialias(data, transparent);
-      pushImageRotateZoomA(dst_x, dst_y, src_x, src_y, angle, zoom_x, zoom_y, w, h, &pc);
+      push_image_rotate_zoom_aa(dst_x, dst_y, src_x, src_y, angle, zoom_x, zoom_y, w, h, &pc);
     }
 
     template<typename T>
-    void pushImageRotateZoomA(float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y, std::int32_t w, std::int32_t h, const void* data, color_depth_t depth, const T* palette)
+    void pushImageRotateZoomWithAA(float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y, std::int32_t w, std::int32_t h, const void* data, color_depth_t depth, const T* palette)
     {
       auto pc = create_pc_antialias(data, palette, depth);
-      pushImageRotateZoomA(dst_x, dst_y, src_x, src_y, angle, zoom_x, zoom_y, w, h, &pc);
+      push_image_rotate_zoom_aa(dst_x, dst_y, src_x, src_y, angle, zoom_x, zoom_y, w, h, &pc);
     }
 
     template<typename T>
-    void pushImageRotateZoomA(float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y, std::int32_t w, std::int32_t h, const void* data, std::uint32_t transparent, color_depth_t depth, const T* palette)
+    void pushImageRotateZoomWithAA(float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y, std::int32_t w, std::int32_t h, const void* data, std::uint32_t transparent, color_depth_t depth, const T* palette)
     {
       auto pc = create_pc_antialias(data, palette, depth, transparent);
-      pushImageRotateZoomA(dst_x, dst_y, src_x, src_y, angle, zoom_x, zoom_y, w, h, &pc);
-    }
-
-    void pushImageRotateZoomA(float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y, std::int32_t w, std::int32_t h, pixelcopy_t* pc)
-    {
-      float affine_matrix[6];
-      make_rotation_matrix(affine_matrix, dst_x + 0.5, dst_y + 0.5, src_x + 0.5, src_y + 0.5, angle, zoom_x, zoom_y);
-      pushImageAffineA(affine_matrix, w, h, pc);
+      push_image_rotate_zoom_aa(dst_x, dst_y, src_x, src_y, angle, zoom_x, zoom_y, w, h, &pc);
     }
 
 //----------------------------------------------------------------------------
@@ -326,62 +313,58 @@ namespace lgfx
     void pushImageAffine(float matrix[6], std::int32_t w, std::int32_t h, const T* data)
     {
       auto pc = create_pc(data);
-      pushImageAffine(matrix, w, h, &pc);
+      push_image_affine(matrix, w, h, &pc);
     }
 
     template<typename T1, typename T2>
     void pushImageAffine(float matrix[6], std::int32_t w, std::int32_t h, const T1* data, const T2& transparent)
     {
       auto pc = create_pc_tr(data, transparent);
-      pushImageAffine(matrix, w, h, &pc);
+      push_image_affine(matrix, w, h, &pc);
     }
 
     template<typename T>
     void pushImageAffine(float matrix[6], std::int32_t w, std::int32_t h, const void* data, color_depth_t depth, const T* palette)
     {
       auto pc = create_pc_palette(data, palette, depth);
-      pushImageAffine(matrix, w, h, &pc);
+      push_image_affine(matrix, w, h, &pc);
     }
 
     template<typename T>
     void pushImageAffine(float matrix[6], std::int32_t w, std::int32_t h, const void* data, std::uint32_t transparent, color_depth_t depth, const T* palette)
     {
       auto pc = create_pc_palette(data, palette, depth, transparent);
-      pushImageAffine(matrix, w, h, &pc);
+      push_image_affine(matrix, w, h, &pc);
     }
-
-    void pushImageAffine(float matrix[6], std::int32_t w, std::int32_t h, pixelcopy_t *pc);
 
 
     template<typename T>
-    void pushImageAffineA(float matrix[6], std::int32_t w, std::int32_t h, const T* data)
+    void pushImageAffineWithAA(float matrix[6], std::int32_t w, std::int32_t h, const T* data)
     {
       auto pc = create_pc_antialias(data);
-      pushImageAffineA(matrix, w, h, &pc);
+      push_image_affine_aa(matrix, w, h, &pc);
     }
 
     template<typename T1, typename T2>
-    void pushImageAffineA(float matrix[6], std::int32_t w, std::int32_t h, const T1* data, const T2& transparent)
+    void pushImageAffineWithAA(float matrix[6], std::int32_t w, std::int32_t h, const T1* data, const T2& transparent)
     {
       auto pc = create_pc_tr_antialias(data, transparent);
-      pushImageAffineA(matrix, w, h, &pc);
+      push_image_affine_aa(matrix, w, h, &pc);
     }
 
     template<typename T>
-    void pushImageAffineA(float matrix[6], std::int32_t w, std::int32_t h, const void* data, color_depth_t depth, const T* palette)
+    void pushImageAffineWithAA(float matrix[6], std::int32_t w, std::int32_t h, const void* data, color_depth_t depth, const T* palette)
     {
       auto pc = create_pc_antialias(data, palette, depth);
-      pushImageAffineA(matrix, w, h, &pc);
+      push_image_affine_aa(matrix, w, h, &pc);
     }
 
     template<typename T>
-    void pushImageAffineA(float matrix[6], std::int32_t w, std::int32_t h, const void* data, std::uint32_t transparent, color_depth_t depth, const T* palette)
+    void pushImageAffineWithAA(float matrix[6], std::int32_t w, std::int32_t h, const void* data, std::uint32_t transparent, color_depth_t depth, const T* palette)
     {
       auto pc = create_pc_antialias(data, palette, depth, transparent);
-      pushImageAffineA(matrix, w, h, &pc);
+      push_image_affine_aa(matrix, w, h, &pc);
     }
-
-    void pushImageAffineA(float matrix[6], std::int32_t w, std::int32_t h, pixelcopy_t *pc);
 
 //----------------------------------------------------------------------------
 
@@ -423,11 +406,10 @@ namespace lgfx
     void readRect( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, T* data)
     {
       pixelcopy_t p(nullptr, get_depth<T>::value, _read_conv.depth, false, getPalette());
-      if (std::is_same<rgb565_t, T>::value || std::is_same<rgb888_t, T>::value) {
+      if (std::is_same<rgb565_t, T>::value || std::is_same<rgb888_t, T>::value || p.fp_copy == nullptr) {
         p.no_convert = false;
         p.fp_copy = pixelcopy_t::get_fp_copy_rgb_affine_dst<T>(_read_conv.depth);
       }
-      if (p.fp_copy==nullptr) { p.fp_copy = pixelcopy_t::get_fp_copy_rgb_affine_dst<T>(_read_conv.depth); }
       read_rect(x, y, w, h, data, &p);
     }
 
@@ -462,20 +444,16 @@ namespace lgfx
 
     template<typename T>
     void setTextColor(T color) {
-      if (this->hasPalette()) {
-        _text_style.fore_rgb888 = _text_style.back_rgb888 = color;
-      } else {
-        _text_style.fore_rgb888 = _text_style.back_rgb888 = convert_to_rgb888(color);
-      }
+      _text_style.fore_rgb888 = _text_style.back_rgb888 = this->hasPalette() ? color : convert_to_rgb888(color);
     }
     template<typename T1, typename T2>
     void setTextColor(T1 fgcolor, T2 bgcolor) {
-      if (this->hasPalette()) {
-        _text_style.fore_rgb888 = fgcolor;
-        _text_style.back_rgb888 = bgcolor;
-      } else {
+      if (!this->hasPalette()) {
         _text_style.fore_rgb888 = convert_to_rgb888(fgcolor);
         _text_style.back_rgb888 = convert_to_rgb888(bgcolor);
+      } else {
+        _text_style.fore_rgb888 = fgcolor;
+        _text_style.back_rgb888 = bgcolor;
       }
     }
 
@@ -718,7 +696,7 @@ namespace lgfx
     , utf8_state2 = 2
     };
     utf8_decode_state_t _decoderState = utf8_state0;   // UTF8 decoder state
-    std::uint16_t _unicode_buffer = 0;   // Unicode code-point buffer
+    std::uint_fast16_t _unicode_buffer = 0;   // Unicode code-point buffer
 
     std::int32_t _cursor_x = 0;  // print text cursor
     std::int32_t _cursor_y = 0;
@@ -900,11 +878,15 @@ namespace lgfx
     void read_rect(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, void* dst, pixelcopy_t* param);
     void draw_gradient_line( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, uint32_t colorstart, uint32_t colorend );
     void fill_arc_helper(std::int32_t cx, std::int32_t cy, std::int32_t oradius, std::int32_t iradius, float start, float end);
+    void draw_bezier_helper(std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2);
     void draw_bitmap(std::int32_t x, std::int32_t y, const std::uint8_t *bitmap, std::int32_t w, std::int32_t h, std::uint32_t fg_rawcolor, std::uint32_t bg_rawcolor = ~0u);
     void draw_xbitmap(std::int32_t x, std::int32_t y, const std::uint8_t *bitmap, std::int32_t w, std::int32_t h, std::uint32_t fg_rawcolor, std::uint32_t bg_rawcolor = ~0u);
-    void push_image_affine(float* affine, pixelcopy_t *pc);
-    void push_image_affine_a(float* affine, pixelcopy_t *pre_pc, pixelcopy_t *post_pc);
-    void draw_bezier_helper(std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2);
+    void push_image_rotate_zoom(float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y, std::int32_t w, std::int32_t h, pixelcopy_t* pc);
+    void push_image_rotate_zoom_aa(float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y, std::int32_t w, std::int32_t h, pixelcopy_t* pc);
+    void push_image_affine(float* matrix, std::int32_t w, std::int32_t h, pixelcopy_t *pc);
+    void push_image_affine(float* matrix, pixelcopy_t *pc);
+    void push_image_affine_aa(float* matrix, std::int32_t w, std::int32_t h, pixelcopy_t *pc);
+    void push_image_affine_aa(float* matrix, pixelcopy_t *pre_pc, pixelcopy_t *post_pc);
 
     std::uint16_t decodeUTF8(std::uint8_t c);
 

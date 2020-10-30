@@ -316,24 +316,24 @@ namespace lgfx
                          void pushRotateZoom(                float dst_x, float dst_y, float angle, float zoom_x, float zoom_y)                  { push_rotate_zoom(_parent,                dst_x,                dst_y, angle, zoom_x, zoom_y); }
                          void pushRotateZoom(LovyanGFX* dst, float dst_x, float dst_y, float angle, float zoom_x, float zoom_y)                  { push_rotate_zoom(    dst,                dst_x,                dst_y, angle, zoom_x, zoom_y); }
 
-    template<typename T> void pushRotateZoomA(                                          float angle, float zoom_x, float zoom_y, const T& transp) { push_rotate_zoom_a(_parent, _parent->getPivotX(), _parent->getPivotY(), angle, zoom_x, zoom_y, _write_conv.convert(transp) & _write_conv.colormask); }
-    template<typename T> void pushRotateZoomA(LovyanGFX* dst                          , float angle, float zoom_x, float zoom_y, const T& transp) { push_rotate_zoom_a(    dst,     dst->getPivotX(),     dst->getPivotY(), angle, zoom_x, zoom_y, _write_conv.convert(transp) & _write_conv.colormask); }
-    template<typename T> void pushRotateZoomA(                float dst_x, float dst_y, float angle, float zoom_x, float zoom_y, const T& transp) { push_rotate_zoom_a(_parent,                dst_x,                dst_y, angle, zoom_x, zoom_y, _write_conv.convert(transp) & _write_conv.colormask); }
-    template<typename T> void pushRotateZoomA(LovyanGFX* dst, float dst_x, float dst_y, float angle, float zoom_x, float zoom_y, const T& transp) { push_rotate_zoom_a(    dst,                dst_x,                dst_y, angle, zoom_x, zoom_y, _write_conv.convert(transp) & _write_conv.colormask); }
-                         void pushRotateZoomA(                                          float angle, float zoom_x, float zoom_y)                  { push_rotate_zoom_a(_parent, _parent->getPivotX(), _parent->getPivotY(), angle, zoom_x, zoom_y); }
-                         void pushRotateZoomA(LovyanGFX* dst                          , float angle, float zoom_x, float zoom_y)                  { push_rotate_zoom_a(    dst,     dst->getPivotX(),     dst->getPivotY(), angle, zoom_x, zoom_y); }
-                         void pushRotateZoomA(                float dst_x, float dst_y, float angle, float zoom_x, float zoom_y)                  { push_rotate_zoom_a(_parent,                dst_x,                dst_y, angle, zoom_x, zoom_y); }
-                         void pushRotateZoomA(LovyanGFX* dst, float dst_x, float dst_y, float angle, float zoom_x, float zoom_y)                  { push_rotate_zoom_a(    dst,                dst_x,                dst_y, angle, zoom_x, zoom_y); }
+    template<typename T> void pushRotateZoomWithAA(                                          float angle, float zoom_x, float zoom_y, const T& transp) { push_rotate_zoom_aa(_parent, _parent->getPivotX(), _parent->getPivotY(), angle, zoom_x, zoom_y, _write_conv.convert(transp) & _write_conv.colormask); }
+    template<typename T> void pushRotateZoomWithAA(LovyanGFX* dst                          , float angle, float zoom_x, float zoom_y, const T& transp) { push_rotate_zoom_aa(    dst,     dst->getPivotX(),     dst->getPivotY(), angle, zoom_x, zoom_y, _write_conv.convert(transp) & _write_conv.colormask); }
+    template<typename T> void pushRotateZoomWithAA(                float dst_x, float dst_y, float angle, float zoom_x, float zoom_y, const T& transp) { push_rotate_zoom_aa(_parent,                dst_x,                dst_y, angle, zoom_x, zoom_y, _write_conv.convert(transp) & _write_conv.colormask); }
+    template<typename T> void pushRotateZoomWithAA(LovyanGFX* dst, float dst_x, float dst_y, float angle, float zoom_x, float zoom_y, const T& transp) { push_rotate_zoom_aa(    dst,                dst_x,                dst_y, angle, zoom_x, zoom_y, _write_conv.convert(transp) & _write_conv.colormask); }
+                         void pushRotateZoomWithAA(                                          float angle, float zoom_x, float zoom_y)                  { push_rotate_zoom_aa(_parent, _parent->getPivotX(), _parent->getPivotY(), angle, zoom_x, zoom_y); }
+                         void pushRotateZoomWithAA(LovyanGFX* dst                          , float angle, float zoom_x, float zoom_y)                  { push_rotate_zoom_aa(    dst,     dst->getPivotX(),     dst->getPivotY(), angle, zoom_x, zoom_y); }
+                         void pushRotateZoomWithAA(                float dst_x, float dst_y, float angle, float zoom_x, float zoom_y)                  { push_rotate_zoom_aa(_parent,                dst_x,                dst_y, angle, zoom_x, zoom_y); }
+                         void pushRotateZoomWithAA(LovyanGFX* dst, float dst_x, float dst_y, float angle, float zoom_x, float zoom_y)                  { push_rotate_zoom_aa(    dst,                dst_x,                dst_y, angle, zoom_x, zoom_y); }
 
-    template<typename T> void pushAffine(                float matrix[6], const T& transp) { push_affine  (_parent, matrix, _write_conv.convert(transp) & _write_conv.colormask); }
-    template<typename T> void pushAffine(LovyanGFX* dst, float matrix[6], const T& transp) { push_affine  (    dst, matrix, _write_conv.convert(transp) & _write_conv.colormask); }
-                         void pushAffine(                float matrix[6])                  { push_affine  (_parent, matrix); } 
-                         void pushAffine(LovyanGFX* dst, float matrix[6])                  { push_affine  (    dst, matrix); } 
+    template<typename T> void pushAffine(                float matrix[6], const T& transp) { push_affine(_parent, matrix, _write_conv.convert(transp) & _write_conv.colormask); }
+    template<typename T> void pushAffine(LovyanGFX* dst, float matrix[6], const T& transp) { push_affine(    dst, matrix, _write_conv.convert(transp) & _write_conv.colormask); }
+                         void pushAffine(                float matrix[6])                  { push_affine(_parent, matrix); } 
+                         void pushAffine(LovyanGFX* dst, float matrix[6])                  { push_affine(    dst, matrix); } 
 
-    template<typename T> void pushAffineA(                float matrix[6], const T& transp) { push_affine_a(_parent, matrix, _write_conv.convert(transp) & _write_conv.colormask); }
-    template<typename T> void pushAffineA(LovyanGFX* dst, float matrix[6], const T& transp) { push_affine_a(    dst, matrix, _write_conv.convert(transp) & _write_conv.colormask); }
-                         void pushAffineA(                float matrix[6])                  { push_affine_a(_parent, matrix); } 
-                         void pushAffineA(LovyanGFX* dst, float matrix[6])                  { push_affine_a(    dst, matrix); } 
+    template<typename T> void pushAffineWithAA(                float matrix[6], const T& transp) { push_affine_aa(_parent, matrix, _write_conv.convert(transp) & _write_conv.colormask); }
+    template<typename T> void pushAffineWithAA(LovyanGFX* dst, float matrix[6], const T& transp) { push_affine_aa(    dst, matrix, _write_conv.convert(transp) & _write_conv.colormask); }
+                         void pushAffineWithAA(                float matrix[6])                  { push_affine_aa(_parent, matrix); } 
+                         void pushAffineWithAA(LovyanGFX* dst, float matrix[6])                  { push_affine_aa(    dst, matrix); } 
 
 //----------------------------------------------------------------------------
 //----------------------------------------------------------------------------
@@ -626,9 +626,9 @@ namespace lgfx
       dst->pushImageRotateZoom(x, y, _xpivot, _ypivot, angle, zoom_x, zoom_y, _width, _height, _img, transp, getColorDepth(), _palette.img24());
     }
 
-    void push_rotate_zoom_a(LovyanGFX* dst, float x, float y, float angle, float zoom_x, float zoom_y, std::uint32_t transp = ~0)
+    void push_rotate_zoom_aa(LovyanGFX* dst, float x, float y, float angle, float zoom_x, float zoom_y, std::uint32_t transp = ~0)
     {
-      dst->pushImageRotateZoomA(x, y, _xpivot, _ypivot, angle, zoom_x, zoom_y, _width, _height, _img, transp, getColorDepth(), _palette.img24());
+      dst->pushImageRotateZoomWithAA(x, y, _xpivot, _ypivot, angle, zoom_x, zoom_y, _width, _height, _img, transp, getColorDepth(), _palette.img24());
     }
 
     void push_affine(LovyanGFX* dst, float matrix[6], std::uint32_t transp = ~0)
@@ -636,9 +636,9 @@ namespace lgfx
       dst->pushImageAffine(matrix, _width, _height, _img, transp, getColorDepth(), _palette.img24());
     }
 
-    void push_affine_a(LovyanGFX* dst, float matrix[6], std::uint32_t transp = ~0)
+    void push_affine_aa(LovyanGFX* dst, float matrix[6], std::uint32_t transp = ~0)
     {
-      dst->pushImageAffineA(matrix, _width, _height, _img, transp, getColorDepth(), _palette.img24());
+      dst->pushImageAffineWithAA(matrix, _width, _height, _img, transp, getColorDepth(), _palette.img24());
     }
 
     void set_window(std::int32_t xs, std::int32_t ys, std::int32_t xe, std::int32_t ye)
