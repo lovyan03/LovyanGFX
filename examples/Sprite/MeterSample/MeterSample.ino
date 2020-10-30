@@ -42,7 +42,7 @@ void setup(void)
 
   canvas.createSprite(width, width); // メモリ確保
   base  .createSprite(width, width);
-  needle.createSprite(11, 109);
+  needle.createSprite(3, 11);
 
   base.setFont(&fonts::Orbitron_Light_24);    // フォント種類を変更(盤の文字用)
 //base.setFont(&fonts::Roboto_Thin_24);       // フォント種類を変更(盤の文字用)
@@ -72,10 +72,8 @@ void setup(void)
     }
   }
 
-  needle.setPivot(5, 100);  // 針パーツの回転中心座標を設定する
-  needle.fillRect(2, 0, 7, 100, 2);
-  needle.fillCircle(5, 100, 4, 1);
-  needle.drawCircle(5, 100, 4, 3);
+  needle.setPivot(1, 9);  // 針パーツの回転中心座標を設定する
+  needle.drawRect(0, 0, 3, 11, 2);
 
   canvas.setPaletteColor(1, 0, 0, 15);
   canvas.setPaletteColor(2, 255, 31, 31);
@@ -90,7 +88,8 @@ void draw(float value)
   base.pushSprite(0, 0);  // 描画用バッファに盤の画像を上書き
 
   float angle = 270 + value * 90.0;
-  needle.pushRotateZoom( angle, 1.0, 1.0, transpalette); // 針をバッファに描画する
+  needle.pushRotateZoom( angle, 3.0, 10.0, transpalette); // 針をバッファに描画する
+  canvas.fillCircle(halfwidth, halfwidth, 7, 3);
   canvas.pushRotateZoom(0, zoom, zoom, transpalette);    // 完了した盤をLCDに描画する
   if (value >= 1.5)
   lcd.fillCircle(lcd.width()>>1, (lcd.height()>>1) + width * 4/10, 5, 0x007FFFU);

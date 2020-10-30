@@ -1061,7 +1061,8 @@ namespace lgfx
   {
     float matrix[6];
     make_rotation_matrix(matrix, dst_x + 0.5, dst_y + 0.5, src_x + 0.5, src_y + 0.5, angle, zoom_x, zoom_y);
-    push_image_affine(matrix, w, h, pc);
+    update_pc_width_height(pc, w, h);
+    push_image_affine(matrix, pc);
   }
 
   void LGFXBase::push_image_rotate_zoom_aa(float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y, std::int32_t w, std::int32_t h, pixelcopy_t* pc)

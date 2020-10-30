@@ -1,4 +1,3 @@
-
 #include <LovyanGFX.hpp>
 
 
@@ -107,10 +106,10 @@ static void draw(void)
 
   float fx = (cx - ox);
   float fy = (cy - oy);
-  float len = sqrt(fx * fx + fy * fy) * zoom;
-  float theta = atan2(fx, fy) + rad;
-  std::int32_t vx = round(sin(theta) * len);
-  std::int32_t vy = round(cos(theta) * len);
+  float len = sqrtf(fx * fx + fy * fy) * zoom;
+  float theta = atan2f(fx, fy) + rad;
+  std::int32_t vx = roundf(sinf(theta) * len);
+  std::int32_t vy = roundf(cosf(theta) * len);
   sp.pushRotateZoom(px - vx, py - vy, angle, zoom, zoom);
 }
 
@@ -178,15 +177,15 @@ static bool game_main(void)
   add_angle = add_angle * 9 / 10;
   rad = angle * - deg_to_rad;
 
-  ax += sin(rad) * gravity;
-  ay -= cos(rad) * gravity;
+  ax += sinf(rad) * gravity;
+  ay -= cosf(rad) * gravity;
   ax = ax * 9.7 / 10;
   ay = ay * 9.7 / 10;
 
   float addy = (ay<0.0) ? -cr:cr;
-  auto tmpy = round(cy+ay+addy);
+  auto tmpy = roundf(cy+ay+addy);
 
-  if ( 3 == sp.readPixelValue(round(cx), tmpy))
+  if ( 3 == sp.readPixelValue(roundf(cx), tmpy))
   {
     cy = tmpy - addy + (ay < 0.0 ? 0.5 : -0.5);
     ay = -ay * 9.0 / 10;
@@ -197,8 +196,8 @@ static bool game_main(void)
   }
 
   float addx = (ax<0.0) ? -cr:cr;
-  auto tmpx = round(cx+ax+addx);
-  if ( 3 == sp.readPixelValue(tmpx, round(cy)))
+  auto tmpx = roundf(cx+ax+addx);
+  if ( 3 == sp.readPixelValue(tmpx, roundf(cy)))
   {
     cx = tmpx - addx + (ax < 0.0 ? 0.5 : -0.5);
     ax = -ax * 9.0 / 10;
@@ -208,10 +207,10 @@ static bool game_main(void)
     cx += ax;
   }
 
-  std::uint32_t pv = sp.readPixelValue(round(cx), round(cy));
+  std::uint32_t pv = sp.readPixelValue(roundf(cx), roundf(cy));
   if ( 0 == pv)
   {
-    sp.drawPixel(round(cx), round(cy), 2);
+    sp.drawPixel(roundf(cx), roundf(cy), 2);
   }
   else if (1 == pv) return true;
 
@@ -241,7 +240,7 @@ void loop(void)
 {
   if (!game_main())
   {
-    lcd.fillCircle(px, py, round(cr*zoom), 0xFFFF00U);
+    lcd.fillCircle(px, py, roundf(cr*zoom), 0xFFFF00U);
   }
   else
   {
