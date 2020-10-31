@@ -1009,7 +1009,7 @@ namespace lgfx
                 std::uint32_t raw = (s[k >> 3] >> (-(k + src_bits) & 7)) & src_mask;
                 if (!(raw == transp))
                 {
-                  rate *= pal[raw].A8();
+                  if (std::is_same<TPalette, argb8888_t>::value) { rate *= pal[raw].A8(); }
                   rgbt[2] += pal[raw].R8() * rate;
                   rgbt[1] += pal[raw].G8() * rate;
                   rgbt[0] += pal[raw].B8() * rate;
@@ -1034,6 +1034,7 @@ namespace lgfx
             d[index].b = rgbt[0] / a;
             d[index].g = rgbt[1] / a;
             d[index].r = rgbt[2] / a;
+            if (!std::is_same<TPalette, argb8888_t>::value) { a *= 255; }
             d[index].a = a / rgbt[3];
           }
           else
@@ -1107,7 +1108,7 @@ namespace lgfx
                 auto color = &s[x + y * src_width];
                 if (!(*color == transp))
                 {
-                  rate *= color->A8();
+                  if (std::is_same<TSrc, argb8888_t>::value) { rate *= color->A8(); }
                   rgbt[2] += color->R8() * rate;
                   rgbt[1] += color->G8() * rate;
                   rgbt[0] += color->B8() * rate;
@@ -1132,6 +1133,7 @@ namespace lgfx
             d[index].b = rgbt[0] / a;
             d[index].g = rgbt[1] / a;
             d[index].r = rgbt[2] / a;
+            if (!std::is_same<TSrc, argb8888_t>::value) { a *= 255; }
             d[index].a = a / rgbt[3];
           }
           else
@@ -1164,13 +1166,13 @@ namespace lgfx
           std::uint32_t raw = (s[index].R8() + s[index].G8() + s[index].B8()) / 3;
           auto dstidx = index * dst_bits;
           auto shift = (-(dstidx + dst_bits)) & 7;
-          auto tmp = d[dstidx >> 3];
+          auto tmp = &d[dstidx >> 3];
           if (a != 255)
           {
-            std::uint_fast16_t inv = 256 - a;
-            raw = (((tmp >> shift) & dst_mask) * k * inv + raw * ++a) >> 8;
+            std::uint_fast16_t inv = (256 - a) * k;
+            raw = (((*tmp >> shift) & dst_mask) * inv + raw * ++a) >> 8;
           }
-          d[dstidx >> 3] = (tmp & ~(dst_mask << shift)) | ((dst_mask & (raw >> (8 - dst_bits)))) << shift;
+          *tmp = (*tmp & ~(dst_mask << shift)) | ((dst_mask & (raw >> (8 - dst_bits)))) << shift;
         }
       } while (++index != last);
       return index;

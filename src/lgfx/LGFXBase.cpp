@@ -1043,26 +1043,11 @@ namespace lgfx
     return true;
   }
 
-  static void update_pc_width_height(pixelcopy_t* pc, std::int32_t w, std::int32_t h)
-  {
-    pc->no_convert = false;
-    pc->src_height = h;
-    pc->src_width = w;
-    pc->src_bitwidth = w;
-    if (pc->src_bits < 8) {
-      std::uint32_t x_mask = (pc->src_bits == 1) ? 7
-                           : (pc->src_bits == 2) ? 3
-                                                 : 1;
-      pc->src_bitwidth = (w + x_mask) & (~x_mask);
-    }
-  }
-
   void LGFXBase::push_image_rotate_zoom(float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y, std::int32_t w, std::int32_t h, pixelcopy_t* pc)
   {
     float matrix[6];
     make_rotation_matrix(matrix, dst_x + 0.5, dst_y + 0.5, src_x + 0.5, src_y + 0.5, angle, zoom_x, zoom_y);
-    update_pc_width_height(pc, w, h);
-    push_image_affine(matrix, pc);
+    push_image_affine(matrix, w, h, pc);
   }
 
   void LGFXBase::push_image_rotate_zoom_aa(float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y, std::int32_t w, std::int32_t h, pixelcopy_t* pc)
@@ -1074,13 +1059,31 @@ namespace lgfx
 
   void LGFXBase::push_image_affine(float *matrix, std::int32_t w, std::int32_t h, pixelcopy_t *pc)
   {
-    update_pc_width_height(pc, w, h);
+    pc->no_convert = false;
+    pc->src_height = h;
+    pc->src_width = w;
+    pc->src_bitwidth = w;
+    if (pc->src_bits < 8) {
+      std::uint32_t x_mask = (pc->src_bits == 1) ? 7
+                           : (pc->src_bits == 2) ? 3
+                                                 : 1;
+      pc->src_bitwidth = (w + x_mask) & (~x_mask);
+    }
     push_image_affine(matrix, pc);
   }
 
   void LGFXBase::push_image_affine_aa(float *matrix, std::int32_t w, std::int32_t h, pixelcopy_t *pc)
   {
-    update_pc_width_height(pc, w, h);
+    pc->no_convert = false;
+    pc->src_height = h;
+    pc->src_width = w;
+    pc->src_bitwidth = w;
+    if (pc->src_bits < 8) {
+      std::uint32_t x_mask = (pc->src_bits == 1) ? 7
+                           : (pc->src_bits == 2) ? 3
+                                                 : 1;
+      pc->src_bitwidth = (w + x_mask) & (~x_mask);
+    }
     pixelcopy_t pc_post;
     auto dst_depth = getColorDepth();
     if (hasPalette() || dst_depth < 8)
@@ -1115,7 +1118,10 @@ namespace lgfx
       max_y += min_y;
       min_y = 0;
     }
-    if (min_y > max_y) std::swap(min_y, max_y);
+    if (min_y > max_y) 
+    {
+      std::swap(min_y, max_y);
+    }
 
     {
       std::int32_t offset_y32 = matrix[5] * (1 << FP_SCALE);
@@ -1178,7 +1184,10 @@ namespace lgfx
       max_y += min_y;
       min_y = 0;
     }
-    if (min_y > max_y) std::swap(min_y, max_y);
+    if (min_y > max_y) 
+    {
+      std::swap(min_y, max_y);
+    }
 
     {
       std::int32_t offset_y32 = matrix[5] * (1 << FP_SCALE);

@@ -961,10 +961,11 @@ return;
           return;
         }
       }
-
+      y *= _bitwidth;
       do {
-        std::int32_t pos = x + (y++) * _bitwidth;
+        std::int32_t pos = x + y;
         std::int32_t end = pos + w;
+        y += _bitwidth;
         while (end != (pos = param->fp_copy(_img, pos, end, param))) {
           if ( end == (pos = param->fp_skip(      pos, end, param))) break;
         }
@@ -975,17 +976,15 @@ return;
 
     void pushImageARGB_impl(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, pixelcopy_t* param) override
     {
-      auto src_x = param->src_x32;
       std::int32_t pos = x + y * _bitwidth;
       std::int32_t end = pos + w;
-      param->fp_copy(_img, pos, end, param);
+      param->fp_copy(_img.img8(), pos, end, param);
       while (--h)
       {
-        param->src_x32 = src_x;
-        param->src_y++;
         pos += _bitwidth;
         end = pos + w;
-        param->fp_copy(_img, pos, end, param);
+        param->src_y++;
+        param->fp_copy(_img.img8(), pos, end, param);
       }
     }
 
