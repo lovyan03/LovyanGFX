@@ -568,20 +568,20 @@ namespace lgfx
       std::int32_t whb = w * h * bytes;
       if (param->transp == ~0) {
         if (param->no_convert) {
-          std::uint32_t i = (src_x + param->src_y * param->src_width) * bytes;
+          std::uint32_t i = (src_x + param->src_y * param->src_bitwidth) * bytes;
           auto src = &((const std::uint8_t*)param->src_data)[i];
           setWindow_impl(x, y, xr, y + h - 1);
-          if (param->src_width == w) {
+          if (param->src_bitwidth == w) {
             write_bytes(src, whb, use_dma);
           } else {
-            auto add = param->src_width * bytes;
+            auto add = param->src_bitwidth * bytes;
             do {
               write_bytes(src, w * bytes, use_dma);
               src += add;
             } while (--h);
           }
         } else
-        if (param->src_width == w && (whb <= 1024)) {
+        if (param->src_bitwidth == w && (whb <= 1024)) {
           std::uint8_t buf[whb];
           fp_copy(buf, 0, w * h, param);
           setWindow_impl(x, y, xr, y + h - 1);

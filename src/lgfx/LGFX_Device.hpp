@@ -178,8 +178,8 @@ namespace lgfx
 
     void convertRawXY(std::int32_t *x, std::int32_t *y)
     {
-      std::int32_t tx = (_touch_affin[0] * (float)*x + _touch_affin[1] * (float)*y) + _touch_affin[2];
-      std::int32_t ty = (_touch_affin[3] * (float)*x + _touch_affin[4] * (float)*y) + _touch_affin[5];
+      std::int32_t tx = (_touch_affine[0] * (float)*x + _touch_affine[1] * (float)*y) + _touch_affine[2];
+      std::int32_t ty = (_touch_affine[3] * (float)*x + _touch_affine[4] * (float)*y) + _touch_affine[5];
 
       std::uint_fast8_t r = _panel->rotation & 7;
       if (r & 1) {
@@ -243,7 +243,7 @@ namespace lgfx
 
     board_t board = lgfx::board_t::board_unknown;
 
-    float _touch_affin[6] = {1,0,0,0,1,0};
+    float _touch_affine[6] = {1,0,0,0,1,0};
 
     bool _in_transaction = false;
 
@@ -315,6 +315,62 @@ namespace lgfx
       }
     }
 
+    void pushImageARGB_impl(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, pixelcopy_t* param) override
+    {
+      auto src_x = param->src_x;
+      auto buffer = reinterpret_cast<argb8888_t*>(const_cast<void*>(param->src_data));
+      auto bytes = _write_conv.bytes;
+/*
+      this->setWindow(x, y, x + w, y);
+      std::uint8_t* dmabuf = get_dmabuffer(w * bytes);
+      memset(dmabuf, 0, w * bytes);
+      param->fp_copy(dmabuf, 0, w, param);
+      this->writePixelsDMA_impl(dmabuf, w);
+      return;
+      pixelcopy_t p(nullptr, static_cast<color_depth_t>(_write_conv.depth), _read_conv.depth);
+//*/
+      pixelcopy_t pc_read(nullptr, static_cast<color_depth_t>(_write_conv.depth), _read_conv.depth);
+      for (;;)
+      {
+        std::uint8_t* dmabuf = get_dmabuffer((w+1) * bytes);
+        std::int32_t xstart = 0, drawed_x = 0;
+        do
+        {
+          std::uint_fast8_t a = buffer[xstart].a;
+          if (!a)
+          {
+            if (drawed_x < xstart)
+            {
+              param->src_x = drawed_x;
+              param->fp_copy(dmabuf, drawed_x, xstart, param);
+              this->setWindow(x + drawed_x, y, x + xstart, y);
+              this->writePixelsDMA_impl(dmabuf + drawed_x * bytes, (xstart - drawed_x));
+            }
+            drawed_x = xstart + 1;
+          }
+          else
+          {
+            while (255 == buffer[xstart].a && ++xstart != w);
+            if (xstart == w) break;
+            std::int32_t j = xstart;
+            while (++j != w && buffer[j].a && buffer[j].a != 255);
+            read_rect(x + xstart, y, j - xstart + 1, 1, &dmabuf[xstart * bytes], &pc_read);
+            if (w == (xstart = j)) break;
+          }
+        } while (++xstart != w);
+        if (drawed_x < xstart)
+        {
+          param->src_x = drawed_x;
+          param->fp_copy(dmabuf, drawed_x, xstart, param);
+          this->setWindow(x + drawed_x, y, x + xstart, y);
+          this->writePixelsDMA_impl(dmabuf + drawed_x * bytes, (xstart - drawed_x));
+        }
+        if (!--h) return;
+        param->src_x = src_x;
+        param->src_y++;
+        ++y;
+      }
+    }
 
     struct _dmabufs_t {
       std::uint8_t* buffer = nullptr;
@@ -484,15 +540,15 @@ namespace lgfx
       float v0 = vect[0];
       float v1 = vect[1];
       float v2 = vect[2];
-      _touch_affin[0] = mat[0][0] * v0 + mat[0][1] * v1 + mat[0][2] * v2;
-      _touch_affin[1] = mat[1][0] * v0 + mat[1][1] * v1 + mat[1][2] * v2;
-      _touch_affin[2] = mat[2][0] * v0 + mat[2][1] * v1 + mat[2][2] * v2;
+      _touch_affine[0] = mat[0][0] * v0 + mat[0][1] * v1 + mat[0][2] * v2;
+      _touch_affine[1] = mat[1][0] * v0 + mat[1][1] * v1 + mat[1][2] * v2;
+      _touch_affine[2] = mat[2][0] * v0 + mat[2][1] * v1 + mat[2][2] * v2;
       float v3 = vect[3];
       float v4 = vect[4];
       float v5 = vect[5];
-      _touch_affin[3] = mat[0][0] * v3 + mat[0][1] * v4 + mat[0][2] * v5;
-      _touch_affin[4] = mat[1][0] * v3 + mat[1][1] * v4 + mat[1][2] * v5;
-      _touch_affin[5] = mat[2][0] * v3 + mat[2][1] * v4 + mat[2][2] * v5;
+      _touch_affine[3] = mat[0][0] * v3 + mat[0][1] * v4 + mat[0][2] * v5;
+      _touch_affine[4] = mat[1][0] * v3 + mat[1][1] * v4 + mat[1][2] * v5;
+      _touch_affine[5] = mat[2][0] * v3 + mat[2][1] * v4 + mat[2][2] * v5;
     }
   };
 

@@ -6,24 +6,34 @@ namespace lgfx
 // for ESP32
   struct LGFX_Config
   {
+// Select the type of SPI  (VSPI_HOST or HSPI_HOST)
 // 使用するSPIを VSPI_HOST または HSPI_HOST で設定します。
     static constexpr spi_host_device_t spi_host = VSPI_HOST;
 
+// Set the DMA channel number (1 or 2)
+// If you don't want to use DMA, omit it or set it to 0.
 // 使用するDMAチャンネルを 1か2で設定します。
 // 使用しない場合は省略するか0を設定します。
     static constexpr int dma_channel = 1;
 
+// Set the SPI SCLK pin number
 // SPIのSCLKのピン番号を設定します。
     static constexpr int spi_sclk = 18;
 
+// Set the SPI MOSI pin number
 // SPIのMOSIのピン番号を設定します。
     static constexpr int spi_mosi = 23;
 
+// Set the SPI MISO pin number
+// If you share the SPI bus with an SD card, be sure to set up MISO as well.
+// If you don't want to use MISO, omit it or set it to -1.
 // SPIのMISOのピン番号を設定します。
 // SDカード等と共通のSPIバスを使う場合はMISOも必ず設定してください。
 // 使わない場合は省略するか-1を設定します。
     static constexpr int spi_miso = 19;
 
+// Set the data length of SPI communication.
+// If you want to use the LCD for RPi, set it to 16.
 // SPI通信のデータ長を指定します。
 // RaspberryPi用のLCD等を使用する場合に16を指定します。
 // 省略時は 8 です。大抵のパネルは8ですので、基本的には省略してください。
@@ -69,17 +79,6 @@ class LGFX : public lgfx::LGFX_SPI<lgfx::LGFX_Config>
 {
 // Panelクラスのインスタンスを作成します。使用するパネルにあったクラスをコメントアウトしてください。
 
-//  ★LCD一体型製品の対応機種の場合はこちらから選択できます。
-//  lgfx::Panel_DDUINO32_XS panel;
-//  lgfx::Panel_LoLinD32 panel;
-//  lgfx::Panel_M5Stack panel;
-//  lgfx::Panel_M5StickC panel;
-//  lgfx::Panel_ODROID_GO panel;
-//  lgfx::Panel_TTGO_TS panel;
-//  lgfx::Panel_TTGO_TWatch panel;
-//  lgfx::Panel_WioTerminal panel;
-
-//  ★対応機種以外の場合はこちらから選択できます。
 //  lgfx::Panel_HX8357B panel;
 //  lgfx::Panel_HX8357D panel;
 //  lgfx::Panel_ILI9163 panel;
@@ -154,11 +153,12 @@ public:
 // 省略時は true。true=HIGHで点灯 / false=LOWで点灯になります。
     panel.backlight_level = true;
 
-// invertDisplayの初期値を設定します。trueを設定すると反転します。
-// 省略時は false。画面の輝度が反転している場合は設定を変更してください。
-    panel.invert = false;
+// Set the panel color inversion. (e.g. black<=>white / blue<=>yellow)
+// パネルの色反転設定です。trueを設定すると色が反転します。(例:黒と白、青と黄色)
+// 省略時は false。画面の色が反転している場合は設定を変更してください。
+    panel.reverse_invert = false;
 
-// パネルの色順がを設定します。  RGB=true / BGR=false
+// パネルの色順を設定します。  RGB=true / BGR=false
 // 省略時はfalse。赤と青が入れ替わっている場合は設定を変更してください。
     panel.rgb_order = false;
 

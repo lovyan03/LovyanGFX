@@ -139,9 +139,9 @@ namespace lgfx
     __attribute__ ((always_inline)) inline static std::uint16_t swap565( std::uint8_t r, std::uint8_t g, std::uint8_t b) { return lgfx::swap565( r, g, b); }
     __attribute__ ((always_inline)) inline static std::uint32_t swap888( std::uint8_t r, std::uint8_t g, std::uint8_t b) { return lgfx::swap888( r, g, b); }
 
-    __attribute__ ((always_inline)) inline void setPivot(std::int16_t x, std::int16_t y) { _xpivot = x; _ypivot = y; }
-    __attribute__ ((always_inline)) inline std::int16_t getPivotX(void) const { return _xpivot; }
-    __attribute__ ((always_inline)) inline std::int16_t getPivotY(void) const { return _ypivot; }
+    __attribute__ ((always_inline)) inline void setPivot(float x, float y) { _xpivot = x; _ypivot = y; }
+    __attribute__ ((always_inline)) inline float getPivotX(void) const { return _xpivot; }
+    __attribute__ ((always_inline)) inline float getPivotY(void) const { return _ypivot; }
 
     __attribute__ ((always_inline)) inline std::int32_t width        (void) const { return _width; }
     __attribute__ ((always_inline)) inline std::int32_t height       (void) const { return _height; }
@@ -170,7 +170,7 @@ namespace lgfx
     void getClipRect(std::int32_t *x, std::int32_t *y, std::int32_t *w, std::int32_t *h);
     void clearClipRect(void);
 
-    template <typename T>
+    template<typename T>
     void setScrollRect(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const T& color) {
       _base_rgb888 = convert_to_rgb888(color);
       setScrollRect(x, y, w, h);
@@ -182,38 +182,21 @@ namespace lgfx
     __attribute__ ((always_inline)) inline void pushPixelsDMA( const void* data, std::int32_t len) { if (len < 0) return; startWrite(); writePixelsDMA_impl(data, len); endWrite(); }
     __attribute__ ((always_inline)) inline void writePixelsDMA(const void* data, std::int32_t len) { if (len < 0) return;               writePixelsDMA_impl(data, len);             }
 
-    template <typename T>
-    __attribute__ ((always_inline)) inline void pushPixels(T*                   data, std::int32_t len           ) { startWrite(); writePixels(data, len            ); endWrite(); }
-    __attribute__ ((always_inline)) inline void pushPixels(const std::uint8_t*  data, std::int32_t len           ) { startWrite(); writePixels((const rgb332_t*)data, len); endWrite(); }
-    __attribute__ ((always_inline)) inline void pushPixels(const std::uint16_t* data, std::int32_t len           ) { startWrite(); writePixels(data, len, _swapBytes); endWrite(); }
-    __attribute__ ((always_inline)) inline void pushPixels(const std::uint16_t* data, std::int32_t len, bool swap) { startWrite(); writePixels(data, len,  swap     ); endWrite(); }
-    __attribute__ ((always_inline)) inline void pushPixels(const void*          data, std::int32_t len           ) { startWrite(); writePixels(data, len, _swapBytes); endWrite(); }
-    __attribute__ ((always_inline)) inline void pushPixels(const void*          data, std::int32_t len, bool swap) { startWrite(); writePixels(data, len,  swap     ); endWrite(); }
+    template<typename T>
+    __attribute__ ((always_inline)) inline void pushPixels(T*                   data, std::int32_t len           ) { startWrite(); writePixels(data, len      ); endWrite(); }
+    __attribute__ ((always_inline)) inline void pushPixels(const std::uint16_t* data, std::int32_t len, bool swap) { startWrite(); writePixels(data, len, swap); endWrite(); }
+    __attribute__ ((always_inline)) inline void pushPixels(const void*          data, std::int32_t len, bool swap) { startWrite(); writePixels(data, len, swap); endWrite(); }
 
+    template<typename T>
+    void writePixels(const T *data, std::int32_t len)                        { auto pc = create_pc(data      ); writePixels_impl(len, &pc); }
+    void writePixels(const std::uint16_t* data, std::int32_t len, bool swap) { auto pc = create_pc(data, swap); writePixels_impl(len, &pc); }
+    void writePixels(const void*          data, std::int32_t len, bool swap) { auto pc = create_pc(data, swap); writePixels_impl(len, &pc); }
 
-    __attribute__ ((always_inline)) inline void writePixels(const std::uint8_t*  data, std::int32_t len           ) { writePixels((const rgb332_t*)data, len); }
-    __attribute__ ((always_inline)) inline void writePixels(const std::uint16_t* data, std::int32_t len           ) { writePixels(data, len, _swapBytes); }
-                                           void writePixels(const std::uint16_t* data, std::int32_t len, bool swap);
-    __attribute__ ((always_inline)) inline void writePixels(const void*          data, std::int32_t len           ) { writePixels(data, len, _swapBytes); }
-                                           void writePixels(const void*          data, std::int32_t len, bool swap);
-    template <typename T>
-    void writePixels(const T *data, std::int32_t len)
-    {
-      pixelcopy_t p(data, _write_conv.depth, get_depth<T>::value, hasPalette(), nullptr);
-      if (std::is_same<rgb565_t, T>::value || std::is_same<rgb888_t, T>::value) {
-        p.no_convert = false;
-        p.fp_copy = pixelcopy_t::get_fp_normalcopy<T>(_write_conv.depth);
-      }
-      writePixels_impl(len, &p);
-    }
-
-    template <typename T>
+    template<typename T>
     void writeIndexedPixels(const uint8_t *data, T* palette, std::int32_t len, lgfx::color_depth_t colordepth = lgfx::rgb332_1Byte)
     {
-      pixelcopy_t p(data, _write_conv.depth, colordepth, hasPalette(), palette);
-      p.no_convert = false;
-      p.fp_copy = pixelcopy_t::get_fp_palettecopy<T>(_write_conv.depth);
-      writePixels_impl(len, &p);
+      auto pc = create_pc_palette(data, palette, colordepth);
+      writePixels_impl(len, &pc);
     }
 
     template<typename T> void drawBitmap (std::int32_t x, std::int32_t y, const std::uint8_t *bitmap, std::int32_t w, std::int32_t h, const T& color                    ) { draw_bitmap (x, y, bitmap, w, h, _write_conv.convert(color)); }
@@ -221,108 +204,169 @@ namespace lgfx
     template<typename T> void drawXBitmap(std::int32_t x, std::int32_t y, const std::uint8_t *bitmap, std::int32_t w, std::int32_t h, const T& color                    ) { draw_xbitmap(x, y, bitmap, w, h, _write_conv.convert(color)); }
     template<typename T> void drawXBitmap(std::int32_t x, std::int32_t y, const std::uint8_t *bitmap, std::int32_t w, std::int32_t h, const T& fgcolor, const T& bgcolor) { draw_xbitmap(x, y, bitmap, w, h, _write_conv.convert(fgcolor), _write_conv.convert(bgcolor)); }
 
-    void pushImage(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const void*          data);
-    void pushImage(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const std::uint16_t* data);
-    void pushImage(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const std::uint8_t*  data);
-
     template<typename T>
     void pushImage(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const T* data)
     {
-      pixelcopy_t p(data, _write_conv.depth, get_depth<T>::value, hasPalette(), nullptr);
-      if (std::is_same<rgb565_t, T>::value || std::is_same<rgb888_t, T>::value) {
-        p.no_convert = false;
-        p.fp_copy = pixelcopy_t::get_fp_normalcopy<T>(_write_conv.depth);
-      }
-      if (p.fp_copy==nullptr) { p.fp_copy = pixelcopy_t::get_fp_normalcopy<T>(_write_conv.depth); }
-      pushImage(x, y, w, h, &p);
+      auto pc = create_pc(data);
+      pushImage(x, y, w, h, &pc);
     }
 
-    template<typename T, typename U>
-    void pushImage( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const T* data, const U& transparent)
+    template<typename T1, typename T2>
+    void pushImage(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const T1* data, const T2& transparent)
     {
-      std::uint32_t tr = (std::is_same<T, U>::value)
-                       ? transparent
-                       : get_fp_convert_src<U>(get_depth<T>::value, false)(transparent);
-      pixelcopy_t p(data, _write_conv.depth, get_depth<T>::value, hasPalette(), nullptr, tr);
-      if (std::is_same<rgb565_t, T>::value || std::is_same<rgb888_t, T>::value) {
-        if (std::is_same<rgb565_t, T>::value) {
-          p.transp = getSwap16(tr);
-        } else {
-          p.transp = getSwap24(tr);
-        }
-        p.no_convert = false;
-        p.fp_copy = pixelcopy_t::get_fp_normalcopy<T>(_write_conv.depth);
-      }
-      if (p.fp_copy==nullptr) { p.fp_copy = pixelcopy_t::get_fp_normalcopy<T>(_write_conv.depth); }
-      if (p.fp_skip==nullptr) { p.fp_skip = pixelcopy_t::normalskip<T>; }
-      pushImage(x, y, w, h, &p);
-    }
-
-    template<typename U>
-    void pushImage(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const std::uint8_t* data, const U& transparent)
-    {
-      pushImage(x, y, w, h, (const rgb332_t*)data, transparent);
-    }
-
-    template<typename U>
-    void pushImage(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const std::uint16_t* data, const U& transparent)
-    {
-      if (_swapBytes && _write_conv.depth >= 8 && !hasPalette()) {
-        pushImage(x, y, w, h, (const rgb565_t*)data, transparent);
-      } else {
-        pushImage(x, y, w, h, (const swap565_t*)data, transparent);
-      }
-    }
-
-    template<typename U>
-    void pushImage(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const void* data, const U& transparent)
-    {
-      if (_swapBytes && _write_conv.depth >= 8 && !hasPalette()) {
-        pushImage(x, y, w, h, (const rgb888_t*)data, transparent);
-      } else {
-        pushImage(x, y, w, h, (const bgr888_t*)data, transparent);
-      }
+      auto pc = create_pc_tr(data, transparent);
+      pushImage(x, y, w, h, &pc);
     }
 
     template<typename T>
-    void pushImage( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const void* data, const std::uint8_t bits, const T* palette) {
-      pixelcopy_t p(data, _write_conv.depth, (color_depth_t)bits, hasPalette(), palette);
-      p.fp_copy = pixelcopy_t::get_fp_palettecopy<T>(_write_conv.depth);
-      pushImage(x, y, w, h, &p);
-    }
-    template<typename T>
-    void pushImage( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const void* data, std::uint32_t transparent, const std::uint8_t bits, const T* palette) {
-      pixelcopy_t p(data, _write_conv.depth, (color_depth_t)bits, hasPalette(), palette, transparent );
-      p.fp_copy = pixelcopy_t::get_fp_palettecopy<T>(_write_conv.depth);
-      pushImage(x, y, w, h, &p);
-    }
-
-    void pushImageDMA(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const void*          data);
-    void pushImageDMA(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const std::uint16_t* data);
-    void pushImageDMA(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const std::uint8_t*  data);
-
-    template<typename T>
-    void pushImageDMA( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const T* data)
+    void pushImage(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const void* data, const std::uint8_t bits, const T* palette)
     {
-      pixelcopy_t p(data, _write_conv.depth, get_depth<T>::value, hasPalette(), nullptr  );
-      if (std::is_same<rgb565_t, T>::value || std::is_same<rgb888_t, T>::value) {
-        p.no_convert = false;
-        p.fp_copy = pixelcopy_t::get_fp_normalcopy<T>(_write_conv.depth);
-      }
-      if (p.fp_copy==nullptr) { p.fp_copy = pixelcopy_t::get_fp_normalcopy<T>(_write_conv.depth); }
-      pushImage(x, y, w, h, &p, true);
+      auto pc = create_pc_palette(data, palette, bits);
+      pushImage(x, y, w, h, &pc);
     }
 
     template<typename T>
-    void pushImageDMA( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const void* data, const std::uint8_t bits, const T* palette)
+    void pushImage(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const void* data, std::uint32_t transparent, const std::uint8_t bits, const T* palette)
     {
-      pixelcopy_t p(data, _write_conv.depth, (color_depth_t)bits, hasPalette(), palette);
-      pushImage(x, y, w, h, &p, true);
+      auto pc = create_pc_palette(data, palette, bits, transparent);
+      pushImage(x, y, w, h, &pc);
+    }
+
+    template<typename T>
+    void pushImageDMA(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const T* data)
+    {
+      auto pc = create_pc(data);
+      pushImage(x, y, w, h, &pc, true);
+    }
+
+    template<typename T>
+    void pushImageDMA(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const void* data, const std::uint8_t bits, const T* palette)
+    {
+      auto pc = create_pc_palette(data, palette, bits);
+      pushImage(x, y, w, h, &pc, true);
     }
 
     void pushImage(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, pixelcopy_t *param, bool use_dma = false);
 
-    bool pushImageRotateZoom(std::int32_t dst_x, std::int32_t dst_y, std::int32_t src_x, std::int32_t src_y, std::int32_t w, std::int32_t h, float angle, float zoom_x, float zoom_y, const void* data, std::uint32_t transparent, const std::uint8_t bits, const bgr888_t* palette);
+//----------------------------------------------------------------------------
+
+    template<typename T>
+    void pushImageRotateZoom(float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y, std::int32_t w, std::int32_t h, const T* data)
+    {
+      auto pc = create_pc(data);
+      push_image_rotate_zoom(dst_x, dst_y, src_x, src_y, angle, zoom_x, zoom_y, w, h, &pc);
+    }
+
+    template<typename T1, typename T2>
+    void pushImageRotateZoom(float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y, std::int32_t w, std::int32_t h, const T1* data, const T2& transparent)
+    {
+      auto pc = create_pc_tr(data, transparent);
+      push_image_rotate_zoom(dst_x, dst_y, src_x, src_y, angle, zoom_x, zoom_y, w, h, &pc);
+    }
+
+    template<typename T>
+    void pushImageRotateZoom(float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y, std::int32_t w, std::int32_t h, const void* data, color_depth_t depth, const T* palette)
+    {
+      auto pc = create_pc_palette(data, palette, depth);
+      push_image_rotate_zoom(dst_x, dst_y, src_x, src_y, angle, zoom_x, zoom_y, w, h, &pc);
+    }
+
+    template<typename T>
+    void pushImageRotateZoom(float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y, std::int32_t w, std::int32_t h, const void* data, std::uint32_t transparent, color_depth_t depth, const T* palette)
+    {
+      auto pc = create_pc_palette(data, palette, depth, transparent);
+      push_image_rotate_zoom(dst_x, dst_y, src_x, src_y, angle, zoom_x, zoom_y, w, h, &pc);
+    }
+
+
+    template<typename T>
+    void pushImageRotateZoomWithAA(float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y, std::int32_t w, std::int32_t h, const T* data)
+    {
+      auto pc = create_pc_antialias(data);
+      push_image_rotate_zoom_aa(dst_x, dst_y, src_x, src_y, angle, zoom_x, zoom_y, w, h, &pc);
+    }
+
+    template<typename T1, typename T2>
+    void pushImageRotateZoomWithAA(float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y, std::int32_t w, std::int32_t h, const T1* data, const T2& transparent)
+    {
+      auto pc = create_pc_tr_antialias(data, transparent);
+      push_image_rotate_zoom_aa(dst_x, dst_y, src_x, src_y, angle, zoom_x, zoom_y, w, h, &pc);
+    }
+
+    template<typename T>
+    void pushImageRotateZoomWithAA(float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y, std::int32_t w, std::int32_t h, const void* data, color_depth_t depth, const T* palette)
+    {
+      auto pc = create_pc_antialias(data, palette, depth);
+      push_image_rotate_zoom_aa(dst_x, dst_y, src_x, src_y, angle, zoom_x, zoom_y, w, h, &pc);
+    }
+
+    template<typename T>
+    void pushImageRotateZoomWithAA(float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y, std::int32_t w, std::int32_t h, const void* data, std::uint32_t transparent, color_depth_t depth, const T* palette)
+    {
+      auto pc = create_pc_antialias(data, palette, depth, transparent);
+      push_image_rotate_zoom_aa(dst_x, dst_y, src_x, src_y, angle, zoom_x, zoom_y, w, h, &pc);
+    }
+
+//----------------------------------------------------------------------------
+
+    template<typename T>
+    void pushImageAffine(float matrix[6], std::int32_t w, std::int32_t h, const T* data)
+    {
+      auto pc = create_pc(data);
+      push_image_affine(matrix, w, h, &pc);
+    }
+
+    template<typename T1, typename T2>
+    void pushImageAffine(float matrix[6], std::int32_t w, std::int32_t h, const T1* data, const T2& transparent)
+    {
+      auto pc = create_pc_tr(data, transparent);
+      push_image_affine(matrix, w, h, &pc);
+    }
+
+    template<typename T>
+    void pushImageAffine(float matrix[6], std::int32_t w, std::int32_t h, const void* data, color_depth_t depth, const T* palette)
+    {
+      auto pc = create_pc_palette(data, palette, depth);
+      push_image_affine(matrix, w, h, &pc);
+    }
+
+    template<typename T>
+    void pushImageAffine(float matrix[6], std::int32_t w, std::int32_t h, const void* data, std::uint32_t transparent, color_depth_t depth, const T* palette)
+    {
+      auto pc = create_pc_palette(data, palette, depth, transparent);
+      push_image_affine(matrix, w, h, &pc);
+    }
+
+
+    template<typename T>
+    void pushImageAffineWithAA(float matrix[6], std::int32_t w, std::int32_t h, const T* data)
+    {
+      auto pc = create_pc_antialias(data);
+      push_image_affine_aa(matrix, w, h, &pc);
+    }
+
+    template<typename T1, typename T2>
+    void pushImageAffineWithAA(float matrix[6], std::int32_t w, std::int32_t h, const T1* data, const T2& transparent)
+    {
+      auto pc = create_pc_tr_antialias(data, transparent);
+      push_image_affine_aa(matrix, w, h, &pc);
+    }
+
+    template<typename T>
+    void pushImageAffineWithAA(float matrix[6], std::int32_t w, std::int32_t h, const void* data, color_depth_t depth, const T* palette)
+    {
+      auto pc = create_pc_antialias(data, palette, depth);
+      push_image_affine_aa(matrix, w, h, &pc);
+    }
+
+    template<typename T>
+    void pushImageAffineWithAA(float matrix[6], std::int32_t w, std::int32_t h, const void* data, std::uint32_t transparent, color_depth_t depth, const T* palette)
+    {
+      auto pc = create_pc_antialias(data, palette, depth, transparent);
+      push_image_affine_aa(matrix, w, h, &pc);
+    }
+
+//----------------------------------------------------------------------------
 
     /// read RGB565 16bit color
     std::uint16_t readPixel(std::int32_t x, std::int32_t y)
@@ -362,11 +406,10 @@ namespace lgfx
     void readRect( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, T* data)
     {
       pixelcopy_t p(nullptr, get_depth<T>::value, _read_conv.depth, false, getPalette());
-      if (std::is_same<rgb565_t, T>::value || std::is_same<rgb888_t, T>::value) {
+      if (std::is_same<rgb565_t, T>::value || std::is_same<rgb888_t, T>::value || p.fp_copy == nullptr) {
         p.no_convert = false;
-        p.fp_copy = pixelcopy_t::get_fp_normalcopy_dst<T>(_read_conv.depth);
+        p.fp_copy = pixelcopy_t::get_fp_copy_rgb_affine_dst<T>(_read_conv.depth);
       }
-      if (p.fp_copy==nullptr) { p.fp_copy = pixelcopy_t::get_fp_normalcopy_dst<T>(_read_conv.depth); }
       read_rect(x, y, w, h, data, &p);
     }
 
@@ -401,20 +444,16 @@ namespace lgfx
 
     template<typename T>
     void setTextColor(T color) {
-      if (this->hasPalette()) {
-        _text_style.fore_rgb888 = _text_style.back_rgb888 = color;
-      } else {
-        _text_style.fore_rgb888 = _text_style.back_rgb888 = convert_to_rgb888(color);
-      }
+      _text_style.fore_rgb888 = _text_style.back_rgb888 = this->hasPalette() ? color : convert_to_rgb888(color);
     }
     template<typename T1, typename T2>
     void setTextColor(T1 fgcolor, T2 bgcolor) {
-      if (this->hasPalette()) {
-        _text_style.fore_rgb888 = fgcolor;
-        _text_style.back_rgb888 = bgcolor;
-      } else {
+      if (!this->hasPalette()) {
         _text_style.fore_rgb888 = convert_to_rgb888(fgcolor);
         _text_style.back_rgb888 = convert_to_rgb888(bgcolor);
+      } else {
+        _text_style.fore_rgb888 = fgcolor;
+        _text_style.back_rgb888 = bgcolor;
       }
     }
 
@@ -474,7 +513,8 @@ namespace lgfx
     }
 
     [[deprecated("use getFont()")]]
-    std::uint8_t getTextFont(void) const {
+    std::uint8_t getTextFont(void) const
+    {
       std::size_t i = 0;
       do {
         if (fontdata[i] == _font) return i;
@@ -483,7 +523,8 @@ namespace lgfx
     }
 
     [[deprecated("use setFont(&fonts::Font)")]]
-    void setTextFont(int f) {
+    void setTextFont(int f)
+    {
       if (f == 1 && _font && _font->getType() == IFont::font_type_t::ft_gfx) return;
       setFont(fontdata[f]);
     }
@@ -605,8 +646,7 @@ namespace lgfx
       return this->draw_png(data, x, y, maxWidth, maxHeight, offX, offY, scale);
     }
 
-
-
+    void* createPng( std::size_t* datalen, std::int32_t x = 0, std::int32_t y = 0, std::int32_t width = 0, std::int32_t height = 0);
 
 
 
@@ -618,7 +658,7 @@ namespace lgfx
     template<typename T>
     [[deprecated("use pushBlock")]] void pushColor(const T& color                     ) {                          setColor(color); startWrite(); pushBlock_impl(1);      endWrite(); }
 
-    template <typename T>
+    template<typename T>
     [[deprecated("use pushPixels")]] void pushColors(T*                   data, std::int32_t len           ) { startWrite(); writePixels(data, len            ); endWrite(); }
     [[deprecated("use pushPixels")]] void pushColors(const void*          data, std::int32_t len           ) { startWrite(); writePixels(data, len, _swapBytes); endWrite(); }
     [[deprecated("use pushPixels")]] void pushColors(const std::uint16_t* data, std::int32_t len           ) { startWrite(); writePixels(data, len, _swapBytes); endWrite(); }
@@ -643,8 +683,8 @@ namespace lgfx
 
     std::uint32_t _palette_count = 0;
 
-    std::int16_t _xpivot;   // x pivot point coordinate
-    std::int16_t _ypivot;   // x pivot point coordinate
+    float _xpivot;   // x pivot point coordinate
+    float _ypivot;   // x pivot point coordinate
 
     bool _spi_shared = true;
     bool _swapBytes = false;
@@ -656,7 +696,7 @@ namespace lgfx
     , utf8_state2 = 2
     };
     utf8_decode_state_t _decoderState = utf8_state0;   // UTF8 decoder state
-    std::uint16_t _unicode_buffer = 0;   // Unicode code-point buffer
+    std::uint_fast16_t _unicode_buffer = 0;   // Unicode code-point buffer
 
     std::int32_t _cursor_x = 0;  // print text cursor
     std::int32_t _cursor_y = 0;
@@ -664,7 +704,7 @@ namespace lgfx
     std::int32_t _padding_x = 0;
 
     TextStyle _text_style;
-    FontMetrics _font_metrics = { 6, 6, 0, 8, 8, 0, 7 }; // Font0 Metric
+    FontMetrics _font_metrics = { 6, 6, 0, 8, 8, 0, 7 }; // Font0 default metric
     const IFont* _font = &fonts::Font0;
 
     std::shared_ptr<RunTimeFont> _runtime_font;  // run-time generated font
@@ -683,14 +723,170 @@ namespace lgfx
       return (dw <= 0);
     }
 
+//----------------------------------------------------------------------------
+
+    template<typename T>
+    pixelcopy_t create_pc(const T *data)
+    {
+      pixelcopy_t pc(data, _write_conv.depth, get_depth<T>::value, hasPalette());
+      if (std::is_same<rgb565_t, T>::value || std::is_same<rgb888_t, T>::value || std::is_same<argb8888_t, T>::value) {
+        pc.no_convert = false;
+        pc.fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<T>(_write_conv.depth);
+      }
+      return pc;
+    }
+
+    __attribute__ ((always_inline)) inline pixelcopy_t create_pc(const std::uint8_t  *data) { return create_pc(reinterpret_cast<const rgb332_t*>(data)); }
+    __attribute__ ((always_inline)) inline pixelcopy_t create_pc(const std::uint16_t *data) { return create_pc(data, _swapBytes); }
+    __attribute__ ((always_inline)) inline pixelcopy_t create_pc(const void          *data) { return create_pc(data, _swapBytes); }
+    __attribute__ ((always_inline)) inline pixelcopy_t create_pc(const std::uint16_t *data, bool swap)
+    {
+      return swap && !hasPalette() && _write_conv.depth >= 8
+           ? create_pc(reinterpret_cast<const rgb565_t* >(data))
+           : create_pc(reinterpret_cast<const swap565_t*>(data));
+    }
+    __attribute__ ((always_inline)) inline pixelcopy_t create_pc(const void *data, bool swap)
+    {
+      return swap && !hasPalette() && _write_conv.depth >= 8
+           ? create_pc(reinterpret_cast<const rgb888_t*>(data))
+           : create_pc(reinterpret_cast<const bgr888_t*>(data));
+    }
+
+    template<typename T>
+    pixelcopy_t create_pc_rawtr(const T *data, std::uint32_t raw_transparent)
+    {
+      if (std::is_same<rgb565_t, T>::value) { raw_transparent = getSwap16(raw_transparent); }
+      if (std::is_same<rgb888_t, T>::value) { raw_transparent = getSwap24(raw_transparent); }
+      pixelcopy_t pc(data, _write_conv.depth, get_depth<T>::value, hasPalette(), nullptr, raw_transparent);
+      if (std::is_same<rgb565_t, T>::value || std::is_same<rgb888_t, T>::value || std::is_same<argb8888_t, T>::value) {
+        pc.no_convert = false;
+        pc.fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<T>(_write_conv.depth);
+        pc.fp_skip = pixelcopy_t::skip_rgb_affine<T>;
+      }
+      return pc;
+    }
+
+    template<typename T1, typename T2>
+    pixelcopy_t create_pc_tr(const T1 *data, const T2& transparent)
+    {
+      return create_pc_rawtr( data
+                            , (std::is_same<T1, T2>::value)
+                              ? transparent
+                              : get_fp_convert_src<T2>(get_depth<T1>::value, false)(transparent));
+    }
+
+    template<typename T> pixelcopy_t create_pc_tr(const std::uint8_t  *data, const T& transparent) { return create_pc_tr(reinterpret_cast<const rgb332_t*>(data), transparent); }
+    template<typename T> pixelcopy_t create_pc_tr(const std::uint16_t *data, const T& transparent) { return create_pc_tr(data, transparent, _swapBytes); }
+    template<typename T> pixelcopy_t create_pc_tr(const void          *data, const T& transparent) { return create_pc_tr(data, transparent, _swapBytes); }
+    template<typename T> pixelcopy_t create_pc_tr(const std::uint16_t *data, const T& transparent, bool swap)
+    {
+      return swap && _write_conv.depth >= 8 && !hasPalette()
+           ? create_pc_tr(reinterpret_cast<const rgb565_t* >(data), transparent)
+           : create_pc_tr(reinterpret_cast<const swap565_t*>(data), transparent);
+    }
+    template<typename T> pixelcopy_t create_pc_tr(const void *data, const T& transparent, bool swap)
+    {
+      return swap && _write_conv.depth >= 8 && !hasPalette()
+           ? create_pc_tr(reinterpret_cast<const rgb888_t*>(data), transparent)
+           : create_pc_tr(reinterpret_cast<const bgr888_t*>(data), transparent);
+    }
+
+    pixelcopy_t create_pc_palette(const void *data, const bgr888_t *palette, lgfx::color_depth_t depth, std::uint32_t transparent = ~0u)
+    {
+      return pixelcopy_t (data, _write_conv.depth, depth, hasPalette(), palette, transparent);
+    }
+
+    template<typename T>
+    pixelcopy_t create_pc_palette(const void *data, const T *palette, lgfx::color_depth_t depth, std::uint32_t transparent = ~0u)
+    {
+      pixelcopy_t pc(data, getColorDepth(), depth, hasPalette(), palette, transparent);
+      if (!hasPalette() && palette && getColorDepth() >= 8)
+      {
+        pc.fp_copy = pixelcopy_t::get_fp_copy_palette_affine<T>(getColorDepth());
+      }
+      return pc;
+    }
+
+
+    __attribute__ ((always_inline)) inline pixelcopy_t create_pc_antialias(const std::uint8_t *data, std::uint32_t raw_transparent = ~0u)
+    {
+      return create_pc_antialias(reinterpret_cast<const rgb332_t*>(data), raw_transparent); 
+    }
+    __attribute__ ((always_inline)) inline pixelcopy_t create_pc_antialias(const std::uint16_t *data, std::uint32_t raw_transparent = ~0u)
+    {
+      return _swapBytes
+           ? create_pc_antialias(reinterpret_cast<const rgb565_t* >(data), raw_transparent)
+           : create_pc_antialias(reinterpret_cast<const swap565_t*>(data), raw_transparent);
+    }
+    __attribute__ ((always_inline)) inline pixelcopy_t create_pc_antialias(const void *data, std::uint32_t raw_transparent = ~0u)
+    {
+      return _swapBytes
+           ? create_pc_antialias(reinterpret_cast<const rgb888_t*>(data), raw_transparent)
+           : create_pc_antialias(reinterpret_cast<const bgr888_t*>(data), raw_transparent);
+    }
+
+    template<typename T>
+    pixelcopy_t create_pc_antialias(const T* data, std::uint32_t raw_transparent = ~0u)
+    {
+      pixelcopy_t pc(data, argb8888_t::depth, get_depth<T>::value, false, nullptr, raw_transparent);
+      pc.src_data = data;
+      pc.fp_copy = pixelcopy_t::copy_rgb_antialias<T>;
+      return pc;
+    }
+
+    template<typename T1, typename T2>
+    pixelcopy_t create_pc_tr_antialias(const T1* data, const T2& transparent)
+    {
+      return create_pc_antialias( data
+                                , std::is_same<T1, T2>::value
+                                  ? transparent
+                                  : get_fp_convert_src<T2>(get_depth<T1>::value, false)(transparent));
+    }
+
+    template<typename T>
+    static pixelcopy_t create_pc_antialias(const void* data, const T* palette, lgfx::color_depth_t depth, std::uint32_t transparent = ~0u)
+    {
+      pixelcopy_t pc(data, argb8888_t::depth, depth, false, palette, transparent);
+      if (palette)
+      {
+        pc.fp_copy = pixelcopy_t::copy_palette_antialias<T>;
+      }
+      else if (depth > rgb565_2Byte)
+      {
+        if (depth == rgb888_3Byte) {
+          pc.fp_copy = pixelcopy_t::copy_rgb_antialias<bgr888_t>;
+        } else {
+          pc.fp_copy = pixelcopy_t::copy_rgb_antialias<bgr666_t>;
+        }
+      }
+      else
+      {
+        if (depth == rgb565_2Byte) {
+          pc.fp_copy = pixelcopy_t::copy_rgb_antialias<swap565_t>;
+        } else {
+          pc.fp_copy = pixelcopy_t::copy_rgb_antialias<rgb332_t>;
+        }
+      }
+      return pc;
+    }
+
+//----------------------------------------------------------------------------
+
+    static void make_rotation_matrix(float* result, float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y);
+
     void writeRawColor( std::uint32_t color, std::int32_t length) { if (0 >= length) return; setRawColor(color); pushBlock_impl(length); }
     void read_rect(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, void* dst, pixelcopy_t* param);
     void draw_gradient_line( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, uint32_t colorstart, uint32_t colorend );
     void fill_arc_helper(std::int32_t cx, std::int32_t cy, std::int32_t oradius, std::int32_t iradius, float start, float end);
+    void draw_bezier_helper(std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2);
     void draw_bitmap(std::int32_t x, std::int32_t y, const std::uint8_t *bitmap, std::int32_t w, std::int32_t h, std::uint32_t fg_rawcolor, std::uint32_t bg_rawcolor = ~0u);
     void draw_xbitmap(std::int32_t x, std::int32_t y, const std::uint8_t *bitmap, std::int32_t w, std::int32_t h, std::uint32_t fg_rawcolor, std::uint32_t bg_rawcolor = ~0u);
-    void push_image_rotate_zoom(std::int32_t dst_x, std::int32_t dst_y, std::int32_t src_x, std::int32_t src_y, std::int32_t w, std::int32_t h, float angle, float zoom_x, float zoom_y, pixelcopy_t *param);
-    void draw_bezier_helper(std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2);
+    void push_image_rotate_zoom(float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y, std::int32_t w, std::int32_t h, pixelcopy_t* pc);
+    void push_image_rotate_zoom_aa(float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y, std::int32_t w, std::int32_t h, pixelcopy_t* pc);
+    void push_image_affine(float* matrix, std::int32_t w, std::int32_t h, pixelcopy_t *pc);
+    void push_image_affine(float* matrix, pixelcopy_t *pc);
+    void push_image_affine_aa(float* matrix, std::int32_t w, std::int32_t h, pixelcopy_t *pc);
+    void push_image_affine_aa(float* matrix, pixelcopy_t *pre_pc, pixelcopy_t *post_pc);
 
     std::uint16_t decodeUTF8(std::uint8_t c);
 
@@ -709,6 +905,7 @@ namespace lgfx
     virtual void copyRect_impl(std::int32_t dst_x, std::int32_t dst_y, std::int32_t w, std::int32_t h, std::int32_t src_x, std::int32_t src_y) = 0;
     virtual void readRect_impl(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, void* dst, pixelcopy_t* param) = 0;
     virtual void pushImage_impl(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, pixelcopy_t* param, bool use_dma) = 0;
+    virtual void pushImageARGB_impl(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, pixelcopy_t* param) = 0;
     virtual void writePixels_impl(std::int32_t length, pixelcopy_t* param) = 0;
     virtual void writePixelsDMA_impl(const void* data, std::int32_t length) = 0;
     virtual void pushBlock_impl(std::int32_t len) = 0;

@@ -552,13 +552,13 @@ namespace lgfx
       if (param->transp == ~0) {
         if (param->no_convert) {
           setWindow_impl(x, y, xr, y + h - 1);
-          std::uint32_t i = (src_x + param->src_y * param->src_width) * bytes;
+          std::uint32_t i = (src_x + param->src_y * param->src_bitwidth) * bytes;
           auto src = &((const std::uint8_t*)param->src_data)[i];
           if (_dma_channel && use_dma) {
-            if (param->src_width == w) {
+            if (param->src_bitwidth == w) {
               _setup_dma_desc_links(src, w * h * bytes);
             } else {
-              _setup_dma_desc_links(src, w * bytes, h, param->src_width * bytes);
+              _setup_dma_desc_links(src, w * bytes, h, param->src_bitwidth * bytes);
             }
             dc_h();
             set_write_len(whb << 3);
@@ -567,7 +567,7 @@ namespace lgfx
             exec_spi();
             return;
           }
-          if (param->src_width == w || h == 1) {
+          if (param->src_bitwidth == w || h == 1) {
             if (_dma_channel && !use_dma && (64 < whb) && (whb <= 1024)) {
               auto buf = get_dmabuffer(whb);
               memcpy(buf, src, whb);
@@ -576,7 +576,7 @@ namespace lgfx
               write_bytes(src, whb, use_dma);
             }
           } else {
-            auto add = param->src_width * bytes;
+            auto add = param->src_bitwidth * bytes;
             do {
               write_bytes(src, w * bytes, use_dma);
               src += add;
@@ -584,7 +584,7 @@ namespace lgfx
           }
         } else
         if (_dma_channel && (64 < whb)) {
-          if (param->src_width == w && (whb <= 1024)) {
+          if (param->src_bitwidth == w && (whb <= 1024)) {
             auto buf = get_dmabuffer(whb);
             fp_copy(buf, 0, w * h, param);
             setWindow_impl(x, y, xr, y + h - 1);

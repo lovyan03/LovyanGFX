@@ -32,6 +32,8 @@ Contributors:
 #undef setFont
 #endif
 
+#include "gitTagVersion.h"
+
 #include "lgfx/lgfx_common.hpp"         // common include (always include)
 
 #include "lgfx/lgfx_filesystem_support.hpp" // filesystem extention (optional)
