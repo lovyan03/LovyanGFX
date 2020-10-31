@@ -2156,7 +2156,7 @@ namespace lgfx
     std::int32_t offY;
     std::int32_t maxWidth;
     std::int32_t maxHeight;
-    double scale;
+    float scale;
     bgr888_t* lineBuffer;
     pixelcopy_t *pc;
     LGFXBase *lgfx;
@@ -2167,9 +2167,9 @@ namespace lgfx
 
   static bool png_ypos_update(png_file_decoder_t *p, std::uint32_t y)
   {
-    p->scale_y0 = ceil( y      * p->scale) - p->offY;
+    p->scale_y0 = ceilf( y      * p->scale) - p->offY;
     if (p->scale_y0 < 0) p->scale_y0 = 0;
-    p->scale_y1 = ceil((y + 1) * p->scale) - p->offY;
+    p->scale_y1 = ceilf((y + 1) * p->scale) - p->offY;
     if (p->scale_y1 > p->maxHeight) p->scale_y1 = p->maxHeight;
     return (p->scale_y0 < p->scale_y1);
   }
@@ -2221,9 +2221,9 @@ namespace lgfx
     std::int32_t h = p->scale_y1 - t;
     if (h <= 0) return;
 
-    std::int32_t l = ceil( x      * p->scale) - p->offX;
+    std::int32_t l = ceilf( x      * p->scale) - p->offX;
     if (l < 0) l = 0;
-    std::int32_t r = ceil((x + 1) * p->scale) - p->offX;
+    std::int32_t r = ceilf((x + 1) * p->scale) - p->offX;
     if (r > p->maxWidth) r = p->maxWidth;
     if (l >= r) return;
 
@@ -2251,10 +2251,11 @@ namespace lgfx
       memcpy(&p->lineBuffer[l], rgba, 3);
     } else {
       auto data = &p->lineBuffer[l];
+      uint_fast8_t inv = 256 - rgba[3];
       uint_fast8_t alpha = rgba[3] + 1;
-      data->r = (rgba[0] * alpha + data->r * (257 - alpha)) >> 8;
-      data->g = (rgba[1] * alpha + data->g * (257 - alpha)) >> 8;
-      data->b = (rgba[2] * alpha + data->b * (257 - alpha)) >> 8;
+      data->r = (rgba[0] * alpha + data->r * inv) >> 8;
+      data->g = (rgba[1] * alpha + data->g * inv) >> 8;
+      data->b = (rgba[2] * alpha + data->b * inv) >> 8;
     }
   }
 
@@ -2269,9 +2270,9 @@ namespace lgfx
     std::int32_t b = p->scale_y1 - p->scale_y0;
     if (b <= 0) return;
 
-    std::int32_t l = ceil( x      * p->scale) - p->offX;
+    std::int32_t l = ceilf( x      * p->scale) - p->offX;
     if (l < 0) l = 0;
-    std::int32_t r = ceil((x + 1) * p->scale) - p->offX;
+    std::int32_t r = ceilf((x + 1) * p->scale) - p->offX;
     if (r > p->maxWidth) r = p->maxWidth;
     if (l >= r) return;
 
@@ -2284,14 +2285,15 @@ namespace lgfx
         }
       } while (++i < r);
     } else {
+      uint_fast8_t inv = 256 - rgba[3];
       uint_fast8_t alpha = rgba[3] + 1;
       std::int32_t i = l;
       do {
         for (std::int32_t j = 0; j < b; ++j) {
           auto data = &p->lineBuffer[i + j * p->maxWidth];
-          data->r = (rgba[0] * alpha + data->r * (257 - alpha)) >> 8;
-          data->g = (rgba[1] * alpha + data->g * (257 - alpha)) >> 8;
-          data->b = (rgba[2] * alpha + data->b * (257 - alpha)) >> 8;
+          data->r = (rgba[0] * alpha + data->r * inv) >> 8;
+          data->g = (rgba[1] * alpha + data->g * inv) >> 8;
+          data->b = (rgba[2] * alpha + data->b * inv) >> 8;
         }
       } while (++i < r);
     }
@@ -2304,8 +2306,8 @@ namespace lgfx
     auto p = (png_file_decoder_t*)lgfx_pngle_get_user_data(pngle);
 
     if (p->scale != 1.0) {
-      w = ceil(w * p->scale);
-      h = ceil(h * p->scale);
+      w = ceilf(w * p->scale);
+      h = ceilf(h * p->scale);
     }
 
     std::int32_t ww = w - abs(p->offX);
@@ -2319,18 +2321,18 @@ namespace lgfx
     if (p->offY < 0) { p->offY = 0; }
 
     if (hasTransparent) { // need pixel read ?
-      p->lineBuffer = (bgr888_t*)heap_alloc_dma(sizeof(bgr888_t) * p->maxWidth * ceil(p->scale));
+      p->lineBuffer = (bgr888_t*)heap_alloc_dma(sizeof(bgr888_t) * p->maxWidth * ceilf(p->scale));
       p->pc->src_data = p->lineBuffer;
       png_prepare_line(p, 0);
       lgfx_pngle_set_done_callback(pngle, png_done_callback);
 
-      if (p->scale == 1.0) {
+      if (p->scale == 1.0f) {
         lgfx_pngle_set_draw_callback(pngle, png_draw_alpha_callback);
       } else {
         lgfx_pngle_set_draw_callback(pngle, png_draw_alpha_scale_callback);
       }
     } else {
-      if (p->scale == 1.0) {
+      if (p->scale == 1.0f) {
         lgfx_pngle_set_draw_callback(pngle, png_draw_normal_callback);
       } else {
         p->last_y = 0;
@@ -2341,7 +2343,7 @@ namespace lgfx
     }
   }
 
-  bool LGFXBase::draw_png(DataWrapper* data, std::int32_t x, std::int32_t y, std::int32_t maxWidth, std::int32_t maxHeight, std::int32_t offX, std::int32_t offY, double scale)
+  bool LGFXBase::draw_png(DataWrapper* data, std::int32_t x, std::int32_t y, std::int32_t maxWidth, std::int32_t maxHeight, std::int32_t offX, std::int32_t offY, float scale)
   {
     if (!maxHeight) maxHeight = INT32_MAX;
     auto ct = this->_clip_t;
