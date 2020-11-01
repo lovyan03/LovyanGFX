@@ -2159,14 +2159,16 @@ namespace lgfx
     float scale;
     bgr888_t* lineBuffer;
     pixelcopy_t *pc;
-    LGFXBase *lgfx;
-    std::uint32_t last_y;
+    LGFXBase *gfx;
+    std::uint32_t last_pos;
+    std::uint32_t last_x;
     std::int32_t scale_y0;
     std::int32_t scale_y1;
   };
 
   static bool png_ypos_update(png_file_decoder_t *p, std::uint32_t y)
   {
+    p->last_pos = y;
     p->scale_y0 = ceilf( y      * p->scale) - p->offY;
     if (p->scale_y0 < 0) p->scale_y0 = 0;
     p->scale_y1 = ceilf((y + 1) * p->scale) - p->offY;
@@ -2178,14 +2180,13 @@ namespace lgfx
   {
     std::int32_t h = p->scale_y1 - p->scale_y0;
     if (0 < h)
-      p->lgfx->pushImage(p->x, p->y + p->scale_y0, p->maxWidth, h, p->pc, true);
+      p->gfx->pushImage(p->x, p->y + p->scale_y0, p->maxWidth, h, p->pc, true);
   }
 
   static void png_prepare_line(png_file_decoder_t *p, std::uint32_t y)
   {
-    p->last_y = y;
     if (png_ypos_update(p, y))      // read next line
-      p->lgfx->readRectRGB(p->x, p->y + p->scale_y0, p->maxWidth, p->scale_y1 - p->scale_y0, p->lineBuffer);
+      p->gfx->readRectRGB(p->x, p->y + p->scale_y0, p->maxWidth, p->scale_y1 - p->scale_y0, p->lineBuffer);
   }
 
   static void png_done_callback(pngle_t *pngle)
@@ -2198,22 +2199,24 @@ namespace lgfx
   {
     auto p = (png_file_decoder_t*)lgfx_pngle_get_user_data(pngle);
 
-    std::int32_t t = y - p->offY;
-    if (t < 0 || t >= p->maxHeight) return;
-
     std::int32_t l = x - p->offX;
     if (l < 0 || l >= p->maxWidth) return;
+    x = p->x + l;
 
-    p->lgfx->setColor(color888(rgba[0], rgba[1], rgba[2]));
-    p->lgfx->writeFillRectPreclipped(p->x + l, p->y + t, 1, 1);
+    if (x != p->last_pos) {
+      std::int32_t t = y - p->offY;
+      if (t < 0 || t >= p->maxHeight) return;
+      p->gfx->setAddrWindow(x, p->y + t, p->maxWidth, 1);
+    }
+    p->last_pos = x + 1;
+    p->gfx->writeColor(color888(rgba[0], rgba[1], rgba[2]), 1);
   }
 
   static void png_draw_normal_scale_callback(pngle_t *pngle, std::uint32_t x, std::uint32_t y, std::uint8_t rgba[4])
   {
     auto p = (png_file_decoder_t*)lgfx_pngle_get_user_data(pngle);
 
-    if (y != p->last_y) {
-      p->last_y = y;
+    if (y != p->last_pos) {
       png_ypos_update(p, y);
     }
 
@@ -2227,24 +2230,22 @@ namespace lgfx
     if (r > p->maxWidth) r = p->maxWidth;
     if (l >= r) return;
 
-    p->lgfx->setColor(color888(rgba[0], rgba[1], rgba[2]));
-    p->lgfx->writeFillRectPreclipped(p->x + l, p->y + t, r - l, h);
+    p->gfx->setColor(color888(rgba[0], rgba[1], rgba[2]));
+    p->gfx->writeFillRectPreclipped(p->x + l, p->y + t, r - l, h);
   }
 
   static void png_draw_alpha_callback(pngle_t *pngle, std::uint32_t x, std::uint32_t y, std::uint8_t rgba[4])
   {
     auto p = (png_file_decoder_t*)lgfx_pngle_get_user_data(pngle);
-    if (y != p->last_y) {
+    if (y != p->last_pos) {
       png_post_line(p);
       png_prepare_line(p, y);
     }
 
     if (p->scale_y0 >= p->scale_y1) return;
 
-    std::int32_t l = ( x      ) - p->offX;
-    if (l < 0) l = 0;
-    std::int32_t r = ((x + 1) ) - p->offX;
-    if (r > p->maxWidth) r = p->maxWidth;
+    std::int32_t l = std::max<std::int32_t>(( x      ) - p->offX, 0);
+    std::int32_t r = std::min<std::int32_t>(((x + 1) ) - p->offX, p->maxWidth);
     if (l >= r) return;
 
     if (rgba[3] == 255) {
@@ -2262,7 +2263,7 @@ namespace lgfx
   static void png_draw_alpha_scale_callback(pngle_t *pngle, std::uint32_t x, std::uint32_t y, std::uint8_t rgba[4])
   {
     auto p = (png_file_decoder_t*)lgfx_pngle_get_user_data(pngle);
-    if (y != p->last_y) {
+    if (y != p->last_pos) {
       png_post_line(p);
       png_prepare_line(p, y);
     }
@@ -2333,9 +2334,9 @@ namespace lgfx
       }
     } else {
       if (p->scale == 1.0f) {
+        p->last_pos = ~0;
         lgfx_pngle_set_draw_callback(pngle, png_draw_normal_callback);
       } else {
-        p->last_y = 0;
         png_ypos_update(p, 0);
         lgfx_pngle_set_draw_callback(pngle, png_draw_normal_scale_callback);
       }
@@ -2369,7 +2370,7 @@ namespace lgfx
     png.maxWidth = maxWidth;
     png.maxHeight = maxHeight;
     png.scale = scale;
-    png.lgfx = this;
+    png.gfx = this;
     png.lineBuffer = nullptr;
 
     pixelcopy_t pc(nullptr, this->getColorDepth(), bgr888_t::depth, this->_palette_count);
