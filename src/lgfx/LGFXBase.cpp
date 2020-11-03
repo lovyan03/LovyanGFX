@@ -1124,9 +1124,9 @@ namespace lgfx
     }
 
     {
-      std::int32_t offset_y32 = matrix[5] * (1 << FP_SCALE);
-      min_y = std::max(_clip_t, (offset_y32 + min_y) >> FP_SCALE);
-      max_y = std::min(_clip_b, (offset_y32 + max_y) >> FP_SCALE) + 1;
+      std::int32_t offset_y32 = matrix[5] * (1 << FP_SCALE) + (1 << (FP_SCALE-1));
+      min_y = std::max(_clip_t    , (offset_y32 + min_y) >> FP_SCALE);
+      max_y = std::min(_clip_b + 1, (offset_y32 + max_y) >> FP_SCALE);
       if (min_y >= max_y) return;
     }
 
@@ -1157,19 +1157,17 @@ namespace lgfx
     std::int32_t y = min_y - max_y;
 
     startWrite();
-    do {
+    do
+    {
       iA[2] += iA[1];
       iA[5] += iA[4];
       std::int32_t left  = std::max(cl, std::max((iA[2] + xs1) / div1, (iA[5] + ys1) / div2));
       std::int32_t right = std::min(cr, std::min((iA[2] + xs2) / div1, (iA[5] + ys2) / div2));
-      if (left < right) {
+      if (left < right)
+      {
         pc->src_x32 = iA[2] + left * iA[0];
-        if (static_cast<std::uint32_t>(pc->src_x) < pc->src_width) {
-          pc->src_y32 = iA[5] + left * iA[3];
-          if (static_cast<std::uint32_t>(pc->src_y) < pc->src_height) {
-            pushImage_impl(left, y + max_y, right - left, 1, pc, true);
-          }
-        }
+        pc->src_y32 = iA[5] + left * iA[3];
+        pushImage_impl(left, y + max_y, right - left, 1, pc, true);
       }
     } while (++y);
     endWrite();
@@ -1190,9 +1188,9 @@ namespace lgfx
     }
 
     {
-      std::int32_t offset_y32 = matrix[5] * (1 << FP_SCALE);
-      min_y = std::max(_clip_t, (offset_y32 + min_y) >> FP_SCALE);
-      max_y = std::min(_clip_b, (offset_y32 + max_y) >> FP_SCALE) + 1;
+      std::int32_t offset_y32 = matrix[5] * (1 << FP_SCALE) + (1 << (FP_SCALE-1));
+      min_y = std::max(_clip_t    , (offset_y32 + min_y) >> FP_SCALE);
+      max_y = std::min(_clip_b + 1, (offset_y32 + max_y) >> FP_SCALE);
       if (min_y >= max_y) return;
     }
 
@@ -1208,13 +1206,13 @@ namespace lgfx
     iA[2] += ((iA[0] + iA[1] * offset) >> 1);
     iA[5] += ((iA[3] + iA[4] * offset) >> 1);
 
-    std::int32_t scale_w = (pc->src_width + 1) << FP_SCALE;
-    std::int32_t xs1 = (iA[0] < 0 ?   - scale_w :   1) - iA[0] + (1 << (FP_SCALE - 1));
-    std::int32_t xs2 = (iA[0] < 0 ? 0 : (1 - scale_w)) - iA[0] + (1 << (FP_SCALE - 1));
+    std::int32_t scale_w = (pc->src_width << FP_SCALE) + (x32_diff << 1);
+    std::int32_t xs1 = (iA[0] < 0 ?   - scale_w :   1) - iA[0] + x32_diff;
+    std::int32_t xs2 = (iA[0] < 0 ? 0 : (1 - scale_w)) - iA[0] + x32_diff;
 
-    std::int32_t scale_h = (pc->src_height + 1) << FP_SCALE;
-    std::int32_t ys1 = (iA[3] < 0 ?   - scale_h :   1) - iA[3] + (1 << (FP_SCALE - 1));
-    std::int32_t ys2 = (iA[3] < 0 ? 0 : (1 - scale_h)) - iA[3] + (1 << (FP_SCALE - 1));
+    std::int32_t scale_h = (pc->src_height << FP_SCALE) + (y32_diff << 1);
+    std::int32_t ys1 = (iA[3] < 0 ?   - scale_h :   1) - iA[3] + y32_diff;
+    std::int32_t ys2 = (iA[3] < 0 ? 0 : (1 - scale_h)) - iA[3] + y32_diff;
 
     std::int32_t cl = _clip_l    ;
     std::int32_t cr = _clip_r + 1;
@@ -1225,12 +1223,14 @@ namespace lgfx
     std::int32_t div2 = iA[3] ? - iA[3] : -1;
 
     startWrite();
-    do {
+    do
+    {
       iA[2] += iA[1];
       iA[5] += iA[4];
       std::int32_t left  = std::max(cl, std::max((iA[2] + xs1) / div1, (iA[5] + ys1) / div2));
       std::int32_t right = std::min(cr, std::min((iA[2] + xs2) / div1, (iA[5] + ys2) / div2));
-      if (left < right) {
+      if (left < right)
+      {
         std::int32_t len = right - left;
 
         std::uint32_t xs = iA[2] + left * iA[0];

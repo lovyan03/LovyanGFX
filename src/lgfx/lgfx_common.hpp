@@ -168,7 +168,7 @@ namespace lgfx
   __attribute__ ((always_inline)) inline static std::uint16_t color565(std::uint8_t r, std::uint8_t g, std::uint8_t b) { return (r >> 3) <<11 | (g >> 2) << 5 | b >> 3; }
   __attribute__ ((always_inline)) inline static std::uint32_t color888(std::uint8_t r, std::uint8_t g, std::uint8_t b) { return  r << 16 | g << 8 | b; }
   __attribute__ ((always_inline)) inline static std::uint16_t swap565( std::uint8_t r, std::uint8_t g, std::uint8_t b) { r >>= 3; r = (r << 3) + (g >> 5); return r | (((g >> 2) << 5) | (b >> 3)) << 8; }
-  __attribute__ ((always_inline)) inline static std::uint32_t swap888( std::uint8_t r, std::uint8_t g, std::uint8_t b) { return (b << 16) | (g << 8) | r; }
+  __attribute__ ((always_inline)) inline static std::uint32_t swap888( std::uint8_t r, std::uint8_t g, std::uint8_t b) { return b << 16 | g << 8 | r; }
 
   __attribute__ ((always_inline)) inline static std::uint16_t getSwap16(std::uint16_t c) { return __builtin_bswap16(c); }
   __attribute__ ((always_inline)) inline static std::uint32_t getSwap24(std::uint32_t c) { return ((std::uint8_t)c)<<16 | ((std::uint8_t)(c>>8))<<8 | (std::uint8_t)(c>>16); }
@@ -240,7 +240,7 @@ namespace lgfx
     inline rgb332_t& operator=(const swap565_t&);
     inline rgb332_t& operator=(const bgr666_t&);
     inline rgb332_t& operator=(const bgr888_t&);
-    inline rgb332_t& operator=(std::uint8_t rgb332) { raw = rgb332; return *this; }
+    inline rgb332_t& operator=(std::uint8_t rgb332) { *reinterpret_cast<std::uint8_t*>(this) = rgb332; return *this; }
     explicit inline operator std::uint8_t() const { return raw; }
 //  explicit inline operator std::uint32_t() const { return raw; }
     explicit inline operator bool() const { return raw; }
@@ -259,7 +259,7 @@ namespace lgfx
     inline void R8(std::uint8_t r8) { r = r8 >> 5; }
     inline void G8(std::uint8_t g8) { g = g8 >> 5; }
     inline void B8(std::uint8_t b8) { b = b8 >> 6; }
-    inline void set(std::uint8_t r8, std::uint8_t g8, std::uint8_t b8) { raw = color332(r8,g8,b8); }
+    inline void set(std::uint8_t r8, std::uint8_t g8, std::uint8_t b8) { *reinterpret_cast<std::uint8_t*>(this) = color332(r8,g8,b8); }
   };
 
   struct rgb565_t {
@@ -284,7 +284,7 @@ namespace lgfx
     inline rgb565_t& operator=(const swap565_t&);
     inline rgb565_t& operator=(const bgr666_t&);
     inline rgb565_t& operator=(const bgr888_t&);
-    inline rgb565_t& operator=(std::uint16_t rgb565) { raw = rgb565; return *this; }
+    inline rgb565_t& operator=(std::uint16_t rgb565) { *reinterpret_cast<std::uint16_t*>(this) = rgb565; return *this; }
     explicit inline operator std::uint16_t() const { return raw; }
     explicit inline operator bool() const { return raw; }
     //inline operator rgb332_t() const { return rgb332_t(r<<3,g<<2,b<<3); }
@@ -302,7 +302,7 @@ namespace lgfx
     inline void R8(std::uint8_t r8) { r = r8 >> 3; }
     inline void G8(std::uint8_t g8) { g = g8 >> 2; }
     inline void B8(std::uint8_t b8) { b = b8 >> 3; }
-    inline void set(std::uint8_t r8, std::uint8_t g8, std::uint8_t b8) { raw = color565(r8,g8,b8); }
+    inline void set(std::uint8_t r8, std::uint8_t g8, std::uint8_t b8) { *reinterpret_cast<std::uint16_t*>(this) = color565(r8,g8,b8); }
   };
 
   struct rgb888_t {
@@ -362,7 +362,7 @@ namespace lgfx
     static constexpr color_depth_t depth = argb8888_4Byte;
     argb8888_t() : raw(0) {}
     argb8888_t(const argb8888_t&) = default;
-    argb8888_t(std::uint8_t r, std::uint8_t g, std::uint8_t b) : b(b),g(g),r(r),a(0) {}
+    argb8888_t(std::uint8_t r, std::uint8_t g, std::uint8_t b) : b(b),g(g),r(r),a(255) {}
     argb8888_t(std::uint32_t argb8888) : raw(argb8888) {}
     inline argb8888_t& operator=(const rgb332_t&);
     inline argb8888_t& operator=(const rgb565_t&);
@@ -370,7 +370,7 @@ namespace lgfx
     inline argb8888_t& operator=(const swap565_t&);
     inline argb8888_t& operator=(const bgr666_t&);
     inline argb8888_t& operator=(const bgr888_t&);
-    inline argb8888_t& operator=(std::uint32_t argb8888) { raw = argb8888; return *this; }
+    inline argb8888_t& operator=(std::uint32_t argb8888) { *reinterpret_cast<std::uint32_t*>(this) = argb8888; return *this; }
 //  explicit inline operator std::uint32_t() const { return raw; }
     explicit inline operator bool() const { return raw; }
     //inline operator rgb332_t() const { return rgb332_t(r,g,b); }
@@ -385,10 +385,12 @@ namespace lgfx
     inline std::uint8_t R6() const { return r>>2; }
     inline std::uint8_t G6() const { return g>>2; }
     inline std::uint8_t B6() const { return b>>2; }
+    inline void A8(std::uint8_t a8) { a = a8; }
     inline void R8(std::uint8_t r8) { r = r8; }
     inline void G8(std::uint8_t g8) { g = g8; }
     inline void B8(std::uint8_t b8) { b = b8; }
-    inline void set(std::uint8_t r8, std::uint8_t g8, std::uint8_t b8) { r = r8; g = g8; b = b8; }
+    inline void set(std::uint8_t r8, std::uint8_t g8, std::uint8_t b8) { a = 255; r = r8; g = g8; b = b8; }
+    inline void set(std::uint8_t a8, std::uint8_t r8, std::uint8_t g8, std::uint8_t b8) { a = a8; r = r8; g = g8; b = b8; }
   };
 
   struct swap565_t {
@@ -406,9 +408,10 @@ namespace lgfx
     static constexpr color_depth_t depth = rgb565_2Byte;
     swap565_t() : raw(0) {}
     swap565_t(const swap565_t&) = default;
-    swap565_t(std::uint8_t r8, std::uint8_t g8, std::uint8_t b8) : gh(g8>>5),r(r8>>3),b(b8>>3),gl(g8>>2) {}
+    swap565_t(std::uint8_t r8, std::uint8_t g8, std::uint8_t b8) : raw(swap565(r8,g8,b8)) {}
+    //swap565_t(std::uint8_t r8, std::uint8_t g8, std::uint8_t b8) : gh(g8>>5),r(r8>>3),b(b8>>3),gl(g8>>2) {}
 //    swap565_t(std::uint16_t raw) : raw(raw) {}
-    inline swap565_t& operator=(std::uint32_t rhs) { raw = rhs; return *this; }
+    inline swap565_t& operator=(std::uint16_t rhs) { *reinterpret_cast<std::uint16_t*>(this) = rhs; return *this; }
     inline swap565_t& operator=(const rgb332_t& rhs);
     inline swap565_t& operator=(const rgb565_t& rhs);
     inline swap565_t& operator=(const rgb888_t& rhs);
@@ -417,7 +420,7 @@ namespace lgfx
     inline swap565_t& operator=(const bgr888_t& rhs);
     //explicit inline operator std::uint16_t() const { return raw; }
 //  explicit inline operator std::uint32_t() const { return raw; }
-    explicit inline operator bool() const { return r||gh||gl||b; }
+    explicit inline operator bool() const { return raw; }
     //inline operator rgb565_t() const { return rgb565_t(raw<<8 | raw>>8); }
     //inline operator bgr888_t() const;
     static constexpr std::uint8_t A8() { return 255; }
@@ -430,7 +433,7 @@ namespace lgfx
     inline void R8(std::uint8_t r8) { r = r8 >> 3; }
     inline void G8(std::uint8_t g8) { gh = g8 >> 5; gl = g8 >> 2;}
     inline void B8(std::uint8_t b8) { b = b8 >> 3; }
-    inline void set(std::uint8_t r8, std::uint8_t g8, std::uint8_t b8) { raw = swap565(r8,g8,b8); }
+    inline void set(std::uint8_t r8, std::uint8_t g8, std::uint8_t b8) { *reinterpret_cast<std::uint16_t*>(this) = swap565(r8,g8,b8); }
   };
 
   struct bgr666_t {
@@ -493,10 +496,10 @@ namespace lgfx
     inline bgr888_t& operator=(const argb8888_t&);
     inline bgr888_t& operator=(const swap565_t&);
     inline bgr888_t& operator=(const bgr666_t&);
-    explicit inline operator bool() const { return r||g||b; }
+    explicit inline operator bool() const { return rg||b; }
     explicit inline operator std::uint32_t() const { return *(std::uint32_t*)this & ((1<<24)-1); }
     //inline operator rgb332_t() const { return rgb332_t(r,g,b); }
-    explicit inline operator rgb565_t() const { return rgb565_t(r,g,b); }
+    //explicit inline operator rgb565_t() const { return rgb565_t(r,g,b); }
     //inline operator rgb888_t() const { return rgb888_t(r,g,b); }
     //inline operator swap565_t() const { return swap565_t(r,g,b); }
     static constexpr std::uint8_t A8() { return 255; }
@@ -530,7 +533,7 @@ namespace lgfx
     raw_color_t() : raw(0) {}
     raw_color_t(const raw_color_t&) = default;
     raw_color_t(const std::uint32_t& rhs) : raw(rhs) {}
-    inline operator bool() const { return raw & 0x00FFFFFF; }
+    inline operator bool() const { return raw & ((1<<24)-1); }
   };
 
   struct get_depth_impl {
@@ -611,15 +614,16 @@ namespace lgfx
     void setColorDepth(color_depth_t bpp, bool has_palette = false)
     {
       x_mask = 0;
-      if (     bpp > 18) { bpp = rgb888_3Byte; bytes = 3; bits = 24; }
-      else if (bpp > 16) { bpp = rgb666_3Byte; bytes = 3; bits = 24; }
-      else if (bpp >  8) { bpp = rgb565_2Byte; bytes = 2; bits = 16; }
-      else if (bpp >  4) { bpp = rgb332_1Byte; bytes = 1; bits =  8; }
-      else if (bpp == 4) { bpp = palette_4bit; bytes = 0; bits =  4; x_mask = 0b0001; }
-      else if (bpp == 2) { bpp = palette_2bit; bytes = 0; bits =  2; x_mask = 0b0011; }
-      else               { bpp = palette_1bit; bytes = 0; bits =  1; x_mask = 0b0111; }
-      colormask = (1 << bits) - 1;
+      if (     bpp > 18) { bpp = rgb888_3Byte; bits = 24; }
+      else if (bpp > 16) { bpp = rgb666_3Byte; bits = 24; }
+      else if (bpp >  8) { bpp = rgb565_2Byte; bits = 16; }
+      else if (bpp >  4) { bpp = rgb332_1Byte; bits =  8; }
+      else if (bpp == 4) { bpp = palette_4bit; bits =  4; x_mask = 0b0001; }
+      else if (bpp == 2) { bpp = palette_2bit; bits =  2; x_mask = 0b0011; }
+      else               { bpp = palette_1bit; bits =  1; x_mask = 0b0111; }
       depth = bpp;
+      bytes = bits >> 3;
+      colormask = (1 << bits) - 1;
 
       convert_rgb888 = get_fp_convert_src<rgb888_t>(bpp, has_palette);
       convert_rgb565 = get_fp_convert_src<rgb565_t>(bpp, has_palette);
@@ -728,22 +732,22 @@ namespace lgfx
   inline bool operator==(const rgb332_t&   lhs, const rgb332_t&   rhs) { return lhs.raw == rhs.raw; }
   inline bool operator==(const rgb565_t&   lhs, const rgb565_t&   rhs) { return lhs.raw == rhs.raw; }
   inline bool operator==(const swap565_t&  lhs, const swap565_t&  rhs) { return lhs.raw == rhs.raw; }
-  inline bool operator==(const bgr666_t&   lhs, const bgr666_t&   rhs) { return (*(std::uint32_t*)&lhs << 8) == (*(std::uint32_t*)&rhs << 8); }
-  inline bool operator==(const rgb888_t&   lhs, const rgb888_t&   rhs) { return (*(std::uint32_t*)&lhs << 8) == (*(std::uint32_t*)&rhs << 8); }
-  inline bool operator==(const bgr888_t&   lhs, const bgr888_t&   rhs) { return (*(std::uint32_t*)&lhs << 8) == (*(std::uint32_t*)&rhs << 8); }
+  inline bool operator==(const bgr666_t&   lhs, const bgr666_t&   rhs) { return (*reinterpret_cast<const std::uint32_t*>(&lhs) << 8) == (*reinterpret_cast<const std::uint32_t*>(&rhs) << 8); }
+  inline bool operator==(const rgb888_t&   lhs, const rgb888_t&   rhs) { return (*reinterpret_cast<const std::uint32_t*>(&lhs) << 8) == (*reinterpret_cast<const std::uint32_t*>(&rhs) << 8); }
+  inline bool operator==(const bgr888_t&   lhs, const bgr888_t&   rhs) { return (*reinterpret_cast<const std::uint32_t*>(&lhs) << 8) == (*reinterpret_cast<const std::uint32_t*>(&rhs) << 8); }
   inline bool operator==(const argb8888_t& lhs, const argb8888_t& rhs) { return lhs.raw == rhs.raw; }
 
   // for compare transparent color.
-  inline bool operator==(const rgb332_t&   lhs, const std::uint32_t& rhs) { return lhs.raw == rhs; }
-  inline bool operator==(const rgb565_t&   lhs, const std::uint32_t& rhs) { return lhs.raw == rhs; }
-  inline bool operator==(const swap565_t&  lhs, const std::uint32_t& rhs) { return lhs.raw == rhs; }
-  inline bool operator==(const bgr666_t&   lhs, const std::uint32_t& rhs) { return ((*(std::uint32_t*)&lhs) << 8) >> 8 == rhs; }
-  inline bool operator==(const rgb888_t&   lhs, const std::uint32_t& rhs) { return ((*(std::uint32_t*)&lhs) << 8) >> 8 == rhs; }
-  inline bool operator==(const bgr888_t&   lhs, const std::uint32_t& rhs) { return ((*(std::uint32_t*)&lhs) << 8) >> 8 == rhs; }
-  inline bool operator==(const argb8888_t& lhs, const std::uint32_t& rhs) { return lhs.raw == rhs; }
+  inline bool operator==(const rgb332_t&   lhs, std::uint32_t rhs) { return  *reinterpret_cast<const std::uint8_t* >(&lhs) == rhs; }
+  inline bool operator==(const rgb565_t&   lhs, std::uint32_t rhs) { return  *reinterpret_cast<const std::uint16_t*>(&lhs) == rhs; }
+  inline bool operator==(const swap565_t&  lhs, std::uint32_t rhs) { return  *reinterpret_cast<const std::uint16_t*>(&lhs) == rhs; }
+  inline bool operator==(const bgr666_t&   lhs, std::uint32_t rhs) { return (*reinterpret_cast<const std::uint32_t*>(&lhs) << 8) >> 8 == rhs; }
+  inline bool operator==(const rgb888_t&   lhs, std::uint32_t rhs) { return (*reinterpret_cast<const std::uint32_t*>(&lhs) << 8) >> 8 == rhs; }
+  inline bool operator==(const bgr888_t&   lhs, std::uint32_t rhs) { return (*reinterpret_cast<const std::uint32_t*>(&lhs) << 8) >> 8 == rhs; }
+  inline bool operator==(const argb8888_t& lhs, std::uint32_t rhs) { return  *reinterpret_cast<const std::uint32_t*>(&lhs) == rhs; }
 //*/
-  inline bool operator==(const raw_color_t& lhs, const raw_color_t& rhs) { return lhs.raw == rhs.raw; }
-  inline bool operator!=(const raw_color_t& lhs, const raw_color_t& rhs) { return lhs.raw != rhs.raw; }
+  inline bool operator==(const raw_color_t& lhs, const raw_color_t& rhs) { return *reinterpret_cast<const std::uint32_t*>(&lhs) == *reinterpret_cast<const std::uint32_t*>(&rhs); }
+  inline bool operator!=(const raw_color_t& lhs, const raw_color_t& rhs) { return *reinterpret_cast<const std::uint32_t*>(&lhs) != *reinterpret_cast<const std::uint32_t*>(&rhs); }
 
 
 
@@ -969,25 +973,24 @@ namespace lgfx
         {
           std::uint32_t x = param->src_x;
           std::uint32_t y = param->src_y;
-          if (x < src_width && y < src_height)
+          std::uint32_t i = (x + y * src_bitwidth) * src_bits;
+          std::uint32_t raw = (s[i >> 3] >> (-(i + src_bits) & 7)) & src_mask;
+          if (!(raw == transp))
           {
-            std::uint32_t i = (x + y * src_bitwidth) * src_bits;
-            std::uint32_t raw = (s[i >> 3] >> (-(i + src_bits) & 7)) & src_mask;
-            if (!(raw == transp))
-            {
-              d[index] = pal[raw];
-              continue;
-            }
+            d[index].set(pal[raw].R8(), pal[raw].G8(), pal[raw].B8());
           }
-          *reinterpret_cast<std::uint32_t*>(&d[index]) = 0;
+          else
+          {
+            d[index] = 0u;
+          }
         }
         else
         {
           std::uint32_t rgbt[4] = {0};
           std::uint32_t a = 0;
           {
-            std::uint32_t rate_x = (param->src_x == param->src_xe) ? 65535u : static_cast<std::uint16_t>(~param->src_x_lo);
-            std::uint32_t rate_y = (param->src_y == param->src_ye) ? 65535u : static_cast<std::uint16_t>(~param->src_y_lo);
+            std::uint32_t rate_x = (param->src_x == param->src_xe) ? 65535u : (65535u & ~param->src_x_lo);
+            std::uint32_t rate_y = (param->src_y == param->src_ye) ? 65535u : (65535u & ~param->src_y_lo);
             std::uint32_t shift = 24;
             if (rate_x * rate_y < (1u << 24))
             {
@@ -1031,19 +1034,19 @@ namespace lgfx
           }
           if (a)
           {
-            d[index].b = rgbt[0] / a;
-            d[index].g = rgbt[1] / a;
-            d[index].r = rgbt[2] / a;
-            if (!std::is_same<TPalette, argb8888_t>::value) { a *= 255; }
-            d[index].a = a / rgbt[3];
+            d[index].set( (std::is_same<TPalette, argb8888_t>::value ? a : (a * 255)) / rgbt[3]
+                        , rgbt[2] / a
+                        , rgbt[1] / a
+                        , rgbt[0] / a
+                        );
           }
           else
           {
-            *reinterpret_cast<std::uint32_t*>(&d[index]) = 0;
+            d[index] = 0u;
           }
         }
       } while (++index != last);
-      return index;
+      return last;
     }
 
     template <typename TSrc>
@@ -1070,24 +1073,23 @@ namespace lgfx
         {
           std::uint32_t x = param->src_x;
           std::uint32_t y = param->src_y;
-          if (x < src_width && y < src_height)
+          std::uint32_t i = x + y * src_width;
+          if (!(s[i] == transp))
           {
-            std::uint32_t i = x + y * src_width;
-            if (!(s[i] == transp))
-            {
-              d[index] = s[i];
-              continue;
-            }
+            d[index].set(s[i].R8(), s[i].G8(), s[i].B8());
           }
-          *reinterpret_cast<std::uint32_t*>(&d[index]) = 0;
+          else
+          {
+            d[index] = 0u;
+          }
         }
         else
         {
           std::uint32_t rgbt[4] = {0};
           std::uint32_t a = 0;
           {
-            std::uint32_t rate_x = (param->src_x == param->src_xe) ? 65535u : static_cast<std::uint16_t>(~param->src_x_lo);
-            std::uint32_t rate_y = (param->src_y == param->src_ye) ? 65535u : static_cast<std::uint16_t>(~param->src_y_lo);
+            std::uint32_t rate_x = (param->src_x == param->src_xe) ? 65535u : (65535u & ~param->src_x_lo);
+            std::uint32_t rate_y = (param->src_y == param->src_ye) ? 65535u : (65535u & ~param->src_y_lo);
             std::uint32_t shift = 24;
             if (rate_x * rate_y < (1u << 24))
             {
@@ -1130,21 +1132,21 @@ namespace lgfx
           }
           if (a)
           {
-            d[index].b = rgbt[0] / a;
-            d[index].g = rgbt[1] / a;
-            d[index].r = rgbt[2] / a;
-            if (!std::is_same<TSrc, argb8888_t>::value) { a *= 255; }
-            d[index].a = a / rgbt[3];
+            d[index].set( (std::is_same<TSrc, argb8888_t>::value ? a : (a * 255)) / rgbt[3]
+                        , rgbt[2] / a
+                        , rgbt[1] / a
+                        , rgbt[0] / a
+                        );
           }
           else
           {
-            *reinterpret_cast<std::uint32_t*>(&d[index]) = 0;
+            d[index] = 0u;
           }
         }
 //d[index].a = 255;
 //d[index].b = 255;
       } while (++index != last);
-      return index;
+      return last;
     }
 
 
@@ -1175,7 +1177,7 @@ namespace lgfx
           *tmp = (*tmp & ~(dst_mask << shift)) | ((dst_mask & (raw >> (8 - dst_bits)))) << shift;
         }
       } while (++index != last);
-      return index;
+      return last;
     }
 
     template <typename TDst>
@@ -1183,26 +1185,26 @@ namespace lgfx
     {
       auto s = &((const argb8888_t*)param->src_data)[param->src_x + param->src_y * param->src_bitwidth - index];
       auto d = (TDst*)dst;
-      do {
+      for (;;) {
         std::uint_fast16_t a = s[index].a;
         if (a)
         {
           if (a == 255)
           {
-            d[index] = s[index];
+            d[index].set(s[index].r, s[index].g, s[index].b);
+            if (++index == last) return last;
+            continue;
           }
-          else
-          {
-            std::uint_fast16_t inv = 256 - a;
-            ++a;
-            d[index].set( (d[index].R8() * inv + s[index].R8() * a) >> 8
-                        , (d[index].G8() * inv + s[index].G8() * a) >> 8
-                        , (d[index].B8() * inv + s[index].B8() * a) >> 8
-                        );
-          }
+
+          std::uint_fast16_t inv = 256 - a;
+          ++a;
+          d[index].set( (d[index].R8() * inv + s[index].R8() * a) >> 8
+                      , (d[index].G8() * inv + s[index].G8() * a) >> 8
+                      , (d[index].B8() * inv + s[index].B8() * a) >> 8
+                      );
         }
-      } while (++index != last);
-      return index;
+        if (++index == last) return last;
+      }
     }
 
     static std::int32_t skip_bit_affine(std::int32_t index, std::int32_t last, pixelcopy_t* param)
