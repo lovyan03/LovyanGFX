@@ -989,22 +989,15 @@ namespace lgfx
           std::uint32_t rgbt[4] = {0};
           std::uint32_t a = 0;
           {
-            std::uint32_t rate_x = (param->src_x == param->src_xe) ? 65535u : (65535u & ~param->src_x_lo);
-            std::uint32_t rate_y = (param->src_y == param->src_ye) ? 65535u : (65535u & ~param->src_y_lo);
-            std::uint32_t shift = 24;
-            if (rate_x * rate_y < (1u << 24))
-            {
-              std::uint32_t max_value = std::max<std::uint32_t>(rate_x, param->src_xe_lo)
-                                      * std::max<std::uint32_t>(rate_y, param->src_ye_lo) + 1;
-              while (max_value < (1u << 24)) { max_value <<= 8; shift -= 8; }
-            }
+            std::uint32_t rate_x = (param->src_x == param->src_xe) ? 256u : (256u - (param->src_x_lo >> 8));
+            std::uint32_t rate_y = (param->src_y == param->src_ye) ? 256u : (256u - (param->src_y_lo >> 8));
 
             std::int32_t x = param->src_x;
             std::int32_t y = param->src_y;
             std::uint32_t rate = rate_x;
             for (;;)
             {
-              rate = 1 + (rate * rate_y >> shift);
+              rate *= rate_y;
               rgbt[3] += rate;
               if (static_cast<std::uint32_t>(x) < src_width && static_cast<std::uint32_t>(y) < src_height)
               {
@@ -1021,28 +1014,28 @@ namespace lgfx
               }
               if (++x <= param->src_xe)
               {
-                rate = (x == param->src_xe) ? param->src_xe_lo : 65535u;
+                rate = (x == param->src_xe) ? (param->src_xe_lo >> 8) + 1 : 256u;
               }
               else
               {
                 if (++y > param->src_ye) break;
-                rate_y = (y == param->src_ye) ? param->src_ye_lo : 65535u;
-                rate = rate_x;
+                rate_y = (y == param->src_ye) ? (param->src_ye_lo >> 8) + 1 : 256u;
                 x = param->src_x;
+                rate = rate_x;
               }
             }
           }
-          if (a)
+          if (!a)
+          {
+            d[index] = 0u;
+          }
+          else
           {
             d[index].set( (std::is_same<TPalette, argb8888_t>::value ? a : (a * 255)) / rgbt[3]
                         , rgbt[2] / a
                         , rgbt[1] / a
                         , rgbt[0] / a
                         );
-          }
-          else
-          {
-            d[index] = 0u;
           }
         }
       } while (++index != last);
@@ -1088,22 +1081,15 @@ namespace lgfx
           std::uint32_t rgbt[4] = {0};
           std::uint32_t a = 0;
           {
-            std::uint32_t rate_x = (param->src_x == param->src_xe) ? 65535u : (65535u & ~param->src_x_lo);
-            std::uint32_t rate_y = (param->src_y == param->src_ye) ? 65535u : (65535u & ~param->src_y_lo);
-            std::uint32_t shift = 24;
-            if (rate_x * rate_y < (1u << 24))
-            {
-              std::uint32_t max_value = std::max<std::uint32_t>(rate_x, param->src_xe_lo)
-                                      * std::max<std::uint32_t>(rate_y, param->src_ye_lo) + 1;
-              while (max_value < (1u << 24)) { max_value <<= 8; shift -= 8; }
-            }
+            std::uint32_t rate_x = (param->src_x == param->src_xe) ? 256u : (256u - (param->src_x_lo >> 8));
+            std::uint32_t rate_y = (param->src_y == param->src_ye) ? 256u : (256u - (param->src_y_lo >> 8));
 
             std::int32_t x = param->src_x;
             std::int32_t y = param->src_y;
             std::uint32_t rate = rate_x;
             for (;;)
             {
-              rate = 1 + (rate * rate_y >> shift);
+              rate *= rate_y;
               rgbt[3] += rate;
               if (static_cast<std::uint32_t>(x) < src_width && static_cast<std::uint32_t>(y) < src_height)
               {
@@ -1119,28 +1105,28 @@ namespace lgfx
               }
               if (++x <= param->src_xe)
               {
-                rate = (x == param->src_xe) ? param->src_xe_lo : 65535u;
+                rate = (x == param->src_xe) ? (param->src_xe_lo >> 8) + 1 : 256u;
               }
               else
               {
                 if (++y > param->src_ye) break;
-                rate_y = (y == param->src_ye) ? param->src_ye_lo : 65535u;
+                rate_y = (y == param->src_ye) ? (param->src_ye_lo >> 8) + 1 : 256u;
                 x = param->src_x;
                 rate = rate_x;
               }
             }
           }
-          if (a)
+          if (!a)
+          {
+            d[index] = 0u;
+          }
+          else
           {
             d[index].set( (std::is_same<TSrc, argb8888_t>::value ? a : (a * 255)) / rgbt[3]
                         , rgbt[2] / a
                         , rgbt[1] / a
                         , rgbt[0] / a
                         );
-          }
-          else
-          {
-            d[index] = 0u;
           }
         }
 //d[index].a = 255;
@@ -1153,7 +1139,6 @@ namespace lgfx
     static std::int32_t blend_palette_fast(void* dst, std::int32_t index, std::int32_t last, pixelcopy_t* param)
     {
       auto s = &((const argb8888_t*)param->src_data)[param->src_x + param->src_y * param->src_bitwidth - index];
-      auto d = (std::uint8_t*)dst;
       auto dst_bits    = param->dst_bits;
       auto dst_mask    = param->dst_mask;
       std::uint32_t k = (dst_bits == 1) ? 0xFF
@@ -1161,21 +1146,22 @@ namespace lgfx
                       : (dst_bits == 4) ? 0x11
                                         : 0x01
                                         ;
+      auto shift = ((~index) * dst_bits) & 7;
+      auto d = &(reinterpret_cast<std::uint8_t*>(dst)[(index * dst_bits) >> 3]);
       do {
         std::uint_fast16_t a = s[index].a;
         if (a)
         {
           std::uint32_t raw = (s[index].R8() + s[index].G8() + s[index].B8()) / 3;
-          auto dstidx = index * dst_bits;
-          auto shift = (-(dstidx + dst_bits)) & 7;
-          auto tmp = &d[dstidx >> 3];
           if (a != 255)
           {
             std::uint_fast16_t inv = (256 - a) * k;
-            raw = (((*tmp >> shift) & dst_mask) * inv + raw * ++a) >> 8;
+            raw = (((*d >> shift) & dst_mask) * inv + raw * ++a) >> 8;
           }
-          *tmp = (*tmp & ~(dst_mask << shift)) | ((dst_mask & (raw >> (8 - dst_bits)))) << shift;
+          *d = (*d & ~(dst_mask << shift)) | (dst_mask & (raw >> (8 - dst_bits))) << shift;
         }
+        if (!shift) ++d;
+        shift = (shift - dst_bits) & 7;
       } while (++index != last);
       return last;
     }
