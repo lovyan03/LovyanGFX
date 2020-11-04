@@ -969,10 +969,10 @@ namespace lgfx
         param->src_y32 += param->src_y32_add;
         param->src_ye32 += param->src_y32_add;
 
+        std::int32_t x = param->src_x;
+        std::int32_t y = param->src_y;
         if (param->src_x == param->src_xe && param->src_y == param->src_ye)
         {
-          std::uint32_t x = param->src_x;
-          std::uint32_t y = param->src_y;
           std::uint32_t i = (x + y * src_bitwidth) * src_bits;
           std::uint32_t raw = (s[i >> 3] >> (-(i + src_bits) & 7)) & src_mask;
           if (!(raw == transp))
@@ -989,11 +989,8 @@ namespace lgfx
           std::uint32_t rgbt[4] = {0};
           std::uint32_t a = 0;
           {
-            std::uint32_t rate_x = (param->src_x == param->src_xe) ? 256u : (256u - (param->src_x_lo >> 8));
-            std::uint32_t rate_y = (param->src_y == param->src_ye) ? 256u : (256u - (param->src_y_lo >> 8));
-
-            std::int32_t x = param->src_x;
-            std::int32_t y = param->src_y;
+            std::uint32_t rate_x = 256u - (param->src_x_lo >> 8);
+            std::uint32_t rate_y = 256u - (param->src_y_lo >> 8);
             std::uint32_t rate = rate_x;
             for (;;)
             {
@@ -1062,10 +1059,10 @@ namespace lgfx
         param->src_y32 += param->src_y32_add;
         param->src_ye32 += param->src_y32_add;
 
+        std::int32_t x = param->src_x;
+        std::int32_t y = param->src_y;
         if (param->src_x == param->src_xe && param->src_y == param->src_ye)
         {
-          std::uint32_t x = param->src_x;
-          std::uint32_t y = param->src_y;
           std::uint32_t i = x + y * src_width;
           if (!(s[i] == transp))
           {
@@ -1081,11 +1078,8 @@ namespace lgfx
           std::uint32_t rgbt[4] = {0};
           std::uint32_t a = 0;
           {
-            std::uint32_t rate_x = (param->src_x == param->src_xe) ? 256u : (256u - (param->src_x_lo >> 8));
-            std::uint32_t rate_y = (param->src_y == param->src_ye) ? 256u : (256u - (param->src_y_lo >> 8));
-
-            std::int32_t x = param->src_x;
-            std::int32_t y = param->src_y;
+            std::uint32_t rate_x = 256u - (param->src_x_lo >> 8);
+            std::uint32_t rate_y = 256u - (param->src_y_lo >> 8);
             std::uint32_t rate = rate_x;
             for (;;)
             {
@@ -1152,7 +1146,7 @@ namespace lgfx
         std::uint_fast16_t a = s[index].a;
         if (a)
         {
-          std::uint32_t raw = (s[index].R8() + s[index].G8() + s[index].B8()) / 3;
+          std::uint32_t raw = (s[index].R8() + (s[index].G8()<<1) + s[index].B8()) >> 2;
           if (a != 255)
           {
             std::uint_fast16_t inv = (256 - a) * k;
