@@ -876,10 +876,10 @@ namespace lgfx
            : nullptr;
     }
 
-    static std::int32_t copy_bit_affine(void* dst, std::int32_t index, std::int32_t last, pixelcopy_t* param)
+    static std::int32_t copy_bit_affine(void* __restrict__ dst, std::int32_t index, std::int32_t last, pixelcopy_t* __restrict__ param)
     {
-      auto s = (const std::uint8_t*)param->src_data;
-      auto d = (std::uint8_t*)dst;
+      auto s = static_cast<const std::uint8_t* __restrict__>(param->src_data);
+      auto d = static_cast<std::uint8_t* __restrict__>(dst);
       auto src_x32_add = param->src_x32_add;
       auto src_y32_add = param->src_y32_add;
       auto src_bitwidth= param->src_bitwidth;
@@ -904,60 +904,58 @@ namespace lgfx
     }
 
     template <typename TDst, typename TPalette>
-    static std::int32_t copy_palette_affine(void* dst, std::int32_t index, std::int32_t last, pixelcopy_t* param)
+    static std::int32_t copy_palette_affine(void* __restrict__ dst, std::int32_t index, std::int32_t last, pixelcopy_t* __restrict__ param)
     {
-      auto s = (const std::uint8_t*)param->src_data;
-      auto d = (TDst*)dst;
+      auto s = static_cast<const std::uint8_t* __restrict__>(param->src_data);
+      auto d = static_cast<TDst* __restrict__>(dst);
+      auto pal = static_cast<const TPalette* __restrict__>(param->palette);
       auto transp      = param->transp;
       auto src_bits    = param->src_bits;
       auto src_mask    = param->src_mask;
-      auto pal  = (const TPalette*)param->palette;
+      param->src_x32 -= param->src_x32_add;
+      param->src_y32 -= param->src_y32_add;
       do {
+        param->src_x32 += param->src_x32_add;
+        param->src_y32 += param->src_y32_add;
         std::uint32_t i = param->src_x + param->src_y * param->src_bitwidth;
         std::uint32_t raw = (s[(i * src_bits) >> 3] >> ((~i * src_bits) & 7)) & src_mask;
         if (raw == transp) break;
         d[index] = pal[raw];
-        param->src_x32 += param->src_x32_add;
-        param->src_y32 += param->src_y32_add;
       } while (++index != last);
       return index;
     }
 
     template <typename TDst, typename TSrc>
-    static std::int32_t copy_rgb_affine(void* dst, std::int32_t index, std::int32_t last, pixelcopy_t* param)
+    static std::int32_t copy_rgb_affine(void* __restrict__ dst, std::int32_t index, std::int32_t last, pixelcopy_t* __restrict__ param)
     {
-      auto s = (const TSrc*)param->src_data;
-      auto d = (TDst*)dst;
-      auto src_x32     = param->src_x32;
-      auto src_y32     = param->src_y32;
+      auto s = static_cast<const TSrc* __restrict__>(param->src_data);
+      auto d = static_cast<TDst* __restrict__>(dst);
       auto src_x32_add = param->src_x32_add;
       auto src_y32_add = param->src_y32_add;
-      auto src_bitwidth= param->src_bitwidth;
-      auto transp      = param->transp;
+      param->src_x32 -= src_x32_add;
+      param->src_y32 -= src_y32_add;
       do {
-        std::uint32_t i = (src_x32 >> FP_SCALE) + (src_y32 >> FP_SCALE) * src_bitwidth;
-        if (s[i] == transp) break;
+        param->src_x32 += src_x32_add;
+        param->src_y32 += src_y32_add;
+        std::uint32_t i = param->src_x + param->src_y * param->src_bitwidth;
+        if (s[i] == param->transp) break;
         d[index] = s[i];
-        src_x32 += src_x32_add;
-        src_y32 += src_y32_add;
       } while (++index != last);
-      param->src_x32 = src_x32;
-      param->src_y32 = src_y32;
       return index;
     }
 
     template <typename TPalette>
-    static std::int32_t copy_palette_antialias(void* dst, std::int32_t index, std::int32_t last, pixelcopy_t* param)
+    static std::int32_t copy_palette_antialias(void* __restrict__ dst, std::int32_t index, std::int32_t last, pixelcopy_t* __restrict__ param)
     {
-      auto s = (const std::uint8_t*)param->src_data;
-      auto d = static_cast<argb8888_t*>(dst);
+      auto s = static_cast<const std::uint8_t* __restrict__>(param->src_data);
+      auto d = static_cast<argb8888_t* __restrict__>(dst);
+      auto pal = static_cast<const TPalette* __restrict__>(param->palette);
       auto src_bitwidth= param->src_bitwidth;
       auto src_width   = param->src_width;
       auto src_height  = param->src_height;
       auto transp      = param->transp;
       auto src_bits    = param->src_bits;
       auto src_mask    = param->src_mask;
-      auto pal  = (const TPalette*)param->palette;
 
       param->src_x32 -= param->src_x32_add;
       param->src_xe32 -= param->src_x32_add;
@@ -1044,13 +1042,12 @@ namespace lgfx
     }
 
     template <typename TSrc>
-    static std::int32_t copy_rgb_antialias(void* dst, std::int32_t index, std::int32_t last, pixelcopy_t* param)
+    static std::int32_t copy_rgb_antialias(void* __restrict__ dst, std::int32_t index, std::int32_t last, pixelcopy_t* __restrict__ param)
     {
-      auto s = static_cast<const TSrc*>(param->src_data);
-      auto d = static_cast<argb8888_t*>(dst);
+      auto s = static_cast<const TSrc* __restrict__>(param->src_data);
+      auto d = static_cast<argb8888_t* __restrict__>(dst);
       auto src_width   = param->src_width;
       auto src_height  = param->src_height;
-      auto transp      = param->transp;
 
       param->src_x32 -= param->src_x32_add;
       param->src_xe32 -= param->src_x32_add;
@@ -1065,12 +1062,12 @@ namespace lgfx
 
         std::int32_t x = param->src_x;
         std::int32_t y = param->src_y;
+        auto color = &s[x + y * src_width];
         if (param->src_x == param->src_xe && param->src_y == param->src_ye)
         {
-          std::uint32_t i = x + y * src_width;
-          if (!(s[i] == transp))
+          if (!(*color == param->transp))
           {
-            d[index].set(s[i].R8(), s[i].G8(), s[i].B8());
+            d[index].set(color->R8(), color->G8(), color->B8());
           }
           else
           {
@@ -1084,14 +1081,13 @@ namespace lgfx
             std::uint32_t rate_x = 256u - (param->src_x_lo >> 8);
             std::uint32_t rate_y = 256u - (param->src_y_lo >> 8);
             std::uint32_t rate = rate_x;
-            auto color = &s[x + y * src_width];
             for (;;)
             {
               rate *= rate_y;
               argb[4] += rate;
               if (static_cast<std::uint32_t>(x) < src_width
                && static_cast<std::uint32_t>(y) < src_height
-               && !(*color == transp))
+               && !(*color == param->transp))
               {
                 if (std::is_same<TSrc, argb8888_t>::value) { rate *= color->A8(); }
                 argb[3] += rate;
@@ -1135,18 +1131,18 @@ namespace lgfx
     }
 
 
-    static std::int32_t blend_palette_fast(void* dst, std::int32_t index, std::int32_t last, pixelcopy_t* param)
+    static std::int32_t blend_palette_fast(void* __restrict__ dst, std::int32_t index, std::int32_t last, pixelcopy_t* __restrict__ param)
     {
-      auto s = &((const argb8888_t*)param->src_data)[param->src_x + param->src_y * param->src_bitwidth - index];
-      auto dst_bits    = param->dst_bits;
-      auto dst_mask    = param->dst_mask;
+      auto s = &(static_cast<const argb8888_t* __restrict__>(param->src_data)[param->src_x + param->src_y * param->src_bitwidth - index]);
+      auto dst_bits = param->dst_bits;
+      auto dst_mask = param->dst_mask;
       std::uint32_t k = (dst_bits == 1) ? 0xFF
                       : (dst_bits == 2) ? 0x55
                       : (dst_bits == 4) ? 0x11
                                         : 0x01
                                         ;
       auto shift = ((~index) * dst_bits) & 7;
-      auto d = &(reinterpret_cast<std::uint8_t*>(dst)[(index * dst_bits) >> 3]);
+      auto d = &(static_cast<std::uint8_t* __restrict__>(dst)[(index * dst_bits) >> 3]);
       do {
         std::uint_fast16_t a = s[index].a;
         if (a)
@@ -1166,10 +1162,10 @@ namespace lgfx
     }
 
     template <typename TDst>
-    static std::int32_t blend_rgb_fast(void* dst, std::int32_t index, std::int32_t last, pixelcopy_t* param)
+    static std::int32_t blend_rgb_fast(void* __restrict__ dst, std::int32_t index, std::int32_t last, pixelcopy_t* __restrict__ param)
     {
-      auto s = &((const argb8888_t*)param->src_data)[param->src_x + param->src_y * param->src_bitwidth - index];
-      auto d = (TDst*)dst;
+      auto s = &(static_cast<const argb8888_t* __restrict__>(param->src_data)[param->src_x + param->src_y * param->src_bitwidth - index]);
+      auto d = static_cast<TDst* __restrict__>(dst);
       for (;;) {
         std::uint_fast16_t a = s[index].a;
         if (a)
@@ -1192,9 +1188,9 @@ namespace lgfx
       }
     }
 
-    static std::int32_t skip_bit_affine(std::int32_t index, std::int32_t last, pixelcopy_t* param)
+    static std::int32_t skip_bit_affine(std::int32_t index, std::int32_t last, pixelcopy_t* __restrict__ param)
     {
-      auto s = (const std::uint8_t*)param->src_data;
+      auto s = static_cast<const std::uint8_t* __restrict__>(param->src_data);
       auto src_x32     = param->src_x32;
       auto src_y32     = param->src_y32;
       auto src_x32_add = param->src_x32_add;
@@ -1216,9 +1212,9 @@ namespace lgfx
     }
 
     template <typename TSrc>
-    static std::int32_t skip_rgb_affine(std::int32_t index, std::int32_t last, pixelcopy_t* param)
+    static std::int32_t skip_rgb_affine(std::int32_t index, std::int32_t last, pixelcopy_t* __restrict__ param)
     {
-      auto s = (const TSrc*)param->src_data;
+      auto s = static_cast<const TSrc* __restrict__>(param->src_data);
       auto src_x32     = param->src_x32;
       auto src_y32     = param->src_y32;
       auto src_x32_add = param->src_x32_add;
@@ -1237,10 +1233,10 @@ namespace lgfx
     }
 
     template <typename TSrc>
-    static std::int32_t compare_rgb_fast(void* dst, std::int32_t index, std::int32_t last, pixelcopy_t* param)
+    static std::int32_t compare_rgb_fast(void* __restrict__ dst, std::int32_t index, std::int32_t last, pixelcopy_t* __restrict__ param)
     {
-      auto s = (const TSrc*)param->src_data;
-      auto d = (bool*)dst;
+      auto s = static_cast<const TSrc* __restrict__>(param->src_data);
+      auto d = static_cast<bool* __restrict__>(dst);
       auto transp = param->transp;
       std::uint32_t i = param->src_x + param->src_y * param->src_bitwidth - 1;
       do {
@@ -1249,10 +1245,10 @@ namespace lgfx
       return index;
     }
 
-    static std::int32_t compare_bit_fast(void* dst, std::int32_t index, std::int32_t last, pixelcopy_t* param)
+    static std::int32_t compare_bit_fast(void* __restrict__ dst, std::int32_t index, std::int32_t last, pixelcopy_t* __restrict__ param)
     {
-      auto s = (const std::uint8_t*)param->src_data;
-      auto d = (bool*)dst;
+      auto s = static_cast<const std::uint8_t* __restrict__>(param->src_data);
+      auto d = static_cast<bool* __restrict__>(dst);
       auto transp      = param->transp;
       auto src_bits    = param->src_bits;
       auto src_mask    = param->src_mask;
