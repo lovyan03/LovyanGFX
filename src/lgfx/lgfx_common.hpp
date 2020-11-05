@@ -701,12 +701,13 @@ namespace lgfx
   inline rgb888_t& rgb888_t::operator=(const bgr888_t&   rhs) { r = rhs.r;    g = rhs.g;    b = rhs.b;    return *this; }
   inline rgb888_t& rgb888_t::operator=(const argb8888_t& rhs) { r = rhs.r;    g = rhs.g;    b = rhs.b;    return *this; }
 
-  inline swap565_t& swap565_t::operator=(const rgb332_t&   rhs) { raw = ((rhs.b * 0x15)>>1)<<8 | rhs.g << 13 | rhs.g | ((rhs.r * 0x09) >> 1) << 3; return *this; }
+  inline swap565_t& swap565_t::operator=(const rgb332_t&   rhs) { *reinterpret_cast<std::uint16_t*>(this) = ((rhs.b * 0x15)>>1)<<8 | rhs.g << 13 | rhs.g | ((rhs.r * 0x09) >> 1) << 3; return *this; }
   inline swap565_t& swap565_t::operator=(const rgb565_t&   rhs) { raw = __builtin_bswap16(rhs.raw);            return *this; }
   inline swap565_t& swap565_t::operator=(const rgb888_t&   rhs) { raw = swap565(rhs.r,    rhs.g,    rhs.b);    return *this; }
   inline swap565_t& swap565_t::operator=(const bgr666_t&   rhs) { raw = (rhs.b>>1)<<8 | rhs.g << 13 | rhs.g >> 3 | (rhs.r >> 1) << 3; return *this; }
-  inline swap565_t& swap565_t::operator=(const bgr888_t&   rhs) { raw = swap565(rhs.r,    rhs.g,    rhs.b);    return *this; }
-  inline swap565_t& swap565_t::operator=(const argb8888_t& rhs) { raw = swap565(rhs.r,    rhs.g,    rhs.b);    return *this; }
+  inline swap565_t& swap565_t::operator=(const bgr888_t&   rhs) { *reinterpret_cast<std::uint16_t*>(this) = swap565(rhs.r, rhs.g, rhs.b);   return *this; }
+  inline swap565_t& swap565_t::operator=(const argb8888_t& rhs) { *reinterpret_cast<std::uint16_t*>(this) = swap565(rhs.r, rhs.g, rhs.b);   return *this; }
+
 
   inline bgr666_t& bgr666_t::operator=(const rgb332_t&   rhs) { r = rhs.R6(); g = rhs.G6(); b = rhs.B6(); return *this; }
   inline bgr666_t& bgr666_t::operator=(const rgb565_t&   rhs) { r = rhs.R6(); g = rhs.G6(); b = rhs.B6(); return *this; }
@@ -986,31 +987,32 @@ namespace lgfx
         }
         else
         {
-          std::uint32_t rgbt[4] = {0};
-          std::uint32_t a = 0;
+          std::uint32_t argb[5] = {0};
           {
             std::uint32_t rate_x = 256u - (param->src_x_lo >> 8);
             std::uint32_t rate_y = 256u - (param->src_y_lo >> 8);
             std::uint32_t rate = rate_x;
+            std::uint32_t i = x + y * src_bitwidth;
             for (;;)
             {
               rate *= rate_y;
-              rgbt[3] += rate;
+              argb[4] += rate;
               if (static_cast<std::uint32_t>(x) < src_width && static_cast<std::uint32_t>(y) < src_height)
               {
-                std::uint32_t k = (x + y * src_bitwidth) * src_bits;
+                std::uint32_t k = i * src_bits;
                 std::uint32_t raw = (s[k >> 3] >> (-(k + src_bits) & 7)) & src_mask;
                 if (!(raw == transp))
                 {
                   if (std::is_same<TPalette, argb8888_t>::value) { rate *= pal[raw].A8(); }
-                  rgbt[2] += pal[raw].R8() * rate;
-                  rgbt[1] += pal[raw].G8() * rate;
-                  rgbt[0] += pal[raw].B8() * rate;
-                  a += rate;
+                  argb[3] += rate;
+                  argb[2] += pal[raw].R8() * rate;
+                  argb[1] += pal[raw].G8() * rate;
+                  argb[0] += pal[raw].B8() * rate;
                 }
               }
               if (++x <= param->src_xe)
               {
+                ++i;
                 rate = (x == param->src_xe) ? (param->src_xe_lo >> 8) + 1 : 256u;
               }
               else
@@ -1018,20 +1020,22 @@ namespace lgfx
                 if (++y > param->src_ye) break;
                 rate_y = (y == param->src_ye) ? (param->src_ye_lo >> 8) + 1 : 256u;
                 x = param->src_x;
+                i = x + y * src_bitwidth;
                 rate = rate_x;
               }
             }
           }
+          std::uint32_t a = argb[3];
           if (!a)
           {
             d[index] = 0u;
           }
           else
           {
-            d[index].set( (std::is_same<TPalette, argb8888_t>::value ? a : (a * 255)) / rgbt[3]
-                        , rgbt[2] / a
-                        , rgbt[1] / a
-                        , rgbt[0] / a
+            d[index].set( (std::is_same<TPalette, argb8888_t>::value ? a : (a * 255)) / argb[4]
+                        , argb[2] / a
+                        , argb[1] / a
+                        , argb[0] / a
                         );
           }
         }
@@ -1075,30 +1079,29 @@ namespace lgfx
         }
         else
         {
-          std::uint32_t rgbt[4] = {0};
-          std::uint32_t a = 0;
+          std::uint32_t argb[5] = {0};
           {
             std::uint32_t rate_x = 256u - (param->src_x_lo >> 8);
             std::uint32_t rate_y = 256u - (param->src_y_lo >> 8);
             std::uint32_t rate = rate_x;
+            auto color = &s[x + y * src_width];
             for (;;)
             {
               rate *= rate_y;
-              rgbt[3] += rate;
-              if (static_cast<std::uint32_t>(x) < src_width && static_cast<std::uint32_t>(y) < src_height)
+              argb[4] += rate;
+              if (static_cast<std::uint32_t>(x) < src_width
+               && static_cast<std::uint32_t>(y) < src_height
+               && !(*color == transp))
               {
-                auto color = &s[x + y * src_width];
-                if (!(*color == transp))
-                {
-                  if (std::is_same<TSrc, argb8888_t>::value) { rate *= color->A8(); }
-                  rgbt[2] += color->R8() * rate;
-                  rgbt[1] += color->G8() * rate;
-                  rgbt[0] += color->B8() * rate;
-                  a += rate;
-                }
+                if (std::is_same<TSrc, argb8888_t>::value) { rate *= color->A8(); }
+                argb[3] += rate;
+                argb[2] += color->R8() * rate;
+                argb[1] += color->G8() * rate;
+                argb[0] += color->B8() * rate;
               }
               if (++x <= param->src_xe)
               {
+                ++color;
                 rate = (x == param->src_xe) ? (param->src_xe_lo >> 8) + 1 : 256u;
               }
               else
@@ -1106,20 +1109,22 @@ namespace lgfx
                 if (++y > param->src_ye) break;
                 rate_y = (y == param->src_ye) ? (param->src_ye_lo >> 8) + 1 : 256u;
                 x = param->src_x;
+                color += x + src_width - param->src_xe;
                 rate = rate_x;
               }
             }
           }
+          std::uint32_t a = argb[3];
           if (!a)
           {
             d[index] = 0u;
           }
           else
           {
-            d[index].set( (std::is_same<TSrc, argb8888_t>::value ? a : (a * 255)) / rgbt[3]
-                        , rgbt[2] / a
-                        , rgbt[1] / a
-                        , rgbt[0] / a
+            d[index].set( (std::is_same<TSrc, argb8888_t>::value ? a : (a * 255)) / argb[4]
+                        , argb[2] / a
+                        , argb[1] / a
+                        , argb[0] / a
                         );
           }
         }
