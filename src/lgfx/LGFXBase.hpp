@@ -883,10 +883,10 @@ namespace lgfx
     void draw_xbitmap(std::int32_t x, std::int32_t y, const std::uint8_t *bitmap, std::int32_t w, std::int32_t h, std::uint32_t fg_rawcolor, std::uint32_t bg_rawcolor = ~0u);
     void push_image_rotate_zoom(float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y, std::int32_t w, std::int32_t h, pixelcopy_t* pc);
     void push_image_rotate_zoom_aa(float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y, std::int32_t w, std::int32_t h, pixelcopy_t* pc);
-    void push_image_affine(float* matrix, std::int32_t w, std::int32_t h, pixelcopy_t *pc);
-    void push_image_affine(float* matrix, pixelcopy_t *pc);
-    void push_image_affine_aa(float* matrix, std::int32_t w, std::int32_t h, pixelcopy_t *pc);
-    void push_image_affine_aa(float* matrix, pixelcopy_t *pre_pc, pixelcopy_t *post_pc);
+    void push_image_affine(const float* matrix, std::int32_t w, std::int32_t h, pixelcopy_t *pc);
+    void push_image_affine(const float* matrix, pixelcopy_t *pc);
+    void push_image_affine_aa(const float* matrix, std::int32_t w, std::int32_t h, pixelcopy_t *pc);
+    void push_image_affine_aa(const float* matrix, pixelcopy_t *pre_pc, pixelcopy_t *post_pc);
 
     std::uint16_t decodeUTF8(std::uint8_t c);
 

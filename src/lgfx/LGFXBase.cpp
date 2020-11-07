@@ -1030,7 +1030,7 @@ namespace lgfx
     result[5] =  dst_y - src_x * result[3] - src_y * result[4];
   }
 
-  static bool make_invert_affine32(std::int32_t result[6], float matrix[6])
+  static bool make_invert_affine32(std::int32_t* __restrict__ result, const float* __restrict__ matrix)
   {
     float det = matrix[0] * matrix[4] - matrix[1] * matrix[3];
     if (det == 0.0) return false;
@@ -1057,7 +1057,7 @@ namespace lgfx
     push_image_affine_aa(matrix, w, h, pc);
   }
 
-  void LGFXBase::push_image_affine(float *matrix, std::int32_t w, std::int32_t h, pixelcopy_t *pc)
+  void LGFXBase::push_image_affine(const float* matrix, std::int32_t w, std::int32_t h, pixelcopy_t* pc)
   {
     pc->no_convert = false;
     pc->src_height = h;
@@ -1072,7 +1072,7 @@ namespace lgfx
     push_image_affine(matrix, pc);
   }
 
-  void LGFXBase::push_image_affine_aa(float *matrix, std::int32_t w, std::int32_t h, pixelcopy_t *pc)
+  void LGFXBase::push_image_affine_aa(const float* matrix, std::int32_t w, std::int32_t h, pixelcopy_t* pc)
   {
     pc->no_convert = false;
     pc->src_height = h;
@@ -1109,7 +1109,7 @@ namespace lgfx
     push_image_affine_aa(matrix, pc, &pc_post);
   }
 
-  void LGFXBase::push_image_affine(float *matrix, pixelcopy_t *pc)
+  void LGFXBase::push_image_affine(const float* matrix, pixelcopy_t* pc)
   {
     std::int32_t min_y = matrix[3] * (pc->src_width  << FP_SCALE);
     std::int32_t max_y = matrix[4] * (pc->src_height << FP_SCALE);
@@ -1173,7 +1173,7 @@ namespace lgfx
     endWrite();
   }
 
-  void LGFXBase::push_image_affine_aa(float *matrix, pixelcopy_t *pc, pixelcopy_t *pc2)
+  void LGFXBase::push_image_affine_aa(const float* matrix, pixelcopy_t* pc, pixelcopy_t* pc2)
   {
     std::int32_t min_y = matrix[3] * (pc->src_width  << FP_SCALE);
     std::int32_t max_y = matrix[4] * (pc->src_height << FP_SCALE);
