@@ -1225,11 +1225,13 @@ namespace lgfx
       if (left < right)
       {
         pc->src_x32 = iA[2] + left * iA[0];
-        if (pc->src_x >= 0)
+        if (static_cast<std::uint32_t>(pc->src_x) < pc->src_width)
         {
           pc->src_y32 = iA[5] + left * iA[3];
-          if (pc->src_y >= 0)
+          if (static_cast<std::uint32_t>(pc->src_y) < pc->src_height)
+          {
             pushImage_impl(left, y + max_y, right - left, 1, pc, true);
+          }
         }
       }
     } while (++y);
