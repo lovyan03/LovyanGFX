@@ -121,6 +121,9 @@ namespace lgfx
     template<typename T> inline void paint    ( std::int32_t x, std::int32_t y, const T& color) { setColor(color); floodFill(x, y); }
                          inline void paint    ( std::int32_t x, std::int32_t y                ) {                  floodFill(x, y); }
 
+    template<typename T> inline void fillAffine(const float matrix[6], std::int32_t w, std::int32_t h, const T& color) { setColor(color); fillAffine(matrix, w, h); }
+                                void fillAffine(const float matrix[6], std::int32_t w, std::int32_t h);
+
     template<typename T> inline void drawGradientHLine( std::int32_t x, std::int32_t y, std::int32_t w, const T& colorstart, const T& colorend ) { drawGradientLine( x, y, x + w - 1, y, colorstart, colorend ); }
     template<typename T> inline void drawGradientVLine( std::int32_t x, std::int32_t y, std::int32_t h, const T& colorstart, const T& colorend ) { drawGradientLine( x, y, x, y + h - 1, colorstart, colorend ); }
     template<typename T> inline void drawGradientLine ( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, const T& colorstart, const T& colorend ) { draw_gradient_line( x0, y0, x1, y1, convert_to_rgb888(colorstart), convert_to_rgb888(colorend) ); }
@@ -310,28 +313,28 @@ namespace lgfx
 //----------------------------------------------------------------------------
 
     template<typename T>
-    void pushImageAffine(float matrix[6], std::int32_t w, std::int32_t h, const T* data)
+    void pushImageAffine(const float matrix[6], std::int32_t w, std::int32_t h, const T* data)
     {
       auto pc = create_pc(data);
       push_image_affine(matrix, w, h, &pc);
     }
 
     template<typename T1, typename T2>
-    void pushImageAffine(float matrix[6], std::int32_t w, std::int32_t h, const T1* data, const T2& transparent)
+    void pushImageAffine(const float matrix[6], std::int32_t w, std::int32_t h, const T1* data, const T2& transparent)
     {
       auto pc = create_pc_tr(data, transparent);
       push_image_affine(matrix, w, h, &pc);
     }
 
     template<typename T>
-    void pushImageAffine(float matrix[6], std::int32_t w, std::int32_t h, const void* data, color_depth_t depth, const T* palette)
+    void pushImageAffine(const float matrix[6], std::int32_t w, std::int32_t h, const void* data, color_depth_t depth, const T* palette)
     {
       auto pc = create_pc_palette(data, palette, depth);
       push_image_affine(matrix, w, h, &pc);
     }
 
     template<typename T>
-    void pushImageAffine(float matrix[6], std::int32_t w, std::int32_t h, const void* data, std::uint32_t transparent, color_depth_t depth, const T* palette)
+    void pushImageAffine(const float matrix[6], std::int32_t w, std::int32_t h, const void* data, std::uint32_t transparent, color_depth_t depth, const T* palette)
     {
       auto pc = create_pc_palette(data, palette, depth, transparent);
       push_image_affine(matrix, w, h, &pc);
@@ -339,28 +342,28 @@ namespace lgfx
 
 
     template<typename T>
-    void pushImageAffineWithAA(float matrix[6], std::int32_t w, std::int32_t h, const T* data)
+    void pushImageAffineWithAA(const float matrix[6], std::int32_t w, std::int32_t h, const T* data)
     {
       auto pc = create_pc_antialias(data);
       push_image_affine_aa(matrix, w, h, &pc);
     }
 
     template<typename T1, typename T2>
-    void pushImageAffineWithAA(float matrix[6], std::int32_t w, std::int32_t h, const T1* data, const T2& transparent)
+    void pushImageAffineWithAA(const float matrix[6], std::int32_t w, std::int32_t h, const T1* data, const T2& transparent)
     {
       auto pc = create_pc_tr_antialias(data, transparent);
       push_image_affine_aa(matrix, w, h, &pc);
     }
 
     template<typename T>
-    void pushImageAffineWithAA(float matrix[6], std::int32_t w, std::int32_t h, const void* data, color_depth_t depth, const T* palette)
+    void pushImageAffineWithAA(const float matrix[6], std::int32_t w, std::int32_t h, const void* data, color_depth_t depth, const T* palette)
     {
       auto pc = create_pc_antialias(data, palette, depth);
       push_image_affine_aa(matrix, w, h, &pc);
     }
 
     template<typename T>
-    void pushImageAffineWithAA(float matrix[6], std::int32_t w, std::int32_t h, const void* data, std::uint32_t transparent, color_depth_t depth, const T* palette)
+    void pushImageAffineWithAA(const float matrix[6], std::int32_t w, std::int32_t h, const void* data, std::uint32_t transparent, color_depth_t depth, const T* palette)
     {
       auto pc = create_pc_antialias(data, palette, depth, transparent);
       push_image_affine_aa(matrix, w, h, &pc);

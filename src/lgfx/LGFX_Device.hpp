@@ -327,7 +327,6 @@ namespace lgfx
       param->fp_copy(dmabuf, 0, w, param);
       this->writePixelsDMA_impl(dmabuf, w);
       return;
-      pixelcopy_t p(nullptr, static_cast<color_depth_t>(_write_conv.depth), _read_conv.depth);
 //*/
       pixelcopy_t pc_read(nullptr, static_cast<color_depth_t>(_write_conv.depth), _read_conv.depth);
       for (;;)

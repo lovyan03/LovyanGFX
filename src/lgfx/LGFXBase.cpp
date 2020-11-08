@@ -1109,6 +1109,65 @@ namespace lgfx
     push_image_affine_aa(matrix, pc, &pc_post);
   }
 
+  void LGFXBase::fillAffine(const float matrix[6], std::int32_t w, std::int32_t h)
+  {
+    std::int32_t min_y = matrix[3] * (w << FP_SCALE);
+    std::int32_t max_y = matrix[4] * (h << FP_SCALE);
+    if ((min_y < 0) == (max_y < 0))
+    {
+      max_y += min_y;
+      min_y = 0;
+    }
+    if (min_y > max_y) 
+    {
+      std::swap(min_y, max_y);
+    }
+
+    {
+      std::int32_t offset_y32 = matrix[5] * (1 << FP_SCALE) + (1 << (FP_SCALE-1));
+      min_y = std::max(_clip_t    , (offset_y32 + min_y - 1) >> FP_SCALE);
+      max_y = std::min(_clip_b + 1, (offset_y32 + max_y    ) >> FP_SCALE);
+      if (min_y >= max_y) return;
+    }
+
+
+    std::int32_t iA[6];
+    if (!make_invert_affine32(iA, matrix)) return;
+
+    std::int32_t offset = (min_y << 1) - 1;
+    iA[2] += ((iA[0] + iA[1] * offset) >> 1);
+    iA[5] += ((iA[3] + iA[4] * offset) >> 1);
+
+    std::int32_t scale_w = w << FP_SCALE;
+    std::int32_t xs1 = (iA[0] < 0 ?   - scale_w :   1) - iA[0];
+    std::int32_t xs2 = (iA[0] < 0 ? 0 : (1 - scale_w)) - iA[0];
+
+    std::int32_t scale_h = h << FP_SCALE;
+    std::int32_t ys1 = (iA[3] < 0 ?   - scale_h :   1) - iA[3];
+    std::int32_t ys2 = (iA[3] < 0 ? 0 : (1 - scale_h)) - iA[3];
+
+    std::int32_t cl = _clip_l    ;
+    std::int32_t cr = _clip_r + 1;
+
+    std::int32_t div1 = iA[0] ? - iA[0] : -1;
+    std::int32_t div2 = iA[3] ? - iA[3] : -1;
+    std::int32_t y = min_y - max_y;
+
+    startWrite();
+    do
+    {
+      iA[2] += iA[1];
+      iA[5] += iA[4];
+      std::int32_t left  = std::max(cl, std::max((iA[2] + xs1) / div1, (iA[5] + ys1) / div2));
+      std::int32_t right = std::min(cr, std::min((iA[2] + xs2) / div1, (iA[5] + ys2) / div2));
+      if (left < right)
+      {
+        writeFillRectPreclipped(left, y + max_y, right - left, 1);
+      }
+    } while (++y);
+    endWrite();
+  }
+
   void LGFXBase::push_image_affine(const float* matrix, pixelcopy_t* pc)
   {
     std::int32_t min_y = matrix[3] * (pc->src_width  << FP_SCALE);
@@ -1166,8 +1225,12 @@ namespace lgfx
       if (left < right)
       {
         pc->src_x32 = iA[2] + left * iA[0];
-        pc->src_y32 = iA[5] + left * iA[3];
-        pushImage_impl(left, y + max_y, right - left, 1, pc, true);
+        if (pc->src_x >= 0)
+        {
+          pc->src_y32 = iA[5] + left * iA[3];
+          if (pc->src_y >= 0)
+            pushImage_impl(left, y + max_y, right - left, 1, pc, true);
+        }
       }
     } while (++y);
     endWrite();
@@ -1188,9 +1251,9 @@ namespace lgfx
     }
 
     {
-      std::int32_t offset_y32 = matrix[5] * (1 << FP_SCALE) + (1 << (FP_SCALE-1));
-      min_y = std::max(_clip_t    , (offset_y32 + min_y - 1) >> FP_SCALE);
-      max_y = std::min(_clip_b + 1, (offset_y32 + max_y    ) >> FP_SCALE);
+      std::int32_t offset_y32 = matrix[5] * (1 << FP_SCALE);
+      min_y = std::max(_clip_t, (offset_y32 + min_y ) >> FP_SCALE);
+      max_y = std::min(_clip_b, (offset_y32 + max_y ) >> FP_SCALE) + 1;
       if (min_y >= max_y) return;
     }
 
