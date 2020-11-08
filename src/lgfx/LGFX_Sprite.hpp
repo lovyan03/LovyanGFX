@@ -463,6 +463,7 @@ namespace lgfx
       {
         this->release();
         void* buffer = nullptr;
+        _source = source;
         switch (source)
         {
           default:
@@ -498,7 +499,6 @@ namespace lgfx
 
     SpriteBuffer _img;
     SpriteBuffer _palette;
-    //bgr888_t* _palette = nullptr;
 
     std::int32_t _bitwidth;
     std::int32_t _xptr;
