@@ -419,39 +419,38 @@ static int pngle_on_data(pngle_t *pngle, const uint8_t *p, int len)
   uint_fast16_t v[4]; // MAX_CHANNELS
   uint8_t rgba[4];
 
+  int_fast8_t filter_type = pngle->filter_type;
+
   while (p < ep) {
     if (pngle->drawing_x >= pngle->hdr.width) {
       // New row
       pngle->drawing_x = interlace_off_x[pngle->interlace_pass];
       pngle->drawing_y += interlace_div_y[pngle->interlace_pass];
 //      pngle->drawing_y = U32_CLAMP_ADD(pngle->drawing_y, interlace_div_y[pngle->interlace_pass], pngle->hdr.height);
-      pngle->filter_type = -1; // Indicate new line
+      filter_type = -1; // Indicate new line
+
+      if (pngle->drawing_y >= pngle->hdr.height) {
+        if (pngle->interlace_pass == 0 || pngle->interlace_pass >= 7) return len; // Do nothing further
+
+        // Interlace: Next pass
+        if (set_interlace_pass(pngle, pngle->interlace_pass + 1) < 0) return -1;
+        debug_printf("[pngle] interlace pass changed to: %d\n", pngle->interlace_pass);
+
+        continue; // This is required because "No filter type bytes are present in an empty pass".
+      }
     }
 
-    if (pngle->drawing_x >= pngle->hdr.width || pngle->drawing_y >= pngle->hdr.height) {
-      if (pngle->interlace_pass == 0 || pngle->interlace_pass >= 7) return len; // Do nothing further
-
-      // Interlace: Next pass
-      if (set_interlace_pass(pngle, pngle->interlace_pass + 1) < 0) return -1;
-      debug_printf("[pngle] interlace pass changed to: %d\n", pngle->interlace_pass);
-
-      continue; // This is required because "No filter type bytes are present in an empty pass".
-    }
-
-    if (pngle->filter_type < 0) {
-      if (*p > 4) {
+    if (filter_type < 0) {
+      filter_type = (int_fast8_t)*p++; // 0 - 4
+      if (filter_type > 4) {
         debug_printf("[pngle] Invalid filter type is found; 0x%02x\n", *p);
         return PNGLE_ERROR("Invalid filter type is found");
       }
-
-      pngle->filter_type = (int_fast8_t)*p++; // 0 - 4
 
       // push sentinel bytes for new line
       for (uint_fast8_t i = 0; i < bytes_per_pixel; i++) {
         scanline_ringbuf_push(pngle, 0);
       }
-
-      continue;
     }
 
     size_t cidx =  pngle->scanline_ringbuf_cidx;
@@ -466,7 +465,7 @@ static int pngle_on_data(pngle_t *pngle, const uint8_t *p, int len)
     // debug_printf("[pngle] c = 0x%02x, b = 0x%02x, a = 0x%02x, x = 0x%02x\n", c, b, a, x);
 
     // Reverse the filter
-    switch (pngle->filter_type) {
+    switch (filter_type) {
     case 0: break; // None
     case 1: x += a; break; // Sub
     case 2: x += b; break; // Up
@@ -485,7 +484,8 @@ static int pngle_on_data(pngle_t *pngle, const uint8_t *p, int len)
       pngle->scanline_remain_bytes_to_render = -1; // reset
     }
   }
-
+  pngle->filter_type = filter_type;
+  
   return len;
 }
 
@@ -495,6 +495,51 @@ static int pngle_handle_chunk(pngle_t *pngle, const uint8_t *buf, size_t len)
   size_t consume = 0;
 
   switch (pngle->chunk_type) {
+  case PNGLE_CHUNK_IDAT:
+    // parse & decode IDAT chunk
+    if (len < 1) return 0;
+
+    debug_printf("[pngle]   Reading IDAT (len %zd / chunk remain %u)\n", len, pngle->chunk_remain);
+
+    size_t in_bytes  = len;
+    size_t out_bytes = pngle->avail_out;
+
+    //debug_printf("[pngle]     in_bytes %zd, out_bytes %zd, next_out %p\n", in_bytes, out_bytes, pngle->next_out);
+
+    // XXX: tinfl_decompress always requires (next_out - lz_buf + avail_out) == TINFL_LZ_DICT_SIZE
+    tinfl_status status = tinfl_decompress(&pngle->inflator, (const mz_uint8 *)buf, &in_bytes, pngle->lz_buf, (mz_uint8 *)pngle->next_out, &out_bytes, TINFL_FLAG_HAS_MORE_INPUT | TINFL_FLAG_PARSE_ZLIB_HEADER);
+
+    //debug_printf("[pngle]       tinfl_decompress\n");
+    //debug_printf("[pngle]       => in_bytes %zd, out_bytes %zd, next_out %p, status %d\n", in_bytes, out_bytes, pngle->next_out, status);
+
+    if (status < TINFL_STATUS_DONE) {
+      // Decompression failed.
+      debug_printf("[pngle] tinfl_decompress() failed with status %d!\n", status);
+      return PNGLE_ERROR("Failed to decompress the IDAT stream");
+    }
+
+    pngle->next_out   += out_bytes;
+    pngle->avail_out  -= out_bytes;
+
+    // debug_printf("[pngle]         => avail_out %zd, next_out %p\n", pngle->avail_out, pngle->next_out);
+
+    if (status == TINFL_STATUS_DONE || pngle->avail_out == 0) {
+      // Output buffer is full, or decompression is done, so write buffer to output file.
+      // XXX: This is the only chance to process the buffer.
+      uint8_t *read_ptr = pngle->lz_buf;
+      size_t n = TINFL_LZ_DICT_SIZE - (size_t)pngle->avail_out;
+
+      // pngle_on_data() usually returns n, otherwise -1 on error
+      if (pngle_on_data(pngle, read_ptr, n) < 0) return -1;
+
+      // XXX: tinfl_decompress always requires (next_out - lz_buf + avail_out) == TINFL_LZ_DICT_SIZE
+      pngle->next_out = pngle->lz_buf;
+      pngle->avail_out = TINFL_LZ_DICT_SIZE;
+    }
+
+    consume = in_bytes;
+    break;
+
   case PNGLE_CHUNK_IHDR:
     // parse IHDR
     consume = 13;
@@ -570,51 +615,6 @@ static int pngle_handle_chunk(pngle_t *pngle, const uint8_t *buf, size_t len)
 
     break;
 
-  case PNGLE_CHUNK_IDAT:
-    // parse & decode IDAT chunk
-    if (len < 1) return 0;
-
-    debug_printf("[pngle]   Reading IDAT (len %zd / chunk remain %u)\n", len, pngle->chunk_remain);
-
-    size_t in_bytes  = len;
-    size_t out_bytes = pngle->avail_out;
-
-    //debug_printf("[pngle]     in_bytes %zd, out_bytes %zd, next_out %p\n", in_bytes, out_bytes, pngle->next_out);
-
-    // XXX: tinfl_decompress always requires (next_out - lz_buf + avail_out) == TINFL_LZ_DICT_SIZE
-    tinfl_status status = tinfl_decompress(&pngle->inflator, (const mz_uint8 *)buf, &in_bytes, pngle->lz_buf, (mz_uint8 *)pngle->next_out, &out_bytes, TINFL_FLAG_HAS_MORE_INPUT | TINFL_FLAG_PARSE_ZLIB_HEADER);
-
-    //debug_printf("[pngle]       tinfl_decompress\n");
-    //debug_printf("[pngle]       => in_bytes %zd, out_bytes %zd, next_out %p, status %d\n", in_bytes, out_bytes, pngle->next_out, status);
-
-    if (status < TINFL_STATUS_DONE) {
-      // Decompression failed.
-      debug_printf("[pngle] tinfl_decompress() failed with status %d!\n", status);
-      return PNGLE_ERROR("Failed to decompress the IDAT stream");
-    }
-
-    pngle->next_out   += out_bytes;
-    pngle->avail_out  -= out_bytes;
-
-    // debug_printf("[pngle]         => avail_out %zd, next_out %p\n", pngle->avail_out, pngle->next_out);
-
-    if (status == TINFL_STATUS_DONE || pngle->avail_out == 0) {
-      // Output buffer is full, or decompression is done, so write buffer to output file.
-      // XXX: This is the only chance to process the buffer.
-      uint8_t *read_ptr = pngle->lz_buf;
-      size_t n = TINFL_LZ_DICT_SIZE - (size_t)pngle->avail_out;
-
-      // pngle_on_data() usually returns n, otherwise -1 on error
-      if (pngle_on_data(pngle, read_ptr, n) < 0) return -1;
-
-      // XXX: tinfl_decompress always requires (next_out - lz_buf + avail_out) == TINFL_LZ_DICT_SIZE
-      pngle->next_out = pngle->lz_buf;
-      pngle->avail_out = TINFL_LZ_DICT_SIZE;
-    }
-
-    consume = in_bytes;
-    break;
-
   case PNGLE_CHUNK_PLTE:
     consume = 3;
     if (len < consume) return 0;
@@ -673,15 +673,7 @@ static int pngle_handle_chunk(pngle_t *pngle, const uint8_t *buf, size_t len)
 
 static int pngle_feed_internal(pngle_t *pngle, const uint8_t *buf, size_t len)
 {
-  if (!pngle) return -1;
-
   switch (pngle->state) {
-  case PNGLE_STATE_ERROR:
-    return -1;
-
-  case PNGLE_STATE_EOF:
-    return len;
-
   case PNGLE_STATE_INITIAL:
     // find PNG header
     if (len < sizeof(png_sig)) return 0;
@@ -817,15 +809,21 @@ static int pngle_feed_internal(pngle_t *pngle, const uint8_t *buf, size_t len)
 
     return 4;
 
+  case PNGLE_STATE_EOF:
+    return len;
+
+  case PNGLE_STATE_ERROR:
+    return -1;
+
   default:
-    break;
+    return PNGLE_ERROR("Invalid state");
   }
 
-  return PNGLE_ERROR("Invalid state");
 }
 
 int lgfx_pngle_feed(pngle_t *pngle, const void *buf, size_t len)
 {
+  if (!pngle) return -1;
   size_t pos = 0;
   pngle_state_t last_state = pngle->state;
 

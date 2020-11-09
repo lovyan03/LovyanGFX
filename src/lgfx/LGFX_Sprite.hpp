@@ -463,6 +463,7 @@ namespace lgfx
       {
         this->release();
         void* buffer = nullptr;
+        _source = source;
         switch (source)
         {
           default:
@@ -474,6 +475,11 @@ namespace lgfx
             break;
           case AllocationSource::Psram:
             buffer = heap_alloc_psram(length);
+            if (!buffer)
+            {
+              _source = AllocationSource::Dma;
+              buffer = heap_alloc_dma(length);
+            }
             break;
         }
         _buffer = reinterpret_cast<std::uint8_t*>(buffer);
@@ -498,7 +504,6 @@ namespace lgfx
 
     SpriteBuffer _img;
     SpriteBuffer _palette;
-    //bgr888_t* _palette = nullptr;
 
     std::int32_t _bitwidth;
     std::int32_t _xptr;

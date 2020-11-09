@@ -1,0 +1,35 @@
+on:
+  release:
+    types:
+      - published
+  workflow_dispatch:
+    inputs:
+      versiontype:
+        description: 'Version upgrade type (p)atch/(m)inor/(M)ajor/(F)orced'
+        required: true
+        default: 'p'
+      versionforced:
+        description: 'Optional (F)orced version, leave blank for auto-raise'
+        required: false
+        default: ''
+jobs:
+  on_release_semver_next:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          ref: master # this must match the main/master branch name !!
+      - name: Semver-Iterator
+        run: |
+          chmod +x $GITHUB_WORKSPACE/.github/scripts/semver.sh
+          echo "Running $GITHUB_WORKSPACE/.github/scripts/semver.sh -${{ github.event.inputs.versiontype }} ${{ github.event.inputs.versionforced }} "
+          $GITHUB_WORKSPACE/.github/scripts/semver.sh -${{ github.event.inputs.versiontype }} ${{ github.event.inputs.versionforced }}
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v3
+        with:
+          commit-message: "raising version"
+          title: "Semver-Iterator auto-raise"
+          body: |
+            A version change occured

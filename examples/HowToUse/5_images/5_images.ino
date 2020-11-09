@@ -129,7 +129,7 @@ setAddrWindow は描画範囲外が指定された場合は範囲内に調整さ
   lcd.pushImage(   0, 0, image_width, image_height, (uint16_t*)rgb565); // RGB565の16bit画像データを描画。
 
   // データとバイト順変換の指定が一致していない場合、色化けします。
-  lcd.pushImage(   0, 40, image_width, image_height, (uint16_t*)swap565); // ビッグエンディアンの16bit画像データは色が化ける。
+  lcd.pushImage(   0, 40, image_width, image_height, (uint16_t*)swap565); // NG. バイト順変換済みデータにバイト順変換を行うと色化けする。
 
   // 描画範囲が画面外にはみ出すなどした場合でも、描画結果が崩れることはありません。
   lcd.pushImage(-1, 80, image_width, image_height, (uint16_t*)rgb565); // X座標-1（画面外）を指定しても描画は乱れない。
@@ -160,8 +160,8 @@ setAddrWindow は描画範囲外が指定された場合は範囲内に調整さ
   lcd.pushImage(120,   0, image_width, image_height, (lgfx:: rgb332_t*) rgb332); // good  8bitデータ
   lcd.pushImage(120,  40, image_width, image_height, (lgfx:: rgb565_t*) rgb565); // good 16bitデータ
   lcd.pushImage(120,  80, image_width, image_height, (lgfx:: rgb888_t*) rgb888); // good 24bitデータ
-  lcd.pushImage(120, 120, image_width, image_height, (lgfx::swap565_t*)swap565); // good スワップ済み16bitデータ
-  lcd.pushImage(120, 160, image_width, image_height, (lgfx:: bgr888_t*) bgr888); // good スワップ済み24bitデータ
+  lcd.pushImage(120, 120, image_width, image_height, (lgfx::swap565_t*)swap565); // good バイト順変換済み16bitデータ
+  lcd.pushImage(120, 160, image_width, image_height, (lgfx:: bgr888_t*) bgr888); // good バイト順変換済み24bitデータ
 
 // 第６引数で透過色を指定できます。透過指定された色のある部分は描画されません。
   lcd.pushImage(160,   0, image_width, image_height, (lgfx:: rgb332_t*) rgb332, 0);                   // 黒を透過指定

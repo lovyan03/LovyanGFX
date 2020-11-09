@@ -121,6 +121,9 @@ namespace lgfx
     template<typename T> inline void paint    ( std::int32_t x, std::int32_t y, const T& color) { setColor(color); floodFill(x, y); }
                          inline void paint    ( std::int32_t x, std::int32_t y                ) {                  floodFill(x, y); }
 
+    template<typename T> inline void fillAffine(const float matrix[6], std::int32_t w, std::int32_t h, const T& color) { setColor(color); fillAffine(matrix, w, h); }
+                                void fillAffine(const float matrix[6], std::int32_t w, std::int32_t h);
+
     template<typename T> inline void drawGradientHLine( std::int32_t x, std::int32_t y, std::int32_t w, const T& colorstart, const T& colorend ) { drawGradientLine( x, y, x + w - 1, y, colorstart, colorend ); }
     template<typename T> inline void drawGradientVLine( std::int32_t x, std::int32_t y, std::int32_t h, const T& colorstart, const T& colorend ) { drawGradientLine( x, y, x, y + h - 1, colorstart, colorend ); }
     template<typename T> inline void drawGradientLine ( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, const T& colorstart, const T& colorend ) { draw_gradient_line( x0, y0, x1, y1, convert_to_rgb888(colorstart), convert_to_rgb888(colorend) ); }
@@ -310,28 +313,28 @@ namespace lgfx
 //----------------------------------------------------------------------------
 
     template<typename T>
-    void pushImageAffine(float matrix[6], std::int32_t w, std::int32_t h, const T* data)
+    void pushImageAffine(const float matrix[6], std::int32_t w, std::int32_t h, const T* data)
     {
       auto pc = create_pc(data);
       push_image_affine(matrix, w, h, &pc);
     }
 
     template<typename T1, typename T2>
-    void pushImageAffine(float matrix[6], std::int32_t w, std::int32_t h, const T1* data, const T2& transparent)
+    void pushImageAffine(const float matrix[6], std::int32_t w, std::int32_t h, const T1* data, const T2& transparent)
     {
       auto pc = create_pc_tr(data, transparent);
       push_image_affine(matrix, w, h, &pc);
     }
 
     template<typename T>
-    void pushImageAffine(float matrix[6], std::int32_t w, std::int32_t h, const void* data, color_depth_t depth, const T* palette)
+    void pushImageAffine(const float matrix[6], std::int32_t w, std::int32_t h, const void* data, color_depth_t depth, const T* palette)
     {
       auto pc = create_pc_palette(data, palette, depth);
       push_image_affine(matrix, w, h, &pc);
     }
 
     template<typename T>
-    void pushImageAffine(float matrix[6], std::int32_t w, std::int32_t h, const void* data, std::uint32_t transparent, color_depth_t depth, const T* palette)
+    void pushImageAffine(const float matrix[6], std::int32_t w, std::int32_t h, const void* data, std::uint32_t transparent, color_depth_t depth, const T* palette)
     {
       auto pc = create_pc_palette(data, palette, depth, transparent);
       push_image_affine(matrix, w, h, &pc);
@@ -339,28 +342,28 @@ namespace lgfx
 
 
     template<typename T>
-    void pushImageAffineWithAA(float matrix[6], std::int32_t w, std::int32_t h, const T* data)
+    void pushImageAffineWithAA(const float matrix[6], std::int32_t w, std::int32_t h, const T* data)
     {
       auto pc = create_pc_antialias(data);
       push_image_affine_aa(matrix, w, h, &pc);
     }
 
     template<typename T1, typename T2>
-    void pushImageAffineWithAA(float matrix[6], std::int32_t w, std::int32_t h, const T1* data, const T2& transparent)
+    void pushImageAffineWithAA(const float matrix[6], std::int32_t w, std::int32_t h, const T1* data, const T2& transparent)
     {
       auto pc = create_pc_tr_antialias(data, transparent);
       push_image_affine_aa(matrix, w, h, &pc);
     }
 
     template<typename T>
-    void pushImageAffineWithAA(float matrix[6], std::int32_t w, std::int32_t h, const void* data, color_depth_t depth, const T* palette)
+    void pushImageAffineWithAA(const float matrix[6], std::int32_t w, std::int32_t h, const void* data, color_depth_t depth, const T* palette)
     {
       auto pc = create_pc_antialias(data, palette, depth);
       push_image_affine_aa(matrix, w, h, &pc);
     }
 
     template<typename T>
-    void pushImageAffineWithAA(float matrix[6], std::int32_t w, std::int32_t h, const void* data, std::uint32_t transparent, color_depth_t depth, const T* palette)
+    void pushImageAffineWithAA(const float matrix[6], std::int32_t w, std::int32_t h, const void* data, std::uint32_t transparent, color_depth_t depth, const T* palette)
     {
       auto pc = create_pc_antialias(data, palette, depth, transparent);
       push_image_affine_aa(matrix, w, h, &pc);
@@ -629,7 +632,7 @@ namespace lgfx
       data.set(jpg_data, jpg_len);
       return this->draw_jpg(&data, x, y, maxWidth, maxHeight, offX, offY, scale);
     }
-    bool drawPng(const std::uint8_t *png_data, std::uint32_t png_len, std::int32_t x = 0, std::int32_t y = 0, std::int32_t maxWidth = 0, std::int32_t maxHeight = 0, std::int32_t offX = 0, std::int32_t offY = 0, double scale = 1.0)
+    bool drawPng(const std::uint8_t *png_data, std::uint32_t png_len, std::int32_t x = 0, std::int32_t y = 0, std::int32_t maxWidth = 0, std::int32_t maxHeight = 0, std::int32_t offX = 0, std::int32_t offY = 0, float scale = 1.0f)
     {
       PointerWrapper data;
       data.set(png_data, png_len);
@@ -642,7 +645,7 @@ namespace lgfx
     inline bool drawJpg(DataWrapper *data, std::int32_t x=0, std::int32_t y=0, std::int32_t maxWidth=0, std::int32_t maxHeight=0, std::int32_t offX=0, std::int32_t offY=0, jpeg_div::jpeg_div_t scale=jpeg_div::jpeg_div_t::JPEG_DIV_NONE) {
       return this->draw_jpg(data, x, y, maxWidth, maxHeight, offX, offY, scale);
     }
-    inline bool drawPng(DataWrapper *data, std::int32_t x = 0, std::int32_t y = 0, std::int32_t maxWidth = 0, std::int32_t maxHeight = 0, std::int32_t offX = 0, std::int32_t offY = 0, double scale = 1.0) {
+    inline bool drawPng(DataWrapper *data, std::int32_t x = 0, std::int32_t y = 0, std::int32_t maxWidth = 0, std::int32_t maxHeight = 0, std::int32_t offX = 0, std::int32_t offY = 0, float scale = 1.0f) {
       return this->draw_png(data, x, y, maxWidth, maxHeight, offX, offY, scale);
     }
 
@@ -883,10 +886,10 @@ namespace lgfx
     void draw_xbitmap(std::int32_t x, std::int32_t y, const std::uint8_t *bitmap, std::int32_t w, std::int32_t h, std::uint32_t fg_rawcolor, std::uint32_t bg_rawcolor = ~0u);
     void push_image_rotate_zoom(float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y, std::int32_t w, std::int32_t h, pixelcopy_t* pc);
     void push_image_rotate_zoom_aa(float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y, std::int32_t w, std::int32_t h, pixelcopy_t* pc);
-    void push_image_affine(float* matrix, std::int32_t w, std::int32_t h, pixelcopy_t *pc);
-    void push_image_affine(float* matrix, pixelcopy_t *pc);
-    void push_image_affine_aa(float* matrix, std::int32_t w, std::int32_t h, pixelcopy_t *pc);
-    void push_image_affine_aa(float* matrix, pixelcopy_t *pre_pc, pixelcopy_t *post_pc);
+    void push_image_affine(const float* matrix, std::int32_t w, std::int32_t h, pixelcopy_t *pc);
+    void push_image_affine(const float* matrix, pixelcopy_t *pc);
+    void push_image_affine_aa(const float* matrix, std::int32_t w, std::int32_t h, pixelcopy_t *pc);
+    void push_image_affine_aa(const float* matrix, pixelcopy_t *pre_pc, pixelcopy_t *post_pc);
 
     std::uint16_t decodeUTF8(std::uint8_t c);
 
@@ -896,7 +899,7 @@ namespace lgfx
 
     bool draw_bmp(DataWrapper* data, std::int32_t x, std::int32_t y);
     bool draw_jpg(DataWrapper* data, std::int32_t x, std::int32_t y, std::int32_t maxWidth, std::int32_t maxHeight, std::int32_t offX, std::int32_t offY, jpeg_div::jpeg_div_t scale);
-    bool draw_png(DataWrapper* data, std::int32_t x, std::int32_t y, std::int32_t maxWidth, std::int32_t maxHeight, std::int32_t offX, std::int32_t offY, double scale);
+    bool draw_png(DataWrapper* data, std::int32_t x, std::int32_t y, std::int32_t maxWidth, std::int32_t maxHeight, std::int32_t offX, std::int32_t offY, float scale);
 
 
     virtual void setWindow_impl(std::int32_t xs, std::int32_t ys, std::int32_t xe, std::int32_t ye) = 0;
