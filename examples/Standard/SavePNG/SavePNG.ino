@@ -65,11 +65,12 @@ void setup()
 
   lcd.setColor(TFT_WHITE);
   lcd.startWrite();
-  for (int x = 0; x < 128; ++x)
+  lcd.setAddrWindow(0, 0, lcd.width(), lcd.height());
+  for (int y = 0; y < lcd.height(); ++y)
   {
-    for (int y = 0; y < 128; ++y)
+    for (int x = 0; x < lcd.width(); ++x)
     {
-      lcd.writePixel(x, y, lcd.color888(x << 1, x + y, y << 1));
+      lcd.writeColor( lcd.color888(x << 1, x + y, y << 1), 1);
     }
   }
   lcd.print("PNG save test\n");
@@ -89,5 +90,5 @@ void setup()
 
 void loop(void)
 {
-  delay(1000);
+  lcd.drawPngFile(SD, filename, random(-20,20), random(-20, 20));
 }
