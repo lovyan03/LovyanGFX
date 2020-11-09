@@ -475,6 +475,11 @@ namespace lgfx
             break;
           case AllocationSource::Psram:
             buffer = heap_alloc_psram(length);
+            if (!buffer)
+            {
+              _source = AllocationSource::Dma;
+              buffer = heap_alloc_dma(length);
+            }
             break;
         }
         _buffer = reinterpret_cast<std::uint8_t*>(buffer);

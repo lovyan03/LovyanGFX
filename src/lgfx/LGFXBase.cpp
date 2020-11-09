@@ -2371,7 +2371,7 @@ namespace lgfx
 
     auto p = (png_file_decoder_t*)lgfx_pngle_get_user_data(pngle);
 
-    if (p->scale != 1.0) {
+    if (p->scale != 1.0f) {
       w = ceilf(w * p->scale);
       h = ceilf(h * p->scale);
     }
