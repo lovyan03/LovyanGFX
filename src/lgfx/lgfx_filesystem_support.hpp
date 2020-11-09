@@ -195,25 +195,19 @@ namespace lgfx
     inline bool drawBmpUrl(const char* url, std::int32_t x=0, std::int32_t y=0)
     {
       HttpWrapper http;
-      if (!http.open(url)) return false;
-
-      return drawBmp(&http, x, y);
+      return http.open(url) && drawBmp(&http, x, y);
     }
 
     inline bool drawJpgUrl(const char* url, std::int32_t x=0, std::int32_t y=0, std::int32_t maxWidth=0, std::int32_t maxHeight=0, std::int32_t offX=0, std::int32_t offY=0, jpeg_div::jpeg_div_t scale=jpeg_div::jpeg_div_t::JPEG_DIV_NONE)
     {
       HttpWrapper http;
-      if (!http.open(url)) return false;
-
-      return drawJpg(&http, x, y, maxWidth, maxHeight, offX, offY, scale);
+      return http.open(url) && drawJpg(&http, x, y, maxWidth, maxHeight, offX, offY, scale);
     }
 
     inline bool drawPngUrl(const char* url, std::int32_t x = 0, std::int32_t y = 0, std::int32_t maxWidth = 0, std::int32_t maxHeight = 0, std::int32_t offX = 0, std::int32_t offY = 0, float scale = 1.0f)
     {
       HttpWrapper http;
-      if (!http.open(url)) return false;
-
-      return drawPng(&http, x, y, maxWidth, maxHeight, offX, offY, scale);
+      return http.open(url) && drawPng(&http, x, y, maxWidth, maxHeight, offX, offY, scale);
     }
     
   #endif
