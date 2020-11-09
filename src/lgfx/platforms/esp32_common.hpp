@@ -116,7 +116,7 @@ namespace lgfx
     bool seek(std::uint32_t offset) override { if (offset < _index) { return false; } skip(offset - _index); return true; }
     void close() override { }
 
-  private:
+  protected:
     Stream* _stream;
     std::uint32_t _index;
     std::uint32_t _length = 0;

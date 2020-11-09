@@ -168,76 +168,52 @@ namespace lgfx
 
   #if defined (HTTPClient_H_)
 
-    inline bool drawBmpUrl(const char* url, std::int32_t x=0, std::int32_t y=0)
+    struct HttpWrapper : public StreamWrapper
     {
-      if (WiFi.status() != WL_CONNECTED) {
-        log_e("Not connected");
+      int read(std::uint8_t *buf, std::uint32_t len) override {
+        while (_http.connected() && !_stream->available() && _index < _length) delay(1);
+        return StreamWrapper::read(buf, len);
+      }
+
+      bool open(const char* url) {
+        _http.begin(url);
+        int httpCode = _http.GET();
+        set(_http.getStreamPtr(), _http.getSize());
+        if (httpCode == HTTP_CODE_OK) return true;
+
+        log_e("HTTP ERROR: %d\n", httpCode);
         return false;
       }
 
-      HTTPClient http;
-      http.begin(url);
+      void close() override { _http.end(); }
 
-      bool res = false;
-      int httpCode = http.GET();
-      if (httpCode != HTTP_CODE_OK)
-      {
-        log_e("HTTP ERROR: %d\n", httpCode);
-      }
-      else
-      {
-        res = drawBmp(http.getStreamPtr(), x, y);
-      }
-      http.end();
-      return res;
+    private:
+      HTTPClient _http;
+    };
+
+
+    inline bool drawBmpUrl(const char* url, std::int32_t x=0, std::int32_t y=0)
+    {
+      HttpWrapper http;
+      if (!http.open(url)) return false;
+
+      return drawBmp(&http, x, y);
     }
 
     inline bool drawJpgUrl(const char* url, std::int32_t x=0, std::int32_t y=0, std::int32_t maxWidth=0, std::int32_t maxHeight=0, std::int32_t offX=0, std::int32_t offY=0, jpeg_div::jpeg_div_t scale=jpeg_div::jpeg_div_t::JPEG_DIV_NONE)
     {
-      if (WiFi.status() != WL_CONNECTED) {
-        log_e("Not connected");
-        return false;
-      }
+      HttpWrapper http;
+      if (!http.open(url)) return false;
 
-      HTTPClient http;
-      http.begin(url);
-
-      bool res = false;
-      int httpCode = http.GET();
-      if (httpCode != HTTP_CODE_OK)
-      {
-        log_e("HTTP ERROR: %d\n", httpCode);
-      }
-      else
-      {
-        res = drawJpg(http.getStreamPtr(), x, y, maxWidth, maxHeight, offX, offY, scale);
-      }
-      http.end();
-      return res;
+      return drawJpg(&http, x, y, maxWidth, maxHeight, offX, offY, scale);
     }
 
     inline bool drawPngUrl(const char* url, std::int32_t x = 0, std::int32_t y = 0, std::int32_t maxWidth = 0, std::int32_t maxHeight = 0, std::int32_t offX = 0, std::int32_t offY = 0, float scale = 1.0f)
     {
-      if (WiFi.status() != WL_CONNECTED) {
-        log_e("Not connected");
-        return false;
-      }
+      HttpWrapper http;
+      if (!http.open(url)) return false;
 
-      HTTPClient http;
-      http.begin(url);
-
-      bool res = false;
-      int httpCode = http.GET();
-      if (httpCode != HTTP_CODE_OK)
-      {
-        log_e("HTTP ERROR: %d\n", httpCode);
-      }
-      else
-      {
-        res = drawPng(http.getStreamPtr(), x, y, maxWidth, maxHeight, offX, offY, scale);
-      }
-      http.end();
-      return res;
+      return drawPng(&http, x, y, maxWidth, maxHeight, offX, offY, scale);
     }
     
   #endif
