@@ -107,6 +107,7 @@ namespace lgfx
     void set(Stream* src, std::uint32_t length = ~0) { _stream = src; _length = length; _index = 0; }
 
     int read(std::uint8_t *buf, std::uint32_t len) override {
+      len = std::min<std::uint32_t>(len, _stream->available());
       if (len > _length - _index) { len = _length - _index; }
       _index += len;
       return _stream->readBytes((char*)buf, len);

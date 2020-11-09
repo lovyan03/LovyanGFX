@@ -622,10 +622,10 @@ namespace lgfx
     void qrcode(const char *string, std::int32_t x = -1, std::int32_t y = -1, std::int32_t width = -1, std::uint8_t version = 1);
 
 
-    void drawBmp(const std::uint8_t *bmp_data, std::uint32_t bmp_len, std::int32_t x=0, std::int32_t y=0) {
+    bool drawBmp(const std::uint8_t *bmp_data, std::uint32_t bmp_len, std::int32_t x=0, std::int32_t y=0) {
       PointerWrapper data;
       data.set(bmp_data, bmp_len);
-      this->draw_bmp(&data, x, y);
+      return this->draw_bmp(&data, x, y);
     }
     bool drawJpg(const std::uint8_t *jpg_data, std::uint32_t jpg_len, std::int32_t x=0, std::int32_t y=0, std::int32_t maxWidth=0, std::int32_t maxHeight=0, std::int32_t offX=0, std::int32_t offY=0, jpeg_div::jpeg_div_t scale=jpeg_div::jpeg_div_t::JPEG_DIV_NONE) {
       PointerWrapper data;
@@ -639,8 +639,8 @@ namespace lgfx
       return this->draw_png(&data, x, y, maxWidth, maxHeight, offX, offY, scale);
     }
 
-    inline void drawBmp(DataWrapper *data, std::int32_t x=0, std::int32_t y=0) {
-      this->draw_bmp(data, x, y);
+    inline bool drawBmp(DataWrapper *data, std::int32_t x=0, std::int32_t y=0) {
+      return this->draw_bmp(data, x, y);
     }
     inline bool drawJpg(DataWrapper *data, std::int32_t x=0, std::int32_t y=0, std::int32_t maxWidth=0, std::int32_t maxHeight=0, std::int32_t offX=0, std::int32_t offY=0, jpeg_div::jpeg_div_t scale=jpeg_div::jpeg_div_t::JPEG_DIV_NONE) {
       return this->draw_jpg(data, x, y, maxWidth, maxHeight, offX, offY, scale);

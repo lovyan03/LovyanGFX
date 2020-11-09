@@ -83,10 +83,10 @@ namespace lgfx
       loadFont(path);
     }
 
-    inline void drawBmp(fs::FS &fs, const char *path, std::int32_t x=0, std::int32_t y=0) { drawBmpFile(fs, path, x, y); }
-    inline void drawBmpFile(fs::FS &fs, const char *path, std::int32_t x=0, std::int32_t y=0) {
+    inline bool drawBmp(fs::FS &fs, const char *path, std::int32_t x=0, std::int32_t y=0) { return drawBmpFile(fs, path, x, y); }
+    inline bool drawBmpFile(fs::FS &fs, const char *path, std::int32_t x=0, std::int32_t y=0) {
       FileWrapper file(fs);
-      this->drawBmpFile(&file, path, x, y);
+      return this->drawBmpFile(&file, path, x, y);
     }
 
     inline bool drawJpgFile(fs::FS &fs, const char *path, std::int32_t x=0, std::int32_t y=0, std::int32_t maxWidth=0, std::int32_t maxHeight=0, std::int32_t offX=0, std::int32_t offY=0, jpeg_div::jpeg_div_t scale=jpeg_div::jpeg_div_t::JPEG_DIV_NONE) {
@@ -101,10 +101,10 @@ namespace lgfx
     }
 
 
-    inline void drawBmpFile(fs::FS &fs, fs::File *file, std::int32_t x=0, std::int32_t y=0) {
+    inline bool drawBmpFile(fs::FS &fs, fs::File *file, std::int32_t x=0, std::int32_t y=0) {
       FileWrapper data(fs, file);
       this->prepareTmpTransaction(&data);
-      this->draw_bmp(&data, x, y);
+      return this->draw_bmp(&data, x, y);
     }
 
     inline bool drawJpgFile(fs::FS &fs, fs::File *file, std::int32_t x=0, std::int32_t y=0, std::int32_t maxWidth=0, std::int32_t maxHeight=0, std::int32_t offX=0, std::int32_t offY=0, jpeg_div::jpeg_div_t scale=jpeg_div::jpeg_div_t::JPEG_DIV_NONE) {
@@ -121,12 +121,12 @@ namespace lgfx
     }
 
 
-    inline void drawBmp(fs::File *dataSource, std::int32_t x=0, std::int32_t y=0) {
+    inline bool drawBmp(fs::File *dataSource, std::int32_t x=0, std::int32_t y=0) {
       StreamWrapper data;
       data.set(dataSource);
       data.need_transaction = true;
       this->prepareTmpTransaction(&data);
-      this->draw_bmp(&data, x, y);
+      return this->draw_bmp(&data, x, y);
     }
 
     inline bool drawJpg(fs::File *dataSource, std::int32_t x=0, std::int32_t y=0, std::int32_t maxWidth=0, std::int32_t maxHeight=0, std::int32_t offX=0, std::int32_t offY=0, jpeg_div::jpeg_div_t scale=jpeg_div::jpeg_div_t::JPEG_DIV_NONE) {
@@ -148,10 +148,10 @@ namespace lgfx
  #endif
  #if defined (Stream_h)
 
-    inline void drawBmp(Stream *dataSource, std::int32_t x=0, std::int32_t y=0) {
+    inline bool drawBmp(Stream *dataSource, std::int32_t x=0, std::int32_t y=0) {
       StreamWrapper data;
       data.set(dataSource);
-      this->draw_bmp(&data, x, y);
+      return this->draw_bmp(&data, x, y);
     }
 
     inline bool drawJpg(Stream *dataSource, std::int32_t x=0, std::int32_t y=0, std::int32_t maxWidth=0, std::int32_t maxHeight=0, std::int32_t offX=0, std::int32_t offY=0, jpeg_div::jpeg_div_t scale=jpeg_div::jpeg_div_t::JPEG_DIV_NONE) {
@@ -166,13 +166,88 @@ namespace lgfx
       return this->draw_png(&data, x, y, maxWidth, maxHeight, offX, offY, scale);
     }
 
+  #if defined (HTTPClient_H_)
+
+    inline bool drawBmpUrl(const char* url, std::int32_t x=0, std::int32_t y=0)
+    {
+      if (WiFi.status() != WL_CONNECTED) {
+        log_e("Not connected");
+        return false;
+      }
+
+      HTTPClient http;
+      http.begin(url);
+
+      bool res = false;
+      int httpCode = http.GET();
+      if (httpCode != HTTP_CODE_OK)
+      {
+        log_e("HTTP ERROR: %d\n", httpCode);
+      }
+      else
+      {
+        res = drawBmp(http.getStreamPtr(), x, y);
+      }
+      http.end();
+      return res;
+    }
+
+    inline bool drawJpgUrl(const char* url, std::int32_t x=0, std::int32_t y=0, std::int32_t maxWidth=0, std::int32_t maxHeight=0, std::int32_t offX=0, std::int32_t offY=0, jpeg_div::jpeg_div_t scale=jpeg_div::jpeg_div_t::JPEG_DIV_NONE)
+    {
+      if (WiFi.status() != WL_CONNECTED) {
+        log_e("Not connected");
+        return false;
+      }
+
+      HTTPClient http;
+      http.begin(url);
+
+      bool res = false;
+      int httpCode = http.GET();
+      if (httpCode != HTTP_CODE_OK)
+      {
+        log_e("HTTP ERROR: %d\n", httpCode);
+      }
+      else
+      {
+        res = drawJpg(http.getStreamPtr(), x, y, maxWidth, maxHeight, offX, offY, scale);
+      }
+      http.end();
+      return res;
+    }
+
+    inline bool drawPngUrl(const char* url, std::int32_t x = 0, std::int32_t y = 0, std::int32_t maxWidth = 0, std::int32_t maxHeight = 0, std::int32_t offX = 0, std::int32_t offY = 0, float scale = 1.0f)
+    {
+      if (WiFi.status() != WL_CONNECTED) {
+        log_e("Not connected");
+        return false;
+      }
+
+      HTTPClient http;
+      http.begin(url);
+
+      bool res = false;
+      int httpCode = http.GET();
+      if (httpCode != HTTP_CODE_OK)
+      {
+        log_e("HTTP ERROR: %d\n", httpCode);
+      }
+      else
+      {
+        res = drawPng(http.getStreamPtr(), x, y, maxWidth, maxHeight, offX, offY, scale);
+      }
+      http.end();
+      return res;
+    }
+    
+  #endif
  #endif
 
 #elif defined (CONFIG_IDF_TARGET_ESP32)  || defined(__SAMD51_HARMONY__) // ESP-IDF or Harmony
 
-    inline void drawBmpFile(const char *path, std::int32_t x, std::int32_t y) {
+    inline bool drawBmpFile(const char *path, std::int32_t x, std::int32_t y) {
       FileWrapper file;
-      drawBmpFile(&file, path, x, y);
+      return drawBmpFile(&file, path, x, y);
     }
     inline bool drawJpgFile(const char *path, std::int32_t x=0, std::int32_t y=0, std::int32_t maxWidth=0, std::int32_t maxHeight=0, std::int32_t offX=0, std::int32_t offY=0, jpeg_div::jpeg_div_t scale=jpeg_div::jpeg_div_t::JPEG_DIV_NONE) {
       FileWrapper file;
@@ -188,14 +263,16 @@ namespace lgfx
 
   private:
 
-    void drawBmpFile(FileWrapper* file, const char *path, std::int32_t x=0, std::int32_t y=0) {
+    bool drawBmpFile(FileWrapper* file, const char *path, std::int32_t x=0, std::int32_t y=0) {
+      bool res = false;
       this->prepareTmpTransaction(file);
       file->preRead();
       if (file->open(path, "r")) {
-        this->draw_bmp(file, x, y);
+        res = this->draw_bmp(file, x, y);
         file->close();
       }
       file->postRead();
+      return res;
     }
 
     bool drawJpgFile(FileWrapper* file, const char *path, std::int32_t x, std::int32_t y, std::int32_t maxWidth, std::int32_t maxHeight, std::int32_t offX, std::int32_t offY, jpeg_div::jpeg_div_t scale) {
