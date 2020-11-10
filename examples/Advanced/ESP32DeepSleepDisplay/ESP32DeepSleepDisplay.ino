@@ -8,10 +8,6 @@ RTC_DATA_ATTR int bootCount = 0;  // 起動回数を保持（deepsleepしても�
 
 void setup(void)
 {
-}
-
-void loop(void)
-{
   switch(esp_sleep_get_wakeup_cause())
   {
   case ESP_SLEEP_WAKEUP_EXT0 :
@@ -34,7 +30,7 @@ void loop(void)
       rtc_gpio_set_direction((gpio_num_t)lcd.getPanel()->gpio_rst, RTC_GPIO_MODE_OUTPUT_ONLY);
       rtc_gpio_init((gpio_num_t)lcd.getPanel()->gpio_rst);
     }
-//*/
+
     lcd.startWrite();      // 背景を描画しておく
     lcd.setColorDepth(24);
     lcd.setAddrWindow(0, 0, lcd.width(), lcd.height());
@@ -70,4 +66,9 @@ void loop(void)
   esp_sleep_enable_timer_wakeup(1 * 1000 * 1000); // micro sec
 
   esp_deep_sleep_start();
+}
+
+void loop(void)
+{
+  delay(10000);
 }
