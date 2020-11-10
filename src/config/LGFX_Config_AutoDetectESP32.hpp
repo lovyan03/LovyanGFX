@@ -165,9 +165,9 @@ namespace lgfx
     void resetPanel(void)
     {
       // AXP192 reg 0x96 = GPIO3&4 control
-      lgfx::i2c::writeRegister8(axp_i2c_port, axp_i2c_addr, 0x96, 0, ~0x02);
+      lgfx::i2c::writeRegister8(axp_i2c_port, axp_i2c_addr, 0x96, 0, ~0x02); // GPIO4 LOW (LCD RST)
       delay(10);
-      lgfx::i2c::writeRegister8(axp_i2c_port, axp_i2c_addr, 0x96, 2, ~0);
+      lgfx::i2c::writeRegister8(axp_i2c_port, axp_i2c_addr, 0x96, 2, ~0); // GPIO4 HIGH (LCD RST)
     }
 
     void init(void) override
@@ -199,11 +199,9 @@ public:
   {
   }
 
-private:
-  void init_impl(void) override
+  void autodetect(bool use_reset = true)
   {
     if (_spi_mosi != -1 && _spi_sclk != -1) {
-      lgfx::LGFX_SPI<lgfx::LGFX_Config>::init_impl();
       return;
     }
 
@@ -299,7 +297,7 @@ private:
       p_tmp.spi_dc   = 23;
       p_tmp.gpio_rst = 26;
       setPanel(&p_tmp);
-      _reset();
+      _reset(use_reset);
 
       auto id = readPanelID();
       ESP_LOGW("LovyanGFX", "[Autodetect] panel id:%08x", id);
@@ -359,7 +357,7 @@ private:
 
         p_tmp.spi_3wire = false;
         setPanel(&p_tmp);
-        _reset();
+        _reset(use_reset);
 
         id = readPanelID();
 
@@ -401,7 +399,7 @@ private:
  #endif
 
       setPanel(&p_tmp);
-      _reset();
+      _reset(use_reset);
 
       id = readPanelID();
 
@@ -513,7 +511,7 @@ private:
       p_tmp.spi_dc   = 23;
       p_tmp.gpio_rst = 18;
       setPanel(&p_tmp);
-      _reset();
+      _reset(use_reset);
 
       id = readPanelID();
       ESP_LOGW("LovyanGFX", "[Autodetect] panel id:%08x", id);
@@ -552,7 +550,7 @@ private:
       p_tmp.spi_dc   = 21;
       p_tmp.gpio_rst = 18;
       setPanel(&p_tmp);
-      _reset();
+      _reset(use_reset);
 
       id = readPanelID();
       ESP_LOGW("LovyanGFX", "[Autodetect] panel id:%08x", id);
@@ -616,7 +614,7 @@ private:
       p_tmp.spi_dc   = 17;
       p_tmp.gpio_rst =  9;
       setPanel(&p_tmp);
-      _reset();
+      _reset(use_reset);
 
       id = readPanelID();
       ESP_LOGW("LovyanGFX", "[Autodetect] panel id:%08x", id);
@@ -650,11 +648,11 @@ private:
 #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_M5STACKCORE2 )
     if (nvs_board == 0 || nvs_board == lgfx::board_t::board_M5StackCore2) {
       lgfx::i2c::init(I2C_NUM_1, 21, 22, 400000);
-      if (lgfx::i2c::writeRegister8(I2C_NUM_1, 0x34, 0x96, 0, ~0x02)) { // GPIO4 LOW (LCD RST)
+      if (lgfx::i2c::writeRegister8(I2C_NUM_1, 0x34, 0x95, 0x84, 0x72)) { // GPIO4 enable
         // AXP192_LDO2 = LCD PWR
         // AXP192_DC3  = LCD BL
         // AXP192_IO4  = LCD RST
-        lgfx::i2c::writeRegister8(I2C_NUM_1, 0x34, 0x95, 0x84, 0x72); // GPIO4 enable
+        if (use_reset) lgfx::i2c::writeRegister8(I2C_NUM_1, 0x34, 0x96, 0, ~0x02); // GPIO4 LOW (LCD RST)
         lgfx::i2c::writeRegister8(I2C_NUM_1, 0x34, 0x28, 0xF0, ~0);   // set LDO2 3300mv // LCD PWR
         lgfx::i2c::writeRegister8(I2C_NUM_1, 0x34, 0x12, 0x06, ~0);   // LDO2 and DC3 enable (DC3 = LCD BL)
         lgfx::i2c::writeRegister8(I2C_NUM_1, 0x34, 0x96, 2, ~0);      // GPIO4 HIGH (LCD RST)
@@ -759,7 +757,6 @@ private:
     goto init_clear;
 init_clear:
     panel_last = getPanel();
-    lgfx::LGFX_SPI<lgfx::LGFX_Config>::init_impl();
 
     if (nvs_board != board) {
       if (0 == nvs_open(NVS_NAME, NVS_READWRITE, &nvs_handle)) {
@@ -770,9 +767,18 @@ init_clear:
     }
   }
 
-  void _reset(void) {
+private:
+  void init_impl(void) override
+  {
+    autodetect();
+    lgfx::LGFX_SPI<lgfx::LGFX_Config>::init_impl();
+  }
+
+  void _reset(bool use_reset) {
     auto pin = _panel->gpio_rst;
+    lgfx::gpio_hi(pin);
     lgfx::lgfxPinMode(pin, lgfx::pin_mode_t::output);
+    if (!use_reset) return;
     lgfx::gpio_lo(pin);
     delay(1);
     lgfx::gpio_hi(pin);

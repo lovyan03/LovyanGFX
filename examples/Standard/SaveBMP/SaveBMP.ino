@@ -21,7 +21,7 @@ static constexpr char filename[] = "/lovyangfx_test.bmp";
 #endif
 
 
-bool saveToSD_16bit()
+bool saveToSD_16bit(void)
 {
   std::size_t dlen;
 
@@ -65,7 +65,7 @@ bool saveToSD_16bit()
   return result;
 }
 
-bool saveToSD_24bit()
+bool saveToSD_24bit(void)
 {
   std::size_t dlen;
 
@@ -109,7 +109,7 @@ bool saveToSD_24bit()
   return result;
 }
 
-void setup()
+void setup(void)
 {
   lcd.init();
 
