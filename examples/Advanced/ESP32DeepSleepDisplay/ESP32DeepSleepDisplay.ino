@@ -24,13 +24,6 @@ void setup(void)
   default :
     lcd.init();            // 通常起動時はinitを呼び出す。
 
-    if (lcd.getPanel()->gpio_rst >= 0)
-    {
-      rtc_gpio_set_level((gpio_num_t)lcd.getPanel()->gpio_rst, 1);
-      rtc_gpio_set_direction((gpio_num_t)lcd.getPanel()->gpio_rst, RTC_GPIO_MODE_OUTPUT_ONLY);
-      rtc_gpio_init((gpio_num_t)lcd.getPanel()->gpio_rst);
-    }
-
     lcd.startWrite();      // 背景を描画しておく
     lcd.setColorDepth(24);
     lcd.setAddrWindow(0, 0, lcd.width(), lcd.height());
