@@ -1810,7 +1810,7 @@ namespace lgfx
           std::int32_t rlimit = _textscroll ? this->_sx + this->_sw : (this->_clip_r + 1);
           if (_cursor_x + w > rlimit) {
             _filled_x = llimit;
-            _cursor_x = llimit - std::min(0, xo);
+            _cursor_x = llimit - std::min<std::int32_t>(0, xo);
             _cursor_y += _font_metrics.y_advance * _text_style.size_y;
           }
           if (_cursor_x < llimit - xo) _cursor_x = llimit - xo;
