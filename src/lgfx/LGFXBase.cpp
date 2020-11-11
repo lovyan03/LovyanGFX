@@ -1654,7 +1654,8 @@ namespace lgfx
           if (uniCode < 0x20) break;
         }
 
-        if (!_font->updateFontMetric(&_font_metrics, uniCode)) continue;
+        //if (!_font->updateFontMetric(&_font_metrics, uniCode)) continue;
+        _font->updateFontMetric(&_font_metrics, uniCode);
         if (left == 0 && right == 0 && _font_metrics.x_offset < 0) left = right = - (int)(_font_metrics.x_offset * sx);
         right = left + std::max<int>(_font_metrics.x_advance * sx, int(_font_metrics.width * sx) + int(_font_metrics.x_offset * sx));
         //right = left + (int)(std::max<int>(_font_metrics.x_advance, _font_metrics.width + _font_metrics.x_offset) * sx);
@@ -1681,7 +1682,8 @@ namespace lgfx
           if (uniCode < 0x20) break;
         }
 
-        if (!_font->updateFontMetric(&_font_metrics, uniCode)) continue;
+        //if (!_font->updateFontMetric(&_font_metrics, uniCode)) continue;
+        _font->updateFontMetric(&_font_metrics, uniCode);
         if (left == 0 && right == 0 && _font_metrics.x_offset < 0) left = right = - (int)(_font_metrics.x_offset * sx);
         right = left + std::max<int>(_font_metrics.x_advance*sx, int(_font_metrics.width*sx) + int(_font_metrics.x_offset * sx));
         //right = left + (int)(std::max<int>(_font_metrics.x_advance, _font_metrics.width + _font_metrics.x_offset) * sx);
@@ -1728,7 +1730,9 @@ namespace lgfx
             } while (uniCode < 0x20 && *++tmp);
             if (uniCode < 0x20) break;
           }
-          if (_font->updateFontMetric(&_font_metrics, uniCode)) {
+          //if (_font->updateFontMetric(&_font_metrics, uniCode))
+          {
+            _font->updateFontMetric(&_font_metrics, uniCode);
             if (_font_metrics.x_offset < 0) sumX = - _font_metrics.x_offset * _text_style.size_x;
             break;
           }
@@ -1801,7 +1805,8 @@ namespace lgfx
           if (uniCode < 0x20) return 1;
         }
         //if (!(fpUpdateFontSize)(this, uniCode)) return 1;
-        if (!_font->updateFontMetric(&_font_metrics, uniCode)) return 1;
+        //if (!_font->updateFontMetric(&_font_metrics, uniCode)) return 1;
+        _font->updateFontMetric(&_font_metrics, uniCode);
 
         std::int32_t xo = _font_metrics.x_offset  * _text_style.size_x;
         std::int32_t w  = std::max(xo + _font_metrics.width * _text_style.size_x, _font_metrics.x_advance * _text_style.size_x);
