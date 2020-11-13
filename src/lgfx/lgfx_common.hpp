@@ -1332,7 +1332,7 @@ namespace lgfx
       return ( (bfType == 0x4D42)   // bmp header "BM"
             && (biPlanes == 1)  // bcPlanes always 1
             && (biWidth > 0)
-            && (biHeight > 0)
+            && (biHeight != 0)
             && (biBitCount <= 32)
             && (biBitCount != 0));
     }
