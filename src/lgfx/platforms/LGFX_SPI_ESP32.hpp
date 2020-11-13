@@ -631,9 +631,23 @@ namespace lgfx
 
     void writePixels_impl(std::int32_t length, pixelcopy_t* param) override
     {
-      if (param->no_convert)
+      if (_dma_channel)
       {
-        write_bytes(static_cast<const std::uint8_t*>(param->src_data), length * param->src_bits >> 3, false);
+        const std::uint8_t dst_bytes = _write_conv.bytes;
+        const std::uint8_t src_bits = param->src_bits;
+        std::uint32_t limit = (dst_bytes == 2) ? 16 : 12;
+        std::uint32_t len;
+        do {
+          len = ((length - 1) % limit) + 1;
+          //if (limit <= 256) limit <<= 2;
+          if (limit <= 512) limit <<= 1;
+          auto dmabuf = get_dmabuffer(len * dst_bytes);
+          param->fp_copy(dmabuf, 0, len, param);
+          write_bytes(dmabuf, len * dst_bytes, true);
+          auto src_move = ((len * src_bits) & ~7);
+          param->src_data = &reinterpret_cast<const uint8_t*>(param->src_data)[src_move >> 3];
+          param->src_x -= src_move / src_bits;
+        } while (length -= len);
       }
       else
       {
