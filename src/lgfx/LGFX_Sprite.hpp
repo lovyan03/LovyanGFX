@@ -50,7 +50,7 @@ namespace lgfx
       _transaction_count = 0xFFFF;
     }
 
-    __attribute__ ((always_inline)) inline void* getBuffer(void) const { return _img; }
+    __attribute__ ((always_inline)) inline void* getBuffer(void) const { return _img.get(); }
     std::uint32_t bufferLength(void) const { return (_bitwidth * _write_conv.bits >> 3) * _height; }
 
     LGFX_Sprite()

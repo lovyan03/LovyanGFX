@@ -631,13 +631,25 @@ namespace lgfx
 
     void writePixels_impl(std::int32_t length, pixelcopy_t* param) override
     {
-      write_pixels(length, param);
+      if (param->no_convert)
+      {
+        write_bytes(static_cast<const std::uint8_t*>(param->src_data), length * param->src_bits >> 3, false);
+      }
+      else
+      {
+        write_pixels(length, param);
+      }
     }
 
     void write_pixels(std::int32_t length, pixelcopy_t* param)
     {
       const std::uint8_t bytes = _write_conv.bytes;
       const std::uint32_t limit = (bytes == 2) ? 16 : 10; //  limit = 32/bytes (bytes==2 is 16   bytes==3 is 10)
+      bool workaround = length >= 32768 && !param->src_bitwidth && !param->src_y32_add && param->src_x32_add == (1<<FP_SCALE);
+      if (workaround)
+      {
+        param->src_bitwidth = limit;
+      }
       std::uint32_t len = (length - 1) / limit;
       std::uint32_t highpart = (len & 1) << 3;
       len = length - (len * limit);
@@ -657,6 +669,11 @@ namespace lgfx
       if (0 == (length -= len)) return;
 
       for (; length; length -= limit) {
+        if (workaround)
+        {
+          param->src_y++;
+          param->src_x32 -= limit * param->src_x32_add;
+        }
         param->fp_copy(regbuf, 0, limit, param);
         memcpy((void*)&spi_w0_reg[highpart ^= 0x08], regbuf, limit * bytes);
         std::uint32_t user = user_reg;

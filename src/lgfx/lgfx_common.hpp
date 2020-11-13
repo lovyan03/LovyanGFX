@@ -903,15 +903,13 @@ namespace lgfx
       auto d = static_cast<TDst*>(dst);
       auto pal = static_cast<const TPalette*>(param->palette);
       auto transp     = param->transp;
-      param->src_x32 -= param->src_x32_add;
-      param->src_y32 -= param->src_y32_add;
       do {
-        param->src_x32 += param->src_x32_add;
-        param->src_y32 += param->src_y32_add;
         std::uint32_t i = (param->src_x + param->src_y * param->src_bitwidth) * param->src_bits;
         std::uint32_t raw = (s[i >> 3] >> (-(i + param->src_bits) & 7)) & param->src_mask;
         if (raw == transp) break;
         d[index] = pal[raw];
+        param->src_x32 += param->src_x32_add;
+        param->src_y32 += param->src_y32_add;
       } while (++index != last);
       return index;
     }
@@ -923,14 +921,12 @@ namespace lgfx
       auto d = static_cast<TDst*>(dst);
       auto src_x32_add = param->src_x32_add;
       auto src_y32_add = param->src_y32_add;
-      param->src_x32 -= src_x32_add;
-      param->src_y32 -= src_y32_add;
       do {
-        param->src_x32 += src_x32_add;
-        param->src_y32 += src_y32_add;
         std::uint32_t i = param->src_x + param->src_y * param->src_bitwidth;
         if (s[i] == param->transp) break;
         d[index] = s[i];
+        param->src_x32 += src_x32_add;
+        param->src_y32 += src_y32_add;
       } while (++index != last);
       return index;
     }
