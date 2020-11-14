@@ -20,7 +20,7 @@
 // #define LGFX_MAKERFABS_MAKEPYTHON  // Makerfabs MakePython
 // #define LGFX_WIO_TERMINAL          // Wio Terminal
 
- #define LGFX_AUTODETECT // 自動認識 (M5Stack, M5StickC/CPlus, ODROID-GO, TTGO T-Watch, TTGO T-Wristband, LoLin D32 Pro, ESP-WROVER-KIT)
+// #define LGFX_AUTODETECT // 自動認識 (M5Stack, M5StickC/CPlus, ODROID-GO, TTGO T-Watch, TTGO T-Wristband, LoLin D32 Pro, ESP-WROVER-KIT)
 
 // 複数機種の定義を行うか、LGFX_AUTODETECTを定義することで、実行時にボードを自動認識します。
 
