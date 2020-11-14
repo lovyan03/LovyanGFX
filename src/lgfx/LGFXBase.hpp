@@ -191,9 +191,9 @@ namespace lgfx
     __attribute__ ((always_inline)) inline void pushPixels(const void*          data, std::int32_t len, bool swap) { startWrite(); writePixels(data, len, swap); endWrite(); }
 
     template<typename T>
-    void writePixels(const T *data, std::int32_t len)                        { auto pc = create_pc(data      ); writePixels_impl(len, &pc); }
-    void writePixels(const std::uint16_t* data, std::int32_t len, bool swap) { auto pc = create_pc(data, swap); writePixels_impl(len, &pc); }
-    void writePixels(const void*          data, std::int32_t len, bool swap) { auto pc = create_pc(data, swap); writePixels_impl(len, &pc); }
+    void writePixels(const T *data, std::int32_t len)                        { auto pc = create_pc_fast(data      ); writePixels_impl(len, &pc); }
+    void writePixels(const std::uint16_t* data, std::int32_t len, bool swap) { auto pc = create_pc_fast(data, swap); writePixels_impl(len, &pc); }
+    void writePixels(const void*          data, std::int32_t len, bool swap) { auto pc = create_pc_fast(data, swap); writePixels_impl(len, &pc); }
 
     template<typename T>
     void writeIndexedPixels(const uint8_t *data, T* palette, std::int32_t len, lgfx::color_depth_t colordepth = lgfx::rgb332_1Byte)
@@ -727,6 +727,69 @@ namespace lgfx
     }
 
 //----------------------------------------------------------------------------
+
+    template<typename T>
+    pixelcopy_t create_pc_fast(const T *data)
+    {
+      auto dst_depth = _write_conv.depth;
+      pixelcopy_t pc(data, dst_depth, get_depth<T>::value, hasPalette());
+      if (hasPalette() || dst_depth < rgb332_1Byte)
+      {
+        pc.fp_copy = pixelcopy_t::copy_bit_fast;
+      }
+      else
+      if (dst_depth > rgb565_2Byte)
+      {
+        if (     dst_depth == rgb888_3Byte) { pc.fp_copy = pixelcopy_t::copy_rgb_fast<bgr888_t, T>; }
+        else if (dst_depth == rgb666_3Byte) { pc.fp_copy = pixelcopy_t::copy_rgb_fast<bgr666_t, T>; }
+        else                                { pc.fp_copy = pixelcopy_t::copy_rgb_fast<argb8888_t, T>; }
+      }
+      else
+      {
+        if (dst_depth == rgb565_2Byte) { pc.fp_copy = pixelcopy_t::copy_rgb_fast<swap565_t, T>; }
+        else                           { pc.fp_copy = pixelcopy_t::copy_rgb_fast<rgb332_t, T>; }
+      }
+      return pc;
+    }
+    __attribute__ ((always_inline)) inline pixelcopy_t create_pc_fast(const std::uint8_t  *data) { return create_pc_fast(reinterpret_cast<const rgb332_t*>(data)); }
+    __attribute__ ((always_inline)) inline pixelcopy_t create_pc_fast(const std::uint16_t *data) { return create_pc_fast(data, _swapBytes); }
+    __attribute__ ((always_inline)) inline pixelcopy_t create_pc_fast(const void          *data) { return create_pc_fast(data, _swapBytes); }
+    __attribute__ ((always_inline)) inline pixelcopy_t create_pc_fast(const std::uint16_t *data, bool swap)
+    {
+      return swap && !hasPalette() && _write_conv.depth >= 8
+           ? create_pc_fast(reinterpret_cast<const rgb565_t* >(data))
+           : create_pc_fast(reinterpret_cast<const swap565_t*>(data));
+    }
+    __attribute__ ((always_inline)) inline pixelcopy_t create_pc_fast(const void *data, bool swap)
+    {
+      return swap && !hasPalette() && _write_conv.depth >= 8
+           ? create_pc_fast(reinterpret_cast<const rgb888_t*>(data))
+           : create_pc_fast(reinterpret_cast<const bgr888_t*>(data));
+    }
+
+    template<typename T>
+    pixelcopy_t create_pc_fast(const void *data, const T *palette, lgfx::color_depth_t depth)
+    {
+      pixelcopy_t pc(data, _write_conv.depth, get_depth<T>::value, hasPalette());
+      if (hasPalette() || _write_conv.depth < rgb332_1Byte)
+      {
+        if (palette && (_write_conv.depth == rgb332_1Byte) && (depth == rgb332_1Byte))
+        {
+          pc.fp_copy = pixelcopy_t::copy_rgb_fast<rgb332_t, rgb332_t>;
+        }
+        else
+        {
+          pc.fp_copy = pixelcopy_t::copy_bit_fast;
+        }
+      }
+      else
+      if (palette)
+      {
+        pc.fp_copy = pixelcopy_t::copy_palette_fast<T>;
+      }
+      return pc;
+    }
+
 
     template<typename T>
     pixelcopy_t create_pc(const T *data)

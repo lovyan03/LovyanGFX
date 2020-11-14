@@ -634,7 +634,6 @@ namespace lgfx
       if (_dma_channel)
       {
         const std::uint8_t dst_bytes = _write_conv.bytes;
-        const std::uint8_t src_bits = param->src_bits;
         std::uint32_t limit = (dst_bytes == 2) ? 16 : 12;
         std::uint32_t len;
         do {
@@ -644,9 +643,6 @@ namespace lgfx
           auto dmabuf = get_dmabuffer(len * dst_bytes);
           param->fp_copy(dmabuf, 0, len, param);
           write_bytes(dmabuf, len * dst_bytes, true);
-          auto src_move = ((len * src_bits) & ~7);
-          param->src_data = &reinterpret_cast<const uint8_t*>(param->src_data)[src_move >> 3];
-          param->src_x -= src_move / src_bits;
         } while (length -= len);
       }
       else
@@ -659,11 +655,6 @@ namespace lgfx
     {
       const std::uint8_t bytes = _write_conv.bytes;
       const std::uint32_t limit = (bytes == 2) ? 16 : 10; //  limit = 32/bytes (bytes==2 is 16   bytes==3 is 10)
-      bool workaround = length >= 32768 && !param->src_bitwidth && !param->src_y32_add && param->src_x32_add == (1<<FP_SCALE);
-      if (workaround)
-      {
-        param->src_bitwidth = limit;
-      }
       std::uint32_t len = (length - 1) / limit;
       std::uint32_t highpart = (len & 1) << 3;
       len = length - (len * limit);
@@ -683,11 +674,6 @@ namespace lgfx
       if (0 == (length -= len)) return;
 
       for (; length; length -= limit) {
-        if (workaround)
-        {
-          param->src_y++;
-          param->src_x32 -= limit * param->src_x32_add;
-        }
         param->fp_copy(regbuf, 0, limit, param);
         memcpy((void*)&spi_w0_reg[highpart ^= 0x08], regbuf, limit * bytes);
         std::uint32_t user = user_reg;

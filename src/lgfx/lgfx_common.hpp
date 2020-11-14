@@ -882,19 +882,20 @@ namespace lgfx
 
     static std::int32_t copy_bit_fast(void* __restrict__ dst, std::int32_t index, std::int32_t last, pixelcopy_t* __restrict__ param)
     {
+      auto dst_bits = param->dst_bits;
+      auto shift = ((~index) * dst_bits) & 7;
       auto s = static_cast<const std::uint8_t*>(param->src_data);
-      auto d = static_cast<std::uint8_t*>(dst);
+      auto d = &(static_cast<std::uint8_t*>(dst)[(index * dst_bits) >> 3]);
 
-      std::uint32_t i = param->src_x32 * param->src_bits;
-      param->src_x32 += last - index;
+      std::uint32_t i = param->positions[0] * param->src_bits;
+      param->positions[0] += last - index;
       do {
         std::uint32_t raw = s[i >> 3];
         i += param->src_bits;
         raw = (raw >> (-i & 7)) & param->src_mask;
-        auto dstidx = index * param->dst_bits;
-        auto shift = (-(dstidx + param->dst_bits)) & 7;
-        auto tmp = &d[dstidx >> 3];
-        *tmp = (*tmp & ~(param->dst_mask << shift)) | ((param->dst_mask & raw) << shift);
+        *d = (*d & ~(param->dst_mask << shift)) | ((param->dst_mask & raw) << shift);
+        if (!shift) ++d;
+        shift = (shift - dst_bits) & 7;
       } while (++index != last);
       return last;
     }
@@ -905,8 +906,8 @@ namespace lgfx
       auto s = static_cast<const std::uint8_t*>(param->src_data);
       auto d = static_cast<TDst*>(dst);
       auto pal = static_cast<const TPalette*>(param->palette);
-      std::uint32_t i = param->src_x32 * param->src_bits;
-      param->src_x32 += last - index;
+      std::uint32_t i = param->positions[0] * param->src_bits;
+      param->positions[0] += last - index;
       do {
         std::uint32_t raw = s[i >> 3];
         i += param->src_bits;
@@ -919,9 +920,14 @@ namespace lgfx
     template <typename TDst, typename TSrc>
     static std::int32_t copy_rgb_fast(void* dst, std::int32_t index, std::int32_t last, pixelcopy_t* param)
     {
-      auto s = &static_cast<const TSrc*>(param->src_data)[param->src_x32 - index];
+      auto s = &static_cast<const TSrc*>(param->src_data)[param->positions[0] - index];
       auto d = static_cast<TDst*>(dst);
-      param->src_x32 += last - index;
+      param->positions[0] += last - index;
+      if (std::is_same<TDst, TSrc>::value)
+      {
+        memcpy(&d[index], &s[index], (last - index) * sizeof(TSrc));
+      }
+      else
       {
         do {
           d[index] = s[index];
