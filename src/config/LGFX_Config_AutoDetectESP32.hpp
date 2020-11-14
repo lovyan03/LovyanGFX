@@ -664,7 +664,6 @@ public:
       auto id = readPanelID();
       ESP_LOGW("LovyanGFX", "[Autodetect] panel id:%08x", id);
       if ((id & 0xFF) == 0x7C) {  //  check panel (ST7735)
-      {
         ESP_LOGW("LovyanGFX", "[Autodetect] WiFiBoy mini");
         board = lgfx::board_t::board_WiFiBoy_Mini;
         releaseBus();
@@ -797,9 +796,7 @@ public:
 
 // Makerfabs MakePython
 #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_MAKERFABS_MAKEPYTHON )
-    if (nvs_board == 0
-     || nvs_board == lgfx::board_t::board_Makerfabs_MakePython
-    ) {
+    if (nvs_board == 0 || nvs_board == lgfx::board_t::board_Makerfabs_MakePython) {
       releaseBus();
       _spi_mosi = 13;
       _spi_miso = 12;
