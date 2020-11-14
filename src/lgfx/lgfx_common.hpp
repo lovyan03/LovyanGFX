@@ -46,6 +46,10 @@ namespace lgfx
     , board_ESP_WROVER_KIT
     , board_LoLinD32
     , board_WioTerminal
+    , board_WiFiBoy_Pro
+    , board_WiFiBoy_Mini
+    , board_Makerfabs_TouchCamera
+    , board_Makerfabs_MakePython
     };
   }
   using namespace boards;
@@ -876,6 +880,62 @@ namespace lgfx
            : nullptr;
     }
 
+    static std::int32_t copy_bit_fast(void* __restrict__ dst, std::int32_t index, std::int32_t last, pixelcopy_t* __restrict__ param)
+    {
+      auto dst_bits = param->dst_bits;
+      auto shift = ((~index) * dst_bits) & 7;
+      auto s = static_cast<const std::uint8_t*>(param->src_data);
+      auto d = &(static_cast<std::uint8_t*>(dst)[(index * dst_bits) >> 3]);
+
+      std::uint32_t i = param->positions[0] * param->src_bits;
+      param->positions[0] += last - index;
+      do {
+        std::uint32_t raw = s[i >> 3];
+        i += param->src_bits;
+        raw = (raw >> (-i & 7)) & param->src_mask;
+        *d = (*d & ~(param->dst_mask << shift)) | ((param->dst_mask & raw) << shift);
+        if (!shift) ++d;
+        shift = (shift - dst_bits) & 7;
+      } while (++index != last);
+      return last;
+    }
+
+    template <typename TDst, typename TPalette>
+    static std::int32_t copy_palette_fast(void* __restrict__ dst, std::int32_t index, std::int32_t last, pixelcopy_t* __restrict__ param)
+    {
+      auto s = static_cast<const std::uint8_t*>(param->src_data);
+      auto d = static_cast<TDst*>(dst);
+      auto pal = static_cast<const TPalette*>(param->palette);
+      std::uint32_t i = param->positions[0] * param->src_bits;
+      param->positions[0] += last - index;
+      do {
+        std::uint32_t raw = s[i >> 3];
+        i += param->src_bits;
+        raw = (raw >> (-i & 7)) & param->src_mask;
+        d[index] = pal[raw];
+      } while (++index != last);
+      return index;
+    }
+
+    template <typename TDst, typename TSrc>
+    static std::int32_t copy_rgb_fast(void* dst, std::int32_t index, std::int32_t last, pixelcopy_t* param)
+    {
+      auto s = &static_cast<const TSrc*>(param->src_data)[param->positions[0] - index];
+      auto d = static_cast<TDst*>(dst);
+      param->positions[0] += last - index;
+      if (std::is_same<TDst, TSrc>::value)
+      {
+        memcpy(&d[index], &s[index], (last - index) * sizeof(TSrc));
+      }
+      else
+      {
+        do {
+          d[index] = s[index];
+        } while (++index != last);
+      }
+      return last;
+    }
+
     static std::int32_t copy_bit_affine(void* __restrict__ dst, std::int32_t index, std::int32_t last, pixelcopy_t* __restrict__ param)
     {
       auto s = static_cast<const std::uint8_t*>(param->src_data);
@@ -903,15 +963,13 @@ namespace lgfx
       auto d = static_cast<TDst*>(dst);
       auto pal = static_cast<const TPalette*>(param->palette);
       auto transp     = param->transp;
-      param->src_x32 -= param->src_x32_add;
-      param->src_y32 -= param->src_y32_add;
       do {
-        param->src_x32 += param->src_x32_add;
-        param->src_y32 += param->src_y32_add;
         std::uint32_t i = (param->src_x + param->src_y * param->src_bitwidth) * param->src_bits;
         std::uint32_t raw = (s[i >> 3] >> (-(i + param->src_bits) & 7)) & param->src_mask;
         if (raw == transp) break;
         d[index] = pal[raw];
+        param->src_x32 += param->src_x32_add;
+        param->src_y32 += param->src_y32_add;
       } while (++index != last);
       return index;
     }
@@ -923,14 +981,12 @@ namespace lgfx
       auto d = static_cast<TDst*>(dst);
       auto src_x32_add = param->src_x32_add;
       auto src_y32_add = param->src_y32_add;
-      param->src_x32 -= src_x32_add;
-      param->src_y32 -= src_y32_add;
       do {
-        param->src_x32 += src_x32_add;
-        param->src_y32 += src_y32_add;
         std::uint32_t i = param->src_x + param->src_y * param->src_bitwidth;
         if (s[i] == param->transp) break;
         d[index] = s[i];
+        param->src_x32 += src_x32_add;
+        param->src_y32 += src_y32_add;
       } while (++index != last);
       return index;
     }
@@ -1336,7 +1392,7 @@ namespace lgfx
       return ( (bfType == 0x4D42)   // bmp header "BM"
             && (biPlanes == 1)  // bcPlanes always 1
             && (biWidth > 0)
-            && (biHeight > 0)
+            && (biHeight != 0)
             && (biBitCount <= 32)
             && (biBitCount != 0));
     }

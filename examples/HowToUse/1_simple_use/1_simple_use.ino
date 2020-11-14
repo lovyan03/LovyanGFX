@@ -4,17 +4,21 @@
 // 対応機種がボードマネージャに無い場合 ( TTGO T-Wristband や ESP-WROVER-KIT等 ) は、
 // LovyanGFX.hppのincludeより前に、define LGFX_～ の定義を記述してください。
 
-// #define LGFX_M5STACK          // M5Stack (Basic / Gray / Go / Fire)
-// #define LGFX_M5STACKCORE2     // M5StackCore2
-// #define LGFX_M5STICKC         // M5Stick C / CPlus
-// #define LGFX_ODROID_GO        // ODROID-GO
-// #define LGFX_TTGO_TS          // TTGO TS
-// #define LGFX_TTGO_TWATCH      // TTGO T-Watch
-// #define LGFX_TTGO_TWRISTBAND  // TTGO T-Wristband
-// #define LGFX_DDUINO32_XS      // DSTIKE D-duino-32 XS
-// #define LGFX_LOLIN_D32_PRO    // LoLin D32 Pro
-// #define LGFX_ESP_WROVER_KIT   // ESP-WROVER-KIT
-// #define LGFX_WIO_TERMINAL     // Wio Terminal
+// #define LGFX_M5STACK               // M5Stack (Basic / Gray / Go / Fire)
+// #define LGFX_M5STACKCORE2          // M5StackCore2
+// #define LGFX_M5STICKC              // M5Stick C / CPlus
+// #define LGFX_ODROID_GO             // ODROID-GO
+// #define LGFX_TTGO_TS               // TTGO TS
+// #define LGFX_TTGO_TWATCH           // TTGO T-Watch
+// #define LGFX_TTGO_TWRISTBAND       // TTGO T-Wristband
+// #define LGFX_DDUINO32_XS           // DSTIKE D-duino-32 XS
+// #define LGFX_LOLIN_D32_PRO         // LoLin D32 Pro
+// #define LGFX_ESP_WROVER_KIT        // ESP-WROVER-KIT
+// #define LGFX_WIFIBOY_PRO           // WiFiBoy Pro
+// #define LGFX_WIFIBOY_MINI          // WiFiBoy mini
+// #define LGFX_MAKERFABS_TOUCHCAMERA // Makerfabs Touch with Camera
+// #define LGFX_MAKERFABS_MAKEPYTHON  // Makerfabs MakePython
+// #define LGFX_WIO_TERMINAL          // Wio Terminal
 
 // #define LGFX_AUTODETECT // 自動認識 (M5Stack, M5StickC/CPlus, ODROID-GO, TTGO T-Watch, TTGO T-Wristband, LoLin D32 Pro, ESP-WROVER-KIT)
 

@@ -21,7 +21,7 @@ static constexpr char filename[] = "/lovyangfx_test.png";
 #endif
 
 
-bool saveToSD()
+bool saveToSD(void)
 {
   // createPng関数で指定範囲の画像からPNG形式のデータを生成します。
   // SAMD51の場合 172x172程度が上限です。
@@ -55,7 +55,7 @@ bool saveToSD()
   return result;
 }
 
-void setup()
+void setup(void)
 {
   lcd.init();
 

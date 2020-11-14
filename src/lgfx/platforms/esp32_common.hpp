@@ -107,6 +107,7 @@ namespace lgfx
     void set(Stream* src, std::uint32_t length = ~0) { _stream = src; _length = length; _index = 0; }
 
     int read(std::uint8_t *buf, std::uint32_t len) override {
+      len = std::min<std::uint32_t>(len, _stream->available());
       if (len > _length - _index) { len = _length - _index; }
       _index += len;
       return _stream->readBytes((char*)buf, len);
@@ -115,7 +116,7 @@ namespace lgfx
     bool seek(std::uint32_t offset) override { if (offset < _index) { return false; } skip(offset - _index); return true; }
     void close() override { }
 
-  private:
+  protected:
     Stream* _stream;
     std::uint32_t _index;
     std::uint32_t _length = 0;

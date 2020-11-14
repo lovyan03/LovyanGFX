@@ -1654,7 +1654,8 @@ namespace lgfx
           if (uniCode < 0x20) break;
         }
 
-        if (!_font->updateFontMetric(&_font_metrics, uniCode)) continue;
+        //if (!_font->updateFontMetric(&_font_metrics, uniCode)) continue;
+        _font->updateFontMetric(&_font_metrics, uniCode);
         if (left == 0 && right == 0 && _font_metrics.x_offset < 0) left = right = - (int)(_font_metrics.x_offset * sx);
         right = left + std::max<int>(_font_metrics.x_advance * sx, int(_font_metrics.width * sx) + int(_font_metrics.x_offset * sx));
         //right = left + (int)(std::max<int>(_font_metrics.x_advance, _font_metrics.width + _font_metrics.x_offset) * sx);
@@ -1681,7 +1682,8 @@ namespace lgfx
           if (uniCode < 0x20) break;
         }
 
-        if (!_font->updateFontMetric(&_font_metrics, uniCode)) continue;
+        //if (!_font->updateFontMetric(&_font_metrics, uniCode)) continue;
+        _font->updateFontMetric(&_font_metrics, uniCode);
         if (left == 0 && right == 0 && _font_metrics.x_offset < 0) left = right = - (int)(_font_metrics.x_offset * sx);
         right = left + std::max<int>(_font_metrics.x_advance*sx, int(_font_metrics.width*sx) + int(_font_metrics.x_offset * sx));
         //right = left + (int)(std::max<int>(_font_metrics.x_advance, _font_metrics.width + _font_metrics.x_offset) * sx);
@@ -1728,7 +1730,9 @@ namespace lgfx
             } while (uniCode < 0x20 && *++tmp);
             if (uniCode < 0x20) break;
           }
-          if (_font->updateFontMetric(&_font_metrics, uniCode)) {
+          //if (_font->updateFontMetric(&_font_metrics, uniCode))
+          {
+            _font->updateFontMetric(&_font_metrics, uniCode);
             if (_font_metrics.x_offset < 0) sumX = - _font_metrics.x_offset * _text_style.size_x;
             break;
           }
@@ -1801,21 +1805,20 @@ namespace lgfx
           if (uniCode < 0x20) return 1;
         }
         //if (!(fpUpdateFontSize)(this, uniCode)) return 1;
-        if (!_font->updateFontMetric(&_font_metrics, uniCode)) return 1;
+        //if (!_font->updateFontMetric(&_font_metrics, uniCode)) return 1;
+        _font->updateFontMetric(&_font_metrics, uniCode);
 
         std::int32_t xo = _font_metrics.x_offset  * _text_style.size_x;
         std::int32_t w  = std::max(xo + _font_metrics.width * _text_style.size_x, _font_metrics.x_advance * _text_style.size_x);
         if (_textscroll || _textwrap_x) {
           std::int32_t llimit = _textscroll ? this->_sx : this->_clip_l;
-          if (_cursor_x < llimit - xo) _cursor_x = llimit - xo;
-          else {
-            std::int32_t rlimit = _textscroll ? this->_sx + this->_sw : (this->_clip_r + 1);
-            if (_cursor_x + w > rlimit) {
-              _filled_x = llimit;
-              _cursor_x = llimit - xo;
-              _cursor_y += _font_metrics.y_advance * _text_style.size_y;
-            }
+          std::int32_t rlimit = _textscroll ? this->_sx + this->_sw : (this->_clip_r + 1);
+          if (_cursor_x + w > rlimit) {
+            _filled_x = llimit;
+            _cursor_x = llimit - std::min<std::int32_t>(0, xo);
+            _cursor_y += _font_metrics.y_advance * _text_style.size_y;
           }
+          if (_cursor_x < llimit - xo) _cursor_x = llimit - xo;
         }
 
         std::int32_t h  = _font_metrics.height * _text_style.size_y;
@@ -1841,9 +1844,7 @@ namespace lgfx
           }
         } else if (_textwrap_y) {
           if (y + h > (this->_clip_b + 1)) {
-            _filled_x = 0;
-            _cursor_x = - xo;
-            y = 0;
+            y = this->_clip_t;
           } else
           if (y < this->_clip_t) y = this->_clip_t;
         }

@@ -37,6 +37,9 @@ namespace lgfx
     virtual bool updateFontMetric(FontMetrics *metrics, std::uint16_t uniCode) const = 0;
     virtual bool unloadFont(void) { return false; }
     virtual std::size_t drawChar(LGFXBase* gfx, std::int32_t x, std::int32_t y, std::uint16_t c, const TextStyle* style) const = 0;
+
+  protected:
+    std::size_t drawCharDummy(LGFXBase* gfx, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const TextStyle* style) const;
   };
 
   struct BaseFont : public IFont {
