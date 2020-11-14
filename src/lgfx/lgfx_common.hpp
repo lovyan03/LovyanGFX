@@ -46,6 +46,10 @@ namespace lgfx
     , board_ESP_WROVER_KIT
     , board_LoLinD32
     , board_WioTerminal
+    , board_WiFiBoy_Pro
+    , board_WiFiBoy_Mini
+    , board_Makerfabs_TouchCamera
+    , board_Makerfabs_MakePython
     };
   }
   using namespace boards;
@@ -874,6 +878,56 @@ namespace lgfx
            : (dst_depth == rgb888_3Byte) ? copy_palette_affine<bgr888_t, TPalette>
            : (dst_depth == rgb666_3Byte) ? copy_palette_affine<bgr666_t, TPalette>
            : nullptr;
+    }
+
+    static std::int32_t copy_bit_fast(void* __restrict__ dst, std::int32_t index, std::int32_t last, pixelcopy_t* __restrict__ param)
+    {
+      auto s = static_cast<const std::uint8_t*>(param->src_data);
+      auto d = static_cast<std::uint8_t*>(dst);
+
+      std::uint32_t i = param->src_x32 * param->src_bits;
+      param->src_x32 += last - index;
+      do {
+        std::uint32_t raw = s[i >> 3];
+        i += param->src_bits;
+        raw = (raw >> (-i & 7)) & param->src_mask;
+        auto dstidx = index * param->dst_bits;
+        auto shift = (-(dstidx + param->dst_bits)) & 7;
+        auto tmp = &d[dstidx >> 3];
+        *tmp = (*tmp & ~(param->dst_mask << shift)) | ((param->dst_mask & raw) << shift);
+      } while (++index != last);
+      return last;
+    }
+
+    template <typename TDst, typename TPalette>
+    static std::int32_t copy_palette_fast(void* __restrict__ dst, std::int32_t index, std::int32_t last, pixelcopy_t* __restrict__ param)
+    {
+      auto s = static_cast<const std::uint8_t*>(param->src_data);
+      auto d = static_cast<TDst*>(dst);
+      auto pal = static_cast<const TPalette*>(param->palette);
+      std::uint32_t i = param->src_x32 * param->src_bits;
+      param->src_x32 += last - index;
+      do {
+        std::uint32_t raw = s[i >> 3];
+        i += param->src_bits;
+        raw = (raw >> (-i & 7)) & param->src_mask;
+        d[index] = pal[raw];
+      } while (++index != last);
+      return index;
+    }
+
+    template <typename TDst, typename TSrc>
+    static std::int32_t copy_rgb_fast(void* dst, std::int32_t index, std::int32_t last, pixelcopy_t* param)
+    {
+      auto s = &static_cast<const TSrc*>(param->src_data)[param->src_x32 - index];
+      auto d = static_cast<TDst*>(dst);
+      param->src_x32 += last - index;
+      {
+        do {
+          d[index] = s[index];
+        } while (++index != last);
+      }
+      return last;
     }
 
     static std::int32_t copy_bit_affine(void* __restrict__ dst, std::int32_t index, std::int32_t last, pixelcopy_t* __restrict__ param)

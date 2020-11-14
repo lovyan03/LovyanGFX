@@ -644,6 +644,204 @@ public:
     }
 #endif
 
+// WiFiBoy mini
+#if defined ( LGFX_AUTODETECT ) || defined ( LGFX_WIFIBOY_MINI )
+    if (nvs_board == 0
+     || nvs_board == lgfx::board_t::board_WiFiBoy_Mini
+    ) {
+      releaseBus();
+      _spi_mosi = 13;
+      _spi_miso = 12;
+      _spi_sclk = 14;
+      initBus();
+
+      p_tmp.spi_3wire = true;
+      p_tmp.spi_cs   = 15;
+      p_tmp.spi_dc   = 4;
+      p_tmp.gpio_rst = -1;
+      setPanel(&p_tmp);
+
+      auto id = readPanelID();
+      ESP_LOGW("LovyanGFX", "[Autodetect] panel id:%08x", id);
+      if ((id & 0xFF) == 0x7C) {  //  check panel (ST7735)
+      {
+        ESP_LOGW("LovyanGFX", "[Autodetect] WiFiBoy mini");
+        board = lgfx::board_t::board_WiFiBoy_Mini;
+        releaseBus();
+        _spi_host = HSPI_HOST;
+        initBus();
+        auto p = new lgfx::Panel_ST7735S();
+        p->freq_read  = 8000000;
+        p->panel_width  = 128;
+        p->panel_height = 128;
+        p->memory_width  = 132;
+        p->memory_height = 132;
+        p->spi_3wire = true;
+        p->offset_x     = 2;
+        p->offset_y     = 1;
+        p->spi_cs    = 15;
+        p->spi_dc    = 4;
+        p->gpio_bl   = 27;
+        p->pwm_ch_bl = 7;
+        p->offset_rotation = 2;
+        setPanel(p);
+
+        goto init_clear;
+      }
+      lgfx::gpio_lo(p_tmp.spi_cs);
+      lgfx::gpio_lo(p_tmp.spi_dc);
+    }
+#endif
+
+// WiFiBoy Pro
+#if defined ( LGFX_AUTODETECT ) || defined ( LGFX_WIFIBOY_PRO )
+    if (nvs_board == 0 || nvs_board == lgfx::board_t::board_WiFiBoy_Pro) {
+      releaseBus();
+      _spi_mosi = 13;
+      _spi_miso = 12;
+      _spi_sclk = 14;
+      initBus();
+
+      p_tmp.spi_3wire = false;
+      p_tmp.spi_cs   = 15;
+      p_tmp.spi_dc   =  4;
+      p_tmp.gpio_rst = -1;
+      setPanel(&p_tmp);
+
+      auto id = readPanelID();
+      ESP_LOGW("LovyanGFX", "[Autodetect] panel id:%08x", id);
+      if (id == 0 && readCommand32(0x09) != 0) {   // check panel (ILI9341) panelIDが0なのでステータスリードを併用する
+        ESP_LOGW("LovyanGFX", "[Autodetect] WiFiBoy Pro");
+        board = lgfx::board_t::board_WiFiBoy_Pro;
+        releaseBus();
+        _spi_host = HSPI_HOST;
+        initBus();
+        auto p = new lgfx::Panel_ILI9341();
+        p->freq_write = 40000000;
+        p->freq_read  = 16000000;
+        p->freq_fill  = 40000000;
+        p->spi_3wire = false;
+        p->spi_cs    = 15;
+        p->spi_dc    =  4;
+        p->gpio_bl   = 27;
+        p->offset_rotation = 2;
+        setPanel(p);
+
+        goto init_clear;
+      }
+      lgfx::gpio_lo(p_tmp.spi_cs);
+      lgfx::gpio_lo(p_tmp.spi_dc);
+      p_tmp.spi_3wire = true;
+    }
+#endif
+
+// Makerfabs TouchScreen_Camera
+#if defined ( LGFX_AUTODETECT ) || defined ( LGFX_MAKERFABS_TOUCHCAMERA )
+    if (nvs_board == 0 || nvs_board == lgfx::board_t::board_Makerfabs_TouchCamera) {
+      releaseBus();
+      _spi_mosi = 13;
+      _spi_miso = 12;
+      _spi_sclk = 14;
+      initBus();
+
+      lgfx::lgfxPinMode(4, lgfx::pin_mode_t::output); // Makerfabs TouchCamera TF card CS
+      lgfx::gpio_hi(4);
+
+      p_tmp.spi_3wire = false;
+      p_tmp.spi_cs   = 15;
+      p_tmp.spi_dc   = 33;
+      p_tmp.gpio_rst = -1;
+      setPanel(&p_tmp);
+
+      auto id = readPanelID();
+      ESP_LOGW("LovyanGFX", "[Autodetect] panel id:%08x", id);
+      if ((id & 0xFF) == 0x54) {   // check panel (ILI9488)
+        ESP_LOGW("LovyanGFX", "[Autodetect] Makerfabs_TouchCamera");
+        board = lgfx::board_t::board_Makerfabs_TouchCamera;
+        auto p = new lgfx::Panel_ILI9488();
+        p->freq_write = 40000000;
+        p->freq_read  = 16000000;
+        p->freq_fill  = 40000000;
+        p->spi_3wire = false;
+        p->spi_cs    = 15;
+        p->spi_dc    = 33;
+        p->gpio_bl   = -1;
+        setPanel(p);
+
+        lgfx::i2c::init(I2C_NUM_1, 26, 27, 400000);
+        std::uint8_t tmp[2];
+        if (lgfx::i2c::readRegister(I2C_NUM_1, 0x38, 0xA8, tmp, 1))
+        {
+          ESP_LOGW("LovyanGFX", "[Autodetect] touch id:%08x", tmp[1]);
+          auto t = new lgfx::Touch_FT5x06();
+          t->gpio_int = 38;   // INT pin number
+          t->i2c_sda  = 26;   // I2C SDA pin number
+          t->i2c_scl  = 27;   // I2C SCL pin number
+          t->i2c_addr = 0x38; // I2C device addr
+          t->i2c_port = I2C_NUM_1;// I2C port number
+          t->freq = 400000;   // I2C freq
+          t->x_min = 0;
+          t->x_max = 319;
+          t->y_min = 0;
+          t->y_max = 479;
+          touch(t);
+        }
+        goto init_clear;
+      }
+      lgfx::gpio_lo(p_tmp.spi_cs);
+      lgfx::gpio_lo(p_tmp.spi_dc);
+      lgfx::gpio_lo(4);
+      p_tmp.spi_3wire = true;
+    }
+#endif
+
+// Makerfabs MakePython
+#if defined ( LGFX_AUTODETECT ) || defined ( LGFX_MAKERFABS_MAKEPYTHON )
+    if (nvs_board == 0
+     || nvs_board == lgfx::board_t::board_Makerfabs_MakePython
+    ) {
+      releaseBus();
+      _spi_mosi = 13;
+      _spi_miso = 12;
+      _spi_sclk = 14;
+      initBus();
+
+      p_tmp.spi_cs   = 15;
+      p_tmp.spi_dc   = 22;
+      p_tmp.gpio_rst = 21;
+      setPanel(&p_tmp);
+      _reset(use_reset);
+
+      auto id = readPanelID();
+      ESP_LOGW("LovyanGFX", "[Autodetect] panel id:%08x", id);
+      if ((id & 0xFF) == 0x85) {  //  check panel (ST7789)
+        ESP_LOGW("LovyanGFX", "[Autodetect] Makerfabs_Makepython");
+        board = lgfx::board_t::board_Makerfabs_MakePython;
+        releaseBus();
+        _spi_host = HSPI_HOST;
+        initBus();
+        auto p = new lgfx::Panel_ST7789();
+        p->reverse_invert = true;
+        p->freq_write = 80000000;
+        p->freq_read  = 16000000;
+        p->freq_fill  = 80000000;
+        p->spi_3wire = true;
+        p->panel_height = 240;
+        p->spi_cs    = 15;
+        p->spi_dc    = 22;
+        p->gpio_bl   = 5;
+        p->gpio_rst  = 21;
+        p->pwm_ch_bl = 7;
+        setPanel(p);
+
+        goto init_clear;
+      }
+      lgfx::gpio_lo(p_tmp.spi_cs);
+      lgfx::gpio_lo(p_tmp.spi_dc);
+      lgfx::gpio_lo(p_tmp.gpio_rst);
+    }
+#endif
+
 // M5StackCore2 判定
 #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_M5STACKCORE2 )
     if (nvs_board == 0 || nvs_board == lgfx::board_t::board_M5StackCore2) {
