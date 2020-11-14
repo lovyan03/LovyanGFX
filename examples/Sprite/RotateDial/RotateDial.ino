@@ -75,18 +75,32 @@ void loop(void)
     float angle = (float)(count * 36) / 100;
 //  sprites[flip].clear();
 //* // draw background
-    std::uint16_t* rawbuf = (std::uint16_t*)sprites[flip].getBuffer();
-    for (int y = 0; y < sprite_height; y++)
+    if (lcd.getColorDepth() == 16)
     {
-      std::uint16_t* rawline = &rawbuf[y * lcd.width()];
-      for (int x = 0; x < lcd.width(); x++)
+      std::uint16_t* rawbuf = (std::uint16_t*)sprites[flip].getBuffer();
+      for (int y = 0; y < sprite_height; y++)
       {
-        rawline[x] = getBackColor(x, div_y + y);
+        std::uint16_t* rawline = &rawbuf[y * lcd.width()];
+        for (int x = 0; x < lcd.width(); x++)
+        {
+          rawline[x] = lcd.swap565(abs((x&31)-16)<<3, 0, abs(((div_y + y)&31)-16)<<3);
+        }
       }
     }
-//*/
+    else
+    if (lcd.getColorDepth() > 16)
+    {
+      lgfx::bgr888_t* rawbuf = (lgfx::bgr888_t*)sprites[flip].getBuffer();
+      for (int y = 0; y < sprite_height; y++)
+      {
+        lgfx::bgr888_t* rawline = &rawbuf[y * lcd.width()];
+        for (int x = 0; x < lcd.width(); x++)
+        {
+          rawline[x] = lcd.swap888(abs((x&31)-16)<<3, 0, abs(((div_y + y)&31)-16)<<3);
+        }
+      }
+    }
 
-    sp.setTextColor(TFT_WHITE, TFT_BLACK);
     if (div_y == 0)
     {
       // draw fps and counter
@@ -126,6 +140,7 @@ void loop(void)
     zoom_y = distance / 128.0f;
     sp.createSprite(18, 14);
     sp.setPivot((float)sp.width() / 2, distance / zoom_y);
+    sp.setTextColor(TFT_WHITE, TFT_BLACK);
     for (int i = 0; i < 100; i += 10)
     {
       float a = fmodf(360.0f + angle - i * 3.6f, 360.0f);
@@ -139,7 +154,6 @@ void loop(void)
     angle /= 10;
     distance *= 0.85;
     sp.createSprite(1, 1);
-    sp.setTextColor(TFT_YELLOW, TFT_BLACK);
     sp.clear(TFT_YELLOW);
     for (int i = 0; i < 100; i++)
     {
@@ -158,6 +172,7 @@ void loop(void)
     zoom_y = distance / 128.0f;
     sp.createSprite(21, 14);
     sp.setPivot((float)sp.width() / 2, distance / zoom_y);
+    sp.setTextColor(TFT_YELLOW, TFT_BLACK);
     for (int i = 0; i < 100; i += 10)
     {
       float a = fmodf(360.0f + angle - i * 3.6f, 360.0f);
