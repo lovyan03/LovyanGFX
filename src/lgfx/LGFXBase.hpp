@@ -198,7 +198,7 @@ namespace lgfx
     template<typename T>
     void writeIndexedPixels(const uint8_t *data, T* palette, std::int32_t len, lgfx::color_depth_t colordepth = lgfx::rgb332_1Byte)
     {
-      auto pc = create_pc_palette(data, palette, colordepth);
+      auto pc = create_pc_fast(data, palette, colordepth);
       writePixels_impl(len, &pc);
     }
 
