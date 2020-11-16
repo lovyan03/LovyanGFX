@@ -222,16 +222,16 @@ namespace lgfx
     }
 
     template<typename T>
-    void pushImage(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const void* data, const std::uint8_t bits, const T* palette)
+    void pushImage(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const void* data, color_depth_t depth, const T* palette)
     {
-      auto pc = create_pc_palette(data, palette, bits);
+      auto pc = create_pc_palette(data, palette, depth);
       pushImage(x, y, w, h, &pc);
     }
 
     template<typename T>
-    void pushImage(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const void* data, std::uint32_t transparent, const std::uint8_t bits, const T* palette)
+    void pushImage(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const void* data, std::uint32_t transparent, color_depth_t depth, const T* palette)
     {
-      auto pc = create_pc_palette(data, palette, bits, transparent);
+      auto pc = create_pc_palette(data, palette, depth, transparent);
       pushImage(x, y, w, h, &pc);
     }
 
@@ -243,9 +243,9 @@ namespace lgfx
     }
 
     template<typename T>
-    void pushImageDMA(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const void* data, const std::uint8_t bits, const T* palette)
+    void pushImageDMA(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const void* data, color_depth_t depth, const T* palette)
     {
-      auto pc = create_pc_palette(data, palette, bits);
+      auto pc = create_pc_palette(data, palette, depth);
       pushImage(x, y, w, h, &pc, true);
     }
 
