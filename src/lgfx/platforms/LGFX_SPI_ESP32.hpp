@@ -156,7 +156,7 @@ namespace lgfx
       _last_apb_freq = -1;
       _cmd_ramwr      = _panel->getCmdRamwr();
       _len_setwindow  = _panel->len_setwindow;
-      fpGetWindowAddr = _len_setwindow == 32 ? PanelCommon::getWindowAddr32 : PanelCommon::getWindowAddr16;
+      //fpGetWindowAddr = _len_setwindow == 32 ? PanelCommon::getWindowAddr32 : PanelCommon::getWindowAddr16;
 
       std::int32_t spi_dc = _panel->spi_dc;
       _mask_reg_dc = (spi_dc < 0) ? 0 : (1 << (spi_dc & 31));
@@ -176,11 +176,12 @@ namespace lgfx
     void postSetRotation(void) override
     {
       bool fullscroll = (_sx == 0 && _sy == 0 && _sw == _width && _sh == _height);
-
+      /*
       _cmd_caset = _panel->getCmdCaset();
       _cmd_raset = _panel->getCmdRaset();
       _colstart  = _panel->getColStart();
       _rowstart  = _panel->getRowStart();
+      //*/
       _width     = _panel->getWidth();
       _height    = _panel->getHeight();
       _clip_r = _width - 1;
@@ -190,7 +191,6 @@ namespace lgfx
         _sw = _width;
         _sh = _height;
       }
-      _xs = _xe = _ys = _ye = ~0;
       _clip_l = _clip_t = 0;
     }
 
@@ -211,7 +211,7 @@ namespace lgfx
       }
 
       auto spi_mode = _panel->spi_mode;
-      std::uint32_t user = (spi_mode == 1 || spi_mode == 2) ? SPI_CK_OUT_EDGE | SPI_USR_MOSI : SPI_USR_MOSI;
+      _user = (spi_mode == 1 || spi_mode == 2) ? SPI_CK_OUT_EDGE | SPI_USR_MOSI : SPI_USR_MOSI;
       std::uint32_t pin = (spi_mode & 2) ? SPI_CK_IDLE_EDGE : 0;
 
       spi::beginTransaction(_spi_host);
@@ -220,7 +220,7 @@ namespace lgfx
         _next_dma_reset = true;
       }
 
-      *_spi_user_reg = user;
+      *_spi_user_reg = _user;
       *reg(SPI_PIN_REG(_spi_port))  = pin;
       set_clock_write();
 
@@ -423,8 +423,47 @@ namespace lgfx
       if (_spi_dlen == 16 && (bit_length & 8)) _align_data = !_align_data;
     }
 
+    __attribute__ ((always_inline)) inline 
+    void write_cmd_data(const std::uint8_t *addr)
+    {
+//      do {
+        write_cmd(*addr++);
+        std::uint_fast8_t numArgs = *addr++;
+        if (numArgs)
+        {
+          if (_spi_dlen == 16)
+          {
+            if (numArgs > 2)
+            {
+              std::uint_fast8_t len = ((numArgs + 1) >> 1) + 1;
+              std::uint_fast8_t i = 1;
+              do
+              {
+                _spi_w0_reg[i] = addr[i * 2] << 8 | addr[i * 2 + 1] << 24;
+              } while (++i != len);
+            }
+            write_data(addr[0] << 8 | addr[1] << 24, _spi_dlen * numArgs);
+          }
+          else
+          {
+            if (numArgs > 4)
+            {
+              memcpy((void*)&_spi_w0_reg[1], addr + 4, numArgs - 4);
+            }
+            write_data(*reinterpret_cast<const std::uint32_t*>(addr), _spi_dlen * numArgs);
+          }
+          addr += numArgs;
+        }
+//      } while (reinterpret_cast<const std::uint16_t*>(addr)[0] != 0xFFFF);
+    }
+
     void set_window(std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye)
     {
+      std::uint8_t buf[16];
+      if (_panel->makeWindowCommands1(buf, xs, ys, xe, ye)) { write_cmd_data(buf); }
+      if (_panel->makeWindowCommands2(buf, xs, ys, xe, ye)) { write_cmd_data(buf); }
+      return;
+/*/
       std::uint32_t len;
       if (_spi_dlen == 8) {
         len = _len_setwindow - 1;
@@ -487,6 +526,7 @@ namespace lgfx
         _ys = ys;
         _ye = ye;
       }
+//*/
     }
 
     void start_read(void) {
@@ -504,11 +544,10 @@ namespace lgfx
 
     void end_read(void)
     {
-      std::uint32_t user = (_panel->spi_mode == 1 || _panel->spi_mode == 2) ? SPI_CK_OUT_EDGE | SPI_USR_MOSI : SPI_USR_MOSI;
       std::uint32_t pin = (_panel->spi_mode & 2) ? SPI_CK_IDLE_EDGE : 0;
       wait_spi();
       cs_h();
-      *_spi_user_reg = user;
+      *_spi_user_reg = _user;
       *reg(SPI_PIN_REG(_spi_port)) = pin;
       if (_panel->spi_cs < 0) {
         write_cmd(0); // NOP command
@@ -543,22 +582,22 @@ namespace lgfx
 
     void pushImage_impl(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, pixelcopy_t* param, bool use_dma) override
     {
-      auto bytes = _write_conv.bytes;
+      auto bits = _write_conv.bits;
       auto src_x = param->src_x;
       auto fp_copy = param->fp_copy;
 
       std::int32_t xr = (x + w) - 1;
-      std::int32_t whb = w * h * bytes;
+      std::int32_t whb = w * h * bits >> 3;
       if (param->transp == ~0) {
         if (param->no_convert) {
           setWindow_impl(x, y, xr, y + h - 1);
-          std::uint32_t i = (src_x + param->src_y * param->src_bitwidth) * bytes;
+          std::uint32_t i = (src_x + param->src_y * param->src_bitwidth) * bits >> 3;
           auto src = &((const std::uint8_t*)param->src_data)[i];
           if (_dma_channel && use_dma) {
             if (param->src_bitwidth == w) {
-              _setup_dma_desc_links(src, w * h * bytes);
+              _setup_dma_desc_links(src, w * h * bits >> 3);
             } else {
-              _setup_dma_desc_links(src, w * bytes, h, param->src_bitwidth * bytes);
+              _setup_dma_desc_links(src, w * bits >> 3, h, param->src_bitwidth * bits >> 3);
             }
             dc_h();
             set_write_len(whb << 3);
@@ -576,9 +615,9 @@ namespace lgfx
               write_bytes(src, whb, use_dma);
             }
           } else {
-            auto add = param->src_bitwidth * bytes;
+            auto add = param->src_bitwidth * bits >> 3;
             do {
-              write_bytes(src, w * bytes, use_dma);
+              write_bytes(src, w * bits >> 3, use_dma);
               src += add;
             } while (--h);
           }
@@ -590,7 +629,7 @@ namespace lgfx
             setWindow_impl(x, y, xr, y + h - 1);
             write_bytes(buf, whb, true);
           } else {
-            std::int32_t wb = w * bytes;
+            std::int32_t wb = w * bits >> 3;
             auto buf = get_dmabuffer(wb);
             fp_copy(buf, 0, w, param);
             setWindow_impl(x, y, xr, y + h - 1);
@@ -617,10 +656,10 @@ namespace lgfx
         do {
           std::int32_t i = 0;
           while (w != (i = fp_skip(i, w, param))) {
-            auto buf = get_dmabuffer(w * bytes);
+            auto buf = get_dmabuffer(w * bits >> 3);
             std::int32_t len = fp_copy(buf, 0, w - i, param);
             setWindow_impl(x + i, y, x + i + len - 1, y);
-            write_bytes(buf, len * bytes, true);
+            write_bytes(buf, len * bits >> 3, true);
             if (w == (i += len)) break;
           }
           param->src_x = src_x;
@@ -983,7 +1022,7 @@ namespace lgfx
     spi_host_device_t _spi_host;
     static constexpr int _dma_channel= get_dma_channel<CFG,  0>::value;
     static constexpr int _spi_dlen = get_spi_dlen<CFG,  8>::value;
-
+    /*
     std::uint32_t(*fpGetWindowAddr)(std::uint_fast16_t, std::uint_fast16_t);
     std::uint_fast16_t _colstart;
     std::uint_fast16_t _rowstart;
@@ -993,6 +1032,7 @@ namespace lgfx
     std::uint_fast16_t _ye;
     std::uint32_t _cmd_caset;
     std::uint32_t _cmd_raset;
+    //*/
     std::uint32_t _cmd_ramwr;
 
   private:
@@ -1011,6 +1051,7 @@ namespace lgfx
     volatile std::uint32_t* _spi_user_reg;
     volatile std::uint32_t* _spi_mosi_dlen_reg;
     volatile std::uint32_t* _spi_dma_out_link_reg;
+    std::uint32_t _user;
     std::uint8_t _spi_port;
     static lldesc_t* _dmadesc;
     static std::uint32_t _dmadesc_len;

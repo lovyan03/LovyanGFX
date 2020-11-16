@@ -31,6 +31,30 @@ namespace lgfx
 
   protected:
 
+    bool makeWindowCommands1(std::uint8_t* buf, std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye) override
+    {
+      if (_xs == xs && _xe == xe) return false;
+      _xs = xs;
+      _xe = xe;
+      buf[2] = xs + _colstart;
+      buf[3] = xe + _colstart;
+      reinterpret_cast<std::uint16_t*>(buf)[0] = CommandCommon::CASET | (4 << 8);
+      reinterpret_cast<std::uint16_t*>(buf)[2] = 0xFFFF;
+      return true;
+    }
+
+    bool makeWindowCommands2(std::uint8_t* buf, std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye) override
+    {
+      if (_ys == ys && _ye == ye) return false;
+      _ys = ys;
+      _ye = ye;
+      buf[2] = ys + _rowstart;
+      buf[3] = ye + _rowstart;
+      reinterpret_cast<std::uint16_t*>(buf)[0] = CommandCommon::RASET | (4 << 8);
+      reinterpret_cast<std::uint16_t*>(buf)[2] = 0xFFFF;
+      return true;
+    }
+
     const std::uint8_t* getInvertDisplayCommands(std::uint8_t* buf, bool invert) override
     {
       this->invert = invert;
@@ -47,7 +71,7 @@ namespace lgfx
       buf[1] = 1;
       buf[2] = getMadCtl(rotation, write_depth);
       buf[3] = buf[4] = 0xFF;
-      return buf;
+      return PanelCommon::getRotationCommands(buf, rotation);
     }
 
     const std::uint8_t* getColorDepthCommands(std::uint8_t* buf, color_depth_t depth) override

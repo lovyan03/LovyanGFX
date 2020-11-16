@@ -24,6 +24,34 @@ namespace lgfx
 
   protected:
 
+    bool makeWindowCommands1(std::uint8_t* buf, std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye) override
+    {
+      if (_xs == xs && _xe == xe) return false;
+      _xs = xs;
+      _xe = xe;
+      xs += _colstart;
+      xe += _colstart;
+      reinterpret_cast<std::uint16_t*>(buf)[0] = CommandCommon::CASET | (4 << 8);
+      reinterpret_cast<std::uint16_t*>(buf)[1] = xs >> 8 | xs << 8;
+      reinterpret_cast<std::uint16_t*>(buf)[2] = xe >> 8 | xe << 8;
+      reinterpret_cast<std::uint16_t*>(buf)[3] = 0xFFFF;
+      return true;
+    }
+
+    bool makeWindowCommands2(std::uint8_t* buf, std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye) override
+    {
+      if (_ys == ys && _ye == ye) return false;
+      _ys = ys;
+      _ye = ye;
+      ys += _rowstart;
+      ye += _rowstart;
+      reinterpret_cast<std::uint16_t*>(buf)[0] = CommandCommon::RASET | (4 << 8);
+      reinterpret_cast<std::uint16_t*>(buf)[1] = ys >> 8 | ys << 8;
+      reinterpret_cast<std::uint16_t*>(buf)[2] = ye >> 8 | ye << 8;
+      reinterpret_cast<std::uint16_t*>(buf)[3] = 0xFFFF;
+      return true;
+    }
+
     const std::uint8_t* getInvertDisplayCommands(std::uint8_t* buf, bool invert) override
     {
       this->invert = invert;
@@ -40,7 +68,7 @@ namespace lgfx
       buf[1] = 1;
       buf[2] = getMadCtl(rotation) | (rgb_order ? MAD_RGB : MAD_BGR);
       buf[3] = buf[4] = 0xFF;
-      return buf;
+      return PanelCommon::getRotationCommands(buf, rotation);
     }
 
     virtual std::uint8_t getMadCtl(std::uint8_t r) const {

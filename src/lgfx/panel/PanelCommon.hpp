@@ -3,9 +3,13 @@
 
 #include <cstdint>
 #include <type_traits>
+#include "../lgfx_common.hpp"
 
 namespace lgfx
 {
+  class LGFX_Device;
+  class LGFX_Sprite;
+
   static constexpr std::uint8_t CMD_INIT_DELAY = 0x80;
 
   struct PanelCommon
@@ -18,6 +22,7 @@ namespace lgfx
     std::int_fast16_t spi_dc    = -1;      // SPI dc pin number
     std::int_fast16_t gpio_rst  = -1;      // hardware reset pin number
     std::int_fast16_t gpio_bl   = -1;      // backlight pin number
+    std::int_fast16_t gpio_busy = -1;      // busy check pin number
     std::int_fast8_t spi_mode  = 0;        // SPI mode (0~3)
     std::int_fast8_t spi_mode_read = 0;    // SPI mode (0~3) when read pixel
     std::int_fast8_t rotation  = 0;        // default rotation (0~3)
@@ -49,7 +54,8 @@ namespace lgfx
     std::uint8_t len_dummy_read_pixel = 8;
     std::uint8_t len_dummy_read_rddid = 1;
 
-    virtual void init(void) {
+    virtual void init(void)
+    {
       if (gpio_rst >= 0) { // RST on
         lgfxPinMode(gpio_rst, pin_mode_t::output);
         gpio_lo(gpio_rst);
@@ -124,6 +130,8 @@ namespace lgfx
       }
     }
 
+    virtual void push(LGFX_Device* gfx, LGFX_Sprite* sprite, std::int_fast16_t x, std::int_fast16_t y) {}
+
     virtual const std::uint8_t* getColorDepthCommands(std::uint8_t* buf, color_depth_t depth) {
       write_depth = getAdjustBpp(depth);
       return buf;
@@ -131,9 +139,19 @@ namespace lgfx
 
     virtual const std::uint8_t* getInitCommands(std::uint8_t listno = 0) const { ((void)listno); return nullptr; }
 
+    virtual bool makeWindowCommands1(std::uint8_t* buf, std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye) = 0;// { return false; };
+
+    virtual bool makeWindowCommands2(std::uint8_t* buf, std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye) = 0;// { return false;};
+
     virtual const std::uint8_t* getInvertDisplayCommands(std::uint8_t* buf, bool invert) = 0;
 
-    virtual const std::uint8_t* getRotationCommands(std::uint8_t* buf, std::int_fast8_t r) = 0;
+    virtual const std::uint8_t* getRotationCommands(std::uint8_t* buf, std::int_fast8_t r)
+    {
+      _xs = _xe = _ys = _ye = ~0;
+      _colstart = getColStart();
+      _rowstart = getRowStart();
+      return buf;
+    }
 
     std::uint8_t getCmdCaset(void) const { return cmd_caset; }
     std::uint8_t getCmdRaset(void) const { return cmd_raset; }
@@ -156,6 +174,12 @@ namespace lgfx
     std::uint8_t cmd_rddid = 0;
     std::uint8_t cmd_slpin = 0;
     std::uint8_t cmd_slpout= 0;
+    std::uint_fast16_t _colstart = 0;
+    std::uint_fast16_t _rowstart = 0;
+    std::uint_fast16_t _xs = ~0;
+    std::uint_fast16_t _xe = ~0;
+    std::uint_fast16_t _ys = ~0;
+    std::uint_fast16_t _ye = ~0;
   };
 
 //----------------------------------------------------------------------------

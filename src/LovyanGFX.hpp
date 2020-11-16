@@ -42,6 +42,9 @@ Contributors:
 
 #include "lgfx/LGFX_Sprite.hpp"         // sprite class (optional)
 
+#include "lgfx/panel/PanelCommon.hpp"
+#include "lgfx/touch/TouchCommon.hpp"
+
 #include "lgfx/panel/Panel_HX8357.hpp"
 #include "lgfx/panel/Panel_ILI9163.hpp"
 #include "lgfx/panel/Panel_ILI9341.hpp"   // and ILI9342 / M5Stack / ODROID-GO / ESP-WROVER-KIT4.1 / WioTerminal
@@ -51,6 +54,7 @@ Contributors:
 #include "lgfx/panel/Panel_ST7735.hpp"    // M5StickC / LilyGO TTGO T-Wristband
 #include "lgfx/panel/Panel_ST7789.hpp"    // M5StickCPlus / LilyGO TTGO T-Watch / ESP-WROVER-KIT4.1
 #include "lgfx/panel/Panel_ST7796.hpp"
+#include "lgfx/panel/Panel_M5CoreInk.hpp"
 
 #include "lgfx/touch/Touch_XPT2046.hpp"
 #include "lgfx/touch/Touch_STMPE610.hpp"

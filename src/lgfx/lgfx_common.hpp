@@ -50,6 +50,7 @@ namespace lgfx
     , board_WiFiBoy_Mini
     , board_Makerfabs_TouchCamera
     , board_Makerfabs_MakePython
+    , board_M5CoreInk
     };
   }
   using namespace boards;

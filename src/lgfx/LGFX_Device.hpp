@@ -65,6 +65,11 @@ namespace lgfx
     __attribute__ ((always_inline)) inline void setTouch(TouchCommon* touch_) { _touch = touch_; postSetTouch(); }
     __attribute__ ((always_inline)) inline void touch(TouchCommon* touch_) { _touch = touch_; postSetTouch(); }
 
+    void push(LGFX_Sprite* sprite, std::int32_t x = 0, std::int32_t y = 0)
+    {
+      _panel->push(this, sprite, x, y);
+    }
+
     void sleep()  { writeCommand(_panel->getCmdSlpin()); _panel->sleep(); }
 
     void wakeup() { writeCommand(_panel->getCmdSlpout()); _panel->wakeup(); }
@@ -208,31 +213,35 @@ namespace lgfx
     bool commandList(const std::uint8_t *addr)
     {
       if (addr == nullptr) return false;
-      std::uint8_t  cmd;
-      std::uint8_t  numArgs;
-      std::uint8_t  ms;
 
       startWrite();
       preCommandList();
-      for (;;) {                // For each command...
-        cmd     = *addr++;  // Read, issue command
-        numArgs = *addr++;  // Number of args to follow
-        if (0xFF == (cmd & numArgs)) break;
-        writeCommand(cmd);
-        ms = numArgs & CMD_INIT_DELAY;       // If hibit set, delay follows args
-        numArgs &= ~CMD_INIT_DELAY;          // Mask out delay bit
+      command_list(addr);
+      postCommandList();
+      endWrite();
+      return true;
+    }
 
-        while (numArgs--) {                   // For each argument...
-          writeData(*addr++);  // Read, issue argument
+    void command_list(const std::uint8_t *addr)
+    {
+      for (;;)
+      {                // For each command...
+        if (*reinterpret_cast<const std::uint16_t*>(addr) == 0xFFFF) break;
+        writeCommand(*addr++);  // Read, issue command
+        std::uint_fast8_t numArgs = *addr++;  // Number of args to follow
+        std::uint_fast8_t ms = numArgs & CMD_INIT_DELAY;       // If hibit set, delay follows args
+        numArgs &= ~CMD_INIT_DELAY;          // Mask out delay bit
+        if (numArgs)
+        {
+          do {                   // For each argument...
+            writeData(*addr++);  // Read, issue argument
+          } while (--numArgs);
         }
         if (ms) {
           ms = *addr++;        // Read post-command delay time (ms)
           delay( (ms==255 ? 500 : ms) );
         }
       }
-      postCommandList();
-      endWrite();
-      return true;
     }
 
     board_t getBoard(void) const { return board; }

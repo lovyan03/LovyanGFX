@@ -601,6 +601,49 @@ public:
     }
 #endif
 
+// M5CoreInk 判定
+#if defined ( LGFX_AUTODETECT ) || defined ( LGFX_M5COREINK )
+    if (nvs_board == 0 || nvs_board == lgfx::board_t::board_M5CoreInk) {
+      releaseBus();
+      _spi_mosi = 23;
+      _spi_miso = -1;
+      _spi_sclk = 18;
+      initBus();
+
+      p_tmp.spi_cs   = 9;
+      p_tmp.spi_dc   = 15;
+      p_tmp.gpio_rst = 0;
+      setPanel(&p_tmp);
+      _reset(use_reset);
+
+      auto id = readCommand32(0x70);
+
+      ESP_LOGW("LovyanGFX", "[Autodetect] panel id:%08x", id);
+      if (id == 0x0001e000) {  //  check panel (e-paper GDEW0154M09)
+        ESP_LOGW("LovyanGFX", "[Autodetect] M5CoreInk");
+        board = lgfx::board_t::board_M5CoreInk;
+        auto p = new lgfx::Panel_M5CoreInk();
+        p->freq_write = 40000000;
+        p->freq_read  = 16000000;
+        p->freq_fill  = 40000000;
+        p->spi_3wire = true;
+        p->panel_width = 200;
+        p->panel_height = 200;
+        p->spi_cs    = 9;
+        p->spi_dc    = 15;
+        p->gpio_bl   = -1;
+        p->gpio_rst  = 0;
+        p->gpio_busy = 4;
+        setPanel(p);
+
+        goto init_clear;
+      }
+      lgfx::gpio_lo(p_tmp.spi_cs);
+      lgfx::gpio_lo(p_tmp.spi_dc);
+      lgfx::gpio_lo(p_tmp.gpio_rst);
+    }
+#endif
+
 // TTGO TS判定
 #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_TTGO_TS )
     if (nvs_board == 0 || nvs_board == lgfx::board_t::board_TTGO_TS) {
