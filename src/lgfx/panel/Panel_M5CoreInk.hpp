@@ -151,19 +151,65 @@ namespace lgfx
       }
     }
 
-    void push(LGFX_Device* gfx, LGFX_Sprite* sprite, std::int_fast16_t x, std::int_fast16_t y) override
+    bool hasPush(void) const override { return true; }
+
+    void push(LGFX_Device* gfx, LGFX_Sprite* sprite, std::int_fast16_t x = 0, std::int_fast16_t y = 0) override
     {
-      auto buf = static_cast<const uint8_t*>(sprite->getBuffer());
-      gfx->startWrite();
-      sprite->pushSprite(gfx, x, y);
-      gfx->writeCommand(0x12);
-      delay(10);
-      while (!lgfx::gpio_in(gpio_busy)) delay(1);
-      gfx->writeCommand(0x10);
-      std::size_t len = sprite->width() * sprite->height() >> 3;
-      for (std::size_t i = 0; i < len; ++i) { gfx->writeData(buf[i]); }
-      //gfx->writePixelsDMA(buf, len);
-      gfx->endWrite();
+      /*
+      if (sprite->getColorDepth() == color_depth_t::palette_1bit)
+      {
+        auto buf = static_cast<const uint8_t*>(sprite->getBuffer());
+        gfx->startWrite();
+        sprite->pushSprite(gfx, x, y);
+        gfx->writeCommand(0x12);
+        delay(10);
+        while (!lgfx::gpio_in(gpio_busy)) delay(1);
+        gfx->writeCommand(0x10);
+        std::size_t len = sprite->width() * sprite->height() >> 3;
+        for (std::size_t i = 0; i < len; ++i) { gfx->writeData(buf[i]); }
+        gfx->endWrite();
+      }
+      else
+      //*/
+      {
+        static int count = 0;
+        count = (count + 1) & 3;
+        static constexpr int8_t Bayer[16] = { -8, 120, 24, -104, -72, 56, -40, 88, 40, -88, 8, -120, -24, 104, -56, 72 };
+
+        std::size_t bitwidth = (sprite->width()+7)&~7;
+        std::size_t len = (bitwidth >> 3) * sprite->height();
+        std::uint8_t buf[len];
+        RGBColor readbuf[bitwidth];
+        for (int i = 0; i < sprite->height(); ++i)
+        {
+          auto btbl = &Bayer[((y+i+count)&3)<<2];
+          auto d = &buf[i * (bitwidth >> 3)];
+          sprite->readRectRGB(0, i, sprite->width(), 1, readbuf);
+          for (int j = 0; j < sprite->width(); j+=8)
+          {
+            std::size_t bytebuf = 0;
+            for (int k = 0; k < 8; ++k)
+            {
+              auto color = readbuf[j + k];
+              if (128 <= (int)((color.r + (color.g<<1) + color.b)>>2) + btbl[k & 3])
+              {
+                bytebuf |= 0x80 >> k;
+              }
+            }
+            *d++ = bytebuf;
+          }
+        }
+        gfx->startWrite();
+        gfx->setAddrWindow(x, y, bitwidth, sprite->height());
+        gfx->writeCommand(0x13);
+        for (std::size_t i = 0; i < len; ++i) { gfx->writeData(buf[i]); }
+        gfx->writeCommand(0x12);
+        delay(100);
+        while (!lgfx::gpio_in(gpio_busy)) delay(1);
+        gfx->writeCommand(0x10);
+        for (std::size_t i = 0; i < len; ++i) { gfx->writeData(buf[i]); }
+        gfx->endWrite();
+      }
     }
   };
 }

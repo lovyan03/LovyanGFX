@@ -130,6 +130,8 @@ namespace lgfx
       }
     }
 
+    virtual bool hasPush(void) const { return false; }
+
     virtual void push(LGFX_Device* gfx, LGFX_Sprite* sprite, std::int_fast16_t x, std::int_fast16_t y) {}
 
     virtual const std::uint8_t* getColorDepthCommands(std::uint8_t* buf, color_depth_t depth) {

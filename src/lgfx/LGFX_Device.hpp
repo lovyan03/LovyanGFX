@@ -67,7 +67,8 @@ namespace lgfx
 
     void push(LGFX_Sprite* sprite, std::int32_t x = 0, std::int32_t y = 0)
     {
-      _panel->push(this, sprite, x, y);
+      if (_panel->hasPush()) _panel->push(this, sprite, x, y);
+      else                   sprite->pushSprite(this, x, y);
     }
 
     void sleep()  { writeCommand(_panel->getCmdSlpin()); _panel->sleep(); }
