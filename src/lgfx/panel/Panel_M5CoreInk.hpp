@@ -156,7 +156,7 @@ namespace lgfx
 
     void push(LGFX_Device* gfx, LGFX_Sprite* sprite, std::int_fast16_t x = 0, std::int_fast16_t y = 0) override
     {
-      static constexpr std::int8_t Bayer[16] = { -8, 120, 24, -104, -72, 56, -40, 88, 40, -88, 8, -120, -24, 104, -56, 72 };
+      static constexpr std::uint8_t Bayer[16] = { 8, 136, 40, 168, 200, 72, 232, 104, 56, 184, 24, 152, 248, 120, 216, 88 };
 
       std::int_fast16_t xoffset = x & 7;
       std::size_t bitwidth = (xoffset + sprite->width() + 7) & ~7;
@@ -181,7 +181,7 @@ namespace lgfx
           for (int k = 0; k < 8; ++k)
           {
             auto color = readbuf[j + k];
-            if (128 <= (int)((color.r + (color.g << 1) + color.b) >> 2) + btbl[k & 3])
+            if (256 <= (int)((color.r + (color.g << 1) + color.b) >> 2) + btbl[k & 3])
             {
               bytebuf |= 0x80 >> k;
             }
