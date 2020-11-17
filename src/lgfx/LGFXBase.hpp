@@ -770,10 +770,11 @@ namespace lgfx
     template<typename T>
     pixelcopy_t create_pc_fast(const void *data, const T *palette, lgfx::color_depth_t depth)
     {
-      pixelcopy_t pc(data, _write_conv.depth, get_depth<T>::value, hasPalette());
-      if (hasPalette() || _write_conv.depth < rgb332_1Byte)
+      auto dst_depth = _write_conv.depth;
+      pixelcopy_t pc(data, dst_depth, get_depth<T>::value, hasPalette());
+      if (hasPalette() || dst_depth < rgb332_1Byte)
       {
-        if (palette && (_write_conv.depth == rgb332_1Byte) && (depth == rgb332_1Byte))
+        if (palette && (dst_depth == rgb332_1Byte) && (depth == rgb332_1Byte))
         {
           pc.fp_copy = pixelcopy_t::copy_rgb_fast<rgb332_t, rgb332_t>;
         }
@@ -785,7 +786,17 @@ namespace lgfx
       else
       if (palette)
       {
-        pc.fp_copy = pixelcopy_t::copy_palette_fast<T>;
+        if (dst_depth > rgb565_2Byte)
+        {
+          if (     dst_depth == rgb888_3Byte) { pc.fp_copy = pixelcopy_t::copy_palette_fast<bgr888_t, T>; }
+          else if (dst_depth == rgb666_3Byte) { pc.fp_copy = pixelcopy_t::copy_palette_fast<bgr666_t, T>; }
+          else                                { pc.fp_copy = pixelcopy_t::copy_palette_fast<argb8888_t, T>; }
+        }
+        else
+        {
+          if (dst_depth == rgb565_2Byte) { pc.fp_copy = pixelcopy_t::copy_palette_fast<swap565_t, T>; }
+          else                           { pc.fp_copy = pixelcopy_t::copy_palette_fast<rgb332_t, T>; }
+        }
       }
       return pc;
     }
