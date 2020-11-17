@@ -23,6 +23,9 @@ Contributors:
 #define LGFX_DEVICE_HPP_
 
 #include "LGFXBase.hpp"
+#include "LGFX_Sprite.hpp"
+#include "touch/TouchCommon.hpp"
+#include "panel/PanelCommon.hpp"
 
 namespace lgfx
 {
@@ -65,6 +68,8 @@ namespace lgfx
     __attribute__ ((always_inline)) inline void setTouch(TouchCommon* touch_) { _touch = touch_; postSetTouch(); }
     __attribute__ ((always_inline)) inline void touch(TouchCommon* touch_) { _touch = touch_; postSetTouch(); }
 
+    void writeBytes(const std::uint8_t* data, std::int32_t length) { writeBytes_impl(data, length); }
+
     void push(LGFX_Sprite* sprite, std::int32_t x = 0, std::int32_t y = 0)
     {
       if (_panel->hasPush()) _panel->push(this, sprite, x, y);
@@ -103,6 +108,8 @@ namespace lgfx
     }
 
     virtual void initBus(void) = 0;
+
+    virtual void writeBytes_impl(const std::uint8_t* data, std::int32_t length) { }
     
     void initPanel(void)
     {

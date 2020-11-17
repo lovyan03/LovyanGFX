@@ -3,6 +3,7 @@
 
 #include "PanelCommon.hpp"
 #include "../LGFX_Device.hpp"
+#include "../LGFX_Sprite.hpp"
 
 namespace lgfx
 {
@@ -13,9 +14,9 @@ namespace lgfx
       panel_width  = memory_width  = 200;
       panel_height = memory_height = 200;
 
-      freq_write = 40000000;
+      freq_write = 27000000;
       freq_read  = 16000000;
-      freq_fill  = 40000000;
+      freq_fill  = 27000000;
 
       write_depth = palette_1bit;
       read_depth = palette_1bit;
@@ -155,62 +156,91 @@ namespace lgfx
 
     void push(LGFX_Device* gfx, LGFX_Sprite* sprite, std::int_fast16_t x = 0, std::int_fast16_t y = 0) override
     {
-      /*
-      if (sprite->getColorDepth() == color_depth_t::palette_1bit)
-      {
-        auto buf = static_cast<const uint8_t*>(sprite->getBuffer());
-        gfx->startWrite();
-        sprite->pushSprite(gfx, x, y);
-        gfx->writeCommand(0x12);
-        delay(10);
-        while (!lgfx::gpio_in(gpio_busy)) delay(1);
-        gfx->writeCommand(0x10);
-        std::size_t len = sprite->width() * sprite->height() >> 3;
-        for (std::size_t i = 0; i < len; ++i) { gfx->writeData(buf[i]); }
-        gfx->endWrite();
-      }
-      else
-      //*/
-      {
-        static int count = 0;
-        count = (count + 1) & 3;
-        static constexpr int8_t Bayer[16] = { -8, 120, 24, -104, -72, 56, -40, 88, 40, -88, 8, -120, -24, 104, -56, 72 };
+      static constexpr std::int8_t Bayer[16] = { -8, 120, 24, -104, -72, 56, -40, 88, 40, -88, 8, -120, -24, 104, -56, 72 };
 
-        std::size_t bitwidth = (sprite->width()+7)&~7;
-        std::size_t len = (bitwidth >> 3) * sprite->height();
-        std::uint8_t buf[len];
-        RGBColor readbuf[bitwidth];
-        for (int i = 0; i < sprite->height(); ++i)
+      std::int_fast16_t xoffset = x & 7;
+      std::size_t bitwidth = (xoffset + sprite->width() + 7) & ~7;
+      x &= ~7;
+      std::uint8_t buf[(bitwidth >> 3) * sprite->height()];
+      RGBColor readbuf_raw[bitwidth];
+      RGBColor* readbuf = &readbuf_raw[xoffset];
+      auto bc = gfx->getBaseColor();
+      for (int i = 0; i < 8; ++i) 
+      {
+        readbuf_raw[i] = bc;
+        readbuf_raw[bitwidth - 8 + i] = bc;
+      }
+      for (int i = 0; i < sprite->height(); ++i)
+      {
+        auto btbl = &Bayer[((y + i) & 3) << 2];
+        auto d = &buf[i * (bitwidth >> 3)];
+        sprite->readRectRGB(0, i, sprite->width(), 1, readbuf);
+        for (int j = -xoffset; j < sprite->width(); j += 8)
         {
-          auto btbl = &Bayer[((y+i+count)&3)<<2];
-          auto d = &buf[i * (bitwidth >> 3)];
-          sprite->readRectRGB(0, i, sprite->width(), 1, readbuf);
-          for (int j = 0; j < sprite->width(); j+=8)
+          std::size_t bytebuf = 0;
+          for (int k = 0; k < 8; ++k)
           {
-            std::size_t bytebuf = 0;
-            for (int k = 0; k < 8; ++k)
+            auto color = readbuf[j + k];
+            if (128 <= (int)((color.r + (color.g << 1) + color.b) >> 2) + btbl[k & 3])
             {
-              auto color = readbuf[j + k];
-              if (128 <= (int)((color.r + (color.g<<1) + color.b)>>2) + btbl[k & 3])
-              {
-                bytebuf |= 0x80 >> k;
-              }
+              bytebuf |= 0x80 >> k;
             }
-            *d++ = bytebuf;
           }
+          *d++ = bytebuf;
         }
+      }
+
+      std::int32_t clip_l, clip_t, clip_w, clip_h;
+      gfx->getClipRect(&clip_l, &clip_t, &clip_w, &clip_h);
+      if (clip_l & 7) {
+        clip_w += clip_l & 7;
+        clip_l &= ~7;
+      }
+      if (clip_w & 7) {
+        clip_w = (clip_w + 7) & ~7;
+      }
+
+      std::int32_t dx=0, dw=bitwidth;
+      if (0 < clip_l - x) { dx = clip_l - x; dw -= dx; x = clip_l; }
+
+      if (_adjust_width(x, dx, dw, clip_l, clip_w)) return;
+
+      std::int32_t dy=0, dh=sprite->height();
+      if (0 < clip_t - y) { dy = clip_t - y; dh -= dy; y = clip_t; }
+      if (_adjust_width(y, dy, dh, clip_t, clip_h)) return;
+
+      {
         gfx->startWrite();
-        gfx->setAddrWindow(x, y, bitwidth, sprite->height());
+        gfx->setAddrWindow(x, y, dw, dh);
         gfx->writeCommand(0x13);
-        for (std::size_t i = 0; i < len; ++i) { gfx->writeData(buf[i]); }
+        int i = 0, add = bitwidth >> 3, len = dw >> 3;
+        auto buffer = &buf[(dx + dy * bitwidth) >> 3];
+        do {
+          gfx->writeBytes(&buffer[i * add], len);
+        } while (++i != dh);
+
         gfx->writeCommand(0x12);
-        delay(100);
+
+        delay(250);
         while (!lgfx::gpio_in(gpio_busy)) delay(1);
         gfx->writeCommand(0x10);
-        for (std::size_t i = 0; i < len; ++i) { gfx->writeData(buf[i]); }
+        i = 0;
+        do {
+          gfx->writeBytes(&buffer[i * add], len);
+        } while (++i != dh);
         gfx->endWrite();
       }
     }
+
+private:
+
+    static bool _adjust_width(std::int32_t& x, std::int32_t& dx, std::int32_t& dw, std::int32_t left, std::int32_t width)
+    {
+      if (x < left) { dx = -x; dw += x; x = left; }
+      if (dw > left + width - x) dw = left + width  - x;
+      return (dw <= 0);
+    }
+
   };
 }
 

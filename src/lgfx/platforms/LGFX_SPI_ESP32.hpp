@@ -262,8 +262,14 @@ namespace lgfx
       return *_spi_cmd_reg & SPI_USR;
     }
 
-    void writePixelsDMA_impl(const void* data, std::int32_t length) override {
+    void writePixelsDMA_impl(const void* data, std::int32_t length) override
+    {
       write_bytes((const std::uint8_t*)data, length * _write_conv.bytes, true);
+    }
+
+    void writeBytes_impl(const std::uint8_t* data, std::int32_t length) override
+    {
+      write_bytes((const std::uint8_t*)data, length, true);
     }
 
     void setWindow_impl(std::int32_t xs, std::int32_t ys, std::int32_t xe, std::int32_t ye) override
