@@ -771,7 +771,7 @@ namespace lgfx
     pixelcopy_t create_pc_fast(const void *data, const T *palette, lgfx::color_depth_t depth)
     {
       auto dst_depth = _write_conv.depth;
-      pixelcopy_t pc(data, dst_depth, get_depth<T>::value, hasPalette());
+      pixelcopy_t pc(data, dst_depth, depth, hasPalette());
       if (hasPalette() || dst_depth < rgb332_1Byte)
       {
         if (palette && (dst_depth == rgb332_1Byte) && (depth == rgb332_1Byte))
