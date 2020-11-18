@@ -271,12 +271,13 @@ private:
       auto sy = param->src_y32;
       for (int i = 0; i < h; ++i)
       {
-        param->src_x32 = sx;
         auto btbl = &Bayer[((y + i) & 3) << 2];
         std::int32_t pos = 0;
         while (w != (pos = param->fp_copy(readbuf, pos, w, param))) {
           if ( w == (pos = param->fp_skip(         pos, w, param))) break;
         }
+        param->src_x32 = sx;
+        param->src_y++;
         auto d = buf[i & 1];
         for (int j = -xoffset; j < w; j += 8)
         {
@@ -291,7 +292,6 @@ private:
           }
           *d++ = bytebuf;
         }
-        param->src_y++;
         gfx->writeBytes(buf[i & 1], bitwidth >> 3, true);
       }
       param->src_y32 = sy;
