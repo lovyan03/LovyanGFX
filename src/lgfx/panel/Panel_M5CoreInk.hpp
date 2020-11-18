@@ -18,15 +18,18 @@ namespace lgfx
       freq_read  = 16000000;
       freq_fill  = 27000000;
 
-      write_depth = palette_1bit;
-      read_depth = palette_1bit;
+      //write_depth = palette_1bit;
+      //read_depth = palette_1bit;
+      write_depth = rgb888_3Byte;
+      read_depth = rgb888_3Byte;
       len_dummy_read_pixel = 8;
       len_dummy_read_rddid = 0;
       len_setwindow = 16;
 
       //cmd_caset  = 1;
       //cmd_raset  = 2;
-      cmd_ramwr  = 0x13;
+      //cmd_ramwr  = 0x13;
+      cmd_ramwr  = 0x11; // dummy setting (data stop)
       //cmd_ramrd  = 4;
       cmd_rddid  = 0x70;
       cmd_slpin  = 0x02;
@@ -232,7 +235,69 @@ namespace lgfx
       }
     }
 
+    void push(LGFX_Device* gfx, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, pixelcopy_t* param, bool use_dma) override
+    {
+      (void)use_dma;
+      gfx->startWrite();
+      gfx->setAddrWindow(x, y, w, h);
+      gfx->writeCommand(0x13);
+      _push_internal(gfx, x, y, w, h, param);
+      gfx->writeCommand(0x12);
+      delay(250);
+      while (!lgfx::gpio_in(gpio_busy)) delay(1);
+      gfx->writeCommand(0x10);
+      _push_internal(gfx, x, y, w, h, param);
+      gfx->endWrite();
+    }
+
 private:
+
+    void _push_internal(LGFX_Device* gfx, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, pixelcopy_t* param)
+    {
+      static constexpr std::uint8_t Bayer[16] = { 8, 136, 40, 168, 200, 72, 232, 104, 56, 184, 24, 152, 248, 120, 216, 88 };
+
+      std::int_fast16_t xoffset = x & 7;
+      std::size_t bitwidth = (xoffset + w + 7) & ~7;
+      x &= ~7;
+      std::uint8_t buf[2][(bitwidth >> 3)];
+      RGBColor readbuf_raw[bitwidth];
+      RGBColor* readbuf = &readbuf_raw[xoffset];
+      auto bc = gfx->getBaseColor();
+      for (int i = 0; i < 8; ++i) 
+      {
+        readbuf_raw[i] = bc;
+        readbuf_raw[bitwidth - 8 + i] = bc;
+      }
+      auto sx = param->src_x32;
+      auto sy = param->src_y32;
+      for (int i = 0; i < h; ++i)
+      {
+        param->src_x32 = sx;
+        auto btbl = &Bayer[((y + i) & 3) << 2];
+        std::int32_t pos = 0;
+        while (w != (pos = param->fp_copy(readbuf, pos, w, param))) {
+          if ( w == (pos = param->fp_skip(         pos, w, param))) break;
+        }
+        auto d = buf[i & 1];
+        for (int j = -xoffset; j < w; j += 8)
+        {
+          std::size_t bytebuf = 0;
+          for (int k = 0; k < 8; ++k)
+          {
+            auto color = readbuf[j + k];
+            if (256 <= (int)((color.r + (color.g << 1) + color.b) >> 2) + btbl[k & 3])
+            {
+              bytebuf |= 0x80 >> k;
+            }
+          }
+          *d++ = bytebuf;
+        }
+        param->src_y++;
+        gfx->writeBytes(buf[i & 1], bitwidth >> 3, true);
+      }
+      param->src_y32 = sy;
+      gfx->waitDMA();
+    }
 
     static bool _adjust_width(std::int32_t& x, std::int32_t& dx, std::int32_t& dw, std::int32_t left, std::int32_t width)
     {

@@ -27,6 +27,8 @@ namespace lgfx
     bool makeWindowCommands1(std::uint8_t* buf, std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye) override
     {
       if (_xs == xs && _xe == xe) return false;
+      (void)ys;
+      (void)ye;
       _xs = xs;
       _xe = xe;
       xs += _colstart;
@@ -41,6 +43,8 @@ namespace lgfx
     bool makeWindowCommands2(std::uint8_t* buf, std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye) override
     {
       if (_ys == ys && _ye == ye) return false;
+      (void)xs;
+      (void)xe;
       _ys = ys;
       _ye = ye;
       ys += _rowstart;

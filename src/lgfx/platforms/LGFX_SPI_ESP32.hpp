@@ -267,9 +267,9 @@ namespace lgfx
       write_bytes((const std::uint8_t*)data, length * _write_conv.bytes, true);
     }
 
-    void writeBytes_impl(const std::uint8_t* data, std::int32_t length) override
+    void writeBytes_impl(const std::uint8_t* data, std::int32_t length, bool use_dma) override
     {
-      write_bytes((const std::uint8_t*)data, length, true);
+      write_bytes((const std::uint8_t*)data, length, use_dma);
     }
 
     void setWindow_impl(std::int32_t xs, std::int32_t ys, std::int32_t xe, std::int32_t ye) override
@@ -430,13 +430,34 @@ namespace lgfx
     }
 
     __attribute__ ((always_inline)) inline 
-    void write_cmd_data(const std::uint8_t *addr)
+    void write_cmd_data(const std::uint8_t* addr)
     {
-//      do {
-        write_cmd(*addr++);
+      auto spi_mosi_dlen_reg = _spi_mosi_dlen_reg;
+      auto spi_w0_reg        = _spi_w0_reg;
+      if (_spi_dlen == 16 && _align_data)
+      {
+        _align_data = false;
+        dc_h();
+        *spi_mosi_dlen_reg = 8 - 1;
+        *spi_w0_reg = 0;
+        exec_spi();
+      }
+
+      do {
+        std::uint32_t data = *addr++;
+        if (_spi_dlen == 16) {
+          data <<= 8;
+        }
+        std::uint32_t len = _spi_dlen - 1;
+        dc_l();
+        *spi_mosi_dlen_reg = len;
+        *spi_w0_reg = data;
+        exec_spi();
+//        write_cmd(*addr++);
         std::uint_fast8_t numArgs = *addr++;
         if (numArgs)
         {
+          data = *reinterpret_cast<const std::uint32_t*>(addr);
           if (_spi_dlen == 16)
           {
             if (numArgs > 2)
@@ -448,7 +469,8 @@ namespace lgfx
                 _spi_w0_reg[i] = addr[i * 2] << 8 | addr[i * 2 + 1] << 24;
               } while (++i != len);
             }
-            write_data(addr[0] << 8 | addr[1] << 24, _spi_dlen * numArgs);
+            data = (data & 0xFF) << 8 | (data >> 8) << 24;
+            //write_data(addr[0] << 8 | addr[1] << 24, _spi_dlen * numArgs);
           }
           else
           {
@@ -456,15 +478,21 @@ namespace lgfx
             {
               memcpy((void*)&_spi_w0_reg[1], addr + 4, numArgs - 4);
             }
-            write_data(*reinterpret_cast<const std::uint32_t*>(addr), _spi_dlen * numArgs);
+            //write_data(*reinterpret_cast<const std::uint32_t*>(addr), _spi_dlen * numArgs);
           }
           addr += numArgs;
+          len = _spi_dlen * numArgs - 1;
+          dc_h();
+          *spi_mosi_dlen_reg = len;
+          *spi_w0_reg = data;
+          exec_spi();
         }
-//      } while (reinterpret_cast<const std::uint16_t*>(addr)[0] != 0xFFFF);
+      } while (reinterpret_cast<const std::uint16_t*>(addr)[0] != 0xFFFF);
     }
 
     void set_window(std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye)
     {
+//*
       std::uint8_t buf[16];
       if (_panel->makeWindowCommands1(buf, xs, ys, xe, ye)) { write_cmd_data(buf); }
       if (_panel->makeWindowCommands2(buf, xs, ys, xe, ye)) { write_cmd_data(buf); }
@@ -587,6 +615,18 @@ namespace lgfx
     }
 
     void pushImage_impl(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, pixelcopy_t* param, bool use_dma) override
+    {
+      if (!_panel->hasPush())
+      {
+        push_image(x, y, w, h, param, use_dma);
+      }
+      else
+      {
+        _panel->push(this, x, y, w, h, param, use_dma);
+      }
+    }
+
+    void push_image(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, pixelcopy_t* param, bool use_dma)
     {
       auto bits = _write_conv.bits;
       auto src_x = param->src_x;

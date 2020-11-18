@@ -133,6 +133,7 @@ namespace lgfx
     virtual bool hasPush(void) const { return false; }
 
     virtual void push(LGFX_Device* gfx, LGFX_Sprite* sprite, std::int_fast16_t x, std::int_fast16_t y) {}
+    virtual void push(LGFX_Device* gfx, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, pixelcopy_t* param, bool use_dma) {}
 
     virtual const std::uint8_t* getColorDepthCommands(std::uint8_t* buf, color_depth_t depth) {
       write_depth = getAdjustBpp(depth);
@@ -149,6 +150,7 @@ namespace lgfx
 
     virtual const std::uint8_t* getRotationCommands(std::uint8_t* buf, std::int_fast8_t r)
     {
+      (void)r;
       _xs = _xe = _ys = _ye = ~0;
       _colstart = getColStart();
       _rowstart = getRowStart();

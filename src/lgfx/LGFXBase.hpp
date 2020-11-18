@@ -768,13 +768,24 @@ namespace lgfx
     }
 
     template<typename T>
-    pixelcopy_t create_pc_fast(const void *data, const T *palette, lgfx::color_depth_t depth)
+    pixelcopy_t create_pc_fast(const void *data, const T *palette, lgfx::color_depth_t src_depth)
     {
       auto dst_depth = _write_conv.depth;
-      pixelcopy_t pc(data, dst_depth, depth, hasPalette());
+/*
+      pixelcopy_t pc(data, dst_depth, src_depth, hasPalette(), palette);
+/*/
+      pixelcopy_t pc;
+      pc.src_data  = data   ;
+      pc.palette   = palette;
+      pc.src_bits  = src_depth > 8 ? (src_depth + 7) & ~7 : src_depth;
+      pc.dst_bits  = dst_depth > 8 ? (dst_depth + 7) & ~7 : dst_depth;
+      pc.src_mask  = (1 << pc.src_bits) - 1 ;
+      pc.dst_mask  = (1 << pc.dst_bits) - 1 ;
+      pc.no_convert= src_depth == dst_depth;
+//*/
       if (hasPalette() || dst_depth < rgb332_1Byte)
       {
-        if (palette && (dst_depth == rgb332_1Byte) && (depth == rgb332_1Byte))
+        if (palette && (dst_depth == rgb332_1Byte) && (src_depth == rgb332_1Byte))
         {
           pc.fp_copy = pixelcopy_t::copy_rgb_fast<rgb332_t, rgb332_t>;
         }
@@ -784,7 +795,6 @@ namespace lgfx
         }
       }
       else
-      if (palette)
       {
         if (dst_depth > rgb565_2Byte)
         {

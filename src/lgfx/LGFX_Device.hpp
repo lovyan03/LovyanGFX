@@ -68,7 +68,7 @@ namespace lgfx
     __attribute__ ((always_inline)) inline void setTouch(TouchCommon* touch_) { _touch = touch_; postSetTouch(); }
     __attribute__ ((always_inline)) inline void touch(TouchCommon* touch_) { _touch = touch_; postSetTouch(); }
 
-    void writeBytes(const std::uint8_t* data, std::int32_t length) { writeBytes_impl(data, length); }
+    void writeBytes(const std::uint8_t* data, std::int32_t length, bool use_dma = true) { writeBytes_impl(data, length, use_dma); }
 
     void push(LGFX_Sprite* sprite, std::int32_t x = 0, std::int32_t y = 0)
     {
@@ -109,7 +109,7 @@ namespace lgfx
 
     virtual void initBus(void) = 0;
 
-    virtual void writeBytes_impl(const std::uint8_t* data, std::int32_t length) { }
+    virtual void writeBytes_impl(const std::uint8_t* data, std::int32_t length, bool use_dma) = 0;
     
     void initPanel(void)
     {
