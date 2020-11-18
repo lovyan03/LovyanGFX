@@ -130,10 +130,10 @@ namespace lgfx
       }
     }
 
-    virtual bool hasPush(void) const { return false; }
-
-    virtual void push(LGFX_Device* gfx, LGFX_Sprite* sprite, std::int_fast16_t x, std::int_fast16_t y) {}
-    virtual void push(LGFX_Device* gfx, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, pixelcopy_t* param, bool use_dma) {}
+    void (*fp_begin)(PanelCommon*, LGFX_Device*) = nullptr;
+    void (*fp_end)(PanelCommon*, LGFX_Device*) = nullptr;
+    void (*fp_pushImage)(PanelCommon*, LGFX_Device*, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, pixelcopy_t* param) = nullptr;
+    void (*fp_fillRect)(PanelCommon*, LGFX_Device*, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, std::uint32_t rawcolor) = nullptr;
 
     virtual const std::uint8_t* getColorDepthCommands(std::uint8_t* buf, color_depth_t depth) {
       write_depth = getAdjustBpp(depth);

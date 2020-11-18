@@ -47,6 +47,8 @@ namespace lgfx
     __attribute__ ((always_inline))
     inline  void writedata(std::uint_fast8_t data) { writeData(data); } // TFT_eSPI compatible
 
+    void writeBytes(const std::uint8_t* data, std::int32_t length, bool use_dma = true) { writeBytes_impl(data, length, use_dma); }
+
     virtual std::uint32_t readCommand(std::uint_fast8_t cmd, std::uint_fast8_t index=0, std::uint_fast8_t len=4) = 0;
 
     std::uint8_t  readCommand8( std::uint_fast8_t cmd, std::uint_fast8_t index=0) { return readCommand(cmd, index, 1); }
@@ -68,17 +70,18 @@ namespace lgfx
     __attribute__ ((always_inline)) inline void setTouch(TouchCommon* touch_) { _touch = touch_; postSetTouch(); }
     __attribute__ ((always_inline)) inline void touch(TouchCommon* touch_) { _touch = touch_; postSetTouch(); }
 
-    void writeBytes(const std::uint8_t* data, std::int32_t length, bool use_dma = true) { writeBytes_impl(data, length, use_dma); }
-
-    void push(LGFX_Sprite* sprite, std::int32_t x = 0, std::int32_t y = 0)
-    {
-      if (_panel->hasPush()) _panel->push(this, sprite, x, y);
-      else                   sprite->pushSprite(this, x, y);
-    }
-
     void sleep()  { writeCommand(_panel->getCmdSlpin()); _panel->sleep(); }
 
     void wakeup() { writeCommand(_panel->getCmdSlpout()); _panel->wakeup(); }
+
+    void flush(void) 
+    {
+      if (_transaction_count)
+      {
+        if (_panel->fp_end  ) _panel->fp_end(_panel, this);
+        if (_panel->fp_begin) _panel->fp_begin(_panel, this);
+      }
+    }
 
     void setColorDepth(std::uint8_t bpp) { setColorDepth((color_depth_t)bpp); }
     void setColorDepth(color_depth_t depth)

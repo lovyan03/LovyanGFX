@@ -33,6 +33,11 @@ namespace lgfx
       cmd_rddid  = 0x70;
       cmd_slpin  = 0x02;
       cmd_slpout = 0x04;
+
+      fp_begin     = beginTransaction;
+      fp_end       = endTransaction;
+      fp_pushImage = pushImage;
+      fp_fillRect  = fillRect;
     }
 
   protected:
@@ -46,6 +51,11 @@ namespace lgfx
         int retry = 1000;
         while (!gpio_in(gpio_busy) && --retry) delay(1);
       }
+      int len = panel_width * panel_height;
+      _buf = static_cast<std::uint8_t*>(heap_alloc(len));
+      memset(_buf, 0, len);
+      //_framebuffer.setColorDepth(1);
+      //_framebuffer.createSprite(panel_width, panel_height);
     }
 
     bool makeWindowCommands1(std::uint8_t* buf, std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye) override
@@ -154,86 +164,91 @@ namespace lgfx
       }
     }
 
-    bool hasPush(void) const override { return true; }
+  private:
+    const std::uint8_t Bayer[16] = { 8, 136, 40, 168, 200, 72, 232, 104, 56, 184, 24, 152, 248, 120, 216, 88 };
 
-    void push(LGFX_Device* gfx, LGFX_Sprite* sprite, std::int_fast16_t x = 0, std::int_fast16_t y = 0) override
+    __attribute__ ((always_inline)) inline 
+    void _draw_pixel(std::int32_t x, std::int32_t y, std::uint32_t value)
     {
-      static constexpr std::uint8_t Bayer[16] = { 8, 136, 40, 168, 200, 72, 232, 104, 56, 184, 24, 152, 248, 120, 216, 88 };
+      std::uint32_t idx = panel_width * y + x;
+      bool flg = 256 <= value + Bayer[(x & 3) | (y & 3) << 2];
+      if (flg) _buf[idx >> 3] |=   0x80 >> (idx & 7);
+      else     _buf[idx >> 3] &= ~(0x80 >> (idx & 7));
+    }
 
-      std::int_fast16_t xoffset = x & 7;
-      std::size_t bitwidth = (xoffset + sprite->width() + 7) & ~7;
-      x &= ~7;
-      std::uint8_t buf[(bitwidth >> 3) * sprite->height()];
-      RGBColor readbuf_raw[bitwidth];
-      RGBColor* readbuf = &readbuf_raw[xoffset];
-      auto bc = gfx->getBaseColor();
-      for (int i = 0; i < 8; ++i) 
+    static void fillRect(PanelCommon* panel, LGFX_Device*, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, std::uint32_t rawcolor)
+    {
+      auto me = reinterpret_cast<Panel_M5CoreInk*>(panel);
+
+      rgb565_t rgb565 = rawcolor;
+      std::uint32_t color = (rgb565.R8() + (rgb565.G8() << 1) + rgb565.B8()) >> 2;
+
+      auto xx = x;
+      w += x;
+      h += y;
+      do
       {
-        readbuf_raw[i] = bc;
-        readbuf_raw[bitwidth - 8 + i] = bc;
-      }
-      for (int i = 0; i < sprite->height(); ++i)
-      {
-        auto btbl = &Bayer[((y + i) & 3) << 2];
-        auto d = &buf[i * (bitwidth >> 3)];
-        sprite->readRectRGB(0, i, sprite->width(), 1, readbuf);
-        for (int j = -xoffset; j < sprite->width(); j += 8)
+        x = xx;
+        //auto btbl = &me->Bayer[(y & 3) << 2];
+        do
         {
-          std::size_t bytebuf = 0;
-          for (int k = 0; k < 8; ++k)
-          {
-            auto color = readbuf[j + k];
-            if (256 <= (int)((color.r + (color.g << 1) + color.b) >> 2) + btbl[k & 3])
-            {
-              bytebuf |= 0x80 >> k;
-            }
-          }
-          *d++ = bytebuf;
-        }
-      }
+          me->_draw_pixel(x, y, color);
+          //me->framebuffer.setColor(256 <= color + btbl[x & 3]);
+          //me->framebuffer.writePixel(x, y);
+        } while (++x != w);
+      } while (++y != h);
+    }
 
-      std::int32_t clip_l, clip_t, clip_w, clip_h;
-      gfx->getClipRect(&clip_l, &clip_t, &clip_w, &clip_h);
-      if (clip_l & 7) {
-        clip_w += clip_l & 7;
-        clip_l &= ~7;
-      }
-      if (clip_w & 7) {
-        clip_w = (clip_w + 7) & ~7;
-      }
+    static void pushImage(PanelCommon* panel, LGFX_Device* gfx, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, pixelcopy_t* param)
+    {
+      auto me = reinterpret_cast<Panel_M5CoreInk*>(panel);
 
-      std::int32_t dx=0, dw=bitwidth;
-      if (0 < clip_l - x) { dx = clip_l - x; dw -= dx; x = clip_l; }
-
-      if (_adjust_width(x, dx, dw, clip_l, clip_w)) return;
-
-      std::int32_t dy=0, dh=sprite->height();
-      if (0 < clip_t - y) { dy = clip_t - y; dh -= dy; y = clip_t; }
-      if (_adjust_width(y, dy, dh, clip_t, clip_h)) return;
-
+      swap565_t readbuf[w];
+      auto sx = param->src_x32;
+      for (int i = 0; i < h; ++i)
       {
-        gfx->startWrite();
-        gfx->setAddrWindow(x, y, dw, dh);
-        gfx->writeCommand(0x13);
-        int i = 0, add = bitwidth >> 3, len = dw >> 3;
-        auto buffer = &buf[(dx + dy * bitwidth) >> 3];
+        //auto btbl = &me->Bayer[((y + i) & 3) << 2];
+        std::int32_t prev_pos = 0, new_pos = 0;
         do {
-          gfx->writeBytes(&buffer[i * add], len);
-        } while (++i != dh);
-
-        gfx->writeCommand(0x12);
-
-        delay(250);
-        while (!lgfx::gpio_in(gpio_busy)) delay(1);
-        gfx->writeCommand(0x10);
-        i = 0;
-        do {
-          gfx->writeBytes(&buffer[i * add], len);
-        } while (++i != dh);
-        gfx->endWrite();
+          new_pos = param->fp_copy(readbuf, prev_pos, w, param);
+          if (new_pos != prev_pos) {
+            do
+            {
+              auto color = readbuf[prev_pos];
+              me->_draw_pixel(x, y, (color.R8() + (color.G8() << 1) + color.B8()) >> 2);
+              //me->framebuffer.setColor(256 <= ((color.R8() + (color.G8() << 1) + color.B8()) >> 2) + btbl[(x+prev_pos) & 3]);
+              //me->framebuffer.writePixel(x+prev_pos, y+i);
+            } while (new_pos != ++prev_pos);
+          }
+          if (w == new_pos) break;
+        } while (w != (prev_pos = param->fp_skip(new_pos, w, param)));
+        param->src_x32 = sx;
+        param->src_y++;
       }
     }
 
+    static void beginTransaction(PanelCommon* panel, LGFX_Device* gfx)
+    {
+      auto me = reinterpret_cast<Panel_M5CoreInk*>(panel);
+      while (!lgfx::gpio_in(me->gpio_busy)) delay(1);
+      gfx->setWindow(0, 0, me->panel_width - 1, me->panel_height - 1);
+      gfx->writeCommand(0x10);
+      gfx->writeBytes(me->_buf, me->panel_width * me->panel_height >> 3);
+      gfx->waitDMA();
+    }
+
+    static void endTransaction(PanelCommon* panel, LGFX_Device* gfx)
+    {
+      auto me = reinterpret_cast<Panel_M5CoreInk*>(panel);
+      gfx->setWindow(0, 0, me->panel_width - 1, me->panel_height - 1);
+      gfx->writeCommand(0x13);
+      gfx->writeBytes(me->_buf, me->panel_width * me->panel_height >> 3);
+      gfx->writeCommand(0x12);
+    }
+
+    //LGFX_Sprite _framebuffer;
+    std::uint8_t* _buf;
+/*
     void push(LGFX_Device* gfx, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, pixelcopy_t* param, bool use_dma) override
     {
       (void)use_dma;
@@ -248,7 +263,6 @@ namespace lgfx
       _push_internal(gfx, x, y, w, h, param);
       gfx->endWrite();
     }
-
 private:
 
     void _push_internal(LGFX_Device* gfx, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, pixelcopy_t* param)
@@ -297,14 +311,7 @@ private:
       param->src_y32 = sy;
       gfx->waitDMA();
     }
-
-    static bool _adjust_width(std::int32_t& x, std::int32_t& dx, std::int32_t& dw, std::int32_t left, std::int32_t width)
-    {
-      if (x < left) { dx = -x; dw += x; x = left; }
-      if (dw > left + width - x) dw = left + width  - x;
-      return (dw <= 0);
-    }
-
+//*/
   };
 }
 

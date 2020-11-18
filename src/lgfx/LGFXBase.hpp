@@ -128,10 +128,10 @@ namespace lgfx
     template<typename T> inline void drawGradientVLine( std::int32_t x, std::int32_t y, std::int32_t h, const T& colorstart, const T& colorend ) { drawGradientLine( x, y, x, y + h - 1, colorstart, colorend ); }
     template<typename T> inline void drawGradientLine ( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, const T& colorstart, const T& colorend ) { draw_gradient_line( x0, y0, x1, y1, convert_to_rgb888(colorstart), convert_to_rgb888(colorend) ); }
 
-                         inline void clear      ( void )          { setColor(_base_rgb888); fillRect(0, 0, _width, _height); }
-    template<typename T> inline void clear      ( const T& color) { setColor(color);        fillRect(0, 0, _width, _height); }
-                         inline void fillScreen ( void )          {                         fillRect(0, 0, _width, _height); }
-    template<typename T> inline void fillScreen ( const T& color) { setColor(color);        fillRect(0, 0, _width, _height); }
+    template<typename T> inline void clear      ( const T& color) { setColor(color); fillRect(0, 0, _width, _height); }
+                         inline void clear      ( void )          {                  fillRect(0, 0, _width, _height); }
+    template<typename T> inline void fillScreen ( const T& color) { setColor(color); fillRect(0, 0, _width, _height); }
+                         inline void fillScreen ( void )          {                  fillRect(0, 0, _width, _height); }
 
     template<typename T> inline void pushBlock  ( const T& color, std::int32_t length) { if (0 >= length) return; setColor(color); startWrite(); pushBlock_impl(length); endWrite(); }
 

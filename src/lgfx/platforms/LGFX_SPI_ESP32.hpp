@@ -104,7 +104,7 @@ namespace lgfx
 
     __attribute__ ((always_inline)) inline void init(void) { init_impl(); }
 
-    void writeCommand(std::uint_fast8_t cmd) override { startWrite(); write_cmd(cmd); endWrite(); }
+    void writeCommand(std::uint_fast8_t cmd) override { write_cmd(cmd); }
 
     void writeData(std::uint_fast8_t data) override { startWrite(); if (_spi_dlen == 16) { write_data(data << 8, _spi_dlen); } else { write_data(data, _spi_dlen); } endWrite(); }
 
@@ -225,6 +225,7 @@ namespace lgfx
       set_clock_write();
 
       cs_l();
+      if (nullptr != _panel->fp_begin) { _panel->fp_begin(_panel, this); }
     }
 
     void endTransaction_impl(void) override {
@@ -234,6 +235,7 @@ namespace lgfx
     }
 
     void end_transaction(void) {
+      if (nullptr != _panel->fp_end) { _panel->fp_end(_panel, this); }
       if (_spi_dlen == 16 && (_align_data)) write_data(0, 8);
       if (_panel->spi_cs < 0) {
         write_cmd(0); // NOP command
@@ -285,35 +287,53 @@ namespace lgfx
 
     void drawPixel_impl(std::int32_t x, std::int32_t y) override
     {
-      if (_in_transaction) {
+      if (!_panel->fp_fillRect) {
+        if (_in_transaction) {
+          if (_fill_mode) {
+            _fill_mode = false;
+            wait_spi();
+            set_clock_write();
+          }
+          set_window(x, y, x, y);
+          write_cmd(_cmd_ramwr);
+          write_data(_color.raw, _write_conv.bits);
+          return;
+        }
+
+        begin_transaction();
+        set_window(x, y, x, y);
+        write_cmd(_cmd_ramwr);
+        write_data(_color.raw, _write_conv.bits);
+        end_transaction();
+      }
+      else
+      {
+        if (_in_transaction) _panel->fp_fillRect(_panel, this, x, y, 1, 1, _color.raw);
+        else
+        {
+          begin_transaction();
+          _panel->fp_fillRect(_panel, this, x, y, 1, 1, _color.raw);
+          end_transaction();
+        }
+      }
+    }
+
+    void writeFillRect_impl(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h) override
+    {
+      if (!_panel->fp_fillRect) {
         if (_fill_mode) {
           _fill_mode = false;
           wait_spi();
           set_clock_write();
         }
-        set_window(x, y, x, y);
+        set_window(x, y, x+w-1, y+h-1);
         write_cmd(_cmd_ramwr);
-        write_data(_color.raw, _write_conv.bits);
-        return;
+        push_block(w*h, _clkdiv_write != _clkdiv_fill);
       }
-
-      begin_transaction();
-      set_window(x, y, x, y);
-      write_cmd(_cmd_ramwr);
-      write_data(_color.raw, _write_conv.bits);
-      end_transaction();
-    }
-
-    void writeFillRect_impl(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h) override
-    {
-      if (_fill_mode) {
-        _fill_mode = false;
-        wait_spi();
-        set_clock_write();
+      else
+      {
+        _panel->fp_fillRect(_panel, this, x, y, w, h, _color.raw);
       }
-      set_window(x, y, x+w-1, y+h-1);
-      write_cmd(_cmd_ramwr);
-      push_block(w*h, _clkdiv_write != _clkdiv_fill);
     }
 
     void pushBlock_impl(std::int32_t length) override
@@ -616,13 +636,13 @@ namespace lgfx
 
     void pushImage_impl(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, pixelcopy_t* param, bool use_dma) override
     {
-      if (!_panel->hasPush())
+      if (_panel->fp_pushImage != nullptr)
       {
-        push_image(x, y, w, h, param, use_dma);
+        _panel->fp_pushImage(_panel, this, x, y, w, h, param);
       }
       else
       {
-        _panel->push(this, x, y, w, h, param, use_dma);
+        push_image(x, y, w, h, param, use_dma);
       }
     }
 
