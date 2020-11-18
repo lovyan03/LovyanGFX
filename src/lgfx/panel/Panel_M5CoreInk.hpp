@@ -18,10 +18,9 @@ namespace lgfx
       freq_read  = 16000000;
       freq_fill  = 27000000;
 
-      //write_depth = palette_1bit;
-      //read_depth = palette_1bit;
-      write_depth = rgb888_3Byte;
-      read_depth = rgb888_3Byte;
+      write_depth = rgb565_2Byte;
+      read_depth = rgb565_2Byte;
+      spi_read = false;
       len_dummy_read_pixel = 8;
       len_dummy_read_rddid = 0;
       len_setwindow = 16;
@@ -89,7 +88,7 @@ namespace lgfx
       return buf;
     }
 
-    color_depth_t getAdjustBpp(color_depth_t bpp) const override { return palette_1bit; }
+    color_depth_t getAdjustBpp(color_depth_t bpp) const override { return rgb565_2Byte; }
 
     const std::uint8_t* getInitCommands(std::uint8_t listno) const override {
       static constexpr std::uint8_t list0[] = {
@@ -260,8 +259,8 @@ private:
       std::size_t bitwidth = (xoffset + w + 7) & ~7;
       x &= ~7;
       std::uint8_t buf[2][(bitwidth >> 3)];
-      RGBColor readbuf_raw[bitwidth];
-      RGBColor* readbuf = &readbuf_raw[xoffset];
+      swap565_t  readbuf_raw[bitwidth];
+      swap565_t* readbuf = &readbuf_raw[xoffset];
       auto bc = gfx->getBaseColor();
       for (int i = 0; i < 8; ++i) 
       {
@@ -285,7 +284,7 @@ private:
           for (int k = 0; k < 8; ++k)
           {
             auto color = readbuf[j + k];
-            if (256 <= (int)((color.r + (color.g << 1) + color.b) >> 2) + btbl[k & 3])
+            if (256 <= (int)((color.R8() + (color.G8() << 1) + color.B8()) >> 2) + btbl[k & 3])
             {
               bytebuf |= 0x80 >> k;
             }
