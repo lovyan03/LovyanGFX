@@ -499,7 +499,7 @@ public:
 #endif
 
 // M5StickC / CPlus 判定
-#if defined ( LGFX_AUTODETECT ) || defined ( LGFX_M5STICKC )
+#if defined ( LGFX_AUTODETECT ) || defined ( LGFX_M5STICK_C ) || defined ( LGFX_M5STICKC )
     if (nvs_board == 0 || nvs_board == lgfx::board_t::board_M5StickC || nvs_board == lgfx::board_t::board_M5StickCPlus) {
       releaseBus();
       _spi_mosi = 15;
@@ -601,9 +601,9 @@ public:
     }
 #endif
 
-// M5CoreInk 判定
-#if defined ( LGFX_AUTODETECT ) || defined ( LGFX_M5COREINK )
-    if (nvs_board == 0 || nvs_board == lgfx::board_t::board_M5CoreInk) {
+// M5Stack CoreInk 判定
+#if defined ( LGFX_AUTODETECT ) || defined ( LGFX_M5STACK_COREINK )
+    if (nvs_board == 0 || nvs_board == lgfx::board_t::board_M5Stack_CoreInk) {
       releaseBus();
       _spi_mosi = 23;
       _spi_miso = -1;
@@ -620,8 +620,8 @@ public:
 
       ESP_LOGW("LovyanGFX", "[Autodetect] panel id:%08x", id);
       if (id == 0x0001e000) {  //  check panel (e-paper GDEW0154M09)
-        ESP_LOGW("LovyanGFX", "[Autodetect] M5CoreInk");
-        board = lgfx::board_t::board_M5CoreInk;
+        ESP_LOGW("LovyanGFX", "[Autodetect] M5Stack_CoreInk");
+        board = lgfx::board_t::board_M5Stack_CoreInk;
         auto p = new lgfx::Panel_M5CoreInk();
         p->freq_write = 40000000;
         p->freq_read  = 16000000;
@@ -882,8 +882,8 @@ public:
     }
 #endif
 
-// M5StackCore2 判定
-#if defined ( LGFX_AUTODETECT ) || defined ( LGFX_M5STACKCORE2 )
+// M5Stack Core2 判定
+#if defined ( LGFX_AUTODETECT ) || defined ( LGFX_M5STACK_CORE2 ) || defined ( LGFX_M5STACKCORE2 )
     if (nvs_board == 0 || nvs_board == lgfx::board_t::board_M5StackCore2) {
       lgfx::i2c::init(I2C_NUM_1, 21, 22, 400000);
       if (lgfx::i2c::writeRegister8(I2C_NUM_1, 0x34, 0x95, 0x84, 0x72)) { // GPIO4 enable
