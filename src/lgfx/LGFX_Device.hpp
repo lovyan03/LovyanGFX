@@ -76,11 +76,10 @@ namespace lgfx
 
     void flush(void) 
     {
-      if (_transaction_count)
-      {
-        if (_panel->fp_end  ) _panel->fp_end(_panel, this);
-        if (_panel->fp_begin) _panel->fp_begin(_panel, this);
-      }
+      if (nullptr == _panel->fp_flush) return;
+      startWrite();
+      _panel->fp_flush(_panel, this);
+      endWrite();
     }
 
     void setColorDepth(std::uint8_t bpp) { setColorDepth((color_depth_t)bpp); }
@@ -142,6 +141,8 @@ namespace lgfx
       setBrightness(getBrightness());
 
       endWrite();
+
+      _panel->post_init(this);
     }
 
     void initTouch(void)
@@ -224,6 +225,7 @@ namespace lgfx
     bool commandList(const std::uint8_t *addr)
     {
       if (addr == nullptr) return false;
+      if (*reinterpret_cast<const std::uint16_t*>(addr) == 0xFFFF) return false;
 
       startWrite();
       preCommandList();
@@ -296,10 +298,6 @@ namespace lgfx
       initBus(); 
       initPanel(); 
       initTouch(); 
-      startWrite(); 
-      clear(); 
-      setWindow(0,0,0,0); 
-      endWrite();
     }
 
     bool isReadable_impl(void) const override { return _panel->spi_read; }
