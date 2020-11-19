@@ -74,8 +74,9 @@ This library is also compatible with the above models and LCD panels with a simi
 // LovyanGFX.hppのincludeより前に、define LGFX_～ の定義を記述してください。
 
 // #define LGFX_M5STACK               // M5Stack (Basic / Gray / Go / Fire)
-// #define LGFX_M5STACKCORE2          // M5StackCore2
-// #define LGFX_M5STICKC              // M5Stick C / CPlus
+// #define LGFX_M5STACK_CORE2         // M5Stack Core2
+// #define LGFX_M5STACK_COREINK       // M5Stack CoreInk
+// #define LGFX_M5STICK_C             // M5Stick C / CPlus
 // #define LGFX_ODROID_GO             // ODROID-GO
 // #define LGFX_TTGO_TS               // TTGO TS
 // #define LGFX_TTGO_TWATCH           // TTGO T-Watch
@@ -409,6 +410,7 @@ TFT_eSPIのベースとなった、[AdafruitGFX](https://github.com/adafruit/Ada
 不具合の多い開発初期からの動作検証および多数の助言をくださった[mongonta0716](https://github.com/mongonta0716)氏へ感謝いたします。  
 多数のボードでの動作検証や英語への翻訳および多数の助言をくださった[tobozo](https://github.com/tobozo)氏へ感謝いたします。  
 フォントデータの作成に協力してくださった[TANAKA Masayuki](https://github.com/tanakamasayuki)氏へ感謝いたします。  
+[日本語フォントサブセットジェネレーター](https://github.com/yamamaya/lgfxFontSubsetGenerator)を製作してくださった[YAMANEKO](https://github.com/yamamaya)氏へ感謝いたします。  
 
 Thanks to [Bodmer](https://github.com/Bodmer/), author of the [TFT_eSPI](https://github.com/Bodmer/TFT_eSPI) library, for the inspiration to create this library.  
 Thanks to [Adafruit Industries](https://github.com/adafruit/) for publishing [AdafruitGFX](https://github.com/adafruit/Adafruit-GFX-Library), which is the basis for TFT_eSPI.  
@@ -419,6 +421,7 @@ Thanks to [ciniml](https://github.com/ciniml), for many technical tips and help 
 Thanks to [mongonta0716](https://github.com/mongonta0716), for verifying the work from the beginning of the development with many bugs and for his advice.  
 Thanks to [tobozo](https://github.com/tobozo), for testing it on various boards, translating it into English and giving me a lot of advice.  
 Thanks to [TANAKA Masayuki](https://github.com/tanakamasayuki), for creating the font data.  
+Thanks to [YAMANEKO](https://github.com/yamamaya), for creating the [lgfxFontSubsetGenerator](https://github.com/yamamaya/lgfxFontSubsetGenerator).  
 
 
 使用ライブラリ included library  
