@@ -170,15 +170,13 @@ namespace lgfx
     __attribute__ ((always_inline)) inline 
     void _draw_pixel(std::int32_t x, std::int32_t y, std::uint32_t value)
     {
-      if (_internal_rotation & 1) std::swap(x, y);
+      if (_internal_rotation & 1) { std::swap(x, y); }
       switch (_internal_rotation) {
-      case 1:  case 7:
-      case 2:  case 6: x = panel_width - x - 1; break;
+      case 1: case 2: case 6: case 7:  x = panel_width - x - 1; break;
       default: break;
       }
       switch (_internal_rotation) {
-      case 2: case 4: 
-      case 3: case 7:   y = panel_height - y - 1; break;
+      case 2: case 3: case 4: case 7:  y = panel_height - y - 1; break;
       default: break;
       }
       std::uint32_t idx = panel_width * y + x;
@@ -190,33 +188,53 @@ namespace lgfx
     static void fillRect(PanelCommon* panel, LGFX_Device*, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, std::uint32_t rawcolor)
     {
       auto me = reinterpret_cast<Panel_M5CoreInk*>(panel);
+      std::int32_t xs = x, xe = x + w - 1;
+      std::int32_t ys = y, ye = y + h - 1;
+      auto r = me->_internal_rotation;
+      if (r & 1) { std::swap(xs, ys); std::swap(xe, ye); }
+      switch (r) {
+      default: break;
+      case 1:  case 2:  case 6:  case 7:
+        std::swap(xs, xe);
+        xs = me->panel_width - 1 - xs;
+        xe = me->panel_width - 1 - xe;
+        break;
+      }
+      switch (r) {
+      default: break;
+      case 2: case 3: case 4: case 7:
+        std::swap(ys, ye);
+        ys = me->panel_height - 1 - ys;
+        ye = me->panel_height - 1 - ye;
+        break;
+      }
 
       rgb565_t rgb565 = rawcolor;
-      std::uint32_t color = (rgb565.R8() + (rgb565.G8() << 1) + rgb565.B8()) >> 2;
+      std::uint32_t value = (rgb565.R8() + (rgb565.G8() << 1) + rgb565.B8()) >> 2;
 
-      auto xx = x;
-      w += x;
-      h += y;
+      y = ys;
       do
       {
-        x = xx;
-        //auto btbl = &me->Bayer[(y & 3) << 2];
+        x = xs;
+        std::uint32_t idx = me->panel_width * y + x;
+        auto btbl = &me->Bayer[(y & 3) << 2];
         do
         {
-          me->_draw_pixel(x, y, color);
-          //me->framebuffer.setColor(256 <= color + btbl[x & 3]);
-          //me->framebuffer.writePixel(x, y);
-        } while (++x != w);
-      } while (++y != h);
+          bool flg = 256 <= value + btbl[x & 3];
+          if (flg) me->_buf[idx >> 3] |=   0x80 >> (idx & 7);
+          else     me->_buf[idx >> 3] &= ~(0x80 >> (idx & 7));
+          ++idx;
+        } while (++x <= xe);
+      } while (++y <= ye);
     }
 
     static void pushImage(PanelCommon* panel, LGFX_Device* gfx, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, pixelcopy_t* param)
     {
       auto me = reinterpret_cast<Panel_M5CoreInk*>(panel);
-
       swap565_t readbuf[w];
       auto sx = param->src_x32;
-      std::int32_t i = 0;
+      h += y;
+      do
       {
         std::int32_t prev_pos = 0, new_pos = 0;
         do
@@ -227,14 +245,13 @@ namespace lgfx
             do
             {
               auto color = readbuf[prev_pos];
-              me->_draw_pixel(x + prev_pos, y + i, (color.R8() + (color.G8() << 1) + color.B8()) >> 2);
+              me->_draw_pixel(x + prev_pos, y, (color.R8() + (color.G8() << 1) + color.B8()) >> 2);
             } while (new_pos != ++prev_pos);
           }
-          if (w == new_pos) break;
-        } while (w != (prev_pos = param->fp_skip(new_pos, w, param)));
+        } while (w != new_pos && w != (prev_pos = param->fp_skip(new_pos, w, param)));
         param->src_x32 = sx;
         param->src_y++;
-      } while (++i < h);
+      } while (++y < h);
     }
 
     static void beginTransaction(PanelCommon* panel, LGFX_Device* gfx)
