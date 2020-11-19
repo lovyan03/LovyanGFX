@@ -105,15 +105,15 @@ namespace lgfx
     }
 
     std::int_fast16_t getWidth(void) const {
-      return ((rotation + offset_rotation) & 1) ? panel_height : panel_width;
+      return (_internal_rotation & 1) ? panel_height : panel_width;
     }
 
     std::int_fast16_t getHeight(void) const {
-      return ((rotation + offset_rotation) & 1) ? panel_width : panel_height;
+      return (_internal_rotation & 1) ? panel_width : panel_height;
     }
 
     std::int_fast16_t getColStart(void) const {
-      switch ((rotation + offset_rotation) & 3) {
+      switch (_internal_rotation & 3) {
       default:  return offset_x;
       case 1:   return offset_y;
       case 2:   return memory_width  - (panel_width  + offset_x);
@@ -122,7 +122,7 @@ namespace lgfx
     }
 
     std::int_fast16_t getRowStart(void) const {
-      switch (((rotation + offset_rotation) & 3) | (rotation & 4)) {
+      switch ((_internal_rotation & 3) | (_internal_rotation & 4)) {
       default:          return offset_y;
       case 1: case 7:   return memory_width  - (panel_width  + offset_x);
       case 2: case 4:   return memory_height - (panel_height + offset_y);
@@ -150,7 +150,9 @@ namespace lgfx
 
     virtual const std::uint8_t* getRotationCommands(std::uint8_t* buf, std::int_fast8_t r)
     {
-      (void)r;
+      r &= 7;
+      rotation = r;
+      _internal_rotation = ((r + offset_rotation) & 3) | ((r & 4) ^ (offset_rotation & 4));
       _xs = _xe = _ys = _ye = ~0;
       _colstart = getColStart();
       _rowstart = getRowStart();
@@ -178,6 +180,7 @@ namespace lgfx
     std::uint8_t cmd_rddid = 0;
     std::uint8_t cmd_slpin = 0;
     std::uint8_t cmd_slpout= 0;
+    std::uint8_t _internal_rotation = 0;
     std::uint_fast16_t _colstart = 0;
     std::uint_fast16_t _rowstart = 0;
     std::uint_fast16_t _xs = ~0;

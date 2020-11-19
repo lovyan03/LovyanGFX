@@ -67,12 +67,12 @@ namespace lgfx
 
     const std::uint8_t* getRotationCommands(std::uint8_t* buf, int_fast8_t r) override
     {
-      rotation = r & 7;
+      PanelCommon::getRotationCommands(buf, r);
       buf[0] = CommandCommon::MADCTL;
       buf[1] = 1;
-      buf[2] = getMadCtl(rotation) | (rgb_order ? MAD_RGB : MAD_BGR);
+      buf[2] = getMadCtl(_internal_rotation) | (rgb_order ? MAD_RGB : MAD_BGR);
       buf[3] = buf[4] = 0xFF;
-      return PanelCommon::getRotationCommands(buf, rotation);
+      return buf;
     }
 
     virtual std::uint8_t getMadCtl(std::uint8_t r) const {
@@ -86,7 +86,6 @@ namespace lgfx
                MAD_MX|MAD_MH              ,
         MAD_MV|MAD_MX|MAD_MY|MAD_MH|MAD_ML,
       };
-      r = ((r + offset_rotation) & 3) | ((r & 4) ^ (offset_rotation & 4));
       return madctl_table[r];
     }
 

@@ -88,7 +88,7 @@ namespace lgfx
     const std::uint8_t* getRotationCommands(std::uint8_t* buf, std::int_fast8_t r) override
     {
       buf[0] = buf[1] = 0xFF;
-      return PanelCommon::getRotationCommands(buf, rotation);
+      return PanelCommon::getRotationCommands(buf, r);
     }
 
     const std::uint8_t* getColorDepthCommands(std::uint8_t* buf, color_depth_t depth) override
@@ -170,6 +170,17 @@ namespace lgfx
     __attribute__ ((always_inline)) inline 
     void _draw_pixel(std::int32_t x, std::int32_t y, std::uint32_t value)
     {
+      if (_internal_rotation & 1) std::swap(x, y);
+      switch (_internal_rotation) {
+      case 1:  case 7:
+      case 2:  case 6: x = panel_width - x - 1; break;
+      default: break;
+      }
+      switch (_internal_rotation) {
+      case 2: case 4: 
+      case 3: case 7:   y = panel_height - y - 1; break;
+      default: break;
+      }
       std::uint32_t idx = panel_width * y + x;
       bool flg = 256 <= value + Bayer[(x & 3) | (y & 3) << 2];
       if (flg) _buf[idx >> 3] |=   0x80 >> (idx & 7);
@@ -205,26 +216,25 @@ namespace lgfx
 
       swap565_t readbuf[w];
       auto sx = param->src_x32;
-      for (int i = 0; i < h; ++i)
+      std::int32_t i = 0;
       {
-        //auto btbl = &me->Bayer[((y + i) & 3) << 2];
         std::int32_t prev_pos = 0, new_pos = 0;
-        do {
+        do
+        {
           new_pos = param->fp_copy(readbuf, prev_pos, w, param);
-          if (new_pos != prev_pos) {
+          if (new_pos != prev_pos)
+          {
             do
             {
               auto color = readbuf[prev_pos];
-              me->_draw_pixel(x, y, (color.R8() + (color.G8() << 1) + color.B8()) >> 2);
-              //me->framebuffer.setColor(256 <= ((color.R8() + (color.G8() << 1) + color.B8()) >> 2) + btbl[(x+prev_pos) & 3]);
-              //me->framebuffer.writePixel(x+prev_pos, y+i);
+              me->_draw_pixel(x + prev_pos, y + i, (color.R8() + (color.G8() << 1) + color.B8()) >> 2);
             } while (new_pos != ++prev_pos);
           }
           if (w == new_pos) break;
         } while (w != (prev_pos = param->fp_skip(new_pos, w, param)));
         param->src_x32 = sx;
         param->src_y++;
-      }
+      } while (++i < h);
     }
 
     static void beginTransaction(PanelCommon* panel, LGFX_Device* gfx)

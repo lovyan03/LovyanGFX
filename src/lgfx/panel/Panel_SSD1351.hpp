@@ -70,12 +70,12 @@ namespace lgfx
 
     const std::uint8_t* getRotationCommands(std::uint8_t* buf, std::int_fast8_t r) override
     {
-      rotation = r & 7;
+      PanelCommon::getRotationCommands(buf, r);
       buf[0] = CommandCommon::MADCTL;
       buf[1] = 1;
-      buf[2] = getMadCtl(rotation, write_depth);
+      buf[2] = getMadCtl(_internal_rotation, write_depth);
       buf[3] = buf[4] = 0xFF;
-      return PanelCommon::getRotationCommands(buf, rotation);
+      return buf;
     }
 
     const std::uint8_t* getColorDepthCommands(std::uint8_t* buf, color_depth_t depth) override
@@ -157,7 +157,6 @@ namespace lgfx
         0b00110110,
         0b00100111,
       };
-      r = ((r + offset_rotation) & 3) | ((r & 4) ^ (offset_rotation & 4));
       if (r & 1) {
         cmd_caset = CommandCommon::RASET;
         cmd_raset = CommandCommon::CASET;
