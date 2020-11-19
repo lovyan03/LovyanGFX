@@ -199,6 +199,12 @@ public:
   {
   }
 
+  void init_without_reset(void)
+  {
+    autodetect(false);
+    lgfx::LGFX_SPI<lgfx::LGFX_Config>::init_impl();
+  }
+
   void autodetect(bool use_reset = true)
   {
     if (_spi_mosi != -1 && _spi_sclk != -1) {
