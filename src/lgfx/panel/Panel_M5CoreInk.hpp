@@ -41,9 +41,9 @@ namespace lgfx
 
   protected:
 
-    void init(void) override
+    void init(bool use_reset) override
     {
-      PanelCommon::init();
+      PanelCommon::init(use_reset);
       if (gpio_busy >= 0) {
         lgfxPinMode(gpio_busy, pin_mode_t::input);
         delay(10);

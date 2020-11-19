@@ -113,12 +113,12 @@ namespace lgfx
 
     virtual void writeBytes_impl(const std::uint8_t* data, std::int32_t length, bool use_dma) = 0;
     
-    void initPanel(void)
+    void initPanel(bool use_reset = true)
     {
       preInit();
       if (!_panel) return;
 
-      _panel->init();
+      _panel->init(use_reset);
 
       _sx = _sy = 0;
       _sw = _width;
@@ -294,9 +294,10 @@ namespace lgfx
       _read_conv.setColorDepth(_panel->read_depth);
     }
 
-    virtual void init_impl(void) {
+    virtual void init_impl(bool use_reset = true)
+    {
       initBus(); 
-      initPanel(); 
+      initPanel(use_reset); 
       initTouch(); 
     }
 

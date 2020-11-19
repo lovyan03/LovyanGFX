@@ -54,12 +54,16 @@ namespace lgfx
     std::uint8_t len_dummy_read_pixel = 8;
     std::uint8_t len_dummy_read_rddid = 1;
 
-    virtual void init(void)
+    virtual void init(bool use_reset)
     {
       if (gpio_rst >= 0) { // RST on
+        gpio_hi(gpio_rst);
         lgfxPinMode(gpio_rst, pin_mode_t::output);
-        gpio_lo(gpio_rst);
-        delay(1);
+        if (use_reset)
+        {
+          gpio_lo(gpio_rst);
+          delay(1);
+        }
       }
 
       if (gpio_bl >= 0) { // Backlight control
