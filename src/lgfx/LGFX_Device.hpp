@@ -299,7 +299,7 @@ namespace lgfx
       initBus(); 
       initPanel(use_reset); 
       initTouch(); 
-      if (use_reset) { clear(); }
+      clear(0);
     }
 
     bool isReadable_impl(void) const override { return _panel->spi_read; }

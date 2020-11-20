@@ -58,8 +58,9 @@ namespace lgfx
     std::int32_t ys = y, ye = y + h - 1;
     me->_update_transferred_rect(xs, ys, xe, ye);
 
-    rgb565_t rgb565 = rawcolor;
-    std::uint32_t value = (rgb565.R8() + (rgb565.G8() << 1) + rgb565.B8()) >> 2;
+    swap565_t color;
+    color.raw = rawcolor;
+    std::uint32_t value = (color.R8() + (color.G8() << 1) + color.B8()) >> 2;
 
     y = ys;
     do
@@ -117,8 +118,9 @@ namespace lgfx
     std::int32_t xpos = me->_xpos;
     std::int32_t ypos = me->_ypos;
 
-    rgb565_t rgb565 = rawcolor;
-    std::uint32_t value = (rgb565.R8() + (rgb565.G8() << 1) + rgb565.B8()) >> 2;
+    swap565_t color;
+    color.raw = rawcolor;
+    std::uint32_t value = (color.R8() + (color.G8() << 1) + color.B8()) >> 2;
     do
     {
       me->_draw_pixel(xpos, ypos, value);
@@ -147,15 +149,15 @@ namespace lgfx
     std::int32_t ypos = me->_ypos;
 
     static constexpr int32_t buflen = 16;
-    rgb565_t rgb565[buflen];
+    swap565_t colors[buflen];
     int bufpos = buflen;
     do
     {
       if (bufpos == buflen) {
-        param->fp_copy(rgb565, 0, std::min(length, buflen), param);
+        param->fp_copy(colors, 0, std::min(length, buflen), param);
         bufpos = 0;
       }
-      auto color = rgb565[bufpos++];
+      auto color = colors[bufpos++];
       me->_draw_pixel(xpos, ypos, (color.R8() + (color.G8() << 1) + color.B8()) >> 2);
       if (++xpos > xe)
       {
