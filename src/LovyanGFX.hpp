@@ -89,6 +89,8 @@ Contributors:
   #define LGFX_M5STICK_C
  #elif defined( ARDUINO_M5Stack_CoreInk ) // M5Stack CoreInk
   #define LGFX_M5STACK_COREINK
+ #elif defined( ARDUINO_M5STACK_Paper ) // M5Stack Paper
+  #define LGFX_M5STACK_PAPER
  #elif defined( ARDUINO_ODROID_ESP32 ) // ODROID-GO
   #define LGFX_ODROID_GO
  #elif defined( ARDUINO_TTGO_T1 ) // TTGO TS

@@ -25,6 +25,7 @@ namespace lgfx
     std::int_fast16_t gpio_busy = -1;      // busy check pin number
     std::int_fast8_t spi_mode  = 0;        // SPI mode (0~3)
     std::int_fast8_t spi_mode_read = 0;    // SPI mode (0~3) when read pixel
+    std::int_fast8_t spi_dlen  = 0;        // SPI transfer length (8 or 16)
     std::int_fast8_t rotation  = 0;        // default rotation (0~3)
     std::int_fast8_t offset_rotation = 0;  // rotation offset (0~3)
     std::int_fast8_t pwm_ch_bl = -1;       // backlight PWM channel number
@@ -139,6 +140,9 @@ namespace lgfx
     void (*fp_flush)(PanelCommon*, LGFX_Device*) = nullptr;
     void (*fp_pushImage)(PanelCommon*, LGFX_Device*, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, pixelcopy_t* param) = nullptr;
     void (*fp_fillRect)(PanelCommon*, LGFX_Device*, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, std::uint32_t rawcolor) = nullptr;
+    void (*fp_pushBlock)(PanelCommon*, LGFX_Device*, std::int32_t len, std::uint32_t rawcolor) = nullptr;
+    void (*fp_writePixels)(PanelCommon*, LGFX_Device*, std::int32_t len, pixelcopy_t* param) = nullptr;
+    void (*fp_readRect)(PanelCommon*, LGFX_Device*, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, void* dst, pixelcopy_t* param) = nullptr;
 
     virtual void post_init(LGFX_Device*) {}
 

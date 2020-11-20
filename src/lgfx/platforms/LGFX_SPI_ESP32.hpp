@@ -106,7 +106,7 @@ namespace lgfx
 
     void writeCommand(std::uint_fast8_t cmd) override { write_cmd(cmd); }
 
-    void writeData(std::uint_fast8_t data) override { startWrite(); if (_spi_dlen == 16) { write_data(data << 8, _spi_dlen); } else { write_data(data, _spi_dlen); } endWrite(); }
+    void writeData(std::uint_fast8_t data) override { if (_spi_dlen == 16) { write_data(data << 8, _spi_dlen); } else { write_data(data, _spi_dlen); } }
 
     std::uint32_t readCommand(std::uint_fast8_t commandByte, std::uint_fast8_t index=0, std::uint_fast8_t len=4) override { startWrite(); auto res = read_command(commandByte, index << 3, len << 3); endWrite(); return res; }
 
@@ -156,6 +156,8 @@ namespace lgfx
       _last_apb_freq = -1;
       _cmd_ramwr      = _panel->getCmdRamwr();
       _len_setwindow  = _panel->len_setwindow;
+
+      if (_panel->spi_dlen >> 3) _spi_dlen = _panel->spi_dlen & ~7;
       //fpGetWindowAddr = _len_setwindow == 32 ? PanelCommon::getWindowAddr32 : PanelCommon::getWindowAddr16;
 
       std::int32_t spi_dc = _panel->spi_dc;
@@ -338,7 +340,14 @@ namespace lgfx
 
     void pushBlock_impl(std::int32_t length) override
     {
-      push_block(length);
+      if (_panel->fp_pushBlock)
+      {
+        _panel->fp_pushBlock(_panel, this, length, _color.raw);
+      }
+      else
+      {
+        push_block(length);
+      }
     }
 
     void push_block(std::int32_t length, bool fillclock = false)
@@ -736,23 +745,30 @@ namespace lgfx
 
     void writePixels_impl(std::int32_t length, pixelcopy_t* param) override
     {
-      if (_dma_channel)
+      if (!_panel->fp_writePixels)
       {
-        const std::uint8_t dst_bytes = _write_conv.bytes;
-        std::uint32_t limit = (dst_bytes == 2) ? 16 : 12;
-        std::uint32_t len;
-        do {
-          len = ((length - 1) % limit) + 1;
-          //if (limit <= 256) limit <<= 2;
-          if (limit <= 512) limit <<= 1;
-          auto dmabuf = get_dmabuffer(len * dst_bytes);
-          param->fp_copy(dmabuf, 0, len, param);
-          write_bytes(dmabuf, len * dst_bytes, true);
-        } while (length -= len);
+        if (_dma_channel)
+        {
+          const std::uint8_t dst_bytes = _write_conv.bytes;
+          std::uint32_t limit = (dst_bytes == 2) ? 16 : 12;
+          std::uint32_t len;
+          do {
+            len = ((length - 1) % limit) + 1;
+            //if (limit <= 256) limit <<= 2;
+            if (limit <= 512) limit <<= 1;
+            auto dmabuf = get_dmabuffer(len * dst_bytes);
+            param->fp_copy(dmabuf, 0, len, param);
+            write_bytes(dmabuf, len * dst_bytes, true);
+          } while (length -= len);
+        }
+        else
+        {
+          write_pixels(length, param);
+        }
       }
       else
       {
-        write_pixels(length, param);
+        _panel->fp_writePixels(_panel, this, length, param);
       }
     }
 
@@ -851,31 +867,38 @@ namespace lgfx
 
     void readRect_impl(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, void* dst, pixelcopy_t* param) override
     {
-      startWrite();
-      set_window(x, y, x + w - 1, y + h - 1);
-      auto len = w * h;
-      if (!_panel->spi_read)
+      if (!_panel->fp_readRect)
       {
-        memset(dst, 0, len * param->dst_bits >> 3);
+        startWrite();
+        set_window(x, y, x + w - 1, y + h - 1);
+        auto len = w * h;
+        if (!_panel->spi_read)
+        {
+          memset(dst, 0, len * param->dst_bits >> 3);
+        }
+        else
+        {
+          write_cmd(_panel->getCmdRamrd());
+          std::uint32_t len_dummy_read_pixel = _panel->len_dummy_read_pixel;
+          start_read();
+          if (len_dummy_read_pixel) {;
+            set_read_len(len_dummy_read_pixel);
+            exec_spi();
+          }
+
+          if (param->no_convert) {
+            read_bytes((std::uint8_t*)dst, len * _read_conv.bytes);
+          } else {
+            read_pixels(dst, len, param);
+          }
+          end_read();
+        }
+        endWrite();
       }
       else
       {
-        write_cmd(_panel->getCmdRamrd());
-        std::uint32_t len_dummy_read_pixel = _panel->len_dummy_read_pixel;
-        start_read();
-        if (len_dummy_read_pixel) {;
-          set_read_len(len_dummy_read_pixel);
-          exec_spi();
-        }
-
-        if (param->no_convert) {
-          read_bytes((std::uint8_t*)dst, len * _read_conv.bytes);
-        } else {
-          read_pixels(dst, len, param);
-        }
-        end_read();
+        _panel->fp_readRect(_panel, this, x, y, w, h, dst, param);
       }
-      endWrite();
     }
 
     void read_pixels(void* dst, std::int32_t length, pixelcopy_t* param)
@@ -1085,9 +1108,9 @@ namespace lgfx
     int _spi_mosi = get_spi_mosi<CFG, -1>::value;
     int _spi_miso = get_spi_miso<CFG, -1>::value;
     int _spi_sclk = get_spi_sclk<CFG, -1>::value;
+    int _spi_dlen = get_spi_dlen<CFG,  8>::value;
     spi_host_device_t _spi_host;
     static constexpr int _dma_channel= get_dma_channel<CFG,  0>::value;
-    static constexpr int _spi_dlen = get_spi_dlen<CFG,  8>::value;
     /*
     std::uint32_t(*fpGetWindowAddr)(std::uint_fast16_t, std::uint_fast16_t);
     std::uint_fast16_t _colstart;

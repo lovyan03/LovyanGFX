@@ -31,7 +31,7 @@ namespace lgfx
 
     std::uint8_t maxBrightness = 255;
 
-    void init(void) override
+    void init(bool use_reset) override
     {
       /* Enable Peripheral Clocks */
       GCLK->PCHCTRL[9].reg = 0 | (1u<<6);         // TC0, TC1
@@ -74,7 +74,7 @@ namespace lgfx
       TC0->COUNT8.CTRLA.bit.ENABLE = 1;   // ENABLE
       while( TC0->COUNT8.SYNCBUSY.bit.ENABLE );
 
-      Panel_ILI9341::init();
+      Panel_ILI9341::init(use_reset);
     }
 
     void setBrightness(std::uint8_t brightness) override

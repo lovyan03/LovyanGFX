@@ -638,7 +638,7 @@ public:
       p_tmp.spi_dc   = 15;
       p_tmp.gpio_rst = 0;
       setPanel(&p_tmp);
-      _reset(use_reset);
+      _reset(true);  // EPDがDeepSleepしていると自動認識も失敗するためRST制御は必須とする
 
       auto id = readCommand32(0x70);
 

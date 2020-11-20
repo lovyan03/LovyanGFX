@@ -18,6 +18,10 @@ namespace lgfx
     _tr_right = panel_width - 1;
     _tr_bottom = panel_height - 1;
     gfx->endWrite();
+    _tr_top = panel_height;
+    _tr_left = panel_width;
+    _tr_right = 0;
+    _tr_bottom = 0;
   }
 
   void Panel_M5CoreInk::_update_transferred_rect(std::int32_t &xs, std::int32_t &ys, std::int32_t &xe, std::int32_t &ye)
@@ -103,17 +107,110 @@ namespace lgfx
     } while (++y < h);
   }
 
+  void Panel_M5CoreInk::pushBlock(PanelCommon* panel, LGFX_Device* gfx, std::int32_t length, std::uint32_t rawcolor)
+  {
+    auto me = reinterpret_cast<Panel_M5CoreInk*>(panel);
+    std::int32_t xs   = me->_xs  ;
+    std::int32_t ys   = me->_ys  ;
+    std::int32_t xe   = me->_xe  ;
+    std::int32_t ye   = me->_ye  ;
+    std::int32_t xpos = me->_xpos;
+    std::int32_t ypos = me->_ypos;
+
+    rgb565_t rgb565 = rawcolor;
+    std::uint32_t value = (rgb565.R8() + (rgb565.G8() << 1) + rgb565.B8()) >> 2;
+    do
+    {
+      me->_draw_pixel(xpos, ypos, value);
+      if (++xpos > xe)
+      {
+        xpos = xs;
+        if (++ypos > ye)
+        {
+          ypos = ys;
+        }
+      }
+    } while (--length);
+    me->_xpos = xpos;
+    me->_ypos = ypos;
+    me->_update_transferred_rect(xs, ys, xe, ye);
+  }
+
+  void Panel_M5CoreInk::writePixels(PanelCommon* panel, LGFX_Device* gfx, std::int32_t length, pixelcopy_t* param)
+  {
+    auto me = reinterpret_cast<Panel_M5CoreInk*>(panel);
+    std::int32_t xs   = me->_xs  ;
+    std::int32_t ys   = me->_ys  ;
+    std::int32_t xe   = me->_xe  ;
+    std::int32_t ye   = me->_ye  ;
+    std::int32_t xpos = me->_xpos;
+    std::int32_t ypos = me->_ypos;
+
+    static constexpr int32_t buflen = 16;
+    rgb565_t rgb565[buflen];
+    int bufpos = buflen;
+    do
+    {
+      if (bufpos == buflen) {
+        param->fp_copy(rgb565, 0, std::min(length, buflen), param);
+        bufpos = 0;
+      }
+      auto color = rgb565[bufpos++];
+      me->_draw_pixel(xpos, ypos, (color.R8() + (color.G8() << 1) + color.B8()) >> 2);
+      if (++xpos > xe)
+      {
+        xpos = xs;
+        if (++ypos > ye)
+        {
+          ypos = ys;
+        }
+      }
+    } while (--length);
+    me->_xpos = xpos;
+    me->_ypos = ypos;
+    me->_update_transferred_rect(xs, ys, xe, ye);
+  }
+
+  void Panel_M5CoreInk::readRect(PanelCommon* panel, LGFX_Device* gfx, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, void* dst, pixelcopy_t* param)
+  {
+    auto me = reinterpret_cast<Panel_M5CoreInk*>(panel);
+
+    swap565_t readbuf[w];
+    std::int32_t readpos = 0;
+    h += y;
+    do
+    {
+      std::int32_t idx = 0;
+      do
+      {
+        readbuf[idx] = me->_read_pixel(x + idx, y) ? ~0u : 0;
+      } while (++idx != w);
+      param->src_x32 = 0;
+      readpos = param->fp_copy(dst, readpos, readpos + w, param);
+    } while (++y < h);
+  }
+
   void Panel_M5CoreInk::_exec_transfer(std::uint32_t cmd, LGFX_Device* gfx)
   {
     std::int32_t xs = _tr_left & ~7;
     std::int32_t xe = _tr_right & ~7;
-    gfx->setWindow(xs, _tr_top, xe, _tr_bottom);
+
+    gfx->writeCommand(0x91);
+    gfx->writeCommand(0x90);
+    gfx->writeData(xs);
+    gfx->writeData(xe);
+    gfx->writeData(_tr_top >> 8);
+    gfx->writeData(_tr_top);
+    gfx->writeData(_tr_bottom >> 8);
+    gfx->writeData(_tr_bottom);
+    gfx->writeData(1);
+
     gfx->writeCommand(cmd);
-    std::int32_t len = ((xe - xs) >> 3) + 1;
+    std::int32_t w = ((xe - xs) >> 3) + 1;
     std::int32_t y = _tr_top;
     do
     {
-      gfx->writeBytes(&_buf[(((panel_width + 7) & ~7) * y + xs) >> 3], len);
+      gfx->writeBytes(&_buf[(((panel_width + 7) & ~7) * y + xs) >> 3], w);
     } while (++y <= _tr_bottom);
   }
 
@@ -121,7 +218,7 @@ namespace lgfx
   {
     auto me = reinterpret_cast<Panel_M5CoreInk*>(panel);
     if (me->_tr_left > me->_tr_right || me->_tr_top > me->_tr_bottom) return;
-    while (!lgfx::gpio_in(me->gpio_busy)) delay(1);
+    if (me->gpio_busy >= 0) while (!gpio_in(me->gpio_busy)) delay(1);
     me->_exec_transfer(0x10, gfx);
     me->_tr_top = me->panel_height;
     me->_tr_left = me->panel_width;

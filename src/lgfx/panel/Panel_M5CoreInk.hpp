@@ -32,11 +32,14 @@ namespace lgfx
       cmd_slpin  = 0x02;
       cmd_slpout = 0x04;
 
-      fp_begin     = beginTransaction;
-      fp_end       = endTransaction;
-      fp_flush     = flush;
-      fp_pushImage = pushImage;
-      fp_fillRect  = fillRect;
+      fp_begin       = beginTransaction;
+      fp_end         = endTransaction;
+      fp_flush       = flush;
+      fp_pushImage   = pushImage;
+      fp_fillRect    = fillRect;
+      fp_pushBlock   = pushBlock;
+      fp_writePixels = writePixels;
+      fp_readRect    = readRect;
     }
 
   protected:
@@ -59,23 +62,17 @@ namespace lgfx
 
     bool makeWindowCommands1(std::uint8_t* buf, std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye) override
     {
-      reinterpret_cast<std::uint16_t*>(buf)[0] = 0x91;
-      reinterpret_cast<std::uint16_t*>(buf)[1] = 0xFFFF;
-      if (this->gpio_busy >= 0) while (!gpio_in(this->gpio_busy)) delay(1);
-      return true;
+      _xpos = xs;
+      _xs = xs;
+      _ypos = ys;
+      _ys = ys;
+      _xe = xe;
+      _ye = ye;
+      return false;
     }
-
     bool makeWindowCommands2(std::uint8_t* buf, std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye) override
     {
-      buf[0] = 0x90; buf[1] = 7;  buf[2] = xs;
-                                  buf[3] = xe;
-                                  buf[4] = ys >> 8;
-                                  buf[5] = ys;
-                                  buf[6] = ye >> 8;
-                                  buf[7] = ye + 1;
-                                  buf[8] = 1;
-      *reinterpret_cast<std::uint16_t*>(&buf[9]) = 0xFFFF;
-      return true;
+      return false;
     }
 
     const std::uint8_t* getInvertDisplayCommands(std::uint8_t* buf, bool invert) override
@@ -170,6 +167,8 @@ namespace lgfx
     std::int32_t _tr_left = INT32_MAX;
     std::int32_t _tr_right = 0;
     std::int32_t _tr_bottom = 0;
+    std::int32_t _xpos = 0;
+    std::int32_t _ypos = 0;
 
     __attribute__ ((always_inline)) inline 
     void _draw_pixel(std::int32_t x, std::int32_t y, std::uint32_t value)
@@ -189,6 +188,22 @@ namespace lgfx
       else     _buf[idx >> 3] &= ~(0x80 >> (idx & 7));
     }
 
+    __attribute__ ((always_inline)) inline 
+    bool _read_pixel(std::int32_t x, std::int32_t y)
+    {
+      if (_internal_rotation & 1) { std::swap(x, y); }
+      switch (_internal_rotation) {
+      case 1: case 2: case 6: case 7:  x = panel_width - x - 1; break;
+      default: break;
+      }
+      switch (_internal_rotation) {
+      case 2: case 3: case 4: case 7:  y = panel_height - y - 1; break;
+      default: break;
+      }
+      std::uint32_t idx = ((panel_width + 7) & ~7) * y + x;
+      return _buf[idx >> 3] & (0x80 >> (idx & 7));
+    }
+
     void _update_transferred_rect(std::int32_t &xs, std::int32_t &ys, std::int32_t &xe, std::int32_t &ye);
     void _exec_transfer(std::uint32_t cmd, LGFX_Device* gfx);
 
@@ -197,6 +212,9 @@ namespace lgfx
     static void flush(PanelCommon* panel, LGFX_Device* gfx);
     static void fillRect(PanelCommon* panel, LGFX_Device* gfx, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, std::uint32_t rawcolor);
     static void pushImage(PanelCommon* panel, LGFX_Device* gfx, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, pixelcopy_t* param);
+    static void pushBlock(PanelCommon* panel, LGFX_Device* gfx, std::int32_t length, std::uint32_t rawcolor);
+    static void writePixels(PanelCommon* panel, LGFX_Device* gfx, std::int32_t len, pixelcopy_t* param);
+    static void readRect(PanelCommon* panel, LGFX_Device* gfx, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, void* dst, pixelcopy_t* param);
   };
 }
 
