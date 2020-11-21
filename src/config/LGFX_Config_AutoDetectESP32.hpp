@@ -139,12 +139,18 @@ namespace lgfx
       static constexpr char NVS_NAME[] = "LovyanGFX";
       static constexpr char NVS_KEY[] = "M5Stack_IPS";
       std::uint32_t nvs_handle = 0;
+      std::uint8_t readbuf = 0x80u;
       if (0 == nvs_open(NVS_NAME, NVS_READONLY, &nvs_handle)) {
-        nvs_get_u8(nvs_handle, NVS_KEY, reinterpret_cast<uint8_t*>(&reverse_invert));
+        nvs_get_u8(nvs_handle, NVS_KEY, &readbuf);
         nvs_close(nvs_handle);
+      }
+      if (readbuf != 0x80u)
+      {
+        reverse_invert = readbuf;
       }
       else
       {
+        nvs_handle = 0;
         gpio_lo(gpio_rst);
         lgfxPinMode(gpio_rst, pin_mode_t::input);
         delay(1);
