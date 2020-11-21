@@ -128,10 +128,11 @@ namespace lgfx
     template<typename T> inline void drawGradientVLine( std::int32_t x, std::int32_t y, std::int32_t h, const T& colorstart, const T& colorend ) { drawGradientLine( x, y, x, y + h - 1, colorstart, colorend ); }
     template<typename T> inline void drawGradientLine ( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, const T& colorstart, const T& colorend ) { draw_gradient_line( x0, y0, x1, y1, convert_to_rgb888(colorstart), convert_to_rgb888(colorend) ); }
 
-                         inline void clear      ( void )          { setColor(_base_rgb888); fillRect(0, 0, _width, _height); }
-    template<typename T> inline void clear      ( const T& color) { setColor(color);        fillRect(0, 0, _width, _height); }
-                         inline void fillScreen ( void )          {                         fillRect(0, 0, _width, _height); }
-    template<typename T> inline void fillScreen ( const T& color) { setColor(color);        fillRect(0, 0, _width, _height); }
+    template<typename T> inline void fillScreen ( const T& color) { setColor(color); fillRect(0, 0, _width, _height); }
+                         inline void fillScreen ( void )          {                  fillRect(0, 0, _width, _height); }
+
+    template<typename T> inline void clear      ( const T& color) { setBaseColor(color); clear(); }
+                         inline void clear      ( void )          { setColor(_base_rgb888); fillScreen(); }
 
     template<typename T> inline void pushBlock  ( const T& color, std::int32_t length) { if (0 >= length) return; setColor(color); startWrite(); pushBlock_impl(length); endWrite(); }
 
@@ -198,7 +199,7 @@ namespace lgfx
     template<typename T>
     void writeIndexedPixels(const uint8_t *data, T* palette, std::int32_t len, lgfx::color_depth_t colordepth = lgfx::rgb332_1Byte)
     {
-      auto pc = create_pc_palette(data, palette, colordepth);
+      auto pc = create_pc_fast(data, palette, colordepth);
       writePixels_impl(len, &pc);
     }
 
@@ -222,16 +223,16 @@ namespace lgfx
     }
 
     template<typename T>
-    void pushImage(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const void* data, const std::uint8_t bits, const T* palette)
+    void pushImage(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const void* data, color_depth_t depth, const T* palette)
     {
-      auto pc = create_pc_palette(data, palette, bits);
+      auto pc = create_pc_palette(data, palette, depth);
       pushImage(x, y, w, h, &pc);
     }
 
     template<typename T>
-    void pushImage(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const void* data, std::uint32_t transparent, const std::uint8_t bits, const T* palette)
+    void pushImage(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const void* data, std::uint32_t transparent, color_depth_t depth, const T* palette)
     {
-      auto pc = create_pc_palette(data, palette, bits, transparent);
+      auto pc = create_pc_palette(data, palette, depth, transparent);
       pushImage(x, y, w, h, &pc);
     }
 
@@ -243,9 +244,9 @@ namespace lgfx
     }
 
     template<typename T>
-    void pushImageDMA(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const void* data, const std::uint8_t bits, const T* palette)
+    void pushImageDMA(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const void* data, color_depth_t depth, const T* palette)
     {
-      auto pc = create_pc_palette(data, palette, bits);
+      auto pc = create_pc_palette(data, palette, depth);
       pushImage(x, y, w, h, &pc, true);
     }
 
@@ -768,12 +769,24 @@ namespace lgfx
     }
 
     template<typename T>
-    pixelcopy_t create_pc_fast(const void *data, const T *palette, lgfx::color_depth_t depth)
+    pixelcopy_t create_pc_fast(const void *data, const T *palette, lgfx::color_depth_t src_depth)
     {
-      pixelcopy_t pc(data, _write_conv.depth, get_depth<T>::value, hasPalette());
-      if (hasPalette() || _write_conv.depth < rgb332_1Byte)
+      auto dst_depth = _write_conv.depth;
+/*
+      pixelcopy_t pc(data, dst_depth, src_depth, hasPalette(), palette);
+/*/
+      pixelcopy_t pc;
+      pc.src_data  = data   ;
+      pc.palette   = palette;
+      pc.src_bits  = src_depth > 8 ? (src_depth + 7) & ~7 : src_depth;
+      pc.dst_bits  = dst_depth > 8 ? (dst_depth + 7) & ~7 : dst_depth;
+      pc.src_mask  = (1 << pc.src_bits) - 1 ;
+      pc.dst_mask  = (1 << pc.dst_bits) - 1 ;
+      pc.no_convert= src_depth == dst_depth;
+//*/
+      if (hasPalette() || dst_depth < rgb332_1Byte)
       {
-        if (palette && (_write_conv.depth == rgb332_1Byte) && (depth == rgb332_1Byte))
+        if (palette && (dst_depth == rgb332_1Byte) && (src_depth == rgb332_1Byte))
         {
           pc.fp_copy = pixelcopy_t::copy_rgb_fast<rgb332_t, rgb332_t>;
         }
@@ -783,9 +796,18 @@ namespace lgfx
         }
       }
       else
-      if (palette)
       {
-        pc.fp_copy = pixelcopy_t::copy_palette_fast<T>;
+        if (dst_depth > rgb565_2Byte)
+        {
+          if (     dst_depth == rgb888_3Byte) { pc.fp_copy = pixelcopy_t::copy_palette_fast<bgr888_t, T>; }
+          else if (dst_depth == rgb666_3Byte) { pc.fp_copy = pixelcopy_t::copy_palette_fast<bgr666_t, T>; }
+          else                                { pc.fp_copy = pixelcopy_t::copy_palette_fast<argb8888_t, T>; }
+        }
+        else
+        {
+          if (dst_depth == rgb565_2Byte) { pc.fp_copy = pixelcopy_t::copy_palette_fast<swap565_t, T>; }
+          else                           { pc.fp_copy = pixelcopy_t::copy_palette_fast<rgb332_t, T>; }
+        }
       }
       return pc;
     }

@@ -5,8 +5,9 @@
 // LovyanGFX.hppのincludeより前に、define LGFX_～ の定義を記述してください。
 
 // #define LGFX_M5STACK               // M5Stack (Basic / Gray / Go / Fire)
-// #define LGFX_M5STACKCORE2          // M5StackCore2
-// #define LGFX_M5STICKC              // M5Stick C / CPlus
+// #define LGFX_M5STACK_CORE2         // M5Stack Core2
+// #define LGFX_M5STACK_COREINK       // M5Stack CoreInk
+// #define LGFX_M5STICK_C             // M5Stick C / CPlus
 // #define LGFX_ODROID_GO             // ODROID-GO
 // #define LGFX_TTGO_TS               // TTGO TS
 // #define LGFX_TTGO_TWATCH           // TTGO T-Watch

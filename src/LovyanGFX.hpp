@@ -42,6 +42,9 @@ Contributors:
 
 #include "lgfx/LGFX_Sprite.hpp"         // sprite class (optional)
 
+#include "lgfx/panel/PanelCommon.hpp"
+#include "lgfx/touch/TouchCommon.hpp"
+
 #include "lgfx/panel/Panel_HX8357.hpp"
 #include "lgfx/panel/Panel_ILI9163.hpp"
 #include "lgfx/panel/Panel_ILI9341.hpp"   // and ILI9342 / M5Stack / ODROID-GO / ESP-WROVER-KIT4.1 / WioTerminal
@@ -79,11 +82,15 @@ Contributors:
 
  #if defined( ARDUINO_M5Stack_Core_ESP32 ) || defined( ARDUINO_M5STACK_FIRE )
   #define LGFX_M5STACK
-  #define LGFX_M5STACKCORE2
+  #define LGFX_M5STACK_CORE2
  #elif defined( ARDUINO_M5STACK_Core2 ) // M5Stack Core2
-  #define LGFX_M5STACKCORE2
+  #define LGFX_M5STACK_CORE2
  #elif defined( ARDUINO_M5Stick_C ) // M5Stick C / CPlus
-  #define LGFX_M5STICKC
+  #define LGFX_M5STICK_C
+ #elif defined( ARDUINO_M5Stack_CoreInk ) // M5Stack CoreInk
+  #define LGFX_M5STACK_COREINK
+ #elif defined( ARDUINO_M5STACK_Paper ) // M5Stack Paper
+  #define LGFX_M5STACK_PAPER
  #elif defined( ARDUINO_ODROID_ESP32 ) // ODROID-GO
   #define LGFX_ODROID_GO
  #elif defined( ARDUINO_TTGO_T1 ) // TTGO TS
@@ -96,6 +103,10 @@ Contributors:
   #define LGFX_LOLIN_D32_PRO
  #elif defined( ARDUINO_ESP32_WROVER_KIT )
   #define LGFX_ESP_WROVER_KIT
+ #endif
+
+ #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_M5STACK_COREINK )
+  #include "lgfx/panel/Panel_M5CoreInk.hpp"
  #endif
 
  #include "config/LGFX_Config_AutoDetectESP32.hpp"

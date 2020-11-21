@@ -99,6 +99,9 @@ void setup(void)
   lcd.setFont(&fonts::lgfxJapanGothic_16);   lcd.print("ゴシック体 16 Hello World\nこんにちは世界\n");
 //lcd.setFont(&fonts::lgfxJapanGothicP_16);  lcd.print("ゴシック P 16 Hello World\nこんにちは世界\n");
 
+// ※ やまねこ氏の [日本語フォントサブセットジェネレーター](https://github.com/yamamaya/lgfxFontSubsetGenerator)
+//    を使用することで、必要な文字だけを含む小サイズのフォントデータを作成できます。
+
 
   delay(3000);
   drawGradation();

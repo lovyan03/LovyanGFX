@@ -15,27 +15,28 @@ void setup(void)
   case ESP_SLEEP_WAKEUP_TIMER :
   case ESP_SLEEP_WAKEUP_TOUCHPAD :
   case ESP_SLEEP_WAKEUP_ULP :
-    lcd.autodetect(false); // deep sleep からの復帰時はautodetectを呼び出す。
-                           // 引数をfalseとすることでRSTピンの制御を行わない。
-    lcd.setColorDepth(16); // 初期化手順を踏まない代わりに、色数指定や回転方向は自前で設定しておく。
-    lcd.setRotation(1);
+    lcd.init_without_reset(); // deep sleep からの復帰時はinit_without_resetを呼び出す。
     break;
 
   default :
     lcd.init();            // 通常起動時はinitを呼び出す。
-
+    lcd.clear();
     lcd.startWrite();      // 背景を描画しておく
     lcd.setColorDepth(24);
     lcd.setAddrWindow(0, 0, lcd.width(), lcd.height());
     for (int y = 0; y < lcd.height(); ++y)
       for (int x = 0; x < lcd.width(); ++x)
-        lcd.writeColor( lcd.color888(x << 1, x + y, y << 1), 1);
+        lcd.writePixel(x, y, lcd.color888(x << 1, x + y, y << 1));
     lcd.endWrite();
     break;
   }
 
   ++bootCount;
   lcd.setCursor(bootCount*6, bootCount*8);
+  lcd.setTextColor(TFT_WHITE, TFT_BLACK);
+  lcd.print("DeepSleep test : " + String(bootCount));
+  lcd.setCursor(bootCount*6, bootCount*8);
+  lcd.setTextColor(TFT_BLACK, TFT_WHITE);
   lcd.print("DeepSleep test : " + String(bootCount));
 
   auto gpio_rst = (gpio_num_t)lcd.getPanel()->gpio_rst;

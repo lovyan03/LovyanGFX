@@ -23,6 +23,9 @@ Contributors:
 #define LGFX_DEVICE_HPP_
 
 #include "LGFXBase.hpp"
+#include "LGFX_Sprite.hpp"
+#include "touch/TouchCommon.hpp"
+#include "panel/PanelCommon.hpp"
 
 namespace lgfx
 {
@@ -43,6 +46,8 @@ namespace lgfx
     inline  void spiWrite( std::uint_fast8_t data) { writeData(data); } // AdafruitGFX compatible
     __attribute__ ((always_inline))
     inline  void writedata(std::uint_fast8_t data) { writeData(data); } // TFT_eSPI compatible
+
+    void writeBytes(const std::uint8_t* data, std::int32_t length, bool use_dma = true) { writeBytes_impl(data, length, use_dma); }
 
     virtual std::uint32_t readCommand(std::uint_fast8_t cmd, std::uint_fast8_t index=0, std::uint_fast8_t len=4) = 0;
 
@@ -65,9 +70,39 @@ namespace lgfx
     __attribute__ ((always_inline)) inline void setTouch(TouchCommon* touch_) { _touch = touch_; postSetTouch(); }
     __attribute__ ((always_inline)) inline void touch(TouchCommon* touch_) { _touch = touch_; postSetTouch(); }
 
-    void sleep()  { writeCommand(_panel->getCmdSlpin()); _panel->sleep(); }
+    void sleep(void)
+    {
+      std::uint8_t buf[32];
+      if (auto b = _panel->getSleepInCommands(buf)) commandList(b);
+      _panel->sleep();
+    }
 
-    void wakeup() { writeCommand(_panel->getCmdSlpout()); _panel->wakeup(); }
+    void wakeup(void)
+    {
+      std::uint8_t buf[32];
+      if (auto b = _panel->getSleepOutCommands(buf)) commandList(b);
+      _panel->wakeup();
+    }
+
+    void partialOn(void)
+    {
+      std::uint8_t buf[32];
+      if (auto b = _panel->getPartialOnCommands(buf)) commandList(b);
+    }
+
+    void partialOff(void)
+    {
+      std::uint8_t buf[32];
+      if (auto b = _panel->getPartialOffCommands(buf)) commandList(b);
+    }
+
+    void flush(void) 
+    {
+      if (nullptr == _panel->fp_flush) return;
+      startWrite();
+      _panel->fp_flush(_panel, this);
+      endWrite();
+    }
 
     void setColorDepth(std::uint8_t bpp) { setColorDepth((color_depth_t)bpp); }
     void setColorDepth(color_depth_t depth)
@@ -97,13 +132,15 @@ namespace lgfx
     }
 
     virtual void initBus(void) = 0;
+
+    virtual void writeBytes_impl(const std::uint8_t* data, std::int32_t length, bool use_dma) = 0;
     
-    void initPanel(void)
+    void initPanel(bool use_reset = true)
     {
       preInit();
       if (!_panel) return;
 
-      _panel->init();
+      _panel->init(use_reset);
 
       _sx = _sy = 0;
       _sw = _width;
@@ -126,6 +163,8 @@ namespace lgfx
       setBrightness(getBrightness());
 
       endWrite();
+
+      _panel->post_init(this);
     }
 
     void initTouch(void)
@@ -208,31 +247,36 @@ namespace lgfx
     bool commandList(const std::uint8_t *addr)
     {
       if (addr == nullptr) return false;
-      std::uint8_t  cmd;
-      std::uint8_t  numArgs;
-      std::uint8_t  ms;
+      if (*reinterpret_cast<const std::uint16_t*>(addr) == 0xFFFF) return false;
 
       startWrite();
       preCommandList();
-      for (;;) {                // For each command...
-        cmd     = *addr++;  // Read, issue command
-        numArgs = *addr++;  // Number of args to follow
-        if (0xFF == (cmd & numArgs)) break;
-        writeCommand(cmd);
-        ms = numArgs & CMD_INIT_DELAY;       // If hibit set, delay follows args
-        numArgs &= ~CMD_INIT_DELAY;          // Mask out delay bit
+      command_list(addr);
+      postCommandList();
+      endWrite();
+      return true;
+    }
 
-        while (numArgs--) {                   // For each argument...
-          writeData(*addr++);  // Read, issue argument
+    void command_list(const std::uint8_t *addr)
+    {
+      for (;;)
+      {                // For each command...
+        if (*reinterpret_cast<const std::uint16_t*>(addr) == 0xFFFF) break;
+        writeCommand(*addr++);  // Read, issue command
+        std::uint_fast8_t numArgs = *addr++;  // Number of args to follow
+        std::uint_fast8_t ms = numArgs & CMD_INIT_DELAY;       // If hibit set, delay follows args
+        numArgs &= ~CMD_INIT_DELAY;          // Mask out delay bit
+        if (numArgs)
+        {
+          do {                   // For each argument...
+            writeData(*addr++);  // Read, issue argument
+          } while (--numArgs);
         }
         if (ms) {
           ms = *addr++;        // Read post-command delay time (ms)
           delay( (ms==255 ? 500 : ms) );
         }
       }
-      postCommandList();
-      endWrite();
-      return true;
     }
 
     board_t getBoard(void) const { return board; }
@@ -272,14 +316,12 @@ namespace lgfx
       _read_conv.setColorDepth(_panel->read_depth);
     }
 
-    virtual void init_impl(void) {
+    virtual void init_impl(bool use_reset = true)
+    {
       initBus(); 
-      initPanel(); 
+      initPanel(use_reset); 
       initTouch(); 
-      startWrite(); 
-      clear(); 
-      setWindow(0,0,0,0); 
-      endWrite();
+      if (use_reset) { clear(); }
     }
 
     bool isReadable_impl(void) const override { return _panel->spi_read; }

@@ -13,8 +13,6 @@ namespace lgfx
       cmd_ramwr  = CommandCommon::RAMWR;
       cmd_ramrd  = CommandCommon::RAMRD;
       cmd_rddid  = CommandCommon::RDDID;
-      cmd_slpin  = CommandCommon::SLPIN;
-      cmd_slpout = CommandCommon::SLPOUT;
 
       read_depth = rgb888_3Byte;
       len_dummy_read_pixel = 8;
@@ -23,6 +21,68 @@ namespace lgfx
     }
 
   protected:
+
+    const std::uint8_t* getWindowCommands1(std::uint8_t* buf, std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye) override
+    {
+      if (_xs == xs && _xe == xe) return nullptr;
+      (void)ys;
+      (void)ye;
+      _xs = xs;
+      _xe = xe;
+      xs += _colstart;
+      xe += _colstart;
+      reinterpret_cast<std::uint16_t*>(buf)[0] = CommandCommon::CASET | (4 << 8);
+      reinterpret_cast<std::uint16_t*>(buf)[1] = xs >> 8 | xs << 8;
+      reinterpret_cast<std::uint16_t*>(buf)[2] = xe >> 8 | xe << 8;
+      reinterpret_cast<std::uint16_t*>(buf)[3] = 0xFFFF;
+      return buf;
+    }
+
+    const std::uint8_t* getWindowCommands2(std::uint8_t* buf, std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye) override
+    {
+      if (_ys == ys && _ye == ye) return nullptr;
+      (void)xs;
+      (void)xe;
+      _ys = ys;
+      _ye = ye;
+      ys += _rowstart;
+      ye += _rowstart;
+      reinterpret_cast<std::uint16_t*>(buf)[0] = CommandCommon::RASET | (4 << 8);
+      reinterpret_cast<std::uint16_t*>(buf)[1] = ys >> 8 | ys << 8;
+      reinterpret_cast<std::uint16_t*>(buf)[2] = ye >> 8 | ye << 8;
+      reinterpret_cast<std::uint16_t*>(buf)[3] = 0xFFFF;
+      return buf;
+    }
+
+    const std::uint8_t* getSleepInCommands(std::uint8_t* buf) override
+    {
+      reinterpret_cast<std::uint16_t*>(buf)[0] = CommandCommon::SLPIN;
+      reinterpret_cast<std::uint16_t*>(buf)[1] = 0xFFFF;
+      return buf;
+    }
+
+    const std::uint8_t* getSleepOutCommands(std::uint8_t* buf) override
+    {
+      reinterpret_cast<std::uint16_t*>(buf)[0] = CommandCommon::SLPOUT;
+      reinterpret_cast<std::uint16_t*>(buf)[1] = 0xFFFF;
+      return buf;
+    }
+
+    const std::uint8_t* getPartialOnCommands(std::uint8_t* buf) override
+    {
+      reinterpret_cast<std::uint16_t*>(buf)[0] = CommandCommon::PTLON;
+      reinterpret_cast<std::uint16_t*>(buf)[1] = 0x39;
+      reinterpret_cast<std::uint16_t*>(buf)[2] = 0xFFFF;
+      return buf;
+    }
+
+    const std::uint8_t* getPartialOffCommands(std::uint8_t* buf) override
+    {
+      reinterpret_cast<std::uint16_t*>(buf)[0] = CommandCommon::NORON;
+      reinterpret_cast<std::uint16_t*>(buf)[1] = 0x38;
+      reinterpret_cast<std::uint16_t*>(buf)[2] = 0xFFFF;
+      return buf;
+    }
 
     const std::uint8_t* getInvertDisplayCommands(std::uint8_t* buf, bool invert) override
     {
@@ -35,10 +95,10 @@ namespace lgfx
 
     const std::uint8_t* getRotationCommands(std::uint8_t* buf, int_fast8_t r) override
     {
-      rotation = r & 7;
+      PanelCommon::getRotationCommands(buf, r);
       buf[0] = CommandCommon::MADCTL;
       buf[1] = 1;
-      buf[2] = getMadCtl(rotation) | (rgb_order ? MAD_RGB : MAD_BGR);
+      buf[2] = getMadCtl(_internal_rotation) | (rgb_order ? MAD_RGB : MAD_BGR);
       buf[3] = buf[4] = 0xFF;
       return buf;
     }
@@ -54,7 +114,6 @@ namespace lgfx
                MAD_MX|MAD_MH              ,
         MAD_MV|MAD_MX|MAD_MY|MAD_MH|MAD_ML,
       };
-      r = ((r + offset_rotation) & 3) | ((r & 4) ^ (offset_rotation & 4));
       return madctl_table[r];
     }
 
@@ -99,6 +158,8 @@ namespace lgfx
     static constexpr std::uint8_t RAMWR   = 0x2C;
     static constexpr std::uint8_t RAMRD   = 0x2E;
     static constexpr std::uint8_t MADCTL  = 0x36;
+    static constexpr std::uint8_t IDMOFF  = 0x38;
+    static constexpr std::uint8_t IDMON   = 0x39;
     static constexpr std::uint8_t COLMOD  = 0x3A; static constexpr std::uint8_t PIXSET = 0x3A;
     };
 

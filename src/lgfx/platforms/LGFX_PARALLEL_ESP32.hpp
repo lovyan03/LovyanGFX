@@ -250,8 +250,14 @@ namespace lgfx
       return !(*reg(I2S_STATE_REG(_i2s_port)) & I2S_TX_IDLE);
     }
 
-    void writePixelsDMA_impl(const void* data, std::int32_t length) override {
+    void writePixelsDMA_impl(const void* data, std::int32_t length) override
+    {
       write_bytes((const std::uint8_t*)data, length * _write_conv.bytes, true);
+    }
+
+    void writeBytes_impl(const std::uint8_t* data, std::int32_t length, bool use_dma) override
+    {
+      write_bytes((const std::uint8_t*)data, length, use_dma);
     }
 
     void setWindow_impl(std::int32_t xs, std::int32_t ys, std::int32_t xe, std::int32_t ye) override

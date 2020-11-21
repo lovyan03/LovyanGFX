@@ -2181,13 +2181,13 @@ namespace lgfx
       return false;
     }
 
-    if (!maxWidth) maxWidth = this->width();
+    if (!maxWidth) maxWidth = INT32_MAX;
     auto cl = this->_clip_l;
     if (0 > x - cl) { maxWidth += x - cl; x = cl; }
     auto cr = this->_clip_r + 1;
     if (maxWidth > (cr - x)) maxWidth = (cr - x);
 
-    if (!maxHeight) maxHeight = this->height();
+    if (!maxHeight) maxHeight = INT32_MAX;
     auto ct = this->_clip_t;
     if (0 > y - ct) { maxHeight += y - ct; y = ct; }
     auto cb = this->_clip_b + 1;

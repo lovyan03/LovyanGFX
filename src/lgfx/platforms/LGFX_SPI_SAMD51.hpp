@@ -469,8 +469,8 @@ void enableSPI()
     {
       bool fullscroll = (_sx == 0 && _sy == 0 && _sw == _width && _sh == _height);
 
-      _cmd_caset = _panel->getCmdCaset();
-      _cmd_raset = _panel->getCmdRaset();
+      //_cmd_caset = _panel->getCmdCaset();
+      //_cmd_raset = _panel->getCmdRaset();
       _colstart  = _panel->getColStart();
       _rowstart  = _panel->getRowStart();
       _width     = _panel->getWidth();
@@ -482,7 +482,7 @@ void enableSPI()
         _sw = _width;
         _sh = _height;
       }
-      _xs = _xe = _ys = _ye = ~0;
+      //_xs = _xe = _ys = _ye = ~0;
       _clip_l = _clip_t = 0;
     }
 
@@ -526,8 +526,14 @@ void enableSPI()
       return _need_wait && (_sercom->SPI.INTFLAG.bit.TXC == 0);
     }
 
-    void writePixelsDMA_impl(const void* data, std::int32_t length) override {
+    void writePixelsDMA_impl(const void* data, std::int32_t length) override
+    {
       write_bytes((const std::uint8_t*)data, length * _write_conv.bytes, true);
+    }
+
+    void writeBytes_impl(const std::uint8_t* data, std::int32_t length, bool use_dma) override
+    {
+      write_bytes((const std::uint8_t*)data, length, use_dma);
     }
 
     void setWindow_impl(std::int32_t xs, std::int32_t ys, std::int32_t xe, std::int32_t ye) override
@@ -664,8 +670,7 @@ void enableSPI()
 
     void write_data(std::uint32_t data, std::uint32_t bit_length)
     {
-      bit_length >>= 3;
-      auto len = bit_length | SERCOM_SPI_LENGTH_LENEN;
+      auto len = bit_length >> 3 | SERCOM_SPI_LENGTH_LENEN;
       auto *spi = &_sercom->SPI;
       dc_h();
       if (!_sercom->SPI.CTRLC.bit.DATA32B) {
@@ -680,8 +685,100 @@ void enableSPI()
       _need_wait = true;
     }
 
+    __attribute__ ((always_inline)) inline 
+    void write_cmd_data(const std::uint8_t *addr)
+    {
+      auto *spi = &_sercom->SPI;
+      do {
+        dc_l();
+        bool d32b = !spi->CTRLC.bit.DATA32B;
+        if (d32b || _fill_mode) {
+          while (spi->SYNCBUSY.reg);
+          spi->CTRLA.bit.ENABLE = 0;
+          if (d32b) spi->CTRLC.bit.DATA32B = 1;  // 4Byte transfer enable
+          if (_fill_mode) {
+            _fill_mode = false;
+            while (spi->SYNCBUSY.reg);
+            spi->BAUD.reg = _clkdiv_write;
+          }
+          spi->CTRLA.bit.ENABLE = 1;
+          while (spi->SYNCBUSY.reg);
+        }
+
+        if (_spi_dlen == 16) {
+          spi->LENGTH.reg = 2 | SERCOM_SPI_LENGTH_LENEN;
+          spi->DATA.reg = *addr++ << 8;
+        }
+        else
+        {
+          spi->LENGTH.reg = 1 | SERCOM_SPI_LENGTH_LENEN;
+          spi->DATA.reg = *addr++;
+        }
+        _need_wait = true;
+        std::uint_fast8_t numArgs = *addr++;
+        if (numArgs)
+        {
+          auto mask_reg_dc = _mask_reg_dc;
+          auto gpio_reg_dc_h = _gpio_reg_dc_h;
+          while (spi->INTFLAG.bit.TXC == 0);
+          *gpio_reg_dc_h = mask_reg_dc;   // dc_h();
+
+          if (_spi_dlen == 16) {
+            if (numArgs >= 2) {
+              spi->LENGTH.reg = 0;
+              spi->DATA.reg = addr[0] << 8 | addr[1] << 24;
+              addr += 2;
+              numArgs -= 2;
+              if (numArgs >= 2) {
+                do {
+                  while (spi->INTFLAG.bit.DRE == 0);
+                  spi->DATA.reg = addr[0] << 8 | addr[1] << 24;
+                  addr += 2;
+                } while (2 <= (numArgs -= 2));
+              }
+            }
+            if (numArgs) {
+              std::uint32_t tmp = addr[0] << 8;
+              while (spi->INTFLAG.bit.TXC == 0);
+              spi->LENGTH.reg = numArgs | SERCOM_SPI_LENGTH_LENEN;
+              spi->DATA.reg = tmp;
+              ++addr;
+            }
+          }
+          else
+          {
+            if (numArgs >= 4) {
+              spi->LENGTH.reg = 0;
+              spi->DATA.reg = *(std::uint32_t*)addr;
+              addr += 4;
+              numArgs -= 4;
+              if (numArgs >= 4) {
+                do {
+                  while (spi->INTFLAG.bit.DRE == 0);
+                  spi->DATA.reg = *(std::uint32_t*)addr;
+                  addr += 4;
+                } while (4 <= (numArgs -= 4));
+              }
+            }
+            if (numArgs) {
+              std::uint32_t tmp = *(std::uint32_t*)addr;
+              while (spi->INTFLAG.bit.TXC == 0);
+              spi->LENGTH.reg = numArgs | SERCOM_SPI_LENGTH_LENEN;
+              spi->DATA.reg = tmp;
+              addr += numArgs;
+            }
+          }
+        }
+      } while (reinterpret_cast<const std::uint16_t*>(addr)[0] != 0xFFFF);
+    }
+//*/
     void set_window(std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye)
     {
+      std::uint8_t buf[16];
+      if (auto b = _panel->getWindowCommands1(buf, xs, ys, xe, ye)) { write_cmd_data(b); }
+      if (auto b = _panel->getWindowCommands2(buf, xs, ys, xe, ye)) { write_cmd_data(b); }
+      return;
+/*/
       std::uint32_t len;
       if (_spi_dlen == 8) {
         len = _len_setwindow;
@@ -771,6 +868,7 @@ void enableSPI()
         _ys = ys;
         _ye = ye;
       }
+//*/
     }
 
     void start_read(void) {
@@ -1128,12 +1226,14 @@ void enableSPI()
     std::uint32_t(*fpGetWindowAddr)(std::uint_fast16_t, std::uint_fast16_t);
     std::uint_fast16_t _colstart;
     std::uint_fast16_t _rowstart;
+/*
     std::uint_fast16_t _xs;
     std::uint_fast16_t _xe;
     std::uint_fast16_t _ys;
     std::uint_fast16_t _ye;
     std::uint32_t _cmd_caset;
     std::uint32_t _cmd_raset;
+//*/
     std::uint32_t _cmd_ramwr;
     std::uint32_t _last_apb_freq;
     std::uint32_t _clkdiv_write;

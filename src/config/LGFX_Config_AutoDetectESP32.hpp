@@ -36,13 +36,14 @@ namespace lgfx
       offset_rotation = 2;
     }
 
-    void init(void) override
+    void init(bool use_reset) override
     {
+      (void)use_reset;
       lgfx::i2c::init(axp_i2c_port, axp_i2c_sda, axp_i2c_scl, freq);
 
       lgfx::i2c::writeRegister8(axp_i2c_port, axp_i2c_addr, 0x12, 0x4D, ~0);
 
-      Panel_ST7735S::init();
+      Panel_ST7735S::init(use_reset);
     }
 
     void setBrightness(std::uint8_t brightness) override
@@ -96,13 +97,14 @@ namespace lgfx
       offset_y = 40;
     }
 
-    void init(void) override
+    void init(bool use_reset) override
     {
+      (void)use_reset;
       lgfx::i2c::init(axp_i2c_port, axp_i2c_sda, axp_i2c_scl, freq);
 
       lgfx::i2c::writeRegister8(axp_i2c_port, axp_i2c_addr, 0x12, 0x4D, ~0);
 
-      Panel_ST7789::init();
+      Panel_ST7789::init(use_reset);
     }
 
     void setBrightness(std::uint8_t brightness) override
@@ -119,7 +121,8 @@ namespace lgfx
 
   struct Panel_M5Stack : public Panel_ILI9342
   {
-    Panel_M5Stack(void) {
+    Panel_M5Stack(void)
+    {
       spi_3wire = true;
       spi_cs = 14;
       spi_dc = 27;
@@ -131,13 +134,28 @@ namespace lgfx
       pwm_freq  = 44100;
     }
 
-    void init(void) override {
-      gpio_lo(gpio_rst);
-      lgfxPinMode(gpio_rst, pin_mode_t::input);
-      delay(1);
-      reverse_invert = gpio_in(gpio_rst);       // get panel type (IPS or TN)
+    void init(bool use_reset) override
+    {
+      static constexpr char NVS_NAME[] = "LovyanGFX";
+      static constexpr char NVS_KEY[] = "M5Stack_IPS";
+      std::uint32_t nvs_handle = 0;
+      if (0 == nvs_open(NVS_NAME, NVS_READONLY, &nvs_handle)) {
+        nvs_get_u8(nvs_handle, NVS_KEY, reinterpret_cast<uint8_t*>(&reverse_invert));
+        nvs_close(nvs_handle);
+      }
+      else
+      {
+        gpio_lo(gpio_rst);
+        lgfxPinMode(gpio_rst, pin_mode_t::input);
+        delay(1);
+        reverse_invert = gpio_in(gpio_rst);       // get panel type (IPS or TN)
+        if (0 == nvs_open(NVS_NAME, NVS_READWRITE, &nvs_handle)) {
+          nvs_set_u8(nvs_handle, NVS_KEY, reverse_invert);
+          nvs_close(nvs_handle);
+        }
+      }
 
-      Panel_ILI9342::init();
+      Panel_ILI9342::init(use_reset);
     }
   };
 
@@ -170,11 +188,11 @@ namespace lgfx
       lgfx::i2c::writeRegister8(axp_i2c_port, axp_i2c_addr, 0x96, 2, ~0); // GPIO4 HIGH (LCD RST)
     }
 
-    void init(void) override
+    void init(bool use_reset) override
     {
       resetPanel();
 
-      Panel_ILI9342::init();
+      Panel_ILI9342::init(use_reset);
     }
 
     void setBrightness(std::uint8_t brightness) override
@@ -199,16 +217,22 @@ public:
   {
   }
 
+  void init_without_reset(void)
+  {
+    autodetect(false);
+    lgfx::LGFX_SPI<lgfx::LGFX_Config>::init_impl(false);
+  }
+
   void autodetect(bool use_reset = true)
   {
     if (_spi_mosi != -1 && _spi_sclk != -1) {
       return;
     }
+    preInit();
 
-    static lgfx::PanelCommon* panel_last = nullptr;
-    if (panel_last) {
-      delete panel_last;
-      panel_last = nullptr;
+    if (_panel_last) {
+      delete _panel_last;
+      _panel_last = nullptr;
     }
 
     lgfx::PanelIlitekCommon p_tmp;
@@ -499,7 +523,7 @@ public:
 #endif
 
 // M5StickC / CPlus 判定
-#if defined ( LGFX_AUTODETECT ) || defined ( LGFX_M5STICKC )
+#if defined ( LGFX_AUTODETECT ) || defined ( LGFX_M5STICK_C ) || defined ( LGFX_M5STICKC )
     if (nvs_board == 0 || nvs_board == lgfx::board_t::board_M5StickC || nvs_board == lgfx::board_t::board_M5StickCPlus) {
       releaseBus();
       _spi_mosi = 15;
@@ -598,6 +622,49 @@ public:
       lgfx::gpio_lo(p_tmp.spi_dc);
       lgfx::gpio_lo(p_tmp.gpio_rst);
       p_tmp.spi_3wire = true;
+    }
+#endif
+
+// M5Stack CoreInk 判定
+#if defined ( LGFX_AUTODETECT ) || defined ( LGFX_M5STACK_COREINK )
+    if (nvs_board == 0 || nvs_board == lgfx::board_t::board_M5Stack_CoreInk) {
+      releaseBus();
+      _spi_mosi = 23;
+      _spi_miso = -1;
+      _spi_sclk = 18;
+      initBus();
+
+      p_tmp.spi_cs   = 9;
+      p_tmp.spi_dc   = 15;
+      p_tmp.gpio_rst = 0;
+      setPanel(&p_tmp);
+      _reset(true);  // EPDがDeepSleepしていると自動認識も失敗するためRST制御は必須とする
+
+      auto id = readCommand32(0x70);
+
+      ESP_LOGW("LovyanGFX", "[Autodetect] panel id:%08x", id);
+      if (id == 0x0001e000) {  //  check panel (e-paper GDEW0154M09)
+        ESP_LOGW("LovyanGFX", "[Autodetect] M5Stack_CoreInk");
+        board = lgfx::board_t::board_M5Stack_CoreInk;
+        auto p = new lgfx::Panel_M5CoreInk();
+        p->freq_write = 40000000;
+        p->freq_read  = 16000000;
+        p->freq_fill  = 40000000;
+        p->spi_3wire = true;
+        p->panel_width = 200;
+        p->panel_height = 200;
+        p->spi_cs    = 9;
+        p->spi_dc    = 15;
+        p->gpio_bl   = -1;
+        p->gpio_rst  = 0;
+        p->gpio_busy = 4;
+        setPanel(p);
+
+        goto init_clear;
+      }
+      lgfx::gpio_lo(p_tmp.spi_cs);
+      lgfx::gpio_lo(p_tmp.spi_dc);
+      lgfx::gpio_lo(p_tmp.gpio_rst);
     }
 #endif
 
@@ -839,8 +906,8 @@ public:
     }
 #endif
 
-// M5StackCore2 判定
-#if defined ( LGFX_AUTODETECT ) || defined ( LGFX_M5STACKCORE2 )
+// M5Stack Core2 判定
+#if defined ( LGFX_AUTODETECT ) || defined ( LGFX_M5STACK_CORE2 ) || defined ( LGFX_M5STACKCORE2 )
     if (nvs_board == 0 || nvs_board == lgfx::board_t::board_M5StackCore2) {
       lgfx::i2c::init(I2C_NUM_1, 21, 22, 400000);
       if (lgfx::i2c::writeRegister8(I2C_NUM_1, 0x34, 0x95, 0x84, 0x72)) { // GPIO4 enable
@@ -951,7 +1018,7 @@ public:
 
     goto init_clear;
 init_clear:
-    panel_last = getPanel();
+    _panel_last = getPanel();
 
     if (nvs_board != board) {
       if (0 == nvs_open(NVS_NAME, NVS_READWRITE, &nvs_handle)) {
@@ -963,10 +1030,12 @@ init_clear:
   }
 
 private:
-  void init_impl(void) override
+  lgfx::PanelCommon* _panel_last = nullptr;
+
+  void init_impl(bool use_reset) override
   {
-    autodetect();
-    lgfx::LGFX_SPI<lgfx::LGFX_Config>::init_impl();
+    autodetect(use_reset);
+    lgfx::LGFX_SPI<lgfx::LGFX_Config>::init_impl(use_reset);
   }
 
   void _reset(bool use_reset) {
