@@ -20,7 +20,8 @@ void setup(void)
 
   default :
     lcd.init();            // 通常起動時はinitを呼び出す。
-    lcd.clear();
+    lcd.clear(TFT_WHITE);
+    lcd.clear(TFT_BLACK);
     lcd.startWrite();      // 背景を描画しておく
     lcd.setColorDepth(24);
     lcd.setAddrWindow(0, 0, lcd.width(), lcd.height());
@@ -38,6 +39,8 @@ void setup(void)
   lcd.setCursor(bootCount*6, bootCount*8);
   lcd.setTextColor(TFT_BLACK, TFT_WHITE);
   lcd.print("DeepSleep test : " + String(bootCount));
+
+  lcd.partialOn(); // power saving.
 
   auto gpio_rst = (gpio_num_t)lcd.getPanel()->gpio_rst;
   if (gpio_rst >= 0) {
