@@ -115,6 +115,7 @@ namespace lgfx
 
     const std::uint8_t* getRotationCommands(std::uint8_t* buf, std::int_fast8_t r) override
     {
+      _xs = _xe = _ys = _ye = ~0;
       buf[0] = buf[1] = 0xFF;
       return PanelCommon::getRotationCommands(buf, r);
     }
@@ -122,7 +123,6 @@ namespace lgfx
     const std::uint8_t* getColorDepthCommands(std::uint8_t* buf, color_depth_t depth) override
     {
       (void)depth;
-      _xs = _xe = _ys = _ye = ~0;
       buf[0] = buf[1] = 0xFF;
       return buf;
     }

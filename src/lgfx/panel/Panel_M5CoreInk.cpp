@@ -108,9 +108,8 @@ namespace lgfx
     } while (++y < h);
   }
 
-  void Panel_M5CoreInk::pushBlock(PanelCommon* panel, LGFX_Device* gfx, std::int32_t length, std::uint32_t rawcolor)
+  void Panel_M5CoreInk::pushBlock(PanelCommon* panel, LGFX_Device*, std::int32_t length, std::uint32_t rawcolor)
   {
-    (void)gfx;
     auto me = reinterpret_cast<Panel_M5CoreInk*>(panel);
     std::int32_t xs   = me->_xs  ;
     std::int32_t ys   = me->_ys  ;
@@ -139,9 +138,8 @@ namespace lgfx
     me->_update_transferred_rect(xs, ys, xe, ye);
   }
 
-  void Panel_M5CoreInk::writePixels(PanelCommon* panel, LGFX_Device* gfx, std::int32_t length, pixelcopy_t* param)
+  void Panel_M5CoreInk::writePixels(PanelCommon* panel, LGFX_Device*, std::int32_t length, pixelcopy_t* param)
   {
-    (void)gfx;
     auto me = reinterpret_cast<Panel_M5CoreInk*>(panel);
     std::int32_t xs   = me->_xs  ;
     std::int32_t ys   = me->_ys  ;
@@ -175,9 +173,8 @@ namespace lgfx
     me->_update_transferred_rect(xs, ys, xe, ye);
   }
 
-  void Panel_M5CoreInk::readRect(PanelCommon* panel, LGFX_Device* gfx, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, void* dst, pixelcopy_t* param)
+  void Panel_M5CoreInk::readRect(PanelCommon* panel, LGFX_Device*, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, void* dst, pixelcopy_t* param)
   {
-    (void)gfx;
     auto me = reinterpret_cast<Panel_M5CoreInk*>(panel);
 
     swap565_t readbuf[w];
