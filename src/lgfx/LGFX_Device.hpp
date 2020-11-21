@@ -70,9 +70,31 @@ namespace lgfx
     __attribute__ ((always_inline)) inline void setTouch(TouchCommon* touch_) { _touch = touch_; postSetTouch(); }
     __attribute__ ((always_inline)) inline void touch(TouchCommon* touch_) { _touch = touch_; postSetTouch(); }
 
-    void sleep()  { writeCommand(_panel->getCmdSlpin()); _panel->sleep(); }
+    void sleep(void)
+    {
+      std::uint8_t buf[32];
+      if (auto b = _panel->getSleepInCommands(buf)) commandList(b);
+      _panel->sleep();
+    }
 
-    void wakeup() { writeCommand(_panel->getCmdSlpout()); _panel->wakeup(); }
+    void wakeup(void)
+    {
+      std::uint8_t buf[32];
+      if (auto b = _panel->getSleepOutCommands(buf)) commandList(b);
+      _panel->wakeup();
+    }
+
+    void partialOn(void)
+    {
+      std::uint8_t buf[32];
+      if (auto b = _panel->getPartialOnCommands(buf)) commandList(b);
+    }
+
+    void partialOff(void)
+    {
+      std::uint8_t buf[32];
+      if (auto b = _panel->getPartialOffCommands(buf)) commandList(b);
+    }
 
     void flush(void) 
     {
@@ -299,7 +321,7 @@ namespace lgfx
       initBus(); 
       initPanel(use_reset); 
       initTouch(); 
-      clear(0);
+      if (use_reset) { clear(); }
     }
 
     bool isReadable_impl(void) const override { return _panel->spi_read; }

@@ -523,8 +523,8 @@ namespace lgfx
     {
 //*
       std::uint8_t buf[16];
-      if (_panel->makeWindowCommands1(buf, xs, ys, xe, ye)) { write_cmd_data(buf); }
-      if (_panel->makeWindowCommands2(buf, xs, ys, xe, ye)) { write_cmd_data(buf); }
+      if (auto b = _panel->getWindowCommands1(buf, xs, ys, xe, ye)) { write_cmd_data(b); }
+      if (auto b = _panel->getWindowCommands2(buf, xs, ys, xe, ye)) { write_cmd_data(b); }
       return;
 /*/
       std::uint32_t len;

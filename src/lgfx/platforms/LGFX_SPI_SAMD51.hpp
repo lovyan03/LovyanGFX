@@ -469,8 +469,8 @@ void enableSPI()
     {
       bool fullscroll = (_sx == 0 && _sy == 0 && _sw == _width && _sh == _height);
 
-      _cmd_caset = _panel->getCmdCaset();
-      _cmd_raset = _panel->getCmdRaset();
+      //_cmd_caset = _panel->getCmdCaset();
+      //_cmd_raset = _panel->getCmdRaset();
       _colstart  = _panel->getColStart();
       _rowstart  = _panel->getRowStart();
       _width     = _panel->getWidth();
@@ -482,7 +482,7 @@ void enableSPI()
         _sw = _width;
         _sh = _height;
       }
-      _xs = _xe = _ys = _ye = ~0;
+      //_xs = _xe = _ys = _ye = ~0;
       _clip_l = _clip_t = 0;
     }
 
@@ -689,7 +689,7 @@ void enableSPI()
     void write_cmd_data(const std::uint8_t *addr)
     {
       auto *spi = &_sercom->SPI;
-//      do {
+      do {
         dc_l();
         bool d32b = !spi->CTRLC.bit.DATA32B;
         if (d32b || _fill_mode) {
@@ -769,14 +769,14 @@ void enableSPI()
             }
           }
         }
-//      } while (reinterpret_cast<const std::uint16_t*>(addr)[0] != 0xFFFF);
+      } while (reinterpret_cast<const std::uint16_t*>(addr)[0] != 0xFFFF);
     }
 //*/
     void set_window(std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye)
     {
       std::uint8_t buf[16];
-      if (_panel->makeWindowCommands1(buf, xs, ys, xe, ye)) { write_cmd_data(buf); }
-      if (_panel->makeWindowCommands2(buf, xs, ys, xe, ye)) { write_cmd_data(buf); }
+      if (auto b = _panel->getWindowCommands1(buf, xs, ys, xe, ye)) { write_cmd_data(b); }
+      if (auto b = _panel->getWindowCommands2(buf, xs, ys, xe, ye)) { write_cmd_data(b); }
       return;
 /*/
       std::uint32_t len;
@@ -1226,12 +1226,14 @@ void enableSPI()
     std::uint32_t(*fpGetWindowAddr)(std::uint_fast16_t, std::uint_fast16_t);
     std::uint_fast16_t _colstart;
     std::uint_fast16_t _rowstart;
+/*
     std::uint_fast16_t _xs;
     std::uint_fast16_t _xe;
     std::uint_fast16_t _ys;
     std::uint_fast16_t _ye;
     std::uint32_t _cmd_caset;
     std::uint32_t _cmd_raset;
+//*/
     std::uint32_t _cmd_ramwr;
     std::uint32_t _last_apb_freq;
     std::uint32_t _clkdiv_write;

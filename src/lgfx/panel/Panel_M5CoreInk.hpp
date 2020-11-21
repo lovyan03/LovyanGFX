@@ -29,8 +29,6 @@ namespace lgfx
       cmd_ramwr  = 0x11; // dummy setting (data stop)
       //cmd_ramrd  = 4;
       cmd_rddid  = 0x70;
-      cmd_slpin  = 0x02;
-      cmd_slpout = 0x04;
 
       fp_begin       = beginTransaction;
       fp_end         = endTransaction;
@@ -60,23 +58,57 @@ namespace lgfx
 
     void post_init(LGFX_Device* gfx) override;
 
-    bool makeWindowCommands1(std::uint8_t* buf, std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye) override
+    const std::uint8_t* getWindowCommands1(std::uint8_t* buf, std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye) override
     {
+      (void)buf;
       _xpos = xs;
       _xs = xs;
       _ypos = ys;
       _ys = ys;
       _xe = xe;
       _ye = ye;
-      return false;
+      return nullptr;
     }
-    bool makeWindowCommands2(std::uint8_t* buf, std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye) override
+    const std::uint8_t* getWindowCommands2(std::uint8_t*, std::uint_fast16_t, std::uint_fast16_t, std::uint_fast16_t, std::uint_fast16_t) override
     {
-      return false;
+      return nullptr;
+    }
+
+    const std::uint8_t* getSleepInCommands(std::uint8_t* buf) override
+    {
+      buf[0] = 0x50; buf[1] = 1; buf[2] = 0xF7;
+      buf[3] = 0x02; buf[4] = 0;
+      buf[5] = buf[6] = 0xFF;
+      return buf;
+    }
+
+    const std::uint8_t* getSleepOutCommands(std::uint8_t* buf) override
+    {
+      buf[0] = 0x50; buf[1] = 1; buf[2] = 0xD7;
+      buf[3] = 0x04; buf[4] = 0;
+      buf[5] = buf[6] = 0xFF;
+      return buf;
+    }
+
+    const std::uint8_t* getPartialOnCommands(std::uint8_t* buf) override
+    {
+      buf[0] = 0x50; buf[1] = 1; buf[2] = 0xF7;
+      buf[3] = 0x02; buf[4] = 0;
+      buf[5] = buf[6] = 0xFF;
+      return buf;
+    }
+
+    const std::uint8_t* getPartialOffCommands(std::uint8_t* buf) override
+    {
+      buf[0] = 0x50; buf[1] = 1; buf[2] = 0xD7;
+      buf[3] = 0x04; buf[4] = 0;
+      buf[5] = buf[6] = 0xFF;
+      return buf;
     }
 
     const std::uint8_t* getInvertDisplayCommands(std::uint8_t* buf, bool invert) override
     {
+      (void)invert;
       buf[0] = buf[1] = 0xFF;
       return buf;
     }
@@ -89,12 +121,13 @@ namespace lgfx
 
     const std::uint8_t* getColorDepthCommands(std::uint8_t* buf, color_depth_t depth) override
     {
+      (void)depth;
       _xs = _xe = _ys = _ye = ~0;
       buf[0] = buf[1] = 0xFF;
       return buf;
     }
 
-    color_depth_t getAdjustBpp(color_depth_t bpp) const override { return rgb565_2Byte; }
+    color_depth_t getAdjustBpp(color_depth_t bpp) const override { (void)bpp; return rgb565_2Byte; }
 
     const std::uint8_t* getInitCommands(std::uint8_t listno) const override {
       static constexpr std::uint8_t list0[] = {

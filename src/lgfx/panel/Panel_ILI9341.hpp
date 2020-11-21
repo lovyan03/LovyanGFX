@@ -66,6 +66,7 @@ namespace lgfx
           0xFF,0xFF, // end
       };
       static constexpr std::uint8_t list2[] = {
+          CMD::IDMOFF, 0,
           CMD::SLPOUT, 0,
           CMD::DISPON, 0,
           0xFF,0xFF, // end
@@ -118,6 +119,7 @@ namespace lgfx
           0xFF,0xFF, // end
       };
       static constexpr std::uint8_t list2[] = {
+          CMD::IDMOFF, 0,
           CMD::SLPOUT, 0,
           CMD::DISPON, 0,
           0xFF,0xFF, // end

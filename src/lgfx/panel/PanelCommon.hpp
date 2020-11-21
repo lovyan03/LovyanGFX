@@ -151,16 +151,17 @@ namespace lgfx
       return buf;
     }
 
-    virtual const std::uint8_t* getInitCommands(std::uint8_t listno = 0) const { ((void)listno); return nullptr; }
-
-    virtual bool makeWindowCommands1(std::uint8_t* buf, std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye) = 0;// { return false; };
-
-    virtual bool makeWindowCommands2(std::uint8_t* buf, std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye) = 0;// { return false;};
-
+    virtual const std::uint8_t* getInitCommands(std::uint8_t listno = 0) const { (void)listno; return nullptr; }
+    virtual const std::uint8_t* getWindowCommands1(std::uint8_t* buf, std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye) = 0;
+    virtual const std::uint8_t* getWindowCommands2(std::uint8_t* buf, std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye) = 0;
+    virtual const std::uint8_t* getSleepInCommands(std::uint8_t* buf) = 0;
+    virtual const std::uint8_t* getSleepOutCommands(std::uint8_t* buf) = 0;
+    virtual const std::uint8_t* getPartialOnCommands(std::uint8_t* buf) { (void)buf; return nullptr; }
+    virtual const std::uint8_t* getPartialOffCommands(std::uint8_t* buf) { (void)buf; return nullptr; }
     virtual const std::uint8_t* getInvertDisplayCommands(std::uint8_t* buf, bool invert) = 0;
-
     virtual const std::uint8_t* getRotationCommands(std::uint8_t* buf, std::int_fast8_t r)
     {
+      (void)buf;
       r &= 7;
       rotation = r;
       _internal_rotation = ((r + offset_rotation) & 3) | ((r & 4) ^ (offset_rotation & 4));
@@ -175,8 +176,8 @@ namespace lgfx
     std::uint8_t getCmdRamwr(void) const { return cmd_ramwr; }
     std::uint8_t getCmdRamrd(void) const { return cmd_ramrd; }
     std::uint8_t getCmdRddid(void) const { return cmd_rddid; }
-    std::uint8_t getCmdSlpin(void) const { return cmd_slpin; }
-    std::uint8_t getCmdSlpout(void)const { return cmd_slpout; }
+    //std::uint8_t getCmdSlpin(void) const { return cmd_slpin; }
+    //std::uint8_t getCmdSlpout(void)const { return cmd_slpout; }
 
     static std::uint32_t getWindowAddr32(std::uint_fast16_t H, std::uint_fast16_t L) { return (((std::uint8_t)H)<<8 | (H)>>8) | ((std::uint32_t)((L)<<8 | (L)>>8))<<16; }
     static std::uint32_t getWindowAddr16(std::uint_fast16_t H, std::uint_fast16_t L) { return H | L<<8; }
@@ -189,8 +190,8 @@ namespace lgfx
     std::uint8_t cmd_ramwr = 0;
     std::uint8_t cmd_ramrd = 0;
     std::uint8_t cmd_rddid = 0;
-    std::uint8_t cmd_slpin = 0;
-    std::uint8_t cmd_slpout= 0;
+    //std::uint8_t cmd_slpin = 0;
+    //std::uint8_t cmd_slpout= 0;
     std::uint8_t _internal_rotation = 0;
     std::uint_fast16_t _colstart = 0;
     std::uint_fast16_t _rowstart = 0;

@@ -228,11 +228,11 @@ public:
     if (_spi_mosi != -1 && _spi_sclk != -1) {
       return;
     }
+    preInit();
 
-    static lgfx::PanelCommon* panel_last = nullptr;
-    if (panel_last) {
-      delete panel_last;
-      panel_last = nullptr;
+    if (_panel_last) {
+      delete _panel_last;
+      _panel_last = nullptr;
     }
 
     lgfx::PanelIlitekCommon p_tmp;
@@ -1018,7 +1018,7 @@ public:
 
     goto init_clear;
 init_clear:
-    panel_last = getPanel();
+    _panel_last = getPanel();
 
     if (nvs_board != board) {
       if (0 == nvs_open(NVS_NAME, NVS_READWRITE, &nvs_handle)) {
@@ -1030,6 +1030,8 @@ init_clear:
   }
 
 private:
+  lgfx::PanelCommon* _panel_last = nullptr;
+
   void init_impl(bool use_reset) override
   {
     autodetect(use_reset);

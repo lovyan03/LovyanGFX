@@ -25,38 +25,52 @@ namespace lgfx
       cmd_raset  = CommandCommon::RASET;
       cmd_ramwr  = CommandCommon::RAMWR;
       cmd_ramrd  = CommandCommon::RAMRD;
-      cmd_slpin  = CommandCommon::SLPIN;
-      cmd_slpout = CommandCommon::SLPOUT;
     }
 
   protected:
 
-    bool makeWindowCommands1(std::uint8_t* buf, std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye) override
+    const std::uint8_t* getWindowCommands1(std::uint8_t* buf, std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye) override
     {
-      if (_xs == xs && _xe == xe) return false;
+      if (_xs == xs && _xe == xe) return nullptr;
       (void)ys;
       (void)ye;
       _xs = xs;
       _xe = xe;
+      buf[0] = (_internal_rotation & 1) ? CommandCommon::RASET : CommandCommon::CASET;
+      buf[1] = 2;
       buf[2] = xs + _colstart;
       buf[3] = xe + _colstart;
-      reinterpret_cast<std::uint16_t*>(buf)[0] = CommandCommon::CASET | (4 << 8);
       reinterpret_cast<std::uint16_t*>(buf)[2] = 0xFFFF;
-      return true;
+      return buf;
     }
 
-    bool makeWindowCommands2(std::uint8_t* buf, std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye) override
+    const std::uint8_t* getWindowCommands2(std::uint8_t* buf, std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye) override
     {
-      if (_ys == ys && _ye == ye) return false;
+      if (_ys == ys && _ye == ye) return nullptr;
       (void)xs;
       (void)xe;
       _ys = ys;
       _ye = ye;
+      buf[0] = (_internal_rotation & 1) ? CommandCommon::CASET : CommandCommon::RASET;
+      buf[1] = 2;
       buf[2] = ys + _rowstart;
       buf[3] = ye + _rowstart;
-      reinterpret_cast<std::uint16_t*>(buf)[0] = CommandCommon::RASET | (4 << 8);
       reinterpret_cast<std::uint16_t*>(buf)[2] = 0xFFFF;
-      return true;
+      return buf;
+    }
+
+    const std::uint8_t* getSleepInCommands(std::uint8_t* buf) override
+    {
+      reinterpret_cast<std::uint16_t*>(buf)[0] = CommandCommon::SLPIN;
+      reinterpret_cast<std::uint16_t*>(buf)[1] = 0xFFFF;
+      return buf;
+    }
+
+    const std::uint8_t* getSleepOutCommands(std::uint8_t* buf) override
+    {
+      reinterpret_cast<std::uint16_t*>(buf)[0] = CommandCommon::SLPOUT;
+      reinterpret_cast<std::uint16_t*>(buf)[1] = 0xFFFF;
+      return buf;
     }
 
     const std::uint8_t* getInvertDisplayCommands(std::uint8_t* buf, bool invert) override
@@ -157,6 +171,7 @@ namespace lgfx
         0b00110110,
         0b00100111,
       };
+      /*
       if (r & 1) {
         cmd_caset = CommandCommon::RASET;
         cmd_raset = CommandCommon::CASET;
@@ -164,6 +179,7 @@ namespace lgfx
         cmd_caset = CommandCommon::CASET;
         cmd_raset = CommandCommon::RASET;
       }
+      //*/
       return madctl_table[r] | (bpp == 16 ? 0x40 : 0x80);
     }
   };
