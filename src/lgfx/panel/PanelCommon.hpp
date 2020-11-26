@@ -144,7 +144,7 @@ namespace lgfx
     void (*fp_writePixels)(PanelCommon*, LGFX_Device*, std::int32_t len, pixelcopy_t* param) = nullptr;
     void (*fp_readRect)(PanelCommon*, LGFX_Device*, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, void* dst, pixelcopy_t* param) = nullptr;
 
-    virtual void post_init(LGFX_Device*) {}
+    virtual void post_init(LGFX_Device*, bool use_reset) { (void)use_reset; }
 
     virtual const std::uint8_t* getColorDepthCommands(std::uint8_t* buf, color_depth_t depth) {
       write_depth = getAdjustBpp(depth);

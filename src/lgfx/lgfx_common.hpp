@@ -51,6 +51,7 @@ namespace lgfx
     , board_Makerfabs_TouchCamera
     , board_Makerfabs_MakePython
     , board_M5Stack_CoreInk
+    , board_M5Paper
     };
   }
   using namespace boards;
@@ -926,7 +927,7 @@ namespace lgfx
       param->positions[0] += last - index;
       if (std::is_same<TDst, TSrc>::value)
       {
-        memcpy(&d[index], &s[index], (last - index) * sizeof(TSrc));
+        memcpy(reinterpret_cast<void*>(&d[index]), reinterpret_cast<const void*>(&s[index]), (last - index) * sizeof(TSrc));
       }
       else
       {
@@ -1511,7 +1512,8 @@ namespace lgfx
   namespace i2c
   {
     void init(int i2c_port, int pin_sda, int pin_scl, int freq);
-    bool writeBytes(int i2c_port, std::uint16_t addr, std::uint8_t *data, std::uint8_t len);
+    bool writeBytes(int i2c_port, std::uint16_t addr, const std::uint8_t *data, std::uint8_t len);
+    bool writeReadBytes(int i2c_port, std::uint16_t addr, const std::uint8_t *writedata, std::uint8_t writelen, std::uint8_t *readdata, std::uint8_t readlen);
     bool readRegister(int i2c_port, std::uint16_t addr, std::uint8_t reg, std::uint8_t *data, std::uint8_t len);
     bool writeRegister8(int i2c_port, std::uint16_t addr, std::uint8_t reg, std::uint8_t data, std::uint8_t mask = 0);
     inline bool bitOn(int i2c_port, std::uint16_t addr, std::uint8_t reg, std::uint8_t bit)  { return writeRegister8(i2c_port, addr, reg, bit, ~0); }

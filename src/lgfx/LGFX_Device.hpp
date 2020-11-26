@@ -47,7 +47,13 @@ namespace lgfx
     __attribute__ ((always_inline))
     inline  void writedata(std::uint_fast8_t data) { writeData(data); } // TFT_eSPI compatible
 
+    // Write double bytes as DATA
+    virtual void writeData16(std::uint_fast16_t data) = 0;
+    virtual void writeData32(std::uint32_t data) = 0;
+
     void writeBytes(const std::uint8_t* data, std::int32_t length, bool use_dma = true) { writeBytes_impl(data, length, use_dma); }
+
+    void readBytes(std::uint8_t* dst, std::int32_t length) { readBytes_impl(dst, length); }
 
     virtual std::uint32_t readCommand(std::uint_fast8_t cmd, std::uint_fast8_t index=0, std::uint_fast8_t len=4) = 0;
 
@@ -58,6 +64,15 @@ namespace lgfx
     std::uint32_t readCommand32(std::uint_fast8_t cmd, std::uint_fast8_t index=0) { return __builtin_bswap32(readCommand(cmd, index, 4)); }
     std::uint32_t readcommand32(std::uint_fast8_t cmd, std::uint_fast8_t index=0) { return __builtin_bswap32(readCommand(cmd, index, 4)); }
     std::uint32_t readPanelID(void) { return readCommand(_panel->getCmdRddid()); }
+
+    virtual std::uint32_t readData(std::uint_fast8_t index=0, std::uint_fast8_t len=1) = 0;
+
+    std::uint8_t  readData8( std::uint_fast8_t index=0) { return readData(index, 1); }
+    std::uint8_t  readdata8( std::uint_fast8_t index=0) { return readData(index, 1); }
+    std::uint16_t readData16(std::uint_fast8_t index=0) { return __builtin_bswap16(readData(index, 2)); }
+    std::uint16_t readdata16(std::uint_fast8_t index=0) { return __builtin_bswap16(readData(index, 2)); }
+    std::uint32_t readData32(std::uint_fast8_t index=0) { return __builtin_bswap32(readData(index, 4)); }
+    std::uint32_t readdata32(std::uint_fast8_t index=0) { return __builtin_bswap32(readData(index, 4)); }
 
     __attribute__ ((always_inline)) inline bool getInvert(void) const { return _panel->invert; }
 
@@ -135,6 +150,8 @@ namespace lgfx
 
     virtual void writeBytes_impl(const std::uint8_t* data, std::int32_t length, bool use_dma) = 0;
     
+    virtual void readBytes_impl(std::uint8_t* dst, std::int32_t length) = 0;
+
     void initPanel(bool use_reset = true)
     {
       preInit();
@@ -146,25 +163,22 @@ namespace lgfx
       _sw = _width;
       _sh = _height;
 
-      startWrite();
-
       const std::uint8_t *cmds;
       for (std::uint8_t i = 0; (cmds = _panel->getInitCommands(i)); i++) {
         delay(120);
+        startWrite();
         cs_l();
         commandList(cmds);
         cs_h();
+        endWrite();
       }
-      cs_l();
 
       invertDisplay(getInvert());
       setColorDepth(getColorDepth());
       setRotation(getRotation());
       setBrightness(getBrightness());
 
-      endWrite();
-
-      _panel->post_init(this);
+      _panel->post_init(this, use_reset);
     }
 
     void initTouch(void)
@@ -280,6 +294,15 @@ namespace lgfx
     }
 
     board_t getBoard(void) const { return board; }
+
+    void cs_h(void) {
+      waitDMA_impl();
+      gpio_hi(_panel->spi_cs);
+    }
+
+    void cs_l(void) {
+      gpio_lo(_panel->spi_cs);
+    }
 
   protected:
     PanelCommon* _panel = nullptr;
@@ -441,13 +464,6 @@ namespace lgfx
     {
       _dmabufs[0].free();
       _dmabufs[1].free();
-    }
-
-    void cs_h(void) {
-      gpio_hi(_panel->spi_cs);
-    }
-    void cs_l(void) {
-      gpio_lo(_panel->spi_cs);
     }
 
   private:

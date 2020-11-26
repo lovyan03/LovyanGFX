@@ -1,3 +1,5 @@
+#if defined (__SAMD51__)
+
 #ifndef LGFX_SAMD51_COMMON_HPP_
 #define LGFX_SAMD51_COMMON_HPP_
 
@@ -187,5 +189,7 @@ namespace lgfx
 //----------------------------------------------------------------------------
 
 }
+
+#endif
 
 #endif

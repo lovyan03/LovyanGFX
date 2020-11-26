@@ -48,10 +48,9 @@ namespace lgfx
     if (h > _height - y) h = _height - y;
     if (h < 1) { y = 0; h = 0; }
 
-    bool tr = !_transaction_count;
-    if (tr) beginTransaction();
+    startWrite();
     setWindow(x, y, x + w - 1, y + h - 1);
-    if (tr) endTransaction();
+    endWrite();
   }
 
   void LGFXBase::setClipRect(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h)
@@ -121,10 +120,9 @@ namespace lgfx
   void LGFXBase::drawFastVLine(std::int32_t x, std::int32_t y, std::int32_t h)
   {
     _adjust_abs(y, h);
-    bool tr = !_transaction_count;
-    if (tr) beginTransaction();
+    startWrite();
     writeFastVLine(x, y, h);
-    if (tr) endTransaction();
+    endWrite();
   }
 
   void LGFXBase::writeFastVLine(std::int32_t x, std::int32_t y, std::int32_t h)
@@ -142,10 +140,9 @@ namespace lgfx
   void LGFXBase::drawFastHLine(std::int32_t x, std::int32_t y, std::int32_t w)
   {
     _adjust_abs(x, w);
-    bool tr = !_transaction_count;
-    if (tr) beginTransaction();
+    startWrite();
     writeFastHLine(x, y, w);
-    if (tr) endTransaction();
+    endWrite();
   }
 
   void LGFXBase::writeFastHLine(std::int32_t x, std::int32_t y, std::int32_t w)
@@ -164,10 +161,9 @@ namespace lgfx
   {
     _adjust_abs(x, w);
     _adjust_abs(y, h);
-    bool tr = !_transaction_count;
-    if (tr) beginTransaction();
+    startWrite();
     writeFillRect(x, y, w, h);
-    if (tr) endTransaction();
+    endWrite();
   }
 
   void LGFXBase::writeFillRect(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h)
@@ -191,8 +187,7 @@ namespace lgfx
   void LGFXBase::drawRect(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h)
   {
     if (_adjust_abs(x, w)||_adjust_abs(y, h)) return;
-    bool tr = !_transaction_count;
-    if (tr) beginTransaction();
+    startWrite();
     writeFastHLine(x, y        , w);
     if (--h) {
       writeFastHLine(x, y + h    , w);
@@ -201,7 +196,7 @@ namespace lgfx
         writeFastVLine(x + w - 1,   y, h);
       }
     }
-    if (tr) endTransaction();
+    endWrite();
   }
 
   void LGFXBase::drawCircle(std::int32_t x, std::int32_t y, std::int32_t r)

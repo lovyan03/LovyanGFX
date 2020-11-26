@@ -228,9 +228,24 @@ namespace lgfx
 
     void writeCommand(std::uint_fast8_t cmd) override { startWrite(); write_cmd(cmd); endWrite(); }
 
-    void writeData(std::uint_fast8_t data) override { startWrite(); if (_spi_dlen == 16) { write_data(data << 8, _spi_dlen); } else { write_data(data, _spi_dlen); } endWrite(); } // TFT_eSPI compatible
+    void writeData(std::uint_fast8_t data) override { startWrite(); if (_spi_dlen == 16) { write_data(data << 8, _spi_dlen); } else { write_data(data, _spi_dlen); } endWrite(); }
+
+    void writeData16(std::uint_fast16_t data) override { startWrite(); write_data(__builtin_bswap16(data), 16); endWrite(); }
+
+    void writeData32(std::uint32_t data) override { startWrite(); write_data(__builtin_bswap32(data), 32); endWrite(); }
 
     std::uint32_t readCommand(std::uint_fast8_t commandByte, std::uint_fast8_t index=0, std::uint_fast8_t len=4) override { startWrite(); auto res = read_command(commandByte, index << 3, len << 3); endWrite(); return res; }
+
+    std::uint32_t readData(std::uint_fast8_t index=0, std::uint_fast8_t len=4) override
+    {
+      startWrite();
+      start_read();
+      if (index) read_data(index << 3);
+      std::uint32_t res = read_data(len << 3);
+      end_read(false);
+      endWrite();
+      return res; 
+    }
 
 void resetSPI()
 {
@@ -534,6 +549,13 @@ void enableSPI()
     void writeBytes_impl(const std::uint8_t* data, std::int32_t length, bool use_dma) override
     {
       write_bytes((const std::uint8_t*)data, length, use_dma);
+    }
+
+    void readBytes_impl(std::uint8_t* dst, std::int32_t length) override
+    {
+      start_read();
+      read_bytes(dst, length);
+      end_read(false); // Don't use the CS operation.
     }
 
     void setWindow_impl(std::int32_t xs, std::int32_t ys, std::int32_t xe, std::int32_t ye) override
@@ -877,18 +899,22 @@ void enableSPI()
       set_clock_read();
     }
 
-    void end_read(void)
+    void end_read(bool cs_ctrl = true)
     {
       wait_spi();
-      cs_h();
-
-      if (_panel->spi_cs < 0) {
-        write_cmd(0); // NOP command
+      if (cs_ctrl)
+      {
+        cs_h();
+        if (_panel->spi_cs < 0) {
+          write_cmd(0); // NOP command
+        }
       }
       set_clock_write();
       _fill_mode = false;
-
-      cs_l();
+      if (cs_ctrl)
+      {
+        cs_l();
+      }
     }
 
     std::uint32_t read_data(std::uint32_t length)

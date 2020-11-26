@@ -59,7 +59,7 @@ namespace lgfx
 // However, startWrite and endWrite have an internal counter and are executed when the counter is 0.
 // If you do not want to the counter, call the transaction function directly.
     __attribute__ ((always_inline)) inline void startWrite(void) {                           if (1 == ++_transaction_count) beginTransaction(); }
-    __attribute__ ((always_inline)) inline void endWrite(void)   { if (_transaction_count) { if (0 == --_transaction_count) endTransaction(); } }
+    __attribute__ ((always_inline)) inline void endWrite(void)   { if (_transaction_count) { if (1 == _transaction_count) endTransaction(); --_transaction_count; } }
     __attribute__ ((always_inline)) inline void writePixel(std::int32_t x, std::int32_t y)  { if (x >= _clip_l && x <= _clip_r && y >= _clip_t && y <= _clip_b) writeFillRect_impl(x, y, 1, 1); }
     template<typename T> inline void writePixel    ( std::int32_t x, std::int32_t y                                , const T& color) { setColor(color); writePixel    (x, y      ); }
     template<typename T> inline void writeFastVLine( std::int32_t x, std::int32_t y                , std::int32_t h, const T& color) { setColor(color); writeFastVLine(x, y   , h); }
@@ -197,7 +197,7 @@ namespace lgfx
     void writePixels(const void*          data, std::int32_t len, bool swap) { auto pc = create_pc_fast(data, swap); writePixels_impl(len, &pc); }
 
     template<typename T>
-    void writeIndexedPixels(const uint8_t *data, T* palette, std::int32_t len, lgfx::color_depth_t colordepth = lgfx::rgb332_1Byte)
+    void writeIndexedPixels(const std::uint8_t *data, T* palette, std::int32_t len, lgfx::color_depth_t colordepth = lgfx::rgb332_1Byte)
     {
       auto pc = create_pc_fast(data, palette, colordepth);
       writePixels_impl(len, &pc);
