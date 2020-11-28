@@ -68,6 +68,17 @@ namespace lgfx
     };
   }
 
+  namespace epd_mode
+  {
+    enum epd_mode_t
+    {
+      epd_quality,
+      epd_fast,
+      epd_fastest,
+    };
+  }
+  using namespace epd_mode;
+
   namespace colors  // Colour enumeration
   {
     #ifdef TFT_BLACK
@@ -155,6 +166,7 @@ namespace lgfx
     enum attribute_t
     { cp437_switch = 1
     , utf8_switch  = 2
+    , epd_mode_switch = 4
     };
   }
   using namespace attribute;
@@ -1362,6 +1374,50 @@ namespace lgfx
 
 //----------------------------------------------------------------------------
 
+  struct range_t
+  {
+    std::int32_t first;
+    std::int32_t last;
+
+    range_t(void) = default;
+    range_t(const range_t& rhs) : first(rhs.first), last(rhs.last) {}
+
+    bool empty(void) const { return last < first; }
+    bool intersectsWith(const range_t& r) const { return (r.first <= last) && (first <= r.last); }
+    bool intersectsWith(std::int32_t f, std::int32_t l) const { return (f <= last) && (first <= l); }
+  };
+
+  struct range_rect_t
+  {
+    union
+    {
+      range_t horizon;
+      struct
+      {
+        std::int32_t left;
+        std::int32_t right;
+      };
+    };
+
+    union
+    {
+      range_t vertical;
+      struct
+      {
+        std::int32_t top;
+        std::int32_t bottom;
+      };
+    };
+
+    range_rect_t(void) = default;
+    range_rect_t(const range_rect_t& rhs) : horizon(rhs.horizon), vertical(rhs.vertical) {}
+
+    bool empty(void) const { return horizon.empty() || vertical.empty(); }
+    bool intersectsWith(const range_rect_t& r) const { return horizon.intersectsWith(r.horizon) && vertical.intersectsWith(r.vertical); }
+  };
+
+//----------------------------------------------------------------------------
+
   struct bitmap_header_t
   {
     union
@@ -1527,6 +1583,7 @@ using namespace lgfx::jpeg_div;
 using namespace lgfx::colors;
 using namespace lgfx::textdatum;
 using namespace lgfx::attribute;
+using namespace lgfx::epd_mode;
 
 
 typedef lgfx::bgr888_t RGBColor;

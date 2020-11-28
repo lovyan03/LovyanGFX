@@ -111,11 +111,19 @@ namespace lgfx
       if (auto b = _panel->getPartialOffCommands(buf)) commandList(b);
     }
 
-    void flush(void) 
+    void display(void) 
     {
-      if (nullptr == _panel->fp_flush) return;
+      if (nullptr == _panel->fp_display) return;
       startWrite();
-      _panel->fp_flush(_panel, this);
+      _panel->fp_display(_panel, this);
+      endWrite();
+    }
+
+    void waitDisplay(void) 
+    {
+      if (nullptr == _panel->fp_waitDisplay) return;
+      startWrite();
+      _panel->fp_waitDisplay(_panel, this);
       endWrite();
     }
 

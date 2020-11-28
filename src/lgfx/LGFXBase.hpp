@@ -554,6 +554,9 @@ namespace lgfx
 
     void cp437(bool enable = true) { _text_style.cp437 = enable; }  // AdafruitGFX compatible.
 
+    epd_mode_t setEpdMode(epd_mode_t flg) { _epd_mode = flg; return flg; }
+    epd_mode_t getEpdMode(void) const { return _epd_mode; }
+
     void setAttribute(attribute_t attr_id, std::uint8_t param);
     std::uint8_t getAttribute(attribute_t attr_id);
     std::uint8_t getAttribute(std::uint8_t attr_id) { return getAttribute((attribute_t)attr_id); }
@@ -692,7 +695,7 @@ namespace lgfx
 
     bool _spi_shared = true;
     bool _swapBytes = false;
-
+    epd_mode_t _epd_mode = epd_mode_t::epd_fast;
 
     enum utf8_decode_state_t
     { utf8_state0 = 0

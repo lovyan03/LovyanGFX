@@ -137,7 +137,8 @@ namespace lgfx
 
     void (*fp_begin)(PanelCommon*, LGFX_Device*) = nullptr;
     void (*fp_end)(PanelCommon*, LGFX_Device*) = nullptr;
-    void (*fp_flush)(PanelCommon*, LGFX_Device*) = nullptr;
+    void (*fp_display)(PanelCommon*, LGFX_Device*) = nullptr;
+    void (*fp_waitDisplay)(PanelCommon*, LGFX_Device*) = nullptr;
     void (*fp_pushImage)(PanelCommon*, LGFX_Device*, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, pixelcopy_t* param) = nullptr;
     void (*fp_fillRect)(PanelCommon*, LGFX_Device*, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, std::uint32_t rawcolor) = nullptr;
     void (*fp_pushBlock)(PanelCommon*, LGFX_Device*, std::int32_t len, std::uint32_t rawcolor) = nullptr;

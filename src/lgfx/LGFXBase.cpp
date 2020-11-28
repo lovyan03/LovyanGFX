@@ -1977,14 +1977,17 @@ namespace lgfx
 
     void LGFXBase::setAttribute(attribute_t attr_id, std::uint8_t param) {
       switch (attr_id) {
-        case cp437_switch:
-            _text_style.cp437 = param;
-            break;
-        case utf8_switch:
-            _text_style.utf8  = param;
-            _decoderState = utf8_decode_state_t::utf8_state0;
-            break;
-        default: break;
+      case cp437_switch:
+        _text_style.cp437 = param;
+        break;
+      case utf8_switch:
+        _text_style.utf8  = param;
+        _decoderState = utf8_decode_state_t::utf8_state0;
+        break;
+      case epd_mode_switch:
+        _epd_mode = (epd_mode_t)param;
+        break;
+      default: break;
       }
     }
 
@@ -1992,6 +1995,7 @@ namespace lgfx
       switch (attr_id) {
         case cp437_switch: return _text_style.cp437;
         case utf8_switch: return _text_style.utf8;
+        case epd_mode_switch: return _epd_mode;
         default: return 0;
       }
     }

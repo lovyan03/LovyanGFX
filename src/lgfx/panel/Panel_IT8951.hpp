@@ -27,13 +27,14 @@ namespace lgfx
       //cmd_caset  = 1;
       //cmd_raset  = 2;
       //cmd_ramwr  = 0x13;
-      cmd_ramwr  = 0x00; // dummy setting (data stop)
+      //cmd_ramwr  = 0x00;
       //cmd_ramrd  = 4;
       //cmd_rddid  = 0x70;
 
-      fp_begin       = beginTransaction;
+      //fp_begin       = beginTransaction;
       fp_end         = endTransaction;
-      fp_flush       = flush;
+      fp_display     = display;
+      fp_waitDisplay = waitDisplay;
       fp_fillRect    = fillRect;
       fp_pushImage   = pushImage;
       fp_pushBlock   = pushBlock;
@@ -114,7 +115,8 @@ namespace lgfx
 
     const std::uint8_t* getInitCommands(std::uint8_t listno) const override { return nullptr; }
 
-    enum m5epd_update_mode_t
+  private:
+    enum epd_update_mode_t
     {                           //   Ghosting  Update Time  Usage
       UPDATE_MODE_INIT    = 0,  // * N/A       2000ms       Display initialization, 
       UPDATE_MODE_DU      = 1,  //   Low       260ms        Monochrome menu, text input, and touch screen input 
@@ -127,7 +129,6 @@ namespace lgfx
       UPDATE_MODE_NONE    = 8
     };        // The ones marked with * are more commonly used
 
-  private:
 //  static constexpr std::int8_t Bayer[16] = { 0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5 };
 //  static constexpr std::int8_t Bayer[16] = { -7, 1, -5, 3, 5, -3, 7, -1, -4, 4, -6, 2, 8, 0, 6, -2 };
 //  static constexpr std::int8_t Bayer[16] = { -15, 1, -11, 5, 9, -7, 13, -3, -9, 7, -13, 3, 15, -1, 11, -5 };  
@@ -135,16 +136,17 @@ namespace lgfx
   static constexpr std::int8_t Bayer[16] = {-30, 2, -22, 10, 18, -14, 26, -6, -18, 14, -26, 6, 30, -2, 22, -10};
 //    static constexpr std::int8_t Bayer[16] = {-45, 3, -33, 15, 27, -21, 39, -9, -27, 21, -39, 9, 45, -3, 33, -15};
 
-    std::int32_t _tr_top = INT32_MAX;
-    std::int32_t _tr_left = INT32_MAX;
-    std::int32_t _tr_right = 0;
-    std::int32_t _tr_bottom = 0;
+    range_rect_t _range_new;
+    range_rect_t _range_old;
+
     std::uint_fast16_t _xpos = 0;
     std::uint_fast16_t _ypos = 0;
+    bool _fastmode = true;
 
-    static void beginTransaction(PanelCommon* panel, LGFX_Device* gfx);
+    //static void beginTransaction(PanelCommon* panel, LGFX_Device* gfx);
     static void endTransaction(PanelCommon* panel, LGFX_Device* gfx);
-    static void flush(PanelCommon* panel, LGFX_Device* gfx);
+    static void display(PanelCommon* panel, LGFX_Device* gfx);
+    static void waitDisplay(PanelCommon* panel, LGFX_Device* gfx);
     static void fillRect(PanelCommon* panel, LGFX_Device* gfx, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, std::uint32_t rawcolor);
     static void pushImage(PanelCommon* panel, LGFX_Device* gfx, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, pixelcopy_t* param);
     static void pushBlock(PanelCommon* panel, LGFX_Device* gfx, std::int32_t length, std::uint32_t rawcolor);
@@ -160,7 +162,8 @@ namespace lgfx
     bool CheckAFSR(LGFX_Device* gfx);
     bool SetTargetMemoryAddr(LGFX_Device* gfx, uint32_t tar_addr);
     bool SetArea(LGFX_Device* gfx, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h);
-    bool UpdateArea(LGFX_Device* gfx, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, m5epd_update_mode_t mode);
+    bool UpdateAreaInternal(LGFX_Device* gfx, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, epd_update_mode_t mode);
+    bool UpdateArea(LGFX_Device* gfx, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, epd_update_mode_t mode);
     bool Clear(LGFX_Device* gfx, bool init);
   };
 }

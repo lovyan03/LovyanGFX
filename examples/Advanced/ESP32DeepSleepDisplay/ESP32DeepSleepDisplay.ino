@@ -24,23 +24,30 @@ void setup(void)
     lcd.clear(TFT_BLACK);
     lcd.startWrite();      // 背景を描画しておく
     lcd.setColorDepth(24);
-    lcd.setAddrWindow(0, 0, lcd.width(), lcd.height());
-    for (int y = 0; y < lcd.height(); ++y)
-      for (int x = 0; x < lcd.width(); ++x)
-        lcd.writePixel(x, y, lcd.color888(x << 1, x + y, y << 1));
+    {
+      LGFX_Sprite sp(&lcd);
+      sp.createSprite(128, 128);
+      sp.createPalette();
+      for (int y = 0; y < 128; y++)
+        for (int x = 0; x < 128; x++)
+          sp.writePixel(x, y, sp.color888(x << 1, x + y, y << 1));
+      for (int y = 0; y < lcd.height(); y += 128)
+        for (int x = 0; x < lcd.width(); x += 128)
+          sp.pushSprite(x, y);
+    }
     lcd.endWrite();
     break;
   }
 
   ++bootCount;
   lcd.setCursor(bootCount*6, bootCount*8);
-  lcd.setTextColor(TFT_WHITE, TFT_BLACK);
+  lcd.setTextColor(TFT_WHITE, TFT_BLACK);  // 一度白黒反転した状態を描画する
   lcd.print("DeepSleep test : " + String(bootCount));
   lcd.setCursor(bootCount*6, bootCount*8);
   lcd.setTextColor(TFT_BLACK, TFT_WHITE);
   lcd.print("DeepSleep test : " + String(bootCount));
-
   lcd.partialOn(); // power saving.
+  lcd.waitDisplay(); // wait display 
 
   auto gpio_rst = (gpio_num_t)lcd.getPanel()->gpio_rst;
   if (gpio_rst >= 0) {
@@ -60,6 +67,7 @@ void setup(void)
     esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_ON);
   }
 
+  ESP_LOGW("sleep");
   esp_sleep_enable_timer_wakeup(1 * 1000 * 1000); // micro sec
 
   esp_deep_sleep_start();
