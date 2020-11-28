@@ -196,7 +196,7 @@ namespace lgfx
 
     void init(bool use_reset) override
     {
-      resetPanel();
+      if (use_reset) resetPanel();
 
       Panel_ILI9342::init(use_reset);
     }
@@ -243,7 +243,9 @@ public:
 
     lgfx::PanelIlitekCommon p_tmp;
     p_tmp.spi_3wire  = true;
+    p_tmp.freq_write = 8000000;
     p_tmp.freq_read  = 8000000;
+    p_tmp.freq_fill  = 8000000;
     board = lgfx::board_t::board_unknown;
     std::uint32_t id;
     (void)id; // Suppressing Compiler Warnings
@@ -529,7 +531,7 @@ public:
 #endif
 
 // M5StickC / CPlus 判定
-#if defined ( LGFX_AUTODETECT ) || defined ( LGFX_M5STICK_C ) || defined ( LGFX_M5STICKC )
+#if defined ( LGFX_AUTODETECT ) //|| defined ( LGFX_M5STICK_C ) || defined ( LGFX_M5STICKC )
     if (nvs_board == 0 || nvs_board == lgfx::board_t::board_M5StickC || nvs_board == lgfx::board_t::board_M5StickCPlus) {
       releaseBus();
       _spi_mosi = 15;
@@ -652,7 +654,11 @@ public:
       if (id == 0x0001e000) {  //  check panel (e-paper GDEW0154M09)
         ESP_LOGW("LovyanGFX", "[Autodetect] M5Stack_CoreInk");
         board = lgfx::board_t::board_M5Stack_CoreInk;
-        auto p = new lgfx::Panel_M5CoreInk();
+
+        lgfx::lgfxPinMode(12, lgfx::pin_mode_t::output); // POWER_HOLD_PIN 12
+        lgfx::gpio_hi(12);
+
+        auto p = new lgfx::Panel_GDEW0154M09();
         p->freq_write = 40000000;
         p->freq_read  = 16000000;
         p->freq_fill  = 40000000;
@@ -671,6 +677,106 @@ public:
       lgfx::gpio_lo(p_tmp.spi_cs);
       lgfx::gpio_lo(p_tmp.spi_dc);
       lgfx::gpio_lo(p_tmp.gpio_rst);
+    }
+#endif
+
+// M5Stack Paper 判定
+#if defined ( LGFX_AUTODETECT ) || defined ( LGFX_M5PAPER )
+    if (nvs_board == 0 || nvs_board == lgfx::board_t::board_M5Paper)
+    {
+      lgfx::lgfxPinMode(23, lgfx::pin_mode_t::output); // M5Paper power 
+      lgfx::gpio_lo(23);
+      lgfx::lgfxPinMode(27, lgfx::pin_mode_t::input_pullup); // M5Paper EPD busy pin
+      id = lgfx::gpio_in(27);
+      lgfx::lgfxPinMode(27, lgfx::pin_mode_t::input);
+      if (id == 0)
+      {
+        lgfx::gpio_hi(23);
+        lgfx::lgfxPinMode(4, lgfx::pin_mode_t::output); // M5Paper TF card CS
+        lgfx::gpio_hi(4);
+
+        releaseBus();
+        _spi_mosi = 12;
+        _spi_miso = 13;
+        _spi_sclk = 14;
+        initBus();
+
+        p_tmp.spi_3wire= false;
+        p_tmp.spi_cs   = 15;
+        p_tmp.spi_dc   = -1;
+        p_tmp.gpio_rst = 23;
+        setPanel(&p_tmp);
+        _reset(true);
+
+        id = millis();
+        while (!lgfx::gpio_in(27))
+        {
+          if (millis() - id > 850) { id = 0; break; }
+          delay(1);
+        };
+        if (id)
+        {
+          startWrite();
+          cs_l();
+          writeData16(0x6000);
+          writeData16(0x0302);  // read DevInfo
+          cs_h();
+          id = millis();
+          while (!lgfx::gpio_in(27))
+          {
+            if (millis() - id > 150) { break; }
+            delay(1);
+          };
+          cs_l();
+          writeData16(0x1000);
+          writeData16(0x0000);
+          std::uint8_t buf[40];
+          readBytes(buf, 40);
+          cs_h();
+          endWrite();
+          id = buf[0] << 24 | buf[1] << 16 | buf[2] << 8 | buf[3];
+
+          ESP_LOGW("LovyanGFX", "[Autodetect] panel id:%08x", id);
+          if (id == 0x03C0021C) {  //  check panel ( panel size 960(0x03C0) x 540(0x021C) )
+            ESP_LOGW("LovyanGFX", "[Autodetect] M5Paper");
+
+            lgfx::lgfxPinMode( 2, lgfx::pin_mode_t::output); // M5EPD_MAIN_PWR_PIN 2
+            lgfx::gpio_hi( 2);
+
+            board = lgfx::board_t::board_M5Paper;
+            auto p = new lgfx::Panel_IT8951();
+            p->freq_write = 10000000; // 11430000;
+            p->freq_read  = 10000000; // 11430000;
+            p->freq_fill  = 10000000; // 11430000;
+            p->spi_3wire = false;
+            p->spi_cs    = 15;
+            p->spi_dc    = -1;
+            p->gpio_busy = 27;
+            p->gpio_bl   = -1;
+            p->gpio_rst  = 23;
+            p->rotation  = 0;
+            p->offset_rotation = 3;
+            setPanel(p);
+
+            auto t = new lgfx::Touch_GT911();
+            t->gpio_int = 36;   // INT pin number
+            t->i2c_sda  = 21;   // I2C SDA pin number
+            t->i2c_scl  = 22;   // I2C SCL pin number
+            t->i2c_addr = 0x5D; // I2C device addr
+            t->i2c_port = I2C_NUM_1;// I2C port number
+            t->freq = 400000;   // I2C freq
+            t->x_min = 0;
+            t->x_max = 959;
+            t->y_min = 0;
+            t->y_max = 539;
+            touch(t);
+            goto init_clear;
+          }
+        }
+      }
+      lgfx::gpio_lo(p_tmp.spi_cs);
+      lgfx::gpio_lo(p_tmp.gpio_rst);
+      lgfx::gpio_lo(4);
     }
 #endif
 
@@ -1050,9 +1156,15 @@ private:
     lgfx::lgfxPinMode(pin, lgfx::pin_mode_t::output);
     if (!use_reset) return;
     lgfx::gpio_lo(pin);
-    delay(1);
+    auto time = millis();
+    do {
+      delay(1);
+    } while (millis() - time < 2);
     lgfx::gpio_hi(pin);
-    delay(10);
+    time = millis();
+    do {
+      delay(1);
+    } while (millis() - time < 10);
   }
 };
 

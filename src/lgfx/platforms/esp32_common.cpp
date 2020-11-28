@@ -370,17 +370,40 @@ namespace lgfx
 #endif
       }
 
-    bool writeBytes(int i2c_port, std::uint16_t addr, std::uint8_t *data, std::uint8_t len)
+    bool writeBytes(int i2c_port, std::uint16_t addr, const std::uint8_t *data, std::uint8_t len)
     {
 #if defined (ARDUINO) // Arduino ESP32
       auto &twowire = (i2c_port) ? Wire1 : Wire;
-      return 0 == twowire.writeTransmission(addr, data, len);
+      return 0 == twowire.writeTransmission(addr, const_cast<std::uint8_t*>(data), len);
 
 #elif defined (CONFIG_IDF_TARGET_ESP32) // ESP-IDF
       auto cmd = i2c_cmd_link_create();
       i2c_master_start(cmd);
       i2c_master_write_byte(cmd, (addr << 1) | I2C_MASTER_WRITE, true);
-      i2c_master_write(cmd, data, len, true);
+      i2c_master_write(cmd, const_cast<std::uint8_t*>(data), len, true);
+      i2c_master_stop(cmd);
+
+      auto result = i2c_master_cmd_begin(static_cast<i2c_port_t>(i2c_port), cmd, 10/portTICK_PERIOD_MS);
+      i2c_cmd_link_delete(cmd);
+
+      return result == ESP_OK;
+#endif
+    }
+
+    bool writeReadBytes(int i2c_port, std::uint16_t addr, const std::uint8_t *writedata, std::uint8_t writelen, std::uint8_t *readdata, std::uint8_t readlen)
+    {
+#if defined (ARDUINO) // Arduino ESP32
+      auto &twowire = (i2c_port) ? Wire1 : Wire;
+      if (0 != twowire.writeTransmission(addr, const_cast<std::uint8_t*>(writedata), writelen)) return false;
+      return (0 == twowire.readTransmission(addr, readdata, readlen));
+#elif defined (CONFIG_IDF_TARGET_ESP32) // ESP-IDF
+      auto cmd = i2c_cmd_link_create();
+      i2c_master_start(cmd);
+      i2c_master_write_byte(cmd, (addr << 1) | I2C_MASTER_WRITE, true);
+      i2c_master_write(cmd, const_cast<std::uint8_t*>(writedata), writelen, true);
+      i2c_master_start(cmd);
+      i2c_master_write_byte(cmd, (addr << 1) | I2C_MASTER_READ, true);
+      i2c_master_read(cmd, readdata, readlen, I2C_MASTER_LAST_NACK);
       i2c_master_stop(cmd);
 
       auto result = i2c_master_cmd_begin(static_cast<i2c_port_t>(i2c_port), cmd, 10/portTICK_PERIOD_MS);

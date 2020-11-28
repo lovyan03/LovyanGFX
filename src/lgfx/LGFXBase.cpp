@@ -48,10 +48,9 @@ namespace lgfx
     if (h > _height - y) h = _height - y;
     if (h < 1) { y = 0; h = 0; }
 
-    bool tr = !_transaction_count;
-    if (tr) beginTransaction();
+    startWrite();
     setWindow(x, y, x + w - 1, y + h - 1);
-    if (tr) endTransaction();
+    endWrite();
   }
 
   void LGFXBase::setClipRect(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h)
@@ -121,10 +120,9 @@ namespace lgfx
   void LGFXBase::drawFastVLine(std::int32_t x, std::int32_t y, std::int32_t h)
   {
     _adjust_abs(y, h);
-    bool tr = !_transaction_count;
-    if (tr) beginTransaction();
+    startWrite();
     writeFastVLine(x, y, h);
-    if (tr) endTransaction();
+    endWrite();
   }
 
   void LGFXBase::writeFastVLine(std::int32_t x, std::int32_t y, std::int32_t h)
@@ -142,10 +140,9 @@ namespace lgfx
   void LGFXBase::drawFastHLine(std::int32_t x, std::int32_t y, std::int32_t w)
   {
     _adjust_abs(x, w);
-    bool tr = !_transaction_count;
-    if (tr) beginTransaction();
+    startWrite();
     writeFastHLine(x, y, w);
-    if (tr) endTransaction();
+    endWrite();
   }
 
   void LGFXBase::writeFastHLine(std::int32_t x, std::int32_t y, std::int32_t w)
@@ -164,10 +161,9 @@ namespace lgfx
   {
     _adjust_abs(x, w);
     _adjust_abs(y, h);
-    bool tr = !_transaction_count;
-    if (tr) beginTransaction();
+    startWrite();
     writeFillRect(x, y, w, h);
-    if (tr) endTransaction();
+    endWrite();
   }
 
   void LGFXBase::writeFillRect(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h)
@@ -191,8 +187,7 @@ namespace lgfx
   void LGFXBase::drawRect(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h)
   {
     if (_adjust_abs(x, w)||_adjust_abs(y, h)) return;
-    bool tr = !_transaction_count;
-    if (tr) beginTransaction();
+    startWrite();
     writeFastHLine(x, y        , w);
     if (--h) {
       writeFastHLine(x, y + h    , w);
@@ -201,7 +196,7 @@ namespace lgfx
         writeFastVLine(x + w - 1,   y, h);
       }
     }
-    if (tr) endTransaction();
+    endWrite();
   }
 
   void LGFXBase::drawCircle(std::int32_t x, std::int32_t y, std::int32_t r)
@@ -1982,14 +1977,17 @@ namespace lgfx
 
     void LGFXBase::setAttribute(attribute_t attr_id, std::uint8_t param) {
       switch (attr_id) {
-        case cp437_switch:
-            _text_style.cp437 = param;
-            break;
-        case utf8_switch:
-            _text_style.utf8  = param;
-            _decoderState = utf8_decode_state_t::utf8_state0;
-            break;
-        default: break;
+      case cp437_switch:
+        _text_style.cp437 = param;
+        break;
+      case utf8_switch:
+        _text_style.utf8  = param;
+        _decoderState = utf8_decode_state_t::utf8_state0;
+        break;
+      case epd_mode_switch:
+        _epd_mode = (epd_mode_t)param;
+        break;
+      default: break;
       }
     }
 
@@ -1997,6 +1995,7 @@ namespace lgfx
       switch (attr_id) {
         case cp437_switch: return _text_style.cp437;
         case utf8_switch: return _text_style.utf8;
+        case epd_mode_switch: return _epd_mode;
         default: return 0;
       }
     }

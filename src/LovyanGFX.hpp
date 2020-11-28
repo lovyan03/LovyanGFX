@@ -58,6 +58,7 @@ Contributors:
 #include "lgfx/touch/Touch_XPT2046.hpp"
 #include "lgfx/touch/Touch_STMPE610.hpp"
 #include "lgfx/touch/Touch_FT5x06.hpp"
+#include "lgfx/touch/Touch_GT911.hpp"
 
 #if defined (ESP32) || defined (CONFIG_IDF_TARGET_ESP32) || defined (ESP_PLATFORM)
   #include "lgfx/platforms/LGFX_SPI_ESP32.hpp"
@@ -89,8 +90,8 @@ Contributors:
   #define LGFX_M5STICK_C
  #elif defined( ARDUINO_M5Stack_CoreInk ) // M5Stack CoreInk
   #define LGFX_M5STACK_COREINK
- #elif defined( ARDUINO_M5STACK_Paper ) // M5Stack Paper
-  #define LGFX_M5STACK_PAPER
+ #elif defined( ARDUINO_M5STACK_Paper ) // M5Paper
+  #define LGFX_M5PAPER
  #elif defined( ARDUINO_ODROID_ESP32 ) // ODROID-GO
   #define LGFX_ODROID_GO
  #elif defined( ARDUINO_TTGO_T1 ) // TTGO TS
@@ -106,7 +107,10 @@ Contributors:
  #endif
 
  #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_M5STACK_COREINK )
-  #include "lgfx/panel/Panel_M5CoreInk.hpp"
+  #include "lgfx/panel/Panel_GDEW0154M09.hpp"
+ #endif
+ #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_M5PAPER )
+  #include "lgfx/panel/Panel_IT8951.hpp"
  #endif
 
  #include "config/LGFX_Config_AutoDetectESP32.hpp"

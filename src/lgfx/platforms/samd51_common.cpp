@@ -98,8 +98,14 @@ namespace lgfx
     //void init(int i2c_port, int sda, int scl, int freq) { }
     void init(int, int, int, int) {}
 
-    //bool writeBytes(int i2c_port, std::uint16_t addr, std::uint8_t *data, std::uint8_t len)
-    bool writeBytes(int, std::uint16_t, std::uint8_t*, std::uint8_t)
+    //bool writeBytes(int i2c_port, std::uint16_t addr, const std::uint8_t *data, std::uint8_t len)
+    bool writeBytes(int, std::uint16_t, const std::uint8_t*, std::uint8_t)
+    {
+      return false;
+    }
+
+    //bool writeReadBytes(int i2c_port, std::uint16_t addr, const std::uint8_t *writedata, std::uint8_t writelen, std::uint8_t *readdata, std::uint8_t readlen)
+    bool writeReadBytes(int, std::uint16_t, const std::uint8_t*, std::uint8_t, std::uint8_t*, std::uint8_t)
     {
       return false;
     }

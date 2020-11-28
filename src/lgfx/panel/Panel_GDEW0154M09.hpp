@@ -1,13 +1,13 @@
-#ifndef LGFX_PANEL_M5COREINK_HPP_
-#define LGFX_PANEL_M5COREINK_HPP_
+#ifndef LGFX_PANEL_GDEW0154M09_HPP_
+#define LGFX_PANEL_GDEW0154M09_HPP_
 
 #include "PanelCommon.hpp"
 
 namespace lgfx
 {
-  struct Panel_M5CoreInk : public PanelCommon
+  struct Panel_GDEW0154M09 : public PanelCommon
   {
-    Panel_M5CoreInk()
+    Panel_GDEW0154M09()
     {
       panel_width  = memory_width  = 200;
       panel_height = memory_height = 200;
@@ -32,9 +32,10 @@ namespace lgfx
 
       fp_begin       = beginTransaction;
       fp_end         = endTransaction;
-      fp_flush       = flush;
-      fp_pushImage   = pushImage;
+      fp_display     = display;
+      fp_waitDisplay = waitDisplay;
       fp_fillRect    = fillRect;
+      fp_pushImage   = pushImage;
       fp_pushBlock   = pushBlock;
       fp_writePixels = writePixels;
       fp_readRect    = readRect;
@@ -52,11 +53,12 @@ namespace lgfx
         while (!gpio_in(gpio_busy) && --retry) delay(1);
       }
       int len = ((panel_width + 7) & ~7) * panel_height >> 3;
+      if (_buf) heap_free(_buf);
       _buf = static_cast<std::uint8_t*>(heap_alloc_dma(len));
       memset(_buf, 255, len);
     }
 
-    void post_init(LGFX_Device* gfx) override;
+    void post_init(LGFX_Device* gfx, bool use_reset) override;
 
     const std::uint8_t* getWindowCommands1(std::uint8_t* buf, std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye) override
     {
@@ -109,21 +111,20 @@ namespace lgfx
     const std::uint8_t* getInvertDisplayCommands(std::uint8_t* buf, bool invert) override
     {
       (void)invert;
-      buf[0] = buf[1] = 0xFF;
+      reinterpret_cast<std::uint16_t*>(buf)[0] = 0xFFFF;
       return buf;
     }
 
     const std::uint8_t* getRotationCommands(std::uint8_t* buf, std::int_fast8_t r) override
     {
-      _xs = _xe = _ys = _ye = ~0;
-      buf[0] = buf[1] = 0xFF;
+      reinterpret_cast<std::uint16_t*>(buf)[0] = 0xFFFF;
       return PanelCommon::getRotationCommands(buf, r);
     }
 
     const std::uint8_t* getColorDepthCommands(std::uint8_t* buf, color_depth_t depth) override
     {
       (void)depth;
-      buf[0] = buf[1] = 0xFF;
+      reinterpret_cast<std::uint16_t*>(buf)[0] = 0xFFFF;
       return buf;
     }
 
@@ -195,11 +196,15 @@ namespace lgfx
 
   private:
     static constexpr std::uint8_t Bayer[16] = { 8, 136, 40, 168, 200, 72, 232, 104, 56, 184, 24, 152, 248, 120, 216, 88 };
-    std::uint8_t* _buf;
-    std::int32_t _tr_top = INT32_MAX;
-    std::int32_t _tr_left = INT32_MAX;
-    std::int32_t _tr_right = 0;
-    std::int32_t _tr_bottom = 0;
+    std::uint8_t* _buf = nullptr;
+
+    range_rect_t _range_new;
+    range_rect_t _range_old;
+
+    //std::int32_t _tr_top = INT32_MAX;
+    //std::int32_t _tr_left = INT32_MAX;
+    //std::int32_t _tr_right = 0;
+    //std::int32_t _tr_bottom = 0;
     std::int32_t _xpos = 0;
     std::int32_t _ypos = 0;
 
@@ -237,12 +242,14 @@ namespace lgfx
       return _buf[idx >> 3] & (0x80 >> (idx & 7));
     }
 
-    void _update_transferred_rect(std::int32_t &xs, std::int32_t &ys, std::int32_t &xe, std::int32_t &ye);
-    void _exec_transfer(std::uint32_t cmd, LGFX_Device* gfx);
+    void _update_transferred_rect(LGFX_Device* gfx, std::int32_t &xs, std::int32_t &ys, std::int32_t &xe, std::int32_t &ye);
+    void _exec_transfer(std::uint32_t cmd, LGFX_Device* gfx, range_rect_t* range, bool invert = false);
+    void _close_transfer(LGFX_Device* gfx);
 
     static void beginTransaction(PanelCommon* panel, LGFX_Device* gfx);
     static void endTransaction(PanelCommon* panel, LGFX_Device* gfx);
-    static void flush(PanelCommon* panel, LGFX_Device* gfx);
+    static void display(PanelCommon* panel, LGFX_Device* gfx);
+    static void waitDisplay(PanelCommon* panel, LGFX_Device* gfx);
     static void fillRect(PanelCommon* panel, LGFX_Device* gfx, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, std::uint32_t rawcolor);
     static void pushImage(PanelCommon* panel, LGFX_Device* gfx, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, pixelcopy_t* param);
     static void pushBlock(PanelCommon* panel, LGFX_Device* gfx, std::int32_t length, std::uint32_t rawcolor);
