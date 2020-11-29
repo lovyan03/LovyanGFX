@@ -17,11 +17,13 @@ namespace lgfx
     _range_new.right = panel_width - 1;
     _range_new.bottom = panel_height - 1;
     gfx->startWrite();
+    _close_transfer(gfx);
     _exec_transfer(0x13, gfx, &_range_new);
     gfx->endWrite();
     if (use_reset)
     {
       gfx->fillScreen(TFT_BLACK);// fillRect(this, gfx, 0, 0, gfx->width(), gfx->height(), 0);
+      display(this, gfx);
       gfx->setBaseColor(TFT_WHITE);
     }
   }
@@ -266,6 +268,7 @@ namespace lgfx
   void Panel_GDEW0154M09::display(PanelCommon* panel, LGFX_Device* gfx)
   {
     auto me = reinterpret_cast<Panel_GDEW0154M09*>(panel);
+    me->_close_transfer(gfx);
     if (me->_range_new.empty()) return;
     me->_range_old = me->_range_new;
     if (me->gpio_busy >= 0) while (!gpio_in(me->gpio_busy)) delay(1);
