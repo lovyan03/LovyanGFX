@@ -20,6 +20,11 @@ namespace lgfx
 
     lgfx::i2c::init(i2c_port, i2c_sda, i2c_scl, freq);
 
+    if (gpio_int >= 0)
+    {
+      lgfx::lgfxPinMode(gpio_int, pin_mode_t::input);
+    }
+
     _inited = lgfx::i2c::writeBytes(i2c_port, i2c_addr, gt911cmd_getdata, 3);
 /*
     std::uint8_t writedata[] = { 0x80, 0x40 };
@@ -65,13 +70,10 @@ namespace lgfx
     {
       lgfx::i2c::writeReadBytes(i2c_port, i2c_addr, gt911cmd_getdata, 2, _readdata, 16);
       /*
-      for (int i = 0; i < 1; ++i) {
-        for (int j = 0; j < 16; ++j) {
-          int k = i * 16 + j;
-          Serial.printf("%02x ", readdata[k]);
-        }
-        Serial.println();
+      for (int i = 0; i < 16; ++i) {
+        Serial.printf("%02x ", _readdata[i]);
       }
+      Serial.println();
       //*/
       if (_readdata[0] & 0x80)
       {

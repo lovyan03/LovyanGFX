@@ -116,11 +116,12 @@ IT8951 Registers defines
     _range_new.bottom = 0;
     if (use_reset) {
       gfx->setBaseColor(TFT_WHITE);
+      fillRect(this, gfx, 0, 0, gfx->width(), gfx->height(), 0);
+      UpdateArea(gfx, 0, 0, gfx->width(), gfx->height(), UPDATE_MODE_GC16);
+      CheckAFSR(gfx);
       fillRect(this, gfx, 0, 0, gfx->width(), gfx->height(), ~0u);
       UpdateArea(gfx, 0, 0, gfx->width(), gfx->height(), UPDATE_MODE_DU);
       CheckAFSR(gfx);
-      fillRect(this, gfx, 0, 0, gfx->width(), gfx->height(), 0);
-      UpdateArea(gfx, 0, 0, gfx->width(), gfx->height(), UPDATE_MODE_DU);
     }
 /*
     std::uint16_t buf[2];
@@ -163,20 +164,21 @@ IT8951 Registers defines
   {
 //if ((int)gfx->getPanel() != (int)this) { Serial.printf("error: %08x:%08x \r\n", (int)gfx->getPanel() , (int)this); }
     uint32_t start_time = millis();
-    uint16_t infobuf[1];
+    uint16_t infobuf[1] = { 1 };
     do
     {
+      delay(1);
       if (WriteCommand(gfx, IT8951_TCON_REG_RD)
        && WriteWord(gfx, IT8951_LUTAFSR)
        && ReadWords(gfx, infobuf, 1)
        && infobuf[0] == 0)
       {
-        return true;
+        break;
       }
-      delay(1);
     } while (millis() - start_time < 3000);
 
-    return false;
+    gfx->cs_h();
+    return infobuf[0] != 0;
   }
 
   bool Panel_IT8951::WriteCommand(LGFX_Device* gfx, uint16_t cmd)
@@ -219,8 +221,8 @@ IT8951 Registers defines
       gfx->writeData16(0);
       for (std::int32_t i = 0; i < length; i++)
       {
-        std::uint32_t retry = 0xFFFF;
-        while (gpio_busy >= 0 && !lgfx::gpio_in(gpio_busy) && --retry);
+        gfx->waitDMA();
+        while (!lgfx::gpio_in(gpio_busy));
         gfx->writeData16(args[i]);
       }
       return true;
@@ -261,102 +263,64 @@ IT8951 Registers defines
   bool Panel_IT8951::SetArea(LGFX_Device* gfx, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h)
   {
 //if ((int)gfx->getPanel() != (int)this) { Serial.printf("error: %08x:%08x \r\n", (int)gfx->getPanel() , (int)this); }
+    _range_new.left = std::min(x, _range_new.left);
+    _range_new.right  = std::max(x + w - 1, _range_new.right);
+    _range_new.top  = std::min(y, _range_new.top);
+    _range_new.bottom = std::max(y + h - 1, _range_new.bottom);
+
     if (_range_old.horizon.intersectsWith(x, x + w - 1)
      && _range_old.vertical.intersectsWith(y, y + h - 1))
+    {
       CheckAFSR(gfx);
-
-    if (WriteCommand(gfx, IT8951_TCON_LD_IMG_AREA)
-     && WaitBusy(gfx))
-    {
-      gfx->writeData32(IT8951_LDIMG_B_ENDIAN << 8 | IT8951_4BPP << 4 | _internal_rotation);
-      _range_new.left = std::min(x, _range_new.left);
-      _range_new.top  = std::min(y, _range_new.top);
-      gfx->writeData32(x << 16 | y);
-      _range_new.right  = std::max(x + w - 1, _range_new.right);
-      _range_new.bottom = std::max(y + h - 1, _range_new.bottom);
-      gfx->writeData32(w << 16 | h);
-      return true;
+      _range_old.left = INT_MAX;
+      _range_old.top = INT_MAX;
+      _range_old.right = 0;
+      _range_old.left = 0;
     }
-    // Serial.println("error: SetArea 2");
-    return false;
-  }
 
-  bool Panel_IT8951::UpdateAreaInternal(LGFX_Device* gfx, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, epd_update_mode_t mode)
-  {
-//if ((int)gfx->getPanel() != (int)this) { Serial.printf("error: %08x:%08x \r\n", (int)gfx->getPanel() , (int)this); }
-    if (WriteCommand(gfx, IT8951_I80_CMD_DPY_BUF_AREA)
-     && WaitBusy(gfx, 50))
-    {
-      gfx->writeData16(0);
-      std::uint16_t params[4];
-      switch(_internal_rotation & 3)
-      {
-      case IT8951_ROTATE_0:
-        params[0] = x;
-        params[1] = y;
-        params[2] = w;
-        params[3] = h;
-        break;
-      case IT8951_ROTATE_90:
-        params[0] = y;
-        params[1] = panel_height - w - x;
-        params[2] = h;
-        params[3] = w;
-        break;
-      case IT8951_ROTATE_180:
-        params[0] = panel_width - w - x;
-        params[1] = panel_height - h - y;
-        params[2] = w;
-        params[3] = h;
-        break;
-      case IT8951_ROTATE_270:
-        params[0] = panel_width - h - y;
-        params[1] = x;
-        params[2] = h;
-        params[3] = w;
-        break;
-      }
-      for (int i = 0; i < 4; ++i) gfx->writeData16(params[i]);
-      gfx->writeData16(mode);
-      gfx->writeData16((std::uint16_t)_tar_memaddr);
-      gfx->writeData16(_tar_memaddr >> 16);
-      std::uint16_t buf[2];
-      gfx->cs_h();
-
-      std::int32_t retry = 10;
-      do
-      { // freeze check
-        if (WriteCommand(gfx, IT8951_TCON_REG_RD)
-            && WriteWord(gfx, IT8951_LUTAFSR)
-            && ReadWords(gfx, buf, 1)
-            && buf[0]) return true;
-        delay(1);
-      } while (--retry);
-    }
-    return false;
+    std::uint16_t params[5];
+    params[0] = IT8951_LDIMG_B_ENDIAN << 8 | IT8951_4BPP << 4 | _internal_rotation;
+    params[1] = x;
+    params[2] = y;
+    params[3] = w;
+    params[4] = h;
+    return WriteArgs(gfx, IT8951_TCON_LD_IMG_AREA, params, 5);
   }
 
   bool Panel_IT8951::UpdateArea(LGFX_Device* gfx, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, epd_update_mode_t mode)
   {
-
-    int retry = 5;
-    do
+    std::uint16_t params[7];
+    switch(_internal_rotation & 3)
     {
-      if (UpdateAreaInternal(gfx, x, y, w, h, mode)) return true;
-      if (gpio_rst >= 0)
-      {
-        gpio_lo(gpio_rst);
-// Serial.println("error: UpdateArea 1");
-        auto time = millis();
-        gfx->cs_h();
-        do {
-          delay(1);
-        } while (millis() - time < 2);
-        gpio_hi(gpio_rst);
-        post_init(gfx, false);
-      }
-    } while (--retry);
-    return false;
+    case IT8951_ROTATE_0:
+      params[0] = x;
+      params[1] = y;
+      params[2] = w;
+      params[3] = h;
+      break;
+    case IT8951_ROTATE_90:
+      params[0] = y;
+      params[1] = panel_height - w - x;
+      params[2] = h;
+      params[3] = w;
+      break;
+    case IT8951_ROTATE_180:
+      params[0] = panel_width - w - x;
+      params[1] = panel_height - h - y;
+      params[2] = w;
+      params[3] = h;
+      break;
+    case IT8951_ROTATE_270:
+      params[0] = panel_width - h - y;
+      params[1] = x;
+      params[2] = h;
+      params[3] = w;
+      break;
+    }
+    params[4] = mode;
+    params[5] = (std::uint16_t)_tar_memaddr;
+    params[6] = (std::uint16_t)(_tar_memaddr >> 16);
+    return WriteArgs(gfx, IT8951_I80_CMD_DPY_BUF_AREA, params, 7);
   }
 
   void Panel_IT8951::fillRect(PanelCommon* panel, LGFX_Device* gfx, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, std::uint32_t rawcolor)
@@ -593,27 +557,19 @@ IT8951 Registers defines
   void Panel_IT8951::display(PanelCommon* panel, LGFX_Device* gfx)
   {
     auto me = reinterpret_cast<Panel_IT8951*>(panel);
+    if (me->_range_new.empty()) return;
 
     std::int32_t x, w, y, h;
-    if (me->_range_new.empty())
-    {
-      x = 0;
-      y = 0;
-      w = gfx->width();
-      h = gfx->height();
-    }
-    else
-    {
-      me->_range_old = me->_range_new;
-      x = me->_range_new.left;
-      y = me->_range_new.top;
-      w = me->_range_new.right  - me->_range_new.left + 1;
-      h = me->_range_new.bottom - me->_range_new.top + 1;
-      me->_range_new.top = INT32_MAX;
-      me->_range_new.left = INT32_MAX;
-      me->_range_new.right = 0;
-      me->_range_new.bottom = 0;
-    }
+
+    me->_range_old = me->_range_new;
+    x = me->_range_new.left;
+    y = me->_range_new.top;
+    w = me->_range_new.right  - me->_range_new.left + 1;
+    h = me->_range_new.bottom - me->_range_new.top + 1;
+    me->_range_new.top = INT32_MAX;
+    me->_range_new.left = INT32_MAX;
+    me->_range_new.right = 0;
+    me->_range_new.bottom = 0;
 
     epd_update_mode_t mode;
     switch (gfx->getEpdMode())
@@ -623,12 +579,5 @@ IT8951 Registers defines
     default:                       mode = UPDATE_MODE_GC16; break;
     }
     me->UpdateArea(gfx, x, y, w, h, mode);
-  }
-
-  void Panel_IT8951::endTransaction(PanelCommon* panel, LGFX_Device* gfx)
-  {
-    auto me = reinterpret_cast<Panel_IT8951*>(panel);
-    if (me->_range_new.empty()) return;
-    display(panel, gfx);
   }
 }

@@ -30,8 +30,8 @@ namespace lgfx
       //cmd_ramrd  = 4;
       cmd_rddid  = 0x70;
 
-      fp_begin       = beginTransaction;
-      fp_end         = endTransaction;
+      // fp_begin       = beginTransaction;
+      // fp_end         = endTransaction;
       fp_display     = display;
       fp_waitDisplay = waitDisplay;
       fp_fillRect    = fillRect;

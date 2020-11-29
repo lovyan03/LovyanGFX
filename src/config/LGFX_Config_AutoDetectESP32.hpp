@@ -745,9 +745,9 @@ public:
 
             board = lgfx::board_t::board_M5Paper;
             auto p = new lgfx::Panel_IT8951();
-            p->freq_write = 10000000; // 11430000;
-            p->freq_read  = 10000000; // 11430000;
-            p->freq_fill  = 10000000; // 11430000;
+            p->freq_write = 16000000;
+            p->freq_read  = 16000000;
+            p->freq_fill  = 16000000;
             p->spi_3wire = false;
             p->spi_cs    = 15;
             p->spi_dc    = -1;
