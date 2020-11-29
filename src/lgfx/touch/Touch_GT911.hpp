@@ -23,6 +23,7 @@ namespace lgfx
     std::uint_fast8_t getTouch(std::int32_t* x, std::int32_t* y, std::int_fast8_t number) override;
 
   private:
+    std::uint32_t _lasttime;
     std::uint8_t _readdata[16];
   };
 

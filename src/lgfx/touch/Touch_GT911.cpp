@@ -13,9 +13,10 @@ namespace lgfx
 
   bool Touch_GT911::init(void)
   {
+    if (_inited) return true;
+
     _readdata[0] = 0;
 
-    _inited = false;
     if (isSPI()) return false;
 
     lgfx::i2c::init(i2c_port, i2c_sda, i2c_scl, freq);
@@ -27,21 +28,25 @@ namespace lgfx
 
     _inited = lgfx::i2c::writeBytes(i2c_port, i2c_addr, gt911cmd_getdata, 3);
 /*
-    std::uint8_t writedata[] = { 0x80, 0x40 };
-    std::uint8_t readdata[128] = {0};
-    lgfx::i2c::writeReadBytes(i2c_port, i2c_addr, writedata, 2, readdata, 128);
-    std::uint32_t addr = 0x8040;
-    for (int i = 0; i < 8; ++i) {
-      Serial.printf("%04x:" , addr);
-      for (int j = 0; j < 4; ++j) {
-        for (int k = 0; k < 4; ++k) {
-          int l = i * 16 + j * 4 + k;
-          Serial.printf("%02x ", readdata[l]);
+    if (_inited)
+    {
+      std::uint8_t writedata[] = { 0x80, 0x40 };
+
+      std::uint8_t readdata[128] = {0};
+      lgfx::i2c::writeReadBytes(i2c_port, i2c_addr, writedata, 2, readdata, 128);
+      std::uint32_t addr = 0x8040;
+      for (int i = 0; i < 8; ++i) {
+        Serial.printf("%04x:" , addr);
+        for (int j = 0; j < 4; ++j) {
+          for (int k = 0; k < 4; ++k) {
+            int l = i * 16 + j * 4 + k;
+            Serial.printf("%02x ", readdata[l]);
+          }
+          Serial.print(" ");
         }
-        Serial.print(" ");
+        Serial.println();
+        addr += 16;
       }
-      Serial.println();
-      addr += 16;
     }
 //*/
     return _inited;
@@ -66,8 +71,9 @@ namespace lgfx
 //  Serial.printf("%d \r\n", gpio_in(gpio_int));
     std::uint_fast8_t res = 0;
 
-    if (gpio_int < 0 || !gpio_in(gpio_int))
+    if ((gpio_int < 0 || !gpio_in(gpio_int)) && (std::uint32_t)(millis() - _lasttime) > 5)
     {
+      _lasttime = millis();
       lgfx::i2c::writeReadBytes(i2c_port, i2c_addr, gt911cmd_getdata, 2, _readdata, 16);
       /*
       for (int i = 0; i < 16; ++i) {

@@ -19,13 +19,13 @@ namespace lgfx
     gfx->startWrite();
     _close_transfer(gfx);
     _exec_transfer(0x13, gfx, &_range_new);
-    gfx->endWrite();
     if (use_reset)
     {
       gfx->fillScreen(TFT_BLACK);// fillRect(this, gfx, 0, 0, gfx->width(), gfx->height(), 0);
       display(this, gfx);
       gfx->setBaseColor(TFT_WHITE);
     }
+    gfx->endWrite();
   }
 
   void Panel_GDEW0154M09::_update_transferred_rect(LGFX_Device* gfx, std::int32_t &xs, std::int32_t &ys, std::int32_t &xe, std::int32_t &ye)
@@ -48,16 +48,17 @@ namespace lgfx
       ye = panel_height - 1 - ye;
       break;
     }
+    std::int32_t x1 = xs & ~7;
+    std::int32_t x2 = xe & ~7;
 
-    if ((_range_old.horizon.intersectsWith(xs, xe) && _range_old.vertical.intersectsWith(ys, ye))
+    if ((_range_old.horizon.intersectsWith(x1, x2) && _range_old.vertical.intersectsWith(ys, ye))
      || (!_range_old.empty() && (gpio_busy >= 0) && gpio_in(gpio_busy)))
     {
       _close_transfer(gfx);
     }
-
     _range_new.top = std::min(ys, _range_new.top);
-    _range_new.left = std::min(xs, _range_new.left);
-    _range_new.right = std::max(xe, _range_new.right);
+    _range_new.left = std::min(x1, _range_new.left);
+    _range_new.right = std::max(x2, _range_new.right);
     _range_new.bottom = std::max(ye, _range_new.bottom);
   }
 

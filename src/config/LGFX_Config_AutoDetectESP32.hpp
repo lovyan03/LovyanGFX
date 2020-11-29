@@ -745,9 +745,9 @@ public:
 
             board = lgfx::board_t::board_M5Paper;
             auto p = new lgfx::Panel_IT8951();
-            p->freq_write = 16000000;
-            p->freq_read  = 16000000;
-            p->freq_fill  = 16000000;
+            p->freq_write = 40000000;
+            p->freq_read  = 20000000;
+            p->freq_fill  = 40000000;
             p->spi_3wire = false;
             p->spi_cs    = 15;
             p->spi_dc    = -1;
@@ -762,14 +762,16 @@ public:
             t->gpio_int = 36;   // INT pin number
             t->i2c_sda  = 21;   // I2C SDA pin number
             t->i2c_scl  = 22;   // I2C SCL pin number
-            t->i2c_addr = 0x5D; // I2C device addr
-            t->i2c_port = I2C_NUM_1;// I2C port number
+            t->i2c_addr = 0x14; // I2C device addr
+            t->i2c_port = I2C_NUM_0;// I2C port number
             t->freq = 400000;   // I2C freq
             t->x_min = 0;
             t->x_max = 959;
             t->y_min = 0;
             t->y_max = 539;
             touch(t);
+            if (!t->init())
+            t->i2c_addr = 0x5D;
             goto init_clear;
           }
         }
