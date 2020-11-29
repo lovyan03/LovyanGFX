@@ -309,11 +309,11 @@ namespace lgfx
     }
 
     void cs_l(void) {
+      waitDMA_impl();
       gpio_lo(_panel->spi_cs);
     }
 
   protected:
-    PanelCommon* _panel = nullptr;
     TouchCommon* _touch = nullptr;
 
     board_t board = lgfx::board_t::board_unknown;
@@ -352,7 +352,12 @@ namespace lgfx
       initBus(); 
       initPanel(use_reset); 
       initTouch(); 
-      if (use_reset) { clear(); }
+      if (use_reset)
+      {
+        clear();
+        display();
+        waitDisplay();
+      }
     }
 
     bool isReadable_impl(void) const override { return _panel->spi_read; }

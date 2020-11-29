@@ -31,6 +31,7 @@ Contributors:
 
 namespace lgfx
 {
+  class PanelCommon;
   class LGFX_Sprite;
 
   class LGFXBase
@@ -677,6 +678,7 @@ namespace lgfx
 //----------------------------------------------------------------------------
 
   protected:
+    PanelCommon* _panel = nullptr;
     std::uint32_t _transaction_count = 0;
     std::int32_t _width = 0, _height = 0;
     std::int32_t  _sx, _sy, _sw, _sh; // for scroll zone
@@ -695,7 +697,7 @@ namespace lgfx
 
     bool _spi_shared = true;
     bool _swapBytes = false;
-    epd_mode_t _epd_mode = epd_mode_t::epd_fast;
+    epd_mode_t _epd_mode = epd_mode_t::epd_quality;
 
     enum utf8_decode_state_t
     { utf8_state0 = 0

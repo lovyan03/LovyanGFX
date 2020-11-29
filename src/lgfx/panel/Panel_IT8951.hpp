@@ -14,9 +14,9 @@ namespace lgfx
       panel_width  = 960;
       panel_height = 540;
 
-      freq_write = 10000000;
-      freq_read  = 10000000;
-      freq_fill  = 10000000;
+      freq_write = 16000000;
+      freq_read  = 16000000;
+      freq_fill  = 16000000;
 
       spi_3wire = false;
       write_depth = rgb888_3Byte;
@@ -32,7 +32,7 @@ namespace lgfx
       //cmd_rddid  = 0x70;
 
       //fp_begin       = beginTransaction;
-      fp_end         = endTransaction;
+      //fp_end         = endTransaction;
       fp_display     = display;
       fp_waitDisplay = waitDisplay;
       fp_fillRect    = fillRect;
@@ -143,8 +143,6 @@ namespace lgfx
     std::uint_fast16_t _ypos = 0;
     bool _fastmode = true;
 
-    //static void beginTransaction(PanelCommon* panel, LGFX_Device* gfx);
-    static void endTransaction(PanelCommon* panel, LGFX_Device* gfx);
     static void display(PanelCommon* panel, LGFX_Device* gfx);
     static void waitDisplay(PanelCommon* panel, LGFX_Device* gfx);
     static void fillRect(PanelCommon* panel, LGFX_Device* gfx, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, std::uint32_t rawcolor);
@@ -162,7 +160,6 @@ namespace lgfx
     bool CheckAFSR(LGFX_Device* gfx);
     bool SetTargetMemoryAddr(LGFX_Device* gfx, uint32_t tar_addr);
     bool SetArea(LGFX_Device* gfx, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h);
-    bool UpdateAreaInternal(LGFX_Device* gfx, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, epd_update_mode_t mode);
     bool UpdateArea(LGFX_Device* gfx, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, epd_update_mode_t mode);
     bool Clear(LGFX_Device* gfx, bool init);
   };
