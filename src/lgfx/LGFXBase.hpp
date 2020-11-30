@@ -678,6 +678,7 @@ namespace lgfx
 //----------------------------------------------------------------------------
 
   protected:
+    bool _auto_display = true;
     PanelCommon* _panel = nullptr;
     std::uint32_t _transaction_count = 0;
     std::int32_t _width = 0, _height = 0;
