@@ -80,9 +80,7 @@ namespace lgfx
       {
         _lasttime = nowtime;
         std::uint_fast8_t points = std::min(5, buf & 0x0F);
-        if (points) {
-          lgfx::i2c::writeReadBytes(i2c_port, i2c_addr, gt911cmd_getdata, 2, _readdata, points * 8);
-        }
+        lgfx::i2c::writeReadBytes(i2c_port, i2c_addr, gt911cmd_getdata, 2, _readdata, 2 + points * 8);
         /*
         for (int i = 0; i < 16; ++i) {
           Serial.printf("%02x ", _readdata[i]);

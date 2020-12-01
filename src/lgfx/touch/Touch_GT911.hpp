@@ -24,7 +24,7 @@ namespace lgfx
 
   private:
     std::uint32_t _lasttime;
-    std::uint8_t _readdata[40];
+    std::uint8_t _readdata[42];
   };
 
 //----------------------------------------------------------------------------
