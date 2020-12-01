@@ -73,11 +73,11 @@ namespace lgfx
 
     if ((gpio_int < 0 || !gpio_in(gpio_int)) && (std::uint32_t)(millis() - _lasttime) > 5)
     {
-      _lasttime = millis();
       std::uint8_t buf;
       lgfx::i2c::writeReadBytes(i2c_port, i2c_addr, gt911cmd_getdata, 2, &buf, 1);
       if (buf & 0x80)
       {
+        _lasttime = millis();
         std::uint_fast8_t points = std::min(5, buf & 0x0F);
         if (points) {
           lgfx::i2c::writeReadBytes(i2c_port, i2c_addr, gt911cmd_getdata, 2, _readdata, points * 8);
