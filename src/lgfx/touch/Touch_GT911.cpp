@@ -71,18 +71,19 @@ namespace lgfx
 //  Serial.printf("%d \r\n", gpio_in(gpio_int));
     std::uint_fast8_t res = 0;
 
-    if ((gpio_int < 0 || !gpio_in(gpio_int)) && (std::uint32_t)(millis() - _lasttime) > 5)
+    auto nowtime = millis();
+    if ((gpio_int < 0 || !gpio_in(gpio_int)) && (std::uint32_t)(nowtime - _lasttime) > 5)
     {
       std::uint8_t buf;
       lgfx::i2c::writeReadBytes(i2c_port, i2c_addr, gt911cmd_getdata, 2, &buf, 1);
       if (buf & 0x80)
       {
-        _lasttime = millis();
+        _lasttime = nowtime;
         std::uint_fast8_t points = std::min(5, buf & 0x0F);
         if (points) {
           lgfx::i2c::writeReadBytes(i2c_port, i2c_addr, gt911cmd_getdata, 2, _readdata, points * 8);
         }
-        //*
+        /*
         for (int i = 0; i < 16; ++i) {
           Serial.printf("%02x ", _readdata[i]);
         }
