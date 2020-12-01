@@ -47,7 +47,7 @@ namespace lgfx
         Serial.println();
         addr += 16;
       }
-    }
+      }
 //*/
     return _inited;
   }
@@ -74,19 +74,24 @@ namespace lgfx
     if ((gpio_int < 0 || !gpio_in(gpio_int)) && (std::uint32_t)(millis() - _lasttime) > 5)
     {
       _lasttime = millis();
-      lgfx::i2c::writeReadBytes(i2c_port, i2c_addr, gt911cmd_getdata, 2, _readdata, 16);
-      /*
-      for (int i = 0; i < 16; ++i) {
-        Serial.printf("%02x ", _readdata[i]);
-      }
-      Serial.println();
-      //*/
-      if (_readdata[0] & 0x80)
+      std::uint8_t buf;
+      lgfx::i2c::writeReadBytes(i2c_port, i2c_addr, gt911cmd_getdata, 2, &buf, 1);
+      if (buf & 0x80)
       {
+        std::uint_fast8_t points = std::min(5, buf & 0x0F);
+        if (points) {
+          lgfx::i2c::writeReadBytes(i2c_port, i2c_addr, gt911cmd_getdata, 2, _readdata, points * 8);
+        }
+        //*
+        for (int i = 0; i < 16; ++i) {
+          Serial.printf("%02x ", _readdata[i]);
+        }
+        Serial.println();
+        //*/
         lgfx::i2c::writeBytes(i2c_port, i2c_addr, gt911cmd_getdata, 3);
       }
     }
-    std::uint_fast8_t points = _readdata[0] & 0x0F;
+    std::uint_fast8_t points = std::min(5, _readdata[0] & 0x0F);
     if (number < points)
     {
       res = points;
