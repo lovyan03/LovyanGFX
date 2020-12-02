@@ -706,7 +706,7 @@ public:
         id = millis();
         while (!lgfx::gpio_in(27))
         {
-          if (millis() - id > 850) { id = 0; break; }
+          if (millis() - id > 1000) { id = 0; break; }
           delay(1);
         };
         if (id)
