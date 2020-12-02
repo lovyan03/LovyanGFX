@@ -127,6 +127,11 @@ namespace lgfx
       endWrite();
     }
 
+    void setAutoDisplay(bool flg)
+    {
+      _auto_display = flg;
+    }
+
     void setColorDepth(std::uint8_t bpp) { setColorDepth((color_depth_t)bpp); }
     void setColorDepth(color_depth_t depth)
     {
@@ -314,8 +319,6 @@ namespace lgfx
     }
 
   protected:
-    TouchCommon* _touch = nullptr;
-
     board_t board = lgfx::board_t::board_unknown;
 
     float _touch_affine[6] = {1,0,0,0,1,0};

@@ -114,13 +114,17 @@ IT8951 Registers defines
     _range_new.left = INT16_MAX;
     _range_new.right = 0;
     _range_new.bottom = 0;
+    gfx->setBaseColor(TFT_WHITE);
+
     if (use_reset) {
-      gfx->setBaseColor(TFT_WHITE);
+      auto mode = gfx->getEpdMode();
+      gfx->setEpdMode(epd_mode_t::epd_quality);
       fillRect(this, gfx, 0, 0, gfx->width(), gfx->height(), 0);
-      UpdateArea(gfx, 0, 0, gfx->width(), gfx->height(), UPDATE_MODE_GC16);
-      CheckAFSR(gfx);
+      display(this, gfx);
       fillRect(this, gfx, 0, 0, gfx->width(), gfx->height(), ~0u);
-      UpdateArea(gfx, 0, 0, gfx->width(), gfx->height(), UPDATE_MODE_DU);
+      gfx->setEpdMode(epd_mode_t::epd_fastest);
+      display(this, gfx);
+      gfx->setEpdMode(mode);
       CheckAFSR(gfx);
     }
 /*
@@ -268,7 +272,9 @@ IT8951 Registers defines
     _range_new.top  = std::min(y, _range_new.top);
     _range_new.bottom = std::max(y + h - 1, _range_new.bottom);
 
-    if (_range_old.horizon.intersectsWith(x, x + w - 1)
+    
+    if (gfx->getEpdMode() != epd_mode_t::epd_fastest
+     && _range_old.horizon.intersectsWith(x, x + w - 1)
      && _range_old.vertical.intersectsWith(y, y + h - 1))
     {
       CheckAFSR(gfx);
@@ -383,6 +389,9 @@ IT8951 Registers defines
 
   void Panel_IT8951::pushImage(PanelCommon* panel, LGFX_Device* gfx, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, pixelcopy_t* param)
   {
+    bgr888_t* readbuf = static_cast<bgr888_t*>(heap_alloc(w * sizeof(bgr888_t)));
+    if (readbuf == nullptr) return;
+
     auto me = reinterpret_cast<Panel_IT8951*>(panel);
     std::int32_t add_y = 1;
     if (me->_internal_rotation & 4)
@@ -391,7 +400,6 @@ IT8951 Registers defines
       add_y = -1;
     }
     bool fast = gfx->getEpdMode() != epd_mode_t::epd_quality;
-    bgr888_t readbuf[w];
     auto sx = param->src_x32;
     do
     {
@@ -405,34 +413,28 @@ IT8951 Registers defines
           me->WaitBusy(gfx);
           gfx->writeData16(0);
           std::int32_t shift = (3 - ((x + prev_pos) & 3)) << 2;
-          std::uint16_t buf = 0;
           auto btbl = &me->Bayer[(y & 3) << 2];
-          std::int32_t pixel;
           do
           {
-            auto color = readbuf[prev_pos];
-            pixel = color.R8() + (color.G8() << 1) + color.B8();
-            if (fast)
+            std::uint16_t buf = 0;
+            do
             {
-              pixel = (pixel + btbl[(x + prev_pos) & 3] * 16 < 512) ? 0 : 15;
-            }
-            else
-            {
-              pixel = std::min(15, std::max(0, pixel + btbl[(x + prev_pos) & 3]) >> 6);
-            }
-            buf |= pixel << shift;
-            shift -= 4;
-            if (shift < 0)
-            {
-              gfx->writeData16(buf);
-              buf = 0;
-              shift = 12;
-            }
-          } while (new_pos != ++prev_pos);
-          if (shift < 12)
-          {
-            gfx->writeData16(buf); 
-          }
+              auto color = readbuf[prev_pos];
+              std::int32_t pixel = color.R8() + (color.G8() << 1) + color.B8();
+              if (fast)
+              {
+                pixel = (pixel + btbl[(x + prev_pos) & 3] * 16 < 512) ? 0 : 15;
+              }
+              else
+              {
+                pixel = std::min(15, std::max(0, pixel + btbl[(x + prev_pos) & 3]) >> 6);
+              }
+              buf |= pixel << shift;
+              shift -= 4;
+            } while (new_pos != ++ prev_pos && shift >= 0);
+            gfx->writeData16(buf);
+            shift = 12;
+          } while (new_pos != prev_pos);
           me->WriteCommand(gfx, IT8951_TCON_LD_IMG_END);
         }
       } while (w != new_pos && w != (prev_pos = param->fp_skip(new_pos, w, param)));
@@ -440,7 +442,7 @@ IT8951 Registers defines
       param->src_y++;
       y += add_y;
     } while (--h);
-
+    heap_free(readbuf);
     gfx->cs_h();
   }
 
@@ -479,7 +481,8 @@ IT8951 Registers defines
     std::uint32_t w;
 
     std::int32_t maxw = std::min(length, xe - xs + 1);
-    bgr888_t readbuf[maxw];
+    bgr888_t* readbuf = static_cast<bgr888_t*>(heap_alloc(maxw * sizeof(bgr888_t)));
+    if (readbuf == nullptr) return;
     do
     {
       w = std::min(length, xe - xs + 1);
@@ -532,6 +535,7 @@ IT8951 Registers defines
     me->_xpos = xpos;
     me->_ypos = ypos;
 
+    heap_free(readbuf);
     gfx->cs_h();
   }
 
@@ -544,7 +548,7 @@ IT8951 Registers defines
     (void)w;
     (void)h;
     (void)dst;
-    (void)param;    
+    (void)param;
   }
 
   void Panel_IT8951::waitDisplay(PanelCommon* panel, LGFX_Device* gfx)

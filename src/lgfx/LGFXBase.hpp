@@ -32,6 +32,7 @@ Contributors:
 namespace lgfx
 {
   class PanelCommon;
+  class TouchCommon;
   class LGFX_Sprite;
 
   class LGFXBase
@@ -680,6 +681,7 @@ namespace lgfx
   protected:
     bool _auto_display = true;
     PanelCommon* _panel = nullptr;
+    TouchCommon* _touch = nullptr;
     std::uint32_t _transaction_count = 0;
     std::int32_t _width = 0, _height = 0;
     std::int32_t  _sx, _sy, _sw, _sh; // for scroll zone
