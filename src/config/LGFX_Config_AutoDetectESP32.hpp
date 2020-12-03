@@ -684,34 +684,29 @@ public:
 #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_M5PAPER )
     if (nvs_board == 0 || nvs_board == lgfx::board_t::board_M5Paper)
     {
-      lgfx::lgfxPinMode(23, lgfx::pin_mode_t::output); // M5Paper power 
-      lgfx::gpio_lo(23);
-      lgfx::lgfxPinMode(27, lgfx::pin_mode_t::input_pullup); // M5Paper EPD busy pin
-      id = lgfx::gpio_in(27);
-      lgfx::lgfxPinMode(27, lgfx::pin_mode_t::input);
-      if (id == 0)
+      lgfx::lgfxPinMode(27, lgfx::pin_mode_t::input); // M5Paper EPD busy pin
+      lgfx::lgfxPinMode(4, lgfx::pin_mode_t::output); // M5Paper TF card CS
+      lgfx::gpio_hi(4);
+
+      releaseBus();
+      _spi_mosi = 12;
+      _spi_miso = 13;
+      _spi_sclk = 14;
+      initBus();
+
+      p_tmp.spi_3wire= false;
+      p_tmp.spi_cs   = 15;
+      p_tmp.spi_dc   = -1;
+      p_tmp.gpio_rst = 23;
+      setPanel(&p_tmp);
+      _reset(true);
+
+      if (!lgfx::gpio_in(27))
       {
-        lgfx::gpio_hi(23);
-        lgfx::lgfxPinMode(4, lgfx::pin_mode_t::output); // M5Paper TF card CS
-        lgfx::gpio_hi(4);
-
-        releaseBus();
-        _spi_mosi = 12;
-        _spi_miso = 13;
-        _spi_sclk = 14;
-        initBus();
-
-        p_tmp.spi_3wire= false;
-        p_tmp.spi_cs   = 15;
-        p_tmp.spi_dc   = -1;
-        p_tmp.gpio_rst = 23;
-        setPanel(&p_tmp);
-        _reset(true);
-
         id = millis();
         while (!lgfx::gpio_in(27))
         {
-          if (millis() - id > 850) { id = 0; break; }
+          if (millis() - id > 1000) { id = 0; break; }
           delay(1);
         };
         if (id)
@@ -770,8 +765,7 @@ public:
             t->y_min = 0;
             t->y_max = 539;
             touch(t);
-            if (!t->init())
-            t->i2c_addr = 0x5D;
+            if (!t->init()) { t->i2c_addr = 0x5D; } // addr change (0x14 or 0x5D)
             goto init_clear;
           }
         }

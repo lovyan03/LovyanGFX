@@ -253,6 +253,7 @@ namespace lgfx
     }
 
     void end_transaction(void) {
+      if (_auto_display && nullptr != _panel->fp_display) { _panel->fp_display(_panel, this); }
       if (nullptr != _panel->fp_end) { _panel->fp_end(_panel, this); }
       if (_spi_dlen == 16 && (_align_data)) write_data(0, 8);
       if (_panel->spi_cs < 0) {
@@ -333,13 +334,9 @@ namespace lgfx
       }
       else
       {
-        if (_in_transaction) _panel->fp_fillRect(_panel, this, x, y, 1, 1, _color.raw);
-        else
-        {
-          begin_transaction();
-          _panel->fp_fillRect(_panel, this, x, y, 1, 1, _color.raw);
-          end_transaction();
-        }
+        startWrite();
+        _panel->fp_fillRect(_panel, this, x, y, 1, 1, _color.raw);
+        endWrite();
       }
     }
 

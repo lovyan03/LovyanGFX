@@ -21,7 +21,7 @@ namespace lgfx
     _exec_transfer(0x13, gfx, &_range_new);
     if (use_reset)
     {
-      gfx->fillScreen(TFT_BLACK);// fillRect(this, gfx, 0, 0, gfx->width(), gfx->height(), 0);
+      fillRect(this, gfx, 0, 0, gfx->width(), gfx->height(), 0);
       display(this, gfx);
       gfx->setBaseColor(TFT_WHITE);
     }
@@ -49,10 +49,9 @@ namespace lgfx
       break;
     }
     std::int32_t x1 = xs & ~7;
-    std::int32_t x2 = xe & ~7;
+    std::int32_t x2 = (xe & ~7) + 7;
 
-    if ((_range_old.horizon.intersectsWith(x1, x2) && _range_old.vertical.intersectsWith(ys, ye))
-     || (!_range_old.empty() && (gpio_busy >= 0) && gpio_in(gpio_busy)))
+    if (_range_old.horizon.intersectsWith(x1, x2) && _range_old.vertical.intersectsWith(ys, ye))
     {
       _close_transfer(gfx);
     }
@@ -222,12 +221,16 @@ namespace lgfx
     std::int32_t xs = range->left & ~7;
     std::int32_t xe = range->right & ~7;
 
+    if (gpio_busy >= 0) while (!gpio_in(gpio_busy)) delay(1);
+
     gfx->writeCommand(0x91);
     gfx->writeCommand(0x90);
     gfx->writeData16(xs << 8 | xe);
     gfx->writeData16(range->top);
     gfx->writeData16(range->bottom);
     gfx->writeData(1);
+
+    if (gpio_busy >= 0) while (!gpio_in(gpio_busy)) delay(1);
 
     gfx->writeCommand(cmd);
     std::int32_t w = ((xe - xs) >> 3) + 1;
@@ -261,7 +264,6 @@ namespace lgfx
   void Panel_GDEW0154M09::_close_transfer(LGFX_Device* gfx)
   {
     if (_range_old.empty()) return;
-    if (gpio_busy >= 0) while (!gpio_in(gpio_busy)) delay(1);
     _exec_transfer(0x10, gfx, &_range_old);
     gfx->waitDMA();
   }
@@ -272,17 +274,19 @@ namespace lgfx
     me->_close_transfer(gfx);
     if (me->_range_new.empty()) return;
     me->_range_old = me->_range_new;
-    if (me->gpio_busy >= 0) while (!gpio_in(me->gpio_busy)) delay(1);
     me->_exec_transfer(0x13, gfx, &me->_range_new);
+    if (me->gpio_busy >= 0) while (!gpio_in(me->gpio_busy)) delay(1);
     gfx->writeCommand(0x12);
   }
 
   void Panel_GDEW0154M09::waitDisplay(PanelCommon* panel, LGFX_Device* gfx)
   {
     auto me = reinterpret_cast<Panel_GDEW0154M09*>(panel);
+    gfx->waitDMA();
     if (me->gpio_busy >= 0) while (!gpio_in(me->gpio_busy)) delay(1);
   }
 
+  /*
   void Panel_GDEW0154M09::beginTransaction(PanelCommon* panel, LGFX_Device* gfx)
   {
     auto me = reinterpret_cast<Panel_GDEW0154M09*>(panel);
@@ -293,4 +297,5 @@ namespace lgfx
   {
     display(panel, gfx);
   }
+  //*/
 }

@@ -88,10 +88,18 @@ void setup(void)
 
 // IPAフォントをコンバートした日本語フォントが４種類ｘ９サイズ = 36通りプリセットされています。
 // 末尾の数字がサイズを表しており、8, 12, 16, 20, 24, 28, 32, 36, 40 が用意されています。
-// fonts::lgfxJapanMincho_16      // 明朝体 固定幅フォント
-// fonts::lgfxJapanMinchoP_16     // 明朝体 プロポーショナルフォント
-// fonts::lgfxJapanGothic_16      // ゴシック体 固定幅フォント
-// fonts::lgfxJapanGothicP_16     // ゴシック体 プロポーショナルフォント
+// fonts::lgfxJapanMincho_12      // 明朝体 サイズ12 固定幅フォント
+// fonts::lgfxJapanMinchoP_16     // 明朝体 サイズ16 プロポーショナルフォント
+// fonts::lgfxJapanGothic_20      // ゴシック体 サイズ20 固定幅フォント
+// fonts::lgfxJapanGothicP_24     // ゴシック体 サイズ24 プロポーショナルフォント
+
+// efontをコンバートした日本語・韓国語・中国語（簡体字・繁体字）フォントが各４種類ｘ５サイズ＝20通りプリセットされています。
+// 数字がサイズを表しており、10, 12, 14, 16, 24 が用意されています。
+// 末尾の文字は b= ボールド(太字) / i= イタリック(斜体) を表しています。
+// fonts::efontJA_10              // 日本語 サイズ10
+// fonts::efontCN_12_b            // 簡体字 サイズ12 ボールド
+// fonts::efontTW_14_bi           // 繁体字 サイズ14 ボールドイタリック
+// fonts::efontKR_16_i            // 韓国語 サイズ16 イタリック
 
   lcd.setCursor(0, 0);
   lcd.setFont(&fonts::lgfxJapanMincho_16);   lcd.print("明朝体 16 Hello World\nこんにちは世界\n");

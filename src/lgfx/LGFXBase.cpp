@@ -2085,6 +2085,8 @@ namespace lgfx
     }
 
     this->startWrite(!data->hasParent());
+    bool autodisplay = this->_auto_display;
+    this->_auto_display = false;
     if (bmpdata.biCompression == 1) {
       do {
         data->preRead();
@@ -2112,6 +2114,7 @@ namespace lgfx
       } while (--h);
     }
     if (palette) delete[] palette;
+    this->_auto_display = autodisplay;
     this->endWrite();
     return true;
   }
@@ -2193,6 +2196,9 @@ namespace lgfx
     if (maxHeight > (cb - y)) maxHeight = (cb - y);
 
     if (maxWidth > 0 && maxHeight > 0) {
+      bool autodisplay = this->_auto_display;
+      this->_auto_display = false;
+
       this->setClipRect(x, y, maxWidth, maxHeight);
       this->startWrite(!data->hasParent());
       jres = lgfx_jd_decomp(&jpegdec, jpg_push_image, scale);
@@ -2201,6 +2207,7 @@ namespace lgfx
       this->_clip_t = ct;
       this->_clip_r = cr-1;
       this->_clip_b = cb-1;
+      this->_auto_display = autodisplay;
       this->endWrite();
     }
     heap_free(pool);
@@ -2453,6 +2460,8 @@ namespace lgfx
     int len;
     bool res = true;
 
+    bool autodisplay = this->_auto_display;
+    this->_auto_display = false;
     this->startWrite(!data->hasParent());
     while (0 < (len = data->read(buf + remain, sizeof(buf) - remain))) {
       data->postRead();
@@ -2469,6 +2478,7 @@ namespace lgfx
       if (remain > 0) memmove(buf, buf + fed, remain);
       data->preRead();
     }
+    this->_auto_display = autodisplay;
     this->endWrite();
     if (png.lineBuffer) {
       this->waitDMA();
