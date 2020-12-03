@@ -4,7 +4,7 @@
 // #define LGFX_M5STACK_COREINK
 #define LGFX_AUTODETECT      // 自動検出を使用する場合はこちらの記述だけで動作します。
 
-#include <M5EPD.h>  // M5Paperのライブラリと同時に利用する場合はLovyanGFXより前にincludeします。
+// #include <M5EPD.h>  // M5Paperのライブラリと同時に利用する場合はLovyanGFXより前にincludeします。
 
 // 使用ボードのdefineより後にLovyanGFX.hppをincludeします。
 #include <LovyanGFX.hpp>
@@ -17,7 +17,7 @@ int h;
 
 void setup(void)
 {
-  M5.begin();
+// M5.begin();
 
   gfx.init();   // 初期化を行います。LCDもEPDも共通です。
 
@@ -145,13 +145,21 @@ void setup(void)
   delay(3000);
 
   // M5Paper (IT8951)の表示更新は複数個所を同時に行う事が可能です。
+  gfx.startWrite();
   for (int i = 0; i < 16; ++i)
   {
+    std::int32_t y1 = (i * h) / 16, y2 = ((i + 1) * h) / 16;
+    std::int32_t x1 = 0, x2 = 0;
     for (int j = 0; j < 16; ++j)
     {
-      gfx.fillRect((j * w) / 16, (i * h) / 16, w/16, h/16, ~gfx.color888(i*16+j, i*16+j, i*16+j));
+      x2 = ((j + 1) * w) / 16;
+      std::int_fast8_t l = 255 - (i * 16 + j);
+      gfx.fillRect(x1, y1, x2 - x1, y2 - y1, gfx.color888(l, l, l));
+      x1 = x2;
+      if ((j & 7) == 7)  gfx.display(); // ８回に１回 表示更新を行う
     }
   }
+  gfx.endWrite();
 
   // ※ 表示更新中の範囲への描画をしないように注意してください。
   //    表示更新の途中で内容が変更されると正しく描画されなくなります。
