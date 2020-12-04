@@ -26,7 +26,7 @@ namespace lgfx
   static constexpr std::uint32_t IT8951_I80_CMD_GET_DEV_INFO = 0x0302;
   static constexpr std::uint32_t IT8951_I80_CMD_DPY_BUF_AREA = 0x0037;
   static constexpr std::uint32_t IT8951_I80_CMD_VCOM         = 0x0039;
-
+  static constexpr std::uint32_t IT8951_I80_CMD_FILLRECT     = 0x003A;
 
   static constexpr std::uint32_t IT8951_ROTATE_0    = 0;
   static constexpr std::uint32_t IT8951_ROTATE_90   = 1;
@@ -75,11 +75,6 @@ IT8951 Registers defines
 
   void Panel_IT8951::post_init(LGFX_Device* gfx, bool use_reset)
   {
-    if ((int)gfx->getPanel() != (int)this)
-    {
-    //Serial.printf("error: %08x:%08x \r\n", (int)gfx->getPanel() , (int)this); 
-      gfx->setPanel(this); // workaround; _panelのアドレスが変わってしまっているので再設定する。原因未解明。 
-    }
 /*
     gfx->startWrite();
     uint16_t infobuf[20];
@@ -95,6 +90,11 @@ IT8951 Registers defines
     // _tar_memaddr = (_dev_memaddr_h << 16) | _dev_memaddr_l;
     log_d("memory addr = %04X%04X", infobuf[3], infobuf[2]);
     gfx->endWrite();
+
+    WriteReg(gfx, IT8951_UP1SR + 2, 0x20);   // Set normal mode
+    WriteReg(gfx, IT8951_BGVR, 0xFF);  //Set BitMap color table 0 and 1 , => Set Register[0x18001250]:
+                                      //Bit[7:0]: ForeGround Color(G0~G15) for 1
+                                      //Bit[15:8]:Background Color(G0~G15) for 0
 //*/
     gfx->startWrite();
     WriteCommand(gfx, IT8951_TCON_SYS_RUN);
@@ -106,10 +106,6 @@ IT8951 Registers defines
 
     SetTargetMemoryAddr(gfx, _tar_memaddr);
 
-    WriteReg(gfx, IT8951_UP1SR + 2, 0x20);   // Set normal mode
-    WriteReg(gfx, IT8951_BGVR, 0xFF);  //Set BitMap color table 0 and 1 , => Set Register[0x18001250]:
-                                      //Bit[7:0]: ForeGround Color(G0~G15) for 1
-                                      //Bit[15:8]:Background Color(G0~G15) for 0
     _range_new.top = INT16_MAX;
     _range_new.left = INT16_MAX;
     _range_new.right = 0;
@@ -127,15 +123,7 @@ IT8951 Registers defines
       gfx->setEpdMode(mode);
       CheckAFSR(gfx);
     }
-/*
-    std::uint16_t buf[2];
-    WriteCommand(gfx, IT8951_TCON_REG_RD);
-    WriteWord(gfx, IT8951_UP1SR + 2);
-    ReadWords(gfx, buf, 1);
-    WriteReg(gfx, IT8951_UP1SR + 2, 0x20);   // Set normal mode
-    bool fast = gfx->getEpdMode();
-    WriteReg(gfx, IT8951_UP1SR + 2, fast ? 0x24 : 0x20);   // Set mode (normal/1bpp)
-//*/
+
     gfx->endWrite();
   }
 
@@ -156,7 +144,6 @@ IT8951 Registers defines
 
       if (res == false)
       {
-//Serial.println("IT8951 timeout error");
         return false;
       }
     }
@@ -166,7 +153,6 @@ IT8951 Registers defines
   
   bool Panel_IT8951::CheckAFSR(LGFX_Device* gfx)
   {
-//if ((int)gfx->getPanel() != (int)this) { Serial.printf("error: %08x:%08x \r\n", (int)gfx->getPanel() , (int)this); }
     uint32_t start_time = millis();
     uint16_t infobuf[1] = { 1 };
     do
@@ -187,38 +173,28 @@ IT8951 Registers defines
 
   bool Panel_IT8951::WriteCommand(LGFX_Device* gfx, uint16_t cmd)
   {
-//if ((int)gfx->getPanel() != (int)this) { Serial.printf("error: %08x:%08x \r\n", (int)gfx->getPanel() , (int)this); }
-    if (WaitBusy(gfx))
-    {
-      gfx->writeData16(0x6000);
-        std::uint32_t retry = 0xFFFF;
-        while (gpio_busy >= 0 && !lgfx::gpio_in(gpio_busy) && --retry);
-      gfx->writeData16(cmd);
-      //gfx->writeData32(0x6000 << 16 | cmd);
-      return true;
-    }
-//    Serial.printf("WriteCmd timeout : %04x ", cmd);
-    return false;
+    if (!WaitBusy(gfx)) return false;
+
+    gfx->writeData16(0x6000);
+    std::uint32_t retry = 0xFFFF;
+    while (gpio_busy >= 0 && !lgfx::gpio_in(gpio_busy) && --retry);
+    gfx->writeData16(cmd);
+    return true;
   }
 
   bool Panel_IT8951::WriteWord(LGFX_Device* gfx, uint16_t data)
   {
-//if ((int)gfx->getPanel() != (int)this) { Serial.printf("error: %08x:%08x \r\n", (int)gfx->getPanel() , (int)this); }
-    if (WaitBusy(gfx))
-    {
-      gfx->writeData16(0);
-        std::uint32_t retry = 0xFFFF;
-        while (gpio_busy >= 0 && !lgfx::gpio_in(gpio_busy) && --retry);
-      gfx->writeData16(data);
-      return true;
-    }
-//    Serial.printf("WriteDat timeout : %04x ", data);
-    return false;
+    if (!WaitBusy(gfx)) return false;
+
+    gfx->writeData16(0);
+    std::uint32_t retry = 0xFFFF;
+    while (gpio_busy >= 0 && !lgfx::gpio_in(gpio_busy) && --retry);
+    gfx->writeData16(data);
+    return true;
   }
 
   bool Panel_IT8951::WriteArgs(LGFX_Device* gfx, uint16_t cmd, uint16_t *args, int32_t length)
   {
-//if ((int)gfx->getPanel() != (int)this) { Serial.printf("error: %08x:%08x \r\n", (int)gfx->getPanel() , (int)this); }
     if (WriteCommand(gfx, cmd)
      && WaitBusy(gfx))
     {
@@ -236,7 +212,6 @@ IT8951 Registers defines
 
   bool Panel_IT8951::ReadWords(LGFX_Device* gfx, uint16_t *buf, uint32_t length)
   {
-//if ((int)gfx->getPanel() != (int)this) { Serial.printf("error: %08x:%08x \r\n", (int)gfx->getPanel() , (int)this); }
     if (!WaitBusy(gfx)) return false;
     gfx->writeData16(0x1000);
     gfx->writeData16(0); // dummy read
@@ -251,7 +226,6 @@ IT8951 Registers defines
 
   bool Panel_IT8951::WriteReg(LGFX_Device* gfx, uint16_t addr, uint16_t data)
   {
-//if ((int)gfx->getPanel() != (int)this) { Serial.printf("error: %08x:%08x \r\n", (int)gfx->getPanel() , (int)this); }
     return WriteCommand(gfx, 0x0011)
         && WriteWord(gfx, addr)
         && WriteWord(gfx, data);
@@ -259,14 +233,12 @@ IT8951 Registers defines
 
   bool Panel_IT8951::SetTargetMemoryAddr(LGFX_Device* gfx, uint32_t tar_addr)
   {
-//if ((int)gfx->getPanel() != (int)this) { Serial.printf("error: %08x:%08x \r\n", (int)gfx->getPanel() , (int)this); }
     return WriteReg(gfx, IT8951_LISAR + 2, tar_addr >> 16)
         && WriteReg(gfx, IT8951_LISAR    , tar_addr      );
   }
 
   bool Panel_IT8951::SetArea(LGFX_Device* gfx, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h)
   {
-//if ((int)gfx->getPanel() != (int)this) { Serial.printf("error: %08x:%08x \r\n", (int)gfx->getPanel() , (int)this); }
     _range_new.left = std::min(x, _range_new.left);
     _range_new.right  = std::max(x + w - 1, _range_new.right);
     _range_new.top  = std::min(y, _range_new.top);
@@ -281,7 +253,7 @@ IT8951 Registers defines
       _range_old.left = INT_MAX;
       _range_old.top = INT_MAX;
       _range_old.right = 0;
-      _range_old.left = 0;
+      _range_old.bottom = 0;
     }
 
     std::uint16_t params[5];
@@ -332,7 +304,6 @@ IT8951 Registers defines
   void Panel_IT8951::fillRect(PanelCommon* panel, LGFX_Device* gfx, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, std::uint32_t rawcolor)
   {
     auto me = reinterpret_cast<Panel_IT8951*>(panel);
-//if ((int)gfx->getPanel() != (int)me) { Serial.printf("error: %08x:%08x \r\n", (int)gfx->getPanel() , (int)me); }
     if (me->_internal_rotation & 4)
     {
       y = gfx->height() - y - h;
@@ -348,12 +319,6 @@ IT8951 Registers defines
     do
     {
       auto btbl = &me->Bayer[(y & 3) << 2];
-/*
-      std::uint32_t value = (sum >> 6) << 12
-                          | (sum >> 6) <<  8
-                          | (sum >> 6) <<  4
-                          | (sum >> 6) ;
-/*/
       std::uint32_t value;
       if (fast)
       {
@@ -369,15 +334,12 @@ IT8951 Registers defines
               | std::min<std::int32_t>(15, (std::max<std::int32_t>(0, sum + btbl[2])) >> 6) <<  4
               | std::min<std::int32_t>(15, (std::max<std::int32_t>(0, sum + btbl[3])) >> 6) ;
       }
-//*/
       auto len = wid;
       if (len & 1) gfx->writeData16(value);
       if (len >>= 1)
       {
         value |= value << 16;
         do {
-          //std::uint32_t retry = 0xFFFF;
-          //while (me->gpio_busy >= 0 && !lgfx::gpio_in(me->gpio_busy) && --retry);
           gfx->writeData32(value);
         } while (--len);
       }
@@ -539,16 +501,94 @@ IT8951 Registers defines
     gfx->cs_h();
   }
 
+  bool Panel_IT8951::ReadRawLine(LGFX_Device* gfx, std::int32_t raw_x, std::int32_t raw_y, std::int32_t len, std::uint16_t* buf)
+  {
+    std::uint16_t params[4];
+    auto addr = _tar_memaddr + raw_x + raw_y * panel_width;
+    params[0] = (std::uint16_t)addr;
+    params[1] = (std::uint16_t)(addr >> 16);
+    params[2] = len; // (len + 15) & ~15;
+    params[3] = 0;
+    return WriteArgs(gfx, IT8951_TCON_MEM_BST_RD_T, params, 4)
+        && WriteCommand(gfx, IT8951_TCON_MEM_BST_RD_S)
+        && ReadWords(gfx, buf, len);
+  }
+
   void Panel_IT8951::readRect(PanelCommon* panel, LGFX_Device* gfx, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, void* dst, pixelcopy_t* param)
   {
-    (void)panel;
-    (void)gfx;
-    (void)x;
-    (void)y;
-    (void)w;
-    (void)h;
-    (void)dst;
-    (void)param;
+    auto me = reinterpret_cast<Panel_IT8951*>(panel);
+
+    std::int32_t rx, ry, rw, rh;
+    if (me->_internal_rotation & 4)
+    {
+      y = gfx->height() - y - h;
+    }
+    switch(me->_internal_rotation & 3)
+    {
+    default:
+    case IT8951_ROTATE_0:
+      rx = x;
+      ry = y;
+      rw = w;
+      rh = h;
+      break;
+    case IT8951_ROTATE_90:
+      rx = y;
+      ry = me->panel_height - w - x;
+      rw = h;
+      rh = w;
+      break;
+    case IT8951_ROTATE_180:
+      rx = me->panel_width - w - x;
+      ry = me->panel_height - h - y;
+      rw = w;
+      rh = h;
+      break;
+    case IT8951_ROTATE_270:
+      rx = me->panel_width - h - y;
+      ry = x;
+      rw = h;
+      rh = w;
+      break;
+    }
+
+    std::int32_t adjust_left = (rx & 3);
+    std::int32_t padding_len = (adjust_left + rw + 31) & ~31;
+    auto readbuf = static_cast<std::uint8_t*>(heap_alloc(padding_len));
+    auto colorbuf = static_cast<bgr888_t*>(heap_alloc(rw * sizeof(bgr888_t)));
+
+    param->src_data = colorbuf;
+
+    for (std::size_t j = 0; j < rh; ++j) {
+      me->ReadRawLine(gfx, rx & ~3, ry, padding_len >> 1, reinterpret_cast<std::uint16_t*>(readbuf));
+      for (std::size_t i = 0; i < rw; ++i)
+      {
+        auto l = readbuf[adjust_left + i];
+        l = l + 8;
+        colorbuf[i].set(l,l,l);
+      }
+      param->src_x = 0;
+      for (std::size_t i = 0; i < rw; ++i) {
+        std::size_t dstpos;
+        switch (me->_internal_rotation)
+        {
+        default:
+        case 0:   dstpos =       i           +       j      * rw; break;
+        case 1:   dstpos =       i      * rh + (rh - j - 1)     ; break;
+        case 2:   dstpos = (rw - i - 1)      + (rh - j - 1) * rw; break;
+        case 3:   dstpos = (rw - i - 1) * rh +       j          ; break;
+        case 4:   dstpos =       i           + (rh - j - 1) * rw; break;
+        case 5:   dstpos = (rw - i - 1) * rh + (rh - j - 1)     ; break;
+        case 6:   dstpos = (rw - i - 1)      +       j      * rw; break;
+        case 7:   dstpos =       i      * rh +       j          ; break;
+        }
+        param->fp_copy(dst, dstpos, dstpos + 1, param);
+      }
+      ++ry;
+    } while (--rh);
+
+    heap_free(colorbuf);
+    heap_free(readbuf);
   }
 
   void Panel_IT8951::waitDisplay(PanelCommon* panel, LGFX_Device* gfx)

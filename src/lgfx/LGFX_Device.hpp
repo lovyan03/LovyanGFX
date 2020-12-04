@@ -368,28 +368,32 @@ namespace lgfx
 
     void copyRect_impl(std::int32_t dst_x, std::int32_t dst_y, std::int32_t w, std::int32_t h, std::int32_t src_x, std::int32_t src_y) override
     {
-      pixelcopy_t p((void*)nullptr, _write_conv.depth, _read_conv.depth);
-      if (w < h) {
+      pixelcopy_t pc_read((void*)nullptr, _write_conv.depth, _read_conv.depth);
+      pixelcopy_t pc_write((void*)nullptr, _write_conv.depth, _write_conv.depth);
+      if (w < h)
+      {
         const std::uint32_t buflen = h * _write_conv.bytes;
         std::uint8_t buf[buflen];
+        pc_write.src_data = buf;
         std::int32_t add = (src_x < dst_x) ?   - 1 : 1;
         std::int32_t pos = (src_x < dst_x) ? w - 1 : 0;
         do {
-          readRect_impl(src_x + pos, src_y, 1, h, buf, &p);
-          setWindow_impl(dst_x + pos, dst_y, dst_x + pos, dst_y + h - 1);
-          writePixelsDMA_impl(buf, h);
+          readRect_impl(src_x + pos, src_y, 1, h, buf, &pc_read);
+          pc_write.src_x = 0;
+          pushImage_impl(dst_x + pos, dst_y, 1, h, &pc_write, true);
           pos += add;
         } while (--w);
         waitDMA_impl();
       } else {
         const std::uint32_t buflen = w * _write_conv.bytes;
         std::uint8_t buf[buflen];
+        pc_write.src_data = buf;
         std::int32_t add = (src_y < dst_y) ?   - 1 : 1;
         std::int32_t pos = (src_y < dst_y) ? h - 1 : 0;
         do {
-          readRect_impl(src_x, src_y + pos, w, 1, buf, &p);
-          setWindow_impl(dst_x, dst_y + pos, dst_x + w - 1, dst_y + pos);
-          writePixelsDMA_impl(buf, w);
+          readRect_impl(src_x, src_y + pos, w, 1, buf, &pc_read);
+          pc_write.src_x = 0;
+          pushImage_impl(dst_x, dst_y + pos, w, 1, &pc_write, true);
           pos += add;
         } while (--h);
         waitDMA_impl();

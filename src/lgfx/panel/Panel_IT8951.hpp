@@ -101,6 +101,10 @@ namespace lgfx
       {
         _internal_rotation ^= 2;
       }
+      _range_old.left = 0;
+      _range_old.top = 0;
+      _range_old.right = INT_MAX;
+      _range_old.bottom = INT_MAX;
       return buf;
     }
 
@@ -162,6 +166,7 @@ namespace lgfx
     bool SetArea(LGFX_Device* gfx, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h);
     bool UpdateArea(LGFX_Device* gfx, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, epd_update_mode_t mode);
     bool Clear(LGFX_Device* gfx, bool init);
+    bool ReadRawLine(LGFX_Device* gfx, std::int32_t raw_x, std::int32_t raw_y, std::int32_t len, std::uint16_t* buf);
   };
 }
 
