@@ -44,23 +44,27 @@ namespace lgfx
     lgfx::i2c::writeRegister8(i2c_port, i2c_addr, FT5x06_POWER_REG, FT5x06_SLEEP_IN);
   }
 
-  std::uint_fast8_t Touch_FT5x06::getTouch(std::int32_t* x, std::int32_t* y, std::int_fast8_t number)
+  std::uint_fast8_t Touch_FT5x06::getTouch(touch_point_t* tp, std::int_fast8_t number)
   {
-    if (!_inited) return 0;
-
+    if (!_inited || number > 4) return 0;
     if (gpio_int >= 0 && gpio_in(gpio_int)) return 0;
+
     std::uint_fast16_t tx, ty;
-    std::uint8_t tmp[16];
     std::int32_t retry = 3;
+    std::uint32_t base = number * 6;
+    std::uint8_t tmp[base + 5];
     do {
-      std::uint32_t base = (number == 0) ? 0 : 6;
       lgfx::i2c::readRegister(i2c_port, i2c_addr, 2, tmp, 5 + base);
       if (number >= tmp[0]) return 0;
       tx = (tmp[base + 1] & 0x0F) << 8 | tmp[base + 2];
       ty = (tmp[base + 3] & 0x0F) << 8 | tmp[base + 4];
     } while ((tx > x_max || ty > y_max) && --retry);
-    if (x) *x = tx;
-    if (y) *y = ty;
+    if (tp)
+    {
+      tp->x = tx;
+      tp->y = ty;
+      tp->id = tmp[base + 3] >> 4;
+    }
     return tmp[0];
   }
 

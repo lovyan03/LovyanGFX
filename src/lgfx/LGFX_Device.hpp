@@ -202,14 +202,23 @@ namespace lgfx
       _touch->wakeup();
     }
 
-    std::uint_fast8_t getTouchRaw(std::int32_t *x = nullptr, std::int32_t *y = nullptr, std::uint_fast8_t number = 0)
+    std::uint_fast8_t getTouchRaw(touch_point_t *tp, std::uint_fast8_t number = 0)
     {
       if (!_touch) return 0;
 
       bool need_transaction = (_touch->bus_shared && _in_transaction);
       if (need_transaction) { endTransaction(); }
-      auto res = _touch->getTouch(x, y, number);
+      auto res = _touch->getTouch(tp, number);
       if (need_transaction) { beginTransaction(); }
+      return res;
+    }
+
+    std::uint_fast8_t getTouchRaw(std::int32_t *x = nullptr, std::int32_t *y = nullptr, std::uint_fast8_t number = 0)
+    {
+      touch_point_t tp;
+      auto res = getTouchRaw(&tp, number);
+      if (x) *x = tp.x;
+      if (y) *y = tp.y;
       return res;
     }
 
@@ -231,6 +240,14 @@ namespace lgfx
       convertRawXY(&tx, &ty);
       if (x) *x = tx;
       if (y) *y = ty;
+      return res;
+    }
+
+    std::uint_fast8_t getTouch(touch_point_t *tp, std::uint_fast8_t number = 0)
+    {
+      auto res = getTouchRaw(tp, number);
+      if (0 == res || tp == nullptr) return res;
+      convertRawXY(&(tp->x), &(tp->y));
       return res;
     }
 
