@@ -42,6 +42,8 @@ namespace lgfx
       fp_readRect    = readRect;
     }
 
+    bool isEPD(void) const override { return true; }
+
   protected:
 
     void post_init(LGFX_Device* gfx, bool use_reset) override;
