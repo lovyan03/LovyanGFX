@@ -239,15 +239,43 @@ IT8951 Registers defines
 
   bool Panel_IT8951::SetArea(LGFX_Device* gfx, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h)
   {
-    _range_new.left = std::min(x, _range_new.left);
-    _range_new.right  = std::max(x + w - 1, _range_new.right);
-    _range_new.top  = std::min(y, _range_new.top);
-    _range_new.bottom = std::max(y + h - 1, _range_new.bottom);
+    std::int32_t rx, ry, rw, rh;
+    switch(_internal_rotation & 3)
+    {
+    case IT8951_ROTATE_0:
+      rx = x;
+      ry = y;
+      rw = w;
+      rh = h;
+      break;
+    case IT8951_ROTATE_90:
+      rx = y;
+      ry = panel_height - w - x;
+      rw = h;
+      rh = w;
+      break;
+    case IT8951_ROTATE_180:
+      rx = panel_width - w - x;
+      ry = panel_height - h - y;
+      rw = w;
+      rh = h;
+      break;
+    case IT8951_ROTATE_270:
+      rx = panel_width - h - y;
+      ry = x;
+      rw = h;
+      rh = w;
+      break;
+    }
 
-    
+    _range_new.left   = std::min(_range_new.left  , rx         );
+    _range_new.right  = std::max(_range_new.right , rx + rw - 1);
+    _range_new.top    = std::min(_range_new.top   , ry         );
+    _range_new.bottom = std::max(_range_new.bottom, ry + rh - 1);
+
     if (gfx->getEpdMode() != epd_mode_t::epd_fastest
-     && _range_old.horizon.intersectsWith(x, x + w - 1)
-     && _range_old.vertical.intersectsWith(y, y + h - 1))
+     && _range_old.horizon.intersectsWith(rx, rx + rw - 1)
+     && _range_old.vertical.intersectsWith(ry, ry + rh - 1))
     {
       CheckAFSR(gfx);
       _range_old.left = INT_MAX;
@@ -265,36 +293,14 @@ IT8951 Registers defines
     return WriteArgs(gfx, IT8951_TCON_LD_IMG_AREA, params, 5);
   }
 
-  bool Panel_IT8951::UpdateArea(LGFX_Device* gfx, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, epd_update_mode_t mode)
+  bool Panel_IT8951::UpdateRawArea(LGFX_Device* gfx, epd_update_mode_t mode)
   {
+    if (_range_new.empty()) return false;
     std::uint16_t params[7];
-    switch(_internal_rotation & 3)
-    {
-    case IT8951_ROTATE_0:
-      params[0] = x;
-      params[1] = y;
-      params[2] = w;
-      params[3] = h;
-      break;
-    case IT8951_ROTATE_90:
-      params[0] = y;
-      params[1] = panel_height - w - x;
-      params[2] = h;
-      params[3] = w;
-      break;
-    case IT8951_ROTATE_180:
-      params[0] = panel_width - w - x;
-      params[1] = panel_height - h - y;
-      params[2] = w;
-      params[3] = h;
-      break;
-    case IT8951_ROTATE_270:
-      params[0] = panel_width - h - y;
-      params[1] = x;
-      params[2] = h;
-      params[3] = w;
-      break;
-    }
+    params[0] = _range_new.left;
+    params[1] = _range_new.top;
+    params[2] = _range_new.right - _range_new.left + 1;
+    params[3] = _range_new.bottom - _range_new.top + 1;
     params[4] = mode;
     params[5] = (std::uint16_t)_tar_memaddr;
     params[6] = (std::uint16_t)(_tar_memaddr >> 16);
@@ -356,6 +362,8 @@ IT8951 Registers defines
 
     auto me = reinterpret_cast<Panel_IT8951*>(panel);
     std::int32_t add_y = 1;
+    bool need_setarea = true;
+    bool flg_setarea = false;
     if (me->_internal_rotation & 4)
     {
       y = gfx->height() - y - 1;
@@ -363,6 +371,7 @@ IT8951 Registers defines
     }
     bool fast = gfx->getEpdMode() != epd_mode_t::epd_quality;
     auto sx = param->src_x32;
+
     do
     {
       std::int32_t prev_pos = 0, new_pos = 0;
@@ -371,9 +380,19 @@ IT8951 Registers defines
         new_pos = param->fp_copy(readbuf, prev_pos, w, param);
         if (new_pos != prev_pos)
         {
-          me->SetArea(gfx, x + prev_pos, y, new_pos - prev_pos, 1);
-          me->WaitBusy(gfx);
-          gfx->writeData16(0);
+          if (need_setarea || prev_pos)
+          {
+            if (flg_setarea)
+            {
+              me->WriteCommand(gfx, IT8951_TCON_LD_IMG_END);
+            }
+            flg_setarea = true;
+            me->SetArea(gfx, x + prev_pos, y, new_pos - prev_pos, add_y < 0 ? 1 : h);
+            me->WaitBusy(gfx);
+            gfx->writeData16(0);
+          }
+          need_setarea = prev_pos || (w != new_pos) || add_y < 0;
+
           std::int32_t shift = (3 - ((x + prev_pos) & 3)) << 2;
           auto btbl = &me->Bayer[(y & 3) << 2];
           do
@@ -397,13 +416,16 @@ IT8951 Registers defines
             gfx->writeData16(buf);
             shift = 12;
           } while (new_pos != prev_pos);
-          me->WriteCommand(gfx, IT8951_TCON_LD_IMG_END);
         }
       } while (w != new_pos && w != (prev_pos = param->fp_skip(new_pos, w, param)));
       param->src_x32 = sx;
       param->src_y++;
       y += add_y;
     } while (--h);
+    if (flg_setarea)
+    {
+      me->WriteCommand(gfx, IT8951_TCON_LD_IMG_END);
+    }
     heap_free(readbuf);
     gfx->cs_h();
   }
@@ -603,18 +625,7 @@ IT8951 Registers defines
     auto me = reinterpret_cast<Panel_IT8951*>(panel);
     if (me->_range_new.empty()) return;
 
-    std::int32_t x, w, y, h;
-
     me->_range_old = me->_range_new;
-    x = me->_range_new.left;
-    y = me->_range_new.top;
-    w = me->_range_new.right  - me->_range_new.left + 1;
-    h = me->_range_new.bottom - me->_range_new.top + 1;
-    me->_range_new.top = INT32_MAX;
-    me->_range_new.left = INT32_MAX;
-    me->_range_new.right = 0;
-    me->_range_new.bottom = 0;
-
     epd_update_mode_t mode;
     switch (gfx->getEpdMode())
     {
@@ -622,6 +633,12 @@ IT8951 Registers defines
     case epd_mode_t::epd_fast:     mode = UPDATE_MODE_DU;   break;
     default:                       mode = UPDATE_MODE_GC16; break;
     }
-    me->UpdateArea(gfx, x, y, w, h, mode);
+
+    me->UpdateRawArea(gfx, mode);
+
+    me->_range_new.top = INT32_MAX;
+    me->_range_new.left = INT32_MAX;
+    me->_range_new.right = 0;
+    me->_range_new.bottom = 0;
   }
 }
