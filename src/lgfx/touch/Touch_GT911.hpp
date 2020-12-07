@@ -20,12 +20,16 @@ namespace lgfx
 
     void sleep(void) override;
 
-    std::uint_fast8_t getTouch(std::int32_t* x, std::int32_t* y, std::int_fast8_t number) override;
+    std::uint_fast8_t getTouch(touch_point_t* tp, std::int_fast8_t number) override;
+
+    void setTouchNums(std::int_fast8_t nums);
 
   private:
     std::uint32_t _lasttime;
     std::uint32_t _refresh_rate = 5;
     std::uint8_t _readdata[42];
+
+    void freshConfig(void);
   };
 
 //----------------------------------------------------------------------------

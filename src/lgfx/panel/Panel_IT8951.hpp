@@ -42,6 +42,8 @@ namespace lgfx
       fp_readRect    = readRect;
     }
 
+    bool isEPD(void) const override { return true; }
+
   protected:
 
     void post_init(LGFX_Device* gfx, bool use_reset) override;
@@ -160,8 +162,9 @@ namespace lgfx
     bool CheckAFSR(LGFX_Device* gfx);
     bool SetTargetMemoryAddr(LGFX_Device* gfx, uint32_t tar_addr);
     bool SetArea(LGFX_Device* gfx, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h);
-    bool UpdateArea(LGFX_Device* gfx, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, epd_update_mode_t mode);
+    bool UpdateRawArea(LGFX_Device* gfx, epd_update_mode_t mode);
     bool Clear(LGFX_Device* gfx, bool init);
+    bool ReadRawLine(LGFX_Device* gfx, std::int32_t raw_x, std::int32_t raw_y, std::int32_t len, std::uint16_t* buf);
   };
 }
 

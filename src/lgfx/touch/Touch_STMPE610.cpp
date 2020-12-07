@@ -188,7 +188,7 @@ namespace lgfx
     return true;
   }
 
-  std::uint_fast8_t Touch_STMPE610::getTouch(std::int32_t* x, std::int32_t* y, std::int_fast8_t number)
+  std::uint_fast8_t Touch_STMPE610::getTouch(touch_point_t* tp, std::int_fast8_t number)
   {
     if (!_inited || number != 0) return 0;
 
@@ -215,9 +215,11 @@ namespace lgfx
         spi::readData(spi_host, data, 6);
       } while (!(data[5] & STMPE_FIFO_STA_EMPTY));
       spi::endTransaction(spi_host, spi_cs);
-
-      if (x) *x =  data[1] << 4 | data[2] >> 4;
-      if (y) *y = (data[2] & 0x0F) << 8 | data[3];
+      if (tp)
+      {
+        tp->x =  data[1] << 4 | data[2] >> 4;
+        tp->y = (data[2] & 0x0F) << 8 | data[3];
+      }
 
       return press ? 1 : 0;
     }

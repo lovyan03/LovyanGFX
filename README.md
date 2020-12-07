@@ -48,9 +48,12 @@ This library has the following advantages.
     - ST7735 (M5StickC, TTGO T-Wristband, TTGO TS, LoLin D32 Pro, WiFiBoy mini)
     - ST7789 (M5StickCPlus, TTGO T-Watch, ESP-WROVER-KIT, Makerfabs MakePython, DSTIKE D-duino-32 XS)
     - ST7796
+    - IT8951 (M5Paper)
+    - GDEW0154M09 (M5Stack CoreInk)
 
   - タッチパネル TouchScreens (only ESP32)
     - I2C FT5x06 / FT6x36
+    - I2C GT911
     - SPI XPT2046
     - SPI STMPE610
 
@@ -464,5 +467,6 @@ main : [FreeBSD](license.txt)
 GFX font and GLCD font : [2-clause BSD](https://github.com/adafruit/Adafruit-GFX-Library/blob/master/license.txt) Adafruit Industries  
 Font 2,4,6,7,8 :  [FreeBSD](https://github.com/Bodmer/TFT_eSPI/blob/master/license.txt) Bodmer  
 converted IPA font : [IPA Font License](src/Fonts/IPA/IPA_Font_License_Agreement_v1.0.txt)  
+efont : [3-Clause BSD License](src/Fonts/efont/COPYRIGHT.txt)  
 
 

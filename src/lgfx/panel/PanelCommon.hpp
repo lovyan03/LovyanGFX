@@ -152,6 +152,7 @@ namespace lgfx
       return buf;
     }
 
+    virtual bool isEPD(void) const { return false; }
     virtual const std::uint8_t* getInitCommands(std::uint8_t listno = 0) const { (void)listno; return nullptr; }
     virtual const std::uint8_t* getWindowCommands1(std::uint8_t* buf, std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye) = 0;
     virtual const std::uint8_t* getWindowCommands2(std::uint8_t* buf, std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye) = 0;
