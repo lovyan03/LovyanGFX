@@ -242,6 +242,7 @@ IT8951 Registers defines
     std::int32_t rx, ry, rw, rh;
     switch(_internal_rotation & 3)
     {
+    default:
     case IT8951_ROTATE_0:
       rx = x;
       ry = y;
