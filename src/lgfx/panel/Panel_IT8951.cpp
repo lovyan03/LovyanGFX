@@ -409,7 +409,7 @@ IT8951 Registers defines
               }
               else
               {
-                pixel = std::min(15, std::max(0, pixel + btbl[(x + prev_pos) & 3]) >> 6);
+                pixel = std::min<std::int32_t>(15, std::max<std::int32_t>(0, pixel + btbl[(x + prev_pos) & 3]) >> 6);
               }
               buf |= pixel << shift;
               shift -= 4;
@@ -582,17 +582,17 @@ IT8951 Registers defines
 
     param->src_data = colorbuf;
 
-    for (std::size_t j = 0; j < rh; ++j) {
+    for (std::int32_t j = 0; j < rh; ++j) {
       me->ReadRawLine(gfx, rx & ~3, ry, padding_len >> 1, reinterpret_cast<std::uint16_t*>(readbuf));
-      for (std::size_t i = 0; i < rw; ++i)
+      for (std::int32_t i = 0; i < rw; ++i)
       {
         auto l = readbuf[adjust_left + i];
         l = l + 8;
         colorbuf[i].set(l,l,l);
       }
       param->src_x = 0;
-      for (std::size_t i = 0; i < rw; ++i) {
-        std::size_t dstpos;
+      for (std::int32_t i = 0; i < rw; ++i) {
+        std::int32_t dstpos;
         switch (me->_internal_rotation)
         {
         default:

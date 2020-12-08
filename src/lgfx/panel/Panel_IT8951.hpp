@@ -115,7 +115,7 @@ namespace lgfx
 
     color_depth_t getAdjustBpp(color_depth_t bpp) const override { (void)bpp; return rgb888_3Byte; }
 
-    const std::uint8_t* getInitCommands(std::uint8_t listno) const override { return nullptr; }
+    const std::uint8_t* getInitCommands(std::uint8_t) const override { return nullptr; }
 
   private:
     enum epd_update_mode_t
