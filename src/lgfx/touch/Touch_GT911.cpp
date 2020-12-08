@@ -93,12 +93,12 @@ namespace lgfx
       if (buf & 0x80)
       {
         _lasttime = nowtime;
-        std::uint_fast8_t points = std::min(5, buf & 0x0F);
+        std::int32_t points = std::min(5, buf & 0x0F);
         lgfx::i2c::writeReadBytes(i2c_port, i2c_addr, gt911cmd_getdata, 2, _readdata, 2 + points * 8);
         lgfx::i2c::writeBytes(i2c_port, i2c_addr, gt911cmd_getdata, 3);
       }
     }
-    std::uint_fast8_t points = std::min(5, _readdata[0] & 0x0F);
+    std::int32_t points = std::min(5, _readdata[0] & 0x0F);
     if (number < points && tp != nullptr)
     {
       res = points;
