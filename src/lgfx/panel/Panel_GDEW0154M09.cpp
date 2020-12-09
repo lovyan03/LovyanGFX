@@ -19,12 +19,15 @@ namespace lgfx
     gfx->startWrite();
     _close_transfer(gfx);
     _exec_transfer(0x13, gfx, &_range_new);
+    gfx->setBaseColor(TFT_WHITE);
+    gfx->setTextColor(TFT_BLACK, TFT_WHITE);
+
     if (use_reset)
     {
       fillRect(this, gfx, 0, 0, gfx->width(), gfx->height(), 0);
       display(this, gfx);
-      gfx->setBaseColor(TFT_WHITE);
     }
+
     gfx->endWrite();
   }
 

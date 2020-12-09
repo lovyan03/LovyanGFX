@@ -176,6 +176,8 @@ namespace lgfx
       _sw = _width;
       _sh = _height;
 
+      invertDisplay(getInvert());
+
       const std::uint8_t *cmds;
       for (std::uint8_t i = 0; (cmds = _panel->getInitCommands(i)); i++) {
         delay(120);
