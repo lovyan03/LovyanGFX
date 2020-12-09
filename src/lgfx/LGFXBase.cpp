@@ -2225,9 +2225,17 @@ namespace lgfx
       jpeg_div::jpeg_div_t div = jpeg_div::jpeg_div_t::JPEG_DIV_NONE;
       if (scale < 1.0f)
       {
-        if (scale <= -1.0f)
+        if (scale <= -3.0f)
         {
           scale = std::min<float>((float)maxWidth / jpegdec.width, (float)maxHeight / jpegdec.height);
+        } else
+        if (scale <= -2.0f)
+        {
+          scale = (float)maxHeight / jpegdec.height;
+        } else
+        if (scale <= -1.0f)
+        {
+          scale = (float)maxWidth / jpegdec.width;
         } else
         if (scale <= 0.0f)
         {
@@ -2420,11 +2428,32 @@ namespace lgfx
 
   static void png_init_callback(pngle_t *pngle, std::uint32_t w, std::uint32_t h, uint_fast8_t hasTransparent)
   {
-//    auto ihdr = lgfx_pngle_get_ihdr(pngle);
-
     auto p = (png_file_decoder_t*)lgfx_pngle_get_user_data(pngle);
 
-    if (p->scale != 1.0f) {
+    if (p->scale <= 0.0f)
+    {
+      auto ihdr = lgfx_pngle_get_ihdr(pngle);
+
+      if (p->scale <= -3.0f)
+      {
+        p->scale = std::min<float>((float)p->maxWidth / ihdr->width, (float)p->maxHeight / ihdr->height);
+      } else
+      if (p->scale <= -2.0f)
+      {
+        p->scale = (float)p->maxHeight / ihdr->height;
+      } else
+      if (p->scale <= -1.0f)
+      {
+        p->scale = (float)p->maxWidth / ihdr->width;
+      } else
+      if (p->scale <= 0.0f)
+      {
+        p->scale = std::max<float>((float)p->maxWidth / ihdr->width, (float)p->maxHeight / ihdr->height);
+      }
+    }
+
+    if (p->scale != 1.0f)
+    {
       w = ceilf(w * p->scale);
       h = ceilf(h * p->scale);
     }
