@@ -44,7 +44,7 @@ namespace lgfx
           0xB6        , 2, 0x0A,0x82,
           CMD::PORCTRL, 5, 0x0c, 0x0c, 0x00, 0x33, 0x33,
           CMD::GCTRL  , 1, 0x35,
-
+          CommandCommon::INVON, 0,
           CMD::VCOMS  , 1, 0x28,  // JLX240 display datasheet
           CMD::LCMCTRL, 1, 0x0C,
           CMD::VDVVRHEN,2, 0x01, 0xFF,

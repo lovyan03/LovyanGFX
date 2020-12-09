@@ -97,7 +97,9 @@ namespace lgfx
 
     const std::uint8_t* getPartialOnCommands(std::uint8_t* buf) override
     {
-      buf[0] = 0x50; buf[1] = 1; buf[2] = 0xF7;
+      buf[0] = 0x50;
+      buf[1] = 1;
+      buf[2] = (invert ^ reverse_invert) ? 0xE7 : 0xF7; // without OLD data
       buf[3] = 0x02; buf[4] = 0;
       buf[5] = buf[6] = 0xFF;
       return buf;
@@ -105,7 +107,9 @@ namespace lgfx
 
     const std::uint8_t* getPartialOffCommands(std::uint8_t* buf) override
     {
-      buf[0] = 0x50; buf[1] = 1; buf[2] = 0xD7;
+      buf[0] = 0x50;
+      buf[1] = 1;
+      buf[2] = (invert ^ reverse_invert) ? 0xC7 : 0xD7; // with NEW/OLD data
       buf[3] = 0x04; buf[4] = 0;
       buf[5] = buf[6] = 0xFF;
       return buf;
@@ -113,10 +117,11 @@ namespace lgfx
 
     const std::uint8_t* getInvertDisplayCommands(std::uint8_t* buf, bool invert) override
     {
+      this->invert = invert;
       buf[0] = 0x50;
       buf[1] = 1;
-      buf[2] = invert ? 0xC7 : 0xD7; // with NEW/OLD data
-//    buf[2] = invert ? 0xE7 : 0xF7; // without OLD data
+      buf[2] = (invert ^ reverse_invert) ? 0xC7 : 0xD7; // with NEW/OLD data
+//    buf[2] = (invert ^ reverse_invert) ? 0xE7 : 0xF7; // without OLD data
       buf[3] = buf[4] = 0xFF;
 
       _wait_busy();
