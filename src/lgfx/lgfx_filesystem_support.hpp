@@ -84,14 +84,21 @@ namespace lgfx
     }
 
     inline bool drawBmp(fs::FS &fs, const char *path, std::int32_t x=0, std::int32_t y=0) { return drawBmpFile(fs, path, x, y); }
-    inline bool drawBmpFile(fs::FS &fs, const char *path, std::int32_t x=0, std::int32_t y=0) {
+    inline bool drawBmpFile(fs::FS &fs, const char *path, std::int32_t x=0, std::int32_t y=0)
+    {
       FileWrapper file(fs);
       return this->drawBmpFile(&file, path, x, y);
     }
 
-    inline bool drawJpgFile(fs::FS &fs, const char *path, std::int32_t x=0, std::int32_t y=0, std::int32_t maxWidth=0, std::int32_t maxHeight=0, std::int32_t offX=0, std::int32_t offY=0, jpeg_div::jpeg_div_t scale=jpeg_div::jpeg_div_t::JPEG_DIV_NONE) {
+    inline bool drawJpgFile(fs::FS &fs, const char *path, std::int32_t x = 0, std::int32_t y = 0, std::int32_t maxWidth = 0, std::int32_t maxHeight = 0, std::int32_t offX = 0, std::int32_t offY = 0, float scale = 1.0f)
+    {
       FileWrapper file(fs);
       return this->drawJpgFile(&file, path, x, y, maxWidth, maxHeight, offX, offY, scale);
+    }
+    [[deprecated("use float scale")]]
+    inline bool drawJpgFile(fs::FS &fs, const char *path, std::int32_t x, std::int32_t y, std::int32_t maxWidth, std::int32_t maxHeight, std::int32_t offX, std::int32_t offY, jpeg_div::jpeg_div_t scale)
+    {
+      return drawJpgFile(fs, path, x, y, maxWidth, maxHeight, offX, offY, 1.0f / (1 << scale));
     }
 
     inline bool drawPngFile(fs::FS &fs, const char *path, std::int32_t x = 0, std::int32_t y = 0, std::int32_t maxWidth = 0, std::int32_t maxHeight = 0, std::int32_t offX = 0, std::int32_t offY = 0, float scale = 1.0f)
@@ -101,16 +108,23 @@ namespace lgfx
     }
 
 
-    inline bool drawBmpFile(fs::FS &fs, fs::File *file, std::int32_t x=0, std::int32_t y=0) {
+    inline bool drawBmpFile(fs::FS &fs, fs::File *file, std::int32_t x=0, std::int32_t y=0)
+    {
       FileWrapper data(fs, file);
       this->prepareTmpTransaction(&data);
       return this->draw_bmp(&data, x, y);
     }
 
-    inline bool drawJpgFile(fs::FS &fs, fs::File *file, std::int32_t x=0, std::int32_t y=0, std::int32_t maxWidth=0, std::int32_t maxHeight=0, std::int32_t offX=0, std::int32_t offY=0, jpeg_div::jpeg_div_t scale=jpeg_div::jpeg_div_t::JPEG_DIV_NONE) {
+    inline bool drawJpgFile(fs::FS &fs, fs::File *file, std::int32_t x=0, std::int32_t y=0, std::int32_t maxWidth=0, std::int32_t maxHeight=0, std::int32_t offX=0, std::int32_t offY=0, float scale = 1.0f)
+    {
       FileWrapper data(fs, file);
       this->prepareTmpTransaction(&data);
       return this->draw_jpg(&data, x, y, maxWidth, maxHeight, offX, offY, scale);
+    }
+    [[deprecated("use float scale")]]
+    inline bool drawJpgFile(fs::FS &fs, fs::File *file, std::int32_t x, std::int32_t y, std::int32_t maxWidth, std::int32_t maxHeight, std::int32_t offX, std::int32_t offY, jpeg_div::jpeg_div_t scale)
+    {
+      return drawJpgFile(fs, file, x, y, maxWidth, maxHeight, offX, offY, 1.0f / (1 << scale));
     }
 
     inline bool drawPngFile(fs::FS &fs, fs::File *file, std::int32_t x = 0, std::int32_t y = 0, std::int32_t maxWidth = 0, std::int32_t maxHeight = 0, std::int32_t offX = 0, std::int32_t offY = 0, float scale = 1.0f)
@@ -129,12 +143,18 @@ namespace lgfx
       return this->draw_bmp(&data, x, y);
     }
 
-    inline bool drawJpg(fs::File *dataSource, std::int32_t x=0, std::int32_t y=0, std::int32_t maxWidth=0, std::int32_t maxHeight=0, std::int32_t offX=0, std::int32_t offY=0, jpeg_div::jpeg_div_t scale=jpeg_div::jpeg_div_t::JPEG_DIV_NONE) {
+    inline bool drawJpg(fs::File *dataSource, std::int32_t x=0, std::int32_t y=0, std::int32_t maxWidth=0, std::int32_t maxHeight=0, std::int32_t offX=0, std::int32_t offY=0, float scale = 1.0f)
+    {
       StreamWrapper data;
       data.set(dataSource);
       data.need_transaction = true;
       this->prepareTmpTransaction(&data);
       return this->draw_jpg(&data, x, y, maxWidth, maxHeight, offX, offY, scale);
+    }
+    [[deprecated("use float scale")]]
+    inline bool drawJpg(fs::File *dataSource, std::int32_t x, std::int32_t y, std::int32_t maxWidth, std::int32_t maxHeight, std::int32_t offX, std::int32_t offY, jpeg_div::jpeg_div_t scale)
+    {
+      return drawJpg(dataSource, x, y, maxWidth, maxHeight, offX, offY, 1.0f / (1 << scale));
     }
 
     inline bool drawPng(fs::File *dataSource, std::int32_t x = 0, std::int32_t y = 0, std::int32_t maxWidth = 0, std::int32_t maxHeight = 0, std::int32_t offX = 0, std::int32_t offY = 0, float scale = 1.0f) {
@@ -154,10 +174,16 @@ namespace lgfx
       return this->draw_bmp(&data, x, y);
     }
 
-    inline bool drawJpg(Stream *dataSource, std::int32_t x=0, std::int32_t y=0, std::int32_t maxWidth=0, std::int32_t maxHeight=0, std::int32_t offX=0, std::int32_t offY=0, jpeg_div::jpeg_div_t scale=jpeg_div::jpeg_div_t::JPEG_DIV_NONE) {
+    inline bool drawJpg(Stream *dataSource, std::int32_t x=0, std::int32_t y=0, std::int32_t maxWidth=0, std::int32_t maxHeight=0, std::int32_t offX=0, std::int32_t offY=0, float scale = 1.0f)
+    {
       StreamWrapper data;
       data.set(dataSource);
       return this->draw_jpg(&data, x, y, maxWidth, maxHeight, offX, offY, scale);
+    }
+    [[deprecated("use float scale")]]
+    inline bool drawJpg(Stream *dataSource, std::int32_t x, std::int32_t y, std::int32_t maxWidth, std::int32_t maxHeight, std::int32_t offX, std::int32_t offY, jpeg_div::jpeg_div_t scale)
+    {
+      return drawJpg(dataSource, x, y, maxWidth, maxHeight, offX, offY, 1.0f / (1 << scale));
     }
 
     inline bool drawPng(Stream *dataSource, std::int32_t x = 0, std::int32_t y = 0, std::int32_t maxWidth = 0, std::int32_t maxHeight = 0, std::int32_t offX = 0, std::int32_t offY = 0, float scale = 1.0f) {
@@ -198,10 +224,15 @@ namespace lgfx
       return http.open(url) && drawBmp(&http, x, y);
     }
 
-    inline bool drawJpgUrl(const char* url, std::int32_t x=0, std::int32_t y=0, std::int32_t maxWidth=0, std::int32_t maxHeight=0, std::int32_t offX=0, std::int32_t offY=0, jpeg_div::jpeg_div_t scale=jpeg_div::jpeg_div_t::JPEG_DIV_NONE)
+    inline bool drawJpgUrl(const char* url, std::int32_t x=0, std::int32_t y=0, std::int32_t maxWidth=0, std::int32_t maxHeight=0, std::int32_t offX=0, std::int32_t offY=0, float scale = 1.0f)
     {
       HttpWrapper http;
       return http.open(url) && drawJpg(&http, x, y, maxWidth, maxHeight, offX, offY, scale);
+    }
+    [[deprecated("use float scale")]]
+    inline bool drawJpgUrl(const char* url, std::int32_t x, std::int32_t y, std::int32_t maxWidth, std::int32_t maxHeight, std::int32_t offX, std::int32_t offY, jpeg_div::jpeg_div_t scale)
+    {
+      return drawJpg(url, x, y, maxWidth, maxHeight, offX, offY, 1.0f / (1 << scale));
     }
 
     inline bool drawPngUrl(const char* url, std::int32_t x = 0, std::int32_t y = 0, std::int32_t maxWidth = 0, std::int32_t maxHeight = 0, std::int32_t offX = 0, std::int32_t offY = 0, float scale = 1.0f)
@@ -215,13 +246,20 @@ namespace lgfx
 
 #elif defined (CONFIG_IDF_TARGET_ESP32)  || defined(__SAMD51_HARMONY__) // ESP-IDF or Harmony
 
-    inline bool drawBmpFile(const char *path, std::int32_t x, std::int32_t y) {
+    inline bool drawBmpFile(const char *path, std::int32_t x, std::int32_t y)
+    {
       FileWrapper file;
       return drawBmpFile(&file, path, x, y);
     }
-    inline bool drawJpgFile(const char *path, std::int32_t x=0, std::int32_t y=0, std::int32_t maxWidth=0, std::int32_t maxHeight=0, std::int32_t offX=0, std::int32_t offY=0, jpeg_div::jpeg_div_t scale=jpeg_div::jpeg_div_t::JPEG_DIV_NONE) {
+    inline bool drawJpgFile(const char *path, std::int32_t x = 0, std::int32_t y = 0, std::int32_t maxWidth = 0, std::int32_t maxHeight = 0, std::int32_t offX = 0, std::int32_t offY = 0, float scale = 1.0f)
+    {
       FileWrapper file;
       return drawJpgFile(&file, path, x, y, maxWidth, maxHeight, offX, offY, scale);
+    }
+    [[deprecated("use float scale")]]
+    inline bool drawJpgFile(const char *path, std::int32_t x, std::int32_t y, std::int32_t maxWidth, std::int32_t maxHeight, std::int32_t offX, std::int32_t offY, jpeg_div::jpeg_div_t scale)
+    {
+      return drawJpg(path, x, y, maxWidth, maxHeight, offX, offY, 1.0f / (1 << scale));
     }
     inline bool drawPngFile(const char *path, std::int32_t x = 0, std::int32_t y = 0, std::int32_t maxWidth = 0, std::int32_t maxHeight = 0, std::int32_t offX = 0, std::int32_t offY = 0, float scale = 1.0f)
     {
@@ -233,7 +271,8 @@ namespace lgfx
 
   private:
 
-    bool drawBmpFile(FileWrapper* file, const char *path, std::int32_t x=0, std::int32_t y=0) {
+    bool drawBmpFile(FileWrapper* file, const char *path, std::int32_t x=0, std::int32_t y=0)
+    {
       bool res = false;
       this->prepareTmpTransaction(file);
       file->preRead();
@@ -245,7 +284,8 @@ namespace lgfx
       return res;
     }
 
-    bool drawJpgFile(FileWrapper* file, const char *path, std::int32_t x, std::int32_t y, std::int32_t maxWidth, std::int32_t maxHeight, std::int32_t offX, std::int32_t offY, jpeg_div::jpeg_div_t scale) {
+    bool drawJpgFile(FileWrapper* file, const char *path, std::int32_t x, std::int32_t y, std::int32_t maxWidth, std::int32_t maxHeight, std::int32_t offX, std::int32_t offY, float scale)
+    {
       bool res = false;
       this->prepareTmpTransaction(file);
       file->preRead();

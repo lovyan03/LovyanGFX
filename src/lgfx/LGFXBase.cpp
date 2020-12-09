@@ -1028,13 +1028,14 @@ namespace lgfx
   static bool make_invert_affine32(std::int32_t* __restrict__ result, const float* __restrict__ matrix)
   {
     float det = matrix[0] * matrix[4] - matrix[1] * matrix[3];
-    if (det == 0.0) return false;
-    result[0] = roundf((1 << FP_SCALE) * matrix[4] / det);
-    result[1] = roundf((1 << FP_SCALE) *-matrix[1] / det);
-    result[2] = roundf((1 << FP_SCALE) *(matrix[1] * matrix[5] - matrix[2] * matrix[4]) / det);
-    result[3] = roundf((1 << FP_SCALE) *-matrix[3] / det);
-    result[4] = roundf((1 << FP_SCALE) * matrix[0] / det);
-    result[5] = roundf((1 << FP_SCALE) *(matrix[2] * matrix[3] - matrix[0] * matrix[5]) / det);
+    if (det == 0.0f) return false;
+    det = (1 << FP_SCALE) / det;
+    result[0] = roundf(det *  matrix[4]);
+    result[1] = roundf(det * -matrix[1]);
+    result[2] = roundf(det * (matrix[1] * matrix[5] - matrix[2] * matrix[4]));
+    result[3] = roundf(det * -matrix[3]);
+    result[4] = roundf(det *  matrix[0]);
+    result[5] = roundf(det * (matrix[2] * matrix[3] - matrix[0] * matrix[5]));
     return true;
   }
 
@@ -1249,8 +1250,8 @@ namespace lgfx
 
     {
       std::int32_t offset_y32 = matrix[5] * (1 << FP_SCALE);
-      min_y = std::max(_clip_t, (offset_y32 + min_y ) >> FP_SCALE);
-      max_y = std::min(_clip_b, (offset_y32 + max_y ) >> FP_SCALE) + 1;
+      min_y = std::max(_clip_t, (offset_y32 + min_y   ) >> FP_SCALE);
+      max_y = std::min(_clip_b, (offset_y32 + max_y -1) >> FP_SCALE) + 1;
       if (min_y >= max_y) return;
     }
 
@@ -2126,6 +2127,7 @@ namespace lgfx
     DataWrapper *data;
     LGFXBase *lgfx;
     pixelcopy_t *pc;
+    float scale = 1.0f;
   };
 
   static std::uint32_t jpg_read_data(lgfxJdec  *decoder, std::uint8_t *buf, std::uint32_t len) {
@@ -2146,16 +2148,39 @@ namespace lgfx
     jpeg->pc->src_data = bitmap;
     auto data = static_cast<DataWrapper*>(jpeg->data);
     data->postRead();
-    jpeg->lgfx->pushImage( jpeg->x + rect->left
-                         , jpeg->y + rect->top
-                         , rect->right  - rect->left + 1
-                         , rect->bottom - rect->top + 1
+    std::int32_t x = rect->left;
+    std::int32_t y = rect->top;
+    std::int32_t w = rect->right  - rect->left + 1;
+    std::int32_t h = rect->bottom - rect->top + 1;
+    jpeg->lgfx->pushImage( jpeg->x + x
+                         , jpeg->y + y
+                         , w
+                         , h
                          , jpeg->pc
                          , false);
     return 1;
   }
 
-  bool LGFXBase::draw_jpg(DataWrapper* data, std::int32_t x, std::int32_t y, std::int32_t maxWidth, std::int32_t maxHeight, std::int32_t offX, std::int32_t offY, jpeg_div::jpeg_div_t scale)
+  static std::uint32_t jpg_push_image_affine(lgfxJdec *decoder, void *bitmap, JRECT *rect) {
+    draw_jpg_info_t *jpeg = static_cast<draw_jpg_info_t*>(decoder->device);
+    jpeg->pc->src_data = bitmap;
+    auto data = static_cast<DataWrapper*>(jpeg->data);
+    data->postRead();
+
+    std::int32_t x = rect->left;
+    std::int32_t y = rect->top;
+    std::int32_t w = rect->right  - rect->left + 1;
+    std::int32_t h = rect->bottom - rect->top + 1;
+    float affine[6] =
+    { jpeg->scale, 0.0f , x * jpeg->scale + jpeg->x
+    , 0.0f , jpeg->scale, y * jpeg->scale + jpeg->y
+    };
+
+    jpeg->lgfx->pushImageAffine( affine, w, h, (bgr888_t*)jpeg->pc->src_data );
+    return 1;
+  }
+
+  bool LGFXBase::draw_jpg(DataWrapper* data, std::int32_t x, std::int32_t y, std::int32_t maxWidth, std::int32_t maxHeight, std::int32_t offX, std::int32_t offY, float scale)
   {
     draw_jpg_info_t jpeg;
     pixelcopy_t pc(nullptr, this->getColorDepth(), bgr888_t::depth, this->hasPalette());
@@ -2195,13 +2220,35 @@ namespace lgfx
     auto cb = this->_clip_b + 1;
     if (maxHeight > (cb - y)) maxHeight = (cb - y);
 
-    if (maxWidth > 0 && maxHeight > 0) {
+    if (maxWidth > 0 && maxHeight > 0)
+    {
+      jpeg_div::jpeg_div_t div = jpeg_div::jpeg_div_t::JPEG_DIV_NONE;
+      if (scale < 1.0f)
+      {
+        if (scale <= -1.0f)
+        {
+          scale = std::min<float>((float)maxWidth / jpegdec.width, (float)maxHeight / jpegdec.height);
+        } else
+        if (scale <= 0.0f)
+        {
+          scale = std::max<float>((float)maxWidth / jpegdec.width, (float)maxHeight / jpegdec.height);
+        }
+
+        if (     scale <= 0.125f) { div = jpeg_div::jpeg_div_t::JPEG_DIV_8; }
+        else if (scale <= 0.25f)  { div = jpeg_div::jpeg_div_t::JPEG_DIV_4; }
+        else if (scale <= 0.5f)   { div = jpeg_div::jpeg_div_t::JPEG_DIV_2; }
+
+        scale *= 1 << div;
+      }
+      jpeg.scale = scale;
+
       bool autodisplay = this->_auto_display;
       this->_auto_display = false;
 
       this->setClipRect(x, y, maxWidth, maxHeight);
       this->startWrite(!data->hasParent());
-      jres = lgfx_jd_decomp(&jpegdec, jpg_push_image, scale);
+
+      jres = lgfx_jd_decomp(&jpegdec, jpeg.scale == 1.0f ? jpg_push_image : jpg_push_image_affine, div);
 
       this->_clip_l = cl;
       this->_clip_t = ct;
@@ -2218,7 +2265,6 @@ namespace lgfx
     }
     return true;
   }
-
 
 
   struct png_file_decoder_t {
