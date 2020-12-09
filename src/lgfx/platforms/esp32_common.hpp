@@ -9,8 +9,6 @@
 #if defined ARDUINO
   #include <Arduino.h>
   #include <soc/periph_defs.h>
-
-  #include <FS.h>
 #else
   #include <freertos/FreeRTOS.h>
   #include <freertos/task.h>
@@ -56,18 +54,35 @@ namespace lgfx
 //----------------------------------------------------------------------------
 
 #if defined (ARDUINO)
+ #if defined (FS_H)
 
   struct FileWrapper : public DataWrapper
   {
-    FileWrapper();
+    FileWrapper() : DataWrapper()
+    {    
+#if defined (_SD_H_)
+      _fs = &SD;
+      need_transaction = true;
+#elif defined (_SPIFFS_H_)
+      _fs &SPIFFS;
+      need_transaction = false;
+#else
+      _fs = nullptr;
+      need_transaction = false;
+#endif
+      _fp = nullptr;
+    }
+
     fs::FS* _fs;
     fs::File *_fp;
     fs::File _file;
 
-    FileWrapper(fs::FS& fs);
-    FileWrapper(fs::FS& fs, fs::File* fp);
-
-    void setFS(fs::FS& fs);
+    FileWrapper(fs::FS& fs) : DataWrapper(), _fs(&fs), _fp(nullptr) { need_transaction = (_fs != &SPIFFS); }
+    FileWrapper(fs::FS& fs, fs::File* fp) : DataWrapper(), _fs(&fs), _fp(fp) { need_transaction = (_fs != &SPIFFS); }
+    void setFS(fs::FS& fs) {
+      _fs = &fs;
+      need_transaction = (_fs != &SPIFFS);
+    }
 
     bool open(fs::FS& fs, const char* path, const char* mode) {
       setFS(fs);
@@ -86,12 +101,32 @@ namespace lgfx
     bool seek(std::uint32_t offset, SeekMode mode) { return _fp->seek(offset, mode); }
     void close() override { _fp->close(); }
   };
+ #else
+  // dummy
+  struct FileWrapper : public DataWrapper
+  {
+    FileWrapper() : DataWrapper()
+    {
+      need_transaction = true;
+    }
+    void* _fp;
+    bool open(const char* path, const char* mode) { return false; }
+    int read(std::uint8_t *buf, std::uint32_t len) override { return false; }
+    void skip(std::int32_t offset) override { }
+    bool seek(std::uint32_t offset) override { return false; }
+    bool seek(std::uint32_t offset, int origin) { return false; }
+    void close() override { }
+  };
 
+ #endif
 #else // ESP-IDF
 
   struct FileWrapper : public DataWrapper
   {
-    FileWrapper();
+    FileWrapper() : DataWrapper()
+    {
+      need_transaction = true;
+    }
     FILE* _fp;
     bool open(const char* path, const char* mode) { return (_fp = fopen(path, mode)); }
     int read(std::uint8_t *buf, std::uint32_t len) override { return fread((char*)buf, 1, len, _fp); }
