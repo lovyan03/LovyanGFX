@@ -95,14 +95,14 @@ namespace lgfx
       }
     }
 
-    virtual void sleep(void)
+    virtual void sleep(LGFX_Device*)
     {
       if (pwm_ch_bl >= 0) { // PWM
         setPWMDuty(pwm_ch_bl, backlight_level ? 0 : 255);
       }
     }
 
-    virtual void wakeup(void)
+    virtual void wakeup(LGFX_Device*)
     {
       if (pwm_ch_bl >= 0) { // PWM
         setPWMDuty(pwm_ch_bl, backlight_level ? brightness : (255 - brightness));

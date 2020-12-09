@@ -3,6 +3,7 @@
 
 namespace lgfx
 {
+  static constexpr std::int32_t wait_busy_msec = 3000;
   constexpr std::uint8_t Panel_GDEW0154M09::Bayer[16];
 
   void Panel_GDEW0154M09::post_init(LGFX_Device* gfx, bool use_reset)
@@ -279,13 +280,51 @@ namespace lgfx
     gfx->writeCommand(0x12);
   }
 
+  void Panel_GDEW0154M09::_wait_busy(void)
+  {
+    if (gpio_busy >= 0)
+    {
+      std::uint32_t start_time = millis();
+      while (!gpio_in(gpio_busy) && (millis() - start_time < wait_busy_msec))
+      {
+        delay(1);
+      }
+    }
+  }
+
   void Panel_GDEW0154M09::waitDisplay(PanelCommon* panel, LGFX_Device* gfx)
   {
     auto me = reinterpret_cast<Panel_GDEW0154M09*>(panel);
     gfx->waitDMA();
-    if (me->gpio_busy >= 0) while (!gpio_in(me->gpio_busy)) delay(1);
+    me->_wait_busy();
   }
 
+  void Panel_GDEW0154M09::sleep(LGFX_Device* gfx)
+  {
+    gfx->startWrite();
+    waitDisplay(this, gfx);
+    gfx->writeCommand(0x07);
+    gfx->writeData(0xA5);
+    gfx->endWrite();
+  }
+
+  void Panel_GDEW0154M09::wakeup(LGFX_Device* gfx)
+  {
+    if (gpio_rst >= 0)
+    {
+      lgfx::gpio_lo(gpio_rst);
+      auto time = millis();
+      do {
+        delay(1);
+      } while (millis() - time < 2);
+      lgfx::gpio_hi(gpio_rst);
+      time = millis();
+      do {
+        delay(1);
+      } while (millis() - time < 10);
+    }
+    gfx->initPanel(false);
+  }
   /*
   void Panel_GDEW0154M09::beginTransaction(PanelCommon* panel, LGFX_Device* gfx)
   {

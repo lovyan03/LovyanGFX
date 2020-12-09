@@ -53,9 +53,9 @@ namespace lgfx
       lgfx::i2c::writeRegister8(axp_i2c_port, axp_i2c_addr, 0x28, brightness << 4, 0x0F);
     }
 
-    void sleep(void) override { lgfx::i2c::bitOff(axp_i2c_port, axp_i2c_addr, 0x12, 1 << 2); }
+    void sleep(LGFX_Device*) override { lgfx::i2c::bitOff(axp_i2c_port, axp_i2c_addr, 0x12, 1 << 2); }
 
-    void wakeup(void) override { lgfx::i2c::bitOn(axp_i2c_port, axp_i2c_addr, 0x12, 1 << 2); }
+    void wakeup(LGFX_Device*) override { lgfx::i2c::bitOn(axp_i2c_port, axp_i2c_addr, 0x12, 1 << 2); }
 
   protected:
     const std::uint8_t* getInitCommands(std::uint8_t listno) const override {
@@ -114,9 +114,9 @@ namespace lgfx
       lgfx::i2c::writeRegister8(axp_i2c_port, axp_i2c_addr, 0x28, brightness << 4, 0x0F);
     }
 
-    void sleep(void) override { lgfx::i2c::bitOff(axp_i2c_port, axp_i2c_addr, 0x12, 1 << 2); }
+    void sleep(LGFX_Device*) override { lgfx::i2c::bitOff(axp_i2c_port, axp_i2c_addr, 0x12, 1 << 2); }
 
-    void wakeup(void) override { lgfx::i2c::bitOn(axp_i2c_port, axp_i2c_addr, 0x12, 1 << 2); }
+    void wakeup(LGFX_Device*) override { lgfx::i2c::bitOn(axp_i2c_port, axp_i2c_addr, 0x12, 1 << 2); }
   };
 
   struct Panel_M5Stack : public Panel_ILI9342
@@ -209,9 +209,9 @@ namespace lgfx
       lgfx::i2c::writeRegister8(axp_i2c_port, axp_i2c_addr, 0x27, brightness, 0x80);
     }
 
-    void sleep(void) override { lgfx::i2c::bitOff(axp_i2c_port, axp_i2c_addr, 0x12, 0x02); } // DC3 disable
+    void sleep(LGFX_Device*) override { lgfx::i2c::bitOff(axp_i2c_port, axp_i2c_addr, 0x12, 0x02); } // DC3 disable
 
-    void wakeup(void) override { lgfx::i2c::bitOn(axp_i2c_port, axp_i2c_addr, 0x12, 0x02); } // DC3 enable
+    void wakeup(LGFX_Device*) override { lgfx::i2c::bitOn(axp_i2c_port, axp_i2c_addr, 0x12, 0x02); } // DC3 enable
 
   };
 }

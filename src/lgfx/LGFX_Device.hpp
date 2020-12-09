@@ -89,14 +89,14 @@ namespace lgfx
     {
       std::uint8_t buf[32];
       if (auto b = _panel->getSleepInCommands(buf)) commandList(b);
-      _panel->sleep();
+      _panel->sleep(this);
     }
 
     void wakeup(void)
     {
       std::uint8_t buf[32];
       if (auto b = _panel->getSleepOutCommands(buf)) commandList(b);
-      _panel->wakeup();
+      _panel->wakeup(this);
     }
 
     void partialOn(void)
