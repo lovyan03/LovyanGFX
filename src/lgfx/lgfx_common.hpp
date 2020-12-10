@@ -161,6 +161,12 @@ namespace lgfx
   };
   using namespace textdatum;
 
+  namespace datum
+  {
+    typedef textdatum::textdatum_t datum_t;
+  }
+  using namespace datum;
+
   namespace attribute
   {
     enum attribute_t
@@ -1592,6 +1598,7 @@ namespace lgfx
 using namespace lgfx::jpeg_div;
 using namespace lgfx::colors;
 using namespace lgfx::textdatum;
+using namespace lgfx::datum;
 using namespace lgfx::attribute;
 using namespace lgfx::epd_mode;
 
