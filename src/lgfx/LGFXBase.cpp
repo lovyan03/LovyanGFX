@@ -1207,8 +1207,6 @@ namespace lgfx
     std::int32_t cl = _clip_l    ;
     std::int32_t cr = _clip_r + 1;
 
-    std::int32_t div1 = iA[0] ? - iA[0] : -1;
-    std::int32_t div2 = iA[3] ? - iA[3] : -1;
     std::int32_t y = min_y - max_y;
 
     startWrite();
@@ -1216,8 +1214,8 @@ namespace lgfx
     {
       iA[2] += iA[1];
       iA[5] += iA[4];
-      std::int32_t left  = std::max(cl, std::max((iA[2] + xs1) / div1, (iA[5] + ys1) / div2));
-      std::int32_t right = std::min(cr, std::min((iA[2] + xs2) / div1, (iA[5] + ys2) / div2));
+      std::int32_t left  = std::max(cl, std::max(iA[0] ? (iA[2] + xs1) / - iA[0] : cl, iA[3] ? (iA[5] + ys1) / - iA[3] : cl));
+      std::int32_t right = std::min(cr, std::min(iA[0] ? (iA[2] + xs2) / - iA[0] : cr, iA[3] ? (iA[5] + ys2) / - iA[3] : cr));
       if (left < right)
       {
         pc->src_x32 = iA[2] + left * iA[0];
@@ -1280,16 +1278,13 @@ namespace lgfx
     argb8888_t buffer[cr - cl];
     pc2->src_data = buffer;
 
-    std::int32_t div1 = iA[0] ? - iA[0] : -1;
-    std::int32_t div2 = iA[3] ? - iA[3] : -1;
-
     startWrite();
     do
     {
       iA[2] += iA[1];
       iA[5] += iA[4];
-      std::int32_t left  = std::max(cl, std::max((iA[2] + xs1) / div1, (iA[5] + ys1) / div2));
-      std::int32_t right = std::min(cr, std::min((iA[2] + xs2) / div1, (iA[5] + ys2) / div2));
+      std::int32_t left  = std::max(cl, std::max(iA[0] ? (iA[2] + xs1) / - iA[0] : cl, iA[3] ? (iA[5] + ys1) / - iA[3] : cl));
+      std::int32_t right = std::min(cr, std::min(iA[0] ? (iA[2] + xs2) / - iA[0] : cr, iA[3] ? (iA[5] + ys2) / - iA[3] : cr));
       if (left < right)
       {
         std::int32_t len = right - left;
