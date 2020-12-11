@@ -2040,7 +2040,6 @@ namespace lgfx
       return false;
     }
 
-    //std::uint32_t startTime = millis();
     std::uint32_t seekOffset = bmpdata.bfOffBits;
     uint_fast16_t bpp = bmpdata.biBitCount; // 24 bcBitCount 24=RGB24bit
     std::int32_t w = bmpdata.biWidth;
@@ -2096,11 +2095,6 @@ namespace lgfx
     if (maxWidth > 0 && maxHeight > 0)
     {
       this->setClipRect(clip_x, clip_y, maxWidth, maxHeight);
-/*
-data->postRead();
-this->fillRect(clip_x, clip_y, maxWidth, maxHeight, TFT_GREEN);
-data->preRead();
-//*/
       argb8888_t *palette = nullptr;
       if (bpp <= 8) {
         palette = (argb8888_t*)heap_alloc(sizeof(argb8888_t*) * (1 << bpp));
@@ -2139,14 +2133,12 @@ data->preRead();
       std::int32_t y32 = (y << FP_SCALE);
       std::int32_t dst_y32_add = (1u << FP_SCALE) * scale_y;
       if (bmpdata.biHeight > 0) dst_y32_add = - dst_y32_add;
-      std::int32_t draw_w = w * scale_x;
 
       this->startWrite(!data->hasParent());
       bool autodisplay = this->_auto_display;
       this->_auto_display = false;
 
-      float affine[6] =
-      { scale_x, 0.0f, (float)x, 0.0f, 1.0f, 0.0f };
+      float affine[6] = { scale_x, 0.0f, (float)x, 0.0f, 1.0f, 0.0f };
       p.src_bitwidth = w;
       p.src_width = w;
       p.src_height = 1;

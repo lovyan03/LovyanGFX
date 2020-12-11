@@ -284,7 +284,7 @@ namespace lgfx
     gfx->writeCommand(0x12);
   }
 
-  bool Panel_GDEW0154M09::_wait_busy(std::int32_t timeout)
+  bool Panel_GDEW0154M09::_wait_busy(std::uint32_t timeout)
   {
     if (gpio_busy >= 0 && !gpio_in(gpio_busy))
     {

@@ -92,6 +92,7 @@ namespace lgfx
 
     const std::uint8_t* getSleepOutCommands(std::uint8_t* buf) override
     {
+      (void)buf;
       return nullptr;
     }
 
@@ -253,7 +254,7 @@ namespace lgfx
     void _update_transferred_rect(LGFX_Device* gfx, std::int32_t &xs, std::int32_t &ys, std::int32_t &xe, std::int32_t &ye);
     void _exec_transfer(std::uint32_t cmd, LGFX_Device* gfx, range_rect_t* range, bool invert = false);
     void _close_transfer(LGFX_Device* gfx);
-    bool _wait_busy(std::int32_t timeout = 1000);
+    bool _wait_busy(std::uint32_t timeout = 1000);
 
     //static void beginTransaction(PanelCommon* panel, LGFX_Device* gfx);
     //static void endTransaction(PanelCommon* panel, LGFX_Device* gfx);
