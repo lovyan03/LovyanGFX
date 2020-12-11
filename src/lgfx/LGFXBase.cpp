@@ -2032,10 +2032,8 @@ namespace lgfx
     }
 //----------------------------------------------------------------------------
 
-  bool LGFXBase::draw_bmp(DataWrapper* data, std::int32_t x, std::int32_t y)
+  bool LGFXBase::draw_bmp(DataWrapper* data, std::int32_t x, std::int32_t y, std::int32_t maxWidth, std::int32_t maxHeight, std::int32_t offX, std::int32_t offY, float scale_x, float scale_y, datum_t datum)
   {
-    if ((x >= this->_width) || (y >= this->_height)) return true;
-
     bitmap_header_t bmpdata;
     if (!bmpdata.load_bmp_header(data)
       || (bmpdata.biCompression > 3)) {
@@ -2044,74 +2042,150 @@ namespace lgfx
 
     //std::uint32_t startTime = millis();
     std::uint32_t seekOffset = bmpdata.bfOffBits;
-    std::int32_t w = bmpdata.biWidth;
-    std::int32_t h = bmpdata.biHeight;  // bcHeight Image height (pixels)
     uint_fast16_t bpp = bmpdata.biBitCount; // 24 bcBitCount 24=RGB24bit
+    std::int32_t w = bmpdata.biWidth;
+    std::int32_t h = abs(bmpdata.biHeight);  // bcHeight Image height (pixels)
 
-      //If the value of Height is positive, the image data is from bottom to top
-      //If the value of Height is negative, the image data is from top to bottom.
-    std::int32_t flow = (h < 0) ? 1 : -1;
-    if (h < 0) h = -h;
-    else y += h - 1;
+    auto clip_x = x;
+    auto clip_y = y;
+    const auto cl = this->_clip_l;
+    const auto cr = this->_clip_r + 1;
+    if (!maxWidth) maxWidth = cr - cl;
 
-    argb8888_t *palette = nullptr;
-    if (bpp <= 8) {
-      palette = new argb8888_t[1 << bpp];
-      data->seek(bmpdata.biSize + 14);
-      data->read((std::uint8_t*)palette, (1 << bpp)*sizeof(argb8888_t)); // load palette
+    const auto ct = this->_clip_t;
+    const auto cb = this->_clip_b + 1;
+    if (!maxHeight) maxHeight = cb - ct;
+    if (scale_x <= -1.0f) { scale_x = (float)maxWidth  / w; }
+    if (scale_y <= -1.0f) { scale_y = (float)maxHeight / h; }
+
+    if (scale_x <= 0.0f)
+    {
+      if (scale_y <= 0.0f)
+      {
+        scale_y = std::min<float>((float)maxWidth / w, (float)maxHeight / h);
+      }
+      scale_x = scale_y;
+    }
+    if (scale_y <= 0.0f)
+    {
+      scale_y = scale_x;
     }
 
-    data->seek(seekOffset);
-
-    auto dst_depth = this->_write_conv.depth;
-    std::uint32_t buffersize = ((w * bpp + 31) >> 5) << 2;  // readline 4Byte align.
-    std::uint8_t lineBuffer[buffersize + 4];
-    pixelcopy_t p(lineBuffer, dst_depth, (color_depth_t)bpp, this->_palette_count, palette);
-    p.no_convert = false;
-    if (8 >= bpp && !this->_palette_count) {
-      p.fp_copy = pixelcopy_t::get_fp_copy_palette_affine<argb8888_t>(dst_depth);
-    } else {
-      if (bpp == 16) {
-        p.fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<rgb565_t>(dst_depth);
-      } else if (bpp == 24) {
-        p.fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<rgb888_t>(dst_depth);
-      } else if (bpp == 32) {
-        p.fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<argb8888_t>(dst_depth);
+    if (datum)
+    {
+      if (datum & (datum_t::top_center | datum_t::top_right))
+      {
+        float fw = maxWidth - (w * scale_x);
+        if (datum & datum_t::top_center) { fw /= 2; }
+        x += fw;
+      }
+      if (datum & (datum_t::middle_left | datum_t::bottom_left | datum_t::baseline_left))
+      {
+        float fh = maxHeight - (h * scale_y);
+        if (datum & datum_t::middle_left) { fh /= 2; }
+        y += fh;
       }
     }
 
-    this->startWrite(!data->hasParent());
-    bool autodisplay = this->_auto_display;
-    this->_auto_display = false;
-    if (bmpdata.biCompression == 1) {
-      do {
+    if (0 > clip_x - cl) { maxWidth += clip_x - cl; clip_x = cl; }
+    if (maxWidth > (cr - clip_x)) maxWidth = (cr - clip_x);
+
+    if (0 > clip_y - ct) { maxHeight += clip_y - ct; clip_y = ct; }
+    if (maxHeight > (cb - clip_y)) maxHeight = (cb - clip_y);
+
+    if (maxWidth > 0 && maxHeight > 0)
+    {
+      this->setClipRect(clip_x, clip_y, maxWidth, maxHeight);
+/*
+data->postRead();
+this->fillRect(clip_x, clip_y, maxWidth, maxHeight, TFT_GREEN);
+data->preRead();
+//*/
+      argb8888_t *palette = nullptr;
+      if (bpp <= 8) {
+        palette = (argb8888_t*)heap_alloc(sizeof(argb8888_t*) * (1 << bpp));
+        data->seek(bmpdata.biSize + 14);
+        data->read((std::uint8_t*)palette, (1 << bpp)*sizeof(argb8888_t)); // load palette
+      }
+
+      data->seek(seekOffset);
+
+      auto dst_depth = this->_write_conv.depth;
+      std::uint32_t buffersize = ((w * bpp + 31) >> 5) << 2;  // readline 4Byte align.
+      std::uint8_t lineBuffer[buffersize + 4];
+      pixelcopy_t p(lineBuffer, dst_depth, (color_depth_t)bpp, this->_palette_count, palette);
+      p.no_convert = false;
+      if (8 >= bpp && !this->_palette_count) {
+        p.fp_copy = pixelcopy_t::get_fp_copy_palette_affine<argb8888_t>(dst_depth);
+      } else {
+        if (bpp == 16) {
+          p.fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<rgb565_t>(dst_depth);
+        } else if (bpp == 24) {
+          p.fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<rgb888_t>(dst_depth);
+        } else if (bpp == 32) {
+          p.fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<argb8888_t>(dst_depth);
+        }
+      }
+      p.src_x32_add = (1u << FP_SCALE) / scale_x;
+
+        //If the value of Height is positive, the image data is from bottom to top
+        //If the value of Height is negative, the image data is from top to bottom.
+      std::int32_t flow = (bmpdata.biHeight > 0) ? -1 : 1;
+      if (bmpdata.biHeight > 0) y += ceilf(h * scale_y) - 1;
+
+      x -= offX;
+      y -= offY;
+
+      std::int32_t y32 = (y << FP_SCALE);
+      std::int32_t dst_y32_add = (1u << FP_SCALE) * scale_y;
+      if (bmpdata.biHeight > 0) dst_y32_add = - dst_y32_add;
+      std::int32_t draw_w = w * scale_x;
+
+      this->startWrite(!data->hasParent());
+      bool autodisplay = this->_auto_display;
+      this->_auto_display = false;
+
+      float affine[6] =
+      { scale_x, 0.0f, (float)x, 0.0f, 1.0f, 0.0f };
+      p.src_bitwidth = w;
+      p.src_width = w;
+      p.src_height = 1;
+
+      do
+      {
         data->preRead();
-        bmpdata.load_bmp_rle8(data, lineBuffer, w);
+        if (bmpdata.biCompression == 1)
+        {
+          bmpdata.load_bmp_rle8(data, lineBuffer, w);
+        } else
+        if (bmpdata.biCompression == 2)
+        {
+          bmpdata.load_bmp_rle4(data, lineBuffer, w);
+        }
+        else 
+        {
+          data->read(lineBuffer, buffersize);
+        }
         data->postRead();
-        this->pushImage(x, y, w, 1, &p);
-        y += flow;
+        y32 += dst_y32_add;
+        std::int32_t next_y = y32 >> FP_SCALE;
+        while (y != next_y)
+        {
+          p.src_x32 = 0;
+          affine[5] = y;
+          this->push_image_affine(affine, &p);
+          y += flow;
+        }
       } while (--h);
-    } else
-    if (bmpdata.biCompression == 2) {
-      do {
-        data->preRead();
-        bmpdata.load_bmp_rle4(data, lineBuffer, w);
-        data->postRead();
-        this->pushImage(x, y, w, 1, &p);
-        y += flow;
-      } while (--h);
-    } else {
-      do {
-        data->preRead();
-        data->read(lineBuffer, buffersize);
-        data->postRead();
-        this->pushImage(x, y, w, 1, &p);
-        y += flow;
-      } while (--h);
+
+      if (palette != nullptr) heap_free(palette);
+      this->_clip_l = cl;
+      this->_clip_t = ct;
+      this->_clip_r = cr-1;
+      this->_clip_b = cb-1;
+      this->_auto_display = autodisplay;
+      this->endWrite();
     }
-    if (palette) delete[] palette;
-    this->_auto_display = autodisplay;
-    this->endWrite();
     return true;
   }
 
