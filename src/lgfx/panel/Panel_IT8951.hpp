@@ -115,7 +115,7 @@ namespace lgfx
 
     color_depth_t getAdjustBpp(color_depth_t bpp) const override { (void)bpp; return rgb888_3Byte; }
 
-    const std::uint8_t* getInitCommands(std::uint8_t listno) const override { return nullptr; }
+    const std::uint8_t* getInitCommands(std::uint8_t) const override { return nullptr; }
 
   private:
     enum epd_update_mode_t
@@ -154,13 +154,13 @@ namespace lgfx
     static void readRect(PanelCommon* panel, LGFX_Device* gfx, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, void* dst, pixelcopy_t* param);
 
     bool WaitBusy(LGFX_Device* gfx, std::uint32_t timeout = 1000);
-    bool WriteCommand(LGFX_Device* gfx, uint16_t cmd);
-    bool WriteWord(LGFX_Device* gfx, uint16_t data);
-    bool WriteArgs(LGFX_Device* gfx, uint16_t cmd, uint16_t *args, int32_t length);
-    bool WriteReg(LGFX_Device* gfx, uint16_t addr, uint16_t data);
-    bool ReadWords(LGFX_Device* gfx, uint16_t *buf, uint32_t length);
+    bool WriteCommand(LGFX_Device* gfx, std::uint16_t cmd);
+    bool WriteWord(LGFX_Device* gfx, std::uint16_t data);
+    bool WriteArgs(LGFX_Device* gfx, std::uint16_t cmd, std::uint16_t *args, std::int32_t length);
+    bool WriteReg(LGFX_Device* gfx, std::uint16_t addr, std::uint16_t data);
+    bool ReadWords(LGFX_Device* gfx, std::uint16_t *buf, std::uint32_t length);
     bool CheckAFSR(LGFX_Device* gfx);
-    bool SetTargetMemoryAddr(LGFX_Device* gfx, uint32_t tar_addr);
+    bool SetTargetMemoryAddr(LGFX_Device* gfx, std::uint32_t tar_addr);
     bool SetArea(LGFX_Device* gfx, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h);
     bool UpdateRawArea(LGFX_Device* gfx, epd_update_mode_t mode);
     bool Clear(LGFX_Device* gfx, bool init);

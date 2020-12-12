@@ -587,7 +587,7 @@ namespace lgfx
           } else {
             data->read(lineBuffer, buffersize);
           }
-          memcpy(&_img[y * _bitwidth * bpp >> 3], lineBuffer, w * bpp >> 3);
+          memcpy(&_img[y * _bitwidth * bpp >> 3], lineBuffer, (w * bpp + 7) >> 3);
           y += flow;
         } while (--h);
       } else if (bpp == 16) {

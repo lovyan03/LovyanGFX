@@ -77,7 +77,7 @@ IT8951 Registers defines
   {
 /*
     gfx->startWrite();
-    uint16_t infobuf[20];
+    std::uint16_t infobuf[20];
     WriteCommand(gfx, IT8951_I80_CMD_GET_DEV_INFO);
     ReadWords(gfx, infobuf, 20);
     for (int i = 0; i < 20; ++i)
@@ -111,6 +111,7 @@ IT8951 Registers defines
     _range_new.right = 0;
     _range_new.bottom = 0;
     gfx->setBaseColor(TFT_WHITE);
+    gfx->setTextColor(TFT_BLACK, TFT_WHITE);
 
     if (use_reset) {
       auto mode = gfx->getEpdMode();
@@ -153,8 +154,8 @@ IT8951 Registers defines
   
   bool Panel_IT8951::CheckAFSR(LGFX_Device* gfx)
   {
-    uint32_t start_time = millis();
-    uint16_t infobuf[1] = { 1 };
+    std::uint32_t start_time = millis();
+    std::uint16_t infobuf[1] = { 1 };
     do
     {
       delay(1);
@@ -171,7 +172,7 @@ IT8951 Registers defines
     return infobuf[0] != 0;
   }
 
-  bool Panel_IT8951::WriteCommand(LGFX_Device* gfx, uint16_t cmd)
+  bool Panel_IT8951::WriteCommand(LGFX_Device* gfx, std::uint16_t cmd)
   {
     if (!WaitBusy(gfx)) return false;
 
@@ -182,7 +183,7 @@ IT8951 Registers defines
     return true;
   }
 
-  bool Panel_IT8951::WriteWord(LGFX_Device* gfx, uint16_t data)
+  bool Panel_IT8951::WriteWord(LGFX_Device* gfx, std::uint16_t data)
   {
     if (!WaitBusy(gfx)) return false;
 
@@ -193,7 +194,7 @@ IT8951 Registers defines
     return true;
   }
 
-  bool Panel_IT8951::WriteArgs(LGFX_Device* gfx, uint16_t cmd, uint16_t *args, int32_t length)
+  bool Panel_IT8951::WriteArgs(LGFX_Device* gfx, std::uint16_t cmd, std::uint16_t *args, std::int32_t length)
   {
     if (WriteCommand(gfx, cmd)
      && WaitBusy(gfx))
@@ -210,7 +211,7 @@ IT8951 Registers defines
     return false;
   }
 
-  bool Panel_IT8951::ReadWords(LGFX_Device* gfx, uint16_t *buf, uint32_t length)
+  bool Panel_IT8951::ReadWords(LGFX_Device* gfx, std::uint16_t *buf, std::uint32_t length)
   {
     if (!WaitBusy(gfx)) return false;
     gfx->writeData16(0x1000);
@@ -224,14 +225,14 @@ IT8951 Registers defines
     return true;
   }
 
-  bool Panel_IT8951::WriteReg(LGFX_Device* gfx, uint16_t addr, uint16_t data)
+  bool Panel_IT8951::WriteReg(LGFX_Device* gfx, std::uint16_t addr, std::uint16_t data)
   {
     return WriteCommand(gfx, 0x0011)
         && WriteWord(gfx, addr)
         && WriteWord(gfx, data);
   }
 
-  bool Panel_IT8951::SetTargetMemoryAddr(LGFX_Device* gfx, uint32_t tar_addr)
+  bool Panel_IT8951::SetTargetMemoryAddr(LGFX_Device* gfx, std::uint32_t tar_addr)
   {
     return WriteReg(gfx, IT8951_LISAR + 2, tar_addr >> 16)
         && WriteReg(gfx, IT8951_LISAR    , tar_addr      );
@@ -242,6 +243,7 @@ IT8951 Registers defines
     std::int32_t rx, ry, rw, rh;
     switch(_internal_rotation & 3)
     {
+    default:
     case IT8951_ROTATE_0:
       rx = x;
       ry = y;
@@ -321,7 +323,7 @@ IT8951 Registers defines
     me->WaitBusy(gfx);
     gfx->writeData16(0);
     bool fast = gfx->getEpdMode() != epd_mode_t::epd_quality;
-    uint32_t wid = (((x + w + 3) >> 2) - (x >> 2));
+    std::uint32_t wid = (((x + w + 3) >> 2) - (x >> 2));
     do
     {
       auto btbl = &me->Bayer[(y & 3) << 2];
@@ -408,7 +410,7 @@ IT8951 Registers defines
               }
               else
               {
-                pixel = std::min(15, std::max(0, pixel + btbl[(x + prev_pos) & 3]) >> 6);
+                pixel = std::min<std::int32_t>(15, std::max<std::int32_t>(0, pixel + btbl[(x + prev_pos) & 3]) >> 6);
               }
               buf |= pixel << shift;
               shift -= 4;
@@ -581,17 +583,17 @@ IT8951 Registers defines
 
     param->src_data = colorbuf;
 
-    for (std::size_t j = 0; j < rh; ++j) {
+    for (std::int32_t j = 0; j < rh; ++j) {
       me->ReadRawLine(gfx, rx & ~3, ry, padding_len >> 1, reinterpret_cast<std::uint16_t*>(readbuf));
-      for (std::size_t i = 0; i < rw; ++i)
+      for (std::int32_t i = 0; i < rw; ++i)
       {
         auto l = readbuf[adjust_left + i];
         l = l + 8;
         colorbuf[i].set(l,l,l);
       }
       param->src_x = 0;
-      for (std::size_t i = 0; i < rw; ++i) {
-        std::size_t dstpos;
+      for (std::int32_t i = 0; i < rw; ++i) {
+        std::int32_t dstpos;
         switch (me->_internal_rotation)
         {
         default:

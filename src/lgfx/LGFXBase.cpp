@@ -1028,13 +1028,14 @@ namespace lgfx
   static bool make_invert_affine32(std::int32_t* __restrict__ result, const float* __restrict__ matrix)
   {
     float det = matrix[0] * matrix[4] - matrix[1] * matrix[3];
-    if (det == 0.0) return false;
-    result[0] = roundf((1 << FP_SCALE) * matrix[4] / det);
-    result[1] = roundf((1 << FP_SCALE) *-matrix[1] / det);
-    result[2] = roundf((1 << FP_SCALE) *(matrix[1] * matrix[5] - matrix[2] * matrix[4]) / det);
-    result[3] = roundf((1 << FP_SCALE) *-matrix[3] / det);
-    result[4] = roundf((1 << FP_SCALE) * matrix[0] / det);
-    result[5] = roundf((1 << FP_SCALE) *(matrix[2] * matrix[3] - matrix[0] * matrix[5]) / det);
+    if (det == 0.0f) return false;
+    det = (1 << FP_SCALE) / det;
+    result[0] = roundf(det *  matrix[4]);
+    result[1] = roundf(det * -matrix[1]);
+    result[2] = roundf(det * (matrix[1] * matrix[5] - matrix[2] * matrix[4]));
+    result[3] = roundf(det * -matrix[3]);
+    result[4] = roundf(det *  matrix[0]);
+    result[5] = roundf(det * (matrix[2] * matrix[3] - matrix[0] * matrix[5]));
     return true;
   }
 
@@ -1206,8 +1207,6 @@ namespace lgfx
     std::int32_t cl = _clip_l    ;
     std::int32_t cr = _clip_r + 1;
 
-    std::int32_t div1 = iA[0] ? - iA[0] : -1;
-    std::int32_t div2 = iA[3] ? - iA[3] : -1;
     std::int32_t y = min_y - max_y;
 
     startWrite();
@@ -1215,8 +1214,8 @@ namespace lgfx
     {
       iA[2] += iA[1];
       iA[5] += iA[4];
-      std::int32_t left  = std::max(cl, std::max((iA[2] + xs1) / div1, (iA[5] + ys1) / div2));
-      std::int32_t right = std::min(cr, std::min((iA[2] + xs2) / div1, (iA[5] + ys2) / div2));
+      std::int32_t left  = std::max(cl, std::max(iA[0] ? (iA[2] + xs1) / - iA[0] : cl, iA[3] ? (iA[5] + ys1) / - iA[3] : cl));
+      std::int32_t right = std::min(cr, std::min(iA[0] ? (iA[2] + xs2) / - iA[0] : cr, iA[3] ? (iA[5] + ys2) / - iA[3] : cr));
       if (left < right)
       {
         pc->src_x32 = iA[2] + left * iA[0];
@@ -1249,8 +1248,8 @@ namespace lgfx
 
     {
       std::int32_t offset_y32 = matrix[5] * (1 << FP_SCALE);
-      min_y = std::max(_clip_t, (offset_y32 + min_y ) >> FP_SCALE);
-      max_y = std::min(_clip_b, (offset_y32 + max_y ) >> FP_SCALE) + 1;
+      min_y = std::max(_clip_t, (offset_y32 + min_y   ) >> FP_SCALE);
+      max_y = std::min(_clip_b, (offset_y32 + max_y -1) >> FP_SCALE) + 1;
       if (min_y >= max_y) return;
     }
 
@@ -1279,16 +1278,13 @@ namespace lgfx
     argb8888_t buffer[cr - cl];
     pc2->src_data = buffer;
 
-    std::int32_t div1 = iA[0] ? - iA[0] : -1;
-    std::int32_t div2 = iA[3] ? - iA[3] : -1;
-
     startWrite();
     do
     {
       iA[2] += iA[1];
       iA[5] += iA[4];
-      std::int32_t left  = std::max(cl, std::max((iA[2] + xs1) / div1, (iA[5] + ys1) / div2));
-      std::int32_t right = std::min(cr, std::min((iA[2] + xs2) / div1, (iA[5] + ys2) / div2));
+      std::int32_t left  = std::max(cl, std::max(iA[0] ? (iA[2] + xs1) / - iA[0] : cl, iA[3] ? (iA[5] + ys1) / - iA[3] : cl));
+      std::int32_t right = std::min(cr, std::min(iA[0] ? (iA[2] + xs2) / - iA[0] : cr, iA[3] ? (iA[5] + ys2) / - iA[3] : cr));
       if (left < right)
       {
         std::int32_t len = right - left;
@@ -2036,99 +2032,169 @@ namespace lgfx
     }
 //----------------------------------------------------------------------------
 
-  bool LGFXBase::draw_bmp(DataWrapper* data, std::int32_t x, std::int32_t y)
+  bool LGFXBase::draw_bmp(DataWrapper* data, std::int32_t x, std::int32_t y, std::int32_t maxWidth, std::int32_t maxHeight, std::int32_t offX, std::int32_t offY, float scale_x, float scale_y, datum_t datum)
   {
-    if ((x >= this->_width) || (y >= this->_height)) return true;
-
     bitmap_header_t bmpdata;
     if (!bmpdata.load_bmp_header(data)
       || (bmpdata.biCompression > 3)) {
       return false;
     }
 
-    //std::uint32_t startTime = millis();
     std::uint32_t seekOffset = bmpdata.bfOffBits;
-    std::int32_t w = bmpdata.biWidth;
-    std::int32_t h = bmpdata.biHeight;  // bcHeight Image height (pixels)
     uint_fast16_t bpp = bmpdata.biBitCount; // 24 bcBitCount 24=RGB24bit
+    std::int32_t w = bmpdata.biWidth;
+    std::int32_t h = abs(bmpdata.biHeight);  // bcHeight Image height (pixels)
 
-      //If the value of Height is positive, the image data is from bottom to top
-      //If the value of Height is negative, the image data is from top to bottom.
-    std::int32_t flow = (h < 0) ? 1 : -1;
-    if (h < 0) h = -h;
-    else y += h - 1;
+    auto clip_x = x;
+    auto clip_y = y;
+    const auto cl = this->_clip_l;
+    const auto cr = this->_clip_r + 1;
+    if (!maxWidth) maxWidth = cr - cl;
 
-    argb8888_t *palette = nullptr;
-    if (bpp <= 8) {
-      palette = new argb8888_t[1 << bpp];
-      data->seek(bmpdata.biSize + 14);
-      data->read((std::uint8_t*)palette, (1 << bpp)*sizeof(argb8888_t)); // load palette
+    const auto ct = this->_clip_t;
+    const auto cb = this->_clip_b + 1;
+    if (!maxHeight) maxHeight = cb - ct;
+    if (scale_x <= -1.0f) { scale_x = (float)maxWidth  / w; }
+    if (scale_y <= -1.0f) { scale_y = (float)maxHeight / h; }
+
+    if (scale_x <= 0.0f)
+    {
+      if (scale_y <= 0.0f)
+      {
+        scale_y = std::min<float>((float)maxWidth / w, (float)maxHeight / h);
+      }
+      scale_x = scale_y;
+    }
+    if (scale_y <= 0.0f)
+    {
+      scale_y = scale_x;
     }
 
-    data->seek(seekOffset);
-
-    auto dst_depth = this->_write_conv.depth;
-    std::uint32_t buffersize = ((w * bpp + 31) >> 5) << 2;  // readline 4Byte align.
-    std::uint8_t lineBuffer[buffersize + 4];
-    pixelcopy_t p(lineBuffer, dst_depth, (color_depth_t)bpp, this->_palette_count, palette);
-    p.no_convert = false;
-    if (8 >= bpp && !this->_palette_count) {
-      p.fp_copy = pixelcopy_t::get_fp_copy_palette_affine<argb8888_t>(dst_depth);
-    } else {
-      if (bpp == 16) {
-        p.fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<rgb565_t>(dst_depth);
-      } else if (bpp == 24) {
-        p.fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<rgb888_t>(dst_depth);
-      } else if (bpp == 32) {
-        p.fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<argb8888_t>(dst_depth);
+    if (datum)
+    {
+      if (datum & (datum_t::top_center | datum_t::top_right))
+      {
+        float fw = maxWidth - (w * scale_x);
+        if (datum & datum_t::top_center) { fw /= 2; }
+        x += fw;
+      }
+      if (datum & (datum_t::middle_left | datum_t::bottom_left | datum_t::baseline_left))
+      {
+        float fh = maxHeight - (h * scale_y);
+        if (datum & datum_t::middle_left) { fh /= 2; }
+        y += fh;
       }
     }
 
-    this->startWrite(!data->hasParent());
-    bool autodisplay = this->_auto_display;
-    this->_auto_display = false;
-    if (bmpdata.biCompression == 1) {
-      do {
+    if (0 > clip_x - cl) { maxWidth += clip_x - cl; clip_x = cl; }
+    if (maxWidth > (cr - clip_x)) maxWidth = (cr - clip_x);
+
+    if (0 > clip_y - ct) { maxHeight += clip_y - ct; clip_y = ct; }
+    if (maxHeight > (cb - clip_y)) maxHeight = (cb - clip_y);
+
+    if (maxWidth > 0 && maxHeight > 0)
+    {
+      this->setClipRect(clip_x, clip_y, maxWidth, maxHeight);
+      argb8888_t *palette = nullptr;
+      if (bpp <= 8) {
+        palette = (argb8888_t*)heap_alloc(sizeof(argb8888_t*) * (1 << bpp));
+        data->seek(bmpdata.biSize + 14);
+        data->read((std::uint8_t*)palette, (1 << bpp)*sizeof(argb8888_t)); // load palette
+      }
+
+      data->seek(seekOffset);
+
+      auto dst_depth = this->_write_conv.depth;
+      std::uint32_t buffersize = ((w * bpp + 31) >> 5) << 2;  // readline 4Byte align.
+      std::uint8_t lineBuffer[buffersize + 4];
+      pixelcopy_t p(lineBuffer, dst_depth, (color_depth_t)bpp, this->_palette_count, palette);
+      p.no_convert = false;
+      if (8 >= bpp && !this->_palette_count) {
+        p.fp_copy = pixelcopy_t::get_fp_copy_palette_affine<argb8888_t>(dst_depth);
+      } else {
+        if (bpp == 16) {
+          p.fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<rgb565_t>(dst_depth);
+        } else if (bpp == 24) {
+          p.fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<rgb888_t>(dst_depth);
+        } else if (bpp == 32) {
+          p.fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<argb8888_t>(dst_depth);
+        }
+      }
+      p.src_x32_add = (1u << FP_SCALE) / scale_x;
+
+        //If the value of Height is positive, the image data is from bottom to top
+        //If the value of Height is negative, the image data is from top to bottom.
+      std::int32_t flow = (bmpdata.biHeight > 0) ? -1 : 1;
+      if (bmpdata.biHeight > 0) y += ceilf(h * scale_y) - 1;
+
+      x -= offX;
+      y -= offY;
+
+      std::int32_t y32 = (y << FP_SCALE);
+      std::int32_t dst_y32_add = (1u << FP_SCALE) * scale_y;
+      if (bmpdata.biHeight > 0) dst_y32_add = - dst_y32_add;
+
+      this->startWrite(!data->hasParent());
+      bool autodisplay = this->_auto_display;
+      this->_auto_display = false;
+
+      float affine[6] = { scale_x, 0.0f, (float)x, 0.0f, 1.0f, 0.0f };
+      p.src_bitwidth = w;
+      p.src_width = w;
+      p.src_height = 1;
+
+      do
+      {
         data->preRead();
-        bmpdata.load_bmp_rle8(data, lineBuffer, w);
+        if (bmpdata.biCompression == 1)
+        {
+          bmpdata.load_bmp_rle8(data, lineBuffer, w);
+        } else
+        if (bmpdata.biCompression == 2)
+        {
+          bmpdata.load_bmp_rle4(data, lineBuffer, w);
+        }
+        else 
+        {
+          data->read(lineBuffer, buffersize);
+        }
         data->postRead();
-        this->pushImage(x, y, w, 1, &p);
-        y += flow;
+        y32 += dst_y32_add;
+        std::int32_t next_y = y32 >> FP_SCALE;
+        while (y != next_y)
+        {
+          p.src_x32 = 0;
+          affine[5] = y;
+          this->push_image_affine(affine, &p);
+          y += flow;
+        }
       } while (--h);
-    } else
-    if (bmpdata.biCompression == 2) {
-      do {
-        data->preRead();
-        bmpdata.load_bmp_rle4(data, lineBuffer, w);
-        data->postRead();
-        this->pushImage(x, y, w, 1, &p);
-        y += flow;
-      } while (--h);
-    } else {
-      do {
-        data->preRead();
-        data->read(lineBuffer, buffersize);
-        data->postRead();
-        this->pushImage(x, y, w, 1, &p);
-        y += flow;
-      } while (--h);
+
+      if (palette != nullptr) heap_free(palette);
+      this->_clip_l = cl;
+      this->_clip_t = ct;
+      this->_clip_r = cr-1;
+      this->_clip_b = cb-1;
+      this->_auto_display = autodisplay;
+      this->endWrite();
     }
-    if (palette) delete[] palette;
-    this->_auto_display = autodisplay;
-    this->endWrite();
     return true;
   }
 
 
-  struct draw_jpg_info_t {
+  struct draw_jpg_info_t
+  {
     std::int32_t x;
     std::int32_t y;
     DataWrapper *data;
     LGFXBase *lgfx;
     pixelcopy_t *pc;
+    float zoom_x;
+    float zoom_y;
   };
 
-  static std::uint32_t jpg_read_data(lgfxJdec  *decoder, std::uint8_t *buf, std::uint32_t len) {
+  static std::uint32_t jpg_read_data(lgfxJdec  *decoder, std::uint8_t *buf, std::uint32_t len)
+  {
     auto jpeg = (draw_jpg_info_t *)decoder->device;
     auto data = (DataWrapper*)jpeg->data;
     auto res = len;
@@ -2141,21 +2207,45 @@ namespace lgfx
     return res;
   }
 
-  static std::uint32_t jpg_push_image(lgfxJdec *decoder, void *bitmap, JRECT *rect) {
+  static std::uint32_t jpg_push_image(lgfxJdec *decoder, void *bitmap, JRECT *rect)
+  {
     draw_jpg_info_t *jpeg = static_cast<draw_jpg_info_t*>(decoder->device);
     jpeg->pc->src_data = bitmap;
     auto data = static_cast<DataWrapper*>(jpeg->data);
     data->postRead();
-    jpeg->lgfx->pushImage( jpeg->x + rect->left
-                         , jpeg->y + rect->top
-                         , rect->right  - rect->left + 1
-                         , rect->bottom - rect->top + 1
+    std::int32_t x = rect->left;
+    std::int32_t y = rect->top;
+    std::int32_t w = rect->right  - rect->left + 1;
+    std::int32_t h = rect->bottom - rect->top + 1;
+    jpeg->lgfx->pushImage( jpeg->x + x
+                         , jpeg->y + y
+                         , w
+                         , h
                          , jpeg->pc
                          , false);
     return 1;
   }
 
-  bool LGFXBase::draw_jpg(DataWrapper* data, std::int32_t x, std::int32_t y, std::int32_t maxWidth, std::int32_t maxHeight, std::int32_t offX, std::int32_t offY, jpeg_div::jpeg_div_t scale)
+  static std::uint32_t jpg_push_image_affine(lgfxJdec *decoder, void *bitmap, JRECT *rect)
+  {
+    draw_jpg_info_t *jpeg = static_cast<draw_jpg_info_t*>(decoder->device);
+    jpeg->pc->src_data = bitmap;
+    auto data = static_cast<DataWrapper*>(jpeg->data);
+    data->postRead();
+
+    std::int32_t x = rect->left;
+    std::int32_t y = rect->top;
+    std::int32_t w = rect->right  - rect->left + 1;
+    std::int32_t h = rect->bottom - rect->top + 1;
+    float affine[6] =
+    { jpeg->zoom_x, 0.0f , x * jpeg->zoom_x + jpeg->x
+    , 0.0f , jpeg->zoom_y, y * jpeg->zoom_y + jpeg->y
+    };
+    jpeg->lgfx->pushImageAffine( affine, w, h, (bgr888_t*)jpeg->pc->src_data );
+    return 1;
+  }
+
+  bool LGFXBase::draw_jpg(DataWrapper* data, std::int32_t x, std::int32_t y, std::int32_t maxWidth, std::int32_t maxHeight, std::int32_t offX, std::int32_t offY, float scale_x, float scale_y, datum_t datum)
   {
     draw_jpg_info_t jpeg;
     pixelcopy_t pc(nullptr, this->getColorDepth(), bgr888_t::depth, this->hasPalette());
@@ -2183,25 +2273,76 @@ namespace lgfx
       return false;
     }
 
-    if (!maxWidth) maxWidth = INT32_MAX;
-    auto cl = this->_clip_l;
+    const auto cl = this->_clip_l;
+    const auto cr = this->_clip_r + 1;
+    if (!maxWidth) maxWidth = cr - cl;
+
+    const auto ct = this->_clip_t;
+    const auto cb = this->_clip_b + 1;
+    if (!maxHeight) maxHeight = cb - ct;
+
+    if (scale_x <= -1.0f) { scale_x = (float)maxWidth  / jpegdec.width;  }
+    if (scale_y <= -1.0f) { scale_y = (float)maxHeight / jpegdec.height; }
+
+    if (scale_x <= 0.0f)
+    {
+      if (scale_y <= 0.0f)
+      {
+        scale_y = std::min<float>((float)maxWidth / jpegdec.width, (float)maxHeight / jpegdec.height);
+      }
+      scale_x = scale_y;
+    }
+    if (scale_y <= 0.0f)
+    {
+      scale_y = scale_x;
+    }
+
+    if (datum)
+    {
+      if (datum & (datum_t::top_center | datum_t::top_right))
+      {
+        float w = maxWidth - (jpegdec.width * scale_x);
+        if (datum & datum_t::top_center) { w /= 2; }
+        jpeg.x += w;
+      }
+      if (datum & (datum_t::middle_left | datum_t::bottom_left | datum_t::baseline_left))
+      {
+        float h = maxHeight - (jpegdec.height * scale_y);
+        if (datum & datum_t::middle_left) { h /= 2; }
+        jpeg.y += h;
+      }
+    }
+
+    jpeg_div::jpeg_div_t div = jpeg_div::jpeg_div_t::JPEG_DIV_NONE;
+    float scale_max = std::max(scale_x, scale_y);
+    if (scale_max <= 0.5f)
+    {
+      if (     scale_max <= 0.125f) { div = jpeg_div::jpeg_div_t::JPEG_DIV_8; }
+      else if (scale_max <= 0.25f)  { div = jpeg_div::jpeg_div_t::JPEG_DIV_4; }
+      else                          { div = jpeg_div::jpeg_div_t::JPEG_DIV_2; }
+
+      scale_x *= 1 << div;
+      scale_y *= 1 << div;
+    }
+
+    jpeg.zoom_x = scale_x;
+    jpeg.zoom_y = scale_y;
+
     if (0 > x - cl) { maxWidth += x - cl; x = cl; }
-    auto cr = this->_clip_r + 1;
     if (maxWidth > (cr - x)) maxWidth = (cr - x);
 
-    if (!maxHeight) maxHeight = INT32_MAX;
-    auto ct = this->_clip_t;
     if (0 > y - ct) { maxHeight += y - ct; y = ct; }
-    auto cb = this->_clip_b + 1;
     if (maxHeight > (cb - y)) maxHeight = (cb - y);
 
-    if (maxWidth > 0 && maxHeight > 0) {
+    if (maxWidth > 0 && maxHeight > 0)
+    {
       bool autodisplay = this->_auto_display;
       this->_auto_display = false;
 
       this->setClipRect(x, y, maxWidth, maxHeight);
       this->startWrite(!data->hasParent());
-      jres = lgfx_jd_decomp(&jpegdec, jpg_push_image, scale);
+
+      jres = lgfx_jd_decomp(&jpegdec, jpeg.zoom_x == 1.0f && jpeg.zoom_y == 1.0f ? jpg_push_image : jpg_push_image_affine, div);
 
       this->_clip_l = cl;
       this->_clip_t = ct;
@@ -2220,15 +2361,17 @@ namespace lgfx
   }
 
 
-
-  struct png_file_decoder_t {
+  struct png_file_decoder_t
+  {
     std::int32_t x;
     std::int32_t y;
     std::int32_t offX;
     std::int32_t offY;
     std::int32_t maxWidth;
     std::int32_t maxHeight;
-    float scale;
+    float zoom_x;
+    float zoom_y;
+    datum_t datum;
     bgr888_t* lineBuffer;
     pixelcopy_t *pc;
     LGFXBase *gfx;
@@ -2241,9 +2384,9 @@ namespace lgfx
   static bool png_ypos_update(png_file_decoder_t *p, std::uint32_t y)
   {
     p->last_pos = y;
-    p->scale_y0 = ceilf( y      * p->scale) - p->offY;
+    p->scale_y0 = ceilf( y      * p->zoom_y) - p->offY;
     if (p->scale_y0 < 0) p->scale_y0 = 0;
-    p->scale_y1 = ceilf((y + 1) * p->scale) - p->offY;
+    p->scale_y1 = ceilf((y + 1) * p->zoom_y) - p->offY;
     if (p->scale_y1 > p->maxHeight) p->scale_y1 = p->maxHeight;
     return (p->scale_y0 < p->scale_y1);
   }
@@ -2296,9 +2439,9 @@ namespace lgfx
     std::int32_t h = p->scale_y1 - t;
     if (h <= 0) return;
 
-    std::int32_t l = ceilf( x      * p->scale) - p->offX;
+    std::int32_t l = ceilf( x      * p->zoom_x) - p->offX;
     if (l < 0) l = 0;
-    std::int32_t r = ceilf((x + 1) * p->scale) - p->offX;
+    std::int32_t r = ceilf((x + 1) * p->zoom_x) - p->offX;
     if (r > p->maxWidth) r = p->maxWidth;
     if (l >= r) return;
 
@@ -2343,9 +2486,9 @@ namespace lgfx
     std::int32_t b = p->scale_y1 - p->scale_y0;
     if (b <= 0) return;
 
-    std::int32_t l = ceilf( x      * p->scale) - p->offX;
+    std::int32_t l = ceilf( x      * p->zoom_x) - p->offX;
     if (l < 0) l = 0;
-    std::int32_t r = ceilf((x + 1) * p->scale) - p->offX;
+    std::int32_t r = ceilf((x + 1) * p->zoom_x) - p->offX;
     if (r > p->maxWidth) r = p->maxWidth;
     if (l >= r) return;
 
@@ -2374,41 +2517,87 @@ namespace lgfx
 
   static void png_init_callback(pngle_t *pngle, std::uint32_t w, std::uint32_t h, uint_fast8_t hasTransparent)
   {
-//    auto ihdr = lgfx_pngle_get_ihdr(pngle);
-
     auto p = (png_file_decoder_t*)lgfx_pngle_get_user_data(pngle);
+    auto me = p->gfx;
 
-    if (p->scale != 1.0f) {
-      w = ceilf(w * p->scale);
-      h = ceilf(h * p->scale);
+    if (p->zoom_x <= -1.0f) { p->zoom_x = (float)p->maxWidth  / w; }
+    if (p->zoom_y <= -1.0f) { p->zoom_y = (float)p->maxHeight / h; }
+
+    if (p->zoom_x <= 0.0f)
+    {
+      if (p->zoom_y <= 0.0f)
+      {
+        p->zoom_y = std::min<float>((float)p->maxWidth / w, (float)p->maxHeight / h);
+      }
+      p->zoom_x = p->zoom_y;
     }
+    if (p->zoom_y <= 0.0f)
+    {
+      p->zoom_y = p->zoom_x;
+    }
+
+    w = ceilf(w * p->zoom_x);
+    h = ceilf(h * p->zoom_y);
+
+    if (p->datum)
+    {
+      if (p->datum & (datum_t::top_center | datum_t::top_right))
+      {
+        float fw = p->maxWidth - (std::int32_t)w;
+        if (p->datum & datum_t::top_center) { fw /= 2; }
+        p->offX -= fw;
+      }
+      if (p->datum & (datum_t::middle_left | datum_t::bottom_left | datum_t::baseline_left))
+      {
+        float fh = p->maxHeight - (std::int32_t)h;
+        if (p->datum & datum_t::middle_left) { fh /= 2; }
+        p->offY -= fh;
+      }
+    }
+    std::int32_t cl, ct, cr, cb;
+    me->getClipRect(&cl, &ct, &cr, &cb);
+    cr += cl;
+    cb += ct;
+
+    if (0 > p->x - cl) { p->maxWidth += p->x - cl; p->offX -= p->x - cl; p->x = cl; }
+    if (0 > p->offX) { p->x -= p->offX; p->maxWidth  += p->offX; p->offX = 0; }
+    if (p->maxWidth > (cr - p->x)) p->maxWidth = (cr - p->x);
 
     std::int32_t ww = w - abs(p->offX);
     if (p->maxWidth > ww) p->maxWidth = ww;
     if (p->maxWidth < 0) return;
-    if (p->offX < 0) { p->offX = 0; }
+
+    if (0 > p->y - ct) { p->maxHeight += p->y - ct; p->offY -= p->y - ct; p->y = ct; }
+    if (0 > p->offY) { p->y -= p->offY; p->maxHeight += p->offY; p->offY = 0; }
+    if (p->maxHeight > (cb - p->y)) p->maxHeight = (cb - p->y);
 
     std::int32_t hh = h - abs(p->offY);
     if (p->maxHeight > hh) p->maxHeight = hh;
     if (p->maxHeight < 0) return;
-    if (p->offY < 0) { p->offY = 0; }
 
-    if (hasTransparent) { // need pixel read ?
-      p->lineBuffer = (bgr888_t*)heap_alloc_dma(sizeof(bgr888_t) * p->maxWidth * ceilf(p->scale));
+    if (hasTransparent)
+    { // need pixel read ?
+      p->lineBuffer = (bgr888_t*)heap_alloc_dma(sizeof(bgr888_t) * p->maxWidth * ceilf(p->zoom_x));
       p->pc->src_data = p->lineBuffer;
       png_prepare_line(p, 0);
       lgfx_pngle_set_done_callback(pngle, png_done_callback);
 
-      if (p->scale == 1.0f) {
+      if (p->zoom_x == 1.0f && p->zoom_y == 1.0f)
+      {
         lgfx_pngle_set_draw_callback(pngle, png_draw_alpha_callback);
-      } else {
+      }
+      else
+      {
         lgfx_pngle_set_draw_callback(pngle, png_draw_alpha_scale_callback);
       }
     } else {
-      if (p->scale == 1.0f) {
+      if (p->zoom_x == 1.0f && p->zoom_y == 1.0f)
+      {
         p->last_pos = ~0;
         lgfx_pngle_set_draw_callback(pngle, png_draw_normal_callback);
-      } else {
+      }
+      else
+      {
         png_ypos_update(p, 0);
         lgfx_pngle_set_draw_callback(pngle, png_draw_normal_scale_callback);
       }
@@ -2416,32 +2605,18 @@ namespace lgfx
     }
   }
 
-  bool LGFXBase::draw_png(DataWrapper* data, std::int32_t x, std::int32_t y, std::int32_t maxWidth, std::int32_t maxHeight, std::int32_t offX, std::int32_t offY, float scale)
+  bool LGFXBase::draw_png(DataWrapper* data, std::int32_t x, std::int32_t y, std::int32_t maxWidth, std::int32_t maxHeight, std::int32_t offX, std::int32_t offY, float scale_x, float scale_y, datum_t datum)
   {
-    if (!maxHeight) maxHeight = INT32_MAX;
-    auto ct = this->_clip_t;
-    if (0 > y - ct) { maxHeight += y - ct; offY -= y - ct; y = ct; }
-    if (0 > offY) { y -= offY; maxHeight += offY; offY = 0; }
-    auto cb = this->_clip_b + 1;
-    if (maxHeight > (cb - y)) maxHeight = (cb - y);
-    if (maxHeight < 0) return true;
-
-    if (!maxWidth) maxWidth = INT32_MAX;
-    auto cl = this->_clip_l;
-    if (0 > x - cl) { maxWidth += x - cl; offX -= x - cl; x = cl; }
-    if (0 > offX) { x -= offX; maxWidth  += offX; offX = 0; }
-    auto cr = this->_clip_r + 1;
-    if (maxWidth > (cr - x)) maxWidth = (cr - x);
-    if (maxWidth < 0) return true;
-
     png_file_decoder_t png;
     png.x = x;
     png.y = y;
     png.offX = offX;
     png.offY = offY;
-    png.maxWidth = maxWidth;
-    png.maxHeight = maxHeight;
-    png.scale = scale;
+    png.maxWidth  = maxWidth > 0 ? maxWidth : (_clip_r - _clip_l + 1);
+    png.maxHeight = maxHeight> 0 ? maxHeight: (_clip_b - _clip_t + 1);
+    png.zoom_x = scale_x;
+    png.zoom_y = scale_y;
+    png.datum = datum;
     png.gfx = this;
     png.lineBuffer = nullptr;
 

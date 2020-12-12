@@ -89,14 +89,14 @@ namespace lgfx
     {
       std::uint8_t buf[32];
       if (auto b = _panel->getSleepInCommands(buf)) commandList(b);
-      _panel->sleep();
+      _panel->sleep(this);
     }
 
     void wakeup(void)
     {
       std::uint8_t buf[32];
       if (auto b = _panel->getSleepOutCommands(buf)) commandList(b);
-      _panel->wakeup();
+      _panel->wakeup(this);
     }
 
     void partialOn(void)
@@ -175,6 +175,8 @@ namespace lgfx
       _sx = _sy = 0;
       _sw = _width;
       _sh = _height;
+
+      invertDisplay(getInvert());
 
       const std::uint8_t *cmds;
       for (std::uint8_t i = 0; (cmds = _panel->getInitCommands(i)); i++) {
@@ -431,9 +433,11 @@ namespace lgfx
       return;
 //*/
       pixelcopy_t pc_read(nullptr, static_cast<color_depth_t>(_write_conv.depth), _read_conv.depth);
+      pixelcopy_t pc_write(nullptr, static_cast<color_depth_t>(_write_conv.depth), _write_conv.depth);
       for (;;)
       {
         std::uint8_t* dmabuf = get_dmabuffer((w+1) * bytes);
+        pc_write.src_data = dmabuf;
         std::int32_t xstart = 0, drawed_x = 0;
         do
         {
@@ -444,8 +448,9 @@ namespace lgfx
             {
               param->src_x = drawed_x;
               param->fp_copy(dmabuf, drawed_x, xstart, param);
-              this->setWindow(x + drawed_x, y, x + xstart, y);
-              this->writePixelsDMA_impl(dmabuf + drawed_x * bytes, (xstart - drawed_x));
+
+              pc_write.src_x = drawed_x;
+              pushImage_impl(x + drawed_x, y, xstart - drawed_x, 1, &pc_write, true);
             }
             drawed_x = xstart + 1;
           }
@@ -463,8 +468,9 @@ namespace lgfx
         {
           param->src_x = drawed_x;
           param->fp_copy(dmabuf, drawed_x, xstart, param);
-          this->setWindow(x + drawed_x, y, x + xstart, y);
-          this->writePixelsDMA_impl(dmabuf + drawed_x * bytes, (xstart - drawed_x));
+
+          pc_write.src_x = drawed_x;
+          pushImage_impl(x + drawed_x, y, xstart - drawed_x, 1, &pc_write, true);
         }
         if (!--h) return;
         param->src_x = src_x;

@@ -61,7 +61,7 @@ namespace lgfx
 // However, startWrite and endWrite have an internal counter and are executed when the counter is 0.
 // If you do not want to the counter, call the transaction function directly.
     __attribute__ ((always_inline)) inline void startWrite(void) {                           if (1 == ++_transaction_count) beginTransaction(); }
-    __attribute__ ((always_inline)) inline void endWrite(void)   { if (_transaction_count) { if (1 == _transaction_count) endTransaction(); --_transaction_count; } }
+    __attribute__ ((always_inline)) inline void endWrite(void)   { if (_transaction_count) { if (1 == _transaction_count) { endTransaction(); } --_transaction_count; } }
     __attribute__ ((always_inline)) inline void writePixel(std::int32_t x, std::int32_t y)  { if (x >= _clip_l && x <= _clip_r && y >= _clip_t && y <= _clip_b) writeFillRect_impl(x, y, 1, 1); }
     template<typename T> inline void writePixel    ( std::int32_t x, std::int32_t y                                , const T& color) { setColor(color); writePixel    (x, y      ); }
     template<typename T> inline void writeFastVLine( std::int32_t x, std::int32_t y                , std::int32_t h, const T& color) { setColor(color); writeFastVLine(x, y   , h); }
@@ -628,31 +628,44 @@ namespace lgfx
     void qrcode(const char *string, std::int32_t x = -1, std::int32_t y = -1, std::int32_t width = -1, std::uint8_t version = 1);
 
 
-    bool drawBmp(const std::uint8_t *bmp_data, std::uint32_t bmp_len, std::int32_t x=0, std::int32_t y=0) {
+    bool drawBmp(const std::uint8_t *bmp_data, std::uint32_t bmp_len, std::int32_t x=0, std::int32_t y=0, std::int32_t maxWidth=0, std::int32_t maxHeight=0, std::int32_t offX=0, std::int32_t offY=0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
+    {
       PointerWrapper data;
       data.set(bmp_data, bmp_len);
-      return this->draw_bmp(&data, x, y);
+      return this->draw_bmp(&data, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
     }
-    bool drawJpg(const std::uint8_t *jpg_data, std::uint32_t jpg_len, std::int32_t x=0, std::int32_t y=0, std::int32_t maxWidth=0, std::int32_t maxHeight=0, std::int32_t offX=0, std::int32_t offY=0, jpeg_div::jpeg_div_t scale=jpeg_div::jpeg_div_t::JPEG_DIV_NONE) {
+    bool drawJpg(const std::uint8_t *jpg_data, std::uint32_t jpg_len, std::int32_t x=0, std::int32_t y=0, std::int32_t maxWidth=0, std::int32_t maxHeight=0, std::int32_t offX=0, std::int32_t offY=0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
+    {
       PointerWrapper data;
       data.set(jpg_data, jpg_len);
-      return this->draw_jpg(&data, x, y, maxWidth, maxHeight, offX, offY, scale);
+      return this->draw_jpg(&data, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
     }
-    bool drawPng(const std::uint8_t *png_data, std::uint32_t png_len, std::int32_t x = 0, std::int32_t y = 0, std::int32_t maxWidth = 0, std::int32_t maxHeight = 0, std::int32_t offX = 0, std::int32_t offY = 0, float scale = 1.0f)
+    [[deprecated("use float scale")]] bool drawJpg(const std::uint8_t *jpg_data, std::uint32_t jpg_len, std::int32_t x, std::int32_t y, std::int32_t maxWidth, std::int32_t maxHeight, std::int32_t offX, std::int32_t offY, jpeg_div::jpeg_div_t scale)
+    {
+      return drawJpg(jpg_data, jpg_len, x, y, maxWidth, maxHeight, offX, offY, 1.0f / (1 << scale));
+    }
+    bool drawPng(const std::uint8_t *png_data, std::uint32_t png_len, std::int32_t x = 0, std::int32_t y = 0, std::int32_t maxWidth = 0, std::int32_t maxHeight = 0, std::int32_t offX = 0, std::int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
     {
       PointerWrapper data;
       data.set(png_data, png_len);
-      return this->draw_png(&data, x, y, maxWidth, maxHeight, offX, offY, scale);
+      return this->draw_png(&data, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
     }
 
-    inline bool drawBmp(DataWrapper *data, std::int32_t x=0, std::int32_t y=0) {
-      return this->draw_bmp(data, x, y);
+    inline bool drawBmp(DataWrapper *data, std::int32_t x=0, std::int32_t y=0, std::int32_t maxWidth=0, std::int32_t maxHeight=0, std::int32_t offX=0, std::int32_t offY=0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
+    {
+      return this->draw_bmp(data, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
     }
-    inline bool drawJpg(DataWrapper *data, std::int32_t x=0, std::int32_t y=0, std::int32_t maxWidth=0, std::int32_t maxHeight=0, std::int32_t offX=0, std::int32_t offY=0, jpeg_div::jpeg_div_t scale=jpeg_div::jpeg_div_t::JPEG_DIV_NONE) {
-      return this->draw_jpg(data, x, y, maxWidth, maxHeight, offX, offY, scale);
+    inline bool drawJpg(DataWrapper *data, std::int32_t x=0, std::int32_t y=0, std::int32_t maxWidth=0, std::int32_t maxHeight=0, std::int32_t offX=0, std::int32_t offY=0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
+    {
+      return this->draw_jpg(data, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
     }
-    inline bool drawPng(DataWrapper *data, std::int32_t x = 0, std::int32_t y = 0, std::int32_t maxWidth = 0, std::int32_t maxHeight = 0, std::int32_t offX = 0, std::int32_t offY = 0, float scale = 1.0f) {
-      return this->draw_png(data, x, y, maxWidth, maxHeight, offX, offY, scale);
+    [[deprecated("use float scale")]] inline bool drawJpg(DataWrapper *data, std::int32_t x, std::int32_t y, std::int32_t maxWidth, std::int32_t maxHeight, std::int32_t offX, std::int32_t offY, jpeg_div::jpeg_div_t scale)
+    {
+      return drawJpg(data, x, y, maxWidth, maxHeight, offX, offY, 1.0f / (1 << scale));
+    }
+    inline bool drawPng(DataWrapper *data, std::int32_t x = 0, std::int32_t y = 0, std::int32_t maxWidth = 0, std::int32_t maxHeight = 0, std::int32_t offX = 0, std::int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
+    {
+      return this->draw_png(data, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
     }
 
     void* createPng( std::size_t* datalen, std::int32_t x = 0, std::int32_t y = 0, std::int32_t width = 0, std::int32_t height = 0);
@@ -990,9 +1003,9 @@ namespace lgfx
     std::size_t printFloat(double number, std::uint8_t digits);
     std::size_t draw_string(const char *string, std::int32_t x, std::int32_t y, textdatum_t datum);
 
-    bool draw_bmp(DataWrapper* data, std::int32_t x, std::int32_t y);
-    bool draw_jpg(DataWrapper* data, std::int32_t x, std::int32_t y, std::int32_t maxWidth, std::int32_t maxHeight, std::int32_t offX, std::int32_t offY, jpeg_div::jpeg_div_t scale);
-    bool draw_png(DataWrapper* data, std::int32_t x, std::int32_t y, std::int32_t maxWidth, std::int32_t maxHeight, std::int32_t offX, std::int32_t offY, float scale);
+    bool draw_bmp(DataWrapper* data, std::int32_t x, std::int32_t y, std::int32_t maxWidth, std::int32_t maxHeight, std::int32_t offX, std::int32_t offY, float scale_x, float scale_y, datum_t datum);
+    bool draw_jpg(DataWrapper* data, std::int32_t x, std::int32_t y, std::int32_t maxWidth, std::int32_t maxHeight, std::int32_t offX, std::int32_t offY, float scale_x, float scale_y, datum_t datum);
+    bool draw_png(DataWrapper* data, std::int32_t x, std::int32_t y, std::int32_t maxWidth, std::int32_t maxHeight, std::int32_t offX, std::int32_t offY, float scale_x, float scale_y, datum_t datum);
 
 
     virtual void setWindow_impl(std::int32_t xs, std::int32_t ys, std::int32_t xe, std::int32_t ye) = 0;
@@ -1024,7 +1037,13 @@ namespace lgfx
     static void tmpEndTransaction(void* lgfx)
     {
       auto me = (LGFXBase*)lgfx;
-      if (me->_transaction_count) { me->endTransaction(); }
+      if (me->_transaction_count)
+      {
+        auto ad = me->_auto_display;
+        me->_auto_display = false;
+        me->endTransaction();
+        me->_auto_display = ad;
+      }
     }
 
     void prepareTmpTransaction(DataWrapper* data)

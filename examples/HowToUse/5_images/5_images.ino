@@ -107,7 +107,7 @@ setAddrWindow は描画範囲外が指定された場合は範囲内に調整さ
   lcd.setAddrWindow(40, 160, image_width, image_height);
   lcd.writePixels((void*)bgr888, len, true);  // 設定を誤ると、色が化ける。（赤と青が入れ替わる）
 
-
+  lcd.display();
   delay(4000);
   lcd.clear(TFT_DARKGREY);
 
@@ -170,6 +170,7 @@ setAddrWindow は描画範囲外が指定された場合は範囲内に調整さ
   lcd.pushImage(160, 120, image_width, image_height, (lgfx::swap565_t*)swap565, (uint32_t)0x0000FFU); // 青を透過指定
   lcd.pushImage(160, 160, image_width, image_height, (lgfx:: bgr888_t*) bgr888, TFT_WHITE);           // 白を透過指定
 
+  lcd.display();
   delay(4000);
   lcd.clear(TFT_DARKGREY);
 
@@ -201,6 +202,8 @@ setAddrWindow は描画範囲外が指定された場合は範囲内に調整さ
       , image_height
       , rgb332
       );
+
+    if ((angle % 36) == 0) { lcd.display(); }
   }
 
   lcd.clear(TFT_DARKGREY);
@@ -214,6 +217,7 @@ setAddrWindow は描画範囲外が指定された場合は範囲内に調整さ
     lcd.pushImageAffine(matrix, image_width, image_height, rgb332);
   }
 
+  lcd.display();
   delay(1000);
   lcd.clear(TFT_DARKGREY);
 
@@ -224,6 +228,7 @@ setAddrWindow は描画範囲外が指定された場合は範囲内に調整さ
     lcd.pushImageAffine(matrix, image_width, image_height, rgb332);
   }
 
+  lcd.display();
   delay(1000);
   lcd.clear(TFT_DARKGREY);
 
@@ -234,6 +239,7 @@ setAddrWindow は描画範囲外が指定された場合は範囲内に調整さ
     lcd.pushImageAffine(matrix, image_width, image_height, rgb332);
   }
 
+  lcd.display();
   delay(1000);
   lcd.clear(TFT_DARKGREY);
 
@@ -244,6 +250,7 @@ setAddrWindow は描画範囲外が指定された場合は範囲内に調整さ
     lcd.pushImageAffine(matrix, image_width, image_height, rgb332);
   }
 
+  lcd.display();
   delay(1000);
   lcd.clear(TFT_DARKGREY);
 
@@ -252,10 +259,13 @@ setAddrWindow は描画範囲外が指定された場合は範囲内に調整さ
     float matrix[6] =
       { 1.0,  0.0,  (float)lcd.width()  / 2
       , 0.0,  1.0,  (float)lcd.height() / 2 };
-    for (float f = -3; f < 3; f += 0.01) {
+    for (int i = -300; i < 300; i++) {
+      float f = (float)i / 100;
       matrix[1] = f;
       matrix[3] = f;
       lcd.pushImageAffineWithAA(matrix, image_width, image_height, rgb332);
+
+      if ((i % 30) == 0) { lcd.display(); }
     }
   }
 }

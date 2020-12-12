@@ -78,25 +78,29 @@ namespace lgfx
       return nullptr;
     }
 
+    void sleep(LGFX_Device* gfx) override;
+    void wakeup(LGFX_Device* gfx) override;
+
     const std::uint8_t* getSleepInCommands(std::uint8_t* buf) override
     {
       buf[0] = 0x50; buf[1] = 1; buf[2] = 0xF7;
       buf[3] = 0x02; buf[4] = 0;
       buf[5] = buf[6] = 0xFF;
+      _wait_busy();
       return buf;
     }
 
     const std::uint8_t* getSleepOutCommands(std::uint8_t* buf) override
     {
-      buf[0] = 0x50; buf[1] = 1; buf[2] = 0xD7;
-      buf[3] = 0x04; buf[4] = 0;
-      buf[5] = buf[6] = 0xFF;
-      return buf;
+      (void)buf;
+      return nullptr;
     }
 
     const std::uint8_t* getPartialOnCommands(std::uint8_t* buf) override
     {
-      buf[0] = 0x50; buf[1] = 1; buf[2] = 0xF7;
+      buf[0] = 0x50;
+      buf[1] = 1;
+      buf[2] = (invert ^ reverse_invert) ? 0xE7 : 0xF7; // without OLD data
       buf[3] = 0x02; buf[4] = 0;
       buf[5] = buf[6] = 0xFF;
       return buf;
@@ -104,7 +108,9 @@ namespace lgfx
 
     const std::uint8_t* getPartialOffCommands(std::uint8_t* buf) override
     {
-      buf[0] = 0x50; buf[1] = 1; buf[2] = 0xD7;
+      buf[0] = 0x50;
+      buf[1] = 1;
+      buf[2] = (invert ^ reverse_invert) ? 0xC7 : 0xD7; // with NEW/OLD data
       buf[3] = 0x04; buf[4] = 0;
       buf[5] = buf[6] = 0xFF;
       return buf;
@@ -112,8 +118,14 @@ namespace lgfx
 
     const std::uint8_t* getInvertDisplayCommands(std::uint8_t* buf, bool invert) override
     {
-      (void)invert;
-      reinterpret_cast<std::uint16_t*>(buf)[0] = 0xFFFF;
+      this->invert = invert;
+      buf[0] = 0x50;
+      buf[1] = 1;
+      buf[2] = (invert ^ reverse_invert) ? 0xC7 : 0xD7; // with NEW/OLD data
+//    buf[2] = (invert ^ reverse_invert) ? 0xE7 : 0xF7; // without OLD data
+      buf[3] = buf[4] = 0xFF;
+
+      _wait_busy();
       return buf;
     }
 
@@ -142,7 +154,6 @@ namespace lgfx
           0xf3,1,0x0a,
           0x61,3,0xc8,0x00,0xc8,  //resolution setting
           0x60,1,0x00,            //Tcon setting
-          0x50,1,0xd7,
           0xe3,1,0x00,
           0x04,0,                 //Power on
           0x00,2,0xff,0x0e,       //panel setting
@@ -203,10 +214,6 @@ namespace lgfx
     range_rect_t _range_new;
     range_rect_t _range_old;
 
-    //std::int32_t _tr_top = INT32_MAX;
-    //std::int32_t _tr_left = INT32_MAX;
-    //std::int32_t _tr_right = 0;
-    //std::int32_t _tr_bottom = 0;
     std::int32_t _xpos = 0;
     std::int32_t _ypos = 0;
 
@@ -247,6 +254,7 @@ namespace lgfx
     void _update_transferred_rect(LGFX_Device* gfx, std::int32_t &xs, std::int32_t &ys, std::int32_t &xe, std::int32_t &ye);
     void _exec_transfer(std::uint32_t cmd, LGFX_Device* gfx, range_rect_t* range, bool invert = false);
     void _close_transfer(LGFX_Device* gfx);
+    bool _wait_busy(std::uint32_t timeout = 1000);
 
     //static void beginTransaction(PanelCommon* panel, LGFX_Device* gfx);
     //static void endTransaction(PanelCommon* panel, LGFX_Device* gfx);

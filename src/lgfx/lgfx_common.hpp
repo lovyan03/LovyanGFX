@@ -161,6 +161,12 @@ namespace lgfx
   };
   using namespace textdatum;
 
+  namespace datum
+  {
+    typedef textdatum::textdatum_t datum_t;
+  }
+  using namespace datum;
+
   namespace attribute
   {
     enum attribute_t
@@ -1031,7 +1037,7 @@ namespace lgfx
 
         std::int32_t x = param->src_x;
         std::int32_t y = param->src_y;
-        if (param->src_x == param->src_xe && param->src_y == param->src_ye)
+        if (param->src_x == param->src_xe && param->src_y == param->src_ye && static_cast<std::uint32_t>(param->src_x) < src_width && static_cast<std::uint32_t>(param->src_y) < src_height)
         {
           std::uint32_t i = (x + y * src_bitwidth) * src_bits;
           std::uint32_t raw = (s[i >> 3] >> (-(i + src_bits) & 7)) & src_mask;
@@ -1123,7 +1129,7 @@ namespace lgfx
         std::int32_t x = param->src_x;
         std::int32_t y = param->src_y;
         auto color = &s[x + y * src_width];
-        if (param->src_x == param->src_xe && param->src_y == param->src_ye)
+        if (param->src_x == param->src_xe && param->src_y == param->src_ye && static_cast<std::uint32_t>(param->src_x) < src_width && static_cast<std::uint32_t>(param->src_y) < src_height)
         {
           if (!(*color == param->transp))
           {
@@ -1592,6 +1598,7 @@ namespace lgfx
 using namespace lgfx::jpeg_div;
 using namespace lgfx::colors;
 using namespace lgfx::textdatum;
+using namespace lgfx::datum;
 using namespace lgfx::attribute;
 using namespace lgfx::epd_mode;
 
