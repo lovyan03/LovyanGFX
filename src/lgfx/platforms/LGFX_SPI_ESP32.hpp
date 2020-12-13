@@ -183,7 +183,7 @@ namespace lgfx
       *_gpio_reg_dc_h = _mask_reg_dc;
       lgfxPinMode(spi_dc, pin_mode_t::output);
 
-      cs_h();
+      gpio_hi(_panel->spi_cs);
       lgfxPinMode(_panel->spi_cs, pin_mode_t::output);
 
       postSetRotation();
