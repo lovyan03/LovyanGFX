@@ -49,7 +49,15 @@ namespace lgfx
     void setBrightness(std::uint8_t brightness) override
     {
       this->brightness = brightness;
-      brightness = (((brightness >> 1) + 8) / 13) + 5;
+      if (brightness)
+      {
+        brightness = (((brightness >> 1) + 8) / 13) + 5;
+        wakeup(nullptr);
+      }
+      else
+      {
+        sleep(nullptr);
+      }
       lgfx::i2c::writeRegister8(axp_i2c_port, axp_i2c_addr, 0x28, brightness << 4, 0x0F);
     }
 
@@ -110,7 +118,15 @@ namespace lgfx
     void setBrightness(std::uint8_t brightness) override
     {
       this->brightness = brightness;
-      brightness = (((brightness >> 1) + 8) / 13) + 5;
+      if (brightness)
+      {
+        brightness = (((brightness >> 1) + 8) / 13) + 5;
+        wakeup(nullptr);
+      }
+      else
+      {
+        sleep(nullptr);
+      }
       lgfx::i2c::writeRegister8(axp_i2c_port, axp_i2c_addr, 0x28, brightness << 4, 0x0F);
     }
 
@@ -204,7 +220,15 @@ namespace lgfx
     void setBrightness(std::uint8_t brightness) override
     {
       this->brightness = brightness;
-      brightness = (brightness >> 3) + 72;
+      if (brightness)
+      {
+        brightness = (brightness >> 3) + 72;
+        wakeup(nullptr);
+      }
+      else
+      {
+        sleep(nullptr);
+      }
       // AXP192 reg 0x27 = DC3
       lgfx::i2c::writeRegister8(axp_i2c_port, axp_i2c_addr, 0x27, brightness, 0x80);
     }
