@@ -254,6 +254,7 @@ namespace fonts {
   extern const lgfx::RLEfont  Font6;
   extern const lgfx::RLEfont  Font7;
   extern const lgfx::RLEfont  Font8;
+  extern const lgfx::GLCDfont Font8x8C64;
 
   extern const lgfx::GFXfont TomThumb                 ;
   extern const lgfx::GFXfont FreeMono9pt7b            ;
