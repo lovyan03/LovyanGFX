@@ -19,6 +19,13 @@
 
 namespace lgfx
 {
+  struct glcd_fontinfo_t
+  {
+    std::uint8_t start;
+    std::uint8_t end;
+    std::uint8_t datawidth;
+  };
+
   std::size_t IFont::drawCharDummy(LGFXBase* gfx, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const TextStyle* style) const
   {
     w *= style->size_x;
@@ -52,18 +59,22 @@ namespace lgfx
   }
 
   bool GLCDfont::updateFontMetric(FontMetrics*, std::uint16_t uniCode) const {
-    return uniCode < 256;
+    auto info = reinterpret_cast<const glcd_fontinfo_t*>(widthtbl);
+    return info->start <= uniCode && uniCode <= info->end;
   }
 
   std::size_t GLCDfont::drawChar(LGFXBase* gfx, std::int32_t x, std::int32_t y, std::uint16_t c, const TextStyle* style) const
   {
-    if (c > 255) return drawCharDummy(gfx, x, y, this->width, this->height, style);
+    auto info = reinterpret_cast<const glcd_fontinfo_t*>(widthtbl);
+    if (c < info->start || info->end < c) return drawCharDummy(gfx, x, y, this->width, this->height, style);
     if (!style->cp437 && (c >= 176)) c++; // Handle 'classic' charset behavior
+
+    c -= info->start;
 
     const std::int32_t fontWidth  = this->width;
     const std::int32_t fontHeight = this->height;
 
-    auto font_addr = this->chartbl + (c * 5);
+    auto font_addr = this->chartbl + (c * info->datawidth);
     std::uint32_t colortbl[2] = {gfx->getColorConverter()->convert(style->back_rgb888), gfx->getColorConverter()->convert(style->fore_rgb888)};
     bool fillbg = (style->back_rgb888 != style->fore_rgb888);
 
@@ -101,9 +112,9 @@ namespace lgfx
           } while (j < fontHeight);
           x0 = x1;
           x1 = (++i + 1) * sx;
-        } while (i < fontWidth - 1);
+        } while (i < info->datawidth);
 
-        if (fillbg) {
+        if (fillbg && info->datawidth < fontWidth) {
           gfx->setRawColor(colortbl[0]);
           gfx->writeFillRect(x + x0, y, x1 - x0, fontHeight * style->size_y); 
         }
@@ -1148,13 +1159,18 @@ namespace fonts {
   #include "Font64rle.h"
   #include "Font7srle.h"
   #include "Font72rle.h"
+  #include "Font8x8C64.h"
 
-  const GLCDfont Font0 = { (const uint8_t *)font, nullptr, 6, 8, 7};
+  static constexpr glcd_fontinfo_t font0_info     = { 0, 255, 5 };
+  static constexpr glcd_fontinfo_t font8x8c64_info= { 32, 143, 8 };
+
+  const GLCDfont Font0 = { (const uint8_t *)font      , (const uint8_t*)&font0_info, 6, 8, 7 };
   const BMPfont  Font2 = { (const uint8_t *)chrtbl_f16, widtbl_f16, 0, chr_hgt_f16, baseline_f16 };
   const RLEfont  Font4 = { (const uint8_t *)chrtbl_f32, widtbl_f32, 0, chr_hgt_f32, baseline_f32 };
   const RLEfont  Font6 = { (const uint8_t *)chrtbl_f64, widtbl_f64, 0, chr_hgt_f64, baseline_f64 };
   const RLEfont  Font7 = { (const uint8_t *)chrtbl_f7s, widtbl_f7s, 0, chr_hgt_f7s, baseline_f7s };
   const RLEfont  Font8 = { (const uint8_t *)chrtbl_f72, widtbl_f72, 0, chr_hgt_f72, baseline_f72 };
+  const GLCDfont Font8x8C64 = { (const uint8_t *)font8x8_c64, (const uint8_t*)&font8x8c64_info, 8, 8, 7 };
 
   const U8g2font lgfxJapanMincho_8   = { lgfx_font_japan_mincho_8    };
   const U8g2font lgfxJapanMincho_12  = { lgfx_font_japan_mincho_12   };
