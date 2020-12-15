@@ -58,18 +58,26 @@ namespace lgfx
 
   struct FileWrapper : public DataWrapper
   {
+private:
+#if defined (_SD_H_)
+    bool _check_need_transaction(void) const { return _fs == &SD; }
+#elif defined (_SPIFFS_H_)
+    bool _check_need_transaction(void) const { return _fs != &SPIFFS; }
+#else
+    bool _check_need_transaction(void) const { return false; }
+#endif
+
+public:
     FileWrapper() : DataWrapper()
     {    
 #if defined (_SD_H_)
       _fs = &SD;
-      need_transaction = true;
 #elif defined (_SPIFFS_H_)
-      _fs &SPIFFS;
-      need_transaction = false;
+      _fs = &SPIFFS;
 #else
       _fs = nullptr;
-      need_transaction = false;
 #endif
+      need_transaction = _check_need_transaction();
       _fp = nullptr;
     }
 
@@ -77,11 +85,10 @@ namespace lgfx
     fs::File *_fp;
     fs::File _file;
 
-    FileWrapper(fs::FS& fs) : DataWrapper(), _fs(&fs), _fp(nullptr) { need_transaction = (_fs != &SPIFFS); }
-    FileWrapper(fs::FS& fs, fs::File* fp) : DataWrapper(), _fs(&fs), _fp(fp) { need_transaction = (_fs != &SPIFFS); }
+    FileWrapper(fs::FS& fs, fs::File* fp = nullptr) : DataWrapper(), _fs(&fs), _fp(fp) { need_transaction = _check_need_transaction(); }
     void setFS(fs::FS& fs) {
       _fs = &fs;
-      need_transaction = (_fs != &SPIFFS);
+      need_transaction = _check_need_transaction();
     }
 
     bool open(fs::FS& fs, const char* path, const char* mode) {
