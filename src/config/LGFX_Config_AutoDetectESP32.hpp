@@ -555,7 +555,7 @@ public:
 #endif
 
 // M5StickC / CPlus 判定
-#if defined ( LGFX_AUTODETECT ) //|| defined ( LGFX_M5STICK_C ) || defined ( LGFX_M5STICKC )
+#if defined ( LGFX_AUTODETECT ) || defined ( LGFX_M5STICK_C ) || defined ( LGFX_M5STICKC )
     if (nvs_board == 0 || nvs_board == lgfx::board_t::board_M5StickC || nvs_board == lgfx::board_t::board_M5StickCPlus) {
       releaseBus();
       _spi_mosi = 15;
