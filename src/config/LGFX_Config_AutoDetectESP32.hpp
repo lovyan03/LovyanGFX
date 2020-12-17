@@ -249,14 +249,15 @@ public:
 
   void init_without_reset(void)
   {
-    autodetect(false);
+    int retry = 3;
+    while (!autodetect(false) && --retry);
     lgfx::LGFX_SPI<lgfx::LGFX_Config>::init_impl(false);
   }
 
-  void autodetect(bool use_reset = true)
+  bool autodetect(bool use_reset = true)
   {
     if (_spi_mosi != -1 && _spi_sclk != -1) {
-      return;
+      return true;
     }
     preInit();
 
@@ -1159,6 +1160,7 @@ init_clear:
         nvs_close(nvs_handle);
       }
     }
+    return (board != lgfx::board_t::board_unknown);
   }
 
 private:
@@ -1166,7 +1168,8 @@ private:
 
   void init_impl(bool use_reset) override
   {
-    autodetect(use_reset);
+    int retry = 3;
+    while (!autodetect(use_reset) && --retry);
     lgfx::LGFX_SPI<lgfx::LGFX_Config>::init_impl(use_reset);
   }
 
