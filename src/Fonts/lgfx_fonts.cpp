@@ -30,6 +30,7 @@ namespace lgfx
   {
     w *= style->size_x;
     h *= style->size_y;
+    gfx->startWrite();
     if (style->fore_rgb888 != style->back_rgb888)
     {
       gfx->fillRect(x, y, w, h, style->back_rgb888);
@@ -39,6 +40,7 @@ namespace lgfx
     {
       gfx->drawRect(x+1, y+1, w-2, h-2, style->fore_rgb888);
     }
+    gfx->endWrite();
     return w;
   }
 
