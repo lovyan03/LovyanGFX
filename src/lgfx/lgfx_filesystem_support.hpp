@@ -30,10 +30,15 @@ Contributors:
 
 namespace lgfx
 {
+  class FileWrapper;
   template <class Base>
   class LGFX_FILESYSTEM_Support : public Base
   {
-    FileWrapper _font_file;
+    void init_font_file(void)
+    {
+      if (this->_font_file == nullptr)
+      this->_font_file = new FileWrapper();
+    }
   public:
 
     using Base::drawBmp;
@@ -45,10 +50,12 @@ namespace lgfx
     {
       this->unloadFont();
 
-      this->prepareTmpTransaction(&this->_font_file);
-      this->_font_file.preRead();
+      init_font_file();
 
-      bool result = this->_font_file.open(path, "r");
+      this->prepareTmpTransaction(this->_font_file);
+      this->_font_file->preRead();
+
+      bool result = this->_font_file->open(path, "r");
       if (!result) {
         std::string filename = "/";
         if (path[0] == '/') filename = path;
@@ -57,12 +64,12 @@ namespace lgfx
         if (memcmp(&path[len - 4], ".vlw", 4)) {
           filename += ".vlw";
         }
-        result = this->_font_file.open(filename.c_str(), "r");
+        result = this->_font_file->open(filename.c_str(), "r");
       }
       auto font = new VLWfont();
       this->_runtime_font.reset(font);
       if (result) {
-        result = font->loadFont(&this->_font_file);
+        result = font->loadFont(this->_font_file);
       }
       if (result) {
         this->_font = font;
@@ -70,7 +77,7 @@ namespace lgfx
       } else {
         this->unloadFont();
       }
-      this->_font_file.postRead();
+      this->_font_file->postRead();
       return result;
     }
 
@@ -79,7 +86,8 @@ namespace lgfx
 
     void loadFont(const char *path, fs::FS &fs)
     {
-      this->_font_file.setFS(fs);
+      init_font_file();
+      this->_font_file->setFS(fs);
       loadFont(path);
     }
 
