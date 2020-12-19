@@ -1331,6 +1331,8 @@ namespace lgfx
   {
     bool need_transaction = false;
 
+    virtual ~DataWrapper() {}
+
     std::uint16_t read16(void) {
       std::uint16_t result;
       read(reinterpret_cast<std::uint8_t*>(&result), 2);

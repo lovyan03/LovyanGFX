@@ -37,7 +37,9 @@ namespace lgfx
     void init_font_file(void)
     {
       if (this->_font_file == nullptr)
-      this->_font_file = new FileWrapper();
+      {
+        this->_font_file = new FileWrapper();
+      }
     }
   public:
 
