@@ -46,6 +46,15 @@ namespace lgfx
     using Base::drawPng;
     using Base::loadFont;
 
+    virtual ~LGFX_FILESYSTEM_Support<Base>()
+    {
+      if (this->_font_file)
+      {
+        delete this->_font_file;
+        this->_font_file = nullptr;
+      }
+    }
+
     bool loadFont(const char *path)
     {
       this->unloadFont();
