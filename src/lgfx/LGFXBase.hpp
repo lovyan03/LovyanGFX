@@ -413,7 +413,8 @@ namespace lgfx
     void readRect( std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, T* data)
     {
       pixelcopy_t p(nullptr, get_depth<T>::value, _read_conv.depth, false, getPalette());
-      if (std::is_same<rgb565_t, T>::value || std::is_same<rgb888_t, T>::value || p.fp_copy == nullptr) {
+      if (std::is_same<rgb565_t, T>::value || std::is_same<rgb888_t, T>::value || std::is_same<argb8888_t, T>::value || std::is_same<grayscale_t, T>::value || p.fp_copy == nullptr)
+      {
         p.no_convert = false;
         p.fp_copy = pixelcopy_t::get_fp_copy_rgb_affine_dst<T>(_read_conv.depth);
       }
@@ -840,7 +841,8 @@ namespace lgfx
     pixelcopy_t create_pc(const T *data)
     {
       pixelcopy_t pc(data, _write_conv.depth, get_depth<T>::value, hasPalette());
-      if (std::is_same<rgb565_t, T>::value || std::is_same<rgb888_t, T>::value || std::is_same<argb8888_t, T>::value) {
+      if (std::is_same<rgb565_t, T>::value || std::is_same<rgb888_t, T>::value || std::is_same<argb8888_t, T>::value || std::is_same<grayscale_t, T>::value)
+      {
         pc.no_convert = false;
         pc.fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<T>(_write_conv.depth);
       }
@@ -869,7 +871,8 @@ namespace lgfx
       if (std::is_same<rgb565_t, T>::value) { raw_transparent = getSwap16(raw_transparent); }
       if (std::is_same<rgb888_t, T>::value) { raw_transparent = getSwap24(raw_transparent); }
       pixelcopy_t pc(data, _write_conv.depth, get_depth<T>::value, hasPalette(), nullptr, raw_transparent);
-      if (std::is_same<rgb565_t, T>::value || std::is_same<rgb888_t, T>::value || std::is_same<argb8888_t, T>::value) {
+      if (std::is_same<rgb565_t, T>::value || std::is_same<rgb888_t, T>::value || std::is_same<argb8888_t, T>::value || std::is_same<grayscale_t, T>::value)
+      {
         pc.no_convert = false;
         pc.fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<T>(_write_conv.depth);
         pc.fp_skip = pixelcopy_t::skip_rgb_affine<T>;
