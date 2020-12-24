@@ -4,7 +4,10 @@
 // #define LGFX_M5STACK_COREINK
 #define LGFX_AUTODETECT      // 自動検出を使用する場合はこちらの記述だけで動作します。
 
-// #include <M5EPD.h>  // M5Paperのライブラリと同時に利用する場合はLovyanGFXより前にincludeします。
+// M5PaperやCoreInkのライブラリと同時に利用する場合はLovyanGFXより前にincludeします。
+// #include <M5EPD.h>
+// #include <M5CoreInk.h>
+
 
 // 使用ボードのdefineより後にLovyanGFX.hppをincludeします。
 #include <LovyanGFX.hpp>
@@ -29,7 +32,7 @@ void setup(void)
   gfx.setBrightness(128); // バックライトの輝度設定はEPDでは効果を持ちません。
 
 // EPDの動作モードを設定できます。描画用途に応じて 都度、変更してください。
-// ※ 現在、M5Stack CoreInk には設定の効果はありません。
+// ※ M5Stack CoreInk には epd_fast と epd_fastestの差はありません。
   gfx.setEpdMode(epd_mode_t::epd_fastest);  // 最速更新、白黒反転なし、残像が残りやすい
   gfx.setEpdMode(epd_mode_t::epd_fast);     // 高速更新、白黒反転なし、残像が残りやすい
   gfx.setEpdMode(epd_mode_t::epd_quality);  // 高品質更新、白黒反転が一瞬起きる

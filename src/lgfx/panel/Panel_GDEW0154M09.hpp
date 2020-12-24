@@ -208,7 +208,9 @@ namespace lgfx
     }
 
   private:
-    static constexpr std::uint8_t Bayer[16] = { 8, 136, 40, 168, 200, 72, 232, 104, 56, 184, 24, 152, 248, 120, 216, 88 };
+    static constexpr unsigned long _refresh_msec = 320;
+//  static constexpr std::uint8_t Bayer[16] = { 8, 136, 40, 168, 200, 72, 232, 104, 56, 184, 24, 152, 248, 120, 216, 88 };
+    static constexpr std::uint8_t Bayer[16] = { 8, 200, 40, 232, 72, 136, 104, 168, 56, 248, 24, 216, 120, 184, 88, 152 };
     std::uint8_t* _buf = nullptr;
 
     range_rect_t _range_new;
@@ -216,6 +218,7 @@ namespace lgfx
 
     std::int32_t _xpos = 0;
     std::int32_t _ypos = 0;
+    unsigned long _send_msec = 0;
 
     __attribute__ ((always_inline)) inline 
     void _draw_pixel(std::int32_t x, std::int32_t y, std::uint32_t value)
@@ -252,7 +255,7 @@ namespace lgfx
     }
 
     void _update_transferred_rect(LGFX_Device* gfx, std::int32_t &xs, std::int32_t &ys, std::int32_t &xe, std::int32_t &ye);
-    void _exec_transfer(std::uint32_t cmd, LGFX_Device* gfx, range_rect_t* range, bool invert = false);
+    void _exec_transfer(std::uint32_t cmd, LGFX_Device* gfx, const range_rect_t& range, bool invert = false);
     void _close_transfer(LGFX_Device* gfx);
     bool _wait_busy(std::uint32_t timeout = 1000);
 

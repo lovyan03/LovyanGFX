@@ -85,6 +85,8 @@ namespace lgfx
     __attribute__ ((always_inline)) inline void setTouch(TouchCommon* touch_) { _touch = touch_; postSetTouch(); }
     __attribute__ ((always_inline)) inline void touch(TouchCommon* touch_) { _touch = touch_; postSetTouch(); }
 
+    __attribute__ ((always_inline)) inline bool isEPD(void) const { return _panel != nullptr && _panel->isEPD(); }
+
     void sleep(void)
     {
       std::uint8_t buf[32];
