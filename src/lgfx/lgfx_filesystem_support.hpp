@@ -30,7 +30,6 @@ Contributors:
 
 namespace lgfx
 {
-  class FileWrapper;
   template <class Base>
   class LGFX_FILESYSTEM_Support : public Base
   {
@@ -50,7 +49,7 @@ namespace lgfx
 
     virtual ~LGFX_FILESYSTEM_Support<Base>()
     {
-      if (this->_font_file)
+      if (this->_font_file != nullptr)
       {
         delete this->_font_file;
         this->_font_file = nullptr;

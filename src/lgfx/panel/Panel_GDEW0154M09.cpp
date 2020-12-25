@@ -7,6 +7,7 @@ namespace lgfx
 
   void Panel_GDEW0154M09::post_init(LGFX_Device* gfx, bool use_reset)
   {
+    (void)use_reset;
     // init DSRAM
     _range_old.top = 0;
     _range_old.left = 0;
