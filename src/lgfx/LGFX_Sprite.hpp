@@ -158,7 +158,7 @@ namespace lgfx
 
  #endif
 
-#elif defined (CONFIG_IDF_TARGET_ESP32)  // ESP-IDF
+#elif defined (ESP32) || defined (CONFIG_IDF_TARGET_ESP32) || defined (CONFIG_IDF_TARGET_ESP32S2) || defined (ESP_PLATFORM)
 
     void createFromBmpFile(const char *path) {
       FileWrapper file;
