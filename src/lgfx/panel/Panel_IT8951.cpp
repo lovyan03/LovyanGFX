@@ -389,11 +389,11 @@ IT8951 Registers defines
               me->WriteCommand(gfx, IT8951_TCON_LD_IMG_END);
             }
             flg_setarea = true;
-            me->SetArea(gfx, x + prev_pos, y, new_pos - prev_pos, add_y < 0 ? 1 : h);
+            me->SetArea(gfx, x + prev_pos, y, new_pos - prev_pos, 1);
             me->WaitBusy(gfx);
             gfx->writeData16(0);
           }
-          need_setarea = prev_pos || (w != new_pos) || add_y < 0;
+          need_setarea = prev_pos || (w != new_pos);
 
           std::int32_t shift = (3 - ((x + prev_pos) & 3)) << 2;
           auto btbl = &me->Bayer[(y & 3) << 2];
@@ -620,6 +620,20 @@ IT8951 Registers defines
     auto me = reinterpret_cast<Panel_IT8951*>(panel);
     me->CheckAFSR(gfx);
     return;
+  }
+
+  bool Panel_IT8951::displayBusy(PanelCommon* panel, LGFX_Device* gfx)
+  {
+    auto me = reinterpret_cast<Panel_IT8951*>(panel);
+    std::uint16_t infobuf[1] = { 1 };
+    if (me->WriteCommand(gfx, IT8951_TCON_REG_RD)
+      && me->WriteWord(gfx, IT8951_LUTAFSR)
+      && me->ReadWords(gfx, infobuf, 1))
+    {
+      return 0 != infobuf[0];
+    }
+    gfx->cs_h();
+    return true;
   }
 
   void Panel_IT8951::display(PanelCommon* panel, LGFX_Device* gfx)

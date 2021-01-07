@@ -129,6 +129,12 @@ namespace lgfx
       endWrite();
     }
 
+    bool displayBusy(void)
+    {
+      if (nullptr == _panel->fp_displayBusy) return false;
+      return _panel->fp_displayBusy(_panel, this);
+    }
+
     void setAutoDisplay(bool flg)
     {
       _auto_display = flg;
