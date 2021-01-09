@@ -36,7 +36,6 @@ Contributors:
 
 #if defined (ARDUINO) // Arduino ESP32
  #include <SPI.h>
- #include <driver/periph_ctrl.h>
  #include <soc/periph_defs.h>
  #include <esp32-hal-cpu.h>
 #else
