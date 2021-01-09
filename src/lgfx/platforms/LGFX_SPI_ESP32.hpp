@@ -42,9 +42,11 @@ Contributors:
 #else
  #include <esp_log.h>
  #include <driver/spi_master.h>
- #if ESP_IDF_VERSION_MAJOR > 3
-  #include <driver/spi_common_internal.h>
- #endif
+#endif
+
+// ESP_IDF_VERSION_MAJOR is defined since ESP-IDF v3.3 
+#if defined(ESP_IDF_VERSION_MAJOR) && ESP_IDF_VERSION_MAJOR > 3
+ #include <driver/spi_common_internal.h>
 #endif
 
 #if defined (CONFIG_IDF_TARGET_ESP32S2)
