@@ -113,11 +113,25 @@ namespace lgfx
       if (auto b = _panel->getPartialOffCommands(buf)) commandList(b);
     }
 
-    void display(void) 
+    void display(void)
     {
       if (nullptr == _panel->fp_display) return;
       startWrite();
-      _panel->fp_display(_panel, this);
+      _panel->fp_display(_panel, this, 0, 0, 0, 0);
+      endWrite();
+    }
+
+    void display(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h)
+    {
+      if (nullptr == _panel->fp_display) return;
+      if (x < 0) { w += x; x = 0; }
+      if (w > _width - x)  w = _width  - x;
+      if (w < 1) { x = 0; w = 0; }
+      if (y < 0) { h += y; y = 0; }
+      if (h > _height - y) h = _height - y;
+      if (h < 1) { y = 0; h = 0; }
+      startWrite();
+      _panel->fp_display(_panel, this, x, y, w, h);
       endWrite();
     }
 

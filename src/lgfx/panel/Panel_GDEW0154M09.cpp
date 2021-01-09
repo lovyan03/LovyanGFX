@@ -273,9 +273,22 @@ namespace lgfx
     gfx->waitDMA();
   }
 
-  void Panel_GDEW0154M09::display(PanelCommon* panel, LGFX_Device* gfx)
+  bool Panel_GDEW0154M09::displayBusy(PanelCommon* panel, LGFX_Device* gfx)
   {
     auto me = reinterpret_cast<Panel_GDEW0154M09*>(panel);
+    return gfx->dmaBusy() || (me->gpio_busy >= 0 && !gpio_in(me->gpio_busy));
+  }
+
+  void Panel_GDEW0154M09::display(PanelCommon* panel, LGFX_Device* gfx, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h)
+  {
+    auto me = reinterpret_cast<Panel_GDEW0154M09*>(panel);
+    if (0 < w && 0 < h)
+    {
+      me->_range_new.left   = std::min(me->_range_new.left  , x        );
+      me->_range_new.right  = std::max(me->_range_new.right , x + w - 1);
+      me->_range_new.top    = std::min(me->_range_new.top   , y        );
+      me->_range_new.bottom = std::max(me->_range_new.bottom, y + h - 1);
+    }
     if (me->_range_new.empty()) { return; }
     me->_close_transfer(gfx);
     me->_range_old = me->_range_new;
@@ -308,7 +321,7 @@ namespace lgfx
       std::uint32_t start_time = millis();
       while (!gpio_in(gpio_busy))
       {
-         if (millis() - start_time > timeout) return false;
+        if (millis() - start_time > timeout) return false;
         delay(1);
       }
     }

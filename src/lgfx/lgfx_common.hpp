@@ -73,6 +73,7 @@ namespace lgfx
     enum epd_mode_t
     {
       epd_quality,
+      epd_text,
       epd_fast,
       epd_fastest,
     };
@@ -1488,6 +1489,8 @@ namespace lgfx
     range_rect_t(void) = default;
     range_rect_t(const range_rect_t& rhs) : horizon(rhs.horizon), vertical(rhs.vertical) {}
 
+    std::int32_t width(void) const { return right - left + 1; }
+    std::int32_t height(void) const { return bottom - top + 1; }
     bool empty(void) const { return horizon.empty() || vertical.empty(); }
     bool intersectsWith(const range_rect_t& r) const { return horizon.intersectsWith(r.horizon) && vertical.intersectsWith(r.vertical); }
   };

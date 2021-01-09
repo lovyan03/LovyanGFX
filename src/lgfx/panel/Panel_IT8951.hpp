@@ -146,7 +146,7 @@ namespace lgfx
     std::uint_fast16_t _ypos = 0;
     bool _fastmode = true;
 
-    static void display(PanelCommon* panel, LGFX_Device* gfx);
+    static void display(PanelCommon* panel, LGFX_Device* gfx, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h);
     static bool displayBusy(PanelCommon* panel, LGFX_Device* gfx);
     static void waitDisplay(PanelCommon* panel, LGFX_Device* gfx);
     static void fillRect(PanelCommon* panel, LGFX_Device* gfx, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, std::uint32_t rawcolor);

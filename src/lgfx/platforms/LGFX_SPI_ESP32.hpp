@@ -260,7 +260,7 @@ namespace lgfx
     }
 
     void end_transaction(void) {
-      if (_auto_display && nullptr != _panel->fp_display) { _panel->fp_display(_panel, this); }
+      if (_auto_display && nullptr != _panel->fp_display) { _panel->fp_display(_panel, this, 0, 0, 0, 0); }
       if (nullptr != _panel->fp_end) { _panel->fp_end(_panel, this); }
       if (_spi_dlen == 16 && (_align_data)) write_data(0, 8);
       if (_panel->spi_cs < 0) {
