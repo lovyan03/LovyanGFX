@@ -33,7 +33,13 @@ namespace lgfx
   template <class Base>
   class LGFX_FILESYSTEM_Support : public Base
   {
-    FileWrapper _font_file;
+    void init_font_file(void)
+    {
+      if (this->_font_file == nullptr)
+      {
+        this->_font_file = new FileWrapper();
+      }
+    }
   public:
 
     using Base::drawBmp;
@@ -41,14 +47,25 @@ namespace lgfx
     using Base::drawPng;
     using Base::loadFont;
 
+    virtual ~LGFX_FILESYSTEM_Support<Base>()
+    {
+      if (this->_font_file != nullptr)
+      {
+        delete this->_font_file;
+        this->_font_file = nullptr;
+      }
+    }
+
     bool loadFont(const char *path)
     {
       this->unloadFont();
 
-      this->prepareTmpTransaction(&this->_font_file);
-      this->_font_file.preRead();
+      init_font_file();
 
-      bool result = this->_font_file.open(path, "r");
+      this->prepareTmpTransaction(this->_font_file);
+      this->_font_file->preRead();
+
+      bool result = this->_font_file->open(path, "r");
       if (!result) {
         std::string filename = "/";
         if (path[0] == '/') filename = path;
@@ -57,12 +74,12 @@ namespace lgfx
         if (memcmp(&path[len - 4], ".vlw", 4)) {
           filename += ".vlw";
         }
-        result = this->_font_file.open(filename.c_str(), "r");
+        result = this->_font_file->open(filename.c_str(), "r");
       }
       auto font = new VLWfont();
       this->_runtime_font.reset(font);
       if (result) {
-        result = font->loadFont(&this->_font_file);
+        result = font->loadFont(this->_font_file);
       }
       if (result) {
         this->_font = font;
@@ -70,7 +87,7 @@ namespace lgfx
       } else {
         this->unloadFont();
       }
-      this->_font_file.postRead();
+      this->_font_file->postRead();
       return result;
     }
 
@@ -79,7 +96,8 @@ namespace lgfx
 
     void loadFont(const char *path, fs::FS &fs)
     {
-      this->_font_file.setFS(fs);
+      init_font_file();
+      this->_font_file->setFS(fs);
       loadFont(path);
     }
 
@@ -239,7 +257,7 @@ namespace lgfx
     [[deprecated("use float scale")]]
     inline bool drawJpgUrl(const char* url, std::int32_t x, std::int32_t y, std::int32_t maxWidth, std::int32_t maxHeight, std::int32_t offX, std::int32_t offY, jpeg_div::jpeg_div_t scale)
     {
-      return drawJpg(url, x, y, maxWidth, maxHeight, offX, offY, 1.0f / (1 << scale));
+      return drawJpgUrl(url, x, y, maxWidth, maxHeight, offX, offY, 1.0f / (1 << scale));
     }
 
     inline bool drawPngUrl(const char* url, std::int32_t x = 0, std::int32_t y = 0, std::int32_t maxWidth = 0, std::int32_t maxHeight = 0, std::int32_t offX = 0, std::int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
@@ -266,7 +284,7 @@ namespace lgfx
     [[deprecated("use float scale")]]
     inline bool drawJpgFile(const char *path, std::int32_t x, std::int32_t y, std::int32_t maxWidth, std::int32_t maxHeight, std::int32_t offX, std::int32_t offY, jpeg_div::jpeg_div_t scale)
     {
-      return drawJpg(path, x, y, maxWidth, maxHeight, offX, offY, 1.0f / (1 << scale));
+      return drawJpgFile(path, x, y, maxWidth, maxHeight, offX, offY, 1.0f / (1 << scale));
     }
     inline bool drawPngFile(const char *path, std::int32_t x = 0, std::int32_t y = 0, std::int32_t maxWidth = 0, std::int32_t maxHeight = 0, std::int32_t offX = 0, std::int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
     {

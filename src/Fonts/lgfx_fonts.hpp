@@ -67,6 +67,14 @@ namespace lgfx
     std::size_t drawChar(LGFXBase* gfx, std::int32_t x, std::int32_t y, std::uint16_t c, const TextStyle* style) const override;
   };
 
+  struct FixedBMPfont : public BaseFont {
+    constexpr FixedBMPfont(const std::uint8_t *chartbl, const std::uint8_t *widthtbl, std::uint8_t width, std::uint8_t height, std::uint8_t baseline) : BaseFont(chartbl, widthtbl, width, height, baseline ) {}
+    font_type_t getType(void) const override { return ft_bmp;  } 
+
+    bool updateFontMetric(FontMetrics *metrics, std::uint16_t uniCode) const override;
+    std::size_t drawChar(LGFXBase* gfx, std::int32_t x, std::int32_t y, std::uint16_t c, const TextStyle* style) const override;
+  };
+
   struct BMPfont : public BaseFont {
     constexpr BMPfont(const std::uint8_t *chartbl, const std::uint8_t *widthtbl, std::uint8_t width, std::uint8_t height, std::uint8_t baseline) : BaseFont(chartbl, widthtbl, width, height, baseline ) {}
     font_type_t getType(void) const override { return ft_bmp;  } 
@@ -255,6 +263,8 @@ namespace fonts {
   extern const lgfx::RLEfont  Font7;
   extern const lgfx::RLEfont  Font8;
   extern const lgfx::GLCDfont Font8x8C64;
+  extern const lgfx::FixedBMPfont AsciiFont8x16;
+  extern const lgfx::FixedBMPfont AsciiFont24x48;
 
   extern const lgfx::GFXfont TomThumb                 ;
   extern const lgfx::GFXfont FreeMono9pt7b            ;

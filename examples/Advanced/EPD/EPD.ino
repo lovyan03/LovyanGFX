@@ -4,7 +4,10 @@
 // #define LGFX_M5STACK_COREINK
 #define LGFX_AUTODETECT      // 自動検出を使用する場合はこちらの記述だけで動作します。
 
-// #include <M5EPD.h>  // M5Paperのライブラリと同時に利用する場合はLovyanGFXより前にincludeします。
+// M5PaperやCoreInkのライブラリと同時に利用する場合はLovyanGFXより前にincludeします。
+// #include <M5EPD.h>
+// #include <M5CoreInk.h>
+
 
 // 使用ボードのdefineより後にLovyanGFX.hppをincludeします。
 #include <LovyanGFX.hpp>
@@ -12,8 +15,8 @@
 LGFX gfx;
 LGFX_Sprite sp(&gfx);
 
-int w;
-int h;
+int w = 200;
+int h = 200;
 
 void setup(void)
 {
@@ -29,15 +32,17 @@ void setup(void)
   gfx.setBrightness(128); // バックライトの輝度設定はEPDでは効果を持ちません。
 
 // EPDの動作モードを設定できます。描画用途に応じて 都度、変更してください。
-// ※ 現在、M5Stack CoreInk には設定の効果はありません。
+// ※ M5Stack CoreInk では epd_quality以外は差はありません。
   gfx.setEpdMode(epd_mode_t::epd_fastest);  // 最速更新、白黒反転なし、残像が残りやすい
   gfx.setEpdMode(epd_mode_t::epd_fast);     // 高速更新、白黒反転なし、残像が残りやすい
+  gfx.setEpdMode(epd_mode_t::epd_text);     // 高品質更新、白黒反転が一瞬起きる（白背景用）
   gfx.setEpdMode(epd_mode_t::epd_quality);  // 高品質更新、白黒反転が一瞬起きる
 
 // M5Paper (IT8951)での各モードの特徴は以下の通りです。
 // epd_fastest = DU4  更新時間 120msec  完全な白と黒のみ描画でき、中間階調は描画されない。また、中間階調で表示されている箇所を更新できない。
 // epd_fast    = DU   更新時間 260msec  完全な白と黒のみ描画でき、中間階調は描画されない。
-// epd_quality = GC16 更新時間 450msec  グレースケール16階調で描画できる。
+// epd_text    = GL16 更新時間 450msec  グレースケール16階調で描画できる。白背景・黒文字 用途
+// epd_quality = GC16 更新時間 450msec  グレースケール16階調で描画できる。画像用途
 
 
 // 描画関数はすべてLCDと同様に利用可能です。
@@ -106,7 +111,7 @@ void setup(void)
 
   gfx.fillScreen(TFT_WHITE);
 
-// M5Paper (IT8951)では epd_quality を使用するとグレースケール16階調の表示が可能ですが、
+// M5Paper (IT8951)では epd_quality/epd_text を使用するとグレースケール16階調の表示が可能ですが、
 // epd_fast/epd_fastestを使用した場合は白黒２階調のみに制限されます。
 // この場合でもLovyanGFXのタイルパターン処理により疑似的に17階調を表現できます。
 
@@ -120,6 +125,10 @@ void setup(void)
   gfx.display();  // ここでの表示更新は高品質モードとなる。
 
   gfx.waitDisplay(); // EPDの表示更新の完了待機。
+  // ※ 待機せずに表示更新中かどうかを調べたい場合は displayBusy() を使用します。
+  //    他の処理の合間に描画を行いたい場合などにご利用ください。
+  // 例 : while (gfx.displayBusy()) delay(10); // delayの代わりに何か他の処理を指定
+
 
   gfx.setEpdMode(epd_mode_t::epd_fast);  // 高速更新モードに設定（以後の描画は白黒２値を使用する）
   for (int i = 0; i < 17; i++)
@@ -260,7 +269,7 @@ void setup(void)
   gfx.fillScreen(TFT_WHITE);
 
   sp.setColorDepth(4);
-  sp.createSprite(w / 2, h / 2);
+  if (!sp.createSprite(w / 2, h / 2)) sp.createSprite(w / 4, h / 4);
   sp.setFont(&fonts::Font8);
 }
 
@@ -270,10 +279,12 @@ void loop(void)
 
   if (0 == (count & 15))
   {
-    switch ((count >> 4) & 1)
+    switch ((count >> 4) & 3)
     {
-    case 0:  gfx.setEpdMode(epd_mode_t::epd_fast   );  break;
-    case 1:  gfx.setEpdMode(epd_mode_t::epd_quality);  break;
+    case 0:  gfx.setEpdMode(epd_mode_t::epd_quality);  break;
+    case 1:  gfx.setEpdMode(epd_mode_t::epd_text   );  break;
+    case 2:  gfx.setEpdMode(epd_mode_t::epd_fast   );  break;
+    case 3:  gfx.setEpdMode(epd_mode_t::epd_fastest);  break;
     }
   }
 
@@ -294,7 +305,7 @@ void loop(void)
   sp.setTextColor(TFT_WHITE);
   sp.drawNumber(count, x, y);
 
+  gfx.waitDisplay();
   sp.pushSprite(count & 1 ? w / 2 : 0, count & 2 ? h / 2 : 0);
-  delay(1000);
   ++count;
 }

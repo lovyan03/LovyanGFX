@@ -245,6 +245,13 @@ namespace lgfx
   }
 
 
+  bool FixedBMPfont::updateFontMetric(FontMetrics *metrics, std::uint16_t uniCode) const {
+    bool res = ((uniCode -= 0x20u) < 0x60u);
+    if (!res) uniCode = 0;
+    metrics->x_advance = metrics->width = this->width;
+    return res;
+  }
+
   bool BMPfont::updateFontMetric(FontMetrics *metrics, std::uint16_t uniCode) const {
     bool res = ((uniCode -= 0x20u) < 0x60u);
     if (!res) uniCode = 0;
@@ -255,6 +262,17 @@ namespace lgfx
   bool BDFfont::updateFontMetric(FontMetrics *metrics, std::uint16_t uniCode) const {
     metrics->x_advance = metrics->width = (uniCode < 0x0100) ? halfwidth : width;
     return true;
+  }
+
+  std::size_t FixedBMPfont::drawChar(LGFXBase* gfx, std::int32_t x, std::int32_t y, std::uint16_t uniCode, const TextStyle* style) const
+  { // BMP font
+    uniCode -= 0x20u;
+    const std::int_fast16_t fontHeight = this->height;
+
+    if (uniCode >= 0x60u) { return drawCharDummy(gfx, x, y, width, fontHeight, style); }
+    std::int_fast8_t w = (width + 7) >> 3;
+    auto font_addr = (const std::uint8_t*) &chartbl[uniCode * w * fontHeight];
+    return draw_char_bmp(gfx, x, y, style, font_addr, width, fontHeight, (width + 7) >> 3, 0);
   }
 
   std::size_t BMPfont::drawChar(LGFXBase* gfx, std::int32_t x, std::int32_t y, std::uint16_t uniCode, const TextStyle* style) const
@@ -1162,6 +1180,8 @@ namespace fonts {
   #include "Font7srle.h"
   #include "Font72rle.h"
   #include "Font8x8C64.h"
+  #include "Ascii24x48.h"
+  #include "Ascii8x16.h"
 
   static constexpr glcd_fontinfo_t font0_info     = { 0, 255, 5 };
   static constexpr glcd_fontinfo_t font8x8c64_info= { 32, 143, 8 };
@@ -1173,6 +1193,8 @@ namespace fonts {
   const RLEfont  Font7 = { (const uint8_t *)chrtbl_f7s, widtbl_f7s, 0, chr_hgt_f7s, baseline_f7s };
   const RLEfont  Font8 = { (const uint8_t *)chrtbl_f72, widtbl_f72, 0, chr_hgt_f72, baseline_f72 };
   const GLCDfont Font8x8C64 = { (const uint8_t *)font8x8_c64, (const uint8_t*)&font8x8c64_info, 8, 8, 7 };
+  const FixedBMPfont AsciiFont8x16  = { (const uint8_t*)FontLib8x16 , nullptr,  8, 16, 13 };
+  const FixedBMPfont AsciiFont24x48 = { (const uint8_t*)FontLib24x48, nullptr, 24, 48, 40 };
 
   const U8g2font lgfxJapanMincho_8   = { lgfx_font_japan_mincho_8    };
   const U8g2font lgfxJapanMincho_12  = { lgfx_font_japan_mincho_12   };

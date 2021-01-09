@@ -45,7 +45,13 @@ Contributors:
  #if ESP_IDF_VERSION_MAJOR > 3
   #include <driver/spi_common_internal.h>
  #endif
+#endif
 
+#if defined (CONFIG_IDF_TARGET_ESP32S2)
+ #define SPI_PIN_REG SPI_MISC_REG
+ #define LGFX_SPI_DEFAULT SPI3_HOST
+#else
+ #define LGFX_SPI_DEFAULT VSPI_HOST
 #endif
 
 #include "esp32_common.hpp"
@@ -88,7 +94,7 @@ namespace lgfx
     {
     }
 
-    void init(int sclk, int miso, int mosi, spi_host_device_t host = VSPI_HOST)
+    void init(int sclk, int miso, int mosi, spi_host_device_t host = LGFX_SPI_DEFAULT)
     {
       _spi_sclk = sclk;
       _spi_miso = miso;
@@ -98,7 +104,7 @@ namespace lgfx
       init_impl();
     }
 
-    __attribute__ ((always_inline)) inline void begin(int sclk, int miso, int mosi, spi_host_device_t host = VSPI_HOST) { init(sclk, miso, mosi, host); }
+    __attribute__ ((always_inline)) inline void begin(int sclk, int miso, int mosi, spi_host_device_t host = LGFX_SPI_DEFAULT) { init(sclk, miso, mosi, host); }
 
     __attribute__ ((always_inline)) inline void begin(void) { init_impl(); }
 
@@ -144,8 +150,9 @@ namespace lgfx
 
     void preInit(void) override
     {
-      _spi_host = get_spi_host<CFG, VSPI_HOST>::value;
-      _spi_port = (_spi_host == HSPI_HOST) ? 2 : 3;  // FSPI=1  HSPI=2  VSPI=3;
+      _spi_host = get_spi_host<CFG, LGFX_SPI_DEFAULT>::value;
+      //_spi_port = (_spi_host == HSPI_HOST) ? 2 : 3;  // FSPI=1  HSPI=2  VSPI=3;
+      _spi_port = (_spi_host + 1);  // FSPI=1  HSPI=2  VSPI=3;
       _spi_w0_reg = reg(SPI_W0_REG(_spi_port));
       _spi_cmd_reg = reg(SPI_CMD_REG(_spi_port));
       _spi_user_reg = reg(SPI_USER_REG(_spi_port));
@@ -253,7 +260,7 @@ namespace lgfx
     }
 
     void end_transaction(void) {
-      if (_auto_display && nullptr != _panel->fp_display) { _panel->fp_display(_panel, this); }
+      if (_auto_display && nullptr != _panel->fp_display) { _panel->fp_display(_panel, this, 0, 0, 0, 0); }
       if (nullptr != _panel->fp_end) { _panel->fp_end(_panel, this); }
       if (_spi_dlen == 16 && (_align_data)) write_data(0, 8);
       if (_panel->spi_cs < 0) {
@@ -430,7 +437,11 @@ namespace lgfx
       // When 16bit color, it uses exactly 512 bytes. but, it behaves like a ring buffer, can specify a larger size.
       std::uint32_t limit;
       if (bits16) {
+#if defined( CONFIG_IDF_TARGET_ESP32S2 )
+        limit = (1 << 9);
+#else
         limit = (1 << 11);
+#endif
         len = length & (limit - 1);
       } else {
         limit = 504;
@@ -1009,13 +1020,24 @@ namespace lgfx
       _dmadesc = (lldesc_t*)heap_caps_malloc(sizeof(lldesc_t) * len, MALLOC_CAP_DMA);
     }
 
-    static void spi_dma_reset(void)
+    void spi_dma_reset()
     {
+#if defined( CONFIG_IDF_TARGET_ESP32S2 )
+      if (_spi_host == SPI2_HOST)
+      {
+        periph_module_reset( PERIPH_SPI2_DMA_MODULE );
+      }
+      else if (_spi_host == SPI3_HOST)
+      {
+        periph_module_reset( PERIPH_SPI3_DMA_MODULE );
+      }
+#else
       periph_module_reset( PERIPH_SPI_DMA_MODULE );
+#endif
       _next_dma_reset = false;
     }
 
-    static void _setup_dma_desc_links(const std::uint8_t *data, std::int32_t len)
+    void _setup_dma_desc_links(const std::uint8_t *data, std::int32_t len)
     {          //spicommon_setup_dma_desc_links
       if (!_dma_channel) return;
 
@@ -1040,7 +1062,7 @@ namespace lgfx
       dmadesc->qe.stqe_next = nullptr;
     }
 
-    static void _setup_dma_desc_links(const std::uint8_t *data, std::int32_t w, std::int32_t h, std::int32_t width)
+    void _setup_dma_desc_links(const std::uint8_t *data, std::int32_t w, std::int32_t h, std::int32_t width)
     {          //spicommon_setup_dma_desc_links
       if (!_dma_channel) return;
 
@@ -1064,7 +1086,7 @@ namespace lgfx
       dmadesc[idx].qe.stqe_next = 0;
     }
 
-    static void _setup_dma_desc_links(std::uint8_t** data, std::int32_t w, std::int32_t h, bool endless)
+    void _setup_dma_desc_links(std::uint8_t** data, std::int32_t w, std::int32_t h, bool endless)
     {          //spicommon_setup_dma_desc_links
       if (!_dma_channel) return;
 

@@ -85,6 +85,8 @@ namespace lgfx
     __attribute__ ((always_inline)) inline void setTouch(TouchCommon* touch_) { _touch = touch_; postSetTouch(); }
     __attribute__ ((always_inline)) inline void touch(TouchCommon* touch_) { _touch = touch_; postSetTouch(); }
 
+    __attribute__ ((always_inline)) inline bool isEPD(void) const { return _panel != nullptr && _panel->isEPD(); }
+
     void sleep(void)
     {
       std::uint8_t buf[32];
@@ -111,11 +113,25 @@ namespace lgfx
       if (auto b = _panel->getPartialOffCommands(buf)) commandList(b);
     }
 
-    void display(void) 
+    void display(void)
     {
       if (nullptr == _panel->fp_display) return;
       startWrite();
-      _panel->fp_display(_panel, this);
+      _panel->fp_display(_panel, this, 0, 0, 0, 0);
+      endWrite();
+    }
+
+    void display(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h)
+    {
+      if (nullptr == _panel->fp_display) return;
+      if (x < 0) { w += x; x = 0; }
+      if (w > _width - x)  w = _width  - x;
+      if (w < 1) { x = 0; w = 0; }
+      if (y < 0) { h += y; y = 0; }
+      if (h > _height - y) h = _height - y;
+      if (h < 1) { y = 0; h = 0; }
+      startWrite();
+      _panel->fp_display(_panel, this, x, y, w, h);
       endWrite();
     }
 
@@ -125,6 +141,12 @@ namespace lgfx
       startWrite();
       _panel->fp_waitDisplay(_panel, this);
       endWrite();
+    }
+
+    bool displayBusy(void)
+    {
+      if (nullptr == _panel->fp_displayBusy) return false;
+      return _panel->fp_displayBusy(_panel, this);
     }
 
     void setAutoDisplay(bool flg)

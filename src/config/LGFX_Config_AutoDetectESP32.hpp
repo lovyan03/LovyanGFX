@@ -1043,6 +1043,7 @@ public:
 #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_M5STACK_CORE2 ) || defined ( LGFX_M5STACKCORE2 )
     if (nvs_board == 0 || nvs_board == lgfx::board_t::board_M5StackCore2) {
       lgfx::i2c::init(I2C_NUM_1, 21, 22, 400000);
+      // I2C addr 0x34 = AXP192
       if (lgfx::i2c::writeRegister8(I2C_NUM_1, 0x34, 0x95, 0x84, 0x72)) { // GPIO4 enable
         // AXP192_LDO2 = LCD PWR
         // AXP192_DC3  = LCD BL
