@@ -1,13 +1,14 @@
+
+// M5PaperやCoreInkのライブラリと同時に利用する場合はLovyanGFX.hppより前にincludeします。
+// If you use it with M5Paper or CoreInk libraries, include it before LovyanGFX.hpp.
+// #include <M5EPD.h>
+// #include <M5CoreInk.h>
+
 // 使用するボードに応じた define を記述します。
 // （ボードマネージャで該当ボードを選択している場合は省略しても構いません）
 // #define LGFX_M5PAPER
 // #define LGFX_M5STACK_COREINK
-#define LGFX_AUTODETECT      // 自動検出を使用する場合はこちらの記述だけで動作します。
-
-// M5PaperやCoreInkのライブラリと同時に利用する場合はLovyanGFXより前にincludeします。
-// #include <M5EPD.h>
-// #include <M5CoreInk.h>
-
+   #define LGFX_AUTODETECT      // 自動検出を使用する場合はこちらの記述だけで動作します。
 
 // 使用ボードのdefineより後にLovyanGFX.hppをincludeします。
 #include <LovyanGFX.hpp>
