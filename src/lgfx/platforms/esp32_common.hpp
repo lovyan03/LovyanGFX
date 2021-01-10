@@ -9,6 +9,7 @@
 #if defined ARDUINO
   #include <Arduino.h>
   #include <soc/periph_defs.h>
+  #include <soc/dport_reg.h>
 #else
   #include <freertos/FreeRTOS.h>
   #include <freertos/task.h>
