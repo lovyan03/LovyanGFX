@@ -675,6 +675,7 @@ namespace lgfx
       auto conf_start = _conf_reg_start;
       static constexpr std::uint32_t data_wr = 0x01000100;
 
+      wait();
       if (length & 1) {
         write_data(data[0], 8);
         if (!--length) return;
@@ -686,7 +687,6 @@ namespace lgfx
 
       std::int32_t limit = (((length>>1)-1)&(31))+1;
       length -= limit << 1;
-      wait();
       do {
         *reg(I2S_FIFO_WR_REG(_i2s_port)) = data[0] << 16 | data[1] | data_wr;
         data += 2;
