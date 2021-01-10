@@ -176,6 +176,7 @@ namespace lgfx
 
     void postSetPanel(void) override
     {
+      _last_apb_freq = ~0u;
       _cmd_ramwr      = _panel->getCmdRamwr();
       _len_setwindow  = _panel->len_setwindow;
       fpGetWindowAddr = _len_setwindow == 32 ? PanelCommon::getWindowAddr32 : PanelCommon::getWindowAddr16;
@@ -223,14 +224,19 @@ namespace lgfx
 
     void begin_transaction(void)
     {
-      // I2S_CLKM_DIV_NUM 4=20MHz  /  5=16MHz  /  8=10MHz  /  10=8MHz
-      // clock = 80MHz / I2S_CLKM_DIV_NUM
-      *reg(I2S_CLKM_CONF_REG(_i2s_port))
-                    = I2S_CLKA_ENA
-                    | 63 << I2S_CLKM_DIV_A_S
-                    |  0 << I2S_CLKM_DIV_B_S
-                    |  4 << I2S_CLKM_DIV_NUM_S
-                    ;
+      std::uint32_t apb_freq = getApbFrequency();
+      if (_last_apb_freq != apb_freq) {
+        _last_apb_freq = apb_freq;
+        // clock = 80MHz(apb_freq) / I2S_CLKM_DIV_NUM
+        // I2S_CLKM_DIV_NUM 4=20MHz  /  5=16MHz  /  8=10MHz  /  10=8MHz
+        std::uint32_t div_num = std::min(32u, std::max(4u, 1 + (apb_freq / (1 + _panel->freq_write))));
+        _clkdiv_write =            I2S_CLKA_ENA
+                      |       1 << I2S_CLKM_DIV_A_S
+                      |       0 << I2S_CLKM_DIV_B_S
+                      | div_num << I2S_CLKM_DIV_NUM_S
+                      ;
+      }
+      *reg(I2S_CLKM_CONF_REG(_i2s_port)) = _clkdiv_write;
 
       cs_l();
     }
@@ -915,6 +921,9 @@ namespace lgfx
     std::uint32_t _cmd_caset;
     std::uint32_t _cmd_raset;
     std::uint32_t _cmd_ramwr;
+  private:
+    std::uint32_t _last_apb_freq;
+    std::uint32_t _clkdiv_write;
     std::uint32_t _len_setwindow;
     std::uint32_t _mask_reg_dc;
     volatile std::uint32_t* _gpio_reg_dc_h;
