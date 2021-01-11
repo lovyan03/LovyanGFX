@@ -176,7 +176,7 @@ namespace lgfx
 
     void postSetPanel(void) override
     {
-      _last_apb_freq = -1;
+      _last_apb_freq = ~0u;
       _cmd_ramwr      = _panel->getCmdRamwr();
       _len_setwindow  = _panel->len_setwindow;
 
