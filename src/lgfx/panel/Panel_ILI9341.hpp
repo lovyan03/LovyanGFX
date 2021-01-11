@@ -113,17 +113,14 @@ namespace lgfx
           CMD::GMCTRP1,15, 0x00,0x0C,0x11,0x04,0x11,0x08,0x37,0x89,0x4C,0x06,0x0C,0x0A,0x2E,0x34,0x0F,
           CMD::GMCTRN1,15, 0x00,0x0B,0x11,0x05,0x13,0x09,0x33,0x67,0x48,0x07,0x0E,0x0B,0x2E,0x33,0x0F,
           CMD::DFUNCTR, 4, 0x08,0x82,0x1D,0x04,
-          0xFF,0xFF, // end
-      };
-      static constexpr std::uint8_t list1[] = {
+          CMD::SLPOUT, 0+CMD_INIT_DELAY, 130,    // Exit sleep mode
           CMD::IDMOFF, 0,
-          CMD::SLPOUT ,  CMD_INIT_DELAY, 130,    // Exit sleep mode
           CMD::DISPON, 0,
           0xFF,0xFF, // end
       };
-      switch (listno) {
+      switch (listno)
+      {
       case 0: return list0;
-      case 1: return list1;
       default: return nullptr;
       }
     }
