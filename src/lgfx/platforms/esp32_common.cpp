@@ -165,8 +165,6 @@ namespace lgfx
 
     void init(int spi_host, int spi_sclk, int spi_miso, int spi_mosi, int dma_channel)
     {
-      if (_spi_handle[spi_host]) return;
-
       std::uint32_t spi_port = (spi_host + 1);
 
 #if defined (ARDUINO) // Arduino ESP32
@@ -175,7 +173,9 @@ namespace lgfx
         SPI.begin(spi_sclk, spi_miso, spi_mosi);
       }
 
-      _spi_handle[spi_host] = spiStartBus(spi_port, SPI_CLK_EQU_SYSCLK, 0, 0);
+      if (_spi_handle[spi_host] == nullptr) {
+        _spi_handle[spi_host] = spiStartBus(spi_port, SPI_CLK_EQU_SYSCLK, 0, 0);
+      }
       if (spi_mosi >= 0) {
         lgfxPinMode(spi_mosi, pin_mode_t::output);
         gpio_matrix_out(spi_mosi, spi_periph_signal[spi_host].spid_out, false, false);
