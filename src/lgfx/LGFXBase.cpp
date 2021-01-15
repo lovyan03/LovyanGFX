@@ -1258,8 +1258,8 @@ namespace lgfx
 
     pc->src_x32_add = iA[0];
     pc->src_y32_add = iA[3];
-    std::uint32_t x32_diff = std::min(16 << FP_SCALE, std::max(abs(iA[0]), abs(iA[1])) - 1) >> 1;
-    std::uint32_t y32_diff = std::min(16 << FP_SCALE, std::max(abs(iA[3]), abs(iA[4])) - 1) >> 1;
+    std::uint32_t x32_diff = std::min<std::uint32_t>(8 << FP_SCALE, std::max(abs(iA[0]), abs(iA[1])) - 1) >> 1;
+    std::uint32_t y32_diff = std::min<std::uint32_t>(8 << FP_SCALE, std::max(abs(iA[3]), abs(iA[4])) - 1) >> 1;
 
     std::int32_t offset = (min_y << 1) - 1;
     iA[2] += ((iA[0] + iA[1] * offset) >> 1);

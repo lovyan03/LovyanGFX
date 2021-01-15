@@ -139,7 +139,7 @@ namespace lgfx
       *reg(I2S_LC_CONF_REG(_i2s_port)) = I2S_IN_RST | I2S_OUT_RST | I2S_AHBM_RST | I2S_AHBM_FIFO_RST;
       *reg(I2S_LC_CONF_REG(_i2s_port)) = I2S_OUT_EOF_MODE;
 
-      *reg(I2S_CONF2_REG(_i2s_port)) = I2S_LCD_EN ;
+      *reg(I2S_CONF2_REG(_i2s_port)) = I2S_LCD_EN;
 
       *reg(I2S_CONF1_REG(_i2s_port))
             = I2S_TX_PCM_BYPASS
@@ -176,6 +176,7 @@ namespace lgfx
 
     void postSetPanel(void) override
     {
+      _last_apb_freq = ~0u;
       _cmd_ramwr      = _panel->getCmdRamwr();
       _len_setwindow  = _panel->len_setwindow;
       fpGetWindowAddr = _len_setwindow == 32 ? PanelCommon::getWindowAddr32 : PanelCommon::getWindowAddr16;
@@ -223,14 +224,20 @@ namespace lgfx
 
     void begin_transaction(void)
     {
-      // I2S_CLKM_DIV_NUM 4=20MHz  /  5=16MHz  /  8=10MHz  /  10=8MHz
-      // clock = 80MHz / I2S_CLKM_DIV_NUM
-      *reg(I2S_CLKM_CONF_REG(_i2s_port))
-                    = I2S_CLKA_ENA
-                    | 63 << I2S_CLKM_DIV_A_S
-                    |  0 << I2S_CLKM_DIV_B_S
-                    |  4 << I2S_CLKM_DIV_NUM_S
-                    ;
+      std::uint32_t apb_freq = getApbFrequency();
+      if (_last_apb_freq != apb_freq) {
+        _last_apb_freq = apb_freq;
+        // clock = 80MHz(apb_freq) / I2S_CLKM_DIV_NUM
+        // I2S_CLKM_DIV_NUM 4=20MHz  /  5=16MHz  /  8=10MHz  /  10=8MHz
+        std::uint32_t div_num = std::min(32u, std::max(4u, 1 + (apb_freq / (1 + _panel->freq_write))));
+        _clkdiv_write =            I2S_CLKA_ENA
+                      |            I2S_CLK_EN
+                      |       1 << I2S_CLKM_DIV_A_S
+                      |       0 << I2S_CLKM_DIV_B_S
+                      | div_num << I2S_CLKM_DIV_NUM_S
+                      ;
+      }
+      *reg(I2S_CLKM_CONF_REG(_i2s_port)) = _clkdiv_write;
 
       cs_l();
     }
@@ -363,8 +370,8 @@ namespace lgfx
 
     void write_cmd(std::uint_fast8_t cmd)
     {
-      *reg(I2S_SAMPLE_RATE_CONF_REG(_i2s_port)) = _sample_rate_conf_reg_32bit;
       wait();
+      *reg(I2S_SAMPLE_RATE_CONF_REG(_i2s_port)) = _sample_rate_conf_reg_32bit;
       *reg(I2S_FIFO_CONF_REG(_i2s_port)) = _fifo_conf_default;
       *reg(I2S_FIFO_WR_REG(_i2s_port)) = cmd << 16;
       *reg(I2S_CONF_REG(_i2s_port)) = _conf_reg_start;
@@ -373,8 +380,8 @@ namespace lgfx
 
     void write_data(std::uint32_t data, std::uint32_t bit_length)
     {
-      *reg(I2S_SAMPLE_RATE_CONF_REG(_i2s_port)) = _sample_rate_conf_reg_32bit;
       wait();
+      *reg(I2S_SAMPLE_RATE_CONF_REG(_i2s_port)) = _sample_rate_conf_reg_32bit;
       *reg(I2S_FIFO_CONF_REG(_i2s_port)) = _fifo_conf_default;
       *reg(I2S_FIFO_WR_REG(_i2s_port)) = (0x100 | (data & 0xFF)) << 16;
       while (bit_length -= 8) {
@@ -915,6 +922,9 @@ namespace lgfx
     std::uint32_t _cmd_caset;
     std::uint32_t _cmd_raset;
     std::uint32_t _cmd_ramwr;
+  private:
+    std::uint32_t _last_apb_freq;
+    std::uint32_t _clkdiv_write;
     std::uint32_t _len_setwindow;
     std::uint32_t _mask_reg_dc;
     volatile std::uint32_t* _gpio_reg_dc_h;
