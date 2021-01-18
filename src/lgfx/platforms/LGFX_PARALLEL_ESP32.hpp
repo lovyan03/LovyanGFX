@@ -49,13 +49,8 @@ Contributors:
 
 namespace lgfx
 {
-  #ifndef I2S_FIFO_WR_REG
-  #define I2S_FIFO_WR_REG(i) (REG_I2S_BASE(i))
-  #endif
-
-  #ifndef I2S_FIFO_RD_REG
-  #define I2S_FIFO_RD_REG(i) (REG_I2S_BASE(i+4))
-  #endif
+  #define SAFE_I2S_FIFO_WR_REG(i) (0x6000F000 + ((i)*0x1E000))
+  #define SAFE_I2S_FIFO_RD_REG(i) (0x6000F004 + ((i)*0x1E000))
 
   #define MEMBER_DETECTOR(member, classname, classname_impl, valuetype) struct classname_impl { \
   template<class T, valuetype V> static constexpr std::integral_constant<valuetype, T::member> check(decltype(T::member)*); \
@@ -334,7 +329,7 @@ namespace lgfx
           *reg(I2S_FIFO_CONF_REG(_i2s_port)) = _fifo_conf_default;
 
           while (limit--) {
-            *reg(I2S_FIFO_WR_REG(_i2s_port)) = data;
+            *reg(SAFE_I2S_FIFO_WR_REG(_i2s_port)) = data;
           }
           *reg(I2S_CONF_REG(_i2s_port)) = conf_start;
           limit = 32;
@@ -358,9 +353,9 @@ namespace lgfx
           wait();
           *reg(I2S_FIFO_CONF_REG(_i2s_port)) = _fifo_conf_default;
           while (limit--) {
-            *reg(I2S_FIFO_WR_REG(_i2s_port)) = data0;
-            *reg(I2S_FIFO_WR_REG(_i2s_port)) = data1;
-            *reg(I2S_FIFO_WR_REG(_i2s_port)) = data2;
+            *reg(SAFE_I2S_FIFO_WR_REG(_i2s_port)) = data0;
+            *reg(SAFE_I2S_FIFO_WR_REG(_i2s_port)) = data1;
+            *reg(SAFE_I2S_FIFO_WR_REG(_i2s_port)) = data2;
           }
           *reg(I2S_CONF_REG(_i2s_port)) = conf_start;
           limit = 10;
@@ -373,7 +368,7 @@ namespace lgfx
       wait();
       *reg(I2S_SAMPLE_RATE_CONF_REG(_i2s_port)) = _sample_rate_conf_reg_32bit;
       *reg(I2S_FIFO_CONF_REG(_i2s_port)) = _fifo_conf_default;
-      *reg(I2S_FIFO_WR_REG(_i2s_port)) = cmd << 16;
+      *reg(SAFE_I2S_FIFO_WR_REG(_i2s_port)) = cmd << 16;
       *reg(I2S_CONF_REG(_i2s_port)) = _conf_reg_start;
 //auto dummy = *reg(I2S_CONF_REG(_i2s_port));
     }
@@ -383,10 +378,10 @@ namespace lgfx
       wait();
       *reg(I2S_SAMPLE_RATE_CONF_REG(_i2s_port)) = _sample_rate_conf_reg_32bit;
       *reg(I2S_FIFO_CONF_REG(_i2s_port)) = _fifo_conf_default;
-      *reg(I2S_FIFO_WR_REG(_i2s_port)) = (0x100 | (data & 0xFF)) << 16;
+      *reg(SAFE_I2S_FIFO_WR_REG(_i2s_port)) = (0x100 | (data & 0xFF)) << 16;
       while (bit_length -= 8) {
         data >>= 8;
-        *reg(I2S_FIFO_WR_REG(_i2s_port)) = (0x100 | (data & 0xFF)) << 16;
+        *reg(SAFE_I2S_FIFO_WR_REG(_i2s_port)) = (0x100 | (data & 0xFF)) << 16;
       }
       *reg(I2S_CONF_REG(_i2s_port)) = _conf_reg_start;
 //auto dummy = *reg(I2S_CONF_REG(_i2s_port));
@@ -406,15 +401,15 @@ namespace lgfx
         std::uint32_t tmp = _colstart;
         xs += tmp;
         xe += tmp;
-        *reg(I2S_FIFO_WR_REG(_i2s_port)) = _cmd_caset << 16;
+        *reg(SAFE_I2S_FIFO_WR_REG(_i2s_port)) = _cmd_caset << 16;
         if (!len32) {
-          *reg(I2S_FIFO_WR_REG(_i2s_port)) = xs<<16|data_wr;
-          *reg(I2S_FIFO_WR_REG(_i2s_port)) = xe<<16|data_wr;
+          *reg(SAFE_I2S_FIFO_WR_REG(_i2s_port)) = xs<<16|data_wr;
+          *reg(SAFE_I2S_FIFO_WR_REG(_i2s_port)) = xe<<16|data_wr;
         } else {
-          *reg(I2S_FIFO_WR_REG(_i2s_port)) = xs<< 8|data_wr;
-          *reg(I2S_FIFO_WR_REG(_i2s_port)) = xs<<16|data_wr;
-          *reg(I2S_FIFO_WR_REG(_i2s_port)) = xe<< 8|data_wr;
-          *reg(I2S_FIFO_WR_REG(_i2s_port)) = xe<<16|data_wr;
+          *reg(SAFE_I2S_FIFO_WR_REG(_i2s_port)) = xs<< 8|data_wr;
+          *reg(SAFE_I2S_FIFO_WR_REG(_i2s_port)) = xs<<16|data_wr;
+          *reg(SAFE_I2S_FIFO_WR_REG(_i2s_port)) = xe<< 8|data_wr;
+          *reg(SAFE_I2S_FIFO_WR_REG(_i2s_port)) = xe<<16|data_wr;
         }
       }
       if (_ys != ys || _ye != ye) {
@@ -423,18 +418,18 @@ namespace lgfx
         std::uint32_t tmp = _rowstart;
         ys += tmp;
         ye += tmp;
-        *reg(I2S_FIFO_WR_REG(_i2s_port)) = _cmd_raset << 16;
+        *reg(SAFE_I2S_FIFO_WR_REG(_i2s_port)) = _cmd_raset << 16;
         if (!len32) {
-          *reg(I2S_FIFO_WR_REG(_i2s_port)) = ys<<16|data_wr;
-          *reg(I2S_FIFO_WR_REG(_i2s_port)) = ye<<16|data_wr;
+          *reg(SAFE_I2S_FIFO_WR_REG(_i2s_port)) = ys<<16|data_wr;
+          *reg(SAFE_I2S_FIFO_WR_REG(_i2s_port)) = ye<<16|data_wr;
         } else {
-          *reg(I2S_FIFO_WR_REG(_i2s_port)) = ys<< 8|data_wr;
-          *reg(I2S_FIFO_WR_REG(_i2s_port)) = ys<<16|data_wr;
-          *reg(I2S_FIFO_WR_REG(_i2s_port)) = ye<< 8|data_wr;
-          *reg(I2S_FIFO_WR_REG(_i2s_port)) = ye<<16|data_wr;
+          *reg(SAFE_I2S_FIFO_WR_REG(_i2s_port)) = ys<< 8|data_wr;
+          *reg(SAFE_I2S_FIFO_WR_REG(_i2s_port)) = ys<<16|data_wr;
+          *reg(SAFE_I2S_FIFO_WR_REG(_i2s_port)) = ye<< 8|data_wr;
+          *reg(SAFE_I2S_FIFO_WR_REG(_i2s_port)) = ye<<16|data_wr;
         }
       }
-      *reg(I2S_FIFO_WR_REG(_i2s_port)) = cmd << 16;
+      *reg(SAFE_I2S_FIFO_WR_REG(_i2s_port)) = cmd << 16;
 
       *reg(I2S_CONF_REG(_i2s_port)) = _conf_reg_start;
 /*/
@@ -450,12 +445,12 @@ namespace lgfx
         std::uint32_t tmp = _colstart;
         xs += tmp;
         xe += tmp;
-        *reg(I2S_FIFO_WR_REG(_i2s_port)) = _cmd_caset;
+        *reg(SAFE_I2S_FIFO_WR_REG(_i2s_port)) = _cmd_caset;
         if (!len32) {
-          *reg(I2S_FIFO_WR_REG(_i2s_port)) = xs|xe<<16|data_wr;
+          *reg(SAFE_I2S_FIFO_WR_REG(_i2s_port)) = xs|xe<<16|data_wr;
         } else {
-          *reg(I2S_FIFO_WR_REG(_i2s_port)) = xs|xs<<8|data_wr;
-          *reg(I2S_FIFO_WR_REG(_i2s_port)) = xe|xe<<8|data_wr;
+          *reg(SAFE_I2S_FIFO_WR_REG(_i2s_port)) = xs|xs<<8|data_wr;
+          *reg(SAFE_I2S_FIFO_WR_REG(_i2s_port)) = xe|xe<<8|data_wr;
         }
       }
       if (_ys != ys || _ye != ye) {
@@ -464,15 +459,15 @@ namespace lgfx
         std::uint32_t tmp = _rowstart;
         ys += tmp;
         ye += tmp;
-        *reg(I2S_FIFO_WR_REG(_i2s_port)) = _cmd_raset;
+        *reg(SAFE_I2S_FIFO_WR_REG(_i2s_port)) = _cmd_raset;
         if (!len32) {
-          *reg(I2S_FIFO_WR_REG(_i2s_port)) = ys|ye<<16|data_wr;
+          *reg(SAFE_I2S_FIFO_WR_REG(_i2s_port)) = ys|ye<<16|data_wr;
         } else {
-          *reg(I2S_FIFO_WR_REG(_i2s_port)) = ys|ys<<8|data_wr;
-          *reg(I2S_FIFO_WR_REG(_i2s_port)) = ye|ye<<8|data_wr;
+          *reg(SAFE_I2S_FIFO_WR_REG(_i2s_port)) = ys|ys<<8|data_wr;
+          *reg(SAFE_I2S_FIFO_WR_REG(_i2s_port)) = ye|ye<<8|data_wr;
         }
       }
-      *reg(I2S_FIFO_WR_REG(_i2s_port)) = cmd;
+      *reg(SAFE_I2S_FIFO_WR_REG(_i2s_port)) = cmd;
 
       *reg(I2S_CONF_REG(_i2s_port)) = _conf_reg_start;
 //*/
@@ -695,7 +690,7 @@ namespace lgfx
       std::int32_t limit = (((length>>1)-1)&(31))+1;
       length -= limit << 1;
       do {
-        *reg(I2S_FIFO_WR_REG(_i2s_port)) = data[0] << 16 | data[1] | data_wr;
+        *reg(SAFE_I2S_FIFO_WR_REG(_i2s_port)) = data[0] << 16 | data[1] | data_wr;
         data += 2;
       } while (--limit);
       *reg(I2S_CONF_REG(_i2s_port)) = conf_start;
