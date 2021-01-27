@@ -52,6 +52,7 @@ namespace lgfx
     , board_Makerfabs_MakePython
     , board_M5Stack_CoreInk
     , board_M5Paper
+    , board_ESP32_S2_Kaluga_1
     };
   }
   using namespace boards;
@@ -1411,6 +1412,7 @@ namespace lgfx
     virtual void skip(std::int32_t offset) = 0;
     virtual bool seek(std::uint32_t offset) = 0;
     virtual void close(void) = 0;
+    virtual std::int32_t tell(void) = 0;
 
     __attribute__ ((always_inline)) inline void preRead(void) { if (fp_pre_read) fp_pre_read(parent); }
     __attribute__ ((always_inline)) inline void postRead(void) { if (fp_post_read) fp_post_read(parent); }
@@ -1432,6 +1434,7 @@ namespace lgfx
     void skip(std::int32_t offset) override { _index += offset; }
     bool seek(std::uint32_t offset) override { _index = offset; return true; }
     void close(void) override { }
+    std::int32_t tell(void) override { return _index; }
 
   private:
     const std::uint8_t* _ptr;

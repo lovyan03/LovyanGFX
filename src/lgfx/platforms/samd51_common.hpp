@@ -107,6 +107,7 @@ namespace lgfx
     bool seek(std::uint32_t offset) override { return seek(offset, SeekSet); }
     bool seek(std::uint32_t offset, SeekMode mode) { return _fp->seek(offset, mode); }
     void close() override { _fp->close(); }
+    std::int32_t tell(void) override { return _fp->position(); }
 
 #elif __SAMD51_HARMONY__
 
@@ -146,6 +147,10 @@ namespace lgfx
         this->handle = SYS_FS_HANDLE_INVALID;
       }
     }
+    std::int32_t tell(void) override
+    {
+      return SYS_FS_FileTell(this->handle);
+    }
 
 #else  // dummy.
 
@@ -155,6 +160,7 @@ namespace lgfx
     bool seek(std::uint32_t) override { return false; }
     bool seek(std::uint32_t, int) { return false; }
     void close() override { }
+    std::int32_t tell(void) override { return 0; }
 
 #endif
 
@@ -176,6 +182,7 @@ namespace lgfx
     void skip(std::int32_t offset) override { if (0 < offset) { char dummy[offset]; _stream->readBytes(dummy, offset); _index += offset; } }
     bool seek(std::uint32_t offset) override { if (offset < _index) { return false; } skip(offset - _index); return true; }
     void close() override { }
+    std::int32_t tell(void) override { return _index; }
 
   private:
     Stream* _stream;

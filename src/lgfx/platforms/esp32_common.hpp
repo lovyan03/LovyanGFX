@@ -110,6 +110,7 @@ public:
     bool seek(std::uint32_t offset) override { return seek(offset, SeekSet); }
     bool seek(std::uint32_t offset, SeekMode mode) { return _fp->seek(offset, mode); }
     void close() override { _fp->close(); }
+    std::int32_t tell(void) override { return _fp->position(); }
   };
  #else
   // dummy
@@ -126,6 +127,7 @@ public:
     bool seek(std::uint32_t offset) override { return false; }
     bool seek(std::uint32_t offset, int origin) { return false; }
     void close() override { }
+    std::int32_t tell(void) override { return 0; }
   };
 
  #endif
@@ -144,6 +146,7 @@ public:
     bool seek(std::uint32_t offset) override { return seek(offset, SEEK_SET); }
     bool seek(std::uint32_t offset, int origin) { return fseek(_fp, offset, origin); }
     void close() override { fclose(_fp); }
+    std::int32_t tell(void) override { return ftell(_fp); }
   };
 
 #endif
@@ -165,6 +168,7 @@ public:
     void skip(std::int32_t offset) override { if (0 < offset) { char dummy[offset]; _stream->readBytes(dummy, offset); _index += offset; } }
     bool seek(std::uint32_t offset) override { if (offset < _index) { return false; } skip(offset - _index); return true; }
     void close() override { }
+    std::int32_t tell(void) override { return _index; }
 
   protected:
     Stream* _stream;
