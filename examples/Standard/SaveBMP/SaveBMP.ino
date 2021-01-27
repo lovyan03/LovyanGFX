@@ -23,8 +23,6 @@ static constexpr char filename[] = "/lovyangfx_test.bmp";
 
 bool saveToSD_16bit(void)
 {
-  std::size_t dlen;
-
   bool result = false;
   File file = SD.open(filename, "w");
   if (file)
@@ -67,8 +65,6 @@ bool saveToSD_16bit(void)
 
 bool saveToSD_24bit(void)
 {
-  std::size_t dlen;
-
   bool result = false;
   File file = SD.open(filename, "w");
   if (file)

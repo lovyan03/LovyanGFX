@@ -1,1 +1,1 @@
-#define LOVYANGFX_VERSION F("0.3.7")
+#define LOVYANGFX_VERSION F("0.3.8")
