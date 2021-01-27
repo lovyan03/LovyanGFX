@@ -176,7 +176,9 @@ namespace lgfx
       if (_spi_handle[spi_host] == nullptr) {
         _spi_handle[spi_host] = spiStartBus(spi_port, SPI_CLK_EQU_SYSCLK, 0, 0);
       }
+      periph_module_enable(spi_periph_signal[spi_host].module);
       if (spi_mosi >= 0) {
+        gpio_lo(spi_mosi);
         lgfxPinMode(spi_mosi, pin_mode_t::output);
         gpio_matrix_out(spi_mosi, spi_periph_signal[spi_host].spid_out, false, false);
         gpio_matrix_in(spi_mosi, spi_periph_signal[spi_host].spid_in, false);
@@ -187,12 +189,12 @@ namespace lgfx
         gpio_matrix_in(spi_miso, spi_periph_signal[spi_host].spiq_in, false);
       }
       if (spi_sclk >= 0) {
+        gpio_lo(spi_sclk); // ここでLOWにしておくことで、pinMode変更によるHIGHパルスが出力されるのを防止する (CSなしパネル対策)
         lgfxPinMode(spi_sclk, pin_mode_t::output);
         //gpio_set_direction((gpio_num_t)_spi_sclk, GPIO_MODE_INPUT_OUTPUT);
         gpio_matrix_out(spi_sclk, spi_periph_signal[spi_host].spiclk_out, false, false);
         gpio_matrix_in(spi_sclk, spi_periph_signal[spi_host].spiclk_in, false);
       }
-      periph_module_enable(spi_periph_signal[spi_host].module);
       if (dma_channel) {
         periph_module_enable( PERIPH_SPI_DMA_MODULE );
     //Select DMA channel.

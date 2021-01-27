@@ -12,9 +12,9 @@ namespace lgfx
       panel_width  = memory_width  = 320;
       panel_height = memory_height = 480;
 
-      freq_write = 27000000;
+      freq_write = 16000000;
       freq_read  = 16000000;
-      freq_fill  = 27000000;
+      freq_fill  = 16000000;
     }
 
   protected:
@@ -32,7 +32,7 @@ namespace lgfx
     const std::uint8_t* getInitCommands(std::uint8_t listno) const override
     {
       static constexpr std::uint8_t list0[] = {
-          CMD::SLPOUT ,  CMD_INIT_DELAY, 5,    // Exit sleep mode
+          CMD::SLPOUT ,  CMD_INIT_DELAY, 130,    // Exit sleep mode
           CMD::PWSET  , 3, 0x07, 0x41, 0x1D,
           CMD::VMCTR  , 3, 0x00, 0x1C, 0x1F,
           CMD::PWSETN , 2, 0x01, 0x11,
@@ -44,15 +44,12 @@ namespace lgfx
           0xB0        , 1, 0x00,  // CommandAccessProtect
           0xE4        , 1, 0xA0,
           0xF0        , 1, 0x01,
-          0xFF,0xFF, // end
-      };
-      static constexpr std::uint8_t list1[] = {
+          
           CMD::DISPON, 0,     // Set display on
           0xFF,0xFF, // end
       };
       switch (listno) {
       case 0: return list0;
-      case 1: return list1;
       default: return nullptr;
       }
     }
@@ -60,17 +57,19 @@ namespace lgfx
     std::uint8_t getMadCtl(std::uint8_t r) const override
     {
       static constexpr std::uint8_t madctl_table[] = {
-               MAD_MX|MAD_MH              ,
-        MAD_MV                            ,
-                             MAD_MY|MAD_ML,
-        MAD_MV|MAD_MX|MAD_MY|MAD_MH|MAD_ML,
-               MAD_MX|MAD_MH|MAD_MY|MAD_ML,
-        MAD_MV|MAD_MX|MAD_MH              ,
-                                         0,
-        MAD_MV|              MAD_MY|MAD_ML,
+               MAD_HF       ,
+        MAD_MV              ,
+                      MAD_VF,
+        MAD_MV|MAD_HF|MAD_VF,
+               MAD_HF|MAD_VF,
+        MAD_MV|MAD_HF       ,
+                           0,
+        MAD_MV|       MAD_VF,
       };
       return madctl_table[r];
     }
+
+    color_depth_t getAdjustBpp(color_depth_t) const override { return rgb888_3Byte; }
   };
 }
 

@@ -210,10 +210,12 @@ namespace lgfx
         endWrite();
       }
 
+      startWrite();
       invertDisplay(getInvert());
       setColorDepth(getColorDepth());
       setRotation(getRotation());
       setBrightness(getBrightness());
+      endWrite();
 
       _panel->post_init(this, use_reset);
     }
@@ -416,6 +418,8 @@ namespace lgfx
         const std::uint32_t buflen = h * _write_conv.bytes;
         std::uint8_t buf[buflen];
         pc_write.src_data = buf;
+        pc_write.src_width = 1;
+        pc_write.src_bitwidth = 1;
         std::int32_t add = (src_x < dst_x) ?   - 1 : 1;
         std::int32_t pos = (src_x < dst_x) ? w - 1 : 0;
         do {

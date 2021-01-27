@@ -43,8 +43,10 @@ namespace lgfx
 
   void setPWMDuty(std::uint32_t pwm_ch, std::uint8_t duty);
 
-  static inline volatile std::uint32_t* get_gpio_hi_reg(std::int_fast8_t pin) { return (pin & 32) ? &GPIO.out1_w1ts.val : &GPIO.out_w1ts; }
-  static inline volatile std::uint32_t* get_gpio_lo_reg(std::int_fast8_t pin) { return (pin & 32) ? &GPIO.out1_w1tc.val : &GPIO.out_w1tc; }
+//static inline volatile std::uint32_t* get_gpio_hi_reg(std::int_fast8_t pin) { return (pin & 32) ? &GPIO.out1_w1ts.val : &GPIO.out_w1ts; } // workaround Eratta
+  static inline volatile std::uint32_t* get_gpio_hi_reg(std::int_fast8_t pin) { return (volatile uint32_t*)((pin & 32) ? 0x60004014 : 0x60004008) ; }
+//static inline volatile std::uint32_t* get_gpio_lo_reg(std::int_fast8_t pin) { return (pin & 32) ? &GPIO.out1_w1tc.val : &GPIO.out_w1tc; }
+  static inline volatile std::uint32_t* get_gpio_lo_reg(std::int_fast8_t pin) { return (volatile uint32_t*)((pin & 32) ? 0x60004018 : 0x6000400C) ; }
   static inline void gpio_hi(std::int_fast8_t pin) { if (pin >= 0) *get_gpio_hi_reg(pin) = 1 << (pin & 31); }
   static inline void gpio_lo(std::int_fast8_t pin) { if (pin >= 0) *get_gpio_lo_reg(pin) = 1 << (pin & 31); }
   static inline bool gpio_in(std::int_fast8_t pin) { return ((pin & 32) ? GPIO.in1.data : GPIO.in) & (1 << (pin & 31)); }
@@ -108,6 +110,7 @@ public:
     bool seek(std::uint32_t offset) override { return seek(offset, SeekSet); }
     bool seek(std::uint32_t offset, SeekMode mode) { return _fp->seek(offset, mode); }
     void close() override { _fp->close(); }
+    std::int32_t tell(void) override { return _fp->position(); }
   };
  #else
   // dummy
@@ -124,6 +127,7 @@ public:
     bool seek(std::uint32_t offset) override { return false; }
     bool seek(std::uint32_t offset, int origin) { return false; }
     void close() override { }
+    std::int32_t tell(void) override { return 0; }
   };
 
  #endif
@@ -142,6 +146,7 @@ public:
     bool seek(std::uint32_t offset) override { return seek(offset, SEEK_SET); }
     bool seek(std::uint32_t offset, int origin) { return fseek(_fp, offset, origin); }
     void close() override { fclose(_fp); }
+    std::int32_t tell(void) override { return ftell(_fp); }
   };
 
 #endif
@@ -163,6 +168,7 @@ public:
     void skip(std::int32_t offset) override { if (0 < offset) { char dummy[offset]; _stream->readBytes(dummy, offset); _index += offset; } }
     bool seek(std::uint32_t offset) override { if (offset < _index) { return false; } skip(offset - _index); return true; }
     void close() override { }
+    std::int32_t tell(void) override { return _index; }
 
   protected:
     Stream* _stream;
