@@ -202,39 +202,39 @@ namespace lgfx
   __attribute__ ((always_inline)) inline static constexpr std::uint32_t getSwap24(std::uint32_t c) { return ((std::uint8_t)c)<<16 | ((std::uint8_t)(c>>8))<<8 | (std::uint8_t)(c>>16); }
 
   __attribute__((used))
-  static std::uint32_t convert_bgr888_to_rgb888( std::uint32_t c) { return getSwap24(c);  }
+  static constexpr std::uint32_t convert_bgr888_to_rgb888( std::uint32_t c) { return getSwap24(c);  }
   __attribute__((used))
-  static std::uint32_t convert_bgr888_to_rgb565( std::uint32_t c) { return  (((std::uint8_t)c) >> 3) << 11 | (((std::uint16_t)c)>>10)<<5 | c>>19; }
-  static std::uint32_t convert_bgr888_to_swap565(std::uint32_t c) { return  (((std::uint8_t)c) >> 3) << 3 |  ((std::uint16_t)c) >> 13 | (c & 0x1C00) << 3 | (c>>19) << 8; }
-  static std::uint32_t convert_bgr888_to_bgr666 (std::uint32_t c) { return (c>>2) & 0x3F3F3F;  }
-  static std::uint32_t convert_bgr888_to_rgb332 (std::uint32_t c) { return ((std::uint8_t)c >> 5) << 5 | (((std::uint16_t)c)>>13) << 2 | c>>22; }
+  static constexpr std::uint32_t convert_bgr888_to_rgb565( std::uint32_t c) { return  (((std::uint8_t)c) >> 3) << 11 | (((std::uint16_t)c)>>10)<<5 | c>>19; }
+  static constexpr std::uint32_t convert_bgr888_to_swap565(std::uint32_t c) { return  (((std::uint8_t)c) >> 3) << 3 |  ((std::uint16_t)c) >> 13 | (c & 0x1C00) << 3 | (c>>19) << 8; }
+  static constexpr std::uint32_t convert_bgr888_to_bgr666 (std::uint32_t c) { return (c>>2) & 0x3F3F3F;  }
+  static constexpr std::uint32_t convert_bgr888_to_rgb332 (std::uint32_t c) { return ((std::uint8_t)c >> 5) << 5 | (((std::uint16_t)c)>>13) << 2 | c>>22; }
 
   __attribute__((used))
-  static std::uint32_t convert_rgb888_to_bgr666 (std::uint32_t c) { return ((c>>2) & 0x3F) << 16 | ((c >> 10) & 0x3F) << 8 | ((c>>18)&0x3F);  }
+  static constexpr std::uint32_t convert_rgb888_to_bgr666 (std::uint32_t c) { return ((c>>2) & 0x3F) << 16 | ((c >> 10) & 0x3F) << 8 | ((c>>18)&0x3F);  }
   __attribute__((used))
-  static std::uint32_t convert_rgb888_to_rgb565 (std::uint32_t c) { return  (c>>19) << 11 | (((std::uint16_t)c)>>10)<<5 | ((std::uint8_t)c) >> 3;   }
-  static std::uint32_t convert_rgb888_to_bgr888 (std::uint32_t c) { return getSwap24(c);  }
-  static std::uint32_t convert_rgb888_to_swap565(std::uint32_t c) { return  (c>>19) << 3 |  ((std::uint16_t)c) >> 13 | (c & 0x1C00) << 3 | (((std::uint8_t)c) >> 3) << 8; }
-  static std::uint32_t convert_rgb888_to_rgb332 (std::uint32_t c) { return ((c>>21) << 5) | ((((std::uint16_t)c)>>13) << 2) | ((c>>6) & 3); }
+  static constexpr std::uint32_t convert_rgb888_to_rgb565 (std::uint32_t c) { return  (c>>19) << 11 | (((std::uint16_t)c)>>10)<<5 | ((std::uint8_t)c) >> 3;   }
+  static constexpr std::uint32_t convert_rgb888_to_bgr888 (std::uint32_t c) { return getSwap24(c);  }
+  static constexpr std::uint32_t convert_rgb888_to_swap565(std::uint32_t c) { return  (c>>19) << 3 |  ((std::uint16_t)c) >> 13 | (c & 0x1C00) << 3 | (((std::uint8_t)c) >> 3) << 8; }
+  static constexpr std::uint32_t convert_rgb888_to_rgb332 (std::uint32_t c) { return ((c>>21) << 5) | ((((std::uint16_t)c)>>13) << 2) | ((c>>6) & 3); }
 
   __attribute__((used))
-  static std::uint32_t convert_rgb565_to_rgb888( std::uint32_t c) { return ((((c>>11)*0x21)>>2)<<8 | ((((c>>5)&0x3F)*0x41)>>4))<<8 | (((c&0x1F)*0x21)>>2); }
-  static std::uint32_t convert_rgb565_to_bgr888 (std::uint32_t c) { return ((((c&0x1F)*0x21)>>2)<<8 | ((((c>>5)&0x3F)*0x41)>>4))<<8 | (((c>>11)*0x21)>>2); }
-  static std::uint32_t convert_rgb565_to_bgr666 (std::uint32_t c) { return ((c&0x1F)<<17) | ((c&0x10)<<12) | ((c&0x7E0)<<3) | ((c>>10)&0xF8) | (c>>15); }
-  static std::uint32_t convert_rgb565_to_swap565(std::uint32_t c) { return (0xFF & c)<<8|c>>8; }
-  static std::uint32_t convert_rgb565_to_rgb332 (std::uint32_t c) { return ((c>>13) <<5) | ((c>>6) & 0x1C) | ((c>>3) & 3); }
+  static constexpr std::uint32_t convert_rgb565_to_rgb888( std::uint32_t c) { return ((((c>>11)*0x21)>>2)<<8 | ((((c>>5)&0x3F)*0x41)>>4))<<8 | (((c&0x1F)*0x21)>>2); }
+  static constexpr std::uint32_t convert_rgb565_to_bgr888 (std::uint32_t c) { return ((((c&0x1F)*0x21)>>2)<<8 | ((((c>>5)&0x3F)*0x41)>>4))<<8 | (((c>>11)*0x21)>>2); }
+  static constexpr std::uint32_t convert_rgb565_to_bgr666 (std::uint32_t c) { return ((c&0x1F)<<17) | ((c&0x10)<<12) | ((c&0x7E0)<<3) | ((c>>10)&0xF8) | (c>>15); }
+  static constexpr std::uint32_t convert_rgb565_to_swap565(std::uint32_t c) { return (0xFF & c)<<8|c>>8; }
+  static constexpr std::uint32_t convert_rgb565_to_rgb332 (std::uint32_t c) { return ((c>>13) <<5) | ((c>>6) & 0x1C) | ((c>>3) & 3); }
 
   __attribute__((used))
-  static std::uint32_t convert_rgb332_to_rgb888 (std::uint32_t c) { return ((((c>>5)*0x49) >> 1)<<8 | ((c&0x1C)*0x49)>>3)<<8 | ((c&3)*0x55); }
-  static std::uint32_t convert_rgb332_to_bgr888 (std::uint32_t c) { return (((c&3)*0x55)<<8 | ((c&0x1C)*0x49)>>3)<<8 | (((c>>5)*0x49) >> 1); }
-  static std::uint32_t convert_rgb332_to_bgr666 (std::uint32_t c) { return (((c&0xE0)*9)>>5) | ((c&0x1C)*0x240) | ((c&3)*0x15)<<16; }
-  static std::uint32_t convert_rgb332_to_swap565(std::uint32_t c) { return (((c&3)*0x15)>>1)<<8 | ((c&0x1C)<<11) | ((c&0x1C)>>2) | (((c>>5)*0x24)&0xF8); }
+  static constexpr std::uint32_t convert_rgb332_to_rgb888 (std::uint32_t c) { return ((((c>>5)*0x49) >> 1)<<8 | ((c&0x1C)*0x49)>>3)<<8 | ((c&3)*0x55); }
+  static constexpr std::uint32_t convert_rgb332_to_bgr888 (std::uint32_t c) { return (((c&3)*0x55)<<8 | ((c&0x1C)*0x49)>>3)<<8 | (((c>>5)*0x49) >> 1); }
+  static constexpr std::uint32_t convert_rgb332_to_bgr666 (std::uint32_t c) { return (((c&0xE0)*9)>>5) | ((c&0x1C)*0x240) | ((c&3)*0x15)<<16; }
+  static constexpr std::uint32_t convert_rgb332_to_swap565(std::uint32_t c) { return (((c&3)*0x15)>>1)<<8 | ((c&0x1C)<<11) | ((c&0x1C)>>2) | (((c>>5)*0x24)&0xF8); }
 
-  static std::uint32_t convert_uint32_to_palette8(std::uint32_t c) { return  c&0xFF; }
-  static std::uint32_t convert_uint32_to_palette4(std::uint32_t c) { return (c&0x0F) * 0x11; }
-  static std::uint32_t convert_uint32_to_palette2(std::uint32_t c) { return (c&0x03) * 0x55; }
-  static std::uint32_t convert_uint32_to_palette1(std::uint32_t c) { return (c&1)?0xFF:0; }
-  static std::uint32_t no_convert(std::uint32_t c)                 { return c; }
+  static constexpr std::uint32_t convert_uint32_to_palette8(std::uint32_t c) { return  c&0xFF; }
+  static constexpr std::uint32_t convert_uint32_to_palette4(std::uint32_t c) { return (c&0x0F) * 0x11; }
+  static constexpr std::uint32_t convert_uint32_to_palette2(std::uint32_t c) { return (c&0x03) * 0x55; }
+  static constexpr std::uint32_t convert_uint32_to_palette1(std::uint32_t c) { return (c&1)?0xFF:0; }
+  static constexpr std::uint32_t no_convert(std::uint32_t c)                 { return c; }
 
 #pragma pack(push)
 #pragma pack(1)
@@ -271,21 +271,21 @@ namespace lgfx
     inline rgb332_t& operator=(const bgr888_t&);
     inline rgb332_t& operator=(const grayscale_t&);
     inline rgb332_t& operator=(std::uint8_t rgb332) { *reinterpret_cast<std::uint8_t*>(this) = rgb332; return *this; }
-    explicit inline operator std::uint8_t() const { return raw; }
-//  explicit inline operator std::uint32_t() const { return raw; }
-    explicit inline operator bool() const { return raw; }
+    explicit inline constexpr operator std::uint8_t() const { return raw; }
+//  explicit inline constexpr operator std::uint32_t() const { return raw; }
+    explicit inline constexpr operator bool() const { return raw; }
 //  inline operator rgb565_t() const;
 //  inline operator rgb888_t() const;
 //  inline operator argb8888_t() const;
 //  inline operator swap565_t() const;
 //  inline operator bgr888_t() const;
     static constexpr std::uint8_t A8() { return 255; }
-    inline std::uint8_t R8() const { return (r * 0x49) >> 1; } // (r<<5)|(r<<2)|(r>>1);
-    inline std::uint8_t G8() const { return (g * 0x49) >> 1; } // (g<<5)|(g<<2)|(g>>1);
-    inline std::uint8_t B8() const { return  b * 0x55; }       // (b<<6)|(b<<4)|(b<<2)|b;
-    inline std::uint8_t R6() const { return  r | r<<3; }
-    inline std::uint8_t G6() const { return  g | g<<3; }
-    inline std::uint8_t B6() const { return  b * 0x15; }
+    inline constexpr std::uint8_t R8() const { return (r * 0x49) >> 1; } // (r<<5)|(r<<2)|(r>>1);
+    inline constexpr std::uint8_t G8() const { return (g * 0x49) >> 1; } // (g<<5)|(g<<2)|(g>>1);
+    inline constexpr std::uint8_t B8() const { return  b * 0x55; }       // (b<<6)|(b<<4)|(b<<2)|b;
+    inline constexpr std::uint8_t R6() const { return  r | r<<3; }
+    inline constexpr std::uint8_t G6() const { return  g | g<<3; }
+    inline constexpr std::uint8_t B6() const { return  b * 0x15; }
     inline void R8(std::uint8_t r8) { r = r8 >> 5; }
     inline void G8(std::uint8_t g8) { g = g8 >> 5; }
     inline void B8(std::uint8_t b8) { b = b8 >> 6; }
@@ -316,20 +316,20 @@ namespace lgfx
     inline rgb565_t& operator=(const bgr888_t&);
     inline rgb565_t& operator=(const grayscale_t&);
     inline rgb565_t& operator=(std::uint16_t rgb565) { *reinterpret_cast<std::uint16_t*>(this) = rgb565; return *this; }
-    explicit inline operator std::uint16_t() const { return raw; }
-    explicit inline operator bool() const { return raw; }
+    explicit inline constexpr operator std::uint16_t() const { return raw; }
+    explicit inline constexpr operator bool() const { return raw; }
     //inline operator rgb332_t() const { return rgb332_t(r<<3,g<<2,b<<3); }
     //inline operator rgb888_t() const;
     //inline operator argb8888_t() const;
     //inline operator swap565_t() const;
     //inline operator bgr888_t() const;
     static constexpr std::uint8_t A8() { return 255; }
-    inline std::uint8_t R8() const { return (r * 0x21) >> 2; } // (r << 3) | (r >> 2);
-    inline std::uint8_t G8() const { return (g * 0x41) >> 4; } // (g << 2) | (g >> 4);
-    inline std::uint8_t B8() const { return (b * 0x21) >> 2; } // (b << 3) | (b >> 2);
-    inline std::uint8_t R6() const { return (r * 0x21) >> 4; }
-    inline std::uint8_t G6() const { return  g; }
-    inline std::uint8_t B6() const { return (b * 0x21) >> 4; }
+    inline constexpr std::uint8_t R8() const { return (r * 0x21) >> 2; } // (r << 3) | (r >> 2);
+    inline constexpr std::uint8_t G8() const { return (g * 0x41) >> 4; } // (g << 2) | (g >> 4);
+    inline constexpr std::uint8_t B8() const { return (b * 0x21) >> 2; } // (b << 3) | (b >> 2);
+    inline constexpr std::uint8_t R6() const { return (r * 0x21) >> 4; }
+    inline constexpr std::uint8_t G6() const { return  g; }
+    inline constexpr std::uint8_t B6() const { return (b * 0x21) >> 4; }
     inline void R8(std::uint8_t r8) { r = r8 >> 3; }
     inline void G8(std::uint8_t g8) { g = g8 >> 2; }
     inline void B8(std::uint8_t b8) { b = b8 >> 3; }
@@ -359,20 +359,20 @@ namespace lgfx
     inline rgb888_t& operator=(const bgr888_t&);
     inline rgb888_t& operator=(const grayscale_t&);
     inline rgb888_t& operator=(std::uint32_t rgb888) { r = rgb888>>16; g = rgb888>>8; b = rgb888; return *this; }
-//  explicit inline operator std::uint32_t() const { return *(std::uint32_t*)this & ((1<<24)-1); }
-    explicit inline operator bool() const { return r||g||b; }
+//  explicit inline constexpr operator std::uint32_t() const { return *(std::uint32_t*)this & ((1<<24)-1); }
+    explicit inline constexpr operator bool() const { return r||g||b; }
     //inline operator rgb332_t() const { return rgb332_t(r,g,b); }
     //inline operator rgb565_t() const { return rgb565_t(r,g,b); }
     //inline operator argb8888_t() const;
     //inline operator swap565_t() const;
     //inline operator bgr888_t() const;
     static constexpr std::uint8_t A8() { return 255; }
-    inline std::uint8_t R8() const { return r; }
-    inline std::uint8_t G8() const { return g; }
-    inline std::uint8_t B8() const { return b; }
-    inline std::uint8_t R6() const { return r>>2; }
-    inline std::uint8_t G6() const { return g>>2; }
-    inline std::uint8_t B6() const { return b>>2; }
+    inline constexpr std::uint8_t R8() const { return r; }
+    inline constexpr std::uint8_t G8() const { return g; }
+    inline constexpr std::uint8_t B8() const { return b; }
+    inline constexpr std::uint8_t R6() const { return r>>2; }
+    inline constexpr std::uint8_t G6() const { return g>>2; }
+    inline constexpr std::uint8_t B6() const { return b>>2; }
     inline void R8(std::uint8_t r8) { r = r8; }
     inline void G8(std::uint8_t g8) { g = g8; }
     inline void B8(std::uint8_t b8) { b = b8; }
@@ -404,20 +404,20 @@ namespace lgfx
     inline argb8888_t& operator=(const bgr888_t&);
     inline argb8888_t& operator=(const grayscale_t&);
     inline argb8888_t& operator=(std::uint32_t argb8888) { *reinterpret_cast<std::uint32_t*>(this) = argb8888; return *this; }
-//  explicit inline operator std::uint32_t() const { return raw; }
-    explicit inline operator bool() const { return raw; }
+//  explicit inline constexpr operator std::uint32_t() const { return raw; }
+    explicit inline constexpr operator bool() const { return raw; }
     //inline operator rgb332_t() const { return rgb332_t(r,g,b); }
     //inline operator rgb565_t() const { return rgb565_t(r,g,b); }
     //inline operator rgb888_t() const { return operator std::uint32_t(); }
     //inline operator swap565_t() const;
     //inline operator bgr888_t() const;
-    inline std::uint8_t A8() const { return a; }
-    inline std::uint8_t R8() const { return r; }
-    inline std::uint8_t G8() const { return g; }
-    inline std::uint8_t B8() const { return b; }
-    inline std::uint8_t R6() const { return r>>2; }
-    inline std::uint8_t G6() const { return g>>2; }
-    inline std::uint8_t B6() const { return b>>2; }
+    inline constexpr std::uint8_t A8() const { return a; }
+    inline constexpr std::uint8_t R8() const { return r; }
+    inline constexpr std::uint8_t G8() const { return g; }
+    inline constexpr std::uint8_t B8() const { return b; }
+    inline constexpr std::uint8_t R6() const { return r>>2; }
+    inline constexpr std::uint8_t G6() const { return g>>2; }
+    inline constexpr std::uint8_t B6() const { return b>>2; }
     inline void A8(std::uint8_t a8) { a = a8; }
     inline void R8(std::uint8_t r8) { r = r8; }
     inline void G8(std::uint8_t g8) { g = g8; }
@@ -451,18 +451,18 @@ namespace lgfx
     inline swap565_t& operator=(const bgr666_t&);
     inline swap565_t& operator=(const bgr888_t&);
     inline swap565_t& operator=(const grayscale_t&);
-    //explicit inline operator std::uint16_t() const { return raw; }
-//  explicit inline operator std::uint32_t() const { return raw; }
-    explicit inline operator bool() const { return raw; }
+    //explicit inline constexpr operator std::uint16_t() const { return raw; }
+//  explicit inline constexpr operator std::uint32_t() const { return raw; }
+    explicit inline constexpr operator bool() const { return raw; }
     //inline operator rgb565_t() const { return rgb565_t(raw<<8 | raw>>8); }
     //inline operator bgr888_t() const;
     static constexpr std::uint8_t A8() { return 255; }
-    inline std::uint8_t R8() const { return ( r * 0x21) >> 2; }
-    inline std::uint8_t G8() const { return ((gh* 0x41) >> 1)|(gl << 2); }
-    inline std::uint8_t B8() const { return ( b * 0x21) >> 2; }
-    inline std::uint8_t R6() const { return ( r * 0x21) >> 4; }
-    inline std::uint8_t G6() const { return  gh << 3 | gl; }
-    inline std::uint8_t B6() const { return ( b * 0x21) >> 4; }
+    inline constexpr std::uint8_t R8() const { return ( r * 0x21) >> 2; }
+    inline constexpr std::uint8_t G8() const { return ((gh* 0x41) >> 1)|(gl << 2); }
+    inline constexpr std::uint8_t B8() const { return ( b * 0x21) >> 2; }
+    inline constexpr std::uint8_t R6() const { return ( r * 0x21) >> 4; }
+    inline constexpr std::uint8_t G6() const { return  gh << 3 | gl; }
+    inline constexpr std::uint8_t B6() const { return ( b * 0x21) >> 4; }
     inline void R8(std::uint8_t r8) { r = r8 >> 3; }
     inline void G8(std::uint8_t g8) { gh = g8 >> 5; gl = g8 >> 2;}
     inline void B8(std::uint8_t b8) { b = b8 >> 3; }
@@ -488,20 +488,20 @@ namespace lgfx
     inline bgr666_t& operator=(const swap565_t&);
     inline bgr666_t& operator=(const bgr888_t&);
     inline bgr666_t& operator=(const grayscale_t&);
-//  explicit inline operator std::uint32_t() const { return *(std::uint32_t*)this & ((1<<24)-1); }
-    explicit inline operator bool() const { return r||g||b; }
+//  explicit inline constexpr operator std::uint32_t() const { return *(std::uint32_t*)this & ((1<<24)-1); }
+    explicit inline constexpr operator bool() const { return r||g||b; }
     //inline operator std::uint32_t() const { return (b<<16)|(g<<8)|r; }
     //inline operator rgb332_t() const { return rgb332_t(r,g,b); }
     //explicit inline operator rgb565_t() const { return rgb565_t(r,g,b); }
     //inline operator rgb888_t() const { return rgb888_t(r,g,b); }
     //inline operator swap565_t() const { return swap565_t(r,g,b); }
     static constexpr std::uint8_t A8() { return 255; }
-    inline std::uint8_t R8() const { return r<<2; }
-    inline std::uint8_t G8() const { return g<<2; }
-    inline std::uint8_t B8() const { return b<<2; }
-    inline std::uint8_t R6() const { return r; }
-    inline std::uint8_t G6() const { return g; }
-    inline std::uint8_t B6() const { return b; }
+    inline constexpr std::uint8_t R8() const { return r<<2; }
+    inline constexpr std::uint8_t G8() const { return g<<2; }
+    inline constexpr std::uint8_t B8() const { return b<<2; }
+    inline constexpr std::uint8_t R6() const { return r; }
+    inline constexpr std::uint8_t G6() const { return g; }
+    inline constexpr std::uint8_t B6() const { return b; }
     inline void R8(std::uint8_t r8) { r = r8>>2; }
     inline void G8(std::uint8_t g8) { g = g8>>2; }
     inline void B8(std::uint8_t b8) { b = b8>>2; }
@@ -532,19 +532,19 @@ namespace lgfx
     inline bgr888_t& operator=(const swap565_t&);
     inline bgr888_t& operator=(const bgr666_t&);
     inline bgr888_t& operator=(const grayscale_t&);
-    explicit inline operator bool() const { return rg||b; }
-    explicit inline operator std::uint32_t() const { return *(std::uint32_t*)this & ((1<<24)-1); }
+    explicit inline constexpr operator bool() const { return rg||b; }
+    explicit inline constexpr operator std::uint32_t() const { return *(std::uint32_t*)this & ((1<<24)-1); }
     //inline operator rgb332_t() const { return rgb332_t(r,g,b); }
     //explicit inline operator rgb565_t() const { return rgb565_t(r,g,b); }
     //inline operator rgb888_t() const { return rgb888_t(r,g,b); }
     //inline operator swap565_t() const { return swap565_t(r,g,b); }
     static constexpr std::uint8_t A8() { return 255; }
-    inline std::uint8_t R8() const { return r; }
-    inline std::uint8_t G8() const { return g; }
-    inline std::uint8_t B8() const { return b; }
-    inline std::uint8_t R6() const { return r>>2; }
-    inline std::uint8_t G6() const { return g>>2; }
-    inline std::uint8_t B6() const { return b>>2; }
+    inline constexpr std::uint8_t R8() const { return r; }
+    inline constexpr std::uint8_t G8() const { return g; }
+    inline constexpr std::uint8_t B8() const { return b; }
+    inline constexpr std::uint8_t R6() const { return r>>2; }
+    inline constexpr std::uint8_t G6() const { return g>>2; }
+    inline constexpr std::uint8_t B6() const { return b>>2; }
     inline void R8(std::uint8_t r8) { r = r8; }
     inline void G8(std::uint8_t g8) { g = g8; }
     inline void B8(std::uint8_t b8) { b = b8; }
@@ -573,19 +573,19 @@ namespace lgfx
     inline grayscale_t& operator=(const swap565_t&);
     inline grayscale_t& operator=(const bgr666_t&);
     inline grayscale_t& operator=(const bgr888_t&);
-    explicit inline operator bool() const { return raw; }
+    explicit inline constexpr operator bool() const { return raw; }
     //explicit inline operator std::uint32_t() const { return r; }
     //inline operator rgb332_t() const { return rgb332_t(r,g,b); }
     //explicit inline operator rgb565_t() const { return rgb565_t(r,g,b); }
     //inline operator rgb888_t() const { return rgb888_t(r,g,b); }
     //inline operator swap565_t() const { return swap565_t(r,g,b); }
     static constexpr std::uint8_t A8() { return 255; }
-    inline std::uint8_t R8() const { return r; }
-    inline std::uint8_t G8() const { return g; }
-    inline std::uint8_t B8() const { return b; }
-    inline std::uint8_t R6() const { return r>>2; }
-    inline std::uint8_t G6() const { return g>>2; }
-    inline std::uint8_t B6() const { return b>>2; }
+    inline constexpr std::uint8_t R8() const { return r; }
+    inline constexpr std::uint8_t G8() const { return g; }
+    inline constexpr std::uint8_t B8() const { return b; }
+    inline constexpr std::uint8_t R6() const { return r>>2; }
+    inline constexpr std::uint8_t G6() const { return g>>2; }
+    inline constexpr std::uint8_t B6() const { return b>>2; }
     inline void R8(std::uint8_t r8) { r = r8; }
     inline void G8(std::uint8_t g8) { g = g8; }
     inline void B8(std::uint8_t b8) { b = b8; }
@@ -607,10 +607,10 @@ namespace lgfx
       };
       std::uint32_t raw;
     };
-    raw_color_t() : raw(0) {}
-    raw_color_t(const raw_color_t&) = default;
-    raw_color_t(const std::uint32_t& rhs) : raw(rhs) {}
-    inline operator bool() const { return raw & ((1<<24)-1); }
+    constexpr raw_color_t() : raw(0) {}
+    constexpr raw_color_t(const raw_color_t&) = default;
+    constexpr raw_color_t(const std::uint32_t& rhs) : raw(rhs) {}
+//    inline constexpr operator bool() const { return raw & ((1<<24)-1); }
   };
 
   struct get_depth_impl {
@@ -709,35 +709,35 @@ namespace lgfx
     }
 
 #define TYPECHECK(dType) template < typename T, typename std::enable_if < (sizeof(T) == sizeof(dType)) && (std::is_signed<T>::value == std::is_signed<dType>::value), std::nullptr_t >::type=nullptr > __attribute__ ((always_inline)) inline
-    TYPECHECK(std::int8_t  ) std::uint32_t convert(T c) { return convert_rgb332(c); }
-    TYPECHECK(std::uint8_t ) std::uint32_t convert(T c) { return convert_rgb332(c); }
-    TYPECHECK(std::uint16_t) std::uint32_t convert(T c) { return convert_rgb565(c); }
-    TYPECHECK(std::int16_t ) std::uint32_t convert(T c) { return convert_rgb565(c); }
-    TYPECHECK(std::int32_t ) std::uint32_t convert(T c) { return convert_rgb565(c); }
-    TYPECHECK(std::uint32_t) std::uint32_t convert(T c) { return convert_rgb888(c); }
+    TYPECHECK(std::int8_t  ) constexpr std::uint32_t convert(T c) { return convert_rgb332(c); }
+    TYPECHECK(std::uint8_t ) constexpr std::uint32_t convert(T c) { return convert_rgb332(c); }
+    TYPECHECK(std::uint16_t) constexpr std::uint32_t convert(T c) { return convert_rgb565(c); }
+    TYPECHECK(std::int16_t ) constexpr std::uint32_t convert(T c) { return convert_rgb565(c); }
+    TYPECHECK(std::int32_t ) constexpr std::uint32_t convert(T c) { return convert_rgb565(c); }
+    TYPECHECK(std::uint32_t) constexpr std::uint32_t convert(T c) { return convert_rgb888(c); }
 
-    __attribute__ ((always_inline)) inline std::uint32_t convert(const argb8888_t& c) { return convert_rgb888(c.raw); }
-    __attribute__ ((always_inline)) inline std::uint32_t convert(const rgb888_t&   c) { return convert_rgb888(*(std::uint32_t*)&c); }
-    __attribute__ ((always_inline)) inline std::uint32_t convert(const rgb565_t&   c) { return convert_rgb565(c.raw); }
-    __attribute__ ((always_inline)) inline std::uint32_t convert(const rgb332_t&   c) { return convert_rgb332(c.raw); }
-    __attribute__ ((always_inline)) inline std::uint32_t convert(const bgr888_t&   c) { return convert_bgr888(*(std::uint32_t*)&c); }
+    __attribute__ ((always_inline)) inline constexpr std::uint32_t convert(const argb8888_t& c) { return convert_rgb888(c.raw); }
+    __attribute__ ((always_inline)) inline constexpr std::uint32_t convert(const rgb888_t&   c) { return convert_rgb888(*(std::uint32_t*)&c); }
+    __attribute__ ((always_inline)) inline constexpr std::uint32_t convert(const rgb565_t&   c) { return convert_rgb565(c.raw); }
+    __attribute__ ((always_inline)) inline constexpr std::uint32_t convert(const rgb332_t&   c) { return convert_rgb332(c.raw); }
+    __attribute__ ((always_inline)) inline constexpr std::uint32_t convert(const bgr888_t&   c) { return convert_bgr888(*(std::uint32_t*)&c); }
 
 //  template<typename T> __attribute__ ((always_inline)) inline void setColor(T c) { raw = convert(c); }
   };
 
-  TYPECHECK(std::int8_t  ) std::uint32_t convert_to_rgb888(T c) { return convert_rgb332_to_rgb888(c); }
-  TYPECHECK(std::uint8_t ) std::uint32_t convert_to_rgb888(T c) { return convert_rgb332_to_rgb888(c); }
-  TYPECHECK(std::uint16_t) std::uint32_t convert_to_rgb888(T c) { return convert_rgb565_to_rgb888(c); }
-  TYPECHECK(std::int16_t ) std::uint32_t convert_to_rgb888(T c) { return convert_rgb565_to_rgb888(c); }
-  TYPECHECK(std::int32_t ) std::uint32_t convert_to_rgb888(T c) { return convert_rgb565_to_rgb888(c); }
-  TYPECHECK(std::uint32_t) std::uint32_t convert_to_rgb888(T c) { return c; }
-  __attribute__ ((always_inline)) inline std::uint32_t convert_to_rgb888(const argb8888_t& c) { return c.r   <<16|c.g   <<8|c.b;    }
-  __attribute__ ((always_inline)) inline std::uint32_t convert_to_rgb888(const rgb888_t&   c) { return c.r   <<16|c.g   <<8|c.b;    }
-  __attribute__ ((always_inline)) inline std::uint32_t convert_to_rgb888(const rgb565_t&   c) { return c.R8()<<16|c.G8()<<8|c.B8(); }
-  __attribute__ ((always_inline)) inline std::uint32_t convert_to_rgb888(const rgb332_t&   c) { return c.R8()<<16|c.G8()<<8|c.B8(); }
-  __attribute__ ((always_inline)) inline std::uint32_t convert_to_rgb888(const bgr888_t&   c) { return c.r   <<16|c.g   <<8|c.b;    }
-  __attribute__ ((always_inline)) inline std::uint32_t convert_to_rgb888(const bgr666_t&   c) { return c.R8()<<16|c.G8()<<8|c.B8(); }
-  __attribute__ ((always_inline)) inline std::uint32_t convert_to_rgb888(const swap565_t&  c) { return c.R8()<<16|c.G8()<<8|c.B8(); }
+  TYPECHECK(std::int8_t  ) constexpr std::uint32_t convert_to_rgb888(T c) { return convert_rgb332_to_rgb888(c); }
+  TYPECHECK(std::uint8_t ) constexpr std::uint32_t convert_to_rgb888(T c) { return convert_rgb332_to_rgb888(c); }
+  TYPECHECK(std::uint16_t) constexpr std::uint32_t convert_to_rgb888(T c) { return convert_rgb565_to_rgb888(c); }
+  TYPECHECK(std::int16_t ) constexpr std::uint32_t convert_to_rgb888(T c) { return convert_rgb565_to_rgb888(c); }
+  TYPECHECK(std::int32_t ) constexpr std::uint32_t convert_to_rgb888(T c) { return convert_rgb565_to_rgb888(c); }
+  TYPECHECK(std::uint32_t) constexpr std::uint32_t convert_to_rgb888(T c) { return c; }
+  __attribute__ ((always_inline)) inline constexpr std::uint32_t convert_to_rgb888(const argb8888_t& c) { return c.r   <<16|c.g   <<8|c.b;    }
+  __attribute__ ((always_inline)) inline constexpr std::uint32_t convert_to_rgb888(const rgb888_t&   c) { return c.r   <<16|c.g   <<8|c.b;    }
+  __attribute__ ((always_inline)) inline constexpr std::uint32_t convert_to_rgb888(const rgb565_t&   c) { return c.R8()<<16|c.G8()<<8|c.B8(); }
+  __attribute__ ((always_inline)) inline constexpr std::uint32_t convert_to_rgb888(const rgb332_t&   c) { return c.R8()<<16|c.G8()<<8|c.B8(); }
+  __attribute__ ((always_inline)) inline constexpr std::uint32_t convert_to_rgb888(const bgr888_t&   c) { return c.r   <<16|c.g   <<8|c.b;    }
+  __attribute__ ((always_inline)) inline constexpr std::uint32_t convert_to_rgb888(const bgr666_t&   c) { return c.R8()<<16|c.G8()<<8|c.B8(); }
+  __attribute__ ((always_inline)) inline constexpr std::uint32_t convert_to_rgb888(const swap565_t&  c) { return c.R8()<<16|c.G8()<<8|c.B8(); }
 
 #undef TYPECHECK
 
@@ -823,27 +823,27 @@ namespace lgfx
   inline grayscale_t& grayscale_t::operator=(const bgr666_t&   rhs) { raw = (rhs.R8() + (rhs.G8()<<1) + rhs.B8()) >> 2; return *this; }
   inline grayscale_t& grayscale_t::operator=(const bgr888_t&   rhs) { raw = (rhs.R8() + (rhs.G8()<<1) + rhs.B8()) >> 2; return *this; }
 
-  inline bool operator==(const rgb332_t&   lhs, const rgb332_t&   rhs) { return lhs.raw == rhs.raw; }
-  inline bool operator==(const rgb565_t&   lhs, const rgb565_t&   rhs) { return lhs.raw == rhs.raw; }
-  inline bool operator==(const swap565_t&  lhs, const swap565_t&  rhs) { return lhs.raw == rhs.raw; }
-  inline bool operator==(const bgr666_t&   lhs, const bgr666_t&   rhs) { return (*reinterpret_cast<const std::uint32_t*>(&lhs) << 8) == (*reinterpret_cast<const std::uint32_t*>(&rhs) << 8); }
-  inline bool operator==(const rgb888_t&   lhs, const rgb888_t&   rhs) { return (*reinterpret_cast<const std::uint32_t*>(&lhs) << 8) == (*reinterpret_cast<const std::uint32_t*>(&rhs) << 8); }
-  inline bool operator==(const bgr888_t&   lhs, const bgr888_t&   rhs) { return (*reinterpret_cast<const std::uint32_t*>(&lhs) << 8) == (*reinterpret_cast<const std::uint32_t*>(&rhs) << 8); }
-  inline bool operator==(const argb8888_t& lhs, const argb8888_t& rhs) { return lhs.raw == rhs.raw; }
-  inline bool operator==(const grayscale_t& lhs,const grayscale_t& rhs){ return lhs.r == rhs.r; }
+  inline constexpr bool operator==(const rgb332_t&   lhs, const rgb332_t&   rhs) { return lhs.raw == rhs.raw; }
+  inline constexpr bool operator==(const rgb565_t&   lhs, const rgb565_t&   rhs) { return lhs.raw == rhs.raw; }
+  inline constexpr bool operator==(const swap565_t&  lhs, const swap565_t&  rhs) { return lhs.raw == rhs.raw; }
+  inline constexpr bool operator==(const bgr666_t&   lhs, const bgr666_t&   rhs) { return (*reinterpret_cast<const std::uint32_t*>(&lhs) << 8) == (*reinterpret_cast<const std::uint32_t*>(&rhs) << 8); }
+  inline constexpr bool operator==(const rgb888_t&   lhs, const rgb888_t&   rhs) { return (*reinterpret_cast<const std::uint32_t*>(&lhs) << 8) == (*reinterpret_cast<const std::uint32_t*>(&rhs) << 8); }
+  inline constexpr bool operator==(const bgr888_t&   lhs, const bgr888_t&   rhs) { return (*reinterpret_cast<const std::uint32_t*>(&lhs) << 8) == (*reinterpret_cast<const std::uint32_t*>(&rhs) << 8); }
+  inline constexpr bool operator==(const argb8888_t& lhs, const argb8888_t& rhs) { return lhs.raw == rhs.raw; }
+  inline constexpr bool operator==(const grayscale_t& lhs,const grayscale_t& rhs){ return lhs.r == rhs.r; }
 
   // for compare transparent color.
-  inline bool operator==(const rgb332_t&   lhs, std::uint32_t rhs) { return  *reinterpret_cast<const std::uint8_t* >(&lhs) == rhs; }
-  inline bool operator==(const rgb565_t&   lhs, std::uint32_t rhs) { return  *reinterpret_cast<const std::uint16_t*>(&lhs) == rhs; }
-  inline bool operator==(const swap565_t&  lhs, std::uint32_t rhs) { return  *reinterpret_cast<const std::uint16_t*>(&lhs) == rhs; }
-  inline bool operator==(const bgr666_t&   lhs, std::uint32_t rhs) { return (*reinterpret_cast<const std::uint32_t*>(&lhs) << 8) >> 8 == rhs; }
-  inline bool operator==(const rgb888_t&   lhs, std::uint32_t rhs) { return (*reinterpret_cast<const std::uint32_t*>(&lhs) << 8) >> 8 == rhs; }
-  inline bool operator==(const bgr888_t&   lhs, std::uint32_t rhs) { return (*reinterpret_cast<const std::uint32_t*>(&lhs) << 8) >> 8 == rhs; }
-  inline bool operator==(const argb8888_t& lhs, std::uint32_t rhs) { return  *reinterpret_cast<const std::uint32_t*>(&lhs) == rhs; }
-  inline bool operator==(const grayscale_t& lhs,std::uint32_t rhs) { return  *reinterpret_cast<const std::uint8_t* >(&lhs) == rhs; }
+  inline constexpr bool operator==(const rgb332_t&   lhs, std::uint32_t rhs) { return  *reinterpret_cast<const std::uint8_t* >(&lhs) == rhs; }
+  inline constexpr bool operator==(const rgb565_t&   lhs, std::uint32_t rhs) { return  *reinterpret_cast<const std::uint16_t*>(&lhs) == rhs; }
+  inline constexpr bool operator==(const swap565_t&  lhs, std::uint32_t rhs) { return  *reinterpret_cast<const std::uint16_t*>(&lhs) == rhs; }
+  inline constexpr bool operator==(const bgr666_t&   lhs, std::uint32_t rhs) { return (*reinterpret_cast<const std::uint32_t*>(&lhs) << 8) >> 8 == rhs; }
+  inline constexpr bool operator==(const rgb888_t&   lhs, std::uint32_t rhs) { return (*reinterpret_cast<const std::uint32_t*>(&lhs) << 8) >> 8 == rhs; }
+  inline constexpr bool operator==(const bgr888_t&   lhs, std::uint32_t rhs) { return (*reinterpret_cast<const std::uint32_t*>(&lhs) << 8) >> 8 == rhs; }
+  inline constexpr bool operator==(const argb8888_t& lhs, std::uint32_t rhs) { return  *reinterpret_cast<const std::uint32_t*>(&lhs) == rhs; }
+  inline constexpr bool operator==(const grayscale_t& lhs,std::uint32_t rhs) { return  *reinterpret_cast<const std::uint8_t* >(&lhs) == rhs; }
 //*/
-  inline bool operator==(const raw_color_t& lhs, const raw_color_t& rhs) { return *reinterpret_cast<const std::uint32_t*>(&lhs) == *reinterpret_cast<const std::uint32_t*>(&rhs); }
-  inline bool operator!=(const raw_color_t& lhs, const raw_color_t& rhs) { return *reinterpret_cast<const std::uint32_t*>(&lhs) != *reinterpret_cast<const std::uint32_t*>(&rhs); }
+  inline constexpr bool operator==(const raw_color_t& lhs, const raw_color_t& rhs) { return *reinterpret_cast<const std::uint32_t*>(&lhs) == *reinterpret_cast<const std::uint32_t*>(&rhs); }
+  inline constexpr bool operator!=(const raw_color_t& lhs, const raw_color_t& rhs) { return *reinterpret_cast<const std::uint32_t*>(&lhs) != *reinterpret_cast<const std::uint32_t*>(&rhs); }
 
 
 
