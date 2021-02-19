@@ -13,7 +13,7 @@
 
 #include "LovyanGFX.hpp"
 
-typedef LGFX TFT_eSPI;
+using TFT_eSPI = LGFX;
 
 class TFT_eSprite : public lgfx::LGFX_Sprite {
 public:

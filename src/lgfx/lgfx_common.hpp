@@ -169,7 +169,7 @@ namespace lgfx
 
   namespace datum
   {
-    typedef textdatum::textdatum_t datum_t;
+    using datum_t = textdatum::textdatum_t;
   }
   using namespace datum;
 
@@ -1683,7 +1683,7 @@ using namespace lgfx::attribute;
 using namespace lgfx::epd_mode;
 
 
-typedef lgfx::bgr888_t RGBColor;
+using RGBColor = lgfx::bgr888_t;
 
 #if defined (ESP32) || defined (CONFIG_IDF_TARGET_ESP32) || defined (ESP_PLATFORM)
 
