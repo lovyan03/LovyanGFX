@@ -2,6 +2,10 @@
 
 namespace lgfx
 {
+ inline namespace v0
+ {
+//----------------------------------------------------------------------------
+
   static constexpr std::uint8_t FT5x06_VENDID_REG = 0xA8;
   static constexpr std::uint8_t FT5x06_POWER_REG  = 0x87;
   static constexpr std::uint8_t FT5x06_INTMODE_REG= 0xA4;
@@ -69,5 +73,5 @@ namespace lgfx
   }
 
 //----------------------------------------------------------------------------
-
+ }
 }

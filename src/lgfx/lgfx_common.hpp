@@ -29,6 +29,8 @@ Contributors:
 
 namespace lgfx
 {
+ inline namespace v0
+ {
   namespace boards
   {
     enum board_t
@@ -1670,6 +1672,7 @@ namespace lgfx
   }
 
 //----------------------------------------------------------------------------
+ }
 }
 
 using namespace lgfx::jpeg_div;

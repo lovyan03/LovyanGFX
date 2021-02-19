@@ -5,6 +5,10 @@
 
 namespace lgfx
 {
+ inline namespace v0
+ {
+//----------------------------------------------------------------------------
+
   struct Panel_ILI9341 : public PanelIlitekCommon
   {
     Panel_ILI9341(void)
@@ -125,6 +129,9 @@ namespace lgfx
       }
     }
   };
+
+//----------------------------------------------------------------------------
+ }
 }
 
 #endif

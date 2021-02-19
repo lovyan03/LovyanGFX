@@ -5,6 +5,10 @@
 
 namespace lgfx
 {
+ inline namespace v0
+ {
+//----------------------------------------------------------------------------
+
   struct PanelIlitekCommon : public PanelCommon
   {
     PanelIlitekCommon() {
@@ -169,6 +173,8 @@ namespace lgfx
     };
     virtual std::uint8_t getColMod(std::uint8_t bpp) const { return (bpp > 16) ? RGB666_3BYTE : RGB565_2BYTE; }
   };
+//----------------------------------------------------------------------------
+ }
 }
 
 #endif

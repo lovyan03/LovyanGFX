@@ -5,6 +5,10 @@
 
 namespace lgfx
 {
+ inline namespace v0
+ {
+//----------------------------------------------------------------------------
+
   struct Panel_GDEW0154M09 : public PanelCommon
   {
     Panel_GDEW0154M09()
@@ -271,6 +275,9 @@ namespace lgfx
     static void writePixels(PanelCommon* panel, LGFX_Device* gfx, std::int32_t len, pixelcopy_t* param);
     static void readRect(PanelCommon* panel, LGFX_Device* gfx, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, void* dst, pixelcopy_t* param);
   };
+
+//----------------------------------------------------------------------------
+ }
 }
 
 #endif

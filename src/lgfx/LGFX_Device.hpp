@@ -29,7 +29,8 @@ Contributors:
 
 namespace lgfx
 {
-
+ inline namespace v0
+ {
 //----------------------------------------------------------------------------
 
   class LGFX_Device : public LovyanGFX
@@ -679,7 +680,7 @@ namespace lgfx
   };
 
 //----------------------------------------------------------------------------
-
+ }
 }
 
 using lgfx::LGFX_Device;

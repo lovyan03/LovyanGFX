@@ -21,10 +21,10 @@ Contributors:
 /----------------------------------------------------------------------------*/
 #include "LGFXBase.hpp"
 
-#include "utility/lgfx_tjpgd.h"    // JPEG decode support
-#include "utility/lgfx_pngle.h"    // PNG decode support
-#include "utility/lgfx_qrcode.h"   // QR code support
-#include "utility/miniz.h"
+#include "../utility/lgfx_tjpgd.h"    // JPEG decode support
+#include "../utility/lgfx_pngle.h"    // PNG decode support
+#include "../utility/lgfx_qrcode.h"   // QR code support
+#include "../utility/miniz.h"
 
 #include <algorithm>
 #include <cmath>
@@ -36,6 +36,9 @@ Contributors:
 
 namespace lgfx
 {
+ inline namespace v0
+ {
+//----------------------------------------------------------------------------
   static constexpr float deg_to_rad = 0.017453292519943295769236907684886;
 
   void LGFXBase::setAddrWindow(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h)
@@ -2699,4 +2702,6 @@ namespace lgfx
 
     return res;
   }
+//----------------------------------------------------------------------------
+ }
 }

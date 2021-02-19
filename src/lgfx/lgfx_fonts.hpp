@@ -5,6 +5,8 @@
 
 namespace lgfx
 {
+ inline namespace v0
+ {
   struct LGFXBase;
   struct TextStyle;
 
@@ -247,11 +249,16 @@ namespace lgfx
 
     bool loadFont(DataWrapper* data);
   };
-}
 
 //----------------------------------------------------------------------------
+ }
+}
+//----------------------------------------------------------------------------
 
-namespace fonts {
+namespace fonts
+{
+ inline namespace v0
+ {
 #ifdef __EFONT_FONT_DATA_H__
   static constexpr lgfx::BDFfont efont = { (const std::uint8_t *)efontFontData, efontFontList, sizeof(efontFontList)>>1, 16, 8, 16, 14, 16 };
 #endif
@@ -442,7 +449,9 @@ namespace fonts {
   extern const lgfx::U8g2font efontTW_24_b ;
   extern const lgfx::U8g2font efontTW_24_bi;
   extern const lgfx::U8g2font efontTW_24_i ;
+ }
 }
+
 using namespace fonts;
 
 #ifndef _GFXFONT_H_

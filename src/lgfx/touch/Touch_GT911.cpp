@@ -1,6 +1,11 @@
 #include "Touch_GT911.hpp"
+
 namespace lgfx
 {
+ inline namespace v0
+ {
+//----------------------------------------------------------------------------
+
   static constexpr std::uint8_t gt911cmd_getdata[] = { 0x81, 0x4E, 0x00 };
 
   static uint8_t calcChecksum(const uint8_t *buf, uint8_t len)
@@ -135,5 +140,7 @@ namespace lgfx
     writedata[0xBB] = 0x01;                             // 0x8100 config fresh
     lgfx::i2c::writeBytes(i2c_port, i2c_addr, writedata, 188);
   }
+
 //----------------------------------------------------------------------------
+ }
 }

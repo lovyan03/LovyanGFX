@@ -23,7 +23,7 @@ Contributors:
 #define LGFX_BASE_HPP_
 
 #include "lgfx_common.hpp"
-#include "../Fonts/lgfx_fonts.hpp"
+#include "lgfx_fonts.hpp"
 
 #include <cmath>
 #include <string>
@@ -31,6 +31,10 @@ Contributors:
 
 namespace lgfx
 {
+ inline namespace v0
+ {
+//----------------------------------------------------------------------------
+
   class PanelCommon;
   class TouchCommon;
   class LGFX_Sprite;
@@ -1085,7 +1089,7 @@ namespace lgfx
   };
 
 //----------------------------------------------------------------------------
-
+ }
 }
 
 typedef lgfx::LovyanGFX LovyanGFX;

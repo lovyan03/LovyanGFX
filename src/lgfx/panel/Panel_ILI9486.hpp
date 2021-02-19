@@ -5,6 +5,10 @@
 
 namespace lgfx
 {
+ inline namespace v0
+ {
+//----------------------------------------------------------------------------
+
   struct Panel_ILI9486 : public PanelIlitekCommon
   {
     Panel_ILI9486(void)
@@ -90,6 +94,8 @@ namespace lgfx
     color_depth_t getAdjustBpp(color_depth_t) const override { return rgb888_3Byte; }
   };
 
+//----------------------------------------------------------------------------
+ }
 }
 
 #endif

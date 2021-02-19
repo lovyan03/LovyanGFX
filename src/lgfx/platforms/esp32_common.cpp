@@ -20,6 +20,9 @@
 
 namespace lgfx
 {
+ inline namespace v0
+ {
+//----------------------------------------------------------------------------
 
   void lgfxPinMode(std::int_fast8_t pin, pin_mode_t mode)
   {
@@ -441,6 +444,9 @@ namespace lgfx
       return writeBytes(i2c_port, addr, tmp, 2);
     }
   }
+
+//----------------------------------------------------------------------------
+ }
 }
 
 #endif

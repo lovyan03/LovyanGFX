@@ -60,6 +60,10 @@ Contributors:
 
 namespace lgfx
 {
+ inline namespace v0
+ {
+//----------------------------------------------------------------------------
+
   inline static void spi_dma_transfer_active(int dmachan)
   {
     spicommon_dmaworkaround_transfer_active(dmachan);
@@ -1195,7 +1199,7 @@ namespace lgfx
   template <class T> bool LGFX_SPI<T>::_next_dma_reset;
 
 //----------------------------------------------------------------------------
-
+ }
 }
 
 using lgfx::LGFX_SPI;

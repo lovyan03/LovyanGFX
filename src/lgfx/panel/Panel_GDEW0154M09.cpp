@@ -3,6 +3,10 @@
 
 namespace lgfx
 {
+ inline namespace v0
+ {
+//----------------------------------------------------------------------------
+
   constexpr std::uint8_t Panel_GDEW0154M09::Bayer[16];
 
   void Panel_GDEW0154M09::post_init(LGFX_Device* gfx, bool use_reset)
@@ -373,4 +377,7 @@ namespace lgfx
     display(panel, gfx);
   }
   //*/
+
+//----------------------------------------------------------------------------
+ }
 }

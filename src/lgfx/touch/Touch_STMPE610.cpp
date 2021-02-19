@@ -105,6 +105,10 @@ static constexpr uint8_t STMPE_GPIO_ALT_FUNCT = 0x17;
 
 namespace lgfx
 {
+ inline namespace v0
+ {
+//----------------------------------------------------------------------------
+
   uint8_t Touch_STMPE610::readRegister8(uint8_t reg)
   {
     if (isSPI()) {
@@ -226,5 +230,7 @@ namespace lgfx
 
     return 0;
   }
-}
 
+//----------------------------------------------------------------------------
+ }
+}

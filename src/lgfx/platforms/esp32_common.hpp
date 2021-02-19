@@ -25,6 +25,10 @@
 
 namespace lgfx
 {
+ inline namespace v0
+ {
+//----------------------------------------------------------------------------
+
   static inline void* heap_alloc(      size_t length) { return heap_caps_malloc(length, MALLOC_CAP_8BIT);  }
   static inline void* heap_alloc_dma(  size_t length) { return heap_caps_malloc((length + 3) & ~3, MALLOC_CAP_DMA);  }
   static inline void* heap_alloc_psram(size_t length) { return heap_caps_malloc(length, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);  }
@@ -179,10 +183,13 @@ public:
 #endif
 
 //----------------------------------------------------------------------------
+
   namespace spi
   {
     void init(int spi_host, int spi_sclk, int spi_miso, int spi_mosi, int dma_channel);
   }
-};
+//----------------------------------------------------------------------------
+ }
+}
 
 #endif

@@ -49,6 +49,10 @@ Contributors:
 
 namespace lgfx
 {
+ inline namespace v0
+ {
+//----------------------------------------------------------------------------
+
   #define SAFE_I2S_FIFO_WR_REG(i) (0x6000F000 + ((i)*0x1E000))
   #define SAFE_I2S_FIFO_RD_REG(i) (0x6000F004 + ((i)*0x1E000))
 
@@ -933,7 +937,7 @@ namespace lgfx
   template <class T> std::uint32_t LGFX_PARALLEL<T>::_dmadesc_len = 0;
 
 //----------------------------------------------------------------------------
-
+ }
 }
 
 using lgfx::LGFX_PARALLEL;

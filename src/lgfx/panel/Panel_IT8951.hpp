@@ -5,6 +5,10 @@
 
 namespace lgfx
 {
+ inline namespace v0
+ {
+//----------------------------------------------------------------------------
+
   struct Panel_IT8951 : public PanelCommon
   {
     Panel_IT8951()
@@ -168,6 +172,9 @@ namespace lgfx
     bool Clear(LGFX_Device* gfx, bool init);
     bool ReadRawLine(LGFX_Device* gfx, std::int32_t raw_x, std::int32_t raw_y, std::int32_t len, std::uint16_t* buf);
   };
+
+//----------------------------------------------------------------------------
+ }
 }
 
 #endif

@@ -3,6 +3,10 @@
 
 namespace lgfx
 {
+ inline namespace v0
+ {
+//----------------------------------------------------------------------------
+
   constexpr std::int8_t Panel_IT8951::Bayer[16];
 
   static constexpr std::uint32_t _tar_memaddr = 0x001236E0;
@@ -662,4 +666,7 @@ IT8951 Registers defines
     me->_range_new.right = 0;
     me->_range_new.bottom = 0;
   }
+
+//----------------------------------------------------------------------------
+ }
 }

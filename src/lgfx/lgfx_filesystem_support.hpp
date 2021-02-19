@@ -26,10 +26,14 @@ Contributors:
 #include <cstring>
 #include <string>
 
-#include "../Fonts/lgfx_fonts.hpp"
+#include "lgfx_fonts.hpp"
 
 namespace lgfx
 {
+ inline namespace v0
+ {
+//----------------------------------------------------------------------------
+
   template <class Base>
   class LGFX_FILESYSTEM_Support : public Base
   {
@@ -359,8 +363,9 @@ namespace lgfx
       return res;
     }
   };
+
 //----------------------------------------------------------------------------
-//----------------------------------------------------------------------------
+ }
 }
 
 #endif

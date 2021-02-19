@@ -29,6 +29,10 @@ Contributors:
 
 namespace lgfx
 {
+ inline namespace v0
+ {
+//----------------------------------------------------------------------------
+
   class LGFX_Sprite : public LovyanGFX
   {
   public:
@@ -1079,6 +1083,8 @@ return;
       }
     }
   };
+//----------------------------------------------------------------------------
+ }
 }
 
 typedef lgfx::LGFX_Sprite LGFX_Sprite;

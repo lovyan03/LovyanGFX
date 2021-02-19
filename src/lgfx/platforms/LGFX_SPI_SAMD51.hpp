@@ -162,6 +162,9 @@ void DMAC_4_Handler(void) __attribute__((weak, alias("DMAC_0_Handler")));
 
 namespace lgfx
 {
+ inline namespace v0
+ {
+//----------------------------------------------------------------------------
 
   #define MEMBER_DETECTOR(member, classname, classname_impl, valuetype) struct classname_impl { \
   template<class T, valuetype V> static constexpr std::integral_constant<valuetype, T::member> check(decltype(T::member)*); \
@@ -1290,7 +1293,7 @@ void enableSPI()
   template <class T> Sercom* LGFX_SPI<T>::_sercom;
 
 //----------------------------------------------------------------------------
-
+ }
 }
 
 using lgfx::LGFX_SPI;

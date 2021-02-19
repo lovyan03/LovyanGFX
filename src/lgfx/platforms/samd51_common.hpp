@@ -39,6 +39,10 @@
 #endif
 namespace lgfx
 {
+ inline namespace v0
+ {
+//----------------------------------------------------------------------------
+
   static inline void* heap_alloc(      size_t length) { return malloc(length); }
   static inline void* heap_alloc_psram(size_t length) { return malloc(length); }
   static inline void* heap_alloc_dma(  size_t length) { return memalign(16, length); }
@@ -194,7 +198,7 @@ namespace lgfx
 #endif
 
 //----------------------------------------------------------------------------
-
+ }
 }
 
 #endif

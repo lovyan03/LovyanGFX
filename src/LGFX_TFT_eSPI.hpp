@@ -25,6 +25,10 @@ public:
 
 namespace lgfx
 {
+ inline namespace v0
+ {
+//----------------------------------------------------------------------------
+
   namespace textdatum
   {
     static constexpr textdatum_t TL_DATUM   = textdatum_t::top_left;
@@ -102,6 +106,9 @@ namespace lgfx
     static constexpr int TFT_SLPIN   = 0x10;
     static constexpr int TFT_SLPOUT  = 0x11;
   }
+
+//----------------------------------------------------------------------------
+ }
 }
 
 using namespace lgfx::textdatum;
