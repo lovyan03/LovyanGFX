@@ -956,7 +956,11 @@ typedef unsigned char mz_validate_uint64[sizeof(mz_uint64)==8 ? 1 : -1];
   #define MZ_REALLOC(p, x) NULL
 #else
   #ifdef BOARD_HAS_PSRAM
-    #include "esp_spiram.h"
+    #if __has_include(<esp32/spiram.h>)
+      #include <esp32/spiram.h>
+    #else
+      #include <esp_spiram.h>
+    #endif
     #include "soc/efuse_reg.h"
     #include "esp_heap_caps.h"
     #define MZ_MALLOC(x) heap_caps_malloc(x, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT)
