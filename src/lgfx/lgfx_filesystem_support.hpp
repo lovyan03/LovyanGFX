@@ -24,7 +24,6 @@ Contributors:
 
 #include <cmath>
 #include <cstring>
-#include <string>
 
 #include "lgfx_fonts.hpp"
 
@@ -70,15 +69,16 @@ namespace lgfx
       this->_font_file->preRead();
 
       bool result = this->_font_file->open(path, "r");
-      if (!result) {
-        std::string filename = "/";
-        if (path[0] == '/') filename = path;
-        else filename += path;
-        int len = strlen(path);
-        if (memcmp(&path[len - 4], ".vlw", 4)) {
-          filename += ".vlw";
+      if (!result)
+      {
+        char filename[strlen(path) + 8] = {'/', 0 };
+        strcpy(&filename[1], &path[(path[0] == '/') ? 1 : 0]);
+        int len = strlen(filename);
+        if (memcmp(&filename[len - 4], ".vlw", 4))
+        {
+          strcpy(&filename[len], ".vlw");
         }
-        result = this->_font_file->open(filename.c_str(), "r");
+        result = this->_font_file->open(filename, "r");
       }
       auto font = new VLWfont();
       this->_runtime_font.reset(font);

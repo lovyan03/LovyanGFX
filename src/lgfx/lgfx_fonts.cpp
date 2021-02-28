@@ -1205,18 +1205,18 @@ namespace fonts
   #include "../Fonts/Ascii24x48.h"
   #include "../Fonts/Ascii8x16.h"
 
-  static constexpr glcd_fontinfo_t font0_info     = { 0, 255, 5 };
-  static constexpr glcd_fontinfo_t font8x8c64_info= { 32, 143, 8 };
+  static constexpr std::uint8_t font0_info[]      = {  0, 255, 5  }; // start code, end code, width
+  static constexpr std::uint8_t font8x8c64_info[] = { 32, 143, 8 }; // start code, end code, width
 
-  const GLCDfont Font0 = { (const uint8_t *)font      , (const uint8_t*)&font0_info, 6, 8, 7 };
-  const BMPfont  Font2 = { (const uint8_t *)chrtbl_f16, widtbl_f16, 0, chr_hgt_f16, baseline_f16 };
-  const RLEfont  Font4 = { (const uint8_t *)chrtbl_f32, widtbl_f32, 0, chr_hgt_f32, baseline_f32 };
-  const RLEfont  Font6 = { (const uint8_t *)chrtbl_f64, widtbl_f64, 0, chr_hgt_f64, baseline_f64 };
-  const RLEfont  Font7 = { (const uint8_t *)chrtbl_f7s, widtbl_f7s, 0, chr_hgt_f7s, baseline_f7s };
-  const RLEfont  Font8 = { (const uint8_t *)chrtbl_f72, widtbl_f72, 0, chr_hgt_f72, baseline_f72 };
-  const GLCDfont Font8x8C64 = { (const uint8_t *)font8x8_c64, (const uint8_t*)&font8x8c64_info, 8, 8, 7 };
-  const FixedBMPfont AsciiFont8x16  = { (const uint8_t*)FontLib8x16 , nullptr,  8, 16, 13 };
-  const FixedBMPfont AsciiFont24x48 = { (const uint8_t*)FontLib24x48, nullptr, 24, 48, 40 };
+  const GLCDfont Font0 = { font      , font0_info, 6, 8, 7 };
+  const BMPfont  Font2 = { chrtbl_f16, widtbl_f16, 0, chr_hgt_f16, baseline_f16 };
+  const RLEfont  Font4 = { chrtbl_f32, widtbl_f32, 0, chr_hgt_f32, baseline_f32 };
+  const RLEfont  Font6 = { chrtbl_f64, widtbl_f64, 0, chr_hgt_f64, baseline_f64 };
+  const RLEfont  Font7 = { chrtbl_f7s, widtbl_f7s, 0, chr_hgt_f7s, baseline_f7s };
+  const RLEfont  Font8 = { chrtbl_f72, widtbl_f72, 0, chr_hgt_f72, baseline_f72 };
+  const GLCDfont Font8x8C64 = { font8x8_c64, font8x8c64_info, 8, 8, 7 };
+  const FixedBMPfont AsciiFont8x16  = { FontLib8x16 , nullptr,  8, 16, 13 };
+  const FixedBMPfont AsciiFont24x48 = { FontLib24x48, nullptr, 24, 48, 40 };
 
   const U8g2font lgfxJapanMincho_8   = { lgfx_font_japan_mincho_8    };
   const U8g2font lgfxJapanMincho_12  = { lgfx_font_japan_mincho_12   };
