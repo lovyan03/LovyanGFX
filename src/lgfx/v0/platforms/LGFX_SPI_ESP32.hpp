@@ -43,8 +43,7 @@ Contributors:
  #include <driver/spi_master.h>
 #endif
 
-// ESP_IDF_VERSION_MAJOR is defined since ESP-IDF v3.3 
-#if defined(ESP_IDF_VERSION_MAJOR) && ESP_IDF_VERSION_MAJOR > 3
+#if __has_include(<driver/spi_common_internal.h>)
  #include <driver/spi_common_internal.h>
 #endif
 

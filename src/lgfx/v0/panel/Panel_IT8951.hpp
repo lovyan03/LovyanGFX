@@ -169,7 +169,6 @@ namespace lgfx
     bool SetTargetMemoryAddr(LGFX_Device* gfx, std::uint32_t tar_addr);
     bool SetArea(LGFX_Device* gfx, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h);
     bool UpdateRawArea(LGFX_Device* gfx, epd_update_mode_t mode);
-    bool Clear(LGFX_Device* gfx, bool init);
     bool ReadRawLine(LGFX_Device* gfx, std::int32_t raw_x, std::int32_t raw_y, std::int32_t len, std::uint16_t* buf);
   };
 

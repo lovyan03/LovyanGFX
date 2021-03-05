@@ -445,7 +445,7 @@ namespace lgfx
     void setTextSize(float sx, float sy) { _text_style.size_x = (sx > 0) ? sx : 1; _text_style.size_y = (sy > 0) ? sy : 1; }
     float getTextSizeX(void) const { return _text_style.size_x; }
     float getTextSizeY(void) const { return _text_style.size_y; }
-    [[deprecated("use textdatum_t")]]
+    //[[deprecated("use textdatum_t")]]
     void setTextDatum(std::uint8_t datum) { _text_style.datum = (textdatum_t)datum; }
     void setTextDatum(textdatum_t datum) { _text_style.datum = datum; }
     textdatum_t getTextDatum(void) const { return _text_style.datum; }
@@ -534,7 +534,7 @@ namespace lgfx
       return 0;
     }
 
-    [[deprecated("use setFont(&fonts::Font)")]]
+    //[[deprecated("use setFont(&fonts::Font)")]]
     void setTextFont(int f)
     {
       if (f == 1 && _font && _font->getType() == IFont::font_type_t::ft_gfx) return;

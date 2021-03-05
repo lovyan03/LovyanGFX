@@ -426,6 +426,7 @@ namespace lgfx
         do {
           readRect_impl(src_x + pos, src_y, 1, h, buf, &pc_read);
           pc_write.src_x = 0;
+          pc_write.src_y = 0;
           pushImage_impl(dst_x + pos, dst_y, 1, h, &pc_write, true);
           pos += add;
         } while (--w);
@@ -439,6 +440,7 @@ namespace lgfx
         do {
           readRect_impl(src_x, src_y + pos, w, 1, buf, &pc_read);
           pc_write.src_x = 0;
+          pc_write.src_y = 0;
           pushImage_impl(dst_x, dst_y + pos, w, 1, &pc_write, true);
           pos += add;
         } while (--h);

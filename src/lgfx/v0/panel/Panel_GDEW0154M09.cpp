@@ -201,6 +201,7 @@ namespace lgfx
     auto me = reinterpret_cast<Panel_GDEW0154M09*>(panel);
 
     swap565_t readbuf[w];
+    param->src_data = readbuf;
     std::int32_t readpos = 0;
     h += y;
     do
