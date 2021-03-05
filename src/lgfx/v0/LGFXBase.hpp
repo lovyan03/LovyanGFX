@@ -135,11 +135,13 @@ namespace lgfx
     template<typename T> inline void drawGradientVLine( std::int32_t x, std::int32_t y, std::int32_t h, const T& colorstart, const T& colorend ) { drawGradientLine( x, y, x, y + h - 1, colorstart, colorend ); }
     template<typename T> inline void drawGradientLine ( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, const T& colorstart, const T& colorend ) { draw_gradient_line( x0, y0, x1, y1, convert_to_rgb888(colorstart), convert_to_rgb888(colorend) ); }
 
-    template<typename T> inline void fillScreen ( const T& color) { setColor(color); fillRect(0, 0, _width, _height); }
-                         inline void fillScreen ( void )          {                  fillRect(0, 0, _width, _height); }
+    template<typename T> inline void fillScreen  ( const T& color) { setColor(color); fillRect(0, 0, _width, _height); }
+                         inline void fillScreen  ( void )          {                  fillRect(0, 0, _width, _height); }
 
-    template<typename T> inline void clear      ( const T& color) { setBaseColor(color); clear(); }
-                         inline void clear      ( void )          { setColor(_base_rgb888); fillScreen(); }
+    template<typename T> inline void clear       ( const T& color) { setBaseColor(color); clear(); }
+                         inline void clear       ( void )          { setColor(_base_rgb888); fillScreen(); }
+    template<typename T> inline void clearDisplay( const T& color) { setBaseColor(color); clear(); }
+                         inline void clearDisplay( void )          { setColor(_base_rgb888); fillScreen(); }
 
     template<typename T> inline void pushBlock  ( const T& color, std::int32_t length) { if (0 >= length) return; setColor(color); startWrite(); pushBlock_impl(length); endWrite(); }
 
@@ -707,7 +709,7 @@ namespace lgfx
     std::int32_t  _sx, _sy, _sw, _sh; // for scroll zone
 
     std::int32_t _clip_l = 0, _clip_r = -1, _clip_t = 0, _clip_b = -1; // clip rect
-    std::uint32_t _base_rgb888 = 0;  // gap fill colour for scroll zone 
+    std::uint32_t _base_rgb888 = 0;  // gap fill colour for clear and scroll zone 
     raw_color_t _color = 0xFFFFFFU;
 
     color_conv_t _write_conv;
