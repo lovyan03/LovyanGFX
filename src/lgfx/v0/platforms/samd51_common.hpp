@@ -15,7 +15,10 @@
 
 #else
 
- #include <FreeRTOS.h>
+ // This has been defined once to prevent the dependency graph from malfunctioning when using platform IO with ESP32.
+ #define INCLUDE_FREERTOS_PATH <FreeRTOS.h> 
+ #include INCLUDE_FREERTOS_PATH
+ #undef INCLUDE_FREERTOS_PATH
  #include <task.h>
  #include <config/default/system/fs/sys_fs.h>
  #include "samd51_arduino_compat.hpp"
