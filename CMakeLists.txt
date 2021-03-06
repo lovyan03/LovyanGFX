@@ -1,11 +1,15 @@
 set(COMPONENT_ADD_INCLUDEDIRS
     src
-    src/lgfx
-    src/lgfx/platforms
-    src/lgfx/utility
-    src/Fonts
     )
-file(GLOB SRCS src/lgfx/*.cpp src/lgfx/platforms/*.cpp src/lgfx/utility/*.c src/Fonts/*.cpp)
+file(GLOB SRCS
+     src/lgfx/Fonts/efont/*.c
+     src/lgfx/Fonts/IPA/*.c
+     src/lgfx/utility/*.c
+     src/lgfx/v0/*.cpp
+     src/lgfx/v0/panel/*.cpp
+     src/lgfx/v0/platforms/*.cpp
+     src/lgfx/v0/touch/*.cpp
+     )
 set(COMPONENT_SRCS ${SRCS})
 
 register_component()
