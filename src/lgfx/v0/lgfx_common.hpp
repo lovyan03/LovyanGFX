@@ -165,6 +165,24 @@ namespace lgfx
     , baseline_right  = 18  // Baseline right
     };
 
+    #ifdef TL_DATUM
+    #undef TL_DATUM
+    #undef TC_DATUM
+    #undef TR_DATUM
+    #undef ML_DATUM
+    #undef CL_DATUM
+    #undef MC_DATUM
+    #undef CC_DATUM
+    #undef MR_DATUM
+    #undef CR_DATUM
+    #undef BL_DATUM
+    #undef BC_DATUM
+    #undef BR_DATUM
+    #undef L_BASELINE
+    #undef C_BASELINE
+    #undef R_BASELINE
+    #endif
+
     static constexpr textdatum_t TL_DATUM   = textdatum_t::top_left;
     static constexpr textdatum_t TC_DATUM   = textdatum_t::top_center;
     static constexpr textdatum_t TR_DATUM   = textdatum_t::top_right;
@@ -196,6 +214,12 @@ namespace lgfx
     , utf8_switch  = 2
     , epd_mode_switch = 4
     };
+
+    #ifdef CP437_SWITCH
+    #undef CP437_SWITCH
+    #undef UTF8_SWITCH
+//  #undef PSRAM_ENABLE
+    #endif
 
     static constexpr attribute_t CP437_SWITCH = attribute_t::cp437_switch;
     static constexpr attribute_t UTF8_SWITCH  = attribute_t::utf8_switch;
