@@ -448,7 +448,7 @@ Thanks to [YAMANEKO](https://github.com/yamamaya), for creating the [lgfxFontSub
 ----------------
 [TJpgDec](http://elm-chan.org/fsw/tjpgd/00index.html)  [ChaN](http://elm-chan.org/)  
 [Pngle](https://github.com/kikuchan/pngle)  [kikuchan](https://github.com/kikuchan/)  
-[QRCode](https://github.com/ricmoo/QRCode/)  [Richard Moore](https://github.com/ricmoo/)
+[QRCode](https://github.com/ricmoo/QRCode/)  [Richard Moore](https://github.com/ricmoo/) and [Nayuki](https://www.nayuki.io/page/qr-code-generator-library)  
 
 
 クレジット Credits
@@ -464,6 +464,9 @@ Thanks to [YAMANEKO](https://github.com/yamamaya), for creating the [lgfxFontSub
 ライセンス License
 ----------------
 main : [FreeBSD](license.txt)  
+TJpgDec : [original](src/lgfx/utility/lgfx_tjpgd.c) ChaN  
+Pngle : [MIT](https://github.com/kikuchan/pngle/blob/master/LICENSE) kikuchan  
+QRCode : [MIT](https://github.com/ricmoo/QRCode/blob/master/LICENSE.txt) Richard Moore and Nayuki  
 GFX font and GLCD font : [2-clause BSD](https://github.com/adafruit/Adafruit-GFX-Library/blob/master/license.txt) Adafruit Industries  
 Font 2,4,6,7,8 :  [FreeBSD](https://github.com/Bodmer/TFT_eSPI/blob/master/license.txt) Bodmer  
 converted IPA font : [IPA Font License](src/Fonts/IPA/IPA_Font_License_Agreement_v1.0.txt)  
