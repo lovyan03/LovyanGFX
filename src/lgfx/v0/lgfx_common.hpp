@@ -274,6 +274,7 @@ namespace lgfx
   static constexpr std::uint32_t convert_rgb332_to_bgr888 (std::uint32_t c) { return (((c&3)*0x55)<<8 | ((c&0x1C)*0x49)>>3)<<8 | (((c>>5)*0x49) >> 1); }
   static constexpr std::uint32_t convert_rgb332_to_bgr666 (std::uint32_t c) { return (((c&0xE0)*9)>>5) | ((c&0x1C)*0x240) | ((c&3)*0x15)<<16; }
   static constexpr std::uint32_t convert_rgb332_to_swap565(std::uint32_t c) { return (((c&3)*0x15)>>1)<<8 | ((c&0x1C)<<11) | ((c&0x1C)>>2) | (((c>>5)*0x24)&0xF8); }
+  static constexpr std::uint32_t convert_rgb332_to_rgb565 (std::uint32_t c) { return (((c&3)*0x15)>>1) | ((c&0x1C)*0x48) | ((c&0xE0)|(c>>6)<<3)<<8; }
 
   static constexpr std::uint32_t convert_uint32_to_palette8(std::uint32_t c) { return  c&0xFF; }
   static constexpr std::uint32_t convert_uint32_to_palette4(std::uint32_t c) { return (c&0x0F) * 0x11; }
