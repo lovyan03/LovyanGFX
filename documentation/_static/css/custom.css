@@ -1,0 +1,35 @@
+
+/* render as functions not classes when indented (for :members-only:) */
+html.writer-html4 .rst-content blockquote dl:not(.field-list)>dt, html.writer-html5 .rst-content blockquote dl[class]:not(.option-list):not(.field-list):not(.footnote):not(.glossary):not(.simple)>dt {
+    margin-bottom: 6px;
+    border: none;
+    border-left: 3px solid #ccc;
+    background: #f0f0f0;
+    color: black;
+}
+
+html.writer-html4 .rst-content dl:not(.docutils) dl:not(.field-list)>dt,html.writer-html5 .rst-content dl[class]:not(.option-list):not(.field-list):not(.footnote):not(.glossary):not(.simple) dl:not(.field-list)>dt {
+	color: black;
+}
+
+dt>span.pre::after, dt>a::after, dt>em.property>span.pre::after {
+    content: " ";
+}
+
+dt>span.pre, dt>em.property>span.pre {
+    color: lightseagreen;
+}
+
+dt>span.pre, dt>em.property>span.pre, dt>a {
+    font-size: 90%;
+}
+
+dt em:not(.property)>span.pre {
+	font-family: SFMono-Regular,Menlo,Monaco,Consolas,Liberation Mono,Courier New,Courier,monospace;
+	font-style: normal;
+	color: black;
+}
+
+dt>em.property {
+    padding-right:3px !important;
+}
