@@ -1,9 +1,12 @@
-// Basic Usage of LovyanGFX
+// See https://lovyangfx.readthedocs.io/en/master/02_using.html for a
+// version with english comments...
 
-// If you use a compatible display in an environment other than Arduino IDE, or
-// If the compatible model is not in the board manager (TTGO T-Wristband,
-// ESP-WROVER-KIT, etc.), please put a '#define LGFX_[..]' statement before
-// #include LovyanGFX.hpp
+
+// 基本的な使い方
+
+// ※  もし対応機種を ArduinoIDE以外の環境で使用する場合や、
+// 対応機種がボードマネージャに無い場合 ( TTGO T-Wristband や ESP-WROVER-KIT等 ) は、
+// LovyanGFX.hppのincludeより前に、define LGFX_～ の定義を記述してください。
 
 // #define LGFX_M5STACK               // M5Stack (Basic / Gray / Go / Fire)
 // #define LGFX_M5STACK_CORE2         // M5Stack Core2
@@ -23,319 +26,289 @@
 // #define LGFX_MAKERFABS_MAKEPYTHON  // Makerfabs MakePython
 // #define LGFX_WIO_TERMINAL          // Wio Terminal
 
+  #define LGFX_AUTODETECT // 自動認識 (M5Stack, M5StickC/CPlus, ODROID-GO, TTGO T-Watch, TTGO T-Wristband, LoLin D32 Pro, ESP-WROVER-KIT)
 
-// Automatic detection (Currently supports M5Stack, M5StickC/CPlus, ODROID-GO,
-// TTGO T-Watch, TTGO T-Wristband, LoLin D32 Pro, ESP-WROVER-KIT)
-#define LGFX_AUTODETECT
-
-// If multiple models are defined, or if you define LGFX_AUTODETECT, the board
-// will be automatically recognized at runtime.
+// 複数機種の定義を行うか、LGFX_AUTODETECTを定義することで、実行時にボードを自動認識します。
 
 
-// include the header file
+// ヘッダをincludeします。
 #include <LovyanGFX.hpp>
 
-static LGFX lcd;                 // Instance of LGFX
-static LGFX_Sprite sprite(&lcd); // Instance of LGFX_Sprite when using sprites
+static LGFX lcd;                 // LGFXのインスタンスを作成。
+static LGFX_Sprite sprite(&lcd); // スプライトを使う場合はLGFX_Spriteのインスタンスを作成。
 
-// If you are currently using TFT_eSPI and want to minimize changes to your
-// code, you can use this header.
+// もし現在 TFT_eSPI を使用中で、ソースをなるべく変更したくない場合は、こちらのヘッダを利用できます。
 // #include <LGFX_TFT_eSPI.hpp>
-// static TFT_eSPI lcd;               // TFT_eSPI is an alias for LGFX.
-// static TFT_eSprite sprite(&lcd);   // TFT_eSprite is alias for LGFX_Sprite
+// static TFT_eSPI lcd;               // TFT_eSPIがLGFXの別名として定義されます。
+// static TFT_eSprite sprite(&lcd);   // TFT_eSpriteがLGFX_Spriteの別名として定義されます。
 
 
-// See examples/HowToUse/2_spi_setting.ino if you want to use it in a
-// configuration that is not available on compatible models. Copy
-// LGFX_Config_Custom.hpp in the config folder and edit to suit your environment.
-// Include here or paste the contents of the file as it is and use it.
+// 対応機種に無い構成で使う場合は、 examples/HowToUse/2_spi_setting.ino を参照してください。
+// configフォルダのLGFX_Config_Custom.hppをコピーして環境に合わせて編集して、
+// ここでincludeをするか、ファイルの内容をそのまま貼り付けて使用してください。
 
 
 void setup(void)
 {
-  // First call the initialization function.
+// 最初に初期化関数を呼び出します。
   lcd.init();
 
 
-  // Set the rotation direction from 4 directions from 0 to 3.
-  // (If you use rotations 4 to 7, the image will be mirrored.)
+// 回転方向を 0～3 の4方向から設定します。(4～7を使用すると上下反転になります。)
   lcd.setRotation(1);
 
 
-  // Set the backlight brightness in the range 0-255
+// バックライトの輝度を 0～255 の範囲で設定します。
   lcd.setBrightness(128);
 
 
-  // Set the color mode as needed. (Initial value is 16)
-  // 16 - Faster, but the red and blue tones are 5 bits.
-  // 24 - Slower, but the gradation expression is cleaner.
-  //lcd.setColorDepth(16);  // Set to 16 bits of RGB565
-  lcd.setColorDepth(24);    // Set to 24 bits for RGB888 - Note that the actual
-                            // number of colors displayed may be 18 bits (RGB666)
-                            // depending on the display hardware.
+// 必要に応じてカラーモードを設定します。（初期値は16）
+// 16の方がSPI通信量が少なく高速に動作しますが、赤と青の諧調が5bitになります。
+// 24の方がSPI通信量が多くなりますが、諧調表現が綺麗になります。
+//lcd.setColorDepth(16);  // RGB565の16ビットに設定
+  lcd.setColorDepth(24);  // RGB888の24ビットに設定(表示される色数はパネル性能によりRGB666の18ビットになります)
 
 
-  // The basic figure drawing function are as follows.
-  /*
-    fillScreen    (                color);
-    drawPixel     ( x, y         , color);
-    drawFastVLine ( x, y   , h   , color);
-    drawFastHLine ( x, y, w      , color);
-    drawRect      ( x, y, w, h   , color);
-    fillRect      ( x, y, w, h   , color);
-    drawRoundRect ( x, y, w, h, r, color);
-    fillRoundRect ( x, y, w, h, r, color);
-    drawCircle    ( x, y      , r, color);
-    fillCircle    ( x, y      , r, color);
-    drawEllipse   ( x, y, rx, ry , color);
-    fillEllipse   ( x, y, rx, ry , color);
-    drawLine      ( x0, y0, x1, y1        , color);
-    drawTriangle  ( x0, y0, x1, y1, x2, y2, color);
-    fillTriangle  ( x0, y0, x1, y1, x2, y2, color);
-    drawBezier    ( x0, y0, x1, y1, x2, y2, color);         // 3-point Bezier
-    drawBezier    ( x0, y0, x1, y1, x2, y2, x3, y3, color); // 4-point Bezier
-    drawArc       ( x, y, r0, r1, angle0, angle1, color);
-    fillArc       ( x, y, r0, r1, angle0, angle1, color);
-  */
+// 基本的な図形の描画関数は以下の通りです。
+/*
+  fillScreen    (                color);  // 画面全体の塗り潰し
+  drawPixel     ( x, y         , color);  // 点
+  drawFastVLine ( x, y   , h   , color);  // 垂直線
+  drawFastHLine ( x, y, w      , color);  // 水平線
+  drawRect      ( x, y, w, h   , color);  // 矩形の外周
+  fillRect      ( x, y, w, h   , color);  // 矩形の塗り
+  drawRoundRect ( x, y, w, h, r, color);  // 角丸の矩形の外周
+  fillRoundRect ( x, y, w, h, r, color);  // 角丸の矩形の塗り
+  drawCircle    ( x, y      , r, color);  // 円の外周
+  fillCircle    ( x, y      , r, color);  // 円の塗り
+  drawEllipse   ( x, y, rx, ry , color);  // 楕円の外周
+  fillEllipse   ( x, y, rx, ry , color);  // 楕円の塗り
+  drawLine      ( x0, y0, x1, y1        , color); // ２点間の直線
+  drawTriangle  ( x0, y0, x1, y1, x2, y2, color); // ３点間の三角形の外周
+  fillTriangle  ( x0, y0, x1, y1, x2, y2, color); // ３点間の三角形の塗り
+  drawBezier    ( x0, y0, x1, y1, x2, y2, color); // ３点間のベジエ曲線
+  drawBezier    ( x0, y0, x1, y1, x2, y2, x3, y3, color); // ４点間のベジエ曲線
+  drawArc       ( x, y, r0, r1, angle0, angle1, color);   // 円弧の外周
+  fillArc       ( x, y, r0, r1, angle0, angle1, color);   // 円弧の塗り
+*/
 
 
-  // For example, when drawing a point with drawPixel, there are three
-  // arguments: X coordinate, Y coordinate, and color.
-  lcd.drawPixel(0, 0, 0xFFFF);    // White dot at coordinates 0, 0
+// 例えばdrawPixelで点を書く場合は、引数は X座標,Y座標,色 の３つ。
+  lcd.drawPixel(0, 0, 0xFFFF); // 座標0:0に白の点を描画
 
 
-  // A function to generate a color code is provided and can be used to specify
-  // a color. As arguments specify red, green, and blue from 0 to 255, resp.
-  // It is recommended to use color888 to prevent missing color information.
-  lcd.drawFastVLine(2, 0, 100, lcd.color888(255,   0,   0));  // red
-  lcd.drawFastVLine(4, 0, 100, lcd.color565(  0, 255,   0));  // green
-  lcd.drawFastVLine(6, 0, 100, lcd.color332(  0,   0, 255));  // blue
+// カラーコードを生成する関数が用意されており、色の指定に使用できます。
+// 引数は、赤,緑,青をそれぞれ 0～255で指定します。
+// 色情報の欠落を防ぐため、color888を使う事を推奨します。
+  lcd.drawFastVLine(2, 0, 100, lcd.color888(255,   0,   0)); // 赤で垂直の線を描画
+  lcd.drawFastVLine(4, 0, 100, lcd.color565(  0, 255,   0)); // 緑で垂直の線を描画
+  lcd.drawFastVLine(6, 0, 100, lcd.color332(  0,   0, 255)); // 青で垂直の線を描画
 
 
-  // If the color code generation function is not used, it will be as follows.
-  // RGB888 24-bit specified uint32_t type
-  // RGB565 16-bit specification uint16_t type, int32_t type
-  // RGB332 Specify with 8 bits uint8_t type
+// カラーコード生成関数を使用しない場合は以下のようになります。
+// RGB888 24ビットで指定 uint32_t型
+// RGB565 16ビットで指定 uint16_t型、int32_t型
+// RGB332  8ビットで指定 uint8_t型
 
-  // If you use uint32_t type, it will be treated as 24-bit RGB888.
-  // You can write in the order of red, green, and blue with 2 hexadecimal digits.
-  // Use a uint32_t type variable, add a U at the end, or cast it to a uint32_t.
+// uint32_t型を使用すると、RGB888の24ビットとして扱われます。
+// 16進数2桁で赤緑青の順に記述できます。
+// uint32_t型の変数を使うか、末尾にUを付けるか、uint32_t型にキャストして使用します。
   uint32_t red = 0xFF0000;
-  lcd.drawFastHLine(0, 2, 100, red);            // horiz. line in red
-  lcd.drawFastHLine(0, 4, 100, 0x00FF00U);      // horiz. line in green
-  lcd.drawFastHLine(0, 6, 100, (uint32_t)0xFF); // horiz. line in blue
+  lcd.drawFastHLine(0, 2, 100, red);            // 赤で水平の線を描画
+  lcd.drawFastHLine(0, 4, 100, 0x00FF00U);      // 緑で水平の線を描画
+  lcd.drawFastHLine(0, 6, 100, (uint32_t)0xFF); // 青で水平の線を描画
 
-  // If you use uint16_t type and int32_t type, it will be treated as 16 bits
-  // of RGB565. This method is used because it is treated as int32_t type unless
-  // it is written in a special way. (This is done for compatibility with
-  // AdafruitGFX and TFT_eSPI.)
+
+// uint16_t型およびint32_t型を使用すると、RGB565の16ビットとして扱われます。
+// 特別な書き方をしない場合はint32_t型として扱われるので、この方式になります。
+// （AdafruitGFX や TFT_eSPI との互換性のために、このようにしています。）
   uint16_t green = 0x07E0;
-  lcd.drawRect(10, 10, 50, 50, 0xF800);         // red
-  lcd.drawRect(12, 12, 50, 50, green);          // green
-  lcd.drawRect(14, 14, 50, 50, (uint16_t)0x1F); // blue
+  lcd.drawRect(10, 10, 50, 50, 0xF800);         // 赤で矩形の外周を描画
+  lcd.drawRect(12, 12, 50, 50, green);          // 緑で矩形の外周を描画
+  lcd.drawRect(14, 14, 50, 50, (uint16_t)0x1F); // 青で矩形の外周を描画
 
 
-  // If you use int8_t or uint8_t type, it will be treated as 8 bits, RGB332.
+// int8_t型、uint8_t型を使用すると、RGB332の8ビットとして扱われます。
   uint8_t blue = 0x03;
-  lcd.fillRect(20, 20, 20, 20, (uint8_t)0xE0);  // red
-  lcd.fillRect(30, 30, 20, 20, (uint8_t)0x1C);  // green
-  lcd.fillRect(40, 40, 20, 20, blue);           // blue
+  lcd.fillRect(20, 20, 20, 20, (uint8_t)0xE0);  // 赤で矩形の塗りを描画
+  lcd.fillRect(30, 30, 20, 20, (uint8_t)0x1C);  // 緑で矩形の塗りを描画
+  lcd.fillRect(40, 40, 20, 20, blue);           // 青で矩形の塗りを描画
 
 
-  // The color of the drawing function argument can be omitted.
-  // If omitted, the color set by the setColor function or the last used color
-  // will be used as the foreground color. If you draw repeatedly in the same
-  // color, omitting it will render slightly faster.
-  lcd.setColor(0xFF0000U);                        // red as drawing color
-  lcd.fillCircle ( 40, 80, 20    );               // fill circle in red
-  lcd.fillEllipse( 80, 40, 10, 20);               // fill arc in red
-  lcd.fillArc    ( 80, 80, 20, 10, 0, 90);        // fill ellipse in red
-  lcd.fillTriangle(80, 80, 60, 80, 80, 60);       // fill triangle red
-  lcd.setColor(0x0000FFU);                        // blue as drawing color
-  lcd.drawCircle ( 40, 80, 20    );               // circle outline in blue
-  lcd.drawEllipse( 80, 40, 10, 20);               // ellipse outline in blue
-  lcd.drawArc    ( 80, 80, 20, 10, 0, 90);        // arc outline in blue
-  lcd.drawTriangle(60, 80, 80, 80, 80, 60);       // triable outline in blue
-  lcd.setColor(0x00FF00U);                        // green as drawing color
-  lcd.drawBezier( 60, 80, 80, 80, 80, 60);        // green 3-point Bezier curve
-  lcd.drawBezier( 60, 80, 80, 20, 20, 80, 80, 60);// green 4-point Bezier curve
+// 描画関数の引数の色は省略できます。
+// 省略した場合、setColor関数で設定した色 または最後に使用した色を描画色として使用します。
+// 同じ色で繰り返し描画する場合は、省略した方がわずかに速く動作します。
+  lcd.setColor(0xFF0000U);                        // 描画色に赤色を指定
+  lcd.fillCircle ( 40, 80, 20    );               // 赤色で円の塗り
+  lcd.fillEllipse( 80, 40, 10, 20);               // 赤色で楕円の塗り
+  lcd.fillArc    ( 80, 80, 20, 10, 0, 90);        // 赤色で円弧の塗り
+  lcd.fillTriangle(80, 80, 60, 80, 80, 60);       // 赤色で三角の塗り
+  lcd.setColor(0x0000FFU);                        // 描画色に青色を指定
+  lcd.drawCircle ( 40, 80, 20    );               // 青色で円の外周
+  lcd.drawEllipse( 80, 40, 10, 20);               // 青色で楕円の外周
+  lcd.drawArc    ( 80, 80, 20, 10, 0, 90);        // 青色で円弧の外周
+  lcd.drawTriangle(60, 80, 80, 80, 80, 60);       // 青色で三角の外周
+  lcd.setColor(0x00FF00U);                        // 描画色に緑色を指定
+  lcd.drawBezier( 60, 80, 80, 80, 80, 60);        // 緑色で二次ベジエ曲線
+  lcd.drawBezier( 60, 80, 80, 20, 20, 80, 80, 60);// 緑色で三次ベジエ曲線
 
-  // Using DrawGradientLine you cannot omit the color specification
-  lcd.drawGradientLine( 0, 80, 80, 0, 0xFF0000U, 0x0000FFU);// Red to blue
+// グラデーションの線を描画するdrawGradientLine は色の指定を省略できません。
+  lcd.drawGradientLine( 0, 80, 80, 0, 0xFF0000U, 0x0000FFU);// 赤から青へのグラデーション直線
 
   delay(1000);
 
-  // You can fill the entire screen with clear or fillScreen.
-  // fillScreen is the same as specifying the entire screen of fillRect, and
-  // the color specification is treated as the drawing color.
-  lcd.fillScreen(0xFFFFFFu);   // Fill with white
-  lcd.setColor(0x00FF00u);     // Green as the drawing color
-  lcd.fillScreen();            // Fill with green
+// clearまたはfillScreenで画面全体を塗り潰せます。
+// fillScreenはfillRectの画面全体を指定したのと同じで、色の指定は描画色の扱いになります。
+  lcd.fillScreen(0xFFFFFFu);  // 白で塗り潰し
+  lcd.setColor(0x00FF00u);    // 描画色に緑色を指定
+  lcd.fillScreen();           // 緑で塗り潰し
 
-  // clear is different from the drawing function and holds the color as a
-  // background color. The background color is rarely used, but it is used as
-  // the color to fill the gap when using the scroll function.
-  lcd.clear(0xFFFFFFu);        // Fill with white as background color
-  lcd.setBaseColor(0x000000u); // Specify black as the background color
-  lcd.clear();                 // Fill with black
+// clearは描画系の関数とは別で背景色という扱いで色を保持しています。
+// 背景色は出番が少ないですが、スクロール機能使用時の隙間を塗る色としても使用されます。
+  lcd.clear(0xFFFFFFu);       // 背景色に白を指定して塗り潰し
+  lcd.setBaseColor(0x000000u);// 背景色に黒を指定
+  lcd.clear();                // 黒で塗り潰し
 
 
-  // The SPI bus is allocated and released automatically when drawing functions
-  // are called. If drawing speed is important, use startWrite and endWrite
-  // before and after the drawing process. This suppresses securing and releasing
-  // the SPI bus, improving speed. In the case of electronic paper (EPD), any
-  // drawing after startWrite() is held until calling endWrite().
-  lcd.drawLine(0, 1, 39, 40, red);       // Secure SPI bus, draw line, release
-  lcd.drawLine(1, 0, 40, 39, blue);      // Secure SPI bus, draw line, release
-  lcd.startWrite();                      // Secure SPI bus
-  lcd.drawLine(38, 0, 0, 38, 0xFFFF00U); // Draw a line
-  lcd.drawLine(39, 1, 1, 39, 0xFF00FFU); // Draw a line
-  lcd.drawLine(40, 2, 2, 40, 0x00FFFFU); // Draw a line
-  lcd.endWrite();                        // Release SPI bus
+// SPIバスの確保と解放は描画関数を呼び出した時に自動的に行われますが、
+// 描画スピードを重視する場合は、描画処理の前後に startWriteとendWriteを使用します。
+// SPIバスの確保と解放が抑制され、速度が向上します。
+// 電子ペーパー(EPD)の場合、startWrite()以降の描画は、endWrite()を呼ぶ事で画面に反映されます。
+  lcd.drawLine(0, 1, 39, 40, red);       // SPIバス確保、線を描画、SPIバス解放
+  lcd.drawLine(1, 0, 40, 39, blue);      // SPIバス確保、線を描画、SPIバス解放
+  lcd.startWrite();                      // SPIバス確保
+  lcd.drawLine(38, 0, 0, 38, 0xFFFF00U); // 線を描画
+  lcd.drawLine(39, 1, 1, 39, 0xFF00FFU); // 線を描画
+  lcd.drawLine(40, 2, 2, 40, 0x00FFFFU); // 線を描画
+  lcd.endWrite();                        // SPIバス解放
 
 
-  // startWrite and endWrite internally count the number of calls and if you call
-  // it repeatedly, it will only work at the beginning and end. Be sure to use
-  // startWrite and endWrite so that they are paired. (If you don't mind occupying
-  // the SPI bus, you can call startWrite once first and not endWrite.)
-  lcd.startWrite();     // Count +1, secure SPI bus
-  lcd.startWrite();     // Count +1
-  lcd.startWrite();     // Count +1
-  lcd.endWrite();       // Count -1
-  lcd.endWrite();       // Count -1
-  lcd.endWrite();       // Count -1, SPI bus release
-  lcd.endWrite();       // do nothing
-  // If you call endWrite excessively, nothing will be done and the count will
-  // not go negative.
+// startWriteとendWriteは呼出し回数を内部でカウントしており、
+// 繰り返し呼び出した場合は最初と最後のみ動作します。
+// startWriteとendWriteは必ず対になるように使用してください。
+// (SPIバスを占有して構わない場合は、最初にstartWriteを一度呼び、endWriteしない使い方も可能です。)
+  lcd.startWrite();     // カウント+1、SPIバス確保
+  lcd.startWrite();     // カウント+1
+  lcd.startWrite();     // カウント+1
+  lcd.endWrite();       // カウント-1
+  lcd.endWrite();       // カウント-1
+  lcd.endWrite();       // カウント-1、SPIバス解放
+  lcd.endWrite();       // 何もしない
+// なお過剰にendWriteを呼び出した場合は何も行わず、カウントがマイナスになることもありません。
 
-  // If you want to forcibly release / secure the SPI bus regardless of the count
-  // status of startWrite, use endTransaction / beginTransaction.
-  // The count will not be cleared, so still be careful to make counts match.
-  lcd.startWrite();       // Count +1, secure SPI bus
-  lcd.startWrite();       // Count +1
-  lcd.drawPixel(0, 0);    // Draw
-  lcd.endTransaction();   // Release SPI bus
-  // Other SPI devices can be used here.
-  // When using another device (SD card, etc.) on the same SPI bus, make sure
-  // that the SPI bus is free before continuing.
-  lcd.beginTransaction(); // Secure SPI bus
-  lcd.drawPixel(0, 0);    // Draw
-  lcd.endWrite();         // Count -1
-  lcd.endWrite();         // Count -1, SPI bus release
+
+// startWriteのカウントの状態に依らず、強制的にSPIバスを解放・確保したい場合は、
+// endTransaction・beginTransactionを使用します。
+// カウントはクリアされないので、辻褄が合わなくならないよう注意してください。
+  lcd.startWrite();       // カウント+1、SPIバス確保
+  lcd.startWrite();       // カウント+1
+  lcd.drawPixel(0, 0);    // 描画
+  lcd.endTransaction();   // SPIバス解放
+  // ここで他のSPIデバイスの使用が可能
+  // 同じSPIバスの別のデバイス(SDカード等)を使う場合、
+  // 必ずSPIバスが解放された状態で行ってください。
+  lcd.beginTransaction(); // SPIバスの確保
+  lcd.drawPixel(0, 0);    // 描画
+  lcd.endWrite();         // カウント-1
+  lcd.endWrite();         // カウント-1、SPIバス解放
 
 
 
-  // Apart from drawPixel, there is a function that draws a point called
-  // writePixel. drawPixel reserves the SPI bus as needed, while writePixel does
-  // not check the status of the SPI bus.
-  lcd.startWrite();   // Secure SPI bus
+// drawPixelとは別に、writePixelという点を描画する関数があります。
+// drawPixelは必要に応じてSPIバスの確保を行うのに対し、
+// writePixelはSPIバスの状態をチェックしません。
+  lcd.startWrite();  // SPIバス確保
   for (uint32_t x = 0; x < 128; ++x) {
     for (uint32_t y = 0; y < 128; ++y) {
       lcd.writePixel(x, y, lcd.color888( x*2, x + y, y*2));
     }
   }
-  lcd.endWrite();    // SPI bus release
-  // All functions whose names start with write (writePixel, writeFastVLine,
-  // writeFastHLine, writeFillRect) must explicitly call startWrite.
+  lcd.endWrite();    // SPIバス解放
+// 名前が write～ で始まる関数は全て明示的にstartWriteを呼び出しておく必要があります。
+// writePixel、writeFastVLine、writeFastHLine、writeFillRect が該当します。
 
   delay(1000);
 
-  // Similar drawing functions can be used for drawing on sprites (offscreen).
-  // First, specify the color depth of the sprite with setColorDepth. (If
-  // omitted, it will be treated as 16.)
-  //sprite.setColorDepth(1);   // Set to 1-bit (2 colors) palette mode
-  //sprite.setColorDepth(2);   // Set to 2-bit (4 colors) palette mode
-  //sprite.setColorDepth(4);   // Set to 4-bit (16 colors) palette mode
-  //sprite.setColorDepth(8);   // Set to 8-bit RGB332
-  //sprite.setColorDepth(16);  // Set to 16 bits in RGB565
-  sprite.setColorDepth(24);    // Set to 24-bit RGB888
+// スプライト（オフスクリーン）への描画も同様の描画関数が使えます。
+// 最初にスプライトの色深度をsetColorDepthで指定します。（省略した場合は16として扱われます。）
+//sprite.setColorDepth(1);   // 1ビット( 2色)パレットモードに設定
+//sprite.setColorDepth(2);   // 2ビット( 4色)パレットモードに設定
+//sprite.setColorDepth(4);   // 4ビット(16色)パレットモードに設定
+//sprite.setColorDepth(8);   // RGB332の8ビットに設定
+//sprite.setColorDepth(16);  // RGB565の16ビットに設定
+  sprite.setColorDepth(24);  // RGB888の24ビットに設定
 
 
-  // If you calling createPalette() after setting setColorDepth(8), it will be
-  // in 256 color palette mode.
-  // sprite.createPalette();
+// ※ setColorDepth(8);を設定後に createPalette()を呼ぶ事で、256色パレットモードになります
+// sprite.createPalette();
 
 
-  // Use createSprite to specify the width and height to allocate memory.
-  // Memory consumption is proportional to color depth and area. Please note
-  // that if it is too large, memory allocation will fail.
-  sprite.createSprite(65, 65); // Create sprite with width 65 and height 65.
+// createSpriteで幅と高さを指定してメモリを確保します。
+// 消費するメモリは色深度と面積に比例します。大きすぎるとメモリ確保に失敗しますので注意してください。
+  sprite.createSprite(65, 65); // 幅65、高さ65でスプライトを作成。
 
   for (uint32_t x = 0; x < 64; ++x) {
     for (uint32_t y = 0; y < 64; ++y) {
-      // Draw on sprite
-      sprite.drawPixel(x, y, lcd.color888(3 + x*4, (x + y)*2, 3 + y*4));
+      sprite.drawPixel(x, y, lcd.color888(3 + x*4, (x + y)*2, 3 + y*4));  // スプライトに描画
     }
   }
   sprite.drawRect(0, 0, 65, 65, 0xFFFF);
 
-  // The created sprite can be output to any coordinates with pushSprite.
-  // The output destination will be the LGFX passed as an argument when creating
-  // the sprite instance.
-  sprite.pushSprite(64, 0);        // Draw sprite at coordinates 64, 0 on lcd
+// 作成したスプライトはpushSpriteで任意の座標に出力できます。
+// 出力先はインスタンス作成時に引数で渡したLGFXになります。
+  sprite.pushSprite(64, 0);        // lcdの座標64,0にスプライトを描画
 
-  // If you did not pass the pointer of the drawing destination when creating
-  // the instance of sprite, or if you have multiple LGFX, you can also pushSprite
-  // by specifying the output destination as the first argument.
-  sprite.pushSprite(&lcd, 0, 64);  // SPI bus release
+// spriteのインスタンス作成時に描画先のポインタを渡していない場合や、
+// 複数のLGFXがある場合などは、出力先を第一引数に指定してpushSpriteすることもできます。
+  sprite.pushSprite(&lcd, 0, 64);  // lcdの座標0,64にスプライトを描画
 
   delay(1000);
 
-  // You can rotate, scale, and draw sprites with pushRotateZoom.
-  // The coordinates set by setPivot are treated as the center of rotation, and
-  // the center of rotation is drawn so that it is located at the coordinates
-  // of the drawing destination.
-  sprite.setPivot(32, 32);    // Rotate around 32, 32
+  // pushRotateZoomでスプライトを回転拡大縮小して描画できます。
+  // setPivotで設定した座標が回転中心として扱われ、描画先の座標に回転中心が位置するように描画されます。
+  sprite.setPivot(32, 32);    // 座標32,32を中心として扱う
   int32_t center_x = lcd.width()/2;
   int32_t center_y = lcd.height()/2;
   lcd.startWrite();
   for (int angle = 0; angle <= 360; ++angle) {
-    // Draw at all angles, width 2.5 times, height 3 times,
-    // in the center of the screen
-    sprite.pushRotateZoom(center_x, center_y, angle, 2.5, 3);
+    sprite.pushRotateZoom(center_x, center_y, angle, 2.5, 3); // 画面中心に角度angle、幅2.5倍、高さ3倍で描画
 
-    // Update the display for electronic paper once every 36 times
-    if ((angle % 36) == 0) lcd.display();
+    if ((angle % 36) == 0) lcd.display(); // 電子ペーパーの場合の表示更新を 36回に一度行う
   }
   lcd.endWrite();
 
   delay(1000);
 
-  // Use deleteSprite to free memory for sprites that are no longer in use.
+  // 使用しなくなったスプライトのメモリを解放するには deleteSprite を使用します。
   sprite.deleteSprite();
 
-  // The same instance can be reused after deleteSprite.
-  sprite.setColorDepth(4);     // Set to 4-bit (16 colors) palette mode
+  // deleteSprite の後でも、同じインスタンスの再利用が可能です。
+  sprite.setColorDepth(4);     // 4ビット(16色)パレットモードに設定
   sprite.createSprite(65, 65);
 
-  // In palette mode sprites, the color of the drawing function argument is
-  // treated as the palette number. When drawing with pushSprite etc., the
-  // actual drawing color is determined by referring to the palette.
+  // パレットモードのスプライトでは、描画関数の引数の色をパレット番号として扱います。
+  // pushSprite等で描画する際に、パレットを参照して実際の描画色が決まります。
 
+  // 4ビット(16色)パレットモードの場合、パレット番号は0～15が使用可能です。
+  // パレットの初期色は、0が黒,末尾のパレットが白で、0から末尾にかけてグラデーションになっています。
+  // パレットの色を設定するには setPaletteColor を使用します。
+  sprite.setPaletteColor(1, 0x0000FFU);    // パレット1番を青に設定
+  sprite.setPaletteColor(2, 0x00FF00U);    // パレット2番を緑に設定
+  sprite.setPaletteColor(3, 0xFF0000U);    // パレット3番を赤に設定
 
-  // In 4-bit (16 colors) palette mode, palette numbers 0 to 15 can be used.
-  // The initial color of the palette is black at 0, white at the end of the
-  // palette, and a gradation from 0 to the end. Use setPaletteColor() to set
-  // the palette color.
-  sprite.setPaletteColor(1, 0x0000FFU);    // Set palette 1 to blue
-  sprite.setPaletteColor(2, 0x00FF00U);    // Set palette 2 to green
-  sprite.setPaletteColor(3, 0xFF0000U);    // Set palette 3 to red
+  sprite.fillRect(10, 10, 45, 45, 1);             // パレット1番で矩形の塗り
+  sprite.fillCircle(32, 32, 22, 2);               // パレット2番で円の塗り
+  sprite.fillTriangle(32, 12, 15, 43, 49, 43, 3); // パレット3番で三角の塗り
 
-  sprite.fillRect(10, 10, 45, 45, 1);   // Fill rectangle with palette color 1
-  sprite.fillCircle(32, 32, 22, 2);               // same for color 2
-  sprite.fillTriangle(32, 12, 15, 43, 49, 43, 3); // same for color 3
-
-  // The last argument of pushSprite allows you to specify a color that is not
-  // drawn, meaning that where it appears in a sprite, the previous pixels that
-  // were on the screen will still be visible after pushSprite.
-  sprite.pushSprite( 0,  0, 0); // Draw sprite with palette color 0 transparent
-  sprite.pushSprite(65,  0, 1); // Draw sprite with palette color 1 transparent
-  sprite.pushSprite( 0, 65, 2); // Draw sprite with palette color 2 transparent
-  sprite.pushSprite(65, 65, 3); // Draw sprite with palette color 3 transparent
+  // pushSpriteの最後の引数で、描画しない色を指定することができます。
+  sprite.pushSprite( 0,  0, 0);  // パレット0を透過扱いでスプライトを描画
+  sprite.pushSprite(65,  0, 1);  // パレット1を透過扱いでスプライトを描画
+  sprite.pushSprite( 0, 65, 2);  // パレット2を透過扱いでスプライトを描画
+  sprite.pushSprite(65, 65, 3);  // パレット3を透過扱いでスプライトを描画
 
   delay(5000);
 
-  lcd.startWrite(); // StartWrite() here to keep the SPI bus occupied.
+  lcd.startWrite(); // ここでstartWrite()することで、SPIバスを占有したままにする。
 }
 
 void loop(void)
@@ -355,6 +328,5 @@ void loop(void)
 
   sprite.pushRotateZoom(x, y, a, zoom, zoom, 0);
 
-  // Update the display for electronic paper once every 100 times.
-  if ((count % 100) == 0) lcd.display();
+  if ((count % 100) == 0) lcd.display(); // 電子ペーパーの場合の表示更新を 100回に一度行う
 }
