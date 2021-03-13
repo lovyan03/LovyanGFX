@@ -163,8 +163,8 @@ namespace lgfx
     virtual const std::uint8_t* getWindowCommands2(std::uint8_t* buf, std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye) = 0;
     virtual const std::uint8_t* getSleepInCommands(std::uint8_t* buf) = 0;
     virtual const std::uint8_t* getSleepOutCommands(std::uint8_t* buf) = 0;
-    virtual const std::uint8_t* getPartialOnCommands(std::uint8_t* buf) { (void)buf; return nullptr; }
-    virtual const std::uint8_t* getPartialOffCommands(std::uint8_t* buf) { (void)buf; return nullptr; }
+    virtual const std::uint8_t* getPowerSaveOnCommands(std::uint8_t* buf) { (void)buf; return nullptr; }
+    virtual const std::uint8_t* getPowerSaveOffCommands(std::uint8_t* buf) { (void)buf; return nullptr; }
     virtual const std::uint8_t* getInvertDisplayCommands(std::uint8_t* buf, bool invert) = 0;
     virtual const std::uint8_t* getRotationCommands(std::uint8_t* buf, std::int_fast8_t r)
     {

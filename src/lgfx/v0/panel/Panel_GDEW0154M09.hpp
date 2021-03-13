@@ -101,7 +101,7 @@ namespace lgfx
       return nullptr;
     }
 
-    const std::uint8_t* getPartialOnCommands(std::uint8_t* buf) override
+    const std::uint8_t* getPowerSaveOnCommands(std::uint8_t* buf) override
     {
       buf[0] = 0x50;
       buf[1] = 1;
@@ -111,7 +111,7 @@ namespace lgfx
       return buf;
     }
 
-    const std::uint8_t* getPartialOffCommands(std::uint8_t* buf) override
+    const std::uint8_t* getPowerSaveOffCommands(std::uint8_t* buf) override
     {
       buf[0] = 0x50;
       buf[1] = 1;

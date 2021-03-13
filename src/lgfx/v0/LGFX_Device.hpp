@@ -102,17 +102,23 @@ namespace lgfx
       _panel->wakeup(this);
     }
 
-    void partialOn(void)
+    void powerSave(bool flg)
     {
       std::uint8_t buf[32];
-      if (auto b = _panel->getPartialOnCommands(buf)) commandList(b);
+      const std::uint8_t* b = flg 
+                            ? _panel->getPowerSaveOnCommands(buf)
+                            : _panel->getPowerSaveOffCommands(buf);
+      if (b) commandList(b);
     }
 
-    void partialOff(void)
-    {
-      std::uint8_t buf[32];
-      if (auto b = _panel->getPartialOffCommands(buf)) commandList(b);
-    }
+    void powerSaveOn( void) { powerSave(true ); }
+    void powerSaveOff(void) { powerSave(false); }
+
+    [[deprecated("use powerSave")]]
+    void partialOn(void) { powerSaveOn(); }
+
+    [[deprecated("use powerSave")]]
+    void partialOff(void) { powerSaveOff(); }
 
     void display(void)
     {
