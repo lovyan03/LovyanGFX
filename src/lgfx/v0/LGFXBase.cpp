@@ -1630,6 +1630,13 @@ namespace lgfx
       return c; // fall-back to extended ASCII
     }
 
+    std::int32_t LGFXBase::fontHeight(const IFont* font) const
+    {
+      FontMetrics fm;
+      font->getDefaultMetric(&fm);
+      return fm.height * _text_style.size_y;
+    }
+
     std::int32_t LGFXBase::textLength(const char *string, std::int32_t width)
     {
       if (!string || !string[0]) return 0;

@@ -475,7 +475,7 @@ namespace lgfx
 
     [[deprecated("use IFont")]]
     std::int32_t fontHeight(std::uint8_t font) const { return ((const BaseFont*)fontdata[font])->height * _text_style.size_y; }
-    std::int32_t fontHeight(const IFont* font) const { return ((const BaseFont*)font)->height * _text_style.size_y; }
+    std::int32_t fontHeight(const IFont* font) const;
     std::int32_t fontHeight(void) const { return _font_metrics.height * _text_style.size_y; }
     std::int32_t textLength(const char *string, std::int32_t width);
     std::int32_t textWidth(const char *string);
