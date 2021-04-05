@@ -2086,13 +2086,10 @@ namespace lgfx
 
     auto clip_x = x;
     auto clip_y = y;
-    const auto cl = this->_clip_l;
-    const auto cr = this->_clip_r + 1;
-    if (!maxWidth) maxWidth = cr - cl;
 
-    const auto ct = this->_clip_t;
-    const auto cb = this->_clip_b + 1;
-    if (!maxHeight) maxHeight = cb - ct;
+    if (maxWidth <= 0) maxWidth = INT32_MAX;
+    if (maxHeight <= 0) maxHeight = INT32_MAX;
+
     if (scale_x <= -1.0f) { scale_x = (float)maxWidth  / w; }
     if (scale_y <= -1.0f) { scale_y = (float)maxHeight / h; }
 
@@ -2125,6 +2122,10 @@ namespace lgfx
       }
     }
 
+    const auto cl = this->_clip_l;
+    const auto cr = this->_clip_r + 1;
+    const auto ct = this->_clip_t;
+    const auto cb = this->_clip_b + 1;
     if (0 > clip_x - cl) { maxWidth += clip_x - cl; clip_x = cl; }
     if (maxWidth > (cr - clip_x)) maxWidth = (cr - clip_x);
 
@@ -2312,13 +2313,8 @@ namespace lgfx
       return false;
     }
 
-    const auto cl = this->_clip_l;
-    const auto cr = this->_clip_r + 1;
-    if (!maxWidth) maxWidth = cr - cl;
-
-    const auto ct = this->_clip_t;
-    const auto cb = this->_clip_b + 1;
-    if (!maxHeight) maxHeight = cb - ct;
+    if (maxWidth <= 0) maxWidth = INT32_MAX;
+    if (maxHeight <= 0) maxHeight = INT32_MAX;
 
     if (scale_x <= -1.0f) { scale_x = (float)maxWidth  / jpegdec.width;  }
     if (scale_y <= -1.0f) { scale_y = (float)maxHeight / jpegdec.height; }
@@ -2367,9 +2363,13 @@ namespace lgfx
     jpeg.zoom_x = scale_x;
     jpeg.zoom_y = scale_y;
 
+    const auto cl = this->_clip_l;
+    const auto cr = this->_clip_r + 1;
     if (0 > x - cl) { maxWidth += x - cl; x = cl; }
     if (maxWidth > (cr - x)) maxWidth = (cr - x);
 
+    const auto ct = this->_clip_t;
+    const auto cb = this->_clip_b + 1;
     if (0 > y - ct) { maxHeight += y - ct; y = ct; }
     if (maxHeight > (cb - y)) maxHeight = (cb - y);
 
@@ -2651,8 +2651,8 @@ namespace lgfx
     png.y = y;
     png.offX = offX;
     png.offY = offY;
-    png.maxWidth  = maxWidth > 0 ? maxWidth : (_clip_r - _clip_l + 1);
-    png.maxHeight = maxHeight> 0 ? maxHeight: (_clip_b - _clip_t + 1);
+    png.maxWidth  = maxWidth > 0 ? maxWidth : INT32_MAX;
+    png.maxHeight = maxHeight> 0 ? maxHeight: INT32_MAX;
     png.zoom_x = scale_x;
     png.zoom_y = scale_y;
     png.datum = datum;
