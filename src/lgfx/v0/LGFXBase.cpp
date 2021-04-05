@@ -2055,27 +2055,36 @@ namespace lgfx
     std::int32_t w = bmpdata.biWidth;
     std::int32_t h = abs(bmpdata.biHeight);  // bcHeight Image height (pixels)
 
-    auto clip_x = x;
-    auto clip_y = y;
+    const auto cl = this->_clip_l;
+    const auto cr = this->_clip_r + 1;
+    const auto ct = this->_clip_t;
+    const auto cb = this->_clip_b + 1;
 
-    if (maxWidth <= 0) maxWidth = INT32_MAX;
-    if (maxHeight <= 0) maxHeight = INT32_MAX;
-
-    if (scale_x <= -1.0f) { scale_x = (float)maxWidth  / w; }
-    if (scale_y <= -1.0f) { scale_y = (float)maxHeight / h; }
-
-    if (scale_x <= 0.0f)
+    if (scale_y <= 0.0f || scale_x <= 0.0f)
     {
+      float fit_width  = (maxWidth  > 0) ? maxWidth  : cr - cl;
+      float fit_height = (maxHeight > 0) ? maxHeight : cb - ct;
+
+      if (scale_x <= -1.0f) { scale_x = fit_width  / w; }
+      if (scale_y <= -1.0f) { scale_y = fit_height / h; }
+      if (scale_x <= 0.0f)
+      {
+        if (scale_y <= 0.0f)
+        {
+          scale_y = std::min<float>(fit_width / w, fit_height / h);
+        }
+        scale_x = scale_y;
+      }
       if (scale_y <= 0.0f)
       {
-        scale_y = std::min<float>((float)maxWidth / w, (float)maxHeight / h);
+        scale_y = scale_x;
       }
-      scale_x = scale_y;
     }
-    if (scale_y <= 0.0f)
-    {
-      scale_y = scale_x;
-    }
+    if (maxWidth  <= 0) maxWidth  = INT16_MAX;
+    if (maxHeight <= 0) maxHeight = INT16_MAX;
+
+    auto clip_x = x;
+    auto clip_y = y;
 
     if (datum)
     {
@@ -2093,10 +2102,6 @@ namespace lgfx
       }
     }
 
-    const auto cl = this->_clip_l;
-    const auto cr = this->_clip_r + 1;
-    const auto ct = this->_clip_t;
-    const auto cb = this->_clip_b + 1;
     if (0 > clip_x - cl) { maxWidth += clip_x - cl; clip_x = cl; }
     if (maxWidth > (cr - clip_x)) maxWidth = (cr - clip_x);
 
@@ -2284,24 +2289,33 @@ namespace lgfx
       return false;
     }
 
-    if (maxWidth <= 0) maxWidth = INT32_MAX;
-    if (maxHeight <= 0) maxHeight = INT32_MAX;
+    const auto cl = this->_clip_l;
+    const auto cr = this->_clip_r + 1;
+    const auto ct = this->_clip_t;
+    const auto cb = this->_clip_b + 1;
 
-    if (scale_x <= -1.0f) { scale_x = (float)maxWidth  / jpegdec.width;  }
-    if (scale_y <= -1.0f) { scale_y = (float)maxHeight / jpegdec.height; }
-
-    if (scale_x <= 0.0f)
+    if (scale_y <= 0.0f || scale_x <= 0.0f)
     {
+      float fit_width  = (maxWidth  > 0) ? maxWidth  : cr - cl;
+      float fit_height = (maxHeight > 0) ? maxHeight : cb - ct;
+
+      if (scale_x <= -1.0f) { scale_x = fit_width  / jpegdec.width; }
+      if (scale_y <= -1.0f) { scale_y = fit_height / jpegdec.height; }
+      if (scale_x <= 0.0f)
+      {
+        if (scale_y <= 0.0f)
+        {
+          scale_y = std::min<float>(fit_width / jpegdec.width, fit_height / jpegdec.height);
+        }
+        scale_x = scale_y;
+      }
       if (scale_y <= 0.0f)
       {
-        scale_y = std::min<float>((float)maxWidth / jpegdec.width, (float)maxHeight / jpegdec.height);
+        scale_y = scale_x;
       }
-      scale_x = scale_y;
     }
-    if (scale_y <= 0.0f)
-    {
-      scale_y = scale_x;
-    }
+    if (maxWidth  <= 0) maxWidth  = INT16_MAX;
+    if (maxHeight <= 0) maxHeight = INT16_MAX;
 
     if (datum)
     {
@@ -2334,13 +2348,9 @@ namespace lgfx
     jpeg.zoom_x = scale_x;
     jpeg.zoom_y = scale_y;
 
-    const auto cl = this->_clip_l;
-    const auto cr = this->_clip_r + 1;
     if (0 > x - cl) { maxWidth += x - cl; x = cl; }
     if (maxWidth > (cr - x)) maxWidth = (cr - x);
 
-    const auto ct = this->_clip_t;
-    const auto cb = this->_clip_b + 1;
     if (0 > y - ct) { maxHeight += y - ct; y = ct; }
     if (maxHeight > (cb - y)) maxHeight = (cb - y);
 
@@ -2530,21 +2540,31 @@ namespace lgfx
     auto p = (png_file_decoder_t*)lgfx_pngle_get_user_data(pngle);
     auto me = p->gfx;
 
-    if (p->zoom_x <= -1.0f) { p->zoom_x = (float)p->maxWidth  / w; }
-    if (p->zoom_y <= -1.0f) { p->zoom_y = (float)p->maxHeight / h; }
+    std::int32_t cw, ch, cl, ct;
+    me->getClipRect(&cl, &ct, &cw, &ch);
 
-    if (p->zoom_x <= 0.0f)
+    if (p->zoom_y <= 0.0f || p->zoom_x <= 0.0f)
     {
+      float fit_width  = (p->maxWidth  > 0) ? p->maxWidth  : cw;
+      float fit_height = (p->maxHeight > 0) ? p->maxHeight : ch;
+
+      if (p->zoom_x <= -1.0f) { p->zoom_x = fit_width  / w; }
+      if (p->zoom_y <= -1.0f) { p->zoom_y = fit_height / h; }
+      if (p->zoom_x <= 0.0f)
+      {
+        if (p->zoom_y <= 0.0f)
+        {
+          p->zoom_y = std::min<float>(fit_width / w, fit_height / h);
+        }
+        p->zoom_x = p->zoom_y;
+      }
       if (p->zoom_y <= 0.0f)
       {
-        p->zoom_y = std::min<float>((float)p->maxWidth / w, (float)p->maxHeight / h);
+        p->zoom_y = p->zoom_x;
       }
-      p->zoom_x = p->zoom_y;
     }
-    if (p->zoom_y <= 0.0f)
-    {
-      p->zoom_y = p->zoom_x;
-    }
+    if (p->maxWidth  <= 0) p->maxWidth  = INT16_MAX;
+    if (p->maxHeight <= 0) p->maxHeight = INT16_MAX;
 
     w = ceilf(w * p->zoom_x);
     h = ceilf(h * p->zoom_y);
@@ -2564,10 +2584,9 @@ namespace lgfx
         p->offY -= fh;
       }
     }
-    std::int32_t cl, ct, cr, cb;
-    me->getClipRect(&cl, &ct, &cr, &cb);
-    cr += cl;
-    cb += ct;
+
+    const std::int32_t cr = cw + cl;
+    const std::int32_t cb = ch + ct;
 
     if (0 > p->x - cl) { p->maxWidth += p->x - cl; p->offX -= p->x - cl; p->x = cl; }
     if (0 > p->offX) { p->x -= p->offX; p->maxWidth  += p->offX; p->offX = 0; }
@@ -2622,8 +2641,8 @@ namespace lgfx
     png.y = y;
     png.offX = offX;
     png.offY = offY;
-    png.maxWidth  = maxWidth > 0 ? maxWidth : INT32_MAX;
-    png.maxHeight = maxHeight> 0 ? maxHeight: INT32_MAX;
+    png.maxWidth  = maxWidth ;
+    png.maxHeight = maxHeight;
     png.zoom_x = scale_x;
     png.zoom_y = scale_y;
     png.datum = datum;
