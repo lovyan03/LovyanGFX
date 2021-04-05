@@ -29,6 +29,10 @@ Contributors:
 #include <string>
 #include <memory>
 
+#if defined (ARDUINO)
+#include <Print.h>
+#endif
+
 namespace lgfx
 {
  inline namespace v0
