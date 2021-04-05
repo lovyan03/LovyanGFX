@@ -1125,7 +1125,7 @@ namespace lgfx
     {
       std::int32_t offset_y32 = matrix[5] * (1 << FP_SCALE) + (1 << (FP_SCALE-1));
       min_y = std::max(_clip_t    , (offset_y32 + min_y - 1) >> FP_SCALE);
-      max_y = std::min(_clip_b + 1, (offset_y32 + max_y    ) >> FP_SCALE);
+      max_y = std::min(_clip_b + 1, (offset_y32 + max_y + 1) >> FP_SCALE);
       if (min_y >= max_y) return;
     }
 
@@ -1184,7 +1184,7 @@ namespace lgfx
     {
       std::int32_t offset_y32 = matrix[5] * (1 << FP_SCALE) + (1 << (FP_SCALE-1));
       min_y = std::max(_clip_t    , (offset_y32 + min_y - 1) >> FP_SCALE);
-      max_y = std::min(_clip_b + 1, (offset_y32 + max_y    ) >> FP_SCALE);
+      max_y = std::min(_clip_b + 1, (offset_y32 + max_y + 1) >> FP_SCALE);
       if (min_y >= max_y) return;
     }
 
