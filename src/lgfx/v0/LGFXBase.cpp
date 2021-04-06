@@ -919,8 +919,8 @@ namespace lgfx
 
     std::int32_t iradius_x2 = trueCircle ? iradius_x2 * iradius_x2 + iradius_x2 : iradius_x * iradius_x;
     std::int32_t oradius_x2 = trueCircle ? oradius_x2 * oradius_x2 + oradius_x2 : oradius_x * oradius_x;
-    std::int32_t iradius_y2 = trueCircle ? iradius_x2                             : iradius_y * iradius_y;
-    std::int32_t oradius_y2 = trueCircle ? oradius_x2                             : oradius_y * oradius_y;
+    std::int32_t iradius_y2 = trueCircle ? iradius_x2                           : iradius_y * iradius_y;
+    std::int32_t oradius_y2 = trueCircle ? oradius_x2                           : oradius_y * oradius_y;
     float irad_rate = trueCircle ? 1 : iradius_y2 ? (float)iradius_x2 / iradius_y2 : INT32_MAX;
     float orad_rate = trueCircle ? 1 : oradius_y2 ? (float)oradius_x2 / oradius_y2 : INT32_MAX;
     do {
