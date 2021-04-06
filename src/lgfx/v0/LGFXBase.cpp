@@ -904,6 +904,7 @@ namespace lgfx
     bool start180 = !(start < 180);
     bool end180 = end < 180;
     bool reversed = start + 180 < end || (end < start && start < end + 180);
+    bool trueCircle = oradius_x == oradius_y && iradius_x == iradius_y;
 
     std::int32_t xs = -oradius_x;
     std::int32_t y = -oradius_y;
@@ -916,16 +917,16 @@ namespace lgfx
       else if (end < 180 && start < 180) y = 0;
     }
 
-    std::int32_t iradius_x2 = iradius_x * iradius_x;
-    std::int32_t oradius_x2 = oradius_x * oradius_x;
-    std::int32_t iradius_y2 = iradius_y * iradius_y;
-    std::int32_t oradius_y2 = oradius_y * oradius_y;
-    float irad_rate = iradius_y2 ? iradius_x2 / iradius_y2 : INT32_MAX;
-    float orad_rate = oradius_y2 ? oradius_x2 / oradius_y2 : INT32_MAX;
+    std::int32_t iradius_x2 = trueCircle ? iradius_x2 * iradius_x2 + iradius_x2 : iradius_x * iradius_x;
+    std::int32_t oradius_x2 = trueCircle ? oradius_x2 * oradius_x2 + oradius_x2 : oradius_x * oradius_x;
+    std::int32_t iradius_y2 = trueCircle ? iradius_x2 : iradius_y * iradius_y;
+    std::int32_t oradius_y2 = trueCircle ? oradius_x2 : oradius_y * oradius_y;
+    float irad_rate = trueCircle ? 1 : iradius_y2 ? iradius_x2 / iradius_y2 : INT32_MAX;
+    float orad_rate = trueCircle ? 1 : oradius_y2 ? oradius_x2 / oradius_y2 : INT32_MAX;
     do {
       std::int32_t y2 = y * y;
-      std::int32_t compare_i = iradius_x2 - irad_rate * y2;
-      std::int32_t compare_o = oradius_x2 - irad_rate * y2;
+      std::int32_t compare_i = trueCircle ? iradius_x2 - y2 : iradius_x2 - irad_rate * y2;
+      std::int32_t compare_o = trueCircle ? oradius_x2 - y2 : oradius_x2 - irad_rate * y2;
       int x = xs;
       if (x < 0) {
         while (x * x >= compare_o) ++x;
