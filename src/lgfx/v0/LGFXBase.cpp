@@ -900,32 +900,35 @@ namespace lgfx
     float ewidth = -0.5 / e_cos;
     --iradius_x;
     --iradius_y;
-    int iradius_x2 = iradius_x * iradius_x;
-    int oradius_x2 = oradius_x * oradius_x;
-    int iradius_y2 = iradius_y * iradius_y;
-    int oradius_y2 = oradius_y * oradius_y;
-    long ir2 = iradius_x2 * iradius_y2;
-    long or2 = oradius_x2 * oradius_y2;
 
     bool start180 = !(start < 180);
     bool end180 = end < 180;
     bool reversed = start + 180 < end || (end < start && start < end + 180);
 
-    int xs = -oradius_x;
-    int y = -oradius_y;
-    int ye = oradius_y;
-    int xe = oradius_x + 1;
+    std::int32_t xs = -oradius_x;
+    std::int32_t y = -oradius_y;
+    std::int32_t ye = oradius_y;
+    std::int32_t xe = oradius_x + 1;
     if (!reversed) {
       if (   (end >= 270 || end < 90) && (start >= 270 || start < 90)) xs = 0;
       else if (end < 270 && end >= 90 && start < 270 && start >= 90) xe = 1;
       if (     end >= 180 && start >= 180) ye = 0;
       else if (end < 180 && start < 180) y = 0;
     }
+
+    std::int32_t iradius_x2 = iradius_x * iradius_x;
+    std::int32_t oradius_x2 = oradius_x * oradius_x;
+    std::int32_t iradius_y2 = iradius_y * iradius_y;
+    std::int32_t oradius_y2 = oradius_y * oradius_y;
+    float irad_rate = iradius_y2 ? iradius_x2 / iradius_y2 : INT32_MAX;
+    float orad_rate = oradius_y2 ? oradius_x2 / oradius_y2 : INT32_MAX;
     do {
-      int y2 = y * y;
+      std::int32_t y2 = y * y;
+      std::int32_t compare_i = iradius_x2 - irad_rate * y2;
+      std::int32_t compare_o = oradius_x2 - irad_rate * y2;
       int x = xs;
       if (x < 0) {
-        while (x * x * oradius_y2 + y2 * oradius_x2 >= or2) ++x;
+        while (x * x >= compare_o) ++x;
         if (xe != 1) xe = 1 - x;
       }
       float ysslope = (y + swidth) * sslope;
@@ -934,13 +937,11 @@ namespace lgfx
       do {
         bool flg1 = start180 != (x <= ysslope);
         bool flg2 =   end180 != (x <= yeslope);
-        int x2 = x * x;
-        long distance_i = x2 * iradius_y2 + y2 * iradius_x2;
-        long distance_o = x2 * oradius_y2 + y2 * oradius_x2;
-        if (distance_i >= ir2
+        std::int32_t x2 = x * x;
+        if (x2 >= compare_i
          && ((flg1 && flg2) || (reversed && (flg1 || flg2)))
          && x != xe
-         && distance_o < or2
+         && x2 < compare_o
           ) {
           ++len;
         } else {
@@ -948,8 +949,8 @@ namespace lgfx
             writeFastHLine(cx + x - len, cy + y, len);
             len = 0;
           }
-          if (distance_o >= or2) break;
-          if (x < 0 && distance_i < ir2) { x = -x; }
+          if (x2 >= compare_o) break;
+          if (x < 0 && x2 < compare_i) { x = -x; }
         }
       } while (++x <= xe);
     } while (++y <= ye);
