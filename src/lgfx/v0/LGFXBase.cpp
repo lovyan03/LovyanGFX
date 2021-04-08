@@ -841,11 +841,11 @@ namespace lgfx
     if (end < 0) end += 360.0;
 
     startWrite();
-    fill_arc_helper(x, y, r0, r1, start, start);
-    fill_arc_helper(x, y, r0, r1, end  , end);
+    fill_arc_helper(x, y, r0, r1, r0, r1, start, start);
+    fill_arc_helper(x, y, r0, r1, r0, r1, end  , end);
     if (!equal && (fabsf(start - end) <= 0.0001)) { start = .0; end = 360.0; }
-    fill_arc_helper(x, y, r0, r0, start, end);
-    fill_arc_helper(x, y, r1, r1, start, end);
+    fill_arc_helper(x, y, r0, r0, r0, r0, start, end);
+    fill_arc_helper(x, y, r1, r1, r1, r1, start, end);
     endWrite();
   }
 
@@ -863,11 +863,33 @@ namespace lgfx
     if (!equal && (fabsf(start - end) <= 0.0001)) { start = .0; end = 360.0; }
 
     startWrite();
-    fill_arc_helper(x, y, r0, r1, start, end);
+    fill_arc_helper(x, y, r0, r1, r0, r1, start, end);
     endWrite();
   }
 
-  void LGFXBase::fill_arc_helper(std::int32_t cx, std::int32_t cy, std::int32_t oradius, std::int32_t iradius, float start, float end)
+  void LGFXBase::fillEllipseArc(std::int32_t x, std::int32_t y, std::int32_t r0x, std::int32_t r1x, std::int32_t r0y, std::int32_t r1y, float start, float end)
+  {
+    if (r0x < r1x) std::swap(r0x, r1x);
+    if (r0y < r1y) std::swap(r0y, r1y);
+    if (r0x < 1) r0x = 1;
+    if (r0y < 1) r0x = 1;
+    if (r1y < 1) r1y = 1;
+    if (r1y < 1) r1y = 1;
+
+    bool equal = fabsf(start - end) < std::numeric_limits<float>::epsilon();
+    start = fmodf(start, 360);
+    end = fmodf(end, 360);
+    if (start < 0) start += 360.0;
+    if (end < 0) end += 360.0;
+    if (!equal && (fabsf(start - end) <= 0.0001)) { start = .0; end = 360.0; }
+
+    startWrite();
+    fill_arc_helper(x, y, r0x, r1x, r0y, r1y, start, end);
+    endWrite();
+  }
+
+
+  void LGFXBase::fill_arc_helper(std::int32_t cx, std::int32_t cy, std::int32_t oradius_x, std::int32_t iradius_x, std::int32_t oradius_y, std::int32_t iradius_y, float start, float end)
   {
     float s_cos = (cosf(start * deg_to_rad));
     float e_cos = (cosf(end * deg_to_rad));
@@ -876,29 +898,38 @@ namespace lgfx
     if (end != 360.0) eslope = e_cos / (sinf(end * deg_to_rad));
     float swidth =  0.5 / s_cos;
     float ewidth = -0.5 / e_cos;
-    --iradius;
-    int ir2 = iradius * iradius + iradius;
-    int or2 = oradius * oradius + oradius;
+    --iradius_x;
+    --iradius_y;
 
     bool start180 = !(start < 180);
     bool end180 = end < 180;
     bool reversed = start + 180 < end || (end < start && start < end + 180);
+    bool trueCircle = oradius_x == oradius_y && iradius_x == iradius_y;
 
-    int xs = -oradius;
-    int y = -oradius;
-    int ye = oradius;
-    int xe = oradius + 1;
+    std::int32_t xs = -oradius_x;
+    std::int32_t y = -oradius_y;
+    std::int32_t ye = oradius_y;
+    std::int32_t xe = oradius_x + 1;
     if (!reversed) {
       if (   (end >= 270 || end < 90) && (start >= 270 || start < 90)) xs = 0;
       else if (end < 270 && end >= 90 && start < 270 && start >= 90) xe = 1;
       if (     end >= 180 && start >= 180) ye = 0;
       else if (end < 180 && start < 180) y = 0;
     }
+
+    std::int32_t iradius_x2 = iradius_x * iradius_x + (trueCircle ? iradius_x : 0);
+    std::int32_t oradius_x2 = oradius_x * oradius_x + (trueCircle ? oradius_x : 0);
+    std::int32_t iradius_y2 = trueCircle ? iradius_x2 : iradius_y * iradius_y;
+    std::int32_t oradius_y2 = trueCircle ? oradius_x2 : oradius_y * oradius_y;
+    float irad_rate = trueCircle ? 1 : iradius_y2 ? (float)iradius_x2 / iradius_y2 : 0;
+    float orad_rate = trueCircle ? 1 : oradius_y2 ? (float)oradius_x2 / oradius_y2 : 0;
     do {
-      int y2 = y * y;
+      std::int32_t y2 = y * y;
+      std::int32_t compare_i = trueCircle ? iradius_x2 - y2 : iradius_y2 ? iradius_x2 - irad_rate * y2 : 0;
+      std::int32_t compare_o = trueCircle ? oradius_x2 - y2 : oradius_y2 ? oradius_x2 - orad_rate * y2 : 0;
       int x = xs;
       if (x < 0) {
-        while (x * x + y2 >= or2) ++x;
+        while (x * x >= compare_o) ++x;
         if (xe != 1) xe = 1 - x;
       }
       float ysslope = (y + swidth) * sslope;
@@ -907,11 +938,11 @@ namespace lgfx
       do {
         bool flg1 = start180 != (x <= ysslope);
         bool flg2 =   end180 != (x <= yeslope);
-        int distance = x * x + y2;
-        if (distance >= ir2
+        std::int32_t x2 = x * x;
+        if (x2 >= compare_i
          && ((flg1 && flg2) || (reversed && (flg1 || flg2)))
          && x != xe
-         && distance < or2
+         && x2 < compare_o
           ) {
           ++len;
         } else {
@@ -919,8 +950,8 @@ namespace lgfx
             writeFastHLine(cx + x - len, cy + y, len);
             len = 0;
           }
-          if (distance >= or2) break;
-          if (x < 0 && distance < ir2) { x = -x; }
+          if (x2 >= compare_o) break;
+          if (x < 0 && x2 < compare_i) { x = -x; }
         }
       } while (++x <= xe);
     } while (++y <= ye);
