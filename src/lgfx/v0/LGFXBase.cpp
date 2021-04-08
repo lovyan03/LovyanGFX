@@ -828,11 +828,12 @@ namespace lgfx
     endWrite();
   }
 
-  void LGFXBase::drawArc(std::int32_t x, std::int32_t y, std::int32_t r0, std::int32_t r1, float start, float end)
+  void LGFXBase::drawEllipseArc(std::int32_t x, std::int32_t y, std::int32_t r0x, std::int32_t r1x, std::int32_t r0y, std::int32_t r1y, float start, float end)
   {
-    if (r0 < r1) std::swap(r0, r1);
-    if (r0 < 1) r0 = 1;
-    if (r1 < 1) r1 = 1;
+    if (r0x < r1x) std::swap(r0x, r1x);
+    if (r0y < r1y) std::swap(r0y, r1y);
+    if (r1x < 0) return;
+    if (r1y < 0) return;
 
     bool equal = fabsf(start - end) < std::numeric_limits<float>::epsilon();
     start = fmodf(start, 360);
@@ -841,29 +842,11 @@ namespace lgfx
     if (end < 0) end += 360.0;
 
     startWrite();
-    fill_arc_helper(x, y, r0, r1, r0, r1, start, start);
-    fill_arc_helper(x, y, r0, r1, r0, r1, end  , end);
+    fill_arc_helper(x, y, r0x, r1x, r0y, r1y, start, start);
+    fill_arc_helper(x, y, r0x, r1x, r0y, r1y, end, end);
     if (!equal && (fabsf(start - end) <= 0.0001)) { start = .0; end = 360.0; }
-    fill_arc_helper(x, y, r0, r0, r0, r0, start, end);
-    fill_arc_helper(x, y, r1, r1, r1, r1, start, end);
-    endWrite();
-  }
-
-  void LGFXBase::fillArc(std::int32_t x, std::int32_t y, std::int32_t r0, std::int32_t r1, float start, float end)
-  {
-    if (r0 < r1) std::swap(r0, r1);
-    if (r0 < 1) r0 = 1;
-    if (r1 < 1) r1 = 1;
-
-    bool equal = fabsf(start - end) < std::numeric_limits<float>::epsilon();
-    start = fmodf(start, 360);
-    end = fmodf(end, 360);
-    if (start < 0) start += 360.0;
-    if (end < 0) end += 360.0;
-    if (!equal && (fabsf(start - end) <= 0.0001)) { start = .0; end = 360.0; }
-
-    startWrite();
-    fill_arc_helper(x, y, r0, r1, r0, r1, start, end);
+    fill_arc_helper(x, y, r0x, r0x, r0y, r0y, start, end);
+    fill_arc_helper(x, y, r1x, r1x, r1y, r1y, start, end);
     endWrite();
   }
 
@@ -871,10 +854,8 @@ namespace lgfx
   {
     if (r0x < r1x) std::swap(r0x, r1x);
     if (r0y < r1y) std::swap(r0y, r1y);
-    if (r0x < 1) r0x = 1;
-    if (r0y < 1) r0x = 1;
-    if (r1y < 1) r1y = 1;
-    if (r1y < 1) r1y = 1;
+    if (r1x < 0) return;
+    if (r1y < 0) return;
 
     bool equal = fabsf(start - end) < std::numeric_limits<float>::epsilon();
     start = fmodf(start, 360);
@@ -888,7 +869,6 @@ namespace lgfx
     endWrite();
   }
 
-
   void LGFXBase::fill_arc_helper(std::int32_t cx, std::int32_t cy, std::int32_t oradius_x, std::int32_t iradius_x, std::int32_t oradius_y, std::int32_t iradius_y, float start, float end)
   {
     float s_cos = (cosf(start * deg_to_rad));
@@ -898,55 +878,72 @@ namespace lgfx
     if (end != 360.0) eslope = e_cos / (sinf(end * deg_to_rad));
     float swidth =  0.5 / s_cos;
     float ewidth = -0.5 / e_cos;
-    --iradius_x;
-    --iradius_y;
 
     bool start180 = !(start < 180);
     bool end180 = end < 180;
     bool reversed = start + 180 < end || (end < start && start < end + 180);
-    bool trueCircle = oradius_x == oradius_y && iradius_x == iradius_y;
 
-    std::int32_t xs = -oradius_x;
+    std::int32_t xleft  = -oradius_x;
+    std::int32_t xright = oradius_x + 1;
     std::int32_t y = -oradius_y;
     std::int32_t ye = oradius_y;
-    std::int32_t xe = oradius_x + 1;
-    if (!reversed) {
-      if (   (end >= 270 || end < 90) && (start >= 270 || start < 90)) xs = 0;
-      else if (end < 270 && end >= 90 && start < 270 && start >= 90) xe = 1;
+    if (!reversed)
+    {
+      if (    (end >= 270 || end <  90) && (start >= 270 || start <  90)) xleft = 0;
+      else if (end <  270 && end >= 90  &&  start <  270 && start >= 90) xright = 1;
       if (     end >= 180 && start >= 180) ye = 0;
-      else if (end < 180 && start < 180) y = 0;
+      else if (end <  180 && start <  180) y = 0;
     }
+    if (y  < _clip_t - cy    ) y  = _clip_t - cy;
+    if (ye > _clip_b - cy + 1) ye = _clip_b - cy + 1;
 
-    std::int32_t iradius_x2 = iradius_x * iradius_x + (trueCircle ? iradius_x : 0);
-    std::int32_t oradius_x2 = oradius_x * oradius_x + (trueCircle ? oradius_x : 0);
-    std::int32_t iradius_y2 = trueCircle ? iradius_x2 : iradius_y * iradius_y;
-    std::int32_t oradius_y2 = trueCircle ? oradius_x2 : oradius_y * oradius_y;
-    float irad_rate = trueCircle ? 1 : iradius_y2 ? (float)iradius_x2 / iradius_y2 : 0;
-    float orad_rate = trueCircle ? 1 : oradius_y2 ? (float)oradius_x2 / oradius_y2 : 0;
-    do {
+    if (xleft  < _clip_l - cx    ) xleft  = _clip_l - cx;
+    if (xright > _clip_r - cx + 1) xright = _clip_r - cx + 1;
+
+    bool trueCircle = (oradius_x == oradius_y) && (iradius_x == iradius_y);
+
+    std::int32_t iradius_y2 = iradius_y * (iradius_y - 1);
+    std::int32_t iradius_x2 = iradius_x * (iradius_x - 1);
+    float irad_rate = iradius_x2 && iradius_y2 ? (float)iradius_x2 / (float)iradius_y2 : 0;
+
+    std::int32_t oradius_y2 = oradius_y * (oradius_y + 1);
+    std::int32_t oradius_x2 = oradius_x * (oradius_x + 1);
+    float orad_rate = oradius_x2 && oradius_y2 ? (float)oradius_x2 / (float)oradius_y2 : 0;
+
+    do
+    {
       std::int32_t y2 = y * y;
-      std::int32_t compare_i = trueCircle ? iradius_x2 - y2 : iradius_y2 ? iradius_x2 - irad_rate * y2 : 0;
-      std::int32_t compare_o = trueCircle ? oradius_x2 - y2 : oradius_y2 ? oradius_x2 - orad_rate * y2 : 0;
-      int x = xs;
-      if (x < 0) {
-        while (x * x >= compare_o) ++x;
-        if (xe != 1) xe = 1 - x;
+      std::int32_t compare_o = oradius_y2 - y2;
+      std::int32_t compare_i = iradius_y2 - y2;
+      if (!trueCircle)
+      {
+        compare_i = floorf(compare_i * irad_rate);
+        compare_o = ceilf (compare_o * orad_rate);
       }
+      std::int32_t xe = ceilf(sqrtf(compare_o));
+      std::int32_t x = 1 - xe;
+
+      if ( x < xleft )  x = xleft;
+      if (xe > xright) xe = xright;
       float ysslope = (y + swidth) * sslope;
       float yeslope = (y + ewidth) * eslope;
       int len = 0;
-      do {
+      do
+      {
         bool flg1 = start180 != (x <= ysslope);
         bool flg2 =   end180 != (x <= yeslope);
         std::int32_t x2 = x * x;
         if (x2 >= compare_i
          && ((flg1 && flg2) || (reversed && (flg1 || flg2)))
          && x != xe
-         && x2 < compare_o
-          ) {
+         && x2 < compare_o)
+        {
           ++len;
-        } else {
-          if (len) {
+        }
+        else
+        {
+          if (len)
+          {
             writeFastHLine(cx + x - len, cy + y, len);
             len = 0;
           }
