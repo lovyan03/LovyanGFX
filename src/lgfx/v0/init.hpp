@@ -76,7 +76,7 @@ Contributors:
   #define LGFX_M5STACK_CORE2
  #elif defined( ARDUINO_M5STACK_Core2 ) // M5Stack Core2
   #define LGFX_M5STACK_CORE2
- #elif defined( ARDUINO_M5Stick_C ) // M5Stick C / CPlus
+ #elif defined( ARDUINO_M5Stick_C ) || defined( ARDUINO_M5Stick_C_Plus ) // M5Stick C / CPlus
   #define LGFX_M5STICK_C
  #elif defined( ARDUINO_M5Stack_CoreInk ) // M5Stack CoreInk
   #define LGFX_M5STACK_COREINK
