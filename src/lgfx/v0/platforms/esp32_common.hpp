@@ -34,6 +34,10 @@ namespace lgfx
   static inline void* heap_alloc_psram(size_t length) { return heap_caps_malloc(length, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);  }
   static inline void heap_free(void* buf) { heap_caps_free(buf); }
 
+  inline void delay(std::uint32_t ms) { ::delay(ms); }
+  inline unsigned long millis(void) { return ::millis(); }
+  inline unsigned long micros(void) { return ::micros(); }
+
   enum pin_mode_t
   { output
   , input
