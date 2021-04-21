@@ -489,53 +489,65 @@ namespace lgfx
   {
     bool steep = abs(y1 - y0) > abs(x1 - x0);
 
-    if (steep) {   std::swap(x0, y0); std::swap(x1, y1); }
-    if (x0 > x1) { std::swap(x0, x1); std::swap(y0, y1); }
+    std::int32_t xstart = _clip_l;
+    std::int32_t xend   = _clip_r;
+    std::int32_t ystart = _clip_t;
+    std::int32_t yend   = _clip_b;
+
+    if (steep) {
+      std::swap(xstart, ystart);
+      std::swap(xend, yend);
+      std::swap(x0, y0);
+      std::swap(x1, y1); 
+    }
+    if (x0 > x1) {
+      std::swap(x0, x1);
+      std::swap(y0, y1);
+    }
+    if (x0 > xend || x1 < xstart) return;
+    xend = std::min(x1, xend);
 
     std::int32_t dy = abs(y1 - y0);
     std::int32_t ystep = (y1 > y0) ? 1 : -1;
     std::int32_t dx = x1 - x0;
     std::int32_t err = dx >> 1;
 
-    std::int32_t xstart = steep ? _clip_t : _clip_l;
-    std::int32_t ystart = steep ? _clip_l : _clip_t;
-    std::int32_t yend   = steep ? _clip_r : _clip_b;
     while (x0 < xstart || y0 < ystart || y0 > yend) {
+      if (++x0 > xend) return;
       err -= dy;
       if (err < 0) {
         err += dx;
         y0 += ystep;
       }
-      if (++x0 > x1) return;
     }
     std::int32_t xs = x0;
     std::int32_t dlen = 0;
+    if (ystep < 0) std::swap(ystart, yend);
+    yend += ystep;
 
     startWrite();
     if (steep) {
-      if (x1 > (_clip_b)) x1 = (_clip_b);
       do {
         ++dlen;
         if ((err -= dy) < 0) {
-          writeFillRect(y0, xs, 1, dlen);
+          writeFillRectPreclipped(y0, xs, 1, dlen);
           err += dx;
           xs = x0 + 1; dlen = 0; y0 += ystep;
-          if ((y0 < _clip_l) || (y0 > _clip_r)) break;
+          if (y0 == yend) break;
         }
-      } while (++x0 <= x1);
-      if (dlen) writeFillRect(y0, xs, 1, dlen);
+      } while (++x0 <= xend);
+      if (dlen) writeFillRectPreclipped(y0, xs, 1, dlen);
     } else {
-      if (x1 > (_clip_r)) x1 = (_clip_r);
       do {
         ++dlen;
         if ((err -= dy) < 0) {
-          writeFillRect(xs, y0, dlen, 1);
+          writeFillRectPreclipped(xs, y0, dlen, 1);
           err += dx;
           xs = x0 + 1; dlen = 0; y0 += ystep;
-          if ((y0 < _clip_t) || (y0 > _clip_b)) break;
+          if (y0 == yend) break;
         }
-      } while (++x0 <= x1);
-      if (dlen) writeFillRect(xs, y0, dlen, 1);
+      } while (++x0 <= xend);
+      if (dlen) writeFillRectPreclipped(xs, y0, dlen, 1);
     }
     endWrite();
   }
