@@ -124,12 +124,15 @@ namespace lgfx
       _bitwidth = (w + _write_conv.x_mask) & (~(std::uint32_t)_write_conv.x_mask);
       std::size_t len = h * (_bitwidth * _write_conv.bits >> 3) + 1;
 
-      _img.reset(len, _psram ? AllocationSource::Psram : AllocationSource::Dma);
-
-      if (!_img)
+      if (!_img || len != bufferLength())
       {
-        deleteSprite();
-        return nullptr;
+        _img.reset(len, _psram ? AllocationSource::Psram : AllocationSource::Dma);
+
+        if (!_img)
+        {
+          deleteSprite();
+          return nullptr;
+        }
       }
       memset(_img, 0, len);
       if (!_palette && 0 == _write_conv.bytes)
