@@ -161,6 +161,8 @@ namespace lgfx
     __attribute__ ((always_inline)) inline static std::uint32_t swap888( std::uint8_t r, std::uint8_t g, std::uint8_t b) { return lgfx::swap888( r, g, b); }
     __attribute__ ((always_inline)) inline static std::uint8_t  color16to8(std::uint32_t rgb565) { return lgfx::convert_rgb565_to_rgb332(rgb565); }
     __attribute__ ((always_inline)) inline static std::uint16_t color8to16(std::uint32_t rgb332) { return lgfx::convert_rgb332_to_rgb565(rgb332); }
+    __attribute__ ((always_inline)) inline static std::uint32_t color16to24(std::uint32_t rgb565) { return lgfx::convert_rgb565_to_rgb888(rgb565); }
+    __attribute__ ((always_inline)) inline static std::uint16_t color24to16(std::uint32_t rgb888) { return lgfx::convert_rgb888_to_rgb565(rgb888); }
 
     __attribute__ ((always_inline)) inline void setPivot(float x, float y) { _xpivot = x; _ypivot = y; }
     __attribute__ ((always_inline)) inline float getPivotX(void) const { return _xpivot; }
