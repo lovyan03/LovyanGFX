@@ -1138,6 +1138,32 @@ namespace lgfx
       }
   #endif
 
+  #if defined ( LGFX_WT32_SC01 )
+      if (nvs_board == 0 || nvs_board == lgfx::board_t::board_WT32_SC01) {
+        releaseBus();
+        _spi_host = HSPI_HOST;
+        _spi_mosi = 13;
+        _spi_miso = -1;
+        _spi_sclk = 14;
+        initBus();
+        {
+          ESP_LOGW("LovyanGFX", "[Autodetect] WT32-SC01");
+          board = lgfx::board_t::board_WT32_SC01;
+          auto p = new lgfx::Panel_ST7796();
+          p->spi_3wire = true;
+          p->spi_read  = false;
+          p->spi_cs    = 15;
+          p->spi_dc    = 21;
+          p->gpio_rst  = 22;
+          p->gpio_bl   = 23;
+          p->pwm_ch_bl = 7;
+          p->rotation  = 1;
+          setPanel(p);
+          goto init_clear;
+        }
+      }
+  #endif
+
       releaseBus();
       {
         ESP_LOGW("LovyanGFX", "[Autodetect] detect fail.");
