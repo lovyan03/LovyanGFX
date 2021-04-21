@@ -489,53 +489,65 @@ namespace lgfx
   {
     bool steep = abs(y1 - y0) > abs(x1 - x0);
 
-    if (steep) {   std::swap(x0, y0); std::swap(x1, y1); }
-    if (x0 > x1) { std::swap(x0, x1); std::swap(y0, y1); }
+    std::int32_t xstart = _clip_l;
+    std::int32_t xend   = _clip_r;
+    std::int32_t ystart = _clip_t;
+    std::int32_t yend   = _clip_b;
+
+    if (steep) {
+      std::swap(xstart, ystart);
+      std::swap(xend, yend);
+      std::swap(x0, y0);
+      std::swap(x1, y1); 
+    }
+    if (x0 > x1) {
+      std::swap(x0, x1);
+      std::swap(y0, y1);
+    }
+    if (x0 > xend || x1 < xstart) return;
+    xend = std::min(x1, xend);
 
     std::int32_t dy = abs(y1 - y0);
     std::int32_t ystep = (y1 > y0) ? 1 : -1;
     std::int32_t dx = x1 - x0;
     std::int32_t err = dx >> 1;
 
-    std::int32_t xstart = steep ? _clip_t : _clip_l;
-    std::int32_t ystart = steep ? _clip_l : _clip_t;
-    std::int32_t yend   = steep ? _clip_r : _clip_b;
     while (x0 < xstart || y0 < ystart || y0 > yend) {
+      if (++x0 > xend) return;
       err -= dy;
       if (err < 0) {
         err += dx;
         y0 += ystep;
       }
-      if (++x0 > x1) return;
     }
     std::int32_t xs = x0;
     std::int32_t dlen = 0;
+    if (ystep < 0) std::swap(ystart, yend);
+    yend += ystep;
 
     startWrite();
     if (steep) {
-      if (x1 > (_clip_b)) x1 = (_clip_b);
       do {
         ++dlen;
         if ((err -= dy) < 0) {
-          writeFillRect(y0, xs, 1, dlen);
+          writeFillRectPreclipped(y0, xs, 1, dlen);
           err += dx;
           xs = x0 + 1; dlen = 0; y0 += ystep;
-          if ((y0 < _clip_l) || (y0 > _clip_r)) break;
+          if (y0 == yend) break;
         }
-      } while (++x0 <= x1);
-      if (dlen) writeFillRect(y0, xs, 1, dlen);
+      } while (++x0 <= xend);
+      if (dlen) writeFillRectPreclipped(y0, xs, 1, dlen);
     } else {
-      if (x1 > (_clip_r)) x1 = (_clip_r);
       do {
         ++dlen;
         if ((err -= dy) < 0) {
-          writeFillRect(xs, y0, dlen, 1);
+          writeFillRectPreclipped(xs, y0, dlen, 1);
           err += dx;
           xs = x0 + 1; dlen = 0; y0 += ystep;
-          if ((y0 < _clip_t) || (y0 > _clip_b)) break;
+          if (y0 == yend) break;
         }
-      } while (++x0 <= x1);
-      if (dlen) writeFillRect(xs, y0, dlen, 1);
+      } while (++x0 <= xend);
+      if (dlen) writeFillRectPreclipped(xs, y0, dlen, 1);
     }
     endWrite();
   }
@@ -828,11 +840,12 @@ namespace lgfx
     endWrite();
   }
 
-  void LGFXBase::drawArc(std::int32_t x, std::int32_t y, std::int32_t r0, std::int32_t r1, float start, float end)
+  void LGFXBase::drawEllipseArc(std::int32_t x, std::int32_t y, std::int32_t r0x, std::int32_t r1x, std::int32_t r0y, std::int32_t r1y, float start, float end)
   {
-    if (r0 < r1) std::swap(r0, r1);
-    if (r0 < 1) r0 = 1;
-    if (r1 < 1) r1 = 1;
+    if (r0x < r1x) std::swap(r0x, r1x);
+    if (r0y < r1y) std::swap(r0y, r1y);
+    if (r1x < 0) return;
+    if (r1y < 0) return;
 
     bool equal = fabsf(start - end) < std::numeric_limits<float>::epsilon();
     start = fmodf(start, 360);
@@ -841,19 +854,20 @@ namespace lgfx
     if (end < 0) end += 360.0;
 
     startWrite();
-    fill_arc_helper(x, y, r0, r1, start, start);
-    fill_arc_helper(x, y, r0, r1, end  , end);
+    fill_arc_helper(x, y, r0x, r1x, r0y, r1y, start, start);
+    fill_arc_helper(x, y, r0x, r1x, r0y, r1y, end, end);
     if (!equal && (fabsf(start - end) <= 0.0001)) { start = .0; end = 360.0; }
-    fill_arc_helper(x, y, r0, r0, start, end);
-    fill_arc_helper(x, y, r1, r1, start, end);
+    fill_arc_helper(x, y, r0x, r0x, r0y, r0y, start, end);
+    fill_arc_helper(x, y, r1x, r1x, r1y, r1y, start, end);
     endWrite();
   }
 
-  void LGFXBase::fillArc(std::int32_t x, std::int32_t y, std::int32_t r0, std::int32_t r1, float start, float end)
+  void LGFXBase::fillEllipseArc(std::int32_t x, std::int32_t y, std::int32_t r0x, std::int32_t r1x, std::int32_t r0y, std::int32_t r1y, float start, float end)
   {
-    if (r0 < r1) std::swap(r0, r1);
-    if (r0 < 1) r0 = 1;
-    if (r1 < 1) r1 = 1;
+    if (r0x < r1x) std::swap(r0x, r1x);
+    if (r0y < r1y) std::swap(r0y, r1y);
+    if (r1x < 0) return;
+    if (r1y < 0) return;
 
     bool equal = fabsf(start - end) < std::numeric_limits<float>::epsilon();
     start = fmodf(start, 360);
@@ -863,11 +877,11 @@ namespace lgfx
     if (!equal && (fabsf(start - end) <= 0.0001)) { start = .0; end = 360.0; }
 
     startWrite();
-    fill_arc_helper(x, y, r0, r1, start, end);
+    fill_arc_helper(x, y, r0x, r1x, r0y, r1y, start, end);
     endWrite();
   }
 
-  void LGFXBase::fill_arc_helper(std::int32_t cx, std::int32_t cy, std::int32_t oradius, std::int32_t iradius, float start, float end)
+  void LGFXBase::fill_arc_helper(std::int32_t cx, std::int32_t cy, std::int32_t oradius_x, std::int32_t iradius_x, std::int32_t oradius_y, std::int32_t iradius_y, float start, float end)
   {
     float s_cos = (cosf(start * deg_to_rad));
     float e_cos = (cosf(end * deg_to_rad));
@@ -876,51 +890,77 @@ namespace lgfx
     if (end != 360.0) eslope = e_cos / (sinf(end * deg_to_rad));
     float swidth =  0.5 / s_cos;
     float ewidth = -0.5 / e_cos;
-    --iradius;
-    int ir2 = iradius * iradius + iradius;
-    int or2 = oradius * oradius + oradius;
 
     bool start180 = !(start < 180);
     bool end180 = end < 180;
     bool reversed = start + 180 < end || (end < start && start < end + 180);
 
-    int xs = -oradius;
-    int y = -oradius;
-    int ye = oradius;
-    int xe = oradius + 1;
-    if (!reversed) {
-      if (   (end >= 270 || end < 90) && (start >= 270 || start < 90)) xs = 0;
-      else if (end < 270 && end >= 90 && start < 270 && start >= 90) xe = 1;
+    std::int32_t xleft  = -oradius_x;
+    std::int32_t xright = oradius_x + 1;
+    std::int32_t y = -oradius_y;
+    std::int32_t ye = oradius_y;
+    if (!reversed)
+    {
+      if (    (end >= 270 || end <  90) && (start >= 270 || start <  90)) xleft = 0;
+      else if (end <  270 && end >= 90  &&  start <  270 && start >= 90) xright = 1;
       if (     end >= 180 && start >= 180) ye = 0;
-      else if (end < 180 && start < 180) y = 0;
+      else if (end <  180 && start <  180) y = 0;
     }
-    do {
-      int y2 = y * y;
-      int x = xs;
-      if (x < 0) {
-        while (x * x + y2 >= or2) ++x;
-        if (xe != 1) xe = 1 - x;
+    if (y  < _clip_t - cy    ) y  = _clip_t - cy;
+    if (ye > _clip_b - cy + 1) ye = _clip_b - cy + 1;
+
+    if (xleft  < _clip_l - cx    ) xleft  = _clip_l - cx;
+    if (xright > _clip_r - cx + 1) xright = _clip_r - cx + 1;
+
+    bool trueCircle = (oradius_x == oradius_y) && (iradius_x == iradius_y);
+
+    std::int32_t iradius_y2 = iradius_y * (iradius_y - 1);
+    std::int32_t iradius_x2 = iradius_x * (iradius_x - 1);
+    float irad_rate = iradius_x2 && iradius_y2 ? (float)iradius_x2 / (float)iradius_y2 : 0;
+
+    std::int32_t oradius_y2 = oradius_y * (oradius_y + 1);
+    std::int32_t oradius_x2 = oradius_x * (oradius_x + 1);
+    float orad_rate = oradius_x2 && oradius_y2 ? (float)oradius_x2 / (float)oradius_y2 : 0;
+
+    do
+    {
+      std::int32_t y2 = y * y;
+      std::int32_t compare_o = oradius_y2 - y2;
+      std::int32_t compare_i = iradius_y2 - y2;
+      if (!trueCircle)
+      {
+        compare_i = floorf(compare_i * irad_rate);
+        compare_o = ceilf (compare_o * orad_rate);
       }
+      std::int32_t xe = ceilf(sqrtf(compare_o));
+      std::int32_t x = 1 - xe;
+
+      if ( x < xleft )  x = xleft;
+      if (xe > xright) xe = xright;
       float ysslope = (y + swidth) * sslope;
       float yeslope = (y + ewidth) * eslope;
       int len = 0;
-      do {
+      do
+      {
         bool flg1 = start180 != (x <= ysslope);
         bool flg2 =   end180 != (x <= yeslope);
-        int distance = x * x + y2;
-        if (distance >= ir2
+        std::int32_t x2 = x * x;
+        if (x2 >= compare_i
          && ((flg1 && flg2) || (reversed && (flg1 || flg2)))
          && x != xe
-         && distance < or2
-          ) {
+         && x2 < compare_o)
+        {
           ++len;
-        } else {
-          if (len) {
+        }
+        else
+        {
+          if (len)
+          {
             writeFastHLine(cx + x - len, cy + y, len);
             len = 0;
           }
-          if (distance >= or2) break;
-          if (x < 0 && distance < ir2) { x = -x; }
+          if (x2 >= compare_o) break;
+          if (x < 0 && x2 < compare_i) { x = -x; }
         }
       } while (++x <= xe);
     } while (++y <= ye);
@@ -1125,7 +1165,7 @@ namespace lgfx
     {
       std::int32_t offset_y32 = matrix[5] * (1 << FP_SCALE) + (1 << (FP_SCALE-1));
       min_y = std::max(_clip_t    , (offset_y32 + min_y - 1) >> FP_SCALE);
-      max_y = std::min(_clip_b + 1, (offset_y32 + max_y    ) >> FP_SCALE);
+      max_y = std::min(_clip_b + 1, (offset_y32 + max_y + 1) >> FP_SCALE);
       if (min_y >= max_y) return;
     }
 
@@ -1184,7 +1224,7 @@ namespace lgfx
     {
       std::int32_t offset_y32 = matrix[5] * (1 << FP_SCALE) + (1 << (FP_SCALE-1));
       min_y = std::max(_clip_t    , (offset_y32 + min_y - 1) >> FP_SCALE);
-      max_y = std::min(_clip_b + 1, (offset_y32 + max_y    ) >> FP_SCALE);
+      max_y = std::min(_clip_b + 1, (offset_y32 + max_y + 1) >> FP_SCALE);
       if (min_y >= max_y) return;
     }
 
@@ -1630,6 +1670,13 @@ namespace lgfx
       return c; // fall-back to extended ASCII
     }
 
+    std::int32_t LGFXBase::fontHeight(const IFont* font) const
+    {
+      FontMetrics fm;
+      font->getDefaultMetric(&fm);
+      return fm.height * _text_style.size_y;
+    }
+
     std::int32_t LGFXBase::textLength(const char *string, std::int32_t width)
     {
       if (!string || !string[0]) return 0;
@@ -2048,30 +2095,36 @@ namespace lgfx
     std::int32_t w = bmpdata.biWidth;
     std::int32_t h = abs(bmpdata.biHeight);  // bcHeight Image height (pixels)
 
-    auto clip_x = x;
-    auto clip_y = y;
     const auto cl = this->_clip_l;
     const auto cr = this->_clip_r + 1;
-    if (!maxWidth) maxWidth = cr - cl;
-
     const auto ct = this->_clip_t;
     const auto cb = this->_clip_b + 1;
-    if (!maxHeight) maxHeight = cb - ct;
-    if (scale_x <= -1.0f) { scale_x = (float)maxWidth  / w; }
-    if (scale_y <= -1.0f) { scale_y = (float)maxHeight / h; }
 
-    if (scale_x <= 0.0f)
+    if (scale_y <= 0.0f || scale_x <= 0.0f)
     {
+      float fit_width  = (maxWidth  > 0) ? maxWidth  : cr - cl;
+      float fit_height = (maxHeight > 0) ? maxHeight : cb - ct;
+
+      if (scale_x <= -1.0f) { scale_x = fit_width  / w; }
+      if (scale_y <= -1.0f) { scale_y = fit_height / h; }
+      if (scale_x <= 0.0f)
+      {
+        if (scale_y <= 0.0f)
+        {
+          scale_y = std::min<float>(fit_width / w, fit_height / h);
+        }
+        scale_x = scale_y;
+      }
       if (scale_y <= 0.0f)
       {
-        scale_y = std::min<float>((float)maxWidth / w, (float)maxHeight / h);
+        scale_y = scale_x;
       }
-      scale_x = scale_y;
     }
-    if (scale_y <= 0.0f)
-    {
-      scale_y = scale_x;
-    }
+    if (maxWidth  <= 0) maxWidth  = INT16_MAX;
+    if (maxHeight <= 0) maxHeight = INT16_MAX;
+
+    auto clip_x = x;
+    auto clip_y = y;
 
     if (datum)
     {
@@ -2278,27 +2331,31 @@ namespace lgfx
 
     const auto cl = this->_clip_l;
     const auto cr = this->_clip_r + 1;
-    if (!maxWidth) maxWidth = cr - cl;
-
     const auto ct = this->_clip_t;
     const auto cb = this->_clip_b + 1;
-    if (!maxHeight) maxHeight = cb - ct;
 
-    if (scale_x <= -1.0f) { scale_x = (float)maxWidth  / jpegdec.width;  }
-    if (scale_y <= -1.0f) { scale_y = (float)maxHeight / jpegdec.height; }
-
-    if (scale_x <= 0.0f)
+    if (scale_y <= 0.0f || scale_x <= 0.0f)
     {
+      float fit_width  = (maxWidth  > 0) ? maxWidth  : cr - cl;
+      float fit_height = (maxHeight > 0) ? maxHeight : cb - ct;
+
+      if (scale_x <= -1.0f) { scale_x = fit_width  / jpegdec.width; }
+      if (scale_y <= -1.0f) { scale_y = fit_height / jpegdec.height; }
+      if (scale_x <= 0.0f)
+      {
+        if (scale_y <= 0.0f)
+        {
+          scale_y = std::min<float>(fit_width / jpegdec.width, fit_height / jpegdec.height);
+        }
+        scale_x = scale_y;
+      }
       if (scale_y <= 0.0f)
       {
-        scale_y = std::min<float>((float)maxWidth / jpegdec.width, (float)maxHeight / jpegdec.height);
+        scale_y = scale_x;
       }
-      scale_x = scale_y;
     }
-    if (scale_y <= 0.0f)
-    {
-      scale_y = scale_x;
-    }
+    if (maxWidth  <= 0) maxWidth  = INT16_MAX;
+    if (maxHeight <= 0) maxHeight = INT16_MAX;
 
     if (datum)
     {
@@ -2523,21 +2580,31 @@ namespace lgfx
     auto p = (png_file_decoder_t*)lgfx_pngle_get_user_data(pngle);
     auto me = p->gfx;
 
-    if (p->zoom_x <= -1.0f) { p->zoom_x = (float)p->maxWidth  / w; }
-    if (p->zoom_y <= -1.0f) { p->zoom_y = (float)p->maxHeight / h; }
+    std::int32_t cw, ch, cl, ct;
+    me->getClipRect(&cl, &ct, &cw, &ch);
 
-    if (p->zoom_x <= 0.0f)
+    if (p->zoom_y <= 0.0f || p->zoom_x <= 0.0f)
     {
+      float fit_width  = (p->maxWidth  > 0) ? p->maxWidth  : cw;
+      float fit_height = (p->maxHeight > 0) ? p->maxHeight : ch;
+
+      if (p->zoom_x <= -1.0f) { p->zoom_x = fit_width  / w; }
+      if (p->zoom_y <= -1.0f) { p->zoom_y = fit_height / h; }
+      if (p->zoom_x <= 0.0f)
+      {
+        if (p->zoom_y <= 0.0f)
+        {
+          p->zoom_y = std::min<float>(fit_width / w, fit_height / h);
+        }
+        p->zoom_x = p->zoom_y;
+      }
       if (p->zoom_y <= 0.0f)
       {
-        p->zoom_y = std::min<float>((float)p->maxWidth / w, (float)p->maxHeight / h);
+        p->zoom_y = p->zoom_x;
       }
-      p->zoom_x = p->zoom_y;
     }
-    if (p->zoom_y <= 0.0f)
-    {
-      p->zoom_y = p->zoom_x;
-    }
+    if (p->maxWidth  <= 0) p->maxWidth  = INT16_MAX;
+    if (p->maxHeight <= 0) p->maxHeight = INT16_MAX;
 
     w = ceilf(w * p->zoom_x);
     h = ceilf(h * p->zoom_y);
@@ -2557,10 +2624,9 @@ namespace lgfx
         p->offY -= fh;
       }
     }
-    std::int32_t cl, ct, cr, cb;
-    me->getClipRect(&cl, &ct, &cr, &cb);
-    cr += cl;
-    cb += ct;
+
+    const std::int32_t cr = cw + cl;
+    const std::int32_t cb = ch + ct;
 
     if (0 > p->x - cl) { p->maxWidth += p->x - cl; p->offX -= p->x - cl; p->x = cl; }
     if (0 > p->offX) { p->x -= p->offX; p->maxWidth  += p->offX; p->offX = 0; }
@@ -2615,8 +2681,8 @@ namespace lgfx
     png.y = y;
     png.offX = offX;
     png.offY = offY;
-    png.maxWidth  = maxWidth > 0 ? maxWidth : (_clip_r - _clip_l + 1);
-    png.maxHeight = maxHeight> 0 ? maxHeight: (_clip_b - _clip_t + 1);
+    png.maxWidth  = maxWidth ;
+    png.maxHeight = maxHeight;
     png.zoom_x = scale_x;
     png.zoom_y = scale_y;
     png.datum = datum;

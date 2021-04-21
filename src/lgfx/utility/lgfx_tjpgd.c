@@ -827,9 +827,14 @@ JRESULT lgfx_jd_prepare (
 	ofs = 2;
 
 	for (;;) {
-		if (infunc(jd, seg, 4) != 4) return JDR_INP;
-		uint_fast16_t len = LDB_WORD(seg + 2) - 2;	/* Length field */
+		if (infunc(jd, seg, 1) != 1) return JDR_INP;
 		if (seg[0] != 0xFF) return JDR_FMT1;	/* Check a JPEG marker */
+		do
+		{
+			if (infunc(jd, &seg[1], 1) != 1) return JDR_INP;
+		} while (seg[1] == 0xFF);
+		if (infunc(jd, &seg[2], 2) != 2) return JDR_INP;
+		uint_fast16_t len = LDB_WORD(seg + 2) - 2;	/* Length field */
 		ofs += 4 + len;	/* Number of bytes loaded */
 
 		switch (seg[1]) {	/* Marker */

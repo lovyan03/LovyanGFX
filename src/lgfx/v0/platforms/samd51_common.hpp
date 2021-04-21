@@ -34,17 +34,77 @@
  #define PORT_PINCFG_PULLEN_Pos      2            /**< \brief (PORT_PINCFG) Pull Enable */
  #define PORT_PINCFG_PULLEN          (_Ul(0x1) << PORT_PINCFG_PULLEN_Pos)
 
- static void delay(std::size_t milliseconds)
- {
-   vTaskDelay(pdMS_TO_TICKS(milliseconds));
- }
-
 #endif
 namespace lgfx
 {
  inline namespace v0
  {
 //----------------------------------------------------------------------------
+
+  namespace samd51
+  {
+    static constexpr int PORT_SHIFT = 8;
+    enum pin_port
+    {
+      PORT_A =  0 << PORT_SHIFT,
+      PORT_B =  1 << PORT_SHIFT,
+      PORT_C =  2 << PORT_SHIFT,
+      PORT_D =  3 << PORT_SHIFT,
+      PORT_E =  4 << PORT_SHIFT,
+      PORT_F =  5 << PORT_SHIFT,
+      PORT_G =  6 << PORT_SHIFT,
+      PORT_H =  7 << PORT_SHIFT,
+    };
+  }
+
+#if defined ( ARDUINO )
+
+  __attribute__ ((unused))
+  static inline unsigned long millis(void)
+  {
+    return ::millis();
+  }
+  __attribute__ ((unused))
+  static inline unsigned long micros(void)
+  {
+    return ::micros();
+  }
+  __attribute__ ((unused))
+  static inline void delay(unsigned long milliseconds)
+  {
+    ::delay(milliseconds);
+  }
+  __attribute__ ((unused))
+  static void delayMicroseconds(unsigned int us)
+  {
+    ::delayMicroseconds(us);
+  }
+
+#else
+
+  static inline void delay(std::size_t milliseconds)
+  {
+    vTaskDelay(pdMS_TO_TICKS(milliseconds));
+  }
+
+  static void delayMicroseconds(unsigned int us)
+  {
+    uint32_t start, elapsed;
+    uint32_t count;
+
+    if (us == 0)
+      return;
+
+    count = us * (VARIANT_MCK / 1000000) - 20;  // convert us to cycles.
+    start = DWT->CYCCNT;  //CYCCNT is 32bits, takes 37s or so to wrap.
+    while (1) {
+      elapsed = DWT->CYCCNT - start;
+      if (elapsed >= count)
+        return;
+    }
+  }
+
+#endif
 
   static inline void* heap_alloc(      size_t length) { return malloc(length); }
   static inline void* heap_alloc_psram(size_t length) { return malloc(length); }

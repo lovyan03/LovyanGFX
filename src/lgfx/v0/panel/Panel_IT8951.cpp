@@ -302,10 +302,27 @@ IT8951 Registers defines
   bool Panel_IT8951::UpdateRawArea(LGFX_Device* gfx, epd_update_mode_t mode)
   {
     if (_range_new.empty()) return false;
+    std::uint32_t l = _range_new.left;
+    std::uint32_t r = _range_new.right;
+    // 更新範囲の幅が小さすぎる場合、IT8951がクラッシュすることがある。
+    // 厳密には、左右端の座標値の下2ビットを無視して同値になる場合で、
+    // かつ以前の表示更新がまだ動作中の場合にクラッシュする事例がある。
+    if ((l & ~3) == (r & ~3))
+    {
+      if (( l & 3 ) < (3-(r & 3)))
+      {
+        l = (l & ~3) - 1;
+      }
+      else
+      {
+        r = (r + 4) & ~3;
+      }
+    }
+    std::uint32_t w = r - l + 1;
     std::uint16_t params[7];
-    params[0] = _range_new.left;
+    params[0] = l;//_range_new.left;
     params[1] = _range_new.top;
-    params[2] = _range_new.right - _range_new.left + 1;
+    params[2] = w;//_range_new.right - _range_new.left + 1;
     params[3] = _range_new.bottom - _range_new.top + 1;
     params[4] = mode;
     params[5] = (std::uint16_t)_tar_memaddr;

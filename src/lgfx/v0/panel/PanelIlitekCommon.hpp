@@ -72,18 +72,16 @@ namespace lgfx
       return buf;
     }
 
-    const std::uint8_t* getPartialOnCommands(std::uint8_t* buf) override
+    const std::uint8_t* getPowerSaveOnCommands(std::uint8_t* buf) override
     {
-      reinterpret_cast<std::uint16_t*>(buf)[0] = CommandCommon::PTLON;
-      reinterpret_cast<std::uint16_t*>(buf)[1] = 0x39;
+      reinterpret_cast<std::uint16_t*>(buf)[1] = CommandCommon::IDMON;
       reinterpret_cast<std::uint16_t*>(buf)[2] = 0xFFFF;
       return buf;
     }
 
-    const std::uint8_t* getPartialOffCommands(std::uint8_t* buf) override
+    const std::uint8_t* getPowerSaveOffCommands(std::uint8_t* buf) override
     {
-      reinterpret_cast<std::uint16_t*>(buf)[0] = CommandCommon::NORON;
-      reinterpret_cast<std::uint16_t*>(buf)[1] = 0x38;
+      reinterpret_cast<std::uint16_t*>(buf)[1] = CommandCommon::IDMOFF;
       reinterpret_cast<std::uint16_t*>(buf)[2] = 0xFFFF;
       return buf;
     }

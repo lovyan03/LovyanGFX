@@ -11,5 +11,6 @@ file(GLOB SRCS
      src/lgfx/v0/touch/*.cpp
      )
 set(COMPONENT_SRCS ${SRCS})
+set(COMPONENT_REQUIRES nvs_flash)
 
 register_component()

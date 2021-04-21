@@ -29,6 +29,10 @@ Contributors:
 #include <string>
 #include <memory>
 
+#if defined (ARDUINO)
+#include <Print.h>
+#endif
+
 namespace lgfx
 {
  inline namespace v0
@@ -114,10 +118,14 @@ namespace lgfx
                                 void drawBezier      ( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2, std::int32_t x3, std::int32_t y3);
     template<typename T> inline void drawBezierHelper( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2, const T& color)  { setColor(color); drawBezierHelper(x0, y0, x1, y1, x2, y2); }
                                 void drawBezierHelper( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2);
-    template<typename T> inline void drawArc         ( std::int32_t x, std::int32_t y, std::int32_t r0, std::int32_t r1, float angle0, float angle1, const T& color) { setColor(color); drawArc( x, y, r0, r1, angle0, angle1); }
-                                void drawArc         ( std::int32_t x, std::int32_t y, std::int32_t r0, std::int32_t r1, float angle0, float angle1);
-    template<typename T> inline void fillArc         ( std::int32_t x, std::int32_t y, std::int32_t r0, std::int32_t r1, float angle0, float angle1, const T& color) { setColor(color); fillArc( x, y, r0, r1, angle0, angle1); }
-                                void fillArc         ( std::int32_t x, std::int32_t y, std::int32_t r0, std::int32_t r1, float angle0, float angle1);
+    template<typename T> inline void drawEllipseArc  ( std::int32_t x, std::int32_t y, std::int32_t r0x, std::int32_t r1x, std::int32_t r0y, std::int32_t r1y, float angle0, float angle1, const T& color) { setColor(color); drawEllipseArc( x, y, r0x, r1x, r0y, r1y, angle0, angle1); }
+                                void drawEllipseArc  ( std::int32_t x, std::int32_t y, std::int32_t r0x, std::int32_t r1x, std::int32_t r0y, std::int32_t r1y, float angle0, float angle1);
+    template<typename T> inline void fillEllipseArc  ( std::int32_t x, std::int32_t y, std::int32_t r0x, std::int32_t r1x, std::int32_t r0y, std::int32_t r1y, float angle0, float angle1, const T& color) { setColor(color); fillEllipseArc( x, y, r0x, r1x, r0y, r1y, angle0, angle1); }
+                                void fillEllipseArc  ( std::int32_t x, std::int32_t y, std::int32_t r0x, std::int32_t r1x, std::int32_t r0y, std::int32_t r1y, float angle0, float angle1);
+    template<typename T> inline void drawArc         ( std::int32_t x, std::int32_t y, std::int32_t r0, std::int32_t r1, float angle0, float angle1, const T& color) { setColor(color); drawEllipseArc( x, y, r0, r1, r0, r1, angle0, angle1); }
+                                void drawArc         ( std::int32_t x, std::int32_t y, std::int32_t r0, std::int32_t r1, float angle0, float angle1)                 {                  drawEllipseArc( x, y, r0, r1, r0, r1, angle0, angle1); }
+    template<typename T> inline void fillArc         ( std::int32_t x, std::int32_t y, std::int32_t r0, std::int32_t r1, float angle0, float angle1, const T& color) { setColor(color); fillEllipseArc( x, y, r0, r1, r0, r1, angle0, angle1); }
+                                void fillArc         ( std::int32_t x, std::int32_t y, std::int32_t r0, std::int32_t r1, float angle0, float angle1)                 {                  fillEllipseArc( x, y, r0, r1, r0, r1, angle0, angle1); }
     template<typename T> inline void drawCircleHelper( std::int32_t x, std::int32_t y, std::int32_t r, std::uint_fast8_t cornername                 , const T& color)  { setColor(color); drawCircleHelper(x, y, r, cornername    ); }
                                 void drawCircleHelper( std::int32_t x, std::int32_t y, std::int32_t r, std::uint_fast8_t cornername);
     template<typename T> inline void fillCircleHelper( std::int32_t x, std::int32_t y, std::int32_t r, std::uint_fast8_t corners, std::int32_t delta, const T& color)  { setColor(color); fillCircleHelper(x, y, r, corners, delta); }
@@ -151,6 +159,10 @@ namespace lgfx
     __attribute__ ((always_inline)) inline static std::uint32_t color888(std::uint8_t r, std::uint8_t g, std::uint8_t b) { return lgfx::color888(r, g, b); }
     __attribute__ ((always_inline)) inline static std::uint16_t swap565( std::uint8_t r, std::uint8_t g, std::uint8_t b) { return lgfx::swap565( r, g, b); }
     __attribute__ ((always_inline)) inline static std::uint32_t swap888( std::uint8_t r, std::uint8_t g, std::uint8_t b) { return lgfx::swap888( r, g, b); }
+    __attribute__ ((always_inline)) inline static std::uint8_t  color16to8(std::uint32_t rgb565) { return lgfx::convert_rgb565_to_rgb332(rgb565); }
+    __attribute__ ((always_inline)) inline static std::uint16_t color8to16(std::uint32_t rgb332) { return lgfx::convert_rgb332_to_rgb565(rgb332); }
+    __attribute__ ((always_inline)) inline static std::uint32_t color16to24(std::uint32_t rgb565) { return lgfx::convert_rgb565_to_rgb888(rgb565); }
+    __attribute__ ((always_inline)) inline static std::uint16_t color24to16(std::uint32_t rgb888) { return lgfx::convert_rgb888_to_rgb565(rgb888); }
 
     __attribute__ ((always_inline)) inline void setPivot(float x, float y) { _xpivot = x; _ypivot = y; }
     __attribute__ ((always_inline)) inline float getPivotX(void) const { return _xpivot; }
@@ -473,7 +485,7 @@ namespace lgfx
 
     [[deprecated("use IFont")]]
     std::int32_t fontHeight(std::uint8_t font) const { return ((const BaseFont*)fontdata[font])->height * _text_style.size_y; }
-    std::int32_t fontHeight(const IFont* font) const { return ((const BaseFont*)font)->height * _text_style.size_y; }
+    std::int32_t fontHeight(const IFont* font) const;
     std::int32_t fontHeight(void) const { return _font_metrics.height * _text_style.size_y; }
     std::int32_t textLength(const char *string, std::int32_t width);
     std::int32_t textWidth(const char *string);
@@ -997,7 +1009,7 @@ namespace lgfx
     void writeRawColor( std::uint32_t color, std::int32_t length) { if (0 >= length) return; setRawColor(color); pushBlock_impl(length); }
     void read_rect(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, void* dst, pixelcopy_t* param);
     void draw_gradient_line( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, uint32_t colorstart, uint32_t colorend );
-    void fill_arc_helper(std::int32_t cx, std::int32_t cy, std::int32_t oradius, std::int32_t iradius, float start, float end);
+    void fill_arc_helper(std::int32_t cx, std::int32_t cy, std::int32_t oradius_x, std::int32_t iradius_x, std::int32_t oradius_y, std::int32_t iradius_y, float start, float end);
     void draw_bezier_helper(std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2);
     void draw_bitmap(std::int32_t x, std::int32_t y, const std::uint8_t *bitmap, std::int32_t w, std::int32_t h, std::uint32_t fg_rawcolor, std::uint32_t bg_rawcolor = ~0u);
     void draw_xbitmap(std::int32_t x, std::int32_t y, const std::uint8_t *bitmap, std::int32_t w, std::int32_t h, std::uint32_t fg_rawcolor, std::uint32_t bg_rawcolor = ~0u);

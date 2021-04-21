@@ -1,6 +1,9 @@
+#define LGFX_USE_V1
 #define LGFX_AUTODETECT
 
 #include <LovyanGFX.hpp>
+
+#include <driver/rtc_io.h>
 
 static LGFX lcd;
 
@@ -46,10 +49,10 @@ void setup(void)
   lcd.setCursor(bootCount*6, bootCount*8);
   lcd.setTextColor(TFT_BLACK, TFT_WHITE);
   lcd.print("DeepSleep test : " + String(bootCount));
-  lcd.partialOn(); // power saving.
-  lcd.waitDisplay(); // wait display 
+  lcd.powerSaveOn(); // 省電力指定 M5Stack CoreInkで電源オフ時に色が薄くならないようにする
+  lcd.waitDisplay(); // 待機
 
-  auto gpio_rst = (gpio_num_t)lcd.getPanel()->gpio_rst;
+  auto gpio_rst = (gpio_num_t)lcd.getPanel()->config().pin_rst;
   if (gpio_rst >= 0) {
     // RSTピンをRTC_GPIOで管理しhigh状態を維持する
     rtc_gpio_set_level(gpio_rst, 1);
