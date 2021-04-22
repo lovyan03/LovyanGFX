@@ -55,6 +55,7 @@ namespace lgfx
     , board_M5Stack_CoreInk
     , board_M5Paper
     , board_ESP32_S2_Kaluga_1
+    , board_WT32_SC01
     };
   }
   using namespace boards;
