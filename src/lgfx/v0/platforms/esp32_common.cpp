@@ -174,6 +174,7 @@ namespace lgfx
       if (spi_host == VSPI_HOST) {
         SPI.end();
         SPI.begin(spi_sclk, spi_miso, spi_mosi);
+        _spi_handle[spi_host] = SPI.bus();
       }
 
       if (_spi_handle[spi_host] == nullptr) {
@@ -263,7 +264,10 @@ namespace lgfx
         if (spi_host == VSPI_HOST) {
           SPI.end();
         }
-        spiStopBus(_spi_handle[spi_host]);
+        else
+        {
+          spiStopBus(_spi_handle[spi_host]);
+        }
 #else // ESP-IDF
         spi_bus_remove_device(_spi_handle[spi_host]);
         spi_bus_free(static_cast<spi_host_device_t>(spi_host));
