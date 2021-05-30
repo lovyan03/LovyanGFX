@@ -11,9 +11,11 @@
 #ifndef LGFX_TFT_ESPI_HPP_
 #define LGFX_TFT_ESPI_HPP_
 
+#define LGFX_AUTODETECT
 #include "LovyanGFX.hpp"
+#include "LGFX_AUTODETECT.hpp"
 
-using TFT_eSPI = LGFX;
+using TFT_eSPI = lgfx::LGFX;
 
 class TFT_eSprite : public lgfx::LGFX_Sprite {
 public:

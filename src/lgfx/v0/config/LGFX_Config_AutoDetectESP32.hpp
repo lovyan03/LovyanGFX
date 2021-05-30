@@ -159,7 +159,7 @@ namespace lgfx
       static constexpr char NVS_KEY[] = "M5Stack_IPS";
       std::uint32_t nvs_handle = 0;
       std::uint8_t readbuf = 0x80u;
-      if (0 == nvs_open(NVS_NAME, NVS_READONLY, &nvs_handle)) {
+      if (ESP_OK == nvs_open(NVS_NAME, NVS_READONLY, &nvs_handle)) {
         nvs_get_u8(nvs_handle, NVS_KEY, &readbuf);
         nvs_close(nvs_handle);
       }
@@ -174,7 +174,7 @@ namespace lgfx
         lgfxPinMode(gpio_rst, pin_mode_t::input);
         delay(1);
         reverse_invert = gpio_in(gpio_rst);       // get panel type (IPS or TN)
-        if (0 == nvs_open(NVS_NAME, NVS_READWRITE, &nvs_handle)) {
+        if (ESP_OK == nvs_open(NVS_NAME, NVS_READWRITE, &nvs_handle)) {
           nvs_set_u8(nvs_handle, NVS_KEY, reverse_invert);
           nvs_close(nvs_handle);
         }
@@ -282,7 +282,7 @@ namespace lgfx
       static constexpr char NVS_KEY[] = "AUTODETECT";
       std::uint32_t nvs_board = 0;
       std::uint32_t nvs_handle = 0;
-      if (0 == nvs_open(NVS_NAME, NVS_READONLY, &nvs_handle)) {
+      if (ESP_OK == nvs_open(NVS_NAME, NVS_READONLY, &nvs_handle)) {
         nvs_get_u32(nvs_handle, NVS_KEY, static_cast<uint32_t*>(&nvs_board));
         nvs_close(nvs_handle);
         ESP_LOGW("LovyanGFX", "[Autodetect] load from NVS : board:%d", nvs_board);
@@ -1212,7 +1212,7 @@ namespace lgfx
       _panel_last = getPanel();
 
       if (nvs_board != board) {
-        if (0 == nvs_open(NVS_NAME, NVS_READWRITE, &nvs_handle)) {
+        if (ESP_OK == nvs_open(NVS_NAME, NVS_READWRITE, &nvs_handle)) {
           ESP_LOGW("LovyanGFX", "[Autodetect] save to NVS : board:%d", board);
           nvs_set_u32(nvs_handle, NVS_KEY, board);
           nvs_close(nvs_handle);

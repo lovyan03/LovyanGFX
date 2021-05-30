@@ -1,14 +1,14 @@
 # LovyanGFX
 
-LCD graphics library (for ESP32 SPI or 8bit Parallel / ATSAMD51 SPI).  
+LCD graphics library (for ESP32 SPI,I2C,8bitParallel / ATSAMD51 SPI).  
 M5Stack / M5StickC / TTGO T-Watch / ODROID-GO / ESP-WROVER-KIT / WioTerminal / and more...  
 [![examples](http://img.youtube.com/vi/SMOHRPqUZcQ/0.jpg)](http://www.youtube.com/watch?v=SMOHRPqUZcQ "examples")
 [![examples](http://img.youtube.com/vi/F5gsp41Elac/0.jpg)](http://www.youtube.com/watch?v=F5gsp41Elac "MultiPanel")
 
 概要 Overview.
 ----------------
-ESP32とSPIまたは8ビットパラレル接続のLCD / ATSAMD51とSPI接続のLCDの組み合わせで動作するグラフィックライブラリです。  
-This is a graphics library that works with a combination of ESP32 with SPI or 8-bit parallel connection and ATSAMD51 with SPI connection to the LCD. (see compatibility list below).
+ESP32とSPI,I2C,8ビットパラレル接続のLCD / ATSAMD51とSPI接続のLCDの組み合わせで動作するグラフィックライブラリです。  
+This is a graphics library that works with a combination of ESP32 with SPI,I2C,8-bit parallel connection and ATSAMD51 with SPI connection to the LCD. (see compatibility list below).
 
  [AdafruitGFX](https://github.com/adafruit/Adafruit-GFX-Library) や [TFT_eSPI](https://github.com/Bodmer/TFT_eSPI) と互換性をある程度持ちつつ、より高機能・高速動作を目標としています。  
 
@@ -38,31 +38,35 @@ This library has the following advantages.
     - PlatformIO
 
   - ディスプレイ Displays
+    - GC9A01
+    - GDEW0154M09 (M5Stack CoreInk)
     - HX8357
     - ILI9163
     - ILI9341 (WioTerminal, ESP-WROVER-KIT, ODROID-GO, LoLin D32 Pro, WiFiBoy Pro)
     - ILI9342 (M5Stack, M5Stack Core2)
     - ILI9486
     - ILI9488 (Makerfabs Touch with Camera)
-    - SSD1351
+    - IT8951 (M5Paper)
+    - SH110x (SH1106, SH1107, M5UnitOLED)
+    - SSD1306
+    - SSD1331
+    - SSD1351 (SSD1357)
     - ST7735 (M5StickC, TTGO T-Wristband, TTGO TS, LoLin D32 Pro, WiFiBoy mini)
     - ST7789 (M5StickCPlus, TTGO T-Watch, ESP-WROVER-KIT, Makerfabs MakePython, DSTIKE D-duino-32 XS)
-    - ST7796
-    - IT8951 (M5Paper)
-    - GDEW0154M09 (M5Stack CoreInk)
+    - ST7796 (WT32-SC01)
 
-  - タッチパネル TouchScreens (only ESP32)
-    - I2C FT5x06 / FT6x36
+  - タッチスクリーン TouchScreens (only ESP32)
+    - I2C FT5x06 (FT5206, FT5306, FT5406, FT6206, FT6236, FT6336, FT6436)
     - I2C GT911
     - SPI XPT2046
     - SPI STMPE610
 
 
-対応機種については[src/lgfx/panel](src/lgfx/panel)をご参照ください。  
-接続するピンの初期設定は[src/LovyanGFX.hpp](src/LovyanGFX.hpp)にあります。  
+設定方法のサンプルは[src/lgfx_user](src/lgfx_user)にあります。  
 上記対応機種とコマンド体系の類似したLCDパネルであれば対応可能ですが、当方で入手し動作確認が取れたもののみ正式対応としています。  
 対応要望を頂けた機種には優先的に対応を検討致します。  
   
+setting examples is [src/lgfx_user](src/lgfx_user)  
 This library is also compatible with the above models and LCD panels with a similar command system,
  but only those that have been obtained and confirmed to work are officially supported.  
 
@@ -92,11 +96,16 @@ This library is also compatible with the above models and LCD panels with a simi
 // #define LGFX_WIFIBOY_MINI          // WiFiBoy mini
 // #define LGFX_MAKERFABS_TOUCHCAMERA // Makerfabs Touch with Camera
 // #define LGFX_MAKERFABS_MAKEPYTHON  // Makerfabs MakePython
-// #define LGFX_WIO_TERMINAL          // Wio Terminal
+// #define LGFX_WT32_SC01             // Seeed WT32-SC01
+// #define LGFX_WIO_TERMINAL          // Seeed Wio Terminal
 
-  #define LGFX_AUTODETECT // 自動認識 (M5Stack, M5StickC/CPlus, ODROID-GO, TTGO T-Watch, TTGO T-Wristband, LoLin D32 Pro, ESP-WROVER-KIT)
+  #define LGFX_AUTODETECT // 自動認識 (D-duino-32 XS はパネルID読取りが出来ないため自動認識の対象から外れています)
 
 // 複数機種の定義を行うか、LGFX_AUTODETECTを定義することで、実行時にボードを自動認識します。
+
+
+// v1.0.0 を有効にします(v0からの移行期間の特別措置です。これを書かない場合は旧v0系で動作します。)
+#define LGFX_USE_V1
 
 
 // ヘッダをincludeします。
@@ -111,9 +120,8 @@ static LGFX_Sprite sprite(&lcd); // スプライトを使う場合はLGFX_Sprite
 // static TFT_eSprite sprite(&lcd);   // TFT_eSpriteがLGFX_Spriteの別名として定義されます。
 
 
-// 対応機種に無い構成で使う場合は、 examples/HowToUse/2_spi_setting.ino を参照してください。
-// configフォルダのLGFX_Config_Custom.hppをコピーして環境に合わせて編集して、
-// ここでincludeをするか、ファイルの内容をそのまま貼り付けて使用してください。
+// 対応機種に無い構成で使う場合は、 examples/HowToUse/2_user_setting.ino を参照してください。
+// また設定例はsrc/lgfx_userフォルダにもあります。
 
 
 void setup(void)
@@ -467,6 +475,7 @@ main : [FreeBSD](license.txt)
 TJpgDec : [original](src/lgfx/utility/lgfx_tjpgd.c) ChaN  
 Pngle : [MIT](https://github.com/kikuchan/pngle/blob/master/LICENSE) kikuchan  
 QRCode : [MIT](https://github.com/ricmoo/QRCode/blob/master/LICENSE.txt) Richard Moore and Nayuki  
+result : [MIT](https://github.com/bitwizeshift/result/blob/master/LICENSE) Matthew Rodusek  
 GFX font and GLCD font : [2-clause BSD](https://github.com/adafruit/Adafruit-GFX-Library/blob/master/license.txt) Adafruit Industries  
 Font 2,4,6,7,8 :  [FreeBSD](https://github.com/Bodmer/TFT_eSPI/blob/master/license.txt) Bodmer  
 converted IPA font : [IPA Font License](src/lgfx/Fonts/IPA/IPA_Font_License_Agreement_v1.0.txt) IPA  
