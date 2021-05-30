@@ -855,15 +855,16 @@ namespace lgfx
         _pin_level(12, true);  // LoLinD32 TouchScreen CS
         #endif
 
+        bus_cfg.spi_3wire = true;
+        _bus_spi.config(bus_cfg);
+        _bus_spi.init();
+        _pin_reset(33, use_reset); // LCD RST;
+
+        id = _read_panel_id(&_bus_spi, 14);
+
         #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_M5STACK )
         if (board == 0 || board == board_t::board_M5Stack)
         {
-          bus_cfg.spi_3wire = true;
-          _bus_spi.config(bus_cfg);
-          _bus_spi.init();
-          _pin_reset(33, use_reset); // LCD RST;
-
-          id = _read_panel_id(&_bus_spi, 14);
           if ((id & 0xFF) == 0xE3)
           {   // ILI9342c
             ESP_LOGW(LIBRARY_NAME, "[Autodetect] M5Stack");
@@ -892,6 +893,40 @@ namespace lgfx
         #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_LOLIN_D32_PRO )
         if (board == 0 || board == board_t::board_LoLinD32)
         {
+          if ((id & 0xFF) == 0x7C)
+          { //  check panel (ST7735)
+            ESP_LOGW(LIBRARY_NAME, "[Autodetect] LoLinD32Pro ST7735");
+            board = board_t::board_LoLinD32;
+
+            #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_M5STACK )
+            lgfx::pinMode( 4, lgfx::pin_mode_t::input); // M5Stack TF card CS
+            #endif
+
+            bus_cfg.freq_write = 27000000;
+            bus_cfg.freq_read  = 16000000;
+            _bus_spi.config(bus_cfg);
+
+            auto p = new lgfx::Panel_ST7735S();
+            {
+              auto cfg = p->config();
+              cfg.pin_cs  = 14;
+              cfg.pin_rst = 33;
+              cfg.memory_width  = 132;
+              cfg.memory_height = 132;
+              cfg.panel_width  = 128;
+              cfg.panel_height = 128;
+              cfg.offset_x = 2;
+              cfg.offset_y = 1;
+              p->config(cfg);
+            }
+            p->bus(&_bus_spi);
+            _panel_last = p;
+
+            _set_pwm_backlight(32, 7, 44100);
+
+            goto init_clear;
+          }
+
           bus_cfg.spi_3wire = false;
           _bus_spi.config(bus_cfg);
           _bus_spi.init();
@@ -936,7 +971,6 @@ namespace lgfx
 
               _touch_last = t;
             }
-
 
             goto init_clear;
           }

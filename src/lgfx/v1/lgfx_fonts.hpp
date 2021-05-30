@@ -471,6 +471,7 @@ namespace fonts
 {
   using namespace lgfx::v1::fonts;
 }
+using namespace fonts;
 
 #ifndef _GFXFONT_H_
 #define _GFXFONT_H_
