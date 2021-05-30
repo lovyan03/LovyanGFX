@@ -53,23 +53,27 @@ namespace lgfx
     if (!_inited || number > 4) return 0;
     if (gpio_int >= 0 && gpio_in(gpio_int)) return 0;
 
-    std::uint_fast16_t tx, ty;
-    std::int32_t retry = 3;
-    std::uint32_t base = number * 6;
-    std::uint8_t tmp[base + 5];
+    std::size_t base = number * 6;
+    std::size_t len = base + 5;
+
+    std::uint8_t tmp[2][len];
+    lgfx::i2c::readRegister(i2c_port, i2c_addr, 2, tmp[0], len);
+    std::int32_t retry = 5;
     do {
-      lgfx::i2c::readRegister(i2c_port, i2c_addr, 2, tmp, 5 + base);
-      if (number >= tmp[0]) return 0;
-      tx = (tmp[base + 1] & 0x0F) << 8 | tmp[base + 2];
-      ty = (tmp[base + 3] & 0x0F) << 8 | tmp[base + 4];
-    } while ((tx > x_max || ty > y_max) && --retry);
+      lgfx::i2c::readRegister(i2c_port, i2c_addr, 2, tmp[retry & 1], len);
+    } while (memcmp(tmp[0], tmp[1], len) && --retry);
+
+    if ((std::uint8_t)number >= tmp[0][0]) return 0;
+
     if (tp)
     {
-      tp->x = tx;
-      tp->y = ty;
-      tp->id = tmp[base + 3] >> 4;
+      auto data = &tmp[0][base];
+      tp->size = 1;
+      tp->x = (data[1] & 0x0F) << 8 | data[2];
+      tp->y = (data[3] & 0x0F) << 8 | data[4];
+      tp->id = data[3] >> 4;
     }
-    return tmp[0];
+    return tmp[0][0];
   }
 
 //----------------------------------------------------------------------------

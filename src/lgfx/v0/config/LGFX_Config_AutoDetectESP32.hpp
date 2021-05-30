@@ -1108,6 +1108,60 @@ namespace lgfx
       }
   #endif
 
+  #if defined ( LGFX_WT32_SC01 )
+      if (nvs_board == 0 || nvs_board == lgfx::board_t::board_WT32_SC01) {
+        releaseBus();
+        _spi_mosi = 13;
+        _spi_miso = -1;
+        _spi_sclk = 14;
+        initBus();
+
+        p_tmp.spi_cs   = 15;
+        p_tmp.spi_dc   = 21;
+        p_tmp.gpio_rst = -1;
+        setPanel(&p_tmp);
+
+        /* if ( determination here ) */ {
+          ESP_LOGW("LovyanGFX", "[Autodetect] WT32-SC01");
+          board = lgfx::board_t::board_WT32_SC01;
+          auto p = new lgfx::Panel_ST7796();
+          releaseBus();
+          _spi_host = HSPI_HOST;
+          initBus();
+          p->spi_3wire = true;
+          p->spi_read  = false;
+          p->spi_cs    = 15;
+          p->spi_dc    = 21;
+          p->gpio_rst  = 22;
+          p->gpio_bl   = 23;
+          p->pwm_ch_bl = 7;
+          p->rotation  = 1;
+          setPanel(p);
+
+          auto t = new lgfx::Touch_FT5x06();
+          t->gpio_int = 39;   // INT pin number
+          t->i2c_sda  = 18;   // I2C SDA pin number
+          t->i2c_scl  = 19;   // I2C SCL pin number
+          t->i2c_addr = 0x38; // I2C device addr
+          t->i2c_port = I2C_NUM_1;// I2C port number
+          t->freq = 400000;   // I2C freq
+          t->x_min = 0;
+          t->x_max = 319;
+          t->y_min = 0;
+          t->y_max = 479;
+          touch(t);
+          _touch_affine[0] =  1;
+          _touch_affine[1] =  0;
+          _touch_affine[2] =  0;
+          _touch_affine[3] =  0;
+          _touch_affine[4] =  1;
+          _touch_affine[5] =  0;
+
+          goto init_clear;
+        }
+      }
+  #endif
+
   // DSTIKE D-Duino32XS については読出しが出来ないため無条件設定となる。
   // そのためLGFX_AUTO_DETECTでは機能しないようにしておく。
   #if defined ( LGFX_DDUINO32_XS )

@@ -44,6 +44,12 @@ namespace lgfx
       fp_pushBlock   = pushBlock;
       fp_writePixels = writePixels;
       fp_readRect    = readRect;
+
+      _range_old.top = INT_MAX;
+      _range_old.left = INT_MAX;
+      _range_old.right = 0;
+      _range_old.bottom = 0;
+      _range_new = _range_old;
     }
 
     bool isEPD(void) const override { return true; }
