@@ -22,6 +22,7 @@ Contributors:
 #endif
 
 #include <cstdint>
+#include <cstdarg>
 
 #include "platforms/common.hpp"
 #include "misc/enum.hpp"
@@ -652,7 +653,7 @@ namespace lgfx
   #endif
     std::size_t write(const std::uint8_t *buf, std::size_t size) { std::size_t n = 0; this->startWrite(); while (size--) { n += write(*buf++); } this->endWrite(); return n; }
     std::size_t write(std::uint8_t utf8);
-
+    std::size_t vprintf(const char *format, va_list arg);
 
 
 #ifdef ARDUINO
