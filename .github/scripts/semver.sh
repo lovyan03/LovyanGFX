@@ -31,9 +31,9 @@ function patchpropertyfiles {
     newminorversion=${newversionbits[1]//[!0-9]/};
     newpatchversion=${newversionbits[2]//[!0-9]/};
 
-    sed -i -e "s/ECC_VERSION_MAJOR $oldmajorversion/ECC_VERSION_MAJOR $newmajorversion/g" $GITHUB_WORKSPACE/src/gitTagVersion.h
-    sed -i -e "s/ECC_VERSION_MINOR $oldminorversion/ECC_VERSION_MINOR $newminorversion/g" $GITHUB_WORKSPACE/src/gitTagVersion.h
-    sed -i -e "s/ECC_VERSION_PATCH $oldpatchversion/ECC_VERSION_PATCH $newpatchversion/g" $GITHUB_WORKSPACE/src/gitTagVersion.h
+    sed -i -e "s/LGFX_VERSION_MAJOR $oldmajorversion/LGFX_VERSION_MAJOR $newmajorversion/g" $GITHUB_WORKSPACE/src/gitTagVersion.h
+    sed -i -e "s/LGFX_VERSION_MINOR $oldminorversion/LGFX_VERSION_MINOR $newminorversion/g" $GITHUB_WORKSPACE/src/gitTagVersion.h
+    sed -i -e "s/LGFX_VERSION_PATCH $oldpatchversion/LGFX_VERSION_PATCH $newpatchversion/g" $GITHUB_WORKSPACE/src/gitTagVersion.h
 
     cat $GITHUB_WORKSPACE/src/gitTagVersion.h
   fi
