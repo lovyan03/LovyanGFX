@@ -33,10 +33,10 @@ namespace lgfx
     _cfg = config;
   }
 
-  void Bus_I2C::init(void)
+  bool Bus_I2C::init(void)
   {
-    lgfx::i2c::init(_cfg.i2c_port, _cfg.pin_sda, _cfg.pin_scl);
     _state = state_t::state_none;
+    return lgfx::i2c::init(_cfg.i2c_port, _cfg.pin_sda, _cfg.pin_scl).has_value();
   }
 
   void Bus_I2C::release(void)

@@ -60,7 +60,7 @@ namespace lgfx
 
     bus_type_t busType(void) const override { return bus_type_t::bus_spi; }
 
-    void init(void) override;
+    bool init(void) override;
     void release(void) override;
 
     void beginTransaction(void) override;
@@ -104,8 +104,8 @@ namespace lgfx
 
     config_t _cfg;
     FlipBuffer _flip_buffer;
-    bool _need_wait;
-    Sercom* _sercom;
+    bool _need_wait = false;
+    Sercom* _sercom = nullptr;
     std::uint32_t _mask_reg_dc;
     std::uint32_t _last_apb_freq = -1;
     std::uint32_t _clkdiv_write;
@@ -115,9 +115,7 @@ namespace lgfx
 
 #if defined (ARDUINO)
     Adafruit_ZeroDMA _dma_adafruit;
-    DmacDescriptor* _dma_write_desc;
-    DmacDescriptor* _dmadesc;
-    std::uint32_t _dmadesc_len;
+    DmacDescriptor* _dma_write_desc = nullptr;
 #endif
 
   };

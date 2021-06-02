@@ -71,25 +71,25 @@ namespace lgfx
 //ESP_LOGI("LGFX","Bus_SPI::config  spi_port:%d  dc:%0d %02x", spi_port, _cfg.pin_dc, _mask_reg_dc);
   }
 
-  void Bus_SPI::init(void)
+  bool Bus_SPI::init(void)
   {
 //ESP_LOGI("LGFX","Bus_SPI::init");
     dc_control(true);
     pinMode(_cfg.pin_dc, pin_mode_t::output);
-    spi::init(_cfg.spi_host, _cfg.pin_sclk, _cfg.pin_miso, _cfg.pin_mosi, _cfg.dma_channel);
-    _inited = true;
+    _inited = spi::init(_cfg.spi_host, _cfg.pin_sclk, _cfg.pin_miso, _cfg.pin_mosi, _cfg.dma_channel).has_value();
+    return _inited;
   }
 
   void Bus_SPI::release(void)
   {
-    if (!_inited) return;
-    _inited = false;
 //ESP_LOGI("LGFX","Bus_SPI::release");
-    spi::release(_cfg.spi_host);
+    pinMode(_cfg.pin_dc  , pin_mode_t::input);
     pinMode(_cfg.pin_mosi, pin_mode_t::input);
     pinMode(_cfg.pin_miso, pin_mode_t::input);
     pinMode(_cfg.pin_sclk, pin_mode_t::input);
-    pinMode(_cfg.pin_dc  , pin_mode_t::input);
+    if (!_inited) return;
+    _inited = false;
+    spi::release(_cfg.spi_host);
   }
 
   void Bus_SPI::beginTransaction(void)

@@ -31,7 +31,7 @@ namespace lgfx
  {
 //----------------------------------------------------------------------------
 
-  void Light_PWM::init(std::uint8_t brightness)
+  bool Light_PWM::init(std::uint8_t brightness)
   {
 
 #ifdef ARDUINO
@@ -73,6 +73,7 @@ namespace lgfx
 
     setBrightness(brightness);
 
+    return true;
   }
 
   void Light_PWM::setBrightness(std::uint8_t brightness)

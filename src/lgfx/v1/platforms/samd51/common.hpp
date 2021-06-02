@@ -153,6 +153,7 @@ namespace lgfx
   {
     pinMode(pin, mode);
   }
+  void pinAssignPeriph(int pin_and_port, int type = PIO_SERCOM);
 
 //----------------------------------------------------------------------------
   struct FileWrapper : public DataWrapper
@@ -278,7 +279,7 @@ namespace lgfx
   /// unimplemented.
   namespace spi
   {
-    bool init(int spi_host, int spi_sclk, int spi_miso, int spi_mosi);
+    cpp::result<void, error_t> init(int spi_host, int spi_sclk, int spi_miso, int spi_mosi);
     void release(int spi_host);
     void beginTransaction(int spi_host, int freq, int spi_mode = 0);
     void beginTransaction(int spi_host);

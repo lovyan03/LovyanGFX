@@ -53,6 +53,7 @@ namespace lgfx
     , board_M5Paper
     , board_ESP32_S2_Kaluga_1
     , board_WT32_SC01
+    , board_PyBadge
     };
   }
   using namespace boards;
@@ -66,11 +67,7 @@ namespace lgfx
 
 #elif defined (__SAMD51__)
 
- #if defined( LGFX_WIO_TERMINAL ) || defined (ARDUINO_WIO_TERMINAL) || defined(WIO_TERMINAL)
-
-  #include "LGFX_AutoDetect_SAMD51.hpp"
-
- #endif
+ #include "LGFX_AutoDetect_SAMD51.hpp"
 
 #else
 

@@ -126,7 +126,7 @@ namespace lgfx
 //*/
   std::uint32_t Bus_SPI::FreqToClockDiv(std::uint32_t freq)
   {
-    std::uint32_t div = _cfg.sercom_clkfreq / (1+(freq<<1));
+    std::uint32_t div = std::min<std::uint32_t>(255, _cfg.sercom_clkfreq / (1+(freq<<1)));
     return div;
   }
 
@@ -159,19 +159,22 @@ namespace lgfx
 
     _gpio_reg_dc_h = &PORT->Group[port].OUTSET.reg;
     _gpio_reg_dc_l = &PORT->Group[port].OUTCLR.reg;
+
+    _clkdiv_read  = FreqToClockDiv(_cfg.freq_read);
+    _clkdiv_write = FreqToClockDiv(_cfg.freq_write);
   }
 
-  void Bus_SPI::init(void)
+  bool Bus_SPI::init(void)
   {
     dc_control(true);
     pinMode(_cfg.pin_dc, pin_mode_t::output);
 
+    if (lgfx::spi::init(_cfg.sercom_index, _cfg.pin_sclk, _cfg.pin_miso, _cfg.pin_mosi).has_error())
+    {
+      return false;
+    }
+
     auto *spi = &_sercom->SPI;
-    while (spi->SYNCBUSY.bit.ENABLE); //Waiting then enable bit from SYNCBUSY is equal to 0;
-    spi->CTRLA.bit.ENABLE = 0;        //Setting the enable bit to 0
-
-    lgfx::spi::init(_cfg.sercom_index, _cfg.pin_sclk, _cfg.pin_miso, _cfg.pin_mosi);
-
     auto sercom_data = samd51::getSercomData(_cfg.sercom_index);
 
     if (_cfg.sercom_clksrc >= 0)
@@ -206,7 +209,10 @@ namespace lgfx
     _dma_adafruit.setTrigger(sercom_data->dmac_id_tx);
     _dma_adafruit.setAction(DMA_TRIGGER_ACTON_BEAT);
     _dma_adafruit.setCallback(dmaCallback);
-    _dma_write_desc = _dma_adafruit.addDescriptor(nullptr, (void*)&spi->DATA.reg);
+    if (_dma_write_desc == nullptr)
+    {
+      _dma_write_desc = _dma_adafruit.addDescriptor(nullptr, (void*)&spi->DATA.reg);
+    }
     _dma_write_desc->BTCTRL.bit.VALID  = true;
     _dma_write_desc->BTCTRL.bit.SRCINC = true;
     _dma_write_desc->BTCTRL.bit.DSTINC = false;
@@ -273,6 +279,7 @@ namespace lgfx
     DMAC->CHCTRLB.bit.TRIGACT = DMAC_CHCTRLB_TRIGACT_BEAT_Val;
 #endif
 //*/
+    return true;
   }
 
   void Bus_SPI::release(void)
@@ -508,6 +515,7 @@ namespace lgfx
 
   void Bus_SPI::beginRead(void)
   {
+    wait_spi();
     set_clock_read();
   }
 
@@ -518,8 +526,11 @@ namespace lgfx
 
   std::uint32_t Bus_SPI::readData(std::uint_fast8_t bit_length)
   {
-    writeData(0, bit_length);
-    return _sercom->SPI.DATA.reg;
+    std::uint32_t res = 0;
+    readBytes((std::uint8_t*)&res, bit_length >> 3, false);
+    return res;
+//    writeData(0, bit_length);
+//    return _sercom->SPI.DATA.reg;
   }
 
   bool Bus_SPI::readBytes(std::uint8_t* dst, std::uint32_t length, bool use_dma)

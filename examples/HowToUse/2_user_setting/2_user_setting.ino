@@ -23,8 +23,8 @@ class LGFX : public lgfx::LGFX_Device
 //lgfx::Panel_HX8357B     _panel_instance;
 //lgfx::Panel_HX8357D     _panel_instance;
 //lgfx::Panel_ILI9163     _panel_instance;
-//lgfx::Panel_ILI9341     _panel_instance;
-  lgfx::Panel_ILI9342     _panel_instance;
+  lgfx::Panel_ILI9341     _panel_instance;
+//lgfx::Panel_ILI9342     _panel_instance;
 //lgfx::Panel_ILI9486     _panel_instance;
 //lgfx::Panel_ILI9486L    _panel_instance;
 //lgfx::Panel_ILI9488     _panel_instance;
@@ -114,13 +114,13 @@ public:
       cfg.pin_cs           =    14;  // CSが接続されているピン番号   (-1 = disable)
       cfg.pin_rst          =    33;  // RSTが接続されているピン番号  (-1 = disable)
       cfg.pin_busy         =    -1;  // BUSYが接続されているピン番号 (-1 = disable)
-      cfg.memory_width     =   320;  // ドライバICがサポートしている最大の幅
-      cfg.memory_height    =   240;  // ドライバICがサポートしている最大の高さ
-      cfg.panel_width      =   320;  // 実際に表示可能な幅
-      cfg.panel_height     =   240;  // 実際に表示可能な高さ
+      cfg.memory_width     =   240;  // ドライバICがサポートしている最大の幅
+      cfg.memory_height    =   320;  // ドライバICがサポートしている最大の高さ
+      cfg.panel_width      =   240;  // 実際に表示可能な幅
+      cfg.panel_height     =   320;  // 実際に表示可能な高さ
       cfg.offset_x         =     0;  // パネルのX方向オフセット量
       cfg.offset_y         =     0;  // パネルのY方向オフセット量
-      cfg.offset_rotation  =     3;  // 回転方向の値のオフセット 0~7 (4~7は上下反転)
+      cfg.offset_rotation  =     0;  // 回転方向の値のオフセット 0~7 (4~7は上下反転)
       cfg.dummy_read_pixel =     8;  // ピクセル読出し前のダミーリードのビット数
       cfg.dummy_read_bits  =     1;  // ピクセル以外のデータ読出し前のダミーリードのビット数
       cfg.readable         =  true;  // データ読出しが可能な場合 trueに設定

@@ -113,12 +113,12 @@ namespace lgfx
     static spi_device_handle_t _spi_handle[SOC_SPI_PERIPH_NUM] = {nullptr};
 #endif
 
-    void init(int spi_host, int spi_sclk, int spi_miso, int spi_mosi)
+    cpp::result<void, error_t> init(int spi_host, int spi_sclk, int spi_miso, int spi_mosi)
     {
-      init(spi_host, spi_sclk, spi_miso, spi_mosi, 0);
+      return init(spi_host, spi_sclk, spi_miso, spi_mosi, 0);
     }
 
-    void init(int spi_host, int spi_sclk, int spi_miso, int spi_mosi, int dma_channel)
+    cpp::result<void, error_t> init(int spi_host, int spi_sclk, int spi_miso, int spi_mosi, int dma_channel)
     {
 //ESP_LOGI("LGFX","spi::init host:%d, sclk:%d, miso:%d, mosi:%d, dma:%d", spi_host, spi_sclk, spi_miso, spi_mosi, dma_channel);
       std::uint32_t spi_port = (spi_host + 1);
@@ -209,6 +209,8 @@ namespace lgfx
 
 #endif
       WRITE_PERI_REG(SPI_CTRL1_REG(spi_port), 0);
+
+      return {};
     }
 
     void release(int spi_host)

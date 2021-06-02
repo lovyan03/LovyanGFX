@@ -56,7 +56,7 @@ namespace lgfx
     _last_freq_apb = 0;
   }
 
-  void Bus_Parallel8::init(void)
+  bool Bus_Parallel8::init(void)
   {
     _init_pin();
 
@@ -80,6 +80,8 @@ namespace lgfx
     i2s_dev->conf_chan.val = 1 << I2S_TX_CHAN_MOD_S | 1 << I2S_RX_CHAN_MOD_S;
 
     memset(&_dmadesc, 0, sizeof(lldesc_t));
+
+    return true;
   }
 
   void Bus_Parallel8::_init_pin(void)

@@ -69,7 +69,7 @@ namespace lgfx
 
     bus_type_t busType(void) const override { return bus_type_t::bus_parallel8; }
 
-    void init(void) override;
+    bool init(void) override;
     void release(void) override;
 
     void beginTransaction(void) override;

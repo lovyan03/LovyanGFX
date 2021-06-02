@@ -51,7 +51,7 @@ This library has the following advantages.
     - SSD1306
     - SSD1331
     - SSD1351 (SSD1357)
-    - ST7735 (M5StickC, TTGO T-Wristband, TTGO TS, LoLin D32 Pro, WiFiBoy mini)
+    - ST7735 (M5StickC, TTGO T-Wristband, TTGO TS, LoLin D32 Pro, WiFiBoy mini, PyBadge)
     - ST7789 (M5StickCPlus, TTGO T-Watch, ESP-WROVER-KIT, Makerfabs MakePython, DSTIKE D-duino-32 XS)
     - ST7796 (WT32-SC01)
 
@@ -98,8 +98,9 @@ This library is also compatible with the above models and LCD panels with a simi
 // #define LGFX_MAKERFABS_MAKEPYTHON  // Makerfabs MakePython
 // #define LGFX_WT32_SC01             // Seeed WT32-SC01
 // #define LGFX_WIO_TERMINAL          // Seeed Wio Terminal
+// #define LGFX_PYBADGE               // Adafruit PyBadge
 
-  #define LGFX_AUTODETECT // 自動認識 (D-duino-32 XS はパネルID読取りが出来ないため自動認識の対象から外れています)
+  #define LGFX_AUTODETECT // 自動認識 (D-duino-32 XS, PyBadge はパネルID読取りが出来ないため自動認識の対象から外れています)
 
 // 複数機種の定義を行うか、LGFX_AUTODETECTを定義することで、実行時にボードを自動認識します。
 

@@ -40,199 +40,269 @@ namespace lgfx
   namespace samd51
   {
     static constexpr std::int8_t sercom_pin_list_end = 0;
-    static constexpr std::int8_t sercom0_pin_list[] =
-    { PORT_A |  4  // PAD 0  MUX D
-    , PORT_A |  8  // PAD 0  MUX C
+    static constexpr std::int8_t sercom0_c_pin_list[] =
+    { PORT_A |  8  // PAD 0  MUX C
     , PORT_B | 24  // PAD 0  MUX C
-    , PORT_C | 17  // PAD 0  MUX D
     , - 1
-    , PORT_A |  5  // PAD 1  MUX D
     , PORT_A |  9  // PAD 1  MUX C
     , PORT_B | 25  // PAD 1  MUX C
-    , PORT_C | 16  // PAD 1  MUX D
     , - 2
-    , PORT_A |  6  // PAD 2  MUX D
     , PORT_A | 10  // PAD 2  MUX C
-    , PORT_C | 18  // PAD 2  MUX D
     , PORT_C | 24  // PAD 2  MUX C
     , - 3 
-    , PORT_A |  7  // PAD 3  MUX D
     , PORT_A | 11  // PAD 3  MUX C
-    , PORT_C | 19  // PAD 3  MUX D
     , PORT_C | 25  // PAD 3  MUX C
     , sercom_pin_list_end
     };
-    static constexpr std::int8_t sercom1_pin_list[] =
-    { PORT_A |  0  // PAD 0  MUX D
-    , PORT_A | 16  // PAD 0  MUX C
+    static constexpr std::int8_t sercom1_c_pin_list[] =
+    { PORT_A | 16  // PAD 0  MUX C
     , PORT_C | 22  // PAD 0  MUX C
     , PORT_C | 27  // PAD 0  MUX C
     , - 1
-    , PORT_A |  1  // PAD 1  MUX D
     , PORT_A | 17  // PAD 1  MUX C
     , PORT_C | 23  // PAD 1  MUX C
     , PORT_C | 28  // PAD 1  MUX C
     , - 2
     , PORT_A | 18  // PAD 2  MUX C
-    , PORT_A | 30  // PAD 2  MUX D
     , PORT_B | 22  // PAD 2  MUX C
     , PORT_D | 20  // PAD 2  MUX C
     , - 3
     , PORT_A | 19  // PAD 3  MUX C
-    , PORT_A | 31  // PAD 3  MUX D
     , PORT_B | 23  // PAD 3  MUX C
     , PORT_D | 21  // PAD 3  MUX C
     , sercom_pin_list_end
     };
-    static constexpr std::int8_t sercom2_pin_list[] =
-    { PORT_A |  9  // PAD 0  MUX D
-    , PORT_A | 12  // PAD 0  MUX C
-    , PORT_B | 25  // PAD 0  MUX D
+    static constexpr std::int8_t sercom2_c_pin_list[] =
+    { PORT_A | 12  // PAD 0  MUX C
     , PORT_B | 26  // PAD 0  MUX C
     , - 1
-    , PORT_A |  8  // PAD 1  MUX D
     , PORT_A | 13  // PAD 1  MUX C
-    , PORT_B | 24  // PAD 1  MUX D
     , PORT_B | 27  // PAD 1  MUX C
     , - 2
-    , PORT_A | 10  // PAD 2  MUX D
     , PORT_A | 14  // PAD 2  MUX C
     , PORT_B | 28  // PAD 2  MUX C
-    , PORT_C | 24  // PAD 2  MUX D
     , - 3
-    , PORT_A | 11  // PAD 3  MUX D
     , PORT_A | 15  // PAD 3  MUX C
     , PORT_B | 29  // PAD 3  MUX C
-    , PORT_C | 25  // PAD 3  MUX D
     , sercom_pin_list_end
     };
-    static constexpr std::int8_t sercom3_pin_list[] =
-    { PORT_A | 17  // PAD 0  MUX D
-    , PORT_A | 22  // PAD 0  MUX C
+    static constexpr std::int8_t sercom3_c_pin_list[] =
+    { PORT_A | 22  // PAD 0  MUX C
     , PORT_B | 20  // PAD 0  MUX C
-    , PORT_C | 23  // PAD 0  MUX D
     , - 1
-    , PORT_A | 16  // PAD 1  MUX D
     , PORT_A | 23  // PAD 1  MUX C
     , PORT_B | 21  // PAD 1  MUX C
-    , PORT_C | 22  // PAD 1  MUX D
     , - 2
-    , PORT_A | 18  // PAD 2  MUX D
-    , PORT_A | 20  // PAD 2  MUX D
     , PORT_A | 24  // PAD 2  MUX C
-    , PORT_D | 20  // PAD 2  MUX D
     , - 3
-    , PORT_A | 19  // PAD 3  MUX D
-    , PORT_A | 21  // PAD 3  MUX D
     , PORT_A | 25  // PAD 3  MUX C
-    , PORT_D | 21  // PAD 3  MUX D
     , sercom_pin_list_end
     };
-    static constexpr std::int8_t sercom4_pin_list[] =
-    { PORT_A | 13  // PAD 0  MUX D
-    , PORT_B |  8  // PAD 0  MUX D
-    , PORT_B | 12  // PAD 0  MUX C
-    , PORT_B | 27  // PAD 0  MUX D
+    static constexpr std::int8_t sercom4_c_pin_list[] =
+    { PORT_B | 12  // PAD 0  MUX C
     , - 1
-    , PORT_A | 12  // PAD 1  MUX D
-    , PORT_B |  9  // PAD 1  MUX D
     , PORT_B | 13  // PAD 1  MUX C
-    , PORT_B | 26  // PAD 1  MUX D
     , - 2
-    , PORT_A | 14  // PAD 2  MUX D
-    , PORT_B | 10  // PAD 2  MUX D
     , PORT_B | 14  // PAD 2  MUX C
-    , PORT_B | 28  // PAD 2  MUX D
     , - 3
-    , PORT_A | 15  // PAD 3  MUX D
-    , PORT_B | 11  // PAD 3  MUX D
     , PORT_B | 15  // PAD 3  MUX C
-    , PORT_B | 29  // PAD 3  MUX D
     , sercom_pin_list_end
     };
-    static constexpr std::int8_t sercom5_pin_list[] =
-    { PORT_A | 23  // PAD 0  MUX D
-    , PORT_B |  2  // PAD 0  MUX D
-    , PORT_B | 16  // PAD 0  MUX C
-    , PORT_B | 31  // PAD 0  MUX D
+    static constexpr std::int8_t sercom5_c_pin_list[] =
+    { PORT_B | 16  // PAD 0  MUX C
     , - 1
-    , PORT_A | 22  // PAD 1  MUX D
-    , PORT_B |  3  // PAD 1  MUX D
     , PORT_B | 17  // PAD 1  MUX C
-    , PORT_B | 30  // PAD 1  MUX D
     , - 2
     , PORT_A | 20  // PAD 2  MUX C
-    , PORT_A | 24  // PAD 2  MUX D
-    , PORT_B |  0  // PAD 2  MUX D
     , PORT_B | 18  // PAD 2  MUX C
-    , PORT_B | 22  // PAD 2  MUX D
     , - 3
     , PORT_A | 21  // PAD 3  MUX C
-    , PORT_A | 25  // PAD 3  MUX D
-    , PORT_B |  1  // PAD 3  MUX D
     , PORT_B | 19  // PAD 3  MUX C
-    , PORT_B | 23  // PAD 3  MUX D
     , sercom_pin_list_end
     };
-    static constexpr std::int8_t sercom6_pin_list[] =
+    static constexpr std::int8_t sercom6_c_pin_list[] =
     { PORT_C |  4  // PAD 0  MUX C
-    , PORT_C | 13  // PAD 0  MUX D
     , PORT_C | 16  // PAD 0  MUX C
-    , PORT_D |  9  // PAD 0  MUX D
     , - 1
     , PORT_C |  5  // PAD 1  MUX C
-    , PORT_C | 12  // PAD 1  MUX D
     , PORT_C | 17  // PAD 1  MUX C
-    , PORT_D |  8  // PAD 1  MUX D
     , - 2
     , PORT_C |  6  // PAD 2  MUX C
     , PORT_C | 10  // PAD 2  MUX C
-    , PORT_C | 14  // PAD 2  MUX D
     , PORT_C | 18  // PAD 2  MUX C
-    , PORT_D | 10  // PAD 2  MUX D
     , - 3
     , PORT_C |  7  // PAD 3  MUX C
     , PORT_C | 11  // PAD 3  MUX C
-    , PORT_C | 15  // PAD 3  MUX D
     , PORT_C | 19  // PAD 3  MUX C
-    , PORT_D | 11  // PAD 3  MUX D
     , sercom_pin_list_end
     };
-    static constexpr std::int8_t sercom7_pin_list[] =
-    { PORT_B | 21  // PAD 0  MUX D
-    , PORT_B | 30  // PAD 0  MUX C
+    static constexpr std::int8_t sercom7_c_pin_list[] =
+    { PORT_B | 30  // PAD 0  MUX C
     , PORT_C | 12  // PAD 0  MUX C
     , PORT_D |  8  // PAD 0  MUX C
     , - 1
-    , PORT_B | 20  // PAD 1  MUX D
     , PORT_B | 31  // PAD 1  MUX C
     , PORT_C | 13  // PAD 1  MUX C
     , PORT_D |  9  // PAD 1  MUX C
     , - 2
     , PORT_A | 30  // PAD 2  MUX C
-    , PORT_B | 18  // PAD 2  MUX D
-    , PORT_C | 10  // PAD 2  MUX D
     , PORT_C | 14  // PAD 2  MUX C
     , PORT_D | 10  // PAD 2  MUX C
     , - 3
     , PORT_A | 31  // PAD 3  MUX C
-    , PORT_B | 19  // PAD 3  MUX D
-    , PORT_C | 11  // PAD 3  MUX D
     , PORT_C | 15  // PAD 3  MUX C
     , PORT_D | 11  // PAD 3  MUX C
     , sercom_pin_list_end
     };
-    static constexpr const std::int8_t* sercom_pin_list[] =
-    { sercom0_pin_list
-    , sercom1_pin_list
-    , sercom2_pin_list
-    , sercom3_pin_list
-    , sercom4_pin_list
-    , sercom5_pin_list
-    , sercom6_pin_list
-    , sercom7_pin_list
+
+    static constexpr std::int8_t sercom0_d_pin_list[] =
+    { PORT_A |  4  // PAD 0  MUX D
+    , PORT_C | 17  // PAD 0  MUX D
+    , - 1
+    , PORT_A |  5  // PAD 1  MUX D
+    , PORT_C | 16  // PAD 1  MUX D
+    , - 2
+    , PORT_A |  6  // PAD 2  MUX D
+    , PORT_C | 18  // PAD 2  MUX D
+    , - 3 
+    , PORT_A |  7  // PAD 3  MUX D
+    , PORT_C | 19  // PAD 3  MUX D
+    , sercom_pin_list_end
     };
-    static constexpr const std::size_t sercom_max = sizeof(samd51::sercom_pin_list) / sizeof(sizeof(samd51::sercom_pin_list[0]));
+    static constexpr std::int8_t sercom1_d_pin_list[] =
+    { PORT_A |  0  // PAD 0  MUX D
+    , - 1
+    , PORT_A |  1  // PAD 1  MUX D
+    , - 2
+    , PORT_A | 30  // PAD 2  MUX D
+    , - 3
+    , PORT_A | 31  // PAD 3  MUX D
+    , sercom_pin_list_end
+    };
+    static constexpr std::int8_t sercom2_d_pin_list[] =
+    { PORT_A |  9  // PAD 0  MUX D
+    , PORT_B | 25  // PAD 0  MUX D
+    , - 1
+    , PORT_A |  8  // PAD 1  MUX D
+    , PORT_B | 24  // PAD 1  MUX D
+    , - 2
+    , PORT_A | 10  // PAD 2  MUX D
+    , PORT_C | 24  // PAD 2  MUX D
+    , - 3
+    , PORT_A | 11  // PAD 3  MUX D
+    , PORT_C | 25  // PAD 3  MUX D
+    , sercom_pin_list_end
+    };
+    static constexpr std::int8_t sercom3_d_pin_list[] =
+    { PORT_A | 17  // PAD 0  MUX D
+    , PORT_C | 23  // PAD 0  MUX D
+    , - 1
+    , PORT_A | 16  // PAD 1  MUX D
+    , PORT_C | 22  // PAD 1  MUX D
+    , - 2
+    , PORT_A | 18  // PAD 2  MUX D
+    , PORT_A | 20  // PAD 2  MUX D
+    , PORT_D | 20  // PAD 2  MUX D
+    , - 3
+    , PORT_A | 19  // PAD 3  MUX D
+    , PORT_A | 21  // PAD 3  MUX D
+    , PORT_D | 21  // PAD 3  MUX D
+    , sercom_pin_list_end
+    };
+    static constexpr std::int8_t sercom4_d_pin_list[] =
+    { PORT_A | 13  // PAD 0  MUX D
+    , PORT_B |  8  // PAD 0  MUX D
+    , PORT_B | 27  // PAD 0  MUX D
+    , - 1
+    , PORT_A | 12  // PAD 1  MUX D
+    , PORT_B |  9  // PAD 1  MUX D
+    , PORT_B | 26  // PAD 1  MUX D
+    , - 2
+    , PORT_A | 14  // PAD 2  MUX D
+    , PORT_B | 10  // PAD 2  MUX D
+    , PORT_B | 28  // PAD 2  MUX D
+    , - 3
+    , PORT_A | 15  // PAD 3  MUX D
+    , PORT_B | 11  // PAD 3  MUX D
+    , PORT_B | 29  // PAD 3  MUX D
+    , sercom_pin_list_end
+    };
+    static constexpr std::int8_t sercom5_d_pin_list[] =
+    { PORT_A | 23  // PAD 0  MUX D
+    , PORT_B |  2  // PAD 0  MUX D
+    , PORT_B | 31  // PAD 0  MUX D
+    , - 1
+    , PORT_A | 22  // PAD 1  MUX D
+    , PORT_B |  3  // PAD 1  MUX D
+    , PORT_B | 30  // PAD 1  MUX D
+    , - 2
+    , PORT_A | 24  // PAD 2  MUX D
+    , PORT_B |  0  // PAD 2  MUX D
+    , PORT_B | 22  // PAD 2  MUX D
+    , - 3
+    , PORT_A | 25  // PAD 3  MUX D
+    , PORT_B |  1  // PAD 3  MUX D
+    , PORT_B | 23  // PAD 3  MUX D
+    , sercom_pin_list_end
+    };
+    static constexpr std::int8_t sercom6_d_pin_list[] =
+    { PORT_C | 13  // PAD 0  MUX D
+    , PORT_D |  9  // PAD 0  MUX D
+    , - 1
+    , PORT_C | 12  // PAD 1  MUX D
+    , PORT_D |  8  // PAD 1  MUX D
+    , - 2
+    , PORT_C | 14  // PAD 2  MUX D
+    , PORT_D | 10  // PAD 2  MUX D
+    , - 3
+    , PORT_C | 15  // PAD 3  MUX D
+    , PORT_D | 11  // PAD 3  MUX D
+    , sercom_pin_list_end
+    };
+    static constexpr std::int8_t sercom7_d_pin_list[] =
+    { PORT_B | 21  // PAD 0  MUX D
+    , - 1
+    , PORT_B | 20  // PAD 1  MUX D
+    , - 2
+    , PORT_B | 18  // PAD 2  MUX D
+    , PORT_C | 10  // PAD 2  MUX D
+    , - 3
+    , PORT_B | 19  // PAD 3  MUX D
+    , PORT_C | 11  // PAD 3  MUX D
+    , sercom_pin_list_end
+    };
+
+    static constexpr const std::size_t sercom_max = SERCOM_INST_NUM;
+    static constexpr const std::int8_t* sercom_mux_pin_list[2][sercom_max] =
+    {
+      { sercom0_c_pin_list
+      , sercom1_c_pin_list
+      , sercom2_c_pin_list
+      , sercom3_c_pin_list
+      , sercom4_c_pin_list
+      , sercom5_c_pin_list
+    #if defined(SERCOM6)
+      , sercom6_c_pin_list
+    #endif
+    #if defined(SERCOM7)
+      , sercom7_c_pin_list
+    #endif
+      }
+    ,
+      { sercom0_d_pin_list
+      , sercom1_d_pin_list
+      , sercom2_d_pin_list
+      , sercom3_d_pin_list
+      , sercom4_d_pin_list
+      , sercom5_d_pin_list
+    #if defined(SERCOM6)
+      , sercom6_d_pin_list
+    #endif
+    #if defined(SERCOM7)
+      , sercom7_d_pin_list
+    #endif
+      }
+    };
 
     static constexpr sercom_data_t sercom_data[] = {
       { 0x40003000UL, SERCOM0_GCLK_ID_CORE, SERCOM0_GCLK_ID_SLOW, SERCOM0_0_IRQn, SERCOM0_1_IRQn, SERCOM0_2_IRQn, SERCOM0_3_IRQn, SERCOM0_DMAC_ID_TX, SERCOM0_DMAC_ID_RX },
@@ -254,9 +324,9 @@ namespace lgfx
     }
   }
 
-  static int getPadNumber(int sercom_index, int pin)
+  static int getPadNumber(int sercom_index, int pin, bool alt)
   {
-    auto spl = samd51::sercom_pin_list[sercom_index];
+    auto spl = samd51::sercom_mux_pin_list[alt][sercom_index];
     int pad = 0;
     int tmp = spl[0];
     std::size_t idx = 0;
@@ -268,7 +338,7 @@ namespace lgfx
     return -1;
   }
 
-  static void pinAssignSercom(int pin_and_port, int type = 3)
+  void pinAssignPeriph(int pin_and_port, int type)
   {
     if (pin_and_port < 0) return;
     std::uint_fast8_t port = (pin_and_port >> samd51::PORT_SHIFT);
@@ -343,25 +413,38 @@ namespace lgfx
       while (spi->CTRLA.bit.SWRST || spi->SYNCBUSY.bit.SWRST);
     }
 
-    bool init(int sercom_index, int pin_sclk, int pin_miso, int pin_mosi)
+    cpp::result<void, error_t> init(int sercom_index, int pin_sclk, int pin_miso, int pin_mosi)
     {
-      if ((std::size_t)sercom_index >= samd51::sercom_max) return false;
+      if ((std::size_t)sercom_index >= samd51::sercom_max) { return cpp::fail(error_t::invalid_arg); }
 
       int dopo = -1;
+      int dipo = -1;
+
+// Serial.printf("sercom:%d sclk:%d  mosi:%d  miso:%d \r\n", sercom_index, pin_sclk, pin_mosi, pin_miso);
+      for (int alt = 0; alt < 2; ++alt)
       {
-        int pad_mosi = getPadNumber(sercom_index, pin_mosi);
-        int pad_sclk = getPadNumber(sercom_index, pin_sclk);
+        int pad_sclk = getPadNumber(sercom_index, pin_sclk, alt);
+        int pad_mosi = getPadNumber(sercom_index, pin_mosi, alt);
+        dipo         = getPadNumber(sercom_index, pin_miso, alt);
         if (pad_sclk == 1)
         {
           if (     pad_mosi == 0) dopo = 0;
           else if (pad_mosi == 3) dopo = 2;
         }
-//  Serial.printf("sercom:%d sclk:%d  mosi:%d  miso:%d \r\n", sercom_index, pin_sclk, pin_mosi, pin_miso);
-//  Serial.printf("pad sclk:%d / pad mosi:%d / pad miso:%d \r\n", pad_sclk, pad_mosi, dipo);
+        if (dopo >= 0)
+        {
+          pinAssignPeriph(pin_sclk, alt ? PIO_SERCOM_ALT : PIO_SERCOM);
+          pinAssignPeriph(pin_mosi, alt ? PIO_SERCOM_ALT : PIO_SERCOM);
+          if (dipo >= 0)
+          {
+            pinAssignPeriph(pin_miso, alt ? PIO_SERCOM_ALT : PIO_SERCOM);
+          }
+          break;
+        }
+// Serial.printf("pad sclk:%d / pad mosi:%d alt:%d\r\n", pad_sclk, pad_mosi, alt);
+// Serial.printf("pad dipo:%d \r\n", dipo);
       }
-      if (dopo < 0) return false;
-
-      int dipo = getPadNumber(sercom_index, pin_miso);
+      if (dopo < 0) { return cpp::fail(error_t::invalid_arg); }
       if (dipo < 0) dipo = 0;
 
       auto sercom_data = samd51::getSercomData(sercom_index);
@@ -370,10 +453,6 @@ namespace lgfx
       auto *spi = &sercom->SPI;
       while (spi->SYNCBUSY.bit.ENABLE); //Waiting then enable bit from SYNCBUSY is equal to 0;
       spi->CTRLA.bit.ENABLE = 0;        //Setting the enable bit to 0
-
-      pinAssignSercom(pin_sclk);
-      pinAssignSercom(pin_mosi);
-      pinAssignSercom(pin_miso);
 
       resetSPI(spi);
 
@@ -402,7 +481,7 @@ auto mastermode = SERCOM_SPI_CTRLA_MODE_SPI_MASTER;
 
       while( spi->SYNCBUSY.bit.CTRLB == 1 );
 
-      return true;
+      return {};
     }
 
     //void release(int spi_host) {}
@@ -432,23 +511,26 @@ auto mastermode = SERCOM_SPI_CTRLA_MODE_SPI_MASTER;
     {
       if ((std::size_t)sercom_index >= samd51::sercom_max) { return cpp::fail(error_t::invalid_arg); }
 
-      int pad_sda = getPadNumber(sercom_index, pin_sda);
-      int pad_scl = getPadNumber(sercom_index, pin_scl);
-
+      for (int alt = 0; alt < 2; ++alt)
+      {
+        int pad_sda = getPadNumber(sercom_index, pin_sda, alt);
+        int pad_scl = getPadNumber(sercom_index, pin_scl, alt);
 // Serial.printf("sercom:%d scl:%d  sda:%d \r\n", sercom_index, pin_scl, pin_sda);
 // Serial.printf("pad scl:%d / pad sda:%d \r\n", pad_scl, pad_sda);
-      if (pad_sda != 0 || pad_scl != 1) { return cpp::fail(error_t::invalid_arg); }
+        if (pad_sda != 0 || pad_scl != 1) continue;
 
-      auto sercom = reinterpret_cast<Sercom*>(samd51::getSercomData(sercom_index)->sercomPtr);
+        auto sercom = reinterpret_cast<Sercom*>(samd51::getSercomData(sercom_index)->sercomPtr);
 
-      auto *i2c = &sercom->I2CM;
-      while (i2c->SYNCBUSY.bit.ENABLE); //Waiting then enable bit from SYNCBUSY is equal to 0;
-      i2c->CTRLA.bit.ENABLE = 0;        //Setting the enable bit to 0
+        auto *i2c = &sercom->I2CM;
+        while (i2c->SYNCBUSY.bit.ENABLE); //Waiting then enable bit from SYNCBUSY is equal to 0;
+        i2c->CTRLA.bit.ENABLE = 0;        //Setting the enable bit to 0
 
-      pinAssignSercom(pin_scl);
-      pinAssignSercom(pin_sda);
+        pinAssignPeriph(pin_scl, alt ? PIO_SERCOM_ALT : PIO_SERCOM);
+        pinAssignPeriph(pin_sda, alt ? PIO_SERCOM_ALT : PIO_SERCOM);
 
-      return {};
+        return {};
+      }
+      return cpp::fail(error_t::invalid_arg);
     }
 
     cpp::result<void, error_t> release(int sercom_index)

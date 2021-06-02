@@ -1968,7 +1968,7 @@ namespace lgfx
     int len = vsnprintf(temp, sizeof(loc_buf), format, copy);
     va_end(copy);
     if (len < 0) { return 0; }
-    if (len >= sizeof(loc_buf))
+    if ((std::size_t)len >= sizeof(loc_buf))
     {
       temp = (char*) malloc(len + 1);
       if (temp == nullptr)

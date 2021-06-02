@@ -18,6 +18,7 @@ Contributors:
 #pragma once
 
 #include "../v1_init.hpp"
+#include "common.hpp"
 
 #include <nvs.h>
 #include <memory>
@@ -114,9 +115,10 @@ namespace lgfx
 
   struct Light_M5StackCore2 : public lgfx::ILight
   {
-    void init(std::uint8_t brightness) override
+    bool init(std::uint8_t brightness) override
     {
       setBrightness(brightness);
+      return true;
     }
 
     void setBrightness(std::uint8_t brightness) override
@@ -166,12 +168,13 @@ namespace lgfx
 
   struct Light_M5StickC : public lgfx::ILight
   {
-    void init(std::uint8_t brightness) override
+    bool init(std::uint8_t brightness) override
     {
       using namespace m5stack;
       lgfx::i2c::init(axp_i2c_port, axp_i2c_sda, axp_i2c_scl);
       lgfx::i2c::registerWrite8(axp_i2c_port, axp_i2c_addr, 0x12, 0x4D, ~0, axp_i2c_freq);
       setBrightness(brightness);
+      return true;
     }
 
     void setBrightness(std::uint8_t brightness) override
@@ -214,7 +217,7 @@ namespace lgfx
 
     static void _pin_level(std::int_fast16_t pin, bool level)
     {
-      lgfx::pinMode(pin, lgfx::pin_mode_t::output); // M5Stack TF card CS
+      lgfx::pinMode(pin, lgfx::pin_mode_t::output);
       if (level) lgfx::gpio_hi(pin);
       else       lgfx::gpio_lo(pin);
     }
@@ -342,24 +345,24 @@ namespace lgfx
 
       }
 
-      _board = (board_t)nvs_board;
+      auto board = (board_t)nvs_board;
 
       int retry = 4;
       do
       {
         if (retry == 1) use_reset = true;
-        _board = autodetect(use_reset, _board);
-      //ESP_LOGI(LIBRARY_NAME,"return _board:%d", _board);
-      } while (board_t::board_unknown == _board && --retry >= 0);
-
+        board = autodetect(use_reset, board);
+        //ESP_LOGI(LIBRARY_NAME,"autodetect board:%d", board);
+      } while (board_t::board_unknown == board && --retry >= 0);
+      _board = board;
       /// autodetectの際にreset済みなのでここではuse_resetをfalseで呼び出す。
-      /// M5Paperはreset後の復帰に 800msec程度掛かるので reset省略は起動時間短縮に有効
+      /// M5Paperはreset後の復帰に800msec程度掛かるのでreset省略は起動時間短縮に有効
       bool res = LGFX_Device::init_impl(false, use_clear);
 
-      if (nvs_board != _board) {
+      if (nvs_board != board) {
         if (0 == nvs_open(LIBRARY_NAME, NVS_READWRITE, &nvs_handle)) {
-          ESP_LOGW(LIBRARY_NAME, "[Autodetect] save to NVS : board:%d", _board);
-          nvs_set_u32(nvs_handle, NVS_KEY, _board);
+          ESP_LOGW(LIBRARY_NAME, "[Autodetect] save to NVS : board:%d", board);
+          nvs_set_u32(nvs_handle, NVS_KEY, board);
           nvs_close(nvs_handle);
         }
       }
@@ -444,6 +447,7 @@ namespace lgfx
 
           {
             auto t = new lgfx::Touch_FT5x06();
+            _touch_last = t;
             auto cfg = t->config();
             cfg.pin_int  = 38;   // INT pin number
             cfg.pin_sda  = 23;   // I2C SDA pin number
@@ -457,8 +461,6 @@ namespace lgfx
             cfg.y_max = 319;
             t->config(cfg);
             p->touch(t);
-
-            _touch_last = t;
           }
 
           goto init_clear;
@@ -672,8 +674,10 @@ namespace lgfx
             p->config(cfg);
           }
           _panel_last = p;
+
           {
             auto t = new lgfx::Touch_FT5x06();
+            _touch_last = t;
             auto cfg = t->config();
             cfg.pin_int  = 38;   // INT pin number
             cfg.pin_sda  = 26;   // I2C SDA pin number
@@ -687,8 +691,6 @@ namespace lgfx
             cfg.y_max = 479;
             t->config(cfg);
             p->touch(t);
-
-            _touch_last = t;
           }
           goto init_clear;
         }
@@ -958,6 +960,7 @@ namespace lgfx
 
             {
               auto t = new lgfx::Touch_XPT2046();
+              _touch_last = t;
               auto cfg = t->config();
               cfg.bus_shared = true;
               cfg.freq = 2700000;
@@ -968,8 +971,6 @@ namespace lgfx
               cfg.pin_sclk = 18;
               t->config(cfg);
               p->touch(t);
-
-              _touch_last = t;
             }
 
             goto init_clear;
@@ -1101,7 +1102,7 @@ namespace lgfx
             _pin_level(15, false); // M5Paper CS;
             _bus_spi.writeData(__builtin_bswap16(0x6000), 16);
             _bus_spi.writeData(__builtin_bswap16(0x0302), 16);  // read DevInfo
-            id = millis();
+            id = lgfx::millis();
             _bus_spi.wait();
             lgfx::gpio_hi(15);
             do
@@ -1109,7 +1110,6 @@ namespace lgfx
               vTaskDelay(1);
               if (millis() - id > 192) { break; }
             } while (!lgfx::gpio_in(27));
-//ESP_LOGW(LIBRARY_NAME, "ms:%d", millis() - id);
             lgfx::gpio_lo(15);
             _bus_spi.writeData(__builtin_bswap16(0x1000), 16);
             _bus_spi.writeData(__builtin_bswap16(0x0000), 16);
@@ -1143,6 +1143,7 @@ namespace lgfx
               }
               {
                 auto t = new lgfx::Touch_GT911();
+                _touch_last = t;
                 auto cfg = t->config();
                 cfg.pin_int  = 36;   // INT pin number
                 cfg.pin_sda  = 21;   // I2C SDA pin number
@@ -1224,6 +1225,7 @@ namespace lgfx
 
             {
               auto t = new lgfx::Touch_FT5x06();
+              _touch_last = t;
               auto cfg = t->config();
               cfg.pin_int  = 39;   // INT pin number
               cfg.pin_sda  = 21;   // I2C SDA pin number
@@ -1237,10 +1239,8 @@ namespace lgfx
               cfg.y_max = 279;
               t->config(cfg);
               p->touch(t);
-
               float affine[6] = { 1, 0, 0, 0, 1, 0 };
               p->setCalibrateAffine(affine);
-              _touch_last = t;
             }
 
             goto init_clear;
@@ -1288,8 +1288,9 @@ namespace lgfx
             _panel_last = p;
             _set_pwm_backlight(23, 7);
 
-            auto t = new lgfx::Touch_FT5x06();
             {
+              auto t = new lgfx::Touch_FT5x06();
+              _touch_last = t;
               auto cfg = t->config();
               cfg.pin_int  = 39;   // INT pin number
               cfg.pin_sda  = 18;   // I2C SDA pin number
@@ -1303,8 +1304,6 @@ namespace lgfx
               cfg.y_max = 479;
               t->config(cfg);
               p->touch(t);
-
-              _touch_last = t;
             }
             goto init_clear;
           }

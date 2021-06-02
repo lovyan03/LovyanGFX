@@ -40,7 +40,7 @@ namespace lgfx
 
     void config(const config_t &cfg) { _cfg = cfg; }
 
-    void init(std::uint8_t brightness) override;
+    bool init(std::uint8_t brightness) override;
     void setBrightness(std::uint8_t brightness) override;
 
   private:

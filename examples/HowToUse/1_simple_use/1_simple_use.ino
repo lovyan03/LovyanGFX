@@ -22,8 +22,9 @@
 // #define LGFX_MAKERFABS_MAKEPYTHON  // Makerfabs MakePython
 // #define LGFX_WT32_SC01             // Seeed WT32-SC01
 // #define LGFX_WIO_TERMINAL          // Seeed Wio Terminal
+// #define LGFX_PYBADGE               // Adafruit PyBadge
 
-  #define LGFX_AUTODETECT // 自動認識 (D-duino-32 XS はパネルID読取りが出来ないため自動認識の対象から外れています)
+  #define LGFX_AUTODETECT // 自動認識 (D-duino-32 XS, PyBadge はパネルID読取りが出来ないため自動認識の対象から外れています)
 
 // 複数機種の定義を行うか、LGFX_AUTODETECTを定義することで、実行時にボードを自動認識します。
 

@@ -43,7 +43,7 @@ namespace lgfx
     virtual bus_type_t busType(void) const = 0;
 
     /// ペリフェラルの準備を行う。
-    virtual void init(void) = 0;
+    virtual bool init(void) = 0;
 
     /// ペリフェラルを解放する。
     virtual void release(void) = 0;
@@ -101,7 +101,7 @@ namespace lgfx
   struct Bus_NULL : public IBus
   {
     bus_type_t busType(void) const override { return bus_type_t::bus_unknown; }
-    void init(void) override {}
+    bool init(void) override { return false; }
     void release(void) override {}
     void beginTransaction(void) override {}
     void endTransaction(void) override {}
