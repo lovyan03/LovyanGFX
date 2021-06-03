@@ -33,6 +33,7 @@ Contributors:
 #if defined ( ARDUINO )
  #include <SPI.h>
  #include <Wire.h>
+ #include <soc/dport_reg.h>
 #else
  #include <driver/spi_master.h>
  #include <esp_log.h>
