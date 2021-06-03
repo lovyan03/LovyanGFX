@@ -32,12 +32,6 @@ namespace lgfx
   {
     _cfg.dummy_read_bits = 0;
     _epd_mode = epd_mode_t::epd_quality;
-    _auto_display = true;
-  }
-
-  Panel_GDEW0154M09::~Panel_GDEW0154M09(void)
-  {
-    if (_buf) heap_free(_buf);
   }
 
   color_depth_t Panel_GDEW0154M09::setColorDepth(color_depth_t depth)
@@ -49,16 +43,21 @@ namespace lgfx
     return color_depth_t::rgb565_2Byte;
   }
 
+  std::size_t Panel_GDEW0154M09::_get_buffer_length(void) const
+  {
+    return ((_cfg.panel_width + 7) & ~7) * _cfg.panel_height >> 3;
+  }
+
   bool Panel_GDEW0154M09::init(bool use_reset)
   {
     pinMode(_cfg.pin_busy, pin_mode_t::input);
 
-    Panel_Device::init(use_reset);
+    if (!Panel_HasBuffer::init(use_reset))
+    {
+      return false;
+    }
 
-    int len = ((_cfg.panel_width + 7) & ~7) * _cfg.panel_height >> 3;
-    if (_buf) heap_free(_buf);
-    _buf = static_cast<std::uint8_t*>(heap_alloc_dma(len));
-    memset(_buf, 255, len);
+    //memset(_buf, 255, len);
 
     _wait_busy();
 
@@ -79,23 +78,11 @@ namespace lgfx
     _range_old.bottom = _height - 1;
     _exec_transfer(0x13, _range_old);
     _close_transfer();
-    _range_new = _range_old;
+    _range_mod = _range_old;
 
     endWrite();
 
     return true;
-  }
-
-  void Panel_GDEW0154M09::beginTransaction(void)
-  {
-    _bus->beginTransaction();
-    cs_control(false);
-  }
-
-  void Panel_GDEW0154M09::endTransaction(void)
-  {
-    _bus->endTransaction();
-    cs_control(true);
   }
 
   void Panel_GDEW0154M09::waitDisplay(void)
@@ -112,30 +99,30 @@ namespace lgfx
   {
     if (0 < w && 0 < h)
     {
-      _range_new.left   = std::min<std::int16_t>(_range_new.left  , x        );
-      _range_new.right  = std::max<std::int16_t>(_range_new.right , x + w - 1);
-      _range_new.top    = std::min<std::int16_t>(_range_new.top   , y        );
-      _range_new.bottom = std::max<std::int16_t>(_range_new.bottom, y + h - 1);
+      _range_mod.left   = std::min<std::int16_t>(_range_mod.left  , x        );
+      _range_mod.right  = std::max<std::int16_t>(_range_mod.right , x + w - 1);
+      _range_mod.top    = std::min<std::int16_t>(_range_mod.top   , y        );
+      _range_mod.bottom = std::max<std::int16_t>(_range_mod.bottom, y + h - 1);
     }
-    if (_range_new.empty()) { return; }
+    if (_range_mod.empty()) { return; }
     _close_transfer();
-    _range_old = _range_new;
+    _range_old = _range_mod;
     while (millis() - _send_msec < _refresh_msec) delay(1);
     if (getEpdMode() == epd_mode_t::epd_quality)
     {
-      _exec_transfer(0x13, _range_new, true);
+      _exec_transfer(0x13, _range_mod, true);
       _wait_busy();
       _bus->writeCommand(0x12, 8);
       auto send_msec = millis();
       delay(300);
       while (millis() - send_msec < _refresh_msec) delay(1);
-      _exec_transfer(0x10, _range_new, true);
+      _exec_transfer(0x10, _range_mod, true);
     }
-    _exec_transfer(0x13, _range_new);
-    _range_new.top    = INT16_MAX;
-    _range_new.left   = INT16_MAX;
-    _range_new.right  = 0;
-    _range_new.bottom = 0;
+    _exec_transfer(0x13, _range_mod);
+    _range_mod.top    = INT16_MAX;
+    _range_mod.left   = INT16_MAX;
+    _range_mod.right  = 0;
+    _range_mod.bottom = 0;
 
     _wait_busy();
     _bus->writeCommand(0x12, 8);
@@ -189,35 +176,6 @@ namespace lgfx
       _bus->writeCommand(0x04, 8); // Power ON(PON)
     }
     endWrite();
-  }
-
-  void Panel_GDEW0154M09::setRotation(std::uint_fast8_t r)
-  {
-    r &= 7;
-    _rotation = r;
-    _internal_rotation = ((r + _cfg.offset_rotation) & 3) | ((r & 4) ^ (_cfg.offset_rotation & 4));
-
-    _width  = _cfg.panel_width;
-    _height = _cfg.panel_height;
-    if (_internal_rotation & 1) std::swap(_width, _height);
-  }
-
-  void Panel_GDEW0154M09::setWindow(std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye)
-  {
-    _xpos = xs;
-    _ypos = ys;
-    _xs = xs;
-    _ys = ys;
-    _xe = xe;
-    _ye = ye;
-  }
-
-  void Panel_GDEW0154M09::drawPixelPreclipped(std::uint_fast16_t x, std::uint_fast16_t y, std::uint32_t rawcolor)
-  {
-    bool need_transaction = !getStartCount();
-    if (need_transaction) startWrite();
-    writeFillRectPreclipped(x, y, 1, 1, rawcolor);
-    if (need_transaction) endWrite();
   }
 
   void Panel_GDEW0154M09::writeFillRectPreclipped(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, std::uint32_t rawcolor)
@@ -277,37 +235,6 @@ namespace lgfx
       param->src_x32 = sx;
       param->src_y++;
     } while (++y < h);
-  }
-
-  void Panel_GDEW0154M09::writeBlock(std::uint32_t rawcolor, std::uint32_t length)
-  {
-    std::uint32_t xs = _xs;
-    std::uint32_t xe = _xe;
-    std::uint32_t ys = _ys;
-    std::uint32_t ye = _ye;
-    std::uint32_t xpos = _xpos;
-    std::uint32_t ypos = _ypos;
-    do
-    {
-      auto len = std::min<std::uint32_t>(length, xe + 1 - xpos);
-      writeFillRectPreclipped(xpos, ypos, len, 1, rawcolor);
-      xpos += len;
-      if (xpos > xe)
-      {
-        xpos = xs;
-        if (++ypos > ye)
-        {
-          ypos = ys;
-        }
-      }
-      length -= len;
-    } while (length);
-    _xs = xs;
-    _xe = xe;
-    _ys = ys;
-    _ye = ye;
-    _xpos = xpos;
-    _ypos = ypos;
   }
 
   void Panel_GDEW0154M09::writePixels(pixelcopy_t* param, std::uint32_t length)
@@ -382,32 +309,18 @@ namespace lgfx
     return true;
   }
 
-  void Panel_GDEW0154M09::_draw_pixel(std::int32_t x, std::int32_t y, std::uint32_t value)
+  void Panel_GDEW0154M09::_draw_pixel(std::uint_fast16_t x, std::uint_fast16_t y, std::uint32_t value)
   {
-    std::uint_fast8_t r = _internal_rotation;
-    if (r)
-    {
-      if (r & 1) { std::swap(x, y); }
-      std::uint_fast8_t rb = 1 << r;
-      if (rb & 0b11000110) { x = _cfg.panel_width - x - 1; }  // case 1:2:6:7:
-      if (rb & 0b10011100) { y = _cfg.panel_height - y - 1; } // case 2:3:4:7:
-    }
+    _rotate_pos(x, y);
     std::uint32_t idx = ((_cfg.panel_width + 7) & ~7) * y + x;
     bool flg = 256 <= value + Bayer[(x & 3) | (y & 3) << 2];
     if (flg) _buf[idx >> 3] |=   0x80 >> (idx & 7);
     else     _buf[idx >> 3] &= ~(0x80 >> (idx & 7));
   }
 
-  bool Panel_GDEW0154M09::_read_pixel(std::int32_t x, std::int32_t y)
+  bool Panel_GDEW0154M09::_read_pixel(std::uint_fast16_t x, std::uint_fast16_t y)
   {
-    std::uint_fast8_t r = _internal_rotation;
-    if (r)
-    {
-      if (r & 1) { std::swap(x, y); }
-      std::uint_fast8_t rb = 1 << r;
-      if (rb & 0b11000110) { x = _cfg.panel_width - x - 1; }  // case 1:2:6:7:
-      if (rb & 0b10011100) { y = _cfg.panel_height - y - 1; } // case 2:3:4:7:
-    }
+    _rotate_pos(x, y);
     std::uint32_t idx = ((_cfg.panel_width + 7) & ~7) * y + x;
     return _buf[idx >> 3] & (0x80 >> (idx & 7));
   }
@@ -475,26 +388,10 @@ namespace lgfx
     _bus->wait();
   }
 
-  void Panel_GDEW0154M09::_update_transferred_rect(std::uint32_t &xs, std::uint32_t &ys, std::uint32_t &xe, std::uint32_t &ye)
+  void Panel_GDEW0154M09::_update_transferred_rect(std::uint_fast16_t &xs, std::uint_fast16_t &ys, std::uint_fast16_t &xe, std::uint_fast16_t &ye)
   {
-    auto r = _internal_rotation;
-    if (r & 1) { std::swap(xs, ys); std::swap(xe, ye); }
-    switch (r) {
-    default: break;
-    case 1:  case 2:  case 6:  case 7:
-      std::swap(xs, xe);
-      xs = _cfg.panel_width - 1 - xs;
-      xe = _cfg.panel_width - 1 - xe;
-      break;
-    }
-    switch (r) {
-    default: break;
-    case 2: case 3: case 4: case 7:
-      std::swap(ys, ye);
-      ys = _cfg.panel_height - 1 - ys;
-      ye = _cfg.panel_height - 1 - ye;
-      break;
-    }
+    _rotate_pos(xs, ys, xe, ye);
+
     std::int32_t x1 = xs & ~7;
     std::int32_t x2 = (xe & ~7) + 7;
 
@@ -502,10 +399,10 @@ namespace lgfx
     {
       _close_transfer();
     }
-    _range_new.top    = std::min<std::int32_t>(ys, _range_new.top);
-    _range_new.left   = std::min<std::int32_t>(x1, _range_new.left);
-    _range_new.right  = std::max<std::int32_t>(x2, _range_new.right);
-    _range_new.bottom = std::max<std::int32_t>(ye, _range_new.bottom);
+    _range_mod.top    = std::min<std::int32_t>(ys, _range_mod.top);
+    _range_mod.left   = std::min<std::int32_t>(x1, _range_mod.left);
+    _range_mod.right  = std::max<std::int32_t>(x2, _range_mod.right);
+    _range_mod.bottom = std::max<std::int32_t>(ye, _range_mod.bottom);
   }
 
 //----------------------------------------------------------------------------

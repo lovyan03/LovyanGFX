@@ -17,7 +17,7 @@ Contributors:
 /----------------------------------------------------------------------------*/
 #pragma once
 
-#include "Panel_Device.hpp"
+#include "Panel_HasBuffer.hpp"
 #include "../misc/range.hpp"
 
 namespace lgfx
@@ -26,18 +26,14 @@ namespace lgfx
  {
 //----------------------------------------------------------------------------
 
-  struct Panel_GDEW0154M09 : public Panel_Device
+  struct Panel_GDEW0154M09 : public Panel_HasBuffer
   {
     Panel_GDEW0154M09(void);
-    virtual ~Panel_GDEW0154M09(void);
 
-    void beginTransaction(void) override;
-    void endTransaction(void) override;
     bool init(bool use_reset) override;
 
     color_depth_t setColorDepth(color_depth_t depth) override;
 
-    void setRotation(std::uint_fast8_t r) override;
     void setInvert(bool invert) override;
     void setSleep(bool flg) override;
     void setPowerSave(bool flg) override;
@@ -46,9 +42,6 @@ namespace lgfx
     bool displayBusy(void) override;
     void display(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h) override;
 
-    void writeBlock(std::uint32_t rawcolor, std::uint32_t len) override;
-    void setWindow(std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye) override;
-    void drawPixelPreclipped(std::uint_fast16_t x, std::uint_fast16_t y, std::uint32_t rawcolor) override;
     void writeFillRectPreclipped(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, std::uint32_t rawcolor) override;
     void writeImage(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, pixelcopy_t* param, bool use_dma) override;
     void writePixels(pixelcopy_t* param, std::uint32_t len) override;
@@ -61,20 +54,18 @@ namespace lgfx
   private:
 
     static constexpr unsigned long _refresh_msec = 320;
-    std::uint8_t* _buf = nullptr;
 
-    range_rect_t _range_new;
     range_rect_t _range_old;
-    std::int32_t _xpos = 0;
-    std::int32_t _ypos = 0;
     unsigned long _send_msec = 0;
 
+    std::size_t _get_buffer_length(void) const override;
+
     bool _wait_busy(std::uint32_t timeout = 1000);
-    void _draw_pixel(std::int32_t x, std::int32_t y, std::uint32_t value);
-    bool _read_pixel(std::int32_t x, std::int32_t y);
+    void _draw_pixel(std::uint_fast16_t x, std::uint_fast16_t y, std::uint32_t value);
+    bool _read_pixel(std::uint_fast16_t x, std::uint_fast16_t y);
+    void _update_transferred_rect(std::uint_fast16_t &xs, std::uint_fast16_t &ys, std::uint_fast16_t &xe, std::uint_fast16_t &ye);
     void _exec_transfer(std::uint32_t cmd, const range_rect_t& range, bool invert = false);
     void _close_transfer(void);
-    void _update_transferred_rect(std::uint32_t &xs, std::uint32_t &ys, std::uint32_t &xe, std::uint32_t &ye);
 
     const std::uint8_t* getInitCommands(std::uint8_t listno) const override
     {

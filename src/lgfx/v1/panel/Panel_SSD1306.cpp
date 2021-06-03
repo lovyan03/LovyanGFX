@@ -28,11 +28,6 @@ namespace lgfx
 
   static constexpr std::uint8_t Bayer[16] = { 8, 136, 40, 168, 200, 72, 232, 104, 56, 184, 24, 152, 248, 120, 216, 88 };
 
-  Panel_1bitOLED::~Panel_1bitOLED(void)
-  {
-    if (_buf) heap_free(_buf);
-  }
-
   color_depth_t Panel_1bitOLED::setColorDepth(color_depth_t depth)
   {
     _write_bits = 16;
@@ -40,29 +35,6 @@ namespace lgfx
     _write_depth = color_depth_t::rgb565_2Byte;
     _read_depth = color_depth_t::rgb565_2Byte;
     return color_depth_t::rgb565_2Byte;
-  }
-
-  void Panel_1bitOLED::setRotation(std::uint_fast8_t r)
-  {
-    r &= 7;
-    _rotation = r;
-    _internal_rotation = ((r + _cfg.offset_rotation) & 3) | ((r & 4) ^ (_cfg.offset_rotation & 4));
-
-    _width  = _cfg.panel_width;
-    _height = _cfg.panel_height;
-    if (_internal_rotation & 1) std::swap(_width, _height);
-  }
-
-  void Panel_1bitOLED::beginTransaction(void)
-  {
-    _bus->beginTransaction();
-    cs_control(false);
-  }
-
-  void Panel_1bitOLED::endTransaction(void)
-  {
-    _bus->endTransaction();
-    cs_control(true);
   }
 
   void Panel_1bitOLED::waitDisplay(void)
@@ -75,22 +47,18 @@ namespace lgfx
     return _bus->busy();
   }
 
+  std::size_t Panel_1bitOLED::_get_buffer_length(void) const
+  {
+    return ((_cfg.panel_height + 7) >> 3) * _cfg.panel_width;
+  }
+
   bool Panel_1bitOLED::init(bool use_reset)
   {
-    _range_new.top = 0;
-    _range_new.left = 0;
-    _range_new.right = _width - 1;
-    _range_new.bottom = _height - 1;
-
-    int len = ((_cfg.panel_height + 7) >> 3) * _cfg.panel_width;
-    if (_buf) heap_free(_buf);
-    _buf = static_cast<std::uint8_t*>(heap_alloc_dma(len));
-    memset(_buf, 0, len);
-
-    if (!Panel_Device::init(use_reset))
+    if (!Panel_HasBuffer::init(use_reset))
     {
       return false;
     }
+    //memset(_buf, 0, len);
 
     _bus->beginRead();
     std::uint8_t buf;
@@ -120,8 +88,8 @@ namespace lgfx
 
   void Panel_1bitOLED::setInvert(bool invert)
   {
-    startWrite();
     _invert = invert;
+    startWrite();
     _bus->writeCommand((invert ^ _cfg.invert) ? CMD_INVERTDISPLAY : CMD_NORMALDISPLAY, 8);
     endWrite();
   }
@@ -131,24 +99,6 @@ namespace lgfx
     startWrite();
     _bus->writeCommand(flg ? CMD_DISP_OFF : CMD_DISP_ON, 8);
     endWrite();
-  }
-
-  void Panel_1bitOLED::setWindow(std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye)
-  {
-    _xpos = xs;
-    _ypos = ys;
-    _xs = xs;
-    _ys = ys;
-    _xe = xe;
-    _ye = ye;
-  }
-
-  void Panel_1bitOLED::drawPixelPreclipped(std::uint_fast16_t x, std::uint_fast16_t y, std::uint32_t rawcolor)
-  {
-    bool need_transaction = !getStartCount();
-    if (need_transaction) startWrite();
-    writeFillRectPreclipped(x, y, 1, 1, rawcolor);
-    if (need_transaction) endWrite();
   }
 
   void Panel_1bitOLED::writeFillRectPreclipped(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, std::uint32_t rawcolor)
@@ -211,52 +161,21 @@ namespace lgfx
     } while (++y < h);
   }
 
-  void Panel_1bitOLED::writeBlock(std::uint32_t rawcolor, std::uint32_t length)
-  {
-    std::uint32_t xs = _xs;
-    std::uint32_t xe = _xe;
-    std::uint32_t ys = _ys;
-    std::uint32_t ye = _ye;
-    std::uint32_t xpos = _xpos;
-    std::uint32_t ypos = _ypos;
-    do
-    {
-      auto len = std::min<std::uint32_t>(length, xe + 1 - xpos);
-      writeFillRectPreclipped(xpos, ypos, len, 1, rawcolor);
-      xpos += len;
-      if (xpos > xe)
-      {
-        xpos = xs;
-        if (++ypos > ye)
-        {
-          ypos = ys;
-        }
-      }
-      length -= len;
-    } while (length);
-    _xs = xs;
-    _xe = xe;
-    _ys = ys;
-    _ye = ye;
-    _xpos = xpos;
-    _ypos = ypos;
-  }
-
   void Panel_1bitOLED::writePixels(pixelcopy_t* param, std::uint32_t length)
   {
     {
-      std::uint32_t xs = _xs;
-      std::uint32_t xe = _xe;
-      std::uint32_t ys = _ys;
-      std::uint32_t ye = _ye;
+      std::uint_fast16_t xs = _xs;
+      std::uint_fast16_t xe = _xe;
+      std::uint_fast16_t ys = _ys;
+      std::uint_fast16_t ye = _ye;
       _update_transferred_rect(xs, ys, xe, ye);
     }
-    std::uint32_t xs   = _xs  ;
-    std::uint32_t ys   = _ys  ;
-    std::uint32_t xe   = _xe  ;
-    std::uint32_t ye   = _ye  ;
-    std::uint32_t xpos = _xpos;
-    std::uint32_t ypos = _ypos;
+    std::uint_fast16_t xs   = _xs  ;
+    std::uint_fast16_t ys   = _ys  ;
+    std::uint_fast16_t xe   = _xe  ;
+    std::uint_fast16_t ye   = _ye  ;
+    std::uint_fast16_t xpos = _xpos;
+    std::uint_fast16_t ypos = _ypos;
 
     static constexpr uint32_t buflen = 16;
     swap565_t colors[buflen];
@@ -300,17 +219,9 @@ namespace lgfx
     } while (++y < h);
   }
 
-  void Panel_1bitOLED::_draw_pixel(std::int32_t x, std::int32_t y, std::uint32_t value)
+  void Panel_1bitOLED::_draw_pixel(std::uint_fast16_t x, std::uint_fast16_t y, std::uint32_t value)
   {
-    if (_internal_rotation & 1) { std::swap(x, y); }
-    switch (_internal_rotation) {
-    case 1: case 2: case 6: case 7:  x = _cfg.panel_width - x - 1; break;
-    default: break;
-    }
-    switch (_internal_rotation) {
-    case 2: case 3: case 4: case 7:  y = _cfg.panel_height - y - 1; break;
-    default: break;
-    }
+    _rotate_pos(x, y);
     std::uint32_t idx = x + (y >> 3) * _cfg.panel_width;
     std::uint32_t mask = 1 << (y&7);
     bool flg = 256 <= value + Bayer[(x & 3) | (y & 3) << 2];
@@ -318,41 +229,20 @@ namespace lgfx
     else     _buf[idx] &= ~mask;
   }
 
-  bool Panel_1bitOLED::_read_pixel(std::int32_t x, std::int32_t y)
+  bool Panel_1bitOLED::_read_pixel(std::uint_fast16_t x, std::uint_fast16_t y)
   {
-    if (_internal_rotation & 1) { std::swap(x, y); }
-    switch (_internal_rotation) {
-    case 1: case 2: case 6: case 7:  x = _cfg.panel_width - x - 1; break;
-    default: break;
-    }
-    switch (_internal_rotation) {
-    case 2: case 3: case 4: case 7:  y = _cfg.panel_height - y - 1; break;
-    default: break;
-    }
+    _rotate_pos(x, y);
     std::uint32_t idx = x + (y >> 3) * _cfg.panel_width;
     return _buf[idx] & (1 << (y&7));
   }
 
-  void Panel_1bitOLED::_update_transferred_rect(std::uint32_t &xs, std::uint32_t &ys, std::uint32_t &xe, std::uint32_t &ye)
+  void Panel_1bitOLED::_update_transferred_rect(std::uint_fast16_t &xs, std::uint_fast16_t &ys, std::uint_fast16_t &xe, std::uint_fast16_t &ye)
   {
-    auto r = _internal_rotation;
-    if (r & 1) { std::swap(xs, ys); std::swap(xe, ye); }
-    if ((1<<r) & 0b11000110) // case 1:2:6:7:
-    {
-      std::swap(xs, xe);
-      xs = _cfg.panel_width - 1 - xs;
-      xe = _cfg.panel_width - 1 - xe;
-    }
-    if ((1<<r) & 0b10011100) // case 2:3:4:7:
-    {
-      std::swap(ys, ye);
-      ys = _cfg.panel_height - 1 - ys;
-      ye = _cfg.panel_height - 1 - ye;
-    }
-    _range_new.left   = std::min<std::int32_t>(xs, _range_new.left);
-    _range_new.right  = std::max<std::int32_t>(xe, _range_new.right);
-    _range_new.top    = std::min<std::int32_t>(ys, _range_new.top);
-    _range_new.bottom = std::max<std::int32_t>(ye, _range_new.bottom);
+    _rotate_pos(xs, ys, xe, ye);
+    _range_mod.left   = std::min<std::int32_t>(xs, _range_mod.left);
+    _range_mod.right  = std::max<std::int32_t>(xe, _range_mod.right);
+    _range_mod.top    = std::min<std::int32_t>(ys, _range_mod.top);
+    _range_mod.bottom = std::max<std::int32_t>(ye, _range_mod.bottom);
   }
 
 //----------------------------------------------------------------------------
@@ -370,19 +260,19 @@ namespace lgfx
   {
     if (0 < w && 0 < h)
     {
-      _range_new.left   = std::min<std::int16_t>(_range_new.left  , x        );
-      _range_new.right  = std::max<std::int16_t>(_range_new.right , x + w - 1);
-      _range_new.top    = std::min<std::int16_t>(_range_new.top   , y        );
-      _range_new.bottom = std::max<std::int16_t>(_range_new.bottom, y + h - 1);
+      _range_mod.left   = std::min<std::int16_t>(_range_mod.left  , x        );
+      _range_mod.right  = std::max<std::int16_t>(_range_mod.right , x + w - 1);
+      _range_mod.top    = std::min<std::int16_t>(_range_mod.top   , y        );
+      _range_mod.bottom = std::max<std::int16_t>(_range_mod.bottom, y + h - 1);
     }
-    if (_range_new.empty()) { return; }
+    if (_range_mod.empty()) { return; }
 
-    std::uint_fast8_t xs = _range_new.left;
-    std::uint_fast8_t xe = _range_new.right;
+    std::uint_fast8_t xs = _range_mod.left;
+    std::uint_fast8_t xe = _range_mod.right;
     _bus->writeCommand(CMD_COLUMNADDR| (xs + _cfg.offset_x) << 8 | (xe + _cfg.offset_x) << 16, 24);
 
-    std::uint_fast8_t ys = _range_new.top    >> 3;
-    std::uint_fast8_t ye = _range_new.bottom >> 3;
+    std::uint_fast8_t ys = _range_mod.top    >> 3;
+    std::uint_fast8_t ye = _range_mod.bottom >> 3;
     _bus->writeCommand(CMD_PAGEADDR | (ys + (_cfg.offset_y >> 3)) << 8 | (ye + (_cfg.offset_y >> 3)) << 16, 24);
     _bus->endTransaction();
     _bus->beginTransaction();
@@ -392,10 +282,10 @@ namespace lgfx
       _bus->writeBytes(buf, xe - xs + 1, true, true);
     } while (++ys <= ye);
 
-    _range_new.top    = INT16_MAX;
-    _range_new.left   = INT16_MAX;
-    _range_new.right  = 0;
-    _range_new.bottom = 0;
+    _range_mod.top    = INT16_MAX;
+    _range_mod.left   = INT16_MAX;
+    _range_mod.right  = 0;
+    _range_mod.bottom = 0;
   }
 
 //----------------------------------------------------------------------------
@@ -433,17 +323,17 @@ namespace lgfx
   {
     if (0 < w && 0 < h)
     {
-      _range_new.left   = std::min<std::int16_t>(_range_new.left  , x        );
-      _range_new.right  = std::max<std::int16_t>(_range_new.right , x + w - 1);
-      _range_new.top    = std::min<std::int16_t>(_range_new.top   , y        );
-      _range_new.bottom = std::max<std::int16_t>(_range_new.bottom, y + h - 1);
+      _range_mod.left   = std::min<std::int16_t>(_range_mod.left  , x        );
+      _range_mod.right  = std::max<std::int16_t>(_range_mod.right , x + w - 1);
+      _range_mod.top    = std::min<std::int16_t>(_range_mod.top   , y        );
+      _range_mod.bottom = std::max<std::int16_t>(_range_mod.bottom, y + h - 1);
     }
-    if (_range_new.empty()) { return; }
+    if (_range_mod.empty()) { return; }
 
-    std::uint_fast8_t xs = _range_new.left ;
-    std::uint_fast8_t xe = _range_new.right;
-    std::uint_fast8_t ys = _range_new.top    >> 3;
-    std::uint_fast8_t ye = _range_new.bottom >> 3;
+    std::uint_fast8_t xs = _range_mod.left ;
+    std::uint_fast8_t xe = _range_mod.right;
+    std::uint_fast8_t ys = _range_mod.top    >> 3;
+    std::uint_fast8_t ye = _range_mod.bottom >> 3;
 
     std::uint_fast8_t offset_y = _cfg.offset_y >> 3;
 
@@ -461,10 +351,10 @@ namespace lgfx
       _bus->writeBytes(buf, xe - xs + 1, true, true);
     } while (++ys <= ye);
 
-    _range_new.top    = INT16_MAX;
-    _range_new.left   = INT16_MAX;
-    _range_new.right  = 0;
-    _range_new.bottom = 0;
+    _range_mod.top    = INT16_MAX;
+    _range_mod.left   = INT16_MAX;
+    _range_mod.right  = 0;
+    _range_mod.bottom = 0;
   }
 
 //----------------------------------------------------------------------------

@@ -41,12 +41,13 @@ class LGFX : public lgfx::LGFX_Device
 //lgfx::Panel_ILI9163     _panel_instance;
   lgfx::Panel_ILI9341     _panel_instance;
 //lgfx::Panel_ILI9342     _panel_instance;
+//lgfx::Panel_ILI9481     _panel_instance;
 //lgfx::Panel_ILI9486     _panel_instance;
-//lgfx::Panel_ILI9486L    _panel_instance;
 //lgfx::Panel_ILI9488     _panel_instance;
 //lgfx::Panel_IT8951      _panel_instance;
 //lgfx::Panel_SH110x      _panel_instance; // SH1106, SH1107
 //lgfx::Panel_SSD1306     _panel_instance;
+//lgfx::Panel_SSD1327     _panel_instance;
 //lgfx::Panel_SSD1331     _panel_instance;
 //lgfx::Panel_SSD1351     _panel_instance; // SSD1351, SSD1357
 //lgfx::Panel_ST7735      _panel_instance;
@@ -125,11 +126,12 @@ public:
     { // 表示パネル制御の設定を行います。
       auto cfg = _panel_instance.config();    // 表示パネル設定用の構造体を取得します。
 
-      // ※ 設定値はパネル毎に一般的な初期値が設定されていますので、不明な項目はコメントアウトして試してみてください。
-
       cfg.pin_cs           =    14;  // CSが接続されているピン番号   (-1 = disable)
       cfg.pin_rst          =    33;  // RSTが接続されているピン番号  (-1 = disable)
       cfg.pin_busy         =    -1;  // BUSYが接続されているピン番号 (-1 = disable)
+
+      // ※ 以下の設定値はパネル毎に一般的な初期値が設定されていますので、不明な項目はコメントアウトして試してみてください。
+
       cfg.memory_width     =   240;  // ドライバICがサポートしている最大の幅
       cfg.memory_height    =   320;  // ドライバICがサポートしている最大の高さ
       cfg.panel_width      =   240;  // 実際に表示可能な幅

@@ -32,6 +32,7 @@ Contributors:
 #include "v1/panel/Panel_ILI9342.hpp"
 #include "v1/panel/Panel_ILI948x.hpp"
 #include "v1/panel/Panel_SSD1306.hpp"
+#include "v1/panel/Panel_SSD1327.hpp"
 #include "v1/panel/Panel_SSD1331.hpp"
 #include "v1/panel/Panel_SSD1351.hpp"
 #include "v1/panel/Panel_ST7735.hpp"

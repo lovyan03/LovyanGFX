@@ -312,13 +312,12 @@ namespace lgfx
         _bus_spi.config(bus_cfg);   // 設定を反映する
         _bus_spi.init();
         _pin_reset(samd51::PORT_A | 0, use_reset); // LCD RST
-        // id = _read_panel_id(&_bus_spi, samd51::PORT_B | 7);
-        // if ((id & 0xFF) == 0)
+        id = _read_panel_id(&_bus_spi, samd51::PORT_B | 7);
+        if ((id & 0xFF) == 0)
         {
           board = board_t::board_PyBadge;
           _bus_spi.release();
           bus_cfg.freq_write = 27000000;
-          bus_cfg.freq_read  = 16000000;
           _bus_spi.config(bus_cfg);
           auto p = new lgfx::Panel_ST7735S();
           _panel_last = p;

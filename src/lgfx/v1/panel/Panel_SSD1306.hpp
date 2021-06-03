@@ -17,7 +17,7 @@ Contributors:
 /----------------------------------------------------------------------------*/
 #pragma once
 
-#include "Panel_Device.hpp"
+#include "Panel_HasBuffer.hpp"
 #include "../misc/range.hpp"
 
 namespace lgfx
@@ -26,30 +26,18 @@ namespace lgfx
  {
 //----------------------------------------------------------------------------
 
-  struct Panel_1bitOLED : public Panel_Device
+  struct Panel_1bitOLED : public Panel_HasBuffer
   {
-    Panel_1bitOLED(void) : Panel_Device()
-    {
-      _auto_display = true;
-    }
-    virtual ~Panel_1bitOLED(void);
-
-    void beginTransaction(void) override;
-    void endTransaction(void) override;
     bool init(bool use_reset) override;
 
     void waitDisplay(void) override;
     bool displayBusy(void) override;
     color_depth_t setColorDepth(color_depth_t depth) override;
-    void setRotation(std::uint_fast8_t r) override;
 
     void setInvert(bool invert) override;
     void setSleep(bool flg) override;
     void setPowerSave(bool flg) override {}
 
-    void writeBlock(std::uint32_t rawcolor, std::uint32_t len) override;
-    void setWindow(std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye) override;
-    void drawPixelPreclipped(std::uint_fast16_t x, std::uint_fast16_t y, std::uint32_t rawcolor) override;
     void writeFillRectPreclipped(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, std::uint32_t rawcolor) override;
     void writeImage(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, pixelcopy_t* param, bool use_dma) override;
     void writePixels(pixelcopy_t* param, std::uint32_t len) override;
@@ -72,15 +60,10 @@ namespace lgfx
     static constexpr std::uint8_t CMD_SETPRECHARGE        = 0xD9;
     static constexpr std::uint8_t CMD_SETVCOMDETECT       = 0xDB;
 
-    std::uint8_t* _buf = nullptr;
-
-    range_rect_t _range_new;
-    std::int32_t _xpos = 0;
-    std::int32_t _ypos = 0;
-
-    void _draw_pixel(std::int32_t x, std::int32_t y, std::uint32_t value);
-    bool _read_pixel(std::int32_t x, std::int32_t y);
-    void _update_transferred_rect(std::uint32_t &xs, std::uint32_t &ys, std::uint32_t &xe, std::uint32_t &ye);
+    std::size_t _get_buffer_length(void) const override;
+    bool _read_pixel(std::uint_fast16_t x, std::uint_fast16_t y);
+    void _draw_pixel(std::uint_fast16_t x, std::uint_fast16_t y, std::uint32_t value);
+    void _update_transferred_rect(std::uint_fast16_t &xs, std::uint_fast16_t &ys, std::uint_fast16_t &xe, std::uint_fast16_t &ye);
 
   };
 
@@ -133,7 +116,7 @@ namespace lgfx
         CMD_CHARGEPUMP         , 0x14,
         CMD_DISP_ON            ,
         CMD_SETCONTRAST        , 0x00,
-        CMD_SETPRECHARGE          , 0x11,
+        CMD_SETPRECHARGE       , 0x11,
         0xFF,0xFF, // end
       };
       switch (listno) {

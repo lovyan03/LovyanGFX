@@ -44,11 +44,13 @@ This library has the following advantages.
     - ILI9163
     - ILI9341 (WioTerminal, ESP-WROVER-KIT, ODROID-GO, LoLin D32 Pro, WiFiBoy Pro)
     - ILI9342 (M5Stack, M5Stack Core2)
+    - ILI9481
     - ILI9486
     - ILI9488 (Makerfabs Touch with Camera)
     - IT8951 (M5Paper)
     - SH110x (SH1106, SH1107, M5UnitOLED)
     - SSD1306
+    - SSD1327
     - SSD1331
     - SSD1351 (SSD1357)
     - ST7735 (M5StickC, TTGO T-Wristband, TTGO TS, LoLin D32 Pro, WiFiBoy mini, PyBadge)
