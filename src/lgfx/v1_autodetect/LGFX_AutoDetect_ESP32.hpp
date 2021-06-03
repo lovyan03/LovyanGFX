@@ -515,49 +515,6 @@ namespace lgfx
       }
 #endif
 
-#if defined ( LGFX_AUTODETECT ) || defined ( LGFX_TTGO_TS )
-
-      if (board == 0 || board == board_t::board_TTGO_TS)
-      {
-        bus_cfg.pin_mosi = 23;
-        bus_cfg.pin_miso = -1;
-        bus_cfg.pin_sclk =  5;
-        bus_cfg.pin_dc   = 17;
-        bus_cfg.spi_3wire = true;
-        _bus_spi.config(bus_cfg);
-        _bus_spi.init();
-        _pin_reset(9, use_reset); // LCD RST
-        id = _read_panel_id(&_bus_spi, 16);
-        if ((id & 0xFF) == 0x7C)
-        {  //  check panel (ST7735)
-          board = board_t::board_TTGO_TS;
-          ESP_LOGW(LIBRARY_NAME, "[Autodetect] TTGO TS");
-          bus_cfg.freq_write = 20000000;
-          bus_cfg.freq_read  = 14000000;
-          _bus_spi.config(bus_cfg);
-          auto p = new Panel_ST7735S();
-          p->bus(&_bus_spi);
-          {
-            auto cfg = p->config();
-            cfg.pin_cs  = 16;
-            cfg.pin_rst =  9;
-            cfg.panel_width  = 128;
-            cfg.panel_height = 160;
-            cfg.offset_x     = 2;
-            cfg.offset_y     = 1;
-            cfg.offset_rotation = 2;
-            p->config(cfg);
-          }
-          _panel_last = p;
-          _set_pwm_backlight(27, 7, 12000);
-          goto init_clear;
-        }
-        lgfx::pinMode( 9, lgfx::pin_mode_t::input); // LCD RST
-        lgfx::pinMode(16, lgfx::pin_mode_t::input); // LCD CS
-        _bus_spi.release();
-      }
-#endif
-
 #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_WIFIBOY_MINI )
 
       if (board == 0 || board == board_t::board_WiFiBoy_Mini)
@@ -1177,7 +1134,6 @@ namespace lgfx
       }
 #endif
 
-
 #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_M5STACK_CORE2 ) || defined ( LGFX_M5STACKCORE2 )
 
       if (board == 0 || board == board_t::board_M5StackCore2)
@@ -1249,6 +1205,49 @@ namespace lgfx
           lgfx::pinMode( 5, lgfx::pin_mode_t::input); // LCD CS
           _bus_spi.release();
         }
+      }
+#endif
+
+/// CS と D/C に GPIO 16 17を使っており、PSRAMと競合するため判定順序をなるべく後にする
+#if defined ( LGFX_AUTODETECT ) || defined ( LGFX_TTGO_TS )
+      if (board == 0 || board == board_t::board_TTGO_TS)
+      {
+        bus_cfg.pin_mosi = 23;
+        bus_cfg.pin_miso = -1;
+        bus_cfg.pin_sclk =  5;
+        bus_cfg.pin_dc   = 17;
+        bus_cfg.spi_3wire = true;
+        _bus_spi.config(bus_cfg);
+        _bus_spi.init();
+        _pin_reset(9, use_reset); // LCD RST
+        id = _read_panel_id(&_bus_spi, 16);
+        if ((id & 0xFF) == 0x7C)
+        {  //  check panel (ST7735)
+          board = board_t::board_TTGO_TS;
+          ESP_LOGW(LIBRARY_NAME, "[Autodetect] TTGO TS");
+          bus_cfg.freq_write = 20000000;
+          bus_cfg.freq_read  = 14000000;
+          _bus_spi.config(bus_cfg);
+          auto p = new Panel_ST7735S();
+          p->bus(&_bus_spi);
+          {
+            auto cfg = p->config();
+            cfg.pin_cs  = 16;
+            cfg.pin_rst =  9;
+            cfg.panel_width  = 128;
+            cfg.panel_height = 160;
+            cfg.offset_x     = 2;
+            cfg.offset_y     = 1;
+            cfg.offset_rotation = 2;
+            p->config(cfg);
+          }
+          _panel_last = p;
+          _set_pwm_backlight(27, 7, 12000);
+          goto init_clear;
+        }
+        lgfx::pinMode( 9, lgfx::pin_mode_t::input); // LCD RST
+        lgfx::pinMode(16, lgfx::pin_mode_t::input); // LCD CS
+        _bus_spi.release();
       }
 #endif
 
