@@ -666,7 +666,7 @@ IT8951 Registers defines
     heap_free(readbuf);
   }
 
-  bool Panel_IT8951::_read_raw_line(std::int32_t raw_x, std::int32_t raw_y, std::int32_t len, std::uint16_t* buf)
+  bool Panel_IT8951::_read_raw_line(std::int32_t raw_x, std::int32_t raw_y, std::int32_t len, std::uint16_t* __restrict__ buf)
   {
     std::uint16_t params[4];
     auto addr = _tar_memaddr + raw_x + raw_y * _cfg.panel_width;
@@ -679,7 +679,7 @@ IT8951 Registers defines
         && _read_words(buf, len);
   }
 
-  void Panel_IT8951::readRect(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, void* dst, pixelcopy_t* param)
+  void Panel_IT8951::readRect(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, void* __restrict__ dst, pixelcopy_t* param)
   {
 /// IT8951には画素読出しコマンドが存在せず、画像メモリを直接読むコマンドが提供されている。
 /// 画像メモリを直接読み出す場合、ビットシフトや回転方向の解決などは自前で行う必要がある。
@@ -730,8 +730,7 @@ IT8951 Registers defines
       _read_raw_line(rx & ~3, ry, padding_len >> 1, reinterpret_cast<std::uint16_t*>(readbuf));
       for (std::uint32_t i = 0; i < rw; ++i)
       {
-        auto l = readbuf[adjust_left + i];
-        l = l + 8;
+        std::uint_fast8_t l = 8 + readbuf[adjust_left + i];
         if (_invert) l = ~l;
         colorbuf[i].set(l,l,l);
       }
