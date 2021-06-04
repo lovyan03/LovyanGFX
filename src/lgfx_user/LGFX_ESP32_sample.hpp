@@ -178,7 +178,7 @@ public:
 
 // SPI接続の場合
       cfg.spi_host = VSPI_HOST;// 使用するSPIを選択 (HSPI_HOST or VSPI_HOST)
-      cfg.freq = 2000000;     // SPIクロックを設定
+      cfg.freq = 1000000;     // SPIクロックを設定
       cfg.pin_sclk = 18;     // SCLKが接続されているピン番号
       cfg.pin_mosi = 23;     // MOSIが接続されているピン番号
       cfg.pin_miso = 19;     // MISOが接続されているピン番号

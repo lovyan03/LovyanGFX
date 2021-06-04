@@ -27,11 +27,9 @@ namespace lgfx
 
   struct Touch_XPT2046 : public ITouch
   {
-    int threshold = 1024;
-
     Touch_XPT2046(void)
     {
-      _cfg.freq = 2700000;
+      _cfg.freq = 1000000;
       _cfg.x_min = 300;
       _cfg.x_max = 3900;
       _cfg.y_min = 400;
@@ -40,9 +38,8 @@ namespace lgfx
 
     bool init(void) override;
 
-    void wakeup(void) override;
-
-    void sleep(void) override;
+    void wakeup(void) override {}
+    void sleep(void) override {}
 
     std::uint_fast8_t getTouchRaw(touch_point_t *tp, std::uint_fast8_t number) override;
   };

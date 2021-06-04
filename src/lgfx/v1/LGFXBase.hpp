@@ -1180,35 +1180,20 @@ namespace lgfx
       *y = ty;
     }
 
-    // This requires a uint16_t array with 8 elements. ( or nullptr )
+    /// This requires a uint16_t array with 8 elements. ( or nullptr )
     template <typename T>
-    void calibrateTouch(uint16_t *parameters, const T& color_fg, const T& color_bg, uint8_t size = 10)
-    {
+    void calibrateTouch(std::uint16_t *parameters, const T& color_fg, const T& color_bg, std::uint8_t size = 10)
+    { // 第1引数 にuint16_t[8]のポインタを渡すことで、setTouchCalibrateで使用できるキャリブレーション値を得ることが出来る。
+      // この値をフラッシュ等に記録しておき、次回起動時にsetTouchCalibrateを使うことで、手作業によるキャリブレーションを省略できる。
       calibrate_touch(parameters, _write_conv.convert(color_fg), _write_conv.convert(color_bg), size);
     }
-/*
-    void updateTouchCalibrate(void)
-    {
-      auto cfg = _touch->config();
-      std::uint16_t parameters[8] =
-        { cfg.x_min, cfg.y_min
-        , cfg.x_min, cfg.y_max
-        , cfg.x_max, cfg.y_min
-        , cfg.x_max, cfg.y_max };
-      setTouchCalibrate(parameters);
-    }
 
-    // This requires a uint16_t array with 8 elements.
+    /// This requires a uint16_t array with 8 elements.
+    /// calibrateTouchで得たキャリブレーション値を用いて設定を再現する。
     void setTouchCalibrate(std::uint16_t *parameters)
     {
-      if (_touch == nullptr) return;
-      //bool r = getRotation() & 1;
-      std::int32_t w = width();
-      std::int32_t h = height();
-      if (getRotation() & 1) std::swap(w, h);
-      _touch->setCalibrate(parameters, w, h);
+      panel()->setCalibrate(parameters);
     }
-//*/
 
   protected:
     std::uint8_t _brightness = 127;

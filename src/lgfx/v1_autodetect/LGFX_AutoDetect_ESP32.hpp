@@ -1065,7 +1065,7 @@ namespace lgfx
             do
             {
               vTaskDelay(1);
-              if (millis() - id > 192) { break; }
+              if (lgfx::millis() - id > 192) { break; }
             } while (!lgfx::gpio_in(27));
             lgfx::gpio_lo(15);
             _bus_spi.writeData(__builtin_bswap16(0x1000), 16);

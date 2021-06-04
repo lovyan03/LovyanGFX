@@ -419,9 +419,12 @@ namespace lgfx
       auto offset = _touch->config().offset_rotation;
       r = ((r + offset) & 3) | ((r & 4) ^ (offset & 4));
     }
-    if ( r & 1               ) { std::swap(tx, ty); }
-    if ( r & 2               ) { tx = (_width  - 1) - tx; }
-    if ((1 << r) & 0b10010110) { ty = (_height - 1) - ty; }
+    if (r)
+    {
+      if ( r & 1               ) { std::swap(tx, ty); }
+      if ( r & 2               ) { tx = (_width  - 1) - tx; }
+      if ((1 << r) & 0b10010110) { ty = (_height - 1) - ty; }
+    }
     *x = tx;
     *y = ty;
   }
