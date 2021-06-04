@@ -108,11 +108,6 @@ namespace lgfx
 
 #else
 
-  static inline void taskDelay(std::size_t milliseconds)
-  {
-    vTaskDelay(pdMS_TO_TICKS(milliseconds));
-  }
-
   static inline void delay(std::size_t milliseconds)
   {
     vTaskDelay(pdMS_TO_TICKS(milliseconds));
