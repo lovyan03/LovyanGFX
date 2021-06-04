@@ -410,7 +410,8 @@ namespace lgfx
       gpio_set_direction(scl_io, GPIO_MODE_OUTPUT_OD);
 
       auto mod = i2c_port == 0 ? PERIPH_I2C0_MODULE : PERIPH_I2C1_MODULE;
-      periph_module_disable(mod);
+      // ESP-IDF環境でperiph_module_disableを使うと、後でenableできなくなる問題が起きたためコメントアウト
+      //periph_module_disable(mod);
       gpio_set_level(scl_io, 0);
 
       // SDAがHIGHになるまでクロック送出しながら待機する。
@@ -506,7 +507,8 @@ namespace lgfx
 
       if (i2c_context[i2c_port].pin_scl >= 0 || i2c_context[i2c_port].pin_sda >= 0)
       {
-        periph_module_disable(i2c_port == 0 ? PERIPH_I2C0_MODULE : PERIPH_I2C1_MODULE);
+      // ESP-IDF環境でperiph_module_disableを使うと、後でenableできなくなる問題が起きたためコメントアウト
+//        periph_module_disable(i2c_port == 0 ? PERIPH_I2C0_MODULE : PERIPH_I2C1_MODULE);
         pinMode(i2c_context[i2c_port].pin_scl, pin_mode_t::input);
         pinMode(i2c_context[i2c_port].pin_sda, pin_mode_t::input);
         i2c_context[i2c_port].pin_scl = (gpio_num_t)-1;
