@@ -94,8 +94,8 @@ namespace lgfx
 
   void Panel_SSD1327::writeFillRectPreclipped(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, std::uint32_t rawcolor)
   {
-    std::uint32_t xs = x, xe = x + w - 1;
-    std::uint32_t ys = y, ye = y + h - 1;
+    std::uint_fast16_t xs = x, xe = x + w - 1;
+    std::uint_fast16_t ys = y, ye = y + h - 1;
     _xs = xs;
     _ys = ys;
     _xe = xe;
@@ -114,7 +114,7 @@ namespace lgfx
       do
       {
         std::size_t idx = x >> 1;
-        std::uint_fast8_t shift = (x & 1) ? 4 : 0;
+        std::uint_fast8_t shift = (x & 1) ? 0 : 4;
         std::uint_fast8_t value = (std::min<std::int32_t>(15, std::max<std::int32_t>(0, sum + btbl[x & 3]) >> 6) & 0x0F) << shift;
         buf[idx] = (buf[idx] & (0xF0 >> shift)) | value;
       } while (++x <= xe);
@@ -124,8 +124,8 @@ namespace lgfx
 
   void Panel_SSD1327::writeImage(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, pixelcopy_t* param, bool use_dma)
   {
-    std::uint32_t xs = x, xe = x + w - 1;
-    std::uint32_t ys = y, ye = y + h - 1;
+    std::uint_fast16_t xs = x, xe = x + w - 1;
+    std::uint_fast16_t ys = y, ye = y + h - 1;
     _update_transferred_rect(xs, ys, xe, ye);
 
     bgr888_t readbuf[w];
@@ -142,7 +142,7 @@ namespace lgfx
           do
           {
             auto color = readbuf[prev_pos];
-            _draw_pixel(x + prev_pos, y, (color.R8() + (color.G8() << 1) + color.B8()) >> 2);
+            _draw_pixel(x + prev_pos, y, (color.R8() + (color.G8() << 1) + color.B8()));
           } while (new_pos != ++prev_pos);
         }
       } while (w != new_pos && w != (prev_pos = param->fp_skip(new_pos, w, param)));
@@ -177,7 +177,7 @@ namespace lgfx
         bufpos = 0;
       }
       auto color = colors[bufpos++];
-      _draw_pixel(xpos, ypos, (color.R8() + (color.G8() << 1) + color.B8()) >> 2);
+      _draw_pixel(xpos, ypos, (color.R8() + (color.G8() << 1) + color.B8()));
       if (++xpos > xe)
       {
         xpos = xs;
@@ -202,7 +202,7 @@ namespace lgfx
       std::uint32_t idx = 0;
       do
       {
-        readbuf[idx] = _read_pixel(x + idx, y) ? ~0u : 0;
+        readbuf[idx] = 0x111111u * _read_pixel(x + idx, y);
       } while (++idx != w);
       param->src_x32 = 0;
       readpos = param->fp_copy(dst, readpos, readpos + w, param);
@@ -214,7 +214,7 @@ namespace lgfx
     _rotate_pos(x, y);
 
     auto btbl = &Bayer[(y & 3) << 2];
-    std::size_t idx = (x >> 1) + (y * _cfg.panel_width);
+    std::size_t idx = (x >> 1) + (y * ((_cfg.panel_width + 1) >> 1));
     std::uint_fast8_t shift = (x & 1) ? 0 : 4;
     std::uint_fast8_t value = (std::min<std::int32_t>(15, std::max<std::int32_t>(0, sum + btbl[x & 3]) >> 6) & 0x0F) << shift;
     _buf[idx] = (_buf[idx] & (0xF0 >> shift)) | value;
@@ -223,8 +223,8 @@ namespace lgfx
   std::uint8_t Panel_SSD1327::_read_pixel(std::uint_fast16_t x, std::uint_fast16_t y)
   {
     _rotate_pos(x, y);
-    std::size_t idx = (x >> 1) + (y * _cfg.panel_width);
-    return x & 1
+    std::size_t idx = (x >> 1) + (y * ((_cfg.panel_width + 1) >> 1));
+    return (x & 1)
          ? (_buf[idx] & 0x0F)
          : (_buf[idx] >> 4)
          ;

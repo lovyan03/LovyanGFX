@@ -180,8 +180,8 @@ namespace lgfx
 
   void Panel_GDEW0154M09::writeFillRectPreclipped(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, std::uint32_t rawcolor)
   {
-    std::uint32_t xs = x, xe = x + w - 1;
-    std::uint32_t ys = y, ye = y + h - 1;
+    std::uint_fast16_t xs = x, xe = x + w - 1;
+    std::uint_fast16_t ys = y, ye = y + h - 1;
     _xs = xs;
     _ys = ys;
     _xe = xe;
@@ -210,8 +210,8 @@ namespace lgfx
 
   void Panel_GDEW0154M09::writeImage(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, pixelcopy_t* param, bool use_dma)
   {
-    std::uint32_t xs = x, xe = x + w - 1;
-    std::uint32_t ys = y, ye = y + h - 1;
+    std::uint_fast16_t xs = x, xe = x + w - 1;
+    std::uint_fast16_t ys = y, ye = y + h - 1;
     _update_transferred_rect(xs, ys, xe, ye);
 
     swap565_t readbuf[w];
@@ -240,18 +240,18 @@ namespace lgfx
   void Panel_GDEW0154M09::writePixels(pixelcopy_t* param, std::uint32_t length)
   {
     {
-      std::uint32_t xs = _xs;
-      std::uint32_t xe = _xe;
-      std::uint32_t ys = _ys;
-      std::uint32_t ye = _ye;
+      std::uint_fast16_t xs = _xs;
+      std::uint_fast16_t xe = _xe;
+      std::uint_fast16_t ys = _ys;
+      std::uint_fast16_t ye = _ye;
       _update_transferred_rect(xs, ys, xe, ye);
     }
-    std::uint32_t xs   = _xs  ;
-    std::uint32_t ys   = _ys  ;
-    std::uint32_t xe   = _xe  ;
-    std::uint32_t ye   = _ye  ;
-    std::uint32_t xpos = _xpos;
-    std::uint32_t ypos = _ypos;
+    std::uint_fast16_t xs   = _xs  ;
+    std::uint_fast16_t ys   = _ys  ;
+    std::uint_fast16_t xe   = _xe  ;
+    std::uint_fast16_t ye   = _ye  ;
+    std::uint_fast16_t xpos = _xpos;
+    std::uint_fast16_t ypos = _ypos;
 
     static constexpr uint32_t buflen = 16;
     swap565_t colors[buflen];

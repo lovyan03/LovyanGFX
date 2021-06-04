@@ -84,7 +84,7 @@ namespace lgfx
         0xB9        , // Select Default Linear Gray Scale Table
         0xB3        , 0xF1, // set clock divider
         0xA8        , 0x7F, // Set MUX ratio (default=0x7F)
-        0xA0        , 0x53, // set display remap
+        0xA0        , 0x51, // set display remap
         0xA1        , 0x00, // set display start line
         0xA2        , 0x00, // set display offset
         0xB5        , 0x00, // disable GPIO

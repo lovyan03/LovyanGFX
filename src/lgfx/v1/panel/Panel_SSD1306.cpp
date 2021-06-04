@@ -103,8 +103,8 @@ namespace lgfx
 
   void Panel_1bitOLED::writeFillRectPreclipped(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, std::uint32_t rawcolor)
   {
-    std::uint32_t xs = x, xe = x + w - 1;
-    std::uint32_t ys = y, ye = y + h - 1;
+    std::uint_fast16_t xs = x, xe = x + w - 1;
+    std::uint_fast16_t ys = y, ye = y + h - 1;
     _xs = xs;
     _ys = ys;
     _xe = xe;
@@ -134,8 +134,8 @@ namespace lgfx
 
   void Panel_1bitOLED::writeImage(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, pixelcopy_t* param, bool use_dma)
   {
-    std::uint32_t xs = x, xe = x + w - 1;
-    std::uint32_t ys = y, ye = y + h - 1;
+    std::uint_fast16_t xs = x, xe = x + w - 1;
+    std::uint_fast16_t ys = y, ye = y + h - 1;
     _update_transferred_rect(xs, ys, xe, ye);
 
     swap565_t readbuf[w];
