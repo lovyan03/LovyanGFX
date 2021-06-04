@@ -85,8 +85,12 @@ namespace lgfx
       }
       for (std::size_t j = 0; j < 8; ++j)
       {
-        xt[i * 8 + j] = data[1 + j * 8] << 5 | data[2 + j * 8] >> 3;
-        yt[i * 8 + j] = data[3 + j * 8] << 5 | data[4 + j * 8] >> 3;
+        int tmp = data[1 + j * 8] << 5 | data[2 + j * 8] >> 3;
+        if (tmp == 4095) return 0;
+        xt[i * 8 + j] = tmp;
+        tmp = data[3 + j * 8] << 5 | data[4 + j * 8] >> 3;
+        if (tmp == 4095) return 0;
+        yt[i * 8 + j] = tmp;
       }
     }
 
@@ -97,7 +101,7 @@ namespace lgfx
     tp->y = (yt[10]+yt[11]+yt[12]+yt[13]) >> 2;
 
     std::sort(size, size+21);
-    tp->size = std::max<std::uint16_t>(0,
+    tp->size = std::max<int>(0,
                         0
                         + size[10]
                         + (tp->y * ((_cfg.x_max - tp->x) >> 4) >> 9) // 座標による感度の差を補正(LoLIN D32 Proで調整)
