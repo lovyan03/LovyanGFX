@@ -27,7 +27,7 @@ namespace lgfx
 
   struct Touch_XPT2046 : public ITouch
   {
-    int threshold = 1280;
+    int threshold = 1024;
 
     Touch_XPT2046(void)
     {

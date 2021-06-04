@@ -86,10 +86,10 @@ namespace lgfx
       for (std::size_t j = 0; j < 8; ++j)
       {
         int tmp = data[1 + j * 8] << 5 | data[2 + j * 8] >> 3;
-        if (tmp == 4095) return 0;
+        if (tmp >= 4088) return 0;
         xt[i * 8 + j] = tmp;
         tmp = data[3 + j * 8] << 5 | data[4 + j * 8] >> 3;
-        if (tmp == 4095) return 0;
+        if (tmp >= 4088) return 0;
         yt[i * 8 + j] = tmp;
       }
     }
@@ -104,7 +104,7 @@ namespace lgfx
     tp->size = std::max<int>(0,
                         0
                         + size[10]
-                        + (tp->y * ((_cfg.x_max - tp->x) >> 4) >> 9) // 座標による感度の差を補正(LoLIN D32 Proで調整)
+                        + (tp->y * ((std::max(_cfg.x_min, _cfg.x_max) - tp->x) >> 5) >> 8) // 座標による感度の差を補正(LoLIN D32 Proで調整)
                         - threshold
                         ) >> 8;
 
