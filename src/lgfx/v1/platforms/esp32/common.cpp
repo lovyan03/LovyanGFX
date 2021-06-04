@@ -183,11 +183,10 @@ namespace lgfx
           .intr_flags = 0,
       };
 
-      if (ESP_OK != spi_bus_initialize(static_cast<spi_host_device_t>(spi_host), &buscfg, dma_channel)) {
-        ESP_LOGE("LGFX", "Failed to spi_bus_initialize. ");
-      }
+      if (_spi_handle[spi_host] == nullptr)
+      {
+        spi_bus_initialize(static_cast<spi_host_device_t>(spi_host), &buscfg, dma_channel);
 
-      if (_spi_handle[spi_host] == nullptr) {
         spi_device_interface_config_t devcfg = {
             .command_bits = 0,
             .address_bits = 0,
