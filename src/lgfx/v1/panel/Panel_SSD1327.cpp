@@ -202,7 +202,7 @@ namespace lgfx
       std::uint32_t idx = 0;
       do
       {
-        readbuf[idx] = 0x111111u * _read_pixel(x + idx, y);
+        readbuf[idx] = 0x010101u * (_read_pixel(x + idx, y) * 16 + 8);
       } while (++idx != w);
       param->src_x32 = 0;
       readpos = param->fp_copy(dst, readpos, readpos + w, param);
