@@ -73,7 +73,7 @@ namespace lgfx
 
   bool Panel_M5UnitLCD::_check_repeat(std::uint32_t cmd, std::uint_fast8_t limit)
   {
-    switch (_last_cmd & ~3)
+    switch (_last_cmd & ~7)
     {
     default:
       break;
@@ -123,7 +123,6 @@ namespace lgfx
         }
       } while (--retry);
     }
-
     _bus->endTransaction();
     _bus->beginTransaction();
 
@@ -255,27 +254,20 @@ namespace lgfx
     endWrite();
   }
 
-  void Panel_M5UnitLCD::writeFillRectPreclipped(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, std::uint32_t rawcolor)
+  void Panel_M5UnitLCD::_fill_rect(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, std::uint_fast8_t bytes)
   {
-    bool flg_large = (_cfg.memory_width >= 256) || (_cfg.memory_height >= 256);
 //*
     _xs = x;
     _ys = y;
     _xe = x + w - 1;
     _ye = y + h - 1;
 
-    bool rect = (w > 1) || (h > 1);
-
-    std::size_t bytes = 0;
-    if (_raw_color != rawcolor)
-    {
-      _raw_color = rawcolor;
-      bytes = _write_bits >> 3;
-    }
     _check_repeat();
     std::uint8_t buf[16];
+    bool rect = (w > 1) || (h > 1);
     buf[0] = (rect ? CMD_FILLRECT : CMD_DRAWPIXEL) | bytes;
     std::size_t idx = 1;
+    bool flg_large = (_cfg.memory_width >= 256) || (_cfg.memory_height >= 256);
     if (flg_large) { buf[idx++] = _xs >> 8; }  buf[idx++] = _xs;
     if (flg_large) { buf[idx++] = _ys >> 8; }  buf[idx++] = _ys;
     if (rect)
@@ -283,6 +275,7 @@ namespace lgfx
       if (flg_large) { buf[idx++] = _xe >> 8; }  buf[idx++] = _xe;
       if (flg_large) { buf[idx++] = _ye >> 8; }  buf[idx++] = _ye;
     }
+    auto rawcolor = _raw_color;
     for (std::size_t i = 0; i < bytes; ++i)
     {
       buf[idx++] = rawcolor;
@@ -291,15 +284,33 @@ namespace lgfx
     _bus->writeBytes(buf, idx, false, true);
   }
 
+  void Panel_M5UnitLCD::writeFillRectPreclipped(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, std::uint32_t rawcolor)
+  {
+    std::size_t bytes = 0;
+    if (_raw_color != rawcolor)
+    {
+      _raw_color = rawcolor | 0xFF << 24;
+      bytes = _write_bits >> 3;
+    }
+    _fill_rect(x, y, w, h, bytes);
+  }
+
+  void Panel_M5UnitLCD::writeFillRectAlphaPreclipped(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, std::uint32_t argb8888)
+  {
+    std::size_t bytes = 0;
+    argb8888 = __builtin_bswap32(argb8888);
+    if (_raw_color != argb8888)
+    {
+      _raw_color = argb8888;
+      bytes = 4;
+    }
+    _fill_rect(x, y, w, h, bytes);
+  }
+
   void Panel_M5UnitLCD::setWindow(std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye)
   {
     _xpos = xs;
-    _xs = xs;
-    _xe = xe;
     _ypos = ys;
-    _ys = ys;
-    _ye = ye;
-
     startWrite();
     _set_window(xs, ys, xe, ye);
     endWrite();
@@ -343,20 +354,18 @@ namespace lgfx
 
   static std::uint8_t* store_absolute(std::uint8_t* dst, const std::uint8_t* src, std::size_t src_size, std::size_t bytes)
   {
-    const std::uint8_t* psrc = src;
- 
     if (src_size >= 3)  // 絶対モード
     {
       *dst++ = 0x00;
       *dst++ = src_size;
-      memmove(dst, psrc, src_size * bytes);
+      memmove(dst, src, src_size * bytes);
       dst += src_size * bytes;
     }
     else  // RLEモード
     {
       for (std::size_t i = 0; i < src_size; i++)
       {
-        dst = store_encoded(dst, psrc + i * bytes, 1, bytes);
+        dst = store_encoded(dst, src + i * bytes, 1, bytes);
       }
     }
     return dst;
@@ -456,7 +465,7 @@ if (bytelen != rleDecode(dest, res, bytes)*bytes) {
     auto bytes = _write_bits >> 3;
     std::uint32_t wb = length * bytes;
     auto dmabuf = _bus->getDMABuffer(wb + (wb >> 7) + 128);
-    dmabuf[0] = CMD_WR_RLE | _write_bits >> 3;
+    dmabuf[0] = CMD_WR_RLE | bytes;
     std::size_t idx = _check_repeat(dmabuf[0]) ? 0 : 1;
 
     auto buf = &dmabuf[(wb >> 7) + 128];
@@ -518,13 +527,11 @@ if (bytelen != rleDecode(dest, res, bytes)*bytes) {
     std::uint32_t sx32 = param->src_x32;
     auto bytes = _write_bits >> 3;
     std::uint32_t y_add = 1;
-    std::uint32_t cmd = CMD_WR_RLE | ((_write_bits >> 3) & 3);
+    std::uint32_t cmd = CMD_WR_RLE | bytes;
     bool transp = (param->transp != pixelcopy_t::NON_TRANSP);
     if (!transp)
     {
       _set_window(x, y, x+w-1, y+h-1);
-      _check_repeat(cmd);
-      _bus->writeData(cmd, 8);
     }
     std::uint32_t wb = w * bytes;
     do
@@ -546,7 +553,7 @@ if (bytelen != rleDecode(dest, res, bytes)*bytes) {
         }
         if (!_check_repeat(cmd))
         {
-          _bus->writeData(cmd, 8);
+          _bus->writeCommand(cmd, 8);
         }
         std::size_t idx = 0;
         std::size_t writelen = rleEncode(&dmabuf[idx], buf, len * bytes, bytes);

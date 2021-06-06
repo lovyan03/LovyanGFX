@@ -21,6 +21,7 @@ Contributors:
 #include <memory>
 
 #include "misc/enum.hpp"
+#include "misc/pixelcopy.hpp"
 
 namespace lgfx
 {
@@ -105,6 +106,33 @@ namespace lgfx
     virtual std::uint32_t readData(std::uint_fast8_t index = 0, std::uint_fast8_t length = 4) = 0;
     virtual void readRect(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, void* dst, pixelcopy_t* param) = 0;
     virtual void copyRect(std::uint_fast16_t dst_x, std::uint_fast16_t dst_y, std::uint_fast16_t w, std::uint_fast16_t h, std::uint_fast16_t src_x, std::uint_fast16_t src_y) = 0;
+
+    virtual void writeFillRectAlphaPreclipped(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, std::uint32_t argb8888)
+    {
+      effect(x, y, w, h, effect_fill_alpha ( argb8888_t { argb8888 } ) );
+    }
+
+    template<typename TFunc>
+    void effect(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, TFunc&& effector)
+    {
+      auto ye = y + h;
+      RGBColor buf[w];
+      pixelcopy_t pc_write(buf    ,_write_depth, RGBColor::depth, false);
+      pixelcopy_t pc_read( nullptr, RGBColor::depth, _read_depth, false);
+      startWrite();
+      do
+      {
+        readRect(x, y, w, 1, buf, &pc_read);
+        std::size_t i = 0;
+        do
+        {
+          effector(x + i, y, buf[i]);
+        } while (++i < w);
+        writeImage(x, y, w, 1, &pc_write, true);
+        pc_write.src_x32 = 0;
+      } while (++y < ye);
+      endWrite();
+    }
  };
 
 //----------------------------------------------------------------------------

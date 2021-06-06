@@ -194,26 +194,14 @@ namespace lgfx
     void effect(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, TFunc&& effector)
     {
       if (!_clipping(x, y, w, h)) return;
-      auto ye = y + h;
-      RGBColor buf[w];
-      startWrite();
-      do
-      {
-        readRectRGB(x, y, w, 1, buf);
-        std::size_t i = 0;
-        do
-        {
-          effector(x + i, y, buf[i]);
-        } while (++i < w);
-        pushImage(x, y, w, 1, buf);
-      } while (++y < ye);
-      endWrite();
+      _panel->effect(x, y, w, h, effector);
     }
 
     template<typename T>
     void fillRectAlpha(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, std::uint8_t alpha, const T& color)
     {
-      effect(x, y, w, h, effect_fill_alpha ( argb8888_t { convert_to_rgb888(color) | alpha << 24 } ) );
+      if (!_clipping(x, y, w, h)) return;
+      _panel->writeFillRectAlphaPreclipped(x, y, w, h, convert_to_rgb888(color) | alpha << 24 );
     }
 
     LGFX_INLINE_T void drawBitmap (std::int32_t x, std::int32_t y, const std::uint8_t *bitmap, std::int32_t w, std::int32_t h, const T& color                    ) { draw_bitmap (x, y, bitmap, w, h, _write_conv.convert(color)); }

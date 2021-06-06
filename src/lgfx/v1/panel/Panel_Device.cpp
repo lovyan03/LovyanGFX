@@ -274,19 +274,24 @@ namespace lgfx
 
   void Panel_Device::init_cs(void)
   {
-    lgfx::gpio_hi(_cfg.pin_cs);
-    lgfx::pinMode(_cfg.pin_cs , pin_mode_t::output);
+    auto pin = _cfg.pin_cs;
+    if (pin < 0) return;
+    lgfx::gpio_hi(pin);
+    lgfx::pinMode(pin , pin_mode_t::output);
   }
 
   void Panel_Device::init_rst(void)
   {
-    lgfx::gpio_hi(_cfg.pin_rst);
-    lgfx::pinMode(_cfg.pin_rst, pin_mode_t::output);
+    auto pin = _cfg.pin_rst;
+    if (pin < 0) return;
+    lgfx::gpio_hi(pin);
+    lgfx::pinMode(pin, pin_mode_t::output);
   }
 
   void Panel_Device::cs_control(bool level)
   {
     auto pin = _cfg.pin_cs;
+    if (pin < 0) return;
     if (level)
     {
       gpio_hi(pin);
@@ -299,9 +304,11 @@ namespace lgfx
 
   void Panel_Device::reset(void)
   {
-    gpio_lo(_cfg.pin_rst);
+    auto pin = _cfg.pin_rst;
+    if (pin < 0) return;
+    gpio_lo(pin);
     delay(4);
-    gpio_hi(_cfg.pin_rst);
+    gpio_hi(pin);
   }
 
 //----------------------------------------------------------------------------

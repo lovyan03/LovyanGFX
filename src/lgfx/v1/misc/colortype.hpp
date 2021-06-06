@@ -755,7 +755,7 @@ namespace lgfx
   TYPECHECK(std::uint16_t) constexpr std::uint32_t convert_to_rgb888(T c) { return convert_rgb565_to_rgb888(c); }
   TYPECHECK(std::int16_t ) constexpr std::uint32_t convert_to_rgb888(T c) { return convert_rgb565_to_rgb888(c); }
   TYPECHECK(std::int32_t ) constexpr std::uint32_t convert_to_rgb888(T c) { return convert_rgb565_to_rgb888(c); }
-  TYPECHECK(std::uint32_t) constexpr std::uint32_t convert_to_rgb888(T c) { return c; }
+  TYPECHECK(std::uint32_t) constexpr std::uint32_t convert_to_rgb888(T c) { return c & 0xFFFFFF; }
   __attribute__ ((always_inline)) inline constexpr std::uint32_t convert_to_rgb888(const argb8888_t& c) { return c.R8()<<16|c.G8()<<8|c.B8(); }
   __attribute__ ((always_inline)) inline constexpr std::uint32_t convert_to_rgb888(const rgb888_t&   c) { return c.R8()<<16|c.G8()<<8|c.B8(); }
   __attribute__ ((always_inline)) inline constexpr std::uint32_t convert_to_rgb888(const rgb565_t&   c) { return c.R8()<<16|c.G8()<<8|c.B8(); }
@@ -790,6 +790,13 @@ namespace lgfx
       , _g8a { (std::uint_fast16_t)(src.G8() * (1 + src.A8())) }
       , _b8a { (std::uint_fast16_t)(src.B8() * (1 + src.A8())) }
     {}
+    void set(argb8888_t src)
+    {
+      _inv = (std::uint_fast16_t)(256 - src.A8());
+      _r8a = (std::uint_fast16_t)(src.R8() * (1 + src.A8()));
+      _g8a = (std::uint_fast16_t)(src.G8() * (1 + src.A8()));
+      _b8a = (std::uint_fast16_t)(src.B8() * (1 + src.A8()));
+    }
     void operator() (std::int32_t x, std::int32_t y, bgr888_t& dst)
     {
       dst.set((_r8a + dst.R8() * _inv) >> 8
