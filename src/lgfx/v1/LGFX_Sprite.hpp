@@ -104,8 +104,8 @@ namespace lgfx
     , _parent(parent)
 //    , _bitwidth(0)
     {
-      _read_conv = _write_conv;
       _panel = &_panel_sprite;
+      setColorDepth(_write_conv.depth);
     }
 
     __attribute__ ((always_inline)) inline void* getBuffer(void) const { return _panel_sprite.getBuffer(); }
