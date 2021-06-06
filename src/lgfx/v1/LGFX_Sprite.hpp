@@ -140,7 +140,9 @@ namespace lgfx
 
     void setPsram( bool enabled )
     {
+      if (_psram == enabled) return;
       _psram = enabled;
+      deleteSprite();
     }
 
     void setBuffer(void* buffer, std::int32_t w, std::int32_t h, std::uint8_t bpp = 0)
