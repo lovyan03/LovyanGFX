@@ -275,12 +275,12 @@ namespace lgfx
     std::uint_fast8_t ye = _range_mod.bottom + _cfg.offset_y;
     ofs = _cfg.offset_y;
     _bus->writeCommand(CMD_RASET | (ys + ofs) << 8 | (ye + ofs) << 16, 24);
-    _bus->endTransaction();
-    _bus->beginTransaction();
+
+    w = xe - xs + 1;
     do
     {
       auto buf = &_buf[xs + ys * ((_cfg.panel_width + 1) >> 1 )]; 
-      _bus->writeBytes(buf, xe - xs + 1, true, true);
+      _bus->writeBytes(buf, w, true, true);
     } while (++ys <= ye);
 
     _range_mod.top    = INT16_MAX;

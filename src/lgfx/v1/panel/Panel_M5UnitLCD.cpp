@@ -35,8 +35,8 @@ namespace lgfx
       startWrite(true);
       _bus->writeCommand(CMD_RESET | 0x77 << 8 | 0x89 << 16 | CMD_RESET << 24, 32);
       endWrite();
-      // リセットコマンド後は150msec待つ
-      lgfx::delay(150);
+      // リセットコマンド後は200msec待つ
+      lgfx::delay(200);
     }
 
     startWrite(true);
@@ -256,7 +256,6 @@ namespace lgfx
 
   void Panel_M5UnitLCD::_fill_rect(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, std::uint_fast8_t bytes)
   {
-//*
     _xs = x;
     _ys = y;
     _xe = x + w - 1;
@@ -289,7 +288,7 @@ namespace lgfx
     std::size_t bytes = 0;
     if (_raw_color != rawcolor)
     {
-      _raw_color = rawcolor | 0xFF << 24;
+      _raw_color = rawcolor;
       bytes = _write_bits >> 3;
     }
     _fill_rect(x, y, w, h, bytes);
@@ -297,14 +296,9 @@ namespace lgfx
 
   void Panel_M5UnitLCD::writeFillRectAlphaPreclipped(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, std::uint32_t argb8888)
   {
-    std::size_t bytes = 0;
-    argb8888 = __builtin_bswap32(argb8888);
-    if (_raw_color != argb8888)
-    {
-      _raw_color = argb8888;
-      bytes = 4;
-    }
-    _fill_rect(x, y, w, h, bytes);
+    _raw_color = __builtin_bswap32(argb8888);
+    _fill_rect(x, y, w, h, 4);
+    _raw_color = ~0u;
   }
 
   void Panel_M5UnitLCD::setWindow(std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye)
@@ -320,6 +314,13 @@ namespace lgfx
     std::uint8_t buf[10];
     std::size_t idx = 0;
     bool flg_large = (_cfg.memory_width >= 256) || (_cfg.memory_height >= 256);
+    if (!flg_large)
+    {
+      ys = std::min<std::uint_fast16_t>(ys, 255u);
+      ye = std::min<std::uint_fast16_t>(ye, 255u);
+      xs = std::min<std::uint_fast16_t>(xs, 255u);
+      xe = std::min<std::uint_fast16_t>(xe, 255u);
+    }
     if (xs != _xs || xe != _xe)
     {
       _xs = xs;

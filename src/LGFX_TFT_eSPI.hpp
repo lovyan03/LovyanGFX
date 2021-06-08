@@ -19,7 +19,7 @@ using TFT_eSPI = lgfx::LGFX;
 
 class TFT_eSprite : public lgfx::LGFX_Sprite {
 public:
-  TFT_eSprite() : LGFX_Sprite() {}
+  TFT_eSprite() : LGFX_Sprite() { _psram = true; }
   TFT_eSprite(LovyanGFX* parent) : LGFX_Sprite(parent) { _psram = true; }
 
   void* frameBuffer(uint8_t) { return getBuffer(); }
