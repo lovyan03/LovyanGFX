@@ -182,6 +182,7 @@ public:
       cfg.pin_sclk = 18;     // SCLKが接続されているピン番号
       cfg.pin_mosi = 23;     // MOSIが接続されているピン番号
       cfg.pin_miso = 19;     // MISOが接続されているピン番号
+      cfg.pin_cs   =  5;     //   CSが接続されているピン番号
 
 // I2C接続の場合
       cfg.i2c_port = 1;      // 使用するI2Cを選択 (0 or 1)

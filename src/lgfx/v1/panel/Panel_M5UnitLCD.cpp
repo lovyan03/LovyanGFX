@@ -28,6 +28,7 @@ namespace lgfx
 
   bool Panel_M5UnitLCD::init(bool use_reset)
   {
+    /// I2C接続のためGPIOによるRESET制御は不要なのでfalseで呼出す
     if (!Panel_Device::init(false)) return false;
 
     if (use_reset)
@@ -77,8 +78,8 @@ namespace lgfx
     {
     default:
       break;
-    case CMD_WR_RAW:
-    case CMD_WR_RLE:
+    case CMD_WRITE_RAW:
+    case CMD_WRITE_RLE:
       if ((_buff_free_count > limit) && (_last_cmd == cmd))
       {
         --_buff_free_count;
@@ -150,12 +151,9 @@ namespace lgfx
 
     auto pw = _cfg.panel_width;
     auto ph = _cfg.panel_height;
-    auto mw = _cfg.memory_width;
-    auto mh = _cfg.memory_height;
     if (_internal_rotation & 1)
     {
       std::swap(pw, ph);
-      std::swap(mw, mh);
     }
     _width  = pw;
     _height = ph;
@@ -225,7 +223,7 @@ namespace lgfx
     _raw_color = rawcolor;
     std::size_t bytes = (rawcolor == 0) ? 1 : (_write_bits >> 3);
     std::uint8_t buf[(length >> 8) * (bytes + 1) + 2];
-    buf[0] = CMD_WR_RLE | bytes;
+    buf[0] = CMD_WRITE_RLE | bytes;
     std::size_t idx = _check_repeat(buf[0]) ? 0 : 1;
     //_check_repeat(buf[0]);
     //std::size_t idx = 1;
@@ -466,7 +464,7 @@ if (bytelen != rleDecode(dest, res, bytes)*bytes) {
     auto bytes = _write_bits >> 3;
     std::uint32_t wb = length * bytes;
     auto dmabuf = _bus->getDMABuffer(wb + (wb >> 7) + 128);
-    dmabuf[0] = CMD_WR_RLE | bytes;
+    dmabuf[0] = CMD_WRITE_RLE | bytes;
     std::size_t idx = _check_repeat(dmabuf[0]) ? 0 : 1;
 
     auto buf = &dmabuf[(wb >> 7) + 128];
@@ -481,7 +479,7 @@ if (bytelen != rleDecode(dest, res, bytes)*bytes) {
     auto bytes = _write_bits >> 3;
     std::uint32_t wb = length * bytes;
     auto dmabuf = _bus->getDMABuffer(wb + (wb >> 7) + 1);
-    dmabuf[0] = CMD_WR_RAW | _write_bits >> 3;
+    dmabuf[0] = CMD_WRITE_RAW | _write_bits >> 3;
     std::size_t idx = _check_repeat(dmabuf[0]) ? 0 : 1;
 
     auto buf = &dmabuf[idx];
@@ -506,7 +504,7 @@ if (bytelen != rleDecode(dest, res, bytes)*bytes) {
       while (w != (i = param->fp_skip(i, w, param)))
       {
         auto dmabuf = _bus->getDMABuffer(wb + 1);
-        dmabuf[0] = CMD_WR_RAW | ((_write_bits >> 3) & 3);
+        dmabuf[0] = CMD_WRITE_RAW | ((_write_bits >> 3) & 3);
         auto buf = &dmabuf[1];
         std::int32_t len = param->fp_copy(buf, 0, w - i, param);
         if (transp) { _set_window(x + i, y, x + i + len - 1, y); }
@@ -528,7 +526,7 @@ if (bytelen != rleDecode(dest, res, bytes)*bytes) {
     std::uint32_t sx32 = param->src_x32;
     auto bytes = _write_bits >> 3;
     std::uint32_t y_add = 1;
-    std::uint32_t cmd = CMD_WR_RLE | bytes;
+    std::uint32_t cmd = CMD_WRITE_RLE | bytes;
     bool transp = (param->transp != pixelcopy_t::NON_TRANSP);
     if (!transp)
     {
@@ -583,7 +581,7 @@ if (bytelen != rleDecode(dest, res, bytes)*bytes) {
     } while (_buff_free_count < 255 && --retry);
     _set_window(x, y, x+w-1, y+h-1);
 
-    _bus->writeCommand(CMD_RD_RAW | ((_read_bits >> 3) & 3), 8);
+    _bus->writeCommand(CMD_READ_RAW | ((_read_bits >> 3) & 3), 8);
     if (param->no_convert)
     {
       _bus->readBytes((std::uint8_t*)dst, w * h * _read_bits >> 3, true);

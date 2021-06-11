@@ -53,6 +53,7 @@ namespace lgfx
   {
     if (_panel) _panel->setRotation(rotation);
     clearClipRect();
+    clearScrollRect();
   }
 
   void LGFXBase::setAddrWindow(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h)
