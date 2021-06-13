@@ -39,9 +39,6 @@ namespace lgfx
 
     endWrite();
 
-    // setHSync(40, 48, 40, _cfg.offset_x);
-    // setVSync(13,  3, 29, _cfg.offset_y);
-
     return true;
   }
 

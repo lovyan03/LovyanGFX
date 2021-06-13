@@ -147,20 +147,18 @@ namespace lgfx
       std::swap(xe, ye);
     }
 
+    std::uint_fast8_t rb = 1u << _internal_rotation;
     if (xs != _xs || xe != _xe)
     {
       auto tmp = xs;
       _xs = xs;
       _xe = xe;
 
-      if (_internal_rotation)
+      if (rb & 0b11000110) // case 1:2:6:7:
       {
-        if (_internal_rotation == 1 || _internal_rotation == 2 || _internal_rotation == 6 || _internal_rotation == 7)
-        {
-          xs = _cfg.panel_width - xe - 1;
-          xe = _cfg.panel_width - tmp - 1;
-          tmp = xe;
-        }
+        xs = _cfg.panel_width - xe - 1;
+        xe = _cfg.panel_width - tmp - 1;
+        tmp = xe;
       }
 
       _bus->writeCommand(CMD_H_ADDR2, 8);
@@ -181,14 +179,11 @@ namespace lgfx
       _ys = ys;
       _ye = ye;
 
-      if (_internal_rotation)
+      if (rb & 0b10011100) // case 2:3:4:7:
       {
-        if (_internal_rotation == 2 || _internal_rotation == 3 || _internal_rotation == 4 || _internal_rotation == 7)
-        {
-          ys = _cfg.panel_height - ye - 1;
-          ye = _cfg.panel_height - tmp - 1;
-          tmp = ye;
-        }
+        ys = _cfg.panel_height - ye - 1;
+        ye = _cfg.panel_height - tmp - 1;
+        tmp = ye;
       }
 
       _bus->writeCommand(CMD_V_ADDR2, 8);
