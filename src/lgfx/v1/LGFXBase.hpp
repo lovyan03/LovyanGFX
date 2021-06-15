@@ -510,20 +510,34 @@ namespace lgfx
     inline std::size_t drawFloat(float floatNumber, std::uint8_t dp, std::int32_t poX, std::int32_t poY, std::uint8_t font) { setFont(fontdata[font]); return drawFloat(floatNumber, dp, poX, poY); }
            std::size_t drawFloat(float floatNumber, std::uint8_t dp, std::int32_t poX, std::int32_t poY);
 
-    [[deprecated("use setTextDatum() and drawString()")]] inline std::size_t drawCentreString(const char *string, std::int32_t x, std::int32_t y, std::uint8_t font) { setFont(fontdata[font]); return draw_string(string, x, y, textdatum_t::top_center); }
-    [[deprecated("use setTextDatum() and drawString()")]] inline std::size_t drawCenterString(const char *string, std::int32_t x, std::int32_t y, std::uint8_t font) { setFont(fontdata[font]); return draw_string(string, x, y, textdatum_t::top_center); }
-    [[deprecated("use setTextDatum() and drawString()")]] inline std::size_t drawRightString( const char *string, std::int32_t x, std::int32_t y, std::uint8_t font) { setFont(fontdata[font]); return draw_string(string, x, y, textdatum_t::top_right); }
+    [[deprecated("use IFont")]] inline std::size_t drawCentreString(const char *string, std::int32_t x, std::int32_t y, std::uint8_t font) { setFont(fontdata[font]); return draw_string(string, x, y, textdatum_t::top_center); }
+    [[deprecated("use IFont")]] inline std::size_t drawCenterString(const char *string, std::int32_t x, std::int32_t y, std::uint8_t font) { setFont(fontdata[font]); return draw_string(string, x, y, textdatum_t::top_center); }
+    [[deprecated("use IFont")]] inline std::size_t drawRightString( const char *string, std::int32_t x, std::int32_t y, std::uint8_t font) { setFont(fontdata[font]); return draw_string(string, x, y, textdatum_t::top_right); }
+    inline std::size_t drawCentreString(const char *string, std::int32_t x, std::int32_t y, const IFont* font) { setFont(         font ); return draw_string(string, x, y, textdatum_t::top_center); }
+    inline std::size_t drawCenterString(const char *string, std::int32_t x, std::int32_t y, const IFont* font) { setFont(         font ); return draw_string(string, x, y, textdatum_t::top_center); }
+    inline std::size_t drawRightString( const char *string, std::int32_t x, std::int32_t y, const IFont* font) { setFont(         font ); return draw_string(string, x, y, textdatum_t::top_right); }
+    inline std::size_t drawCentreString(const char *string, std::int32_t x, std::int32_t y                   ) {                          return draw_string(string, x, y, textdatum_t::top_center); }
+    inline std::size_t drawCenterString(const char *string, std::int32_t x, std::int32_t y                   ) {                          return draw_string(string, x, y, textdatum_t::top_center); }
+    inline std::size_t drawRightString( const char *string, std::int32_t x, std::int32_t y                   ) {                          return draw_string(string, x, y, textdatum_t::top_right); }
 
   #if defined (ARDUINO)
     inline std::int32_t textLength(const String& string, std::int32_t width) { return textLength(string.c_str(), width); }
     inline std::int32_t textWidth(const String& string) { return textWidth(string.c_str()); }
 
-    inline std::size_t drawString(const String& string, std::int32_t x, std::int32_t y                   ) {                          return draw_string(string.c_str(), x, y, _text_style.datum); }
+    [[deprecated("use IFont")]]
     inline std::size_t drawString(const String& string, std::int32_t x, std::int32_t y, std::uint8_t font) { setFont(fontdata[font]); return draw_string(string.c_str(), x, y, _text_style.datum); }
+    inline std::size_t drawString(const String& string, std::int32_t x, std::int32_t y, const IFont* font) { setFont(         font ); return draw_string(string.c_str(), x, y, _text_style.datum); }
+    inline std::size_t drawString(const String& string, std::int32_t x, std::int32_t y                   ) {                          return draw_string(string.c_str(), x, y, _text_style.datum); }
 
-    [[deprecated("use setTextDatum() and drawString()")]] inline std::size_t drawCentreString(const String& string, std::int32_t x, std::int32_t y, std::uint8_t font) { setFont(fontdata[font]); return draw_string(string.c_str(), x, y, textdatum_t::top_center); }
-    [[deprecated("use setTextDatum() and drawString()")]] inline std::size_t drawCenterString(const String& string, std::int32_t x, std::int32_t y, std::uint8_t font) { setFont(fontdata[font]); return draw_string(string.c_str(), x, y, textdatum_t::top_center); }
-    [[deprecated("use setTextDatum() and drawString()")]] inline std::size_t drawRightString( const String& string, std::int32_t x, std::int32_t y, std::uint8_t font) { setFont(fontdata[font]); return draw_string(string.c_str(), x, y, textdatum_t::top_right); }
+    [[deprecated("use IFont")]] inline std::size_t drawCentreString(const String& string, std::int32_t x, std::int32_t y, std::uint8_t font) { setFont(fontdata[font]); return draw_string(string.c_str(), x, y, textdatum_t::top_center); }
+    [[deprecated("use IFont")]] inline std::size_t drawCenterString(const String& string, std::int32_t x, std::int32_t y, std::uint8_t font) { setFont(fontdata[font]); return draw_string(string.c_str(), x, y, textdatum_t::top_center); }
+    [[deprecated("use IFont")]] inline std::size_t drawRightString( const String& string, std::int32_t x, std::int32_t y, std::uint8_t font) { setFont(fontdata[font]); return draw_string(string.c_str(), x, y, textdatum_t::top_right); }
+    inline std::size_t drawCentreString(const String& string, std::int32_t x, std::int32_t y, const IFont* font) { setFont(         font ); return draw_string(string.c_str(), x, y, textdatum_t::top_center); }
+    inline std::size_t drawCenterString(const String& string, std::int32_t x, std::int32_t y, const IFont* font) { setFont(         font ); return draw_string(string.c_str(), x, y, textdatum_t::top_center); }
+    inline std::size_t drawRightString( const String& string, std::int32_t x, std::int32_t y, const IFont* font) { setFont(         font ); return draw_string(string.c_str(), x, y, textdatum_t::top_right); }
+    inline std::size_t drawCentreString(const String& string, std::int32_t x, std::int32_t y                   ) {                          return draw_string(string.c_str(), x, y, textdatum_t::top_center); }
+    inline std::size_t drawCenterString(const String& string, std::int32_t x, std::int32_t y                   ) {                          return draw_string(string.c_str(), x, y, textdatum_t::top_center); }
+    inline std::size_t drawRightString( const String& string, std::int32_t x, std::int32_t y                   ) {                          return draw_string(string.c_str(), x, y, textdatum_t::top_right); }
   #endif
 
            std::size_t drawChar(std::uint16_t uniCode, std::int32_t x, std::int32_t y, std::uint8_t font);
