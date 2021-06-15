@@ -33,7 +33,7 @@ namespace lgfx
   #define SAFE_I2S_FIFO_WR_REG(i) (0x3FF4F000 + ((i)*0x1E000))
   #define SAFE_I2S_FIFO_RD_REG(i) (0x3FF4F004 + ((i)*0x1E000))
 
-  static constexpr std::size_t CACHE_THRESH = 256;
+  static constexpr std::size_t CACHE_THRESH = 128;
 
   static constexpr std::uint32_t _conf_reg_default = I2S_TX_MSB_RIGHT | I2S_TX_RIGHT_FIRST | I2S_RX_RIGHT_FIRST;
   static constexpr std::uint32_t _conf_reg_start   = _conf_reg_default | I2S_TX_START;
@@ -243,9 +243,8 @@ namespace lgfx
       count -= idx_e;
       if (!count) return 0;
       
-      //memmove(_cache_flip, &cache_old[idx_e], (count + 1) << 1);
-      _cache_flip[0] = cache_old[idx_e  ];
-      _cache_flip[1] = cache_old[idx_e+1];
+      // 送り残しがあれば次回分のキャッシュに移しておく;
+      *(std::uint32_t*)_cache_flip = *(std::uint32_t*)(&cache_old[idx_e]);
     }
 
     if (!force)

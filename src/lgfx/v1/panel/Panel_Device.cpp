@@ -93,6 +93,11 @@ namespace lgfx
     return _bus->busy();
   }
 
+  void Panel_Device::display(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h)
+  {
+    _bus->flush();
+  }
+
   void Panel_Device::writeCommand(std::uint32_t data, std::uint_fast8_t length)
   {
     if (_cfg.dlen_16bit)

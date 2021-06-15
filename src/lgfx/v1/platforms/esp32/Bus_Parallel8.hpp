@@ -97,9 +97,7 @@ namespace lgfx
 
   private:
 
-    static constexpr std::size_t CACHE_SIZE = 260;
-    // static constexpr std::size_t CACHE_SIZE = 68;
-    // static constexpr std::size_t CACHE_THRESH = 64;
+    static constexpr std::size_t CACHE_SIZE = 132;
 
     config_t _cfg;
     SimpleBuffer _flip_buffer;

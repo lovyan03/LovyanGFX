@@ -53,23 +53,7 @@ namespace lgfx
       _write_depth = rgb888_3Byte;
       _read_depth = _write_depth;
     }
-/*
-    std::uint8_t getMadCtl(std::uint8_t r) const override
-    {
-      static constexpr std::uint8_t madctl_table[] =
-      {
-                           0,
-        MAD_MV|MAD_MX       ,
-               MAD_MX|MAD_MY,
-        MAD_MV       |MAD_MY,
-                      MAD_MY,
-        MAD_MV              ,
-               MAD_MX       ,
-        MAD_MV|MAD_MX|MAD_MY,
-      };
-      return madctl_table[r];
-    }
-//*/
+
     const std::uint8_t* getInitCommands(std::uint8_t listno) const override
     {
       static constexpr std::uint8_t list0[] =

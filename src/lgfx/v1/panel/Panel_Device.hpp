@@ -143,6 +143,7 @@ namespace lgfx
     void initDMA(void) override;
     void waitDMA(void) override;
     bool dmaBusy(void) override;
+    void display(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h) override;
 
     void writeCommand(std::uint32_t data, std::uint_fast8_t length) override;
     void writeData(std::uint32_t data, std::uint_fast8_t length) override;

@@ -80,11 +80,6 @@ namespace lgfx
     cs_control(true);
   }
 
-  void Panel_LCD::display(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h)
-  {
-    _bus->flush();
-  }
-
   void Panel_LCD::setInvert(bool invert)
   {
     _invert = invert;

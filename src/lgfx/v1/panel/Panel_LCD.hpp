@@ -40,7 +40,6 @@ namespace lgfx
 
     void waitDisplay(void) override {}
     bool displayBusy(void) override { return false; }
-    void display(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h) override;
 
     void writePixels(pixelcopy_t* param, std::uint32_t len) override;
     void writeBlock(std::uint32_t rawcolor, std::uint32_t len) override;
