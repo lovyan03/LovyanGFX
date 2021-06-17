@@ -806,11 +806,8 @@ namespace lgfx
         bus_cfg.pin_sclk = 18;
         bus_cfg.pin_dc   = 27;
 
-        #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_M5STACK )
-        _pin_level( 4, true);  // M5Stack TF card CS
-        #endif
+        _pin_level( 4, true);  // M5Stack and LoLinD32 TF card CS
         #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_LOLIN_D32_PRO )
-        _pin_level( 5, true);  // LoLinD32 TF card CS
         _pin_level(12, true);  // LoLinD32 TouchScreen CS
         #endif
 
@@ -846,7 +843,6 @@ namespace lgfx
           }
           _bus_spi.release();
         }
-        lgfx::pinMode( 4, lgfx::pin_mode_t::input); // M5Stack TF card CS
         #endif
 
         #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_LOLIN_D32_PRO )
@@ -934,10 +930,10 @@ namespace lgfx
           }
           _bus_spi.release();
         }
-        lgfx::pinMode( 5, lgfx::pin_mode_t::input_pullup); // LoLinD32 TF card CS
         lgfx::pinMode(12, lgfx::pin_mode_t::input); // LoLinD32 TouchScreen CS
         #endif
 
+        lgfx::pinMode( 4, lgfx::pin_mode_t::input); // M5Stack and LoLinD32 TF card CS
         lgfx::pinMode(14, lgfx::pin_mode_t::input); // LCD CS
         lgfx::pinMode(33, lgfx::pin_mode_t::input); // LCD RST
       }
