@@ -19,7 +19,7 @@ namespace lgfx
     unloadFont();
   }
 
-  std::size_t TTFfont::drawChar(LGFXBase* gfx, std::int32_t x, std::int32_t y, std::uint16_t c, const TextStyle* style) const
+  std::size_t TTFfont::drawChar(LGFXBase* gfx, std::int32_t x, std::int32_t y, std::uint16_t c, const TextStyle* style, FontMetrics* metrics, std::int32_t& filled_x) const
   {
 // unimplemented
     return 0;

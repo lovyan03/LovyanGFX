@@ -16,7 +16,7 @@ namespace lgfx
 
     font_type_t getType(void) const override { return ft_ttf; }
 
-    std::size_t drawChar(LGFXBase* gfx, std::int32_t x, std::int32_t y, std::uint16_t c, const TextStyle* style) const override;
+    std::size_t drawChar(LGFXBase* gfx, std::int32_t x, std::int32_t y, std::uint16_t c, const TextStyle* style, FontMetrics* metrics, std::int32_t& filled_x) const override;
 
     void getDefaultMetric(FontMetrics *metrics) const override;
 
