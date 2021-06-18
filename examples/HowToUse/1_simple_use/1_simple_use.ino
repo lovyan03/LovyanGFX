@@ -36,6 +36,9 @@
 // ヘッダをincludeします。
 #include <LovyanGFX.hpp>
 
+#include <LGFX_AUTODETECT.hpp>  // クラス"LGFX"を準備します
+// #include <lgfx_user/LGFX_ESP32_sample.hpp> // またはユーザ自身が用意したLGFXクラスを準備します
+
 static LGFX lcd;                 // LGFXのインスタンスを作成。
 static LGFX_Sprite sprite(&lcd); // スプライトを使う場合はLGFX_Spriteのインスタンスを作成。
 
