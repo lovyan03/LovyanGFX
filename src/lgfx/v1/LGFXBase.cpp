@@ -1710,14 +1710,15 @@ namespace lgfx
   {
     FontMetrics fm;
     font->getDefaultMetric(&fm);
-    return fm.height * _text_style.size_y;
+    std::int32_t sy = 65536 * _text_style.size_y;
+    return (fm.height * sy) >> 16;
   }
 
   std::int32_t LGFXBase::textLength(const char *string, std::int32_t width)
   {
     if (!string || !string[0]) return 0;
 
-    auto sx = _text_style.size_x;
+    std::int32_t sx = 65536 * _text_style.size_x;
 
     std::int32_t left = 0;
     std::int32_t right = 0;
@@ -1733,10 +1734,11 @@ namespace lgfx
 
       //if (!_font->updateFontMetric(&_font_metrics, uniCode)) continue;
       _font->updateFontMetric(&_font_metrics, uniCode);
-      if (left == 0 && right == 0 && _font_metrics.x_offset < 0) left = right = - (int)(_font_metrics.x_offset * sx);
-      right = left + std::max<int>(_font_metrics.x_advance * sx, int(_font_metrics.width * sx) + int(_font_metrics.x_offset * sx));
+      if (left == 0 && right == 0 && _font_metrics.x_offset < 0) left = right = - ((_font_metrics.x_offset * sx) >> 16);
+      std::int32_t sxadvance = (_font_metrics.x_advance * sx) >> 16;
+      right = left + std::max<int>(sxadvance, ((_font_metrics.width * sx) >> 16) + ((_font_metrics.x_offset * sx) >> 16));
       //right = left + (int)(std::max<int>(_font_metrics.x_advance, _font_metrics.width + _font_metrics.x_offset) * sx);
-      left += (int)(_font_metrics.x_advance * sx);
+      left += sxadvance;
       if (width <= right) return string - str;
     } while (*(++string));
     return string - str;
@@ -1761,7 +1763,7 @@ namespace lgfx
   {
     if (!string || !string[0]) return 0;
 
-    auto sx = _text_style.size_x;
+    std::int32_t sx = 65536 * _text_style.size_x;
 
     std::int32_t left = 0;
     std::int32_t right = 0;
@@ -1776,10 +1778,12 @@ namespace lgfx
 
       //if (!_font->updateFontMetric(&metrics, uniCode)) continue;
       font->updateFontMetric(metrics, uniCode);
-      if (left == 0 && right == 0 && metrics->x_offset < 0) left = right = - (int)(metrics->x_offset * sx);
-      right = left + std::max<int>(metrics->x_advance*sx, int(metrics->width*sx) + int(metrics->x_offset * sx));
+      std::int32_t sxoffset = (metrics->x_offset * sx) >> 16;
+      if (left == 0 && right == 0 && metrics->x_offset < 0) left = right = - sxoffset;
+      std::int32_t sxadvance = (metrics->x_advance * sx) >> 16;
+      right = left + std::max<int>(sxadvance, ((metrics->width * sx) >> 16) + sxoffset);
       //right = left + (int)(std::max<int>(metrics->x_advance, metrics->width + metrics->x_offset) * sx);
-      left += (int)(metrics->x_advance * sx);
+      left += sxadvance;
     } while (*(++string));
     return right;
   }
@@ -1822,7 +1826,8 @@ namespace lgfx
     }
     std::int16_t sumX = 0;
     std::int32_t cwidth = text_width(string, font, &metrics); // Find the pixel width of the string in the font
-    std::int32_t cheight = metrics.height * _text_style.size_y;
+    std::int32_t sy = 65536 * _text_style.size_y;
+    std::int32_t cheight = (metrics.height * sy) >> 16;
 
     if (string && string[0]) {
       auto tmp = string;
@@ -1837,7 +1842,11 @@ namespace lgfx
 
         {
           font->updateFontMetric(&metrics, uniCode);
-          if (metrics.x_offset < 0) sumX = - metrics.x_offset * _text_style.size_x;
+          if (metrics.x_offset < 0)
+          {
+            std::int32_t sx = 65536 * _text_style.size_x;
+            sumX = - (metrics.x_offset * sx) >> 16;
+          }
           break;
         }
       } while (*++tmp);
@@ -1847,7 +1856,7 @@ namespace lgfx
     } else if (datum & bottom_left) {   // vertical: bottom
       y -= cheight;
     } else if (datum & baseline_left) { // vertical: baseline
-      y -= (int)(metrics.baseline * _text_style.size_y);
+      y -= (metrics.baseline * sy) >> 16;
     }
 
     this->startWrite();
@@ -1874,7 +1883,7 @@ namespace lgfx
       x -= cwidth;
     }
 
-    y -= int(metrics.y_offset * _text_style.size_y);
+    y -= (metrics.y_offset * sy) >> 16;
 
     std::int32_t dummy_filled_x = 0;
     if (string && string[0]) {
@@ -1897,10 +1906,11 @@ namespace lgfx
   std::size_t LGFXBase::write(std::uint8_t utf8)
   {
     if (utf8 == '\r') return 1;
+    std::int32_t sy = 65536 * _text_style.size_y;
     if (utf8 == '\n') {
       _filled_x = (_textscroll) ? this->_sx : 0;
       _cursor_x = _filled_x;
-      _cursor_y += _font_metrics.y_advance * _text_style.size_y;
+      _cursor_y += (_font_metrics.y_advance * sy) >> 16;
     } else {
       std::uint16_t uniCode = utf8;
       if (_text_style.utf8) {
@@ -1911,20 +1921,21 @@ namespace lgfx
       //if (!_font->updateFontMetric(&_font_metrics, uniCode)) return 1;
       _font->updateFontMetric(&_font_metrics, uniCode);
 
-      std::int32_t xo = _font_metrics.x_offset  * _text_style.size_x;
-      std::int32_t w  = std::max(xo + _font_metrics.width * _text_style.size_x, _font_metrics.x_advance * _text_style.size_x);
+      std::int32_t sx = 65536 * _text_style.size_x;
+      std::int32_t xo = (_font_metrics.x_offset * sx) >> 16;
+      std::int32_t w  = std::max(xo + ((_font_metrics.width * sx) >> 16), (_font_metrics.x_advance * sx) >> 16);
       if (_textscroll || _textwrap_x) {
         std::int32_t llimit = _textscroll ? this->_sx : this->_clip_l;
         std::int32_t rlimit = _textscroll ? this->_sx + this->_sw : (this->_clip_r + 1);
         if (_cursor_x + w > rlimit) {
           _filled_x = llimit;
           _cursor_x = llimit - std::min<std::int32_t>(0, xo);
-          _cursor_y += _font_metrics.y_advance * _text_style.size_y;
+          _cursor_y += (_font_metrics.y_advance * sy) >> 16;
         }
         if (_cursor_x < llimit - xo) _cursor_x = llimit - xo;
       }
 
-      std::int32_t h  = _font_metrics.height * _text_style.size_y;
+      std::int32_t h  = (_font_metrics.height * sy) >> 16;
 
       std::int32_t ydiff = 0;
       if (_text_style.datum & middle_left) {          // vertical: middle
@@ -1932,7 +1943,7 @@ namespace lgfx
       } else if (_text_style.datum & bottom_left) {   // vertical: bottom
         ydiff -= h;
       } else if (_text_style.datum & baseline_left) { // vertical: baseline
-        ydiff -= (int)(_font_metrics.baseline * _text_style.size_y);
+        ydiff -= (_font_metrics.baseline * sy) >> 16;
       }
       std::int32_t y = _cursor_y + ydiff;
 
@@ -1952,8 +1963,18 @@ namespace lgfx
         if (y < this->_clip_t) y = this->_clip_t;
       }
       _cursor_y = y - ydiff;
-      y -= int(_font_metrics.y_offset  * _text_style.size_y);
-      _cursor_x += _font->drawChar(this, _cursor_x, y, uniCode, &_text_style, &_font_metrics, _filled_x);
+      y -= (_font_metrics.y_offset * sy) >> 16;
+
+      if (y <= _clip_b)
+      {
+        _cursor_x += _font->drawChar(this, _cursor_x, y, uniCode, &_text_style, &_font_metrics, _filled_x);
+      }
+      else
+      {
+        std::int32_t sx = 65536 * _text_style.size_x;
+        _font->updateFontMetric(&_font_metrics, uniCode);
+        _cursor_x += (_font_metrics.x_advance * sx) >> 16;
+      }
     }
 
     return 1;

@@ -61,6 +61,7 @@ namespace lgfx
 #if defined (ARDUINO)
  #if defined (FS_H) || defined (__SEEED_FS__)
 
+    /// load vlw fontdata from filesystem.
     void loadFont(const char *path, fs::FS &fs
 #if defined (_SD_H_)
  = SD
@@ -384,7 +385,11 @@ namespace lgfx
     template<typename T, typename Tfs>
     void init_font_file(Tfs &fs)
     {
-      if (this->_font_file != nullptr) { delete this->_font_file; }
+      this->unloadFont();
+      if (this->_font_file != nullptr)
+      {
+        delete this->_font_file;
+      }
       auto wrapper = new T(fs);
       //wrapper->setFS(fs);
       this->_font_file = wrapper;
