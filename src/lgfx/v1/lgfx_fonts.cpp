@@ -27,10 +27,6 @@
   #endif
 #endif
 
-#ifndef PROGMEM
-#define PROGMEM
-#endif
-
 namespace lgfx
 {
  inline namespace v1
@@ -47,7 +43,7 @@ namespace lgfx
     std::int32_t sx = 65536 * style->size_x;
     w = (w * sx) >> 16;
     std::int32_t sy = 65536 * style->size_y;
-    h * (h * sy) >> 16;
+    h = (h * sy) >> 16;
     gfx->startWrite();
     if (style->fore_rgb888 != style->back_rgb888)
     {
