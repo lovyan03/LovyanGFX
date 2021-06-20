@@ -65,13 +65,11 @@ namespace lgfx
     _inited = false;
     if (isSPI()) return false;
 
-    lgfx::i2c::init(_cfg.i2c_port, _cfg.pin_sda, _cfg.pin_scl);
     if (_cfg.pin_int >= 0)
     {
       lgfx::pinMode(_cfg.pin_int, pin_mode_t::input_pullup);
     }
-
-    return _check_init();
+    return (lgfx::i2c::init(_cfg.i2c_port, _cfg.pin_sda, _cfg.pin_scl).has_value()) && _check_init();
   }
 
   void Touch_FT5x06::wakeup(void)

@@ -20,6 +20,23 @@ Contributors:
 #include <cstdint>
 #include <type_traits>
 
+#if !defined ( pgm_read_byte )
+  #if __has_include(<pgmspace.h>)
+    #include <pgmspace.h>
+  #elif __has_include(<avr/pgmspace.h>)
+    #include <avr/pgmspace.h>
+  #else
+    #define pgm_read_byte(addr)  (*(const std::uint8_t  *)((std::size_t)addr))
+    #define pgm_read_word(addr)  (*(const std::uint16_t *)((std::size_t)addr))
+    #define pgm_read_dword(addr) (*(const std::uint32_t *)((std::size_t)addr))
+  #endif
+#endif
+
+/// for  not ESP8266
+#if !defined ( pgm_read_dword_with_offset )
+ #define pgm_read_dword_unaligned(addr) (*(const std::uint32_t *)((std::size_t)addr))
+#endif
+
 #include "enum.hpp"
 
 namespace lgfx
@@ -601,9 +618,9 @@ namespace lgfx
   inline constexpr bool operator==(const rgb332_t&   lhs, std::uint32_t rhs) { return  *reinterpret_cast<const std::uint8_t* >(&lhs) == rhs; }
   inline constexpr bool operator==(const rgb565_t&   lhs, std::uint32_t rhs) { return  *reinterpret_cast<const std::uint16_t*>(&lhs) == rhs; }
   inline constexpr bool operator==(const swap565_t&  lhs, std::uint32_t rhs) { return  *reinterpret_cast<const std::uint16_t*>(&lhs) == rhs; }
-  inline constexpr bool operator==(const bgr666_t&   lhs, std::uint32_t rhs) { return (*reinterpret_cast<const std::uint32_t*>(&lhs) << 8) >> 8 == rhs; }
-  inline constexpr bool operator==(const rgb888_t&   lhs, std::uint32_t rhs) { return (*reinterpret_cast<const std::uint32_t*>(&lhs) << 8) >> 8 == rhs; }
-  inline constexpr bool operator==(const bgr888_t&   lhs, std::uint32_t rhs) { return (*reinterpret_cast<const std::uint32_t*>(&lhs) << 8) >> 8 == rhs; }
+  inline           bool operator==(const bgr666_t&   lhs, std::uint32_t rhs) { return (pgm_read_dword_unaligned(&lhs) << 8) >> 8 == rhs; }
+  inline           bool operator==(const rgb888_t&   lhs, std::uint32_t rhs) { return (pgm_read_dword_unaligned(&lhs) << 8) >> 8 == rhs; }
+  inline           bool operator==(const bgr888_t&   lhs, std::uint32_t rhs) { return (pgm_read_dword_unaligned(&lhs) << 8) >> 8 == rhs; }
   inline constexpr bool operator==(const argb8888_t& lhs, std::uint32_t rhs) { return  *reinterpret_cast<const std::uint32_t*>(&lhs) == rhs; }
   inline constexpr bool operator==(const bgra8888_t& lhs, std::uint32_t rhs) { return  *reinterpret_cast<const std::uint32_t*>(&lhs) == rhs; }
   inline constexpr bool operator==(const grayscale_t& lhs,std::uint32_t rhs) { return  *reinterpret_cast<const std::uint8_t* >(&lhs) == rhs; }
@@ -797,11 +814,26 @@ namespace lgfx
       _g8a = (std::uint_fast16_t)(src.G8() * (1 + src.A8()));
       _b8a = (std::uint_fast16_t)(src.B8() * (1 + src.A8()));
     }
-    void operator() (std::int32_t x, std::int32_t y, bgr888_t& dst)
+    template <typename TDstColor>
+    void operator() (std::int32_t x, std::int32_t y, TDstColor& dst)
     {
       dst.set((_r8a + dst.R8() * _inv) >> 8
              ,(_g8a + dst.G8() * _inv) >> 8
              ,(_b8a + dst.B8() * _inv) >> 8
+             );
+    }
+    template <typename TDstColor, typename TSrcColor>
+    void operator() (std::int32_t x, std::int32_t y, TDstColor& dst, TSrcColor& src)
+    {
+      std::uint_fast16_t  a8 = 1 + src.A8();
+      std::uint_fast16_t inv = 257 - a8;
+      std::uint_fast16_t r8a = a8 * src.R8();
+      std::uint_fast16_t g8a = a8 * src.G8();
+      std::uint_fast16_t b8a = a8 * src.B8();
+
+      dst.set((r8a + dst.R8() * inv) >> 8
+             ,(g8a + dst.G8() * inv) >> 8
+             ,(b8a + dst.B8() * inv) >> 8
              );
     }
   private:

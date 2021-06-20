@@ -57,14 +57,12 @@ namespace lgfx
 
     if (isSPI()) return false;
 
-    lgfx::i2c::init(_cfg.i2c_port, _cfg.pin_sda, _cfg.pin_scl);
-
     if (_cfg.pin_int >= 0)
     {
       lgfx::lgfxPinMode(_cfg.pin_int, pin_mode_t::input);
     }
 
-    _inited = writeBytes(gt911cmd_getdata, 3);
+    _inited = lgfx::i2c::init(_cfg.i2c_port, _cfg.pin_sda, _cfg.pin_scl).has_value() && writeBytes(gt911cmd_getdata, 3);
 
     if (_inited)
     {

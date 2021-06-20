@@ -15,15 +15,12 @@ Contributors:
  [mongonta0716](https://github.com/mongonta0716)
  [tobozo](https://github.com/tobozo)
 /----------------------------------------------------------------------------*/
-#if defined (ESP32) || defined (CONFIG_IDF_TARGET_ESP32) || defined (CONFIG_IDF_TARGET_ESP32S2) || defined (ESP_PLATFORM)
-#elif defined (ESP8266)
-#elif defined (__SAMD21__) || defined (__SAMD51__)
-#elif defined (STM32F2xx) || defined (STM32F4xx) || defined (STM32F7xx)
-#elif defined ( ARDUINO )
+#if defined (__SAMD21__)
 
 #include "Bus_SPI.hpp"
+
 #include "../../misc/pixelcopy.hpp"
-#include <Arduino.h>
+
 #include <SPI.h>
 
 namespace lgfx
@@ -45,10 +42,8 @@ namespace lgfx
 
   bool Bus_SPI::init(void)
   {
-    dc_h();
+    dc_control(true);
     pinMode(_cfg.pin_dc, pin_mode_t::output);
-    SPI.pins(_cfg.pin_sclk, _cfg.pin_miso, _cfg.pin_mosi, -1);
-    SPI.begin();
     return true;
   }
 
@@ -58,23 +53,21 @@ namespace lgfx
 
   void Bus_SPI::beginTransaction(void)
   {
-    dc_h();
-    //SPISettings setting(_cfg.freq_write, BitOrder::MSBFIRST, _cfg.spi_mode, true);
-    SPISettings setting(_cfg.freq_write, MSBFIRST, _cfg.spi_mode);
+    dc_control(true);
+    SPISettings setting(_cfg.freq_write, BitOrder::MSBFIRST, _cfg.spi_mode);
     SPI.beginTransaction(setting);
   }
 
   void Bus_SPI::endTransaction(void)
   {
     SPI.endTransaction();
-    dc_h();
+    dc_control(true);
   }
 
   void Bus_SPI::beginRead(void)
   {
     SPI.endTransaction();
-    //SPISettings setting(_cfg.freq_read, BitOrder::MSBFIRST, _cfg.spi_mode, false);
-    SPISettings setting(_cfg.freq_read, MSBFIRST, _cfg.spi_mode);
+    SPISettings setting(_cfg.freq_read, BitOrder::MSBFIRST, _cfg.spi_mode);
     SPI.beginTransaction(setting);
   }
 
@@ -95,13 +88,13 @@ namespace lgfx
 
   bool Bus_SPI::writeCommand(std::uint32_t data, std::uint_fast8_t bit_length)
   {
-    dc_l();
+    dc_control(false);
     do
     {
       SPI.transfer(data);
       data >>= 8;
     } while (bit_length -= 8);
-    dc_h();
+    dc_control(true);
     return true;
   }
 
@@ -118,7 +111,7 @@ namespace lgfx
   {
     const std::uint8_t dst_bytes = bit_length >> 3;
     std::uint32_t limit = (dst_bytes == 3) ? 12 : 16;
-    auto dmabuf = _flip_buffer.getBuffer(512);
+    auto dmabuf = _flip_buffer.getBuffer(1024);
     std::size_t fillpos = 0;
     reinterpret_cast<uint32_t*>(dmabuf)[0] = data;
     fillpos += dst_bytes;
@@ -126,7 +119,7 @@ namespace lgfx
     do
     {
       len = ((length - 1) % limit) + 1;
-      if (limit <= 256) limit <<= 1;
+      if (limit <= 512) limit <<= 1;
 
       while (fillpos < len * dst_bytes)
       {
@@ -146,7 +139,7 @@ namespace lgfx
     do
     {
       len = ((length - 1) % limit) + 1;
-      if (limit <= 256) limit <<= 1;
+      if (limit <= 512) limit <<= 1;
       auto dmabuf = _flip_buffer.getBuffer(len * dst_bytes);
       param->fp_copy(dmabuf, 0, len, param);
       writeBytes(dmabuf, len * dst_bytes, true, true);
@@ -155,8 +148,7 @@ namespace lgfx
 
   void Bus_SPI::writeBytes(const std::uint8_t* data, std::uint32_t length, bool dc, bool use_dma)
   {
-    if (dc) dc_h();
-    else dc_l();
+    dc_control(dc);
     SPI.transfer(const_cast<std::uint8_t*>(data), length);
   }
 

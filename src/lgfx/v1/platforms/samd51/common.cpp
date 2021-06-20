@@ -272,8 +272,7 @@ namespace lgfx
     , sercom_pin_list_end
     };
 
-    static constexpr const std::size_t sercom_max = SERCOM_INST_NUM;
-    static constexpr const std::int8_t* sercom_mux_pin_list[2][sercom_max] =
+    static constexpr const std::int8_t* sercom_mux_pin_list[2][SERCOM_INST_NUM] =
     {
       { sercom0_c_pin_list
       , sercom1_c_pin_list
@@ -304,19 +303,29 @@ namespace lgfx
       }
     };
 
+   #if defined ( SERCOM0 )
     static constexpr sercom_data_t sercom_data[] = {
-      { 0x40003000UL, SERCOM0_GCLK_ID_CORE, SERCOM0_GCLK_ID_SLOW, SERCOM0_0_IRQn, SERCOM0_1_IRQn, SERCOM0_2_IRQn, SERCOM0_3_IRQn, SERCOM0_DMAC_ID_TX, SERCOM0_DMAC_ID_RX },
-      { 0x40003400UL, SERCOM1_GCLK_ID_CORE, SERCOM1_GCLK_ID_SLOW, SERCOM1_0_IRQn, SERCOM1_1_IRQn, SERCOM1_2_IRQn, SERCOM1_3_IRQn, SERCOM1_DMAC_ID_TX, SERCOM1_DMAC_ID_RX },
-      { 0x41012000UL, SERCOM2_GCLK_ID_CORE, SERCOM2_GCLK_ID_SLOW, SERCOM2_0_IRQn, SERCOM2_1_IRQn, SERCOM2_2_IRQn, SERCOM2_3_IRQn, SERCOM2_DMAC_ID_TX, SERCOM2_DMAC_ID_RX },
-      { 0x41014000UL, SERCOM3_GCLK_ID_CORE, SERCOM3_GCLK_ID_SLOW, SERCOM3_0_IRQn, SERCOM3_1_IRQn, SERCOM3_2_IRQn, SERCOM3_3_IRQn, SERCOM3_DMAC_ID_TX, SERCOM3_DMAC_ID_RX },
-      { 0x43000000UL, SERCOM4_GCLK_ID_CORE, SERCOM4_GCLK_ID_SLOW, SERCOM4_0_IRQn, SERCOM4_1_IRQn, SERCOM4_2_IRQn, SERCOM4_3_IRQn, SERCOM4_DMAC_ID_TX, SERCOM4_DMAC_ID_RX },
-      { 0x43000400UL, SERCOM5_GCLK_ID_CORE, SERCOM5_GCLK_ID_SLOW, SERCOM5_0_IRQn, SERCOM5_1_IRQn, SERCOM5_2_IRQn, SERCOM5_3_IRQn, SERCOM5_DMAC_ID_TX, SERCOM5_DMAC_ID_RX },
+      { (uintptr_t)SERCOM0, SERCOM0_GCLK_ID_CORE, SERCOM0_GCLK_ID_SLOW, SERCOM0_DMAC_ID_TX, SERCOM0_DMAC_ID_RX },
+      { (uintptr_t)SERCOM1, SERCOM1_GCLK_ID_CORE, SERCOM1_GCLK_ID_SLOW, SERCOM1_DMAC_ID_TX, SERCOM1_DMAC_ID_RX },
+      { (uintptr_t)SERCOM2, SERCOM2_GCLK_ID_CORE, SERCOM2_GCLK_ID_SLOW, SERCOM2_DMAC_ID_TX, SERCOM2_DMAC_ID_RX },
+      { (uintptr_t)SERCOM3, SERCOM3_GCLK_ID_CORE, SERCOM3_GCLK_ID_SLOW, SERCOM3_DMAC_ID_TX, SERCOM3_DMAC_ID_RX },
+      { (uintptr_t)SERCOM4, SERCOM4_GCLK_ID_CORE, SERCOM4_GCLK_ID_SLOW, SERCOM4_DMAC_ID_TX, SERCOM4_DMAC_ID_RX },
+      { (uintptr_t)SERCOM5, SERCOM5_GCLK_ID_CORE, SERCOM5_GCLK_ID_SLOW, SERCOM5_DMAC_ID_TX, SERCOM5_DMAC_ID_RX },
     #if defined(SERCOM6)
-      { 0x43000800UL, SERCOM6_GCLK_ID_CORE, SERCOM6_GCLK_ID_SLOW, SERCOM6_0_IRQn, SERCOM6_1_IRQn, SERCOM6_2_IRQn, SERCOM6_3_IRQn, SERCOM6_DMAC_ID_TX, SERCOM6_DMAC_ID_RX },
+      { (uintptr_t)SERCOM6, SERCOM6_GCLK_ID_CORE, SERCOM6_GCLK_ID_SLOW, SERCOM6_DMAC_ID_TX, SERCOM6_DMAC_ID_RX },
     #endif
     #if defined(SERCOM7)
-      { 0x43000C00UL, SERCOM7_GCLK_ID_CORE, SERCOM7_GCLK_ID_SLOW, SERCOM7_0_IRQn, SERCOM7_1_IRQn, SERCOM7_2_IRQn, SERCOM7_3_IRQn, SERCOM7_DMAC_ID_TX, SERCOM7_DMAC_ID_RX },
+      { (uintptr_t)SERCOM7, SERCOM7_GCLK_ID_CORE, SERCOM7_GCLK_ID_SLOW, SERCOM7_DMAC_ID_TX, SERCOM7_DMAC_ID_RX },
     #endif
+   #else
+    static constexpr sercom_data_t sercom_data[] = {
+      { 0x40003000UL, SERCOM0_GCLK_ID_CORE, SERCOM0_GCLK_ID_SLOW, SERCOM0_DMAC_ID_TX, SERCOM0_DMAC_ID_RX },
+      { 0x40003400UL, SERCOM1_GCLK_ID_CORE, SERCOM1_GCLK_ID_SLOW, SERCOM1_DMAC_ID_TX, SERCOM1_DMAC_ID_RX },
+      { 0x41012000UL, SERCOM2_GCLK_ID_CORE, SERCOM2_GCLK_ID_SLOW, SERCOM2_DMAC_ID_TX, SERCOM2_DMAC_ID_RX },
+      { 0x41014000UL, SERCOM3_GCLK_ID_CORE, SERCOM3_GCLK_ID_SLOW, SERCOM3_DMAC_ID_TX, SERCOM3_DMAC_ID_RX },
+      { 0x43000000UL, SERCOM4_GCLK_ID_CORE, SERCOM4_GCLK_ID_SLOW, SERCOM4_DMAC_ID_TX, SERCOM4_DMAC_ID_RX },
+      { 0x43000400UL, SERCOM5_GCLK_ID_CORE, SERCOM5_GCLK_ID_SLOW, SERCOM5_DMAC_ID_TX, SERCOM5_DMAC_ID_RX },
+   #endif
     };
     const sercom_data_t* getSercomData(std::size_t sercom_index)
     {
@@ -415,7 +424,7 @@ namespace lgfx
 
     cpp::result<void, error_t> init(int sercom_index, int pin_sclk, int pin_miso, int pin_mosi)
     {
-      if ((std::size_t)sercom_index >= samd51::sercom_max) { return cpp::fail(error_t::invalid_arg); }
+      if ((std::size_t)sercom_index >= SERCOM_INST_NUM) { return cpp::fail(error_t::invalid_arg); }
 
       int dopo = -1;
       int dipo = -1;
@@ -455,13 +464,6 @@ namespace lgfx
       spi->CTRLA.bit.ENABLE = 0;        //Setting the enable bit to 0
 
       resetSPI(spi);
-
-//      std::int8_t idx = CFG::sercom_index;
-//      for(std::uint8_t i=0; i<4; i++) {
-//        NVIC_ClearPendingIRQ(sercom_data->irq[i]);
-//        NVIC_SetPriority(sercom_data->irq[i], SERCOM_NVIC_PRIORITY);
-//        NVIC_EnableIRQ(sercom_data->irq[i]);
-//      }
 
 #if defined(__SAMD51__)
 auto mastermode = SERCOM_SPI_CTRLA_MODE(0x3);
@@ -507,131 +509,386 @@ auto mastermode = SERCOM_SPI_CTRLA_MODE_SPI_MASTER;
 
   namespace i2c // TODO: implement.
   {
+    struct i2c_context_t
+    {
+      enum state_t
+      {
+        state_disconnect,
+        state_write,
+        state_read
+      };
+      cpp::result<state_t, error_t> state;
+
+      bool wait_ack = false;
+      std::uint_fast16_t pin_scl = -1;
+      std::uint_fast16_t pin_sda = -1;
+      std::uint32_t freq = 0;
+
+      void save_reg(SercomI2cm* dev)
+      {
+        baudrate = dev->BAUD.reg;
+      }
+
+      void load_reg(SercomI2cm* dev)
+      {
+        dev->BAUD.reg = baudrate;
+      }
+
+    private:
+      std::uint32_t baudrate;
+    };
+    i2c_context_t i2c_context[SERCOM_INST_NUM];
+
+
     cpp::result<void, error_t> init(int sercom_index, int pin_sda, int pin_scl)
     {
-      if ((std::size_t)sercom_index >= samd51::sercom_max) { return cpp::fail(error_t::invalid_arg); }
+      if ((std::size_t)sercom_index >= SERCOM_INST_NUM) { return cpp::fail(error_t::invalid_arg); }
 
-      for (int alt = 0; alt < 2; ++alt)
+      int pad_sda;
+      int pad_scl;
+      int alt = 0;
+      do
       {
-        int pad_sda = getPadNumber(sercom_index, pin_sda, alt);
-        int pad_scl = getPadNumber(sercom_index, pin_scl, alt);
+        pad_sda = getPadNumber(sercom_index, pin_sda, alt);
+        pad_scl = getPadNumber(sercom_index, pin_scl, alt);
+        if (pad_sda == 0 && pad_scl == 1) break;
+      } while (++alt < 2);
+      if (alt == 2) { return cpp::fail(error_t::invalid_arg); }
+
 // Serial.printf("sercom:%d scl:%d  sda:%d \r\n", sercom_index, pin_scl, pin_sda);
 // Serial.printf("pad scl:%d / pad sda:%d \r\n", pad_scl, pad_sda);
-        if (pad_sda != 0 || pad_scl != 1) continue;
 
-        auto sercom = reinterpret_cast<Sercom*>(samd51::getSercomData(sercom_index)->sercomPtr);
+      auto sercomData = samd51::getSercomData(sercom_index);
+      auto sercom = reinterpret_cast<Sercom*>(sercomData->sercomPtr);
+      auto *i2cm = &sercom->I2CM;
 
-        auto *i2c = &sercom->I2CM;
-        while (i2c->SYNCBUSY.bit.ENABLE); //Waiting then enable bit from SYNCBUSY is equal to 0;
-        i2c->CTRLA.bit.ENABLE = 0;        //Setting the enable bit to 0
 
-        pinAssignPeriph(pin_scl, alt ? PIO_SERCOM_ALT : PIO_SERCOM);
-        pinAssignPeriph(pin_sda, alt ? PIO_SERCOM_ALT : PIO_SERCOM);
+      std::uint_fast8_t id_core = sercomData->id_core;
+      std::uint_fast8_t id_slow = sercomData->id_slow;
+      GCLK->PCHCTRL[id_core].bit.CHEN = 0;     // Disable timer
+      GCLK->PCHCTRL[id_slow].bit.CHEN = 0;     // Disable timer
+      std::uint32_t gclk_reg_value = GCLK_PCHCTRL_CHEN | SERCOM_CLOCK_SOURCE_48M << GCLK_PCHCTRL_GEN_Pos;
+      while (GCLK->PCHCTRL[id_core].bit.CHEN || GCLK->PCHCTRL[id_slow].bit.CHEN);  // Wait for disable
+      GCLK->PCHCTRL[id_core].reg = gclk_reg_value;
+      GCLK->PCHCTRL[id_slow].reg = gclk_reg_value;
 
-        return {};
-      }
-      return cpp::fail(error_t::invalid_arg);
+
+      // resetWIRE
+      i2cm->CTRLA.bit.SWRST = 1;
+      while (i2cm->CTRLA.bit.SWRST || i2cm->SYNCBUSY.bit.SWRST);
+
+      // set master mode
+      i2cm->CTRLA.reg =  SERCOM_I2CM_CTRLA_MODE( I2C_MASTER_OPERATION );
+
+// I2C Master and Slave modes share the ENABLE bit function.
+
+      // Enable the I2C master mode
+      i2cm->CTRLA.bit.ENABLE = 1 ;
+      while ( i2cm->SYNCBUSY.bit.ENABLE != 0 ) {}
+
+      // Setting bus idle mode
+      i2cm->STATUS.bit.BUSSTATE = 1 ;
+      while ( i2cm->SYNCBUSY.bit.SYSOP != 0 ) {}
+//*/
+      pinAssignPeriph(pin_scl, alt ? PIO_SERCOM_ALT : PIO_SERCOM);
+      pinAssignPeriph(pin_sda, alt ? PIO_SERCOM_ALT : PIO_SERCOM);
+
+//Serial.println("lgfx i2c init success");
+      return {};
     }
 
     cpp::result<void, error_t> release(int sercom_index)
     {
-      if ((std::size_t)sercom_index >= samd51::sercom_max) { return cpp::fail(error_t::invalid_arg); }
+      if ((std::size_t)sercom_index >= SERCOM_INST_NUM) { return cpp::fail(error_t::invalid_arg); }
 
-      auto sercom = reinterpret_cast<Sercom*>(samd51::getSercomData(sercom_index)->sercomPtr);
-      sercom->I2CM.CTRLA.bit.ENABLE = 0;
-      while ( sercom->I2CM.SYNCBUSY.bit.ENABLE != 0 );
+      sercom3.disableWIRE();
+/*
+      auto sercomData = samd51::getSercomData(sercom_index);
+      auto sercom = reinterpret_cast<Sercom*>(sercomData->sercomPtr);
+      auto i2cm = &(sercom->I2CM);
 
+      i2cm->CTRLA.bit.ENABLE = 0;
+      while ( i2cm->SYNCBUSY.bit.ENABLE != 0 );
+//*/
       return {};
     }
 
     cpp::result<void, error_t> restart(int sercom_index, int i2c_addr, std::uint32_t freq, bool read)
     {
-      if ((std::size_t)sercom_index >= samd51::sercom_max) { return cpp::fail(error_t::invalid_arg); }
+      if ((std::size_t)sercom_index >= SERCOM_INST_NUM) { return cpp::fail(error_t::invalid_arg); }
 
+      auto sercomData = samd51::getSercomData(sercom_index);
+      auto sercom = reinterpret_cast<Sercom*>(sercomData->sercomPtr);
+      auto i2cm = &(sercom->I2CM);
+/*
+Serial.println("restart");
+  i2cm->CTRLA.bit.ENABLE = 0 ;
+  while ( i2cm->SYNCBUSY.bit.ENABLE ) {}
+Serial.println("restart 1");
+sercom3.initMasterWIRE(freq);
+Serial.println("restart 2");
+
+  i2cm->CTRLA.bit.ENABLE = 1 ;
+
+  while ( i2cm->SYNCBUSY.bit.ENABLE ) {}
+
+  // Setting bus idle mode
+  i2cm->STATUS.bit.BUSSTATE = 1 ;
+
+  while ( i2cm->SYNCBUSY.bit.SYSOP ) {}
+Serial.println("restart 3");
+
+if (sercom3.startTransmissionWIRE(i2c_addr, read ? WIRE_READ_FLAG : WIRE_WRITE_FLAG))
+{
+Serial.println("restart:ok");
+  return {};
+}
+Serial.println("restart:fail");
+return cpp::fail(error_t::connection_lost);
+/*/
+
+      if (i2c_context[sercom_index].freq != freq
+       || i2c_context[sercom_index].state == i2c_context_t::state_t::state_disconnect)
+      {
+        i2c_context[sercom_index].freq = freq;
+
+Serial.println("restart 1");
+        // disable
+        i2cm->CTRLA.bit.ENABLE = 0;
+        while ( i2cm->SYNCBUSY.bit.ENABLE ) {}
+
+Serial.println("restart 2");
+        // reset
+        i2cm->CTRLA.bit.SWRST = 1;
+        while (i2cm->CTRLA.bit.SWRST || i2cm->SYNCBUSY.bit.SWRST) {}
+
+  // Synchronous arithmetic baudrate
+#if defined(__SAMD51__)
+        i2cm->BAUD.bit.BAUD = SERCOM_FREQ_REF / ( 2 * freq ) - 1 ;
+#else
+        i2cm->BAUD.bit.BAUD = SystemCoreClock / ( 2 * baudrate) - 5 - (((SystemCoreClock / 1000000) * WIRE_RISE_TIME_NANOSECONDS) / (2 * 1000));
+#endif
+
+Serial.println("restart 3");
+        // enable
+      // set master mode
+        i2cm->CTRLA.reg = SERCOM_I2CM_CTRLA_MODE( I2C_MASTER_OPERATION ) | SERCOM_I2CM_CTRLA_ENABLE;
+
+        //i2cm->CTRLA.bit.ENABLE = 1;
+        while ( i2cm->SYNCBUSY.bit.ENABLE ) {}
+
+Serial.println("restart 4");
+
+        // Setting bus idle mode
+        i2cm->STATUS.bit.BUSSTATE = 1 ;
+
+        while ( i2cm->SYNCBUSY.bit.SYSOP ) {}
+//        i2c_context[sercom_index].save_reg(i2cm);
+//Serial.println("restart 5");
+      }
+
+      while (i2cm->STATUS.bit.BUSSTATE != WIRE_IDLE_STATE
+          && i2cm->STATUS.bit.BUSSTATE != WIRE_OWNER_STATE) {}
+Serial.println("restart 6");
+
+      // Send start and 7-bits address + 1-bits R/W
+      i2cm->ADDR.bit.ADDR = (i2c_addr << 0x1ul) | read;
+
+      i2c_context[sercom_index].wait_ack = !read;
+      i2c_context[sercom_index].state = read ? i2c_context_t::state_t::state_read : i2c_context_t::state_t::state_write;
+
+Serial.println("restart 7");
+/*
+      // Address Transmitted
+      if ( !read ) // Write mode
+      {
+        while( !i2cm->INTFLAG.bit.MB ) {}
+      }
+      else  // Read mode
+      {
+        while( !i2cm->INTFLAG.bit.SB )
+        {
+          if (i2cm->INTFLAG.bit.MB) {
+            i2cm->CTRLB.bit.CMD = WIRE_MASTER_ACT_STOP; // Stop condition
+Serial.println("restart:fail");
+            return cpp::fail(error_t::connection_lost);
+          }
+        }
+        // Clean the 'Slave on Bus' flag, for further usage.
+        //sercom->I2CM.INTFLAG.bit.SB = 0x1ul;
+      }
+
+      //ACK received (0: ACK, 1: NACK)
+      if(sercom->I2CM.STATUS.bit.RXNACK)
+      {
+Serial.println("restart:fail");
+        return cpp::fail(error_t::connection_lost);
+      }
+Serial.println("restart:ok");
+//*/
       return {};
+//*/
     }
 
     cpp::result<void, error_t> beginTransaction(int sercom_index, int i2c_addr, std::uint32_t freq, bool read)
     {
-      if ((std::size_t)sercom_index >= samd51::sercom_max) { return cpp::fail(error_t::invalid_arg); }
+      if ((std::size_t)sercom_index >= SERCOM_INST_NUM) { return cpp::fail(error_t::invalid_arg); }
+/*
+      auto sercomData = samd51::getSercomData(sercom_index);
+      auto sercom = reinterpret_cast<Sercom*>(sercomData->sercomPtr);
+      auto i2cm = &(sercom->I2CM);
+      // Wait idle or owner bus mode
+      while ( i2cm->STATUS.bit.BUSSTATE != WIRE_IDLE_STATE
+           && i2cm->STATUS.bit.BUSSTATE != WIRE_OWNER_STATE);
+ Serial.println("beginTrans DEBUG 1");
+//*/
+      i2c_context[sercom_index].state = i2c_context_t::state_t::state_disconnect;
+
+      return restart(sercom_index, i2c_addr, freq, read);
+    }
+
+    cpp::result<void, error_t> i2c_wait(int sercom_index, bool flg_stop = false)
+    {
+      if ((std::size_t)sercom_index >= SERCOM_INST_NUM) { return cpp::fail(error_t::invalid_arg); }
 
       auto sercomData = samd51::getSercomData(sercom_index);
       auto sercom = reinterpret_cast<Sercom*>(sercomData->sercomPtr);
+      auto i2cm = &(sercom->I2CM);
 
+      cpp::result<void, error_t> res = {};
 
-  // Initialize the peripheral clock and interruption
-#if defined(__SAMD51__)
-
-      for (std::size_t i = 0; i < 4; ++i) {
-        NVIC_ClearPendingIRQ(sercomData->irq[i]);
-        NVIC_SetPriority(sercomData->irq[i], SERCOM_NVIC_PRIORITY);
-        NVIC_EnableIRQ(sercomData->irq[i]);
+      if (i2c_context[sercom_index].wait_ack)
+      {
+        i2c_context[sercom_index].wait_ack = false;
+        //Wait transmission successful
+Serial.println("i2c_wait 1");
+        while (!i2cm->INTFLAG.bit.MB)
+        {
+          // If a bus error occurs, the MB bit may never be set.
+          // Check the bus error bit and bail if it's set.
+          if (i2cm->STATUS.bit.BUSERR)
+          {
+            res = cpp::fail(error_t::connection_lost);
+            break;
+          }
+        }
+Serial.println("i2c_wait 2");
+        //Problems on line? nack received?
+        if (i2cm->STATUS.bit.RXNACK)
+        {
+          res = cpp::fail(error_t::connection_lost);
+        }
       }
+      if (res.has_value() && flg_stop)
+      {
+        i2cm->CTRLB.bit.CMD = WIRE_MASTER_ACT_STOP; // Stop condition
+        //res = cpp::fail(error_t::connection_lost);
+Serial.println("i2c_wait 3");
+        while (sercom->I2CM.SYNCBUSY.bit.SYSOP) {};
+      }
+Serial.println("i2c_wait 4");
 
-#endif // end !SAMD51
-
-
-
-      sercom->I2CM.CTRLA.bit.SWRST = 1;
-      while (sercom->I2CM.CTRLA.bit.SWRST || sercom->I2CM.SYNCBUSY.bit.SWRST);
-
-
-  // Set master mode and enable SCL Clock Stretch mode (stretch after ACK bit)
-      sercom->I2CM.CTRLA.reg =  SERCOM_I2CM_CTRLA_MODE( I2C_MASTER_OPERATION )/* |
-                                SERCOM_I2CM_CTRLA_SCLSM*/ ;
-
-  // Enable Smart mode and Quick Command
-  //sercom->I2CM.CTRLB.reg =  SERCOM_I2CM_CTRLB_SMEN /*| SERCOM_I2CM_CTRLB_QCEN*/ ;
-
-
-  // Enable all interrupts
-//  sercom->I2CM.INTENSET.reg = SERCOM_I2CM_INTENSET_MB | SERCOM_I2CM_INTENSET_SB | SERCOM_I2CM_INTENSET_ERROR ;
-
-  // Synchronous arithmetic baudrate
-#if defined(__SAMD51__)
-      sercom->I2CM.BAUD.bit.BAUD = SERCOM_FREQ_REF / ( 2 * freq ) - 1 ;
-#else
-      sercom->I2CM.BAUD.bit.BAUD = SystemCoreClock / ( 2 * baudrate) - 5 - (((SystemCoreClock / 1000000) * WIRE_RISE_TIME_NANOSECONDS) / (2 * 1000));
-#endif
-
-
-      sercom->I2CM.CTRLA.bit.ENABLE = 1 ;
-      while ( sercom->I2CM.SYNCBUSY.bit.ENABLE != 0 );
-
-      sercom->I2CM.STATUS.bit.BUSSTATE = 1 ;
-      while ( sercom->I2CM.SYNCBUSY.bit.SYSOP != 0 );
-
-// ---------------------
-
-      // Wait idle or owner bus mode
-      while ( sercom->I2CM.STATUS.bit.BUSSTATE != WIRE_IDLE_STATE
-           && sercom->I2CM.STATUS.bit.BUSSTATE != WIRE_OWNER_STATE);
-
-      // Send start and address
-      sercom->I2CM.ADDR.bit.ADDR = i2c_addr << 1 | read;
-
-      return {};
+      return res;
     }
 
     cpp::result<void, error_t> endTransaction(int sercom_index)
     {
-      if ((std::size_t)sercom_index >= samd51::sercom_max) { return cpp::fail(error_t::invalid_arg); }
+      return i2c_wait(sercom_index, true);
 
-      return {};
+/*
+      if ((std::size_t)sercom_index >= SERCOM_INST_NUM) { return cpp::fail(error_t::invalid_arg); }
+      auto sercomData = samd51::getSercomData(sercom_index);
+      auto sercom = reinterpret_cast<Sercom*>(sercomData->sercomPtr);
+      auto i2cm = &(sercom->I2CM);
+      cpp::result<void, error_t> res = {};
+
+      i2cm->CTRLB.bit.CMD = WIRE_MASTER_ACT_STOP; // Stop condition
+      //res = cpp::fail(error_t::connection_lost);
+      while (sercom->I2CM.SYNCBUSY.bit.SYSOP) {};
+      return res;
+//*/
     }
 
     cpp::result<void, error_t> writeBytes(int sercom_index, const std::uint8_t *data, std::size_t length)
     {
-      if ((std::size_t)sercom_index >= samd51::sercom_max) { return cpp::fail(error_t::invalid_arg); }
+      if ((std::size_t)sercom_index >= SERCOM_INST_NUM) { return cpp::fail(error_t::invalid_arg); }
 
-      return {};
+      auto sercomData = samd51::getSercomData(sercom_index);
+      auto sercom = reinterpret_cast<Sercom*>(sercomData->sercomPtr);
+      auto i2cm = &(sercom->I2CM);
+      cpp::result<void, error_t> res = {};
+      do
+      {
+        auto d = *data++;
+        res = i2c_wait(sercom_index);
+        if (res.has_error()) break;
+        //Send data
+        i2cm->DATA.bit.DATA = d;
+        i2c_context[sercom_index].wait_ack = true;
+      } while (--length);
+      return res;
     }
 
     cpp::result<void, error_t> readBytes(int sercom_index, std::uint8_t *data, std::size_t length)
     {
-      if ((std::size_t)sercom_index >= samd51::sercom_max) { return cpp::fail(error_t::invalid_arg); }
+      if ((std::size_t)sercom_index >= SERCOM_INST_NUM) { return cpp::fail(error_t::invalid_arg); }
 
+      auto res = i2c_wait(sercom_index);
+      if (res.has_error()) { return res; }
+
+      auto sercomData = samd51::getSercomData(sercom_index);
+      auto sercom = reinterpret_cast<Sercom*>(sercomData->sercomPtr);
+      auto i2cm = &(sercom->I2CM);
+      do
+      {
+Serial.println("readByte 1");
+        while( i2cm->INTFLAG.bit.SB == 0 ) {};
+Serial.println("readByte 2");
+        *data++ = i2cm->DATA.bit.DATA;
+
+        i2cm->CTRLB.bit.ACKACT = 0;                     // Prepare Acknowledge
+
+        i2cm->CTRLB.bit.CMD = WIRE_MASTER_ACT_READ;     // Prepare the ACK command for the slave
+Serial.println("readByte 3");
+        while (i2cm->SYNCBUSY.bit.SYSOP) {}
+Serial.println("readByte 4");
+      } while (--length);
       return {};
+/*
+Serial.println("i2c::readBytes");
+      cpp::result<void, error_t> res = {};
+      do
+      {
+        while ( !sercom->I2CM.INTFLAG.bit.SB )
+        {
+          if (sercom->I2CM.INTFLAG.bit.MB)
+          {
+Serial.println("read fail");
+            sercom->I2CM.CTRLB.bit.CMD = WIRE_MASTER_ACT_STOP; // Stop condition
+            res = cpp::fail(error_t::connection_lost);
+            break;
+          }
+        }
+        if (res.has_error()) break;
+
+        // Receive data
+        *data++ = i2cm->DATA.bit.DATA;
+
+        // Send ACK
+        i2cm->CTRLB.bit.ACKACT = 0;
+
+        // Next Read
+        i2cm->CTRLB.bit.CMD = WIRE_MASTER_ACT_READ; // read command
+
+        while (i2cm->SYNCBUSY.bit.SYSOP)
+        {
+          // Waiting for synchronization
+        }
+
+      } while (--length);
+
+      return res;
+//*/
     }
 
 

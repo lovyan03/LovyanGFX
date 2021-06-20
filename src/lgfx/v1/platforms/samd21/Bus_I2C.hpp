@@ -33,10 +33,10 @@ namespace lgfx
     {
       std::uint32_t freq_write = 400000;
       std::uint32_t freq_read = 400000;
-      std::int16_t pin_scl ;
-      std::int16_t pin_sda ;
-      std::uint8_t i2c_port ;
-      std::uint8_t i2c_addr ;
+      std::int16_t pin_scl = 22;
+      std::int16_t pin_sda = 21;
+      std::uint8_t i2c_port = 0;      // e.g. ESP32 0=I2C_NUM_0 / 1=I2C_NUM_1
+      std::uint8_t i2c_addr = 0x3C;
       std::uint32_t prefix_cmd = 0x00;
       std::uint32_t prefix_data = 0x40;
       std::uint32_t prefix_len = 1;

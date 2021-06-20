@@ -21,6 +21,14 @@ Contributors:
 
 #include "esp32/common.hpp"
 
+#elif defined ( ESP8266 )
+
+#include "esp8266/common.hpp"
+
+#elif defined (__SAMD21__)
+
+#include "samd21/common.hpp"
+
 #elif defined (__SAMD51__)
 
 #include "samd51/common.hpp"

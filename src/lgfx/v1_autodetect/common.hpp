@@ -65,13 +65,16 @@ namespace lgfx
 
  #include "LGFX_AutoDetect_ESP32.hpp"
 
+#elif defined (__SAMD21__)
+
+ #include "LGFX_AutoDetect_SAMD21.hpp"
+
 #elif defined (__SAMD51__)
 
  #include "LGFX_AutoDetect_SAMD51.hpp"
 
-#else
+#elif defined (STM32F2xx) || defined (STM32F4xx) || defined (STM32F7xx)
 
   #include "LGFX_AutoDetect_STM32.hpp"
 
 #endif
-

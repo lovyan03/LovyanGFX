@@ -177,7 +177,7 @@ namespace lgfx
 
     lgfx::gpio_hi(_cfg.pin_cs);
     lgfx::pinMode(_cfg.pin_cs, lgfx::pin_mode_t::output);
-    lgfx::spi::init(_cfg.spi_host, _cfg.pin_sclk, _cfg.pin_miso, _cfg.pin_mosi);
+    if (!lgfx::spi::init(_cfg.spi_host, _cfg.pin_sclk, _cfg.pin_miso, _cfg.pin_mosi).has_value()) return false;
 
     _spi_mode = 0;
     if (0x811 != getVersion()) {

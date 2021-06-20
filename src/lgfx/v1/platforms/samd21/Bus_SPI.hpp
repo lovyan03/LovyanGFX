@@ -17,6 +17,13 @@ Contributors:
 /----------------------------------------------------------------------------*/
 #pragma once
 
+#if defined (ARDUINO)
+  #include <Adafruit_ZeroDMA.h>
+#endif
+
+#include <vector>
+#include <cstring>
+
 #include "../../Bus.hpp"
 #include "../common.hpp"
 
@@ -26,27 +33,32 @@ namespace lgfx
  {
 //----------------------------------------------------------------------------
 
-  class Bus_I2C : public IBus
+  class Bus_SPI : public IBus
   {
   public:
     struct config_t
     {
-      std::uint32_t freq_write = 400000;
-      std::uint32_t freq_read = 400000;
-      std::int16_t pin_scl ;
-      std::int16_t pin_sda ;
-      std::uint8_t i2c_port ;
-      std::uint8_t i2c_addr ;
-      std::uint32_t prefix_cmd = 0x00;
-      std::uint32_t prefix_data = 0x40;
-      std::uint32_t prefix_len = 1;
+      std::uint8_t sercom_index = 7;
+      std::int8_t  sercom_clksrc = 0;   // -1=notchange / 0=select GCLK0
+      std::uint32_t sercom_clkfreq = F_CPU;
+
+      std::uint32_t freq_write = 16000000;
+      std::uint32_t freq_read  =  8000000;
+      //bool spi_3wire = true;
+      //bool use_lock = true;
+      std::int16_t pin_sclk = samd51::PORT_B | 20;
+      std::int16_t pin_miso = samd51::PORT_B | 18;
+      std::int16_t pin_mosi = samd51::PORT_B | 19;
+      std::int16_t pin_dc   = -1;
+      std::uint8_t spi_mode = 0;
     };
+
 
     const config_t& config(void) const { return _cfg; }
 
     void config(const config_t& config);
 
-    bus_type_t busType(void) const override { return bus_type_t::bus_i2c; }
+    bus_type_t busType(void) const override { return bus_type_t::bus_spi; }
 
     bool init(void) override;
     void release(void) override;
@@ -74,22 +86,38 @@ namespace lgfx
     bool readBytes(std::uint8_t* dst, std::uint32_t length, bool use_dma) override;
     void readPixels(void* dst, pixelcopy_t* param, std::uint32_t length) override;
 
-  protected:
+  private:
+
+    std::uint32_t FreqToClockDiv(std::uint32_t freq);
+    void setFreqDiv(std::uint32_t div);
+
+    __attribute__ ((always_inline)) inline void set_clock_write(void) { setFreqDiv(_clkdiv_write); }
+    __attribute__ ((always_inline)) inline void set_clock_read(void)  { setFreqDiv(_clkdiv_read ); }
+    __attribute__ ((always_inline)) inline void wait_spi(void) { if (_need_wait != true) return; auto *intflag = &_sercom->SPI.INTFLAG.bit; while (intflag->TXC == 0); }
+    __attribute__ ((always_inline)) inline void dc_control(bool flg)
+    {
+      auto mask_reg_dc = _mask_reg_dc;
+      auto gpio_reg_dc = flg ? _gpio_reg_dc_h : _gpio_reg_dc_l;
+      wait_spi();
+      *gpio_reg_dc = mask_reg_dc;
+    }      
 
     config_t _cfg;
-    SimpleBuffer _flip_buffer;
-    bool _need_wait;
-    enum state_t
-    {
-      state_none,
-      state_write_none,
-      state_write_cmd,
-      state_write_data,
-      state_read,
-    };
-    state_t _state = state_none;
+    FlipBuffer _flip_buffer;
+    bool _need_wait = false;
+    Sercom* _sercom = nullptr;
+    std::uint32_t _mask_reg_dc;
+    std::uint32_t _last_apb_freq = -1;
+    std::uint32_t _clkdiv_write;
+    std::uint32_t _clkdiv_read;
+    volatile std::uint32_t* _gpio_reg_dc_h;
+    volatile std::uint32_t* _gpio_reg_dc_l;
 
-    void dc_control(bool dc);
+#if defined (ARDUINO)
+    Adafruit_ZeroDMA _dma_adafruit;
+    DmacDescriptor* _dma_write_desc = nullptr;
+#endif
+
   };
 
 //----------------------------------------------------------------------------

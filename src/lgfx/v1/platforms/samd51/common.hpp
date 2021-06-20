@@ -76,7 +76,6 @@ namespace lgfx
       std::uintptr_t sercomPtr;
       std::uint8_t   id_core;
       std::uint8_t   id_slow;
-      IRQn_Type irq[4];
       int       dmac_id_tx;
       int       dmac_id_rx;
     };

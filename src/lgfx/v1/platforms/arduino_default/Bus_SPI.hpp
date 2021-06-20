@@ -50,7 +50,7 @@ namespace lgfx
 
     bus_type_t busType(void) const override { return bus_type_t::bus_spi; }
 
-    void init(void) override;
+    bool init(void) override;
     void release(void) override;
 
     void beginTransaction(void) override;
@@ -58,21 +58,22 @@ namespace lgfx
     void wait(void) override;
     bool busy(void) const override;
 
-    void writeCommand(std::uint32_t data, std::uint_fast8_t bit_length) override;
+    bool writeCommand(std::uint32_t data, std::uint_fast8_t bit_length) override;
     void writeData(std::uint32_t data, std::uint_fast8_t bit_length) override;
     void writeDataRepeat(std::uint32_t data, std::uint_fast8_t bit_length, std::uint32_t count) override;
     void writePixels(pixelcopy_t* param, std::uint32_t length) override;
-    void writeBytes(const std::uint8_t* data, std::uint32_t length, bool use_dma) override;
+    void writeBytes(const std::uint8_t* data, std::uint32_t length, bool dc, bool use_dma) override;
 
     void initDMA(void) {}
-    void addDMAQueue(const std::uint8_t* data, std::uint32_t length) override { writeBytes(data, length, true); }
+    void flush(void) {}
+    void addDMAQueue(const std::uint8_t* data, std::uint32_t length) override { writeBytes(data, length, true, true); }
     void execDMAQueue(void) {}
     std::uint8_t* getDMABuffer(std::uint32_t length) override { return _flip_buffer.getBuffer(length); }
 
     void beginRead(void) override;
     void endRead(void) override;
     std::uint32_t readData(std::uint_fast8_t bit_length) override;
-    void readBytes(std::uint8_t* dst, std::uint32_t length, bool use_dma) override;
+    bool readBytes(std::uint8_t* dst, std::uint32_t length, bool use_dma) override;
     void readPixels(void* dst, pixelcopy_t* param, std::uint32_t length) override;
 
   private:

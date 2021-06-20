@@ -27,6 +27,10 @@
   #endif
 #endif
 
+#ifndef PROGMEM
+#define PROGMEM
+#endif
+
 namespace lgfx
 {
  inline namespace v1
