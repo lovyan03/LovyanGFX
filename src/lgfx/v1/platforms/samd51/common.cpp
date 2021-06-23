@@ -280,10 +280,10 @@ namespace lgfx
       , sercom3_c_pin_list
       , sercom4_c_pin_list
       , sercom5_c_pin_list
-    #if defined(SERCOM6)
+    #if SERCOM_INST_NUM > 6
       , sercom6_c_pin_list
     #endif
-    #if defined(SERCOM7)
+    #if SERCOM_INST_NUM > 7
       , sercom7_c_pin_list
     #endif
       }
@@ -294,16 +294,15 @@ namespace lgfx
       , sercom3_d_pin_list
       , sercom4_d_pin_list
       , sercom5_d_pin_list
-    #if defined(SERCOM6)
+    #if SERCOM_INST_NUM > 6
       , sercom6_d_pin_list
     #endif
-    #if defined(SERCOM7)
+    #if SERCOM_INST_NUM > 7
       , sercom7_d_pin_list
     #endif
       }
     };
 
-   #if defined ( SERCOM0 )
     static constexpr sercom_data_t sercom_data[] = {
       { (uintptr_t)SERCOM0, SERCOM0_GCLK_ID_CORE, SERCOM0_GCLK_ID_SLOW, SERCOM0_DMAC_ID_TX, SERCOM0_DMAC_ID_RX },
       { (uintptr_t)SERCOM1, SERCOM1_GCLK_ID_CORE, SERCOM1_GCLK_ID_SLOW, SERCOM1_DMAC_ID_TX, SERCOM1_DMAC_ID_RX },
@@ -311,21 +310,12 @@ namespace lgfx
       { (uintptr_t)SERCOM3, SERCOM3_GCLK_ID_CORE, SERCOM3_GCLK_ID_SLOW, SERCOM3_DMAC_ID_TX, SERCOM3_DMAC_ID_RX },
       { (uintptr_t)SERCOM4, SERCOM4_GCLK_ID_CORE, SERCOM4_GCLK_ID_SLOW, SERCOM4_DMAC_ID_TX, SERCOM4_DMAC_ID_RX },
       { (uintptr_t)SERCOM5, SERCOM5_GCLK_ID_CORE, SERCOM5_GCLK_ID_SLOW, SERCOM5_DMAC_ID_TX, SERCOM5_DMAC_ID_RX },
-    #if defined(SERCOM6)
+    #if SERCOM_INST_NUM > 6
       { (uintptr_t)SERCOM6, SERCOM6_GCLK_ID_CORE, SERCOM6_GCLK_ID_SLOW, SERCOM6_DMAC_ID_TX, SERCOM6_DMAC_ID_RX },
     #endif
-    #if defined(SERCOM7)
+    #if SERCOM_INST_NUM > 7
       { (uintptr_t)SERCOM7, SERCOM7_GCLK_ID_CORE, SERCOM7_GCLK_ID_SLOW, SERCOM7_DMAC_ID_TX, SERCOM7_DMAC_ID_RX },
     #endif
-   #else
-    static constexpr sercom_data_t sercom_data[] = {
-      { 0x40003000UL, SERCOM0_GCLK_ID_CORE, SERCOM0_GCLK_ID_SLOW, SERCOM0_DMAC_ID_TX, SERCOM0_DMAC_ID_RX },
-      { 0x40003400UL, SERCOM1_GCLK_ID_CORE, SERCOM1_GCLK_ID_SLOW, SERCOM1_DMAC_ID_TX, SERCOM1_DMAC_ID_RX },
-      { 0x41012000UL, SERCOM2_GCLK_ID_CORE, SERCOM2_GCLK_ID_SLOW, SERCOM2_DMAC_ID_TX, SERCOM2_DMAC_ID_RX },
-      { 0x41014000UL, SERCOM3_GCLK_ID_CORE, SERCOM3_GCLK_ID_SLOW, SERCOM3_DMAC_ID_TX, SERCOM3_DMAC_ID_RX },
-      { 0x43000000UL, SERCOM4_GCLK_ID_CORE, SERCOM4_GCLK_ID_SLOW, SERCOM4_DMAC_ID_TX, SERCOM4_DMAC_ID_RX },
-      { 0x43000400UL, SERCOM5_GCLK_ID_CORE, SERCOM5_GCLK_ID_SLOW, SERCOM5_DMAC_ID_TX, SERCOM5_DMAC_ID_RX },
-   #endif
     };
     const sercom_data_t* getSercomData(std::size_t sercom_index)
     {
@@ -491,9 +481,6 @@ auto mastermode = SERCOM_SPI_CTRLA_MODE_SPI_MASTER;
 
     //void beginTransaction(int spi_host, int spi_cs, int freq, int spi_mode)
     void beginTransaction(int, int, int, int) {}
-
-    //void beginTransaction(int spi_host)
-    void beginTransaction(int) {}
 
     //void endTransaction(int spi_host, int spi_cs)
     void endTransaction(int, int) {}

@@ -23,7 +23,7 @@ Contributors:
 #if defined ( ARDUINO )
 
  #if defined ( ARDUINO_SEEED_XIAO_M0 )
-  #define LGFX_SEEED_XIAO_EXPANSION
+    #define LGFX_SEEED_XIAO_EXPANSION
  #endif
 
 #endif

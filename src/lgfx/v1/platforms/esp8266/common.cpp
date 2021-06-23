@@ -17,7 +17,7 @@ Contributors:
 /----------------------------------------------------------------------------*/
 #if defined ( ESP8266 )
 
-#include "common.hpp"
+#include "../common.hpp"
 
 #if defined ( ARDUINO )
  #include <SPI.h>

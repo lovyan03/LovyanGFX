@@ -46,9 +46,9 @@ namespace lgfx
       std::uint32_t freq_read  =  8000000;
       //bool spi_3wire = true;
       //bool use_lock = true;
-      std::int16_t pin_sclk = samd51::PORT_B | 20;
-      std::int16_t pin_miso = samd51::PORT_B | 18;
-      std::int16_t pin_mosi = samd51::PORT_B | 19;
+      std::int16_t pin_sclk = samd21::PORT_B | 20;
+      std::int16_t pin_miso = samd21::PORT_B | 18;
+      std::int16_t pin_mosi = samd21::PORT_B | 19;
       std::int16_t pin_dc   = -1;
       std::uint8_t spi_mode = 0;
     };
@@ -93,11 +93,11 @@ namespace lgfx
 
     __attribute__ ((always_inline)) inline void set_clock_write(void) { setFreqDiv(_clkdiv_write); }
     __attribute__ ((always_inline)) inline void set_clock_read(void)  { setFreqDiv(_clkdiv_read ); }
-    __attribute__ ((always_inline)) inline void wait_spi(void) { if (_need_wait != true) return; auto *intflag = &_sercom->SPI.INTFLAG.bit; while (intflag->TXC == 0); }
+    __attribute__ ((always_inline)) inline void wait_spi(void) { if (_need_wait != true) return; auto *intflag = &_sercom->SPI.INTFLAG.bit; while (!intflag->TXC); }
     __attribute__ ((always_inline)) inline void dc_control(bool flg)
     {
-      auto mask_reg_dc = _mask_reg_dc;
       auto gpio_reg_dc = flg ? _gpio_reg_dc_h : _gpio_reg_dc_l;
+      auto mask_reg_dc = _mask_reg_dc;
       wait_spi();
       *gpio_reg_dc = mask_reg_dc;
     }      

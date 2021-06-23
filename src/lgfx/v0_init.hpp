@@ -21,9 +21,11 @@ Contributors:
 /----------------------------------------------------------------------------*/
 #pragma once
 
-#include "v0/gitTagVersion.h"
-
+#if __has_include("v0/lgfx_common.hpp")
 #include "v0/lgfx_common.hpp"         // common include (always include)
+#if defined (LGFX_LGFX_ENABLE_V0)
+
+#include "v0/gitTagVersion.h"
 
 #include "v0/lgfx_filesystem_support.hpp" // filesystem extention (optional)
 
@@ -107,5 +109,9 @@ Contributors:
   #include "v0/config/LGFX_Config_WioTerminal.hpp"
 
  #endif
+
+#endif
+
+#endif
 
 #endif

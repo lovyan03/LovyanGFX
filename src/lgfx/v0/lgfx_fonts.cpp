@@ -1,6 +1,8 @@
+#include "lgfx_common.hpp"
+#if defined (LGFX_ENABLE_V0)
+
 #include "lgfx_fonts.hpp"
 
-#include "lgfx_common.hpp"
 #include "LGFXBase.hpp"
 
 #include "../Fonts/IPA/lgfx_font_japan.h"
@@ -1341,3 +1343,4 @@ namespace fonts
  }
 }
 
+#endif

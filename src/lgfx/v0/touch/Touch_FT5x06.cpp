@@ -1,3 +1,6 @@
+#include "../lgfx_common.hpp"
+#if defined (LGFX_ENABLE_V0)
+
 #include "Touch_FT5x06.hpp"
 
 namespace lgfx
@@ -79,3 +82,4 @@ namespace lgfx
 //----------------------------------------------------------------------------
  }
 }
+#endif

@@ -295,7 +295,6 @@ namespace lgfx
 
   void Bus_SPI::endTransaction(void)
   {
-    wait_spi();
     dc_control(true);
   }
 

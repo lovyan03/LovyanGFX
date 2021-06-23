@@ -1,3 +1,6 @@
+#include "../lgfx_common.hpp"
+#if defined (LGFX_ENABLE_V0)
+
 #include "Panel_GDEW0154M09.hpp"
 #include "../LGFX_Device.hpp"
 
@@ -382,3 +385,4 @@ namespace lgfx
 //----------------------------------------------------------------------------
  }
 }
+#endif

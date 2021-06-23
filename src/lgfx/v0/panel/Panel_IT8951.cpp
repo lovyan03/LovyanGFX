@@ -1,3 +1,6 @@
+#include "../lgfx_common.hpp"
+#if defined (LGFX_ENABLE_V0)
+
 #include "Panel_IT8951.hpp"
 #include "../LGFX_Device.hpp"
 
@@ -687,3 +690,4 @@ IT8951 Registers defines
 //----------------------------------------------------------------------------
  }
 }
+#endif

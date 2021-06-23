@@ -20,21 +20,29 @@ Contributors:
 #include <cstdint>
 #include <type_traits>
 
+#if defined ( ARDUINO ) && !defined ( pgm_read_byte )
+ #if __has_include(<pgmspace.h>)
+   #include <pgmspace.h>
+ #elif __has_include(<avr/pgmspace.h>)
+   #include <avr/pgmspace.h>
+ #endif
+#endif
 #if !defined ( pgm_read_byte )
-  #if __has_include(<pgmspace.h>)
-    #include <pgmspace.h>
-  #elif __has_include(<avr/pgmspace.h>)
-    #include <avr/pgmspace.h>
-  #else
-    #define pgm_read_byte(addr)  (*(const std::uint8_t  *)((std::size_t)addr))
-    #define pgm_read_word(addr)  (*(const std::uint16_t *)((std::size_t)addr))
-    #define pgm_read_dword(addr) (*(const std::uint32_t *)((std::size_t)addr))
-  #endif
+ #define pgm_read_byte(addr)  (*(const std::uint8_t  *)((std::size_t)addr))
+ #define pgm_read_word(addr)  (*(const std::uint16_t *)((std::size_t)addr))
+ #define pgm_read_dword(addr) (*(const std::uint32_t *)((std::size_t)addr))
 #endif
 
 /// for  not ESP8266
 #if !defined ( pgm_read_dword_with_offset )
- #define pgm_read_dword_unaligned(addr) (*(const std::uint32_t *)((std::size_t)addr))
+ #if defined (__SAMD21__)
+  #define pgm_read_dword_unaligned(addr) (*(const std::uint8_t *)((std::size_t)addr) \
+  | *(const std::uint8_t *)((std::size_t)addr+1) << 8  \
+  | *(const std::uint8_t *)((std::size_t)addr+2) << 16 \
+  | *(const std::uint8_t *)((std::size_t)addr+3) << 24 )
+ #else
+  #define pgm_read_dword_unaligned(addr) (*(const std::uint32_t *)((std::size_t)addr))
+ #endif
 #endif
 
 #include "enum.hpp"

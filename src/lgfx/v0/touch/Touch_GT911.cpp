@@ -1,3 +1,6 @@
+#include "../lgfx_common.hpp"
+#if defined (LGFX_ENABLE_V0)
+
 #include "Touch_GT911.hpp"
 
 namespace lgfx
@@ -144,3 +147,4 @@ namespace lgfx
 //----------------------------------------------------------------------------
  }
 }
+#endif

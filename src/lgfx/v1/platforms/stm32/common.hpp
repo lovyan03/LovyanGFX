@@ -186,31 +186,5 @@ namespace lgfx
 #endif
 
 //----------------------------------------------------------------------------
-
-  /// unimplemented.
-  namespace spi
-  {
-    void init(int spi_host, int spi_sclk, int spi_miso, int spi_mosi);
-    void release(int spi_host);
-    void beginTransaction(int spi_host, int freq, int spi_mode = 0);
-    void beginTransaction(int spi_host);
-    void endTransaction(int spi_host);
-    void writeData(int spi_host, const std::uint8_t* data, std::uint32_t len);
-    void readData(int spi_host, std::uint8_t* data, std::uint32_t len);
-  }
-
-  /// unimplemented.
-  namespace i2c
-  {
-    void init(int i2c_port, int pin_sda, int pin_scl, int freq);
-    bool writeBytes(int i2c_port, std::uint16_t addr, const std::uint8_t *data, std::uint8_t len);
-    bool writeReadBytes(int i2c_port, std::uint16_t addr, const std::uint8_t *writedata, std::uint8_t writelen, std::uint8_t *readdata, std::uint8_t readlen);
-    bool readRegister(int i2c_port, std::uint16_t addr, std::uint8_t reg, std::uint8_t *data, std::uint8_t len);
-    bool writeRegister8(int i2c_port, std::uint16_t addr, std::uint8_t reg, std::uint8_t data, std::uint8_t mask = 0);
-    inline bool bitOn(int i2c_port, std::uint16_t addr, std::uint8_t reg, std::uint8_t bit)  { return writeRegister8(i2c_port, addr, reg, bit, ~0); }
-    inline bool bitOff(int i2c_port, std::uint16_t addr, std::uint8_t reg, std::uint8_t bit) { return writeRegister8(i2c_port, addr, reg, 0, ~bit); }
-  }
-
-//----------------------------------------------------------------------------
  }
 }

@@ -67,7 +67,6 @@ namespace lgfx
     cpp::result<void, error_t> init(int spi_host, int spi_sclk, int spi_miso, int spi_mosi)  { return cpp::fail(error_t::unknown_err); }
     void release(int spi_host) {}
     void beginTransaction(int spi_host, std::uint32_t freq, int spi_mode) {}
-    void beginTransaction(int spi_host) {}
     void endTransaction(int spi_host) {}
     void writeBytes(int spi_host, const std::uint8_t* data, std::size_t length) {}
     void readBytes(int spi_host, std::uint8_t* data, std::size_t length) {}

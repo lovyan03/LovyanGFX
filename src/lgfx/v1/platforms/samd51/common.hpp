@@ -274,55 +274,5 @@ namespace lgfx
 #endif
 
 //----------------------------------------------------------------------------
-
-  /// unimplemented.
-  namespace spi
-  {
-    cpp::result<void, error_t> init(int spi_host, int spi_sclk, int spi_miso, int spi_mosi);
-    void release(int spi_host);
-    void beginTransaction(int spi_host, int freq, int spi_mode = 0);
-    void beginTransaction(int spi_host);
-    void endTransaction(int spi_host);
-    void writeBytes(int spi_host, const std::uint8_t* data, std::uint32_t len);
-    void readBytes(int spi_host, std::uint8_t* data, std::uint32_t len);
-  }
-
-  /// unimplemented.
-  namespace i2c
-  {
-    static constexpr std::uint32_t I2C_DEFAULT_FREQ = 400000;
-
-    cpp::result<void, error_t> init(int i2c_port, int pin_sda, int pin_scl);
-    cpp::result<void, error_t> release(int i2c_port);
-    cpp::result<void, error_t> restart(int i2c_port, int i2c_addr, std::uint32_t freq, bool read = false);
-    cpp::result<void, error_t> beginTransaction(int i2c_port, int i2c_addr, std::uint32_t freq, bool read = false);
-    cpp::result<void, error_t> endTransaction(int i2c_port);
-    cpp::result<void, error_t> writeBytes(int i2c_port, const std::uint8_t *data, std::size_t length);
-    cpp::result<void, error_t> readBytes(int i2c_port, std::uint8_t *data, std::size_t length);
-
-//--------
-
-    cpp::result<void, error_t> transactionWrite(int i2c_port, int addr, const std::uint8_t *writedata, std::uint8_t writelen, std::uint32_t freq = I2C_DEFAULT_FREQ);
-    cpp::result<void, error_t> transactionRead(int i2c_port, int addr, std::uint8_t *readdata, std::uint8_t readlen, std::uint32_t freq = I2C_DEFAULT_FREQ);
-    cpp::result<void, error_t> transactionWriteRead(int i2c_port, int addr, const std::uint8_t *writedata, std::uint8_t writelen, std::uint8_t *readdata, std::size_t readlen, std::uint32_t freq = I2C_DEFAULT_FREQ);
-
-    cpp::result<std::uint8_t, error_t> registerRead8(int i2c_port, int addr, std::uint8_t reg, std::uint32_t freq = I2C_DEFAULT_FREQ);
-    cpp::result<void, error_t> registerWrite8(int i2c_port, int addr, std::uint8_t reg, std::uint8_t data, std::uint8_t mask = 0, std::uint32_t freq = I2C_DEFAULT_FREQ);
-
-    inline cpp::result<void, error_t> registerRead(int i2c_port, int addr, std::uint8_t reg, std::uint8_t* data, std::size_t len, std::uint32_t freq = I2C_DEFAULT_FREQ)
-    {
-      return transactionWriteRead(i2c_port, addr, &reg, 1, data, len, freq);
-    }
-    inline cpp::result<void, error_t> bitOn(int i2c_port, int addr, std::uint8_t reg, std::uint8_t bit, std::uint32_t freq = I2C_DEFAULT_FREQ)
-    {
-      return registerWrite8(i2c_port, addr, reg, bit, ~0, freq);
-    }
-    inline cpp::result<void, error_t> bitOff(int i2c_port, int addr, std::uint8_t reg, std::uint8_t bit, std::uint32_t freq = I2C_DEFAULT_FREQ)
-    {
-      return registerWrite8(i2c_port, addr, reg, 0, ~bit, freq);
-    }
-  }
-
-//----------------------------------------------------------------------------
  }
 }

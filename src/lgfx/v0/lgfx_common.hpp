@@ -22,6 +22,9 @@ Contributors:
 #ifndef LGFX_COMMON_HPP_
 #define LGFX_COMMON_HPP_
 
+#if defined (__SAMD51__) || defined (ESP32) || defined (CONFIG_IDF_TARGET_ESP32) || defined (ESP_PLATFORM)
+#define LGFX_ENABLE_V0
+
 #include <type_traits>
 #include <cstring>
 #include <cstdint>
@@ -1741,6 +1744,6 @@ using RGBColor = lgfx::bgr888_t;
 
 #endif
 
-
+#endif
 
 #endif
