@@ -13,7 +13,7 @@
   },
   "version": "0.4.0",
   "frameworks": ["arduino", "espidf"],
-  "platforms": ["espressif32", "atmelsam"],
+  "platforms": ["espressif32", "espressif8266", "atmelsam"],
   "build": {
     "libArchive": false
   }
