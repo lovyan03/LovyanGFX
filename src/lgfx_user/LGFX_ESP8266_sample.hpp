@@ -73,7 +73,7 @@ public:
       cfg.freq_write = 40000000;    // 送信時のSPIクロック (最大80MHz, 80MHzを整数で割った値に丸められます)
       cfg.freq_read  = 16000000;    // 受信時のSPIクロック
       cfg.pin_sclk = 14;            // SPIのSCLKピン番号を設定
-      cfg.pin_mosi = 23;            // SPIのMOSIピン番号を設定
+      cfg.pin_mosi = 13;            // SPIのMOSIピン番号を設定
       cfg.pin_miso = 12;            // SPIのMISOピン番号を設定 (-1 = disable)
       cfg.pin_dc   =  4;            // SPIのD/Cピン番号を設定  (-1 = disable)
      // SDカードと共通のSPIバスを使う場合、MISOは省略せず必ず設定してください。
@@ -101,7 +101,7 @@ public:
       cfg.dummy_read_pixel =     8;  // ピクセル読出し前のダミーリードのビット数
       cfg.dummy_read_bits  =     1;  // ピクセル以外のデータ読出し前のダミーリードのビット数
       cfg.readable         =  true;  // データ読出しが可能な場合 trueに設定
-      cfg.invert           =  true;  // パネルの明暗が反転してしまう場合 trueに設定
+      cfg.invert           = false;  // パネルの明暗が反転してしまう場合 trueに設定
       cfg.rgb_order        = false;  // パネルの赤と青が入れ替わってしまう場合 trueに設定
       cfg.dlen_16bit       = false;  // データ長を16bit単位で送信するパネルの場合 trueに設定
       cfg.bus_shared       =  true;  // SDカードとバスを共有している場合 trueに設定(drawJpgFile等でバス制御を行います)
