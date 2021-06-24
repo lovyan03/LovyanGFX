@@ -31,11 +31,12 @@ namespace lgfx
   public:
     struct config_t
     {
+      std::uint8_t sercom_index = 0;
       std::uint32_t freq_write = 400000;
       std::uint32_t freq_read = 400000;
-      std::int16_t pin_scl = 22;
-      std::int16_t pin_sda = 21;
-      std::uint8_t i2c_port = 0;      // e.g. ESP32 0=I2C_NUM_0 / 1=I2C_NUM_1
+      std::int16_t pin_scl = samd21::PORT_A | 9;
+      std::int16_t pin_sda = samd21::PORT_A | 8;
+
       std::uint8_t i2c_addr = 0x3C;
       std::uint32_t prefix_cmd = 0x00;
       std::uint32_t prefix_data = 0x40;

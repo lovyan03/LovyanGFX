@@ -35,12 +35,12 @@ namespace lgfx
   bool Bus_I2C::init(void)
   {
     _state = state_t::state_none;
-    return lgfx::i2c::init(_cfg.i2c_port, _cfg.pin_sda, _cfg.pin_scl).has_value();
+    return lgfx::i2c::init(_cfg.sercom_index, _cfg.pin_sda, _cfg.pin_scl).has_value();
   }
 
   void Bus_I2C::release(void)
   {
-    lgfx::i2c::release(_cfg.i2c_port);
+    lgfx::i2c::release(_cfg.sercom_index);
     _state = state_t::state_none;
   }
 
@@ -54,9 +54,9 @@ namespace lgfx
 
     if (_state != state_none)
     {
-      lgfx::i2c::endTransaction(_cfg.i2c_port);
+      lgfx::i2c::endTransaction(_cfg.sercom_index);
     }
-    lgfx::i2c::beginTransaction(_cfg.i2c_port, _cfg.i2c_addr, _cfg.freq_write, false);
+    lgfx::i2c::beginTransaction(_cfg.sercom_index, _cfg.i2c_addr, _cfg.freq_write, false);
     _state = state_t::state_write_none;
   }
 
@@ -69,11 +69,11 @@ namespace lgfx
     
     if (_state != state_t::state_none)
     {
-      lgfx::i2c::restart(_cfg.i2c_port, _cfg.i2c_addr, _cfg.freq_read, true);
+      lgfx::i2c::restart(_cfg.sercom_index, _cfg.i2c_addr, _cfg.freq_read, true);
     }
     else
     {
-      lgfx::i2c::beginTransaction(_cfg.i2c_port, _cfg.i2c_addr, _cfg.freq_read, true);
+      lgfx::i2c::beginTransaction(_cfg.sercom_index, _cfg.i2c_addr, _cfg.freq_read, true);
     }
     _state = state_t::state_read;
   }
@@ -86,7 +86,7 @@ namespace lgfx
     }
 
     _state = state_t::state_none;
-    lgfx::i2c::endTransaction(_cfg.i2c_port);
+    lgfx::i2c::endTransaction(_cfg.sercom_index);
   }
 
   void Bus_I2C::endRead(void)
@@ -96,13 +96,13 @@ namespace lgfx
 
   void Bus_I2C::wait(void)
   {
-    // auto dev = (_cfg.i2c_port == 0) ? &I2C0 : &I2C1;
+    // auto dev = (_cfg.sercom_index == 0) ? &I2C0 : &I2C1;
     // while (dev->status_reg.bus_busy) { taskYIELD(); }
   }
 
   bool Bus_I2C::busy(void) const
   {
-    // auto dev = (_cfg.i2c_port == 0) ? &I2C0 : &I2C1;
+    // auto dev = (_cfg.sercom_index == 0) ? &I2C0 : &I2C1;
     // return dev->status_reg.bus_busy;
     return false;
   }
@@ -113,14 +113,14 @@ namespace lgfx
     if (_state == state_t::state_read)
     {
       _state = state_t::state_none;
-      lgfx::i2c::endTransaction(_cfg.i2c_port);
+      lgfx::i2c::endTransaction(_cfg.sercom_index);
     }
 
     // まだトランザクションが開始されていない場合は開始しておく
     if (_state == state_t::state_none)
     {
       _state = state_t::state_write_none;
-      lgfx::i2c::beginTransaction(_cfg.i2c_port, _cfg.i2c_addr, _cfg.freq_write, false);
+      lgfx::i2c::beginTransaction(_cfg.sercom_index, _cfg.i2c_addr, _cfg.freq_write, false);
     }
 
     // DCプリフィクスなしの場合は後の処理は不要
@@ -133,23 +133,23 @@ namespace lgfx
     // DCプリフィクスが送信済みの場合、送信済みのDCプリフィクスと要求が不一致なのでトランザクションをやり直す。
     if (_state != state_t::state_write_none)
     {
-      lgfx::i2c::endTransaction(_cfg.i2c_port);
-      lgfx::i2c::beginTransaction(_cfg.i2c_port, _cfg.i2c_addr, _cfg.freq_write, false);
+      lgfx::i2c::endTransaction(_cfg.sercom_index);
+      lgfx::i2c::beginTransaction(_cfg.sercom_index, _cfg.i2c_addr, _cfg.freq_write, false);
     }
-    lgfx::i2c::writeBytes(_cfg.i2c_port, (std::uint8_t*)(dc ? &_cfg.prefix_data : &_cfg.prefix_cmd), _cfg.prefix_len);
+    lgfx::i2c::writeBytes(_cfg.sercom_index, (std::uint8_t*)(dc ? &_cfg.prefix_data : &_cfg.prefix_cmd), _cfg.prefix_len);
     _state = st;
   }
 
   bool Bus_I2C::writeCommand(std::uint32_t data, std::uint_fast8_t bit_length)
   {
     dc_control(false);
-    return lgfx::i2c::writeBytes(_cfg.i2c_port, (std::uint8_t*)&data, (bit_length >> 3)).has_value();
+    return lgfx::i2c::writeBytes(_cfg.sercom_index, (std::uint8_t*)&data, (bit_length >> 3)).has_value();
   }
 
   void Bus_I2C::writeData(std::uint32_t data, std::uint_fast8_t bit_length)
   {
     dc_control(true);
-    lgfx::i2c::writeBytes(_cfg.i2c_port, (std::uint8_t*)&data, (bit_length >> 3));
+    lgfx::i2c::writeBytes(_cfg.sercom_index, (std::uint8_t*)&data, (bit_length >> 3));
   }
 
   void Bus_I2C::writeDataRepeat(std::uint32_t data, std::uint_fast8_t bit_length, std::uint32_t length)
@@ -181,7 +181,7 @@ namespace lgfx
     do
     {
       len = ((length - 1) % limit) + 1;
-      i2c::writeBytes(_cfg.i2c_port, buf, len * dst_bytes);
+      i2c::writeBytes(_cfg.sercom_index, buf, len * dst_bytes);
     } while (length -= len);
   }
 
@@ -196,7 +196,7 @@ namespace lgfx
     {
       len = ((length - 1) % limit) + 1;
       param->fp_copy(buf, 0, len, param);
-      i2c::writeBytes(_cfg.i2c_port, buf, len * dst_bytes);
+      i2c::writeBytes(_cfg.sercom_index, buf, len * dst_bytes);
     } while (length -= len);
   }
 
@@ -205,7 +205,7 @@ namespace lgfx
     if (length < 64)
     {
       dc_control(dc);
-      i2c::writeBytes(_cfg.i2c_port, data, length);
+      i2c::writeBytes(_cfg.sercom_index, data, length);
     }
     else
     {
@@ -213,7 +213,7 @@ namespace lgfx
       do
       {
         dc_control(dc);
-        i2c::writeBytes(_cfg.i2c_port, data, len);
+        i2c::writeBytes(_cfg.sercom_index, data, len);
         data += len;
         length -= len;
         endTransaction();
@@ -227,14 +227,14 @@ namespace lgfx
   {
     beginRead();
     std::uint32_t res;
-    i2c::readBytes(_cfg.i2c_port, reinterpret_cast<std::uint8_t*>(&res), bit_length >> 3);
+    i2c::readBytes(_cfg.sercom_index, reinterpret_cast<std::uint8_t*>(&res), bit_length >> 3);
     return res;
   }
 
   bool Bus_I2C::readBytes(std::uint8_t* dst, std::uint32_t length, bool use_dma)
   {
     beginRead();
-    return i2c::readBytes(_cfg.i2c_port, dst, length).has_value();
+    return i2c::readBytes(_cfg.sercom_index, dst, length).has_value();
   }
 
   void Bus_I2C::readPixels(void* dst, pixelcopy_t* param, std::uint32_t length)
@@ -249,7 +249,7 @@ namespace lgfx
     do {
       std::uint32_t len = (limit > length) ? length : limit;
       length -= len;
-      i2c::readBytes(_cfg.i2c_port, (std::uint8_t*)regbuf, len * bytes);
+      i2c::readBytes(_cfg.sercom_index, (std::uint8_t*)regbuf, len * bytes);
       param->src_x = 0;
       dstindex = param->fp_copy(dst, dstindex, dstindex + len, param);
     } while (length);

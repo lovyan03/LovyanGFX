@@ -36,7 +36,8 @@ Contributors:
 /// for  not ESP8266
 #if !defined ( pgm_read_dword_with_offset )
  #if defined (__SAMD21__)
-  #define pgm_read_dword_unaligned(addr) (*(const std::uint8_t *)((std::size_t)addr) \
+  #define pgm_read_dword_unaligned(addr) (std::uint32_t) \
+  ( *(const std::uint8_t *)((std::size_t)addr) \
   | *(const std::uint8_t *)((std::size_t)addr+1) << 8  \
   | *(const std::uint8_t *)((std::size_t)addr+2) << 16 \
   | *(const std::uint8_t *)((std::size_t)addr+3) << 24 )
