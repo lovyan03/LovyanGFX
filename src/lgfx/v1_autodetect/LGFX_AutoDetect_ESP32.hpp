@@ -38,6 +38,8 @@ Contributors:
   #define LGFX_M5STACK_COREINK
 #elif defined( ARDUINO_M5STACK_Paper ) // M5Paper
   #define LGFX_M5PAPER
+#elif defined ( ARDUINO_M5STACK_TOUGH )
+  #define LGFX_M5TOUGH
 #elif defined( ARDUINO_ODROID_ESP32 ) // ODROID-GO
   #define LGFX_ODROID_GO
 #elif defined( ARDUINO_TTGO_T1 ) // TTGO TS
@@ -136,6 +138,93 @@ namespace lgfx
       }
     // AXP192 reg 0x27 = DC3
       lgfx::i2c::registerWrite8(axp_i2c_port, axp_i2c_addr, 0x27, brightness, 0x80, axp_i2c_freq);
+    }
+  };
+
+  struct Light_M5StackTough : public lgfx::ILight
+  {
+    bool init(std::uint8_t brightness) override
+    {
+      setBrightness(brightness);
+      return true;
+    }
+
+    void setBrightness(std::uint8_t brightness) override
+    {
+      using namespace m5stack;
+
+      if (brightness)
+      {
+        if (brightness > 4)
+        {
+          brightness = (brightness / 24) + 5;
+        }
+        lgfx::i2c::bitOn(axp_i2c_port, axp_i2c_addr, 0x12, 0x08, axp_i2c_freq); // LDO3 enable
+      }
+      else
+      {
+        lgfx::i2c::bitOff(axp_i2c_port, axp_i2c_addr, 0x12, 0x08, axp_i2c_freq); // LDO3 disable
+      }
+      lgfx::i2c::registerWrite8(axp_i2c_port, axp_i2c_addr, 0x28, brightness, 0xF0, axp_i2c_freq);
+    }
+  };
+
+  struct Touch_M5Tough : public lgfx::ITouch
+  {
+    Touch_M5Tough(void)
+    {
+      _cfg.x_min = 0;
+      _cfg.x_max = 320;
+      _cfg.y_min = 0;
+      _cfg.y_max = 320;
+    }
+
+    void wakeup(void) override {}
+    void sleep(void) override {}
+
+    bool init(void) override
+    {
+      _inited = false;
+      if (isSPI()) return false;
+
+      if (_cfg.pin_int >= 0)
+      {
+        lgfx::pinMode(_cfg.pin_int, pin_mode_t::input_pullup);
+      }
+      _inited = lgfx::i2c::init(_cfg.i2c_port, _cfg.pin_sda, _cfg.pin_scl).has_value();
+      return _inited;
+    }
+
+    std::uint_fast8_t getTouchRaw(touch_point_t *tp, std::uint_fast8_t number) override
+    {
+      if (tp) tp->size = 0;
+      if (!_inited || number > 2) return 0;
+      // if (_cfg.pin_int >= 0)
+      // {
+      //   Serial.printf("tp:%d \r\n", gpio_in(_cfg.pin_int));
+      // }
+
+      std::size_t base = 3 + (number * 6);
+      std::size_t len = base + 6;
+      std::uint8_t tmp[len];
+      std::int32_t retry = 5;
+      do
+      {
+        tmp[0] = 0;
+        lgfx::i2c::transactionWriteRead(_cfg.i2c_port, _cfg.i2c_addr, tmp, 1, tmp, len, _cfg.freq);
+      } while (tmp[0] != 0 && --retry);
+
+      if (number >= tmp[2]) return 0;
+    
+      if (tp)
+      {
+        auto data = &tmp[base];
+        tp->size = 1;
+        tp->x = (data[0] & 0x0F) << 8 | data[1];
+        tp->y = (data[2] & 0x0F) << 8 | data[3];
+        tp->id = 0;
+      }
+      return tmp[2];
     }
   };
 
@@ -313,8 +402,11 @@ namespace lgfx
 
         nvs_board = board_t::board_M5Paper;
 
-#elif defined ( ARDUINO_M5Stack_ATOM )
 #elif defined ( ARDUINO_M5STACK_TOUGH )
+
+        nvs_board = board_t::board_M5Tough;
+
+#elif defined ( ARDUINO_M5Stack_ATOM )
 //#elif defined ( ARDUINO_M5Stack-Timer-CAM )
 
 #elif defined( ARDUINO_ODROID_ESP32 ) // ODROID-GO
@@ -770,8 +862,8 @@ namespace lgfx
         bus_cfg.spi_3wire = true;
         _bus_spi.config(bus_cfg);
         _bus_spi.init();
-        id = _read_panel_id(&_bus_spi, 5);
-        if ((id & 0xFF) == 0 && _read_panel_id(&_bus_spi, 5, 0x09) != 0)
+        id = _read_panel_id(&_bus_spi, 5, 0x09);
+        if (id != 0 && (_read_panel_id(&_bus_spi, 5) & 0xFF) == 0)
         {   // check panel (ILI9341) panelIDが0なのでステータスリード0x09を併用する
           board = board_t::board_ODROID_GO;
           ESP_LOGW(LIBRARY_NAME, "[Autodetect] ODROID_GO");
@@ -1130,23 +1222,24 @@ namespace lgfx
       }
 #endif
 
-#if defined ( LGFX_AUTODETECT ) || defined ( LGFX_M5STACK_CORE2 ) || defined ( LGFX_M5STACKCORE2 )
+#if defined ( LGFX_AUTODETECT ) || defined ( LGFX_M5STACK_CORE2 ) || defined ( LGFX_M5STACKCORE2 ) || defined ( LGFX_M5TOUGH )
 
-      if (board == 0 || board == board_t::board_M5StackCore2)
+      if (board == 0 || board == board_t::board_M5StackCore2 || board == board_t::board_M5Tough)
       {
         using namespace m5stack;
 
         lgfx::i2c::init(axp_i2c_port, axp_i2c_sda, axp_i2c_scl);
         // I2C addr 0x34 = AXP192
-        if (lgfx::i2c::registerWrite8(axp_i2c_port, axp_i2c_addr, 0x95, 0x84, 0x72, axp_i2c_freq))
-        { // GPIO4 enable
+        if (lgfx::i2c::registerWrite8(axp_i2c_port, axp_i2c_addr, 0x95, 0x84, 0x72, axp_i2c_freq)) // GPIO4 enable
+        {
           // AXP192_LDO2 = LCD PWR
-          // AXP192_DC3  = LCD BL
+          // AXP192_DC3  = LCD BL (Core2)
+          // AXP192_LDO3 = LCD BL (Tough)
           // AXP192_IO4  = LCD RST
           if (use_reset) lgfx::i2c::registerWrite8(axp_i2c_port, axp_i2c_addr, 0x96, 0, ~0x02, axp_i2c_freq); // GPIO4 LOW (LCD RST)
           lgfx::i2c::registerWrite8(axp_i2c_port, axp_i2c_addr, 0x28, 0xF0, ~0, axp_i2c_freq);   // set LDO2 3300mv // LCD PWR
-          lgfx::i2c::registerWrite8(axp_i2c_port, axp_i2c_addr, 0x12, 0x06, ~0, axp_i2c_freq);   // LDO2 and DC3 enable (DC3 = LCD BL)
-          lgfx::i2c::registerWrite8(axp_i2c_port, axp_i2c_addr, 0x96, 0x02, ~0, axp_i2c_freq);      // GPIO4 HIGH (LCD RST)
+          lgfx::i2c::registerWrite8(axp_i2c_port, axp_i2c_addr, 0x12, 0x04, ~0, axp_i2c_freq);   // LDO2 enable
+          lgfx::i2c::registerWrite8(axp_i2c_port, axp_i2c_addr, 0x96, 0x02, ~0, axp_i2c_freq);   // GPIO4 HIGH (LCD RST)
 
           ets_delay_us(128); // AXP 起動後、LCDがアクセス可能になるまで少し待機
 
@@ -1162,9 +1255,6 @@ namespace lgfx
           id = _read_panel_id(&_bus_spi, 5);
           if ((id & 0xFF) == 0xE3)
           {   // ILI9342c
-            ESP_LOGW(LIBRARY_NAME, "[Autodetect] M5StackCore2");
-            board = board_t::board_M5StackCore2;
-
             bus_cfg.freq_write = 40000000;
             bus_cfg.freq_read  = 16000000;
             _bus_spi.config(bus_cfg);
@@ -1173,9 +1263,14 @@ namespace lgfx
             p->bus(&_bus_spi);
             _panel_last = p;
 
-            _set_backlight(new Light_M5StackCore2());
-
+            // Check exists touch controller for Core2
+            if (lgfx::i2c::registerRead8(I2C_NUM_1, 0x38, 0, 400000).has_value())
             {
+              ESP_LOGW(LIBRARY_NAME, "[Autodetect] M5StackCore2");
+              board = board_t::board_M5StackCore2;
+
+              _set_backlight(new Light_M5StackCore2());
+
               auto t = new lgfx::Touch_FT5x06();
               _touch_last = t;
               auto cfg = t->config();
@@ -1193,6 +1288,35 @@ namespace lgfx
               p->touch(t);
               float affine[6] = { 1, 0, 0, 0, 1, 0 };
               p->setCalibrateAffine(affine);
+            }
+            else
+            {
+              // AXP192のGPIO1 = タッチコントローラRST
+              lgfx::i2c::registerWrite8(axp_i2c_port, axp_i2c_addr, 0x92, 0, 0xF8, axp_i2c_freq);   // GPIO1 OpenDrain
+              lgfx::i2c::registerWrite8(axp_i2c_port, axp_i2c_addr, 0x94, 0, ~0x02, axp_i2c_freq);  // GPIO1 LOW  (TOUCH RST)
+
+              ESP_LOGW(LIBRARY_NAME, "[Autodetect] M5Tough");
+              board = board_t::board_M5Tough;
+
+              _set_backlight(new Light_M5StackTough());
+
+              auto t = new lgfx::Touch_M5Tough();
+              _touch_last = t;
+              auto cfg = t->config();
+              cfg.pin_int  = 39;   // INT pin number
+              cfg.pin_sda  = 21;   // I2C SDA pin number
+              cfg.pin_scl  = 22;   // I2C SCL pin number
+              cfg.i2c_addr = 0x2E; // I2C device addr
+              cfg.i2c_port = I2C_NUM_1;// I2C port number
+              cfg.freq = 400000;   // I2C freq
+              cfg.x_min = 0;
+              cfg.x_max = 239;
+              cfg.y_min = 0;
+              cfg.y_max = 319;
+              cfg.offset_rotation = 2;
+              t->config(cfg);
+              p->touch(t);
+              lgfx::i2c::registerWrite8(axp_i2c_port, axp_i2c_addr, 0x94, 0x02, ~0, axp_i2c_freq);  // GPIO1 HIGH (TOUCH RST)
             }
 
             goto init_clear;

@@ -54,6 +54,7 @@ namespace lgfx
     , board_ESP32_S2_Kaluga_1
     , board_WT32_SC01
     , board_PyBadge
+    , board_M5Tough
     };
   }
   using namespace boards;
