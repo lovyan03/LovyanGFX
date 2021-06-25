@@ -117,7 +117,7 @@ public:
       cfg.dummy_read_pixel =     8;  // ピクセル読出し前のダミーリードのビット数
       cfg.dummy_read_bits  =     1;  // ピクセル以外のデータ読出し前のダミーリードのビット数
       cfg.readable         =  true;  // データ読出しが可能な場合 trueに設定
-      cfg.invert           =  true;  // パネルの明暗が反転してしまう場合 trueに設定
+      cfg.invert           = false;  // パネルの明暗が反転してしまう場合 trueに設定
       cfg.rgb_order        = false;  // パネルの赤と青が入れ替わってしまう場合 trueに設定
       cfg.dlen_16bit       = false;  // データ長を16bit単位で送信するパネルの場合 trueに設定
       cfg.bus_shared       =  true;  // SDカードとバスを共有している場合 trueに設定(drawJpgFile等でバス制御を行います)

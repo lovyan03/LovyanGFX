@@ -206,15 +206,17 @@ namespace lgfx
 
       std::size_t base = 3 + (number * 6);
       std::size_t len = base + 6;
-      std::uint8_t tmp[len];
+      std::uint8_t buf[2][len];
       std::int32_t retry = 5;
+      std::uint8_t* tmp;
       do
       {
+        tmp = buf[retry & 1];
         tmp[0] = 0;
         lgfx::i2c::transactionWriteRead(_cfg.i2c_port, _cfg.i2c_addr, tmp, 1, tmp, len, _cfg.freq);
-      } while (tmp[0] != 0 && --retry);
+      } while ((tmp[0] != 0 || memcmp(buf[0], buf[1], len)) && --retry);
 
-      if (number >= tmp[2]) return 0;
+      if (number >= tmp[2] || 0 == retry) return 0;
     
       if (tp)
       {
@@ -1233,9 +1235,10 @@ namespace lgfx
         if (lgfx::i2c::registerWrite8(axp_i2c_port, axp_i2c_addr, 0x95, 0x84, 0x72, axp_i2c_freq)) // GPIO4 enable
         {
           // AXP192_LDO2 = LCD PWR
+          // AXP192_IO4  = LCD RST
           // AXP192_DC3  = LCD BL (Core2)
           // AXP192_LDO3 = LCD BL (Tough)
-          // AXP192_IO4  = LCD RST
+          // AXP192_IO1  = TP RST (Tough)
           if (use_reset) lgfx::i2c::registerWrite8(axp_i2c_port, axp_i2c_addr, 0x96, 0, ~0x02, axp_i2c_freq); // GPIO4 LOW (LCD RST)
           lgfx::i2c::registerWrite8(axp_i2c_port, axp_i2c_addr, 0x28, 0xF0, ~0, axp_i2c_freq);   // set LDO2 3300mv // LCD PWR
           lgfx::i2c::registerWrite8(axp_i2c_port, axp_i2c_addr, 0x12, 0x04, ~0, axp_i2c_freq);   // LDO2 enable

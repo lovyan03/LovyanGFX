@@ -274,8 +274,6 @@ namespace lgfx
     std::uint_fast8_t ys = _range_mod.top    >> 3;
     std::uint_fast8_t ye = _range_mod.bottom >> 3;
     _bus->writeCommand(CMD_PAGEADDR | (ys + (_cfg.offset_y >> 3)) << 8 | (ye + (_cfg.offset_y >> 3)) << 16, 24);
-    _bus->endTransaction();
-    _bus->beginTransaction();
     do
     {
       auto buf = &_buf[xs + ys * _cfg.panel_width];
@@ -339,15 +337,11 @@ namespace lgfx
 
     do
     {
-      //_bus->endTransaction();
-      //_bus->beginTransaction();
       _bus->writeCommand(  CMD_SETPAGEADDR | (ys + offset_y)
                         | (CMD_SETHIGHCOLUMN | (xs >> 4)) << 8
                         | (CMD_SETLOWCOLUMN  | (xs & 0x0F)) << 16
                         , 24);
       auto buf = &_buf[xs + ys * _cfg.panel_width];
-      //_bus->endTransaction();
-      //_bus->beginTransaction();
       _bus->writeBytes(buf, xe - xs + 1, true, true);
     } while (++ys <= ye);
 
