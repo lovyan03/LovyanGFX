@@ -211,10 +211,9 @@ namespace lgfx
 
 
   bool FixedBMPfont::updateFontMetric(FontMetrics *metrics, std::uint16_t uniCode) const {
-    bool res = ((uniCode -= 0x20u) < 0x60u);
-    if (!res) uniCode = 0;
     metrics->x_advance = metrics->width = this->width;
-    return res;
+    auto info = reinterpret_cast<const glcd_fontinfo_t*>(widthtbl);
+    return info->start <= uniCode && uniCode <= info->end;
   }
 
   bool BMPfont::updateFontMetric(FontMetrics *metrics, std::uint16_t uniCode) const {
@@ -231,10 +230,16 @@ namespace lgfx
 
   std::size_t FixedBMPfont::drawChar(LGFXBase* gfx, std::int32_t x, std::int32_t y, std::uint16_t uniCode, const TextStyle* style, FontMetrics* metrics, std::int32_t& filled_x) const
   { // BMP font
-    uniCode -= 0x20u;
     const std::int_fast16_t fontHeight = this->height;
 
-    if (uniCode >= 0x60u) { return drawCharDummy(gfx, x, y, width, fontHeight, style, filled_x); }
+    auto info = reinterpret_cast<const glcd_fontinfo_t*>(widthtbl);
+    if (info->start > uniCode || uniCode > info->end) { return drawCharDummy(gfx, x, y, width, fontHeight, style, filled_x); }
+
+    if (!style->cp437 && (uniCode >= 176))
+    {
+      uniCode++; // Handle 'classic' charset behavior
+    }
+    uniCode -= info->start;
     std::int_fast8_t w = (width + 7) >> 3;
     auto font_addr = (const std::uint8_t*) &chartbl[uniCode * w * fontHeight];
     return draw_char_bmp(gfx, x, y, style, font_addr, width, fontHeight, (width + 7) >> 3, 0);
@@ -1136,8 +1141,9 @@ namespace lgfx
     #include "../Fonts/Ascii24x48.h"
     #include "../Fonts/Ascii8x16.h"
 
-    static constexpr std::uint8_t font0_info[]      = {  0, 255, 5  }; // start code, end code, width
-    static constexpr std::uint8_t font8x8c64_info[] = { 32, 143, 8 }; // start code, end code, width
+    static constexpr std::uint8_t font0_info[]         = {  0, 255, 5 }; // start code, end code, width
+    static constexpr std::uint8_t font8x8c64_info[]    = { 32, 143, 8 }; // start code, end code, width
+    static constexpr std::uint8_t fontlib24x48_info[]  = { 32, 126, 0 }; // start code, end code
 
     const GLCDfont Font0 = { font      , font0_info, 6, 8, 7 };
     const BMPfont  Font2 = { chrtbl_f16, widtbl_f16, 0, chr_hgt_f16, baseline_f16 };
@@ -1146,8 +1152,8 @@ namespace lgfx
     const RLEfont  Font7 = { chrtbl_f7s, widtbl_f7s, 0, chr_hgt_f7s, baseline_f7s };
     const RLEfont  Font8 = { chrtbl_f72, widtbl_f72, 0, chr_hgt_f72, baseline_f72 };
     const GLCDfont Font8x8C64 = { font8x8_c64, font8x8c64_info, 8, 8, 7 };
-    const FixedBMPfont AsciiFont8x16  = { FontLib8x16 , nullptr,  8, 16, 13 };
-    const FixedBMPfont AsciiFont24x48 = { FontLib24x48, nullptr, 24, 48, 40 };
+    const FixedBMPfont AsciiFont8x16  = { FontLib8x16 , font0_info,  8, 16, 13 };
+    const FixedBMPfont AsciiFont24x48 = { FontLib24x48, fontlib24x48_info, 24, 48, 40 };
 
     const U8g2font lgfxJapanMincho_8   = { lgfx_font_japan_mincho_8    };
     const U8g2font lgfxJapanMincho_12  = { lgfx_font_japan_mincho_12   };
