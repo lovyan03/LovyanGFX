@@ -23,7 +23,7 @@ Contributors:
 
 #if __has_include("v0/lgfx_common.hpp")
 #include "v0/lgfx_common.hpp"         // common include (always include)
-#if defined (LGFX_LGFX_ENABLE_V0)
+#if defined (LGFX_ENABLE_V0)
 
 #include "v0/gitTagVersion.h"
 
