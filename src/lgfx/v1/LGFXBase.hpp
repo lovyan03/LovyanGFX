@@ -65,7 +65,7 @@ namespace lgfx
     LGFX_INLINE_T void setColor(T color) { setRawColor(_write_conv.convert(color)); }
     LGFX_INLINE   void setRawColor(std::uint32_t c) { *((std::uint32_t*)&_color) = c; }
     LGFX_INLINE   std::uint32_t getRawColor(void) const { return *((std::uint32_t*)&_color); }
-    LGFX_INLINE_T void setBaseColor(T c) { _base_rgb888 = convert_to_rgb888(c); }
+    LGFX_INLINE_T void setBaseColor(T c) { _base_rgb888 = hasPalette() ? c : convert_to_rgb888(c); }
     LGFX_INLINE   std::uint32_t getBaseColor(void) const { return _base_rgb888; }
     LGFX_INLINE   color_conv_t* getColorConverter(void) { return &_write_conv; }
     LGFX_INLINE   color_depth_t getColorDepth(void) const { return _write_conv.depth; }
