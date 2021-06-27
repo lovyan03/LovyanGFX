@@ -459,7 +459,7 @@ if (bytelen != rleDecode(dest, res, bytes)*bytes) {
     return pdest - dest;
   }
 //*
-  void Panel_M5UnitLCD::writePixels(pixelcopy_t* param, std::uint32_t length)
+  void Panel_M5UnitLCD::writePixels(pixelcopy_t* param, std::uint32_t length, bool use_dma)
   {
     auto bytes = _write_bits >> 3;
     std::uint32_t wb = length * bytes;

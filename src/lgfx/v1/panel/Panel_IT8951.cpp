@@ -597,7 +597,7 @@ IT8951 Registers defines
     _xpos = xpos;
   }
 
-  void Panel_IT8951::writePixels(pixelcopy_t* param, std::uint32_t length)
+  void Panel_IT8951::writePixels(pixelcopy_t* param, std::uint32_t length, bool use_dma)
   {
     std::uint32_t xs   = _xs  ;
     std::uint32_t ys   = _ys  ;

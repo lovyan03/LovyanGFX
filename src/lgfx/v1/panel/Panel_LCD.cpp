@@ -248,9 +248,16 @@ namespace lgfx
     }
   }
 
-  void Panel_LCD::writePixels(pixelcopy_t* param, std::uint32_t len)
+  void Panel_LCD::writePixels(pixelcopy_t* param, std::uint32_t len, bool use_dma)
   {
-    _bus->writePixels(param, len);
+    if (param->no_convert)
+    {
+      _bus->writeBytes(reinterpret_cast<const std::uint8_t*>(param->src_data), len * _write_bits >> 3, true, use_dma);
+    }
+    else
+    {
+      _bus->writePixels(param, len);
+    }
     if (_cfg.dlen_16bit && (_write_bits & 15) && (len & 1))
     {
       _align_data = !_align_data;

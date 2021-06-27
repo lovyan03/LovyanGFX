@@ -151,7 +151,7 @@ namespace lgfx
     } while (++y < h);
   }
 
-  void Panel_SSD1327::writePixels(pixelcopy_t* param, std::uint32_t length)
+  void Panel_SSD1327::writePixels(pixelcopy_t* param, std::uint32_t length, bool use_dma)
   {
     {
       std::uint_fast16_t xs = _xs;
