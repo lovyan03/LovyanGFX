@@ -185,10 +185,12 @@ namespace lgfx
     LGFX_INLINE_T void writePixels(const T *data, std::int32_t len)                        { auto pc = create_pc_fast(data      ); _panel->writePixels(&pc, len); }
     LGFX_INLINE   void writePixels(const std::uint16_t* data, std::int32_t len, bool swap) { auto pc = create_pc_fast(data, swap); _panel->writePixels(&pc, len); }
     LGFX_INLINE   void writePixels(const void*          data, std::int32_t len, bool swap) { auto pc = create_pc_fast(data, swap); _panel->writePixels(&pc, len); }
+    LGFX_INLINE   void writePixelsDMA(const void*       data, std::int32_t len) { _panel->writePixelsDMA(reinterpret_cast<const uint8_t*>(data), len); }
 
     LGFX_INLINE_T void pushPixels(T*                   data, std::int32_t len           ) { startWrite(); writePixels(data, len      ); endWrite(); }
     LGFX_INLINE   void pushPixels(const std::uint16_t* data, std::int32_t len, bool swap) { startWrite(); writePixels(data, len, swap); endWrite(); }
     LGFX_INLINE   void pushPixels(const void*          data, std::int32_t len, bool swap) { startWrite(); writePixels(data, len, swap); endWrite(); }
+    LGFX_INLINE   void pushPixelsDMA(const void*       data, std::int32_t len) { startWrite(); _panel->writePixelsDMA(reinterpret_cast<const uint8_t*>(data), len); endWrite(); }
 
     template<typename TFunc>
     void effect(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, TFunc&& effector)

@@ -169,6 +169,13 @@ namespace lgfx
 
 //----------------------------------------------------------------------------
 
+  void Panel_Device::writePixelsDMA(const std::uint8_t* data, std::uint32_t length)
+  {
+    _bus->writeBytes(data, length * _write_bits >> 3, true, true);
+  }
+
+//----------------------------------------------------------------------------
+
   void Panel_Device::writeImageARGB(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, pixelcopy_t* param)
   {
     auto src_x = param->src_x;

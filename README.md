@@ -35,7 +35,6 @@ This library has the following advantages.
     - ESP-IDF
     - Arduino ESP32
     - Arduino ATSAMD51 (Seeed)
-    - PlatformIO
 
   - ディスプレイ Displays
     - GC9A01
@@ -49,7 +48,7 @@ This library has the following advantages.
     - ILI9488 (Makerfabs Touch with Camera)
     - IT8951 (M5Paper)
     - SH110x (SH1106, SH1107, M5UnitOLED)
-    - SSD1306
+    - SSD1306 (SSD1309)
     - SSD1327
     - SSD1331
     - SSD1351 (SSD1357)

@@ -369,6 +369,76 @@ namespace lgfx
     param->src_y32_add = addy;
   }
 
+  void Panel_Sprite::writePixelsDMA(const std::uint8_t* __restrict__ data, std::uint32_t length)
+  {
+    std::uint_fast16_t xs = _xs;
+    std::uint_fast16_t xe = _xe;
+    std::uint_fast16_t ys = _ys;
+    std::uint_fast16_t ye = _ye;
+    std::uint_fast16_t x = _xpos;
+    std::uint_fast16_t y = _ypos;
+
+    const auto bits = _write_bits;
+
+    std::uint_fast8_t r = _rotation;
+    if (!r)
+    {
+      const std::size_t bitwidth = _bitwidth;
+      std::uint_fast16_t linelength;
+      do {
+        linelength = std::min<std::uint_fast16_t>(xe - x + 1, length);
+        auto len = linelength * bits >> 3;
+        memcpy(&_img.img8()[(x + y * bitwidth) * bits >> 3], data, len);
+        data += len;
+        if ((x += linelength) > xe)
+        {
+          x = xs;
+          y = (y != ye) ? (y + 1) : ys;
+        }
+      } while (length -= linelength);
+      _xpos = x;
+      _ypos = y;
+      return;
+    }
+    const std::size_t bytes = bits >> 3;
+    std::int_fast16_t ax = 1;
+    std::int_fast16_t ay = 1;
+    if ((1u << r) & 0b10010110) { y = _height - (y + 1); ys = _height - (ys + 1); ye = _height - (ye + 1); ay = -1; }
+    if (r & 2)                  { x = _width  - (x + 1); xs = _width  - (xs + 1); xe = _width  - (xe + 1); ax = -1; }
+
+    std::size_t xw = 1;
+    std::size_t yw = _bitwidth;
+    if (r & 1) std::swap(xw, yw);
+
+    std::size_t idx = y * yw + x * xw;
+    do
+    {
+      auto dst = &_img.img8()[(idx * bits >> 3)];
+      std::size_t b = 0;
+      do
+      {
+        dst[b] = *data++;
+      } while (++b < bytes);
+      if (x != xe)
+      {
+        idx += xw * ax;
+        x += ax;
+      }
+      else
+      {
+        x = xs;
+        y = (y != ye) ? (y + ay) : ys;
+    
+        idx = y * yw + x * xw;
+      }
+    } while (--length);
+
+    if ((1u << r) & 0b10010110) { y = _height - (y + 1); }
+    if (r & 2)                  { x = _width  - (x + 1); }
+    _xpos = x;
+    _ypos = y;
+  }
+
   void Panel_Sprite::writePixels(pixelcopy_t* param, std::uint32_t length)
   {
     std::uint_fast16_t xs = _xs;

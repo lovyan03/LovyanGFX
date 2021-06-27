@@ -75,6 +75,7 @@ namespace lgfx
     void writeFillRectPreclipped(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, std::uint32_t raw_color) override;
     void writeBlock(std::uint32_t rawcolor, std::uint32_t len) override;
     void writePixels(pixelcopy_t* param, std::uint32_t len) override;
+    void writePixelsDMA(const std::uint8_t* data, std::uint32_t len) override;
     void writeImage(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, pixelcopy_t* param, bool) override;
     void writeImageARGB(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, pixelcopy_t* param) override;
 

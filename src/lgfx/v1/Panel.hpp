@@ -101,6 +101,7 @@ namespace lgfx
     virtual void writeImage(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, pixelcopy_t* param, bool use_dma) = 0;
     virtual void writeImageARGB(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, pixelcopy_t* param) = 0;
     virtual void writePixels(pixelcopy_t* param, std::uint32_t len) = 0;
+    virtual void writePixelsDMA(const std::uint8_t* data, std::uint32_t len) = 0;
 
     virtual std::uint32_t readCommand(std::uint_fast8_t cmd, std::uint_fast8_t index = 0, std::uint_fast8_t length = 4) = 0;
     virtual std::uint32_t readData(std::uint_fast8_t index = 0, std::uint_fast8_t length = 4) = 0;
