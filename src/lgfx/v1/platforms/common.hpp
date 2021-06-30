@@ -158,20 +158,20 @@ namespace lgfx
     cpp::result<void, error_t> transactionRead(int i2c_port, int addr, std::uint8_t *readdata, std::uint8_t readlen, std::uint32_t freq = I2C_DEFAULT_FREQ);
     cpp::result<void, error_t> transactionWriteRead(int i2c_port, int addr, const std::uint8_t *writedata, std::uint8_t writelen, std::uint8_t *readdata, std::size_t readlen, std::uint32_t freq = I2C_DEFAULT_FREQ);
 
-    cpp::result<std::uint8_t, error_t> registerRead8(int i2c_port, int addr, std::uint8_t reg, std::uint32_t freq = I2C_DEFAULT_FREQ);
-    cpp::result<void, error_t> registerWrite8(int i2c_port, int addr, std::uint8_t reg, std::uint8_t data, std::uint8_t mask = 0, std::uint32_t freq = I2C_DEFAULT_FREQ);
+    cpp::result<std::uint8_t, error_t> readRegister8(int i2c_port, int addr, std::uint8_t reg, std::uint32_t freq = I2C_DEFAULT_FREQ);
+    cpp::result<void, error_t> writeRegister8(int i2c_port, int addr, std::uint8_t reg, std::uint8_t data, std::uint8_t mask = 0, std::uint32_t freq = I2C_DEFAULT_FREQ);
 
-    inline cpp::result<void, error_t> registerRead(int i2c_port, int addr, std::uint8_t reg, std::uint8_t* data, std::size_t len, std::uint32_t freq = I2C_DEFAULT_FREQ)
+    inline cpp::result<void, error_t> readRegister(int i2c_port, int addr, std::uint8_t reg, std::uint8_t* data, std::size_t len, std::uint32_t freq = I2C_DEFAULT_FREQ)
     {
       return transactionWriteRead(i2c_port, addr, &reg, 1, data, len, freq);
     }
     inline cpp::result<void, error_t> bitOn(int i2c_port, int addr, std::uint8_t reg, std::uint8_t bit, std::uint32_t freq = I2C_DEFAULT_FREQ)
     {
-      return registerWrite8(i2c_port, addr, reg, bit, ~0, freq);
+      return writeRegister8(i2c_port, addr, reg, bit, ~0, freq);
     }
     inline cpp::result<void, error_t> bitOff(int i2c_port, int addr, std::uint8_t reg, std::uint8_t bit, std::uint32_t freq = I2C_DEFAULT_FREQ)
     {
-      return registerWrite8(i2c_port, addr, reg, 0, ~bit, freq);
+      return writeRegister8(i2c_port, addr, reg, 0, ~bit, freq);
     }
   }
 

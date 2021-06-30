@@ -215,8 +215,8 @@ namespace lgfx
     cpp::result<void, error_t> transactionRead(int i2c_port, int addr, std::uint8_t *readdata, std::uint8_t readlen, std::uint32_t freq)  { return cpp::fail(error_t::unknown_err); }
     cpp::result<void, error_t> transactionWriteRead(int i2c_port, int addr, const std::uint8_t *writedata, std::uint8_t writelen, std::uint8_t *readdata, std::size_t readlen, std::uint32_t freq)  { return cpp::fail(error_t::unknown_err); }
 
-    cpp::result<std::uint8_t, error_t> registerRead8(int i2c_port, int addr, std::uint8_t reg, std::uint32_t freq)  { return cpp::fail(error_t::unknown_err); }
-    cpp::result<void, error_t> registerWrite8(int i2c_port, int addr, std::uint8_t reg, std::uint8_t data, std::uint8_t mask, std::uint32_t freq)  { return cpp::fail(error_t::unknown_err); }
+    cpp::result<std::uint8_t, error_t> readRegister8(int i2c_port, int addr, std::uint8_t reg, std::uint32_t freq)  { return cpp::fail(error_t::unknown_err); }
+    cpp::result<void, error_t> writeRegister8(int i2c_port, int addr, std::uint8_t reg, std::uint8_t data, std::uint8_t mask, std::uint32_t freq)  { return cpp::fail(error_t::unknown_err); }
   }
 
 //----------------------------------------------------------------------------

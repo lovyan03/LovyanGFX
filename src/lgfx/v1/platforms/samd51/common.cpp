@@ -917,14 +917,14 @@ Serial.println("read fail");
       return res;
     }
 
-    cpp::result<std::uint8_t, error_t> registerRead8(int sercom_index, int addr, std::uint8_t reg, std::uint32_t freq)
+    cpp::result<std::uint8_t, error_t> readRegister8(int sercom_index, int addr, std::uint8_t reg, std::uint32_t freq)
     {
       auto res = transactionWriteRead(sercom_index, addr, &reg, 1, &reg, 1, freq);
       if (res.has_value()) { return reg; }
       return cpp::fail( res.error() );
     }
 
-    cpp::result<void, error_t> registerWrite8(int sercom_index, int addr, std::uint8_t reg, std::uint8_t data, std::uint8_t mask, std::uint32_t freq)
+    cpp::result<void, error_t> writeRegister8(int sercom_index, int addr, std::uint8_t reg, std::uint8_t data, std::uint8_t mask, std::uint32_t freq)
     {
       std::uint8_t tmp[2] = { reg, data };
       if (mask)

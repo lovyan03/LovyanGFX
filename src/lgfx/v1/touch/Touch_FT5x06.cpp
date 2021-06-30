@@ -35,7 +35,7 @@ namespace lgfx
 
   bool Touch_FT5x06::_write_reg(std::uint8_t reg, std::uint8_t val)
   {
-    return i2c::registerWrite8(_cfg.i2c_port, _cfg.i2c_addr, reg, val, 0, _cfg.freq).has_value();
+    return i2c::writeRegister8(_cfg.i2c_port, _cfg.i2c_addr, reg, val, 0, _cfg.freq).has_value();
 
     // std::uint8_t data[] = { reg, val };
     // return lgfx::i2c::transactionWrite(_cfg.i2c_port, _cfg.i2c_addr, data, 2, _cfg.freq).has_value();

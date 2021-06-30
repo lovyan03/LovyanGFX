@@ -109,9 +109,9 @@ namespace lgfx
     {
       using namespace m5stack;
       // AXP192 reg 0x96 = GPIO3&4 control
-      lgfx::i2c::registerWrite8(axp_i2c_port, axp_i2c_addr, 0x96, 0, ~0x02, axp_i2c_freq); // GPIO4 LOW (LCD RST)
+      lgfx::i2c::writeRegister8(axp_i2c_port, axp_i2c_addr, 0x96, 0, ~0x02, axp_i2c_freq); // GPIO4 LOW (LCD RST)
       lgfx::delay(4);
-      lgfx::i2c::registerWrite8(axp_i2c_port, axp_i2c_addr, 0x96, 2, ~0x00, axp_i2c_freq); // GPIO4 HIGH (LCD RST)
+      lgfx::i2c::writeRegister8(axp_i2c_port, axp_i2c_addr, 0x96, 2, ~0x00, axp_i2c_freq); // GPIO4 HIGH (LCD RST)
     }
   };
 
@@ -137,7 +137,7 @@ namespace lgfx
         lgfx::i2c::bitOff(axp_i2c_port, axp_i2c_addr, 0x12, 0x02, axp_i2c_freq); // DC3 disable
       }
     // AXP192 reg 0x27 = DC3
-      lgfx::i2c::registerWrite8(axp_i2c_port, axp_i2c_addr, 0x27, brightness, 0x80, axp_i2c_freq);
+      lgfx::i2c::writeRegister8(axp_i2c_port, axp_i2c_addr, 0x27, brightness, 0x80, axp_i2c_freq);
     }
   };
 
@@ -165,7 +165,7 @@ namespace lgfx
       {
         lgfx::i2c::bitOff(axp_i2c_port, axp_i2c_addr, 0x12, 0x08, axp_i2c_freq); // LDO3 disable
       }
-      lgfx::i2c::registerWrite8(axp_i2c_port, axp_i2c_addr, 0x28, brightness, 0xF0, axp_i2c_freq);
+      lgfx::i2c::writeRegister8(axp_i2c_port, axp_i2c_addr, 0x28, brightness, 0xF0, axp_i2c_freq);
     }
   };
 
@@ -195,7 +195,7 @@ namespace lgfx
       return _inited;
     }
 
-    std::uint_fast8_t getTouchRaw(touch_point_t *tp, std::uint_fast8_t count) override
+    std::uint_fast8_t getTouchRaw(touch_point_t* __restrict__ tp, std::uint_fast8_t count) override
     {
       if (tp) tp->size = 0;
       if (!_inited || count == 0) return 0;
@@ -208,21 +208,35 @@ namespace lgfx
       std::size_t len = 3 + count * 6;
       std::uint8_t buf[2][len];
       std::int32_t retry = 5;
+      bool flip = false;
       std::uint8_t* tmp;
-      do
+      for (;;)
       {
-        tmp = buf[retry & 1];
-        tmp[0] = 0;
-        lgfx::i2c::transactionWriteRead(_cfg.i2c_port, _cfg.i2c_addr, tmp, 1, tmp, len, _cfg.freq);
-      } while ((tmp[0] != 0 || memcmp(buf[0], buf[1], len)) && --retry);
-
-      if (0 == retry) return 0;
-
-      if (count > tmp[2]) count = tmp[2];
+        tmp = buf[flip];
+        memset(tmp, 0, len);
+        if (lgfx::i2c::beginTransaction(_cfg.i2c_port, _cfg.i2c_addr, _cfg.freq, false))
+        {
+          static constexpr std::uint8_t reg_number = 2;
+          if (lgfx::i2c::writeBytes(_cfg.i2c_port, &reg_number, 1)
+          && lgfx::i2c::restart(_cfg.i2c_port, _cfg.i2c_addr, _cfg.freq, true)
+          && lgfx::i2c::readBytes(_cfg.i2c_port, tmp, 1)
+          && (tmp[0] != 0))
+          {
+            flip = !flip;
+            std::size_t points = std::min<std::uint_fast8_t>(count, tmp[0]);
+            if (points && lgfx::i2c::readBytes(_cfg.i2c_port, &tmp[1], points * 6 - 2))
+            {}
+          }
+          if (lgfx::i2c::endTransaction(_cfg.i2c_port)) {}
+          if (tmp[0] == 0 || memcmp(buf[0], buf[1], len) == 0) break;
+        }
+        if (0 == --retry) return 0;
+      }
+      if (count > tmp[0]) count = tmp[0];
     
       for (std::size_t idx = 0; idx < count; ++idx)
       {
-        auto data = &tmp[3 + idx * 6];
+        auto data = &tmp[1 + idx * 6];
         tp[idx].size = 1;
         tp[idx].x = (data[0] & 0x0F) << 8 | data[1];
         tp[idx].y = (data[2] & 0x0F) << 8 | data[3];
@@ -265,7 +279,7 @@ namespace lgfx
     {
       using namespace m5stack;
       lgfx::i2c::init(axp_i2c_port, axp_i2c_sda, axp_i2c_scl);
-      lgfx::i2c::registerWrite8(axp_i2c_port, axp_i2c_addr, 0x12, 0x4D, ~0, axp_i2c_freq);
+      lgfx::i2c::writeRegister8(axp_i2c_port, axp_i2c_addr, 0x12, 0x4D, ~0, axp_i2c_freq);
       setBrightness(brightness);
       return true;
     }
@@ -282,7 +296,7 @@ namespace lgfx
       {
         lgfx::i2c::bitOff(axp_i2c_port, axp_i2c_addr, 0x12, 1 << 2, axp_i2c_freq);
       }
-      lgfx::i2c::registerWrite8(axp_i2c_port, axp_i2c_addr, 0x28, brightness << 4, 0x0F, axp_i2c_freq);
+      lgfx::i2c::writeRegister8(axp_i2c_port, axp_i2c_addr, 0x28, brightness << 4, 0x0F, axp_i2c_freq);
     }
   };
 
@@ -1234,17 +1248,17 @@ namespace lgfx
 
         lgfx::i2c::init(axp_i2c_port, axp_i2c_sda, axp_i2c_scl);
         // I2C addr 0x34 = AXP192
-        if (lgfx::i2c::registerWrite8(axp_i2c_port, axp_i2c_addr, 0x95, 0x84, 0x72, axp_i2c_freq)) // GPIO4 enable
+        if (lgfx::i2c::writeRegister8(axp_i2c_port, axp_i2c_addr, 0x95, 0x84, 0x72, axp_i2c_freq)) // GPIO4 enable
         {
           // AXP192_LDO2 = LCD PWR
           // AXP192_IO4  = LCD RST
           // AXP192_DC3  = LCD BL (Core2)
           // AXP192_LDO3 = LCD BL (Tough)
           // AXP192_IO1  = TP RST (Tough)
-          if (use_reset) lgfx::i2c::registerWrite8(axp_i2c_port, axp_i2c_addr, 0x96, 0, ~0x02, axp_i2c_freq); // GPIO4 LOW (LCD RST)
-          lgfx::i2c::registerWrite8(axp_i2c_port, axp_i2c_addr, 0x28, 0xF0, ~0, axp_i2c_freq);   // set LDO2 3300mv // LCD PWR
-          lgfx::i2c::registerWrite8(axp_i2c_port, axp_i2c_addr, 0x12, 0x04, ~0, axp_i2c_freq);   // LDO2 enable
-          lgfx::i2c::registerWrite8(axp_i2c_port, axp_i2c_addr, 0x96, 0x02, ~0, axp_i2c_freq);   // GPIO4 HIGH (LCD RST)
+          if (use_reset) lgfx::i2c::writeRegister8(axp_i2c_port, axp_i2c_addr, 0x96, 0, ~0x02, axp_i2c_freq); // GPIO4 LOW (LCD RST)
+          lgfx::i2c::writeRegister8(axp_i2c_port, axp_i2c_addr, 0x28, 0xF0, ~0, axp_i2c_freq);   // set LDO2 3300mv // LCD PWR
+          lgfx::i2c::writeRegister8(axp_i2c_port, axp_i2c_addr, 0x12, 0x04, ~0, axp_i2c_freq);   // LDO2 enable
+          lgfx::i2c::writeRegister8(axp_i2c_port, axp_i2c_addr, 0x96, 0x02, ~0, axp_i2c_freq);   // GPIO4 HIGH (LCD RST)
 
           ets_delay_us(128); // AXP 起動後、LCDがアクセス可能になるまで少し待機
 
@@ -1269,7 +1283,7 @@ namespace lgfx
             _panel_last = p;
 
             // Check exists touch controller for Core2
-            if (lgfx::i2c::registerRead8(I2C_NUM_1, 0x38, 0, 400000).has_value())
+            if (lgfx::i2c::readRegister8(I2C_NUM_1, 0x38, 0, 400000).has_value())
             {
               ESP_LOGW(LIBRARY_NAME, "[Autodetect] M5StackCore2");
               board = board_t::board_M5StackCore2;
@@ -1297,8 +1311,8 @@ namespace lgfx
             else
             {
               // AXP192のGPIO1 = タッチコントローラRST
-              lgfx::i2c::registerWrite8(axp_i2c_port, axp_i2c_addr, 0x92, 0, 0xF8, axp_i2c_freq);   // GPIO1 OpenDrain
-              lgfx::i2c::registerWrite8(axp_i2c_port, axp_i2c_addr, 0x94, 0, ~0x02, axp_i2c_freq);  // GPIO1 LOW  (TOUCH RST)
+              lgfx::i2c::writeRegister8(axp_i2c_port, axp_i2c_addr, 0x92, 0, 0xF8, axp_i2c_freq);   // GPIO1 OpenDrain
+              lgfx::i2c::writeRegister8(axp_i2c_port, axp_i2c_addr, 0x94, 0, ~0x02, axp_i2c_freq);  // GPIO1 LOW  (TOUCH RST)
 
               ESP_LOGW(LIBRARY_NAME, "[Autodetect] M5Tough");
               board = board_t::board_M5Tough;
@@ -1321,7 +1335,7 @@ namespace lgfx
               cfg.offset_rotation = 2;
               t->config(cfg);
               p->touch(t);
-              lgfx::i2c::registerWrite8(axp_i2c_port, axp_i2c_addr, 0x94, 0x02, ~0, axp_i2c_freq);  // GPIO1 HIGH (TOUCH RST)
+              lgfx::i2c::writeRegister8(axp_i2c_port, axp_i2c_addr, 0x94, 0x02, ~0, axp_i2c_freq);  // GPIO1 HIGH (TOUCH RST)
             }
 
             goto init_clear;
@@ -1394,7 +1408,7 @@ namespace lgfx
         { // 読出しが出来ない製品のため 0 判定
           lgfx::i2c::init(I2C_NUM_1, 18, 19);
           // I2C通信でタッチパネルコントローラが存在するかチェックする
-          if (0x11 == lgfx::i2c::registerRead8(I2C_NUM_1, 0x38, 0xA8, 400000))
+          if (0x11 == lgfx::i2c::readRegister8(I2C_NUM_1, 0x38, 0xA8, 400000))
           { /// FocalTech's Panel ID reg=0xA8  value=0x11
             board = board_t::board_WT32_SC01;
             ESP_LOGW(LIBRARY_NAME, "[Autodetect] WT32-SC01");

@@ -447,6 +447,27 @@ namespace lgfx
   {
     cpp::result<void, error_t> init(int sercom_index, int pin_sda, int pin_scl)
     {
+      if ((std::size_t)sercom_index >= SERCOM_INST_NUM) { return cpp::fail(error_t::invalid_arg); }
+
+      int pad_sda;
+      int pad_scl;
+      int alt = 0;
+      do
+      {
+        pad_sda = getPadNumber(sercom_index, pin_sda, alt);
+        pad_scl = getPadNumber(sercom_index, pin_scl, alt);
+        if (pad_sda == 0 && pad_scl == 1) break;
+      } while (++alt < 2);
+      if (alt == 2) { return cpp::fail(error_t::invalid_arg); }
+
+// Serial.printf("sercom:%d scl:%d  sda:%d \r\n", sercom_index, pin_scl, pin_sda);
+// Serial.printf("pad scl:%d / pad sda:%d \r\n", pad_scl, pad_sda);
+
+      auto sercomData = samd21::getSercomData(sercom_index);
+      auto sercom = reinterpret_cast<Sercom*>(sercomData->sercomPtr);
+      auto *i2cm = &sercom->I2CM;
+
+
       Wire.begin();
       return {};
     }
@@ -527,14 +548,14 @@ namespace lgfx
       return res;
     }
 
-    cpp::result<std::uint8_t, error_t> registerRead8(int sercom_index, int addr, std::uint8_t reg, std::uint32_t freq)
+    cpp::result<std::uint8_t, error_t> readRegister8(int sercom_index, int addr, std::uint8_t reg, std::uint32_t freq)
     {
       auto res = transactionWriteRead(sercom_index, addr, &reg, 1, &reg, 1, freq);
       if (res.has_value()) { return reg; }
       return cpp::fail( res.error() );
     }
 
-    cpp::result<void, error_t> registerWrite8(int sercom_index, int addr, std::uint8_t reg, std::uint8_t data, std::uint8_t mask, std::uint32_t freq)
+    cpp::result<void, error_t> writeRegister8(int sercom_index, int addr, std::uint8_t reg, std::uint8_t data, std::uint8_t mask, std::uint32_t freq)
     {
       std::uint8_t tmp[2] = { reg, data };
       if (mask)
