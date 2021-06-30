@@ -110,11 +110,11 @@ namespace lgfx
     if (number < points && tp != nullptr)
     {
       res = points;
-      auto data = reinterpret_cast<std::uint16_t*>(&_readdata[number * 8 + 2]);
-      tp->x    = data[0];
-      tp->y    = data[1];
-      tp->size = data[2];
-      tp->id   = data[3] >> 8;
+      auto data = reinterpret_cast<std::uint16_t*>(&_readdata[number * 8]);
+      tp->x    = data[1];
+      tp->y    = data[2];
+      tp->size = data[3];
+      tp->id   = data[0] >> 8;
     }
     return res;
   }

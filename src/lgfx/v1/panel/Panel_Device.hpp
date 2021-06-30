@@ -129,9 +129,9 @@ namespace lgfx
     void touch(ITouch* touch) { setTouch(touch); }
     ITouch* getTouch(void) const { return _touch; }
     ITouch* touch(void) const { return _touch; }
-    std::uint_fast8_t getTouchRaw(touch_point_t* tp, std::int_fast8_t number);
-    std::uint_fast8_t getTouch(touch_point_t* tp, std::int_fast8_t number);
-    void convertRawXY(std::int32_t *x, std::int32_t *y);
+    std::uint_fast8_t getTouchRaw(touch_point_t* tp, std::uint_fast8_t count);
+    std::uint_fast8_t getTouch(touch_point_t* tp, std::uint_fast8_t count);
+    void convertRawXY(touch_point_t *tp, std::uint_fast8_t count);
     void touchCalibrate(void);
     void setCalibrateAffine(float affine[6]);
     void setCalibrate(std::uint16_t *parameters);

@@ -195,17 +195,17 @@ namespace lgfx
       return _inited;
     }
 
-    std::uint_fast8_t getTouchRaw(touch_point_t *tp, std::uint_fast8_t number) override
+    std::uint_fast8_t getTouchRaw(touch_point_t *tp, std::uint_fast8_t count) override
     {
       if (tp) tp->size = 0;
-      if (!_inited || number > 2) return 0;
+      if (!_inited || count == 0) return 0;
+      if (count > 2) count = 2; // max 2 point.
       // if (_cfg.pin_int >= 0)
       // {
       //   Serial.printf("tp:%d \r\n", gpio_in(_cfg.pin_int));
       // }
 
-      std::size_t base = 3 + (number * 6);
-      std::size_t len = base + 6;
+      std::size_t len = 3 + count * 6;
       std::uint8_t buf[2][len];
       std::int32_t retry = 5;
       std::uint8_t* tmp;
@@ -216,17 +216,19 @@ namespace lgfx
         lgfx::i2c::transactionWriteRead(_cfg.i2c_port, _cfg.i2c_addr, tmp, 1, tmp, len, _cfg.freq);
       } while ((tmp[0] != 0 || memcmp(buf[0], buf[1], len)) && --retry);
 
-      if (number >= tmp[2] || 0 == retry) return 0;
+      if (0 == retry) return 0;
+
+      if (count > tmp[2]) count = tmp[2];
     
-      if (tp)
+      for (std::size_t idx = 0; idx < count; ++idx)
       {
-        auto data = &tmp[base];
-        tp->size = 1;
-        tp->x = (data[0] & 0x0F) << 8 | data[1];
-        tp->y = (data[2] & 0x0F) << 8 | data[3];
-        tp->id = 0;
+        auto data = &tmp[3 + idx * 6];
+        tp[idx].size = 1;
+        tp[idx].x = (data[0] & 0x0F) << 8 | data[1];
+        tp[idx].y = (data[2] & 0x0F) << 8 | data[3];
+        tp[idx].id = idx;
       }
-      return tmp[2];
+      return count;
     }
   };
 

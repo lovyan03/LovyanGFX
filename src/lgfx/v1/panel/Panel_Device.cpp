@@ -422,41 +422,45 @@ namespace lgfx
     _affine[5] = mat[2][0] * v3 + mat[2][1] * v4 + mat[2][2] * v5;
   }
 
-  void Panel_Device::convertRawXY(std::int32_t *x, std::int32_t *y)
+  void Panel_Device::convertRawXY(touch_point_t *tp, std::uint_fast8_t count)
   {
-    std::int32_t tx = (_affine[0] * (float)*x + _affine[1] * (float)*y) + _affine[2];
-    std::int32_t ty = (_affine[3] * (float)*x + _affine[4] * (float)*y) + _affine[5];
-
     auto r = _internal_rotation;
     if (_touch) {
       auto offset = _touch->config().offset_rotation;
       r = ((r + offset) & 3) | ((r & 4) ^ (offset & 4));
     }
-    if (r)
+    bool vflip = (1 << r) & 0b10010110; // r 1,2,4,7
+
+    for (std::size_t idx = 0; idx < count; ++idx)
     {
-      if ( r & 1               ) { std::swap(tx, ty); }
-      if ( r & 2               ) { tx = (_width  - 1) - tx; }
-      if ((1 << r) & 0b10010110) { ty = (_height - 1) - ty; }
+      std::int32_t tx = (_affine[0] * (float)tp[idx].x + _affine[1] * (float)tp[idx].y) + _affine[2];
+      std::int32_t ty = (_affine[3] * (float)tp[idx].x + _affine[4] * (float)tp[idx].y) + _affine[5];
+      if (r)
+      {
+        if (r & 1) { std::swap(tx, ty); }
+        if (r & 2) { tx = (_width  - 1) - tx; }
+        if (vflip) { ty = (_height - 1) - ty; }
+      }
+      tp[idx].x = tx;
+      tp[idx].y = ty;
     }
-    *x = tx;
-    *y = ty;
   }
 
-  std::uint_fast8_t Panel_Device::getTouchRaw(touch_point_t* tp, std::int_fast8_t number)
+  std::uint_fast8_t Panel_Device::getTouchRaw(touch_point_t* tp, std::uint_fast8_t count)
   {
     if (_touch == nullptr) return 0;
 
     bool need_transaction = (getStartCount() && _touch->config().bus_shared);
     if (need_transaction) { endTransaction(); }
-    auto res = _touch->getTouchRaw(tp, number);
+    count = _touch->getTouchRaw(tp, count);
     if (need_transaction) { beginTransaction(); }
-    return res;
+    return count;
   }
 
-  std::uint_fast8_t Panel_Device::getTouch(touch_point_t* tp, std::int_fast8_t number)
+  std::uint_fast8_t Panel_Device::getTouch(touch_point_t* tp, std::uint_fast8_t count)
   {
-    auto res = getTouchRaw(tp, number);
-    if (res) { convertRawXY(&tp->x, &tp->y); }
+    auto res = getTouchRaw(tp, count);
+    convertRawXY(tp, res);
     return res;
   }
 

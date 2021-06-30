@@ -84,10 +84,9 @@ namespace lgfx
     _write_reg(FT5x06_POWER_REG, FT5x06_SLEEP_IN);
   }
 
-  std::uint_fast8_t Touch_FT5x06::getTouchRaw(touch_point_t *tp, std::uint_fast8_t number)
+  std::uint_fast8_t Touch_FT5x06::getTouchRaw(touch_point_t *tp, std::uint_fast8_t count)
   {
-    if (tp) tp->size = 0;
-    if (!_check_init() || number > 4) return 0;
+    if (!_check_init() || count == 0) return 0;
     if (_cfg.pin_int >= 0)
     {
       if (_flg_released != (bool)gpio_in(_cfg.pin_int))
@@ -100,9 +99,8 @@ namespace lgfx
         return 0;
       }
     }
-
-    std::size_t base = number * 6;
-    std::size_t len = base + 5;
+    if (count > 5) count = 5;  // 最大５点まで
+    std::size_t len = count * 6 - 1;
 
     std::uint8_t tmp[2][len];
     _read_reg(0x02, tmp[0], len);
@@ -112,17 +110,16 @@ namespace lgfx
       _read_reg(0x02, tmp[retry & 1], len);
     } while (memcmp(tmp[0], tmp[1], len) && --retry);
 
-    if (number >= tmp[0][0]) return 0;
-  
-    if (tp)
+    if (count > tmp[0][0]) count = tmp[0][0];
+    for (std::size_t idx = 0; idx < count; ++idx)
     {
-      auto data = &tmp[0][base];
-      tp->size = 1;
-      tp->x = (data[1] & 0x0F) << 8 | data[2];
-      tp->y = (data[3] & 0x0F) << 8 | data[4];
-      tp->id = data[3] >> 4;
+      auto data = &tmp[0][idx * 6];
+      tp[idx].size = 1;
+      tp[idx].x = (data[1] & 0x0F) << 8 | data[2];
+      tp[idx].y = (data[3] & 0x0F) << 8 | data[4];
+      tp[idx].id = data[3] >> 4;
     }
-    return tmp[0][0];
+    return count;
   }
 
 //----------------------------------------------------------------------------

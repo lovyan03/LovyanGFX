@@ -48,11 +48,11 @@ namespace lgfx
     return true;
   }
 
-  std::uint_fast8_t Touch_XPT2046::getTouchRaw(touch_point_t* __restrict__ tp, std::uint_fast8_t number)
+  std::uint_fast8_t Touch_XPT2046::getTouchRaw(touch_point_t* __restrict__ tp, std::uint_fast8_t count)
   {
-    tp->size = 0;
+    if (!_inited || count == 0) return 0;
 
-    if (!_inited || number != 0) return 0;
+    tp->size = 0;
 
     if (_cfg.pin_int >= 0 && lgfx::gpio_in(_cfg.pin_int))
     {

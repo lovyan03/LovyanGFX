@@ -2972,24 +2972,24 @@ namespace lgfx
         delay(512);
         std::int32_t x_touch = 0, y_touch = 0;
         static constexpr int _RAWERR = 20;
-        std::int32_t x_tmp, y_tmp, x_tmp2, y_tmp2;
+        touch_point_t tp, tp2;
         for (int j = 0; j < 8; ++j) {
           do {
-            do { delay(1); } while (!getTouchRaw(&x_tmp,&y_tmp));
-            delay(2); // Small delay to the next sample
-          } while (!getTouchRaw(&x_tmp2,&y_tmp2)
-                 || (abs(x_tmp - x_tmp2) > _RAWERR)
-                 || (abs(y_tmp - y_tmp2) > _RAWERR));
+            do { delay(2); } while (!getTouchRaw(&tp));
+            delay(10);
+          } while (!getTouchRaw(&tp2)
+                 || (abs(tp.x - tp2.x) > _RAWERR)
+                 || (abs(tp.y - tp2.y) > _RAWERR));
 
-          x_touch += x_tmp;
-          x_touch += x_tmp2;
-          y_touch += y_tmp;
-          y_touch += y_tmp2;
+          x_touch += tp.x;
+          x_touch += tp2.x;
+          y_touch += tp.y;
+          y_touch += tp2.y;
         }
         orig[i*2  ] = x_touch >> 4;
         orig[i*2+1] = y_touch >> 4;
         draw_calibrate_point( px, py, size, bg_rawcolor, bg_rawcolor);
-        do { delay(1); } while (getTouchRaw());
+        do { delay(1); } while (getTouchRaw(&tp));
       }
       if (nullptr != parameters) {
         memcpy(parameters, orig, sizeof(std::uint16_t) * 8);

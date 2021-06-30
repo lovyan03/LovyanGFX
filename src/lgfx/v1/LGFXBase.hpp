@@ -1149,41 +1149,41 @@ namespace lgfx
     inline std::uint8_t getBrightness(void) const { return _brightness; }
 
     inline ITouch* touch(void) const { return _panel ? panel()->touch() : nullptr; }
-    inline void convertRawXY(std::int32_t *x, std::int32_t *y) { panel()->convertRawXY(x, y); }
-    std::uint_fast8_t getTouchRaw(touch_point_t *tp, std::uint_fast8_t number = 0) { return panel()->getTouchRaw(tp, number); }
-    std::uint_fast8_t getTouch(touch_point_t *tp, std::uint_fast8_t number = 0) { return panel()->getTouch(tp, number); }
-    touch_point_t getTouch(std::int_fast8_t number = 0)
-    {
-      touch_point_t res;
-      getTouch(&res, number);
-      return res;
-    }
+    inline std::uint_fast8_t getTouchRaw(touch_point_t *tp, std::uint_fast8_t count = 1) { return panel()->getTouchRaw(tp, count); }
+    inline std::uint_fast8_t getTouch(touch_point_t *tp, std::uint_fast8_t count = 1) { return panel()->getTouch(tp, count); }
+    inline void convertRawXY(touch_point_t *tp, std::uint_fast8_t count = 1) { panel()->convertRawXY(tp, count); }
 
-    std::uint_fast8_t getTouchRaw(std::int32_t *x = nullptr, std::int32_t *y = nullptr, std::uint_fast8_t number = 0)
+    template <typename T>
+    std::uint_fast8_t getTouchRaw(T *x, T *y, std::uint_fast8_t index = 0)
     {
-      touch_point_t tp;
-      auto res = getTouchRaw(&tp, number);
-      if (x) *x = tp.x;
-      if (y) *y = tp.y;
-      return res;
+      touch_point_t tp[index + 1];
+      auto count = getTouchRaw(tp, index + 1);
+      if (index >= count) return 0;
+      if (x) *x = tp[index].x;
+      if (y) *y = tp[index].y;
+      return index;
     }
 
     template <typename T>
-    std::uint_fast8_t getTouch(T *x, T *y, std::uint_fast8_t number = 0)
+    std::uint_fast8_t getTouch(T *x, T *y, std::uint_fast8_t index = 0)
     {
-      touch_point_t tp;
-      auto res = getTouch(&tp, number);
-      if (x) *x = tp.x;
-      if (y) *y = tp.y;
-      return res;
+      touch_point_t tp[index + 1];
+      auto count = getTouch(tp, index + 1);
+      if (index >= count) return 0;
+      if (x) *x = tp[index].x;
+      if (y) *y = tp[index].y;
+      return index;
     }
 
-    void convertRawXY(std::uint16_t *x, std::uint16_t *y)
+    template <typename T>
+    void convertRawXY(T *x, T *y)
     {
-      std::int32_t tx = *x, ty = *y;
-      convertRawXY(&tx, &ty);
-      *x = tx;
-      *y = ty;
+      touch_point_t tp;
+      tp.x = *x;
+      tp.y = *y;
+      panel()->convertRawXY(&tp, 1);
+      *x = tp.x;
+      *y = tp.y;
     }
 
     /// This requires a uint16_t array with 8 elements. ( or nullptr )

@@ -112,37 +112,44 @@ namespace lgfx
     writeBytes(writedata, 3);
   }
 
-  std::uint_fast8_t Touch_GT911::getTouchRaw(touch_point_t *tp, std::uint_fast8_t number)
+  std::uint_fast8_t Touch_GT911::getTouchRaw(touch_point_t* __restrict__ tp, std::uint_fast8_t count)
   {
-    if (tp) tp->size = 0;
-    if (!_inited) return 0;
+    if (!_inited || count == 0) return 0;
+    if (count > 5) { count = 5; }
 
-    std::uint_fast8_t res = 0;
-
-    std::uint32_t nowtime = millis();
-    if ((_cfg.pin_int < 0 || !gpio_in(_cfg.pin_int)) && (std::uint32_t)(nowtime - _lasttime) >= _refresh_rate)
+    if ((_cfg.pin_int < 0 || !gpio_in(_cfg.pin_int)))
     {
-      std::uint8_t buf;
-      writeReadBytes(gt911cmd_getdata, 2, &buf, 1);
-      if (buf & 0x80)
+      if (lgfx::i2c::beginTransaction(_cfg.i2c_port, _cfg.i2c_addr, _cfg.freq, false))
       {
-        _lasttime = nowtime;
-        std::int32_t points = std::min(5, buf & 0x0F);
-        writeReadBytes(gt911cmd_getdata, 2, _readdata, 2 + points * 8);
-        writeBytes(gt911cmd_getdata, 3);
+        std::uint8_t buf;
+        if (lgfx::i2c::writeBytes(_cfg.i2c_port, gt911cmd_getdata, 2)
+         && lgfx::i2c::restart(_cfg.i2c_port, _cfg.i2c_addr, _cfg.freq, true)
+         && lgfx::i2c::readBytes(_cfg.i2c_port, &buf, 1)
+         && (buf & 0x80))
+        {
+          std::uint32_t points = std::min<std::uint_fast8_t>(count, buf & 0x0F);
+          if (lgfx::i2c::readBytes(_cfg.i2c_port, &_readdata[1], points * 8))
+          {
+            _readdata[0] = buf;
+          }
+          if (lgfx::i2c::endTransaction(_cfg.i2c_port)
+           && lgfx::i2c::beginTransaction(_cfg.i2c_port, _cfg.i2c_addr, _cfg.freq, false)
+           && lgfx::i2c::writeBytes(_cfg.i2c_port, gt911cmd_getdata, 3))
+          {}
+        }
+        if (lgfx::i2c::endTransaction(_cfg.i2c_port)) {}
       }
     }
-    std::uint32_t points = std::min(5, _readdata[0] & 0x0F);
-    if (number < points && tp != nullptr)
+    std::uint32_t points = std::min<std::uint_fast8_t>(count, _readdata[0] & 0x0F);
+    for (std::size_t idx = 0; idx < points; ++idx)
     {
-      res = points;
-      auto data = reinterpret_cast<std::uint16_t*>(&_readdata[number * 8 + 2]);
-      tp->x    = data[0];
-      tp->y    = data[1];
-      tp->size = data[2];
-      tp->id   = data[3] >> 8;
+      auto data = reinterpret_cast<std::uint16_t*>(&_readdata[idx * 8]);
+      tp[idx].id   = data[0] >> 8;
+      tp[idx].x    = data[1];
+      tp[idx].y    = data[2];
+      tp[idx].size = data[3];
     }
-    return res;
+    return points;
   }
 
   void Touch_GT911::setTouchNums(std::int_fast8_t nums)

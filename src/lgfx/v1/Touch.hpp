@@ -27,10 +27,10 @@ namespace lgfx
 
   struct touch_point_t
   {
-    std::int32_t x = -1;
-    std::int32_t y = -1;
-    std::uint16_t id   = 0;
+    std::int16_t x = -1;
+    std::int16_t y = -1;
     std::uint16_t size = 0;
+    std::uint16_t id   = 0;
   };
 
 //----------------------------------------------------------------------------
@@ -78,7 +78,7 @@ namespace lgfx
     virtual void wakeup(void) = 0;
     virtual void sleep(void) = 0;
     virtual bool isEnable(void) { return true; };
-    virtual std::uint_fast8_t getTouchRaw(touch_point_t* tp, std::uint_fast8_t number) = 0;
+    virtual std::uint_fast8_t getTouchRaw(touch_point_t* tp, std::uint_fast8_t count) = 0;
 
   protected:
     config_t _cfg;

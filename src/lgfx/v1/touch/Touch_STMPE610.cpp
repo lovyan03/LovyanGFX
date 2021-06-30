@@ -231,9 +231,9 @@ namespace lgfx
     if (!_inited) return;
   }
 
-  std::uint_fast8_t Touch_STMPE610::getTouchRaw(touch_point_t *tp, std::uint_fast8_t number)
+  std::uint_fast8_t Touch_STMPE610::getTouchRaw(touch_point_t* __restrict__ tp, std::uint_fast8_t count)
   {
-    if (!_inited || number != 0) return 0;
+    if (!_inited || count == 0) return 0;
 
     if (isSPI()) {
       std::uint8_t data[8];
