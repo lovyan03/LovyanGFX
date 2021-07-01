@@ -2091,39 +2091,31 @@ namespace lgfx
 
   void LGFXBase::showFont(std::uint32_t td)
   {
-    auto font = (const VLWfont*)this->_font;
-    if (!font->_fontLoaded) return;
-
-    std::int16_t x = this->width();
-    std::int16_t y = this->height();
-    std::uint32_t timeDelay = 0;    // No delay before first page
+    std::int_fast16_t x = 0;
+    std::int_fast16_t y = 0;
 
     this->fillScreen(this->_text_style.back_rgb888);
 
-    for (std::uint16_t i = 0; i < font->gCount; i++)
+    std::uint32_t code = 0;
+    while (++code < 65536)
     {
-      // Check if this will need a new screen
-      if (x + font->gdX[i] + font->gWidth[i] >= this->width())  {
-        x = - font->gdX[i];
-
-        y += font->yAdvance;
-        if (y + font->maxAscent + font->descent >= this->height()) {
-          x = - font->gdX[i];
+      if (!getFont()->updateFontMetric(&_font_metrics, code)) continue;
+      if (x + _font_metrics.x_advance >= width())
+      {
+        x = 0;
+        y += _font_metrics.y_advance;
+        if (y + _font_metrics.height >= height())
+        {
           y = 0;
-          delay(timeDelay);
-          timeDelay = td;
+          delay(td);
           this->fillScreen(this->_text_style.back_rgb888);
         }
       }
-
-      this->drawChar(font->gUnicode[i], x, y);
-      x += font->gxAdvance[i];
-      //yield();
+      drawChar(code, x, y);
+      x += _font_metrics.x_advance;
     }
-
-    delay(timeDelay);
+    delay(td);
     this->fillScreen(this->_text_style.back_rgb888);
-    //fontFile.close();
   }
 
   void LGFXBase::setAttribute(attribute_t attr_id, std::uint8_t param) {

@@ -727,6 +727,7 @@ namespace lgfx
 
   bool VLWfont::getUnicodeIndex(std::uint16_t unicode, std::uint16_t *index) const
   {
+    if (gUnicode[gCount-1] < unicode) return false;
     auto poi = std::lower_bound(gUnicode, &gUnicode[gCount], unicode);
     *index = std::distance(gUnicode, poi);
     return (*poi == unicode);

@@ -604,7 +604,7 @@ namespace lgfx
     void unloadFont(void);
 
     /// show VLW font
-    void showFont(std::uint32_t td);
+    void showFont(std::uint32_t td = 2000);
 
     void cp437(bool enable = true) { _text_style.cp437 = enable; }  // AdafruitGFX compatible.
 
