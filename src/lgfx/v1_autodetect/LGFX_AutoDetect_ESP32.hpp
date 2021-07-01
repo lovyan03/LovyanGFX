@@ -1212,7 +1212,11 @@ namespace lgfx
                 cfg.pin_sda  = 21;   // I2C SDA pin number
                 cfg.pin_scl  = 22;   // I2C SCL pin number
                 cfg.i2c_addr = 0x14; // I2C device addr
+#ifdef _M5EPD_H_
                 cfg.i2c_port = I2C_NUM_0;// I2C port number
+#else
+                cfg.i2c_port = I2C_NUM_1;// I2C port number
+#endif
                 cfg.freq = 400000;   // I2C freq
                 cfg.x_min = 0;
                 cfg.x_max = 539;
