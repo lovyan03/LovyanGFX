@@ -13,7 +13,6 @@
 
 #define LGFX_AUTODETECT
 #include "LovyanGFX.hpp"
-#include "LGFX_AUTODETECT.hpp"
 
 using TFT_eSPI = lgfx::LGFX;
 
