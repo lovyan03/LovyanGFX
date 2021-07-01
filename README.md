@@ -484,6 +484,6 @@ result : [MIT](https://github.com/bitwizeshift/result/blob/master/LICENSE) Matth
 GFX font and GLCD font : [2-clause BSD](https://github.com/adafruit/Adafruit-GFX-Library/blob/master/license.txt) Adafruit Industries  
 Font 2,4,6,7,8 :  [FreeBSD](https://github.com/Bodmer/TFT_eSPI/blob/master/license.txt) Bodmer  
 converted IPA font : [IPA Font License](src/lgfx/Fonts/IPA/IPA_Font_License_Agreement_v1.0.txt) IPA  
-efont : [3-Clause BSD](src/lgfx/Fonts/efont/COPYRIGHT.txt) The Electronic Font Open Laboratory  
-
+efont : [3-clause BSD](src/lgfx/Fonts/efont/COPYRIGHT.txt) The Electronic Font Open Laboratory  
+TomThumb font : [3-clause BSD](src/lgfx/Fonts/GFXFF/TomThumb.h) Brian J. Swetland / Vassilii Khachaturov / Dan Marks  
 
