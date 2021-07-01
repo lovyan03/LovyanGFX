@@ -150,7 +150,7 @@ namespace lgfx
             | 1 << I2S_RX_CHAN_MOD_S
             ;
 
-      *reg(I2S_INT_ENA_REG(_i2s_port)) |= I2S_TX_REMPTY_INT_ENA;
+      *reg(I2S_INT_ENA_REG(_i2s_port)) = 0;
 
       *reg(I2S_OUT_LINK_REG(_i2s_port)) = 0;
       *reg(I2S_IN_LINK_REG(_i2s_port)) = 0;
@@ -717,10 +717,9 @@ namespace lgfx
         wait();
         *reg(I2S_FIFO_CONF_REG(_i2s_port)) = _fifo_conf_dma;
         *reg(I2S_OUT_LINK_REG(_i2s_port)) = I2S_OUTLINK_START | ((uint32_t)_dmadesc & I2S_OUTLINK_ADDR);
-        *reg(I2S_CONF_REG(_i2s_port)) &= ~(I2S_TX_RESET | I2S_RX_RESET | I2S_TX_START);
-        *reg(I2S_CONF_REG(_i2s_port)) = _conf_reg_default;
-        *reg(I2S_INT_CLR_REG(_i2s_port)) = ~0;
-        *reg(I2S_CONF_REG(_i2s_port)) |= conf_start;
+        std::size_t wait = 48;
+        do { __asm__ __volatile__ ("nop"); } while (--wait);
+        *reg(I2S_CONF_REG(_i2s_port)) = conf_start;
         if (lbase != 256) lbase <<= 1;
       } while (length);
     }
@@ -821,8 +820,8 @@ namespace lgfx
     void wait(void) const {
       auto conf_reg1 = _conf_reg_default | I2S_TX_RESET | I2S_RX_RESET | I2S_RX_FIFO_RESET;
 
-      while (!(*reg(I2S_INT_RAW_REG(_i2s_port)) & I2S_TX_REMPTY_INT_RAW));
       *reg(I2S_INT_CLR_REG(_i2s_port)) = I2S_TX_REMPTY_INT_CLR;
+      while (!(*reg(I2S_INT_RAW_REG(_i2s_port)) & I2S_TX_REMPTY_INT_RAW));
 
       while (!(*reg(I2S_STATE_REG(_i2s_port)) & I2S_TX_IDLE));
       *reg(I2S_CONF_REG(_i2s_port)) = conf_reg1;

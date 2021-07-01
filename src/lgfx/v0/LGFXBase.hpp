@@ -63,7 +63,7 @@ namespace lgfx
     template<typename T> __attribute__ ((always_inline)) inline void setColor(T color) { _color.raw = _write_conv.convert(color); }
                          __attribute__ ((always_inline)) inline void setRawColor(std::uint32_t c) { _color.raw = c; }
 
-    template<typename T> __attribute__ ((always_inline)) inline void setBaseColor(T c) { _base_rgb888 = convert_to_rgb888(c); }
+    template<typename T> __attribute__ ((always_inline)) inline void setBaseColor(T c) { _base_rgb888 = hasPalette() ? c : convert_to_rgb888(c); }
     std::uint32_t getBaseColor(void) const { return _base_rgb888; }
 
 // AdafruitGFX compatible functions.

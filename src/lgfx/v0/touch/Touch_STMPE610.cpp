@@ -1,3 +1,6 @@
+#include "../lgfx_common.hpp"
+#if defined (LGFX_ENABLE_V0)
+
 #include "Touch_STMPE610.hpp"
 
 /** STMPE610 Address **/
@@ -234,3 +237,4 @@ namespace lgfx
 //----------------------------------------------------------------------------
  }
 }
+#endif

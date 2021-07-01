@@ -20,15 +20,24 @@
 // #define LGFX_WIFIBOY_MINI          // WiFiBoy mini
 // #define LGFX_MAKERFABS_TOUCHCAMERA // Makerfabs Touch with Camera
 // #define LGFX_MAKERFABS_MAKEPYTHON  // Makerfabs MakePython
-// #define LGFX_WIO_TERMINAL          // Wio Terminal
+// #define LGFX_WT32_SC01             // Seeed WT32-SC01
+// #define LGFX_WIO_TERMINAL          // Seeed Wio Terminal
+// #define LGFX_PYBADGE               // Adafruit PyBadge
 
-  #define LGFX_AUTODETECT // 自動認識 (M5Stack, M5StickC/CPlus, ODROID-GO, TTGO T-Watch, TTGO T-Wristband, LoLin D32 Pro, ESP-WROVER-KIT)
+  #define LGFX_AUTODETECT // 自動認識 (D-duino-32 XS, PyBadge はパネルID読取りが出来ないため自動認識の対象から外れています)
 
 // 複数機種の定義を行うか、LGFX_AUTODETECTを定義することで、実行時にボードを自動認識します。
 
 
+// v1.0.0 を有効にします(v0からの移行期間の特別措置です。これを書かない場合は旧v0系で動作します。)
+#define LGFX_USE_V1
+
+
 // ヘッダをincludeします。
 #include <LovyanGFX.hpp>
+
+#include <LGFX_AUTODETECT.hpp>  // クラス"LGFX"を準備します
+// #include <lgfx_user/LGFX_ESP32_sample.hpp> // またはユーザ自身が用意したLGFXクラスを準備します
 
 static LGFX lcd;                 // LGFXのインスタンスを作成。
 static LGFX_Sprite sprite(&lcd); // スプライトを使う場合はLGFX_Spriteのインスタンスを作成。
@@ -39,9 +48,8 @@ static LGFX_Sprite sprite(&lcd); // スプライトを使う場合はLGFX_Sprite
 // static TFT_eSprite sprite(&lcd);   // TFT_eSpriteがLGFX_Spriteの別名として定義されます。
 
 
-// 対応機種に無い構成で使う場合は、 examples/HowToUse/2_spi_setting.ino を参照してください。
-// configフォルダのLGFX_Config_Custom.hppをコピーして環境に合わせて編集して、
-// ここでincludeをするか、ファイルの内容をそのまま貼り付けて使用してください。
+// 対応機種に無い構成で使う場合は、 examples/HowToUse/2_user_setting.ino を参照してください。
+// また設定例はsrc/lgfx_userフォルダにもあります。
 
 
 void setup(void)

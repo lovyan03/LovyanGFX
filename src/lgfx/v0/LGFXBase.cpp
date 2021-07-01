@@ -19,6 +19,9 @@ Contributors:
  [mongonta0716](https://github.com/mongonta0716)  
  [tobozo](https://github.com/tobozo)  
 /----------------------------------------------------------------------------*/
+#include "lgfx_common.hpp"
+#if defined (LGFX_ENABLE_V0)
+
 #include "LGFXBase.hpp"
 
 #include "../utility/lgfx_tjpgd.h"    // JPEG decode support
@@ -2771,3 +2774,4 @@ namespace lgfx
 //----------------------------------------------------------------------------
  }
 }
+#endif

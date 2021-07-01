@@ -19,7 +19,22 @@ function patchpropertyfiles {
   fi
 
   if [ -f "$GITHUB_WORKSPACE/src/gitTagVersion.h" ]; then
-    sed -i -e "s/\"$old_tag\"/\"$new_tag\"/g" $GITHUB_WORKSPACE/src/gitTagVersion.h
+    # sed -i -e "s/\"$old_tag\"/\"$new_tag\"/g" $GITHUB_WORKSPACE/src/gitTagVersion.h
+
+    oldversionbits=( ${old_tag//./ } )
+    oldmajorversion=${oldversionbits[0]//[!0-9]/};
+    oldminorversion=${oldversionbits[1]//[!0-9]/};
+    oldpatchversion=${oldversionbits[2]//[!0-9]/};
+
+    newversionbits=( ${new_tag//./ } )
+    newmajorversion=${newversionbits[0]//[!0-9]/};
+    newminorversion=${newversionbits[1]//[!0-9]/};
+    newpatchversion=${newversionbits[2]//[!0-9]/};
+
+    sed -i -e "s/LGFX_VERSION_MAJOR $oldmajorversion/LGFX_VERSION_MAJOR $newmajorversion/g" $GITHUB_WORKSPACE/src/gitTagVersion.h
+    sed -i -e "s/LGFX_VERSION_MINOR $oldminorversion/LGFX_VERSION_MINOR $newminorversion/g" $GITHUB_WORKSPACE/src/gitTagVersion.h
+    sed -i -e "s/LGFX_VERSION_PATCH $oldpatchversion/LGFX_VERSION_PATCH $newpatchversion/g" $GITHUB_WORKSPACE/src/gitTagVersion.h
+
     cat $GITHUB_WORKSPACE/src/gitTagVersion.h
   fi
 

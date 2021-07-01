@@ -1,3 +1,6 @@
+#include "../lgfx_common.hpp"
+#if defined (LGFX_ENABLE_V0)
+
 #include "Touch_XPT2046.hpp"
 
 #include <algorithm>
@@ -64,3 +67,4 @@ namespace lgfx
 //----------------------------------------------------------------------------
  }
 }
+#endif

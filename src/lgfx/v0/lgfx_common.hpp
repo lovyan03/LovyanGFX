@@ -22,6 +22,9 @@ Contributors:
 #ifndef LGFX_COMMON_HPP_
 #define LGFX_COMMON_HPP_
 
+#if defined (__SAMD51__) || defined (ESP32) || defined (CONFIG_IDF_TARGET_ESP32) || defined (ESP_PLATFORM)
+#define LGFX_ENABLE_V0
+
 #include <type_traits>
 #include <cstring>
 #include <cstdint>
@@ -52,7 +55,8 @@ namespace lgfx
     , board_WiFiBoy_Mini
     , board_Makerfabs_TouchCamera
     , board_Makerfabs_MakePython
-    , board_M5Stack_CoreInk
+    , board_M5StackCoreInk
+    , board_M5Stack_CoreInk = board_M5StackCoreInk
     , board_M5Paper
     , board_ESP32_S2_Kaluga_1
     , board_WT32_SC01
@@ -924,7 +928,7 @@ namespace lgfx
     std::uint32_t src_bitwidth = 0;
     std::uint32_t src_width = 0;
     std::uint32_t src_height = 0;
-    std::uint32_t transp   = ~0u;
+    std::uint32_t transp   = 1 << 24u; // A1 R0 G0 B0
     std::uint32_t src_bits = 8;
     std::uint32_t dst_bits = 8;
     const void* src_data = nullptr;
@@ -942,7 +946,7 @@ namespace lgfx
                , color_depth_t src_depth
                , bool dst_palette = false
                , const void* src_palette = nullptr
-               , std::uint32_t src_transp = ~0u
+               , std::uint32_t src_transp = 1 << 24u
                ) 
     : transp    ( src_transp )
     , src_bits  ( src_depth > 8 ? (src_depth + 7) & ~7 : src_depth)
@@ -1740,6 +1744,6 @@ using RGBColor = lgfx::bgr888_t;
 
 #endif
 
-
+#endif
 
 #endif
