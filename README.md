@@ -63,7 +63,6 @@ This library has the following advantages.
     - SPI STMPE610
 
 
-設定方法のサンプルは[src/lgfx_user](src/lgfx_user)にあります。  
 上記対応機種とコマンド体系の類似したLCDパネルであれば対応可能ですが、当方で入手し動作確認が取れたもののみ正式対応としています。  
 対応要望を頂けた機種には優先的に対応を検討致します。  
   
