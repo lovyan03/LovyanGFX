@@ -9,6 +9,7 @@
 // #define LGFX_M5STACK_COREINK       // M5Stack CoreInk
 // #define LGFX_M5STICK_C             // M5Stick C / CPlus
 // #define LGFX_M5PAPER               // M5Paper
+// #define LGFX_M5TOUGH               // M5Tough
 // #define LGFX_ODROID_GO             // ODROID-GO
 // #define LGFX_TTGO_TS               // TTGO TS
 // #define LGFX_TTGO_TWATCH           // TTGO T-Watch

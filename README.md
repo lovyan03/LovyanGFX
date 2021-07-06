@@ -1,14 +1,14 @@
 # LovyanGFX
 
-LCD graphics library (for ESP32 SPI, I2C, 8bitParallel / ATSAMD51 SPI).  
+Display (LCD / OLED / EPD) graphics library (for ESP32 SPI, I2C, 8bitParallel / ESP8266 SPI / ATSAMD51 SPI).  
 M5Stack / M5StickC / TTGO T-Watch / ODROID-GO / ESP-WROVER-KIT / WioTerminal / and more...  
 [![examples](http://img.youtube.com/vi/SMOHRPqUZcQ/0.jpg)](http://www.youtube.com/watch?v=SMOHRPqUZcQ "examples")
 [![examples](http://img.youtube.com/vi/F5gsp41Elac/0.jpg)](http://www.youtube.com/watch?v=F5gsp41Elac "MultiPanel")
 
 概要 Overview.
 ----------------
-ESP32とSPI, I2C, 8ビットパラレル接続のLCD / ATSAMD51とSPI接続のLCDの組み合わせで動作するグラフィックライブラリです。  
-This is a graphics library that works with a combination of ESP32 with SPI, I2C, 8-bit parallel connection and ATSAMD51 with SPI connection to the LCD. (see compatibility list below).
+ESP32とSPI, I2C, 8ビットパラレル接続のディスプレイ / ESP8266とSPI接続のディスプレイ / ATSAMD51とSPI接続のディスプレイの組み合わせで動作するグラフィックライブラリです。  
+This is a graphics library that works with a combination of ESP32 with SPI, I2C, 8-bit parallel / ESP8266 with SPI / ATSAMD51 with SPI  to the Display. (see compatibility list below).
 
  [AdafruitGFX](https://github.com/adafruit/Adafruit-GFX-Library) や [TFT_eSPI](https://github.com/Bodmer/TFT_eSPI) と互換性をある程度持ちつつ、より高機能・高速動作を目標としています。  
 
@@ -16,17 +16,19 @@ This library mimics [AdafruitGFX](https://github.com/adafruit/Adafruit-GFX-Libra
   
 既存のライブラリに対して、以下のアドバンテージがあります。  
   - ArduinoESP32 / ESP-IDF 対応  
-  - 16bit / 24bitカラーモード両対応(実際の色数はLCDの仕様によります)  
+  - 16bit / 24bitカラーモード両対応(実際の色数はディスプレイの仕様によります)  
   - DMA転送を用いた通信動作中の別処理実行  
   - オフスクリーンバッファ（スプライト）の高速な回転/拡縮描画  
-  - 複数LCDの同時利用  
+  - 複数ディスプレイの同時利用  
+  - モノクロディスプレイに対する減色描画の自動処理  
 
 This library has the following advantages.
   - ArduinoESP32 and ESP-IDF are supported.
-  - Both 16bit and 24bit color modes are supported. (actual number of colors depends on LCD specifications)
+  - Both 16bit and 24bit color modes are supported. (actual number of colors depends on display specifications)
   - Execute another process during communication operation using DMA transfer.
   - Fast rotation/expansion of the off-screen buffer (sprite).
-  - Simultaneous use of multiple LCDs.
+  - Simultaneous use of multiple displays.
+  - Automatic processing of color reduction drawing for monochrome displays.
 
 
 対応環境 support environments
@@ -64,11 +66,11 @@ This library has the following advantages.
 
 
 設定方法のサンプルは[src/lgfx_user](src/lgfx_user)にあります。  
-上記対応機種とコマンド体系の類似したLCDパネルであれば対応可能ですが、当方で入手し動作確認が取れたもののみ正式対応としています。  
+上記対応機種とコマンド体系の類似したディスプレイであれば対応可能ですが、当方で入手し動作確認が取れたもののみ正式対応としています。  
 対応要望を頂けた機種には優先的に対応を検討致します。  
   
 setting examples is [src/lgfx_user](src/lgfx_user)  
-This library is also compatible with the above models and LCD panels with a similar command system,
+This library is also compatible with the above models and display panels with a similar command system,
  but only those that have been obtained and confirmed to work are officially supported.  
 
 使い方 How to use
@@ -86,6 +88,7 @@ This library is also compatible with the above models and LCD panels with a simi
 // #define LGFX_M5STACK_COREINK       // M5Stack CoreInk
 // #define LGFX_M5STICK_C             // M5Stick C / CPlus
 // #define LGFX_M5PAPER               // M5Paper
+// #define LGFX_M5TOUGH               // M5Tough
 // #define LGFX_ODROID_GO             // ODROID-GO
 // #define LGFX_TTGO_TS               // TTGO TS
 // #define LGFX_TTGO_TWATCH           // TTGO T-Watch
