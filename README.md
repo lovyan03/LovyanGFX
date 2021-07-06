@@ -1,14 +1,14 @@
 # LovyanGFX
 
-LCD graphics library (for ESP32 SPI,I2C,8bitParallel / ATSAMD51 SPI).  
+LCD graphics library (for ESP32 SPI, I2C, 8bitParallel / ATSAMD51 SPI).  
 M5Stack / M5StickC / TTGO T-Watch / ODROID-GO / ESP-WROVER-KIT / WioTerminal / and more...  
 [![examples](http://img.youtube.com/vi/SMOHRPqUZcQ/0.jpg)](http://www.youtube.com/watch?v=SMOHRPqUZcQ "examples")
 [![examples](http://img.youtube.com/vi/F5gsp41Elac/0.jpg)](http://www.youtube.com/watch?v=F5gsp41Elac "MultiPanel")
 
 概要 Overview.
 ----------------
-ESP32とSPI,I2C,8ビットパラレル接続のLCD / ATSAMD51とSPI接続のLCDの組み合わせで動作するグラフィックライブラリです。  
-This is a graphics library that works with a combination of ESP32 with SPI,I2C,8-bit parallel connection and ATSAMD51 with SPI connection to the LCD. (see compatibility list below).
+ESP32とSPI, I2C, 8ビットパラレル接続のLCD / ATSAMD51とSPI接続のLCDの組み合わせで動作するグラフィックライブラリです。  
+This is a graphics library that works with a combination of ESP32 with SPI, I2C, 8-bit parallel connection and ATSAMD51 with SPI connection to the LCD. (see compatibility list below).
 
  [AdafruitGFX](https://github.com/adafruit/Adafruit-GFX-Library) や [TFT_eSPI](https://github.com/Bodmer/TFT_eSPI) と互換性をある程度持ちつつ、より高機能・高速動作を目標としています。  
 
