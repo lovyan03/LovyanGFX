@@ -2,6 +2,7 @@
 #define LGFX_FONTS_HPP_
 
 #include <cstdint>
+#include <cstddef>
 #include "misc/enum.hpp"
 
 namespace lgfx
