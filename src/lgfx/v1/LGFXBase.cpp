@@ -1479,6 +1479,7 @@ namespace lgfx
 
     pixelcopy_t p;
     p.transp = _read_conv.convert(lgfx::color888(target.r, target.g, target.b));
+    p.src_bits = _read_conv.depth & color_depth_t::bit_mask;
     switch (_read_conv.depth)
     {
     case color_depth_t::rgb888_3Byte: p.fp_copy = pixelcopy_t::compare_rgb_fast<bgr888_t>;  break;
@@ -1486,7 +1487,6 @@ namespace lgfx
     case color_depth_t::rgb565_2Byte: p.fp_copy = pixelcopy_t::compare_rgb_fast<swap565_t>; break;
     case color_depth_t::rgb332_1Byte: p.fp_copy = pixelcopy_t::compare_rgb_fast<rgb332_t>;  break;
     default: p.fp_copy = pixelcopy_t::compare_bit_fast;
-      p.src_bits = _read_conv.depth;
       p.src_mask = (1 << p.src_bits) - 1;
       p.transp &= p.src_mask;
       break;
@@ -1496,9 +1496,8 @@ namespace lgfx
     int w = _clip_r - cl + 1;
     std::uint8_t bufIdx = 0;
     bool* linebufs[3] = { new bool[w], new bool[w], new bool[w] };
-    std::int32_t bufY[3] = {-2, -2, -2};  // 3 line buffer (default: out of range.)
-    bufY[0] = y;
-    read_rect(cl, y, w, 1, linebufs[0], &p);
+    std::int32_t bufY[3] = {y, -2, -2};  // 3 line buffer (default: out of range.)
+    _panel->readRect(cl, y, w, 1, linebufs[0], &p);
     std::list<paint_point_t> points;
     points.push_back({x, x, y, y});
 
@@ -1526,7 +1525,7 @@ namespace lgfx
       {
         it = points.begin();
         bufY[0] = it->y;
-        read_rect(cl, it->y, w, 1, linebufs[0], &p);
+        _panel->readRect(cl, it->y, w, 1, linebufs[0], &p);
       }
       else
       {
@@ -1562,7 +1561,7 @@ namespace lgfx
         if (bidx == 3) {
           for (bidx = 0; bidx < 2 && (abs(bufY[bidx] - ly) <= 1); ++bidx);
           bufY[bidx] = newy;
-          read_rect(cl, newy, w, 1, linebufs[bidx], &p);
+          _panel->readRect(cl, newy, w, 1, linebufs[bidx], &p);
         }
         bool* linebuf = &linebufs[bidx][- cl];
         if (newy == oy)
