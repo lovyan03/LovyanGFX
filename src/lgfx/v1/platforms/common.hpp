@@ -17,9 +17,18 @@ Contributors:
 /----------------------------------------------------------------------------*/
 #pragma once
 
-#if defined (ESP32) || defined (CONFIG_IDF_TARGET_ESP32) || defined (CONFIG_IDF_TARGET_ESP32S2) || defined (ESP_PLATFORM)
+#if defined (ESP_PLATFORM)
+#include <sdkconfig.h>
 
-#include "esp32/common.hpp"
+ #if defined (CONFIG_IDF_TARGET_ESP32C3)
+
+ #include "esp32c3/common.hpp"
+
+ #else
+
+ #include "esp32/common.hpp"
+
+ #endif
 
 #elif defined ( ESP8266 )
 

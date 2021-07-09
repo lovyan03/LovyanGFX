@@ -15,7 +15,9 @@ Contributors:
  [mongonta0716](https://github.com/mongonta0716)
  [tobozo](https://github.com/tobozo)
 /----------------------------------------------------------------------------*/
-#if defined (ESP32) || defined (CONFIG_IDF_TARGET_ESP32) || defined (CONFIG_IDF_TARGET_ESP32S2) || defined (ESP_PLATFORM)
+#if defined (ESP_PLATFORM)
+#include <sdkconfig.h>
+#if !defined (CONFIG_IDF_TARGET) || defined (CONFIG_IDF_TARGET_ESP32) || defined (CONFIG_IDF_TARGET_ESP32S2)
 
 #include "../common.hpp"
 
@@ -109,7 +111,11 @@ namespace lgfx
   namespace spi
   {
 #if defined ( ARDUINO )
+ #if defined (SOC_SPI_PERIPH_NUM)
+    static spi_t* _spi_handle[SOC_SPI_PERIPH_NUM] = {nullptr};
+ #else
     static spi_t* _spi_handle[VSPI_HOST + 1] = {nullptr};
+ #endif
 #else // ESP-IDF
     static spi_device_handle_t _spi_handle[SOC_SPI_PERIPH_NUM] = {nullptr};
 #endif
@@ -123,6 +129,7 @@ namespace lgfx
     {
 //ESP_LOGI("LGFX","spi::init host:%d, sclk:%d, miso:%d, mosi:%d, dma:%d", spi_host, spi_sclk, spi_miso, spi_mosi, dma_channel);
       std::uint32_t spi_port = (spi_host + 1);
+      (void)spi_port;
 
 #if defined (ARDUINO) // Arduino ESP32
       if (spi_host == VSPI_HOST)
@@ -812,4 +819,5 @@ namespace lgfx
  }
 }
 
+#endif
 #endif
