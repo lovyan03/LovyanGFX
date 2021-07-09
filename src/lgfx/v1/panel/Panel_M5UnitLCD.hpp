@@ -47,7 +47,7 @@ namespace lgfx
 
     void waitDisplay(void) override {}
     bool displayBusy(void) override { return false; }
-    void display(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h) override {}
+    void display(std::uint_fast16_t, std::uint_fast16_t, std::uint_fast16_t, std::uint_fast16_t) override {}
 
     void writePixels(pixelcopy_t* param, std::uint32_t len, bool use_dma) override;
     void writeBlock(std::uint32_t rawcolor, std::uint32_t len) override;
@@ -60,8 +60,8 @@ namespace lgfx
     void writeImageARGB(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, pixelcopy_t* param) override;
     void copyRect(std::uint_fast16_t dst_x, std::uint_fast16_t dst_y, std::uint_fast16_t w, std::uint_fast16_t h, std::uint_fast16_t src_x, std::uint_fast16_t src_y) override;
 
-    std::uint32_t readCommand(std::uint_fast8_t cmd, std::uint_fast8_t index, std::uint_fast8_t len) override { return 0; }
-    std::uint32_t readData(std::uint_fast8_t index, std::uint_fast8_t len) override { return 0; }
+    std::uint32_t readCommand(std::uint_fast8_t, std::uint_fast8_t, std::uint_fast8_t) override { return 0; }
+    std::uint32_t readData(std::uint_fast8_t, std::uint_fast8_t) override { return 0; }
     void readRect(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, void* dst, pixelcopy_t* param) override;
 
     static constexpr std::uint8_t CMD_NOP          = 0x00; // 1Byte 何もしない

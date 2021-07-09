@@ -57,7 +57,7 @@ namespace lgfx
     __attribute__ ((always_inline)) inline std::uint16_t read16swap(void) { return __builtin_bswap16(read16()); }
     __attribute__ ((always_inline)) inline std::uint32_t read32swap(void) { return __builtin_bswap32(read32()); }
 
-    virtual bool open(const char* path) { return true; };
+    virtual bool open(__attribute__((unused)) const char* path) { return true; };
     virtual int read(std::uint8_t *buf, std::uint32_t len) = 0;
     virtual void skip(std::int32_t offset) = 0;
     virtual bool seek(std::uint32_t offset) = 0;

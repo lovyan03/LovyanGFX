@@ -1,4 +1,5 @@
-#if defined (ESP32) || defined (CONFIG_IDF_TARGET_ESP32) || defined (CONFIG_IDF_TARGET_ESP32S2) || defined (ESP_PLATFORM)
+#include "../lgfx_common.hpp"
+#if defined (LGFX_ENABLE_V0) && defined (ESP_PLATFORM)
 
 #include "esp32_common.hpp"
 

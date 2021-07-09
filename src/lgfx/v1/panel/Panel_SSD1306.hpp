@@ -36,14 +36,14 @@ namespace lgfx
 
     void setInvert(bool invert) override;
     void setSleep(bool flg) override;
-    void setPowerSave(bool flg) override {}
+    void setPowerSave(bool) override {}
 
     void writeFillRectPreclipped(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, std::uint32_t rawcolor) override;
     void writeImage(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, pixelcopy_t* param, bool use_dma) override;
     void writePixels(pixelcopy_t* param, std::uint32_t len, bool use_dma) override;
 
-    std::uint32_t readCommand(std::uint_fast8_t cmd, std::uint_fast8_t index = 0, std::uint_fast8_t length = 4) override { return 0; }
-    std::uint32_t readData(std::uint_fast8_t index = 0, std::uint_fast8_t length = 4) override { return 0; }
+    std::uint32_t readCommand(std::uint_fast8_t, std::uint_fast8_t, std::uint_fast8_t) override { return 0; }
+    std::uint32_t readData(std::uint_fast8_t, std::uint_fast8_t) override { return 0; }
 
     void readRect(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, void* dst, pixelcopy_t* param) override;
 

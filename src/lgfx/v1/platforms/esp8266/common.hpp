@@ -163,11 +163,11 @@ public:
     template <typename T>
     void setFS(T& fs) {}
 
-    bool open(const char* path, const char* mode) { return false; }
-    int read(std::uint8_t *buf, std::uint32_t len) override { return false; }
-    void skip(std::int32_t offset) override { }
-    bool seek(std::uint32_t offset) override { return false; }
-    bool seek(std::uint32_t offset, int origin) { return false; }
+    bool open(const char*, const char*) { return false; }
+    int read(std::uint8_t*, std::uint32_t) override { return false; }
+    void skip(std::int32_t) override { }
+    bool seek(std::uint32_t) override { return false; }
+    bool seek(std::uint32_t, int) { return false; }
     void close() override { }
     std::int32_t tell(void) override { return 0; }
   };

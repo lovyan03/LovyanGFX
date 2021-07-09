@@ -22,9 +22,16 @@ Contributors:
 #ifndef LGFX_COMMON_HPP_
 #define LGFX_COMMON_HPP_
 
-#if defined (__SAMD51__) || defined (ESP32) || defined (CONFIG_IDF_TARGET_ESP32) || defined (ESP_PLATFORM)
-#define LGFX_ENABLE_V0
+#if defined (ESP_PLATFORM)
+ #include <sdkconfig.h>
+ #if !defined (CONFIG_IDF_TARGET) || defined (CONFIG_IDF_TARGET_ESP32)
+  #define LGFX_ENABLE_V0
+ #endif
+#elif defined (__SAMD51__)
+ #define LGFX_ENABLE_V0
+#endif
 
+#if defined (LGFX_ENABLE_V0)
 #include <type_traits>
 #include <cstring>
 #include <cstdint>

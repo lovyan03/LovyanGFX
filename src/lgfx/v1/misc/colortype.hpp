@@ -826,6 +826,7 @@ namespace lgfx
     template <typename TDstColor>
     void operator() (std::int32_t x, std::int32_t y, TDstColor& dst)
     {
+      (void)x; (void)y;
       dst.set((_r8a + dst.R8() * _inv) >> 8
              ,(_g8a + dst.G8() * _inv) >> 8
              ,(_b8a + dst.B8() * _inv) >> 8
@@ -834,6 +835,7 @@ namespace lgfx
     template <typename TDstColor, typename TSrcColor>
     void operator() (std::int32_t x, std::int32_t y, TDstColor& dst, TSrcColor& src)
     {
+      (void)x; (void)y;
       std::uint_fast16_t  a8 = 1 + src.A8();
       std::uint_fast16_t inv = 257 - a8;
       std::uint_fast16_t r8a = a8 * src.R8();

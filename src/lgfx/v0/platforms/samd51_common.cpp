@@ -1,4 +1,5 @@
-#if defined (__SAMD51__)
+#include "../lgfx_common.hpp"
+#if defined (LGFX_ENABLE_V0) && defined (__SAMD51__)
 
 #include "samd51_common.hpp"
 

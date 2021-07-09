@@ -48,7 +48,7 @@ namespace lgfx
 
     void set_window(std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye, std::uint32_t cmd);
 
-    void setColorDepth_impl(color_depth_t depth) override 
+    void setColorDepth_impl(color_depth_t) override 
     {
       _write_depth = rgb888_3Byte;
       _read_depth = _write_depth;

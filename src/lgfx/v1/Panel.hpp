@@ -73,7 +73,7 @@ namespace lgfx
     virtual void beginTransaction(void) = 0;
     virtual void endTransaction(void) = 0;
 
-    virtual void setBrightness(std::uint8_t brightness) {};
+    virtual void setBrightness(__attribute__((unused)) std::uint8_t brightness) {};
 
     virtual color_depth_t setColorDepth(color_depth_t depth) = 0;
 
