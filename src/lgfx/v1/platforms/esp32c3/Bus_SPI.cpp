@@ -121,6 +121,7 @@ namespace lgfx
 
     *reg(SPI_MISC_REG(spi_port)) = pin;
     *reg(SPI_CLOCK_REG(spi_port)) = clkdiv_write;
+    *_spi_cmd_reg = SPI_UPDATE;
   }
 
   void Bus_SPI::endTransaction(void)
@@ -129,6 +130,7 @@ namespace lgfx
     if (_cfg.use_lock) spi::endTransaction(_cfg.spi_host);
 #if defined (ARDUINO) // Arduino ESP32
     *_spi_user_reg = SPI_USR_MOSI | SPI_USR_MISO | SPI_DOUTDIN; // for other SPI device (e.g. SD card)
+    *_spi_cmd_reg = SPI_UPDATE;
 #endif
   }
 
@@ -375,14 +377,16 @@ namespace lgfx
     *_spi_user_reg = user;
     *reg(SPI_MISC_REG(_spi_port)) = pin;
     *reg(SPI_CLOCK_REG(_spi_port)) = _clkdiv_read;
+    *_spi_cmd_reg = SPI_UPDATE;
   }
 
   void Bus_SPI::endRead(void)
   {
     std::uint32_t pin = (_cfg.spi_mode & 2) ? SPI_CK_IDLE_EDGE : 0;
-    *_spi_user_reg = _user_reg;
     *reg(SPI_MISC_REG(_spi_port)) = pin;
     *reg(SPI_CLOCK_REG(_spi_port)) = _clkdiv_write;
+    *_spi_user_reg = _user_reg;
+    *_spi_cmd_reg = SPI_UPDATE;
   }
 
   std::uint32_t Bus_SPI::readData(std::uint_fast8_t bit_length)
@@ -397,6 +401,7 @@ namespace lgfx
 
   bool Bus_SPI::readBytes(std::uint8_t* dst, std::uint32_t length, bool use_dma)
   {
+ESP_LOGI("LGFX","Bus_SPI::readBytes");
     {
       std::int32_t len1 = std::min<std::uint32_t>(length, 32);  // 32 Byte read.
       std::int32_t len2 = len1;
@@ -442,17 +447,13 @@ namespace lgfx
     exec_spi();
     param->src_data = regbuf;
     std::int32_t dstindex = 0;
-    std::uint32_t highpart = 8;
-    std::uint32_t userreg = *_spi_user_reg;
     auto spi_w0_reg = _spi_w0_reg;
     do {
       if (0 == (length -= len1)) {
         len2 = len1;
         wait_spi();
-        *_spi_user_reg = userreg;
+        memcpy(regbuf, (void*)spi_w0_reg, len2 * len_read_pixel >> 3);
       } else {
-        std::uint32_t user = userreg;
-        if (highpart) user = userreg | SPI_USR_MISO_HIGHPART;
         if (length < len1) {
           len1 = length;
           wait_spi();
@@ -460,15 +461,13 @@ namespace lgfx
         } else {
           wait_spi();
         }
-        *_spi_user_reg = user;
+        memcpy(regbuf, (void*)spi_w0_reg, len2 * len_read_pixel >> 3);
         exec_spi();
       }
-      memcpy(regbuf, (void*)&spi_w0_reg[highpart ^= 8], len2 * len_read_pixel >> 3);
       param->src_x = 0;
       dstindex = param->fp_copy(dst, dstindex, dstindex + len2, param);
     } while (length);
   }
-
 
   void Bus_SPI::_alloc_dmadesc(size_t len)
   {
