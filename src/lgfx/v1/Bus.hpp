@@ -109,22 +109,22 @@ namespace lgfx
     bool busy(void) const override { return false; }
 
     void initDMA(void) override {}
-    void addDMAQueue(const std::uint8_t* data, std::uint32_t length) override {}
+    void addDMAQueue(const std::uint8_t*, std::uint32_t) override {}
     void execDMAQueue(void) override {}
-    std::uint8_t* getDMABuffer(std::uint32_t length) override { return nullptr; }
+    std::uint8_t* getDMABuffer(std::uint32_t) override { return nullptr; }
 
     void flush(void) override {}
-    bool writeCommand(std::uint32_t data, std::uint_fast8_t bit_length) override { return false; }
-    void writeData(std::uint32_t data, std::uint_fast8_t bit_length) override {}
-    void writeDataRepeat(std::uint32_t data, std::uint_fast8_t bit_length, std::uint32_t count) override {}
-    void writePixels(pixelcopy_t* pc, std::uint32_t length) override {}
-    void writeBytes(const std::uint8_t* data, std::uint32_t length, bool dc, bool use_dma) override {}
+    bool writeCommand(std::uint32_t, std::uint_fast8_t) override { return false; }
+    void writeData(std::uint32_t, std::uint_fast8_t) override {}
+    void writeDataRepeat(std::uint32_t, std::uint_fast8_t, std::uint32_t) override {}
+    void writePixels(pixelcopy_t*, std::uint32_t) override {}
+    void writeBytes(const std::uint8_t*, std::uint32_t, bool, bool) override {}
 
     void beginRead(void) override {}
     void endRead(void) override {}
-    std::uint32_t readData(std::uint_fast8_t bit_length) override { return 0; }
-    bool readBytes(std::uint8_t* dst, std::uint32_t length, bool use_dma = false) override { return false; }
-    void readPixels(void* dst, pixelcopy_t* pc, std::uint32_t length) override {}
+    std::uint32_t readData(std::uint_fast8_t) override { return 0; }
+    bool readBytes(std::uint8_t*, std::uint32_t, bool) override { return false; }
+    void readPixels(void*, pixelcopy_t*, std::uint32_t) override {}
   };
 
 //----------------------------------------------------------------------------

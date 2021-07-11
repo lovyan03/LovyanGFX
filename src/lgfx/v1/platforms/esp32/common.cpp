@@ -15,7 +15,9 @@ Contributors:
  [mongonta0716](https://github.com/mongonta0716)
  [tobozo](https://github.com/tobozo)
 /----------------------------------------------------------------------------*/
-#if defined (ESP32) || defined (CONFIG_IDF_TARGET_ESP32) || defined (CONFIG_IDF_TARGET_ESP32S2) || defined (ESP_PLATFORM)
+#if defined (ESP_PLATFORM)
+#include <sdkconfig.h>
+#if !defined (CONFIG_IDF_TARGET) || defined (CONFIG_IDF_TARGET_ESP32) || defined (CONFIG_IDF_TARGET_ESP32S2)
 
 #include "../common.hpp"
 
@@ -109,7 +111,11 @@ namespace lgfx
   namespace spi
   {
 #if defined ( ARDUINO )
+ #if defined (SOC_SPI_PERIPH_NUM)
+    static spi_t* _spi_handle[SOC_SPI_PERIPH_NUM] = {nullptr};
+ #else
     static spi_t* _spi_handle[VSPI_HOST + 1] = {nullptr};
+ #endif
 #else // ESP-IDF
     static spi_device_handle_t _spi_handle[SOC_SPI_PERIPH_NUM] = {nullptr};
 #endif
@@ -123,6 +129,7 @@ namespace lgfx
     {
 //ESP_LOGI("LGFX","spi::init host:%d, sclk:%d, miso:%d, mosi:%d, dma:%d", spi_host, spi_sclk, spi_miso, spi_mosi, dma_channel);
       std::uint32_t spi_port = (spi_host + 1);
+      (void)spi_port;
 
 #if defined (ARDUINO) // Arduino ESP32
       if (spi_host == VSPI_HOST)
@@ -389,7 +396,7 @@ namespace lgfx
     {
       typeof(dev->command[0]) cmd;
       cmd.val = 0;
-      cmd.ack_en = (op_code == I2C_CMD_WRITE); // || (op_code == I2C_CMD_READ);
+      cmd.ack_en = (op_code == I2C_CMD_WRITE || op_code == I2C_CMD_STOP);
       cmd.byte_num = byte_num;
       cmd.op_code = op_code;
       dev->command[index].val = cmd.val;
@@ -441,12 +448,11 @@ namespace lgfx
       static constexpr std::uint32_t intmask = I2C_ACK_ERR_INT_RAW_M | I2C_END_DETECT_INT_RAW_M | I2C_ARBITRATION_LOST_INT_RAW_M;
       if (i2c_context[i2c_port].wait_ack)
       {
-        i2c_context[i2c_port].wait_ack = false;
         int_raw.val = dev->int_raw.val;
         if (!(int_raw.val & intmask))
         {
           std::uint32_t us = lgfx::micros();
-          std::uint32_t us_limit = (dev->scl_high_period.period + dev->scl_low_period.period + 16 ) * (16 + dev->status_reg.tx_fifo_cnt);
+          std::uint32_t us_limit = (dev->scl_high_period.period + dev->scl_low_period.period + 16 ) * (1 + dev->status_reg.tx_fifo_cnt);
           do
           {
             int_raw.val = dev->int_raw.val;
@@ -464,7 +470,7 @@ namespace lgfx
       if (flg_stop || res.has_error())
       {
         if (i2c_context[i2c_port].state == i2c_context_t::state_read || !int_raw.end_detect)
-        {
+        { // force stop
           i2c_stop(i2c_port);
         }
         else
@@ -474,7 +480,11 @@ namespace lgfx
           static constexpr std::uint32_t intmask = I2C_ACK_ERR_INT_RAW_M | I2C_TIME_OUT_INT_RAW_M | I2C_END_DETECT_INT_RAW_M | I2C_ARBITRATION_LOST_INT_RAW_M | I2C_TRANS_COMPLETE_INT_RAW_M;
           std::uint32_t ms = lgfx::millis();
           taskYIELD();
-          while (!(dev->int_raw.val & intmask) && ((millis() - ms) < 14));          
+          while (!(dev->int_raw.val & intmask) && ((millis() - ms) < 14));
+          if (res.has_value() && dev->int_raw.ack_err)
+          {
+            res = cpp::fail(error_t::connection_lost);
+          }
           //ESP_LOGI("LGFX", "I2C stop");
         }
         i2c_context[i2c_port].load_reg(dev);
@@ -483,6 +493,7 @@ namespace lgfx
           i2c_context[i2c_port].state = i2c_context_t::state_t::state_disconnect;
         }
       }
+      i2c_context[i2c_port].wait_ack = false;
       return res;
     }
 
@@ -808,4 +819,5 @@ namespace lgfx
  }
 }
 
+#endif
 #endif

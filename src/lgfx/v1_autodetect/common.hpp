@@ -62,9 +62,19 @@ namespace lgfx
 }
 
 
-#if defined (ESP32) || defined (CONFIG_IDF_TARGET_ESP32) || defined (ESP_PLATFORM)
+#if defined (ESP_PLATFORM)
 
- #include "LGFX_AutoDetect_ESP32.hpp"
+ #include <sdkconfig.h>
+
+ #if defined (CONFIG_IDF_TARGET_ESP32S2)
+
+ #elif defined (CONFIG_IDF_TARGET_ESP32C3)
+
+ #else
+
+  #include "LGFX_AutoDetect_ESP32.hpp"
+
+ #endif
 
 #elif defined (__SAMD21__)
 

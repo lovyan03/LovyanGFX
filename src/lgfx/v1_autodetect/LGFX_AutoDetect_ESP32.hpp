@@ -1100,7 +1100,7 @@ namespace lgfx
       {
         _pin_reset( 0, true); // EPDがDeepSleepしていると自動認識に失敗するためRST制御は必須とする
         bus_cfg.pin_mosi = 23;
-        bus_cfg.pin_miso = -1;
+        bus_cfg.pin_miso = 34;
         bus_cfg.pin_sclk = 18;
         bus_cfg.pin_dc   = 15;
         bus_cfg.spi_3wire = true;

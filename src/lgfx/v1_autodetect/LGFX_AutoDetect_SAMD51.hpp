@@ -286,7 +286,7 @@ namespace lgfx
               cfg.dummy_read_bits = 0;
               p->config(cfg);
             }
-            setRotation(1);
+            p->setRotation(1);
             p->setBus(&_bus_spi);
             _light_last = new Light_WioTerminal();
             p->setLight(_light_last);

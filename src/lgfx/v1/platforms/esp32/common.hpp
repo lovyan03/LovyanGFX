@@ -27,6 +27,13 @@ Contributors:
 #include <freertos/task.h>
 #include <driver/gpio.h>
 
+#if defined (CONFIG_IDF_TARGET_ESP32C3)
+#if !defined ( REG_SPI_BASE )
+//#define REG_SPI_BASE(i) (DR_REG_SPI0_BASE - (i) * 0x1000)
+#define REG_SPI_BASE(i)  (DR_REG_SPI2_BASE)
+#endif
+#endif
+
 namespace lgfx
 {
  inline namespace v1
@@ -69,13 +76,19 @@ namespace lgfx
     pinMode(pin, mode);
   }
 
+#if defined ( CONFIG_IDF_TARGET_ESP32C3 )
+  static inline volatile std::uint32_t* get_gpio_hi_reg(std::int_fast8_t pin) { return &GPIO.out_w1ts.val; }
+  static inline volatile std::uint32_t* get_gpio_lo_reg(std::int_fast8_t pin) { return &GPIO.out_w1tc.val; }
+  static inline bool gpio_in(std::int_fast8_t pin) { return GPIO.in.val & (1 << (pin & 31)); }
+#else
   static inline volatile std::uint32_t* get_gpio_hi_reg(std::int_fast8_t pin) { return (pin & 32) ? &GPIO.out1_w1ts.val : &GPIO.out_w1ts; }
 //static inline volatile std::uint32_t* get_gpio_hi_reg(std::int_fast8_t pin) { return (volatile uint32_t*)((pin & 32) ? 0x60004014 : 0x60004008) ; } // workaround Eratta
   static inline volatile std::uint32_t* get_gpio_lo_reg(std::int_fast8_t pin) { return (pin & 32) ? &GPIO.out1_w1tc.val : &GPIO.out_w1tc; }
 //static inline volatile std::uint32_t* get_gpio_lo_reg(std::int_fast8_t pin) { return (volatile uint32_t*)((pin & 32) ? 0x60004018 : 0x6000400C) ; }
+  static inline bool gpio_in(std::int_fast8_t pin) { return ((pin & 32) ? GPIO.in1.data : GPIO.in) & (1 << (pin & 31)); }
+#endif
   static inline void gpio_hi(std::int_fast8_t pin) { if (pin >= 0) *get_gpio_hi_reg(pin) = 1 << (pin & 31); } // ESP_LOGI("LGFX", "gpio_hi: %d", pin); }
   static inline void gpio_lo(std::int_fast8_t pin) { if (pin >= 0) *get_gpio_lo_reg(pin) = 1 << (pin & 31); } // ESP_LOGI("LGFX", "gpio_lo: %d", pin); }
-  static inline bool gpio_in(std::int_fast8_t pin) { return ((pin & 32) ? GPIO.in1.data : GPIO.in) & (1 << (pin & 31)); }
 
   std::uint32_t getApbFrequency(void);
   std::uint32_t FreqToClockDiv(std::uint32_t fapb, std::uint32_t hz);

@@ -634,9 +634,9 @@ namespace lgfx
       auto s = static_cast<const TSrc*>(param->src_data);
       auto d = static_cast<bool*>(dst);
       auto transp = param->transp;
-      std::uint32_t i = param->src_x + param->src_y * param->src_bitwidth - 1;
+      s += param->src_x + param->src_y * param->src_bitwidth - index;
       do {
-        d[index] = s[++i] == transp;
+        d[index] = s[index] == transp;
       } while (++index != last);
       return index;
     }

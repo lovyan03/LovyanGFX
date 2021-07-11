@@ -1,19 +1,28 @@
 /*----------------------------------------------------------------------------/
-  Lovyan GFX library - LCD graphics library .
-  
-  support platform:
-    ESP32 (SPI/I2S) with Arduino/ESP-IDF
-    ATSAMD51 (SPI) with Arduino
-  
+  Lovyan GFX - Graphics library for embedded devices.
+
+Original Source:
+ https://github.com/lovyan03/LovyanGFX/
+
+Licence:
+ [FreeBSD](https://github.com/lovyan03/LovyanGFX/blob/master/license.txt)
+
+Author:
+ [lovyan03](https://twitter.com/lovyan03)
+
+Contributors:
+ [ciniml](https://github.com/ciniml)
+ [mongonta0716](https://github.com/mongonta0716)
+ [tobozo](https://github.com/tobozo)
+
+
   This is a wrapper to make LovyanGFX behave like TFT_eSPI.
 /----------------------------------------------------------------------------*/
 
 #ifndef LGFX_TFT_ESPI_HPP_
 #define LGFX_TFT_ESPI_HPP_
 
-#define LGFX_AUTODETECT
 #include "LovyanGFX.hpp"
-#include "LGFX_AUTODETECT.hpp"
 
 using TFT_eSPI = lgfx::LGFX;
 

@@ -17,12 +17,22 @@ Contributors:
 /----------------------------------------------------------------------------*/
 #pragma once
 
-#if defined (ESP32) || defined (CONFIG_IDF_TARGET_ESP32) || defined (CONFIG_IDF_TARGET_ESP32S2) || defined (ESP_PLATFORM)
+#if defined (ESP_PLATFORM)
 
-#include "esp32/Light_PWM.hpp"
-#include "esp32/Bus_SPI.hpp"
-#include "esp32/Bus_I2C.hpp"
-#include "esp32/Bus_Parallel8.hpp"
+ #include <sdkconfig.h>
+
+ #if defined (CONFIG_IDF_TARGET_ESP32C3)
+
+  #include "esp32c3/Bus_SPI.hpp"
+
+ #else
+
+  #include "esp32/Light_PWM.hpp"
+  #include "esp32/Bus_SPI.hpp"
+  #include "esp32/Bus_I2C.hpp"
+  #include "esp32/Bus_Parallel8.hpp"
+
+ #endif
 
 #elif defined ( ESP8266 )
 

@@ -176,7 +176,10 @@ namespace lgfx
     void release() {
       _length = 0;
       if ( _buffer != nullptr ) {
-        heap_free(_buffer);
+        if (_source != AllocationSource::Preallocated)
+        {
+          heap_free(_buffer);
+        }
         _buffer = nullptr;
       }
     }

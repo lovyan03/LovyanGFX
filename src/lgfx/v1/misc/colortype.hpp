@@ -28,21 +28,21 @@ Contributors:
  #endif
 #endif
 #if !defined ( pgm_read_byte )
- #define pgm_read_byte(addr)  (*(const std::uint8_t  *)((std::size_t)addr))
- #define pgm_read_word(addr)  (*(const std::uint16_t *)((std::size_t)addr))
- #define pgm_read_dword(addr) (*(const std::uint32_t *)((std::size_t)addr))
+ #define pgm_read_byte(addr)  (*(const std::uint8_t  *)((std::uintptr_t)addr))
+ #define pgm_read_word(addr)  (*(const std::uint16_t *)((std::uintptr_t)addr))
+ #define pgm_read_dword(addr) (*(const std::uint32_t *)((std::uintptr_t)addr))
 #endif
 
 /// for  not ESP8266
 #if !defined ( pgm_read_dword_with_offset )
  #if defined (__SAMD21__)
   #define pgm_read_dword_unaligned(addr) (std::uint32_t) \
-  ( *(const std::uint8_t *)((std::size_t)addr) \
-  | *(const std::uint8_t *)((std::size_t)addr+1) << 8  \
-  | *(const std::uint8_t *)((std::size_t)addr+2) << 16 \
-  | *(const std::uint8_t *)((std::size_t)addr+3) << 24 )
+  ( *(const std::uint8_t *)((std::uintptr_t)addr) \
+  | *(const std::uint8_t *)((std::uintptr_t)addr+1) << 8  \
+  | *(const std::uint8_t *)((std::uintptr_t)addr+2) << 16 \
+  | *(const std::uint8_t *)((std::uintptr_t)addr+3) << 24 )
  #else
-  #define pgm_read_dword_unaligned(addr) (*(const std::uint32_t *)((std::size_t)addr))
+  #define pgm_read_dword_unaligned(addr) (*(const std::uint32_t *)((std::uintptr_t)addr))
  #endif
 #endif
 
@@ -826,6 +826,7 @@ namespace lgfx
     template <typename TDstColor>
     void operator() (std::int32_t x, std::int32_t y, TDstColor& dst)
     {
+      (void)x; (void)y;
       dst.set((_r8a + dst.R8() * _inv) >> 8
              ,(_g8a + dst.G8() * _inv) >> 8
              ,(_b8a + dst.B8() * _inv) >> 8
@@ -834,6 +835,7 @@ namespace lgfx
     template <typename TDstColor, typename TSrcColor>
     void operator() (std::int32_t x, std::int32_t y, TDstColor& dst, TSrcColor& src)
     {
+      (void)x; (void)y;
       std::uint_fast16_t  a8 = 1 + src.A8();
       std::uint_fast16_t inv = 257 - a8;
       std::uint_fast16_t r8a = a8 * src.R8();
