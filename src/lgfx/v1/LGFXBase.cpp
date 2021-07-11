@@ -1492,8 +1492,8 @@ namespace lgfx
       break;
     }
 
-    std::int32_t cl = _clip_l;
-    int w = _clip_r - cl + 1;
+    const std::int32_t cl = _clip_l;
+    const std::int32_t w = _clip_r - cl + 1;
     std::uint8_t bufIdx = 0;
     bool* linebufs[3] = { new bool[w], new bool[w], new bool[w] };
     std::int32_t bufY[3] = {y, -2, -2};  // 3 line buffer (default: out of range.)
@@ -1505,6 +1505,7 @@ namespace lgfx
     while (!points.empty())
     {
       std::int32_t y0 = bufY[bufIdx];
+
       auto it = points.begin();
       std::int32_t counter = 0;
       while (it->y != y0 && ++it != points.end()) ++counter;
@@ -1516,47 +1517,50 @@ namespace lgfx
           std::int32_t y1 = bufY[(bufIdx  )%3];
           std::int32_t y2 = bufY[(bufIdx+1)%3];
           it = points.begin();
+
           while ((it->y != y1) && (it->y != y2) && (++it != points.end()));
         }
-      }
+        bufIdx = 0;
+        if (it == points.end())
+        {
+          it = points.begin();
 
-      bufIdx = 0;
-      if (it == points.end())
-      {
-        it = points.begin();
-        bufY[0] = it->y;
-        _panel->readRect(cl, it->y, w, 1, linebufs[0], &p);
-      }
-      else
-      {
-        for (; bufIdx < 2; ++bufIdx) if (it->y == bufY[bufIdx]) break;
+          bufY[0] = it->y;
+          _panel->readRect(cl, it->y, w, 1, linebufs[0], &p);
+        }
+        else
+        {
+          for (; bufIdx < 2; ++bufIdx) if (it->y == bufY[bufIdx]) break;
+        }
       }
       bool* linebuf = &linebufs[bufIdx][- cl];
 
-      int lx = it->lx;
-      int rx = it->rx;
-      int ly = it->y;
-      int oy = it->oy;
+      std::int32_t lx = it->lx;
+      std::int32_t rx = it->rx;
+      std::int32_t ly = it->y;
+      std::int32_t oy = it->oy;
       points.erase(it);
       if (!linebuf[lx]) continue;
 
-      int lxsav = lx - 1;
-      int rxsav = rx + 1;
+      std::int32_t lxsav = lx - 1;
+      std::int32_t rxsav = rx + 1;
 
-      int cr = _clip_r;
+      const std::int32_t cr = _clip_r;
       while (lx > cl && linebuf[lx - 1]) --lx;
       while (rx < cr && linebuf[rx + 1]) ++rx;
 
       writeFastHLine(lx, ly, rx - lx + 1);
       memset(&linebuf[lx], 0, rx - lx + 1);
 
-      int newy = ly - 1;
-      do
+      std::int32_t nexty[2] = { ly - 1, ly + 1 };
+      if (ly < y) std::swap(nexty[0], nexty[1]);
+      for (std::size_t i = 0; i < 2; ++i)
       {
+        std::int32_t newy = nexty[i];
         if (newy == oy && lx >= lxsav && rxsav >= rx) continue;
         if (newy < _clip_t) continue;
         if (newy > _clip_b) continue;
-        int bidx = 0;
+        std::size_t bidx = 0;
         while (newy != bufY[bidx] && ++bidx != 3);
         if (bidx == 3) {
           for (bidx = 0; bidx < 2 && (abs(bufY[bidx] - ly) <= 1); ++bidx);
@@ -1571,9 +1575,9 @@ namespace lgfx
         } else {
           paint_add_points(points, lx ,rx, newy, ly, linebuf);
         }
-      } while ((newy += 2) < ly + 2);
+      }
     }
-    int i = 0;
+    std::size_t i = 0;
     do { delete[] linebufs[i]; } while (++i != 3);
     endWrite();
   }
