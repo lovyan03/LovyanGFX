@@ -266,6 +266,7 @@ namespace lgfx
     void beginTransaction(int spi_host, std::uint32_t freq, int spi_mode)
     {
       std::uint32_t spi_port = (spi_host + 1);
+      (void)spi_port;
       std::uint32_t clkdiv = FreqToClockDiv(getApbFrequency(), freq);
 
       std::uint32_t user = SPI_USR_MOSI | SPI_USR_MISO | SPI_DOUTDIN;
@@ -311,6 +312,7 @@ namespace lgfx
     void writeBytes(int spi_host, const std::uint8_t* data, std::size_t len)
     {
       std::uint32_t spi_port = (spi_host + 1);
+      (void)spi_port;
       if (len > 64) len = 64;
       memcpy(reinterpret_cast<void*>(SPI_W0_REG(spi_port)), data, len);
       WRITE_PERI_REG(SPI_MS_DLEN_REG(spi_port), (len << 3) - 1);
@@ -321,6 +323,7 @@ namespace lgfx
     void readBytes(int spi_host, std::uint8_t* data, std::size_t len)
     {
       std::uint32_t spi_port = (spi_host + 1);
+      (void)spi_port;
       if (len > 64) len = 64;
       memcpy(reinterpret_cast<void*>(SPI_W0_REG(spi_port)), data, len);
       WRITE_PERI_REG(SPI_MS_DLEN_REG(spi_port), (len << 3) - 1);
