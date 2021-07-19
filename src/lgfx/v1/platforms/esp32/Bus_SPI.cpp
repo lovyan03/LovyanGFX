@@ -17,7 +17,7 @@ Contributors:
 /----------------------------------------------------------------------------*/
 #if defined (ESP_PLATFORM)
 #include <sdkconfig.h>
-#if !defined (CONFIG_IDF_TARGET) || defined (CONFIG_IDF_TARGET_ESP32) || defined (CONFIG_IDF_TARGET_ESP32S2)
+#if !defined (CONFIG_IDF_TARGET) || defined (CONFIG_IDF_TARGET_ESP32) || defined (CONFIG_IDF_TARGET_ESP32S2) || defined (CONFIG_IDF_TARGET_ESP32C3)
 
 #include "Bus_SPI.hpp"
 
@@ -25,7 +25,6 @@ Contributors:
 
 #include <driver/periph_ctrl.h>
 #include <driver/rtc_io.h>
-#include <soc/spi_reg.h>
 #include <esp_heap_caps.h>
 #include <esp_log.h>
 
@@ -36,12 +35,15 @@ Contributors:
  #include <driver/spi_master.h>
 #endif
 
-#if defined (CONFIG_IDF_TARGET_ESP32S2) || defined (CONFIG_IDF_TARGET_ESP32C3)
- #ifndef SPI_PIN_REG
+#ifndef SPI_PIN_REG
  #define SPI_PIN_REG SPI_MISC_REG
- #endif
 #endif
 
+#if defined (CONFIG_IDF_TARGET_ESP32C3)
+ #include <driver/spi_common_internal.h>
+ #include <hal/gdma_hal.h>
+ #include <hal/gdma_ll.h>
+#endif
 #include "common.hpp"
 
 #include <algorithm>
@@ -62,7 +64,16 @@ namespace lgfx
     _spi_cmd_reg          = reg(SPI_CMD_REG(         spi_port));
     _spi_user_reg         = reg(SPI_USER_REG(        spi_port));
     _spi_mosi_dlen_reg    = reg(SPI_MOSI_DLEN_REG(   spi_port));
+#if defined ( SOC_GDMA_SUPPORTED )
+    _spi_dma_out_link_reg = reg(DMA_OUT_LINK_CH0_REG);
+    _spi_dma_outstatus_reg = reg(DMA_OUTFIFO_STATUS_CH0_REG);
+#elif defined ( SPI_DMA_STATUS_REG )
     _spi_dma_out_link_reg = reg(SPI_DMA_OUT_LINK_REG(spi_port));
+    _spi_dma_outstatus_reg = reg(SPI_DMA_STATUS_REG(spi_port));
+#else
+    _spi_dma_out_link_reg = reg(SPI_DMA_OUT_LINK_REG(spi_port));
+    _spi_dma_outstatus_reg = reg(SPI_DMA_OUTSTATUS_REG(spi_port));
+#endif
     _mask_reg_dc = (cfg.pin_dc < 0) ? 0 : (1ul << (cfg.pin_dc & 31));
     _gpio_reg_dc[0] = get_gpio_lo_reg(cfg.pin_dc);
     _gpio_reg_dc[1] = get_gpio_hi_reg(cfg.pin_dc);
@@ -118,6 +129,7 @@ namespace lgfx
 
     *_spi_user_reg = _user_reg;
     auto spi_port = _spi_port;
+    (void)spi_port;
     *reg(SPI_PIN_REG(spi_port)) = pin;
     *reg(SPI_CLOCK_REG(spi_port)) = clkdiv_write;
   }
@@ -151,10 +163,24 @@ namespace lgfx
     auto spi_cmd_reg = _spi_cmd_reg;
     auto gpio_reg_dc = _gpio_reg_dc[0];
     auto mask_reg_dc = _mask_reg_dc;
-    while (*spi_cmd_reg & SPI_USR);    // wait SPI
-    *gpio_reg_dc = mask_reg_dc;        // D/C
+#if !defined ( CONFIG_IDF_TARGET ) || defined ( CONFIG_IDF_TARGET_ESP32 )
+    while (*spi_cmd_reg & SPI_USR) {}    // wait SPI
+#else
+    auto dma = _clear_dma_reg;
+    if (dma)
+    {
+      _clear_dma_reg = nullptr;
+      while (*spi_cmd_reg & SPI_USR) {}    // wait SPI
+      *dma = 0;
+    }
+    else
+    {
+      while (*spi_cmd_reg & SPI_USR) {}    // wait SPI
+    }
+#endif
     *spi_mosi_dlen_reg = bit_length;   // set bitlength
     *spi_w0_reg = data;                // set data
+    *gpio_reg_dc = mask_reg_dc;        // D/C
     *spi_cmd_reg = SPI_EXECUTE;        // exec SPI
     return true;
   }
@@ -168,10 +194,24 @@ namespace lgfx
     auto spi_cmd_reg = _spi_cmd_reg;
     auto gpio_reg_dc = _gpio_reg_dc[1];
     auto mask_reg_dc = _mask_reg_dc;
-    while (*spi_cmd_reg & SPI_USR);    // wait SPI
-    *gpio_reg_dc = mask_reg_dc;        // D/C
+#if !defined ( CONFIG_IDF_TARGET ) || defined ( CONFIG_IDF_TARGET_ESP32 )
+    while (*spi_cmd_reg & SPI_USR) {}    // wait SPI
+#else
+    auto dma = _clear_dma_reg;
+    if (dma)
+    {
+      _clear_dma_reg = nullptr;
+      while (*spi_cmd_reg & SPI_USR) {}    // wait SPI
+      *dma = 0;
+    }
+    else
+    {
+      while (*spi_cmd_reg & SPI_USR) {}    // wait SPI
+    }
+#endif
     *spi_mosi_dlen_reg = bit_length;   // set bitlength
     *spi_w0_reg = data;                // set data
+    *gpio_reg_dc = mask_reg_dc;        // D/C
     *spi_cmd_reg = SPI_EXECUTE;        // exec SPI
   }
 
@@ -182,10 +222,17 @@ namespace lgfx
     auto spi_cmd_reg = _spi_cmd_reg;
     auto gpio_reg_dc = _gpio_reg_dc[1];
     auto mask_reg_dc = _mask_reg_dc;
+#if defined ( CONFIG_IDF_TARGET ) && !defined ( CONFIG_IDF_TARGET_ESP32 )
+    auto dma = _clear_dma_reg;
+    if (dma) { _clear_dma_reg = nullptr; }
+#endif
     if (1 == count)
     {
       --bit_length;
       while (*spi_cmd_reg & SPI_USR);    // wait SPI
+#if defined ( CONFIG_IDF_TARGET ) && !defined ( CONFIG_IDF_TARGET_ESP32 )
+      if (dma) { *dma = 0; }
+#endif
       *gpio_reg_dc = mask_reg_dc;        // D/C high (data)
       *spi_mosi_dlen_reg = bit_length;   // set bitlength
       *spi_w0_reg = data;                // set data
@@ -212,7 +259,10 @@ namespace lgfx
     length -= len;
     --len;
 
-    while (*spi_cmd_reg & SPI_USR);  // wait SPI
+    while (*spi_cmd_reg & SPI_USR) {}  // wait SPI
+#if defined ( CONFIG_IDF_TARGET ) && !defined ( CONFIG_IDF_TARGET_ESP32 )
+    if (dma) { *dma = 0; }
+#endif
     *gpio_reg_dc = mask_reg_dc;      // D/C high (data)
     *spi_mosi_dlen_reg = len;
     // copy to SPI buffer register
@@ -239,7 +289,7 @@ namespace lgfx
     }
     else
     {
-#if defined( CONFIG_IDF_TARGET_ESP32 )
+#if defined ( CONFIG_IDF_TARGET_ESP32 )
       limit = (1 << 11);
 #else
       limit = (1 << 9);
@@ -285,6 +335,44 @@ namespace lgfx
       return;
     }
 
+/// ESP32-C3 で HIGHPART を使用すると異常動作するため分岐する
+#if defined ( CONFIG_IDF_TARGET_ESP32C3 )
+
+    const std::uint32_t limit = (bytes == 2) ? 32 : 21;
+    std::uint32_t l = (length - 1) / limit;
+    std::uint32_t len = length - (l * limit);
+    length = l;
+    std::uint32_t regbuf[16];
+    param->fp_copy(regbuf, 0, len, param);
+
+    auto spi_w0_reg = _spi_w0_reg;
+
+    dc_control(true);
+    set_write_len(len * bytes << 3);
+
+    memcpy((void*)spi_w0_reg, regbuf, (len * bytes + 3) & (~3));
+
+    exec_spi();
+    if (0 == length) return;
+
+
+    param->fp_copy(regbuf, 0, limit, param);
+    wait_spi();
+    set_write_len(limit * bytes << 3);
+    memcpy((void*)spi_w0_reg, regbuf, limit * bytes);
+    exec_spi();
+
+
+    while (--length)
+    {
+      param->fp_copy(regbuf, 0, limit, param);
+      wait_spi();
+      memcpy((void*)spi_w0_reg, regbuf, limit * bytes);
+      exec_spi();
+    }
+
+#else
+
     const std::uint32_t limit = (bytes == 2) ? 16 : 10; //  limit = 32/bytes (bytes==2 is 16   bytes==3 is 10)
     std::uint32_t len = (length - 1) / limit;
     std::uint32_t highpart = (len & 1) << 3;
@@ -325,6 +413,9 @@ namespace lgfx
         exec_spi();
       }
     }
+
+#endif
+
   }
 
   void Bus_SPI::writeBytes(const std::uint8_t* data, std::uint32_t length, bool dc, bool use_dma)
@@ -352,20 +443,75 @@ namespace lgfx
       }
       if (use_dma)
       {
-        dc_control(dc);
-        set_write_len(length << 3);
+        auto spi_dma_out_link_reg = _spi_dma_out_link_reg;
+        auto cmd = _spi_cmd_reg;
+        while (*cmd & SPI_USR) {}
+        *spi_dma_out_link_reg = 0;
         _setup_dma_desc_links(data, length);
-        *_spi_dma_out_link_reg = SPI_OUTLINK_START | ((int)(&_dmadesc[0]) & 0xFFFFF);
+#if defined ( SOC_GDMA_SUPPORTED )
+        *spi_dma_out_link_reg = DMA_OUTLINK_START_CH0 | ((int)(&_dmadesc[0]) & 0xFFFFF);
+        auto dma = reg(SPI_DMA_CONF_REG(spi_port));
+        *dma = SPI_DMA_TX_ENA;
+        _clear_dma_reg = dma;
+#else
+        *spi_dma_out_link_reg = SPI_OUTLINK_START | ((int)(&_dmadesc[0]) & 0xFFFFF);
+        _clear_dma_reg = spi_dma_out_link_reg;
+#endif
+        set_write_len(length << 3);
+        *_gpio_reg_dc[dc] = _mask_reg_dc;
+
+        // DMA準備完了待ち
+#if defined ( SOC_GDMA_SUPPORTED )
+        while (*_spi_dma_outstatus_reg & DMA_OUTFIFO_EMPTY_CH0 ) {}
+#elif defined (SPI_DMA_OUTFIFO_EMPTY)
+        while (*_spi_dma_outstatus_reg & SPI_DMA_OUTFIFO_EMPTY ) {}
+#else
         spicommon_dmaworkaround_transfer_active(_cfg.dma_channel);
+#endif
         exec_spi();
         return;
       }
     }
+
+    auto spi_w0_reg = _spi_w0_reg;
+
+/// ESP32-C3 で HIGHPART を使用すると異常動作するため分岐する
+#if defined ( CONFIG_IDF_TARGET_ESP32C3 )
+
+    std::uint32_t regbuf[16];
+    constexpr std::uint32_t limit = 64;
+    std::uint32_t len = ((length - 1) & 0x3F) + 1;
+
+    memcpy(regbuf, data, len);
+    dc_control(dc);
+    set_write_len(len << 3);
+
+    memcpy((void*)spi_w0_reg, regbuf, (len + 3) & (~3));
+    exec_spi();
+    if (0 == (length -= len)) return;
+
+    data += len;
+    memcpy(regbuf, data, limit);
+    wait_spi();
+    set_write_len(limit << 3);
+    memcpy((void*)spi_w0_reg, regbuf, limit);
+    exec_spi();
+    if (0 == (length -= limit)) return;
+
+    do
+    {
+      data += limit;
+      memcpy(regbuf, data, limit);
+      wait_spi();
+      memcpy((void*)spi_w0_reg, regbuf, limit);
+      exec_spi();
+    } while (0 != (length -= limit));
+
+#else
+
     constexpr std::uint32_t limit = 32;
     std::uint32_t len = ((length - 1) & 0x1F) + 1;
     std::uint32_t highpart = ((length - 1) & limit) >> 2; // 8 or 0
-
-    auto spi_w0_reg = _spi_w0_reg;
 
     std::uint32_t user_reg = _user_reg;
     dc_control(dc);
@@ -397,6 +543,9 @@ namespace lgfx
         exec_spi();
       }
     }
+
+#endif
+
   }
 
   void Bus_SPI::initDMA(void)
@@ -462,16 +611,33 @@ namespace lgfx
     std::swap(_dmadesc_size, _dma_queue_capacity);
 
     dc_control(true);
-    set_write_len(_dma_queue_bytes << 3);
-    _dma_queue_bytes = 0;
-
+    *_spi_dma_out_link_reg = 0;
     if (_next_dma_reset)
     {
       _spi_dma_reset();
     }
 
-    *_spi_dma_out_link_reg = SPI_OUTLINK_START | ((int)(_dmadesc) & 0xFFFFF);
+#if defined ( SOC_GDMA_SUPPORTED )
+    *_spi_dma_out_link_reg = DMA_OUTLINK_START_CH0 | ((int)(&_dmadesc[0]) & 0xFFFFF);
+    auto dma = reg(SPI_DMA_CONF_REG(spi_port));
+    *dma = SPI_DMA_TX_ENA;
+    _clear_dma_reg = dma;
+#else
+    *_spi_dma_out_link_reg = SPI_OUTLINK_START | ((int)(&_dmadesc[0]) & 0xFFFFF);
+    _clear_dma_reg = _spi_dma_out_link_reg;
+#endif
+
+    set_write_len(_dma_queue_bytes << 3);
+    _dma_queue_bytes = 0;
+    // DMA準備完了待ち
+#if defined ( SOC_GDMA_SUPPORTED )
+    while (*_spi_dma_outstatus_reg & DMA_OUTFIFO_EMPTY_CH0 ) {}
+#elif defined (SPI_DMA_OUTFIFO_EMPTY)
+    while (*_spi_dma_outstatus_reg & SPI_DMA_OUTFIFO_EMPTY ) {}
+#else
     spicommon_dmaworkaround_transfer_active(_cfg.dma_channel);
+#endif
+
     exec_spi();
   }
 
@@ -484,6 +650,9 @@ namespace lgfx
     *_spi_user_reg = user;
     *reg(SPI_PIN_REG(_spi_port)) = pin;
     *reg(SPI_CLOCK_REG(_spi_port)) = _clkdiv_read;
+#if defined ( SPI_UPDATE )
+    *_spi_cmd_reg = SPI_UPDATE;
+#endif
   }
 
   void Bus_SPI::endRead(void)
@@ -492,6 +661,9 @@ namespace lgfx
     *_spi_user_reg = _user_reg;
     *reg(SPI_PIN_REG(_spi_port)) = pin;
     *reg(SPI_CLOCK_REG(_spi_port)) = _clkdiv_write;
+#if defined ( SPI_UPDATE )
+    *_spi_cmd_reg = SPI_UPDATE;
+#endif
   }
 
   std::uint32_t Bus_SPI::readData(std::uint_fast8_t bit_length)
@@ -506,6 +678,7 @@ namespace lgfx
 
   bool Bus_SPI::readBytes(std::uint8_t* dst, std::uint32_t length, bool use_dma)
   {
+#if defined ( SPI_DMA_IN_LINK_REG )
     if (_cfg.dma_channel && use_dma) {
       wait_spi();
       set_read_len(length << 3);
@@ -513,14 +686,43 @@ namespace lgfx
       *reg(SPI_DMA_IN_LINK_REG(_spi_port)) = SPI_INLINK_START | ((int)(&_dmadesc[0]) & 0xFFFFF);
       spicommon_dmaworkaround_transfer_active(_cfg.dma_channel);
       exec_spi();
-    } else {
-      std::int32_t len1 = std::min(length, 32u);  // 32 Byte read.
-      std::int32_t len2 = len1;
+    }
+    else
+#endif
+    {
+      auto len1 = std::min<std::uint32_t>(length, 32u);  // 32 Byte read.
+      auto len2 = len1;
       wait_spi();
       set_read_len(len1 << 3);
       exec_spi();
-      std::uint32_t highpart = 8;
+
+/// ESP32-C3 で HIGHPART を使用すると異常動作するため分岐する
+#if defined ( CONFIG_IDF_TARGET_ESP32C3 )
+
+      auto spi_w0_reg = _spi_w0_reg;
+      do {
+        if (0 == (length -= len1)) {
+          len2 = len1;
+          wait_spi();
+          memcpy(dst, (void*)spi_w0_reg, len2);
+        } else {
+          if (length < len1) {
+            len1 = length;
+            wait_spi();
+            set_read_len(len1 << 3);
+          } else {
+            wait_spi();
+          }
+          memcpy(dst, (void*)spi_w0_reg, len2);
+          exec_spi();
+        }
+        dst += len2;
+      } while (length);
+
+#else
+
       std::uint32_t userreg = *_spi_user_reg;
+      std::uint32_t highpart = 8;
       auto spi_w0_reg = _spi_w0_reg;
       do {
         if (0 == (length -= len1)) {
@@ -540,17 +742,20 @@ namespace lgfx
           *_spi_user_reg = user;
           exec_spi();
         }
-        memcpy(dst, (void*)&spi_w0_reg[highpart ^= 8], len2);
+        memcpy(dst, (void*)&spi_w0_reg[highpart ^= 8], (len2+3)&~3u);
         dst += len2;
       } while (length);
+
+#endif
+
     }
     return true;
   }
 
   void Bus_SPI::readPixels(void* dst, pixelcopy_t* param, std::uint32_t length)
   {
-    std::uint32_t len1 = std::min(length, 10u); // 10 pixel read
-    std::uint32_t len2 = len1;
+    auto len1 = std::min<std::uint32_t>(length, 10u);  // 10 pixel read
+    auto len2 = len1;
     auto len_read_pixel = param->src_bits;
     std::uint32_t regbuf[8];
     wait_spi();
@@ -558,9 +763,35 @@ namespace lgfx
     exec_spi();
     param->src_data = regbuf;
     std::int32_t dstindex = 0;
-    std::uint32_t highpart = 8;
-    std::uint32_t userreg = *_spi_user_reg;
     auto spi_w0_reg = _spi_w0_reg;
+
+/// ESP32-C3 で HIGHPART を使用すると異常動作するため分岐する
+#if defined ( CONFIG_IDF_TARGET_ESP32C3 )
+
+    do {
+      if (0 == (length -= len1)) {
+        len2 = len1;
+        wait_spi();
+        memcpy(regbuf, (void*)spi_w0_reg, len2 * len_read_pixel >> 3);
+      } else {
+        if (length < len1) {
+          len1 = length;
+          wait_spi();
+          set_read_len(len_read_pixel * len1);
+        } else {
+          wait_spi();
+        }
+        memcpy(regbuf, (void*)spi_w0_reg, len2 * len_read_pixel >> 3);
+        exec_spi();
+      }
+      param->src_x = 0;
+      dstindex = param->fp_copy(dst, dstindex, dstindex + len2, param);
+    } while (length);
+
+#else
+
+    std::uint32_t userreg = *_spi_user_reg;
+    std::uint32_t highpart = 8;
     do {
       if (0 == (length -= len1)) {
         len2 = len1;
@@ -579,12 +810,14 @@ namespace lgfx
         *_spi_user_reg = user;
         exec_spi();
       }
-      memcpy(regbuf, (void*)&spi_w0_reg[highpart ^= 8], len2 * len_read_pixel >> 3);
+      memcpy(regbuf, (void*)&spi_w0_reg[highpart ^= 8], ((len2 * len_read_pixel >> 3)+3)&~3u);
       param->src_x = 0;
       dstindex = param->fp_copy(dst, dstindex, dstindex + len2, param);
     } while (length);
-  }
 
+#endif
+
+  }
 
   void Bus_SPI::_alloc_dmadesc(size_t len)
   {
@@ -596,12 +829,14 @@ namespace lgfx
   void Bus_SPI::_spi_dma_reset(void)
   {
     _next_dma_reset = false;
-#if defined( CONFIG_IDF_TARGET_ESP32S2 )
-    if (_conf.spi_host == SPI2_HOST)
+#if defined( CONFIG_IDF_TARGET_ESP32C3 )
+
+#elif defined( CONFIG_IDF_TARGET_ESP32S2 )
+    if (_cfg.spi_host == SPI2_HOST)
     {
       periph_module_reset( PERIPH_SPI2_DMA_MODULE );
     }
-    else if (_conf.spi_host == SPI3_HOST)
+    else if (_cfg.spi_host == SPI3_HOST)
     {
       periph_module_reset( PERIPH_SPI3_DMA_MODULE );
     }

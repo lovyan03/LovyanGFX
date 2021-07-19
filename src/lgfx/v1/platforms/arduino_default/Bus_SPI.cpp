@@ -47,7 +47,7 @@ namespace lgfx
   {
     dc_h();
     pinMode(_cfg.pin_dc, pin_mode_t::output);
-    SPI.pins(_cfg.pin_sclk, _cfg.pin_miso, _cfg.pin_mosi, -1);
+  //SPI.pins(_cfg.pin_sclk, _cfg.pin_miso, _cfg.pin_mosi, -1);
     SPI.begin();
     return true;
   }

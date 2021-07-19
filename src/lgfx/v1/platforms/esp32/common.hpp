@@ -26,12 +26,13 @@ Contributors:
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <driver/gpio.h>
+#include <sdkconfig.h>
+#include <soc/soc.h>
+#include <soc/spi_reg.h>
 
-#if defined (CONFIG_IDF_TARGET_ESP32C3)
 #if !defined ( REG_SPI_BASE )
 //#define REG_SPI_BASE(i) (DR_REG_SPI0_BASE - (i) * 0x1000)
-#define REG_SPI_BASE(i)  (DR_REG_SPI2_BASE)
-#endif
+#define REG_SPI_BASE(i)     (DR_REG_SPI2_BASE)
 #endif
 
 namespace lgfx

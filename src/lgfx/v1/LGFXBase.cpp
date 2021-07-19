@@ -1457,17 +1457,18 @@ namespace lgfx
 
   struct paint_point_t { std::int32_t lx,rx,y,oy; };
 
-  static void paint_add_points(std::list<paint_point_t>& points, int lx, int rx, int y, int oy, bool* linebuf)
+  static void paint_add_points(std::list<paint_point_t>& points, std::int32_t lx, std::int32_t rx, std::int32_t y, std::int32_t oy, std::uint8_t* linebuf)
   {
     paint_point_t pt { 0, 0, y, oy };
-    while (lx <= rx) {
+    do
+    {
       while (lx < rx && !linebuf[lx]) ++lx;
       if (!linebuf[lx]) break;
       pt.lx = lx;
       while (++lx <= rx && linebuf[lx]);
       pt.rx = lx - 1;
-      points.push_back(pt);
-    }
+      points.emplace_back(pt);
+    } while (lx <= rx);
   }
 
   void LGFXBase::floodFill(std::int32_t x, std::int32_t y)
@@ -1494,8 +1495,8 @@ namespace lgfx
 
     const std::int32_t cl = _clip_l;
     const std::int32_t w = _clip_r - cl + 1;
-    std::uint8_t bufIdx = 0;
-    bool* linebufs[3] = { new bool[w], new bool[w], new bool[w] };
+    std::size_t bufIdx = 0;
+    std::uint8_t* linebufs[3] = { new std::uint8_t[w], new std::uint8_t[w], new std::uint8_t[w] };
     std::int32_t bufY[3] = {y, -2, -2};  // 3 line buffer (default: out of range.)
     _panel->readRect(cl, y, w, 1, linebufs[0], &p);
     std::list<paint_point_t> points;
@@ -1533,7 +1534,7 @@ namespace lgfx
           for (; bufIdx < 2; ++bufIdx) if (it->y == bufY[bufIdx]) break;
         }
       }
-      bool* linebuf = &linebufs[bufIdx][- cl];
+      auto linebuf = &linebufs[bufIdx][- cl];
 
       std::int32_t lx = it->lx;
       std::int32_t rx = it->rx;
@@ -1548,18 +1549,19 @@ namespace lgfx
       const std::int32_t cr = _clip_r;
       while (lx > cl && linebuf[lx - 1]) --lx;
       while (rx < cr && linebuf[rx + 1]) ++rx;
+      bool flg_noexpanded = lx >= lxsav && rxsav >= rx;
 
-      writeFastHLine(lx, ly, rx - lx + 1);
       memset(&linebuf[lx], 0, rx - lx + 1);
+      writeFillRectPreclipped(lx, ly, rx - lx + 1, 1);
 
       std::int32_t nexty[2] = { ly - 1, ly + 1 };
       if (ly < y) std::swap(nexty[0], nexty[1]);
-      for (std::size_t i = 0; i < 2; ++i)
+      std::size_t i = 0;
+      do
       {
         std::int32_t newy = nexty[i];
-        if (newy == oy && lx >= lxsav && rxsav >= rx) continue;
-        if (newy < _clip_t) continue;
-        if (newy > _clip_b) continue;
+        if (newy == oy && flg_noexpanded) continue;
+        if (newy < _clip_t || newy > _clip_b) continue;
         std::size_t bidx = 0;
         while (newy != bufY[bidx] && ++bidx != 3);
         if (bidx == 3) {
@@ -1567,15 +1569,9 @@ namespace lgfx
           bufY[bidx] = newy;
           _panel->readRect(cl, newy, w, 1, linebufs[bidx], &p);
         }
-        bool* linebuf = &linebufs[bidx][- cl];
-        if (newy == oy)
-        {
-          paint_add_points(points, lx ,lxsav, newy, ly, linebuf);
-          paint_add_points(points, rxsav ,rx, newy, ly, linebuf);
-        } else {
-          paint_add_points(points, lx ,rx, newy, ly, linebuf);
-        }
-      }
+        auto linebuf = &linebufs[bidx][- cl];
+        paint_add_points(points, lx ,rx, newy, ly, linebuf);
+      } while (++i < 2);
     }
     std::size_t i = 0;
     do { delete[] linebufs[i]; } while (++i != 3);
@@ -2533,6 +2529,7 @@ namespace lgfx
     std::uint32_t last_x;
     std::int32_t scale_y0;
     std::int32_t scale_y1;
+    bool done;
   };
 
   static bool png_ypos_update(png_file_decoder_t *p, std::uint32_t y)
@@ -2562,6 +2559,7 @@ namespace lgfx
   {
     auto p = (png_file_decoder_t *)lgfx_pngle_get_user_data(pngle);
     png_post_line(p);
+    p->done = true;
   }
 
   static void png_draw_normal_callback(pngle_t *pngle, std::uint32_t x, std::uint32_t y, std::uint8_t rgba[4])
@@ -2782,6 +2780,7 @@ namespace lgfx
     png.datum = datum;
     png.gfx = this;
     png.lineBuffer = nullptr;
+    png.done = false;
 
     pixelcopy_t pc(nullptr, this->getColorDepth(), bgr888_t::depth, this->_palette_count);
     png.pc = &pc;
@@ -2809,6 +2808,7 @@ namespace lgfx
         res = false;
         break;
       }
+      if (png.done) { break; }
 
       remain = remain + len - fed;
       if (remain > 0) memmove(buf, buf + fed, remain);

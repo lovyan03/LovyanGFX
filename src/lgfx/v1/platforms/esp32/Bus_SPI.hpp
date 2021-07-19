@@ -63,10 +63,11 @@ namespace lgfx
       std::uint8_t spi_mode = 0;
       bool spi_3wire = true;
       bool use_lock = true;
-      std::uint8_t dma_channel = 0;
 #if !defined (CONFIG_IDF_TARGET) || defined (CONFIG_IDF_TARGET_ESP32)
+      std::uint8_t dma_channel = 0;
       spi_host_device_t spi_host = VSPI_HOST;
 #else
+      std::uint8_t dma_channel = SPI_DMA_CH_AUTO; // or SPI_DMA_DISABLED
       spi_host_device_t spi_host = SPI2_HOST;
 #endif
     };
@@ -108,15 +109,43 @@ namespace lgfx
   private:
 
     static __attribute__ ((always_inline)) inline volatile std::uint32_t* reg(std::uint32_t addr) { return (volatile std::uint32_t *)ETS_UNCACHED_ADDR(addr); }
-    __attribute__ ((always_inline)) inline void dc_control(bool flg) { auto reg = _gpio_reg_dc[flg]; auto mask = _mask_reg_dc; auto cmd = _spi_cmd_reg; while (*cmd & SPI_USR); *reg = mask; }
     __attribute__ ((always_inline)) inline void exec_spi(void) {        *_spi_cmd_reg = SPI_EXECUTE; }
     __attribute__ ((always_inline)) inline void wait_spi(void) { while (*_spi_cmd_reg & SPI_USR); }
     __attribute__ ((always_inline)) inline void set_write_len(std::uint32_t bitlen) { *_spi_mosi_dlen_reg = bitlen - 1; }
-#if defined ( SPI_MISO_DLEN_REG )
     __attribute__ ((always_inline)) inline void set_read_len( std::uint32_t bitlen) { *reg(SPI_MISO_DLEN_REG(_spi_port)) = bitlen - 1; }
+
+    void dc_control(bool flg)
+    {
+      auto reg = _gpio_reg_dc[flg];
+      auto mask = _mask_reg_dc;
+      auto spi_cmd_reg = _spi_cmd_reg;
+#if !defined ( CONFIG_IDF_TARGET ) || defined ( CONFIG_IDF_TARGET_ESP32 )
+      while (*spi_cmd_reg & SPI_USR) {}    // wait SPI
 #else
-    __attribute__ ((always_inline)) inline void set_read_len( std::uint32_t bitlen) { *reg(SPI_MS_DLEN_REG(_spi_port)) = bitlen - 1; }
+ #if defined ( SOC_GDMA_SUPPORTED )
+      auto dma = _clear_dma_reg;
+      if (dma)
+      {
+        _clear_dma_reg = nullptr;
+        while (*spi_cmd_reg & SPI_USR) {}    // wait SPI
+        *dma = 0;
+      }
+      else
+      {
+        while (*spi_cmd_reg & SPI_USR) {}    // wait SPI
+      }
+ #else
+      auto dma = _spi_dma_out_link_reg;
+      while (*spi_cmd_reg & SPI_USR) {}    // wait SPI
+      *dma = 0;
+ #endif
 #endif
+
+
+
+      *reg = mask;
+    }
+
     void _alloc_dmadesc(size_t len);
     void _spi_dma_reset(void);
     void _setup_dma_desc_links(const std::uint8_t *data, std::int32_t len);
@@ -129,6 +158,8 @@ namespace lgfx
     volatile std::uint32_t* _spi_cmd_reg = nullptr;
     volatile std::uint32_t* _spi_user_reg = nullptr;
     volatile std::uint32_t* _spi_dma_out_link_reg = nullptr;
+    volatile std::uint32_t* _spi_dma_outstatus_reg = nullptr;    
+    volatile std::uint32_t* _clear_dma_reg = nullptr;    
     std::uint32_t _last_freq_apb = 0;
     std::uint32_t _clkdiv_write = 0;
     std::uint32_t _clkdiv_read = 0;

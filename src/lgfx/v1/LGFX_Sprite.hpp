@@ -466,7 +466,7 @@ namespace lgfx
       auto bitwidth = _panel_sprite._bitwidth;
 
       std::size_t buffersize = ((w * bpp + 31) >> 5) << 2;  // readline 4Byte align.
-      std::uint8_t lineBuffer[buffersize];  // readline 4Byte align.
+      auto lineBuffer = (std::uint8_t*)alloca(buffersize);
       if (bpp <= 8) {
         do {
           if (bmpdata.biCompression == 1) {

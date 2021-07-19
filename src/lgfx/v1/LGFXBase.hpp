@@ -222,7 +222,7 @@ namespace lgfx
     {
       auto src_depth = (color_depth_t)(depth | color_depth_t::has_palette);
       auto pc = create_pc_fast(data, palette, src_depth);
-      _panel->writePixels(&pc, len);
+      _panel->writePixels(&pc, len, false);
     }
 
 #undef LGFX_INLINE

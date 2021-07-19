@@ -15,7 +15,7 @@ Contributors:
  [mongonta0716](https://github.com/mongonta0716)
  [tobozo](https://github.com/tobozo)
 /----------------------------------------------------------------------------*/
-#if defined (ESP32) || defined (CONFIG_IDF_TARGET_ESP32) || defined (CONFIG_IDF_TARGET_ESP32S2) || defined (ESP_PLATFORM)
+#if defined (ESP_PLATFORM)
 #elif defined (ESP8266)
 #elif defined (__SAMD21__) || defined (__SAMD51__)
 #elif defined (STM32F2xx) || defined (STM32F4xx) || defined (STM32F7xx)

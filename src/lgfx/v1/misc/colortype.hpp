@@ -22,9 +22,11 @@ Contributors:
 
 #if defined ( ARDUINO ) && !defined ( pgm_read_byte )
  #if __has_include(<pgmspace.h>)
-   #include <pgmspace.h>
- #elif __has_include(<avr/pgmspace.h>)
-   #include <avr/pgmspace.h>
+  #include <pgmspace.h>
+ #elif __has_include(<avr/pgmspace.h>) || defined(__AVR__)
+  #include <avr/pgmspace.h>
+ #else
+  #include <Arduino.h>
  #endif
 #endif
 #if !defined ( pgm_read_byte )

@@ -23,7 +23,14 @@ Contributors:
 
  #if defined (CONFIG_IDF_TARGET_ESP32C3)
 
-  #include "esp32c3/Bus_SPI.hpp"
+  #include "esp32/Bus_SPI.hpp"
+  #include "esp32/Bus_I2C.hpp"
+
+ #elif defined (CONFIG_IDF_TARGET_ESP32S2)
+
+  #include "esp32/Light_PWM.hpp"
+  #include "esp32/Bus_SPI.hpp"
+  #include "esp32/Bus_I2C.hpp"
 
  #else
 

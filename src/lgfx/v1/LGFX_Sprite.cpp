@@ -246,7 +246,7 @@ namespace lgfx
           }
           else
           {
-            std::uint8_t linebuf[len];
+            auto linebuf = (std::uint8_t*)alloca(len);
             memset_multi(linebuf, rawcolor, bytes, w);
             do
             {
@@ -675,7 +675,7 @@ namespace lgfx
         } while (--h);
       } else {
         std::size_t len = (_bitwidth * _write_bits) >> 3;
-        std::uint8_t buf[len];
+        auto buf = (std::uint8_t*)alloca(len);
         param.src_data = buf;
         param.src_y32 = 0;
         do {
@@ -708,7 +708,7 @@ namespace lgfx
       }
       else
       {
-        std::uint8_t buf[len];
+        auto buf = (std::uint8_t*)alloca(len);
         do
         {
           memcpy(buf, src, len);
