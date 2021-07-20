@@ -67,7 +67,7 @@ namespace lgfx
     }
     bool isPressed(void) const { return _pressed; }
     bool justPressed(void) const { return (_pressed && !_last_press); }
-    bool justReleased(void) const { return (!_pressed && !_last_press); }
+    bool justReleased(void) const { return (!_pressed && _last_press); }
 
   private:
     void _init_button( LovyanGFX *gfx, std::int16_t x, std::int16_t y, std::uint16_t w, std::uint16_t h
