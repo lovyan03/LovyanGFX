@@ -1859,7 +1859,7 @@ namespace lgfx
     }
 
     this->startWrite();
-    std::int32_t padx = _padding_x;
+    std::int32_t padx = _text_style.padding_x;
     if ((_text_style.fore_rgb888 != _text_style.back_rgb888) && (padx > cwidth)) {
       this->setColor(_text_style.back_rgb888);
       if (datum & top_center) {

@@ -465,6 +465,7 @@ namespace lgfx
     float size_x = 1;
     float size_y = 1;
     textdatum_t datum = textdatum_t::top_left;
+    std::int32_t padding_x = 0;
     bool utf8 = true;
     bool cp437 = false;
     // IFont* font = &fonts::Font0;

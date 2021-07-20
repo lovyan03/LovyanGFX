@@ -478,8 +478,8 @@ namespace lgfx
     void setTextDatum(std::uint8_t datum) { _text_style.datum = (textdatum_t)datum; }
     void setTextDatum(textdatum_t datum) { _text_style.datum = datum; }
     textdatum_t getTextDatum(void) const { return _text_style.datum; }
-    void setTextPadding(std::uint32_t padding_x) { _padding_x = padding_x; }
-    std::uint32_t getTextPadding(void) const { return _padding_x; }
+    void setTextPadding(std::uint32_t padding_x) { _text_style.padding_x = padding_x; }
+    std::uint32_t getTextPadding(void) const { return _text_style.padding_x; }
     void setTextWrap( bool wrapX, bool wrapY = false) { _textwrap_x = wrapX; _textwrap_y = wrapY; }
     void setTextScroll(bool scroll) { _textscroll = scroll; if (_cursor_x < this->_sx) { _cursor_x = this->_sx; } if (_cursor_y < this->_sy) { _cursor_y = this->_sy; } }
 
@@ -769,7 +769,6 @@ namespace lgfx
     std::int32_t _cursor_x = 0;  // print text cursor
     std::int32_t _cursor_y = 0;
     std::int32_t _filled_x = 0;  // print filled position
-    std::int32_t _padding_x = 0;
 
     TextStyle _text_style;
     FontMetrics _font_metrics = { 6, 6, 0, 8, 8, 0, 7 }; // Font0 default metric
