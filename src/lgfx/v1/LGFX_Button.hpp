@@ -28,7 +28,7 @@ namespace lgfx
 
   class LovyanGFX;
 
-  class LGFX_Button  
+  class LGFX_Button
   {
   public:
     template<typename T>
@@ -69,11 +69,15 @@ namespace lgfx
     bool justPressed(void) const { return (_pressed && !_last_press); }
     bool justReleased(void) const { return (!_pressed && _last_press); }
 
+    typedef void (*drawCb)( LovyanGFX *_gfx, int32_t x, int32_t y, int32_t w, int32_t h, bool invert, const char* long_name );
+    void setDrawCb(drawCb cb) { _drawCb=cb; };
+
   private:
     void _init_button( LovyanGFX *gfx, int16_t x, int16_t y, uint16_t w, uint16_t h
                      , const char *label, float textsize_x, float textsize_y);
 
     LovyanGFX *_gfx = nullptr;
+    drawCb _drawCb  = nullptr;
     int16_t  _x = 0; // Coordinates of top-left corner of button
     int16_t  _y = 0; // Coordinates of top-left corner of button
     int16_t  _xd = 0; // Button text datum offsets (wrt centre of button)

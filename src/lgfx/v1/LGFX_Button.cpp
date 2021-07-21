@@ -51,6 +51,10 @@ namespace lgfx
 
   void LGFX_Button::drawButton(bool inverted, const char* long_name)
   {
+    if( _drawCb ) {
+      _drawCb( _gfx, _x, _y, _w, _h, inverted, long_name ? long_name : _label );
+      return;
+    }
     auto style = _gfx->getTextStyle();
 
     _gfx->setTextSize(_textsize_x, _textsize_y);
