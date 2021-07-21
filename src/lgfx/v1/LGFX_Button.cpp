@@ -38,7 +38,7 @@ namespace lgfx
     _h   = h;
     _textsize_x = textsize_x;
     _textsize_y = textsize_y <= std::numeric_limits<float>::epsilon() ? textsize_x : textsize_y;
-    strncpy(_label, label, 12);
+    strncpy(_label, label, 11);
   }
 
   // Adjust text datum and x, y deltas
