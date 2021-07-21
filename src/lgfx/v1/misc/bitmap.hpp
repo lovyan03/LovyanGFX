@@ -29,31 +29,31 @@ namespace lgfx
   {
     union
     {
-      std::uint8_t raw[54];
+      uint8_t raw[54];
       struct {
-        std::uint16_t bfType;
-        std::uint32_t bfSize;
-        std::uint16_t bfReserved1;
-        std::uint16_t bfReserved2;
-        std::uint32_t bfOffBits;
+        uint16_t bfType;
+        uint32_t bfSize;
+        uint16_t bfReserved1;
+        uint16_t bfReserved2;
+        uint32_t bfOffBits;
 
-        std::uint32_t biSize;
-        std::int32_t  biWidth;
-        std::int32_t  biHeight;
-        std::uint16_t biPlanes;
-        std::uint16_t biBitCount;
-        std::uint32_t biCompression;
-        std::uint32_t biSizeImage;
-        std::int32_t  biXPelsPerMeter;
-        std::int32_t  biYPelsPerMeter;
-        std::uint32_t biClrUsed;
-        std::uint32_t biClrImportant;
+        uint32_t biSize;
+        int32_t  biWidth;
+        int32_t  biHeight;
+        uint16_t biPlanes;
+        uint16_t biBitCount;
+        uint32_t biCompression;
+        uint32_t biSizeImage;
+        int32_t  biXPelsPerMeter;
+        int32_t  biYPelsPerMeter;
+        uint32_t biClrUsed;
+        uint32_t biClrImportant;
       } __attribute__((packed));
     };
 
     bool load_bmp_header(DataWrapper* data)
     {
-      data->read((std::uint8_t*)this, sizeof(bitmap_header_t));
+      data->read((uint8_t*)this, sizeof(bitmap_header_t));
       return ( (bfType == 0x4D42)   // bmp header "BM"
             && (biPlanes == 1)  // bcPlanes always 1
             && (biWidth > 0)
@@ -62,10 +62,10 @@ namespace lgfx
             && (biBitCount != 0));
     }
 
-    static bool load_bmp_rle8(DataWrapper* data, std::uint8_t* linebuf, uint_fast16_t width)
+    static bool load_bmp_rle8(DataWrapper* data, uint8_t* linebuf, uint_fast16_t width)
     {
       width = (width + 3) & ~3;
-      std::uint8_t code[2];
+      uint8_t code[2];
       uint_fast16_t xidx = 0;
       bool eol = false;
       do {
@@ -95,10 +95,10 @@ namespace lgfx
       return true;
     }
 
-    static bool load_bmp_rle4(DataWrapper* data, std::uint8_t* linebuf, uint_fast16_t width)
+    static bool load_bmp_rle4(DataWrapper* data, uint8_t* linebuf, uint_fast16_t width)
     {
       width = (width + 3) & ~3;
-      std::uint8_t code[2];
+      uint8_t code[2];
       uint_fast16_t xidx = 0;
       bool eol = false;
       do {

@@ -35,17 +35,17 @@ namespace lgfx
 
   protected:
 
-    static constexpr std::uint8_t CMD_DFUNCTR = 0xB6;
-    static constexpr std::uint8_t CMD_PWCTR1  = 0xC0;
-    static constexpr std::uint8_t CMD_PWCTR2  = 0xC1;
-    static constexpr std::uint8_t CMD_VMCTR1  = 0xC5;
-    static constexpr std::uint8_t CMD_SETEXTC = 0xC8;
-    static constexpr std::uint8_t CMD_GMCTRP1 = 0xE0; // Positive Gamma Correction (E0h)
-    static constexpr std::uint8_t CMD_GMCTRN1 = 0xE1; // Negative Gamma Correction (E1h)
+    static constexpr uint8_t CMD_DFUNCTR = 0xB6;
+    static constexpr uint8_t CMD_PWCTR1  = 0xC0;
+    static constexpr uint8_t CMD_PWCTR2  = 0xC1;
+    static constexpr uint8_t CMD_VMCTR1  = 0xC5;
+    static constexpr uint8_t CMD_SETEXTC = 0xC8;
+    static constexpr uint8_t CMD_GMCTRP1 = 0xE0; // Positive Gamma Correction (E0h)
+    static constexpr uint8_t CMD_GMCTRN1 = 0xE1; // Negative Gamma Correction (E1h)
 
-    const std::uint8_t* getInitCommands(std::uint8_t listno) const override
+    const uint8_t* getInitCommands(uint8_t listno) const override
     {
-      static constexpr std::uint8_t list0[] =
+      static constexpr uint8_t list0[] =
       {
           CMD_SETEXTC, 3, 0xFF,0x93,0x42,   // Turn on the external command
           CMD_PWCTR1 , 2, 0x12, 0x12,

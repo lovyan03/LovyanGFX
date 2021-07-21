@@ -29,7 +29,7 @@ namespace lgfx
       rotation = 1;
     }
 
-    std::uint8_t maxBrightness = 255;
+    uint8_t maxBrightness = 255;
 
     void init(bool use_reset) override
     {
@@ -77,7 +77,7 @@ namespace lgfx
       Panel_ILI9341::init(use_reset);
     }
 
-    void setBrightness(std::uint8_t brightness) override
+    void setBrightness(uint8_t brightness) override
     {
       this->brightness = brightness < this->maxBrightness ? brightness : this->maxBrightness;
       TC0->COUNT8.CC[0].reg = this->brightness;

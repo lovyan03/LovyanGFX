@@ -38,17 +38,17 @@ namespace lgfx
   {
     struct config_t
     {
-      std::uint8_t pin = 0;
-      std::uint8_t tc_index = 0;
-      std::uint8_t cc_index = 0;
+      uint8_t pin = 0;
+      uint8_t tc_index = 0;
+      uint8_t cc_index = 0;
     };
 
     config_t config(void) const { return _cfg; }
     void config(const config_t& config) { _cfg = config; }
 
-    bool init(std::uint8_t brightness) override
+    bool init(uint8_t brightness) override
     {
-      std::uint8_t pchctrl_index = 26;
+      uint8_t pchctrl_index = 26;
       switch (_cfg.tc_index)
       {
       case 0: MCLK->APBAMASK.bit.TC0_ = 1; _tc = TC0; pchctrl_index =  9; break;
@@ -91,7 +91,7 @@ namespace lgfx
       return true;
     }
 
-    void setBrightness(std::uint8_t brightness) override
+    void setBrightness(uint8_t brightness) override
     {
       if (_tc) _tc->COUNT8.CC[_cfg.cc_index].reg = brightness;
     }
@@ -110,14 +110,14 @@ namespace lgfx
 //  lgfx::ITouch* _touch_last = nullptr;
     lgfx::Bus_SPI _bus_spi;
 
-    static void _pin_level(std::int_fast16_t pin, bool level)
+    static void _pin_level(int_fast16_t pin, bool level)
     {
       lgfx::pinMode(pin, lgfx::pin_mode_t::output);
       if (level) lgfx::gpio_hi(pin);
       else       lgfx::gpio_lo(pin);
     }
 
-    static void _pin_reset(std::int_fast16_t pin, bool use_reset)
+    static void _pin_reset(int_fast16_t pin, bool use_reset)
     {
       _pin_level(pin, true);
       if (!use_reset) return;
@@ -135,14 +135,14 @@ namespace lgfx
       } while (lgfx::millis() - time < 10);
     }
 
-    static std::uint32_t _read_panel_id(lgfx::Bus_SPI* bus, std::int_fast16_t pin_cs, std::uint32_t cmd = 0x04, std::uint8_t dummy_read_bit = 1) // 0x04 = RDDID command
+    static uint32_t _read_panel_id(lgfx::Bus_SPI* bus, int_fast16_t pin_cs, uint32_t cmd = 0x04, uint8_t dummy_read_bit = 1) // 0x04 = RDDID command
     {
       bus->beginTransaction();
       _pin_level(pin_cs, false);
       bus->writeCommand(cmd, 8);
 //      if (dummy_read_bit) bus->writeData(0, dummy_read_bit);  // dummy read bit
       bus->beginRead();
-      std::uint32_t res = bus->readData(32);
+      uint32_t res = bus->readData(32);
       bus->endTransaction();
       _pin_level(pin_cs, true);
 
@@ -209,7 +209,7 @@ namespace lgfx
       bus_cfg.freq_read  = 8000000;
       bus_cfg.spi_mode = 0;
 
-      std::uint32_t id;
+      uint32_t id;
       (void)id;  // suppress warning
 
 #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_SEEED_XIAO_EXPANSION )

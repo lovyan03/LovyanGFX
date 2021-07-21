@@ -9,12 +9,12 @@ namespace lgfx
  {
 //----------------------------------------------------------------------------
 
-  static constexpr std::uint8_t FT5x06_VENDID_REG = 0xA8;
-  static constexpr std::uint8_t FT5x06_POWER_REG  = 0x87;
-  static constexpr std::uint8_t FT5x06_INTMODE_REG= 0xA4;
+  static constexpr uint8_t FT5x06_VENDID_REG = 0xA8;
+  static constexpr uint8_t FT5x06_POWER_REG  = 0x87;
+  static constexpr uint8_t FT5x06_INTMODE_REG= 0xA4;
 
-  static constexpr std::uint8_t FT5x06_MONITOR  = 0x01;
-  static constexpr std::uint8_t FT5x06_SLEEP_IN = 0x03;
+  static constexpr uint8_t FT5x06_MONITOR  = 0x01;
+  static constexpr uint8_t FT5x06_SLEEP_IN = 0x03;
 
   bool Touch_FT5x06::init(void)
   {
@@ -25,7 +25,7 @@ namespace lgfx
 
     lgfx::i2c::writeRegister8(i2c_port, i2c_addr, 0x00, 0x00); // OperatingMode
 
-    std::uint8_t tmp[2];
+    uint8_t tmp[2];
     if (!lgfx::i2c::readRegister(i2c_port, i2c_addr, FT5x06_VENDID_REG, tmp, 1)) {
       return false;
     }
@@ -51,22 +51,22 @@ namespace lgfx
     lgfx::i2c::writeRegister8(i2c_port, i2c_addr, FT5x06_POWER_REG, FT5x06_SLEEP_IN);
   }
 
-  std::uint_fast8_t Touch_FT5x06::getTouch(touch_point_t* tp, std::int_fast8_t number)
+  uint_fast8_t Touch_FT5x06::getTouch(touch_point_t* tp, int_fast8_t number)
   {
     if (!_inited || number > 4) return 0;
     if (gpio_int >= 0 && gpio_in(gpio_int)) return 0;
 
-    std::size_t base = number * 6;
-    std::size_t len = base + 5;
+    size_t base = number * 6;
+    size_t len = base + 5;
 
-    std::uint8_t tmp[2][len];
+    uint8_t tmp[2][len];
     lgfx::i2c::readRegister(i2c_port, i2c_addr, 2, tmp[0], len);
-    std::int32_t retry = 5;
+    int32_t retry = 5;
     do {
       lgfx::i2c::readRegister(i2c_port, i2c_addr, 2, tmp[retry & 1], len);
     } while (memcmp(tmp[0], tmp[1], len) && --retry);
 
-    if ((std::uint8_t)number >= tmp[0][0]) return 0;
+    if ((uint8_t)number >= tmp[0][0]) return 0;
 
     if (tp)
     {

@@ -17,6 +17,7 @@ Contributors:
 /----------------------------------------------------------------------------*/
 #include "Panel_SSD1963.hpp"
 
+#include "../../internal/memory.h"
 #include "../Bus.hpp"
 
 namespace lgfx
@@ -42,13 +43,13 @@ namespace lgfx
     return true;
   }
 
-  void Panel_SSD1963::setHSync(std::uint_fast16_t front, std::uint_fast16_t sync, std::uint_fast16_t back, std::uint_fast16_t move, std::uint_fast16_t lpspp)
+  void Panel_SSD1963::setHSync(uint_fast16_t front, uint_fast16_t sync, uint_fast16_t back, uint_fast16_t move, uint_fast16_t lpspp)
   {
     startWrite();
-    std::uint_fast16_t ht = _cfg.panel_width + front + sync + back;
-    std::uint_fast16_t hpw = sync;
-    std::uint_fast16_t hps = move + sync + back;
-    std::uint_fast16_t lps = move;
+    uint_fast16_t ht = _cfg.panel_width + front + sync + back;
+    uint_fast16_t hpw = sync;
+    uint_fast16_t hps = move + sync + back;
+    uint_fast16_t lps = move;
 
     writeCommand(0xB4, 1);
     writeData(__builtin_bswap16( ht-1), 2);
@@ -61,13 +62,13 @@ namespace lgfx
     endWrite();
   }
 
-  void Panel_SSD1963::setVSync(std::uint_fast16_t front, std::uint_fast16_t sync, std::uint_fast16_t back, std::uint_fast16_t move)
+  void Panel_SSD1963::setVSync(uint_fast16_t front, uint_fast16_t sync, uint_fast16_t back, uint_fast16_t move)
   {
     startWrite();
-    std::uint_fast16_t vt = _cfg.panel_height + front + sync + back;
-    std::uint_fast16_t vpw = sync;
-    std::uint_fast16_t vps = move + sync + back;
-    std::uint_fast16_t fps = move;
+    uint_fast16_t vt = _cfg.panel_height + front + sync + back;
+    uint_fast16_t vpw = sync;
+    uint_fast16_t vps = move + sync + back;
+    uint_fast16_t fps = move;
 
     writeCommand(0xB6, 1);
     writeData(__builtin_bswap16( vt-1), 2);
@@ -79,12 +80,12 @@ namespace lgfx
     endWrite();
   }
 
-  void Panel_SSD1963::setWindow(std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye)
+  void Panel_SSD1963::setWindow(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye)
   {
     set_window(xs, ys, xe, ye, CMD_RAMWR);
   }
 
-  void Panel_SSD1963::drawPixelPreclipped(std::uint_fast16_t x, std::uint_fast16_t y, std::uint32_t rawcolor)
+  void Panel_SSD1963::drawPixelPreclipped(uint_fast16_t x, uint_fast16_t y, uint32_t rawcolor)
   {
     bool tr = _in_transaction;
     if (!tr) begin_transaction();
@@ -95,16 +96,16 @@ namespace lgfx
     if (!tr) end_transaction();
   }
 
-  void Panel_SSD1963::writeFillRectPreclipped(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, std::uint32_t rawcolor)
+  void Panel_SSD1963::writeFillRectPreclipped(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, uint32_t rawcolor)
   {
-    std::uint32_t len = w * h;
-    std::uint_fast16_t xe = w + x - 1;
-    std::uint_fast16_t ye = y + h - 1;
+    uint32_t len = w * h;
+    uint_fast16_t xe = w + x - 1;
+    uint_fast16_t ye = y + h - 1;
     set_window(x, y, xe, ye, CMD_RAMWR);
     _bus->writeDataRepeat(rawcolor, _write_bits, len);
   }
 
-  void Panel_SSD1963::setRotation(std::uint_fast8_t r)
+  void Panel_SSD1963::setRotation(uint_fast8_t r)
   {
     r &= 7;
     _rotation = r;
@@ -122,9 +123,9 @@ namespace lgfx
     update_madctl();
   }
 
-  void Panel_SSD1963::set_window(std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye, std::uint32_t cmd)
+  void Panel_SSD1963::set_window(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye, uint32_t cmd)
   {
-    std::uint_fast8_t rb = 1u << _internal_rotation;
+    uint_fast8_t rb = 1u << _internal_rotation;
     if (_internal_rotation & 1)
     {
       std::swap(xs, ys);

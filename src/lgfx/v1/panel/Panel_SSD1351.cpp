@@ -50,7 +50,7 @@ namespace lgfx
 
   void Panel_SSD1351::update_madctl(void)
   {
-    static constexpr std::uint8_t madctl_table[] = {
+    static constexpr uint8_t madctl_table[] = {
       0b00100000,
       0b00100011,
       0b00110010,
@@ -72,12 +72,12 @@ namespace lgfx
     endWrite();
   }
 
-  void Panel_SSD1351::setWindow(std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye)
+  void Panel_SSD1351::setWindow(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye)
   {
     set_window_8(xs, ys, xe, ye, CMD_RAMWR);
   }
 
-  void Panel_SSD1351::drawPixelPreclipped(std::uint_fast16_t x, std::uint_fast16_t y, std::uint32_t rawcolor)
+  void Panel_SSD1351::drawPixelPreclipped(uint_fast16_t x, uint_fast16_t y, uint32_t rawcolor)
   {
     bool tr = _in_transaction;
     if (!tr) begin_transaction();
@@ -88,16 +88,16 @@ namespace lgfx
     if (!tr) end_transaction();
   }
 
-  void Panel_SSD1351::writeFillRectPreclipped(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, std::uint32_t rawcolor)
+  void Panel_SSD1351::writeFillRectPreclipped(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, uint32_t rawcolor)
   {
-    std::uint32_t len = w * h;
-    std::uint_fast16_t xe = w + x - 1;
-    std::uint_fast16_t ye = y + h - 1;
+    uint32_t len = w * h;
+    uint_fast16_t xe = w + x - 1;
+    uint_fast16_t ye = y + h - 1;
     set_window_8(x, y, xe, ye, CMD_RAMWR);
     _bus->writeDataRepeat(rawcolor, _write_bits, len);
   }
 
-  void Panel_SSD1351::set_window_8(std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye, std::uint32_t cmd)
+  void Panel_SSD1351::set_window_8(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye, uint32_t cmd)
   {
     if (xs != _xs || xe != _xe)
     {

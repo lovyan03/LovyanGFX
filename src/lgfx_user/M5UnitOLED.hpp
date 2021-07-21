@@ -8,13 +8,13 @@
 #include <LovyanGFX.hpp>
 
 #if defined ( ARDUINO ) && defined ( SDA ) && defined ( SCL )
- static constexpr std::uint8_t M5_UNIT_OLED_SDA = SDA;
- static constexpr std::uint8_t M5_UNIT_OLED_SCL = SCL;
+ static constexpr uint8_t M5_UNIT_OLED_SDA = SDA;
+ static constexpr uint8_t M5_UNIT_OLED_SCL = SCL;
 #else
- static constexpr std::uint8_t M5_UNIT_OLED_SDA = 21;
- static constexpr std::uint8_t M5_UNIT_OLED_SCL = 22;
+ static constexpr uint8_t M5_UNIT_OLED_SDA = 21;
+ static constexpr uint8_t M5_UNIT_OLED_SCL = 22;
 #endif
-static constexpr std::uint8_t M5_UNIT_OLED_ADDR = 0x3C;
+static constexpr uint8_t M5_UNIT_OLED_ADDR = 0x3C;
 
 class M5UnitOLED : public lgfx::LGFX_Device
 {
@@ -23,19 +23,19 @@ class M5UnitOLED : public lgfx::LGFX_Device
 
 public:
 
-  M5UnitOLED(std::uint8_t pin_sda = M5_UNIT_OLED_SDA, std::uint8_t pin_scl = M5_UNIT_OLED_SCL, std::uint32_t i2c_freq = 400000, std::int8_t i2c_port = -1, std::uint8_t i2c_addr = M5_UNIT_OLED_ADDR)
+  M5UnitOLED(uint8_t pin_sda = M5_UNIT_OLED_SDA, uint8_t pin_scl = M5_UNIT_OLED_SCL, uint32_t i2c_freq = 400000, int8_t i2c_port = -1, uint8_t i2c_addr = M5_UNIT_OLED_ADDR)
   {
     setup(pin_sda, pin_scl, i2c_freq, i2c_port, i2c_addr);
   }
 
   using lgfx::LGFX_Device::init;
-  bool init(std::uint8_t pin_sda, std::uint8_t pin_scl, std::uint32_t i2c_freq = 400000, std::int8_t i2c_port = -1, std::uint8_t i2c_addr = M5_UNIT_OLED_ADDR)
+  bool init(uint8_t pin_sda, uint8_t pin_scl, uint32_t i2c_freq = 400000, int8_t i2c_port = -1, uint8_t i2c_addr = M5_UNIT_OLED_ADDR)
   {
     setup(pin_sda, pin_scl, i2c_freq, i2c_port, i2c_addr);
     return init();
   }
 
-  void setup(std::uint8_t pin_sda = M5_UNIT_OLED_SDA, std::uint8_t pin_scl = M5_UNIT_OLED_SCL, std::uint32_t i2c_freq = 400000, std::int8_t i2c_port = -1, std::uint8_t i2c_addr = M5_UNIT_OLED_ADDR)
+  void setup(uint8_t pin_sda = M5_UNIT_OLED_SDA, uint8_t pin_scl = M5_UNIT_OLED_SCL, uint32_t i2c_freq = 400000, int8_t i2c_port = -1, uint8_t i2c_addr = M5_UNIT_OLED_ADDR)
   { 
     if (i2c_port < 0)
     {

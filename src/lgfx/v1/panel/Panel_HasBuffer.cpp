@@ -45,7 +45,7 @@ namespace lgfx
 
     auto len = _get_buffer_length();
     if (_buf) heap_free(_buf);
-    _buf = static_cast<std::uint8_t*>(heap_alloc_dma(len));
+    _buf = static_cast<uint8_t*>(heap_alloc_dma(len));
 
     return ((_buf != nullptr) && (Panel_Device::init(use_reset)));
   }
@@ -62,7 +62,7 @@ namespace lgfx
     cs_control(true);
   }
 
-  void Panel_HasBuffer::setRotation(std::uint_fast8_t r)
+  void Panel_HasBuffer::setRotation(uint_fast8_t r)
   {
     r &= 7;
     _rotation = r;
@@ -73,7 +73,7 @@ namespace lgfx
     if (_internal_rotation & 1) std::swap(_width, _height);
   }
 
-  void Panel_HasBuffer::setWindow(std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye)
+  void Panel_HasBuffer::setWindow(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye)
   {
     _xpos = xs;
     _ypos = ys;
@@ -83,7 +83,7 @@ namespace lgfx
     _ye = ye;
   }
 
-  void Panel_HasBuffer::drawPixelPreclipped(std::uint_fast16_t x, std::uint_fast16_t y, std::uint32_t rawcolor)
+  void Panel_HasBuffer::drawPixelPreclipped(uint_fast16_t x, uint_fast16_t y, uint32_t rawcolor)
   {
 /*
     bool need_transaction = !getStartCount();
@@ -96,17 +96,17 @@ namespace lgfx
     endWrite();
   }
 
-  void Panel_HasBuffer::writeBlock(std::uint32_t rawcolor, std::uint32_t length)
+  void Panel_HasBuffer::writeBlock(uint32_t rawcolor, uint32_t length)
   {
-    std::uint32_t xs = _xs;
-    std::uint32_t xe = _xe;
-    std::uint32_t ys = _ys;
-    std::uint32_t ye = _ye;
-    std::uint32_t xpos = _xpos;
-    std::uint32_t ypos = _ypos;
+    uint32_t xs = _xs;
+    uint32_t xe = _xe;
+    uint32_t ys = _ys;
+    uint32_t ye = _ye;
+    uint32_t xpos = _xpos;
+    uint32_t ypos = _ypos;
     do
     {
-      auto len = std::min<std::uint32_t>(length, xe + 1 - xpos);
+      auto len = std::min<uint32_t>(length, xe + 1 - xpos);
       writeFillRectPreclipped(xpos, ypos, len, 1, rawcolor);
       xpos += len;
       if (xpos > xe)
@@ -127,25 +127,25 @@ namespace lgfx
     _ypos = ypos;
   }
 
-  void Panel_HasBuffer::_rotate_pos(std::uint_fast16_t &x, std::uint_fast16_t &y)
+  void Panel_HasBuffer::_rotate_pos(uint_fast16_t &x, uint_fast16_t &y)
   {
-    std::uint_fast8_t r = _internal_rotation;
+    uint_fast8_t r = _internal_rotation;
     if (r)
     {
       if (r & 1) { std::swap(x, y); }
-      std::uint_fast8_t rb = 1 << r;
+      uint_fast8_t rb = 1 << r;
       if (rb & 0b11000110) { x = _cfg.panel_width  - 1 - x; } // case 1:2:6:7:
       if (rb & 0b10011100) { y = _cfg.panel_height - 1 - y; } // case 2:3:4:7:
     }
   }
 
-  void Panel_HasBuffer::_rotate_pos(std::uint_fast16_t &xs, std::uint_fast16_t &ys, std::uint_fast16_t &xe, std::uint_fast16_t &ye)
+  void Panel_HasBuffer::_rotate_pos(uint_fast16_t &xs, uint_fast16_t &ys, uint_fast16_t &xe, uint_fast16_t &ye)
   {
-    std::uint_fast8_t r = _internal_rotation;
+    uint_fast8_t r = _internal_rotation;
     if (r)
     {
       if (r & 1) { std::swap(xs, ys); std::swap(xe, ye); }
-      std::uint_fast8_t rb = 1 << r;
+      uint_fast8_t rb = 1 << r;
       if (rb & 0b11000110) // case 1:2:6:7:
       {
         std::swap(xs, xe);

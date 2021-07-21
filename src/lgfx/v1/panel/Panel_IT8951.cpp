@@ -26,74 +26,74 @@ namespace lgfx
  {
 //----------------------------------------------------------------------------
 
-  static constexpr std::int8_t Bayer[16] = {-30, 2, -22, 10, 18, -14, 26, -6, -18, 14, -26, 6, 30, -2, 22, -10};
+  static constexpr int8_t Bayer[16] = {-30, 2, -22, 10, 18, -14, 26, -6, -18, 14, -26, 6, 30, -2, 22, -10};
 
-  static constexpr std::uint32_t _tar_memaddr = 0x001236E0;
+  static constexpr uint32_t _tar_memaddr = 0x001236E0;
 
 //Built in I80 Command Code
-  static constexpr std::uint32_t IT8951_TCON_SYS_RUN         = 0x0001;
-  static constexpr std::uint32_t IT8951_TCON_STANDBY         = 0x0002;
-  static constexpr std::uint32_t IT8951_TCON_SLEEP           = 0x0003;
-  static constexpr std::uint32_t IT8951_TCON_REG_RD          = 0x0010;
-  static constexpr std::uint32_t IT8951_TCON_REG_WR          = 0x0011;
-  static constexpr std::uint32_t IT8951_TCON_MEM_BST_RD_T    = 0x0012;
-  static constexpr std::uint32_t IT8951_TCON_MEM_BST_RD_S    = 0x0013;
-  static constexpr std::uint32_t IT8951_TCON_MEM_BST_WR      = 0x0014;
-  static constexpr std::uint32_t IT8951_TCON_MEM_BST_END     = 0x0015;
-  static constexpr std::uint32_t IT8951_TCON_LD_IMG          = 0x0020;
-  static constexpr std::uint32_t IT8951_TCON_LD_IMG_AREA     = 0x0021;
-  static constexpr std::uint32_t IT8951_TCON_LD_IMG_END      = 0x0022;
+  static constexpr uint32_t IT8951_TCON_SYS_RUN         = 0x0001;
+  static constexpr uint32_t IT8951_TCON_STANDBY         = 0x0002;
+  static constexpr uint32_t IT8951_TCON_SLEEP           = 0x0003;
+  static constexpr uint32_t IT8951_TCON_REG_RD          = 0x0010;
+  static constexpr uint32_t IT8951_TCON_REG_WR          = 0x0011;
+  static constexpr uint32_t IT8951_TCON_MEM_BST_RD_T    = 0x0012;
+  static constexpr uint32_t IT8951_TCON_MEM_BST_RD_S    = 0x0013;
+  static constexpr uint32_t IT8951_TCON_MEM_BST_WR      = 0x0014;
+  static constexpr uint32_t IT8951_TCON_MEM_BST_END     = 0x0015;
+  static constexpr uint32_t IT8951_TCON_LD_IMG          = 0x0020;
+  static constexpr uint32_t IT8951_TCON_LD_IMG_AREA     = 0x0021;
+  static constexpr uint32_t IT8951_TCON_LD_IMG_END      = 0x0022;
 
 //I80 User defined command code
-  static constexpr std::uint32_t IT8951_I80_CMD_DPY_AREA     = 0x0034;
-  static constexpr std::uint32_t IT8951_I80_CMD_GET_DEV_INFO = 0x0302;
-  static constexpr std::uint32_t IT8951_I80_CMD_DPY_BUF_AREA = 0x0037;
-  static constexpr std::uint32_t IT8951_I80_CMD_VCOM         = 0x0039;
-  static constexpr std::uint32_t IT8951_I80_CMD_FILLRECT     = 0x003A;
+  static constexpr uint32_t IT8951_I80_CMD_DPY_AREA     = 0x0034;
+  static constexpr uint32_t IT8951_I80_CMD_GET_DEV_INFO = 0x0302;
+  static constexpr uint32_t IT8951_I80_CMD_DPY_BUF_AREA = 0x0037;
+  static constexpr uint32_t IT8951_I80_CMD_VCOM         = 0x0039;
+  static constexpr uint32_t IT8951_I80_CMD_FILLRECT     = 0x003A;
 
-  static constexpr std::uint32_t IT8951_ROTATE_0    = 0;
-  static constexpr std::uint32_t IT8951_ROTATE_90   = 1;
-  static constexpr std::uint32_t IT8951_ROTATE_180  = 2;
-  static constexpr std::uint32_t IT8951_ROTATE_270  = 3;
+  static constexpr uint32_t IT8951_ROTATE_0    = 0;
+  static constexpr uint32_t IT8951_ROTATE_90   = 1;
+  static constexpr uint32_t IT8951_ROTATE_180  = 2;
+  static constexpr uint32_t IT8951_ROTATE_270  = 3;
 
-  static constexpr std::uint32_t IT8951_2BPP           = 0;
-  static constexpr std::uint32_t IT8951_3BPP           = 1;
-  static constexpr std::uint32_t IT8951_4BPP           = 2;
-  static constexpr std::uint32_t IT8951_8BPP           = 3;
-  static constexpr std::uint32_t IT8951_LDIMG_B_ENDIAN = 1;
+  static constexpr uint32_t IT8951_2BPP           = 0;
+  static constexpr uint32_t IT8951_3BPP           = 1;
+  static constexpr uint32_t IT8951_4BPP           = 2;
+  static constexpr uint32_t IT8951_8BPP           = 3;
+  static constexpr uint32_t IT8951_LDIMG_B_ENDIAN = 1;
 
 /*-----------------------------------------------------------------------
 IT8951 Registers defines
 ------------------------------------------------------------------------*/
 //Register Base Address
-  static constexpr std::uint32_t IT8951_DISPLAY_REG_BASE    = 0x1000; //Register RW access
+  static constexpr uint32_t IT8951_DISPLAY_REG_BASE    = 0x1000; //Register RW access
 
 //Base Address of Basic LUT Registers
-  static constexpr std::uint32_t IT8951_LUT0EWHR   = (IT8951_DISPLAY_REG_BASE + 0x0000); //LUT0 Engine Width Height Reg
-  static constexpr std::uint32_t IT8951_LUT0XYR    = (IT8951_DISPLAY_REG_BASE + 0x0040); //LUT0 XY Reg
-  static constexpr std::uint32_t IT8951_LUT0BADDR  = (IT8951_DISPLAY_REG_BASE + 0x0080); //LUT0 Base Address Reg
-  static constexpr std::uint32_t IT8951_LUT0MFN    = (IT8951_DISPLAY_REG_BASE + 0x00C0); //LUT0 Mode and Frame number Reg
-  static constexpr std::uint32_t IT8951_LUT01AF    = (IT8951_DISPLAY_REG_BASE + 0x0114); //LUT0 and LUT1 Active Flag Reg
+  static constexpr uint32_t IT8951_LUT0EWHR   = (IT8951_DISPLAY_REG_BASE + 0x0000); //LUT0 Engine Width Height Reg
+  static constexpr uint32_t IT8951_LUT0XYR    = (IT8951_DISPLAY_REG_BASE + 0x0040); //LUT0 XY Reg
+  static constexpr uint32_t IT8951_LUT0BADDR  = (IT8951_DISPLAY_REG_BASE + 0x0080); //LUT0 Base Address Reg
+  static constexpr uint32_t IT8951_LUT0MFN    = (IT8951_DISPLAY_REG_BASE + 0x00C0); //LUT0 Mode and Frame number Reg
+  static constexpr uint32_t IT8951_LUT01AF    = (IT8951_DISPLAY_REG_BASE + 0x0114); //LUT0 and LUT1 Active Flag Reg
 
 //Update Parameter Setting Register
-  static constexpr std::uint32_t IT8951_UP0SR      = (IT8951_DISPLAY_REG_BASE + 0x134); //Update Parameter0 Setting Reg
-  static constexpr std::uint32_t IT8951_UP1SR      = (IT8951_DISPLAY_REG_BASE + 0x138); //Update Parameter1 Setting Reg
-  static constexpr std::uint32_t IT8951_LUT0ABFRV  = (IT8951_DISPLAY_REG_BASE + 0x13C); //LUT0 Alpha blend and Fill rectangle Value
-  static constexpr std::uint32_t IT8951_UPBBADDR   = (IT8951_DISPLAY_REG_BASE + 0x17C); //Update Buffer Base Address
-  static constexpr std::uint32_t IT8951_LUT0IMXY   = (IT8951_DISPLAY_REG_BASE + 0x180); //LUT0 Image buffer X/Y offset Reg
-  static constexpr std::uint32_t IT8951_LUTAFSR    = (IT8951_DISPLAY_REG_BASE + 0x224); //LUT Status Reg (status of All LUT Engines)
-  static constexpr std::uint32_t IT8951_BGVR       = (IT8951_DISPLAY_REG_BASE + 0x250); //Bitmap (1bpp) image color table
+  static constexpr uint32_t IT8951_UP0SR      = (IT8951_DISPLAY_REG_BASE + 0x134); //Update Parameter0 Setting Reg
+  static constexpr uint32_t IT8951_UP1SR      = (IT8951_DISPLAY_REG_BASE + 0x138); //Update Parameter1 Setting Reg
+  static constexpr uint32_t IT8951_LUT0ABFRV  = (IT8951_DISPLAY_REG_BASE + 0x13C); //LUT0 Alpha blend and Fill rectangle Value
+  static constexpr uint32_t IT8951_UPBBADDR   = (IT8951_DISPLAY_REG_BASE + 0x17C); //Update Buffer Base Address
+  static constexpr uint32_t IT8951_LUT0IMXY   = (IT8951_DISPLAY_REG_BASE + 0x180); //LUT0 Image buffer X/Y offset Reg
+  static constexpr uint32_t IT8951_LUTAFSR    = (IT8951_DISPLAY_REG_BASE + 0x224); //LUT Status Reg (status of All LUT Engines)
+  static constexpr uint32_t IT8951_BGVR       = (IT8951_DISPLAY_REG_BASE + 0x250); //Bitmap (1bpp) image color table
 
 //System Registers
-  static constexpr std::uint32_t IT8951_SYS_REG_BASE        = 0x0000;
+  static constexpr uint32_t IT8951_SYS_REG_BASE        = 0x0000;
 
 //Address of System Registers
-  static constexpr std::uint32_t IT8951_I80CPCR             = (IT8951_SYS_REG_BASE + 0x04);
+  static constexpr uint32_t IT8951_I80CPCR             = (IT8951_SYS_REG_BASE + 0x04);
 
 //Memory Converter Registers
-  static constexpr std::uint32_t IT8951_MCSR_BASE_ADDR      = 0x0200;
-  static constexpr std::uint32_t IT8951_MCSR                = (IT8951_MCSR_BASE_ADDR + 0x0000);
-  static constexpr std::uint32_t IT8951_LISAR               = (IT8951_MCSR_BASE_ADDR + 0x0008);
+  static constexpr uint32_t IT8951_MCSR_BASE_ADDR      = 0x0200;
+  static constexpr uint32_t IT8951_MCSR                = (IT8951_MCSR_BASE_ADDR + 0x0000);
+  static constexpr uint32_t IT8951_LISAR               = (IT8951_MCSR_BASE_ADDR + 0x0008);
 
 
   Panel_IT8951::Panel_IT8951(void)
@@ -166,7 +166,7 @@ IT8951 Registers defines
     cs_control(true);
   }
 
-  bool Panel_IT8951::_wait_busy(std::uint32_t timeout)
+  bool Panel_IT8951::_wait_busy(uint32_t timeout)
   {
     _bus->wait();
     cs_control(true);
@@ -194,7 +194,7 @@ IT8951 Registers defines
 
   bool Panel_IT8951::displayBusy(void)
   {
-    std::uint16_t infobuf[1] = { 1 };
+    uint16_t infobuf[1] = { 1 };
     if (_write_command(IT8951_TCON_REG_RD)
       && _write_word(IT8951_LUTAFSR)
       && _read_words(infobuf, 1))
@@ -207,8 +207,8 @@ IT8951 Registers defines
 
   bool Panel_IT8951::_check_afsr(void)
   {
-    std::uint32_t start_time = millis();
-    std::uint16_t infobuf[1] = { 1 };
+    uint32_t start_time = millis();
+    uint16_t infobuf[1] = { 1 };
     do
     {
       if (_write_command(IT8951_TCON_REG_RD)
@@ -226,32 +226,32 @@ IT8951 Registers defines
     return infobuf[0] != 0;
   }
 
-  bool Panel_IT8951::_write_command(std::uint16_t cmd)
+  bool Panel_IT8951::_write_command(uint16_t cmd)
   {
-    std::uint32_t buf = __builtin_bswap16(0x6000) | __builtin_bswap16(cmd) << 16;
+    uint32_t buf = __builtin_bswap16(0x6000) | __builtin_bswap16(cmd) << 16;
     if (!_wait_busy()) return false;
     _bus->writeData(buf, 32);
     return true;
   }
 
-  bool Panel_IT8951::_write_word(std::uint16_t data)
+  bool Panel_IT8951::_write_word(uint16_t data)
   {
-    std::uint32_t buf = __builtin_bswap16(data) << 16;
+    uint32_t buf = __builtin_bswap16(data) << 16;
     if (!_wait_busy()) return false;
     _bus->writeData(buf, 32);
     return true;
   }
 
-  bool Panel_IT8951::_write_args(std::uint16_t cmd, std::uint16_t *args, std::int32_t length)
+  bool Panel_IT8951::_write_args(uint16_t cmd, uint16_t *args, int32_t length)
   {
     if (_write_command(cmd)
      && _wait_busy())
     {
       _bus->writeData(0, 16);
-      std::int32_t i = 0;
+      int32_t i = 0;
       do
       {
-        std::uint32_t buf = __builtin_bswap16(args[i]);
+        uint32_t buf = __builtin_bswap16(args[i]);
         _bus->wait();
         while (!lgfx::gpio_in(_cfg.pin_busy));
         _bus->writeData(buf, 16);
@@ -261,12 +261,12 @@ IT8951 Registers defines
     return false;
   }
 
-  bool Panel_IT8951::_read_words(std::uint16_t *buf, std::uint32_t length)
+  bool Panel_IT8951::_read_words(uint16_t *buf, uint32_t length)
   {
     if (!_wait_busy()) return false;
     _bus->writeData(__builtin_bswap16(0x1000), 16 + 16); // +16 dummy read
     _bus->beginRead();
-    _bus->readBytes(reinterpret_cast<std::uint8_t*>(buf), length << 1);
+    _bus->readBytes(reinterpret_cast<uint8_t*>(buf), length << 1);
     _bus->endRead();
     cs_control(true);
     for (size_t i = 0; i < length; i++)
@@ -276,22 +276,22 @@ IT8951 Registers defines
     return true;
   }
 
-  bool Panel_IT8951::_write_reg(std::uint16_t addr, std::uint16_t data)
+  bool Panel_IT8951::_write_reg(uint16_t addr, uint16_t data)
   {
     return _write_command(0x0011)
         && _write_word(addr)
         && _write_word(data);
   }
 
-  bool Panel_IT8951::_set_target_memory_addr(std::uint32_t tar_addr)
+  bool Panel_IT8951::_set_target_memory_addr(uint32_t tar_addr)
   {
     return _write_reg(IT8951_LISAR + 2, tar_addr >> 16)
         && _write_reg(IT8951_LISAR    , tar_addr      );
   }
 
-  bool Panel_IT8951::_set_area( std::uint32_t x, std::uint32_t y, std::uint32_t w, std::uint32_t h)
+  bool Panel_IT8951::_set_area( uint32_t x, uint32_t y, uint32_t w, uint32_t h)
   {
-    std::uint32_t rx, ry, rw, rh;
+    uint32_t rx, ry, rw, rh;
     rx = ((_it8951_rotation+1) & 2) ? _width  - w - x : x;
     ry = ( _it8951_rotation    & 2) ? _height - h - y : y;
     rw = w;
@@ -302,10 +302,10 @@ IT8951 Registers defines
       std::swap(rw, rh);
     }
 
-    _range_new.left   = std::min<std::uint32_t>(_range_new.left  , rx         );
-    _range_new.right  = std::max<std::uint32_t>(_range_new.right , rx + rw - 1);
-    _range_new.top    = std::min<std::uint32_t>(_range_new.top   , ry         );
-    _range_new.bottom = std::max<std::uint32_t>(_range_new.bottom, ry + rh - 1);
+    _range_new.left   = std::min<uint32_t>(_range_new.left  , rx         );
+    _range_new.right  = std::max<uint32_t>(_range_new.right , rx + rw - 1);
+    _range_new.top    = std::min<uint32_t>(_range_new.top   , ry         );
+    _range_new.bottom = std::max<uint32_t>(_range_new.bottom, ry + rh - 1);
 
     if (_epd_mode != epd_mode_t::epd_fastest
      && _range_old.horizon.intersectsWith(rx, rx + rw - 1)
@@ -318,7 +318,7 @@ IT8951 Registers defines
       _range_old.bottom = 0;
     }
 
-    std::uint16_t params[5];
+    uint16_t params[5];
     params[0] = IT8951_LDIMG_B_ENDIAN << 8 | IT8951_4BPP << 4 | _it8951_rotation;
     params[1] = x;
     params[2] = y;
@@ -330,8 +330,8 @@ IT8951 Registers defines
   bool Panel_IT8951::_update_raw_area(epd_update_mode_t mode)
   {
     if (_range_new.empty()) return false;
-    std::uint32_t l = _range_new.left;
-    std::uint32_t r = _range_new.right;
+    uint32_t l = _range_new.left;
+    uint32_t r = _range_new.right;
 
     // 更新範囲の幅が小さすぎる場合、IT8951がフリーズすることがある。
     // 厳密には、範囲の左右端の座標値の下2ビット捨てた場合に同値になる場合、
@@ -348,19 +348,19 @@ IT8951 Registers defines
         r = (r + 4) & ~3;
       }
     }
-    std::uint32_t w = r - l + 1;
-    std::uint16_t params[7];
+    uint32_t w = r - l + 1;
+    uint16_t params[7];
     params[0] = l;
     params[1] = _range_new.top;
     params[2] = w;
     params[3] = _range_new.bottom - _range_new.top + 1;
     params[4] = mode;
-    params[5] = (std::uint16_t)_tar_memaddr;
-    params[6] = (std::uint16_t)(_tar_memaddr >> 16);
+    params[5] = (uint16_t)_tar_memaddr;
+    params[6] = (uint16_t)(_tar_memaddr >> 16);
     return _write_args(IT8951_I80_CMD_DPY_BUF_AREA, params, 7);
   }
 
-  void Panel_IT8951::display(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h)
+  void Panel_IT8951::display(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h)
   {
     if (0 < w && 0 < h)
     {
@@ -417,7 +417,7 @@ IT8951 Registers defines
     endWrite();
   }
 
-  void Panel_IT8951::setRotation(std::uint_fast8_t r)
+  void Panel_IT8951::setRotation(uint_fast8_t r)
   {
     r &= 7;
     _rotation = r;
@@ -431,7 +431,7 @@ IT8951 Registers defines
     if (_it8951_rotation & 1) { std::swap(_width, _height); }
   }
 
-  void Panel_IT8951::setWindow(std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye)
+  void Panel_IT8951::setWindow(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye)
   {
     _xpos = xs;
     _ypos = ys;
@@ -441,14 +441,14 @@ IT8951 Registers defines
     _ye = ye;
   }
 
-  void Panel_IT8951::drawPixelPreclipped(std::uint_fast16_t x, std::uint_fast16_t y, std::uint32_t rawcolor)
+  void Panel_IT8951::drawPixelPreclipped(uint_fast16_t x, uint_fast16_t y, uint32_t rawcolor)
   {
     startWrite();
     writeFillRectPreclipped(x, y, 1, 1, rawcolor);
     endWrite();
   }
 
-  void Panel_IT8951::writeFillRectPreclipped(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, std::uint32_t rawcolor)
+  void Panel_IT8951::writeFillRectPreclipped(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, uint32_t rawcolor)
   {
     if (_it8951_rotation & 4)
     {
@@ -456,16 +456,16 @@ IT8951 Registers defines
     }
     _set_area(x, y, w, h);
     bgr888_t color = rawcolor;
-    std::int32_t sum = color.R8() + (color.G8() << 1) + color.B8();
+    int32_t sum = color.R8() + (color.G8() << 1) + color.B8();
     _wait_busy();
     _bus->writeData(0, 16);
     bool fast = _epd_mode == epd_mode_t::epd_fast || _epd_mode == epd_mode_t::epd_fastest;
-    std::uint32_t wid = (((x + w + 3) >> 2) - (x >> 2));
+    uint32_t wid = (((x + w + 3) >> 2) - (x >> 2));
     do
     {
       auto btbl = &Bayer[(y & 3) << 2];
       ++y;
-      std::uint32_t value;
+      uint32_t value;
       if (fast)
       {
         value = (sum + btbl[2]*16 < 512 ? 0 : 0xF000)
@@ -475,10 +475,10 @@ IT8951 Registers defines
       }
       else
       {
-        value = std::min<std::int32_t>(15, (std::max<std::int32_t>(0, sum + btbl[2])) >> 6) << 12
-              | std::min<std::int32_t>(15, (std::max<std::int32_t>(0, sum + btbl[3])) >> 6) <<  8
-              | std::min<std::int32_t>(15, (std::max<std::int32_t>(0, sum + btbl[0])) >> 6) <<  4
-              | std::min<std::int32_t>(15, (std::max<std::int32_t>(0, sum + btbl[1])) >> 6) ;
+        value = std::min<int32_t>(15, (std::max<int32_t>(0, sum + btbl[2])) >> 6) << 12
+              | std::min<int32_t>(15, (std::max<int32_t>(0, sum + btbl[3])) >> 6) <<  8
+              | std::min<int32_t>(15, (std::max<int32_t>(0, sum + btbl[0])) >> 6) <<  4
+              | std::min<int32_t>(15, (std::max<int32_t>(0, sum + btbl[1])) >> 6) ;
       }
       if (_invert) value = ~value;
       _bus->writeDataRepeat(value, 16, wid);
@@ -486,15 +486,15 @@ IT8951 Registers defines
     _write_command(IT8951_TCON_LD_IMG_END);
   }
 
-  void Panel_IT8951::writeImage(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, pixelcopy_t* param, bool use_dma)
+  void Panel_IT8951::writeImage(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, pixelcopy_t* param, bool use_dma)
   {
-    std::uint16_t* writebuf = static_cast<std::uint16_t*>(heap_alloc(w * sizeof(bgr888_t) + 4));
+    uint16_t* writebuf = static_cast<uint16_t*>(heap_alloc(w * sizeof(bgr888_t) + 4));
     bgr888_t* readbuf = reinterpret_cast<lgfx::bgr888_t*>(&writebuf[2]);
 
     if (writebuf == nullptr) return;
     writebuf[0] = 0;
 
-    std::int32_t add_y = 1;
+    int32_t add_y = 1;
     bool flg_setarea = false;
     if (_it8951_rotation & 4)
     {
@@ -516,7 +516,7 @@ IT8951 Registers defines
 
     do
     {
-      std::uint32_t prev_pos = 0, new_pos = 0;
+      uint32_t prev_pos = 0, new_pos = 0;
       do
       {
         new_pos = param->fp_copy(readbuf, prev_pos, w, param);
@@ -533,23 +533,23 @@ IT8951 Registers defines
             //_wait_busy();
             //_bus->writeData(0, 16);
           }
-          std::uint32_t writepos = 1;
-          std::int32_t shift = (3 - ((x + prev_pos) & 3)) << 2;
+          uint32_t writepos = 1;
+          int32_t shift = (3 - ((x + prev_pos) & 3)) << 2;
           auto btbl = &Bayer[(y & 3) << 2];
           do
           {
-            std::uint_fast16_t buf = 0;
+            uint_fast16_t buf = 0;
             do
             {
               auto color = readbuf[prev_pos];
-              std::int32_t pixel = color.R8() + (color.G8() << 1) + color.B8();
+              int32_t pixel = color.R8() + (color.G8() << 1) + color.B8();
               if (fast)
               {
                 pixel = (pixel + btbl[(x + prev_pos) & 3] * 16 < 512) ? 0 : 15;
               }
               else
               {
-                pixel = std::min<std::int32_t>(15, std::max<std::int32_t>(0, pixel + btbl[(x + prev_pos) & 3]) >> 6);
+                pixel = std::min<int32_t>(15, std::max<int32_t>(0, pixel + btbl[(x + prev_pos) & 3]) >> 6);
               }
               buf |= pixel << shift;
               shift -= 4;
@@ -561,7 +561,7 @@ IT8951 Registers defines
             //_bus->writeData(__builtin_bswap16(buf), 16);
           } while (new_pos != prev_pos);
           _wait_busy();
-          _bus->writeBytes((std::uint8_t*)writebuf, writepos << 1, true, false);
+          _bus->writeBytes((uint8_t*)writebuf, writepos << 1, true, false);
         }
       } while (w != new_pos && w != (prev_pos = param->fp_skip(new_pos, w, param)));
       param->src_x32 = sx;
@@ -575,13 +575,13 @@ IT8951 Registers defines
     }
   }
 
-  void Panel_IT8951::writeBlock(std::uint32_t rawcolor, std::uint32_t length)
+  void Panel_IT8951::writeBlock(uint32_t rawcolor, uint32_t length)
   {
     auto xpos = _xpos;
     auto ypos = _ypos;
-    std::int32_t len;
+    int32_t len;
     do {
-      len = std::min<std::int32_t>(length, _xe + 1 - _xpos);
+      len = std::min<int32_t>(length, _xe + 1 - _xpos);
       writeFillRectPreclipped(xpos, ypos, len, 1, rawcolor);
       xpos += len;
       if (xpos > _xe)
@@ -597,24 +597,24 @@ IT8951 Registers defines
     _xpos = xpos;
   }
 
-  void Panel_IT8951::writePixels(pixelcopy_t* param, std::uint32_t length, bool use_dma)
+  void Panel_IT8951::writePixels(pixelcopy_t* param, uint32_t length, bool use_dma)
   {
-    std::uint32_t xs   = _xs  ;
-    std::uint32_t ys   = _ys  ;
-    std::uint32_t xe   = _xe  ;
-    std::uint32_t ye   = _ye  ;
-    std::uint32_t xpos = _xpos;
-    std::uint32_t ypos = _ypos;
-    std::uint32_t w;
+    uint32_t xs   = _xs  ;
+    uint32_t ys   = _ys  ;
+    uint32_t xe   = _xe  ;
+    uint32_t ye   = _ye  ;
+    uint32_t xpos = _xpos;
+    uint32_t ypos = _ypos;
+    uint32_t w;
 
-    std::uint32_t maxw = std::min(length, xe - xs + 1);
+    uint32_t maxw = std::min(length, xe - xs + 1);
     bgr888_t* readbuf = static_cast<bgr888_t*>(heap_alloc(maxw * sizeof(bgr888_t)));
     if (readbuf == nullptr) return;
     do
     {
       w = std::min(length, xe - xs + 1);
       auto y = _it8951_rotation & 4 ? height() - ypos - 1 : ypos;
-      std::int32_t prev_pos = 0, new_pos = 0;
+      int32_t prev_pos = 0, new_pos = 0;
       //do
       {
         new_pos = param->fp_copy(readbuf, prev_pos, w, param);
@@ -623,13 +623,13 @@ IT8951 Registers defines
           _set_area(xpos + prev_pos, y, new_pos - prev_pos, 1);
           _wait_busy();
           _bus->writeData(0, 16);
-          std::uint32_t shift = (3 - ((xpos + prev_pos) & 3)) << 2;
-          std::uint16_t buf = 0;
+          uint32_t shift = (3 - ((xpos + prev_pos) & 3)) << 2;
+          uint16_t buf = 0;
           auto btbl = &Bayer[(y & 3) << 2];
           do
           {
             auto color = readbuf[prev_pos];
-            std::uint16_t pixel = std::min(15, std::max(0, (color.R8() + (color.G8() << 1) + color.B8() + btbl[(xpos + prev_pos) & 3])) >> 6);
+            uint16_t pixel = std::min(15, std::max(0, (color.R8() + (color.G8() << 1) + color.B8() + btbl[(xpos + prev_pos) & 3])) >> 6);
             buf |= pixel << shift;
             if (shift)
             {
@@ -666,12 +666,12 @@ IT8951 Registers defines
     heap_free(readbuf);
   }
 
-  bool Panel_IT8951::_read_raw_line(std::int32_t raw_x, std::int32_t raw_y, std::int32_t len, std::uint16_t* __restrict__ buf)
+  bool Panel_IT8951::_read_raw_line(int32_t raw_x, int32_t raw_y, int32_t len, uint16_t* __restrict__ buf)
   {
-    std::uint16_t params[4];
+    uint16_t params[4];
     auto addr = _tar_memaddr + raw_x + raw_y * _cfg.panel_width;
-    params[0] = (std::uint16_t)addr;
-    params[1] = (std::uint16_t)(addr >> 16);
+    params[0] = (uint16_t)addr;
+    params[1] = (uint16_t)(addr >> 16);
     params[2] = len; // (len + 15) & ~15;
     params[3] = 0;
     return _write_args(IT8951_TCON_MEM_BST_RD_T, params, 4)
@@ -679,12 +679,12 @@ IT8951 Registers defines
         && _read_words(buf, len);
   }
 
-  void Panel_IT8951::readRect(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, void* __restrict__ dst, pixelcopy_t* param)
+  void Panel_IT8951::readRect(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, void* __restrict__ dst, pixelcopy_t* param)
   {
 /// IT8951には画素読出しコマンドが存在せず、画像メモリを直接読むコマンドが提供されている。
 /// 画像メモリを直接読み出す場合、ビットシフトや回転方向の解決などは自前で行う必要がある。
 
-    std::uint32_t rx, ry, rw, rh;
+    uint32_t rx, ry, rw, rh;
     if (_it8951_rotation & 4)
     {
       y = height() - y - h;
@@ -718,19 +718,19 @@ IT8951 Registers defines
       break;
     }
 
-    std::int32_t adjust_left = (rx & 3);
-    std::uint32_t padding_len = (adjust_left + rw + 31) & ~31;
-    auto readbuf = static_cast<std::uint8_t*>(heap_alloc(std::max(padding_len, rw * param->dst_bits >> 3)));
+    int32_t adjust_left = (rx & 3);
+    uint32_t padding_len = (adjust_left + rw + 31) & ~31;
+    auto readbuf = static_cast<uint8_t*>(heap_alloc(std::max(padding_len, rw * param->dst_bits >> 3)));
     auto colorbuf = static_cast<bgr888_t*>(heap_alloc(rw * sizeof(bgr888_t)));
 
     param->src_data = colorbuf;
 
-    for (std::uint32_t j = 0; j < rh; ++j)
+    for (uint32_t j = 0; j < rh; ++j)
     {
-      _read_raw_line(rx & ~3, ry, padding_len >> 1, reinterpret_cast<std::uint16_t*>(readbuf));
-      for (std::uint32_t i = 0; i < rw; ++i)
+      _read_raw_line(rx & ~3, ry, padding_len >> 1, reinterpret_cast<uint16_t*>(readbuf));
+      for (uint32_t i = 0; i < rw; ++i)
       {
-        std::uint_fast8_t l = 8 + readbuf[adjust_left + i];
+        uint_fast8_t l = 8 + readbuf[adjust_left + i];
         if (_invert) l = ~l;
         colorbuf[i].set(l,l,l);
       }
@@ -743,13 +743,13 @@ IT8951 Registers defines
           param->src_x32_add = (~0u << pixelcopy_t::FP_SCALE);
           param->src_x = rw - 1;
         }
-        std::uint32_t dstpos = rw * ((_it8951_rotation & 4) ? (rh - j - 1) : j);
+        uint32_t dstpos = rw * ((_it8951_rotation & 4) ? (rh - j - 1) : j);
         param->fp_copy(dst, dstpos, dstpos + rw, param);
       }
       else
       {
-        for (std::uint32_t i = 0; i < rw; ++i) {
-          std::int32_t dstpos;
+        for (uint32_t i = 0; i < rw; ++i) {
+          int32_t dstpos;
           switch (_it8951_rotation)
           {
           default:

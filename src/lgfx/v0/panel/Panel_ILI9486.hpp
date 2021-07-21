@@ -25,24 +25,24 @@ namespace lgfx
 
     struct CMD : public CommandCommon
     {
-      static constexpr std::uint8_t FRMCTR1 = 0xB1;
-      static constexpr std::uint8_t FRMCTR2 = 0xB2;
-      static constexpr std::uint8_t FRMCTR3 = 0xB3;
-      static constexpr std::uint8_t INVCTR  = 0xB4;
-      static constexpr std::uint8_t DFUNCTR = 0xB6;
-      static constexpr std::uint8_t PWCTR1  = 0xC0;
-      static constexpr std::uint8_t PWCTR2  = 0xC1;
-      static constexpr std::uint8_t PWCTR3  = 0xC2;
-      static constexpr std::uint8_t PWCTR4  = 0xC3;
-      static constexpr std::uint8_t PWCTR5  = 0xC4;
-      static constexpr std::uint8_t VMCTR1  = 0xC5;
-      static constexpr std::uint8_t VMCTR2  = 0xC7;
-      static constexpr std::uint8_t GMCTRP1 = 0xE0; // Positive Gamma Correction
-      static constexpr std::uint8_t GMCTRN1 = 0xE1; // Negative Gamma Correction
+      static constexpr uint8_t FRMCTR1 = 0xB1;
+      static constexpr uint8_t FRMCTR2 = 0xB2;
+      static constexpr uint8_t FRMCTR3 = 0xB3;
+      static constexpr uint8_t INVCTR  = 0xB4;
+      static constexpr uint8_t DFUNCTR = 0xB6;
+      static constexpr uint8_t PWCTR1  = 0xC0;
+      static constexpr uint8_t PWCTR2  = 0xC1;
+      static constexpr uint8_t PWCTR3  = 0xC2;
+      static constexpr uint8_t PWCTR4  = 0xC3;
+      static constexpr uint8_t PWCTR5  = 0xC4;
+      static constexpr uint8_t VMCTR1  = 0xC5;
+      static constexpr uint8_t VMCTR2  = 0xC7;
+      static constexpr uint8_t GMCTRP1 = 0xE0; // Positive Gamma Correction
+      static constexpr uint8_t GMCTRN1 = 0xE1; // Negative Gamma Correction
     };
-    const std::uint8_t* getInitCommands(std::uint8_t listno) const override
+    const uint8_t* getInitCommands(uint8_t listno) const override
     {
-      static constexpr std::uint8_t list0[] = {
+      static constexpr uint8_t list0[] = {
           CMD::SLPOUT,  CMD_INIT_DELAY, 5,    // Exit sleep mode
           CMD::PWCTR3 , 1, 0x44,       // Power control 3
           CMD::VMCTR1 , 4, 0x00, 0x00, 0x00, 0x00,
@@ -54,7 +54,7 @@ namespace lgfx
                            0x37, 0x06, 0x10, 0x03, 0x24, 0x20, 0x00,
           0xFF,0xFF, // end
       };
-      static constexpr std::uint8_t list1[] = {
+      static constexpr uint8_t list1[] = {
           CMD::DISPON, 0,     // Set display on
           0xFF,0xFF, // end
       };
@@ -65,9 +65,9 @@ namespace lgfx
       }
     }
 
-    std::uint8_t getMadCtl(std::uint8_t r) const override
+    uint8_t getMadCtl(uint8_t r) const override
     {
-      static constexpr std::uint8_t madctl_table[] = {
+      static constexpr uint8_t madctl_table[] = {
                MAD_MX|MAD_MH              ,
         MAD_MV                            ,
                              MAD_MY|MAD_ML,
@@ -80,7 +80,7 @@ namespace lgfx
       return madctl_table[r];
     }
 
-    const std::uint8_t* getColorDepthCommands(std::uint8_t* buf, color_depth_t depth) override
+    const uint8_t* getColorDepthCommands(uint8_t* buf, color_depth_t depth) override
     {
       auto res = PanelIlitekCommon::getColorDepthCommands(buf, depth);
       // ILI9486 読込時のデータは書込と同じ並びになる (パラレル接続ILI9486で確認)

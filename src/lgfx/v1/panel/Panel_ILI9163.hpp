@@ -36,24 +36,24 @@ namespace lgfx
 
   protected:
 
-    static constexpr std::uint8_t CMD_FRMCTR1 = 0xB1;
-    static constexpr std::uint8_t CMD_FRMCTR2 = 0xB2;
-    static constexpr std::uint8_t CMD_FRMCTR3 = 0xB3;
-    static constexpr std::uint8_t CMD_INVCTR  = 0xB4;
-    static constexpr std::uint8_t CMD_DFUNCTR = 0xB6;
-    static constexpr std::uint8_t CMD_PWCTR1  = 0xC0;
-    static constexpr std::uint8_t CMD_PWCTR2  = 0xC1;
-    static constexpr std::uint8_t CMD_PWCTR3  = 0xC2;
-    static constexpr std::uint8_t CMD_PWCTR4  = 0xC3;
-    static constexpr std::uint8_t CMD_PWCTR5  = 0xC4;
-    static constexpr std::uint8_t CMD_VMCTR1  = 0xC5;
-    static constexpr std::uint8_t CMD_VMCTR2  = 0xC7;
-    static constexpr std::uint8_t CMD_GMCTRP1 = 0xE0; // Positive Gamma Correction (E0h)
-    static constexpr std::uint8_t CMD_GMCTRN1 = 0xE1; // Negative Gamma Correction (E1h)
+    static constexpr uint8_t CMD_FRMCTR1 = 0xB1;
+    static constexpr uint8_t CMD_FRMCTR2 = 0xB2;
+    static constexpr uint8_t CMD_FRMCTR3 = 0xB3;
+    static constexpr uint8_t CMD_INVCTR  = 0xB4;
+    static constexpr uint8_t CMD_DFUNCTR = 0xB6;
+    static constexpr uint8_t CMD_PWCTR1  = 0xC0;
+    static constexpr uint8_t CMD_PWCTR2  = 0xC1;
+    static constexpr uint8_t CMD_PWCTR3  = 0xC2;
+    static constexpr uint8_t CMD_PWCTR4  = 0xC3;
+    static constexpr uint8_t CMD_PWCTR5  = 0xC4;
+    static constexpr uint8_t CMD_VMCTR1  = 0xC5;
+    static constexpr uint8_t CMD_VMCTR2  = 0xC7;
+    static constexpr uint8_t CMD_GMCTRP1 = 0xE0; // Positive Gamma Correction (E0h)
+    static constexpr uint8_t CMD_GMCTRN1 = 0xE1; // Negative Gamma Correction (E1h)
 
-    const std::uint8_t* getInitCommands(std::uint8_t listno) const override
+    const uint8_t* getInitCommands(uint8_t listno) const override
     {
-      static constexpr std::uint8_t list0[] =
+      static constexpr uint8_t list0[] =
       {
         CMD_FRMCTR1, 2, 0x08, 0x08, // Frame rate control 1
         CMD_INVCTR , 1, 0x07,       // Display inversion

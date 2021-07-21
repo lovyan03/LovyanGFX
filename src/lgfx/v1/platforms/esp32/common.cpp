@@ -22,7 +22,7 @@ Contributors:
 #include "../common.hpp"
 
 #include <algorithm>
-#include <cstring>
+#include <string.h>
 
 #include <driver/i2c.h>
 #include <driver/spi_common.h>
@@ -50,7 +50,7 @@ namespace lgfx
  {
 //----------------------------------------------------------------------------
 
-  std::uint32_t getApbFrequency(void)
+  uint32_t getApbFrequency(void)
   {
     rtc_cpu_freq_config_t conf;
     rtc_clk_cpu_freq_get_config(&conf);
@@ -60,18 +60,18 @@ namespace lgfx
     return (conf.source_freq_mhz * 1000000) / conf.div;
   }
 
-  std::uint32_t FreqToClockDiv(std::uint32_t fapb, std::uint32_t hz)
+  uint32_t FreqToClockDiv(uint32_t fapb, uint32_t hz)
   {
     if (fapb <= hz) return SPI_CLK_EQU_SYSCLK;
-    std::uint32_t div_num = fapb / (1 + hz);
-    std::uint32_t pre = div_num / 64u;
+    uint32_t div_num = fapb / (1 + hz);
+    uint32_t pre = div_num / 64u;
     div_num = div_num / (pre+1);
     return div_num << 12 | ((div_num-1)>>1) << 6 | div_num | pre << 18;
   }
 
 //----------------------------------------------------------------------------
 
-  void pinMode(std::int_fast16_t pin, pin_mode_t mode)
+  void pinMode(int_fast16_t pin, pin_mode_t mode)
   {
     if (pin < 0) return;
 
@@ -122,11 +122,11 @@ namespace lgfx
   {
 
 #if defined (CONFIG_IDF_TARGET_ESP32C3)
-    static constexpr std::uint32_t SPI_EXECUTE = SPI_USR | SPI_UPDATE;
+    static constexpr uint32_t SPI_EXECUTE = SPI_USR | SPI_UPDATE;
     #define SPI_MOSI_DLEN_REG(i) (REG_SPI_BASE(i) + 0x1C)
     #define SPI_MISO_DLEN_REG(i) (REG_SPI_BASE(i) + 0x1C)
 #else
-    static constexpr std::uint32_t SPI_EXECUTE = SPI_USR;
+    static constexpr uint32_t SPI_EXECUTE = SPI_USR;
 #endif
 
 #if !defined (CONFIG_IDF_TARGET) || defined (CONFIG_IDF_TARGET_ESP32)
@@ -150,7 +150,7 @@ namespace lgfx
     cpp::result<void, error_t> init(int spi_host, int spi_sclk, int spi_miso, int spi_mosi, int dma_channel)
     {
 //ESP_LOGI("LGFX","spi::init host:%d, sclk:%d, miso:%d, mosi:%d, dma:%d", spi_host, spi_sclk, spi_miso, spi_mosi, dma_channel);
-      std::uint32_t spi_port = (spi_host + 1);
+      uint32_t spi_port = (spi_host + 1);
       (void)spi_port;
 
 #if defined (ARDUINO) // Arduino ESP32
@@ -287,15 +287,15 @@ namespace lgfx
 #endif
     }
 
-    void beginTransaction(int spi_host, std::uint32_t freq, int spi_mode)
+    void beginTransaction(int spi_host, uint32_t freq, int spi_mode)
     {
-      std::uint32_t spi_port = (spi_host + 1);
+      uint32_t spi_port = (spi_host + 1);
       (void)spi_port;
-      std::uint32_t clkdiv = FreqToClockDiv(getApbFrequency(), freq);
+      uint32_t clkdiv = FreqToClockDiv(getApbFrequency(), freq);
 
-      std::uint32_t user = SPI_USR_MOSI | SPI_USR_MISO | SPI_DOUTDIN;
+      uint32_t user = SPI_USR_MOSI | SPI_USR_MISO | SPI_DOUTDIN;
       if (spi_mode == 1 || spi_mode == 2) user |= SPI_CK_OUT_EDGE;
-      std::uint32_t pin = 0;
+      uint32_t pin = 0;
       if (spi_mode & 2) pin = SPI_CK_IDLE_EDGE;
 
       beginTransaction(spi_host);
@@ -333,9 +333,9 @@ namespace lgfx
       gpio_hi(spi_cs);
     }
 
-    void writeBytes(int spi_host, const std::uint8_t* data, std::size_t len)
+    void writeBytes(int spi_host, const uint8_t* data, size_t len)
     {
-      std::uint32_t spi_port = (spi_host + 1);
+      uint32_t spi_port = (spi_host + 1);
       (void)spi_port;
       if (len > 64) len = 64;
       memcpy(reinterpret_cast<void*>(SPI_W0_REG(spi_port)), data, len);
@@ -344,9 +344,9 @@ namespace lgfx
       while (READ_PERI_REG(SPI_CMD_REG(spi_port)) & SPI_EXECUTE);
     }
 
-    void readBytes(int spi_host, std::uint8_t* data, std::size_t len)
+    void readBytes(int spi_host, uint8_t* data, size_t len)
     {
-      std::uint32_t spi_port = (spi_host + 1);
+      uint32_t spi_port = (spi_host + 1);
       (void)spi_port;
       if (len > 64) len = 64;
       memcpy(reinterpret_cast<void*>(SPI_W0_REG(spi_port)), data, len);
@@ -388,7 +388,7 @@ namespace lgfx
     {
       dev->ctr.conf_upgate = 1;
     }
-    static volatile std::uint32_t* getFifoAddr(int num)
+    static volatile uint32_t* getFifoAddr(int num)
     {
       return &I2C0.fifo_data.val;
     }
@@ -408,9 +408,9 @@ namespace lgfx
     static void updateDev(i2c_dev_t* dev)
     {
     }
-    static volatile std::uint32_t* getFifoAddr(int num)
+    static volatile uint32_t* getFifoAddr(int num)
     {
-      return (volatile std::uint32_t*)((num == 0) ? 0x6001301c : 0x6002701c);
+      return (volatile uint32_t*)((num == 0) ? 0x6001301c : 0x6002701c);
     }
 
     static constexpr int i2c_cmd_start = 0;
@@ -437,7 +437,7 @@ namespace lgfx
       bool wait_ack = false;
       gpio_num_t pin_scl = (gpio_num_t)-1;
       gpio_num_t pin_sda = (gpio_num_t)-1;
-      std::uint32_t freq = 0;
+      uint32_t freq = 0;
 
       void save_reg(i2c_dev_t* dev)
       {
@@ -480,28 +480,28 @@ namespace lgfx
       }
 
     private:
-      std::uint32_t scl_high_period;
-      std::uint32_t scl_low_period;
-      std::uint32_t scl_start_hold;
-      std::uint32_t scl_rstart_setup;
-      std::uint32_t scl_stop_hold;
-      std::uint32_t scl_stop_setup;
-      std::uint32_t sda_hold;
-      std::uint32_t sda_sample;
-      std::uint32_t fifo_conf;
-      std::uint32_t timeout;
+      uint32_t scl_high_period;
+      uint32_t scl_low_period;
+      uint32_t scl_start_hold;
+      uint32_t scl_rstart_setup;
+      uint32_t scl_stop_hold;
+      uint32_t scl_stop_setup;
+      uint32_t sda_hold;
+      uint32_t sda_sample;
+      uint32_t fifo_conf;
+      uint32_t timeout;
 #if defined ( I2C_FILTER_CFG_REG )
-      std::uint32_t filter_cfg;
+      uint32_t filter_cfg;
 #else
-      std::uint32_t scl_filter;
-      std::uint32_t sda_filter;
+      uint32_t scl_filter;
+      uint32_t sda_filter;
 #endif
     };
     i2c_context_t i2c_context[I2C_NUM_MAX];
 
 
 
-    static void i2c_set_cmd(i2c_dev_t* dev, std::uint8_t index, std::uint8_t op_code, std::uint8_t byte_num)
+    static void i2c_set_cmd(i2c_dev_t* dev, uint8_t index, uint8_t op_code, uint8_t byte_num)
     {
 /*
       typeof(dev->command[0]) cmd;
@@ -511,7 +511,7 @@ namespace lgfx
       cmd.op_code = op_code;
       dev->command[index].val = cmd.val;
 */
-      std::uint32_t cmd_val = byte_num
+      uint32_t cmd_val = byte_num
                             | (( op_code == i2c_cmd_write
                               || op_code == i2c_cmd_stop)
                               ? 0x100 : 0)
@@ -569,17 +569,17 @@ namespace lgfx
       if (i2c_context[i2c_port].state == i2c_context_t::state_disconnect) { return res; }
       auto dev = getDev(i2c_port);
       typeof(dev->int_raw) int_raw;
-      static constexpr std::uint32_t intmask = I2C_ACK_ERR_INT_RAW_M | I2C_END_DETECT_INT_RAW_M | I2C_ARBITRATION_LOST_INT_RAW_M;
+      static constexpr uint32_t intmask = I2C_ACK_ERR_INT_RAW_M | I2C_END_DETECT_INT_RAW_M | I2C_ARBITRATION_LOST_INT_RAW_M;
       if (i2c_context[i2c_port].wait_ack)
       {
         int_raw.val = dev->int_raw.val;
         if (!(int_raw.val & intmask))
         {
-          std::uint32_t us = lgfx::micros();
+          uint32_t us = lgfx::micros();
 #if defined ( CONFIG_IDF_TARGET_ESP32C3 )
-          std::uint32_t us_limit = (dev->scl_high_period.period + dev->scl_low_period.period + 16 ) * (1 + dev->sr.tx_fifo_cnt);
+          uint32_t us_limit = (dev->scl_high_period.period + dev->scl_low_period.period + 16 ) * (1 + dev->sr.tx_fifo_cnt);
 #else
-          std::uint32_t us_limit = (dev->scl_high_period.period + dev->scl_low_period.period + 16 ) * (1 + dev->status_reg.tx_fifo_cnt);
+          uint32_t us_limit = (dev->scl_high_period.period + dev->scl_low_period.period + 16 ) * (1 + dev->status_reg.tx_fifo_cnt);
 #endif
           do
           {
@@ -608,8 +608,8 @@ namespace lgfx
         {
           i2c_set_cmd(dev, 0, i2c_cmd_stop, 0);
           dev->ctr.trans_start = 1;
-          static constexpr std::uint32_t intmask = I2C_ACK_ERR_INT_RAW_M | I2C_TIME_OUT_INT_RAW_M | I2C_END_DETECT_INT_RAW_M | I2C_ARBITRATION_LOST_INT_RAW_M | I2C_TRANS_COMPLETE_INT_RAW_M;
-          std::uint32_t ms = lgfx::millis();
+          static constexpr uint32_t intmask = I2C_ACK_ERR_INT_RAW_M | I2C_TIME_OUT_INT_RAW_M | I2C_END_DETECT_INT_RAW_M | I2C_ARBITRATION_LOST_INT_RAW_M | I2C_TRANS_COMPLETE_INT_RAW_M;
+          uint32_t ms = lgfx::millis();
           taskYIELD();
           while (!(dev->int_raw.val & intmask) && ((millis() - ms) < 14));
 #if !defined (CONFIG_IDF_TARGET) || defined (CONFIG_IDF_TARGET_ESP32)
@@ -667,7 +667,7 @@ namespace lgfx
       return {};
     }
 
-    cpp::result<void, error_t> restart(int i2c_port, int i2c_addr, std::uint32_t freq, bool read)
+    cpp::result<void, error_t> restart(int i2c_port, int i2c_addr, uint32_t freq, bool read)
     {
       if (i2c_port >= I2C_NUM_MAX) { return cpp::fail(error_t::invalid_arg); }
       if (i2c_addr < I2C_7BIT_ADDR_MIN || i2c_addr > I2C_10BIT_ADDR_MAX) return cpp::fail(error_t::invalid_arg);
@@ -704,13 +704,13 @@ namespace lgfx
       if (i2c_context[i2c_port].state == i2c_context_t::state_disconnect || i2c_context[i2c_port].freq != freq)
       {
         i2c_context[i2c_port].freq = freq;
-        static constexpr std::uint32_t MIN_I2C_CYCLE = 35;
+        static constexpr uint32_t MIN_I2C_CYCLE = 35;
 #if defined (CONFIG_IDF_TARGET_ESP32C3)
-        std::uint32_t src_clock = 40 * 1000 * 1000; // XTAL clock
+        uint32_t src_clock = 40 * 1000 * 1000; // XTAL clock
 #else
         rtc_cpu_freq_config_t cpu_freq_conf;
         rtc_clk_cpu_freq_get_config(&cpu_freq_conf);
-        std::uint32_t src_clock = 80 * 1000 * 1000;
+        uint32_t src_clock = 80 * 1000 * 1000;
         if (cpu_freq_conf.freq_mhz < 80)
         {
           src_clock = (cpu_freq_conf.source_freq_mhz * 1000000) / cpu_freq_conf.div;
@@ -722,7 +722,7 @@ namespace lgfx
 // ESP_LOGI("LGFX", "cpu_freq_conf.source_freq_mhz :%d", cpu_freq_conf.source_freq_mhz);
 #endif
 
-        auto cycle = std::min<std::uint32_t>(32767u, std::max(MIN_I2C_CYCLE, (src_clock / (freq + 1) + 1)));
+        auto cycle = std::min<uint32_t>(32767u, std::max(MIN_I2C_CYCLE, (src_clock / (freq + 1) + 1)));
         freq = src_clock / cycle;
 #if defined ( I2C_FILTER_CFG_REG )
         dev->filter_cfg.scl_en = cycle > 64;
@@ -730,7 +730,7 @@ namespace lgfx
         dev->filter_cfg.sda_en = cycle > 64;
         dev->filter_cfg.sda_thres = 0;
 
-        std::uint32_t scl_high_offset = ( dev->filter_cfg.scl_en
+        uint32_t scl_high_offset = ( dev->filter_cfg.scl_en
                                         ? ( dev->filter_cfg.scl_thres <= 2
                                           ? 8 : (6 + dev->filter_cfg.scl_thres)
                                           )
@@ -743,7 +743,7 @@ namespace lgfx
         dev->sda_filter_cfg.en = cycle > 64;
         dev->sda_filter_cfg.thres = 0;
   /// ESP32 TRM page 286  Table 57: SCL Frequency Configuration
-        std::uint32_t scl_high_offset = ( dev->scl_filter_cfg.en
+        uint32_t scl_high_offset = ( dev->scl_filter_cfg.en
                                         ? ( dev->scl_filter_cfg.thres <= 2
                                           ? 8 : (6 + dev->scl_filter_cfg.thres)
                                           )
@@ -752,9 +752,9 @@ namespace lgfx
 
 #endif
 
-        std::uint32_t period_total = cycle - scl_high_offset - 1;
-        std::uint32_t scl_high_period = std::max<std::uint32_t>(18, (period_total-10) >> 1);
-        std::uint32_t scl_low_period  = period_total - scl_high_period;
+        uint32_t period_total = cycle - scl_high_offset - 1;
+        uint32_t scl_high_period = std::max<uint32_t>(18, (period_total-10) >> 1);
+        uint32_t scl_low_period  = period_total - scl_high_period;
 
         dev->scl_high_period.period = scl_high_period;
         dev->scl_low_period .period = scl_low_period ;
@@ -787,7 +787,7 @@ namespace lgfx
       return res;
     }
 
-    cpp::result<void, error_t> beginTransaction(int i2c_port, int i2c_addr, std::uint32_t freq, bool read)
+    cpp::result<void, error_t> beginTransaction(int i2c_port, int i2c_addr, uint32_t freq, bool read)
     {
       if (i2c_port >= I2C_NUM_MAX) return cpp::fail(error_t::invalid_arg);
 
@@ -859,7 +859,7 @@ namespace lgfx
       return i2c_wait(i2c_port, true);
     }
 //*/
-    cpp::result<void, error_t> writeBytes(int i2c_port, const std::uint8_t *data, std::size_t length)
+    cpp::result<void, error_t> writeBytes(int i2c_port, const uint8_t *data, size_t length)
     {
       if (i2c_port >= I2C_NUM_MAX) { return cpp::fail(error_t::invalid_arg); }
       if (i2c_context[i2c_port].state.has_error()) { return cpp::fail(i2c_context[i2c_port].state.error()); }
@@ -870,7 +870,7 @@ namespace lgfx
       static constexpr int txfifo_limit = 32;
       auto dev = getDev(i2c_port);
       auto fifo_addr = getFifoAddr(i2c_port);
-      std::size_t len = ((length - 1) & (txfifo_limit-1)) + 1;
+      size_t len = ((length - 1) & (txfifo_limit-1)) + 1;
       do
       {
         res = i2c_wait(i2c_port);
@@ -879,7 +879,7 @@ namespace lgfx
           ESP_LOGE("LGFX", "i2c write error : ack wait");
           break;
         }
-        std::size_t idx = 0;
+        size_t idx = 0;
         do
         {
           *fifo_addr = data[idx];
@@ -896,7 +896,7 @@ namespace lgfx
       return res;
     }
 
-    cpp::result<void, error_t> readBytes(int i2c_port, std::uint8_t *readdata, std::size_t length)
+    cpp::result<void, error_t> readBytes(int i2c_port, uint8_t *readdata, size_t length)
     {
       if (i2c_port >= I2C_NUM_MAX) { return cpp::fail(error_t::invalid_arg); }
       if (i2c_context[i2c_port].state.has_error()) { return cpp::fail(i2c_context[i2c_port].state.error()); }
@@ -904,12 +904,12 @@ namespace lgfx
       cpp::result<void, error_t> res {};
       if (!length) return res;
 
-      static constexpr std::uint32_t intmask = I2C_ACK_ERR_INT_RAW_M | I2C_TIME_OUT_INT_RAW_M | I2C_END_DETECT_INT_RAW_M | I2C_ARBITRATION_LOST_INT_RAW_M;
+      static constexpr uint32_t intmask = I2C_ACK_ERR_INT_RAW_M | I2C_TIME_OUT_INT_RAW_M | I2C_END_DETECT_INT_RAW_M | I2C_ARBITRATION_LOST_INT_RAW_M;
 
       auto dev = getDev(i2c_port);
-      std::size_t len = 0;
+      size_t len = 0;
 
-      std::uint32_t us_limit = (dev->scl_high_period.period + dev->scl_low_period.period + 16);
+      uint32_t us_limit = (dev->scl_high_period.period + dev->scl_low_period.period + 16);
       do
       {
         len = ((length-1) & 63) + 1;
@@ -927,7 +927,7 @@ namespace lgfx
         //taskYIELD();
         do
         {
-          std::uint32_t us = lgfx::micros();
+          uint32_t us = lgfx::micros();
 #if defined ( CONFIG_IDF_TARGET_ESP32C3 )
           while (0 == dev->sr.rx_fifo_cnt && !(dev->int_raw.val & intmask) && ((micros() - us) <= us_limit));
           if (0 != dev->sr.rx_fifo_cnt)
@@ -951,7 +951,7 @@ namespace lgfx
       return res;
     }
 
-    cpp::result<void, error_t> transactionWrite(int i2c_port, int addr, const std::uint8_t *writedata, std::uint8_t writelen, std::uint32_t freq)
+    cpp::result<void, error_t> transactionWrite(int i2c_port, int addr, const uint8_t *writedata, uint8_t writelen, uint32_t freq)
     {
       cpp::result<void, error_t> res;
       if ((res = beginTransaction(i2c_port, addr, freq, false)).has_value()
@@ -963,7 +963,7 @@ namespace lgfx
       return res;
     }
 
-    cpp::result<void, error_t> transactionRead(int i2c_port, int addr, std::uint8_t *readdata, std::uint8_t readlen, std::uint32_t freq)
+    cpp::result<void, error_t> transactionRead(int i2c_port, int addr, uint8_t *readdata, uint8_t readlen, uint32_t freq)
     {
       cpp::result<void, error_t> res;
       if ((res = beginTransaction(i2c_port, addr, freq, true)).has_value()
@@ -975,7 +975,7 @@ namespace lgfx
       return res;
     }
 
-    cpp::result<void, error_t> transactionWriteRead(int i2c_port, int addr, const std::uint8_t *writedata, std::uint8_t writelen, std::uint8_t *readdata, std::size_t readlen, std::uint32_t freq)
+    cpp::result<void, error_t> transactionWriteRead(int i2c_port, int addr, const uint8_t *writedata, uint8_t writelen, uint8_t *readdata, size_t readlen, uint32_t freq)
     {
       cpp::result<void, error_t> res;
       if ((res = beginTransaction(i2c_port, addr, freq, false)).has_value()
@@ -989,16 +989,16 @@ namespace lgfx
       return res;
     }
 
-    cpp::result<std::uint8_t, error_t> readRegister8(int i2c_port, int addr, std::uint8_t reg, std::uint32_t freq)
+    cpp::result<uint8_t, error_t> readRegister8(int i2c_port, int addr, uint8_t reg, uint32_t freq)
     {
       auto res = transactionWriteRead(i2c_port, addr, &reg, 1, &reg, 1, freq);
       if (res.has_value()) { return reg; }
       return cpp::fail( res.error() );
     }
 
-    cpp::result<void, error_t> writeRegister8(int i2c_port, int addr, std::uint8_t reg, std::uint8_t data, std::uint8_t mask, std::uint32_t freq)
+    cpp::result<void, error_t> writeRegister8(int i2c_port, int addr, uint8_t reg, uint8_t data, uint8_t mask, uint32_t freq)
     {
-      std::uint8_t tmp[2] = { reg, data };
+      uint8_t tmp[2] = { reg, data };
       if (mask)
       {
         auto res = transactionWriteRead(i2c_port, addr, &reg, 1, &tmp[1], 1, freq);

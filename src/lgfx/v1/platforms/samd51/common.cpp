@@ -25,7 +25,7 @@ Contributors:
 #undef PORT_PINCFG_INEN_Pos
 #undef _Ul
 
-#define _Ul(n) (static_cast<std::uint32_t>((n)))
+#define _Ul(n) (static_cast<uint32_t>((n)))
 #define PORT_PINCFG_INEN_Pos        1            /**< \brief (PORT_PINCFG) Input Enable */
 #define PORT_PINCFG_INEN            (_Ul(0x1) << PORT_PINCFG_INEN_Pos)
 #define PORT_PINCFG_PULLEN_Pos      2            /**< \brief (PORT_PINCFG) Pull Enable */
@@ -39,8 +39,8 @@ namespace lgfx
 
   namespace samd51
   {
-    static constexpr std::int8_t sercom_pin_list_end = 0;
-    static constexpr std::int8_t sercom0_c_pin_list[] =
+    static constexpr int8_t sercom_pin_list_end = 0;
+    static constexpr int8_t sercom0_c_pin_list[] =
     { PORT_A |  8  // PAD 0  MUX C
     , PORT_B | 24  // PAD 0  MUX C
     , - 1
@@ -54,7 +54,7 @@ namespace lgfx
     , PORT_C | 25  // PAD 3  MUX C
     , sercom_pin_list_end
     };
-    static constexpr std::int8_t sercom1_c_pin_list[] =
+    static constexpr int8_t sercom1_c_pin_list[] =
     { PORT_A | 16  // PAD 0  MUX C
     , PORT_C | 22  // PAD 0  MUX C
     , PORT_C | 27  // PAD 0  MUX C
@@ -72,7 +72,7 @@ namespace lgfx
     , PORT_D | 21  // PAD 3  MUX C
     , sercom_pin_list_end
     };
-    static constexpr std::int8_t sercom2_c_pin_list[] =
+    static constexpr int8_t sercom2_c_pin_list[] =
     { PORT_A | 12  // PAD 0  MUX C
     , PORT_B | 26  // PAD 0  MUX C
     , - 1
@@ -86,7 +86,7 @@ namespace lgfx
     , PORT_B | 29  // PAD 3  MUX C
     , sercom_pin_list_end
     };
-    static constexpr std::int8_t sercom3_c_pin_list[] =
+    static constexpr int8_t sercom3_c_pin_list[] =
     { PORT_A | 22  // PAD 0  MUX C
     , PORT_B | 20  // PAD 0  MUX C
     , - 1
@@ -98,7 +98,7 @@ namespace lgfx
     , PORT_A | 25  // PAD 3  MUX C
     , sercom_pin_list_end
     };
-    static constexpr std::int8_t sercom4_c_pin_list[] =
+    static constexpr int8_t sercom4_c_pin_list[] =
     { PORT_B | 12  // PAD 0  MUX C
     , - 1
     , PORT_B | 13  // PAD 1  MUX C
@@ -108,7 +108,7 @@ namespace lgfx
     , PORT_B | 15  // PAD 3  MUX C
     , sercom_pin_list_end
     };
-    static constexpr std::int8_t sercom5_c_pin_list[] =
+    static constexpr int8_t sercom5_c_pin_list[] =
     { PORT_B | 16  // PAD 0  MUX C
     , - 1
     , PORT_B | 17  // PAD 1  MUX C
@@ -120,7 +120,7 @@ namespace lgfx
     , PORT_B | 19  // PAD 3  MUX C
     , sercom_pin_list_end
     };
-    static constexpr std::int8_t sercom6_c_pin_list[] =
+    static constexpr int8_t sercom6_c_pin_list[] =
     { PORT_C |  4  // PAD 0  MUX C
     , PORT_C | 16  // PAD 0  MUX C
     , - 1
@@ -136,7 +136,7 @@ namespace lgfx
     , PORT_C | 19  // PAD 3  MUX C
     , sercom_pin_list_end
     };
-    static constexpr std::int8_t sercom7_c_pin_list[] =
+    static constexpr int8_t sercom7_c_pin_list[] =
     { PORT_B | 30  // PAD 0  MUX C
     , PORT_C | 12  // PAD 0  MUX C
     , PORT_D |  8  // PAD 0  MUX C
@@ -155,7 +155,7 @@ namespace lgfx
     , sercom_pin_list_end
     };
 
-    static constexpr std::int8_t sercom0_d_pin_list[] =
+    static constexpr int8_t sercom0_d_pin_list[] =
     { PORT_A |  4  // PAD 0  MUX D
     , PORT_C | 17  // PAD 0  MUX D
     , - 1
@@ -169,7 +169,7 @@ namespace lgfx
     , PORT_C | 19  // PAD 3  MUX D
     , sercom_pin_list_end
     };
-    static constexpr std::int8_t sercom1_d_pin_list[] =
+    static constexpr int8_t sercom1_d_pin_list[] =
     { PORT_A |  0  // PAD 0  MUX D
     , - 1
     , PORT_A |  1  // PAD 1  MUX D
@@ -179,7 +179,7 @@ namespace lgfx
     , PORT_A | 31  // PAD 3  MUX D
     , sercom_pin_list_end
     };
-    static constexpr std::int8_t sercom2_d_pin_list[] =
+    static constexpr int8_t sercom2_d_pin_list[] =
     { PORT_A |  9  // PAD 0  MUX D
     , PORT_B | 25  // PAD 0  MUX D
     , - 1
@@ -193,7 +193,7 @@ namespace lgfx
     , PORT_C | 25  // PAD 3  MUX D
     , sercom_pin_list_end
     };
-    static constexpr std::int8_t sercom3_d_pin_list[] =
+    static constexpr int8_t sercom3_d_pin_list[] =
     { PORT_A | 17  // PAD 0  MUX D
     , PORT_C | 23  // PAD 0  MUX D
     , - 1
@@ -209,7 +209,7 @@ namespace lgfx
     , PORT_D | 21  // PAD 3  MUX D
     , sercom_pin_list_end
     };
-    static constexpr std::int8_t sercom4_d_pin_list[] =
+    static constexpr int8_t sercom4_d_pin_list[] =
     { PORT_A | 13  // PAD 0  MUX D
     , PORT_B |  8  // PAD 0  MUX D
     , PORT_B | 27  // PAD 0  MUX D
@@ -227,7 +227,7 @@ namespace lgfx
     , PORT_B | 29  // PAD 3  MUX D
     , sercom_pin_list_end
     };
-    static constexpr std::int8_t sercom5_d_pin_list[] =
+    static constexpr int8_t sercom5_d_pin_list[] =
     { PORT_A | 23  // PAD 0  MUX D
     , PORT_B |  2  // PAD 0  MUX D
     , PORT_B | 31  // PAD 0  MUX D
@@ -245,7 +245,7 @@ namespace lgfx
     , PORT_B | 23  // PAD 3  MUX D
     , sercom_pin_list_end
     };
-    static constexpr std::int8_t sercom6_d_pin_list[] =
+    static constexpr int8_t sercom6_d_pin_list[] =
     { PORT_C | 13  // PAD 0  MUX D
     , PORT_D |  9  // PAD 0  MUX D
     , - 1
@@ -259,7 +259,7 @@ namespace lgfx
     , PORT_D | 11  // PAD 3  MUX D
     , sercom_pin_list_end
     };
-    static constexpr std::int8_t sercom7_d_pin_list[] =
+    static constexpr int8_t sercom7_d_pin_list[] =
     { PORT_B | 21  // PAD 0  MUX D
     , - 1
     , PORT_B | 20  // PAD 1  MUX D
@@ -272,7 +272,7 @@ namespace lgfx
     , sercom_pin_list_end
     };
 
-    static constexpr const std::int8_t* sercom_mux_pin_list[2][SERCOM_INST_NUM] =
+    static constexpr const int8_t* sercom_mux_pin_list[2][SERCOM_INST_NUM] =
     {
       { sercom0_c_pin_list
       , sercom1_c_pin_list
@@ -317,7 +317,7 @@ namespace lgfx
       { (uintptr_t)SERCOM7, SERCOM7_GCLK_ID_CORE, SERCOM7_GCLK_ID_SLOW, SERCOM7_DMAC_ID_TX, SERCOM7_DMAC_ID_RX },
     #endif
     };
-    const sercom_data_t* getSercomData(std::size_t sercom_index)
+    const sercom_data_t* getSercomData(size_t sercom_index)
     {
       return &sercom_data[sercom_index];
     }
@@ -328,7 +328,7 @@ namespace lgfx
     auto spl = samd51::sercom_mux_pin_list[alt][sercom_index];
     int pad = 0;
     int tmp = spl[0];
-    std::size_t idx = 0;
+    size_t idx = 0;
     do
     {
       if (pin == tmp) return pad;
@@ -340,9 +340,9 @@ namespace lgfx
   void pinAssignPeriph(int pin_and_port, int type)
   {
     if (pin_and_port < 0) return;
-    std::uint_fast8_t port = (pin_and_port >> samd51::PORT_SHIFT);
-    std::uint_fast8_t pin  =  pin_and_port & (samd51::PIN_MASK);
-    std::uint32_t temp = PORT->Group[port].PMUX[pin >> 1].reg;
+    uint_fast8_t port = (pin_and_port >> samd51::PORT_SHIFT);
+    uint_fast8_t pin  =  pin_and_port & (samd51::PIN_MASK);
+    uint32_t temp = PORT->Group[port].PMUX[pin >> 1].reg;
 
     if (pin&1) temp = PORT_PMUX_PMUXO( type ) | (temp & PORT_PMUX_PMUXE( 0xF ));
     else       temp = PORT_PMUX_PMUXE( type ) | (temp & PORT_PMUX_PMUXO( 0xF ));
@@ -352,24 +352,24 @@ namespace lgfx
 
 //----------------------------------------------------------------------------
 
-  void pinMode(std::int_fast16_t pin, pin_mode_t mode)
+  void pinMode(int_fast16_t pin, pin_mode_t mode)
   {
-    std::uint32_t port = pin >> samd51::PORT_SHIFT;
+    uint32_t port = pin >> samd51::PORT_SHIFT;
     pin &= samd51::PIN_MASK;
-    std::uint32_t pinMask = (1ul << pin);
+    uint32_t pinMask = (1ul << pin);
 
     // Set pin mode according to chapter '22.6.3 I/O Pin Configuration'
     switch ( mode )
     {
       case pin_mode_t::input:
         // Set pin to input mode
-        PORT->Group[port].PINCFG[pin].reg=(std::uint8_t)(PORT_PINCFG_INEN) ;
+        PORT->Group[port].PINCFG[pin].reg=(uint8_t)(PORT_PINCFG_INEN) ;
         PORT->Group[port].DIRCLR.reg = pinMask ;
       break ;
 
       case pin_mode_t::input_pullup:
         // Set pin to input mode with pull-up resistor enabled
-        PORT->Group[port].PINCFG[pin].reg=(std::uint8_t)(PORT_PINCFG_INEN|PORT_PINCFG_PULLEN) ;
+        PORT->Group[port].PINCFG[pin].reg=(uint8_t)(PORT_PINCFG_INEN|PORT_PINCFG_PULLEN) ;
         PORT->Group[port].DIRCLR.reg = pinMask ;
 
         // Enable pull level (cf '22.6.3.2 Input Configuration' and '22.8.7 Data Output Value Set')
@@ -378,7 +378,7 @@ namespace lgfx
 
       case pin_mode_t::input_pulldown:
         // Set pin to input mode with pull-down resistor enabled
-        PORT->Group[port].PINCFG[pin].reg=(std::uint8_t)(PORT_PINCFG_INEN|PORT_PINCFG_PULLEN) ;
+        PORT->Group[port].PINCFG[pin].reg=(uint8_t)(PORT_PINCFG_INEN|PORT_PINCFG_PULLEN) ;
         PORT->Group[port].DIRCLR.reg = pinMask ;
 
         // Enable pull level (cf '22.6.3.2 Input Configuration' and '22.8.6 Data Output Value Clear')
@@ -387,7 +387,7 @@ namespace lgfx
 
       case pin_mode_t::output:
         // enable input, to support reading back values, with pullups disabled
-        PORT->Group[port].PINCFG[pin].reg=(std::uint8_t)(PORT_PINCFG_INEN) ;
+        PORT->Group[port].PINCFG[pin].reg=(uint8_t)(PORT_PINCFG_INEN) ;
 
         // Set pin to output mode
         PORT->Group[port].DIRSET.reg = pinMask ;
@@ -414,7 +414,7 @@ namespace lgfx
 
     cpp::result<void, error_t> init(int sercom_index, int pin_sclk, int pin_miso, int pin_mosi)
     {
-      if ((std::size_t)sercom_index >= SERCOM_INST_NUM) { return cpp::fail(error_t::invalid_arg); }
+      if ((size_t)sercom_index >= SERCOM_INST_NUM) { return cpp::fail(error_t::invalid_arg); }
 
       int dopo = -1;
       int dipo = -1;
@@ -485,11 +485,11 @@ auto mastermode = SERCOM_SPI_CTRLA_MODE_SPI_MASTER;
     //void endTransaction(int spi_host, int spi_cs)
     void endTransaction(int, int) {}
 
-    //void writeData(int spi_host, const std::uint8_t* data, std::uint32_t len)
-    void writeBytes(int, const std::uint8_t*, std::uint32_t) {}
+    //void writeData(int spi_host, const uint8_t* data, uint32_t len)
+    void writeBytes(int, const uint8_t*, uint32_t) {}
 
-    //void readData(int spi_host, std::uint8_t* data, std::uint32_t len)
-    void readBytes(int, std::uint8_t*, std::uint32_t) {}
+    //void readData(int spi_host, uint8_t* data, uint32_t len)
+    void readBytes(int, uint8_t*, uint32_t) {}
   }
 
 //----------------------------------------------------------------------------
@@ -507,9 +507,9 @@ auto mastermode = SERCOM_SPI_CTRLA_MODE_SPI_MASTER;
       cpp::result<state_t, error_t> state;
 
       bool wait_ack = false;
-      std::uint_fast16_t pin_scl = -1;
-      std::uint_fast16_t pin_sda = -1;
-      std::uint32_t freq = 0;
+      uint_fast16_t pin_scl = -1;
+      uint_fast16_t pin_sda = -1;
+      uint32_t freq = 0;
 
       void save_reg(SercomI2cm* dev)
       {
@@ -522,14 +522,14 @@ auto mastermode = SERCOM_SPI_CTRLA_MODE_SPI_MASTER;
       }
 
     private:
-      std::uint32_t baudrate;
+      uint32_t baudrate;
     };
     i2c_context_t i2c_context[SERCOM_INST_NUM];
 
 
     cpp::result<void, error_t> init(int sercom_index, int pin_sda, int pin_scl)
     {
-      if ((std::size_t)sercom_index >= SERCOM_INST_NUM) { return cpp::fail(error_t::invalid_arg); }
+      if ((size_t)sercom_index >= SERCOM_INST_NUM) { return cpp::fail(error_t::invalid_arg); }
 
       int pad_sda;
       int pad_scl;
@@ -550,11 +550,11 @@ auto mastermode = SERCOM_SPI_CTRLA_MODE_SPI_MASTER;
       auto *i2cm = &sercom->I2CM;
 
 
-      std::uint_fast8_t id_core = sercomData->id_core;
-      std::uint_fast8_t id_slow = sercomData->id_slow;
+      uint_fast8_t id_core = sercomData->id_core;
+      uint_fast8_t id_slow = sercomData->id_slow;
       GCLK->PCHCTRL[id_core].bit.CHEN = 0;     // Disable timer
       GCLK->PCHCTRL[id_slow].bit.CHEN = 0;     // Disable timer
-      std::uint32_t gclk_reg_value = GCLK_PCHCTRL_CHEN | SERCOM_CLOCK_SOURCE_48M << GCLK_PCHCTRL_GEN_Pos;
+      uint32_t gclk_reg_value = GCLK_PCHCTRL_CHEN | SERCOM_CLOCK_SOURCE_48M << GCLK_PCHCTRL_GEN_Pos;
       while (GCLK->PCHCTRL[id_core].bit.CHEN || GCLK->PCHCTRL[id_slow].bit.CHEN);  // Wait for disable
       GCLK->PCHCTRL[id_core].reg = gclk_reg_value;
       GCLK->PCHCTRL[id_slow].reg = gclk_reg_value;
@@ -586,7 +586,7 @@ auto mastermode = SERCOM_SPI_CTRLA_MODE_SPI_MASTER;
 
     cpp::result<void, error_t> release(int sercom_index)
     {
-      if ((std::size_t)sercom_index >= SERCOM_INST_NUM) { return cpp::fail(error_t::invalid_arg); }
+      if ((size_t)sercom_index >= SERCOM_INST_NUM) { return cpp::fail(error_t::invalid_arg); }
 
       sercom3.disableWIRE();
 /*
@@ -600,9 +600,9 @@ auto mastermode = SERCOM_SPI_CTRLA_MODE_SPI_MASTER;
       return {};
     }
 
-    cpp::result<void, error_t> restart(int sercom_index, int i2c_addr, std::uint32_t freq, bool read)
+    cpp::result<void, error_t> restart(int sercom_index, int i2c_addr, uint32_t freq, bool read)
     {
-      if ((std::size_t)sercom_index >= SERCOM_INST_NUM) { return cpp::fail(error_t::invalid_arg); }
+      if ((size_t)sercom_index >= SERCOM_INST_NUM) { return cpp::fail(error_t::invalid_arg); }
 
       auto sercomData = samd51::getSercomData(sercom_index);
       auto sercom = reinterpret_cast<Sercom*>(sercomData->sercomPtr);
@@ -717,9 +717,9 @@ Serial.println("restart:ok");
 //*/
     }
 
-    cpp::result<void, error_t> beginTransaction(int sercom_index, int i2c_addr, std::uint32_t freq, bool read)
+    cpp::result<void, error_t> beginTransaction(int sercom_index, int i2c_addr, uint32_t freq, bool read)
     {
-      if ((std::size_t)sercom_index >= SERCOM_INST_NUM) { return cpp::fail(error_t::invalid_arg); }
+      if ((size_t)sercom_index >= SERCOM_INST_NUM) { return cpp::fail(error_t::invalid_arg); }
 /*
       auto sercomData = samd51::getSercomData(sercom_index);
       auto sercom = reinterpret_cast<Sercom*>(sercomData->sercomPtr);
@@ -736,7 +736,7 @@ Serial.println("restart:ok");
 
     cpp::result<void, error_t> i2c_wait(int sercom_index, bool flg_stop = false)
     {
-      if ((std::size_t)sercom_index >= SERCOM_INST_NUM) { return cpp::fail(error_t::invalid_arg); }
+      if ((size_t)sercom_index >= SERCOM_INST_NUM) { return cpp::fail(error_t::invalid_arg); }
 
       auto sercomData = samd51::getSercomData(sercom_index);
       auto sercom = reinterpret_cast<Sercom*>(sercomData->sercomPtr);
@@ -783,7 +783,7 @@ Serial.println("i2c_wait 4");
       return i2c_wait(sercom_index, true);
 
 /*
-      if ((std::size_t)sercom_index >= SERCOM_INST_NUM) { return cpp::fail(error_t::invalid_arg); }
+      if ((size_t)sercom_index >= SERCOM_INST_NUM) { return cpp::fail(error_t::invalid_arg); }
       auto sercomData = samd51::getSercomData(sercom_index);
       auto sercom = reinterpret_cast<Sercom*>(sercomData->sercomPtr);
       auto i2cm = &(sercom->I2CM);
@@ -796,9 +796,9 @@ Serial.println("i2c_wait 4");
 //*/
     }
 
-    cpp::result<void, error_t> writeBytes(int sercom_index, const std::uint8_t *data, std::size_t length)
+    cpp::result<void, error_t> writeBytes(int sercom_index, const uint8_t *data, size_t length)
     {
-      if ((std::size_t)sercom_index >= SERCOM_INST_NUM) { return cpp::fail(error_t::invalid_arg); }
+      if ((size_t)sercom_index >= SERCOM_INST_NUM) { return cpp::fail(error_t::invalid_arg); }
 
       auto sercomData = samd51::getSercomData(sercom_index);
       auto sercom = reinterpret_cast<Sercom*>(sercomData->sercomPtr);
@@ -816,9 +816,9 @@ Serial.println("i2c_wait 4");
       return res;
     }
 
-    cpp::result<void, error_t> readBytes(int sercom_index, std::uint8_t *data, std::size_t length)
+    cpp::result<void, error_t> readBytes(int sercom_index, uint8_t *data, size_t length)
     {
-      if ((std::size_t)sercom_index >= SERCOM_INST_NUM) { return cpp::fail(error_t::invalid_arg); }
+      if ((size_t)sercom_index >= SERCOM_INST_NUM) { return cpp::fail(error_t::invalid_arg); }
 
       auto res = i2c_wait(sercom_index);
       if (res.has_error()) { return res; }
@@ -879,7 +879,7 @@ Serial.println("read fail");
     }
 
 
-    cpp::result<void, error_t> transactionWrite(int sercom_index, int addr, const std::uint8_t *writedata, std::uint8_t writelen, std::uint32_t freq)
+    cpp::result<void, error_t> transactionWrite(int sercom_index, int addr, const uint8_t *writedata, uint8_t writelen, uint32_t freq)
     {
       cpp::result<void, error_t> res;
       if ((res = beginTransaction(sercom_index, addr, freq, false)).has_value()
@@ -891,7 +891,7 @@ Serial.println("read fail");
       return res;
     }
 
-    cpp::result<void, error_t> transactionRead(int sercom_index, int addr, std::uint8_t *readdata, std::uint8_t readlen, std::uint32_t freq)
+    cpp::result<void, error_t> transactionRead(int sercom_index, int addr, uint8_t *readdata, uint8_t readlen, uint32_t freq)
     {
       cpp::result<void, error_t> res;
       if ((res = beginTransaction(sercom_index, addr, freq, true)).has_value()
@@ -903,7 +903,7 @@ Serial.println("read fail");
       return res;
     }
 
-    cpp::result<void, error_t> transactionWriteRead(int sercom_index, int addr, const std::uint8_t *writedata, std::uint8_t writelen, std::uint8_t *readdata, std::size_t readlen, std::uint32_t freq)
+    cpp::result<void, error_t> transactionWriteRead(int sercom_index, int addr, const uint8_t *writedata, uint8_t writelen, uint8_t *readdata, size_t readlen, uint32_t freq)
     {
       cpp::result<void, error_t> res;
       if ((res = beginTransaction(sercom_index, addr, freq, false)).has_value()
@@ -917,16 +917,16 @@ Serial.println("read fail");
       return res;
     }
 
-    cpp::result<std::uint8_t, error_t> readRegister8(int sercom_index, int addr, std::uint8_t reg, std::uint32_t freq)
+    cpp::result<uint8_t, error_t> readRegister8(int sercom_index, int addr, uint8_t reg, uint32_t freq)
     {
       auto res = transactionWriteRead(sercom_index, addr, &reg, 1, &reg, 1, freq);
       if (res.has_value()) { return reg; }
       return cpp::fail( res.error() );
     }
 
-    cpp::result<void, error_t> writeRegister8(int sercom_index, int addr, std::uint8_t reg, std::uint8_t data, std::uint8_t mask, std::uint32_t freq)
+    cpp::result<void, error_t> writeRegister8(int sercom_index, int addr, uint8_t reg, uint8_t data, uint8_t mask, uint32_t freq)
     {
-      std::uint8_t tmp[2] = { reg, data };
+      uint8_t tmp[2] = { reg, data };
       if (mask)
       {
         auto res = transactionWriteRead(sercom_index, addr, &reg, 1, &tmp[1], 1, freq);

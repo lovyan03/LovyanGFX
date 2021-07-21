@@ -135,29 +135,29 @@ namespace lgfx
       lgfx::i2c::endTransaction(_cfg.i2c_port);
       lgfx::i2c::beginTransaction(_cfg.i2c_port, _cfg.i2c_addr, _cfg.freq_write, false);
     }
-    lgfx::i2c::writeBytes(_cfg.i2c_port, (std::uint8_t*)(dc ? &_cfg.prefix_data : &_cfg.prefix_cmd), _cfg.prefix_len);
+    lgfx::i2c::writeBytes(_cfg.i2c_port, (uint8_t*)(dc ? &_cfg.prefix_data : &_cfg.prefix_cmd), _cfg.prefix_len);
     _state = st;
   }
 
-  bool Bus_I2C::writeCommand(std::uint32_t data, std::uint_fast8_t bit_length)
+  bool Bus_I2C::writeCommand(uint32_t data, uint_fast8_t bit_length)
   {
     dc_control(false);
-    return lgfx::i2c::writeBytes(_cfg.i2c_port, (std::uint8_t*)&data, (bit_length >> 3)).has_value();
+    return lgfx::i2c::writeBytes(_cfg.i2c_port, (uint8_t*)&data, (bit_length >> 3)).has_value();
   }
 
-  void Bus_I2C::writeData(std::uint32_t data, std::uint_fast8_t bit_length)
+  void Bus_I2C::writeData(uint32_t data, uint_fast8_t bit_length)
   {
     dc_control(true);
-    lgfx::i2c::writeBytes(_cfg.i2c_port, (std::uint8_t*)&data, (bit_length >> 3));
+    lgfx::i2c::writeBytes(_cfg.i2c_port, (uint8_t*)&data, (bit_length >> 3));
   }
 
-  void Bus_I2C::writeDataRepeat(std::uint32_t data, std::uint_fast8_t bit_length, std::uint32_t length)
+  void Bus_I2C::writeDataRepeat(uint32_t data, uint_fast8_t bit_length, uint32_t length)
   {
     dc_control(true);
-    const std::uint8_t dst_bytes = bit_length >> 3;
-    std::uint32_t buf0 = data | data << bit_length;
-    std::uint32_t buf1;
-    std::uint32_t buf2;
+    const uint8_t dst_bytes = bit_length >> 3;
+    uint32_t buf0 = data | data << bit_length;
+    uint32_t buf1;
+    uint32_t buf2;
     // make 12Bytes data.
     if (dst_bytes != 3)
     {
@@ -173,10 +173,10 @@ namespace lgfx
       buf1 = buf0 >>  8 | buf0 << 16;
       buf2 = buf0 >> 16 | buf0 <<  8;
     }
-    std::uint32_t src[8] = { buf0, buf1, buf2, buf0, buf1, buf2, buf0, buf1 };
-    auto buf = reinterpret_cast<std::uint8_t*>(src);
-    std::uint32_t limit = 32 / dst_bytes;
-    std::uint32_t len;
+    uint32_t src[8] = { buf0, buf1, buf2, buf0, buf1, buf2, buf0, buf1 };
+    auto buf = reinterpret_cast<uint8_t*>(src);
+    uint32_t limit = 32 / dst_bytes;
+    uint32_t len;
     do
     {
       len = ((length - 1) % limit) + 1;
@@ -184,13 +184,13 @@ namespace lgfx
     } while (length -= len);
   }
 
-  void Bus_I2C::writePixels(pixelcopy_t* param, std::uint32_t length)
+  void Bus_I2C::writePixels(pixelcopy_t* param, uint32_t length)
   {
     dc_control(true);
-    const std::uint8_t dst_bytes = param->dst_bits >> 3;
-    std::uint32_t limit = 32 / dst_bytes;
-    std::uint32_t len;
-    std::uint8_t buf[32];
+    const uint8_t dst_bytes = param->dst_bits >> 3;
+    uint32_t limit = 32 / dst_bytes;
+    uint32_t len;
+    uint8_t buf[32];
     do
     {
       len = ((length - 1) % limit) + 1;
@@ -199,39 +199,39 @@ namespace lgfx
     } while (length -= len);
   }
 
-  void Bus_I2C::writeBytes(const std::uint8_t* data, std::uint32_t length, bool dc, bool use_dma)
+  void Bus_I2C::writeBytes(const uint8_t* data, uint32_t length, bool dc, bool use_dma)
   {
     dc_control(dc);
     i2c::writeBytes(_cfg.i2c_port, data, length);
   }
 
-  std::uint32_t Bus_I2C::readData(std::uint_fast8_t bit_length)
+  uint32_t Bus_I2C::readData(uint_fast8_t bit_length)
   {
     beginRead();
-    std::uint32_t res;
-    i2c::readBytes(_cfg.i2c_port, reinterpret_cast<std::uint8_t*>(&res), bit_length >> 3);
+    uint32_t res;
+    i2c::readBytes(_cfg.i2c_port, reinterpret_cast<uint8_t*>(&res), bit_length >> 3);
     return res;
   }
 
-  bool Bus_I2C::readBytes(std::uint8_t* dst, std::uint32_t length, bool use_dma)
+  bool Bus_I2C::readBytes(uint8_t* dst, uint32_t length, bool use_dma)
   {
     beginRead();
     return i2c::readBytes(_cfg.i2c_port, dst, length).has_value();
   }
 
-  void Bus_I2C::readPixels(void* dst, pixelcopy_t* param, std::uint32_t length)
+  void Bus_I2C::readPixels(void* dst, pixelcopy_t* param, uint32_t length)
   {
     beginRead();
     const auto bytes = param->src_bits >> 3;
-    std::uint32_t regbuf[8];
-    std::uint32_t limit = 32 / bytes;
+    uint32_t regbuf[8];
+    uint32_t limit = 32 / bytes;
 
     param->src_data = regbuf;
-    std::int32_t dstindex = 0;
+    int32_t dstindex = 0;
     do {
-      std::uint32_t len = (limit > length) ? length : limit;
+      uint32_t len = (limit > length) ? length : limit;
       length -= len;
-      i2c::readBytes(_cfg.i2c_port, (std::uint8_t*)regbuf, len * bytes);
+      i2c::readBytes(_cfg.i2c_port, (uint8_t*)regbuf, len * bytes);
       param->src_x = 0;
       dstindex = param->fp_copy(dst, dstindex, dstindex + len, param);
     } while (length);

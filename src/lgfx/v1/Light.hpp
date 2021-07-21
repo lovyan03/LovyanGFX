@@ -17,7 +17,7 @@ Contributors:
 /----------------------------------------------------------------------------*/
 #pragma once
 
-#include <cstdint>
+#include <stdint.h>
 
 namespace lgfx
 {
@@ -29,14 +29,14 @@ namespace lgfx
   {
     virtual ~ILight(void) = default;
 
-    virtual bool init(std::uint8_t brightness) = 0;
-    virtual void setBrightness(std::uint8_t brightness) = 0;
+    virtual bool init(uint8_t brightness) = 0;
+    virtual void setBrightness(uint8_t brightness) = 0;
   };
 /*
   struct Light_NULL : public ILight
   {
     bool init(void) override {}
-    void setBrightness(std::uint8_t brightness) override {}
+    void setBrightness(uint8_t brightness) override {}
   };
 //*/
 //----------------------------------------------------------------------------

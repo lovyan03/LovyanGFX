@@ -67,22 +67,22 @@ namespace lgfx
       }
     }
 
-    std::uint8_t* getBuffer(std::size_t length)
+    uint8_t* getBuffer(size_t length)
     {
       length = (length + 3) & ~3;
 
       if (_length != length)
       {
         if (_buffer) heap_free(_buffer);
-        _buffer = (std::uint8_t*)heap_alloc_dma(length);
+        _buffer = (uint8_t*)heap_alloc_dma(length);
         _length = _buffer ? length : 0;
       }
       return _buffer;
     }
 
   private:
-    std::uint8_t* _buffer = nullptr;
-    std::size_t _length = 0;
+    uint8_t* _buffer = nullptr;
+    size_t _length = 0;
   };
 
 //----------------------------------------------------------------------------
@@ -97,7 +97,7 @@ namespace lgfx
 
     void deleteBuffer(void)
     {
-      for (std::size_t i = 0; i < 2; i++)
+      for (size_t i = 0; i < 2; i++)
       {
         _length[i] = 0;
         if (_buffer[i])
@@ -108,7 +108,7 @@ namespace lgfx
       }
     }
 
-    std::uint8_t* getBuffer(std::size_t length)
+    uint8_t* getBuffer(size_t length)
     {
       length = (length + 3) & ~3;
       _flip = !_flip;
@@ -116,15 +116,15 @@ namespace lgfx
       if (_length[_flip] != length)
       {
         if (_buffer[_flip]) heap_free(_buffer[_flip]);
-        _buffer[_flip] = (std::uint8_t*)heap_alloc_dma(length);
+        _buffer[_flip] = (uint8_t*)heap_alloc_dma(length);
         _length[_flip] = _buffer[_flip] ? length : 0;
       }
       return _buffer[_flip];
     }
 
   private:
-    std::uint8_t* _buffer[2] = { nullptr, nullptr };
-    std::size_t _length[2] = { 0, 0 };
+    uint8_t* _buffer[2] = { nullptr, nullptr };
+    size_t _length[2] = { 0, 0 };
     bool _flip = false;
   };
 
@@ -134,42 +134,42 @@ namespace lgfx
   {
     cpp::result<void, error_t> init(int spi_host, int spi_sclk, int spi_miso, int spi_mosi);
     void release(int spi_host);
-    void beginTransaction(int spi_host, std::uint32_t freq, int spi_mode = 0);
+    void beginTransaction(int spi_host, uint32_t freq, int spi_mode = 0);
     void endTransaction(int spi_host);
-    void writeBytes(int spi_host, const std::uint8_t* data, std::size_t length);
-    void readBytes(int spi_host, std::uint8_t* data, std::size_t length);
+    void writeBytes(int spi_host, const uint8_t* data, size_t length);
+    void readBytes(int spi_host, uint8_t* data, size_t length);
   }
 
   namespace i2c
   {
-    static constexpr std::uint32_t I2C_DEFAULT_FREQ = 400000;
+    static constexpr uint32_t I2C_DEFAULT_FREQ = 400000;
 
     cpp::result<void, error_t> init(int i2c_port, int pin_sda, int pin_scl);
     cpp::result<void, error_t> release(int i2c_port);
-    cpp::result<void, error_t> restart(int i2c_port, int i2c_addr, std::uint32_t freq, bool read = false);
-    cpp::result<void, error_t> beginTransaction(int i2c_port, int i2c_addr, std::uint32_t freq, bool read = false);
+    cpp::result<void, error_t> restart(int i2c_port, int i2c_addr, uint32_t freq, bool read = false);
+    cpp::result<void, error_t> beginTransaction(int i2c_port, int i2c_addr, uint32_t freq, bool read = false);
     cpp::result<void, error_t> endTransaction(int i2c_port);
-    cpp::result<void, error_t> writeBytes(int i2c_port, const std::uint8_t *data, std::size_t length);
-    cpp::result<void, error_t> readBytes(int i2c_port, std::uint8_t *data, std::size_t length);
+    cpp::result<void, error_t> writeBytes(int i2c_port, const uint8_t *data, size_t length);
+    cpp::result<void, error_t> readBytes(int i2c_port, uint8_t *data, size_t length);
 
 //--------
 
-    cpp::result<void, error_t> transactionWrite(int i2c_port, int addr, const std::uint8_t *writedata, std::uint8_t writelen, std::uint32_t freq = I2C_DEFAULT_FREQ);
-    cpp::result<void, error_t> transactionRead(int i2c_port, int addr, std::uint8_t *readdata, std::uint8_t readlen, std::uint32_t freq = I2C_DEFAULT_FREQ);
-    cpp::result<void, error_t> transactionWriteRead(int i2c_port, int addr, const std::uint8_t *writedata, std::uint8_t writelen, std::uint8_t *readdata, std::size_t readlen, std::uint32_t freq = I2C_DEFAULT_FREQ);
+    cpp::result<void, error_t> transactionWrite(int i2c_port, int addr, const uint8_t *writedata, uint8_t writelen, uint32_t freq = I2C_DEFAULT_FREQ);
+    cpp::result<void, error_t> transactionRead(int i2c_port, int addr, uint8_t *readdata, uint8_t readlen, uint32_t freq = I2C_DEFAULT_FREQ);
+    cpp::result<void, error_t> transactionWriteRead(int i2c_port, int addr, const uint8_t *writedata, uint8_t writelen, uint8_t *readdata, size_t readlen, uint32_t freq = I2C_DEFAULT_FREQ);
 
-    cpp::result<std::uint8_t, error_t> readRegister8(int i2c_port, int addr, std::uint8_t reg, std::uint32_t freq = I2C_DEFAULT_FREQ);
-    cpp::result<void, error_t> writeRegister8(int i2c_port, int addr, std::uint8_t reg, std::uint8_t data, std::uint8_t mask = 0, std::uint32_t freq = I2C_DEFAULT_FREQ);
+    cpp::result<uint8_t, error_t> readRegister8(int i2c_port, int addr, uint8_t reg, uint32_t freq = I2C_DEFAULT_FREQ);
+    cpp::result<void, error_t> writeRegister8(int i2c_port, int addr, uint8_t reg, uint8_t data, uint8_t mask = 0, uint32_t freq = I2C_DEFAULT_FREQ);
 
-    inline cpp::result<void, error_t> readRegister(int i2c_port, int addr, std::uint8_t reg, std::uint8_t* data, std::size_t len, std::uint32_t freq = I2C_DEFAULT_FREQ)
+    inline cpp::result<void, error_t> readRegister(int i2c_port, int addr, uint8_t reg, uint8_t* data, size_t len, uint32_t freq = I2C_DEFAULT_FREQ)
     {
       return transactionWriteRead(i2c_port, addr, &reg, 1, data, len, freq);
     }
-    inline cpp::result<void, error_t> bitOn(int i2c_port, int addr, std::uint8_t reg, std::uint8_t bit, std::uint32_t freq = I2C_DEFAULT_FREQ)
+    inline cpp::result<void, error_t> bitOn(int i2c_port, int addr, uint8_t reg, uint8_t bit, uint32_t freq = I2C_DEFAULT_FREQ)
     {
       return writeRegister8(i2c_port, addr, reg, bit, ~0, freq);
     }
-    inline cpp::result<void, error_t> bitOff(int i2c_port, int addr, std::uint8_t reg, std::uint8_t bit, std::uint32_t freq = I2C_DEFAULT_FREQ)
+    inline cpp::result<void, error_t> bitOff(int i2c_port, int addr, uint8_t reg, uint8_t bit, uint32_t freq = I2C_DEFAULT_FREQ)
     {
       return writeRegister8(i2c_port, addr, reg, 0, ~bit, freq);
     }

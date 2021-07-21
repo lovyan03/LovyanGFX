@@ -15,7 +15,7 @@ Contributors:
  [mongonta0716](https://github.com/mongonta0716)
  [tobozo](https://github.com/tobozo)
 /----------------------------------------------------------------------------*/
-#if defined (ESP32) || defined (CONFIG_IDF_TARGET_ESP32) || defined (CONFIG_IDF_TARGET_ESP32S2) || defined (ESP_PLATFORM)
+#if defined (ESP_PLATFORM)
 #elif defined (ESP8266)
 #elif defined (__SAMD21__) || defined (__SAMD51__)
 #elif defined (STM32F2xx) || defined (STM32F4xx) || defined (STM32F7xx)
@@ -54,6 +54,7 @@ namespace lgfx
 
   void Bus_SPI::release(void)
   {
+    SPI.end();
   }
 
   void Bus_SPI::beginTransaction(void)
@@ -66,6 +67,7 @@ namespace lgfx
 
   void Bus_SPI::endTransaction(void)
   {
+    SPI.disableCS();
     SPI.endTransaction();
     dc_h();
   }
@@ -93,76 +95,77 @@ namespace lgfx
     return false;
   }
 
-  bool Bus_SPI::writeCommand(std::uint32_t data, std::uint_fast8_t bit_length)
+  bool Bus_SPI::writeCommand(uint32_t data, uint_fast8_t bit_length)
   {
     dc_l();
-    do
-    {
-      SPI.transfer(data);
-      data >>= 8;
-    } while (bit_length -= 8);
+    SPI.send((uint8_t*)&data, bit_length >> 3);
     dc_h();
     return true;
   }
 
-  void Bus_SPI::writeData(std::uint32_t data, std::uint_fast8_t bit_length)
+  void Bus_SPI::writeData(uint32_t data, uint_fast8_t bit_length)
   {
-    do
-    {
-      SPI.transfer(data);
-      data >>= 8;
-    } while (bit_length -= 8);
+    SPI.send((uint8_t*)&data, bit_length >> 3);
   }
 
-  void Bus_SPI::writeDataRepeat(std::uint32_t data, std::uint_fast8_t bit_length, std::uint32_t length)
+  void Bus_SPI::writeDataRepeat(uint32_t data, uint_fast8_t bit_length, uint32_t length)
   {
-    const std::uint8_t dst_bytes = bit_length >> 3;
-    std::uint32_t limit = (dst_bytes == 3) ? 12 : 16;
-    auto dmabuf = _flip_buffer.getBuffer(512);
-    std::size_t fillpos = 0;
-    reinterpret_cast<uint32_t*>(dmabuf)[0] = data;
+/*
+    auto bytes = bit_length >> 3;
+    do
+    {
+      SPI.send(reinterpret_cast<uint8_t*>(&data), bytes);
+    } while (--length);
+/*/
+    const uint8_t dst_bytes = bit_length >> 3;
+    uint32_t limit = (dst_bytes == 3) ? 12 : 16;
+    auto buf = _flip_buffer.getBuffer(512);
+    size_t fillpos = 0;
+    reinterpret_cast<uint32_t*>(buf)[0] = data;
     fillpos += dst_bytes;
-    std::uint32_t len;
+    uint32_t len;
     do
     {
       len = ((length - 1) % limit) + 1;
-      if (limit <= 256) limit <<= 1;
+      if (limit <= 64) limit <<= 1;
 
       while (fillpos < len * dst_bytes)
       {
-        memcpy(&dmabuf[fillpos], dmabuf, fillpos);
+        memcpy(&buf[fillpos], buf, fillpos);
         fillpos += fillpos;
       }
 
-      writeBytes(dmabuf, len * dst_bytes, true, true);
+      SPI.send(buf, len * dst_bytes);
     } while (length -= len);
+//*/
   }
 
-  void Bus_SPI::writePixels(pixelcopy_t* param, std::uint32_t length)
+  void Bus_SPI::writePixels(pixelcopy_t* param, uint32_t length)
   {
-    const std::uint8_t dst_bytes = param->dst_bits >> 3;
-    std::uint32_t limit = (dst_bytes == 3) ? 12 : 16;
-    std::uint32_t len;
+    const uint8_t dst_bytes = param->dst_bits >> 3;
+    uint32_t limit = (dst_bytes == 3) ? 12 : 16;
+    uint32_t len;
     do
     {
       len = ((length - 1) % limit) + 1;
-      if (limit <= 256) limit <<= 1;
-      auto dmabuf = _flip_buffer.getBuffer(len * dst_bytes);
-      param->fp_copy(dmabuf, 0, len, param);
-      writeBytes(dmabuf, len * dst_bytes, true, true);
+      if (limit <= 32) limit <<= 1;
+      auto buf = _flip_buffer.getBuffer(len * dst_bytes);
+      param->fp_copy(buf, 0, len, param);
+      SPI.send(buf, len * dst_bytes);
     } while (length -= len);
   }
 
-  void Bus_SPI::writeBytes(const std::uint8_t* data, std::uint32_t length, bool dc, bool use_dma)
+  void Bus_SPI::writeBytes(const uint8_t* data, uint32_t length, bool dc, bool use_dma)
   {
     if (dc) dc_h();
     else dc_l();
-    SPI.transfer(const_cast<std::uint8_t*>(data), length);
+    SPI.send(const_cast<uint8_t*>(data), length);
+    if (!dc) dc_h();
   }
 
-  std::uint32_t Bus_SPI::readData(std::uint_fast8_t bit_length)
+  uint32_t Bus_SPI::readData(uint_fast8_t bit_length)
   {
-    std::uint32_t res = 0;
+    uint32_t res = 0;
     bit_length >>= 3;
     if (!bit_length) return res;
     int idx = 0;
@@ -174,7 +177,7 @@ namespace lgfx
     return res;
   }
 
-  bool Bus_SPI::readBytes(std::uint8_t* dst, std::uint32_t length, bool use_dma)
+  bool Bus_SPI::readBytes(uint8_t* dst, uint32_t length, bool use_dma)
   {
     do
     {
@@ -184,16 +187,16 @@ namespace lgfx
     return true;
   }
 
-  void Bus_SPI::readPixels(void* dst, pixelcopy_t* param, std::uint32_t length)
+  void Bus_SPI::readPixels(void* dst, pixelcopy_t* param, uint32_t length)
   {
-    std::uint32_t bytes = param->src_bits >> 3;
-    std::uint32_t dstindex = 0;
-    std::uint32_t len = 4;
-    std::uint8_t buf[24];
+    uint32_t bytes = param->src_bits >> 3;
+    uint32_t dstindex = 0;
+    uint32_t len = 4;
+    uint8_t buf[24];
     param->src_data = buf;
     do {
       if (len > length) len = length;
-      readBytes((std::uint8_t*)buf, len * bytes, true);
+      readBytes((uint8_t*)buf, len * bytes, true);
       param->src_x = 0;
       dstindex = param->fp_copy(dst, dstindex, dstindex + len, param);
       length -= len;

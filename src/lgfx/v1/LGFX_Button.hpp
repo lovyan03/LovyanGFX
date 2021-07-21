@@ -32,7 +32,7 @@ namespace lgfx
   {
   public:
     template<typename T>
-    void initButton( LovyanGFX *gfx, std::int16_t x, std::int16_t y, std::uint16_t w, std::uint16_t h
+    void initButton( LovyanGFX *gfx, int16_t x, int16_t y, uint16_t w, uint16_t h
                    , const T& outline, const T& fill, const T& textcolor, const char *label, float textsize_x = 1.0f, float textsize_y = 0.0f)
     {
       _outlinecolor = lgfx::convert_to_rgb888(outline);
@@ -42,7 +42,7 @@ namespace lgfx
     }
 
     template<typename T>
-    void initButtonUL( LovyanGFX *gfx, std::int16_t x, std::int16_t y, std::uint16_t w, std::uint16_t h
+    void initButtonUL( LovyanGFX *gfx, int16_t x, int16_t y, uint16_t w, uint16_t h
                      , const T& outline, const T& fill, const T& textcolor, const char *label, float textsize_x = 1.0f, float textsize_y = 0.0f)
     {
       _outlinecolor = lgfx::convert_to_rgb888(outline);
@@ -51,13 +51,13 @@ namespace lgfx
       _init_button(gfx, x, y, w, h, label, textsize_x, textsize_y);
     }
 
-    void setLabelDatum(std::int16_t x_delta, std::int16_t y_delta, textdatum_t datum = middle_center);
+    void setLabelDatum(int16_t x_delta, int16_t y_delta, textdatum_t datum = middle_center);
 
     void drawButton(bool inverted = false, const char* long_name = nullptr);
 
-    bool contains(std::int16_t x, std::int16_t y) const
+    bool contains(int16_t x, int16_t y) const
     {
-      return (std::uint_fast16_t)(x - _x) < _w && (std::uint_fast16_t)(y - _y) < _h;
+      return (uint_fast16_t)(x - _x) < _w && (uint_fast16_t)(y - _y) < _h;
     }
 
     void press(bool p)
@@ -70,19 +70,19 @@ namespace lgfx
     bool justReleased(void) const { return (!_pressed && _last_press); }
 
   private:
-    void _init_button( LovyanGFX *gfx, std::int16_t x, std::int16_t y, std::uint16_t w, std::uint16_t h
+    void _init_button( LovyanGFX *gfx, int16_t x, int16_t y, uint16_t w, uint16_t h
                      , const char *label, float textsize_x, float textsize_y);
 
     LovyanGFX *_gfx = nullptr;
-    std::int16_t  _x = 0; // Coordinates of top-left corner of button
-    std::int16_t  _y = 0; // Coordinates of top-left corner of button
-    std::int16_t  _xd = 0; // Button text datum offsets (wrt centre of button)
-    std::int16_t  _yd = 0; // Button text datum offsets (wrt centre of button)
-    std::uint16_t _w = 0;   // Width and height of button
-    std::uint16_t _h = 0;   // Width and height of button
-    std::uint32_t _outlinecolor = 0xFFFFFF;
-    std::uint32_t _fillcolor    = 0;
-    std::uint32_t _textcolor    = 0xFFFFFF;
+    int16_t  _x = 0; // Coordinates of top-left corner of button
+    int16_t  _y = 0; // Coordinates of top-left corner of button
+    int16_t  _xd = 0; // Button text datum offsets (wrt centre of button)
+    int16_t  _yd = 0; // Button text datum offsets (wrt centre of button)
+    uint16_t _w = 0;   // Width and height of button
+    uint16_t _h = 0;   // Width and height of button
+    uint32_t _outlinecolor = 0xFFFFFF;
+    uint32_t _fillcolor    = 0;
+    uint32_t _textcolor    = 0xFFFFFF;
     textdatum_t _textdatum = middle_center; // Text size multiplier and text datum for button
     char _label[12]; // Button text is 11 chars maximum unless long_name used
     float _textsize_x, _textsize_y;

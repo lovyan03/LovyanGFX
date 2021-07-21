@@ -38,7 +38,7 @@ namespace lgfx
 
   protected:
 
-    const std::uint8_t* getInvertDisplayCommands(std::uint8_t* buf, bool invert) override {
+    const uint8_t* getInvertDisplayCommands(uint8_t* buf, bool invert) override {
       if (!isIPS) return Panel_ILI9342::getInvertDisplayCommands(buf, invert);
       this->invert = invert;
       buf[2] = buf[0] = invert ? CommandCommon::INVOFF : CommandCommon::INVON;

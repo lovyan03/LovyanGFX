@@ -17,9 +17,8 @@ Contributors:
 /----------------------------------------------------------------------------*/
 #include "Touch_XPT2046.hpp"
 
+#include "../../internal/algorithm.h"
 #include "../platforms/common.hpp"
-
-#include <algorithm>
 
 namespace lgfx
 {
@@ -48,7 +47,7 @@ namespace lgfx
     return true;
   }
 
-  std::uint_fast8_t Touch_XPT2046::getTouchRaw(touch_point_t* __restrict__ tp, std::uint_fast8_t count)
+  uint_fast8_t Touch_XPT2046::getTouchRaw(touch_point_t* __restrict__ tp, uint_fast8_t count)
   {
     if (!_inited || count == 0) return 0;
 
@@ -59,7 +58,7 @@ namespace lgfx
       return 0;
     }
 
-    std::uint8_t data[57];
+    uint8_t data[57];
 
     memset(data, 0, 8);
     data[ 0] = 0x91;
@@ -77,9 +76,9 @@ namespace lgfx
     spi::endTransaction(_cfg.spi_host);
     lgfx::gpio_hi(_cfg.pin_cs);
 
-    std::size_t ix = 0, iy = 0, iz = 0;
-    std::uint_fast16_t xt[7], yt[7], zt[7];
-    for (std::size_t j = 0; j < 7; ++j)
+    size_t ix = 0, iy = 0, iz = 0;
+    uint_fast16_t xt[7], yt[7], zt[7];
+    for (size_t j = 0; j < 7; ++j)
     {
       auto d = &data[j * 8];
       int x = (d[5] << 8 | d[6]) >> 3;

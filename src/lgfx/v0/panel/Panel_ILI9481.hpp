@@ -25,17 +25,17 @@ namespace lgfx
 
     struct CMD : public CommandCommon
     {
-      static constexpr std::uint8_t PNLDRV = 0xC0;
-      static constexpr std::uint8_t FRMCTR = 0xC5;
-      static constexpr std::uint8_t IFCTR  = 0xC6;
-      static constexpr std::uint8_t PWSET  = 0xD0;
-      static constexpr std::uint8_t VMCTR  = 0xD1;
-      static constexpr std::uint8_t PWSETN = 0xD2;
-      static constexpr std::uint8_t GMCTR  = 0xC8;
+      static constexpr uint8_t PNLDRV = 0xC0;
+      static constexpr uint8_t FRMCTR = 0xC5;
+      static constexpr uint8_t IFCTR  = 0xC6;
+      static constexpr uint8_t PWSET  = 0xD0;
+      static constexpr uint8_t VMCTR  = 0xD1;
+      static constexpr uint8_t PWSETN = 0xD2;
+      static constexpr uint8_t GMCTR  = 0xC8;
     };
-    const std::uint8_t* getInitCommands(std::uint8_t listno) const override
+    const uint8_t* getInitCommands(uint8_t listno) const override
     {
-      static constexpr std::uint8_t list0[] = {
+      static constexpr uint8_t list0[] = {
           CMD::SLPOUT ,  CMD_INIT_DELAY, 130,    // Exit sleep mode
           CMD::PWSET  , 3, 0x07, 0x41, 0x1D,
           CMD::VMCTR  , 3, 0x00, 0x1C, 0x1F,
@@ -58,9 +58,9 @@ namespace lgfx
       }
     }
 
-    std::uint8_t getMadCtl(std::uint8_t r) const override
+    uint8_t getMadCtl(uint8_t r) const override
     {
-      static constexpr std::uint8_t madctl_table[] = {
+      static constexpr uint8_t madctl_table[] = {
                MAD_HF       ,
         MAD_MV              ,
                       MAD_VF,

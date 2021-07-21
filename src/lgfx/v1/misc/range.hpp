@@ -17,7 +17,7 @@ Contributors:
 /----------------------------------------------------------------------------*/
 #pragma once
 
-#include <cstdint>
+#include <stdint.h>
 
 namespace lgfx
 {
@@ -29,13 +29,13 @@ namespace lgfx
 #pragma pack(1)
   struct range_t
   {
-    std::int_fast16_t first;
-    std::int_fast16_t last;
+    int_fast16_t first;
+    int_fast16_t last;
 
-    std::int_fast16_t length(void) const { return last - first + 1; }
+    int_fast16_t length(void) const { return last - first + 1; }
     bool empty(void) const { return last < first; }
     bool intersectsWith(const range_t& r) const { return (r.first <= last) && (first <= r.last); }
-    bool intersectsWith(std::int_fast16_t f, std::int_fast16_t l) const { return (f <= last) && (first <= l); }
+    bool intersectsWith(int_fast16_t f, int_fast16_t l) const { return (f <= last) && (first <= l); }
   };
 
   struct range_rect_t
@@ -49,24 +49,24 @@ namespace lgfx
       };
       struct
       {
-        std::int_fast16_t left;
-        std::int_fast16_t right;
-        std::int_fast16_t top;
-        std::int_fast16_t bottom;
+        int_fast16_t left;
+        int_fast16_t right;
+        int_fast16_t top;
+        int_fast16_t bottom;
       };
       struct
       {
-        std::int_fast16_t l;
-        std::int_fast16_t r;
-        std::int_fast16_t t;
-        std::int_fast16_t b;
+        int_fast16_t l;
+        int_fast16_t r;
+        int_fast16_t t;
+        int_fast16_t b;
       };
     };
 
-    __attribute__ ((always_inline)) inline std::int_fast16_t width(void) const { return right - left + 1; }
-    __attribute__ ((always_inline)) inline std::int_fast16_t height(void) const { return bottom - top + 1; }
+    __attribute__ ((always_inline)) inline int_fast16_t width(void) const { return right - left + 1; }
+    __attribute__ ((always_inline)) inline int_fast16_t height(void) const { return bottom - top + 1; }
     __attribute__ ((always_inline)) inline bool empty(void) const { return left > right || top > bottom; }
-    __attribute__ ((always_inline)) inline bool contain(std::int_fast16_t x, std::int_fast16_t y) const { return left <= x && x <= right && top <= y && y <= bottom; }
+    __attribute__ ((always_inline)) inline bool contain(int_fast16_t x, int_fast16_t y) const { return left <= x && x <= right && top <= y && y <= bottom; }
   };
 #pragma pack(pop)
 

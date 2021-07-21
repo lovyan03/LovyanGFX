@@ -18,7 +18,7 @@ Contributors:
 #pragma once
 
 #include <vector>
-#include <cstring>
+#include <string.h>
 
 #if __has_include(<esp32/rom/lldesc.h>)
  #include <esp32/rom/lldesc.h>
@@ -49,18 +49,18 @@ namespace lgfx
       i2s_port_t i2s_port = I2S_NUM_0;
 
       // max 20MHz , 16MHz , 13.3MHz , 11.43MHz , 10MHz , 8.9MHz  and more ...
-      std::uint32_t freq_write = 16000000;
-      std::int8_t pin_d0 = -1;
-      std::int8_t pin_d1 = -1;
-      std::int8_t pin_d2 = -1;
-      std::int8_t pin_d3 = -1;
-      std::int8_t pin_d4 = -1;
-      std::int8_t pin_d5 = -1;
-      std::int8_t pin_d6 = -1;
-      std::int8_t pin_d7 = -1;
-      std::int8_t pin_wr = -1;
-      std::int8_t pin_rd = -1;
-      std::int8_t pin_rs = -1;  // D/C
+      uint32_t freq_write = 16000000;
+      int8_t pin_d0 = -1;
+      int8_t pin_d1 = -1;
+      int8_t pin_d2 = -1;
+      int8_t pin_d3 = -1;
+      int8_t pin_d4 = -1;
+      int8_t pin_d5 = -1;
+      int8_t pin_d6 = -1;
+      int8_t pin_d7 = -1;
+      int8_t pin_wr = -1;
+      int8_t pin_rd = -1;
+      int8_t pin_rs = -1;  // D/C
     };
 
 
@@ -78,45 +78,45 @@ namespace lgfx
     bool busy(void) const override;
 
     void flush(void) override;
-    bool writeCommand(std::uint32_t data, std::uint_fast8_t bit_length) override;
-    void writeData(std::uint32_t data, std::uint_fast8_t bit_length) override;
-    void writeDataRepeat(std::uint32_t data, std::uint_fast8_t bit_length, std::uint32_t count) override;
-    void writePixels(pixelcopy_t* param, std::uint32_t length) override;
-    void writeBytes(const std::uint8_t* data, std::uint32_t length, bool dc, bool use_dma) override;
+    bool writeCommand(uint32_t data, uint_fast8_t bit_length) override;
+    void writeData(uint32_t data, uint_fast8_t bit_length) override;
+    void writeDataRepeat(uint32_t data, uint_fast8_t bit_length, uint32_t count) override;
+    void writePixels(pixelcopy_t* param, uint32_t length) override;
+    void writeBytes(const uint8_t* data, uint32_t length, bool dc, bool use_dma) override;
 
     void initDMA(void) override {}
-    void addDMAQueue(const std::uint8_t* data, std::uint32_t length) override { writeBytes(data, length, true, true); }
+    void addDMAQueue(const uint8_t* data, uint32_t length) override { writeBytes(data, length, true, true); }
     void execDMAQueue(void) override { flush(); };
-    std::uint8_t* getDMABuffer(std::uint32_t length) override { return _flip_buffer.getBuffer(length); }
+    uint8_t* getDMABuffer(uint32_t length) override { return _flip_buffer.getBuffer(length); }
 
     void beginRead(void) override;
     void endRead(void) override;
-    std::uint32_t readData(std::uint_fast8_t bit_length) override;
-    bool readBytes(std::uint8_t* dst, std::uint32_t length, bool use_dma) override;
-    void readPixels(void* dst, pixelcopy_t* param, std::uint32_t length) override;
+    uint32_t readData(uint_fast8_t bit_length) override;
+    bool readBytes(uint8_t* dst, uint32_t length, bool use_dma) override;
+    void readPixels(void* dst, pixelcopy_t* param, uint32_t length) override;
 
   private:
 
-    static constexpr std::size_t CACHE_SIZE = 132;
+    static constexpr size_t CACHE_SIZE = 132;
 
     config_t _cfg;
     SimpleBuffer _flip_buffer;
-    std::size_t _div_num;
-    std::size_t _cache_index;
-    std::uint16_t _cache[2][CACHE_SIZE];
-    std::uint16_t* _cache_flip;
+    size_t _div_num;
+    size_t _cache_index;
+    uint16_t _cache[2][CACHE_SIZE];
+    uint16_t* _cache_flip;
     
     void _wait(void);
     void _init_pin(void);
-    std::size_t _flush(std::size_t idx, bool force = false);
-    std::uint_fast8_t _reg_to_value(std::uint32_t raw_value);
+    size_t _flush(size_t idx, bool force = false);
+    uint_fast8_t _reg_to_value(uint32_t raw_value);
 
-    std::uint32_t _last_freq_apb;
-    std::uint32_t _clkdiv_write;
+    uint32_t _last_freq_apb;
+    uint32_t _clkdiv_write;
     volatile void *_dev;
     lldesc_t _dmadesc;
 
-    volatile std::uint32_t* _i2s_fifo_wr_reg;
+    volatile uint32_t* _i2s_fifo_wr_reg;
   };
 
 //----------------------------------------------------------------------------

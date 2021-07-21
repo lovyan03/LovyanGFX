@@ -33,7 +33,7 @@ namespace lgfx
  {
 //----------------------------------------------------------------------------
 
-  bool Light_PWM::init(std::uint8_t brightness)
+  bool Light_PWM::init(uint8_t brightness)
   {
 
 #ifdef ARDUINO
@@ -78,10 +78,10 @@ namespace lgfx
     return true;
   }
 
-  void Light_PWM::setBrightness(std::uint8_t brightness)
+  void Light_PWM::setBrightness(uint8_t brightness)
   {
     if (_cfg.invert) brightness = ~brightness;
-    std::uint32_t duty = brightness + (brightness >> 7);
+    uint32_t duty = brightness + (brightness >> 7);
 
 #ifdef ARDUINO
     ledcWrite(_cfg.pwm_channel, duty);

@@ -25,7 +25,7 @@ namespace lgfx
  {
 //----------------------------------------------------------------------------
 
-  void pinMode(std::int_fast16_t pin, pin_mode_t mode)
+  void pinMode(int_fast16_t pin, pin_mode_t mode)
   {
     if (pin < 0) return;
 /*
@@ -79,11 +79,11 @@ namespace lgfx
     //void endTransaction(int spi_host, int spi_cs)
     void endTransaction(int, int) {}
 
-    //void writeData(int spi_host, const std::uint8_t* data, std::uint32_t len)
-    void writeData(int, const std::uint8_t*, std::uint32_t) {}
+    //void writeData(int spi_host, const uint8_t* data, uint32_t len)
+    void writeData(int, const uint8_t*, uint32_t) {}
 
-    //void readData(int spi_host, std::uint8_t* data, std::uint32_t len)
-    void readData(int, std::uint8_t*, std::uint32_t) {}
+    //void readData(int spi_host, uint8_t* data, uint32_t len)
+    void readData(int, uint8_t*, uint32_t) {}
   }
 
 //----------------------------------------------------------------------------
@@ -93,27 +93,27 @@ namespace lgfx
     //void init(int i2c_port, int sda, int scl, int freq) { }
     void init(int, int, int, int) {}
 
-    //bool writeBytes(int i2c_port, std::uint16_t addr, const std::uint8_t *data, std::uint8_t len)
-    bool writeBytes(int, std::uint16_t, const std::uint8_t*, std::uint8_t)
+    //bool writeBytes(int i2c_port, uint16_t addr, const uint8_t *data, uint8_t len)
+    bool writeBytes(int, uint16_t, const uint8_t*, uint8_t)
     {
       return false;
     }
 
-    //bool writeReadBytes(int i2c_port, std::uint16_t addr, const std::uint8_t *writedata, std::uint8_t writelen, std::uint8_t *readdata, std::uint8_t readlen)
-    bool writeReadBytes(int, std::uint16_t, const std::uint8_t*, std::uint8_t, std::uint8_t*, std::uint8_t)
+    //bool writeReadBytes(int i2c_port, uint16_t addr, const uint8_t *writedata, uint8_t writelen, uint8_t *readdata, uint8_t readlen)
+    bool writeReadBytes(int, uint16_t, const uint8_t*, uint8_t, uint8_t*, uint8_t)
     {
       return false;
     }
 
-    //bool readRegister(int i2c_port, std::uint16_t addr, std::uint8_t reg, std::uint8_t *data, uint8_t len)
-    bool readRegister(int, std::uint16_t, std::uint8_t, std::uint8_t*, uint8_t)
+    //bool readRegister(int i2c_port, uint16_t addr, uint8_t reg, uint8_t *data, uint8_t len)
+    bool readRegister(int, uint16_t, uint8_t, uint8_t*, uint8_t)
     {
       return false;
     }
 
-    bool writeRegister8(int i2c_port, std::uint16_t addr, std::uint8_t reg, std::uint8_t data, std::uint8_t mask)
+    bool writeRegister8(int i2c_port, uint16_t addr, uint8_t reg, uint8_t data, uint8_t mask)
     {
-      std::uint8_t tmp[2] = { reg, data };
+      uint8_t tmp[2] = { reg, data };
       if (mask) {
         if (!readRegister(i2c_port, addr, reg, &tmp[1], 1)) return false;
         tmp[1] = (tmp[1] & mask) | data;

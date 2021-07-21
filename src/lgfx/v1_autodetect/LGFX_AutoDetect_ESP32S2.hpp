@@ -45,14 +45,14 @@ namespace lgfx
     lgfx::ITouch* _touch_last = nullptr;
     lgfx::Bus_SPI _bus_spi;
 
-    static void _pin_level(std::int_fast16_t pin, bool level)
+    static void _pin_level(int_fast16_t pin, bool level)
     {
       lgfx::pinMode(pin, lgfx::pin_mode_t::output);
       if (level) lgfx::gpio_hi(pin);
       else       lgfx::gpio_lo(pin);
     }
 
-    static void _pin_reset(std::int_fast16_t pin, bool use_reset)
+    static void _pin_reset(int_fast16_t pin, bool use_reset)
     {
       lgfx::gpio_hi(pin);
       lgfx::pinMode(pin, lgfx::pin_mode_t::output);
@@ -71,14 +71,14 @@ namespace lgfx
       } while (lgfx::millis() - time < 10);
     }
 
-    static std::uint32_t _read_panel_id(lgfx::Bus_SPI* bus, std::int32_t pin_cs, std::uint32_t cmd = 0x04, std::uint8_t dummy_read_bit = 1) // 0x04 = RDDID command
+    static uint32_t _read_panel_id(lgfx::Bus_SPI* bus, int32_t pin_cs, uint32_t cmd = 0x04, uint8_t dummy_read_bit = 1) // 0x04 = RDDID command
     {
       bus->beginTransaction();
       _pin_level(pin_cs, false);
       bus->writeCommand(cmd, 8);
       if (dummy_read_bit) bus->writeData(0, dummy_read_bit);  // dummy read bit
       bus->beginRead();
-      std::uint32_t res = bus->readData(32);
+      uint32_t res = bus->readData(32);
       bus->endTransaction();
       _pin_level(pin_cs, true);
 
@@ -93,7 +93,7 @@ namespace lgfx
       _panel_last->setLight(bl);
     }
 
-    void _set_pwm_backlight(std::int16_t pin, std::uint8_t ch, std::uint32_t freq = 12000, bool invert = false)
+    void _set_pwm_backlight(int16_t pin, uint8_t ch, uint32_t freq = 12000, bool invert = false)
     {
       auto bl = new lgfx::Light_PWM();
       auto cfg = bl->config();
@@ -108,8 +108,8 @@ namespace lgfx
     bool init_impl(bool use_reset, bool use_clear)
     {
       static constexpr char NVS_KEY[] = "AUTODETECT";
-      std::uint32_t nvs_board = 0;
-      std::uint32_t nvs_handle = 0;
+      uint32_t nvs_board = 0;
+      uint32_t nvs_handle = 0;
       if (0 == nvs_open(LIBRARY_NAME, NVS_READONLY, &nvs_handle))
       {
         nvs_get_u32(nvs_handle, NVS_KEY, static_cast<uint32_t*>(&nvs_board));
@@ -182,7 +182,7 @@ namespace lgfx
       bus_cfg.dma_channel = SPI_DMA_CH_AUTO;
       bus_cfg.use_lock = true;
 
-      std::uint32_t id;
+      uint32_t id;
       (void)id;  // suppress warning
 
 

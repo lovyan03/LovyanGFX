@@ -65,11 +65,11 @@ namespace lgfx
 
   namespace m5stack
   {
-    static constexpr std::int32_t axp_i2c_freq = 400000;
-    static constexpr std::uint_fast8_t axp_i2c_addr = 0x34;
-    static constexpr std::int_fast16_t axp_i2c_port = I2C_NUM_1;
-    static constexpr std::int_fast16_t axp_i2c_sda = 21;
-    static constexpr std::int_fast16_t axp_i2c_scl = 22;
+    static constexpr int32_t axp_i2c_freq = 400000;
+    static constexpr uint_fast8_t axp_i2c_addr = 0x34;
+    static constexpr int_fast16_t axp_i2c_port = I2C_NUM_1;
+    static constexpr int_fast16_t axp_i2c_sda = 21;
+    static constexpr int_fast16_t axp_i2c_scl = 22;
   }
 
   struct Panel_M5Stack : public lgfx::Panel_ILI9342
@@ -117,13 +117,13 @@ namespace lgfx
 
   struct Light_M5StackCore2 : public lgfx::ILight
   {
-    bool init(std::uint8_t brightness) override
+    bool init(uint8_t brightness) override
     {
       setBrightness(brightness);
       return true;
     }
 
-    void setBrightness(std::uint8_t brightness) override
+    void setBrightness(uint8_t brightness) override
     {
       using namespace m5stack;
 
@@ -143,13 +143,13 @@ namespace lgfx
 
   struct Light_M5StackTough : public lgfx::ILight
   {
-    bool init(std::uint8_t brightness) override
+    bool init(uint8_t brightness) override
     {
       setBrightness(brightness);
       return true;
     }
 
-    void setBrightness(std::uint8_t brightness) override
+    void setBrightness(uint8_t brightness) override
     {
       using namespace m5stack;
 
@@ -195,7 +195,7 @@ namespace lgfx
       return _inited;
     }
 
-    std::uint_fast8_t getTouchRaw(touch_point_t* __restrict__ tp, std::uint_fast8_t count) override
+    uint_fast8_t getTouchRaw(touch_point_t* __restrict__ tp, uint_fast8_t count) override
     {
       if (tp) tp->size = 0;
       if (!_inited || count == 0) return 0;
@@ -205,25 +205,25 @@ namespace lgfx
       //   Serial.printf("tp:%d \r\n", gpio_in(_cfg.pin_int));
       // }
 
-      std::size_t len = 3 + count * 6;
-      std::uint8_t buf[2][len];
-      std::int32_t retry = 5;
+      size_t len = 3 + count * 6;
+      uint8_t buf[2][len];
+      int32_t retry = 5;
       bool flip = false;
-      std::uint8_t* tmp;
+      uint8_t* tmp;
       for (;;)
       {
         tmp = buf[flip];
         memset(tmp, 0, len);
         if (lgfx::i2c::beginTransaction(_cfg.i2c_port, _cfg.i2c_addr, _cfg.freq, false))
         {
-          static constexpr std::uint8_t reg_number = 2;
+          static constexpr uint8_t reg_number = 2;
           if (lgfx::i2c::writeBytes(_cfg.i2c_port, &reg_number, 1)
           && lgfx::i2c::restart(_cfg.i2c_port, _cfg.i2c_addr, _cfg.freq, true)
           && lgfx::i2c::readBytes(_cfg.i2c_port, tmp, 1)
           && (tmp[0] != 0))
           {
             flip = !flip;
-            std::size_t points = std::min<std::uint_fast8_t>(count, tmp[0]);
+            size_t points = std::min<uint_fast8_t>(count, tmp[0]);
             if (points && lgfx::i2c::readBytes(_cfg.i2c_port, &tmp[1], points * 6 - 2))
             {}
           }
@@ -234,7 +234,7 @@ namespace lgfx
       }
       if (count > tmp[0]) count = tmp[0];
     
-      for (std::size_t idx = 0; idx < count; ++idx)
+      for (size_t idx = 0; idx < count; ++idx)
       {
         auto data = &tmp[1 + idx * 6];
         tp[idx].size = 1;
@@ -262,9 +262,9 @@ namespace lgfx
 
   protected:
 
-    const std::uint8_t* getInitCommands(std::uint8_t listno) const override
+    const uint8_t* getInitCommands(uint8_t listno) const override
     {
-      static constexpr std::uint8_t list[] = {
+      static constexpr uint8_t list[] = {
           CMD_GAMMASET, 1, 0x08,  // Gamma set, curve 4
           0xFF,0xFF, // end
       };
@@ -275,7 +275,7 @@ namespace lgfx
 
   struct Light_M5StickC : public lgfx::ILight
   {
-    bool init(std::uint8_t brightness) override
+    bool init(uint8_t brightness) override
     {
       using namespace m5stack;
       lgfx::i2c::init(axp_i2c_port, axp_i2c_sda, axp_i2c_scl);
@@ -284,7 +284,7 @@ namespace lgfx
       return true;
     }
 
-    void setBrightness(std::uint8_t brightness) override
+    void setBrightness(uint8_t brightness) override
     {
       using namespace m5stack;
       if (brightness)
@@ -322,14 +322,14 @@ namespace lgfx
     lgfx::ITouch* _touch_last = nullptr;
     lgfx::Bus_SPI _bus_spi;
 
-    static void _pin_level(std::int_fast16_t pin, bool level)
+    static void _pin_level(int_fast16_t pin, bool level)
     {
       lgfx::pinMode(pin, lgfx::pin_mode_t::output);
       if (level) lgfx::gpio_hi(pin);
       else       lgfx::gpio_lo(pin);
     }
 
-    static void _pin_reset(std::int_fast16_t pin, bool use_reset)
+    static void _pin_reset(int_fast16_t pin, bool use_reset)
     {
       lgfx::gpio_hi(pin);
       lgfx::pinMode(pin, lgfx::pin_mode_t::output);
@@ -348,14 +348,14 @@ namespace lgfx
       } while (lgfx::millis() - time < 10);
     }
 
-    static std::uint32_t _read_panel_id(lgfx::Bus_SPI* bus, std::int32_t pin_cs, std::uint32_t cmd = 0x04, std::uint8_t dummy_read_bit = 1) // 0x04 = RDDID command
+    static uint32_t _read_panel_id(lgfx::Bus_SPI* bus, int32_t pin_cs, uint32_t cmd = 0x04, uint8_t dummy_read_bit = 1) // 0x04 = RDDID command
     {
       bus->beginTransaction();
       _pin_level(pin_cs, false);
       bus->writeCommand(cmd, 8);
       if (dummy_read_bit) bus->writeData(0, dummy_read_bit);  // dummy read bit
       bus->beginRead();
-      std::uint32_t res = bus->readData(32);
+      uint32_t res = bus->readData(32);
       bus->endTransaction();
       _pin_level(pin_cs, true);
 
@@ -370,7 +370,7 @@ namespace lgfx
       _panel_last->setLight(bl);
     }
 
-    void _set_pwm_backlight(std::int16_t pin, std::uint8_t ch, std::uint32_t freq = 12000, bool invert = false)
+    void _set_pwm_backlight(int16_t pin, uint8_t ch, uint32_t freq = 12000, bool invert = false)
     {
       auto bl = new lgfx::Light_PWM();
       auto cfg = bl->config();
@@ -385,8 +385,8 @@ namespace lgfx
     bool init_impl(bool use_reset, bool use_clear)
     {
       static constexpr char NVS_KEY[] = "AUTODETECT";
-      std::uint32_t nvs_board = 0;
-      std::uint32_t nvs_handle = 0;
+      uint32_t nvs_board = 0;
+      uint32_t nvs_handle = 0;
       if (0 == nvs_open(LIBRARY_NAME, NVS_READONLY, &nvs_handle))
       {
         nvs_get_u32(nvs_handle, NVS_KEY, static_cast<uint32_t*>(&nvs_board));
@@ -513,7 +513,7 @@ namespace lgfx
       bus_cfg.dma_channel = 1;
       bus_cfg.use_lock = true;
 
-      std::uint32_t id;
+      uint32_t id;
       (void)id;  // suppress warning
 
   // TTGO T-Watch 判定 (GPIO33を使う判定を先に行うと振動モーターが作動する事に注意)
@@ -1176,7 +1176,7 @@ namespace lgfx
             lgfx::gpio_lo(15);
             _bus_spi.writeData(__builtin_bswap16(0x1000), 16);
             _bus_spi.writeData(__builtin_bswap16(0x0000), 16);
-            std::uint8_t buf[40];
+            uint8_t buf[40];
             _bus_spi.beginRead();
             _bus_spi.readBytes(buf, 40, false);
             _bus_spi.endRead();

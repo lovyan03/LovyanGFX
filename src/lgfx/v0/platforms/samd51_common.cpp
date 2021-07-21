@@ -9,7 +9,7 @@
 #undef PORT_PINCFG_INEN_Pos
 #undef _Ul
 
-#define _Ul(n) (static_cast<std::uint32_t>((n)))
+#define _Ul(n) (static_cast<uint32_t>((n)))
 #define PORT_PINCFG_INEN_Pos        1            /**< \brief (PORT_PINCFG) Input Enable */
 #define PORT_PINCFG_INEN            (_Ul(0x1) << PORT_PINCFG_INEN_Pos)
 #define PORT_PINCFG_PULLEN_Pos      2            /**< \brief (PORT_PINCFG) Pull Enable */
@@ -22,24 +22,24 @@ namespace lgfx
  {
 //----------------------------------------------------------------------------
 
-  void lgfxPinMode(std::uint32_t pin, pin_mode_t mode)
+  void lgfxPinMode(uint32_t pin, pin_mode_t mode)
   {
-    std::uint32_t port = pin>>8;
+    uint32_t port = pin>>8;
     pin &= 0xFF;
-    std::uint32_t pinMask = (1ul << pin);
+    uint32_t pinMask = (1ul << pin);
 
     // Set pin mode according to chapter '22.6.3 I/O Pin Configuration'
     switch ( mode )
     {
       case pin_mode_t::input:
         // Set pin to input mode
-        PORT->Group[port].PINCFG[pin].reg=(std::uint8_t)(PORT_PINCFG_INEN) ;
+        PORT->Group[port].PINCFG[pin].reg=(uint8_t)(PORT_PINCFG_INEN) ;
         PORT->Group[port].DIRCLR.reg = pinMask ;
       break ;
 
       case pin_mode_t::input_pullup:
         // Set pin to input mode with pull-up resistor enabled
-        PORT->Group[port].PINCFG[pin].reg=(std::uint8_t)(PORT_PINCFG_INEN|PORT_PINCFG_PULLEN) ;
+        PORT->Group[port].PINCFG[pin].reg=(uint8_t)(PORT_PINCFG_INEN|PORT_PINCFG_PULLEN) ;
         PORT->Group[port].DIRCLR.reg = pinMask ;
 
         // Enable pull level (cf '22.6.3.2 Input Configuration' and '22.8.7 Data Output Value Set')
@@ -48,7 +48,7 @@ namespace lgfx
 
       case pin_mode_t::input_pulldown:
         // Set pin to input mode with pull-down resistor enabled
-        PORT->Group[port].PINCFG[pin].reg=(std::uint8_t)(PORT_PINCFG_INEN|PORT_PINCFG_PULLEN) ;
+        PORT->Group[port].PINCFG[pin].reg=(uint8_t)(PORT_PINCFG_INEN|PORT_PINCFG_PULLEN) ;
         PORT->Group[port].DIRCLR.reg = pinMask ;
 
         // Enable pull level (cf '22.6.3.2 Input Configuration' and '22.8.6 Data Output Value Clear')
@@ -57,7 +57,7 @@ namespace lgfx
 
       case pin_mode_t::output:
         // enable input, to support reading back values, with pullups disabled
-        PORT->Group[port].PINCFG[pin].reg=(std::uint8_t)(PORT_PINCFG_INEN) ;
+        PORT->Group[port].PINCFG[pin].reg=(uint8_t)(PORT_PINCFG_INEN) ;
 
         // Set pin to output mode
         PORT->Group[port].DIRSET.reg = pinMask ;
@@ -88,11 +88,11 @@ namespace lgfx
     //void endTransaction(int spi_host, int spi_cs)
     void endTransaction(int, int) {}
 
-    //void writeData(int spi_host, const std::uint8_t* data, std::uint32_t len)
-    void writeData(int, const std::uint8_t*, std::uint32_t) {}
+    //void writeData(int spi_host, const uint8_t* data, uint32_t len)
+    void writeData(int, const uint8_t*, uint32_t) {}
 
-    //void readData(int spi_host, std::uint8_t* data, std::uint32_t len)
-    void readData(int, std::uint8_t*, std::uint32_t) {}
+    //void readData(int spi_host, uint8_t* data, uint32_t len)
+    void readData(int, uint8_t*, uint32_t) {}
   }
 
 //----------------------------------------------------------------------------
@@ -102,27 +102,27 @@ namespace lgfx
     //void init(int i2c_port, int sda, int scl, int freq) { }
     void init(int, int, int, int) {}
 
-    //bool writeBytes(int i2c_port, std::uint16_t addr, const std::uint8_t *data, std::uint8_t len)
-    bool writeBytes(int, std::uint16_t, const std::uint8_t*, std::uint8_t)
+    //bool writeBytes(int i2c_port, uint16_t addr, const uint8_t *data, uint8_t len)
+    bool writeBytes(int, uint16_t, const uint8_t*, uint8_t)
     {
       return false;
     }
 
-    //bool writeReadBytes(int i2c_port, std::uint16_t addr, const std::uint8_t *writedata, std::uint8_t writelen, std::uint8_t *readdata, std::uint8_t readlen)
-    bool writeReadBytes(int, std::uint16_t, const std::uint8_t*, std::uint8_t, std::uint8_t*, std::uint8_t)
+    //bool writeReadBytes(int i2c_port, uint16_t addr, const uint8_t *writedata, uint8_t writelen, uint8_t *readdata, uint8_t readlen)
+    bool writeReadBytes(int, uint16_t, const uint8_t*, uint8_t, uint8_t*, uint8_t)
     {
       return false;
     }
 
-    //bool readRegister(int i2c_port, std::uint16_t addr, std::uint8_t reg, std::uint8_t *data, uint8_t len)
-    bool readRegister(int, std::uint16_t, std::uint8_t, std::uint8_t*, uint8_t)
+    //bool readRegister(int i2c_port, uint16_t addr, uint8_t reg, uint8_t *data, uint8_t len)
+    bool readRegister(int, uint16_t, uint8_t, uint8_t*, uint8_t)
     {
       return false;
     }
 
-    bool writeRegister8(int i2c_port, std::uint16_t addr, std::uint8_t reg, std::uint8_t data, std::uint8_t mask)
+    bool writeRegister8(int i2c_port, uint16_t addr, uint8_t reg, uint8_t data, uint8_t mask)
     {
-      std::uint8_t tmp[2] = { reg, data };
+      uint8_t tmp[2] = { reg, data };
       if (mask) {
         if (!readRegister(i2c_port, addr, reg, &tmp[1], 1)) return false;
         tmp[1] = (tmp[1] & mask) | data;

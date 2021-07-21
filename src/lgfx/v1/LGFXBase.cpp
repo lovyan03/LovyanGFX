@@ -17,6 +17,8 @@ Contributors:
 /----------------------------------------------------------------------------*/
 
 #include "LGFXBase.hpp"
+
+#include "../internal/limits.h"
 #include "../utility/miniz.h"
 #include "../utility/lgfx_pngle.h"
 #include "../utility/lgfx_qrcode.h"
@@ -25,9 +27,8 @@ Contributors:
 #include "misc/bitmap.hpp"
 //#include "lgfx_TTFfont.hpp"
 
-#include <cstdarg>
+#include <stdarg.h>
 #include <cmath>
-#include <limits>
 #include <list>
 
 namespace lgfx
@@ -36,7 +37,7 @@ namespace lgfx
  {
 //----------------------------------------------------------------------------
   static constexpr float deg_to_rad = 0.017453292519943295769236907684886;
-  static constexpr std::uint8_t FP_SCALE = 16;
+  static constexpr uint8_t FP_SCALE = 16;
 
   LGFXBase::LGFXBase(void)
   {
@@ -49,14 +50,14 @@ namespace lgfx
     _read_conv.setColorDepth(_panel->getReadDepth());
   }
 
-  void LGFXBase::setRotation(std::uint_fast8_t rotation)
+  void LGFXBase::setRotation(uint_fast8_t rotation)
   {
     if (_panel) _panel->setRotation(rotation);
     clearClipRect();
     clearScrollRect();
   }
 
-  void LGFXBase::setAddrWindow(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h)
+  void LGFXBase::setAddrWindow(int32_t x, int32_t y, int32_t w, int32_t h)
   {
     if (_adjust_abs(x, w)||_adjust_abs(y, h)) return;
     if (x < 0) { w += x; x = 0; }
@@ -71,7 +72,7 @@ namespace lgfx
     endWrite();
   }
 
-  void LGFXBase::setClipRect(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h)
+  void LGFXBase::setClipRect(int32_t x, int32_t y, int32_t w, int32_t h)
   {
     if (x < 0) { w += x; x = 0; }
     if (w > width() - x)  w = width()  - x;
@@ -86,7 +87,7 @@ namespace lgfx
     _clip_b = y + h - 1;
   }
 
-  void LGFXBase::display(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h)
+  void LGFXBase::display(int32_t x, int32_t y, int32_t w, int32_t h)
   {
     if (x < 0) { w += x; x = 0; }
     if (w > width() - x)  w = width()  - x;
@@ -97,7 +98,7 @@ namespace lgfx
     _panel->display(x, y, w, h);
   }
 
-  void LGFXBase::getClipRect(std::int32_t *x, std::int32_t *y, std::int32_t *w, std::int32_t *h)
+  void LGFXBase::getClipRect(int32_t *x, int32_t *y, int32_t *w, int32_t *h)
   {
     *x = _clip_l;
     *w = _clip_r - *x + 1;
@@ -113,7 +114,7 @@ namespace lgfx
     _clip_b = height() - 1;
   }
 
-  void LGFXBase::setScrollRect(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h)
+  void LGFXBase::setScrollRect(int32_t x, int32_t y, int32_t w, int32_t h)
   {
     _adjust_abs(x, w);
     if (x < 0) { w += x; x = 0; }
@@ -130,7 +131,7 @@ namespace lgfx
     _sh = h;
   }
 
-  void LGFXBase::getScrollRect(std::int32_t *x, std::int32_t *y, std::int32_t *w, std::int32_t *h)
+  void LGFXBase::getScrollRect(int32_t *x, int32_t *y, int32_t *w, int32_t *h)
   {
     *x = _sx;
     *y = _sy;
@@ -146,7 +147,7 @@ namespace lgfx
     _sh = height();
   }
 
-  void LGFXBase::drawFastVLine(std::int32_t x, std::int32_t y, std::int32_t h)
+  void LGFXBase::drawFastVLine(int32_t x, int32_t y, int32_t h)
   {
     _adjust_abs(y, h);
     startWrite();
@@ -154,7 +155,7 @@ namespace lgfx
     endWrite();
   }
 
-  void LGFXBase::writeFastVLine(std::int32_t x, std::int32_t y, std::int32_t h)
+  void LGFXBase::writeFastVLine(int32_t x, int32_t y, int32_t h)
   {
     if (x < _clip_l || x > _clip_r) return;
     auto ct = _clip_t;
@@ -166,7 +167,7 @@ namespace lgfx
     writeFillRectPreclipped(x, y, 1, h);
   }
 
-  void LGFXBase::drawFastHLine(std::int32_t x, std::int32_t y, std::int32_t w)
+  void LGFXBase::drawFastHLine(int32_t x, int32_t y, int32_t w)
   {
     _adjust_abs(x, w);
     startWrite();
@@ -174,7 +175,7 @@ namespace lgfx
     endWrite();
   }
 
-  void LGFXBase::writeFastHLine(std::int32_t x, std::int32_t y, std::int32_t w)
+  void LGFXBase::writeFastHLine(int32_t x, int32_t y, int32_t w)
   {
     if (y < _clip_t || y > _clip_b) return;
     auto cl = _clip_l;
@@ -186,7 +187,7 @@ namespace lgfx
     writeFillRectPreclipped(x, y, w, 1);
   }
 
-  void LGFXBase::fillRect(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h)
+  void LGFXBase::fillRect(int32_t x, int32_t y, int32_t w, int32_t h)
   {
     _adjust_abs(x, w);
     _adjust_abs(y, h);
@@ -195,7 +196,7 @@ namespace lgfx
     endWrite();
   }
 
-  void LGFXBase::writeFillRect(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h)
+  void LGFXBase::writeFillRect(int32_t x, int32_t y, int32_t w, int32_t h)
   {
     if (_clipping(x, y, w, h))
     {
@@ -203,7 +204,7 @@ namespace lgfx
     }
   }
 
-  void LGFXBase::drawRect(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h)
+  void LGFXBase::drawRect(int32_t x, int32_t y, int32_t w, int32_t h)
   {
     if (_adjust_abs(x, w)||_adjust_abs(y, h)) return;
     startWrite();
@@ -218,7 +219,7 @@ namespace lgfx
     endWrite();
   }
 
-  void LGFXBase::drawCircle(std::int32_t x, std::int32_t y, std::int32_t r)
+  void LGFXBase::drawCircle(int32_t x, int32_t y, int32_t r)
   {
     if ( r <= 0 ) {
       drawPixel(x, y);
@@ -226,11 +227,11 @@ namespace lgfx
     }
 
     startWrite();
-    std::int32_t f = 1 - r;
-    std::int32_t ddF_y = - (r << 1);
-    std::int32_t ddF_x = 1;
-    std::int32_t i = 0;
-    std::int32_t j = -1;
+    int32_t f = 1 - r;
+    int32_t ddF_y = - (r << 1);
+    int32_t ddF_x = 1;
+    int32_t i = 0;
+    int32_t j = -1;
     do {
       while (f < 0) {
         ++i;
@@ -252,14 +253,14 @@ namespace lgfx
     endWrite();
   }
 
-  void LGFXBase::drawCircleHelper(std::int32_t x, std::int32_t y, std::int32_t r, std::uint_fast8_t cornername)
+  void LGFXBase::drawCircleHelper(int32_t x, int32_t y, int32_t r, uint_fast8_t cornername)
   {
     if (r <= 0) return;
-    std::int32_t f     = 1 - r;
-    std::int32_t ddF_y = - (r << 1);
-    std::int32_t ddF_x = 1;
-    std::int32_t i     = 0;
-    std::int32_t j     = 0;
+    int32_t f     = 1 - r;
+    int32_t ddF_y = - (r << 1);
+    int32_t ddF_x = 1;
+    int32_t i     = 0;
+    int32_t j     = 0;
 
     startWrite();
     do {
@@ -290,27 +291,27 @@ namespace lgfx
     endWrite();
   }
 
-  void LGFXBase::fillCircle(std::int32_t x, std::int32_t y, std::int32_t r) {
+  void LGFXBase::fillCircle(int32_t x, int32_t y, int32_t r) {
     startWrite();
     writeFastHLine(x - r, y, (r << 1) + 1);
     fillCircleHelper(x, y, r, 3, 0);
     endWrite();
   }
 
-  void LGFXBase::fillCircleHelper(std::int32_t x, std::int32_t y, std::int32_t r, std::uint_fast8_t corners, std::int32_t delta)
+  void LGFXBase::fillCircleHelper(int32_t x, int32_t y, int32_t r, uint_fast8_t corners, int32_t delta)
   {
     if (r <= 0) return;
 
     ++delta;
 
-    std::int32_t f     = 1 - r;
-    std::int32_t ddF_y = - (r << 1);
-    std::int32_t ddF_x = 1;
-    std::int32_t i     = 0;
+    int32_t f     = 1 - r;
+    int32_t ddF_y = - (r << 1);
+    int32_t ddF_x = 1;
+    int32_t i     = 0;
 
     startWrite();
     do {
-      std::int32_t len = 0;
+      int32_t len = 0;
       while (f < 0) {
         f += (ddF_x += 2);
         ++len;
@@ -330,7 +331,7 @@ namespace lgfx
     endWrite();
   }
 
-  void LGFXBase::drawEllipse(std::int32_t x, std::int32_t y, std::int32_t rx, std::int32_t ry)
+  void LGFXBase::drawEllipse(int32_t x, int32_t y, int32_t rx, int32_t ry)
   {
     if (ry == 0) {
       drawFastHLine(x - rx, y, (ry << 2) + 1);
@@ -342,9 +343,9 @@ namespace lgfx
     }
     if (rx < 0 || ry < 0) return;
 
-    std::int32_t xt, yt, s, i;
-    std::int32_t rx2 = rx * rx;
-    std::int32_t ry2 = ry * ry;
+    int32_t xt, yt, s, i;
+    int32_t rx2 = rx * rx;
+    int32_t ry2 = ry * ry;
 
     startWrite();
 
@@ -379,7 +380,7 @@ namespace lgfx
     endWrite();
   }
 
-  void LGFXBase::fillEllipse(std::int32_t x, std::int32_t y, std::int32_t rx, std::int32_t ry)
+  void LGFXBase::fillEllipse(int32_t x, int32_t y, int32_t rx, int32_t ry)
   {
     if (ry == 0) {
       drawFastHLine(x - rx, y, (ry << 2) + 1);
@@ -391,10 +392,10 @@ namespace lgfx
     }
     if (rx < 0 || ry < 0) return;
 
-    std::int32_t xt, yt, i;
-    std::int32_t rx2 = rx * rx;
-    std::int32_t ry2 = ry * ry;
-    std::int32_t s;
+    int32_t xt, yt, i;
+    int32_t rx2 = rx * rx;
+    int32_t ry2 = ry * ry;
+    int32_t s;
 
     startWrite();
 
@@ -424,30 +425,30 @@ namespace lgfx
     endWrite();
   }
 
-  void LGFXBase::drawRoundRect(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, std::int32_t r)
+  void LGFXBase::drawRoundRect(int32_t x, int32_t y, int32_t w, int32_t h, int32_t r)
   {
     if (_adjust_abs(x, w)||_adjust_abs(y, h)) return;
     startWrite();
 
     w--;
     h--;
-    std::int32_t len = (r << 1) + 1;
-    std::int32_t y1 = y + h - r;
-    std::int32_t y0 = y + r;
+    int32_t len = (r << 1) + 1;
+    int32_t y1 = y + h - r;
+    int32_t y0 = y + r;
     writeFastVLine(x      , y0 + 1, h - len);
     writeFastVLine(x + w  , y0 + 1, h - len);
 
-    std::int32_t x1 = x + w - r;
-    std::int32_t x0 = x + r;
+    int32_t x1 = x + w - r;
+    int32_t x0 = x + r;
     writeFastHLine(x0 + 1, y      , w - len);
     writeFastHLine(x0 + 1, y + h  , w - len);
 
-    std::int32_t f     = 1 - r;
-    std::int32_t ddF_y = -(r << 1);
-    std::int32_t ddF_x = 1;
+    int32_t f     = 1 - r;
+    int32_t ddF_y = -(r << 1);
+    int32_t ddF_x = 1;
 
     len = 0;
-    for (std::int32_t i = 0; i <= r; i++) {
+    for (int32_t i = 0; i <= r; i++) {
       len++;
       if (f >= 0) {
         writeFastHLine(x0 - i          , y0 - r, len);
@@ -469,20 +470,20 @@ namespace lgfx
     endWrite();
   }
 
-  void LGFXBase::fillRoundRect(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, std::int32_t r)
+  void LGFXBase::fillRoundRect(int32_t x, int32_t y, int32_t w, int32_t h, int32_t r)
   {
     if (_adjust_abs(x, w)||_adjust_abs(y, h)) return;
     startWrite();
-    std::int32_t y2 = y + r;
-    std::int32_t y1 = y + h - r - 1;
-    std::int32_t ddF_y = - (r << 1);
-    std::int32_t delta = w + ddF_y;
+    int32_t y2 = y + r;
+    int32_t y1 = y + h - r - 1;
+    int32_t ddF_y = - (r << 1);
+    int32_t delta = w + ddF_y;
     writeFillRect(x, y2, w, h + ddF_y);
-    std::int32_t x0 = x + r;
-    std::int32_t f     = 1 - r;
-    std::int32_t ddF_x = 1;
-    std::int32_t len = 0;
-    for (std::int32_t i = 0; i <= r; i++) {
+    int32_t x0 = x + r;
+    int32_t f     = 1 - r;
+    int32_t ddF_x = 1;
+    int32_t len = 0;
+    for (int32_t i = 0; i <= r; i++) {
       len++;
       if (f >= 0) {
         writeFillRect(x0 - r, y2 - i          , (r << 1) + delta, len);
@@ -501,14 +502,14 @@ namespace lgfx
     endWrite();
   }
 
-  void LGFXBase::drawLine(std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1)
+  void LGFXBase::drawLine(int32_t x0, int32_t y0, int32_t x1, int32_t y1)
   {
     bool steep = abs(y1 - y0) > abs(x1 - x0);
 
-    std::int32_t xstart = _clip_l;
-    std::int32_t ystart = _clip_t;
-    std::int32_t xend   = _clip_r;
-    std::int32_t yend   = _clip_b;
+    int32_t xstart = _clip_l;
+    int32_t ystart = _clip_t;
+    int32_t xend   = _clip_r;
+    int32_t yend   = _clip_b;
 
     if (steep)
     {
@@ -525,10 +526,10 @@ namespace lgfx
     if (x0 > xend || x1 < xstart) return;
     xend = std::min(x1, xend);
 
-    std::int32_t dy = abs(y1 - y0);
-    std::int32_t ystep = (y1 > y0) ? 1 : -1;
-    std::int32_t dx = x1 - x0;
-    std::int32_t err = dx >> 1;
+    int32_t dy = abs(y1 - y0);
+    int32_t ystep = (y1 > y0) ? 1 : -1;
+    int32_t dx = x1 - x0;
+    int32_t err = dx >> 1;
 
     while (x0 < xstart || y0 < ystart || y0 > yend)
     {
@@ -540,8 +541,8 @@ namespace lgfx
       }
       if (++x0 > xend) return;
     }
-    std::int32_t xs = x0;
-    std::int32_t dlen = 0;
+    int32_t xs = x0;
+    int32_t dlen = 0;
     if (ystep < 0) std::swap(ystart, yend);
     yend += ystep;
 
@@ -579,7 +580,7 @@ namespace lgfx
     endWrite();
   }
 
-  void LGFXBase::drawTriangle(std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2)
+  void LGFXBase::drawTriangle(int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t x2, int32_t y2)
   {
     startWrite();
     drawLine(x0, y0, x1, y1);
@@ -588,9 +589,9 @@ namespace lgfx
     endWrite();
   }
 
-  void LGFXBase::fillTriangle(std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2)
+  void LGFXBase::fillTriangle(int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t x2, int32_t y2)
   {
-    std::int32_t a, b;
+    int32_t a, b;
 
     // Sort coordinates by Y order (y2 >= y1 >= y0)
     if (y0 > y1) { std::swap(y0, y1); std::swap(x0, x1); }
@@ -611,24 +612,24 @@ namespace lgfx
       return;
     }
 
-    std::int32_t dy1 = y1 - y0;
-    std::int32_t dy2 = y2 - y0;
+    int32_t dy1 = y1 - y0;
+    int32_t dy2 = y2 - y0;
     bool change = ((x1 - x0) * dy2 > (x2 - x0) * dy1);
-    std::int32_t dx1 = abs(x1 - x0);
-    std::int32_t dx2 = abs(x2 - x0);
-    std::int32_t xstep1 = x1 < x0 ? -1 : 1;
-    std::int32_t xstep2 = x2 < x0 ? -1 : 1;
+    int32_t dx1 = abs(x1 - x0);
+    int32_t dx2 = abs(x2 - x0);
+    int32_t xstep1 = x1 < x0 ? -1 : 1;
+    int32_t xstep2 = x2 < x0 ? -1 : 1;
     a = b = x0;
     if (change) {
       std::swap(dx1, dx2);
       std::swap(dy1, dy2);
       std::swap(xstep1, xstep2);
     }
-    std::int32_t err1 = (std::max(dx1, dy1) >> 1)
+    int32_t err1 = (std::max(dx1, dy1) >> 1)
                  + (xstep1 < 0
                    ? std::min(dx1, dy1)
                    : dx1);
-    std::int32_t err2 = (std::max(dx2, dy2) >> 1)
+    int32_t err2 = (std::max(dx2, dy2) >> 1)
                  + (xstep2 > 0
                    ? std::min(dx2, dy2)
                    : dx2);
@@ -672,9 +673,9 @@ namespace lgfx
     endWrite();
   }
 
-  void LGFXBase::drawBezier( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2)
+  void LGFXBase::drawBezier( int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t x2, int32_t y2)
   {
-    std::int32_t x = x0 - x1, y = y0 - y1;
+    int32_t x = x0 - x1, y = y0 - y1;
     double t = x0 - 2 * x1 + x2, r;
 
     startWrite();
@@ -708,18 +709,18 @@ namespace lgfx
     endWrite();
   }
 
-  void LGFXBase::draw_bezier_helper( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2)
+  void LGFXBase::draw_bezier_helper( int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t x2, int32_t y2)
   {
     // Check if coordinates are sequential (replaces assert)
     if (((x2 >= x1 && x1 >= x0) || (x2 <= x1 && x1 <= x0))
         && ((y2 >= y1 && y1 >= y0) || (y2 <= y1 && y1 <= y0)))
     {
       // Coordinates are sequential
-      std::int32_t sx = x2 - x1, sy = y2 - y1;
-      std::int32_t xx = x0 - x1, yy = y0 - y1, xy;
+      int32_t sx = x2 - x1, sy = y2 - y1;
+      int32_t xx = x0 - x1, yy = y0 - y1, xy;
       float dx, dy, err, cur = xx * sy - yy * sx;
 
-      if (sx * (std::int32_t)sx + sy * (std::int32_t)sy > xx * xx + yy * yy) {
+      if (sx * (int32_t)sx + sy * (int32_t)sy > xx * xx + yy * yy) {
         x2 = x0; x0 = sx + x1; y2 = y0; y0 = sy + y1; cur = -cur;
       }
       if (cur != 0) {
@@ -755,20 +756,20 @@ namespace lgfx
     }
   }
 
-  void LGFXBase::drawBezier( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2, std::int32_t x3, std::int32_t y3)
+  void LGFXBase::drawBezier( int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t x2, int32_t y2, int32_t x3, int32_t y3)
   {
-    std::int32_t w = x0-x1;
-    std::int32_t h = y0-y1;
-    std::int32_t len = w*w+h*h;
+    int32_t w = x0-x1;
+    int32_t h = y0-y1;
+    int32_t len = w*w+h*h;
     w = x1-x2;
     h = y1-y2;
-    std::int32_t len2 = w*w+h*h;
+    int32_t len2 = w*w+h*h;
     if (len < len2) len = len2;
     w = x2-x3;
     h = y2-y3;
     len2 = w*w+h*h;
     if (len < len2) len = len2;
-    len = (std::int32_t)round(sqrt(len)) >> 2;
+    len = (int32_t)round(sqrt(len)) >> 2;
 
     float fx0 = x0;
     float fy0 = y0;
@@ -779,7 +780,7 @@ namespace lgfx
     float fx3 = x3;
     float fy3 = y3;
 
-    std::int32_t i = 0;
+    int32_t i = 0;
     startWrite();
 //drawLine(x0, y0, x1, y1);
 //drawLine(x1, y1, x2, y2);
@@ -818,7 +819,7 @@ namespace lgfx
     endWrite();
   }
 
-  void LGFXBase::draw_gradient_line( std::int32_t x0, std::int32_t y0, std::int32_t x1, std::int32_t y1, uint32_t colorstart, uint32_t colorend )
+  void LGFXBase::draw_gradient_line( int32_t x0, int32_t y0, int32_t x1, int32_t y1, uint32_t colorstart, uint32_t colorend )
   {
     if ( colorstart == colorend || (x0 == x1 && y0 == y1)) {
       setColor(colorstart);
@@ -838,21 +839,21 @@ namespace lgfx
       std::swap(colorstart, colorend);
     }
 
-    std::int32_t dx = x1 - x0;
-    std::int32_t err = dx >> 1;
-    std::int32_t dy = abs(y1 - y0);
-    std::int32_t ystep = (y0 < y1) ? 1 : -1;
+    int32_t dx = x1 - x0;
+    int32_t err = dx >> 1;
+    int32_t dy = abs(y1 - y0);
+    int32_t ystep = (y0 < y1) ? 1 : -1;
 
-    std::int32_t r = (colorstart >> 16)&0xFF;
-    std::int32_t g = (colorstart >> 8 )&0xFF;
-    std::int32_t b = (colorstart      )&0xFF;
+    int32_t r = (colorstart >> 16)&0xFF;
+    int32_t g = (colorstart >> 8 )&0xFF;
+    int32_t b = (colorstart      )&0xFF;
 
-    std::int32_t diff_r = ((colorend >> 16)&0xFF) - r;
-    std::int32_t diff_g = ((colorend >> 8 )&0xFF) - g;
-    std::int32_t diff_b = ((colorend      )&0xFF) - b;
+    int32_t diff_r = ((colorend >> 16)&0xFF) - r;
+    int32_t diff_g = ((colorend >> 8 )&0xFF) - g;
+    int32_t diff_b = ((colorend      )&0xFF) - b;
 
     startWrite();
-    for (std::int32_t x = x0; x <= x1; x++) {
+    for (int32_t x = x0; x <= x1; x++) {
       setColor(color888( (x - x0) * diff_r / dx + r
                        , (x - x0) * diff_g / dx + g
                        , (x - x0) * diff_b / dx + b));
@@ -867,7 +868,7 @@ namespace lgfx
     endWrite();
   }
 
-  void LGFXBase::drawEllipseArc(std::int32_t x, std::int32_t y, std::int32_t r0x, std::int32_t r1x, std::int32_t r0y, std::int32_t r1y, float start, float end)
+  void LGFXBase::drawEllipseArc(int32_t x, int32_t y, int32_t r0x, int32_t r1x, int32_t r0y, int32_t r1y, float start, float end)
   {
     if (r0x < r1x) std::swap(r0x, r1x);
     if (r0y < r1y) std::swap(r0y, r1y);
@@ -889,7 +890,7 @@ namespace lgfx
     endWrite();
   }
 
-  void LGFXBase::fillEllipseArc(std::int32_t x, std::int32_t y, std::int32_t r0x, std::int32_t r1x, std::int32_t r0y, std::int32_t r1y, float start, float end)
+  void LGFXBase::fillEllipseArc(int32_t x, int32_t y, int32_t r0x, int32_t r1x, int32_t r0y, int32_t r1y, float start, float end)
   {
     if (r0x < r1x) std::swap(r0x, r1x);
     if (r0y < r1y) std::swap(r0y, r1y);
@@ -908,7 +909,7 @@ namespace lgfx
     endWrite();
   }
 
-  void LGFXBase::fill_arc_helper(std::int32_t cx, std::int32_t cy, std::int32_t oradius_x, std::int32_t iradius_x, std::int32_t oradius_y, std::int32_t iradius_y, float start, float end)
+  void LGFXBase::fill_arc_helper(int32_t cx, int32_t cy, int32_t oradius_x, int32_t iradius_x, int32_t oradius_y, int32_t iradius_y, float start, float end)
   {
     float s_cos = (cosf(start * deg_to_rad));
     float e_cos = (cosf(end * deg_to_rad));
@@ -922,10 +923,10 @@ namespace lgfx
     bool end180 = end < 180;
     bool reversed = start + 180 < end || (end < start && start < end + 180);
 
-    std::int32_t xleft  = -oradius_x;
-    std::int32_t xright = oradius_x + 1;
-    std::int32_t y = -oradius_y;
-    std::int32_t ye = oradius_y;
+    int32_t xleft  = -oradius_x;
+    int32_t xright = oradius_x + 1;
+    int32_t y = -oradius_y;
+    int32_t ye = oradius_y;
     if (!reversed)
     {
       if (    (end >= 270 || end <  90) && (start >= 270 || start <  90)) xleft = 0;
@@ -941,26 +942,26 @@ namespace lgfx
 
     bool trueCircle = (oradius_x == oradius_y) && (iradius_x == iradius_y);
 
-    std::int32_t iradius_y2 = iradius_y * (iradius_y - 1);
-    std::int32_t iradius_x2 = iradius_x * (iradius_x - 1);
+    int32_t iradius_y2 = iradius_y * (iradius_y - 1);
+    int32_t iradius_x2 = iradius_x * (iradius_x - 1);
     float irad_rate = iradius_x2 && iradius_y2 ? (float)iradius_x2 / (float)iradius_y2 : 0;
 
-    std::int32_t oradius_y2 = oradius_y * (oradius_y + 1);
-    std::int32_t oradius_x2 = oradius_x * (oradius_x + 1);
+    int32_t oradius_y2 = oradius_y * (oradius_y + 1);
+    int32_t oradius_x2 = oradius_x * (oradius_x + 1);
     float orad_rate = oradius_x2 && oradius_y2 ? (float)oradius_x2 / (float)oradius_y2 : 0;
 
     do
     {
-      std::int32_t y2 = y * y;
-      std::int32_t compare_o = oradius_y2 - y2;
-      std::int32_t compare_i = iradius_y2 - y2;
+      int32_t y2 = y * y;
+      int32_t compare_o = oradius_y2 - y2;
+      int32_t compare_i = iradius_y2 - y2;
       if (!trueCircle)
       {
         compare_i = floorf(compare_i * irad_rate);
         compare_o = ceilf (compare_o * orad_rate);
       }
-      std::int32_t xe = ceilf(sqrtf(compare_o));
-      std::int32_t x = 1 - xe;
+      int32_t xe = ceilf(sqrtf(compare_o));
+      int32_t x = 1 - xe;
 
       if ( x < xleft )  x = xleft;
       if (xe > xright) xe = xright;
@@ -971,7 +972,7 @@ namespace lgfx
       {
         bool flg1 = start180 != (x <= ysslope);
         bool flg2 =   end180 != (x <= yeslope);
-        std::int32_t x2 = x * x;
+        int32_t x2 = x * x;
         if (x2 >= compare_i
          && ((flg1 && flg2) || (reversed && (flg1 || flg2)))
          && x != xe
@@ -993,20 +994,20 @@ namespace lgfx
     } while (++y <= ye);
   }
 
-  void LGFXBase::draw_bitmap(std::int32_t x, std::int32_t y, const std::uint8_t *bitmap, std::int32_t w, std::int32_t h, std::uint32_t fg_rawcolor, std::uint32_t bg_rawcolor)
+  void LGFXBase::draw_bitmap(int32_t x, int32_t y, const uint8_t *bitmap, int32_t w, int32_t h, uint32_t fg_rawcolor, uint32_t bg_rawcolor)
   {
     if (w < 1 || h < 1) return;
     setRawColor(fg_rawcolor);
-    std::int32_t byteWidth = (w + 7) >> 3;
-    std::uint_fast8_t byte = 0;
+    int32_t byteWidth = (w + 7) >> 3;
+    uint_fast8_t byte = 0;
 
     bool fg = true;
-    std::int32_t j = 0;
+    int32_t j = 0;
     startWrite();
     do {
-      std::int32_t i = 0;
+      int32_t i = 0;
       do {
-        std::int32_t ip = i;
+        int32_t ip = i;
         for (;;) {
           if (!(i & 7)) byte = bitmap[i >> 3];
           if (fg != (bool)(byte & 0x80) || (++i >= w)) break;
@@ -1023,20 +1024,20 @@ namespace lgfx
     endWrite();
   }
 
-  void LGFXBase::draw_xbitmap(std::int32_t x, std::int32_t y, const std::uint8_t *bitmap, std::int32_t w, std::int32_t h, std::uint32_t fg_rawcolor, std::uint32_t bg_rawcolor)
+  void LGFXBase::draw_xbitmap(int32_t x, int32_t y, const uint8_t *bitmap, int32_t w, int32_t h, uint32_t fg_rawcolor, uint32_t bg_rawcolor)
   {
     if (w < 1 || h < 1) return;
     setRawColor(fg_rawcolor);
-    std::int32_t byteWidth = (w + 7) >> 3;
-    std::uint_fast8_t byte = 0;
+    int32_t byteWidth = (w + 7) >> 3;
+    uint_fast8_t byte = 0;
 
     bool fg = true;
-    std::int32_t j = 0;
+    int32_t j = 0;
     startWrite();
     do {
-      std::int32_t i = 0;
+      int32_t i = 0;
       do {
-        std::int32_t ip = i;
+        int32_t ip = i;
         for (;;) {
           if (!(i & 7)) byte = bitmap[i >> 3];
           if (fg != (bool)(byte & 0x01) || (++i >= w)) break;
@@ -1053,25 +1054,25 @@ namespace lgfx
     endWrite();
   }
 
-  void LGFXBase::pushImage(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, pixelcopy_t *param, bool use_dma)
+  void LGFXBase::pushImage(int32_t x, int32_t y, int32_t w, int32_t h, pixelcopy_t *param, bool use_dma)
   {
     param->src_bitwidth = w;
     if (param->src_bits < 8) {        // get bitwidth
-//      std::uint32_t x_mask = (1 << (4 - __builtin_ffs(param->src_bits))) - 1;
-//      std::uint32_t x_mask = (1 << ((~(param->src_bits>>1)) & 3)) - 1;
-      std::uint32_t x_mask = (param->src_bits == 1) ? 7
+//      uint32_t x_mask = (1 << (4 - __builtin_ffs(param->src_bits))) - 1;
+//      uint32_t x_mask = (1 << ((~(param->src_bits>>1)) & 3)) - 1;
+      uint32_t x_mask = (param->src_bits == 1) ? 7
                            : (param->src_bits == 2) ? 3
                                                     : 1;
       param->src_bitwidth = (w + x_mask) & (~x_mask);
     }
 
-    std::int32_t dx=0, dw=w;
+    int32_t dx=0, dw=w;
     if (0 < _clip_l - x) { dx = _clip_l - x; dw -= dx; x = _clip_l; }
 
     if (_adjust_width(x, dx, dw, _clip_l, _clip_r - _clip_l + 1)) return;
     param->src_x = dx;
 
-    std::int32_t dy=0, dh=h;
+    int32_t dy=0, dh=h;
     if (0 < _clip_t - y) { dy = _clip_t - y; dh -= dy; y = _clip_t; }
     if (_adjust_width(y, dy, dh, _clip_t, _clip_b - _clip_t + 1)) return;
     param->src_y = dy;
@@ -1094,7 +1095,7 @@ namespace lgfx
     result[5] =  dst_y - src_x * result[3] - src_y * result[4];
   }
 
-  static bool make_invert_affine32(std::int32_t* __restrict__ result, const float* __restrict__ matrix)
+  static bool make_invert_affine32(int32_t* __restrict__ result, const float* __restrict__ matrix)
   {
     float det = matrix[0] * matrix[4] - matrix[1] * matrix[3];
     if (det == 0.0f) return false;
@@ -1108,28 +1109,28 @@ namespace lgfx
     return true;
   }
 
-  void LGFXBase::push_image_rotate_zoom(float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y, std::int32_t w, std::int32_t h, pixelcopy_t* pc)
+  void LGFXBase::push_image_rotate_zoom(float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y, int32_t w, int32_t h, pixelcopy_t* pc)
   {
     float matrix[6];
     make_rotation_matrix(matrix, dst_x + 0.5, dst_y + 0.5, src_x + 0.5, src_y + 0.5, angle, zoom_x, zoom_y);
     push_image_affine(matrix, w, h, pc);
   }
 
-  void LGFXBase::push_image_rotate_zoom_aa(float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y, std::int32_t w, std::int32_t h, pixelcopy_t* pc)
+  void LGFXBase::push_image_rotate_zoom_aa(float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y, int32_t w, int32_t h, pixelcopy_t* pc)
   {
     float matrix[6];
     make_rotation_matrix(matrix, dst_x + 0.5, dst_y + 0.5, src_x + 0.5, src_y + 0.5, angle, zoom_x, zoom_y);
     push_image_affine_aa(matrix, w, h, pc);
   }
 
-  void LGFXBase::push_image_affine(const float* matrix, std::int32_t w, std::int32_t h, pixelcopy_t* pc)
+  void LGFXBase::push_image_affine(const float* matrix, int32_t w, int32_t h, pixelcopy_t* pc)
   {
     pc->no_convert = false;
     pc->src_height = h;
     pc->src_width = w;
     pc->src_bitwidth = w;
     if (pc->src_bits < 8) {
-      std::uint32_t x_mask = (pc->src_bits == 1) ? 7
+      uint32_t x_mask = (pc->src_bits == 1) ? 7
                            : (pc->src_bits == 2) ? 3
                                                  : 1;
       pc->src_bitwidth = (w + x_mask) & (~x_mask);
@@ -1137,14 +1138,14 @@ namespace lgfx
     push_image_affine(matrix, pc);
   }
 
-  void LGFXBase::push_image_affine_aa(const float* matrix, std::int32_t w, std::int32_t h, pixelcopy_t* pc)
+  void LGFXBase::push_image_affine_aa(const float* matrix, int32_t w, int32_t h, pixelcopy_t* pc)
   {
     pc->no_convert = false;
     pc->src_height = h;
     pc->src_width = w;
     pc->src_bitwidth = w;
     if (pc->src_bits < 8) {
-      std::uint32_t x_mask = (pc->src_bits == 1) ? 7
+      uint32_t x_mask = (pc->src_bits == 1) ? 7
                            : (pc->src_bits == 2) ? 3
                                                  : 1;
       pc->src_bitwidth = (w + x_mask) & (~x_mask);
@@ -1174,10 +1175,10 @@ namespace lgfx
     push_image_affine_aa(matrix, pc, &pc_post);
   }
 
-  void LGFXBase::fillAffine(const float matrix[6], std::int32_t w, std::int32_t h)
+  void LGFXBase::fillAffine(const float matrix[6], int32_t w, int32_t h)
   {
-    std::int32_t min_y = matrix[3] * (w << FP_SCALE);
-    std::int32_t max_y = matrix[4] * (h << FP_SCALE);
+    int32_t min_y = matrix[3] * (w << FP_SCALE);
+    int32_t max_y = matrix[4] * (h << FP_SCALE);
     if ((min_y < 0) == (max_y < 0))
     {
       max_y += min_y;
@@ -1189,42 +1190,42 @@ namespace lgfx
     }
 
     {
-      std::int32_t offset_y32 = matrix[5] * (1 << FP_SCALE) + (1 << (FP_SCALE-1));
+      int32_t offset_y32 = matrix[5] * (1 << FP_SCALE) + (1 << (FP_SCALE-1));
       min_y = std::max(_clip_t    , (offset_y32 + min_y - 1) >> FP_SCALE);
       max_y = std::min(_clip_b + 1, (offset_y32 + max_y + 1) >> FP_SCALE);
       if (min_y >= max_y) return;
     }
 
 
-    std::int32_t iA[6];
+    int32_t iA[6];
     if (!make_invert_affine32(iA, matrix)) return;
 
-    std::int32_t offset = (min_y << 1) - 1;
+    int32_t offset = (min_y << 1) - 1;
     iA[2] += ((iA[0] + iA[1] * offset) >> 1);
     iA[5] += ((iA[3] + iA[4] * offset) >> 1);
 
-    std::int32_t scale_w = w << FP_SCALE;
-    std::int32_t xs1 = (iA[0] < 0 ?   - scale_w :   1) - iA[0];
-    std::int32_t xs2 = (iA[0] < 0 ? 0 : (1 - scale_w)) - iA[0];
+    int32_t scale_w = w << FP_SCALE;
+    int32_t xs1 = (iA[0] < 0 ?   - scale_w :   1) - iA[0];
+    int32_t xs2 = (iA[0] < 0 ? 0 : (1 - scale_w)) - iA[0];
 
-    std::int32_t scale_h = h << FP_SCALE;
-    std::int32_t ys1 = (iA[3] < 0 ?   - scale_h :   1) - iA[3];
-    std::int32_t ys2 = (iA[3] < 0 ? 0 : (1 - scale_h)) - iA[3];
+    int32_t scale_h = h << FP_SCALE;
+    int32_t ys1 = (iA[3] < 0 ?   - scale_h :   1) - iA[3];
+    int32_t ys2 = (iA[3] < 0 ? 0 : (1 - scale_h)) - iA[3];
 
-    std::int32_t cl = _clip_l    ;
-    std::int32_t cr = _clip_r + 1;
+    int32_t cl = _clip_l    ;
+    int32_t cr = _clip_r + 1;
 
-    std::int32_t div1 = iA[0] ? - iA[0] : -1;
-    std::int32_t div2 = iA[3] ? - iA[3] : -1;
-    std::int32_t y = min_y - max_y;
+    int32_t div1 = iA[0] ? - iA[0] : -1;
+    int32_t div2 = iA[3] ? - iA[3] : -1;
+    int32_t y = min_y - max_y;
 
     startWrite();
     do
     {
       iA[2] += iA[1];
       iA[5] += iA[4];
-      std::int32_t left  = std::max(cl, std::max((iA[2] + xs1) / div1, (iA[5] + ys1) / div2));
-      std::int32_t right = std::min(cr, std::min((iA[2] + xs2) / div1, (iA[5] + ys2) / div2));
+      int32_t left  = std::max(cl, std::max((iA[2] + xs1) / div1, (iA[5] + ys1) / div2));
+      int32_t right = std::min(cr, std::min((iA[2] + xs2) / div1, (iA[5] + ys2) / div2));
       if (left < right)
       {
         writeFillRectPreclipped(left, y + max_y, right - left, 1);
@@ -1235,8 +1236,8 @@ namespace lgfx
 
   void LGFXBase::push_image_affine(const float* matrix, pixelcopy_t* pc)
   {
-    std::int32_t min_y = matrix[3] * (pc->src_width  << FP_SCALE);
-    std::int32_t max_y = matrix[4] * (pc->src_height << FP_SCALE);
+    int32_t min_y = matrix[3] * (pc->src_width  << FP_SCALE);
+    int32_t max_y = matrix[4] * (pc->src_height << FP_SCALE);
     if ((min_y < 0) == (max_y < 0))
     {
       max_y += min_y;
@@ -1248,47 +1249,47 @@ namespace lgfx
     }
 
     {
-      std::int32_t offset_y32 = matrix[5] * (1 << FP_SCALE) + (1 << (FP_SCALE-1));
+      int32_t offset_y32 = matrix[5] * (1 << FP_SCALE) + (1 << (FP_SCALE-1));
       min_y = std::max(_clip_t    , (offset_y32 + min_y - 1) >> FP_SCALE);
       max_y = std::min(_clip_b + 1, (offset_y32 + max_y + 1) >> FP_SCALE);
       if (min_y >= max_y) return;
     }
 
 
-    std::int32_t iA[6];
+    int32_t iA[6];
     if (!make_invert_affine32(iA, matrix)) return;
 
-    std::int32_t offset = (min_y << 1) - 1;
+    int32_t offset = (min_y << 1) - 1;
     iA[2] += ((iA[0] + iA[1] * offset) >> 1);
     iA[5] += ((iA[3] + iA[4] * offset) >> 1);
 
-    std::int32_t scale_w = pc->src_width << FP_SCALE;
-    std::int32_t xs1 = (iA[0] < 0 ?   - scale_w :   1) - iA[0];
-    std::int32_t xs2 = (iA[0] < 0 ? 0 : (1 - scale_w)) - iA[0];
+    int32_t scale_w = pc->src_width << FP_SCALE;
+    int32_t xs1 = (iA[0] < 0 ?   - scale_w :   1) - iA[0];
+    int32_t xs2 = (iA[0] < 0 ? 0 : (1 - scale_w)) - iA[0];
 
-    std::int32_t scale_h = pc->src_height << FP_SCALE;
-    std::int32_t ys1 = (iA[3] < 0 ?   - scale_h :   1) - iA[3];
-    std::int32_t ys2 = (iA[3] < 0 ? 0 : (1 - scale_h)) - iA[3];
+    int32_t scale_h = pc->src_height << FP_SCALE;
+    int32_t ys1 = (iA[3] < 0 ?   - scale_h :   1) - iA[3];
+    int32_t ys2 = (iA[3] < 0 ? 0 : (1 - scale_h)) - iA[3];
 
-    std::int32_t cl = _clip_l    ;
-    std::int32_t cr = _clip_r + 1;
+    int32_t cl = _clip_l    ;
+    int32_t cr = _clip_r + 1;
 
-    std::int32_t y = min_y - max_y;
+    int32_t y = min_y - max_y;
 
     startWrite();
     do
     {
       iA[2] += iA[1];
       iA[5] += iA[4];
-      std::int32_t left  = std::max(cl, std::max(iA[0] ? (iA[2] + xs1) / - iA[0] : cl, iA[3] ? (iA[5] + ys1) / - iA[3] : cl));
-      std::int32_t right = std::min(cr, std::min(iA[0] ? (iA[2] + xs2) / - iA[0] : cr, iA[3] ? (iA[5] + ys2) / - iA[3] : cr));
+      int32_t left  = std::max(cl, std::max(iA[0] ? (iA[2] + xs1) / - iA[0] : cl, iA[3] ? (iA[5] + ys1) / - iA[3] : cl));
+      int32_t right = std::min(cr, std::min(iA[0] ? (iA[2] + xs2) / - iA[0] : cr, iA[3] ? (iA[5] + ys2) / - iA[3] : cr));
       if (left < right)
       {
         pc->src_x32 = iA[2] + left * iA[0];
-        if (static_cast<std::uint32_t>(pc->src_x) < pc->src_width)
+        if (static_cast<uint32_t>(pc->src_x) < pc->src_width)
         {
           pc->src_y32 = iA[5] + left * iA[3];
-          if (static_cast<std::uint32_t>(pc->src_y) < pc->src_height)
+          if (static_cast<uint32_t>(pc->src_y) < pc->src_height)
           {
             pc->src_x32_add = iA[0];
             pc->src_y32_add = iA[3];
@@ -1302,8 +1303,8 @@ namespace lgfx
 
   void LGFXBase::push_image_affine_aa(const float* matrix, pixelcopy_t* pc, pixelcopy_t* pc2)
   {
-    std::int32_t min_y = matrix[3] * (pc->src_width  << FP_SCALE);
-    std::int32_t max_y = matrix[4] * (pc->src_height << FP_SCALE);
+    int32_t min_y = matrix[3] * (pc->src_width  << FP_SCALE);
+    int32_t max_y = matrix[4] * (pc->src_height << FP_SCALE);
     if ((min_y < 0) == (max_y < 0))
     {
       max_y += min_y;
@@ -1315,34 +1316,34 @@ namespace lgfx
     }
 
     {
-      std::int32_t offset_y32 = matrix[5] * (1 << FP_SCALE);
+      int32_t offset_y32 = matrix[5] * (1 << FP_SCALE);
       min_y = std::max(_clip_t, (offset_y32 + min_y   ) >> FP_SCALE);
       max_y = std::min(_clip_b, (offset_y32 + max_y -1) >> FP_SCALE) + 1;
       if (min_y >= max_y) return;
     }
 
-    std::int32_t iA[6];
+    int32_t iA[6];
     if (!make_invert_affine32(iA, matrix)) return;
 
     pc->src_x32_add = iA[0];
     pc->src_y32_add = iA[3];
-    std::uint32_t x32_diff = std::min<std::uint32_t>(8 << FP_SCALE, std::max(abs(iA[0]), abs(iA[1])) - 1) >> 1;
-    std::uint32_t y32_diff = std::min<std::uint32_t>(8 << FP_SCALE, std::max(abs(iA[3]), abs(iA[4])) - 1) >> 1;
+    uint32_t x32_diff = std::min<uint32_t>(8 << FP_SCALE, std::max(abs(iA[0]), abs(iA[1])) - 1) >> 1;
+    uint32_t y32_diff = std::min<uint32_t>(8 << FP_SCALE, std::max(abs(iA[3]), abs(iA[4])) - 1) >> 1;
 
-    std::int32_t offset = (min_y << 1) - 1;
+    int32_t offset = (min_y << 1) - 1;
     iA[2] += ((iA[0] + iA[1] * offset) >> 1);
     iA[5] += ((iA[3] + iA[4] * offset) >> 1);
 
-    std::int32_t scale_w = (pc->src_width << FP_SCALE) + (x32_diff << 1);
-    std::int32_t xs1 = (iA[0] < 0 ?   - scale_w :   1) - iA[0] + x32_diff;
-    std::int32_t xs2 = (iA[0] < 0 ? 0 : (1 - scale_w)) - iA[0] + x32_diff;
+    int32_t scale_w = (pc->src_width << FP_SCALE) + (x32_diff << 1);
+    int32_t xs1 = (iA[0] < 0 ?   - scale_w :   1) - iA[0] + x32_diff;
+    int32_t xs2 = (iA[0] < 0 ? 0 : (1 - scale_w)) - iA[0] + x32_diff;
 
-    std::int32_t scale_h = (pc->src_height << FP_SCALE) + (y32_diff << 1);
-    std::int32_t ys1 = (iA[3] < 0 ?   - scale_h :   1) - iA[3] + y32_diff;
-    std::int32_t ys2 = (iA[3] < 0 ? 0 : (1 - scale_h)) - iA[3] + y32_diff;
+    int32_t scale_h = (pc->src_height << FP_SCALE) + (y32_diff << 1);
+    int32_t ys1 = (iA[3] < 0 ?   - scale_h :   1) - iA[3] + y32_diff;
+    int32_t ys2 = (iA[3] < 0 ? 0 : (1 - scale_h)) - iA[3] + y32_diff;
 
-    std::int32_t cl = _clip_l    ;
-    std::int32_t cr = _clip_r + 1;
+    int32_t cl = _clip_l    ;
+    int32_t cr = _clip_r + 1;
     argb8888_t buffer[cr - cl];
     pc2->src_data = buffer;
 
@@ -1351,16 +1352,16 @@ namespace lgfx
     {
       iA[2] += iA[1];
       iA[5] += iA[4];
-      std::int32_t left  = std::max(cl, std::max(iA[0] ? (iA[2] + xs1) / - iA[0] : cl, iA[3] ? (iA[5] + ys1) / - iA[3] : cl));
-      std::int32_t right = std::min(cr, std::min(iA[0] ? (iA[2] + xs2) / - iA[0] : cr, iA[3] ? (iA[5] + ys2) / - iA[3] : cr));
+      int32_t left  = std::max(cl, std::max(iA[0] ? (iA[2] + xs1) / - iA[0] : cl, iA[3] ? (iA[5] + ys1) / - iA[3] : cl));
+      int32_t right = std::min(cr, std::min(iA[0] ? (iA[2] + xs2) / - iA[0] : cr, iA[3] ? (iA[5] + ys2) / - iA[3] : cr));
       if (left < right)
       {
-        std::int32_t len = right - left;
+        int32_t len = right - left;
 
-        std::uint32_t xs = iA[2] + left * iA[0];
+        uint32_t xs = iA[2] + left * iA[0];
         pc->src_x32 = xs - x32_diff;
         pc->src_xe32 = xs + x32_diff;
-        std::uint32_t ys = iA[5] + left * iA[3];
+        uint32_t ys = iA[5] + left * iA[3];
         pc->src_y32 = ys - y32_diff;
         pc->src_ye32 = ys + y32_diff;
 
@@ -1375,12 +1376,12 @@ namespace lgfx
     endWrite();
   }
 
-  void LGFXBase::readRect(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, std::uint8_t* data)
+  void LGFXBase::readRect(int32_t x, int32_t y, int32_t w, int32_t h, uint8_t* data)
   {
     pixelcopy_t p(nullptr, rgb332_t::depth, _read_conv.depth, false, getPalette());
     read_rect(x, y, w, h, data, &p);
   }
-  void LGFXBase::readRect(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, std::uint16_t* data)
+  void LGFXBase::readRect(int32_t x, int32_t y, int32_t w, int32_t h, uint16_t* data)
   {
     pixelcopy_t p(nullptr, swap565_t::depth, _read_conv.depth, false, getPalette());
     if (_swapBytes && !_palette_count && _read_conv.depth >= 8) {
@@ -1389,7 +1390,7 @@ namespace lgfx
     }
     read_rect(x, y, w, h, data, &p);
   }
-  void LGFXBase::readRect(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, void* data)
+  void LGFXBase::readRect(int32_t x, int32_t y, int32_t w, int32_t h, void* data)
   {
     pixelcopy_t p(nullptr, bgr888_t::depth, _read_conv.depth, false, getPalette());
     if (_swapBytes && !_palette_count && _read_conv.depth >= 8) {
@@ -1399,21 +1400,21 @@ namespace lgfx
     read_rect(x, y, w, h, data, &p);
   }
 
-  void LGFXBase::scroll(std::int_fast16_t dx, std::int_fast16_t dy)
+  void LGFXBase::scroll(int_fast16_t dx, int_fast16_t dy)
   {
     setColor(_base_rgb888);
-    std::int32_t w  = _sw - abs(dx);
-    std::int32_t h  = _sh - abs(dy);
+    int32_t w  = _sw - abs(dx);
+    int32_t h  = _sh - abs(dy);
     if (w < 0 || h < 0)
     {
       writeFillRect(_sx, _sy, _sw, _sh);
       return;
     }
 
-    std::int32_t src_x = dx < 0 ? _sx - dx : _sx;
-    std::int32_t dst_x = src_x + dx;
-    std::int32_t src_y = dy < 0 ? _sy - dy : _sy;
-    std::int32_t dst_y = src_y + dy;
+    int32_t src_x = dx < 0 ? _sx - dx : _sx;
+    int32_t dst_x = src_x + dx;
+    int32_t src_y = dy < 0 ? _sy - dy : _sy;
+    int32_t dst_y = src_y + dy;
 
     startWrite();
     _panel->copyRect(dst_x, dst_y, w, h, src_x, src_y);
@@ -1425,7 +1426,7 @@ namespace lgfx
     endWrite();
   }
 
-  void LGFXBase::copyRect(std::int32_t dst_x, std::int32_t dst_y, std::int32_t w, std::int32_t h, std::int32_t src_x, std::int32_t src_y)
+  void LGFXBase::copyRect(int32_t dst_x, int32_t dst_y, int32_t w, int32_t h, int32_t src_x, int32_t src_y)
   {
     auto wid = width();
     if (src_x < dst_x) { if (src_x < 0) { w += src_x; dst_x -= src_x; src_x = 0; } if (w > wid  - dst_x)  w = wid  - dst_x; }
@@ -1440,7 +1441,7 @@ namespace lgfx
     _panel->copyRect(dst_x, dst_y, w, h, src_x, src_y);
   }
 
-  void LGFXBase::read_rect(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, void* dst, pixelcopy_t* param)
+  void LGFXBase::read_rect(int32_t x, int32_t y, int32_t w, int32_t h, void* dst, pixelcopy_t* param)
   {
     _adjust_abs(x, w);
     if (x < 0) { w += x; x = 0; }
@@ -1455,9 +1456,9 @@ namespace lgfx
     _panel->readRect(x, y, w, h, dst, param);
   }
 
-  struct paint_point_t { std::int32_t lx,rx,y,oy; };
+  struct paint_point_t { int32_t lx,rx,y,oy; };
 
-  static void paint_add_points(std::list<paint_point_t>& points, std::int32_t lx, std::int32_t rx, std::int32_t y, std::int32_t oy, std::uint8_t* linebuf)
+  static void paint_add_points(std::list<paint_point_t>& points, int32_t lx, int32_t rx, int32_t y, int32_t oy, uint8_t* linebuf)
   {
     paint_point_t pt { 0, 0, y, oy };
     do
@@ -1471,7 +1472,7 @@ namespace lgfx
     } while (lx <= rx);
   }
 
-  void LGFXBase::floodFill(std::int32_t x, std::int32_t y)
+  void LGFXBase::floodFill(int32_t x, int32_t y)
   {
     if (x < _clip_l || x > _clip_r || y < _clip_t || y > _clip_b) return;
     bgr888_t target;
@@ -1493,11 +1494,11 @@ namespace lgfx
       break;
     }
 
-    const std::int32_t cl = _clip_l;
-    const std::int32_t w = _clip_r - cl + 1;
-    std::size_t bufIdx = 0;
-    std::uint8_t* linebufs[3] = { new std::uint8_t[w], new std::uint8_t[w], new std::uint8_t[w] };
-    std::int32_t bufY[3] = {y, -2, -2};  // 3 line buffer (default: out of range.)
+    const int32_t cl = _clip_l;
+    const int32_t w = _clip_r - cl + 1;
+    size_t bufIdx = 0;
+    uint8_t* linebufs[3] = { new uint8_t[w], new uint8_t[w], new uint8_t[w] };
+    int32_t bufY[3] = {y, -2, -2};  // 3 line buffer (default: out of range.)
     _panel->readRect(cl, y, w, 1, linebufs[0], &p);
     std::list<paint_point_t> points;
     points.push_back({x, x, y, y});
@@ -1505,18 +1506,18 @@ namespace lgfx
     startWrite();
     while (!points.empty())
     {
-      std::int32_t y0 = bufY[bufIdx];
+      int32_t y0 = bufY[bufIdx];
 
       auto it = points.begin();
-      std::int32_t counter = 0;
+      int32_t counter = 0;
       while (it->y != y0 && ++it != points.end()) ++counter;
       if (it == points.end())
       {
         if (counter < 256)
         {
           ++bufIdx;
-          std::int32_t y1 = bufY[(bufIdx  )%3];
-          std::int32_t y2 = bufY[(bufIdx+1)%3];
+          int32_t y1 = bufY[(bufIdx  )%3];
+          int32_t y2 = bufY[(bufIdx+1)%3];
           it = points.begin();
 
           while ((it->y != y1) && (it->y != y2) && (++it != points.end()));
@@ -1536,17 +1537,17 @@ namespace lgfx
       }
       auto linebuf = &linebufs[bufIdx][- cl];
 
-      std::int32_t lx = it->lx;
-      std::int32_t rx = it->rx;
-      std::int32_t ly = it->y;
-      std::int32_t oy = it->oy;
+      int32_t lx = it->lx;
+      int32_t rx = it->rx;
+      int32_t ly = it->y;
+      int32_t oy = it->oy;
       points.erase(it);
       if (!linebuf[lx]) continue;
 
-      std::int32_t lxsav = lx - 1;
-      std::int32_t rxsav = rx + 1;
+      int32_t lxsav = lx - 1;
+      int32_t rxsav = rx + 1;
 
-      const std::int32_t cr = _clip_r;
+      const int32_t cr = _clip_r;
       while (lx > cl && linebuf[lx - 1]) --lx;
       while (rx < cr && linebuf[rx + 1]) ++rx;
       bool flg_noexpanded = lx >= lxsav && rxsav >= rx;
@@ -1554,15 +1555,15 @@ namespace lgfx
       memset(&linebuf[lx], 0, rx - lx + 1);
       writeFillRectPreclipped(lx, ly, rx - lx + 1, 1);
 
-      std::int32_t nexty[2] = { ly - 1, ly + 1 };
+      int32_t nexty[2] = { ly - 1, ly + 1 };
       if (ly < y) std::swap(nexty[0], nexty[1]);
-      std::size_t i = 0;
+      size_t i = 0;
       do
       {
-        std::int32_t newy = nexty[i];
+        int32_t newy = nexty[i];
         if (newy == oy && flg_noexpanded) continue;
         if (newy < _clip_t || newy > _clip_b) continue;
-        std::size_t bidx = 0;
+        size_t bidx = 0;
         while (newy != bufY[bidx] && ++bidx != 3);
         if (bidx == 3) {
           for (bidx = 0; bidx < 2 && (abs(bufY[bidx] - ly) <= 1); ++bidx);
@@ -1573,7 +1574,7 @@ namespace lgfx
         paint_add_points(points, lx ,rx, newy, ly, linebuf);
       } while (++i < 2);
     }
-    std::size_t i = 0;
+    size_t i = 0;
     do { delete[] linebufs[i]; } while (++i != 3);
     endWrite();
   }
@@ -1581,7 +1582,7 @@ namespace lgfx
 //----------------------------------------------------------------------------
 //----------------------------------------------------------------------------
 
-  static char* numberToStr(unsigned long n, char* buf, std::size_t buflen, std::uint8_t base)
+  static char* numberToStr(unsigned long n, char* buf, size_t buflen, uint8_t base)
   {
     char *str = &buf[buflen - 1];
 
@@ -1598,7 +1599,7 @@ namespace lgfx
     return str;
   }
 
-  static char* numberToStr(long n, char* buf, std::size_t buflen, std::uint8_t base)
+  static char* numberToStr(long n, char* buf, size_t buflen, uint8_t base)
   {
     if (n >= 0) return numberToStr((unsigned long) n, buf, buflen, base);
     auto res = numberToStr(- n, buf, buflen, 10) - 1;
@@ -1606,7 +1607,7 @@ namespace lgfx
     return res;
   }
 
-  static char* floatToStr(double number, char* buf, std::size_t /*buflen*/, std::uint8_t digits)
+  static char* floatToStr(double number, char* buf, size_t /*buflen*/, uint8_t digits)
   {
     if (std::isnan(number))    { return strcpy(buf, "nan"); }
     if (std::isinf(number))    { return strcpy(buf, "inf"); }
@@ -1623,7 +1624,7 @@ namespace lgfx
 
     // Round correctly so that print(1.999, 2) prints as "2.00"
     double rounding = 0.5;
-    for(std::uint8_t i = 0; i < digits; ++i) {
+    for(uint8_t i = 0; i < digits; ++i) {
       rounding /= 10.0;
     }
 
@@ -1634,7 +1635,7 @@ namespace lgfx
     double remainder = number - (double) int_part;
 
     {
-      constexpr std::size_t len = 14;
+      constexpr size_t len = 14;
       char numstr[len];
       auto tmp = numberToStr(int_part, numstr, len, 10);
       auto slen = strlen(tmp);
@@ -1659,7 +1660,7 @@ namespace lgfx
     return buf;
   }
 
-  std::uint16_t LGFXBase::decodeUTF8(std::uint8_t c)
+  uint16_t LGFXBase::decodeUTF8(uint8_t c)
   {
     // 7 bit Unicode Code Point
     if (!(c & 0x80)) {
@@ -1685,7 +1686,7 @@ namespace lgfx
         return 0;
       }
       // 21 bit Unicode  Code Point not supported so fall-back to extended ASCII
-      //if ((c & 0xF8) == 0xF0) return (std::uint16_t)c;
+      //if ((c & 0xF8) == 0xF0) return (uint16_t)c;
     }
     else
     {
@@ -1705,25 +1706,25 @@ namespace lgfx
     return c; // fall-back to extended ASCII
   }
 
-  std::int32_t LGFXBase::fontHeight(const IFont* font) const
+  int32_t LGFXBase::fontHeight(const IFont* font) const
   {
     FontMetrics fm;
     font->getDefaultMetric(&fm);
-    std::int32_t sy = 65536 * _text_style.size_y;
+    int32_t sy = 65536 * _text_style.size_y;
     return (fm.height * sy) >> 16;
   }
 
-  std::int32_t LGFXBase::textLength(const char *string, std::int32_t width)
+  int32_t LGFXBase::textLength(const char *string, int32_t width)
   {
     if (!string || !string[0]) return 0;
 
-    std::int32_t sx = 65536 * _text_style.size_x;
+    int32_t sx = 65536 * _text_style.size_x;
 
-    std::int32_t left = 0;
-    std::int32_t right = 0;
+    int32_t left = 0;
+    int32_t right = 0;
     auto str = string;
     do {
-      std::uint16_t uniCode = *string;
+      uint16_t uniCode = *string;
       if (_text_style.utf8) {
         do {
           uniCode = decodeUTF8(*string);
@@ -1734,7 +1735,7 @@ namespace lgfx
       //if (!_font->updateFontMetric(&_font_metrics, uniCode)) continue;
       _font->updateFontMetric(&_font_metrics, uniCode);
       if (left == 0 && right == 0 && _font_metrics.x_offset < 0) left = right = - ((_font_metrics.x_offset * sx) >> 16);
-      std::int32_t sxadvance = (_font_metrics.x_advance * sx) >> 16;
+      int32_t sxadvance = (_font_metrics.x_advance * sx) >> 16;
       right = left + std::max<int>(sxadvance, ((_font_metrics.width * sx) >> 16) + ((_font_metrics.x_offset * sx) >> 16));
       //right = left + (int)(std::max<int>(_font_metrics.x_advance, _font_metrics.width + _font_metrics.x_offset) * sx);
       left += sxadvance;
@@ -1743,7 +1744,7 @@ namespace lgfx
     return string - str;
   }
 
-  std::int32_t LGFXBase::textWidth(const char *string, const IFont* font)
+  int32_t LGFXBase::textWidth(const char *string, const IFont* font)
   {
     auto metrics = _font_metrics;
     if (font == nullptr)
@@ -1758,16 +1759,16 @@ namespace lgfx
     return text_width(string, font, &metrics);
   }
 
-  std::int32_t LGFXBase::text_width(const char *string, const IFont* font, FontMetrics* metrics)
+  int32_t LGFXBase::text_width(const char *string, const IFont* font, FontMetrics* metrics)
   {
     if (!string || !string[0]) return 0;
 
-    std::int32_t sx = 65536 * _text_style.size_x;
+    int32_t sx = 65536 * _text_style.size_x;
 
-    std::int32_t left = 0;
-    std::int32_t right = 0;
+    int32_t left = 0;
+    int32_t right = 0;
     do {
-      std::uint16_t uniCode = *string;
+      uint16_t uniCode = *string;
       if (_text_style.utf8) {
         do {
           uniCode = decodeUTF8(*string);
@@ -1777,9 +1778,9 @@ namespace lgfx
 
       //if (!_font->updateFontMetric(&metrics, uniCode)) continue;
       font->updateFontMetric(metrics, uniCode);
-      std::int32_t sxoffset = (metrics->x_offset * sx) >> 16;
+      int32_t sxoffset = (metrics->x_offset * sx) >> 16;
       if (left == 0 && right == 0 && metrics->x_offset < 0) left = right = - sxoffset;
-      std::int32_t sxadvance = (metrics->x_advance * sx) >> 16;
+      int32_t sxadvance = (metrics->x_advance * sx) >> 16;
       right = left + std::max<int>(sxadvance, ((metrics->width * sx) >> 16) + sxoffset);
       //right = left + (int)(std::max<int>(metrics->x_advance, metrics->width + metrics->x_offset) * sx);
       left += sxadvance;
@@ -1788,30 +1789,30 @@ namespace lgfx
   }
 
 
-  std::size_t LGFXBase::drawNumber(long long_num, std::int32_t poX, std::int32_t poY, const IFont* font)
+  size_t LGFXBase::drawNumber(long long_num, int32_t poX, int32_t poY, const IFont* font)
   {
-    constexpr std::size_t len = 8 * sizeof(long) + 1;
+    constexpr size_t len = 8 * sizeof(long) + 1;
     char buf[len];
     return drawString(numberToStr(long_num, buf, len, 10), poX, poY, font);
   }
 
-  std::size_t LGFXBase::drawFloat(float floatNumber, std::uint8_t dp, std::int32_t poX, std::int32_t poY, const IFont* font)
+  size_t LGFXBase::drawFloat(float floatNumber, uint8_t dp, int32_t poX, int32_t poY, const IFont* font)
   {
-    std::size_t len = 14 + dp;
+    size_t len = 14 + dp;
     char buf[len];
     return drawString(floatToStr(floatNumber, buf, len, dp), poX, poY, font);
   }
 
-  std::size_t LGFXBase::drawChar(std::uint16_t uniCode, std::int32_t x, std::int32_t y, std::uint8_t font)
+  size_t LGFXBase::drawChar(uint16_t uniCode, int32_t x, int32_t y, uint8_t font)
   {
     if (_font == fontdata[font]) return drawChar(uniCode, x, y);
-    std::int32_t dummy_filled_x = 0;
+    int32_t dummy_filled_x = 0;
     FontMetrics metrics;
     fontdata[font]->getDefaultMetric(&metrics);
     return fontdata[font]->drawChar(this, x, y, uniCode, &_text_style, &metrics, dummy_filled_x);
   }
 
-  std::size_t LGFXBase::draw_string(const char *string, std::int32_t x, std::int32_t y, textdatum_t datum, const IFont* font)
+  size_t LGFXBase::draw_string(const char *string, int32_t x, int32_t y, textdatum_t datum, const IFont* font)
   {
     auto metrics = _font_metrics;
     if (font == nullptr)
@@ -1823,15 +1824,15 @@ namespace lgfx
     {
       font->getDefaultMetric(&metrics);
     }
-    std::int16_t sumX = 0;
-    std::int32_t cwidth = text_width(string, font, &metrics); // Find the pixel width of the string in the font
-    std::int32_t sy = 65536 * _text_style.size_y;
-    std::int32_t cheight = (metrics.height * sy) >> 16;
+    int16_t sumX = 0;
+    int32_t cwidth = text_width(string, font, &metrics); // Find the pixel width of the string in the font
+    int32_t sy = 65536 * _text_style.size_y;
+    int32_t cheight = (metrics.height * sy) >> 16;
 
     if (string && string[0]) {
       auto tmp = string;
       do {
-        std::uint16_t uniCode = *tmp;
+        uint16_t uniCode = *tmp;
         if (_text_style.utf8) {
           do {
             uniCode = decodeUTF8(*tmp);
@@ -1843,7 +1844,7 @@ namespace lgfx
           font->updateFontMetric(&metrics, uniCode);
           if (metrics.x_offset < 0)
           {
-            std::int32_t sx = 65536 * _text_style.size_x;
+            int32_t sx = 65536 * _text_style.size_x;
             sumX = - (metrics.x_offset * sx) >> 16;
           }
           break;
@@ -1859,7 +1860,7 @@ namespace lgfx
     }
 
     this->startWrite();
-    std::int32_t padx = _text_style.padding_x;
+    int32_t padx = _text_style.padding_x;
     if ((_text_style.fore_rgb888 != _text_style.back_rgb888) && (padx > cwidth)) {
       this->setColor(_text_style.back_rgb888);
       if (datum & top_center) {
@@ -1884,10 +1885,10 @@ namespace lgfx
 
     y -= (metrics.y_offset * sy) >> 16;
 
-    std::int32_t dummy_filled_x = 0;
+    int32_t dummy_filled_x = 0;
     if (string && string[0]) {
       do {
-        std::uint16_t uniCode = *string;
+        uint16_t uniCode = *string;
         if (_text_style.utf8) {
           do {
             uniCode = decodeUTF8(*string);
@@ -1902,16 +1903,16 @@ namespace lgfx
     return sumX;
   }
 
-  std::size_t LGFXBase::write(std::uint8_t utf8)
+  size_t LGFXBase::write(uint8_t utf8)
   {
     if (utf8 == '\r') return 1;
-    std::int32_t sy = 65536 * _text_style.size_y;
+    int32_t sy = 65536 * _text_style.size_y;
     if (utf8 == '\n') {
       _filled_x = (_textscroll) ? this->_sx : 0;
       _cursor_x = _filled_x;
       _cursor_y += (_font_metrics.y_advance * sy) >> 16;
     } else {
-      std::uint16_t uniCode = utf8;
+      uint16_t uniCode = utf8;
       if (_text_style.utf8) {
         uniCode = decodeUTF8(utf8);
         if (uniCode < 0x20) return 1;
@@ -1920,23 +1921,23 @@ namespace lgfx
       //if (!_font->updateFontMetric(&_font_metrics, uniCode)) return 1;
       _font->updateFontMetric(&_font_metrics, uniCode);
 
-      std::int32_t sx = 65536 * _text_style.size_x;
-      std::int32_t xo = (_font_metrics.x_offset * sx) >> 16;
-      std::int32_t w  = std::max(xo + ((_font_metrics.width * sx) >> 16), (_font_metrics.x_advance * sx) >> 16);
+      int32_t sx = 65536 * _text_style.size_x;
+      int32_t xo = (_font_metrics.x_offset * sx) >> 16;
+      int32_t w  = std::max(xo + ((_font_metrics.width * sx) >> 16), (_font_metrics.x_advance * sx) >> 16);
       if (_textscroll || _textwrap_x) {
-        std::int32_t llimit = _textscroll ? this->_sx : this->_clip_l;
-        std::int32_t rlimit = _textscroll ? this->_sx + this->_sw : (this->_clip_r + 1);
+        int32_t llimit = _textscroll ? this->_sx : this->_clip_l;
+        int32_t rlimit = _textscroll ? this->_sx + this->_sw : (this->_clip_r + 1);
         if (_cursor_x + w > rlimit) {
           _filled_x = llimit;
-          _cursor_x = llimit - std::min<std::int32_t>(0, xo);
+          _cursor_x = llimit - std::min<int32_t>(0, xo);
           _cursor_y += (_font_metrics.y_advance * sy) >> 16;
         }
         if (_cursor_x < llimit - xo) _cursor_x = llimit - xo;
       }
 
-      std::int32_t h  = (_font_metrics.height * sy) >> 16;
+      int32_t h  = (_font_metrics.height * sy) >> 16;
 
-      std::int32_t ydiff = 0;
+      int32_t ydiff = 0;
       if (_text_style.datum & middle_left) {          // vertical: middle
         ydiff -= h >> 1;
       } else if (_text_style.datum & bottom_left) {   // vertical: bottom
@@ -1944,7 +1945,7 @@ namespace lgfx
       } else if (_text_style.datum & baseline_left) { // vertical: baseline
         ydiff -= (_font_metrics.baseline * sy) >> 16;
       }
-      std::int32_t y = _cursor_y + ydiff;
+      int32_t y = _cursor_y + ydiff;
 
       if (_textscroll) {
         if (y < this->_sy) y = this->_sy;
@@ -1970,7 +1971,7 @@ namespace lgfx
       }
       else
       {
-        std::int32_t sx = 65536 * _text_style.size_x;
+        int32_t sx = 65536 * _text_style.size_x;
         _font->updateFontMetric(&_font_metrics, uniCode);
         _cursor_x += (_font_metrics.x_advance * sx) >> 16;
       }
@@ -1979,33 +1980,33 @@ namespace lgfx
     return 1;
   }
 
-  std::size_t LGFXBase::printNumber(unsigned long n, std::uint8_t base)
+  size_t LGFXBase::printNumber(unsigned long n, uint8_t base)
   {
-    std::size_t len = 8 * sizeof(long) + 1;
+    size_t len = 8 * sizeof(long) + 1;
     char buf[len];
     return write(numberToStr(n, buf, len, base));
   }
 
-  std::size_t LGFXBase::printFloat(double number, std::uint8_t digits)
+  size_t LGFXBase::printFloat(double number, uint8_t digits)
   {
-    std::size_t len = 14 + digits;
+    size_t len = 14 + digits;
     char buf[len];
     return write(floatToStr(number, buf, len, digits));
   }
 
 #if !defined (ARDUINO)
-  std::size_t LGFXBase::printf(const char * __restrict__ format, ...) 
+  size_t LGFXBase::printf(const char * __restrict__ format, ...) 
   {
     va_list arg;
     va_start(arg, format);
-    std::size_t len = vprintf(format, arg);
+    size_t len = vprintf(format, arg);
     va_end(arg);
 
     return len;
   }
 #endif
 
-  std::size_t LGFXBase::vprintf(const char* __restrict__ format, va_list arg)
+  size_t LGFXBase::vprintf(const char* __restrict__ format, va_list arg)
   {
     char loc_buf[64];
     char * temp = loc_buf;
@@ -2014,7 +2015,7 @@ namespace lgfx
     int len = vsnprintf(temp, sizeof(loc_buf), format, copy);
     va_end(copy);
     if (len < 0) { return 0; }
-    if ((std::size_t)len >= sizeof(loc_buf))
+    if ((size_t)len >= sizeof(loc_buf))
     {
       temp = (char*) malloc(len + 1);
       if (temp == nullptr)
@@ -2023,7 +2024,7 @@ namespace lgfx
       }
       len = vsnprintf(temp, len+1, format, arg);
     }
-    len = write((std::uint8_t*)temp, len);
+    len = write((uint8_t*)temp, len);
     if (temp != loc_buf)
     {
       free(temp);
@@ -2045,7 +2046,7 @@ namespace lgfx
   }
 
   /// load VLW font
-  bool LGFXBase::loadFont(const std::uint8_t* array)
+  bool LGFXBase::loadFont(const uint8_t* array)
   {
     _font_data.set(array);
     return load_font(&_font_data);
@@ -2058,7 +2059,7 @@ namespace lgfx
 
 #ifdef LGFX_TTFFONT_HPP_
 // TTF support.
-    std::uint8_t buf[4];
+    uint8_t buf[4];
     data->seek(0);
     data->read(buf, 4);
     data->seek(0);
@@ -2088,14 +2089,14 @@ namespace lgfx
     if (_runtime_font.get() != nullptr) { setFont(&fonts::Font0); }
   }
 
-  void LGFXBase::showFont(std::uint32_t td)
+  void LGFXBase::showFont(uint32_t td)
   {
-    std::int_fast16_t x = 0;
-    std::int_fast16_t y = 0;
+    int_fast16_t x = 0;
+    int_fast16_t y = 0;
 
     this->fillScreen(this->_text_style.back_rgb888);
 
-    std::uint32_t code = 0;
+    uint32_t code = 0;
     while (++code < 65536)
     {
       if (!getFont()->updateFontMetric(&_font_metrics, code)) continue;
@@ -2117,7 +2118,7 @@ namespace lgfx
     this->fillScreen(this->_text_style.back_rgb888);
   }
 
-  void LGFXBase::setAttribute(attribute_t attr_id, std::uint8_t param) {
+  void LGFXBase::setAttribute(attribute_t attr_id, uint8_t param) {
     switch (attr_id) {
     case cp437_switch:
       _text_style.cp437 = param;
@@ -2133,7 +2134,7 @@ namespace lgfx
     }
   }
 
-  std::uint8_t LGFXBase::getAttribute(attribute_t attr_id) {
+  uint8_t LGFXBase::getAttribute(attribute_t attr_id) {
     switch (attr_id) {
       case cp437_switch: return _text_style.cp437;
       case utf8_switch: return _text_style.utf8;
@@ -2144,7 +2145,7 @@ namespace lgfx
 
 //----------------------------------------------------------------------------
 
-  void LGFXBase::qrcode(const char *string, std::int32_t x, std::int32_t y, std::int32_t w, std::uint8_t version) {
+  void LGFXBase::qrcode(const char *string, int32_t x, int32_t y, int32_t w, uint8_t version) {
     if (w == -1) {
       w = std::min(width(), height()) * 9 / 10;
     }
@@ -2158,13 +2159,13 @@ namespace lgfx
     writeFillRect(x, y, w, w);
     for (; version <= 40; ++version) {
       QRCode qrcode;
-      std::uint8_t qrcodeData[lgfx_qrcode_getBufferSize(version)];
+      uint8_t qrcodeData[lgfx_qrcode_getBufferSize(version)];
       if (0 != lgfx_qrcode_initText(&qrcode, qrcodeData, version, 0, string)) continue;
-      std::int_fast16_t thickness = w / qrcode.size;
+      int_fast16_t thickness = w / qrcode.size;
       if (!thickness) break;
-      std::int_fast16_t lineLength = qrcode.size * thickness;
-      std::int_fast16_t xOffset = x + ((w - lineLength) >> 1);
-      std::int_fast16_t yOffset = y + ((w - lineLength) >> 1);
+      int_fast16_t lineLength = qrcode.size * thickness;
+      int_fast16_t xOffset = x + ((w - lineLength) >> 1);
+      int_fast16_t yOffset = y + ((w - lineLength) >> 1);
       setColor(0);
       y = 0;
       do {
@@ -2180,17 +2181,17 @@ namespace lgfx
 
 //----------------------------------------------------------------------------
 
-  bool LGFXBase::draw_bmp(DataWrapper* data, std::int32_t x, std::int32_t y, std::int32_t maxWidth, std::int32_t maxHeight, std::int32_t offX, std::int32_t offY, float scale_x, float scale_y, datum_t datum)
+  bool LGFXBase::draw_bmp(DataWrapper* data, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, float scale_x, float scale_y, datum_t datum)
   {
     bitmap_header_t bmpdata;
     if (!bmpdata.load_bmp_header(data) || (bmpdata.biCompression > 3)) {
       return false;
     }
 
-    std::uint32_t seekOffset = bmpdata.bfOffBits;
+    uint32_t seekOffset = bmpdata.bfOffBits;
     uint_fast16_t bpp = bmpdata.biBitCount; // 24 bcBitCount 24=RGB24bit
-    std::int32_t w = bmpdata.biWidth;
-    std::int32_t h = abs(bmpdata.biHeight);  // bcHeight Image height (pixels)
+    int32_t w = bmpdata.biWidth;
+    int32_t h = abs(bmpdata.biHeight);  // bcHeight Image height (pixels)
 
     const auto cl = this->_clip_l;
     const auto cr = this->_clip_r + 1;
@@ -2252,14 +2253,14 @@ namespace lgfx
       if (bpp <= 8) {
         palette = (argb8888_t*)heap_alloc(sizeof(argb8888_t*) * (1 << bpp));
         data->seek(bmpdata.biSize + 14);
-        data->read((std::uint8_t*)palette, (1 << bpp)*sizeof(argb8888_t)); // load palette
+        data->read((uint8_t*)palette, (1 << bpp)*sizeof(argb8888_t)); // load palette
       }
 
       data->seek(seekOffset);
 
       auto dst_depth = this->_write_conv.depth;
-      std::uint32_t buffersize = ((w * bpp + 31) >> 5) << 2;  // readline 4Byte align.
-      std::uint8_t lineBuffer[buffersize + 4];
+      uint32_t buffersize = ((w * bpp + 31) >> 5) << 2;  // readline 4Byte align.
+      uint8_t lineBuffer[buffersize + 4];
       pixelcopy_t p(lineBuffer, dst_depth, (color_depth_t)bpp, this->_palette_count, palette);
       p.no_convert = false;
       if (8 >= bpp && !this->_palette_count) {
@@ -2277,14 +2278,14 @@ namespace lgfx
 
         //If the value of Height is positive, the image data is from bottom to top
         //If the value of Height is negative, the image data is from top to bottom.
-      std::int32_t flow = (bmpdata.biHeight > 0) ? -1 : 1;
+      int32_t flow = (bmpdata.biHeight > 0) ? -1 : 1;
       if (bmpdata.biHeight > 0) y += ceilf(h * scale_y) - 1;
 
       x -= offX;
       y -= offY;
 
-      std::int32_t y32 = (y << FP_SCALE);
-      std::int32_t dst_y32_add = (1u << FP_SCALE) * scale_y;
+      int32_t y32 = (y << FP_SCALE);
+      int32_t dst_y32_add = (1u << FP_SCALE) * scale_y;
       if (bmpdata.biHeight > 0) dst_y32_add = - dst_y32_add;
 
       this->startWrite(!data->hasParent());
@@ -2311,7 +2312,7 @@ namespace lgfx
         }
         data->postRead();
         y32 += dst_y32_add;
-        std::int32_t next_y = y32 >> FP_SCALE;
+        int32_t next_y = y32 >> FP_SCALE;
         while (y != next_y)
         {
           p.src_x32 = 0;
@@ -2334,8 +2335,8 @@ namespace lgfx
 
   struct draw_jpg_info_t
   {
-    std::int32_t x;
-    std::int32_t y;
+    int32_t x;
+    int32_t y;
     DataWrapper *data;
     LGFXBase *lgfx;
     pixelcopy_t *pc;
@@ -2343,7 +2344,7 @@ namespace lgfx
     float zoom_y;
   };
 
-  static std::uint32_t jpg_read_data(lgfxJdec  *decoder, std::uint8_t *buf, std::uint32_t len)
+  static uint32_t jpg_read_data(lgfxJdec  *decoder, uint8_t *buf, uint32_t len)
   {
     auto jpeg = (draw_jpg_info_t *)decoder->device;
     auto data = (DataWrapper*)jpeg->data;
@@ -2357,16 +2358,16 @@ namespace lgfx
     return res;
   }
 
-  static std::uint32_t jpg_push_image(lgfxJdec *decoder, void *bitmap, JRECT *rect)
+  static uint32_t jpg_push_image(lgfxJdec *decoder, void *bitmap, JRECT *rect)
   {
     draw_jpg_info_t *jpeg = static_cast<draw_jpg_info_t*>(decoder->device);
     jpeg->pc->src_data = bitmap;
     auto data = static_cast<DataWrapper*>(jpeg->data);
     data->postRead();
-    std::int32_t x = rect->left;
-    std::int32_t y = rect->top;
-    std::int32_t w = rect->right  - rect->left + 1;
-    std::int32_t h = rect->bottom - rect->top + 1;
+    int32_t x = rect->left;
+    int32_t y = rect->top;
+    int32_t w = rect->right  - rect->left + 1;
+    int32_t h = rect->bottom - rect->top + 1;
     jpeg->lgfx->pushImage( jpeg->x + x
                          , jpeg->y + y
                          , w
@@ -2376,17 +2377,17 @@ namespace lgfx
     return 1;
   }
 
-  static std::uint32_t jpg_push_image_affine(lgfxJdec *decoder, void *bitmap, JRECT *rect)
+  static uint32_t jpg_push_image_affine(lgfxJdec *decoder, void *bitmap, JRECT *rect)
   {
     draw_jpg_info_t *jpeg = static_cast<draw_jpg_info_t*>(decoder->device);
     jpeg->pc->src_data = bitmap;
     auto data = static_cast<DataWrapper*>(jpeg->data);
     data->postRead();
 
-    std::int32_t x = rect->left;
-    std::int32_t y = rect->top;
-    std::int32_t w = rect->right  - rect->left + 1;
-    std::int32_t h = rect->bottom - rect->top + 1;
+    int32_t x = rect->left;
+    int32_t y = rect->top;
+    int32_t w = rect->right  - rect->left + 1;
+    int32_t h = rect->bottom - rect->top + 1;
     float affine[6] =
     { jpeg->zoom_x, 0.0f , x * jpeg->zoom_x + jpeg->x
     , 0.0f , jpeg->zoom_y, y * jpeg->zoom_y + jpeg->y
@@ -2395,7 +2396,7 @@ namespace lgfx
     return 1;
   }
 
-  bool LGFXBase::draw_jpg(DataWrapper* data, std::int32_t x, std::int32_t y, std::int32_t maxWidth, std::int32_t maxHeight, std::int32_t offX, std::int32_t offY, float scale_x, float scale_y, datum_t datum)
+  bool LGFXBase::draw_jpg(DataWrapper* data, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, float scale_x, float scale_y, datum_t datum)
   {
     draw_jpg_info_t jpeg;
     pixelcopy_t pc(nullptr, this->getColorDepth(), bgr888_t::depth, this->hasPalette());
@@ -2408,8 +2409,8 @@ namespace lgfx
     //TJpgD jpegdec;
     lgfxJdec jpegdec;
 
-    static constexpr std::uint16_t sz_pool = 3100;
-    std::uint8_t *pool = (std::uint8_t*)heap_alloc_dma(sz_pool);
+    static constexpr uint16_t sz_pool = 3100;
+    uint8_t *pool = (uint8_t*)heap_alloc_dma(sz_pool);
     if (!pool)
     {
       return false;
@@ -2513,26 +2514,26 @@ namespace lgfx
 
   struct png_file_decoder_t
   {
-    std::int32_t x;
-    std::int32_t y;
-    std::int32_t offX;
-    std::int32_t offY;
-    std::int32_t maxWidth;
-    std::int32_t maxHeight;
+    int32_t x;
+    int32_t y;
+    int32_t offX;
+    int32_t offY;
+    int32_t maxWidth;
+    int32_t maxHeight;
     float zoom_x;
     float zoom_y;
     datum_t datum;
     bgr888_t* lineBuffer;
     pixelcopy_t *pc;
     LGFXBase *gfx;
-    std::uint32_t last_pos;
-    std::uint32_t last_x;
-    std::int32_t scale_y0;
-    std::int32_t scale_y1;
+    uint32_t last_pos;
+    uint32_t last_x;
+    int32_t scale_y0;
+    int32_t scale_y1;
     bool done;
   };
 
-  static bool png_ypos_update(png_file_decoder_t *p, std::uint32_t y)
+  static bool png_ypos_update(png_file_decoder_t *p, uint32_t y)
   {
     p->last_pos = y;
     p->scale_y0 = ceilf( y      * p->zoom_y) - p->offY;
@@ -2544,12 +2545,12 @@ namespace lgfx
 
   static void png_post_line(png_file_decoder_t *p)
   {
-    std::int32_t h = p->scale_y1 - p->scale_y0;
+    int32_t h = p->scale_y1 - p->scale_y0;
     if (0 < h)
       p->gfx->pushImage(p->x, p->y + p->scale_y0, p->maxWidth, h, p->pc, true);
   }
 
-  static void png_prepare_line(png_file_decoder_t *p, std::uint32_t y)
+  static void png_prepare_line(png_file_decoder_t *p, uint32_t y)
   {
     if (png_ypos_update(p, y))      // read next line
       p->gfx->readRectRGB(p->x, p->y + p->scale_y0, p->maxWidth, p->scale_y1 - p->scale_y0, p->lineBuffer);
@@ -2562,16 +2563,16 @@ namespace lgfx
     p->done = true;
   }
 
-  static void png_draw_normal_callback(pngle_t *pngle, std::uint32_t x, std::uint32_t y, std::uint8_t rgba[4])
+  static void png_draw_normal_callback(pngle_t *pngle, uint32_t x, uint32_t y, uint8_t rgba[4])
   {
     auto p = (png_file_decoder_t*)lgfx_pngle_get_user_data(pngle);
 
-    std::int32_t l = x - p->offX;
+    int32_t l = x - p->offX;
     if (l < 0 || l >= p->maxWidth) return;
     x = p->x + l;
 
     if (x != p->last_pos) {
-      std::int32_t t = y - p->offY;
+      int32_t t = y - p->offY;
       if (t < 0 || t >= p->maxHeight) return;
       p->gfx->setAddrWindow(x, p->y + t, p->maxWidth, 1);
     }
@@ -2579,7 +2580,7 @@ namespace lgfx
     p->gfx->writeColor(color888(rgba[0], rgba[1], rgba[2]), 1);
   }
 
-  static void png_draw_normal_scale_callback(pngle_t *pngle, std::uint32_t x, std::uint32_t y, std::uint8_t rgba[4])
+  static void png_draw_normal_scale_callback(pngle_t *pngle, uint32_t x, uint32_t y, uint8_t rgba[4])
   {
     auto p = (png_file_decoder_t*)lgfx_pngle_get_user_data(pngle);
 
@@ -2587,13 +2588,13 @@ namespace lgfx
       png_ypos_update(p, y);
     }
 
-    std::int32_t t = p->scale_y0;
-    std::int32_t h = p->scale_y1 - t;
+    int32_t t = p->scale_y0;
+    int32_t h = p->scale_y1 - t;
     if (h <= 0) return;
 
-    std::int32_t l = ceilf( x      * p->zoom_x) - p->offX;
+    int32_t l = ceilf( x      * p->zoom_x) - p->offX;
     if (l < 0) l = 0;
-    std::int32_t r = ceilf((x + 1) * p->zoom_x) - p->offX;
+    int32_t r = ceilf((x + 1) * p->zoom_x) - p->offX;
     if (r > p->maxWidth) r = p->maxWidth;
     if (l >= r) return;
 
@@ -2601,7 +2602,7 @@ namespace lgfx
     p->gfx->writeFillRectPreclipped(p->x + l, p->y + t, r - l, h);
   }
 
-  static void png_draw_alpha_callback(pngle_t *pngle, std::uint32_t x, std::uint32_t y, std::uint8_t rgba[4])
+  static void png_draw_alpha_callback(pngle_t *pngle, uint32_t x, uint32_t y, uint8_t rgba[4])
   {
     auto p = (png_file_decoder_t*)lgfx_pngle_get_user_data(pngle);
     if (y != p->last_pos) {
@@ -2611,8 +2612,8 @@ namespace lgfx
 
     if (p->scale_y0 >= p->scale_y1) return;
 
-    std::int32_t l = std::max<std::int32_t>(( x      ) - p->offX, 0);
-    std::int32_t r = std::min<std::int32_t>(((x + 1) ) - p->offX, p->maxWidth);
+    int32_t l = std::max<int32_t>(( x      ) - p->offX, 0);
+    int32_t r = std::min<int32_t>(((x + 1) ) - p->offX, p->maxWidth);
     if (l >= r) return;
 
     if (rgba[3] == 255) {
@@ -2627,7 +2628,7 @@ namespace lgfx
     }
   }
 
-  static void png_draw_alpha_scale_callback(pngle_t *pngle, std::uint32_t x, std::uint32_t y, std::uint8_t rgba[4])
+  static void png_draw_alpha_scale_callback(pngle_t *pngle, uint32_t x, uint32_t y, uint8_t rgba[4])
   {
     auto p = (png_file_decoder_t*)lgfx_pngle_get_user_data(pngle);
     if (y != p->last_pos) {
@@ -2635,19 +2636,19 @@ namespace lgfx
       png_prepare_line(p, y);
     }
 
-    std::int32_t b = p->scale_y1 - p->scale_y0;
+    int32_t b = p->scale_y1 - p->scale_y0;
     if (b <= 0) return;
 
-    std::int32_t l = ceilf( x      * p->zoom_x) - p->offX;
+    int32_t l = ceilf( x      * p->zoom_x) - p->offX;
     if (l < 0) l = 0;
-    std::int32_t r = ceilf((x + 1) * p->zoom_x) - p->offX;
+    int32_t r = ceilf((x + 1) * p->zoom_x) - p->offX;
     if (r > p->maxWidth) r = p->maxWidth;
     if (l >= r) return;
 
     if (rgba[3] == 255) {
-      std::int32_t i = l;
+      int32_t i = l;
       do {
-        for (std::int32_t j = 0; j < b; ++j) {
+        for (int32_t j = 0; j < b; ++j) {
           auto data = &p->lineBuffer[i + j * p->maxWidth];
           memcpy(data, rgba, 3);
         }
@@ -2655,9 +2656,9 @@ namespace lgfx
     } else {
       uint_fast8_t inv = 256 - rgba[3];
       uint_fast8_t alpha = rgba[3] + 1;
-      std::int32_t i = l;
+      int32_t i = l;
       do {
-        for (std::int32_t j = 0; j < b; ++j) {
+        for (int32_t j = 0; j < b; ++j) {
           auto data = &p->lineBuffer[i + j * p->maxWidth];
           data->r = (rgba[0] * alpha + data->r * inv) >> 8;
           data->g = (rgba[1] * alpha + data->g * inv) >> 8;
@@ -2667,12 +2668,12 @@ namespace lgfx
     }
   }
 
-  static void png_init_callback(pngle_t *pngle, std::uint32_t w, std::uint32_t h, uint_fast8_t hasTransparent)
+  static void png_init_callback(pngle_t *pngle, uint32_t w, uint32_t h, uint_fast8_t hasTransparent)
   {
     auto p = (png_file_decoder_t*)lgfx_pngle_get_user_data(pngle);
     auto me = p->gfx;
 
-    std::int32_t cw, ch, cl, ct;
+    int32_t cw, ch, cl, ct;
     me->getClipRect(&cl, &ct, &cw, &ch);
 
     if (p->zoom_y <= 0.0f || p->zoom_x <= 0.0f)
@@ -2705,26 +2706,26 @@ namespace lgfx
     {
       if (p->datum & (datum_t::top_center | datum_t::top_right))
       {
-        float fw = p->maxWidth - (std::int32_t)w;
+        float fw = p->maxWidth - (int32_t)w;
         if (p->datum & datum_t::top_center) { fw /= 2; }
         p->offX -= fw;
       }
       if (p->datum & (datum_t::middle_left | datum_t::bottom_left | datum_t::baseline_left))
       {
-        float fh = p->maxHeight - (std::int32_t)h;
+        float fh = p->maxHeight - (int32_t)h;
         if (p->datum & datum_t::middle_left) { fh /= 2; }
         p->offY -= fh;
       }
     }
 
-    const std::int32_t cr = cw + cl;
-    const std::int32_t cb = ch + ct;
+    const int32_t cr = cw + cl;
+    const int32_t cb = ch + ct;
 
     if (0 > p->x - cl) { p->maxWidth += p->x - cl; p->offX -= p->x - cl; p->x = cl; }
     if (0 > p->offX) { p->x -= p->offX; p->maxWidth  += p->offX; p->offX = 0; }
     if (p->maxWidth > (cr - p->x)) p->maxWidth = (cr - p->x);
 
-    std::int32_t ww = w - abs(p->offX);
+    int32_t ww = w - abs(p->offX);
     if (p->maxWidth > ww) p->maxWidth = ww;
     if (p->maxWidth < 0) return;
 
@@ -2732,7 +2733,7 @@ namespace lgfx
     if (0 > p->offY) { p->y -= p->offY; p->maxHeight += p->offY; p->offY = 0; }
     if (p->maxHeight > (cb - p->y)) p->maxHeight = (cb - p->y);
 
-    std::int32_t hh = h - abs(p->offY);
+    int32_t hh = h - abs(p->offY);
     if (p->maxHeight > hh) p->maxHeight = hh;
     if (p->maxHeight < 0) return;
 
@@ -2766,7 +2767,7 @@ namespace lgfx
     }
   }
 
-  bool LGFXBase::draw_png(DataWrapper* data, std::int32_t x, std::int32_t y, std::int32_t maxWidth, std::int32_t maxHeight, std::int32_t offX, std::int32_t offY, float scale_x, float scale_y, datum_t datum)
+  bool LGFXBase::draw_png(DataWrapper* data, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, float scale_x, float scale_y, datum_t datum)
   {
     png_file_decoder_t png;
     png.x = x;
@@ -2792,7 +2793,7 @@ namespace lgfx
     lgfx_pngle_set_init_callback(pngle, png_init_callback);
 
     // Feed data to pngle
-    std::uint8_t buf[512];
+    uint8_t buf[512];
     int remain = 0;
     int len;
     bool res = true;
@@ -2826,11 +2827,11 @@ namespace lgfx
   struct png_encoder_t
   {
     LGFXBase* gfx;
-    std::int32_t x;
-    std::int32_t y;
+    int32_t x;
+    int32_t y;
   };
 
-  static uint8_t *png_encoder_get_row( std::uint8_t *pImage, int flip, int w, int h, int y, int, void *target )
+  static uint8_t *png_encoder_get_row( uint8_t *pImage, int flip, int w, int h, int y, int, void *target )
   {
     auto enc = static_cast<png_encoder_t*>(target);
     uint32_t ypos = (flip ? (h - 1 - y) : y);
@@ -2838,7 +2839,7 @@ namespace lgfx
     return pImage;
   }
 
-  void* LGFXBase::createPng(std::size_t* datalen, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h)
+  void* LGFXBase::createPng(size_t* datalen, int32_t x, int32_t y, int32_t w, int32_t h)
   {
     if (_adjust_abs(x, w)||_adjust_abs(y, h)) return nullptr;
     if (x < 0) { w += x; x = 0; }
@@ -2927,7 +2928,7 @@ namespace lgfx
 
 //----------------------------------------------------------------------------
 
-    void LGFX_Device::draw_calibrate_point(std::int32_t x, std::int32_t y, std::int32_t r, std::uint32_t fg_rawcolor, std::uint32_t bg_rawcolor)
+    void LGFX_Device::draw_calibrate_point(int32_t x, int32_t y, int32_t r, uint32_t fg_rawcolor, uint32_t bg_rawcolor)
     {
       setRawColor(bg_rawcolor);
       fillRect(x - r, y - r, r * 2 + 1, r * 2 + 1);
@@ -2935,10 +2936,10 @@ namespace lgfx
       setClipRect(x - r, y - r, r * 2 + 1, r * 2 + 1);
       setRawColor(fg_rawcolor);
       startWrite();
-      auto w = std::max<std::int32_t>(1, r >> 3);
+      auto w = std::max<int32_t>(1, r >> 3);
       fillRect(x - w, y - r, w * 2 + 1, r * 2 + 1);
       fillRect(x - r, y - w, r * 2 + 1, w * 2 + 1);
-      for (std::int32_t i = - r; i <= r; ++i) {
+      for (int32_t i = - r; i <= r; ++i) {
         drawFastHLine(x + i - w, y + i, w * 2 + 1);
         drawFastHLine(x - i - w, y + i, w * 2 + 1);
       }
@@ -2947,25 +2948,25 @@ namespace lgfx
       clearClipRect();
     }
 
-    void LGFX_Device::calibrate_touch(std::uint16_t *parameters, std::uint32_t fg_rawcolor, std::uint32_t bg_rawcolor, std::uint8_t size)
+    void LGFX_Device::calibrate_touch(uint16_t *parameters, uint32_t fg_rawcolor, uint32_t bg_rawcolor, uint8_t size)
     {
       if (nullptr == touch()) return;
       auto rot = getRotation();
 
-      std::uint_fast8_t panel_offsetrot = panel()->config().offset_rotation;
-      std::uint_fast8_t touch_offsetrot = touch()->config().offset_rotation;
+      uint_fast8_t panel_offsetrot = panel()->config().offset_rotation;
+      uint_fast8_t touch_offsetrot = touch()->config().offset_rotation;
 
       // 回転オフセットをキャンセルしてタッチデバイスのデフォルトの向きに合わせる
       setRotation(( (touch_offsetrot ^ panel_offsetrot) & 4)
                  |(-(touch_offsetrot + panel_offsetrot) & 3));
 
-      std::uint16_t orig[8];
+      uint16_t orig[8];
       for (int i = 0; i < 4; ++i) {
-        std::int32_t px = (width() -  1) * ((i>>1) & 1);
-        std::int32_t py = (height() - 1) * ( i     & 1);
+        int32_t px = (width() -  1) * ((i>>1) & 1);
+        int32_t py = (height() - 1) * ( i     & 1);
         draw_calibrate_point( px, py, size, fg_rawcolor, bg_rawcolor);
         delay(512);
-        std::int32_t x_touch = 0, y_touch = 0;
+        int32_t x_touch = 0, y_touch = 0;
         static constexpr int _RAWERR = 20;
         touch_point_t tp, tp2;
         for (int j = 0; j < 8; ++j) {
@@ -2987,7 +2988,7 @@ namespace lgfx
         do { delay(1); } while (getTouchRaw(&tp));
       }
       if (nullptr != parameters) {
-        memcpy(parameters, orig, sizeof(std::uint16_t) * 8);
+        memcpy(parameters, orig, sizeof(uint16_t) * 8);
       }
       panel()->setCalibrate(orig);
       setRotation(rot);

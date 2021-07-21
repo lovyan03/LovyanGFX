@@ -22,7 +22,7 @@ namespace lgfx
     return true;
   }
 
-  std::uint_fast8_t Touch_XPT2046::getTouch(touch_point_t* tp, std::int_fast8_t number)
+  uint_fast8_t Touch_XPT2046::getTouch(touch_point_t* tp, int_fast8_t number)
   {
     if (!_inited || number != 0) return 0;
     if (!isSPI()) return 0;

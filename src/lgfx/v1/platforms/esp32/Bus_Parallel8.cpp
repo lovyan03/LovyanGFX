@@ -36,17 +36,17 @@ namespace lgfx
   #define SAFE_I2S_FIFO_WR_REG(i) (0x3FF4F000 + ((i)*0x1E000))
   #define SAFE_I2S_FIFO_RD_REG(i) (0x3FF4F004 + ((i)*0x1E000))
 
-  static constexpr std::size_t CACHE_THRESH = 128;
+  static constexpr size_t CACHE_THRESH = 128;
 
-  static constexpr std::uint32_t _conf_reg_default = I2S_TX_MSB_RIGHT | I2S_TX_RIGHT_FIRST | I2S_RX_RIGHT_FIRST;
-  static constexpr std::uint32_t _conf_reg_start   = _conf_reg_default | I2S_TX_START;
-  static constexpr std::uint32_t _conf_reg_reset   = _conf_reg_default | I2S_TX_RESET;
-  static constexpr std::uint32_t _sample_rate_conf_reg_32bit = 32 << I2S_TX_BITS_MOD_S | 32 << I2S_RX_BITS_MOD_S | 1 << I2S_TX_BCK_DIV_NUM_S | 1 << I2S_RX_BCK_DIV_NUM_S;
-  static constexpr std::uint32_t _sample_rate_conf_reg_16bit = 16 << I2S_TX_BITS_MOD_S | 16 << I2S_RX_BITS_MOD_S | 1 << I2S_TX_BCK_DIV_NUM_S | 1 << I2S_RX_BCK_DIV_NUM_S;
-  static constexpr std::uint32_t _fifo_conf_default = 1 << I2S_TX_FIFO_MOD | 1 << I2S_RX_FIFO_MOD | 32 << I2S_TX_DATA_NUM_S | 32 << I2S_RX_DATA_NUM_S;
-  static constexpr std::uint32_t _fifo_conf_dma     = _fifo_conf_default | I2S_DSCR_EN;
+  static constexpr uint32_t _conf_reg_default = I2S_TX_MSB_RIGHT | I2S_TX_RIGHT_FIRST | I2S_RX_RIGHT_FIRST;
+  static constexpr uint32_t _conf_reg_start   = _conf_reg_default | I2S_TX_START;
+  static constexpr uint32_t _conf_reg_reset   = _conf_reg_default | I2S_TX_RESET;
+  static constexpr uint32_t _sample_rate_conf_reg_32bit = 32 << I2S_TX_BITS_MOD_S | 32 << I2S_RX_BITS_MOD_S | 1 << I2S_TX_BCK_DIV_NUM_S | 1 << I2S_RX_BCK_DIV_NUM_S;
+  static constexpr uint32_t _sample_rate_conf_reg_16bit = 16 << I2S_TX_BITS_MOD_S | 16 << I2S_RX_BITS_MOD_S | 1 << I2S_TX_BCK_DIV_NUM_S | 1 << I2S_RX_BCK_DIV_NUM_S;
+  static constexpr uint32_t _fifo_conf_default = 1 << I2S_TX_FIFO_MOD | 1 << I2S_RX_FIFO_MOD | 32 << I2S_TX_DATA_NUM_S | 32 << I2S_RX_DATA_NUM_S;
+  static constexpr uint32_t _fifo_conf_dma     = _fifo_conf_default | I2S_DSCR_EN;
 
-  static __attribute__ ((always_inline)) inline volatile std::uint32_t* reg(std::uint32_t addr) { return (volatile std::uint32_t *)ETS_UNCACHED_ADDR(addr); }
+  static __attribute__ ((always_inline)) inline volatile uint32_t* reg(uint32_t addr) { return (volatile uint32_t *)ETS_UNCACHED_ADDR(addr); }
 
   static i2s_dev_t* getDev(i2s_port_t port)
   {
@@ -134,8 +134,8 @@ namespace lgfx
     gpio_matrix_out(_cfg.pin_d1, idx_base + 1, 0, 0);
     gpio_matrix_out(_cfg.pin_d0, idx_base    , 0, 0);
 
-    std::uint32_t dport_clk_en;
-    std::uint32_t dport_rst;
+    uint32_t dport_clk_en;
+    uint32_t dport_rst;
 
     if (_cfg.i2s_port == I2S_NUM_0) {
       idx_base = I2S0O_WS_OUT_IDX;
@@ -161,7 +161,7 @@ namespace lgfx
 
   void Bus_Parallel8::beginTransaction(void)
   {
-    std::uint32_t freq_apb = getApbFrequency();
+    uint32_t freq_apb = getApbFrequency();
     if (_last_freq_apb != freq_apb)
     {
       _last_freq_apb = freq_apb;
@@ -231,17 +231,17 @@ namespace lgfx
   }
 //*
 // use DMA
-  std::size_t Bus_Parallel8::_flush(std::size_t count, bool force)
+  size_t Bus_Parallel8::_flush(size_t count, bool force)
   {
     bool slow = _div_num > 8;
 
-    std::size_t idx_e = count & ~1;
+    size_t idx_e = count & ~1;
     auto i2s_dev = (i2s_dev_t*)_dev;
 
     if (idx_e)
     {
-      _dmadesc.buf = (std::uint8_t*)_cache_flip;
-      *(std::uint32_t*)&_dmadesc = idx_e << 1 | idx_e << 13 | 0xC0000000;
+      _dmadesc.buf = (uint8_t*)_cache_flip;
+      *(uint32_t*)&_dmadesc = idx_e << 1 | idx_e << 13 | 0xC0000000;
       while (!i2s_dev->state.tx_idle)
       {}
       i2s_dev->fifo_conf.val = _fifo_conf_dma;
@@ -255,7 +255,7 @@ namespace lgfx
       {}
 
       // DMAの準備待ちウェイト …無線使用中はウェイトを増やす
-      std::size_t wait = (16 << checkWireless()) + (_div_num >> 2);
+      size_t wait = (16 << checkWireless()) + (_div_num >> 2);
       do { __asm__ __volatile__ ("nop"); } while (--wait);
       i2s_dev->conf.val = _conf_reg_start;
       if (slow) while (i2s_dev->state.tx_idle) {}
@@ -264,7 +264,7 @@ namespace lgfx
       if (!count) return 0;
       
       // 送り残しがあれば次回分のキャッシュに移しておく;
-      *(std::uint32_t*)_cache_flip = *(std::uint32_t*)(&cache_old[idx_e]);
+      *(uint32_t*)_cache_flip = *(uint32_t*)(&cache_old[idx_e]);
     }
 
     if (!force)
@@ -281,13 +281,13 @@ namespace lgfx
     i2s_dev->conf.val = _conf_reg_reset;// | I2S_TX_FIFO_RESET;
     i2s_dev->out_link.val = 0;
     i2s_dev->sample_rate_conf.val = _sample_rate_conf_reg_32bit;
-    std::size_t idx = 0;
+    size_t idx = 0;
     do
     {
       *_i2s_fifo_wr_reg = _cache_flip[idx ^ 1] << 16;
     } while (++idx != count);
 
-    std::size_t wait = (16 << checkWireless()) + (_div_num >> 2);
+    size_t wait = (16 << checkWireless()) + (_div_num >> 2);
     do { __asm__ __volatile__ ("nop"); } while (--wait);
     if (slow) ets_delay_us(_div_num >> 6);
     i2s_dev->conf.val = _conf_reg_start;
@@ -298,21 +298,21 @@ namespace lgfx
   }
 /*/
 // use FIFO
-  std::size_t Bus_Parallel8::_flush(std::size_t count, bool force)
+  size_t Bus_Parallel8::_flush(size_t count, bool force)
   {
     bool slow = _div_num > 8;
     while (!i2s_dev->int_raw.tx_rempty || (slow && !i2s_dev->state.tx_idle))
     {}
     i2s_dev->conf.val = _conf_reg_reset;
 
-    std::size_t idx_e = std::min(CACHE_THRESH, count & ~3);
+    size_t idx_e = std::min(CACHE_THRESH, count & ~3);
 
     auto cache = _cache_flip;
 
     if (idx_e)
     {
-      std::size_t idx = 0;
-      auto c = (std::uint32_t*)cache;
+      size_t idx = 0;
+      auto c = (uint32_t*)cache;
       do
       {
         *_i2s_fifo_wr_reg = c[idx>>1];
@@ -337,7 +337,7 @@ namespace lgfx
       return count;
     }
 
-    std::size_t idx = 0;
+    size_t idx = 0;
     while (!i2s_dev->int_raw.tx_rempty || (slow && !i2s_dev->state.tx_idle))
     {}
     i2s_dev->conf.val = _conf_reg_reset;
@@ -356,7 +356,7 @@ namespace lgfx
     return 0;
   }
 //*/
-  bool Bus_Parallel8::writeCommand(std::uint32_t data, std::uint_fast8_t bit_length)
+  bool Bus_Parallel8::writeCommand(uint32_t data, uint_fast8_t bit_length)
   {
     auto idx = _cache_index;
     auto bytes = bit_length >> 3;
@@ -374,7 +374,7 @@ namespace lgfx
     return true;
   }
 
-  void Bus_Parallel8::writeData(std::uint32_t data, std::uint_fast8_t bit_length)
+  void Bus_Parallel8::writeData(uint32_t data, uint_fast8_t bit_length)
   {
     auto idx = _cache_index;
     auto bytes = bit_length >> 3;
@@ -391,11 +391,11 @@ namespace lgfx
     _cache_index = idx;
   }
 
-  void Bus_Parallel8::writeDataRepeat(std::uint32_t color_raw, std::uint_fast8_t bit_length, std::uint32_t length)
+  void Bus_Parallel8::writeDataRepeat(uint32_t color_raw, uint_fast8_t bit_length, uint32_t length)
   {
-    std::size_t bytes = bit_length >> 3;
-    std::uint16_t raw[bytes];
-    std::size_t b = 0;
+    size_t bytes = bit_length >> 3;
+    uint16_t raw[bytes];
+    size_t b = 0;
     do
     {
       raw[b] = color_raw | 0x100;
@@ -422,13 +422,13 @@ namespace lgfx
     _cache_index = idx;
   }
 
-  void Bus_Parallel8::writePixels(pixelcopy_t* param, std::uint32_t length)
+  void Bus_Parallel8::writePixels(pixelcopy_t* param, uint32_t length)
   {
-    std::uint8_t buf[CACHE_THRESH];
-    const std::uint32_t bytes = param->dst_bits >> 3;
+    uint8_t buf[CACHE_THRESH];
+    const uint32_t bytes = param->dst_bits >> 3;
     auto fp_copy = param->fp_copy;
-    const std::uint32_t limit = CACHE_THRESH / bytes;
-    std::uint8_t len = length % limit;
+    const uint32_t limit = CACHE_THRESH / bytes;
+    uint8_t len = length % limit;
     if (len) {
       fp_copy(buf, 0, len, param);
       writeBytes(buf, len * bytes, true, false);
@@ -441,13 +441,13 @@ namespace lgfx
   }
 
 //*
-  void Bus_Parallel8::writeBytes(const std::uint8_t* data, std::uint32_t length, bool dc, bool use_dma)
+  void Bus_Parallel8::writeBytes(const uint8_t* data, uint32_t length, bool dc, bool use_dma)
   {
-    std::uint32_t dc_data = dc << 8;
+    uint32_t dc_data = dc << 8;
     auto idx = _cache_index;
     auto c = _cache_flip;
 
-    std::size_t limit = std::min(CACHE_THRESH, length + idx);
+    size_t limit = std::min(CACHE_THRESH, length + idx);
     length -= limit - idx;
     --data;
 
@@ -468,9 +468,9 @@ namespace lgfx
     _cache_index = idx;
   }
 /*/
-  void Bus_Parallel8::writeBytes(const std::uint8_t* data, std::uint32_t length, bool dc, bool use_dma)
+  void Bus_Parallel8::writeBytes(const uint8_t* data, uint32_t length, bool dc, bool use_dma)
   {
-    std::uint32_t dc_data = dc << 8;
+    uint32_t dc_data = dc << 8;
     auto idx = _cache_index;
     auto c = _cache_flip;
     do
@@ -485,7 +485,7 @@ namespace lgfx
     _cache_index = idx;
   }
 //*/
-  std::uint_fast8_t Bus_Parallel8::_reg_to_value(std::uint32_t raw_value)
+  uint_fast8_t Bus_Parallel8::_reg_to_value(uint32_t raw_value)
   {
     return ((raw_value >> _cfg.pin_d7) & 1) << 7
          | ((raw_value >> _cfg.pin_d6) & 1) << 6
@@ -566,17 +566,17 @@ namespace lgfx
     _init_pin();
   }
 
-  std::uint32_t Bus_Parallel8::readData(std::uint_fast8_t bit_length)
+  uint32_t Bus_Parallel8::readData(uint_fast8_t bit_length)
   {
     union {
-      std::uint32_t res;
-      std::uint8_t raw[4];
+      uint32_t res;
+      uint8_t raw[4];
     };
     bit_length = (bit_length + 7) & ~7;
 
     auto buf = raw;
     do {
-      std::uint32_t tmp = GPIO.in;   // dummy read speed tweak.
+      uint32_t tmp = GPIO.in;   // dummy read speed tweak.
       tmp = GPIO.in;
       gpio_hi(_cfg.pin_rd);
       gpio_lo(_cfg.pin_rd);
@@ -585,10 +585,10 @@ namespace lgfx
     return res;
   }
 
-  bool Bus_Parallel8::readBytes(std::uint8_t* dst, std::uint32_t length, bool use_dma)
+  bool Bus_Parallel8::readBytes(uint8_t* dst, uint32_t length, bool use_dma)
   {
     do {
-      std::uint32_t tmp = GPIO.in;   // dummy read speed tweak.
+      uint32_t tmp = GPIO.in;   // dummy read speed tweak.
       tmp = GPIO.in;
       gpio_hi(_cfg.pin_rd);
       gpio_lo(_cfg.pin_rd);
@@ -597,20 +597,20 @@ namespace lgfx
     return true;
   }
 
-  void Bus_Parallel8::readPixels(void* dst, pixelcopy_t* param, std::uint32_t length)
+  void Bus_Parallel8::readPixels(void* dst, pixelcopy_t* param, uint32_t length)
   {
-    std::uint32_t _regbuf[8];
+    uint32_t _regbuf[8];
     const auto bytes = param->src_bits >> 3;
-    std::uint32_t limit = (bytes == 2) ? 16 : 10;
+    uint32_t limit = (bytes == 2) ? 16 : 10;
     param->src_data = _regbuf;
-    std::int32_t dstindex = 0;
+    int32_t dstindex = 0;
     do {
-      std::uint32_t len2 = (limit > length) ? length : limit;
+      uint32_t len2 = (limit > length) ? length : limit;
       length -= len2;
-      std::uint32_t i = len2 * bytes;
-      auto d = (std::uint8_t*)_regbuf;
+      uint32_t i = len2 * bytes;
+      auto d = (uint8_t*)_regbuf;
       do {
-        std::uint32_t tmp = GPIO.in;
+        uint32_t tmp = GPIO.in;
         gpio_hi(_cfg.pin_rd);
         gpio_lo(_cfg.pin_rd);
         *d++ = _reg_to_value(tmp);

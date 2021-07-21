@@ -52,17 +52,17 @@ namespace lgfx
   {
   protected:
 
-    static constexpr std::uint8_t CMD_PNLDRV = 0xC0;
-    static constexpr std::uint8_t CMD_FRMCTR = 0xC5;
-    static constexpr std::uint8_t CMD_IFCTR  = 0xC6;
-    static constexpr std::uint8_t CMD_PWSET  = 0xD0;
-    static constexpr std::uint8_t CMD_VMCTR  = 0xD1;
-    static constexpr std::uint8_t CMD_PWSETN = 0xD2;
-    static constexpr std::uint8_t CMD_GMCTR  = 0xC8;
+    static constexpr uint8_t CMD_PNLDRV = 0xC0;
+    static constexpr uint8_t CMD_FRMCTR = 0xC5;
+    static constexpr uint8_t CMD_IFCTR  = 0xC6;
+    static constexpr uint8_t CMD_PWSET  = 0xD0;
+    static constexpr uint8_t CMD_VMCTR  = 0xD1;
+    static constexpr uint8_t CMD_PWSETN = 0xD2;
+    static constexpr uint8_t CMD_GMCTR  = 0xC8;
 
-    const std::uint8_t* getInitCommands(std::uint8_t listno) const override
+    const uint8_t* getInitCommands(uint8_t listno) const override
     {
-      static constexpr std::uint8_t list0[] =
+      static constexpr uint8_t list0[] =
       {
           CMD_SLPOUT , 0+CMD_INIT_DELAY, 120,    // Exit sleep mode
           CMD_PWSET  , 3, 0x07, 0x40, 0x1D,
@@ -84,9 +84,9 @@ namespace lgfx
       }
     }
 
-    std::uint8_t getMadCtl(std::uint8_t r) const override
+    uint8_t getMadCtl(uint8_t r) const override
     {
-      static constexpr std::uint8_t madctl_table[] = 
+      static constexpr uint8_t madctl_table[] = 
       {
                MAD_HF       ,
         MAD_MV              ,
@@ -107,26 +107,26 @@ namespace lgfx
   {
   protected:
 
-    static constexpr std::uint8_t CMD_FRMCTR1 = 0xB1;
-    static constexpr std::uint8_t CMD_FRMCTR2 = 0xB2;
-    static constexpr std::uint8_t CMD_FRMCTR3 = 0xB3;
-    static constexpr std::uint8_t CMD_INVCTR  = 0xB4;
-    static constexpr std::uint8_t CMD_DFUNCTR = 0xB6;
-    static constexpr std::uint8_t CMD_ETMOD   = 0xB7;
-    static constexpr std::uint8_t CMD_PWCTR1  = 0xC0;
-    static constexpr std::uint8_t CMD_PWCTR2  = 0xC1;
-    static constexpr std::uint8_t CMD_PWCTR3  = 0xC2;
-    static constexpr std::uint8_t CMD_PWCTR4  = 0xC3;
-    static constexpr std::uint8_t CMD_PWCTR5  = 0xC4;
-    static constexpr std::uint8_t CMD_VMCTR1  = 0xC5;
-    static constexpr std::uint8_t CMD_VMCTR2  = 0xC7;
-    static constexpr std::uint8_t CMD_GMCTRP1 = 0xE0; // Positive Gamma Correction
-    static constexpr std::uint8_t CMD_GMCTRN1 = 0xE1; // Negative Gamma Correction
-    static constexpr std::uint8_t CMD_ADJCTL3 = 0xF7;
+    static constexpr uint8_t CMD_FRMCTR1 = 0xB1;
+    static constexpr uint8_t CMD_FRMCTR2 = 0xB2;
+    static constexpr uint8_t CMD_FRMCTR3 = 0xB3;
+    static constexpr uint8_t CMD_INVCTR  = 0xB4;
+    static constexpr uint8_t CMD_DFUNCTR = 0xB6;
+    static constexpr uint8_t CMD_ETMOD   = 0xB7;
+    static constexpr uint8_t CMD_PWCTR1  = 0xC0;
+    static constexpr uint8_t CMD_PWCTR2  = 0xC1;
+    static constexpr uint8_t CMD_PWCTR3  = 0xC2;
+    static constexpr uint8_t CMD_PWCTR4  = 0xC3;
+    static constexpr uint8_t CMD_PWCTR5  = 0xC4;
+    static constexpr uint8_t CMD_VMCTR1  = 0xC5;
+    static constexpr uint8_t CMD_VMCTR2  = 0xC7;
+    static constexpr uint8_t CMD_GMCTRP1 = 0xE0; // Positive Gamma Correction
+    static constexpr uint8_t CMD_GMCTRN1 = 0xE1; // Negative Gamma Correction
+    static constexpr uint8_t CMD_ADJCTL3 = 0xF7;
 
-    const std::uint8_t* getInitCommands(std::uint8_t listno) const override
+    const uint8_t* getInitCommands(uint8_t listno) const override
     {
-      static constexpr std::uint8_t list0[] =
+      static constexpr uint8_t list0[] =
       {
           CMD_PWCTR1,  2, 0x17,  // VRH1
                           0x15,  // VRH2
@@ -170,25 +170,25 @@ namespace lgfx
   {
   protected:
 
-    static constexpr std::uint8_t CMD_FRMCTR1 = 0xB1;
-    static constexpr std::uint8_t CMD_FRMCTR2 = 0xB2;
-    static constexpr std::uint8_t CMD_FRMCTR3 = 0xB3;
-    static constexpr std::uint8_t CMD_INVCTR  = 0xB4;
-    static constexpr std::uint8_t CMD_DFUNCTR = 0xB6;
-    static constexpr std::uint8_t CMD_ETMOD   = 0xB7;
-    static constexpr std::uint8_t CMD_PWCTR1  = 0xC0;
-    static constexpr std::uint8_t CMD_PWCTR2  = 0xC1;
-    static constexpr std::uint8_t CMD_PWCTR3  = 0xC2;
-    static constexpr std::uint8_t CMD_PWCTR4  = 0xC3;
-    static constexpr std::uint8_t CMD_PWCTR5  = 0xC4;
-    static constexpr std::uint8_t CMD_VMCTR   = 0xC5;
-    static constexpr std::uint8_t CMD_GMCTRP1 = 0xE0; // Positive Gamma Correction
-    static constexpr std::uint8_t CMD_GMCTRN1 = 0xE1; // Negative Gamma Correction
-    static constexpr std::uint8_t CMD_ADJCTL3 = 0xF7;
+    static constexpr uint8_t CMD_FRMCTR1 = 0xB1;
+    static constexpr uint8_t CMD_FRMCTR2 = 0xB2;
+    static constexpr uint8_t CMD_FRMCTR3 = 0xB3;
+    static constexpr uint8_t CMD_INVCTR  = 0xB4;
+    static constexpr uint8_t CMD_DFUNCTR = 0xB6;
+    static constexpr uint8_t CMD_ETMOD   = 0xB7;
+    static constexpr uint8_t CMD_PWCTR1  = 0xC0;
+    static constexpr uint8_t CMD_PWCTR2  = 0xC1;
+    static constexpr uint8_t CMD_PWCTR3  = 0xC2;
+    static constexpr uint8_t CMD_PWCTR4  = 0xC3;
+    static constexpr uint8_t CMD_PWCTR5  = 0xC4;
+    static constexpr uint8_t CMD_VMCTR   = 0xC5;
+    static constexpr uint8_t CMD_GMCTRP1 = 0xE0; // Positive Gamma Correction
+    static constexpr uint8_t CMD_GMCTRN1 = 0xE1; // Negative Gamma Correction
+    static constexpr uint8_t CMD_ADJCTL3 = 0xF7;
 
-    const std::uint8_t* getInitCommands(std::uint8_t listno) const override
+    const uint8_t* getInitCommands(uint8_t listno) const override
     {
-      static constexpr std::uint8_t list0[] =
+      static constexpr uint8_t list0[] =
       {
           CMD_PWCTR1,  2, 0x17,  // VRH1
                           0x15,  // VRH2
@@ -225,19 +225,19 @@ namespace lgfx
   {
   protected:
 
-    static constexpr std::uint8_t CMD_SETEXTC           = 0xB0;
-    static constexpr std::uint8_t CMD_SETDISPMODE       = 0xB4;
-    static constexpr std::uint8_t CMD_SET_PANEL_DRIVING = 0xC0;
-    static constexpr std::uint8_t CMD_SETDISPLAYFRAME   = 0xC5;
-    static constexpr std::uint8_t CMD_SETGAMMA          = 0xC8;
-    static constexpr std::uint8_t CMD_SETPOWER          = 0xD0;
-    static constexpr std::uint8_t CMD_SETVCOM           = 0xD1;
-    static constexpr std::uint8_t CMD_SETPWRNORMAL      = 0xD2;
-    static constexpr std::uint8_t CMD_SETPANELRELATED   = 0xE9;
+    static constexpr uint8_t CMD_SETEXTC           = 0xB0;
+    static constexpr uint8_t CMD_SETDISPMODE       = 0xB4;
+    static constexpr uint8_t CMD_SET_PANEL_DRIVING = 0xC0;
+    static constexpr uint8_t CMD_SETDISPLAYFRAME   = 0xC5;
+    static constexpr uint8_t CMD_SETGAMMA          = 0xC8;
+    static constexpr uint8_t CMD_SETPOWER          = 0xD0;
+    static constexpr uint8_t CMD_SETVCOM           = 0xD1;
+    static constexpr uint8_t CMD_SETPWRNORMAL      = 0xD2;
+    static constexpr uint8_t CMD_SETPANELRELATED   = 0xE9;
 
-    const std::uint8_t* getInitCommands(std::uint8_t listno) const override
+    const uint8_t* getInitCommands(uint8_t listno) const override
     {
-      static constexpr std::uint8_t list0[] =
+      static constexpr uint8_t list0[] =
       {
           CMD_SETEXTC,          1, 0x00,
           CMD_SETPOWER,         3, 0x44, 0x41, 0x06,
@@ -269,21 +269,21 @@ namespace lgfx
   {
   protected:
 
-    static constexpr std::uint8_t CMD_TEON    = 0x35;
-    static constexpr std::uint8_t CMD_TEARLINE= 0x44;
-    static constexpr std::uint8_t CMD_SETOSC  = 0xB0;
-    static constexpr std::uint8_t CMD_SETPWR1 = 0xB1;
-    static constexpr std::uint8_t CMD_SETRGB  = 0xB3;
-    static constexpr std::uint8_t CMD_SETCYC  = 0xB4;
-    static constexpr std::uint8_t CMD_SETCOM  = 0xB6;
-    static constexpr std::uint8_t CMD_SETC    = 0xB9;
-    static constexpr std::uint8_t CMD_SETSTBA = 0xC0;
-    static constexpr std::uint8_t CMD_SETPANEL= 0xCC;
-    static constexpr std::uint8_t CMD_SETGAMMA= 0xE0;
+    static constexpr uint8_t CMD_TEON    = 0x35;
+    static constexpr uint8_t CMD_TEARLINE= 0x44;
+    static constexpr uint8_t CMD_SETOSC  = 0xB0;
+    static constexpr uint8_t CMD_SETPWR1 = 0xB1;
+    static constexpr uint8_t CMD_SETRGB  = 0xB3;
+    static constexpr uint8_t CMD_SETCYC  = 0xB4;
+    static constexpr uint8_t CMD_SETCOM  = 0xB6;
+    static constexpr uint8_t CMD_SETC    = 0xB9;
+    static constexpr uint8_t CMD_SETSTBA = 0xC0;
+    static constexpr uint8_t CMD_SETPANEL= 0xCC;
+    static constexpr uint8_t CMD_SETGAMMA= 0xE0;
 
-    const std::uint8_t* getInitCommands(std::uint8_t listno) const override
+    const uint8_t* getInitCommands(uint8_t listno) const override
     {
-      static constexpr std::uint8_t list0[] =
+      static constexpr uint8_t list0[] =
       {
           CMD_SWRESET , CMD_INIT_DELAY, 20, 
           CMD_SETC    , 3+CMD_INIT_DELAY, 0xFF, 0x83, 0x57, 100, 

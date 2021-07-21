@@ -38,51 +38,51 @@ namespace lgfx
     {
       /// Number of CS pin
       /// CS ピン番号
-      std::int16_t pin_cs = -1;
+      int16_t pin_cs = -1;
 
       /// Number of RST pin
       /// RST ピン番号
-      std::int16_t pin_rst = -1;
+      int16_t pin_rst = -1;
 
       /// Number of BUSY pin
       /// BUSY ピン番号
-      std::int16_t pin_busy = -1;
+      int16_t pin_busy = -1;
 
       /// The maximum width of an image that the LCD driver can handle.
       /// LCDドライバが扱える画像の最大幅
-      std::uint16_t memory_width = 240;
+      uint16_t memory_width = 240;
 
       /// The maximum height of an image that the LCD driver can handle.
       /// LCDドライバが扱える画像の最大高さ
-      std::uint16_t memory_height = 240;
+      uint16_t memory_height = 240;
 
       /// Actual width of the display.
       /// 実際に表示できる幅
-      std::uint16_t panel_width = 240;
+      uint16_t panel_width = 240;
 
       /// Actual height of the display.
       /// 実際に表示できる高さ
-      std::uint16_t panel_height = 240;
+      uint16_t panel_height = 240;
 
       /// Number of offset pixels in the X direction.
       /// パネルのX方向オフセット量
-      std::uint16_t offset_x = 0;
+      uint16_t offset_x = 0;
 
       /// Number of offset pixels in the Y direction.
       /// パネルのY方向オフセット量
-      std::uint16_t offset_y = 0;
+      uint16_t offset_y = 0;
 
       /// Offset value in the direction of rotation. 0~7 (4~7 is upside down)
       /// 回転方向のオフセット 0~7 (4~7は上下反転)
-      std::uint8_t offset_rotation = 0;
+      uint8_t offset_rotation = 0;
 
       /// Number of bits in dummy read before pixel readout.
       /// ピクセル読出し前のダミーリードのビット数
-      std::uint8_t dummy_read_pixel = 8;
+      uint8_t dummy_read_pixel = 8;
 
       /// Number of bits in dummy read before data readout.
       /// データ読出し前のダミーリードのビット数
-      std::uint8_t dummy_read_bits = 1;
+      uint8_t dummy_read_bits = 1;
 
       /// Whether the data is readable or not.
       /// データ読出しが可能か否か
@@ -122,19 +122,19 @@ namespace lgfx
     void light(ILight* light) { _light = light; }
     ILight* getLight(void) const { return _light; }
     ILight* light(void) const { return _light; }
-    void setBrightness(std::uint8_t brightness) override;
+    void setBrightness(uint8_t brightness) override;
 
 
     void setTouch(ITouch* touch);
     void touch(ITouch* touch) { setTouch(touch); }
     ITouch* getTouch(void) const { return _touch; }
     ITouch* touch(void) const { return _touch; }
-    std::uint_fast8_t getTouchRaw(touch_point_t* tp, std::uint_fast8_t count);
-    std::uint_fast8_t getTouch(touch_point_t* tp, std::uint_fast8_t count);
-    void convertRawXY(touch_point_t *tp, std::uint_fast8_t count);
+    uint_fast8_t getTouchRaw(touch_point_t* tp, uint_fast8_t count);
+    uint_fast8_t getTouch(touch_point_t* tp, uint_fast8_t count);
+    void convertRawXY(touch_point_t *tp, uint_fast8_t count);
     void touchCalibrate(void);
     void setCalibrateAffine(float affine[6]);
-    void setCalibrate(std::uint16_t *parameters);
+    void setCalibrate(uint16_t *parameters);
 
 
     bool isReadable(void) const override { return _cfg.readable; }
@@ -143,17 +143,17 @@ namespace lgfx
     void initDMA(void) override;
     void waitDMA(void) override;
     bool dmaBusy(void) override;
-    void display(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h) override;
+    void display(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h) override;
 
-    void writeCommand(std::uint32_t data, std::uint_fast8_t length) override;
-    void writeData(std::uint32_t data, std::uint_fast8_t length) override;
-    //void writePixelsDMA(const std::uint8_t* data, std::uint32_t length) override;
-    void writeImageARGB(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, pixelcopy_t* param) override;
-    void copyRect(std::uint_fast16_t dst_x, std::uint_fast16_t dst_y, std::uint_fast16_t w, std::uint_fast16_t h, std::uint_fast16_t src_x, std::uint_fast16_t src_y) override;
+    void writeCommand(uint32_t data, uint_fast8_t length) override;
+    void writeData(uint32_t data, uint_fast8_t length) override;
+    //void writePixelsDMA(const uint8_t* data, uint32_t length) override;
+    void writeImageARGB(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, pixelcopy_t* param) override;
+    void copyRect(uint_fast16_t dst_x, uint_fast16_t dst_y, uint_fast16_t w, uint_fast16_t h, uint_fast16_t src_x, uint_fast16_t src_y) override;
 
   protected:
 
-    static constexpr std::uint8_t CMD_INIT_DELAY = 0x80;
+    static constexpr uint8_t CMD_INIT_DELAY = 0x80;
 
     config_t _cfg;
 
@@ -161,7 +161,7 @@ namespace lgfx
     ILight* _light = nullptr;
     ITouch* _touch = nullptr;
     bool _align_data = false;
-    std::uint8_t _internal_rotation = 0;
+    uint8_t _internal_rotation = 0;
 
     float _affine[6] = {1,0,0,0,1,0};  /// touch affine parameter
 
@@ -187,7 +187,7 @@ namespace lgfx
 
     /// Get the panel initialization command sequence.
     /// パネルの初期化コマンド列を得る。無い場合はnullptrを返す。
-    virtual const std::uint8_t* getInitCommands(std::uint8_t listno) const { (void)listno; return nullptr; }
+    virtual const uint8_t* getInitCommands(uint8_t listno) const { (void)listno; return nullptr; }
 
     enum fastread_dir_t
     {
@@ -197,7 +197,7 @@ namespace lgfx
     };
     virtual fastread_dir_t get_fastread_dir(void) const { return fastread_nothing; }
 
-    void command_list(const std::uint8_t *addr);
+    void command_list(const uint8_t *addr);
 
   };
 
@@ -218,34 +218,34 @@ namespace lgfx
     color_depth_t setColorDepth(color_depth_t depth) override { return depth; }
 
     void setInvert(bool) override {}
-    void setRotation(std::uint_fast8_t) override {}
+    void setRotation(uint_fast8_t) override {}
     void setSleep(bool) override {}
     void setPowerSave(bool) override {}
 
-    void writeCommand(std::uint32_t, std::uint_fast8_t) override {}
-    void writeData(std::uint32_t, std::uint_fast8_t) override {}
+    void writeCommand(uint32_t, uint_fast8_t) override {}
+    void writeData(uint32_t, uint_fast8_t) override {}
 
     void initDMA(void) override {}
     void waitDMA(void) override {}
     bool dmaBusy(void) override { return false; }
     void waitDisplay(void) override {}
     bool displayBusy(void) override { return false; }
-    void display(std::uint_fast16_t, std::uint_fast16_t, std::uint_fast16_t, std::uint_fast16_t) override {}
+    void display(uint_fast16_t, uint_fast16_t, uint_fast16_t, uint_fast16_t) override {}
     bool isReadable(void) const override { return false; }
     bool isBusShared(void) const override { return false; }
 
-    void writeBlock(std::uint32_t, std::uint32_t) override {}
-    void setWindow(std::uint_fast16_t, std::uint_fast16_t, std::uint_fast16_t, std::uint_fast16_t) override {}
-    void drawPixelPreclipped(std::uint_fast16_t, std::uint_fast16_t, std::uint32_t) override {}
-    void writeFillRectPreclipped(std::uint_fast16_t, std::uint_fast16_t, std::uint_fast16_t, std::uint_fast16_t, std::uint32_t) override {}
-    void writeImage(std::uint_fast16_t, std::uint_fast16_t, std::uint_fast16_t, std::uint_fast16_t, pixelcopy_t*, bool) override {}
-    void writeImageARGB(std::uint_fast16_t, std::uint_fast16_t, std::uint_fast16_t, std::uint_fast16_t, pixelcopy_t*) override {}
-    void writePixels(pixelcopy_t*, std::uint32_t, bool) override {}
+    void writeBlock(uint32_t, uint32_t) override {}
+    void setWindow(uint_fast16_t, uint_fast16_t, uint_fast16_t, uint_fast16_t) override {}
+    void drawPixelPreclipped(uint_fast16_t, uint_fast16_t, uint32_t) override {}
+    void writeFillRectPreclipped(uint_fast16_t, uint_fast16_t, uint_fast16_t, uint_fast16_t, uint32_t) override {}
+    void writeImage(uint_fast16_t, uint_fast16_t, uint_fast16_t, uint_fast16_t, pixelcopy_t*, bool) override {}
+    void writeImageARGB(uint_fast16_t, uint_fast16_t, uint_fast16_t, uint_fast16_t, pixelcopy_t*) override {}
+    void writePixels(pixelcopy_t*, uint32_t, bool) override {}
 
-    std::uint32_t readCommand(std::uint_fast8_t, std::uint_fast8_t, std::uint_fast8_t) override { return 0; }
-    std::uint32_t readData(std::uint_fast8_t, std::uint_fast8_t) override { return 0; }
-    void readRect(std::uint_fast16_t, std::uint_fast16_t, std::uint_fast16_t, std::uint_fast16_t, void*, pixelcopy_t*) override {}
-    void copyRect(std::uint_fast16_t, std::uint_fast16_t, std::uint_fast16_t, std::uint_fast16_t, std::uint_fast16_t, std::uint_fast16_t) override {}
+    uint32_t readCommand(uint_fast8_t, uint_fast8_t, uint_fast8_t) override { return 0; }
+    uint32_t readData(uint_fast8_t, uint_fast8_t) override { return 0; }
+    void readRect(uint_fast16_t, uint_fast16_t, uint_fast16_t, uint_fast16_t, void*, pixelcopy_t*) override {}
+    void copyRect(uint_fast16_t, uint_fast16_t, uint_fast16_t, uint_fast16_t, uint_fast16_t, uint_fast16_t) override {}
   };
 
 //----------------------------------------------------------------------------

@@ -17,7 +17,7 @@ Contributors:
 /----------------------------------------------------------------------------*/
 #pragma once
 
-#include <cstdint>
+#include <stdint.h>
 
 namespace lgfx
 {
@@ -116,7 +116,7 @@ namespace lgfx
 
   namespace textdatum
   {
-    enum textdatum_t : std::uint8_t
+    enum textdatum_t : uint8_t
     //  0:left   1:centre   2:right
     //  0:top    4:middle   8:bottom   16:baseline
     { top_left        =  0  // Top left (default)
@@ -204,7 +204,7 @@ namespace lgfx
 
 //----------------------------------------------------------------------------
 
-  enum color_depth_t : std::uint16_t
+  enum color_depth_t : uint16_t
   {
     bit_mask     = 0x00FF   , /// ビット数取得用マスク値 (下位1Byteはビット数表現専用とする。変更しないこと)
     has_palette  = 0x0800   , /// パレット値として扱う

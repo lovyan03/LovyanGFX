@@ -32,17 +32,18 @@
 #ifndef RESULT_RESULT_HPP
 #define RESULT_RESULT_HPP
 
-#include <cstddef>      // std::size_t
+#include "../internal/memory.h" // std::address_of
+
+#include <stddef.h>     // size_t
 #include <type_traits>  // std::enable_if, std::is_constructible, etc
 #include <new>          // placement-new
-#include <memory>       // std::address_of
 #include <functional>   // std::reference_wrapper, std::invoke
 #include <utility>      // std::in_place_t, std::forward
 #include <initializer_list> // std::initializer_list
 #include <string>       // std::string (for exception message)
 
 #if defined(RESULT_EXCEPTIONS_DISABLED)
-# include <cstdio> // std::fprintf, stderr
+# include <stdio.h> // std::fprintf, stderr
 #else
 # include <stdexcept> // std::logic_error
 #endif
@@ -3432,7 +3433,7 @@ namespace std {
   template <typename T, typename E>
   struct hash<::RESULT_NS_IMPL::result<T,E>>
   {
-    auto operator()(const RESULT_NS_IMPL::result<T,E>& x) const -> std::size_t
+    auto operator()(const RESULT_NS_IMPL::result<T,E>& x) const -> size_t
     {
       if (x.has_value()) {
         return std::hash<T>{}(*x) + 1; // add '1' to differentiate from error case
@@ -3444,7 +3445,7 @@ namespace std {
   template <typename E>
   struct hash<::RESULT_NS_IMPL::result<void,E>>
   {
-    auto operator()(const RESULT_NS_IMPL::result<void,E>& x) const -> std::size_t
+    auto operator()(const RESULT_NS_IMPL::result<void,E>& x) const -> size_t
     {
       if (x.has_value()) {
         return 0;

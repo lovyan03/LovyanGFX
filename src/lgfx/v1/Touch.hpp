@@ -17,7 +17,8 @@ Contributors:
 /----------------------------------------------------------------------------*/
 #pragma once
 
-#include <cstdint>
+#include <stdint.h>
+#include <stddef.h>
 
 namespace lgfx
 {
@@ -27,10 +28,10 @@ namespace lgfx
 
   struct touch_point_t
   {
-    std::int16_t x = -1;
-    std::int16_t y = -1;
-    std::uint16_t size = 0;
-    std::uint16_t id   = 0;
+    int16_t x = -1;
+    int16_t y = -1;
+    uint16_t size = 0;
+    uint16_t id   = 0;
   };
 
 //----------------------------------------------------------------------------
@@ -39,30 +40,30 @@ namespace lgfx
   {
     struct config_t
     {
-      std::uint32_t freq = 1000000;
-      std::uint16_t x_min = 0;
-      std::uint16_t x_max = 3600;
-      std::uint16_t y_min = 0;
-      std::uint16_t y_max = 3600;
+      uint32_t freq = 1000000;
+      uint16_t x_min = 0;
+      uint16_t x_max = 3600;
+      uint16_t y_min = 0;
+      uint16_t y_max = 3600;
       bool bus_shared = true;          /// パネルとタッチが同じバスに繋がっている場合true
-      std::int16_t pin_int = -1;
-      std::uint8_t offset_rotation = 0;
+      int16_t pin_int = -1;
+      uint8_t offset_rotation = 0;
       union
       {
         struct
         {
-          std::int8_t spi_host; // ESP32:spi_host_device_t VSPI_HOST or HSPI_HOST
-          std::int16_t pin_sclk;
-          std::int16_t pin_mosi;
-          std::int16_t pin_miso;
-          std::int16_t pin_cs = -1;
+          int8_t spi_host; // ESP32:spi_host_device_t VSPI_HOST or HSPI_HOST
+          int16_t pin_sclk;
+          int16_t pin_mosi;
+          int16_t pin_miso;
+          int16_t pin_cs = -1;
         };
         struct
         {
-          std::int8_t i2c_port; // ESP32:i2c_port_t I2C_NUM_0 or I2C_NUM_1
-          std::int16_t pin_scl;
-          std::int16_t pin_sda;
-          std::int16_t i2c_addr;
+          int8_t i2c_port; // ESP32:i2c_port_t I2C_NUM_0 or I2C_NUM_1
+          int16_t pin_scl;
+          int16_t pin_sda;
+          int16_t i2c_addr;
         };
       };
     };
@@ -78,7 +79,7 @@ namespace lgfx
     virtual void wakeup(void) = 0;
     virtual void sleep(void) = 0;
     virtual bool isEnable(void) { return true; };
-    virtual std::uint_fast8_t getTouchRaw(touch_point_t* tp, std::uint_fast8_t count) = 0;
+    virtual uint_fast8_t getTouchRaw(touch_point_t* tp, uint_fast8_t count) = 0;
 
   protected:
     config_t _cfg;

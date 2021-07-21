@@ -40,16 +40,16 @@ namespace lgfx
 
     void waitDisplay(void) override;
     bool displayBusy(void) override;
-    void display(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h) override;
+    void display(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h) override;
 
-    void writeFillRectPreclipped(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, std::uint32_t rawcolor) override;
-    void writeImage(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, pixelcopy_t* param, bool use_dma) override;
-    void writePixels(pixelcopy_t* param, std::uint32_t len, bool use_dma) override;
+    void writeFillRectPreclipped(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, uint32_t rawcolor) override;
+    void writeImage(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, pixelcopy_t* param, bool use_dma) override;
+    void writePixels(pixelcopy_t* param, uint32_t len, bool use_dma) override;
 
-    std::uint32_t readCommand(std::uint_fast8_t, std::uint_fast8_t, std::uint_fast8_t) override { return 0; }
-    std::uint32_t readData(std::uint_fast8_t, std::uint_fast8_t) override { return 0; }
+    uint32_t readCommand(uint_fast8_t, uint_fast8_t, uint_fast8_t) override { return 0; }
+    uint32_t readData(uint_fast8_t, uint_fast8_t) override { return 0; }
 
-    void readRect(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, void* dst, pixelcopy_t* param) override;
+    void readRect(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, void* dst, pixelcopy_t* param) override;
 
   private:
 
@@ -58,18 +58,18 @@ namespace lgfx
     range_rect_t _range_old;
     unsigned long _send_msec = 0;
 
-    std::size_t _get_buffer_length(void) const override;
+    size_t _get_buffer_length(void) const override;
 
-    bool _wait_busy(std::uint32_t timeout = 1000);
-    void _draw_pixel(std::uint_fast16_t x, std::uint_fast16_t y, std::uint32_t value);
-    bool _read_pixel(std::uint_fast16_t x, std::uint_fast16_t y);
-    void _update_transferred_rect(std::uint_fast16_t &xs, std::uint_fast16_t &ys, std::uint_fast16_t &xe, std::uint_fast16_t &ye);
-    void _exec_transfer(std::uint32_t cmd, const range_rect_t& range, bool invert = false);
+    bool _wait_busy(uint32_t timeout = 1000);
+    void _draw_pixel(uint_fast16_t x, uint_fast16_t y, uint32_t value);
+    bool _read_pixel(uint_fast16_t x, uint_fast16_t y);
+    void _update_transferred_rect(uint_fast16_t &xs, uint_fast16_t &ys, uint_fast16_t &xe, uint_fast16_t &ye);
+    void _exec_transfer(uint32_t cmd, const range_rect_t& range, bool invert = false);
     void _close_transfer(void);
 
-    const std::uint8_t* getInitCommands(std::uint8_t listno) const override
+    const uint8_t* getInitCommands(uint8_t listno) const override
     {
-      static constexpr std::uint8_t list0[] = {
+      static constexpr uint8_t list0[] = {
           0x00,2,0xdf,0x0e,       //panel setting
           0x4D,1,0x55,            //FITIinternal code
           0xaa,1,0x0f,

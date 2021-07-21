@@ -21,9 +21,19 @@ Contributors:
 #include "../../misc/enum.hpp"
 #include "../../../utility/result.hpp"
 
+#if defined ( CONFIG_ARCH_BOARD_SPRESENSE )
+#include <stdlib.h>
+#else
 #include <malloc.h>
+#endif
 
 #include <Arduino.h>
+#ifdef min
+#undef min
+#endif
+#ifdef max
+#undef max
+#endif
 
 namespace lgfx
 {
@@ -57,9 +67,9 @@ namespace lgfx
   static inline void* heap_alloc_dma(  size_t length) { return malloc(length); } // aligned_alloc(16, length);
   static inline void heap_free(void* buf) { free(buf); }
 
-  static inline void gpio_hi(std::uint32_t pin) { digitalWrite(pin, HIGH); }
-  static inline void gpio_lo(std::uint32_t pin) { digitalWrite(pin, LOW); }
-  static inline bool gpio_in(std::uint32_t pin) { return digitalRead(pin); }
+  static inline void gpio_hi(uint32_t pin) { digitalWrite(pin, HIGH); }
+  static inline void gpio_lo(uint32_t pin) { digitalWrite(pin, LOW); }
+  static inline bool gpio_in(uint32_t pin) { return digitalRead(pin); }
 
   enum pin_mode_t
   { output
@@ -68,8 +78,8 @@ namespace lgfx
   , input_pulldown
   };
 
-  void pinMode(std::int_fast16_t pin, pin_mode_t mode);
-  inline void lgfxPinMode(std::int_fast16_t pin, pin_mode_t mode)
+  void pinMode(int_fast16_t pin, pin_mode_t mode);
+  inline void lgfxPinMode(int_fast16_t pin, pin_mode_t mode)
   {
     pinMode(pin, mode);
   }
@@ -108,22 +118,22 @@ namespace lgfx
       return _file;
     }
 
-    int read(std::uint8_t *buf, std::uint32_t len) override { return _fp->read(buf, len); }
-    void skip(std::int32_t offset) override { seek(offset, SeekCur); }
-    bool seek(std::uint32_t offset) override { return seek(offset, SeekSet); }
-    bool seek(std::uint32_t offset, SeekMode mode) { return _fp->seek(offset, mode); }
+    int read(uint8_t *buf, uint32_t len) override { return _fp->read(buf, len); }
+    void skip(int32_t offset) override { seek(offset, SeekCur); }
+    bool seek(uint32_t offset) override { return seek(offset, SeekSet); }
+    bool seek(uint32_t offset, SeekMode mode) { return _fp->seek(offset, mode); }
     void close() override { _fp->close(); }
-    std::int32_t tell(void) override { return _fp->position(); }
+    int32_t tell(void) override { return _fp->position(); }
 
 #else  // dummy.
 
     bool open(const char*) override { return false; }
-    int read(std::uint8_t*, std::uint32_t) override { return 0; }
-    void skip(std::int32_t) override { }
-    bool seek(std::uint32_t) override { return false; }
-    bool seek(std::uint32_t, int) { return false; }
+    int read(uint8_t*, uint32_t) override { return 0; }
+    void skip(int32_t) override { }
+    bool seek(uint32_t) override { return false; }
+    bool seek(uint32_t, int) { return false; }
     void close() override { }
-    std::int32_t tell(void) override { return 0; }
+    int32_t tell(void) override { return 0; }
 
 #endif
 
@@ -135,22 +145,22 @@ namespace lgfx
 
   struct StreamWrapper : public DataWrapper
   {
-    void set(Stream* src, std::uint32_t length = ~0u) { _stream = src; _length = length; _index = 0; }
+    void set(Stream* src, uint32_t length = ~0u) { _stream = src; _length = length; _index = 0; }
 
-    int read(std::uint8_t *buf, std::uint32_t len) override {
+    int read(uint8_t *buf, uint32_t len) override {
       if (len > _length - _index) { len = _length - _index; }
       _index += len;
       return _stream->readBytes((char*)buf, len);
     }
-    void skip(std::int32_t offset) override { if (0 < offset) { char dummy[offset]; _stream->readBytes(dummy, offset); _index += offset; } }
-    bool seek(std::uint32_t offset) override { if (offset < _index) { return false; } skip(offset - _index); return true; }
+    void skip(int32_t offset) override { if (0 < offset) { char dummy[offset]; _stream->readBytes(dummy, offset); _index += offset; } }
+    bool seek(uint32_t offset) override { if (offset < _index) { return false; } skip(offset - _index); return true; }
     void close() override { }
-    std::int32_t tell(void) override { return _index; }
+    int32_t tell(void) override { return _index; }
 
   private:
     Stream* _stream;
-    std::uint32_t _index;
-    std::uint32_t _length = 0;
+    uint32_t _index;
+    uint32_t _length = 0;
 
   };
 

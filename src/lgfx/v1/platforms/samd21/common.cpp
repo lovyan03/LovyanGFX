@@ -32,8 +32,8 @@ namespace lgfx
 
   namespace samd21
   {
-    static constexpr std::int8_t sercom_pin_list_end = 0;
-    static constexpr std::int8_t sercom0_c_pin_list[] =
+    static constexpr int8_t sercom_pin_list_end = 0;
+    static constexpr int8_t sercom0_c_pin_list[] =
     { PORT_A |  8  // PAD 0  MUX C
     , - 1
     , PORT_A |  9  // PAD 1  MUX C
@@ -43,7 +43,7 @@ namespace lgfx
     , PORT_A | 11  // PAD 3  MUX C
     , sercom_pin_list_end
     };
-    static constexpr std::int8_t sercom0_d_pin_list[] =
+    static constexpr int8_t sercom0_d_pin_list[] =
     { PORT_A |  4  // PAD 0  MUX D
     , - 1
     , PORT_A |  5  // PAD 1  MUX D
@@ -54,7 +54,7 @@ namespace lgfx
     , sercom_pin_list_end
     };
 
-    static constexpr std::int8_t sercom1_c_pin_list[] =
+    static constexpr int8_t sercom1_c_pin_list[] =
     { PORT_A | 16  // PAD 0  MUX C
     , - 1
     , PORT_A | 17  // PAD 1  MUX C
@@ -64,7 +64,7 @@ namespace lgfx
     , PORT_A | 19  // PAD 3  MUX C
     , sercom_pin_list_end
     };
-    static constexpr std::int8_t sercom1_d_pin_list[] =
+    static constexpr int8_t sercom1_d_pin_list[] =
     { PORT_A |  0  // PAD 0  MUX D
     , - 1
     , PORT_A |  1  // PAD 1  MUX D
@@ -75,7 +75,7 @@ namespace lgfx
     , sercom_pin_list_end
     };
 
-    static constexpr std::int8_t sercom2_c_pin_list[] =
+    static constexpr int8_t sercom2_c_pin_list[] =
     { PORT_A | 12  // PAD 0  MUX C
     , - 1
     , PORT_A | 13  // PAD 1  MUX C
@@ -85,7 +85,7 @@ namespace lgfx
     , PORT_A | 15  // PAD 3  MUX C
     , sercom_pin_list_end
     };
-    static constexpr std::int8_t sercom2_d_pin_list[] =
+    static constexpr int8_t sercom2_d_pin_list[] =
     { PORT_A |  8  // PAD 0  MUX D
     , - 1
     , PORT_A |  9  // PAD 1  MUX D
@@ -96,7 +96,7 @@ namespace lgfx
     , sercom_pin_list_end
     };
 
-    static constexpr std::int8_t sercom3_c_pin_list[] =
+    static constexpr int8_t sercom3_c_pin_list[] =
     { PORT_A | 22  // PAD 0  MUX C
     , - 1
     , PORT_A | 23  // PAD 1  MUX C
@@ -106,7 +106,7 @@ namespace lgfx
     , PORT_A | 25  // PAD 3  MUX C
     , sercom_pin_list_end
     };
-    static constexpr std::int8_t sercom3_d_pin_list[] =
+    static constexpr int8_t sercom3_d_pin_list[] =
     { PORT_A | 16  // PAD 0  MUX D
     , - 1
     , PORT_A | 17  // PAD 1  MUX D
@@ -119,7 +119,7 @@ namespace lgfx
     , sercom_pin_list_end
     };
 #if SERCOM_INST_NUM > 4
-    static constexpr std::int8_t sercom4_c_pin_list[] =
+    static constexpr int8_t sercom4_c_pin_list[] =
     { PORT_B | 12  // PAD 0  MUX C
     , - 1
     , PORT_B | 13  // PAD 1  MUX C
@@ -129,7 +129,7 @@ namespace lgfx
     , PORT_B | 15  // PAD 3  MUX C
     , sercom_pin_list_end
     };
-    static constexpr std::int8_t sercom4_d_pin_list[] =
+    static constexpr int8_t sercom4_d_pin_list[] =
     { PORT_A | 12  // PAD 0  MUX D
     , PORT_B |  8  // PAD 0  MUX D
     , - 1
@@ -145,7 +145,7 @@ namespace lgfx
     };
 #endif
 #if SERCOM_INST_NUM > 5
-    static constexpr std::int8_t sercom5_c_pin_list[] =
+    static constexpr int8_t sercom5_c_pin_list[] =
     { PORT_B | 16  // PAD 0  MUX C
     , - 1
     , PORT_B | 17  // PAD 1  MUX C
@@ -155,7 +155,7 @@ namespace lgfx
     , PORT_A | 21  // PAD 3  MUX C
     , sercom_pin_list_end
     };
-    static constexpr std::int8_t sercom5_d_pin_list[] =
+    static constexpr int8_t sercom5_d_pin_list[] =
     { PORT_A | 22  // PAD 0  MUX D
     , PORT_B |  2  // PAD 0  MUX D
     , PORT_B | 30  // PAD 0  MUX D
@@ -174,7 +174,7 @@ namespace lgfx
     , sercom_pin_list_end
     };
 #endif
-    static constexpr const std::int8_t* sercom_mux_pin_list[2][SERCOM_INST_NUM] =
+    static constexpr const int8_t* sercom_mux_pin_list[2][SERCOM_INST_NUM] =
     {
       { sercom0_c_pin_list
       , sercom1_c_pin_list
@@ -213,7 +213,7 @@ namespace lgfx
       { (uintptr_t)SERCOM5, GCM_SERCOM5_CORE, SERCOM5_IRQn },
 #endif
     };
-    const sercom_data_t* getSercomData(std::size_t sercom_index)
+    const sercom_data_t* getSercomData(size_t sercom_index)
     {
       return &sercom_data[sercom_index];
     }
@@ -225,7 +225,7 @@ namespace lgfx
     auto spl = samd21::sercom_mux_pin_list[alt][sercom_index];
     int pad = 0;
     int tmp = spl[0];
-    std::size_t idx = 0;
+    size_t idx = 0;
     do
     {
       if (pin == tmp) return pad;
@@ -237,9 +237,9 @@ namespace lgfx
   void pinAssignPeriph(int pin_and_port, int type)
   {
     if (pin_and_port < 0) return;
-    std::uint_fast8_t port = (pin_and_port >> samd21::PORT_SHIFT);
-    std::uint_fast8_t pin  =  pin_and_port & (samd21::PIN_MASK);
-    std::uint32_t temp = PORT->Group[port].PMUX[pin >> 1].reg;
+    uint_fast8_t port = (pin_and_port >> samd21::PORT_SHIFT);
+    uint_fast8_t pin  =  pin_and_port & (samd21::PIN_MASK);
+    uint32_t temp = PORT->Group[port].PMUX[pin >> 1].reg;
 
     if (pin&1) temp = PORT_PMUX_PMUXO( type ) | (temp & PORT_PMUX_PMUXE( 0xF ));
     else       temp = PORT_PMUX_PMUXE( type ) | (temp & PORT_PMUX_PMUXO( 0xF ));
@@ -249,9 +249,9 @@ namespace lgfx
 
 //----------------------------------------------------------------------------
 
-  void pinMode(std::int_fast16_t pin, pin_mode_t mode)
+  void pinMode(int_fast16_t pin, pin_mode_t mode)
   {
-    std::size_t port = pin >> samd21::PORT_SHIFT;
+    size_t port = pin >> samd21::PORT_SHIFT;
     if (port >= 2) return;
 
     pin &= samd21::PIN_MASK;
@@ -288,7 +288,7 @@ namespace lgfx
   {
     cpp::result<void, error_t> init(int sercom_index, int pin_sclk, int pin_miso, int pin_mosi)
     {
-      if ((std::size_t)sercom_index >= SERCOM_INST_NUM) { return cpp::fail(error_t::invalid_arg); }
+      if ((size_t)sercom_index >= SERCOM_INST_NUM) { return cpp::fail(error_t::invalid_arg); }
 
       int dipo = -1;
       int dopo = -1;
@@ -405,12 +405,12 @@ namespace lgfx
       while (sercom->SPI.CTRLA.bit.SWRST || sercom->SPI.SYNCBUSY.bit.SWRST);
     }
 
-    static std::uint32_t FreqToClockDiv(std::uint32_t hz)
+    static uint32_t FreqToClockDiv(uint32_t hz)
     {
       return (SERCOM_SPI_FREQ_REF >> 1) / (1 + hz);
     }
 
-    void beginTransaction(int sercom_index, std::uint32_t freq, int spi_mode)
+    void beginTransaction(int sercom_index, uint32_t freq, int spi_mode)
     {
       auto sercomData = samd21::getSercomData(sercom_index);
       auto sercom = reinterpret_cast<Sercom*>(sercomData->sercomPtr);
@@ -431,11 +431,11 @@ namespace lgfx
     {
 
     }
-    void writeBytes(int spi_host, const std::uint8_t* data, std::size_t length)
+    void writeBytes(int spi_host, const uint8_t* data, size_t length)
     {
 
     }
-    void readBytes(int spi_host, std::uint8_t* data, std::size_t length)
+    void readBytes(int spi_host, uint8_t* data, size_t length)
     {
 
     }
@@ -447,7 +447,7 @@ namespace lgfx
   {
     cpp::result<void, error_t> init(int sercom_index, int pin_sda, int pin_scl)
     {
-      if ((std::size_t)sercom_index >= SERCOM_INST_NUM) { return cpp::fail(error_t::invalid_arg); }
+      if ((size_t)sercom_index >= SERCOM_INST_NUM) { return cpp::fail(error_t::invalid_arg); }
 
       int pad_sda;
       int pad_scl;
@@ -478,12 +478,12 @@ namespace lgfx
       return {};
     }
 
-    cpp::result<void, error_t> restart(int sercom_index, int i2c_addr, std::uint32_t freq, bool read)
+    cpp::result<void, error_t> restart(int sercom_index, int i2c_addr, uint32_t freq, bool read)
     {
       return {};
     }
 
-    cpp::result<void, error_t> beginTransaction(int sercom_index, int i2c_addr, std::uint32_t freq, bool read)
+    cpp::result<void, error_t> beginTransaction(int sercom_index, int i2c_addr, uint32_t freq, bool read)
     {
       if (!read)
       {
@@ -499,18 +499,18 @@ namespace lgfx
       return {};
     }
 
-    cpp::result<void, error_t> writeBytes(int sercom_index, const std::uint8_t *data, std::size_t length)
+    cpp::result<void, error_t> writeBytes(int sercom_index, const uint8_t *data, size_t length)
     {
       Wire.write(data, length);
       return {};
     }
 
-    cpp::result<void, error_t> readBytes(int sercom_index, std::uint8_t *data, std::size_t length)
+    cpp::result<void, error_t> readBytes(int sercom_index, uint8_t *data, size_t length)
     {
       return {};
     }
 
-    cpp::result<void, error_t> transactionWrite(int sercom_index, int addr, const std::uint8_t *writedata, std::uint8_t writelen, std::uint32_t freq)
+    cpp::result<void, error_t> transactionWrite(int sercom_index, int addr, const uint8_t *writedata, uint8_t writelen, uint32_t freq)
     {
       cpp::result<void, error_t> res;
       if ((res = beginTransaction(sercom_index, addr, freq, false)).has_value()
@@ -522,7 +522,7 @@ namespace lgfx
       return res;
     }
 
-    cpp::result<void, error_t> transactionRead(int sercom_index, int addr, std::uint8_t *readdata, std::uint8_t readlen, std::uint32_t freq)
+    cpp::result<void, error_t> transactionRead(int sercom_index, int addr, uint8_t *readdata, uint8_t readlen, uint32_t freq)
     {
       cpp::result<void, error_t> res;
       if ((res = beginTransaction(sercom_index, addr, freq, true)).has_value()
@@ -534,7 +534,7 @@ namespace lgfx
       return res;
     }
 
-    cpp::result<void, error_t> transactionWriteRead(int sercom_index, int addr, const std::uint8_t *writedata, std::uint8_t writelen, std::uint8_t *readdata, std::size_t readlen, std::uint32_t freq)
+    cpp::result<void, error_t> transactionWriteRead(int sercom_index, int addr, const uint8_t *writedata, uint8_t writelen, uint8_t *readdata, size_t readlen, uint32_t freq)
     {
       cpp::result<void, error_t> res;
       if ((res = beginTransaction(sercom_index, addr, freq, false)).has_value()
@@ -548,16 +548,16 @@ namespace lgfx
       return res;
     }
 
-    cpp::result<std::uint8_t, error_t> readRegister8(int sercom_index, int addr, std::uint8_t reg, std::uint32_t freq)
+    cpp::result<uint8_t, error_t> readRegister8(int sercom_index, int addr, uint8_t reg, uint32_t freq)
     {
       auto res = transactionWriteRead(sercom_index, addr, &reg, 1, &reg, 1, freq);
       if (res.has_value()) { return reg; }
       return cpp::fail( res.error() );
     }
 
-    cpp::result<void, error_t> writeRegister8(int sercom_index, int addr, std::uint8_t reg, std::uint8_t data, std::uint8_t mask, std::uint32_t freq)
+    cpp::result<void, error_t> writeRegister8(int sercom_index, int addr, uint8_t reg, uint8_t data, uint8_t mask, uint32_t freq)
     {
-      std::uint8_t tmp[2] = { reg, data };
+      uint8_t tmp[2] = { reg, data };
       if (mask)
       {
         auto res = transactionWriteRead(sercom_index, addr, &reg, 1, &tmp[1], 1, freq);

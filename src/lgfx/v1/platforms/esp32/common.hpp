@@ -21,7 +21,7 @@ Contributors:
 #include "../../misc/enum.hpp"
 #include "../../../utility/result.hpp"
 
-#include <cstdint>
+#include <stdint.h>
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
@@ -43,11 +43,11 @@ namespace lgfx
 
   __attribute__ ((unused)) static inline unsigned long millis(void) { return (unsigned long) (esp_timer_get_time() / 1000ULL); }
   __attribute__ ((unused)) static inline unsigned long micros(void) { return (unsigned long) (esp_timer_get_time()); }
-  __attribute__ ((unused)) static inline void delayMicroseconds(std::uint32_t us) { ets_delay_us(us); }
-  __attribute__ ((unused)) static inline void delay(std::uint32_t ms)
+  __attribute__ ((unused)) static inline void delayMicroseconds(uint32_t us) { ets_delay_us(us); }
+  __attribute__ ((unused)) static inline void delay(uint32_t ms)
   {
-    std::uint32_t time = micros();
-    vTaskDelay( std::max<std::uint32_t>(2u, ms / portTICK_PERIOD_MS) - 1 );
+    uint32_t time = micros();
+    vTaskDelay( std::max<uint32_t>(2u, ms / portTICK_PERIOD_MS) - 1 );
     if (ms != 0 && ms < portTICK_PERIOD_MS*8)
     {
       ms *= 1000;
@@ -71,28 +71,28 @@ namespace lgfx
   , input_pulldown
   };
 
-  void pinMode(std::int_fast16_t pin, pin_mode_t mode);
-  inline void lgfxPinMode(std::int_fast16_t pin, pin_mode_t mode)
+  void pinMode(int_fast16_t pin, pin_mode_t mode);
+  inline void lgfxPinMode(int_fast16_t pin, pin_mode_t mode)
   {
     pinMode(pin, mode);
   }
 
 #if defined ( CONFIG_IDF_TARGET_ESP32C3 )
-  static inline volatile std::uint32_t* get_gpio_hi_reg(std::int_fast8_t pin) { return &GPIO.out_w1ts.val; }
-  static inline volatile std::uint32_t* get_gpio_lo_reg(std::int_fast8_t pin) { return &GPIO.out_w1tc.val; }
-  static inline bool gpio_in(std::int_fast8_t pin) { return GPIO.in.val & (1 << (pin & 31)); }
+  static inline volatile uint32_t* get_gpio_hi_reg(int_fast8_t pin) { return &GPIO.out_w1ts.val; }
+  static inline volatile uint32_t* get_gpio_lo_reg(int_fast8_t pin) { return &GPIO.out_w1tc.val; }
+  static inline bool gpio_in(int_fast8_t pin) { return GPIO.in.val & (1 << (pin & 31)); }
 #else
-  static inline volatile std::uint32_t* get_gpio_hi_reg(std::int_fast8_t pin) { return (pin & 32) ? &GPIO.out1_w1ts.val : &GPIO.out_w1ts; }
-//static inline volatile std::uint32_t* get_gpio_hi_reg(std::int_fast8_t pin) { return (volatile uint32_t*)((pin & 32) ? 0x60004014 : 0x60004008) ; } // workaround Eratta
-  static inline volatile std::uint32_t* get_gpio_lo_reg(std::int_fast8_t pin) { return (pin & 32) ? &GPIO.out1_w1tc.val : &GPIO.out_w1tc; }
-//static inline volatile std::uint32_t* get_gpio_lo_reg(std::int_fast8_t pin) { return (volatile uint32_t*)((pin & 32) ? 0x60004018 : 0x6000400C) ; }
-  static inline bool gpio_in(std::int_fast8_t pin) { return ((pin & 32) ? GPIO.in1.data : GPIO.in) & (1 << (pin & 31)); }
+  static inline volatile uint32_t* get_gpio_hi_reg(int_fast8_t pin) { return (pin & 32) ? &GPIO.out1_w1ts.val : &GPIO.out_w1ts; }
+//static inline volatile uint32_t* get_gpio_hi_reg(int_fast8_t pin) { return (volatile uint32_t*)((pin & 32) ? 0x60004014 : 0x60004008) ; } // workaround Eratta
+  static inline volatile uint32_t* get_gpio_lo_reg(int_fast8_t pin) { return (pin & 32) ? &GPIO.out1_w1tc.val : &GPIO.out_w1tc; }
+//static inline volatile uint32_t* get_gpio_lo_reg(int_fast8_t pin) { return (volatile uint32_t*)((pin & 32) ? 0x60004018 : 0x6000400C) ; }
+  static inline bool gpio_in(int_fast8_t pin) { return ((pin & 32) ? GPIO.in1.data : GPIO.in) & (1 << (pin & 31)); }
 #endif
-  static inline void gpio_hi(std::int_fast8_t pin) { if (pin >= 0) *get_gpio_hi_reg(pin) = 1 << (pin & 31); } // ESP_LOGI("LGFX", "gpio_hi: %d", pin); }
-  static inline void gpio_lo(std::int_fast8_t pin) { if (pin >= 0) *get_gpio_lo_reg(pin) = 1 << (pin & 31); } // ESP_LOGI("LGFX", "gpio_lo: %d", pin); }
+  static inline void gpio_hi(int_fast8_t pin) { if (pin >= 0) *get_gpio_hi_reg(pin) = 1 << (pin & 31); } // ESP_LOGI("LGFX", "gpio_hi: %d", pin); }
+  static inline void gpio_lo(int_fast8_t pin) { if (pin >= 0) *get_gpio_lo_reg(pin) = 1 << (pin & 31); } // ESP_LOGI("LGFX", "gpio_lo: %d", pin); }
 
-  std::uint32_t getApbFrequency(void);
-  std::uint32_t FreqToClockDiv(std::uint32_t fapb, std::uint32_t hz);
+  uint32_t getApbFrequency(void);
+  uint32_t FreqToClockDiv(uint32_t fapb, uint32_t hz);
 
 //----------------------------------------------------------------------------
 
@@ -145,12 +145,12 @@ public:
       _fp = &_file;
       return _file;
     }
-    int read(std::uint8_t *buf, std::uint32_t len) override { return _fp->read(buf, len); }
-    void skip(std::int32_t offset) override { seek(offset, SeekCur); }
-    bool seek(std::uint32_t offset) override { return seek(offset, SeekSet); }
-    bool seek(std::uint32_t offset, SeekMode mode) { return _fp->seek(offset, mode); }
+    int read(uint8_t *buf, uint32_t len) override { return _fp->read(buf, len); }
+    void skip(int32_t offset) override { seek(offset, SeekCur); }
+    bool seek(uint32_t offset) override { return seek(offset, SeekSet); }
+    bool seek(uint32_t offset, SeekMode mode) { return _fp->seek(offset, mode); }
     void close(void) override { if (_fp) _fp->close(); }
-    std::int32_t tell(void) override { return _fp->position(); }
+    int32_t tell(void) override { return _fp->position(); }
   };
  #else
   // dummy
@@ -166,12 +166,12 @@ public:
     void setFS(T& fs) {}
 
     bool open(const char* path, const char* mode) { return false; }
-    int read(std::uint8_t *buf, std::uint32_t len) override { return false; }
-    void skip(std::int32_t offset) override { }
-    bool seek(std::uint32_t offset) override { return false; }
-    bool seek(std::uint32_t offset, int origin) { return false; }
+    int read(uint8_t *buf, uint32_t len) override { return false; }
+    void skip(int32_t offset) override { }
+    bool seek(uint32_t offset) override { return false; }
+    bool seek(uint32_t offset, int origin) { return false; }
     void close() override { }
-    std::int32_t tell(void) override { return 0; }
+    int32_t tell(void) override { return 0; }
   };
 
  #endif
@@ -185,12 +185,12 @@ public:
     }
     FILE* _fp;
     bool open(const char* path) override { return (_fp = fopen(path, "r")); }
-    int read(std::uint8_t *buf, std::uint32_t len) override { return fread((char*)buf, 1, len, _fp); }
-    void skip(std::int32_t offset) override { seek(offset, SEEK_CUR); }
-    bool seek(std::uint32_t offset) override { return seek(offset, SEEK_SET); }
-    bool seek(std::uint32_t offset, int origin) { return fseek(_fp, offset, origin); }
+    int read(uint8_t *buf, uint32_t len) override { return fread((char*)buf, 1, len, _fp); }
+    void skip(int32_t offset) override { seek(offset, SEEK_CUR); }
+    bool seek(uint32_t offset) override { return seek(offset, SEEK_SET); }
+    bool seek(uint32_t offset, int origin) { return fseek(_fp, offset, origin); }
     void close() override { if (_fp) fclose(_fp); }
-    std::int32_t tell(void) override { return ftell(_fp); }
+    int32_t tell(void) override { return ftell(_fp); }
   };
 
 #endif
@@ -201,23 +201,23 @@ public:
 
   struct StreamWrapper : public DataWrapper
   {
-    void set(Stream* src, std::uint32_t length = ~0) { _stream = src; _length = length; _index = 0; }
+    void set(Stream* src, uint32_t length = ~0) { _stream = src; _length = length; _index = 0; }
 
-    int read(std::uint8_t *buf, std::uint32_t len) override {
-      len = std::min<std::uint32_t>(len, _stream->available());
+    int read(uint8_t *buf, uint32_t len) override {
+      len = std::min<uint32_t>(len, _stream->available());
       if (len > _length - _index) { len = _length - _index; }
       _index += len;
       return _stream->readBytes((char*)buf, len);
     }
-    void skip(std::int32_t offset) override { if (0 < offset) { char dummy[offset]; _stream->readBytes(dummy, offset); _index += offset; } }
-    bool seek(std::uint32_t offset) override { if (offset < _index) { return false; } skip(offset - _index); return true; }
+    void skip(int32_t offset) override { if (0 < offset) { char dummy[offset]; _stream->readBytes(dummy, offset); _index += offset; } }
+    bool seek(uint32_t offset) override { if (offset < _index) { return false; } skip(offset - _index); return true; }
     void close() override { }
-    std::int32_t tell(void) override { return _index; }
+    int32_t tell(void) override { return _index; }
 
   protected:
     Stream* _stream;
-    std::uint32_t _index;
-    std::uint32_t _length = 0;
+    uint32_t _index;
+    uint32_t _length = 0;
   };
 
 #endif

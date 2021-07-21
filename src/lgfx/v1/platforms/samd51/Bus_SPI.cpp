@@ -64,7 +64,7 @@ Contributors:
   #undef GCLK_PCHCTRL_CHEN_Pos
   #undef GCLK_PCHCTRL_CHEN
 
-  #define _Ul(n) (static_cast<std::uint32_t>((n)))
+  #define _Ul(n) (static_cast<uint32_t>((n)))
   #define PORT_PINCFG_PMUXEN_Pos      0            /**< \brief (PORT_PINCFG) Peripheral Multiplexer Enable */
   #define PORT_PINCFG_PMUXEN          (_Ul(0x1) << PORT_PINCFG_PMUXEN_Pos)
   #define PORT_PINCFG_INEN_Pos        1            /**< \brief (PORT_PINCFG) Input Enable */
@@ -75,7 +75,7 @@ Contributors:
   #define PORT_PINCFG_DRVSTR          (_Ul(0x1) << PORT_PINCFG_DRVSTR_Pos)
   #define PORT_PINCFG_MASK            _Ul(0x47)     /**< \brief (PORT_PINCFG) MASK Register */
 
-  typedef std::uint8_t SercomDataOrder;
+  typedef uint8_t SercomDataOrder;
   #define SERCOM_SPI_CTRLA_MODE_Pos   2            /**< \brief (SERCOM_SPI_CTRLA) Operating Mode */
   #define SERCOM_SPI_CTRLA_MODE_Msk   (_Ul(0x7) << SERCOM_SPI_CTRLA_MODE_Pos)
   #define SERCOM_SPI_CTRLA_MODE(value) (SERCOM_SPI_CTRLA_MODE_Msk & ((value) << SERCOM_SPI_CTRLA_MODE_Pos))
@@ -124,13 +124,13 @@ namespace lgfx
     while (spi->SYNCBUSY.bit.ENABLE);
   }
 //*/
-  std::uint32_t Bus_SPI::FreqToClockDiv(std::uint32_t freq)
+  uint32_t Bus_SPI::FreqToClockDiv(uint32_t freq)
   {
-    std::uint32_t div = std::min<std::uint32_t>(255, _cfg.sercom_clkfreq / (1+(freq<<1)));
+    uint32_t div = std::min<uint32_t>(255, _cfg.sercom_clkfreq / (1+(freq<<1)));
     return div;
   }
 
-  void Bus_SPI::setFreqDiv(std::uint32_t div)
+  void Bus_SPI::setFreqDiv(uint32_t div)
   {
     auto *spi = &_sercom->SPI;
     while (spi->SYNCBUSY.reg);
@@ -150,7 +150,7 @@ namespace lgfx
     _sercom = reinterpret_cast<Sercom*>(samd51::getSercomData(_cfg.sercom_index)->sercomPtr);
     _last_apb_freq = -1;
     _mask_reg_dc = 0;
-    std::uint32_t port = 0;
+    uint32_t port = 0;
     if (_cfg.pin_dc >= 0)
     {
       _mask_reg_dc = (1ul << (_cfg.pin_dc & (samd51::PIN_MASK)));
@@ -179,13 +179,13 @@ namespace lgfx
 
     if (_cfg.sercom_clksrc >= 0)
     {
-      std::uint8_t id_core = sercom_data->id_core;
-      std::uint8_t id_slow = sercom_data->id_slow;
+      uint8_t id_core = sercom_data->id_core;
+      uint8_t id_slow = sercom_data->id_slow;
 
       GCLK->PCHCTRL[id_core].bit.CHEN = 0;     // Disable timer
       GCLK->PCHCTRL[id_slow].bit.CHEN = 0;     // Disable timer
 
-      std::uint32_t gclk_reg_value = GCLK_PCHCTRL_CHEN | _cfg.sercom_clksrc << GCLK_PCHCTRL_GEN_Pos;
+      uint32_t gclk_reg_value = GCLK_PCHCTRL_CHEN | _cfg.sercom_clksrc << GCLK_PCHCTRL_GEN_Pos;
 
       while (GCLK->PCHCTRL[id_core].bit.CHEN || GCLK->PCHCTRL[id_slow].bit.CHEN);  // Wait for disable
 
@@ -221,7 +221,7 @@ namespace lgfx
 /*
     _alloc_dmadesc(4);
 
-    std::uint8_t channel = _dma_channel;
+    uint8_t channel = _dma_channel;
 #if (SAML21) || (SAML22) || (SAMC20) || (SAMC21)
     PM->AHBMASK.bit.DMAC_       = 1;
 #elif defined(__SAMD51__)
@@ -235,8 +235,8 @@ namespace lgfx
     DMAC->CTRL.bit.SWRST        = 1; // Perform software reset
 
     // Initialize descriptor list addresses
-    DMAC->BASEADDR.bit.BASEADDR = (std::uint32_t)&_dmadesc[1];
-    DMAC->WRBADDR.bit.WRBADDR   = (std::uint32_t)&_dmadesc[0];
+    DMAC->BASEADDR.bit.BASEADDR = (uint32_t)&_dmadesc[1];
+    DMAC->WRBADDR.bit.WRBADDR   = (uint32_t)&_dmadesc[0];
 
     // Re-enable DMA controller with all priority levels
     DMAC->CTRL.reg = DMAC_CTRL_DMAENABLE | DMAC_CTRL_LVLEN(0xF);
@@ -245,7 +245,7 @@ namespace lgfx
 #ifdef __SAMD51__
     IRQn_Type irqs[] = { DMAC_0_IRQn, DMAC_1_IRQn, DMAC_2_IRQn,
                           DMAC_3_IRQn, DMAC_4_IRQn };
-    for(std::uint8_t i=0; i<(sizeof irqs / sizeof irqs[0]); i++) {
+    for(uint8_t i=0; i<(sizeof irqs / sizeof irqs[0]); i++) {
         NVIC_EnableIRQ(irqs[i]);
         NVIC_SetPriority(irqs[i], (1<<__NVIC_PRIO_BITS)-1);
     }
@@ -308,7 +308,7 @@ namespace lgfx
     return _need_wait && (_sercom->SPI.INTFLAG.bit.TXC == 0);
   }
 
-  bool Bus_SPI::writeCommand(std::uint32_t data, std::uint_fast8_t bit_length)
+  bool Bus_SPI::writeCommand(uint32_t data, uint_fast8_t bit_length)
   {
     auto *spi = &_sercom->SPI;
     dc_control(false);
@@ -332,7 +332,7 @@ namespace lgfx
     return true;
   }
 
-  void Bus_SPI::writeData(std::uint32_t data, std::uint_fast8_t bit_length)
+  void Bus_SPI::writeData(uint32_t data, uint_fast8_t bit_length)
   {
     auto len = bit_length >> 3 | SERCOM_SPI_LENGTH_LENEN;
     auto *spi = &_sercom->SPI;
@@ -349,9 +349,9 @@ namespace lgfx
     _need_wait = true;
   }
 
-  void Bus_SPI::writeDataRepeat(std::uint32_t data, std::uint_fast8_t bit_length, std::uint32_t length)
+  void Bus_SPI::writeDataRepeat(uint32_t data, uint_fast8_t bit_length, uint32_t length)
   {
-    std::size_t bytes = bit_length >> 3;
+    size_t bytes = bit_length >> 3;
     auto *spi = &_sercom->SPI;
     bool d32b = spi->CTRLC.bit.DATA32B;
     dc_control(true);
@@ -387,7 +387,7 @@ namespace lgfx
       _need_wait = true;
       if (!--length) return;
 
-      std::uint32_t surplus = length & 3;
+      uint32_t surplus = length & 3;
       if (surplus) {
         length -= surplus;
         do {
@@ -397,7 +397,7 @@ namespace lgfx
         if (!length) return;
       }
 
-      std::uint32_t buf[3];
+      uint32_t buf[3];
       buf[0] = data       | data << 24;
       buf[1] = data >>  8 | data << 16;
       buf[2] = data >> 16 | data <<  8;
@@ -419,11 +419,11 @@ namespace lgfx
     }
   }
 
-  void Bus_SPI::writePixels(pixelcopy_t* param, std::uint32_t length)
+  void Bus_SPI::writePixels(pixelcopy_t* param, uint32_t length)
   {
-    const std::uint8_t dst_bytes = param->dst_bits >> 3;
-    std::uint32_t limit = (dst_bytes == 3) ? 12 : 16;
-    std::uint32_t len;
+    const uint8_t dst_bytes = param->dst_bits >> 3;
+    uint32_t limit = (dst_bytes == 3) ? 12 : 16;
+    uint32_t len;
     do
     {
       len = ((length - 1) % limit) + 1;
@@ -435,15 +435,15 @@ namespace lgfx
     } while (length -= len);
   }
 
-  void Bus_SPI::writeBytes(const std::uint8_t* data, std::uint32_t length, bool dc, bool use_dma)
+  void Bus_SPI::writeBytes(const uint8_t* data, uint32_t length, bool dc, bool use_dma)
   {
     auto *spi = &_sercom->SPI;
 #if defined (ARDUINO)
     if (length > 31)
     {
-      std::uint_fast8_t beatsize = spi->CTRLC.bit.DATA32B ? 2 : 0;
+      uint_fast8_t beatsize = spi->CTRLC.bit.DATA32B ? 2 : 0;
       // If the data is 4 bytes aligned, the DATA32B can be enabled.
-      if ((bool)(beatsize) == ((length & 3) || ((std::uint32_t)data & 3)))
+      if ((bool)(beatsize) == ((length & 3) || ((uint32_t)data & 3)))
       {
         beatsize = 2 - beatsize;
         wait_spi();
@@ -456,11 +456,11 @@ namespace lgfx
       }
 
       auto desc = _dma_write_desc;
-      std::uint32_t len = length;
+      uint32_t len = length;
       dc_control(dc);
       spi->LENGTH.reg = 0;
       desc->BTCTRL.bit.BEATSIZE  = beatsize;
-      desc->SRCADDR.reg = (std::uint32_t)data + length;
+      desc->SRCADDR.reg = (uint32_t)data + length;
       do
       {
         if (!use_dma)
@@ -470,7 +470,7 @@ namespace lgfx
           memcpy(dmabuf, data, len);
           data += len;
           wait_spi();
-          desc->SRCADDR.reg = (std::uint32_t)dmabuf + len;
+          desc->SRCADDR.reg = (uint32_t)dmabuf + len;
         }
         desc->BTCNT.reg = len >> beatsize;
         _dma_adafruit.startJob();
@@ -492,20 +492,20 @@ namespace lgfx
 
     if (length >= 4) {
       spi->LENGTH.reg = 0;
-      spi->DATA.reg = *(std::uint32_t*)data;
+      spi->DATA.reg = *(uint32_t*)data;
       data += 4;
       length -= 4;
       if (4 <= length) {
         do {
           while (spi->INTFLAG.bit.DRE == 0);
-          spi->DATA.reg = *(std::uint32_t*)data;
+          spi->DATA.reg = *(uint32_t*)data;
           data += 4;
         } while (4 <= (length -= 4));
       }
     }
     _need_wait = true;
     if (length) {
-      std::uint32_t tmp = *(std::uint32_t*)data;
+      uint32_t tmp = *(uint32_t*)data;
       while (spi->INTFLAG.bit.TXC == 0);
       spi->LENGTH.reg = length | SERCOM_SPI_LENGTH_LENEN;
       spi->DATA.reg = tmp;
@@ -523,21 +523,21 @@ namespace lgfx
     set_clock_write();
   }
 
-  std::uint32_t Bus_SPI::readData(std::uint_fast8_t bit_length)
+  uint32_t Bus_SPI::readData(uint_fast8_t bit_length)
   {
-    std::uint32_t res = 0;
-    readBytes((std::uint8_t*)&res, bit_length >> 3, false);
+    uint32_t res = 0;
+    readBytes((uint8_t*)&res, bit_length >> 3, false);
     return res;
 //    writeData(0, bit_length);
 //    return _sercom->SPI.DATA.reg;
   }
 
-  bool Bus_SPI::readBytes(std::uint8_t* dst, std::uint32_t length, bool use_dma)
+  bool Bus_SPI::readBytes(uint8_t* dst, uint32_t length, bool use_dma)
   {
 /*
       if (use_dma && length > 16) {
         _sercom->SPI.LENGTH.reg = 0;
-        std::uint_fast8_t beatsize = _sercom->SPI.CTRLC.bit.DATA32B ? 2 : 0;
+        uint_fast8_t beatsize = _sercom->SPI.CTRLC.bit.DATA32B ? 2 : 0;
         if (beatsize && (length & 3)) {
           disableSPI();
           beatsize = 0;
@@ -554,8 +554,8 @@ namespace lgfx
         desc->BTCTRL.bit.DSTINC    = true;                // dstInc;
         desc->BTCTRL.bit.STEPSEL   = 0; // DMA_STEPSEL_DST;      // stepSel;
         desc->BTCTRL.bit.STEPSIZE  = 0; // DMA_ADDRESS_INCREMENT_STEP_SIZE_1; // stepSize;
-        desc->DSTADDR.reg          = (std::uint32_t)dst;
-        desc->SRCADDR.reg          = (std::uint32_t)(&_sercom->SPI.DATA.reg);
+        desc->DSTADDR.reg          = (uint32_t)dst;
+        desc->SRCADDR.reg          = (uint32_t)(&_sercom->SPI.DATA.reg);
 
         if (desc->BTCTRL.bit.DSTINC) {
           if (desc->BTCTRL.bit.STEPSEL) {
@@ -566,7 +566,7 @@ namespace lgfx
         }
 
 //        _dma_adafruit.setTrigger(sercomData[CFG::sercom_index].dmac_id_rx);
-        //_dma_adafruit.changeDescriptor(desc, nullptr, const_cast<std::uint8_t*>(dst), length>>beatsize);
+        //_dma_adafruit.changeDescriptor(desc, nullptr, const_cast<uint8_t*>(dst), length>>beatsize);
         _dma_adafruit.startJob();
         _need_wait = true;
         return;
@@ -575,8 +575,8 @@ namespace lgfx
     auto *datreg = &_sercom->SPI.DATA.reg;
     auto *lenreg = &_sercom->SPI.LENGTH.reg;
     auto *intflag = &_sercom->SPI.INTFLAG.bit;
-    std::uint32_t len1 = length > 3 ? 4 : length;
-    std::uint32_t len2 = len1;
+    uint32_t len1 = length > 3 ? 4 : length;
+    uint32_t len2 = len1;
     wait_spi();
     dst[0] = *datreg;
     *lenreg = len1 | SERCOM_SPI_LENGTH_LENEN;
@@ -596,7 +596,7 @@ namespace lgfx
         }
         *datreg = 0;
       }
-      std::uint32_t d = *datreg;
+      uint32_t d = *datreg;
       memcpy(dst, &d, len2);
       dst += len2;
     } while (length);
@@ -604,16 +604,16 @@ namespace lgfx
     return true;
   }
 
-  void Bus_SPI::readPixels(void* dst, pixelcopy_t* param, std::uint32_t length)
+  void Bus_SPI::readPixels(void* dst, pixelcopy_t* param, uint32_t length)
   {
-    std::uint32_t bytes = param->src_bits >> 3;
-    std::uint32_t dstindex = 0;
-    std::uint32_t len = 4;
-    std::uint8_t buf[24];
+    uint32_t bytes = param->src_bits >> 3;
+    uint32_t dstindex = 0;
+    uint32_t len = 4;
+    uint8_t buf[24];
     param->src_data = buf;
     do {
       if (len > length) len = length;
-      readBytes((std::uint8_t*)buf, len * bytes, true);
+      readBytes((uint8_t*)buf, len * bytes, true);
       param->src_x = 0;
       dstindex = param->fp_copy(dst, dstindex, dstindex + len, param);
       length -= len;

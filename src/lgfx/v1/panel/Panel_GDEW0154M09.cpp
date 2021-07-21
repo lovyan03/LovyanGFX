@@ -26,7 +26,7 @@ namespace lgfx
  {
 //----------------------------------------------------------------------------
 
-  static constexpr std::uint8_t Bayer[16] = { 8, 200, 40, 232, 72, 136, 104, 168, 56, 248, 24, 216, 120, 184, 88, 152 };
+  static constexpr uint8_t Bayer[16] = { 8, 200, 40, 232, 72, 136, 104, 168, 56, 248, 24, 216, 120, 184, 88, 152 };
 
   Panel_GDEW0154M09::Panel_GDEW0154M09(void)
   {
@@ -43,7 +43,7 @@ namespace lgfx
     return color_depth_t::rgb565_2Byte;
   }
 
-  std::size_t Panel_GDEW0154M09::_get_buffer_length(void) const
+  size_t Panel_GDEW0154M09::_get_buffer_length(void) const
   {
     return ((_cfg.panel_width + 7) & ~7) * _cfg.panel_height >> 3;
   }
@@ -63,7 +63,7 @@ namespace lgfx
 
     startWrite(true);
 
-    for (std::uint8_t i = 0; auto cmds = getInitCommands(i); i++)
+    for (uint8_t i = 0; auto cmds = getInitCommands(i); i++)
     {
       command_list(cmds);
     }
@@ -95,14 +95,14 @@ namespace lgfx
     return _cfg.pin_busy >= 0 && !gpio_in(_cfg.pin_busy);
   }
 
-  void Panel_GDEW0154M09::display(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h)
+  void Panel_GDEW0154M09::display(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h)
   {
     if (0 < w && 0 < h)
     {
-      _range_mod.left   = std::min<std::int16_t>(_range_mod.left  , x        );
-      _range_mod.right  = std::max<std::int16_t>(_range_mod.right , x + w - 1);
-      _range_mod.top    = std::min<std::int16_t>(_range_mod.top   , y        );
-      _range_mod.bottom = std::max<std::int16_t>(_range_mod.bottom, y + h - 1);
+      _range_mod.left   = std::min<int16_t>(_range_mod.left  , x        );
+      _range_mod.right  = std::max<int16_t>(_range_mod.right , x + w - 1);
+      _range_mod.top    = std::min<int16_t>(_range_mod.top   , y        );
+      _range_mod.bottom = std::max<int16_t>(_range_mod.bottom, y + h - 1);
     }
     if (_range_mod.empty()) { return; }
     _close_transfer();
@@ -178,10 +178,10 @@ namespace lgfx
     endWrite();
   }
 
-  void Panel_GDEW0154M09::writeFillRectPreclipped(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, std::uint32_t rawcolor)
+  void Panel_GDEW0154M09::writeFillRectPreclipped(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, uint32_t rawcolor)
   {
-    std::uint_fast16_t xs = x, xe = x + w - 1;
-    std::uint_fast16_t ys = y, ye = y + h - 1;
+    uint_fast16_t xs = x, xe = x + w - 1;
+    uint_fast16_t ys = y, ye = y + h - 1;
     _xs = xs;
     _ys = ys;
     _xe = xe;
@@ -190,13 +190,13 @@ namespace lgfx
 
     swap565_t color;
     color.raw = rawcolor;
-    std::uint32_t value = (color.R8() + (color.G8() << 1) + color.B8()) >> 2;
+    uint32_t value = (color.R8() + (color.G8() << 1) + color.B8()) >> 2;
 
     y = ys;
     do
     {
       x = xs;
-      std::uint32_t idx = ((_cfg.panel_width + 7) & ~7) * y + x;
+      uint32_t idx = ((_cfg.panel_width + 7) & ~7) * y + x;
       auto btbl = &Bayer[(y & 3) << 2];
       do
       {
@@ -208,10 +208,10 @@ namespace lgfx
     } while (++y <= ye);
   }
 
-  void Panel_GDEW0154M09::writeImage(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, pixelcopy_t* param, bool use_dma)
+  void Panel_GDEW0154M09::writeImage(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, pixelcopy_t* param, bool use_dma)
   {
-    std::uint_fast16_t xs = x, xe = x + w - 1;
-    std::uint_fast16_t ys = y, ye = y + h - 1;
+    uint_fast16_t xs = x, xe = x + w - 1;
+    uint_fast16_t ys = y, ye = y + h - 1;
     _update_transferred_rect(xs, ys, xe, ye);
 
     auto readbuf = (swap565_t*)alloca(w * sizeof(swap565_t));
@@ -219,7 +219,7 @@ namespace lgfx
     h += y;
     do
     {
-      std::uint32_t prev_pos = 0, new_pos = 0;
+      uint32_t prev_pos = 0, new_pos = 0;
       do
       {
         new_pos = param->fp_copy(readbuf, prev_pos, w, param);
@@ -237,21 +237,21 @@ namespace lgfx
     } while (++y < h);
   }
 
-  void Panel_GDEW0154M09::writePixels(pixelcopy_t* param, std::uint32_t length, bool use_dma)
+  void Panel_GDEW0154M09::writePixels(pixelcopy_t* param, uint32_t length, bool use_dma)
   {
     {
-      std::uint_fast16_t xs = _xs;
-      std::uint_fast16_t xe = _xe;
-      std::uint_fast16_t ys = _ys;
-      std::uint_fast16_t ye = _ye;
+      uint_fast16_t xs = _xs;
+      uint_fast16_t xe = _xe;
+      uint_fast16_t ys = _ys;
+      uint_fast16_t ye = _ye;
       _update_transferred_rect(xs, ys, xe, ye);
     }
-    std::uint_fast16_t xs   = _xs  ;
-    std::uint_fast16_t ys   = _ys  ;
-    std::uint_fast16_t xe   = _xe  ;
-    std::uint_fast16_t ye   = _ye  ;
-    std::uint_fast16_t xpos = _xpos;
-    std::uint_fast16_t ypos = _ypos;
+    uint_fast16_t xs   = _xs  ;
+    uint_fast16_t ys   = _ys  ;
+    uint_fast16_t xe   = _xe  ;
+    uint_fast16_t ye   = _ye  ;
+    uint_fast16_t xpos = _xpos;
+    uint_fast16_t ypos = _ypos;
 
     static constexpr uint32_t buflen = 16;
     swap565_t colors[buflen];
@@ -277,15 +277,15 @@ namespace lgfx
     _ypos = ypos;
   }
 
-  void Panel_GDEW0154M09::readRect(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, void* dst, pixelcopy_t* param)
+  void Panel_GDEW0154M09::readRect(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, void* dst, pixelcopy_t* param)
   {
     auto readbuf = (swap565_t*)alloca(w * sizeof(swap565_t));
     param->src_data = readbuf;
-    std::int32_t readpos = 0;
+    int32_t readpos = 0;
     h += y;
     do
     {
-      std::uint32_t idx = 0;
+      uint32_t idx = 0;
       do
       {
         readbuf[idx] = _read_pixel(x + idx, y) ? ~0u : 0;
@@ -295,11 +295,11 @@ namespace lgfx
     } while (++y < h);
   }
 
-  bool Panel_GDEW0154M09::_wait_busy(std::uint32_t timeout)
+  bool Panel_GDEW0154M09::_wait_busy(uint32_t timeout)
   {
     if (_cfg.pin_busy >= 0 && !gpio_in(_cfg.pin_busy))
     {
-      std::uint32_t start_time = millis();
+      uint32_t start_time = millis();
       do
       {
         if (millis() - start_time > timeout) return false;
@@ -309,26 +309,26 @@ namespace lgfx
     return true;
   }
 
-  void Panel_GDEW0154M09::_draw_pixel(std::uint_fast16_t x, std::uint_fast16_t y, std::uint32_t value)
+  void Panel_GDEW0154M09::_draw_pixel(uint_fast16_t x, uint_fast16_t y, uint32_t value)
   {
     _rotate_pos(x, y);
-    std::uint32_t idx = ((_cfg.panel_width + 7) & ~7) * y + x;
+    uint32_t idx = ((_cfg.panel_width + 7) & ~7) * y + x;
     bool flg = 256 <= value + Bayer[(x & 3) | (y & 3) << 2];
     if (flg) _buf[idx >> 3] |=   0x80 >> (idx & 7);
     else     _buf[idx >> 3] &= ~(0x80 >> (idx & 7));
   }
 
-  bool Panel_GDEW0154M09::_read_pixel(std::uint_fast16_t x, std::uint_fast16_t y)
+  bool Panel_GDEW0154M09::_read_pixel(uint_fast16_t x, uint_fast16_t y)
   {
     _rotate_pos(x, y);
-    std::uint32_t idx = ((_cfg.panel_width + 7) & ~7) * y + x;
+    uint32_t idx = ((_cfg.panel_width + 7) & ~7) * y + x;
     return _buf[idx >> 3] & (0x80 >> (idx & 7));
   }
 
-  void Panel_GDEW0154M09::_exec_transfer(std::uint32_t cmd, const range_rect_t& range, bool invert)
+  void Panel_GDEW0154M09::_exec_transfer(uint32_t cmd, const range_rect_t& range, bool invert)
   {
-    std::int32_t xs = range.left & ~7;
-    std::int32_t xe = range.right & ~7;
+    int32_t xs = range.left & ~7;
+    int32_t xe = range.right & ~7;
 
     _wait_busy();
 
@@ -343,16 +343,16 @@ namespace lgfx
     _wait_busy();
 
     _bus->writeCommand(cmd, 8);
-    std::int32_t w = ((xe - xs) >> 3) + 1;
-    std::int32_t y = range.top;
-    std::int32_t add = ((_cfg.panel_width + 7) & ~7) >> 3;
+    int32_t w = ((xe - xs) >> 3) + 1;
+    int32_t y = range.top;
+    int32_t add = ((_cfg.panel_width + 7) & ~7) >> 3;
     auto b = &_buf[xs >> 3];
     if (invert)
     {
       b += y * add;
       do
       {
-        std::int32_t i = 0;
+        int32_t i = 0;
         do
         {
           _bus->writeData(~b[i], 8);
@@ -388,21 +388,21 @@ namespace lgfx
     _bus->wait();
   }
 
-  void Panel_GDEW0154M09::_update_transferred_rect(std::uint_fast16_t &xs, std::uint_fast16_t &ys, std::uint_fast16_t &xe, std::uint_fast16_t &ye)
+  void Panel_GDEW0154M09::_update_transferred_rect(uint_fast16_t &xs, uint_fast16_t &ys, uint_fast16_t &xe, uint_fast16_t &ye)
   {
     _rotate_pos(xs, ys, xe, ye);
 
-    std::int32_t x1 = xs & ~7;
-    std::int32_t x2 = (xe & ~7) + 7;
+    int32_t x1 = xs & ~7;
+    int32_t x2 = (xe & ~7) + 7;
 
     if (_range_old.horizon.intersectsWith(x1, x2) && _range_old.vertical.intersectsWith(ys, ye))
     {
       _close_transfer();
     }
-    _range_mod.top    = std::min<std::int32_t>(ys, _range_mod.top);
-    _range_mod.left   = std::min<std::int32_t>(x1, _range_mod.left);
-    _range_mod.right  = std::max<std::int32_t>(x2, _range_mod.right);
-    _range_mod.bottom = std::max<std::int32_t>(ye, _range_mod.bottom);
+    _range_mod.top    = std::min<int32_t>(ys, _range_mod.top);
+    _range_mod.left   = std::min<int32_t>(x1, _range_mod.left);
+    _range_mod.right  = std::max<int32_t>(x2, _range_mod.right);
+    _range_mod.bottom = std::max<int32_t>(ye, _range_mod.bottom);
   }
 
 //----------------------------------------------------------------------------

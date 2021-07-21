@@ -31,7 +31,7 @@ namespace lgfx
 
 #if defined ( ARDUINO )
 
-  void pinMode(std::int_fast16_t pin, pin_mode_t mode)
+  void pinMode(int_fast16_t pin, pin_mode_t mode)
   {
     switch (mode)
     {
@@ -155,7 +155,7 @@ namespace lgfx
       SPI.end();
 #endif
     }
-    void beginTransaction(int spi_host, std::uint32_t freq, int spi_mode)
+    void beginTransaction(int spi_host, uint32_t freq, int spi_mode)
     {
 #if defined ( ARDUINO )
       SPI.setFrequency(freq);
@@ -176,7 +176,7 @@ namespace lgfx
 #endif
       SPI1U |= SPIUDUPLEX;
     }
-    void writeBytes(int spi_host, const std::uint8_t* data, std::size_t length)
+    void writeBytes(int spi_host, const uint8_t* data, size_t length)
     {
       const uint32_t u1 = ((length << 3) - 1) << SPILMOSI;
       while (SPI1CMD & SPIBUSY);
@@ -184,7 +184,7 @@ namespace lgfx
       memcpy_P(reinterpret_cast<void*>(SPI1W0), data, length);
       SPI1CMD = SPIBUSY;
     }
-    void readBytes(int spi_host, std::uint8_t* data, std::size_t length)
+    void readBytes(int spi_host, uint8_t* data, size_t length)
     {
       const uint32_t u1 = ((length << 3) - 1) << SPILMISO;
       while (SPI1CMD & SPIBUSY);
@@ -203,20 +203,20 @@ namespace lgfx
   {
     cpp::result<void, error_t> init(int i2c_port, int pin_sda, int pin_scl) { return cpp::fail(error_t::unknown_err); }
     cpp::result<void, error_t> release(int i2c_port) { return cpp::fail(error_t::unknown_err); }
-    cpp::result<void, error_t> restart(int i2c_port, int i2c_addr, std::uint32_t freq, bool read) { return cpp::fail(error_t::unknown_err); }
-    cpp::result<void, error_t> beginTransaction(int i2c_port, int i2c_addr, std::uint32_t freq, bool read) { return cpp::fail(error_t::unknown_err); }
+    cpp::result<void, error_t> restart(int i2c_port, int i2c_addr, uint32_t freq, bool read) { return cpp::fail(error_t::unknown_err); }
+    cpp::result<void, error_t> beginTransaction(int i2c_port, int i2c_addr, uint32_t freq, bool read) { return cpp::fail(error_t::unknown_err); }
     cpp::result<void, error_t> endTransaction(int i2c_port) { return cpp::fail(error_t::unknown_err); }
-    cpp::result<void, error_t> writeBytes(int i2c_port, const std::uint8_t *data, std::size_t length) { return cpp::fail(error_t::unknown_err); }
-    cpp::result<void, error_t> readBytes(int i2c_port, std::uint8_t *data, std::size_t length) { return cpp::fail(error_t::unknown_err); }
+    cpp::result<void, error_t> writeBytes(int i2c_port, const uint8_t *data, size_t length) { return cpp::fail(error_t::unknown_err); }
+    cpp::result<void, error_t> readBytes(int i2c_port, uint8_t *data, size_t length) { return cpp::fail(error_t::unknown_err); }
 
 //--------
 
-    cpp::result<void, error_t> transactionWrite(int i2c_port, int addr, const std::uint8_t *writedata, std::uint8_t writelen, std::uint32_t freq)  { return cpp::fail(error_t::unknown_err); }
-    cpp::result<void, error_t> transactionRead(int i2c_port, int addr, std::uint8_t *readdata, std::uint8_t readlen, std::uint32_t freq)  { return cpp::fail(error_t::unknown_err); }
-    cpp::result<void, error_t> transactionWriteRead(int i2c_port, int addr, const std::uint8_t *writedata, std::uint8_t writelen, std::uint8_t *readdata, std::size_t readlen, std::uint32_t freq)  { return cpp::fail(error_t::unknown_err); }
+    cpp::result<void, error_t> transactionWrite(int i2c_port, int addr, const uint8_t *writedata, uint8_t writelen, uint32_t freq)  { return cpp::fail(error_t::unknown_err); }
+    cpp::result<void, error_t> transactionRead(int i2c_port, int addr, uint8_t *readdata, uint8_t readlen, uint32_t freq)  { return cpp::fail(error_t::unknown_err); }
+    cpp::result<void, error_t> transactionWriteRead(int i2c_port, int addr, const uint8_t *writedata, uint8_t writelen, uint8_t *readdata, size_t readlen, uint32_t freq)  { return cpp::fail(error_t::unknown_err); }
 
-    cpp::result<std::uint8_t, error_t> readRegister8(int i2c_port, int addr, std::uint8_t reg, std::uint32_t freq)  { return cpp::fail(error_t::unknown_err); }
-    cpp::result<void, error_t> writeRegister8(int i2c_port, int addr, std::uint8_t reg, std::uint8_t data, std::uint8_t mask, std::uint32_t freq)  { return cpp::fail(error_t::unknown_err); }
+    cpp::result<uint8_t, error_t> readRegister8(int i2c_port, int addr, uint8_t reg, uint32_t freq)  { return cpp::fail(error_t::unknown_err); }
+    cpp::result<void, error_t> writeRegister8(int i2c_port, int addr, uint8_t reg, uint8_t data, uint8_t mask, uint32_t freq)  { return cpp::fail(error_t::unknown_err); }
   }
 
 //----------------------------------------------------------------------------

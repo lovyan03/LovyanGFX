@@ -39,36 +39,36 @@ namespace lgfx
     void setSleep(bool flg) override;
     void setPowerSave(bool flg) override;
 
-    void setWindow(std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye) override;
-    void drawPixelPreclipped(std::uint_fast16_t x, std::uint_fast16_t y, std::uint32_t rawcolor) override;
-    void writeFillRectPreclipped(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, std::uint32_t rawcolor) override;
+    void setWindow(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye) override;
+    void drawPixelPreclipped(uint_fast16_t x, uint_fast16_t y, uint32_t rawcolor) override;
+    void writeFillRectPreclipped(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, uint32_t rawcolor) override;
     color_depth_t setColorDepth(color_depth_t depth) override;
 
-    void setRotation(std::uint_fast8_t r) override;
+    void setRotation(uint_fast8_t r) override;
 
   protected:
 
     void update_madctl(void);
-    void set_window(std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye, std::uint32_t cmd);
+    void set_window(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye, uint32_t cmd);
 
-    static constexpr std::uint8_t CMD_RAMWR = 0x22;
+    static constexpr uint8_t CMD_RAMWR = 0x22;
 
-    static constexpr std::uint8_t CMD_H_ADDR1 = 0x36;
-    static constexpr std::uint8_t CMD_H_ADDR2 = 0x37;
-    static constexpr std::uint8_t CMD_V_ADDR1 = 0x38;
-    static constexpr std::uint8_t CMD_V_ADDR2 = 0x39;
-    static constexpr std::uint8_t CMD_OUTPUT_CTRL = 0x01;
-    static constexpr std::uint8_t CMD_ENTRY_MODE  = 0x03;
-    static constexpr std::uint8_t CMD_POWER_CTRL1 = 0x10;
-    static constexpr std::uint8_t CMD_POWER_CTRL2 = 0x11;
-    static constexpr std::uint8_t CMD_POWER_CTRL3 = 0x12;
-    static constexpr std::uint8_t CMD_POWER_CTRL4 = 0x13;
-    static constexpr std::uint8_t CMD_POWER_CTRL5 = 0x14;
-    static constexpr std::uint8_t CMD_DISPLAY_CTRL1 = 0x07;
+    static constexpr uint8_t CMD_H_ADDR1 = 0x36;
+    static constexpr uint8_t CMD_H_ADDR2 = 0x37;
+    static constexpr uint8_t CMD_V_ADDR1 = 0x38;
+    static constexpr uint8_t CMD_V_ADDR2 = 0x39;
+    static constexpr uint8_t CMD_OUTPUT_CTRL = 0x01;
+    static constexpr uint8_t CMD_ENTRY_MODE  = 0x03;
+    static constexpr uint8_t CMD_POWER_CTRL1 = 0x10;
+    static constexpr uint8_t CMD_POWER_CTRL2 = 0x11;
+    static constexpr uint8_t CMD_POWER_CTRL3 = 0x12;
+    static constexpr uint8_t CMD_POWER_CTRL4 = 0x13;
+    static constexpr uint8_t CMD_POWER_CTRL5 = 0x14;
+    static constexpr uint8_t CMD_DISPLAY_CTRL1 = 0x07;
 
-    const std::uint8_t* getInitCommands(std::uint8_t listno) const override
+    const uint8_t* getInitCommands(uint8_t listno) const override
     {
-      static constexpr std::uint8_t list0[] =
+      static constexpr uint8_t list0[] =
       {
           CMD_POWER_CTRL2  , 2, 0x00, 0x18,
           CMD_POWER_CTRL3  , 2, 0x61, 0x21,

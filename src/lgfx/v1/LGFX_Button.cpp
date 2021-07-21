@@ -19,7 +19,8 @@ Contributors:
 #include "LGFX_Button.hpp"
 
 #include "LGFXBase.hpp"
-#include <limits>
+
+#include "../internal/limits.h"
 
 namespace lgfx
 {
@@ -27,7 +28,7 @@ namespace lgfx
  {
 //----------------------------------------------------------------------------
 
-  void LGFX_Button::_init_button( LovyanGFX *gfx, std::int16_t x, std::int16_t y, std::uint16_t w, std::uint16_t h
+  void LGFX_Button::_init_button( LovyanGFX *gfx, int16_t x, int16_t y, uint16_t w, uint16_t h
                     , const char *label, float textsize_x, float textsize_y)
   {
     _gfx = gfx;
@@ -60,7 +61,7 @@ namespace lgfx
     auto text = inverted ? _fillcolor : _textcolor;
     _gfx->setTextColor(text, fill);
 
-    std::uint_fast8_t r = std::min(_w, _h) >> 2; // Corner radius
+    uint_fast8_t r = (_w < _h ? _w : _h) >> 2; // Corner radius
     _gfx->startWrite();
     _gfx->fillRoundRect(_x, _y, _w, _h, r, fill);
     _gfx->drawRoundRect(_x, _y, _w, _h, r, _outlinecolor);

@@ -38,21 +38,21 @@ namespace lgfx
     void beginTransaction(void) override;
     void endTransaction(void) override;
 
-    void setRotation(std::uint_fast8_t r) override;
+    void setRotation(uint_fast8_t r) override;
 
-    void setWindow(std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye) override;
-    void drawPixelPreclipped(std::uint_fast16_t x, std::uint_fast16_t y, std::uint32_t rawcolor) override;
-    void writeBlock(std::uint32_t rawcolor, std::uint32_t length) override;
+    void setWindow(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye) override;
+    void drawPixelPreclipped(uint_fast16_t x, uint_fast16_t y, uint32_t rawcolor) override;
+    void writeBlock(uint32_t rawcolor, uint32_t length) override;
 
   protected:
-    std::uint8_t* _buf = nullptr;
+    uint8_t* _buf = nullptr;
     range_rect_t _range_mod;
-    std::int32_t _xpos = 0;
-    std::int32_t _ypos = 0;
+    int32_t _xpos = 0;
+    int32_t _ypos = 0;
 
-    virtual std::size_t _get_buffer_length(void) const = 0;
-    void _rotate_pos(std::uint_fast16_t &x, std::uint_fast16_t &y);
-    void _rotate_pos(std::uint_fast16_t &xs, std::uint_fast16_t &ys, std::uint_fast16_t &xe, std::uint_fast16_t &ye);
+    virtual size_t _get_buffer_length(void) const = 0;
+    void _rotate_pos(uint_fast16_t &x, uint_fast16_t &y);
+    void _rotate_pos(uint_fast16_t &xs, uint_fast16_t &ys, uint_fast16_t &xe, uint_fast16_t &ye);
   };
 
 //----------------------------------------------------------------------------

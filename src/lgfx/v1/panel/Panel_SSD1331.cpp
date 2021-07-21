@@ -27,7 +27,7 @@ namespace lgfx
  {
 //----------------------------------------------------------------------------
 
-  void Panel_SSD1331::setBrightness(std::uint8_t brightness)
+  void Panel_SSD1331::setBrightness(uint8_t brightness)
   {
     startWrite();
     _bus->writeCommand(CMD_MASTERCURRENT | (brightness>>4) << 8, 16);
@@ -55,7 +55,7 @@ namespace lgfx
     update_madctl();
     return _write_depth;
   }
-  void Panel_SSD1331::setRotation(std::uint_fast8_t r)
+  void Panel_SSD1331::setRotation(uint_fast8_t r)
   {
     r &= 7;
     _rotation = r;
@@ -88,7 +88,7 @@ namespace lgfx
 */
   void Panel_SSD1331::update_madctl(void)
   {
-    static constexpr std::uint8_t madctl_table[] = {
+    static constexpr uint8_t madctl_table[] = {
       0b00100000,
       0b00100011,
       0b00110010,
@@ -124,7 +124,7 @@ namespace lgfx
     endWrite();
   }
 
-  void Panel_SSD1331::setWindow(std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye)
+  void Panel_SSD1331::setWindow(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye)
   {
     if (_need_delay)
     {
@@ -155,7 +155,7 @@ namespace lgfx
     _bus->writeCommand(CMD_RAMWR, 8);
   }
 
-  void Panel_SSD1331::drawPixelPreclipped(std::uint_fast16_t x, std::uint_fast16_t y, std::uint32_t rawcolor)
+  void Panel_SSD1331::drawPixelPreclipped(uint_fast16_t x, uint_fast16_t y, uint32_t rawcolor)
   {
     bool need_transaction = !getStartCount();
     if (need_transaction) startWrite();
@@ -163,7 +163,7 @@ namespace lgfx
     if (need_transaction) endWrite();
   }
 
-  void Panel_SSD1331::writeFillRectPreclipped(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, std::uint32_t rawcolor)
+  void Panel_SSD1331::writeFillRectPreclipped(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, uint32_t rawcolor)
   {
     auto us = lgfx::micros() - _last_us;
     if (us < _need_delay)
@@ -182,7 +182,7 @@ namespace lgfx
       std::swap(xe, ye);
     }
     _bus->writeCommand(x | y << 8 | xe << 16 | ye << 24, 32);
-    std::uint32_t data;
+    uint32_t data;
     if (_write_bits == 16)
     {
       swap565_t color = rawcolor;
@@ -200,7 +200,7 @@ namespace lgfx
     _last_us = lgfx::micros();
   }
 
-  void Panel_SSD1331::copyRect(std::uint_fast16_t dst_x, std::uint_fast16_t dst_y, std::uint_fast16_t w, std::uint_fast16_t h, std::uint_fast16_t src_x, std::uint_fast16_t src_y)
+  void Panel_SSD1331::copyRect(uint_fast16_t dst_x, uint_fast16_t dst_y, uint_fast16_t w, uint_fast16_t h, uint_fast16_t src_x, uint_fast16_t src_y)
   {
     auto us = lgfx::micros() - _last_us;
     if (us < _need_delay)

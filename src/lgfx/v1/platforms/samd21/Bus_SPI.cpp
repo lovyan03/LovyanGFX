@@ -27,13 +27,13 @@ namespace lgfx
  {
 //----------------------------------------------------------------------------
 
-  std::uint32_t Bus_SPI::FreqToClockDiv(std::uint32_t freq)
+  uint32_t Bus_SPI::FreqToClockDiv(uint32_t freq)
   {
-    std::uint32_t div = std::min<std::uint32_t>(255, _cfg.sercom_clkfreq / (1+(freq<<1)));
+    uint32_t div = std::min<uint32_t>(255, _cfg.sercom_clkfreq / (1+(freq<<1)));
     return div;
   }
 
-  void Bus_SPI::setFreqDiv(std::uint32_t div)
+  void Bus_SPI::setFreqDiv(uint32_t div)
   {
     auto *spi = &_sercom->SPI;
     while (spi->SYNCBUSY.reg);
@@ -53,7 +53,7 @@ namespace lgfx
     _sercom = reinterpret_cast<Sercom*>(samd21::getSercomData(_cfg.sercom_index)->sercomPtr);
     _last_apb_freq = -1;
     _mask_reg_dc = 0;
-    std::uint32_t port = 0;
+    uint32_t port = 0;
     if (_cfg.pin_dc >= 0)
     {
       _mask_reg_dc = (1ul << (_cfg.pin_dc & (samd21::PIN_MASK)));
@@ -122,7 +122,7 @@ namespace lgfx
     return _need_wait && (_sercom->SPI.INTFLAG.bit.TXC == 0);
   }
 
-  bool Bus_SPI::writeCommand(std::uint32_t data, std::uint_fast8_t bit_length)
+  bool Bus_SPI::writeCommand(uint32_t data, uint_fast8_t bit_length)
   {
     bit_length >>= 3;
     auto *spi = &_sercom->SPI;
@@ -142,7 +142,7 @@ namespace lgfx
     return true;
   }
 
-  void Bus_SPI::writeData(std::uint32_t data, std::uint_fast8_t bit_length)
+  void Bus_SPI::writeData(uint32_t data, uint_fast8_t bit_length)
   {
     bit_length >>= 3;
     auto *spi = &_sercom->SPI;
@@ -161,16 +161,16 @@ namespace lgfx
     }
   }
 
-  void Bus_SPI::writeDataRepeat(std::uint32_t data, std::uint_fast8_t bit_length, std::uint32_t length)
+  void Bus_SPI::writeDataRepeat(uint32_t data, uint_fast8_t bit_length, uint32_t length)
   {
-    std::size_t bits = bit_length & ~7;
+    size_t bits = bit_length & ~7;
     auto *spi = &_sercom->SPI;
     dc_control(true);
     _need_wait = true;
-    std::size_t i = 0;
+    size_t i = 0;
     for (;;)
     {
-      std::size_t tmp = data >> i;
+      size_t tmp = data >> i;
       i += 8;
       while (spi->INTFLAG.bit.DRE == 0);
       spi->DATA.reg = tmp;
@@ -180,16 +180,16 @@ namespace lgfx
     }
   }
 
-  void Bus_SPI::writePixels(pixelcopy_t* param, std::uint32_t length)
+  void Bus_SPI::writePixels(pixelcopy_t* param, uint32_t length)
   {
-    const std::uint8_t bytes = param->dst_bits >> 3;
+    const uint8_t bytes = param->dst_bits >> 3;
     auto *spi = &_sercom->SPI;
-    std::uint32_t data;
-    param->fp_copy((std::uint8_t*)&data, 0, 1, param);
+    uint32_t data;
+    param->fp_copy((uint8_t*)&data, 0, 1, param);
     dc_control(true);
     spi->DATA.reg = data;
     _need_wait = true;
-    std::uint32_t i = 0;
+    uint32_t i = 0;
     while (++i != bytes)
     {
       while (spi->INTFLAG.bit.DRE == 0);
@@ -197,18 +197,18 @@ namespace lgfx
     }
     if (--length)
     {
-      param->fp_copy((std::uint8_t*)&data, 0, 1, param);
+      param->fp_copy((uint8_t*)&data, 0, 1, param);
       i = 0;
       do
       {
-        std::uint32_t tmp = data >> (i << 3);
+        uint32_t tmp = data >> (i << 3);
         while (spi->INTFLAG.bit.DRE == 0);
         spi->DATA.reg = tmp;
       } while (++i != bytes);
     } while (--length);
   }
 
-  void Bus_SPI::writeBytes(const std::uint8_t* data, std::uint32_t length, bool dc, bool use_dma)
+  void Bus_SPI::writeBytes(const uint8_t* data, uint32_t length, bool dc, bool use_dma)
   {
     auto *spi = &_sercom->SPI;
     dc_control(dc);
@@ -216,16 +216,16 @@ namespace lgfx
     _need_wait = true;
     while (--length)
     {
-      std::uint32_t tmp = *++data;
+      uint32_t tmp = *++data;
       while (spi->INTFLAG.bit.DRE == 0);
       spi->DATA.reg = tmp;
     }
   }
 
-  std::uint32_t Bus_SPI::readData(std::uint_fast8_t bit_length)
+  uint32_t Bus_SPI::readData(uint_fast8_t bit_length)
   {
     auto *spi = &_sercom->SPI;
-    std::uint32_t res = 0;
+    uint32_t res = 0;
     bit_length >>= 3;
     if (!bit_length) return res;
     int idx = 0;
@@ -239,14 +239,14 @@ namespace lgfx
     return res;
   }
 
-  bool Bus_SPI::readBytes(std::uint8_t* dst, std::uint32_t length, bool use_dma)
+  bool Bus_SPI::readBytes(uint8_t* dst, uint32_t length, bool use_dma)
   {
     auto *spi = &_sercom->SPI;
     spi->DATA.reg = 0;
     while (--length)
     {
       while (spi->INTFLAG.bit.RXC == 0);
-      std::uint_fast8_t tmp = spi->DATA.reg;
+      uint_fast8_t tmp = spi->DATA.reg;
       spi->DATA.reg = 0;
       *dst++ = tmp;
     }
@@ -255,16 +255,16 @@ namespace lgfx
     return true;
   }
 
-  void Bus_SPI::readPixels(void* dst, pixelcopy_t* param, std::uint32_t length)
+  void Bus_SPI::readPixels(void* dst, pixelcopy_t* param, uint32_t length)
   {
-    std::uint32_t bytes = param->src_bits >> 3;
-    std::uint32_t dstindex = 0;
-    std::uint32_t len = 4;
-    std::uint8_t buf[24];
+    uint32_t bytes = param->src_bits >> 3;
+    uint32_t dstindex = 0;
+    uint32_t len = 4;
+    uint8_t buf[24];
     param->src_data = buf;
     do {
       if (len > length) len = length;
-      readBytes((std::uint8_t*)buf, len * bytes, true);
+      readBytes((uint8_t*)buf, len * bytes, true);
       param->src_x = 0;
       dstindex = param->fp_copy(dst, dstindex, dstindex + len, param);
       length -= len;

@@ -30,9 +30,9 @@ namespace lgfx
   public:
     struct config_t
     {
-      std::uint32_t freq = 1200;
-      std::int16_t pin_bl = -1;
-      std::uint8_t pwm_channel = 7;
+      uint32_t freq = 1200;
+      int16_t pin_bl = -1;
+      uint8_t pwm_channel = 7;
       bool invert = false;
     };
 
@@ -40,8 +40,8 @@ namespace lgfx
 
     void config(const config_t &cfg) { _cfg = cfg; }
 
-    bool init(std::uint8_t brightness) override;
-    void setBrightness(std::uint8_t brightness) override;
+    bool init(uint8_t brightness) override;
+    void setBrightness(uint8_t brightness) override;
 
   private:
     config_t _cfg;

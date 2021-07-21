@@ -37,43 +37,43 @@ namespace lgfx
   {
   public:
     // Write single byte as COMMAND
-    virtual void writeCommand(std::uint_fast8_t cmd) = 0; // AdafruitGFX compatible
+    virtual void writeCommand(uint_fast8_t cmd) = 0; // AdafruitGFX compatible
     __attribute__ ((always_inline))
-    inline  void writecommand(std::uint_fast8_t cmd) { writeCommand(cmd); } // TFT_eSPI compatible
+    inline  void writecommand(uint_fast8_t cmd) { writeCommand(cmd); } // TFT_eSPI compatible
 
     // Write single bytes as DATA
-    virtual void writeData(std::uint_fast8_t data) = 0; // TFT_eSPI compatible
+    virtual void writeData(uint_fast8_t data) = 0; // TFT_eSPI compatible
     __attribute__ ((always_inline))
-    inline  void spiWrite( std::uint_fast8_t data) { writeData(data); } // AdafruitGFX compatible
+    inline  void spiWrite( uint_fast8_t data) { writeData(data); } // AdafruitGFX compatible
     __attribute__ ((always_inline))
-    inline  void writedata(std::uint_fast8_t data) { writeData(data); } // TFT_eSPI compatible
+    inline  void writedata(uint_fast8_t data) { writeData(data); } // TFT_eSPI compatible
 
     // Write double bytes as DATA
-    virtual void writeData16(std::uint_fast16_t data) = 0;
-    virtual void writeData32(std::uint32_t data) = 0;
+    virtual void writeData16(uint_fast16_t data) = 0;
+    virtual void writeData32(uint32_t data) = 0;
 
-    void writeBytes(const std::uint8_t* data, std::int32_t length, bool use_dma = true) { writeBytes_impl(data, length, use_dma); }
+    void writeBytes(const uint8_t* data, int32_t length, bool use_dma = true) { writeBytes_impl(data, length, use_dma); }
 
-    void readBytes(std::uint8_t* dst, std::int32_t length) { readBytes_impl(dst, length); }
+    void readBytes(uint8_t* dst, int32_t length) { readBytes_impl(dst, length); }
 
-    virtual std::uint32_t readCommand(std::uint_fast8_t cmd, std::uint_fast8_t index=0, std::uint_fast8_t len=4) = 0;
+    virtual uint32_t readCommand(uint_fast8_t cmd, uint_fast8_t index=0, uint_fast8_t len=4) = 0;
 
-    std::uint8_t  readCommand8( std::uint_fast8_t cmd, std::uint_fast8_t index=0) { return readCommand(cmd, index, 1); }
-    std::uint8_t  readcommand8( std::uint_fast8_t cmd, std::uint_fast8_t index=0) { return readCommand(cmd, index, 1); }
-    std::uint16_t readCommand16(std::uint_fast8_t cmd, std::uint_fast8_t index=0) { return __builtin_bswap16(readCommand(cmd, index, 2)); }
-    std::uint16_t readcommand16(std::uint_fast8_t cmd, std::uint_fast8_t index=0) { return __builtin_bswap16(readCommand(cmd, index, 2)); }
-    std::uint32_t readCommand32(std::uint_fast8_t cmd, std::uint_fast8_t index=0) { return __builtin_bswap32(readCommand(cmd, index, 4)); }
-    std::uint32_t readcommand32(std::uint_fast8_t cmd, std::uint_fast8_t index=0) { return __builtin_bswap32(readCommand(cmd, index, 4)); }
-    std::uint32_t readPanelID(void) { return readCommand(_panel->getCmdRddid()); }
+    uint8_t  readCommand8( uint_fast8_t cmd, uint_fast8_t index=0) { return readCommand(cmd, index, 1); }
+    uint8_t  readcommand8( uint_fast8_t cmd, uint_fast8_t index=0) { return readCommand(cmd, index, 1); }
+    uint16_t readCommand16(uint_fast8_t cmd, uint_fast8_t index=0) { return __builtin_bswap16(readCommand(cmd, index, 2)); }
+    uint16_t readcommand16(uint_fast8_t cmd, uint_fast8_t index=0) { return __builtin_bswap16(readCommand(cmd, index, 2)); }
+    uint32_t readCommand32(uint_fast8_t cmd, uint_fast8_t index=0) { return __builtin_bswap32(readCommand(cmd, index, 4)); }
+    uint32_t readcommand32(uint_fast8_t cmd, uint_fast8_t index=0) { return __builtin_bswap32(readCommand(cmd, index, 4)); }
+    uint32_t readPanelID(void) { return readCommand(_panel->getCmdRddid()); }
 
-    virtual std::uint32_t readData(std::uint_fast8_t index=0, std::uint_fast8_t len=1) = 0;
+    virtual uint32_t readData(uint_fast8_t index=0, uint_fast8_t len=1) = 0;
 
-    std::uint8_t  readData8( std::uint_fast8_t index=0) { return readData(index, 1); }
-    std::uint8_t  readdata8( std::uint_fast8_t index=0) { return readData(index, 1); }
-    std::uint16_t readData16(std::uint_fast8_t index=0) { return __builtin_bswap16(readData(index, 2)); }
-    std::uint16_t readdata16(std::uint_fast8_t index=0) { return __builtin_bswap16(readData(index, 2)); }
-    std::uint32_t readData32(std::uint_fast8_t index=0) { return __builtin_bswap32(readData(index, 4)); }
-    std::uint32_t readdata32(std::uint_fast8_t index=0) { return __builtin_bswap32(readData(index, 4)); }
+    uint8_t  readData8( uint_fast8_t index=0) { return readData(index, 1); }
+    uint8_t  readdata8( uint_fast8_t index=0) { return readData(index, 1); }
+    uint16_t readData16(uint_fast8_t index=0) { return __builtin_bswap16(readData(index, 2)); }
+    uint16_t readdata16(uint_fast8_t index=0) { return __builtin_bswap16(readData(index, 2)); }
+    uint32_t readData32(uint_fast8_t index=0) { return __builtin_bswap32(readData(index, 4)); }
+    uint32_t readdata32(uint_fast8_t index=0) { return __builtin_bswap32(readData(index, 4)); }
 
     __attribute__ ((always_inline)) inline bool getInvert(void) const { return _panel->invert; }
 
@@ -90,22 +90,22 @@ namespace lgfx
 
     void sleep(void)
     {
-      std::uint8_t buf[32];
+      uint8_t buf[32];
       if (auto b = _panel->getSleepInCommands(buf)) commandList(b);
       _panel->sleep(this);
     }
 
     void wakeup(void)
     {
-      std::uint8_t buf[32];
+      uint8_t buf[32];
       if (auto b = _panel->getSleepOutCommands(buf)) commandList(b);
       _panel->wakeup(this);
     }
 
     void powerSave(bool flg)
     {
-      std::uint8_t buf[32];
-      const std::uint8_t* b = flg 
+      uint8_t buf[32];
+      const uint8_t* b = flg 
                             ? _panel->getPowerSaveOnCommands(buf)
                             : _panel->getPowerSaveOffCommands(buf);
       if (b) commandList(b);
@@ -128,7 +128,7 @@ namespace lgfx
       endWrite();
     }
 
-    void display(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h)
+    void display(int32_t x, int32_t y, int32_t w, int32_t h)
     {
       if (nullptr == _panel->fp_display) return;
       if (x < 0) { w += x; x = 0; }
@@ -161,38 +161,38 @@ namespace lgfx
       _auto_display = flg;
     }
 
-    void setColorDepth(std::uint8_t bpp) { setColorDepth((color_depth_t)bpp); }
+    void setColorDepth(uint8_t bpp) { setColorDepth((color_depth_t)bpp); }
     void setColorDepth(color_depth_t depth)
     {
-      std::uint8_t buf[32];
+      uint8_t buf[32];
       commandList(_panel->getColorDepthCommands(buf, depth));
       postSetColorDepth();
     }
 
-    void setRotation(std::int_fast8_t r)
+    void setRotation(int_fast8_t r)
     {
-      std::uint8_t buf[32];
+      uint8_t buf[32];
       commandList(_panel->getRotationCommands(buf, r));
       postSetRotation();
     }
 
     void invertDisplay(bool i)
     {
-      std::uint8_t buf[32];
+      uint8_t buf[32];
       commandList(_panel->getInvertDisplayCommands(buf, i));
     }
 
-    std::uint8_t getBrightness(void) const { return _panel->brightness; }
+    uint8_t getBrightness(void) const { return _panel->brightness; }
 
-    void setBrightness(std::uint8_t brightness) {
+    void setBrightness(uint8_t brightness) {
       _panel->setBrightness(brightness);
     }
 
     virtual void initBus(void) = 0;
 
-    virtual void writeBytes_impl(const std::uint8_t* data, std::int32_t length, bool use_dma) = 0;
+    virtual void writeBytes_impl(const uint8_t* data, int32_t length, bool use_dma) = 0;
     
-    virtual void readBytes_impl(std::uint8_t* dst, std::int32_t length) = 0;
+    virtual void readBytes_impl(uint8_t* dst, int32_t length) = 0;
 
     void initPanel(bool use_reset = true)
     {
@@ -207,8 +207,8 @@ namespace lgfx
 
       invertDisplay(getInvert());
 
-      const std::uint8_t *cmds;
-      for (std::uint8_t i = 0; (cmds = _panel->getInitCommands(i)); i++) {
+      const uint8_t *cmds;
+      for (uint8_t i = 0; (cmds = _panel->getInitCommands(i)); i++) {
         delay(120);
         startWrite();
         cs_l();
@@ -235,7 +235,7 @@ namespace lgfx
       _touch->wakeup();
     }
 
-    std::uint_fast8_t getTouchRaw(touch_point_t *tp, std::uint_fast8_t number = 0)
+    uint_fast8_t getTouchRaw(touch_point_t *tp, uint_fast8_t number = 0)
     {
       if (!_touch) return 0;
 
@@ -246,7 +246,7 @@ namespace lgfx
       return res;
     }
 
-    std::uint_fast8_t getTouchRaw(std::int32_t *x = nullptr, std::int32_t *y = nullptr, std::uint_fast8_t number = 0)
+    uint_fast8_t getTouchRaw(int32_t *x = nullptr, int32_t *y = nullptr, uint_fast8_t number = 0)
     {
       touch_point_t tp;
       auto res = getTouchRaw(&tp, number);
@@ -256,18 +256,18 @@ namespace lgfx
     }
 
     template <typename T>
-    std::uint_fast8_t getTouch(T *x, T *y, std::uint_fast8_t number = 0)
+    uint_fast8_t getTouch(T *x, T *y, uint_fast8_t number = 0)
     {
-      std::int32_t tx = -1, ty = -1;
+      int32_t tx = -1, ty = -1;
       auto res = getTouch(&tx, &ty, number);
       if (x) *x = tx;
       if (y) *y = ty;
       return res;
     }
 
-    std::uint_fast8_t getTouch(std::int32_t *x, std::int32_t *y, std::uint_fast8_t number = 0)
+    uint_fast8_t getTouch(int32_t *x, int32_t *y, uint_fast8_t number = 0)
     {
-      std::int32_t tx = -1, ty = -1;
+      int32_t tx = -1, ty = -1;
       auto res = getTouchRaw(&tx, &ty, number);
       if (0 == res) return 0;
       convertRawXY(&tx, &ty);
@@ -276,7 +276,7 @@ namespace lgfx
       return res;
     }
 
-    std::uint_fast8_t getTouch(touch_point_t *tp, std::uint_fast8_t number = 0)
+    uint_fast8_t getTouch(touch_point_t *tp, uint_fast8_t number = 0)
     {
       auto res = getTouchRaw(tp, number);
       if (0 == res || tp == nullptr) return res;
@@ -284,20 +284,20 @@ namespace lgfx
       return res;
     }
 
-    void convertRawXY(std::uint16_t *x, std::uint16_t *y)
+    void convertRawXY(uint16_t *x, uint16_t *y)
     {
-      std::int32_t tx = *x, ty = *y;
+      int32_t tx = *x, ty = *y;
       convertRawXY(&tx, &ty);
       *x = tx;
       *y = ty;
     }
 
-    void convertRawXY(std::int32_t *x, std::int32_t *y)
+    void convertRawXY(int32_t *x, int32_t *y)
     {
-      std::int32_t tx = (_touch_affine[0] * (float)*x + _touch_affine[1] * (float)*y) + _touch_affine[2];
-      std::int32_t ty = (_touch_affine[3] * (float)*x + _touch_affine[4] * (float)*y) + _touch_affine[5];
+      int32_t tx = (_touch_affine[0] * (float)*x + _touch_affine[1] * (float)*y) + _touch_affine[2];
+      int32_t ty = (_touch_affine[3] * (float)*x + _touch_affine[4] * (float)*y) + _touch_affine[5];
 
-      std::uint_fast8_t r = _panel->rotation & 7;
+      uint_fast8_t r = _panel->rotation & 7;
       if (r & 1) {
         std::swap(tx, ty);
       }
@@ -319,12 +319,12 @@ namespace lgfx
     }
 
     // This requires a uint16_t array with 8 elements.
-    void setTouchCalibrate(std::uint16_t *parameters) { set_touch_calibrate(parameters); }
+    void setTouchCalibrate(uint16_t *parameters) { set_touch_calibrate(parameters); }
 
-    bool commandList(const std::uint8_t *addr)
+    bool commandList(const uint8_t *addr)
     {
       if (addr == nullptr) return false;
-      if (*reinterpret_cast<const std::uint16_t*>(addr) == 0xFFFF) return false;
+      if (*reinterpret_cast<const uint16_t*>(addr) == 0xFFFF) return false;
 
       startWrite();
       preCommandList();
@@ -334,14 +334,14 @@ namespace lgfx
       return true;
     }
 
-    void command_list(const std::uint8_t *addr)
+    void command_list(const uint8_t *addr)
     {
       for (;;)
       {                // For each command...
-        if (*reinterpret_cast<const std::uint16_t*>(addr) == 0xFFFF) break;
+        if (*reinterpret_cast<const uint16_t*>(addr) == 0xFFFF) break;
         writeCommand(*addr++);  // Read, issue command
-        std::uint_fast8_t numArgs = *addr++;  // Number of args to follow
-        std::uint_fast8_t ms = numArgs & CMD_INIT_DELAY;       // If hibit set, delay follows args
+        uint_fast8_t numArgs = *addr++;  // Number of args to follow
+        uint_fast8_t ms = numArgs & CMD_INIT_DELAY;       // If hibit set, delay follows args
         numArgs &= ~CMD_INIT_DELAY;          // Mask out delay bit
         if (numArgs)
         {
@@ -382,11 +382,11 @@ namespace lgfx
     virtual void postSetRotation(void) {}
     virtual void postSetTouch(void)
     {
-      std::uint16_t xmin = _touch->x_min;
-      std::uint16_t xmax = _touch->x_max;
-      std::uint16_t ymin = _touch->y_min;
-      std::uint16_t ymax = _touch->y_max;
-      std::uint16_t parameters[8] = 
+      uint16_t xmin = _touch->x_min;
+      uint16_t xmax = _touch->x_max;
+      uint16_t ymin = _touch->y_min;
+      uint16_t ymax = _touch->y_max;
+      uint16_t parameters[8] = 
         { xmin, ymin
         , xmin, ymax
         , xmax, ymin
@@ -414,21 +414,21 @@ namespace lgfx
     }
 
     bool isReadable_impl(void) const override { return _panel->spi_read; }
-    std::int_fast8_t getRotation_impl(void) const override { return _panel->rotation; }
+    int_fast8_t getRotation_impl(void) const override { return _panel->rotation; }
 
-    void copyRect_impl(std::int32_t dst_x, std::int32_t dst_y, std::int32_t w, std::int32_t h, std::int32_t src_x, std::int32_t src_y) override
+    void copyRect_impl(int32_t dst_x, int32_t dst_y, int32_t w, int32_t h, int32_t src_x, int32_t src_y) override
     {
       pixelcopy_t pc_read((void*)nullptr, _write_conv.depth, _read_conv.depth);
       pixelcopy_t pc_write((void*)nullptr, _write_conv.depth, _write_conv.depth);
       if (w < h)
       {
-        const std::uint32_t buflen = h * _write_conv.bytes;
-        std::uint8_t buf[buflen];
+        const uint32_t buflen = h * _write_conv.bytes;
+        uint8_t buf[buflen];
         pc_write.src_data = buf;
         pc_write.src_width = 1;
         pc_write.src_bitwidth = 1;
-        std::int32_t add = (src_x < dst_x) ?   - 1 : 1;
-        std::int32_t pos = (src_x < dst_x) ? w - 1 : 0;
+        int32_t add = (src_x < dst_x) ?   - 1 : 1;
+        int32_t pos = (src_x < dst_x) ? w - 1 : 0;
         do {
           readRect_impl(src_x + pos, src_y, 1, h, buf, &pc_read);
           pc_write.src_x = 0;
@@ -438,11 +438,11 @@ namespace lgfx
         } while (--w);
         waitDMA_impl();
       } else {
-        const std::uint32_t buflen = w * _write_conv.bytes;
-        std::uint8_t buf[buflen];
+        const uint32_t buflen = w * _write_conv.bytes;
+        uint8_t buf[buflen];
         pc_write.src_data = buf;
-        std::int32_t add = (src_y < dst_y) ?   - 1 : 1;
-        std::int32_t pos = (src_y < dst_y) ? h - 1 : 0;
+        int32_t add = (src_y < dst_y) ?   - 1 : 1;
+        int32_t pos = (src_y < dst_y) ? h - 1 : 0;
         do {
           readRect_impl(src_x, src_y + pos, w, 1, buf, &pc_read);
           pc_write.src_x = 0;
@@ -454,14 +454,14 @@ namespace lgfx
       }
     }
 
-    void pushImageARGB_impl(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, pixelcopy_t* param) override
+    void pushImageARGB_impl(int32_t x, int32_t y, int32_t w, int32_t h, pixelcopy_t* param) override
     {
       auto src_x = param->src_x;
       auto buffer = reinterpret_cast<argb8888_t*>(const_cast<void*>(param->src_data));
       auto bytes = _write_conv.bytes;
 /*
       this->setWindow(x, y, x + w, y);
-      std::uint8_t* dmabuf = get_dmabuffer(w * bytes);
+      uint8_t* dmabuf = get_dmabuffer(w * bytes);
       memset(dmabuf, 0, w * bytes);
       param->fp_copy(dmabuf, 0, w, param);
       this->writePixelsDMA_impl(dmabuf, w);
@@ -471,12 +471,12 @@ namespace lgfx
       pixelcopy_t pc_write(nullptr, static_cast<color_depth_t>(_write_conv.depth), _write_conv.depth);
       for (;;)
       {
-        std::uint8_t* dmabuf = get_dmabuffer((w+1) * bytes);
+        uint8_t* dmabuf = get_dmabuffer((w+1) * bytes);
         pc_write.src_data = dmabuf;
-        std::int32_t xstart = 0, drawed_x = 0;
+        int32_t xstart = 0, drawed_x = 0;
         do
         {
-          std::uint_fast8_t a = buffer[xstart].a;
+          uint_fast8_t a = buffer[xstart].a;
           if (!a)
           {
             if (drawed_x < xstart)
@@ -493,7 +493,7 @@ namespace lgfx
           {
             while (255 == buffer[xstart].a && ++xstart != w);
             if (xstart == w) break;
-            std::int32_t j = xstart;
+            int32_t j = xstart;
             while (++j != w && buffer[j].a && buffer[j].a != 255);
             read_rect(x + xstart, y, j - xstart + 1, 1, &dmabuf[xstart * bytes], &pc_read);
             if (w == (xstart = j)) break;
@@ -515,8 +515,8 @@ namespace lgfx
     }
 
     struct _dmabufs_t {
-      std::uint8_t* buffer = nullptr;
-      std::uint32_t length = 0;
+      uint8_t* buffer = nullptr;
+      uint32_t length = 0;
       void free(void) {
         if (buffer) {
           heap_free(buffer);
@@ -526,13 +526,13 @@ namespace lgfx
       }
     };
 
-    std::uint8_t* get_dmabuffer(std::uint32_t length)
+    uint8_t* get_dmabuffer(uint32_t length)
     {
       _dma_flip = !_dma_flip;
       length = (length + 3) & ~3;
       if (_dmabufs[_dma_flip].length != length) {
         _dmabufs[_dma_flip].free();
-        _dmabufs[_dma_flip].buffer = (std::uint8_t*)heap_alloc_dma(length);
+        _dmabufs[_dma_flip].buffer = (uint8_t*)heap_alloc_dma(length);
         _dmabufs[_dma_flip].length = _dmabufs[_dma_flip].buffer ? length : 0;
       }
       return _dmabufs[_dma_flip].buffer;
@@ -549,7 +549,7 @@ namespace lgfx
     _dmabufs_t _dmabufs[2];
 
 
-    void draw_calibrate_point(std::int32_t x, std::int32_t y, std::int32_t r, std::uint32_t fg_rawcolor, std::uint32_t bg_rawcolor)
+    void draw_calibrate_point(int32_t x, int32_t y, int32_t r, uint32_t fg_rawcolor, uint32_t bg_rawcolor)
     {
       setRawColor(bg_rawcolor);
       fillRect(x - r, y - r, r * 2 + 1, r * 2 + 1);
@@ -558,7 +558,7 @@ namespace lgfx
       setRawColor(fg_rawcolor);
       fillRect(x - 1, y - r, 3, r * 2 + 1);
       fillRect(x - r, y - 1, r * 2 + 1, 3);
-      for (std::int32_t i = - r + 1; i < r; ++i) {
+      for (int32_t i = - r + 1; i < r; ++i) {
         drawFastHLine(x + i - 1, y + i, 3);
         drawFastHLine(x - i - 1, y + i, 3);
       }
@@ -569,21 +569,21 @@ namespace lgfx
       endWrite();
     }
 
-    void calibrate_touch(std::uint16_t *parameters, std::uint32_t fg_rawcolor, std::uint32_t bg_rawcolor, std::uint8_t size)
+    void calibrate_touch(uint16_t *parameters, uint32_t fg_rawcolor, uint32_t bg_rawcolor, uint8_t size)
     {
       if (nullptr == _touch) return;
       auto rot = getRotation();
       setRotation(0);
 
-      std::uint16_t orig[8];
+      uint16_t orig[8];
       for (int i = 0; i < 4; ++i) {
-        std::int32_t px = (_width -  1) * ((i>>1) & 1);
-        std::int32_t py = (_height - 1) * ( i     & 1);
+        int32_t px = (_width -  1) * ((i>>1) & 1);
+        int32_t py = (_height - 1) * ( i     & 1);
         draw_calibrate_point( px, py, size, fg_rawcolor, bg_rawcolor);
         delay(500);
-        std::int32_t x_touch = 0, y_touch = 0;
+        int32_t x_touch = 0, y_touch = 0;
         static constexpr int _RAWERR = 20;
-        std::int32_t x_tmp, y_tmp, x_tmp2, y_tmp2;
+        int32_t x_tmp, y_tmp, x_tmp2, y_tmp2;
         for (int j = 0; j < 8; ++j) {
           do {
             do { delay(1); } while (!getTouchRaw(&x_tmp,&y_tmp));
@@ -603,28 +603,28 @@ namespace lgfx
         while (getTouchRaw());
       }
       if (nullptr != parameters) {
-        memcpy(parameters, orig, sizeof(std::uint16_t) * 8);
+        memcpy(parameters, orig, sizeof(uint16_t) * 8);
       }
       set_touch_calibrate(orig);
       setRotation(rot);
     }
 
-    void set_touch_calibrate(std::uint16_t *parameters)
+    void set_touch_calibrate(uint16_t *parameters)
     {
-      std::uint32_t vect[6] = {0,0,0,0,0,0};
+      uint32_t vect[6] = {0,0,0,0,0,0};
       float mat[3][3] = {{0,0,0},{0,0,0},{0,0,0}};
 
       bool r = getRotation() & 1;
-      std::int32_t w = r ? _height : _width;
-      std::int32_t h = r ? _width : _height;
+      int32_t w = r ? _height : _width;
+      int32_t h = r ? _width : _height;
       --w;
       --h;
       float a;
       for ( int i = 0; i < 4; ++i ) {
-        std::int32_t tx = w * ((i>>1) & 1);
-        std::int32_t ty = h * ( i     & 1);
-        std::int32_t px = parameters[i*2  ];
-        std::int32_t py = parameters[i*2+1];
+        int32_t tx = w * ((i>>1) & 1);
+        int32_t ty = h * ( i     & 1);
+        int32_t px = parameters[i*2  ];
+        int32_t py = parameters[i*2+1];
         a = px * px;
         mat[0][0] += a;
         a = px * py;
