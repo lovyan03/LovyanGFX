@@ -21,7 +21,7 @@ Contributors:
 
 #include "esp32/common.hpp"
 
-#elif defined ( ESP8266 )
+#elif defined (ESP8266)
 
 #include "esp8266/common.hpp"
 
@@ -37,7 +37,11 @@ Contributors:
 
 #include "stm32/common.hpp"
 
-#elif defined ( ARDUINO )
+#elif defined (ARDUINO_ARCH_SPRESENSE)
+
+#include "spresense/common.hpp"
+
+#elif defined (ARDUINO)
 
 #include "arduino_default/common.hpp"
 

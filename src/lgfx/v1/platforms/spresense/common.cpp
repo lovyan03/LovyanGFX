@@ -15,12 +15,7 @@ Contributors:
  [mongonta0716](https://github.com/mongonta0716)
  [tobozo](https://github.com/tobozo)
 /----------------------------------------------------------------------------*/
-#if defined (ESP_PLATFORM)
-#elif defined (ESP8266)
-#elif defined (__SAMD21__) || defined (__SAMD51__)
-#elif defined (STM32F2xx) || defined (STM32F4xx) || defined (STM32F7xx)
-#elif defined (ARDUINO_ARCH_SPRESENSE)
-#elif defined (ARDUINO)
+#if defined (ARDUINO_ARCH_SPRESENSE)
 
 #include "common.hpp"
 

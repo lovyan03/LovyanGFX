@@ -41,7 +41,7 @@ Contributors:
 
  #endif
 
-#elif defined ( ESP8266 )
+#elif defined (ESP8266)
 
 #include "esp8266/Bus_SPI.hpp"
 
@@ -59,7 +59,11 @@ Contributors:
 
 #include "stm32/Bus_SPI.hpp"
 
-#elif defined ( ARDUINO )
+#elif defined (ARDUINO_ARCH_SPRESENSE)
+
+#include "spresense/Bus_SPI.hpp"
+
+#elif defined (ARDUINO)
 
 #include "arduino_default/Bus_SPI.hpp"
 

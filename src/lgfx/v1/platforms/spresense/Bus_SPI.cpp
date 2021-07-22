@@ -15,17 +15,21 @@ Contributors:
  [mongonta0716](https://github.com/mongonta0716)
  [tobozo](https://github.com/tobozo)
 /----------------------------------------------------------------------------*/
-#if defined (ESP_PLATFORM)
-#elif defined (ESP8266)
-#elif defined (__SAMD21__) || defined (__SAMD51__)
-#elif defined (STM32F2xx) || defined (STM32F4xx) || defined (STM32F7xx)
-#elif defined (ARDUINO_ARCH_SPRESENSE)
-#elif defined (ARDUINO)
+#if defined (ARDUINO_ARCH_SPRESENSE)
 
 #include "Bus_SPI.hpp"
 #include "../../misc/pixelcopy.hpp"
+
+#include <sdk/config.h>
+#include <nuttx/config.h>
+#include <nuttx/spi/spi.h>
 #include <Arduino.h>
 #include <SPI.h>
+
+#include <chip/hardware/cxd5602_memorymap.h>
+#include <chip/hardware/cxd5602_topreg.h>
+
+#include <wiring_private.h>
 
 namespace lgfx
 {
@@ -33,12 +37,33 @@ namespace lgfx
  {
 //----------------------------------------------------------------------------
 
+  static uintptr_t get_gpio_regaddr(uint32_t pin)
+  {
+    pin = pin_convert(pin);
+    uint32_t base = (pin < PIN_IS_CLK) ? 1 : 7;
+    return CXD56_TOPREG_GP_I2C4_BCK + ((pin - base) * 4);
+  }
+
+//----------------------------------------------------------------------------
+
   void Bus_SPI::config(const config_t& config)
   {
     _cfg = config;
 
+    switch (_cfg.spi_port)
+    {
+    case 3:  _spibase = CXD56_SCU_SPI_BASE;  break;
+    case 4:  _spibase = CXD56_IMG_SPI_BASE;  break;
+    case 5:  _spibase = CXD56_IMG_WSPI_BASE; break;
+    default: _spibase = CXD56_IMG_SPI_BASE;  break; // SPI 0
+    }
+    _spi_reg_sr = (volatile uint32_t*)(_spibase + CXD56_SPI_SR_OFFSET);
+    _spi_reg_dr = (volatile uint32_t*)(_spibase + CXD56_SPI_DR_OFFSET);
+
+    _gpio_reg_dc = nullptr;
     if (_cfg.pin_dc >= 0)
     {
+      _gpio_reg_dc = get_gpio_regaddr(_cfg.pin_dc);
       pinMode(_cfg.pin_dc, pin_mode_t::output);
       gpio_hi(_cfg.pin_dc);
     }
@@ -48,8 +73,10 @@ namespace lgfx
   {
     dc_h();
     pinMode(_cfg.pin_dc, pin_mode_t::output);
-  //SPI.pins(_cfg.pin_sclk, _cfg.pin_miso, _cfg.pin_mosi, -1);
     SPI.begin();
+
+    _spi_dev = cxd56_spibus_initialize(_cfg.spi_port);
+
     return true;
   }
 
@@ -61,24 +88,28 @@ namespace lgfx
   void Bus_SPI::beginTransaction(void)
   {
     dc_h();
-    //SPISettings setting(_cfg.freq_write, BitOrder::MSBFIRST, _cfg.spi_mode, true);
     SPISettings setting(_cfg.freq_write, MSBFIRST, _cfg.spi_mode);
     SPI.beginTransaction(setting);
+
+    _spi_dev->ops->setbits(_spi_dev, 8);
   }
 
   void Bus_SPI::endTransaction(void)
   {
-    SPI.disableCS();
-    SPI.endTransaction();
+    auto sr = _spi_reg_sr;
+    auto dr = _spi_reg_dr;
+    while (*sr & (SPI_SR_BSY | SPI_SR_RNE)) { volatile uint32_t dummy = *dr; };
     dc_h();
+    SPI.endTransaction();
   }
 
   void Bus_SPI::beginRead(void)
   {
     SPI.endTransaction();
-    //SPISettings setting(_cfg.freq_read, BitOrder::MSBFIRST, _cfg.spi_mode, false);
     SPISettings setting(_cfg.freq_read, MSBFIRST, _cfg.spi_mode);
     SPI.beginTransaction(setting);
+
+    _spi_dev->ops->setbits(_spi_dev, 8);
   }
 
   void Bus_SPI::endRead(void)
@@ -98,26 +129,62 @@ namespace lgfx
 
   bool Bus_SPI::writeCommand(uint32_t data, uint_fast8_t bit_length)
   {
+    auto bytes = bit_length >> 3;
     dc_l();
-    SPI.send((uint8_t*)&data, bit_length >> 3);
-    dc_h();
+    //SPI.send((uint8_t*)&data, bit_length >> 3);
+    //SPI_EXCHANGE(_spi_dev, (uint8_t*)&data, nullptr, bit_length >> 3);
+    //_spi_dev->ops->exchange(_spi_dev, (uint8_t*)&data, nullptr, bit_length >> 3);
+
+//while ((spi_getreg(priv, CXD56_SPI_SR_OFFSET) & SPI_SR_TNF)
+    //while (!(*_spi_reg_sr & SPI_SR_TNF)) {} // 送信完了待ち
+    *_spi_reg_dr = data;
+    while (--bytes)
+    {
+      data >>= 8;
+      *_spi_reg_dr = data;
+    }
+
     return true;
   }
 
   void Bus_SPI::writeData(uint32_t data, uint_fast8_t bit_length)
   {
-    SPI.send((uint8_t*)&data, bit_length >> 3);
+    auto bytes = bit_length >> 3;
+    dc_h();
+    //SPI.send((uint8_t*)&data, bit_length >> 3);
+    //_spi_dev->ops->exchange(_spi_dev, (uint8_t*)&data, nullptr, bit_length >> 3);
+    //while (!(*_spi_reg_sr & SPI_SR_TNF)) {} // 送信完了待ち
+    *_spi_reg_dr = data;
+    while (--bytes)
+    {
+      data >>= 8;
+      *_spi_reg_dr = data;
+    }
   }
 
   void Bus_SPI::writeDataRepeat(uint32_t data, uint_fast8_t bit_length, uint32_t length)
   {
-/*
+//*
+    writeData(data, bit_length);
+    if (! --length) { return; }
     auto bytes = bit_length >> 3;
+    auto buf = (uint8_t*)&data;
+    auto dr = _spi_reg_dr;
+    auto sr = _spi_reg_sr;
     do
     {
-      SPI.send(reinterpret_cast<uint8_t*>(&data), bytes);
+      for (size_t b = 0; b < bytes; ++b)
+      {
+        while (!(*sr & SPI_SR_TNF)) {}
+        *dr = buf[b];
+      }
+/*
+      writeData(data, bit_length);
+//*/
+      //SPI.send(reinterpret_cast<uint8_t*>(&data), bytes);
     } while (--length);
 /*/
+    dc_h();
     const uint8_t dst_bytes = bit_length >> 3;
     uint32_t limit = (dst_bytes == 3) ? 12 : 16;
     auto buf = _flip_buffer.getBuffer(512);
@@ -143,6 +210,7 @@ namespace lgfx
 
   void Bus_SPI::writePixels(pixelcopy_t* param, uint32_t length)
   {
+    dc_h();
     const uint8_t dst_bytes = param->dst_bits >> 3;
     uint32_t limit = (dst_bytes == 3) ? 12 : 16;
     uint32_t len;
@@ -158,10 +226,31 @@ namespace lgfx
 
   void Bus_SPI::writeBytes(const uint8_t* data, uint32_t length, bool dc, bool use_dma)
   {
+    auto dr = _spi_reg_dr;
+    auto sr = _spi_reg_sr;
+
+//  while (*sr & (SPI_SR_BSY | SPI_SR_RNE)) { volatile uint32_t dummy = *dr; };
+
     if (dc) dc_h();
     else dc_l();
+//*
+    do
+    {
+      while (!(*sr & SPI_SR_TNF)) {}
+      *dr = *data++;
+    } while (--length);
+/*/
     SPI.send(const_cast<uint8_t*>(data), length);
-    if (!dc) dc_h();
+//*/
+/*
+    auto reg_dma = (volatile uint32_t*)(_spibase + CXD56_SPI_DMACR_OFFSET);
+    *reg_dma |= SPI_DMACR_TXDMAE;
+
+
+    uint32_t dst = (_spibase + CXD56_SPI_DR_OFFSET) & 0x03ffffffu;
+    cxd56_txdmasetup(priv->txdmach, (uintptr_t)dst, (uintptr_t)txbuffer,
+                     nwords, priv->txconfig);
+//*/
   }
 
   uint32_t Bus_SPI::readData(uint_fast8_t bit_length)
