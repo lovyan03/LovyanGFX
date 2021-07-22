@@ -55,7 +55,7 @@ namespace lgfx
     case 3:  _spibase = CXD56_SCU_SPI_BASE;  break;
     case 4:  _spibase = CXD56_IMG_SPI_BASE;  break;
     case 5:  _spibase = CXD56_IMG_WSPI_BASE; break;
-    default: _spibase = CXD56_IMG_SPI_BASE;  break; // SPI 0
+    default: _spibase = CXD56_SPIM_BASE;     break; // SPI 0
     }
     _spi_reg_sr = (volatile uint32_t*)(_spibase + CXD56_SPI_SR_OFFSET);
     _spi_reg_dr = (volatile uint32_t*)(_spibase + CXD56_SPI_DR_OFFSET);
