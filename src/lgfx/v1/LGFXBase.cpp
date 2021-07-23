@@ -1344,7 +1344,8 @@ namespace lgfx
 
     int32_t cl = _clip_l    ;
     int32_t cr = _clip_r + 1;
-    argb8888_t buffer[cr - cl];
+
+    auto buffer = (argb8888_t*)alloca((cr - cl) * sizeof(argb8888_t));
     pc2->src_data = buffer;
 
     startWrite();
@@ -1799,7 +1800,7 @@ namespace lgfx
   size_t LGFXBase::drawFloat(float floatNumber, uint8_t dp, int32_t poX, int32_t poY, const IFont* font)
   {
     size_t len = 14 + dp;
-    char buf[len];
+    auto buf = (char*)alloca(len);
     return drawString(floatToStr(floatNumber, buf, len, dp), poX, poY, font);
   }
 
@@ -1983,14 +1984,14 @@ namespace lgfx
   size_t LGFXBase::printNumber(unsigned long n, uint8_t base)
   {
     size_t len = 8 * sizeof(long) + 1;
-    char buf[len];
+    auto buf = (char*)alloca(len);
     return write(numberToStr(n, buf, len, base));
   }
 
   size_t LGFXBase::printFloat(double number, uint8_t digits)
   {
     size_t len = 14 + digits;
-    char buf[len];
+    auto buf = (char*)alloca(len);
     return write(floatToStr(number, buf, len, digits));
   }
 
@@ -2157,9 +2158,10 @@ namespace lgfx
     setColor(0xFFFFFFU);
     startWrite();
     writeFillRect(x, y, w, w);
-    for (; version <= 40; ++version) {
+    for (; version <= 40; ++version)
+    {
       QRCode qrcode;
-      uint8_t qrcodeData[lgfx_qrcode_getBufferSize(version)];
+      auto qrcodeData = (uint8_t*)alloca(lgfx_qrcode_getBufferSize(version));
       if (0 != lgfx_qrcode_initText(&qrcode, qrcodeData, version, 0, string)) continue;
       int_fast16_t thickness = w / qrcode.size;
       if (!thickness) break;
@@ -2260,7 +2262,8 @@ namespace lgfx
 
       auto dst_depth = this->_write_conv.depth;
       uint32_t buffersize = ((w * bpp + 31) >> 5) << 2;  // readline 4Byte align.
-      uint8_t lineBuffer[buffersize + 4];
+      auto lineBuffer = (uint8_t*)alloca(buffersize + 4);
+
       pixelcopy_t p(lineBuffer, dst_depth, (color_depth_t)bpp, this->_palette_count, palette);
       p.no_convert = false;
       if (8 >= bpp && !this->_palette_count) {

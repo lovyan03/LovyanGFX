@@ -138,7 +138,7 @@ namespace lgfx
     uint_fast16_t ys = y, ye = y + h - 1;
     _update_transferred_rect(xs, ys, xe, ye);
 
-    swap565_t readbuf[w];
+    auto readbuf = (swap565_t*)alloca(w * sizeof(swap565_t));
     auto sx = param->src_x32;
     h += y;
     do
@@ -203,7 +203,7 @@ namespace lgfx
 
   void Panel_1bitOLED::readRect(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, void* dst, pixelcopy_t* param)
   {
-    swap565_t readbuf[w];
+    auto readbuf = (swap565_t*)alloca(w * sizeof(swap565_t));
     param->src_data = readbuf;
     int32_t readpos = 0;
     h += y;

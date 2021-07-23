@@ -240,7 +240,7 @@ namespace lgfx
     || (dir == fastread_dir_t::fastread_nothing && (w < h)))
     {
       const uint32_t buflen = h * write_bytes;
-      uint8_t buf[buflen];
+      auto buf = (uint8_t*)alloca(buflen);
       pc_write.src_data = buf;
       pc_write.src_width = 1;
       pc_write.src_bitwidth = 1;
@@ -260,7 +260,7 @@ namespace lgfx
     else
     {
       const uint32_t buflen = w * write_bytes;
-      uint8_t buf[buflen];
+      auto buf = (uint8_t*)alloca(buflen);
       pc_write.src_data = buf;
       int32_t add = (src_y < dst_y) ?   - 1 : 1;
       int32_t pos = (src_y < dst_y) ? h - 1 : 0;

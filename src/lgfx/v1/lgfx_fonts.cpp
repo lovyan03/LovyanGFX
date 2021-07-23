@@ -887,8 +887,7 @@ namespace lgfx
     int32_t yoffset  = (this->maxAscent - dY);
 //      int32_t yoffset = (gfx->_font_metrics.y_offset) - dY;
 
-    uint8_t pbuffer[w * h];
-    uint8_t* pixel = pbuffer;
+    auto pixel = (uint8_t*)alloca(w * h);
     if (gNum != 0xFFFF) {
       file->read(pixel, w * h);
       file->postRead();
@@ -983,7 +982,8 @@ namespace lgfx
       }
       else // alpha blend mode
       {
-        bgr888_t buf[bw * ((sy + 65535) >> 16)];
+        auto buf = (bgr888_t*)alloca((bw * ((sy + 65535) >> 16)) * sizeof(bgr888_t));
+
         pixelcopy_t p(buf, gfx->getColorConverter()->depth, rgb888_3Byte, gfx->hasPalette());
         int32_t y0, y1 = (yoffset * sy) >> 16;
         int32_t i = 0;

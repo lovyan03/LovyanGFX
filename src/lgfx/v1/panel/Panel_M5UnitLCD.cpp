@@ -222,7 +222,7 @@ namespace lgfx
 /*/
     _raw_color = rawcolor;
     size_t bytes = (rawcolor == 0) ? 1 : (_write_bits >> 3);
-    uint8_t buf[(length >> 8) * (bytes + 1) + 2];
+    auto buf = (uint8_t*)alloca((length >> 8) * (bytes + 1) + 2);
     buf[0] = CMD_WRITE_RLE | bytes;
     size_t idx = _check_repeat(buf[0]) ? 0 : 1;
     //_check_repeat(buf[0]);
