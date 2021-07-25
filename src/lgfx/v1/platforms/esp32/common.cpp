@@ -514,7 +514,7 @@ namespace lgfx
       uint32_t cmd_val = byte_num
                             | (( op_code == i2c_cmd_write
                               || op_code == i2c_cmd_stop)
-                              ? 0x100 : 0)
+                              ? 0x100 : 0)  // writeおよびstop時はACK_ENを有効にする
                             | op_code << 11 ;
       dev->command[index].val = cmd_val;
     }
@@ -842,10 +842,9 @@ namespace lgfx
       dev->fifo_conf.val = fifo_conf_reg.val;
 
       fifo_conf_reg.val = 0;
-// #if defined ( CONFIG_IDF_TARGET_ESP32C3 )
-// fifo_conf_reg.tx_fifo_wm_thrhd = 16;
-// fifo_conf_reg.rx_fifo_wm_thrhd = 16;
-// #endif
+#if !defined ( CONFIG_IDF_TARGET_ESP32 )
+      fifo_conf_reg.fifo_prt_en = 1;
+#endif
       dev->fifo_conf.val = fifo_conf_reg.val;
 
       i2c_context[i2c_port].state = i2c_context_t::state_t::state_disconnect;
