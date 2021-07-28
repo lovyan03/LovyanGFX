@@ -309,42 +309,41 @@ namespace lgfx
       }
       else
       {
-/*
-        if (!_bus->busy() && (h == 1 || (param->src_bitwidth == w && w * h <= INT16_MAX)))
+        if (!_bus->busy())
         {
+          static constexpr uint32_t WRITEPIXELS_MAXLEN = 32767;
+
           setWindow(x, y, x + w - 1, y + h - 1);
-          writePixels(param, w * h);
-        }
-//
-        if (h == 1 || (param->src_bitwidth == w && w * h <= INT16_MAX))
-        {
-          size_t length = w * h;
-          size_t limit = (bytes == 2) ? 64 : 48;
-//        size_t len = ((wh - 1) % limit) + 1;
-          size_t len = (limit << 1) <= length ? limit : length;
-          limit <<= 1;
-          auto buf = _bus->getDMABuffer(len * bytes);
-          param->fp_copy(buf, 0, len, param);
-          setWindow(x, y, x + w - 1, y + h - 1);
-          write_bytes(buf, len * bytes, true);
-          while (length -= len)
+          bool nogap = (param->src_bitwidth == w || h == 1);
+          if (nogap && (w * h <= WRITEPIXELS_MAXLEN))
+          { 
+            writePixels(param, w * h, use_dma);
+          }
+          else
           {
-//            len = ((wh - 1) % limit) + 1;
-            len = (limit << 1) <= length ? limit : length;
-            if (limit <= 256) limit <<= 1;
-            auto buf = _bus->getDMABuffer(len * bytes);
-            param->fp_copy(buf, 0, len, param);
-            write_bytes(buf, len * bytes, true);
+            uint_fast16_t h_step = nogap ? WRITEPIXELS_MAXLEN / w : 1;
+            uint_fast16_t h_len = (h_step > 1) ? ((h - 1) % h_step) + 1 : 1;
+            writePixels(param, w * h_len, use_dma);
+            if (h -= h_len)
+            {
+              param->src_y += h_len;
+              do
+              {
+                param->src_x = src_x;
+                writePixels(param, w * h_step, use_dma);
+                param->src_y += h_step;
+              } while (h -= h_step);
+            }
           }
         }
         else
-//*/
         {
           size_t wb = w * bytes;
           auto buf = _bus->getDMABuffer(wb);
           param->fp_copy(buf, 0, w, param);
           setWindow(x, y, x + w - 1, y + h - 1);
           write_bytes(buf, wb, true);
+          _align_data = (_cfg.dlen_16bit && (_write_bits & 15) && (w & h & 1));
           while (--h)
           {
             param->src_x = src_x;

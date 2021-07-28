@@ -164,13 +164,31 @@ namespace lgfx
 
   void Bus_SPI::writeDataRepeat(uint32_t data, uint_fast8_t bit_length, uint32_t length)
   {
-//*
-    writeData(data, bit_length);
-    if (! --length) { return; }
     auto bytes = bit_length >> 3;
     auto buf = (uint8_t*)&data;
     auto dr = _spi_reg_dr;
     auto sr = _spi_reg_sr;
+
+    if (bytes == 2)
+    {
+      data = __builtin_bswap16(data);
+      auto cr0_reg = (volatile uint32_t*)(_spibase + CXD56_SPI_CR0_OFFSET);
+      uint32_t cr0 = *cr0_reg;
+      cr0 |= 0x0F;  // 16bit len setting
+      dc_h();
+      *cr0_reg = cr0;
+      do
+      {
+        while (!(*sr & SPI_SR_TNF)) {}
+        *dr = data;
+      } while (--length);
+      cr0 &= ~0x08; // 8bit len setting
+      while (*sr & SPI_SR_BSY) {}
+      *cr0_reg = cr0;
+      return;
+    }
+
+    dc_h();
     do
     {
       for (size_t b = 0; b < bytes; ++b)
@@ -210,34 +228,68 @@ namespace lgfx
 
   void Bus_SPI::writePixels(pixelcopy_t* param, uint32_t length)
   {
-    dc_h();
+    auto dr = _spi_reg_dr;
+    auto sr = _spi_reg_sr;
     const uint8_t dst_bytes = param->dst_bits >> 3;
-    uint32_t limit = (dst_bytes == 3) ? 12 : 16;
+    uint8_t buf[18];
+    uint32_t limit = 18 / dst_bytes;
+
+auto cr0_reg = (volatile uint32_t*)(_spibase + CXD56_SPI_CR0_OFFSET);
+uint32_t cr0 = *cr0_reg;
+bool en16 = false;
+
+    dc_h();
     uint32_t len;
     do
     {
-      len = ((length - 1) % limit) + 1;
-      if (limit <= 32) limit <<= 1;
-      auto buf = _flip_buffer.getBuffer(len * dst_bytes);
+//    len = ((length - 1) % limit) + 1;
+      len = std::min(length, limit);
       param->fp_copy(buf, 0, len, param);
-      SPI.send(buf, len * dst_bytes);
+      auto b = buf;
+      auto l = len * dst_bytes;
+      if ((l & 1) == en16)
+      {
+        en16 = !en16;
+        while (!(*sr & SPI_SR_TFE)) {}
+        *cr0_reg = cr0 | (en16 ? 8 : 0);
+      }
+      if (en16)
+      {
+        do
+        {
+          while (!(*sr & SPI_SR_TNF)) {}
+          *dr = b[0]<<8 | b[1];
+          b += 2;
+        } while (l -= 2);
+      }
+      else
+      {
+        do
+        {
+          while (!(*sr & SPI_SR_TNF)) {}
+          *dr = *b++;
+        } while (--l);
+      }
     } while (length -= len);
+
+    if (en16)
+    {
+      while (!(*sr & SPI_SR_TFE)) {}
+      *cr0_reg = cr0;
+    }
   }
 
   void Bus_SPI::writeBytes(const uint8_t* data, uint32_t length, bool dc, bool use_dma)
   {
     auto dr = _spi_reg_dr;
     auto sr = _spi_reg_sr;
-
-//  while (*sr & (SPI_SR_BSY | SPI_SR_RNE)) { volatile uint32_t dummy = *dr; };
-
-    if (dc) dc_h();
-    else dc_l();
-//*
+    if (!dc) dc_l();
+    else dc_h();
     do
     {
+      uint32_t tmp = *data++;
       while (!(*sr & SPI_SR_TNF)) {}
-      *dr = *data++;
+      *dr = tmp;
     } while (--length);
 /*/
     SPI.send(const_cast<uint8_t*>(data), length);
