@@ -78,10 +78,10 @@ namespace lgfx
 
     LGFX_INLINE   void setWindow(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye) { _panel->setWindow(xs, ys, xe, ye); }
     LGFX_INLINE   void writePixel(int32_t x, int32_t y)  { if (x >= _clip_l && x <= _clip_r && y >= _clip_t && y <= _clip_b) writeFillRectPreclipped(x, y, 1, 1); }
-    LGFX_INLINE_T void writePixel      ( int32_t x, int32_t y                                , const T& color) { setColor(color); writePixel    (x, y      ); }
-    LGFX_INLINE_T void writeFastVLine  ( int32_t x, int32_t y                , int32_t h, const T& color) { setColor(color); writeFastVLine(x, y   , h); }
-                  void writeFastVLine  ( int32_t x, int32_t y                , int32_t h);
-    LGFX_INLINE_T void writeFastHLine  ( int32_t x, int32_t y, int32_t w                , const T& color) { setColor(color); writeFastHLine(x, y, w   ); }
+    LGFX_INLINE_T void writePixel      ( int32_t x, int32_t y                      , const T& color) { setColor(color); writePixel    (x, y      ); }
+    LGFX_INLINE_T void writeFastVLine  ( int32_t x, int32_t y           , int32_t h, const T& color) { setColor(color); writeFastVLine(x, y   , h); }
+                  void writeFastVLine  ( int32_t x, int32_t y           , int32_t h);
+    LGFX_INLINE_T void writeFastHLine  ( int32_t x, int32_t y, int32_t w           , const T& color) { setColor(color); writeFastHLine(x, y, w   ); }
                   void writeFastHLine  ( int32_t x, int32_t y, int32_t w);
     LGFX_INLINE_T void writeFillRect   ( int32_t x, int32_t y, int32_t w, int32_t h, const T& color) { setColor(color); writeFillRect (x, y, w, h); }
                   void writeFillRect   ( int32_t x, int32_t y, int32_t w, int32_t h);
@@ -90,28 +90,28 @@ namespace lgfx
     LGFX_INLINE_T void writeColor      ( const T& color, uint32_t length) { if (0 == length) return; setColor(color);               _panel->writeBlock(getRawColor(), length); }
     LGFX_INLINE_T void pushBlock       ( const T& color, uint32_t length) { if (0 == length) return; setColor(color); startWrite(); _panel->writeBlock(getRawColor(), length); endWrite(); }
     LGFX_INLINE   void drawPixel       ( int32_t x, int32_t y) { if (x >= _clip_l && x <= _clip_r && y >= _clip_t && y <= _clip_b) { _panel->drawPixelPreclipped(x, y, getRawColor()); } }
-    LGFX_INLINE_T void drawPixel       ( int32_t x, int32_t y                                                , const T& color) { setColor(color); drawPixel    (x, y         ); }
-    LGFX_INLINE_T void drawFastVLine   ( int32_t x, int32_t y                , int32_t h                , const T& color) { setColor(color); drawFastVLine(x, y   , h   ); }
-                  void drawFastVLine   ( int32_t x, int32_t y                , int32_t h);
-    LGFX_INLINE_T void drawFastHLine   ( int32_t x, int32_t y, int32_t w                                , const T& color) { setColor(color); drawFastHLine(x, y, w      ); }
+    LGFX_INLINE_T void drawPixel       ( int32_t x, int32_t y                                 , const T& color) { setColor(color); drawPixel    (x, y         ); }
+    LGFX_INLINE_T void drawFastVLine   ( int32_t x, int32_t y           , int32_t h           , const T& color) { setColor(color); drawFastVLine(x, y   , h   ); }
+                  void drawFastVLine   ( int32_t x, int32_t y           , int32_t h);
+    LGFX_INLINE_T void drawFastHLine   ( int32_t x, int32_t y, int32_t w                      , const T& color) { setColor(color); drawFastHLine(x, y, w      ); }
                   void drawFastHLine   ( int32_t x, int32_t y, int32_t w);
-    LGFX_INLINE_T void fillRect        ( int32_t x, int32_t y, int32_t w, int32_t h                , const T& color) { setColor(color); fillRect     (x, y, w, h   ); }
+    LGFX_INLINE_T void fillRect        ( int32_t x, int32_t y, int32_t w, int32_t h           , const T& color) { setColor(color); fillRect     (x, y, w, h   ); }
                   void fillRect        ( int32_t x, int32_t y, int32_t w, int32_t h);
-    LGFX_INLINE_T void drawRect        ( int32_t x, int32_t y, int32_t w, int32_t h                , const T& color) { setColor(color); drawRect     (x, y, w, h   ); }
+    LGFX_INLINE_T void drawRect        ( int32_t x, int32_t y, int32_t w, int32_t h           , const T& color) { setColor(color); drawRect     (x, y, w, h   ); }
                   void drawRect        ( int32_t x, int32_t y, int32_t w, int32_t h);
     LGFX_INLINE_T void drawRoundRect   ( int32_t x, int32_t y, int32_t w, int32_t h, int32_t r, const T& color) { setColor(color); drawRoundRect(x, y, w, h, r); }
                   void drawRoundRect   ( int32_t x, int32_t y, int32_t w, int32_t h, int32_t r);
     LGFX_INLINE_T void fillRoundRect   ( int32_t x, int32_t y, int32_t w, int32_t h, int32_t r, const T& color) { setColor(color); fillRoundRect(x, y, w, h, r); }
                   void fillRoundRect   ( int32_t x, int32_t y, int32_t w, int32_t h, int32_t r);
-    LGFX_INLINE_T void drawCircle      ( int32_t x, int32_t y                                , int32_t r, const T& color) { setColor(color); drawCircle   (x, y      , r); }
-                  void drawCircle      ( int32_t x, int32_t y                                , int32_t r);
-    LGFX_INLINE_T void fillCircle      ( int32_t x, int32_t y                                , int32_t r, const T& color) { setColor(color); fillCircle   (x, y      , r); }
-                  void fillCircle      ( int32_t x, int32_t y                                , int32_t r);
-    LGFX_INLINE_T void drawEllipse     ( int32_t x, int32_t y, int32_t rx, int32_t ry              , const T& color) { setColor(color); drawEllipse  (x, y, rx, ry ); }
+    LGFX_INLINE_T void drawCircle      ( int32_t x, int32_t y                      , int32_t r, const T& color) { setColor(color); drawCircle   (x, y      , r); }
+                  void drawCircle      ( int32_t x, int32_t y                      , int32_t r);
+    LGFX_INLINE_T void fillCircle      ( int32_t x, int32_t y                      , int32_t r, const T& color) { setColor(color); fillCircle   (x, y      , r); }
+                  void fillCircle      ( int32_t x, int32_t y                      , int32_t r);
+    LGFX_INLINE_T void drawEllipse     ( int32_t x, int32_t y, int32_t rx, int32_t ry         , const T& color) { setColor(color); drawEllipse  (x, y, rx, ry ); }
                   void drawEllipse     ( int32_t x, int32_t y, int32_t rx, int32_t ry);
-    LGFX_INLINE_T void fillEllipse     ( int32_t x, int32_t y, int32_t rx, int32_t ry              , const T& color) { setColor(color); fillEllipse  (x, y, rx, ry ); }
+    LGFX_INLINE_T void fillEllipse     ( int32_t x, int32_t y, int32_t rx, int32_t ry         , const T& color) { setColor(color); fillEllipse  (x, y, rx, ry ); }
                   void fillEllipse     ( int32_t x, int32_t y, int32_t rx, int32_t ry);
-    LGFX_INLINE_T void drawLine        ( int32_t x0, int32_t y0, int32_t x1, int32_t y1            , const T& color) { setColor(color); drawLine     (x0,y0,x1, y1 ); }
+    LGFX_INLINE_T void drawLine        ( int32_t x0, int32_t y0, int32_t x1, int32_t y1       , const T& color) { setColor(color); drawLine     (x0,y0,x1, y1 ); }
                   void drawLine        ( int32_t x0, int32_t y0, int32_t x1, int32_t y1);
     LGFX_INLINE_T void drawTriangle    ( int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t x2, int32_t y2, const T& color)  { setColor(color); drawTriangle(x0, y0, x1, y1, x2, y2); }
                   void drawTriangle    ( int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t x2, int32_t y2);
@@ -131,7 +131,7 @@ namespace lgfx
                   void drawArc         ( int32_t x, int32_t y, int32_t r0, int32_t r1, float angle0, float angle1)                 {                  drawEllipseArc( x, y, r0, r1, r0, r1, angle0, angle1); }
     LGFX_INLINE_T void fillArc         ( int32_t x, int32_t y, int32_t r0, int32_t r1, float angle0, float angle1, const T& color) { setColor(color); fillEllipseArc( x, y, r0, r1, r0, r1, angle0, angle1); }
                   void fillArc         ( int32_t x, int32_t y, int32_t r0, int32_t r1, float angle0, float angle1)                 {                  fillEllipseArc( x, y, r0, r1, r0, r1, angle0, angle1); }
-    LGFX_INLINE_T void drawCircleHelper( int32_t x, int32_t y, int32_t r, uint_fast8_t cornername                 , const T& color)  { setColor(color); drawCircleHelper(x, y, r, cornername    ); }
+    LGFX_INLINE_T void drawCircleHelper( int32_t x, int32_t y, int32_t r, uint_fast8_t cornername                , const T& color)  { setColor(color); drawCircleHelper(x, y, r, cornername    ); }
                   void drawCircleHelper( int32_t x, int32_t y, int32_t r, uint_fast8_t cornername);
     LGFX_INLINE_T void fillCircleHelper( int32_t x, int32_t y, int32_t r, uint_fast8_t corners, int32_t delta, const T& color)  { setColor(color); fillCircleHelper(x, y, r, corners, delta); }
                   void fillCircleHelper( int32_t x, int32_t y, int32_t r, uint_fast8_t corners, int32_t delta);
@@ -182,21 +182,21 @@ namespace lgfx
 
     LGFX_INLINE_T void setScrollRect(int32_t x, int32_t y, int32_t w, int32_t h, const T& color) { setBaseColor(color); setScrollRect(x, y, w, h); }
 
-    LGFX_INLINE_T void writePixels(const T *data, int32_t len)                        { auto pc = create_pc_fast(data      ); _panel->writePixels(&pc, len, false); }
+    LGFX_INLINE_T void writePixels(const T*        data, int32_t len           ) { auto pc = create_pc_fast(data      ); _panel->writePixels(&pc, len, false); }
     LGFX_INLINE   void writePixels(const uint16_t* data, int32_t len, bool swap) { auto pc = create_pc_fast(data, swap); _panel->writePixels(&pc, len, false); }
-    LGFX_INLINE   void writePixels(const void*          data, int32_t len, bool swap) { auto pc = create_pc_fast(data, swap); _panel->writePixels(&pc, len, false); }
+    LGFX_INLINE   void writePixels(const void*     data, int32_t len, bool swap) { auto pc = create_pc_fast(data, swap); _panel->writePixels(&pc, len, false); }
 
-    LGFX_INLINE_T void writePixelsDMA(const T *data, int32_t len)                        { auto pc = create_pc_fast(data      ); _panel->writePixels(&pc, len, true); }
+    LGFX_INLINE_T void writePixelsDMA(const T*        data, int32_t len           ) { auto pc = create_pc_fast(data      ); _panel->writePixels(&pc, len, true); }
     LGFX_INLINE   void writePixelsDMA(const uint16_t* data, int32_t len, bool swap) { auto pc = create_pc_fast(data, swap); _panel->writePixels(&pc, len, true); }
-    LGFX_INLINE   void writePixelsDMA(const void*          data, int32_t len, bool swap) { auto pc = create_pc_fast(data, swap); _panel->writePixels(&pc, len, true); }
+    LGFX_INLINE   void writePixelsDMA(const void*     data, int32_t len, bool swap) { auto pc = create_pc_fast(data, swap); _panel->writePixels(&pc, len, true); }
 
-    LGFX_INLINE_T void pushPixels(T*                   data, int32_t len           ) { startWrite(); writePixels(data, len      ); endWrite(); }
+    LGFX_INLINE_T void pushPixels(T*              data, int32_t len           ) { startWrite(); writePixels(data, len      ); endWrite(); }
     LGFX_INLINE   void pushPixels(const uint16_t* data, int32_t len, bool swap) { startWrite(); writePixels(data, len, swap); endWrite(); }
-    LGFX_INLINE   void pushPixels(const void*          data, int32_t len, bool swap) { startWrite(); writePixels(data, len, swap); endWrite(); }
+    LGFX_INLINE   void pushPixels(const void*     data, int32_t len, bool swap) { startWrite(); writePixels(data, len, swap); endWrite(); }
 
-    LGFX_INLINE_T void pushPixelsDMA(T*                   data, int32_t len           ) { startWrite(); writePixelsDMA(data, len      ); endWrite(); }
+    LGFX_INLINE_T void pushPixelsDMA(T*              data, int32_t len           ) { startWrite(); writePixelsDMA(data, len      ); endWrite(); }
     LGFX_INLINE   void pushPixelsDMA(const uint16_t* data, int32_t len, bool swap) { startWrite(); writePixelsDMA(data, len, swap); endWrite(); }
-    LGFX_INLINE   void pushPixelsDMA(const void*          data, int32_t len, bool swap) { startWrite(); writePixelsDMA(data, len, swap); endWrite(); }
+    LGFX_INLINE   void pushPixelsDMA(const void*     data, int32_t len, bool swap) { startWrite(); writePixelsDMA(data, len, swap); endWrite(); }
 
     template<typename TFunc>
     void effect(int32_t x, int32_t y, int32_t w, int32_t h, TFunc&& effector)
@@ -212,13 +212,13 @@ namespace lgfx
       _panel->writeFillRectAlphaPreclipped(x, y, w, h, convert_to_rgb888(color) | alpha << 24 );
     }
 
-    LGFX_INLINE_T void drawBitmap (int32_t x, int32_t y, const uint8_t *bitmap, int32_t w, int32_t h, const T& color                    ) { draw_bitmap (x, y, bitmap, w, h, _write_conv.convert(color)); }
-    LGFX_INLINE_T void drawBitmap (int32_t x, int32_t y, const uint8_t *bitmap, int32_t w, int32_t h, const T& fgcolor, const T& bgcolor) { draw_bitmap (x, y, bitmap, w, h, _write_conv.convert(fgcolor), _write_conv.convert(bgcolor)); }
-    LGFX_INLINE_T void drawXBitmap(int32_t x, int32_t y, const uint8_t *bitmap, int32_t w, int32_t h, const T& color                    ) { draw_xbitmap(x, y, bitmap, w, h, _write_conv.convert(color)); }
-    LGFX_INLINE_T void drawXBitmap(int32_t x, int32_t y, const uint8_t *bitmap, int32_t w, int32_t h, const T& fgcolor, const T& bgcolor) { draw_xbitmap(x, y, bitmap, w, h, _write_conv.convert(fgcolor), _write_conv.convert(bgcolor)); }
+    LGFX_INLINE_T void drawBitmap (int32_t x, int32_t y, const uint8_t* bitmap, int32_t w, int32_t h, const T& color                    ) { draw_bitmap (x, y, bitmap, w, h, _write_conv.convert(color)); }
+    LGFX_INLINE_T void drawBitmap (int32_t x, int32_t y, const uint8_t* bitmap, int32_t w, int32_t h, const T& fgcolor, const T& bgcolor) { draw_bitmap (x, y, bitmap, w, h, _write_conv.convert(fgcolor), _write_conv.convert(bgcolor)); }
+    LGFX_INLINE_T void drawXBitmap(int32_t x, int32_t y, const uint8_t* bitmap, int32_t w, int32_t h, const T& color                    ) { draw_xbitmap(x, y, bitmap, w, h, _write_conv.convert(color)); }
+    LGFX_INLINE_T void drawXBitmap(int32_t x, int32_t y, const uint8_t* bitmap, int32_t w, int32_t h, const T& fgcolor, const T& bgcolor) { draw_xbitmap(x, y, bitmap, w, h, _write_conv.convert(fgcolor), _write_conv.convert(bgcolor)); }
 
     LGFX_INLINE_T
-    void writeIndexedPixels(const uint8_t *data, T* palette, int32_t len, uint8_t depth = 8)
+    void writeIndexedPixels(const uint8_t* data, T* palette, int32_t len, uint8_t depth = 8)
     {
       auto src_depth = (color_depth_t)(depth | color_depth_t::has_palette);
       auto pc = create_pc_fast(data, palette, src_depth);
@@ -456,14 +456,14 @@ namespace lgfx
 
     void readRect(int32_t x, int32_t y, int32_t w, int32_t h, uint8_t*  data);
     void readRect(int32_t x, int32_t y, int32_t w, int32_t h, uint16_t* data);
-    void readRect(int32_t x, int32_t y, int32_t w, int32_t h, void*          data);
+    void readRect(int32_t x, int32_t y, int32_t w, int32_t h, void*     data);
 
     void scroll(int_fast16_t dx, int_fast16_t dy = 0);
     void copyRect(int32_t dst_x, int32_t dst_y, int32_t w, int32_t h, int32_t src_x, int32_t src_y);
 
 
     [[deprecated("use IFont")]]
-    void setCursor( int32_t x, int32_t y, uint8_t font) { _filled_x = 0; _cursor_x = x; _cursor_y = y; setFont(fontdata[font]); }
+    void setCursor( int32_t x, int32_t y, uint8_t      font) { _filled_x = 0; _cursor_x = x; _cursor_y = y; setFont(fontdata[font]); }
     void setCursor( int32_t x, int32_t y, const IFont* font) { _filled_x = 0; _cursor_x = x; _cursor_y = y; setFont(font); }
     void setCursor( int32_t x, int32_t y)                    { _filled_x = 0; _cursor_x = x; _cursor_y = y; }
     int32_t getCursorX(void) const { return _cursor_x; }
@@ -507,18 +507,18 @@ namespace lgfx
     int32_t textWidth(const char *string, const IFont* font);
 
     [[deprecated("use IFont")]]
-    inline size_t drawString(const char *string, int32_t x, int32_t y, uint8_t font) { return draw_string(string, x, y, _text_style.datum, fontdata[font]); }
+    inline size_t drawString(const char *string, int32_t x, int32_t y, uint8_t      font) { return draw_string(string, x, y, _text_style.datum, fontdata[font]); }
     inline size_t drawString(const char *string, int32_t x, int32_t y                   ) { return draw_string(string, x, y, _text_style.datum); }
     inline size_t drawString(const char *string, int32_t x, int32_t y, const IFont* font) { return draw_string(string, x, y, _text_style.datum, font); }
 
     [[deprecated("use IFont")]]
     inline size_t drawNumber(long long_num, int32_t poX, int32_t poY, uint8_t font) { return drawNumber(long_num, poX, poY, fontdata[font]); }
-    inline size_t drawNumber(long long_num, int32_t poX, int32_t poY                   ) { return drawNumber(long_num, poX, poY, _font         ); }
+    inline size_t drawNumber(long long_num, int32_t poX, int32_t poY              ) { return drawNumber(long_num, poX, poY, _font         ); }
            size_t drawNumber(long long_num, int32_t poX, int32_t poY, const IFont* font);
 
     [[deprecated("use IFont")]]
     inline size_t drawFloat(float floatNumber, uint8_t dp, int32_t poX, int32_t poY, uint8_t font) { return drawFloat(floatNumber, dp, poX, poY, fontdata[font]); }
-    inline size_t drawFloat(float floatNumber, uint8_t dp, int32_t poX, int32_t poY                   ) { return drawFloat(floatNumber, dp, poX, poY, _font         ); }
+    inline size_t drawFloat(float floatNumber, uint8_t dp, int32_t poX, int32_t poY              ) { return drawFloat(floatNumber, dp, poX, poY, _font         ); }
            size_t drawFloat(float floatNumber, uint8_t dp, int32_t poX, int32_t poY, const IFont* font);
 
     [[deprecated("use IFont")]] inline size_t drawCentreString(const char *string, int32_t x, int32_t y, uint8_t font) { return draw_string(string, x, y, textdatum_t::top_center, fontdata[font]); }
@@ -537,7 +537,7 @@ namespace lgfx
     inline int32_t textWidth(const String& string, const IFont* font) { return textWidth(string.c_str(), font); }
 
     [[deprecated("use IFont")]]
-    inline size_t drawString(const String& string, int32_t x, int32_t y, uint8_t font) { return draw_string(string.c_str(), x, y, _text_style.datum, fontdata[font]); }
+    inline size_t drawString(const String& string, int32_t x, int32_t y, uint8_t      font) { return draw_string(string.c_str(), x, y, _text_style.datum, fontdata[font]); }
     inline size_t drawString(const String& string, int32_t x, int32_t y, const IFont* font) { return draw_string(string.c_str(), x, y, _text_style.datum,          font ); }
     inline size_t drawString(const String& string, int32_t x, int32_t y                   ) { return draw_string(string.c_str(), x, y, _text_style.datum); }
 
@@ -726,11 +726,11 @@ namespace lgfx
     [[deprecated("use pushBlock")]] void pushColor(const T& color                     ) {                     setColor(color); startWrite(); _panel->writeBlock(getRawColor(), 1);      endWrite(); }
 
     template<typename T>
-    [[deprecated("use pushPixels")]] void pushColors(T*                   data, int32_t len           ) { startWrite(); writePixels(data, len            ); endWrite(); }
-    [[deprecated("use pushPixels")]] void pushColors(const void*          data, int32_t len           ) { startWrite(); writePixels(data, len, _swapBytes); endWrite(); }
+    [[deprecated("use pushPixels")]] void pushColors(T*              data, int32_t len           ) { startWrite(); writePixels(data, len            ); endWrite(); }
+    [[deprecated("use pushPixels")]] void pushColors(const void*     data, int32_t len           ) { startWrite(); writePixels(data, len, _swapBytes); endWrite(); }
     [[deprecated("use pushPixels")]] void pushColors(const uint16_t* data, int32_t len           ) { startWrite(); writePixels(data, len, _swapBytes); endWrite(); }
     [[deprecated("use pushPixels")]] void pushColors(const uint8_t*  data, int32_t len           ) { startWrite(); writePixels((const rgb332_t*)data, len); endWrite(); }
-    [[deprecated("use pushPixels")]] void pushColors(const void*          data, int32_t len, bool swap) { startWrite(); writePixels(data, len, swap); endWrite(); }
+    [[deprecated("use pushPixels")]] void pushColors(const void*     data, int32_t len, bool swap) { startWrite(); writePixels(data, len, swap); endWrite(); }
     [[deprecated("use pushPixels")]] void pushColors(const uint16_t* data, int32_t len, bool swap) { startWrite(); writePixels(data, len, swap); endWrite(); }
 
 //----------------------------------------------------------------------------
@@ -832,10 +832,10 @@ namespace lgfx
       }
       return pc;
     }
-    __attribute__ ((always_inline)) inline pixelcopy_t create_pc_fast(const uint8_t  *data) { return create_pc_fast(reinterpret_cast<const rgb332_t*>(data)); }
-    __attribute__ ((always_inline)) inline pixelcopy_t create_pc_fast(const uint16_t *data) { return create_pc_fast(data, _swapBytes); }
-    __attribute__ ((always_inline)) inline pixelcopy_t create_pc_fast(const void          *data) { return create_pc_fast(data, _swapBytes); }
-    __attribute__ ((always_inline)) inline pixelcopy_t create_pc_fast(const uint16_t *data, bool swap)
+    __attribute__ ((always_inline)) inline pixelcopy_t create_pc_fast(const uint8_t*  data) { return create_pc_fast(reinterpret_cast<const rgb332_t*>(data)); }
+    __attribute__ ((always_inline)) inline pixelcopy_t create_pc_fast(const uint16_t* data) { return create_pc_fast(data, _swapBytes); }
+    __attribute__ ((always_inline)) inline pixelcopy_t create_pc_fast(const void*     data) { return create_pc_fast(data, _swapBytes); }
+    __attribute__ ((always_inline)) inline pixelcopy_t create_pc_fast(const uint16_t* data, bool swap)
     {
       return swap && !hasPalette() && _write_conv.bits >= 8
            ? create_pc_fast(reinterpret_cast<const rgb565_t* >(data))
@@ -907,16 +907,16 @@ namespace lgfx
       return pc;
     }
 
-    __attribute__ ((always_inline)) inline pixelcopy_t create_pc(const uint8_t  *data) { return create_pc(reinterpret_cast<const rgb332_t*>(data)); }
-    __attribute__ ((always_inline)) inline pixelcopy_t create_pc(const uint16_t *data) { return create_pc(data, _swapBytes); }
-    __attribute__ ((always_inline)) inline pixelcopy_t create_pc(const void          *data) { return create_pc(data, _swapBytes); }
-    __attribute__ ((always_inline)) inline pixelcopy_t create_pc(const uint16_t *data, bool swap)
+    __attribute__ ((always_inline)) inline pixelcopy_t create_pc(const uint8_t*  data) { return create_pc(reinterpret_cast<const rgb332_t*>(data)); }
+    __attribute__ ((always_inline)) inline pixelcopy_t create_pc(const uint16_t* data) { return create_pc(data, _swapBytes); }
+    __attribute__ ((always_inline)) inline pixelcopy_t create_pc(const void*     data) { return create_pc(data, _swapBytes); }
+    __attribute__ ((always_inline)) inline pixelcopy_t create_pc(const uint16_t* data, bool swap)
     {
       return swap && !hasPalette() && _write_conv.bits >= 8
            ? create_pc(reinterpret_cast<const rgb565_t* >(data))
            : create_pc(reinterpret_cast<const swap565_t*>(data));
     }
-    __attribute__ ((always_inline)) inline pixelcopy_t create_pc(const void *data, bool swap)
+    __attribute__ ((always_inline)) inline pixelcopy_t create_pc(const void* data, bool swap)
     {
       return swap && !hasPalette() && _write_conv.bits >= 8
            ? create_pc(reinterpret_cast<const rgb888_t*>(data))
@@ -947,10 +947,10 @@ namespace lgfx
                               : get_fp_convert_src<T2>(get_depth<T1>::value, false)(transparent));
     }
 
-    template<typename T> pixelcopy_t create_pc_tr(const uint8_t  *data, const T& transparent) { return create_pc_tr(reinterpret_cast<const rgb332_t*>(data), transparent); }
-    template<typename T> pixelcopy_t create_pc_tr(const uint16_t *data, const T& transparent) { return create_pc_tr(data, transparent, _swapBytes); }
-    template<typename T> pixelcopy_t create_pc_tr(const void          *data, const T& transparent) { return create_pc_tr(data, transparent, _swapBytes); }
-    template<typename T> pixelcopy_t create_pc_tr(const uint16_t *data, const T& transparent, bool swap)
+    template<typename T> pixelcopy_t create_pc_tr(const uint8_t*  data, const T& transparent) { return create_pc_tr(reinterpret_cast<const rgb332_t*>(data), transparent); }
+    template<typename T> pixelcopy_t create_pc_tr(const uint16_t* data, const T& transparent) { return create_pc_tr(data, transparent, _swapBytes); }
+    template<typename T> pixelcopy_t create_pc_tr(const void*     data, const T& transparent) { return create_pc_tr(data, transparent, _swapBytes); }
+    template<typename T> pixelcopy_t create_pc_tr(const uint16_t* data, const T& transparent, bool swap)
     {
       return swap && _write_conv.bits >= 8 && !hasPalette()
            ? create_pc_tr(reinterpret_cast<const rgb565_t* >(data), transparent)
