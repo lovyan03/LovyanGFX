@@ -31,6 +31,7 @@ Contributors:
   #include "esp32/Light_PWM.hpp"
   #include "esp32/Bus_SPI.hpp"
   #include "esp32/Bus_I2C.hpp"
+  #include "esp32s2/Bus_Parallel8.hpp"
 
  #else
 
@@ -62,6 +63,10 @@ Contributors:
 #elif defined (ARDUINO_ARCH_SPRESENSE)
 
 #include "spresense/Bus_SPI.hpp"
+
+#elif defined (ARDUINO_ARCH_MBED_RP2040) || defined(ARDUINO_ARCH_RP2040)
+
+#include "rp2040/Bus_SPI.hpp"
 
 #elif defined (ARDUINO)
 
