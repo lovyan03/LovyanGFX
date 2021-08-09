@@ -1066,8 +1066,8 @@ namespace lgfx
         {  //  check panel (ST7789)
           board = board_t::board_M5StickCPlus;
           ESP_LOGW(LIBRARY_NAME, "[Autodetect] M5StickCPlus");
-          bus_cfg.freq_write = 80000000;
-          bus_cfg.freq_read  = 16000000;
+          bus_cfg.freq_write = 40000000;
+          bus_cfg.freq_read  = 15000000;
           _bus_spi.config(bus_cfg);
           auto p = new Panel_M5StickCPlus();
           p->bus(&_bus_spi);

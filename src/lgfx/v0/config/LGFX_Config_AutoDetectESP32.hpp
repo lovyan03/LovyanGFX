@@ -97,8 +97,8 @@ namespace lgfx
       spi_cs     =  5;
       spi_dc     = 23;
       gpio_rst   = 18;
-      freq_write = 80000000;
-      freq_read  = 16000000;
+      freq_write = 40000000;
+      freq_read  = 15000000;
       freq_fill  = 80000000;
       spi_mode_read = 1;
       len_dummy_read_pixel = 16;
