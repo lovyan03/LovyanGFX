@@ -153,15 +153,55 @@ namespace lgfx
       uint32_t spi_port = (spi_host + 1);
       (void)spi_port;
 
+ // バスの設定にはESP-IDFのSPIドライバを使用する。
+      if (_spi_dev_handle[spi_host] == nullptr)
+      {
+      spi_bus_config_t buscfg = {
+          .mosi_io_num = spi_mosi,
+          .miso_io_num = spi_miso,
+          .sclk_io_num = spi_sclk,
+          .quadwp_io_num = -1,
+          .quadhd_io_num = -1,
+          .max_transfer_sz = 1,
+          .flags = SPICOMMON_BUSFLAG_MASTER,
+          .intr_flags = 0,
+      };
+
+      if (ESP_OK != spi_bus_initialize(static_cast<spi_host_device_t>(spi_host), &buscfg, dma_channel))
+      {
+          ESP_LOGE("LGFX", "Failed to spi_bus_initialize. ");
+        }
+
+        spi_device_interface_config_t devcfg = {
+            .command_bits = 0,
+            .address_bits = 0,
+            .dummy_bits = 0,
+            .mode = 0,
+            .duty_cycle_pos = 0,
+            .cs_ena_pretrans = 0,
+            .cs_ena_posttrans = 0,
+            .clock_speed_hz = (int)getApbFrequency()>>1,
+            .input_delay_ns = 0,
+            .spics_io_num = -1,
+            .flags = SPI_DEVICE_3WIRE | SPI_DEVICE_HALFDUPLEX,
+            .queue_size = 1,
+            .pre_cb = nullptr,
+            .post_cb = nullptr};
+        if (ESP_OK != spi_bus_add_device(static_cast<spi_host_device_t>(spi_host), &devcfg, &_spi_dev_handle[spi_host])) {
+          ESP_LOGE("LGFX", "Failed to spi_bus_add_device. ");
+        }
+      }
+
 #if defined (ARDUINO) // Arduino ESP32
+
       if (spi_host == default_spi_host)
       {
         SPI.end();
         SPI.begin(spi_sclk, spi_miso, spi_mosi);
         _spi_handle[spi_host] = SPI.bus();
       }
-
-      if (_spi_handle[spi_host] == nullptr) {
+      if (_spi_handle[spi_host] == nullptr)
+      {
         _spi_handle[spi_host] = spiStartBus(spi_port, SPI_CLK_EQU_SYSCLK, 0, 0);
       }
 /*
@@ -201,46 +241,6 @@ namespace lgfx
       WRITE_PERI_REG(SPI_SLAVE_REG(spi_port), 0);
 //*/
 #endif
-
- // バスの設定にはESP-IDFのSPIドライバを使用する。
-      if (_spi_dev_handle[spi_host] == nullptr)
-      {
-      spi_bus_config_t buscfg = {
-          .mosi_io_num = spi_mosi,
-          .miso_io_num = spi_miso,
-          .sclk_io_num = spi_sclk,
-          .quadwp_io_num = -1,
-          .quadhd_io_num = -1,
-          .max_transfer_sz = 1,
-          .flags = SPICOMMON_BUSFLAG_MASTER,
-          .intr_flags = 0,
-      };
-
-        if (ESP_OK != spi_bus_initialize(static_cast<spi_host_device_t>(spi_host), &buscfg, dma_channel))
-      {
-          ESP_LOGE("LGFX", "Failed to spi_bus_initialize. ");
-        }
-
-        spi_device_interface_config_t devcfg = {
-            .command_bits = 0,
-            .address_bits = 0,
-            .dummy_bits = 0,
-            .mode = 0,
-            .duty_cycle_pos = 0,
-            .cs_ena_pretrans = 0,
-            .cs_ena_posttrans = 0,
-            .clock_speed_hz = (int)getApbFrequency()>>1,
-            .input_delay_ns = 0,
-            .spics_io_num = -1,
-            .flags = SPI_DEVICE_3WIRE | SPI_DEVICE_HALFDUPLEX,
-            .queue_size = 1,
-            .pre_cb = nullptr,
-            .post_cb = nullptr};
-        if (ESP_OK != spi_bus_add_device(static_cast<spi_host_device_t>(spi_host), &devcfg, &_spi_dev_handle[spi_host])) {
-          ESP_LOGE("LGFX", "Failed to spi_bus_add_device. ");
-        }
-      }
-
 
 #if defined ( SPI_CTRL1_REG )
       WRITE_PERI_REG(SPI_CTRL1_REG(spi_port), 0);
@@ -724,6 +724,11 @@ namespace lgfx
 
         auto cycle = std::min<uint32_t>(32767u, std::max(MIN_I2C_CYCLE, (src_clock / (freq + 1) + 1)));
         freq = src_clock / cycle;
+
+#if defined (CONFIG_IDF_TARGET_ESP32S2)
+        dev->ctr.ref_always_on = 1;
+#endif
+
 #if defined ( I2C_FILTER_CFG_REG )
         dev->filter_cfg.scl_en = cycle > 64;
         dev->filter_cfg.scl_thres = 0;
@@ -904,7 +909,7 @@ namespace lgfx
       if (!length) return res;
 
       static constexpr uint32_t intmask = I2C_ACK_ERR_INT_RAW_M | I2C_TIME_OUT_INT_RAW_M | I2C_END_DETECT_INT_RAW_M | I2C_ARBITRATION_LOST_INT_RAW_M;
-
+      auto fifo_addr = getFifoAddr(i2c_port);
       auto dev = getDev(i2c_port);
       size_t len = 0;
 
@@ -935,7 +940,7 @@ namespace lgfx
           if (0 != dev->status_reg.rx_fifo_cnt)
 #endif
           {
-            *readdata++ = dev->fifo_data.data;
+            *readdata++ = *fifo_addr; //dev->fifo_data.data;
           }
           else
           {

@@ -260,11 +260,13 @@ namespace lgfx
     i2s_dev->conf.val = _conf_reg_reset;// | I2S_TX_FIFO_RESET;
     i2s_dev->out_link.val = I2S_OUTLINK_START | ((uint32_t)&_dmadesc & I2S_OUTLINK_ADDR);
 /// OUTLINK_STARTした後でTX_STARTするまでの間が短すぎるとデータの先頭を送り損じる事がある
-/// そのため意図的に他の処理を挟んでおく。
-    i2s_dev->int_clr.val = ~0u;
-    _cache_flip = (_cache_flip == _cache[0]) ? _cache[1] : _cache[0];
-
+    if (_div_num <= 4)
+    {
+      size_t wait = (8 - _div_num) << 2;
+      do { __asm__ __volatile__ ("nop"); } while (--wait);
+    }
     i2s_dev->conf.val = _conf_reg_start;
+    _cache_flip = (_cache_flip == _cache[0]) ? _cache[1] : _cache[0];
     return 0;
   }
 
@@ -308,33 +310,25 @@ namespace lgfx
     size_t bytes = bit_length >> 3;
     auto idx = _cache_index;
     auto c = _cache_flip;
-/*
+
     if (bytes == 2)
     {
-      // if (idx & 1)
-      // {
-      //   color_raw = color_raw << 8 | color_raw | 0x01000100;
-      //   c[idx] = color_raw;
-      // }
-      // else
-      {
-        color_raw = color_raw << 16 | color_raw >> 8 | 0x01000100;
-      }
-      auto cache = (uint32_t*)&c[(idx + 1) & ~1];
+      uint32_t color_r2 = color_raw >> 8 | 0x100;
+      color_raw |= 0x100;
       for (;;)
       {
-        *cache++ = color_raw;
+        c[idx    ] = color_raw;
+        c[idx + 1] = color_r2;
         idx += 2;
         if (idx >= CACHE_THRESH)
         {
           idx = _flush(idx);
-          cache = (uint32_t*)&_cache_flip[(idx + 1) & ~1];
+          c = _cache_flip;
         }
         if (!--length) break;
       }
     }
     else
-//*/
     {
       size_t b = 0;
       uint16_t raw[bytes];
