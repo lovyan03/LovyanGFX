@@ -236,7 +236,7 @@ namespace lgfx
         uint32_t i = (param->src_x + param->src_y * param->src_bitwidth) * param->src_bits;
         param->src_x32 += param->src_x32_add;
         param->src_y32 += param->src_y32_add;
-        uint32_t raw = (s[i >> 3] >> (-(i + param->src_bits) & 7)) & param->src_mask;
+        uint32_t raw = (pgm_read_byte(&s[i >> 3]) >> (-(i + param->src_bits) & 7)) & param->src_mask;
         if (raw != param->transp) {
           auto dstidx = index * param->dst_bits;
           auto shift = (-(dstidx + param->dst_bits)) & 7;
@@ -256,7 +256,7 @@ namespace lgfx
       auto transp     = param->transp;
       do {
         uint32_t i = (param->src_x + param->src_y * param->src_bitwidth) * param->src_bits;
-        uint32_t raw = (s[i >> 3] >> (-(i + param->src_bits) & 7)) & param->src_mask;
+        uint32_t raw = (pgm_read_byte(&s[i >> 3]) >> (-(i + param->src_bits) & 7)) & param->src_mask;
         if (raw == transp) break;
         d[index] = pal[raw];
         param->src_x32 += param->src_x32_add;
@@ -597,7 +597,7 @@ namespace lgfx
       auto src_mask    = param->src_mask;
       do {
         uint32_t i = ((src_x32 >> FP_SCALE) + (src_y32 >> FP_SCALE) * src_bitwidth) * src_bits;
-        uint32_t raw = (s[i >> 3] >> (-(i + src_bits) & 7)) & src_mask;
+        uint32_t raw = (pgm_read_byte(&s[i >> 3]) >> (-(i + src_bits) & 7)) & src_mask;
         if (raw != transp) break;
         src_x32 += src_x32_add;
         src_y32 += src_y32_add;

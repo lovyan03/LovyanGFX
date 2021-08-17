@@ -38,12 +38,16 @@ Contributors:
 /// for  not ESP8266
 #if !defined ( pgm_read_dword_with_offset )
  #if defined (__SAMD21__)
+  #define pgm_read_word_unaligned(addr) (uint16_t) \
+  ( *(const uint8_t *)((uintptr_t)addr) \
+  | *(const uint8_t *)((uintptr_t)addr+1) << 8 )
   #define pgm_read_dword_unaligned(addr) (uint32_t) \
   ( *(const uint8_t *)((uintptr_t)addr) \
   | *(const uint8_t *)((uintptr_t)addr+1) << 8  \
   | *(const uint8_t *)((uintptr_t)addr+2) << 16 \
   | *(const uint8_t *)((uintptr_t)addr+3) << 24 )
  #else
+  #define pgm_read_word_unaligned(addr)  (*(const uint16_t *)((uintptr_t)addr))
   #define pgm_read_dword_unaligned(addr) (*(const uint32_t *)((uintptr_t)addr))
  #endif
 #endif
@@ -145,6 +149,7 @@ namespace lgfx
     constexpr rgb332_t(const rgb332_t&) = default;
     constexpr rgb332_t(uint8_t r8, uint8_t g8, uint8_t b8) : raw(color332(r8, g8, b8)) {}
     constexpr rgb332_t(uint8_t rgb332) : raw(rgb332) {}
+    inline rgb332_t& operator=(const rgb332_t&);
     inline rgb332_t& operator=(const rgb565_t&);
     inline rgb332_t& operator=(const rgb888_t&);
     inline rgb332_t& operator=(const argb8888_t&);
@@ -193,6 +198,7 @@ namespace lgfx
     inline swap565_t& operator=(const rgb565_t&);
     inline swap565_t& operator=(const rgb888_t&);
     inline swap565_t& operator=(const argb8888_t&);
+    inline swap565_t& operator=(const swap565_t&);
     inline swap565_t& operator=(const bgr666_t&);
     inline swap565_t& operator=(const bgr888_t&);
     inline swap565_t& operator=(const bgra8888_t&);
@@ -233,6 +239,7 @@ namespace lgfx
     constexpr rgb565_t(uint8_t r8, uint8_t g8, uint8_t b8) : raw(color565(r8, g8, b8)) {}
     constexpr rgb565_t(uint16_t rgb565) : raw(rgb565) {}
     inline rgb565_t& operator=(const rgb332_t&);
+    inline rgb565_t& operator=(const rgb565_t&);
     inline rgb565_t& operator=(const rgb888_t&);
     inline rgb565_t& operator=(const argb8888_t&);
     inline rgb565_t& operator=(const swap565_t&);
@@ -258,9 +265,16 @@ namespace lgfx
 
   struct bgr666_t
   {
-    uint8_t r6;
-    uint8_t g6;
-    uint8_t b6;
+    union
+    {
+      struct
+      {
+        uint8_t r6;
+        uint8_t g6;
+        uint8_t b6;
+      };
+      uint16_t rg;
+    };
     static constexpr uint8_t bits = 24;
     static constexpr bool swapped = true;
     static constexpr color_depth_t depth = rgb666_3Byte;
@@ -274,6 +288,7 @@ namespace lgfx
     inline bgr666_t& operator=(const rgb888_t&);
     inline bgr666_t& operator=(const argb8888_t&);
     inline bgr666_t& operator=(const swap565_t&);
+    inline bgr666_t& operator=(const bgr666_t&);
     inline bgr666_t& operator=(const bgr888_t&);
     inline bgr666_t& operator=(const bgra8888_t&);
     inline bgr666_t& operator=(const grayscale_t&);
@@ -318,6 +333,7 @@ namespace lgfx
     inline bgr888_t& operator=(const argb8888_t&);
     inline bgr888_t& operator=(const swap565_t&);
     inline bgr888_t& operator=(const bgr666_t&);
+    inline bgr888_t& operator=(const bgr888_t&);
     inline bgr888_t& operator=(const bgra8888_t&);
     inline bgr888_t& operator=(const grayscale_t&);
     explicit inline constexpr operator uint32_t(void) const { return *reinterpret_cast<const uint32_t*>(this) & ((1ul << 24) - 1); }
@@ -536,17 +552,19 @@ namespace lgfx
 
 #pragma pack(pop)
 
+  inline rgb332_t& rgb332_t::operator=(const rgb332_t&   rhs) { *reinterpret_cast<uint8_t*>(this) = pgm_read_byte(&rhs); return *this; }
   inline rgb332_t& rgb332_t::operator=(const rgb565_t&   rhs) { raw = (rhs.r5 >> 2) << 5 | (rhs.g6 >> 3) << 2 | rhs.b5 >> 3; return *this; }
-  inline rgb332_t& rgb332_t::operator=(const swap565_t&  rhs) { raw = ((rhs.r5 << 3) & 0xE0) | ((rhs.gh << 2) + (rhs.b5 >> 3)); return *this; }
+  inline rgb332_t& rgb332_t::operator=(const swap565_t&  rhs) { uint_fast16_t c = pgm_read_word(&rhs); raw = (c & 0xE0) | (((c & 7) << 2) + ((c >> 11) & 3)); return *this; }
   inline rgb332_t& rgb332_t::operator=(const bgr666_t&   rhs) { raw = ((rhs.r6 << 2) & 0xE0) | ((rhs.g6 >> 1) & 0x1C) | (rhs.b6 >> 4); return *this; }
   inline rgb332_t& rgb332_t::operator=(const rgb888_t&   rhs) { raw = color332(rhs.R8(), rhs.G8(), rhs.B8()); return *this; }
-  inline rgb332_t& rgb332_t::operator=(const bgr888_t&   rhs) { raw = color332(rhs.R8(), rhs.G8(), rhs.B8()); return *this; }
+  inline rgb332_t& rgb332_t::operator=(const bgr888_t&   rhs) { *reinterpret_cast<uint8_t*>(this) = (pgm_read_byte(&rhs.r)&0xE0)+((pgm_read_byte(&rhs.g)>>5)<<2)+(pgm_read_byte(&rhs.b)>>6); return *this; }
   inline rgb332_t& rgb332_t::operator=(const argb8888_t& rhs) { raw = color332(rhs.R8(), rhs.G8(), rhs.B8()); return *this; }
   inline rgb332_t& rgb332_t::operator=(const bgra8888_t& rhs) { raw = color332(rhs.R8(), rhs.G8(), rhs.B8()); return *this; }
   inline rgb332_t& rgb332_t::operator=(const grayscale_t& rhs){ raw = color332(rhs.R8(), rhs.G8(), rhs.B8()); return *this; }
 
   inline rgb565_t& rgb565_t::operator=(const rgb332_t&   rhs) { raw = color565(rhs.R8(), rhs.G8(), rhs.B8()); return *this; }
-  inline rgb565_t& rgb565_t::operator=(const swap565_t&  rhs) { raw = __builtin_bswap16(rhs.raw);   return *this; }
+  inline rgb565_t& rgb565_t::operator=(const rgb565_t&   rhs) { *reinterpret_cast<uint16_t*>(this) = pgm_read_word(&rhs); return *this; }
+  inline rgb565_t& rgb565_t::operator=(const swap565_t&  rhs) { raw = __builtin_bswap16(pgm_read_word(&rhs)); return *this; }
   inline rgb565_t& rgb565_t::operator=(const bgr666_t&   rhs) { raw = color565(rhs.R8(), rhs.G8(), rhs.B8()); return *this; }
   inline rgb565_t& rgb565_t::operator=(const rgb888_t&   rhs) { raw = color565(rhs.R8(), rhs.G8(), rhs.B8()); return *this; }
   inline rgb565_t& rgb565_t::operator=(const bgr888_t&   rhs) { raw = color565(rhs.R8(), rhs.G8(), rhs.B8()); return *this; }
@@ -564,10 +582,11 @@ namespace lgfx
   inline rgb888_t& rgb888_t::operator=(const grayscale_t& rhs){ r = rhs.R8(); g = rhs.G8(); b = rhs.B8(); return *this; }
 
   inline swap565_t& swap565_t::operator=(const rgb332_t&   rhs) { *reinterpret_cast<uint16_t*>(this) = ((rhs.b2 * 0x15)>>1)<<8 | rhs.g3 << 13 | rhs.g3 | ((rhs.r3 * 0x09) >> 1) << 3; return *this; }
-  inline swap565_t& swap565_t::operator=(const rgb565_t&   rhs) { *reinterpret_cast<uint16_t*>(this) = __builtin_bswap16(rhs.raw);              return *this; }
-  inline swap565_t& swap565_t::operator=(const rgb888_t&   rhs) { *reinterpret_cast<uint16_t*>(this) = swap565(rhs.R8(), rhs.G8(), rhs.B8());   return *this; }
-  inline swap565_t& swap565_t::operator=(const bgr666_t&   rhs) { raw = (rhs.b6 >> 1)<<8 | rhs.g6 << 13 | rhs.g6 >> 3 | (rhs.r6 >> 1) << 3; return *this; }
-  inline swap565_t& swap565_t::operator=(const bgr888_t&   rhs) { *reinterpret_cast<uint16_t*>(this) = swap565(rhs.R8(), rhs.G8(), rhs.B8());   return *this; }
+  inline swap565_t& swap565_t::operator=(const rgb565_t&   rhs) { *reinterpret_cast<uint16_t*>(this) = __builtin_bswap16(pgm_read_word(&rhs));  return *this; }
+  inline swap565_t& swap565_t::operator=(const swap565_t&  rhs) { *reinterpret_cast<uint16_t*>(this) =                   pgm_read_word(&rhs);   return *this; }
+  inline swap565_t& swap565_t::operator=(const bgr666_t&   rhs) { raw = (rhs.b6 >> 1)<<8 | rhs.g6 << 13 | rhs.g6 >> 3 | (rhs.r6 >> 1) << 3;     return *this; }
+  inline swap565_t& swap565_t::operator=(const rgb888_t&   rhs) { auto g = pgm_read_byte(&rhs.g); *reinterpret_cast<uint16_t*>(this) = (((pgm_read_byte(&rhs.r) >> 3) << 3) + (g >> 5)) | (((g >> 2) << 5) + (pgm_read_byte(&rhs.b) >> 3)) << 8; return *this; }
+  inline swap565_t& swap565_t::operator=(const bgr888_t&   rhs) { auto g = pgm_read_byte(&rhs.g);  *reinterpret_cast<uint16_t*>(this) = ((((((g >> 2) << 5) + (pgm_read_byte(&rhs.b) >> 3)) << 5) + (pgm_read_byte(&rhs.r) >> 3)) << 3) + (g >> 5); return *this;  }
   inline swap565_t& swap565_t::operator=(const argb8888_t& rhs) { *reinterpret_cast<uint16_t*>(this) = swap565(rhs.R8(), rhs.G8(), rhs.B8());   return *this; }
   inline swap565_t& swap565_t::operator=(const bgra8888_t& rhs) { *reinterpret_cast<uint16_t*>(this) = swap565(rhs.R8(), rhs.G8(), rhs.B8());   return *this; }
   inline swap565_t& swap565_t::operator=(const grayscale_t& rhs){ *reinterpret_cast<uint16_t*>(this) = swap565(rhs.R8(), rhs.G8(), rhs.B8());   return *this; }
@@ -575,8 +594,9 @@ namespace lgfx
   inline bgr666_t& bgr666_t::operator=(const rgb332_t&   rhs) { r6 = rhs.R6(); g6 = rhs.G6(); b6 = rhs.B6(); return *this; }
   inline bgr666_t& bgr666_t::operator=(const rgb565_t&   rhs) { r6 = rhs.R6(); g6 = rhs.G6(); b6 = rhs.B6(); return *this; }
   inline bgr666_t& bgr666_t::operator=(const swap565_t&  rhs) { r6 = rhs.R6(); g6 = rhs.G6(); b6 = rhs.B6(); return *this; }
-  inline bgr666_t& bgr666_t::operator=(const bgr888_t&   rhs) { r6 = rhs.R6(); g6 = rhs.G6(); b6 = rhs.B6(); return *this; }
+  inline bgr666_t& bgr666_t::operator=(const bgr666_t&   rhs) { rg = pgm_read_word_unaligned(&rhs); b6 = pgm_read_byte(&rhs.b6); return *this; }
   inline bgr666_t& bgr666_t::operator=(const rgb888_t&   rhs) { r6 = rhs.R6(); g6 = rhs.G6(); b6 = rhs.B6(); return *this; }
+  inline bgr666_t& bgr666_t::operator=(const bgr888_t&   rhs) { r6 = rhs.R6(); g6 = rhs.G6(); b6 = rhs.B6(); return *this; }
   inline bgr666_t& bgr666_t::operator=(const argb8888_t& rhs) { r6 = rhs.R6(); g6 = rhs.G6(); b6 = rhs.B6(); return *this; }
   inline bgr666_t& bgr666_t::operator=(const bgra8888_t& rhs) { r6 = rhs.R6(); g6 = rhs.G6(); b6 = rhs.B6(); return *this; }
   inline bgr666_t& bgr666_t::operator=(const grayscale_t& rhs){ r6 = rhs.R6(); g6 = rhs.G6(); b6 = rhs.B6(); return *this; }
@@ -585,6 +605,7 @@ namespace lgfx
   inline bgr888_t& bgr888_t::operator=(const rgb565_t&   rhs) { rg = rhs.R8() | rhs.G8() <<8; b = rhs.B8(); return *this; }
   inline bgr888_t& bgr888_t::operator=(const swap565_t&  rhs) { rg = rhs.R8() | rhs.G8() <<8; b = rhs.B8(); return *this; }
   inline bgr888_t& bgr888_t::operator=(const bgr666_t&   rhs) { r = rhs.R8(); g = rhs.G8(); b = rhs.B8(); return *this; }
+  inline bgr888_t& bgr888_t::operator=(const bgr888_t&   rhs) { rg = pgm_read_word_unaligned(&rhs); b = pgm_read_byte(&rhs.b); return *this; }
   inline bgr888_t& bgr888_t::operator=(const rgb888_t&   rhs) { r = rhs.R8(); g = rhs.G8(); b = rhs.B8(); return *this; }
   inline bgr888_t& bgr888_t::operator=(const argb8888_t& rhs) { r = rhs.R8(); g = rhs.G8(); b = rhs.B8(); return *this; }
   inline bgr888_t& bgr888_t::operator=(const bgra8888_t& rhs) { r = rhs.R8(); g = rhs.G8(); b = rhs.B8(); return *this; }
@@ -619,22 +640,22 @@ namespace lgfx
   inline constexpr bool operator==(const rgb332_t&   lhs, const rgb332_t&   rhs) { return lhs.raw == rhs.raw; }
   inline constexpr bool operator==(const rgb565_t&   lhs, const rgb565_t&   rhs) { return lhs.raw == rhs.raw; }
   inline constexpr bool operator==(const swap565_t&  lhs, const swap565_t&  rhs) { return lhs.raw == rhs.raw; }
-  inline constexpr bool operator==(const bgr666_t&   lhs, const bgr666_t&   rhs) { return (*reinterpret_cast<const uint32_t*>(&lhs) << 8) == (*reinterpret_cast<const uint32_t*>(&rhs) << 8); }
-  inline constexpr bool operator==(const rgb888_t&   lhs, const rgb888_t&   rhs) { return (*reinterpret_cast<const uint32_t*>(&lhs) << 8) == (*reinterpret_cast<const uint32_t*>(&rhs) << 8); }
-  inline constexpr bool operator==(const bgr888_t&   lhs, const bgr888_t&   rhs) { return (*reinterpret_cast<const uint32_t*>(&lhs) << 8) == (*reinterpret_cast<const uint32_t*>(&rhs) << 8); }
+  inline constexpr bool operator==(const bgr666_t&   lhs, const bgr666_t&   rhs) { return (pgm_read_dword_unaligned(&lhs) << 8) == (pgm_read_dword_unaligned(&rhs) << 8); }
+  inline constexpr bool operator==(const rgb888_t&   lhs, const rgb888_t&   rhs) { return (pgm_read_dword_unaligned(&lhs) << 8) == (pgm_read_dword_unaligned(&rhs) << 8); }
+  inline constexpr bool operator==(const bgr888_t&   lhs, const bgr888_t&   rhs) { return (pgm_read_dword_unaligned(&lhs) << 8) == (pgm_read_dword_unaligned(&rhs) << 8); }
   inline constexpr bool operator==(const argb8888_t& lhs, const argb8888_t& rhs) { return lhs.raw == rhs.raw; }
   inline constexpr bool operator==(const grayscale_t& lhs,const grayscale_t& rhs){ return lhs.raw == rhs.raw; }
 
   // for compare transparent color.
-  inline constexpr bool operator==(const rgb332_t&   lhs, uint32_t rhs) { return  *reinterpret_cast<const uint8_t* >(&lhs) == rhs; }
-  inline constexpr bool operator==(const rgb565_t&   lhs, uint32_t rhs) { return  *reinterpret_cast<const uint16_t*>(&lhs) == rhs; }
-  inline constexpr bool operator==(const swap565_t&  lhs, uint32_t rhs) { return  *reinterpret_cast<const uint16_t*>(&lhs) == rhs; }
-  inline           bool operator==(const bgr666_t&   lhs, uint32_t rhs) { return (pgm_read_dword_unaligned(&lhs) << 8) >> 8 == rhs; }
-  inline           bool operator==(const rgb888_t&   lhs, uint32_t rhs) { return (pgm_read_dword_unaligned(&lhs) << 8) >> 8 == rhs; }
-  inline           bool operator==(const bgr888_t&   lhs, uint32_t rhs) { return (pgm_read_dword_unaligned(&lhs) << 8) >> 8 == rhs; }
-  inline constexpr bool operator==(const argb8888_t& lhs, uint32_t rhs) { return  *reinterpret_cast<const uint32_t*>(&lhs) == rhs; }
-  inline constexpr bool operator==(const bgra8888_t& lhs, uint32_t rhs) { return  *reinterpret_cast<const uint32_t*>(&lhs) == rhs; }
-  inline constexpr bool operator==(const grayscale_t& lhs,uint32_t rhs) { return  *reinterpret_cast<const uint8_t* >(&lhs) == rhs; }
+  inline bool operator==(const rgb332_t&   lhs, uint32_t rhs) { return  pgm_read_byte(&lhs) == rhs; }
+  inline bool operator==(const rgb565_t&   lhs, uint32_t rhs) { return  pgm_read_word(&lhs) == rhs; }
+  inline bool operator==(const swap565_t&  lhs, uint32_t rhs) { return  pgm_read_word(&lhs) == rhs; }
+  inline bool operator==(const bgr666_t&   lhs, uint32_t rhs) { return (pgm_read_dword_unaligned(&lhs) << 8) >> 8 == rhs; }
+  inline bool operator==(const rgb888_t&   lhs, uint32_t rhs) { return (pgm_read_dword_unaligned(&lhs) << 8) >> 8 == rhs; }
+  inline bool operator==(const bgr888_t&   lhs, uint32_t rhs) { return (pgm_read_dword_unaligned(&lhs) << 8) >> 8 == rhs; }
+  inline bool operator==(const argb8888_t& lhs, uint32_t rhs) { return  pgm_read_dword(&lhs) == rhs; }
+  inline bool operator==(const bgra8888_t& lhs, uint32_t rhs) { return  pgm_read_dword(&lhs) == rhs; }
+  inline bool operator==(const grayscale_t& lhs,uint32_t rhs) { return  pgm_read_byte(&lhs) == rhs; }
 
   inline constexpr bool operator==(const raw_color_t& lhs, const raw_color_t& rhs) { return *reinterpret_cast<const uint32_t*>(&lhs) == *reinterpret_cast<const uint32_t*>(&rhs); }
   inline constexpr bool operator!=(const raw_color_t& lhs, const raw_color_t& rhs) { return *reinterpret_cast<const uint32_t*>(&lhs) != *reinterpret_cast<const uint32_t*>(&rhs); }
