@@ -640,9 +640,9 @@ namespace lgfx
   inline constexpr bool operator==(const rgb332_t&   lhs, const rgb332_t&   rhs) { return lhs.raw == rhs.raw; }
   inline constexpr bool operator==(const rgb565_t&   lhs, const rgb565_t&   rhs) { return lhs.raw == rhs.raw; }
   inline constexpr bool operator==(const swap565_t&  lhs, const swap565_t&  rhs) { return lhs.raw == rhs.raw; }
-  inline constexpr bool operator==(const bgr666_t&   lhs, const bgr666_t&   rhs) { return (pgm_read_dword_unaligned(&lhs) << 8) == (pgm_read_dword_unaligned(&rhs) << 8); }
-  inline constexpr bool operator==(const rgb888_t&   lhs, const rgb888_t&   rhs) { return (pgm_read_dword_unaligned(&lhs) << 8) == (pgm_read_dword_unaligned(&rhs) << 8); }
-  inline constexpr bool operator==(const bgr888_t&   lhs, const bgr888_t&   rhs) { return (pgm_read_dword_unaligned(&lhs) << 8) == (pgm_read_dword_unaligned(&rhs) << 8); }
+  inline           bool operator==(const bgr666_t&   lhs, const bgr666_t&   rhs) { return (pgm_read_dword_unaligned(&lhs) << 8) == (pgm_read_dword_unaligned(&rhs) << 8); }
+  inline           bool operator==(const rgb888_t&   lhs, const rgb888_t&   rhs) { return (pgm_read_dword_unaligned(&lhs) << 8) == (pgm_read_dword_unaligned(&rhs) << 8); }
+  inline           bool operator==(const bgr888_t&   lhs, const bgr888_t&   rhs) { return (pgm_read_dword_unaligned(&lhs) << 8) == (pgm_read_dword_unaligned(&rhs) << 8); }
   inline constexpr bool operator==(const argb8888_t& lhs, const argb8888_t& rhs) { return lhs.raw == rhs.raw; }
   inline constexpr bool operator==(const grayscale_t& lhs,const grayscale_t& rhs){ return lhs.raw == rhs.raw; }
 
