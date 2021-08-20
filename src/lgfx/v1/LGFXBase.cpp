@@ -1966,7 +1966,7 @@ namespace lgfx
       _cursor_y = y - ydiff;
       y -= (_font_metrics.y_offset * sy) >> 16;
 
-      if (y <= _clip_b)
+      if (y <= _clip_b + h)
       {
         _cursor_x += _font->drawChar(this, _cursor_x, y, uniCode, &_text_style, &_font_metrics, _filled_x);
       }
