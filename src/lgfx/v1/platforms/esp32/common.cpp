@@ -637,7 +637,7 @@ namespace lgfx
       if (i2c_port >= I2C_NUM_MAX) { return cpp::fail(error_t::invalid_arg); }
       auto dev = getDev(i2c_port);
       i2c_context[i2c_port].save_reg(dev);
-      release(i2c_port);
+      release(i2c_port).value();
       i2c_context[i2c_port].pin_scl = (gpio_num_t)pin_scl;
       i2c_context[i2c_port].pin_sda = (gpio_num_t)pin_sda;
       i2c_stop(i2c_port);
