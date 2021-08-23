@@ -70,21 +70,21 @@
 # define RESULT_INLINE_VISIBILITY
 #endif
 
-// [[clang::warn_unused_result]] is more full-featured than gcc's variant, since
-// it supports being applied to class objects.
-#if __cplusplus >= 201703L
-# define RESULT_NODISCARD [[nodiscard]]
-# define RESULT_WARN_UNUSED [[nodiscard]]
-#elif defined(__clang__) && ((__clang_major__ > 3) || ((__clang_major__ == 3) && (__clang_minor__ >= 9)))
-# define RESULT_NODISCARD [[clang::warn_unused_result]]
-# define RESULT_WARN_UNUSED [[clang::warn_unused_result]]
-#elif defined(__GNUC__)
-# define RESULT_NODISCARD
-# define RESULT_WARN_UNUSED [[gnu::warn_unused_result]]
-#else
+// // [[clang::warn_unused_result]] is more full-featured than gcc's variant, since
+// // it supports being applied to class objects.
+// #if __cplusplus >= 201703L
+// # define RESULT_NODISCARD [[nodiscard]]
+// # define RESULT_WARN_UNUSED [[nodiscard]]
+// #elif defined(__clang__) && ((__clang_major__ > 3) || ((__clang_major__ == 3) && (__clang_minor__ >= 9)))
+// # define RESULT_NODISCARD [[clang::warn_unused_result]]
+// # define RESULT_WARN_UNUSED [[clang::warn_unused_result]]
+// #elif defined(__GNUC__)
+// # define RESULT_NODISCARD
+// # define RESULT_WARN_UNUSED [[gnu::warn_unused_result]]
+// #else
 # define RESULT_WARN_UNUSED
 # define RESULT_NODISCARD
-#endif
+// #endif
 
 #if defined(RESULT_NAMESPACE)
 # define RESULT_NAMESPACE_INTERNAL RESULT_NAMESPACE
