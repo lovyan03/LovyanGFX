@@ -993,7 +993,7 @@ namespace lgfx
     } while (++y <= ye);
   }
 
-  void LGFXBase::draw_bitmap(std::int32_t x, std::int32_t y, const std::uint8_t *bitmap, std::int32_t w, std::int32_t h, std::uint32_t fg_rawcolor, std::uint32_t bg_rawcolor)
+  void LGFXBase::draw_bitmap(std::int32_t x, std::int32_t y, const std::uint8_t *bitmap, std::int32_t w, std::int32_t h, std::uint32_t fg_rawcolor, std::uint32_t scale, std::uint32_t bg_rawcolor)
   {
     if (w < 1 || h < 1) return;
     setRawColor(fg_rawcolor);
@@ -1013,7 +1013,9 @@ namespace lgfx
           byte <<= 1;
         }
         if ((ip != i) && (fg || bg_rawcolor != ~0u)) {
-          writeFastHLine(x + ip, y + j, i - ip);
+        	for(uint8_t c = 0; c < scale; c++){
+        		writeFastHLine(x + ip*scale, y + j*scale + c, (i - ip) * scale);
+        	}
         }
         fg = !fg;
         if (bg_rawcolor != ~0u) setRawColor(fg ? fg_rawcolor : bg_rawcolor);
