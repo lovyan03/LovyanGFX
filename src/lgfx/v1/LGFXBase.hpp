@@ -56,10 +56,10 @@ namespace lgfx
     LGFX_INLINE static constexpr uint32_t color888(uint8_t r, uint8_t g, uint8_t b) { return lgfx::color888(r, g, b); }
     LGFX_INLINE static constexpr uint16_t swap565( uint8_t r, uint8_t g, uint8_t b) { return lgfx::swap565( r, g, b); }
     LGFX_INLINE static constexpr uint32_t swap888( uint8_t r, uint8_t g, uint8_t b) { return lgfx::swap888( r, g, b); }
-    LGFX_INLINE static constexpr uint8_t  color16to8(uint32_t rgb565) { return lgfx::convert_rgb565_to_rgb332(rgb565); }
-    LGFX_INLINE static constexpr uint16_t color8to16(uint32_t rgb332) { return lgfx::convert_rgb332_to_rgb565(rgb332); }
-    LGFX_INLINE static constexpr uint32_t color16to24(uint32_t rgb565) { return lgfx::convert_rgb565_to_rgb888(rgb565); }
-    LGFX_INLINE static constexpr uint16_t color24to16(uint32_t rgb888) { return lgfx::convert_rgb888_to_rgb565(rgb888); }
+    LGFX_INLINE static uint8_t  color16to8( uint32_t rgb565) { return lgfx::color_convert<rgb332_t,rgb565_t>(rgb565); }
+    LGFX_INLINE static uint16_t color8to16( uint32_t rgb332) { return lgfx::color_convert<rgb565_t,rgb332_t>(rgb332); }
+    LGFX_INLINE static uint32_t color16to24(uint32_t rgb565) { return lgfx::color_convert<rgb888_t,rgb565_t>(rgb565); }
+    LGFX_INLINE static uint16_t color24to16(uint32_t rgb888) { return lgfx::color_convert<rgb565_t,rgb888_t>(rgb888); }
 
     LGFX_INLINE   void setColor(uint8_t r, uint8_t g, uint8_t b) { setColor(lgfx::color888(r,g,b)); }
     LGFX_INLINE_T void setColor(T color) { setRawColor(_write_conv.convert(color)); }

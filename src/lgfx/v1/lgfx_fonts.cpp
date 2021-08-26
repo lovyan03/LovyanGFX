@@ -15,17 +15,7 @@
 #include <math.h>
 #include "../internal/algorithm.h"
 
-#if !defined (pgm_read_byte)
-  #if __has_include(<pgmspace.h>)
-    #include <pgmspace.h>
-  #elif __has_include(<avr/pgmspace.h>)
-    #include <avr/pgmspace.h>
-  #else
-    #define pgm_read_byte(addr)  (*(const uint8_t  *)((size_t)addr))
-    #define pgm_read_word(addr)  (*(const uint16_t *)((size_t)addr))
-    #define pgm_read_dword(addr) (*(const uint32_t *)((size_t)addr))
-  #endif
-#endif
+#include "../utility/pgmspace.h"
 
 #ifndef PROGMEM
 #define PROGMEM

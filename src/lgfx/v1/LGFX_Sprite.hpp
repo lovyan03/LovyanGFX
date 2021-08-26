@@ -241,7 +241,7 @@ namespace lgfx
 
       if (count > _palette_count) count = _palette_count;
       for (uint32_t i = 0; i < count; ++i) {
-        _palette.img24()[i] = convert_rgb565_to_bgr888(colors[i]);
+        _palette.img24()[i] = color_convert<bgr888_t, rgb565_t>(colors[i]);
       }
       return true;
     }
@@ -253,7 +253,7 @@ namespace lgfx
 
       if (count > _palette_count) count = _palette_count;
       for (uint32_t i = 0; i < count; ++i) {
-        _palette.img24()[i] = convert_rgb888_to_bgr888(colors[i]);
+        _palette.img24()[i] = color_convert<bgr888_t, rgb888_t>(colors[i]);
       }
       return true;
     }
@@ -277,8 +277,8 @@ namespace lgfx
     void setBitmapColor(uint16_t fgcolor, uint16_t bgcolor)  // For 1bpp sprites
     {
       if (_palette) {
-        _palette.img24()[0] = *(rgb565_t*)&bgcolor;
-        _palette.img24()[1] = *(rgb565_t*)&fgcolor;
+        _palette.img24()[0].set(color_convert<bgr888_t, rgb565_t>(bgcolor));
+        _palette.img24()[1].set(color_convert<bgr888_t, rgb565_t>(fgcolor));
       }
     }
 
@@ -455,7 +455,7 @@ namespace lgfx
         data->seek(bmpdata.biSize + 14);
         data->read((uint8_t*)palette, (palettecount * sizeof(argb8888_t))); // load palette
         for (uint_fast16_t i = 0; i < _palette_count; ++i) {
-          _palette.img24()[i] = palette[i];
+          _palette.img24()[i].set(color_convert<bgr888_t, argb8888_t>(palette[i].get()));
         }
         delete[] palette;
       }

@@ -26,6 +26,12 @@ namespace lgfx
 
   static void memset_multi(uint8_t* buf, uint32_t c, size_t size, size_t length)
   {
+    if (size == 1 || ((c & 0xFF) == ((c >> 8) & 0xFF) && (size == 2 || ((c & 0xFF) == ((c >> 16) & 0xFF)))))
+    {
+      memset(buf, c, size * length);
+      return;
+    }
+
     size_t l = length;
     if (l & ~0xF)
     {
@@ -202,58 +208,34 @@ namespace lgfx
       if (w > 1)
       {
         uint_fast8_t bytes = bits >> 3;
-        uint32_t bw = _bitwidth;
+        uint_fast16_t bw = _bitwidth;
         uint8_t* dst = &_img[(x + y * bw) * bytes];
-        uint8_t c = rawcolor;
-        if (bytes == 1 || (c == ((rawcolor >> 8) & 0xFF) && (bytes == 2 || (c == ((rawcolor >> 16) & 0xFF)))))
+        uint8_t* src = dst;
+        uint_fast16_t add_dst = bw * bytes;
+        uint_fast16_t len = w * bytes;
+
+        if (_img.use_memcpy())
         {
-          if (w == bw)
+          if (w != bw)
           {
-            memset(dst, rawcolor, w * bytes * h);
+            dst += add_dst;
           }
           else
           {
-            uint32_t add_dst = bw * bytes;
-            do
-            {
-              memset(dst, c, w * bytes);
-              dst += add_dst;
-            } while (--h);
+            w *= h;
+            h = 1;
           }
         }
         else
         {
-          size_t len = w * bytes;
-          uint32_t add_dst = bw * bytes;
-
-          if (_img.use_memcpy() && (w == bw || h == 1))
-          {
-//          if (w == bw)
-            {
-              memset_multi(dst, rawcolor, bytes, w * h);
-            }
-/*
-            else
-            {
-              memset_multi(dst, rawcolor, bytes, w);
-              while (--h)
-              {
-                memcpy(dst + add_dst, dst, len);
-                dst += add_dst;
-              }
-            }
-//*/
-          }
-          else
-          {
-            auto linebuf = (uint8_t*)alloca(len);
-            memset_multi(linebuf, rawcolor, bytes, w);
-            do
-            {
-              memcpy(dst, linebuf, len);
-              dst += add_dst;
-            } while (--h);
-          }
+          src = (uint8_t*)alloca(len);
+          ++h;
+        }
+        memset_multi(src, rawcolor, bytes, w);
+        while (--h)
+        {
+          memcpy(dst, src, len);
+          dst += add_dst;
         }
       }
       else
@@ -271,11 +253,9 @@ namespace lgfx
           do { *img = rawcolor;  img += bw; } while (--h);
         }
         else
-        {  // if (_write_conv.bytes == 3)
-          //auto c = _color;
+        {
           auto img = &_img.img24()[index];
           do { *img = rawcolor; img += bw; } while (--h);
-          //do { img->r = c.raw0; img->g = c.raw1; img->b = c.raw2; img += bw; } while (--h);
         }
       }
     }
@@ -283,7 +263,7 @@ namespace lgfx
     {
       x *= bits;
       w *= bits;
-      size_t add_dst = _bitwidth * bits >> 3;
+      uint32_t add_dst = _bitwidth * bits >> 3;
       uint8_t* dst = &_img[y * add_dst + (x >> 3)];
       uint32_t len = ((x + w) >> 3) - (x >> 3);
       uint8_t mask = 0xFF >> (x & 7);

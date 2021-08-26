@@ -85,6 +85,7 @@ namespace lgfx
     _invert = invert;
     startWrite();
     write_command((invert ^ _cfg.invert) ? CMD_INVON : CMD_INVOFF);
+    _bus->flush();
     endWrite();
   }
 
@@ -92,6 +93,7 @@ namespace lgfx
   {
     startWrite();
     write_command(flg ? CMD_SLPIN : CMD_SLPOUT);
+    _bus->flush();
     endWrite();
   }
 
@@ -99,6 +101,7 @@ namespace lgfx
   {
     startWrite();
     write_command(flg ? CMD_IDMON : CMD_IDMOFF);
+    _bus->flush();
     endWrite();
   }
 

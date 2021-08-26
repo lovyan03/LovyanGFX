@@ -66,7 +66,7 @@ namespace lgfx
     if (use_reset)
     {
       reset();
-      delay(50);
+      delay(64);
     }
     return true;
   }

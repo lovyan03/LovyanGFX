@@ -142,7 +142,7 @@ namespace lgfx
     static auto get_fp_copy_rgb_affine(color_depth_t dst_depth) -> uint32_t(*)(void*, uint32_t, uint32_t, pixelcopy_t*)
     {
       return (dst_depth == rgb565_2Byte) ? copy_rgb_affine<swap565_t, TSrc>
-           : (dst_depth == rgb332_1Byte ) ? copy_rgb_affine<rgb332_t , TSrc>
+           : (dst_depth == rgb332_1Byte) ? copy_rgb_affine<rgb332_t , TSrc>
            : (dst_depth == rgb888_3Byte) ? copy_rgb_affine<bgr888_t, TSrc>
            : (dst_depth == rgb666_3Byte) ? (std::is_same<bgr666_t, TSrc>::value
                                            ? copy_rgb_affine<bgr888_t, bgr888_t>
@@ -154,7 +154,7 @@ namespace lgfx
     static auto get_fp_copy_rgb_affine_dst(color_depth_t src_depth) -> uint32_t(*)(void*, uint32_t, uint32_t, pixelcopy_t*)
     {
       return (src_depth == rgb565_2Byte) ? copy_rgb_affine<TDst, swap565_t>
-           : (src_depth == rgb332_1Byte ) ? copy_rgb_affine<TDst, rgb332_t >
+           : (src_depth == rgb332_1Byte) ? copy_rgb_affine<TDst, rgb332_t >
            : (src_depth == rgb888_3Byte) ? copy_rgb_affine<TDst, bgr888_t >
                                          : (std::is_same<bgr666_t, TDst>::value)
                                            ? copy_rgb_affine<bgr888_t, bgr888_t>
@@ -165,9 +165,9 @@ namespace lgfx
     static auto get_fp_copy_palette_affine(color_depth_t dst_depth) -> uint32_t(*)(void*, uint32_t, uint32_t, pixelcopy_t*)
     {
       return (dst_depth == rgb565_2Byte) ? copy_palette_affine<swap565_t, TPalette>
-           : (dst_depth == rgb332_1Byte ) ? copy_palette_affine<rgb332_t , TPalette>
-           : (dst_depth == rgb888_3Byte) ? copy_palette_affine<bgr888_t, TPalette>
-           : (dst_depth == rgb666_3Byte) ? copy_palette_affine<bgr666_t, TPalette>
+           : (dst_depth == rgb332_1Byte) ? copy_palette_affine<rgb332_t , TPalette>
+           : (dst_depth == rgb888_3Byte) ? copy_palette_affine<bgr888_t , TPalette>
+           : (dst_depth == rgb666_3Byte) ? copy_palette_affine<bgr666_t , TPalette>
            : nullptr;
     }
 
@@ -203,7 +203,7 @@ namespace lgfx
         uint32_t raw = s[i >> 3];
         i += param->src_bits;
         raw = (raw >> (-i & 7)) & param->src_mask;
-        d[index] = pal[raw];
+        d[index].set(color_convert<TDst, TPalette>(pal[raw].get()));
       } while (++index != last);
       return index;
     }
@@ -221,7 +221,7 @@ namespace lgfx
       else
       {
         do {
-          d[index] = s[index];
+          d[index].set(color_convert<TDst, TSrc>(s[index].get()));
         } while (++index != last);
       }
       return last;
@@ -258,7 +258,7 @@ namespace lgfx
         uint32_t i = (param->src_x + param->src_y * param->src_bitwidth) * param->src_bits;
         uint32_t raw = (pgm_read_byte(&s[i >> 3]) >> (-(i + param->src_bits) & 7)) & param->src_mask;
         if (raw == transp) break;
-        d[index] = pal[raw];
+        d[index].set(color_convert<TDst, TPalette>(pal[raw].get()));
         param->src_x32 += param->src_x32_add;
         param->src_y32 += param->src_y32_add;
       } while (++index != last);
@@ -270,15 +270,21 @@ namespace lgfx
     {
       auto s = static_cast<const TSrc*>(param->src_data);
       auto d = static_cast<TDst*>(dst);
+      auto src_bitwidth = param->src_bitwidth;
       auto src_x32_add = param->src_x32_add;
       auto src_y32_add = param->src_y32_add;
+      auto src_x32 = param->src_x32;
+      auto src_y32 = param->src_y32;
       do {
-        uint32_t i = param->src_x + param->src_y * param->src_bitwidth;
-        if (s[i] == param->transp) break;
-        d[index] = s[i];
-        param->src_x32 += src_x32_add;
-        param->src_y32 += src_y32_add;
+        uint32_t i = (src_x32 >> FP_SCALE) + (src_y32 >> FP_SCALE) * src_bitwidth;
+        uint32_t raw = s[i].get();
+        if (raw == param->transp) break;
+        d[index].set(color_convert<TDst, TSrc>(raw));
+        src_x32 += src_x32_add;
+        src_y32 += src_y32_add;
       } while (++index != last);
+      param->src_x32 = src_x32;
+      param->src_y32 = src_y32;
       return index;
     }
 
@@ -318,7 +324,7 @@ namespace lgfx
           }
           else
           {
-            d[index] = 0u;
+            d[index].set(0);
           }
         }
         else
@@ -363,7 +369,7 @@ namespace lgfx
           uint32_t a = argb[3];
           if (!a)
           {
-            d[index] = 0u;
+            d[index].set(0);
           }
           else
           {
@@ -408,7 +414,7 @@ namespace lgfx
           }
           else
           {
-            d[index] = 0u;
+            d[index].set(0);
           }
         }
         else
@@ -449,7 +455,7 @@ namespace lgfx
           uint32_t a = argb[3];
           if (!a)
           {
-            d[index] = 0u;
+            d[index].set(0);
           }
           else
           {
@@ -472,10 +478,10 @@ namespace lgfx
       auto dst_bits = param->dst_bits;
       auto dst_mask = param->dst_mask;
       uint32_t k = (dst_bits == 1) ? 0xFF
-                      : (dst_bits == 2) ? 0x55
-                      : (dst_bits == 4) ? 0x11
-                                        : 0x01
-                                        ;
+                 : (dst_bits == 2) ? 0x55
+                 : (dst_bits == 4) ? 0x11
+                                   : 0x01
+                                   ;
       auto shift = ((~index) * dst_bits) & 7;
       auto d = &(static_cast<uint8_t*>(dst)[(index * dst_bits) >> 3]);
       auto src_x32_add = param->src_x32_add;
@@ -619,7 +625,7 @@ namespace lgfx
       auto transp      = param->transp;
       do {
         uint32_t i = (src_x32 >> FP_SCALE) + (src_y32 >> FP_SCALE) * src_bitwidth;
-        if (!(s[i] == transp)) break;
+        if (!(s[i].get() == transp)) break;
         src_x32 += src_x32_add;
         src_y32 += src_y32_add;
       } while (++index != last);
@@ -636,7 +642,7 @@ namespace lgfx
       auto transp = param->transp;
       s += param->src_x + param->src_y * param->src_bitwidth - index;
       do {
-        d[index] = s[index] == transp;
+        d[index] = s[index].get() == transp;
       } while (++index != last);
       return index;
     }
