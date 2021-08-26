@@ -97,6 +97,24 @@ namespace lgfx
 
   private:
 
+    void dc_control(bool flg)
+    {
+      auto reg = _gpio_reg_dc[flg];
+      auto mask = _mask_reg_dc;
+      auto i2s_dev = (i2s_dev_t*)_dev;
+      if (i2s_dev->out_link.val)
+      {
+#if defined (CONFIG_IDF_TARGET_ESP32S2)
+        while (!(i2s_dev->lc_state0.out_empty)) {}
+#else
+        while (!(i2s_dev->lc_state0 & 0x80000000)) {} // I2S_OUT_EMPTY
+#endif
+        i2s_dev->out_link.val = 0;
+      }
+      while (!i2s_dev->state.tx_idle) {}
+      *reg = mask;
+    }
+
     static constexpr size_t CACHE_SIZE = 132;
 
     config_t _cfg;
@@ -108,15 +126,22 @@ namespace lgfx
     
     void _wait(void);
     void _init_pin(void);
-    size_t _flush(size_t idx, bool force = false);
+    size_t _flush(size_t idx, bool dc = true);
     uint_fast8_t _reg_to_value(uint32_t raw_value);
+
+    void _alloc_dmadesc(size_t len);
+    void _setup_dma_desc_links(const uint8_t *data, int32_t len);
+
+    volatile uint32_t* _gpio_reg_dc[2] = { nullptr, nullptr };
+    uint32_t _mask_reg_dc = 0;
+    bool _direct_dc;
 
     uint32_t _last_freq_apb;
     uint32_t _clkdiv_write;
     volatile void *_dev;
-    lldesc_t _dmadesc;
 
-    volatile uint32_t* _i2s_fifo_wr_reg;
+    lldesc_t* _dmadesc = nullptr;
+    uint32_t _dmadesc_size = 0;
   };
 
 //----------------------------------------------------------------------------

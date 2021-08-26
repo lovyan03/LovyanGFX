@@ -36,18 +36,14 @@ namespace lgfx
 #define I2S_CLKA_ENA  (BIT(22)) // clk_sel = 2
 #endif
 
-  // #define SAFE_I2S_FIFO_WR_REG(i) (0x6000F000 + ((i)*0x1E000))
-  // #define SAFE_I2S_FIFO_RD_REG(i) (0x6000F004 + ((i)*0x1E000))
-  #define SAFE_I2S_FIFO_WR_REG(i) (0x3FF4F000 + ((i)*0x1E000))
-  #define SAFE_I2S_FIFO_RD_REG(i) (0x3FF4F004 + ((i)*0x1E000))
-
   static constexpr size_t CACHE_THRESH = 128;
 
-  static constexpr uint32_t _conf_reg_default = I2S_TX_MSB_RIGHT | I2S_TX_RIGHT_FIRST | I2S_RX_RIGHT_FIRST | I2S_TX_DMA_EQUAL;
+  // static constexpr uint32_t _conf_reg_default = I2S_TX_MSB_RIGHT | I2S_TX_RIGHT_FIRST | I2S_RX_RIGHT_FIRST | I2S_TX_DMA_EQUAL;
+  static constexpr uint32_t _conf_reg_default = I2S_TX_RIGHT_FIRST | I2S_RX_RIGHT_FIRST | I2S_TX_DMA_EQUAL;
   static constexpr uint32_t _conf_reg_start   = _conf_reg_default | I2S_TX_START;
   static constexpr uint32_t _conf_reg_reset   = _conf_reg_default | I2S_TX_RESET;
-  static constexpr uint32_t _sample_rate_conf_reg_32bit = 32 << I2S_TX_BITS_MOD_S | 32 << I2S_RX_BITS_MOD_S | 1 << I2S_TX_BCK_DIV_NUM_S | 1 << I2S_RX_BCK_DIV_NUM_S;
   static constexpr uint32_t _sample_rate_conf_reg_16bit = 16 << I2S_TX_BITS_MOD_S | 16 << I2S_RX_BITS_MOD_S | 1 << I2S_TX_BCK_DIV_NUM_S | 1 << I2S_RX_BCK_DIV_NUM_S;
+  static constexpr uint32_t _sample_rate_conf_reg_8bit = 8 << I2S_TX_BITS_MOD_S | 8 << I2S_RX_BITS_MOD_S | 1 << I2S_TX_BCK_DIV_NUM_S | 1 << I2S_RX_BCK_DIV_NUM_S;
   static constexpr uint32_t _fifo_conf_default = 1 << I2S_TX_FIFO_MOD | 1 << I2S_RX_FIFO_MOD | 32 << I2S_TX_DATA_NUM_S | 32 << I2S_RX_DATA_NUM_S | I2S_TX_FIFO_MOD_FORCE_EN;
   static constexpr uint32_t _fifo_conf_dma     = _fifo_conf_default | I2S_DSCR_EN;
 
@@ -67,9 +63,10 @@ namespace lgfx
     _cfg = cfg;
     auto port = cfg.i2s_port;
     _dev = getDev(port);
-
-    _i2s_fifo_wr_reg = reg(SAFE_I2S_FIFO_WR_REG(port));
     
+    _mask_reg_dc = (cfg.pin_rs < 0) ? 0 : (1ul << (cfg.pin_rs & 31));
+    _gpio_reg_dc[0] = get_gpio_lo_reg(cfg.pin_rs);
+    _gpio_reg_dc[1] = get_gpio_hi_reg(cfg.pin_rs);
     _last_freq_apb = 0;
   }
 
@@ -96,7 +93,7 @@ namespace lgfx
     i2s_dev->conf2.val = I2S_LCD_EN;
     i2s_dev->conf_chan.val = 1 << I2S_TX_CHAN_MOD_S | 1 << I2S_RX_CHAN_MOD_S;
 
-    memset(&_dmadesc, 0, sizeof(lldesc_t));
+    _alloc_dmadesc(1);
 
     return true;
   }
@@ -124,20 +121,19 @@ namespace lgfx
     gpio_set_direction((gpio_num_t)_cfg.pin_wr, GPIO_MODE_OUTPUT);
     gpio_set_direction((gpio_num_t)_cfg.pin_rs, GPIO_MODE_OUTPUT);
 
-#if defined (CONFIG_IDF_TARGET_ESP32S2)
-    auto idx_base = I2S0O_DATA_OUT8_IDX;
-#else
-    auto idx_base = (_cfg.i2s_port == I2S_NUM_0) ? I2S0O_DATA_OUT8_IDX : I2S1O_DATA_OUT8_IDX;
-#endif
-    gpio_matrix_out(_cfg.pin_rs, idx_base + 8, 0, 0);
-    gpio_matrix_out(_cfg.pin_d7, idx_base + 7, 0, 0);
-    gpio_matrix_out(_cfg.pin_d6, idx_base + 6, 0, 0);
-    gpio_matrix_out(_cfg.pin_d5, idx_base + 5, 0, 0);
-    gpio_matrix_out(_cfg.pin_d4, idx_base + 4, 0, 0);
-    gpio_matrix_out(_cfg.pin_d3, idx_base + 3, 0, 0);
-    gpio_matrix_out(_cfg.pin_d2, idx_base + 2, 0, 0);
-    gpio_matrix_out(_cfg.pin_d1, idx_base + 1, 0, 0);
-    gpio_matrix_out(_cfg.pin_d0, idx_base    , 0, 0);
+    auto idx_base = I2S0O_DATA_OUT15_IDX;
+
+    gpio_matrix_out(_cfg.pin_rs, idx_base    , 0, 0);
+    gpio_matrix_out(_cfg.pin_d0, idx_base + 1, 0, 0);
+    gpio_matrix_out(_cfg.pin_d1, idx_base + 2, 0, 0);
+    gpio_matrix_out(_cfg.pin_d2, idx_base + 3, 0, 0);
+    gpio_matrix_out(_cfg.pin_d3, idx_base + 4, 0, 0);
+    gpio_matrix_out(_cfg.pin_d4, idx_base + 5, 0, 0);
+    gpio_matrix_out(_cfg.pin_d5, idx_base + 6, 0, 0);
+    gpio_matrix_out(_cfg.pin_d6, idx_base + 7, 0, 0);
+    gpio_matrix_out(_cfg.pin_d7, idx_base + 8, 0, 0);
+
+    _direct_dc = false;
 
     uint32_t dport_clk_en;
     uint32_t dport_rst;
@@ -162,7 +158,14 @@ namespace lgfx
   }
 
   void Bus_Parallel8::release(void)
-  {  }
+  {
+    if (_dmadesc)
+    {
+      heap_caps_free(_dmadesc);
+      _dmadesc = nullptr;
+      _dmadesc_size = 0;
+    }
+  }
 
   void Bus_Parallel8::beginTransaction(void)
   {
@@ -196,7 +199,9 @@ namespace lgfx
   {
     if (_cache_index)
     {
-      _cache_index = _flush(_cache_index, true);
+      _flush(_cache_index, true);
+      _cache_index = 0;
+      ets_delay_us(1);
     }
     _wait();
   }
@@ -238,11 +243,12 @@ namespace lgfx
   {
     if (_cache_index)
     {
-      _cache_index = _flush(_cache_index, true);
+      _flush(_cache_index, true);
+      _cache_index = 0;
     }
   }
 
-  size_t Bus_Parallel8::_flush(size_t count, bool force)
+  size_t Bus_Parallel8::_flush(size_t count, bool dc)
   {
     auto i2s_dev = (i2s_dev_t*)_dev;
     if (i2s_dev->out_link.val)
@@ -252,20 +258,32 @@ namespace lgfx
 #else
       while (!(i2s_dev->lc_state0 & 0x80000000)) {} // I2S_OUT_EMPTY
 #endif
-      i2s_dev->out_link.val = 0;
     }
-    _dmadesc.buf = (uint8_t*)_cache_flip;
-    *(uint32_t*)&_dmadesc = count << 1 | count << 13 | 0xC0000000;
+    // _setup_dma_desc_links((const uint8_t*)_cache_flip, count << 1);
+    _dmadesc[0].buf = (uint8_t *)_cache_flip;
+    *(uint32_t*)&_dmadesc[0] = count << 1 | count << 13 | 0xC0000000;
+  //*(uint32_t*)&_dmadesc[0] = ((count+1) &~1) << 1 | count << 13 | 0xC0000000;
+    _dmadesc[0].empty = 0;
+
     while (!i2s_dev->state.tx_idle) {}
-    i2s_dev->conf.val = _conf_reg_reset;// | I2S_TX_FIFO_RESET;
-    i2s_dev->out_link.val = I2S_OUTLINK_START | ((uint32_t)&_dmadesc & I2S_OUTLINK_ADDR);
-/// OUTLINK_STARTした後でTX_STARTするまでの間が短すぎるとデータの先頭を送り損じる事がある
-    if (_div_num <= 4)
+
+    i2s_dev->conf.val = _conf_reg_reset;
+    i2s_dev->sample_rate_conf.val = _sample_rate_conf_reg_16bit;
+    i2s_dev->out_link.val = I2S_OUTLINK_START | ((uint32_t)&_dmadesc[0] & I2S_OUTLINK_ADDR);
+
+    if (_direct_dc)
     {
+      _direct_dc = false;
+      auto idx_base = I2S0O_DATA_OUT15_IDX;
+      gpio_matrix_out(_cfg.pin_rs, idx_base, 0, 0);
+    }
+    else if (_div_num < 4)
+    { /// OUTLINK_START～TX_STARTの時間が短すぎるとデータの先頭を送り損じる事があるのでnopウェイトを入れる
       size_t wait = (8 - _div_num) << 2;
       do { __asm__ __volatile__ ("nop"); } while (--wait);
     }
     i2s_dev->conf.val = _conf_reg_start;
+
     _cache_flip = (_cache_flip == _cache[0]) ? _cache[1] : _cache[0];
     return 0;
   }
@@ -277,12 +295,13 @@ namespace lgfx
     auto c = _cache_flip;
     do
     {
-      c[idx++] = data & 0xFF;
+      c[idx++] = (data & 0xFF) << 8;
       data >>= 8;
     } while (--bytes);
     if (idx >= CACHE_THRESH)
     {
-      idx = _flush(idx);
+      _flush(idx);
+      idx = 0;
     }
     _cache_index = idx;
     return true;
@@ -295,12 +314,13 @@ namespace lgfx
     auto c = _cache_flip;
     do
     {
-      c[idx++] = data | 0x100;
+      c[idx++] = (data << 8) | 0xFF;
       data >>= 8;
     } while (--bytes);
     if (idx >= CACHE_THRESH)
     {
-      idx = _flush(idx);
+      _flush(idx);
+      idx = 0;
     }
     _cache_index = idx;
   }
@@ -313,44 +333,49 @@ namespace lgfx
 
     if (bytes == 2)
     {
-      uint32_t color_r2 = color_raw >> 8 | 0x100;
-      color_raw |= 0x100;
-      for (;;)
+      uint32_t color_r1 = (uint8_t)(color_raw) << 8 |  color_raw << 16 | 0xFF00FF;
+      while (length)
       {
-        c[idx    ] = color_raw;
-        c[idx + 1] = color_r2;
+        --length;
+        *(uint32_t*)(&c[idx]) = color_r1;
         idx += 2;
         if (idx >= CACHE_THRESH)
         {
           idx = _flush(idx);
           c = _cache_flip;
         }
-        if (!--length) break;
       }
     }
-    else
+    else // if (bytes == 3)
     {
-      size_t b = 0;
-      uint16_t raw[bytes];
-      do
+      uint32_t raw[3] = 
+      { (uint8_t)(color_raw) << 8 |  color_raw    << 16 | 0xFF00FF 
+      ,           color_raw  >> 8 |  color_raw    << 24 | 0xFF00FF 
+      ,           color_raw       | (color_raw>>16)<<24 | 0xFF00FF 
+      };
+      if (length & 1)
       {
-        raw[b] = color_raw | 0x100;
-        color_raw >>= 8;
-      } while (++b != bytes);
-      b = 0;
-      for (;;)
+        --length;
+        *(uint32_t*)(&c[idx  ]) = raw[0];
+        *(uint32_t*)(&c[idx+2]) = raw[1];
+        idx += 3;
+      }
+      if (idx >= CACHE_THRESH - 4)
       {
-        c[idx] = raw[b];
-        ++idx;
-        if (++b == bytes)
+        idx = _flush(idx);
+        c = _cache_flip;
+      }
+      while (length)
+      {
+        length -= 2;
+        *(uint32_t*)(&c[idx  ]) = raw[0];
+        *(uint32_t*)(&c[idx+2]) = raw[1];
+        *(uint32_t*)(&c[idx+4]) = raw[2];
+        idx += 6;
+        if (idx >= CACHE_THRESH - 4)
         {
-          b = 0;
-          if (idx >= CACHE_THRESH)
-          {
-            idx = _flush(idx);
-            c = _cache_flip;
-          }
-          if (!--length) break;
+          idx = _flush(idx);
+          c = _cache_flip;
         }
       }
     }
@@ -359,55 +384,73 @@ namespace lgfx
 
   void Bus_Parallel8::writePixels(pixelcopy_t* param, uint32_t length)
   {
-    uint8_t buf[CACHE_THRESH];
+    if (_cache_index)
+    {
+      _flush(_cache_index);
+      _cache_index = 0;
+    }
     const uint32_t bytes = param->dst_bits >> 3;
     auto fp_copy = param->fp_copy;
-    const uint32_t limit = CACHE_THRESH / bytes;
+    const uint32_t limit = CACHE_SIZE / bytes;
     uint8_t len = length % limit;
-    if (len) {
-      fp_copy(buf, 0, len, param);
-      writeBytes(buf, len * bytes, true, false);
+    if (len)
+    {
+      fp_copy(_cache_flip, 0, len, param);
+      writeBytes((uint8_t*)_cache_flip, len * bytes, true, true);
+      _cache_flip = (_cache_flip == _cache[0]) ? _cache[1] : _cache[0];
       if (0 == (length -= len)) return;
     }
-    do {
-      fp_copy(buf, 0, limit, param);
-      writeBytes(buf, limit * bytes, true, false);
+    do
+    {
+      fp_copy(_cache_flip, 0, limit, param);
+      writeBytes((uint8_t*)_cache_flip, limit * bytes, true, true);
+      _cache_flip = (_cache_flip == _cache[0]) ? _cache[1] : _cache[0];
     } while (length -= limit);
   }
-//*
+
   void Bus_Parallel8::writeBytes(const uint8_t* data, uint32_t length, bool dc, bool use_dma)
   {
-    uint32_t dc_data = dc ? 0x01000100 : 0;
-    auto idx = _cache_index;
-    auto c = _cache_flip;
-
-    for (;;)
+    if (_cache_index)
     {
-      while (length && ((idx & 3) || (length < 4)))
-      {
-        --length;
-        c[idx] = *data++ | dc_data;
-        ++idx;
-      }
-      if (CACHE_THRESH <= idx)
-      {
-        idx = _flush(idx);
-        c = _cache_flip;
-      }
-      if (!length)
-      {
-        break;
-      }
-      size_t limit = std::min(CACHE_THRESH, (length + idx) & ~3);
-      length -= (limit - idx);
-      do
-      {
-        *(uint32_t*)(&c[idx  ]) = (data[1] << 16) | data[0] | dc_data;
-        *(uint32_t*)(&c[idx+2]) = (data[3] << 16) | data[2] | dc_data;
-        data += 4;
-      } while ((idx += 4) < limit);
+      _flush(_cache_index);
+      _cache_index = 0;
     }
-    _cache_index = idx;
+    auto i2s_dev = (i2s_dev_t*)_dev;
+    do
+    {
+      dc_control(dc);
+      i2s_dev->sample_rate_conf.val = _sample_rate_conf_reg_8bit;
+      i2s_dev->conf.val = _conf_reg_reset;
+      if (use_dma)
+      {
+        _setup_dma_desc_links(data, length);
+        length = 0;
+      }
+      else
+      {
+        size_t len = ((length - 1) % CACHE_SIZE) + 1;
+        length -= len;
+        memcpy(_cache_flip, data, len);
+        data += len;
+        _setup_dma_desc_links((const uint8_t*)_cache_flip, len);
+        _cache_flip = (_cache_flip == _cache[0]) ? _cache[1] : _cache[0];
+      }
+      i2s_dev->out_link.val = I2S_OUTLINK_START | ((uint32_t)_dmadesc & I2S_OUTLINK_ADDR);
+      if (!_direct_dc)
+      {
+        _direct_dc = true;
+        gpio_matrix_out(_cfg.pin_rs, 0x100, 0, 0);
+      }
+      else
+      {
+        if (_div_num <= 4)
+        {
+          size_t wait = (8 - _div_num) << 2;
+          do { __asm__ __volatile__ ("nop"); } while (--wait);
+        }
+      }
+      i2s_dev->conf.val = _conf_reg_start;
+    } while (length);
   }
 /*
   void Bus_Parallel8::writeBytes(const uint8_t* data, uint32_t length, bool dc, bool use_dma)
@@ -560,6 +603,37 @@ namespace lgfx
       param->src_x = 0;
       dstindex = param->fp_copy(dst, dstindex, dstindex + len2, param);
     } while (length);
+  }
+
+  void Bus_Parallel8::_alloc_dmadesc(size_t len)
+  {
+    if (_dmadesc) heap_caps_free(_dmadesc);
+    _dmadesc_size = len;
+    _dmadesc = (lldesc_t*)heap_caps_malloc(sizeof(lldesc_t) * len, MALLOC_CAP_DMA);
+  }
+
+  void Bus_Parallel8::_setup_dma_desc_links(const uint8_t *data, int32_t len)
+  {
+    static constexpr size_t MAX_DMA_LEN = (4096-4);
+
+    if (_dmadesc_size * MAX_DMA_LEN < len)
+    {
+      _alloc_dmadesc(len / MAX_DMA_LEN + 1);
+    }
+    lldesc_t *dmadesc = _dmadesc;
+
+    while (len > MAX_DMA_LEN)
+    {
+      len -= MAX_DMA_LEN;
+      dmadesc->buf = (uint8_t *)data;
+      data += MAX_DMA_LEN;
+      *(uint32_t*)dmadesc = MAX_DMA_LEN | MAX_DMA_LEN << 12 | 0x80000000;
+      dmadesc->qe.stqe_next = dmadesc + 1;
+      dmadesc++;
+    }
+    *(uint32_t*)dmadesc = ((len + 3) & ( ~3 )) | len << 12 | 0xC0000000;
+    dmadesc->buf = (uint8_t *)data;
+    dmadesc->qe.stqe_next = nullptr;
   }
 
 //----------------------------------------------------------------------------
