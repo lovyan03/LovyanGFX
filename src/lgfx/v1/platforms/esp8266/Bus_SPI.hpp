@@ -35,11 +35,11 @@ namespace lgfx
     {
       uint32_t freq_write = 16000000;
       uint32_t freq_read  =  8000000;
-      //bool spi_3wire = true;
+      bool spi_3wire = true;
       //bool use_lock = true;
-      int16_t pin_sclk = -1;
-      int16_t pin_miso = -1;
-      int16_t pin_mosi = -1;
+      int16_t pin_sclk = -1;  // 14 or 6
+      int16_t pin_miso = -1;  // 12 or 7
+      int16_t pin_mosi = -1;  // 13 or 8
       int16_t pin_dc   = -1;
       uint8_t spi_mode = 0;
     };
