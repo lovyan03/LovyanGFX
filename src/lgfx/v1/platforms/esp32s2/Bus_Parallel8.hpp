@@ -127,7 +127,7 @@ namespace lgfx
     void _wait(void);
     void _init_pin(void);
     size_t _flush(size_t idx, bool dc = true);
-    uint_fast8_t _reg_to_value(uint32_t raw_value);
+    void _read_bytes(uint8_t* dst, uint32_t length);
 
     void _alloc_dmadesc(size_t len);
     void _setup_dma_desc_links(const uint8_t *data, int32_t len);
