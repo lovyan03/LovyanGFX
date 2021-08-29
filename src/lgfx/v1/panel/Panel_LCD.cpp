@@ -66,9 +66,9 @@ namespace lgfx
     if (!_in_transaction) return;
     _in_transaction = false;
 
-    if (_align_data)
+    if (_has_align_data)
     {
-      _align_data = false;
+      _has_align_data = false;
       _bus->writeData(0, 8);
     }
 
@@ -168,10 +168,10 @@ namespace lgfx
     }
     else
     {
-      if (_align_data)
+      if (_has_align_data)
       {
         _bus->writeData(0, 8);
-        _align_data = false;
+        _has_align_data = false;
       }
       _bus->writeCommand(data << 8, 16);
     }
@@ -225,7 +225,7 @@ namespace lgfx
     if (!tr) begin_transaction();
 
     setWindow(x,y,x,y);
-    if (_cfg.dlen_16bit) { _align_data = (_write_bits & 15); }
+    if (_cfg.dlen_16bit) { _has_align_data = (_write_bits & 15); }
     _bus->writeData(rawcolor, _write_bits);
 
     if (!tr) end_transaction();
@@ -238,7 +238,7 @@ namespace lgfx
     uint_fast16_t ye = y + h - 1;
 
     setWindow(x,y,xe,ye);
-    if (_cfg.dlen_16bit) { _align_data = (_write_bits & 15) && (len & 1); }
+    if (_cfg.dlen_16bit) { _has_align_data = (_write_bits & 15) && (len & 1); }
     _bus->writeDataRepeat(rawcolor, _write_bits, len);
   }
 
@@ -247,7 +247,7 @@ namespace lgfx
     _bus->writeDataRepeat(rawcolor, _write_bits, len);
     if (_cfg.dlen_16bit && (_write_bits & 15) && (len & 1))
     {
-      _align_data = !_align_data;
+      _has_align_data = !_has_align_data;
     }
   }
 
@@ -263,7 +263,7 @@ namespace lgfx
     }
     if (_cfg.dlen_16bit && (_write_bits & 15) && (len & 1))
     {
-      _align_data = !_align_data;
+      _has_align_data = !_has_align_data;
     }
   }
 
@@ -291,7 +291,7 @@ namespace lgfx
           {
             if (_cfg.dlen_16bit && ((wb * h) & 1))
             {
-              _align_data = !_align_data;
+              _has_align_data = !_has_align_data;
             }
             do
             {
@@ -346,7 +346,7 @@ namespace lgfx
           param->fp_copy(buf, 0, w, param);
           setWindow(x, y, x + w - 1, y + h - 1);
           write_bytes(buf, wb, true);
-          _align_data = (_cfg.dlen_16bit && (_write_bits & 15) && (w & h & 1));
+          _has_align_data = (_cfg.dlen_16bit && (_write_bits & 15) && (w & h & 1));
           while (--h)
           {
             param->src_x = src_x;
@@ -384,7 +384,7 @@ namespace lgfx
     _bus->writeBytes(data, len, true, use_dma);
     if (_cfg.dlen_16bit && (_write_bits & 15) && (len & 1))
     {
-      _align_data = !_align_data;
+      _has_align_data = !_has_align_data;
     }
   }
 
@@ -450,10 +450,10 @@ namespace lgfx
 
   void Panel_LCD::set_window_16(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye, uint32_t cmd)
   {
-    if (_align_data)
+    if (_has_align_data)
     {
       _bus->writeData(0, 8);
-      _align_data = false;
+      _has_align_data = false;
     }
     if (xs != _xs || xe != _xe)
     {

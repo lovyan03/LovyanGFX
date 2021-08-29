@@ -100,14 +100,31 @@ namespace lgfx
 
   void Bus_Parallel16::_init_pin(void)
   {
-    gpio_pad_select_gpio(_cfg.pin_d0);
-    gpio_pad_select_gpio(_cfg.pin_d1);
-    gpio_pad_select_gpio(_cfg.pin_d2);
-    gpio_pad_select_gpio(_cfg.pin_d3);
-    gpio_pad_select_gpio(_cfg.pin_d4);
-    gpio_pad_select_gpio(_cfg.pin_d5);
-    gpio_pad_select_gpio(_cfg.pin_d6);
-    gpio_pad_select_gpio(_cfg.pin_d7);
+    int8_t pins[] =
+    { _cfg.pin_d8
+    , _cfg.pin_d9
+    , _cfg.pin_d10
+    , _cfg.pin_d11
+    , _cfg.pin_d12
+    , _cfg.pin_d13
+    , _cfg.pin_d14
+    , _cfg.pin_d15
+    , _cfg.pin_d0
+    , _cfg.pin_d1
+    , _cfg.pin_d2
+    , _cfg.pin_d3
+    , _cfg.pin_d4
+    , _cfg.pin_d5
+    , _cfg.pin_d6
+    , _cfg.pin_d7
+    };
+
+    for (size_t i = 0; i < 16; ++i)
+    {
+      gpio_pad_select_gpio(pins[i]);
+      gpio_set_direction((gpio_num_t)pins[i], GPIO_MODE_INPUT_OUTPUT);
+      gpio_matrix_out(pins[i], I2S0O_DATA_OUT8_IDX + i, 0, 0);
+    }
 
     gpio_pad_select_gpio(_cfg.pin_rd);
     gpio_pad_select_gpio(_cfg.pin_wr);
@@ -121,34 +138,9 @@ namespace lgfx
     gpio_set_direction((gpio_num_t)_cfg.pin_wr, GPIO_MODE_OUTPUT);
     gpio_set_direction((gpio_num_t)_cfg.pin_rs, GPIO_MODE_OUTPUT);
 
-    gpio_set_direction((gpio_num_t)_cfg.pin_d0, GPIO_MODE_INPUT_OUTPUT);
-    gpio_set_direction((gpio_num_t)_cfg.pin_d1, GPIO_MODE_INPUT_OUTPUT);
-    gpio_set_direction((gpio_num_t)_cfg.pin_d2, GPIO_MODE_INPUT_OUTPUT);
-    gpio_set_direction((gpio_num_t)_cfg.pin_d3, GPIO_MODE_INPUT_OUTPUT);
-    gpio_set_direction((gpio_num_t)_cfg.pin_d4, GPIO_MODE_INPUT_OUTPUT);
-    gpio_set_direction((gpio_num_t)_cfg.pin_d5, GPIO_MODE_INPUT_OUTPUT);
-    gpio_set_direction((gpio_num_t)_cfg.pin_d6, GPIO_MODE_INPUT_OUTPUT);
-    gpio_set_direction((gpio_num_t)_cfg.pin_d7, GPIO_MODE_INPUT_OUTPUT);
+    auto idx_base = I2S0O_DATA_OUT8_IDX;
 
-    auto idx_base = I2S0O_DATA_OUT7_IDX;
-
-    gpio_matrix_out(_cfg.pin_rs , idx_base     , 0, 0);
-    gpio_matrix_out(_cfg.pin_d0 , idx_base +  9, 0, 0);
-    gpio_matrix_out(_cfg.pin_d1 , idx_base + 10, 0, 0);
-    gpio_matrix_out(_cfg.pin_d2 , idx_base + 11, 0, 0);
-    gpio_matrix_out(_cfg.pin_d3 , idx_base + 12, 0, 0);
-    gpio_matrix_out(_cfg.pin_d4 , idx_base + 13, 0, 0);
-    gpio_matrix_out(_cfg.pin_d5 , idx_base + 14, 0, 0);
-    gpio_matrix_out(_cfg.pin_d6 , idx_base + 15, 0, 0);
-    gpio_matrix_out(_cfg.pin_d7 , idx_base + 16, 0, 0);
-    gpio_matrix_out(_cfg.pin_d8 , idx_base +  1, 0, 0);
-    gpio_matrix_out(_cfg.pin_d9 , idx_base +  2, 0, 0);
-    gpio_matrix_out(_cfg.pin_d10, idx_base +  3, 0, 0);
-    gpio_matrix_out(_cfg.pin_d11, idx_base +  4, 0, 0);
-    gpio_matrix_out(_cfg.pin_d12, idx_base +  5, 0, 0);
-    gpio_matrix_out(_cfg.pin_d13, idx_base +  6, 0, 0);
-    gpio_matrix_out(_cfg.pin_d14, idx_base +  7, 0, 0);
-    gpio_matrix_out(_cfg.pin_d15, idx_base +  8, 0, 0);
+    gpio_matrix_out(_cfg.pin_rs , I2S0O_DATA_OUT0_IDX, 0, 0);
 
     _direct_dc = false;
 
@@ -227,7 +219,6 @@ namespace lgfx
 
   void Bus_Parallel16::_wait(void)
   {
-    //i2s_dev->int_clr.val = I2S_TX_REMPTY_INT_CLR;
     auto i2s_dev = (i2s_dev_t*)_dev;
     if (i2s_dev->out_link.val)
     {
@@ -292,8 +283,8 @@ namespace lgfx
     if (_direct_dc)
     {
       _direct_dc = false;
-      gpio_matrix_out(_cfg.pin_rs, I2S0O_DATA_OUT7_IDX, 0, 0);
-      wait = 0;
+      gpio_matrix_out(_cfg.pin_rs, I2S0O_DATA_OUT0_IDX, 0, 0);
+      wait -= 16;
     }
     if (wait > 0)
     { /// OUTLINK_START～TX_STARTの時間が短すぎるとデータの先頭を送り損じる事があるのでnopウェイトを入れる
@@ -308,14 +299,14 @@ namespace lgfx
   bool Bus_Parallel16::writeCommand(uint32_t data, uint_fast8_t bit_length)
   {
     auto idx = _cache_index;
-    auto bytes = bit_length >> 3;
+    int bytes = bit_length >> 4;
     auto c = _cache_flip;
 
     do
     {
       c[idx++] = data << 16;
       data >>= 16;
-    } while (1 < (bytes -= 2));
+    } while (0 < --bytes);
     if (idx >= CACHE_THRESH)
     {
       _flush(idx);
@@ -334,7 +325,7 @@ namespace lgfx
     if (_has_align_data)
     {
       _has_align_data = false;
-      c[idx++] = ((data << 8 | _align_data) << 16) | 0xFFFF;
+      c[idx++] = ((data << 8 | _align_data) << 16) | 0x100;
       --bytes;
       data >>= 8;
     }
@@ -342,7 +333,7 @@ namespace lgfx
     while (1 < bytes)
     {
       bytes -= 2;
-      c[idx++] = (data << 16) | 0xFFFF;
+      c[idx++] = (data << 16) | 0x100;
       data >>= 16;
     }
 
@@ -367,16 +358,28 @@ namespace lgfx
 
     if (bytes == 2)
     {
-      color_raw = color_raw << 16 | 0xFFFF;
+      int step = (idx == 0) ? 1 : 0;
+      color_raw = color_raw << 16 | 0x100;
       while (length)
       {
         --length;
         *(uint32_t*)(&c[idx]) = color_raw;
-        ++idx;
-        if (idx >= CACHE_THRESH)
+        if (++idx >= CACHE_THRESH)
         {
-          idx = _flush(idx);
+          _flush(idx);
+          if (++step == 2 && length >= CACHE_THRESH)
+          {
+            memcpy(_cache_flip, c, CACHE_THRESH * sizeof(uint32_t));
+            do
+            {
+              _flush(CACHE_THRESH);
+              length -= CACHE_THRESH;
+            } while (length >= CACHE_THRESH);
+            idx = length;
+            break;
+          }
           c = _cache_flip;
+          idx = 0;
         }
       }
     }
@@ -384,15 +387,15 @@ namespace lgfx
     {
       // size_t step = 0;
       uint32_t raw[3] = 
-      { color_raw             << 16 | 0xFFFF 
-      , color_raw | color_raw << 24 | 0xFFFF 
-      , color_raw              << 8 | 0xFFFF
+      { color_raw             << 16 | 0x100
+      , color_raw | color_raw << 24 | 0x100
+      , color_raw              << 8 | 0x100
       };
       if (_has_align_data)
       {
         _has_align_data = false;
         --length;
-        c[idx++] = ((color_raw << 8 | _align_data) << 16) | 0xFFFF;
+        c[idx++] = ((color_raw << 8 | _align_data) << 16) | 0x100;
         c[idx++] = raw[2];
         if (idx >= CACHE_THRESH)
         {
@@ -502,7 +505,7 @@ namespace lgfx
       {
         _direct_dc = true;
         gpio_matrix_out(_cfg.pin_rs, 0x100, 0, 0);
-        wait = 0;
+        wait -= 16;
       }
       if (wait > 0)
       { /// OUTLINK_START～TX_STARTの時間が短すぎるとデータの先頭を送り損じる事があるのでnopウェイトを入れる
@@ -535,6 +538,15 @@ namespace lgfx
   {
     uint8_t in[8];
 
+    uint_fast8_t m15 = 1ul << (_cfg.pin_d15 & 7);
+    uint_fast8_t m14 = 1ul << (_cfg.pin_d14 & 7);
+    uint_fast8_t m13 = 1ul << (_cfg.pin_d13 & 7);
+    uint_fast8_t m12 = 1ul << (_cfg.pin_d12 & 7);
+    uint_fast8_t m11 = 1ul << (_cfg.pin_d11 & 7);
+    uint_fast8_t m10 = 1ul << (_cfg.pin_d10 & 7);
+    uint_fast8_t  m9 = 1ul << (_cfg.pin_d9 & 7);
+    uint_fast8_t  m8 = 1ul << (_cfg.pin_d8 & 7);
+
     uint_fast8_t m7 = 1ul << (_cfg.pin_d7 & 7);
     uint_fast8_t m6 = 1ul << (_cfg.pin_d6 & 7);
     uint_fast8_t m5 = 1ul << (_cfg.pin_d5 & 7);
@@ -543,6 +555,15 @@ namespace lgfx
     uint_fast8_t m2 = 1ul << (_cfg.pin_d2 & 7);
     uint_fast8_t m1 = 1ul << (_cfg.pin_d1 & 7);
     uint_fast8_t m0 = 1ul << (_cfg.pin_d0 & 7);
+
+    uint_fast8_t i15 = _cfg.pin_d15 >> 3;
+    uint_fast8_t i14 = _cfg.pin_d14 >> 3;
+    uint_fast8_t i13 = _cfg.pin_d13 >> 3;
+    uint_fast8_t i12 = _cfg.pin_d12 >> 3;
+    uint_fast8_t i11 = _cfg.pin_d11 >> 3;
+    uint_fast8_t i10 = _cfg.pin_d10 >> 3;
+    uint_fast8_t  i9 = _cfg.pin_d9 >> 3;
+    uint_fast8_t  i8 = _cfg.pin_d8 >> 3;
 
     uint_fast8_t i7 = _cfg.pin_d7 >> 3;
     uint_fast8_t i6 = _cfg.pin_d6 >> 3;
@@ -562,18 +583,29 @@ namespace lgfx
       ((uint32_t*)in)[0] = GPIO.in;
       ((uint32_t*)in)[1] = GPIO.in1.val;
       *reg_rd_h = mask_rd;
-
       val = ((((bool)(in[i7] & m7) << 1)
             +  (bool)(in[i6] & m6)     ) << 2)
             + ((bool)(in[i5] & m5) << 1)
             + ((bool)(in[i4] & m4)     );
-
-      *reg_rd_l = mask_rd;
       val = (((val << 2)
           + ((bool)(in[i3] & m3) << 1)
           + ((bool)(in[i2] & m2)     )) << 2)
           + ((bool)(in[i1] & m1) << 1)
           + ((bool)(in[i0] & m0)     )
+          ;
+      *dst++ = val;
+      *reg_rd_l = mask_rd;
+      if (0 == --length) break;
+
+      val = ((((bool)(in[i15] & m15) << 1)
+            +  (bool)(in[i14] & m14)     ) << 2)
+            + ((bool)(in[i13] & m13) << 1)
+            + ((bool)(in[i12] & m12)     );
+      val = (((val << 2)
+          + ((bool)(in[i11] & m11) << 1)
+          + ((bool)(in[i10] & m10)     )) << 2)
+          + ((bool)(in[ i9] &  m9) << 1)
+          + ((bool)(in[ i8] &  m8)     )
           ;
       *dst++ = val;
     } while (--length);

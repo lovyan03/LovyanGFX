@@ -66,7 +66,6 @@ namespace lgfx
     if (use_reset)
     {
       reset();
-      delay(64);
     }
     return true;
   }
@@ -102,9 +101,9 @@ namespace lgfx
   {
     if (_cfg.dlen_16bit)
     {
-      if (_align_data)
+      if (_has_align_data)
       {
-        _align_data = false;
+        _has_align_data = false;
         _bus->writeData(0, 8);
       }
       if (length == 1) { length = 2; data <<= 8; }
@@ -136,7 +135,7 @@ namespace lgfx
     _bus->writeBytes(data, len, use_dma);
     if (_cfg.dlen_16bit && (_write_bits & 15) && (len & 1))
     {
-      _align_data = !_align_data;
+      _has_align_data = !_has_align_data;
     }
   }
 */
@@ -312,9 +311,12 @@ namespace lgfx
   {
     auto pin = _cfg.pin_rst;
     if (pin < 0) return;
+    gpio_hi(pin);
+    delay(64);
     gpio_lo(pin);
     delay(4);
     gpio_hi(pin);
+    delay(64);
   }
 
 //----------------------------------------------------------------------------

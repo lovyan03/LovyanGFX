@@ -183,8 +183,8 @@ namespace lgfx
     {
       _last_freq_apb = freq_apb;
       // clock = 80MHz(apb_freq) / I2S_CLKM_DIV_NUM
-      // I2S_CLKM_DIV_NUM 3=27MHz  /  4=20MHz  /  5=16MHz  /  8=10MHz  /  10=8MHz
-      _div_num = std::min(255u, std::max(2u, 1 + (freq_apb / (1 + _cfg.freq_write))));
+      // I2S_CLKM_DIV_NUM 2=40MHz  /  3=27MHz  /  4=20MHz  /  5=16MHz  /  8=10MHz  /  10=8MHz
+      _div_num = std::min(255u, 1 + (freq_apb / (1 + _cfg.freq_write)));
 
       _clkdiv_write =             I2S_CLKA_ENA
                     |             I2S_CLK_EN

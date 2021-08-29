@@ -160,7 +160,7 @@ namespace lgfx
     IBus* _bus = nullptr;
     ILight* _light = nullptr;
     ITouch* _touch = nullptr;
-    bool _align_data = false;
+    bool _has_align_data = false;
     uint8_t _internal_rotation = 0;
 
     float _affine[6] = {1,0,0,0,1,0};  /// touch affine parameter
