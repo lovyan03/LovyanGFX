@@ -210,65 +210,6 @@ namespace lgfx
 
     _cache_index = 0;
     _cache_flip = _cache[0];
-/////////////////
-/*
-uint8_t data[16];
-data[ 0] = 0x11;
-data[ 1] = 0x22;
-data[ 2] = 0x33;
-data[ 3] = 0x44;
-data[ 4] = 0x55;
-data[ 5] = 0x66;
-data[ 6] = 0x77;
-data[ 7] = 0x88;
-data[ 8] = 0x99;
-data[ 9] = 0xAA;
-data[10] = 0xBB;
-data[11] = 0xCC;
-data[12] = 0xDD;
-data[13] = 0xEE;
-data[14] = 0xFF;
-data[15] = 0x00;
-
-int count = 8;
-
-    //auto i2s_dev = (i2s_dev_t*)_dev;
-    if (i2s_dev->out_link.val)
-    {
-#if defined (CONFIG_IDF_TARGET_ESP32S2)
-      while (!(i2s_dev->lc_state0.out_empty)) {}
-#else
-      while (!(i2s_dev->lc_state0 & 0x80000000)) {} // I2S_OUT_EMPTY
-#endif
-    }
-    // _setup_dma_desc_links((const uint8_t*)_cache_flip, count << 1);
-    _dmadesc[0].buf = data;
-    *(uint32_t*)&_dmadesc[0] = count | count << 12 | 0xC0000000;
-
-    _dmadesc[0].empty = 0;
-
-    while (!i2s_dev->state.tx_idle) {}
-
-    i2s_dev->conf.val = _conf_reg_reset;
-    i2s_dev->sample_rate_conf.val = _sample_rate_conf_reg_bufferd;
-    // i2s_dev->sample_rate_conf.val = _sample_rate_conf_reg_direct;
-    i2s_dev->out_link.val = I2S_OUTLINK_START | ((uint32_t)&_dmadesc[0] & I2S_OUTLINK_ADDR);
-
-    if (_direct_dc)
-    {
-      _direct_dc = false;
-      auto idx_base = I2S0O_DATA_OUT7_IDX;
-      gpio_matrix_out(_cfg.pin_rs, idx_base, 0, 0);
-    }
-    else if (_div_num < 4)
-    { /// OUTLINK_START～TX_STARTの時間が短すぎるとデータの先頭を送り損じる事があるのでnopウェイトを入れる
-      size_t wait = (8 - _div_num) << 2;
-      do { __asm__ __volatile__ ("nop"); } while (--wait);
-    }
-    i2s_dev->conf.val = _conf_reg_start;
-
-delay(1000);
-//*/
   }
 
   void Bus_Parallel16::endTransaction(void)
@@ -345,15 +286,15 @@ delay(1000);
     i2s_dev->sample_rate_conf.val = _sample_rate_conf_reg_bufferd;
     i2s_dev->out_link.val = I2S_OUTLINK_START | ((uint32_t)&_dmadesc[0] & I2S_OUTLINK_ADDR);
 
+    int wait = 40 - (_div_num << 3);
     if (_direct_dc)
     {
       _direct_dc = false;
-      auto idx_base = I2S0O_DATA_OUT7_IDX;
-      gpio_matrix_out(_cfg.pin_rs, idx_base, 0, 0);
+      gpio_matrix_out(_cfg.pin_rs, I2S0O_DATA_OUT7_IDX, 0, 0);
+      wait = 0;
     }
-    if (_div_num < 4)
+    if (wait > 0)
     { /// OUTLINK_START～TX_STARTの時間が短すぎるとデータの先頭を送り損じる事があるのでnopウェイトを入れる
-      size_t wait = (8 - _div_num) << 1;
       do { __asm__ __volatile__ ("nop"); } while (--wait);
     }
     i2s_dev->conf.val = _conf_reg_start;
@@ -510,19 +451,18 @@ delay(1000);
         _cache_flip = (_cache_flip == _cache[0]) ? _cache[1] : _cache[0];
       }
       i2s_dev->out_link.val = I2S_OUTLINK_START | ((uint32_t)_dmadesc & I2S_OUTLINK_ADDR);
+      int wait = 40 - (_div_num << 3);
       if (!_direct_dc)
       {
         _direct_dc = true;
         gpio_matrix_out(_cfg.pin_rs, 0x100, 0, 0);
+        wait = 0;
       }
-      else
-      {
-        if (_div_num <= 4)
-        {
-          size_t wait = (8 - _div_num) << 2;
-          do { __asm__ __volatile__ ("nop"); } while (--wait);
-        }
+      if (wait > 0)
+      { /// OUTLINK_START～TX_STARTの時間が短すぎるとデータの先頭を送り損じる事があるのでnopウェイトを入れる
+        do { __asm__ __volatile__ ("nop"); } while (--wait);
       }
+
       i2s_dev->conf.val = _conf_reg_start;
     } while (length);
   }
