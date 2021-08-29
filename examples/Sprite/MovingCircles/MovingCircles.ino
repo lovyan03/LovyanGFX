@@ -104,11 +104,7 @@ void loop(void)
       sprites[flip].setTextColor(TFT_WHITE);
       sprites[flip].printf("obj:%d fps:%d", obj_count, fps);
     }
-    std::uint32_t len = sprite_height * lcd_width;
-    if (y + sprite_height > lcd_height) {
-      len = (lcd_height - y) * lcd_width;
-    }
-    lcd.pushPixelsDMA(sprites[flip].getBuffer(), len);
+    sprites[flip].pushSprite(&lcd, 0, y);
   }
 
   ++frame_count;
@@ -117,7 +113,6 @@ void loop(void)
     psec = sec;
     fps = frame_count;
     frame_count = 0;
-    lcd.setAddrWindow(0, 0, lcd.width(), lcd.height());
   }
 }
 
