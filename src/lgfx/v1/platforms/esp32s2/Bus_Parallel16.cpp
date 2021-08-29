@@ -210,6 +210,8 @@ namespace lgfx
 
     _cache_index = 0;
     _cache_flip = _cache[0];
+
+    _has_align_data = false;
   }
 
   void Bus_Parallel16::endTransaction(void)
@@ -308,6 +310,7 @@ namespace lgfx
     auto idx = _cache_index;
     auto bytes = bit_length >> 3;
     auto c = _cache_flip;
+
     do
     {
       c[idx++] = data << 16;
@@ -325,19 +328,35 @@ namespace lgfx
   void Bus_Parallel16::writeData(uint32_t data, uint_fast8_t bit_length)
   {
     auto idx = _cache_index;
-    auto bytes = bit_length >> 3;
     auto c = _cache_flip;
-    do
+    auto bytes = bit_length >> 3;
+
+    if (_has_align_data)
     {
+      _has_align_data = false;
+      c[idx++] = ((data << 8 | _align_data) << 16) | 0xFFFF;
+      --bytes;
+      data >>= 8;
+    }
+
+    while (1 < bytes)
+    {
+      bytes -= 2;
       c[idx++] = (data << 16) | 0xFFFF;
       data >>= 16;
-    } while (1 < (bytes -= 2));
+    }
+
     if (idx >= CACHE_THRESH)
     {
       _flush(idx);
       idx = 0;
     }
     _cache_index = idx;
+    if (bytes == 1)
+    {
+      _has_align_data = true;
+      _align_data = data;
+    }
   }
 
   void Bus_Parallel16::writeDataRepeat(uint32_t color_raw, uint_fast8_t bit_length, uint32_t length)
@@ -363,35 +382,62 @@ namespace lgfx
     }
     else // if (bytes == 3)
     {
+      // size_t step = 0;
       uint32_t raw[3] = 
-      { (uint8_t)(color_raw) << 8 |  color_raw    << 16 | 0xFF00FF 
-      ,           color_raw  >> 8 |  color_raw    << 24 | 0xFF00FF 
-      ,           color_raw       | (color_raw>>16)<<24 | 0xFF00FF 
+      { color_raw             << 16 | 0xFFFF 
+      , color_raw | color_raw << 24 | 0xFFFF 
+      , color_raw              << 8 | 0xFFFF
       };
-      if (length & 1)
+      if (_has_align_data)
       {
+        _has_align_data = false;
         --length;
-        *(uint32_t*)(&c[idx  ]) = raw[0];
-        *(uint32_t*)(&c[idx+2]) = raw[1];
-        idx += 3;
+        c[idx++] = ((color_raw << 8 | _align_data) << 16) | 0xFFFF;
+        c[idx++] = raw[2];
+        if (idx >= CACHE_THRESH)
+        {
+          _flush(idx);
+          idx = 0;
+          c = _cache_flip;
+          // step = 1;
+        }
       }
-      if (idx >= CACHE_THRESH - 4)
-      {
-        idx = _flush(idx);
-        c = _cache_flip;
-      }
-      while (length)
+      while (1 < length)
       {
         length -= 2;
-        *(uint32_t*)(&c[idx  ]) = raw[0];
-        *(uint32_t*)(&c[idx+2]) = raw[1];
-        *(uint32_t*)(&c[idx+4]) = raw[2];
-        idx += 6;
-        if (idx >= CACHE_THRESH - 4)
+        c[idx  ] = raw[0];
+        c[idx+1] = raw[1];
+        c[idx+2] = raw[2];
+        idx += 3;
+        if (idx >= CACHE_THRESH)
         {
-          idx = _flush(idx);
+          _flush(idx);
+          idx = 0;
+/*
+          if (++step == 2)
+          {
+            if (length > ((CACHE_THRESH / 3) * 2))
+            {
+              memcpy(_cache_flip, c, CACHE_THRESH * sizeof(uint32_t));
+              do
+              {
+                _flush(((CACHE_THRESH / 3) * 3));
+                length -= ((CACHE_THRESH / 3) * 2);
+              } while (length >= ((CACHE_THRESH / 3) * 2));
+              idx = (length >> 1) * 3;
+              length = length & 1;
+              break;
+            }
+          }
+//*/
           c = _cache_flip;
         }
+      }
+      if (length == 1)
+      {
+        _has_align_data = true;
+        c[idx++] = raw[0];
+        _align_data = raw[1] >> 16;
       }
     }
     _cache_index = idx;

@@ -131,7 +131,10 @@ namespace lgfx
     size_t _cache_index;
     uint32_t _cache[2][CACHE_SIZE];
     uint32_t* _cache_flip;
-    
+
+    bool _has_align_data;
+    uint8_t _align_data;
+
     void _wait(void);
     void _init_pin(void);
     size_t _flush(size_t idx, bool dc = true);
