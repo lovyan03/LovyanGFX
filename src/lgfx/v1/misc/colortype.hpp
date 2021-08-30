@@ -285,9 +285,9 @@ namespace lgfx
     explicit inline operator uint16_t(void) const { return pgm_read_word(this); }
     explicit inline operator bool(void) const { return pgm_read_word(this); }
     static constexpr uint8_t A8(void) { return 255; }
-    inline constexpr uint8_t R8(void) const { return (r5 << 3) + (r5 >> 5); }
+    inline constexpr uint8_t R8(void) const { return (r5 << 3) + (r5 >> 2); }
     inline constexpr uint8_t G8(void) const { return (((gh << 3) + gl) << 2) + (gh >> 1); }
-    inline constexpr uint8_t B8(void) const { return (b5 << 3) + (b5 >> 5); }
+    inline constexpr uint8_t B8(void) const { return (b5 << 3) + (b5 >> 2); }
     inline constexpr uint8_t R6(void) const { return (r5 << 1) + (r5 >> 4); }
     inline constexpr uint8_t G6(void) const { return (gh << 3) + gl; }
     inline constexpr uint8_t B6(void) const { return (b5 << 1) + (b5 >> 4); }
