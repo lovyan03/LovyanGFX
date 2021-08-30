@@ -109,7 +109,7 @@ namespace lgfx
     void _wait(void);
     void _init_pin(void);
     size_t _flush(size_t idx, bool force = false);
-    uint_fast8_t _reg_to_value(uint32_t raw_value);
+    void _read_bytes(uint8_t* dst, uint32_t length);
 
     uint32_t _last_freq_apb;
     uint32_t _clkdiv_write;
