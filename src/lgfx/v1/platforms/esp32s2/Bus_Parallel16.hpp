@@ -50,25 +50,32 @@ namespace lgfx
 
       // max 40MHz , 27MHz , 20MHz , 16MHz , 13.3MHz , 11.43MHz , 10MHz , 8.9MHz  and more ...
       uint32_t freq_write = 16000000;
-      int8_t pin_d0 = -1;
-      int8_t pin_d1 = -1;
-      int8_t pin_d2 = -1;
-      int8_t pin_d3 = -1;
-      int8_t pin_d4 = -1;
-      int8_t pin_d5 = -1;
-      int8_t pin_d6 = -1;
-      int8_t pin_d7 = -1;
-      int8_t pin_d8 = -1;
-      int8_t pin_d9 = -1;
-      int8_t pin_d10 = -1;
-      int8_t pin_d11 = -1;
-      int8_t pin_d12 = -1;
-      int8_t pin_d13 = -1;
-      int8_t pin_d14 = -1;
-      int8_t pin_d15 = -1;
       int8_t pin_wr = -1;
       int8_t pin_rd = -1;
       int8_t pin_rs = -1;  // D/C
+      union
+      {
+        int8_t pin_data[16];
+        struct
+        {
+          int8_t pin_d0;
+          int8_t pin_d1;
+          int8_t pin_d2;
+          int8_t pin_d3;
+          int8_t pin_d4;
+          int8_t pin_d5;
+          int8_t pin_d6;
+          int8_t pin_d7;
+          int8_t pin_d8;
+          int8_t pin_d9;
+          int8_t pin_d10;
+          int8_t pin_d11;
+          int8_t pin_d12;
+          int8_t pin_d13;
+          int8_t pin_d14;
+          int8_t pin_d15;
+        };
+      };
     };
 
 
@@ -135,8 +142,10 @@ namespace lgfx
     bool _has_align_data;
     uint8_t _align_data;
 
+    uint32_t _pin_mask_h, _pin_mask_l, _pin_index_h, _pin_index_l;
+
     void _wait(void);
-    void _init_pin(void);
+    void _init_pin(bool read = false);
     size_t _flush(size_t idx, bool dc = true);
     void _read_bytes(uint8_t* dst, uint32_t length);
 

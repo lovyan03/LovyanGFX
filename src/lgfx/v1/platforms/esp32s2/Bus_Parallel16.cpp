@@ -74,69 +74,20 @@ namespace lgfx
   {
     _init_pin();
 
-    auto i2s_dev = (i2s_dev_t*)_dev;
-    //Reset I2S subsystem
-    i2s_dev->conf.val = I2S_TX_RESET | I2S_RX_RESET | I2S_TX_FIFO_RESET | I2S_RX_FIFO_RESET;
-    i2s_dev->conf.val = _conf_reg_default;
-
-    i2s_dev->int_ena.val = 0;
-    i2s_dev->timing.val = 0;
-
-    //Reset DMA
-    i2s_dev->lc_conf.val = I2S_IN_RST | I2S_OUT_RST | I2S_AHBM_RST | I2S_AHBM_FIFO_RST;
-    i2s_dev->lc_conf.val = I2S_OUT_EOF_MODE | I2S_OUTDSCR_BURST_EN | I2S_OUT_DATA_BURST_EN;
-
-    i2s_dev->in_link.val = 0;
-    i2s_dev->out_link.val = 0;
-
-    i2s_dev->conf1.val = I2S_TX_PCM_BYPASS | I2S_TX_STOP_EN;
-    i2s_dev->conf2.val = I2S_LCD_EN;
-    i2s_dev->conf_chan.val = 1 << I2S_TX_CHAN_MOD_S | 1 << I2S_RX_CHAN_MOD_S;
-
-    _alloc_dmadesc(1);
-
-    return true;
-  }
-
-  void Bus_Parallel16::_init_pin(void)
-  {
-    int8_t pins[] =
-    { _cfg.pin_d8
-    , _cfg.pin_d9
-    , _cfg.pin_d10
-    , _cfg.pin_d11
-    , _cfg.pin_d12
-    , _cfg.pin_d13
-    , _cfg.pin_d14
-    , _cfg.pin_d15
-    , _cfg.pin_d0
-    , _cfg.pin_d1
-    , _cfg.pin_d2
-    , _cfg.pin_d3
-    , _cfg.pin_d4
-    , _cfg.pin_d5
-    , _cfg.pin_d6
-    , _cfg.pin_d7
-    };
-
-    for (size_t i = 0; i < 16; ++i)
-    {
-      gpio_pad_select_gpio(pins[i]);
-      gpio_set_direction((gpio_num_t)pins[i], GPIO_MODE_INPUT_OUTPUT);
-      gpio_matrix_out(pins[i], I2S0O_DATA_OUT8_IDX + i, 0, 0);
-    }
-
-    gpio_pad_select_gpio(_cfg.pin_rd);
-    gpio_pad_select_gpio(_cfg.pin_wr);
-    gpio_pad_select_gpio(_cfg.pin_rs);
+    // gpio_pad_select_gpio(_cfg.pin_rd);
+    // gpio_pad_select_gpio(_cfg.pin_wr);
+    // gpio_pad_select_gpio(_cfg.pin_rs);
 
     gpio_hi(_cfg.pin_rd);
     gpio_hi(_cfg.pin_wr);
     gpio_hi(_cfg.pin_rs);
+    pinMode(_cfg.pin_rd, pin_mode_t::output);
+    pinMode(_cfg.pin_wr, pin_mode_t::output);
+    pinMode(_cfg.pin_rs, pin_mode_t::output);
 
-    gpio_set_direction((gpio_num_t)_cfg.pin_rd, GPIO_MODE_OUTPUT);
-    gpio_set_direction((gpio_num_t)_cfg.pin_wr, GPIO_MODE_OUTPUT);
-    gpio_set_direction((gpio_num_t)_cfg.pin_rs, GPIO_MODE_OUTPUT);
+    // gpio_set_direction((gpio_num_t)_cfg.pin_rd, GPIO_MODE_OUTPUT);
+    // gpio_set_direction((gpio_num_t)_cfg.pin_wr, GPIO_MODE_OUTPUT);
+    // gpio_set_direction((gpio_num_t)_cfg.pin_rs, GPIO_MODE_OUTPUT);
 
     auto idx_base = I2S0O_DATA_OUT8_IDX;
 
@@ -164,6 +115,53 @@ namespace lgfx
 
     DPORT_SET_PERI_REG_MASK(DPORT_PERIP_CLK_EN_REG, dport_clk_en);
     DPORT_CLEAR_PERI_REG_MASK(DPORT_PERIP_RST_EN_REG, dport_rst);
+
+    auto i2s_dev = (i2s_dev_t*)_dev;
+    //Reset I2S subsystem
+    i2s_dev->conf.val = I2S_TX_RESET | I2S_RX_RESET | I2S_TX_FIFO_RESET | I2S_RX_FIFO_RESET;
+    i2s_dev->conf.val = _conf_reg_default;
+
+    i2s_dev->int_ena.val = 0;
+    i2s_dev->timing.val = 0;
+
+    //Reset DMA
+    i2s_dev->lc_conf.val = I2S_IN_RST | I2S_OUT_RST | I2S_AHBM_RST | I2S_AHBM_FIFO_RST;
+    i2s_dev->lc_conf.val = I2S_OUT_EOF_MODE | I2S_OUTDSCR_BURST_EN | I2S_OUT_DATA_BURST_EN;
+
+    i2s_dev->in_link.val = 0;
+    i2s_dev->out_link.val = 0;
+
+    i2s_dev->conf1.val = I2S_TX_PCM_BYPASS | I2S_TX_STOP_EN;
+    i2s_dev->conf2.val = I2S_LCD_EN;
+    i2s_dev->conf_chan.val = 1 << I2S_TX_CHAN_MOD_S | 1 << I2S_RX_CHAN_MOD_S;
+
+    _alloc_dmadesc(1);
+
+    return true;
+  }
+
+  void Bus_Parallel16::_init_pin(bool read)
+  {
+    int8_t* pins = _cfg.pin_data;
+    if (read)
+    {
+      for (size_t i = 0; i < 16; ++i)
+      {
+        // gpio_pad_select_gpio(pins[i]);
+        gpio_set_direction((gpio_num_t)pins[i], GPIO_MODE_INPUT);
+      }
+    }
+    else
+    {
+      for (size_t i = 0; i < 8; ++i)
+      {
+        // gpio_set_direction((gpio_num_t)pins[i], GPIO_MODE_INPUT_OUTPUT);
+        gpio_pad_select_gpio(pins[i  ]);
+        gpio_pad_select_gpio(pins[i+8]);
+        gpio_matrix_out(pins[i  ], I2S0O_DATA_OUT8_IDX + i+8, 0, 0);
+        gpio_matrix_out(pins[i+8], I2S0O_DATA_OUT8_IDX + i  , 0, 0);
+      }
+    }
   }
 
   void Bus_Parallel16::release(void)
@@ -527,52 +525,64 @@ namespace lgfx
       gpio_matrix_out(_cfg.pin_rs, 0x100, 0, 0);
     }
     gpio_lo(_cfg.pin_rd);
+
+    _init_pin(true);
   }
 
   void Bus_Parallel16::endRead(void)
   {
     gpio_hi(_cfg.pin_rd);
+
+    _init_pin();
   }
 
   void Bus_Parallel16::_read_bytes(uint8_t* dst, uint32_t length)
   {
     uint8_t in[8];
 
-    uint_fast8_t m15 = 1ul << (_cfg.pin_d15 & 7);
-    uint_fast8_t m14 = 1ul << (_cfg.pin_d14 & 7);
-    uint_fast8_t m13 = 1ul << (_cfg.pin_d13 & 7);
-    uint_fast8_t m12 = 1ul << (_cfg.pin_d12 & 7);
-    uint_fast8_t m11 = 1ul << (_cfg.pin_d11 & 7);
-    uint_fast8_t m10 = 1ul << (_cfg.pin_d10 & 7);
-    uint_fast8_t  m9 = 1ul << (_cfg.pin_d9 & 7);
-    uint_fast8_t  m8 = 1ul << (_cfg.pin_d8 & 7);
+    uint32_t mh = (((((((((((((((
+                  (_cfg.pin_d8  & 7)) << 3)
+                + (_cfg.pin_d9  & 7)) << 3)
+                + (_cfg.pin_d10 & 7)) << 3)
+                + (_cfg.pin_d11 & 7)) << 3)
+                + (_cfg.pin_d12 & 7)) << 3)
+                + (_cfg.pin_d13 & 7)) << 3)
+                + (_cfg.pin_d14 & 7)) << 3)
+                + (_cfg.pin_d15 & 7))
+                ;
 
-    uint_fast8_t m7 = 1ul << (_cfg.pin_d7 & 7);
-    uint_fast8_t m6 = 1ul << (_cfg.pin_d6 & 7);
-    uint_fast8_t m5 = 1ul << (_cfg.pin_d5 & 7);
-    uint_fast8_t m4 = 1ul << (_cfg.pin_d4 & 7);
-    uint_fast8_t m3 = 1ul << (_cfg.pin_d3 & 7);
-    uint_fast8_t m2 = 1ul << (_cfg.pin_d2 & 7);
-    uint_fast8_t m1 = 1ul << (_cfg.pin_d1 & 7);
-    uint_fast8_t m0 = 1ul << (_cfg.pin_d0 & 7);
+    uint32_t ih = (((((((((((((((
+                  (_cfg.pin_d8  >> 3)) << 3)
+                + (_cfg.pin_d9  >> 3)) << 3)
+                + (_cfg.pin_d10 >> 3)) << 3)
+                + (_cfg.pin_d11 >> 3)) << 3)
+                + (_cfg.pin_d12 >> 3)) << 3)
+                + (_cfg.pin_d13 >> 3)) << 3)
+                + (_cfg.pin_d14 >> 3)) << 3)
+                + (_cfg.pin_d15 >> 3))
+                ;
 
-    uint_fast8_t i15 = _cfg.pin_d15 >> 3;
-    uint_fast8_t i14 = _cfg.pin_d14 >> 3;
-    uint_fast8_t i13 = _cfg.pin_d13 >> 3;
-    uint_fast8_t i12 = _cfg.pin_d12 >> 3;
-    uint_fast8_t i11 = _cfg.pin_d11 >> 3;
-    uint_fast8_t i10 = _cfg.pin_d10 >> 3;
-    uint_fast8_t  i9 = _cfg.pin_d9 >> 3;
-    uint_fast8_t  i8 = _cfg.pin_d8 >> 3;
+    uint32_t ml = (((((((((((((((
+                  (_cfg.pin_d0 & 7)) << 3)
+                + (_cfg.pin_d1 & 7)) << 3)
+                + (_cfg.pin_d2 & 7)) << 3)
+                + (_cfg.pin_d3 & 7)) << 3)
+                + (_cfg.pin_d4 & 7)) << 3)
+                + (_cfg.pin_d5 & 7)) << 3)
+                + (_cfg.pin_d6 & 7)) << 3)
+                + (_cfg.pin_d7 & 7))
+                ;
 
-    uint_fast8_t i7 = _cfg.pin_d7 >> 3;
-    uint_fast8_t i6 = _cfg.pin_d6 >> 3;
-    uint_fast8_t i5 = _cfg.pin_d5 >> 3;
-    uint_fast8_t i4 = _cfg.pin_d4 >> 3;
-    uint_fast8_t i3 = _cfg.pin_d3 >> 3;
-    uint_fast8_t i2 = _cfg.pin_d2 >> 3;
-    uint_fast8_t i1 = _cfg.pin_d1 >> 3;
-    uint_fast8_t i0 = _cfg.pin_d0 >> 3;
+    uint32_t il = (((((((((((((((
+                  (_cfg.pin_d0 >> 3)) << 3)
+                + (_cfg.pin_d1 >> 3)) << 3)
+                + (_cfg.pin_d2 >> 3)) << 3)
+                + (_cfg.pin_d3 >> 3)) << 3)
+                + (_cfg.pin_d4 >> 3)) << 3)
+                + (_cfg.pin_d5 >> 3)) << 3)
+                + (_cfg.pin_d6 >> 3)) << 3)
+                + (_cfg.pin_d7 >> 3))
+                ;
 
     auto reg_rd_h = get_gpio_hi_reg(_cfg.pin_rd);
     auto reg_rd_l = get_gpio_lo_reg(_cfg.pin_rd);
@@ -583,30 +593,27 @@ namespace lgfx
       ((uint32_t*)in)[0] = GPIO.in;
       ((uint32_t*)in)[1] = GPIO.in1.val;
       *reg_rd_h = mask_rd;
-      val = ((((bool)(in[i7] & m7) << 1)
-            +  (bool)(in[i6] & m6)     ) << 2)
-            + ((bool)(in[i5] & m5) << 1)
-            + ((bool)(in[i4] & m4)     );
-      val = (((val << 2)
-          + ((bool)(in[i3] & m3) << 1)
-          + ((bool)(in[i2] & m2)     )) << 2)
-          + ((bool)(in[i1] & m1) << 1)
-          + ((bool)(in[i0] & m0)     )
-          ;
+      val =              (1 & (in[(ih >>  0) & 7] >> ((mh >>  0) & 7)));
+      val = (val << 1) + (1 & (in[(ih >>  3) & 7] >> ((mh >>  3) & 7)));
+      val = (val << 1) + (1 & (in[(ih >>  6) & 7] >> ((mh >>  6) & 7)));
+      val = (val << 1) + (1 & (in[(ih >>  9) & 7] >> ((mh >>  9) & 7)));
+      val = (val << 1) + (1 & (in[(ih >> 12) & 7] >> ((mh >> 12) & 7)));
+      val = (val << 1) + (1 & (in[(ih >> 15) & 7] >> ((mh >> 15) & 7)));
+      val = (val << 1) + (1 & (in[(ih >> 18) & 7] >> ((mh >> 18) & 7)));
+      val = (val << 1) + (1 & (in[(ih >> 21) & 7] >> ((mh >> 21) & 7)));
       *dst++ = val;
+
       *reg_rd_l = mask_rd;
       if (0 == --length) break;
 
-      val = ((((bool)(in[i15] & m15) << 1)
-            +  (bool)(in[i14] & m14)     ) << 2)
-            + ((bool)(in[i13] & m13) << 1)
-            + ((bool)(in[i12] & m12)     );
-      val = (((val << 2)
-          + ((bool)(in[i11] & m11) << 1)
-          + ((bool)(in[i10] & m10)     )) << 2)
-          + ((bool)(in[ i9] &  m9) << 1)
-          + ((bool)(in[ i8] &  m8)     )
-          ;
+      val =              (1 & (in[(il >>  0) & 7] >> ((ml >>  0) & 7)));
+      val = (val << 1) + (1 & (in[(il >>  3) & 7] >> ((ml >>  3) & 7)));
+      val = (val << 1) + (1 & (in[(il >>  6) & 7] >> ((ml >>  6) & 7)));
+      val = (val << 1) + (1 & (in[(il >>  9) & 7] >> ((ml >>  9) & 7)));
+      val = (val << 1) + (1 & (in[(il >> 12) & 7] >> ((ml >> 12) & 7)));
+      val = (val << 1) + (1 & (in[(il >> 15) & 7] >> ((ml >> 15) & 7)));
+      val = (val << 1) + (1 & (in[(il >> 18) & 7] >> ((ml >> 18) & 7)));
+      val = (val << 1) + (1 & (in[(il >> 21) & 7] >> ((ml >> 21) & 7)));
       *dst++ = val;
     } while (--length);
   }

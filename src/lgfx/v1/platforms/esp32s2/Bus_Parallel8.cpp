@@ -74,6 +74,45 @@ namespace lgfx
   {
     _init_pin();
 
+    gpio_pad_select_gpio(_cfg.pin_rd);
+    gpio_pad_select_gpio(_cfg.pin_wr);
+    gpio_pad_select_gpio(_cfg.pin_rs);
+
+    gpio_hi(_cfg.pin_rd);
+    gpio_hi(_cfg.pin_wr);
+    gpio_hi(_cfg.pin_rs);
+
+    gpio_set_direction((gpio_num_t)_cfg.pin_rd, GPIO_MODE_OUTPUT);
+    gpio_set_direction((gpio_num_t)_cfg.pin_wr, GPIO_MODE_OUTPUT);
+    gpio_set_direction((gpio_num_t)_cfg.pin_rs, GPIO_MODE_OUTPUT);
+
+    auto idx_base = I2S0O_DATA_OUT15_IDX;
+
+    gpio_matrix_out(_cfg.pin_rs, idx_base    , 0, 0);
+
+    _direct_dc = false;
+
+    uint32_t dport_clk_en;
+    uint32_t dport_rst;
+
+    if (_cfg.i2s_port == I2S_NUM_0) {
+      idx_base = I2S0O_WS_OUT_IDX;
+      dport_clk_en = DPORT_I2S0_CLK_EN;
+      dport_rst = DPORT_I2S0_RST;
+    }
+#if !defined (CONFIG_IDF_TARGET_ESP32S2)
+    else
+    {
+      idx_base = I2S1O_WS_OUT_IDX;
+      dport_clk_en = DPORT_I2S1_CLK_EN;
+      dport_rst = DPORT_I2S1_RST;
+    }
+#endif
+    gpio_matrix_out(_cfg.pin_wr, idx_base, 1, 0); // WR (Write-strobe in 8080 mode, Active-low)
+
+    DPORT_SET_PERI_REG_MASK(DPORT_PERIP_CLK_EN_REG, dport_clk_en);
+    DPORT_CLEAR_PERI_REG_MASK(DPORT_PERIP_RST_EN_REG, dport_rst);
+
     auto i2s_dev = (i2s_dev_t*)_dev;
     //Reset I2S subsystem
     i2s_dev->conf.val = I2S_TX_RESET | I2S_RX_RESET | I2S_TX_FIFO_RESET | I2S_RX_FIFO_RESET;
@@ -98,72 +137,27 @@ namespace lgfx
     return true;
   }
 
-  void Bus_Parallel8::_init_pin(void)
+  void Bus_Parallel8::_init_pin(bool read)
   {
-    gpio_pad_select_gpio(_cfg.pin_d0);
-    gpio_pad_select_gpio(_cfg.pin_d1);
-    gpio_pad_select_gpio(_cfg.pin_d2);
-    gpio_pad_select_gpio(_cfg.pin_d3);
-    gpio_pad_select_gpio(_cfg.pin_d4);
-    gpio_pad_select_gpio(_cfg.pin_d5);
-    gpio_pad_select_gpio(_cfg.pin_d6);
-    gpio_pad_select_gpio(_cfg.pin_d7);
-
-    gpio_pad_select_gpio(_cfg.pin_rd);
-    gpio_pad_select_gpio(_cfg.pin_wr);
-    gpio_pad_select_gpio(_cfg.pin_rs);
-
-    gpio_hi(_cfg.pin_rd);
-    gpio_hi(_cfg.pin_wr);
-    gpio_hi(_cfg.pin_rs);
-
-    gpio_set_direction((gpio_num_t)_cfg.pin_rd, GPIO_MODE_OUTPUT);
-    gpio_set_direction((gpio_num_t)_cfg.pin_wr, GPIO_MODE_OUTPUT);
-    gpio_set_direction((gpio_num_t)_cfg.pin_rs, GPIO_MODE_OUTPUT);
-
-    gpio_set_direction((gpio_num_t)_cfg.pin_d0, GPIO_MODE_INPUT_OUTPUT);
-    gpio_set_direction((gpio_num_t)_cfg.pin_d1, GPIO_MODE_INPUT_OUTPUT);
-    gpio_set_direction((gpio_num_t)_cfg.pin_d2, GPIO_MODE_INPUT_OUTPUT);
-    gpio_set_direction((gpio_num_t)_cfg.pin_d3, GPIO_MODE_INPUT_OUTPUT);
-    gpio_set_direction((gpio_num_t)_cfg.pin_d4, GPIO_MODE_INPUT_OUTPUT);
-    gpio_set_direction((gpio_num_t)_cfg.pin_d5, GPIO_MODE_INPUT_OUTPUT);
-    gpio_set_direction((gpio_num_t)_cfg.pin_d6, GPIO_MODE_INPUT_OUTPUT);
-    gpio_set_direction((gpio_num_t)_cfg.pin_d7, GPIO_MODE_INPUT_OUTPUT);
-
-    auto idx_base = I2S0O_DATA_OUT15_IDX;
-
-    gpio_matrix_out(_cfg.pin_rs, idx_base    , 0, 0);
-    gpio_matrix_out(_cfg.pin_d0, idx_base + 1, 0, 0);
-    gpio_matrix_out(_cfg.pin_d1, idx_base + 2, 0, 0);
-    gpio_matrix_out(_cfg.pin_d2, idx_base + 3, 0, 0);
-    gpio_matrix_out(_cfg.pin_d3, idx_base + 4, 0, 0);
-    gpio_matrix_out(_cfg.pin_d4, idx_base + 5, 0, 0);
-    gpio_matrix_out(_cfg.pin_d5, idx_base + 6, 0, 0);
-    gpio_matrix_out(_cfg.pin_d6, idx_base + 7, 0, 0);
-    gpio_matrix_out(_cfg.pin_d7, idx_base + 8, 0, 0);
-
-    _direct_dc = false;
-
-    uint32_t dport_clk_en;
-    uint32_t dport_rst;
-
-    if (_cfg.i2s_port == I2S_NUM_0) {
-      idx_base = I2S0O_WS_OUT_IDX;
-      dport_clk_en = DPORT_I2S0_CLK_EN;
-      dport_rst = DPORT_I2S0_RST;
+    int8_t* pins = _cfg.pin_data;
+    if (read)
+    {
+      for (size_t i = 0; i < 8; ++i)
+      {
+        // gpio_pad_select_gpio(pins[i]);
+        gpio_set_direction((gpio_num_t)pins[i], GPIO_MODE_INPUT);
+      }
     }
-#if !defined (CONFIG_IDF_TARGET_ESP32S2)
     else
     {
-      idx_base = I2S1O_WS_OUT_IDX;
-      dport_clk_en = DPORT_I2S1_CLK_EN;
-      dport_rst = DPORT_I2S1_RST;
+      auto idx_base = I2S0O_DATA_OUT16_IDX;
+      for (size_t i = 0; i < 8; ++i)
+      {
+        // gpio_set_direction((gpio_num_t)pins[i], GPIO_MODE_INPUT_OUTPUT);
+        gpio_pad_select_gpio(pins[i]);
+        gpio_matrix_out(pins[i], idx_base + i, 0, 0);
+      }
     }
-#endif
-    gpio_matrix_out(_cfg.pin_wr, idx_base, 1, 0); // WR (Write-strobe in 8080 mode, Active-low)
-
-    DPORT_SET_PERI_REG_MASK(DPORT_PERIP_CLK_EN_REG, dport_clk_en);
-    DPORT_CLEAR_PERI_REG_MASK(DPORT_PERIP_RST_EN_REG, dport_rst);
   }
 
   void Bus_Parallel8::release(void)
@@ -473,57 +467,61 @@ namespace lgfx
       gpio_matrix_out(_cfg.pin_rs, 0x100, 0, 0);
     }
     gpio_lo(_cfg.pin_rd);
+
+    _init_pin(true);
   }
 
   void Bus_Parallel8::endRead(void)
   {
     gpio_hi(_cfg.pin_rd);
+
+    _init_pin();
   }
 
   void Bus_Parallel8::_read_bytes(uint8_t* dst, uint32_t length)
   {
     uint8_t in[8];
 
-    uint_fast8_t m7 = 1ul << (_cfg.pin_d7 & 7);
-    uint_fast8_t m6 = 1ul << (_cfg.pin_d6 & 7);
-    uint_fast8_t m5 = 1ul << (_cfg.pin_d5 & 7);
-    uint_fast8_t m4 = 1ul << (_cfg.pin_d4 & 7);
-    uint_fast8_t m3 = 1ul << (_cfg.pin_d3 & 7);
-    uint_fast8_t m2 = 1ul << (_cfg.pin_d2 & 7);
-    uint_fast8_t m1 = 1ul << (_cfg.pin_d1 & 7);
-    uint_fast8_t m0 = 1ul << (_cfg.pin_d0 & 7);
+    uint32_t mask = (((((((((((((((
+                    (_cfg.pin_d0 & 7)) << 3)
+                  + (_cfg.pin_d1 & 7)) << 3)
+                  + (_cfg.pin_d2 & 7)) << 3)
+                  + (_cfg.pin_d3 & 7)) << 3)
+                  + (_cfg.pin_d4 & 7)) << 3)
+                  + (_cfg.pin_d5 & 7)) << 3)
+                  + (_cfg.pin_d6 & 7)) << 3)
+                  + (_cfg.pin_d7 & 7))
+                  ;
 
-    uint_fast8_t i7 = _cfg.pin_d7 >> 3;
-    uint_fast8_t i6 = _cfg.pin_d6 >> 3;
-    uint_fast8_t i5 = _cfg.pin_d5 >> 3;
-    uint_fast8_t i4 = _cfg.pin_d4 >> 3;
-    uint_fast8_t i3 = _cfg.pin_d3 >> 3;
-    uint_fast8_t i2 = _cfg.pin_d2 >> 3;
-    uint_fast8_t i1 = _cfg.pin_d1 >> 3;
-    uint_fast8_t i0 = _cfg.pin_d0 >> 3;
+    uint32_t idx = (((((((((((((((
+                    (_cfg.pin_d0 >> 3)) << 3)
+                  + (_cfg.pin_d1 >> 3)) << 3)
+                  + (_cfg.pin_d2 >> 3)) << 3)
+                  + (_cfg.pin_d3 >> 3)) << 3)
+                  + (_cfg.pin_d4 >> 3)) << 3)
+                  + (_cfg.pin_d5 >> 3)) << 3)
+                  + (_cfg.pin_d6 >> 3)) << 3)
+                  + (_cfg.pin_d7 >> 3))
+                  ;
 
     auto reg_rd_h = get_gpio_hi_reg(_cfg.pin_rd);
     auto reg_rd_l = get_gpio_lo_reg(_cfg.pin_rd);
     uint32_t mask_rd = 1ul << (_cfg.pin_rd & 31);
-    uint32_t val;
+    uint_fast8_t val;
     do
     {
       ((uint32_t*)in)[0] = GPIO.in;
       ((uint32_t*)in)[1] = GPIO.in1.val;
       *reg_rd_h = mask_rd;
-
-      val = ((((bool)(in[i7] & m7) << 1)
-            +  (bool)(in[i6] & m6)     ) << 2)
-            + ((bool)(in[i5] & m5) << 1)
-            + ((bool)(in[i4] & m4)     );
-
+      val =              (1 & (in[(idx >>  0) & 7] >> ((mask >>  0) & 7)));
+      val = (val << 1) + (1 & (in[(idx >>  3) & 7] >> ((mask >>  3) & 7)));
+      val = (val << 1) + (1 & (in[(idx >>  6) & 7] >> ((mask >>  6) & 7)));
+      val = (val << 1) + (1 & (in[(idx >>  9) & 7] >> ((mask >>  9) & 7)));
+      val = (val << 1) + (1 & (in[(idx >> 12) & 7] >> ((mask >> 12) & 7)));
       *reg_rd_l = mask_rd;
-      val = (((val << 2)
-          + ((bool)(in[i3] & m3) << 1)
-          + ((bool)(in[i2] & m2)     )) << 2)
-          + ((bool)(in[i1] & m1) << 1)
-          + ((bool)(in[i0] & m0)     )
-          ;
+      val = (val << 1) + (1 & (in[(idx >> 15) & 7] >> ((mask >> 15) & 7)));
+      val = (val << 1) + (1 & (in[(idx >> 18) & 7] >> ((mask >> 18) & 7)));
+      val = (val << 1) + (1 & (in[(idx >> 21) & 7] >> ((mask >> 21) & 7)));
       *dst++ = val;
     } while (--length);
   }
