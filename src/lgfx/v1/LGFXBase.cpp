@@ -1061,8 +1061,8 @@ namespace lgfx
 //      uint32_t x_mask = (1 << (4 - __builtin_ffs(param->src_bits))) - 1;
 //      uint32_t x_mask = (1 << ((~(param->src_bits>>1)) & 3)) - 1;
       uint32_t x_mask = (param->src_bits == 1) ? 7
-                           : (param->src_bits == 2) ? 3
-                                                    : 1;
+                      : (param->src_bits == 2) ? 3
+                                               : 1;
       param->src_bitwidth = (w + x_mask) & (~x_mask);
     }
 
@@ -1131,8 +1131,8 @@ namespace lgfx
     pc->src_bitwidth = w;
     if (pc->src_bits < 8) {
       uint32_t x_mask = (pc->src_bits == 1) ? 7
-                           : (pc->src_bits == 2) ? 3
-                                                 : 1;
+                      : (pc->src_bits == 2) ? 3
+                                            : 1;
       pc->src_bitwidth = (w + x_mask) & (~x_mask);
     }
     push_image_affine(matrix, pc);
@@ -2562,8 +2562,11 @@ namespace lgfx
   static void png_done_callback(pngle_t *pngle)
   {
     auto p = (png_file_decoder_t *)lgfx_pngle_get_user_data(pngle);
-    png_post_line(p);
     p->done = true;
+    if (p->lineBuffer)
+    {
+      png_post_line(p);
+    }
   }
 
   static void png_draw_normal_callback(pngle_t *pngle, uint32_t x, uint32_t y, uint8_t rgba[4])
@@ -2740,12 +2743,12 @@ namespace lgfx
     if (p->maxHeight > hh) p->maxHeight = hh;
     if (p->maxHeight < 0) return;
 
+    lgfx_pngle_set_done_callback(pngle, png_done_callback);
     if (hasTransparent)
     { // need pixel read ?
       p->lineBuffer = (bgr888_t*)heap_alloc_dma(sizeof(bgr888_t) * p->maxWidth * ceilf(p->zoom_x));
       p->pc->src_data = p->lineBuffer;
       png_prepare_line(p, 0);
-      lgfx_pngle_set_done_callback(pngle, png_done_callback);
 
       if (p->zoom_x == 1.0f && p->zoom_y == 1.0f)
       {
@@ -2756,6 +2759,7 @@ namespace lgfx
         lgfx_pngle_set_draw_callback(pngle, png_draw_alpha_scale_callback);
       }
     } else {
+      p->lineBuffer = nullptr;
       if (p->zoom_x == 1.0f && p->zoom_y == 1.0f)
       {
         p->last_pos = ~0;
@@ -2766,7 +2770,6 @@ namespace lgfx
         png_ypos_update(p, 0);
         lgfx_pngle_set_draw_callback(pngle, png_draw_normal_scale_callback);
       }
-      return;
     }
   }
 
@@ -2807,12 +2810,17 @@ namespace lgfx
 
       int fed = lgfx_pngle_feed(pngle, buf, remain + len);
 
-      if (fed < 0) {
+      if (png.done)
+      {
+        break;
+      }
+
+      if (fed < 0)
+      {
 //ESP_LOGE("LGFX", "[pngle error] %s", lgfx_pngle_error(pngle));
         res = false;
         break;
       }
-      if (png.done) { break; }
 
       remain = remain + len - fed;
       if (remain > 0) memmove(buf, buf + fed, remain);
