@@ -174,9 +174,9 @@ namespace lgfx
     Touch_M5Tough(void)
     {
       _cfg.x_min = 0;
-      _cfg.x_max = 320;
+      _cfg.x_max = 319;
       _cfg.y_min = 0;
-      _cfg.y_max = 320;
+      _cfg.y_max = 239;
     }
 
     void wakeup(void) override {}
@@ -200,6 +200,7 @@ namespace lgfx
       if (tp) tp->size = 0;
       if (!_inited || count == 0) return 0;
       if (count > 2) count = 2; // max 2 point.
+
       // if (_cfg.pin_int >= 0)
       // {
       //   Serial.printf("tp:%d \r\n", gpio_in(_cfg.pin_int));
@@ -425,7 +426,7 @@ namespace lgfx
         nvs_board = board_t::board_M5Tough;
 
 #elif defined ( ARDUINO_M5Stack_ATOM )
-//#elif defined ( ARDUINO_M5Stack-Timer-CAM )
+//#elif defined ( ARDUINO_M5Stack_Timer_CAM )
 
 #elif defined( ARDUINO_ODROID_ESP32 ) // ODROID-GO
 
@@ -1259,7 +1260,7 @@ namespace lgfx
           // AXP192_DC3  = LCD BL (Core2)
           // AXP192_LDO3 = LCD BL (Tough)
           // AXP192_IO1  = TP RST (Tough)
-          if (use_reset) lgfx::i2c::writeRegister8(axp_i2c_port, axp_i2c_addr, 0x96, 0, ~0x02, axp_i2c_freq); // GPIO4 LOW (LCD RST)
+          if (use_reset) { lgfx::i2c::writeRegister8(axp_i2c_port, axp_i2c_addr, 0x96, 0, ~0x02, axp_i2c_freq); } // GPIO4 LOW (LCD RST)
           lgfx::i2c::writeRegister8(axp_i2c_port, axp_i2c_addr, 0x28, 0xF0, ~0, axp_i2c_freq);   // set LDO2 3300mv // LCD PWR
           lgfx::i2c::writeRegister8(axp_i2c_port, axp_i2c_addr, 0x12, 0x04, ~0, axp_i2c_freq);   // LDO2 enable
           lgfx::i2c::writeRegister8(axp_i2c_port, axp_i2c_addr, 0x96, 0x02, ~0, axp_i2c_freq);   // GPIO4 HIGH (LCD RST)
@@ -1332,11 +1333,12 @@ namespace lgfx
               cfg.i2c_addr = 0x2E; // I2C device addr
               cfg.i2c_port = I2C_NUM_1;// I2C port number
               cfg.freq = 400000;   // I2C freq
-              cfg.x_min = 0;
-              cfg.x_max = 239;
-              cfg.y_min = 0;
-              cfg.y_max = 319;
-              cfg.offset_rotation = 2;
+
+              // cfg.x_min = 0;    // 以下は試作機での設定値
+              // cfg.x_max = 239;
+              // cfg.y_min = 0;
+              // cfg.y_max = 319;
+              // cfg.offset_rotation = 2;
               t->config(cfg);
               p->touch(t);
               lgfx::i2c::writeRegister8(axp_i2c_port, axp_i2c_addr, 0x94, 0x02, ~0, axp_i2c_freq);  // GPIO1 HIGH (TOUCH RST)
