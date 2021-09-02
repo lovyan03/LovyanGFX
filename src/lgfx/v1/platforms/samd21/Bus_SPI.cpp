@@ -197,15 +197,18 @@ namespace lgfx
     }
     if (--length)
     {
-      param->fp_copy((uint8_t*)&data, 0, 1, param);
-      i = 0;
       do
       {
-        uint32_t tmp = data >> (i << 3);
-        while (spi->INTFLAG.bit.DRE == 0);
-        spi->DATA.reg = tmp;
-      } while (++i != bytes);
-    } while (--length);
+        param->fp_copy((uint8_t*)&data, 0, 1, param);
+        i = 0;
+        do
+        {
+          uint32_t tmp = data >> (i << 3);
+          while (spi->INTFLAG.bit.DRE == 0);
+          spi->DATA.reg = tmp;
+        } while (++i != bytes);
+      } while (--length);
+    }
   }
 
   void Bus_SPI::writeBytes(const uint8_t* data, uint32_t length, bool dc, bool use_dma)
