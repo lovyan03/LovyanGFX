@@ -1,4 +1,11 @@
+#define LGFX_USE_V1
 #include <LovyanGFX.hpp>
+
+#define LGFX_AUTODETECT
+#include <LGFX_AUTODETECT.hpp>  // クラス"LGFX"を準備します
+// #include <lgfx_user/LGFX_ESP32_sample.hpp> // またはユーザ自身が用意したLGFXクラスを準備します
+
+static LGFX lcd;
 
 static std::uint32_t sec, psec;
 static std::uint32_t fps = 0, frame_count = 0;
@@ -37,7 +44,6 @@ struct obj_info_t {
 static constexpr std::uint32_t obj_count = 200;
 static obj_info_t objects[obj_count];
 
-static LGFX lcd;
 static LGFX_Sprite sprites[2];
 static int_fast16_t sprite_height;
 
@@ -115,4 +121,3 @@ void loop(void)
     frame_count = 0;
   }
 }
-

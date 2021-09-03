@@ -1,4 +1,11 @@
+#define LGFX_USE_V1
 #include <LovyanGFX.hpp>
+
+#define LGFX_AUTODETECT
+#include <LGFX_AUTODETECT.hpp>  // クラス"LGFX"を準備します
+// #include <lgfx_user/LGFX_ESP32_sample.hpp> // またはユーザ自身が用意したLGFXクラスを準備します
+
+static LGFX lcd;
 
 extern const unsigned short info[];
 extern const unsigned short alert[];
@@ -63,7 +70,6 @@ struct obj_info_t {
 static constexpr size_t obj_count = 50;
 static obj_info_t objects[obj_count];
 
-static LGFX lcd;
 static LGFX_Sprite sprites[2];
 static LGFX_Sprite icons[3];
 static int_fast16_t sprite_height;
