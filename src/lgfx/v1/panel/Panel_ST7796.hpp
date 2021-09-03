@@ -37,25 +37,25 @@ namespace lgfx
 
   protected:
 
-    static constexpr std::uint8_t CMD_FRMCTR1 = 0xB1;
-    static constexpr std::uint8_t CMD_FRMCTR2 = 0xB2;
-    static constexpr std::uint8_t CMD_FRMCTR3 = 0xB3;
-    static constexpr std::uint8_t CMD_INVCTR  = 0xB4;
-    static constexpr std::uint8_t CMD_DFUNCTR = 0xB6;
-    static constexpr std::uint8_t CMD_ETMOD   = 0xB7;
-    static constexpr std::uint8_t CMD_PWCTR1  = 0xC0;
-    static constexpr std::uint8_t CMD_PWCTR2  = 0xC1;
-    static constexpr std::uint8_t CMD_PWCTR3  = 0xC2;
-    static constexpr std::uint8_t CMD_PWCTR4  = 0xC3;
-    static constexpr std::uint8_t CMD_PWCTR5  = 0xC4;
-    static constexpr std::uint8_t CMD_VMCTR   = 0xC5;
-    static constexpr std::uint8_t CMD_GMCTRP1 = 0xE0; // Positive Gamma Correction
-    static constexpr std::uint8_t CMD_GMCTRN1 = 0xE1; // Negative Gamma Correction
-    static constexpr std::uint8_t CMD_DOCA    = 0xE8; // Display Output Ctrl Adjust 
-    static constexpr std::uint8_t CMD_CSCON   = 0xF0; // Command Set Control
+    static constexpr uint8_t CMD_FRMCTR1 = 0xB1;
+    static constexpr uint8_t CMD_FRMCTR2 = 0xB2;
+    static constexpr uint8_t CMD_FRMCTR3 = 0xB3;
+    static constexpr uint8_t CMD_INVCTR  = 0xB4;
+    static constexpr uint8_t CMD_DFUNCTR = 0xB6;
+    static constexpr uint8_t CMD_ETMOD   = 0xB7;
+    static constexpr uint8_t CMD_PWCTR1  = 0xC0;
+    static constexpr uint8_t CMD_PWCTR2  = 0xC1;
+    static constexpr uint8_t CMD_PWCTR3  = 0xC2;
+    static constexpr uint8_t CMD_PWCTR4  = 0xC3;
+    static constexpr uint8_t CMD_PWCTR5  = 0xC4;
+    static constexpr uint8_t CMD_VMCTR   = 0xC5;
+    static constexpr uint8_t CMD_GMCTRP1 = 0xE0; // Positive Gamma Correction
+    static constexpr uint8_t CMD_GMCTRN1 = 0xE1; // Negative Gamma Correction
+    static constexpr uint8_t CMD_DOCA    = 0xE8; // Display Output Ctrl Adjust 
+    static constexpr uint8_t CMD_CSCON   = 0xF0; // Command Set Control
 
-    const std::uint8_t* getInitCommands(std::uint8_t listno) const override {
-      static constexpr std::uint8_t list0[] = {
+    const uint8_t* getInitCommands(uint8_t listno) const override {
+      static constexpr uint8_t list0[] = {
           CMD_CSCON,   1, 0xC3,  // Enable extension command 2 partI
           CMD_CSCON,   1, 0x96,  // Enable extension command 2 partII
           CMD_INVCTR,  1, 0x01,  //1-dot inversion

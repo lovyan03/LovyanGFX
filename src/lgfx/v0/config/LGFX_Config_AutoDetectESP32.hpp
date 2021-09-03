@@ -18,11 +18,11 @@ namespace lgfx
   {
   private:
 
-    static constexpr std::int32_t freq = 400000;
-    static constexpr std::uint_fast8_t axp_i2c_addr = 0x34;
-    static constexpr std::int_fast16_t axp_i2c_port = I2C_NUM_1;
-    static constexpr std::int_fast16_t axp_i2c_sda = 21;
-    static constexpr std::int_fast16_t axp_i2c_scl = 22;
+    static constexpr int32_t freq = 400000;
+    static constexpr uint_fast8_t axp_i2c_addr = 0x34;
+    static constexpr int_fast16_t axp_i2c_port = I2C_NUM_1;
+    static constexpr int_fast16_t axp_i2c_sda = 21;
+    static constexpr int_fast16_t axp_i2c_scl = 22;
 
   public:
 
@@ -49,7 +49,7 @@ namespace lgfx
       Panel_ST7735S::init(use_reset);
     }
 
-    void setBrightness(std::uint8_t brightness) override
+    void setBrightness(uint8_t brightness) override
     {
       this->brightness = brightness;
       if (brightness)
@@ -69,8 +69,8 @@ namespace lgfx
     void wakeup(LGFX_Device*) override { lgfx::i2c::bitOn(axp_i2c_port, axp_i2c_addr, 0x12, 1 << 2); }
 
   protected:
-    const std::uint8_t* getInitCommands(std::uint8_t listno) const override {
-      static constexpr std::uint8_t list[] = {
+    const uint8_t* getInitCommands(uint8_t listno) const override {
+      static constexpr uint8_t list[] = {
           CMD::GAMMASET, 1, 0x08,  // Gamma set, curve 4
           0xFF,0xFF, // end
       };
@@ -83,11 +83,11 @@ namespace lgfx
   {
   private:
 
-    static constexpr std::int32_t freq = 400000;
-    static constexpr std::uint_fast8_t axp_i2c_addr = 0x34;
-    static constexpr std::int_fast16_t axp_i2c_port = I2C_NUM_1;
-    static constexpr std::int_fast16_t axp_i2c_sda = 21;
-    static constexpr std::int_fast16_t axp_i2c_scl = 22;
+    static constexpr int32_t freq = 400000;
+    static constexpr uint_fast8_t axp_i2c_addr = 0x34;
+    static constexpr int_fast16_t axp_i2c_port = I2C_NUM_1;
+    static constexpr int_fast16_t axp_i2c_sda = 21;
+    static constexpr int_fast16_t axp_i2c_scl = 22;
 
   public:
 
@@ -97,8 +97,8 @@ namespace lgfx
       spi_cs     =  5;
       spi_dc     = 23;
       gpio_rst   = 18;
-      freq_write = 80000000;
-      freq_read  = 16000000;
+      freq_write = 40000000;
+      freq_read  = 15000000;
       freq_fill  = 80000000;
       spi_mode_read = 1;
       len_dummy_read_pixel = 16;
@@ -118,7 +118,7 @@ namespace lgfx
       Panel_ST7789::init(use_reset);
     }
 
-    void setBrightness(std::uint8_t brightness) override
+    void setBrightness(uint8_t brightness) override
     {
       this->brightness = brightness;
       if (brightness)
@@ -157,8 +157,8 @@ namespace lgfx
     {
       static constexpr char NVS_NAME[] = "LovyanGFX";
       static constexpr char NVS_KEY[] = "M5Stack_IPS";
-      std::uint32_t nvs_handle = 0;
-      std::uint8_t readbuf = 0x80u;
+      uint32_t nvs_handle = 0;
+      uint8_t readbuf = 0x80u;
       if (ESP_OK == nvs_open(NVS_NAME, NVS_READONLY, &nvs_handle)) {
         nvs_get_u8(nvs_handle, NVS_KEY, &readbuf);
         nvs_close(nvs_handle);
@@ -188,11 +188,11 @@ namespace lgfx
   {
   private:
 
-    static constexpr std::int32_t freq = 400000;
-    static constexpr std::uint_fast8_t axp_i2c_addr = 0x34;
-    static constexpr std::int_fast16_t axp_i2c_port = I2C_NUM_1;
-    static constexpr std::int_fast16_t axp_i2c_sda = 21;
-    static constexpr std::int_fast16_t axp_i2c_scl = 22;
+    static constexpr int32_t freq = 400000;
+    static constexpr uint_fast8_t axp_i2c_addr = 0x34;
+    static constexpr int_fast16_t axp_i2c_port = I2C_NUM_1;
+    static constexpr int_fast16_t axp_i2c_sda = 21;
+    static constexpr int_fast16_t axp_i2c_scl = 22;
 
   public:
 
@@ -220,7 +220,7 @@ namespace lgfx
       Panel_ILI9342::init(use_reset);
     }
 
-    void setBrightness(std::uint8_t brightness) override
+    void setBrightness(uint8_t brightness) override
     {
       this->brightness = brightness;
       if (brightness)
@@ -275,13 +275,13 @@ namespace lgfx
       p_tmp.freq_read  = 8000000;
       p_tmp.freq_fill  = 8000000;
       board = lgfx::board_t::board_unknown;
-      std::uint32_t id;
+      uint32_t id;
       (void)id; // Suppressing Compiler Warnings
 
       static constexpr char NVS_NAME[] = "LovyanGFX";
       static constexpr char NVS_KEY[] = "AUTODETECT";
-      std::uint32_t nvs_board = 0;
-      std::uint32_t nvs_handle = 0;
+      uint32_t nvs_board = 0;
+      uint32_t nvs_handle = 0;
       if (ESP_OK == nvs_open(NVS_NAME, NVS_READONLY, &nvs_handle)) {
         nvs_get_u32(nvs_handle, NVS_KEY, static_cast<uint32_t*>(&nvs_board));
         nvs_close(nvs_handle);
@@ -753,7 +753,7 @@ namespace lgfx
             cs_l();
             writeData16(0x1000);
             writeData16(0x0000);
-            std::uint8_t buf[40];
+            uint8_t buf[40];
             readBytes(buf, 40);
             cs_h();
             endWrite();
@@ -971,7 +971,7 @@ namespace lgfx
           setPanel(p);
 
           lgfx::i2c::init(I2C_NUM_1, 26, 27, 400000);
-          std::uint8_t tmp[2];
+          uint8_t tmp[2];
           if (lgfx::i2c::readRegister(I2C_NUM_1, 0x38, 0xA8, tmp, 1))
           {
             ESP_LOGW("LovyanGFX", "[Autodetect] touch id:%08x", tmp[1]);

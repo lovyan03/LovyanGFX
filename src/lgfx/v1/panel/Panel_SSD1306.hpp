@@ -38,32 +38,32 @@ namespace lgfx
     void setSleep(bool flg) override;
     void setPowerSave(bool) override {}
 
-    void writeFillRectPreclipped(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, std::uint32_t rawcolor) override;
-    void writeImage(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, pixelcopy_t* param, bool use_dma) override;
-    void writePixels(pixelcopy_t* param, std::uint32_t len, bool use_dma) override;
+    void writeFillRectPreclipped(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, uint32_t rawcolor) override;
+    void writeImage(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, pixelcopy_t* param, bool use_dma) override;
+    void writePixels(pixelcopy_t* param, uint32_t len, bool use_dma) override;
 
-    std::uint32_t readCommand(std::uint_fast8_t, std::uint_fast8_t, std::uint_fast8_t) override { return 0; }
-    std::uint32_t readData(std::uint_fast8_t, std::uint_fast8_t) override { return 0; }
+    uint32_t readCommand(uint_fast8_t, uint_fast8_t, uint_fast8_t) override { return 0; }
+    uint32_t readData(uint_fast8_t, uint_fast8_t) override { return 0; }
 
-    void readRect(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, void* dst, pixelcopy_t* param) override;
+    void readRect(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, void* dst, pixelcopy_t* param) override;
 
   protected:
 
-    static constexpr std::uint8_t CMD_SETSTARTLINE        = 0x40;
-    static constexpr std::uint8_t CMD_DISPLAYALLON_RESUME = 0xA4;
-    static constexpr std::uint8_t CMD_DISPLAYALLON        = 0xA5;
-    static constexpr std::uint8_t CMD_NORMALDISPLAY       = 0xA6;
-    static constexpr std::uint8_t CMD_INVERTDISPLAY       = 0xA7;
-    static constexpr std::uint8_t CMD_SETMULTIPLEX        = 0xA8;
-    static constexpr std::uint8_t CMD_DISP_OFF            = 0xAE;
-    static constexpr std::uint8_t CMD_DISP_ON             = 0xAF;
-    static constexpr std::uint8_t CMD_SETPRECHARGE        = 0xD9;
-    static constexpr std::uint8_t CMD_SETVCOMDETECT       = 0xDB;
+    static constexpr uint8_t CMD_SETSTARTLINE        = 0x40;
+    static constexpr uint8_t CMD_DISPLAYALLON_RESUME = 0xA4;
+    static constexpr uint8_t CMD_DISPLAYALLON        = 0xA5;
+    static constexpr uint8_t CMD_NORMALDISPLAY       = 0xA6;
+    static constexpr uint8_t CMD_INVERTDISPLAY       = 0xA7;
+    static constexpr uint8_t CMD_SETMULTIPLEX        = 0xA8;
+    static constexpr uint8_t CMD_DISP_OFF            = 0xAE;
+    static constexpr uint8_t CMD_DISP_ON             = 0xAF;
+    static constexpr uint8_t CMD_SETPRECHARGE        = 0xD9;
+    static constexpr uint8_t CMD_SETVCOMDETECT       = 0xDB;
 
-    std::size_t _get_buffer_length(void) const override;
-    bool _read_pixel(std::uint_fast16_t x, std::uint_fast16_t y);
-    void _draw_pixel(std::uint_fast16_t x, std::uint_fast16_t y, std::uint32_t value);
-    void _update_transferred_rect(std::uint_fast16_t &xs, std::uint_fast16_t &ys, std::uint_fast16_t &xe, std::uint_fast16_t &ye);
+    size_t _get_buffer_length(void) const override;
+    bool _read_pixel(uint_fast16_t x, uint_fast16_t y);
+    void _draw_pixel(uint_fast16_t x, uint_fast16_t y, uint32_t value);
+    void _update_transferred_rect(uint_fast16_t &xs, uint_fast16_t &ys, uint_fast16_t &xe, uint_fast16_t &ye);
 
   };
 
@@ -75,32 +75,32 @@ namespace lgfx
       _cfg.memory_height = _cfg.panel_height = 64;
     }
 
-    void setBrightness(std::uint8_t brightness) override;
+    void setBrightness(uint8_t brightness) override;
 
-    void display(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h) override;
+    void display(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h) override;
 
   protected:
 
-    static constexpr std::uint8_t CMD_MEMORYMODE  = 0x20;
+    static constexpr uint8_t CMD_MEMORYMODE  = 0x20;
 
-    static constexpr std::uint8_t CMD_COLUMNADDR  = 0x21;
-    static constexpr std::uint8_t CMD_PAGEADDR    = 0x22;
+    static constexpr uint8_t CMD_COLUMNADDR  = 0x21;
+    static constexpr uint8_t CMD_PAGEADDR    = 0x22;
 
-    static constexpr std::uint8_t CMD_SETCONTRAST = 0x81;
-    static constexpr std::uint8_t CMD_CHARGEPUMP  = 0x8D;
-    static constexpr std::uint8_t CMD_SEGREMAP    = 0xA0;
-//  static constexpr std::uint8_t CMD_SETMLTPLX   = 0xA8;
-    static constexpr std::uint8_t CMD_COMSCANINC  = 0xC0;
-//  static constexpr std::uint8_t CMD_COMSCANDEC  = 0xC8;
-    static constexpr std::uint8_t CMD_SETOFFSET   = 0xD3;
-    static constexpr std::uint8_t CMD_SETCLKDIV   = 0xD5;
-    static constexpr std::uint8_t CMD_SETCOMPINS  = 0xDA;
+    static constexpr uint8_t CMD_SETCONTRAST = 0x81;
+    static constexpr uint8_t CMD_CHARGEPUMP  = 0x8D;
+    static constexpr uint8_t CMD_SEGREMAP    = 0xA0;
+//  static constexpr uint8_t CMD_SETMLTPLX   = 0xA8;
+    static constexpr uint8_t CMD_COMSCANINC  = 0xC0;
+//  static constexpr uint8_t CMD_COMSCANDEC  = 0xC8;
+    static constexpr uint8_t CMD_SETOFFSET   = 0xD3;
+    static constexpr uint8_t CMD_SETCLKDIV   = 0xD5;
+    static constexpr uint8_t CMD_SETCOMPINS  = 0xDA;
 
-    static constexpr std::uint8_t CMD_DEACTIVATE_SCROLL   = 0x2E;
+    static constexpr uint8_t CMD_DEACTIVATE_SCROLL   = 0x2E;
 
-    const std::uint8_t* getInitCommands(std::uint8_t listno) const override
+    const uint8_t* getInitCommands(uint8_t listno) const override
     {
-      static constexpr std::uint8_t list0[] = {
+      static constexpr uint8_t list0[] = {
         CMD_DISP_OFF           ,
         CMD_SETCLKDIV          , 0x80,
         CMD_SETMULTIPLEX       , 0x3F,
@@ -139,33 +139,33 @@ namespace lgfx
 
     void beginTransaction(void) override;
 
-    void setBrightness(std::uint8_t brightness) override;
+    void setBrightness(uint8_t brightness) override;
 
-    void display(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h) override;
+    void display(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h) override;
 
   protected:
-    static constexpr std::uint8_t CMD_PAGEADDRESSINGMODE  = 0x20;
-    static constexpr std::uint8_t CMD_VERTADDRESSINGMODE  = 0x21;
-    static constexpr std::uint8_t CMD_PAGEADDR            = 0x22;
-    static constexpr std::uint8_t CMD_SETCONTRAST         = 0x81;
-//  static constexpr std::uint8_t CMD_CHARGEPUMP          = 0x8D;
-    static constexpr std::uint8_t CMD_SEGREMAP            = 0xA0;
-    static constexpr std::uint8_t CMD_DCDC                = 0xAD;
-    static constexpr std::uint8_t CMD_SETPAGEADDR         = 0xB0;
-    static constexpr std::uint8_t CMD_COMSCANINC          = 0xC0;
-    static constexpr std::uint8_t CMD_COMSCANDEC          = 0xC8;
-    static constexpr std::uint8_t CMD_SETDISPLAYOFFSET    = 0xD3;
-    static constexpr std::uint8_t CMD_SETDISPLAYCLOCKDIV  = 0xD5;
-    static constexpr std::uint8_t CMD_SETCOMPINS          = 0xDA;
-    static constexpr std::uint8_t CMD_SETDISPSTARTLINE    = 0xDC;
-    static constexpr std::uint8_t CMD_SETLOWCOLUMN        = 0x00;
-    static constexpr std::uint8_t CMD_SETHIGHCOLUMN       = 0x10;
-    static constexpr std::uint8_t CMD_READMODIFYWRITE     = 0xE0;
-    static constexpr std::uint8_t CMD_READMODIFYWRITE_END = 0xEE;
+    static constexpr uint8_t CMD_PAGEADDRESSINGMODE  = 0x20;
+    static constexpr uint8_t CMD_VERTADDRESSINGMODE  = 0x21;
+    static constexpr uint8_t CMD_PAGEADDR            = 0x22;
+    static constexpr uint8_t CMD_SETCONTRAST         = 0x81;
+//  static constexpr uint8_t CMD_CHARGEPUMP          = 0x8D;
+    static constexpr uint8_t CMD_SEGREMAP            = 0xA0;
+    static constexpr uint8_t CMD_DCDC                = 0xAD;
+    static constexpr uint8_t CMD_SETPAGEADDR         = 0xB0;
+    static constexpr uint8_t CMD_COMSCANINC          = 0xC0;
+    static constexpr uint8_t CMD_COMSCANDEC          = 0xC8;
+    static constexpr uint8_t CMD_SETDISPLAYOFFSET    = 0xD3;
+    static constexpr uint8_t CMD_SETDISPLAYCLOCKDIV  = 0xD5;
+    static constexpr uint8_t CMD_SETCOMPINS          = 0xDA;
+    static constexpr uint8_t CMD_SETDISPSTARTLINE    = 0xDC;
+    static constexpr uint8_t CMD_SETLOWCOLUMN        = 0x00;
+    static constexpr uint8_t CMD_SETHIGHCOLUMN       = 0x10;
+    static constexpr uint8_t CMD_READMODIFYWRITE     = 0xE0;
+    static constexpr uint8_t CMD_READMODIFYWRITE_END = 0xEE;
 
-    const std::uint8_t* getInitCommands(std::uint8_t listno) const override
+    const uint8_t* getInitCommands(uint8_t listno) const override
     {
-      static constexpr std::uint8_t list0[] = {
+      static constexpr uint8_t list0[] = {
         CMD_DISP_OFF   ,
         CMD_SETSTARTLINE       ,
         CMD_READMODIFYWRITE_END,

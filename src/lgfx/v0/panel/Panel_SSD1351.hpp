@@ -33,7 +33,7 @@ namespace lgfx
 
   protected:
 
-    const std::uint8_t* getWindowCommands1(std::uint8_t* buf, std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye) override
+    const uint8_t* getWindowCommands1(uint8_t* buf, uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye) override
     {
       if (_xs == xs && _xe == xe) return nullptr;
       (void)ys;
@@ -44,11 +44,11 @@ namespace lgfx
       buf[1] = 2;
       buf[2] = xs + _colstart;
       buf[3] = xe + _colstart;
-      reinterpret_cast<std::uint16_t*>(buf)[2] = 0xFFFF;
+      reinterpret_cast<uint16_t*>(buf)[2] = 0xFFFF;
       return buf;
     }
 
-    const std::uint8_t* getWindowCommands2(std::uint8_t* buf, std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye) override
+    const uint8_t* getWindowCommands2(uint8_t* buf, uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye) override
     {
       if (_ys == ys && _ye == ye) return nullptr;
       (void)xs;
@@ -59,25 +59,25 @@ namespace lgfx
       buf[1] = 2;
       buf[2] = ys + _rowstart;
       buf[3] = ye + _rowstart;
-      reinterpret_cast<std::uint16_t*>(buf)[2] = 0xFFFF;
+      reinterpret_cast<uint16_t*>(buf)[2] = 0xFFFF;
       return buf;
     }
 
-    const std::uint8_t* getSleepInCommands(std::uint8_t* buf) override
+    const uint8_t* getSleepInCommands(uint8_t* buf) override
     {
-      reinterpret_cast<std::uint16_t*>(buf)[0] = CommandCommon::SLPIN;
-      reinterpret_cast<std::uint16_t*>(buf)[1] = 0xFFFF;
+      reinterpret_cast<uint16_t*>(buf)[0] = CommandCommon::SLPIN;
+      reinterpret_cast<uint16_t*>(buf)[1] = 0xFFFF;
       return buf;
     }
 
-    const std::uint8_t* getSleepOutCommands(std::uint8_t* buf) override
+    const uint8_t* getSleepOutCommands(uint8_t* buf) override
     {
-      reinterpret_cast<std::uint16_t*>(buf)[0] = CommandCommon::SLPOUT;
-      reinterpret_cast<std::uint16_t*>(buf)[1] = 0xFFFF;
+      reinterpret_cast<uint16_t*>(buf)[0] = CommandCommon::SLPOUT;
+      reinterpret_cast<uint16_t*>(buf)[1] = 0xFFFF;
       return buf;
     }
 
-    const std::uint8_t* getInvertDisplayCommands(std::uint8_t* buf, bool invert) override
+    const uint8_t* getInvertDisplayCommands(uint8_t* buf, bool invert) override
     {
       this->invert = invert;
       buf[2] = buf[0] = (invert ^ reverse_invert) ? CommandCommon::INVON : CommandCommon::INVOFF;
@@ -86,7 +86,7 @@ namespace lgfx
       return buf;
     }
 
-    const std::uint8_t* getRotationCommands(std::uint8_t* buf, std::int_fast8_t r) override
+    const uint8_t* getRotationCommands(uint8_t* buf, int_fast8_t r) override
     {
       PanelCommon::getRotationCommands(buf, r);
       buf[0] = CommandCommon::MADCTL;
@@ -96,7 +96,7 @@ namespace lgfx
       return buf;
     }
 
-    const std::uint8_t* getColorDepthCommands(std::uint8_t* buf, color_depth_t depth) override
+    const uint8_t* getColorDepthCommands(uint8_t* buf, color_depth_t depth) override
     {
       PanelCommon::getColorDepthCommands(buf, depth);
       buf[0] = CommandCommon::MADCTL;
@@ -107,33 +107,33 @@ namespace lgfx
     }
 
     struct CommandCommon {
-    static constexpr std::uint_fast8_t NOP     = 0x00;
-    static constexpr std::uint_fast8_t SWRESET = 0x01;
-//  static constexpr std::uint_fast8_t RDDID   = 0x04;
-//  static constexpr std::uint_fast8_t RDDST   = 0x09;
-    static constexpr std::uint_fast8_t SLPIN   = 0xAE;
-    static constexpr std::uint_fast8_t SLPOUT  = 0xAF;
-//  static constexpr std::uint_fast8_t PTLON   = 0x12;
-//  static constexpr std::uint_fast8_t NORON   = 0x13;
-    static constexpr std::uint_fast8_t INVOFF  = 0xA6;
-    static constexpr std::uint_fast8_t INVON   = 0xA7;
-//  static constexpr std::uint_fast8_t GAMMASET= 0x26;
-    static constexpr std::uint_fast8_t DISPOFF = 0xA4;
-    static constexpr std::uint_fast8_t DISPON  = 0xA5;
-    static constexpr std::uint_fast8_t CASET   = 0x15;
-    static constexpr std::uint_fast8_t RASET   = 0x75; static constexpr std::uint8_t PASET = 0x75;
-    static constexpr std::uint_fast8_t RAMWR   = 0x5C;
-    static constexpr std::uint_fast8_t RAMRD   = 0x5D;
-    static constexpr std::uint_fast8_t MADCTL  = 0xA0;
+    static constexpr uint_fast8_t NOP     = 0x00;
+    static constexpr uint_fast8_t SWRESET = 0x01;
+//  static constexpr uint_fast8_t RDDID   = 0x04;
+//  static constexpr uint_fast8_t RDDST   = 0x09;
+    static constexpr uint_fast8_t SLPIN   = 0xAE;
+    static constexpr uint_fast8_t SLPOUT  = 0xAF;
+//  static constexpr uint_fast8_t PTLON   = 0x12;
+//  static constexpr uint_fast8_t NORON   = 0x13;
+    static constexpr uint_fast8_t INVOFF  = 0xA6;
+    static constexpr uint_fast8_t INVON   = 0xA7;
+//  static constexpr uint_fast8_t GAMMASET= 0x26;
+    static constexpr uint_fast8_t DISPOFF = 0xA4;
+    static constexpr uint_fast8_t DISPON  = 0xA5;
+    static constexpr uint_fast8_t CASET   = 0x15;
+    static constexpr uint_fast8_t RASET   = 0x75; static constexpr uint8_t PASET = 0x75;
+    static constexpr uint_fast8_t RAMWR   = 0x5C;
+    static constexpr uint_fast8_t RAMRD   = 0x5D;
+    static constexpr uint_fast8_t MADCTL  = 0xA0;
 
-    static constexpr std::uint_fast8_t CMDLOCK = 0xFD;
-    static constexpr std::uint_fast8_t STARTLINE = 0xA1;
+    static constexpr uint_fast8_t CMDLOCK = 0xFD;
+    static constexpr uint_fast8_t STARTLINE = 0xA1;
     };
 
     color_depth_t getAdjustBpp(color_depth_t bpp) const override { return (bpp > 16) ? rgb666_3Byte : rgb565_2Byte; }
 
-    const std::uint8_t* getInitCommands(std::uint8_t listno) const override {
-      static constexpr std::uint8_t list0[] = {
+    const uint8_t* getInitCommands(uint8_t listno) const override {
+      static constexpr uint8_t list0[] = {
           CommandCommon::CMDLOCK, 1, 0x12,
           CommandCommon::CMDLOCK, 1, 0xB1,
           CommandCommon::SLPIN  , 0,
@@ -163,9 +163,9 @@ namespace lgfx
     }
 
   private:
-    std::uint8_t getMadCtl(std::uint_fast8_t r, std::uint_fast8_t bpp) {
+    uint8_t getMadCtl(uint_fast8_t r, uint_fast8_t bpp) {
 // Set Re-map & Dual COM Line Mode (A0h) 
-      static constexpr std::uint8_t madctl_table[] = {
+      static constexpr uint8_t madctl_table[] = {
         0b00110100,
         0b00110111,
         0b00100110,

@@ -10,7 +10,7 @@ namespace lgfx
  {
 //----------------------------------------------------------------------------
 
-  constexpr std::uint8_t Panel_GDEW0154M09::Bayer[16];
+  constexpr uint8_t Panel_GDEW0154M09::Bayer[16];
 
   void Panel_GDEW0154M09::post_init(LGFX_Device* gfx, bool use_reset)
   {
@@ -30,7 +30,7 @@ namespace lgfx
     gfx->endWrite();
   }
 
-  void Panel_GDEW0154M09::_update_transferred_rect(LGFX_Device* gfx, std::int32_t &xs, std::int32_t &ys, std::int32_t &xe, std::int32_t &ye)
+  void Panel_GDEW0154M09::_update_transferred_rect(LGFX_Device* gfx, int32_t &xs, int32_t &ys, int32_t &xe, int32_t &ye)
   {
     auto r = _internal_rotation;
     if (r & 1) { std::swap(xs, ys); std::swap(xe, ye); }
@@ -50,8 +50,8 @@ namespace lgfx
       ye = panel_height - 1 - ye;
       break;
     }
-    std::int32_t x1 = xs & ~7;
-    std::int32_t x2 = (xe & ~7) + 7;
+    int32_t x1 = xs & ~7;
+    int32_t x2 = (xe & ~7) + 7;
 
     if (_range_old.horizon.intersectsWith(x1, x2) && _range_old.vertical.intersectsWith(ys, ye))
     {
@@ -63,22 +63,22 @@ namespace lgfx
     _range_new.bottom = std::max(ye, _range_new.bottom);
   }
 
-  void Panel_GDEW0154M09::fillRect(PanelCommon* panel, LGFX_Device* gfx, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, std::uint32_t rawcolor)
+  void Panel_GDEW0154M09::fillRect(PanelCommon* panel, LGFX_Device* gfx, int32_t x, int32_t y, int32_t w, int32_t h, uint32_t rawcolor)
   {
     auto me = reinterpret_cast<Panel_GDEW0154M09*>(panel);
-    std::int32_t xs = x, xe = x + w - 1;
-    std::int32_t ys = y, ye = y + h - 1;
+    int32_t xs = x, xe = x + w - 1;
+    int32_t ys = y, ye = y + h - 1;
     me->_update_transferred_rect(gfx, xs, ys, xe, ye);
 
     swap565_t color;
     color.raw = rawcolor;
-    std::uint32_t value = (color.R8() + (color.G8() << 1) + color.B8() + 3) >> 2;
+    uint32_t value = (color.R8() + (color.G8() << 1) + color.B8() + 3) >> 2;
 
     y = ys;
     do
     {
       x = xs;
-      std::uint32_t idx = ((me->panel_width + 7) & ~7) * y + x;
+      uint32_t idx = ((me->panel_width + 7) & ~7) * y + x;
       auto btbl = &me->Bayer[(y & 3) << 2];
       do
       {
@@ -90,11 +90,11 @@ namespace lgfx
     } while (++y <= ye);
   }
 
-  void Panel_GDEW0154M09::pushImage(PanelCommon* panel, LGFX_Device* gfx, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, pixelcopy_t* param)
+  void Panel_GDEW0154M09::pushImage(PanelCommon* panel, LGFX_Device* gfx, int32_t x, int32_t y, int32_t w, int32_t h, pixelcopy_t* param)
   {
     auto me = reinterpret_cast<Panel_GDEW0154M09*>(panel);
-    std::int32_t xs = x, xe = x + w - 1;
-    std::int32_t ys = y, ye = y + h - 1;
+    int32_t xs = x, xe = x + w - 1;
+    int32_t ys = y, ye = y + h - 1;
     me->_update_transferred_rect(gfx, xs, ys, xe, ye);
 
     swap565_t readbuf[w];
@@ -102,7 +102,7 @@ namespace lgfx
     h += y;
     do
     {
-      std::int32_t prev_pos = 0, new_pos = 0;
+      int32_t prev_pos = 0, new_pos = 0;
       do
       {
         new_pos = param->fp_copy(readbuf, prev_pos, w, param);
@@ -120,26 +120,26 @@ namespace lgfx
     } while (++y < h);
   }
 
-  void Panel_GDEW0154M09::pushBlock(PanelCommon* panel, LGFX_Device* gfx, std::int32_t length, std::uint32_t rawcolor)
+  void Panel_GDEW0154M09::pushBlock(PanelCommon* panel, LGFX_Device* gfx, int32_t length, uint32_t rawcolor)
   {
     auto me = reinterpret_cast<Panel_GDEW0154M09*>(panel);
     {
-      std::int32_t xs = me->_xs;
-      std::int32_t xe = me->_xe;
-      std::int32_t ys = me->_ys;
-      std::int32_t ye = me->_ye;
+      int32_t xs = me->_xs;
+      int32_t xe = me->_xe;
+      int32_t ys = me->_ys;
+      int32_t ye = me->_ye;
       me->_update_transferred_rect(gfx, xs, ys, xe, ye);
     }
-    std::int32_t xs = me->_xs;
-    std::int32_t ys = me->_ys;
-    std::int32_t xe = me->_xe;
-    std::int32_t ye = me->_ye;
-    std::int32_t xpos = me->_xpos;
-    std::int32_t ypos = me->_ypos;
+    int32_t xs = me->_xs;
+    int32_t ys = me->_ys;
+    int32_t xe = me->_xe;
+    int32_t ye = me->_ye;
+    int32_t xpos = me->_xpos;
+    int32_t ypos = me->_ypos;
 
     swap565_t color;
     color.raw = rawcolor;
-    std::uint32_t value = (color.R8() + (color.G8() << 1) + color.B8() + 3) >> 2;
+    uint32_t value = (color.R8() + (color.G8() << 1) + color.B8() + 3) >> 2;
     do
     {
       me->_draw_pixel(xpos, ypos, value);
@@ -157,22 +157,22 @@ namespace lgfx
 //    me->_update_transferred_rect(xs, ys, xe, ye);
   }
 
-  void Panel_GDEW0154M09::writePixels(PanelCommon* panel, LGFX_Device* gfx, std::int32_t length, pixelcopy_t* param)
+  void Panel_GDEW0154M09::writePixels(PanelCommon* panel, LGFX_Device* gfx, int32_t length, pixelcopy_t* param)
   {
     auto me = reinterpret_cast<Panel_GDEW0154M09*>(panel);
     {
-      std::int32_t xs = me->_xs;
-      std::int32_t xe = me->_xe;
-      std::int32_t ys = me->_ys;
-      std::int32_t ye = me->_ye;
+      int32_t xs = me->_xs;
+      int32_t xe = me->_xe;
+      int32_t ys = me->_ys;
+      int32_t ye = me->_ye;
       me->_update_transferred_rect(gfx, xs, ys, xe, ye);
     }
-    std::int32_t xs   = me->_xs  ;
-    std::int32_t ys   = me->_ys  ;
-    std::int32_t xe   = me->_xe  ;
-    std::int32_t ye   = me->_ye  ;
-    std::int32_t xpos = me->_xpos;
-    std::int32_t ypos = me->_ypos;
+    int32_t xs   = me->_xs  ;
+    int32_t ys   = me->_ys  ;
+    int32_t xe   = me->_xe  ;
+    int32_t ye   = me->_ye  ;
+    int32_t xpos = me->_xpos;
+    int32_t ypos = me->_ypos;
 
     static constexpr int32_t buflen = 16;
     swap565_t colors[buflen];
@@ -199,17 +199,17 @@ namespace lgfx
 //    me->_update_transferred_rect(xs, ys, xe, ye);
   }
 
-  void Panel_GDEW0154M09::readRect(PanelCommon* panel, LGFX_Device*, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, void* dst, pixelcopy_t* param)
+  void Panel_GDEW0154M09::readRect(PanelCommon* panel, LGFX_Device*, int32_t x, int32_t y, int32_t w, int32_t h, void* dst, pixelcopy_t* param)
   {
     auto me = reinterpret_cast<Panel_GDEW0154M09*>(panel);
 
     swap565_t readbuf[w];
     param->src_data = readbuf;
-    std::int32_t readpos = 0;
+    int32_t readpos = 0;
     h += y;
     do
     {
-      std::int32_t idx = 0;
+      int32_t idx = 0;
       do
       {
         readbuf[idx] = me->_read_pixel(x + idx, y) ? ~0u : 0;
@@ -219,10 +219,10 @@ namespace lgfx
     } while (++y < h);
   }
 
-  void Panel_GDEW0154M09::_exec_transfer(std::uint32_t cmd, LGFX_Device* gfx, const range_rect_t& range, bool invert)
+  void Panel_GDEW0154M09::_exec_transfer(uint32_t cmd, LGFX_Device* gfx, const range_rect_t& range, bool invert)
   {
-    std::int32_t xs = range.left & ~7;
-    std::int32_t xe = range.right & ~7;
+    int32_t xs = range.left & ~7;
+    int32_t xe = range.right & ~7;
 
     _wait_busy();
 
@@ -236,16 +236,16 @@ namespace lgfx
     _wait_busy();
 
     gfx->writeCommand(cmd);
-    std::int32_t w = ((xe - xs) >> 3) + 1;
-    std::int32_t y = range.top;
-    std::int32_t add = ((panel_width + 7) & ~7) >> 3;
+    int32_t w = ((xe - xs) >> 3) + 1;
+    int32_t y = range.top;
+    int32_t add = ((panel_width + 7) & ~7) >> 3;
     auto b = &_buf[xs >> 3];
     if (invert)
     {
       b += y * add;
       do
       {
-        std::int32_t i = 0;
+        int32_t i = 0;
         do
         {
           gfx->writeData(~b[i]);
@@ -287,7 +287,7 @@ namespace lgfx
     return gfx->dmaBusy() || (me->gpio_busy >= 0 && !gpio_in(me->gpio_busy));
   }
 
-  void Panel_GDEW0154M09::display(PanelCommon* panel, LGFX_Device* gfx, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h)
+  void Panel_GDEW0154M09::display(PanelCommon* panel, LGFX_Device* gfx, int32_t x, int32_t y, int32_t w, int32_t h)
   {
     auto me = reinterpret_cast<Panel_GDEW0154M09*>(panel);
     if (0 < w && 0 < h)
@@ -322,11 +322,11 @@ namespace lgfx
     me->_send_msec = millis();
   }
 
-  bool Panel_GDEW0154M09::_wait_busy(std::uint32_t timeout)
+  bool Panel_GDEW0154M09::_wait_busy(uint32_t timeout)
   {
     if (gpio_busy >= 0 && !gpio_in(gpio_busy))
     {
-      std::uint32_t start_time = millis();
+      uint32_t start_time = millis();
       while (!gpio_in(gpio_busy))
       {
         if (millis() - start_time > timeout) return false;

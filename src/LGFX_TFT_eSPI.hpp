@@ -24,9 +24,9 @@ Contributors:
 
 #include "LovyanGFX.hpp"
 
-using TFT_eSPI = lgfx::LGFX;
+using TFT_eSPI = LGFX;
 
-class TFT_eSprite : public lgfx::LGFX_Sprite {
+class TFT_eSprite : public LGFX_Sprite {
 public:
   TFT_eSprite() : LGFX_Sprite() { _psram = true; }
   TFT_eSprite(LovyanGFX* parent) : LGFX_Sprite(parent) { _psram = true; }

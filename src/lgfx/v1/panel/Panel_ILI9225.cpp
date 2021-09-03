@@ -17,6 +17,7 @@ Contributors:
 /----------------------------------------------------------------------------*/
 #include "Panel_ILI9225.hpp"
 
+#include "../../internal/memory.h"
 #include "../Bus.hpp"
 
 namespace lgfx
@@ -30,7 +31,7 @@ namespace lgfx
     _invert = invert;
     startWrite();
     _bus->writeCommand(CMD_DISPLAY_CTRL1, 8);
-    std::uint_fast16_t data = (invert ^ _cfg.invert)
+    uint_fast16_t data = (invert ^ _cfg.invert)
                             ? __builtin_bswap16(0x1013)
                             : __builtin_bswap16(0x1017)
                             ;
@@ -42,7 +43,7 @@ namespace lgfx
   {
     startWrite();
     _bus->writeCommand(CMD_POWER_CTRL1, 8);
-    std::uint_fast16_t data = flg 
+    uint_fast16_t data = flg 
                             ? __builtin_bswap16(0x0802)
                             : __builtin_bswap16(0x0800)
                             ;
@@ -54,7 +55,7 @@ namespace lgfx
   {
     startWrite();
     _bus->writeCommand(CMD_POWER_CTRL1, 8);
-    std::uint_fast16_t data = flg 
+    uint_fast16_t data = flg 
                             ? __builtin_bswap16(0x0801)
                             : __builtin_bswap16(0x0800)
                             ;
@@ -62,12 +63,12 @@ namespace lgfx
     endWrite();
   }
 
-  void Panel_ILI9225::setWindow(std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye)
+  void Panel_ILI9225::setWindow(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye)
   {
     set_window(xs, ys, xe, ye, CMD_RAMWR);
   }
 
-  void Panel_ILI9225::drawPixelPreclipped(std::uint_fast16_t x, std::uint_fast16_t y, std::uint32_t rawcolor)
+  void Panel_ILI9225::drawPixelPreclipped(uint_fast16_t x, uint_fast16_t y, uint32_t rawcolor)
   {
     bool tr = _in_transaction;
     if (!tr) begin_transaction();
@@ -78,11 +79,11 @@ namespace lgfx
     if (!tr) end_transaction();
   }
 
-  void Panel_ILI9225::writeFillRectPreclipped(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, std::uint32_t rawcolor)
+  void Panel_ILI9225::writeFillRectPreclipped(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, uint32_t rawcolor)
   {
-    std::uint32_t len = w * h;
-    std::uint_fast16_t xe = w + x - 1;
-    std::uint_fast16_t ye = y + h - 1;
+    uint32_t len = w * h;
+    uint_fast16_t xe = w + x - 1;
+    uint_fast16_t ye = y + h - 1;
     set_window(x, y, xe, ye, CMD_RAMWR);
     _bus->writeDataRepeat(rawcolor, _write_bits, len);
   }
@@ -97,7 +98,7 @@ namespace lgfx
     return _write_depth;
   }
 
-  void Panel_ILI9225::setRotation(std::uint_fast8_t r)
+  void Panel_ILI9225::setRotation(uint_fast8_t r)
   {
     r &= 7;
     _rotation = r;
@@ -139,7 +140,7 @@ namespace lgfx
     endWrite();
   }
 
-  void Panel_ILI9225::set_window(std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye, std::uint32_t cmd)
+  void Panel_ILI9225::set_window(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye, uint32_t cmd)
   {
     if (_internal_rotation & 1)
     {
@@ -147,7 +148,7 @@ namespace lgfx
       std::swap(xe, ye);
     }
 
-    std::uint_fast8_t rb = 1u << _internal_rotation;
+    uint_fast8_t rb = 1u << _internal_rotation;
     if (xs != _xs || xe != _xe)
     {
       auto tmp = xs;

@@ -36,20 +36,20 @@ namespace lgfx
 
   protected:
 
-    static constexpr std::uint8_t CMD_PORCTRL  = 0xB2;      // Porch control
-    static constexpr std::uint8_t CMD_GCTRL    = 0xB7;      // Gate control
-    static constexpr std::uint8_t CMD_VCOMS    = 0xBB;      // VCOMS setting
-    static constexpr std::uint8_t CMD_LCMCTRL  = 0xC0;      // LCM control
-    static constexpr std::uint8_t CMD_VDVVRHEN = 0xC2;      // VDV and VRH command enable
-    static constexpr std::uint8_t CMD_VRHS     = 0xC3;      // VRH set
-    static constexpr std::uint8_t CMD_VDVSET   = 0xC4;      // VDV setting
-    static constexpr std::uint8_t CMD_FRCTR2   = 0xC6;      // FR Control 2
-    static constexpr std::uint8_t CMD_PWCTRL1  = 0xD0;      // Power control 1
-    static constexpr std::uint8_t CMD_PVGAMCTRL= 0xE0;      // Positive voltage gamma control
-    static constexpr std::uint8_t CMD_NVGAMCTRL= 0xE1;      // Negative voltage gamma control
+    static constexpr uint8_t CMD_PORCTRL  = 0xB2;      // Porch control
+    static constexpr uint8_t CMD_GCTRL    = 0xB7;      // Gate control
+    static constexpr uint8_t CMD_VCOMS    = 0xBB;      // VCOMS setting
+    static constexpr uint8_t CMD_LCMCTRL  = 0xC0;      // LCM control
+    static constexpr uint8_t CMD_VDVVRHEN = 0xC2;      // VDV and VRH command enable
+    static constexpr uint8_t CMD_VRHS     = 0xC3;      // VRH set
+    static constexpr uint8_t CMD_VDVSET   = 0xC4;      // VDV setting
+    static constexpr uint8_t CMD_FRCTR2   = 0xC6;      // FR Control 2
+    static constexpr uint8_t CMD_PWCTRL1  = 0xD0;      // Power control 1
+    static constexpr uint8_t CMD_PVGAMCTRL= 0xE0;      // Positive voltage gamma control
+    static constexpr uint8_t CMD_NVGAMCTRL= 0xE1;      // Negative voltage gamma control
 
-    const std::uint8_t* getInitCommands(std::uint8_t listno) const override {
-      static constexpr std::uint8_t list0[] = {
+    const uint8_t* getInitCommands(uint8_t listno) const override {
+      static constexpr uint8_t list0[] = {
 //        CMD_SLPOUT , CMD_INIT_DELAY, 120,
 //        CMD_NORON  , CMD_INIT_DELAY, 0,
 //        0xB6       , 2, 0x0A,0x82,

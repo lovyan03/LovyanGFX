@@ -23,7 +23,16 @@ Contributors:
 
  #if defined (CONFIG_IDF_TARGET_ESP32C3)
 
-  #include "esp32c3/Bus_SPI.hpp"
+  #include "esp32/Bus_SPI.hpp"
+  #include "esp32/Bus_I2C.hpp"
+
+ #elif defined (CONFIG_IDF_TARGET_ESP32S2)
+
+  #include "esp32/Light_PWM.hpp"
+  #include "esp32/Bus_SPI.hpp"
+  #include "esp32/Bus_I2C.hpp"
+  #include "esp32s2/Bus_Parallel8.hpp"
+  #include "esp32s2/Bus_Parallel16.hpp"
 
  #else
 
@@ -34,7 +43,7 @@ Contributors:
 
  #endif
 
-#elif defined ( ESP8266 )
+#elif defined (ESP8266)
 
 #include "esp8266/Bus_SPI.hpp"
 
@@ -52,7 +61,15 @@ Contributors:
 
 #include "stm32/Bus_SPI.hpp"
 
-#elif defined ( ARDUINO )
+#elif defined (ARDUINO_ARCH_SPRESENSE)
+
+#include "spresense/Bus_SPI.hpp"
+
+#elif defined (ARDUINO_ARCH_MBED_RP2040) || defined(ARDUINO_ARCH_RP2040)
+
+#include "rp2040/Bus_SPI.hpp"
+
+#elif defined (ARDUINO)
 
 #include "arduino_default/Bus_SPI.hpp"
 

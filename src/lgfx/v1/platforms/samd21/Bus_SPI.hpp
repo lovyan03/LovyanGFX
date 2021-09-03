@@ -22,7 +22,7 @@ Contributors:
 #endif
 
 #include <vector>
-#include <cstring>
+#include <string.h>
 
 #include "../../Bus.hpp"
 #include "../common.hpp"
@@ -38,19 +38,19 @@ namespace lgfx
   public:
     struct config_t
     {
-      std::uint8_t sercom_index = 7;
-      std::int8_t  sercom_clksrc = 0;   // -1=notchange / 0=select GCLK0
-      std::uint32_t sercom_clkfreq = F_CPU;
+      uint8_t sercom_index = 7;
+      int8_t  sercom_clksrc = 0;   // -1=notchange / 0=select GCLK0
+      uint32_t sercom_clkfreq = F_CPU;
 
-      std::uint32_t freq_write = 16000000;
-      std::uint32_t freq_read  =  8000000;
+      uint32_t freq_write = 16000000;
+      uint32_t freq_read  =  8000000;
       //bool spi_3wire = true;
       //bool use_lock = true;
-      std::int16_t pin_sclk = samd21::PORT_B | 20;
-      std::int16_t pin_miso = samd21::PORT_B | 18;
-      std::int16_t pin_mosi = samd21::PORT_B | 19;
-      std::int16_t pin_dc   = -1;
-      std::uint8_t spi_mode = 0;
+      int16_t pin_sclk = samd21::PORT_B | 20;
+      int16_t pin_miso = samd21::PORT_B | 18;
+      int16_t pin_mosi = samd21::PORT_B | 19;
+      int16_t pin_dc   = -1;
+      uint8_t spi_mode = 0;
     };
 
 
@@ -69,27 +69,27 @@ namespace lgfx
     bool busy(void) const override;
 
     void flush(void) override {}
-    bool writeCommand(std::uint32_t data, std::uint_fast8_t bit_length) override;
-    void writeData(std::uint32_t data, std::uint_fast8_t bit_length) override;
-    void writeDataRepeat(std::uint32_t data, std::uint_fast8_t bit_length, std::uint32_t count) override;
-    void writePixels(pixelcopy_t* param, std::uint32_t length) override;
-    void writeBytes(const std::uint8_t* data, std::uint32_t length, bool dc, bool use_dma) override;
+    bool writeCommand(uint32_t data, uint_fast8_t bit_length) override;
+    void writeData(uint32_t data, uint_fast8_t bit_length) override;
+    void writeDataRepeat(uint32_t data, uint_fast8_t bit_length, uint32_t count) override;
+    void writePixels(pixelcopy_t* param, uint32_t length) override;
+    void writeBytes(const uint8_t* data, uint32_t length, bool dc, bool use_dma) override;
 
     void initDMA(void) {}
-    void addDMAQueue(const std::uint8_t* data, std::uint32_t length) override { writeBytes(data, length, true, true); }
+    void addDMAQueue(const uint8_t* data, uint32_t length) override { writeBytes(data, length, true, true); }
     void execDMAQueue(void) {}
-    std::uint8_t* getDMABuffer(std::uint32_t length) override { return _flip_buffer.getBuffer(length); }
+    uint8_t* getDMABuffer(uint32_t length) override { return _flip_buffer.getBuffer(length); }
 
     void beginRead(void) override;
     void endRead(void) override;
-    std::uint32_t readData(std::uint_fast8_t bit_length) override;
-    bool readBytes(std::uint8_t* dst, std::uint32_t length, bool use_dma) override;
-    void readPixels(void* dst, pixelcopy_t* param, std::uint32_t length) override;
+    uint32_t readData(uint_fast8_t bit_length) override;
+    bool readBytes(uint8_t* dst, uint32_t length, bool use_dma) override;
+    void readPixels(void* dst, pixelcopy_t* param, uint32_t length) override;
 
   private:
 
-    std::uint32_t FreqToClockDiv(std::uint32_t freq);
-    void setFreqDiv(std::uint32_t div);
+    uint32_t FreqToClockDiv(uint32_t freq);
+    void setFreqDiv(uint32_t div);
 
     __attribute__ ((always_inline)) inline void set_clock_write(void) { setFreqDiv(_clkdiv_write); }
     __attribute__ ((always_inline)) inline void set_clock_read(void)  { setFreqDiv(_clkdiv_read ); }
@@ -106,12 +106,12 @@ namespace lgfx
     FlipBuffer _flip_buffer;
     bool _need_wait = false;
     Sercom* _sercom = nullptr;
-    std::uint32_t _mask_reg_dc;
-    std::uint32_t _last_apb_freq = -1;
-    std::uint32_t _clkdiv_write;
-    std::uint32_t _clkdiv_read;
-    volatile std::uint32_t* _gpio_reg_dc_h;
-    volatile std::uint32_t* _gpio_reg_dc_l;
+    uint32_t _mask_reg_dc;
+    uint32_t _last_apb_freq = -1;
+    uint32_t _clkdiv_write;
+    uint32_t _clkdiv_read;
+    volatile uint32_t* _gpio_reg_dc_h;
+    volatile uint32_t* _gpio_reg_dc_l;
 
 #if defined (ARDUINO)
     Adafruit_ZeroDMA _dma_adafruit;

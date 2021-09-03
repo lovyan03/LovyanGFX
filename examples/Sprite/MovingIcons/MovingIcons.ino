@@ -1,4 +1,11 @@
+#define LGFX_USE_V1
 #include <LovyanGFX.hpp>
+
+#define LGFX_AUTODETECT
+#include <LGFX_AUTODETECT.hpp>  // クラス"LGFX"を準備します
+// #include <lgfx_user/LGFX_ESP32_sample.hpp> // またはユーザ自身が用意したLGFXクラスを準備します
+
+static LGFX lcd;
 
 extern const unsigned short info[];
 extern const unsigned short alert[];
@@ -63,7 +70,6 @@ struct obj_info_t {
 static constexpr size_t obj_count = 50;
 static obj_info_t objects[obj_count];
 
-static LGFX lcd;
 static LGFX_Sprite sprites[2];
 static LGFX_Sprite icons[3];
 static int_fast16_t sprite_height;
@@ -144,11 +150,7 @@ void loop(void)
       sprites[flip].setTextColor(0xFFFFFFU);
       sprites[flip].printf("obj:%d  fps:%d", obj_count, fps);
     }
-    size_t len = sprite_height * lcd_width;
-    if (y + sprite_height > lcd_height) {
-      len = (lcd_height - y) * lcd_width;
-    }
-    lcd.pushPixelsDMA(sprites[flip].getBuffer(), len);
+    sprites[flip].pushSprite(&lcd, 0, y);
   }
 
   ++frame_count;
@@ -157,7 +159,6 @@ void loop(void)
     psec = sec;
     fps = frame_count;
     frame_count = 0;
-    lcd.setAddrWindow(0, 0, lcd.width(), lcd.height());
   }
 }
 

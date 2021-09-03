@@ -38,25 +38,25 @@ namespace lgfx
     color_depth_t setColorDepth(color_depth_t depth) override;
 
     void setInvert(bool invert) override;
-    void setRotation(std::uint_fast8_t r) override;
+    void setRotation(uint_fast8_t r) override;
     void setSleep(bool flg) override;
     void setPowerSave(bool flg) override;
 
     void waitDisplay(void) override;
     bool displayBusy(void) override;
-    void display(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h) override;
+    void display(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h) override;
 
-    void writeBlock(std::uint32_t rawcolor, std::uint32_t len) override;
-    void setWindow(std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye) override;
-    void drawPixelPreclipped(std::uint_fast16_t x, std::uint_fast16_t y, std::uint32_t rawcolor) override;
-    void writeFillRectPreclipped(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, std::uint32_t rawcolor) override;
-    void writeImage(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, pixelcopy_t* param, bool use_dma) override;
-    void writePixels(pixelcopy_t* param, std::uint32_t len, bool use_dma) override;
+    void writeBlock(uint32_t rawcolor, uint32_t len) override;
+    void setWindow(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye) override;
+    void drawPixelPreclipped(uint_fast16_t x, uint_fast16_t y, uint32_t rawcolor) override;
+    void writeFillRectPreclipped(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, uint32_t rawcolor) override;
+    void writeImage(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, pixelcopy_t* param, bool use_dma) override;
+    void writePixels(pixelcopy_t* param, uint32_t len, bool use_dma) override;
 
-    std::uint32_t readCommand(std::uint_fast8_t, std::uint_fast8_t, std::uint_fast8_t) override { return 0; }
-    std::uint32_t readData(std::uint_fast8_t, std::uint_fast8_t) override { return 0; }
+    uint32_t readCommand(uint_fast8_t, uint_fast8_t, uint_fast8_t) override { return 0; }
+    uint32_t readData(uint_fast8_t, uint_fast8_t) override { return 0; }
 
-    void readRect(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, void* dst, pixelcopy_t* param) override;
+    void readRect(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, void* dst, pixelcopy_t* param) override;
 
   private:
 
@@ -76,22 +76,22 @@ namespace lgfx
     range_rect_t _range_new;
     range_rect_t _range_old;
 
-    std::uint_fast16_t _xpos = 0;
-    std::uint_fast16_t _ypos = 0;
-    std::uint_fast8_t _it8951_rotation = 0;
+    uint_fast16_t _xpos = 0;
+    uint_fast16_t _ypos = 0;
+    uint_fast8_t _it8951_rotation = 0;
     bool _in_transaction = false;
 
-    bool _wait_busy( std::uint32_t timeout = 1000);
-    bool _write_command( std::uint16_t cmd);
-    bool _write_word( std::uint16_t data);
-    bool _write_args( std::uint16_t cmd, std::uint16_t *args, std::int32_t length);
-    bool _write_reg( std::uint16_t addr, std::uint16_t data);
-    bool _read_words( std::uint16_t *buf, std::uint32_t length);
+    bool _wait_busy( uint32_t timeout = 1000);
+    bool _write_command( uint16_t cmd);
+    bool _write_word( uint16_t data);
+    bool _write_args( uint16_t cmd, uint16_t *args, int32_t length);
+    bool _write_reg( uint16_t addr, uint16_t data);
+    bool _read_words( uint16_t *buf, uint32_t length);
     bool _check_afsr( void );
-    bool _set_target_memory_addr( std::uint32_t tar_addr);
-    bool _set_area( std::uint32_t x, std::uint32_t y, std::uint32_t w, std::uint32_t h);
+    bool _set_target_memory_addr( uint32_t tar_addr);
+    bool _set_area( uint32_t x, uint32_t y, uint32_t w, uint32_t h);
     bool _update_raw_area( epd_update_mode_t mode);
-    bool _read_raw_line( std::int32_t raw_x, std::int32_t raw_y, std::int32_t len, std::uint16_t* buf);
+    bool _read_raw_line( int32_t raw_x, int32_t raw_y, int32_t len, uint16_t* buf);
 
     fastread_dir_t get_fastread_dir(void) const override { return _it8951_rotation & 1 ? fastread_vertical : fastread_horizontal; }
   };

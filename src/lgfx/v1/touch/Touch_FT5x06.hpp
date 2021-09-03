@@ -41,16 +41,16 @@ namespace lgfx
 
     void sleep(void) override;
 
-    std::uint_fast8_t getTouchRaw(touch_point_t* tp, std::uint_fast8_t count) override;
+    uint_fast8_t getTouchRaw(touch_point_t* tp, uint_fast8_t count) override;
 
   private:
 
     bool _flg_released = false;
 
     bool _check_init(void);
-    bool _write_reg(std::uint8_t reg, std::uint8_t val);
+    bool _write_reg(uint8_t reg, uint8_t val);
 
-    bool _read_reg(std::uint8_t reg, std::uint8_t *data, std::size_t length);
+    bool _read_reg(uint8_t reg, uint8_t *data, size_t length);
   };
 
 //----------------------------------------------------------------------------

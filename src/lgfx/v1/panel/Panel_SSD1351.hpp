@@ -41,32 +41,32 @@ namespace lgfx
     void setSleep(bool flg) override;
     void setPowerSave(bool flg) override;
 
-    void setWindow(std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye) override;
-    void drawPixelPreclipped(std::uint_fast16_t x, std::uint_fast16_t y, std::uint32_t rawcolor) override;
-    void writeFillRectPreclipped(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, std::uint32_t rawcolor) override;
+    void setWindow(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye) override;
+    void drawPixelPreclipped(uint_fast16_t x, uint_fast16_t y, uint32_t rawcolor) override;
+    void writeFillRectPreclipped(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, uint32_t rawcolor) override;
 
   protected:
 
-    static constexpr std::uint8_t CMD_NOP     = 0xE3;
-    static constexpr std::uint8_t CMD_SWRESET = 0x01;
-    static constexpr std::uint8_t CMD_SLPIN   = 0xAE;
-    static constexpr std::uint8_t CMD_SLPOUT  = 0xAF;
-    static constexpr std::uint8_t CMD_INVOFF  = 0xA6;
-    static constexpr std::uint8_t CMD_INVON   = 0xA7;
-    static constexpr std::uint8_t CMD_DISPOFF = 0xA4;
-    static constexpr std::uint8_t CMD_DISPON  = 0xA5;
-    static constexpr std::uint8_t CMD_CASET   = 0x15;
-    static constexpr std::uint8_t CMD_RASET   = 0x75;
-    static constexpr std::uint8_t CMD_PASET   = 0x75;
-    static constexpr std::uint8_t CMD_RAMWR   = 0x5C;
-    static constexpr std::uint8_t CMD_RAMRD   = 0x5D;
-    static constexpr std::uint8_t CMD_MADCTL  = 0xA0;
-    static constexpr std::uint8_t CMD_CMDLOCK = 0xFD;
-    static constexpr std::uint8_t CMD_STARTLINE = 0xA1;
+    static constexpr uint8_t CMD_NOP     = 0xE3;
+    static constexpr uint8_t CMD_SWRESET = 0x01;
+    static constexpr uint8_t CMD_SLPIN   = 0xAE;
+    static constexpr uint8_t CMD_SLPOUT  = 0xAF;
+    static constexpr uint8_t CMD_INVOFF  = 0xA6;
+    static constexpr uint8_t CMD_INVON   = 0xA7;
+    static constexpr uint8_t CMD_DISPOFF = 0xA4;
+    static constexpr uint8_t CMD_DISPON  = 0xA5;
+    static constexpr uint8_t CMD_CASET   = 0x15;
+    static constexpr uint8_t CMD_RASET   = 0x75;
+    static constexpr uint8_t CMD_PASET   = 0x75;
+    static constexpr uint8_t CMD_RAMWR   = 0x5C;
+    static constexpr uint8_t CMD_RAMRD   = 0x5D;
+    static constexpr uint8_t CMD_MADCTL  = 0xA0;
+    static constexpr uint8_t CMD_CMDLOCK = 0xFD;
+    static constexpr uint8_t CMD_STARTLINE = 0xA1;
 
-    const std::uint8_t* getInitCommands(std::uint8_t listno) const override
+    const uint8_t* getInitCommands(uint8_t listno) const override
     {
-      static constexpr std::uint8_t list0[] =
+      static constexpr uint8_t list0[] =
       {
           CMD_CMDLOCK  , 1, 0x12,
           CMD_CMDLOCK  , 1, 0xB1,
@@ -97,8 +97,8 @@ namespace lgfx
       }
     }
 
-    void set_window_8(std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye, std::uint32_t cmd);
-    void set_window_16(std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye, std::uint32_t cmd);
+    void set_window_8(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye, uint32_t cmd);
+    void set_window_16(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye, uint32_t cmd);
 
     void update_madctl(void) override;
 

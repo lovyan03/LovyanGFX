@@ -17,7 +17,7 @@ Contributors:
 /----------------------------------------------------------------------------*/
 #pragma once
 
-#include <cstdint>
+#include <stdint.h>
 
 namespace lgfx
 {
@@ -64,38 +64,38 @@ namespace lgfx
     virtual void initDMA(void) = 0;
 
     /// DMA転送キューを追加する。
-    virtual void addDMAQueue(const std::uint8_t* data, std::uint32_t length) = 0; // { writeBytes(data, length, true); }
+    virtual void addDMAQueue(const uint8_t* data, uint32_t length) = 0; // { writeBytes(data, length, true); }
 
     /// 蓄積したDMA転送キューの送信を実行する。
     virtual void execDMAQueue(void) = 0;
 
     /// DMA用のバッファを取得する。バスの実装によっては内部的には2個のバッファを交互に使用する。
     /// 繰返し実行した場合は前回と異なるポインタを得るが、前々回と同じになる場合がある点に注意すること。
-    virtual std::uint8_t* getDMABuffer(std::uint32_t length) = 0;
+    virtual uint8_t* getDMABuffer(uint32_t length) = 0;
 
     /// 未送信のデータがあれば送信を開始する。
     virtual void flush(void) = 0;
 
     /// D/Cピンをlowにしてデータを送信する。
-    virtual bool writeCommand(std::uint32_t data, std::uint_fast8_t bit_length) = 0;
+    virtual bool writeCommand(uint32_t data, uint_fast8_t bit_length) = 0;
 
     /// D/Cピンをhighにしてデータを送信する。
-    virtual void writeData(std::uint32_t data, std::uint_fast8_t bit_length) = 0;
+    virtual void writeData(uint32_t data, uint_fast8_t bit_length) = 0;
 
     /// D/Cピンをhighにして指定回数繰り返しデータを送信する。
-    virtual void writeDataRepeat(std::uint32_t data, std::uint_fast8_t bit_length, std::uint32_t count) = 0;
+    virtual void writeDataRepeat(uint32_t data, uint_fast8_t bit_length, uint32_t count) = 0;
 
     /// pixelcopy構造体を利用してピクセルデータを送信する。
-    virtual void writePixels(pixelcopy_t* pc, std::uint32_t length) = 0;
+    virtual void writePixels(pixelcopy_t* pc, uint32_t length) = 0;
 
     /// 引数のバイト列を送信する。
-    virtual void writeBytes(const std::uint8_t* data, std::uint32_t length, bool dc, bool use_dma) = 0;
+    virtual void writeBytes(const uint8_t* data, uint32_t length, bool dc, bool use_dma) = 0;
 
     virtual void beginRead(void) = 0;
     virtual void endRead(void) = 0;
-    virtual std::uint32_t readData(std::uint_fast8_t bit_length) = 0;
-    virtual bool readBytes(std::uint8_t* dst, std::uint32_t length, bool use_dma = false) = 0;
-    virtual void readPixels(void* dst, pixelcopy_t* pc, std::uint32_t length) = 0;
+    virtual uint32_t readData(uint_fast8_t bit_length) = 0;
+    virtual bool readBytes(uint8_t* dst, uint32_t length, bool use_dma = false) = 0;
+    virtual void readPixels(void* dst, pixelcopy_t* pc, uint32_t length) = 0;
   };
 
   struct Bus_NULL : public IBus
@@ -109,22 +109,22 @@ namespace lgfx
     bool busy(void) const override { return false; }
 
     void initDMA(void) override {}
-    void addDMAQueue(const std::uint8_t*, std::uint32_t) override {}
+    void addDMAQueue(const uint8_t*, uint32_t) override {}
     void execDMAQueue(void) override {}
-    std::uint8_t* getDMABuffer(std::uint32_t) override { return nullptr; }
+    uint8_t* getDMABuffer(uint32_t) override { return nullptr; }
 
     void flush(void) override {}
-    bool writeCommand(std::uint32_t, std::uint_fast8_t) override { return false; }
-    void writeData(std::uint32_t, std::uint_fast8_t) override {}
-    void writeDataRepeat(std::uint32_t, std::uint_fast8_t, std::uint32_t) override {}
-    void writePixels(pixelcopy_t*, std::uint32_t) override {}
-    void writeBytes(const std::uint8_t*, std::uint32_t, bool, bool) override {}
+    bool writeCommand(uint32_t, uint_fast8_t) override { return false; }
+    void writeData(uint32_t, uint_fast8_t) override {}
+    void writeDataRepeat(uint32_t, uint_fast8_t, uint32_t) override {}
+    void writePixels(pixelcopy_t*, uint32_t) override {}
+    void writeBytes(const uint8_t*, uint32_t, bool, bool) override {}
 
     void beginRead(void) override {}
     void endRead(void) override {}
-    std::uint32_t readData(std::uint_fast8_t) override { return 0; }
-    bool readBytes(std::uint8_t*, std::uint32_t, bool) override { return false; }
-    void readPixels(void*, pixelcopy_t*, std::uint32_t) override {}
+    uint32_t readData(uint_fast8_t) override { return 0; }
+    bool readBytes(uint8_t*, uint32_t, bool) override { return false; }
+    void readPixels(void*, pixelcopy_t*, uint32_t) override {}
   };
 
 //----------------------------------------------------------------------------

@@ -22,12 +22,6 @@ Contributors:
 #ifndef LOVYANGFX_HPP_
 #define LOVYANGFX_HPP_
 
-#ifdef min
-#undef min
-#endif
-#ifdef max
-#undef max
-#endif
 #ifdef setFont
 #undef setFont
 #endif

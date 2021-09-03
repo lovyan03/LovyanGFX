@@ -24,6 +24,7 @@ Contributors:
 #include "v1/lgfx_filesystem_support.hpp"
 #include "v1/LGFXBase.hpp"
 #include "v1/LGFX_Sprite.hpp"
+#include "v1/LGFX_Button.hpp"
 #include "v1/Light.hpp"
 #include "v1/panel/Panel_GC9A01.hpp"
 #include "v1/panel/Panel_ILI9163.hpp"

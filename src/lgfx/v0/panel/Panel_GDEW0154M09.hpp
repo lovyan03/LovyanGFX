@@ -67,13 +67,13 @@ namespace lgfx
       }
       int len = ((panel_width + 7) & ~7) * panel_height >> 3;
       if (_buf) heap_free(_buf);
-      _buf = static_cast<std::uint8_t*>(heap_alloc_dma(len));
+      _buf = static_cast<uint8_t*>(heap_alloc_dma(len));
       memset(_buf, 255, len);
     }
 
     void post_init(LGFX_Device* gfx, bool use_reset) override;
 
-    const std::uint8_t* getWindowCommands1(std::uint8_t* buf, std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye) override
+    const uint8_t* getWindowCommands1(uint8_t* buf, uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye) override
     {
       (void)buf;
       _xpos = xs;
@@ -84,7 +84,7 @@ namespace lgfx
       _ye = ye;
       return nullptr;
     }
-    const std::uint8_t* getWindowCommands2(std::uint8_t*, std::uint_fast16_t, std::uint_fast16_t, std::uint_fast16_t, std::uint_fast16_t) override
+    const uint8_t* getWindowCommands2(uint8_t*, uint_fast16_t, uint_fast16_t, uint_fast16_t, uint_fast16_t) override
     {
       return nullptr;
     }
@@ -92,7 +92,7 @@ namespace lgfx
     void sleep(LGFX_Device* gfx) override;
     void wakeup(LGFX_Device* gfx) override;
 
-    const std::uint8_t* getSleepInCommands(std::uint8_t* buf) override
+    const uint8_t* getSleepInCommands(uint8_t* buf) override
     {
       buf[0] = 0x50; buf[1] = 1; buf[2] = 0xF7;
       buf[3] = 0x02; buf[4] = 0;
@@ -101,13 +101,13 @@ namespace lgfx
       return buf;
     }
 
-    const std::uint8_t* getSleepOutCommands(std::uint8_t* buf) override
+    const uint8_t* getSleepOutCommands(uint8_t* buf) override
     {
       (void)buf;
       return nullptr;
     }
 
-    const std::uint8_t* getPowerSaveOnCommands(std::uint8_t* buf) override
+    const uint8_t* getPowerSaveOnCommands(uint8_t* buf) override
     {
       buf[0] = 0x50;
       buf[1] = 1;
@@ -117,7 +117,7 @@ namespace lgfx
       return buf;
     }
 
-    const std::uint8_t* getPowerSaveOffCommands(std::uint8_t* buf) override
+    const uint8_t* getPowerSaveOffCommands(uint8_t* buf) override
     {
       buf[0] = 0x50;
       buf[1] = 1;
@@ -127,7 +127,7 @@ namespace lgfx
       return buf;
     }
 
-    const std::uint8_t* getInvertDisplayCommands(std::uint8_t* buf, bool invert) override
+    const uint8_t* getInvertDisplayCommands(uint8_t* buf, bool invert) override
     {
       this->invert = invert;
       buf[0] = 0x50;
@@ -140,23 +140,23 @@ namespace lgfx
       return buf;
     }
 
-    const std::uint8_t* getRotationCommands(std::uint8_t* buf, std::int_fast8_t r) override
+    const uint8_t* getRotationCommands(uint8_t* buf, int_fast8_t r) override
     {
-      reinterpret_cast<std::uint16_t*>(buf)[0] = 0xFFFF;
+      reinterpret_cast<uint16_t*>(buf)[0] = 0xFFFF;
       return PanelCommon::getRotationCommands(buf, r);
     }
 
-    const std::uint8_t* getColorDepthCommands(std::uint8_t* buf, color_depth_t depth) override
+    const uint8_t* getColorDepthCommands(uint8_t* buf, color_depth_t depth) override
     {
       (void)depth;
-      reinterpret_cast<std::uint16_t*>(buf)[0] = 0xFFFF;
+      reinterpret_cast<uint16_t*>(buf)[0] = 0xFFFF;
       return buf;
     }
 
     color_depth_t getAdjustBpp(color_depth_t bpp) const override { (void)bpp; return rgb565_2Byte; }
 
-    const std::uint8_t* getInitCommands(std::uint8_t listno) const override {
-      static constexpr std::uint8_t list0[] = {
+    const uint8_t* getInitCommands(uint8_t listno) const override {
+      static constexpr uint8_t list0[] = {
           0x00,2,0xdf,0x0e,       //panel setting
           0x4D,1,0x55,            //FITIinternal code
           0xaa,1,0x0f,
@@ -170,7 +170,7 @@ namespace lgfx
           0x00,2,0xff,0x0e,       //panel setting
           0xFF,0xFF, // end
       };
-      static constexpr std::uint8_t list1[] = {
+      static constexpr uint8_t list1[] = {
           0x20,56,0x01, 0x04, 0x04, 0x03, 0x01, 0x01, 0x01,
                   0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00,
                   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -220,19 +220,19 @@ namespace lgfx
 
   private:
     static constexpr unsigned long _refresh_msec = 320;
-//  static constexpr std::uint8_t Bayer[16] = { 8, 136, 40, 168, 200, 72, 232, 104, 56, 184, 24, 152, 248, 120, 216, 88 };
-    static constexpr std::uint8_t Bayer[16] = { 8, 200, 40, 232, 72, 136, 104, 168, 56, 248, 24, 216, 120, 184, 88, 152 };
-    std::uint8_t* _buf = nullptr;
+//  static constexpr uint8_t Bayer[16] = { 8, 136, 40, 168, 200, 72, 232, 104, 56, 184, 24, 152, 248, 120, 216, 88 };
+    static constexpr uint8_t Bayer[16] = { 8, 200, 40, 232, 72, 136, 104, 168, 56, 248, 24, 216, 120, 184, 88, 152 };
+    uint8_t* _buf = nullptr;
 
     range_rect_t _range_new;
     range_rect_t _range_old;
 
-    std::int32_t _xpos = 0;
-    std::int32_t _ypos = 0;
+    int32_t _xpos = 0;
+    int32_t _ypos = 0;
     unsigned long _send_msec = 0;
 
     __attribute__ ((always_inline)) inline 
-    void _draw_pixel(std::int32_t x, std::int32_t y, std::uint32_t value)
+    void _draw_pixel(int32_t x, int32_t y, uint32_t value)
     {
       if (_internal_rotation & 1) { std::swap(x, y); }
       switch (_internal_rotation) {
@@ -243,14 +243,14 @@ namespace lgfx
       case 2: case 3: case 4: case 7:  y = panel_height - y - 1; break;
       default: break;
       }
-      std::uint32_t idx = ((panel_width + 7) & ~7) * y + x;
+      uint32_t idx = ((panel_width + 7) & ~7) * y + x;
       bool flg = 256 <= value + Bayer[(x & 3) | (y & 3) << 2];
       if (flg) _buf[idx >> 3] |=   0x80 >> (idx & 7);
       else     _buf[idx >> 3] &= ~(0x80 >> (idx & 7));
     }
 
     __attribute__ ((always_inline)) inline 
-    bool _read_pixel(std::int32_t x, std::int32_t y)
+    bool _read_pixel(int32_t x, int32_t y)
     {
       if (_internal_rotation & 1) { std::swap(x, y); }
       switch (_internal_rotation) {
@@ -261,25 +261,25 @@ namespace lgfx
       case 2: case 3: case 4: case 7:  y = panel_height - y - 1; break;
       default: break;
       }
-      std::uint32_t idx = ((panel_width + 7) & ~7) * y + x;
+      uint32_t idx = ((panel_width + 7) & ~7) * y + x;
       return _buf[idx >> 3] & (0x80 >> (idx & 7));
     }
 
-    void _update_transferred_rect(LGFX_Device* gfx, std::int32_t &xs, std::int32_t &ys, std::int32_t &xe, std::int32_t &ye);
-    void _exec_transfer(std::uint32_t cmd, LGFX_Device* gfx, const range_rect_t& range, bool invert = false);
+    void _update_transferred_rect(LGFX_Device* gfx, int32_t &xs, int32_t &ys, int32_t &xe, int32_t &ye);
+    void _exec_transfer(uint32_t cmd, LGFX_Device* gfx, const range_rect_t& range, bool invert = false);
     void _close_transfer(LGFX_Device* gfx);
-    bool _wait_busy(std::uint32_t timeout = 1000);
+    bool _wait_busy(uint32_t timeout = 1000);
 
     //static void beginTransaction(PanelCommon* panel, LGFX_Device* gfx);
     //static void endTransaction(PanelCommon* panel, LGFX_Device* gfx);
-    static void display(PanelCommon* panel, LGFX_Device* gfx, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h);
+    static void display(PanelCommon* panel, LGFX_Device* gfx, int32_t x, int32_t y, int32_t w, int32_t h);
     static bool displayBusy(PanelCommon* panel, LGFX_Device* gfx);
     static void waitDisplay(PanelCommon* panel, LGFX_Device* gfx);
-    static void fillRect(PanelCommon* panel, LGFX_Device* gfx, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, std::uint32_t rawcolor);
-    static void pushImage(PanelCommon* panel, LGFX_Device* gfx, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, pixelcopy_t* param);
-    static void pushBlock(PanelCommon* panel, LGFX_Device* gfx, std::int32_t length, std::uint32_t rawcolor);
-    static void writePixels(PanelCommon* panel, LGFX_Device* gfx, std::int32_t len, pixelcopy_t* param);
-    static void readRect(PanelCommon* panel, LGFX_Device* gfx, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, void* dst, pixelcopy_t* param);
+    static void fillRect(PanelCommon* panel, LGFX_Device* gfx, int32_t x, int32_t y, int32_t w, int32_t h, uint32_t rawcolor);
+    static void pushImage(PanelCommon* panel, LGFX_Device* gfx, int32_t x, int32_t y, int32_t w, int32_t h, pixelcopy_t* param);
+    static void pushBlock(PanelCommon* panel, LGFX_Device* gfx, int32_t length, uint32_t rawcolor);
+    static void writePixels(PanelCommon* panel, LGFX_Device* gfx, int32_t len, pixelcopy_t* param);
+    static void readRect(PanelCommon* panel, LGFX_Device* gfx, int32_t x, int32_t y, int32_t w, int32_t h, void* dst, pixelcopy_t* param);
   };
 
 //----------------------------------------------------------------------------

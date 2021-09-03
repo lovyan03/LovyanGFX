@@ -17,10 +17,8 @@ Contributors:
 /----------------------------------------------------------------------------*/
 #pragma once
 
-#include <algorithm>
-#include <cassert>
-
-#include "../platforms/common.hpp"
+#include <stdint.h>
+#include <stddef.h>
 
 namespace lgfx
 {
@@ -41,151 +39,43 @@ namespace lgfx
   class SpriteBuffer
   {
   private:
-    std::uint8_t* _buffer;
-    std::size_t _length;
+    uint8_t* _buffer;
+    size_t _length;
     AllocationSource _source;
 
   public:
     SpriteBuffer(void) : _buffer(nullptr), _length(0), _source(Dma) {}
 
-    SpriteBuffer(std::size_t length, AllocationSource source = AllocationSource::Dma) : _buffer(nullptr), _length(0), _source(source)
-    {
-      if (length)
-      {
-        assert (source != AllocationSource::Preallocated);
-        this->reset(length, source);
-      }
-    }
+    SpriteBuffer(size_t length, AllocationSource source = AllocationSource::Dma);
 
-    SpriteBuffer(std::uint8_t* buffer, std::size_t length) : _buffer(buffer), _length(length), _source(AllocationSource::Preallocated)
+    SpriteBuffer(uint8_t* buffer, size_t length) : _buffer(buffer), _length(length), _source(AllocationSource::Preallocated)
     {
     }
 
-    SpriteBuffer(const SpriteBuffer& rhs) : _buffer(nullptr)
-    {
-      if ( rhs._source == AllocationSource::Preallocated )
-      {
-        this->_buffer = rhs._buffer;
-        this->_length = rhs._length;
-        this->_source = rhs._source;
-      }
-      else
-      {
-        this->reset(rhs._length, rhs._source);
-        if( _buffer != nullptr && rhs._buffer != nullptr )
-        {
-          std::copy(rhs._buffer, rhs._buffer + _length, _buffer);
-        }
-      }
-    }
+    SpriteBuffer(const SpriteBuffer& rhs);
 
-    SpriteBuffer(SpriteBuffer&& rhs) : _buffer(nullptr)
-    {
-      if ( rhs._source == AllocationSource::Preallocated ) {
-        this->_buffer = rhs._buffer;
-        this->_length = rhs._length;
-        this->_source = rhs._source;
-      }
-      else {
-        this->reset(rhs._length, rhs._source);
-        if( _buffer != nullptr && rhs._buffer != nullptr ) {
-          std::copy(rhs._buffer, rhs._buffer + _length, _buffer);
-          rhs.release();
-        }
-      }
-    }
+    SpriteBuffer(SpriteBuffer&& rhs);
 
-    SpriteBuffer& operator=(const SpriteBuffer& rhs)
-    {
-      if ( rhs._source == AllocationSource::Preallocated ) {
-        this->_buffer = rhs._buffer;
-        this->_length = rhs._length;
-        this->_source = rhs._source;
-      }
-      else {
-        this->reset(rhs._length, rhs._source);
-        if ( _buffer != nullptr && rhs._buffer != nullptr ) {
-          std::copy(rhs._buffer, rhs._buffer + _length, _buffer);
-        }
-      }
-      return *this;
-    }
+    SpriteBuffer& operator=(const SpriteBuffer& rhs);
 
-    SpriteBuffer& operator=(SpriteBuffer&& rhs)
-    {
-      if( rhs._source == AllocationSource::Preallocated ) {
-        this->_buffer = rhs._buffer;
-        this->_length = rhs._length;
-        this->_source = rhs._source;
-      }
-      else {
-        this->reset(rhs._length, rhs._source);
-        if( _buffer != nullptr && rhs._buffer != nullptr ) {
-          std::copy(rhs._buffer, rhs._buffer + _length, _buffer);
-          rhs.release();
-        }
-      }
-      return *this;
-    }
+    SpriteBuffer& operator=(SpriteBuffer&& rhs);
 
-    operator std::uint8_t*() const { return _buffer; }
+    operator uint8_t*() const { return _buffer; }
     operator bool() const { return _buffer != nullptr; }
 
-    std::uint8_t* get() const { return _buffer; }
-    std::uint8_t* img8() const { return _buffer; }
-    std::uint16_t* img16() const { return reinterpret_cast<std::uint16_t*>(_buffer); }
+    uint8_t* get() const { return _buffer; }
+    uint8_t* img8() const { return _buffer; }
+    uint16_t* img16() const { return reinterpret_cast<uint16_t*>(_buffer); }
     bgr888_t* img24() const { return reinterpret_cast<bgr888_t*>(_buffer); }
 
-    void reset(void* buffer)
-    {
-      this->release();
-      _source = AllocationSource::Preallocated;
-      _buffer = reinterpret_cast<std::uint8_t*>(buffer);
-      _length = 0;
-    }
+    void reset(void* buffer);
 
-    void reset(std::size_t length, AllocationSource source)
-    {
-      this->release();
-      void* buffer = nullptr;
-      _source = source;
-      switch (source)
-      {
-        default:
-        case AllocationSource::Normal:
-          buffer = heap_alloc(length);
-          break;
-        case AllocationSource::Dma:
-          buffer = heap_alloc_dma(length);
-          break;
-        case AllocationSource::Psram:
-          buffer = heap_alloc_psram(length);
-          if (!buffer)
-          {
-            _source = AllocationSource::Dma;
-            buffer = heap_alloc_dma(length);
-          }
-          break;
-      }
-      _buffer = reinterpret_cast<std::uint8_t*>(buffer);
-      if ( _buffer != nullptr ) {
-        _length = length;
-      }
-    }
+    void reset(size_t length, AllocationSource source);
 
-    void release() {
-      _length = 0;
-      if ( _buffer != nullptr ) {
-        if (_source != AllocationSource::Preallocated)
-        {
-          heap_free(_buffer);
-        }
-        _buffer = nullptr;
-      }
-    }
+    void release(void);
 
-    bool use_dma() const { return _source == AllocationSource::Dma; }
-    bool use_memcpy() const { return _source != AllocationSource::Psram; }
+    bool use_dma(void) const { return _source == AllocationSource::Dma; }
+    bool use_memcpy(void) const { return _source != AllocationSource::Psram; }
   };
 
 //----------------------------------------------------------------------------

@@ -22,7 +22,7 @@ Contributors:
 #ifndef LGFX_PARALLEL_ESP32_HPP_
 #define LGFX_PARALLEL_ESP32_HPP_
 
-#include <cstring>
+#include <string.h>
 #include <type_traits>
 
 #include <driver/periph_ctrl.h>
@@ -105,22 +105,22 @@ namespace lgfx
 
     __attribute__ ((always_inline)) inline void init(void) { init_impl(); }
 
-    void writeCommand(std::uint_fast8_t cmd) override { startWrite(); write_cmd(cmd); endWrite(); }
+    void writeCommand(uint_fast8_t cmd) override { startWrite(); write_cmd(cmd); endWrite(); }
 
-    void writeData(std::uint_fast8_t data) override { startWrite(); write_data(data, 8); endWrite(); }
+    void writeData(uint_fast8_t data) override { startWrite(); write_data(data, 8); endWrite(); }
 
-    void writeData16(std::uint_fast16_t data) override { startWrite(); write_data(__builtin_bswap16(data), 16); endWrite(); }
+    void writeData16(uint_fast16_t data) override { startWrite(); write_data(__builtin_bswap16(data), 16); endWrite(); }
 
-    void writeData32(std::uint32_t data) override { startWrite(); write_data(__builtin_bswap32(data), 32); endWrite(); }
+    void writeData32(uint32_t data) override { startWrite(); write_data(__builtin_bswap32(data), 32); endWrite(); }
 
-    std::uint32_t readCommand(std::uint_fast8_t commandByte, std::uint_fast8_t index=0, std::uint_fast8_t len=4) override { startWrite(); auto res = read_command(commandByte, index << 3, len << 3); endWrite(); return res; }
+    uint32_t readCommand(uint_fast8_t commandByte, uint_fast8_t index=0, uint_fast8_t len=4) override { startWrite(); auto res = read_command(commandByte, index << 3, len << 3); endWrite(); return res; }
 
-    std::uint32_t readData(std::uint_fast8_t index=0, std::uint_fast8_t len=4) override
+    uint32_t readData(uint_fast8_t index=0, uint_fast8_t len=4) override
     {
       startWrite();
       start_read();
       if (index) read_data(index << 3);
-      std::uint32_t res = read_data(len << 3);
+      uint32_t res = read_data(len << 3);
       end_read(false);
       endWrite();
       return res; 
@@ -180,7 +180,7 @@ namespace lgfx
       _len_setwindow  = _panel->len_setwindow;
       fpGetWindowAddr = _len_setwindow == 32 ? PanelCommon::getWindowAddr32 : PanelCommon::getWindowAddr16;
 /*
-      std::int32_t spi_dc = _panel->spi_dc;
+      int32_t spi_dc = _panel->spi_dc;
       _mask_reg_dc = (spi_dc < 0) ? 0 : (1 << (spi_dc & 31));
       _gpio_reg_dc_h = get_gpio_hi_reg(spi_dc);
       _gpio_reg_dc_l = get_gpio_lo_reg(spi_dc);
@@ -223,12 +223,12 @@ namespace lgfx
 
     void begin_transaction(void)
     {
-      std::uint32_t apb_freq = getApbFrequency();
+      uint32_t apb_freq = getApbFrequency();
       if (_last_apb_freq != apb_freq) {
         _last_apb_freq = apb_freq;
         // clock = 80MHz(apb_freq) / I2S_CLKM_DIV_NUM
         // I2S_CLKM_DIV_NUM 4=20MHz  /  5=16MHz  /  8=10MHz  /  10=8MHz
-        std::uint32_t div_num = std::min(32u, std::max(4u, 1 + (apb_freq / (1 + _panel->freq_write))));
+        uint32_t div_num = std::min(32u, std::max(4u, 1 + (apb_freq / (1 + _panel->freq_write))));
         _clkdiv_write =            I2S_CLKA_ENA
                       |            I2S_CLK_EN
                       |       1 << I2S_CLKM_DIV_A_S
@@ -271,29 +271,29 @@ namespace lgfx
       return !(*reg(I2S_STATE_REG(_i2s_port)) & I2S_TX_IDLE);
     }
 
-    void writePixelsDMA_impl(const void* data, std::int32_t length) override
+    void writePixelsDMA_impl(const void* data, int32_t length) override
     {
-      write_bytes((const std::uint8_t*)data, length * _write_conv.bytes, true);
+      write_bytes((const uint8_t*)data, length * _write_conv.bytes, true);
     }
 
-    void writeBytes_impl(const std::uint8_t* data, std::int32_t length, bool use_dma) override
+    void writeBytes_impl(const uint8_t* data, int32_t length, bool use_dma) override
     {
-      write_bytes((const std::uint8_t*)data, length, use_dma);
+      write_bytes((const uint8_t*)data, length, use_dma);
     }
 
-    void readBytes_impl(std::uint8_t* dst, std::int32_t length) override
+    void readBytes_impl(uint8_t* dst, int32_t length) override
     {
       start_read();
       read_bytes(dst, length);
       end_read(false); // Don't use the CS operation.
     }
 
-    void setWindow_impl(std::int32_t xs, std::int32_t ys, std::int32_t xe, std::int32_t ye) override
+    void setWindow_impl(int32_t xs, int32_t ys, int32_t xe, int32_t ye) override
     {
       set_window(xs, ys, xe, ye, _cmd_ramwr);
     }
 
-    void drawPixel_impl(std::int32_t x, std::int32_t y) override
+    void drawPixel_impl(int32_t x, int32_t y) override
     {
       if (_in_transaction) {
         set_window(x, y, x, y, _cmd_ramwr);
@@ -307,25 +307,25 @@ namespace lgfx
       end_transaction();
     }
 
-    void writeFillRect_impl(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h) override
+    void writeFillRect_impl(int32_t x, int32_t y, int32_t w, int32_t h) override
     {
       set_window(x, y, x+w-1, y+h-1, _cmd_ramwr);
       push_block(w*h);
     }
 
-    void pushBlock_impl(std::int32_t length) override
+    void pushBlock_impl(int32_t length) override
     {
       push_block(length);
     }
 
-    void push_block(std::int32_t length, bool fillclock = false)
+    void push_block(int32_t length, bool fillclock = false)
     {
       if (_write_conv.bits == 16) {
         *reg(I2S_SAMPLE_RATE_CONF_REG(_i2s_port)) = _sample_rate_conf_reg_16bit;
         auto conf_start = _conf_reg_start;
-        std::uint32_t data = 0x01000100;
+        uint32_t data = 0x01000100;
         data |= _color.raw << 16 | _color.raw >> 8;
-        std::int32_t limit = ((length - 1) & 31) + 1;
+        int32_t limit = ((length - 1) & 31) + 1;
         do {
           length -= limit;
 
@@ -344,13 +344,13 @@ namespace lgfx
           if (!--length) return;
         }
         auto conf_start = _conf_reg_start;
-        static constexpr std::uint32_t data_wr = 0x01000100;
-        std::uint32_t data0 = _color.raw << 16 | _color.raw >>  8 | data_wr;
-        std::uint32_t data1 = _color.raw                          | data_wr;
-        std::uint32_t data2 = _color.raw <<  8 | _color.raw >> 16 | data_wr;
+        static constexpr uint32_t data_wr = 0x01000100;
+        uint32_t data0 = _color.raw << 16 | _color.raw >>  8 | data_wr;
+        uint32_t data1 = _color.raw                          | data_wr;
+        uint32_t data2 = _color.raw <<  8 | _color.raw >> 16 | data_wr;
         *reg(I2S_SAMPLE_RATE_CONF_REG(_i2s_port)) = _sample_rate_conf_reg_16bit;
         length >>= 1;
-        std::uint32_t limit = ((length - 1) % 10) + 1;
+        uint32_t limit = ((length - 1) % 10) + 1;
         do {
           length -= limit;
 
@@ -367,7 +367,7 @@ namespace lgfx
       }
     }
 
-    void write_cmd(std::uint_fast8_t cmd)
+    void write_cmd(uint_fast8_t cmd)
     {
       wait();
       *reg(I2S_SAMPLE_RATE_CONF_REG(_i2s_port)) = _sample_rate_conf_reg_32bit;
@@ -377,7 +377,7 @@ namespace lgfx
 //auto dummy = *reg(I2S_CONF_REG(_i2s_port));
     }
 
-    void write_data(std::uint32_t data, std::uint32_t bit_length)
+    void write_data(uint32_t data, uint32_t bit_length)
     {
       wait();
       *reg(I2S_SAMPLE_RATE_CONF_REG(_i2s_port)) = _sample_rate_conf_reg_32bit;
@@ -391,18 +391,18 @@ namespace lgfx
 //auto dummy = *reg(I2S_CONF_REG(_i2s_port));
     }
 
-    void set_window(std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye, std::uint32_t cmd)
+    void set_window(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye, uint32_t cmd)
     {
 /*
-      std::uint32_t len32 = _len_setwindow >> 5;
+      uint32_t len32 = _len_setwindow >> 5;
       *reg(I2S_SAMPLE_RATE_CONF_REG(_i2s_port)) = _sample_rate_conf_reg_32bit;
-      std::uint32_t data_wr = 0x1000000;
+      uint32_t data_wr = 0x1000000;
       wait_i2s();
 
       if (_xs != xs || _xe != xe) {
         _xs = xs;
         _xe = xe;
-        std::uint32_t tmp = _colstart;
+        uint32_t tmp = _colstart;
         xs += tmp;
         xe += tmp;
         *reg(SAFE_I2S_FIFO_WR_REG(_i2s_port)) = _cmd_caset << 16;
@@ -419,7 +419,7 @@ namespace lgfx
       if (_ys != ys || _ye != ye) {
         _ys = ys;
         _ye = ye;
-        std::uint32_t tmp = _rowstart;
+        uint32_t tmp = _rowstart;
         ys += tmp;
         ye += tmp;
         *reg(SAFE_I2S_FIFO_WR_REG(_i2s_port)) = _cmd_raset << 16;
@@ -437,16 +437,16 @@ namespace lgfx
 
       *reg(I2S_CONF_REG(_i2s_port)) = _conf_reg_start;
 /*/
-      std::uint32_t len32 = _len_setwindow >> 5;
+      uint32_t len32 = _len_setwindow >> 5;
       *reg(I2S_SAMPLE_RATE_CONF_REG(_i2s_port)) = _sample_rate_conf_reg_16bit;
-      static constexpr std::uint32_t data_wr = 0x01000100;
+      static constexpr uint32_t data_wr = 0x01000100;
       wait_i2s();
       *reg(I2S_FIFO_CONF_REG(_i2s_port)) = _fifo_conf_default;
 
       if (_xs != xs || _xe != xe) {
         _xs = xs;
         _xe = xe;
-        std::uint32_t tmp = _colstart;
+        uint32_t tmp = _colstart;
         xs += tmp;
         xe += tmp;
         *reg(SAFE_I2S_FIFO_WR_REG(_i2s_port)) = _cmd_caset;
@@ -460,7 +460,7 @@ namespace lgfx
       if (_ys != ys || _ye != ye) {
         _ys = ys;
         _ye = ye;
-        std::uint32_t tmp = _rowstart;
+        uint32_t tmp = _rowstart;
         ys += tmp;
         ye += tmp;
         *reg(SAFE_I2S_FIFO_WR_REG(_i2s_port)) = _cmd_raset;
@@ -563,17 +563,17 @@ namespace lgfx
       }
     }
 
-    std::uint32_t read_data(std::uint32_t length)
+    uint32_t read_data(uint32_t length)
     {
       union {
-        std::uint32_t res;
-        std::uint8_t raw[4];
+        uint32_t res;
+        uint8_t raw[4];
       };
       length = (length + 7) & ~7;
 
       auto buf = raw;
       do {
-        std::uint32_t tmp = GPIO.in;   // dummy read speed tweak.
+        uint32_t tmp = GPIO.in;   // dummy read speed tweak.
         tmp = GPIO.in;
         gpio_hi(_gpio_rd);
         gpio_lo(_gpio_rd);
@@ -582,30 +582,30 @@ namespace lgfx
       return res;
     }
 
-    std::uint32_t read_command(std::uint_fast8_t command, std::uint32_t bitindex = 0, std::uint32_t bitlen = 8)
+    uint32_t read_command(uint_fast8_t command, uint32_t bitindex = 0, uint32_t bitlen = 8)
     {
       startWrite();
       write_cmd(command);
       start_read();
       if (bitindex) read_data(bitindex);
-      std::uint32_t res = read_data(bitlen);
+      uint32_t res = read_data(bitlen);
       end_read();
       endWrite();
       return res;
     }
 
-    void pushImage_impl(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, pixelcopy_t* param, bool use_dma) override
+    void pushImage_impl(int32_t x, int32_t y, int32_t w, int32_t h, pixelcopy_t* param, bool use_dma) override
     {
       auto bytes = _write_conv.bytes;
       auto src_x = param->src_x;
       auto fp_copy = param->fp_copy;
 
-      std::int32_t xr = (x + w) - 1;
-      std::int32_t whb = w * h * bytes;
+      int32_t xr = (x + w) - 1;
+      int32_t whb = w * h * bytes;
       if (param->transp == ~0) {
         if (param->no_convert) {
-          std::uint32_t i = (src_x + param->src_y * param->src_bitwidth) * bytes;
-          auto src = &((const std::uint8_t*)param->src_data)[i];
+          uint32_t i = (src_x + param->src_y * param->src_bitwidth) * bytes;
+          auto src = &((const uint8_t*)param->src_data)[i];
           setWindow_impl(x, y, xr, y + h - 1);
           if (param->src_bitwidth == w) {
             write_bytes(src, whb, use_dma);
@@ -618,13 +618,13 @@ namespace lgfx
           }
         } else
         if (param->src_bitwidth == w && (whb <= 1024)) {
-          std::uint8_t buf[whb];
+          uint8_t buf[whb];
           fp_copy(buf, 0, w * h, param);
           setWindow_impl(x, y, xr, y + h - 1);
           write_bytes(buf, whb, true);
         } else {
-          std::int32_t wb = w * bytes;
-          std::uint8_t buf[wb];
+          int32_t wb = w * bytes;
+          uint8_t buf[wb];
           fp_copy(buf, 0, w, param);
           setWindow_impl(x, y, xr, y + h - 1);
           write_bytes(buf, wb, true);
@@ -638,11 +638,11 @@ namespace lgfx
       } else {
         auto fp_skip = param->fp_skip;
         h += y;
-        std::uint8_t buf[w * bytes];
+        uint8_t buf[w * bytes];
         do {
-          std::int32_t i = 0;
+          int32_t i = 0;
           while (w != (i = fp_skip(i, w, param))) {
-            std::int32_t len = fp_copy(buf, 0, w - i, param);
+            int32_t len = fp_copy(buf, 0, w - i, param);
             setWindow_impl(x + i, y, x + i + len - 1, y);
             write_bytes(buf, len * bytes, true);
             if (w == (i += len)) break;
@@ -653,18 +653,18 @@ namespace lgfx
       }
     }
 
-    void writePixels_impl(std::int32_t length, pixelcopy_t* param) override
+    void writePixels_impl(int32_t length, pixelcopy_t* param) override
     {
       write_pixels(length, param);
     }
 
-    void write_pixels(std::int32_t length, pixelcopy_t* param)
+    void write_pixels(int32_t length, pixelcopy_t* param)
     {
-      std::uint8_t buf[512];
-      const std::uint32_t bytes = _write_conv.bytes;
+      uint8_t buf[512];
+      const uint32_t bytes = _write_conv.bytes;
       auto fp_copy = param->fp_copy;
-      const std::uint32_t limit = (bytes == 2) ? 256 : 170;
-      std::uint8_t len = length % limit;
+      const uint32_t limit = (bytes == 2) ? 256 : 170;
+      uint8_t len = length % limit;
       if (len) {
         fp_copy(buf, 0, len, param);
         write_bytes(buf, len * bytes);
@@ -676,10 +676,10 @@ namespace lgfx
       } while (length -= limit);
     }
 
-    void write_bytes(const std::uint8_t* data, std::int32_t length, bool use_dma = false)
+    void write_bytes(const uint8_t* data, int32_t length, bool use_dma = false)
     {
       auto conf_start = _conf_reg_start;
-      static constexpr std::uint32_t data_wr = 0x01000100;
+      static constexpr uint32_t data_wr = 0x01000100;
 
       wait();
       if (length & 1) {
@@ -691,7 +691,7 @@ namespace lgfx
       *reg(I2S_SAMPLE_RATE_CONF_REG(_i2s_port)) = _sample_rate_conf_reg_16bit;
       *reg(I2S_FIFO_CONF_REG(_i2s_port)) = _fifo_conf_default;
 
-      std::int32_t limit = (((length>>1)-1)&(31))+1;
+      int32_t limit = (((length>>1)-1)&(31))+1;
       length -= limit << 1;
       do {
         *reg(SAFE_I2S_FIFO_WR_REG(_i2s_port)) = data[0] << 16 | data[1] | data_wr;
@@ -701,30 +701,30 @@ namespace lgfx
 
       if (!length) return;
 
-      std::uint32_t lbase = 64;
+      uint32_t lbase = 64;
       do {
-        auto buf = (std::uint32_t*)get_dmabuffer(512);
-        std::int32_t limit = ((length - 1) & (lbase - 1)) + 1;
+        auto buf = (uint32_t*)get_dmabuffer(512);
+        int32_t limit = ((length - 1) & (lbase - 1)) + 1;
         length -= limit;
-        _dmadesc->buf = (std::uint8_t*)buf;
-        std::int32_t i = 0;
+        _dmadesc->buf = (uint8_t*)buf;
+        int32_t i = 0;
         limit>>=1;
         do {
           buf[i] = data[0]<<16 | data[1] | data_wr;
           data += 2;
         } while (++i != limit);
-        *(std::uint32_t*)_dmadesc = (((i<<2) + 3) &  ~3 ) | i << 14 | 0xC0000000;
+        *(uint32_t*)_dmadesc = (((i<<2) + 3) &  ~3 ) | i << 14 | 0xC0000000;
         wait();
         *reg(I2S_FIFO_CONF_REG(_i2s_port)) = _fifo_conf_dma;
         *reg(I2S_OUT_LINK_REG(_i2s_port)) = I2S_OUTLINK_START | ((uint32_t)_dmadesc & I2S_OUTLINK_ADDR);
-        std::size_t wait = 48;
+        size_t wait = 48;
         do { __asm__ __volatile__ ("nop"); } while (--wait);
         *reg(I2S_CONF_REG(_i2s_port)) = conf_start;
         if (lbase != 256) lbase <<= 1;
       } while (length);
     }
 
-    void readRect_impl(std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, void* dst, pixelcopy_t* param) override
+    void readRect_impl(int32_t x, int32_t y, int32_t w, int32_t h, void* dst, pixelcopy_t* param) override
     {
       startWrite();
       set_window(x, y, x + w - 1, y + h - 1, _panel->getCmdRamrd());
@@ -736,7 +736,7 @@ namespace lgfx
       gpio_lo(_gpio_rd);
       taskYIELD();
       if (param->no_convert) {
-        read_bytes((std::uint8_t*)dst, len * _read_conv.bytes);
+        read_bytes((uint8_t*)dst, len * _read_conv.bytes);
       } else {
         read_pixels(dst, len, param);
       }
@@ -744,7 +744,7 @@ namespace lgfx
       endWrite();
     }
 
-    static std::uint_fast8_t reg_to_value(std::uint32_t raw_value)
+    static uint_fast8_t reg_to_value(uint32_t raw_value)
     {
       return ((raw_value >> _gpio_d7) & 1) << 7
            | ((raw_value >> _gpio_d6) & 1) << 6
@@ -756,19 +756,19 @@ namespace lgfx
            | ((raw_value >> _gpio_d0) & 1) ;
     }
 
-    void read_pixels(void* dst, std::int32_t length, pixelcopy_t* param)
+    void read_pixels(void* dst, int32_t length, pixelcopy_t* param)
     {
       const auto bytes = _read_conv.bytes;
-      std::uint32_t limit = (bytes == 2) ? 16 : 10;
+      uint32_t limit = (bytes == 2) ? 16 : 10;
       param->src_data = _regbuf;
-      std::int32_t dstindex = 0;
+      int32_t dstindex = 0;
       do {
-        std::uint32_t len2 = (limit > length) ? length : limit;
+        uint32_t len2 = (limit > length) ? length : limit;
         length -= len2;
-        std::uint32_t i = len2 * bytes;
-        auto d = (std::uint8_t*)_regbuf;
+        uint32_t i = len2 * bytes;
+        auto d = (uint8_t*)_regbuf;
         do {
-          std::uint32_t tmp = GPIO.in;
+          uint32_t tmp = GPIO.in;
           gpio_hi(_gpio_rd);
           gpio_lo(_gpio_rd);
           *d++ = reg_to_value(tmp);
@@ -778,10 +778,10 @@ namespace lgfx
       } while (length);
     }
 
-    void read_bytes(std::uint8_t* dst, std::int32_t length)
+    void read_bytes(uint8_t* dst, int32_t length)
     {
       do {
-        std::uint32_t tmp = GPIO.in;   // dummy read speed tweak.
+        uint32_t tmp = GPIO.in;   // dummy read speed tweak.
         tmp = GPIO.in;
         gpio_hi(_gpio_rd);
         gpio_lo(_gpio_rd);
@@ -796,7 +796,7 @@ namespace lgfx
       _dmadesc = (lldesc_t*)heap_caps_malloc(sizeof(lldesc_t) * len, MALLOC_CAP_DMA);
     }
 
-    __attribute__ ((always_inline)) inline volatile std::uint32_t* reg(std::uint32_t addr) const { return (volatile std::uint32_t *)ETS_UNCACHED_ADDR(addr); }
+    __attribute__ ((always_inline)) inline volatile uint32_t* reg(uint32_t addr) const { return (volatile uint32_t *)ETS_UNCACHED_ADDR(addr); }
 
     __attribute__ ((always_inline)) inline void dc_h(void) {
       auto mask_reg_dc = _mask_reg_dc;
@@ -861,8 +861,8 @@ namespace lgfx
       gpio_matrix_out(_gpio_d1, idx_base + 1, 0, 0);
       gpio_matrix_out(_gpio_d0, idx_base    , 0, 0);
 
-      std::uint32_t dport_clk_en;
-      std::uint32_t dport_rst;
+      uint32_t dport_clk_en;
+      uint32_t dport_rst;
 
       if (_i2s_port == I2S_NUM_0) {
         idx_base = I2S0O_WS_OUT_IDX;
@@ -879,12 +879,12 @@ namespace lgfx
       DPORT_CLEAR_PERI_REG_MASK(DPORT_PERIP_RST_EN_REG, dport_rst);
     }
 
-    static constexpr std::uint32_t _conf_reg_default = I2S_TX_MSB_RIGHT | I2S_TX_RIGHT_FIRST | I2S_RX_RIGHT_FIRST;
-    static constexpr std::uint32_t _conf_reg_start   = _conf_reg_default | I2S_TX_START;
-    static constexpr std::uint32_t _sample_rate_conf_reg_32bit = 32 << I2S_TX_BITS_MOD_S | 32 << I2S_RX_BITS_MOD_S | 1 << I2S_TX_BCK_DIV_NUM_S | 1 << I2S_RX_BCK_DIV_NUM_S;
-    static constexpr std::uint32_t _sample_rate_conf_reg_16bit = 16 << I2S_TX_BITS_MOD_S | 16 << I2S_RX_BITS_MOD_S | 1 << I2S_TX_BCK_DIV_NUM_S | 1 << I2S_RX_BCK_DIV_NUM_S;
-    static constexpr std::uint32_t _fifo_conf_default = 1 << I2S_TX_FIFO_MOD | 1 << I2S_RX_FIFO_MOD | 32 << I2S_TX_DATA_NUM_S | 32 << I2S_RX_DATA_NUM_S;
-    static constexpr std::uint32_t _fifo_conf_dma     = 1 << I2S_TX_FIFO_MOD | 1 << I2S_RX_FIFO_MOD | 32 << I2S_TX_DATA_NUM_S | 32 << I2S_RX_DATA_NUM_S | I2S_DSCR_EN;
+    static constexpr uint32_t _conf_reg_default = I2S_TX_MSB_RIGHT | I2S_TX_RIGHT_FIRST | I2S_RX_RIGHT_FIRST;
+    static constexpr uint32_t _conf_reg_start   = _conf_reg_default | I2S_TX_START;
+    static constexpr uint32_t _sample_rate_conf_reg_32bit = 32 << I2S_TX_BITS_MOD_S | 32 << I2S_RX_BITS_MOD_S | 1 << I2S_TX_BCK_DIV_NUM_S | 1 << I2S_RX_BCK_DIV_NUM_S;
+    static constexpr uint32_t _sample_rate_conf_reg_16bit = 16 << I2S_TX_BITS_MOD_S | 16 << I2S_RX_BITS_MOD_S | 1 << I2S_TX_BCK_DIV_NUM_S | 1 << I2S_RX_BCK_DIV_NUM_S;
+    static constexpr uint32_t _fifo_conf_default = 1 << I2S_TX_FIFO_MOD | 1 << I2S_RX_FIFO_MOD | 32 << I2S_TX_DATA_NUM_S | 32 << I2S_RX_DATA_NUM_S;
+    static constexpr uint32_t _fifo_conf_dma     = 1 << I2S_TX_FIFO_MOD | 1 << I2S_RX_FIFO_MOD | 32 << I2S_TX_DATA_NUM_S | 32 << I2S_RX_DATA_NUM_S | I2S_DSCR_EN;
 
     static constexpr gpio_num_t _gpio_wr  = (gpio_num_t)get_gpio_wr <CFG, -1>::value;
     static constexpr gpio_num_t _gpio_rd  = (gpio_num_t)get_gpio_rd <CFG, -1>::value;
@@ -910,30 +910,30 @@ namespace lgfx
 
     static constexpr i2s_port_t _i2s_port = get_i2s_port<CFG, I2S_NUM_0>::value;
 
-    std::uint32_t(*fpGetWindowAddr)(std::uint_fast16_t, std::uint_fast16_t);
-    std::uint_fast16_t _colstart;
-    std::uint_fast16_t _rowstart;
-    std::uint_fast16_t _xs;
-    std::uint_fast16_t _xe;
-    std::uint_fast16_t _ys;
-    std::uint_fast16_t _ye;
-    std::uint32_t _cmd_caset;
-    std::uint32_t _cmd_raset;
-    std::uint32_t _cmd_ramwr;
+    uint32_t(*fpGetWindowAddr)(uint_fast16_t, uint_fast16_t);
+    uint_fast16_t _colstart;
+    uint_fast16_t _rowstart;
+    uint_fast16_t _xs;
+    uint_fast16_t _xe;
+    uint_fast16_t _ys;
+    uint_fast16_t _ye;
+    uint32_t _cmd_caset;
+    uint32_t _cmd_raset;
+    uint32_t _cmd_ramwr;
   private:
-    std::uint32_t _last_apb_freq;
-    std::uint32_t _clkdiv_write;
-    std::uint32_t _len_setwindow;
-    std::uint32_t _mask_reg_dc;
-    volatile std::uint32_t* _gpio_reg_dc_h;
-    volatile std::uint32_t* _gpio_reg_dc_l;
-    static std::uint32_t _regbuf[8];
+    uint32_t _last_apb_freq;
+    uint32_t _clkdiv_write;
+    uint32_t _len_setwindow;
+    uint32_t _mask_reg_dc;
+    volatile uint32_t* _gpio_reg_dc_h;
+    volatile uint32_t* _gpio_reg_dc_l;
+    static uint32_t _regbuf[8];
     static lldesc_t* _dmadesc;
-    static std::uint32_t _dmadesc_len;
+    static uint32_t _dmadesc_len;
   };
-  template <class T> std::uint32_t LGFX_PARALLEL<T>::_regbuf[];
+  template <class T> uint32_t LGFX_PARALLEL<T>::_regbuf[];
   template <class T> lldesc_t* LGFX_PARALLEL<T>::_dmadesc = nullptr;
-  template <class T> std::uint32_t LGFX_PARALLEL<T>::_dmadesc_len = 0;
+  template <class T> uint32_t LGFX_PARALLEL<T>::_dmadesc_len = 0;
 
 //----------------------------------------------------------------------------
  }

@@ -39,7 +39,7 @@ namespace lgfx
     _bus = bus ? bus : &nullobj;
   }
 
-  void Panel_Device::setBrightness(std::uint8_t brightness)
+  void Panel_Device::setBrightness(uint8_t brightness)
   {
     if (_light) _light->setBrightness(brightness);
   }
@@ -66,7 +66,6 @@ namespace lgfx
     if (use_reset)
     {
       reset();
-      delay(50);
     }
     return true;
   }
@@ -93,18 +92,18 @@ namespace lgfx
     return _bus->busy();
   }
 
-  void Panel_Device::display(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h)
+  void Panel_Device::display(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h)
   {
     _bus->flush();
   }
 
-  void Panel_Device::writeCommand(std::uint32_t data, std::uint_fast8_t length)
+  void Panel_Device::writeCommand(uint32_t data, uint_fast8_t length)
   {
     if (_cfg.dlen_16bit)
     {
-      if (_align_data)
+      if (_has_align_data)
       {
-        _align_data = false;
+        _has_align_data = false;
         _bus->writeData(0, 8);
       }
       if (length == 1) { length = 2; data <<= 8; }
@@ -112,7 +111,7 @@ namespace lgfx
     _bus->writeCommand(data, length << 3);
   }
 
-  void Panel_Device::writeData(std::uint32_t data, std::uint_fast8_t length)
+  void Panel_Device::writeData(uint32_t data, uint_fast8_t length)
   {
     if (!_cfg.dlen_16bit)
     {
@@ -131,25 +130,25 @@ namespace lgfx
     }
   }
 /*
-  void Panel_Device::writeBytes(const std::uint8_t* data, std::uint32_t len, bool use_dma)
+  void Panel_Device::writeBytes(const uint8_t* data, uint32_t len, bool use_dma)
   {
     _bus->writeBytes(data, len, use_dma);
     if (_cfg.dlen_16bit && (_write_bits & 15) && (len & 1))
     {
-      _align_data = !_align_data;
+      _has_align_data = !_has_align_data;
     }
   }
 */
 
-  void Panel_Device::command_list(const std::uint8_t *addr)
+  void Panel_Device::command_list(const uint8_t *addr)
   {
     for (;;)
     {                // For each command...
-      std::uint8_t cmd = *addr++;
-      std::uint8_t num = *addr++;   // Number of args to follow
+      uint8_t cmd = *addr++;
+      uint8_t num = *addr++;   // Number of args to follow
       if (cmd == 0xFF && num == 0xFF) break;
       writeCommand(cmd, 1);  // Read, issue command
-      std::uint_fast8_t ms = num & CMD_INIT_DELAY;       // If hibit set, delay follows args
+      uint_fast8_t ms = num & CMD_INIT_DELAY;       // If hibit set, delay follows args
       num &= ~CMD_INIT_DELAY;          // Mask out delay bit
       if (num)
       {
@@ -169,13 +168,13 @@ namespace lgfx
 
 //----------------------------------------------------------------------------
 
-  void Panel_Device::writeImageARGB(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, pixelcopy_t* param)
+  void Panel_Device::writeImageARGB(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, pixelcopy_t* param)
   {
     auto src_x = param->src_x;
     auto buffer = reinterpret_cast<argb8888_t*>(const_cast<void*>(param->src_data));
     auto bytes = param->dst_bits >> 3;
 // ESP_LOGI("LGFX","DEBUG: %d %d", param->dst_bits, bytes);
-    // std::uint8_t* dmabuf = _bus->getFlipBuffer(w * bytes);
+    // uint8_t* dmabuf = _bus->getFlipBuffer(w * bytes);
     // memset(dmabuf, 0, w * bytes);
     // param->fp_copy(dmabuf, 0, w, param);
     // setWindow(x, y, x + w - 1, y);
@@ -185,12 +184,12 @@ namespace lgfx
     pixelcopy_t pc_write(nullptr, _write_depth, _write_depth);
     for (;;)
     {
-      std::uint8_t* dmabuf = _bus->getDMABuffer((w+1) * bytes);
+      uint8_t* dmabuf = _bus->getDMABuffer((w+1) * bytes);
       pc_write.src_data = dmabuf;
-      std::uint32_t xstart = 0, drawed_x = 0;
+      uint32_t xstart = 0, drawed_x = 0;
       do
       {
-        std::uint_fast8_t a = buffer[xstart].a;
+        uint_fast8_t a = buffer[xstart].a;
         if (!a)
         {
           if (drawed_x < xstart)
@@ -207,7 +206,7 @@ namespace lgfx
         {
           while (255 == buffer[xstart].a && ++xstart != w);
           if (xstart == w) break;
-          std::uint32_t j = xstart;
+          uint32_t j = xstart;
           while (++j != w && buffer[j].a && buffer[j].a != 255);
           readRect(x + xstart, y, j - xstart + 1, 1, &dmabuf[xstart * bytes], &pc_read);
           if (w == (xstart = j)) break;
@@ -228,24 +227,24 @@ namespace lgfx
     }
   }
 
-  void Panel_Device::copyRect(std::uint_fast16_t dst_x, std::uint_fast16_t dst_y, std::uint_fast16_t w, std::uint_fast16_t h, std::uint_fast16_t src_x, std::uint_fast16_t src_y)
+  void Panel_Device::copyRect(uint_fast16_t dst_x, uint_fast16_t dst_y, uint_fast16_t w, uint_fast16_t h, uint_fast16_t src_x, uint_fast16_t src_y)
   {
     pixelcopy_t pc_read( (void*)nullptr, _write_depth, _read_depth);
     pixelcopy_t pc_write((void*)nullptr, _write_depth, _write_depth);
-    std::size_t write_bytes = (_write_depth + 7) >> 3;
+    size_t write_bytes = (_write_depth + 7) >> 3;
     startWrite();
 
     auto dir = get_fastread_dir();
     if (dir == fastread_dir_t::fastread_vertical
     || (dir == fastread_dir_t::fastread_nothing && (w < h)))
     {
-      const std::uint32_t buflen = h * write_bytes;
-      std::uint8_t buf[buflen];
+      const uint32_t buflen = h * write_bytes;
+      auto buf = (uint8_t*)alloca(buflen);
       pc_write.src_data = buf;
       pc_write.src_width = 1;
       pc_write.src_bitwidth = 1;
-      std::int32_t add = (src_x < dst_x) ?   - 1 : 1;
-      std::int32_t pos = (src_x < dst_x) ? w - 1 : 0;
+      int32_t add = (src_x < dst_x) ?   - 1 : 1;
+      int32_t pos = (src_x < dst_x) ? w - 1 : 0;
       do {
         readRect(src_x + pos, src_y, 1, h, buf, &pc_read);
         pc_write.src_x = 0;
@@ -259,11 +258,11 @@ namespace lgfx
     }
     else
     {
-      const std::uint32_t buflen = w * write_bytes;
-      std::uint8_t buf[buflen];
+      const uint32_t buflen = w * write_bytes;
+      auto buf = (uint8_t*)alloca(buflen);
       pc_write.src_data = buf;
-      std::int32_t add = (src_y < dst_y) ?   - 1 : 1;
-      std::int32_t pos = (src_y < dst_y) ? h - 1 : 0;
+      int32_t add = (src_y < dst_y) ?   - 1 : 1;
+      int32_t pos = (src_y < dst_y) ? h - 1 : 0;
       do {
         readRect(src_x, src_y + pos, w, 1, buf, &pc_read);
         pc_write.src_x = 0;
@@ -312,9 +311,12 @@ namespace lgfx
   {
     auto pin = _cfg.pin_rst;
     if (pin < 0) return;
+    gpio_hi(pin);
+    delay(64);
     gpio_lo(pin);
     delay(4);
     gpio_hi(pin);
+    delay(64);
   }
 
 //----------------------------------------------------------------------------
@@ -330,7 +332,7 @@ namespace lgfx
     if (_touch == nullptr) return;
 
     auto cfg = _touch->config();
-    std::uint16_t parameters[8] =
+    uint16_t parameters[8] =
       { cfg.x_min, cfg.y_min
       , cfg.x_min, cfg.y_max
       , cfg.x_max, cfg.y_min
@@ -343,9 +345,9 @@ namespace lgfx
     memcpy(_affine, affine, sizeof(float) * 6);
   }
 
-  void Panel_Device::setCalibrate(std::uint16_t *parameters)
+  void Panel_Device::setCalibrate(uint16_t *parameters)
   {
-    std::uint32_t vect[6] = {0,0,0,0,0,0};
+    uint32_t vect[6] = {0,0,0,0,0,0};
     float mat[3][3] = {{0,0,0},{0,0,0},{0,0,0}};
     float a;
 
@@ -357,10 +359,10 @@ namespace lgfx
     }
 
     for ( int i = 0; i < 4; ++i ) {
-      std::int32_t tx = (i & 2) ? (w - 1) : 0;
-      std::int32_t ty = (i & 1) ? (h - 1) : 0;
-      std::int32_t px = parameters[i*2  ];
-      std::int32_t py = parameters[i*2+1];
+      int32_t tx = (i & 2) ? (w - 1) : 0;
+      int32_t ty = (i & 1) ? (h - 1) : 0;
+      int32_t px = parameters[i*2  ];
+      int32_t py = parameters[i*2+1];
       a = px * px;
       mat[0][0] += a;
       a = px * py;
@@ -422,7 +424,7 @@ namespace lgfx
     _affine[5] = mat[2][0] * v3 + mat[2][1] * v4 + mat[2][2] * v5;
   }
 
-  void Panel_Device::convertRawXY(touch_point_t *tp, std::uint_fast8_t count)
+  void Panel_Device::convertRawXY(touch_point_t *tp, uint_fast8_t count)
   {
     auto r = _internal_rotation;
     if (_touch) {
@@ -431,10 +433,10 @@ namespace lgfx
     }
     bool vflip = (1 << r) & 0b10010110; // r 1,2,4,7
 
-    for (std::size_t idx = 0; idx < count; ++idx)
+    for (size_t idx = 0; idx < count; ++idx)
     {
-      std::int32_t tx = (_affine[0] * (float)tp[idx].x + _affine[1] * (float)tp[idx].y) + _affine[2];
-      std::int32_t ty = (_affine[3] * (float)tp[idx].x + _affine[4] * (float)tp[idx].y) + _affine[5];
+      int32_t tx = (_affine[0] * (float)tp[idx].x + _affine[1] * (float)tp[idx].y) + _affine[2];
+      int32_t ty = (_affine[3] * (float)tp[idx].x + _affine[4] * (float)tp[idx].y) + _affine[5];
       if (r)
       {
         if (r & 1) { std::swap(tx, ty); }
@@ -446,7 +448,7 @@ namespace lgfx
     }
   }
 
-  std::uint_fast8_t Panel_Device::getTouchRaw(touch_point_t* tp, std::uint_fast8_t count)
+  uint_fast8_t Panel_Device::getTouchRaw(touch_point_t* tp, uint_fast8_t count)
   {
     if (_touch == nullptr) return 0;
 
@@ -457,7 +459,7 @@ namespace lgfx
     return count;
   }
 
-  std::uint_fast8_t Panel_Device::getTouch(touch_point_t* tp, std::uint_fast8_t count)
+  uint_fast8_t Panel_Device::getTouch(touch_point_t* tp, uint_fast8_t count)
   {
     auto res = getTouchRaw(tp, count);
     convertRawXY(tp, res);

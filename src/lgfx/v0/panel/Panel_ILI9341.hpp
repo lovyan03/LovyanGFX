@@ -25,27 +25,27 @@ namespace lgfx
 
     struct CMD : public PanelIlitekCommon::CommandCommon
     {
-      static constexpr std::uint8_t FRMCTR1 = 0xB1;
-      static constexpr std::uint8_t FRMCTR2 = 0xB2;
-      static constexpr std::uint8_t FRMCTR3 = 0xB3;
-      static constexpr std::uint8_t INVCTR  = 0xB4;
-      static constexpr std::uint8_t DFUNCTR = 0xB6;
-      static constexpr std::uint8_t PWCTR1  = 0xC0;
-      static constexpr std::uint8_t PWCTR2  = 0xC1;
-      static constexpr std::uint8_t PWCTR3  = 0xC2;
-      static constexpr std::uint8_t PWCTR4  = 0xC3;
-      static constexpr std::uint8_t PWCTR5  = 0xC4;
-      static constexpr std::uint8_t VMCTR1  = 0xC5;
-      static constexpr std::uint8_t VMCTR2  = 0xC7;
-      static constexpr std::uint8_t GMCTRP1 = 0xE0; // Positive Gamma Correction (E0h)
-      static constexpr std::uint8_t GMCTRN1 = 0xE1; // Negative Gamma Correction (E1h)
+      static constexpr uint8_t FRMCTR1 = 0xB1;
+      static constexpr uint8_t FRMCTR2 = 0xB2;
+      static constexpr uint8_t FRMCTR3 = 0xB3;
+      static constexpr uint8_t INVCTR  = 0xB4;
+      static constexpr uint8_t DFUNCTR = 0xB6;
+      static constexpr uint8_t PWCTR1  = 0xC0;
+      static constexpr uint8_t PWCTR2  = 0xC1;
+      static constexpr uint8_t PWCTR3  = 0xC2;
+      static constexpr uint8_t PWCTR4  = 0xC3;
+      static constexpr uint8_t PWCTR5  = 0xC4;
+      static constexpr uint8_t VMCTR1  = 0xC5;
+      static constexpr uint8_t VMCTR2  = 0xC7;
+      static constexpr uint8_t GMCTRP1 = 0xE0; // Positive Gamma Correction (E0h)
+      static constexpr uint8_t GMCTRN1 = 0xE1; // Negative Gamma Correction (E1h)
 
-      static constexpr std::uint8_t RDINDEX = 0xD9; // ili9341
-      static constexpr std::uint8_t IDXRD   = 0xDD; // ILI9341 only, indexed control register read
+      static constexpr uint8_t RDINDEX = 0xD9; // ili9341
+      static constexpr uint8_t IDXRD   = 0xDD; // ILI9341 only, indexed control register read
     };
 
-    const std::uint8_t* getInitCommands(std::uint8_t listno) const override {
-      static constexpr std::uint8_t list0[] = {
+    const uint8_t* getInitCommands(uint8_t listno) const override {
+      static constexpr uint8_t list0[] = {
           0xEF       , 3, 0x03,0x80,0x02,
           0xCF       , 3, 0x00,0xC1,0x30,
           0xED       , 4, 0x64,0x03,0x12,0x81,
@@ -65,11 +65,11 @@ namespace lgfx
           CMD::GMCTRN1,15, 0x00,0x0E,0x14,0x03,0x11,0x07,0x31,0xC1,0x48,0x08,0x0F,0x0C,0x31,0x36,0x0F,
           0xFF,0xFF, // end
       };
-      static constexpr std::uint8_t list1[] = {
+      static constexpr uint8_t list1[] = {
           CMD::DFUNCTR,3, 0x08,0xC2,0x27,
           0xFF,0xFF, // end
       };
-      static constexpr std::uint8_t list2[] = {
+      static constexpr uint8_t list2[] = {
           CMD::IDMOFF, 0,
           CMD::SLPOUT, 0,
           CMD::DISPON, 0,
@@ -98,16 +98,16 @@ namespace lgfx
 
     struct CMD : public PanelIlitekCommon::CommandCommon
     {
-      static constexpr std::uint8_t DFUNCTR = 0xB6;
-      static constexpr std::uint8_t PWCTR1  = 0xC0;
-      static constexpr std::uint8_t PWCTR2  = 0xC1;
-      static constexpr std::uint8_t VMCTR1  = 0xC5;
-      static constexpr std::uint8_t GMCTRP1 = 0xE0; // Positive Gamma Correction (E0h)
-      static constexpr std::uint8_t GMCTRN1 = 0xE1; // Negative Gamma Correction (E1h)
+      static constexpr uint8_t DFUNCTR = 0xB6;
+      static constexpr uint8_t PWCTR1  = 0xC0;
+      static constexpr uint8_t PWCTR2  = 0xC1;
+      static constexpr uint8_t VMCTR1  = 0xC5;
+      static constexpr uint8_t GMCTRP1 = 0xE0; // Positive Gamma Correction (E0h)
+      static constexpr uint8_t GMCTRN1 = 0xE1; // Negative Gamma Correction (E1h)
     };
 
-    const std::uint8_t* getInitCommands(std::uint8_t listno) const override {
-      static constexpr std::uint8_t list0[] = {
+    const uint8_t* getInitCommands(uint8_t listno) const override {
+      static constexpr uint8_t list0[] = {
           0xC8       ,  3, 0xFF,0x93,0x42,   // Turn on the external command
           CMD::PWCTR1,  2, 0x12, 0x12,
           CMD::PWCTR2,  1, 0x03,

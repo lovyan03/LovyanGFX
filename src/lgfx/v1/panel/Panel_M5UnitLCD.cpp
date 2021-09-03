@@ -43,7 +43,7 @@ namespace lgfx
     startWrite(true);
 
     _bus->writeCommand(CMD_READ_ID, 8);
-    std::uint8_t buf[4];
+    uint8_t buf[4];
     bool res = _bus->readBytes(buf, 4, true)
             && buf[0] == 0x77 && buf[1] == 0x89;
 
@@ -72,7 +72,7 @@ namespace lgfx
     _last_cmd = 0;
   }
 
-  bool Panel_M5UnitLCD::_check_repeat(std::uint32_t cmd, std::uint_fast8_t limit)
+  bool Panel_M5UnitLCD::_check_repeat(uint32_t cmd, uint_fast8_t limit)
   {
     switch (_last_cmd & ~7)
     {
@@ -99,9 +99,9 @@ namespace lgfx
       --_buff_free_count;
       return false;
     }
-    limit = std::min(255u, limit * 2);
+    limit = std::min<uint_fast8_t>(255, limit * 2);
 
-    std::size_t retry = 16;
+    size_t retry = 16;
     _buff_free_count = 255;
     while (!_bus->writeCommand(CMD_READ_BUFCOUNT, 8) && --retry);
     if (retry)
@@ -109,7 +109,7 @@ namespace lgfx
       retry = 255;
       do
       {
-        if (_bus->readBytes((std::uint8_t*)&_buff_free_count, 1))
+        if (_bus->readBytes((uint8_t*)&_buff_free_count, 1))
         {
           if (_buff_free_count >= limit)
           {
@@ -143,7 +143,7 @@ namespace lgfx
     return _write_depth;
   }
 
-  void Panel_M5UnitLCD::setRotation(std::uint_fast8_t r)
+  void Panel_M5UnitLCD::setRotation(uint_fast8_t r)
   {
     r &= 7;
     _rotation = r;
@@ -194,7 +194,7 @@ namespace lgfx
     endWrite();
   }
 
-  void Panel_M5UnitLCD::setBrightness(std::uint8_t brightness)
+  void Panel_M5UnitLCD::setBrightness(uint8_t brightness)
   {
     startWrite();
     _check_repeat();
@@ -202,16 +202,16 @@ namespace lgfx
     endWrite();
   }
 
-  void Panel_M5UnitLCD::writeBlock(std::uint32_t rawcolor, std::uint32_t length)
+  void Panel_M5UnitLCD::writeBlock(uint32_t rawcolor, uint32_t length)
   {
 /*
     do
     {
-      std::uint32_t h = 1;
-      auto w = std::min<std::uint32_t>(length, _xe + 1 - _xpos);
+      uint32_t h = 1;
+      auto w = std::min<uint32_t>(length, _xe + 1 - _xpos);
       if (length >= (w << 1) && _xpos == _xs)
       {
-        h = std::min<std::uint32_t>(length / w, _ye + 1 - _ypos);
+        h = std::min<uint32_t>(length / w, _ye + 1 - _ypos);
       }
       writeFillRectPreclipped(_xpos, _ypos, w, h, rawcolor);
       if ((_xpos += w) <= _xe) return;
@@ -221,15 +221,15 @@ namespace lgfx
     } while (length);
 /*/
     _raw_color = rawcolor;
-    std::size_t bytes = (rawcolor == 0) ? 1 : (_write_bits >> 3);
-    std::uint8_t buf[(length >> 8) * (bytes + 1) + 2];
+    size_t bytes = (rawcolor == 0) ? 1 : (_write_bits >> 3);
+    auto buf = (uint8_t*)alloca((length >> 8) * (bytes + 1) + 2);
     buf[0] = CMD_WRITE_RLE | bytes;
-    std::size_t idx = _check_repeat(buf[0]) ? 0 : 1;
+    size_t idx = _check_repeat(buf[0]) ? 0 : 1;
     //_check_repeat(buf[0]);
-    //std::size_t idx = 1;
+    //size_t idx = 1;
     do
     {
-      std::uint32_t len = (length < 0x100)
+      uint32_t len = (length < 0x100)
                         ? length : 0xFF;
       buf[idx++] = len;
       auto color = rawcolor;
@@ -244,7 +244,7 @@ namespace lgfx
 //*/
   }
 
-  void Panel_M5UnitLCD::drawPixelPreclipped(std::uint_fast16_t x, std::uint_fast16_t y, std::uint32_t rawcolor)
+  void Panel_M5UnitLCD::drawPixelPreclipped(uint_fast16_t x, uint_fast16_t y, uint32_t rawcolor)
   {
     startWrite();
     _check_repeat();
@@ -252,7 +252,7 @@ namespace lgfx
     endWrite();
   }
 
-  void Panel_M5UnitLCD::_fill_rect(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, std::uint_fast8_t bytes)
+  void Panel_M5UnitLCD::_fill_rect(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, uint_fast8_t bytes)
   {
     _xs = x;
     _ys = y;
@@ -260,10 +260,10 @@ namespace lgfx
     _ye = y + h - 1;
 
     _check_repeat();
-    std::uint8_t buf[16];
+    uint8_t buf[16];
     bool rect = (w > 1) || (h > 1);
     buf[0] = (rect ? CMD_FILLRECT : CMD_DRAWPIXEL) | bytes;
-    std::size_t idx = 1;
+    size_t idx = 1;
     bool flg_large = (_cfg.memory_width >= 256) || (_cfg.memory_height >= 256);
     if (flg_large) { buf[idx++] = _xs >> 8; }  buf[idx++] = _xs;
     if (flg_large) { buf[idx++] = _ys >> 8; }  buf[idx++] = _ys;
@@ -273,7 +273,7 @@ namespace lgfx
       if (flg_large) { buf[idx++] = _ye >> 8; }  buf[idx++] = _ye;
     }
     auto rawcolor = _raw_color;
-    for (std::size_t i = 0; i < bytes; ++i)
+    for (size_t i = 0; i < bytes; ++i)
     {
       buf[idx++] = rawcolor;
       rawcolor >>= 8;
@@ -281,9 +281,9 @@ namespace lgfx
     _bus->writeBytes(buf, idx, false, true);
   }
 
-  void Panel_M5UnitLCD::writeFillRectPreclipped(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, std::uint32_t rawcolor)
+  void Panel_M5UnitLCD::writeFillRectPreclipped(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, uint32_t rawcolor)
   {
-    std::size_t bytes = 0;
+    size_t bytes = 0;
     if (_raw_color != rawcolor)
     {
       _raw_color = rawcolor;
@@ -292,14 +292,14 @@ namespace lgfx
     _fill_rect(x, y, w, h, bytes);
   }
 
-  void Panel_M5UnitLCD::writeFillRectAlphaPreclipped(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, std::uint32_t argb8888)
+  void Panel_M5UnitLCD::writeFillRectAlphaPreclipped(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, uint32_t argb8888)
   {
     _raw_color = __builtin_bswap32(argb8888);
     _fill_rect(x, y, w, h, 4);
     _raw_color = ~0u;
   }
 
-  void Panel_M5UnitLCD::setWindow(std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye)
+  void Panel_M5UnitLCD::setWindow(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye)
   {
     _xpos = xs;
     _ypos = ys;
@@ -307,17 +307,17 @@ namespace lgfx
     _set_window(xs, ys, xe, ye);
     endWrite();
   }
-  void Panel_M5UnitLCD::_set_window(std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye)
+  void Panel_M5UnitLCD::_set_window(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye)
   {
-    std::uint8_t buf[10];
-    std::size_t idx = 0;
+    uint8_t buf[10];
+    size_t idx = 0;
     bool flg_large = (_cfg.memory_width >= 256) || (_cfg.memory_height >= 256);
     if (!flg_large)
     {
-      ys = std::min<std::uint_fast16_t>(ys, 255u);
-      ye = std::min<std::uint_fast16_t>(ye, 255u);
-      xs = std::min<std::uint_fast16_t>(xs, 255u);
-      xe = std::min<std::uint_fast16_t>(xe, 255u);
+      ys = std::min<uint_fast16_t>(ys, 255u);
+      ye = std::min<uint_fast16_t>(ye, 255u);
+      xs = std::min<uint_fast16_t>(xs, 255u);
+      xe = std::min<uint_fast16_t>(xe, 255u);
     }
     if (xs != _xs || xe != _xe)
     {
@@ -343,7 +343,7 @@ namespace lgfx
   }
 
 
-  static std::uint8_t* store_encoded(std::uint8_t* dst, const std::uint8_t* src, std::size_t data_num, std::size_t bytes)
+  static uint8_t* store_encoded(uint8_t* dst, const uint8_t* src, size_t data_num, size_t bytes)
   {
     *dst++ = data_num;
     memmove(dst, src, bytes);
@@ -351,7 +351,7 @@ namespace lgfx
     return dst;
   }
 
-  static std::uint8_t* store_absolute(std::uint8_t* dst, const std::uint8_t* src, std::size_t src_size, std::size_t bytes)
+  static uint8_t* store_absolute(uint8_t* dst, const uint8_t* src, size_t src_size, size_t bytes)
   {
     if (src_size >= 3)  // 絶対モード
     {
@@ -362,7 +362,7 @@ namespace lgfx
     }
     else  // RLEモード
     {
-      for (std::size_t i = 0; i < src_size; i++)
+      for (size_t i = 0; i < src_size; i++)
       {
         dst = store_encoded(dst, src + i * bytes, 1, bytes);
       }
@@ -370,15 +370,15 @@ namespace lgfx
     return dst;
   }
 /*
-  static std::size_t rleDecode(const std::uint8_t* src, std::size_t len, std::size_t bytes)
+  static size_t rleDecode(const uint8_t* src, size_t len, size_t bytes)
   {
-    std::size_t res = 0;
-    std::size_t idx = 0;
+    size_t res = 0;
+    size_t idx = 0;
     while (idx < len)
     {
       if (src[idx++] == 0)
       {
-        std::size_t abs_len = src[idx++];
+        size_t abs_len = src[idx++];
         idx += abs_len * bytes;
         res += abs_len;
         continue;
@@ -389,24 +389,24 @@ namespace lgfx
     return res;
   }
 */
-  static std::size_t rleEncode(std::uint8_t* dest, const std::uint8_t* src, std::size_t bytelen, std::size_t bytes)
+  static size_t rleEncode(uint8_t* dest, const uint8_t* src, size_t bytelen, size_t bytes)
   {
 /*
 Serial.printf("bytelen:%d bytes:%d\r\n", bytelen, bytes);
 for (int i = 0; i < bytelen; ++i) { Serial.printf("%02x ",src[i]); } Serial.println();
 //*/
-    static constexpr std::size_t maxbyte = 255;
+    static constexpr size_t maxbyte = 255;
 
-    std::uint8_t* pdest = dest;
-    const std::uint8_t* pabs = src;
-    const std::uint8_t* prev = src;
+    uint8_t* pdest = dest;
+    const uint8_t* pabs = src;
+    const uint8_t* prev = src;
  
-    std::int_fast16_t cont = 1;
-    std::int_fast16_t abso = 0;
+    int_fast16_t cont = 1;
+    int_fast16_t abso = 0;
 
-    for (std::size_t i = bytes; i < bytelen; i += bytes)
+    for (size_t i = bytes; i < bytelen; i += bytes)
     {
-      std::size_t byteidx = 0;
+      size_t byteidx = 0;
       while (src[i + byteidx] == src[i + byteidx - bytes] && ++byteidx != bytes);
 
       if (byteidx == bytes)
@@ -450,7 +450,7 @@ for (int i = 0; i < bytelen; ++i) { Serial.printf("%02x ",src[i]); } Serial.prin
       pdest = store_encoded(pdest, prev, cont, bytes);
     }
 /*
-std::size_t res = pdest - dest;
+size_t res = pdest - dest;
 if (bytelen != rleDecode(dest, res, bytes)*bytes) {
   Serial.printf("res:%d\r\n", res);
   for (int i = 0; i < res; ++i) { Serial.printf("%02x ",dest[i]); } Serial.println();
@@ -459,54 +459,55 @@ if (bytelen != rleDecode(dest, res, bytes)*bytes) {
     return pdest - dest;
   }
 //*
-  void Panel_M5UnitLCD::writePixels(pixelcopy_t* param, std::uint32_t length, bool use_dma)
+  void Panel_M5UnitLCD::writePixels(pixelcopy_t* param, uint32_t length, bool use_dma)
   {
+    (void)use_dma;
     auto bytes = _write_bits >> 3;
-    std::uint32_t wb = length * bytes;
+    uint32_t wb = length * bytes;
     auto dmabuf = _bus->getDMABuffer(wb + (wb >> 7) + 128);
     dmabuf[0] = CMD_WRITE_RLE | bytes;
-    std::size_t idx = _check_repeat(dmabuf[0]) ? 0 : 1;
+    size_t idx = _check_repeat(dmabuf[0]) ? 0 : 1;
 
     auto buf = &dmabuf[(wb >> 7) + 128];
     param->fp_copy(buf, 0, length, param);
-    std::size_t writelen = idx + rleEncode(&dmabuf[idx], buf, length * bytes, bytes);
+    size_t writelen = idx + rleEncode(&dmabuf[idx], buf, length * bytes, bytes);
     _bus->writeBytes(dmabuf, writelen, false, true);
     _raw_color = ~0u;
   }
 /*/
-  void Panel_M5UnitLCD::writePixels(pixelcopy_t* param, std::uint32_t length)
+  void Panel_M5UnitLCD::writePixels(pixelcopy_t* param, uint32_t length)
   {
     auto bytes = _write_bits >> 3;
-    std::uint32_t wb = length * bytes;
+    uint32_t wb = length * bytes;
     auto dmabuf = _bus->getDMABuffer(wb + (wb >> 7) + 1);
     dmabuf[0] = CMD_WRITE_RAW | _write_bits >> 3;
-    std::size_t idx = _check_repeat(dmabuf[0]) ? 0 : 1;
+    size_t idx = _check_repeat(dmabuf[0]) ? 0 : 1;
 
     auto buf = &dmabuf[idx];
     param->fp_copy(buf, 0, length, param);
-    std::size_t writelen = idx + wb;
+    size_t writelen = idx + wb;
     _bus->writeBytes(dmabuf, writelen, false, true);
     _raw_color = ~0u;
   }
 //*/
 /*
-  void Panel_M5UnitLCD::writeImage(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, pixelcopy_t* param, bool use_dma)
+  void Panel_M5UnitLCD::writeImage(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, pixelcopy_t* param, bool use_dma)
   {
-    std::uint32_t sx32 = param->src_x32;
+    uint32_t sx32 = param->src_x32;
     auto bytes = _write_bits >> 3;
-    std::uint32_t y_add = 1;
+    uint32_t y_add = 1;
     bool transp = (param->transp != pixelcopy_t::NON_TRANSP);
     if (!transp) { _set_window(x, y, x+w-1, y+h-1); }
-    std::uint32_t wb = w * bytes;
+    uint32_t wb = w * bytes;
     do
     {
-      std::uint32_t i = 0;
+      uint32_t i = 0;
       while (w != (i = param->fp_skip(i, w, param)))
       {
         auto dmabuf = _bus->getDMABuffer(wb + 1);
         dmabuf[0] = CMD_WRITE_RAW | ((_write_bits >> 3) & 3);
         auto buf = &dmabuf[1];
-        std::int32_t len = param->fp_copy(buf, 0, w - i, param);
+        int32_t len = param->fp_copy(buf, 0, w - i, param);
         if (transp) { _set_window(x + i, y, x + i + len - 1, y); }
         _bus->writeBytes(dmabuf, 1 + wb, false, true);
         if (w == (i += len)) break;
@@ -518,24 +519,25 @@ if (bytelen != rleDecode(dest, res, bytes)*bytes) {
     _raw_color = ~0u;
   }
 /*/
-  void Panel_M5UnitLCD::writeImage(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, pixelcopy_t* param, bool use_dma)
+  void Panel_M5UnitLCD::writeImage(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, pixelcopy_t* param, bool use_dma)
   {
+    (void)use_dma;
     // _xs_raw = ~0u;
     // _ys_raw = ~0u;
 
-    std::uint32_t sx32 = param->src_x32;
+    uint32_t sx32 = param->src_x32;
     auto bytes = _write_bits >> 3;
-    std::uint32_t y_add = 1;
-    std::uint32_t cmd = CMD_WRITE_RLE | bytes;
+    uint32_t y_add = 1;
+    uint32_t cmd = CMD_WRITE_RLE | bytes;
     bool transp = (param->transp != pixelcopy_t::NON_TRANSP);
     if (!transp)
     {
       _set_window(x, y, x+w-1, y+h-1);
     }
-    std::uint32_t wb = w * bytes;
+    uint32_t wb = w * bytes;
     do
     {
-      std::uint32_t i = 0;
+      uint32_t i = 0;
       while (w != (i = param->fp_skip(i, w, param)))
       {
         auto sub = (w - i) >> 2;
@@ -545,7 +547,7 @@ if (bytelen != rleDecode(dest, res, bytes)*bytes) {
         auto dmabuf = _bus->getDMABuffer(wb + (wb >> 7) + 128);
         dmabuf[0] = cmd;
         auto buf = &dmabuf[(wb >> 7) + 128];
-        std::int32_t len = param->fp_copy(buf, 0, w - i, param);
+        int32_t len = param->fp_copy(buf, 0, w - i, param);
         if (transp)
         {
           _set_window(x + i, y, x + i + len - 1, y);
@@ -554,8 +556,8 @@ if (bytelen != rleDecode(dest, res, bytes)*bytes) {
         {
           _bus->writeCommand(cmd, 8);
         }
-        std::size_t idx = 0;
-        std::size_t writelen = rleEncode(&dmabuf[idx], buf, len * bytes, bytes);
+        size_t idx = 0;
+        size_t writelen = rleEncode(&dmabuf[idx], buf, len * bytes, bytes);
         _bus->writeBytes(dmabuf, writelen, false, true);
         if (w == (i += len)) break;
       }
@@ -566,22 +568,22 @@ if (bytelen != rleDecode(dest, res, bytes)*bytes) {
     _raw_color = ~0u;
   }
 
-  void Panel_M5UnitLCD::writeImageARGB(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, pixelcopy_t* param)
+  void Panel_M5UnitLCD::writeImageARGB(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, pixelcopy_t* param)
   {
     _set_window(x, y, x + w - 1, y);
-    auto buf = (std::uint32_t*)param->src_data;
+    auto buf = (uint32_t*)param->src_data;
     if (!_check_repeat(CMD_WRITE_RAW_32))
     {
       writeCommand(CMD_WRITE_RAW_32, 1);
     }
-    for (std::size_t i = 0; i < w; ++i)
+    for (size_t i = 0; i < w; ++i)
     {
       _bus->writeCommand(__builtin_bswap32(buf[i]), 32);
     }
     _raw_color = ~0u;
   }
 
-  void Panel_M5UnitLCD::readRect(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, void* dst, pixelcopy_t* param)
+  void Panel_M5UnitLCD::readRect(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, void* dst, pixelcopy_t* param)
   {
     startWrite();
     int retry = 4;
@@ -593,7 +595,7 @@ if (bytelen != rleDecode(dest, res, bytes)*bytes) {
     _bus->writeCommand(CMD_READ_RAW | ((_read_bits >> 3) & 3), 8);
     if (param->no_convert)
     {
-      _bus->readBytes((std::uint8_t*)dst, w * h * _read_bits >> 3, true);
+      _bus->readBytes((uint8_t*)dst, w * h * _read_bits >> 3, true);
     }
     else
     {
@@ -607,10 +609,10 @@ if (bytelen != rleDecode(dest, res, bytes)*bytes) {
     }
   }
 
-  void Panel_M5UnitLCD::copyRect(std::uint_fast16_t dst_x, std::uint_fast16_t dst_y, std::uint_fast16_t w, std::uint_fast16_t h, std::uint_fast16_t src_x, std::uint_fast16_t src_y)
+  void Panel_M5UnitLCD::copyRect(uint_fast16_t dst_x, uint_fast16_t dst_y, uint_fast16_t w, uint_fast16_t h, uint_fast16_t src_x, uint_fast16_t src_y)
   {
-    std::uint8_t buf[16];
-    std::size_t idx = 0;
+    uint8_t buf[16];
+    size_t idx = 0;
     buf[idx++] = CMD_COPYRECT;
     auto xe = src_x + w - 1;
     auto ye = src_y + h - 1;

@@ -18,7 +18,7 @@ Contributors:
 #pragma once
 
 #include <vector>
-#include <cstring>
+#include <string.h>
 
 #include "../../Bus.hpp"
 #include "../common.hpp"
@@ -34,15 +34,15 @@ namespace lgfx
   public:
     struct config_t
     {
-      std::uint32_t freq_write = 16000000;
-      std::uint32_t freq_read  =  8000000;
+      uint32_t freq_write = 16000000;
+      uint32_t freq_read  =  8000000;
       //bool spi_3wire = true;
       //bool use_lock = true;
-      std::int16_t pin_sclk = -1;
-      std::int16_t pin_miso = -1;
-      std::int16_t pin_mosi = -1;
-      std::int16_t pin_dc   = -1;
-      std::uint8_t spi_mode = 0;
+      int16_t pin_sclk = -1;
+      int16_t pin_miso = -1;
+      int16_t pin_mosi = -1;
+      int16_t pin_dc   = -1;
+      uint8_t spi_mode = 0;
       SPI_TypeDef *spi_port = SPI1;
       DMA_TypeDef *dma_port = DMA1;
     };
@@ -61,34 +61,34 @@ namespace lgfx
     void wait(void) override;
     bool busy(void) const override;
 
-    void writeCommand(std::uint32_t data, std::uint_fast8_t bit_length) override;
-    void writeData(std::uint32_t data, std::uint_fast8_t bit_length) override;
-    void writeDataRepeat(std::uint32_t data, std::uint_fast8_t bit_length, std::uint32_t count) override;
-    void writePixels(pixelcopy_t* param, std::uint32_t length) override;
-    void writeBytes(const std::uint8_t* data, std::uint32_t length, bool dc, bool use_dma) override;
+    void writeCommand(uint32_t data, uint_fast8_t bit_length) override;
+    void writeData(uint32_t data, uint_fast8_t bit_length) override;
+    void writeDataRepeat(uint32_t data, uint_fast8_t bit_length, uint32_t count) override;
+    void writePixels(pixelcopy_t* param, uint32_t length) override;
+    void writeBytes(const uint8_t* data, uint32_t length, bool dc, bool use_dma) override;
 
     void initDMA(void) {}
-    void addDMAQueue(const std::uint8_t* data, std::uint32_t length) override { writeBytes(data, length, true, true); }
+    void addDMAQueue(const uint8_t* data, uint32_t length) override { writeBytes(data, length, true, true); }
     void execDMAQueue(void) {}
-    std::uint8_t* getDMABuffer(std::uint32_t length) override { return _flip_buffer.getBuffer(length); }
+    uint8_t* getDMABuffer(uint32_t length) override { return _flip_buffer.getBuffer(length); }
 
     void beginRead(void) override;
     void endRead(void) override;
-    std::uint32_t readData(std::uint_fast8_t bit_length) override;
-    void readBytes(std::uint8_t* dst, std::uint32_t length, bool use_dma) override;
-    void readPixels(void* dst, pixelcopy_t* param, std::uint32_t length) override;
+    uint32_t readData(uint_fast8_t bit_length) override;
+    void readBytes(uint8_t* dst, uint32_t length, bool use_dma) override;
+    void readPixels(void* dst, pixelcopy_t* param, uint32_t length) override;
 
   private:
 
 #if defined(STM32H7xx) || defined(STM32MP1xx)
-      static constexpr std::uint32_t sr_mask = SPI_SR_TXP;
+      static constexpr uint32_t sr_mask = SPI_SR_TXP;
 #else
-      static constexpr std::uint32_t sr_mask = SPI_SR_TXE;
+      static constexpr uint32_t sr_mask = SPI_SR_TXE;
 #endif
 
     __attribute__ ((always_inline)) inline void wait_spi(void)
     {
-      volatile std::uint32_t *spisr = &_cfg.spi_port->SR;
+      volatile uint32_t *spisr = &_cfg.spi_port->SR;
       do {} while (*spisr & SPI_SR_BSY);
     }
 
@@ -96,7 +96,7 @@ namespace lgfx
     {
       auto gpio_reg_dc = _gpio_reg_dc;
       auto mask_reg_dc = flg ? _mask_reg_dc_h : _mask_reg_dc_l;
-      volatile std::uint32_t *spisr = &_cfg.spi_port->SR;
+      volatile uint32_t *spisr = &_cfg.spi_port->SR;
       do {} while (*spisr & SPI_SR_BSY);
       *gpio_reg_dc = mask_reg_dc;
     }
@@ -105,7 +105,7 @@ namespace lgfx
     {
       auto gpio_reg_dc = _gpio_reg_dc;
       auto mask_reg_dc = _mask_reg_dc_h;
-      volatile std::uint32_t *spisr = &_cfg.spi_port->SR;
+      volatile uint32_t *spisr = &_cfg.spi_port->SR;
       do {} while (*spisr & SPI_SR_BSY);
       *gpio_reg_dc = mask_reg_dc;
     }
@@ -114,7 +114,7 @@ namespace lgfx
     {
       auto gpio_reg_dc = _gpio_reg_dc;
       auto mask_reg_dc = _mask_reg_dc_l;
-      volatile std::uint32_t *spisr = &_cfg.spi_port->SR;
+      volatile uint32_t *spisr = &_cfg.spi_port->SR;
       do {} while (*spisr & SPI_SR_BSY);
       *gpio_reg_dc = mask_reg_dc;
     }
@@ -122,12 +122,12 @@ namespace lgfx
     config_t _cfg;
     FlipBuffer _flip_buffer;
     bool _need_wait;
-    std::uint32_t _mask_reg_dc_h;
-    std::uint32_t _mask_reg_dc_l;
-    std::uint32_t _last_apb_freq = -1;
-    std::uint32_t _clkdiv_write;
-    std::uint32_t _clkdiv_read;
-    volatile std::uint32_t* _gpio_reg_dc;
+    uint32_t _mask_reg_dc_h;
+    uint32_t _mask_reg_dc_l;
+    uint32_t _last_apb_freq = -1;
+    uint32_t _clkdiv_write;
+    uint32_t _clkdiv_read;
+    volatile uint32_t* _gpio_reg_dc;
     DMA_HandleTypeDef _dmaHal;
     SPI_HandleTypeDef _spiHal;
   };

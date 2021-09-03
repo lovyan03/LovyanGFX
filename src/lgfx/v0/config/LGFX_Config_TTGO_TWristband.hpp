@@ -34,8 +34,8 @@ class LGFX : public lgfx::LGFX_SPI<lgfx::LGFX_Config>
     }
 /*
   protected:
-    const std::uint8_t* getInitCommands(std::uint8_t listno) const override {
-      static constexpr std::uint8_t list[] = {
+    const uint8_t* getInitCommands(uint8_t listno) const override {
+      static constexpr uint8_t list[] = {
           CMD::GAMMASET, 1, 0x08,  // Gamma set, curve 4
           0xFF,0xFF, // end
       };

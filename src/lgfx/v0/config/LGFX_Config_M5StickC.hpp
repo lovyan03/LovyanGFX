@@ -27,8 +27,8 @@ namespace lgfx
       offset_rotation = 2;
     }
   protected:
-    const std::uint8_t* getInitCommands(std::uint8_t listno) const override {
-      static constexpr std::uint8_t list[] = {
+    const uint8_t* getInitCommands(uint8_t listno) const override {
+      static constexpr uint8_t list[] = {
           CMD::GAMMASET, 1, 0x08,  // Gamma set, curve 4
           0xFF,0xFF, // end
       };
@@ -74,7 +74,7 @@ public:
     _panel->init();
     lgfx::LGFX_SPI<lgfx::LGFX_Config>::initPanel();
 
-    std::uint32_t id = readPanelID();
+    uint32_t id = readPanelID();
     ESP_LOGW("LovyanGFX", "[Autodetect] panel id:%08x", id);
     if ((id & 0xFF) == 0x85) {  //  check panel (ST7735 or ST7789)
       ESP_LOGW("LovyanGFX", "[Autodetect] Using Panel_ST7789");

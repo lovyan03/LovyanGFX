@@ -20,7 +20,7 @@ namespace lgfx
     }
     bool init(void) override;
 
-    std::uint_fast8_t getTouch(touch_point_t* tp, std::int_fast8_t number) override;
+    uint_fast8_t getTouch(touch_point_t* tp, int_fast8_t number) override;
 
   private:
     int _spi_mode = 0;

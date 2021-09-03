@@ -10,22 +10,12 @@
 #include "../Fonts/efont/lgfx_efont_kr.h"
 #include "../Fonts/efont/lgfx_efont_tw.h"
 
-#include <algorithm>
-#include <cstdint>
-#include <cstddef>
-#include <cmath>
+#include <stdint.h>
+#include <stddef.h>
+#include <math.h>
+#include "../internal/algorithm.h"
 
-#if !defined (pgm_read_byte)
-  #if __has_include(<pgmspace.h>)
-    #include <pgmspace.h>
-  #elif __has_include(<avr/pgmspace.h>)
-    #include <avr/pgmspace.h>
-  #else
-    #define pgm_read_byte(addr)  (*(const std::uint8_t  *)((std::size_t)addr))
-    #define pgm_read_word(addr)  (*(const std::uint16_t *)((std::size_t)addr))
-    #define pgm_read_dword(addr) (*(const std::uint32_t *)((std::size_t)addr))
-  #endif
-#endif
+#include "../utility/pgmspace.h"
 
 #ifndef PROGMEM
 #define PROGMEM
@@ -37,16 +27,16 @@ namespace lgfx
  {
   struct glcd_fontinfo_t
   {
-    std::uint8_t start;
-    std::uint8_t end;
-    std::uint8_t datawidth;
+    uint8_t start;
+    uint8_t end;
+    uint8_t datawidth;
   };
 
-  std::size_t IFont::drawCharDummy(LGFXBase* gfx, std::int32_t x, std::int32_t y, std::int32_t w, std::int32_t h, const TextStyle* style, std::int32_t& filled_x) const
+  size_t IFont::drawCharDummy(LGFXBase* gfx, int32_t x, int32_t y, int32_t w, int32_t h, const TextStyle* style, int32_t& filled_x) const
   {
-    std::int32_t sx = 65536 * style->size_x;
+    int32_t sx = 65536 * style->size_x;
     w = (w * sx) >> 16;
-    std::int32_t sy = 65536 * style->size_y;
+    int32_t sy = 65536 * style->size_y;
     h = (h * sy) >> 16;
     gfx->startWrite();
     if (style->fore_rgb888 != style->back_rgb888)
@@ -78,13 +68,14 @@ namespace lgfx
     metrics->y_advance = y_advance;
   }
 
-  bool GLCDfont::updateFontMetric(FontMetrics*, std::uint16_t uniCode) const {
+  bool GLCDfont::updateFontMetric(FontMetrics*, uint16_t uniCode) const {
     auto info = reinterpret_cast<const glcd_fontinfo_t*>(widthtbl);
     return info->start <= uniCode && uniCode <= info->end;
   }
 
-  std::size_t GLCDfont::drawChar(LGFXBase* gfx, std::int32_t x, std::int32_t y, std::uint16_t c, const TextStyle* style, FontMetrics* metrics, std::int32_t& filled_x) const
+  size_t GLCDfont::drawChar(LGFXBase* gfx, int32_t x, int32_t y, uint16_t c, const TextStyle* style, FontMetrics* metrics, int32_t& filled_x) const
   {
+    (void)metrics;
     auto info = reinterpret_cast<const glcd_fontinfo_t*>(widthtbl);
     if (c < pgm_read_byte(&info->start) || pgm_read_byte(&info->end) < c)
     {
@@ -97,35 +88,35 @@ namespace lgfx
 
     c -= pgm_read_byte(&info->start);
 
-    const std::int32_t fontWidth  = this->width;
-    const std::int32_t fontHeight = this->height;
+    const int32_t fontWidth  = this->width;
+    const int32_t fontHeight = this->height;
 
     const auto datawidth = pgm_read_byte(&info->datawidth);
     auto font_addr = this->chartbl + (c * datawidth);
     auto cc = gfx->getColorConverter();
     bool fillbg = (style->back_rgb888 != style->fore_rgb888);
-    std::uint32_t colortbl[2] = { cc->convert(style->back_rgb888), cc->convert(style->fore_rgb888) };
+    uint32_t colortbl[2] = { cc->convert(style->back_rgb888), cc->convert(style->fore_rgb888) };
 
-    const std::int32_t sy = 65536 * style->size_y;
-    const std::int32_t sx = 65536 * style->size_x;
+    const int32_t sy = 65536 * style->size_y;
+    const int32_t sx = 65536 * style->size_x;
 
     gfx->startWrite();
 
-    std::uint32_t x1 = 0;
-    std::int_fast8_t i = 0;
+    uint32_t x1 = 0;
+    int_fast8_t i = 0;
     do
     {
-      std::uint_fast8_t line = pgm_read_byte(&font_addr[i]);
-      std::uint_fast8_t flg = (line & 0x01);
-      std::int_fast8_t j = 1;
-      std::uint32_t y1 = 0;
-      std::uint32_t x0 = x1;
+      uint_fast8_t line = pgm_read_byte(&font_addr[i]);
+      uint_fast8_t flg = (line & 0x01);
+      int_fast8_t j = 1;
+      uint32_t y1 = 0;
+      uint32_t x0 = x1;
       x1 = (++i * sx) >> 16;
-      std::uint32_t w = x1 - x0;
+      uint32_t w = x1 - x0;
       do
       {
         while (flg == ((line >> j) & 0x01) && ++j < fontHeight);
-        std::uint32_t y0 = y1;
+        uint32_t y0 = y1;
         y1 = (j * sy) >> 16;
         if (flg || fillbg)
         {
@@ -137,7 +128,7 @@ namespace lgfx
       x += w;
     } while (i < datawidth);
 
-    std::uint32_t x2 = (fontWidth * sx) >> 16;
+    uint32_t x2 = (fontWidth * sx) >> 16;
     if (fillbg && datawidth < fontWidth)
     {
       gfx->setRawColor(colortbl[0]);
@@ -148,18 +139,18 @@ namespace lgfx
     return x2;
   }
 
-  static std::size_t draw_char_bmp(LGFXBase* gfx, std::int32_t x, std::int32_t y, const TextStyle* style, const std::uint8_t* font_addr, std::int_fast8_t fontWidth, std::int_fast8_t fontHeight, std::int_fast8_t w, std::int_fast8_t margin)
+  static size_t draw_char_bmp(LGFXBase* gfx, int32_t x, int32_t y, const TextStyle* style, const uint8_t* font_addr, int_fast8_t fontWidth, int_fast8_t fontHeight, int_fast8_t w, int_fast8_t margin)
   {
-    std::uint32_t colortbl[2] = {gfx->getColorConverter()->convert(style->back_rgb888), gfx->getColorConverter()->convert(style->fore_rgb888)};
+    uint32_t colortbl[2] = {gfx->getColorConverter()->convert(style->back_rgb888), gfx->getColorConverter()->convert(style->fore_rgb888)};
     bool fillbg = (style->back_rgb888 != style->fore_rgb888);
 
-    //std::int32_t clip_left   = gfx->_clip_l;
-    //std::int32_t clip_right  = gfx->_clip_r;
-    //std::int32_t clip_top    = gfx->_clip_t;
-    //std::int32_t clip_bottom = gfx->_clip_b;
+    //int32_t clip_left   = gfx->_clip_l;
+    //int32_t clip_right  = gfx->_clip_r;
+    //int32_t clip_top    = gfx->_clip_t;
+    //int32_t clip_bottom = gfx->_clip_b;
 
-    std::int32_t sx = 65536 * style->size_x;
-    std::int32_t sy = 65536 * style->size_y;
+    int32_t sx = 65536 * style->size_x;
+    int32_t sy = 65536 * style->size_y;
 
     //if ((x <= clip_right) && (clip_left < (x + fontWidth * sx ))
     // && (y <= clip_bottom) && (clip_top < (y + sh )))
@@ -167,32 +158,32 @@ namespace lgfx
       gfx->startWrite();
       if (fillbg && margin)
       {
-        std::int32_t x0 = ((fontWidth - margin) * sx) >> 16;
-        std::int32_t x1 = ((fontWidth         ) * sx) >> 16;
+        int32_t x0 = ((fontWidth - margin) * sx) >> 16;
+        int32_t x1 = ((fontWidth         ) * sx) >> 16;
         if (x0 < x1) {
           gfx->setRawColor(colortbl[0]);
           gfx->writeFillRect(x + x0, y, x1 - x0, (fontHeight * sy) >> 16);
         }
       }
-      std::int32_t i = 0;
-      std::int32_t y1 = 0;
-      std::int32_t y0 = - 1;
-      std::int32_t height = (sy * fontHeight) >> 16;
+      int32_t i = 0;
+      int32_t y1 = 0;
+      int32_t y0 = - 1;
+      int32_t height = (sy * fontHeight) >> 16;
       do {
         bool fill = y0 != y1;
         y0 = y1;
         y1 = (++i * sy) >> 16;
-        std::int32_t h = (y1 < height && y0 == y1) ? 1 : (y1 - y0);
-        std::uint8_t line = pgm_read_byte(&font_addr[0]);
+        int32_t h = (y1 < height && y0 == y1) ? 1 : (y1 - y0);
+        uint8_t line = pgm_read_byte(&font_addr[0]);
         bool flg = line & 0x80;
-        std::int_fast8_t j = 1;
-        std::int_fast8_t je = fontWidth - margin;
-        std::int32_t x0 = 0;
+        int_fast8_t j = 1;
+        int_fast8_t je = fontWidth - margin;
+        int32_t x0 = 0;
         do {
           do {
             if (0 == (j & 7)) line = pgm_read_byte(&font_addr[j >> 3]);
           } while (flg == (bool)(line & (0x80) >> (j&7)) && ++j < je);
-          std::int32_t x1 = (j * sx) >> 16;
+          int32_t x1 = (j * sx) >> 16;
           if (flg || (fillbg && fill)) {
             gfx->setRawColor(colortbl[flg]);
             if (flg && x1 == x0) ++x1;
@@ -210,27 +201,28 @@ namespace lgfx
   }
 
 
-  bool FixedBMPfont::updateFontMetric(FontMetrics *metrics, std::uint16_t uniCode) const {
+  bool FixedBMPfont::updateFontMetric(FontMetrics *metrics, uint16_t uniCode) const {
     metrics->x_advance = metrics->width = this->width;
     auto info = reinterpret_cast<const glcd_fontinfo_t*>(widthtbl);
     return info->start <= uniCode && uniCode <= info->end;
   }
 
-  bool BMPfont::updateFontMetric(FontMetrics *metrics, std::uint16_t uniCode) const {
+  bool BMPfont::updateFontMetric(FontMetrics *metrics, uint16_t uniCode) const {
     bool res = ((uniCode -= 0x20u) < 0x60u);
     if (!res) uniCode = 0;
     metrics->x_advance = metrics->width = pgm_read_byte(&this->widthtbl[uniCode]);
     return res;
   }
 
-  bool BDFfont::updateFontMetric(FontMetrics *metrics, std::uint16_t uniCode) const {
+  bool BDFfont::updateFontMetric(FontMetrics *metrics, uint16_t uniCode) const {
     metrics->x_advance = metrics->width = (uniCode < 0x0100) ? halfwidth : width;
     return true;
   }
 
-  std::size_t FixedBMPfont::drawChar(LGFXBase* gfx, std::int32_t x, std::int32_t y, std::uint16_t uniCode, const TextStyle* style, FontMetrics* metrics, std::int32_t& filled_x) const
+  size_t FixedBMPfont::drawChar(LGFXBase* gfx, int32_t x, int32_t y, uint16_t uniCode, const TextStyle* style, FontMetrics* metrics, int32_t& filled_x) const
   { // BMP font
-    const std::int_fast16_t fontHeight = this->height;
+    (void)metrics;
+    const int_fast16_t fontHeight = this->height;
 
     auto info = reinterpret_cast<const glcd_fontinfo_t*>(widthtbl);
     if (info->start > uniCode || uniCode > info->end) { return drawCharDummy(gfx, x, y, width, fontHeight, style, filled_x); }
@@ -240,62 +232,65 @@ namespace lgfx
       uniCode++; // Handle 'classic' charset behavior
     }
     uniCode -= info->start;
-    std::int_fast8_t w = (width + 7) >> 3;
-    auto font_addr = (const std::uint8_t*) &chartbl[uniCode * w * fontHeight];
+    int_fast8_t w = (width + 7) >> 3;
+    auto font_addr = (const uint8_t*) &chartbl[uniCode * w * fontHeight];
     return draw_char_bmp(gfx, x, y, style, font_addr, width, fontHeight, (width + 7) >> 3, 0);
   }
 
-  std::size_t BMPfont::drawChar(LGFXBase* gfx, std::int32_t x, std::int32_t y, std::uint16_t uniCode, const TextStyle* style, FontMetrics* metrics, std::int32_t& filled_x) const
+  size_t BMPfont::drawChar(LGFXBase* gfx, int32_t x, int32_t y, uint16_t uniCode, const TextStyle* style, FontMetrics* metrics, int32_t& filled_x) const
   { // BMP font
+    (void)metrics;
     if ((uniCode -= 0x20u) >= 0x60u) return drawCharDummy(gfx, x, y, this->widthtbl[0], this->height, style, filled_x);
-    const std::int_fast8_t fontWidth = pgm_read_byte(&this->widthtbl[uniCode]);
-    const std::int_fast8_t fontHeight = this->height;
+    const int_fast8_t fontWidth = pgm_read_byte(&this->widthtbl[uniCode]);
+    const int_fast8_t fontHeight = this->height;
 
-    auto font_addr = ((const std::uint8_t**)this->chartbl)[uniCode];
+    auto font_addr = ((const uint8_t**)this->chartbl)[uniCode];
     return draw_char_bmp(gfx, x, y, style, font_addr, fontWidth, fontHeight, (fontWidth + 6) >> 3, 1);
   }
 
-  std::size_t BDFfont::drawChar(LGFXBase* gfx, std::int32_t x, std::int32_t y, std::uint16_t c, const TextStyle* style, FontMetrics* metrics, std::int32_t& filled_x) const
+  size_t BDFfont::drawChar(LGFXBase* gfx, int32_t x, int32_t y, uint16_t c, const TextStyle* style, FontMetrics* metrics, int32_t& filled_x) const
   {
-    const std::int_fast8_t bytesize = (this->width + 7) >> 3;
-    const std::int_fast8_t fontHeight = this->height;
-    const std::int_fast8_t fontWidth = (c < 0x0100) ? this->halfwidth : this->width;
+    (void)metrics;
+    const int_fast8_t bytesize = (this->width + 7) >> 3;
+    const int_fast8_t fontHeight = this->height;
+    const int_fast8_t fontWidth = (c < 0x0100) ? this->halfwidth : this->width;
     auto it = std::lower_bound(this->indextbl, &this->indextbl[this->indexsize], c);
     if (*it != c) return drawCharDummy(gfx, x, y, fontWidth, fontHeight, style, filled_x);
 
-    const std::uint8_t* font_addr = &this->chartbl[std::distance(this->indextbl, it) * fontHeight * bytesize];
+    const uint8_t* font_addr = &this->chartbl[std::distance(this->indextbl, it) * fontHeight * bytesize];
     return draw_char_bmp(gfx, x, y, style, font_addr, fontWidth, fontHeight, bytesize, 0);
   }
 
-  std::size_t RLEfont::drawChar(LGFXBase* gfx, std::int32_t x, std::int32_t y, std::uint16_t code, const TextStyle* style, FontMetrics* metrics, std::int32_t& filled_x) const
+  size_t RLEfont::drawChar(LGFXBase* gfx, int32_t x, int32_t y, uint16_t code, const TextStyle* style, FontMetrics* metrics, int32_t& filled_x) const
   { // RLE font
+    (void)metrics;
     if ((code -= 0x20u) >= 0x60u) return drawCharDummy(gfx, x, y, this->widthtbl[0], this->height, style, filled_x);
 
-    const std::uint_fast16_t fontWidth = pgm_read_byte(&this->widthtbl[code]);
-    const std::uint_fast16_t fontHeight = this->height;
+    const uint_fast16_t fontWidth = pgm_read_byte(&this->widthtbl[code]);
+    const uint_fast16_t fontHeight = this->height;
 
-    auto font_addr = ((const std::uint8_t**)this->chartbl)[code];
+    auto font_addr = ((const uint8_t**)this->chartbl)[code];
 
-    std::uint32_t colortbl[2] = {gfx->getColorConverter()->convert(style->back_rgb888), gfx->getColorConverter()->convert(style->fore_rgb888)};
+    uint32_t colortbl[2] = {gfx->getColorConverter()->convert(style->back_rgb888), gfx->getColorConverter()->convert(style->fore_rgb888)};
     bool fillbg = (style->back_rgb888 != style->fore_rgb888);
 
-    //std::int32_t clip_left   = gfx->_clip_l;
-    //std::int32_t clip_right  = gfx->_clip_r;
-    //std::int32_t clip_top    = gfx->_clip_t;
-    //std::int32_t clip_bottom = gfx->_clip_b;
+    //int32_t clip_left   = gfx->_clip_l;
+    //int32_t clip_right  = gfx->_clip_r;
+    //int32_t clip_top    = gfx->_clip_t;
+    //int32_t clip_bottom = gfx->_clip_b;
 
-    std::int32_t sx = 65536 * style->size_x;
-    std::int32_t sy = 65536 * style->size_y;
+    int32_t sx = 65536 * style->size_x;
+    int32_t sy = 65536 * style->size_y;
 
     //if ((x <= clip_right) && (clip_left < (x + fontWidth  * sx ))
     // && (y <= clip_bottom) && (clip_top < (y + fontHeight * sy )))
     {
       bool flg = false;
-      std::uint_fast8_t line = 0, i = 1, j = 0;
-      std::int32_t len;
-      std::int32_t y0 = 0;
-      std::int32_t y1 = sy >> 16;
-      std::int32_t x0 = 0;
+      uint_fast8_t line = 0, i = 1, j = 0;
+      int32_t len;
+      int32_t y0 = 0;
+      int32_t y1 = sy >> 16;
+      int32_t x0 = 0;
       gfx->startWrite();
       do {
         line = pgm_read_byte(font_addr++);
@@ -305,7 +300,7 @@ namespace lgfx
           len = (line > fontWidth - j) ? fontWidth - j : line;
           line -= len;
           j += len;
-          std::int32_t x1 = (j * sx) >> 16;
+          int32_t x1 = (j * sx) >> 16;
           if (fillbg || flg) {
             gfx->setRawColor(colortbl[flg]);
             gfx->writeFillRect( x + x0, y + y0, x1 - x0, y1 - y0);
@@ -329,7 +324,7 @@ namespace lgfx
 
 //----------------------------------------------------------------------------
 
-  bool GFXfont::updateFontMetric(lgfx::FontMetrics *metrics, std::uint16_t uniCode) const {
+  bool GFXfont::updateFontMetric(lgfx::FontMetrics *metrics, uint16_t uniCode) const {
     auto glyph = getGlyph(uniCode);
     bool res = glyph;
     if (!res)
@@ -348,10 +343,10 @@ namespace lgfx
     return res;
   }
 
-  GFXglyph* GFXfont::getGlyph(std::uint16_t uniCode) const {
+  GFXglyph* GFXfont::getGlyph(uint16_t uniCode) const {
     if (uniCode > last
     ||  uniCode < first) return nullptr;
-    std::uint16_t custom_range_num = range_num;
+    uint16_t custom_range_num = range_num;
     if (custom_range_num == 0) {
       uniCode -= first;
       return &glyph[uniCode];
@@ -368,14 +363,14 @@ namespace lgfx
 
   void GFXfont::getDefaultMetric(lgfx::FontMetrics *metrics) const
   {
-    std::int_fast8_t glyph_ab = 0;   // glyph delta Y (height) above baseline
-    std::int_fast8_t glyph_bb = 0;   // glyph delta Y (height) below baseline
-    std::size_t numChars = last - first;
+    int_fast8_t glyph_ab = 0;   // glyph delta Y (height) above baseline
+    int_fast8_t glyph_bb = 0;   // glyph delta Y (height) below baseline
+    size_t numChars = last - first;
 
-    std::size_t custom_range_num = range_num;
+    size_t custom_range_num = range_num;
     if (custom_range_num != 0) {
       EncodeRange *range_pst = range;
-      std::size_t i = 0;
+      size_t i = 0;
       numChars = custom_range_num;
       do {
         numChars += range_pst[i].end - range_pst[i].start;
@@ -383,13 +378,13 @@ namespace lgfx
     }
 
     // Find the biggest above and below baseline offsets
-    std::size_t c = 0;
+    size_t c = 0;
     do
     {
       GFXglyph *glyph1 = &glyph[c];
-      std::int_fast8_t ab = -glyph1->yOffset;
+      int_fast8_t ab = -glyph1->yOffset;
       if (ab > glyph_ab) glyph_ab = ab;
-      std::int_fast8_t bb = glyph1->height - ab;
+      int_fast8_t bb = glyph1->height - ab;
       if (bb > glyph_bb) glyph_bb = bb;
     } while ( ++c < numChars );
 
@@ -399,9 +394,9 @@ namespace lgfx
     metrics->y_advance = yAdvance;
   }
 
-  std::size_t GFXfont::drawChar(LGFXBase* gfx, std::int32_t x, std::int32_t y, std::uint16_t uniCode, const TextStyle* style, FontMetrics* metrics, std::int32_t& filled_x) const
+  size_t GFXfont::drawChar(LGFXBase* gfx, int32_t x, int32_t y, uint16_t uniCode, const TextStyle* style, FontMetrics* metrics, int32_t& filled_x) const
   {
-    std::int32_t sy = 65536 * style->size_y;
+    int32_t sy = 65536 * style->size_y;
     y += (metrics->y_offset * sy) >> 16;
     auto glyph = this->getGlyph(uniCode);
     if (!glyph)
@@ -411,18 +406,18 @@ namespace lgfx
       return 0;
     }
 
-    std::int32_t w = glyph->width;
-    std::int32_t h = glyph->height;
+    int32_t w = glyph->width;
+    int32_t h = glyph->height;
 
-    std::int32_t sx = 65536 * style->size_x;
+    int32_t sx = 65536 * style->size_x;
 
-    std::int32_t xAdvance = sx * glyph->xAdvance >> 16;
-    std::int32_t xoffset  = sx * glyph->xOffset  >> 16;
+    int32_t xAdvance = sx * glyph->xAdvance >> 16;
+    int32_t xoffset  = sx * glyph->xOffset  >> 16;
 
-    std::uint32_t colortbl[2] = {gfx->getColorConverter()->convert(style->back_rgb888), gfx->getColorConverter()->convert(style->fore_rgb888)};
+    uint32_t colortbl[2] = {gfx->getColorConverter()->convert(style->back_rgb888), gfx->getColorConverter()->convert(style->fore_rgb888)};
     bool fillbg = (style->back_rgb888 != style->fore_rgb888);
-    std::int32_t left  = 0;
-    std::int32_t right = 0;
+    int32_t left  = 0;
+    int32_t right = 0;
     if (fillbg) {
       left  = std::max<int>(filled_x, x + (xoffset < 0 ? xoffset : 0));
       right = x + std::max<int>((w * sx >> 16) + xoffset, xAdvance);
@@ -431,7 +426,7 @@ namespace lgfx
     }
 
     x += xoffset;
-    std::int32_t yoffset = (- metrics->y_offset) + glyph->yOffset;
+    int32_t yoffset = (- metrics->y_offset) + glyph->yOffset;
 
     gfx->startWrite();
 
@@ -439,27 +434,27 @@ namespace lgfx
       if (yoffset > 0) {
         gfx->writeFillRect(left, y, right - left, (yoffset * sy) >> 16);
       }
-      std::int32_t y0 = ((yoffset + h)   * sy) >> 16;
-      std::int32_t y1 = (metrics->height * sy) >> 16;
+      int32_t y0 = ((yoffset + h)   * sy) >> 16;
+      int32_t y1 = (metrics->height * sy) >> 16;
       if (y0 < y1) {
         gfx->writeFillRect(left, y + y0, right - left, y1 - y0);
       }
     }
 
-    std::uint8_t *bitmap = &this->bitmap[glyph->bitmapOffset];
-    std::uint8_t mask=0x80;
+    uint8_t *bitmap = &this->bitmap[glyph->bitmapOffset];
+    uint8_t mask=0x80;
 
     gfx->setRawColor(colortbl[1]);
-    std::int_fast8_t i = 0;
-    std::int32_t limit_height = ((h + yoffset) * sy) >> 16;
-    std::int32_t limit_width  = ( w            * sx) >> 16;
-    std::int32_t y1 = (yoffset * sy) >> 16;
-    std::int32_t y0 = y1 - 1;
+    int_fast8_t i = 0;
+    int32_t limit_height = ((h + yoffset) * sy) >> 16;
+    int32_t limit_width  = ( w            * sx) >> 16;
+    int32_t y1 = (yoffset * sy) >> 16;
+    int32_t y0 = y1 - 1;
     do {
       bool fill = y0 != y1;
       y0 = y1;
       y1 = ((++i + yoffset) * sy) >> 16;
-      std::int32_t fh = (y1 < limit_height && y1 == y0) ? 1 : (y1 - y0);
+      int32_t fh = (y1 < limit_height && y1 == y0) ? 1 : (y1 - y0);
       //if (!fh) fh = 1;
       if (left < right && fill) {
         gfx->setRawColor(colortbl[0]);
@@ -467,8 +462,8 @@ namespace lgfx
         gfx->setRawColor(colortbl[1]);
       }
 
-      std::int32_t j = 0;
-      std::int32_t x0 = 0;
+      int32_t j = 0;
+      int32_t x0 = 0;
       bool flg = false;
       do {
         do {
@@ -478,9 +473,9 @@ namespace lgfx
             ++bitmap;
           }
         } while (++j < w);
-        std::int32_t x1 = (j * sx) >> 16;
+        int32_t x1 = (j * sx) >> 16;
         if (flg) {
-          std::int32_t fw = (x1 < limit_width && x1 == x0) ? 1 : (x1 - x0);
+          int32_t fw = (x1 < limit_width && x1 == x0) ? 1 : (x1 - x0);
           gfx->writeFillRect(x + x0, y + y0, fw, fh);
         }
         x0 = x1;
@@ -500,10 +495,10 @@ namespace lgfx
     const uint8_t* decode_ptr;      /* pointer to the compressed data */
     uint8_t decode_bit_pos;     /* bitpos inside a byte of the compressed data */
 
-    std::uint_fast8_t get_unsigned_bits(std::uint_fast8_t cnt)
+    uint_fast8_t get_unsigned_bits(uint_fast8_t cnt)
     {
-      std::uint_fast8_t bit_pos = this->decode_bit_pos;
-      std::uint_fast8_t val = *(this->decode_ptr) >> bit_pos;
+      uint_fast8_t bit_pos = this->decode_bit_pos;
+      uint_fast8_t val = *(this->decode_ptr) >> bit_pos;
 
       auto bit_pos_plus_cnt = bit_pos + cnt;
       if ( bit_pos_plus_cnt >= 8 )
@@ -515,14 +510,14 @@ namespace lgfx
       return val & ((1U << cnt) - 1);
     }
 
-    std::int_fast8_t get_signed_bits(std::uint_fast8_t cnt)
+    int_fast8_t get_signed_bits(uint_fast8_t cnt)
     {
-      return (std::int_fast8_t)get_unsigned_bits(cnt) - (1 << (cnt-1));
+      return (int_fast8_t)get_unsigned_bits(cnt) - (1 << (cnt-1));
     }
   };
 
 
-  const uint8_t* U8g2font::getGlyph(std::uint16_t encoding) const
+  const uint8_t* U8g2font::getGlyph(uint16_t encoding) const
   {
     const uint8_t *font = &this->_font[23];
 
@@ -568,7 +563,7 @@ namespace lgfx
     metrics->x_offset  = 0;
   }
 
-  bool U8g2font::updateFontMetric(lgfx::FontMetrics *metrics, std::uint16_t uniCode) const
+  bool U8g2font::updateFontMetric(lgfx::FontMetrics *metrics, uint16_t uniCode) const
   {
     u8g2_font_decode_t decode(getGlyph(uniCode));
     if ( decode.decode_ptr )
@@ -585,28 +580,28 @@ namespace lgfx
     return false;
   }
 
-  std::size_t U8g2font::drawChar(LGFXBase* gfx, std::int32_t x, std::int32_t y, std::uint16_t uniCode, const TextStyle* style, FontMetrics* metrics, std::int32_t& filled_x) const
+  size_t U8g2font::drawChar(LGFXBase* gfx, int32_t x, int32_t y, uint16_t uniCode, const TextStyle* style, FontMetrics* metrics, int32_t& filled_x) const
   {
-    std::int32_t sy = 65536 * style->size_y;
+    int32_t sy = 65536 * style->size_y;
     y += (metrics->y_offset * sy) >> 16;
     u8g2_font_decode_t decode(getGlyph(uniCode));
     if ( decode.decode_ptr == nullptr ) return drawCharDummy(gfx, x, y, this->max_char_width(), metrics->height, style, filled_x);
 
-    std::uint32_t w = decode.get_unsigned_bits(bits_per_char_width());
-    std::uint32_t h = decode.get_unsigned_bits(bits_per_char_height());
+    uint32_t w = decode.get_unsigned_bits(bits_per_char_width());
+    uint32_t h = decode.get_unsigned_bits(bits_per_char_height());
 
-    std::int32_t sx = 65536 * style->size_x;
+    int32_t sx = 65536 * style->size_x;
 
-    std::int32_t xoffset = (decode.get_signed_bits(bits_per_char_x()) * sx) >> 16;
+    int32_t xoffset = (decode.get_signed_bits(bits_per_char_x()) * sx) >> 16;
 
-    std::int32_t yoffset = -(decode.get_signed_bits(bits_per_char_y()) + h + metrics->y_offset);
+    int32_t yoffset = -(decode.get_signed_bits(bits_per_char_y()) + h + metrics->y_offset);
 
-    std::int32_t xAdvance = (decode.get_signed_bits(bits_per_delta_x()) * sx) >> 16;
+    int32_t xAdvance = (decode.get_signed_bits(bits_per_delta_x()) * sx) >> 16;
 
-    std::uint32_t colortbl[2] = {gfx->getColorConverter()->convert(style->back_rgb888), gfx->getColorConverter()->convert(style->fore_rgb888)};
+    uint32_t colortbl[2] = {gfx->getColorConverter()->convert(style->back_rgb888), gfx->getColorConverter()->convert(style->fore_rgb888)};
     bool fillbg = (style->back_rgb888 != style->fore_rgb888);
-    std::int32_t left  = 0;
-    std::int32_t right = 0;
+    int32_t left  = 0;
+    int32_t right = 0;
     if (fillbg) {
       left  = std::max<int>(filled_x, x + (xoffset < 0 ? xoffset : 0));
       right = x + std::max<int>(((w * sx) >> 16) + xoffset, xAdvance);
@@ -621,8 +616,8 @@ namespace lgfx
       if (yoffset > 0) {
         gfx->writeFillRect(left, y, right - left, (yoffset * sy) >> 16);
       }
-      std::int32_t y0 = ((yoffset + h)   * sy) >> 16;
-      std::int32_t y1 = (metrics->height * sy) >> 16;
+      int32_t y0 = ((yoffset + h)   * sy) >> 16;
+      int32_t y1 = (metrics->height * sy) >> 16;
       if (y0 < y1) {
         gfx->writeFillRect(left, y + y0, right - left, y1 - y0);
       }
@@ -632,24 +627,24 @@ namespace lgfx
     {
       if (left < right)
       {
-        std::int32_t y0  = (  yoffset      * sy) >> 16;
-        std::int32_t len = (((yoffset + h) * sy) >> 16) - y0;
+        int32_t y0  = (  yoffset      * sy) >> 16;
+        int32_t len = (((yoffset + h) * sy) >> 16) - y0;
         if (left < x)
         {
           gfx->writeFillRect(left, y + y0, x - left, len);
         }
-        std::int32_t xwsx = x + ((w * sx) >> 16);
+        int32_t xwsx = x + ((w * sx) >> 16);
         if (xwsx < right)
         {
           gfx->writeFillRect(xwsx, y + y0, right - xwsx, len);
         }
       }
       left -= x;
-      std::uint32_t ab[2];
-      std::uint32_t lx = 0;
-      std::uint32_t ly = 0;
-      std::int32_t y0 = ((yoffset    ) * sy) >> 16;
-      std::int32_t y1 = ((yoffset + 1) * sy) >> 16;
+      uint32_t ab[2];
+      uint32_t lx = 0;
+      uint32_t ly = 0;
+      int32_t y0 = ((yoffset    ) * sy) >> 16;
+      int32_t y1 = ((yoffset + 1) * sy) >> 16;
       do
       {
         ab[0] = decode.get_unsigned_bits(bits_per_0());
@@ -657,16 +652,16 @@ namespace lgfx
         bool i = 0;
         do
         {
-          std::uint32_t length = ab[i];
+          uint32_t length = ab[i];
           while (length)
           {
-            std::uint32_t len = (length > w - lx) ? w - lx : length;
+            uint32_t len = (length > w - lx) ? w - lx : length;
             length -= len;
             if (i || fillbg)
             {
-              std::int32_t x0 = (lx * sx) >> 16;
+              int32_t x0 = (lx * sx) >> 16;
               if (!i && x0 < left) x0 = left;
-              std::int32_t x1 = ((lx + len) * sx) >> 16;
+              int32_t x1 = ((lx + len) * sx) >> 16;
               if (x0 < x1)
               {
                 gfx->setRawColor(colortbl[i]);
@@ -725,7 +720,7 @@ namespace lgfx
     return true;
   }
 
-  bool VLWfont::getUnicodeIndex(std::uint16_t unicode, std::uint16_t *index) const
+  bool VLWfont::getUnicodeIndex(uint16_t unicode, uint16_t *index) const
   {
     if (gUnicode[gCount-1] < unicode) return false;
     auto poi = std::lower_bound(gUnicode, &gUnicode[gCount], unicode);
@@ -733,8 +728,8 @@ namespace lgfx
     return (*poi == unicode);
   }
 
-  bool VLWfont::updateFontMetric(FontMetrics *metrics, std::uint16_t uniCode) const {
-    std::uint16_t gNum = 0;
+  bool VLWfont::updateFontMetric(FontMetrics *metrics, uint16_t uniCode) const {
+    uint16_t gNum = 0;
     if (getUnicodeIndex(uniCode, &gNum)) {
       if (gWidth && gxAdvance && gdX[gNum]) {
         metrics->width     = gWidth[gNum];
@@ -746,11 +741,11 @@ namespace lgfx
         file->preRead();
 
         file->seek(28 + gNum * 28);  // headerPtr
-        std::uint32_t buffer[6];
-        file->read((std::uint8_t*)buffer, 24);
+        uint32_t buffer[6];
+        file->read((uint8_t*)buffer, 24);
         metrics->width    = __builtin_bswap32(buffer[1]); // Width of glyph
         metrics->x_advance = __builtin_bswap32(buffer[2]); // xAdvance - to move x cursor
-        metrics->x_offset  = (std::int32_t)((std::int8_t)__builtin_bswap32(buffer[4])); // x delta from cursor
+        metrics->x_offset  = (int32_t)((int8_t)__builtin_bswap32(buffer[4])); // x delta from cursor
 
         file->postRead();
       }
@@ -765,8 +760,8 @@ namespace lgfx
   bool VLWfont::loadFont(DataWrapper* data) {
     _fontData = data;
     {
-      std::uint32_t buf[6];
-      data->read((std::uint8_t*)buf, 6 * 4); // 24 Byte read
+      uint32_t buf[6];
+      data->read((uint8_t*)buf, 6 * 4); // 24 Byte read
 
       gCount   = __builtin_bswap32(buf[0]); // glyph count in file
                 //__builtin_bswap32(buf[1]); // vlw encoder version - discard
@@ -788,19 +783,19 @@ namespace lgfx
 
 //ESP_LOGI("LGFX", "font count:%d", gCount);
 
-    std::uint32_t bitmapPtr = 24 + (std::uint32_t)gCount * 28;
+    uint32_t bitmapPtr = 24 + (uint32_t)gCount * 28;
 
-    gBitmap   = (std::uint32_t*)heap_alloc_psram( gCount * 4); // seek pointer to glyph bitmap in the file
-    gUnicode  = (std::uint16_t*)heap_alloc_psram( gCount * 2); // Unicode 16 bit Basic Multilingual Plane (0-FFFF)
-    gWidth    =  (std::uint8_t*)heap_alloc_psram( gCount );    // Width of glyph
-    gxAdvance =  (std::uint8_t*)heap_alloc_psram( gCount );    // xAdvance - to move x cursor
-    gdX       =   (std::int8_t*)heap_alloc_psram( gCount );    // offset for bitmap left edge relative to cursor X
+    gBitmap   = (uint32_t*)heap_alloc_psram( gCount * 4); // seek pointer to glyph bitmap in the file
+    gUnicode  = (uint16_t*)heap_alloc_psram( gCount * 2); // Unicode 16 bit Basic Multilingual Plane (0-FFFF)
+    gWidth    =  (uint8_t*)heap_alloc_psram( gCount );    // Width of glyph
+    gxAdvance =  (uint8_t*)heap_alloc_psram( gCount );    // xAdvance - to move x cursor
+    gdX       =   (int8_t*)heap_alloc_psram( gCount );    // offset for bitmap left edge relative to cursor X
 
-    if (nullptr == gBitmap  ) gBitmap   = (std::uint32_t*)heap_alloc( gCount * 4); // seek pointer to glyph bitmap in the file
-    if (nullptr == gUnicode ) gUnicode  = (std::uint16_t*)heap_alloc( gCount * 2); // Unicode 16 bit Basic Multilingual Plane (0-FFFF)
-    if (nullptr == gWidth   ) gWidth    =  (std::uint8_t*)heap_alloc( gCount );    // Width of glyph
-    if (nullptr == gxAdvance) gxAdvance =  (std::uint8_t*)heap_alloc( gCount );    // xAdvance - to move x cursor
-    if (nullptr == gdX      ) gdX       =   (std::int8_t*)heap_alloc( gCount );    // offset for bitmap left edge relative to cursor X
+    if (nullptr == gBitmap  ) gBitmap   = (uint32_t*)heap_alloc( gCount * 4); // seek pointer to glyph bitmap in the file
+    if (nullptr == gUnicode ) gUnicode  = (uint16_t*)heap_alloc( gCount * 2); // Unicode 16 bit Basic Multilingual Plane (0-FFFF)
+    if (nullptr == gWidth   ) gWidth    =  (uint8_t*)heap_alloc( gCount );    // Width of glyph
+    if (nullptr == gxAdvance) gxAdvance =  (uint8_t*)heap_alloc( gCount );    // xAdvance - to move x cursor
+    if (nullptr == gdX      ) gdX       =   (int8_t*)heap_alloc( gCount );    // offset for bitmap left edge relative to cursor X
 
     if (!gUnicode
       || !gBitmap
@@ -815,19 +810,19 @@ namespace lgfx
 
     size_t gNum = 0;
     _fontData->seek(24);  // headerPtr
-    std::uint32_t buffer[7];
+    uint32_t buffer[7];
     do {
-      _fontData->read((std::uint8_t*)buffer, 7 * 4); // 28 Byte read
-      std::uint16_t unicode = __builtin_bswap32(buffer[0]); // Unicode code point value
-      std::uint32_t w = (std::uint8_t)__builtin_bswap32(buffer[2]); // Width of glyph
+      _fontData->read((uint8_t*)buffer, 7 * 4); // 28 Byte read
+      uint16_t unicode = __builtin_bswap32(buffer[0]); // Unicode code point value
+      uint32_t w = (uint8_t)__builtin_bswap32(buffer[2]); // Width of glyph
       if (gUnicode)   gUnicode[gNum]  = unicode;
       if (gWidth)     gWidth[gNum]    = w;
-      if (gxAdvance)  gxAdvance[gNum] = (std::uint8_t)__builtin_bswap32(buffer[3]); // xAdvance - to move x cursor
-      if (gdX)        gdX[gNum]       =  (std::int8_t)__builtin_bswap32(buffer[5]); // x delta from cursor
+      if (gxAdvance)  gxAdvance[gNum] = (uint8_t)__builtin_bswap32(buffer[3]); // xAdvance - to move x cursor
+      if (gdX)        gdX[gNum]       =  (int8_t)__builtin_bswap32(buffer[5]); // x delta from cursor
 
-      std::uint16_t height = __builtin_bswap32(buffer[1]); // Height of glyph
+      uint16_t height = __builtin_bswap32(buffer[1]); // Height of glyph
       if ((unicode > 0xFF) || ((unicode > 0x20) && (unicode < 0xA0) && (unicode != 0x7F))) {
-        std::int16_t dY =  (std::int16_t)__builtin_bswap32(buffer[4]); // y delta from baseline
+        int16_t dY =  (int16_t)__builtin_bswap32(buffer[4]); // y delta from baseline
 //Serial.printf("LGFX:unicode:%x  dY:%d\r\n", unicode, dY);
         if (maxAscent < dY && unicode != 0x3000) {
           maxAscent = dY;
@@ -850,14 +845,14 @@ namespace lgfx
 
 //----------------------------------------------------------------------------
 
-  std::size_t VLWfont::drawChar(LGFXBase* gfx, std::int32_t x, std::int32_t y, std::uint16_t code, const TextStyle* style, FontMetrics* metrics, std::int32_t& filled_x) const
+  size_t VLWfont::drawChar(LGFXBase* gfx, int32_t x, int32_t y, uint16_t code, const TextStyle* style, FontMetrics* metrics, int32_t& filled_x) const
   {
     auto file = this->_fontData;
 
-    std::uint32_t buffer[6] = {0};
-    std::uint16_t gNum = 0;
+    uint32_t buffer[6] = {0};
+    uint16_t gNum = 0;
 
-    std::int32_t sy = 65536 * style->size_y;
+    int32_t sy = 65536 * style->size_y;
     y += (metrics->y_offset * sy) >> 16;
 
     if (code == 0x20) {
@@ -868,22 +863,21 @@ namespace lgfx
     } else {
       file->preRead();
       file->seek(28 + gNum * 28);
-      file->read((std::uint8_t*)buffer, 24);
+      file->read((uint8_t*)buffer, 24);
       file->seek(this->gBitmap[gNum]);
     }
 
 
-    std::int32_t h        = __builtin_bswap32(buffer[0]); // Height of glyph
-    std::int32_t w        = __builtin_bswap32(buffer[1]); // Width of glyph
-    std::int32_t sx       = 65536 * style->size_x;
-    std::int32_t xAdvance = (__builtin_bswap32(buffer[2]) * sx) >> 16; // xAdvance - to move x cursor
-    std::int32_t xoffset  = ((std::int32_t)((std::int8_t)__builtin_bswap32(buffer[4])) * sx) >> 16; // x delta from cursor
-    std::int32_t dY       = (std::int16_t)__builtin_bswap32(buffer[3]); // y delta from baseline
-    std::int32_t yoffset  = (this->maxAscent - dY);
-//      std::int32_t yoffset = (gfx->_font_metrics.y_offset) - dY;
+    int32_t h        = __builtin_bswap32(buffer[0]); // Height of glyph
+    int32_t w        = __builtin_bswap32(buffer[1]); // Width of glyph
+    int32_t sx       = 65536 * style->size_x;
+    int32_t xAdvance = (__builtin_bswap32(buffer[2]) * sx) >> 16; // xAdvance - to move x cursor
+    int32_t xoffset  = ((int32_t)((int8_t)__builtin_bswap32(buffer[4])) * sx) >> 16; // x delta from cursor
+    int32_t dY       = (int16_t)__builtin_bswap32(buffer[3]); // y delta from baseline
+    int32_t yoffset  = (this->maxAscent - dY);
+//      int32_t yoffset = (gfx->_font_metrics.y_offset) - dY;
 
-    std::uint8_t pbuffer[w * h];
-    std::uint8_t* pixel = pbuffer;
+    auto pixel = (uint8_t*)alloca(w * h);
     if (gNum != 0xFFFF) {
       file->read(pixel, w * h);
       file->postRead();
@@ -891,10 +885,10 @@ namespace lgfx
 
     gfx->startWrite();
 
-    std::uint32_t colortbl[2] = {gfx->getColorConverter()->convert(style->back_rgb888), gfx->getColorConverter()->convert(style->fore_rgb888)};
+    uint32_t colortbl[2] = {gfx->getColorConverter()->convert(style->back_rgb888), gfx->getColorConverter()->convert(style->fore_rgb888)};
     bool fillbg = (style->back_rgb888 != style->fore_rgb888);
-    std::int32_t left  = 0;
-    std::int32_t right = 0;
+    int32_t left  = 0;
+    int32_t right = 0;
     if (fillbg) {
       left  = std::max(filled_x, x + (xoffset < 0 ? xoffset : 0));
       right = x + std::max<int>(((w * sx) >> 16) + xoffset, xAdvance);
@@ -902,26 +896,26 @@ namespace lgfx
     }
     x += xoffset;
 
-    std::int32_t clip_left;
-    std::int32_t clip_top;
-    std::int32_t clip_w;
-    std::int32_t clip_h;
+    int32_t clip_left;
+    int32_t clip_top;
+    int32_t clip_w;
+    int32_t clip_h;
 
     gfx->getClipRect(&clip_left, &clip_top, &clip_w, &clip_h);
-    std::int32_t clip_right = clip_left + clip_w-1;
-    std::int32_t clip_bottom = clip_top + clip_h-1;
+    int32_t clip_right = clip_left + clip_w-1;
+    int32_t clip_bottom = clip_top + clip_h-1;
 
-    std::int32_t bx = x;
-    std::int32_t bw = (w * sx) >> 16;
+    int32_t bx = x;
+    int32_t bw = (w * sx) >> 16;
     if (x < clip_left) { bw += (x - clip_left); bx = clip_left; }
 
     if (bw > clip_right+1 - bx) bw = clip_right+1 - bx;
 
     if (bw >= 0)
     {
-      std::int32_t fore_r = ((style->fore_rgb888>>16)&0xFF);
-      std::int32_t fore_g = ((style->fore_rgb888>> 8)&0xFF);
-      std::int32_t fore_b = ((style->fore_rgb888)    &0xFF);
+      int32_t fore_r = ((style->fore_rgb888>>16)&0xFF);
+      int32_t fore_g = ((style->fore_rgb888>> 8)&0xFF);
+      int32_t fore_b = ((style->fore_rgb888)    &0xFF);
 
       if (fillbg || !gfx->isReadable() || gfx->hasPalette())
       { // fill background mode  or unreadable panel  or palette sprite mode
@@ -930,8 +924,8 @@ namespace lgfx
           if (yoffset > 0) {
             gfx->writeFillRect(left, y, right - left, (yoffset * sy) >> 16);
           }
-          std::int32_t y0 = ((yoffset + h)   * sy) >> 16;
-          std::int32_t y1 = (metrics->height * sy) >> 16;
+          int32_t y0 = ((yoffset + h)   * sy) >> 16;
+          int32_t y1 = (metrics->height * sy) >> 16;
           if (y0 < y1) {
             gfx->writeFillRect(left, y + y0, right - left, y1 - y0);
           }
@@ -939,11 +933,11 @@ namespace lgfx
 
         if (0 < w) {
           uint32_t back = fillbg ? style->back_rgb888 : gfx->getBaseColor();
-          std::int32_t back_r = ((back>>16)&0xFF);
-          std::int32_t back_g = ((back>> 8)&0xFF);
-          std::int32_t back_b = ( back     &0xFF);
-          std::int32_t i = 0;
-          std::int32_t y0, y1 = (yoffset * sy) >> 16;
+          int32_t back_r = ((back>>16)&0xFF);
+          int32_t back_g = ((back>> 8)&0xFF);
+          int32_t back_b = ( back     &0xFF);
+          int32_t i = 0;
+          int32_t y0, y1 = (yoffset * sy) >> 16;
           do {
             y0 = y1;
             if (y0 > clip_bottom) break;
@@ -952,13 +946,13 @@ namespace lgfx
               gfx->setRawColor(colortbl[0]);
               gfx->writeFillRect(left, y + y0, right - left, y1 - y0);
             }
-            std::int32_t j = 0;
+            int32_t j = 0;
             do {
-              std::int32_t x0 = (j * sx) >> 16;
+              int32_t x0 = (j * sx) >> 16;
               while (pixel[j] != 0xFF) {
-                std::int32_t x1 = ((j + 1) * sx) >> 16;
+                int32_t x1 = ((j + 1) * sx) >> 16;
                 if (pixel[j] != 0 && x0 < x1) {
-                  std::int32_t p = 1 + (std::uint32_t)pixel[j];
+                  int32_t p = 1 + (uint32_t)pixel[j];
                   gfx->setColor(color888( ( fore_r * p + back_r * (257 - p)) >> 8
                                         , ( fore_g * p + back_g * (257 - p)) >> 8
                                         , ( fore_b * p + back_b * (257 - p)) >> 8 ));
@@ -978,45 +972,46 @@ namespace lgfx
       }
       else // alpha blend mode
       {
-        bgr888_t buf[bw * ((sy + 65535) >> 16)];
+        auto buf = (bgr888_t*)alloca((bw * ((sy + 65535) >> 16)) * sizeof(bgr888_t));
+
         pixelcopy_t p(buf, gfx->getColorConverter()->depth, rgb888_3Byte, gfx->hasPalette());
-        std::int32_t y0, y1 = (yoffset * sy) >> 16;
-        std::int32_t i = 0;
+        int32_t y0, y1 = (yoffset * sy) >> 16;
+        int32_t i = 0;
         do {
           y0 = y1;
           if (y0 > clip_bottom) break;
           y1 = ((yoffset + i + 1) * sy) >> 16;
-          std::int32_t by = y + y0;
-          std::int32_t bh = y1 - y0;
+          int32_t by = y + y0;
+          int32_t bh = y1 - y0;
 
           if (by < clip_top) { bh += by - clip_top; by = clip_top; }
           if (bh > 0) {
-            std::int32_t j0 = 0;
+            int32_t j0 = 0;
 
             // search first and last pixel
             while (j0 != w && !pixel[j0    ]) { ++j0; }
             if (j0 != w) {
-              std::int32_t j1 = w;
+              int32_t j1 = w;
               while (j0 != j1 && !pixel[j1 - 1]) { --j1; }
-              std::int32_t rx = (j0 * sx) >> 16;
-              std::int32_t rw = (j1 * sx) >> 16;
+              int32_t rx = (j0 * sx) >> 16;
+              int32_t rw = (j1 * sx) >> 16;
               if (rx < bx    -x) rx = bx    -x;
               if (rw > bx+bw -x) rw = bx+bw -x;
               rw -= rx;
 
               if (0 < rw) {
-                gfx->readRectRGB(x + rx, by, rw, bh, (std::uint8_t*)buf);
+                gfx->readRectRGB(x + rx, by, rw, bh, (uint8_t*)buf);
 
-                std::int32_t x0, x1 = ((j0 * sx) >> 16) - rx;
+                int32_t x0, x1 = ((j0 * sx) >> 16) - rx;
                 do {
                   x0 = x1;
                   if (x0 < 0) x0 = 0;
                   x1 = (int)(((j0 + 1) * sx) >> 16) - rx;
                   if (x1 > rw) x1 = rw;
                   if (pixel[j0] && x0 < x1) {
-                    std::int32_t p = 1 + pixel[j0];
+                    int32_t p = 1 + pixel[j0];
                     do {
-                      std::int32_t yy = 0;
+                      int32_t yy = 0;
                       do {
                         auto bgr = &buf[x0 + yy * rw];
                         bgr->r = ( fore_r * p + bgr->r * (257 - p)) >> 8;
@@ -1142,9 +1137,9 @@ namespace lgfx
     #include "../Fonts/Ascii24x48.h"
     #include "../Fonts/Ascii8x16.h"
 
-    static constexpr std::uint8_t font0_info[]         = {  0, 255, 5 }; // start code, end code, width
-    static constexpr std::uint8_t font8x8c64_info[]    = { 32, 143, 8 }; // start code, end code, width
-    static constexpr std::uint8_t fontlib24x48_info[]  = { 32, 126, 0 }; // start code, end code
+    static constexpr uint8_t font0_info[]         = {  0, 255, 5 }; // start code, end code, width
+    static constexpr uint8_t font8x8c64_info[]    = { 32, 143, 8 }; // start code, end code, width
+    static constexpr uint8_t fontlib24x48_info[]  = { 32, 126, 0 }; // start code, end code
 
     const GLCDfont Font0 = { font      , font0_info, 6, 8, 7 };
     const BMPfont  Font2 = { chrtbl_f16, widtbl_f16, 0, chr_hgt_f16, baseline_f16 };

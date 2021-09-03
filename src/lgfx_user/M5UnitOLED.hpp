@@ -1,17 +1,20 @@
 #pragma once
 
+#if defined ( ESP_PLATFORM )
+ #include <sdkconfig.h>
+#endif
+
 #define LGFX_USE_V1
 #include <LovyanGFX.hpp>
 
-#if defined ( ARDUINO )
-#include <Arduino.h>
- static constexpr std::uint8_t M5_UNIT_OLED_SDA = SDA;
- static constexpr std::uint8_t M5_UNIT_OLED_SCL = SCL;
+#if defined ( ARDUINO ) && defined ( SDA ) && defined ( SCL )
+ static constexpr uint8_t M5_UNIT_OLED_SDA = SDA;
+ static constexpr uint8_t M5_UNIT_OLED_SCL = SCL;
 #else
- static constexpr std::uint8_t M5_UNIT_OLED_SDA = 21;
- static constexpr std::uint8_t M5_UNIT_OLED_SCL = 22;
+ static constexpr uint8_t M5_UNIT_OLED_SDA = 21;
+ static constexpr uint8_t M5_UNIT_OLED_SCL = 22;
 #endif
-static constexpr std::uint8_t M5_UNIT_OLED_ADDR = 0x3C;
+static constexpr uint8_t M5_UNIT_OLED_ADDR = 0x3C;
 
 class M5UnitOLED : public lgfx::LGFX_Device
 {
@@ -20,22 +23,23 @@ class M5UnitOLED : public lgfx::LGFX_Device
 
 public:
 
-  M5UnitOLED(std::uint8_t pin_sda = M5_UNIT_OLED_SDA, std::uint8_t pin_scl = M5_UNIT_OLED_SCL, std::uint32_t i2c_freq = 400000, std::int8_t i2c_port = -1, std::uint8_t i2c_addr = M5_UNIT_OLED_ADDR)
+  M5UnitOLED(uint8_t pin_sda = M5_UNIT_OLED_SDA, uint8_t pin_scl = M5_UNIT_OLED_SCL, uint32_t i2c_freq = 400000, int8_t i2c_port = -1, uint8_t i2c_addr = M5_UNIT_OLED_ADDR)
   {
     setup(pin_sda, pin_scl, i2c_freq, i2c_port, i2c_addr);
   }
 
   using lgfx::LGFX_Device::init;
-  bool init(std::uint8_t pin_sda, std::uint8_t pin_scl, std::uint32_t i2c_freq = 400000, std::int8_t i2c_port = -1, std::uint8_t i2c_addr = M5_UNIT_OLED_ADDR)
+  bool init(uint8_t pin_sda, uint8_t pin_scl, uint32_t i2c_freq = 400000, int8_t i2c_port = -1, uint8_t i2c_addr = M5_UNIT_OLED_ADDR)
   {
     setup(pin_sda, pin_scl, i2c_freq, i2c_port, i2c_addr);
     return init();
   }
 
-  void setup(std::uint8_t pin_sda = M5_UNIT_OLED_SDA, std::uint8_t pin_scl = M5_UNIT_OLED_SCL, std::uint32_t i2c_freq = 400000, std::int8_t i2c_port = -1, std::uint8_t i2c_addr = M5_UNIT_OLED_ADDR)
-  {
+  void setup(uint8_t pin_sda = M5_UNIT_OLED_SDA, uint8_t pin_scl = M5_UNIT_OLED_SCL, uint32_t i2c_freq = 400000, int8_t i2c_port = -1, uint8_t i2c_addr = M5_UNIT_OLED_ADDR)
+  { 
     if (i2c_port < 0)
     {
+#if !defined (CONFIG_IDF_TARGET) || defined (CONFIG_IDF_TARGET_ESP32)
       if (pin_sda == 21 && pin_scl == 22)  /// BASIC / FIRE
       {
         i2c_port = 0;
@@ -49,6 +53,9 @@ public:
       {
         i2c_port = 1;
       }
+#else
+      i2c_port = 0;
+#endif
     }
 
     {
@@ -59,9 +66,9 @@ public:
       cfg.pin_sda = pin_sda;
       cfg.i2c_port = i2c_port;
       cfg.i2c_addr = i2c_addr;
+      cfg.prefix_len = 1;
       cfg.prefix_cmd = 0x00;
       cfg.prefix_data = 0x40;
-      cfg.prefix_len = 1;
       _bus_instance.config(cfg);
       _panel_instance.bus(&_bus_instance);
     }

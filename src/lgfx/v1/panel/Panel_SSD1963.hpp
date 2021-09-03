@@ -35,18 +35,18 @@ namespace lgfx
       _read_depth  = rgb888_3Byte;
     }
 
-    void setHSync(std::uint_fast16_t front, std::uint_fast16_t sync, std::uint_fast16_t back, std::uint_fast16_t move = 0, std::uint_fast16_t lpspp = 0);
-    void setVSync(std::uint_fast16_t front, std::uint_fast16_t sync, std::uint_fast16_t back, std::uint_fast16_t move = 0);
+    void setHSync(uint_fast16_t front, uint_fast16_t sync, uint_fast16_t back, uint_fast16_t move = 0, uint_fast16_t lpspp = 0);
+    void setVSync(uint_fast16_t front, uint_fast16_t sync, uint_fast16_t back, uint_fast16_t move = 0);
 
     bool init(bool use_reset) override;
-    void setWindow(std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye) override;
-    void drawPixelPreclipped(std::uint_fast16_t x, std::uint_fast16_t y, std::uint32_t rawcolor) override;
-    void writeFillRectPreclipped(std::uint_fast16_t x, std::uint_fast16_t y, std::uint_fast16_t w, std::uint_fast16_t h, std::uint32_t rawcolor) override;
-    void setRotation(std::uint_fast8_t r) override;
+    void setWindow(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye) override;
+    void drawPixelPreclipped(uint_fast16_t x, uint_fast16_t y, uint32_t rawcolor) override;
+    void writeFillRectPreclipped(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, uint32_t rawcolor) override;
+    void setRotation(uint_fast8_t r) override;
 
   protected:
 
-    void set_window(std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye, std::uint32_t cmd);
+    void set_window(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye, uint32_t cmd);
 
     void setColorDepth_impl(color_depth_t) override 
     {
@@ -54,9 +54,9 @@ namespace lgfx
       _read_depth = _write_depth;
     }
 
-    const std::uint8_t* getInitCommands(std::uint8_t listno) const override
+    const uint8_t* getInitCommands(uint8_t listno) const override
     {
-      static constexpr std::uint8_t list0[] =
+      static constexpr uint8_t list0[] =
       {
         0x01, 0+CMD_INIT_DELAY, 100,  // software reset
         //PLL multiplier, set PLL clock to 120M

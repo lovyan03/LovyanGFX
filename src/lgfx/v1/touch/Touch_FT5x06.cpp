@@ -25,23 +25,23 @@ namespace lgfx
  {
 //----------------------------------------------------------------------------
 
-  static constexpr std::uint8_t FT5x06_VENDID_REG = 0xA8;
-  static constexpr std::uint8_t FT5x06_POWER_REG  = 0x87;
-  static constexpr std::uint8_t FT5x06_PERIODACTIVE = 0x88;
-  static constexpr std::uint8_t FT5x06_INTMODE_REG= 0xA4;
+  static constexpr uint8_t FT5x06_VENDID_REG = 0xA8;
+  static constexpr uint8_t FT5x06_POWER_REG  = 0x87;
+  static constexpr uint8_t FT5x06_PERIODACTIVE = 0x88;
+  static constexpr uint8_t FT5x06_INTMODE_REG= 0xA4;
 
-  static constexpr std::uint8_t FT5x06_MONITOR  = 0x01;
-  static constexpr std::uint8_t FT5x06_SLEEP_IN = 0x03;
+  static constexpr uint8_t FT5x06_MONITOR  = 0x01;
+  static constexpr uint8_t FT5x06_SLEEP_IN = 0x03;
 
-  bool Touch_FT5x06::_write_reg(std::uint8_t reg, std::uint8_t val)
+  bool Touch_FT5x06::_write_reg(uint8_t reg, uint8_t val)
   {
     return i2c::writeRegister8(_cfg.i2c_port, _cfg.i2c_addr, reg, val, 0, _cfg.freq).has_value();
 
-    // std::uint8_t data[] = { reg, val };
+    // uint8_t data[] = { reg, val };
     // return lgfx::i2c::transactionWrite(_cfg.i2c_port, _cfg.i2c_addr, data, 2, _cfg.freq).has_value();
   }
 
-  bool Touch_FT5x06::_read_reg(std::uint8_t reg, std::uint8_t *data, std::size_t length)
+  bool Touch_FT5x06::_read_reg(uint8_t reg, uint8_t *data, size_t length)
   {
     return lgfx::i2c::transactionWriteRead(_cfg.i2c_port, _cfg.i2c_addr, &reg, 1, data, length, _cfg.freq).has_value();
   }
@@ -50,7 +50,7 @@ namespace lgfx
   {
     if (_inited) return true;
 
-    std::uint8_t tmp[2] = { 0 };
+    uint8_t tmp[2] = { 0 };
     _inited = _write_reg(0x00, 0x00)
           && _read_reg(FT5x06_VENDID_REG, tmp, 1)
           && _write_reg(FT5x06_INTMODE_REG, 0x00) // INT Polling mode
@@ -84,7 +84,7 @@ namespace lgfx
     _write_reg(FT5x06_POWER_REG, FT5x06_SLEEP_IN);
   }
 
-  std::uint_fast8_t Touch_FT5x06::getTouchRaw(touch_point_t *tp, std::uint_fast8_t count)
+  uint_fast8_t Touch_FT5x06::getTouchRaw(touch_point_t *tp, uint_fast8_t count)
   {
     if (!_check_init() || count == 0) return 0;
     if (_cfg.pin_int >= 0)
@@ -100,18 +100,18 @@ namespace lgfx
       }
     }
     if (count > 5) count = 5;  // 最大５点まで
-    std::size_t len = count * 6 - 1;
+    size_t len = count * 6 - 1;
 
-    std::uint8_t tmp[2][len];
+    uint8_t tmp[2][len];
     _read_reg(0x02, tmp[0], len);
-    std::int32_t retry = 5;
+    int32_t retry = 5;
     do
     { // 読出し中に値が変わる事があるので、連続読出しして前回と同値でなければリトライする
       _read_reg(0x02, tmp[retry & 1], len);
     } while (memcmp(tmp[0], tmp[1], len) && --retry);
 
     if (count > tmp[0][0]) count = tmp[0][0];
-    for (std::size_t idx = 0; idx < count; ++idx)
+    for (size_t idx = 0; idx < count; ++idx)
     {
       auto data = &tmp[0][idx * 6];
       tp[idx].size = 1;

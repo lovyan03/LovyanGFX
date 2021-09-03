@@ -44,7 +44,7 @@ namespace lgfx
 
     void sleep(void) override;
 
-    std::uint_fast8_t getTouchRaw(touch_point_t* tp, std::uint_fast8_t count) override;
+    uint_fast8_t getTouchRaw(touch_point_t* tp, uint_fast8_t count) override;
 
   private:
 

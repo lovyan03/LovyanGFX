@@ -29,32 +29,32 @@ namespace lgfx
 
     struct CMD : public PanelIlitekCommon::CommandCommon
     {
-      static constexpr std::uint8_t FRMCTR1 = 0xB1;
-      static constexpr std::uint8_t FRMCTR2 = 0xB2;
-      static constexpr std::uint8_t FRMCTR3 = 0xB3;
-      static constexpr std::uint8_t INVCTR  = 0xB4;
-      static constexpr std::uint8_t DISSET5 = 0xB6;
+      static constexpr uint8_t FRMCTR1 = 0xB1;
+      static constexpr uint8_t FRMCTR2 = 0xB2;
+      static constexpr uint8_t FRMCTR3 = 0xB3;
+      static constexpr uint8_t INVCTR  = 0xB4;
+      static constexpr uint8_t DISSET5 = 0xB6;
 
-      static constexpr std::uint8_t PWCTR1  = 0xC0;
-      static constexpr std::uint8_t PWCTR2  = 0xC1;
-      static constexpr std::uint8_t PWCTR3  = 0xC2;
-      static constexpr std::uint8_t PWCTR4  = 0xC3;
-      static constexpr std::uint8_t PWCTR5  = 0xC4;
-      static constexpr std::uint8_t VMCTR1  = 0xC5;
+      static constexpr uint8_t PWCTR1  = 0xC0;
+      static constexpr uint8_t PWCTR2  = 0xC1;
+      static constexpr uint8_t PWCTR3  = 0xC2;
+      static constexpr uint8_t PWCTR4  = 0xC3;
+      static constexpr uint8_t PWCTR5  = 0xC4;
+      static constexpr uint8_t VMCTR1  = 0xC5;
 
-      static constexpr std::uint8_t RDID1   = 0xDA;
-      static constexpr std::uint8_t RDID2   = 0xDB;
-      static constexpr std::uint8_t RDID3   = 0xDC;
-      static constexpr std::uint8_t RDID4   = 0xDD;
+      static constexpr uint8_t RDID1   = 0xDA;
+      static constexpr uint8_t RDID2   = 0xDB;
+      static constexpr uint8_t RDID3   = 0xDC;
+      static constexpr uint8_t RDID4   = 0xDD;
 
-      static constexpr std::uint8_t PWCTR6  = 0xFC;
+      static constexpr uint8_t PWCTR6  = 0xFC;
 
-      static constexpr std::uint8_t GMCTRP1 = 0xE0;
-      static constexpr std::uint8_t GMCTRN1 = 0xE1;
+      static constexpr uint8_t GMCTRP1 = 0xE0;
+      static constexpr uint8_t GMCTRN1 = 0xE1;
     };
 
-    const std::uint8_t* getInitCommands(std::uint8_t listno) const override {
-      static constexpr std::uint8_t Bcmd[] = {                  // Initialization commands for 7735B screens
+    const uint8_t* getInitCommands(uint8_t listno) const override {
+      static constexpr uint8_t Bcmd[] = {                  // Initialization commands for 7735B screens
         CMD::SWRESET,   CMD_INIT_DELAY, 50,   // Software reset, no args, w/delay
         CMD::SLPOUT ,   CMD_INIT_DELAY, 255,  // Out of sleep mode, no args, w/delay
         CMD::FRMCTR1, 3+CMD_INIT_DELAY,  // Frame rate control, 3 args + delay:
@@ -110,9 +110,9 @@ namespace lgfx
   struct Panel_ST7735S : public Panel_ST7735
   {
   protected:
-    const std::uint8_t* getInitCommands(std::uint8_t listno) const override {
+    const uint8_t* getInitCommands(uint8_t listno) const override {
 
-      static constexpr std::uint8_t Rcmd1[] = {                 // Init for 7735R, part 1 (red or green tab)
+      static constexpr uint8_t Rcmd1[] = {                 // Init for 7735R, part 1 (red or green tab)
         CMD::SWRESET,   CMD_INIT_DELAY,  //  1: Software reset, 0 args, w/delay
           150,                    //     150 ms delay
         CMD::SLPOUT ,   CMD_INIT_DELAY,  //  2: Out of sleep mode, 0 args, w/delay
@@ -144,7 +144,7 @@ namespace lgfx
           0x0E,
         0xFF,0xFF
       };
-      static constexpr std::uint8_t Rcmd2[] = {  // Init for 7735R, part 2 (red or green tab)
+      static constexpr uint8_t Rcmd2[] = {  // Init for 7735R, part 2 (red or green tab)
         CMD::GMCTRP1, 16      , //  1: 16 args, no delay:
           0x02, 0x1c, 0x07, 0x12,
           0x37, 0x32, 0x29, 0x2d,

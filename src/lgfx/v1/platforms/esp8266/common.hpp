@@ -69,9 +69,9 @@ namespace lgfx
   static inline void* heap_alloc_dma(  size_t length) { return malloc(length); } // aligned_alloc(16, length);
   static inline void heap_free(void* buf) { free(buf); }
 
-  static inline void gpio_hi(std::int_fast8_t pin) { if (pin & 16) { if (pin == 16) *(volatile uint32_t*)(0x60000768) |=  1; } else { *(volatile uint32_t*)(0x60000304) = 1 << (pin & 15); } }
-  static inline void gpio_lo(std::int_fast8_t pin) { if (pin & 16) { if (pin == 16) *(volatile uint32_t*)(0x60000768) &= ~1; } else { *(volatile uint32_t*)(0x60000308) = 1 << (pin & 15); } }
-  static inline bool gpio_in(std::int_fast8_t pin)
+  static inline void gpio_hi(int_fast8_t pin) { if (pin & 16) { if (pin == 16) *(volatile uint32_t*)(0x60000768) |=  1; } else { *(volatile uint32_t*)(0x60000304) = 1 << (pin & 15); } }
+  static inline void gpio_lo(int_fast8_t pin) { if (pin & 16) { if (pin == 16) *(volatile uint32_t*)(0x60000768) &= ~1; } else { *(volatile uint32_t*)(0x60000308) = 1 << (pin & 15); } }
+  static inline bool gpio_in(int_fast8_t pin)
   {
     return *(volatile uint32_t*)((pin & 16)
          ? 0x6000078C // GP16I
@@ -86,8 +86,8 @@ namespace lgfx
   , input_pulldown
   };
 
-  void pinMode(std::int_fast16_t pin, pin_mode_t mode);
-  inline void lgfxPinMode(std::int_fast16_t pin, pin_mode_t mode)
+  void pinMode(int_fast16_t pin, pin_mode_t mode);
+  inline void lgfxPinMode(int_fast16_t pin, pin_mode_t mode)
   {
     pinMode(pin, mode);
   }
@@ -143,12 +143,12 @@ public:
       _fp = &_file;
       return _file;
     }
-    int read(std::uint8_t *buf, std::uint32_t len) override { return _fp->read(buf, len); }
-    void skip(std::int32_t offset) override { seek(offset, SeekCur); }
-    bool seek(std::uint32_t offset) override { return seek(offset, SeekSet); }
-    bool seek(std::uint32_t offset, SeekMode mode) { return _fp->seek(offset, mode); }
+    int read(uint8_t *buf, uint32_t len) override { return _fp->read(buf, len); }
+    void skip(int32_t offset) override { seek(offset, SeekCur); }
+    bool seek(uint32_t offset) override { return seek(offset, SeekSet); }
+    bool seek(uint32_t offset, SeekMode mode) { return _fp->seek(offset, mode); }
     void close(void) override { if (_fp) _fp->close(); }
-    std::int32_t tell(void) override { return _fp->position(); }
+    int32_t tell(void) override { return _fp->position(); }
   };
  #else
   // dummy
@@ -164,12 +164,12 @@ public:
     void setFS(T& fs) {}
 
     bool open(const char*, const char*) { return false; }
-    int read(std::uint8_t*, std::uint32_t) override { return false; }
-    void skip(std::int32_t) override { }
-    bool seek(std::uint32_t) override { return false; }
-    bool seek(std::uint32_t, int) { return false; }
+    int read(uint8_t*, uint32_t) override { return false; }
+    void skip(int32_t) override { }
+    bool seek(uint32_t) override { return false; }
+    bool seek(uint32_t, int) { return false; }
     void close() override { }
-    std::int32_t tell(void) override { return 0; }
+    int32_t tell(void) override { return 0; }
   };
 
  #endif
@@ -183,12 +183,12 @@ public:
     }
     FILE* _fp;
     bool open(const char* path) override { return (_fp = fopen(path, "r")); }
-    int read(std::uint8_t *buf, std::uint32_t len) override { return fread((char*)buf, 1, len, _fp); }
-    void skip(std::int32_t offset) override { seek(offset, SEEK_CUR); }
-    bool seek(std::uint32_t offset) override { return seek(offset, SEEK_SET); }
-    bool seek(std::uint32_t offset, int origin) { return fseek(_fp, offset, origin); }
+    int read(uint8_t *buf, uint32_t len) override { return fread((char*)buf, 1, len, _fp); }
+    void skip(int32_t offset) override { seek(offset, SEEK_CUR); }
+    bool seek(uint32_t offset) override { return seek(offset, SEEK_SET); }
+    bool seek(uint32_t offset, int origin) { return fseek(_fp, offset, origin); }
     void close() override { if (_fp) fclose(_fp); }
-    std::int32_t tell(void) override { return ftell(_fp); }
+    int32_t tell(void) override { return ftell(_fp); }
   };
 
 #endif
@@ -199,23 +199,23 @@ public:
 
   struct StreamWrapper : public DataWrapper
   {
-    void set(Stream* src, std::uint32_t length = ~0u) { _stream = src; _length = length; _index = 0; }
+    void set(Stream* src, uint32_t length = ~0u) { _stream = src; _length = length; _index = 0; }
 
-    int read(std::uint8_t *buf, std::uint32_t len) override {
-      len = std::min<std::uint32_t>(len, _stream->available());
+    int read(uint8_t *buf, uint32_t len) override {
+      len = std::min<uint32_t>(len, _stream->available());
       if (len > _length - _index) { len = _length - _index; }
       _index += len;
       return _stream->readBytes((char*)buf, len);
     }
-    void skip(std::int32_t offset) override { if (0 < offset) { char dummy[offset]; _stream->readBytes(dummy, offset); _index += offset; } }
-    bool seek(std::uint32_t offset) override { if (offset < _index) { return false; } skip(offset - _index); return true; }
+    void skip(int32_t offset) override { if (0 < offset) { char dummy[offset]; _stream->readBytes(dummy, offset); _index += offset; } }
+    bool seek(uint32_t offset) override { if (offset < _index) { return false; } skip(offset - _index); return true; }
     void close() override { }
-    std::int32_t tell(void) override { return _index; }
+    int32_t tell(void) override { return _index; }
 
   protected:
     Stream* _stream;
-    std::uint32_t _index;
-    std::uint32_t _length = 0;
+    uint32_t _index;
+    uint32_t _length = 0;
   };
 
 #endif

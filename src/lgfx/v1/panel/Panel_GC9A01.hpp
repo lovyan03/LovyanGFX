@@ -35,7 +35,7 @@ namespace lgfx
       _cfg.dummy_read_pixel = 16;
     }
 
-    void setWindow(std::uint_fast16_t xs, std::uint_fast16_t ys, std::uint_fast16_t xe, std::uint_fast16_t ye) override
+    void setWindow(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye) override
     {
       if (xs != _xs || xe != _xe || ys != _ys || ye != _ye)
       {
@@ -63,9 +63,9 @@ namespace lgfx
 
   protected:
 
-    std::uint8_t getMadCtl(std::uint8_t r) const override
+    uint8_t getMadCtl(uint8_t r) const override
     {
-      static constexpr std::uint8_t madctl_table[] =
+      static constexpr uint8_t madctl_table[] =
       {
                            0,
         MAD_MV|MAD_MX       ,
@@ -79,9 +79,9 @@ namespace lgfx
       return madctl_table[r];
     }
 
-    const std::uint8_t* getInitCommands(std::uint8_t listno) const override
+    const uint8_t* getInitCommands(uint8_t listno) const override
     {
-      static constexpr std::uint8_t list0[] = {
+      static constexpr uint8_t list0[] = {
           0xEF, 0,
           0xEB, 1, 0x14,
           0xFE, 0,
