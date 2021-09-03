@@ -36,7 +36,7 @@ namespace lgfx
     }
 
     void setColorDepth_impl(color_depth_t depth) override 
-    { // ILI9481,ILI9486,ILI9488 は SPIバス接続時は16bppが使用できない
+    { // ILI9481,ILI9486 は SPIバス接続時は16bppが使用できない (ILI9486 spec Page 125 of 312)
       _write_depth = (((int)depth & color_depth_t::bit_mask) > 16
                     || (_bus && _bus->busType() == bus_spi))
                     ? rgb888_3Byte
@@ -168,6 +168,16 @@ namespace lgfx
 
   struct Panel_ILI9488 : public Panel_ILI948x
   {
+    void setColorDepth_impl(color_depth_t depth) override 
+    {
+      _write_depth = (((int)depth & color_depth_t::bit_mask) > 16
+                    || (_bus && _bus->busType() == bus_spi))
+                    ? rgb888_3Byte
+                    : rgb565_2Byte;
+
+      _read_depth = rgb888_3Byte;
+    }
+
   protected:
 
     static constexpr uint8_t CMD_FRMCTR1 = 0xB1;
