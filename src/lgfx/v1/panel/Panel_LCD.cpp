@@ -418,6 +418,11 @@ namespace lgfx
       _bus->readPixels(dst, param, len);
     }
     cs_control(true);
+    if (_cfg.end_read_delay_us)
+    {
+      delayMicroseconds(_cfg.end_read_delay_us);
+    }
+
     _bus->endRead();
 
     endWrite();

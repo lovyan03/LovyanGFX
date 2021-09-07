@@ -84,6 +84,9 @@ namespace lgfx
       /// データ読出し前のダミーリードのビット数
       uint8_t dummy_read_bits = 1;
 
+      /// データ読出し終了時のウェイト(ST7796で必要)
+      uint16_t end_read_delay_us = 0;
+
       /// Whether the data is readable or not.
       /// データ読出しが可能か否か
       bool readable = true;
