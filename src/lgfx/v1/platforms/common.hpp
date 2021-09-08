@@ -41,6 +41,10 @@ Contributors:
 
 #include "spresense/common.hpp"
 
+#elif defined (ARDUINO_ARCH_MBED_RP2040) || defined(ARDUINO_ARCH_RP2040)
+
+#include "rp2040/common.hpp"
+
 #elif defined (ARDUINO)
 
 #include "arduino_default/common.hpp"

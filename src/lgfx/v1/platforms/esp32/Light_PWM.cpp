@@ -17,7 +17,7 @@ Contributors:
 /----------------------------------------------------------------------------*/
 #if defined (ESP_PLATFORM)
 #include <sdkconfig.h>
-#if !defined (CONFIG_IDF_TARGET) || defined (CONFIG_IDF_TARGET_ESP32) || defined (CONFIG_IDF_TARGET_ESP32S2)
+#if !defined (CONFIG_IDF_TARGET) || defined (CONFIG_IDF_TARGET_ESP32) || defined (CONFIG_IDF_TARGET_ESP32S2) || defined (CONFIG_IDF_TARGET_ESP32C3)
 
 #include "Light_PWM.hpp"
 

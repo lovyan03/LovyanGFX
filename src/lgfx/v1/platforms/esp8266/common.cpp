@@ -201,22 +201,276 @@ namespace lgfx
   /// unimplemented.
   namespace i2c
   {
-    cpp::result<void, error_t> init(int i2c_port, int pin_sda, int pin_scl) { return cpp::fail(error_t::unknown_err); }
-    cpp::result<void, error_t> release(int i2c_port) { return cpp::fail(error_t::unknown_err); }
-    cpp::result<void, error_t> restart(int i2c_port, int i2c_addr, uint32_t freq, bool read) { return cpp::fail(error_t::unknown_err); }
-    cpp::result<void, error_t> beginTransaction(int i2c_port, int i2c_addr, uint32_t freq, bool read) { return cpp::fail(error_t::unknown_err); }
-    cpp::result<void, error_t> endTransaction(int i2c_port) { return cpp::fail(error_t::unknown_err); }
-    cpp::result<void, error_t> writeBytes(int i2c_port, const uint8_t *data, size_t length) { return cpp::fail(error_t::unknown_err); }
-    cpp::result<void, error_t> readBytes(int i2c_port, uint8_t *data, size_t length) { return cpp::fail(error_t::unknown_err); }
+    static constexpr int I2C_NUM_MAX = 2;
+
+    struct i2c_context_t
+    {
+      enum state_t
+      {
+        state_disconnect,
+        state_write,
+        state_read
+      };
+      cpp::result<state_t, error_t> state;
+
+      bool wait_ack = false;
+      uint8_t pin_scl = -1;
+      uint8_t pin_sda = -1;
+      uint32_t freq = 0;
+
+      uint32_t dcount = 5;
+
+      void IRAM_ATTR busywait(unsigned int v)
+      {
+        for (size_t i = 0; i < v; i++)  // loop time is 5 machine cycles: 31.25ns @ 160MHz, 62.5ns @ 80MHz
+        {
+          __asm__ __volatile__("nop"); // minimum element to keep GCC from optimizing this function out.
+        }
+      }
+
+      bool WAIT_CLOCK_STRETCH(uint32_t msec = 5000)
+      {
+        if (!read(pin_scl))
+        {
+          auto start = millis();
+          while (!read(pin_scl))
+          {
+            if (millis() - start > msec) return false;
+            yield();
+          }
+        }
+        return true;
+      }
+
+      bool write_start(void)
+      {
+        hi(pin_scl);
+        hi(pin_sda);
+        busywait(dcount);
+        if (!read(pin_sda))
+        {
+          return false;
+        }
+        lo(pin_sda);
+        busywait(dcount);
+        return true;
+      }
+
+      bool write_stop(void)
+      {
+        lo(pin_scl);
+        lo(pin_sda);
+        busywait(dcount);
+        hi(pin_scl);
+        busywait(dcount);
+        WAIT_CLOCK_STRETCH();
+        hi(pin_sda);
+        busywait(dcount);
+        return true;
+      }
+
+      bool write_byte(uint8_t byte)
+      {
+        for (int idx = 0; idx < 8; idx++)
+        {
+          write_bit(byte & 0x80);
+          byte <<= 1;
+        }
+        return !read_bit();//NACK/ACK
+      }
+
+      uint8_t read_byte(bool nack)
+      {
+        uint8_t byte = 0;
+        for (int idx = 0; idx < 8; idx++)
+        {
+          byte = (byte << 1) + read_bit();
+        }
+        write_bit(nack);
+        return byte;
+      }
+
+    private:
+      static inline __attribute__((always_inline)) void lo(const int pin)
+      {
+        GPES = (1 << pin);
+      }
+      static inline __attribute__((always_inline)) void hi(const int pin)
+      {
+        GPEC = (1 << pin);
+      }
+      static inline __attribute__((always_inline)) bool read(const int pin)
+      {
+        return (GPI & (1 << pin)) != 0;
+      }
+
+      inline __attribute__((always_inline)) bool write_bit(bool bit)
+      {
+        lo(pin_scl);
+        if (bit)
+        {
+          hi(pin_sda);
+        }
+        else
+        {
+          lo(pin_sda);
+        }
+        busywait(dcount + 1);
+        hi(pin_scl);
+        busywait(dcount + 1);
+        return WAIT_CLOCK_STRETCH();
+      }
+
+      inline __attribute__((always_inline)) bool read_bit(void)
+      {
+        lo(pin_scl);
+        hi(pin_sda);
+        busywait(dcount + 2);
+        hi(pin_scl);
+        WAIT_CLOCK_STRETCH();
+        bool bit = read(pin_sda);
+        busywait(dcount);
+        return bit;
+      }
+    };
+    i2c_context_t i2c_context[I2C_NUM_MAX];
+
+    void IRAM_ATTR busywait(unsigned int v)
+    {
+      unsigned int i;
+      for (i = 0; i < v; i++)  // loop time is 5 machine cycles: 31.25ns @ 160MHz, 62.5ns @ 80MHz
+      {
+          __asm__ __volatile__("nop"); // minimum element to keep GCC from optimizing this function out.
+      }
+    }
+
+    cpp::result<void, error_t> init(int i2c_port, int pin_sda, int pin_scl)
+    {
+      if (i2c_port >= I2C_NUM_MAX) { return cpp::fail(error_t::invalid_arg); }
+
+      i2c_context[i2c_port].pin_scl = pin_scl;
+      i2c_context[i2c_port].pin_sda = pin_sda;
+      // i2c_context[i2c_port].write_stop();
+
+      pinMode(pin_sda, pin_mode_t::input_pullup);
+      pinMode(pin_scl, pin_mode_t::input_pullup);
+
+      return {};
+    }
+    cpp::result<void, error_t> release(int i2c_port)
+    {
+      return {};
+    }
+    cpp::result<void, error_t> restart(int i2c_port, int i2c_addr, uint32_t freq, bool read)
+    {
+      if (i2c_port >= I2C_NUM_MAX) { return cpp::fail(error_t::invalid_arg); }
+      auto i2c = &i2c_context[i2c_port];
+
+      if (i2c->write_start()
+       && i2c->write_byte((i2c_addr << 1 ) + read))
+      {
+        return {};
+      }
+      return cpp::fail(error_t::connection_lost);
+    }
+    cpp::result<void, error_t> beginTransaction(int i2c_port, int i2c_addr, uint32_t freq, bool read)
+    {
+      return restart(i2c_port, i2c_addr, freq, read);
+    }
+    cpp::result<void, error_t> endTransaction(int i2c_port)
+    {
+      if (i2c_port >= I2C_NUM_MAX) { return cpp::fail(error_t::invalid_arg); }
+      auto i2c = &i2c_context[i2c_port];
+
+      if (i2c->write_stop())
+      {
+        return {};
+      }
+      return cpp::fail(error_t::connection_lost);
+    }
+    cpp::result<void, error_t> writeBytes(int i2c_port, const uint8_t *data, size_t length)
+    {
+      if (i2c_port >= I2C_NUM_MAX) { return cpp::fail(error_t::invalid_arg); }
+      auto i2c = &i2c_context[i2c_port];
+      while (length--)
+      {
+        if (!i2c->write_byte(*data++))
+        {
+          return cpp::fail(error_t::connection_lost);
+        }
+      }
+      return {};
+    }
+    cpp::result<void, error_t> readBytes(int i2c_port, uint8_t *data, size_t length)
+    {
+      if (i2c_port >= I2C_NUM_MAX) { return cpp::fail(error_t::invalid_arg); }
+      auto i2c = &i2c_context[i2c_port];
+      while (length--)
+      {
+        *data++ = i2c->read_byte(false);
+      }
+      return {};
+    }
 
 //--------
 
-    cpp::result<void, error_t> transactionWrite(int i2c_port, int addr, const uint8_t *writedata, uint8_t writelen, uint32_t freq)  { return cpp::fail(error_t::unknown_err); }
-    cpp::result<void, error_t> transactionRead(int i2c_port, int addr, uint8_t *readdata, uint8_t readlen, uint32_t freq)  { return cpp::fail(error_t::unknown_err); }
-    cpp::result<void, error_t> transactionWriteRead(int i2c_port, int addr, const uint8_t *writedata, uint8_t writelen, uint8_t *readdata, size_t readlen, uint32_t freq)  { return cpp::fail(error_t::unknown_err); }
+    cpp::result<void, error_t> transactionWrite(int i2c_port, int addr, const uint8_t *writedata, uint8_t writelen, uint32_t freq)
+    {
+      cpp::result<void, error_t> res;
+      if ((res = beginTransaction(i2c_port, addr, freq, false)).has_value()
+       && (res = writeBytes(i2c_port, writedata, writelen)).has_value()
+      )
+      {
+        res = endTransaction(i2c_port);
+      }
+      return res;
+    }
 
-    cpp::result<uint8_t, error_t> readRegister8(int i2c_port, int addr, uint8_t reg, uint32_t freq)  { return cpp::fail(error_t::unknown_err); }
-    cpp::result<void, error_t> writeRegister8(int i2c_port, int addr, uint8_t reg, uint8_t data, uint8_t mask, uint32_t freq)  { return cpp::fail(error_t::unknown_err); }
+    cpp::result<void, error_t> transactionRead(int i2c_port, int addr, uint8_t *readdata, uint8_t readlen, uint32_t freq)
+    {
+      cpp::result<void, error_t> res;
+      if ((res = beginTransaction(i2c_port, addr, freq, true)).has_value()
+       && (res = readBytes(i2c_port, readdata, readlen)).has_value()
+      )
+      {
+        res = endTransaction(i2c_port);
+      }
+      return res;
+    }
+
+    cpp::result<void, error_t> transactionWriteRead(int i2c_port, int addr, const uint8_t *writedata, uint8_t writelen, uint8_t *readdata, size_t readlen, uint32_t freq)
+    {
+      cpp::result<void, error_t> res;
+      if ((res = beginTransaction(i2c_port, addr, freq, false)).has_value()
+       && (res = writeBytes(i2c_port, writedata, writelen)).has_value()
+       && (res = restart(i2c_port, addr, freq, true)).has_value()
+       && (res = readBytes(i2c_port, readdata, readlen)).has_value()
+      )
+      {
+        res = endTransaction(i2c_port);
+      }
+      return res;
+    }
+
+    cpp::result<uint8_t, error_t> readRegister8(int i2c_port, int addr, uint8_t reg, uint32_t freq)
+    {
+      auto res = transactionWriteRead(i2c_port, addr, &reg, 1, &reg, 1, freq);
+      if (res.has_value()) { return reg; }
+      return cpp::fail( res.error() );
+    }
+
+    cpp::result<void, error_t> writeRegister8(int i2c_port, int addr, uint8_t reg, uint8_t data, uint8_t mask, uint32_t freq)
+    {
+      uint8_t tmp[2] = { reg, data };
+      if (mask)
+      {
+        auto res = transactionWriteRead(i2c_port, addr, &reg, 1, &tmp[1], 1, freq);
+        if (res.has_error()) { return res; }
+        tmp[1] = (tmp[1] & mask) | data;
+      }
+      return transactionWrite(i2c_port, addr, tmp, 2, freq);
+    }
+
   }
 
 //----------------------------------------------------------------------------
