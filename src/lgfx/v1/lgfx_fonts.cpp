@@ -324,7 +324,8 @@ namespace lgfx
 
 //----------------------------------------------------------------------------
 
-  bool GFXfont::updateFontMetric(lgfx::FontMetrics *metrics, uint16_t uniCode) const {
+  bool GFXfont::updateFontMetric(lgfx::FontMetrics *metrics, uint16_t uniCode) const
+  {
     auto glyph = getGlyph(uniCode);
     bool res = glyph;
     if (!res)
@@ -333,47 +334,49 @@ namespace lgfx
       if (!glyph)
       {
         metrics->x_offset = 0;
-        metrics->width = metrics->x_advance = this->yAdvance >> 1;
+        metrics->width = metrics->x_advance = pgm_read_byte(&this->yAdvance) >> 1;
         return false;
       }
     }
-    metrics->x_offset  = glyph->xOffset;
-    metrics->width     = glyph->width;
-    metrics->x_advance = glyph->xAdvance;
+    metrics->x_offset  = (int8_t)pgm_read_byte(&glyph->xOffset);
+    metrics->width     = pgm_read_byte(&glyph->width);
+    metrics->x_advance = pgm_read_byte(&glyph->xAdvance);
     return res;
   }
 
-  GFXglyph* GFXfont::getGlyph(uint16_t uniCode) const {
-    if (uniCode > last
-    ||  uniCode < first) return nullptr;
-    uint16_t custom_range_num = range_num;
+  GFXglyph* GFXfont::getGlyph(uint16_t uniCode) const
+  {
+    auto f = pgm_read_word(&first);
+    if (uniCode > pgm_read_word(&last)
+    ||  uniCode < f) return nullptr;
+    uint_fast16_t custom_range_num = pgm_read_word(&range_num);
     if (custom_range_num == 0) {
-      uniCode -= first;
-      return &glyph[uniCode];
+      uniCode -= f;
+      return &(((GFXglyph*)pgm_read_ptr( &glyph ))[uniCode]);
     }
     auto range_pst = range;
     size_t i = 0;
-    while ((uniCode > range_pst[i].end)
-        || (uniCode < range_pst[i].start)) {
+    while ((uniCode > pgm_read_word(&range_pst[i].end))
+        || (uniCode < pgm_read_word(&range_pst[i].start))) {
       if (++i == custom_range_num) return nullptr;
     }
-    uniCode -= range_pst[i].start - range_pst[i].base;
-    return &glyph[uniCode];
+    uniCode -= pgm_read_word(&range_pst[i].start) - pgm_read_word(&range_pst[i].base);
+    return &(((GFXglyph*)pgm_read_ptr( &glyph ))[uniCode]);
   }
 
   void GFXfont::getDefaultMetric(lgfx::FontMetrics *metrics) const
   {
     int_fast8_t glyph_ab = 0;   // glyph delta Y (height) above baseline
     int_fast8_t glyph_bb = 0;   // glyph delta Y (height) below baseline
-    size_t numChars = last - first;
+    size_t numChars = pgm_read_word(&last) - pgm_read_word(&first);
 
-    size_t custom_range_num = range_num;
+    size_t custom_range_num = pgm_read_word(&range_num);
     if (custom_range_num != 0) {
       EncodeRange *range_pst = range;
       size_t i = 0;
       numChars = custom_range_num;
       do {
-        numChars += range_pst[i].end - range_pst[i].start;
+        numChars += pgm_read_word(& range_pst[i].end) - pgm_read_word(& range_pst[i].start);
       } while (++i < custom_range_num);
     }
 
@@ -381,17 +384,17 @@ namespace lgfx
     size_t c = 0;
     do
     {
-      GFXglyph *glyph1 = &glyph[c];
-      int_fast8_t ab = -glyph1->yOffset;
+      GFXglyph* glyph1 = &(((GFXglyph*)pgm_read_ptr( &glyph ))[c]);
+      int_fast8_t ab = - (int8_t)(pgm_read_byte(& (glyph1->yOffset)));
       if (ab > glyph_ab) glyph_ab = ab;
-      int_fast8_t bb = glyph1->height - ab;
+      int_fast8_t bb = pgm_read_byte(& glyph1->height) - ab;
       if (bb > glyph_bb) glyph_bb = bb;
     } while ( ++c < numChars );
 
     metrics->baseline = glyph_ab;
     metrics->y_offset = - glyph_ab;
     metrics->height   = glyph_bb + glyph_ab;
-    metrics->y_advance = yAdvance;
+    metrics->y_advance = pgm_read_byte(& yAdvance);
   }
 
   size_t GFXfont::drawChar(LGFXBase* gfx, int32_t x, int32_t y, uint16_t uniCode, const TextStyle* style, FontMetrics* metrics, int32_t& filled_x) const
@@ -402,17 +405,17 @@ namespace lgfx
     if (!glyph)
     {
       glyph = this->getGlyph(0x20);
-      if (glyph) return drawCharDummy(gfx, x, y, glyph->xAdvance, metrics->height, style, filled_x);
+      if (glyph) return drawCharDummy(gfx, x, y, pgm_read_byte(&glyph->xAdvance), metrics->height, style, filled_x);
       return 0;
     }
 
-    int32_t w = glyph->width;
-    int32_t h = glyph->height;
+    int32_t w = pgm_read_byte(&glyph->width);
+    int32_t h = pgm_read_byte(&glyph->height);
 
     int32_t sx = 65536 * style->size_x;
 
-    int32_t xAdvance = sx * glyph->xAdvance >> 16;
-    int32_t xoffset  = sx * glyph->xOffset  >> 16;
+    int32_t xAdvance = sx * pgm_read_byte(&glyph->xAdvance) >> 16;
+    int32_t xoffset  = sx * ((int8_t)pgm_read_byte(&glyph->xOffset)) >> 16;
 
     uint32_t colortbl[2] = {gfx->getColorConverter()->convert(style->back_rgb888), gfx->getColorConverter()->convert(style->fore_rgb888)};
     bool fillbg = (style->back_rgb888 != style->fore_rgb888);
@@ -426,7 +429,7 @@ namespace lgfx
     }
 
     x += xoffset;
-    int32_t yoffset = (- metrics->y_offset) + glyph->yOffset;
+    int32_t yoffset = (- metrics->y_offset) + (int8_t)pgm_read_byte(&glyph->yOffset);
 
     gfx->startWrite();
 
@@ -441,7 +444,8 @@ namespace lgfx
       }
     }
 
-    uint8_t *bitmap = &this->bitmap[glyph->bitmapOffset];
+    uint8_t *bitmap = &this->bitmap[pgm_read_dword(&glyph->bitmapOffset)];
+    uint8_t btmp = pgm_read_byte(bitmap);
     uint8_t mask=0x80;
 
     gfx->setRawColor(colortbl[1]);
@@ -467,10 +471,11 @@ namespace lgfx
       bool flg = false;
       do {
         do {
-          if (flg != (bool)(*bitmap & mask)) break;
+          if (flg != (bool)(btmp & mask)) break;
           if (! (mask >>= 1)) {
             mask = 0x80;
             ++bitmap;
+            btmp = pgm_read_byte(bitmap);
           }
         } while (++j < w);
         int32_t x1 = (j * sx) >> 16;
