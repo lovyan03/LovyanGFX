@@ -241,31 +241,46 @@ namespace lgfx
       {
         uint32_t sda = 1 << pin_sda;
         uint32_t scl = 1 << pin_scl;
-        GPEC = scl; // hi
-        GPEC = sda; // hi
-        for (int i = nopwait>>1; i; --i) { __asm__ __volatile__("nop"); }
 
-        if (!(GPI & sda))
+        int retry = 9;
+        while (!(GPI & sda) && --retry)
         {
-          return false;
+          GPES = scl; // lo
+          GPEC = sda; // hi
+          for (int i = nopwait>>1; i; --i) { __asm__ __volatile__("nop"); }
+          GPEC = scl; // hi
+          for (int i = nopwait>>1; i; --i) { __asm__ __volatile__("nop"); }
         }
         GPES = sda; // lo
         for (int i = nopwait>>1; i; --i) { __asm__ __volatile__("nop"); }
-        return true;
+        return retry;
       }
 
       bool write_stop(void)
       {
-        uint32_t sda = 1 << pin_sda;
         uint32_t scl = 1 << pin_scl;
         GPES = scl; // lo
-        GPES = sda; // lo
+
+        uint32_t sda = 1 << pin_sda;
+        GPEC = sda; // hi
+
         for (int i = nopwait>>1; i; --i) { __asm__ __volatile__("nop"); }
+        // SDAがHIGHになるまでクロック送出しながら待機する。
+        int retry = 9;
+        while (!(GPI & sda) && (--retry))
+        {
+          GPEC = scl; // hi
+          for (int i = nopwait>>1; i; --i) { __asm__ __volatile__("nop"); }
+          GPES = scl; // lo
+          for (int i = nopwait>>1; i; --i) { __asm__ __volatile__("nop"); }
+        }
+        GPES = sda; // lo
         GPEC = scl; // hi
         for (int i = nopwait>>1; i; --i) { __asm__ __volatile__("nop"); }
-        bool res = WAIT_CLOCK_STRETCH();
+
         GPEC = sda; // hi
-        return res;
+
+        return retry;
       }
 
       bool write_byte(uint8_t byte)
