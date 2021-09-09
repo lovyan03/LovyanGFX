@@ -58,14 +58,14 @@ namespace lgfx
         int8_t pin_data[8];
         struct
         {
-          int8_t pin_d0 = -1;
-          int8_t pin_d1 = -1;
-          int8_t pin_d2 = -1;
-          int8_t pin_d3 = -1;
-          int8_t pin_d4 = -1;
-          int8_t pin_d5 = -1;
-          int8_t pin_d6 = -1;
-          int8_t pin_d7 = -1;
+          int8_t pin_d0;
+          int8_t pin_d1;
+          int8_t pin_d2;
+          int8_t pin_d3;
+          int8_t pin_d4;
+          int8_t pin_d5;
+          int8_t pin_d6;
+          int8_t pin_d7;
         };
       };
     };

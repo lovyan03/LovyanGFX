@@ -218,142 +218,126 @@ namespace lgfx
       uint8_t pin_sda = -1;
       uint32_t freq = 0;
 
-      uint32_t dcount = 5;
-
-      void IRAM_ATTR busywait(unsigned int v)
-      {
-        for (size_t i = 0; i < v; i++)  // loop time is 5 machine cycles: 31.25ns @ 160MHz, 62.5ns @ 80MHz
-        {
-          __asm__ __volatile__("nop"); // minimum element to keep GCC from optimizing this function out.
-        }
-      }
+      int nopwait = 26;
 
       bool WAIT_CLOCK_STRETCH(uint32_t msec = 5000)
       {
-        if (!read(pin_scl))
+        uint32_t scl = 1 << pin_scl;
+        int i = 256;
+        while (!(GPI & scl) && --i);
+        if (i) return true;
+
+        auto start = millis();
+        do
         {
-          auto start = millis();
-          while (!read(pin_scl))
-          {
-            if (millis() - start > msec) return false;
-            yield();
-          }
-        }
+          yield();
+          if (millis() - start > msec) return false;
+        } while (!(GPI & scl));
+
         return true;
       }
 
       bool write_start(void)
       {
-        hi(pin_scl);
-        hi(pin_sda);
-        busywait(dcount);
-        if (!read(pin_sda))
+        uint32_t sda = 1 << pin_sda;
+        uint32_t scl = 1 << pin_scl;
+        GPEC = scl; // hi
+        GPEC = sda; // hi
+        for (int i = nopwait>>1; i; --i) { __asm__ __volatile__("nop"); }
+
+        if (!(GPI & sda))
         {
           return false;
         }
-        lo(pin_sda);
-        busywait(dcount);
+        GPES = sda; // lo
+        for (int i = nopwait>>1; i; --i) { __asm__ __volatile__("nop"); }
         return true;
       }
 
       bool write_stop(void)
       {
-        lo(pin_scl);
-        lo(pin_sda);
-        busywait(dcount);
-        hi(pin_scl);
-        busywait(dcount);
-        WAIT_CLOCK_STRETCH();
-        hi(pin_sda);
-        busywait(dcount);
-        return true;
+        uint32_t sda = 1 << pin_sda;
+        uint32_t scl = 1 << pin_scl;
+        GPES = scl; // lo
+        GPES = sda; // lo
+        for (int i = nopwait>>1; i; --i) { __asm__ __volatile__("nop"); }
+        GPEC = scl; // hi
+        for (int i = nopwait>>1; i; --i) { __asm__ __volatile__("nop"); }
+        bool res = WAIT_CLOCK_STRETCH();
+        GPEC = sda; // hi
+        return res;
       }
 
       bool write_byte(uint8_t byte)
       {
-        for (int idx = 0; idx < 8; idx++)
+        uint32_t sda = 1 << pin_sda;
+        uint32_t scl = 1 << pin_scl;
+        uint32_t mask = 0x80;
+        volatile uint32_t* outreg[2] = { &GPES, &GPEC };
+        int i;
+        do
         {
-          write_bit(byte & 0x80);
-          byte <<= 1;
-        }
-        return !read_bit();//NACK/ACK
+          *outreg[0] = scl; // lo
+          *outreg[(bool)(byte & mask)] = sda;
+          mask >>= 1;
+          for (i = nopwait>>1; i; --i) { __asm__ __volatile__("nop"); }
+          *outreg[1] = scl; // hi
+          for (i = (nopwait+1)>>1; i; --i) { __asm__ __volatile__("nop"); }
+          i = 256;
+          while (!(GPI & scl) && --i);
+        } while (i && mask);
+        *outreg[0] = scl; // lo
+        *outreg[1] = sda; // hi
+        for (i = (nopwait+1)>>1; i; --i) { __asm__ __volatile__("nop"); }
+        *outreg[1] = scl; // hi
+        for (i = (nopwait>>1)-16; i > 0; --i) { __asm__ __volatile__("nop"); }
+
+        i = 256;
+        while (!(GPI & scl) && --i);
+        return ((i || WAIT_CLOCK_STRETCH())) && !(GPI & sda); //NACK/ACK
       }
 
       uint8_t read_byte(bool nack)
       {
+        uint32_t sda = 1 << pin_sda;
+        uint32_t scl = 1 << pin_scl;
         uint8_t byte = 0;
+        int i;
         for (int idx = 0; idx < 8; idx++)
         {
-          byte = (byte << 1) + read_bit();
+          GPES = scl; // lo
+          GPEC = sda; // hi
+          for (i = nopwait>>1; i; --i) { __asm__ __volatile__("nop"); }
+          GPEC = scl; // hi
+          for (i = (nopwait+1)>>1; i; --i) { __asm__ __volatile__("nop"); }
+
+          i = 256;
+          while (!(GPI & scl) && --i);
+
+          byte = (byte << 1) + (bool)(GPI & sda);
         }
-        write_bit(nack);
+        GPES = scl; // lo
+        (nack ? GPEC : GPES) = sda;
+        for (i = nopwait>>1; i; --i) { __asm__ __volatile__("nop"); }
+        GPEC = scl; // hi
+        for (i = (nopwait+1)>>1; i; --i) { __asm__ __volatile__("nop"); }
+
         return byte;
-      }
-
-    private:
-      static inline __attribute__((always_inline)) void lo(const int pin)
-      {
-        GPES = (1 << pin);
-      }
-      static inline __attribute__((always_inline)) void hi(const int pin)
-      {
-        GPEC = (1 << pin);
-      }
-      static inline __attribute__((always_inline)) bool read(const int pin)
-      {
-        return (GPI & (1 << pin)) != 0;
-      }
-
-      inline __attribute__((always_inline)) bool write_bit(bool bit)
-      {
-        lo(pin_scl);
-        if (bit)
-        {
-          hi(pin_sda);
-        }
-        else
-        {
-          lo(pin_sda);
-        }
-        busywait(dcount + 1);
-        hi(pin_scl);
-        busywait(dcount + 1);
-        return WAIT_CLOCK_STRETCH();
-      }
-
-      inline __attribute__((always_inline)) bool read_bit(void)
-      {
-        lo(pin_scl);
-        hi(pin_sda);
-        busywait(dcount + 2);
-        hi(pin_scl);
-        WAIT_CLOCK_STRETCH();
-        bool bit = read(pin_sda);
-        busywait(dcount);
-        return bit;
       }
     };
     i2c_context_t i2c_context[I2C_NUM_MAX];
 
-    void IRAM_ATTR busywait(unsigned int v)
-    {
-      unsigned int i;
-      for (i = 0; i < v; i++)  // loop time is 5 machine cycles: 31.25ns @ 160MHz, 62.5ns @ 80MHz
-      {
-          __asm__ __volatile__("nop"); // minimum element to keep GCC from optimizing this function out.
-      }
-    }
-
     cpp::result<void, error_t> init(int i2c_port, int pin_sda, int pin_scl)
     {
       if (i2c_port >= I2C_NUM_MAX) { return cpp::fail(error_t::invalid_arg); }
-
-      i2c_context[i2c_port].pin_scl = pin_scl;
-      i2c_context[i2c_port].pin_sda = pin_sda;
-      // i2c_context[i2c_port].write_stop();
+      auto i2c = &i2c_context[i2c_port];
 
       pinMode(pin_sda, pin_mode_t::input_pullup);
       pinMode(pin_scl, pin_mode_t::input_pullup);
+      i2c->nopwait = 32;
+      i2c->pin_scl = pin_scl;
+      i2c->pin_sda = pin_sda;
+      i2c->write_stop();
 
       return {};
     }
@@ -365,6 +349,20 @@ namespace lgfx
     {
       if (i2c_port >= I2C_NUM_MAX) { return cpp::fail(error_t::invalid_arg); }
       auto i2c = &i2c_context[i2c_port];
+
+      if (i2c->freq != freq)
+      {
+        i2c->freq = freq;
+        int tmp = (500000000 / freq);  // half-cycle period in ns
+        int overhead = 280;
+        int div = 40630;
+        if (esp_get_cpu_freq_mhz() >= 160) // 160MHz
+        {
+          div >>= 1;
+          overhead >>= 1;
+        }
+        i2c->nopwait = (1000 * std::max(0, tmp - overhead)) / div; // (half cycle - overhead) / busywait loop time
+      }
 
       if (i2c->write_start()
        && i2c->write_byte((i2c_addr << 1 ) + read))
@@ -392,12 +390,15 @@ namespace lgfx
     {
       if (i2c_port >= I2C_NUM_MAX) { return cpp::fail(error_t::invalid_arg); }
       auto i2c = &i2c_context[i2c_port];
-      while (length--)
+      if (length)
       {
-        if (!i2c->write_byte(*data++))
+        do
         {
-          return cpp::fail(error_t::connection_lost);
-        }
+          if (!i2c->write_byte(*data++))
+          {
+            return cpp::fail(error_t::connection_lost);
+          }
+        } while (--length);
       }
       return {};
     }
