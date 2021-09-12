@@ -3,6 +3,10 @@
 
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif /* __cplusplus */
+
 extern const uint8_t lgfx_font_japan_mincho_8[];
 extern const uint8_t lgfx_font_japan_mincho_12[];
 extern const uint8_t lgfx_font_japan_mincho_16[];
@@ -40,5 +44,8 @@ extern const uint8_t lgfx_font_japan_gothic_p_32[];
 extern const uint8_t lgfx_font_japan_gothic_p_36[];
 extern const uint8_t lgfx_font_japan_gothic_p_40[];
 
+#ifdef __cplusplus
+}
+#endif /* __cplusplus */
 
 #endif

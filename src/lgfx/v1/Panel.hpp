@@ -27,6 +27,7 @@ Contributors:
 #endif
 
 #include "misc/enum.hpp"
+#include "misc/colortype.hpp"
 #include "misc/pixelcopy.hpp"
 
 namespace lgfx

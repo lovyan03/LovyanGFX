@@ -19,6 +19,7 @@ Contributors:
 #include "../Bus.hpp"
 #include "../platforms/common.hpp"
 #include "../misc/pixelcopy.hpp"
+#include "../misc/colortype.hpp"
 
 namespace lgfx
 {
@@ -294,7 +295,7 @@ namespace lgfx
 
   void Panel_M5UnitLCD::writeFillRectAlphaPreclipped(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, uint32_t argb8888)
   {
-    _raw_color = __builtin_bswap32(argb8888);
+    _raw_color = getSwap32(argb8888);
     _fill_rect(x, y, w, h, 4);
     _raw_color = ~0u;
   }
@@ -578,7 +579,7 @@ if (bytelen != rleDecode(dest, res, bytes)*bytes) {
     }
     for (size_t i = 0; i < w; ++i)
     {
-      _bus->writeCommand(__builtin_bswap32(buf[i]), 32);
+      _bus->writeCommand(getSwap32(buf[i]), 32);
     }
     _raw_color = ~0u;
   }

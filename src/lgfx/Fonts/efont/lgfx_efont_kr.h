@@ -1,6 +1,10 @@
 #include <stdint.h>
 #define U8G2_USE_LARGE_FONTS
 
+#ifdef __cplusplus
+extern "C" {
+#endif /* __cplusplus */
+
 extern const uint8_t lgfx_efont_kr_10[];
 extern const uint8_t lgfx_efont_kr_10_b[];
 extern const uint8_t lgfx_efont_kr_10_bi[];
@@ -21,3 +25,7 @@ extern const uint8_t lgfx_efont_kr_24[];
 extern const uint8_t lgfx_efont_kr_24_b[];
 extern const uint8_t lgfx_efont_kr_24_bi[];
 extern const uint8_t lgfx_efont_kr_24_i[];
+
+#ifdef __cplusplus
+}
+#endif /* __cplusplus */

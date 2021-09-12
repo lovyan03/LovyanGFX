@@ -10,6 +10,7 @@ file(GLOB SRCS
      src/lgfx/v0/platforms/*.cpp
      src/lgfx/v0/touch/*.cpp
      src/lgfx/v1/*.cpp
+     src/lgfx/v1/misc/*.cpp
      src/lgfx/v1/panel/*.cpp
      src/lgfx/v1/platforms/arduino_default/*.cpp
      src/lgfx/v1/platforms/esp32/*.cpp

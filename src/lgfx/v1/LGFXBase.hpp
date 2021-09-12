@@ -501,9 +501,9 @@ namespace lgfx
     }
 
     [[deprecated("use IFont")]]
-    int32_t fontHeight(uint8_t font) const { return ((const BaseFont*)fontdata[font])->height * _text_style.size_y; }
+    int32_t fontHeight(uint8_t font) const { return (int32_t)(((const BaseFont*)fontdata[font])->height * _text_style.size_y); }
     int32_t fontHeight(const IFont* font) const;
-    int32_t fontHeight(void) const { return _font_metrics.height * _text_style.size_y; }
+    int32_t fontHeight(void) const { return (int32_t)(_font_metrics.height * _text_style.size_y); }
     int32_t textLength(const char *string, int32_t width);
     int32_t textWidth(const char *string) { return textWidth(string, _font); };
     int32_t textWidth(const char *string, const IFont* font);
@@ -573,9 +573,9 @@ namespace lgfx
     }
 
     [[deprecated("use getFont()")]]
-    uint8_t getTextFont(void) const
+    uint_fast8_t getTextFont(void) const
     {
-      size_t i = 0;
+      uint_fast8_t i = 0;
       do {
         if (fontdata[i] == _font) return i;
       } while (fontdata[++i]);

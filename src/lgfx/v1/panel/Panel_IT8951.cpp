@@ -19,6 +19,14 @@ Contributors:
 #include "../Bus.hpp"
 #include "../platforms/common.hpp"
 #include "../misc/pixelcopy.hpp"
+#include "../misc/colortype.hpp"
+
+#ifdef min
+#undef min
+#endif
+#ifdef max
+#undef max
+#endif
 
 namespace lgfx
 {
@@ -228,7 +236,7 @@ IT8951 Registers defines
 
   bool Panel_IT8951::_write_command(uint16_t cmd)
   {
-    uint32_t buf = __builtin_bswap16(0x6000) | __builtin_bswap16(cmd) << 16;
+    uint32_t buf = getSwap16(0x6000) | getSwap16(cmd) << 16;
     if (!_wait_busy()) return false;
     _bus->writeData(buf, 32);
     return true;
@@ -236,7 +244,7 @@ IT8951 Registers defines
 
   bool Panel_IT8951::_write_word(uint16_t data)
   {
-    uint32_t buf = __builtin_bswap16(data) << 16;
+    uint32_t buf = getSwap16(data) << 16;
     if (!_wait_busy()) return false;
     _bus->writeData(buf, 32);
     return true;
@@ -251,7 +259,7 @@ IT8951 Registers defines
       int32_t i = 0;
       do
       {
-        uint32_t buf = __builtin_bswap16(args[i]);
+        uint32_t buf = getSwap16(args[i]);
         _bus->wait();
         while (!lgfx::gpio_in(_cfg.pin_busy));
         _bus->writeData(buf, 16);
@@ -264,14 +272,14 @@ IT8951 Registers defines
   bool Panel_IT8951::_read_words(uint16_t *buf, uint32_t length)
   {
     if (!_wait_busy()) return false;
-    _bus->writeData(__builtin_bswap16(0x1000), 16 + 16); // +16 dummy read
+    _bus->writeData(getSwap16(0x1000), 16 + 16); // +16 dummy read
     _bus->beginRead();
     _bus->readBytes(reinterpret_cast<uint8_t*>(buf), length << 1);
     _bus->endRead();
     cs_control(true);
     for (size_t i = 0; i < length; i++)
     {
-      buf[i] = __builtin_bswap16(buf[i]);
+      buf[i] = getSwap16(buf[i]);
     }
     return true;
   }
@@ -555,10 +563,10 @@ IT8951 Registers defines
               shift -= 4;
             } while (new_pos != ++ prev_pos && shift >= 0);
             if (_invert) buf = ~buf;
-            writebuf[writepos] = __builtin_bswap16(buf);
+            writebuf[writepos] = getSwap16(buf);
             writepos++;
             shift = 12;
-            //_bus->writeData(__builtin_bswap16(buf), 16);
+            //_bus->writeData(getSwap16(buf), 16);
           } while (new_pos != prev_pos);
           _wait_busy();
           _bus->writeBytes((uint8_t*)writebuf, writepos << 1, true, false);
@@ -637,7 +645,7 @@ IT8951 Registers defines
             }
             else
             {
-              _bus->writeData(__builtin_bswap16(buf), 16);
+              _bus->writeData(getSwap16(buf), 16);
               buf = 0;
               shift = 12;
             }
@@ -645,7 +653,7 @@ IT8951 Registers defines
           if (shift != 12)
           {
             if (_invert) buf = ~buf;
-            _bus->writeData(__builtin_bswap16(buf), 16);
+            _bus->writeData(getSwap16(buf), 16);
           }
           _write_command(IT8951_TCON_LD_IMG_END);
         }

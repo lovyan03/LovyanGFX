@@ -9,7 +9,7 @@ namespace lgfx
 {
  inline namespace v1
  {
-  struct LGFXBase;
+  class LGFXBase;
   struct DataWrapper;
   struct IFont;
   struct FontMetrics;
