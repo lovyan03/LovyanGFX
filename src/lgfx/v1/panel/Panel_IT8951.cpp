@@ -333,10 +333,10 @@ IT8951 Registers defines
     uint32_t l = _range_new.left;
     uint32_t r = _range_new.right;
 
-    // 更新範囲の幅が小さすぎる場合、IT8951がフリーズすることがある。
-    // 厳密には、範囲の左右端の座標値の下2ビット捨てた場合に同値になる場合、
-    // かつ、以前の表示更新がまだ動作中で範囲が重なる場合にフリーズする事例がある。
-    // この分岐でそれを防止する。
+    // 更新範囲の幅が小さすぎる場合、IT8951がフリーズすることがある。;
+    // 厳密には、範囲の左右端の座標値の下2ビット捨てた場合に同値になる場合、;
+    // かつ、以前の表示更新がまだ動作中で範囲が重なる場合にフリーズする事例がある。;
+    // この分岐でそれを防止する。;
     if ((l & ~3) == (r & ~3))
     {
       if (( l & 3 ) < (3-(r & 3)))
@@ -423,7 +423,7 @@ IT8951 Registers defines
     _rotation = r;
 //  _it8951_rotation = ((-(r + _cfg.offset_rotation)) & 3) | ((r & 4) ^ (_cfg.offset_rotation & 4));
     _internal_rotation = ((r + _cfg.offset_rotation) & 3) | ((r & 4) ^ (_cfg.offset_rotation & 4));
-    // IT8951の回転方向は左回りなので右回りになるよう変更する。
+    // IT8951の回転方向は左回りなので右回りになるよう変更する。;
     _it8951_rotation = ((-_internal_rotation) & 3) | (_internal_rotation & 4);
 
     _width  = _cfg.panel_width;
@@ -666,7 +666,7 @@ IT8951 Registers defines
     heap_free(readbuf);
   }
 
-  bool Panel_IT8951::_read_raw_line(int32_t raw_x, int32_t raw_y, int32_t len, uint16_t* __restrict__ buf)
+  bool Panel_IT8951::_read_raw_line(int32_t raw_x, int32_t raw_y, int32_t len, uint16_t* __restrict buf)
   {
     uint16_t params[4];
     auto addr = _tar_memaddr + raw_x + raw_y * _cfg.panel_width;
@@ -679,10 +679,10 @@ IT8951 Registers defines
         && _read_words(buf, len);
   }
 
-  void Panel_IT8951::readRect(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, void* __restrict__ dst, pixelcopy_t* param)
+  void Panel_IT8951::readRect(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, void* __restrict dst, pixelcopy_t* param)
   {
-/// IT8951には画素読出しコマンドが存在せず、画像メモリを直接読むコマンドが提供されている。
-/// 画像メモリを直接読み出す場合、ビットシフトや回転方向の解決などは自前で行う必要がある。
+/// IT8951には画素読出しコマンドが存在せず、画像メモリを直接読むコマンドが提供されている。;
+/// 画像メモリを直接読み出す場合、ビットシフトや回転方向の解決などは自前で行う必要がある。;
 
     uint32_t rx, ry, rw, rh;
     if (_it8951_rotation & 4)

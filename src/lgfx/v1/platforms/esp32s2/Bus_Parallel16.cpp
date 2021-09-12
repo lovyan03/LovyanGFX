@@ -285,7 +285,7 @@ namespace lgfx
       wait -= 16;
     }
     if (wait > 0)
-    { /// OUTLINK_START～TX_STARTの時間が短すぎるとデータの先頭を送り損じる事があるのでnopウェイトを入れる
+    { /// OUTLINK_START～TX_STARTの時間が短すぎるとデータの先頭を送り損じる事があるのでnopウェイトを入れる;
       do { __asm__ __volatile__ ("nop"); } while (--wait);
     }
     i2s_dev->conf.val = _conf_reg_start;
@@ -506,7 +506,7 @@ namespace lgfx
         wait -= 16;
       }
       if (wait > 0)
-      { /// OUTLINK_START～TX_STARTの時間が短すぎるとデータの先頭を送り損じる事があるのでnopウェイトを入れる
+      { /// OUTLINK_START～TX_STARTの時間が短すぎるとデータの先頭を送り損じる事があるのでnopウェイトを入れる;
         do { __asm__ __volatile__ ("nop"); } while (--wait);
       }
 

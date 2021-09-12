@@ -17,8 +17,11 @@
 
 #include "../utility/pgmspace.h"
 
-#ifndef PROGMEM
-#define PROGMEM
+#ifdef min
+#undef min
+#endif
+#ifdef max
+#undef max
 #endif
 
 namespace lgfx
@@ -599,7 +602,7 @@ namespace lgfx
 
     int32_t xoffset = (decode.get_signed_bits(bits_per_char_x()) * sx) >> 16;
 
-    int32_t yoffset = -(decode.get_signed_bits(bits_per_char_y()) + h + metrics->y_offset);
+    int32_t yoffset = -(int32_t)(decode.get_signed_bits(bits_per_char_y()) + h + metrics->y_offset);
 
     int32_t xAdvance = (decode.get_signed_bits(bits_per_delta_x()) * sx) >> 16;
 
@@ -748,9 +751,9 @@ namespace lgfx
         file->seek(28 + gNum * 28);  // headerPtr
         uint32_t buffer[6];
         file->read((uint8_t*)buffer, 24);
-        metrics->width    = __builtin_bswap32(buffer[1]); // Width of glyph
-        metrics->x_advance = __builtin_bswap32(buffer[2]); // xAdvance - to move x cursor
-        metrics->x_offset  = (int32_t)((int8_t)__builtin_bswap32(buffer[4])); // x delta from cursor
+        metrics->width     = getSwap32(buffer[1]); // Width of glyph
+        metrics->x_advance = getSwap32(buffer[2]); // xAdvance - to move x cursor
+        metrics->x_offset  = (int32_t)((int8_t)getSwap32(buffer[4])); // x delta from cursor
 
         file->postRead();
       }
@@ -768,12 +771,12 @@ namespace lgfx
       uint32_t buf[6];
       data->read((uint8_t*)buf, 6 * 4); // 24 Byte read
 
-      gCount   = __builtin_bswap32(buf[0]); // glyph count in file
-                //__builtin_bswap32(buf[1]); // vlw encoder version - discard
-      yAdvance = __builtin_bswap32(buf[2]); // Font size in points, not pixels
-                //__builtin_bswap32(buf[3]); // discard
-      ascent   = __builtin_bswap32(buf[4]); // top of "d"
-      descent  = __builtin_bswap32(buf[5]); // bottom of "p"
+      gCount   = getSwap32(buf[0]); // glyph count in file
+                //getSwap32(buf[1]); // vlw encoder version - discard
+      yAdvance = getSwap32(buf[2]); // Font size in points, not pixels
+                //getSwap32(buf[3]); // discard
+      ascent   = getSwap32(buf[4]); // top of "d"
+      descent  = getSwap32(buf[5]); // bottom of "p"
     }
 
     // These next gFont values might be updated when the Metrics are fetched
@@ -818,16 +821,16 @@ namespace lgfx
     uint32_t buffer[7];
     do {
       _fontData->read((uint8_t*)buffer, 7 * 4); // 28 Byte read
-      uint16_t unicode = __builtin_bswap32(buffer[0]); // Unicode code point value
-      uint32_t w = (uint8_t)__builtin_bswap32(buffer[2]); // Width of glyph
+      uint16_t unicode = getSwap32(buffer[0]); // Unicode code point value
+      uint32_t w = (uint8_t)getSwap32(buffer[2]); // Width of glyph
       if (gUnicode)   gUnicode[gNum]  = unicode;
       if (gWidth)     gWidth[gNum]    = w;
-      if (gxAdvance)  gxAdvance[gNum] = (uint8_t)__builtin_bswap32(buffer[3]); // xAdvance - to move x cursor
-      if (gdX)        gdX[gNum]       =  (int8_t)__builtin_bswap32(buffer[5]); // x delta from cursor
+      if (gxAdvance)  gxAdvance[gNum] = (uint8_t)getSwap32(buffer[3]); // xAdvance - to move x cursor
+      if (gdX)        gdX[gNum]       =  (int8_t)getSwap32(buffer[5]); // x delta from cursor
 
-      uint16_t height = __builtin_bswap32(buffer[1]); // Height of glyph
+      uint16_t height = getSwap32(buffer[1]); // Height of glyph
       if ((unicode > 0xFF) || ((unicode > 0x20) && (unicode < 0xA0) && (unicode != 0x7F))) {
-        int16_t dY =  (int16_t)__builtin_bswap32(buffer[4]); // y delta from baseline
+        int16_t dY =  (int16_t)getSwap32(buffer[4]); // y delta from baseline
 //Serial.printf("LGFX:unicode:%x  dY:%d\r\n", unicode, dY);
         if (maxAscent < dY && unicode != 0x3000) {
           maxAscent = dY;
@@ -862,7 +865,7 @@ namespace lgfx
 
     if (code == 0x20) {
       gNum = 0xFFFF;
-      buffer[2] = __builtin_bswap32(this->spaceWidth);
+      buffer[2] = getSwap32(this->spaceWidth);
     } else if (!this->getUnicodeIndex(code, &gNum)) {
       return drawCharDummy(gfx, x, y, this->spaceWidth, metrics->height, style, filled_x);
     } else {
@@ -873,12 +876,12 @@ namespace lgfx
     }
 
 
-    int32_t h        = __builtin_bswap32(buffer[0]); // Height of glyph
-    int32_t w        = __builtin_bswap32(buffer[1]); // Width of glyph
+    int32_t h        = getSwap32(buffer[0]); // Height of glyph
+    int32_t w        = getSwap32(buffer[1]); // Width of glyph
     int32_t sx       = 65536 * style->size_x;
-    int32_t xAdvance = (__builtin_bswap32(buffer[2]) * sx) >> 16; // xAdvance - to move x cursor
-    int32_t xoffset  = ((int32_t)((int8_t)__builtin_bswap32(buffer[4])) * sx) >> 16; // x delta from cursor
-    int32_t dY       = (int16_t)__builtin_bswap32(buffer[3]); // y delta from baseline
+    int32_t xAdvance = (getSwap32(buffer[2]) * sx) >> 16; // xAdvance - to move x cursor
+    int32_t xoffset  = ((int32_t)((int8_t)getSwap32(buffer[4])) * sx) >> 16; // x delta from cursor
+    int32_t dY       = (int16_t)getSwap32(buffer[3]); // y delta from baseline
     int32_t yoffset  = (this->maxAscent - dY);
 //      int32_t yoffset = (gfx->_font_metrics.y_offset) - dY;
 

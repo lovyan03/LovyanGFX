@@ -559,7 +559,7 @@ namespace lgfx
     gpio_matrix_out(_cfg.pin_rs, idx_base, 0, 0);
   }
 
-  void Bus_Parallel8::_read_bytes(uint8_t* __restrict__ dst, uint32_t length)
+  void Bus_Parallel8::_read_bytes(uint8_t* __restrict dst, uint32_t length)
   {
     union
     {

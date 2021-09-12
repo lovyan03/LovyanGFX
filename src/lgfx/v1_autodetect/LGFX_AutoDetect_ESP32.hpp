@@ -195,7 +195,7 @@ namespace lgfx
       return _inited;
     }
 
-    uint_fast8_t getTouchRaw(touch_point_t* __restrict__ tp, uint_fast8_t count) override
+    uint_fast8_t getTouchRaw(touch_point_t* __restrict tp, uint_fast8_t count) override
     {
       if (tp) tp->size = 0;
       if (!_inited || count == 0) return 0;

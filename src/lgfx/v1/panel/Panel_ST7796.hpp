@@ -96,7 +96,7 @@ namespace lgfx
     void setColorDepth_impl(color_depth_t depth) override 
     {
       _write_depth = ((int)depth & color_depth_t::bit_mask) > 16 ? rgb888_3Byte : rgb565_2Byte;
-      _read_depth = _write_depth; // 読込時のデータは書込時と同じ並びになる
+      _read_depth = _write_depth; // 読込時のデータは書込時と同じ並びになる;
     }
   };
 

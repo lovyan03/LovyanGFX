@@ -31,6 +31,13 @@ Contributors:
 #include <cmath>
 #include <list>
 
+#ifdef min
+#undef min
+#endif
+#ifdef max
+#undef max
+#endif
+
 namespace lgfx
 {
  inline namespace v1
@@ -1095,7 +1102,7 @@ namespace lgfx
     result[5] =  dst_y - src_x * result[3] - src_y * result[4];
   }
 
-  static bool make_invert_affine32(int32_t* __restrict__ result, const float* __restrict__ matrix)
+  static bool make_invert_affine32(int32_t* __restrict result, const float* __restrict matrix)
   {
     float det = matrix[0] * matrix[4] - matrix[1] * matrix[3];
     if (det == 0.0f) return false;
@@ -1610,10 +1617,10 @@ namespace lgfx
 
   static char* floatToStr(double number, char* buf, size_t /*buflen*/, uint8_t digits)
   {
-    if (std::isnan(number))    { return strcpy(buf, "nan"); }
-    if (std::isinf(number))    { return strcpy(buf, "inf"); }
-    if (number > 4294967040.0) { return strcpy(buf, "ovf"); } // constant determined empirically
-    if (number <-4294967040.0) { return strcpy(buf, "ovf"); } // constant determined empirically
+    if (std::isnan(number))    { return (char*)memcpy(buf, "nan\0", 4); }
+    if (std::isinf(number))    { return (char*)memcpy(buf, "inf\0", 4); }
+    if (number > 4294967040.0) { return (char*)memcpy(buf, "ovf\0", 4); } // constant determined empirically
+    if (number <-4294967040.0) { return (char*)memcpy(buf, "ovf\0", 4); } // constant determined empirically
 
     char* dst = buf;
     // Handle negative numbers
@@ -1996,7 +2003,7 @@ namespace lgfx
   }
 
 #if !defined (ARDUINO)
-  size_t LGFXBase::printf(const char * __restrict__ format, ...) 
+  size_t LGFXBase::printf(const char * __restrict format, ...) 
   {
     va_list arg;
     va_start(arg, format);
@@ -2007,7 +2014,7 @@ namespace lgfx
   }
 #endif
 
-  size_t LGFXBase::vprintf(const char* __restrict__ format, va_list arg)
+  size_t LGFXBase::vprintf(const char* __restrict format, va_list arg)
   {
     char loc_buf[64];
     char * temp = loc_buf;
@@ -2967,7 +2974,7 @@ namespace lgfx
       uint_fast8_t panel_offsetrot = panel()->config().offset_rotation;
       uint_fast8_t touch_offsetrot = touch()->config().offset_rotation;
 
-      // 回転オフセットをキャンセルしてタッチデバイスのデフォルトの向きに合わせる
+      // 回転オフセットをキャンセルしてタッチデバイスのデフォルトの向きに合わせる;
       setRotation(( (touch_offsetrot ^ panel_offsetrot) & 4)
                  |(-(touch_offsetrot + panel_offsetrot) & 3));
 

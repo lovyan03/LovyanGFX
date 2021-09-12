@@ -40,6 +40,17 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if __has_include(<alloca.h>)
+#include <alloca.h>
+#else
+#include <malloc.h>
+#define alloca _alloca
+#endif
+
+#ifdef max
+#undef max
+#endif
+
 //#pragma mark - Error Correction Lookup tables
 
 #if LOCK_VERSION == 0
@@ -91,8 +102,7 @@ static const uint16_t NUM_RAW_DATA_MODULES = 567;
 
 
 static int max(int a, int b) {
-    if (a > b) { return a; }
-    return b;
+    return (a > b) ? a : b;
 }
 
 /*
@@ -417,7 +427,7 @@ static void drawFunctionPatterns(BitBucket *modules, BitBucket *isFunction, uint
         }
         
         uint_fast8_t alignPositionIndex = alignCount - 1;
-        uint8_t alignPosition[alignCount];
+        uint8_t* alignPosition = (uint8_t*)alloca(alignCount);
         
         alignPosition[0] = 6;
         
@@ -715,10 +725,10 @@ static bool performErrorCorrection(uint8_t version, uint8_t ecc, BitBucket *data
     
     uint8_t shortDataBlockLen = shortBlockLen - blockEccLen;
     
-    uint8_t result[data->capacityBytes];
-    memset(result, 0, sizeof(result));
-    
-    uint8_t coeff[blockEccLen];
+    uint8_t* result = (uint8_t*)alloca(data->capacityBytes);
+    memset(result, 0, data->capacityBytes);
+
+    uint8_t* coeff = (uint8_t*)alloca(blockEccLen);
     rs_init(blockEccLen, coeff);
     
     uint16_t offset = 0;
@@ -804,9 +814,10 @@ int8_t lgfx_qrcode_initBytes(QRCode *qrcode, uint8_t *modules, uint8_t version, 
 #endif
     
     struct BitBucket codewords;
-    uint8_t codewordBytes[bb_getBufferSizeBytes(moduleCount)];
-    bb_initBuffer(&codewords, codewordBytes, (int32_t)sizeof(codewordBytes));
-    
+    int32_t codewordLen = bb_getBufferSizeBytes(moduleCount);
+    uint8_t* codewordBytes = (uint8_t*)alloca(codewordLen);
+    bb_initBuffer(&codewords, codewordBytes, codewordLen);
+
     // Place the data code words into the buffer
     int8_t mode = encodeDataCodewords(&codewords, data, length, version);
     
@@ -829,7 +840,7 @@ int8_t lgfx_qrcode_initBytes(QRCode *qrcode, uint8_t *modules, uint8_t version, 
     bb_initGrid(&modulesGrid, modules, size);
     
     BitBucket isFunctionGrid;
-    uint8_t isFunctionGridBytes[bb_getGridSizeBytes(size)];
+    uint8_t* isFunctionGridBytes = (uint8_t*)alloca(bb_getGridSizeBytes(size));
     bb_initGrid(&isFunctionGrid, isFunctionGridBytes, size);
     
     // Draw function patterns, draw all codewords, do masking

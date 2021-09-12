@@ -49,7 +49,7 @@ namespace lgfx
 
   size_t Panel_SSD1327::_get_buffer_length(void) const
   {
-    // 横2ピクセル = 1Byteなのでバッファサイズはパネル幅の半分×高さになる
+    // 横2ピクセル = 1Byteなのでバッファサイズはパネル幅の半分×高さになる;
     return ((_cfg.panel_width + 1) >> 1) * _cfg.panel_height;
   }
 

@@ -281,7 +281,7 @@ namespace lgfx
       gpio_matrix_out(_cfg.pin_rs, idx_base, 0, 0);
     }
     else if (_div_num < 4)
-    { /// OUTLINK_START～TX_STARTの時間が短すぎるとデータの先頭を送り損じる事があるのでnopウェイトを入れる
+    { /// OUTLINK_START～TX_STARTの時間が短すぎるとデータの先頭を送り損じる事があるのでnopウェイトを入れる;
       size_t wait = (8 - _div_num) << 2;
       do { __asm__ __volatile__ ("nop"); } while (--wait);
     }

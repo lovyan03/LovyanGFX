@@ -102,7 +102,7 @@ namespace lgfx
 
     void update_madctl(void) override;
 
-    /// SSD1351の18bitカラーモードはrgb666の24bitなので注意すること
+    /// SSD1351の18bitカラーモードはrgb666の24bitなので注意すること;
     void setColorDepth_impl(color_depth_t depth) override { _write_depth = ((int)depth & color_depth_t::bit_mask) > 16 ? rgb666_3Byte : rgb565_2Byte; _read_depth = rgb666_3Byte; }
   };
 

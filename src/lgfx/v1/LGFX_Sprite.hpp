@@ -28,6 +28,13 @@ namespace lgfx
 {
  inline namespace v1
  {
+
+#if defined ( _MSVC_LANG )
+#define LGFX_INLINE inline
+#else
+#define LGFX_INLINE __attribute__ ((always_inline)) inline
+#endif
+
 //----------------------------------------------------------------------------
   class LGFX_Sprite;
 
@@ -61,9 +68,9 @@ namespace lgfx
     void deleteSprite(void);
     void* createSprite(int32_t w, int32_t h, color_conv_t* conv, bool psram);
 
-    __attribute__ ((always_inline)) inline void* getBuffer(void) const { return _img.get(); }
-    __attribute__ ((always_inline)) inline const SpriteBuffer* getSpriteBuffer(void) const { return &_img; }
-    __attribute__ ((always_inline)) inline uint32_t bufferLength(void) const { return (_bitwidth * _write_bits >> 3) * _panel_height; }
+    LGFX_INLINE void* getBuffer(void) const { return _img.get(); }
+    LGFX_INLINE const SpriteBuffer* getSpriteBuffer(void) const { return &_img; }
+    LGFX_INLINE uint32_t bufferLength(void) const { return (_bitwidth * _write_bits >> 3) * _panel_height; }
 
 
     color_depth_t setColorDepth(color_depth_t depth) override;
@@ -89,8 +96,8 @@ namespace lgfx
 
     uint_fast16_t _xpos;
     uint_fast16_t _ypos;
-    uint_fast16_t _panel_width;   // rotationしていない状態の幅
-    uint_fast16_t _panel_height;  // rotationしていない状態の高さ
+    uint_fast16_t _panel_width;   // rotationしていない状態の幅;
+    uint_fast16_t _panel_height;  // rotationしていない状態の高さ;
     uint_fast16_t _bitwidth;
   };
 
@@ -107,7 +114,7 @@ namespace lgfx
       setColorDepth(_write_conv.depth);
     }
 
-    __attribute__ ((always_inline)) inline void* getBuffer(void) const { return _panel_sprite.getBuffer(); }
+    LGFX_INLINE void* getBuffer(void) const { return _panel_sprite.getBuffer(); }
     uint32_t bufferLength(void) const { return _panel_sprite.bufferLength(); }
 
     LGFX_Sprite()
@@ -297,7 +304,7 @@ namespace lgfx
       return -1;
     }
 
-    template<typename T> __attribute__ ((always_inline)) inline
+    template<typename T> LGFX_INLINE
     void setPaletteColor(size_t index, T color) {
       if (!_palette || index >= _palette_count) return;
       rgb888_t c = convert_to_rgb888(color);
@@ -314,7 +321,7 @@ namespace lgfx
       if (_palette && index < _palette_count) { _palette.img24()[index].set(r, g, b); }
     }
 
-    __attribute__ ((always_inline)) inline void* setColorDepth(uint8_t bpp) { return setColorDepth((color_depth_t)bpp); }
+    LGFX_INLINE void* setColorDepth(uint8_t bpp) { return setColorDepth((color_depth_t)bpp); }
     void* setColorDepth(color_depth_t depth)
     {
       _panel_sprite.setColorDepth(depth);
@@ -333,14 +340,14 @@ namespace lgfx
     uint32_t readPixelValue(int32_t x, int32_t y) { return _panel_sprite.readPixelValue(x, y); }
 
     template<typename T>
-    __attribute__ ((always_inline)) inline void fillSprite (const T& color) { fillScreen(color); }
+    LGFX_INLINE void fillSprite (const T& color) { fillScreen(color); }
 
     template<typename T>
-    __attribute__ ((always_inline)) inline void pushSprite(                int32_t x, int32_t y, const T& transp) { push_sprite(_parent, x, y, _write_conv.convert(transp) & _write_conv.colormask); }
+    LGFX_INLINE void pushSprite(                int32_t x, int32_t y, const T& transp) { push_sprite(_parent, x, y, _write_conv.convert(transp) & _write_conv.colormask); }
     template<typename T>
-    __attribute__ ((always_inline)) inline void pushSprite(LovyanGFX* dst, int32_t x, int32_t y, const T& transp) { push_sprite(    dst, x, y, _write_conv.convert(transp) & _write_conv.colormask); }
-    __attribute__ ((always_inline)) inline void pushSprite(                int32_t x, int32_t y) { push_sprite(_parent, x, y); }
-    __attribute__ ((always_inline)) inline void pushSprite(LovyanGFX* dst, int32_t x, int32_t y) { push_sprite(    dst, x, y); }
+    LGFX_INLINE void pushSprite(LovyanGFX* dst, int32_t x, int32_t y, const T& transp) { push_sprite(    dst, x, y, _write_conv.convert(transp) & _write_conv.colormask); }
+    LGFX_INLINE void pushSprite(                int32_t x, int32_t y) { push_sprite(_parent, x, y); }
+    LGFX_INLINE void pushSprite(LovyanGFX* dst, int32_t x, int32_t y) { push_sprite(    dst, x, y); }
 
     template<typename T> void pushRotated(                float angle, const T& transp) { push_rotate_zoom(_parent, _parent->getPivotX(), _parent->getPivotY(), angle, 1.0f, 1.0f, _write_conv.convert(transp) & _write_conv.colormask); }
     template<typename T> void pushRotated(LovyanGFX* dst, float angle, const T& transp) { push_rotate_zoom(dst    , dst    ->getPivotX(), dst    ->getPivotY(), angle, 1.0f, 1.0f, _write_conv.convert(transp) & _write_conv.colormask); }
@@ -545,6 +552,8 @@ namespace lgfx
   };
 
 //----------------------------------------------------------------------------
+#undef LGFX_INLINE
+
  }
 }
 

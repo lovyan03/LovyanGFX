@@ -368,7 +368,7 @@ namespace lgfx
         _need_wait = true;
         spi->DATA.reg = data;
         if (!--length) return;
-        while (spi->INTFLAG.bit.TXC == 0); // LENEN有効の時はTXC待ち(DRE待ちを使うと挙動がおかしくなる)
+        while (spi->INTFLAG.bit.TXC == 0); // LENEN有効の時はTXC待ち(DRE待ちを使うと挙動がおかしくなる);
       }
       spi->LENGTH.reg = 0;
       data |= data << 16;

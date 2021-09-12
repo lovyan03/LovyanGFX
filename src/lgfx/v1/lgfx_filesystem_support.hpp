@@ -36,9 +36,9 @@ namespace lgfx
   /// Warning : Do not add any data members to this class.
   /// This class only allows include order dependent extension methods.
   /// ( e.g. file system related, HTTP related )
-  /// このクラスにメンバ変数を追加してはならない。(コンパイル単位間でLovyanGFXクラスに不整合が生じる)
-  /// このクラスにはinclude順依存の機能拡張メソッドのみ追加を許可する。
-  /// ( 例：ファイルシステム関連、HTTP関連 )
+  /// このクラスにメンバ変数を追加してはならない。(コンパイル単位間でLovyanGFXクラスに不整合が生じる);
+  /// このクラスにはinclude順依存の機能拡張メソッドのみ追加を許可する。;
+  /// ( 例：ファイルシステム関連、HTTP関連 );
   template <class Base>
   class LGFX_FILESYSTEM_Support : public Base
   {

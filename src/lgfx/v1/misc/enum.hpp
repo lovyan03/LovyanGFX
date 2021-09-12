@@ -206,10 +206,10 @@ namespace lgfx
 
   enum color_depth_t : uint16_t
   {
-    bit_mask     = 0x00FF   , /// ビット数取得用マスク値 (下位1Byteはビット数表現専用とする。変更しないこと)
-    has_palette  = 0x0800   , /// パレット値として扱う
-    nonswapped   = 0x0100   , /// バイトスワップしていない値
-    alternate    = 0x1000   , /// ビット数が同一な色表現が複数ある場合の相違表現用
+    bit_mask     = 0x00FF   , /// ビット数取得用マスク値 (下位1Byteはビット数表現専用とする。変更しないこと);
+    has_palette  = 0x0800   , /// パレット値として扱う;
+    nonswapped   = 0x0100   , /// バイトスワップしていない値;
+    alternate    = 0x1000   , /// ビット数が同一な色表現が複数ある場合の相違表現用;
 
     grayscale_1bit      =   1                         , //                            _______L
     grayscale_2bit      =   2                         , //                            ______LL
@@ -234,10 +234,10 @@ namespace lgfx
 
   enum error_t
   { unknown_err
-  , invalid_arg         // 引数が範囲外等でinvalidな場合のエラー
-  , connection_lost     // 通信が切断されたり正しく行えない場合のエラー
-  , mode_mismatch       // I2C通信が書込みモード時に読込みを指示するなど不一致な操作を行った場合のエラー
-  , periph_device_err   // ペリフェラルが動作していない等のエラー
+  , invalid_arg         // 引数が範囲外等でinvalidな場合のエラー;
+  , connection_lost     // 通信が切断されたり正しく行えない場合のエラー;
+  , mode_mismatch       // I2C通信が書込みモード時に読込みを指示するなど不一致な操作を行った場合のエラー;
+  , periph_device_err   // ペリフェラルが動作していない等のエラー;
   };
 
 //----------------------------------------------------------------------------

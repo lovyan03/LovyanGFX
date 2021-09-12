@@ -554,7 +554,7 @@ metrics->height    = ttf_mtx.advance_height >> 6;
       uint32_t offset      = data->read32swap();
 //Serial.printf("pid:%d  eid:%d  offset:%d \r\n", platform_id, encoding_id, offset);
 
-/// プラットフォームIDとエンコードIDの組み合わせからunicodeのものを探す
+/// プラットフォームIDとエンコードIDの組み合わせからunicodeのものを探す;
       if ((platform_id == TT_PLATFORM_MICROSOFT
        &&  encoding_id == TT_MS_ID_UCS_4)
         ||(platform_id == TT_PLATFORM_MICROSOFT
