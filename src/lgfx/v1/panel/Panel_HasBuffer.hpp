@@ -26,7 +26,7 @@ namespace lgfx
  {
 //----------------------------------------------------------------------------
 
-  class Panel_HasBuffer : public Panel_Device
+  struct Panel_HasBuffer : public Panel_Device
   {
 
   public:

@@ -26,7 +26,7 @@ namespace lgfx
  {
 //----------------------------------------------------------------------------
 
-  class Panel_SSD1327 : public Panel_HasBuffer
+  struct Panel_SSD1327 : public Panel_HasBuffer
   {
   public:
     Panel_SSD1327(void) : Panel_HasBuffer()

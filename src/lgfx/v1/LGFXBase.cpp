@@ -1107,26 +1107,26 @@ namespace lgfx
     float det = matrix[0] * matrix[4] - matrix[1] * matrix[3];
     if (det == 0.0f) return false;
     det = (1 << FP_SCALE) / det;
-    result[0] = roundf(det *  matrix[4]);
-    result[1] = roundf(det * -matrix[1]);
-    result[2] = roundf(det * (matrix[1] * matrix[5] - matrix[2] * matrix[4]));
-    result[3] = roundf(det * -matrix[3]);
-    result[4] = roundf(det *  matrix[0]);
-    result[5] = roundf(det * (matrix[2] * matrix[3] - matrix[0] * matrix[5]));
+    result[0] = (int32_t)roundf(det *  matrix[4]);
+    result[1] = (int32_t)roundf(det * -matrix[1]);
+    result[2] = (int32_t)roundf(det * (matrix[1] * matrix[5] - matrix[2] * matrix[4]));
+    result[3] = (int32_t)roundf(det * -matrix[3]);
+    result[4] = (int32_t)roundf(det *  matrix[0]);
+    result[5] = (int32_t)roundf(det * (matrix[2] * matrix[3] - matrix[0] * matrix[5]));
     return true;
   }
 
   void LGFXBase::push_image_rotate_zoom(float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y, int32_t w, int32_t h, pixelcopy_t* pc)
   {
     float matrix[6];
-    make_rotation_matrix(matrix, dst_x + 0.5, dst_y + 0.5, src_x + 0.5, src_y + 0.5, angle, zoom_x, zoom_y);
+    make_rotation_matrix(matrix, dst_x + 0.5f, dst_y + 0.5f, src_x + 0.5f, src_y + 0.5f, angle, zoom_x, zoom_y);
     push_image_affine(matrix, w, h, pc);
   }
 
   void LGFXBase::push_image_rotate_zoom_aa(float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y, int32_t w, int32_t h, pixelcopy_t* pc)
   {
     float matrix[6];
-    make_rotation_matrix(matrix, dst_x + 0.5, dst_y + 0.5, src_x + 0.5, src_y + 0.5, angle, zoom_x, zoom_y);
+    make_rotation_matrix(matrix, dst_x + 0.5f, dst_y + 0.5f, src_x + 0.5f, src_y + 0.5f, angle, zoom_x, zoom_y);
     push_image_affine_aa(matrix, w, h, pc);
   }
 

@@ -29,7 +29,7 @@ namespace lgfx
   struct ITouch;
   struct touch_point_t;
 
-  class Panel_Device : public IPanel
+  struct Panel_Device : public IPanel
   {
   public:
     Panel_Device(void);

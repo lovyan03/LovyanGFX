@@ -25,7 +25,7 @@ namespace lgfx
  {
 //----------------------------------------------------------------------------
 
-  class Panel_LCD : public Panel_Device
+  struct Panel_LCD : public Panel_Device
   {
   public:
     bool init(bool use_reset) override;

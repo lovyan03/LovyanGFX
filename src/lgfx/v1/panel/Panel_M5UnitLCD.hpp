@@ -25,7 +25,7 @@ namespace lgfx
  {
 //----------------------------------------------------------------------------
 
-  class Panel_M5UnitLCD : public Panel_Device
+  struct Panel_M5UnitLCD : public Panel_Device
   {
   public:
     Panel_M5UnitLCD(void)
