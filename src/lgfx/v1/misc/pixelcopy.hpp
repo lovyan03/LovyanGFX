@@ -211,7 +211,7 @@ namespace lgfx
     template <typename TDst, typename TSrc>
     static uint32_t copy_rgb_fast(void* dst, uint32_t index, uint32_t last, pixelcopy_t* param)
     {
-      auto s = &static_cast<const TSrc*>(param->src_data)[param->positions[0] - index];
+      auto s = &static_cast<const TSrc*>(param->src_data)[(uintptr_t)param->positions[0] - (uintptr_t)index];
       auto d = static_cast<TDst*>(dst);
       param->positions[0] += last - index;
       if (std::is_same<TDst, TSrc>::value)
