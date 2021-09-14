@@ -1173,7 +1173,8 @@ namespace lgfx
     template <typename T>
     uint_fast8_t getTouch(T *x, T *y, uint_fast8_t index = 0)
     {
-      touch_point_t tp[index + 1];
+      if (index >= 8) return 0;
+      touch_point_t tp[8];
       auto count = getTouch(tp, index + 1);
       if (index >= count) return 0;
       if (x) *x = tp[index].x;

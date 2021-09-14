@@ -49,6 +49,10 @@ Contributors:
 
 #include "arduino_default/common.hpp"
 
+#elif defined (_WIN32) || __has_include(<opencv2/opencv.hpp>)
+
+#include "opencv/common.hpp"
+
 #endif
 
 namespace lgfx

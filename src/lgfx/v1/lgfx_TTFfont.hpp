@@ -194,7 +194,7 @@ namespace lgfx
       void load(DataWrapper* data);
     };
 
-    struct cmap_t  // 自作
+    struct cmap_t  // 自作;
     {
       uint16_t* rawdata = nullptr;
       bool load(DataWrapper* data);
