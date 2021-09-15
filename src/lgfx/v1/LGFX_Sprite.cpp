@@ -583,9 +583,10 @@ namespace lgfx
       auto bytes = _write_bits >> 3;
       auto bw = _bitwidth;
       auto d = (uint8_t*)dst;
+      w *= bytes;
       do {
-        memcpy(d, &_img[(x + y * bw) * bytes], w * bytes);
-        d += w * bytes;
+        memcpy(d, &_img[(x + y * bw) * bytes], w);
+        d += w;
       } while (++y != h);
     }
     else

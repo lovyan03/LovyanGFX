@@ -1492,11 +1492,11 @@ namespace lgfx
     p.src_bits = _read_conv.depth & color_depth_t::bit_mask;
     switch (_read_conv.depth)
     {
-    case color_depth_t::rgb888_3Byte: p.fp_copy = pixelcopy_t::compare_rgb_fast<bgr888_t>;  break;
-    case color_depth_t::rgb666_3Byte: p.fp_copy = pixelcopy_t::compare_rgb_fast<bgr666_t>;  break;
-    case color_depth_t::rgb565_2Byte: p.fp_copy = pixelcopy_t::compare_rgb_fast<swap565_t>; break;
-    case color_depth_t::rgb332_1Byte: p.fp_copy = pixelcopy_t::compare_rgb_fast<rgb332_t>;  break;
-    default: p.fp_copy = pixelcopy_t::compare_bit_fast;
+    case color_depth_t::rgb888_3Byte: p.fp_copy = pixelcopy_t::compare_rgb_affine<bgr888_t>;  break;
+    case color_depth_t::rgb666_3Byte: p.fp_copy = pixelcopy_t::compare_rgb_affine<bgr666_t>;  break;
+    case color_depth_t::rgb565_2Byte: p.fp_copy = pixelcopy_t::compare_rgb_affine<swap565_t>; break;
+    case color_depth_t::rgb332_1Byte: p.fp_copy = pixelcopy_t::compare_rgb_affine<rgb332_t>;  break;
+    default: p.fp_copy = pixelcopy_t::compare_bit_affine;
       p.src_mask = (1 << p.src_bits) - 1;
       p.transp &= p.src_mask;
       break;
@@ -1536,6 +1536,8 @@ namespace lgfx
           it = points.begin();
 
           bufY[0] = it->y;
+          p.src_x32_add = 1 << FP_SCALE;
+          p.src_y32_add = 0;
           _panel->readRect(cl, it->y, w, 1, linebufs[0], &p);
         }
         else
@@ -1576,6 +1578,8 @@ namespace lgfx
         if (bidx == 3) {
           for (bidx = 0; bidx < 2 && (abs(bufY[bidx] - ly) <= 1); ++bidx);
           bufY[bidx] = newy;
+          p.src_x32_add = 1 << FP_SCALE;
+          p.src_y32_add = 0;
           _panel->readRect(cl, newy, w, 1, linebufs[bidx], &p);
         }
         auto linebuf = &linebufs[bidx][- cl];

@@ -276,7 +276,7 @@ namespace lgfx
   {
     uint32_t addx = param->src_x32_add;
     uint32_t addy = param->src_y32_add;
-    uint_fast8_t r = _rotation;
+    uint_fast8_t r = _internal_rotation;
     uint_fast8_t bitr = 1u << r;
     if (bitr & 0b10010110) // case 1:2:4:7:
     {
@@ -314,7 +314,7 @@ namespace lgfx
     const size_t bits = _write_bits;
     auto k = _cfg.panel_width * bits >> 3;
 
-    uint_fast8_t r = _rotation;
+    uint_fast8_t r = _internal_rotation;
     if (!r)
     {
       uint_fast16_t linelength;
@@ -408,7 +408,7 @@ namespace lgfx
 
   void Panel_OpenCV::writeImage(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, pixelcopy_t* param, bool)
   {
-    uint_fast8_t r = _rotation;
+    uint_fast8_t r = _internal_rotation;
     if (r == 0 && param->transp == pixelcopy_t::NON_TRANSP && param->no_convert)
     {
       auto sx = param->src_x;
@@ -460,7 +460,7 @@ namespace lgfx
   {
     uint32_t nextx = 0;
     uint32_t nexty = 1 << pixelcopy_t::FP_SCALE;
-    if (_rotation)
+    if (_internal_rotation)
     {
       _rotate_pixelcopy(x, y, w, h, param, nextx, nexty);
     }
@@ -482,16 +482,17 @@ namespace lgfx
 
   void Panel_OpenCV::readRect(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, void* dst, pixelcopy_t* param)
   {
-    uint_fast8_t r = _rotation;
-    if (0 == r && param->no_convert && _write_bits >= 8)
+    uint_fast8_t r = _internal_rotation;
+    if (0 == r && param->no_convert)
     {
       h += y;
       auto bytes = _write_bits >> 3;
       auto bw = _cfg.panel_width;
       auto d = (uint8_t*)dst;
+      w *= bytes;
       do {
-        memcpy(d, &_img[(x + y * bw) * bytes], w * bytes);
-        d += w * bytes;
+        memcpy(d, &_img[(x + y * bw) * bytes], w);
+        d += w;
       } while (++y != h);
     }
     else
@@ -546,7 +547,7 @@ namespace lgfx
 
   void Panel_OpenCV::copyRect(uint_fast16_t dst_x, uint_fast16_t dst_y, uint_fast16_t w, uint_fast16_t h, uint_fast16_t src_x, uint_fast16_t src_y)
   {
-    uint_fast8_t r = _rotation;
+    uint_fast8_t r = _internal_rotation;
     if (r)
     {
       if ((1u << r) & 0b10010110) { src_y = _height - (src_y + h); dst_y = _height - (dst_y + h); }

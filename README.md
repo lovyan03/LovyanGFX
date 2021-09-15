@@ -21,6 +21,7 @@ This library mimics [AdafruitGFX](https://github.com/adafruit/Adafruit-GFX-Libra
   - オフスクリーンバッファ（スプライト）の高速な回転/拡縮描画  
   - 複数ディスプレイの同時利用  
   - モノクロディスプレイに対する減色描画の自動処理  
+  - OpenCVを描画先として利用でき、PC上で動作可能  
 
 This library has the following advantages.
   - ArduinoESP32 and ESP-IDF are supported.
@@ -29,6 +30,7 @@ This library has the following advantages.
   - Fast rotation/expansion of the off-screen buffer (sprite).
   - Simultaneous use of multiple displays.
   - Automatic processing of color reduction drawing for monochrome displays.
+  - OpenCV can be used as a drawing destination and can run on a PC.  
 
 
 |        | SPI | I2C | 8bit Para|16bit Para|

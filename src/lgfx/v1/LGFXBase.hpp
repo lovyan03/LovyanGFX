@@ -447,11 +447,19 @@ namespace lgfx
     template<typename T> inline
     void readRect( int32_t x, int32_t y, int32_t w, int32_t h, T* data)
     {
-      pixelcopy_t p(nullptr, get_depth<T>::value, _read_conv.depth, false, getPalette());
+      auto src_palette = getPalette();
+      pixelcopy_t p(nullptr, get_depth<T>::value, _read_conv.depth, false, src_palette);
       if (std::is_same<rgb565_t, T>::value || std::is_same<rgb888_t, T>::value || std::is_same<argb8888_t, T>::value || std::is_same<grayscale_t, T>::value || p.fp_copy == nullptr)
       {
         p.no_convert = false;
-        p.fp_copy = pixelcopy_t::get_fp_copy_rgb_affine_dst<T>(_read_conv.depth);
+        if (src_palette)
+        {
+          p.fp_copy = pixelcopy_t::copy_palette_affine<T, bgr888_t>;
+        }
+        else
+        {
+          p.fp_copy = pixelcopy_t::get_fp_copy_rgb_affine_dst<T>(_read_conv.depth);
+        }
       }
       read_rect(x, y, w, h, data, &p);
     }

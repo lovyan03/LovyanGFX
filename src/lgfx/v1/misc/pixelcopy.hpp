@@ -635,30 +635,48 @@ namespace lgfx
     }
 
     template <typename TSrc>
-    static uint32_t compare_rgb_fast(void* __restrict dst, uint32_t index, uint32_t last, pixelcopy_t* __restrict param)
+    static uint32_t compare_rgb_affine(void* __restrict dst, uint32_t index, uint32_t last, pixelcopy_t* __restrict param)
     {
       auto s = static_cast<const TSrc*>(param->src_data);
       auto d = static_cast<bool*>(dst);
-      auto transp = param->transp;
-      s += param->src_x + param->src_y * param->src_bitwidth - index;
+      auto src_x32     = param->src_x32;
+      auto src_y32     = param->src_y32;
+      auto src_x32_add = param->src_x32_add;
+      auto src_y32_add = param->src_y32_add;
+      auto src_bitwidth= param->src_bitwidth;
+      auto transp      = param->transp;
       do {
-        d[index] = s[index].get() == transp;
+        uint32_t i = (src_x32 >> FP_SCALE) + (src_y32 >> FP_SCALE) * src_bitwidth;
+        d[index] = (s[i].get() == transp);
+        src_x32 += src_x32_add;
+        src_y32 += src_y32_add;
       } while (++index != last);
+      param->src_x32 = src_x32;
+      param->src_y32 = src_y32;
       return index;
     }
 
-    static uint32_t compare_bit_fast(void* __restrict dst, uint32_t index, uint32_t last, pixelcopy_t* __restrict param)
+    static uint32_t compare_bit_affine(void* __restrict dst, uint32_t index, uint32_t last, pixelcopy_t* __restrict param)
     {
       auto s = static_cast<const uint8_t*>(param->src_data);
       auto d = static_cast<bool*>(dst);
+      auto src_x32     = param->src_x32;
+      auto src_y32     = param->src_y32;
+      auto src_x32_add = param->src_x32_add;
+      auto src_y32_add = param->src_y32_add;
+      auto src_bitwidth= param->src_bitwidth;
       auto transp      = param->transp;
       auto src_bits    = param->src_bits;
       auto src_mask    = param->src_mask;
-      uint32_t i = (param->src_x + param->src_y * param->src_bitwidth) * src_bits;
       do {
-        d[index] = transp == ((s[i >> 3] >> (-(int32_t)(i + src_bits) & 7)) & src_mask);
-        i += src_bits;
+        uint32_t i = ((src_x32 >> FP_SCALE) + (src_y32 >> FP_SCALE) * src_bitwidth) * src_bits;
+        uint32_t raw = (pgm_read_byte(&s[i >> 3]) >> (-(int32_t)(i + src_bits) & 7)) & src_mask;
+        d[index] = (raw == transp);
+        src_x32 += src_x32_add;
+        src_y32 += src_y32_add;
       } while (++index != last);
+      param->src_x32 = src_x32;
+      param->src_y32 = src_y32;
       return index;
     }
   };
