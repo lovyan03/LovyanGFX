@@ -55,6 +55,7 @@ This library has the following advantages.
     - GDEW0154M09 (M5Stack CoreInk)
     - HX8357
     - ILI9163
+    - ILI9225
     - ILI9341 (WioTerminal, ESP-WROVER-KIT, ODROID-GO, LoLin D32 Pro, WiFiBoy Pro)
     - ILI9342 (M5Stack, M5Stack Core2)
     - ILI9481
@@ -66,6 +67,7 @@ This library has the following advantages.
     - SSD1327
     - SSD1331
     - SSD1351 (SSD1357)
+    - SSD1963
     - ST7735 (M5StickC, TTGO T-Wristband, TTGO TS, LoLin D32 Pro, WiFiBoy mini, PyBadge)
     - ST7789 (M5StickCPlus, TTGO T-Watch, ESP-WROVER-KIT, Makerfabs MakePython, DSTIKE D-duino-32 XS)
     - ST7796 (WT32-SC01)
