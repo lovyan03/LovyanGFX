@@ -15,6 +15,10 @@ static int32_t halfwidth = width >> 1;  // 時計盤の中心座標
 static auto transpalette = 0;           // 透過色パレット番号
 static float zoom;                      // 表示倍率
 
+#ifdef min
+#undef min
+#endif
+
 void setup(void)
 {
   Serial.begin(115200);

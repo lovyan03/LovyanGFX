@@ -2245,6 +2245,10 @@ static LGFX_Sprite sprite[10];
 static std::uint32_t count = 0;
 static float zoom = 0;
 
+#ifdef min
+#undef min
+#endif
+
 void setup()
 {
   lcd.init();
