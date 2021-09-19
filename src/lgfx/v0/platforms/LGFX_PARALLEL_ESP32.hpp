@@ -47,6 +47,13 @@ Contributors:
 #include "esp32_common.hpp"
 #include "../LGFX_Device.hpp"
 
+#ifdef min
+#undef min
+#endif
+#ifdef max
+#undef max
+#endif
+
 namespace lgfx
 {
  inline namespace v0
