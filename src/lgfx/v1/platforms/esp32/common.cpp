@@ -234,16 +234,16 @@ namespace lgfx
         WRITE_PERI_REG(SPI_DMA_OUT_LINK_REG(spi_port), 0);
         WRITE_PERI_REG(SPI_DMA_CONF_REG(spi_port), READ_PERI_REG(SPI_DMA_CONF_REG(spi_port)) & ~(SPI_OUT_RST|SPI_IN_RST|SPI_AHBM_RST|SPI_AHBM_FIFO_RST));
       }
-
-      WRITE_PERI_REG(SPI_USER_REG (spi_port), SPI_USR_MOSI | SPI_USR_MISO | SPI_DOUTDIN);  // need SD card access (full duplex setting)
-      WRITE_PERI_REG(SPI_CTRL_REG( spi_port), 0);
-      WRITE_PERI_REG(SPI_CTRL2_REG(spi_port), 0);
-      WRITE_PERI_REG(SPI_SLAVE_REG(spi_port), 0);
 //*/
 #endif
-
+      WRITE_PERI_REG(SPI_USER_REG (spi_port), SPI_USR_MOSI | SPI_USR_MISO | SPI_DOUTDIN);  // need SD card access (full duplex setting)
+      WRITE_PERI_REG(SPI_SLAVE_REG(spi_port), 0);
+      WRITE_PERI_REG(SPI_CTRL_REG( spi_port), 0);
 #if defined ( SPI_CTRL1_REG )
       WRITE_PERI_REG(SPI_CTRL1_REG(spi_port), 0);
+#endif
+#if defined ( SPI_CTRL2_REG )
+      WRITE_PERI_REG(SPI_CTRL2_REG(spi_port), 0);
 #endif
 
       return {};
