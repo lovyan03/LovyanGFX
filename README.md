@@ -74,7 +74,7 @@ This library has the following advantages.
     - ST7789 (M5StickCPlus, TTGO T-Watch, ESP-WROVER-KIT, Makerfabs MakePython, DSTIKE D-duino-32 XS)
     - ST7796 (WT32-SC01)
 
-  - タッチスクリーン TouchScreens (only ESP32)
+  - タッチスクリーン TouchScreens
     - I2C FT5x06 (FT5206, FT5306, FT5406, FT6206, FT6236, FT6336, FT6436)
     - I2C GT911
     - SPI XPT2046
