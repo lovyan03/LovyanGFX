@@ -31,6 +31,13 @@ Contributors:
 #include <cmath>
 #include <list>
 
+#ifdef min
+#undef min
+#endif
+#ifdef max
+#undef max
+#endif
+
 namespace lgfx
 {
  inline namespace v1
@@ -1095,31 +1102,31 @@ namespace lgfx
     result[5] =  dst_y - src_x * result[3] - src_y * result[4];
   }
 
-  static bool make_invert_affine32(int32_t* __restrict__ result, const float* __restrict__ matrix)
+  static bool make_invert_affine32(int32_t* __restrict result, const float* __restrict matrix)
   {
     float det = matrix[0] * matrix[4] - matrix[1] * matrix[3];
     if (det == 0.0f) return false;
     det = (1 << FP_SCALE) / det;
-    result[0] = roundf(det *  matrix[4]);
-    result[1] = roundf(det * -matrix[1]);
-    result[2] = roundf(det * (matrix[1] * matrix[5] - matrix[2] * matrix[4]));
-    result[3] = roundf(det * -matrix[3]);
-    result[4] = roundf(det *  matrix[0]);
-    result[5] = roundf(det * (matrix[2] * matrix[3] - matrix[0] * matrix[5]));
+    result[0] = (int32_t)roundf(det *  matrix[4]);
+    result[1] = (int32_t)roundf(det * -matrix[1]);
+    result[2] = (int32_t)roundf(det * (matrix[1] * matrix[5] - matrix[2] * matrix[4]));
+    result[3] = (int32_t)roundf(det * -matrix[3]);
+    result[4] = (int32_t)roundf(det *  matrix[0]);
+    result[5] = (int32_t)roundf(det * (matrix[2] * matrix[3] - matrix[0] * matrix[5]));
     return true;
   }
 
   void LGFXBase::push_image_rotate_zoom(float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y, int32_t w, int32_t h, pixelcopy_t* pc)
   {
     float matrix[6];
-    make_rotation_matrix(matrix, dst_x + 0.5, dst_y + 0.5, src_x + 0.5, src_y + 0.5, angle, zoom_x, zoom_y);
+    make_rotation_matrix(matrix, dst_x + 0.5f, dst_y + 0.5f, src_x + 0.5f, src_y + 0.5f, angle, zoom_x, zoom_y);
     push_image_affine(matrix, w, h, pc);
   }
 
   void LGFXBase::push_image_rotate_zoom_aa(float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y, int32_t w, int32_t h, pixelcopy_t* pc)
   {
     float matrix[6];
-    make_rotation_matrix(matrix, dst_x + 0.5, dst_y + 0.5, src_x + 0.5, src_y + 0.5, angle, zoom_x, zoom_y);
+    make_rotation_matrix(matrix, dst_x + 0.5f, dst_y + 0.5f, src_x + 0.5f, src_y + 0.5f, angle, zoom_x, zoom_y);
     push_image_affine_aa(matrix, w, h, pc);
   }
 
@@ -1485,11 +1492,11 @@ namespace lgfx
     p.src_bits = _read_conv.depth & color_depth_t::bit_mask;
     switch (_read_conv.depth)
     {
-    case color_depth_t::rgb888_3Byte: p.fp_copy = pixelcopy_t::compare_rgb_fast<bgr888_t>;  break;
-    case color_depth_t::rgb666_3Byte: p.fp_copy = pixelcopy_t::compare_rgb_fast<bgr666_t>;  break;
-    case color_depth_t::rgb565_2Byte: p.fp_copy = pixelcopy_t::compare_rgb_fast<swap565_t>; break;
-    case color_depth_t::rgb332_1Byte: p.fp_copy = pixelcopy_t::compare_rgb_fast<rgb332_t>;  break;
-    default: p.fp_copy = pixelcopy_t::compare_bit_fast;
+    case color_depth_t::rgb888_3Byte: p.fp_copy = pixelcopy_t::compare_rgb_affine<bgr888_t>;  break;
+    case color_depth_t::rgb666_3Byte: p.fp_copy = pixelcopy_t::compare_rgb_affine<bgr666_t>;  break;
+    case color_depth_t::rgb565_2Byte: p.fp_copy = pixelcopy_t::compare_rgb_affine<swap565_t>; break;
+    case color_depth_t::rgb332_1Byte: p.fp_copy = pixelcopy_t::compare_rgb_affine<rgb332_t>;  break;
+    default: p.fp_copy = pixelcopy_t::compare_bit_affine;
       p.src_mask = (1 << p.src_bits) - 1;
       p.transp &= p.src_mask;
       break;
@@ -1529,6 +1536,8 @@ namespace lgfx
           it = points.begin();
 
           bufY[0] = it->y;
+          p.src_x32_add = 1 << FP_SCALE;
+          p.src_y32_add = 0;
           _panel->readRect(cl, it->y, w, 1, linebufs[0], &p);
         }
         else
@@ -1569,6 +1578,8 @@ namespace lgfx
         if (bidx == 3) {
           for (bidx = 0; bidx < 2 && (abs(bufY[bidx] - ly) <= 1); ++bidx);
           bufY[bidx] = newy;
+          p.src_x32_add = 1 << FP_SCALE;
+          p.src_y32_add = 0;
           _panel->readRect(cl, newy, w, 1, linebufs[bidx], &p);
         }
         auto linebuf = &linebufs[bidx][- cl];
@@ -1610,10 +1621,10 @@ namespace lgfx
 
   static char* floatToStr(double number, char* buf, size_t /*buflen*/, uint8_t digits)
   {
-    if (std::isnan(number))    { return strcpy(buf, "nan"); }
-    if (std::isinf(number))    { return strcpy(buf, "inf"); }
-    if (number > 4294967040.0) { return strcpy(buf, "ovf"); } // constant determined empirically
-    if (number <-4294967040.0) { return strcpy(buf, "ovf"); } // constant determined empirically
+    if (std::isnan(number))    { return (char*)memcpy(buf, "nan\0", 4); }
+    if (std::isinf(number))    { return (char*)memcpy(buf, "inf\0", 4); }
+    if (number > 4294967040.0) { return (char*)memcpy(buf, "ovf\0", 4); } // constant determined empirically
+    if (number <-4294967040.0) { return (char*)memcpy(buf, "ovf\0", 4); } // constant determined empirically
 
     char* dst = buf;
     // Handle negative numbers
@@ -1996,7 +2007,7 @@ namespace lgfx
   }
 
 #if !defined (ARDUINO)
-  size_t LGFXBase::printf(const char * __restrict__ format, ...) 
+  size_t LGFXBase::printf(const char * __restrict format, ...) 
   {
     va_list arg;
     va_start(arg, format);
@@ -2007,7 +2018,7 @@ namespace lgfx
   }
 #endif
 
-  size_t LGFXBase::vprintf(const char* __restrict__ format, va_list arg)
+  size_t LGFXBase::vprintf(const char* __restrict format, va_list arg)
   {
     char loc_buf[64];
     char * temp = loc_buf;
@@ -2967,7 +2978,7 @@ namespace lgfx
       uint_fast8_t panel_offsetrot = panel()->config().offset_rotation;
       uint_fast8_t touch_offsetrot = touch()->config().offset_rotation;
 
-      // 回転オフセットをキャンセルしてタッチデバイスのデフォルトの向きに合わせる
+      // 回転オフセットをキャンセルしてタッチデバイスのデフォルトの向きに合わせる;
       setRotation(( (touch_offsetrot ^ panel_offsetrot) & 4)
                  |(-(touch_offsetrot + panel_offsetrot) & 3));
 

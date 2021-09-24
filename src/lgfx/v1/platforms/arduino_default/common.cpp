@@ -20,6 +20,7 @@ Contributors:
 #elif defined (__SAMD21__) || defined (__SAMD51__)
 #elif defined (STM32F2xx) || defined (STM32F4xx) || defined (STM32F7xx)
 #elif defined (ARDUINO_ARCH_SPRESENSE)
+#elif defined (ARDUINO_ARCH_MBED_RP2040) || defined(ARDUINO_ARCH_RP2040)
 #elif defined (ARDUINO)
 
 #include "common.hpp"

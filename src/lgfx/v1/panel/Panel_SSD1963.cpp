@@ -19,6 +19,7 @@ Contributors:
 
 #include "../../internal/memory.h"
 #include "../Bus.hpp"
+#include "../misc/colortype.hpp"
 
 namespace lgfx
 {
@@ -34,8 +35,8 @@ namespace lgfx
 
     writeCommand(0xB0, 1);
     writeData(0x20, 2);
-    writeData(__builtin_bswap16(_cfg.panel_width  - 1), 2);
-    writeData(__builtin_bswap16(_cfg.panel_height - 1), 2);
+    writeData(getSwap16(_cfg.panel_width  - 1), 2);
+    writeData(getSwap16(_cfg.panel_height - 1), 2);
     writeData(0x2D, 1);
 
     endWrite();
@@ -52,11 +53,11 @@ namespace lgfx
     uint_fast16_t lps = move;
 
     writeCommand(0xB4, 1);
-    writeData(__builtin_bswap16( ht-1), 2);
-    writeData(__builtin_bswap16(hps  ), 2);
-    writeData(                  hpw-1 , 1);
-    writeData(__builtin_bswap16(lps  ), 2);
-    writeData(                  lpspp , 1);
+    writeData(getSwap16( ht-1), 2);
+    writeData(getSwap16(hps  ), 2);
+    writeData(          hpw-1 , 1);
+    writeData(getSwap16(lps  ), 2);
+    writeData(          lpspp , 1);
 
     _bus->flush();
     endWrite();
@@ -71,10 +72,10 @@ namespace lgfx
     uint_fast16_t fps = move;
 
     writeCommand(0xB6, 1);
-    writeData(__builtin_bswap16( vt-1), 2);
-    writeData(__builtin_bswap16(vps  ), 2);
-    writeData(                  vpw-1 , 1);
-    writeData(__builtin_bswap16(fps  ), 2);
+    writeData(getSwap16( vt-1), 2);
+    writeData(getSwap16(vps  ), 2);
+    writeData(          vpw-1 , 1);
+    writeData(getSwap16(fps  ), 2);
 
     _bus->flush();
     endWrite();

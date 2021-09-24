@@ -46,7 +46,7 @@ namespace lgfx
 
   void Bus_I2C::beginTransaction(void)
   {
-    // 既に開始直後の場合は終了
+    // 既に開始直後の場合は終了;
     if (_state == state_t::state_write_none)
     {
       return;
@@ -109,28 +109,28 @@ namespace lgfx
 
   void Bus_I2C::dc_control(bool dc)
   {
-    // リード中の場合はトランザクションを終了しておく
+    // リード中の場合はトランザクションを終了しておく;
     if (_state == state_t::state_read)
     {
       _state = state_t::state_none;
       lgfx::i2c::endTransaction(_cfg.sercom_index);
     }
 
-    // まだトランザクションが開始されていない場合は開始しておく
+    // まだトランザクションが開始されていない場合は開始しておく;
     if (_state == state_t::state_none)
     {
       _state = state_t::state_write_none;
       lgfx::i2c::beginTransaction(_cfg.sercom_index, _cfg.i2c_addr, _cfg.freq_write, false);
     }
 
-    // DCプリフィクスなしの場合は後の処理は不要
+    // DCプリフィクスなしの場合は後の処理は不要;
     if (_cfg.prefix_len == 0) return;
 
     state_t st = dc ? state_t::state_write_data : state_t::state_write_cmd;
-    // 既に送信済みのDCプリフィクスが要求と一致している場合は終了
+    // 既に送信済みのDCプリフィクスが要求と一致している場合は終了;
     if (_state == st) return;
 
-    // DCプリフィクスが送信済みの場合、送信済みのDCプリフィクスと要求が不一致なのでトランザクションをやり直す。
+    // DCプリフィクスが送信済みの場合、送信済みのDCプリフィクスと要求が不一致なのでトランザクションをやり直す。;
     if (_state != state_t::state_write_none)
     {
       lgfx::i2c::endTransaction(_cfg.sercom_index);

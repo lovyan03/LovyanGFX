@@ -102,7 +102,7 @@ namespace lgfx
     if (count > 5) count = 5;  // 最大５点まで
     size_t len = count * 6 - 1;
 
-    uint8_t tmp[2][len];
+    uint8_t tmp[2][30];
     _read_reg(0x02, tmp[0], len);
     int32_t retry = 5;
     do

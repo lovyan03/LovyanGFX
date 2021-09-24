@@ -281,7 +281,7 @@ namespace lgfx
       gpio_matrix_out(_cfg.pin_rs, idx_base, 0, 0);
     }
     else if (_div_num < 4)
-    { /// OUTLINK_START～TX_STARTの時間が短すぎるとデータの先頭を送り損じる事があるのでnopウェイトを入れる
+    { /// OUTLINK_START～TX_STARTの時間が短すぎるとデータの先頭を送り損じる事があるのでnopウェイトを入れる;
       size_t wait = (8 - _div_num) << 2;
       do { __asm__ __volatile__ ("nop"); } while (--wait);
     }
@@ -480,7 +480,11 @@ namespace lgfx
 
   void Bus_Parallel8::_read_bytes(uint8_t* dst, uint32_t length)
   {
-    uint8_t in[8];
+    union
+    {
+      uint32_t in32[2];
+      uint8_t in[8];
+    };
 
     uint32_t mask = (((((((((((((((
                     (_cfg.pin_d0 & 7)) << 3)
@@ -510,8 +514,8 @@ namespace lgfx
     uint_fast8_t val;
     do
     {
-      ((uint32_t*)in)[0] = GPIO.in;
-      ((uint32_t*)in)[1] = GPIO.in1.val;
+      in32[0] = GPIO.in;
+      in32[1] = GPIO.in1.val;
       *reg_rd_h = mask_rd;
       val =              (1 & (in[(idx >>  0) & 7] >> ((mask >>  0) & 7)));
       val = (val << 1) + (1 & (in[(idx >>  3) & 7] >> ((mask >>  3) & 7)));

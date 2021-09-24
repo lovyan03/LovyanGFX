@@ -31,7 +31,11 @@ namespace lgfx
  {
 //----------------------------------------------------------------------------
 
-#define LGFX_INLINE __attribute__((used)) __attribute__ ((always_inline)) inline static
+#if defined ( _MSVC_LANG )
+ #define LGFX_INLINE inline static
+#else
+ #define LGFX_INLINE __attribute__((used)) __attribute__ ((always_inline)) inline static
+#endif
 
   LGFX_INLINE constexpr uint8_t  color332(uint8_t r, uint8_t g, uint8_t b) { return ((((r >> 5) << 3) + (g >> 5)) << 2) + (b >> 6); }
   LGFX_INLINE constexpr uint16_t color565(uint8_t r, uint8_t g, uint8_t b) { return (r >> 3) <<11 | (g >> 2) << 5 | b >> 3; }
@@ -509,7 +513,11 @@ namespace lgfx
 
 #pragma pack(pop)
 
+#if defined ( _MSVC_LANG )
+#define LGFX_INLINE inline
+#else
 #define LGFX_INLINE __attribute__((used)) __attribute__ ((always_inline)) inline
+#endif
 
   template<class TDst, class TSrc> LGFX_INLINE uint32_t color_convert(uint32_t c) { return c; }
 
@@ -586,103 +594,101 @@ namespace lgfx
   template<> LGFX_INLINE uint32_t color_convert<grayscale_t, bgr888_t   >(uint32_t c) { uint_fast16_t g = ( c >> 8) & 0xFF; g = (g << 1) + (g >> 7); return (g + ((c>>16)&0xFF)+(c&0xFF))>>2; }
   template<> LGFX_INLINE uint32_t color_convert<grayscale_t, bgra8888_t >(uint32_t c) { return color_convert<grayscale_t, bgr888_t>(c>>8); }
 
-#undef LGFX_INLINE
+  LGFX_INLINE rgb332_t&    rgb332_t   ::operator=(const rgb565_t&    c) { set(color_convert<rgb332_t   , rgb565_t   >(c.get())); return *this; }
+  LGFX_INLINE rgb332_t&    rgb332_t   ::operator=(const rgb888_t&    c) { set(color_convert<rgb332_t   , rgb888_t   >(c.get())); return *this; }
+  LGFX_INLINE rgb332_t&    rgb332_t   ::operator=(const argb8888_t&  c) { set(color_convert<rgb332_t   , argb8888_t >(c.get())); return *this; }
+  LGFX_INLINE rgb332_t&    rgb332_t   ::operator=(const swap565_t&   c) { set(color_convert<rgb332_t   , swap565_t  >(c.get())); return *this; }
+  LGFX_INLINE rgb332_t&    rgb332_t   ::operator=(const bgr666_t&    c) { set(color_convert<rgb332_t   , bgr666_t   >(c.get())); return *this; }
+  LGFX_INLINE rgb332_t&    rgb332_t   ::operator=(const bgr888_t&    c) { set(color_convert<rgb332_t   , bgr888_t   >(c.get())); return *this; }
+  LGFX_INLINE rgb332_t&    rgb332_t   ::operator=(const bgra8888_t&  c) { set(color_convert<rgb332_t   , bgra8888_t >(c.get())); return *this; }
+  LGFX_INLINE rgb332_t&    rgb332_t   ::operator=(const grayscale_t& c) { set(color_convert<rgb332_t   , grayscale_t>(c.get())); return *this; }
+  LGFX_INLINE rgb565_t&    rgb565_t   ::operator=(const rgb332_t&    c) { set(color_convert<rgb565_t   , rgb332_t   >(c.get())); return *this; }
+  LGFX_INLINE rgb565_t&    rgb565_t   ::operator=(const rgb888_t&    c) { set(color_convert<rgb565_t   , rgb888_t   >(c.get())); return *this; }
+  LGFX_INLINE rgb565_t&    rgb565_t   ::operator=(const argb8888_t&  c) { set(color_convert<rgb565_t   , argb8888_t >(c.get())); return *this; }
+  LGFX_INLINE rgb565_t&    rgb565_t   ::operator=(const swap565_t&   c) { set(getSwap16                              (c.get())); return *this; }
+  LGFX_INLINE rgb565_t&    rgb565_t   ::operator=(const bgr666_t&    c) { set(color_convert<rgb565_t   , bgr666_t   >(c.get())); return *this; }
+  LGFX_INLINE rgb565_t&    rgb565_t   ::operator=(const bgr888_t&    c) { set(color_convert<rgb565_t   , bgr888_t   >(c.get())); return *this; }
+  LGFX_INLINE rgb565_t&    rgb565_t   ::operator=(const bgra8888_t&  c) { set(color_convert<rgb565_t   , bgra8888_t >(c.get())); return *this; }
+  LGFX_INLINE rgb565_t&    rgb565_t   ::operator=(const grayscale_t& c) { set(color_convert<rgb565_t   , grayscale_t>(c.get())); return *this; }
+  LGFX_INLINE rgb888_t&    rgb888_t   ::operator=(const rgb332_t&    c) { set(color_convert<rgb888_t   , rgb332_t   >(c.get())); return *this; }
+  LGFX_INLINE rgb888_t&    rgb888_t   ::operator=(const rgb565_t&    c) { set(color_convert<rgb888_t   , rgb565_t   >(c.get())); return *this; }
+  LGFX_INLINE rgb888_t&    rgb888_t   ::operator=(const argb8888_t&  c) { set(color_convert<rgb888_t   , argb8888_t >(c.get())); return *this; }
+  LGFX_INLINE rgb888_t&    rgb888_t   ::operator=(const swap565_t&   c) { set(color_convert<rgb888_t   , swap565_t  >(c.get())); return *this; }
+  LGFX_INLINE rgb888_t&    rgb888_t   ::operator=(const bgr666_t&    c) { set(color_convert<rgb888_t   , bgr666_t   >(c.get())); return *this; }
+  LGFX_INLINE rgb888_t&    rgb888_t   ::operator=(const bgr888_t&    c) { set(getSwap24                              (c.get())); return *this; }
+  LGFX_INLINE rgb888_t&    rgb888_t   ::operator=(const bgra8888_t&  c) { set(color_convert<rgb888_t   , bgra8888_t >(c.get())); return *this; }
+  LGFX_INLINE rgb888_t&    rgb888_t   ::operator=(const grayscale_t& c) { set(color_convert<rgb888_t   , grayscale_t>(c.get())); return *this; }
+  LGFX_INLINE argb8888_t&  argb8888_t ::operator=(const rgb332_t&    c) { set(color_convert<argb8888_t , rgb332_t   >(c.get())); return *this; }
+  LGFX_INLINE argb8888_t&  argb8888_t ::operator=(const rgb565_t&    c) { set(color_convert<argb8888_t , rgb565_t   >(c.get())); return *this; }
+  LGFX_INLINE argb8888_t&  argb8888_t ::operator=(const rgb888_t&    c) { set(color_convert<argb8888_t , rgb888_t   >(c.get())); return *this; }
+  LGFX_INLINE argb8888_t&  argb8888_t ::operator=(const swap565_t&   c) { set(color_convert<argb8888_t , swap565_t  >(c.get())); return *this; }
+  LGFX_INLINE argb8888_t&  argb8888_t ::operator=(const bgr666_t&    c) { set(color_convert<argb8888_t , bgr666_t   >(c.get())); return *this; }
+  LGFX_INLINE argb8888_t&  argb8888_t ::operator=(const bgr888_t&    c) { set(color_convert<argb8888_t , bgr888_t   >(c.get())); return *this; }
+  LGFX_INLINE argb8888_t&  argb8888_t ::operator=(const bgra8888_t&  c) { set(getSwap32                              (c.get())); return *this; }
+  LGFX_INLINE argb8888_t&  argb8888_t ::operator=(const grayscale_t& c) { set(color_convert<argb8888_t , grayscale_t>(c.get())); return *this; }
+  LGFX_INLINE swap565_t&   swap565_t  ::operator=(const rgb332_t&    c) { set(color_convert<swap565_t  , rgb332_t   >(c.get())); return *this; }
+  LGFX_INLINE swap565_t&   swap565_t  ::operator=(const rgb565_t&    c) { set(getSwap16(                              c.get())); return *this; }
+  LGFX_INLINE swap565_t&   swap565_t  ::operator=(const rgb888_t&    c) { set(color_convert<swap565_t  , rgb888_t   >(c.get())); return *this; }
+  LGFX_INLINE swap565_t&   swap565_t  ::operator=(const argb8888_t&  c) { set(color_convert<swap565_t  , argb8888_t >(c.get())); return *this; }
+  LGFX_INLINE swap565_t&   swap565_t  ::operator=(const bgr666_t&    c) { set(color_convert<swap565_t  , bgr666_t   >(c.get())); return *this; }
+  LGFX_INLINE swap565_t&   swap565_t  ::operator=(const bgr888_t&    c) { set(color_convert<swap565_t  , bgr888_t   >(c.get())); return *this; }
+  LGFX_INLINE swap565_t&   swap565_t  ::operator=(const bgra8888_t&  c) { set(color_convert<swap565_t  , bgra8888_t >(c.get())); return *this; }
+  LGFX_INLINE swap565_t&   swap565_t  ::operator=(const grayscale_t& c) { set(color_convert<swap565_t  , grayscale_t>(c.get())); return *this; }
+  LGFX_INLINE bgr666_t&    bgr666_t   ::operator=(const rgb332_t&    c) { set(color_convert<bgr666_t   , rgb332_t   >(c.get())); return *this; }
+  LGFX_INLINE bgr666_t&    bgr666_t   ::operator=(const rgb565_t&    c) { set(color_convert<bgr666_t   , rgb565_t   >(c.get())); return *this; }
+  LGFX_INLINE bgr666_t&    bgr666_t   ::operator=(const rgb888_t&    c) { set(color_convert<bgr666_t   , rgb888_t   >(c.get())); return *this; }
+  LGFX_INLINE bgr666_t&    bgr666_t   ::operator=(const argb8888_t&  c) { set(color_convert<bgr666_t   , argb8888_t >(c.get())); return *this; }
+  LGFX_INLINE bgr666_t&    bgr666_t   ::operator=(const swap565_t&   c) { set(color_convert<bgr666_t   , swap565_t  >(c.get())); return *this; }
+  LGFX_INLINE bgr666_t&    bgr666_t   ::operator=(const bgr888_t&    c) { set(color_convert<bgr666_t   , bgr888_t   >(c.get())); return *this; }
+  LGFX_INLINE bgr666_t&    bgr666_t   ::operator=(const bgra8888_t&  c) { set(color_convert<bgr666_t   , bgra8888_t >(c.get())); return *this; }
+  LGFX_INLINE bgr666_t&    bgr666_t   ::operator=(const grayscale_t& c) { set(color_convert<bgr666_t   , grayscale_t>(c.get())); return *this; }
+  LGFX_INLINE bgr888_t&    bgr888_t   ::operator=(const rgb332_t&    c) { set(color_convert<bgr888_t   , rgb332_t   >(c.get())); return *this; }
+  LGFX_INLINE bgr888_t&    bgr888_t   ::operator=(const rgb565_t&    c) { set(color_convert<bgr888_t   , rgb565_t   >(c.get())); return *this; }
+  LGFX_INLINE bgr888_t&    bgr888_t   ::operator=(const rgb888_t&    c) { set(getSwap24                              (c.get())); return *this; }
+  LGFX_INLINE bgr888_t&    bgr888_t   ::operator=(const argb8888_t&  c) { set(color_convert<bgr888_t   , argb8888_t >(c.get())); return *this; }
+  LGFX_INLINE bgr888_t&    bgr888_t   ::operator=(const swap565_t&   c) { set(color_convert<bgr888_t   , swap565_t  >(c.get())); return *this; }
+  LGFX_INLINE bgr888_t&    bgr888_t   ::operator=(const bgr666_t&    c) { set(color_convert<bgr888_t   , bgr666_t   >(c.get())); return *this; }
+  LGFX_INLINE bgr888_t&    bgr888_t   ::operator=(const bgra8888_t&  c) { set(color_convert<bgr888_t   , bgra8888_t >(c.get())); return *this; }
+  LGFX_INLINE bgr888_t&    bgr888_t   ::operator=(const grayscale_t& c) { set(color_convert<bgr888_t   , grayscale_t>(c.get())); return *this; }
+  LGFX_INLINE bgra8888_t&  bgra8888_t ::operator=(const rgb332_t&    c) { set(color_convert<bgra8888_t , rgb332_t   >(c.get())); return *this; }
+  LGFX_INLINE bgra8888_t&  bgra8888_t ::operator=(const rgb565_t&    c) { set(color_convert<bgra8888_t , rgb565_t   >(c.get())); return *this; }
+  LGFX_INLINE bgra8888_t&  bgra8888_t ::operator=(const rgb888_t&    c) { set(color_convert<bgra8888_t , rgb888_t   >(c.get())); return *this; }
+  LGFX_INLINE bgra8888_t&  bgra8888_t ::operator=(const argb8888_t&  c) { set(getSwap32                              (c.get())); return *this; }
+  LGFX_INLINE bgra8888_t&  bgra8888_t ::operator=(const swap565_t&   c) { set(color_convert<bgra8888_t , swap565_t  >(c.get())); return *this; }
+  LGFX_INLINE bgra8888_t&  bgra8888_t ::operator=(const bgr666_t&    c) { set(color_convert<bgra8888_t , bgr666_t   >(c.get())); return *this; }
+  LGFX_INLINE bgra8888_t&  bgra8888_t ::operator=(const bgr888_t&    c) { set(color_convert<bgra8888_t , bgr888_t   >(c.get())); return *this; }
+  LGFX_INLINE bgra8888_t&  bgra8888_t ::operator=(const grayscale_t& c) { set(color_convert<bgra8888_t , grayscale_t>(c.get())); return *this; }
+  LGFX_INLINE grayscale_t& grayscale_t::operator=(const rgb332_t&    c) { set(color_convert<grayscale_t, rgb332_t   >(c.get())); return *this; }
+  LGFX_INLINE grayscale_t& grayscale_t::operator=(const rgb565_t&    c) { set(color_convert<grayscale_t, rgb565_t   >(c.get())); return *this; }
+  LGFX_INLINE grayscale_t& grayscale_t::operator=(const rgb888_t&    c) { set(color_convert<grayscale_t, rgb888_t   >(c.get())); return *this; }
+  LGFX_INLINE grayscale_t& grayscale_t::operator=(const argb8888_t&  c) { set(color_convert<grayscale_t, argb8888_t >(c.get())); return *this; }
+  LGFX_INLINE grayscale_t& grayscale_t::operator=(const swap565_t&   c) { set(color_convert<grayscale_t, swap565_t  >(c.get())); return *this; }
+  LGFX_INLINE grayscale_t& grayscale_t::operator=(const bgr666_t&    c) { set(color_convert<grayscale_t, bgr666_t   >(c.get())); return *this; }
+  LGFX_INLINE grayscale_t& grayscale_t::operator=(const bgr888_t&    c) { set(color_convert<grayscale_t, bgr888_t   >(c.get())); return *this; }
+  LGFX_INLINE grayscale_t& grayscale_t::operator=(const bgra8888_t&  c) { set(color_convert<grayscale_t, bgra8888_t >(c.get())); return *this; }
 
-  inline rgb332_t&    rgb332_t   ::operator=(const rgb565_t&    c) { set(color_convert<rgb332_t   , rgb565_t   >(c.get())); return *this; }
-  inline rgb332_t&    rgb332_t   ::operator=(const rgb888_t&    c) { set(color_convert<rgb332_t   , rgb888_t   >(c.get())); return *this; }
-  inline rgb332_t&    rgb332_t   ::operator=(const argb8888_t&  c) { set(color_convert<rgb332_t   , argb8888_t >(c.get())); return *this; }
-  inline rgb332_t&    rgb332_t   ::operator=(const swap565_t&   c) { set(color_convert<rgb332_t   , swap565_t  >(c.get())); return *this; }
-  inline rgb332_t&    rgb332_t   ::operator=(const bgr666_t&    c) { set(color_convert<rgb332_t   , bgr666_t   >(c.get())); return *this; }
-  inline rgb332_t&    rgb332_t   ::operator=(const bgr888_t&    c) { set(color_convert<rgb332_t   , bgr888_t   >(c.get())); return *this; }
-  inline rgb332_t&    rgb332_t   ::operator=(const bgra8888_t&  c) { set(color_convert<rgb332_t   , bgra8888_t >(c.get())); return *this; }
-  inline rgb332_t&    rgb332_t   ::operator=(const grayscale_t& c) { set(color_convert<rgb332_t   , grayscale_t>(c.get())); return *this; }
-  inline rgb565_t&    rgb565_t   ::operator=(const rgb332_t&    c) { set(color_convert<rgb565_t   , rgb332_t   >(c.get())); return *this; }
-  inline rgb565_t&    rgb565_t   ::operator=(const rgb888_t&    c) { set(color_convert<rgb565_t   , rgb888_t   >(c.get())); return *this; }
-  inline rgb565_t&    rgb565_t   ::operator=(const argb8888_t&  c) { set(color_convert<rgb565_t   , argb8888_t >(c.get())); return *this; }
-  inline rgb565_t&    rgb565_t   ::operator=(const swap565_t&   c) { set(getSwap16                              (c.get())); return *this; }
-  inline rgb565_t&    rgb565_t   ::operator=(const bgr666_t&    c) { set(color_convert<rgb565_t   , bgr666_t   >(c.get())); return *this; }
-  inline rgb565_t&    rgb565_t   ::operator=(const bgr888_t&    c) { set(color_convert<rgb565_t   , bgr888_t   >(c.get())); return *this; }
-  inline rgb565_t&    rgb565_t   ::operator=(const bgra8888_t&  c) { set(color_convert<rgb565_t   , bgra8888_t >(c.get())); return *this; }
-  inline rgb565_t&    rgb565_t   ::operator=(const grayscale_t& c) { set(color_convert<rgb565_t   , grayscale_t>(c.get())); return *this; }
-  inline rgb888_t&    rgb888_t   ::operator=(const rgb332_t&    c) { set(color_convert<rgb888_t   , rgb332_t   >(c.get())); return *this; }
-  inline rgb888_t&    rgb888_t   ::operator=(const rgb565_t&    c) { set(color_convert<rgb888_t   , rgb565_t   >(c.get())); return *this; }
-  inline rgb888_t&    rgb888_t   ::operator=(const argb8888_t&  c) { set(color_convert<rgb888_t   , argb8888_t >(c.get())); return *this; }
-  inline rgb888_t&    rgb888_t   ::operator=(const swap565_t&   c) { set(color_convert<rgb888_t   , swap565_t  >(c.get())); return *this; }
-  inline rgb888_t&    rgb888_t   ::operator=(const bgr666_t&    c) { set(color_convert<rgb888_t   , bgr666_t   >(c.get())); return *this; }
-  inline rgb888_t&    rgb888_t   ::operator=(const bgr888_t&    c) { set(getSwap24                              (c.get())); return *this; }
-  inline rgb888_t&    rgb888_t   ::operator=(const bgra8888_t&  c) { set(color_convert<rgb888_t   , bgra8888_t >(c.get())); return *this; }
-  inline rgb888_t&    rgb888_t   ::operator=(const grayscale_t& c) { set(color_convert<rgb888_t   , grayscale_t>(c.get())); return *this; }
-  inline argb8888_t&  argb8888_t ::operator=(const rgb332_t&    c) { set(color_convert<argb8888_t , rgb332_t   >(c.get())); return *this; }
-  inline argb8888_t&  argb8888_t ::operator=(const rgb565_t&    c) { set(color_convert<argb8888_t , rgb565_t   >(c.get())); return *this; }
-  inline argb8888_t&  argb8888_t ::operator=(const rgb888_t&    c) { set(color_convert<argb8888_t , rgb888_t   >(c.get())); return *this; }
-  inline argb8888_t&  argb8888_t ::operator=(const swap565_t&   c) { set(color_convert<argb8888_t , swap565_t  >(c.get())); return *this; }
-  inline argb8888_t&  argb8888_t ::operator=(const bgr666_t&    c) { set(color_convert<argb8888_t , bgr666_t   >(c.get())); return *this; }
-  inline argb8888_t&  argb8888_t ::operator=(const bgr888_t&    c) { set(color_convert<argb8888_t , bgr888_t   >(c.get())); return *this; }
-  inline argb8888_t&  argb8888_t ::operator=(const bgra8888_t&  c) { set(getSwap32                              (c.get())); return *this; }
-  inline argb8888_t&  argb8888_t ::operator=(const grayscale_t& c) { set(color_convert<argb8888_t , grayscale_t>(c.get())); return *this; }
-  inline swap565_t&   swap565_t  ::operator=(const rgb332_t&    c) { set(color_convert<swap565_t  , rgb332_t   >(c.get())); return *this; }
-  inline swap565_t&   swap565_t  ::operator=(const rgb565_t&    c) { set(getSwap16(                              c.get())); return *this; }
-  inline swap565_t&   swap565_t  ::operator=(const rgb888_t&    c) { set(color_convert<swap565_t  , rgb888_t   >(c.get())); return *this; }
-  inline swap565_t&   swap565_t  ::operator=(const argb8888_t&  c) { set(color_convert<swap565_t  , argb8888_t >(c.get())); return *this; }
-  inline swap565_t&   swap565_t  ::operator=(const bgr666_t&    c) { set(color_convert<swap565_t  , bgr666_t   >(c.get())); return *this; }
-  inline swap565_t&   swap565_t  ::operator=(const bgr888_t&    c) { set(color_convert<swap565_t  , bgr888_t   >(c.get())); return *this; }
-  inline swap565_t&   swap565_t  ::operator=(const bgra8888_t&  c) { set(color_convert<swap565_t  , bgra8888_t >(c.get())); return *this; }
-  inline swap565_t&   swap565_t  ::operator=(const grayscale_t& c) { set(color_convert<swap565_t  , grayscale_t>(c.get())); return *this; }
-  inline bgr666_t&    bgr666_t   ::operator=(const rgb332_t&    c) { set(color_convert<bgr666_t   , rgb332_t   >(c.get())); return *this; }
-  inline bgr666_t&    bgr666_t   ::operator=(const rgb565_t&    c) { set(color_convert<bgr666_t   , rgb565_t   >(c.get())); return *this; }
-  inline bgr666_t&    bgr666_t   ::operator=(const rgb888_t&    c) { set(color_convert<bgr666_t   , rgb888_t   >(c.get())); return *this; }
-  inline bgr666_t&    bgr666_t   ::operator=(const argb8888_t&  c) { set(color_convert<bgr666_t   , argb8888_t >(c.get())); return *this; }
-  inline bgr666_t&    bgr666_t   ::operator=(const swap565_t&   c) { set(color_convert<bgr666_t   , swap565_t  >(c.get())); return *this; }
-  inline bgr666_t&    bgr666_t   ::operator=(const bgr888_t&    c) { set(color_convert<bgr666_t   , bgr888_t   >(c.get())); return *this; }
-  inline bgr666_t&    bgr666_t   ::operator=(const bgra8888_t&  c) { set(color_convert<bgr666_t   , bgra8888_t >(c.get())); return *this; }
-  inline bgr666_t&    bgr666_t   ::operator=(const grayscale_t& c) { set(color_convert<bgr666_t   , grayscale_t>(c.get())); return *this; }
-  inline bgr888_t&    bgr888_t   ::operator=(const rgb332_t&    c) { set(color_convert<bgr888_t   , rgb332_t   >(c.get())); return *this; }
-  inline bgr888_t&    bgr888_t   ::operator=(const rgb565_t&    c) { set(color_convert<bgr888_t   , rgb565_t   >(c.get())); return *this; }
-  inline bgr888_t&    bgr888_t   ::operator=(const rgb888_t&    c) { set(getSwap24                              (c.get())); return *this; }
-  inline bgr888_t&    bgr888_t   ::operator=(const argb8888_t&  c) { set(color_convert<bgr888_t   , argb8888_t >(c.get())); return *this; }
-  inline bgr888_t&    bgr888_t   ::operator=(const swap565_t&   c) { set(color_convert<bgr888_t   , swap565_t  >(c.get())); return *this; }
-  inline bgr888_t&    bgr888_t   ::operator=(const bgr666_t&    c) { set(color_convert<bgr888_t   , bgr666_t   >(c.get())); return *this; }
-  inline bgr888_t&    bgr888_t   ::operator=(const bgra8888_t&  c) { set(color_convert<bgr888_t   , bgra8888_t >(c.get())); return *this; }
-  inline bgr888_t&    bgr888_t   ::operator=(const grayscale_t& c) { set(color_convert<bgr888_t   , grayscale_t>(c.get())); return *this; }
-  inline bgra8888_t&  bgra8888_t ::operator=(const rgb332_t&    c) { set(color_convert<bgra8888_t , rgb332_t   >(c.get())); return *this; }
-  inline bgra8888_t&  bgra8888_t ::operator=(const rgb565_t&    c) { set(color_convert<bgra8888_t , rgb565_t   >(c.get())); return *this; }
-  inline bgra8888_t&  bgra8888_t ::operator=(const rgb888_t&    c) { set(color_convert<bgra8888_t , rgb888_t   >(c.get())); return *this; }
-  inline bgra8888_t&  bgra8888_t ::operator=(const argb8888_t&  c) { set(getSwap32                              (c.get())); return *this; }
-  inline bgra8888_t&  bgra8888_t ::operator=(const swap565_t&   c) { set(color_convert<bgra8888_t , swap565_t  >(c.get())); return *this; }
-  inline bgra8888_t&  bgra8888_t ::operator=(const bgr666_t&    c) { set(color_convert<bgra8888_t , bgr666_t   >(c.get())); return *this; }
-  inline bgra8888_t&  bgra8888_t ::operator=(const bgr888_t&    c) { set(color_convert<bgra8888_t , bgr888_t   >(c.get())); return *this; }
-  inline bgra8888_t&  bgra8888_t ::operator=(const grayscale_t& c) { set(color_convert<bgra8888_t , grayscale_t>(c.get())); return *this; }
-  inline grayscale_t& grayscale_t::operator=(const rgb332_t&    c) { set(color_convert<grayscale_t, rgb332_t   >(c.get())); return *this; }
-  inline grayscale_t& grayscale_t::operator=(const rgb565_t&    c) { set(color_convert<grayscale_t, rgb565_t   >(c.get())); return *this; }
-  inline grayscale_t& grayscale_t::operator=(const rgb888_t&    c) { set(color_convert<grayscale_t, rgb888_t   >(c.get())); return *this; }
-  inline grayscale_t& grayscale_t::operator=(const argb8888_t&  c) { set(color_convert<grayscale_t, argb8888_t >(c.get())); return *this; }
-  inline grayscale_t& grayscale_t::operator=(const swap565_t&   c) { set(color_convert<grayscale_t, swap565_t  >(c.get())); return *this; }
-  inline grayscale_t& grayscale_t::operator=(const bgr666_t&    c) { set(color_convert<grayscale_t, bgr666_t   >(c.get())); return *this; }
-  inline grayscale_t& grayscale_t::operator=(const bgr888_t&    c) { set(color_convert<grayscale_t, bgr888_t   >(c.get())); return *this; }
-  inline grayscale_t& grayscale_t::operator=(const bgra8888_t&  c) { set(color_convert<grayscale_t, bgra8888_t >(c.get())); return *this; }
-
-  inline bool operator==(const rgb332_t&    lhs, const rgb332_t&    rhs) { return pgm_read_byte           (&lhs) == pgm_read_byte           (&rhs); }
-  inline bool operator==(const rgb565_t&    lhs, const rgb565_t&    rhs) { return pgm_read_word           (&lhs) == pgm_read_word           (&rhs); }
-  inline bool operator==(const swap565_t&   lhs, const swap565_t&   rhs) { return pgm_read_word           (&lhs) == pgm_read_word           (&rhs); }
-  inline bool operator==(const bgr666_t&    lhs, const bgr666_t&    rhs) { return pgm_read_3byte_unaligned(&lhs) == pgm_read_3byte_unaligned(&rhs); }
-  inline bool operator==(const rgb888_t&    lhs, const rgb888_t&    rhs) { return pgm_read_3byte_unaligned(&lhs) == pgm_read_3byte_unaligned(&rhs); }
-  inline bool operator==(const bgr888_t&    lhs, const bgr888_t&    rhs) { return pgm_read_3byte_unaligned(&lhs) == pgm_read_3byte_unaligned(&rhs); }
-  inline bool operator==(const argb8888_t&  lhs, const argb8888_t&  rhs) { return pgm_read_dword          (&lhs) == pgm_read_dword          (&rhs); }
-  inline bool operator==(const grayscale_t& lhs, const grayscale_t& rhs) { return pgm_read_byte           (&lhs) == pgm_read_byte           (&rhs); }
+  LGFX_INLINE bool operator==(const rgb332_t&    lhs, const rgb332_t&    rhs) { return pgm_read_byte           (&lhs) == pgm_read_byte           (&rhs); }
+  LGFX_INLINE bool operator==(const rgb565_t&    lhs, const rgb565_t&    rhs) { return pgm_read_word           (&lhs) == pgm_read_word           (&rhs); }
+  LGFX_INLINE bool operator==(const swap565_t&   lhs, const swap565_t&   rhs) { return pgm_read_word           (&lhs) == pgm_read_word           (&rhs); }
+  LGFX_INLINE bool operator==(const bgr666_t&    lhs, const bgr666_t&    rhs) { return pgm_read_3byte_unaligned(&lhs) == pgm_read_3byte_unaligned(&rhs); }
+  LGFX_INLINE bool operator==(const rgb888_t&    lhs, const rgb888_t&    rhs) { return pgm_read_3byte_unaligned(&lhs) == pgm_read_3byte_unaligned(&rhs); }
+  LGFX_INLINE bool operator==(const bgr888_t&    lhs, const bgr888_t&    rhs) { return pgm_read_3byte_unaligned(&lhs) == pgm_read_3byte_unaligned(&rhs); }
+  LGFX_INLINE bool operator==(const argb8888_t&  lhs, const argb8888_t&  rhs) { return pgm_read_dword          (&lhs) == pgm_read_dword          (&rhs); }
+  LGFX_INLINE bool operator==(const grayscale_t& lhs, const grayscale_t& rhs) { return pgm_read_byte           (&lhs) == pgm_read_byte           (&rhs); }
 
   // for compare transparent color.
-  inline bool operator==(const rgb332_t&    lhs, uint32_t rhs) { return pgm_read_byte           (&lhs) == rhs; }
-  inline bool operator==(const rgb565_t&    lhs, uint32_t rhs) { return pgm_read_word           (&lhs) == rhs; }
-  inline bool operator==(const swap565_t&   lhs, uint32_t rhs) { return pgm_read_word           (&lhs) == rhs; }
-  inline bool operator==(const bgr666_t&    lhs, uint32_t rhs) { return pgm_read_3byte_unaligned(&lhs) == rhs; }
-  inline bool operator==(const rgb888_t&    lhs, uint32_t rhs) { return pgm_read_3byte_unaligned(&lhs) == rhs; }
-  inline bool operator==(const bgr888_t&    lhs, uint32_t rhs) { return pgm_read_3byte_unaligned(&lhs) == rhs; }
-  inline bool operator==(const argb8888_t&  lhs, uint32_t rhs) { return pgm_read_dword          (&lhs) == rhs; }
-  inline bool operator==(const bgra8888_t&  lhs, uint32_t rhs) { return pgm_read_dword          (&lhs) == rhs; }
-  inline bool operator==(const grayscale_t& lhs, uint32_t rhs) { return pgm_read_byte           (&lhs) == rhs; }
+  LGFX_INLINE bool operator==(const rgb332_t&    lhs, uint32_t rhs) { return pgm_read_byte           (&lhs) == rhs; }
+  LGFX_INLINE bool operator==(const rgb565_t&    lhs, uint32_t rhs) { return pgm_read_word           (&lhs) == rhs; }
+  LGFX_INLINE bool operator==(const swap565_t&   lhs, uint32_t rhs) { return pgm_read_word           (&lhs) == rhs; }
+  LGFX_INLINE bool operator==(const bgr666_t&    lhs, uint32_t rhs) { return pgm_read_3byte_unaligned(&lhs) == rhs; }
+  LGFX_INLINE bool operator==(const rgb888_t&    lhs, uint32_t rhs) { return pgm_read_3byte_unaligned(&lhs) == rhs; }
+  LGFX_INLINE bool operator==(const bgr888_t&    lhs, uint32_t rhs) { return pgm_read_3byte_unaligned(&lhs) == rhs; }
+  LGFX_INLINE bool operator==(const argb8888_t&  lhs, uint32_t rhs) { return pgm_read_dword          (&lhs) == rhs; }
+  LGFX_INLINE bool operator==(const bgra8888_t&  lhs, uint32_t rhs) { return pgm_read_dword          (&lhs) == rhs; }
+  LGFX_INLINE bool operator==(const grayscale_t& lhs, uint32_t rhs) { return pgm_read_byte           (&lhs) == rhs; }
 
-  inline constexpr bool operator==(const raw_color_t& lhs, const raw_color_t& rhs) { return *reinterpret_cast<const uint32_t*>(&lhs) == *reinterpret_cast<const uint32_t*>(&rhs); }
-  inline constexpr bool operator!=(const raw_color_t& lhs, const raw_color_t& rhs) { return *reinterpret_cast<const uint32_t*>(&lhs) != *reinterpret_cast<const uint32_t*>(&rhs); }
+  LGFX_INLINE bool operator==(const raw_color_t& lhs, const raw_color_t& rhs) { return *reinterpret_cast<const uint32_t*>(&lhs) == *reinterpret_cast<const uint32_t*>(&rhs); }
+  LGFX_INLINE bool operator!=(const raw_color_t& lhs, const raw_color_t& rhs) { return *reinterpret_cast<const uint32_t*>(&lhs) != *reinterpret_cast<const uint32_t*>(&rhs); }
 
 
   struct get_depth_impl {
@@ -811,7 +817,7 @@ namespace lgfx
       convert_bgr888   = get_fp_convert_src<bgr888_t  >(depth, has_palette);
     }
 
-#define TYPECHECK(dType) template < typename T, typename std::enable_if < (sizeof(T) == sizeof(dType)) && (std::is_signed<T>::value == std::is_signed<dType>::value), std::nullptr_t >::type=nullptr > __attribute__ ((always_inline)) inline
+#define TYPECHECK(dType) template < typename T, typename std::enable_if < (sizeof(T) == sizeof(dType)) && (std::is_signed<T>::value == std::is_signed<dType>::value), std::nullptr_t >::type=nullptr > LGFX_INLINE
     TYPECHECK(int8_t  ) uint32_t convert(T c) { return convert_rgb332(c); }
     TYPECHECK(uint8_t ) uint32_t convert(T c) { return convert_rgb332(c); }
     TYPECHECK(uint16_t) uint32_t convert(T c) { return convert_rgb565(c); }
@@ -819,11 +825,11 @@ namespace lgfx
     TYPECHECK(int32_t ) uint32_t convert(T c) { return convert_rgb565(c); }
     TYPECHECK(uint32_t) uint32_t convert(T c) { return convert_rgb888(c); }
 
-    __attribute__ ((always_inline)) inline uint32_t convert(const rgb332_t&   c) { return convert_rgb332(  c.get()); }
-    __attribute__ ((always_inline)) inline uint32_t convert(const rgb565_t&   c) { return convert_rgb565(  c.get()); }
-    __attribute__ ((always_inline)) inline uint32_t convert(const rgb888_t&   c) { return convert_rgb888(  c.get()); }
-    __attribute__ ((always_inline)) inline uint32_t convert(const argb8888_t& c) { return convert_argb8888(c.get()); }
-    __attribute__ ((always_inline)) inline uint32_t convert(const bgr888_t&   c) { return convert_bgr888(  c.get()); }
+    LGFX_INLINE uint32_t convert(const rgb332_t&   c) { return convert_rgb332(  c.get()); }
+    LGFX_INLINE uint32_t convert(const rgb565_t&   c) { return convert_rgb565(  c.get()); }
+    LGFX_INLINE uint32_t convert(const rgb888_t&   c) { return convert_rgb888(  c.get()); }
+    LGFX_INLINE uint32_t convert(const argb8888_t& c) { return convert_argb8888(c.get()); }
+    LGFX_INLINE uint32_t convert(const bgr888_t&   c) { return convert_bgr888(  c.get()); }
   };
 
   TYPECHECK(int8_t  ) uint32_t convert_to_rgb888(T c) { return color_convert<rgb888_t, rgb332_t>(c); }
@@ -832,13 +838,13 @@ namespace lgfx
   TYPECHECK(int16_t ) uint32_t convert_to_rgb888(T c) { return color_convert<rgb888_t, rgb565_t>(c); }
   TYPECHECK(int32_t ) uint32_t convert_to_rgb888(T c) { return color_convert<rgb888_t, rgb565_t>(c); }
   TYPECHECK(uint32_t) uint32_t convert_to_rgb888(T c) { return c & 0xFFFFFF; }
-  __attribute__ ((always_inline)) inline uint32_t convert_to_rgb888(const argb8888_t& c) { return color_convert<rgb888_t, argb8888_t>(c.get()); } // c.R8()<<16|c.G8()<<8|c.B8(); }
-  __attribute__ ((always_inline)) inline uint32_t convert_to_rgb888(const rgb888_t&   c) { return c.get(); }
-  __attribute__ ((always_inline)) inline uint32_t convert_to_rgb888(const rgb565_t&   c) { return color_convert<rgb888_t, rgb565_t  >(c.get()); } // c.R8()<<16|c.G8()<<8|c.B8(); }
-  __attribute__ ((always_inline)) inline uint32_t convert_to_rgb888(const rgb332_t&   c) { return color_convert<rgb888_t, rgb332_t  >(c.get()); } // c.R8()<<16|c.G8()<<8|c.B8(); }
-  __attribute__ ((always_inline)) inline uint32_t convert_to_rgb888(const bgr888_t&   c) { return getSwap24(c.get()); }
-  __attribute__ ((always_inline)) inline uint32_t convert_to_rgb888(const bgr666_t&   c) { return color_convert<rgb888_t, bgr666_t  >(c.get()); } // c.R8()<<16|c.G8()<<8|c.B8(); }
-  __attribute__ ((always_inline)) inline uint32_t convert_to_rgb888(const swap565_t&  c) { return color_convert<rgb888_t, swap565_t >(c.get()); } // c.R8()<<16|c.G8()<<8|c.B8(); }
+  LGFX_INLINE uint32_t convert_to_rgb888(const argb8888_t& c) { return color_convert<rgb888_t, argb8888_t>(c.get()); } // c.R8()<<16|c.G8()<<8|c.B8(); }
+  LGFX_INLINE uint32_t convert_to_rgb888(const rgb888_t&   c) { return c.get(); }
+  LGFX_INLINE uint32_t convert_to_rgb888(const rgb565_t&   c) { return color_convert<rgb888_t, rgb565_t  >(c.get()); } // c.R8()<<16|c.G8()<<8|c.B8(); }
+  LGFX_INLINE uint32_t convert_to_rgb888(const rgb332_t&   c) { return color_convert<rgb888_t, rgb332_t  >(c.get()); } // c.R8()<<16|c.G8()<<8|c.B8(); }
+  LGFX_INLINE uint32_t convert_to_rgb888(const bgr888_t&   c) { return getSwap24(c.get()); }
+  LGFX_INLINE uint32_t convert_to_rgb888(const bgr666_t&   c) { return color_convert<rgb888_t, bgr666_t  >(c.get()); } // c.R8()<<16|c.G8()<<8|c.B8(); }
+  LGFX_INLINE uint32_t convert_to_rgb888(const swap565_t&  c) { return color_convert<rgb888_t, swap565_t >(c.get()); } // c.R8()<<16|c.G8()<<8|c.B8(); }
 
   TYPECHECK(int8_t  ) uint32_t convert_to_bgr888(T c) { return color_convert<bgr888_t, rgb332_t>(c); }
   TYPECHECK(uint8_t ) uint32_t convert_to_bgr888(T c) { return color_convert<bgr888_t, rgb332_t>(c); }
@@ -846,13 +852,13 @@ namespace lgfx
   TYPECHECK(int16_t ) uint32_t convert_to_bgr888(T c) { return color_convert<bgr888_t, rgb565_t>(c); }
   TYPECHECK(int32_t ) uint32_t convert_to_bgr888(T c) { return color_convert<bgr888_t, rgb565_t>(c); }
   TYPECHECK(uint32_t) uint32_t convert_to_bgr888(T c) { return getSwap24(c); }
-  __attribute__ ((always_inline)) inline uint32_t convert_to_bgr888(const argb8888_t& c) { return color_convert<bgr888_t, argb8888_t>(c.get()); } // return c.B8()<<16|c.G8()<<8|c.R8(); }
-  __attribute__ ((always_inline)) inline uint32_t convert_to_bgr888(const rgb888_t&   c) { return color_convert<bgr888_t, rgb888_t  >(c.get()); } // return c.B8()<<16|c.G8()<<8|c.R8(); }
-  __attribute__ ((always_inline)) inline uint32_t convert_to_bgr888(const rgb565_t&   c) { return color_convert<bgr888_t, rgb565_t  >(c.get()); } // return c.B8()<<16|c.G8()<<8|c.R8(); }
-  __attribute__ ((always_inline)) inline uint32_t convert_to_bgr888(const rgb332_t&   c) { return color_convert<bgr888_t, rgb332_t  >(c.get()); } // return c.B8()<<16|c.G8()<<8|c.R8(); }
-  __attribute__ ((always_inline)) inline uint32_t convert_to_bgr888(const bgr888_t&   c) { return c.get(); }
-  __attribute__ ((always_inline)) inline uint32_t convert_to_bgr888(const bgr666_t&   c) { return color_convert<bgr888_t, bgr666_t  >(c.get()); } // return c.B8()<<16|c.G8()<<8|c.R8(); }
-  __attribute__ ((always_inline)) inline uint32_t convert_to_bgr888(const swap565_t&  c) { return color_convert<bgr888_t, swap565_t >(c.get()); } // return c.B8()<<16|c.G8()<<8|c.R8(); }
+  LGFX_INLINE uint32_t convert_to_bgr888(const argb8888_t& c) { return color_convert<bgr888_t, argb8888_t>(c.get()); } // return c.B8()<<16|c.G8()<<8|c.R8(); }
+  LGFX_INLINE uint32_t convert_to_bgr888(const rgb888_t&   c) { return color_convert<bgr888_t, rgb888_t  >(c.get()); } // return c.B8()<<16|c.G8()<<8|c.R8(); }
+  LGFX_INLINE uint32_t convert_to_bgr888(const rgb565_t&   c) { return color_convert<bgr888_t, rgb565_t  >(c.get()); } // return c.B8()<<16|c.G8()<<8|c.R8(); }
+  LGFX_INLINE uint32_t convert_to_bgr888(const rgb332_t&   c) { return color_convert<bgr888_t, rgb332_t  >(c.get()); } // return c.B8()<<16|c.G8()<<8|c.R8(); }
+  LGFX_INLINE uint32_t convert_to_bgr888(const bgr888_t&   c) { return c.get(); }
+  LGFX_INLINE uint32_t convert_to_bgr888(const bgr666_t&   c) { return color_convert<bgr888_t, bgr666_t  >(c.get()); } // return c.B8()<<16|c.G8()<<8|c.R8(); }
+  LGFX_INLINE uint32_t convert_to_bgr888(const swap565_t&  c) { return color_convert<bgr888_t, swap565_t >(c.get()); } // return c.B8()<<16|c.G8()<<8|c.R8(); }
 
 #undef TYPECHECK
 
@@ -905,6 +911,8 @@ namespace lgfx
   };
 
 //----------------------------------------------------------------------------
+#undef LGFX_INLINE
+
  }
 }
 

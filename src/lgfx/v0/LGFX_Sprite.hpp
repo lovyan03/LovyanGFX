@@ -27,6 +27,13 @@ Contributors:
 
 #include "LGFXBase.hpp"
 
+#ifdef min
+#undef min
+#endif
+#ifdef max
+#undef max
+#endif
+
 namespace lgfx
 {
  inline namespace v0

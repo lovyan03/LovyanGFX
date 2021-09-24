@@ -63,10 +63,18 @@ namespace lgfx
       };
     };
 
-    __attribute__ ((always_inline)) inline int_fast16_t width(void) const { return right - left + 1; }
-    __attribute__ ((always_inline)) inline int_fast16_t height(void) const { return bottom - top + 1; }
-    __attribute__ ((always_inline)) inline bool empty(void) const { return left > right || top > bottom; }
-    __attribute__ ((always_inline)) inline bool contain(int_fast16_t x, int_fast16_t y) const { return left <= x && x <= right && top <= y && y <= bottom; }
+#if defined ( _MSVC_LANG )
+#define LGFX_INLINE inline
+#else
+#define LGFX_INLINE __attribute__((used)) __attribute__ ((always_inline)) inline
+#endif
+
+    LGFX_INLINE int_fast16_t width(void) const { return right - left + 1; }
+    LGFX_INLINE int_fast16_t height(void) const { return bottom - top + 1; }
+    LGFX_INLINE bool empty(void) const { return left > right || top > bottom; }
+    LGFX_INLINE bool contain(int_fast16_t x, int_fast16_t y) const { return left <= x && x <= right && top <= y && y <= bottom; }
+
+#undef LGFX_INLINE
   };
 #pragma pack(pop)
 

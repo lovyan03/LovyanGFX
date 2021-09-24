@@ -19,6 +19,10 @@ LGFX_Sprite sp(&gfx);
 int w = 200;
 int h = 200;
 
+#ifdef min
+#undef min
+#endif
+
 void setup(void)
 {
 // M5.begin();

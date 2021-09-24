@@ -27,6 +27,8 @@ namespace lgfx
 
   struct bitmap_header_t
   {
+#pragma pack(push)
+#pragma pack(1)
     union
     {
       uint8_t raw[54];
@@ -48,8 +50,9 @@ namespace lgfx
         int32_t  biYPelsPerMeter;
         uint32_t biClrUsed;
         uint32_t biClrImportant;
-      } __attribute__((packed));
+      };
     };
+#pragma pack(pop)
 
     bool load_bmp_header(DataWrapper* data)
     {
@@ -113,7 +116,7 @@ namespace lgfx
           case 0x02: // move info  (not support)
             return false;
 
-          default:  // 絶対モードデータ
+          default:  // 絶対モードデータ;
             {
               int_fast16_t len = code[1];
               int_fast16_t dbyte = ((int_fast16_t)code[1] + 1) >> 1;

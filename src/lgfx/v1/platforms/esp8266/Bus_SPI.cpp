@@ -183,7 +183,6 @@ namespace lgfx
     const uint8_t bytes = param->dst_bits >> 3;
     const uint32_t limit = (bytes == 2) ? 32 : 20; //  limit = 64/bytes (4Byte aligned) (bytes==2 is 32   bytes==3 is 20)
     uint32_t len = (length - 1) / limit;
-    uint32_t highpart = (len & 1) << 3;
     len = length - (len * limit);
     uint32_t regbuf[16];
     param->fp_copy(regbuf, 0, len, param);

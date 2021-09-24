@@ -2,6 +2,7 @@
 
 #include "platforms/common.hpp"
 #include "misc/pixelcopy.hpp"
+#include "misc/colortype.hpp"
 #include "LGFXBase.hpp"
 
 #include "../internal/algorithm.h"
@@ -393,74 +394,74 @@ metrics->height    = ttf_mtx.advance_height >> 6;
   void TTFfont::TT_Header::load(DataWrapper* data)
   {
     data->read((uint8_t*)this, 54);
-    Table_Version      = __builtin_bswap32(Table_Version      );
-    Font_Revision      = __builtin_bswap32(Font_Revision      );
-    CheckSum_Adjust    = __builtin_bswap32(CheckSum_Adjust    );
-    Magic_Number       = __builtin_bswap32(Magic_Number       );
-    Flags              = __builtin_bswap16(Flags              );
-    Units_Per_EM       = __builtin_bswap16(Units_Per_EM       );
-    Created[0]         = __builtin_bswap32(Created[0]         );
-    Created[1]         = __builtin_bswap32(Created[1]         );
-    Modified[0]        = __builtin_bswap32(Modified[0]        );
-    Modified[1]        = __builtin_bswap32(Modified[1]        );
-    xMin               = __builtin_bswap16(xMin               );
-    yMin               = __builtin_bswap16(yMin               );
-    xMax               = __builtin_bswap16(xMax               );
-    yMax               = __builtin_bswap16(yMax               );
-    Mac_Style          = __builtin_bswap16(Mac_Style          );
-    Lowest_Rec_PPEM    = __builtin_bswap16(Lowest_Rec_PPEM    );
-    Font_Direction     = __builtin_bswap16(Font_Direction     );
-    Index_To_Loc_Format= __builtin_bswap16(Index_To_Loc_Format);
-    Glyph_Data_Format  = __builtin_bswap16(Glyph_Data_Format  );
+    Table_Version      = getSwap32(Table_Version      );
+    Font_Revision      = getSwap32(Font_Revision      );
+    CheckSum_Adjust    = getSwap32(CheckSum_Adjust    );
+    Magic_Number       = getSwap32(Magic_Number       );
+    Flags              = getSwap16(Flags              );
+    Units_Per_EM       = getSwap16(Units_Per_EM       );
+    Created[0]         = getSwap32(Created[0]         );
+    Created[1]         = getSwap32(Created[1]         );
+    Modified[0]        = getSwap32(Modified[0]        );
+    Modified[1]        = getSwap32(Modified[1]        );
+    xMin               = getSwap16(xMin               );
+    yMin               = getSwap16(yMin               );
+    xMax               = getSwap16(xMax               );
+    yMax               = getSwap16(yMax               );
+    Mac_Style          = getSwap16(Mac_Style          );
+    Lowest_Rec_PPEM    = getSwap16(Lowest_Rec_PPEM    );
+    Font_Direction     = getSwap16(Font_Direction     );
+    Index_To_Loc_Format= getSwap16(Index_To_Loc_Format);
+    Glyph_Data_Format  = getSwap16(Glyph_Data_Format  );
   }
 
   void TTFfont::TT_MaxProfile::load(DataWrapper* data)
   {
     memset(this, 0, sizeof(TTFfont::TT_MaxProfile));
     data->read((uint8_t*)this, 6);
-    version              = __builtin_bswap32(version  );
-    numGlyphs            = __builtin_bswap16(numGlyphs);
+    version              = getSwap32(version  );
+    numGlyphs            = getSwap16(numGlyphs);
 //ESP_LOGI("lgfx_fonts", "numGlyphs: %u", numGlyphs );
     if ( version >= 0x10000L )
     {
       data->read((uint8_t*)&maxPoints, 26);
 
-      maxPoints            = __builtin_bswap16(maxPoints           );
-      maxContours          = __builtin_bswap16(maxContours         );
-      maxCompositePoints   = __builtin_bswap16(maxCompositePoints  );
-      maxCompositeContours = __builtin_bswap16(maxCompositeContours);
-      maxZones             = __builtin_bswap16(maxZones            );
-      maxTwilightPoints    = std::min<uint16_t>( 0xFFFFu - 4, __builtin_bswap16(maxTwilightPoints));
-      maxStorage           = __builtin_bswap16(maxStorage);
-      maxFunctionDefs      = std::max<uint16_t>(64u, __builtin_bswap16(maxFunctionDefs));
-      maxInstructionDefs   = __builtin_bswap16(maxInstructionDefs   );
-      maxStackElements     = __builtin_bswap16(maxStackElements     );
-      maxSizeOfInstructions= __builtin_bswap16(maxSizeOfInstructions);
-      maxComponentElements = __builtin_bswap16(maxComponentElements );
-      maxComponentDepth    = std::max<uint16_t>(100, __builtin_bswap16(maxComponentDepth));
+      maxPoints            = getSwap16(maxPoints           );
+      maxContours          = getSwap16(maxContours         );
+      maxCompositePoints   = getSwap16(maxCompositePoints  );
+      maxCompositeContours = getSwap16(maxCompositeContours);
+      maxZones             = getSwap16(maxZones            );
+      maxTwilightPoints    = std::min<uint16_t>( 0xFFFFu - 4, getSwap16(maxTwilightPoints));
+      maxStorage           = getSwap16(maxStorage);
+      maxFunctionDefs      = std::max<uint16_t>(64u, getSwap16(maxFunctionDefs));
+      maxInstructionDefs   = getSwap16(maxInstructionDefs   );
+      maxStackElements     = getSwap16(maxStackElements     );
+      maxSizeOfInstructions= getSwap16(maxSizeOfInstructions);
+      maxComponentElements = getSwap16(maxComponentElements );
+      maxComponentDepth    = std::max<uint16_t>(100, getSwap16(maxComponentDepth));
     }
   }
 
   void TTFfont::TT_HoriHeader::load(DataWrapper* data)
   {
     data->read((uint8_t*)this, 36);
-    Version                = __builtin_bswap32(Version               );
-    Ascender               = __builtin_bswap16(Ascender              );
-    Descender              = __builtin_bswap16(Descender             );
-    Line_Gap               = __builtin_bswap16(Line_Gap              );
-    advance_Width_Max      = __builtin_bswap16(advance_Width_Max     );
-    min_Left_Side_Bearing  = __builtin_bswap16(min_Left_Side_Bearing );
-    min_Right_Side_Bearing = __builtin_bswap16(min_Right_Side_Bearing);
-    xMax_Extent            = __builtin_bswap16(xMax_Extent           );
-    caret_Slope_Rise       = __builtin_bswap16(caret_Slope_Rise      );
-    caret_Slope_Run        = __builtin_bswap16(caret_Slope_Run       );
-    caret_Offset           = __builtin_bswap16(caret_Offset          );
-    Reserved[0]            = __builtin_bswap16(Reserved[0]           );
-    Reserved[1]            = __builtin_bswap16(Reserved[1]           );
-    Reserved[2]            = __builtin_bswap16(Reserved[2]           );
-    Reserved[3]            = __builtin_bswap16(Reserved[3]           );
-    metric_Data_Format     = __builtin_bswap16(metric_Data_Format    );
-    number_Of_HMetrics     = __builtin_bswap16(number_Of_HMetrics    );
+    Version                = getSwap32(Version               );
+    Ascender               = getSwap16(Ascender              );
+    Descender              = getSwap16(Descender             );
+    Line_Gap               = getSwap16(Line_Gap              );
+    advance_Width_Max      = getSwap16(advance_Width_Max     );
+    min_Left_Side_Bearing  = getSwap16(min_Left_Side_Bearing );
+    min_Right_Side_Bearing = getSwap16(min_Right_Side_Bearing);
+    xMax_Extent            = getSwap16(xMax_Extent           );
+    caret_Slope_Rise       = getSwap16(caret_Slope_Rise      );
+    caret_Slope_Run        = getSwap16(caret_Slope_Run       );
+    caret_Offset           = getSwap16(caret_Offset          );
+    Reserved[0]            = getSwap16(Reserved[0]           );
+    Reserved[1]            = getSwap16(Reserved[1]           );
+    Reserved[2]            = getSwap16(Reserved[2]           );
+    Reserved[3]            = getSwap16(Reserved[3]           );
+    metric_Data_Format     = getSwap16(metric_Data_Format    );
+    number_Of_HMetrics     = getSwap16(number_Of_HMetrics    );
 
     long_metrics  = nullptr;
     short_metrics = nullptr;
@@ -469,36 +470,36 @@ metrics->height    = ttf_mtx.advance_height >> 6;
   void TTFfont::TT_OS2::load(DataWrapper* data)
   {
     data->read((uint8_t*)this, 78);
-    version             = __builtin_bswap16(version            );
-    xAvgCharWidth       = __builtin_bswap16(xAvgCharWidth      );
-    usWeightClass       = __builtin_bswap16(usWeightClass      );
-    usWidthClass        = __builtin_bswap16(usWidthClass       );
-    fsType              = __builtin_bswap16(fsType             );
-    ySubscriptXSize     = __builtin_bswap16(ySubscriptXSize    );
-    ySubscriptYSize     = __builtin_bswap16(ySubscriptYSize    );
-    ySubscriptXOffset   = __builtin_bswap16(ySubscriptXOffset  );
-    ySubscriptYOffset   = __builtin_bswap16(ySubscriptYOffset  );
-    ySuperscriptXSize   = __builtin_bswap16(ySuperscriptXSize  );
-    ySuperscriptYSize   = __builtin_bswap16(ySuperscriptYSize  );
-    ySuperscriptXOffset = __builtin_bswap16(ySuperscriptXOffset);
-    ySuperscriptYOffset = __builtin_bswap16(ySuperscriptYOffset);
-    yStrikeoutSize      = __builtin_bswap16(yStrikeoutSize     );
-    yStrikeoutPosition  = __builtin_bswap16(yStrikeoutPosition );
-    sFamilyClass        = __builtin_bswap16(sFamilyClass       );
+    version             = getSwap16(version            );
+    xAvgCharWidth       = getSwap16(xAvgCharWidth      );
+    usWeightClass       = getSwap16(usWeightClass      );
+    usWidthClass        = getSwap16(usWidthClass       );
+    fsType              = getSwap16(fsType             );
+    ySubscriptXSize     = getSwap16(ySubscriptXSize    );
+    ySubscriptYSize     = getSwap16(ySubscriptYSize    );
+    ySubscriptXOffset   = getSwap16(ySubscriptXOffset  );
+    ySubscriptYOffset   = getSwap16(ySubscriptYOffset  );
+    ySuperscriptXSize   = getSwap16(ySuperscriptXSize  );
+    ySuperscriptYSize   = getSwap16(ySuperscriptYSize  );
+    ySuperscriptXOffset = getSwap16(ySuperscriptXOffset);
+    ySuperscriptYOffset = getSwap16(ySuperscriptYOffset);
+    yStrikeoutSize      = getSwap16(yStrikeoutSize     );
+    yStrikeoutPosition  = getSwap16(yStrikeoutPosition );
+    sFamilyClass        = getSwap16(sFamilyClass       );
     // uint8 panose[0~9]
-    ulUnicodeRange1     = __builtin_bswap32(ulUnicodeRange1    );
-    ulUnicodeRange2     = __builtin_bswap32(ulUnicodeRange2    );
-    ulUnicodeRange3     = __builtin_bswap32(ulUnicodeRange3    );
-    ulUnicodeRange4     = __builtin_bswap32(ulUnicodeRange4    );
+    ulUnicodeRange1     = getSwap32(ulUnicodeRange1    );
+    ulUnicodeRange2     = getSwap32(ulUnicodeRange2    );
+    ulUnicodeRange3     = getSwap32(ulUnicodeRange3    );
+    ulUnicodeRange4     = getSwap32(ulUnicodeRange4    );
     // uint8 achVendID[0~3]
-    fsSelection         = __builtin_bswap16(fsSelection        );
-    usFirstCharIndex    = __builtin_bswap16(usFirstCharIndex   );
-    usLastCharIndex     = __builtin_bswap16(usLastCharIndex    );
-    sTypoAscender       = __builtin_bswap16(sTypoAscender      );
-    sTypoDescender      = __builtin_bswap16(sTypoDescender     );
-    sTypoLineGap        = __builtin_bswap16(sTypoLineGap       );
-    usWinAscent         = __builtin_bswap16(usWinAscent        );
-    usWinDescent        = __builtin_bswap16(usWinDescent       );
+    fsSelection         = getSwap16(fsSelection        );
+    usFirstCharIndex    = getSwap16(usFirstCharIndex   );
+    usLastCharIndex     = getSwap16(usLastCharIndex    );
+    sTypoAscender       = getSwap16(sTypoAscender      );
+    sTypoDescender      = getSwap16(sTypoDescender     );
+    sTypoLineGap        = getSwap16(sTypoLineGap       );
+    usWinAscent         = getSwap16(usWinAscent        );
+    usWinDescent        = getSwap16(usWinDescent       );
 
     ulCodePageRange1 = 0;
     ulCodePageRange2 = 0;
@@ -512,18 +513,18 @@ metrics->height    = ttf_mtx.advance_height >> 6;
     {
       // only version 1 tables
       data->read((uint8_t*)&ulCodePageRange1, 8);
-      ulCodePageRange1 = __builtin_bswap32(ulCodePageRange1);
-      ulCodePageRange2 = __builtin_bswap32(ulCodePageRange2);
+      ulCodePageRange1 = getSwap32(ulCodePageRange1);
+      ulCodePageRange2 = getSwap32(ulCodePageRange2);
 
       if ( version >= 0x0002 )
       {
         // only version 2 tables
         data->read((uint8_t*)&sxHeight, 10);
-        sxHeight      = __builtin_bswap16(sxHeight     );
-        sCapHeight    = __builtin_bswap16(sCapHeight   );
-        usDefaultChar = __builtin_bswap16(usDefaultChar);
-        usBreakChar   = __builtin_bswap16(usBreakChar  );
-        usMaxContext  = __builtin_bswap16(usMaxContext );
+        sxHeight      = getSwap16(sxHeight     );
+        sCapHeight    = getSwap16(sCapHeight   );
+        usDefaultChar = getSwap16(usDefaultChar);
+        usBreakChar   = getSwap16(usBreakChar  );
+        usMaxContext  = getSwap16(usMaxContext );
       }
     }
 // Serial.printf("OS2 version:%d \r\n", version);
@@ -554,7 +555,7 @@ metrics->height    = ttf_mtx.advance_height >> 6;
       uint32_t offset      = data->read32swap();
 //Serial.printf("pid:%d  eid:%d  offset:%d \r\n", platform_id, encoding_id, offset);
 
-/// プラットフォームIDとエンコードIDの組み合わせからunicodeのものを探す
+/// プラットフォームIDとエンコードIDの組み合わせからunicodeのものを探す;
       if ((platform_id == TT_PLATFORM_MICROSOFT
        &&  encoding_id == TT_MS_ID_UCS_4)
         ||(platform_id == TT_PLATFORM_MICROSOFT
@@ -585,7 +586,7 @@ metrics->height    = ttf_mtx.advance_height >> 6;
           size_t idx = 0;
           do
           {
-            rawdata[idx] = __builtin_bswap16(rawdata[idx]);
+            rawdata[idx] = getSwap16(rawdata[idx]);
           } while (++idx != length);
 /*
 data->seek(cmap_pos + offset);
@@ -594,10 +595,10 @@ for (int j = 0; j < 8; ++j) {
 for (int i = 0; i < 8; ++i) { Serial.printf(" %04x", rawdata[i+j*8]); }
 Serial.println();
 }
-uint16_t num_segs       = rawdata[3]; // __builtin_bswap16(num_segs      ) >> 1;
-uint16_t search_range   = rawdata[4]; // __builtin_bswap16(search_range  );
-uint16_t entry_selector = rawdata[5]; // __builtin_bswap16(entry_selector);
-uint16_t range_shift    = rawdata[6]; // __builtin_bswap16(range_shift   );
+uint16_t num_segs       = rawdata[3]; // getSwap16(num_segs      ) >> 1;
+uint16_t search_range   = rawdata[4]; // getSwap16(search_range  );
+uint16_t entry_selector = rawdata[5]; // getSwap16(entry_selector);
+uint16_t range_shift    = rawdata[6]; // getSwap16(range_shift   );
 Serial.printf("len:%d num_segs:%d search_range:%d entry_selector:%d range_shift:%d \r\n", length, num_segs, search_range, entry_selector, range_shift);
 //*/
           return true;

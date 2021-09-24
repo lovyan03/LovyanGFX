@@ -36,9 +36,9 @@ namespace lgfx
   /// Warning : Do not add any data members to this class.
   /// This class only allows include order dependent extension methods.
   /// ( e.g. file system related, HTTP related )
-  /// このクラスにメンバ変数を追加してはならない。(コンパイル単位間でLovyanGFXクラスに不整合が生じる)
-  /// このクラスにはinclude順依存の機能拡張メソッドのみ追加を許可する。
-  /// ( 例：ファイルシステム関連、HTTP関連 )
+  /// このクラスにメンバ変数を追加してはならない。(コンパイル単位間でLovyanGFXクラスに不整合が生じる);
+  /// このクラスにはinclude順依存の機能拡張メソッドのみ追加を許可する。;
+  /// ( 例：ファイルシステム関連、HTTP関連 );
   template <class Base>
   class LGFX_FILESYSTEM_Support : public Base
   {
@@ -355,7 +355,7 @@ namespace lgfx
   #endif
  #endif
 
-#elif defined (CONFIG_IDF_TARGET_ESP32)  || defined(__SAMD51_HARMONY__) // ESP-IDF or Harmony
+#elif defined (CONFIG_IDF_TARGET_ESP32) || defined(__SAMD51_HARMONY__) || defined(_INC_STDIO) // ESP-IDF or Harmony
 
     inline bool drawBmpFile(const char *path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
     {

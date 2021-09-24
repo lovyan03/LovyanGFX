@@ -18,9 +18,16 @@ Contributors:
 #pragma once
 
 #include <stdint.h>
+
+#if __has_include(<alloca.h>)
 #include <alloca.h>
+#else
+#include <malloc.h>
+#define alloca _alloca
+#endif
 
 #include "misc/enum.hpp"
+#include "misc/colortype.hpp"
 #include "misc/pixelcopy.hpp"
 
 namespace lgfx
@@ -29,7 +36,7 @@ namespace lgfx
  {
 //----------------------------------------------------------------------------
 
-  class pixelcopy_t;
+  struct pixelcopy_t;
 
   struct IPanel
   {
@@ -46,7 +53,7 @@ namespace lgfx
     uint8_t _write_bits = 16;
     uint8_t _read_bits = 16;
     uint8_t _rotation = 0;
-    epd_mode_t _epd_mode = (epd_mode_t)0;  // EPDでない場合は0。それ以外の場合はEPD描画モード
+    epd_mode_t _epd_mode = (epd_mode_t)0;  // EPDでない場合は0。それ以外の場合はEPD描画モード;
     bool _invert = false;
     bool _auto_display = false;
 
@@ -73,7 +80,7 @@ namespace lgfx
     virtual void beginTransaction(void) = 0;
     virtual void endTransaction(void) = 0;
 
-    virtual void setBrightness(__attribute__((unused)) uint8_t brightness) {};
+    virtual void setBrightness(uint8_t brightness) { (void)brightness; };
 
     virtual color_depth_t setColorDepth(color_depth_t depth) = 0;
 

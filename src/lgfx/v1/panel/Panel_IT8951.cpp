@@ -19,6 +19,14 @@ Contributors:
 #include "../Bus.hpp"
 #include "../platforms/common.hpp"
 #include "../misc/pixelcopy.hpp"
+#include "../misc/colortype.hpp"
+
+#ifdef min
+#undef min
+#endif
+#ifdef max
+#undef max
+#endif
 
 namespace lgfx
 {
@@ -228,7 +236,7 @@ IT8951 Registers defines
 
   bool Panel_IT8951::_write_command(uint16_t cmd)
   {
-    uint32_t buf = __builtin_bswap16(0x6000) | __builtin_bswap16(cmd) << 16;
+    uint32_t buf = getSwap16(0x6000) | getSwap16(cmd) << 16;
     if (!_wait_busy()) return false;
     _bus->writeData(buf, 32);
     return true;
@@ -236,7 +244,7 @@ IT8951 Registers defines
 
   bool Panel_IT8951::_write_word(uint16_t data)
   {
-    uint32_t buf = __builtin_bswap16(data) << 16;
+    uint32_t buf = getSwap16(data) << 16;
     if (!_wait_busy()) return false;
     _bus->writeData(buf, 32);
     return true;
@@ -251,7 +259,7 @@ IT8951 Registers defines
       int32_t i = 0;
       do
       {
-        uint32_t buf = __builtin_bswap16(args[i]);
+        uint32_t buf = getSwap16(args[i]);
         _bus->wait();
         while (!lgfx::gpio_in(_cfg.pin_busy));
         _bus->writeData(buf, 16);
@@ -264,14 +272,14 @@ IT8951 Registers defines
   bool Panel_IT8951::_read_words(uint16_t *buf, uint32_t length)
   {
     if (!_wait_busy()) return false;
-    _bus->writeData(__builtin_bswap16(0x1000), 16 + 16); // +16 dummy read
+    _bus->writeData(getSwap16(0x1000), 16 + 16); // +16 dummy read
     _bus->beginRead();
     _bus->readBytes(reinterpret_cast<uint8_t*>(buf), length << 1);
     _bus->endRead();
     cs_control(true);
     for (size_t i = 0; i < length; i++)
     {
-      buf[i] = __builtin_bswap16(buf[i]);
+      buf[i] = getSwap16(buf[i]);
     }
     return true;
   }
@@ -333,10 +341,10 @@ IT8951 Registers defines
     uint32_t l = _range_new.left;
     uint32_t r = _range_new.right;
 
-    // 更新範囲の幅が小さすぎる場合、IT8951がフリーズすることがある。
-    // 厳密には、範囲の左右端の座標値の下2ビット捨てた場合に同値になる場合、
-    // かつ、以前の表示更新がまだ動作中で範囲が重なる場合にフリーズする事例がある。
-    // この分岐でそれを防止する。
+    // 更新範囲の幅が小さすぎる場合、IT8951がフリーズすることがある。;
+    // 厳密には、範囲の左右端の座標値の下2ビット捨てた場合に同値になる場合、;
+    // かつ、以前の表示更新がまだ動作中で範囲が重なる場合にフリーズする事例がある。;
+    // この分岐でそれを防止する。;
     if ((l & ~3) == (r & ~3))
     {
       if (( l & 3 ) < (3-(r & 3)))
@@ -423,7 +431,7 @@ IT8951 Registers defines
     _rotation = r;
 //  _it8951_rotation = ((-(r + _cfg.offset_rotation)) & 3) | ((r & 4) ^ (_cfg.offset_rotation & 4));
     _internal_rotation = ((r + _cfg.offset_rotation) & 3) | ((r & 4) ^ (_cfg.offset_rotation & 4));
-    // IT8951の回転方向は左回りなので右回りになるよう変更する。
+    // IT8951の回転方向は左回りなので右回りになるよう変更する。;
     _it8951_rotation = ((-_internal_rotation) & 3) | (_internal_rotation & 4);
 
     _width  = _cfg.panel_width;
@@ -555,10 +563,10 @@ IT8951 Registers defines
               shift -= 4;
             } while (new_pos != ++ prev_pos && shift >= 0);
             if (_invert) buf = ~buf;
-            writebuf[writepos] = __builtin_bswap16(buf);
+            writebuf[writepos] = getSwap16(buf);
             writepos++;
             shift = 12;
-            //_bus->writeData(__builtin_bswap16(buf), 16);
+            //_bus->writeData(getSwap16(buf), 16);
           } while (new_pos != prev_pos);
           _wait_busy();
           _bus->writeBytes((uint8_t*)writebuf, writepos << 1, true, false);
@@ -637,7 +645,7 @@ IT8951 Registers defines
             }
             else
             {
-              _bus->writeData(__builtin_bswap16(buf), 16);
+              _bus->writeData(getSwap16(buf), 16);
               buf = 0;
               shift = 12;
             }
@@ -645,7 +653,7 @@ IT8951 Registers defines
           if (shift != 12)
           {
             if (_invert) buf = ~buf;
-            _bus->writeData(__builtin_bswap16(buf), 16);
+            _bus->writeData(getSwap16(buf), 16);
           }
           _write_command(IT8951_TCON_LD_IMG_END);
         }
@@ -666,7 +674,7 @@ IT8951 Registers defines
     heap_free(readbuf);
   }
 
-  bool Panel_IT8951::_read_raw_line(int32_t raw_x, int32_t raw_y, int32_t len, uint16_t* __restrict__ buf)
+  bool Panel_IT8951::_read_raw_line(int32_t raw_x, int32_t raw_y, int32_t len, uint16_t* __restrict buf)
   {
     uint16_t params[4];
     auto addr = _tar_memaddr + raw_x + raw_y * _cfg.panel_width;
@@ -679,10 +687,10 @@ IT8951 Registers defines
         && _read_words(buf, len);
   }
 
-  void Panel_IT8951::readRect(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, void* __restrict__ dst, pixelcopy_t* param)
+  void Panel_IT8951::readRect(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, void* __restrict dst, pixelcopy_t* param)
   {
-/// IT8951には画素読出しコマンドが存在せず、画像メモリを直接読むコマンドが提供されている。
-/// 画像メモリを直接読み出す場合、ビットシフトや回転方向の解決などは自前で行う必要がある。
+/// IT8951には画素読出しコマンドが存在せず、画像メモリを直接読むコマンドが提供されている。;
+/// 画像メモリを直接読み出す場合、ビットシフトや回転方向の解決などは自前で行う必要がある。;
 
     uint32_t rx, ry, rw, rh;
     if (_it8951_rotation & 4)

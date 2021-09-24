@@ -29,79 +29,82 @@ namespace lgfx
   struct ITouch;
   struct touch_point_t;
 
-  class Panel_Device : public IPanel
+  struct Panel_Device : public IPanel
   {
   public:
     Panel_Device(void);
 
     struct config_t
     {
+      /// CS ピン番号;
       /// Number of CS pin
-      /// CS ピン番号
       int16_t pin_cs = -1;
 
+      /// RST ピン番号;
       /// Number of RST pin
-      /// RST ピン番号
       int16_t pin_rst = -1;
 
+      /// BUSY ピン番号;
       /// Number of BUSY pin
-      /// BUSY ピン番号
       int16_t pin_busy = -1;
 
+      /// LCDドライバが扱える画像の最大幅;
       /// The maximum width of an image that the LCD driver can handle.
-      /// LCDドライバが扱える画像の最大幅
       uint16_t memory_width = 240;
 
+      /// LCDドライバが扱える画像の最大高さ;
       /// The maximum height of an image that the LCD driver can handle.
-      /// LCDドライバが扱える画像の最大高さ
       uint16_t memory_height = 240;
 
+      /// 実際に表示できる幅;
       /// Actual width of the display.
-      /// 実際に表示できる幅
       uint16_t panel_width = 240;
 
+      /// 実際に表示できる高さ;
       /// Actual height of the display.
-      /// 実際に表示できる高さ
       uint16_t panel_height = 240;
 
+      /// パネルのX方向オフセット量;
       /// Number of offset pixels in the X direction.
-      /// パネルのX方向オフセット量
       uint16_t offset_x = 0;
 
+      /// パネルのY方向オフセット量;
       /// Number of offset pixels in the Y direction.
-      /// パネルのY方向オフセット量
       uint16_t offset_y = 0;
 
+      /// 回転方向のオフセット 0~7 (4~7は上下反転);
       /// Offset value in the direction of rotation. 0~7 (4~7 is upside down)
-      /// 回転方向のオフセット 0~7 (4~7は上下反転)
       uint8_t offset_rotation = 0;
 
+      /// ピクセル読出し前のダミーリードのビット数;
       /// Number of bits in dummy read before pixel readout.
-      /// ピクセル読出し前のダミーリードのビット数
       uint8_t dummy_read_pixel = 8;
 
+      /// データ読出し前のダミーリードのビット数;
       /// Number of bits in dummy read before data readout.
-      /// データ読出し前のダミーリードのビット数
       uint8_t dummy_read_bits = 1;
 
+      /// データ読出し終了時のウェイト(ST7796で必要);
+      uint16_t end_read_delay_us = 0;
+
+      /// データ読出しが可能か否か;
       /// Whether the data is readable or not.
-      /// データ読出しが可能か否か
       bool readable = true;
 
+      /// 明暗の反転 (IPSパネルはtrueに設定);
       /// brightness inversion (e.g. IPS panel)
-      /// 明暗の反転 (IPSパネルはtrueに設定)
       bool invert = false;
 
+      /// RGB=true / BGR=false パネルの赤と青が入れ替わってしまう場合 trueに設定;
       /// Set the RGB/BGR color order.
-      /// RGB=true / BGR=false パネルの赤と青が入れ替わってしまう場合 trueに設定
       bool rgb_order = false;
 
+      /// 送信データの16bitアライメント データ長を16bit単位で送信するパネルの場合 trueに設定;
       /// 16-bit alignment of transmitted data
-      /// 送信データの16bitアライメント データ長を16bit単位で送信するパネルの場合 trueに設定
       bool dlen_16bit = false;
 
+      /// SD等のファイルシステムとのバス共有の有無 (trueに設定するとdrawJpgFile等でバス制御が行われる);
       /// Whether or not to share the bus with the file system (if set to true, drawJpgFile etc. will control the bus)
-      /// SD等のファイルシステムとのバス共有の有無 (trueに設定するとdrawJpgFile等でバス制御が行われる)
       bool bus_shared = true;
     };
 
@@ -129,7 +132,7 @@ namespace lgfx
     void touch(ITouch* touch) { setTouch(touch); }
     ITouch* getTouch(void) const { return _touch; }
     ITouch* touch(void) const { return _touch; }
-    uint_fast8_t getTouchRaw(touch_point_t* tp, uint_fast8_t count);
+    virtual uint_fast8_t getTouchRaw(touch_point_t* tp, uint_fast8_t count);
     uint_fast8_t getTouch(touch_point_t* tp, uint_fast8_t count);
     void convertRawXY(touch_point_t *tp, uint_fast8_t count);
     void touchCalibrate(void);
@@ -165,28 +168,28 @@ namespace lgfx
 
     float _affine[6] = {1,0,0,0,1,0};  /// touch affine parameter
 
+    /// CSピンの準備処理を行う。CSピンを自前で制御する場合、この関数をoverrideして実装すること。;
     /// Performs preparation processing for the CS pin.
     /// If you want to control the CS pin on your own, override this function and implement it.
-    /// CSピンの準備処理を行う。CSピンを自前で制御する場合、この関数をoverrideして実装すること。
     virtual void init_cs(void);
 
+    /// 引数に応じてCSピンを制御する。false=LOW / true=HIGH。CSピンを自前で制御する場合、この関数をoverrideして実装すること。;
     /// Controls the CS pin to go HIGH when the argument is true.
     /// If you want to control the CS pin on your own, override this function and implement it.
-    /// 引数に応じてCSピンを制御する。false=LOW / true=HIGH。CSピンを自前で制御する場合、この関数をoverrideして実装すること。
     virtual void cs_control(bool level);
 
+    /// RSTピンの準備処理を行う。RSTピンを自前で制御する場合、この関数をoverrideして実装すること。;
     /// Performs preparation processing for the RST pin.
     /// If you want to control the RST pin on your own, override this function and implement it.
-    /// RSTピンの準備処理を行う。RSTピンを自前で制御する場合、この関数をoverrideして実装すること。
     virtual void init_rst(void);
 
+    /// RSTピンを一度LOWにし、HIGHに戻す。RSTピンを自前で制御する場合、この関数をoverrideして実装すること。;
     /// Bring the RST pin low once and bring it back high.
     /// If you want to control the RST pin on your own, override this function and implement it.
-    /// RSTピンを一度LOWにし、HIGHに戻す。RSTピンを自前で制御する場合、この関数をoverrideして実装すること。
     virtual void reset(void);
 
+    /// パネルの初期化コマンド列を得る。無い場合はnullptrを返す。;
     /// Get the panel initialization command sequence.
-    /// パネルの初期化コマンド列を得る。無い場合はnullptrを返す。
     virtual const uint8_t* getInitCommands(uint8_t listno) const { (void)listno; return nullptr; }
 
     enum fastread_dir_t

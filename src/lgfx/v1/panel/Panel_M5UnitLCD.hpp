@@ -25,7 +25,7 @@ namespace lgfx
  {
 //----------------------------------------------------------------------------
 
-  class Panel_M5UnitLCD : public Panel_Device
+  struct Panel_M5UnitLCD : public Panel_Device
   {
   public:
     Panel_M5UnitLCD(void)
@@ -64,39 +64,39 @@ namespace lgfx
     uint32_t readData(uint_fast8_t, uint_fast8_t) override { return 0; }
     void readRect(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, void* dst, pixelcopy_t* param) override;
 
-    static constexpr uint8_t CMD_NOP          = 0x00; // 1Byte 何もしない
-    static constexpr uint8_t CMD_READ_ID      = 0x04; // 1Byte ID読出し  スレーブからの回答は4Byte (0x77 0x89 0x00 0x?? (最後の1バイトはファームウェアバージョン))
-    static constexpr uint8_t CMD_READ_BUFCOUNT= 0x09; // 1Byte コマンドバッファの空き取得。回答は1Byte、受信可能なコマンド数が返される。数字が小さいほどバッファの余裕がない。
-    static constexpr uint8_t CMD_INVOFF       = 0x20; // 1Byte 色反転を解除
-    static constexpr uint8_t CMD_INVON        = 0x21; // 1Byte 色反転を有効
+    static constexpr uint8_t CMD_NOP          = 0x00; // 1Byte 何もしない;
+    static constexpr uint8_t CMD_READ_ID      = 0x04; // 1Byte ID読出し  スレーブからの回答は4Byte (0x77 0x89 0x00 0x?? (最後の1バイトはファームウェアバージョン));
+    static constexpr uint8_t CMD_READ_BUFCOUNT= 0x09; // 1Byte コマンドバッファの空き取得。回答は1Byte、受信可能なコマンド数が返される。数字が小さいほどバッファの余裕がない。;
+    static constexpr uint8_t CMD_INVOFF       = 0x20; // 1Byte 色反転を解除;
+    static constexpr uint8_t CMD_INVON        = 0x21; // 1Byte 色反転を有効;
     static constexpr uint8_t CMD_BRIGHTNESS   = 0x22; // 2Byte バックライト data[1]==明るさ 0~255
     static constexpr uint8_t CMD_COPYRECT     = 0x23; // 7Byte 矩形範囲コピー [1]==XS [2]==YS [3]==XE [4]==YE [5]==DST_X [6]==DST_Y
     static constexpr uint8_t CMD_CASET        = 0x2A; // 3Byte X方向の範囲選択 data[1]==XS  data[2]==XE
     static constexpr uint8_t CMD_RASET        = 0x2B; // 3Byte Y方向の範囲選択 data[1]==YS  data[2]==YE
-    static constexpr uint8_t CMD_ROTATE       = 0x36; // 2Byte 回転処理 [1]==回転方向 0:通常 1:右90度 2:180度 3:270度 4~7は0~3の上下反転
-    static constexpr uint8_t CMD_SET_POWER    = 0x38; // 2Byte data[1] 0:低速ローパワー / 1:通常 / 2:高速ハイパワー
-    static constexpr uint8_t CMD_SET_SLEEP    = 0x39; // 2Byte data[1] 0:スリープ解除 / 1:スリープ開始
+    static constexpr uint8_t CMD_ROTATE       = 0x36; // 2Byte 回転処理 [1]==回転方向 0:通常 1:右90度 2:180度 3:270度 4~7は0~3の上下反転;
+    static constexpr uint8_t CMD_SET_POWER    = 0x38; // 2Byte data[1] 0:低速ローパワー / 1:通常 / 2:高速ハイパワー;
+    static constexpr uint8_t CMD_SET_SLEEP    = 0x39; // 2Byte data[1] 0:スリープ解除 / 1:スリープ開始;
 
     static constexpr uint8_t CMD_WRITE_RAW    = 0x40;
-    static constexpr uint8_t CMD_WRITE_RAW_8  = 0x41; // 不定長 RGB332   1Byteのピクセルデータを連続送信
-    static constexpr uint8_t CMD_WRITE_RAW_16 = 0x42; // 不定長 RGB565   2Byteのピクセルデータを連続送信
-    static constexpr uint8_t CMD_WRITE_RAW_24 = 0x43; // 不定長 RGB888   3Byteのピクセルデータを連続送信
-    static constexpr uint8_t CMD_WRITE_RAW_32 = 0x44; // 不定長 ARGB8888 4Byteのピクセルデータを連続送信
-    static constexpr uint8_t CMD_WRITE_RAW_A  = 0x45; // 不定長 A8       1Byteのピクセルデータを連続送信(アルファチャネルのみ、描画色は最後に使用したものを再利用する)
+    static constexpr uint8_t CMD_WRITE_RAW_8  = 0x41; // 不定長 RGB332   1Byteのピクセルデータを連続送信;
+    static constexpr uint8_t CMD_WRITE_RAW_16 = 0x42; // 不定長 RGB565   2Byteのピクセルデータを連続送信;
+    static constexpr uint8_t CMD_WRITE_RAW_24 = 0x43; // 不定長 RGB888   3Byteのピクセルデータを連続送信;
+    static constexpr uint8_t CMD_WRITE_RAW_32 = 0x44; // 不定長 ARGB8888 4Byteのピクセルデータを連続送信;
+    static constexpr uint8_t CMD_WRITE_RAW_A  = 0x45; // 不定長 A8       1Byteのピクセルデータを連続送信(アルファチャネルのみ、描画色は最後に使用したものを再利用する);
 
     static constexpr uint8_t CMD_WRITE_RLE    = 0x48;
-    static constexpr uint8_t CMD_WRITE_RLE_8  = 0x49; // 不定長 RGB332   1Byteのピクセルデータを連続送信(RLE圧縮)
-    static constexpr uint8_t CMD_WRITE_RLE_16 = 0x4A; // 不定長 RGB565   2Byteのピクセルデータを連続送信(RLE圧縮)
-    static constexpr uint8_t CMD_WRITE_RLE_24 = 0x4B; // 不定長 RGB888   3Byteのピクセルデータを連続送信(RLE圧縮)
-    static constexpr uint8_t CMD_WRITE_RLE_32 = 0x4C; // 不定長 ARGB8888 4Byteのピクセルデータを連続送信(RLE圧縮)
-    static constexpr uint8_t CMD_WRITE_RLE_A  = 0x4D; // 不定長 A8       1Byteのピクセルデータを連続送信(RLE圧縮 アルファチャネルのみ、描画色は最後に使用したものを再利用する)
+    static constexpr uint8_t CMD_WRITE_RLE_8  = 0x49; // 不定長 RGB332   1Byteのピクセルデータを連続送信(RLE圧縮);
+    static constexpr uint8_t CMD_WRITE_RLE_16 = 0x4A; // 不定長 RGB565   2Byteのピクセルデータを連続送信(RLE圧縮);
+    static constexpr uint8_t CMD_WRITE_RLE_24 = 0x4B; // 不定長 RGB888   3Byteのピクセルデータを連続送信(RLE圧縮);
+    static constexpr uint8_t CMD_WRITE_RLE_32 = 0x4C; // 不定長 ARGB8888 4Byteのピクセルデータを連続送信(RLE圧縮);
+    static constexpr uint8_t CMD_WRITE_RLE_A  = 0x4D; // 不定長 A8       1Byteのピクセルデータを連続送信(RLE圧縮 アルファチャネルのみ、描画色は最後に使用したものを再利用する);
 
-    static constexpr uint8_t CMD_RAM_FILL     = 0x50; // 1Byte 現在の描画色で選択範囲全塗り
+    static constexpr uint8_t CMD_RAM_FILL     = 0x50; // 1Byte 現在の描画色で選択範囲全塗り;
     static constexpr uint8_t CMD_SET_COLOR    = 0x50;
-    static constexpr uint8_t CMD_SET_COLOR_8  = 0x51; // 2Byte 描画色をRGB332で指定
-    static constexpr uint8_t CMD_SET_COLOR_16 = 0x52; // 3Byte 描画色をRGB565で指定
-    static constexpr uint8_t CMD_SET_COLOR_24 = 0x53; // 4Byte 描画色をRGB888で指定
-    static constexpr uint8_t CMD_SET_COLOR_32 = 0x54; // 5Byte 描画色をARGB8888で指定
+    static constexpr uint8_t CMD_SET_COLOR_8  = 0x51; // 2Byte 描画色をRGB332で指定;
+    static constexpr uint8_t CMD_SET_COLOR_16 = 0x52; // 3Byte 描画色をRGB565で指定;
+    static constexpr uint8_t CMD_SET_COLOR_24 = 0x53; // 4Byte 描画色をRGB888で指定;
+    static constexpr uint8_t CMD_SET_COLOR_32 = 0x54; // 5Byte 描画色をARGB8888で指定;
 
     static constexpr uint8_t CMD_DRAWPIXEL    = 0x60; // 3Byte ドット描画 [1]==X [2]==Y
     static constexpr uint8_t CMD_DRAWPIXEL_8  = 0x61; // 4Byte ドット描画 [1]==X [2]==Y [3  ]==RGB332
@@ -111,9 +111,9 @@ namespace lgfx
     static constexpr uint8_t CMD_FILLRECT_32  = 0x6C; // 9Byte 矩形塗潰 [1]==XS [2]==YS [3]==XE [4]==YE [5~8]==ARGB8888
 
     static constexpr uint8_t CMD_READ_RAW     = 0x80;
-    static constexpr uint8_t CMD_READ_RAW_8   = 0x81; // 1Byte RGB332のピクセルデータを読出し
-    static constexpr uint8_t CMD_READ_RAW_16  = 0x82; // 1Byte RGB565のピクセルデータを読出し
-    static constexpr uint8_t CMD_READ_RAW_24  = 0x83; // 1Byte RGB888のピクセルデータを読出し
+    static constexpr uint8_t CMD_READ_RAW_8   = 0x81; // 1Byte RGB332のピクセルデータを読出し;
+    static constexpr uint8_t CMD_READ_RAW_16  = 0x82; // 1Byte RGB565のピクセルデータを読出し;
+    static constexpr uint8_t CMD_READ_RAW_24  = 0x83; // 1Byte RGB888のピクセルデータを読出し;
 
     static constexpr uint8_t CMD_CHANGE_ADDR  = 0xA0; // 4Byte i2cアドレス変更 [0]=0xA0 [1]=変更後のI2Cアドレス [2]=変更後のI2Cアドレスのビット反転値 [3]=0xA0
 

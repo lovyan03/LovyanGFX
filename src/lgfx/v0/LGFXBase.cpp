@@ -1071,7 +1071,7 @@ namespace lgfx
     result[5] =  dst_y - src_x * result[3] - src_y * result[4];
   }
 
-  static bool make_invert_affine32(int32_t* __restrict__ result, const float* __restrict__ matrix)
+  static bool make_invert_affine32(int32_t* __restrict result, const float* __restrict matrix)
   {
     float det = matrix[0] * matrix[4] - matrix[1] * matrix[3];
     if (det == 0.0f) return false;

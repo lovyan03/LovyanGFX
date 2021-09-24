@@ -25,14 +25,14 @@
 extern "C" {
 #endif
 
-#if defined(_WIN32)	/* Main development platform */
-typedef unsigned char	uint8_t;
-typedef unsigned short	uint16_t;
-typedef short			int16_t;
-typedef unsigned long	uint32_t;
-typedef long			int32_t;
-#else
-#include "stdint.h"
+#if __has_include (<stdint.h>)
+ #include <stdint.h>
+#elif defined(_WIN32)	/* Main development platform */
+ typedef unsigned char	uint8_t;
+ typedef unsigned short	uint16_t;
+ typedef short			int16_t;
+ typedef unsigned long	uint32_t;
+ typedef long			int32_t;
 #endif
 
 /* Error code */

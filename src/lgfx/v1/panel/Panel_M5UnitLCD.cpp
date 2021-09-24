@@ -19,6 +19,7 @@ Contributors:
 #include "../Bus.hpp"
 #include "../platforms/common.hpp"
 #include "../misc/pixelcopy.hpp"
+#include "../misc/colortype.hpp"
 
 namespace lgfx
 {
@@ -28,7 +29,7 @@ namespace lgfx
 
   bool Panel_M5UnitLCD::init(bool use_reset)
   {
-    /// I2C接続のためGPIOによるRESET制御は不要なのでfalseで呼出す
+    /// I2C接続のためGPIOによるRESET制御は不要なのでfalseで呼出す;
     if (!Panel_Device::init(false)) return false;
 
     if (use_reset)
@@ -36,7 +37,7 @@ namespace lgfx
       startWrite(true);
       _bus->writeCommand(CMD_RESET | 0x77 << 8 | 0x89 << 16 | CMD_RESET << 24, 32);
       endWrite();
-      // リセットコマンド後は200msec待つ
+      // リセットコマンド後は200msec待つ;
       lgfx::delay(200);
     }
 
@@ -294,7 +295,7 @@ namespace lgfx
 
   void Panel_M5UnitLCD::writeFillRectAlphaPreclipped(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, uint32_t argb8888)
   {
-    _raw_color = __builtin_bswap32(argb8888);
+    _raw_color = getSwap32(argb8888);
     _fill_rect(x, y, w, h, 4);
     _raw_color = ~0u;
   }
@@ -353,7 +354,7 @@ namespace lgfx
 
   static uint8_t* store_absolute(uint8_t* dst, const uint8_t* src, size_t src_size, size_t bytes)
   {
-    if (src_size >= 3)  // 絶対モード
+    if (src_size >= 3)  // 絶対モード;
     {
       *dst++ = 0x00;
       *dst++ = src_size;
@@ -578,7 +579,7 @@ if (bytelen != rleDecode(dest, res, bytes)*bytes) {
     }
     for (size_t i = 0; i < w; ++i)
     {
-      _bus->writeCommand(__builtin_bswap32(buf[i]), 32);
+      _bus->writeCommand(getSwap32(buf[i]), 32);
     }
     _raw_color = ~0u;
   }

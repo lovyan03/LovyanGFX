@@ -285,7 +285,7 @@ namespace lgfx
       wait -= 16;
     }
     if (wait > 0)
-    { /// OUTLINK_START～TX_STARTの時間が短すぎるとデータの先頭を送り損じる事があるのでnopウェイトを入れる
+    { /// OUTLINK_START～TX_STARTの時間が短すぎるとデータの先頭を送り損じる事があるのでnopウェイトを入れる;
       do { __asm__ __volatile__ ("nop"); } while (--wait);
     }
     i2s_dev->conf.val = _conf_reg_start;
@@ -506,7 +506,7 @@ namespace lgfx
         wait -= 16;
       }
       if (wait > 0)
-      { /// OUTLINK_START～TX_STARTの時間が短すぎるとデータの先頭を送り損じる事があるのでnopウェイトを入れる
+      { /// OUTLINK_START～TX_STARTの時間が短すぎるとデータの先頭を送り損じる事があるのでnopウェイトを入れる;
         do { __asm__ __volatile__ ("nop"); } while (--wait);
       }
 
@@ -538,7 +538,11 @@ namespace lgfx
 
   void Bus_Parallel16::_read_bytes(uint8_t* dst, uint32_t length)
   {
-    uint8_t in[8];
+    union
+    {
+      uint32_t in32[2];
+      uint8_t in[8];
+    };
 
     uint32_t mh = (((((((((((((((
                   (_cfg.pin_d8  & 7)) << 3)
@@ -590,8 +594,8 @@ namespace lgfx
     uint32_t val;
     do
     {
-      ((uint32_t*)in)[0] = GPIO.in;
-      ((uint32_t*)in)[1] = GPIO.in1.val;
+      in32[0] = GPIO.in;
+      in32[1] = GPIO.in1.val;
       *reg_rd_h = mask_rd;
       val =              (1 & (in[(ih >>  0) & 7] >> ((mh >>  0) & 7)));
       val = (val << 1) + (1 & (in[(ih >>  3) & 7] >> ((mh >>  3) & 7)));

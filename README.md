@@ -1,6 +1,6 @@
 # LovyanGFX
 
-Display (LCD / OLED / EPD) graphics library (for ESP32 SPI, I2C, 8bitParallel / ESP8266 SPI / ATSAMD51 SPI).  
+Display (LCD / OLED / EPD) graphics library (for ESP32 SPI, I2C, 8bitParallel / ESP8266 SPI, I2C / ATSAMD51 SPI).  
 M5Stack / M5StickC / TTGO T-Watch / ODROID-GO / ESP-WROVER-KIT / WioTerminal / and more...  
 [![examples](http://img.youtube.com/vi/SMOHRPqUZcQ/0.jpg)](http://www.youtube.com/watch?v=SMOHRPqUZcQ "examples")
 [![examples](http://img.youtube.com/vi/F5gsp41Elac/0.jpg)](http://www.youtube.com/watch?v=F5gsp41Elac "MultiPanel")
@@ -21,6 +21,7 @@ This library mimics [AdafruitGFX](https://github.com/adafruit/Adafruit-GFX-Libra
   - オフスクリーンバッファ（スプライト）の高速な回転/拡縮描画  
   - 複数ディスプレイの同時利用  
   - モノクロディスプレイに対する減色描画の自動処理  
+  - OpenCVを描画先として利用でき、PC上で動作可能  
 
 This library has the following advantages.
   - ArduinoESP32 and ESP-IDF are supported.
@@ -29,6 +30,19 @@ This library has the following advantages.
   - Fast rotation/expansion of the off-screen buffer (sprite).
   - Simultaneous use of multiple displays.
   - Automatic processing of color reduction drawing for monochrome displays.
+  - OpenCV can be used as a drawing destination and can run on a PC.  
+
+
+|        | SPI | I2C | 8bit Para|16bit Para|
+|:------:|:---:|:---:|:--------:|:--------:|
+|ESP32   | HW  | HW  | HW (I2S) |   ---    |
+|ESP32-S2| HW  | HW  | HW (I2S) | HW (I2S) |
+|ESP32-C3| HW  | HW  |   ---    |   ---    |
+|ESP8266 | HW  | SW  |   ---    |   ---    |
+|SAMD51  | HW  | HW  |   ---    |   ---    |
+|SAMD21  | HW  | HW  |   ---    |   ---    |
+
+※ HW = HardWare Peripheral / SW = SoftWare implementation
 
 
 対応環境 support environments
@@ -60,7 +74,7 @@ This library has the following advantages.
     - ST7789 (M5StickCPlus, TTGO T-Watch, ESP-WROVER-KIT, Makerfabs MakePython, DSTIKE D-duino-32 XS)
     - ST7796 (WT32-SC01)
 
-  - タッチスクリーン TouchScreens (only ESP32)
+  - タッチスクリーン TouchScreens
     - I2C FT5x06 (FT5206, FT5306, FT5406, FT6206, FT6236, FT6336, FT6436)
     - I2C GT911
     - SPI XPT2046

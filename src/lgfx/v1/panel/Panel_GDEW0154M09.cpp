@@ -19,6 +19,11 @@ Contributors:
 #include "../Bus.hpp"
 #include "../platforms/common.hpp"
 #include "../misc/pixelcopy.hpp"
+#include "../misc/colortype.hpp"
+
+#ifdef min
+#undef min
+#endif
 
 namespace lgfx
 {
@@ -337,7 +342,7 @@ namespace lgfx
     _bus->writeCommand(0x91 | 0x90 << 8, 16);
 
     _bus->writeData(xs | xe << 8, 16);
-    _bus->writeData(__builtin_bswap16(range.top) | __builtin_bswap16(range.bottom)<<16, 32);
+    _bus->writeData(getSwap16(range.top) | getSwap16(range.bottom)<<16, 32);
     _bus->writeData(1, 8);
 
     _wait_busy();

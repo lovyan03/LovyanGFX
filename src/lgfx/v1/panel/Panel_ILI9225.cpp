@@ -18,6 +18,7 @@ Contributors:
 #include "Panel_ILI9225.hpp"
 
 #include "../../internal/memory.h"
+#include "../misc/colortype.hpp"
 #include "../Bus.hpp"
 
 namespace lgfx
@@ -32,8 +33,8 @@ namespace lgfx
     startWrite();
     _bus->writeCommand(CMD_DISPLAY_CTRL1, 8);
     uint_fast16_t data = (invert ^ _cfg.invert)
-                            ? __builtin_bswap16(0x1013)
-                            : __builtin_bswap16(0x1017)
+                            ? getSwap16(0x1013)
+                            : getSwap16(0x1017)
                             ;
     _bus->writeData(data, 16);
     endWrite();
@@ -44,8 +45,8 @@ namespace lgfx
     startWrite();
     _bus->writeCommand(CMD_POWER_CTRL1, 8);
     uint_fast16_t data = flg 
-                            ? __builtin_bswap16(0x0802)
-                            : __builtin_bswap16(0x0800)
+                            ? getSwap16(0x0802)
+                            : getSwap16(0x0800)
                             ;
     _bus->writeData(data, 16);
     endWrite();
@@ -56,8 +57,8 @@ namespace lgfx
     startWrite();
     _bus->writeCommand(CMD_POWER_CTRL1, 8);
     uint_fast16_t data = flg 
-                            ? __builtin_bswap16(0x0801)
-                            : __builtin_bswap16(0x0800)
+                            ? getSwap16(0x0801)
+                            : getSwap16(0x0800)
                             ;
     _bus->writeData(data, 16);
     endWrite();
@@ -136,7 +137,7 @@ namespace lgfx
     }
     if (!_cfg.rgb_order) data |= 0x1000;
     if (_write_bits != 16) data |= 0x0300;
-    _bus->writeData(__builtin_bswap16(data), 16);
+    _bus->writeData(getSwap16(data), 16);
     endWrite();
   }
 

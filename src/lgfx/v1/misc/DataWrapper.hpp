@@ -24,6 +24,13 @@ namespace lgfx
 {
  inline namespace v1
  {
+
+#if defined ( _MSVC_LANG )
+ #define LGFX_INLINE inline
+#else
+ #define LGFX_INLINE __attribute__((used)) __attribute__ ((always_inline)) inline
+#endif
+
 //----------------------------------------------------------------------------
   class LGFXBase;
 
@@ -54,19 +61,19 @@ namespace lgfx
       return result;
     }
 
-    __attribute__ ((always_inline)) inline uint16_t read16swap(void) { return __builtin_bswap16(read16()); }
-    __attribute__ ((always_inline)) inline uint32_t read32swap(void) { return __builtin_bswap32(read32()); }
+    LGFX_INLINE uint16_t read16swap(void) { auto r = read16(); return (r<<8)+(r>>8); }
+    LGFX_INLINE uint32_t read32swap(void) { auto r = read32(); return r = (r >> 16) + (r << 16); return ((r >> 8) & 0xFF00FF) + ((r & 0xFF00FF) << 8); }
 
-    virtual bool open(__attribute__((unused)) const char* path) { return true; };
+    virtual bool open(const char* path) { (void)path;  return true; };
     virtual int read(uint8_t *buf, uint32_t len) = 0;
     virtual void skip(int32_t offset) = 0;
     virtual bool seek(uint32_t offset) = 0;
     virtual void close(void) = 0;
     virtual int32_t tell(void) = 0;
 
-    __attribute__ ((always_inline)) inline void preRead(void) { if (fp_pre_read) fp_pre_read(parent); }
-    __attribute__ ((always_inline)) inline void postRead(void) { if (fp_post_read) fp_post_read(parent); }
-    __attribute__ ((always_inline)) inline bool hasParent(void) const { return parent; }
+    LGFX_INLINE void preRead(void) { if (fp_pre_read) fp_pre_read(parent); }
+    LGFX_INLINE void postRead(void) { if (fp_post_read) fp_post_read(parent); }
+    LGFX_INLINE bool hasParent(void) const { return parent; }
     LGFXBase* parent = nullptr;
     void (*fp_pre_read )(LGFXBase*) = nullptr;
     void (*fp_post_read)(LGFXBase*) = nullptr;
@@ -141,6 +148,9 @@ public:
 #endif
 
 //----------------------------------------------------------------------------
+
+#undef LGFX_INLINE
+
  }
 }
 

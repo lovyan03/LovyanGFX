@@ -18,6 +18,13 @@ Contributors:
 
 #include "LGFX_Sprite.hpp"
 
+#ifdef min
+#undef min
+#endif
+#ifdef max
+#undef max
+#endif
+
 namespace lgfx
 {
  inline namespace v1
@@ -327,15 +334,15 @@ namespace lgfx
     if (bitr & 0b10010110) // case 1:2:4:7:
     {
       param->src_y32 += nexty * (h - 1);
-      nexty = -nexty;
+      nexty = -(int32_t)nexty;
       y = _height - (y + h);
     }
     if (r & 2)
     {
       param->src_x32 += addx * (w - 1);
       param->src_y32 += addy * (w - 1);
-      addx = -addx;
-      addy = -addy;
+      addx = -(int32_t)addx;
+      addy = -(int32_t)addy;
       x = _width  - (x + w);
     }
     if (r & 1)
@@ -418,7 +425,7 @@ namespace lgfx
       {
         do
         {
-          param->fp_copy(&_img.img8()[x * k], y, y + 1, param); /// xとyを入れ替えて処理する
+          param->fp_copy(&_img.img8()[x * k], y, y + 1, param); /// xとyを入れ替えて処理する;
           if (x != xe)
           {
             x += ax;
@@ -460,10 +467,15 @@ namespace lgfx
     {
       auto sx = param->src_x;
       auto bits = param->src_bits;
-      uint_fast8_t mask = (bits == 1) ? 7
-                             : (bits == 2) ? 3
-                                           : 1;
-      if (0 == (bits & 7) || ((sx & mask) == (x & mask) && (w == this->_panel_width || 0 == (w & mask))))
+      bool flg_memcpy = (0 == (bits & 7));
+      if (!flg_memcpy)
+      {
+        uint_fast8_t mask = (bits == 1) ? 7
+                          : (bits == 2) ? 3
+                                        : 1;
+        flg_memcpy = (sx & mask) == (x & mask) && (w == this->_panel_width || 0 == (w & mask));
+      }
+      if (flg_memcpy)
       {
         auto bw = _bitwidth * bits >> 3;
         auto dst = &_img[bw * y];
@@ -559,7 +571,7 @@ namespace lgfx
     }
     index *= bits;
     uint8_t mask = (1 << bits) - 1;
-    return (_img.img8()[index >> 3] >> (-(index + bits) & 7)) & mask;
+    return (_img.img8()[index >> 3] >> (-(int32_t)(index + bits) & 7)) & mask;
   }
 
   void Panel_Sprite::readRect(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, void* dst, pixelcopy_t* param)
@@ -571,9 +583,10 @@ namespace lgfx
       auto bytes = _write_bits >> 3;
       auto bw = _bitwidth;
       auto d = (uint8_t*)dst;
+      w *= bytes;
       do {
-        memcpy(d, &_img[(x + y * bw) * bytes], w * bytes);
-        d += w * bytes;
+        memcpy(d, &_img[(x + y * bw) * bytes], w);
+        d += w;
       } while (++y != h);
     }
     else
@@ -589,17 +602,17 @@ namespace lgfx
         uint_fast8_t rb = 1 << r;
         if (rb & 0b10010110) // case 1:2:4:7:
         {
-          nexty = -nexty;
+          nexty = -(int32_t)nexty;
           y = _height - (y + 1);
         }
         if (r & 2)
         {
-          addx = -addx;
+          addx = -(int32_t)addx;
           x = _width - (x + 1);
         }
         if ((r+1) & 2)
         {
-          addy  = -addy;
+          addy  = -(int32_t)addy;
         }
         if (r & 1)
         {

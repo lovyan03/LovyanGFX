@@ -140,9 +140,6 @@ namespace lgfx
       *dma = 0;
  #endif
 #endif
-
-
-
       *reg = mask;
     }
 

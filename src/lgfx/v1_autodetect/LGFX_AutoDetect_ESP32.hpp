@@ -192,19 +192,21 @@ namespace lgfx
         lgfx::pinMode(_cfg.pin_int, pin_mode_t::input_pullup);
       }
       _inited = lgfx::i2c::init(_cfg.i2c_port, _cfg.pin_sda, _cfg.pin_scl).has_value();
+      static constexpr uint8_t irq_modechange_cmd[] = { 0x5a, 0x5a };  /// (INT mode change)
+      lgfx::i2c::transactionWrite(_cfg.i2c_port, _cfg.i2c_addr, irq_modechange_cmd, 2);
       return _inited;
     }
 
-    uint_fast8_t getTouchRaw(touch_point_t* __restrict__ tp, uint_fast8_t count) override
+    uint_fast8_t getTouchRaw(touch_point_t* __restrict tp, uint_fast8_t count) override
     {
       if (tp) tp->size = 0;
       if (!_inited || count == 0) return 0;
       if (count > 2) count = 2; // max 2 point.
 
-      // if (_cfg.pin_int >= 0)
-      // {
-      //   Serial.printf("tp:%d \r\n", gpio_in(_cfg.pin_int));
-      // }
+      if (_cfg.pin_int >= 0)
+      {
+        if (gpio_in(_cfg.pin_int)) return 0;
+      }
 
       size_t len = 3 + count * 6;
       uint8_t buf[2][len];

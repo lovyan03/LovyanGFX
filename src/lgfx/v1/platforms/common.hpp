@@ -41,9 +41,17 @@ Contributors:
 
 #include "spresense/common.hpp"
 
+#elif defined (ARDUINO_ARCH_MBED_RP2040) || defined(ARDUINO_ARCH_RP2040)
+
+#include "rp2040/common.hpp"
+
 #elif defined (ARDUINO)
 
 #include "arduino_default/common.hpp"
+
+#elif defined (_WIN32) || __has_include(<opencv2/opencv.hpp>)
+
+#include "opencv/common.hpp"
 
 #endif
 

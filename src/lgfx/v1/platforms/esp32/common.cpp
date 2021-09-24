@@ -153,7 +153,7 @@ namespace lgfx
       uint32_t spi_port = (spi_host + 1);
       (void)spi_port;
 
- // バスの設定にはESP-IDFのSPIドライバを使用する。
+ // バスの設定にはESP-IDFのSPIドライバを使用する。;
       if (_spi_dev_handle[spi_host] == nullptr)
       {
       spi_bus_config_t buscfg = {
@@ -218,7 +218,7 @@ namespace lgfx
         gpio_matrix_in(spi_miso, spi_periph_signal[spi_host].spiq_in, false);
       }
       if (spi_sclk >= 0) {
-        gpio_lo(spi_sclk); // ここでLOWにしておくことで、pinMode変更によるHIGHパルスが出力されるのを防止する (CSなしパネル対策)
+        gpio_lo(spi_sclk); // ここでLOWにしておくことで、pinMode変更によるHIGHパルスが出力されるのを防止する (CSなしパネル対策);
         pinMode(spi_sclk, pin_mode_t::output);
         //gpio_set_direction((gpio_num_t)_spi_sclk, GPIO_MODE_INPUT_OUTPUT);
         gpio_matrix_out(spi_sclk, spi_periph_signal[spi_host].spiclk_out, false, false);
@@ -234,16 +234,16 @@ namespace lgfx
         WRITE_PERI_REG(SPI_DMA_OUT_LINK_REG(spi_port), 0);
         WRITE_PERI_REG(SPI_DMA_CONF_REG(spi_port), READ_PERI_REG(SPI_DMA_CONF_REG(spi_port)) & ~(SPI_OUT_RST|SPI_IN_RST|SPI_AHBM_RST|SPI_AHBM_FIFO_RST));
       }
-
-      WRITE_PERI_REG(SPI_USER_REG (spi_port), SPI_USR_MOSI | SPI_USR_MISO | SPI_DOUTDIN);  // need SD card access (full duplex setting)
-      WRITE_PERI_REG(SPI_CTRL_REG( spi_port), 0);
-      WRITE_PERI_REG(SPI_CTRL2_REG(spi_port), 0);
-      WRITE_PERI_REG(SPI_SLAVE_REG(spi_port), 0);
 //*/
 #endif
-
+      WRITE_PERI_REG(SPI_USER_REG (spi_port), SPI_USR_MOSI | SPI_USR_MISO | SPI_DOUTDIN);  // need SD card access (full duplex setting)
+      WRITE_PERI_REG(SPI_SLAVE_REG(spi_port), 0);
+      WRITE_PERI_REG(SPI_CTRL_REG( spi_port), 0);
 #if defined ( SPI_CTRL1_REG )
       WRITE_PERI_REG(SPI_CTRL1_REG(spi_port), 0);
+#endif
+#if defined ( SPI_CTRL2_REG )
+      WRITE_PERI_REG(SPI_CTRL2_REG(spi_port), 0);
 #endif
 
       return {};
@@ -514,7 +514,7 @@ namespace lgfx
       uint32_t cmd_val = byte_num
                             | (( op_code == i2c_cmd_write
                               || op_code == i2c_cmd_stop)
-                              ? 0x100 : 0)  // writeおよびstop時はACK_ENを有効にする
+                              ? 0x100 : 0)  // writeおよびstop時はACK_ENを有効にする;
                             | op_code << 11 ;
       dev->command[index].val = cmd_val;
     }
@@ -534,11 +534,11 @@ namespace lgfx
       gpio_set_direction(scl_io, GPIO_MODE_OUTPUT_OD);
 
       auto mod = getPeriphModule(i2c_port);
-      // ESP-IDF環境でperiph_module_disableを使うと、後でenableできなくなる問題が起きたためコメントアウト
+      // ESP-IDF環境でperiph_module_disableを使うと、後でenableできなくなる問題が起きたためコメントアウト;
       //periph_module_disable(mod);
       gpio_set_level(scl_io, 0);
 
-      // SDAがHIGHになるまでクロック送出しながら待機する。
+      // SDAがHIGHになるまでクロック送出しながら待機する。;
       int i = 0;
       while (!gpio_get_level(sda_io) && (i++ < I2C_CLR_BUS_SCL_NUM))
       {
@@ -656,7 +656,7 @@ namespace lgfx
 
       if (i2c_context[i2c_port].pin_scl >= 0 || i2c_context[i2c_port].pin_sda >= 0)
       {
-      // ESP-IDF環境でperiph_module_disableを使うと、後でenableできなくなる問題が起きたためコメントアウト
+      // ESP-IDF環境でperiph_module_disableを使うと、後でenableできなくなる問題が起きたためコメントアウト;
 //        periph_module_disable(getPeriphModule(i2c_port));
         pinMode(i2c_context[i2c_port].pin_scl, pin_mode_t::input);
         pinMode(i2c_context[i2c_port].pin_sda, pin_mode_t::input);
@@ -683,17 +683,17 @@ namespace lgfx
       i2c_set_cmd(dev, 0, i2c_cmd_start, 0);
       i2c_set_cmd(dev, 2, i2c_cmd_end, 0);
       if (i2c_addr <= I2C_7BIT_ADDR_MAX)
-      { // 7bitアドレスの場合
+      { // 7bitアドレスの場合;
         *fifo_addr = i2c_addr << 1 | (read ? I2C_MASTER_READ : I2C_MASTER_WRITE);
         i2c_set_cmd(dev, 1, i2c_cmd_write, 1);
       }
       else
-      { // 10bitアドレスの場合
+      { // 10bitアドレスの場合;
         *fifo_addr = 0xF0 | (i2c_addr>>8)<<1 | I2C_MASTER_WRITE;
         *fifo_addr =         i2c_addr;
         i2c_set_cmd(dev, 1, i2c_cmd_write, 2);
         if (read)
-        { // 10bitアドレスのread要求の場合
+        { // 10bitアドレスのread要求の場合;
           *fifo_addr = 0xF0 | (i2c_addr>>8)<<1 | I2C_MASTER_READ;
           i2c_set_cmd(dev, 2, i2c_cmd_start, 0);
           i2c_set_cmd(dev, 3, i2c_cmd_read, 1);

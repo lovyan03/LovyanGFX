@@ -18,6 +18,7 @@ Contributors:
 #pragma once
 
 #include "Panel_LCD.hpp"
+#include "../Bus.hpp"
 
 namespace lgfx
 {

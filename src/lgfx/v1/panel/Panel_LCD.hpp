@@ -25,7 +25,7 @@ namespace lgfx
  {
 //----------------------------------------------------------------------------
 
-  class Panel_LCD : public Panel_Device
+  struct Panel_LCD : public Panel_Device
   {
   public:
     bool init(bool use_reset) override;
@@ -132,7 +132,7 @@ namespace lgfx
 
     virtual uint8_t getColMod(uint8_t bpp) const { return (bpp > 16) ? RGB888_3BYTE : RGB565_2BYTE; }
 
-    /// 引数に応じて _write_depth と _read_depth を設定する。_read_depthはドライバによってrgb888_3Byte固定のものや_write_depthと同じなるものがある。違いに注意が必要。
+    /// 引数に応じて _write_depth と _read_depth を設定する。_read_depthはドライバによってrgb888_3Byte固定のものや_write_depthと同じなるものがある。違いに注意が必要。;
     virtual void setColorDepth_impl(color_depth_t depth) { _write_depth = ((int)depth & color_depth_t::bit_mask) > 16 ? rgb888_3Byte : rgb565_2Byte; _read_depth = rgb888_3Byte; }
 //  virtual void setColorDepth_impl(color_depth_t depth) { _write_depth = ((int)depth & color_depth_t::bit_mask) > 16 ? rgb888_3Byte : rgb565_2Byte; _read_depth = _write_depth; }
   };

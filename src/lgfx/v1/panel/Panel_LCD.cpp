@@ -119,7 +119,7 @@ namespace lgfx
   {
     r &= 7;
     _rotation = r;
-    // offset_rotationを加算 (0~3:回転方向、 4:上下反転フラグ)
+    // offset_rotationを加算 (0~3:回転方向、 4:上下反転フラグ);
     _internal_rotation = ((r + _cfg.offset_rotation) & 3) | ((r & 4) ^ (_cfg.offset_rotation & 4));
 
     auto ox = _cfg.offset_x;
@@ -418,6 +418,11 @@ namespace lgfx
       _bus->readPixels(dst, param, len);
     }
     cs_control(true);
+    if (_cfg.end_read_delay_us)
+    {
+      delayMicroseconds(_cfg.end_read_delay_us);
+    }
+
     _bus->endRead();
 
     endWrite();

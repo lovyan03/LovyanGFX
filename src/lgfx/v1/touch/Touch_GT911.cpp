@@ -111,7 +111,7 @@ namespace lgfx
     writeBytes(writedata, 3);
   }
 
-  uint_fast8_t Touch_GT911::getTouchRaw(touch_point_t* __restrict__ tp, uint_fast8_t count)
+  uint_fast8_t Touch_GT911::getTouchRaw(touch_point_t* __restrict tp, uint_fast8_t count)
   {
     if (!_inited || count == 0) return 0;
     if (count > 5) { count = 5; }

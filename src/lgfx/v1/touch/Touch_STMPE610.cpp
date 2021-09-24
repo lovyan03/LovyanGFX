@@ -230,7 +230,7 @@ namespace lgfx
     if (!_inited) return;
   }
 
-  uint_fast8_t Touch_STMPE610::getTouchRaw(touch_point_t* __restrict__ tp, uint_fast8_t count)
+  uint_fast8_t Touch_STMPE610::getTouchRaw(touch_point_t* __restrict tp, uint_fast8_t count)
   {
     if (!_inited || count == 0) return 0;
 

@@ -55,6 +55,7 @@ namespace lgfx
     , board_WT32_SC01
     , board_PyBadge
     , board_M5Tough
+    , board_OpenCV
     };
   }
   using namespace boards;
@@ -89,5 +90,9 @@ namespace lgfx
 #elif defined (STM32F2xx) || defined (STM32F4xx) || defined (STM32F7xx)
 
   #include "LGFX_AutoDetect_STM32.hpp"
+
+#elif __has_include(<opencv2/opencv.hpp>)
+
+  #include "LGFX_AutoDetect_OpenCV.hpp"
 
 #endif

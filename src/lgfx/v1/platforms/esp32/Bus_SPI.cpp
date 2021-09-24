@@ -335,7 +335,7 @@ namespace lgfx
       return;
     }
 
-/// ESP32-C3 で HIGHPART を使用すると異常動作するため分岐する
+/// ESP32-C3 で HIGHPART を使用すると異常動作するため分岐する;
 #if defined ( CONFIG_IDF_TARGET_ESP32C3 )
 
     const uint32_t limit = (bytes == 2) ? 32 : 21;
@@ -460,7 +460,7 @@ namespace lgfx
         set_write_len(length << 3);
         *_gpio_reg_dc[dc] = _mask_reg_dc;
 
-        // DMA準備完了待ち
+        // DMA準備完了待ち;
 #if defined ( SOC_GDMA_SUPPORTED )
         while (*_spi_dma_outstatus_reg & DMA_OUTFIFO_EMPTY_CH0 ) {}
 #elif defined (SPI_DMA_OUTFIFO_EMPTY)
@@ -475,7 +475,7 @@ namespace lgfx
 
     auto spi_w0_reg = _spi_w0_reg;
 
-/// ESP32-C3 で HIGHPART を使用すると異常動作するため分岐する
+/// ESP32-C3 で HIGHPART を使用すると異常動作するため分岐する;
 #if defined ( CONFIG_IDF_TARGET_ESP32C3 )
 
     uint32_t regbuf[16];
@@ -629,7 +629,7 @@ namespace lgfx
 
     set_write_len(_dma_queue_bytes << 3);
     _dma_queue_bytes = 0;
-    // DMA準備完了待ち
+    // DMA準備完了待ち;
 #if defined ( SOC_GDMA_SUPPORTED )
     while (*_spi_dma_outstatus_reg & DMA_OUTFIFO_EMPTY_CH0 ) {}
 #elif defined (SPI_DMA_OUTFIFO_EMPTY)
@@ -696,7 +696,7 @@ namespace lgfx
       set_read_len(len1 << 3);
       exec_spi();
 
-/// ESP32-C3 で HIGHPART を使用すると異常動作するため分岐する
+/// ESP32-C3 で HIGHPART を使用すると異常動作するため分岐する;
 #if defined ( CONFIG_IDF_TARGET_ESP32C3 )
 
       auto spi_w0_reg = _spi_w0_reg;
@@ -765,7 +765,7 @@ namespace lgfx
     int32_t dstindex = 0;
     auto spi_w0_reg = _spi_w0_reg;
 
-/// ESP32-C3 で HIGHPART を使用すると異常動作するため分岐する
+/// ESP32-C3 で HIGHPART を使用すると異常動作するため分岐する;
 #if defined ( CONFIG_IDF_TARGET_ESP32C3 )
 
     do {
