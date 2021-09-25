@@ -489,10 +489,11 @@ namespace lgfx
       } else if (bpp == 16) {
         do {
           data->read(lineBuffer, buffersize);
-          auto img = &_img8[y * bitwidth * bpp >> 3];
+          auto img = (uint16_t*)(&_img8[y * bitwidth * bpp >> 3]);
           y += flow;
-          for (size_t i = 0; i < buffersize; ++i) {
-            img[i] = lineBuffer[i ^ 1];
+          for (size_t i = 0; i < w; ++i)
+          {
+            img[i] = (lineBuffer[i << 1] << 8) + lineBuffer[(i << 1) + 1];
           }
         } while (--h);
       } else if (bpp == 24) {
@@ -500,10 +501,10 @@ namespace lgfx
           data->read(lineBuffer, buffersize);
           auto img = &_img8[y * bitwidth * bpp >> 3];
           y += flow;
-          for (size_t i = 0; i < buffersize; i += 3) {
-            img[i    ] = lineBuffer[i + 2];
-            img[i + 1] = lineBuffer[i + 1];
-            img[i + 2] = lineBuffer[i    ];
+          for (size_t i = 0; i < w; ++i) {
+            img[i * 3    ] = lineBuffer[i * 3 + 2];
+            img[i * 3 + 1] = lineBuffer[i * 3 + 1];
+            img[i * 3 + 2] = lineBuffer[i * 3    ];
           }
         } while (--h);
       } else if (bpp == 32) {
@@ -511,10 +512,10 @@ namespace lgfx
           data->read(lineBuffer, buffersize);
           auto img = &_img8[y * bitwidth * 3];
           y += flow;
-          for (size_t i = 0; i < buffersize; i += 4) {
-            img[(i>>2)*3    ] = lineBuffer[i + 2];
-            img[(i>>2)*3 + 1] = lineBuffer[i + 1];
-            img[(i>>2)*3 + 2] = lineBuffer[i + 0];
+          for (size_t i = 0; i < w; ++i) {
+            img[i * 3    ] = lineBuffer[(i << 2) + 2];
+            img[i * 3 + 1] = lineBuffer[(i << 2) + 1];
+            img[i * 3 + 2] = lineBuffer[(i << 2) + 0];
           }
         } while (--h);
       }

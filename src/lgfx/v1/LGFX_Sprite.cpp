@@ -106,7 +106,7 @@ namespace lgfx
       _panel_width = w;
       _panel_height = h;
       _bitwidth = (w + conv->x_mask) & (~(uint32_t)conv->x_mask);
-      size_t len = h * (_bitwidth * _write_bits >> 3) + 1;
+      size_t len = h * (_bitwidth * _write_bits >> 3) + std::max(1, _write_bits >> 3);
 
       _img.reset(len, psram ? AllocationSource::Psram : AllocationSource::Dma);
 
