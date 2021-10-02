@@ -141,7 +141,7 @@ namespace lgfx
     }
   };
 
-  struct Light_M5StackTough : public lgfx::ILight
+  struct Light_M5Tough : public lgfx::ILight
   {
     bool init(uint8_t brightness) override
     {
@@ -522,10 +522,19 @@ namespace lgfx
       uint32_t id;
       (void)id;  // suppress warning
 
+#if defined ( LGFX_AUTODETECT ) \
+ || defined ( LGFX_M5STICK_C ) \
+ || defined ( LGFX_M5STICKC ) \
+ || defined ( LGFX_M5STATION ) \
+ || defined ( LGFX_M5STACK_CORE2 ) \
+ || defined ( LGFX_M5STACKCORE2 ) \
+ || defined ( LGFX_M5TOUGH )
+
       /// AXP192の有無を最初に判定し、分岐する。
       if (board == 0
       || board == board_t::board_M5StickC
       || board == board_t::board_M5StickCPlus
+      || board == board_t::board_M5Station
       || board == board_t::board_M5StackCore2
       || board == board_t::board_M5Tough)
       {
@@ -579,6 +588,49 @@ namespace lgfx
             lgfx::pinMode( 5, lgfx::pin_mode_t::input); // LCD CS
             _bus_spi.release();
           }
+#endif
+
+#if defined ( LGFX_AUTODETECT ) || defined ( LGFX_M5STATION )
+
+          if (board == 0 || board == board_t::board_M5Station)
+          {
+            bus_cfg.pin_mosi = 23;
+            bus_cfg.pin_miso = -1;
+            bus_cfg.pin_sclk = 18;
+            bus_cfg.pin_dc   = 19;
+            bus_cfg.spi_3wire = true;
+            _bus_spi.config(bus_cfg);
+            _bus_spi.init();
+            _pin_reset(15, use_reset); // LCD RST;
+
+            id = _read_panel_id(&_bus_spi, 5);
+            if ((id & 0xFF) == 0x85)
+            {   // ST7789
+              ESP_LOGW(LIBRARY_NAME, "[Autodetect] M5Station");
+              board = board_t::board_M5Station;
+
+              bus_cfg.freq_write = 40000000;
+              bus_cfg.freq_read  = 15000000;
+              _bus_spi.config(bus_cfg);
+
+              auto p = new Panel_M5StickCPlus();
+              {
+                auto cfg = p->config();
+                cfg.pin_rst = 15;
+                p->config(cfg);
+                p->setRotation(1);
+              }
+              p->bus(&_bus_spi);
+              _panel_last = p;
+              /// M5StationのバックライトはM5Toughと同じ
+              _set_backlight(new Light_M5Tough());
+              goto init_clear;
+            }
+            _bus_spi.release();
+            lgfx::pinMode( 5, lgfx::pin_mode_t::input); // LCD CS
+            lgfx::pinMode(15, lgfx::pin_mode_t::input); // LCD RST
+          }
+
 #endif
 
 #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_M5STACK_CORE2 ) || defined ( LGFX_M5STACKCORE2 ) || defined ( LGFX_M5TOUGH )
@@ -655,7 +707,7 @@ namespace lgfx
                 ESP_LOGW(LIBRARY_NAME, "[Autodetect] M5Tough");
                 board = board_t::board_M5Tough;
 
-                _set_backlight(new Light_M5StackTough());
+                _set_backlight(new Light_M5Tough());
 
                 auto t = new lgfx::Touch_M5Tough();
                 _touch_last = t;
@@ -684,9 +736,12 @@ namespace lgfx
             _bus_spi.release();
           }
 #endif
-
         }
+        ESP_LOGW(LIBRARY_NAME, "AXP192 not found.");
+        lgfx::i2c::release(axp_i2c_port);
       }
+
+#endif
 
   // TTGO T-Watch 判定 (GPIO33を使う判定を先に行うと振動モーターが作動する事に注意)
 #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_TTGO_TWATCH )

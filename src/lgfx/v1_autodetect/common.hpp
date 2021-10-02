@@ -56,6 +56,7 @@ namespace lgfx
     , board_PyBadge
     , board_M5Tough
     , board_OpenCV
+    , board_M5Station
     };
   }
   using namespace boards;
