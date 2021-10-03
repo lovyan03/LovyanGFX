@@ -444,7 +444,7 @@ namespace lgfx
       uint32_t seekOffset = bmpdata.bfOffBits;
       uint_fast16_t bpp = bmpdata.biBitCount; // 24 bcBitCount 24=RGB24bit
       setColorDepth(bpp < 32 ? bpp : 24);
-      int32_t w = bmpdata.biWidth;
+      uint32_t w = bmpdata.biWidth;
       int32_t h = bmpdata.biHeight;  // bcHeight Image height (pixels)
       if (!createSprite(w, h)) return false;
 
