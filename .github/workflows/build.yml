@@ -25,7 +25,7 @@ jobs:
           pip install platformio==5.0.3
 
       - name: perform chmod
-        run: chmod +x ./ci/ci-compile
+        run: chmod +x ./.github/scripts/ci-compile
 
       - name: build examples
-        run: ./ci/ci-compile
+        run: ./.github/scripts/ci-compile
