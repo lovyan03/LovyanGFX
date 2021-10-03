@@ -1,0 +1,85 @@
+name: Arduino Build all architectures
+on:
+  push: # see: https://help.github.com/en/actions/reference/events-that-trigger-workflows#pull-request-event-pull_request
+    paths:
+    - '**.ino'
+    - '**.cpp'
+    - '**.hpp'
+    - '**.h'
+    - '**.c'
+    - '**ArduinoBuild.yml'
+  pull_request:
+jobs:
+  build:
+    name: ${{ matrix.fancy-name }}>> ${{ matrix.sketch-names }}
+
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+
+        arduino-boards-fqbn:
+          - Seeeduino:samd:seeed_wio_terminal
+          - esp8266:esp8266:d1_mini:eesz=4M3M,xtal=80
+          - esp32:esp32:esp32
+          - esp32:esp32:m5stack-fire
+          - esp32:esp32:m5stack-core-esp32
+          - esp32:esp32:m5stack-core2
+          - esp32:esp32:odroid_esp32
+
+        include:
+          - arduino-boards-fqbn: Seeeduino:samd:seeed_wio_terminal
+            fancy-name: Wio Terminal
+            platform-url: https://files.seeedstudio.com/arduino/package_seeeduino_boards_index.json
+            sketch-names: 1_simple_use.ino
+
+          - arduino-boards-fqbn: esp8266:esp8266:d1_mini:eesz=4M3M,xtal=80
+            fancy-name: ESP8266 D1Mini
+            sketch-names: ESP8266_graphictest.ino
+            platform-url: https://arduino.esp8266.com/stable/package_esp8266com_index.json
+
+          - arduino-boards-fqbn: esp32:esp32:esp32
+            fancy-name: ESP32 Generic
+            platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
+            sketch-names: TFT_graphicstest_PDQ.ino
+
+          - arduino-boards-fqbn: esp32:esp32:m5stack-fire
+            fancy-name: M5Fire
+            platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
+            sketch-names: TFT_graphicstest_PDQ.ino
+
+          - arduino-boards-fqbn: esp32:esp32:m5stack-core-esp32
+            fancy-name: M5Stack
+            platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
+            sketch-names: TFT_graphicstest_PDQ.ino
+
+          - arduino-boards-fqbn: esp32:esp32:m5stack-core2
+            fancy-name: M5Core2
+            platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
+            sketch-names: TFT_graphicstest_PDQ.ino
+
+          - arduino-boards-fqbn: esp32:esp32:odroid_esp32
+            fancy-name: OdroidGo
+            platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
+            sketch-names: TFT_graphicstest_PDQ.ino
+
+
+      fail-fast: false
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Compile all examples
+        uses: ArminJo/arduino-test-compile@v3
+        with:
+          arduino-board-fqbn: ${{ matrix.arduino-boards-fqbn }}
+          #platform-default-url: ${{ env.PLATFORM_DEFAULT_URL }}
+          platform-url: ${{ matrix.platform-url }}
+          required-libraries: ${{ matrix.required-libraries }}
+          sketch-names: ${{ matrix.sketch-names }}
+          #sketches-exclude: ${{ matrix.sketches-exclude }}
+          build-properties: ${{ toJson(matrix.build-properties) }}
+
