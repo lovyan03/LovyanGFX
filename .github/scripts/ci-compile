@@ -9,7 +9,7 @@ BOARDS=${BOARDS:-"m5stick-c seeed_wio_terminal adafruit_pybadge_m4"}
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 BOARD_OPTS=$(for b in $BOARDS; do echo -n "--board $b "; done)
 
-cd "$DIR/.."
+cd "$DIR/../.."
 
 for d in $EXAMPLES ; do 
   echo "*** building example $d for $BOARDS ***"
