@@ -29,7 +29,7 @@ jobs:
           - m5stack-core2
           - odroid_esp32
           - seeed_wio_terminal
-          #- adafruit_pybadge_m4
+          - adafruit_pybadge_m4
 
         include:
           - pio-env: esp8266
@@ -48,8 +48,8 @@ jobs:
             pio-src-dir: examples/Test/TFT_graphicstest_PDQ
           - pio-env: seeed_wio_terminal
             pio-src-dir: examples/HowToUse/1_simple_use
-          #- pio-env: adafruit_pybadge_m4
-          #  pio-src-dir: examples/HowToUse/1_simple_use
+          - pio-env: adafruit_pybadge_m4
+            pio-src-dir: examples/HowToUse/1_simple_use
 
       fail-fast: false
 
