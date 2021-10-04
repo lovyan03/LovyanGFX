@@ -1,4 +1,4 @@
-name: Arduino Build all architectures
+name: ArduinoBuild
 on:
   push: # see: https://help.github.com/en/actions/reference/events-that-trigger-workflows#pull-request-event-pull_request
     paths:
@@ -44,7 +44,7 @@ jobs:
             fancy-name: ESP32 Generic
             platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
             sketch-names: TFT_graphicstest_PDQ.ino
-            
+
           - arduino-boards-fqbn: esp32:esp32:esp32s2
             fancy-name: ESP32 S2
             platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
@@ -54,7 +54,7 @@ jobs:
             fancy-name: M5Fire
             platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
             sketch-names: TFT_graphicstest_PDQ.ino
-            
+
           - arduino-boards-fqbn: esp32:esp32:m5stick-c
             fancy-name: M5StickC
             platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json

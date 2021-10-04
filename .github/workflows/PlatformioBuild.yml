@@ -1,4 +1,4 @@
-name: PlatformIO Build all architectures
+name: PlatformIOBuild
 
 on:
   push:

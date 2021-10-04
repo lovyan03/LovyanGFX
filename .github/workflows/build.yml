@@ -1,3 +1,4 @@
+name: ArduinoCI Build
 on:
   push:
     branches:
