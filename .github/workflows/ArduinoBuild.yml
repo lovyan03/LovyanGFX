@@ -48,7 +48,7 @@ jobs:
           - arduino-boards-fqbn: esp32:esp32:esp32s2
             fancy-name: ESP32 S2
             platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
-            sketch-names: TFT_graphicstest_PDQ.ino
+            sketch-names: 1_simple_use.ino
 
           - arduino-boards-fqbn: esp32:esp32:m5stack-fire
             fancy-name: M5Fire
