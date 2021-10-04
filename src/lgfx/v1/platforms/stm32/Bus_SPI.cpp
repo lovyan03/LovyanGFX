@@ -54,7 +54,7 @@ namespace lgfx
     }
   }
 
-  void Bus_SPI::init(void)
+  bool Bus_SPI::init(void)
   {
     lgfx::pinMode(_cfg.pin_dc, pin_mode_t::output);
 
@@ -85,8 +85,8 @@ namespace lgfx
 
     if (HAL_DMA_Init(&_dmaHal) != HAL_OK)
     {                  // Init DMA with settings
-      for (;;) {};
-      return; // error
+      // for (;;) {};
+      // return; // error
     };
 
     if (_cfg.spi_port == SPI1)
@@ -100,6 +100,8 @@ namespace lgfx
 
     __HAL_LINKDMA(&_spiHal, hdmatx, _dmaHal);   // Attach DMA engine to SPI peripheral
 //*/
+
+    return true;
   }
 
   void Bus_SPI::release(void)
@@ -141,9 +143,9 @@ namespace lgfx
     return _cfg.spi_port->SR  & SPI_SR_BSY;
   }
 
-  void Bus_SPI::writeCommand(uint32_t data, uint_fast8_t bit_length)
+  bool Bus_SPI::writeCommand(uint32_t data, uint_fast8_t bit_length)
   {
-    if (0 == (bit_length >>= 3)) return;
+    if (0 == (bit_length >>= 3)) { return true; }
     auto spidr = reinterpret_cast<volatile uint8_t*>(&_cfg.spi_port->DR);
     auto spisr = &_cfg.spi_port->SR;
     dc_control(false);
@@ -154,6 +156,7 @@ namespace lgfx
       do {} while (!(*spisr & sr_mask));
       *spidr = data;
     }
+    return true;
   }
 
   void Bus_SPI::writeData(uint32_t data, uint_fast8_t bit_length)
@@ -282,13 +285,14 @@ namespace lgfx
     return res;
   }
 
-  void Bus_SPI::readBytes(uint8_t* dst, uint32_t length, bool use_dma)
+  bool Bus_SPI::readBytes(uint8_t* dst, uint32_t length, bool use_dma)
   {
     do
     {
       dst[0] = SPI.transfer(0);
       ++dst;
     } while (--length);
+    return true;
   }
 
   void Bus_SPI::readPixels(void* dst, pixelcopy_t* param, uint32_t length)
