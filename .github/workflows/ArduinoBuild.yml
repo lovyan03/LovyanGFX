@@ -22,6 +22,7 @@ jobs:
           - Seeeduino:samd:seeed_wio_terminal
           - esp8266:esp8266:d1_mini:eesz=4M3M,xtal=80
           - esp32:esp32:esp32
+          - esp32:esp32:esp32s2
           - esp32:esp32:m5stack-fire
           - esp32:esp32:m5stick-c
           - esp32:esp32:m5stack-core-esp32
@@ -41,6 +42,11 @@ jobs:
 
           - arduino-boards-fqbn: esp32:esp32:esp32
             fancy-name: ESP32 Generic
+            platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
+            sketch-names: TFT_graphicstest_PDQ.ino
+            
+          - arduino-boards-fqbn: esp32:esp32:esp32s2
+            fancy-name: ESP32 S2
             platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
             sketch-names: TFT_graphicstest_PDQ.ino
 
