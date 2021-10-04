@@ -1,4 +1,4 @@
-name: ArduinoCI Build
+name: ArduinoCIBuild
 on:
   push:
     branches:
