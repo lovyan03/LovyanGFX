@@ -23,6 +23,7 @@ jobs:
         pio-env:
           - esp8266
           - esp32
+          - esp32s2
           - m5stick-c
           - m5stack-fire
           - m5stack-core-esp32
