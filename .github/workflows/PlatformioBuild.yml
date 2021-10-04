@@ -38,7 +38,7 @@ jobs:
           - pio-env: esp32
             pio-src-dir: examples/Test/TFT_graphicstest_PDQ
           - pio-env: esp32s2
-            pio-src-dir: examples/Test/TFT_graphicstest_PDQ
+            pio-src-dir: examples/HowToUse/1_simple_use
           - pio-env: m5stick-c
             pio-src-dir: examples/Test/TFT_graphicstest_PDQ
           - pio-env: m5stack-fire
