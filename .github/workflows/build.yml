@@ -7,7 +7,6 @@ on:
     branches:
       - develop
 
-name: build
 jobs:
 
   build:
