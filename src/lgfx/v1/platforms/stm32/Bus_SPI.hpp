@@ -53,7 +53,7 @@ namespace lgfx
 
     bus_type_t busType(void) const override { return bus_type_t::bus_spi; }
 
-    void init(void) override;
+    bool init(void) override;
     void release(void) override;
 
     void beginTransaction(void) override;
@@ -61,7 +61,8 @@ namespace lgfx
     void wait(void) override;
     bool busy(void) const override;
 
-    void writeCommand(uint32_t data, uint_fast8_t bit_length) override;
+    void flush(void) override {}
+    bool writeCommand(uint32_t data, uint_fast8_t bit_length) override;
     void writeData(uint32_t data, uint_fast8_t bit_length) override;
     void writeDataRepeat(uint32_t data, uint_fast8_t bit_length, uint32_t count) override;
     void writePixels(pixelcopy_t* param, uint32_t length) override;
@@ -75,7 +76,7 @@ namespace lgfx
     void beginRead(void) override;
     void endRead(void) override;
     uint32_t readData(uint_fast8_t bit_length) override;
-    void readBytes(uint8_t* dst, uint32_t length, bool use_dma) override;
+    bool readBytes(uint8_t* dst, uint32_t length, bool use_dma) override;
     void readPixels(void* dst, pixelcopy_t* param, uint32_t length) override;
 
   private:
