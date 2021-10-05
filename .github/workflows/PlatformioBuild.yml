@@ -11,9 +11,12 @@ on:
     - '**PlatformioBuild.yml'
   pull_request:
 
+env:
+  PROJECT_DIR: examples/Test/CI
+
 jobs:
   build:
-    name: ${{ matrix.pio-env }}>> ${{ matrix.pio-src-dir }}
+    name: ${{ matrix.pio-env }}>> ${{ env.PROJECT_DIR }}
 
     runs-on: ubuntu-latest
 
@@ -34,34 +37,15 @@ jobs:
 
         include:
           - pio-env: esp8266
-            pio-src-dir: examples/Test/ESP8266_graphictest
-
           - pio-env: esp32
-            pio-src-dir: examples/Test/TFT_graphicstest_PDQ
-
           - pio-env: esp32-s2
-            pio-src-dir: examples/HowToUse/1_simple_use
-
           - pio-env: m5stick-c
-            pio-src-dir: examples/Test/TFT_graphicstest_PDQ
-
           - pio-env: m5stack-core2
-            pio-src-dir: examples/Test/TFT_graphicstest_PDQ
-
           - pio-env: m5stack-core-esp32
-            pio-src-dir: examples/Test/TFT_graphicstest_PDQ
-
           - pio-env: seeed_wio_terminal
-            pio-src-dir: examples/HowToUse/1_simple_use
-
           - pio-env: adafruit_pybadge_m4
-            pio-src-dir: examples/HowToUse/1_simple_use
-
           #- pio-env: m5stack-fire
-          #  pio-src-dir: examples/Test/TFT_graphicstest_PDQ
-
           #- pio-env: odroid_esp32
-          #  pio-src-dir: examples/Test/TFT_graphicstest_PDQ
 
       fail-fast: false
 
@@ -92,4 +76,4 @@ jobs:
           pip install --upgrade platformio
 
       - name: Run PlatformIO
-        run: cd ${{ matrix.pio-src-dir }} && pio run -e ${{ matrix.pio-env }}
+        run: cd ${{ env.PROJECT_DIR }} && pio run -e ${{ matrix.pio-env }}
