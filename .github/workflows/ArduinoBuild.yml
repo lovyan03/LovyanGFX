@@ -23,11 +23,11 @@ jobs:
           - esp8266:esp8266:d1_mini:eesz=4M3M,xtal=80
           - esp32:esp32:esp32
           - esp32:esp32:esp32s2
-          - esp32:esp32:m5stack-fire
           - esp32:esp32:m5stick-c
           - esp32:esp32:m5stack-core-esp32
           - esp32:esp32:m5stack-core2
-          - esp32:esp32:odroid_esp32
+          #- esp32:esp32:m5stack-fire
+          #- esp32:esp32:odroid_esp32
 
         include:
           - arduino-boards-fqbn: Seeeduino:samd:seeed_wio_terminal
@@ -50,11 +50,6 @@ jobs:
             platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
             sketch-names: 1_simple_use.ino
 
-          - arduino-boards-fqbn: esp32:esp32:m5stack-fire
-            fancy-name: M5Fire
-            platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
-            sketch-names: TFT_graphicstest_PDQ.ino
-
           - arduino-boards-fqbn: esp32:esp32:m5stick-c
             fancy-name: M5StickC
             platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
@@ -70,10 +65,15 @@ jobs:
             platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
             sketch-names: TFT_graphicstest_PDQ.ino
 
-          - arduino-boards-fqbn: esp32:esp32:odroid_esp32
-            fancy-name: OdroidGo
-            platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
-            sketch-names: TFT_graphicstest_PDQ.ino
+          #- arduino-boards-fqbn: esp32:esp32:m5stack-fire
+          #  fancy-name: M5Fire
+          #  platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
+          #  sketch-names: TFT_graphicstest_PDQ.ino
+
+          #- arduino-boards-fqbn: esp32:esp32:odroid_esp32
+          #  fancy-name: OdroidGo
+          #  platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
+          #  sketch-names: TFT_graphicstest_PDQ.ino
 
 
       fail-fast: false

@@ -25,34 +25,43 @@ jobs:
           - esp32
           - esp32-s2
           - m5stick-c
-          - m5stack-fire
           - m5stack-core-esp32
           - m5stack-core2
-          - odroid_esp32
           - seeed_wio_terminal
           - adafruit_pybadge_m4
+          #- m5stack-fire
+          #- odroid_esp32
 
         include:
           - pio-env: esp8266
             pio-src-dir: examples/Test/ESP8266_graphictest
+
           - pio-env: esp32
             pio-src-dir: examples/Test/TFT_graphicstest_PDQ
+
           - pio-env: esp32-s2
             pio-src-dir: examples/HowToUse/1_simple_use
+
           - pio-env: m5stick-c
             pio-src-dir: examples/Test/TFT_graphicstest_PDQ
-          - pio-env: m5stack-fire
-            pio-src-dir: examples/Test/TFT_graphicstest_PDQ
+
           - pio-env: m5stack-core2
             pio-src-dir: examples/Test/TFT_graphicstest_PDQ
+
           - pio-env: m5stack-core-esp32
             pio-src-dir: examples/Test/TFT_graphicstest_PDQ
-          - pio-env: odroid_esp32
-            pio-src-dir: examples/Test/TFT_graphicstest_PDQ
+
           - pio-env: seeed_wio_terminal
             pio-src-dir: examples/HowToUse/1_simple_use
+
           - pio-env: adafruit_pybadge_m4
             pio-src-dir: examples/HowToUse/1_simple_use
+
+          #- pio-env: m5stack-fire
+          #  pio-src-dir: examples/Test/TFT_graphicstest_PDQ
+
+          #- pio-env: odroid_esp32
+          #  pio-src-dir: examples/Test/TFT_graphicstest_PDQ
 
       fail-fast: false
 
