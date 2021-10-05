@@ -1,5 +1,8 @@
 name: PlatformIOBuild
 
+env:
+  PROJECT_DIR: examples/Test/build_test
+
 on:
   push:
     paths:
@@ -11,12 +14,9 @@ on:
     - '**PlatformioBuild.yml'
   pull_request:
 
-env:
-  PROJECT_DIR: examples/Test/CI
-
 jobs:
   build:
-    name: ${{ matrix.pio-env }}>> ${{ env.PROJECT_DIR }}
+    name: ${{ matrix.pio-env }}
 
     runs-on: ubuntu-latest
 

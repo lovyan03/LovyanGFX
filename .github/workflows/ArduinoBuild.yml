@@ -1,4 +1,8 @@
 name: ArduinoBuild
+
+env:
+  SKETCH_NAME: build_test.ino
+
 on:
   push: # see: https://help.github.com/en/actions/reference/events-that-trigger-workflows#pull-request-event-pull_request
     paths:
@@ -10,12 +14,9 @@ on:
     - '**ArduinoBuild.yml'
   pull_request:
 
-env:
-  PROJECT_DIR: examples/Test/CI
-
 jobs:
   build:
-    name: ${{ matrix.fancy-name }}>> ${{ env.PROJECT_DIR }}
+    name: ${{ matrix.fancy-name }}
 
     runs-on: ubuntu-latest
 
@@ -85,7 +86,7 @@ jobs:
           platform-url: ${{ matrix.platform-url }}
           required-libraries: ${{ matrix.required-libraries }}
           build-properties: ${{ toJson(matrix.build-properties) }}
-          sketch-names: ${{ env.PROJECT_DIR }}
+          sketch-names: ${{ env.SKETCH_NAME }}
           #platform-default-url: ${{ env.PLATFORM_DEFAULT_URL }}
           #sketches-exclude: ${{ matrix.sketches-exclude }}
 

@@ -2,7 +2,7 @@ name: IDFBuild
 
 env:
   REPO_URL: https://github.com/espressif/esp-idf
-  PROJECT_DIR: examples/Test/CI
+  PROJECT_DIR: examples/Test/build_test
 
 on:
   push:

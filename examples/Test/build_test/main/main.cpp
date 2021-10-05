@@ -8,7 +8,7 @@
 
 #include <LovyanGFX.hpp>
 
-#if defined ARDUINO_ESP32C3_DEV
+#if defined DUMMY_DISPLAY
   // AUTODETECT will fail, so let's build a dummy object
   // with arbitraty display for the sakes of testing
   class LGFX : public lgfx::LGFX_Device
