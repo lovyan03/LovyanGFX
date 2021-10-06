@@ -1,0 +1,4 @@
+.pio
+sdkconfig*
+!sdkconfig.defaults
+build

@@ -1,0 +1,92 @@
+name: IDFBuild
+
+env:
+  REPO_URL: https://github.com/espressif/esp-idf
+  PROJECT_DIR: examples/Test/build_test
+
+on:
+  push:
+    paths:
+    - '**.ino'
+    - '**.cpp'
+    - '**.hpp'
+    - '**.h'
+    - '**.c'
+    - '**IDFBuild.yml'
+  pull_request:
+
+jobs:
+  build:
+    name: idf ${{ matrix.idf-version }}@${{ matrix.idf-board }}>esp-idf_graphicstest
+
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+
+        esp-idf-fqbn:
+          - esp32@v4.1
+          - esp32@v4.2
+          - esp32@v4.3.1
+          - esp32s2@v4.3.1
+
+        include:
+          - esp-idf-fqbn: esp32@v4.1
+            idf-board: esp32
+            idf-version: v4.1
+          - esp-idf-fqbn: esp32@v4.2
+            idf-board: esp32
+            idf-version: v4.2
+          - esp-idf-fqbn: esp32@v4.3.1
+            idf-board: esp32
+            idf-version: v4.3.1
+          - esp-idf-fqbn: esp32s2@v4.3.1
+            idf-board: esp32s2
+            idf-version: v4.3.1
+
+      fail-fast: false
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Cache pip for ${{ matrix.esp-idf-fqbn }}
+        uses: actions/cache@v2
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ matrix.idf-version }}-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Cache espressif tools for ${{ matrix.esp-idf-fqbn }}
+        uses: actions/cache@v2
+        id: espressif
+        with:
+          path: |
+            ~/.espressif
+          key: ${{ runner.os }}-espressif-${{ matrix.idf-version }}-${{ hashFiles('**/lockfiles') }}
+
+      - name: Cache esp-idf for ${{ matrix.esp-idf-fqbn }}
+        id: cache-idf
+        uses: actions/cache@v2
+        with:
+          path: ~/esp/esp-idf
+          key: ${{ runner.os }}-idf-${{ matrix.idf-version }}-${{ hashFiles('**/lockfiles') }}
+
+      - name: Get/Check IDF ${{ matrix.esp-idf-fqbn }}
+        run: |
+          mkdir -p ~/esp
+          cd ~/esp
+          if [ ! -d "./esp-idf/" ]; then git clone -b ${{ matrix.idf-version }} --recursive $REPO_URL esp-idf; fi
+          cd ~/esp/esp-idf
+          if [ ! -d "~/.espressif" ]; then ./install.sh; fi
+
+      - name: Build example for ${{ matrix.esp-idf-fqbn }}
+        run: |
+          source ~/esp/esp-idf/export.sh
+          cd ${{ env.PROJECT_DIR }}
+          idf.py set-target ${{ matrix.idf-board }}
+          idf.py build
+
