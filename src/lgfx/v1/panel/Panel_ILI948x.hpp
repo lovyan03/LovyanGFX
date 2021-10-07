@@ -65,9 +65,9 @@ namespace lgfx
       static constexpr uint8_t list0[] =
       {
           CMD_SLPOUT , 0+CMD_INIT_DELAY, 120,    // Exit sleep mode
-          CMD_PWSET  , 3, 0x07, 0x40, 0x1D,
-          CMD_VMCTR  , 3, 0x00, 0x18, 0x13,
-          CMD_PWSETN , 2, 0x01, 0x11,
+          CMD_PWSET  , 3, 0x07, 0x42, 0x18,
+          CMD_VMCTR  , 3, 0x00, 0x07, 0x10,
+          CMD_PWSETN , 2, 0x01, 0x02,
           CMD_PNLDRV , 5, 0x10, 0x3B, 0x00, 0x02, 0x11,
           CMD_FRMCTR , 1, 0x03,
           CMD_GMCTR  ,12, 0x00, 0x44, 0x06, 0x44, 0x0A, 0x08,
