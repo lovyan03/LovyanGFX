@@ -11,8 +11,9 @@
 
 #if defined ARDUINO
  #include <SPI.h>
- #include <esp32-hal-ledc.h>
  #include <Wire.h>
+ #include <esp32-hal-ledc.h>
+ #include <esp32-hal-i2c.h>
 #else
  #include <driver/ledc.h>
  #include <driver/spi_master.h>
