@@ -94,16 +94,24 @@ namespace lgfx
     return _inited;
   }
 
+  static void gpio_reset(size_t pin)
+  {
+    if (pin >= GPIO_NUM_MAX) return;
+    gpio_reset_pin( (gpio_num_t)pin);
+    gpio_matrix_out((gpio_num_t)pin, 0x100, 0, 0);
+    gpio_matrix_in( (gpio_num_t)pin, 0x100, 0   );
+  }
+
   void Bus_SPI::release(void)
   {
 //ESP_LOGI("LGFX","Bus_SPI::release");
-    pinMode(_cfg.pin_dc  , pin_mode_t::input);
-    pinMode(_cfg.pin_mosi, pin_mode_t::input);
-    pinMode(_cfg.pin_miso, pin_mode_t::input);
-    pinMode(_cfg.pin_sclk, pin_mode_t::input);
     if (!_inited) return;
     _inited = false;
     spi::release(_cfg.spi_host);
+    gpio_reset(_cfg.pin_dc  );
+    gpio_reset(_cfg.pin_mosi);
+    gpio_reset(_cfg.pin_miso);
+    gpio_reset(_cfg.pin_sclk);
   }
 
   void Bus_SPI::beginTransaction(void)
