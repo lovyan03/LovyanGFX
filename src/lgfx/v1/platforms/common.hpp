@@ -55,6 +55,8 @@ Contributors:
 
 #endif
 
+#include "../../utility/result.hpp"
+
 namespace lgfx
 {
  inline namespace v1

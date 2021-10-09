@@ -1,0 +1,31 @@
+name: ArduinoCIBuild
+on:
+  push:
+    branches:
+      - develop
+  pull_request:
+    branches:
+      - develop
+
+jobs:
+
+  build:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v2
+
+      - name: install python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.8'
+
+      - name: install platformio
+        run: |
+          pip install platformio==5.0.3
+
+      - name: perform chmod
+        run: chmod +x ./.github/scripts/ci-compile
+
+      - name: build examples
+        run: ./.github/scripts/ci-compile

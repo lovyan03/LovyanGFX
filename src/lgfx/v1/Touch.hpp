@@ -56,7 +56,6 @@ namespace lgfx
           int16_t pin_sclk;
           int16_t pin_mosi;
           int16_t pin_miso;
-          int16_t pin_cs;
         };
         struct
         {
@@ -66,6 +65,7 @@ namespace lgfx
           int16_t i2c_addr;
         };
       };
+      int16_t pin_cs = -1;
     };
 
     virtual ~ITouch(void) = default;

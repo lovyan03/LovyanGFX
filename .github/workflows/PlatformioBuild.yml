@@ -1,0 +1,79 @@
+name: PlatformIOBuild
+
+env:
+  PROJECT_DIR: examples/Test/build_test
+
+on:
+  push:
+    paths:
+    - '**.ino'
+    - '**.cpp'
+    - '**.hpp'
+    - '**.h'
+    - '**.c'
+    - '**PlatformioBuild.yml'
+  pull_request:
+
+jobs:
+  build:
+    name: ${{ matrix.pio-env }}
+
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+
+        pio-env:
+          - esp8266
+          - esp32
+          - esp32-s2
+          - m5stick-c
+          - m5stack-core-esp32
+          - m5stack-core2
+          - seeed_wio_terminal
+          - adafruit_pybadge_m4
+          #- m5stack-fire
+          #- odroid_esp32
+
+        include:
+          - pio-env: esp8266
+          - pio-env: esp32
+          - pio-env: esp32-s2
+          - pio-env: m5stick-c
+          - pio-env: m5stack-core2
+          - pio-env: m5stack-core-esp32
+          - pio-env: seeed_wio_terminal
+          - pio-env: adafruit_pybadge_m4
+          #- pio-env: m5stack-fire
+          #- pio-env: odroid_esp32
+
+      fail-fast: false
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Cache pip
+        uses: actions/cache@v2
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+      - name: Cache PlatformIO
+        uses: actions/cache@v2
+        with:
+          path: ~/.platformio
+          key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
+      - name: Set up Python
+        uses: actions/setup-python@v2
+
+      - name: Install PlatformIO
+        run: |
+          python -m pip install --upgrade pip
+          pip install --upgrade platformio
+
+      - name: Run PlatformIO
+        run: cd ${{ env.PROJECT_DIR }} && pio run -e ${{ matrix.pio-env }}

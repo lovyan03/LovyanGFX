@@ -303,7 +303,7 @@ namespace lgfx
       }
     };
 
-    static constexpr sercom_data_t sercom_data[] = {
+    static const sercom_data_t sercom_data[] = {
       { (uintptr_t)SERCOM0, SERCOM0_GCLK_ID_CORE, SERCOM0_GCLK_ID_SLOW, SERCOM0_DMAC_ID_TX, SERCOM0_DMAC_ID_RX },
       { (uintptr_t)SERCOM1, SERCOM1_GCLK_ID_CORE, SERCOM1_GCLK_ID_SLOW, SERCOM1_DMAC_ID_TX, SERCOM1_DMAC_ID_RX },
       { (uintptr_t)SERCOM2, SERCOM2_GCLK_ID_CORE, SERCOM2_GCLK_ID_SLOW, SERCOM2_DMAC_ID_TX, SERCOM2_DMAC_ID_RX },

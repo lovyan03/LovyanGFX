@@ -56,6 +56,8 @@ namespace lgfx
     , board_PyBadge
     , board_M5Tough
     , board_OpenCV
+    , board_M5Station
+    , board_ESPboy
     };
   }
   using namespace boards;
@@ -78,6 +80,10 @@ namespace lgfx
   #include "LGFX_AutoDetect_ESP32.hpp"
 
  #endif
+
+#elif defined (ESP8266)
+
+ #include "LGFX_AutoDetect_ESP8266.hpp"
 
 #elif defined (__SAMD21__)
 

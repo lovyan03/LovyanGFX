@@ -11,8 +11,9 @@
 
 #if defined ARDUINO
  #include <SPI.h>
- #include <esp32-hal-ledc.h>
  #include <Wire.h>
+ #include <esp32-hal-ledc.h>
+ #include <esp32-hal-i2c.h>
 #else
  #include <driver/ledc.h>
  #include <driver/spi_master.h>
@@ -376,7 +377,10 @@ namespace lgfx
     {
 #if defined (ARDUINO) // Arduino ESP32
       auto &twowire = (i2c_port) ? Wire1 : Wire;
-      return 0 == twowire.writeTransmission(addr, const_cast<uint8_t*>(data), len);
+
+      twowire.beginTransmission(addr);
+      twowire.write(data, len);
+      return 0 == twowire.endTransmission();
 
 #else // ESP-IDF
       auto cmd = i2c_cmd_link_create();
@@ -396,8 +400,15 @@ namespace lgfx
     {
 #if defined (ARDUINO) // Arduino ESP32
       auto &twowire = (i2c_port) ? Wire1 : Wire;
-      if (0 != twowire.writeTransmission(addr, const_cast<uint8_t*>(writedata), writelen)) return false;
-      return (0 == twowire.readTransmission(addr, readdata, readlen));
+      twowire.beginTransmission(addr);
+      twowire.write(writedata, writelen);
+      if (0 != twowire.endTransmission(false))
+      {
+        return false;
+      }
+      twowire.requestFrom(addr, readlen, true);
+      twowire.readBytes(readdata, readlen);
+      return true;
 #else // ESP-IDF
       auto cmd = i2c_cmd_link_create();
       i2c_master_start(cmd);
@@ -417,26 +428,7 @@ namespace lgfx
 
     bool readRegister(int i2c_port, uint16_t addr, uint8_t reg, uint8_t *data, uint8_t len)
     {
-#if defined (ARDUINO) // Arduino ESP32
-      auto &twowire = (i2c_port) ? Wire1 : Wire;
-      uint8_t tmp[2] = { reg };
-      if (0 != twowire.writeTransmission(addr, tmp, 1)) return false;
-      return (0 == twowire.readTransmission(addr, data, len));
-#else // ESP-IDF
-      auto cmd = i2c_cmd_link_create();
-      i2c_master_start(cmd);
-      i2c_master_write_byte(cmd, (addr << 1) | I2C_MASTER_WRITE, true);
-      i2c_master_write_byte(cmd, reg, true);
-      i2c_master_start(cmd);
-      i2c_master_write_byte(cmd, (addr << 1) | I2C_MASTER_READ, true);
-      i2c_master_read(cmd, data, len, I2C_MASTER_LAST_NACK);
-      i2c_master_stop(cmd);
-
-      auto result = i2c_master_cmd_begin(static_cast<i2c_port_t>(i2c_port), cmd, 10/portTICK_PERIOD_MS);
-      i2c_cmd_link_delete(cmd);
-
-      return result == ESP_OK;
-#endif
+      return writeReadBytes(i2c_port, addr, &reg, 1, data, len);
     }
 
     bool writeRegister8(int i2c_port, uint16_t addr, uint8_t reg, uint8_t data, uint8_t mask)

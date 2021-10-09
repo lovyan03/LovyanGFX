@@ -1,0 +1,17 @@
+set -eou pipefail
+
+# List of examples that will be compiled by default
+EXAMPLES=${EXAMPLES:-"HowToUse/1_simple_use"}
+
+# list of boards to compile for by default
+BOARDS=${BOARDS:-"m5stick-c seeed_wio_terminal adafruit_pybadge_m4 d1_mini"}
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+BOARD_OPTS=$(for b in $BOARDS; do echo -n "--board $b "; done)
+
+cd "$DIR/../.."
+
+for d in $EXAMPLES ; do 
+  echo "*** building example $d for $BOARDS ***"
+  pio ci $BOARD_OPTS --lib=src "examples/$d/"*ino
+done
