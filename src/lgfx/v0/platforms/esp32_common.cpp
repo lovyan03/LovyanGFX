@@ -380,7 +380,7 @@ namespace lgfx
 
       twowire.beginTransmission(addr);
       twowire.write(data, len);
-      return I2C_ERROR_OK == twowire.endTransmission();
+      return 0 == twowire.endTransmission();
 
 #else // ESP-IDF
       auto cmd = i2c_cmd_link_create();
@@ -402,7 +402,7 @@ namespace lgfx
       auto &twowire = (i2c_port) ? Wire1 : Wire;
       twowire.beginTransmission(addr);
       twowire.write(writedata, writelen);
-      if (I2C_ERROR_OK != twowire.endTransmission(false))
+      if (0 != twowire.endTransmission(false))
       {
         return false;
       }
