@@ -22,8 +22,6 @@ Contributors:
 #include "Bus_Parallel8.hpp"
 #include "../../misc/pixelcopy.hpp"
 
-#include <esp_log.h>
-
 namespace lgfx
 {
  inline namespace v1
@@ -34,16 +32,17 @@ namespace lgfx
   {
     _cfg = cfg;
 
-    for (int c = 0; c<256; c++)                 
+    for (int c = 0; c<256; c++)
     {
-      _gpio_tbl[c] = 0;
+      uint32_t val = 0;
       for (int i = 0; i < 8; ++i)
       {
         if (c & (1 << i))
         {
-          _gpio_tbl[c] |= 1ul << _cfg.pin_data[i];
+          val |= 1ul << _cfg.pin_data[i];
         }
       }
+      _gpio_tbl[c] = val;
     }
     _gpio_wr_mask = (1ul << (cfg.pin_wr & 31));
     _gpio_low_mask = _gpio_tbl[255] | _gpio_wr_mask;
@@ -90,20 +89,59 @@ namespace lgfx
 
   bool Bus_Parallel8::writeCommand(uint32_t data, uint_fast8_t bit_length)
   {
-    writeBytes((uint8_t*)&data, bit_length >> 3, false, true);
+    auto low  = _gpio_reg_dc[0];
+    auto high = _gpio_reg_dc[1];
+    uint32_t lmask = _mask_reg_dc | _gpio_low_mask;
+    size_t bytes = bit_length >> 3;
+    do
+    {
+      *low  = lmask;
+      *high = _gpio_tbl[data & 0xFF];
+      data >>= 8;
+      *high = _gpio_wr_mask;
+    } while (--bytes);
     return true;
   }
 
   void Bus_Parallel8::writeData(uint32_t data, uint_fast8_t bit_length)
   {
-    writeBytes((uint8_t*)&data, bit_length >> 3, true, true);
+    auto low  = _gpio_reg_dc[0];
+    auto high = _gpio_reg_dc[1];
+    *high = _mask_reg_dc;
+    uint32_t lmask = _gpio_low_mask;
+    size_t bytes = bit_length >> 3;
+    do
+    {
+      *low  = lmask;
+      *high = _gpio_tbl[data & 0xFF];
+      data >>= 8;
+      *high = _gpio_wr_mask;
+    } while (--bytes);
   }
 
   void Bus_Parallel8::writeDataRepeat(uint32_t color_raw, uint_fast8_t bit_length, uint32_t length)
   {
+    auto low  = _gpio_reg_dc[0];
+    auto high = _gpio_reg_dc[1];
+    *high = _mask_reg_dc;
+    size_t bytes = bit_length >> 3;
+    uint32_t dat[4];
+    for (size_t i = 0; i < bytes; ++i)
+    {
+      dat[i] = _gpio_tbl[color_raw & 0xFF];
+      color_raw >>= 8;
+    }
+    auto clear = _gpio_low_mask;
+    auto wr = _gpio_wr_mask;
     do
     {
-      writeBytes((uint8_t*)&color_raw, bit_length >> 3, true, true);
+      size_t i = 0;
+      do
+      {
+        *low  = clear;
+        *high = dat[i];
+        *high = wr;
+      } while (++i < bytes);
     } while (--length);
   }
 
@@ -133,14 +171,16 @@ namespace lgfx
     *_gpio_reg_dc[dc] = _mask_reg_dc;
     auto low  = _gpio_reg_dc[0];
     auto high = _gpio_reg_dc[1];
-    auto lm = _gpio_low_mask;
-    auto hm = _gpio_wr_mask;
+    auto clear = _gpio_low_mask;
+    auto wr = _gpio_wr_mask;
+    auto tbl = _gpio_tbl;
+    size_t i = 0;
     do
     {
-      *low  = lm;
-      *high = _gpio_tbl[*data++];
-      *high = hm;
-    } while (--length);
+      *low  = clear;
+      *high = tbl[data[i]];
+      *high = wr;
+    } while (++i < length);
   }
 
   void Bus_Parallel8::beginRead(void)
@@ -197,12 +237,12 @@ namespace lgfx
     {
       in32[0] = GPIO.in.val;
       *reg_rd_h = mask_rd;
+      *reg_rd_l = mask_rd;
       val =              (1 & (in[(idx >>  0) & 7] >> ((mask >>  0) & 7)));
       val = (val << 1) + (1 & (in[(idx >>  3) & 7] >> ((mask >>  3) & 7)));
       val = (val << 1) + (1 & (in[(idx >>  6) & 7] >> ((mask >>  6) & 7)));
       val = (val << 1) + (1 & (in[(idx >>  9) & 7] >> ((mask >>  9) & 7)));
       val = (val << 1) + (1 & (in[(idx >> 12) & 7] >> ((mask >> 12) & 7)));
-      *reg_rd_l = mask_rd;
       val = (val << 1) + (1 & (in[(idx >> 15) & 7] >> ((mask >> 15) & 7)));
       val = (val << 1) + (1 & (in[(idx >> 18) & 7] >> ((mask >> 18) & 7)));
       val = (val << 1) + (1 & (in[(idx >> 21) & 7] >> ((mask >> 21) & 7)));
