@@ -18,6 +18,8 @@ Contributors:
 #pragma once
 
 #include "Panel_Device.hpp"
+#include "../platforms/common.hpp"
+#include "../platforms/device.hpp"
 
 namespace lgfx
 {
@@ -25,13 +27,20 @@ namespace lgfx
  {
 //----------------------------------------------------------------------------
 
-  struct Panel_M5UnitLCD : public Panel_Device
+  struct Panel_M5HDMI : public Panel_Device
   {
   public:
-    Panel_M5UnitLCD(void)
+    Panel_M5HDMI(void)
     {
-      _cfg.memory_width  = _cfg.panel_width = 135;
-      _cfg.memory_height = _cfg.panel_height = 240;
+      _cfg.memory_width  = _cfg.panel_width = 1280;
+      _cfg.memory_height = _cfg.panel_height = 720;
+      _cfg.dummy_read_pixel =     0;
+      _cfg.dummy_read_bits  =     0;
+      _cfg.readable         =  true;
+      _cfg.invert           = false;
+      _cfg.rgb_order        = false;
+      _cfg.dlen_16bit       = false;
+      _cfg.bus_shared       =  true;
     }
 
     bool init(bool use_reset) override;
@@ -65,13 +74,11 @@ namespace lgfx
     void readRect(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, void* dst, pixelcopy_t* param) override;
 
     static constexpr uint8_t CMD_NOP          = 0x00; // 1Byte 何もしない;
-    static constexpr uint8_t CMD_READ_ID      = 0x04; // 1Byte ID読出し  スレーブからの回答は4Byte (0x77 0x89 0x00 0x?? (最後の1バイトはファームウェアバージョン));
-    static constexpr uint8_t CMD_READ_BUFCOUNT= 0x09; // 1Byte コマンドバッファの空き取得。回答は1Byte、受信可能なコマンド数が返される。数字が小さいほどバッファの余裕がない。;
-
-//  static constexpr uint8_t CMD_SCALING      = 0x18; // 表示倍率 [1]=X [2]=Y;
-
-    static constexpr uint8_t CMD_INVOFF       = 0x20; // 1Byte 色反転を解除;
-    static constexpr uint8_t CMD_INVON        = 0x21; // 1Byte 色反転を有効;
+    static constexpr uint8_t CMD_READ_ID      = 0x04; // 1Byte ID読出し  スレーブからの回答は4Byte ([0]=0x48 [1]=0x44 [2]=メジャーバージョン [3]=マイナーバージョン);
+//  static constexpr uint8_t CMD_READ_BUFCOUNT= 0x09; // 1Byte コマンドバッファの空き取得。回答は1Byte、受信可能なコマンド数が返される。数字が小さいほどバッファの余裕がない。;
+    static constexpr uint8_t CMD_SETSCALE     = 0x18; // 4Byte 表示倍率設定 [1]=横倍率 [2]=縦倍率 [3]=チェックサム ( ~([0]+[1]+[2]) );
+//  static constexpr uint8_t CMD_INVOFF       = 0x20; // 1Byte 色反転を解除;
+//  static constexpr uint8_t CMD_INVON        = 0x21; // 1Byte 色反転を有効;
     static constexpr uint8_t CMD_BRIGHTNESS   = 0x22; // 2Byte バックライト data[1]==明るさ 0~255
     static constexpr uint8_t CMD_COPYRECT     = 0x23; // 7Byte 矩形範囲コピー [1]==XS [2]==YS [3]==XE [4]==YE [5]==DST_X [6]==DST_Y
     static constexpr uint8_t CMD_CASET        = 0x2A; // 3Byte X方向の範囲選択 data[1]==XS  data[2]==XE
@@ -131,13 +138,103 @@ namespace lgfx
     static constexpr uint8_t UPDATE_RESULT_OK     = 0xF1;
     static constexpr uint8_t UPDATE_RESULT_BUSY   = 0xFF;
 
+
+
+    class HDMI_Trans
+    {
+    public:
+      typedef lgfx::Bus_I2C::config_t config_t;
+    private:
+      config_t HDMI_Trans_config;
+
+      std::uint8_t readRegister(std::uint8_t register_address)
+      {
+        std::uint8_t buffer;
+        lgfx::i2c::transactionWriteRead(this->HDMI_Trans_config.i2c_port, this->HDMI_Trans_config.i2c_addr, &register_address, 1, &buffer, 1);
+        return buffer;
+      }
+      std::uint16_t readRegister16(std::uint8_t register_address)
+      {
+        std::uint8_t buffer[2];
+        lgfx::i2c::transactionWriteRead(this->HDMI_Trans_config.i2c_port, this->HDMI_Trans_config.i2c_addr, &register_address, 1, buffer, 2);
+        return (static_cast<std::uint16_t>(buffer[0]) << 8) | buffer[1];
+      }
+      bool writeRegister(std::uint8_t register_address, std::uint8_t value);
+      bool writeRegisterSet(const uint8_t *reg_value_pair, size_t len);
+
+    public:
+
+      struct ChipID
+      {
+        std::uint8_t id[3];
+      };
+
+      HDMI_Trans(const lgfx::Bus_I2C::config_t& i2c_config) : HDMI_Trans_config(i2c_config) {}
+      HDMI_Trans(const HDMI_Trans&) = delete;
+      HDMI_Trans(HDMI_Trans&&) = delete;
+      ChipID readChipID(void);
+      void reset(void);
+      bool init(void);
+    };
+
+    class LOAD_FPGA
+    {
+    public:
+      LOAD_FPGA(uint_fast8_t _TCK_PIN, uint_fast8_t, uint_fast8_t _TDO_PIN, uint_fast8_t);
+
+    private:
+      enum TAP_TypeDef
+      {
+        TAP_RESET,
+
+        TAP_IDLE,
+        TAP_DRSELECT,
+        TAP_DRCAPTURE,
+        TAP_DRSHIFT,
+        TAP_DREXIT1,
+        TAP_DRPAUSE,
+        TAP_DREXIT2,
+        TAP_DRUPDATE,
+
+        TAP_IRSELECT,
+        TAP_IRCAPTURE,
+        TAP_IRSHIFT,
+        TAP_IREXIT1,
+        TAP_IRPAUSE,
+        TAP_IREXIT2,
+        TAP_IRUPDATE,
+        TAP_UNKNOWN
+      };
+
+      volatile uint32_t *_tdi_reg[2];
+      volatile uint32_t *_tck_reg[2];
+      volatile uint32_t *_tms_reg[2];
+      uint32_t TCK_MASK;
+      uint32_t TDI_MASK;
+      uint32_t TMS_MASK;
+      uint8_t TDO_PIN;
+
+      void JTAG_MoveTap(TAP_TypeDef TAP_From, TAP_TypeDef TAP_To);
+      void JTAG_Write(uint_fast8_t din, bool tms, bool LSB, size_t len = 1);
+      void JTAG_WriteInst(uint8_t inst);
+      void JTAG_TapMove_Inner(bool tms_value, size_t clock_count);
+      void JTAG_DUMMY_CLOCK(uint32_t msec);
+      uint32_t JTAG_ReadStatus();
+    };
+
+    const HDMI_Trans::config_t& config_transmitter(void) const { return _HDMI_Trans_config; }
+    void config_transmitter(const HDMI_Trans::config_t& cfg) { _HDMI_Trans_config = cfg; }
+
   protected:
+    HDMI_Trans::config_t _HDMI_Trans_config;
   
     uint32_t _raw_color = ~0u;
     uint32_t _xpos;
     uint32_t _ypos;
     uint32_t _last_cmd;
     uint32_t _buff_free_count;
+    uint32_t _last_us = 0;
+    uint32_t _need_delay = 0;
 
     void _set_window(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye);
     void _fill_rect(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, uint_fast8_t bytes);
