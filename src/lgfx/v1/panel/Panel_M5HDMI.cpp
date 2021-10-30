@@ -28,6 +28,13 @@ Contributors:
 
 #include <esp_log.h>
 
+#if __has_include(<alloca.h>)
+#include <alloca.h>
+#else
+#include <malloc.h>
+#define alloca _alloca
+#endif
+
 #define TAG "M5HDMI"
 
 namespace lgfx
@@ -116,7 +123,6 @@ namespace lgfx
     JTAG_DUMMY_CLOCK(4);
 
     ESP_LOGI(TAG, "Starting Writing to SRAM...");
-    uint32_t debug_timming = lgfx::millis();
     JTAG_WriteInst(ISC_ENABLE);
     JTAG_WriteInst(FAST_PROGRAM);
     
@@ -458,10 +464,14 @@ namespace lgfx
       {
         return true;
       }
-      _bus->wait();
-      cs_control(true);
       _last_cmd = cmd;
+
+      _bus->beginRead();
+      while (_bus->readData(8) == 0x00);
+      cs_control(true);
+      _bus->endRead();
       cs_control(false);
+
       return false;
     }
 
@@ -529,7 +539,6 @@ namespace lgfx
 
   void Panel_M5HDMI::writeBlock(uint32_t rawcolor, uint32_t length)
   {
-//*
     do
     {
       uint32_t h = 1;
@@ -544,29 +553,6 @@ namespace lgfx
       if (_ye < (_ypos += h)) { _ypos = _ys; }
       length -= w * h;
     } while (length);
-/*/
-    _raw_color = rawcolor;
-    size_t bytes = (rawcolor == 0) ? 1 : (_write_bits >> 3);
-    auto buf = (uint8_t*)alloca((length >> 8) * (bytes + 1) + 2);
-    buf[0] = CMD_WRITE_RLE | bytes;
-    size_t idx = _check_repeat(buf[0]) ? 0 : 1;
-    //_check_repeat(buf[0]);
-    //size_t idx = 1;
-    do
-    {
-      uint32_t len = (length < 0x100)
-                        ? length : 0xFF;
-      buf[idx++] = len;
-      auto color = rawcolor;
-      for (int i = bytes; i > 0; --i)
-      {
-        buf[idx++] = color;
-        color >>= 8;
-      }
-      length -= len;
-    } while (length);
-    _bus->writeBytes(buf, idx, false, true);
-//*/
   }
 
   void Panel_M5HDMI::drawPixelPreclipped(uint_fast16_t x, uint_fast16_t y, uint32_t rawcolor)
@@ -641,9 +627,10 @@ namespace lgfx
   {
     _xpos = xs;
     _ypos = ys;
-    startWrite();
-    _set_window(xs, ys, xe, ye);
-    endWrite();
+    _xs = xs;
+    _ys = ys;
+    _xe = xe;
+    _ye = ye;
   }
   void Panel_M5HDMI::_set_window(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye)
   {
@@ -655,102 +642,203 @@ namespace lgfx
 
     cmd_tmp_t buf[2];
     size_t idx = 0;
-    if (xs != _xs || xe != _xe)
+    // if (xs != _xs || xe != _xe)
     {
-      _xs = xs;
-      _xe = xe;
+      // _xs = xs;
+      // _xe = xe;
       buf[idx].cmd = CMD_CASET;
       buf[idx].data = ((xs & 0xFF) << 8 | xs >> 8) | ((xe & 0xFF) << 8 | xe >> 8) << 16;
       ++idx;
     }
-    if (ys != _ys || ye != _ye)
+    // if (ys != _ys || ye != _ye)
     {
-      _ys = ys;
-      _ye = ye;
+      // _ys = ys;
+      // _ye = ye;
       buf[idx].cmd = CMD_RASET;
       buf[idx].data = ((ys & 0xFF) << 8 | ys >> 8) | ((ye & 0xFF) << 8 | ye >> 8) << 16;
       ++idx;
     }
-    if (idx)
+    // if (idx)
     {
       _check_repeat();
       _bus->writeBytes((uint8_t*)buf, idx * sizeof(cmd_tmp_t), false, false);
     }
   }
 
-  void Panel_M5HDMI::writePixels(pixelcopy_t* param, uint32_t len, bool use_dma)
+  void Panel_M5HDMI::_rotate_pixelcopy(uint_fast16_t& x, uint_fast16_t& y, uint_fast16_t& w, uint_fast16_t& h, pixelcopy_t* param, uint32_t& nextx, uint32_t& nexty)
   {
-    _raw_color = ~0u;
-    auto bytes = _write_bits >> 3;
-    uint8_t cmd = CMD_WRITE_RAW | bytes;
-    if (!_check_repeat(cmd))
+    uint32_t addx = param->src_x32_add;
+    uint32_t addy = param->src_y32_add;
+    uint_fast8_t r = _internal_rotation;
+    uint_fast8_t bitr = 1u << r;
+    // if (bitr & 0b10011100)
+    // {
+    //   nextx = -nextx;
+    // }
+    if (bitr & 0b10010110) // case 1:2:4:7:
     {
-// ESP_LOGI("DEBUG","CMD:%02x", cmd);
-      _bus->writeCommand(cmd, 8);
+      param->src_y32 += nexty * (h - 1);
+      nexty = -(int32_t)nexty;
+      y = _height - (y + h);
     }
-
-    if (param->no_convert)
+    if (r & 2)
     {
-// ESP_LOGI("DEBUG","WB:len:%d", len);
-      _bus->writeBytes(reinterpret_cast<const uint8_t*>(param->src_data), len * bytes, true, use_dma);
+      param->src_x32 += addx * (w - 1);
+      param->src_y32 += addy * (w - 1);
+      addx = -(int32_t)addx;
+      addy = -(int32_t)addy;
+      x = _width  - (x + w);
+    }
+    if (r & 1)
+    {
+      std::swap(x, y);
+      std::swap(w, h);
+      std::swap(nextx, addx);
+      std::swap(nexty, addy);
+    }
+    param->src_x32_add = addx;
+    param->src_y32_add = addy;
+  }
+
+  void Panel_M5HDMI::writePixels(pixelcopy_t* param, uint32_t length, bool use_dma)
+  {
+    uint_fast16_t xs = _xs;
+    uint_fast16_t xe = _xe;
+    uint_fast16_t ys = _ys;
+    uint_fast16_t ye = _ye;
+    uint_fast16_t x = _xpos;
+    uint_fast16_t y = _ypos;
+    const size_t bits = _write_bits;
+    auto bytes = (_write_bits >> 3);
+    uint32_t cmd = CMD_WRITE_RAW + bytes;
+
+    uint_fast8_t r = _internal_rotation;
+
+    int_fast16_t ax = 1;
+    int_fast16_t ay = 1;
+    if ((1u << r) & 0b10010110) { y = _height - (y + 1); ys = _height - (ys + 1); ye = _height - (ye + 1); ay = -1; }
+    if (r & 2)
+    {
+      auto linebuf = (uint8_t*)alloca((xe - xs + 1) * bytes);
+
+      pixelcopy_t pc((void*)linebuf, _write_depth, _write_depth);
+      pc.src_x32_add = -1 << pixelcopy_t::FP_SCALE;
+
+      x = _width  - (x + 1);
+      xs = _width - (xs + 1);
+      xe = _width  - (xe + 1);
+      ax = -1;
+      uint_fast16_t linelength;
+      do
+      {
+        linelength = std::min<uint_fast16_t>(x - xe + 1, length);
+        param->fp_copy(linebuf, 0, linelength, param);
+        pc.src_x32 = (linelength - 1) << pixelcopy_t::FP_SCALE;
+        if (r & 1)
+        {
+          _set_window(y, x - linelength + 1, y, x);
+        }
+        else
+        {
+          _set_window(x - linelength + 1, y, x, y);
+        }
+        _last_cmd = cmd;
+        _bus->writeCommand(cmd, 8);
+        _bus->writePixels(&pc, linelength);
+        if ((x -= linelength) < xe)
+        {
+          x = xs;
+          y = (y != ye) ? (y + ay) : ys;
+        }
+      } while (length -= linelength);
+      if ((1u << r) & 0b10010110) { y = _height - (y + 1); }
+      _ypos = y;
+      _xpos = _width - (x + 1);
     }
     else
     {
-// ESP_LOGI("DEBUG","WP:len:%d", len);
-      _bus->writePixels(param, len);
+      uint_fast16_t linelength;
+      do
+      {
+        linelength = std::min<uint_fast16_t>(xe - x + 1, length);
+        if (r & 1)
+        {
+          _set_window(y, x, y, x + linelength - 1);
+        }
+        else
+        {
+          _set_window(x, y, x + linelength - 1, y);
+        }
+        _last_cmd = cmd;
+        _bus->writeCommand(cmd, 8);
+        _bus->writePixels(param, linelength);
+
+        if ((x += linelength) > xe)
+        {
+          x = xs;
+          y = (y != ye) ? (y + ay) : ys;
+        }
+      } while (length -= linelength);
+      if ((1u << r) & 0b10010110) { y = _height - (y + 1); }
+      _ypos = y;
+      _xpos = x;
     }
-
-/*
-    auto bytes = _write_bits >> 3;
-    uint32_t wb = length * bytes;
-    auto dmabuf = _bus->getDMABuffer(wb + (wb >> 7) + 1);
-    dmabuf[0] = CMD_WRITE_RAW | _write_bits >> 3;
-    size_t idx = _check_repeat(dmabuf[0]) ? 0 : 1;
-
-    auto buf = &dmabuf[idx];
-    param->fp_copy(buf, 0, length, param);
-    size_t writelen = idx + wb;
-    _bus->writeBytes(dmabuf, writelen, false, true);
-    _raw_color = ~0u;
-//*/
   }
-//*/
-//*
+
   void Panel_M5HDMI::writeImage(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, pixelcopy_t* param, bool use_dma)
   {
+    _raw_color = ~0u;
+    uint32_t nextx = 0;
+    uint32_t nexty = 1 << pixelcopy_t::FP_SCALE;
+    auto r = _internal_rotation;
+    if (r)
+    {
+      _rotate_pixelcopy(x, y, w, h, param, nextx, nexty);
+      param->no_convert = false;
+    }
+
     uint32_t sx32 = param->src_x32;
-    auto bytes = _write_bits >> 3;
-    uint32_t y_add = 1;
+    uint32_t sy32 = param->src_y32;
+
+    auto bytes = (_write_bits >> 3) & 3;
+    uint32_t cmd = CMD_WRITE_RAW + bytes;
 
     if (param->transp == pixelcopy_t::NON_TRANSP)
     {
       _set_window(x, y, x+w-1, y+h-1);
-      if (param->src_bitwidth == w || h == 1)
-      {
-        w *= h;
-        h = 1;
-      }
-      _bus->writeCommand(CMD_WRITE_RAW | ((_write_bits >> 3) & 3), 8);
+      _bus->writeCommand(cmd, 8);
+      _last_cmd = cmd;
+
       if (param->no_convert)
       {
+        if (param->src_bitwidth == w || h == 1)
+        {
+          w *= h;
+          h = 1;
+        }
         do
         {
           uint32_t i = (param->src_x + param->src_y * param->src_bitwidth) * bytes;
           auto src = &((const uint8_t*)param->src_data)[i];
           _bus->writeBytes(src, w * bytes, false, use_dma);
-          param->src_x32 = sx32;
-          param->src_y++;
-          y += y_add;
+          param->src_x32 = (sx32 += nextx);
+          param->src_y32 = (sy32 += nexty);
         } while (--h);
       }
       else
       {
+        if (w == 1 && h > 1)
+        {
+          param->src_x32_add = nextx;
+          param->src_y32_add = nexty;
+          w = h;
+          h = 1;
+        }
         do
         {
           _bus->writePixels(param, w);
-          param->src_x32 = sx32;
-          param->src_y++;
-          y += y_add;
+          param->src_x32 = (sx32 += nextx);
+          param->src_y32 = (sy32 += nexty);
         } while (--h);
       }
     }
@@ -763,70 +851,21 @@ namespace lgfx
         while (w != (i = param->fp_skip(i, w, param)))
         {
           auto dmabuf = _bus->getDMABuffer(wb + 1);
-          dmabuf[0] = CMD_WRITE_RAW | ((_write_bits >> 3) & 3);
+          dmabuf[0] = cmd;
           auto buf = &dmabuf[1];
           int32_t len = param->fp_copy(buf, 0, w - i, param);
           _set_window(x + i, y, x + i + len - 1, y);
-          _bus->writeBytes(dmabuf, 1 + wb, false, true);
+          _last_cmd = cmd;
+          _bus->writeBytes(dmabuf, 1 + (len * bytes), false, true);
           if (w == (i += len)) break;
         }
-        param->src_x32 = sx32;
-        param->src_y++;
-        y += y_add;
+        param->src_x32 = (sx32 += nextx);
+        param->src_y32 = (sy32 += nexty);
+        y ++;
       } while (--h);
     }
-    _raw_color = ~0u;
   }
-/*/
-  void Panel_M5HDMI::writeImage(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, pixelcopy_t* param, bool use_dma)
-  {
-    (void)use_dma;
-    // _xs_raw = ~0u;
-    // _ys_raw = ~0u;
 
-    uint32_t sx32 = param->src_x32;
-    auto bytes = _write_bits >> 3;
-    uint32_t y_add = 1;
-    uint32_t cmd = CMD_WRITE_RLE | bytes;
-    bool transp = (param->transp != pixelcopy_t::NON_TRANSP);
-    if (!transp)
-    {
-      _set_window(x, y, x+w-1, y+h-1);
-    }
-    uint32_t wb = w * bytes;
-    do
-    {
-      uint32_t i = 0;
-      while (w != (i = param->fp_skip(i, w, param)))
-      {
-        auto sub = (w - i) >> 2;
-        _buff_free_count = (_buff_free_count > sub)
-                         ? (_buff_free_count - sub)
-                         : 0;
-        auto dmabuf = _bus->getDMABuffer(wb + (wb >> 7) + 128);
-        dmabuf[0] = cmd;
-        auto buf = &dmabuf[(wb >> 7) + 128];
-        int32_t len = param->fp_copy(buf, 0, w - i, param);
-        if (transp)
-        {
-          _set_window(x + i, y, x + i + len - 1, y);
-        }
-        if (!_check_repeat(cmd))
-        {
-          _bus->writeCommand(cmd, 8);
-        }
-        size_t idx = 0;
-        size_t writelen = rleEncode(&dmabuf[idx], buf, len * bytes, bytes);
-        _bus->writeBytes(dmabuf, writelen, false, true);
-        if (w == (i += len)) break;
-      }
-      param->src_x32 = sx32;
-      param->src_y++;
-      y += y_add;
-    } while (--h);
-    _raw_color = ~0u;
-  }
-//*/
   void Panel_M5HDMI::writeImageARGB(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, pixelcopy_t* param)
   {
     _set_window(x, y, x + w - 1, y);
@@ -844,6 +883,7 @@ namespace lgfx
 
   void Panel_M5HDMI::readRect(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, void* dst, pixelcopy_t* param)
   {
+/*
     startWrite();
     int retry = 4;
     do {
@@ -866,6 +906,7 @@ namespace lgfx
       _bus->endTransaction();
       _bus->beginTransaction();
     }
+//*/
   }
 
   void Panel_M5HDMI::copyRect(uint_fast16_t dst_x, uint_fast16_t dst_y, uint_fast16_t w, uint_fast16_t h, uint_fast16_t src_x, uint_fast16_t src_y)
@@ -885,11 +926,7 @@ namespace lgfx
     buf[idx++] = ye >> 8;
     buf[idx++] = ye;
 
-    if (src_y > dst_y)
-    {
-
-    }
-    else
+    if (src_y <= dst_y)
     {
       buf[idx++] = src_x >> 8;
       buf[idx++] = src_x;
@@ -917,37 +954,6 @@ namespace lgfx
     _need_delay = (w + ((16 + (w >> 4) * 40 + (w & 15)) * ((h << 2) ))) >> (src_y > dst_y ? 6 : 5);
     _last_us = lgfx::micros();
     endWrite();
-
-/*
-    uint8_t buf[16];
-    size_t idx = 0;
-    buf[idx++] = CMD_COPYRECT;
-    auto xe = src_x + w - 1;
-    auto ye = src_y + h - 1;
-
-    buf[idx++] = src_x >> 8;
-    buf[idx++] = src_x;
-
-    buf[idx++] = src_y >> 8;
-    buf[idx++] = src_y;
-
-    buf[idx++] = xe >> 8;
-    buf[idx++] = xe;
-
-    buf[idx++] = ye >> 8;
-    buf[idx++] = ye;
-
-    buf[idx++] = dst_x >> 8;
-    buf[idx++] = dst_x;
-
-    buf[idx++] = dst_y >> 8;
-    buf[idx++] = dst_y;
-
-    startWrite();
-    _check_repeat();
-    _bus->writeBytes(buf, idx, false, true);
-    endWrite();
-*/
   }
 
 //----------------------------------------------------------------------------
