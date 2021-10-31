@@ -73,11 +73,14 @@ namespace lgfx
     uint32_t readData(uint_fast8_t, uint_fast8_t) override { return 0; }
     void readRect(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, void* dst, pixelcopy_t* param) override;
 
+    void setScaling(uint_fast8_t x_scale, uint_fast8_t y_scale);
+    void setViewPort(uint_fast16_t x, uint_fast16_t y);
+
     static constexpr uint8_t CMD_NOP          = 0x00; // 1Byte 何もしない;
     static constexpr uint8_t CMD_READ_ID      = 0x04; // 1Byte ID読出し  スレーブからの回答は4Byte ([0]=0x48 [1]=0x44 [2]=メジャーバージョン [3]=マイナーバージョン);
 //  static constexpr uint8_t CMD_READ_BUFCOUNT= 0x09; // 1Byte コマンドバッファの空き取得。回答は1Byte、受信可能なコマンド数が返される。数字が小さいほどバッファの余裕がない。;
-    static constexpr uint8_t CMD_SETSCALE     = 0x18; // 4Byte 表示倍率設定 [1]=横倍率 [2]=縦倍率 [3]=チェックサム ( ~([0]+[1]+[2]) );
-    static constexpr uint8_t CMD_SETPOSITION  = 0x19; // 6Byte 表示起点座標 [1~2]=横倍率 [2]=縦倍率 [3]=チェックサム ( ~([0]+[1]+[2]) );
+    static constexpr uint8_t CMD_SCREEN_SCALING=0x18; // 8Byte 表示倍率設定 [1]=横倍率 [2]=縦倍率 [3~4]=横論理解像度 [5~6]=縦論理解像度 [7]=チェックサム ( ~([0]+[1]+[2]+[3]+[4]+[5]+[6]) );
+    static constexpr uint8_t CMD_SCREEN_ORIGIN= 0x19; // 6Byte 表示起点座標 [1~2]=横倍率 [2]=縦倍率 [3]=チェックサム ( ~([0]+[1]+[2]) );
 //  static constexpr uint8_t CMD_INVOFF       = 0x20; // 1Byte 色反転を解除;
 //  static constexpr uint8_t CMD_INVON        = 0x21; // 1Byte 色反転を有効;
 //  static constexpr uint8_t CMD_BRIGHTNESS   = 0x22; // 2Byte バックライト data[1]==明るさ 0~255

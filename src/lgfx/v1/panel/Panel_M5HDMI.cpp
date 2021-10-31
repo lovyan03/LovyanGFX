@@ -438,6 +438,12 @@ namespace lgfx
     _bus->endRead();
     endTransaction();
 
+    uint_fast8_t x_scale = _cfg.memory_width  / _cfg.panel_width;
+    uint_fast8_t y_scale = _cfg.memory_height / _cfg.panel_height;
+    if (x_scale == 0) { x_scale = 1; }
+    if (y_scale == 0) { y_scale = 1; }
+    setScaling(x_scale, y_scale);
+
     return true;
   }
 
@@ -445,7 +451,6 @@ namespace lgfx
   {
     _bus->beginTransaction();
     cs_control(false);
-    _last_cmd = 0;
   }
 
   void Panel_M5HDMI::endTransaction(void)
@@ -558,7 +563,6 @@ namespace lgfx
   void Panel_M5HDMI::drawPixelPreclipped(uint_fast16_t x, uint_fast16_t y, uint32_t rawcolor)
   {
     startWrite();
-    // _check_repeat();
     writeFillRectPreclipped(x, y, 1, 1, rawcolor);
     endWrite();
   }
@@ -634,35 +638,29 @@ namespace lgfx
   }
   void Panel_M5HDMI::_set_window(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye)
   {
-    struct __attribute__((packed)) cmd_tmp_t
+    union cmd_t
     {
-      uint8_t cmd;
-      uint32_t data;
+      uint8_t raw[10];
+      struct __attribute__((packed))
+      {
+        uint8_t cmd_x;
+        uint32_t data_x;
+        uint8_t cmd_y;
+        uint32_t data_y;
+      };
     };
 
-    cmd_tmp_t buf[2];
-    size_t idx = 0;
-    // if (xs != _xs || xe != _xe)
-    {
-      // _xs = xs;
-      // _xe = xe;
-      buf[idx].cmd = CMD_CASET;
-      buf[idx].data = ((xs & 0xFF) << 8 | xs >> 8) | ((xe & 0xFF) << 8 | xe >> 8) << 16;
-      ++idx;
-    }
-    // if (ys != _ys || ye != _ye)
-    {
-      // _ys = ys;
-      // _ye = ye;
-      buf[idx].cmd = CMD_RASET;
-      buf[idx].data = ((ys & 0xFF) << 8 | ys >> 8) | ((ye & 0xFF) << 8 | ye >> 8) << 16;
-      ++idx;
-    }
-    // if (idx)
-    {
-      _check_repeat();
-      _bus->writeBytes((uint8_t*)buf, idx * sizeof(cmd_tmp_t), false, false);
-    }
+    static constexpr uint32_t mask = 0xFF00FF;
+
+    cmd_t cmd;
+    cmd.cmd_x = CMD_CASET;
+    cmd.cmd_y = CMD_RASET;
+    xs += _cfg.offset_x + ((xe + _cfg.offset_x) << 16);
+    cmd.data_x = ((xs >> 8) & mask) + ((xs & mask) << 8);
+    ys += _cfg.offset_y + ((ye + _cfg.offset_y) << 16);
+    cmd.data_y = ((ys >> 8) & mask) + ((ys & mask) << 8);
+    _check_repeat();
+    _bus->writeBytes(cmd.raw, sizeof(cmd_t), false, false);
   }
 
   void Panel_M5HDMI::_rotate_pixelcopy(uint_fast16_t& x, uint_fast16_t& y, uint_fast16_t& w, uint_fast16_t& h, pixelcopy_t* param, uint32_t& nextx, uint32_t& nexty)
@@ -714,7 +712,6 @@ namespace lgfx
 
     uint_fast8_t r = _internal_rotation;
 
-    int_fast16_t ax = 1;
     int_fast16_t ay = 1;
     if ((1u << r) & 0b10010110) { y = _height - (y + 1); ys = _height - (ys + 1); ye = _height - (ye + 1); ay = -1; }
     if (r & 2)
@@ -727,7 +724,6 @@ namespace lgfx
       x = _width  - (x + 1);
       xs = _width - (xs + 1);
       xe = _width  - (xe + 1);
-      ax = -1;
       uint_fast16_t linelength;
       do
       {
@@ -868,51 +864,24 @@ namespace lgfx
 
   void Panel_M5HDMI::writeImageARGB(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, pixelcopy_t* param)
   {
-    _set_window(x, y, x + w - 1, y);
-    auto buf = (uint32_t*)param->src_data;
-    if (!_check_repeat(CMD_WRITE_RAW_32))
-    {
-      writeCommand(CMD_WRITE_RAW_32, 1);
-    }
-    for (size_t i = 0; i < w; ++i)
-    {
-      _bus->writeCommand(getSwap32(buf[i]), 32);
-    }
-    _raw_color = ~0u;
+    // unimplemented
   }
 
   void Panel_M5HDMI::readRect(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, void* dst, pixelcopy_t* param)
   {
-/*
-    startWrite();
-    int retry = 4;
-    do {
-      _check_repeat(0, 255);
-    } while (_buff_free_count < 255 && --retry);
-    _set_window(x, y, x+w-1, y+h-1);
-
-    _bus->writeCommand(CMD_READ_RAW | ((_read_bits >> 3) & 3), 8);
-    if (param->no_convert)
-    {
-      _bus->readBytes((uint8_t*)dst, w * h * _read_bits >> 3, true);
-    }
-    else
-    {
-      _bus->readPixels(dst, param, w * h);
-    }
-    endWrite();
-    if (_start_count)
-    {
-      _bus->endTransaction();
-      _bus->beginTransaction();
-    }
-//*/
+    // unimplemented
   }
 
   void Panel_M5HDMI::copyRect(uint_fast16_t dst_x, uint_fast16_t dst_y, uint_fast16_t w, uint_fast16_t h, uint_fast16_t src_x, uint_fast16_t src_y)
   {
     uint8_t buf[26];
     size_t idx = 0;
+
+    src_x += _cfg.offset_x;
+    dst_x += _cfg.offset_x;
+    src_y += _cfg.offset_y;
+    dst_y += _cfg.offset_y;
+
     auto xe = src_x + w - 1;
     auto ye = src_y + h - 1;
 
@@ -953,6 +922,75 @@ namespace lgfx
     --w;
     _need_delay = (w + ((16 + (w >> 4) * 40 + (w & 15)) * ((h << 2) ))) >> (src_y > dst_y ? 6 : 5);
     _last_us = lgfx::micros();
+    endWrite();
+  }
+
+  void Panel_M5HDMI::setScaling(uint_fast8_t x_scale, uint_fast8_t y_scale)
+  {
+    union cmd_t
+    {
+      uint8_t raw[8];
+      struct __attribute__((packed))
+      {
+        uint8_t cmd;
+        uint8_t x_scale;
+        uint8_t y_scale;
+        uint32_t width_height;
+        uint8_t chksum;
+      };
+    };
+
+    static constexpr uint32_t mask = 0xFF00FF;
+
+    uint32_t w = _cfg.memory_width / x_scale;
+
+    while (w * x_scale != _cfg.memory_width)
+    {
+      w = _cfg.memory_width / --x_scale;
+    }
+    uint32_t h = _cfg.memory_height / y_scale;
+    uint32_t wh = w + (h << 16);
+
+    cmd_t cmd;
+    cmd.cmd = CMD_SCREEN_SCALING;
+    cmd.x_scale = x_scale;
+    cmd.y_scale = y_scale;
+    cmd.width_height = ((wh >> 8) & mask) + ((wh & mask) << 8);
+
+    uint_fast8_t sum = 0;
+    for (size_t i = 0; i < sizeof(cmd_t)-1; ++i)
+    {
+      sum += cmd.raw[i];
+    }
+    cmd.chksum = ~sum;
+
+    startWrite();
+    _check_repeat();
+    _bus->writeBytes(cmd.raw, sizeof(cmd_t), false, false);
+    endWrite();
+  }
+
+  void Panel_M5HDMI::setViewPort(uint_fast16_t x, uint_fast16_t y)
+  {
+    union cmd_t
+    {
+      uint8_t raw[5];
+      struct __attribute__((packed))
+      {
+        uint8_t cmd;
+        uint32_t xy;
+      };
+    };
+    static constexpr uint32_t mask = 0xFF00FF;
+
+    cmd_t cmd;
+    cmd.cmd = CMD_SCREEN_ORIGIN;
+    uint32_t xy = x + (y << 16);
+    cmd.xy = ((xy >> 8) & mask) + ((xy & mask) << 8);
+
+    startWrite();
+    _check_repeat();
+    _bus->writeBytes(cmd.raw, sizeof(cmd_t), false, false);
     endWrite();
   }
 

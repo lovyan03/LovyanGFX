@@ -23,10 +23,10 @@ public:
     int spi_mosi = 19;
     int spi_miso = 22;
 
-    int spi_sclk =  5; // ←for SuperATOM
+    int spi_sclk =  5; // for ATOM PSRAM
     if (esp_efuse_get_pkg_ver() == EFUSE_RD_CHIP_VER_PKG_ESP32PICOD4)
     {
-      spi_sclk = 23; // ←for NormalATOM
+      spi_sclk = 23;  // for ATOM Lite / Matrix
     }
 
     {
@@ -61,14 +61,29 @@ public:
     }
 
     {
+      static constexpr uint32_t max_width  = 1280;
+      static constexpr uint32_t max_height =  720;
       auto cfg = _panel_instance.config();
       cfg.pin_cs           = spi_cs;
 
-      cfg.panel_width  = (panel_width  && panel_width  < 1280) ? panel_width  : 1280;
-      cfg.panel_height = (panel_height && panel_height <  720) ? panel_height :  720;
-      cfg.offset_x         =     0;
-      cfg.offset_y         =     0;
-      cfg.offset_rotation  =     0;
+      panel_width  = (panel_width  && panel_width  < max_width ) ? panel_width  : max_width;
+      panel_height = (panel_height && panel_height < max_height) ? panel_height : max_height;
+      cfg.panel_width  = panel_width ;
+      cfg.panel_height = panel_height;
+
+      uint32_t x_scale = max_width  / panel_width;
+      uint32_t w = max_width / x_scale;
+      while (w * x_scale != max_width)
+      {
+        w = max_width / --x_scale;
+      }
+      uint32_t y_scale = max_height / panel_height;
+      uint32_t h = max_height / y_scale;
+
+      cfg.offset_x         = (w - panel_width ) >> 1;
+      cfg.offset_y         = (h - panel_height) >> 1;
+      cfg.offset_rotation  = 0;
+      cfg.readable   = false;
       cfg.bus_shared = false;
 
       _panel_instance.config(cfg);
