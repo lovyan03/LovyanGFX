@@ -484,16 +484,16 @@ namespace lgfx
 
     if (_need_delay)
     {
-      _bus->beginRead();
-      if (_bus->readData(8) == 0x00)
+      auto us = lgfx::micros() - _last_us;
+      if (_need_delay > us)
       {
-        auto us = lgfx::micros() - _last_us;
-        if (_need_delay > us)
-        {
-          us = _need_delay - us;
-          delayMicroseconds(us);
-        }
-        while (_bus->readData(8) == 0x00) { delayMicroseconds(1); }
+        us = _need_delay - us;
+        delayMicroseconds(us);
+      }
+      _bus->beginRead();
+      while (_bus->readData(8) == 0x00)
+      {
+        delayMicroseconds(1);
       }
       cs_control(true);
       _bus->endRead();
@@ -597,19 +597,11 @@ namespace lgfx
     }
     _check_repeat();
     _bus->writeBytes(((uint8_t*)buf)+3, bytes, false, false);
-    if (rect)
+    if (w > 7 || h > 1)
     {
-      // --w;
-      // uint32_t us = ((21 + (w >> 4) * 36 + (w & 15)) * h) >> 5;
-      // uint32_t us = w + (((1 + (w >> 3)) * 32 + w) * (h+1)) >> 5;
-      // int32_t us = (w >> 3) + (h - 1);
-      // int32_t us = w + ((((1 + w) * 4) * h) >> 5) - 8;
-      int32_t us = w + h + ((((w >> 3) * 32 + w) * h) >> 5);
-      if (us > 0)
-      {
-        _need_delay = 1 + (us >> 1);
-        _last_us = lgfx::micros();
-      }
+      uint32_t us = ((21 + (w >> 4) * 36 + (w & 15)) * h) >> 5;
+      _need_delay = 1 + us;
+      _last_us = lgfx::micros();
     }
   }
 
