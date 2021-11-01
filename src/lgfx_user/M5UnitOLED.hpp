@@ -39,22 +39,12 @@ public:
   { 
     if (i2c_port < 0)
     {
-#if !defined (CONFIG_IDF_TARGET) || defined (CONFIG_IDF_TARGET_ESP32)
-      if (pin_sda == 21 && pin_scl == 22)  /// BASIC / FIRE
-      {
-        i2c_port = 0;
-      }
-      else
-        // if ((pin_sda == 25 && pin_scl == 32)  /// M5Paper
-        //  || (pin_sda == 26 && pin_scl == 32)  /// ATOM
-        //  || (pin_sda == 32 && pin_scl == 33)  /// Core2 / CoreInk / Tough / StickC / CPlus
-        //  || (pin_sda ==  4 && pin_scl == 13)  /// TimerCam
-        //    )
-      {
-        i2c_port = 1;
-      }
-#else
       i2c_port = 0;
+#ifdef _M5EPD_H_
+      if ((pin_sda == 25 && pin_scl == 32)  /// M5Paper
+      {
+        i2c_port = 1
+      }
 #endif
     }
 

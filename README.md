@@ -37,7 +37,7 @@ This library has the following advantages.
 |:------:|:---:|:---:|:--------:|:--------:|
 |ESP32   | HW  | HW  | HW (I2S) |   ---    |
 |ESP32-S2| HW  | HW  | HW (I2S) | HW (I2S) |
-|ESP32-C3| HW  | HW  |   ---    |   ---    |
+|ESP32-C3| HW  | HW  | SW       |   ---    |
 |ESP8266 | HW  | SW  |   ---    |   ---    |
 |SAMD51  | HW  | HW  |   ---    |   ---    |
 |SAMD21  | HW  | HW  |   ---    |   ---    |
@@ -73,6 +73,9 @@ This library has the following advantages.
     - ST7735 (M5StickC, TTGO T-Wristband, TTGO TS, LoLin D32 Pro, WiFiBoy mini, ESPboy, PyBadge)
     - ST7789 (M5StickCPlus, TTGO T-Watch, ESP-WROVER-KIT, Makerfabs MakePython, DSTIKE D-duino-32 XS)
     - ST7796 (WT32-SC01)
+
+    - M5Stack Unit LCD
+    - M5Stack AtomDisplay
 
   - タッチスクリーン TouchScreens
     - I2C FT5x06 (FT5206, FT5306, FT5406, FT6206, FT6236, FT6336, FT6436)

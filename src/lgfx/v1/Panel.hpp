@@ -42,10 +42,25 @@ namespace lgfx
   {
   protected:
     uint32_t _start_count = 0;
-    uint16_t _xs = ~0;
-    uint16_t _xe = ~0;
-    uint16_t _ys = ~0;
-    uint16_t _ye = ~0;
+    union
+    {
+      uint32_t _xsxe = ~0;
+      struct
+      {
+        uint16_t _xs;
+        uint16_t _xe;
+      };
+    };
+    union
+    {
+      uint32_t _ysye = ~0;
+      struct
+      {
+        uint16_t _ys;
+        uint16_t _ye;
+      };
+    };
+    
     uint16_t _width = 0;
     uint16_t _height = 0;
     color_depth_t _write_depth = color_depth_t::rgb565_2Byte;
@@ -58,7 +73,7 @@ namespace lgfx
     bool _auto_display = false;
 
   public:
-    constexpr IPanel(void) = default;
+    IPanel(void) = default;
     virtual ~IPanel(void) = default;
 
     void startWrite(bool transaction = true) { if (1 == ++_start_count && transaction) { beginTransaction(); } }

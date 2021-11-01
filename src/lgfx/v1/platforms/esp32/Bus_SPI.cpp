@@ -680,8 +680,9 @@ namespace lgfx
     auto spi_cmd_reg = _spi_cmd_reg;
     *spi_cmd_reg = SPI_EXECUTE;
     auto spi_w0_reg = _spi_w0_reg;
+    uint32_t mask = (32 > bit_length) ? ~getSwap32((1 << (32 - bit_length))-1) : ~0;
     while (*spi_cmd_reg & SPI_USR);
-    return *spi_w0_reg;
+    return *spi_w0_reg & mask;
   }
 
   bool Bus_SPI::readBytes(uint8_t* dst, uint32_t length, bool use_dma)

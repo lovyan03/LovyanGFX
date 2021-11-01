@@ -67,6 +67,9 @@ namespace lgfx
     static constexpr uint8_t CMD_NOP          = 0x00; // 1Byte 何もしない;
     static constexpr uint8_t CMD_READ_ID      = 0x04; // 1Byte ID読出し  スレーブからの回答は4Byte (0x77 0x89 0x00 0x?? (最後の1バイトはファームウェアバージョン));
     static constexpr uint8_t CMD_READ_BUFCOUNT= 0x09; // 1Byte コマンドバッファの空き取得。回答は1Byte、受信可能なコマンド数が返される。数字が小さいほどバッファの余裕がない。;
+
+//  static constexpr uint8_t CMD_SCALING      = 0x18; // 表示倍率 [1]=X [2]=Y;
+
     static constexpr uint8_t CMD_INVOFF       = 0x20; // 1Byte 色反転を解除;
     static constexpr uint8_t CMD_INVON        = 0x21; // 1Byte 色反転を有効;
     static constexpr uint8_t CMD_BRIGHTNESS   = 0x22; // 2Byte バックライト data[1]==明るさ 0~255
@@ -76,6 +79,7 @@ namespace lgfx
     static constexpr uint8_t CMD_ROTATE       = 0x36; // 2Byte 回転処理 [1]==回転方向 0:通常 1:右90度 2:180度 3:270度 4~7は0~3の上下反転;
     static constexpr uint8_t CMD_SET_POWER    = 0x38; // 2Byte data[1] 0:低速ローパワー / 1:通常 / 2:高速ハイパワー;
     static constexpr uint8_t CMD_SET_SLEEP    = 0x39; // 2Byte data[1] 0:スリープ解除 / 1:スリープ開始;
+    static constexpr uint8_t CMD_SET_BYTESWAP = 0x3A; // 2Byte data[1] 色データのバイトスワップ転送の有無を指定。デフォルトは0 / 0:バイトスワップなし / 1:バイトスワップあり;
 
     static constexpr uint8_t CMD_WRITE_RAW    = 0x40;
     static constexpr uint8_t CMD_WRITE_RAW_8  = 0x41; // 不定長 RGB332   1Byteのピクセルデータを連続送信;

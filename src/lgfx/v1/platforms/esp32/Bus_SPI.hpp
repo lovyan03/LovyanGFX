@@ -32,6 +32,17 @@ Contributors:
 #include <driver/spi_common.h>
 #include <soc/spi_reg.h>
 
+#if __has_include(<esp_idf_version.h>)
+ #include <esp_idf_version.h>
+ #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 3, 0)
+  #define LGFX_ESP32_SPI_DMA_CH SPI_DMA_CH_AUTO
+ #endif
+#endif
+
+#ifndef LGFX_ESP32_SPI_DMA_CH
+#define LGFX_ESP32_SPI_DMA_CH 0
+#endif
+
 #include "../../Bus.hpp"
 #include "../common.hpp"
 
@@ -63,11 +74,10 @@ namespace lgfx
       uint8_t spi_mode = 0;
       bool spi_3wire = true;
       bool use_lock = true;
+      uint8_t dma_channel = LGFX_ESP32_SPI_DMA_CH;
 #if !defined (CONFIG_IDF_TARGET) || defined (CONFIG_IDF_TARGET_ESP32)
-      uint8_t dma_channel = 0;
       spi_host_device_t spi_host = VSPI_HOST;
 #else
-      uint8_t dma_channel = SPI_DMA_CH_AUTO; // or SPI_DMA_DISABLED
       spi_host_device_t spi_host = SPI2_HOST;
 #endif
     };

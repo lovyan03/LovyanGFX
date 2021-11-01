@@ -17,18 +17,6 @@ Contributors:
 /----------------------------------------------------------------------------*/
 #pragma once
 
-#if __has_include(<esp32/rom/lldesc.h>)
- #include <esp32/rom/lldesc.h>
-#else
- #include <rom/lldesc.h>
-#endif
-
-#if __has_include(<freertos/FreeRTOS.h>)
- #include <freertos/FreeRTOS.h>
-#endif
-
-#include <driver/i2s.h>
-
 #include "../../Bus.hpp"
 #include "../common.hpp"
 
@@ -43,10 +31,7 @@ namespace lgfx
   public:
     struct config_t
     {
-      i2s_port_t i2s_port = I2S_NUM_0;
-
       // max 40MHz , 27MHz , 20MHz , 16MHz , 13.3MHz , 11.43MHz , 10MHz , 8.9MHz  and more ...
-      uint32_t freq_write = 16000000;
       int8_t pin_wr = -1;
       int8_t pin_rd = -1;
       int8_t pin_rs = -1;  // D/C
@@ -74,14 +59,14 @@ namespace lgfx
     bus_type_t busType(void) const override { return bus_type_t::bus_parallel8; }
 
     bool init(void) override;
-    void release(void) override;
+    void release(void) override {};
 
-    void beginTransaction(void) override;
-    void endTransaction(void) override;
-    void wait(void) override;
-    bool busy(void) const override;
+    void beginTransaction(void) override {};
+    void endTransaction(void) override {};
+    void wait(void) override {};
+    bool busy(void) const override { return false; }
 
-    void flush(void) override;
+    void flush(void) override {};
     bool writeCommand(uint32_t data, uint_fast8_t bit_length) override;
     void writeData(uint32_t data, uint_fast8_t bit_length) override;
     void writeDataRepeat(uint32_t data, uint_fast8_t bit_length, uint32_t count) override;
@@ -90,7 +75,7 @@ namespace lgfx
 
     void initDMA(void) override {}
     void addDMAQueue(const uint8_t* data, uint32_t length) override { writeBytes(data, length, true, true); }
-    void execDMAQueue(void) override { flush(); };
+    void execDMAQueue(void) override {};
     uint8_t* getDMABuffer(uint32_t length) override { return _flip_buffer.getBuffer(length); }
 
     void beginRead(void) override;
@@ -101,51 +86,18 @@ namespace lgfx
 
   private:
 
-    void dc_control(bool flg)
-    {
-      auto reg = _gpio_reg_dc[flg];
-      auto mask = _mask_reg_dc;
-      auto i2s_dev = (i2s_dev_t*)_dev;
-      if (i2s_dev->out_link.val)
-      {
-#if defined (CONFIG_IDF_TARGET_ESP32S2)
-        while (!(i2s_dev->lc_state0.out_empty)) {}
-#else
-        while (!(i2s_dev->lc_state0 & 0x80000000)) {} // I2S_OUT_EMPTY
-#endif
-        i2s_dev->out_link.val = 0;
-      }
-      while (!i2s_dev->state.tx_idle) {}
-      *reg = mask;
-    }
-
-    static constexpr size_t CACHE_SIZE = 132;
+    uint32_t _gpio_tbl[256];
+    uint32_t _gpio_low_mask = 0;
+    uint32_t _gpio_wr_mask = 0;
+    volatile uint32_t* _gpio_reg_dc[2] = { nullptr, nullptr };
+    uint32_t _mask_reg_dc = 0;
 
     config_t _cfg;
     SimpleBuffer _flip_buffer;
     size_t _div_num;
-    size_t _cache_index;
-    uint16_t _cache[2][CACHE_SIZE];
-    uint16_t* _cache_flip;
     
-    void _wait(void);
     void _init_pin(bool read = false);
-    size_t _flush(size_t idx, bool dc = true);
     void _read_bytes(uint8_t* dst, uint32_t length);
-
-    void _alloc_dmadesc(size_t len);
-    void _setup_dma_desc_links(const uint8_t *data, int32_t len);
-
-    volatile uint32_t* _gpio_reg_dc[2] = { nullptr, nullptr };
-    uint32_t _mask_reg_dc = 0;
-    bool _direct_dc;
-
-    uint32_t _last_freq_apb;
-    uint32_t _clkdiv_write;
-    volatile void *_dev;
-
-    lldesc_t* _dmadesc = nullptr;
-    uint32_t _dmadesc_size = 0;
   };
 
 //----------------------------------------------------------------------------

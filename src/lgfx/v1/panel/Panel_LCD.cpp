@@ -432,23 +432,22 @@ namespace lgfx
 
   void Panel_LCD::set_window_8(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye, uint32_t cmd)
   {
-    if (xs != _xs || xe != _xe)
+    static constexpr uint32_t mask = 0xFF00FF;
+    uint32_t x = xs + (xe << 16);
+    if (_xsxe != x)
     {
-      _xs = xs;
-      _xe = xe;
+      _xsxe = x;
       _bus->writeCommand(CMD_CASET, 8);
-      xs += _colstart;
-      xe += _colstart;
-      _bus->writeData(xs >> 8 | (xs & 0xFF) << 8 | (xe << 8 | xe >> 8) << 16, 32);
+      x += _colstart + (_colstart << 16);
+      _bus->writeData(((x >> 8) & mask) + ((x & mask) << 8), 32);
     }
-    if (ys != _ys || ye != _ye)
+    uint32_t y = ys + (ye << 16);
+    if (_ysye != y)
     {
-      _ys = ys;
-      _ye = ye;
+      _ysye = y;
       _bus->writeCommand(CMD_RASET, 8);
-      ys += _rowstart;
-      ye += _rowstart;
-      _bus->writeData(ys >> 8 | (ys & 0xFF) << 8 | (ye << 8 | ye >> 8) << 16, 32);
+      y += _rowstart + (_rowstart << 16);
+      _bus->writeData(((y >> 8) & mask) + ((y & mask) << 8), 32);
     }
     _bus->writeCommand(cmd, 8);
   }
