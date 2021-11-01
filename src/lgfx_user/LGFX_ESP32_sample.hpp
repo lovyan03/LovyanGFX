@@ -50,6 +50,7 @@ class LGFX : public lgfx::LGFX_Device
 //lgfx::Panel_SSD1327     _panel_instance;
 //lgfx::Panel_SSD1331     _panel_instance;
 //lgfx::Panel_SSD1351     _panel_instance; // SSD1351, SSD1357
+//lgfx::Panel_SSD1963     _panel_instance;
 //lgfx::Panel_ST7735      _panel_instance;
 //lgfx::Panel_ST7735S     _panel_instance;
 //lgfx::Panel_ST7789      _panel_instance;
