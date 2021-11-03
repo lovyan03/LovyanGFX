@@ -160,8 +160,13 @@ namespace lgfx
 
     int read(uint8_t *buf, uint32_t len) override
     {
-      len = std::min<uint32_t>(len, _stream->available());
+      uint32_t tmp = _stream->available();
+      if (len > tmp)
+      {
+        len = tmp;
+      }
       if (len > _length - _index) { len = _length - _index; }
+      if (!len) { return 0; }
       _index += len;
       return _stream->readBytes((char*)buf, len);
     }
