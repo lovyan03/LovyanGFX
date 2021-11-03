@@ -262,7 +262,19 @@ namespace lgfx
       _index += len;
       return _stream->readBytes((char*)buf, len);
     }
-    void skip(int32_t offset) override { if (0 < offset) { char dummy[offset]; _stream->readBytes(dummy, offset); _index += offset; } }
+    void skip(int32_t offset) override
+    {
+      if (0 >= offset) { return; }
+      _index += offset;
+      char dummy[64];
+      size_t len = ((offset - 1) & 63) + 1;
+      do
+      {
+        _stream->readBytes(dummy, len);
+        offset -= len;
+        len = 64;
+      } while (offset);
+    }
     bool seek(uint32_t offset) override { if (offset < _index) { return false; } skip(offset - _index); return true; }
     void close() override { }
     int32_t tell(void) override { return _index; }
