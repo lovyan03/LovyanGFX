@@ -107,7 +107,6 @@ namespace lgfx
 
   struct SdFatWrapper : public DataWrapper
   {
-public:
     SdFatWrapper() : DataWrapper()
     {
       need_transaction = true;
@@ -143,6 +142,47 @@ public:
     bool seek(uint32_t offset) override { return _fp->seekSet(offset); }
     void close(void) override { if (_fp) _fp->close(); }
     int32_t tell(void) override { return _fp->position(); }
+  };
+
+#endif
+
+//----------------------------------------------------------------------------
+
+#if defined (ARDUINO) && defined (Stream_h)
+
+  struct StreamWrapper : public DataWrapper
+  {
+    void set(Stream* src, uint32_t length = ~0u) { _stream = src; _length = length; _index = 0; }
+
+    int read(uint8_t *buf, uint32_t len) override
+    {
+      len = std::min<uint32_t>(len, _stream->available());
+      if (len > _length - _index) { len = _length - _index; }
+      _index += len;
+      return _stream->readBytes((char*)buf, len);
+    }
+    void skip(int32_t offset) override
+    {
+      if (0 >= offset) { return; }
+      _index += offset;
+      char dummy[64];
+      size_t len = ((offset - 1) & 63) + 1;
+      do
+      {
+        _stream->readBytes(dummy, len);
+        offset -= len;
+        len = 64;
+      } while (offset);
+    }
+    bool seek(uint32_t offset) override { if (offset < _index) { return false; } skip(offset - _index); return true; }
+    void close() override { }
+    int32_t tell(void) override { return _index; }
+
+  private:
+    Stream* _stream;
+    uint32_t _index;
+    uint32_t _length = 0;
+
   };
 
 #endif
