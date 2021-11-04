@@ -102,12 +102,10 @@ namespace lgfx
   struct FileWrapper : public DataWrapper
   {
 private:
-#if defined (_SD_H_)
-    bool _check_need_transaction(void) const { return _fs == &SD; }
-#elif defined (_SPIFFS_H_)
+#if defined (_SPIFFS_H_)
     bool _check_need_transaction(void) const { return _fs != &SPIFFS; }
 #else
-    bool _check_need_transaction(void) const { return false; }
+    bool _check_need_transaction(void) const { return true; }
 #endif
 
 public:
