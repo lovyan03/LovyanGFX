@@ -36,7 +36,7 @@ Contributors:
 
 /// for  not ESP8266
 #if !defined ( pgm_read_dword_with_offset )
- #if defined (__SAMD21__)
+ #if defined (__SAMD21__) || defined(__SAMD21G18A__) || defined(__SAMD21J18A__) || defined(__SAMD21E17A__) || defined(__SAMD21E18A__)
   #define pgm_read_word_unaligned(addr) (uint16_t) \
     ( *(const uint8_t *)((uintptr_t)addr) \
     | *(const uint8_t *)((uintptr_t)addr+1) << 8 )
@@ -59,7 +59,7 @@ Contributors:
  #define pgm_read_3byte_unaligned(addr) (pgm_read_dword_unaligned(addr) & 0xFFFFFFu)
 #endif
 
-#if defined (__SAMD21__) || defined ( ESP8266 )
+#if defined ( ESP8266 ) || defined (__SAMD21__) || defined(__SAMD21G18A__) || defined(__SAMD21J18A__) || defined(__SAMD21E17A__) || defined(__SAMD21E18A__)
   static inline void write_3byte_unaligned(void* addr, uint32_t value)
   {
     reinterpret_cast<uint8_t*>(addr)[0] = value;

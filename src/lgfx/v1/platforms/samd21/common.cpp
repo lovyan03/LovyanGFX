@@ -15,7 +15,7 @@ Contributors:
  [mongonta0716](https://github.com/mongonta0716)
  [tobozo](https://github.com/tobozo)
 /----------------------------------------------------------------------------*/
-#if defined (__SAMD21__)
+#if defined (__SAMD21__) || defined(__SAMD21G18A__) || defined(__SAMD21J18A__) || defined(__SAMD21E17A__) || defined(__SAMD21E18A__)
 
 #include "common.hpp"
 
@@ -202,7 +202,7 @@ namespace lgfx
       }
     };
 
-    static constexpr sercom_data_t sercom_data[SERCOM_INST_NUM] = {
+    static const sercom_data_t sercom_data[SERCOM_INST_NUM] = {
       { (uintptr_t)SERCOM0, GCM_SERCOM0_CORE, SERCOM0_IRQn },
       { (uintptr_t)SERCOM1, GCM_SERCOM1_CORE, SERCOM1_IRQn },
       { (uintptr_t)SERCOM2, GCM_SERCOM2_CORE, SERCOM2_IRQn },

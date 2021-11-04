@@ -17,7 +17,8 @@ Contributors:
 /----------------------------------------------------------------------------*/
 #if defined (ESP_PLATFORM)
 #elif defined (ESP8266)
-#elif defined (__SAMD21__) || defined (__SAMD51__)
+#elif defined (__SAMD21__) || defined(__SAMD21G18A__) || defined(__SAMD21J18A__) || defined(__SAMD21E17A__) || defined(__SAMD21E18A__)
+#elif defined (__SAMD51__)
 #elif defined (STM32F2xx) || defined (STM32F4xx) || defined (STM32F7xx)
 #elif defined (ARDUINO_ARCH_SPRESENSE)
 #elif defined (ARDUINO_ARCH_MBED_RP2040) || defined(ARDUINO_ARCH_RP2040)
