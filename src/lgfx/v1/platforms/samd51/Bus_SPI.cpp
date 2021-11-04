@@ -293,13 +293,15 @@ namespace lgfx
 
   void Bus_SPI::beginTransaction(void)
   {
-    _need_wait = false;
+    spi::beginTransaction(_cfg.sercom_index, _cfg.freq_write, _cfg.spi_mode);
     set_clock_write();
+    _need_wait = false;
   }
 
   void Bus_SPI::endTransaction(void)
   {
     dc_control(true);
+    spi::endTransaction(_cfg.sercom_index);
   }
 
   void Bus_SPI::wait(void)

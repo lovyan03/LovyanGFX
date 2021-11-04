@@ -87,7 +87,6 @@ namespace lgfx
 
   void Bus_SPI::beginTransaction(void)
   {
-    dc_control(true);
     spi::beginTransaction(_cfg.sercom_index, _cfg.freq_write, _cfg.spi_mode);
     _need_wait = false;
   }
