@@ -796,7 +796,7 @@ namespace lgfx
     bool _textwrap_y = false;
     bool _textscroll = false;
 
-    LGFX_INLINE static bool _adjust_abs(int32_t& x, int32_t& w) { if (w < 0) { x += w + 1; w = -w; } return !w; }
+    LGFX_INLINE static bool _adjust_abs(int32_t& x, int32_t& w) { if (w < 0) { x += w; w = -w; } return !w; }
     static bool _adjust_width(int32_t& x, int32_t& dx, int32_t& dw, int32_t left, int32_t width)
     {
       if (x < left) { dx = -x; dw += x; x = left; }
