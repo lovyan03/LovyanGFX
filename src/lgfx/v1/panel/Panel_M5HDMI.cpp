@@ -325,13 +325,15 @@ namespace lgfx
 
   Panel_M5HDMI::HDMI_Trans::ChipID Panel_M5HDMI::HDMI_Trans::readChipID(void)
   {
-    this->writeRegister(0xff, 0x80);
-    this->writeRegister(0xee, 0x01);
+    ChipID chip_id = { 0,0,0 };
 
-    ChipID chip_id;
-    chip_id.id[0] = this->readRegister(0x00);
-    chip_id.id[1] = this->readRegister(0x01);
-    chip_id.id[2] = this->readRegister(0x02);
+    if (this->writeRegister(0xff, 0x80)
+     && this->writeRegister(0xee, 0x01))
+    {
+      chip_id.id[0] = this->readRegister(0x00);
+      chip_id.id[1] = this->readRegister(0x01);
+      chip_id.id[2] = this->readRegister(0x02);
+    }
     return chip_id;
   }
 
@@ -389,9 +391,7 @@ namespace lgfx
     ESP_LOGI(TAG, "Chip ID: %02x %02x %02x\n", result.id[0], result.id[1], result.id[2]);
     if (result.id[0] == result.id[1] && result.id[0] == result.id[2])
     {
-      lgfx::i2c::beginTransaction(_HDMI_Trans_config.i2c_port, _HDMI_Trans_config.i2c_addr, _HDMI_Trans_config.freq_write);
-      lgfx::i2c::endTransaction(_HDMI_Trans_config.i2c_port);
-      lgfx::delay(16);
+      return false;
     }
 
     ESP_LOGI(TAG, "Resetting HDMI transmitter...");
@@ -408,13 +408,10 @@ namespace lgfx
     if (!Panel_Device::init(false)) { return false; }
 
     ESP_LOGI(TAG, "Initialize HDMI transmitter...");
-    if ( driver.init() )
-    {
-      ESP_LOGI(TAG, "done.");
-    } 
-    else
+    if (!driver.init() )
     {
       ESP_LOGI(TAG, "failed.");
+      return false;
     }
 
     // Initialize and read ID
@@ -714,7 +711,7 @@ namespace lgfx
       auto linebuf = (uint8_t*)alloca((xe - xs + 1) * bytes);
 
       pixelcopy_t pc((void*)linebuf, _write_depth, _write_depth);
-      pc.src_x32_add = -1 << pixelcopy_t::FP_SCALE;
+      pc.src_x32_add = ~0u << pixelcopy_t::FP_SCALE;
 
       x = _width  - (x + 1);
       xs = _width - (xs + 1);
