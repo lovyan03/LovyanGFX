@@ -18,6 +18,8 @@ Contributors:
 #ifndef __LGFX_PGMSPACE_H__
 #define __LGFX_PGMSPACE_H__
 
+#include <string.h>
+
 #if defined ( ARDUINO ) && !defined ( pgm_read_byte )
  #if __has_include(<pgmspace.h>)
   #include <pgmspace.h>
@@ -72,6 +74,10 @@ Contributors:
     reinterpret_cast<uint16_t*>(addr)[0] = value;
     reinterpret_cast<uint8_t*>(addr)[2] = value >> 16;
   }
+#endif
+
+#ifndef ARDUINO
+ static inline void* memcpy_P(void* __restrict dst, const void* __restrict src, size_t len) { return memcpy(dst, src, len); }
 #endif
 
 #ifndef PROGMEM
