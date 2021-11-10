@@ -400,29 +400,20 @@ namespace lgfx
 
     {
       auto bus_cfg = reinterpret_cast<lgfx::Bus_SPI*>(bus())->config();
-      auto pnl_cfg = _cfg;
-      LOAD_FPGA fpga(bus_cfg.pin_sclk, bus_cfg.pin_mosi, bus_cfg.pin_miso, pnl_cfg.pin_cs);
+      LOAD_FPGA fpga(bus_cfg.pin_sclk, bus_cfg.pin_mosi, bus_cfg.pin_miso, _cfg.pin_cs);
     }
 
 
     if (!Panel_Device::init(false)) { return false; }
 
-    ESP_LOGI(TAG, "Initialize HDMI transmitter...");
-    if (!driver.init() )
-    {
-      ESP_LOGI(TAG, "failed.");
-      return false;
-    }
 
     // Initialize and read ID
     ESP_LOGI(TAG, "Waiting the FPGA gets idle...");
-    beginTransaction();
+    startWrite();
     _bus->beginRead();
     while (_bus->readData(8) != 0xff);
-    _bus->endRead();
     cs_control(true);
-    ESP_LOGI(TAG, "Reading FPGA ID... ");
-
+    _bus->endRead();
     cs_control(false);
     _bus->writeData(CMD_READ_ID, 8); // READ_ID
     _bus->beginRead();
@@ -431,15 +422,60 @@ namespace lgfx
       data = _bus->readData(8);
     } while ( data == 0x00 );
     data = _bus->readData(32);
-    ESP_LOGI(TAG, "FPGA ID:%02x %02x %02x %02x\n", data & 0xFF, (data >> 8) & 0xFF, (data >> 16) & 0xFF, data >> 24);
+    ESP_LOGI(TAG, "FPGA ID:%02x %02x %02x %02x", data & 0xFF, (data >> 8) & 0xFF, (data >> 16) & 0xFF, data >> 24);
+    cs_control(true);
     _bus->endRead();
-    endTransaction();
+    cs_control(false);
 
-    uint_fast8_t x_scale = _cfg.memory_width  / _cfg.panel_width;
-    uint_fast8_t y_scale = _cfg.memory_height / _cfg.panel_height;
-    if (x_scale == 0) { x_scale = 1; }
-    if (y_scale == 0) { y_scale = 1; }
-    setScaling(x_scale, y_scale);
+    static constexpr int32_t TOTAL_RESOLUTION = 1237500;
+
+    uint_fast16_t mem_width  = _cfg.memory_width ;
+    uint_fast16_t mem_height = _cfg.memory_height;
+
+    int hori_total;
+    int vert_total = mem_height + 16;
+    do
+    {
+      hori_total = TOTAL_RESOLUTION / ++vert_total;
+    } while ( TOTAL_RESOLUTION != vert_total * hori_total || mem_width + 576 < hori_total );
+
+    video_timing_t vt;
+
+    vt.v.active = mem_height;
+    uint32_t remain = vert_total - mem_height;
+    int porch = remain >> 1;
+    vt.v.front_porch = porch;
+    remain -= porch;
+    int sync = remain >> 1;
+    vt.v.sync = sync;
+    remain -= sync;
+    vt.v.back_porch = remain;
+
+    vt.h.active = mem_width;
+    remain = hori_total - mem_width;
+    sync = remain >> 3;
+    if (sync < 8 && remain > 24) { sync = 8; }
+    vt.h.sync = sync;
+    remain -= sync;
+    porch = sync;
+    vt.h.front_porch = porch;
+    remain -= porch;
+    vt.h.back_porch = remain;
+
+    setVideoTiming(&vt);
+
+    uint_fast8_t x_scale = mem_width  / ((_cfg.offset_x << 1) + _cfg.panel_width );
+    uint_fast8_t y_scale = mem_height / ((_cfg.offset_y << 1) + _cfg.panel_height);
+    setScaling(x_scale ? x_scale : 1, y_scale ? y_scale : 1);
+
+    ESP_LOGI(TAG, "Initialize HDMI transmitter...");
+    if (!driver.init() )
+    {
+      ESP_LOGI(TAG, "failed.");
+      return false;
+    }
+
+    endWrite();
 
     return true;
   }
@@ -914,6 +950,46 @@ namespace lgfx
     --w;
     _need_delay = (w + ((16 + (w >> 4) * 40 + (w & 15)) * ((h << 2) ))) >> (src_y > dst_y ? 6 : 5);
     _last_us = lgfx::micros();
+    endWrite();
+  }
+
+  void Panel_M5HDMI::setVideoTiming(const video_timing_t* param)
+  {
+    _set_video_timing(&param->v, CMD_VIDEO_TIMING_V);
+    _set_video_timing(&param->h, CMD_VIDEO_TIMING_H);
+  }
+
+  void Panel_M5HDMI::_set_video_timing(const video_timing_t::info_t* param, uint8_t command)
+  {
+    union cmd_t
+    {
+      uint8_t raw[10];
+      struct __attribute__((packed))
+      {
+        uint8_t cmd;
+        uint16_t sync;
+        uint16_t back;
+        uint16_t active;
+        uint16_t front;
+        uint8_t chksum;
+      };
+    };
+    cmd_t cmd;
+    cmd.cmd = command;
+    cmd.sync = getSwap16(param->sync);
+    cmd.back = getSwap16(param->back_porch);
+    cmd.active = getSwap16(param->active);
+    cmd.front = getSwap16(param->front_porch);
+    uint_fast8_t sum = 0;
+    for (size_t i = 0; i < sizeof(cmd_t)-1; ++i)
+    {
+      sum += cmd.raw[i];
+    }
+    cmd.chksum = ~sum;
+
+    startWrite();
+    _check_repeat();
+    _bus->writeBytes(cmd.raw, sizeof(cmd_t), false, false);
     endWrite();
   }
 

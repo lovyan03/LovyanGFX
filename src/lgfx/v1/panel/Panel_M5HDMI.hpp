@@ -30,6 +30,19 @@ namespace lgfx
   struct Panel_M5HDMI : public Panel_Device
   {
   public:
+    struct video_timing_t
+    {
+      struct info_t
+      {
+        uint16_t sync;
+        uint16_t back_porch;
+        uint16_t active;
+        uint16_t front_porch;
+      };
+      info_t v;
+      info_t h;
+    };
+
     Panel_M5HDMI(void)
     {
       _cfg.memory_width  = _cfg.panel_width = 1280;
@@ -73,6 +86,7 @@ namespace lgfx
     uint32_t readData(uint_fast8_t, uint_fast8_t) override { return 0; }
     void readRect(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, void* dst, pixelcopy_t* param) override;
 
+    void setVideoTiming(const video_timing_t* param);
     void setScaling(uint_fast8_t x_scale, uint_fast8_t y_scale);
     void setViewPort(uint_fast16_t x, uint_fast16_t y);
 
@@ -131,6 +145,10 @@ namespace lgfx
     static constexpr uint8_t CMD_READ_RAW_24  = 0x83; // 1Byte RGB888のピクセルデータを読出し;
 
 //  static constexpr uint8_t CMD_CHANGE_ADDR  = 0xA0; // 4Byte i2cアドレス変更 [0]=0xA0 [1]=変更後のI2Cアドレス [2]=変更後のI2Cアドレスのビット反転値 [3]=0xA0
+
+    static constexpr uint8_t CMD_VIDEO_TIMING_V = 0xB0;
+    static constexpr uint8_t CMD_VIDEO_TIMING_H = 0xB1;
+
 //  static constexpr uint8_t CMD_UPDATE_BEGIN = 0xF0; // 4Byte ファームウェア更新開始   [0]=0xF0 [1]=0x77 [2]=0x89 [3]=0xF0
 //  static constexpr uint8_t CMD_UPDATE_DATA  = 0xF1; // 4Byte ファームウェアデータ送信 [0]=0xF1 [1]=0x77 [2]=0x89 [3]=0xF1
 //  static constexpr uint8_t CMD_UPDATE_END   = 0xF2; // 4Byte ファームウェア更新完了   [0]=0xF2 [1]=0x77 [2]=0x89 [3]=0xF2
@@ -242,7 +260,7 @@ namespace lgfx
     void _fill_rect(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, uint_fast8_t bytes);
     bool _check_repeat(uint32_t cmd = 0, uint_fast8_t limit = 64);
     void _rotate_pixelcopy(uint_fast16_t& x, uint_fast16_t& y, uint_fast16_t& w, uint_fast16_t& h, pixelcopy_t* param, uint32_t& nextx, uint32_t& nexty);
-
+    void _set_video_timing(const video_timing_t::info_t* param, uint8_t cmd);
   };
 
 //----------------------------------------------------------------------------
