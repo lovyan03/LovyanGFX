@@ -39,6 +39,7 @@ class LGFX : public lgfx::LGFX_Device
 //lgfx::Panel_SSD1327     _panel_instance;
 //lgfx::Panel_SSD1331     _panel_instance;
 //lgfx::Panel_SSD1351     _panel_instance; // SSD1351, SSD1357
+//lgfx::Panel_SSD1963     _panel_instance;
 //lgfx::Panel_ST7735      _panel_instance;
 //lgfx::Panel_ST7735S     _panel_instance;
 //lgfx::Panel_ST7789      _panel_instance;
@@ -93,7 +94,7 @@ public:
 //*/
 /*
 // 8ビットパラレルバスの設定
-      cfg.i2s_port = 0;             // 使用するI2Sポートを選択 (0 or 1) (ESP32のI2S LCDモードを使用します)
+      cfg.i2s_port = I2S_NUM_0;     // 使用するI2Sポートを選択 (I2S_NUM_0 or I2S_NUM_1) (ESP32のI2S LCDモードを使用します)
       cfg.freq_write = 20000000;    // 送信クロック (最大20MHz, 80MHzを整数で割った値に丸められます)
       cfg.pin_wr =  4;              // WR を接続しているピン番号
       cfg.pin_rd =  2;              // RD を接続しているピン番号

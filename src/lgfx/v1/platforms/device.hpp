@@ -50,7 +50,7 @@ Contributors:
 #include "esp8266/Bus_SPI.hpp"
 #include "esp8266/Bus_I2C.hpp"
 
-#elif defined (__SAMD21__)
+#elif defined (__SAMD21__) || defined(__SAMD21G18A__) || defined(__SAMD21J18A__) || defined(__SAMD21E17A__) || defined(__SAMD21E18A__)
 
 #include "samd21/Bus_SPI.hpp"
 #include "samd21/Bus_I2C.hpp"

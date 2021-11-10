@@ -159,32 +159,5 @@ namespace lgfx
   };
 
 //----------------------------------------------------------------------------
-
-#if defined (ARDUINO) && defined (Stream_h)
-
-  struct StreamWrapper : public DataWrapper
-  {
-    void set(Stream* src, uint32_t length = ~0u) { _stream = src; _length = length; _index = 0; }
-
-    int read(uint8_t *buf, uint32_t len) override {
-      if (len > _length - _index) { len = _length - _index; }
-      _index += len;
-      return _stream->readBytes((char*)buf, len);
-    }
-    void skip(int32_t offset) override { if (0 < offset) { char dummy[offset]; _stream->readBytes(dummy, offset); _index += offset; } }
-    bool seek(uint32_t offset) override { if (offset < _index) { return false; } skip(offset - _index); return true; }
-    void close() override { }
-    int32_t tell(void) override { return _index; }
-
-  private:
-    Stream* _stream;
-    uint32_t _index;
-    uint32_t _length = 0;
-
-  };
-
-#endif
-
-//----------------------------------------------------------------------------
  }
 }

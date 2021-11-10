@@ -2196,6 +2196,7 @@ namespace lgfx
 
   bool LGFXBase::draw_bmp(DataWrapper* data, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, float scale_x, float scale_y, datum_t datum)
   {
+    prepareTmpTransaction(data);
     bitmap_header_t bmpdata;
     if (!bmpdata.load_bmp_header(data) || (bmpdata.biCompression > 3)) {
       return false;
@@ -2412,6 +2413,7 @@ namespace lgfx
 
   bool LGFXBase::draw_jpg(DataWrapper* data, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, float scale_x, float scale_y, datum_t datum)
   {
+    prepareTmpTransaction(data);
     draw_jpg_info_t jpeg;
     pixelcopy_t pc(nullptr, this->getColorDepth(), bgr888_t::depth, this->hasPalette());
     jpeg.pc = &pc;
@@ -2786,6 +2788,7 @@ namespace lgfx
 
   bool LGFXBase::draw_png(DataWrapper* data, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, float scale_x, float scale_y, datum_t datum)
   {
+    prepareTmpTransaction(data);
     png_file_decoder_t png;
     png.x = x;
     png.y = y;

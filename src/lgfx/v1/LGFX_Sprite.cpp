@@ -483,7 +483,7 @@ namespace lgfx
         auto src = &((uint8_t*)param->src_data)[param->src_y * sw];
         if (sw == bw && this->_panel_width == w && sx == 0 && x == 0)
         {
-          memcpy(dst, src, bw * h);
+          memcpy_P(dst, src, bw * h);
           return;
         }
         y = 0;
@@ -492,7 +492,7 @@ namespace lgfx
         w    =  w * bits >> 3;
         do
         {
-          memcpy(&dst[y * bw], &src[y * sw], w);
+          memcpy_P(&dst[y * bw], &src[y * sw], w);
         } while (++y != h);
         return;
       }

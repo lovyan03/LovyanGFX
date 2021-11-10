@@ -85,7 +85,7 @@ namespace lgfx
 
  #include "LGFX_AutoDetect_ESP8266.hpp"
 
-#elif defined (__SAMD21__)
+#elif defined (__SAMD21__) || defined(__SAMD21G18A__) || defined(__SAMD21J18A__) || defined(__SAMD21E17A__) || defined(__SAMD21E18A__)
 
  #include "LGFX_AutoDetect_SAMD21.hpp"
 

@@ -15,7 +15,7 @@ Contributors:
  [mongonta0716](https://github.com/mongonta0716)
  [tobozo](https://github.com/tobozo)
 /----------------------------------------------------------------------------*/
-#if defined (__SAMD21__)
+#if defined (__SAMD21__) || defined(__SAMD21G18A__) || defined(__SAMD21J18A__) || defined(__SAMD21E17A__) || defined(__SAMD21E18A__)
 
 #include "Bus_SPI.hpp"
 
@@ -87,7 +87,6 @@ namespace lgfx
 
   void Bus_SPI::beginTransaction(void)
   {
-    dc_control(true);
     spi::beginTransaction(_cfg.sercom_index, _cfg.freq_write, _cfg.spi_mode);
     _need_wait = false;
   }

@@ -102,12 +102,10 @@ namespace lgfx
   struct FileWrapper : public DataWrapper
   {
 private:
-#if defined (_SD_H_)
-    bool _check_need_transaction(void) const { return _fs == &SD; }
-#elif defined (_SPIFFS_H_)
+#if defined (_SPIFFS_H_)
     bool _check_need_transaction(void) const { return _fs != &SPIFFS; }
 #else
-    bool _check_need_transaction(void) const { return false; }
+    bool _check_need_transaction(void) const { return true; }
 #endif
 
 public:
@@ -191,33 +189,6 @@ public:
     bool seek(uint32_t offset, int origin) { return fseek(_fp, offset, origin); }
     void close() override { if (_fp) fclose(_fp); }
     int32_t tell(void) override { return ftell(_fp); }
-  };
-
-#endif
-
-//----------------------------------------------------------------------------
-
-#if defined (ARDUINO) && defined (Stream_h)
-
-  struct StreamWrapper : public DataWrapper
-  {
-    void set(Stream* src, uint32_t length = ~0) { _stream = src; _length = length; _index = 0; }
-
-    int read(uint8_t *buf, uint32_t len) override {
-      len = std::min<uint32_t>(len, _stream->available());
-      if (len > _length - _index) { len = _length - _index; }
-      _index += len;
-      return _stream->readBytes((char*)buf, len);
-    }
-    void skip(int32_t offset) override { if (0 < offset) { char dummy[offset]; _stream->readBytes(dummy, offset); _index += offset; } }
-    bool seek(uint32_t offset) override { if (offset < _index) { return false; } skip(offset - _index); return true; }
-    void close() override { }
-    int32_t tell(void) override { return _index; }
-
-  protected:
-    Stream* _stream;
-    uint32_t _index;
-    uint32_t _length = 0;
   };
 
 #endif

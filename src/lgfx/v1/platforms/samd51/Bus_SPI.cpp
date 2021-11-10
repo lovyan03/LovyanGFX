@@ -213,6 +213,10 @@ namespace lgfx
     {
       _dma_write_desc = _dma_adafruit.addDescriptor(nullptr, (void*)&spi->DATA.reg);
     }
+    else
+    {
+      _dma_adafruit.changeDescriptor(_dma_write_desc, nullptr, (void*)&spi->DATA.reg);
+    }
     _dma_write_desc->BTCTRL.bit.VALID  = true;
     _dma_write_desc->BTCTRL.bit.SRCINC = true;
     _dma_write_desc->BTCTRL.bit.DSTINC = false;
@@ -289,13 +293,15 @@ namespace lgfx
 
   void Bus_SPI::beginTransaction(void)
   {
-    _need_wait = false;
+    spi::beginTransaction(_cfg.sercom_index, _cfg.freq_write, _cfg.spi_mode);
     set_clock_write();
+    _need_wait = false;
   }
 
   void Bus_SPI::endTransaction(void)
   {
     dc_control(true);
+    spi::endTransaction(_cfg.sercom_index);
   }
 
   void Bus_SPI::wait(void)

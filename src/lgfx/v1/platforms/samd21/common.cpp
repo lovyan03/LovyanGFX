@@ -15,13 +15,14 @@ Contributors:
  [mongonta0716](https://github.com/mongonta0716)
  [tobozo](https://github.com/tobozo)
 /----------------------------------------------------------------------------*/
-#if defined (__SAMD21__)
+#if defined (__SAMD21__) || defined(__SAMD21G18A__) || defined(__SAMD21J18A__) || defined(__SAMD21E17A__) || defined(__SAMD21E18A__)
 
 #include "common.hpp"
 
-#if defined ( ARDUINO )
- #include <SPI.h>
- #include <Wire.h>
+#ifndef WIRE_RISE_TIME_NANOSECONDS
+// Default rise time in nanoseconds, based on 4.7K ohm pull up resistors
+// you can override this value in your variant if needed
+#define WIRE_RISE_TIME_NANOSECONDS 125
 #endif
 
 namespace lgfx
@@ -201,7 +202,7 @@ namespace lgfx
       }
     };
 
-    static constexpr sercom_data_t sercom_data[SERCOM_INST_NUM] = {
+    static const sercom_data_t sercom_data[SERCOM_INST_NUM] = {
       { (uintptr_t)SERCOM0, GCM_SERCOM0_CORE, SERCOM0_IRQn },
       { (uintptr_t)SERCOM1, GCM_SERCOM1_CORE, SERCOM1_IRQn },
       { (uintptr_t)SERCOM2, GCM_SERCOM2_CORE, SERCOM2_IRQn },
@@ -218,6 +219,35 @@ namespace lgfx
       return &sercom_data[sercom_index];
     }
 
+    void initClockNVIC(size_t sercom_index)
+    {
+      if (sercom_index < 0 || sercom_index >= SERCOM_INST_NUM) return;
+      auto sercomData = samd21::getSercomData(sercom_index);
+      uint8_t   clockId = sercomData->clock;
+      IRQn_Type IdNvic  = sercomData->irqn;
+
+      // Setting NVIC
+      NVIC_ClearPendingIRQ(IdNvic);
+      NVIC_SetPriority(IdNvic, SERCOM_NVIC_PRIORITY);
+      NVIC_EnableIRQ(IdNvic);
+
+      // Setting clock
+      GCLK->CLKCTRL.reg = GCLK_CLKCTRL_ID( clockId ) // Generic Clock 0 (SERCOMx)
+                        | GCLK_CLKCTRL_GEN_GCLK0     // Generic Clock Generator 0 is source
+                        | GCLK_CLKCTRL_CLKEN;
+
+      while (GCLK->STATUS.reg & GCLK_STATUS_SYNCBUSY); // Wait for synchronization
+    }
+
+    static uint32_t sercom_ref_count[SERCOM_INST_NUM] = {
+      0, 0, 0, 0,
+#if SERCOM_INST_NUM > 4
+      0,
+#endif
+#if SERCOM_INST_NUM > 5
+      0,
+#endif
+    };
   }
 
   static int getPadNumber(int sercom_index, int pin, bool alt)
@@ -279,6 +309,7 @@ namespace lgfx
     case pin_mode_t::output:
       PORT->Group[port].PINCFG[pin].reg=(uint8_t)(PORT_PINCFG_INEN) ;
       PORT->Group[port].DIRSET.reg = pinMask ;
+      break;
     }
   }
 
@@ -293,7 +324,6 @@ namespace lgfx
       int dipo = -1;
       int dopo = -1;
 
-// Serial.printf("sercom:%d sclk:%d  mosi:%d  miso:%d \r\n", sercom_index, pin_sclk, pin_mosi, pin_miso);
       for (int alt = 0; alt < 2; ++alt)
       {
         int pad_sclk = getPadNumber(sercom_index, pin_sclk, alt);
@@ -311,8 +341,6 @@ namespace lgfx
         }
         if (dopo >= 0)
         {
-// Serial.printf("pad sclk:%d / pad mosi:%d alt:%d\r\n", pad_sclk, pad_mosi, alt);
-// Serial.printf("pad dipo:%d \r\n", dipo);
           pinAssignPeriph(pin_sclk, alt ? PIO_SERCOM_ALT : PIO_SERCOM);
           pinAssignPeriph(pin_mosi, alt ? PIO_SERCOM_ALT : PIO_SERCOM);
           if (dipo >= 0)
@@ -427,17 +455,35 @@ namespace lgfx
       while (sercom->SPI.SYNCBUSY.bit.ENABLE) {}
     }
 
-    void endTransaction(int spi_host)
+    void endTransaction(int sercom_index)
     {
-
     }
-    void writeBytes(int spi_host, const uint8_t* data, size_t length)
-    {
 
+    void writeBytes(int sercom_index, const uint8_t* data, size_t length)
+    {
+      auto sercomData = samd21::getSercomData(sercom_index);
+      auto sercom = reinterpret_cast<Sercom*>(sercomData->sercomPtr);
+      auto *spi = &sercom->SPI;
+      do
+      {
+        spi->DATA.reg = *data++;
+        while (spi->INTFLAG.bit.DRE == 0);
+      } while (--length);
+      while (!spi->INTFLAG.bit.TXC);
     }
-    void readBytes(int spi_host, uint8_t* data, size_t length)
-    {
 
+    void readBytes(int sercom_index, uint8_t* data, size_t length)
+    {
+      auto sercomData = samd21::getSercomData(sercom_index);
+      auto sercom = reinterpret_cast<Sercom*>(sercomData->sercomPtr);
+      auto *spi = &sercom->SPI;
+      while (spi->INTFLAG.bit.RXC) { uint32_t tmp = spi->DATA.reg; }
+      do
+      {
+        spi->DATA.reg = *data;
+        while (!spi->INTFLAG.bit.RXC);
+        *data++ = (spi->DATA.reg & 0xFF);
+      } while (--length);
     }
   }
 
@@ -445,68 +491,238 @@ namespace lgfx
 
   namespace i2c // TODO: implement.
   {
+    static constexpr uint8_t WIRE_MASTER_ACT_REPEAT_START = 0x01;
+    static constexpr uint8_t WIRE_MASTER_ACT_READ = 0x02;
+    static constexpr uint8_t WIRE_MASTER_ACT_STOP = 0x03;
+    //
+    static inline void syncSYSOP(SercomI2cm *i2cm)
+    {
+      while (i2cm->SYNCBUSY.bit.SYSOP != 0b0) {}
+    }
+
+    static inline void resetWIRE(SercomI2cm *i2cm)
+    {
+      i2cm->CTRLA.bit.SWRST = 0b1;
+      while(i2cm->CTRLA.bit.SWRST != 0b0 || i2cm->SYNCBUSY.bit.SWRST != 0b0) {}
+    }
+
+    static inline void enableWIRE(SercomI2cm *i2cm)
+    {
+      i2cm->CTRLA.bit.ENABLE = 0b1;
+      while (i2cm->SYNCBUSY.bit.ENABLE != 0b0) {}
+
+      i2cm->STATUS.bit.BUSSTATE = 0b1;
+      while (i2cm->SYNCBUSY.bit.SYSOP != 0b0) {}
+    }
+
+    static inline void disableWIRE(SercomI2cm *i2cm)
+    {
+      i2cm->CTRLA.bit.ENABLE = 0b0;
+      while (i2cm->SYNCBUSY.bit.ENABLE != 0b0) {}
+    }
+
+    static void inline setClock(SercomI2cm *i2cm, uint32_t freq)
+    {
+      i2cm->BAUD.bit.BAUD = SystemCoreClock / ( 2 * freq) - 5 - (((SystemCoreClock / 1000000) * WIRE_RISE_TIME_NANOSECONDS) / (2 * 1000));
+    }
+
+    static bool isBusIdleWIRE(SercomI2cm *i2cm)
+    {
+      return (i2cm->STATUS.bit.BUSSTATE == WIRE_IDLE_STATE);
+    }
+    static bool inline isBusOwnerWIRE(SercomI2cm *i2cm)
+    {
+      return (i2cm->STATUS.bit.BUSSTATE == WIRE_OWNER_STATE);
+    }
+    //
+    static inline void prepareCommandBitsMasterWire(SercomI2cm *i2cm, uint8_t cmd)
+    {
+      i2cm->CTRLB.bit.CMD = cmd;
+      syncSYSOP(i2cm);
+    }
+    //
+    static bool startTransmissionWIRE(SercomI2cm *i2cm, uint8_t address, bool read)
+    {
+      
+      address = (address << 0x1ul) | (read ? 0b1 : 0b0);
+      while (!isBusIdleWIRE(i2cm) && !isBusOwnerWIRE(i2cm))
+      {}
+      i2cm->ADDR.bit.ADDR = address;
+      syncSYSOP(i2cm);
+      if (read)
+      {
+        while (i2cm->INTFLAG.bit.SB == 0b0)
+        {
+            // If the slave NACKS the address, the MB bit will be set.
+            // In that case, send a stop condition and return false.
+            if (i2cm->INTFLAG.bit.MB != 0b0) {
+                prepareCommandBitsMasterWire(i2cm, WIRE_MASTER_ACT_STOP);
+                return false;
+            }
+          // Wait transmission complete
+        }
+      }
+      else
+      {
+        while (i2cm->INTFLAG.bit.MB == 0b0)
+        {}
+      }
+      return true;
+    }
+    //
+    static inline uint8_t readDataMasterWIRE(SercomI2cm *i2cm)
+    {
+      while (i2cm->INTFLAG.bit.SB == 0b0)
+      {
+        // Waiting complete receive
+      }
+      return i2cm->DATA.bit.DATA;
+    }
+
+    static inline bool sendDataMasterWIRE(SercomI2cm *i2cm, uint8_t data)
+    {
+      //Send data
+      i2cm->DATA.bit.DATA = data;
+      syncSYSOP(i2cm);
+
+      //Wait transmission successful
+      while (i2cm->INTFLAG.bit.MB == 0b0) {
+
+        // If a bus error occurs, the MB bit may never be set.
+        // Check the bus error bit and bail if it's set.
+        if (i2cm->STATUS.bit.BUSERR != 0b0) {
+          return false;
+        }
+      }
+      
+       //Problems on line? nack received?
+      return (i2cm->STATUS.bit.RXNACK == 0b0);
+    }
+
     cpp::result<void, error_t> init(int sercom_index, int pin_sda, int pin_scl)
     {
       if ((size_t)sercom_index >= SERCOM_INST_NUM) { return cpp::fail(error_t::invalid_arg); }
 
-      int pad_sda;
-      int pad_scl;
-      int alt = 0;
-      do
+      if (samd21::sercom_ref_count[sercom_index] == 0)
       {
-        pad_sda = getPadNumber(sercom_index, pin_sda, alt);
-        pad_scl = getPadNumber(sercom_index, pin_scl, alt);
-        if (pad_sda == 0 && pad_scl == 1) break;
-      } while (++alt < 2);
-      if (alt == 2) { return cpp::fail(error_t::invalid_arg); }
+        int pad_sda;
+        int pad_scl;
+        int alt = 0;
+        do
+        {
+          pad_sda = getPadNumber(sercom_index, pin_sda, alt);
+          pad_scl = getPadNumber(sercom_index, pin_scl, alt);
+          if (pad_sda == 0 && pad_scl == 1) break;
+        } while (++alt < 2);
+        if (alt == 2) { return cpp::fail(error_t::invalid_arg); }
 
-// Serial.printf("sercom:%d scl:%d  sda:%d \r\n", sercom_index, pin_scl, pin_sda);
-// Serial.printf("pad scl:%d / pad sda:%d \r\n", pad_scl, pad_sda);
+        pinAssignPeriph(pin_sda, alt ? PIO_SERCOM_ALT : PIO_SERCOM);
+        pinAssignPeriph(pin_scl, alt ? PIO_SERCOM_ALT : PIO_SERCOM);
 
-      auto sercomData = samd21::getSercomData(sercom_index);
-      auto sercom = reinterpret_cast<Sercom*>(sercomData->sercomPtr);
-      auto *i2cm = &sercom->I2CM;
+        samd21::initClockNVIC(sercom_index);
+        auto sercomData = samd21::getSercomData(sercom_index);
+        auto sercom = reinterpret_cast<Sercom*>(sercomData->sercomPtr);
+        auto *i2cm = &sercom->I2CM;
+        resetWIRE(i2cm);
+        i2cm->CTRLA.reg = SERCOM_I2CM_CTRLA_MODE(I2C_MASTER_OPERATION);
+        i2cm->CTRLB.bit.SMEN =  0b1; /*| SERCOM_I2CM_CTRLB_QCEN*/
+      }
+      samd21::sercom_ref_count[sercom_index]++;
 
-
-      Wire.begin();
       return {};
     }
 
     cpp::result<void, error_t> release(int sercom_index)
     {
-      Wire.end();
+      if (samd21::sercom_ref_count[sercom_index] > 1)
+      {
+        samd21::sercom_ref_count[sercom_index]--;
+      }
+      else if (samd21::sercom_ref_count[sercom_index] == 1)
+      {
+        auto sercomData = samd21::getSercomData(sercom_index);
+        auto sercom = reinterpret_cast<Sercom*>(sercomData->sercomPtr);
+        auto *i2cm = &sercom->I2CM;
+        disableWIRE(i2cm);
+        samd21::sercom_ref_count[sercom_index] = 0;
+      }
+
       return {};
     }
 
     cpp::result<void, error_t> restart(int sercom_index, int i2c_addr, uint32_t freq, bool read)
     {
+      auto sercomData = samd21::getSercomData(sercom_index);
+      auto sercom = reinterpret_cast<Sercom*>(sercomData->sercomPtr);
+      auto *i2cm = &sercom->I2CM;
+      prepareCommandBitsMasterWire(i2cm, WIRE_MASTER_ACT_REPEAT_START);
+      if (!startTransmissionWIRE(i2cm, i2c_addr, read))
+      {
+        return cpp::fail(error_t::periph_device_err);
+      }
       return {};
     }
 
     cpp::result<void, error_t> beginTransaction(int sercom_index, int i2c_addr, uint32_t freq, bool read)
     {
-      if (!read)
+      auto sercomData = samd21::getSercomData(sercom_index);
+      auto sercom = reinterpret_cast<Sercom*>(sercomData->sercomPtr);
+      auto *i2cm = &sercom->I2CM;
+      disableWIRE(i2cm);
+      setClock(i2cm, freq);
+      enableWIRE(i2cm);
+      if (!startTransmissionWIRE(i2cm, i2c_addr, read))
       {
-        Wire.beginTransmission(i2c_addr);
+        return cpp::fail(error_t::periph_device_err);
       }
-      Wire.setClock(freq);
       return {};
     }
 
     cpp::result<void, error_t> endTransaction(int sercom_index)
     {
-      Wire.endTransmission();
+      auto sercomData = samd21::getSercomData(sercom_index);
+      auto sercom = reinterpret_cast<Sercom*>(sercomData->sercomPtr);
+      auto *i2cm = &sercom->I2CM;
+
+      prepareCommandBitsMasterWire(i2cm, WIRE_MASTER_ACT_STOP);
       return {};
     }
 
     cpp::result<void, error_t> writeBytes(int sercom_index, const uint8_t *data, size_t length)
     {
-      Wire.write(data, length);
+      auto sercomData = samd21::getSercomData(sercom_index);
+      auto sercom = reinterpret_cast<Sercom*>(sercomData->sercomPtr);
+      auto *i2cm = &sercom->I2CM;
+      for (size_t i = 0; i < length; i++)
+      {
+        if (!sendDataMasterWIRE(i2cm, data[i]))
+        {
+          return cpp::fail(error_t::invalid_arg);
+        }
+      }
       return {};
     }
 
     cpp::result<void, error_t> readBytes(int sercom_index, uint8_t *data, size_t length)
     {
+      auto sercomData = samd21::getSercomData(sercom_index);
+      auto sercom = reinterpret_cast<Sercom*>(sercomData->sercomPtr);
+      auto *i2cm = &sercom->I2CM;
+      if (length == 0)
+      {
+        return {};
+      }
+      // 
+      size_t l = length - 1;
+      // read実行時にACKを送信
+      i2cm->CTRLB.bit.ACKACT = 0b0;
+      for (size_t i = 0; i < l; i++)
+      {
+        data[i] = readDataMasterWIRE(i2cm);
+      }
+      // 最後はNACKを送信
+      i2cm->CTRLB.bit.ACKACT = 0b1;
+      data[l] = readDataMasterWIRE(i2cm);
       return {};
     }
 

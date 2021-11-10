@@ -123,14 +123,12 @@ namespace lgfx
     inline bool drawBmpFile(fs::FS &fs, fs::File *file, int32_t x=0, int32_t y=0, int32_t maxWidth=0, int32_t maxHeight=0, int32_t offX=0, int32_t offY=0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
     {
       FileWrapper data(fs, file);
-      this->prepareTmpTransaction(&data);
       return this->draw_bmp(&data, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
     }
 
     inline bool drawJpgFile(fs::FS &fs, fs::File *file, int32_t x=0, int32_t y=0, int32_t maxWidth=0, int32_t maxHeight=0, int32_t offX=0, int32_t offY=0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
     {
       FileWrapper data(fs, file);
-      this->prepareTmpTransaction(&data);
       return this->draw_jpg(&data, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
     }
     [[deprecated("use float scale")]]
@@ -142,7 +140,6 @@ namespace lgfx
     inline bool drawPngFile(fs::FS &fs, fs::File *file, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
     {
       FileWrapper data(fs, file);
-      this->prepareTmpTransaction(&data);
       return this->draw_png(&data, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
     }
 
@@ -152,7 +149,6 @@ namespace lgfx
       StreamWrapper data;
       data.set(dataSource);
       data.need_transaction = true;
-      this->prepareTmpTransaction(&data);
       return this->draw_bmp(&data, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
     }
 
@@ -161,7 +157,6 @@ namespace lgfx
       StreamWrapper data;
       data.set(dataSource);
       data.need_transaction = true;
-      this->prepareTmpTransaction(&data);
       return this->draw_jpg(&data, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
     }
     [[deprecated("use float scale")]]
@@ -175,7 +170,6 @@ namespace lgfx
       StreamWrapper data;
       data.set(dataSource);
       data.need_transaction = true;
-      this->prepareTmpTransaction(&data);
       return this->draw_png(&data, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
     }
 
@@ -238,14 +232,12 @@ namespace lgfx
     inline bool drawBmpFile(SdBase<FsVolume> &fs, FsFile *file, int32_t x=0, int32_t y=0, int32_t maxWidth=0, int32_t maxHeight=0, int32_t offX=0, int32_t offY=0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
     {
       SdFatWrapper data(fs, file);
-      this->prepareTmpTransaction(&data);
       return this->draw_bmp(&data, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
     }
 
     inline bool drawJpgFile(SdBase<FsVolume> &fs, FsFile *file, int32_t x=0, int32_t y=0, int32_t maxWidth=0, int32_t maxHeight=0, int32_t offX=0, int32_t offY=0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
     {
       SdFatWrapper data(fs, file);
-      this->prepareTmpTransaction(&data);
       return this->draw_jpg(&data, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
     }
     [[deprecated("use float scale")]]
@@ -257,7 +249,6 @@ namespace lgfx
     inline bool drawPngFile(SdBase<FsVolume> &fs, FsFile *file, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
     {
       SdFatWrapper data(fs, file);
-      this->prepareTmpTransaction(&data);
       return this->draw_png(&data, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
     }
 
@@ -269,6 +260,7 @@ namespace lgfx
     {
       StreamWrapper data;
       data.set(dataSource);
+      data.need_transaction = this->isBusShared();
       return this->draw_bmp(&data, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
     }
 
@@ -276,6 +268,7 @@ namespace lgfx
     {
       StreamWrapper data;
       data.set(dataSource);
+      data.need_transaction = this->isBusShared();
       return this->draw_jpg(&data, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
     }
     [[deprecated("use float scale")]]
@@ -288,6 +281,7 @@ namespace lgfx
     {
       StreamWrapper data;
       data.set(dataSource);
+      data.need_transaction = this->isBusShared();
       return this->draw_png(&data, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
     }
 

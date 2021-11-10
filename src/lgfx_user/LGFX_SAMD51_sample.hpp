@@ -4,7 +4,7 @@
 
 #include <LovyanGFX.hpp>
 
-// ESP32でLovyanGFXを独自設定で利用する場合の設定例
+// SAMD51でLovyanGFXを独自設定で利用する場合の設定例
 
 /*
 このファイルを複製し、新しい名前を付けて、環境に合わせて設定内容を変更してください。
@@ -27,8 +27,8 @@ class LGFX : public lgfx::LGFX_Device
  ※ クラス名を変更する場合はコンストラクタの名前も併せて同じ名前に変更が必要です。
 
  名前の付け方は自由に決めて構いませんが、設定が増えた場合を想定し、
- 例えばESP32 DevKit-CでSPI接続のILI9341の設定を行った場合、
-  LGFX_DevKitC_SPI_ILI9341
+ 例えばFeatherWing M4でSPI接続のILI9341の設定を行った場合、
+  LGFX_FEATHER_M4_SPI_ILI9341
  のような名前にし、ファイル名とクラス名を一致させておくことで、利用時に迷いにくくなります。
 //*/
 
@@ -59,6 +59,8 @@ class LGFX : public lgfx::LGFX_Device
 
 // パネルを接続するバスの種類にあったインスタンスを用意します。
   lgfx::Bus_SPI       _bus_instance;   // SPIバスのインスタンス
+//lgfx::Bus_I2C       _bus_instance;   // I2Cバスのインスタンス (ESP32のみ)
+//lgfx::Bus_Parallel8 _bus_instance;   // 8ビットパラレルバスのインスタンス (ESP32のみ)
 
 public:
 
@@ -70,15 +72,28 @@ public:
       auto cfg = _bus_instance.config();    // バス設定用の構造体を取得します。
 
 // SPIバスの設定
+      cfg.sercom_index = 1;         // 使用するSERCOMの番号を指定
       cfg.spi_mode = 0;             // SPI通信モードを設定 (0 ~ 3)
-      cfg.spi_3wire  = false;       // 受信をMOSIピンで行う場合はtrueを設定
-      cfg.freq_write = 40000000;    // 送信時のSPIクロック (最大80MHz, 80MHzを整数で割った値に丸められます)
-      cfg.freq_read  = 16000000;    // 受信時のSPIクロック
-      cfg.pin_sclk = 14;            // SPIのSCLKピン番号を設定
-      cfg.pin_mosi = 13;            // SPIのMOSIピン番号を設定
-      cfg.pin_miso = 12;            // SPIのMISOピン番号を設定 (-1 = disable)
-      cfg.pin_dc   =  4;            // SPIのD/Cピン番号を設定  (-1 = disable)
+      cfg.freq_write = 24000000;    // 送信時のSPIクロック (CPU動作クロックを整数で割った値に丸められます)
+      cfg.freq_read  = 12000000;    // 受信時のSPIクロック
+      cfg.pin_sclk = lgfx::samd51::PORT_A | 17; // SPIのSCLKピン番号を設定
+      cfg.pin_mosi = lgfx::samd51::PORT_B | 23; // SPIのMOSIピン番号を設定
+      cfg.pin_miso = lgfx::samd51::PORT_B | 22; // SPIのMISOピン番号を設定 (-1 = disable)
+      cfg.pin_dc   = lgfx::samd51::PORT_A | 20; // SPIのD/Cピン番号を設定  (-1 = disable)
      // SDカードと共通のSPIバスを使う場合、MISOは省略せず必ず設定してください。
+
+// ※ ピン番号の設定は、Arduino互換用のピン番号ではなく、"PA07" 等の実際のMCUのポート番号を指定します。
+// ※ SERCOMのPAD設定は不要です。LGFX内部でSERCOM番号とポート番号を元にPADを自動設定する仕組みになっています。
+//*/
+/*
+// I2Cバスの設定
+      cfg.sercom_index = 2;         // 使用するSERCOMの番号を指定
+      cfg.freq_write  = 400000;     // 送信時のクロック
+      cfg.freq_read   = 400000;     // 受信時のクロック
+      cfg.pin_sda = lgfx::samd51::PORT_A | 12; // I2CのSDAをピン番号を設定
+      cfg.pin_scl = lgfx::samd51::PORT_A | 13; // I2CのSCLをピン番号を設定
+      cfg.i2c_addr    = 0x3C;       // I2Cデバイスのアドレス
+//*/
 
       _bus_instance.config(cfg);    // 設定値をバスに反映します。
       _panel_instance.setBus(&_bus_instance);      // バスをパネルにセットします。
@@ -87,9 +102,9 @@ public:
     { // 表示パネル制御の設定を行います。
       auto cfg = _panel_instance.config();    // 表示パネル設定用の構造体を取得します。
 
-      cfg.pin_cs           =    15;  // CSが接続されているピン番号   (-1 = disable)
-      cfg.pin_rst          =    16;  // RSTが接続されているピン番号  (-1 = disable)
-      cfg.pin_busy         =    -1;  // BUSYが接続されているピン番号 (-1 = disable)
+      cfg.pin_cs   = lgfx::samd51::PORT_A | 19; // CSが接続されているピン番号   (-1 = disable)
+      cfg.pin_rst  =    -1;  // RSTが接続されているピン番号  (-1 = disable)
+      cfg.pin_busy =    -1;  // BUSYが接続されているピン番号 (-1 = disable)
 
       // ※ 以下の設定値はパネル毎に一般的な初期値が設定されていますので、不明な項目はコメントアウトして試してみてください。
 
@@ -110,6 +125,7 @@ public:
 
       _panel_instance.config(cfg);
     }
+
     setPanel(&_panel_instance); // 使用するパネルをセットします。
   }
 };
