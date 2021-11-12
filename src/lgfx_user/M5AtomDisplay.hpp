@@ -59,8 +59,19 @@ public:
     }
 
     {
-      static constexpr int X_SCALE_MAX = 16;
-      static constexpr int Y_SCALE_MAX = 16;
+      static constexpr int SCALE_MAX = 16;
+
+      if (output_width)
+      {
+        if (output_width  > 1920) { output_width  = 1920; }
+        if (logical_width > output_width) { logical_width = output_width; }
+      }
+      if (output_height)
+      {
+        if (output_height > 1920) { output_height = 1920; }
+        if (logical_height > output_height) { logical_height = output_height; }
+      }
+
       if (logical_width == 0)
       {
         if (logical_height == 0)
@@ -83,62 +94,33 @@ public:
       {
         x_scale = 1;
         y_scale = 1;
-        uint32_t prev_total = 0;
-        float prev_aspect = INT_MAX;
-        for (int ys = 1; ys <= Y_SCALE_MAX; ++ys)
+        for (int scale = 2; scale <= SCALE_MAX; ++scale)
         {
-          uint32_t scale_height = ys * logical_height;
-          if (scale_height > 1920)
-          {
-            break;
-          }
-          for (int xs = 1; xs <= X_SCALE_MAX; ++xs)
-          {
-            uint32_t scale_width = xs * logical_width;
-            if (scale_width > 1920)
-            {
-              break;
-            }
-            uint32_t total = scale_width * scale_height;
-            if (total <= 384000 || total > 1024000) continue;
-            float aspect = fabsf(1.67f - (float)scale_width / scale_height);
-            if (prev_total < total && prev_aspect >= aspect )
-            {
-              prev_total = total;
-              prev_aspect = aspect + 0.001f;
-              x_scale = xs;
-              y_scale = ys;
-            }
-          }
+          uint32_t scale_height = scale * logical_height;
+          uint32_t scale_width = scale * logical_width;
+          uint32_t total = scale_width * scale_height;
+          if (scale_width > 1920 || scale_height > 1920 || total >= 1024000) { break; }
+          x_scale = scale;
+          y_scale = scale;
         }
         output_width  = x_scale * logical_width;
         output_height = y_scale * logical_height;
       }
       else
       {
-        if (output_width)
-        {
-          if (output_width  > 1920) { output_width  = 1920; }
-          if (logical_width > output_width) { logical_width > output_width; }
-        }
-        if (output_height)
-        {
-          if (output_height > 1920) { output_height = 1920; }
-          if (logical_height > output_height) { logical_height > output_height; }
-        }
-
         if (y_scale == 0)
         {
           y_scale = output_height / logical_height;
         }
-        if (y_scale > Y_SCALE_MAX) { y_scale = Y_SCALE_MAX; }
+        if (y_scale > SCALE_MAX) { y_scale = SCALE_MAX; }
+        while (logical_height * y_scale > output_height) { --y_scale; }
 
         if (x_scale == 0)
         {
           x_scale = output_width  / logical_width;
         }
         uint32_t w = output_width / x_scale;
-        while (x_scale > X_SCALE_MAX || w * x_scale != output_width)
+        while (x_scale > SCALE_MAX || w * x_scale != output_width || logical_width * x_scale > output_width)
         {
           w = output_width / --x_scale;
         }

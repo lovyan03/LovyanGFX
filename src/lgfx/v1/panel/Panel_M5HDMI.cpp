@@ -415,12 +415,12 @@ namespace lgfx
     cs_control(true);
     _bus->endRead();
     cs_control(false);
-    _bus->writeData(CMD_READ_ID, 8); // READ_ID
+    _bus->writeData((CMD_READ_ID<<24)+CMD_READ_ID, 32); // READ_ID
     _bus->beginRead();
     uint32_t data;
     do {
       data = _bus->readData(8);
-    } while ( data == 0x00 );
+    } while ( data != 0xFF );
     data = _bus->readData(32);
     ESP_LOGI(TAG, "FPGA ID:%02x %02x %02x %02x", data & 0xFF, (data >> 8) & 0xFF, (data >> 16) & 0xFF, data >> 24);
     cs_control(true);
@@ -433,33 +433,36 @@ namespace lgfx
     uint_fast16_t mem_height = _cfg.memory_height;
 
     int hori_total;
-    int vert_total = mem_height + 16;
-    do
+    int vert_total = mem_height + 10;
+
+    for (;;)
     {
       hori_total = TOTAL_RESOLUTION / ++vert_total;
-    } while ( TOTAL_RESOLUTION != vert_total * hori_total || mem_width + 576 < hori_total );
+      if (mem_width + 768 < hori_total) { continue; }
+      if (24 >= abs(TOTAL_RESOLUTION - vert_total *   hori_total)) { break; }
+      if (24 >= abs(TOTAL_RESOLUTION - vert_total * ++hori_total)) { break; }
+    }
 
     video_timing_t vt;
 
     vt.v.active = mem_height;
     uint32_t remain = vert_total - mem_height;
-    int porch = remain >> 1;
-    vt.v.front_porch = porch;
-    remain -= porch;
-    int sync = remain >> 1;
-    vt.v.sync = sync;
+    int sync = 1;
     remain -= sync;
+    int porch = remain >> 1;
+    remain -= porch;
+    vt.v.front_porch = porch;
+    vt.v.sync = sync;
     vt.v.back_porch = remain;
 
     vt.h.active = mem_width;
     remain = hori_total - mem_width;
-    sync = remain >> 3;
-    if (sync < 8 && remain > 24) { sync = 8; }
-    vt.h.sync = sync;
+    sync  = 24 + (remain >> 8);
     remain -= sync;
-    porch = sync;
-    vt.h.front_porch = porch;
+    porch = (remain * 131) >> 8;
     remain -= porch;
+    vt.h.front_porch = porch;
+    vt.h.sync = sync;
     vt.h.back_porch = remain;
 
     setVideoTiming(&vt);
