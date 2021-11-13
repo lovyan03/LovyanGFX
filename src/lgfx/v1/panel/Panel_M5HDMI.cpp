@@ -495,10 +495,41 @@ namespace lgfx
     _bus->endTransaction();
   }
 
-  bool Panel_M5HDMI::_check_repeat(uint32_t cmd, uint_fast8_t limit)
+  void Panel_M5HDMI::waitDisplay(void)
+  {
+    while (displayBusy()) {}
+  }
+
+  bool Panel_M5HDMI::displayBusy(void)
   {
     if ((_last_cmd & ~7) == CMD_WRITE_RAW)
     {
+      cs_control(true);
+      _total_send = 0;
+      _last_cmd = 0;
+      cs_control(false);
+      return false;
+    }
+    bool res = _total_send;
+    if (res)
+    {
+      startWrite();
+      _bus->beginRead();
+      res = (_bus->readData(8) == 0x00);
+      cs_control(true);
+      _bus->endRead();
+      if (!res) { _total_send = 0; }
+      cs_control(false);
+      endWrite();
+    }
+    return res;
+  }
+
+  bool Panel_M5HDMI::_check_repeat(uint32_t cmd, uint32_t length)
+  {
+    if ((_last_cmd & ~7) == CMD_WRITE_RAW)
+    {
+      _total_send = 0;
       if (_last_cmd == cmd)
       {
         return true;
@@ -513,26 +544,19 @@ namespace lgfx
 
       return false;
     }
-
     _last_cmd = cmd;
 
-    if (_need_delay)
+    if ((cmd && _total_send) || (_total_send += length) >= 512)
     {
-      auto us = lgfx::micros() - _last_us;
-      if (_need_delay > us)
-      {
-        us = _need_delay - us;
-        delayMicroseconds(us);
-      }
+      _total_send = 0;
       _bus->beginRead();
       while (_bus->readData(8) == 0x00)
       {
-        delayMicroseconds(1);
+        delayMicroseconds(++length>>3);
       }
       cs_control(true);
       _bus->endRead();
       cs_control(false);
-      _need_delay = 0;
     }
     return false;
   }
@@ -629,14 +653,11 @@ namespace lgfx
       buf[3] = _raw_color;
       bytes += 4;
     }
-    _check_repeat();
-    _bus->writeBytes(((uint8_t*)buf)+3, bytes, false, false);
-    if (w > 7 || h > 1)
+    if (rect || _total_send || _last_cmd)
     {
-      uint32_t us = ((21 + (w >> 4) * 36 + (w & 15)) * h) >> 5;
-      _need_delay = 1 + us;
-      _last_us = lgfx::micros();
+      _check_repeat(0, bytes);
     }
+    _bus->writeBytes(((uint8_t*)buf)+3, bytes, false, false);
   }
 
   void Panel_M5HDMI::writeFillRectPreclipped(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, uint32_t rawcolor)
@@ -689,7 +710,7 @@ namespace lgfx
     cmd.data_x = ((xs >> 8) & mask) + ((xs & mask) << 8);
     ys += _cfg.offset_y + ((ye + _cfg.offset_y) << 16);
     cmd.data_y = ((ys >> 8) & mask) + ((ys & mask) << 8);
-    _check_repeat();
+    _check_repeat(0, sizeof(cmd_t));
     _bus->writeBytes(cmd.raw, sizeof(cmd_t), false, false);
   }
 
@@ -893,12 +914,12 @@ namespace lgfx
 
   void Panel_M5HDMI::writeImageARGB(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, pixelcopy_t* param)
   {
-    // unimplemented
+    // ToDo:unimplemented
   }
 
   void Panel_M5HDMI::readRect(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, void* dst, pixelcopy_t* param)
   {
-    // unimplemented
+    // ToDo:unimplemented
   }
 
   void Panel_M5HDMI::_copy_rect(uint32_t dst_xy, uint32_t src_xy, uint32_t wh)
@@ -922,21 +943,12 @@ namespace lgfx
     cmd.src_xy2 = ((src_xy >> 8) & mask) + ((src_xy & mask) << 8);
     cmd.dst_xy  = ((dst_xy >> 8) & mask) + ((dst_xy & mask) << 8);
 
-    startWrite();
-    _check_repeat();
+    _check_repeat(0, sizeof(cmd_t));
     _bus->writeBytes(cmd.raw, sizeof(cmd_t), false, false);
-    uint32_t w = wh & 0xFFFF;
-    uint32_t h = (wh >> 16)+1;
-    _need_delay = (w + ((16 + (w >> 4) * 40 + (w & 15)) * ((h << 2) ))) >> 5;
-    _last_us = lgfx::micros();
-    endWrite();
   }
 
   void Panel_M5HDMI::copyRect(uint_fast16_t dst_x, uint_fast16_t dst_y, uint_fast16_t w, uint_fast16_t h, uint_fast16_t src_x, uint_fast16_t src_y)
   {
-    uint8_t buf[26];
-    size_t idx = 0;
-
     uint_fast8_t r = _internal_rotation;
     if (r)
     {
@@ -951,6 +963,7 @@ namespace lgfx
 
     --w;
     --h;
+    startWrite();
     if (dst_y < src_y || (dst_y == src_y && dst_x <= src_x) || (src_y + h < dst_y) || (src_x + w < dst_x))
     {
       _copy_rect(dst_x + (dst_y << 16), src_x + (src_y << 16), w + (h << 16));
@@ -971,6 +984,7 @@ namespace lgfx
         _copy_rect(dst_x + ((dst_y+h) << 16), offscreen, w);
       } while (h--);
     }
+    endWrite();
   }
 
   void Panel_M5HDMI::setVideoTiming(const video_timing_t* param)
@@ -1008,7 +1022,7 @@ namespace lgfx
     cmd.chksum = ~sum;
 
     startWrite();
-    _check_repeat();
+    waitDisplay();
     _bus->writeBytes(cmd.raw, sizeof(cmd_t), false, false);
     endWrite();
   }
@@ -1053,7 +1067,7 @@ namespace lgfx
     cmd.chksum = ~sum;
 
     startWrite();
-    _check_repeat();
+    waitDisplay();
     _bus->writeBytes(cmd.raw, sizeof(cmd_t), false, false);
     endWrite();
   }
@@ -1077,7 +1091,7 @@ namespace lgfx
     cmd.xy = ((xy >> 8) & mask) + ((xy & mask) << 8);
 
     startWrite();
-    _check_repeat();
+    waitDisplay();
     _bus->writeBytes(cmd.raw, sizeof(cmd_t), false, false);
     endWrite();
   }
