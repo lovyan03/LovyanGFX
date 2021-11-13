@@ -19,7 +19,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
         with:
-          ref: master # this must match the main/master branch name !!
+          ref: develop
       - name: Semver-Iterator
         run: |
           chmod +x $GITHUB_WORKSPACE/.github/scripts/semver.sh
