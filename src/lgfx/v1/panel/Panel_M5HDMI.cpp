@@ -411,17 +411,15 @@ namespace lgfx
     ESP_LOGI(TAG, "Waiting the FPGA gets idle...");
     startWrite();
     _bus->beginRead();
-    while (_bus->readData(8) != 0xff);
+    while (_bus->readData(8) != 0xFF) {}
     cs_control(true);
     _bus->endRead();
     cs_control(false);
     _bus->writeData(CMD_READ_ID, 8); // READ_ID
     _bus->beginRead();
-    uint32_t data;
-    do {
-      data = _bus->readData(8);
-    } while ( data == 0x00 );
-    data = _bus->readData(32);
+    while (_bus->readData(8) == 0xFF) {}
+    _bus->readData(8); // skip 0xFF
+    uint32_t data = _bus->readData(32);
     ESP_LOGI(TAG, "FPGA ID:%02x %02x %02x %02x", data & 0xFF, (data >> 8) & 0xFF, (data >> 16) & 0xFF, data >> 24);
     cs_control(true);
     _bus->endRead();
@@ -433,33 +431,36 @@ namespace lgfx
     uint_fast16_t mem_height = _cfg.memory_height;
 
     int hori_total;
-    int vert_total = mem_height + 16;
-    do
+    int vert_total = mem_height + 10;
+
+    for (;;)
     {
       hori_total = TOTAL_RESOLUTION / ++vert_total;
-    } while ( TOTAL_RESOLUTION != vert_total * hori_total || mem_width + 576 < hori_total );
+      if (mem_width + 768 < hori_total) { continue; }
+      if (24 >= abs(TOTAL_RESOLUTION - vert_total *   hori_total)) { break; }
+      if (24 >= abs(TOTAL_RESOLUTION - vert_total * ++hori_total)) { break; }
+    }
 
     video_timing_t vt;
 
     vt.v.active = mem_height;
     uint32_t remain = vert_total - mem_height;
-    int porch = remain >> 1;
-    vt.v.front_porch = porch;
-    remain -= porch;
-    int sync = remain >> 1;
-    vt.v.sync = sync;
+    int sync = 1;
     remain -= sync;
+    int porch = remain >> 1;
+    remain -= porch;
+    vt.v.front_porch = porch;
+    vt.v.sync = sync;
     vt.v.back_porch = remain;
 
     vt.h.active = mem_width;
     remain = hori_total - mem_width;
-    sync = remain >> 3;
-    if (sync < 8 && remain > 24) { sync = 8; }
-    vt.h.sync = sync;
+    sync  = 24 + (remain >> 8);
     remain -= sync;
-    porch = sync;
-    vt.h.front_porch = porch;
+    porch = (remain * 131) >> 8;
     remain -= porch;
+    vt.h.front_porch = porch;
+    vt.h.sync = sync;
     vt.h.back_porch = remain;
 
     setVideoTiming(&vt);
@@ -494,10 +495,41 @@ namespace lgfx
     _bus->endTransaction();
   }
 
-  bool Panel_M5HDMI::_check_repeat(uint32_t cmd, uint_fast8_t limit)
+  void Panel_M5HDMI::waitDisplay(void)
+  {
+    while (displayBusy()) {}
+  }
+
+  bool Panel_M5HDMI::displayBusy(void)
   {
     if ((_last_cmd & ~7) == CMD_WRITE_RAW)
     {
+      cs_control(true);
+      _total_send = 0;
+      _last_cmd = 0;
+      cs_control(false);
+      return false;
+    }
+    bool res = _total_send;
+    if (res)
+    {
+      startWrite();
+      _bus->beginRead();
+      res = (_bus->readData(8) == 0x00);
+      cs_control(true);
+      _bus->endRead();
+      if (!res) { _total_send = 0; }
+      cs_control(false);
+      endWrite();
+    }
+    return res;
+  }
+
+  bool Panel_M5HDMI::_check_repeat(uint32_t cmd, uint32_t length)
+  {
+    if ((_last_cmd & ~7) == CMD_WRITE_RAW)
+    {
+      _total_send = 0;
       if (_last_cmd == cmd)
       {
         return true;
@@ -512,26 +544,19 @@ namespace lgfx
 
       return false;
     }
-
     _last_cmd = cmd;
 
-    if (_need_delay)
+    if ((cmd && _total_send) || (_total_send += length) >= 512)
     {
-      auto us = lgfx::micros() - _last_us;
-      if (_need_delay > us)
-      {
-        us = _need_delay - us;
-        delayMicroseconds(us);
-      }
+      _total_send = 0;
       _bus->beginRead();
       while (_bus->readData(8) == 0x00)
       {
-        delayMicroseconds(1);
+        delayMicroseconds(++length>>3);
       }
       cs_control(true);
       _bus->endRead();
       cs_control(false);
-      _need_delay = 0;
     }
     return false;
   }
@@ -628,14 +653,11 @@ namespace lgfx
       buf[3] = _raw_color;
       bytes += 4;
     }
-    _check_repeat();
-    _bus->writeBytes(((uint8_t*)buf)+3, bytes, false, false);
-    if (w > 7 || h > 1)
+    if (rect || _total_send || _last_cmd)
     {
-      uint32_t us = ((21 + (w >> 4) * 36 + (w & 15)) * h) >> 5;
-      _need_delay = 1 + us;
-      _last_us = lgfx::micros();
+      _check_repeat(0, bytes);
     }
+    _bus->writeBytes(((uint8_t*)buf)+3, bytes, false, false);
   }
 
   void Panel_M5HDMI::writeFillRectPreclipped(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, uint32_t rawcolor)
@@ -688,7 +710,7 @@ namespace lgfx
     cmd.data_x = ((xs >> 8) & mask) + ((xs & mask) << 8);
     ys += _cfg.offset_y + ((ye + _cfg.offset_y) << 16);
     cmd.data_y = ((ys >> 8) & mask) + ((ys & mask) << 8);
-    _check_repeat();
+    _check_repeat(0, sizeof(cmd_t));
     _bus->writeBytes(cmd.raw, sizeof(cmd_t), false, false);
   }
 
@@ -892,64 +914,76 @@ namespace lgfx
 
   void Panel_M5HDMI::writeImageARGB(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, pixelcopy_t* param)
   {
-    // unimplemented
+    // ToDo:unimplemented
   }
 
   void Panel_M5HDMI::readRect(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, void* dst, pixelcopy_t* param)
   {
-    // unimplemented
+    // ToDo:unimplemented
+  }
+
+  void Panel_M5HDMI::_copy_rect(uint32_t dst_xy, uint32_t src_xy, uint32_t wh)
+  {
+    union cmd_t
+    {
+      uint8_t raw[13];
+      struct __attribute__((packed))
+      {
+        uint8_t cmd;
+        uint32_t src_xy1;
+        uint32_t src_xy2;
+        uint32_t dst_xy;
+      };
+    };
+    cmd_t cmd;
+    cmd.cmd = CMD_COPYRECT;
+    static constexpr uint32_t mask = 0xFF00FF;
+    cmd.src_xy1 = ((src_xy >> 8) & mask) + ((src_xy & mask) << 8);
+    src_xy += wh;
+    cmd.src_xy2 = ((src_xy >> 8) & mask) + ((src_xy & mask) << 8);
+    cmd.dst_xy  = ((dst_xy >> 8) & mask) + ((dst_xy & mask) << 8);
+
+    _check_repeat(0, sizeof(cmd_t));
+    _bus->writeBytes(cmd.raw, sizeof(cmd_t), false, false);
   }
 
   void Panel_M5HDMI::copyRect(uint_fast16_t dst_x, uint_fast16_t dst_y, uint_fast16_t w, uint_fast16_t h, uint_fast16_t src_x, uint_fast16_t src_y)
   {
-    uint8_t buf[26];
-    size_t idx = 0;
-
+    uint_fast8_t r = _internal_rotation;
+    if (r)
+    {
+      if ((1u << r) & 0b10010110) { src_y = _height - (src_y + h);  dst_y = _height - (dst_y + h); }
+      if (r & 2)                  { src_x = _width  - (src_x + w);  dst_x = _width  - (dst_x + w); }
+      if (r & 1) { std::swap(src_x, src_y);  std::swap(dst_x, dst_y);  std::swap(w, h); }
+    }
     src_x += _cfg.offset_x;
     dst_x += _cfg.offset_x;
     src_y += _cfg.offset_y;
     dst_y += _cfg.offset_y;
 
-    auto xe = src_x + w - 1;
-    auto ye = src_y + h - 1;
-
-    buf[idx++] = CMD_COPYRECT;
-    buf[idx++] = src_x >> 8;
-    buf[idx++] = src_x;
-    buf[idx++] = src_y >> 8;
-    buf[idx++] = src_y;
-    buf[idx++] = xe >> 8;
-    buf[idx++] = xe;
-    buf[idx++] = ye >> 8;
-    buf[idx++] = ye;
-
-    if (src_y <= dst_y)
-    {
-      buf[idx++] = src_x >> 8;
-      buf[idx++] = src_x;
-      buf[idx++] = (_cfg.memory_height + src_y) >> 8;
-      buf[idx++] = (_cfg.memory_height + src_y);
-      buf[idx++] = CMD_COPYRECT;
-      buf[idx++] = src_x >> 8;
-      buf[idx++] = src_x;
-      buf[idx++] = (_cfg.memory_height + src_y) >> 8;
-      buf[idx++] = (_cfg.memory_height + src_y);
-      buf[idx++] = xe >> 8;
-      buf[idx++] = xe;
-      buf[idx++] = (_cfg.memory_height + ye) >> 8;
-      buf[idx++] = (_cfg.memory_height + ye);
-    }
-    buf[idx++] = dst_x >> 8;
-    buf[idx++] = dst_x;
-    buf[idx++] = dst_y >> 8;
-    buf[idx++] = dst_y;
-
-    startWrite();
-    _check_repeat();
-    _bus->writeBytes(buf, idx, false, false);
     --w;
-    _need_delay = (w + ((16 + (w >> 4) * 40 + (w & 15)) * ((h << 2) ))) >> (src_y > dst_y ? 6 : 5);
-    _last_us = lgfx::micros();
+    --h;
+    startWrite();
+    if (dst_y < src_y || (dst_y == src_y && dst_x <= src_x) || (src_y + h < dst_y) || (src_x + w < dst_x))
+    {
+      _copy_rect(dst_x + (dst_y << 16), src_x + (src_y << 16), w + (h << 16));
+    }
+    else if (src_y < dst_y)
+    {
+      do
+      {
+        _copy_rect(dst_x + ((dst_y+h) << 16), src_x + ((src_y+h) << 16), w);
+      } while (h--);
+    }
+    else
+    {
+      uint32_t offscreen = _cfg.memory_height << 16;
+      do
+      {
+        _copy_rect(offscreen, src_x + ((src_y+h) << 16), w);
+        _copy_rect(dst_x + ((dst_y+h) << 16), offscreen, w);
+      } while (h--);
+    }
     endWrite();
   }
 
@@ -988,7 +1022,7 @@ namespace lgfx
     cmd.chksum = ~sum;
 
     startWrite();
-    _check_repeat();
+    waitDisplay();
     _bus->writeBytes(cmd.raw, sizeof(cmd_t), false, false);
     endWrite();
   }
@@ -1033,7 +1067,7 @@ namespace lgfx
     cmd.chksum = ~sum;
 
     startWrite();
-    _check_repeat();
+    waitDisplay();
     _bus->writeBytes(cmd.raw, sizeof(cmd_t), false, false);
     endWrite();
   }
@@ -1057,7 +1091,7 @@ namespace lgfx
     cmd.xy = ((xy >> 8) & mask) + ((xy & mask) << 8);
 
     startWrite();
-    _check_repeat();
+    waitDisplay();
     _bus->writeBytes(cmd.raw, sizeof(cmd_t), false, false);
     endWrite();
   }
