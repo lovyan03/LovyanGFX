@@ -532,6 +532,7 @@ namespace lgfx
       gpio_num_t scl_io = i2c_context[i2c_port].pin_scl;
       gpio_set_level(scl_io, 1);
       gpio_set_direction(scl_io, GPIO_MODE_OUTPUT_OD);
+      ets_delay_us(1);
 
       auto mod = getPeriphModule(i2c_port);
       // ESP-IDF環境でperiph_module_disableを使うと、後でenableできなくなる問題が起きたためコメントアウト;

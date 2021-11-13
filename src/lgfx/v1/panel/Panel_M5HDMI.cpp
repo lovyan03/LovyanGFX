@@ -411,17 +411,15 @@ namespace lgfx
     ESP_LOGI(TAG, "Waiting the FPGA gets idle...");
     startWrite();
     _bus->beginRead();
-    while (_bus->readData(8) != 0xff);
+    while (_bus->readData(8) != 0xFF) {}
     cs_control(true);
     _bus->endRead();
     cs_control(false);
-    _bus->writeData((CMD_READ_ID<<24)+CMD_READ_ID, 32); // READ_ID
+    _bus->writeData(CMD_READ_ID, 8); // READ_ID
     _bus->beginRead();
-    uint32_t data;
-    do {
-      data = _bus->readData(8);
-    } while ( data != 0xFF );
-    data = _bus->readData(32);
+    while (_bus->readData(8) == 0xFF) {}
+    _bus->readData(8); // skip 0xFF
+    uint32_t data = _bus->readData(32);
     ESP_LOGI(TAG, "FPGA ID:%02x %02x %02x %02x", data & 0xFF, (data >> 8) & 0xFF, (data >> 16) & 0xFF, data >> 24);
     cs_control(true);
     _bus->endRead();
@@ -903,57 +901,76 @@ namespace lgfx
     // unimplemented
   }
 
+  void Panel_M5HDMI::_copy_rect(uint32_t dst_xy, uint32_t src_xy, uint32_t wh)
+  {
+    union cmd_t
+    {
+      uint8_t raw[13];
+      struct __attribute__((packed))
+      {
+        uint8_t cmd;
+        uint32_t src_xy1;
+        uint32_t src_xy2;
+        uint32_t dst_xy;
+      };
+    };
+    cmd_t cmd;
+    cmd.cmd = CMD_COPYRECT;
+    static constexpr uint32_t mask = 0xFF00FF;
+    cmd.src_xy1 = ((src_xy >> 8) & mask) + ((src_xy & mask) << 8);
+    src_xy += wh;
+    cmd.src_xy2 = ((src_xy >> 8) & mask) + ((src_xy & mask) << 8);
+    cmd.dst_xy  = ((dst_xy >> 8) & mask) + ((dst_xy & mask) << 8);
+
+    startWrite();
+    _check_repeat();
+    _bus->writeBytes(cmd.raw, sizeof(cmd_t), false, false);
+    uint32_t w = wh & 0xFFFF;
+    uint32_t h = (wh >> 16)+1;
+    _need_delay = (w + ((16 + (w >> 4) * 40 + (w & 15)) * ((h << 2) ))) >> 5;
+    _last_us = lgfx::micros();
+    endWrite();
+  }
+
   void Panel_M5HDMI::copyRect(uint_fast16_t dst_x, uint_fast16_t dst_y, uint_fast16_t w, uint_fast16_t h, uint_fast16_t src_x, uint_fast16_t src_y)
   {
     uint8_t buf[26];
     size_t idx = 0;
 
+    uint_fast8_t r = _internal_rotation;
+    if (r)
+    {
+      if ((1u << r) & 0b10010110) { src_y = _height - (src_y + h);  dst_y = _height - (dst_y + h); }
+      if (r & 2)                  { src_x = _width  - (src_x + w);  dst_x = _width  - (dst_x + w); }
+      if (r & 1) { std::swap(src_x, src_y);  std::swap(dst_x, dst_y);  std::swap(w, h); }
+    }
     src_x += _cfg.offset_x;
     dst_x += _cfg.offset_x;
     src_y += _cfg.offset_y;
     dst_y += _cfg.offset_y;
 
-    auto xe = src_x + w - 1;
-    auto ye = src_y + h - 1;
-
-    buf[idx++] = CMD_COPYRECT;
-    buf[idx++] = src_x >> 8;
-    buf[idx++] = src_x;
-    buf[idx++] = src_y >> 8;
-    buf[idx++] = src_y;
-    buf[idx++] = xe >> 8;
-    buf[idx++] = xe;
-    buf[idx++] = ye >> 8;
-    buf[idx++] = ye;
-
-    if (src_y <= dst_y)
-    {
-      buf[idx++] = src_x >> 8;
-      buf[idx++] = src_x;
-      buf[idx++] = (_cfg.memory_height + src_y) >> 8;
-      buf[idx++] = (_cfg.memory_height + src_y);
-      buf[idx++] = CMD_COPYRECT;
-      buf[idx++] = src_x >> 8;
-      buf[idx++] = src_x;
-      buf[idx++] = (_cfg.memory_height + src_y) >> 8;
-      buf[idx++] = (_cfg.memory_height + src_y);
-      buf[idx++] = xe >> 8;
-      buf[idx++] = xe;
-      buf[idx++] = (_cfg.memory_height + ye) >> 8;
-      buf[idx++] = (_cfg.memory_height + ye);
-    }
-    buf[idx++] = dst_x >> 8;
-    buf[idx++] = dst_x;
-    buf[idx++] = dst_y >> 8;
-    buf[idx++] = dst_y;
-
-    startWrite();
-    _check_repeat();
-    _bus->writeBytes(buf, idx, false, false);
     --w;
-    _need_delay = (w + ((16 + (w >> 4) * 40 + (w & 15)) * ((h << 2) ))) >> (src_y > dst_y ? 6 : 5);
-    _last_us = lgfx::micros();
-    endWrite();
+    --h;
+    if (dst_y < src_y || (dst_y == src_y && dst_x <= src_x) || (src_y + h < dst_y) || (src_x + w < dst_x))
+    {
+      _copy_rect(dst_x + (dst_y << 16), src_x + (src_y << 16), w + (h << 16));
+    }
+    else if (src_y < dst_y)
+    {
+      do
+      {
+        _copy_rect(dst_x + ((dst_y+h) << 16), src_x + ((src_y+h) << 16), w);
+      } while (h--);
+    }
+    else
+    {
+      uint32_t offscreen = _cfg.memory_height << 16;
+      do
+      {
+        _copy_rect(offscreen, src_x + ((src_y+h) << 16), w);
+        _copy_rect(dst_x + ((dst_y+h) << 16), offscreen, w);
+      } while (h--);
+    }
   }
 
   void Panel_M5HDMI::setVideoTiming(const video_timing_t* param)
