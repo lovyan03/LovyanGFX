@@ -60,6 +60,9 @@ namespace lgfx
     void beginTransaction(void) override;
     void endTransaction(void) override;
 
+    using Panel_Device::config;
+    void config(const config_t& cfg, int scale_w, int scale_h, float refresh_rate);
+
     color_depth_t setColorDepth(color_depth_t depth) override;
     void setRotation(uint_fast8_t r) override;
     void setBrightness(uint8_t brightness) override;
@@ -144,15 +147,15 @@ namespace lgfx
     static constexpr uint8_t CMD_READ_RAW_16  = 0x82; // 1Byte RGB565のピクセルデータを読出し;
     static constexpr uint8_t CMD_READ_RAW_24  = 0x83; // 1Byte RGB888のピクセルデータを読出し;
 
-//  static constexpr uint8_t CMD_CHANGE_ADDR  = 0xA0; // 4Byte i2cアドレス変更 [0]=0xA0 [1]=変更後のI2Cアドレス [2]=変更後のI2Cアドレスのビット反転値 [3]=0xA0
+//  static constexpr uint8_t CMD_CHANGE_ADDR  = 0xA0;
 
     static constexpr uint8_t CMD_VIDEO_TIMING_V = 0xB0;
     static constexpr uint8_t CMD_VIDEO_TIMING_H = 0xB1;
 
-//  static constexpr uint8_t CMD_UPDATE_BEGIN = 0xF0; // 4Byte ファームウェア更新開始   [0]=0xF0 [1]=0x77 [2]=0x89 [3]=0xF0
-//  static constexpr uint8_t CMD_UPDATE_DATA  = 0xF1; // 4Byte ファームウェアデータ送信 [0]=0xF1 [1]=0x77 [2]=0x89 [3]=0xF1
-//  static constexpr uint8_t CMD_UPDATE_END   = 0xF2; // 4Byte ファームウェア更新完了   [0]=0xF2 [1]=0x77 [2]=0x89 [3]=0xF2
-//  static constexpr uint8_t CMD_RESET        = 0xFF; // 4Byte リセット(再起動)         [0]=0xFF [1]=0x77 [2]=0x89 [3]=0xFF
+//  static constexpr uint8_t CMD_UPDATE_BEGIN = 0xF0;
+//  static constexpr uint8_t CMD_UPDATE_DATA  = 0xF1;
+//  static constexpr uint8_t CMD_UPDATE_END   = 0xF2;
+//  static constexpr uint8_t CMD_RESET        = 0xFF;
 //  static constexpr uint8_t UPDATE_RESULT_BROKEN = 0x01;
 //  static constexpr uint8_t UPDATE_RESULT_ERROR  = 0x00;
 //  static constexpr uint8_t UPDATE_RESULT_OK     = 0xF1;
@@ -253,8 +256,11 @@ namespace lgfx
     uint32_t _ypos;
     uint32_t _last_cmd;
     size_t _total_send = 0;
+    uint8_t _scale_w = 1;
+    uint8_t _scale_h = 1;
+    float _refresh_rate = 60.0f;
 
-    void _set_window(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye);
+    void _set_window(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye, uint_fast8_t cmd);
     void _fill_rect(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, uint_fast8_t bytes);
     bool _check_repeat(uint32_t cmd, uint32_t length);
     void _rotate_pixelcopy(uint_fast16_t& x, uint_fast16_t& y, uint_fast16_t& w, uint_fast16_t& h, pixelcopy_t* param, uint32_t& nextx, uint32_t& nexty);
