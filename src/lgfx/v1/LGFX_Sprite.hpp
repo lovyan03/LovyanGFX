@@ -377,15 +377,15 @@ namespace lgfx
                          void pushRotateZoomWithAA(                float dst_x, float dst_y, float angle, float zoom_x, float zoom_y)                  { push_rotate_zoom_aa(_parent,                dst_x,                dst_y, angle, zoom_x, zoom_y); }
                          void pushRotateZoomWithAA(LovyanGFX* dst, float dst_x, float dst_y, float angle, float zoom_x, float zoom_y)                  { push_rotate_zoom_aa(    dst,                dst_x,                dst_y, angle, zoom_x, zoom_y); }
 
-    template<typename T> void pushAffine(                float matrix[6], const T& transp) { push_affine(_parent, matrix, _write_conv.convert(transp) & _write_conv.colormask); }
-    template<typename T> void pushAffine(LovyanGFX* dst, float matrix[6], const T& transp) { push_affine(    dst, matrix, _write_conv.convert(transp) & _write_conv.colormask); }
-                         void pushAffine(                float matrix[6])                  { push_affine(_parent, matrix); }
-                         void pushAffine(LovyanGFX* dst, float matrix[6])                  { push_affine(    dst, matrix); }
+    template<typename T> void pushAffine(                const float matrix[6], const T& transp) { push_affine(_parent, matrix, _write_conv.convert(transp) & _write_conv.colormask); }
+    template<typename T> void pushAffine(LovyanGFX* dst, const float matrix[6], const T& transp) { push_affine(    dst, matrix, _write_conv.convert(transp) & _write_conv.colormask); }
+                         void pushAffine(                const float matrix[6])                  { push_affine(_parent, matrix); }
+                         void pushAffine(LovyanGFX* dst, const float matrix[6])                  { push_affine(    dst, matrix); }
 
-    template<typename T> void pushAffineWithAA(                float matrix[6], const T& transp) { push_affine_aa(_parent, matrix, _write_conv.convert(transp) & _write_conv.colormask); }
-    template<typename T> void pushAffineWithAA(LovyanGFX* dst, float matrix[6], const T& transp) { push_affine_aa(    dst, matrix, _write_conv.convert(transp) & _write_conv.colormask); }
-                         void pushAffineWithAA(                float matrix[6])                  { push_affine_aa(_parent, matrix); }
-                         void pushAffineWithAA(LovyanGFX* dst, float matrix[6])                  { push_affine_aa(    dst, matrix); }
+    template<typename T> void pushAffineWithAA(                const float matrix[6], const T& transp) { push_affine_aa(_parent, matrix, _write_conv.convert(transp) & _write_conv.colormask); }
+    template<typename T> void pushAffineWithAA(LovyanGFX* dst, const float matrix[6], const T& transp) { push_affine_aa(    dst, matrix, _write_conv.convert(transp) & _write_conv.colormask); }
+                         void pushAffineWithAA(                const float matrix[6])                  { push_affine_aa(_parent, matrix); }
+                         void pushAffineWithAA(LovyanGFX* dst, const float matrix[6])                  { push_affine_aa(    dst, matrix); }
 
 //----------------------------------------------------------------------------
 //----------------------------------------------------------------------------
@@ -538,12 +538,12 @@ namespace lgfx
       dst->pushImageRotateZoomWithAA(x, y, _xpivot, _ypivot, angle, zoom_x, zoom_y, _panel_sprite._panel_width, _panel_sprite._panel_height, _img, transp, getColorDepth(), _palette.img24());
     }
 
-    void push_affine(LovyanGFX* dst, float matrix[6], uint32_t transp = pixelcopy_t::NON_TRANSP)
+    void push_affine(LovyanGFX* dst, const float matrix[6], uint32_t transp = pixelcopy_t::NON_TRANSP)
     {
       dst->pushImageAffine(matrix, _panel_sprite._panel_width, _panel_sprite._panel_height, _img, transp, getColorDepth(), _palette.img24());
     }
 
-    void push_affine_aa(LovyanGFX* dst, float matrix[6], uint32_t transp = pixelcopy_t::NON_TRANSP)
+    void push_affine_aa(LovyanGFX* dst, const float matrix[6], uint32_t transp = pixelcopy_t::NON_TRANSP)
     {
       dst->pushImageAffineWithAA(matrix, _panel_sprite._panel_width, _panel_sprite._panel_height, _img, transp, getColorDepth(), _palette.img24());
     }

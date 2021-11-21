@@ -784,6 +784,10 @@ namespace lgfx
     {
       setColorDepth(color_depth_t::rgb565_2Byte, false);
     }
+    color_conv_t(color_depth_t depth, bool has_palette = false)
+    {
+      setColorDepth(depth, has_palette);
+    }
 
     void setColorDepth(color_depth_t depth, bool has_palette = false)
     {

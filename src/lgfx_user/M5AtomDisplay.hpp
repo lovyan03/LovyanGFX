@@ -7,6 +7,28 @@
 #include <LovyanGFX.hpp>
 #include <lgfx/v1/panel/Panel_M5HDMI.hpp>
 
+#ifndef M5ATOMDISPLAY_LOGICAL_WIDTH
+#define M5ATOMDISPLAY_LOGICAL_WIDTH 1280
+#endif
+#ifndef M5ATOMDISPLAY_LOGICAL_HEIGHT
+#define M5ATOMDISPLAY_LOGICAL_HEIGHT 720
+#endif
+#ifndef M5ATOMDISPLAY_REFRESH_RATE
+#define M5ATOMDISPLAY_REFRESH_RATE 60.0f
+#endif
+#ifndef M5ATOMDISPLAY_OUTPUT_WIDTH
+#define M5ATOMDISPLAY_OUTPUT_WIDTH 0
+#endif
+#ifndef M5ATOMDISPLAY_OUTPUT_HEIGHT
+#define M5ATOMDISPLAY_OUTPUT_HEIGHT 0
+#endif
+#ifndef M5ATOMDISPLAY_SCALE_W
+#define M5ATOMDISPLAY_SCALE_W 0
+#endif
+#ifndef M5ATOMDISPLAY_SCALE_H
+#define M5ATOMDISPLAY_SCALE_H 0
+#endif
+
 class M5AtomDisplay : public lgfx::LGFX_Device
 {
   lgfx::Panel_M5HDMI _panel_instance;
@@ -14,7 +36,14 @@ class M5AtomDisplay : public lgfx::LGFX_Device
 
 public:
 
-  M5AtomDisplay(uint16_t logical_width = 0, uint16_t logical_height = 0, uint16_t output_width = 0, uint16_t output_height = 0, uint_fast8_t x_scale = 0, uint_fast8_t y_scale = 0)
+  M5AtomDisplay( uint16_t logical_width  = M5ATOMDISPLAY_LOGICAL_WIDTH
+               , uint16_t logical_height = M5ATOMDISPLAY_LOGICAL_HEIGHT
+               , float refresh_rate      = M5ATOMDISPLAY_REFRESH_RATE
+               , uint16_t output_width   = M5ATOMDISPLAY_OUTPUT_WIDTH
+               , uint16_t output_height  = M5ATOMDISPLAY_OUTPUT_HEIGHT
+               , uint_fast8_t scale_w    = M5ATOMDISPLAY_SCALE_W
+               , uint_fast8_t scale_h    = M5ATOMDISPLAY_SCALE_H
+               )
   {
     static constexpr int i2c_port =  1;
     static constexpr int i2c_sda  = 25;
@@ -60,15 +89,19 @@ public:
 
     {
       static constexpr int SCALE_MAX = 16;
+      static constexpr int RANGE_MAX = 2048;
+
+      if (refresh_rate < 8.0f) { refresh_rate = 8.0f; }
+      if (refresh_rate > 256.0f) { refresh_rate = 256.0f; }
 
       if (output_width)
       {
-        if (output_width  > 1920) { output_width  = 1920; }
+        if (output_width  > RANGE_MAX) { output_width  = RANGE_MAX; }
         if (logical_width > output_width) { logical_width = output_width; }
       }
       if (output_height)
       {
-        if (output_height > 1920) { output_height = 1920; }
+        if (output_height > RANGE_MAX) { output_height = RANGE_MAX; }
         if (logical_height > output_height) { logical_height = output_height; }
       }
 
@@ -89,40 +122,46 @@ public:
       {
         logical_height = (logical_width * 9) >> 4;
       }
+      if (logical_width  > RANGE_MAX) { logical_width  = RANGE_MAX; }
+      if (logical_height > RANGE_MAX) { logical_height = RANGE_MAX; }
 
-      if (output_width == 0 && output_height == 0 && x_scale == 0 && y_scale == 0)
+      int limit = 55296000 / refresh_rate;
+
+      if (output_width == 0 && output_height == 0 && scale_w == 0 && scale_h == 0)
       {
-        x_scale = 1;
-        y_scale = 1;
+        scale_w = 1;
+        scale_h = 1;
         for (int scale = 2; scale <= SCALE_MAX; ++scale)
         {
           uint32_t scale_height = scale * logical_height;
           uint32_t scale_width = scale * logical_width;
           uint32_t total = scale_width * scale_height;
-          if (scale_width > 1920 || scale_height > 1920 || total >= 1024000) { break; }
-          x_scale = scale;
-          y_scale = scale;
+          if (scale_width > 1920 || scale_height > 1920 || total > limit) { break; }
+          scale_w = scale;
+          scale_h = scale;
         }
-        output_width  = x_scale * logical_width;
-        output_height = y_scale * logical_height;
+        output_width  = scale_w * logical_width;
+        output_height = scale_h * logical_height;
+        if (output_height & 1) { output_height++; }
+        if ((output_width & 1) && (scale_w & 1)) { output_width += scale_w; }
       }
       else
       {
-        if (y_scale == 0)
+        if (scale_h == 0)
         {
-          y_scale = output_height / logical_height;
+          scale_h = output_height / logical_height;
         }
-        if (y_scale > SCALE_MAX) { y_scale = SCALE_MAX; }
-        while (logical_height * y_scale > output_height) { --y_scale; }
+        if (scale_h > SCALE_MAX) { scale_h = SCALE_MAX; }
+        while (logical_height * scale_h > output_height) { --scale_h; }
 
-        if (x_scale == 0)
+        if (scale_w == 0)
         {
-          x_scale = output_width  / logical_width;
+          scale_w = output_width  / logical_width;
         }
-        uint32_t w = output_width / x_scale;
-        while (x_scale > SCALE_MAX || w * x_scale != output_width || logical_width * x_scale > output_width)
+        uint32_t w = output_width / scale_w;
+        while (scale_w > SCALE_MAX || w * scale_w != output_width || logical_width * scale_w > output_width)
         {
-          w = output_width / --x_scale;
+          w = output_width / --scale_w;
         }
       }
 
@@ -131,14 +170,14 @@ public:
       cfg.memory_height    = output_height ;
       cfg.panel_width      = logical_width ;
       cfg.panel_height     = logical_height;
-      cfg.offset_x         = (output_width  / x_scale - logical_width ) >> 1;
-      cfg.offset_y         = (output_height / y_scale - logical_height) >> 1;
+      cfg.offset_x         = (output_width  / scale_w - logical_width ) >> 1;
+      cfg.offset_y         = (output_height / scale_h - logical_height) >> 1;
       cfg.offset_rotation  = 0;
       cfg.pin_cs       = spi_cs;
       cfg.readable   = false;
       cfg.bus_shared = false;
 
-      _panel_instance.config(cfg);
+      _panel_instance.config(cfg, scale_w, scale_h, refresh_rate);
     }
     setPanel(&_panel_instance);
   }

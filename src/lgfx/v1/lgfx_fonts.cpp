@@ -15,8 +15,6 @@
 #include <math.h>
 #include "../internal/algorithm.h"
 
-#include "../utility/pgmspace.h"
-
 #ifdef min
 #undef min
 #endif
@@ -506,13 +504,13 @@ namespace lgfx
     uint_fast8_t get_unsigned_bits(uint_fast8_t cnt)
     {
       uint_fast8_t bit_pos = this->decode_bit_pos;
-      uint_fast8_t val = *(this->decode_ptr) >> bit_pos;
+      uint_fast8_t val = pgm_read_byte(this->decode_ptr) >> bit_pos;
 
       auto bit_pos_plus_cnt = bit_pos + cnt;
       if ( bit_pos_plus_cnt >= 8 )
       {
         bit_pos_plus_cnt -= 8;
-        val |= *(++this->decode_ptr) << (8-bit_pos);
+        val |= pgm_read_byte(++this->decode_ptr) << (8-bit_pos);
       }
       this->decode_bit_pos = bit_pos_plus_cnt;
       return val & ((1U << cnt) - 1);
@@ -534,27 +532,27 @@ namespace lgfx
       if ( encoding >= 'a' )      { font += this->start_pos_lower_a(); }
       else if ( encoding >= 'A' ) { font += this->start_pos_upper_A(); }
 
-      for ( ; font[1]; font += font[1])
+      for ( ; pgm_read_byte(&font[1]); font += pgm_read_byte(&font[1]))
       {
-        if ( font[0] == encoding ) { return font + 2; }  /* skip encoding and glyph size */
+        if ( pgm_read_byte(&font[0]) == encoding ) { return font + 2; }  /* skip encoding and glyph size */
       }
     }
     else
     {
       uint_fast16_t e;
-      const uint8_t *unicode_lookup_table;
+      const uint8_t *unicode_lut;
 
       font += this->start_pos_unicode();
-      unicode_lookup_table = font;
+      unicode_lut = font;
 
       do
       {
-        font += unicode_lookup_table[0] << 8 | unicode_lookup_table[1];
-        e     = unicode_lookup_table[2] << 8 | unicode_lookup_table[3];
-        unicode_lookup_table += 4;
+        font += getSwap16(pgm_read_word(&unicode_lut[0]));
+        e     = getSwap16(pgm_read_word(&unicode_lut[2]));
+        unicode_lut += 4;
       } while ( e < encoding );
 
-      for ( ; 0 != (e = font[0] << 8 | font[1]); font += font[2])
+      for ( ; 0 != (e = getSwap16(pgm_read_word(&font[0]))); font += pgm_read_byte(&font[2]))
       {
         if ( e == encoding ) { return font + 3; }  /* skip encoding and glyph size */
       }

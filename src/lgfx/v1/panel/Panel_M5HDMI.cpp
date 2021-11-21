@@ -379,6 +379,14 @@ namespace lgfx
 
 //----------------------------------------------------------------------------
 
+  void Panel_M5HDMI::config(const config_t& cfg, int scale_w, int scale_h, float refresh_rate)
+  {
+    Panel_Device::config(cfg);
+    _scale_w = scale_w;
+    _scale_h = scale_h;
+    _refresh_rate = refresh_rate;
+  }
+
   bool Panel_M5HDMI::init(bool use_reset)
   {
     ESP_LOGI(TAG, "i2c port:%d sda:%d scl:%d", _HDMI_Trans_config.i2c_port, _HDMI_Trans_config.pin_sda, _HDMI_Trans_config.pin_scl);
@@ -406,6 +414,43 @@ namespace lgfx
 
     if (!Panel_Device::init(false)) { return false; }
 
+    static constexpr int32_t OUTPUT_CLOCK = 74250000; // 74.25MHz
+    int32_t TOTAL_RESOLUTION = OUTPUT_CLOCK / _refresh_rate;
+
+    int mem_width  = _cfg.memory_width ;
+    int mem_height = _cfg.memory_height;
+
+    int vert_total = mem_height + 9;
+    int hori_total = TOTAL_RESOLUTION / vert_total;
+
+    int hori_max = mem_width + 768 + (mem_width >> 3);
+    int hori_min = mem_width +  32 + (mem_width >> 2);
+    int diff = 32;
+    int hori, vert = vert_total - 1;
+    for (;;)
+    {
+      hori = TOTAL_RESOLUTION / ++vert;
+      if (hori < hori_min) { break; }
+      if (hori > hori_max) { continue; }
+      int d1 = abs(TOTAL_RESOLUTION - vert *  hori     );
+      int d2 = abs(TOTAL_RESOLUTION - vert * (hori + 1));
+      if (d1 > d2) { d1 = d2; ++hori; }
+      if (diff > d1)
+      {
+        diff = d1;
+        hori_total = hori;
+        vert_total = vert;
+        if (diff == 0)
+        {
+          break;
+        }
+      }
+    }
+    if (hori_total < mem_width + 128)
+    { // If the blanking period is too small, it will not work properly. 
+      ESP_LOGE(TAG, "resolution error. (out of range)");
+      return false;
+    }
 
     // Initialize and read ID
     ESP_LOGI(TAG, "Waiting the FPGA gets idle...");
@@ -424,22 +469,6 @@ namespace lgfx
     cs_control(true);
     _bus->endRead();
     cs_control(false);
-
-    static constexpr int32_t TOTAL_RESOLUTION = 1237500;
-
-    uint_fast16_t mem_width  = _cfg.memory_width ;
-    uint_fast16_t mem_height = _cfg.memory_height;
-
-    int hori_total;
-    int vert_total = mem_height + 10;
-
-    for (;;)
-    {
-      hori_total = TOTAL_RESOLUTION / ++vert_total;
-      if (mem_width + 768 < hori_total) { continue; }
-      if (24 >= abs(TOTAL_RESOLUTION - vert_total *   hori_total)) { break; }
-      if (24 >= abs(TOTAL_RESOLUTION - vert_total * ++hori_total)) { break; }
-    }
 
     video_timing_t vt;
 
@@ -465,9 +494,11 @@ namespace lgfx
 
     setVideoTiming(&vt);
 
-    uint_fast8_t x_scale = mem_width  / ((_cfg.offset_x << 1) + _cfg.panel_width );
-    uint_fast8_t y_scale = mem_height / ((_cfg.offset_y << 1) + _cfg.panel_height);
-    setScaling(x_scale ? x_scale : 1, y_scale ? y_scale : 1);
+    setScaling(_scale_w, _scale_h);
+
+    ESP_LOGI(TAG, "resolution: w:%d x %d = %d  h:%d x %d = %d", _cfg.panel_width, _scale_w, _cfg.panel_width * _scale_w, _cfg.panel_height, _scale_h, _cfg.panel_height * _scale_h);
+    ESP_LOGI(TAG, "video timing(Vert) total:%d active:%d frontporch:%d sync:%d backporch:%d", vt.v.active + vt.v.front_porch + vt.v.sync + vt.v.back_porch, vt.v.active, vt.v.front_porch, vt.v.sync, vt.v.back_porch);
+    ESP_LOGI(TAG, "video timing(Hori) total:%d active:%d frontporch:%d sync:%d backporch:%d", vt.h.active + vt.h.front_porch + vt.h.sync + vt.h.back_porch, vt.h.active, vt.h.front_porch, vt.h.sync, vt.h.back_porch);
 
     ESP_LOGI(TAG, "Initialize HDMI transmitter...");
     if (!driver.init() )
@@ -687,17 +718,18 @@ namespace lgfx
     _xe = xe;
     _ye = ye;
   }
-  void Panel_M5HDMI::_set_window(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye)
+  void Panel_M5HDMI::_set_window(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye, uint_fast8_t cmd_write)
   {
     union cmd_t
     {
-      uint8_t raw[10];
+      uint8_t raw[11];
       struct __attribute__((packed))
       {
         uint8_t cmd_x;
         uint32_t data_x;
         uint8_t cmd_y;
         uint32_t data_y;
+        uint8_t cmd_write;
       };
     };
 
@@ -706,12 +738,14 @@ namespace lgfx
     cmd_t cmd;
     cmd.cmd_x = CMD_CASET;
     cmd.cmd_y = CMD_RASET;
+    cmd.cmd_write = cmd_write;
     xs += _cfg.offset_x + ((xe + _cfg.offset_x) << 16);
     cmd.data_x = ((xs >> 8) & mask) + ((xs & mask) << 8);
     ys += _cfg.offset_y + ((ye + _cfg.offset_y) << 16);
     cmd.data_y = ((ys >> 8) & mask) + ((ys & mask) << 8);
     _check_repeat(0, sizeof(cmd_t));
     _bus->writeBytes(cmd.raw, sizeof(cmd_t), false, false);
+    _last_cmd = cmd_write;
   }
 
   void Panel_M5HDMI::_rotate_pixelcopy(uint_fast16_t& x, uint_fast16_t& y, uint_fast16_t& w, uint_fast16_t& h, pixelcopy_t* param, uint32_t& nextx, uint32_t& nexty)
@@ -782,14 +816,12 @@ namespace lgfx
         pc.src_x32 = (linelength - 1) << pixelcopy_t::FP_SCALE;
         if (r & 1)
         {
-          _set_window(y, x - linelength + 1, y, x);
+          _set_window(y, x - linelength + 1, y, x, cmd);
         }
         else
         {
-          _set_window(x - linelength + 1, y, x, y);
+          _set_window(x - linelength + 1, y, x, y, cmd);
         }
-        _last_cmd = cmd;
-        _bus->writeCommand(cmd, 8);
         _bus->writePixels(&pc, linelength);
         if ((x -= linelength) < xe)
         {
@@ -809,14 +841,12 @@ namespace lgfx
         linelength = std::min<uint_fast16_t>(xe - x + 1, length);
         if (r & 1)
         {
-          _set_window(y, x, y, x + linelength - 1);
+          _set_window(y, x, y, x + linelength - 1, cmd);
         }
         else
         {
-          _set_window(x, y, x + linelength - 1, y);
+          _set_window(x, y, x + linelength - 1, y, cmd);
         }
-        _last_cmd = cmd;
-        _bus->writeCommand(cmd, 8);
         _bus->writePixels(param, linelength);
 
         if ((x += linelength) > xe)
@@ -851,9 +881,7 @@ namespace lgfx
 
     if (param->transp == pixelcopy_t::NON_TRANSP)
     {
-      _set_window(x, y, x+w-1, y+h-1);
-      _bus->writeCommand(cmd, 8);
-      _last_cmd = cmd;
+      _set_window(x, y, x+w-1, y+h-1, cmd);
 
       if (param->no_convert)
       {
@@ -897,12 +925,9 @@ namespace lgfx
         while (w != (i = param->fp_skip(i, w, param)))
         {
           auto dmabuf = _bus->getDMABuffer(wb + 1);
-          dmabuf[0] = cmd;
-          auto buf = &dmabuf[1];
-          int32_t len = param->fp_copy(buf, 0, w - i, param);
-          _set_window(x + i, y, x + i + len - 1, y);
-          _last_cmd = cmd;
-          _bus->writeBytes(dmabuf, 1 + (len * bytes), false, true);
+          int32_t len = param->fp_copy(dmabuf, 0, w - i, param);
+          _set_window(x + i, y, x + i + len - 1, y, cmd);
+          _bus->writeBytes(dmabuf, len * bytes, false, true);
           if (w == (i += len)) break;
         }
         param->src_x32 = (sx32 += nextx);

@@ -521,8 +521,8 @@ namespace lgfx
 
     static void i2c_stop(int i2c_port)
     {
-#if 1 //!defined (CONFIG_IDF_TARGET) || defined (CONFIG_IDF_TARGET_ESP32)
-      static constexpr int I2C_CLR_BUS_HALF_PERIOD_US = 5; // use standard 100kHz data rate
+#if 1 // !defined (CONFIG_IDF_TARGET) || defined (CONFIG_IDF_TARGET_ESP32)
+      static constexpr int I2C_CLR_BUS_HALF_PERIOD_US = 2;
       static constexpr int I2C_CLR_BUS_SCL_NUM        = 9;
 
       gpio_num_t sda_io = i2c_context[i2c_port].pin_sda;
@@ -532,34 +532,39 @@ namespace lgfx
       gpio_num_t scl_io = i2c_context[i2c_port].pin_scl;
       gpio_set_level(scl_io, 1);
       gpio_set_direction(scl_io, GPIO_MODE_OUTPUT_OD);
-      ets_delay_us(1);
 
       auto mod = getPeriphModule(i2c_port);
       // ESP-IDF環境でperiph_module_disableを使うと、後でenableできなくなる問題が起きたためコメントアウト;
       //periph_module_disable(mod);
-      gpio_set_level(scl_io, 0);
 
-      // SDAがHIGHになるまでクロック送出しながら待機する。;
+      // SDAがHIGHになるまでSTOP送出を繰り返す。;
       int i = 0;
-      while (!gpio_get_level(sda_io) && (i++ < I2C_CLR_BUS_SCL_NUM))
+      do
       {
+        gpio_set_level(scl_io, 0);
+        ets_delay_us(I2C_CLR_BUS_HALF_PERIOD_US);
+        gpio_set_level(sda_io, 0);
         ets_delay_us(I2C_CLR_BUS_HALF_PERIOD_US);
         gpio_set_level(scl_io, 1);
         ets_delay_us(I2C_CLR_BUS_HALF_PERIOD_US);
-        gpio_set_level(scl_io, 0);
-      }
-      gpio_set_level(sda_io, 0); // setup for STOP
+        gpio_set_level(sda_io, 1);
+        ets_delay_us(I2C_CLR_BUS_HALF_PERIOD_US);
+      } while (!gpio_get_level(sda_io) && (i++ < I2C_CLR_BUS_SCL_NUM));
       periph_module_enable(mod);
-      gpio_set_level(scl_io, 1);
       periph_module_reset(mod);
-      //gpio_set_level(sda_io, 1); // STOP, SDA low -> high while SCL is HIGH
       i2c_set_pin((i2c_port_t)i2c_port, sda_io, scl_io, gpio_pullup_t::GPIO_PULLUP_ENABLE, gpio_pullup_t::GPIO_PULLUP_ENABLE, I2C_MODE_MASTER);
 #else
+      auto mod = getPeriphModule(i2c_port);
+      periph_module_enable(mod);
       auto dev = getDev(i2c_port);
       dev->scl_sp_conf.scl_rst_slv_num = 9;
       dev->scl_sp_conf.scl_rst_slv_en = 0;
       updateDev(dev);
       dev->scl_sp_conf.scl_rst_slv_en = 1;
+      gpio_num_t sda_io = i2c_context[i2c_port].pin_sda;
+      gpio_num_t scl_io = i2c_context[i2c_port].pin_scl;
+      periph_module_reset(mod);
+      i2c_set_pin((i2c_port_t)i2c_port, sda_io, scl_io, gpio_pullup_t::GPIO_PULLUP_ENABLE, gpio_pullup_t::GPIO_PULLUP_ENABLE, I2C_MODE_MASTER);
 #endif
     }
 

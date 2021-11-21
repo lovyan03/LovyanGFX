@@ -10,6 +10,15 @@
 #if defined ( ARDUINO ) && defined ( SDA ) && defined ( SCL )
  static constexpr uint8_t M5_UNIT_OLED_SDA = SDA;
  static constexpr uint8_t M5_UNIT_OLED_SCL = SCL;
+#elif defined (ESP_PLATFORM)
+ #include <sdkconfig.h>
+ #if defined (CONFIG_IDF_TARGET_ESP32C3)
+  static constexpr uint8_t M5_UNIT_OLED_SDA = 1;
+  static constexpr uint8_t M5_UNIT_OLED_SCL = 0;
+ #else
+  static constexpr uint8_t M5_UNIT_OLED_SDA = 21;
+  static constexpr uint8_t M5_UNIT_OLED_SCL = 22;
+ #endif
 #else
  static constexpr uint8_t M5_UNIT_OLED_SDA = 21;
  static constexpr uint8_t M5_UNIT_OLED_SCL = 22;
