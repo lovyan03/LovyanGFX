@@ -7,6 +7,28 @@
 #include <LovyanGFX.hpp>
 #include <lgfx/v1/panel/Panel_M5HDMI.hpp>
 
+#ifndef M5ATOMDISPLAY_LOGICAL_WIDTH
+#define M5ATOMDISPLAY_LOGICAL_WIDTH 1280
+#endif
+#ifndef M5ATOMDISPLAY_LOGICAL_HEIGHT
+#define M5ATOMDISPLAY_LOGICAL_HEIGHT 720
+#endif
+#ifndef M5ATOMDISPLAY_REFRESH_RATE
+#define M5ATOMDISPLAY_REFRESH_RATE 60.0f
+#endif
+#ifndef M5ATOMDISPLAY_OUTPUT_WIDTH
+#define M5ATOMDISPLAY_OUTPUT_WIDTH 0
+#endif
+#ifndef M5ATOMDISPLAY_OUTPUT_HEIGHT
+#define M5ATOMDISPLAY_OUTPUT_HEIGHT 0
+#endif
+#ifndef M5ATOMDISPLAY_SCALE_W
+#define M5ATOMDISPLAY_SCALE_W 0
+#endif
+#ifndef M5ATOMDISPLAY_SCALE_H
+#define M5ATOMDISPLAY_SCALE_H 0
+#endif
+
 class M5AtomDisplay : public lgfx::LGFX_Device
 {
   lgfx::Panel_M5HDMI _panel_instance;
@@ -14,7 +36,14 @@ class M5AtomDisplay : public lgfx::LGFX_Device
 
 public:
 
-  M5AtomDisplay(uint16_t logical_width = 0, uint16_t logical_height = 0, float refresh_rate = 60.0f, uint16_t output_width = 0, uint16_t output_height = 0, uint_fast8_t scale_w = 0, uint_fast8_t scale_h = 0)
+  M5AtomDisplay( uint16_t logical_width  = M5ATOMDISPLAY_LOGICAL_WIDTH
+               , uint16_t logical_height = M5ATOMDISPLAY_LOGICAL_HEIGHT
+               , float refresh_rate      = M5ATOMDISPLAY_REFRESH_RATE
+               , uint16_t output_width   = M5ATOMDISPLAY_OUTPUT_WIDTH
+               , uint16_t output_height  = M5ATOMDISPLAY_OUTPUT_HEIGHT
+               , uint_fast8_t scale_w    = M5ATOMDISPLAY_SCALE_W
+               , uint_fast8_t scale_h    = M5ATOMDISPLAY_SCALE_H
+               )
   {
     static constexpr int i2c_port =  1;
     static constexpr int i2c_sda  = 25;
