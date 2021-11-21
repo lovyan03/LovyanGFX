@@ -420,16 +420,31 @@ namespace lgfx
     int mem_width  = _cfg.memory_width ;
     int mem_height = _cfg.memory_height;
 
-    int hori_total;
     int vert_total = mem_height + 9;
+    int hori_total = TOTAL_RESOLUTION / vert_total;
 
-    int hori_limit = 768 + mem_width + (mem_width >> 3);
+    int hori_max = mem_width + 768 + (mem_width >> 3);
+    int hori_min = mem_width +  32 + (mem_width >> 2);
+    int diff = 32;
+    int hori, vert = vert_total - 1;
     for (;;)
     {
-      hori_total = TOTAL_RESOLUTION / ++vert_total;
-      if (hori_limit < hori_total) { continue; }
-      if (24 >= abs(TOTAL_RESOLUTION - vert_total *   hori_total)) { break; }
-      if (24 >= abs(TOTAL_RESOLUTION - vert_total * ++hori_total)) { break; }
+      hori = TOTAL_RESOLUTION / ++vert;
+      if (hori < hori_min) { break; }
+      if (hori > hori_max) { continue; }
+      int d1 = abs(TOTAL_RESOLUTION - vert *  hori     );
+      int d2 = abs(TOTAL_RESOLUTION - vert * (hori + 1));
+      if (d1 > d2) { d1 = d2; ++hori; }
+      if (diff > d1)
+      {
+        diff = d1;
+        hori_total = hori;
+        vert_total = vert;
+        if (diff == 0)
+        {
+          break;
+        }
+      }
     }
     if (hori_total < mem_width + 128)
     { // If the blanking period is too small, it will not work properly. 
@@ -482,8 +497,8 @@ namespace lgfx
     setScaling(_scale_w, _scale_h);
 
     ESP_LOGI(TAG, "resolution: w:%d x %d = %d  h:%d x %d = %d", _cfg.panel_width, _scale_w, _cfg.panel_width * _scale_w, _cfg.panel_height, _scale_h, _cfg.panel_height * _scale_h);
-    ESP_LOGI(TAG, "video timing(Vert) active:%d frontporch:%d sync:%d backporch:%d", vt.v.active, vt.v.front_porch, vt.v.sync, vt.v.back_porch);
-    ESP_LOGI(TAG, "video timing(Hori) active:%d frontporch:%d sync:%d backporch:%d", vt.h.active, vt.h.front_porch, vt.h.sync, vt.h.back_porch);
+    ESP_LOGI(TAG, "video timing(Vert) total:%d active:%d frontporch:%d sync:%d backporch:%d", vt.v.active + vt.v.front_porch + vt.v.sync + vt.v.back_porch, vt.v.active, vt.v.front_porch, vt.v.sync, vt.v.back_porch);
+    ESP_LOGI(TAG, "video timing(Hori) total:%d active:%d frontporch:%d sync:%d backporch:%d", vt.h.active + vt.h.front_porch + vt.h.sync + vt.h.back_porch, vt.h.active, vt.h.front_porch, vt.h.sync, vt.h.back_porch);
 
     ESP_LOGI(TAG, "Initialize HDMI transmitter...");
     if (!driver.init() )

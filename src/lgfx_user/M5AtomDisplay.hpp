@@ -107,12 +107,14 @@ public:
           uint32_t scale_height = scale * logical_height;
           uint32_t scale_width = scale * logical_width;
           uint32_t total = scale_width * scale_height;
-          if (scale_width > RANGE_MAX || scale_height > RANGE_MAX || total >= limit) { break; }
+          if (scale_width > 1920 || scale_height > 1920 || total >= limit) { break; }
           scale_w = scale;
           scale_h = scale;
         }
         output_width  = scale_w * logical_width;
         output_height = scale_h * logical_height;
+        if (output_height & 1) { output_height++; }
+        if ((output_width & 1) && (scale_w & 1)) { output_width += scale_w; }
       }
       else
       {

@@ -14,6 +14,7 @@
   "version": "0.4.8",
   "frameworks": ["arduino", "espidf"],
   "platforms": ["espressif32", "espressif8266", "atmelsam"],
+  "headers": "LovyanGFX.hpp",
   "build": {
     "libArchive": false
   }
