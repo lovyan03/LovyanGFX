@@ -14,7 +14,7 @@
 #define M5ATOMDISPLAY_LOGICAL_HEIGHT 720
 #endif
 #ifndef M5ATOMDISPLAY_REFRESH_RATE
-#define M5ATOMDISPLAY_REFRESH_RATE 60.0f
+#define M5ATOMDISPLAY_REFRESH_RATE 0.0f
 #endif
 #ifndef M5ATOMDISPLAY_OUTPUT_WIDTH
 #define M5ATOMDISPLAY_OUTPUT_WIDTH 0
@@ -52,10 +52,15 @@ public:
     static constexpr int spi_mosi = 19;
     static constexpr int spi_miso = 22;
 
+#if defined ( EFUSE_RD_CHIP_VER_PKG_ESP32PICOD4 )
     int spi_sclk = (esp_efuse_get_pkg_ver() == EFUSE_RD_CHIP_VER_PKG_ESP32PICOD4)
                  ? 23  // for ATOM Lite / Matrix
                  : 5   // for ATOM PSRAM
                  ;
+#else
+    int spi_sclk = 5;
+#endif
+
     {
       auto cfg = _bus_instance.config();
       cfg.freq_write = 80000000;
@@ -88,97 +93,42 @@ public:
     }
 
     {
-      static constexpr int SCALE_MAX = 16;
-      static constexpr int RANGE_MAX = 2048;
-
-      if (refresh_rate < 8.0f) { refresh_rate = 8.0f; }
-      if (refresh_rate > 256.0f) { refresh_rate = 256.0f; }
-
-      if (output_width)
-      {
-        if (output_width  > RANGE_MAX) { output_width  = RANGE_MAX; }
-        if (logical_width > output_width) { logical_width = output_width; }
-      }
-      if (output_height)
-      {
-        if (output_height > RANGE_MAX) { output_height = RANGE_MAX; }
-        if (logical_height > output_height) { logical_height = output_height; }
-      }
-
-      if (logical_width == 0)
-      {
-        if (logical_height == 0)
-        {
-          logical_width  = 1280;
-          logical_height = 720;
-        }
-        else
-        {
-          logical_width = (logical_height << 4) / 9;
-        }
-      }
-      else
-      if (logical_height == 0)
-      {
-        logical_height = (logical_width * 9) >> 4;
-      }
-      if (logical_width  > RANGE_MAX) { logical_width  = RANGE_MAX; }
-      if (logical_height > RANGE_MAX) { logical_height = RANGE_MAX; }
-
-      int limit = 55296000 / refresh_rate;
-
-      if (output_width == 0 && output_height == 0 && scale_w == 0 && scale_h == 0)
-      {
-        scale_w = 1;
-        scale_h = 1;
-        for (int scale = 2; scale <= SCALE_MAX; ++scale)
-        {
-          uint32_t scale_height = scale * logical_height;
-          uint32_t scale_width = scale * logical_width;
-          uint32_t total = scale_width * scale_height;
-          if (scale_width > 1920 || scale_height > 1920 || total > limit) { break; }
-          scale_w = scale;
-          scale_h = scale;
-        }
-        output_width  = scale_w * logical_width;
-        output_height = scale_h * logical_height;
-        if (output_height & 1) { output_height++; }
-        if ((output_width & 1) && (scale_w & 1)) { output_width += scale_w; }
-      }
-      else
-      {
-        if (scale_h == 0)
-        {
-          scale_h = output_height / logical_height;
-        }
-        if (scale_h > SCALE_MAX) { scale_h = SCALE_MAX; }
-        while (logical_height * scale_h > output_height) { --scale_h; }
-
-        if (scale_w == 0)
-        {
-          scale_w = output_width  / logical_width;
-        }
-        uint32_t w = output_width / scale_w;
-        while (scale_w > SCALE_MAX || w * scale_w != output_width || logical_width * scale_w > output_width)
-        {
-          w = output_width / --scale_w;
-        }
-      }
-
       auto cfg = _panel_instance.config();
-      cfg.memory_width     = output_width  ;
-      cfg.memory_height    = output_height ;
-      cfg.panel_width      = logical_width ;
-      cfg.panel_height     = logical_height;
-      cfg.offset_x         = (output_width  / scale_w - logical_width ) >> 1;
-      cfg.offset_y         = (output_height / scale_h - logical_height) >> 1;
-      cfg.offset_rotation  = 0;
-      cfg.pin_cs       = spi_cs;
+      cfg.pin_cs     = spi_cs;
       cfg.readable   = false;
       cfg.bus_shared = false;
+      _panel_instance.config(cfg);
 
-      _panel_instance.config(cfg, scale_w, scale_h, refresh_rate);
+      m5gfx::Panel_M5HDMI::config_resolution_t cfg_reso;
+      cfg_reso.logical_width  = logical_width;
+      cfg_reso.logical_height = logical_height;
+      cfg_reso.refresh_rate   = refresh_rate;
+      cfg_reso.output_width   = output_width;
+      cfg_reso.output_height  = output_height;
+      cfg_reso.scale_w        = scale_w;
+      cfg_reso.scale_h        = scale_h;
+      _panel_instance.config_resolution(cfg_reso);
     }
     setPanel(&_panel_instance);
+  }
+
+  bool setResolution( uint16_t logical_width  = M5ATOMDISPLAY_LOGICAL_WIDTH
+                    , uint16_t logical_height = M5ATOMDISPLAY_LOGICAL_HEIGHT
+                    , float refresh_rate      = M5ATOMDISPLAY_REFRESH_RATE
+                    , uint16_t output_width   = M5ATOMDISPLAY_OUTPUT_WIDTH
+                    , uint16_t output_height  = M5ATOMDISPLAY_OUTPUT_HEIGHT
+                    , uint_fast8_t scale_w    = M5ATOMDISPLAY_SCALE_W
+                    , uint_fast8_t scale_h    = M5ATOMDISPLAY_SCALE_H
+                    )
+  {
+    return _panel_instance.setResolution
+      ( logical_width
+      , logical_height
+      , refresh_rate
+      , output_width
+      , output_height
+      , scale_w
+      , scale_h
+      );
   }
 };

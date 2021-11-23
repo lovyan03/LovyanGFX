@@ -379,14 +379,6 @@ namespace lgfx
 
 //----------------------------------------------------------------------------
 
-  void Panel_M5HDMI::config(const config_t& cfg, int scale_w, int scale_h, float refresh_rate)
-  {
-    Panel_Device::config(cfg);
-    _scale_w = scale_w;
-    _scale_h = scale_h;
-    _refresh_rate = refresh_rate;
-  }
-
   bool Panel_M5HDMI::init(bool use_reset)
   {
     ESP_LOGI(TAG, "i2c port:%d sda:%d scl:%d", _HDMI_Trans_config.i2c_port, _HDMI_Trans_config.pin_sda, _HDMI_Trans_config.pin_scl);
@@ -411,47 +403,8 @@ namespace lgfx
       LOAD_FPGA fpga(bus_cfg.pin_sclk, bus_cfg.pin_mosi, bus_cfg.pin_miso, _cfg.pin_cs);
     }
 
-
     if (!Panel_Device::init(false)) { return false; }
-
-    static constexpr int32_t OUTPUT_CLOCK = 74250000; // 74.25MHz
-    int32_t TOTAL_RESOLUTION = OUTPUT_CLOCK / _refresh_rate;
-
-    int mem_width  = _cfg.memory_width ;
-    int mem_height = _cfg.memory_height;
-
-    int vert_total = mem_height + 9;
-    int hori_total = TOTAL_RESOLUTION / vert_total;
-
-    int hori_max = mem_width + 768 + (mem_width >> 3);
-    int hori_min = mem_width +  32 + (mem_width >> 2);
-    int diff = 32;
-    int hori, vert = vert_total - 1;
-    for (;;)
-    {
-      hori = TOTAL_RESOLUTION / ++vert;
-      if (hori < hori_min) { break; }
-      if (hori > hori_max) { continue; }
-      int d1 = abs(TOTAL_RESOLUTION - vert *  hori     );
-      int d2 = abs(TOTAL_RESOLUTION - vert * (hori + 1));
-      if (d1 > d2) { d1 = d2; ++hori; }
-      if (diff > d1)
-      {
-        diff = d1;
-        hori_total = hori;
-        vert_total = vert;
-        if (diff == 0)
-        {
-          break;
-        }
-      }
-    }
-    if (hori_total < mem_width + 128)
-    { // If the blanking period is too small, it will not work properly. 
-      ESP_LOGE(TAG, "resolution error. (out of range)");
-      return false;
-    }
-
+  
     // Initialize and read ID
     ESP_LOGI(TAG, "Waiting the FPGA gets idle...");
     startWrite();
@@ -469,6 +422,57 @@ namespace lgfx
     cs_control(true);
     _bus->endRead();
     cs_control(false);
+  
+    bool res = _init_resolution();
+
+    ESP_LOGI(TAG, "Initialize HDMI transmitter...");
+    if (!driver.init() )
+    {
+      ESP_LOGI(TAG, "failed.");
+      return false;
+    }
+
+    endWrite();
+
+    return res;
+  }
+
+  bool Panel_M5HDMI::_init_resolution(void)
+  {
+    static constexpr int32_t OUTPUT_CLOCK = 74250000; // 74.25MHz
+    int32_t TOTAL_RESOLUTION = OUTPUT_CLOCK / _refresh_rate;
+
+    int mem_width  = _cfg.memory_width ;
+    int mem_height = _cfg.memory_height;
+
+    uint32_t diff = ~0u;
+    int vert_total = mem_height + 9;
+    int hori_total = TOTAL_RESOLUTION / vert_total;
+    int hori_tmp = hori_total, vert_tmp = vert_total;
+    int hori_min = mem_width +  32 + (mem_width >> (1+_scale_w));
+    int hori_max = mem_width + 768 + (mem_width >> 3);
+    if (hori_tmp > hori_max) { hori_tmp = hori_max; }
+    for (;;)
+    {
+      int d1 = TOTAL_RESOLUTION - (hori_tmp * vert_tmp);
+      uint32_t diff_abs = abs(d1);
+      if (diff > diff_abs)
+      {
+        diff = diff_abs;
+        hori_total = hori_tmp;
+        vert_total = vert_tmp;
+        if (diff == 0) { break; }
+      }
+      if (d1 >= 0) { ++vert_tmp; }
+      else if (--hori_tmp < hori_min) { break; }
+    }
+
+    bool res = (hori_total > hori_min);
+    if (!res)
+    { // If the blanking period is too small, it will not work properly. 
+      hori_total = hori_min;
+      ESP_LOGE(TAG, "resolution error. out of range  %dx%d %.2f Hz", mem_width, mem_height, _refresh_rate);
+    }
 
     video_timing_t vt;
 
@@ -493,23 +497,151 @@ namespace lgfx
     vt.h.back_porch = remain;
 
     setVideoTiming(&vt);
-
     setScaling(_scale_w, _scale_h);
 
-    ESP_LOGI(TAG, "resolution: w:%d x %d = %d  h:%d x %d = %d", _cfg.panel_width, _scale_w, _cfg.panel_width * _scale_w, _cfg.panel_height, _scale_h, _cfg.panel_height * _scale_h);
-    ESP_LOGI(TAG, "video timing(Vert) total:%d active:%d frontporch:%d sync:%d backporch:%d", vt.v.active + vt.v.front_porch + vt.v.sync + vt.v.back_porch, vt.v.active, vt.v.front_porch, vt.v.sync, vt.v.back_porch);
-    ESP_LOGI(TAG, "video timing(Hori) total:%d active:%d frontporch:%d sync:%d backporch:%d", vt.h.active + vt.h.front_porch + vt.h.sync + vt.h.back_porch, vt.h.active, vt.h.front_porch, vt.h.sync, vt.h.back_porch);
-
-    ESP_LOGI(TAG, "Initialize HDMI transmitter...");
-    if (!driver.init() )
+    if (!res)
     {
-      ESP_LOGI(TAG, "failed.");
-      return false;
+      ESP_LOGI(TAG, "logical resolution: w:%d h:%d", _cfg.panel_width, _cfg.panel_height);
+      ESP_LOGI(TAG, "scaling resolution: w:%d h:%d", _cfg.panel_width * _scale_w, _cfg.panel_height * _scale_h);
+      ESP_LOGI(TAG, " output resolution: w:%d h:%d", _cfg.memory_width, _cfg.memory_height);
+      ESP_LOGI(TAG, "video timing(Hori) total:%d active:%d frontporch:%d sync:%d backporch:%d", vt.h.active + vt.h.front_porch + vt.h.sync + vt.h.back_porch, vt.h.active, vt.h.front_porch, vt.h.sync, vt.h.back_porch);
+      ESP_LOGI(TAG, "video timing(Vert) total:%d active:%d frontporch:%d sync:%d backporch:%d", vt.v.active + vt.v.front_porch + vt.v.sync + vt.v.back_porch, vt.v.active, vt.v.front_porch, vt.v.sync, vt.v.back_porch);
     }
 
-    endWrite();
+    return res;
+  }
 
-    return true;
+  bool Panel_M5HDMI::setResolution( uint16_t logical_width, uint16_t logical_height, float refresh_rate, uint16_t output_width, uint16_t output_height, uint8_t scale_w, uint8_t scale_h)
+  {
+    config_resolution_t cfg_reso;
+    cfg_reso.logical_width  = logical_width;
+    cfg_reso.logical_height = logical_height;
+    cfg_reso.refresh_rate   = refresh_rate;
+    cfg_reso.output_width   = output_width;
+    cfg_reso.output_height  = output_height;
+    cfg_reso.scale_w        = scale_w;
+    cfg_reso.scale_h        = scale_h;
+    return setResolution( cfg_reso );
+  }
+
+  bool Panel_M5HDMI::setResolution( const config_resolution_t& cfg_reso )
+  {
+    config_resolution(cfg_reso);
+    return _init_resolution();
+  }
+
+  void Panel_M5HDMI::config_resolution( const config_resolution_t& cfg_reso )
+  {
+    static constexpr int SCALE_MAX = 16;
+    static constexpr int RANGE_MAX = 2048;
+
+    uint_fast16_t logical_width  = cfg_reso.logical_width;
+    uint_fast16_t logical_height = cfg_reso.logical_height;
+    float refresh_rate           = cfg_reso.refresh_rate;
+    uint_fast16_t output_width   = cfg_reso.output_width;
+    uint_fast16_t output_height  = cfg_reso.output_height;
+    uint_fast8_t scale_w         = cfg_reso.scale_w;
+    uint_fast8_t scale_h         = cfg_reso.scale_h;
+
+    if (output_width)
+    {
+      if (output_width  > RANGE_MAX) { output_width  = RANGE_MAX; }
+      if (logical_width > output_width) { logical_width = output_width; }
+    }
+    if (output_height)
+    {
+      if (output_height > RANGE_MAX) { output_height = RANGE_MAX; }
+      if (logical_height > output_height) { logical_height = output_height; }
+    }
+    if (logical_width == 0)
+    {
+      if (logical_height == 0)
+      {
+        logical_width  = 1280;
+        logical_height = 720;
+      }
+      else
+      {
+        logical_width = (logical_height << 4) / 9;
+      }
+    }
+    else
+    if (logical_height == 0)
+    {
+      logical_height = (logical_width * 9) >> 4;
+    }
+    if (logical_width  > RANGE_MAX) { logical_width  = RANGE_MAX; }
+    if (logical_height > RANGE_MAX) { logical_height = RANGE_MAX; }
+
+    if (refresh_rate > 512.0f) { refresh_rate = 512.0f; }
+    else if (refresh_rate < 1.0f)
+    {
+      auto total = logical_width * logical_height;
+      if (total > 1843200) // over 1920x960
+      {
+        refresh_rate = 24.0f;
+      }
+      else
+      if (total > 1024000) // over 1280x800
+      {
+        refresh_rate = 30.0f;
+      }
+      else
+      {
+        refresh_rate = 60.0f;
+      }
+    }
+
+    int limit = 55296000 / refresh_rate;
+    _refresh_rate = refresh_rate;
+
+    if (output_width == 0 && output_height == 0 && scale_w == 0 && scale_h == 0)
+    {
+      scale_w = 1;
+      scale_h = 1;
+      for (int scale = 2; scale <= SCALE_MAX; ++scale)
+      {
+        uint32_t scale_height = scale * logical_height;
+        uint32_t scale_width = scale * logical_width;
+        uint32_t total = scale_width * scale_height;
+        if (scale_width > 1920 || scale_height > 1920 || total > limit) { break; }
+        scale_w = scale;
+        scale_h = scale;
+      }
+      output_width  = scale_w * logical_width;
+      output_height = scale_h * logical_height;
+      if (output_height & 1) { output_height++; }
+      if ((output_width & 1) && (scale_w & 1)) { output_width += scale_w; }
+    }
+    else
+    {
+      if (scale_h == 0)
+      {
+        scale_h = output_height / logical_height;
+      }
+      if (scale_h > SCALE_MAX) { scale_h = SCALE_MAX; }
+      while (logical_height * scale_h > output_height) { --scale_h; }
+
+      if (scale_w == 0)
+      {
+        scale_w = output_width  / logical_width;
+      }
+      uint32_t w = output_width / scale_w;
+      while (scale_w > SCALE_MAX || w * scale_w != output_width || logical_width * scale_w > output_width)
+      {
+        w = output_width / --scale_w;
+      }
+    }
+
+    _scale_w = scale_w;
+    _scale_h = scale_h;
+    _cfg.memory_width  = output_width  ;
+    _cfg.memory_height = output_height ;
+    _cfg.panel_width   = logical_width ;
+    _cfg.panel_height  = logical_height;
+    _cfg.offset_x      = (output_width  / scale_w - logical_width ) >> 1;
+    _cfg.offset_y      = (output_height / scale_h - logical_height) >> 1;
+    setRotation(getRotation());
   }
 
   void Panel_M5HDMI::beginTransaction(void)
