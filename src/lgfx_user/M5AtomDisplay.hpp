@@ -45,6 +45,7 @@ public:
                , uint_fast8_t scale_h    = M5ATOMDISPLAY_SCALE_H
                )
   {
+#if !defined (CONFIG_IDF_TARGET) || defined (CONFIG_IDF_TARGET_ESP32)
     static constexpr int i2c_port =  1;
     static constexpr int i2c_sda  = 25;
     static constexpr int i2c_scl  = 21;
@@ -52,14 +53,10 @@ public:
     static constexpr int spi_mosi = 19;
     static constexpr int spi_miso = 22;
 
-#if defined ( EFUSE_RD_CHIP_VER_PKG_ESP32PICOD4 )
     int spi_sclk = (esp_efuse_get_pkg_ver() == EFUSE_RD_CHIP_VER_PKG_ESP32PICOD4)
                  ? 23  // for ATOM Lite / Matrix
                  : 5   // for ATOM PSRAM
                  ;
-#else
-    int spi_sclk = 5;
-#endif
 
     {
       auto cfg = _bus_instance.config();
@@ -98,17 +95,18 @@ public:
       cfg.readable   = false;
       cfg.bus_shared = false;
       _panel_instance.config(cfg);
-
-      m5gfx::Panel_M5HDMI::config_resolution_t cfg_reso;
-      cfg_reso.logical_width  = logical_width;
-      cfg_reso.logical_height = logical_height;
-      cfg_reso.refresh_rate   = refresh_rate;
-      cfg_reso.output_width   = output_width;
-      cfg_reso.output_height  = output_height;
-      cfg_reso.scale_w        = scale_w;
-      cfg_reso.scale_h        = scale_h;
-      _panel_instance.config_resolution(cfg_reso);
     }
+#endif
+    lgfx::Panel_M5HDMI::config_resolution_t cfg_reso;
+    cfg_reso.logical_width  = logical_width;
+    cfg_reso.logical_height = logical_height;
+    cfg_reso.refresh_rate   = refresh_rate;
+    cfg_reso.output_width   = output_width;
+    cfg_reso.output_height  = output_height;
+    cfg_reso.scale_w        = scale_w;
+    cfg_reso.scale_h        = scale_h;
+    _panel_instance.config_resolution(cfg_reso);
+
     setPanel(&_panel_instance);
   }
 
