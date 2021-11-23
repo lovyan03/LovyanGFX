@@ -1,5 +1,4 @@
-//#define LGFX_AUTODETECT
-
+#define LGFX_USE_V1
 #include <LovyanGFX.hpp>
 
 #include "image320x240x16.h"

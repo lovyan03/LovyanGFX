@@ -1,4 +1,8 @@
+#define LGFX_USE_V1
 #include <LovyanGFX.hpp>
+
+static LGFX lcd;
+static LGFX_Sprite _sprites[2];
 
 struct ball_info_t {
   int32_t x;
@@ -12,9 +16,6 @@ struct ball_info_t {
 
 static constexpr std::uint32_t SHIFTSIZE = 8;
 static constexpr std::uint32_t BALL_MAX = 256;
-
-static LGFX lcd;
-static LGFX_Sprite _sprites[2];
 
 static ball_info_t _balls[2][BALL_MAX];
 static std::uint32_t _ball_count = 0, _fps = 0;
@@ -71,6 +72,7 @@ static void diffDraw(LGFX_Sprite* sp0, LGFX_Sprite* sp1)
     s32 += w32;
     p32 += w32;
   } while (++y < height);
+  lcd.display();
 }
 
 static void drawfunc(void)
@@ -116,7 +118,7 @@ static void mainfunc(void)
 {
   static constexpr float e = 0.999; // Coefficient of friction
 
-  sec = millis() / 1000;
+  sec = lgfx::millis() / 1000;
   if (psec != sec) {
     psec = sec;
     fps = frame_count;
@@ -124,13 +126,16 @@ static void mainfunc(void)
 
     if (++ball_count >= BALL_MAX) { ball_count = 1; }
     auto a = &_balls[_loop_count & 1][ball_count - 1];
-    a->color = lgfx::color888(100+random(155), 100+random(155), 100+random(155));
+    a->color = lgfx::color888(100+(rand()%155), 100+(rand()%155), 100+(rand()%155));
     a->x = 0;
     a->y = 0;
-    a->dx = random(1, 3 << SHIFTSIZE);
-    a->dy = random(1, 3 << SHIFTSIZE);
+    a->dx = (rand() & (3 << SHIFTSIZE)) + 1;
+    a->dy = (rand() & (3 << SHIFTSIZE)) + 1;
     a->r = (4 + (ball_count & 0x07)) << SHIFTSIZE;
     a->m =  4 + (ball_count & 0x07);
+#if defined (ESP32) || defined (CONFIG_IDF_TARGET_ESP32) || defined (ESP_PLATFORM)
+    vTaskDelay(1);
+#endif
   }
 
   frame_count++;
@@ -212,10 +217,10 @@ static void mainfunc(void)
       float ady = (a->m * amy + b->m * bmy + bmy * e * b->m - amy * e * b->m) / (a->m + b->m);
       float bdy = - e * (bmy - amy) + ady;
 
-      a->dx = round(adx + arx);
-      a->dy = round(ady + ary);
-      b->dx = round(bdx + brx);
-      b->dy = round(bdy + bry);
+      a->dx = roundf(adx + arx);
+      a->dy = roundf(ady + ary);
+      b->dx = roundf(bdx + brx);
+      b->dy = roundf(bdy + bry);
     }
   }
 
@@ -239,6 +244,7 @@ void setup(void)
 {
   lcd.begin();
   lcd.startWrite();
+  lcd.setColorDepth(8);
   if (lcd.width() < lcd.height()) lcd.setRotation(lcd.getRotation() ^ 1);
 
   auto lcd_width = lcd.width();
@@ -279,7 +285,7 @@ void setup(void)
       if (fail)
       {
         lcd.print("createSprite fail...");
-        delay(3000);
+        lgfx::delay(3000);
       }
     }
   }
@@ -290,11 +296,11 @@ void setup(void)
   for (std::uint32_t i = 0; i < ball_count; ++i)
   {
     auto a = &_balls[_loop_count & 1][i];
-    a->color = lgfx::color888(100+random(155), 100+random(155), 100+random(155));
+    a->color = lgfx::color888(100+(rand()%155), 100+(rand()%155), 100+(rand()%155));
     a->x = 0;
     a->y = 0;
-    a->dx = random(1, 3 << SHIFTSIZE);
-    a->dy = random(1, 3 << SHIFTSIZE);
+    a->dx = (rand() & (3 << SHIFTSIZE)) + 1;
+    a->dy = (rand() & (3 << SHIFTSIZE)) + 1;
     a->r = (4 + (i & 0x07)) << SHIFTSIZE;
     a->m =  4 + (i & 0x07);
   }
@@ -303,8 +309,7 @@ void setup(void)
   _draw_count = 0;
   _loop_count = 0;
 
-#if defined (ESP32) || defined (CONFIG_IDF_TARGET_ESP32) || defined (ESP_PLATFORM)
-  disableCore0WDT();
+#if defined (CONFIG_IDF_TARGET_ESP32)
   xTaskCreate(taskDraw, "taskDraw", 2048, NULL, 0, NULL);
 #endif
 }
@@ -312,8 +317,8 @@ void setup(void)
 void loop(void)
 {
   mainfunc();
-#if defined (ESP32) || defined (CONFIG_IDF_TARGET_ESP32) || defined (ESP_PLATFORM)
-  while (_loop_count != _draw_count) taskYIELD();
+#if defined (CONFIG_IDF_TARGET_ESP32)
+  while (_loop_count != _draw_count) { taskYIELD(); }
 #else
   drawfunc();
 #endif

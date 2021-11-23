@@ -78,20 +78,24 @@ void setup(void)
 {
   lcd.init();
 
+  if (lcd.width() < lcd.height())
+  {
+    lcd.setRotation(lcd.getRotation() ^ 1);
+  }
   lcd_width = lcd.width();
   lcd_height = lcd.height();
   obj_info_t *a;
   for (size_t i = 0; i < obj_count; ++i) {
     a = &objects[i];
     a->img = i % 3;
-    a->x = random(lcd_width);
-    a->y = random(lcd_height);
-    a->dx = random(1, 4) * (i & 1 ? 1 : -1);
-    a->dy = random(1, 4) * (i & 2 ? 1 : -1);
-    a->dr = random(1, 4) * (i & 2 ? 1 : -1);
+    a->x = rand() % lcd_width;
+    a->y = rand() % lcd_height;
+    a->dx = ((rand() & 3) + 1) * (i & 1 ? 1 : -1);
+    a->dy = ((rand() & 3) + 1) * (i & 2 ? 1 : -1);
+    a->dr = ((rand() & 3) + 1) * (i & 2 ? 1 : -1);
     a->r = 0;
-    a->z = (float)random(10, 20) / 10;
-    a->dz = (float)(random(1, 10)) / 100;
+    a->z = (float)((rand() % 10)+10) / 10;
+    a->dz = (float)((rand() % 10)+1) / 100;
   }
 
   uint32_t div = 2;
@@ -125,7 +129,6 @@ void setup(void)
   icons[2].pushImage(0, 0, closeWidth,  closeHeight, closeX);
 
   lcd.startWrite();
-  lcd.setAddrWindow(0, 0, lcd_width, lcd_height);
 }
 
 void loop(void)
@@ -152,9 +155,10 @@ void loop(void)
     }
     sprites[flip].pushSprite(&lcd, 0, y);
   }
+  lcd.display();
 
   ++frame_count;
-  sec = millis() / 1000;
+  sec = lgfx::millis() / 1000;
   if (psec != sec) {
     psec = sec;
     fps = frame_count;
