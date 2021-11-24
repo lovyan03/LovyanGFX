@@ -214,7 +214,7 @@ namespace lgfx
 
       _board = board;
 
-      /// autodetectの際にreset済みなのでここではuse_resetをfalseで呼び出す。
+      /// autodetectの際にreset済みなのでここではuse_resetをfalseで呼び出す。;
       return LGFX_Device::init_impl(false, use_clear);
     }
 
@@ -251,76 +251,6 @@ namespace lgfx
       uint32_t id;
       (void)id;  // suppress warning
 
-#if defined ( LGFX_AUTODETECT ) || defined ( LGFX_FEATHER_M4_HX8357 )
-
-      if (board == 0 || board == board_t::board_FeatherM4_HX8357)
-      {
-        _pin_level(samd51::PORT_A | 19, true);
-        bus_cfg.sercom_index = 1;
-        bus_cfg.pin_mosi  = samd51::PORT_B | 23;
-        bus_cfg.pin_miso  = samd51::PORT_B | 22;
-        bus_cfg.pin_sclk  = samd51::PORT_A | 17;
-        bus_cfg.pin_dc    = samd51::PORT_A | 20;
-        _bus_spi.config(bus_cfg);
-        if (_bus_spi.init())
-        {
-delay(1);
-          _bus_spi.beginTransaction();
-          _bus_spi.writeCommand(0, 8);
-delay(1);
-          _pin_level(samd51::PORT_A | 19, false);
-          _bus_spi.writeCommand(0x01, 8);
-delay(1);
-          _bus_spi.writeCommand(0x11, 8);
-delay(1);
-          _bus_spi.writeCommand(0x29, 8);
-delay(10);
-          _pin_level(samd51::PORT_A | 19, true);
-          _bus_spi.endTransaction();
-          id = _read_panel_id(&_bus_spi, samd51::PORT_A | 19);
-          auto debug = _read_panel_id(&_bus_spi, samd51::PORT_A | 19, 0xDB);
-Serial.printf("id : %08x  %08x\r\n", id, debug);
-          if ((id & 0xFF) == 0 && _read_panel_id(&_bus_spi, samd51::PORT_A | 19, 0x09) != 0)
-          {
-            board = board_t::board_FeatherM4_HX8357;
-            _bus_spi.release();
-            bus_cfg.freq_write = 39000000;
-            bus_cfg.freq_read  = 12000000;
-            _bus_spi.config(bus_cfg);
-
-            auto p = new lgfx::Panel_HX8357D();
-            _panel_last = p;
-            {
-              auto cfg = p->config();
-              cfg.pin_cs  = samd51::PORT_A | 19;
-              cfg.pin_rst = -1;
-              cfg.dummy_read_bits = 0;
-              p->config(cfg);
-            }
-            p->setRotation(1);
-            p->setBus(&_bus_spi);
-
-//          auto t = new lgfx::Touch_STMPE610();
-//          _touch_last = t;
-//          {
-//            auto cfg = t->config();
-//            cfg.spi_host = 1;   // SERCOM 1
-//            cfg.pin_sclk = samd51::PORT_A | 17;
-//            cfg.pin_mosi = samd51::PORT_B | 23;
-//            cfg.pin_miso = samd51::PORT_B | 22;
-//            cfg.pin_cs   = samd51::PORT_A | 18;
-//            cfg.bus_shared = true;
-//            t->config(cfg);
-//            p->setTouch(t);
-//          }
-
-            goto init_clear;
-          }
-          _bus_spi.release();
-        }
-      }
-#endif
-
 #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_WIO_TERMINAL )
 
       if (board == 0 || board == board_t::board_WioTerminal)
@@ -336,12 +266,12 @@ Serial.printf("id : %08x  %08x\r\n", id, debug);
           _pin_level(samd51::PORT_B | 21, true);
           _pin_reset(samd51::PORT_C | 7, use_reset); // LCD RST
 
-          _bus_spi.config(bus_cfg);   // 設定を反映する
+          _bus_spi.config(bus_cfg);   // 設定を反映する;
           if (_bus_spi.init())
           {
             id = _read_panel_id(&_bus_spi, samd51::PORT_B | 21);
             if ((id & 0xFF) == 0 && _read_panel_id(&_bus_spi, samd51::PORT_B | 21, 0x0C) != 0)
-            { // check panel (ILI9341) panelIDが0なのでReadDisplayPixelFormat 0x0Cを併用する
+            { // check panel (ILI9341) panelIDが0なのでReadDisplayPixelFormat 0x0Cを併用する;
               board = board_t::board_WioTerminal;
               _bus_spi.release();
               bus_cfg.freq_write = 60000000;
@@ -369,8 +299,8 @@ Serial.printf("id : %08x  %08x\r\n", id, debug);
       }
 #endif
 
-// pybadge はLCDからの読出しが出来ないため、無条件設定になる。
-// そのため、LGFX_AUTODETECTでは対応しないようにしておく。
+// pybadge はLCDからの読出しが出来ないため、無条件設定になる。;
+// そのため、LGFX_AUTODETECTでは対応しないようにしておく。;
 #if defined ( LGFX_PYBADGE )
 
       if (board == 0 || board == board_t::board_PyBadge)
@@ -381,7 +311,7 @@ Serial.printf("id : %08x  %08x\r\n", id, debug);
         bus_cfg.pin_miso  = samd51::PORT_B | 12;
         bus_cfg.pin_sclk  = samd51::PORT_B | 13;
         bus_cfg.pin_dc    = samd51::PORT_B |  5;
-        _bus_spi.config(bus_cfg);   // 設定を反映する
+        _bus_spi.config(bus_cfg);   // 設定を反映する;
         if (lgfx::gpio_in(samd51::PORT_A | 0))
         {
           _bus_spi.init();
