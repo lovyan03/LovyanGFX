@@ -99,7 +99,7 @@ namespace lgfx
     void close(void) override { }
     int32_t tell(void) override { return _index; }
 
-  private:
+  protected:
     const uint8_t* _ptr = nullptr;
     uint32_t _index = 0;
     uint32_t _length = 0;
@@ -187,7 +187,7 @@ namespace lgfx
     void close() override { }
     int32_t tell(void) override { return _index; }
 
-  private:
+  protected:
     Stream* _stream;
     uint32_t _index;
     uint32_t _length = 0;

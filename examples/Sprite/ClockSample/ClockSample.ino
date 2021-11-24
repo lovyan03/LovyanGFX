@@ -1,3 +1,4 @@
+#define LGFX_USE_V1
 #include <LovyanGFX.hpp>
 
 static LGFX lcd;
@@ -9,7 +10,7 @@ static LGFX_Sprite needle2(&canvas);   // 秒針パーツ
 static LGFX_Sprite shadow2(&canvas);   // 秒針の影パーツ
 
 static constexpr uint64_t oneday = 86400000; // 1日 = 1000msec x 60sec x 60min x 24hour = 86400000
-static uint64_t count = random(oneday);    // 現在時刻 (ミリ秒カウンタ)
+static uint64_t count = rand() % oneday;    // 現在時刻 (ミリ秒カウンタ)
 static int32_t width = 239;             // 時計の縦横画像サイズ
 static int32_t halfwidth = width >> 1;  // 時計盤の中心座標
 static auto transpalette = 0;           // 透過色パレット番号
@@ -21,8 +22,6 @@ static float zoom;                      // 表示倍率
 
 void setup(void)
 {
-  Serial.begin(115200);
-
   lcd.init();
 
   zoom = (float)(std::min(lcd.width(), lcd.height())) / width; // 表示が画面にフィットするよう倍率を調整
@@ -162,12 +161,13 @@ void drawClock(uint64_t time)
   needle2.pushRotateZoom(            fsec , 1.0, 1.0, transpalette);
 
   canvas.pushRotateZoom(0, zoom, zoom, transpalette);    // 完了した時計盤をLCDに描画する
+  lcd.display();
 }
 
 void loop(void)
 {
   static uint32_t p_milli = 0;
-  uint32_t milli = millis() % 1000;
+  uint32_t milli = lgfx::millis() % 1000;
   if (p_milli < milli) count +=        (milli - p_milli);
   else                 count += 1000 + (milli - p_milli);
   p_milli = milli;

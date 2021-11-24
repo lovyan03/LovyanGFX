@@ -61,7 +61,6 @@ namespace lgfx
     void endTransaction(void) override;
 
     using Panel_Device::config;
-    void config(const config_t& cfg, int scale_w, int scale_h, float refresh_rate);
 
     color_depth_t setColorDepth(color_depth_t depth) override;
     void setRotation(uint_fast8_t r) override;
@@ -88,6 +87,28 @@ namespace lgfx
     uint32_t readCommand(uint_fast8_t, uint_fast8_t, uint_fast8_t) override { return 0; }
     uint32_t readData(uint_fast8_t, uint_fast8_t) override { return 0; }
     void readRect(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, void* dst, pixelcopy_t* param) override;
+
+    struct config_resolution_t
+    {
+      uint16_t logical_width  = 0;
+      uint16_t logical_height = 0;
+      float refresh_rate      = 0.0f;
+      uint16_t output_width   = 0;
+      uint16_t output_height  = 0;
+      uint8_t scale_w         = 0;
+      uint8_t scale_h         = 0;
+    };
+
+    void config_resolution( const config_resolution_t& cfg_resolution );
+    bool setResolution( const config_resolution_t& cfg_resolution );
+    bool setResolution( uint16_t logical_width  = 0
+                      , uint16_t logical_height = 0
+                      , float refresh_rate      = 0
+                      , uint16_t output_width   = 0
+                      , uint16_t output_height  = 0
+                      , uint8_t scale_w         = 0
+                      , uint8_t scale_h         = 0
+                      );
 
     void setVideoTiming(const video_timing_t* param);
     void setScaling(uint_fast8_t x_scale, uint_fast8_t y_scale);
@@ -260,6 +281,7 @@ namespace lgfx
     uint8_t _scale_h = 1;
     float _refresh_rate = 60.0f;
 
+    bool _init_resolution(void);
     void _set_window(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye, uint_fast8_t cmd);
     void _fill_rect(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, uint_fast8_t bytes);
     bool _check_repeat(uint32_t cmd, uint32_t length);

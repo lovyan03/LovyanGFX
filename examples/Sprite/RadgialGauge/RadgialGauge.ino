@@ -1,3 +1,4 @@
+#define LGFX_USE_V1
 #include <LovyanGFX.hpp>
 
 static LGFX lcd;
@@ -11,9 +12,13 @@ struct meter_t
   float angle = 0;
   float add = 0;
 
-  void advance(void) {
+  void advance(void)
+  {
     if ((angle >= 256 && add > 0.0)
-    ||  (angle <=   0 && add < 0.0)) add = -add;
+    ||  (angle <=   0 && add < 0.0))
+    {
+      add = -add;
+    }
     angle += add;
   }
 
@@ -33,7 +38,7 @@ void setup(void)
   lcd.init();
 
   if (lcd.width() < lcd.height()) {
-    lcd.setRotation((lcd.getRotation() + 1) & 3);
+    lcd.setRotation(lcd.getRotation() ^ 1);
   }
 
   sprite.setColorDepth(2);

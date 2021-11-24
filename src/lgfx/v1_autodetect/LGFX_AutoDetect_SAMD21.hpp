@@ -104,7 +104,6 @@ namespace lgfx
 
   class LGFX : public LGFX_Device
   {
-    lgfx::board_t _board = board_t::board_unknown;
     lgfx::Panel_Device* _panel_last = nullptr;
     lgfx::ILight* _light_last = nullptr;
 //  lgfx::ITouch* _touch_last = nullptr;
@@ -173,14 +172,6 @@ namespace lgfx
 
   public:
 
-    lgfx::board_t getBoard(void) const { return _board; }
-
-/*
-    LGFX(void) // コンストラクタ内で定義を行う
-    {
-//      panel(&_panel_instance);      // 使用するパネルを指定する
-    }
-//*/
     board_t autodetect(bool use_reset = true, board_t board = board_t::board_unknown)
     {
       auto bus_cfg = _bus_spi.config();

@@ -146,10 +146,9 @@ namespace lgfx
 
   class LGFX : public LGFX_Device
   {
-    lgfx::board_t _board = board_t::board_unknown;
     lgfx::Panel_Device* _panel_last = nullptr;
     lgfx::ILight* _light_last = nullptr;
-//  lgfx::ITouch* _touch_last = nullptr;
+    lgfx::ITouch* _touch_last = nullptr;
     lgfx::Bus_SPI _bus_spi;
 
     static void _pin_level(int_fast16_t pin, bool level)
@@ -157,6 +156,12 @@ namespace lgfx
       lgfx::pinMode(pin, lgfx::pin_mode_t::output);
       if (level) lgfx::gpio_hi(pin);
       else       lgfx::gpio_lo(pin);
+    }
+
+    static bool _pin_read(int_fast16_t pin)
+    {
+      lgfx::pinMode(pin, lgfx::pin_mode_t::input);
+      return lgfx::gpio_in(pin);
     }
 
     static void _pin_reset(int_fast16_t pin, bool use_reset)
@@ -185,6 +190,7 @@ namespace lgfx
 //      if (dummy_read_bit) bus->writeData(0, dummy_read_bit);  // dummy read bit
       bus->beginRead();
       uint32_t res = bus->readData(32);
+      bus->endRead();
       bus->endTransaction();
       _pin_level(pin_cs, true);
 
@@ -209,20 +215,12 @@ namespace lgfx
 
       _board = board;
 
-      /// autodetectの際にreset済みなのでここではuse_resetをfalseで呼び出す。
+      /// autodetectの際にreset済みなのでここではuse_resetをfalseで呼び出す。;
       return LGFX_Device::init_impl(false, use_clear);
     }
 
   public:
 
-    lgfx::board_t getBoard(void) const { return _board; }
-
-/*
-    LGFX(void) // コンストラクタ内で定義を行う
-    {
-//      panel(&_panel_instance);      // 使用するパネルを指定する
-    }
-//*/
     board_t autodetect(bool use_reset = true, board_t board = board_t::board_unknown)
     {
       auto bus_cfg = _bus_spi.config();
@@ -239,11 +237,11 @@ namespace lgfx
         delete _light_last;
         _light_last = nullptr;
       }
-//    if (_touch_last)
-//    {
-//      delete _touch_last;
-//      _touch_last = nullptr;
-//    }
+      if (_touch_last)
+      {
+        delete _touch_last;
+        _touch_last = nullptr;
+      }
 
       bus_cfg.sercom_clkfreq = F_CPU;
       bus_cfg.sercom_clksrc = 0;
@@ -254,101 +252,175 @@ namespace lgfx
       uint32_t id;
       (void)id;  // suppress warning
 
-#if defined ( LGFX_AUTODETECT ) || defined ( LGFX_WIO_TERMINAL )
+#if defined ( LGFX_AUTODETECT ) || defined ( LGFX_FEATHER_M4_HX8357 )
 
-      if (board == 0 || board == board_t::board_WioTerminal)
+      if (board == 0 || board == board_t::board_FeatherM4_HX8357)
       {
-        _pin_level(samd51::PORT_B | 21, true);
-        _pin_reset(samd51::PORT_C | 7, use_reset); // LCD RST
-        bus_cfg.sercom_index = 7;
-        bus_cfg.pin_mosi  = samd51::PORT_B | 19;
-        bus_cfg.pin_miso  = samd51::PORT_B | 18;
-        bus_cfg.pin_sclk  = samd51::PORT_B | 20;
-        bus_cfg.pin_dc    = samd51::PORT_C |  6;
-        _bus_spi.config(bus_cfg);   // 設定を反映する
+        _pin_level(samd51::PORT_A | 19, true);
+        bus_cfg.sercom_index = 1;
+        bus_cfg.pin_mosi  = samd51::PORT_B | 23;
+        bus_cfg.pin_miso  = samd51::PORT_B | 22;
+        bus_cfg.pin_sclk  = samd51::PORT_A | 17;
+        bus_cfg.pin_dc    = samd51::PORT_A | 20;
+        _bus_spi.config(bus_cfg);
         if (_bus_spi.init())
         {
-          id = _read_panel_id(&_bus_spi, samd51::PORT_B | 21);
-          if ((id & 0xFF) == 0 && _read_panel_id(&_bus_spi, samd51::PORT_B | 21, 0x0C) != 0)
-          { // check panel (ILI9341) panelIDが0なのでReadDisplayPixelFormat 0x0Cを併用する
-            board = board_t::board_WioTerminal;
+          _bus_spi.beginTransaction();
+          _pin_level(samd51::PORT_A | 19, false);
+          _bus_spi.writeCommand(0xB9, 8);    // SETEXTC
+          _bus_spi.writeData(0x005783FF, 24);
+          _bus_spi.writeCommand(0xB3, 8);
+          _bus_spi.writeData(0x06060080, 32); // SDO Enabled
+          _bus_spi.endTransaction();
+          _pin_level(samd51::PORT_A | 19, true);
+
+          id = _read_panel_id(&_bus_spi, samd51::PORT_A | 19);
+          if ((id & 0xFF) == 0 && _read_panel_id(&_bus_spi, samd51::PORT_A | 19, 0x09) != 0)
+          {
+            board = board_t::board_FeatherM4_HX8357;
             _bus_spi.release();
-            bus_cfg.freq_write = 60000000;
-            bus_cfg.freq_read  = 20000000;
+            bus_cfg.freq_write = 39000000;
+            bus_cfg.freq_read  = 12000000;
             _bus_spi.config(bus_cfg);
 
-            auto p = new lgfx::Panel_ILI9341();
+            auto p = new lgfx::Panel_HX8357D();
             _panel_last = p;
             {
               auto cfg = p->config();
-              cfg.pin_cs  = samd51::PORT_B | 21;
-              cfg.pin_rst = samd51::PORT_C |  7;
+              cfg.pin_cs  = samd51::PORT_A | 19;
+              cfg.pin_rst = -1;
               cfg.dummy_read_bits = 0;
               p->config(cfg);
             }
             p->setRotation(1);
             p->setBus(&_bus_spi);
-            _light_last = new Light_WioTerminal();
-            p->setLight(_light_last);
+
+            auto t = new lgfx::Touch_STMPE610();
+            _touch_last = t;
+            {
+              auto cfg = t->config();
+              cfg.spi_host = 1;   // SERCOM 1
+              cfg.freq = 2000000;
+              cfg.pin_sclk = samd51::PORT_A | 17;
+              cfg.pin_mosi = samd51::PORT_B | 23;
+              cfg.pin_miso = samd51::PORT_B | 22;
+              cfg.pin_cs   = samd51::PORT_A | 18;
+              cfg.offset_rotation = 0;
+              cfg.bus_shared = true;
+              t->config(cfg);
+              p->setTouch(t);
+            }
+
             goto init_clear;
           }
           _bus_spi.release();
         }
       }
-
 #endif
 
-// pybadge はLCDからの読出しが出来ないため、無条件設定になる。
-// そのため、LGFX_AUTODETECTでは対応しないようにしておく。
+#if defined ( LGFX_AUTODETECT ) || defined ( LGFX_WIO_TERMINAL )
+
+      if (board == 0 || board == board_t::board_WioTerminal)
+      {
+        lgfx::pinMode(samd51::PORT_C | 7, lgfx::pin_mode_t::input_pulldown); // LCD RST
+        bus_cfg.sercom_index = 7;
+        bus_cfg.pin_mosi  = samd51::PORT_B | 19;
+        bus_cfg.pin_miso  = samd51::PORT_B | 18;
+        bus_cfg.pin_sclk  = samd51::PORT_B | 20;
+        bus_cfg.pin_dc    = samd51::PORT_C |  6;
+        if (lgfx::gpio_in(samd51::PORT_C | 7))
+        {
+          _pin_level(samd51::PORT_B | 21, true);
+          _pin_reset(samd51::PORT_C | 7, use_reset); // LCD RST
+
+          _bus_spi.config(bus_cfg);   // 設定を反映する;
+          if (_bus_spi.init())
+          {
+            id = _read_panel_id(&_bus_spi, samd51::PORT_B | 21);
+            if ((id & 0xFF) == 0 && _read_panel_id(&_bus_spi, samd51::PORT_B | 21, 0x0C) != 0)
+            { // check panel (ILI9341) panelIDが0なのでReadDisplayPixelFormat 0x0Cを併用する;
+              board = board_t::board_WioTerminal;
+              _bus_spi.release();
+              bus_cfg.freq_write = 60000000;
+              bus_cfg.freq_read  = 20000000;
+              _bus_spi.config(bus_cfg);
+
+              auto p = new lgfx::Panel_ILI9341();
+              _panel_last = p;
+              {
+                auto cfg = p->config();
+                cfg.pin_cs  = samd51::PORT_B | 21;
+                cfg.pin_rst = samd51::PORT_C |  7;
+                cfg.dummy_read_bits = 0;
+                p->config(cfg);
+              }
+              p->setRotation(1);
+              p->setBus(&_bus_spi);
+              _light_last = new Light_WioTerminal();
+              p->setLight(_light_last);
+              goto init_clear;
+            }
+            _bus_spi.release();
+          }
+        }
+      }
+#endif
+
+// pybadge はLCDからの読出しが出来ないため、無条件設定になる。;
+// そのため、LGFX_AUTODETECTでは対応しないようにしておく。;
 #if defined ( LGFX_PYBADGE )
 
       if (board == 0 || board == board_t::board_PyBadge)
       {
+        lgfx::pinMode(samd51::PORT_A | 0, lgfx::pin_mode_t::input); // LCD RST
         bus_cfg.sercom_index = 4;
         bus_cfg.pin_mosi  = samd51::PORT_B | 15;
         bus_cfg.pin_miso  = samd51::PORT_B | 12;
         bus_cfg.pin_sclk  = samd51::PORT_B | 13;
         bus_cfg.pin_dc    = samd51::PORT_B |  5;
-        _bus_spi.config(bus_cfg);   // 設定を反映する
-        _bus_spi.init();
-        _pin_reset(samd51::PORT_A | 0, use_reset); // LCD RST
-        id = _read_panel_id(&_bus_spi, samd51::PORT_B | 7);
-        if ((id & 0xFF) == 0)
+        _bus_spi.config(bus_cfg);   // 設定を反映する;
+        if (lgfx::gpio_in(samd51::PORT_A | 0))
         {
-          board = board_t::board_PyBadge;
-          _bus_spi.release();
-          bus_cfg.freq_write = 27000000;
-          _bus_spi.config(bus_cfg);
-          auto p = new lgfx::Panel_ST7735S();
-          _panel_last = p;
+          _bus_spi.init();
+          _pin_reset(samd51::PORT_A | 0, use_reset); // LCD RST
+          id = _read_panel_id(&_bus_spi, samd51::PORT_B | 7);
+          if ((id & 0xFF) == 0)
           {
-            auto cfg = p->config();
-            cfg.pin_cs  = samd51::PORT_B |  7;
-            cfg.pin_rst = samd51::PORT_A |  0;
-            cfg.panel_width  = 128;
-            cfg.panel_height = 160;
-            cfg.memory_width = 128;
-            cfg.memory_height = 160;
-            cfg.readable = false;
-            cfg.rgb_order = true;
-            cfg.offset_rotation = 2;
-            p->config(cfg);
-          }
-          p->setBus(&_bus_spi);
-          {
-            auto l = new Light_TC();
-            auto cfg = l->config();
-            cfg.pin = samd51::PORT_A | 1;
-            cfg.tc_index = 2;
-            cfg.cc_index = 1;
-            l->config(cfg);
-            p->setLight(l);
-            _light_last = l;
-          }
+            board = board_t::board_PyBadge;
+            _bus_spi.release();
+            bus_cfg.freq_write = 27000000;
+            _bus_spi.config(bus_cfg);
+            auto p = new lgfx::Panel_ST7735S();
+            _panel_last = p;
+            {
+              auto cfg = p->config();
+              cfg.pin_cs  = samd51::PORT_B |  7;
+              cfg.pin_rst = samd51::PORT_A |  0;
+              cfg.panel_width  = 128;
+              cfg.panel_height = 160;
+              cfg.memory_width = 128;
+              cfg.memory_height = 160;
+              cfg.readable = false;
+              cfg.rgb_order = true;
+              cfg.offset_rotation = 2;
+              p->config(cfg);
+            }
+            p->setBus(&_bus_spi);
+            {
+              auto l = new Light_TC();
+              auto cfg = l->config();
+              cfg.pin = samd51::PORT_A | 1;
+              cfg.tc_index = 2;
+              cfg.cc_index = 1;
+              l->config(cfg);
+              p->setLight(l);
+              _light_last = l;
+            }
 
-          goto init_clear;
+            goto init_clear;
+          }
+          _bus_spi.release();
         }
-        _bus_spi.release();
       }
 
 #endif

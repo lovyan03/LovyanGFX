@@ -7,23 +7,39 @@
 #define LGFX_USE_V1
 #include <LovyanGFX.hpp>
 
-#if defined ( ARDUINO ) && defined ( SDA ) && defined ( SCL )
- static constexpr uint8_t M5_UNIT_LCD_SDA = SDA;
- static constexpr uint8_t M5_UNIT_LCD_SCL = SCL;
-#elif defined (ESP_PLATFORM)
+#if defined ( ARDUINO )
+ #include <Arduino.h>
+#elif __has_include( <sdkconfig.h> )
  #include <sdkconfig.h>
- #if defined (CONFIG_IDF_TARGET_ESP32C3)
-  static constexpr uint8_t M5_UNIT_LCD_SDA = 1;
-  static constexpr uint8_t M5_UNIT_LCD_SCL = 0;
- #else
-  static constexpr uint8_t M5_UNIT_LCD_SDA = 21;
-  static constexpr uint8_t M5_UNIT_LCD_SCL = 22;
- #endif
-#else
- static constexpr uint8_t M5_UNIT_LCD_SDA = 21;
- static constexpr uint8_t M5_UNIT_LCD_SCL = 22;
 #endif
-static constexpr uint8_t M5_UNIT_LCD_ADDR = 0x3E;
+
+#ifndef M5UNITLCD_SDA
+ #if defined ( ARDUINO )
+  #define M5UNITLCD_SDA SDA
+ #elif defined (CONFIG_IDF_TARGET_ESP32C3)
+  #define M5UNITLCD_SDA 1
+ #else
+  #define M5UNITLCD_SDA 21
+ #endif
+#endif
+
+#ifndef M5UNITLCD_SCL
+ #if defined ( ARDUINO )
+  #define M5UNITLCD_SCL SCL
+ #elif defined (CONFIG_IDF_TARGET_ESP32C3)
+  #define M5UNITLCD_SCL 0
+ #else
+  #define M5UNITLCD_SCL 22
+ #endif
+#endif
+
+#ifndef M5UNITLCD_ADDR
+#define M5UNITLCD_ADDR 0x3E
+#endif
+
+#ifndef M5UNITLCD_FREQ
+#define M5UNITLCD_FREQ 400000
+#endif
 
 class M5UnitLCD : public lgfx::LGFX_Device
 {
@@ -32,19 +48,19 @@ class M5UnitLCD : public lgfx::LGFX_Device
 
 public:
 
-  M5UnitLCD(uint8_t pin_sda = M5_UNIT_LCD_SDA, uint8_t pin_scl = M5_UNIT_LCD_SCL, uint32_t i2c_freq = 400000, int8_t i2c_port = -1, uint8_t i2c_addr = M5_UNIT_LCD_ADDR)
+  M5UnitLCD(uint8_t pin_sda = M5UNITLCD_SDA, uint8_t pin_scl = M5UNITLCD_SCL, uint32_t i2c_freq = M5UNITLCD_FREQ, int8_t i2c_port = -1, uint8_t i2c_addr = M5UNITLCD_ADDR)
   {
     setup(pin_sda, pin_scl, i2c_freq, i2c_port, i2c_addr);
   }
 
   using lgfx::LGFX_Device::init;
-  bool init(uint8_t pin_sda, uint8_t pin_scl, uint32_t i2c_freq = 400000, int8_t i2c_port = -1, uint8_t i2c_addr = M5_UNIT_LCD_ADDR)
+  bool init(uint8_t pin_sda, uint8_t pin_scl, uint32_t i2c_freq = M5UNITLCD_FREQ, int8_t i2c_port = -1, uint8_t i2c_addr = M5UNITLCD_ADDR)
   {
     setup(pin_sda, pin_scl, i2c_freq, i2c_port, i2c_addr);
     return init();
   }
 
-  void setup(uint8_t pin_sda = M5_UNIT_LCD_SDA, uint8_t pin_scl = M5_UNIT_LCD_SCL, uint32_t i2c_freq = 400000, int8_t i2c_port = -1, uint8_t i2c_addr = M5_UNIT_LCD_ADDR)
+  void setup(uint8_t pin_sda = M5UNITLCD_SDA, uint8_t pin_scl = M5UNITLCD_SCL, uint32_t i2c_freq = M5UNITLCD_FREQ, int8_t i2c_port = -1, uint8_t i2c_addr = M5UNITLCD_ADDR)
   {
     if (i2c_port < 0)
     {
@@ -83,5 +99,6 @@ public:
     }
 
     setPanel(&_panel_instance);
+    _board = lgfx::board_t::board_M5UnitLCD;
   }
 };
