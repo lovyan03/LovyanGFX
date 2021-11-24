@@ -477,7 +477,7 @@ namespace lgfx
       auto sercomData = samd21::getSercomData(sercom_index);
       auto sercom = reinterpret_cast<Sercom*>(sercomData->sercomPtr);
       auto *spi = &sercom->SPI;
-      while (spi->INTFLAG.bit.RXC) { uint32_t tmp = spi->DATA.reg; }
+      while (spi->INTFLAG.bit.RXC) { uint32_t tmp = spi->DATA.reg; (void)tmp; }
       do
       {
         spi->DATA.reg = *data;
