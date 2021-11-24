@@ -148,7 +148,7 @@ namespace lgfx
   {
     lgfx::Panel_Device* _panel_last = nullptr;
     lgfx::ILight* _light_last = nullptr;
-//  lgfx::ITouch* _touch_last = nullptr;
+    lgfx::ITouch* _touch_last = nullptr;
     lgfx::Bus_SPI _bus_spi;
 
     static void _pin_level(int_fast16_t pin, bool level)
@@ -190,6 +190,7 @@ namespace lgfx
 //      if (dummy_read_bit) bus->writeData(0, dummy_read_bit);  // dummy read bit
       bus->beginRead();
       uint32_t res = bus->readData(32);
+      bus->endRead();
       bus->endTransaction();
       _pin_level(pin_cs, true);
 
@@ -236,11 +237,11 @@ namespace lgfx
         delete _light_last;
         _light_last = nullptr;
       }
-   // if (_touch_last)
-   // {
-     // delete _touch_last;
-     // _touch_last = nullptr;
-   // }
+      if (_touch_last)
+      {
+        delete _touch_last;
+        _touch_last = nullptr;
+      }
 
       bus_cfg.sercom_clkfreq = F_CPU;
       bus_cfg.sercom_clksrc = 0;
@@ -250,6 +251,72 @@ namespace lgfx
 
       uint32_t id;
       (void)id;  // suppress warning
+
+#if defined ( LGFX_AUTODETECT ) || defined ( LGFX_FEATHER_M4_HX8357 )
+
+      if (board == 0 || board == board_t::board_FeatherM4_HX8357)
+      {
+        _pin_level(samd51::PORT_A | 19, true);
+        bus_cfg.sercom_index = 1;
+        bus_cfg.pin_mosi  = samd51::PORT_B | 23;
+        bus_cfg.pin_miso  = samd51::PORT_B | 22;
+        bus_cfg.pin_sclk  = samd51::PORT_A | 17;
+        bus_cfg.pin_dc    = samd51::PORT_A | 20;
+        _bus_spi.config(bus_cfg);
+        if (_bus_spi.init())
+        {
+          _bus_spi.beginTransaction();
+          _pin_level(samd51::PORT_A | 19, false);
+          _bus_spi.writeCommand(0xB9, 8);    // SETEXTC
+          _bus_spi.writeData(0x005783FF, 24);
+          _bus_spi.writeCommand(0xB3, 8);
+          _bus_spi.writeData(0x06060080, 32); // SDO Enabled
+          _bus_spi.endTransaction();
+          _pin_level(samd51::PORT_A | 19, true);
+
+          id = _read_panel_id(&_bus_spi, samd51::PORT_A | 19);
+          if ((id & 0xFF) == 0 && _read_panel_id(&_bus_spi, samd51::PORT_A | 19, 0x09) != 0)
+          {
+            board = board_t::board_FeatherM4_HX8357;
+            _bus_spi.release();
+            bus_cfg.freq_write = 39000000;
+            bus_cfg.freq_read  = 12000000;
+            _bus_spi.config(bus_cfg);
+
+            auto p = new lgfx::Panel_HX8357D();
+            _panel_last = p;
+            {
+              auto cfg = p->config();
+              cfg.pin_cs  = samd51::PORT_A | 19;
+              cfg.pin_rst = -1;
+              cfg.dummy_read_bits = 0;
+              p->config(cfg);
+            }
+            p->setRotation(1);
+            p->setBus(&_bus_spi);
+
+            auto t = new lgfx::Touch_STMPE610();
+            _touch_last = t;
+            {
+              auto cfg = t->config();
+              cfg.spi_host = 1;   // SERCOM 1
+              cfg.freq = 2000000;
+              cfg.pin_sclk = samd51::PORT_A | 17;
+              cfg.pin_mosi = samd51::PORT_B | 23;
+              cfg.pin_miso = samd51::PORT_B | 22;
+              cfg.pin_cs   = samd51::PORT_A | 18;
+              cfg.offset_rotation = 0;
+              cfg.bus_shared = true;
+              t->config(cfg);
+              p->setTouch(t);
+            }
+
+            goto init_clear;
+          }
+          _bus_spi.release();
+        }
+      }
+#endif
 
 #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_WIO_TERMINAL )
 
