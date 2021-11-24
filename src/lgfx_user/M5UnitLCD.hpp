@@ -99,5 +99,6 @@ public:
     }
 
     setPanel(&_panel_instance);
+    _board = lgfx::board_t::board_M5UnitLCD;
   }
 };

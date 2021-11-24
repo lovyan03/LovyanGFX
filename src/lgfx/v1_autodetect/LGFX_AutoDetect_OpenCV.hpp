@@ -38,8 +38,6 @@ namespace lgfx
 
   public:
 
-    lgfx::board_t getBoard(void) const { return board_t::board_OpenCV; }
-
     LGFX(int width = 320, int height = 240)
     {
       auto cfg = _panel_instance.config();
@@ -49,6 +47,7 @@ namespace lgfx
       cfg.panel_height = height;
       _panel_instance.config(cfg);
       setPanel(&_panel_instance);
+      _board = board_t::board_OpenCV;
     }
   };
 

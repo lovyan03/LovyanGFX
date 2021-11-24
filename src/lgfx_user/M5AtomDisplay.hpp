@@ -1,5 +1,7 @@
 #pragma once
 
+#if defined ( ESP_PLATFORM )
+#include <sdkconfig.h>
 #include <esp_efuse.h>
 #include <soc/efuse_reg.h>
 
@@ -108,6 +110,7 @@ public:
     _panel_instance.config_resolution(cfg_reso);
 
     setPanel(&_panel_instance);
+    _board = lgfx::board_t::board_M5AtomDisplay;
   }
 
   bool setResolution( uint16_t logical_width  = M5ATOMDISPLAY_LOGICAL_WIDTH
@@ -130,3 +133,4 @@ public:
       );
   }
 };
+#endif

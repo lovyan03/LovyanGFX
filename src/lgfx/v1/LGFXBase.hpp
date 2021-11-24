@@ -32,6 +32,7 @@ Contributors:
 #include "lgfx_fonts.hpp"
 #include "Touch.hpp"
 #include "panel/Panel_Device.hpp"
+#include "../boards.hpp"
 
 namespace lgfx
 {
@@ -1126,6 +1127,7 @@ namespace lgfx
     bool init(void)               { return init_impl(true , true); };
     bool begin(void)              { return init_impl(true , true); };
     bool init_without_reset(void) { return init_impl(false, false); };
+    board_t getBoard(void) const { return _board; }
     void initBus(void);
     void releaseBus(void);
     void setPanel(Panel_Device* panel);
@@ -1217,6 +1219,7 @@ namespace lgfx
     }
 
   protected:
+    board_t _board = board_t::board_unknown;
     uint8_t _brightness = 127;
 
     virtual bool init_impl(bool use_reset, bool use_clear);
