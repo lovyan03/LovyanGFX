@@ -387,6 +387,52 @@ namespace lgfx
       }
   #endif
 
+  // TTGO T-Display
+  #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_TTGO_TDISPLAY )
+      if (nvs_board == 0 || nvs_board == lgfx::board_t::board_TTGO_TDisplay) {
+        releaseBus();
+        _spi_mosi = 19;
+        _spi_miso = -1;
+        _spi_sclk = 18;
+        initBus();
+
+        p_tmp.spi_cs   =  5;
+        p_tmp.spi_dc   = 16;
+        p_tmp.gpio_rst = 23;
+        setPanel(&p_tmp);
+
+        auto id = readPanelID();
+        ESP_LOGW("LovyanGFX", "[Autodetect] panel id:%08x", id);
+        if ((id & 0xFF) == 0x85) {  //  check panel (ST7789)
+          ESP_LOGW("LovyanGFX", "[Autodetect] TDisplay");
+          board = lgfx::board_t::board_TTGO_TDisplay;
+          releaseBus();
+          _spi_host = HSPI_HOST;
+          initBus();
+          auto p = new lgfx::Panel_ST7789();
+          p->reverse_invert = true;
+          p->freq_write = 40000000;
+          p->freq_read  = 6000000;
+          p->freq_fill  = 40000000;
+          p->panel_width  = 135;
+          p->panel_height = 240;
+          p->offset_x     = 52;
+          p->offset_y     = 40;         
+          p->spi_3wire = true;
+          p->spi_cs    =  5;
+          p->spi_dc    = 16;
+          p->gpio_bl   = 4;
+          p->pwm_ch_bl = 7;
+          p->pwm_freq  = 1200;
+          setPanel(p);
+
+          goto init_clear;
+        }
+        lgfx::gpio_lo(p_tmp.spi_cs);
+        lgfx::gpio_lo(p_tmp.spi_dc);
+      }
+  #endif
+
   // M5Stack/LoLinD32Pro 判定 (GPIO15を使う判定を先に行うとM5GO bottomのLEDが点灯する事に注意)
   #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_M5STACK ) || defined ( LGFX_LOLIN_D32_PRO )
       if (nvs_board == 0 || nvs_board == lgfx::board_t::board_M5Stack || nvs_board == lgfx::board_t::board_LoLinD32) {

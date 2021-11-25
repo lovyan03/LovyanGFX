@@ -15,6 +15,7 @@ namespace lgfx
     , board_TTGO_TS
     , board_TTGO_TWatch
     , board_TTGO_TWristband
+    , board_TTGO_TDisplay
     , board_ODROID_GO
     , board_DDUINO32_XS
     , board_ESP_WROVER_KIT
