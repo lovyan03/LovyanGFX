@@ -849,6 +849,54 @@ namespace lgfx
       }
 #endif
 
+  // TTGO T-Display
+#if defined ( LGFX_AUTODETECT ) || defined ( LGFX_TTGO_TDISPLAY )
+
+      if (board == 0 || board == board_t::board_TTGO_TDisplay)
+      {
+        bus_cfg.pin_mosi = 19;
+        bus_cfg.pin_miso = -1;
+        bus_cfg.pin_sclk = 18;
+        bus_cfg.pin_dc   = 16;
+        bus_cfg.spi_3wire = true;
+        _bus_spi.config(bus_cfg);
+        _bus_spi.init();
+
+        id = _read_panel_id(&_bus_spi, 5);
+        if ((id & 0xFF) == 0x85)
+        {  //  check panel (ST7789)
+          board = board_t::board_TTGO_TDisplay;
+          ESP_LOGW(LIBRARY_NAME, "[Autodetect] TDisplay");
+          _bus_spi.release();
+          bus_cfg.spi_host = HSPI_HOST;
+          bus_cfg.freq_write = 40000000;
+          bus_cfg.freq_read  = 6000000;
+          _bus_spi.config(bus_cfg);
+          _bus_spi.init();
+          auto p = new Panel_ST7789();
+          p->bus(&_bus_spi);
+          {
+            auto cfg = p->config();
+            cfg.invert = true;
+            cfg.pin_cs  = 5;
+            cfg.pin_rst = 23;
+            cfg.panel_width  = 135;
+            cfg.panel_height = 240;
+            cfg.offset_x     = 52;
+            cfg.offset_y     = 40;
+            p->config(cfg);
+          }
+          _panel_last = p;
+
+          _set_pwm_backlight(4, 7, 1200);
+
+          goto init_clear;
+        }
+        lgfx::pinMode( 5, lgfx::pin_mode_t::input); // LCD CS
+        _bus_spi.release();
+      }
+#endif
+
 #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_WIFIBOY_MINI )
 
       if (board == 0 || board == board_t::board_WiFiBoy_Mini)
