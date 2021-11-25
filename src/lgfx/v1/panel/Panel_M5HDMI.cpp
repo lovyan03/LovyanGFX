@@ -543,15 +543,13 @@ namespace lgfx
     };
     cmd_t cmd;
     cmd.cmd = CMD_FILLRECT_8;
+    cmd.xy1 = 0;
     cmd.color = 0;
     static constexpr uint32_t mask = 0xFF00FF;
+    uint32_t xy = (_cfg.memory_width - 1) + ((_cfg.memory_height - 1) << 16);
+    cmd.xy2 = ((xy >> 8) & mask) + ((xy & mask) << 8);
     startWrite();
-    {
-      cmd.xy1 = 0;
-      uint32_t xy = (_cfg.memory_width - 1) + ((_cfg.memory_height - 1) << 16);
-      cmd.xy2 = ((xy >> 8) & mask) + ((xy & mask) << 8);
-      _bus->writeBytes(cmd.raw, sizeof(cmd_t), false, false);
-    }
+    _bus->writeBytes(cmd.raw, sizeof(cmd_t), false, false);
     endWrite();
 
     return res;
