@@ -122,7 +122,7 @@ public:
                     , uint_fast8_t scale_h    = M5ATOMDISPLAY_SCALE_H
                     )
   {
-    return _panel_instance.setResolution
+    bool res = _panel_instance.setResolution
       ( logical_width
       , logical_height
       , refresh_rate
@@ -131,6 +131,8 @@ public:
       , scale_w
       , scale_h
       );
+    setRotation(getRotation());
+    return res;
   }
 };
 #endif
