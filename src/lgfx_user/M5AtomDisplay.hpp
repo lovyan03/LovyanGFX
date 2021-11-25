@@ -93,10 +93,12 @@ public:
 
     {
       auto cfg = _panel_instance.config();
+      cfg.offset_rotation = 3;
       cfg.pin_cs     = spi_cs;
       cfg.readable   = false;
       cfg.bus_shared = false;
       _panel_instance.config(cfg);
+      _panel_instance.setRotation(1);
     }
 #endif
     lgfx::Panel_M5HDMI::config_resolution_t cfg_reso;
