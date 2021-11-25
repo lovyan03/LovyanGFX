@@ -112,6 +112,7 @@ This library is also compatible with the above models and display panels with a 
 // #define LGFX_TTGO_TS               // TTGO TS
 // #define LGFX_TTGO_TWATCH           // TTGO T-Watch
 // #define LGFX_TTGO_TWRISTBAND       // TTGO T-Wristband
+// #define LGFX_TTGO_TDISPLAY         // TTGO T-Display
 // #define LGFX_DDUINO32_XS           // DSTIKE D-duino-32 XS
 // #define LGFX_LOLIN_D32_PRO         // LoLin D32 Pro
 // #define LGFX_ESP_WROVER_KIT        // ESP-WROVER-KIT
