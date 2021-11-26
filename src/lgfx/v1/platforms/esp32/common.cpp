@@ -29,10 +29,13 @@ Contributors:
 #include <driver/spi_master.h>
 #include <driver/rtc_io.h>
 #include <driver/periph_ctrl.h>
-#include <soc/soc.h>
+#include <soc/apb_ctrl_reg.h>
+#include <soc/efuse_reg.h>
 #include <soc/rtc.h>
+#include <soc/soc.h>
 #include <soc/i2c_reg.h>
 #include <soc/i2c_struct.h>
+#include <esp_efuse.h>
 #include <esp_log.h>
 
 #if __has_include(<soc/i2c_periph.h>)
@@ -67,6 +70,24 @@ namespace lgfx
     uint32_t pre = div_num / 64u;
     div_num = div_num / (pre+1);
     return div_num << 12 | ((div_num-1)>>1) << 6 | div_num | pre << 18;
+  }
+
+  uint32_t get_pkg_ver(void)
+  {
+#if __has_include (<esp_efuse_table.h> )
+  /// Arduino ESP32 v1.0.5以降はesp_efuse_get_pkg_ver関数が使用できる。 ;
+    return esp_efuse_get_pkg_ver();
+#else
+    uint32_t pkg_ver = REG_GET_FIELD(EFUSE_BLK0_RDATA3_REG, EFUSE_RD_CHIP_VER_PKG);
+    if (pkg_ver == EFUSE_RD_CHIP_VER_PKG_ESP32PICOD4)
+    {
+      if (REG_READ(APB_CTRL_DATE_REG) & 0x80000000)
+      { // ESP32PICOV302
+        return 6;
+      }
+    }
+    return pkg_ver;
+#endif
   }
 
 //----------------------------------------------------------------------------

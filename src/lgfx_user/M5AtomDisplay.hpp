@@ -55,7 +55,7 @@ public:
     static constexpr int spi_mosi = 19;
     static constexpr int spi_miso = 22;
 
-    int spi_sclk = (esp_efuse_get_pkg_ver() == EFUSE_RD_CHIP_VER_PKG_ESP32PICOD4)
+    int spi_sclk = (lgfx::get_pkg_ver() == EFUSE_RD_CHIP_VER_PKG_ESP32PICOD4)
                  ? 23  // for ATOM Lite / Matrix
                  : 5   // for ATOM PSRAM
                  ;

@@ -94,6 +94,9 @@ namespace lgfx
   uint32_t getApbFrequency(void);
   uint32_t FreqToClockDiv(uint32_t fapb, uint32_t hz);
 
+  // esp_efuse_get_pkg_ver
+  uint32_t get_pkg_ver(void);
+
 //----------------------------------------------------------------------------
 
 #if defined (ARDUINO)
