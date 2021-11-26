@@ -29,17 +29,18 @@ Contributors:
 #include <driver/spi_master.h>
 #include <driver/rtc_io.h>
 #include <driver/periph_ctrl.h>
-#include <soc/efuse_reg.h>
 #include <soc/rtc.h>
 #include <soc/soc.h>
 #include <soc/i2c_reg.h>
 #include <soc/i2c_struct.h>
 #include <esp_log.h>
 
+#include <soc/apb_ctrl_reg.h>
+#include <soc/efuse_reg.h>
 #if __has_include (<esp_efuse_table.h> )
- #include <esp_efuse.h>
-#else
- #include <soc/apb_ctrl_reg.h>
+//------------------------------- workaround.
+// あるバージョンで esp_efuse.h をincludeするとエラーになる不具合があったことから、必要な関数宣言のみをここに記述する。
+  uint32_t esp_efuse_get_pkg_ver(void);
 #endif
 
 #if __has_include(<soc/i2c_periph.h>)
