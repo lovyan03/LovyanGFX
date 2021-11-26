@@ -29,14 +29,18 @@ Contributors:
 #include <driver/spi_master.h>
 #include <driver/rtc_io.h>
 #include <driver/periph_ctrl.h>
-#include <soc/apb_ctrl_reg.h>
 #include <soc/efuse_reg.h>
 #include <soc/rtc.h>
 #include <soc/soc.h>
 #include <soc/i2c_reg.h>
 #include <soc/i2c_struct.h>
-#include <esp_efuse.h>
 #include <esp_log.h>
+
+#if __has_include (<esp_efuse_table.h> )
+ #include <esp_efuse.h>
+#else
+ #include <soc/apb_ctrl_reg.h>
+#endif
 
 #if __has_include(<soc/i2c_periph.h>)
  #include <soc/i2c_periph.h>
