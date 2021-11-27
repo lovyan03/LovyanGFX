@@ -418,6 +418,7 @@ namespace lgfx
     while (_bus->readData(8) == 0xFF) {}
     _bus->readData(8); // skip 0xFF
     uint32_t data = _bus->readData(32);
+    (void)data; // suppress compiler warning.
     ESP_LOGI(TAG, "FPGA ID:%02x %02x %02x %02x", data & 0xFF, (data >> 8) & 0xFF, (data >> 16) & 0xFF, data >> 24);
     cs_control(true);
     _bus->endRead();
@@ -527,7 +528,31 @@ namespace lgfx
   bool Panel_M5HDMI::setResolution( const config_resolution_t& cfg_reso )
   {
     config_resolution(cfg_reso);
-    return _init_resolution();
+    bool res = _init_resolution();
+
+    union cmd_t
+    {
+      uint8_t raw[10];
+      struct __attribute__((packed))
+      {
+        uint8_t cmd;
+        uint32_t xy1;
+        uint32_t xy2;
+        uint8_t color;
+      };
+    };
+    cmd_t cmd;
+    cmd.cmd = CMD_FILLRECT_8;
+    cmd.xy1 = 0;
+    cmd.color = 0;
+    static constexpr uint32_t mask = 0xFF00FF;
+    uint32_t xy = (_cfg.memory_width - 1) + ((_cfg.memory_height - 1) << 16);
+    cmd.xy2 = ((xy >> 8) & mask) + ((xy & mask) << 8);
+    startWrite();
+    _bus->writeBytes(cmd.raw, sizeof(cmd_t), false, false);
+    endWrite();
+
+    return res;
   }
 
   void Panel_M5HDMI::config_resolution( const config_resolution_t& cfg_reso )

@@ -29,11 +29,32 @@ Contributors:
 #include <driver/spi_master.h>
 #include <driver/rtc_io.h>
 #include <driver/periph_ctrl.h>
-#include <soc/soc.h>
 #include <soc/rtc.h>
+#include <soc/soc.h>
 #include <soc/i2c_reg.h>
 #include <soc/i2c_struct.h>
 #include <esp_log.h>
+
+#include <soc/apb_ctrl_reg.h>
+#include <soc/efuse_reg.h>
+
+#if defined (ESP_IDF_VERSION_VAL)
+ #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(3, 4, 0)
+
+// include <esp_efuse.h> でエラーが出るバージョンが存在するため、エラー回避用の記述を行ってからincludeする。; 
+  #define _ROM_SECURE_BOOT_H_
+  #define MAX_KEY_DIGESTS 3
+  struct ets_secure_boot_key_digests
+  {
+    const void *key_digests[MAX_KEY_DIGESTS];
+    bool allow_key_revoke;
+  };
+  typedef struct ets_secure_boot_key_digests ets_secure_boot_key_digests_t;
+
+  #include <esp_efuse.h>
+  #define USE_ESP_EFUSE_GET_PKG_VER
+ #endif
+#endif
 
 #if __has_include(<soc/i2c_periph.h>)
  #include <soc/i2c_periph.h>
@@ -67,6 +88,23 @@ namespace lgfx
     uint32_t pre = div_num / 64u;
     div_num = div_num / (pre+1);
     return div_num << 12 | ((div_num-1)>>1) << 6 | div_num | pre << 18;
+  }
+
+  uint32_t get_pkg_ver(void)
+  {
+#if defined ( USE_ESP_EFUSE_GET_PKG_VER )
+    return esp_efuse_get_pkg_ver();
+#else
+    uint32_t pkg_ver = REG_GET_FIELD(EFUSE_BLK0_RDATA3_REG, EFUSE_RD_CHIP_VER_PKG);
+    if (pkg_ver == EFUSE_RD_CHIP_VER_PKG_ESP32PICOD4)
+    {
+      if (REG_READ(APB_CTRL_DATE_REG) & 0x80000000)
+      { // ESP32PICOV302
+        return 6;
+      }
+    }
+    return pkg_ver;
+#endif
   }
 
 //----------------------------------------------------------------------------

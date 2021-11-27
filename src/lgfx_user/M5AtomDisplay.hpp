@@ -55,7 +55,7 @@ public:
     static constexpr int spi_mosi = 19;
     static constexpr int spi_miso = 22;
 
-    int spi_sclk = (esp_efuse_get_pkg_ver() == EFUSE_RD_CHIP_VER_PKG_ESP32PICOD4)
+    int spi_sclk = (lgfx::get_pkg_ver() == EFUSE_RD_CHIP_VER_PKG_ESP32PICOD4)
                  ? 23  // for ATOM Lite / Matrix
                  : 5   // for ATOM PSRAM
                  ;
@@ -93,10 +93,12 @@ public:
 
     {
       auto cfg = _panel_instance.config();
+      cfg.offset_rotation = 3;
       cfg.pin_cs     = spi_cs;
       cfg.readable   = false;
       cfg.bus_shared = false;
       _panel_instance.config(cfg);
+      _panel_instance.setRotation(1);
     }
 #endif
     lgfx::Panel_M5HDMI::config_resolution_t cfg_reso;
@@ -122,7 +124,7 @@ public:
                     , uint_fast8_t scale_h    = M5ATOMDISPLAY_SCALE_H
                     )
   {
-    return _panel_instance.setResolution
+    bool res = _panel_instance.setResolution
       ( logical_width
       , logical_height
       , refresh_rate
@@ -131,6 +133,8 @@ public:
       , scale_w
       , scale_h
       );
+    setRotation(getRotation());
+    return res;
   }
 };
 #endif
