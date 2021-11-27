@@ -37,10 +37,23 @@ Contributors:
 
 #include <soc/apb_ctrl_reg.h>
 #include <soc/efuse_reg.h>
-#if __has_include (<esp_efuse_table.h> )
-//------------------------------- workaround.
-// あるバージョンで esp_efuse.h をincludeするとエラーになる不具合があったことから、必要な関数宣言のみをここに記述する。
-  uint32_t esp_efuse_get_pkg_ver(void);
+
+#if defined (ESP_IDF_VERSION_VAL)
+ #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(3, 4, 0)
+
+// include <esp_efuse.h> でエラーが出るバージョンが存在するため、エラー回避用の記述を行ってからincludeする。; 
+  #define _ROM_SECURE_BOOT_H_
+  #define MAX_KEY_DIGESTS 3
+  struct ets_secure_boot_key_digests
+  {
+    const void *key_digests[MAX_KEY_DIGESTS];
+    bool allow_key_revoke;
+  };
+  typedef struct ets_secure_boot_key_digests ets_secure_boot_key_digests_t;
+
+  #include <esp_efuse.h>
+  #define USE_ESP_EFUSE_GET_PKG_VER
+ #endif
 #endif
 
 #if __has_include(<soc/i2c_periph.h>)
@@ -79,8 +92,7 @@ namespace lgfx
 
   uint32_t get_pkg_ver(void)
   {
-#if __has_include (<esp_efuse_table.h> )
-  /// Arduino ESP32 v1.0.5以降はesp_efuse_get_pkg_ver関数が使用できる。 ;
+#if defined ( USE_ESP_EFUSE_GET_PKG_VER )
     return esp_efuse_get_pkg_ver();
 #else
     uint32_t pkg_ver = REG_GET_FIELD(EFUSE_BLK0_RDATA3_REG, EFUSE_RD_CHIP_VER_PKG);
