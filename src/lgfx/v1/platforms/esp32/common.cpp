@@ -275,7 +275,6 @@ namespace lgfx
 //*/
 #endif
       WRITE_PERI_REG(SPI_USER_REG (spi_port), SPI_USR_MOSI | SPI_USR_MISO | SPI_DOUTDIN);  // need SD card access (full duplex setting)
-      WRITE_PERI_REG(SPI_SLAVE_REG(spi_port), 0);
       WRITE_PERI_REG(SPI_CTRL_REG( spi_port), 0);
 #if defined ( SPI_CTRL1_REG )
       WRITE_PERI_REG(SPI_CTRL1_REG(spi_port), 0);
