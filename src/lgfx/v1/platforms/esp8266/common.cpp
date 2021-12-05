@@ -97,10 +97,6 @@ namespace lgfx
 
   } //millis
 
-  unsigned long IRAM_ATTR micros() {
-      return system_get_time();
-  }
-
   void delay(unsigned long ms)
   {
     if(ms) {
