@@ -2006,7 +2006,7 @@ namespace lgfx
     return write(floatToStr(number, buf, len, digits));
   }
 
-#if !defined (ARDUINO)
+#if defined (LGFX_PRINTF_ENABLED)
   size_t LGFXBase::printf(const char * __restrict format, ...) 
   {
     va_list arg;

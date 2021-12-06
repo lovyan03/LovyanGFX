@@ -569,7 +569,7 @@ namespace lgfx
       (void)id;  // suppress warning
 
     std::uint32_t pkg_ver = lgfx::get_pkg_ver();
-ESP_LOGE("LGFX","pkg:%d", pkg_ver);
+// ESP_LOGE("LGFX","pkg:%d", pkg_ver);
 
     if (pkg_ver == EFUSE_RD_CHIP_VER_PKG_ESP32PICOD4)
     {

@@ -28,7 +28,6 @@ Contributors:
 #include <driver/spi_common.h>
 #include <driver/spi_master.h>
 #include <driver/rtc_io.h>
-#include <driver/periph_ctrl.h>
 #include <soc/rtc.h>
 #include <soc/soc.h>
 #include <soc/i2c_reg.h>
@@ -37,6 +36,12 @@ Contributors:
 
 #include <soc/apb_ctrl_reg.h>
 #include <soc/efuse_reg.h>
+
+#if __has_include (<esp_private/periph_ctrl.h>)
+ #include <esp_private/periph_ctrl.h>
+#else
+ #include <driver/periph_ctrl.h>
+#endif
 
 #if defined (ESP_IDF_VERSION_VAL)
  #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(3, 4, 0)
@@ -194,16 +199,15 @@ namespace lgfx
  // バスの設定にはESP-IDFのSPIドライバを使用する。;
       if (_spi_dev_handle[spi_host] == nullptr)
       {
-      spi_bus_config_t buscfg = {
-          .mosi_io_num = spi_mosi,
-          .miso_io_num = spi_miso,
-          .sclk_io_num = spi_sclk,
-          .quadwp_io_num = -1,
-          .quadhd_io_num = -1,
-          .max_transfer_sz = 1,
-          .flags = SPICOMMON_BUSFLAG_MASTER,
-          .intr_flags = 0,
-      };
+      spi_bus_config_t buscfg;
+      buscfg.mosi_io_num = spi_mosi;
+      buscfg.miso_io_num = spi_miso;
+      buscfg.sclk_io_num = spi_sclk;
+      buscfg.quadwp_io_num = -1;
+      buscfg.quadhd_io_num = -1;
+      buscfg.max_transfer_sz = 1;
+      buscfg.flags = SPICOMMON_BUSFLAG_MASTER;
+      buscfg.intr_flags = 0;
 
       if (ESP_OK != spi_bus_initialize(static_cast<spi_host_device_t>(spi_host), &buscfg, dma_channel))
       {

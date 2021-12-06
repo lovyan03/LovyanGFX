@@ -48,6 +48,11 @@ namespace lgfx
 #endif
 //----------------------------------------------------------------------------
 
+#if !defined (ARDUINO) || defined (ARDUINO_ARCH_MBED_RP2040) || defined (ARDUINO_ARCH_RP2040)
+#define LGFX_PRINTF_ENABLED
+#endif
+
+
   class LGFXBase
 #if defined (ARDUINO)
   : public Print
@@ -664,17 +669,20 @@ namespace lgfx
   //size_t println(const String &s)              { size_t t = print(s); return println() + t; }
   //size_t println(const __FlashStringHelper *s) { size_t t = print(s); return println() + t; }
 
-#ifdef __GNUC__
-    size_t printf(const char* format, ...)  __attribute__((format(printf, 2, 3)));
-#else
-    size_t printf(const char* format, ...);
-#endif
-
     size_t write(const char* str)                 { return (!str) ? 0 : write((const uint8_t*)str, strlen(str)); }
     size_t write(const char *buf, size_t size)    { return write((const uint8_t *) buf, size); }
   #else
     using Print::write;
   #endif
+
+  #if defined (LGFX_PRINTF_ENABLED)
+   #ifdef __GNUC__
+    size_t printf(const char* format, ...)  __attribute__((format(printf, 2, 3)));
+   #else
+    size_t printf(const char* format, ...);
+   #endif
+  #endif
+
     size_t write(const uint8_t *buf, size_t size) { size_t n = 0; this->startWrite(); while (size--) { n += write(*buf++); } this->endWrite(); return n; }
     size_t write(uint8_t utf8);
     size_t vprintf(const char *format, va_list arg);
