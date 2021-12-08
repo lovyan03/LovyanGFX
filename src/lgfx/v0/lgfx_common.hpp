@@ -259,30 +259,24 @@ namespace lgfx
   __attribute__ ((always_inline)) inline static constexpr uint16_t getSwap16(uint16_t c) { return __builtin_bswap16(c); }
   __attribute__ ((always_inline)) inline static constexpr uint32_t getSwap24(uint32_t c) { return ((uint8_t)c)<<16 | ((uint8_t)(c>>8))<<8 | (uint8_t)(c>>16); }
 
-  __attribute__((used))
   static constexpr uint32_t convert_bgr888_to_rgb888( uint32_t c) { return getSwap24(c);  }
-  __attribute__((used))
   static constexpr uint32_t convert_bgr888_to_rgb565( uint32_t c) { return  (((uint8_t)c) >> 3) << 11 | (((uint16_t)c)>>10)<<5 | c>>19; }
   static constexpr uint32_t convert_bgr888_to_swap565(uint32_t c) { return  (((uint8_t)c) >> 3) << 3 |  ((uint16_t)c) >> 13 | (c & 0x1C00) << 3 | (c>>19) << 8; }
   static constexpr uint32_t convert_bgr888_to_bgr666 (uint32_t c) { return (c>>2) & 0x3F3F3F;  }
   static constexpr uint32_t convert_bgr888_to_rgb332 (uint32_t c) { return ((uint8_t)c >> 5) << 5 | (((uint16_t)c)>>13) << 2 | c>>22; }
 
-  __attribute__((used))
   static constexpr uint32_t convert_rgb888_to_bgr666 (uint32_t c) { return ((c>>2) & 0x3F) << 16 | ((c >> 10) & 0x3F) << 8 | ((c>>18)&0x3F);  }
-  __attribute__((used))
   static constexpr uint32_t convert_rgb888_to_rgb565 (uint32_t c) { return  (c>>19) << 11 | (((uint16_t)c)>>10)<<5 | ((uint8_t)c) >> 3;   }
   static constexpr uint32_t convert_rgb888_to_bgr888 (uint32_t c) { return getSwap24(c);  }
   static constexpr uint32_t convert_rgb888_to_swap565(uint32_t c) { return  (c>>19) << 3 |  ((uint16_t)c) >> 13 | (c & 0x1C00) << 3 | (((uint8_t)c) >> 3) << 8; }
   static constexpr uint32_t convert_rgb888_to_rgb332 (uint32_t c) { return ((c>>21) << 5) | ((((uint16_t)c)>>13) << 2) | ((c>>6) & 3); }
 
-  __attribute__((used))
   static constexpr uint32_t convert_rgb565_to_rgb888( uint32_t c) { return ((((c>>11)*0x21)>>2)<<8 | ((((c>>5)&0x3F)*0x41)>>4))<<8 | (((c&0x1F)*0x21)>>2); }
   static constexpr uint32_t convert_rgb565_to_bgr888 (uint32_t c) { return ((((c&0x1F)*0x21)>>2)<<8 | ((((c>>5)&0x3F)*0x41)>>4))<<8 | (((c>>11)*0x21)>>2); }
   static constexpr uint32_t convert_rgb565_to_bgr666 (uint32_t c) { return ((c&0x1F)<<17) | ((c&0x10)<<12) | ((c&0x7E0)<<3) | ((c>>10)&0xF8) | (c>>15); }
   static constexpr uint32_t convert_rgb565_to_swap565(uint32_t c) { return (0xFF & c)<<8|c>>8; }
   static constexpr uint32_t convert_rgb565_to_rgb332 (uint32_t c) { return ((c>>13) <<5) | ((c>>6) & 0x1C) | ((c>>3) & 3); }
 
-  __attribute__((used))
   static constexpr uint32_t convert_rgb332_to_rgb888 (uint32_t c) { return ((((c>>5)*0x49) >> 1)<<8 | ((c&0x1C)*0x49)>>3)<<8 | ((c&3)*0x55); }
   static constexpr uint32_t convert_rgb332_to_bgr888 (uint32_t c) { return (((c&3)*0x55)<<8 | ((c&0x1C)*0x49)>>3)<<8 | (((c>>5)*0x49) >> 1); }
   static constexpr uint32_t convert_rgb332_to_bgr666 (uint32_t c) { return (((c&0xE0)*9)>>5) | ((c&0x1C)*0x240) | ((c&3)*0x15)<<16; }

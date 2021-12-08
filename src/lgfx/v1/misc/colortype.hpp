@@ -34,7 +34,7 @@ namespace lgfx
 #if defined ( _MSVC_LANG )
  #define LGFX_INLINE inline static
 #else
- #define LGFX_INLINE __attribute__((used)) __attribute__ ((always_inline)) inline static
+ #define LGFX_INLINE __attribute__ ((always_inline)) inline static
 #endif
 
   LGFX_INLINE constexpr uint8_t  color332(uint8_t r, uint8_t g, uint8_t b) { return ((((r >> 5) << 3) + (g >> 5)) << 2) + (b >> 6); }
@@ -516,7 +516,7 @@ namespace lgfx
 #if defined ( _MSVC_LANG )
 #define LGFX_INLINE inline
 #else
-#define LGFX_INLINE __attribute__((used)) __attribute__ ((always_inline)) inline
+#define LGFX_INLINE __attribute__ ((always_inline)) inline
 #endif
 
   template<class TDst, class TSrc> LGFX_INLINE uint32_t color_convert(uint32_t c) { return c; }
