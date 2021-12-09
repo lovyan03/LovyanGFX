@@ -32,7 +32,7 @@ namespace lgfx
 #if defined ( _MSVC_LANG )
  #define LGFX_INLINE inline
 #else
- #define LGFX_INLINE __attribute__((used)) __attribute__ ((always_inline)) inline
+ #define LGFX_INLINE __attribute__ ((always_inline)) inline
 #endif
 
 //----------------------------------------------------------------------------
