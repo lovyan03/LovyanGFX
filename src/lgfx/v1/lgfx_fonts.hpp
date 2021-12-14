@@ -325,6 +325,13 @@ namespace lgfx
     extern const lgfx::GFXfont Roboto_Thin_24   ;
     extern const lgfx::GFXfont Satisfy_24       ;
     extern const lgfx::GFXfont Yellowtail_32    ;
+    extern const lgfx::GFXfont DejaVu9 ;
+    extern const lgfx::GFXfont DejaVu12;
+    extern const lgfx::GFXfont DejaVu18;
+    extern const lgfx::GFXfont DejaVu24;
+    extern const lgfx::GFXfont DejaVu40;
+    extern const lgfx::GFXfont DejaVu56;
+    extern const lgfx::GFXfont DejaVu72;
 
     extern const lgfx::U8g2font lgfxJapanMincho_8  ;
     extern const lgfx::U8g2font lgfxJapanMincho_12 ;
