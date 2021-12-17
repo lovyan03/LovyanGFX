@@ -1061,6 +1061,46 @@ namespace lgfx
     endWrite();
   }
 
+  pixelcopy_t LGFXBase::create_pc_gray(const uint8_t *image, lgfx::color_depth_t depth, uint32_t fore_rgb888, uint32_t back_rgb888)
+  {
+    pixelcopy_t pc;
+    pc.src_data = image;
+    pc.fore_rgb888 = fore_rgb888;
+    pc.back_rgb888 = back_rgb888;
+    pc.no_convert = false;
+    pc.src_depth = depth;
+    pc.src_mask  = (1 << (depth & color_depth_t::bit_mask)) - 1;
+    auto dst_depth = getColorDepth();
+    pc.dst_depth = dst_depth;
+    pc.fp_copy = (dst_depth == rgb565_2Byte) ? pixelcopy_t::copy_grayscale_affine<swap565_t>
+               : (dst_depth == rgb332_1Byte) ? pixelcopy_t::copy_grayscale_affine<rgb332_t>
+               : (dst_depth == rgb888_3Byte) ? pixelcopy_t::copy_grayscale_affine<bgr888_t>
+               : (dst_depth == rgb666_3Byte) ? pixelcopy_t::copy_grayscale_affine<bgr666_t>
+               : nullptr;
+
+    return pc;
+  }
+
+  void LGFXBase::push_grayimage(int32_t x, int32_t y, int32_t w, int32_t h, const uint8_t *image, color_depth_t depth, uint32_t fore_rgb888, uint32_t back_rgb888)
+  {
+    pixelcopy_t pc = create_pc_gray(image, depth, fore_rgb888, back_rgb888);
+    pc.src_width = w;
+    pc.src_height = h;
+    pushImage(x, y, w, h, &pc, false);
+  }
+
+  void LGFXBase::push_grayimage_rotate_zoom(float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y, int32_t w, int32_t h, const uint8_t* image, color_depth_t depth, uint32_t fore_rgb888, uint32_t back_rgb888)
+  {
+    pixelcopy_t pc = create_pc_gray(image, depth, fore_rgb888, back_rgb888);
+    push_image_rotate_zoom(dst_x, dst_y, src_x, src_y, angle, zoom_x, zoom_y, w, h, &pc);
+  }
+
+  void LGFXBase::push_grayimage_affine(const float* matrix, int32_t w, int32_t h, const uint8_t *image, color_depth_t depth, uint32_t fore_rgb888, uint32_t back_rgb888)
+  {
+    pixelcopy_t pc = create_pc_gray(image, depth, fore_rgb888, back_rgb888);
+    push_image_affine(matrix, w, h, &pc);
+  }
+
   void LGFXBase::pushImage(int32_t x, int32_t y, int32_t w, int32_t h, pixelcopy_t *param, bool use_dma)
   {
     param->src_bitwidth = w;

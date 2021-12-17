@@ -295,7 +295,6 @@ namespace lgfx
 
     void pushImage(int32_t x, int32_t y, int32_t w, int32_t h, pixelcopy_t *param, bool use_dma = false);
 
-
 //----------------------------------------------------------------------------
 
     template<typename T>
@@ -413,6 +412,12 @@ namespace lgfx
       auto pc = create_pc_antialias(data, palette, depth, transparent);
       push_image_affine_aa(matrix, w, h, &pc);
     }
+
+//----------------------------------------------------------------------------
+
+    LGFX_INLINE_T void pushGrayscaleImage(int32_t x, int32_t y, int32_t w, int32_t h, const uint8_t* image, color_depth_t depth, const T& forecolor, const T& backcolor) { push_grayimage(x, y, w, h, image, depth, convert_to_rgb888(forecolor), convert_to_rgb888(backcolor)); }
+    LGFX_INLINE_T void pushGrayscaleImageRotateZoom(float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y, int32_t w, int32_t h, const uint8_t* image, color_depth_t depth, const T& forecolor, const T& backcolor) { push_grayimage_rotate_zoom(dst_x, dst_y, src_x, src_y, angle, zoom_x, zoom_y, w, h, image, depth, convert_to_rgb888(forecolor), convert_to_rgb888(backcolor)); }
+    LGFX_INLINE_T void pushGrayscaleImageAffine(const float matrix[6], int32_t w, int32_t h, const uint8_t* image, color_depth_t depth, const T& forecolor, const T& backcolor) { push_grayimage_affine(matrix, w, h, image, depth, convert_to_rgb888(forecolor), convert_to_rgb888(backcolor)); }
 
 //----------------------------------------------------------------------------
 
@@ -1002,7 +1007,6 @@ namespace lgfx
       return pc;
     }
 
-
     LGFX_INLINE pixelcopy_t create_pc_antialias(const uint8_t *data, uint32_t raw_transparent = pixelcopy_t::NON_TRANSP)
     {
       return create_pc_antialias(reinterpret_cast<const rgb332_t*>(data), raw_transparent);
@@ -1065,6 +1069,8 @@ namespace lgfx
       return pc;
     }
 
+    pixelcopy_t create_pc_gray(const uint8_t *image, lgfx::color_depth_t depth, uint32_t fore_rgb888, uint32_t back_rgb888);
+
 //----------------------------------------------------------------------------
 
     static void make_rotation_matrix(float* result, float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y);
@@ -1075,6 +1081,9 @@ namespace lgfx
     void draw_bezier_helper(int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t x2, int32_t y2);
     void draw_bitmap(int32_t x, int32_t y, const uint8_t *bitmap, int32_t w, int32_t h, uint32_t fg_rawcolor, uint32_t bg_rawcolor = ~0u);
     void draw_xbitmap(int32_t x, int32_t y, const uint8_t *bitmap, int32_t w, int32_t h, uint32_t fg_rawcolor, uint32_t bg_rawcolor = ~0u);
+    void push_grayimage(int32_t x, int32_t y, int32_t w, int32_t h, const uint8_t *image, color_depth_t depth, uint32_t fg_rgb888, uint32_t bg_rgb888);
+    void push_grayimage_rotate_zoom(float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y, int32_t w, int32_t h, const uint8_t* image, color_depth_t depth, uint32_t fg_rgb888, uint32_t bg_rgb888);
+    void push_grayimage_affine(const float* matrix, int32_t w, int32_t h, const uint8_t *image, color_depth_t depth, uint32_t fg_rgb888, uint32_t bg_rgb888);
     void push_image_rotate_zoom(float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y, int32_t w, int32_t h, pixelcopy_t* pc);
     void push_image_rotate_zoom_aa(float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y, int32_t w, int32_t h, pixelcopy_t* pc);
     void push_image_affine(const float* matrix, int32_t w, int32_t h, pixelcopy_t *pc);

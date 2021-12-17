@@ -387,6 +387,7 @@ namespace lgfx
     inline constexpr uint8_t R6() const { return r >> 2; }
     inline constexpr uint8_t G6() const { return g >> 2; }
     inline constexpr uint8_t B6() const { return b >> 2; }
+    inline constexpr uint32_t RGB888(void) const { return (r<<16)+(g<<8)+b; }
     inline void R8(uint8_t r8) { r = r8; }
     inline void G8(uint8_t g8) { g = g8; }
     inline void B8(uint8_t b8) { b = b8; }

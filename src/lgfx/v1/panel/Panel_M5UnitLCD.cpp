@@ -361,7 +361,7 @@ namespace lgfx
       memmove(dst, src, src_size * bytes);
       dst += src_size * bytes;
     }
-    else  // RLEモード
+    else  // RLEモード;
     {
       for (size_t i = 0; i < src_size; i++)
       {

@@ -80,6 +80,8 @@ namespace lgfx
     const void* palette = nullptr;
     uint32_t (*fp_copy)(void*, uint32_t, uint32_t, pixelcopy_t*) = nullptr;
     uint32_t (*fp_skip)(       uint32_t, uint32_t, pixelcopy_t*) = nullptr;
+    uint32_t fore_rgb888 = 0xFFFFFF;  // for copy_gray
+    uint32_t back_rgb888 = 0;         // for copy_gray
     uint8_t src_mask  = ~0;
     uint8_t dst_mask  = ~0;
     bool no_convert = false;
@@ -92,51 +94,13 @@ namespace lgfx
                , bool dst_palette = false
                , const void* src_palette = nullptr
                , uint32_t src_transp = NON_TRANSP
-               )
-    : transp    ( src_transp )
-/*
-    , src_bits  ( src_depth > 8 ? (src_depth + 7) & ~7 : src_depth)
-    , dst_bits  ( dst_depth > 8 ? (dst_depth + 7) & ~7 : dst_depth)
-*/
-    , src_depth ( src_depth )
-    , dst_depth ( dst_depth )
-    , src_data  ( src_data   )
-    , palette   ( src_palette)
-    , src_mask  ( (1 << src_bits) - 1 )
-    , dst_mask  ( (1 << dst_bits) - 1 )
-    , no_convert( src_depth == dst_depth )
-    {
-      if (dst_palette || dst_bits < 8) {
-        if (src_palette && (dst_bits == 8) && (src_bits == 8)) {
-          fp_copy = pixelcopy_t::copy_rgb_affine<rgb332_t, rgb332_t>;
-          fp_skip = pixelcopy_t::skip_rgb_affine<rgb332_t>;
-        } else {
-          fp_copy = pixelcopy_t::copy_bit_affine;
-          fp_skip = pixelcopy_t::skip_bit_affine;
-        }
-      } else
-      if (src_palette || src_bits < 8) {
-        fp_copy = pixelcopy_t::get_fp_copy_palette_affine<bgr888_t>(dst_depth);
-        fp_skip = pixelcopy_t::skip_bit_affine;
-      } else {
-        if (src_bits > 16) {
-          fp_skip = pixelcopy_t::skip_rgb_affine<bgr888_t>;
-          if (src_depth == rgb888_3Byte) {
-            fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<bgr888_t>(dst_depth);
-          } else if (src_depth == rgb666_3Byte) {
-            fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<bgr666_t>(dst_depth);
-          }
-        } else {
-          if (src_depth == rgb565_2Byte) {
-            fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<swap565_t>(dst_depth);
-            fp_skip = pixelcopy_t::skip_rgb_affine<swap565_t>;
-          } else { // src_depth == rgb332_1Byte:
-            fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<rgb332_t >(dst_depth);
-            fp_skip = pixelcopy_t::skip_rgb_affine<rgb332_t>;
-          }
-        }
-      }
-    }
+               );
+    static uint32_t copy_bit_fast(void* __restrict dst, uint32_t index, uint32_t last, pixelcopy_t* __restrict param);
+    static uint32_t copy_bit_affine(void* __restrict dst, uint32_t index, uint32_t last, pixelcopy_t* __restrict param);
+    static uint32_t copy_alpha_affine(void* __restrict dst, uint32_t index, uint32_t last, pixelcopy_t* __restrict param);
+    static uint32_t blend_palette_fast(void* __restrict dst, uint32_t index, uint32_t last, pixelcopy_t* __restrict param);
+    static uint32_t compare_bit_affine(void* __restrict dst, uint32_t index, uint32_t last, pixelcopy_t* __restrict param);
+    static uint32_t skip_bit_affine(uint32_t index, uint32_t last, pixelcopy_t* param);
 
     template<typename TSrc>
     static auto get_fp_copy_rgb_affine(color_depth_t dst_depth) -> uint32_t(*)(void*, uint32_t, uint32_t, pixelcopy_t*)
@@ -169,26 +133,6 @@ namespace lgfx
            : (dst_depth == rgb888_3Byte) ? copy_palette_affine<bgr888_t , TPalette>
            : (dst_depth == rgb666_3Byte) ? copy_palette_affine<bgr666_t , TPalette>
            : nullptr;
-    }
-
-    static uint32_t copy_bit_fast(void* __restrict dst, uint32_t index, uint32_t last, pixelcopy_t* __restrict param)
-    {
-      auto dst_bits = param->dst_bits;
-      auto shift = ((~index) * dst_bits) & 7;
-      auto s = static_cast<const uint8_t*>(param->src_data);
-      auto d = &(static_cast<uint8_t*>(dst)[(index * dst_bits) >> 3]);
-
-      uint32_t i = param->positions[0] * param->src_bits;
-      param->positions[0] += last - index;
-      do {
-        uint32_t raw = s[i >> 3];
-        i += param->src_bits;
-        raw = (raw >> (-(int32_t)i & 7)) & param->src_mask;
-        *d = (*d & ~(param->dst_mask << shift)) | ((param->dst_mask & raw) << shift);
-        if (!shift) ++d;
-        shift = (shift - dst_bits) & 7;
-      } while (++index != last);
-      return last;
     }
 
     template <typename TDst, typename TPalette>
@@ -227,26 +171,6 @@ namespace lgfx
       return last;
     }
 
-    static uint32_t copy_bit_affine(void* __restrict dst, uint32_t index, uint32_t last, pixelcopy_t* __restrict param)
-    {
-      auto s = static_cast<const uint8_t*>(param->src_data);
-      auto d = static_cast<uint8_t*>(dst);
-
-      do {
-        uint32_t i = (param->src_x + param->src_y * param->src_bitwidth) * param->src_bits;
-        param->src_x32 += param->src_x32_add;
-        param->src_y32 += param->src_y32_add;
-        uint32_t raw = (pgm_read_byte(&s[i >> 3]) >> (-((int32_t)i + param->src_bits) & 7)) & param->src_mask;
-        if (raw != param->transp) {
-          auto dstidx = index * param->dst_bits;
-          auto shift = (-(int32_t)(dstidx + param->dst_bits)) & 7;
-          auto tmp = &d[dstidx >> 3];
-          *tmp = (*tmp & ~(param->dst_mask << shift)) | ((param->dst_mask & raw) << shift);
-        }
-      } while (++index != last);
-      return index;
-    }
-
     template <typename TDst, typename TPalette>
     static uint32_t copy_palette_affine(void* __restrict dst, uint32_t index, uint32_t last, pixelcopy_t* __restrict param)
     {
@@ -280,6 +204,49 @@ namespace lgfx
         uint32_t raw = s[i].get();
         if (raw == param->transp) break;
         d[index].set(color_convert<TDst, TSrc>(raw));
+        src_x32 += src_x32_add;
+        src_y32 += src_y32_add;
+      } while (++index != last);
+      param->src_x32 = src_x32;
+      param->src_y32 = src_y32;
+      return index;
+    }
+
+    template <typename TDst>
+    static uint32_t copy_grayscale_affine(void* __restrict dst, uint32_t index, uint32_t last, pixelcopy_t* __restrict param)
+    {
+      auto s = static_cast<const uint8_t*>(param->src_data);
+      auto d = static_cast<TDst*>(dst);
+      auto src_bitwidth = param->src_bitwidth;
+      auto src_x32_add = param->src_x32_add;
+      auto src_y32_add = param->src_y32_add;
+      auto src_x32 = param->src_x32;
+      auto src_y32 = param->src_y32;
+
+      uint32_t r8f = (param->fore_rgb888 >> 16) & 0xFF;
+      uint32_t g8f = (param->fore_rgb888 >>  8) & 0xFF;
+      uint32_t b8f = (param->fore_rgb888 >>  0) & 0xFF;
+
+      uint32_t r8b = (param->back_rgb888 >> 16) & 0xFF;
+      uint32_t g8b = (param->back_rgb888 >>  8) & 0xFF;
+      uint32_t b8b = (param->back_rgb888 >>  0) & 0xFF;
+
+      auto src_bits = param->src_bits;
+      uint32_t k = (src_bits == 1) ? 0xFF
+                 : (src_bits == 2) ? 0x55
+                 : (src_bits == 4) ? 0x11
+                 :                   0x01
+                 ;
+      do
+      {
+        uint32_t i = ((src_x32 >> FP_SCALE) + (src_y32 >> FP_SCALE) * src_bitwidth) * src_bits;
+        uint32_t alp = k * ((pgm_read_byte(&s[i >> 3]) >> (-((int32_t)i + src_bits) & 7)) & param->src_mask);
+        uint32_t inv = 256 - alp;
+        ++alp;
+        d[index].set((r8f * alp + r8b * inv) >> 8
+                    ,(g8f * alp + g8b * inv) >> 8
+                    ,(b8f * alp + b8b * inv) >> 8
+                    );
         src_x32 += src_x32_add;
         src_y32 += src_y32_add;
       } while (++index != last);
@@ -472,96 +439,12 @@ namespace lgfx
       return last;
     }
 
-
-    static uint32_t blend_palette_fast(void* __restrict dst, uint32_t index, uint32_t last, pixelcopy_t* __restrict param)
-    {
-      auto dst_bits = param->dst_bits;
-      auto dst_mask = param->dst_mask;
-      uint32_t k = (dst_bits == 1) ? 0xFF
-                 : (dst_bits == 2) ? 0x55
-                 : (dst_bits == 4) ? 0x11
-                                   : 0x01
-                                   ;
-      auto shift = ((~index) * dst_bits) & 7;
-      auto d = &(static_cast<uint8_t*>(dst)[(index * dst_bits) >> 3]);
-      auto src_x32_add = param->src_x32_add;
-      auto src_y32_add = param->src_y32_add;
-/*
-      if (src_y32_add == 0 && src_x32_add == (1<<FP_SCALE))
-      {
-        auto s = &(static_cast<const argb8888_t*>(param->src_data)[param->src_x + param->src_y * param->src_bitwidth - index]);
-        do {
-          uint_fast16_t a = s[index].a;
-          if (a)
-          {
-            uint32_t raw = (s[index].R8() + (s[index].G8()<<1) + s[index].B8()) >> 2;
-            if (a != 255)
-            {
-              uint_fast16_t inv = (256 - a) * k;
-              raw = (((*d >> shift) & dst_mask) * inv + raw * ++a) >> 8;
-            }
-            *d = (*d & ~(dst_mask << shift)) | (dst_mask & (raw >> (8 - dst_bits))) << shift;
-          }
-          if (!shift) ++d;
-          shift = (shift - dst_bits) & 7;
-        } while (++index != last);
-        return last;
-      }
-//*/
-      auto s = static_cast<const argb8888_t*>(param->src_data);
-      do {
-        uint32_t i = param->src_x + param->src_y * param->src_bitwidth;
-        uint_fast16_t a = s[i].a;
-        if (a)
-        {
-          uint32_t raw = (s[i].R8() + (s[i].G8()<<1) + s[i].B8()) >> 2;
-          if (a != 255)
-          {
-            uint_fast16_t inv = (256 - a) * k;
-            raw = (((*d >> shift) & dst_mask) * inv + raw * ++a) >> 8;
-          }
-          *d = (*d & ~(dst_mask << shift)) | (dst_mask & (raw >> (8 - dst_bits))) << shift;
-        }
-        if (!shift) ++d;
-        shift = (shift - dst_bits) & 7;
-        param->src_x32 += src_x32_add;
-        param->src_y32 += src_y32_add;
-      } while (++index != last);
-      return last;
-    }
-
     template <typename TDst>
     static uint32_t blend_rgb_fast(void* __restrict dst, uint32_t index, uint32_t last, pixelcopy_t* __restrict param)
     {
       auto d = static_cast<TDst*>(dst);
       auto src_x32_add = param->src_x32_add;
       auto src_y32_add = param->src_y32_add;
-/*
-      if (src_y32_add == 0 && src_x32_add == (1<<FP_SCALE))
-      {
-        auto s = &(static_cast<const argb8888_t*>(param->src_data)[param->src_x + param->src_y * param->src_bitwidth - index]);
-        for (;;) {
-          uint_fast16_t a = s[index].a;
-          if (a)
-          {
-            if (a == 255)
-            {
-              d[index].set(s[index].r, s[index].g, s[index].b);
-              if (++index == last) return last;
-              continue;
-            }
-
-            uint_fast16_t inv = 256 - a;
-            ++a;
-            d[index].set( (d[index].R8() * inv + s[index].R8() * a) >> 8
-                        , (d[index].G8() * inv + s[index].G8() * a) >> 8
-                        , (d[index].B8() * inv + s[index].B8() * a) >> 8
-                        );
-          }
-          if (++index == last) return last;
-        }
-      }
-//*/
       auto s = static_cast<const argb8888_t*>(param->src_data);
       for (;;) {
         uint32_t i = param->src_x + param->src_y * param->src_bitwidth;
@@ -588,29 +471,6 @@ namespace lgfx
         param->src_y32 += src_y32_add;
         if (++index == last) return last;
       }
-    }
-
-    static uint32_t skip_bit_affine(uint32_t index, uint32_t last, pixelcopy_t* param)
-    {
-      auto s = static_cast<const uint8_t*>(param->src_data);
-      auto src_x32     = param->src_x32;
-      auto src_y32     = param->src_y32;
-      auto src_x32_add = param->src_x32_add;
-      auto src_y32_add = param->src_y32_add;
-      auto src_bitwidth= param->src_bitwidth;
-      auto transp      = param->transp;
-      auto src_bits    = param->src_bits;
-      auto src_mask    = param->src_mask;
-      do {
-        uint32_t i = ((src_x32 >> FP_SCALE) + (src_y32 >> FP_SCALE) * src_bitwidth) * src_bits;
-        uint32_t raw = (pgm_read_byte(&s[i >> 3]) >> (-(int32_t)(i + src_bits) & 7)) & src_mask;
-        if (raw != transp) break;
-        src_x32 += src_x32_add;
-        src_y32 += src_y32_add;
-      } while (++index != last);
-      param->src_x32 = src_x32;
-      param->src_y32 = src_y32;
-      return index;
     }
 
     template <typename TSrc>
@@ -655,34 +515,8 @@ namespace lgfx
       param->src_y32 = src_y32;
       return index;
     }
-
-    static uint32_t compare_bit_affine(void* __restrict dst, uint32_t index, uint32_t last, pixelcopy_t* __restrict param)
-    {
-      auto s = static_cast<const uint8_t*>(param->src_data);
-      auto d = static_cast<bool*>(dst);
-      auto src_x32     = param->src_x32;
-      auto src_y32     = param->src_y32;
-      auto src_x32_add = param->src_x32_add;
-      auto src_y32_add = param->src_y32_add;
-      auto src_bitwidth= param->src_bitwidth;
-      auto transp      = param->transp;
-      auto src_bits    = param->src_bits;
-      auto src_mask    = param->src_mask;
-      do {
-        uint32_t i = ((src_x32 >> FP_SCALE) + (src_y32 >> FP_SCALE) * src_bitwidth) * src_bits;
-        uint32_t raw = (pgm_read_byte(&s[i >> 3]) >> (-(int32_t)(i + src_bits) & 7)) & src_mask;
-        d[index] = (raw == transp);
-        src_x32 += src_x32_add;
-        src_y32 += src_y32_add;
-      } while (++index != last);
-      param->src_x32 = src_x32;
-      param->src_y32 = src_y32;
-      return index;
-    }
   };
 
 //----------------------------------------------------------------------------
  }
 }
-
-
