@@ -34,6 +34,7 @@ namespace lgfx
     bus_i2c,
     bus_parallel8,
     bus_parallel16,
+    bus_stream,
   };
 
   struct IBus
