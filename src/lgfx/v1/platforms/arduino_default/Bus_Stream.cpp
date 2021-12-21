@@ -15,9 +15,7 @@ Contributors:
  [mongonta0716](https://github.com/mongonta0716)
  [tobozo](https://github.com/tobozo)
 /----------------------------------------------------------------------------*/
-#if defined (ESP_PLATFORM)
-#include <sdkconfig.h>
-#if !defined (CONFIG_IDF_TARGET) || defined (CONFIG_IDF_TARGET_ESP32) || defined (CONFIG_IDF_TARGET_ESP32S2) || defined (CONFIG_IDF_TARGET_ESP32C3)
+#if defined (ARDUINO)
 
 #include "Bus_Stream.hpp"
 #include "../../misc/pixelcopy.hpp"
@@ -126,5 +124,4 @@ namespace lgfx
  }
 }
 
-#endif
 #endif
