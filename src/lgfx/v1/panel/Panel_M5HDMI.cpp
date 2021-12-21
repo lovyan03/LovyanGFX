@@ -757,8 +757,7 @@ namespace lgfx
     else                { depth = color_depth_t::rgb565_2Byte; }
 
     _read_depth = _write_depth = depth;
-    _read_bits  = _write_bits  = depth & color_depth_t::bit_mask;
-    return _write_depth;
+    return depth;
   }
 
   void Panel_M5HDMI::setRotation(uint_fast8_t r)

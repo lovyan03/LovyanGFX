@@ -118,8 +118,6 @@ IT8951 Registers defines
 
   color_depth_t Panel_IT8951::setColorDepth(color_depth_t depth)
   {
-    _write_bits = 24;
-    _read_bits = 24;
     _write_depth = color_depth_t::rgb888_3Byte;
     _read_depth = color_depth_t::rgb888_3Byte;
     return color_depth_t::rgb888_3Byte;

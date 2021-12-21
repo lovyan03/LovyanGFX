@@ -81,6 +81,7 @@ namespace lgfx
 
     bool init(uint8_t brightness) override
     {
+      lgfx::i2c::init(axp_i2c_port, axp_i2c_sda, axp_i2c_scl).has_value();
       auto cfg = config();
       cfg.pin_bl = 12;
       cfg.freq   = 1200;
@@ -88,7 +89,6 @@ namespace lgfx
       cfg.invert = false;
       config(cfg);
       bool res = lgfx::Light_PWM::init(brightness);
-      lgfx::i2c::init(axp_i2c_port, axp_i2c_sda, axp_i2c_scl).has_value();
       setBrightness(brightness);
       return res;
     }

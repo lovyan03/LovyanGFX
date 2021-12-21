@@ -969,10 +969,7 @@ namespace lgfx
     template<typename T1, typename T2>
     pixelcopy_t create_pc_tr(const T1 *data, const T2& transparent)
     {
-      return create_pc_rawtr( data
-                            , (std::is_same<T1, T2>::value)
-                              ? transparent
-                              : get_fp_convert_src<T2>(get_depth<T1>::value, false)(transparent));
+      return create_pc_rawtr( data, color_convert<T1, T2>(transparent));
     }
 
     template<typename T> pixelcopy_t create_pc_tr(const uint8_t*  data, const T& transparent) { return create_pc_tr(reinterpret_cast<const rgb332_t*>(data), transparent); }
@@ -1036,10 +1033,7 @@ namespace lgfx
     template<typename T1, typename T2>
     pixelcopy_t create_pc_tr_antialias(const T1* data, const T2& transparent)
     {
-      return create_pc_antialias( data
-                                , std::is_same<T1, T2>::value
-                                  ? transparent
-                                  : get_fp_convert_src<T2>(get_depth<T1>::value, false)(transparent));
+      return create_pc_antialias( data, color_convert<T1, T2>(transparent));
     }
 
     template<typename T>

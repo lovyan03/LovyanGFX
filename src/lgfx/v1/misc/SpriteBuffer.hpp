@@ -67,6 +67,7 @@ namespace lgfx
     uint8_t* img8() const { return _buffer; }
     uint16_t* img16() const { return reinterpret_cast<uint16_t*>(_buffer); }
     bgr888_t* img24() const { return reinterpret_cast<bgr888_t*>(_buffer); }
+    uint32_t* img32() const { return reinterpret_cast<uint32_t*>(_buffer); }
 
     void reset(void* buffer);
 

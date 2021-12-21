@@ -108,8 +108,6 @@ namespace lgfx
   color_depth_t Panel_LCD::setColorDepth(color_depth_t depth)
   {
     setColorDepth_impl(depth);
-    _write_bits = _write_depth & color_depth_t::bit_mask;
-    _read_bits = _read_depth & color_depth_t::bit_mask;
 
     update_madctl();
 
@@ -319,7 +317,7 @@ namespace lgfx
           setWindow(x, y, x + w - 1, y + h - 1);
           bool nogap = (param->src_bitwidth == w || h == 1);
           if (nogap && (w * h <= WRITEPIXELS_MAXLEN))
-          { 
+          {
             writePixels(param, w * h, use_dma);
           }
           else

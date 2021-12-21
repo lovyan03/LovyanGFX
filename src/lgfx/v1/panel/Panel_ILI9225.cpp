@@ -92,8 +92,6 @@ namespace lgfx
   color_depth_t Panel_ILI9225::setColorDepth(color_depth_t depth)
   {
     setColorDepth_impl(depth);
-    _write_bits = _write_depth & color_depth_t::bit_mask;
-    _read_bits = _read_depth & color_depth_t::bit_mask;
 
     update_madctl();
     return _write_depth;

@@ -41,8 +41,6 @@ namespace lgfx
 
   color_depth_t Panel_GDEW0154M09::setColorDepth(color_depth_t depth)
   {
-    _write_bits = 16;
-    _read_bits = 16;
     _write_depth = color_depth_t::rgb565_2Byte;
     _read_depth = color_depth_t::rgb565_2Byte;
     return color_depth_t::rgb565_2Byte;
