@@ -172,6 +172,7 @@ namespace lgfx
         CMD_PAGEADDRESSINGMODE ,
         CMD_SETDISPSTARTLINE   , 0x00,
         CMD_SETDISPLAYCLOCKDIV , 0x50,
+        CMD_SETDISPLAYOFFSET   , 0x00,
         CMD_DCDC               , 0x8B,
         CMD_SEGREMAP           ,
         CMD_COMSCANINC         ,

@@ -265,10 +265,10 @@ namespace lgfx
   {
     if (0 < w && 0 < h)
     {
-      _range_mod.left   = std::min<int16_t>(_range_mod.left  , x        );
-      _range_mod.right  = std::max<int16_t>(_range_mod.right , x + w - 1);
-      _range_mod.top    = std::min<int16_t>(_range_mod.top   , y        );
-      _range_mod.bottom = std::max<int16_t>(_range_mod.bottom, y + h - 1);
+      _range_mod.left   = std::min<int_fast16_t>(_range_mod.left  , x        );
+      _range_mod.right  = std::max<int_fast16_t>(_range_mod.right , x + w - 1);
+      _range_mod.top    = std::min<int_fast16_t>(_range_mod.top   , y        );
+      _range_mod.bottom = std::max<int_fast16_t>(_range_mod.bottom, y + h - 1);
     }
     if (_range_mod.empty()) { return; }
 
@@ -302,7 +302,6 @@ namespace lgfx
 
     startWrite(true);
     _bus->writeCommand(CMD_SETMULTIPLEX | (((_cfg.panel_width-1) & 0x7F) << 8), 16);
-    _bus->writeCommand(CMD_SETDISPLAYOFFSET | ((uint8_t)(-_cfg.offset_x) << 8), 16);
     endWrite();
 
     return true;
@@ -326,10 +325,10 @@ namespace lgfx
   {
     if (0 < w && 0 < h)
     {
-      _range_mod.left   = std::min<int16_t>(_range_mod.left  , x        );
-      _range_mod.right  = std::max<int16_t>(_range_mod.right , x + w - 1);
-      _range_mod.top    = std::min<int16_t>(_range_mod.top   , y        );
-      _range_mod.bottom = std::max<int16_t>(_range_mod.bottom, y + h - 1);
+      _range_mod.left   = std::min<int_fast16_t>(_range_mod.left  , x        );
+      _range_mod.right  = std::max<int_fast16_t>(_range_mod.right , x + w - 1);
+      _range_mod.top    = std::min<int_fast16_t>(_range_mod.top   , y        );
+      _range_mod.bottom = std::max<int_fast16_t>(_range_mod.bottom, y + h - 1);
     }
     if (_range_mod.empty()) { return; }
 
@@ -339,12 +338,13 @@ namespace lgfx
     uint_fast8_t ye = _range_mod.bottom >> 3;
 
     uint_fast8_t offset_y = _cfg.offset_y >> 3;
+    uint_fast8_t offset_x = _cfg.offset_x + xs;
 
     do
     {
       _bus->writeCommand(  CMD_SETPAGEADDR | (ys + offset_y)
-                        | (CMD_SETHIGHCOLUMN | (xs >> 4)) << 8
-                        | (CMD_SETLOWCOLUMN  | (xs & 0x0F)) << 16
+                        | (CMD_SETHIGHCOLUMN + (offset_x >> 4)) << 8
+                        | (CMD_SETLOWCOLUMN  + (offset_x & 0x0F)) << 16
                         , 24);
       auto buf = &_buf[xs + ys * _cfg.panel_width];
       _bus->writeBytes(buf, xe - xs + 1, true, true);
