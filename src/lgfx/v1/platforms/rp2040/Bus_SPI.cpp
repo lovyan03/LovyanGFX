@@ -17,10 +17,16 @@ Contributors:
 /----------------------------------------------------------------------------*/
 #if defined (ARDUINO_ARCH_MBED_RP2040) || defined(ARDUINO_ARCH_RP2040)
 
+#include <hardware/structs/spi.h>
 #include "Bus_SPI.hpp"
 #include "../../misc/pixelcopy.hpp"
-#include <Arduino.h>
-#include <SPI.h>
+
+//#include <xprintf.h>
+//#define DBGPRINT(fmt, ...)  xprintf("%s %d: " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
+#define DBGPRINT(fmt, ...)
+
+// 16bit FIFOを使うとき、#defineする。
+#define USE_XFER_16
 
 namespace lgfx
 {
@@ -31,211 +37,245 @@ namespace lgfx
   void Bus_SPI::config(const config_t& config)
   {
     _cfg = config;
-
-    if (_cfg.pin_dc >= 0)
-    {
-      pinMode(_cfg.pin_dc, pin_mode_t::output);
-      gpio_hi(_cfg.pin_dc);
-    }
   }
 
   bool Bus_SPI::init(void)
   {
-    dc_h();
-
-
-    #define spi0_hw ((spi_hw_t *const)SPI0_BASE)
-
-    //_spibase = SPI0_BASE;
-    _spibase = SPI1_BASE;
-    _spi_reg_dr = &((spi_hw_t *const)_spibase)->dr;
-    _spi_reg_sr = &((spi_hw_t *const)_spibase)->sr;
-
-
-    pinMode(_cfg.pin_dc, pin_mode_t::output);
-  //SPI.pins(_cfg.pin_sclk, _cfg.pin_miso, _cfg.pin_mosi, -1);
-
-gpio_set_function(12, gpio_function::GPIO_FUNC_SIO);
-gpio_hi(12);
-//pinMode(12, pin_mode_t::output);
-
+    // それぞれのPINが、割り当て可能かを確認
+    if (lgfx::spi::init(_cfg.spi_host, _cfg.pin_sclk, _cfg.pin_miso, _cfg.pin_mosi).has_error())
+    {
+      return false;
+    }
+    // DCピンを出力に設定
+    lgfxPinMode(_cfg.pin_dc, pin_mode_t::output);
+    _spi_regs = reinterpret_cast<spi_hw_t *>(_spi_dev[_cfg.spi_host]);
+    _need_wait = false;
     return true;
   }
 
   void Bus_SPI::release(void)
   {
+    lgfx::spi::release(_cfg.spi_host);
   }
 
   void Bus_SPI::beginTransaction(void)
   {
-    dc_h();
-    _spi.format(8, _cfg.spi_mode);
-    _spi.frequency(_cfg.freq_write);
-
-    auto cr0_reg = &((spi_hw_t *const)_spibase)->cr0;
-//*cr0_reg |= 0x10;
-    _cr0 = *cr0_reg & ~0x08;
-gpio_set_function(12, gpio_function::GPIO_FUNC_SIO);
+    DBGPRINT("enter %s\n", __func__);
+    dc_control(true);
+    lgfx::spi::beginTransaction(_cfg.spi_host, _cfg.freq_write, _cfg.spi_mode);
+    _need_wait = false;
+    DBGPRINT("return %s\n", __func__);
   }
 
   void Bus_SPI::endTransaction(void)
   {
-    dc_h();
+    dc_control(true);
   }
 
   void Bus_SPI::beginRead(void)
   {
-    _spi.format(8, _cfg.spi_mode);
-    _spi.frequency(_cfg.freq_read);
+    wait_spi();
+    lgfx::spi::lgfx_spi_set_frequency(_cfg.spi_host,  _cfg.freq_read);
   }
 
   void Bus_SPI::endRead(void)
   {
-    _spi.format(8, _cfg.spi_mode);
-    _spi.frequency(_cfg.freq_write);
+    wait_spi();
+    lgfx::spi::lgfx_spi_set_frequency(_cfg.spi_host , _cfg.freq_write);
   }
 
   void Bus_SPI::wait(void)
   {
+    wait_spi();
   }
 
   bool Bus_SPI::busy(void) const
   {
-    return false;
+    return _need_wait && is_busy();
   }
 
   bool Bus_SPI::writeCommand(uint32_t data, uint_fast8_t bit_length)
   {
+    DBGPRINT("enter %s\n", __func__);
     auto bytes = bit_length >> 3;
-    auto dr = _spi_reg_dr;
-
-    if (_cr0)
+    dc_control(false);
+#ifdef USE_XFER_16
+    // 送受信データサイズを8ビット(1バイト)単位とする
+    set_dss_8();
+#endif
+    DBGPRINT("byte = %d sr = %08x\n", bytes, _spi_regs->sr);
+    _need_wait = true;
+    while (bytes > 0)
     {
-      auto cr0 = _cr0;
-      _cr0 = 0;
-      auto cr0_reg = &((spi_hw_t *const)_spibase)->cr0;
-      dc_l();
-      *cr0_reg = cr0;
-    }
-    else
-    {
-      dc_l();
-    }
-    *dr = data;
-    while (--bytes)
-    {
+      while (!is_tx_fifo_not_full()) { }
+      send8(static_cast<uint8_t>(data));
       data >>= 8;
-      *dr = data;
+      bytes--;
     }
-
+    DBGPRINT("return %s\n", __func__);
     return true;
   }
 
   void Bus_SPI::writeData(uint32_t data, uint_fast8_t bit_length)
   {
-    // auto bytes = bit_length >> 3;
-    // char dummy[8];
-    // _spi.write((const char*)&data, bytes, dummy, bytes);
+    DBGPRINT("enter %s\n", __func__);
     auto bytes = bit_length >> 3;
-    auto dr = _spi_reg_dr;
-    dc_h();
+    dc_control(true);
+#ifdef USE_XFER_16
+    // 送受信データサイズを8ビット(1バイト)単位とする
+    set_dss_8();
+#endif
+    _need_wait = true;
 
-    *dr = data;
-    while (--bytes)
+    while (bytes > 0)
     {
+      while (!is_tx_fifo_not_full()) { }
+      send8(static_cast<uint8_t>(data));
       data >>= 8;
-      *dr = data;
+      bytes--;
     }
+    DBGPRINT("return %s\n", __func__);
   }
 
   void Bus_SPI::writeDataRepeat(uint32_t data, uint_fast8_t bit_length, uint32_t length)
   {
-    // writeData(data, bit_length);
-    // if (! --length) { return; }
+    DBGPRINT("enter %s\n", __func__);
     size_t bytes = bit_length >> 3;
-    auto dr = _spi_reg_dr;
-    auto sr = _spi_reg_sr;
-
-    if (bytes == 2)
-    {
-      data = __builtin_bswap16(data);
-      auto cr0_reg = &((spi_hw_t *const)_spibase)->cr0;
-      uint32_t cr0 = *cr0_reg;
-      _cr0 = cr0;
-      cr0 |= 0x0F;
-      dc_h();
-      *cr0_reg = cr0;
-      do
-      {
-        while (!(*sr & SPI_SR_TNF)) {}
-        *dr = data;
-      } while (--length);
-      return;
-    }
-//*/
     auto buf = (uint8_t*)&data;
-    dc_h();
+    dc_control(true);
+#ifdef USE_XFER_16
+    // 送受信データサイズを8ビット(1バイト)単位とする
+    set_dss_8();
+#endif
+    _need_wait = true;
     do
     {
       size_t b = 0;
       do
       {
-        while (!(*sr & SPI_SR_TNF)) {}
-        *dr = buf[b];
-      } while (++b != bytes);
-    } while (--length);
+        while (!is_tx_fifo_not_full()) { }
+        send8(static_cast<uint8_t>(buf[b]));
+      }
+      while (++b != bytes);
+    }
+    while (--length);
+    DBGPRINT("return %s\n", __func__);
   }
 
   void Bus_SPI::writePixels(pixelcopy_t* param, uint32_t length)
   {
+    DBGPRINT("enter %s\n", __func__);
     const uint8_t dst_bytes = param->dst_bits >> 3;
-    uint8_t buf[12];
     uint32_t limit = 12 / dst_bytes;
     uint32_t len;
+    _need_wait = true;
     do
     {
       len = ((length - 1) % limit) + 1;
       auto buf = _flip_buffer.getBuffer(len * dst_bytes);
       param->fp_copy(buf, 0, len, param);
       writeBytes(buf, len * dst_bytes, true, true);
-    } while (length -= len);
+    }
+    while (length -= len);
+    DBGPRINT("return %s\n", __func__);
   }
 
   void Bus_SPI::writeBytes(const uint8_t* data, uint32_t length, bool dc, bool use_dma)
   {
-    auto dr = _spi_reg_dr;
-    auto sr = _spi_reg_sr;
-    if (!dc) dc_l();
-    else dc_h();
-    do
+    DBGPRINT("enter %s len: %d\n", __func__, length);
+    dc_control(dc);
+    _need_wait = true;
+#ifdef USE_XFER_16
+    if ((length & 0x00000001U) == 0b1U)
     {
-      uint32_t tmp = *data++;
-      while (!(*sr & SPI_SR_TNF)) {}
-      *dr = tmp;
-    } while (--length);
+      // 送信バイト数が奇数の時は、最初に1バイト送信する。
+      // 送受信データサイズを8ビット(1バイト)単位とする
+      set_dss_8();
+      while (!is_tx_fifo_not_full()) {}
+      send8(*data++);
+      // 送受信完了を待つ
+      while (is_busy()) {}
+    }
+    // 送受信データサイズを16ビット(2バイト)単位とする
+    set_dss_16();
+    length >>= 1;
+    while (length > 0)
+    {
+      // 2バイト単位で送信する
+      uint16_t w;
+      w = (*data++) << 8;
+      w |= *data++;
+      while (!is_tx_fifo_not_full()) {}
+      send16(w);
+      length--;
+    }
+#else
+    while (length > 0)
+    {
+      while (!is_tx_fifo_not_full()) {}
+      send8(*data++);
+      length--;
+    }
+#endif
+    DBGPRINT("return %s\n", __func__);
   }
 
   uint32_t Bus_SPI::readData(uint_fast8_t bit_length)
   {
     uint32_t res = 0;
     bit_length >>= 3;
-    if (!bit_length) return res;
+    if (bit_length == 0) return res;
     int idx = 0;
+    auto tx_bit_length = bit_length;
+#ifdef USE_XFER_16
+    while (is_busy()) {}
+    // 送受信データサイズを8ビット(1バイト)単位とする
+    set_dss_8();
+#endif
+    clear_rx_fifo();
+    // この時点で送信FIFOは空になっている
     do
     {
-      res |= SPI.transfer(0) << idx;
+      // 書き込めるだけ送信データを書き込む
+      while (is_tx_fifo_not_full() && tx_bit_length > 0) 
+      {
+        // データを送信（中身は何でもよい）
+        send8(0x00);
+        tx_bit_length--;
+      }
+      // 受信FIFOにデータが入るのを待つ
+      while (!is_rx_fifo_not_empty()) {}
+      res |= recv8() << idx;
       idx += 8;
-    } while (--bit_length);
+    }
+    while (--bit_length);
     return res;
   }
 
-  bool Bus_SPI::readBytes(uint8_t* dst, uint32_t length, bool use_dma)
+  bool Bus_SPI::readBytes(uint8_t* dst, uint32_t length, [[maybe_unused]]bool use_dma)
   {
-    do
+#ifdef USE_XFER_16
+    while (is_busy()) {}
+    // 送受信データサイズを8ビット(1バイト)単位とする
+    set_dss_8();
+#endif
+    clear_rx_fifo();
+    // この時点で送信FIFOは空になっているはず
+    auto tx_length = length;
+    while (length > 0)
     {
-      dst[0] = SPI.transfer(0);
-      ++dst;
-    } while (--length);
+            // 書き込めるだけ送信データを
+      while (is_tx_fifo_not_full() && tx_length > 0) 
+      {
+        // データを送信（中身は何でもよい）
+        send8(0x00);
+        tx_length--;
+      }
+      // 受信FIFOにデータが入るのを待つ
+      while (!is_rx_fifo_not_empty()) {}
+      *dst++ = recv8();
+      length--;
+    }
     return true;
   }
 
@@ -246,14 +286,21 @@ gpio_set_function(12, gpio_function::GPIO_FUNC_SIO);
     uint32_t len = 4;
     uint8_t buf[24];
     param->src_data = buf;
-    do {
+    do
+    {
       if (len > length) len = length;
       readBytes((uint8_t*)buf, len * bytes, true);
       param->src_x = 0;
       dstindex = param->fp_copy(dst, dstindex, dstindex + len, param);
       length -= len;
-    } while (length);
+    }
+    while (length > 0);
   }
+
+  spi_inst_t * Bus_SPI::_spi_dev[] = {
+    reinterpret_cast<spi_inst_t *>(SPI0_BASE),
+    reinterpret_cast<spi_inst_t *>(SPI1_BASE),
+  };
 
 //----------------------------------------------------------------------------
  }

@@ -78,6 +78,12 @@ namespace lgfx
     pinMode(pin, mode);
   }
 
+  namespace spi
+  {
+    // 追加
+    bool lgfx_spi_set_frequency(int spi_port, uint32_t baudrate);
+  };
+
 //----------------------------------------------------------------------------
   struct FileWrapper : public DataWrapper
   {

@@ -17,10 +17,8 @@ Contributors:
 /----------------------------------------------------------------------------*/
 #pragma once
 
-#include <stdint.h>
-#include <SPI.h>
-#include <drivers/SPIMaster.h>
-#include <hardware/structs/spi.h>
+#include <Arduino.h> 
+#include <hardware/spi.h>
 
 #include "../../Bus.hpp"
 #include "../common.hpp"
@@ -36,6 +34,7 @@ namespace lgfx
   public:
     struct config_t
     {
+      uint8_t spi_host = default_spi_host;
       uint32_t freq_write = 16000000;
       uint32_t freq_read  =  8000000;
       //bool spi_3wire = true;
@@ -80,37 +79,79 @@ namespace lgfx
     void readPixels(void* dst, pixelcopy_t* param, uint32_t length) override;
 
   private:
-    static constexpr uint32_t SPI_SR_TFE = 0x01;
-    static constexpr uint32_t SPI_SR_TNF = 0x02;
-    static constexpr uint32_t SPI_SR_RNE = 0x04;
-    static constexpr uint32_t SPI_SR_RFF = 0x08;
-    static constexpr uint32_t SPI_SR_BSY = 0x10;
+    static constexpr uint32_t CR0_DSS_8    = 0b0111U;
+    static constexpr uint32_t CR0_DSS_16   = 0b1111U;
 
-    mbed::SPI _spi = { (PinName)11, (PinName)12, (PinName)10 };
-    arduino::MbedSPI SPI = { 11, 12, 10 };
+    __attribute__ ((always_inline)) inline bool is_busy()              const { return ((_spi_regs->sr & SPI_SSPSR_BSY_BITS) != 0);}
+    __attribute__ ((always_inline)) inline bool is_rx_fifo_full()      const { return ((_spi_regs->sr & SPI_SSPSR_RFF_BITS)  != 0); }
+    __attribute__ ((always_inline)) inline bool is_rx_fifo_not_empty() const { return ((_spi_regs->sr & SPI_SSPSR_RNE_BITS)  != 0); }
+    __attribute__ ((always_inline)) inline bool is_tx_fifo_not_full()  const { return ((_spi_regs->sr & SPI_SSPSR_TNF_BITS)  != 0); }
+    __attribute__ ((always_inline)) inline bool is_tx_fifo_empty()     const { return ((_spi_regs->sr & SPI_SSPSR_TFE_BITS)  != 0); }
+    __attribute__ ((always_inline)) inline void send8(uint8_t data)    const { _spi_regs->dr = data; }
+    __attribute__ ((always_inline)) inline void send16(uint16_t data)  const { _spi_regs->dr = data; }
+    __attribute__ ((always_inline)) inline uint8_t  recv8()            const { return static_cast<uint8_t>(_spi_regs->dr); }
+    __attribute__ ((always_inline)) inline uint16_t recv16()           const { return static_cast<uint16_t>(_spi_regs->dr); }
 
-    __attribute__ ((always_inline)) inline void dc_h(void) {
-      while (*_spi_reg_sr & SPI_SR_BSY) {}
-      gpio_hi(_cfg.pin_dc);
+    __attribute__ ((always_inline)) inline void wait_spi(void)
+    {
+      if (!_need_wait) return;
+      while (is_busy()) {}
+      _need_wait = false;
     }
-    __attribute__ ((always_inline)) inline void dc_l(void) {
-      while (*_spi_reg_sr & SPI_SR_BSY) {}
-      gpio_lo(_cfg.pin_dc);
+
+    __attribute__ ((always_inline)) inline void dc_control(bool flg)
+    {
+      // 送受信完了待ち
+      wait_spi();
+      if (flg)
+      {
+        gpio_hi(_cfg.pin_dc);
+      }
+      else
+      {
+        gpio_lo(_cfg.pin_dc);
+      }
+    }
+
+    // FIFOを8bitモードにする。
+    __attribute__ ((always_inline)) void set_dss_8() const
+    {
+      auto temp = _spi_regs->cr0;
+      temp &= ~(SPI_SSPCR0_DSS_BITS);
+      temp |= CR0_DSS_8;
+      _spi_regs->cr0 = temp;
+    }
+
+    // FIFOを16bitモードにする。
+    __attribute__ ((always_inline)) void set_dss_16() const
+    {
+      auto temp = _spi_regs->cr0;
+      temp &= ~(SPI_SSPCR0_DSS_BITS);
+      temp |= CR0_DSS_16;
+      _spi_regs->cr0 = temp;
+    }
+    
+    __attribute__ ((always_inline)) inline void clear_rx_fifo()
+    {
+      // 送受信完了待ち
+      wait_spi();
+      // FIFO内のデータをすべて読みだす
+      while (is_rx_fifo_not_empty())
+      {
+        static_cast<void>(recv8());
+      }
     }
 
     config_t _cfg;
     FlipBuffer _flip_buffer;
     bool _need_wait;
-    uint32_t _mask_reg_dc;
     uint32_t _last_apb_freq = -1;
     uint32_t _clkdiv_write;
     uint32_t _clkdiv_read;
-    uint32_t _cr0;
-    volatile uint32_t* _gpio_reg_dc_h;
-    volatile uint32_t* _gpio_reg_dc_l;
-    volatile uint32_t* _spi_reg_sr;
-    volatile uint32_t* _spi_reg_dr;
-    uintptr_t _spibase;
+
+    static constexpr uint8_t default_spi_host = 1; 
+    volatile spi_hw_t * _spi_regs;
+    static spi_inst_t * _spi_dev[];
   };
 
 //----------------------------------------------------------------------------
