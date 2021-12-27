@@ -99,7 +99,7 @@ namespace lgfx
       gpio_rst   = 18;
       freq_write = 40000000;
       freq_read  = 15000000;
-      freq_fill  = 80000000;
+      freq_fill  = 40000000;
       spi_mode_read = 1;
       len_dummy_read_pixel = 16;
       panel_width  = 135;
