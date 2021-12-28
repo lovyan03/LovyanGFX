@@ -180,7 +180,7 @@ namespace lgfx
     DBGPRINT("return %s\n", __func__);
   }
 
-  void Bus_SPI::writeBytes(const uint8_t* data, uint32_t length, bool dc, bool use_dma)
+  void Bus_SPI::writeBytes(const uint8_t* data, uint32_t length, bool dc, [[maybe_unused]]bool use_dma)
   {
     DBGPRINT("enter %s len: %d\n", __func__, length);
     dc_control(dc);
