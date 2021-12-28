@@ -29,8 +29,8 @@ Contributors:
 #include <hardware/resets.h>
 #include <hardware/clocks.h>
 #include <hardware/gpio.h>
-#include <hardware/spi.h>
-#include <hardware/i2c.h>
+#include <hardware/structs/spi.h>
+#include <hardware/structs/i2c.h>
 
 //#include <xprintf.h>
 //#define DBGPRINT(fmt, ...)  xprintf("%s %d: " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
@@ -564,8 +564,8 @@ namespace lgfx
       };
 
       volatile i2c_hw_t * const i2c_dev[] = {
-        { reinterpret_cast<volatile i2c_hw_t *>(I2C0_BASE) },
-        { reinterpret_cast<volatile i2c_hw_t *>(I2C1_BASE) },
+        reinterpret_cast<volatile i2c_hw_t *>(I2C0_BASE),
+        reinterpret_cast<volatile i2c_hw_t *>(I2C1_BASE),
       };
       static constexpr int n_i2c = std::extent<decltype(i2c_dev), 0>::value;
 
