@@ -194,7 +194,7 @@ namespace lgfx
 
   void pinMode(int_fast16_t pin, pin_mode_t mode)
   {
-    if (pin < 0 || pin >= static_cast<int_fast16_t>(NUM_DIGITAL_PINS))
+    if (pin < 0 || pin >= static_cast<int_fast16_t>(NUM_BANK0_GPIOS))
     {
       return;
     }
@@ -350,7 +350,7 @@ namespace lgfx
         return true;
       }
 
-      __attribute__ ((always_inline)) inline void lgfx_spi_set_format(volatile spi_hw_t * spi_regs, uint data_bits, spi_cpol_t cpol, spi_cpha_t cpha, spi_order_t order)
+      __attribute__ ((always_inline)) inline void lgfx_spi_set_format(volatile spi_hw_t * spi_regs, uint data_bits, spi_cpol_t cpol, spi_cpha_t cpha, [[maybe_unused]]spi_order_t order)
       {
         uint32_t temp = spi_regs->cr0;
         temp &= ~(SPI_SSPCR0_DSS_BITS | SPI_SSPCR0_SPO_BITS | SPI_SSPCR0_SPH_BITS);
@@ -631,14 +631,16 @@ namespace lgfx
 
       __attribute__ ((always_inline)) inline void send_data(volatile i2c_hw_t * i2c_regs, uint8_t data, bool is_restart, bool is_stop)
       {
-        uint32_t temp = static_cast<uint32_t>(data);
-        temp |= I2C_IC_DATA_CMD_CMD_BITS;
-        i2c_regs->data_cmd = temp;
+        i2c_regs->data_cmd = (is_restart ? I2C_IC_DATA_CMD_RESTART_BITS : 0x0) |
+                             (is_stop ? I2C_IC_DATA_CMD_STOP_BITS : 0x0) |
+                             static_cast<uint32_t>(data);
       }      
 
-      __attribute__ ((always_inline)) inline uint8_t recv_data(volatile i2c_hw_t * i2c_regs, bool is_last)
+      __attribute__ ((always_inline)) inline uint8_t recv_data(volatile i2c_hw_t * i2c_regs, bool is_restart, bool is_stop)
       {
-        
+        i2c_regs->data_cmd = (is_restart ? I2C_IC_DATA_CMD_RESTART_BITS : 0x0) |
+                             (is_stop ? I2C_IC_DATA_CMD_STOP_BITS : 0x0) |
+                             I2C_IC_DATA_CMD_CMD_BITS;
         return static_cast<uint8_t>(i2c_regs->data_cmd);
       }
       // 送信先のアドレスを指定する。
@@ -894,6 +896,7 @@ namespace lgfx
     cpp::result<void, error_t> readBytes(int i2c_port, uint8_t *data, size_t length)
     {
       volatile i2c_hw_t * i2c_regs = i2c_dev[i2c_port];
+      auto info = &i2c_info[i2c_port];
       if (length == 0)
       {
         return {};
@@ -903,7 +906,7 @@ namespace lgfx
         while (!is_rx_fifo_not_empty(i2c_regs))
         {
         }
-        *data++ = recv_data(i2c_regs, (i == length - 1));
+        *data++ = recv_data(i2c_regs, ((i == 0) && info->is_restart), (i == length - 1));
       }
       return {};
     }
