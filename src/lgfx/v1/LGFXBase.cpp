@@ -1103,15 +1103,8 @@ namespace lgfx
 
   void LGFXBase::pushImage(int32_t x, int32_t y, int32_t w, int32_t h, pixelcopy_t *param, bool use_dma)
   {
-    param->src_bitwidth = w;
-    if (param->src_bits < 8) {        // get bitwidth
-//      uint32_t x_mask = (1 << (4 - __builtin_ffs(param->src_bits))) - 1;
-//      uint32_t x_mask = (1 << ((~(param->src_bits>>1)) & 3)) - 1;
-      uint32_t x_mask = (param->src_bits == 1) ? 7
-                      : (param->src_bits == 2) ? 3
-                                               : 1;
-      param->src_bitwidth = (w + x_mask) & (~x_mask);
-    }
+    uint32_t x_mask = 7 >> (param->src_bits >> 1);
+    param->src_bitwidth = (w + x_mask) & (~x_mask);
 
     int32_t dx=0, dw=w;
     if (0 < _clip_l - x) { dx = _clip_l - x; dw -= dx; x = _clip_l; }
@@ -1175,13 +1168,8 @@ namespace lgfx
     pc->no_convert = false;
     pc->src_height = h;
     pc->src_width = w;
-    pc->src_bitwidth = w;
-    if (pc->src_bits < 8) {
-      uint32_t x_mask = (pc->src_bits == 1) ? 7
-                      : (pc->src_bits == 2) ? 3
-                                            : 1;
-      pc->src_bitwidth = (w + x_mask) & (~x_mask);
-    }
+    uint32_t x_mask = 7 >> (pc->src_bits >> 1);
+    pc->src_bitwidth = (w + x_mask) & (~x_mask);
     push_image_affine(matrix, pc);
   }
 
@@ -1190,13 +1178,8 @@ namespace lgfx
     pc->no_convert = false;
     pc->src_height = h;
     pc->src_width = w;
-    pc->src_bitwidth = w;
-    if (pc->src_bits < 8) {
-      uint32_t x_mask = (pc->src_bits == 1) ? 7
-                           : (pc->src_bits == 2) ? 3
-                                                 : 1;
-      pc->src_bitwidth = (w + x_mask) & (~x_mask);
-    }
+    uint32_t x_mask = 7 >> (pc->src_bits >> 1);
+    pc->src_bitwidth = (w + x_mask) & (~x_mask);
     pixelcopy_t pc_post;
     auto dst_depth = getColorDepth();
     pc_post.dst_bits = _write_conv.bits;
