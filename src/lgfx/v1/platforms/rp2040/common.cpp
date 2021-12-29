@@ -29,8 +29,8 @@ Contributors:
 #include <hardware/resets.h>
 #include <hardware/clocks.h>
 #include <hardware/gpio.h>
-#include <hardware/structs/spi.h>
-#include <hardware/structs/i2c.h>
+#include <hardware/spi.h>
+#include <hardware/i2c.h>
 
 //#include <xprintf.h>
 //#define DBGPRINT(fmt, ...)  xprintf("%s %d: " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
@@ -567,7 +567,7 @@ namespace lgfx
         reinterpret_cast<volatile i2c_hw_t *>(I2C0_BASE),
         reinterpret_cast<volatile i2c_hw_t *>(I2C1_BASE),
       };
-      static constexpr int n_i2c = std::extent<decltype(i2c_dev), 0>::value;
+      constexpr int n_i2c = std::extent<decltype(i2c_dev), 0>::value;
 
       // RP2040 Dataheetの 1.4.3. GPIO Functions Table 2を参照
       constexpr uint8_t i2c0_sda_pinlist[] = {  0,  4,  8, 12, 16, 20, 24, 28, UINT8_MAX };
