@@ -74,14 +74,14 @@ void *lgfx_pngle_get_user_data(pngle_t *pngle);
 // Debug interfaces
 // ----------------
 
-typedef struct _pngle_ihdr_t {
+typedef struct __attribute__((packed)) _pngle_ihdr_t {
   uint32_t width;
   uint32_t height;
-  uint_fast8_t depth;
-  uint_fast8_t color_type;
-  uint_fast8_t compression;
-  uint_fast8_t filter;
-  uint_fast8_t interlace;
+  uint8_t depth;
+  uint8_t color_type;
+  uint8_t compression;
+  uint8_t filter;
+  uint8_t interlace;
 } pngle_ihdr_t;
 
 // Get IHDR information

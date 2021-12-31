@@ -102,10 +102,12 @@ struct _pngle_t {
   size_t  avail_out;
 
   // scanline decoder (reset on every set_interlace_pass() call)
-  uint8_t *scanline_ringbuf;
-  size_t scanline_ringbuf_size;
-  size_t scanline_ringbuf_cidx;
-  int_fast8_t scanline_remain_bytes_to_render;
+  uint8_t *scanline_flipbuf[2];
+  uint8_t scanline_flipbuf_flip;
+  size_t scanline_flipbuf_cidx;
+  size_t scanline_stride;
+
+  size_t scanline_remain_bytes_to_render;
   int_fast8_t filter_type;
   uint32_t drawing_x;
   uint32_t drawing_y;
@@ -116,9 +118,8 @@ struct _pngle_t {
   const char *error;
 
   // for pngle_draw_pixels
-  uint_fast8_t n_pixels;
   uint_fast8_t pixel_depth;
-  uint_fast16_t magni;
+  uint16_t magni;
 
 #ifndef PNGLE_NO_GAMMA_CORRECTION
   uint8_t *gamma_table;
@@ -153,15 +154,6 @@ static inline uint32_t read_uint32(const uint8_t *p)
        | (p[3] <<  0)
   ;
 }
-/*
-static inline uint32_t U32_CLAMP_ADD(uint32_t a, uint32_t b, uint32_t top)
-{
-  uint32_t v = a + b;
-  if (v < a) return top; // uint32 overflow
-  if (v > top) return top; // clamp
-  return v;
-}
-//*/
 
 void lgfx_pngle_reset(pngle_t *pngle)
 {
@@ -170,9 +162,9 @@ void lgfx_pngle_reset(pngle_t *pngle)
   pngle->state = PNGLE_STATE_INITIAL;
   pngle->error = "No error";
 
-  if (pngle->scanline_ringbuf) { free(pngle->scanline_ringbuf); pngle->scanline_ringbuf = NULL; }
-  if (pngle->palette         ) { free(pngle->palette         ); pngle->palette = NULL;}
-  if (pngle->trans_palette   ) { free(pngle->trans_palette   ); pngle->trans_palette = NULL; }
+  if (pngle->scanline_flipbuf[0]) { free(pngle->scanline_flipbuf[0]); pngle->scanline_flipbuf[0] = NULL; }
+  if (pngle->palette            ) { free(pngle->palette            ); pngle->palette = NULL;}
+  if (pngle->trans_palette      ) { free(pngle->trans_palette      ); pngle->trans_palette = NULL; }
 
 #ifndef PNGLE_NO_GAMMA_CORRECTION
   if (pngle->gamma_table     ) { free(pngle->gamma_table     ); pngle->gamma_table = NULL; }
@@ -243,49 +235,36 @@ static uint_fast16_t check_trans_color(pngle_t *pngle, uint_fast16_t *value, siz
   return 0; // transcolor
 }
 
-static inline void scanline_ringbuf_push(pngle_t *pngle, uint_fast8_t value)
+static int pngle_draw_pixels(pngle_t *pngle, uint8_t* buf)
 {
-  size_t cidx = pngle->scanline_ringbuf_cidx;
-  pngle->scanline_ringbuf[cidx++] = value;
-  pngle->scanline_ringbuf_cidx = (cidx != pngle->scanline_ringbuf_size) ? cidx : 0;
-
-//  pngle->scanline_ringbuf[pngle->scanline_ringbuf_cidx] = value;
-//  pngle->scanline_ringbuf_cidx = (pngle->scanline_ringbuf_cidx + 1) % pngle->scanline_ringbuf_size;
-}
-
-static int pngle_draw_pixels(pngle_t *pngle, size_t scanline_ringbuf_xidx, uint_fast16_t v[], uint8_t rgba[])
-{
-  uint_fast8_t n_pixels = pngle->n_pixels;
+  uint_fast16_t v[4]; // MAX_CHANNELS
+  uint8_t rgba[4];
 
   if (pngle->draw_callback) {
     uint_fast8_t bitcount = 0;
 
+    uint_fast16_t magni = pngle->magni;
     do {
-      uint_fast8_t c = 0;
-      uint_fast8_t ce = pngle->channels;
       if (pngle->hdr.depth >= 8) {
+        uint_fast8_t c = 0;
+        uint_fast8_t ce = pngle->channels;
         if (pngle->hdr.depth == 8) {
           do {
-            v[c] = pngle->scanline_ringbuf[scanline_ringbuf_xidx];
-            scanline_ringbuf_xidx = (scanline_ringbuf_xidx + 1) % pngle->scanline_ringbuf_size;
+            v[c] = *buf++;
           } while (++c < ce);
         } else { // depth == 16
           do {
-            v[c] = pngle->scanline_ringbuf[scanline_ringbuf_xidx] << 8 | pngle->scanline_ringbuf[scanline_ringbuf_xidx + 1];
-            scanline_ringbuf_xidx = (scanline_ringbuf_xidx + 2) % pngle->scanline_ringbuf_size;
+            v[c] = (buf[0] << 8) + buf[1];
+            buf += 2;
           } while (++c < ce);
         }
       } else {
-        uint_fast8_t mask = ((1UL << pngle->hdr.depth) - 1);
-        do {
-          bitcount += pngle->hdr.depth;
-          uint_fast8_t shift = (8 - bitcount);
-          v[c] = (pngle->scanline_ringbuf[scanline_ringbuf_xidx] >> shift) & mask;
-          if (bitcount == 8) {
-            bitcount = 0;
-            scanline_ringbuf_xidx = (scanline_ringbuf_xidx + 1) % pngle->scanline_ringbuf_size;
-          }
-        } while (++c < ce);
+        bitcount += pngle->hdr.depth;
+        v[0] = (buf[0] >> (8 - bitcount)) & ((1UL << pngle->hdr.depth) - 1);
+        if (bitcount == 8) {
+          bitcount = 0;
+          ++buf;
+        }
       }
 
       // color type: 0000 0111
@@ -300,7 +279,7 @@ static int pngle_draw_pixels(pngle_t *pngle, size_t scanline_ringbuf_xidx, uint_
 
           // lookup palette info
           uint_fast16_t pidx = v[0];
-          if (pidx >= pngle->n_palettes) return PNGLE_ERROR("Color index is out of range");
+          if (pidx >= pngle->n_palettes) pidx = 0; // return PNGLE_ERROR("Color index is out of range");
 
           v[0] = pngle->palette[pidx * 3 + 0];
           v[1] = pngle->palette[pidx * 3 + 1];
@@ -321,12 +300,10 @@ static int pngle_draw_pixels(pngle_t *pngle, size_t scanline_ringbuf_xidx, uint_
       }
 
       if (v[3]) { // transparent check
-        uint_fast8_t pixel_depth = pngle->pixel_depth;
-        uint_fast16_t magni = pngle->magni;
-        rgba[0] = ((v[0] * magni) >> pixel_depth);
-        rgba[1] = ((v[1] * magni) >> pixel_depth);
-        rgba[2] = ((v[2] * magni) >> pixel_depth);
-        rgba[3] = ((v[3] * magni) >> pixel_depth);
+        rgba[0] = ((v[0] * magni) >> 8);
+        rgba[1] = ((v[1] * magni) >> 8);
+        rgba[2] = ((v[2] * magni) >> 8);
+        rgba[3] = ((v[3] * magni) >> 8);
 
 #ifndef PNGLE_NO_GAMMA_CORRECTION
         if (pngle->gamma_table) {
@@ -338,24 +315,25 @@ static int pngle_draw_pixels(pngle_t *pngle, size_t scanline_ringbuf_xidx, uint_
         pngle->draw_callback(pngle, pngle->drawing_x, pngle->drawing_y, rgba);
       }
       pngle->drawing_x += interlace_div_x[pngle->interlace_pass];
-    } while (--n_pixels && pngle->drawing_x < pngle->hdr.width);
+    } while (pngle->drawing_x < pngle->hdr.width);
 
     return 0;
   }
 
   do {
     pngle->drawing_x += interlace_div_x[pngle->interlace_pass];
-  } while (--n_pixels && pngle->drawing_x < pngle->hdr.width);
+  } while (pngle->drawing_x < pngle->hdr.width);
   return 0;
 }
 //*/
 
 static inline int paeth(int a, int b, int c)
 {
-  int p = a + b - c;
-  int pa = abs(p - a);
-  int pb = abs(p - b);
-  int pc = abs(p - c);
+  int pa = (b - c);
+  int pb = (a - c);
+  int pc = abs(pa + pb);
+  pa = abs(pa);
+  pb = abs(pb);
 
   if (pa <= pb && pa <= pc) return a;
   if (pb <= pc) return b;
@@ -364,23 +342,20 @@ static inline int paeth(int a, int b, int c)
 
 static int set_interlace_pass(pngle_t *pngle, uint_fast8_t pass)
 {
+  while (pngle->hdr.width <= interlace_off_x[pass] || pngle->hdr.height <= interlace_off_y[pass])
+  {
+    ++pass;
+  }
+
   pngle->interlace_pass = pass;
-
-  uint_fast8_t bytes_per_pixel = (pngle->channels * pngle->hdr.depth + 7) >> 3; // 1 if depth <= 8
-  size_t scanline_pixels = (pngle->hdr.width - interlace_off_x[pass] + interlace_div_x[pass] - 1) / interlace_div_x[pass];
-  size_t scanline_stride = (scanline_pixels * pngle->channels * pngle->hdr.depth + 7) >> 3;
-
-  pngle->scanline_ringbuf_size = scanline_stride + bytes_per_pixel * 2; // 2 rooms for c/x and a
-
-  if (pngle->scanline_ringbuf) free(pngle->scanline_ringbuf);
-  if ((pngle->scanline_ringbuf = PNGLE_CALLOC(pngle->scanline_ringbuf_size, 1, "scanline ringbuf")) == NULL) return PNGLE_ERROR("Insufficient memory");
-
   pngle->drawing_x = interlace_off_x[pass];
   pngle->drawing_y = interlace_off_y[pass];
-  pngle->filter_type = -1;
 
-  pngle->scanline_ringbuf_cidx = 0;
-  pngle->scanline_remain_bytes_to_render = -1;
+  size_t scanline_pixels = (pngle->hdr.width - interlace_off_x[pass] + interlace_div_x[pass] - 1) / interlace_div_x[pass];
+  size_t scanline_stride = (scanline_pixels * pngle->channels * pngle->hdr.depth + 7) >> 3;
+  pngle->scanline_stride = scanline_stride;
+  pngle->scanline_remain_bytes_to_render = scanline_stride;
+  pngle->filter_type = -1;
 
   return 0;
 }
@@ -416,17 +391,69 @@ static int pngle_on_data(pngle_t *pngle, const uint8_t *p, int len)
   const uint8_t *ep = p + len;
 
   uint_fast8_t bytes_per_pixel = (pngle->channels * pngle->hdr.depth + 7) >> 3; // 1 if depth <= 8
-  uint_fast16_t v[4]; // MAX_CHANNELS
-  uint8_t rgba[4];
+
+  size_t remain_bytes = pngle->scanline_remain_bytes_to_render;
 
   int_fast8_t filter_type = pngle->filter_type;
-
+  
+  size_t cidx =  pngle->scanline_flipbuf_cidx;
+  uint8_t* prev_buf = pngle->scanline_flipbuf[!(pngle->scanline_flipbuf_flip&1)];
+  uint8_t* current_buf = pngle->scanline_flipbuf[pngle->scanline_flipbuf_flip&1];
   while (p < ep) {
-    if (pngle->drawing_x >= pngle->hdr.width) {
-      // New row
+    if (filter_type < 0) {
+      filter_type = (int_fast8_t)*p++; // 0 - 4
+      if (filter_type > 4) {
+        debug_printf("[pngle] Invalid filter type is found; 0x%02x\n", *p);
+        return PNGLE_ERROR("Invalid filter type is found");
+      }
+    }
+    if (p < ep)
+    {
+      size_t l = (ep - p);
+      if (l > remain_bytes) { l = remain_bytes; }
+      memcpy(&current_buf[cidx], p, l);
+      cidx += l;
+      p += l;
+      remain_bytes -= l;
+      if (remain_bytes)
+      {
+        break;
+      }
+
+      remain_bytes = pngle->scanline_stride; // reset
+      size_t idx = bytes_per_pixel;
+      size_t last = pngle->scanline_stride + bytes_per_pixel;
+      switch (filter_type){
+      default: break; // None
+      case 1: // Sub
+        do {
+          current_buf[idx] += current_buf[idx - bytes_per_pixel];
+        } while (++idx != last);
+        break;
+
+      case 2: // Up
+        do {
+          current_buf[idx] += prev_buf[idx];
+        } while (++idx != last);
+        break;
+
+      case 3: // Average
+        do {
+          current_buf[idx] += (current_buf[idx - bytes_per_pixel] + prev_buf[idx]) >> 1;
+        } while (++idx != last);
+        break;
+
+      case 4: // Paeth
+        do {
+          current_buf[idx] += paeth(current_buf[idx - bytes_per_pixel], prev_buf[idx], prev_buf[idx - bytes_per_pixel]);
+        } while (++idx != last);
+        break;
+      }
+
+      if (pngle_draw_pixels(pngle, &current_buf[bytes_per_pixel]) < 0) return -1;
+
       pngle->drawing_x = interlace_off_x[pngle->interlace_pass];
       pngle->drawing_y += interlace_div_y[pngle->interlace_pass];
-//      pngle->drawing_y = U32_CLAMP_ADD(pngle->drawing_y, interlace_div_y[pngle->interlace_pass], pngle->hdr.height);
       filter_type = -1; // Indicate new line
 
       if (pngle->drawing_y >= pngle->hdr.height) {
@@ -435,55 +462,18 @@ static int pngle_on_data(pngle_t *pngle, const uint8_t *p, int len)
         // Interlace: Next pass
         if (set_interlace_pass(pngle, pngle->interlace_pass + 1) < 0) return -1;
         debug_printf("[pngle] interlace pass changed to: %d\n", pngle->interlace_pass);
-
-        continue; // This is required because "No filter type bytes are present in an empty pass".
+        remain_bytes = pngle->scanline_stride; // reset
+        memset(current_buf, 0, remain_bytes);
       }
-    }
-
-    if (filter_type < 0) {
-      filter_type = (int_fast8_t)*p++; // 0 - 4
-      if (filter_type > 4) {
-        debug_printf("[pngle] Invalid filter type is found; 0x%02x\n", *p);
-        return PNGLE_ERROR("Invalid filter type is found");
-      }
-
-      // push sentinel bytes for new line
-      for (uint_fast8_t i = 0; i < bytes_per_pixel; i++) {
-        scanline_ringbuf_push(pngle, 0);
-      }
-    }
-
-    size_t cidx =  pngle->scanline_ringbuf_cidx;
-    size_t bidx = (cidx                                + bytes_per_pixel) % pngle->scanline_ringbuf_size;
-    size_t aidx = (cidx + pngle->scanline_ringbuf_size - bytes_per_pixel) % pngle->scanline_ringbuf_size;
-    // debug_printf("[pngle] cidx = %zd, bidx = %zd, aidx = %zd\n", cidx, bidx, aidx);
-
-    uint_fast8_t c = pngle->scanline_ringbuf[cidx]; // left-up
-    uint_fast8_t b = pngle->scanline_ringbuf[bidx]; // up
-    uint_fast8_t a = pngle->scanline_ringbuf[aidx]; // left
-    uint_fast8_t x = *p++; // target
-    // debug_printf("[pngle] c = 0x%02x, b = 0x%02x, a = 0x%02x, x = 0x%02x\n", c, b, a, x);
-
-    // Reverse the filter
-    switch (filter_type) {
-    case 0: break; // None
-    case 1: x += a; break; // Sub
-    case 2: x += b; break; // Up
-    case 3: x += (a + b) >> 1; break; // Average
-    case 4: x += paeth(a, b, c); break; // Paeth
-    }
-
-    scanline_ringbuf_push(pngle, x); // updates scanline_ringbuf_cidx
-
-    if (pngle->scanline_remain_bytes_to_render < 0) pngle->scanline_remain_bytes_to_render = bytes_per_pixel;
-    if (--pngle->scanline_remain_bytes_to_render == 0) {
-      size_t xidx = (pngle->scanline_ringbuf_cidx + pngle->scanline_ringbuf_size - bytes_per_pixel) % pngle->scanline_ringbuf_size;
-
-      if (pngle_draw_pixels(pngle, xidx, v, rgba) < 0) return -1;
-
-      pngle->scanline_remain_bytes_to_render = -1; // reset
+      uint_fast8_t flip = !(pngle->scanline_flipbuf_flip&1);
+      pngle->scanline_flipbuf_flip = flip;
+      prev_buf = pngle->scanline_flipbuf[!flip];
+      current_buf = pngle->scanline_flipbuf[flip];
+      cidx = bytes_per_pixel;
     }
   }
+  pngle->scanline_flipbuf_cidx = cidx;
+  pngle->scanline_remain_bytes_to_render = remain_bytes;
   pngle->filter_type = filter_type;
   
   return len;
@@ -557,12 +547,11 @@ static int pngle_handle_chunk(pngle_t *pngle, const uint8_t *buf, size_t len)
 
     pngle->pixel_depth = (pngle->hdr.color_type & 1) ? 8 : pngle->hdr.depth;
 
-    pngle->n_pixels = (pngle->hdr.depth & 7) ? (8 / pngle->hdr.depth) : 1;
-
-    pngle->magni = (pngle->pixel_depth == 1) ? 0x1FF
-                 : (pngle->pixel_depth == 2) ? 0x155
-                 : (pngle->pixel_depth == 4) ? 0x111
-                                             : 0x100;
+    pngle->magni = (pngle->pixel_depth == 1) ? 0xFFFF
+                 : (pngle->pixel_depth == 2) ? 0x5555
+                 : (pngle->pixel_depth == 4) ? 0x1111
+                 : (pngle->pixel_depth == 8) ? 0x0101
+                                             : 0x0001;
 
     debug_printf("[pngle]     width      : %d\n", pngle->hdr.width      );
     debug_printf("[pngle]     height     : %d\n", pngle->hdr.height     );
@@ -608,7 +597,15 @@ static int pngle_handle_chunk(pngle_t *pngle, const uint8_t *buf, size_t len)
     if (pngle->hdr.filter      != 0) return PNGLE_ERROR("Unsupported filter type in IHDR");
 
     // interlace
-    if (set_interlace_pass(pngle, pngle->hdr.interlace ? 1 : 0) < 0) return -1;
+    set_interlace_pass(pngle, pngle->hdr.interlace ? 1 : 0);
+
+    {
+      uint_fast8_t bytes_per_pixel = (pngle->channels * pngle->hdr.depth + 7) >> 3;
+      pngle->scanline_flipbuf_cidx = bytes_per_pixel;
+      size_t memlen = (pngle->hdr.width + 1) * bytes_per_pixel; // width x ARGB8888
+      if ((pngle->scanline_flipbuf[0] = PNGLE_CALLOC(memlen, 2, "scanline ringbuf")) == NULL) return PNGLE_ERROR("Insufficient memory");
+      pngle->scanline_flipbuf[1] = &pngle->scanline_flipbuf[0][memlen];
+    }
 
     // callback
     if (pngle->init_callback) pngle->init_callback(pngle, pngle->hdr.width, pngle->hdr.height, pngle->hdr.color_type & 4);
