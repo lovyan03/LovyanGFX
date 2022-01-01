@@ -2565,152 +2565,201 @@ namespace lgfx
     bgr888_t* lineBuffer;
     pixelcopy_t *pc;
     LGFXBase *gfx;
-    uint32_t last_pos;
-    uint32_t last_x;
-    int32_t scale_y0;
-    int32_t scale_y1;
     bool done;
   };
-
-  static bool png_ypos_update(png_file_decoder_t *p, uint32_t y)
-  {
-    p->last_pos = y;
-    p->scale_y0 = ceilf( y      * p->zoom_y) - p->offY;
-    if (p->scale_y0 < 0) p->scale_y0 = 0;
-    p->scale_y1 = ceilf((y + 1) * p->zoom_y) - p->offY;
-    if (p->scale_y1 > p->maxHeight) p->scale_y1 = p->maxHeight;
-    return (p->scale_y0 < p->scale_y1);
-  }
-
-  static void png_post_line(png_file_decoder_t *p)
-  {
-    int32_t h = p->scale_y1 - p->scale_y0;
-    if (0 < h)
-      p->gfx->pushImage(p->x, p->y + p->scale_y0, p->maxWidth, h, p->pc, true);
-  }
-
-  static void png_prepare_line(png_file_decoder_t *p, uint32_t y)
-  {
-    if (png_ypos_update(p, y))      // read next line
-      p->gfx->readRectRGB(p->x, p->y + p->scale_y0, p->maxWidth, p->scale_y1 - p->scale_y0, p->lineBuffer);
-  }
 
   static void png_done_callback(pngle_t *pngle)
   {
     auto p = (png_file_decoder_t *)lgfx_pngle_get_user_data(pngle);
     p->done = true;
-    if (p->lineBuffer)
+  }
+
+  static void png_draw_alpha_callback(pngle_t *pngle, uint32_t x, uint32_t y, uint_fast8_t div_x, size_t len, const uint8_t* rgba)
+  {
+    auto p = (png_file_decoder_t*)lgfx_pngle_get_user_data(pngle);
+
+    int32_t y0 = (int32_t)y - p->offY;
+    int32_t y1 = y0 + 1;
+    if (y0 < 0) y0 = 0;
+    if (y1 > p->maxHeight) y1 = p->maxHeight;
+    if (y0 >= y1) return;
+
+    size_t idx = 0;
+/*
+    while ((rgba[idx * 4 + 3] == 0) && ++idx != len);
+    if (idx == len) return;
+    while ((rgba[len * 4 - 1] == 0) && idx != --len);
+    if (idx)
     {
-      png_post_line(p);
+      len -= idx;
+      rgba += idx * 4;
+      x += idx * div_x;
+      idx = 0;
     }
-  }
+///*/
 
-  static void png_draw_normal_callback(pngle_t *pngle, uint32_t x, uint32_t y, uint8_t rgba[4])
-  {
-    auto p = (png_file_decoder_t*)lgfx_pngle_get_user_data(pngle);
-
-    int32_t l = x - p->offX;
-    if (l < 0 || l >= p->maxWidth) return;
-    x = p->x + l;
-
-    if (x != p->last_pos) {
-      int32_t t = y - p->offY;
-      if (t < 0 || t >= p->maxHeight) return;
-      p->gfx->setAddrWindow(x, p->y + t, p->maxWidth, 1);
+    while ((rgba[idx * 4 + 3] == 255) && ++idx != len);
+    bool hasAlpha = (idx != len);
+    if (hasAlpha)
+    {
+// ESP_LOGE("TR","alpha:%d", rgba[idx * 4 + 3]);
+    //   uint32_t left = idx;
+    //   idx = len;
+    //   while (idx-- && (0 == rgba[idx * 4 + 3] || rgba[idx * 4 + 3] == 255));
+    //   uint32_t right = idx;
+      p->gfx->readRectRGB(p->x, p->y + y0, p->maxWidth, 1, p->lineBuffer);
     }
-    p->last_pos = x + 1;
-    p->gfx->writeColor(color888(rgba[0], rgba[1], rgba[2]), 1);
-  }
-
-  static void png_draw_normal_scale_callback(pngle_t *pngle, uint32_t x, uint32_t y, uint8_t rgba[4])
-  {
-    auto p = (png_file_decoder_t*)lgfx_pngle_get_user_data(pngle);
-
-    if (y != p->last_pos) {
-      png_ypos_update(p, y);
-    }
-
-    int32_t t = p->scale_y0;
-    int32_t h = p->scale_y1 - t;
-    if (h <= 0) return;
-
-    int32_t l = ceilf( x      * p->zoom_x) - p->offX;
-    if (l < 0) l = 0;
-    int32_t r = ceilf((x + 1) * p->zoom_x) - p->offX;
-    if (r > p->maxWidth) r = p->maxWidth;
-    if (l >= r) return;
-
-    p->gfx->setColor(color888(rgba[0], rgba[1], rgba[2]));
-    p->gfx->writeFillRectPreclipped(p->x + l, p->y + t, r - l, h);
-  }
-
-  static void png_draw_alpha_callback(pngle_t *pngle, uint32_t x, uint32_t y, uint8_t rgba[4])
-  {
-    auto p = (png_file_decoder_t*)lgfx_pngle_get_user_data(pngle);
-    if (y != p->last_pos) {
-      png_post_line(p);
-      png_prepare_line(p, y);
-    }
-
-    if (p->scale_y0 >= p->scale_y1) return;
-
-    int32_t l = std::max<int32_t>(( x      ) - p->offX, 0);
-    int32_t r = std::min<int32_t>(((x + 1) ) - p->offX, p->maxWidth);
-    if (l >= r) return;
-
-    if (rgba[3] == 255) {
-      memcpy(&p->lineBuffer[l], rgba, 3);
-    } else {
-      auto data = &p->lineBuffer[l];
-      uint_fast8_t inv = 256 - rgba[3];
-      uint_fast8_t alpha = rgba[3] + 1;
-      data->r = (rgba[0] * alpha + data->r * inv) >> 8;
-      data->g = (rgba[1] * alpha + data->g * inv) >> 8;
-      data->b = (rgba[2] * alpha + data->b * inv) >> 8;
-    }
-  }
-
-  static void png_draw_alpha_scale_callback(pngle_t *pngle, uint32_t x, uint32_t y, uint8_t rgba[4])
-  {
-    auto p = (png_file_decoder_t*)lgfx_pngle_get_user_data(pngle);
-    if (y != p->last_pos) {
-      png_post_line(p);
-      png_prepare_line(p, y);
-    }
-
-    int32_t b = p->scale_y1 - p->scale_y0;
-    if (b <= 0) return;
-
-    int32_t l = ceilf( x      * p->zoom_x) - p->offX;
-    if (l < 0) l = 0;
-    int32_t r = ceilf((x + 1) * p->zoom_x) - p->offX;
-    if (r > p->maxWidth) r = p->maxWidth;
-    if (l >= r) return;
-
-    if (rgba[3] == 255) {
-      int32_t i = l;
-      do {
-        for (int32_t j = 0; j < b; ++j) {
-          auto data = &p->lineBuffer[i + j * p->maxWidth];
-          memcpy(data, rgba, 3);
+    if (hasAlpha || div_x == 1)
+    {
+      if (!hasAlpha) p->gfx->waitDMA();
+      do
+      {
+        int32_t l = std::max<int32_t>(( x      ) - p->offX, 0);
+        int32_t r = std::min<int32_t>(((x + 1) ) - p->offX, p->maxWidth);
+        if (l < r)
+        {
+          uint_fast8_t a = rgba[3];
+          if (a) {
+            if (a == 255) {
+              memcpy(&p->lineBuffer[l], rgba, 3);
+            } else {
+              auto data = &p->lineBuffer[l];
+              uint_fast8_t inv = 255 - a;
+              data->r = (rgba[0] * a + data->r * inv + 255) >> 8;
+              data->g = (rgba[1] * a + data->g * inv + 255) >> 8;
+              data->b = (rgba[2] * a + data->b * inv + 255) >> 8;
+            }
+          }
         }
-      } while (++i < r);
-    } else {
-      uint_fast8_t inv = 256 - rgba[3];
-      uint_fast8_t alpha = rgba[3] + 1;
-      int32_t i = l;
-      do {
-        for (int32_t j = 0; j < b; ++j) {
-          auto data = &p->lineBuffer[i + j * p->maxWidth];
-          data->r = (rgba[0] * alpha + data->r * inv) >> 8;
-          data->g = (rgba[1] * alpha + data->g * inv) >> 8;
-          data->b = (rgba[2] * alpha + data->b * inv) >> 8;
+        rgba += 4;
+        x += div_x;
+      } while (--len);
+      p->gfx->pushImage(p->x, p->y + y0, p->maxWidth, 1, p->pc, true);
+    }
+    else
+    {
+      do
+      {
+        int32_t l = x      - p->offX;
+        if (l < 0) l = 0;
+        int32_t r = (x + 1) - p->offX;
+        if (r > p->maxWidth) r = p->maxWidth;
+        if (l < r)
+        {
+          p->gfx->setColor(color888(rgba[0], rgba[1], rgba[2]));
+          p->gfx->writeFillRectPreclipped(p->x + l, p->y + y0, 1, 1);
         }
-      } while (++i < r);
+        rgba += 4;
+        x += div_x;
+      } while (--len);
+    }
+  }
+  static void png_draw_alpha_scale_callback(pngle_t *pngle, uint32_t x, uint32_t y, uint_fast8_t div_x, size_t len, const uint8_t* rgba)
+  {
+    auto p = (png_file_decoder_t*)lgfx_pngle_get_user_data(pngle);
+
+    int32_t y0 = ceilf( y      * p->zoom_y) - p->offY;
+    if (y0 < 0) y0 = 0;
+    int32_t y1 = ceilf((y + 1) * p->zoom_y) - p->offY;
+    if (y1 > p->maxHeight) y1 = p->maxHeight;
+    if (y0 >= y1) return;
+
+    int32_t h = y1 - y0;
+    size_t idx = 0;
+/*
+    while ((rgba[idx * 4 + 3] == 0) && ++idx != len);
+    if (idx == len) return;
+    while ((rgba[len * 4 - 1] == 0) && idx != --len);
+    if (idx)
+    {
+      len -= idx;
+      rgba += idx * 4;
+      x += idx * div_x;
+      idx = 0;
+    }
+//*/
+
+/*
+    int32_t left = ceilf( x      * p->zoom_x) - p->offX;
+    if (left < 0) left = 0;
+    int32_t right = ceilf((x + (len-1) * div_x + 1) * p->zoom_x) - p->offX;
+    if (right > p->maxWidth) right = p->maxWidth;
+//*/
+
+    while ((rgba[idx * 4 + 3] == 255) && ++idx != len);
+    bool hasAlpha = (idx != len);
+    if (hasAlpha)
+    {
+// ESP_LOGE("TR","alpha:%d", rgba[idx * 4 + 3]);
+    //   uint32_t left = idx;
+    //   idx = len;
+    //   while (idx-- && (0 == rgba[idx * 4 + 3] || rgba[idx * 4 + 3] == 255));
+    //   uint32_t right = idx;
+      p->gfx->readRectRGB(p->x, p->y + y0, p->maxWidth, h, p->lineBuffer);
+    }
+    if (hasAlpha || div_x == 1)
+    {
+      if (!hasAlpha) p->gfx->waitDMA();
+      do
+      {
+        int32_t l = ceilf( x      * p->zoom_x) - p->offX;
+        if (l < 0) l = 0;
+        int32_t r = ceilf((x + 1) * p->zoom_x) - p->offX;
+        if (r > p->maxWidth) r = p->maxWidth;
+        if (l < r)
+        {
+          uint_fast8_t a = rgba[3];
+          if (a) {
+            if (a == 255) {
+              int32_t i = l;
+              do {
+                for (int32_t j = 0; j < h; ++j) {
+                  auto data = &p->lineBuffer[i + j * p->maxWidth];
+                  memcpy(data, rgba, 3);
+                }
+              } while (++i < r);
+            } else {
+              uint_fast8_t inv = 255 - a;
+              size_t ar = rgba[0] * a + 255;
+              size_t ag = rgba[1] * a + 255;
+              size_t ab = rgba[2] * a + 255;
+              int32_t i = l;
+              do {
+                for (int32_t j = 0; j < h; ++j) {
+                  auto data = &p->lineBuffer[i + j * p->maxWidth];
+                  data->r = (ar + data->r * inv) >> 8;
+                  data->g = (ag + data->g * inv) >> 8;
+                  data->b = (ab + data->b * inv) >> 8;
+                }
+              } while (++i < r);
+            }
+          }
+        }
+        rgba += 4;
+        x += div_x;
+      } while (--len);
+      p->gfx->pushImage(p->x, p->y + y0, p->maxWidth, h, p->pc, true);
+    }
+    else
+    {
+      do
+      {
+        int32_t l = ceilf( x      * p->zoom_x) - p->offX;
+        if (l < 0) l = 0;
+        int32_t r = ceilf((x + 1) * p->zoom_x) - p->offX;
+        if (r > p->maxWidth) r = p->maxWidth;
+        if (l < r)
+        {
+          p->gfx->setColor(color888(rgba[0], rgba[1], rgba[2]));
+          p->gfx->writeFillRectPreclipped(p->x + l, p->y + y0, r - l, h);
+        }
+        rgba += 4;
+        x += div_x;
+      } while (--len);
     }
   }
 
-  static void png_init_callback(pngle_t *pngle, uint32_t w, uint32_t h, uint_fast8_t hasTransparent)
+  static void png_init_callback(pngle_t *pngle, uint32_t w, uint32_t h)
   {
     auto p = (png_file_decoder_t*)lgfx_pngle_get_user_data(pngle);
     auto me = p->gfx;
@@ -2722,21 +2771,25 @@ namespace lgfx
     {
       float fit_width  = (p->maxWidth  > 0) ? p->maxWidth  : cw;
       float fit_height = (p->maxHeight > 0) ? p->maxHeight : ch;
+      auto zx = p->zoom_x;
+      auto zy = p->zoom_y;
 
-      if (p->zoom_x <= -1.0f) { p->zoom_x = fit_width  / w; }
-      if (p->zoom_y <= -1.0f) { p->zoom_y = fit_height / h; }
-      if (p->zoom_x <= 0.0f)
+      if (zx <= -1.0f) { zx = fit_width  / w; }
+      if (zy <= -1.0f) { zy = fit_height / h; }
+      if (zx <= 0.0f)
       {
-        if (p->zoom_y <= 0.0f)
+        if (zy <= 0.0f)
         {
-          p->zoom_y = std::min<float>(fit_width / w, fit_height / h);
+          zy = std::min<float>(fit_width / w, fit_height / h);
         }
-        p->zoom_x = p->zoom_y;
+        zx = zy;
       }
-      if (p->zoom_y <= 0.0f)
+      if (zy <= 0.0f)
       {
-        p->zoom_y = p->zoom_x;
+        zy = zx;
       }
+      p->zoom_x = zx;
+      p->zoom_y = zy;
     }
     if (p->maxWidth  <= 0) p->maxWidth  = cw - (p->x);
     if (p->maxHeight <= 0) p->maxHeight = ch - (p->y);
@@ -2779,34 +2832,15 @@ namespace lgfx
     if (p->maxHeight > hh) p->maxHeight = hh;
     if (p->maxHeight < 0) return;
 
+    p->lineBuffer = (bgr888_t*)heap_alloc_dma(sizeof(bgr888_t) * p->maxWidth * ceilf(p->zoom_x));
+    p->pc->src_data = p->lineBuffer;
     lgfx_pngle_set_done_callback(pngle, png_done_callback);
-    if (hasTransparent)
-    { // need pixel read ?
-      p->lineBuffer = (bgr888_t*)heap_alloc_dma(sizeof(bgr888_t) * p->maxWidth * ceilf(p->zoom_x));
-      p->pc->src_data = p->lineBuffer;
-      png_prepare_line(p, 0);
 
-      if (p->zoom_x == 1.0f && p->zoom_y == 1.0f)
-      {
-        lgfx_pngle_set_draw_callback(pngle, png_draw_alpha_callback);
-      }
-      else
-      {
-        lgfx_pngle_set_draw_callback(pngle, png_draw_alpha_scale_callback);
-      }
-    } else {
-      p->lineBuffer = nullptr;
-      if (p->zoom_x == 1.0f && p->zoom_y == 1.0f)
-      {
-        p->last_pos = ~0;
-        lgfx_pngle_set_draw_callback(pngle, png_draw_normal_callback);
-      }
-      else
-      {
-        png_ypos_update(p, 0);
-        lgfx_pngle_set_draw_callback(pngle, png_draw_normal_scale_callback);
-      }
-    }
+    lgfx_pngle_set_draw_callback(pngle
+                                , (p->zoom_x == 1.0f && p->zoom_y == 1.0f) 
+                                  ? png_draw_alpha_callback
+                                  : png_draw_alpha_scale_callback
+                                );
   }
 
   bool LGFXBase::draw_png(DataWrapper* data, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, float scale_x, float scale_y, datum_t datum)

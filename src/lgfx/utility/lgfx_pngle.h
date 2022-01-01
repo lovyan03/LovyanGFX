@@ -44,8 +44,8 @@ extern "C" {
 typedef struct _pngle_t pngle_t;
 
 // Callback signatures
-typedef void (*pngle_init_callback_t)(pngle_t *pngle, uint32_t w, uint32_t h, uint_fast8_t hasTransparent);
-typedef void (*pngle_draw_callback_t)(pngle_t *pngle, uint32_t x, uint32_t y, uint8_t rgba[4]);
+typedef void (*pngle_init_callback_t)(pngle_t *pngle, uint32_t w, uint32_t h);
+typedef void (*pngle_draw_callback_t)(pngle_t *pngle, uint32_t x, uint32_t y, uint_fast8_t div_x, size_t len, const uint8_t* rgba);
 typedef void (*pngle_done_callback_t)(pngle_t *pngle);
 
 // ----------------
