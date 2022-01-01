@@ -360,9 +360,8 @@ static inline int paeth(int a, int b, int c)
   int pc = abs(pa + pb);
   pa = abs(pa);
   pb = abs(pb);
-  if (pa <= pc && pa <= pb) return a;
-  if (pb <= pc) return b;
-  return c;
+  if (pb < pa) { a = b; pa = pb; }
+  return (pc < pa) ? c : a;
 }
 
 static void set_interlace_pass(pngle_t *pngle, uint_fast8_t pass)
