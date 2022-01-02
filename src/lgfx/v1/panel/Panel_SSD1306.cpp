@@ -63,32 +63,29 @@ namespace lgfx
     {
       return false;
     }
-    //memset(_buf, 0, len);
 
+    startWrite(true);
     _bus->beginRead();
     uint8_t buf;
     bool res = _bus->readBytes(&buf, 1, true);
-    _bus->endTransaction();
+    _bus->endRead();
 
-    if (!res)
+    if (res)
     {
-      return false;
+      for (size_t i = 0; auto cmds = getInitCommands(i); i++)
+      {
+        size_t idx = 0;
+        while (cmds[idx] != 0xFF || cmds[idx + 1] != 0xFF) ++idx;
+        if (idx) { _bus->writeBytes(cmds, idx, false, true); }
+      }
+
+      setInvert(_invert);
+      setRotation(_rotation);
     }
 
-    startWrite(true);
-
-    for (size_t i = 0; auto cmds = getInitCommands(i); i++)
-    {
-      size_t idx = 0;
-      while (cmds[idx] != 0xFF || cmds[idx + 1] != 0xFF) ++idx;
-      if (idx) { _bus->writeBytes(cmds, idx, false, true); }
-    }
-
-    setInvert(_invert);
-    setRotation(_rotation);
     endWrite();
 
-    return true;
+    return res;
   }
 
   void Panel_1bitOLED::setInvert(bool invert)
@@ -305,13 +302,6 @@ namespace lgfx
     endWrite();
 
     return true;
-  }
-
-  void Panel_SH110x::beginTransaction(void)
-  {
-    _bus->beginTransaction();
-    cs_control(false);
-//    _bus->writeCommand(CMD_READMODIFYWRITE_END, 8);
   }
 
   void Panel_SH110x::setBrightness(uint8_t brightness)
