@@ -30,7 +30,6 @@ Contributors:
 #include <stdarg.h>
 #include <cmath>
 #include <list>
-#include <esp_log.h>
 
 #ifdef min
 #undef min
