@@ -23,6 +23,7 @@ Contributors:
 #include "../utility/lgfx_pngle.h"
 #include "../utility/lgfx_qrcode.h"
 #include "../utility/lgfx_tjpgd.h"
+#include "../utility/lgfx_qoi.h"
 #include "panel/Panel_Device.hpp"
 #include "misc/bitmap.hpp"
 //#include "lgfx_TTFfont.hpp"
@@ -2030,7 +2031,7 @@ namespace lgfx
   }
 
 #if defined (LGFX_PRINTF_ENABLED)
-  size_t LGFXBase::printf(const char * __restrict format, ...) 
+  size_t LGFXBase::printf(const char * __restrict format, ...)
   {
     va_list arg;
     va_start(arg, format);
@@ -2837,7 +2838,7 @@ namespace lgfx
     lgfx_pngle_set_done_callback(pngle, png_done_callback);
 
     lgfx_pngle_set_draw_callback(pngle
-                                , (p->zoom_x == 1.0f && p->zoom_y == 1.0f) 
+                                , (p->zoom_x == 1.0f && p->zoom_y == 1.0f)
                                   ? png_draw_alpha_callback
                                   : png_draw_alpha_scale_callback
                                 );
@@ -2941,6 +2942,381 @@ namespace lgfx
 
     return res;
   }
+
+
+
+
+
+  // QOI image support (looks a lot like PNG, maybe factoring is possible)
+
+  struct qoi_file_decoder_t
+  {
+    int32_t x;
+    int32_t y;
+    int32_t offX;
+    int32_t offY;
+    int32_t maxWidth;
+    int32_t maxHeight;
+    float zoom_x;
+    float zoom_y;
+    datum_t datum;
+    bgr888_t* lineBuffer;
+    pixelcopy_t *pc;
+    LGFXBase *gfx;
+    bool done;
+  };
+
+
+
+  static void qoi_done_callback(qoi_t *qoi)
+  {
+    auto p = (qoi_file_decoder_t *)lgfx_qoi_get_user_data(qoi);
+    p->done = true;
+  }
+
+  static void qoi_draw_alpha_callback(qoi_t *qoi, uint32_t x, uint32_t y, uint_fast8_t div_x, size_t len, const uint8_t* rgba)
+  {
+    auto p = (qoi_file_decoder_t*)lgfx_qoi_get_user_data(qoi);
+
+    int32_t y0 = (int32_t)y - p->offY;
+    int32_t y1 = y0 + 1;
+    if (y0 < 0) y0 = 0;
+    if (y1 > p->maxHeight) y1 = p->maxHeight;
+    if (y0 >= y1) return;
+
+    size_t idx = 0;
+/*
+    while ((rgba[idx * 4 + 3] == 0) && ++idx != len);
+    if (idx == len) return;
+    while ((rgba[len * 4 - 1] == 0) && idx != --len);
+    if (idx)
+    {
+      len -= idx;
+      rgba += idx * 4;
+      x += idx * div_x;
+      idx = 0;
+    }
+///*/
+
+    while ((rgba[idx * 4 + 3] == 255) && ++idx != len);
+    bool hasAlpha = (idx != len);
+    if (hasAlpha)
+    {
+// ESP_LOGE("TR","alpha:%d", rgba[idx * 4 + 3]);
+    //   uint32_t left = idx;
+    //   idx = len;
+    //   while (idx-- && (0 == rgba[idx * 4 + 3] || rgba[idx * 4 + 3] == 255));
+    //   uint32_t right = idx;
+      p->gfx->readRectRGB(p->x, p->y + y0, p->maxWidth, 1, p->lineBuffer);
+    }
+    if (hasAlpha || div_x == 1)
+    {
+      if (!hasAlpha) p->gfx->waitDMA();
+      do
+      {
+        int32_t l = std::max<int32_t>(( x      ) - p->offX, 0);
+        int32_t r = std::min<int32_t>(((x + 1) ) - p->offX, p->maxWidth);
+        if (l < r)
+        {
+          uint_fast8_t a = rgba[3];
+          if (a) {
+            if (a == 255) {
+              memcpy(&p->lineBuffer[l], rgba, 3);
+            } else {
+              auto data = &p->lineBuffer[l];
+              uint_fast8_t inv = 255 - a;
+              data->r = (rgba[0] * a + data->r * inv + 255) >> 8;
+              data->g = (rgba[1] * a + data->g * inv + 255) >> 8;
+              data->b = (rgba[2] * a + data->b * inv + 255) >> 8;
+            }
+          }
+        }
+        rgba += 4;
+        x += div_x;
+      } while (--len);
+      p->gfx->pushImage(p->x, p->y + y0, p->maxWidth, 1, p->pc, true);
+    }
+    else
+    {
+      do
+      {
+        int32_t l = x      - p->offX;
+        if (l < 0) l = 0;
+        int32_t r = (x + 1) - p->offX;
+        if (r > p->maxWidth) r = p->maxWidth;
+        if (l < r)
+        {
+          p->gfx->setColor(color888(rgba[0], rgba[1], rgba[2]));
+          p->gfx->writeFillRectPreclipped(p->x + l, p->y + y0, 1, 1);
+        }
+        rgba += 4;
+        x += div_x;
+      } while (--len);
+    }
+  }
+  static void qoi_draw_alpha_scale_callback(qoi_t *qoi, uint32_t x, uint32_t y, uint_fast8_t div_x, size_t len, const uint8_t* rgba)
+  {
+    auto p = (qoi_file_decoder_t*)lgfx_qoi_get_user_data(qoi);
+
+    int32_t y0 = ceilf( y      * p->zoom_y) - p->offY;
+    if (y0 < 0) y0 = 0;
+    int32_t y1 = ceilf((y + 1) * p->zoom_y) - p->offY;
+    if (y1 > p->maxHeight) y1 = p->maxHeight;
+    if (y0 >= y1) return;
+
+    int32_t h = y1 - y0;
+    size_t idx = 0;
+/*
+    while ((rgba[idx * 4 + 3] == 0) && ++idx != len);
+    if (idx == len) return;
+    while ((rgba[len * 4 - 1] == 0) && idx != --len);
+    if (idx)
+    {
+      len -= idx;
+      rgba += idx * 4;
+      x += idx * div_x;
+      idx = 0;
+    }
+//*/
+
+/*
+    int32_t left = ceilf( x      * p->zoom_x) - p->offX;
+    if (left < 0) left = 0;
+    int32_t right = ceilf((x + (len-1) * div_x + 1) * p->zoom_x) - p->offX;
+    if (right > p->maxWidth) right = p->maxWidth;
+//*/
+
+    while ((rgba[idx * 4 + 3] == 255) && ++idx != len);
+    bool hasAlpha = (idx != len);
+    if (hasAlpha)
+    {
+// ESP_LOGE("TR","alpha:%d", rgba[idx * 4 + 3]);
+    //   uint32_t left = idx;
+    //   idx = len;
+    //   while (idx-- && (0 == rgba[idx * 4 + 3] || rgba[idx * 4 + 3] == 255));
+    //   uint32_t right = idx;
+      p->gfx->readRectRGB(p->x, p->y + y0, p->maxWidth, h, p->lineBuffer);
+    }
+    if (hasAlpha || div_x == 1)
+    {
+      if (!hasAlpha) p->gfx->waitDMA();
+      do
+      {
+        int32_t l = ceilf( x      * p->zoom_x) - p->offX;
+        if (l < 0) l = 0;
+        int32_t r = ceilf((x + 1) * p->zoom_x) - p->offX;
+        if (r > p->maxWidth) r = p->maxWidth;
+        if (l < r)
+        {
+          uint_fast8_t a = rgba[3];
+          if (a) {
+            if (a == 255) {
+              int32_t i = l;
+              do {
+                for (int32_t j = 0; j < h; ++j) {
+                  auto data = &p->lineBuffer[i + j * p->maxWidth];
+                  memcpy(data, rgba, 3);
+                }
+              } while (++i < r);
+            } else {
+              uint_fast8_t inv = 255 - a;
+              size_t ar = rgba[0] * a + 255;
+              size_t ag = rgba[1] * a + 255;
+              size_t ab = rgba[2] * a + 255;
+              int32_t i = l;
+              do {
+                for (int32_t j = 0; j < h; ++j) {
+                  auto data = &p->lineBuffer[i + j * p->maxWidth];
+                  data->r = (ar + data->r * inv) >> 8;
+                  data->g = (ag + data->g * inv) >> 8;
+                  data->b = (ab + data->b * inv) >> 8;
+                }
+              } while (++i < r);
+            }
+          }
+        }
+        rgba += 4;
+        x += div_x;
+      } while (--len);
+      p->gfx->pushImage(p->x, p->y + y0, p->maxWidth, h, p->pc, true);
+    }
+    else
+    {
+      do
+      {
+        int32_t l = ceilf( x      * p->zoom_x) - p->offX;
+        if (l < 0) l = 0;
+        int32_t r = ceilf((x + 1) * p->zoom_x) - p->offX;
+        if (r > p->maxWidth) r = p->maxWidth;
+        if (l < r)
+        {
+          p->gfx->setColor(color888(rgba[0], rgba[1], rgba[2]));
+          p->gfx->writeFillRectPreclipped(p->x + l, p->y + y0, r - l, h);
+        }
+        rgba += 4;
+        x += div_x;
+      } while (--len);
+    }
+  }
+
+  static void qoi_init_callback(qoi_t *qoi, uint32_t w, uint32_t h)
+  {
+    auto p = (qoi_file_decoder_t*)lgfx_qoi_get_user_data(qoi);
+    auto me = p->gfx;
+
+    int32_t cw, ch, cl, ct;
+    me->getClipRect(&cl, &ct, &cw, &ch);
+
+    if (p->zoom_y <= 0.0f || p->zoom_x <= 0.0f)
+    {
+      float fit_width  = (p->maxWidth  > 0) ? p->maxWidth  : cw;
+      float fit_height = (p->maxHeight > 0) ? p->maxHeight : ch;
+      auto zx = p->zoom_x;
+      auto zy = p->zoom_y;
+
+      if (zx <= -1.0f) { zx = fit_width  / w; }
+      if (zy <= -1.0f) { zy = fit_height / h; }
+      if (zx <= 0.0f)
+      {
+        if (zy <= 0.0f)
+        {
+          zy = std::min<float>(fit_width / w, fit_height / h);
+        }
+        zx = zy;
+      }
+      if (zy <= 0.0f)
+      {
+        zy = zx;
+      }
+      p->zoom_x = zx;
+      p->zoom_y = zy;
+    }
+    if (p->maxWidth  <= 0) p->maxWidth  = cw - (p->x);
+    if (p->maxHeight <= 0) p->maxHeight = ch - (p->y);
+
+    w = ceilf(w * p->zoom_x);
+    h = ceilf(h * p->zoom_y);
+
+    if (p->datum)
+    {
+      if (p->datum & (datum_t::top_center | datum_t::top_right))
+      {
+        float fw = p->maxWidth - (int32_t)w;
+        if (p->datum & datum_t::top_center) { fw /= 2; }
+        p->offX -= fw;
+      }
+      if (p->datum & (datum_t::middle_left | datum_t::bottom_left | datum_t::baseline_left))
+      {
+        float fh = p->maxHeight - (int32_t)h;
+        if (p->datum & datum_t::middle_left) { fh /= 2; }
+        p->offY -= fh;
+      }
+    }
+
+    const int32_t cr = cw + cl;
+    const int32_t cb = ch + ct;
+
+    if (0 > p->x - cl) { p->maxWidth += p->x - cl; p->offX -= p->x - cl; p->x = cl; }
+    if (0 > p->offX) { p->x -= p->offX; p->maxWidth  += p->offX; p->offX = 0; }
+    if (p->maxWidth > (cr - p->x)) p->maxWidth = (cr - p->x);
+
+    int32_t ww = w - abs(p->offX);
+    if (p->maxWidth > ww) p->maxWidth = ww;
+    if (p->maxWidth < 0) return;
+
+    if (0 > p->y - ct) { p->maxHeight += p->y - ct; p->offY -= p->y - ct; p->y = ct; }
+    if (0 > p->offY) { p->y -= p->offY; p->maxHeight += p->offY; p->offY = 0; }
+    if (p->maxHeight > (cb - p->y)) p->maxHeight = (cb - p->y);
+
+    int32_t hh = h - abs(p->offY);
+    if (p->maxHeight > hh) p->maxHeight = hh;
+    if (p->maxHeight < 0) return;
+
+    p->lineBuffer = (bgr888_t*)heap_alloc_dma(sizeof(bgr888_t) * p->maxWidth * ceilf(p->zoom_x));
+    p->pc->src_data = p->lineBuffer;
+    lgfx_qoi_set_done_callback(qoi, qoi_done_callback);
+
+    lgfx_qoi_set_draw_callback(qoi
+                                , (p->zoom_x == 1.0f && p->zoom_y == 1.0f)
+                                  ? qoi_draw_alpha_callback
+                                  : qoi_draw_alpha_scale_callback
+                                );
+  }
+
+
+
+    bool LGFXBase::draw_qoi(DataWrapper* data, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, float scale_x, float scale_y, datum_t datum)
+    {
+      prepareTmpTransaction(data);
+
+      qoi_file_decoder_t qoidec;
+      qoidec.x = x;
+      qoidec.y = y;
+      qoidec.offX = offX;
+      qoidec.offY = offY;
+      qoidec.maxWidth  = maxWidth ;
+      qoidec.maxHeight = maxHeight;
+      qoidec.zoom_x = scale_x;
+      qoidec.zoom_y = scale_y;
+      qoidec.datum = datum;
+      qoidec.gfx = this;
+      qoidec.lineBuffer = nullptr;
+      qoidec.done = false;
+
+      pixelcopy_t pc(nullptr, this->getColorDepth(), bgr888_t::depth, this->_palette_count);
+      qoidec.pc = &pc;
+
+      qoi_t *qoi = lgfx_qoi_new();
+
+      lgfx_qoi_set_user_data(qoi, &qoidec);
+
+      lgfx_qoi_set_init_callback(qoi, qoi_init_callback);
+
+      // Feed data to qoi
+      uint8_t buf[512];
+      int remain = 0;
+      int len;
+      bool res = true;
+
+      this->startWrite(!data->hasParent());
+      while (0 < (len = data->read(buf + remain, sizeof(buf) - remain))) {
+        data->postRead();
+
+        int fed = lgfx_qoi_feed(qoi, buf, remain + len);
+
+        if (qoidec.done)
+        {
+          break;
+        }
+
+        if (fed < 0)
+        {
+          res = false;
+          break;
+        }
+
+        remain = remain + len - fed;
+        if (remain > 0) memmove(buf, buf + fed, remain);
+        data->preRead();
+      }
+      this->endWrite();
+      if (qoidec.lineBuffer) {
+        this->waitDMA();
+        heap_free(qoidec.lineBuffer);
+      }
+      lgfx_qoi_destroy(qoi);
+      return res;
+    }
+
+
+
+
+
+
+
+
+
+
 
 //----------------------------------------------------------------------------
 

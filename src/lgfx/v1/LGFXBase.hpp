@@ -745,6 +745,26 @@ namespace lgfx
 
 
 
+
+
+    bool drawQoi(const uint8_t *qoi_data, uint32_t qoi_len, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
+    {
+      PointerWrapper data;
+      data.set(qoi_data, qoi_len);
+      return this->draw_qoi(&data, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
+    }
+
+
+    bool drawQoi(DataWrapper *data, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
+    {
+      return this->draw_qoi(data, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
+    }
+
+
+
+
+
+
     template<typename T>
     [[deprecated("use pushImage")]] void pushRect( int32_t x, int32_t y, int32_t w, int32_t h, const T* data) { pushImage(x, y, w, h, data); }
 
@@ -773,7 +793,7 @@ namespace lgfx
     int32_t _sx = 0, _sy = 0, _sw = 0, _sh = 0; // for scroll zone
     int32_t _clip_l = 0, _clip_r = -1, _clip_t = 0, _clip_b = -1; // clip rect
 
-    uint32_t _base_rgb888 = 0;  // gap fill colour for clear and scroll zone 
+    uint32_t _base_rgb888 = 0;  // gap fill colour for clear and scroll zone
     raw_color_t _color = 0xFFFFFFU;
 
     color_conv_t _write_conv;
@@ -1096,6 +1116,7 @@ namespace lgfx
     bool draw_bmp(DataWrapper* data, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, float scale_x, float scale_y, datum_t datum);
     bool draw_jpg(DataWrapper* data, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, float scale_x, float scale_y, datum_t datum);
     bool draw_png(DataWrapper* data, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, float scale_x, float scale_y, datum_t datum);
+    bool draw_qoi(DataWrapper* data, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, float scale_x, float scale_y, datum_t datum);
 
     static void tmpBeginTransaction(LGFXBase* lgfx)
     {
