@@ -63,7 +63,7 @@ qoi_desc_t *lgfx_qoi_get_desc(qoi_t *qoi);
 // Basic write interfaces
 // ----------------------
 void *lgfx_qoi_encoder_write_framebuffer_to_file(const void *lineBuffer, int w, int h, int num_chans, size_t *out_len, int flip, lgfx_qoi_encoder_get_row_func cb, void *qoienc);
-void *lgfx_qoi_encode(const void *lineBuffer, const qoi_desc_t *desc, int flip, lgfx_qoi_encoder_get_row_func cb, int *out_len, void *qoienc);
+void *lgfx_qoi_encode(const void *lineBuffer, const qoi_desc_t *desc, int flip, lgfx_qoi_encoder_get_row_func cb, size_t *out_len, void *qoienc);
 
 
 #ifdef __cplusplus

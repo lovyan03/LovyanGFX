@@ -363,7 +363,7 @@ void *lgfx_qoi_encoder_write_framebuffer_to_file(const void *lineBuffer, int w, 
   return res;
 }
 
-void *lgfx_qoi_encode(const void *lineBuffer, const qoi_desc_t *desc, int flip, lgfx_qoi_encoder_get_row_func get_row, int *out_len, void *qoienc)
+void *lgfx_qoi_encode(const void *lineBuffer, const qoi_desc_t *desc, int flip, lgfx_qoi_encoder_get_row_func get_row, size_t *out_len, void *qoienc)
 {
   int i, max_size, p, repeat;
   int px_len, px_end, px_pos, channels;
