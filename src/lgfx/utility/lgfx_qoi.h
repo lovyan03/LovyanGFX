@@ -24,26 +24,23 @@ extern "C" {
 
 #define QOI_COLOR_HASH(C) (C.rgba.r*3 + C.rgba.g*5 + C.rgba.b*7 + C.rgba.a*11)
 
-static const uint8_t qoi_sig[4]     = { 'q', 'o', 'i', 'f' };
+static const uint8_t qoi_sig[4]     = {'q','o','i','f'};
 static const uint8_t qoi_padding[8] = {0,0,0,0,0,0,0,1};
-
-typedef union
-{
-  struct { unsigned char r, g, b, a; } rgba;
-  unsigned int v;
-} qoi_rgba_t;
 
 // Main Qoi object
 typedef struct _qoi_t qoi_t;
+// QOI image description header
+typedef struct _qoi_desc_t qoi_desc_t;
 
 // Callback signatures
 typedef void (*qoi_init_callback_t)(qoi_t *qoi, uint32_t w, uint32_t h);
 typedef void (*qoi_draw_callback_t)(qoi_t *qoi, uint32_t x, uint32_t y, uint_fast8_t div_x, size_t len, const uint8_t* rgba);
 typedef void (*qoi_done_callback_t)(qoi_t *qoi);
+typedef uint8_t *(*lgfx_qoi_encoder_get_row_func)(uint8_t *lineBuffer, int flip, int w, int h, int y, void *qoienc);
 
-// ----------------
-// Basic interfaces
-// ----------------
+// ---------------------
+// Basic read interfaces
+// ---------------------
 qoi_t *lgfx_qoi_new();
 void lgfx_qoi_destroy(qoi_t *qoi);
 void lgfx_qoi_reset(qoi_t *qoi); // clear its internal state (not applied to qoi_set_* functions)
@@ -60,18 +57,13 @@ void lgfx_qoi_set_done_callback(qoi_t *qoi, qoi_done_callback_t callback);
 void lgfx_qoi_set_user_data(qoi_t *qoi, void *user_data);
 void *lgfx_qoi_get_user_data(qoi_t *qoi);
 
-typedef struct __attribute__((packed)) _qoi_desc_t
-{
-  unsigned int width;
-  unsigned int height;
-  unsigned char channels;
-  unsigned char colorspace;
-} qoi_desc_t;
-
-
-// Get IHDR information
 qoi_desc_t *lgfx_qoi_get_desc(qoi_t *qoi);
 
+// ----------------------
+// Basic write interfaces
+// ----------------------
+void *lgfx_qoi_encoder_write_framebuffer_to_file(const void *lineBuffer, int w, int h, int num_chans, size_t *out_len, int flip, lgfx_qoi_encoder_get_row_func cb, void *qoienc);
+void *lgfx_qoi_encode(const void *lineBuffer, const qoi_desc_t *desc, int flip, lgfx_qoi_encoder_get_row_func cb, int *out_len, void *qoienc);
 
 
 #ifdef __cplusplus

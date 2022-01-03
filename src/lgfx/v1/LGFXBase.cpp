@@ -2945,9 +2945,8 @@ namespace lgfx
 
 
 
-
-
-  // QOI image support (looks a lot like PNG, maybe factoring is possible)
+  // QOI image support (looks a lot like PNG, maybe templating is possible)
+  // Code redundancy from PNG functions in: qoi_done_callback, qoi_draw_alpha_callback, qoi_draw_alpha_scale_callback and qoi_init_callback
 
   struct qoi_file_decoder_t
   {
@@ -3245,70 +3244,115 @@ namespace lgfx
 
 
 
-    bool LGFXBase::draw_qoi(DataWrapper* data, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, float scale_x, float scale_y, datum_t datum)
-    {
-      prepareTmpTransaction(data);
+  bool LGFXBase::draw_qoi(DataWrapper* data, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, float scale_x, float scale_y, datum_t datum)
+  {
+    prepareTmpTransaction(data);
 
-      qoi_file_decoder_t qoidec;
-      qoidec.x = x;
-      qoidec.y = y;
-      qoidec.offX = offX;
-      qoidec.offY = offY;
-      qoidec.maxWidth  = maxWidth ;
-      qoidec.maxHeight = maxHeight;
-      qoidec.zoom_x = scale_x;
-      qoidec.zoom_y = scale_y;
-      qoidec.datum = datum;
-      qoidec.gfx = this;
-      qoidec.lineBuffer = nullptr;
-      qoidec.done = false;
+    qoi_file_decoder_t qoidec;
+    qoidec.x = x;
+    qoidec.y = y;
+    qoidec.offX = offX;
+    qoidec.offY = offY;
+    qoidec.maxWidth  = maxWidth ;
+    qoidec.maxHeight = maxHeight;
+    qoidec.zoom_x = scale_x;
+    qoidec.zoom_y = scale_y;
+    qoidec.datum = datum;
+    qoidec.gfx = this;
+    qoidec.lineBuffer = nullptr;
+    qoidec.done = false;
 
-      pixelcopy_t pc(nullptr, this->getColorDepth(), bgr888_t::depth, this->_palette_count);
-      qoidec.pc = &pc;
+    pixelcopy_t pc(nullptr, this->getColorDepth(), bgr888_t::depth, this->_palette_count);
+    qoidec.pc = &pc;
 
-      qoi_t *qoi = lgfx_qoi_new();
+    qoi_t *qoi = lgfx_qoi_new();
 
-      lgfx_qoi_set_user_data(qoi, &qoidec);
+    lgfx_qoi_set_user_data(qoi, &qoidec);
 
-      lgfx_qoi_set_init_callback(qoi, qoi_init_callback);
+    lgfx_qoi_set_init_callback(qoi, qoi_init_callback);
 
-      // Feed data to qoi
-      uint8_t buf[512];
-      int remain = 0;
-      int len;
-      bool res = true;
+    // Feed data to qoi
+    uint8_t buf[512];
+    int remain = 0;
+    int len;
+    bool res = true;
 
-      this->startWrite(!data->hasParent());
-      while (0 < (len = data->read(buf + remain, sizeof(buf) - remain))) {
-        data->postRead();
+    this->startWrite(!data->hasParent());
+    while (0 < (len = data->read(buf + remain, sizeof(buf) - remain))) {
+      data->postRead();
 
-        int fed = lgfx_qoi_feed(qoi, buf, remain + len);
+      int fed = lgfx_qoi_feed(qoi, buf, remain + len);
 
-        if (qoidec.done)
-        {
-          break;
-        }
-
-        if (fed < 0)
-        {
-          res = false;
-          break;
-        }
-
-        remain = remain + len - fed;
-        if (remain > 0) memmove(buf, buf + fed, remain);
-        data->preRead();
+      if (qoidec.done)
+      {
+        break;
       }
-      this->endWrite();
-      if (qoidec.lineBuffer) {
-        this->waitDMA();
-        heap_free(qoidec.lineBuffer);
+
+      if (fed < 0)
+      {
+        res = false;
+        break;
       }
-      lgfx_qoi_destroy(qoi);
-      return res;
+
+      remain = remain + len - fed;
+      if (remain > 0) memmove(buf, buf + fed, remain);
+      data->preRead();
+    }
+    this->endWrite();
+    if (qoidec.lineBuffer) {
+      this->waitDMA();
+      heap_free(qoidec.lineBuffer);
+    }
+    lgfx_qoi_destroy(qoi);
+    return res;
+  }
+
+
+
+  struct qoi_encoder_t
+  {
+    LGFXBase *gfx;
+    int32_t x;
+    int32_t y;
+  };
+
+
+  static uint8_t *lgfx_qoi_encoder_get_row( uint8_t *lineBuffer, int flip, int w, int h, int y, void *qoienc )
+  {
+    auto enc = static_cast<qoi_encoder_t*>(qoienc);
+    uint32_t ypos = (flip ? (h - 1 - y) : y);
+    //ESP_LOGD("[qoi_encoder_get_row]", "Will read [%dx%d] rect at [%d:%d]", w, h, enc->x, enc->y + ypos );
+    enc->gfx->readRectRGB( enc->x, enc->y + ypos, w, h, lineBuffer );
+    return lineBuffer;
+  }
+
+
+  void* LGFXBase::createQoi(size_t* datalen, int32_t x, int32_t y, int32_t w, int32_t h)
+  {
+    if (_adjust_abs(x, w)||_adjust_abs(y, h)) return nullptr;
+    if (x < 0) { w += x; x = 0; }
+    if (w > width() - x)  w = width()  - x;
+    if (w < 1) return nullptr;
+    if (y < 0) { h += y; y = 0; }
+    if (h > height() - y) h = height() - y;
+    if (h < 1) return nullptr;
+
+    qoi_encoder_t enc = { this, x, y };
+
+    int channels = 3;
+    void* rgbBuffer = heap_alloc_dma(w * channels);
+
+    if( rgbBuffer == NULL ) {
+      //ESP_LOGE("[qoi]", "Can't create rgb linebuffer");
+      return NULL;
     }
 
+    auto res = lgfx_qoi_encoder_write_framebuffer_to_file(rgbBuffer, w, h, channels, datalen, 0, (lgfx_qoi_encoder_get_row_func)lgfx_qoi_encoder_get_row, &enc);
 
+    heap_free(rgbBuffer);
+
+    return res;
+  }
 
 
 

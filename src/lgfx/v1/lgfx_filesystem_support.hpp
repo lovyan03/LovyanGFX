@@ -120,6 +120,24 @@ namespace lgfx
     }
 
 
+    inline bool drawQoiFile(fs::FS &fs, const char *path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
+    {
+      FileWrapper file(fs);
+      return this->drawQoiFile(&file, path, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
+    }
+
+    inline bool drawQoiFile(fs::FS &fs, const String& path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
+    {
+      return drawQoiFile(fs, path.c_str(), x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
+    }
+
+    inline bool drawQoiFile(fs::FS &fs, fs::File *file, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
+    {
+      FileWrapper data(fs, file);
+      return this->draw_qoi(&data, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
+    }
+
+
     inline bool drawBmpFile(fs::FS &fs, fs::File *file, int32_t x=0, int32_t y=0, int32_t maxWidth=0, int32_t maxHeight=0, int32_t offX=0, int32_t offY=0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
     {
       FileWrapper data(fs, file);
@@ -226,6 +244,23 @@ namespace lgfx
     inline bool drawPngFile(SdBase<FsVolume> &fs, const String& path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
     {
       return drawPngFile(fs, path.c_str(), x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
+    }
+
+
+    inline bool drawQoiFile(SdBase<FsVolume> &fs, const char *path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
+    {
+      SdFatWrapper file(fs);
+      return this->drawQoiFile(&file, path, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
+    }
+    inline bool drawQoiFile(SdBase<FsVolume> &fs, const String& path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
+    {
+      return drawQoiFile(fs, path.c_str(), x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
+    }
+
+    inline bool drawQoiFile(SdBase<FsVolume> &fs, FsFile *file, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
+    {
+      SdFatWrapper data(fs, file);
+      return this->draw_qoi(&data, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
     }
 
 
@@ -346,6 +381,18 @@ namespace lgfx
       return drawPngUrl(url.c_str(), x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
     }
 
+    inline bool drawQoiUrl(const char* url, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
+    {
+      HttpWrapper http;
+      return http.open(url) && drawQoi(&http, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
+    }
+    inline bool drawQoiUrl(const String& url, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
+    {
+      return drawQoiUrl(url.c_str(), x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
+    }
+
+
+
   #endif
  #endif
 
@@ -371,6 +418,13 @@ namespace lgfx
       FileWrapper file;
       return drawPngFile(&file, path, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
     }
+
+    inline bool drawQoiFile(const char *path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
+    {
+      FileWrapper file;
+      return drawQoiFile(&file, path, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
+    }
+
 
 #endif
 
@@ -460,6 +514,22 @@ namespace lgfx
       file->postRead();
       return res;
     }
+
+    bool drawQoiFile(DataWrapper* file, const char *path, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, float scale_x, float scale_y, datum_t datum)
+    {
+      bool res = false;
+      this->prepareTmpTransaction(file);
+      file->preRead();
+      if (file->open(path))
+      {
+        res = this->draw_qoi(file, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
+        file->close();
+      }
+      file->postRead();
+      return res;
+    }
+
+
   };
 
 //----------------------------------------------------------------------------

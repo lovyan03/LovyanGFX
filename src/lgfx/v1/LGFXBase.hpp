@@ -745,8 +745,6 @@ namespace lgfx
 
 
 
-
-
     bool drawQoi(const uint8_t *qoi_data, uint32_t qoi_len, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
     {
       PointerWrapper data;
@@ -754,14 +752,12 @@ namespace lgfx
       return this->draw_qoi(&data, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
     }
 
-
     bool drawQoi(DataWrapper *data, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
     {
       return this->draw_qoi(data, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
     }
 
-
-
+    void* createQoi( size_t* datalen, int32_t x = 0, int32_t y = 0, int32_t width = 0, int32_t height = 0);
 
 
 
