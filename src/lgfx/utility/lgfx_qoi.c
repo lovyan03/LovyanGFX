@@ -7,14 +7,6 @@
 #include "lgfx_qoi.h"
 
 
-#define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
-#include <Arduino.h>
-#include "esp_log.h"
-
-
-static const char* TAG = "[qoi]";
-
-
 typedef enum {
   QOI_STATE_ERROR = -2,
   QOI_STATE_EOF = -1,
