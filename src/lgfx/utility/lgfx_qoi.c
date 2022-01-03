@@ -9,7 +9,19 @@
 #ifndef MIN
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #endif
-#define QOI_ERROR(s) (qoi->error = (s), qoi->state = QOI_STATE_ERROR, -1)
+
+// color spaces
+#define QOI_SRGB   0
+#define QOI_LINEAR 1
+
+#define QOI_HEADER_SIZE 14
+#define QOI_PIXELS_MAX ((unsigned int)400000000)
+
+// QOI header
+static const uint8_t qoi_sig[4]     = {'q','o','i','f'};
+// QOI footer
+static const uint8_t qoi_padding[8] = {0,0,0,0,0,0,0,1};
+
 
 typedef union
 {
@@ -27,7 +39,20 @@ typedef struct __attribute__((packed)) _qoi_desc_t
 } qoi_desc_t;
 
 
-typedef enum {
+typedef enum
+{
+  QOI_OP_INDEX  = 0x00, /* 00xxxxxx */
+  QOI_OP_DIFF   = 0x40, /* 01xxxxxx */
+  QOI_OP_LUMA   = 0x80, /* 10xxxxxx */
+  QOI_OP_RUN    = 0xc0, /* 11xxxxxx */
+  QOI_OP_RGB    = 0xfe, /* 11111110 */
+  QOI_OP_RGBA   = 0xff, /* 11111111 */
+  QOI_MASK_2    = 0xc0  /* 11000000 */
+} qoi_flag_t;
+
+
+typedef enum
+{
   QOI_STATE_ERROR = -2,
   QOI_STATE_EOF = -1,
   QOI_STATE_OP_INDEX  = 0x00, /* 00xxxxxx */
@@ -74,6 +99,22 @@ struct _qoi_t
 };
 
 
+
+static int lgfx_qoi_decoder_error(qoi_t *qoi, const char* error )
+{
+  qoi->error = error;
+  qoi->state = QOI_STATE_ERROR;
+  return -1;
+}
+
+
+static uint32_t QOI_COLOR_HASH( qoi_rgba_t C )
+{
+  return C.rgba.r*3 + C.rgba.g*5 + C.rgba.b*7 + C.rgba.a*11;
+}
+
+
+
 static uint8_t read_uint8(const uint8_t *p)
 {
   return *p;
@@ -101,7 +142,6 @@ static void write_uint32(unsigned char *bytes, int *p, unsigned int v)
 static int qoi_handle_chunk(qoi_t *qoi, const uint8_t *buf, size_t len)
 {
   size_t consume = 0;
-
 
   while( consume < len && qoi->px_pos < qoi->total_pixels ) {
 
@@ -177,10 +217,10 @@ static int qoi_feed_internal(qoi_t *qoi, const uint8_t *buf, size_t len)
 
       int cmp = memcmp(qoi_sig, magic8, 4);
 
-      if ( cmp ) return QOI_ERROR("Incorrect QOI signature");
-      if( qoi->desc.width == 0 || qoi->desc.height == 0 || qoi->desc.colorspace > 1 ) return QOI_ERROR("Incorrect QOI signature");
-      if (qoi->desc.channels != 0 && qoi->desc.channels != 3 && qoi->desc.channels != 4) return QOI_ERROR("Bad channels count");
-      if( qoi->desc.height >= QOI_PIXELS_MAX / qoi->desc.width ) return QOI_ERROR("Image too big");
+      if ( cmp ) return lgfx_qoi_decoder_error(qoi, "Incorrect QOI signature");
+      if( qoi->desc.width == 0 || qoi->desc.height == 0 || qoi->desc.colorspace > 1 ) return lgfx_qoi_decoder_error(qoi, "Incorrect QOI signature");
+      if (qoi->desc.channels != 0 && qoi->desc.channels != 3 && qoi->desc.channels != 4) return lgfx_qoi_decoder_error(qoi, "Bad channels count");
+      if( qoi->desc.height >= QOI_PIXELS_MAX / qoi->desc.width ) return lgfx_qoi_decoder_error(qoi, "Image too big");
 
       //ESP_LOGD("[qoi]", "Opened image [%dx%d]@%d bpp", qoi->desc.width, qoi->desc.height, qoi->desc.channels*8 );
       qoi->total_pixels = qoi->desc.width*qoi->desc.height;
@@ -200,7 +240,7 @@ static int qoi_feed_internal(qoi_t *qoi, const uint8_t *buf, size_t len)
       int consumed = qoi_handle_chunk(qoi, buf, len);
 
       if (consumed > 0) {
-        if (qoi->chunk_remain < (uint32_t)consumed) return QOI_ERROR("Chunk data has been consumed too much");
+        if (qoi->chunk_remain < (uint32_t)consumed) return lgfx_qoi_decoder_error(qoi, "Chunk data has been consumed too much");
         qoi->chunk_remain -= consumed;
       }
       if (qoi->chunk_remain <= 0) qoi->state = QOI_STATE_CRC;
@@ -225,7 +265,7 @@ static int qoi_feed_internal(qoi_t *qoi, const uint8_t *buf, size_t len)
       return -1;
 
     default:
-      return QOI_ERROR("Invalid state");
+      return lgfx_qoi_decoder_error(qoi, "Invalid state");
   }
 
   return -1;
@@ -292,28 +332,6 @@ void lgfx_qoi_destroy(qoi_t *qoi)
     free(qoi);
   }
 }
-
-
-const char *lgfx_qoi_error(qoi_t *qoi)
-{
-  if (!qoi) return "Uninitialized";
-  return qoi->error;
-}
-
-
-uint32_t lgfx_qoi_get_width(qoi_t *qoi)
-{
-  if (!qoi) return 0;
-  return qoi->desc.width;
-}
-
-
-uint32_t lgfx_qoi_get_height(qoi_t *qoi)
-{
-  if (!qoi) return 0;
-  return qoi->desc.height;
-}
-
 
 void lgfx_qoi_set_init_callback(qoi_t *qoi, qoi_init_callback_t callback)
 {
