@@ -3326,7 +3326,7 @@ namespace lgfx
       return NULL;
     }
 
-    auto res = lgfx_qoi_encoder_write_framebuffer_to_file(rgbBuffer, w, h, channels, datalen, 0, (lgfx_qoi_encoder_get_row_func)lgfx_qoi_encoder_get_row, &enc);
+    auto res = lgfx_qoi_encoder_write_fb(rgbBuffer, w, h, channels, datalen, 0, (lgfx_qoi_encoder_get_row_func)lgfx_qoi_encoder_get_row, &enc);
 
     heap_free(rgbBuffer);
 
@@ -3334,6 +3334,35 @@ namespace lgfx
   }
 
 
+  size_t LGFXBase::createQoi( int32_t x, int32_t y, int32_t w, int32_t h, lfgx_qoi_writer_func cb )
+  {
+    if (_adjust_abs(x, w)||_adjust_abs(y, h)) return 0;
+    if (x < 0) { w += x; x = 0; }
+    if (w > width() - x)  w = width()  - x;
+    if (w < 1) return 0;
+    if (y < 0) { h += y; y = 0; }
+    if (h > height() - y) h = height() - y;
+    if (h < 1) return 0;
+
+    qoi_encoder_t enc = { this, x, y };
+
+    int channels = 3;
+    void* rgbBuffer = heap_alloc_dma(w * channels);
+
+    if( rgbBuffer == NULL ) {
+      //ESP_LOGE("[qoi]", "Can't create rgb linebuffer");
+      return 0;
+    }
+
+    // TODO: make this dependant on the platform (e.g. 512 recommended for ESP8266)
+    size_t writeBufferSize = 4096;
+
+    auto res = lgfx_qoi_encoder_write_cb(rgbBuffer, writeBufferSize, w, h, channels, 0, (lgfx_qoi_encoder_get_row_func)lgfx_qoi_encoder_get_row, cb, &enc);
+
+    heap_free(rgbBuffer);
+
+    return res;
+  }
 
 
 

@@ -759,6 +759,9 @@ namespace lgfx
 
     void* createQoi( size_t* datalen, int32_t x = 0, int32_t y = 0, int32_t width = 0, int32_t height = 0);
 
+    // TODO: use a writer from Data/File Wrapper instead of typedef
+    typedef int (*lfgx_qoi_writer_func)(uint8_t* buf, size_t buf_len);
+    size_t createQoi( int32_t x = 0, int32_t y = 0, int32_t width = 0, int32_t height = 0, lfgx_qoi_writer_func cb = nullptr );
 
 
     template<typename T>

@@ -77,7 +77,7 @@ struct _qoi_t
 
   qoi_desc_t desc;
   uint8_t repeat;
-  qoi_rgba_t index[64];
+  qoi_rgba_t *index;
 };
 
 #ifdef QOI_DEBUG
@@ -239,6 +239,11 @@ qoi_t *lgfx_qoi_new()
 {
   qoi_t *qoi = (qoi_t *)calloc(1, sizeof(qoi_t) );
   if (!qoi) return NULL;
+  qoi->index = calloc( 64, sizeof( qoi_rgba_t ) );
+  if (!qoi->index) {
+    free( qoi );
+    return NULL;
+  }
   return qoi;
 }
 
@@ -247,6 +252,7 @@ void lgfx_qoi_destroy(qoi_t *qoi)
 {
   if (qoi) {
     lgfx_qoi_reset(qoi);
+    free(qoi->index);
     free(qoi);
   }
 }
@@ -281,54 +287,96 @@ void *lgfx_qoi_get_user_data(qoi_t *qoi)
 
 // Qoi Encoder
 
-void *lgfx_qoi_encoder_write_framebuffer_to_file(const void *lineBuffer, int w, int h, int num_chans, size_t *out_len, int flip, lgfx_qoi_encoder_get_row_func get_row, void *qoienc)
+
+static uint8_t* writeBuffer;
+static size_t writeBufferSize = 4096;
+static uint32_t writeBufferPos = 0;
+lfgx_qoi_writer_func bytes_writer;
+
+static int8_t enc_write_uint8( uint8_t v )
+{
+  writeBuffer[writeBufferPos++] = v;
+  if( writeBufferPos == writeBufferSize )  { // buffer full, write!
+    if( bytes_writer ) bytes_writer( writeBuffer, writeBufferSize );
+    writeBufferPos = 0;
+  }
+  return 1;
+}
+
+
+static int8_t enc_write_uint32( uint32_t v )
+{
+  enc_write_uint8( (uint8_t)(v >> 24) );
+  enc_write_uint8( (uint8_t)(v >> 16) );
+  enc_write_uint8( (uint8_t)(v >>  8) );
+  enc_write_uint8( (uint8_t)v );
+  return 4;
+}
+
+
+size_t lgfx_qoi_encoder_write_cb(const void *lineBuffer, uint32_t bufferLen, int w, int h, int num_chans, int flip, lgfx_qoi_encoder_get_row_func get_row, lfgx_qoi_writer_func write_bytes, void *qoienc)
 {
   qoi_desc_t desc;
   desc.width      = w;
   desc.height     = h;
   desc.channels   = num_chans;
   desc.colorspace = QOI_SRGB; // QOI_SRGB=0, QOI_LINEAR=1
-  void * res = lgfx_qoi_encode(lineBuffer, &desc, flip, get_row, out_len, qoienc);
+  writeBufferSize = bufferLen;
+  size_t res = lgfx_qoi_encode(lineBuffer, &desc, flip, get_row, write_bytes, qoienc);
   return res;
 }
 
-void *lgfx_qoi_encode(const void *lineBuffer, const qoi_desc_t *desc, int flip, lgfx_qoi_encoder_get_row_func get_row, size_t *out_len, void *qoienc)
+
+void *lgfx_qoi_encoder_write_fb(const void *lineBuffer, int w, int h, int num_chans, size_t *out_len, int flip, lgfx_qoi_encoder_get_row_func get_row, void *qoienc)
+{
+  qoi_desc_t desc;
+  desc.width      = w;
+  desc.height     = h;
+  desc.channels   = num_chans;
+  desc.colorspace = QOI_SRGB; // QOI_SRGB=0, QOI_LINEAR=1
+  writeBufferSize = desc.width * desc.height * (desc.channels + 1) + QOI_HEADER_SIZE + sizeof(qoi_padding);
+  size_t res = lgfx_qoi_encode(lineBuffer, &desc, flip, get_row, NULL, qoienc);
+  *out_len = res;
+  return (void*)writeBuffer;
+}
+
+
+
+size_t lgfx_qoi_encode(const void *lineBuffer, const qoi_desc_t *desc, int flip, lgfx_qoi_encoder_get_row_func get_row, lfgx_qoi_writer_func write_bytes, void *qoienc)
 {
   int i, max_size, p, repeat;
   int px_len, px_end, px_pos, channels;
-  unsigned char *outbuff;
   uint8_t *pixels = (uint8_t*)lineBuffer;
-  qoi_rgba_t index[64]; // TODO: calloc/free this, this is more than 256 bytes wasted
+
+  qoi_rgba_t *qoi_index = calloc( 64, sizeof( qoi_rgba_t ) );
   qoi_rgba_t px, px_prev;
 
-  if (lineBuffer == NULL)                            { /*ESP_LOGE("[qoi]", "Bad lineBuffer"); */ return NULL; }
-  if (out_len == NULL )                              { /*ESP_LOGE("[qoi]", "No out_len");     */ return NULL; }
-  if (desc == NULL )                                 { /*ESP_LOGE("[qoi]", "Bad desc");       */ return NULL; }
-  if (desc->width == 0 || desc->height == 0 )        { /*ESP_LOGE("[qoi]", "Bad w/h");        */ return NULL; }
-  if (desc->channels < 3 || desc->channels > 4 )     { /*ESP_LOGE("[qoi]", "Bad bpp");        */ return NULL; }
-  if (desc->colorspace > 1 )                         { /*ESP_LOGE("[qoi]", "Bad colorspace"); */ return NULL; }
-  if (desc->height >= QOI_PIXELS_MAX / desc->width ) { /*ESP_LOGE("[qoi]", "Too big");        */ return NULL; }
-
-  max_size =
-    desc->width * desc->height * (desc->channels + 1) +
-    QOI_HEADER_SIZE + sizeof(qoi_padding);
+  if (lineBuffer == NULL)                            { ESP_LOGE("[qoi]", "Bad lineBuffer");    return 0; }
+  if( qoi_index == NULL )                            { ESP_LOGE("[qoi]", "OOM");               return 0; }
+  if (desc == NULL )                                 { ESP_LOGE("[qoi]", "Bad desc");          return 0; }
+  if (desc->width == 0 || desc->height == 0 )        { ESP_LOGE("[qoi]", "Bad w/h");           return 0; }
+  if (desc->channels < 3 || desc->channels > 4 )     { ESP_LOGE("[qoi]", "Bad bpp");           return 0; }
+  if (desc->colorspace > 1 )                         { ESP_LOGE("[qoi]", "Bad colorspace");    return 0; }
+  if (desc->height >= QOI_PIXELS_MAX / desc->width ) { ESP_LOGE("[qoi]", "Too big");           return 0; }
 
   p = 0;
-  outbuff = (unsigned char *) malloc(max_size);
-  if (!outbuff) {
-    //ESP_LOGE("[qoi]", "Can't malloc %d bytes", max_size);
-    return NULL;
+  writeBufferPos = 0;
+  writeBuffer = (uint8_t*)malloc(writeBufferSize);
+  if (!writeBuffer) {
+    ESP_LOGE("[qoi]", "Can't malloc %d bytes", max_size);
+    return 0;
   }
 
-  write_uint32(outbuff, &p, qoi_sig);
-  write_uint32(outbuff, &p, desc->width);
-  write_uint32(outbuff, &p, desc->height);
-  outbuff[p++] = desc->channels;
-  outbuff[p++] = desc->colorspace;
+  bytes_writer = write_bytes;
+
+  p += enc_write_uint32( qoi_sig);
+  p += enc_write_uint32( desc->width);
+  p += enc_write_uint32( desc->height);
+
+  p += enc_write_uint8( desc->channels );
+  p += enc_write_uint8( desc->colorspace );
 
   uint32_t lineBufferLen = desc->width * desc->channels;
-
-  memset( index, 0, sizeof(index) );
 
   repeat = 0;
   px_prev.rgba.r = 0;
@@ -358,23 +406,23 @@ void *lgfx_qoi_encode(const void *lineBuffer, const qoi_desc_t *desc, int flip, 
     if (px.v == px_prev.v) {
       repeat++;
       if (repeat == 62 || px_pos == px_end) {
-        outbuff[p++] = QOI_OP_RUN | (repeat - 1);
+        p += enc_write_uint8( (uint8_t)(QOI_OP_RUN | (repeat - 1)) );
         repeat = 0;
       }
     } else {
       int index_pos;
 
       if (repeat > 0) {
-        outbuff[p++] = QOI_OP_RUN | (repeat - 1);
+        p += enc_write_uint8( (uint8_t)(QOI_OP_RUN | (repeat - 1)));
         repeat = 0;
       }
 
       index_pos = QOI_COLOR_HASH(&px);
 
-      if (index[index_pos].v == px.v) {
-        outbuff[p++] = QOI_OP_INDEX | index_pos;
+      if (qoi_index[index_pos].v == px.v) {
+        p += enc_write_uint8( (uint8_t)(QOI_OP_INDEX | index_pos) );
       } else {
-        index[index_pos] = px;
+        qoi_index[index_pos] = px;
 
         if (px.rgba.a == px_prev.rgba.a) {
           signed char vr = px.rgba.r - px_prev.rgba.r;
@@ -389,26 +437,26 @@ void *lgfx_qoi_encode(const void *lineBuffer, const qoi_desc_t *desc, int flip, 
             vg > -3 && vg < 2 &&
             vb > -3 && vb < 2
           ) {
-            outbuff[p++] = QOI_OP_DIFF + ((vr + 2) << 4) + ((vg + 2) << 2) + (vb + 2);
+            p += enc_write_uint8( (uint8_t)(QOI_OP_DIFF + ((vr + 2) << 4) + ((vg + 2) << 2) + (vb + 2)) );
           } else if (
             vg_r >  -9 && vg_r <  8 &&
             vg   > -33 && vg   < 32 &&
             vg_b >  -9 && vg_b <  8
           ) {
-            outbuff[p++] = QOI_OP_LUMA     | (vg   + 32);
-            outbuff[p++] = (vg_r + 8) << 4 | (vg_b +  8);
+            p += enc_write_uint8( (uint8_t)(QOI_OP_LUMA     | (vg   + 32)) );
+            p += enc_write_uint8( (uint8_t)((vg_r + 8) << 4 | (vg_b +  8)) );
           } else {
-            outbuff[p++] = QOI_OP_RGB;
-            outbuff[p++] = px.rgba.r;
-            outbuff[p++] = px.rgba.g;
-            outbuff[p++] = px.rgba.b;
+            p += enc_write_uint8( QOI_OP_RGB );
+            p += enc_write_uint8( px.rgba.r  );
+            p += enc_write_uint8( px.rgba.g  );
+            p += enc_write_uint8( px.rgba.b  );
           }
         } else {
-          outbuff[p++] = QOI_OP_RGBA;
-          outbuff[p++] = px.rgba.r;
-          outbuff[p++] = px.rgba.g;
-          outbuff[p++] = px.rgba.b;
-          outbuff[p++] = px.rgba.a;
+          p += enc_write_uint8( QOI_OP_RGBA );
+          p += enc_write_uint8( px.rgba.r   );
+          p += enc_write_uint8( px.rgba.g   );
+          p += enc_write_uint8( px.rgba.b   );
+          p += enc_write_uint8( px.rgba.a   );
         }
       }
     }
@@ -416,10 +464,16 @@ void *lgfx_qoi_encode(const void *lineBuffer, const qoi_desc_t *desc, int flip, 
   }
 
   for (i = 0; i < (int)sizeof(qoi_padding); i++) {
-    outbuff[p++] = qoi_padding[i];
+    p += enc_write_uint8( qoi_padding[i] );
   }
 
-  *out_len = p;
-  return outbuff;
+  if( write_bytes ) {
+    if( writeBufferPos>0 ) write_bytes( writeBuffer, writeBufferPos );
+    free( writeBuffer );
+  }
+
+  free( qoi_index );
+
+  return p;
 }
 
