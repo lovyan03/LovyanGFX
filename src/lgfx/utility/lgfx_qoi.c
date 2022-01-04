@@ -344,26 +344,26 @@ void *lgfx_qoi_encoder_write_fb(const void *lineBuffer, int w, int h, int num_ch
 
 size_t lgfx_qoi_encode(const void *lineBuffer, const qoi_desc_t *desc, int flip, lgfx_qoi_encoder_get_row_func get_row, lfgx_qoi_writer_func write_bytes, void *qoienc)
 {
-  int i, max_size, p, repeat;
+  int i, p, repeat;
   int px_len, px_end, px_pos, channels;
   uint8_t *pixels = (uint8_t*)lineBuffer;
 
   qoi_rgba_t *qoi_index = calloc( 64, sizeof( qoi_rgba_t ) );
   qoi_rgba_t px, px_prev;
 
-  if (lineBuffer == NULL)                            { ESP_LOGE("[qoi]", "Bad lineBuffer");    return 0; }
-  if( qoi_index == NULL )                            { ESP_LOGE("[qoi]", "OOM");               return 0; }
-  if (desc == NULL )                                 { ESP_LOGE("[qoi]", "Bad desc");          return 0; }
-  if (desc->width == 0 || desc->height == 0 )        { ESP_LOGE("[qoi]", "Bad w/h");           return 0; }
-  if (desc->channels < 3 || desc->channels > 4 )     { ESP_LOGE("[qoi]", "Bad bpp");           return 0; }
-  if (desc->colorspace > 1 )                         { ESP_LOGE("[qoi]", "Bad colorspace");    return 0; }
-  if (desc->height >= QOI_PIXELS_MAX / desc->width ) { ESP_LOGE("[qoi]", "Too big");           return 0; }
+  if (lineBuffer == NULL)                            { debug_printf( "Bad lineBuffer"); return 0; }
+  if( qoi_index == NULL )                            { debug_printf( "OOM");            return 0; }
+  if (desc == NULL )                                 { debug_printf( "Bad desc");       return 0; }
+  if (desc->width == 0 || desc->height == 0 )        { debug_printf( "Bad w/h");        return 0; }
+  if (desc->channels < 3 || desc->channels > 4 )     { debug_printf( "Bad bpp");        return 0; }
+  if (desc->colorspace > 1 )                         { debug_printf( "Bad colorspace"); return 0; }
+  if (desc->height >= QOI_PIXELS_MAX / desc->width ) { debug_printf( "Too big");        return 0; }
 
   p = 0;
   writeBufferPos = 0;
   writeBuffer = (uint8_t*)malloc(writeBufferSize);
   if (!writeBuffer) {
-    ESP_LOGE("[qoi]", "Can't malloc %d bytes", max_size);
+    debug_printf( "Can't malloc %d bytes", writeBufferSize);
     return 0;
   }
 

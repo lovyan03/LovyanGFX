@@ -7,6 +7,8 @@
 extern "C" {
 #endif
 
+#define QOI_DEBUG
+
 // Main Qoi object
 typedef struct _qoi_t qoi_t;
 // QOI image description header
