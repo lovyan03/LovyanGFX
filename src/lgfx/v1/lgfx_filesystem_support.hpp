@@ -24,7 +24,7 @@ Contributors:
 
 #include "misc/enum.hpp"
 
-#include <cmath>
+#include <math.h>
 #include <string.h>
 
 namespace lgfx
