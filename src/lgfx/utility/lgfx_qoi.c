@@ -18,7 +18,7 @@
 #define QOI_PIXELS_MAX ((unsigned int)400000000)
 
 // QOI header
-static const uint8_t qoi_sig[4]     = {'q','o','i','f'};
+static const uint32_t qoi_sig = 0x716F6966; // {'q','o','i','f'};
 // QOI footer
 static const uint8_t qoi_padding[8] = {0,0,0,0,0,0,0,1};
 
@@ -69,33 +69,23 @@ typedef enum
 // typedef struct _qoi_t qoi_t; // declared in qoi.h
 struct _qoi_t
 {
-  qoi_desc_t desc;
-
-  uint_fast8_t channels;
-
-  qoi_rgba_t index[64];
+  qoi_rgba_t* pixelBuffer;
   qoi_rgba_t px;
 
-  int b1;
-
-  uint32_t px_pos;// = 0;
-  uint32_t repeat;// = 0;
-
-  qoi_state_t state;
-  uint32_t chunk_type;
   uint32_t chunk_remain;
-  uint32_t total_pixels;
-
+  uint32_t drawing_x;
   uint32_t drawing_y;
-
-  const char *error;
 
   qoi_init_callback_t init_callback;
   qoi_draw_callback_t draw_callback;
   qoi_done_callback_t done_callback;
-
   void *user_data;
-  uint32_t data_len;
+
+  qoi_desc_t desc;
+  uint8_t repeat;
+  qoi_state_t state;
+  qoi_rgba_t index[64];
+  const char *error;
 };
 
 
@@ -108,9 +98,9 @@ static int lgfx_qoi_decoder_error(qoi_t *qoi, const char* error )
 }
 
 
-static uint32_t QOI_COLOR_HASH( qoi_rgba_t C )
+static inline uint8_t QOI_COLOR_HASH( const qoi_rgba_t *c )
 {
-  return C.rgba.r*3 + C.rgba.g*5 + C.rgba.b*7 + C.rgba.a*11;
+  return 0x3F & (c->rgba.r*3 + c->rgba.g*5 + c->rgba.b*7 + c->rgba.a*11);
 }
 
 
@@ -143,90 +133,114 @@ static int qoi_handle_chunk(qoi_t *qoi, const uint8_t *buf, size_t len)
 {
   size_t consume = 0;
 
-  while( consume < len && qoi->px_pos < qoi->total_pixels ) {
+  uint32_t x = qoi->drawing_x;
 
-    if (qoi->repeat > 0) {
-      qoi->repeat--;
+  while ( consume + 5 < len )
+  {
+    if (qoi->repeat > 0)
+    {
+      uint32_t xe = x + qoi->repeat;
+      if (xe > qoi->desc.width) { xe = qoi->desc.width; }
+      qoi->repeat -= xe - x;
+      do
+      {
+        qoi->pixelBuffer[x] = qoi->px;
+      } while (++x != xe);
+    }
+    else
+    {
+      uint8_t b1 = buf[consume];
 
-    } else {
-
-      if( consume+4 >= len ) return consume;
-
-      qoi->b1 = read_uint8(buf++);
-      consume++;
-
-      if (qoi->b1 == QOI_OP_RGB) {
-        qoi->px.rgba.r = read_uint8(buf++);
-        qoi->px.rgba.g = read_uint8(buf++);
-        qoi->px.rgba.b = read_uint8(buf++);
-        consume += 3;
-      } else if (qoi->b1 == QOI_OP_RGBA) {
-        qoi->px.rgba.r = read_uint8(buf++);
-        qoi->px.rgba.g = read_uint8(buf++);
-        qoi->px.rgba.b = read_uint8(buf++);
-        qoi->px.rgba.a = read_uint8(buf++);
-        consume += 4;
-      } else if ((qoi->b1 & QOI_MASK_2) == QOI_OP_INDEX) {
-        qoi->px = qoi->index[qoi->b1];
-      } else if ((qoi->b1 & QOI_MASK_2) == QOI_OP_DIFF) {
-        qoi->px.rgba.r += ((qoi->b1 >> 4) & 0x03) - 2;
-        qoi->px.rgba.g += ((qoi->b1 >> 2) & 0x03) - 2;
-        qoi->px.rgba.b += ( qoi->b1       & 0x03) - 2;
-      } else if ((qoi->b1 & QOI_MASK_2) == QOI_OP_LUMA) {
-        int b2 = read_uint8(buf++);
-        consume ++;
-        int vg = (qoi->b1 & 0x3f) - 32;
-        qoi->px.rgba.r += vg - 8 + ((b2 >> 4) & 0x0f);
-        qoi->px.rgba.g += vg;
-        qoi->px.rgba.b += vg - 8 +  (b2       & 0x0f);
-      } else if ((qoi->b1 & QOI_MASK_2) == QOI_OP_RUN) {
-        qoi->repeat = (qoi->b1 & 0x3f);
+      if (b1 == QOI_OP_RGB)
+      {
+        qoi->px.rgba.r = buf[++consume];
+        qoi->px.rgba.g = buf[++consume];
+        qoi->px.rgba.b = buf[++consume];
       }
-      qoi->index[QOI_COLOR_HASH(qoi->px) % 64] = qoi->px;
+      else if (b1 == QOI_OP_RGBA)
+      {
+        qoi->px.rgba.r = buf[++consume];
+        qoi->px.rgba.g = buf[++consume];
+        qoi->px.rgba.b = buf[++consume];
+        qoi->px.rgba.a = buf[++consume];
+      }
+      else
+      {
+        if ((b1 & QOI_MASK_2) == QOI_OP_INDEX)
+        {
+          qoi->px = qoi->index[b1];
+        }
+        else if ((b1 & QOI_MASK_2) == QOI_OP_DIFF)
+        {
+          qoi->px.rgba.r += ((b1 >> 4) & 0x03) - 2;
+          qoi->px.rgba.g += ((b1 >> 2) & 0x03) - 2;
+          qoi->px.rgba.b += ( b1       & 0x03) - 2;
+        }
+        else if ((b1 & QOI_MASK_2) == QOI_OP_LUMA)
+        {
+          int b2 = buf[++consume];
+          int vg = (b1 & 0x3f) - 32;
+          qoi->px.rgba.r += vg - 8 + ((b2 >> 4) & 0x0f);
+          qoi->px.rgba.g += vg;
+          qoi->px.rgba.b += vg - 8 +  (b2       & 0x0f);
+        }
+        else // if ((b1 & QOI_MASK_2) == QOI_OP_RUN)
+        {
+          qoi->repeat = (b1 & 0x3f);
+        }
+      }
+
+      ++consume;
+      qoi->index[QOI_COLOR_HASH(&qoi->px)] = qoi->px;
+
+      if (qoi->desc.channels != 4) {
+        qoi->px.rgba.a = 255;
+      }
+      qoi->pixelBuffer[x++] = qoi->px;
     }
 
-    if (qoi->desc.channels != 4) {
-      qoi->px.rgba.a = 255;
+    if (x < qoi->desc.width) { continue; }
+    x = 0;
+
+    if (qoi->draw_callback)
+    {
+      qoi->draw_callback(qoi, 0, qoi->drawing_y, 1, qoi->desc.width, (const uint8_t*)qoi->pixelBuffer);
     }
-
-    qoi->px_pos++;
-
-    if (qoi->draw_callback) {
-      qoi->draw_callback(qoi, qoi->px_pos%qoi->desc.width, qoi->px_pos/qoi->desc.width, 1/*interlace_div_x[qoi->interlace_pass]*/, 1/*qoi->scanline_pixels*/, (uint8_t*)&qoi->px.rgba);
+    if (++qoi->drawing_y >= qoi->desc.height)
+    {
+      break;
     }
   }
+  qoi->drawing_x = x;
   return consume;
 }
 
-
-
 static int qoi_feed_internal(qoi_t *qoi, const uint8_t *buf, size_t len)
 {
-  switch (qoi->state) {
-
+  switch (qoi->state)
+  {
     case QOI_STATE_OP_INDEX:
     {
-      if ( len < QOI_HEADER_SIZE + (int)sizeof(qoi_padding) ) return 0;
+      if ( len < QOI_HEADER_SIZE + (int)sizeof(qoi_padding) ) { return 0; }
 
-      uint8_t magic8[4] = { read_uint8(buf + 0), read_uint8(buf + 1), read_uint8(buf + 2), read_uint8(buf + 3) };
+      if (qoi_sig != read_uint32(buf)) { return lgfx_qoi_decoder_error(qoi, "Incorrect QOI signature"); }
 
       qoi->desc.width       = read_uint32(buf +  4);
       qoi->desc.height      = read_uint32(buf +  8);
       qoi->desc.channels    = read_uint8(buf + 12);
       qoi->desc.colorspace  = read_uint8(buf + 13);
 
-      int cmp = memcmp(qoi_sig, magic8, 4);
-
-      if ( cmp ) return lgfx_qoi_decoder_error(qoi, "Incorrect QOI signature");
       if( qoi->desc.width == 0 || qoi->desc.height == 0 || qoi->desc.colorspace > 1 ) return lgfx_qoi_decoder_error(qoi, "Incorrect QOI signature");
       if (qoi->desc.channels != 0 && qoi->desc.channels != 3 && qoi->desc.channels != 4) return lgfx_qoi_decoder_error(qoi, "Bad channels count");
       if( qoi->desc.height >= QOI_PIXELS_MAX / qoi->desc.width ) return lgfx_qoi_decoder_error(qoi, "Image too big");
 
       //ESP_LOGD("[qoi]", "Opened image [%dx%d]@%d bpp", qoi->desc.width, qoi->desc.height, qoi->desc.channels*8 );
-      qoi->total_pixels = qoi->desc.width*qoi->desc.height;
       // TODO: fix this, should be total compressed bytes
-      qoi->chunk_remain = qoi->total_pixels;
+      qoi->chunk_remain = qoi->desc.width*qoi->desc.height;
       qoi->state = QOI_STATE_HANDLE_CHUNK;
+
+      qoi->pixelBuffer = (qoi_rgba_t*)malloc(qoi->desc.width * sizeof(qoi_rgba_t));
+      if (qoi->pixelBuffer == NULL) { return lgfx_qoi_decoder_error(qoi, "Insufficient memory"); }
 
       if (qoi->init_callback) qoi->init_callback(qoi, qoi->desc.width, qoi->desc.height);
 
@@ -242,8 +256,8 @@ static int qoi_feed_internal(qoi_t *qoi, const uint8_t *buf, size_t len)
       if (consumed > 0) {
         if (qoi->chunk_remain < (uint32_t)consumed) return lgfx_qoi_decoder_error(qoi, "Chunk data has been consumed too much");
         qoi->chunk_remain -= consumed;
+        if (qoi->chunk_remain <= 0) qoi->state = QOI_STATE_CRC;
       }
-      if (qoi->chunk_remain <= 0) qoi->state = QOI_STATE_CRC;
 
       return consumed;
     }
@@ -299,19 +313,19 @@ void lgfx_qoi_reset(qoi_t *qoi)
   qoi->state = QOI_STATE_OP_INDEX;
   qoi->error = "No error";
 
-  qoi->channels = 0;
-  memset( qoi->index, 0, sizeof(qoi->index) );
+  if (qoi->pixelBuffer != NULL) { free(qoi->pixelBuffer);  qoi->pixelBuffer = NULL; }
 
   qoi->px.rgba.a = 255;
   qoi->px.rgba.r = 0;
   qoi->px.rgba.g = 0;
   qoi->px.rgba.b = 0;
 
-  qoi->px_pos = 0;
+  qoi->drawing_x = 0;
   qoi->repeat = 0;
 
   // clear them just in case...
   memset(&qoi->desc, 0, sizeof(qoi->desc));
+  memset( qoi->index, 0, sizeof(qoi->index) );
 }
 
 
@@ -409,10 +423,10 @@ void *lgfx_qoi_encode(const void *lineBuffer, const qoi_desc_t *desc, int flip, 
     return NULL;
   }
 
-  outbuff[p++] = qoi_sig[0];
-  outbuff[p++] = qoi_sig[1];
-  outbuff[p++] = qoi_sig[2];
-  outbuff[p++] = qoi_sig[3];
+  outbuff[p++] = (uint8_t)(qoi_sig >> 24);
+  outbuff[p++] = (uint8_t)(qoi_sig >> 16);
+  outbuff[p++] = (uint8_t)(qoi_sig >>  8);
+  outbuff[p++] = (uint8_t)(qoi_sig);
 
   write_uint32(outbuff, &p, desc->width);
   write_uint32(outbuff, &p, desc->height);
@@ -462,7 +476,7 @@ void *lgfx_qoi_encode(const void *lineBuffer, const qoi_desc_t *desc, int flip, 
         repeat = 0;
       }
 
-      index_pos = QOI_COLOR_HASH(px) % 64;
+      index_pos = QOI_COLOR_HASH(&px);
 
       if (index[index_pos].v == px.v) {
         outbuff[p++] = QOI_OP_INDEX | index_pos;
@@ -482,7 +496,7 @@ void *lgfx_qoi_encode(const void *lineBuffer, const qoi_desc_t *desc, int flip, 
             vg > -3 && vg < 2 &&
             vb > -3 && vb < 2
           ) {
-            outbuff[p++] = QOI_OP_DIFF | (vr + 2) << 4 | (vg + 2) << 2 | (vb + 2);
+            outbuff[p++] = QOI_OP_DIFF + ((vr + 2) << 4) + ((vg + 2) << 2) + (vb + 2);
           } else if (
             vg_r >  -9 && vg_r <  8 &&
             vg   > -33 && vg   < 32 &&
