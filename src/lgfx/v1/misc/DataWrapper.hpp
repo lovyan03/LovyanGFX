@@ -160,16 +160,19 @@ namespace lgfx
 
     int read(uint8_t *buf, uint32_t len) override
     {
-      uint32_t tmp = _stream->available();
-      if (len > tmp)
+      if (len > _length - _index) { len = _length - _index; }
+      if (len == 0) { return 0; }
+
+      int32_t tmp = _stream->available();
+      if (0 < tmp && ((int32_t)len > tmp))
       {
         len = tmp;
       }
-      if (len > _length - _index) { len = _length - _index; }
-      if (!len) { return 0; }
+      len = _stream->readBytes(buf, len);
       _index += len;
-      return _stream->readBytes((char*)buf, len);
+      return len;
     }
+
     void skip(int32_t offset) override
     {
       if (0 >= offset) { return; }
