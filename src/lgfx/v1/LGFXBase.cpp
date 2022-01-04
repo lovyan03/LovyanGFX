@@ -2962,16 +2962,9 @@ namespace lgfx
     bgr888_t* lineBuffer;
     pixelcopy_t *pc;
     LGFXBase *gfx;
-    bool done;
   };
 
 
-
-  static void qoi_done_callback(qoi_t *qoi)
-  {
-    auto p = (qoi_file_decoder_t *)lgfx_qoi_get_user_data(qoi);
-    p->done = true;
-  }
 
   static void qoi_draw_alpha_callback(qoi_t *qoi, uint32_t x, uint32_t y, uint_fast8_t div_x, size_t len, const uint8_t* rgba)
   {
@@ -2983,7 +2976,6 @@ namespace lgfx
     if (y1 > p->maxHeight) y1 = p->maxHeight;
     if (y0 >= y1) return;
 
-    size_t idx = 0;
 /*
     while ((rgba[idx * 4 + 3] == 0) && ++idx != len);
     if (idx == len) return;
@@ -2997,62 +2989,56 @@ namespace lgfx
     }
 ///*/
 
+    while ((int32_t)x < p->offX && --len)
+    {
+      x += div_x;
+      rgba += 4;
+    }
+    x -= p->offX;
+
+    if (!len || (int32_t)x >= p->maxWidth) return;
+
+    size_t idx = 0;
     while ((rgba[idx * 4 + 3] == 255) && ++idx != len);
+
     bool hasAlpha = (idx != len);
     if (hasAlpha)
     {
-// ESP_LOGE("TR","alpha:%d", rgba[idx * 4 + 3]);
-    //   uint32_t left = idx;
-    //   idx = len;
-    //   while (idx-- && (0 == rgba[idx * 4 + 3] || rgba[idx * 4 + 3] == 255));
-    //   uint32_t right = idx;
       p->gfx->readRectRGB(p->x, p->y + y0, p->maxWidth, 1, p->lineBuffer);
-    }
-    if (hasAlpha || div_x == 1)
-    {
-      if (!hasAlpha) p->gfx->waitDMA();
       do
       {
-        int32_t l = std::max<int32_t>(( x      ) - p->offX, 0);
-        int32_t r = std::min<int32_t>(((x + 1) ) - p->offX, p->maxWidth);
-        if (l < r)
-        {
-          uint_fast8_t a = rgba[3];
-          if (a) {
-            if (a == 255) {
-              memcpy(&p->lineBuffer[l], rgba, 3);
-            } else {
-              auto data = &p->lineBuffer[l];
-              uint_fast8_t inv = 255 - a;
-              data->r = (rgba[0] * a + data->r * inv + 255) >> 8;
-              data->g = (rgba[1] * a + data->g * inv + 255) >> 8;
-              data->b = (rgba[2] * a + data->b * inv + 255) >> 8;
-            }
+        uint_fast8_t a = rgba[3];
+        if (a) {
+          if (a == 255) {
+            p->lineBuffer[x].set(*(uint32_t*)rgba);
+          } else {
+            auto data = &p->lineBuffer[x];
+            uint_fast8_t inv = 255 - a;
+            data->set( (rgba[0] * a + data->r * inv + 255) >> 8
+                     , (rgba[1] * a + data->g * inv + 255) >> 8
+                     , (rgba[2] * a + data->b * inv + 255) >> 8
+                     );
           }
         }
-        rgba += 4;
         x += div_x;
+        if ((int32_t)x >= p->maxWidth) break;
+        rgba += 4;
       } while (--len);
       p->gfx->pushImage(p->x, p->y + y0, p->maxWidth, 1, p->pc, true);
     }
     else
     {
+      p->gfx->waitDMA();
       do
       {
-        int32_t l = x      - p->offX;
-        if (l < 0) l = 0;
-        int32_t r = (x + 1) - p->offX;
-        if (r > p->maxWidth) r = p->maxWidth;
-        if (l < r)
-        {
-          p->gfx->setColor(color888(rgba[0], rgba[1], rgba[2]));
-          p->gfx->writeFillRectPreclipped(p->x + l, p->y + y0, 1, 1);
-        }
+        p->lineBuffer[x].set(*(uint32_t*)rgba);
+        if ((int32_t)++x >= p->maxWidth) break;
         rgba += 4;
-        x += div_x;
       } while (--len);
+      p->gfx->pushImage(p->x, p->y + y0, p->maxWidth, 1, p->pc, true);
     }
   }
+
   static void qoi_draw_alpha_scale_callback(qoi_t *qoi, uint32_t x, uint32_t y, uint_fast8_t div_x, size_t len, const uint8_t* rgba)
   {
     auto p = (qoi_file_decoder_t*)lgfx_qoi_get_user_data(qoi);
@@ -3233,7 +3219,6 @@ namespace lgfx
 
     p->lineBuffer = (bgr888_t*)heap_alloc_dma(sizeof(bgr888_t) * p->maxWidth * ceilf(p->zoom_x));
     p->pc->src_data = p->lineBuffer;
-    lgfx_qoi_set_done_callback(qoi, qoi_done_callback);
 
     lgfx_qoi_set_draw_callback(qoi
                                 , (p->zoom_x == 1.0f && p->zoom_y == 1.0f)
@@ -3260,7 +3245,6 @@ namespace lgfx
     qoidec.datum = datum;
     qoidec.gfx = this;
     qoidec.lineBuffer = nullptr;
-    qoidec.done = false;
 
     pixelcopy_t pc(nullptr, this->getColorDepth(), bgr888_t::depth, this->_palette_count);
     qoidec.pc = &pc;
@@ -3283,14 +3267,9 @@ namespace lgfx
 
       int fed = lgfx_qoi_feed(qoi, buf, remain + len);
 
-      if (qoidec.done)
-      {
-        break;
-      }
-
       if (fed < 0)
       {
-        res = false;
+        res = (fed == -1); // -1:Done / -2:Error
         break;
       }
 

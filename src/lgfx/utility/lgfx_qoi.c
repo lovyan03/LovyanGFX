@@ -53,16 +53,12 @@ typedef enum
 
 typedef enum
 {
-  QOI_STATE_ERROR = -2,
-  QOI_STATE_EOF = -1,
   QOI_STATE_OP_INDEX  = 0x00, /* 00xxxxxx */
   QOI_STATE_OP_DIFF   = 0x40, /* 01xxxxxx */
   QOI_STATE_OP_LUMA   = 0x80, /* 10xxxxxx */
   QOI_STATE_OP_RUN    = 0xc0, /* 11xxxxxx */
   QOI_STATE_OP_RGB    = 0xfe, /* 11111110 */
   QOI_STATE_OP_RGBA   = 0xff, /* 11111111 */
-  QOI_STATE_HANDLE_CHUNK,
-  QOI_STATE_CRC,
 } qoi_state_t;
 
 
@@ -72,37 +68,31 @@ struct _qoi_t
   qoi_rgba_t* pixelBuffer;
   qoi_rgba_t px;
 
-  uint32_t chunk_remain;
   uint32_t drawing_x;
   uint32_t drawing_y;
 
-  qoi_init_callback_t init_callback;
-  qoi_draw_callback_t draw_callback;
-  qoi_done_callback_t done_callback;
   void *user_data;
+  qoi_draw_callback_t draw_callback;
+  qoi_init_callback_t init_callback;
 
   qoi_desc_t desc;
   uint8_t repeat;
-  qoi_state_t state;
   qoi_rgba_t index[64];
-  const char *error;
 };
 
-
-
-static int lgfx_qoi_decoder_error(qoi_t *qoi, const char* error )
-{
-  qoi->error = error;
-  qoi->state = QOI_STATE_ERROR;
-  return -1;
-}
+#ifdef QOI_DEBUG
+#define debug_printf(...) fprintf(stderr, __VA_ARGS__)
+#define QOI_ERROR(...) (fprintf(stderr, __VA_ARGS__), -2)
+#else
+#define debug_printf(...) ((void)0)
+#define QOI_ERROR(...) ( -2 )
+#endif
 
 
 static inline uint8_t QOI_COLOR_HASH( const qoi_rgba_t *c )
 {
   return 0x3F & (c->rgba.r*3 + c->rgba.g*5 + c->rgba.b*7 + c->rgba.a*11);
 }
-
 
 
 static uint8_t read_uint8(const uint8_t *p)
@@ -119,23 +109,48 @@ static uint32_t read_uint32(const uint8_t *p)
   ;
 }
 
-static void write_uint32(unsigned char *bytes, int *p, unsigned int v)
+static void write_uint32(uint8_t *bytes, int *p, uint32_t v)
 {
-  bytes[(*p)++] = (0xff000000 & v) >> 24;
-  bytes[(*p)++] = (0x00ff0000 & v) >> 16;
-  bytes[(*p)++] = (0x0000ff00 & v) >> 8;
-  bytes[(*p)++] = (0x000000ff & v);
+  bytes[(*p)++] = (uint8_t)(v >> 24);
+  bytes[(*p)++] = (uint8_t)(v >> 16);
+  bytes[(*p)++] = (uint8_t)(v >>  8);
+  bytes[(*p)++] = (uint8_t)v;
 }
 
-
-
-static int qoi_handle_chunk(qoi_t *qoi, const uint8_t *buf, size_t len)
+int lgfx_qoi_feed(qoi_t *qoi, const uint8_t *buf, size_t len)
 {
   size_t consume = 0;
 
+  if ( len < sizeof(qoi_padding) ) { return -2; }
+  len -= sizeof(qoi_padding);
+
+  if (qoi->desc.width == 0)
+  {
+    if ( len < QOI_HEADER_SIZE ) { return -2; }
+
+    if (qoi_sig != read_uint32(buf)) { return QOI_ERROR("Incorrect QOI signature"); }
+
+    qoi->desc.width       = read_uint32(buf +  4);
+    qoi->desc.height      = read_uint32(buf +  8);
+    qoi->desc.channels    = read_uint8(buf + 12);
+    qoi->desc.colorspace  = read_uint8(buf + 13);
+    qoi->px.rgba.a = 255;
+
+    if( qoi->desc.width == 0 || qoi->desc.height == 0 || qoi->desc.colorspace > 1 ) return QOI_ERROR("Incorrect QOI signature");
+    if (qoi->desc.channels != 0 && qoi->desc.channels != 3 && qoi->desc.channels != 4) return QOI_ERROR("Bad channels count");
+    // if( qoi->desc.height >= QOI_PIXELS_MAX / qoi->desc.width ) return QOI_ERROR("Image too big");
+
+    qoi->pixelBuffer = (qoi_rgba_t*)malloc(qoi->desc.width * sizeof(qoi_rgba_t));
+    if (qoi->pixelBuffer == NULL) { return QOI_ERROR("Insufficient memory"); }
+
+    if (qoi->init_callback) qoi->init_callback(qoi, qoi->desc.width, qoi->desc.height);
+
+    consume = QOI_HEADER_SIZE;
+  }
+
   uint32_t x = qoi->drawing_x;
 
-  while ( consume + 5 < len )
+  while ( consume < len )
   {
     if (qoi->repeat > 0)
     {
@@ -164,30 +179,27 @@ static int qoi_handle_chunk(qoi_t *qoi, const uint8_t *buf, size_t len)
         qoi->px.rgba.b = buf[++consume];
         qoi->px.rgba.a = buf[++consume];
       }
-      else
+      else if ((b1 & QOI_MASK_2) == QOI_OP_INDEX)
       {
-        if ((b1 & QOI_MASK_2) == QOI_OP_INDEX)
-        {
-          qoi->px = qoi->index[b1];
-        }
-        else if ((b1 & QOI_MASK_2) == QOI_OP_DIFF)
-        {
-          qoi->px.rgba.r += ((b1 >> 4) & 0x03) - 2;
-          qoi->px.rgba.g += ((b1 >> 2) & 0x03) - 2;
-          qoi->px.rgba.b += ( b1       & 0x03) - 2;
-        }
-        else if ((b1 & QOI_MASK_2) == QOI_OP_LUMA)
-        {
-          int b2 = buf[++consume];
-          int vg = (b1 & 0x3f) - 32;
-          qoi->px.rgba.r += vg - 8 + ((b2 >> 4) & 0x0f);
-          qoi->px.rgba.g += vg;
-          qoi->px.rgba.b += vg - 8 +  (b2       & 0x0f);
-        }
-        else // if ((b1 & QOI_MASK_2) == QOI_OP_RUN)
-        {
-          qoi->repeat = (b1 & 0x3f);
-        }
+        qoi->px = qoi->index[b1];
+      }
+      else if ((b1 & QOI_MASK_2) == QOI_OP_DIFF)
+      {
+        qoi->px.rgba.r += ((b1 >> 4) & 0x03) - 2;
+        qoi->px.rgba.g += ((b1 >> 2) & 0x03) - 2;
+        qoi->px.rgba.b += ( b1       & 0x03) - 2;
+      }
+      else if ((b1 & QOI_MASK_2) == QOI_OP_LUMA)
+      {
+        uint8_t b2 = buf[++consume];
+        int vg = (b1 & 0x3f) - 32;
+        qoi->px.rgba.r += vg - 8 + ((b2 >> 4));
+        qoi->px.rgba.g += vg;
+        qoi->px.rgba.b += vg - 8 +  (b2 & 0x0f);
+      }
+      else // if ((b1 & QOI_MASK_2) == QOI_OP_RUN)
+      {
+        qoi->repeat = (b1 & 0x3f);
       }
 
       ++consume;
@@ -208,133 +220,25 @@ static int qoi_handle_chunk(qoi_t *qoi, const uint8_t *buf, size_t len)
     }
     if (++qoi->drawing_y >= qoi->desc.height)
     {
-      break;
+      return -1;
     }
   }
   qoi->drawing_x = x;
   return consume;
 }
 
-static int qoi_feed_internal(qoi_t *qoi, const uint8_t *buf, size_t len)
-{
-  switch (qoi->state)
-  {
-    case QOI_STATE_OP_INDEX:
-    {
-      if ( len < QOI_HEADER_SIZE + (int)sizeof(qoi_padding) ) { return 0; }
-
-      if (qoi_sig != read_uint32(buf)) { return lgfx_qoi_decoder_error(qoi, "Incorrect QOI signature"); }
-
-      qoi->desc.width       = read_uint32(buf +  4);
-      qoi->desc.height      = read_uint32(buf +  8);
-      qoi->desc.channels    = read_uint8(buf + 12);
-      qoi->desc.colorspace  = read_uint8(buf + 13);
-
-      if( qoi->desc.width == 0 || qoi->desc.height == 0 || qoi->desc.colorspace > 1 ) return lgfx_qoi_decoder_error(qoi, "Incorrect QOI signature");
-      if (qoi->desc.channels != 0 && qoi->desc.channels != 3 && qoi->desc.channels != 4) return lgfx_qoi_decoder_error(qoi, "Bad channels count");
-      if( qoi->desc.height >= QOI_PIXELS_MAX / qoi->desc.width ) return lgfx_qoi_decoder_error(qoi, "Image too big");
-
-      //ESP_LOGD("[qoi]", "Opened image [%dx%d]@%d bpp", qoi->desc.width, qoi->desc.height, qoi->desc.channels*8 );
-      // TODO: fix this, should be total compressed bytes
-      qoi->chunk_remain = qoi->desc.width*qoi->desc.height;
-      qoi->state = QOI_STATE_HANDLE_CHUNK;
-
-      qoi->pixelBuffer = (qoi_rgba_t*)malloc(qoi->desc.width * sizeof(qoi_rgba_t));
-      if (qoi->pixelBuffer == NULL) { return lgfx_qoi_decoder_error(qoi, "Insufficient memory"); }
-
-      if (qoi->init_callback) qoi->init_callback(qoi, qoi->desc.width, qoi->desc.height);
-
-      return QOI_HEADER_SIZE;
-    }
-
-    case QOI_STATE_HANDLE_CHUNK:
-    {
-      len = MIN(len, qoi->chunk_remain);
-
-      int consumed = qoi_handle_chunk(qoi, buf, len);
-
-      if (consumed > 0) {
-        if (qoi->chunk_remain < (uint32_t)consumed) return lgfx_qoi_decoder_error(qoi, "Chunk data has been consumed too much");
-        qoi->chunk_remain -= consumed;
-        if (qoi->chunk_remain <= 0) qoi->state = QOI_STATE_CRC;
-      }
-
-      return consumed;
-    }
-
-    case QOI_STATE_CRC:
-
-      qoi->state = QOI_STATE_HANDLE_CHUNK;
-      if (qoi->chunk_remain <= 0) {
-        qoi->state = QOI_STATE_EOF;
-        if (qoi->done_callback) qoi->done_callback(qoi);
-        return -1;
-      }
-      return 0;
-
-    case QOI_STATE_EOF:
-      return len;
-
-    case QOI_STATE_ERROR:
-      return -1;
-
-    default:
-      return lgfx_qoi_decoder_error(qoi, "Invalid state");
-  }
-
-  return -1;
-}
-
-
-int lgfx_qoi_feed(qoi_t *qoi, const void *buf, size_t len)
-{
-  if (!qoi) return -1;
-  size_t pos = 0;
-  qoi_state_t last_state = qoi->state;
-
-  int r;
-  do {
-    r = qoi_feed_internal(qoi, (const uint8_t *)buf + pos, len - pos);
-    if (r < 0) return r; // error
-    if (r == 0 && last_state == qoi->state) break;
-    last_state = qoi->state;
-
-  } while ((pos += r) < len);
-
-  return pos;
-}
-
-
 
 void lgfx_qoi_reset(qoi_t *qoi)
 {
   if (!qoi) return;
-
-  qoi->state = QOI_STATE_OP_INDEX;
-  qoi->error = "No error";
-
   if (qoi->pixelBuffer != NULL) { free(qoi->pixelBuffer);  qoi->pixelBuffer = NULL; }
-
-  qoi->px.rgba.a = 255;
-  qoi->px.rgba.r = 0;
-  qoi->px.rgba.g = 0;
-  qoi->px.rgba.b = 0;
-
-  qoi->drawing_x = 0;
-  qoi->repeat = 0;
-
-  // clear them just in case...
-  memset(&qoi->desc, 0, sizeof(qoi->desc));
-  memset( qoi->index, 0, sizeof(qoi->index) );
 }
-
 
 
 qoi_t *lgfx_qoi_new()
 {
   qoi_t *qoi = (qoi_t *)calloc(1, sizeof(qoi_t) );
   if (!qoi) return NULL;
-  lgfx_qoi_reset(qoi);
   return qoi;
 }
 
@@ -358,13 +262,6 @@ void lgfx_qoi_set_draw_callback(qoi_t *qoi, qoi_draw_callback_t callback)
 {
   if (!qoi) return;
   qoi->draw_callback = callback;
-}
-
-
-void lgfx_qoi_set_done_callback(qoi_t *qoi, qoi_done_callback_t callback)
-{
-  if (!qoi) return;
-  qoi->done_callback = callback;
 }
 
 
@@ -423,11 +320,7 @@ void *lgfx_qoi_encode(const void *lineBuffer, const qoi_desc_t *desc, int flip, 
     return NULL;
   }
 
-  outbuff[p++] = (uint8_t)(qoi_sig >> 24);
-  outbuff[p++] = (uint8_t)(qoi_sig >> 16);
-  outbuff[p++] = (uint8_t)(qoi_sig >>  8);
-  outbuff[p++] = (uint8_t)(qoi_sig);
-
+  write_uint32(outbuff, &p, qoi_sig);
   write_uint32(outbuff, &p, desc->width);
   write_uint32(outbuff, &p, desc->height);
   outbuff[p++] = desc->channels;

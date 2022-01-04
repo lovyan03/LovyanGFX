@@ -15,7 +15,6 @@ typedef struct _qoi_desc_t qoi_desc_t;
 // Callback signatures
 typedef void (*qoi_init_callback_t)(qoi_t *qoi, uint32_t w, uint32_t h);
 typedef void (*qoi_draw_callback_t)(qoi_t *qoi, uint32_t x, uint32_t y, uint_fast8_t div_x, size_t len, const uint8_t* rgba);
-typedef void (*qoi_done_callback_t)(qoi_t *qoi);
 typedef uint8_t *(*lgfx_qoi_encoder_get_row_func)(uint8_t *lineBuffer, int flip, int w, int h, int y, void *qoienc);
 
 // ---------------------
@@ -24,11 +23,10 @@ typedef uint8_t *(*lgfx_qoi_encoder_get_row_func)(uint8_t *lineBuffer, int flip,
 qoi_t *lgfx_qoi_new();
 void lgfx_qoi_destroy(qoi_t *qoi);
 void lgfx_qoi_reset(qoi_t *qoi); // clear its internal state (not applied to qoi_set_* functions)
-int lgfx_qoi_feed(qoi_t *qoi, const void *buf, size_t len); // returns -1: On error, 0: Need more data, n: n bytes eaten
+int lgfx_qoi_feed(qoi_t *qoi, const uint8_t *buf, size_t len); // returns -2: On error, -1: Done, 0: Need more data, n: n bytes eaten
 
 void lgfx_qoi_set_init_callback(qoi_t *qoi, qoi_init_callback_t callback);
 void lgfx_qoi_set_draw_callback(qoi_t *qoi, qoi_draw_callback_t callback);
-void lgfx_qoi_set_done_callback(qoi_t *qoi, qoi_done_callback_t callback);
 
 void lgfx_qoi_set_user_data(qoi_t *qoi, void *user_data);
 void *lgfx_qoi_get_user_data(qoi_t *qoi);
