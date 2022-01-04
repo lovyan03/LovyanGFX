@@ -2597,14 +2597,14 @@ namespace lgfx
     }
 ///*/
 
-    while (x < p->offX && --len)
+    while ((int32_t)x < p->offX && --len)
     {
       x += div_x;
       rgba += 4;
     }
     x -= p->offX;
 
-    if (!len || x >= p->maxWidth) return;
+    if (!len || (int32_t)x >= p->maxWidth) return;
 
     size_t idx = 0;
     while ((rgba[idx * 4 + 3] == 255) && ++idx != len);
@@ -2622,13 +2622,14 @@ namespace lgfx
           } else {
             auto data = &p->lineBuffer[x];
             uint_fast8_t inv = 255 - a;
-            data->r = (rgba[0] * a + data->r * inv + 255) >> 8;
-            data->g = (rgba[1] * a + data->g * inv + 255) >> 8;
-            data->b = (rgba[2] * a + data->b * inv + 255) >> 8;
+            data->set( (rgba[0] * a + data->r * inv + 255) >> 8
+                     , (rgba[1] * a + data->g * inv + 255) >> 8
+                     , (rgba[2] * a + data->b * inv + 255) >> 8
+                     );
           }
         }
         x += div_x;
-        if (x >= p->maxWidth) break;
+        if ((int32_t)x >= p->maxWidth) break;
         rgba += 4;
       } while (--len);
       p->gfx->pushImage(p->x, p->y + y0, p->maxWidth, 1, p->pc, true);
@@ -2640,7 +2641,7 @@ namespace lgfx
       do
       {
         p->lineBuffer[x].set(*(uint32_t*)rgba);
-        if (++x >= p->maxWidth) break;
+        if ((int32_t)++x >= p->maxWidth) break;
         rgba += 4;
       } while (--len);
       p->gfx->pushImage(p->x, p->y + y0, p->maxWidth, 1, p->pc, true);
@@ -2652,7 +2653,7 @@ namespace lgfx
         p->gfx->setColor(color888(rgba[0], rgba[1], rgba[2]));
         p->gfx->writeFillRectPreclipped(p->x + x, p->y + y0, 1, 1);
         x += div_x;
-        if (x >= p->maxWidth) break;
+        if ((int32_t)x >= p->maxWidth) break;
         rgba += 4;
       } while (--len);
     }

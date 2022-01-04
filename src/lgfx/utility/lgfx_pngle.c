@@ -77,61 +77,57 @@ typedef enum {
 
 // typedef struct _pngle_t pngle_t; // declared in pngle.h
 struct _pngle_t {
-  pngle_ihdr_t hdr;
-
-  uint_fast8_t channels; // 0 indicates IHDR hasn't been processed yet
-
   // PLTE chunk
-  size_t n_palettes;
   uint8_t *palette;
+  size_t n_palettes;
 
   // tRNS chunk
-  size_t n_trans_palettes;
   uint8_t *trans_palette;
+  size_t n_trans_palettes;
+
+  // scanline decoder (reset on every set_interlace_pass() call)
+  uint8_t *scanline_flipbuf[2];
+  uint8_t *scanline_buf;
+  uint32_t drawing_y;
+  size_t scanline_pixels;
+  size_t scanline_stride;
+  size_t scanline_remain_bytes_to_render;
+
+  void *user_data;
+  pngle_draw_callback_t draw_callback;
+  pngle_init_callback_t init_callback;
+  pngle_done_callback_t done_callback;
 
   // parser state (reset on every chunk header)
-  pngle_state_t state;
   uint32_t chunk_type;
   uint32_t chunk_remain;
   mz_ulong crc32;
 
-  // decompression state (reset on IHDR)
-  tinfl_decompressor inflator; // 11000 bytes
-  uint8_t lz_buf[TINFL_LZ_DICT_SIZE]; // 32768 bytes
-  uint8_t *next_out; // NULL indicates IDAT hasn't been processed yet
-  size_t  avail_out;
+  // for pngle_draw_pixels
+  uint32_t magni;
 
-  uint32_t drawing_y;
-  // scanline decoder (reset on every set_interlace_pass() call)
-  uint8_t *scanline_buf;
-  uint8_t *scanline_flipbuf[2];
-  size_t scanline_flipbuf_cidx;
-  size_t scanline_stride;
-  size_t scanline_pixels;
-  size_t scanline_remain_bytes_to_render;
+  pngle_ihdr_t hdr;
 
-  uint8_t scanline_flipbuf_flip;
+  pngle_state_t state;
+
   int8_t filter_type;
-
   // interlace
   uint8_t interlace_pass;
 
-  const char *error;
-
-  // for pngle_draw_pixels
-  uint8_t pixel_depth;
-  uint8_t magni;
+  // 0 indicates IHDR hasn't been processed yet
+  uint8_t channels;
 
 #ifndef PNGLE_NO_GAMMA_CORRECTION
   uint8_t *gamma_table;
   double display_gamma;
 #endif
 
-  pngle_init_callback_t init_callback;
-  pngle_draw_callback_t draw_callback;
-  pngle_done_callback_t done_callback;
-
-  void *user_data;
+  const char *error;
+  // decompression state (reset on IHDR)
+  uint8_t *next_out; // NULL indicates IDAT hasn't been processed yet
+  size_t  avail_out;
+  tinfl_decompressor inflator; // 11000 bytes
+  uint8_t lz_buf[TINFL_LZ_DICT_SIZE]; // 32768 bytes
 };
 
 // magic
@@ -227,40 +223,65 @@ pngle_ihdr_t *lgfx_pngle_get_ihdr(pngle_t *pngle)
 
 static int pngle_draw_pixels(pngle_t *pngle, uint8_t* buf, uint32_t* rgbbuf)
 {
-  size_t pixels = pngle->scanline_pixels;
   size_t depth = pngle->hdr.depth;
+  size_t pixels = pngle->scanline_pixels;
+  uint32_t* rgba32 = rgbbuf - 1;
+  uint32_t* last = &rgba32[pixels];
   if (depth >= 8) {
-    uint32_t* rgba32 = rgbbuf - 1;
     size_t add = depth >> 3;
-    size_t ce = pngle->channels;
-    uint32_t tmp_def = ce == 3 ? 0xFF000000 : 0;
-    do {
-      size_t c = 0;
-      uint32_t tmp = tmp_def;
+    switch (pngle->channels)
+    {
+    case 1: // grayscale or palette
       do {
-        tmp += buf[0] << (c << 3);
+        *++rgba32 = buf[0];
         buf += add;
-      } while (++c < ce);
-      *++rgba32 = tmp;
-    } while (--pixels);
+      } while (rgba32 != last);
+      break;
+
+    case 2: // grayscale with alpha
+      do {
+        /// grayscale to color (* 0x010101) + alpha channel
+        *++rgba32 = buf[0]*0x010101 + (buf[add] << 24);
+        buf += add * 2;
+      } while (rgba32 != last);
+      break;
+    
+    case 3: // color
+      do {
+        *++rgba32 = 0xFF000000
+                  + (buf[    0]      )
+                  + (buf[add  ] <<  8)
+                  + (buf[add*2] << 16);
+        buf += add * 3;
+      } while (rgba32 != last);
+      break;
+
+    default: //4 : color + alpha
+      do {
+        // *++rgba32 = *(uint32_t*)buf;
+        *++rgba32 = (buf[    0]      )
+                  + (buf[add  ] <<  8)
+                  + (buf[add*2] << 16)
+                  + (buf[add*3] << 24);
+        buf += add * 4;
+      } while (rgba32 != last);
+      break;
+    }
   } else {
     size_t mask = ((1 << depth) - 1);
-    size_t bitcount = 8;
+    size_t shift = 8;
     size_t b = buf[0];
-    uint32_t* rgba32 = rgbbuf - 1;
     do {
-      bitcount -= depth;
-      *++rgba32 = (b >> bitcount) & mask;
-      if (bitcount == 0) {
-        bitcount = 8;
-        ++buf;
-        b = buf[0];
+      shift -= depth;
+      *++rgba32 = (b >> shift) & mask;
+      if (shift == 0) {
+        shift = 8;
+        b = *++buf;
       }
-    } while (--pixels);
+    } while (rgba32 != last);
   }
 
-  uint8_t* rgba = (uint8_t*)rgbbuf;
-  uint32_t* rgba32 = rgbbuf - 1;
+  rgba32 = rgbbuf - 1;
   pixels = pngle->scanline_pixels;
   // color type: 0000 0111
   //                     ^-- indexed color (palette)
@@ -268,12 +289,12 @@ static int pngle_draw_pixels(pngle_t *pngle, uint8_t* buf, uint32_t* rgbbuf)
   //                   ^---- Alpha channel
   switch (pngle->hdr.color_type)
   {
-  case 0:
+  case 0: // grayscale
     {
-      size_t tp = (pngle->n_trans_palettes != 1)
-                ? ~0u
-                : pngle->trans_palette[0 * 2 + 1];
-      uint32_t magni = pngle->magni * 0x10101;
+      uint32_t tp = (pngle->n_trans_palettes != 1)
+                  ? ~0u
+                  : pngle->trans_palette[0 * 2 + 1];
+      uint32_t magni = pngle->magni;
       do {
         uint32_t tmp = *++rgba32;
         *rgba32 = ((tmp == tp) ? 0 : 0xFF000000) + (tmp * magni);
@@ -297,25 +318,17 @@ static int pngle_draw_pixels(pngle_t *pngle, uint8_t* buf, uint32_t* rgbbuf)
   case 3: // indexed color
     do
     {  // lookup palette info
-      uint_fast8_t pidx = rgba[0];
+      size_t pidx = *++rgba32;
       if (pidx >= pngle->n_palettes) pidx = 0;
-      rgba[0] = pngle->palette[pidx * 3 + 0];
-      rgba[1] = pngle->palette[pidx * 3 + 1];
-      rgba[2] = pngle->palette[pidx * 3 + 2];
-
-      // tRNS as an indexed alpha value table (for color type 3)
-      rgba[3] = pidx < pngle->n_trans_palettes ? pngle->trans_palette[pidx] : ~0;
-      rgba += 4;
+      uint_fast32_t tmp = (pidx < pngle->n_trans_palettes ? pngle->trans_palette[pidx] : ~0);
+      pidx *= 3;
+      tmp     = (tmp<<8)+pngle->palette[pidx + 2];
+      tmp     = (tmp<<8)+pngle->palette[pidx + 1];
+      *rgba32 = (tmp<<8)+pngle->palette[pidx + 0];
     } while (--pixels);
     break;
 
-  case 4: // grayscale
-    do {
-      rgba[3] = rgba[1];
-      rgba[1] = rgba[2] = rgba[0];
-      rgba += 4;
-    } while (--pixels);
-    break;
+//case 4: // grayscale with alpha ...nothing to do.
 
   default:
     break;
@@ -335,8 +348,7 @@ static int pngle_draw_pixels(pngle_t *pngle, uint8_t* buf, uint32_t* rgbbuf)
 #endif
 
   if (pngle->draw_callback) {
-    uint_fast8_t x = interlace_off_x[pngle->interlace_pass];
-    pngle->draw_callback(pngle, x, pngle->drawing_y, interlace_div_x[pngle->interlace_pass], pngle->scanline_pixels, (const uint8_t*)rgbbuf);
+    pngle->draw_callback(pngle, interlace_off_x[pngle->interlace_pass], pngle->drawing_y, interlace_div_x[pngle->interlace_pass], pngle->scanline_pixels, (const uint8_t*)rgbbuf);
   }
   return 0;
 }
@@ -349,7 +361,7 @@ static inline int paeth(int a, int b, int c)
   int pc = abs(pa + pb);
   pa = abs(pa);
   pb = abs(pb);
-  if (pb < pa) { a = b; pa = pb; }
+  if (pb < pa) { pa = pb; a = b; }
   return (pc < pa) ? c : a;
 }
 
@@ -368,7 +380,6 @@ static void set_interlace_pass(pngle_t *pngle, uint_fast8_t pass)
   size_t scanline_stride = (scanline_pixels * pngle->channels * pngle->hdr.depth + 7) >> 3;
   pngle->scanline_stride = scanline_stride;
   pngle->scanline_remain_bytes_to_render = scanline_stride;
-  pngle->filter_type = -1;
 }
 
 static int setup_gamma_table(pngle_t *pngle, uint32_t png_gamma)
@@ -379,7 +390,7 @@ static int setup_gamma_table(pngle_t *pngle, uint32_t png_gamma)
   if (pngle->display_gamma <= 0) return 0; // disable gamma correction
   if (png_gamma == 0) return 0;
 
-  uint_fast8_t pixel_depth = pngle->pixel_depth;
+  uint_fast8_t pixel_depth = (pngle->hdr.color_type & 1) ? 8 : pngle->hdr.depth;
   uint_fast16_t maxval = (1UL << pixel_depth) - 1;
 
   pngle->gamma_table = PNGLE_CALLOC(1, maxval + 1, "gamma table");
@@ -402,15 +413,11 @@ static int pngle_on_data(pngle_t *pngle, const uint8_t *p, int len)
   // const uint8_t *ep = p + len;
 
   uint_fast8_t bytes_per_pixel = (pngle->channels * pngle->hdr.depth + 7) >> 3; // 1 if depth <= 8
-
+  int8_t filter_type = pngle->filter_type;
   size_t remain_bytes = pngle->scanline_remain_bytes_to_render;
 
-  int8_t filter_type = pngle->filter_type;
-  
-  size_t cidx = pngle->scanline_flipbuf_cidx;
-  size_t flip = pngle->scanline_flipbuf_flip & 1;
-  uint8_t* prev_buf = pngle->scanline_flipbuf[!flip];
-  uint8_t* current_buf = pngle->scanline_flipbuf[flip];
+  uint8_t* current_buf = pngle->scanline_flipbuf[0];
+  uint8_t* prev_buf    = pngle->scanline_flipbuf[1];
   while (len) {
     if (filter_type < 0) {
       filter_type = (int8_t)*p++; // 0 - 4
@@ -420,14 +427,15 @@ static int pngle_on_data(pngle_t *pngle, const uint8_t *p, int len)
       }
       if (--len == 0) break;
     }
+    size_t cidx = pngle->scanline_stride - remain_bytes;
 
     size_t l = (len < remain_bytes) ? len : remain_bytes;
     remain_bytes -= l;
     len -= l;
 
-    size_t last = cidx + l;
     const uint8_t* newdata = p - cidx;
     p += l;
+    size_t last = cidx + l;
 
     switch (filter_type) {
     default:
@@ -469,8 +477,6 @@ static int pngle_on_data(pngle_t *pngle, const uint8_t *p, int len)
 
     if (pngle_draw_pixels(pngle, current_buf, (uint32_t*)prev_buf) < 0) return -1;
 
-    cidx = 0;
-    flip = !flip;
     uint8_t* tmp = prev_buf;
     prev_buf = current_buf;
     current_buf = tmp;
@@ -487,8 +493,8 @@ static int pngle_on_data(pngle_t *pngle, const uint8_t *p, int len)
       memset(prev_buf, 0, remain_bytes);
     }
   }
-  pngle->scanline_flipbuf_flip = flip;
-  pngle->scanline_flipbuf_cidx = cidx;
+  pngle->scanline_flipbuf[0] = current_buf;
+  pngle->scanline_flipbuf[1] = prev_buf;
   pngle->scanline_remain_bytes_to_render = remain_bytes;
   pngle->filter_type = filter_type;
   
@@ -561,13 +567,6 @@ static int pngle_handle_chunk(pngle_t *pngle, const uint8_t *buf, size_t len)
     pngle->hdr.filter      = read_uint8 (buf + 11);
     pngle->hdr.interlace   = read_uint8 (buf + 12);
 
-    pngle->pixel_depth = (pngle->hdr.color_type & 1) ? 8 : pngle->hdr.depth;
-
-    pngle->magni = (pngle->pixel_depth == 1) ? 0xFF
-                 : (pngle->pixel_depth == 2) ? 0x55
-                 : (pngle->pixel_depth == 4) ? 0x11
-                                             :    1;
-
     debug_printf("[pngle]     width      : %d\n", pngle->hdr.width      );
     debug_printf("[pngle]     height     : %d\n", pngle->hdr.height     );
     debug_printf("[pngle]     depth      : %d\n", pngle->hdr.depth      );
@@ -598,21 +597,28 @@ static int pngle_handle_chunk(pngle_t *pngle, const uint8_t *buf, size_t len)
     //   ^--- Color
     //  ^---- Alpha channel
     {
-      uint8_t invalid = (pngle->hdr.depth != 1 && pngle->hdr.depth != 2 && pngle->hdr.depth != 4 && pngle->hdr.depth != 8 && pngle->hdr.depth != 16);
-      if (!invalid)
-      {
-        switch (pngle->hdr.color_type) {
-        case 0: pngle->channels = 1;                                         break; // grayscale
-        case 2: pngle->channels = 3; invalid = (0b00111 & pngle->hdr.depth); break; // truecolor
-        case 3: pngle->channels = 1; invalid = (0b10000 & pngle->hdr.depth); break; // indexed color
-        case 4: pngle->channels = 2; invalid = (0b00111 & pngle->hdr.depth); break; // grayscale + alpha
-        case 6: pngle->channels = 4; invalid = (0b00111 & pngle->hdr.depth); break; // truecolor + alpha
-        default:
-          return PNGLE_ERROR("Incorrect IHDR info");
-        }
+      uint_fast8_t ch_mask = 0;
+      switch (pngle->hdr.color_type) {
+      case 0: ch_mask = 1 << 5 | 0;       break; // 1 channel grayscale
+      case 2: ch_mask = 3 << 5 | 0b00111; break; // 3 channel truecolor
+      case 3: ch_mask = 1 << 5 | 0b10000; break; // 1 channel indexed color
+      case 4: ch_mask = 2 << 5 | 0b00111; break; // 2 channel grayscale + alpha
+      case 6: ch_mask = 4 << 5 | 0b00111; break; // 4 channel truecolor + alpha
+      default:
+        return PNGLE_ERROR("Incorrect IHDR info");
       }
-      if (invalid) return PNGLE_ERROR("Invalid bit depth");
+      pngle->channels = ch_mask >> 5;
+      int depth = pngle->hdr.depth;
+      if ((depth & ch_mask) || (depth != (depth & (-depth)))) return PNGLE_ERROR("Invalid bit depth");
     }
+
+    pngle->filter_type = -1;
+    pngle->magni = ( (pngle->hdr.depth == 1) ? 0xFFFFFF
+                   : (pngle->hdr.depth == 2) ? 0x555555
+                   : (pngle->hdr.depth == 4) ? 0x111111
+                                             : 0x010101
+                   );
+
     if (pngle->hdr.compression != 0) return PNGLE_ERROR("Unsupported compression type in IHDR");
     if (pngle->hdr.filter      != 0) return PNGLE_ERROR("Unsupported filter type in IHDR");
 
@@ -621,7 +627,6 @@ static int pngle_handle_chunk(pngle_t *pngle, const uint8_t *buf, size_t len)
 
     {
       uint_fast8_t bytes_per_pixel = (pngle->channels * pngle->hdr.depth + 7) >> 3;
-      pngle->scanline_flipbuf_cidx = 0;
       if (bytes_per_pixel < 4) bytes_per_pixel = 4;
       size_t memlen = (pngle->hdr.width * bytes_per_pixel + 11) & ~3; // width x ARGB8888  4byte aligned
       if ((pngle->scanline_buf = PNGLE_CALLOC(memlen, 2, "scanline flipbuf")) == NULL) return PNGLE_ERROR("Insufficient memory");
@@ -635,20 +640,13 @@ static int pngle_handle_chunk(pngle_t *pngle, const uint8_t *buf, size_t len)
     break;
 
   case PNGLE_CHUNK_PLTE:
-    consume = 3;
-    if (len < consume) return 0;
-
-    memcpy(pngle->palette + pngle->n_palettes * 3, buf, 3);
-
-    debug_printf("[pngle] PLTE[%zd]: (%d, %d, %d)\n"
-      , pngle->n_palettes
-      , pngle->palette[pngle->n_palettes * 3 + 0]
-      , pngle->palette[pngle->n_palettes * 3 + 1]
-      , pngle->palette[pngle->n_palettes * 3 + 2]
-    );
-
-    pngle->n_palettes++;
-
+    {
+      size_t num = (len / 3);
+      if (num == 0) return 0;
+      consume = num * 3;
+      memcpy(pngle->palette + pngle->n_palettes * 3, buf, consume);
+      pngle->n_palettes += num;
+    }
     break;
 
   case PNGLE_CHUNK_IEND:
