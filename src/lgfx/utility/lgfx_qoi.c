@@ -100,6 +100,7 @@ static uint8_t read_uint8(const uint8_t *p)
   return *p;
 }
 
+
 static uint32_t read_uint32(const uint8_t *p)
 {
   return (p[0] << 24)
@@ -109,13 +110,6 @@ static uint32_t read_uint32(const uint8_t *p)
   ;
 }
 
-static void write_uint32(uint8_t *bytes, int *p, uint32_t v)
-{
-  bytes[(*p)++] = (uint8_t)(v >> 24);
-  bytes[(*p)++] = (uint8_t)(v >> 16);
-  bytes[(*p)++] = (uint8_t)(v >>  8);
-  bytes[(*p)++] = (uint8_t)v;
-}
 
 int lgfx_qoi_feed(qoi_t *qoi, const uint8_t *buf, size_t len)
 {
@@ -289,9 +283,10 @@ void *lgfx_qoi_get_user_data(qoi_t *qoi)
 
 
 static uint8_t* writeBuffer;
-static size_t writeBufferSize = 4096;
-static uint32_t writeBufferPos = 0;
+static size_t writeBufferSize;
+static uint32_t writeBufferPos;
 lfgx_qoi_writer_func bytes_writer;
+
 
 static int8_t enc_write_uint8( uint8_t v )
 {
@@ -341,7 +336,6 @@ void *lgfx_qoi_encoder_write_fb(const void *lineBuffer, int w, int h, int num_ch
 }
 
 
-
 size_t lgfx_qoi_encode(const void *lineBuffer, const qoi_desc_t *desc, int flip, lgfx_qoi_encoder_get_row_func get_row, lfgx_qoi_writer_func write_bytes, void *qoienc)
 {
   int i, p, repeat;
@@ -362,7 +356,8 @@ size_t lgfx_qoi_encode(const void *lineBuffer, const qoi_desc_t *desc, int flip,
   p = 0;
   writeBufferPos = 0;
   writeBuffer = (uint8_t*)malloc(writeBufferSize);
-  if (!writeBuffer) {
+  if (!writeBuffer)
+  {
     debug_printf( "Can't malloc %d bytes", writeBufferSize);
     return 0;
   }
@@ -389,7 +384,8 @@ size_t lgfx_qoi_encode(const void *lineBuffer, const qoi_desc_t *desc, int flip,
   px_end = px_len - desc->channels;
   channels = desc->channels;
 
-  for (px_pos = 0; px_pos < px_len; px_pos += channels) {
+  for (px_pos = 0; px_pos < px_len; px_pos += channels)
+  {
 
     uint32_t bufferPos = px_pos%lineBufferLen;
     uint32_t ypos      = px_pos/lineBufferLen;
@@ -397,34 +393,45 @@ size_t lgfx_qoi_encode(const void *lineBuffer, const qoi_desc_t *desc, int flip,
 
     if (channels == 4) {
       px = *(qoi_rgba_t *)(pixels + bufferPos);
-    } else {
+    }
+    else
+    {
       px.rgba.r = pixels[bufferPos + 0];
       px.rgba.g = pixels[bufferPos + 1];
       px.rgba.b = pixels[bufferPos + 2];
     }
 
-    if (px.v == px_prev.v) {
+    if (px.v == px_prev.v)
+    {
       repeat++;
-      if (repeat == 62 || px_pos == px_end) {
+      if (repeat == 62 || px_pos == px_end)
+      {
         p += enc_write_uint8( (uint8_t)(QOI_OP_RUN | (repeat - 1)) );
         repeat = 0;
       }
-    } else {
+    }
+    else
+    {
       int index_pos;
 
-      if (repeat > 0) {
+      if (repeat > 0)
+      {
         p += enc_write_uint8( (uint8_t)(QOI_OP_RUN | (repeat - 1)));
         repeat = 0;
       }
 
       index_pos = QOI_COLOR_HASH(&px);
 
-      if (qoi_index[index_pos].v == px.v) {
+      if (qoi_index[index_pos].v == px.v)
+      {
         p += enc_write_uint8( (uint8_t)(QOI_OP_INDEX | index_pos) );
-      } else {
+      }
+      else
+      {
         qoi_index[index_pos] = px;
 
-        if (px.rgba.a == px_prev.rgba.a) {
+        if (px.rgba.a == px_prev.rgba.a)
+        {
           signed char vr = px.rgba.r - px_prev.rgba.r;
           signed char vg = px.rgba.g - px_prev.rgba.g;
           signed char vb = px.rgba.b - px_prev.rgba.b;
@@ -432,26 +439,25 @@ size_t lgfx_qoi_encode(const void *lineBuffer, const qoi_desc_t *desc, int flip,
           signed char vg_r = vr - vg;
           signed char vg_b = vb - vg;
 
-          if (
-            vr > -3 && vr < 2 &&
-            vg > -3 && vg < 2 &&
-            vb > -3 && vb < 2
-          ) {
+          if ( vr > -3 && vr < 2 && vg > -3 && vg < 2 && vb > -3 && vb < 2 )
+          {
             p += enc_write_uint8( (uint8_t)(QOI_OP_DIFF + ((vr + 2) << 4) + ((vg + 2) << 2) + (vb + 2)) );
-          } else if (
-            vg_r >  -9 && vg_r <  8 &&
-            vg   > -33 && vg   < 32 &&
-            vg_b >  -9 && vg_b <  8
-          ) {
+          }
+          else if ( vg_r >  -9 && vg_r <  8 && vg   > -33 && vg   < 32 && vg_b >  -9 && vg_b <  8 )
+          {
             p += enc_write_uint8( (uint8_t)(QOI_OP_LUMA     | (vg   + 32)) );
             p += enc_write_uint8( (uint8_t)((vg_r + 8) << 4 | (vg_b +  8)) );
-          } else {
+          }
+          else
+          {
             p += enc_write_uint8( QOI_OP_RGB );
             p += enc_write_uint8( px.rgba.r  );
             p += enc_write_uint8( px.rgba.g  );
             p += enc_write_uint8( px.rgba.b  );
           }
-        } else {
+        }
+        else
+        {
           p += enc_write_uint8( QOI_OP_RGBA );
           p += enc_write_uint8( px.rgba.r   );
           p += enc_write_uint8( px.rgba.g   );
@@ -463,11 +469,13 @@ size_t lgfx_qoi_encode(const void *lineBuffer, const qoi_desc_t *desc, int flip,
     px_prev = px;
   }
 
-  for (i = 0; i < (int)sizeof(qoi_padding); i++) {
+  for (i = 0; i < (int)sizeof(qoi_padding); i++)
+  {
     p += enc_write_uint8( qoi_padding[i] );
   }
 
-  if( write_bytes ) {
+  if( write_bytes )
+  {
     if( writeBufferPos>0 ) write_bytes( writeBuffer, writeBufferPos );
     free( writeBuffer );
   }

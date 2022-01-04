@@ -18,8 +18,8 @@ typedef struct _qoi_desc_t qoi_desc_t;
 typedef void (*qoi_init_callback_t)(qoi_t *qoi, uint32_t w, uint32_t h);
 typedef void (*qoi_draw_callback_t)(qoi_t *qoi, uint32_t x, uint32_t y, uint_fast8_t div_x, size_t len, const uint8_t* rgba);
 typedef uint8_t *(*lgfx_qoi_encoder_get_row_func)(uint8_t *lineBuffer, int flip, int w, int h, int y, void *qoienc);
+// basic buffer/stream writer signature
 typedef int (*lfgx_qoi_writer_func)(uint8_t* buf, size_t buf_len);
-typedef void (*lfgx_qoi_uint8_writer)(uint8_t *bytes, int *p, uint8_t v);
 
 // ---------------------
 // Basic read interfaces
