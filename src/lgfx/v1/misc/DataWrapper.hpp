@@ -108,6 +108,11 @@ namespace lgfx
 //----------------------------------------------------------------------------
 
 #if defined (SdFat_h)
+  #if SD_FAT_VERSION >= 20102
+   #define LGFX_SDFAT_TYPE SdBase<FsVolume,FsFormatter>
+  #else
+   #define LGFX_SDFAT_TYPE SdBase<FsVolume>
+  #endif
 
   struct SdFatWrapper : public DataWrapper
   {
@@ -118,17 +123,17 @@ namespace lgfx
       _fp = nullptr;
     }
 
-    SdBase<FsVolume, FsFormatter>* _fs;
+    LGFX_SDFAT_TYPE *_fs;
     FsFile *_fp;
     FsFile _file;
 
-    SdFatWrapper(SdBase<FsVolume, FsFormatter>& fs, FsFile* fp = nullptr) : DataWrapper(), _fs(&fs), _fp(fp) { need_transaction = true; }
-    void setFS(SdBase<FsVolume, FsFormatter>& fs) {
+    SdFatWrapper(LGFX_SDFAT_TYPE &fs, FsFile* fp = nullptr) : DataWrapper(), _fs(&fs), _fp(fp) { need_transaction = true; }
+    void setFS(LGFX_SDFAT_TYPE &fs) {
       _fs = &fs;
       need_transaction = true;
     }
 
-    bool open(SdBase<FsVolume, FsFormatter>& fs, const char* path)
+    bool open(LGFX_SDFAT_TYPE &fs, const char* path)
     {
       setFS(fs);
       _file = fs.open(path, O_RDONLY);
@@ -148,6 +153,7 @@ namespace lgfx
     int32_t tell(void) override { return _fp->position(); }
   };
 
+ #undef LGFX_SDFAT_TYPE
 #endif
 
 //----------------------------------------------------------------------------
