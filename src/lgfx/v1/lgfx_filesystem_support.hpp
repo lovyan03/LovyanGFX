@@ -177,76 +177,76 @@ namespace lgfx
 
  #if defined (SdFat_h)
 
-    void loadFont(const char *path, SdBase<FsVolume> &fs)
+    void loadFont(const char *path, SdBase<FsVolume, FsFormatter> &fs)
     {
       init_font_file<SdFatWrapper>(fs);
       load_font_with_path(path);
     }
 
-    void loadFont(SdBase<FsVolume> &fs, const char *path)
+    void loadFont(SdBase<FsVolume, FsFormatter> &fs, const char *path)
     {
       init_font_file<SdFatWrapper>(fs);
       load_font_with_path(path);
     }
 
-    inline bool drawBmp(SdBase<FsVolume> &fs, const char *path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
+    inline bool drawBmp(SdBase<FsVolume, FsFormatter> &fs, const char *path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
     {
       return drawBmpFile(fs, path, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
     }
-    inline bool drawBmpFile(SdBase<FsVolume> &fs, const char *path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
+    inline bool drawBmpFile(SdBase<FsVolume, FsFormatter> &fs, const char *path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
     {
       SdFatWrapper file(fs);
       return this->drawBmpFile(&file, path, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
     }
-    inline bool drawBmpFile(SdBase<FsVolume> &fs, const String& path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
+    inline bool drawBmpFile(SdBase<FsVolume, FsFormatter> &fs, const String& path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
     {
       return drawBmpFile(fs, path.c_str(), x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
     }
 
-    inline bool drawJpgFile(SdBase<FsVolume> &fs, const char *path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
+    inline bool drawJpgFile(SdBase<FsVolume, FsFormatter> &fs, const char *path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
     {
       SdFatWrapper file(fs);
       return this->drawJpgFile(&file, path, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
     }
-    inline bool drawJpgFile(SdBase<FsVolume> &fs, const String& path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
+    inline bool drawJpgFile(SdBase<FsVolume, FsFormatter> &fs, const String& path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
     {
       return drawJpgFile(fs, path.c_str(), x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
     }
     [[deprecated("use float scale")]]
-    inline bool drawJpgFile(SdBase<FsVolume> &fs, const char *path, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, jpeg_div::jpeg_div_t scale)
+    inline bool drawJpgFile(SdBase<FsVolume, FsFormatter> &fs, const char *path, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, jpeg_div::jpeg_div_t scale)
     {
       return drawJpgFile(fs, path, x, y, maxWidth, maxHeight, offX, offY, 1.0f / (1 << scale));
     }
 
-    inline bool drawPngFile(SdBase<FsVolume> &fs, const char *path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
+    inline bool drawPngFile(SdBase<FsVolume, FsFormatter> &fs, const char *path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
     {
       SdFatWrapper file(fs);
       return this->drawPngFile(&file, path, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
     }
-    inline bool drawPngFile(SdBase<FsVolume> &fs, const String& path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
+    inline bool drawPngFile(SdBase<FsVolume, FsFormatter> &fs, const String& path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
     {
       return drawPngFile(fs, path.c_str(), x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
     }
 
 
-    inline bool drawBmpFile(SdBase<FsVolume> &fs, FsFile *file, int32_t x=0, int32_t y=0, int32_t maxWidth=0, int32_t maxHeight=0, int32_t offX=0, int32_t offY=0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
+    inline bool drawBmpFile(SdBase<FsVolume, FsFormatter> &fs, FsFile *file, int32_t x=0, int32_t y=0, int32_t maxWidth=0, int32_t maxHeight=0, int32_t offX=0, int32_t offY=0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
     {
       SdFatWrapper data(fs, file);
       return this->draw_bmp(&data, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
     }
 
-    inline bool drawJpgFile(SdBase<FsVolume> &fs, FsFile *file, int32_t x=0, int32_t y=0, int32_t maxWidth=0, int32_t maxHeight=0, int32_t offX=0, int32_t offY=0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
+    inline bool drawJpgFile(SdBase<FsVolume, FsFormatter> &fs, FsFile *file, int32_t x=0, int32_t y=0, int32_t maxWidth=0, int32_t maxHeight=0, int32_t offX=0, int32_t offY=0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
     {
       SdFatWrapper data(fs, file);
       return this->draw_jpg(&data, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
     }
     [[deprecated("use float scale")]]
-    inline bool drawJpgFile(SdBase<FsVolume> &fs, FsFile *file, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, jpeg_div::jpeg_div_t scale)
+    inline bool drawJpgFile(SdBase<FsVolume, FsFormatter> &fs, FsFile *file, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, jpeg_div::jpeg_div_t scale)
     {
       return drawJpgFile(fs, file, x, y, maxWidth, maxHeight, offX, offY, 1.0f / (1 << scale));
     }
 
-    inline bool drawPngFile(SdBase<FsVolume> &fs, FsFile *file, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
+    inline bool drawPngFile(SdBase<FsVolume, FsFormatter> &fs, FsFile *file, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
     {
       SdFatWrapper data(fs, file);
       return this->draw_png(&data, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
