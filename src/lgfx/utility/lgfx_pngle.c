@@ -49,7 +49,7 @@
 #endif
 
 #define PNGLE_ERROR(s) (pngle->error = (s), pngle->state = PNGLE_STATE_ERROR, -1)
-#define PNGLE_CALLOC(a, b, name) (debug_printf("[pngle] Allocating %zu bytes for %s\n", (size_t)(a) * (size_t)(b), (name)), calloc((size_t)(a), (size_t)(b)))
+#define PNGLE_MALLOC(a, b, name) (debug_printf("[pngle] Allocating %zu bytes for %s\n", (size_t)(a) * (size_t)(b), (name)), malloc((size_t)(a) * (size_t)(b)))
 
 #define PNGLE_UNUSED(x) (void)(x)
 
@@ -101,7 +101,6 @@ struct _pngle_t {
   // parser state (reset on every chunk header)
   uint32_t chunk_type;
   uint32_t chunk_remain;
-  mz_ulong crc32;
 
   // for pngle_draw_pixels
   uint32_t magni;
@@ -180,10 +179,18 @@ void lgfx_pngle_reset(pngle_t *pngle)
 
 pngle_t *lgfx_pngle_new()
 {
-  pngle_t *pngle = (pngle_t *)PNGLE_CALLOC(1, sizeof(pngle_t), "pngle_t");
+  pngle_t *pngle = (pngle_t *)PNGLE_MALLOC(1, sizeof(pngle_t), "pngle_t");
   if (!pngle) return NULL;
 
-  lgfx_pngle_reset(pngle);
+  pngle->scanline_buf = NULL;
+  pngle->palette = NULL;
+  pngle->trans_palette = NULL;
+  pngle->error = "No error";
+  pngle->state = PNGLE_STATE_INITIAL;
+  pngle->next_out = NULL;
+  pngle->avail_out = 0;
+  pngle->channels = 0;
+  tinfl_init(&pngle->inflator);
 
   return pngle;
 }
@@ -191,7 +198,9 @@ pngle_t *lgfx_pngle_new()
 void lgfx_pngle_destroy(pngle_t *pngle)
 {
   if (pngle) {
-    lgfx_pngle_reset(pngle);
+    if (pngle->scanline_buf ) { free(pngle->scanline_buf ); }
+    if (pngle->palette      ) { free(pngle->palette      ); }
+    if (pngle->trans_palette) { free(pngle->trans_palette); }
     free(pngle);
   }
 }
@@ -393,7 +402,7 @@ static int setup_gamma_table(pngle_t *pngle, uint32_t png_gamma)
   uint_fast8_t pixel_depth = (pngle->hdr.color_type & 1) ? 8 : pngle->hdr.depth;
   uint_fast16_t maxval = (1UL << pixel_depth) - 1;
 
-  pngle->gamma_table = PNGLE_CALLOC(1, maxval + 1, "gamma table");
+  pngle->gamma_table = PNGLE_MALLOC(1, maxval + 1, "gamma table");
   if (!pngle->gamma_table) return PNGLE_ERROR("Insufficient memory");
 
   for (int i = 0; i < maxval + 1; i++) {
@@ -416,8 +425,8 @@ static int pngle_on_data(pngle_t *pngle, const uint8_t *p, int len)
   int8_t filter_type = pngle->filter_type;
   size_t remain_bytes = pngle->scanline_remain_bytes_to_render;
 
-  uint8_t* current_buf = pngle->scanline_flipbuf[0];
-  uint8_t* prev_buf    = pngle->scanline_flipbuf[1];
+  uint8_t* prev_buf    = pngle->scanline_flipbuf[0];
+  uint8_t* current_buf = pngle->scanline_flipbuf[1];
   while (len) {
     if (filter_type < 0) {
       filter_type = (int8_t)*p++; // 0 - 4
@@ -493,8 +502,8 @@ static int pngle_on_data(pngle_t *pngle, const uint8_t *p, int len)
       memset(prev_buf, 0, remain_bytes);
     }
   }
-  pngle->scanline_flipbuf[0] = current_buf;
-  pngle->scanline_flipbuf[1] = prev_buf;
+  pngle->scanline_flipbuf[0] = prev_buf;
+  pngle->scanline_flipbuf[1] = current_buf;
   pngle->scanline_remain_bytes_to_render = remain_bytes;
   pngle->filter_type = filter_type;
   
@@ -629,7 +638,8 @@ static int pngle_handle_chunk(pngle_t *pngle, const uint8_t *buf, size_t len)
       uint_fast8_t bytes_per_pixel = (pngle->channels * pngle->hdr.depth + 7) >> 3;
       if (bytes_per_pixel < 4) bytes_per_pixel = 4;
       size_t memlen = (pngle->hdr.width * bytes_per_pixel + 11) & ~3; // width x ARGB8888  4byte aligned
-      if ((pngle->scanline_buf = PNGLE_CALLOC(memlen, 2, "scanline flipbuf")) == NULL) return PNGLE_ERROR("Insufficient memory");
+      if ((pngle->scanline_buf = PNGLE_MALLOC(memlen, 2, "scanline flipbuf")) == NULL) return PNGLE_ERROR("Insufficient memory");
+      memset(pngle->scanline_buf, 0, memlen + 8);
       pngle->scanline_flipbuf[0] = &pngle->scanline_buf[8];
       pngle->scanline_flipbuf[1] = &pngle->scanline_buf[8 + memlen];
     }
@@ -708,8 +718,6 @@ static int pngle_feed_internal(pngle_t *pngle, const uint8_t *buf, size_t len)
     pngle->chunk_remain = read_uint32(buf);
     pngle->chunk_type = read_uint32(buf + 4);
 
-    pngle->crc32 = mz_crc32(MZ_CRC32_INIT, (const mz_uint8 *)(buf + 4), 4);
-
     debug_printf("[pngle] Chunk '%.4s' len %u\n", buf + 4, pngle->chunk_remain);
 
     pngle->state = PNGLE_STATE_HANDLE_CHUNK;
@@ -751,7 +759,7 @@ static int pngle_feed_internal(pngle_t *pngle, const uint8_t *buf, size_t len)
       uint32_t chunk_remain_3 = pngle->chunk_remain / 3;
       if (pngle->chunk_remain != chunk_remain_3 * 3) return PNGLE_ERROR("Invalid PLTE chunk size");
       if (chunk_remain_3 > MIN(256, (1UL << pngle->hdr.depth))) return PNGLE_ERROR("Too many palettes in PLTE");
-      if ((pngle->palette = PNGLE_CALLOC(chunk_remain_3, 3, "palette")) == NULL) return PNGLE_ERROR("Insufficient memory");
+      if ((pngle->palette = PNGLE_MALLOC(chunk_remain_3, 3, "palette")) == NULL) return PNGLE_ERROR("Insufficient memory");
       pngle->n_palettes = 0;
       break;
 
@@ -779,7 +787,7 @@ static int pngle_feed_internal(pngle_t *pngle, const uint8_t *buf, size_t len)
       default:
         return PNGLE_ERROR("tRNS chunk is prohibited on the color type");
       }
-      if ((pngle->trans_palette = PNGLE_CALLOC(pngle->chunk_remain, 1, "trans palette")) == NULL) return PNGLE_ERROR("Insufficient memory");
+      if ((pngle->trans_palette = PNGLE_MALLOC(pngle->chunk_remain, 1, "trans palette")) == NULL) return PNGLE_ERROR("Insufficient memory");
       pngle->n_trans_palettes = 0;
       break;
 
@@ -798,7 +806,6 @@ static int pngle_feed_internal(pngle_t *pngle, const uint8_t *buf, size_t len)
       if (pngle->chunk_remain < (uint32_t)consumed) return PNGLE_ERROR("Chunk data has been consumed too much");
 
       pngle->chunk_remain -= consumed;
-      pngle->crc32 = mz_crc32(pngle->crc32, (const mz_uint8 *)buf, consumed);
     }
     if (pngle->chunk_remain <= 0) pngle->state = PNGLE_STATE_CRC;
 
@@ -806,15 +813,6 @@ static int pngle_feed_internal(pngle_t *pngle, const uint8_t *buf, size_t len)
 
   case PNGLE_STATE_CRC:
     if (len < 4) return 0;
-
-    uint32_t crc32 = read_uint32(buf);
-
-    if (crc32 != pngle->crc32) {
-      debug_printf("[pngle] CRC: %08x vs %08x => NG\n", crc32, (uint32_t)pngle->crc32);
-      return PNGLE_ERROR("CRC mismatch");
-    }
-
-    debug_printf("[pngle] CRC: %08x vs %08x => OK\n", crc32, (uint32_t)pngle->crc32);
     pngle->state = PNGLE_STATE_FIND_CHUNK_HEADER;
 
     // XXX:
