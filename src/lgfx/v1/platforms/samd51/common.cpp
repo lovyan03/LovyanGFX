@@ -539,7 +539,7 @@ auto mastermode = SERCOM_SPI_CTRLA_MODE_SPI_MASTER;
       auto sercom = reinterpret_cast<Sercom*>(sercom_data->sercomPtr);
       auto *spi = &sercom->SPI;
       
-      while (spi->INTFLAG.bit.RXC) { uint32_t tmp = spi->DATA.reg; }
+      while (spi->INTFLAG.bit.RXC) { uint32_t tmp = spi->DATA.reg; (void)tmp; }
       do
       {
         spi->DATA.reg = *data;

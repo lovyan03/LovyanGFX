@@ -137,8 +137,6 @@ namespace lgfx
 
     bool init(bool use_reset) override;
 
-    void beginTransaction(void) override;
-
     void setBrightness(uint8_t brightness) override;
 
     void display(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h) override;

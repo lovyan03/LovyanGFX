@@ -196,14 +196,20 @@ namespace lgfx
     }
 
 #if defined (SdFat_h)
+  #if SD_FAT_VERSION >= 20102
+   #define LGFX_SDFAT_TYPE SdBase<FsVolume,FsFormatter>
+  #else
+   #define LGFX_SDFAT_TYPE SdBase<FsVolume>
+  #endif
 
-    inline void createFromBmp(SdBase<FsVolume> &fs, const char *path) { createFromBmpFile(fs, path); }
-    void createFromBmpFile(SdBase<FsVolume> &fs, const char *path) {
+    inline void createFromBmp(LGFX_SDFAT_TYPE &fs, const char *path) { createFromBmpFile(fs, path); }
+    void createFromBmpFile(LGFX_SDFAT_TYPE &fs, const char *path) {
       SdFatWrapper file;
       file.setFS(fs);
       createFromBmpFile(&file, path);
     }
 
+  #undef LGFX_SDFAT_TYPE
 #endif
 
 #if defined (ARDUINO)

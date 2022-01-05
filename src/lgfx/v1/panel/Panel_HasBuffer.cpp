@@ -52,12 +52,16 @@ namespace lgfx
 
   void Panel_HasBuffer::beginTransaction(void)
   {
+    if (_in_transaction) return;
+    _in_transaction = true;
     _bus->beginTransaction();
     cs_control(false);
   }
 
   void Panel_HasBuffer::endTransaction(void)
   {
+    if (!_in_transaction) return;
+    _in_transaction = false;
     _bus->endTransaction();
     cs_control(true);
   }

@@ -200,18 +200,18 @@ namespace lgfx
  // バスの設定にはESP-IDFのSPIドライバを使用する。;
       if (_spi_dev_handle[spi_host] == nullptr)
       {
-      spi_bus_config_t buscfg;
-      buscfg.mosi_io_num = spi_mosi;
-      buscfg.miso_io_num = spi_miso;
-      buscfg.sclk_io_num = spi_sclk;
-      buscfg.quadwp_io_num = -1;
-      buscfg.quadhd_io_num = -1;
-      buscfg.max_transfer_sz = 1;
-      buscfg.flags = SPICOMMON_BUSFLAG_MASTER;
-      buscfg.intr_flags = 0;
+        spi_bus_config_t buscfg;
+        buscfg.mosi_io_num = spi_mosi;
+        buscfg.miso_io_num = spi_miso;
+        buscfg.sclk_io_num = spi_sclk;
+        buscfg.quadwp_io_num = -1;
+        buscfg.quadhd_io_num = -1;
+        buscfg.max_transfer_sz = 1;
+        buscfg.flags = SPICOMMON_BUSFLAG_MASTER;
+        buscfg.intr_flags = 0;
 
-      if (ESP_OK != spi_bus_initialize(static_cast<spi_host_device_t>(spi_host), &buscfg, dma_channel))
-      {
+        if (ESP_OK != spi_bus_initialize(static_cast<spi_host_device_t>(spi_host), &buscfg, dma_channel))
+        {
           ESP_LOGE("LGFX", "Failed to spi_bus_initialize. ");
         }
 

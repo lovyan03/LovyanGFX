@@ -2444,44 +2444,57 @@ namespace lgfx
   {
     auto p = (png_file_decoder_t*)lgfx_pngle_get_user_data(pngle);
 
-    int32_t y0 = ( y     ) - p->offY;
+    int32_t y0 = (int32_t)y - p->offY;
+    int32_t y1 = y0 + 1;
     if (y0 < 0) y0 = 0;
-    int32_t y1 = ( y + 1 ) - p->offY;
     if (y1 > p->maxHeight) y1 = p->maxHeight;
     if (y0 >= y1) return;
 
-    size_t idx = 0;
+    while ((int32_t)x < p->offX && --len)
+    {
+      x += div_x;
+      rgba += 4;
+    }
+    x -= p->offX;
 
+    if (!len || (int32_t)x >= p->maxWidth) return;
+
+    size_t idx = 0;
     while ((rgba[idx * 4 + 3] == 255) && ++idx != len);
+
     bool hasAlpha = (idx != len);
     if (hasAlpha)
     {
       p->gfx->readRectRGB(p->x, p->y + y0, p->maxWidth, 1, p->lineBuffer);
-    }
-    if (hasAlpha || div_x == 1)
-    {
-      if (!hasAlpha) p->gfx->waitDMA();
       do
       {
-        int32_t l = std::max<int32_t>(( x      ) - p->offX, 0);
-        int32_t r = std::min<int32_t>(((x + 1) ) - p->offX, p->maxWidth);
-        if (l < r)
-        {
-          uint_fast8_t a = rgba[3];
-          if (a) {
-            if (a == 255) {
-              memcpy(&p->lineBuffer[l], rgba, 3);
-            } else {
-              auto data = &p->lineBuffer[l];
-              uint_fast8_t inv = 255 - a;
-              data->r = (rgba[0] * a + data->r * inv + 255) >> 8;
-              data->g = (rgba[1] * a + data->g * inv + 255) >> 8;
-              data->b = (rgba[2] * a + data->b * inv + 255) >> 8;
-            }
+        uint_fast8_t a = rgba[3];
+        if (a) {
+          if (a == 255) {
+            p->lineBuffer[x] = *(uint32_t*)rgba;
+          } else {
+            auto data = &p->lineBuffer[x];
+            uint_fast8_t inv = 255 - a;
+            data->r = (rgba[0] * a + data->r * inv + 255) >> 8;
+            data->g = (rgba[1] * a + data->g * inv + 255) >> 8;
+            data->b = (rgba[2] * a + data->b * inv + 255) >> 8;
           }
         }
-        rgba += 4;
         x += div_x;
+        if ((int32_t)x >= p->maxWidth) break;
+        rgba += 4;
+      } while (--len);
+      p->gfx->pushImage(p->x, p->y + y0, p->maxWidth, 1, p->pc, true);
+    }
+    else
+    if (div_x == 1)
+    {
+      p->gfx->waitDMA();
+      do
+      {
+        p->lineBuffer[x] = *(uint32_t*)rgba;
+        if ((int32_t)++x >= p->maxWidth) break;
+        rgba += 4;
       } while (--len);
       p->gfx->pushImage(p->x, p->y + y0, p->maxWidth, 1, p->pc, true);
     }
@@ -2489,20 +2502,15 @@ namespace lgfx
     {
       do
       {
-        int32_t l = x      - p->offX;
-        if (l < 0) l = 0;
-        int32_t r = (x + 1) - p->offX;
-        if (r > p->maxWidth) r = p->maxWidth;
-        if (l < r)
-        {
-          p->gfx->setColor(color888(rgba[0], rgba[1], rgba[2]));
-          p->gfx->writeFillRectPreclipped(p->x + l, p->y + y0, 1, 1);
-        }
-        rgba += 4;
+        p->gfx->setColor(color888(rgba[0], rgba[1], rgba[2]));
+        p->gfx->writeFillRectPreclipped(p->x + x, p->y + y0, 1, 1);
         x += div_x;
+        if ((int32_t)x >= p->maxWidth) break;
+        rgba += 4;
       } while (--len);
     }
   }
+
   static void png_draw_alpha_scale_callback(pngle_t *pngle, uint32_t x, uint32_t y, uint_fast8_t div_x, size_t len, const uint8_t* rgba)
   {
     auto p = (png_file_decoder_t*)lgfx_pngle_get_user_data(pngle);
@@ -2513,18 +2521,55 @@ namespace lgfx
     if (y1 > p->maxHeight) y1 = p->maxHeight;
     if (y0 >= y1) return;
 
-    int32_t h = y1 - y0;
     size_t idx = 0;
 
     while ((rgba[idx * 4 + 3] == 255) && ++idx != len);
     bool hasAlpha = (idx != len);
     if (hasAlpha)
     {
-      p->gfx->readRectRGB(p->x, p->y + y0, p->maxWidth, h, p->lineBuffer);
+      do {
+        p->gfx->readRectRGB(p->x, p->y + y0, p->maxWidth, 1, p->lineBuffer);
+        const uint8_t* rgbabuf = rgba;
+        size_t loop = len;
+        size_t xtmp = x;
+        do
+        {
+          int32_t l = ceilf( xtmp      * p->zoom_x) - p->offX;
+          if (l < 0) l = 0;
+          int32_t r = ceilf((xtmp + 1) * p->zoom_x) - p->offX;
+          if (r > p->maxWidth) r = p->maxWidth;
+          if (l < r)
+          {
+            uint_fast8_t a = rgbabuf[3];
+            if (a) {
+              if (a == 255) {
+                do {
+                  p->lineBuffer[l] = *(uint32_t*)rgbabuf;
+                } while (++l < r);
+              } else {
+                uint_fast8_t inv = 255 - a;
+                size_t ar = rgbabuf[0] * a + 255;
+                size_t ag = rgbabuf[1] * a + 255;
+                size_t ab = rgbabuf[2] * a + 255;
+                do {
+                  auto data = &p->lineBuffer[l];
+                  data->set( (ar + data->r * inv) >> 8
+                           , (ag + data->g * inv) >> 8
+                           , (ab + data->b * inv) >> 8);
+                } while (++l < r);
+              }
+            }
+          }
+          rgbabuf += 4;
+          xtmp += div_x;
+        } while (--loop);
+        p->gfx->pushImage(p->x, p->y + y0, p->maxWidth, 1, p->pc, true);
+      } while (++y0 != y1);
     }
-    if (hasAlpha || div_x == 1)
+    else
+    if (div_x == 1)
     {
-      if (!hasAlpha) p->gfx->waitDMA();
+      p->gfx->waitDMA();
       do
       {
         int32_t l = ceilf( x      * p->zoom_x) - p->offX;
@@ -2533,40 +2578,20 @@ namespace lgfx
         if (r > p->maxWidth) r = p->maxWidth;
         if (l < r)
         {
-          uint_fast8_t a = rgba[3];
-          if (a) {
-            if (a == 255) {
-              int32_t i = l;
-              do {
-                for (int32_t j = 0; j < h; ++j) {
-                  auto data = &p->lineBuffer[i + j * p->maxWidth];
-                  memcpy(data, rgba, 3);
-                }
-              } while (++i < r);
-            } else {
-              uint_fast8_t inv = 255 - a;
-              size_t ar = rgba[0] * a + 255;
-              size_t ag = rgba[1] * a + 255;
-              size_t ab = rgba[2] * a + 255;
-              int32_t i = l;
-              do {
-                for (int32_t j = 0; j < h; ++j) {
-                  auto data = &p->lineBuffer[i + j * p->maxWidth];
-                  data->r = (ar + data->r * inv) >> 8;
-                  data->g = (ag + data->g * inv) >> 8;
-                  data->b = (ab + data->b * inv) >> 8;
-                }
-              } while (++i < r);
-            }
-          }
+          do {
+            p->lineBuffer[l] = *(uint32_t*)rgba;
+          } while (++l < r);
         }
         rgba += 4;
-        x += div_x;
+        ++x;
       } while (--len);
-      p->gfx->pushImage(p->x, p->y + y0, p->maxWidth, h, p->pc, true);
+      do {
+        p->gfx->pushImage(p->x, p->y + y0, p->maxWidth, 1, p->pc, true);
+      } while (++y0 != y1);
     }
     else
     {
+      size_t h = y1 - y0;
       do
       {
         int32_t l = ceilf( x      * p->zoom_x) - p->offX;
@@ -2653,7 +2678,7 @@ namespace lgfx
     if (p->maxHeight > hh) p->maxHeight = hh;
     if (p->maxHeight < 0) return;
 
-    p->lineBuffer = (bgr888_t*)heap_alloc_dma(sizeof(bgr888_t) * p->maxWidth * ceilf(p->zoom_x));
+    p->lineBuffer = (bgr888_t*)heap_alloc_dma(sizeof(bgr888_t) * p->maxWidth);
     p->pc->src_data = p->lineBuffer;
 
     if (p->zoom_x == 1.0f && p->zoom_y == 1.0f)
