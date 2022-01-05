@@ -118,17 +118,17 @@ namespace lgfx
       _fp = nullptr;
     }
 
-    SdBase<FsVolume>* _fs;
+    SdBase<FsVolume, FsFormatter>* _fs;
     FsFile *_fp;
     FsFile _file;
 
-    SdFatWrapper(SdBase<FsVolume>& fs, FsFile* fp = nullptr) : DataWrapper(), _fs(&fs), _fp(fp) { need_transaction = true; }
-    void setFS(SdBase<FsVolume>& fs) {
+    SdFatWrapper(SdBase<FsVolume, FsFormatter>& fs, FsFile* fp = nullptr) : DataWrapper(), _fs(&fs), _fp(fp) { need_transaction = true; }
+    void setFS(SdBase<FsVolume, FsFormatter>& fs) {
       _fs = &fs;
       need_transaction = true;
     }
 
-    bool open(SdBase<FsVolume>& fs, const char* path)
+    bool open(SdBase<FsVolume, FsFormatter>& fs, const char* path)
     {
       setFS(fs);
       _file = fs.open(path, O_RDONLY);
