@@ -108,7 +108,7 @@ namespace lgfx
 //----------------------------------------------------------------------------
 
 #if defined (SdFat_h)
-
+ #if SD_FAT_VERSION >= 20102
   struct SdFatWrapper : public DataWrapper
   {
     SdFatWrapper() : DataWrapper()
@@ -147,7 +147,46 @@ namespace lgfx
     void close(void) override { if (_fp) _fp->close(); }
     int32_t tell(void) override { return _fp->position(); }
   };
+ #else
+  struct SdFatWrapper : public DataWrapper
+  {
+    SdFatWrapper() : DataWrapper()
+    {
+      need_transaction = true;
+      _fs = nullptr;
+      _fp = nullptr;
+    }
 
+    SdBase<FsVolume>* _fs;
+    FsFile *_fp;
+    FsFile _file;
+
+    SdFatWrapper(SdBase<FsVolume>& fs, FsFile* fp = nullptr) : DataWrapper(), _fs(&fs), _fp(fp) { need_transaction = true; }
+    void setFS(SdBase<FsVolume>& fs) {
+      _fs = &fs;
+      need_transaction = true;
+    }
+
+    bool open(SdBase<FsVolume>& fs, const char* path)
+    {
+      setFS(fs);
+      _file = fs.open(path, O_RDONLY);
+      _fp = &_file;
+      return _file;
+    }
+    bool open(const char* path) override
+    {
+      _file = _fs->open(path, O_RDONLY);
+      _fp = &_file;
+      return _file;
+    }
+    int read(uint8_t *buf, uint32_t len) override { return _fp->read(buf, len); }
+    void skip(int32_t offset) override { _fp->seekCur(offset); }
+    bool seek(uint32_t offset) override { return _fp->seekSet(offset); }
+    void close(void) override { if (_fp) _fp->close(); }
+    int32_t tell(void) override { return _fp->position(); }
+  };
+ #endif
 #endif
 
 //----------------------------------------------------------------------------

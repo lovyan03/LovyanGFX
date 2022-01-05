@@ -196,13 +196,21 @@ namespace lgfx
     }
 
 #if defined (SdFat_h)
-
+  #if SD_FAT_VERSION >= 20102
     inline void createFromBmp(SdBase<FsVolume, FsFormatter> &fs, const char *path) { createFromBmpFile(fs, path); }
     void createFromBmpFile(SdBase<FsVolume, FsFormatter> &fs, const char *path) {
       SdFatWrapper file;
       file.setFS(fs);
       createFromBmpFile(&file, path);
     }
+  #else
+    inline void createFromBmp(SdBase<FsVolume> &fs, const char *path) { createFromBmpFile(fs, path); }
+    void createFromBmpFile(SdBase<FsVolume> &fs, const char *path) {
+      SdFatWrapper file;
+      file.setFS(fs);
+      createFromBmpFile(&file, path);
+    }
+  #endif
 
 #endif
 
