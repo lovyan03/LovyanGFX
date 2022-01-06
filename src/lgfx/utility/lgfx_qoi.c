@@ -292,6 +292,7 @@ static int8_t enc_write_uint8( uint8_t v )
 {
   writeBuffer[writeBufferPos++] = v;
   if( writeBufferPos == writeBufferSize )  { // buffer full, write!
+    // TODO: handle write errors
     if( bytes_writer ) bytes_writer( writeBuffer, writeBufferSize );
     writeBufferPos = 0;
   }
