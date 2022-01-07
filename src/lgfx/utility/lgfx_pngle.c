@@ -182,6 +182,7 @@ pngle_t *lgfx_pngle_new()
   pngle_t *pngle = (pngle_t *)PNGLE_MALLOC(1, sizeof(pngle_t), "pngle_t");
   if (!pngle) return NULL;
 
+  memset(pngle, 0, 64);
   pngle->scanline_buf = NULL;
   pngle->palette = NULL;
   pngle->trans_palette = NULL;
@@ -250,17 +251,17 @@ static int pngle_draw_pixels(pngle_t *pngle, uint8_t* buf, uint32_t* rgbbuf)
     case 2: // grayscale with alpha
       do {
         /// grayscale to color (* 0x010101) + alpha channel
-        *++rgba32 = buf[0]*0x010101 + (buf[add] << 24);
+        *++rgba32 = buf[0]*0x01010100 + buf[add];
         buf += add * 2;
       } while (rgba32 != last);
       break;
     
     case 3: // color
       do {
-        *++rgba32 = 0xFF000000
-                  + (buf[    0]      )
-                  + (buf[add  ] <<  8)
-                  + (buf[add*2] << 16);
+        *++rgba32 = 0xFF
+                  + (buf[    0] <<  8)
+                  + (buf[add  ] << 16)
+                  + (buf[add*2] << 24);
         buf += add * 3;
       } while (rgba32 != last);
       break;
@@ -268,10 +269,10 @@ static int pngle_draw_pixels(pngle_t *pngle, uint8_t* buf, uint32_t* rgbbuf)
     default: //4 : color + alpha
       do {
         // *++rgba32 = *(uint32_t*)buf;
-        *++rgba32 = (buf[    0]      )
-                  + (buf[add  ] <<  8)
-                  + (buf[add*2] << 16)
-                  + (buf[add*3] << 24);
+        *++rgba32 = (buf[    0] <<  8)
+                  + (buf[add  ] << 16)
+                  + (buf[add*2] << 24)
+                  + (buf[add*3]      );
         buf += add * 4;
       } while (rgba32 != last);
       break;
@@ -306,7 +307,7 @@ static int pngle_draw_pixels(pngle_t *pngle, uint8_t* buf, uint32_t* rgbbuf)
       uint32_t magni = pngle->magni;
       do {
         uint32_t tmp = *++rgba32;
-        *rgba32 = ((tmp == tp) ? 0 : 0xFF000000) + (tmp * magni);
+        *rgba32 = ((tmp == tp) ? 0 : 0xFF) + (tmp * magni);
       } while (--pixels);
     }
     break;
@@ -314,12 +315,12 @@ static int pngle_draw_pixels(pngle_t *pngle, uint8_t* buf, uint32_t* rgbbuf)
   case 2: // true color
     if (pngle->n_trans_palettes == 1)
     {
-      uint32_t tp = (pngle->trans_palette[0 * 2 + 1]      )
-                  + (pngle->trans_palette[1 * 2 + 1] <<  8)
-                  + (pngle->trans_palette[2 * 2 + 1] << 16)
-                  + 0xFF000000;
+      uint32_t tp = (pngle->trans_palette[0 * 2 + 1] <<  8)
+                  + (pngle->trans_palette[1 * 2 + 1] << 16)
+                  + (pngle->trans_palette[2 * 2 + 1] << 24)
+                  + 0xFF;
       do {
-        if (*++rgba32 == tp) { ((uint8_t*)rgba32)[3] = 0; }
+        if (*++rgba32 == tp) { ((uint8_t*)rgba32)[0] = 0; }
       } while (--pixels);
     }
     break;
@@ -328,12 +329,12 @@ static int pngle_draw_pixels(pngle_t *pngle, uint8_t* buf, uint32_t* rgbbuf)
     do
     {  // lookup palette info
       size_t pidx = *++rgba32;
-      if (pidx >= pngle->n_palettes) pidx = 0;
-      uint_fast32_t tmp = (pidx < pngle->n_trans_palettes ? pngle->trans_palette[pidx] : ~0);
+      uint_fast32_t tmp = (pidx < pngle->n_trans_palettes ? pngle->trans_palette[pidx] : 0xFF);
       pidx *= 3;
-      tmp     = (tmp<<8)+pngle->palette[pidx + 2];
-      tmp     = (tmp<<8)+pngle->palette[pidx + 1];
-      *rgba32 = (tmp<<8)+pngle->palette[pidx + 0];
+      *rgba32 = ( pngle->palette[pidx + 0] <<  8 )
+              + ( pngle->palette[pidx + 1] << 16 )
+              + ( pngle->palette[pidx + 2] << 24 )
+              + tmp;
     } while (--pixels);
     break;
 
@@ -622,10 +623,10 @@ static int pngle_handle_chunk(pngle_t *pngle, const uint8_t *buf, size_t len)
     }
 
     pngle->filter_type = -1;
-    pngle->magni = ( (pngle->hdr.depth == 1) ? 0xFFFFFF
-                   : (pngle->hdr.depth == 2) ? 0x555555
-                   : (pngle->hdr.depth == 4) ? 0x111111
-                                             : 0x010101
+    pngle->magni = ( (pngle->hdr.depth == 1) ? 0xFFFFFF00
+                   : (pngle->hdr.depth == 2) ? 0x55555500
+                   : (pngle->hdr.depth == 4) ? 0x11111100
+                                             : 0x01010100
                    );
 
     if (pngle->hdr.compression != 0) return PNGLE_ERROR("Unsupported compression type in IHDR");
