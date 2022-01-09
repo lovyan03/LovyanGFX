@@ -2329,7 +2329,7 @@ namespace lgfx
   {
     DataWrapper* data;
 
-    static size_t read_data(void* self, uint8_t* buf, size_t len)
+    static uint32_t read_data(void* self, uint8_t* buf, uint32_t len)
     {
       auto data = ((image_decoder_t*)self)->data;
       auto res = len;

@@ -44,7 +44,7 @@ extern "C" {
 typedef struct _pngle_t pngle_t;
 
 // Callback signatures
-typedef size_t (*lgfx_pngle_read_callback_t)(void *user_data, uint8_t *buf, size_t len);
+typedef uint32_t (*lgfx_pngle_read_callback_t)(void *user_data, uint8_t *buf, uint32_t len);
 typedef void (*lgfx_pngle_init_callback_t)(pngle_t *pngle, uint32_t w, uint32_t h);
 typedef void (*lgfx_pngle_draw_callback_t)(void *user_data, uint32_t x, uint32_t y, uint_fast8_t div_x, size_t len, const uint8_t* argb);
 
