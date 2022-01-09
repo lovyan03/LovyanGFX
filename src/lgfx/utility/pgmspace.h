@@ -78,7 +78,7 @@ Contributors:
 
 #ifndef ARDUINO
  static inline void* memcpy_P(void* __restrict dst, const void* __restrict src, size_t len) { return memcpy(dst, src, len); }
- static inline int memcmp_P(const void* __restrict dst, const void* __restrict src, size_t len) { return memcmp_P(dst, src, len); }
+ static inline int memcmp_P(const void* __restrict dst, const void* __restrict src, size_t len) { return memcmp(dst, src, len); }
 #endif
 
 #ifndef PROGMEM

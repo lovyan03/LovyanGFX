@@ -23,6 +23,7 @@ Contributors:
 #include "../utility/lgfx_pngle.h"
 #include "../utility/lgfx_qrcode.h"
 #include "../utility/lgfx_tjpgd.h"
+#include "../utility/lgfx_qoi.h"
 #include "panel/Panel_Device.hpp"
 #include "misc/bitmap.hpp"
 
@@ -2511,10 +2512,10 @@ namespace lgfx
   bool LGFXBase::draw_jpg(DataWrapper* data, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, float zoom_x, float zoom_y, datum_t datum)
   {
     prepareTmpTransaction(data);
-    draw_jpg_info_t jpeg;
+    draw_jpg_info_t drawinfo;
     pixelcopy_t pc(nullptr, this->getColorDepth(), bgr888_t::depth, this->hasPalette());
-    jpeg.pc = &pc;
-    jpeg.data = data;
+    drawinfo.pc = &pc;
+    drawinfo.data = data;
 
     //TJpgD jpegdec;
     lgfxJdec jpegdec;
@@ -2526,7 +2527,7 @@ namespace lgfx
       return false;
     }
 
-    auto jres = lgfx_jd_prepare(&jpegdec, jpeg.read_data, pool, sz_pool, &jpeg);
+    auto jres = lgfx_jd_prepare(&jpegdec, drawinfo.read_data, pool, sz_pool, &drawinfo);
 
     if (jres != JDR_OK)
     {
@@ -2534,42 +2535,42 @@ namespace lgfx
       return false;
     }
 
-    if (!jpeg.begin( this
-                   , x
-                   , y
-                   , maxWidth
-                   , maxHeight
-                   , offX
-                   , offY
-                   , zoom_x
-                   , zoom_y
-                   , datum
-                   , jpegdec.width, jpegdec.height))
+    if (!drawinfo.begin( this
+                       , x
+                       , y
+                       , maxWidth
+                       , maxHeight
+                       , offX
+                       , offY
+                       , zoom_x
+                       , zoom_y
+                       , datum
+                       , jpegdec.width, jpegdec.height))
     {
       heap_free(pool);
       return false;
     }
 
-    if (jpeg.offX) { jpeg.x -= jpeg.offX; jpeg.offX = 0; }
-    if (jpeg.offY) { jpeg.y -= jpeg.offY; jpeg.offY = 0; }
+    if (drawinfo.offX) { drawinfo.x -= drawinfo.offX; drawinfo.offX = 0; }
+    if (drawinfo.offY) { drawinfo.y -= drawinfo.offY; drawinfo.offY = 0; }
 
     jpeg_div::jpeg_div_t div = jpeg_div::jpeg_div_t::JPEG_DIV_NONE;
-    float scale_max = std::max(jpeg.zoom_x, jpeg.zoom_y);
+    float scale_max = std::max(drawinfo.zoom_x, drawinfo.zoom_y);
     if (scale_max <= 0.5f)
     {
       if (     scale_max <= 0.125f) { div = jpeg_div::jpeg_div_t::JPEG_DIV_8; }
       else if (scale_max <= 0.25f)  { div = jpeg_div::jpeg_div_t::JPEG_DIV_4; }
       else                          { div = jpeg_div::jpeg_div_t::JPEG_DIV_2; }
 
-      jpeg.zoom_x *= 1 << div;
-      jpeg.zoom_y *= 1 << div;
+      drawinfo.zoom_x *= 1 << div;
+      drawinfo.zoom_y *= 1 << div;
     }
 
     this->startWrite(!data->hasParent());
 
-    jres = lgfx_jd_decomp(&jpegdec, jpeg.zoom_x == 1.0f && jpeg.zoom_y == 1.0f ? jpg_push_image : jpg_push_image_affine, div);
+    jres = lgfx_jd_decomp(&jpegdec, drawinfo.zoom_x == 1.0f && drawinfo.zoom_y == 1.0f ? jpg_push_image : jpg_push_image_affine, div);
 
-    jpeg.end();
+    drawinfo.end();
     this->endWrite();
 
     heap_free(pool);
@@ -2828,7 +2829,6 @@ namespace lgfx
       return false;
     }
 
-    // png_init_callback(pngle, lgfx_pngle_get_width(pngle), lgfx_pngle_get_height(pngle));
     if (!png.begin( this
                   , x
                   , y
@@ -2845,7 +2845,6 @@ namespace lgfx
       return true;
     }
 
-//  pixelcopy_t pc(nullptr, this->getColorDepth(), bgr888_t::depth, this->_palette_count);
     pixelcopy_t pc(nullptr, this->getColorDepth(), bgra8888_t::depth, this->_palette_count);
     if (this->hasPalette() || pc.dst_bits < 8) {
       pc.fp_copy = pixelcopy_t::copy_bit_affine;
@@ -2861,7 +2860,6 @@ namespace lgfx
 
     png.pc = &pc;
 
-
     this->startWrite(!data->hasParent());
 
     auto res = lgfx_pngle_decomp(pngle, png.zoom_x == 1.0f && png.zoom_y == 1.0f ? png_draw_alpha_callback : png_draw_alpha_scale_callback);
@@ -2876,6 +2874,70 @@ namespace lgfx
 
     return res < 0 ? false : true;
   }
+
+
+  bool LGFXBase::draw_qoi(DataWrapper* data, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, float zoom_x, float zoom_y, datum_t datum)
+  {
+    qoi_t *qoi = lgfx_qoi_new();
+    if (qoi == nullptr) { return false; }
+
+    prepareTmpTransaction(data);
+    png_file_decoder_t png;
+    png.lineBuffer = nullptr;
+    png.data = data;
+
+    if (lgfx_qoi_prepare(qoi, image_decoder_t::read_data, &png) < 0)
+    {
+      lgfx_qoi_destroy(qoi);
+      return false;
+    }
+
+    if (!png.begin( this
+                  , x
+                  , y
+                  , maxWidth
+                  , maxHeight
+                  , offX
+                  , offY
+                  , zoom_x
+                  , zoom_y
+                  , datum
+                  , lgfx_qoi_get_width(qoi), lgfx_qoi_get_height(qoi)))
+    {
+      lgfx_qoi_destroy(qoi);
+      return true;
+    }
+
+    pixelcopy_t pc(nullptr, this->getColorDepth(), bgra8888_t::depth, this->_palette_count);
+    if (this->hasPalette() || pc.dst_bits < 8) {
+      pc.fp_copy = pixelcopy_t::copy_bit_affine;
+      pc.fp_skip = pixelcopy_t::skip_bit_affine;
+    }
+    else
+    {
+      pc.fp_skip = pixelcopy_t::skip_rgb_affine<bgra8888_t>;
+      pc.fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<bgra8888_t>(pc.dst_depth);
+    }
+    png.lineBuffer = (bgra8888_t*)heap_alloc_dma(sizeof(bgra8888_t) * png.maxWidth);
+    pc.src_data = png.lineBuffer;
+
+    png.pc = &pc;
+
+    this->startWrite(!data->hasParent());
+
+    auto res = lgfx_qoi_decomp(qoi, png.zoom_x == 1.0f && png.zoom_y == 1.0f ? png_draw_alpha_callback : png_draw_alpha_scale_callback);
+
+    this->endWrite();
+    if (png.lineBuffer) {
+      this->waitDMA();
+      heap_free(png.lineBuffer);
+    }
+    png.end();
+    lgfx_qoi_destroy(qoi);
+
+    return res < 0 ? false : true;
+  }
+
 
   struct png_encoder_t
   {

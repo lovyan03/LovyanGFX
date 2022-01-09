@@ -23,6 +23,7 @@ Contributors:
 
 #include <stdint.h>
 #include <string.h>
+#include "../../utility/pgmspace.h"
 
 namespace lgfx
 {

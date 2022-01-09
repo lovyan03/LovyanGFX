@@ -129,14 +129,6 @@ static inline uint32_t read_uint32(const uint8_t *p)
   ;
 }
 
-void lgfx_pngle_reset(pngle_t *pngle)
-{
-  if (!pngle) return;
-  if (pngle->palette      ) { free(pngle->palette      ); pngle->palette = NULL; }
-  if (pngle->scanline_buf ) { free(pngle->scanline_buf ); pngle->scanline_buf = NULL; }
-  if (pngle->argb_buf     ) { free(pngle->argb_buf     ); pngle->argb_buf = NULL; }
-}
-
 pngle_t *lgfx_pngle_new()
 {
   pngle_t* res = (pngle_t *)PNGLE_MALLOC(1, sizeof(pngle_t), "pngle_t");
@@ -382,21 +374,12 @@ static int pngle_on_data(pngle_t *pngle, const uint8_t *p, int len)
   return 0;
 }
 
-void lgfx_pngle_set_user_data(pngle_t *pngle, void *user_data)
-{
-  if (!pngle) return ;
-  pngle->user_data = user_data;
-}
-
-void *lgfx_pngle_get_user_data(pngle_t *pngle)
-{
-  if (!pngle) return NULL;
-  return pngle->user_data;
-}
-
 int lgfx_pngle_prepare(pngle_t *pngle, lgfx_pngle_read_callback_t read_cb, void* user_data)
 {
   if (pngle == NULL || read_cb == NULL) { return PNGLE_STATE_ERROR; }
+  if (pngle->palette      ) { free(pngle->palette      ); pngle->palette      = NULL; }
+  if (pngle->scanline_buf ) { free(pngle->scanline_buf ); pngle->scanline_buf = NULL; }
+  if (pngle->argb_buf     ) { free(pngle->argb_buf     ); pngle->argb_buf     = NULL; }
 
   pngle->read_callback = read_cb;
   pngle->user_data = user_data;

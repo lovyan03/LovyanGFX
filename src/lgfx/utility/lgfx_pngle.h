@@ -25,14 +25,12 @@
 /*----------------------------------------------------------------------------/
 / original source is here : https://github.com/kikuchan/pngle/
 /
-/ Modified for LGFX  by lovyan03, 2020
+/ Modified for LGFX  by lovyan03, 2020-2022
 / tweak for 32bit processor
 /----------------------------------------------------------------------------*/
 
 #ifndef __LGFX_PNGLE_H__
 #define __LGFX_PNGLE_H__
-
-#define PNGLE_NO_GAMMA_CORRECTION 1
 
 #include <stdint.h>
 
@@ -45,7 +43,6 @@ typedef struct _pngle_t pngle_t;
 
 // Callback signatures
 typedef uint32_t (*lgfx_pngle_read_callback_t)(void *user_data, uint8_t *buf, uint32_t len);
-typedef void (*lgfx_pngle_init_callback_t)(pngle_t *pngle, uint32_t w, uint32_t h);
 typedef void (*lgfx_pngle_draw_callback_t)(void *user_data, uint32_t x, uint32_t y, uint_fast8_t div_x, size_t len, const uint8_t* argb);
 
 // ----------------
@@ -57,20 +54,9 @@ int lgfx_pngle_prepare(pngle_t *pngle, lgfx_pngle_read_callback_t read_cb, void*
 int lgfx_pngle_decomp(pngle_t *pngle, lgfx_pngle_draw_callback_t draw_cb);
 
 void lgfx_pngle_destroy(pngle_t *pngle);
-void lgfx_pngle_reset(pngle_t *pngle); // clear its internal state (not applied to pngle_set_* functions)
-int lgfx_pngle_feed(pngle_t *pngle, const void *buf, size_t len); // returns -1: On error, 0: Need more data, n: n bytes eaten
 
 uint32_t lgfx_pngle_get_width(pngle_t *pngle);
 uint32_t lgfx_pngle_get_height(pngle_t *pngle);
-
-void lgfx_pngle_set_init_callback(pngle_t *png, lgfx_pngle_init_callback_t callback);
-void lgfx_pngle_set_draw_callback(pngle_t *png, lgfx_pngle_draw_callback_t callback);
-
-void lgfx_pngle_set_display_gamma(pngle_t *pngle, double display_gamma); // enables gamma correction by specifying display gamma, typically 2.2. No effect when gAMA chunk is missing
-
-void lgfx_pngle_set_user_data(pngle_t *pngle, void *user_data);
-void *lgfx_pngle_get_user_data(pngle_t *pngle);
-
 
 // ----------------
 // Debug interfaces
