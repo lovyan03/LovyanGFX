@@ -74,7 +74,6 @@ typedef enum {
 struct _pngle_t {
   // PLTE chunk
   uint8_t *scanline_buf;
-  uint32_t *argb_buf;
   uint8_t *palette;
 
   size_t n_palettes;
@@ -91,7 +90,7 @@ struct _pngle_t {
 
   uint32_t drawing_y;
 
-  // for pngle_draw_pixels
+  // for grayscale
   uint32_t magni;
 
   pngle_ihdr_t hdr;
@@ -106,6 +105,7 @@ struct _pngle_t {
   // decompression state (reset on IHDR)
   uint8_t *next_out; // NULL indicates IDAT hasn't been processed yet
   size_t  avail_out;
+  uint32_t out_buf[8];
   uint8_t read_buf[LGFX_PNGLE_READBUF_LEN];
   tinfl_decompressor inflator; // 11000 bytes
   uint8_t lz_buf[TINFL_LZ_DICT_SIZE]; // 32768 bytes
@@ -136,7 +136,6 @@ pngle_t *lgfx_pngle_new()
   {
     res->palette       = NULL;
     res->scanline_buf  = NULL;
-    res->argb_buf      = NULL;
   }
   return res;
 }
@@ -146,7 +145,6 @@ void lgfx_pngle_destroy(pngle_t *pngle)
   if (pngle) {
     if (pngle->scanline_buf ) { free(pngle->scanline_buf ); }
     if (pngle->palette      ) { free(pngle->palette      ); }
-    if (pngle->argb_buf     ) { free(pngle->argb_buf     ); }
     free(pngle);
   }
 }
@@ -170,24 +168,27 @@ pngle_ihdr_t *lgfx_pngle_get_ihdr(pngle_t *pngle)
   return &pngle->hdr;
 }
 
-static int pngle_draw_pixels(pngle_t *pngle, uint8_t* buf, uint32_t* rgbbuf)
+static int pngle_draw_pixels(pngle_t *pngle, const uint8_t* buf, uint32_t* rgbbuf, uint32_t x, uint32_t div_x, size_t len)
 {
   size_t depth = pngle->hdr.depth;
   uint32_t* argb32 = rgbbuf - 1;
-  uint32_t* last = &argb32[pngle->scanline_pixels];
-  if (depth >= 8) {
+  uint32_t* last = &argb32[len];
+  if (depth >= 8)
+  {
     size_t add = depth >> 3;
     switch (pngle->channels)
     {
     case 1: // grayscale or palette
-      do {
+      do
+      {
         *++argb32 = buf[0];
         buf += add;
       } while (argb32 != last);
       break;
 
     case 2: // grayscale with alpha
-      do {
+      do
+      {
         /// grayscale to color (* 0x010101) + alpha channel
         *++argb32 = buf[0]*0x01010100 + buf[add];
         buf += add * 2;
@@ -195,7 +196,8 @@ static int pngle_draw_pixels(pngle_t *pngle, uint8_t* buf, uint32_t* rgbbuf)
       break;
 
     case 3: // color
-      do {
+      do
+      {
         *++argb32 = 0xFF
                   + (buf[    0] <<  8)
                   + (buf[add  ] << 16)
@@ -205,7 +207,8 @@ static int pngle_draw_pixels(pngle_t *pngle, uint8_t* buf, uint32_t* rgbbuf)
       break;
 
     default: //4 : color + alpha
-      do {
+      do
+      {
         *++argb32 = (buf[    0] <<  8)
                   + (buf[add  ] << 16)
                   + (buf[add*2] << 24)
@@ -214,11 +217,14 @@ static int pngle_draw_pixels(pngle_t *pngle, uint8_t* buf, uint32_t* rgbbuf)
       } while (argb32 != last);
       break;
     }
-  } else {
+  }
+  else
+  {
     size_t mask = ((1 << depth) - 1);
     size_t shift = 8;
     size_t b = buf[0];
-    do {
+    do
+    {
       shift -= depth;
       *++argb32 = (b >> shift) & mask;
       if (shift == 0) {
@@ -250,7 +256,8 @@ static int pngle_draw_pixels(pngle_t *pngle, uint8_t* buf, uint32_t* rgbbuf)
     if (pngle->trans_color != LGFX_PNGLE_NON_TRANS_COLOR)
     {
       uint32_t tp = pngle->trans_color;
-      do {
+      do
+      {
         if (*++argb32 == tp) { ((uint8_t*)argb32)[0] = 0; }
       } while (argb32 != last);
     }
@@ -275,7 +282,7 @@ static int pngle_draw_pixels(pngle_t *pngle, uint8_t* buf, uint32_t* rgbbuf)
   }
 
   if (pngle->draw_callback) {
-    pngle->draw_callback(pngle->user_data, pgm_read_byte(&interlace_off_x[pngle->interlace_pass]), pngle->drawing_y, pgm_read_byte(&interlace_div_x[pngle->interlace_pass]), pngle->scanline_pixels, (const uint8_t*)rgbbuf);
+    pngle->draw_callback(pngle->user_data, x, pngle->drawing_y, div_x, len, (const uint8_t*)rgbbuf);
   }
   return 0;
 }
@@ -297,7 +304,6 @@ static void set_interlace_pass(pngle_t *pngle, uint_fast8_t pass)
   {
     ++pass;
   }
-
   pngle->interlace_pass = pass;
   pngle->drawing_y = pgm_read_byte(&interlace_off_y[pass]);
   size_t div_x = pgm_read_byte(&interlace_div_x[pass]);
@@ -308,13 +314,14 @@ static void set_interlace_pass(pngle_t *pngle, uint_fast8_t pass)
   pngle->scanline_remain_bytes_to_render = scanline_stride;
 }
 
-static int pngle_on_data(pngle_t *pngle, const uint8_t *p, int len)
+static int pngle_on_data(pngle_t *pngle, uint8_t *lzbuf, int len)
 {
   uint_fast8_t bytes_per_pixel = (pngle->channels * pngle->hdr.depth + 7) >> 3; // 1 if depth <= 8
   size_t filter_type = pngle->filter_type;
   size_t remain_bytes = pngle->scanline_remain_bytes_to_render;
 
-  uint8_t* buf = &(pngle->scanline_buf[bytes_per_pixel]);
+  const uint8_t* p = lzbuf;
+  uint8_t* scanline = &(pngle->scanline_buf[bytes_per_pixel]);
   while (len)
   {
     if (filter_type > 4)
@@ -328,7 +335,7 @@ static int pngle_on_data(pngle_t *pngle, const uint8_t *p, int len)
           return PNGLE_ERROR("Invalid filter type is found");
         }
         // Only when using the paeth filter, shift the previous result to the right by bytes_per_pixel. (To refer to the result of the upper left pixel).
-        memmove(buf, pngle->scanline_buf, bytes_per_pixel + pngle->scanline_stride);
+        memmove(scanline, scanline - bytes_per_pixel, bytes_per_pixel + pngle->scanline_stride);
       }
       if (--len == 0) { break; }
     }
@@ -343,17 +350,36 @@ static int pngle_on_data(pngle_t *pngle, const uint8_t *p, int len)
     size_t last = cidx + l;
 
     switch (filter_type) {
-    default: memcpy(&buf[cidx], &newdata[cidx], l); cidx = last; break;
-    case 1: do { buf[cidx]  = newdata[cidx] + buf[cidx - bytes_per_pixel];                                                } while (++cidx != last); break;
-    case 2: do { buf[cidx] += newdata[cidx];                                                                              } while (++cidx != last); break;
-    case 3: do { buf[cidx]  = newdata[cidx] + ((buf[cidx - bytes_per_pixel] + buf[cidx]) >> 1);                           } while (++cidx != last); break;
-    case 4: do { buf[cidx]  = newdata[cidx] + paeth(buf[cidx - bytes_per_pixel], buf[cidx + bytes_per_pixel], buf[cidx]); } while (++cidx != last); break;
+    default: memcpy(&scanline[cidx], &newdata[cidx], l); cidx = last; break;
+    case 1: do { scanline[cidx]  = newdata[cidx] + scanline[cidx - bytes_per_pixel];                                                          } while (++cidx != last); break;
+    case 2: do { scanline[cidx] += newdata[cidx];                                                                                             } while (++cidx != last); break;
+    case 3: do { scanline[cidx]  = newdata[cidx] + ((scanline[cidx - bytes_per_pixel] + scanline[cidx]) >> 1);                                } while (++cidx != last); break;
+    case 4: do { scanline[cidx]  = newdata[cidx] + paeth(scanline[cidx - bytes_per_pixel], scanline[cidx + bytes_per_pixel], scanline[cidx]); } while (++cidx != last); break;
     }
     if (remain_bytes) { break; }
 
     remain_bytes = pngle->scanline_stride; // reset
 
-    if (pngle_draw_pixels(pngle, buf, pngle->argb_buf) < 0) { return -1; }
+    uint32_t draw_x = pgm_read_byte(&interlace_off_x[pngle->interlace_pass]);
+    uint32_t div_x  = pgm_read_byte(&interlace_div_x[pngle->interlace_pass]);
+    size_t draw_remain = pngle->scanline_pixels;
+    uint32_t* oubbuf = (uint32_t*)lzbuf;
+    size_t outlen = ((p - lzbuf) >> 2) & ~7;
+    size_t drawidx = 0;
+    if (!outlen)
+    {
+      outlen = 8;
+      oubbuf = pngle->out_buf;
+    }
+    do
+    {
+      if (outlen > (draw_remain - drawidx)) { outlen = (draw_remain - drawidx); };
+      if (pngle_draw_pixels(pngle, &scanline[(drawidx * pngle->channels * pngle->hdr.depth) >> 3], oubbuf, draw_x + drawidx * div_x, div_x, outlen) < 0)
+      {
+        return -1;
+      }
+      drawidx += outlen;
+    } while (drawidx < draw_remain);
 
     filter_type = ~0;
 
@@ -365,7 +391,7 @@ static int pngle_on_data(pngle_t *pngle, const uint8_t *p, int len)
       set_interlace_pass(pngle, pngle->interlace_pass + 1);
       debug_printf("[pngle] interlace pass changed to: %d\n", pngle->interlace_pass);
       remain_bytes = pngle->scanline_stride; // reset
-      memset(buf, 0, remain_bytes);
+      memset(scanline, 0, remain_bytes);
     }
   }
   pngle->scanline_remain_bytes_to_render = remain_bytes;
@@ -379,7 +405,6 @@ int lgfx_pngle_prepare(pngle_t *pngle, lgfx_pngle_read_callback_t read_cb, void*
   if (pngle == NULL || read_cb == NULL) { return PNGLE_STATE_ERROR; }
   if (pngle->palette      ) { free(pngle->palette      ); pngle->palette      = NULL; }
   if (pngle->scanline_buf ) { free(pngle->scanline_buf ); pngle->scanline_buf = NULL; }
-  if (pngle->argb_buf     ) { free(pngle->argb_buf     ); pngle->argb_buf     = NULL; }
 
   pngle->read_callback = read_cb;
   pngle->user_data = user_data;
@@ -452,25 +477,21 @@ int lgfx_pngle_prepare(pngle_t *pngle, lgfx_pngle_read_callback_t read_cb, void*
                    : (depth == 4) ? 0x11
                                   : 0x01
                    );
-  }
 
-  // interlace
-  set_interlace_pass(pngle, pngle->hdr.interlace ? 0 : 7);
-
-  {
     uint_fast8_t bytes_per_pixel = (pngle->channels * pngle->hdr.depth + 7) >> 3;
     size_t memlen = ((pngle->hdr.width * pngle->channels * pngle->hdr.depth + 7) >> 3) + (2 * bytes_per_pixel);
     if ((pngle->scanline_buf = PNGLE_MALLOC(memlen, 1, "scanline flipbuf")) == NULL) return PNGLE_ERROR("Insufficient memory");
-    if ((pngle->argb_buf = PNGLE_MALLOC(pngle->hdr.width, 4, "argb_buf")) == NULL) return PNGLE_ERROR("Insufficient memory");
     memset(pngle->scanline_buf, 0, memlen);
   }
+  // interlace
+  set_interlace_pass(pngle, pngle->hdr.interlace ? 0 : 7);
 
   return 0;
 }
 
 int lgfx_pngle_decomp(pngle_t *pngle, lgfx_pngle_draw_callback_t draw_cb)
 {
-  if (!pngle) return -1;
+  if (pngle == NULL) return -1;
   pngle->draw_callback = draw_cb;
 
   uint8_t* read_buf = pngle->read_buf;

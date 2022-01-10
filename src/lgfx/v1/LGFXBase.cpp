@@ -2601,6 +2601,16 @@ namespace lgfx
     if (y1 > p->maxHeight) y1 = p->maxHeight;
     if (y0 >= y1) return;
 
+    while (argb[0] == 0)
+    {
+      argb += 4;
+      x += div_x;
+      if (0 == --len) { return; }
+    }
+    while (argb[(len-1)*4] == 0)
+    {
+      if (0 == --len) { return; }
+    }
 /*
     while ((argb[idx * 4 + 3] == 0) && ++idx != len);
     if (idx == len) return;
@@ -2657,7 +2667,7 @@ namespace lgfx
     if (div_x == 1)
     {
       p->pc->src_data = argb;
-      p->gfx->pushImage(p->x, p->y + y0, p->maxWidth, 1, p->pc, false);
+      p->gfx->pushImage(p->x + x, p->y + y0, len, 1, p->pc, false);
     }
     else
     {
