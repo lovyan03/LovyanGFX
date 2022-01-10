@@ -105,7 +105,6 @@ struct _pngle_t {
   // decompression state (reset on IHDR)
   uint8_t *next_out; // NULL indicates IDAT hasn't been processed yet
   size_t  avail_out;
-  uint32_t out_buf[8];
   uint8_t read_buf[LGFX_PNGLE_READBUF_LEN];
   tinfl_decompressor inflator; // 11000 bytes
   uint8_t lz_buf[TINFL_LZ_DICT_SIZE]; // 32768 bytes
@@ -320,6 +319,9 @@ static int pngle_on_data(pngle_t *pngle, uint8_t *lzbuf, int len)
   size_t filter_type = pngle->filter_type;
   size_t remain_bytes = pngle->scanline_remain_bytes_to_render;
 
+  uint32_t out_buf_default[8];
+  uint32_t* out_buf = out_buf_default;
+
   const uint8_t* p = lzbuf;
   uint8_t* scanline = &(pngle->scanline_buf[bytes_per_pixel]);
   while (len)
@@ -363,18 +365,20 @@ static int pngle_on_data(pngle_t *pngle, uint8_t *lzbuf, int len)
     uint32_t draw_x = pgm_read_byte(&interlace_off_x[pngle->interlace_pass]);
     uint32_t div_x  = pgm_read_byte(&interlace_div_x[pngle->interlace_pass]);
     size_t draw_remain = pngle->scanline_pixels;
-    uint32_t* oubbuf = (uint32_t*)lzbuf;
-    size_t outlen = ((p - lzbuf) >> 2) & ~7;
     size_t drawidx = 0;
+    size_t outlen = ((p - lzbuf) >> 2) & ~7;
     if (!outlen)
     {
       outlen = 8;
-      oubbuf = pngle->out_buf;
+    }
+    else
+    {
+      out_buf = (uint32_t*)lzbuf;
     }
     do
     {
       if (outlen > (draw_remain - drawidx)) { outlen = (draw_remain - drawidx); };
-      if (pngle_draw_pixels(pngle, &scanline[(drawidx * pngle->channels * pngle->hdr.depth) >> 3], oubbuf, draw_x + drawidx * div_x, div_x, outlen) < 0)
+      if (pngle_draw_pixels(pngle, &scanline[(drawidx * pngle->channels * pngle->hdr.depth) >> 3], out_buf, draw_x + drawidx * div_x, div_x, outlen) < 0)
       {
         return -1;
       }
