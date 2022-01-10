@@ -32,6 +32,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <math.h>
 
@@ -58,7 +59,8 @@ typedef enum {
 #define PNGLE_ERROR(s) ( debug_printf(s), PNGLE_STATE_ERROR)
 #define PNGLE_MALLOC(a, b, name) (debug_printf("[pngle] Allocating %zu bytes for %s\n", (size_t)(a) * (size_t)(b), (name)), malloc((size_t)(a) * (size_t)(b)))
 
-#define LGFX_PNGLE_READBUF_LEN 256 /// At least 256 required
+#define LGFX_PNGLE_OUTBUF_LEN 64 /// At least 32 required
+#define LGFX_PNGLE_READBUF_LEN 512 /// At least 256 required
 
 #define LGFX_PNGLE_NON_TRANS_COLOR 0x01000000
 
@@ -105,6 +107,7 @@ struct _pngle_t {
   // decompression state (reset on IHDR)
   uint8_t *next_out; // NULL indicates IDAT hasn't been processed yet
   size_t  avail_out;
+  uint32_t out_buf[LGFX_PNGLE_OUTBUF_LEN >> 2]; // out_buf + read_buf (Do not change the order)
   uint8_t read_buf[LGFX_PNGLE_READBUF_LEN];
   tinfl_decompressor inflator; // 11000 bytes
   uint8_t lz_buf[TINFL_LZ_DICT_SIZE]; // 32768 bytes
@@ -313,14 +316,12 @@ static void set_interlace_pass(pngle_t *pngle, uint_fast8_t pass)
   pngle->scanline_remain_bytes_to_render = scanline_stride;
 }
 
-static int pngle_on_data(pngle_t *pngle, uint8_t *lzbuf, int len)
+static int pngle_on_data(pngle_t *pngle, uint8_t *lzbuf, int len, size_t outbuf_len)
 {
   uint_fast8_t bytes_per_pixel = (pngle->channels * pngle->hdr.depth + 7) >> 3; // 1 if depth <= 8
   size_t filter_type = pngle->filter_type;
   size_t remain_bytes = pngle->scanline_remain_bytes_to_render;
 
-  uint32_t out_buf_default[8];
-  uint32_t* out_buf = out_buf_default;
 
   const uint8_t* p = lzbuf;
   uint8_t* scanline = &(pngle->scanline_buf[bytes_per_pixel]);
@@ -364,26 +365,15 @@ static int pngle_on_data(pngle_t *pngle, uint8_t *lzbuf, int len)
 
     uint32_t draw_x = pgm_read_byte(&interlace_off_x[pngle->interlace_pass]);
     uint32_t div_x  = pgm_read_byte(&interlace_div_x[pngle->interlace_pass]);
-    size_t draw_remain = pngle->scanline_pixels;
-    size_t drawidx = 0;
-    size_t outlen = ((p - lzbuf) >> 2) & ~7;
-    if (!outlen)
-    {
-      outlen = 8;
-    }
-    else
-    {
-      out_buf = (uint32_t*)lzbuf;
-    }
+    size_t scanline_pixels = pngle->scanline_pixels;
+    size_t out_len = ((scanline_pixels - 1) % outbuf_len) + 1;
+    size_t out_pos = 0;
     do
     {
-      if (outlen > (draw_remain - drawidx)) { outlen = (draw_remain - drawidx); };
-      if (pngle_draw_pixels(pngle, &scanline[(drawidx * pngle->channels * pngle->hdr.depth) >> 3], out_buf, draw_x + drawidx * div_x, div_x, outlen) < 0)
-      {
-        return -1;
-      }
-      drawidx += outlen;
-    } while (drawidx < draw_remain);
+      if (pngle_draw_pixels(pngle, &scanline[(out_pos * pngle->channels * pngle->hdr.depth) >> 3], pngle->out_buf, draw_x + out_pos * div_x, div_x, out_len) < 0) { return -1; }
+      out_pos += out_len;
+      out_len = outbuf_len;
+    } while (out_pos < scanline_pixels);
 
     filter_type = ~0;
 
@@ -400,7 +390,7 @@ static int pngle_on_data(pngle_t *pngle, uint8_t *lzbuf, int len)
   }
   pngle->scanline_remain_bytes_to_render = remain_bytes;
   pngle->filter_type = filter_type;
-  
+
   return 0;
 }
 
@@ -495,7 +485,7 @@ int lgfx_pngle_prepare(pngle_t *pngle, lgfx_pngle_read_callback_t read_cb, void*
 
 int lgfx_pngle_decomp(pngle_t *pngle, lgfx_pngle_draw_callback_t draw_cb)
 {
-  if (pngle == NULL) return -1;
+  if (pngle == NULL || draw_cb == NULL) { return PNGLE_STATE_ERROR; }
   pngle->draw_callback = draw_cb;
 
   uint8_t* read_buf = pngle->read_buf;
@@ -527,40 +517,39 @@ int lgfx_pngle_decomp(pngle_t *pngle, lgfx_pngle_draw_callback_t draw_cb)
 
       //debug_printf("[pngle]     in_bytes %zd, out_bytes %zd, next_out %p\n", in_bytes, out_bytes, pngle->next_out);
         size_t in_pos = 0;
-        while (len)
+        do
         {
           size_t in_bytes = len;
           size_t out_bytes = pngle->avail_out;
 
           // XXX: tinfl_decompress always requires (next_out - lz_buf + avail_out) == TINFL_LZ_DICT_SIZE
           tinfl_status status = tinfl_decompress(&pngle->inflator, (const mz_uint8*)&read_buf[in_pos], &in_bytes, pngle->lz_buf, (mz_uint8*)pngle->next_out, &out_bytes, TINFL_FLAG_HAS_MORE_INPUT | TINFL_FLAG_PARSE_ZLIB_HEADER);
+          if (status < TINFL_STATUS_DONE)
+          {
+            // Decompression failed.
+            debug_printf("[pngle] tinfl_decompress() failed with status %d!\n", status);
+            return PNGLE_ERROR("Failed to decompress the IDAT stream");
+          }
+
           len -= in_bytes;
           in_pos += in_bytes;
 
         //debug_printf("[pngle]       tinfl_decompress\n");
         //debug_printf("[pngle]       => in_bytes %zd, out_bytes %zd, next_out %p, status %d\n", in_bytes, out_bytes, pngle->next_out, status);
 
+          if (out_bytes)
+          {
+            if (pngle_on_data(pngle, pngle->next_out, out_bytes, (LGFX_PNGLE_OUTBUF_LEN >> 2) + (len ? in_pos >> 2 : (LGFX_PNGLE_READBUF_LEN >> 2))) < 0) return -1;
+          }
           pngle->next_out += out_bytes;
           pngle->avail_out -= out_bytes;
-
-        // debug_printf("[pngle]         => avail_out %zd, next_out %p\n", pngle->avail_out, pngle->next_out);
-
+      // debug_printf("[pngle]         => avail_out %zd, next_out %p\n", pngle->avail_out, pngle->next_out);
           if (pngle->avail_out == 0 || status == TINFL_STATUS_DONE)
           { // Output buffer is full, or decompression is done, so write buffer to output file.
-            size_t n = TINFL_LZ_DICT_SIZE - (size_t)pngle->avail_out;
-
             pngle->avail_out = TINFL_LZ_DICT_SIZE;
             pngle->next_out = pngle->lz_buf;
-
-            // pngle_on_data() usually returns n, otherwise -1 on error
-            if (pngle_on_data(pngle, pngle->lz_buf, n) < 0) return -1;
           }
-          else if (status < TINFL_STATUS_DONE) {
-            // Decompression failed.
-            debug_printf("[pngle] tinfl_decompress() failed with status %d!\n", status);
-            return PNGLE_ERROR("Failed to decompress the IDAT stream");
-          }
-        }
+        } while (len);
       } while (chunk_remain);
       break;
 
@@ -576,65 +565,49 @@ int lgfx_pngle_decomp(pngle_t *pngle, lgfx_pngle_draw_callback_t draw_cb)
       if (chunk_remain_3 > MIN(256, (1UL << pngle->hdr.depth))) return PNGLE_ERROR("Too many palettes in PLTE");
       if (chunk_remain_3 <= 0 || chunk_remain != chunk_remain_3 * 3) return PNGLE_ERROR("Invalid PLTE chunk size");
       if (pngle->palette) return PNGLE_ERROR("Too many PLTE chunk");
-      if ((pngle->palette = PNGLE_MALLOC(chunk_remain_3, 4, "palette")) == NULL) return PNGLE_ERROR("Insufficient memory");
+      uint8_t* plt = PNGLE_MALLOC(chunk_remain_3, 4, "palette");
+      if (plt == NULL) return PNGLE_ERROR("Insufficient memory");
+      pngle->palette = plt;
       pngle->n_palettes = chunk_remain_3;
 
+      if (chunk_remain != pngle->read_callback(pngle->user_data, plt, chunk_remain)) { return PNGLE_ERROR("Insufficient data"); }
+      while (chunk_remain_3--)
       {
-        uint8_t* plt = pngle->palette;
-        size_t pos = 0;
-        do
-        {
-          size_t len = pngle->read_callback(pngle->user_data, &plt[pos], chunk_remain - pos);
-          if (len == 0) { return PNGLE_ERROR("Insufficient data"); }
-          pos += len;
-        } while (pos < chunk_remain);
-        while (chunk_remain_3--)
-        {
-          ((uint32_t*)(plt))[chunk_remain_3] = ( plt[chunk_remain_3 * 3 + 0] <<  8 )
-                                             + ( plt[chunk_remain_3 * 3 + 1] << 16 )
-                                             + ( plt[chunk_remain_3 * 3 + 2] << 24 )
-                                             + 0xFF;
-        }
+        ((uint32_t*)(plt))[chunk_remain_3] = ( plt[chunk_remain_3 * 3 + 0] <<  8 )
+                                           + ( plt[chunk_remain_3 * 3 + 1] << 16 )
+                                           + ( plt[chunk_remain_3 * 3 + 2] << 24 )
+                                           + 0xFF;
       }
       break;
 
     case PNGLE_CHUNK_tRNS:
       if (chunk_remain <= 0 || chunk_remain > 256) return PNGLE_ERROR("Invalid tRNS chunk size");
-
-      {
-        size_t pos = 0;
-        do
+      if (chunk_remain != pngle->read_callback(pngle->user_data, read_buf, chunk_remain)) { return PNGLE_ERROR("Insufficient data"); }
+      switch (pngle->hdr.color_type) {
+      case 3: // indexed color
+        if (chunk_remain > pngle->n_palettes) return PNGLE_ERROR("Too many palettes in tRNS");
+        size_t i;
+        for (i = 0; i < chunk_remain; ++i)
         {
-          size_t len = pngle->read_callback(pngle->user_data, &read_buf[pos], chunk_remain - pos);
-          if (len == 0) { return PNGLE_ERROR("Insufficient data"); }
-          pos += len;
-        } while (pos < chunk_remain);
-
-        switch (pngle->hdr.color_type) {
-        case 3: // indexed color
-          if (chunk_remain > pngle->n_palettes) return PNGLE_ERROR("Too many palettes in tRNS");
-          for (size_t i = 0; i < chunk_remain; ++i)
-          {
-            pngle->palette[i * 4] = read_buf[i];
-          }
-          break;
-
-        case 0: // grayscale
-          if (chunk_remain != 2) return PNGLE_ERROR("Invalid tRNS chunk size");
-          pngle->trans_color = read_buf[1];
-          break;
-
-        case 2: // truecolor
-          if (chunk_remain != 6) return PNGLE_ERROR("Invalid tRNS chunk size");
-          pngle->trans_color = (read_buf[1] <<  8)
-                             + (read_buf[3] << 16)
-                             + (read_buf[5] << 24)
-                             + 0xFF;
-          break;
-
-        default:
-          return PNGLE_ERROR("tRNS chunk is prohibited on the color type");
+          pngle->palette[i * 4] = read_buf[i];
         }
+        break;
+
+      case 0: // grayscale
+        if (chunk_remain != 2) return PNGLE_ERROR("Invalid tRNS chunk size");
+        pngle->trans_color = read_buf[1];
+        break;
+
+      case 2: // truecolor
+        if (chunk_remain != 6) return PNGLE_ERROR("Invalid tRNS chunk size");
+        pngle->trans_color = (read_buf[1] <<  8)
+                            + (read_buf[3] << 16)
+                            + (read_buf[5] << 24)
+                            + 0xFF;
+        break;
+
+      default:
+        return PNGLE_ERROR("tRNS chunk is prohibited on the color type");
       }
       break;
     }

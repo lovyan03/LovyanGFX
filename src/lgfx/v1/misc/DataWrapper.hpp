@@ -169,12 +169,6 @@ namespace lgfx
     {
       if (len > _length - _index) { len = _length - _index; }
       if (len == 0) { return 0; }
-
-      int32_t tmp = _stream->available();
-      if (0 < tmp && ((int32_t)len > tmp))
-      {
-        len = tmp;
-      }
       len = _stream->readBytes(buf, len);
       _index += len;
       return len;

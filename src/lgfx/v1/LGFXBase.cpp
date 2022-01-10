@@ -2640,6 +2640,10 @@ namespace lgfx
     bool hasAlpha = (idx != len);
     if (hasAlpha)
     {
+      if (p->lineBuffer == nullptr)
+      {
+        p->lineBuffer = (bgra8888_t*)heap_alloc_dma(sizeof(bgra8888_t) * p->maxWidth);
+      }
       p->gfx->readRect(p->x, p->y + y0, p->maxWidth, 1, p->lineBuffer);
       do
       {
@@ -2713,6 +2717,12 @@ namespace lgfx
     if (right > p->maxWidth) right = p->maxWidth;
 //*/
     p->data->postRead();
+
+    if (p->lineBuffer == nullptr)
+    {
+      p->lineBuffer = (bgra8888_t*)heap_alloc_dma(sizeof(bgra8888_t) * p->maxWidth);
+      p->pc->src_data = p->lineBuffer;
+    }
 
     while ((argb[idx * 4] == 255) && ++idx != len);
     bool hasAlpha = (idx != len);
@@ -2865,8 +2875,8 @@ namespace lgfx
       pc.fp_skip = pixelcopy_t::skip_rgb_affine<bgra8888_t>;
       pc.fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<bgra8888_t>(pc.dst_depth);
     }
-    png.lineBuffer = (bgra8888_t*)heap_alloc_dma(sizeof(bgra8888_t) * png.maxWidth);
-    pc.src_data = png.lineBuffer;
+    // png.lineBuffer = (bgra8888_t*)heap_alloc_dma(sizeof(bgra8888_t) * png.maxWidth);
+    // pc.src_data = png.lineBuffer;
 
     png.pc = &pc;
 
