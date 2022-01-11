@@ -293,6 +293,160 @@ namespace lgfx
     }
 
 #endif
+#if defined ( _WINSOCK2API_ )
+
+    struct HttpWrapper : public DataWrapper
+    {
+      bool open(const char* url) override
+      {
+        if (strlen(url) > 900) { return false; }
+        const char* urlpart_host = strstr(url, "//");
+        if (urlpart_host == nullptr) { return false; }
+        urlpart_host += 2;
+        const char* urlpart_path = strstr(urlpart_host, "/");
+        if (urlpart_path == nullptr)
+        {
+          urlpart_path = &url[strlen(url)];
+        }
+
+        WSADATA wsaData;
+        if (WSAStartup(MAKEWORD(2, 2), &wsaData) == 0)
+        {
+          _socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+          struct hostent* Host;
+          char* hostname = (char*)alloca(urlpart_path - urlpart_host + 1);
+          memcpy(hostname, urlpart_host, urlpart_path - urlpart_host);
+          hostname[urlpart_path - urlpart_host] = 0;
+          Host = gethostbyname(hostname);
+
+          SOCKADDR_IN SockAddr;
+          SockAddr.sin_port = htons(80);
+          SockAddr.sin_family = AF_INET;
+          SockAddr.sin_addr.s_addr = *((unsigned long*)Host->h_addr);
+
+          if (connect(_socket, (SOCKADDR*)(&SockAddr), sizeof(SockAddr)) == 0)
+          {
+            char* get_http = (char*)alloca(1024);
+
+            memset(get_http, ' ', sizeof(get_http));
+            strcpy(get_http, "GET ");
+            if (urlpart_path[0] == 0)
+            {
+              strcat(get_http, "/");
+            }
+            else
+            {
+              strcat(get_http, urlpart_path);
+            }
+            strcat(get_http, " HTTP/1.1\r\nHost: ");
+            strcat(get_http, hostname);
+            strcat(get_http, "\r\nConnection: close\r\n\r\n");
+
+            send(_socket, get_http, strlen(get_http), 0);
+
+            parseHttpHeader();
+
+            if (_http_code == 200)
+            {
+              return true;
+            }
+          }
+          closesocket(_socket);
+        }
+//      WSACleanup();
+        return false;
+      }
+
+      void close(void) override
+      {
+        closesocket(_socket);
+//      WSACleanup();
+      }
+
+      int read(uint8_t* buf, uint32_t len) override
+      {
+        int32_t res = recv(_socket, (char*)buf, (int)len, 0);
+        _index += res;
+        return res;
+      }
+      void skip(int32_t offset) override
+      {
+        if (0 >= offset) { return; }
+        _index += offset;
+        uint8_t dummy[64];
+        size_t len = ((offset - 1) & 63) + 1;
+        do
+        {
+          read(dummy, len);
+          offset -= len;
+          len = 64;
+        } while (offset);
+      }
+
+      bool seek(uint32_t offset) { return false; }
+      int32_t tell(void) { return _index; }
+
+      protected:
+      SOCKET _socket;
+      int32_t _index = 0;
+      int32_t _content_length = ~0u;
+      int32_t _http_code = 0;
+      void checkHeaderString(const char* str)
+      {
+        if (_http_code == 0        && memcmp(str, "HTTP/1.1 "        , 9) == 0) { _http_code      = atoi(&str[ 9]); }
+        if (_content_length == ~0u && memcmp(str, "Content-Length: ", 16) == 0) { _content_length = atoi(&str[16]); }
+      }
+
+      void parseHttpHeader(void)
+      {
+        char buffer[257];
+
+        int index = 0;
+        int readlen;
+        int limit = -1;
+        while ((readlen = recv(_socket, &buffer[index], 1, 0)) > 0)
+        {
+          if (buffer[index] == '\r')
+          {
+            if (limit == -1)
+            {
+              buffer[index] = 0;
+              checkHeaderString(buffer);
+              limit = index;
+            }
+            index = 0;
+          }
+          else if (buffer[index] == '\n')
+          {
+            if (limit == 0)
+            {
+              return;
+            }
+            limit = -1;
+          }
+          else
+          {
+            index = (index + readlen) & 0xFF;
+          }
+        }
+      }
+    };
+
+  #define LGFX_FUNCTION_GENERATOR(drawImg) \
+    inline bool drawImg##Url(const char* url, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left) \
+    { \
+      HttpWrapper http; \
+      return http.open(url) && drawImg(&http, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum); \
+    } \
+
+    LGFX_FUNCTION_GENERATOR(drawBmp)
+    LGFX_FUNCTION_GENERATOR(drawJpg)
+    LGFX_FUNCTION_GENERATOR(drawPng)
+    LGFX_FUNCTION_GENERATOR(drawQoi)
+
+  #undef LGFX_FUNCTION_GENERATOR
+
+#endif
 
   private:
 

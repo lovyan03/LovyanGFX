@@ -170,7 +170,7 @@ pngle_ihdr_t *lgfx_pngle_get_ihdr(pngle_t *pngle)
   return &pngle->hdr;
 }
 
-static int pngle_draw_pixels(pngle_t *pngle, const uint8_t* buf, uint32_t* rgbbuf, uint32_t x, uint32_t div_x, size_t len)
+static void make_pixels(pngle_t *pngle, const uint8_t* buf, uint32_t* rgbbuf, size_t len)
 {
   size_t depth = pngle->hdr.depth;
   uint32_t* argb32 = rgbbuf - 1;
@@ -278,15 +278,10 @@ static int pngle_draw_pixels(pngle_t *pngle, const uint8_t* buf, uint32_t* rgbbu
     break;
 
 //case 4: // grayscale with alpha ...nothing to do.
-
+//case 6: // truecolor with alpha ...nothing to do.
   default:
     break;
   }
-
-  if (pngle->draw_callback) {
-    pngle->draw_callback(pngle->user_data, x, pngle->drawing_y, div_x, len, (const uint8_t*)rgbbuf);
-  }
-  return 0;
 }
 
 static inline int paeth(int a, int b, int c)
@@ -362,20 +357,23 @@ static int pngle_on_data(pngle_t *pngle, uint8_t *lzbuf, int len, size_t outbuf_
     if (remain_bytes) { break; }
 
     remain_bytes = pngle->scanline_stride; // reset
+    filter_type = ~0;
 
     uint32_t draw_x = pgm_read_byte(&interlace_off_x[pngle->interlace_pass]);
     uint32_t div_x  = pgm_read_byte(&interlace_div_x[pngle->interlace_pass]);
     size_t scanline_pixels = pngle->scanline_pixels;
-    size_t out_len = ((scanline_pixels - 1) % outbuf_len) + 1;
     size_t out_pos = 0;
+    size_t out_len = ((((scanline_pixels + 7) & ~7) - 1) % outbuf_len) + 1;
+
     do
     {
-      if (pngle_draw_pixels(pngle, &scanline[(out_pos * pngle->channels * pngle->hdr.depth) >> 3], pngle->out_buf, draw_x + out_pos * div_x, div_x, out_len) < 0) { return -1; }
+      if (out_len > scanline_pixels - out_pos) { out_len = scanline_pixels - out_pos; }
+      make_pixels(pngle, &scanline[(out_pos * pngle->channels * pngle->hdr.depth) >> 3], pngle->out_buf, out_len);
+      pngle->draw_callback(pngle->user_data, draw_x + out_pos * div_x, pngle->drawing_y, div_x, out_len, (const uint8_t*)pngle->out_buf);
+
       out_pos += out_len;
       out_len = outbuf_len;
     } while (out_pos < scanline_pixels);
-
-    filter_type = ~0;
 
     pngle->drawing_y += pgm_read_byte(&interlace_div_y[pngle->interlace_pass]);
     if (pngle->drawing_y >= pngle->hdr.height) {
