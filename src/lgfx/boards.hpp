@@ -33,6 +33,7 @@ namespace lgfx
     , board_PyBadge
     , board_M5Tough
     , board_OpenCV
+    , board_FrameBuffer
     , board_M5Station
     , board_ESPboy
     , board_M5UnitLCD
