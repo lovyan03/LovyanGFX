@@ -3,8 +3,10 @@
 // #include <stdio.h>
 
 // If you write this, you can use drawBmpUrl / drawJpgUrl / drawPngUrl ( for Windows )
-// #include <winsock2.h>
-// #pragma comment(lib,"ws2_32.lib")
+// #include <windows.h>
+// #include <winhttp.h>
+// #pragma comment (lib, "winhttp.lib")
+
 
 #define LGFX_USE_V1
 #include <LovyanGFX.hpp>
