@@ -294,6 +294,8 @@ namespace lgfx
 
 #endif
 
+#define LGFX_URL_MAXLENGTH 2083
+
 #if defined ( _WINHTTPX_ )
 
     struct HttpWrapper : public DataWrapper
@@ -317,22 +319,22 @@ namespace lgfx
         _content_length = ~0u;
         dwStatusCode = 0;
         if (hSession == nullptr) { return false; }
-        if (strlen(url) > 900) { return false; }
+        if (strlen(url) > LGFX_URL_MAXLENGTH) { return false; }
         if (hRequest) { WinHttpCloseHandle(hRequest); hRequest = nullptr; }
 
-        WCHAR wchar_url[2048];
+        WCHAR wchar_url[LGFX_URL_MAXLENGTH+1];
         size_t iReturnValue;
         if (0 != mbstowcs_s(&iReturnValue
                            , wchar_url
                            , sizeof(wchar_url) / sizeof(wchar_url[0])
                            , url
-                           , _TRUNCATE  // strlen(url)  // sizeof(wchar_url)
+                           , _TRUNCATE
                            ))
         {
           return false;
         }
 
-        WCHAR szHostName[256], szUrlPath[2048];
+        WCHAR szHostName[256], szUrlPath[LGFX_URL_MAXLENGTH+1];
         URL_COMPONENTS urlComponents = { 0 };
         urlComponents.dwStructSize = sizeof(URL_COMPONENTS);
         urlComponents.lpszHostName = szHostName;
@@ -522,7 +524,7 @@ namespace lgfx
         _content_length = ~0u;
         _http_code = 0;
         if (!_wsa_startup) { return false; }
-        if (strlen(url) > 900) { return false; }
+        if (strlen(url) > LGFX_URL_MAXLENGTH) { return false; }
         const char* urlpart_host = strstr(url, "://");
         if (urlpart_host == nullptr) { return false; }
         urlpart_host += 3;
@@ -553,7 +555,7 @@ namespace lgfx
         }
         if (_connected)
         {
-          char* get_http = (char*)alloca(1024);
+          char* get_http = (char*)alloca(LGFX_URL_MAXLENGTH+1);
           memset(get_http, ' ', sizeof(get_http));
           strcpy(get_http, "GET ");
           if (urlpart_path[0] == 0)
@@ -678,6 +680,8 @@ namespace lgfx
   #undef LGFX_FUNCTION_GENERATOR
 
 #endif
+
+#undef LGFX_URL_MAXLENGTH
 
   private:
 
