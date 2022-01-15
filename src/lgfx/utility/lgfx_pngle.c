@@ -311,7 +311,7 @@ static void set_interlace_pass(pngle_t *pngle, uint_fast8_t pass)
   pngle->scanline_remain_bytes_to_render = scanline_stride;
 }
 
-static int pngle_on_data(pngle_t *pngle, uint8_t *lzbuf, int len, size_t outbuf_len)
+static int pngle_on_data(pngle_t *pngle, uint8_t *lzbuf, size_t len, size_t outbuf_len)
 {
   uint_fast8_t bytes_per_pixel = (pngle->channels * pngle->hdr.depth + 7) >> 3; // 1 if depth <= 8
   size_t filter_type = pngle->filter_type;
