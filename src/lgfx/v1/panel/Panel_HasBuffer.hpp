@@ -49,6 +49,7 @@ namespace lgfx
     range_rect_t _range_mod;
     int32_t _xpos = 0;
     int32_t _ypos = 0;
+    bool _in_transaction = false;
 
     virtual size_t _get_buffer_length(void) const = 0;
     void _rotate_pos(uint_fast16_t &x, uint_fast16_t &y);

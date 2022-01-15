@@ -265,13 +265,13 @@ static int32_t bitext (	/* >=0: extracted data, <0: error code */
 			uint8_t *dpend = jd->dpend;
 			if (++dp == dpend) {	/* No input data is available, re-fill input buffer */
 				dp = jd->inbuf;	/* Top of input buffer */
-				jd->dpend = dpend = dp + jd->infunc(jd, dp, JD_SZBUF);
+				jd->dpend = dpend = dp + jd->infunc(jd->device, dp, JD_SZBUF);
 				if (dp == dpend) return 0 - (int32_t)JDR_INP;	/* Err: read error or wrong stream termination */
 			}
 			if (*dp == 0xff) {		/* Is start of flag sequence? */
 				if (++dp == dpend) {	/* No input data is available, re-fill input buffer */
 					dp = jd->inbuf;	/* Top of input buffer */
-					jd->dpend = dpend = dp + jd->infunc(jd, dp, JD_SZBUF);
+					jd->dpend = dpend = dp + jd->infunc(jd->device, dp, JD_SZBUF);
 					if (dp == dpend) return 0 - (int32_t)JDR_INP;	/* Err: read error or wrong stream termination */
 				}
 				if (*dp != 0) return 0 - (int32_t)JDR_FMT1;	/* Err: unexpected flag is detected (may be collapted data) */
@@ -315,13 +315,13 @@ static int32_t huffext (	/* >=0: decoded data, <0: error code */
 			uint8_t *dpend = jd->dpend;
 			if (++dp == dpend) {	/* No input data is available, re-fill input buffer */
 				dp = jd->inbuf;	/* Top of input buffer */
-				jd->dpend = dpend = dp + jd->infunc(jd, dp, JD_SZBUF);
+				jd->dpend = dpend = dp + jd->infunc(jd->device, dp, JD_SZBUF);
 				if (dp == dpend) return 0 - (int32_t)JDR_INP;	/* Err: read error or wrong stream termination */
 			}
 			if (*dp == 0xff) {		/* Is start of flag sequence? */
 				if (++dp == dpend) {	/* No input data is available, re-fill input buffer */
 					dp = jd->inbuf;	/* Top of input buffer */
-					jd->dpend = dpend = dp + jd->infunc(jd, dp, JD_SZBUF);
+					jd->dpend = dpend = dp + jd->infunc(jd->device, dp, JD_SZBUF);
 					if (dp == dpend) return 0 - (int32_t)JDR_INP;	/* Err: read error or wrong stream termination */
 				}
 				if (*dp != 0) return 0 - (int32_t)JDR_FMT1;	/* Err: unexpected flag is detected (may be collapted data) */
@@ -584,7 +584,7 @@ static JRESULT mcu_load (
 
 static JRESULT mcu_output (
 	lgfxJdec* jd,		/* Pointer to the decompressor object */
-	uint32_t (*outfunc)(lgfxJdec*, void*, JRECT*),	/* RGB output function */
+	uint32_t (*outfunc)(void*, void*, JRECT*),	/* RGB output function */
 	uint32_t x,		/* MCU position in the image (left of the MCU) */
 	uint32_t y		/* MCU position in the image (top of the MCU) */
 )
@@ -739,7 +739,7 @@ static JRESULT mcu_output (
 	}
 
 	/* Output the RGB rectangular */
-	return outfunc(jd, workbuf, &rect) ? JDR_OK : JDR_INTR; 
+	return outfunc(jd->device, workbuf, &rect) ? JDR_OK : JDR_INTR; 
 }
 
 
@@ -762,7 +762,7 @@ static JRESULT restart (
 	for (int i = 0; i < 2; ++i) {
 		if (++dp == dpend) {	/* No input data is available, re-fill input buffer */
 			dp = jd->inbuf;
-			jd->dpend = dpend = dp + jd->infunc(jd, dp, JD_SZBUF);
+			jd->dpend = dpend = dp + jd->infunc(jd->device, dp, JD_SZBUF);
 			if (dp == dpend) return JDR_INP;
 		}
 		d = (d << 8) | *dp;	/* Get a byte */
@@ -796,7 +796,7 @@ static inline uint16_t LDB_WORD(uint8_t* ptr) {
 
 JRESULT lgfx_jd_prepare (
 	lgfxJdec* jd,			/* Blank decompressor object */
-	uint32_t (*infunc)(lgfxJdec*, uint8_t*, uint32_t),	/* JPEG strem input function */
+	uint32_t (*infunc)(void*, uint8_t*, uint32_t),	/* JPEG strem input function */
 	void* pool,			/* Working buffer for the decompression session */
 	uint_fast16_t sz_pool,	/* Size of working buffer */
 	void* dev			/* I/O device identifier for the session */
@@ -824,18 +824,18 @@ JRESULT lgfx_jd_prepare (
 	jd->inbuf = seg = alloc_pool(jd, JD_SZBUF);		/* Allocate stream input buffer */
 	if (!seg) return JDR_MEM1;
 
-	if (infunc(jd, seg, 2) != 2) return JDR_INP;/* Check SOI marker */
+	if (infunc(dev, seg, 2) != 2) return JDR_INP;/* Check SOI marker */
 	if (LDB_WORD(seg) != 0xFFD8) return JDR_FMT1;	/* Err: SOI is not detected */
 	ofs = 2;
 
 	for (;;) {
-		if (infunc(jd, seg, 1) != 1) return JDR_INP;
+		if (infunc(dev, seg, 1) != 1) return JDR_INP;
 		if (seg[0] != 0xFF) return JDR_FMT1;	/* Check a JPEG marker */
 		do
 		{
-			if (infunc(jd, &seg[1], 1) != 1) return JDR_INP;
+			if (infunc(dev, &seg[1], 1) != 1) return JDR_INP;
 		} while (seg[1] == 0xFF);
-		if (infunc(jd, &seg[2], 2) != 2) return JDR_INP;
+		if (infunc(dev, &seg[2], 2) != 2) return JDR_INP;
 		uint_fast16_t len = LDB_WORD(seg + 2) - 2;	/* Length field */
 		ofs += 4 + len;	/* Number of bytes loaded */
 
@@ -843,7 +843,7 @@ JRESULT lgfx_jd_prepare (
 		case 0xC0:	/* SOF0 (baseline JPEG) */
 			/* Load segment data */
 			if (len > JD_SZBUF) return JDR_MEM2;
-			if (infunc(jd, seg, len) != len) return JDR_INP;
+			if (infunc(dev, seg, len) != len) return JDR_INP;
 
 			jd->width = LDB_WORD(seg+3);		/* Image width in unit of pixel */
 			jd->height = LDB_WORD(seg+1);		/* Image height in unit of pixel */
@@ -871,7 +871,7 @@ JRESULT lgfx_jd_prepare (
 		case 0xDD:	/* DRI */
 			/* Load segment data */
 			if (len > JD_SZBUF) return JDR_MEM2;
-			if (infunc(jd, seg, len) != len) return JDR_INP;
+			if (infunc(dev, seg, len) != len) return JDR_INP;
 
 			/* Get restart interval (MCUs) */
 			jd->nrst = LDB_WORD(seg);
@@ -880,7 +880,7 @@ JRESULT lgfx_jd_prepare (
 		case 0xC4:	/* DHT */
 			/* Load segment data */
 			if (len > JD_SZBUF) return JDR_MEM2;
-			if (infunc(jd, seg, len) != len) return JDR_INP;
+			if (infunc(dev, seg, len) != len) return JDR_INP;
 
 			/* Create huffman tables */
 			rc = create_huffman_tbl(jd, seg, len);
@@ -890,7 +890,7 @@ JRESULT lgfx_jd_prepare (
 		case 0xDB:	/* DQT */
 			/* Load segment data */
 			if (len > JD_SZBUF) return JDR_MEM2;
-			if (infunc(jd, seg, len) != len) return JDR_INP;
+			if (infunc(dev, seg, len) != len) return JDR_INP;
 
 			/* Create de-quantizer tables */
 			rc = create_qt_tbl(jd, seg, len);
@@ -900,7 +900,7 @@ JRESULT lgfx_jd_prepare (
 		case 0xDA:	/* SOS */
 			/* Load segment data */
 			if (len > JD_SZBUF) return JDR_MEM2;
-			if (infunc(jd, seg, len) != len) return JDR_INP;
+			if (infunc(dev, seg, len) != len) return JDR_INP;
 
 			if (!jd->width || !jd->height) return JDR_FMT1;	/* Err: Invalid image size */
 
@@ -934,7 +934,7 @@ JRESULT lgfx_jd_prepare (
 
 			/* Pre-load the JPEG data to extract it from the bit stream */
 			ofs %= JD_SZBUF;						/* Align read offset to JD_SZBUF */
-			int32_t dc = infunc(jd, seg + ofs, JD_SZBUF - ofs);
+			int32_t dc = infunc(dev, seg + ofs, JD_SZBUF - ofs);
 			jd->dptr = seg + ofs - 1;
 			jd->dpend = seg + ofs + dc;
 			jd->dmsk = 0;	/* Prepare to read bit stream */
@@ -958,7 +958,7 @@ JRESULT lgfx_jd_prepare (
 
 		default:	/* Unknown segment (comment, exif or etc..) */
 			/* Skip segment data */
-			if (infunc(jd, 0, len) != len) {	/* Null pointer specifies to skip bytes of stream */
+			if (infunc(dev, 0, len) != len) {	/* Null pointer specifies to skip bytes of stream */
 				return JDR_INP;
 			}
 		}
@@ -974,7 +974,7 @@ JRESULT lgfx_jd_prepare (
 
 JRESULT lgfx_jd_decomp (
 	lgfxJdec* jd,								/* Initialized decompression object */
-	uint32_t (*outfunc)(lgfxJdec*, void*, JRECT*),	/* RGB output function */
+	uint32_t (*outfunc)(void*, void*, JRECT*),	/* RGB output function */
 	uint_fast8_t scale							/* Output de-scaling factor (0 to 3) */
 )
 {

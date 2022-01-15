@@ -19,7 +19,7 @@ Contributors:
 
 #include <stdint.h>
 
-#if __has_include(<alloca.h>)
+#if __has_include("alloca.h")
 #include <alloca.h>
 #else
 #include <malloc.h>
@@ -63,10 +63,24 @@ namespace lgfx
     
     uint16_t _width = 0;
     uint16_t _height = 0;
-    color_depth_t _write_depth = color_depth_t::rgb565_2Byte;
-    color_depth_t _read_depth  = color_depth_t::rgb565_2Byte;
-    uint8_t _write_bits = 16;
-    uint8_t _read_bits = 16;
+    union
+    {
+      color_depth_t _write_depth = color_depth_t::rgb565_2Byte;
+      struct
+      {
+        uint8_t _write_bits;
+        uint8_t _write_attrib;
+      };
+    };
+    union
+    {
+      color_depth_t _read_depth  = color_depth_t::rgb565_2Byte;
+      struct
+      {
+        uint8_t _read_bits;
+        uint8_t _read_attrib;
+      };
+    };
     uint8_t _rotation = 0;
     epd_mode_t _epd_mode = (epd_mode_t)0;  // EPDでない場合は0。それ以外の場合はEPD描画モード;
     bool _invert = false;

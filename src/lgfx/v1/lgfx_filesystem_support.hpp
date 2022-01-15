@@ -24,7 +24,7 @@ Contributors:
 
 #include "misc/enum.hpp"
 
-#include <cmath>
+#include <math.h>
 #include <string.h>
 
 namespace lgfx
@@ -47,6 +47,7 @@ namespace lgfx
     using Base::drawBmp;
     using Base::drawJpg;
     using Base::drawPng;
+    using Base::drawQoi;
     using Base::loadFont;
 
     virtual ~LGFX_FILESYSTEM_Support<Base>()
@@ -80,84 +81,53 @@ namespace lgfx
       load_font_with_path(path);
     }
 
+  #define LGFX_FUNCTION_GENERATOR(drawImg, draw_img) \
+    inline bool drawImg##File(fs::FS &fs, const char *path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left) \
+    {  FileWrapper file(fs); \
+       bool res = this->drawImg##File(&file, path, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum); \
+       file.close(); \
+       return res; \
+    } \
+    inline bool drawImg##File(fs::FS &fs, fs::File *file, int32_t x=0, int32_t y=0, int32_t maxWidth=0, int32_t maxHeight=0, int32_t offX=0, int32_t offY=0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left) \
+    { \
+      FileWrapper data(fs, file); \
+      bool res = this->draw_img(&data, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum); \
+      data.close(); \
+      return res; \
+    } \
+    inline bool drawImg##File(fs::FS &fs, const String& path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left) \
+    { \
+      return drawImg##File(fs, path.c_str(), x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum); \
+    } \
+    inline bool drawImg(fs::File *dataSource, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left) \
+    { \
+      StreamWrapper data; \
+      data.set(dataSource); \
+      data.need_transaction = true; \
+      return this->draw_img(&data, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum); \
+    } \
+
+    LGFX_FUNCTION_GENERATOR(drawBmp, draw_bmp)
+    LGFX_FUNCTION_GENERATOR(drawJpg, draw_jpg)
+    LGFX_FUNCTION_GENERATOR(drawPng, draw_png)
+    LGFX_FUNCTION_GENERATOR(drawQoi, draw_qoi)
+
+  #undef LGFX_FUNCTION_GENERATOR
+
     inline bool drawBmp(fs::FS &fs, const char *path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
     {
       return drawBmpFile(fs, path, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
     }
-    inline bool drawBmpFile(fs::FS &fs, const char *path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
-    {
-      FileWrapper file(fs);
-      return this->drawBmpFile(&file, path, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
-    }
-    inline bool drawBmpFile(fs::FS &fs, const String& path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
-    {
-      return drawBmpFile(fs, path.c_str(), x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
-    }
 
-    inline bool drawJpgFile(fs::FS &fs, const char *path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
-    {
-      FileWrapper file(fs);
-      return this->drawJpgFile(&file, path, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
-    }
-    inline bool drawJpgFile(fs::FS &fs, const String& path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
-    {
-      return drawJpgFile(fs, path.c_str(), x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
-    }
     [[deprecated("use float scale")]]
     inline bool drawJpgFile(fs::FS &fs, const char *path, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, jpeg_div::jpeg_div_t scale)
     {
       return drawJpgFile(fs, path, x, y, maxWidth, maxHeight, offX, offY, 1.0f / (1 << scale));
     }
-
-    inline bool drawPngFile(fs::FS &fs, const char *path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
-    {
-      FileWrapper file(fs);
-      return this->drawPngFile(&file, path, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
-    }
-    inline bool drawPngFile(fs::FS &fs, const String& path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
-    {
-      return drawPngFile(fs, path.c_str(), x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
-    }
-
-
-    inline bool drawBmpFile(fs::FS &fs, fs::File *file, int32_t x=0, int32_t y=0, int32_t maxWidth=0, int32_t maxHeight=0, int32_t offX=0, int32_t offY=0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
-    {
-      FileWrapper data(fs, file);
-      return this->draw_bmp(&data, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
-    }
-
-    inline bool drawJpgFile(fs::FS &fs, fs::File *file, int32_t x=0, int32_t y=0, int32_t maxWidth=0, int32_t maxHeight=0, int32_t offX=0, int32_t offY=0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
-    {
-      FileWrapper data(fs, file);
-      return this->draw_jpg(&data, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
-    }
     [[deprecated("use float scale")]]
     inline bool drawJpgFile(fs::FS &fs, fs::File *file, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, jpeg_div::jpeg_div_t scale)
     {
       return drawJpgFile(fs, file, x, y, maxWidth, maxHeight, offX, offY, 1.0f / (1 << scale));
-    }
-
-    inline bool drawPngFile(fs::FS &fs, fs::File *file, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
-    {
-      FileWrapper data(fs, file);
-      return this->draw_png(&data, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
-    }
-
-
-    inline bool drawBmp(fs::File *dataSource, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
-    {
-      StreamWrapper data;
-      data.set(dataSource);
-      data.need_transaction = true;
-      return this->draw_bmp(&data, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
-    }
-
-    inline bool drawJpg(fs::File *dataSource, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
-    {
-      StreamWrapper data;
-      data.set(dataSource);
-      data.need_transaction = true;
-      return this->draw_jpg(&data, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
     }
     [[deprecated("use float scale")]]
     inline bool drawJpg(fs::File *dataSource, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, jpeg_div::jpeg_div_t scale)
@@ -165,124 +135,95 @@ namespace lgfx
       return drawJpg(dataSource, x, y, maxWidth, maxHeight, offX, offY, 1.0f / (1 << scale));
     }
 
-    inline bool drawPng(fs::File *dataSource, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
-    {
-      StreamWrapper data;
-      data.set(dataSource);
-      data.need_transaction = true;
-      return this->draw_png(&data, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
-    }
 
  #endif
 
  #if defined (SdFat_h)
+  #if SD_FAT_VERSION >= 20102
+   #define LGFX_SDFAT_TYPE SdBase<FsVolume,FsFormatter>
+  #else
+   #define LGFX_SDFAT_TYPE SdBase<FsVolume>
+  #endif
 
-    void loadFont(const char *path, SdBase<FsVolume> &fs)
+    void loadFont(const char *path, LGFX_SDFAT_TYPE &fs)
     {
       init_font_file<SdFatWrapper>(fs);
       load_font_with_path(path);
     }
 
-    void loadFont(SdBase<FsVolume> &fs, const char *path)
+    void loadFont(LGFX_SDFAT_TYPE &fs, const char *path)
     {
       init_font_file<SdFatWrapper>(fs);
       load_font_with_path(path);
     }
 
-    inline bool drawBmp(SdBase<FsVolume> &fs, const char *path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
+  #define LGFX_FUNCTION_GENERATOR(drawImg, draw_img) \
+    inline bool drawImg##File(LGFX_SDFAT_TYPE &fs, const char *path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left) \
+    { \
+      SdFatWrapper file(fs); \
+      bool res = this->drawImg##File(&file, path, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum); \
+      file.close(); \
+      return res; \
+    } \
+    inline bool drawImg##File(LGFX_SDFAT_TYPE &fs, FsFile *file, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left) \
+    { \
+      SdFatWrapper data(fs, file); \
+      bool res = this->draw_img(&data, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum); \
+      data.close(); \
+      return res; \
+    } \
+    inline bool drawImg##File(LGFX_SDFAT_TYPE &fs, const String& path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left) \
+    { \
+      return drawImg##File(fs, path.c_str(), x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum); \
+    } \
+
+    LGFX_FUNCTION_GENERATOR(drawBmp, draw_bmp)
+    LGFX_FUNCTION_GENERATOR(drawJpg, draw_jpg)
+    LGFX_FUNCTION_GENERATOR(drawPng, draw_png)
+    LGFX_FUNCTION_GENERATOR(drawQoi, draw_qoi)
+
+  #undef LGFX_FUNCTION_GENERATOR
+
+    inline bool drawBmp(LGFX_SDFAT_TYPE &fs, const char *path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
     {
       return drawBmpFile(fs, path, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
     }
-    inline bool drawBmpFile(SdBase<FsVolume> &fs, const char *path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
-    {
-      SdFatWrapper file(fs);
-      return this->drawBmpFile(&file, path, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
-    }
-    inline bool drawBmpFile(SdBase<FsVolume> &fs, const String& path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
-    {
-      return drawBmpFile(fs, path.c_str(), x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
-    }
-
-    inline bool drawJpgFile(SdBase<FsVolume> &fs, const char *path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
-    {
-      SdFatWrapper file(fs);
-      return this->drawJpgFile(&file, path, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
-    }
-    inline bool drawJpgFile(SdBase<FsVolume> &fs, const String& path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
-    {
-      return drawJpgFile(fs, path.c_str(), x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
-    }
     [[deprecated("use float scale")]]
-    inline bool drawJpgFile(SdBase<FsVolume> &fs, const char *path, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, jpeg_div::jpeg_div_t scale)
+    inline bool drawJpgFile(LGFX_SDFAT_TYPE &fs, const char *path, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, jpeg_div::jpeg_div_t scale)
     {
       return drawJpgFile(fs, path, x, y, maxWidth, maxHeight, offX, offY, 1.0f / (1 << scale));
     }
-
-    inline bool drawPngFile(SdBase<FsVolume> &fs, const char *path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
-    {
-      SdFatWrapper file(fs);
-      return this->drawPngFile(&file, path, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
-    }
-    inline bool drawPngFile(SdBase<FsVolume> &fs, const String& path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
-    {
-      return drawPngFile(fs, path.c_str(), x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
-    }
-
-
-    inline bool drawBmpFile(SdBase<FsVolume> &fs, FsFile *file, int32_t x=0, int32_t y=0, int32_t maxWidth=0, int32_t maxHeight=0, int32_t offX=0, int32_t offY=0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
-    {
-      SdFatWrapper data(fs, file);
-      return this->draw_bmp(&data, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
-    }
-
-    inline bool drawJpgFile(SdBase<FsVolume> &fs, FsFile *file, int32_t x=0, int32_t y=0, int32_t maxWidth=0, int32_t maxHeight=0, int32_t offX=0, int32_t offY=0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
-    {
-      SdFatWrapper data(fs, file);
-      return this->draw_jpg(&data, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
-    }
     [[deprecated("use float scale")]]
-    inline bool drawJpgFile(SdBase<FsVolume> &fs, FsFile *file, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, jpeg_div::jpeg_div_t scale)
+    inline bool drawJpgFile(LGFX_SDFAT_TYPE &fs, FsFile *file, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, jpeg_div::jpeg_div_t scale)
     {
       return drawJpgFile(fs, file, x, y, maxWidth, maxHeight, offX, offY, 1.0f / (1 << scale));
     }
 
-    inline bool drawPngFile(SdBase<FsVolume> &fs, FsFile *file, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
-    {
-      SdFatWrapper data(fs, file);
-      return this->draw_png(&data, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
-    }
-
+  #undef LGFX_SDFAT_TYPE
  #endif
 
  #if defined (Stream_h)
 
-    inline bool drawBmp(Stream *dataSource, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
-    {
-      StreamWrapper data;
-      data.set(dataSource);
-      data.need_transaction = this->isBusShared();
-      return this->draw_bmp(&data, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
-    }
+  #define LGFX_FUNCTION_GENERATOR(drawImg, draw_img) \
+    inline bool drawImg(Stream *dataSource, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left) \
+    { \
+      StreamWrapper data; \
+      data.set(dataSource); \
+      data.need_transaction = this->isBusShared(); \
+      return this->draw_img(&data, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum); \
+    } \
 
-    inline bool drawJpg(Stream *dataSource, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
-    {
-      StreamWrapper data;
-      data.set(dataSource);
-      data.need_transaction = this->isBusShared();
-      return this->draw_jpg(&data, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
-    }
+    LGFX_FUNCTION_GENERATOR(drawBmp, draw_bmp)
+    LGFX_FUNCTION_GENERATOR(drawJpg, draw_jpg)
+    LGFX_FUNCTION_GENERATOR(drawPng, draw_png)
+    LGFX_FUNCTION_GENERATOR(drawQoi, draw_qoi)
+
+  #undef LGFX_FUNCTION_GENERATOR
+
     [[deprecated("use float scale")]]
     inline bool drawJpg(Stream *dataSource, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, jpeg_div::jpeg_div_t scale)
     {
       return drawJpg(dataSource, x, y, maxWidth, maxHeight, offX, offY, 1.0f / (1 << scale));
-    }
-
-    inline bool drawPng(Stream *dataSource, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
-    {
-      StreamWrapper data;
-      data.set(dataSource);
-      data.need_transaction = this->isBusShared();
-      return this->draw_png(&data, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
     }
 
   #if defined (HTTPClient_H_)
@@ -310,40 +251,28 @@ namespace lgfx
       HTTPClient _http;
     };
 
+  #define LGFX_FUNCTION_GENERATOR(drawImg) \
+    inline bool drawImg##Url(const char* url, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left) \
+    { \
+      HttpWrapper http; \
+      return http.open(url) && drawImg(&http, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum); \
+    } \
+    inline bool drawImg##Url(const String& url, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left) \
+    { \
+      return drawImg##Url(url.c_str(), x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum); \
+    } \
 
-    inline bool drawBmpUrl(const char* url, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
-    {
-      HttpWrapper http;
-      return http.open(url) && drawBmp(&http, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
-    }
-    inline bool drawBmpUrl(const String& url, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
-    {
-      return drawBmpUrl(url.c_str(), x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
-    }
+    LGFX_FUNCTION_GENERATOR(drawBmp)
+    LGFX_FUNCTION_GENERATOR(drawJpg)
+    LGFX_FUNCTION_GENERATOR(drawPng)
+    LGFX_FUNCTION_GENERATOR(drawQoi)
 
-    inline bool drawJpgUrl(const char* url, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
-    {
-      HttpWrapper http;
-      return http.open(url) && drawJpg(&http, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
-    }
-    inline bool drawJpgUrl(const String& url, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
-    {
-      return drawJpgUrl(url.c_str(), x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
-    }
+  #undef LGFX_FUNCTION_GENERATOR
+
     [[deprecated("use float scale")]]
     inline bool drawJpgUrl(const char* url, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, jpeg_div::jpeg_div_t scale)
     {
       return drawJpgUrl(url, x, y, maxWidth, maxHeight, offX, offY, 1.0f / (1 << scale));
-    }
-
-    inline bool drawPngUrl(const char* url, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
-    {
-      HttpWrapper http;
-      return http.open(url) && drawPng(&http, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
-    }
-    inline bool drawPngUrl(const String& url, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
-    {
-      return drawPngUrl(url.c_str(), x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
     }
 
   #endif
@@ -351,28 +280,416 @@ namespace lgfx
 
 #elif defined (CONFIG_IDF_TARGET_ESP32) || defined(__SAMD51_HARMONY__) || defined(_INC_STDIO) // ESP-IDF or Harmony
 
-    inline bool drawBmpFile(const char *path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
-    {
-      FileWrapper file;
-      return drawBmpFile(&file, path, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
-    }
-    inline bool drawJpgFile(const char *path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
-    {
-      FileWrapper file;
-      return drawJpgFile(&file, path, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
-    }
+  #define LGFX_FUNCTION_GENERATOR(drawImg) \
+    inline bool drawImg##File(const char *path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left) \
+    { \
+      FileWrapper file; \
+      return drawImg##File(&file, path, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum); \
+    } \
+
+    LGFX_FUNCTION_GENERATOR(drawBmp)
+    LGFX_FUNCTION_GENERATOR(drawJpg)
+    LGFX_FUNCTION_GENERATOR(drawPng)
+    LGFX_FUNCTION_GENERATOR(drawQoi)
+
+  #undef LGFX_FUNCTION_GENERATOR
+
     [[deprecated("use float scale")]]
     inline bool drawJpgFile(const char *path, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, jpeg_div::jpeg_div_t scale)
     {
       return drawJpgFile(path, x, y, maxWidth, maxHeight, offX, offY, 1.0f / (1 << scale));
     }
-    inline bool drawPngFile(const char *path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
-    {
-      FileWrapper file;
-      return drawPngFile(&file, path, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
-    }
 
 #endif
+
+#define LGFX_URL_MAXLENGTH 2083
+
+#if defined ( _WINHTTPX_ )
+
+    struct HttpWrapper : public DataWrapper
+    {
+      HttpWrapper(void) : DataWrapper()
+      {
+        hConnect = nullptr;
+        hRequest = nullptr;
+        hSession = WinHttpOpen( L"UserAgent/1.0"
+                              , WINHTTP_ACCESS_TYPE_DEFAULT_PROXY
+                              , WINHTTP_NO_PROXY_NAME
+                              , WINHTTP_NO_PROXY_BYPASS, 0);
+      }
+      virtual ~HttpWrapper(void)
+      {
+        disconnect();
+      }
+      bool open(const char* url) override
+      {
+        _index = 0;
+        _content_length = ~0u;
+        dwStatusCode = 0;
+        if (hSession == nullptr) { return false; }
+        if (strlen(url) > LGFX_URL_MAXLENGTH) { return false; }
+        if (hRequest) { WinHttpCloseHandle(hRequest); hRequest = nullptr; }
+
+        WCHAR wchar_url[LGFX_URL_MAXLENGTH+1];
+        size_t iReturnValue;
+        if (0 != mbstowcs_s(&iReturnValue
+                           , wchar_url
+                           , sizeof(wchar_url) / sizeof(wchar_url[0])
+                           , url
+                           , _TRUNCATE
+                           ))
+        {
+          return false;
+        }
+
+        WCHAR szHostName[256], szUrlPath[LGFX_URL_MAXLENGTH+1];
+        URL_COMPONENTS urlComponents = { 0 };
+        urlComponents.dwStructSize = sizeof(URL_COMPONENTS);
+        urlComponents.lpszHostName = szHostName;
+        urlComponents.dwHostNameLength = sizeof(szHostName) / sizeof(WCHAR);
+        urlComponents.lpszUrlPath = szUrlPath;
+        urlComponents.dwUrlPathLength = sizeof(szUrlPath) / sizeof(WCHAR);
+        if (!WinHttpCrackUrl(wchar_url, wcslen(wchar_url), 0, &urlComponents))
+        {
+          WinHttpCloseHandle(hSession);
+          return false;
+        }
+
+        
+        if (hConnect == nullptr || wcscmp(szHostName, _last_host))
+        {
+          if (hConnect)
+          {
+            WinHttpCloseHandle(hConnect);
+          }
+          hConnect = WinHttpConnect(hSession, szHostName, urlComponents.nPort, 0);
+          lstrcpynW(_last_host, szHostName, sizeof(_last_host) / sizeof(_last_host[0]));
+        }
+
+        if (hConnect != nullptr)
+        {
+          hRequest = WinHttpOpenRequest( hConnect
+                                       , L"GET", szUrlPath
+                                       , nullptr
+                                       , WINHTTP_NO_REFERER
+                                       , WINHTTP_DEFAULT_ACCEPT_TYPES
+                                       , (INTERNET_SCHEME_HTTPS == urlComponents.nScheme) ? WINHTTP_FLAG_SECURE : 0);
+          if (hRequest != nullptr)
+          {
+            if (WinHttpSendRequest( hRequest
+                                  , L"Accept: */*\r\n"
+                                  , -1L
+                                  , WINHTTP_NO_REQUEST_DATA
+                                  , 0
+                                  , WINHTTP_IGNORE_REQUEST_TOTAL_LENGTH
+                                  , 0
+                                  ))
+            {
+              if (WinHttpReceiveResponse(hRequest, nullptr))
+              {
+                DWORD dwSize = 0;
+                WinHttpQueryHeaders( hRequest
+                                    , WINHTTP_QUERY_CONTENT_LENGTH | WINHTTP_QUERY_FLAG_NUMBER
+                                    , WINHTTP_HEADER_NAME_BY_INDEX
+                                    , &_content_length
+                                    , &dwSize
+                                    , WINHTTP_NO_HEADER_INDEX);
+                WinHttpQueryHeaders( hRequest
+                                    , WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER
+                                    , WINHTTP_HEADER_NAME_BY_INDEX
+                                    , &dwStatusCode
+                                    , &dwSize
+                                    , WINHTTP_NO_HEADER_INDEX);
+                if (dwStatusCode == HTTP_STATUS_OK)
+                {
+                  return true;
+                }
+              }
+            }
+            WinHttpCloseHandle(hRequest);
+            hRequest = nullptr;
+          }
+        }
+        return false;
+      }
+
+      void close(void) override { if (hRequest) { WinHttpCloseHandle(hRequest); hRequest = nullptr; } }
+
+      int read(uint8_t* buf, uint32_t len) override
+      {
+        if (len > _content_length - _index)
+        {
+          len = _content_length - _index;
+        }
+        if (len == 0) { return 0; }
+        DWORD readbytes = 0;
+        WinHttpReadData(hRequest, buf, len, &readbytes);
+        _index += readbytes;
+        return readbytes;
+      }
+      void skip(int32_t offset) override
+      {
+        if (0 >= offset) { return; }
+        uint8_t dummy[64];
+        size_t len = ((offset - 1) & 63) + 1;
+        do
+        {
+          read(dummy, len);
+          offset -= len;
+          len = 64;
+        } while (offset);
+      }
+
+      bool seek(uint32_t offset) { return false; }
+      int32_t tell(void) { return _index; }
+
+    protected:
+      HINTERNET hSession, hConnect, hRequest;
+      SOCKET _socket;
+      WCHAR _last_host[256] = L"";
+      int32_t _index = 0;
+      DWORD _content_length = ~0u;
+      DWORD dwStatusCode;
+
+      void disconnect(void)
+      {
+        if (hRequest) { WinHttpCloseHandle(hRequest); hRequest = nullptr; }
+        if (hConnect) { WinHttpCloseHandle(hConnect); hConnect = nullptr; }
+        if (hSession) { WinHttpCloseHandle(hSession); hSession = nullptr; }
+        _index = 0;
+        _content_length = ~0u;
+        dwStatusCode = 0;
+      }
+
+      void checkHeaderString(const char* str)
+      {
+        if (_http_code == 0        && memcmp(str, "HTTP/1.1 "        , 9) == 0) { _http_code      = atoi(&str[ 9]); }
+        if (_content_length == ~0u && memcmp(str, "Content-Length: ", 16) == 0) { _content_length = atoi(&str[16]); }
+      }
+
+      void parseHttpHeader(void)
+      {
+        char buffer[257];
+
+        int index = 0;
+        int readlen;
+        int limit = -1;
+        while ((readlen = recv(_socket, &buffer[index], 1, 0)) > 0)
+        {
+          if (buffer[index] == '\r')
+          {
+            if (limit == -1)
+            {
+              limit = index;
+              buffer[index] = 0;
+              checkHeaderString(buffer);
+            }
+            index = 0;
+          }
+          else if (buffer[index] == '\n')
+          {
+            if (limit == 0) { return; }
+            limit = -1;
+          }
+          else
+          {
+            index = (index + readlen) & 0xFF;
+          }
+        }
+      }
+    };
+
+  #define LGFX_FUNCTION_GENERATOR(drawImg) \
+    inline bool drawImg##Url(const char* url, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left) \
+    { \
+      HttpWrapper http; \
+      return http.open(url) && drawImg(&http, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum); \
+    } \
+
+    LGFX_FUNCTION_GENERATOR(drawBmp)
+    LGFX_FUNCTION_GENERATOR(drawJpg)
+    LGFX_FUNCTION_GENERATOR(drawPng)
+    LGFX_FUNCTION_GENERATOR(drawQoi)
+
+  #undef LGFX_FUNCTION_GENERATOR
+
+#elif defined ( _WINSOCK2API_ )
+
+    struct HttpWrapper : public DataWrapper
+    {
+      HttpWrapper(void) : DataWrapper()
+      {
+        WSADATA wsaData;
+        _wsa_startup = (WSAStartup(MAKEWORD(2, 2), &wsaData) == 0);
+      }
+      virtual ~HttpWrapper(void)
+      {
+        disconnect();
+      }
+      bool open(const char* url) override
+      {
+        _index = 0;
+        _content_length = ~0u;
+        _http_code = 0;
+        if (!_wsa_startup) { return false; }
+        if (strlen(url) > LGFX_URL_MAXLENGTH) { return false; }
+        const char* urlpart_host = strstr(url, "://");
+        if (urlpart_host == nullptr) { return false; }
+        urlpart_host += 3;
+        const char* urlpart_path = strstr(urlpart_host, "/");
+        if (urlpart_path == nullptr)
+        {
+          urlpart_path = &url[strlen(url)];
+        }
+
+        char* hostname = (char*)alloca(urlpart_path - urlpart_host + 1);
+        memcpy(hostname, urlpart_host, urlpart_path - urlpart_host);
+        hostname[urlpart_path - urlpart_host] = 0;
+        if (!_connected || strcmp(hostname, _last_host))
+        {
+          if (_connected)
+          {
+            disconnect();
+          }
+          strncpy(_last_host, hostname, sizeof(_last_host));
+          hostent* Host = gethostbyname(hostname);
+          SOCKADDR_IN SockAddr;
+          SockAddr.sin_port = htons(80);
+          SockAddr.sin_family = AF_INET;
+          SockAddr.sin_addr.s_addr = *((unsigned long*)Host->h_addr);
+
+          _socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+          _connected = (connect(_socket, (SOCKADDR*)(&SockAddr), sizeof(SockAddr)) == 0);
+        }
+        if (_connected)
+        {
+          char* get_http = (char*)alloca(LGFX_URL_MAXLENGTH+1);
+          memset(get_http, ' ', sizeof(get_http));
+          strcpy(get_http, "GET ");
+          if (urlpart_path[0] == 0)
+          {
+            strcat(get_http, "/");
+          }
+          else
+          {
+            strcat(get_http, urlpart_path);
+          }
+          strcat(get_http, " HTTP/1.1\r\nHost: ");
+          strcat(get_http, hostname);
+          strcat(get_http, "\r\nConnection: keep-alive\r\n\r\n");
+          send(_socket, get_http, strlen(get_http), 0);
+
+          parseHttpHeader();
+
+          if (_http_code == 200)
+          {
+            return true;
+          }
+        }
+        return false;
+      }
+
+      void close(void) override {}
+
+      int read(uint8_t* buf, uint32_t len) override
+      {
+        if (len > _content_length - _index)
+        {
+          len = _content_length - _index;
+        }
+        if (len == 0) { return 0; }
+        int32_t res = recv(_socket, (char*)buf, (int)len, 0);
+        _index += res;
+        return res;
+      }
+      void skip(int32_t offset) override
+      {
+        if (0 >= offset) { return; }
+        uint8_t dummy[64];
+        size_t len = ((offset - 1) & 63) + 1;
+        do
+        {
+          read(dummy, len);
+          offset -= len;
+          len = 64;
+        } while (offset);
+      }
+
+      bool seek(uint32_t offset) { return false; }
+      int32_t tell(void) { return _index; }
+
+    protected:
+      bool _wsa_startup = false;
+      bool _connected = false;
+      SOCKET _socket;
+      char _last_host[256] = "";
+      int32_t _index = 0;
+      int32_t _content_length = ~0u;
+      int32_t _http_code = 0;
+
+      void disconnect(void)
+      {
+        if (_connected) { closesocket(_socket); }
+        _index = 0;
+        _content_length = ~0u;
+        _http_code = 0;
+      }
+
+      void checkHeaderString(const char* str)
+      {
+        if (_http_code == 0        && memcmp(str, "HTTP/1.1 "        , 9) == 0) { _http_code      = atoi(&str[ 9]); }
+        if (_content_length == ~0u && memcmp(str, "Content-Length: ", 16) == 0) { _content_length = atoi(&str[16]); }
+      }
+
+      void parseHttpHeader(void)
+      {
+        char buffer[257];
+
+        int index = 0;
+        int readlen;
+        int limit = -1;
+        while ((readlen = recv(_socket, &buffer[index], 1, 0)) > 0)
+        {
+          if (buffer[index] == '\r')
+          {
+            if (limit == -1)
+            {
+              limit = index;
+              buffer[index] = 0;
+              checkHeaderString(buffer);
+            }
+            index = 0;
+          }
+          else if (buffer[index] == '\n')
+          {
+            if (limit == 0) { return; }
+            limit = -1;
+          }
+          else
+          {
+            index = (index + readlen) & 0xFF;
+          }
+        }
+      }
+    };
+
+  #define LGFX_FUNCTION_GENERATOR(drawImg) \
+    inline bool drawImg##Url(const char* url, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left) \
+    { \
+      HttpWrapper http; \
+      return http.open(url) && drawImg(&http, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum); \
+    } \
+
+    LGFX_FUNCTION_GENERATOR(drawBmp)
+    LGFX_FUNCTION_GENERATOR(drawJpg)
+    LGFX_FUNCTION_GENERATOR(drawPng)
+    LGFX_FUNCTION_GENERATOR(drawQoi)
+
+  #undef LGFX_FUNCTION_GENERATOR
+
+#endif
+
+#undef LGFX_URL_MAXLENGTH
 
   private:
 
@@ -419,47 +736,27 @@ namespace lgfx
       return result;
     }
 
-    bool drawBmpFile(DataWrapper* file, const char *path, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, float scale_x, float scale_y, datum_t datum)
-    {
-      bool res = false;
-      this->prepareTmpTransaction(file);
-      file->preRead();
-      if (file->open(path))
-      {
-        res = this->draw_bmp(file, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
-        file->close();
-      }
-      file->postRead();
-      return res;
-    }
+  #define LGFX_FUNCTION_GENERATOR(drawImg, draw_img) \
+    bool drawImg##File(DataWrapper* file, const char *path, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, float scale_x, float scale_y, datum_t datum) \
+    { \
+      bool res = false; \
+      this->prepareTmpTransaction(file); \
+      file->preRead(); \
+      if (file->open(path)) \
+      { \
+        res = this->draw_img(file, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum); \
+        file->close(); \
+      } \
+      file->postRead(); \
+      return res; \
+    } \
 
-    bool drawJpgFile(DataWrapper* file, const char *path, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, float scale_x, float scale_y, datum_t datum)
-    {
-      bool res = false;
-      this->prepareTmpTransaction(file);
-      file->preRead();
-      if (file->open(path))
-      {
-        res = this->draw_jpg(file, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
-        file->close();
-      }
-      file->postRead();
-      return res;
-    }
+    LGFX_FUNCTION_GENERATOR(drawBmp, draw_bmp)
+    LGFX_FUNCTION_GENERATOR(drawJpg, draw_jpg)
+    LGFX_FUNCTION_GENERATOR(drawPng, draw_png)
+    LGFX_FUNCTION_GENERATOR(drawQoi, draw_qoi)
 
-    bool drawPngFile(DataWrapper* file, const char *path, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, float scale_x, float scale_y, datum_t datum)
-    {
-      bool res = false;
-      this->prepareTmpTransaction(file);
-      file->preRead();
-      if (file->open(path))
-      {
-        res = this->draw_png(file, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
-        file->close();
-      }
-      file->postRead();
-      return res;
-    }
+  #undef LGFX_FUNCTION_GENERATOR
   };
 
 //----------------------------------------------------------------------------

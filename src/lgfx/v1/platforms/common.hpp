@@ -127,9 +127,9 @@ namespace lgfx
       length = (length + 3) & ~3;
       _flip = !_flip;
 
-      if (_length[_flip] != length)
+      if (_length[_flip] < length || _length[_flip] > length + 64)
       {
-        if (_buffer[_flip]) heap_free(_buffer[_flip]);
+        if (_buffer[_flip]) { heap_free(_buffer[_flip]); }
         _buffer[_flip] = (uint8_t*)heap_alloc_dma(length);
         _length[_flip] = _buffer[_flip] ? length : 0;
       }

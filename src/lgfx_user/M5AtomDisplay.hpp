@@ -2,7 +2,6 @@
 
 #if defined ( ESP_PLATFORM )
 #include <sdkconfig.h>
-#include <esp_efuse.h>
 #include <soc/efuse_reg.h>
 
 #define LGFX_USE_V1

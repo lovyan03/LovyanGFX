@@ -14,6 +14,9 @@ Contributors:
  [ciniml](https://github.com/ciniml)
  [mongonta0716](https://github.com/mongonta0716)
  [tobozo](https://github.com/tobozo)
+
+Porting for RP2040:
+ [yasuhirok](https://github.com/yasuhirok-git)
 /----------------------------------------------------------------------------*/
 #pragma once
 
@@ -61,8 +64,8 @@ namespace lgfx
   static inline void* heap_alloc_dma(  size_t length) { return malloc(length); } // aligned_alloc(16, length);
   static inline void heap_free(void* buf) { free(buf); }
 
-  static inline void gpio_hi(uint32_t pin) { digitalWrite(pin, HIGH); }
-  static inline void gpio_lo(uint32_t pin) { digitalWrite(pin, LOW); }
+  static inline void gpio_hi(uint32_t pin) { sio_hw->gpio_set = 1 << pin; }
+  static inline void gpio_lo(uint32_t pin) { sio_hw->gpio_clr = 1 << pin; }
   static inline bool gpio_in(uint32_t pin) { return digitalRead(pin); }
 
   enum pin_mode_t
@@ -77,6 +80,14 @@ namespace lgfx
   {
     pinMode(pin, mode);
   }
+
+  namespace spi
+  {
+    uint32_t FreqToClockDiv(uint32_t hz);
+
+    // 追加
+    bool lgfx_spi_set_frequency(int spi_port, uint32_t baudrate);
+  };
 
 //----------------------------------------------------------------------------
   struct FileWrapper : public DataWrapper

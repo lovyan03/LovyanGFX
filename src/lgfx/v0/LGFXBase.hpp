@@ -72,10 +72,10 @@ namespace lgfx
     __attribute__ ((always_inline)) inline void startWrite(void) {                           if (1 == ++_transaction_count) beginTransaction(); }
     __attribute__ ((always_inline)) inline void endWrite(void)   { if (_transaction_count) { if (1 == _transaction_count) { endTransaction(); } --_transaction_count; } }
     __attribute__ ((always_inline)) inline void writePixel(int32_t x, int32_t y)  { if (x >= _clip_l && x <= _clip_r && y >= _clip_t && y <= _clip_b) writeFillRect_impl(x, y, 1, 1); }
-    template<typename T> inline void writePixel    ( int32_t x, int32_t y                                , const T& color) { setColor(color); writePixel    (x, y      ); }
-    template<typename T> inline void writeFastVLine( int32_t x, int32_t y                , int32_t h, const T& color) { setColor(color); writeFastVLine(x, y   , h); }
-                                void writeFastVLine( int32_t x, int32_t y                , int32_t h);
-    template<typename T> inline void writeFastHLine( int32_t x, int32_t y, int32_t w                , const T& color) { setColor(color); writeFastHLine(x, y, w   ); }
+    template<typename T> inline void writePixel    ( int32_t x, int32_t y                      , const T& color) { setColor(color); writePixel    (x, y      ); }
+    template<typename T> inline void writeFastVLine( int32_t x, int32_t y           , int32_t h, const T& color) { setColor(color); writeFastVLine(x, y   , h); }
+                                void writeFastVLine( int32_t x, int32_t y           , int32_t h);
+    template<typename T> inline void writeFastHLine( int32_t x, int32_t y, int32_t w           , const T& color) { setColor(color); writeFastHLine(x, y, w   ); }
                                 void writeFastHLine( int32_t x, int32_t y, int32_t w);
     template<typename T> inline void writeFillRect ( int32_t x, int32_t y, int32_t w, int32_t h, const T& color) { setColor(color); writeFillRect (x, y, w, h); }
                                 void writeFillRect ( int32_t x, int32_t y, int32_t w, int32_t h);
@@ -85,28 +85,28 @@ namespace lgfx
 
 
     __attribute__ ((always_inline)) inline void drawPixel( int32_t x, int32_t y ) { if (x >= _clip_l && x <= _clip_r && y >= _clip_t && y <= _clip_b) drawPixel_impl(x, y); }
-    template<typename T> inline void drawPixel       ( int32_t x, int32_t y                                                , const T& color) { setColor(color); drawPixel    (x, y         ); }
-    template<typename T> inline void drawFastVLine   ( int32_t x, int32_t y                , int32_t h                , const T& color) { setColor(color); drawFastVLine(x, y   , h   ); }
-                                void drawFastVLine   ( int32_t x, int32_t y                , int32_t h);
-    template<typename T> inline void drawFastHLine   ( int32_t x, int32_t y, int32_t w                                , const T& color) { setColor(color); drawFastHLine(x, y, w      ); }
+    template<typename T> inline void drawPixel       ( int32_t x, int32_t y                                 , const T& color) { setColor(color); drawPixel    (x, y         ); }
+    template<typename T> inline void drawFastVLine   ( int32_t x, int32_t y           , int32_t h           , const T& color) { setColor(color); drawFastVLine(x, y   , h   ); }
+                                void drawFastVLine   ( int32_t x, int32_t y           , int32_t h);
+    template<typename T> inline void drawFastHLine   ( int32_t x, int32_t y, int32_t w                      , const T& color) { setColor(color); drawFastHLine(x, y, w      ); }
                                 void drawFastHLine   ( int32_t x, int32_t y, int32_t w);
-    template<typename T> inline void fillRect        ( int32_t x, int32_t y, int32_t w, int32_t h                , const T& color) { setColor(color); fillRect     (x, y, w, h   ); }
+    template<typename T> inline void fillRect        ( int32_t x, int32_t y, int32_t w, int32_t h           , const T& color) { setColor(color); fillRect     (x, y, w, h   ); }
                                 void fillRect        ( int32_t x, int32_t y, int32_t w, int32_t h);
-    template<typename T> inline void drawRect        ( int32_t x, int32_t y, int32_t w, int32_t h                , const T& color) { setColor(color); drawRect     (x, y, w, h   ); }
+    template<typename T> inline void drawRect        ( int32_t x, int32_t y, int32_t w, int32_t h           , const T& color) { setColor(color); drawRect     (x, y, w, h   ); }
                                 void drawRect        ( int32_t x, int32_t y, int32_t w, int32_t h);
     template<typename T> inline void drawRoundRect   ( int32_t x, int32_t y, int32_t w, int32_t h, int32_t r, const T& color) { setColor(color); drawRoundRect(x, y, w, h, r); }
                                 void drawRoundRect   ( int32_t x, int32_t y, int32_t w, int32_t h, int32_t r);
     template<typename T> inline void fillRoundRect   ( int32_t x, int32_t y, int32_t w, int32_t h, int32_t r, const T& color) { setColor(color); fillRoundRect(x, y, w, h, r); }
                                 void fillRoundRect   ( int32_t x, int32_t y, int32_t w, int32_t h, int32_t r);
-    template<typename T> inline void drawCircle      ( int32_t x, int32_t y                                , int32_t r, const T& color) { setColor(color); drawCircle   (x, y      , r); }
-                                void drawCircle      ( int32_t x, int32_t y                                , int32_t r);
-    template<typename T> inline void fillCircle      ( int32_t x, int32_t y                                , int32_t r, const T& color) { setColor(color); fillCircle   (x, y      , r); }
-                                void fillCircle      ( int32_t x, int32_t y                                , int32_t r);
-    template<typename T> inline void drawEllipse     ( int32_t x, int32_t y, int32_t rx, int32_t ry              , const T& color) { setColor(color); drawEllipse  (x, y, rx, ry ); }
+    template<typename T> inline void drawCircle      ( int32_t x, int32_t y                      , int32_t r, const T& color) { setColor(color); drawCircle   (x, y      , r); }
+                                void drawCircle      ( int32_t x, int32_t y                      , int32_t r);
+    template<typename T> inline void fillCircle      ( int32_t x, int32_t y                      , int32_t r, const T& color) { setColor(color); fillCircle   (x, y      , r); }
+                                void fillCircle      ( int32_t x, int32_t y                      , int32_t r);
+    template<typename T> inline void drawEllipse     ( int32_t x, int32_t y, int32_t rx, int32_t ry         , const T& color) { setColor(color); drawEllipse  (x, y, rx, ry ); }
                                 void drawEllipse     ( int32_t x, int32_t y, int32_t rx, int32_t ry);     
-    template<typename T> inline void fillEllipse     ( int32_t x, int32_t y, int32_t rx, int32_t ry              , const T& color) { setColor(color); fillEllipse  (x, y, rx, ry ); }
+    template<typename T> inline void fillEllipse     ( int32_t x, int32_t y, int32_t rx, int32_t ry         , const T& color) { setColor(color); fillEllipse  (x, y, rx, ry ); }
                                 void fillEllipse     ( int32_t x, int32_t y, int32_t rx, int32_t ry);
-    template<typename T> inline void drawLine        ( int32_t x0, int32_t y0, int32_t x1, int32_t y1            , const T& color)  { setColor(color); drawLine(    x0, y0, x1, y1        ); }
+    template<typename T> inline void drawLine        ( int32_t x0, int32_t y0, int32_t x1, int32_t y1       , const T& color)  { setColor(color); drawLine(    x0, y0, x1, y1        ); }
                                 void drawLine        ( int32_t x0, int32_t y0, int32_t x1, int32_t y1);
     template<typename T> inline void drawTriangle    ( int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t x2, int32_t y2, const T& color)  { setColor(color); drawTriangle(x0, y0, x1, y1, x2, y2); }
                                 void drawTriangle    ( int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t x2, int32_t y2);
@@ -126,7 +126,7 @@ namespace lgfx
                                 void drawArc         ( int32_t x, int32_t y, int32_t r0, int32_t r1, float angle0, float angle1)                 {                  drawEllipseArc( x, y, r0, r1, r0, r1, angle0, angle1); }
     template<typename T> inline void fillArc         ( int32_t x, int32_t y, int32_t r0, int32_t r1, float angle0, float angle1, const T& color) { setColor(color); fillEllipseArc( x, y, r0, r1, r0, r1, angle0, angle1); }
                                 void fillArc         ( int32_t x, int32_t y, int32_t r0, int32_t r1, float angle0, float angle1)                 {                  fillEllipseArc( x, y, r0, r1, r0, r1, angle0, angle1); }
-    template<typename T> inline void drawCircleHelper( int32_t x, int32_t y, int32_t r, uint_fast8_t cornername                 , const T& color)  { setColor(color); drawCircleHelper(x, y, r, cornername    ); }
+    template<typename T> inline void drawCircleHelper( int32_t x, int32_t y, int32_t r, uint_fast8_t cornername                , const T& color) { setColor(color); drawCircleHelper(x, y, r, cornername    ); }
                                 void drawCircleHelper( int32_t x, int32_t y, int32_t r, uint_fast8_t cornername);
     template<typename T> inline void fillCircleHelper( int32_t x, int32_t y, int32_t r, uint_fast8_t corners, int32_t delta, const T& color)  { setColor(color); fillCircleHelper(x, y, r, corners, delta); }
                                 void fillCircleHelper( int32_t x, int32_t y, int32_t r, uint_fast8_t corners, int32_t delta);
@@ -168,25 +168,25 @@ namespace lgfx
     __attribute__ ((always_inline)) inline float getPivotX(void) const { return _xpivot; }
     __attribute__ ((always_inline)) inline float getPivotY(void) const { return _ypivot; }
 
-    __attribute__ ((always_inline)) inline int32_t width        (void) const { return _width; }
-    __attribute__ ((always_inline)) inline int32_t height       (void) const { return _height; }
-    __attribute__ ((always_inline)) inline int_fast8_t getRotation(void) const { return getRotation_impl(); }
-    __attribute__ ((always_inline)) inline color_depth_t getColorDepth(void) const { return _write_conv.depth; }
-    __attribute__ ((always_inline)) inline color_conv_t* getColorConverter(void) { return &_write_conv; }
-    __attribute__ ((always_inline)) inline RGBColor*     getPalette(void) const { return getPalette_impl(); }
-    __attribute__ ((always_inline)) inline uint32_t getPaletteCount(void) const { return _palette_count; }
-    __attribute__ ((always_inline)) inline bool hasPalette    (void) const { return _palette_count; }
-    __attribute__ ((always_inline)) inline bool isSPIShared(void) const { return _spi_shared; }
-    __attribute__ ((always_inline)) inline bool isReadable(void) const { return isReadable_impl(); }
-    __attribute__ ((always_inline)) inline bool getSwapBytes    (void) const { return _swapBytes; }
-    __attribute__ ((always_inline)) inline void setSwapBytes(bool swap) { _swapBytes = swap; }
-    __attribute__ ((always_inline)) inline void setSPIShared(bool shared) { _spi_shared = shared; }
+    __attribute__ ((always_inline)) inline int32_t       width            (void) const { return _width; }
+    __attribute__ ((always_inline)) inline int32_t       height           (void) const { return _height; }
+    __attribute__ ((always_inline)) inline int_fast8_t   getRotation      (void) const { return getRotation_impl(); }
+    __attribute__ ((always_inline)) inline color_depth_t getColorDepth    (void) const { return _write_conv.depth; }
+    __attribute__ ((always_inline)) inline color_conv_t* getColorConverter(void)       { return &_write_conv; }
+    __attribute__ ((always_inline)) inline RGBColor*     getPalette       (void) const { return getPalette_impl(); }
+    __attribute__ ((always_inline)) inline uint32_t      getPaletteCount  (void) const { return _palette_count; }
+    __attribute__ ((always_inline)) inline bool          hasPalette       (void) const { return _palette_count; }
+    __attribute__ ((always_inline)) inline bool          isSPIShared      (void) const { return _spi_shared; }
+    __attribute__ ((always_inline)) inline bool          isReadable       (void) const { return isReadable_impl(); }
+    __attribute__ ((always_inline)) inline bool          getSwapBytes     (void) const { return _swapBytes; }
+    __attribute__ ((always_inline)) inline void          setSwapBytes     (bool swap) { _swapBytes = swap; }
+    __attribute__ ((always_inline)) inline void          setSPIShared     (bool shared) { _spi_shared = shared; }
 
     __attribute__ ((always_inline)) inline void beginTransaction(void) { beginTransaction_impl(); }
     __attribute__ ((always_inline)) inline void endTransaction(void)   { endTransaction_impl(); }
-    __attribute__ ((always_inline)) inline void initDMA(void)  { initDMA_impl(); }
+    __attribute__ ((always_inline)) inline void initDMA(void) { initDMA_impl(); }
     __attribute__ ((always_inline)) inline void waitDMA(void) { waitDMA_impl(); }
-    __attribute__ ((always_inline)) inline bool dmaBusy(void)  { return dmaBusy_impl(); }
+    __attribute__ ((always_inline)) inline bool dmaBusy(void) { return dmaBusy_impl(); }
     __attribute__ ((always_inline)) inline void setWindow(int32_t xs, int32_t ys, int32_t xe, int32_t ye) { setWindow_impl(xs, ys, xe, ye); }
 
     void setAddrWindow(int32_t x, int32_t y, int32_t w, int32_t h);
@@ -208,14 +208,14 @@ namespace lgfx
     __attribute__ ((always_inline)) inline void writePixelsDMA(const void* data, int32_t len) { if (len < 0) return;               writePixelsDMA_impl(data, len);             }
 
     template<typename T>
-    __attribute__ ((always_inline)) inline void pushPixels(T*                   data, int32_t len           ) { startWrite(); writePixels(data, len      ); endWrite(); }
+    __attribute__ ((always_inline)) inline void pushPixels(T*              data, int32_t len           ) { startWrite(); writePixels(data, len      ); endWrite(); }
     __attribute__ ((always_inline)) inline void pushPixels(const uint16_t* data, int32_t len, bool swap) { startWrite(); writePixels(data, len, swap); endWrite(); }
-    __attribute__ ((always_inline)) inline void pushPixels(const void*          data, int32_t len, bool swap) { startWrite(); writePixels(data, len, swap); endWrite(); }
+    __attribute__ ((always_inline)) inline void pushPixels(const void*     data, int32_t len, bool swap) { startWrite(); writePixels(data, len, swap); endWrite(); }
 
     template<typename T>
-    void writePixels(const T *data, int32_t len)                        { auto pc = create_pc_fast(data      ); writePixels_impl(len, &pc); }
+    void writePixels(const T *data, int32_t len)                   { auto pc = create_pc_fast(data      ); writePixels_impl(len, &pc); }
     void writePixels(const uint16_t* data, int32_t len, bool swap) { auto pc = create_pc_fast(data, swap); writePixels_impl(len, &pc); }
-    void writePixels(const void*          data, int32_t len, bool swap) { auto pc = create_pc_fast(data, swap); writePixels_impl(len, &pc); }
+    void writePixels(const void*     data, int32_t len, bool swap) { auto pc = create_pc_fast(data, swap); writePixels_impl(len, &pc); }
 
     template<typename T>
     void writeIndexedPixels(const uint8_t *data, T* palette, int32_t len, lgfx::color_depth_t colordepth = lgfx::rgb332_1Byte)
@@ -491,16 +491,16 @@ namespace lgfx
     int32_t textWidth(const char *string);
 
     [[deprecated("use IFont")]]
-    inline size_t drawString(const char *string, int32_t x, int32_t y, uint8_t font) { setFont(fontdata[font]); return draw_string(string, x, y, _text_style.datum); }
+    inline size_t drawString(const char *string, int32_t x, int32_t y, uint8_t      font) { setFont(fontdata[font]); return draw_string(string, x, y, _text_style.datum); }
     inline size_t drawString(const char *string, int32_t x, int32_t y, const IFont* font) { setFont(font          ); return draw_string(string, x, y, _text_style.datum); }
     inline size_t drawString(const char *string, int32_t x, int32_t y                   ) {                          return draw_string(string, x, y, _text_style.datum); }
 
     [[deprecated("use IFont")]]
-    inline size_t drawNumber(long long_num, int32_t poX, int32_t poY, uint8_t font) { setFont(fontdata[font]); return drawNumber(long_num, poX, poY); }
+    inline size_t drawNumber(long long_num, int32_t poX, int32_t poY, uint8_t      font) { setFont(fontdata[font]); return drawNumber(long_num, poX, poY); }
     inline size_t drawNumber(long long_num, int32_t poX, int32_t poY, const IFont* font) { setFont(font          ); return drawNumber(long_num, poX, poY); }
            size_t drawNumber(long long_num, int32_t poX, int32_t poY);
     inline size_t drawFloat(float floatNumber, uint8_t dp, int32_t poX, int32_t poY, const IFont* font) { setFont(font          ); return drawFloat(floatNumber, dp, poX, poY); }
-    inline size_t drawFloat(float floatNumber, uint8_t dp, int32_t poX, int32_t poY, uint8_t font) { setFont(fontdata[font]); return drawFloat(floatNumber, dp, poX, poY); }
+    inline size_t drawFloat(float floatNumber, uint8_t dp, int32_t poX, int32_t poY, uint8_t      font) { setFont(fontdata[font]); return drawFloat(floatNumber, dp, poX, poY); }
            size_t drawFloat(float floatNumber, uint8_t dp, int32_t poX, int32_t poY);
 
     [[deprecated("use setTextDatum() and drawString()")]] inline size_t drawCentreString(const char *string, int32_t x, int32_t y, uint8_t font) { setFont(fontdata[font]); return draw_string(string, x, y, textdatum_t::top_center); }
@@ -511,7 +511,7 @@ namespace lgfx
     inline int32_t textLength(const String& string, int32_t width) { return textLength(string.c_str(), width); }
     inline int32_t textWidth(const String& string) { return textWidth(string.c_str()); }
 
-    inline size_t drawString(const String& string, int32_t x, int32_t y                   ) {                          return draw_string(string.c_str(), x, y, _text_style.datum); }
+    inline size_t drawString(const String& string, int32_t x, int32_t y              ) {                          return draw_string(string.c_str(), x, y, _text_style.datum); }
     inline size_t drawString(const String& string, int32_t x, int32_t y, uint8_t font) { setFont(fontdata[font]); return draw_string(string.c_str(), x, y, _text_style.datum); }
 
     [[deprecated("use setTextDatum() and drawString()")]] inline size_t drawCentreString(const String& string, int32_t x, int32_t y, uint8_t font) { setFont(fontdata[font]); return draw_string(string.c_str(), x, y, textdatum_t::top_center); }
@@ -520,8 +520,8 @@ namespace lgfx
   #endif
 
            size_t drawChar(uint16_t uniCode, int32_t x, int32_t y, uint8_t font);
-//  inline size_t drawChar(uint16_t uniCode, int32_t x, int32_t y                   ) { _filled_x = 0; return (fpDrawChar)(this, x, y, uniCode, &_text_style, _font); }
-    inline size_t drawChar(uint16_t uniCode, int32_t x, int32_t y                   ) { _filled_x = 0; return _font->drawChar(this, x, y, uniCode, &_text_style); }
+//  inline size_t drawChar(uint16_t uniCode, int32_t x, int32_t y              ) { _filled_x = 0; return (fpDrawChar)(this, x, y, uniCode, &_text_style, _font); }
+    inline size_t drawChar(uint16_t uniCode, int32_t x, int32_t y              ) { _filled_x = 0; return _font->drawChar(this, x, y, uniCode, &_text_style); }
 
     template<typename T>
     inline size_t drawChar(int32_t x, int32_t y, uint16_t uniCode, T color, T bg, float size) { return drawChar(x, y, uniCode, color, bg, size, size); }
@@ -701,11 +701,11 @@ namespace lgfx
     [[deprecated("use pushBlock")]] void pushColor(const T& color                     ) {                          setColor(color); startWrite(); pushBlock_impl(1);      endWrite(); }
 
     template<typename T>
-    [[deprecated("use pushPixels")]] void pushColors(T*                   data, int32_t len           ) { startWrite(); writePixels(data, len            ); endWrite(); }
-    [[deprecated("use pushPixels")]] void pushColors(const void*          data, int32_t len           ) { startWrite(); writePixels(data, len, _swapBytes); endWrite(); }
+    [[deprecated("use pushPixels")]] void pushColors(T*              data, int32_t len           ) { startWrite(); writePixels(data, len            ); endWrite(); }
+    [[deprecated("use pushPixels")]] void pushColors(const void*     data, int32_t len           ) { startWrite(); writePixels(data, len, _swapBytes); endWrite(); }
     [[deprecated("use pushPixels")]] void pushColors(const uint16_t* data, int32_t len           ) { startWrite(); writePixels(data, len, _swapBytes); endWrite(); }
     [[deprecated("use pushPixels")]] void pushColors(const uint8_t*  data, int32_t len           ) { startWrite(); writePixels((const rgb332_t*)data, len); endWrite(); }
-    [[deprecated("use pushPixels")]] void pushColors(const void*          data, int32_t len, bool swap) { startWrite(); writePixels(data, len, swap); endWrite(); }
+    [[deprecated("use pushPixels")]] void pushColors(const void*     data, int32_t len, bool swap) { startWrite(); writePixels(data, len, swap); endWrite(); }
     [[deprecated("use pushPixels")]] void pushColors(const uint16_t* data, int32_t len, bool swap) { startWrite(); writePixels(data, len, swap); endWrite(); }
 
 //----------------------------------------------------------------------------
@@ -796,7 +796,7 @@ namespace lgfx
     }
     __attribute__ ((always_inline)) inline pixelcopy_t create_pc_fast(const uint8_t  *data) { return create_pc_fast(reinterpret_cast<const rgb332_t*>(data)); }
     __attribute__ ((always_inline)) inline pixelcopy_t create_pc_fast(const uint16_t *data) { return create_pc_fast(data, _swapBytes); }
-    __attribute__ ((always_inline)) inline pixelcopy_t create_pc_fast(const void          *data) { return create_pc_fast(data, _swapBytes); }
+    __attribute__ ((always_inline)) inline pixelcopy_t create_pc_fast(const void     *data) { return create_pc_fast(data, _swapBytes); }
     __attribute__ ((always_inline)) inline pixelcopy_t create_pc_fast(const uint16_t *data, bool swap)
     {
       return swap && !hasPalette() && _write_conv.depth >= 8

@@ -65,17 +65,13 @@ namespace lgfx
                              0x0a,0x28,0x31,0x54,
                              0x47,0x0e,0x1c,0x17,
                              0x1b,0x1e,
-          CMD::SLPOUT, 1, 255,
-          CMD::DISPON, 1, 255,
-          0xFF,0xFF, // end
-      };
-      static constexpr uint8_t list1[] = {
-          CMD::DISPON, 1, 255,
+          CMD::SLPOUT, CMD_INIT_DELAY, 130,
+          CMD::IDMOFF, 0,
+          CMD::DISPON, 0,
           0xFF,0xFF, // end
       };
       switch (listno) {
       case 0: return list0;
-      case 1: return list1;
       default: return nullptr;
       }
     }

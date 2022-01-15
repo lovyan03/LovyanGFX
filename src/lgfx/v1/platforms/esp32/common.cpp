@@ -28,7 +28,6 @@ Contributors:
 #include <driver/spi_common.h>
 #include <driver/spi_master.h>
 #include <driver/rtc_io.h>
-#include <driver/periph_ctrl.h>
 #include <soc/rtc.h>
 #include <soc/soc.h>
 #include <soc/i2c_reg.h>
@@ -37,6 +36,12 @@ Contributors:
 
 #include <soc/apb_ctrl_reg.h>
 #include <soc/efuse_reg.h>
+
+#if __has_include (<esp_private/periph_ctrl.h>)
+ #include <esp_private/periph_ctrl.h>
+#else
+ #include <driver/periph_ctrl.h>
+#endif
 
 #if defined (ESP_IDF_VERSION_VAL)
  #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(3, 4, 0)
@@ -70,6 +75,7 @@ namespace lgfx
  inline namespace v1
  {
 //----------------------------------------------------------------------------
+  static __attribute__ ((always_inline)) inline volatile uint32_t* reg(uint32_t addr) { return (volatile uint32_t *)ETS_UNCACHED_ADDR(addr); }
 
   uint32_t getApbFrequency(void)
   {
@@ -194,19 +200,18 @@ namespace lgfx
  // バスの設定にはESP-IDFのSPIドライバを使用する。;
       if (_spi_dev_handle[spi_host] == nullptr)
       {
-      spi_bus_config_t buscfg = {
-          .mosi_io_num = spi_mosi,
-          .miso_io_num = spi_miso,
-          .sclk_io_num = spi_sclk,
-          .quadwp_io_num = -1,
-          .quadhd_io_num = -1,
-          .max_transfer_sz = 1,
-          .flags = SPICOMMON_BUSFLAG_MASTER,
-          .intr_flags = 0,
-      };
+        spi_bus_config_t buscfg;
+        buscfg.mosi_io_num = spi_mosi;
+        buscfg.miso_io_num = spi_miso;
+        buscfg.sclk_io_num = spi_sclk;
+        buscfg.quadwp_io_num = -1;
+        buscfg.quadhd_io_num = -1;
+        buscfg.max_transfer_sz = 1;
+        buscfg.flags = SPICOMMON_BUSFLAG_MASTER;
+        buscfg.intr_flags = 0;
 
-      if (ESP_OK != spi_bus_initialize(static_cast<spi_host_device_t>(spi_host), &buscfg, dma_channel))
-      {
+        if (ESP_OK != spi_bus_initialize(static_cast<spi_host_device_t>(spi_host), &buscfg, dma_channel))
+        {
           ESP_LOGE("LGFX", "Failed to spi_bus_initialize. ");
         }
 
@@ -267,21 +272,20 @@ namespace lgfx
     //Select DMA channel.
         DPORT_SET_PERI_REG_BITS(DPORT_SPI_DMA_CHAN_SEL_REG, 3, dma_channel, (spi_host * 2));
       //Reset DMA
-        WRITE_PERI_REG(SPI_DMA_CONF_REG(spi_port), READ_PERI_REG(SPI_DMA_CONF_REG(spi_port)) | SPI_OUT_RST|SPI_IN_RST|SPI_AHBM_RST|SPI_AHBM_FIFO_RST);
-        WRITE_PERI_REG(SPI_DMA_IN_LINK_REG(spi_port), 0);
-        WRITE_PERI_REG(SPI_DMA_OUT_LINK_REG(spi_port), 0);
-        WRITE_PERI_REG(SPI_DMA_CONF_REG(spi_port), READ_PERI_REG(SPI_DMA_CONF_REG(spi_port)) & ~(SPI_OUT_RST|SPI_IN_RST|SPI_AHBM_RST|SPI_AHBM_FIFO_RST));
+        *reg(SPI_DMA_CONF_REG(spi_port)) = *reg(SPI_DMA_CONF_REG(spi_port)) | SPI_OUT_RST|SPI_IN_RST|SPI_AHBM_RST|SPI_AHBM_FIFO_RST;
+        *reg(SPI_DMA_IN_LINK_REG(spi_port)) = 0;
+        *reg(SPI_DMA_OUT_LINK_REG(spi_port)) = 0;
+        *reg(SPI_DMA_CONF_REG(spi_port)) = *reg(SPI_DMA_CONF_REG(spi_port)) & ~(SPI_OUT_RST|SPI_IN_RST|SPI_AHBM_RST|SPI_AHBM_FIFO_RST);
       }
 //*/
 #endif
-      WRITE_PERI_REG(SPI_USER_REG (spi_port), SPI_USR_MOSI | SPI_USR_MISO | SPI_DOUTDIN);  // need SD card access (full duplex setting)
-      WRITE_PERI_REG(SPI_SLAVE_REG(spi_port), 0);
-      WRITE_PERI_REG(SPI_CTRL_REG( spi_port), 0);
+      *reg(SPI_USER_REG(spi_port)) = SPI_USR_MOSI | SPI_USR_MISO | SPI_DOUTDIN;  // need SD card access (full duplex setting)
+      *reg(SPI_CTRL_REG(spi_port)) = 0;
 #if defined ( SPI_CTRL1_REG )
-      WRITE_PERI_REG(SPI_CTRL1_REG(spi_port), 0);
+      *reg(SPI_CTRL1_REG(spi_port)) = 0;
 #endif
 #if defined ( SPI_CTRL2_REG )
-      WRITE_PERI_REG(SPI_CTRL2_REG(spi_port), 0);
+      *reg(SPI_CTRL2_REG(spi_port)) = 0;
 #endif
 
       return {};
@@ -338,13 +342,13 @@ namespace lgfx
 
       beginTransaction(spi_host);
 
-      WRITE_PERI_REG(SPI_USER_REG(spi_port), user);
+      *reg(SPI_USER_REG(spi_port)) = user;
 #if defined (SPI_PIN_REG)
-      WRITE_PERI_REG(SPI_PIN_REG( spi_port), pin);
+      *reg(SPI_PIN_REG(spi_port)) = pin;
 #else
-      WRITE_PERI_REG(SPI_MISC_REG( spi_port), pin);
+      *reg(SPI_MISC_REG( spi_port)) = pin;
 #endif
-      WRITE_PERI_REG(SPI_CLOCK_REG(spi_port), clkdiv);
+      *reg(SPI_CLOCK_REG(spi_port)) = clkdiv;
       //gpio_lo(spi_cs);
     }
 
@@ -377,9 +381,9 @@ namespace lgfx
       (void)spi_port;
       if (len > 64) len = 64;
       memcpy(reinterpret_cast<void*>(SPI_W0_REG(spi_port)), data, len);
-      WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), (len << 3) - 1);
-      WRITE_PERI_REG(SPI_CMD_REG(      spi_port), SPI_USR);
-      while (READ_PERI_REG(SPI_CMD_REG(spi_port)) & SPI_EXECUTE);
+      *reg(SPI_MOSI_DLEN_REG(spi_port)) = (len << 3) - 1;
+      *reg(SPI_CMD_REG(      spi_port)) = SPI_USR;
+      while (*reg(SPI_CMD_REG(spi_port)) & SPI_EXECUTE);
     }
 
     void readBytes(int spi_host, uint8_t* data, size_t len)
@@ -388,9 +392,9 @@ namespace lgfx
       (void)spi_port;
       if (len > 64) len = 64;
       memcpy(reinterpret_cast<void*>(SPI_W0_REG(spi_port)), data, len);
-      WRITE_PERI_REG(SPI_MOSI_DLEN_REG(spi_port), (len << 3) - 1);
-      WRITE_PERI_REG(SPI_CMD_REG(      spi_port), SPI_USR);
-      while (READ_PERI_REG(SPI_CMD_REG(spi_port)) & SPI_EXECUTE);
+      *reg(SPI_MOSI_DLEN_REG(spi_port)) = (len << 3) - 1;
+      *reg(SPI_CMD_REG(      spi_port)) = SPI_USR;
+      while (*reg(SPI_CMD_REG(spi_port)) & SPI_EXECUTE);
 
       memcpy(data, reinterpret_cast<const void*>(SPI_W0_REG(spi_port)), len);
     }

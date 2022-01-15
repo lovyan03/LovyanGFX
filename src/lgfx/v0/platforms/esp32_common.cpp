@@ -6,10 +6,15 @@
 #include <driver/i2c.h>
 #include <driver/spi_common.h>
 #include <driver/rtc_io.h>
-#include <driver/periph_ctrl.h>
 #include <soc/rtc.h>
 
-#if defined ARDUINO
+#if __has_include (<esp_private/periph_ctrl.h>)
+ #include <esp_private/periph_ctrl.h>
+#else
+ #include <driver/periph_ctrl.h>
+#endif
+
+#if defined ( ARDUINO )
  #include <SPI.h>
  #include <Wire.h>
  #include <esp32-hal-ledc.h>
@@ -219,16 +224,15 @@ namespace lgfx
 
 #else // ESP-IDF
 
-      spi_bus_config_t buscfg = {
-          .mosi_io_num = spi_mosi,
-          .miso_io_num = spi_miso,
-          .sclk_io_num = spi_sclk,
-          .quadwp_io_num = -1,
-          .quadhd_io_num = -1,
-          .max_transfer_sz = 1,
-          .flags = SPICOMMON_BUSFLAG_MASTER,
-          .intr_flags = 0,
-      };
+      spi_bus_config_t buscfg;
+      buscfg.mosi_io_num = spi_mosi;
+      buscfg.miso_io_num = spi_miso;
+      buscfg.sclk_io_num = spi_sclk;
+      buscfg.quadwp_io_num = -1;
+      buscfg.quadhd_io_num = -1;
+      buscfg.max_transfer_sz = 1;
+      buscfg.flags = SPICOMMON_BUSFLAG_MASTER;
+      buscfg.intr_flags = 0;
 
       if (ESP_OK != spi_bus_initialize(static_cast<spi_host_device_t>(spi_host), &buscfg, dma_channel)) {
         ESP_LOGE("LGFX", "Failed to spi_bus_initialize. ");

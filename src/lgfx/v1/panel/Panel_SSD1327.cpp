@@ -37,8 +37,6 @@ namespace lgfx
 
   color_depth_t Panel_SSD1327::setColorDepth(color_depth_t depth)
   {
-    _write_bits = 24;
-    _read_bits = 24;
     _write_depth = color_depth_t::rgb888_3Byte;
     _read_depth = color_depth_t::rgb888_3Byte;
     return color_depth_t::rgb888_3Byte;

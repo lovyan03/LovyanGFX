@@ -38,7 +38,7 @@ Contributors:
 
 /// for  not ESP8266
 #if !defined ( pgm_read_dword_with_offset )
- #if defined (__SAMD21__) || defined(__SAMD21G18A__) || defined(__SAMD21J18A__) || defined(__SAMD21E17A__) || defined(__SAMD21E18A__)
+ #if defined (__SAMD21__) || defined(__SAMD21G18A__) || defined(__SAMD21J18A__) || defined(__SAMD21E17A__) || defined(__SAMD21E18A__) || defined(ARDUINO_ARCH_MBED_RP2040) || defined(ARDUINO_ARCH_RP2040)
   #define pgm_read_word_unaligned(addr) (uint16_t) \
     ( *(const uint8_t *)((uintptr_t)addr) \
     | *(const uint8_t *)((uintptr_t)addr+1) << 8 )
@@ -61,23 +61,24 @@ Contributors:
  #define pgm_read_3byte_unaligned(addr) (pgm_read_dword_unaligned(addr) & 0xFFFFFFu)
 #endif
 
-#if defined ( ESP8266 ) || defined (__SAMD21__) || defined(__SAMD21G18A__) || defined(__SAMD21J18A__) || defined(__SAMD21E17A__) || defined(__SAMD21E18A__)
+#if defined ( ESP8266 ) || defined (__SAMD21__) || defined(__SAMD21G18A__) || defined(__SAMD21J18A__) || defined(__SAMD21E17A__) || defined(__SAMD21E18A__) || defined(ARDUINO_ARCH_MBED_RP2040) || defined(ARDUINO_ARCH_RP2040)
   static inline void write_3byte_unaligned(void* addr, uint32_t value)
   {
-    reinterpret_cast<uint8_t*>(addr)[0] = value;
-    reinterpret_cast<uint8_t*>(addr)[1] = value >> 8;
-    reinterpret_cast<uint8_t*>(addr)[2] = value >> 16;
+    ((uint8_t*)(addr))[0] = value;
+    ((uint8_t*)(addr))[1] = value >> 8;
+    ((uint8_t*)(addr))[2] = value >> 16;
   }
 #else
   static inline void write_3byte_unaligned(void* addr, uint32_t value)
   {
-    reinterpret_cast<uint16_t*>(addr)[0] = value;
-    reinterpret_cast<uint8_t*>(addr)[2] = value >> 16;
+    ((uint16_t*)(addr))[0] = value;
+    ((uint8_t* )(addr))[2] = value >> 16;
   }
 #endif
 
 #ifndef ARDUINO
  static inline void* memcpy_P(void* __restrict dst, const void* __restrict src, size_t len) { return memcpy(dst, src, len); }
+ static inline int memcmp_P(const void* __restrict dst, const void* __restrict src, size_t len) { return memcmp(dst, src, len); }
 #endif
 
 #ifndef PROGMEM

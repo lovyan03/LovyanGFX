@@ -139,9 +139,9 @@ namespace lgfx
     else                { depth = color_depth_t::rgb565_2Byte; }
 
     _read_depth = _write_depth = depth;
-    _read_bits  = _write_bits  = depth & color_depth_t::bit_mask;
+
 //    _update_colmod();
-    return _write_depth;
+    return depth;
   }
 
   void Panel_M5UnitLCD::setRotation(uint_fast8_t r)
@@ -361,7 +361,7 @@ namespace lgfx
       memmove(dst, src, src_size * bytes);
       dst += src_size * bytes;
     }
-    else  // RLEモード
+    else  // RLEモード;
     {
       for (size_t i = 0; i < src_size; i++)
       {

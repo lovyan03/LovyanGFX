@@ -1132,6 +1132,13 @@ namespace lgfx
     #include "../Fonts/Custom/Roboto_Thin_24.h"
     #include "../Fonts/Custom/Satisfy_24.h"
     #include "../Fonts/Custom/Yellowtail_32.h"
+    #include "../Fonts/Custom/DejaVu9.h"
+    #include "../Fonts/Custom/DejaVu12.h"
+    #include "../Fonts/Custom/DejaVu18.h"
+    #include "../Fonts/Custom/DejaVu24.h"
+    #include "../Fonts/Custom/DejaVu40.h"
+    #include "../Fonts/Custom/DejaVu56.h"
+    #include "../Fonts/Custom/DejaVu72.h"
 
     #include "../Fonts/glcdfont.h"
     #include "../Fonts/Font16.h"

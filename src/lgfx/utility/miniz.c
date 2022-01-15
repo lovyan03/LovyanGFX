@@ -216,6 +216,9 @@
 #if MINIZ_X86_OR_X64_CPU
 // Set MINIZ_USE_UNALIGNED_LOADS_AND_STORES to 1 on CPU's that permit efficient integer loads and stores from unaligned addresses.
 #define MINIZ_USE_UNALIGNED_LOADS_AND_STORES 1
+#elif defined (ESP_PLATFORM)
+#define MINIZ_USE_UNALIGNED_LOADS_AND_STORES 1
+#else
 #endif
 
 #if defined(_M_X64) || defined(_WIN64) || defined(__MINGW64__) || defined(_LP64) || defined(__LP64__) || defined(__ia64__) || defined(__x86_64__)
@@ -1437,7 +1440,8 @@ const char *mz_error(int err)
     if ((pIn_buf_end - pIn_buf_cur) < 2) { \
        TINFL_HUFF_BITBUF_FILL(state_index, pHuff); \
     } else { \
-       bit_buf |= (((tinfl_bit_buf_t)pIn_buf_cur[0]) << num_bits) | (((tinfl_bit_buf_t)pIn_buf_cur[1]) << (num_bits + 8)); pIn_buf_cur += 2; num_bits += 16; \
+       c = ((tinfl_bit_buf_t)pIn_buf_cur[0]) + (((tinfl_bit_buf_t)pIn_buf_cur[1]) << 8); \
+       bit_buf += c << num_bits; pIn_buf_cur += 2; num_bits += 16; \
     } \
   } \
   if ((temp = (pHuff)->m_look_up[bit_buf & (TINFL_FAST_LOOKUP_SIZE - 1)]) >= 0) \
@@ -1448,12 +1452,12 @@ const char *mz_error(int err)
 
 tinfl_status tinfl_decompress(tinfl_decompressor *r, const mz_uint8 *pIn_buf_next, size_t *pIn_buf_size, mz_uint8 *pOut_buf_start, mz_uint8 *pOut_buf_next, size_t *pOut_buf_size, const mz_uint32 decomp_flags)
 {
-  static const int s_length_base[31] = { 3,4,5,6,7,8,9,10,11,13, 15,17,19,23,27,31,35,43,51,59, 67,83,99,115,131,163,195,227,258,0,0 };
-  static const int s_length_extra[31]= { 0,0,0,0,0,0,0,0,1,1,1,1,2,2,2,2,3,3,3,3,4,4,4,4,5,5,5,5,0,0,0 };
-  static const int s_dist_base[32] = { 1,2,3,4,5,7,9,13,17,25,33,49,65,97,129,193, 257,385,513,769,1025,1537,2049,3073,4097,6145,8193,12289,16385,24577,0,0};
-  static const int s_dist_extra[32] = { 0,0,0,0,1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,11,11,12,12,13,13};
+  static const mz_uint16 s_length_base[32] = { 0,3,4,5,6,7,8,9,10,11,13, 15,17,19,23,27,31,35,43,51,59, 67,83,99,115,131,163,195,227,258,0,0 };
+  static const mz_uint8 s_length_extra[32]= { 0,0,0,0,0,0,0,0,0,1,1,1,1,2,2,2,2,3,3,3,3,4,4,4,4,5,5,5,5,0,0,0 };
+  static const mz_uint16 s_dist_base[32] = { 1,2,3,4,5,7,9,13,17,25,33,49,65,97,129,193, 257,385,513,769,1025,1537,2049,3073,4097,6145,8193,12289,16385,24577,0,0};
+  static const mz_uint8 s_dist_extra[32] = { 0,0,0,0,1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,11,11,12,12,13,13};
   static const mz_uint8 s_length_dezigzag[19] = { 16,17,18,0,8,7,9,6,10,5,11,4,12,3,13,2,14,1,15 };
-  static const int s_min_table_sizes[3] = { 257, 1, 4 };
+  static const mz_uint16 s_min_table_sizes[3] = { 257, 1, 4 };
 
   tinfl_status status = TINFL_STATUS_FAILED; mz_uint32 num_bits, dist, counter, num_extra; tinfl_bit_buf_t bit_buf;
   const mz_uint8 *pIn_buf_cur = pIn_buf_next, *const pIn_buf_end = pIn_buf_next + *pIn_buf_size;
@@ -1626,9 +1630,9 @@ tinfl_status tinfl_decompress(tinfl_decompressor *r, const mz_uint8 *pIn_buf_nex
             pOut_buf_cur += 2;
           }
         }
-        if ((counter &= 511) == 256) break;
+        if ((counter &= 255) == 0) break;
 
-        num_extra = s_length_extra[counter - 257]; counter = s_length_base[counter - 257];
+        num_extra = s_length_extra[counter]; counter = s_length_base[counter];
         if (num_extra) { mz_uint extra_bits; TINFL_GET_BITS(25, extra_bits, num_extra); counter += extra_bits; }
 
         TINFL_HUFF_DECODE(26, dist, &r->m_tables[1]);
@@ -1636,7 +1640,7 @@ tinfl_status tinfl_decompress(tinfl_decompressor *r, const mz_uint8 *pIn_buf_nex
         if (num_extra) { mz_uint extra_bits; TINFL_GET_BITS(27, extra_bits, num_extra); dist += extra_bits; }
 
         dist_from_out_buf_start = pOut_buf_cur - pOut_buf_start;
-        if ((dist > dist_from_out_buf_start) && (decomp_flags & TINFL_FLAG_USING_NON_WRAPPING_OUTPUT_BUF))
+        if ((decomp_flags & TINFL_FLAG_USING_NON_WRAPPING_OUTPUT_BUF) && (dist > dist_from_out_buf_start))
         {
           TINFL_CR_RETURN_FOREVER(37, TINFL_STATUS_FAILED);
         }
@@ -1655,14 +1659,11 @@ tinfl_status tinfl_decompress(tinfl_decompressor *r, const mz_uint8 *pIn_buf_nex
 #if MINIZ_USE_UNALIGNED_LOADS_AND_STORES
         else if ((counter >= 9) && (counter <= dist))
         {
-          const mz_uint8 *pSrc_end = pSrc + (counter & ~7);
-          do
-          {
-            ((mz_uint32 *)pOut_buf_cur)[0] = ((const mz_uint32 *)pSrc)[0];
-            ((mz_uint32 *)pOut_buf_cur)[1] = ((const mz_uint32 *)pSrc)[1];
-            pOut_buf_cur += 8;
-          } while ((pSrc += 8) < pSrc_end);
-          if ((counter &= 7) < 3)
+          mz_uint32 copylen = counter & ~3;
+          memcpy(pOut_buf_cur, pSrc, copylen);
+          pOut_buf_cur += copylen;
+          pSrc += copylen;
+          if ((counter &= 3) < 3)
           {
             if (counter)
             {
@@ -1693,22 +1694,19 @@ tinfl_status tinfl_decompress(tinfl_decompressor *r, const mz_uint8 *pIn_buf_nex
 common_exit:
   r->m_num_bits = num_bits; r->m_bit_buf = bit_buf; r->m_dist = dist; r->m_counter = counter; r->m_num_extra = num_extra; r->m_dist_from_out_buf_start = dist_from_out_buf_start;
   *pIn_buf_size = pIn_buf_cur - pIn_buf_next; *pOut_buf_size = pOut_buf_cur - pOut_buf_next;
+/*
   if ((decomp_flags & (TINFL_FLAG_PARSE_ZLIB_HEADER | TINFL_FLAG_COMPUTE_ADLER32)) && (status >= 0))
   {
     const mz_uint8 *ptr = pOut_buf_next; size_t buf_len = *pOut_buf_size;
     mz_uint32 i, s1 = r->m_check_adler32 & 0xffff, s2 = r->m_check_adler32 >> 16; size_t block_len = buf_len % 5552;
     while (buf_len)
     {
-      for (i = 0; i + 7 < block_len; i += 8, ptr += 8)
-      {
-        s1 += ptr[0], s2 += s1; s1 += ptr[1], s2 += s1; s1 += ptr[2], s2 += s1; s1 += ptr[3], s2 += s1;
-        s1 += ptr[4], s2 += s1; s1 += ptr[5], s2 += s1; s1 += ptr[6], s2 += s1; s1 += ptr[7], s2 += s1;
-      }
-      for ( ; i < block_len; ++i) s1 += *ptr++, s2 += s1;
+      for (i = 0; i < block_len; ++i) s1 += *ptr++, s2 += s1;
       s1 %= 65521U, s2 %= 65521U; buf_len -= block_len; block_len = 5552;
     }
     r->m_check_adler32 = (s2 << 16) + s1; if ((status == TINFL_STATUS_DONE) && (decomp_flags & TINFL_FLAG_PARSE_ZLIB_HEADER) && (r->m_check_adler32 != r->m_z_adler32)) status = TINFL_STATUS_ADLER32_MISMATCH;
   }
+//*/
   return status;
 }
 
@@ -2297,7 +2295,7 @@ static MZ_FORCEINLINE void tdefl_find_match(tdefl_compressor *d, mz_uint lookahe
         if (TDEFL_READ_UNALIGNED_WORD(&d->m_dict[probe_pos + match_len - 1]) == c01) break;
       TDEFL_PROBE; TDEFL_PROBE; TDEFL_PROBE;
     }
-    if (!dist) break; q = (const mz_uint16*)(d->m_dict + probe_pos); if (TDEFL_READ_UNALIGNED_WORD(q) != s01) continue; p = s; probe_len = 32;
+    if (!dist) { break; } q = (const mz_uint16*)(d->m_dict + probe_pos); if (TDEFL_READ_UNALIGNED_WORD(q) != s01) { continue; } p = s; probe_len = 32;
     do { } while ( (TDEFL_READ_UNALIGNED_WORD(++p) == TDEFL_READ_UNALIGNED_WORD(++q)) && (TDEFL_READ_UNALIGNED_WORD(++p) == TDEFL_READ_UNALIGNED_WORD(++q)) &&
                    (TDEFL_READ_UNALIGNED_WORD(++p) == TDEFL_READ_UNALIGNED_WORD(++q)) && (TDEFL_READ_UNALIGNED_WORD(++p) == TDEFL_READ_UNALIGNED_WORD(++q)) && (--probe_len > 0) );
     if (!probe_len)

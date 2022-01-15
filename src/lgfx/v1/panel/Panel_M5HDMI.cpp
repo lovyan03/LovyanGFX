@@ -757,8 +757,7 @@ namespace lgfx
     else                { depth = color_depth_t::rgb565_2Byte; }
 
     _read_depth = _write_depth = depth;
-    _read_bits  = _write_bits  = depth & color_depth_t::bit_mask;
-    return _write_depth;
+    return depth;
   }
 
   void Panel_M5HDMI::setRotation(uint_fast8_t r)
@@ -1241,12 +1240,12 @@ namespace lgfx
     cmd.y_scale = y_scale;
     cmd.width_height = ((wh >> 8) & mask) + ((wh & mask) << 8);
 
-    uint_fast8_t sum = 0;
+    uint_fast8_t sum = ~0;
     for (size_t i = 0; i < sizeof(cmd_t)-1; ++i)
     {
-      sum += cmd.raw[i];
+      sum -= cmd.raw[i];
     }
-    cmd.chksum = ~sum;
+    cmd.chksum = sum;
 
     startWrite();
     waitDisplay();
@@ -1258,11 +1257,12 @@ namespace lgfx
   {
     union cmd_t
     {
-      uint8_t raw[5];
+      uint8_t raw[6];
       struct __attribute__((packed))
       {
         uint8_t cmd;
         uint32_t xy;
+        uint8_t chksum;
       };
     };
     static constexpr uint32_t mask = 0xFF00FF;
@@ -1271,6 +1271,13 @@ namespace lgfx
     cmd.cmd = CMD_SCREEN_ORIGIN;
     uint32_t xy = x + (y << 16);
     cmd.xy = ((xy >> 8) & mask) + ((xy & mask) << 8);
+
+    uint_fast8_t sum = ~0;
+    for (size_t i = 0; i < sizeof(cmd_t)-1; ++i)
+    {
+      sum -= cmd.raw[i];
+    }
+    cmd.chksum = sum;
 
     startWrite();
     waitDisplay();

@@ -6,6 +6,10 @@
   #define LGFX_USE_V1
 #endif
 
+#if defined ( ARDUINO ) && defined ( ESP32 )
+  #include <SPIFFS.h>
+#endif
+
 #include <LovyanGFX.hpp>
 
 #if defined DUMMY_DISPLAY
@@ -147,6 +151,12 @@ void setup(void)
   sprite.pushSprite( 0,  0, 0);
 
   lcd.startWrite();
+
+#if defined ( ARDUINO ) && defined ( ESP32 )
+  lcd.drawBmpFile(SPIFFS, "/test.bmp");
+  lcd.drawPngFile(SPIFFS, "/test.png");
+  lcd.drawJpgFile(SPIFFS, "/test.jpg");
+#endif
 }
 
 void loop(void)

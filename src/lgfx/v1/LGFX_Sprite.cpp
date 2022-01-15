@@ -78,7 +78,8 @@ namespace lgfx
     deleteSprite();
 
     _img.reset(buffer);
-    _bitwidth = (w + conv->x_mask) & (~(uint32_t)conv->x_mask);
+    uint32_t x_mask = 7 >> (conv->bits >> 1);
+    _bitwidth = (w + x_mask) & (~x_mask);
     _panel_width = w;
     _xe = w - 1;
     _panel_height = h;
@@ -105,7 +106,8 @@ namespace lgfx
     {
       _panel_width = w;
       _panel_height = h;
-      _bitwidth = (w + conv->x_mask) & (~(uint32_t)conv->x_mask);
+      uint32_t x_mask = 7 >> (conv->bits >> 1);
+      _bitwidth = (w + x_mask) & (~x_mask);
       size_t len = h * (_bitwidth * _write_bits >> 3) + std::max(1, _write_bits >> 3);
 
       _img.reset(len, psram ? AllocationSource::Psram : AllocationSource::Dma);
@@ -127,8 +129,6 @@ namespace lgfx
   {
     _write_depth = depth;
     _read_depth = depth;
-    _write_bits = depth & color_depth_t::bit_mask;
-    _read_bits = _write_bits;
     return depth;
   }
 

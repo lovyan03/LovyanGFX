@@ -52,8 +52,8 @@ namespace lgfx
 
 #else
 
+  static inline unsigned long micros(void) { return system_get_time(); }
   unsigned long millis(void);
-  unsigned long micros(void);
   void delay(unsigned long ms);
 
 #endif

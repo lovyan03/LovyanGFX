@@ -1,4 +1,12 @@
-﻿#include <stdio.h>  // for drawBmpFile / drawJpgFile / drawPngFile
+﻿
+// If you write this, you can use drawBmpFile / drawJpgFile / drawPngFile
+// #include <stdio.h>
+
+// If you write this, you can use drawBmpUrl / drawJpgUrl / drawPngUrl ( for Windows )
+// #include <windows.h>
+// #include <winhttp.h>
+// #pragma comment (lib, "winhttp.lib")
+
 
 #define LGFX_USE_V1
 #include <LovyanGFX.hpp>
@@ -18,6 +26,9 @@ void setup()
 {
   lcd.init();
   lcd2.init();
+
+//  lcd.drawJpgFile("C:\\test.jpg", 0, 0);
+//  lcd.drawPngUrl("http://cyberjapandata.gsi.go.jp/xyz/pale/14/14550/6451.png", 0, 0);
 }
 
 void loop()
@@ -39,5 +50,4 @@ void loop()
   lgfx::delay(1);
 
   lcd2.fillRect(i & 127, i >> 7, 16, 16, i);
-//  lcd2.drawJpgFile("C:\\test.jpg", i & 127, i >> 7);
 }

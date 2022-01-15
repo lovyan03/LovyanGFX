@@ -48,6 +48,11 @@ namespace lgfx
 #endif
 //----------------------------------------------------------------------------
 
+#if !defined (ARDUINO) || defined (ARDUINO_ARCH_MBED_RP2040) || defined (ARDUINO_ARCH_RP2040)
+#define LGFX_PRINTF_ENABLED
+#endif
+
+
   class LGFXBase
 #if defined (ARDUINO)
   : public Print
@@ -290,7 +295,6 @@ namespace lgfx
 
     void pushImage(int32_t x, int32_t y, int32_t w, int32_t h, pixelcopy_t *param, bool use_dma = false);
 
-
 //----------------------------------------------------------------------------
 
     template<typename T>
@@ -408,6 +412,12 @@ namespace lgfx
       auto pc = create_pc_antialias(data, palette, depth, transparent);
       push_image_affine_aa(matrix, w, h, &pc);
     }
+
+//----------------------------------------------------------------------------
+
+    LGFX_INLINE_T void pushGrayscaleImage(int32_t x, int32_t y, int32_t w, int32_t h, const uint8_t* image, color_depth_t depth, const T& forecolor, const T& backcolor) { push_grayimage(x, y, w, h, image, depth, convert_to_rgb888(forecolor), convert_to_rgb888(backcolor)); }
+    LGFX_INLINE_T void pushGrayscaleImageRotateZoom(float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y, int32_t w, int32_t h, const uint8_t* image, color_depth_t depth, const T& forecolor, const T& backcolor) { push_grayimage_rotate_zoom(dst_x, dst_y, src_x, src_y, angle, zoom_x, zoom_y, w, h, image, depth, convert_to_rgb888(forecolor), convert_to_rgb888(backcolor)); }
+    LGFX_INLINE_T void pushGrayscaleImageAffine(const float matrix[6], int32_t w, int32_t h, const uint8_t* image, color_depth_t depth, const T& forecolor, const T& backcolor) { push_grayimage_affine(matrix, w, h, image, depth, convert_to_rgb888(forecolor), convert_to_rgb888(backcolor)); }
 
 //----------------------------------------------------------------------------
 
@@ -664,17 +674,20 @@ namespace lgfx
   //size_t println(const String &s)              { size_t t = print(s); return println() + t; }
   //size_t println(const __FlashStringHelper *s) { size_t t = print(s); return println() + t; }
 
-#ifdef __GNUC__
-    size_t printf(const char* format, ...)  __attribute__((format(printf, 2, 3)));
-#else
-    size_t printf(const char* format, ...);
-#endif
-
     size_t write(const char* str)                 { return (!str) ? 0 : write((const uint8_t*)str, strlen(str)); }
     size_t write(const char *buf, size_t size)    { return write((const uint8_t *) buf, size); }
   #else
     using Print::write;
   #endif
+
+  #if defined (LGFX_PRINTF_ENABLED)
+   #ifdef __GNUC__
+    size_t printf(const char* format, ...)  __attribute__((format(printf, 2, 3)));
+   #else
+    size_t printf(const char* format, ...);
+   #endif
+  #endif
+
     size_t write(const uint8_t *buf, size_t size) { size_t n = 0; this->startWrite(); while (size--) { n += write(*buf++); } this->endWrite(); return n; }
     size_t write(uint8_t utf8);
     size_t vprintf(const char *format, va_list arg);
@@ -687,45 +700,35 @@ namespace lgfx
 #endif
     void qrcode(const char *string, int32_t x = -1, int32_t y = -1, int32_t width = -1, uint8_t version = 1);
 
+  #define LGFX_FUNCTION_GENERATOR(drawImg, draw_img) \
+    protected: \
+    bool draw_img(DataWrapper* data, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, float scale_x, float scale_y, datum_t datum); \
+    public: \
+    bool drawImg(const uint8_t *data, uint32_t len, int32_t x=0, int32_t y=0, int32_t maxWidth=0, int32_t maxHeight=0, int32_t offX=0, int32_t offY=0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left) \
+    { \
+      PointerWrapper data_wrapper; \
+      data_wrapper.set(data, len); \
+      return this->draw_img(&data_wrapper, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum); \
+    } \
+    inline bool drawImg(DataWrapper *data, int32_t x=0, int32_t y=0, int32_t maxWidth=0, int32_t maxHeight=0, int32_t offX=0, int32_t offY=0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left) \
+    { \
+      return this->draw_img(data, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum); \
+    } \
 
-    bool drawBmp(const uint8_t *bmp_data, uint32_t bmp_len, int32_t x=0, int32_t y=0, int32_t maxWidth=0, int32_t maxHeight=0, int32_t offX=0, int32_t offY=0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
-    {
-      PointerWrapper data;
-      data.set(bmp_data, bmp_len);
-      return this->draw_bmp(&data, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
-    }
-    bool drawJpg(const uint8_t *jpg_data, uint32_t jpg_len, int32_t x=0, int32_t y=0, int32_t maxWidth=0, int32_t maxHeight=0, int32_t offX=0, int32_t offY=0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
-    {
-      PointerWrapper data;
-      data.set(jpg_data, jpg_len);
-      return this->draw_jpg(&data, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
-    }
+    LGFX_FUNCTION_GENERATOR(drawBmp, draw_bmp)
+    LGFX_FUNCTION_GENERATOR(drawJpg, draw_jpg)
+    LGFX_FUNCTION_GENERATOR(drawPng, draw_png)
+    LGFX_FUNCTION_GENERATOR(drawQoi, draw_qoi)
+
+  #undef LGFX_FUNCTION_GENERATOR
+
     [[deprecated("use float scale")]] bool drawJpg(const uint8_t *jpg_data, uint32_t jpg_len, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, jpeg_div::jpeg_div_t scale)
     {
       return drawJpg(jpg_data, jpg_len, x, y, maxWidth, maxHeight, offX, offY, 1.0f / (1 << scale));
     }
-    bool drawPng(const uint8_t *png_data, uint32_t png_len, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
-    {
-      PointerWrapper data;
-      data.set(png_data, png_len);
-      return this->draw_png(&data, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
-    }
-
-    inline bool drawBmp(DataWrapper *data, int32_t x=0, int32_t y=0, int32_t maxWidth=0, int32_t maxHeight=0, int32_t offX=0, int32_t offY=0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
-    {
-      return this->draw_bmp(data, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
-    }
-    inline bool drawJpg(DataWrapper *data, int32_t x=0, int32_t y=0, int32_t maxWidth=0, int32_t maxHeight=0, int32_t offX=0, int32_t offY=0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
-    {
-      return this->draw_jpg(data, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
-    }
     [[deprecated("use float scale")]] inline bool drawJpg(DataWrapper *data, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, jpeg_div::jpeg_div_t scale)
     {
       return drawJpg(data, x, y, maxWidth, maxHeight, offX, offY, 1.0f / (1 << scale));
-    }
-    inline bool drawPng(DataWrapper *data, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
-    {
-      return this->draw_png(data, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
     }
 
     void* createPng( size_t* datalen, int32_t x = 0, int32_t y = 0, int32_t width = 0, int32_t height = 0);
@@ -956,10 +959,7 @@ namespace lgfx
     template<typename T1, typename T2>
     pixelcopy_t create_pc_tr(const T1 *data, const T2& transparent)
     {
-      return create_pc_rawtr( data
-                            , (std::is_same<T1, T2>::value)
-                              ? transparent
-                              : get_fp_convert_src<T2>(get_depth<T1>::value, false)(transparent));
+      return create_pc_rawtr( data, color_convert<T1, T2>(transparent));
     }
 
     template<typename T> pixelcopy_t create_pc_tr(const uint8_t*  data, const T& transparent) { return create_pc_tr(reinterpret_cast<const rgb332_t*>(data), transparent); }
@@ -994,7 +994,6 @@ namespace lgfx
       return pc;
     }
 
-
     LGFX_INLINE pixelcopy_t create_pc_antialias(const uint8_t *data, uint32_t raw_transparent = pixelcopy_t::NON_TRANSP)
     {
       return create_pc_antialias(reinterpret_cast<const rgb332_t*>(data), raw_transparent);
@@ -1024,10 +1023,7 @@ namespace lgfx
     template<typename T1, typename T2>
     pixelcopy_t create_pc_tr_antialias(const T1* data, const T2& transparent)
     {
-      return create_pc_antialias( data
-                                , std::is_same<T1, T2>::value
-                                  ? transparent
-                                  : get_fp_convert_src<T2>(get_depth<T1>::value, false)(transparent));
+      return create_pc_antialias( data, color_convert<T1, T2>(transparent));
     }
 
     template<typename T>
@@ -1057,6 +1053,8 @@ namespace lgfx
       return pc;
     }
 
+    pixelcopy_t create_pc_gray(const uint8_t *image, lgfx::color_depth_t depth, uint32_t fore_rgb888, uint32_t back_rgb888);
+
 //----------------------------------------------------------------------------
 
     static void make_rotation_matrix(float* result, float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y);
@@ -1067,6 +1065,9 @@ namespace lgfx
     void draw_bezier_helper(int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t x2, int32_t y2);
     void draw_bitmap(int32_t x, int32_t y, const uint8_t *bitmap, int32_t w, int32_t h, uint32_t fg_rawcolor, uint32_t bg_rawcolor = ~0u);
     void draw_xbitmap(int32_t x, int32_t y, const uint8_t *bitmap, int32_t w, int32_t h, uint32_t fg_rawcolor, uint32_t bg_rawcolor = ~0u);
+    void push_grayimage(int32_t x, int32_t y, int32_t w, int32_t h, const uint8_t *image, color_depth_t depth, uint32_t fg_rgb888, uint32_t bg_rgb888);
+    void push_grayimage_rotate_zoom(float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y, int32_t w, int32_t h, const uint8_t* image, color_depth_t depth, uint32_t fg_rgb888, uint32_t bg_rgb888);
+    void push_grayimage_affine(const float* matrix, int32_t w, int32_t h, const uint8_t *image, color_depth_t depth, uint32_t fg_rgb888, uint32_t bg_rgb888);
     void push_image_rotate_zoom(float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y, int32_t w, int32_t h, pixelcopy_t* pc);
     void push_image_rotate_zoom_aa(float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y, int32_t w, int32_t h, pixelcopy_t* pc);
     void push_image_affine(const float* matrix, int32_t w, int32_t h, pixelcopy_t *pc);
@@ -1081,10 +1082,6 @@ namespace lgfx
     size_t draw_string(const char *string, int32_t x, int32_t y, textdatum_t datum, const IFont* font = nullptr);
     int32_t text_width(const char *string, const IFont* font, FontMetrics* metrics);
     bool load_font(lgfx::DataWrapper* data);
-
-    bool draw_bmp(DataWrapper* data, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, float scale_x, float scale_y, datum_t datum);
-    bool draw_jpg(DataWrapper* data, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, float scale_x, float scale_y, datum_t datum);
-    bool draw_png(DataWrapper* data, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, float scale_x, float scale_y, datum_t datum);
 
     static void tmpBeginTransaction(LGFXBase* lgfx)
     {
