@@ -34,6 +34,8 @@ Contributors:
 
 //#include <xprintf.h>
 //#define DBGPRINT(fmt, ...)  xprintf("%s %d: " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
+// static char dbg_buf[256];
+// #define DBGPRINT(fmt, ...) snprintf(dbg_buf, 256, "%s %d: " fmt, __FILE__, __LINE__, ##__VA_ARGS__); Serial.print(dbg_buf);
 #define DBGPRINT(fmt, ...)
 
 // 参考:
@@ -89,8 +91,6 @@ namespace lgfx
       {
         return false;
       }
-      sio_hw->gpio_oe_clr = 1UL << pin;
-      sio_hw->gpio_clr = 1UL << pin;
       return lgfx_gpio_set_function(pin, GPIO_FUNC_SIO);
     }
 
@@ -261,13 +261,21 @@ namespace lgfx
       };
 
       spi_info_str spi_info[n_spi];
-      std::unordered_map<uint32_t, std::array<uint32_t, 2>> prescale_map;
     }
 
 //----------------------------------------------------------------------------
 
+    uint32_t FreqToClockDiv(uint32_t hz)
+    {
+      uint32_t fapb = clock_get_hz(clk_peri) >> 1;
+      if (fapb <= hz) return 0;
+      uint32_t div_num = fapb / (1 + hz);
+      if (div_num > 255) div_num = 255;
+      return div_num;
+    }
     namespace
     {
+
       __attribute__ ((always_inline)) inline void lgfx_spi_reset(volatile spi_hw_t * spi_regs)
       {
         lgfx_reset_block((spi_regs == spi_dev[0]) ? RESETS_RESET_SPI0_BITS : RESETS_RESET_SPI1_BITS);
@@ -278,74 +286,13 @@ namespace lgfx
         lgfx_unreset_block_wait((spi_regs == spi_dev[0]) ? RESETS_RESET_SPI0_BITS : RESETS_RESET_SPI1_BITS);
       }
 
-      uint32_t lgfx_spi_calc_prescale(uint32_t baudrate)
-      {
-        uint32_t freq_in = clock_get_hz(clk_peri);
-        uint32_t prescale;
-
-        if (baudrate > freq_in)
-        {
-          return UINT32_MAX;  // error
-        }
-        for (prescale = 2; prescale <= 254; prescale += 2)
-        {
-          if (freq_in < (prescale + 2) * 256 * (uint64_t)baudrate)
-          {
-            break;
-          }
-        }
-        if (prescale > 254)
-        {
-          return UINT32_MAX; // error
-        }
-        return prescale;
-      }
-
-      uint32_t lgfx_spi_calc_postdiv(uint32_t baudrate, uint32_t prescale)
-      {
-        uint32_t freq_in = clock_get_hz(clk_peri);
-        uint32_t postdiv;
-
-        for (postdiv = 256; postdiv > 1; --postdiv)
-        {
-          if (freq_in / (prescale * (postdiv - 1)) > baudrate)
-          {
-            break;
-          }
-        }
-        return postdiv;
-      }
-
       bool lgfx_spi_set_baudrate(volatile spi_hw_t * spi_regs, uint32_t baudrate)
       {
-        uint32_t prescale;
-        uint32_t postdiv;
-
-        DBGPRINT("baudrate %d\n", baudrate);
-        auto val = prescale_map.find(baudrate);
-        if (val != prescale_map.end())
-        {
-          // 登録済み
-          prescale = val->second[0];
-          postdiv = val->second[1];
-          DBGPRINT("registered %d %d\n", prescale, postdiv);
-        }
-        else
-        {
-          prescale = lgfx_spi_calc_prescale(baudrate);
-          if (prescale == UINT32_MAX)
-          {
-            return false;
-          }
-          postdiv = lgfx_spi_calc_postdiv(baudrate, prescale);
-          // 登録する
-          prescale_map.emplace(baudrate, decltype(prescale_map)::mapped_type{ prescale, postdiv });
-          DBGPRINT("add %d %d\n", prescale, postdiv);
-        }
-        spi_regs->cpsr = prescale;
+        spi_regs->cpsr = 2;  // prescale
+        uint32_t div = FreqToClockDiv(baudrate);
         uint32_t temp = spi_regs->cr0;
         temp &= ~SPI_SSPCR0_SCR_BITS;
-        temp |= ((postdiv - 1) << SPI_SSPCR0_SCR_LSB);
+        temp |= (div << SPI_SSPCR0_SCR_LSB);
         spi_regs->cr0 = temp;
         return true;
       }
@@ -362,27 +309,9 @@ namespace lgfx
 
       bool lgfx_spi_set_pin_function(int mosi, int miso, int sclk)
       {
-        if (mosi != -1)
-        {
-          if (!lgfx_gpio_set_function(mosi, GPIO_FUNC_SPI))
-          {
-            return false;
-          }
-        }
-        if (sclk != -1)
-        {
-          if (!lgfx_gpio_set_function(sclk, GPIO_FUNC_SPI))
-          {
-            return false;
-          }
-        }
-        if (miso != -1)
-        {
-          if (!lgfx_gpio_set_function(miso, GPIO_FUNC_SPI))
-          {
-            return false;
-          }
-        }
+        if ((mosi != -1) && (!lgfx_gpio_set_function(mosi, GPIO_FUNC_SPI))) { return false; }
+        if ((sclk != -1) && (!lgfx_gpio_set_function(sclk, GPIO_FUNC_SPI))) { return false; }
+        if ((miso != -1) && (!lgfx_gpio_set_function(miso, GPIO_FUNC_SPI))) { return false; }
         return true;
       }
 

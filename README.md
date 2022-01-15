@@ -46,6 +46,7 @@ This library has the following advantages.
 |ESP8266 | HW  | SW  |   ---    |   ---    |
 |SAMD51  | HW  | HW  |   ---    |   ---    |
 |SAMD21  | HW  | HW  |   ---    |   ---    |
+|RP2040  | HW  | --- |   ---    |   ---    |
 
 ※ HW = HardWare Peripheral / SW = SoftWare implementation
 
@@ -56,6 +57,7 @@ This library has the following advantages.
     - ESP-IDF
     - Arduino ESP32
     - Arduino ATSAMD51 (Seeed)
+    - Arduino RP2040
 
   - ディスプレイ Displays
     - GC9A01
@@ -69,7 +71,7 @@ This library has the following advantages.
     - ILI9486
     - ILI9488 (Makerfabs Touch with Camera)
     - IT8951 (M5Paper)
-    - SH110x (SH1106, SH1107, M5UnitOLED)
+    - SH110x (SH1106, SH1107, M5Stack Unit OLED)
     - SSD1306 (SSD1309)
     - SSD1327
     - SSD1331
@@ -468,11 +470,12 @@ TFT_eSPIのベースとなった、[AdafruitGFX](https://github.com/adafruit/Ada
 [TJpgDec](http://elm-chan.org/fsw/tjpgd/00index.html) (Tiny JPEG Decompressor) の作者 [ChaN](http://elm-chan.org/)氏へ感謝いたします。  
 [Pngle](https://github.com/kikuchan/pngle) (PNG Loader for Embedding) の作者 [kikuchan](https://github.com/kikuchan/)氏へ感謝いたします。  
 [QRCode](https://github.com/ricmoo/QRCode/) (QR code generation library) の作者 [Richard Moore](https://github.com/ricmoo/)氏へ感謝いたします。  
-多くの技術的なアドバイスやESP-IDF環境での検証に協力してくれた[ciniml](https://github.com/ciniml)氏へ感謝いたします。  
+多くの技術的なアドバイスやESP-IDF環境での検証に協力してくださった[ciniml](https://github.com/ciniml)氏へ感謝いたします。  
 不具合の多い開発初期からの動作検証および多数の助言をくださった[mongonta0716](https://github.com/mongonta0716)氏へ感謝いたします。  
 多数のボードでの動作検証や英語への翻訳および多数の助言をくださった[tobozo](https://github.com/tobozo)氏へ感謝いたします。  
 フォントデータの作成に協力してくださった[TANAKA Masayuki](https://github.com/tanakamasayuki)氏へ感謝いたします。  
 [日本語フォントサブセットジェネレーター](https://github.com/yamamaya/lgfxFontSubsetGenerator)を製作してくださった[YAMANEKO](https://github.com/yamamaya)氏へ感謝いたします。  
+Raspberry pi pico (RP2040)対応に協力してくださった[yasuhirok](https://github.com/yasuhirok-git)氏へ感謝いたします。  
 
 Thanks to [Bodmer](https://github.com/Bodmer/), author of the [TFT_eSPI](https://github.com/Bodmer/TFT_eSPI) library, for the inspiration to create this library.  
 Thanks to [Adafruit Industries](https://github.com/adafruit/) for publishing [AdafruitGFX](https://github.com/adafruit/Adafruit-GFX-Library), which is the basis for TFT_eSPI.  
@@ -484,6 +487,7 @@ Thanks to [mongonta0716](https://github.com/mongonta0716), for verifying the wor
 Thanks to [tobozo](https://github.com/tobozo), for testing it on various boards, translating it into English and giving me a lot of advice.  
 Thanks to [TANAKA Masayuki](https://github.com/tanakamasayuki), for creating the font data.  
 Thanks to [YAMANEKO](https://github.com/yamamaya), for creating the [lgfxFontSubsetGenerator](https://github.com/yamamaya/lgfxFontSubsetGenerator).  
+Thanks to [yasuhirok](https://github.com/yasuhirok-git), for add Raspberry pi pico (RP2040) support.  
 
 
 使用ライブラリ included library  
