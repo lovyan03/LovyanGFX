@@ -14,6 +14,9 @@ Contributors:
  [ciniml](https://github.com/ciniml)
  [mongonta0716](https://github.com/mongonta0716)
  [tobozo](https://github.com/tobozo)
+
+Porting for RP2040:
+ [yasuhirok](https://github.com/yasuhirok-git)
 /----------------------------------------------------------------------------*/
 #if defined (ARDUINO_ARCH_MBED_RP2040) || defined(ARDUINO_ARCH_RP2040)
 
