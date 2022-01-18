@@ -290,20 +290,6 @@ namespace lgfx
 
 //----------------------------------------------------------------------------
 
-  bool Panel_SH110x::init(bool use_reset)
-  {
-    if (!Panel_1bitOLED::init(use_reset))
-    {
-      return false;
-    }
-
-    startWrite(true);
-    _bus->writeCommand(CMD_SETMULTIPLEX | (((_cfg.panel_width-1) & 0x7F) << 8), 16);
-    endWrite();
-
-    return true;
-  }
-
   void Panel_SH110x::setBrightness(uint8_t brightness)
   {
     startWrite();
