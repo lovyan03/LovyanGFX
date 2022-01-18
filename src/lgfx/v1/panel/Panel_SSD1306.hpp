@@ -135,8 +135,6 @@ namespace lgfx
       _auto_display = true;
     }
 
-    bool init(bool use_reset) override;
-
     void setBrightness(uint8_t brightness) override;
 
     void display(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h) override;
@@ -170,6 +168,7 @@ namespace lgfx
         CMD_PAGEADDRESSINGMODE ,
         CMD_SETDISPSTARTLINE   , 0x00,
         CMD_SETDISPLAYCLOCKDIV , 0x50,
+        CMD_SETMULTIPLEX       , 0x7F,
         CMD_SETDISPLAYOFFSET   , 0x00,
         CMD_DCDC               , 0x8B,
         CMD_SEGREMAP           ,
