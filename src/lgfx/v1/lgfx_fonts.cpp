@@ -946,7 +946,7 @@ namespace lgfx
           int32_t y0, y1 = (yoffset * sy) >> 16;
           do {
             y0 = y1;
-            if (y0 > clip_bottom) break;
+            if (y0 > (clip_bottom - y)) break;
             y1 = ((yoffset + i + 1) * sy) >> 16;
             if (left < right) {
               gfx->setRawColor(colortbl[0]);
@@ -965,9 +965,9 @@ namespace lgfx
                   gfx->writeFillRect(x + x0, y + y0, x1 - x0, y1 - y0);
                 }
                 x0 = x1;
-                if (++j == w || clip_right < x0) break;
+                if (++j == w || (clip_right - x) < x0) break;
               }
-              if (j == w || clip_right < x0) break;
+              if (j == w || (clip_right - x) < x0) break;
               gfx->setRawColor(colortbl[1]);
               do { ++j; } while (j != w && pixel[j] == 0xFF);
               gfx->writeFillRect(x + x0, y + y0, ((j * sx) >> 16) - x0, y1 - y0);
@@ -985,7 +985,7 @@ namespace lgfx
         int32_t i = 0;
         do {
           y0 = y1;
-          if (y0 > clip_bottom) break;
+          if (y0 > (clip_bottom - y)) break;
           y1 = ((yoffset + i + 1) * sy) >> 16;
           int32_t by = y + y0;
           int32_t bh = y1 - y0;
