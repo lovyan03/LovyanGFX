@@ -29,23 +29,12 @@ namespace lgfx
 {
  inline namespace v1
  {
-  struct fb_info_t
-  {
-    Panel_fb* panel;
-    // TODO
-    const char* window_name;
-    //bool init;
-  };
-  static std::list<fb_info_t> _list_mat;
-  static int _window_no;
-
 //----------------------------------------------------------------------------
   void Panel_fb::fb_draw_rgb_pixel(int x, int y, uint32_t rawcolor)
   {
     unsigned int pix_offset = 0;
     uint8_t r = 0, g = 0, b = 0;
 
-    // TODO
     // GGGBBBBB RRRRRGGG
     if (_write_depth = color_depth_t::rgb565_2Byte)
     {
@@ -154,7 +143,7 @@ namespace lgfx
 
   void Panel_fb::display(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h)
   {
-    // TODO
+    // Nothings to do
   }
 
   color_depth_t Panel_fb::setColorDepth(color_depth_t depth)
@@ -278,6 +267,7 @@ namespace lgfx
 
   void Panel_fb::_rotate_pixelcopy(uint_fast16_t& x, uint_fast16_t& y, uint_fast16_t& w, uint_fast16_t& h, pixelcopy_t* param, uint32_t& nextx, uint32_t& nexty)
   {
+    // NOT TEST
     uint32_t addx = param->src_x32_add;
     uint32_t addy = param->src_y32_add;
     uint_fast8_t r = _internal_rotation;
@@ -309,6 +299,7 @@ namespace lgfx
 
   void Panel_fb::writePixels(pixelcopy_t* param, uint32_t length, bool use_dma)
   {
+    // NOT TEST
     uint_fast16_t xs = _xs;
     uint_fast16_t xe = _xe;
     uint_fast16_t ys = _ys;
@@ -412,6 +403,7 @@ namespace lgfx
 
   void Panel_fb::writeImage(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, pixelcopy_t* param, bool)
   {
+    // NOT TEST
     uint_fast8_t r = _internal_rotation;
     if (r == 0 && param->transp == pixelcopy_t::NON_TRANSP && param->no_convert)
     {
@@ -462,6 +454,7 @@ namespace lgfx
 
   void Panel_fb::writeImageARGB(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, pixelcopy_t* param)
   {
+    // NOT TEST
     uint32_t nextx = 0;
     uint32_t nexty = 1 << pixelcopy_t::FP_SCALE;
     if (_internal_rotation)
@@ -491,12 +484,34 @@ namespace lgfx
 
   void Panel_fb::copyRect(uint_fast16_t dst_x, uint_fast16_t dst_y, uint_fast16_t w, uint_fast16_t h, uint_fast16_t src_x, uint_fast16_t src_y)
   {
-    // TODO
+
+    uint_fast8_t r = _internal_rotation;
+    if (r)
+    {
+      if ((1u << r) & 0b10010110) { src_y = _height - (src_y + h); dst_y = _height - (dst_y + h); }
+      if (r & 2)                  { src_x = _width  - (src_x + w); dst_x = _width  - (dst_x + w); }
+      if (r & 1) { std::swap(src_x, src_y);  std::swap(dst_x, dst_y);  std::swap(w, h); }
+    }
+
+    if ((dst_x + w) > _var_info.xres) w = _var_info.xres - dst_x;
+    if ((dst_y + h) > _var_info.yres) h = _var_info.yres - dst_y;
+    size_t bytes = _write_bits >> 3;
+    size_t len = w * bytes;
+    int32_t add = _var_info.xres * bytes;  // _cfg.panel_width may not was the screen width, use _var_info.xres instead.
+    char *src = (_fbp + (src_x * bytes + src_y * _fix_info.line_length));
+    char *dst = (_fbp + (dst_x * bytes + dst_y * _fix_info.line_length));
+
+    do
+    {
+      memmove(dst, src, len);
+      src += add;
+      dst += add;
+    } while (--h);
   }
 
   uint_fast8_t Panel_fb::getTouchRaw(touch_point_t* tp, uint_fast8_t count)
   {
-     memcpy(tp, &_touch_point, sizeof(touch_point_t));
+    memcpy(tp, &_touch_point, sizeof(touch_point_t));
     return _touch_point.size ? 1 : 0;
   }
 
