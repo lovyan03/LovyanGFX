@@ -476,6 +476,7 @@ TFT_eSPIのベースとなった、[AdafruitGFX](https://github.com/adafruit/Ada
 フォントデータの作成に協力してくださった[TANAKA Masayuki](https://github.com/tanakamasayuki)氏へ感謝いたします。  
 [日本語フォントサブセットジェネレーター](https://github.com/yamamaya/lgfxFontSubsetGenerator)を製作してくださった[YAMANEKO](https://github.com/yamamaya)氏へ感謝いたします。  
 Raspberry pi pico (RP2040)対応に協力してくださった[yasuhirok](https://github.com/yasuhirok-git)氏へ感謝いたします。  
+Linux FrameBuffer対応に協力してくださった[IAMLIUBO](https://github.com/imliubo)氏へ感謝いたします。  
 
 Thanks to [Bodmer](https://github.com/Bodmer/), author of the [TFT_eSPI](https://github.com/Bodmer/TFT_eSPI) library, for the inspiration to create this library.  
 Thanks to [Adafruit Industries](https://github.com/adafruit/) for publishing [AdafruitGFX](https://github.com/adafruit/Adafruit-GFX-Library), which is the basis for TFT_eSPI.  
@@ -488,6 +489,7 @@ Thanks to [tobozo](https://github.com/tobozo), for testing it on various boards,
 Thanks to [TANAKA Masayuki](https://github.com/tanakamasayuki), for creating the font data.  
 Thanks to [YAMANEKO](https://github.com/yamamaya), for creating the [lgfxFontSubsetGenerator](https://github.com/yamamaya/lgfxFontSubsetGenerator).  
 Thanks to [yasuhirok](https://github.com/yasuhirok-git), for add Raspberry pi pico (RP2040) support.  
+Thanks to [IAMLIUBO](https://github.com/imliubo), for add Linux FrameBuffer support.  
 
 
 使用ライブラリ included library  
