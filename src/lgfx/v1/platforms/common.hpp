@@ -14,6 +14,7 @@ Contributors:
  [ciniml](https://github.com/ciniml)
  [mongonta0716](https://github.com/mongonta0716)
  [tobozo](https://github.com/tobozo)
+ [imliubo](https://github.com/imliubo)
 /----------------------------------------------------------------------------*/
 #pragma once
 
@@ -52,6 +53,10 @@ Contributors:
 #elif defined (_WIN32) || __has_include(<opencv2/opencv.hpp>)
 
 #include "opencv/common.hpp"
+
+#elif defined (__linux__)
+
+#include "framebuffer/common.hpp"
 
 #endif
 

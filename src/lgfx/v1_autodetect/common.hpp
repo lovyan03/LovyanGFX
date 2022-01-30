@@ -59,4 +59,8 @@ Contributors:
 
   #include "LGFX_AutoDetect_OpenCV.hpp"
 
+#elif defined (__linux__)
+
+  #include "LGFX_AutoDetect_FrameBuffer.hpp"
+
 #endif
