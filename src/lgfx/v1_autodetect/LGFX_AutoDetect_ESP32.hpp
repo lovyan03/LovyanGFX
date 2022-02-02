@@ -766,7 +766,7 @@ namespace lgfx
         _bus_spi.config(bus_cfg);
         _bus_spi.init();
         id = _read_panel_id(&_bus_spi, 5, 0x09);
-        if (id != 0 && (_read_panel_id(&_bus_spi, 5) & 0xFF) == 0)
+        if (id != 0 && id != ~0u && id != 0xFFFFFF00 && (_read_panel_id(&_bus_spi, 5) & 0xFF) == 0)
         {   // check panel (ILI9341) panelIDが0なのでステータスリード0x09を併用する
           board = board_t::board_ODROID_GO;
           ESP_LOGW(LIBRARY_NAME, "[Autodetect] ODROID_GO");
