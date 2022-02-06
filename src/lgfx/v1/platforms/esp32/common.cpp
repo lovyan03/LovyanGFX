@@ -349,7 +349,10 @@ namespace lgfx
       *reg(SPI_MISC_REG( spi_port)) = pin;
 #endif
       *reg(SPI_CLOCK_REG(spi_port)) = clkdiv;
-      //gpio_lo(spi_cs);
+
+#if defined ( SPI_UPDATE )
+      *reg(SPI_CMD_REG(spi_port)) |= SPI_UPDATE;
+#endif
     }
 
     void endTransaction(int spi_host)
