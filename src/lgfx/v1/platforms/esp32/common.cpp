@@ -382,8 +382,8 @@ namespace lgfx
       if (len > 64) len = 64;
       memcpy(reinterpret_cast<void*>(SPI_W0_REG(spi_port)), data, len);
       *reg(SPI_MOSI_DLEN_REG(spi_port)) = (len << 3) - 1;
-      *reg(SPI_CMD_REG(      spi_port)) = SPI_USR;
-      while (*reg(SPI_CMD_REG(spi_port)) & SPI_EXECUTE);
+      *reg(SPI_CMD_REG(      spi_port)) = SPI_EXECUTE;
+      while (*reg(SPI_CMD_REG(spi_port)) & SPI_USR);
     }
 
     void readBytes(int spi_host, uint8_t* data, size_t len)
@@ -393,8 +393,8 @@ namespace lgfx
       if (len > 64) len = 64;
       memcpy(reinterpret_cast<void*>(SPI_W0_REG(spi_port)), data, len);
       *reg(SPI_MOSI_DLEN_REG(spi_port)) = (len << 3) - 1;
-      *reg(SPI_CMD_REG(      spi_port)) = SPI_USR;
-      while (*reg(SPI_CMD_REG(spi_port)) & SPI_EXECUTE);
+      *reg(SPI_CMD_REG(      spi_port)) = SPI_EXECUTE;
+      while (*reg(SPI_CMD_REG(spi_port)) & SPI_USR);
 
       memcpy(data, reinterpret_cast<const void*>(SPI_W0_REG(spi_port)), len);
     }
