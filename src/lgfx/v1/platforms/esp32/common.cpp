@@ -380,7 +380,7 @@ namespace lgfx
       uint32_t spi_port = (spi_host + 1);
       (void)spi_port;
       if (len > 64) len = 64;
-      memcpy(reinterpret_cast<void*>(SPI_W0_REG(spi_port)), data, len);
+      memcpy(reinterpret_cast<void*>(SPI_W0_REG(spi_port)), data, (len + 3) & ~3);
       *reg(SPI_MOSI_DLEN_REG(spi_port)) = (len << 3) - 1;
       *reg(SPI_CMD_REG(      spi_port)) = SPI_EXECUTE;
       while (*reg(SPI_CMD_REG(spi_port)) & SPI_USR);
@@ -391,7 +391,7 @@ namespace lgfx
       uint32_t spi_port = (spi_host + 1);
       (void)spi_port;
       if (len > 64) len = 64;
-      memcpy(reinterpret_cast<void*>(SPI_W0_REG(spi_port)), data, len);
+      memcpy(reinterpret_cast<void*>(SPI_W0_REG(spi_port)), data, (len + 3) & ~3);
       *reg(SPI_MOSI_DLEN_REG(spi_port)) = (len << 3) - 1;
       *reg(SPI_CMD_REG(      spi_port)) = SPI_EXECUTE;
       while (*reg(SPI_CMD_REG(spi_port)) & SPI_USR);
