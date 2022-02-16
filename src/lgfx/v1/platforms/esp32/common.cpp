@@ -45,17 +45,17 @@ Contributors:
 
 #if defined (ESP_IDF_VERSION_VAL)
  #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(3, 4, 0)
-
+  #if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(4, 4, 4)
 // include <esp_efuse.h> でエラーが出るバージョンが存在するため、エラー回避用の記述を行ってからincludeする。; 
-  #define _ROM_SECURE_BOOT_H_
-  #define MAX_KEY_DIGESTS 3
-  struct ets_secure_boot_key_digests
-  {
-    const void *key_digests[MAX_KEY_DIGESTS];
-    bool allow_key_revoke;
-  };
-  typedef struct ets_secure_boot_key_digests ets_secure_boot_key_digests_t;
-
+   #define _ROM_SECURE_BOOT_H_
+   #define MAX_KEY_DIGESTS 3
+   struct ets_secure_boot_key_digests
+   {
+     const void *key_digests[MAX_KEY_DIGESTS];
+     bool allow_key_revoke;
+   };
+   typedef struct ets_secure_boot_key_digests ets_secure_boot_key_digests_t;
+  #endif
   #include <esp_efuse.h>
   #define USE_ESP_EFUSE_GET_PKG_VER
  #endif
