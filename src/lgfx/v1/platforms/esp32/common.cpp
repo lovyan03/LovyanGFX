@@ -45,7 +45,7 @@ Contributors:
 
 #if defined (ESP_IDF_VERSION_VAL)
  #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(3, 4, 0)
-  #if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(4, 4, 4)
+  #if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(4, 4, 0)
 // include <esp_efuse.h> でエラーが出るバージョンが存在するため、エラー回避用の記述を行ってからincludeする。; 
    #define _ROM_SECURE_BOOT_H_
    #define MAX_KEY_DIGESTS 3
