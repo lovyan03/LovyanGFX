@@ -17,7 +17,7 @@
 #define QOI_HEADER_SIZE 14
 #define QOI_PIXELS_MAX ((unsigned int)400000000)
 
-#define LGFX_PNGLE_READBUF_LEN 256
+#define LGFX_QOI_READBUF_LEN 256
 
 // QOI header
 static const uint32_t qoi_sig = 0x716F6966; // {'q','o','i','f'};
@@ -64,7 +64,7 @@ struct _qoi_t
   uint8_t repeat;
   qoi_desc_t desc;
   qoi_rgba_t index[64];
-  uint8_t read_buf[LGFX_PNGLE_READBUF_LEN];
+  uint8_t read_buf[LGFX_QOI_READBUF_LEN];
 };
 
 #define QOI_DEBUG
@@ -131,7 +131,7 @@ int lgfx_qoi_decomp(qoi_t *qoi, lgfx_qoi_draw_callback_t draw_cb)
   if (qoi == NULL || draw_cb == NULL) return -2;
 
   uint8_t* buf = qoi->read_buf;
-  size_t len = qoi->read_cb(qoi->user_data, buf, LGFX_PNGLE_READBUF_LEN);
+  size_t len = qoi->read_cb(qoi->user_data, buf, LGFX_QOI_READBUF_LEN);
   if (len == 0) { return QOI_ERROR("Insufficient data"); }
   size_t consume = 0;
   size_t flip = 0;
@@ -151,10 +151,10 @@ int lgfx_qoi_decomp(qoi_t *qoi, lgfx_qoi_draw_callback_t draw_cb)
     }
     else
     {
-      if ((consume & (LGFX_PNGLE_READBUF_LEN >> 1)) != flip)
+      if ((consume & (LGFX_QOI_READBUF_LEN >> 1)) != flip)
       {
-        len += qoi->read_cb(qoi->user_data, &buf[flip], LGFX_PNGLE_READBUF_LEN >> 1);
-        flip ^= (LGFX_PNGLE_READBUF_LEN >> 1);
+        len += qoi->read_cb(qoi->user_data, &buf[flip], LGFX_QOI_READBUF_LEN >> 1);
+        flip ^= (LGFX_QOI_READBUF_LEN >> 1);
       }
 
       uint8_t b1 = buf[consume & 0xFF];
