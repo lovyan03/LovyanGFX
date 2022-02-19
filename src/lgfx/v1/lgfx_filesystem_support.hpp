@@ -300,6 +300,12 @@ namespace lgfx
       return drawJpgFile(path, x, y, maxWidth, maxHeight, offX, offY, 1.0f / (1 << scale));
     }
 
+    void loadFont(const char *path)
+    {
+      init_font_file<FileWrapper>();
+      load_font_with_path(path);
+    }
+
 #endif
 
 #define LGFX_URL_MAXLENGTH 2083
@@ -702,7 +708,18 @@ namespace lgfx
         delete this->_font_file;
       }
       auto wrapper = new T(fs);
-      //wrapper->setFS(fs);
+      this->_font_file = wrapper;
+    }
+
+    template<typename T>
+    void init_font_file(void)
+    {
+      this->unloadFont();
+      if (this->_font_file != nullptr)
+      {
+        delete this->_font_file;
+      }
+      auto wrapper = new T();
       this->_font_file = wrapper;
     }
 
@@ -719,7 +736,11 @@ namespace lgfx
       bool result = this->_font_file->open(path);
       if (!result)
       {
-        char filename[strlen(path) + 8] = {'/', 0 };
+        size_t alloclen = strlen(path) + 8;
+        auto filename = (char*)alloca(alloclen);
+        memset(filename, 0, alloclen);
+        filename[0] = '/';
+
         strcpy(&filename[1], &path[(path[0] == '/') ? 1 : 0]);
         int len = strlen(filename);
         if (memcmp(&filename[len - 4], ".vlw", 4))

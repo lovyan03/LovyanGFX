@@ -15,6 +15,7 @@ file(GLOB SRCS
      src/lgfx/v1/platforms/arduino_default/*.cpp
      src/lgfx/v1/platforms/esp32/*.cpp
      src/lgfx/v1/platforms/esp32c3/*.cpp
+     src/lgfx/v1/platforms/esp32s2/*.cpp
      src/lgfx/v1/platforms/esp8266/*.cpp
      src/lgfx/v1/platforms/samd21/*.cpp
      src/lgfx/v1/platforms/samd51/*.cpp

@@ -1,5 +1,4 @@
-#include <stdio.h>
-#include <opencv2/opencv.hpp>
+#include <linux/fb.h>
 #include <thread>
 
 #define LGFX_USE_V1
@@ -25,6 +24,5 @@ int main(int, char**)
   for (;;)
   {
     std::this_thread::yield();
-    lgfx::Panel_OpenCV::imshowall();
   }
 }

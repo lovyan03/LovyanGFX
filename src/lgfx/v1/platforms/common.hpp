@@ -53,6 +53,10 @@ Contributors:
 
 #include "opencv/common.hpp"
 
+#elif defined (__linux__)
+
+#include "framebuffer/common.hpp"
+
 #endif
 
 #include "../../utility/result.hpp"

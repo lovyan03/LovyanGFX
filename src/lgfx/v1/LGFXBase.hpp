@@ -484,9 +484,9 @@ namespace lgfx
 
 
     [[deprecated("use IFont")]]
-    void setCursor( int32_t x, int32_t y, uint8_t      font) { _filled_x = 0; _cursor_x = x; _cursor_y = y; setFont(fontdata[font]); }
-    void setCursor( int32_t x, int32_t y, const IFont* font) { _filled_x = 0; _cursor_x = x; _cursor_y = y; setFont(font); }
-    void setCursor( int32_t x, int32_t y)                    { _filled_x = 0; _cursor_x = x; _cursor_y = y; }
+    void setCursor( int32_t x, int32_t y, uint8_t      font) { setCursor(x, y); setFont(fontdata[font]); }
+    void setCursor( int32_t x, int32_t y, const IFont* font) { setCursor(x, y); setFont(font); }
+    void setCursor( int32_t x, int32_t y)                    { _decoderState = utf8_state0; _filled_x = 0; _cursor_x = x; _cursor_y = y; }
     int32_t getCursorX(void) const { return _cursor_x; }
     int32_t getCursorY(void) const { return _cursor_y; }
     void setTextStyle(const TextStyle& text_style) { _text_style = text_style; }
@@ -776,13 +776,13 @@ namespace lgfx
 
     bool _swapBytes = false;
 
-    enum utf8_decode_state_t
+    enum utf8_decode_state_t : uint8_t
     { utf8_state0 = 0
     , utf8_state1 = 1
     , utf8_state2 = 2
     };
     utf8_decode_state_t _decoderState = utf8_state0;   // UTF8 decoder state
-    uint_fast16_t _unicode_buffer = 0;   // Unicode code-point buffer
+    uint16_t _unicode_buffer = 0;   // Unicode code-point buffer
 
     int32_t _cursor_x = 0;  // print text cursor
     int32_t _cursor_y = 0;

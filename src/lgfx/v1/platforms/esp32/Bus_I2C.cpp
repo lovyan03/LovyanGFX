@@ -143,13 +143,17 @@ namespace lgfx
     if (_state == st) return;
 
     // DCプリフィクスが送信済みの場合、送信済みのDCプリフィクスと要求が不一致なのでトランザクションをやり直す。;
-    if (_state != state_t::state_write_none)
+    int retry = 3;
+    do
     {
-      lgfx::i2c::endTransaction(_cfg.i2c_port);
-      lgfx::i2c::beginTransaction(_cfg.i2c_port, _cfg.i2c_addr, _cfg.freq_write, false);
-    }
-    lgfx::i2c::writeBytes(_cfg.i2c_port, (uint8_t*)(dc ? &_cfg.prefix_data : &_cfg.prefix_cmd), _cfg.prefix_len);
-    _state = st;
+      if (_state != state_t::state_write_none)
+      {
+        lgfx::i2c::endTransaction(_cfg.i2c_port);
+        lgfx::i2c::beginTransaction(_cfg.i2c_port, _cfg.i2c_addr, _cfg.freq_write, false);
+      }
+      _state = st;
+    } while (lgfx::i2c::writeBytes(_cfg.i2c_port, (uint8_t*)(dc ? &_cfg.prefix_data : &_cfg.prefix_cmd), _cfg.prefix_len).has_error() && --retry);
+    if (!retry) { _state = state_none; }
   }
 
   bool Bus_I2C::writeCommand(uint32_t data, uint_fast8_t bit_length)

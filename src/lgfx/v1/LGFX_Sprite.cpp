@@ -152,10 +152,10 @@ namespace lgfx
 
   void Panel_Sprite::setWindow(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye)
   {
-    xs = std::max(0u, std::min<uint_fast16_t>(_width  - 1, xs));
-    xe = std::max(0u, std::min<uint_fast16_t>(_width  - 1, xe));
-    ys = std::max(0u, std::min<uint_fast16_t>(_height - 1, ys));
-    ye = std::max(0u, std::min<uint_fast16_t>(_height - 1, ye));
+    xs = std::max<uint_fast16_t>(0u, std::min<uint_fast16_t>(_width  - 1, xs));
+    xe = std::max<uint_fast16_t>(0u, std::min<uint_fast16_t>(_width  - 1, xe));
+    ys = std::max<uint_fast16_t>(0u, std::min<uint_fast16_t>(_height - 1, ys));
+    ye = std::max<uint_fast16_t>(0u, std::min<uint_fast16_t>(_height - 1, ye));
     _xpos = xs;
     _xs = xs;
     _xe = xe;

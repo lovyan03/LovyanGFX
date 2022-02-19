@@ -689,6 +689,7 @@ IT8951 Registers defines
   {
 /// IT8951には画素読出しコマンドが存在せず、画像メモリを直接読むコマンドが提供されている。;
 /// 画像メモリを直接読み出す場合、ビットシフトや回転方向の解決などは自前で行う必要がある。;
+    startWrite();
 
     uint32_t rx, ry, rw, rh;
     if (_it8951_rotation & 4)
@@ -774,6 +775,7 @@ IT8951 Registers defines
       ++ry;
     } while (--rh);
     cs_control(true);
+    endWrite();
 
     heap_free(colorbuf);
     heap_free(readbuf);

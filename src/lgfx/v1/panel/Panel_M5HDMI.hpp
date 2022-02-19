@@ -170,8 +170,8 @@ namespace lgfx
 
 //  static constexpr uint8_t CMD_CHANGE_ADDR  = 0xA0;
 
-    static constexpr uint8_t CMD_VIDEO_TIMING_V = 0xB0;
-    static constexpr uint8_t CMD_VIDEO_TIMING_H = 0xB1;
+    static constexpr uint8_t CMD_VIDEO_TIMING_V = 0xB0; // 10Byte 垂直信号のビデオタイミングパラメータ設定
+    static constexpr uint8_t CMD_VIDEO_TIMING_H = 0xB1; // 10Byte 水平信号のビデオタイミングパラメータ設定
 
 //  static constexpr uint8_t CMD_UPDATE_BEGIN = 0xF0;
 //  static constexpr uint8_t CMD_UPDATE_DATA  = 0xF1;

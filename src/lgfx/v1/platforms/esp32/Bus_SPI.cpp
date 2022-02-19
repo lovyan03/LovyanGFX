@@ -140,6 +140,9 @@ namespace lgfx
     (void)spi_port;
     *reg(SPI_PIN_REG(spi_port)) = pin;
     *reg(SPI_CLOCK_REG(spi_port)) = clkdiv_write;
+#if defined ( SPI_UPDATE )
+    *_spi_cmd_reg |= SPI_UPDATE;
+#endif
   }
 
   void Bus_SPI::endTransaction(void)

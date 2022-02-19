@@ -35,6 +35,15 @@ namespace lgfx
 
   static constexpr uint8_t Bayer[16] = { 8, 136, 40, 168, 200, 72, 232, 104, 56, 184, 24, 152, 248, 120, 216, 88 };
 
+  inline static uint32_t to_gray(uint8_t r, uint8_t g, uint8_t b)
+  {
+    return (uint32_t)          // gamma2.0 convert and ITU-R BT.601 RGB to Y convert
+          ( (r * r * 19749)    // R 0.299
+          + (g * g * 38771)    // G 0.587
+          + (b * b *  7530)    // B 0.114
+          ) >> 24;
+  }
+
   color_depth_t Panel_1bitOLED::setColorDepth(color_depth_t depth)
   {
     _write_depth = color_depth_t::rgb565_2Byte;
@@ -115,7 +124,7 @@ namespace lgfx
 
     swap565_t color;
     color.raw = rawcolor;
-    uint32_t value = (color.R8() + (color.G8() << 1) + color.B8()) >> 2;
+    uint32_t value = to_gray(color.R8(), color.G8(), color.B8());
 
     y = ys;
     do
@@ -154,7 +163,7 @@ namespace lgfx
           do
           {
             auto color = readbuf[prev_pos];
-            _draw_pixel(x + prev_pos, y, (color.R8() + (color.G8() << 1) + color.B8()) >> 2);
+            _draw_pixel(x + prev_pos, y, to_gray(color.R8(), color.G8(), color.B8()));
           } while (new_pos != ++prev_pos);
         }
       } while (w != new_pos && w != (prev_pos = param->fp_skip(new_pos, w, param)));
@@ -189,7 +198,7 @@ namespace lgfx
         bufpos = 0;
       }
       auto color = colors[bufpos++];
-      _draw_pixel(xpos, ypos, (color.R8() + (color.G8() << 1) + color.B8()) >> 2);
+      _draw_pixel(xpos, ypos, to_gray(color.R8(), color.G8(), color.B8()));
       if (++xpos > xe)
       {
         xpos = xs;
@@ -316,12 +325,19 @@ namespace lgfx
     uint_fast8_t offset_y = _cfg.offset_y >> 3;
     uint_fast8_t offset_x = _cfg.offset_x + xs;
 
+    int retry = 3;
     do
     {
-      _bus->writeCommand(  CMD_SETPAGEADDR | (ys + offset_y)
-                        | (CMD_SETHIGHCOLUMN + (offset_x >> 4)) << 8
-                        | (CMD_SETLOWCOLUMN  + (offset_x & 0x0F)) << 16
-                        , 24);
+      while (!_bus->writeCommand(  CMD_SETPAGEADDR | (ys + offset_y)
+                                | (CMD_SETHIGHCOLUMN + (offset_x >> 4)) << 8
+                                | (CMD_SETLOWCOLUMN  + (offset_x & 0x0F)) << 16
+                                , 24) && --retry)
+      {
+        _bus->endTransaction();
+        _bus->beginTransaction();
+      }
+      if (!retry) { break; }
+
       auto buf = &_buf[xs + ys * _cfg.panel_width];
       _bus->writeBytes(buf, xe - xs + 1, true, true);
     } while (++ys <= ye);
