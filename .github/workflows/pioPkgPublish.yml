@@ -1,0 +1,15 @@
+name: pioPkgPublish
+
+on:
+  release:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: PlatformIO pkg publish
+        run: pio pkg publish ./
