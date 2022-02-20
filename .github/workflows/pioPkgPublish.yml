@@ -36,4 +36,5 @@ jobs:
 
       - name: Run PlatformIO
         run: |
-          pio pkg publish ./
+          pio -h
+          pio package publish ./
