@@ -43,9 +43,24 @@ Contributors:
  #include <driver/periph_ctrl.h>
 #endif
 
+#if __has_include(<esp_arduino_version.h>)
+ #include <esp_arduino_version.h>
+#endif
+
 #if defined (ESP_IDF_VERSION_VAL)
  #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(3, 4, 0)
-  #if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(4, 4, 0)
+
+  #if defined (ESP_ARDUINO_VERSION_VAL)
+   #if ESP_ARDUINO_VERSION < ESP_ARDUINO_VERSION_VAL(2, 0, 3)
+     #define LGFX_EFUSE_WORKAROUND
+   #endif
+  #else
+   #if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(4, 4, 0)
+    #define LGFX_EFUSE_WORKAROUND
+   #endif
+  #endif
+
+  #if defined ( LGFX_EFUSE_WORKAROUND )
 // include <esp_efuse.h> でエラーが出るバージョンが存在するため、エラー回避用の記述を行ってからincludeする。; 
    #define _ROM_SECURE_BOOT_H_
    #define MAX_KEY_DIGESTS 3
