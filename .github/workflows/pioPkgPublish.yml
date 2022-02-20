@@ -35,6 +35,7 @@ jobs:
           pip install --upgrade platformio
 
       - name: Run PlatformIO
+        env:
+          PLATFORMIO_AUTH_TOKEN: ${{ secrets.PLATFORMIO_AUTH_TOKEN }}
         run: |
-          pio -h
-          pio package publish ./
+          pio package publish --owner lovyan03 --non-interactive
