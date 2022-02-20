@@ -70,21 +70,23 @@ namespace lgfx
     _last_freq_apb = 0;
   }
 
+  static void _gpio_pin_init(int pin)
+  {
+    if (pin >= 0)
+    {
+      gpio_pad_select_gpio(pin);
+      gpio_hi(pin);
+      gpio_set_direction((gpio_num_t)pin, GPIO_MODE_OUTPUT);
+    }
+  }
+
   bool Bus_Parallel8::init(void)
   {
     _init_pin();
 
-    gpio_pad_select_gpio(_cfg.pin_rd);
-    gpio_pad_select_gpio(_cfg.pin_wr);
-    gpio_pad_select_gpio(_cfg.pin_rs);
-
-    gpio_hi(_cfg.pin_rd);
-    gpio_hi(_cfg.pin_wr);
-    gpio_hi(_cfg.pin_rs);
-
-    gpio_set_direction((gpio_num_t)_cfg.pin_rd, GPIO_MODE_OUTPUT);
-    gpio_set_direction((gpio_num_t)_cfg.pin_wr, GPIO_MODE_OUTPUT);
-    gpio_set_direction((gpio_num_t)_cfg.pin_rs, GPIO_MODE_OUTPUT);
+    _gpio_pin_init(_cfg.pin_rd);
+    _gpio_pin_init(_cfg.pin_wr);
+    _gpio_pin_init(_cfg.pin_rs);
 
     auto idx_base = I2S0O_DATA_OUT15_IDX;
 
