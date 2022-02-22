@@ -912,6 +912,7 @@ namespace lgfx
                   cfg.x_max = 319;
                   cfg.y_min = 0;
                   cfg.y_max = 279;
+                  cfg.bus_shared = false;
                   t->config(cfg);
                   p->touch(t);
                   float affine[6] = { 1, 0, 0, 0, 1, 0 };
@@ -937,12 +938,7 @@ namespace lgfx
                   cfg.i2c_addr = 0x2E; // I2C device addr
                   cfg.i2c_port = I2C_NUM_1;// I2C port number
                   cfg.freq = 400000;   // I2C freq
-
-                  // cfg.x_min = 0;    // 以下は試作機での設定値
-                  // cfg.x_max = 239;
-                  // cfg.y_min = 0;
-                  // cfg.y_max = 319;
-                  // cfg.offset_rotation = 2;
+                  cfg.bus_shared = false;
                   t->config(cfg);
                   p->touch(t);
                   lgfx::i2c::writeRegister8(axp_i2c_port, axp_i2c_addr, 0x94, 0x02, ~0, axp_i2c_freq);  // GPIO1 HIGH (TOUCH RST)
@@ -1020,6 +1016,7 @@ namespace lgfx
               cfg.x_max = 319;
               cfg.y_min = 0;
               cfg.y_max = 319;
+              cfg.bus_shared = false;
               t->config(cfg);
               p->touch(t);
             }
@@ -1348,6 +1345,7 @@ namespace lgfx
                   cfg.y_min = 0;
                   cfg.y_max = 959;
                   cfg.offset_rotation = 1;
+                  cfg.bus_shared = false;
                   t->config(cfg);
                   if (!t->init())
                   {
@@ -1419,6 +1417,7 @@ namespace lgfx
               cfg.x_max = 319;
               cfg.y_min = 0;
               cfg.y_max = 479;
+              cfg.bus_shared = false;
               t->config(cfg);
               p->touch(t);
             }
@@ -1647,6 +1646,7 @@ namespace lgfx
                 cfg.x_max = 319;
                 cfg.y_min = 0;
                 cfg.y_max = 479;
+                cfg.bus_shared = false;
                 t->config(cfg);
                 p->touch(t);
               }
