@@ -37,8 +37,8 @@ namespace lgfx
       startWrite(true);
       _bus->writeCommand(CMD_RESET | 0x77 << 8 | 0x89 << 16 | CMD_RESET << 24, 32);
       endWrite();
-      // リセットコマンド後は200msec待つ;
-      lgfx::delay(200);
+      // リセットコマンド後は300msec待つ;
+      lgfx::delay(300);
     }
 
     startWrite(true);
