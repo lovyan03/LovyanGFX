@@ -81,18 +81,21 @@ namespace lgfx
 
   void Light_PWM::setBrightness(uint8_t brightness)
   {
-    if (_cfg.invert) brightness = ~brightness;
     uint32_t duty = brightness + (brightness >> 7);
-
+    if (_cfg.invert) { duty = 256 - duty; }
+    int i = 2;
+    do
+    {
 #if defined ( ARDUINO )
-    ledcWrite(_cfg.pwm_channel, duty);
+      ledcWrite(_cfg.pwm_channel, duty);
 #elif SOC_LEDC_SUPPORT_HS_MODE
-    ledc_set_duty(LEDC_HIGH_SPEED_MODE, (ledc_channel_t)_cfg.pwm_channel, duty);
-    ledc_update_duty(LEDC_HIGH_SPEED_MODE, (ledc_channel_t)_cfg.pwm_channel);
+      ledc_set_duty(LEDC_HIGH_SPEED_MODE, (ledc_channel_t)_cfg.pwm_channel, duty);
+      ledc_update_duty(LEDC_HIGH_SPEED_MODE, (ledc_channel_t)_cfg.pwm_channel);
 #else
-    ledc_set_duty(LEDC_LOW_SPEED_MODE, (ledc_channel_t)_cfg.pwm_channel, duty);
-    ledc_update_duty(LEDC_LOW_SPEED_MODE, (ledc_channel_t)_cfg.pwm_channel);
+      ledc_set_duty(LEDC_LOW_SPEED_MODE, (ledc_channel_t)_cfg.pwm_channel, duty);
+      ledc_update_duty(LEDC_LOW_SPEED_MODE, (ledc_channel_t)_cfg.pwm_channel);
 #endif
+    } while (--i);
   }
 
 
