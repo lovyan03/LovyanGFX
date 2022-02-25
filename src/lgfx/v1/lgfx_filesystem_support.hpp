@@ -697,6 +697,28 @@ namespace lgfx
 
 #undef LGFX_URL_MAXLENGTH
 
+  #define LGFX_FUNCTION_GENERATOR(drawImg, draw_img) \
+    bool drawImg##File(DataWrapper* file, const char *path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left) \
+    { \
+      bool res = false; \
+      this->prepareTmpTransaction(file); \
+      file->preRead(); \
+      if (file->open(path)) \
+      { \
+        res = this->draw_img(file, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum); \
+        file->close(); \
+      } \
+      file->postRead(); \
+      return res; \
+    } \
+
+    LGFX_FUNCTION_GENERATOR(drawBmp, draw_bmp)
+    LGFX_FUNCTION_GENERATOR(drawJpg, draw_jpg)
+    LGFX_FUNCTION_GENERATOR(drawPng, draw_png)
+    LGFX_FUNCTION_GENERATOR(drawQoi, draw_qoi)
+
+  #undef LGFX_FUNCTION_GENERATOR
+
   private:
 
     template<typename T, typename Tfs>
@@ -756,28 +778,6 @@ namespace lgfx
       this->_font_file->postRead();
       return result;
     }
-
-  #define LGFX_FUNCTION_GENERATOR(drawImg, draw_img) \
-    bool drawImg##File(DataWrapper* file, const char *path, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, float scale_x, float scale_y, datum_t datum) \
-    { \
-      bool res = false; \
-      this->prepareTmpTransaction(file); \
-      file->preRead(); \
-      if (file->open(path)) \
-      { \
-        res = this->draw_img(file, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum); \
-        file->close(); \
-      } \
-      file->postRead(); \
-      return res; \
-    } \
-
-    LGFX_FUNCTION_GENERATOR(drawBmp, draw_bmp)
-    LGFX_FUNCTION_GENERATOR(drawJpg, draw_jpg)
-    LGFX_FUNCTION_GENERATOR(drawPng, draw_png)
-    LGFX_FUNCTION_GENERATOR(drawQoi, draw_qoi)
-
-  #undef LGFX_FUNCTION_GENERATOR
   };
 
 //----------------------------------------------------------------------------
