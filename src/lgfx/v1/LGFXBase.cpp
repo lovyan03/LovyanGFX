@@ -1749,6 +1749,14 @@ namespace lgfx
     return (fm.height * sy) >> 16;
   }
 
+  int32_t LGFXBase::fontWidth(const IFont* font) const
+  {
+    FontMetrics fm;
+    font->getDefaultMetric(&fm);
+    int32_t sx = 65536 * _text_style.size_x;
+    return (fm.width * sx) >> 16;
+  }
+
   int32_t LGFXBase::textLength(const char *string, int32_t width)
   {
     if (!string || !string[0]) return 0;
