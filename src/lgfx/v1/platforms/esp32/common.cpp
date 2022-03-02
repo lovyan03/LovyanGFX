@@ -134,12 +134,7 @@ namespace lgfx
   {
     if (pin < 0) return;
 
-#if !defined (CONFIG_IDF_TARGET) || defined (CONFIG_IDF_TARGET_ESP32)
-    if (pin < 6 || pin > 11)
-#endif
-    {
-      gpio_set_direction((gpio_num_t)pin, GPIO_MODE_DISABLE);
-    }
+    gpio_set_direction((gpio_num_t)pin, GPIO_MODE_DISABLE);
 #if defined (ARDUINO)
     int m;
     switch (mode)
@@ -180,7 +175,7 @@ namespace lgfx
   namespace spi
   {
 
-#if defined (CONFIG_IDF_TARGET_ESP32C3)
+#if !defined ( SPI_MOSI_DLEN_REG )
     static constexpr uint32_t SPI_EXECUTE = SPI_USR | SPI_UPDATE;
     #define SPI_MOSI_DLEN_REG(i) (REG_SPI_BASE(i) + 0x1C)
     #define SPI_MISO_DLEN_REG(i) (REG_SPI_BASE(i) + 0x1C)
@@ -510,7 +505,11 @@ namespace lgfx
         sda_hold         = dev->sda_hold.val        ;
         sda_sample       = dev->sda_sample.val      ;
         fifo_conf        = dev->fifo_conf.val       ;
+#if defined (CONFIG_IDF_TARGET_ESP32S3)
+        timeout          = dev->to.val              ;
+#else
         timeout          = dev->timeout.val         ;
+#endif
 #if defined ( I2C_FILTER_CFG_REG )
         filter_cfg       = dev->filter_cfg.val      ;
 #else
@@ -530,7 +529,11 @@ namespace lgfx
         dev->sda_hold.val         = sda_hold        ;
         dev->sda_sample.val       = sda_sample      ;
         dev->fifo_conf.val        = fifo_conf       ;
+#if defined (CONFIG_IDF_TARGET_ESP32S3)
+        dev->to.val               = timeout         ;
+#else
         dev->timeout.val          = timeout         ;
+#endif
 #if defined ( I2C_FILTER_CFG_REG )
         dev->filter_cfg.val       = filter_cfg      ;
 #else
@@ -641,7 +644,8 @@ namespace lgfx
         int_raw.val = dev->int_raw.val;
         if (!(int_raw.val & intmask))
         {
-          uint32_t us = lgfx::micros();
+          uint32_t start_us = lgfx::micros();
+          uint32_t us;
 #if defined ( CONFIG_IDF_TARGET_ESP32C3 )
           uint32_t us_limit = (dev->scl_high_period.period + dev->scl_low_period.period + 16 ) * (1 + dev->sr.tx_fifo_cnt);
 #else
@@ -649,8 +653,10 @@ namespace lgfx
 #endif
           do
           {
+            vTaskDelay(0);
+            auto us = lgfx::micros() - start_us;
             int_raw.val = dev->int_raw.val;
-          } while (!(int_raw.val & intmask) && ((lgfx::micros() - us) <= us_limit));
+          } while (!(int_raw.val & intmask) && (us <= us_limit));
         }
         dev->int_clr.val = int_raw.val;
 #if !defined (CONFIG_IDF_TARGET) || defined (CONFIG_IDF_TARGET_ESP32)
@@ -998,8 +1004,9 @@ namespace lgfx
         i2c_set_cmd(dev, 0, i2c_cmd_read, len);
         i2c_set_cmd(dev, 1, i2c_cmd_end, 0);
         dev->int_clr.val = intmask;
+        updateDev(dev);
         dev->ctr.trans_start = 1;
-        //taskYIELD();
+        vTaskDelay(0);
         do
         {
           uint32_t us = lgfx::micros();
