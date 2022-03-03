@@ -26,7 +26,7 @@ namespace lgfx
 //----------------------------------------------------------------------------
 
   static constexpr uint8_t FT5x06_VENDID_REG = 0xA8;
-  static constexpr uint8_t FT5x06_POWER_REG  = 0x87;
+  static constexpr uint8_t FT5x06_POWER_REG  = 0xA5;
   static constexpr uint8_t FT5x06_PERIODACTIVE = 0x88;
   static constexpr uint8_t FT5x06_INTMODE_REG= 0xA4;
 
@@ -75,6 +75,12 @@ namespace lgfx
   void Touch_FT5x06::wakeup(void)
   {
     if (!_check_init()) return;
+    if (_cfg.pin_int >= 0)
+    {
+      lgfx::pinMode(_cfg.pin_int, pin_mode_t::input_pulldown);
+      delayMicroseconds(512);
+      lgfx::pinMode(_cfg.pin_int, pin_mode_t::input_pullup);
+    }
     _write_reg(FT5x06_POWER_REG, FT5x06_MONITOR);
   }
 
