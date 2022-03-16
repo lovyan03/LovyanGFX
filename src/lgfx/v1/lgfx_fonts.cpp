@@ -446,8 +446,8 @@ namespace lgfx
     }
 
     uint8_t *bitmap = &this->bitmap[pgm_read_dword(&glyph->bitmapOffset)];
-    uint8_t btmp = pgm_read_byte(bitmap);
-    uint8_t mask=0x80;
+    uint_fast8_t btmp = pgm_read_byte(bitmap);
+    uint_fast8_t mask = 0x80;
 
     gfx->setRawColor(colortbl[1]);
     int_fast8_t i = 0;
@@ -460,7 +460,7 @@ namespace lgfx
       y0 = y1;
       y1 = ((++i + yoffset) * sy) >> 16;
       int32_t fh = (y1 < limit_height && y1 == y0) ? 1 : (y1 - y0);
-      //if (!fh) fh = 1;
+
       if (left < right && fill) {
         gfx->setRawColor(colortbl[0]);
         gfx->writeFillRect(left, y + y0, right - left, fh);
@@ -469,14 +469,13 @@ namespace lgfx
 
       int32_t j = 0;
       int32_t x0 = 0;
-      bool flg = false;
+      bool flg = (btmp & mask);
       do {
         do {
           if (flg != (bool)(btmp & mask)) break;
           if (! (mask >>= 1)) {
             mask = 0x80;
-            ++bitmap;
-            btmp = pgm_read_byte(bitmap);
+            btmp = pgm_read_byte(++bitmap);
           }
         } while (++j < w);
         int32_t x1 = (j * sx) >> 16;
