@@ -17,16 +17,20 @@ Contributors:
 /----------------------------------------------------------------------------*/
 #if defined (ESP_PLATFORM)
 #include <sdkconfig.h>
-#if !defined (CONFIG_IDF_TARGET) || defined (CONFIG_IDF_TARGET_ESP32) || defined (CONFIG_IDF_TARGET_ESP32S2) || defined (CONFIG_IDF_TARGET_ESP32C3)
 
 #include "Bus_SPI.hpp"
 
 #include "../../misc/pixelcopy.hpp"
 
-#include <driver/periph_ctrl.h>
 #include <driver/rtc_io.h>
 #include <esp_heap_caps.h>
 #include <esp_log.h>
+
+#if __has_include (<esp_private/periph_ctrl.h>)
+ #include <esp_private/periph_ctrl.h>
+#else
+ #include <driver/periph_ctrl.h>
+#endif
 
 #if defined (ARDUINO) // Arduino ESP32
  #include <soc/periph_defs.h>
@@ -39,10 +43,16 @@ Contributors:
  #define SPI_PIN_REG SPI_MISC_REG
 #endif
 
-#if defined (CONFIG_IDF_TARGET_ESP32C3)
+#if defined (SOC_GDMA_SUPPORTED)  // for C3/S3
  #include <driver/spi_common_internal.h>
  #include <hal/gdma_hal.h>
  #include <hal/gdma_ll.h>
+ #if !defined DMA_OUT_LINK_CH0_REG
+  #define DMA_OUT_LINK_CH0_REG       GDMA_OUT_LINK_CH0_REG 
+  #define DMA_OUTFIFO_STATUS_CH0_REG GDMA_OUTFIFO_STATUS_CH0_REG
+  #define DMA_OUTLINK_START_CH0      GDMA_OUTLINK_START_CH0
+  #define DMA_OUTFIFO_EMPTY_CH0      GDMA_OUTFIFO_EMPTY_L3_CH0
+ #endif
 #endif
 #include "common.hpp"
 
@@ -91,6 +101,13 @@ namespace lgfx
     dc_control(true);
     pinMode(_cfg.pin_dc, pin_mode_t::output);
     _inited = spi::init(_cfg.spi_host, _cfg.pin_sclk, _cfg.pin_miso, _cfg.pin_mosi, _cfg.dma_channel).has_value();
+
+#if defined ( SOC_GDMA_SUPPORTED )
+    auto attr = spi_bus_get_attr(_cfg.spi_host);
+    _spi_dma_out_link_reg  = reg(DMA_OUT_LINK_CH0_REG       + attr->tx_dma_chan * 0xC0);
+    _spi_dma_outstatus_reg = reg(DMA_OUTFIFO_STATUS_CH0_REG + attr->tx_dma_chan * 0xC0);
+#endif
+
     return _inited;
   }
 
@@ -347,7 +364,7 @@ namespace lgfx
     }
 
 /// ESP32-C3 で HIGHPART を使用すると異常動作するため分岐する;
-#if defined ( CONFIG_IDF_TARGET_ESP32C3 )
+#if defined ( CONFIG_IDF_TARGET_ESP32C3 ) || defined ( CONFIG_IDF_TARGET_ESP32S3 )
 
     const uint32_t limit = (bytes == 2) ? 32 : 21;
     uint32_t l = (length - 1) / limit;
@@ -487,7 +504,7 @@ namespace lgfx
     auto spi_w0_reg = _spi_w0_reg;
 
 /// ESP32-C3 で HIGHPART を使用すると異常動作するため分岐する;
-#if defined ( CONFIG_IDF_TARGET_ESP32C3 )
+#if defined ( CONFIG_IDF_TARGET_ESP32C3 ) || defined ( CONFIG_IDF_TARGET_ESP32S3 ) 
 
     uint32_t regbuf[16];
     constexpr uint32_t limit = 64;
@@ -709,7 +726,7 @@ namespace lgfx
       exec_spi();
 
 /// ESP32-C3 で HIGHPART を使用すると異常動作するため分岐する;
-#if defined ( CONFIG_IDF_TARGET_ESP32C3 )
+#if defined ( CONFIG_IDF_TARGET_ESP32C3 ) || defined ( CONFIG_IDF_TARGET_ESP32S3 ) 
 
       auto spi_w0_reg = _spi_w0_reg;
       do {
@@ -778,7 +795,7 @@ namespace lgfx
     auto spi_w0_reg = _spi_w0_reg;
 
 /// ESP32-C3 で HIGHPART を使用すると異常動作するため分岐する;
-#if defined ( CONFIG_IDF_TARGET_ESP32C3 )
+#if defined ( CONFIG_IDF_TARGET_ESP32C3 ) || defined ( CONFIG_IDF_TARGET_ESP32S3 ) 
 
     do {
       if (0 == (length -= len1)) {
@@ -841,7 +858,7 @@ namespace lgfx
   void Bus_SPI::_spi_dma_reset(void)
   {
     _next_dma_reset = false;
-#if defined( CONFIG_IDF_TARGET_ESP32C3 )
+#if defined( SOC_GDMA_SUPPORTED )  // for C3/S3
 
 #elif defined( CONFIG_IDF_TARGET_ESP32S2 )
     if (_cfg.spi_host == SPI2_HOST)
@@ -889,5 +906,4 @@ namespace lgfx
  }
 }
 
-#endif
 #endif

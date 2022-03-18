@@ -17,7 +17,6 @@ Contributors:
 /----------------------------------------------------------------------------*/
 #if defined (ESP_PLATFORM)
 #include <sdkconfig.h>
-#if !defined (CONFIG_IDF_TARGET) || defined (CONFIG_IDF_TARGET_ESP32) || defined (CONFIG_IDF_TARGET_ESP32S2) || defined (CONFIG_IDF_TARGET_ESP32C3)
 
 #include "../common.hpp"
 
@@ -414,6 +413,7 @@ namespace lgfx
   }
 
 //----------------------------------------------------------------------------
+#if !defined ( CONFIG_IDF_TARGET_ESP32S3 )
 
   namespace i2c
   {
@@ -1007,7 +1007,7 @@ namespace lgfx
         dev->int_clr.val = intmask;
         updateDev(dev);
         dev->ctr.trans_start = 1;
-        vTaskDelay(0);
+        taskYIELD();
         do
         {
           uint32_t us = lgfx::micros();
@@ -1093,9 +1093,9 @@ namespace lgfx
 
   }
 
+#endif // !defined ( CONFIG_IDF_TARGET_ESP32S3 )
 //----------------------------------------------------------------------------
  }
 }
 
-#endif
 #endif
