@@ -197,8 +197,7 @@ namespace lgfx
 
   uint32_t Panel_LCD::read_bits(uint_fast8_t bit_index, uint_fast8_t bit_len)
   {
-    _bus->beginRead();
-    if (bit_index) { _bus->readData(bit_index); } // dummy read
+    _bus->beginRead(bit_index);
     auto res = _bus->readData(bit_len);
     cs_control(true);
     _bus->endRead();
@@ -400,12 +399,7 @@ namespace lgfx
     setWindow(x, y, x + w - 1, y + h - 1);
 
     write_command(_cmd_ramrd);
-    _bus->beginRead();
-
-    if (_cfg.dummy_read_pixel)
-    {
-      _bus->readData(_cfg.dummy_read_pixel); // dummy read
-    }
+    _bus->beginRead(_cfg.dummy_read_pixel);
 
     if (param->no_convert)
     {

@@ -110,6 +110,7 @@ namespace lgfx
     void execDMAQueue(void) override;
     uint8_t* getDMABuffer(uint32_t length) override { return _flip_buffer.getBuffer(length); }
 
+    void beginRead(uint_fast8_t dummy_bits) override;
     void beginRead(void) override;
     void endRead(void) override;
     uint32_t readData(uint_fast8_t bit_length) override;

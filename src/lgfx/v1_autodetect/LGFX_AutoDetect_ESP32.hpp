@@ -407,8 +407,7 @@ namespace lgfx
       bus->wait();
       _pin_level(pin_cs, false);
       bus->writeCommand(cmd, 8);
-      if (dummy_read_bit) bus->writeData(0, dummy_read_bit);  // dummy read bit
-      bus->beginRead();
+      bus->beginRead(dummy_read_bit);
       uint32_t res = bus->readData(32);
       bus->endTransaction();
       _pin_level(pin_cs, true);

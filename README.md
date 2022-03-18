@@ -1,7 +1,7 @@
 # LovyanGFX
 
 [![arduino-library-badge](https://www.ardu-badge.com/badge/LovyanGFX.svg?)](https://www.ardu-badge.com/LovyanGFX)
-[![PlatformIO Registry](https://badges.registry.platformio.org/packages/lovyan03/library/LovyanGFX.svg?)](https://registry.platformio.org/packages/libraries/lovyan03/LovyanGFX)
+[![PlatformIO Registry](https://badges.registry.platformio.org/packages/lovyan03/library/LovyanGFX.svg)](https://registry.platformio.org/packages/libraries/lovyan03/LovyanGFX)
 
 
 
@@ -40,13 +40,14 @@ This library has the following advantages.
 
 |        | SPI | I2C | 8bit Para|16bit Para|
 |:------:|:---:|:---:|:--------:|:--------:|
-|ESP32   | HW  | HW  | HW (I2S) |   ---    |
+|ESP32   | HW  | HW  | HW (I2S) | ---      |
 |ESP32-S2| HW  | HW  | HW (I2S) | HW (I2S) |
-|ESP32-C3| HW  | HW  | SW       |   ---    |
-|ESP8266 | HW  | SW  |   ---    |   ---    |
-|SAMD51  | HW  | HW  |   ---    |   ---    |
-|SAMD21  | HW  | HW  |   ---    |   ---    |
-|RP2040  | HW  | --- |   ---    |   ---    |
+|ESP32-S3| HW  | --- | ---      | ---      |
+|ESP32-C3| HW  | HW  | SW       | ---      |
+|ESP8266 | HW  | SW  | ---      | ---      |
+|SAMD51  | HW  | HW  | ---      | ---      |
+|SAMD21  | HW  | HW  | ---      | ---      |
+|RP2040  | HW  | --- | ---      | ---      |
 
 ※ HW = HardWare Peripheral / SW = SoftWare implementation
 
@@ -521,4 +522,19 @@ Font 2,4,6,7,8 :  [FreeBSD](https://github.com/Bodmer/TFT_eSPI/blob/master/licen
 converted IPA font : [IPA Font License](src/lgfx/Fonts/IPA/IPA_Font_License_Agreement_v1.0.txt) IPA  
 efont : [3-clause BSD](src/lgfx/Fonts/efont/COPYRIGHT.txt) The Electronic Font Open Laboratory  
 TomThumb font : [3-clause BSD](src/lgfx/Fonts/GFXFF/TomThumb.h) Brian J. Swetland / Vassilii Khachaturov / Dan Marks  
+
+
+実装予定 Unimplemented request
+----------------
+
+
+  - ディスプレイ Displays
+    - SSD1963 (realignment)
+    - SEPS525
+    - RM68120
+    - R61529
+
+  - タッチスクリーン TouchScreens
+    - NS2009
+    - GSL1680
 

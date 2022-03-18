@@ -100,10 +100,18 @@ namespace lgfx
 //ESP_LOGI("LGFX","Bus_SPI::init");
     dc_control(true);
     pinMode(_cfg.pin_dc, pin_mode_t::output);
-    _inited = spi::init(_cfg.spi_host, _cfg.pin_sclk, _cfg.pin_miso, _cfg.pin_mosi, _cfg.dma_channel).has_value();
+
+    int dma_ch = _cfg.dma_channel;
+#if defined (ESP_IDF_VERSION)
+ #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 3, 0)
+    dma_ch = dma_ch ? SPI_DMA_CH_AUTO : SPI_DMA_DISABLED;
+ #endif
+#endif
+    _inited = spi::init(_cfg.spi_host, _cfg.pin_sclk, _cfg.pin_miso, _cfg.pin_mosi, dma_ch).has_value();
 
 #if defined ( SOC_GDMA_SUPPORTED )
     auto attr = spi_bus_get_attr(_cfg.spi_host);
+    if (!attr->dma_enabled) { _cfg.dma_channel = 0; }
     _spi_dma_out_link_reg  = reg(DMA_OUT_LINK_CH0_REG       + attr->tx_dma_chan * 0xC0);
     _spi_dma_outstatus_reg = reg(DMA_OUTFIFO_STATUS_CH0_REG + attr->tx_dma_chan * 0xC0);
 #endif
@@ -364,7 +372,7 @@ namespace lgfx
     }
 
 /// ESP32-C3 で HIGHPART を使用すると異常動作するため分岐する;
-#if defined ( CONFIG_IDF_TARGET_ESP32C3 ) || defined ( CONFIG_IDF_TARGET_ESP32S3 )
+#if defined ( SPI_UPDATE )  // for C3/S3
 
     const uint32_t limit = (bytes == 2) ? 32 : 21;
     uint32_t l = (length - 1) / limit;
@@ -504,7 +512,7 @@ namespace lgfx
     auto spi_w0_reg = _spi_w0_reg;
 
 /// ESP32-C3 で HIGHPART を使用すると異常動作するため分岐する;
-#if defined ( CONFIG_IDF_TARGET_ESP32C3 ) || defined ( CONFIG_IDF_TARGET_ESP32S3 ) 
+#if defined ( SPI_UPDATE )  // for C3/S3
 
     uint32_t regbuf[16];
     constexpr uint32_t limit = 64;
@@ -669,6 +677,31 @@ namespace lgfx
     exec_spi();
   }
 
+  void Bus_SPI::beginRead(uint_fast8_t dummy_bits)
+  {
+    beginRead();
+    if (!dummy_bits) { return; }
+
+#if defined ( SPI_UPDATE )  // for C3/S3
+
+    /// ESP32-C3とS3は、1bitの送受信ができないため、CPOLの極性を反転させてダミークロックを生成する。;
+    if (dummy_bits == 1)
+    {
+      auto pin_reg = reg(SPI_PIN_REG(_spi_port));
+      auto cmd_reg = _spi_cmd_reg;
+      auto value = *pin_reg;
+      *pin_reg = value ^ SPI_CK_IDLE_EDGE;
+      *cmd_reg = SPI_UPDATE;
+      *pin_reg = value;
+      *cmd_reg = SPI_UPDATE;
+      return;
+    }
+
+#endif
+
+    readData(dummy_bits);
+  }
+
   void Bus_SPI::beginRead(void)
   {
     uint32_t pin = (_cfg.spi_mode & 2) ? SPI_CK_IDLE_EDGE : 0;
@@ -726,7 +759,7 @@ namespace lgfx
       exec_spi();
 
 /// ESP32-C3 で HIGHPART を使用すると異常動作するため分岐する;
-#if defined ( CONFIG_IDF_TARGET_ESP32C3 ) || defined ( CONFIG_IDF_TARGET_ESP32S3 ) 
+#if defined ( SPI_UPDATE )  // for C3/S3
 
       auto spi_w0_reg = _spi_w0_reg;
       do {
@@ -795,7 +828,7 @@ namespace lgfx
     auto spi_w0_reg = _spi_w0_reg;
 
 /// ESP32-C3 で HIGHPART を使用すると異常動作するため分岐する;
-#if defined ( CONFIG_IDF_TARGET_ESP32C3 ) || defined ( CONFIG_IDF_TARGET_ESP32S3 ) 
+#if defined ( SPI_UPDATE )  // for C3/S3
 
     do {
       if (0 == (length -= len1)) {
