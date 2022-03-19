@@ -31,79 +31,117 @@ namespace lgfx
   {
     if (!Panel_LCD::init(use_reset)) return false;
 
+    uint_fast16_t w = _cfg.panel_width  - 1;
+    uint_fast16_t h = _cfg.panel_height - 1;
+
+    uint8_t cmds[] = 
+    { 0xB0, 7, 0x20, 0x00
+             , (uint8_t)(w >> 8), (uint8_t)w
+             , (uint8_t)(h >> 8), (uint8_t)h
+             , 0x2D
+    // , 0xF0, 1, _cfg.dlen_16bit ?  : 0x00
+ 
+    , 0xFF, 0xFF
+    };
+
     startWrite();
-
-    writeCommand(0xB0, 1);
-    writeData(0x20, 2);
-    writeData(getSwap16(_cfg.panel_width  - 1), 2);
-    writeData(getSwap16(_cfg.panel_height - 1), 2);
-    writeData(0x2D, 1);
-
+    command_list(cmds);
     endWrite();
 
     return true;
   }
 
+  color_depth_t Panel_SSD1963::setColorDepth(color_depth_t depth)
+  {
+    uint8_t mode = 0x00;
+    if (_cfg.dlen_16bit)
+    {
+      if (((int)depth & color_depth_t::bit_mask) > 16)
+      {
+        _write_depth = rgb888_3Byte;
+        mode = 0x02;
+      }
+      else
+      {
+        _write_depth = rgb565_2Byte;
+        mode = 0x03;
+      }
+    }
+    else
+    {
+      _write_depth = rgb888_3Byte;
+    }
+    _read_depth = _write_depth;
+
+    uint8_t cmds[] = 
+    { 0xF0, 1, mode
+    , 0xFF, 0xFF
+    };
+
+    startWrite();
+    command_list(cmds);
+    endWrite();
+    _bus->flush();
+
+    return _write_depth;
+  }
+
   void Panel_SSD1963::setHSync(uint_fast16_t front, uint_fast16_t sync, uint_fast16_t back, uint_fast16_t move, uint_fast16_t lpspp)
   {
-    startWrite();
-    uint_fast16_t ht = _cfg.panel_width + front + sync + back;
-    uint_fast16_t hpw = sync;
+    uint_fast16_t ht = _cfg.panel_width + front + sync + back - 1;
+    uint_fast16_t hpw = sync - 1;
     uint_fast16_t hps = move + sync + back;
     uint_fast16_t lps = move;
 
-    writeCommand(0xB4, 1);
-    writeData(getSwap16( ht-1), 2);
-    writeData(getSwap16(hps  ), 2);
-    writeData(          hpw-1 , 1);
-    writeData(getSwap16(lps  ), 2);
-    writeData(          lpspp , 1);
+    uint8_t cmds[] = 
+    { 0xB4, 8, (uint8_t)(ht  >> 8), (uint8_t)ht
+             , (uint8_t)(hps >> 8), (uint8_t)hps
+             , (uint8_t)hpw
+             , (uint8_t)(lps >> 8), (uint8_t)lps
+             , (uint8_t)lpspp
+    , 0xFF, 0xFF
+    };
 
-    _bus->flush();
+    startWrite();
+    command_list(cmds);
     endWrite();
+
+    // writeCommand(0xB4, 1);
+    // writeData(getSwap16( ht  ), 2);
+    // writeData(getSwap16(hps  ), 2);
+    // writeData(          hpw   , 1);
+    // writeData(getSwap16(lps  ), 2);
+    // writeData(          lpspp , 1);
+    // _bus->flush();
   }
 
   void Panel_SSD1963::setVSync(uint_fast16_t front, uint_fast16_t sync, uint_fast16_t back, uint_fast16_t move)
   {
-    startWrite();
-    uint_fast16_t vt = _cfg.panel_height + front + sync + back;
-    uint_fast16_t vpw = sync;
+    uint_fast16_t vt = _cfg.panel_height + front + sync + back - 1;
+    uint_fast16_t vpw = sync - 1;
     uint_fast16_t vps = move + sync + back;
     uint_fast16_t fps = move;
 
-    writeCommand(0xB6, 1);
-    writeData(getSwap16( vt-1), 2);
-    writeData(getSwap16(vps  ), 2);
-    writeData(          vpw-1 , 1);
-    writeData(getSwap16(fps  ), 2);
+    uint8_t cmds[] = 
+    { 0xB6, 7, (uint8_t)(vt  >> 8), (uint8_t)vt
+             , (uint8_t)(vps >> 8), (uint8_t)vps
+             , (uint8_t)vpw
+             , (uint8_t)(fps >> 8), (uint8_t)fps
+    , 0xFF, 0xFF
+    };
 
-    _bus->flush();
+    startWrite();
+    command_list(cmds);
     endWrite();
-  }
 
-  void Panel_SSD1963::setWindow(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye)
-  {
-    set_window(xs, ys, xe, ye, CMD_RAMWR);
-  }
 
-  void Panel_SSD1963::drawPixelPreclipped(uint_fast16_t x, uint_fast16_t y, uint32_t rawcolor)
-  {
-    bool tr = _in_transaction;
-    if (!tr) begin_transaction();
-
-    set_window(x, y, x, y, CMD_RAMWR);
-    _bus->writeData(rawcolor, _write_bits);
-
-    if (!tr) end_transaction();
-  }
-
-  void Panel_SSD1963::writeFillRectPreclipped(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, uint32_t rawcolor)
-  {
-    uint32_t len = w * h;
-    uint_fast16_t xe = w + x - 1;
-    uint_fast16_t ye = y + h - 1;
-    set_window(x, y, xe, ye, CMD_RAMWR);
-    _bus->writeDataRepeat(rawcolor, _write_bits, len);
+    // writeCommand(0xB6, 1);
+    // writeData(getSwap16( vt  ), 2);
+    // writeData(getSwap16(vps  ), 2);
+    // writeData(          vpw   , 1);
+    // writeData(getSwap16(fps  ), 2);
+    // _bus->flush();
+    // endWrite();
   }
 
   void Panel_SSD1963::setRotation(uint_fast8_t r)
@@ -124,8 +162,15 @@ namespace lgfx
     update_madctl();
   }
 
-  void Panel_SSD1963::set_window(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye, uint32_t cmd)
+  void Panel_SSD1963::setWindow(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye)
   {
+    bool dlen_16bit = _cfg.dlen_16bit;
+    if (dlen_16bit && _has_align_data)
+    {
+      _bus->writeData(0, 8);
+      _has_align_data = false;
+    }
+
     uint_fast8_t rb = 1u << _internal_rotation;
     if (_internal_rotation & 1)
     {
@@ -137,7 +182,6 @@ namespace lgfx
     {
       _xs = xs;
       _xe = xe;
-      _bus->writeCommand(CMD_CASET, 8);
       if (rb & 0b11000110) // case 1:2:6:7:
       {
         std::swap(xs, xe);
@@ -146,13 +190,22 @@ namespace lgfx
       }
       xs += _colstart;
       xe += _colstart;
-      _bus->writeData(xs >> 8 | (xs & 0xFF) << 8 | (xe << 8 | xe >> 8) << 16, 32);
+      if (dlen_16bit)
+      {
+        _bus->writeCommand(CMD_CASET << 8, 16);
+        _bus->writeData((xs >> 8) << 8 | xs << 24, 32);
+        _bus->writeData((xe >> 8) << 8 | xe << 24, 32);
+      }
+      else
+      {
+        _bus->writeCommand(CMD_CASET, 8);
+        _bus->writeData(xs >> 8 | (xs & 0xFF) << 8 | (xe << 8 | xe >> 8) << 16, 32);
+      }
     }
     if (ys != _ys || ye != _ye)
     {
       _ys = ys;
       _ye = ye;
-      _bus->writeCommand(CMD_RASET, 8);
       if (rb & 0b10011100) // case 2:3:4:7:
       {
         std::swap(ys, ye);
@@ -161,9 +214,27 @@ namespace lgfx
       }
       ys += _rowstart;
       ye += _rowstart;
-      _bus->writeData(ys >> 8 | (ys & 0xFF) << 8 | (ye << 8 | ye >> 8) << 16, 32);
+
+      if (dlen_16bit)
+      {
+        _bus->writeCommand(CMD_RASET << 8, 16);
+        _bus->writeData((ys >> 8) << 8 | ys << 24, 32);
+        _bus->writeData((ye >> 8) << 8 | ye << 24, 32);
+      }
+      else
+      {
+        _bus->writeCommand(CMD_RASET, 8);
+        _bus->writeData(ys >> 8 | (ys & 0xFF) << 8 | (ye << 8 | ye >> 8) << 16, 32);
+      }
     }
-    _bus->writeCommand(cmd, 8);
+    if (dlen_16bit)
+    {
+      _bus->writeCommand(CMD_RAMWR << 8, 16);
+    }
+    else
+    {
+      _bus->writeCommand(CMD_RAMWR, 8);
+    }
   }
 
 //----------------------------------------------------------------------------

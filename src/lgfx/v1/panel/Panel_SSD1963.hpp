@@ -31,8 +31,8 @@ namespace lgfx
     {
       _cfg.memory_width  = _cfg.panel_width  = 864;
       _cfg.memory_height = _cfg.panel_height = 480;
-      _write_depth = rgb888_3Byte;
-      _read_depth  = rgb888_3Byte;
+      _write_depth = rgb565_2Byte;
+      _read_depth  = rgb565_2Byte;
     }
 
     void setHSync(uint_fast16_t front, uint_fast16_t sync, uint_fast16_t back, uint_fast16_t move = 0, uint_fast16_t lpspp = 0);
@@ -40,19 +40,11 @@ namespace lgfx
 
     bool init(bool use_reset) override;
     void setWindow(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye) override;
-    void drawPixelPreclipped(uint_fast16_t x, uint_fast16_t y, uint32_t rawcolor) override;
-    void writeFillRectPreclipped(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, uint32_t rawcolor) override;
+
     void setRotation(uint_fast8_t r) override;
+    color_depth_t setColorDepth(color_depth_t depth) override;
 
   protected:
-
-    void set_window(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye, uint32_t cmd);
-
-    void setColorDepth_impl(color_depth_t) override 
-    {
-      _write_depth = rgb888_3Byte;
-      _read_depth = _write_depth;
-    }
 
     const uint8_t* getInitCommands(uint8_t listno) const override
     {
@@ -74,8 +66,6 @@ namespace lgfx
         0xBA, 1, 0x0F,    //GPIO[3:0] out 1
 
         0xB8, 2, 0x07, 0x01,      //GPIO3=input, GPIO[2:0]=output  GPIO0 normal
-
-        0xF0, 1+CMD_INIT_DELAY, 0x00 , 10,   //pixel data interface //8 bit bus
 
         0xB8, 2, 0x0F, 0x01,    //GPIO is controlled by host GPIO[3:0]=output   GPIO[0]=1  LCD ON  GPIO[0]=1  LCD OFF GPIO0 normal
 
