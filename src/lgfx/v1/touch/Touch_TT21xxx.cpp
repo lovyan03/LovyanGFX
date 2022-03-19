@@ -18,7 +18,6 @@ Contributors:
 #include "Touch_TT21xxx.hpp"
 
 #include "../platforms/common.hpp"
-#include <esp_log.h>
 
 namespace lgfx
 {
@@ -65,12 +64,7 @@ namespace lgfx
          || (data_len == 0)
          || lgfx::i2c::readBytes(_cfg.i2c_port, _readdata, data_len).has_error())
         {
-          ESP_LOGE("dlen","%d",data_len);
           memset(_readdata, 0, sizeof(_readdata));
-        }
-        else
-        {
-          ESP_LOGE("DLEN","%d",data_len);
         }
       }
       lgfx::i2c::endTransaction(_cfg.i2c_port).has_value();
@@ -87,36 +81,6 @@ namespace lgfx
       tp[idx].size = data[5];
     }
     return points;
-
-/*
-    uint8_t data[32];
-    size_t data_len = 0;
-    size_t touch_num = 0;
-
-    int retry = 5;
-    while (
-      (lgfx::i2c::beginTransaction(_cfg.i2c_port, _cfg.i2c_addr, _cfg.freq, true).has_error()
-      || lgfx::i2c::readBytes(_cfg.i2c_port, data, 2).has_error()
-      || (data[1] != 0)
-      || ((size_t)((data_len = data[0] - 2) - 1) >= 30)
-      || lgfx::i2c::readBytes(_cfg.i2c_port, data, data_len).has_error()
-      ) && --retry) { lgfx::i2c::endTransaction(_cfg.i2c_port).has_value(); }
-    { touch_num = data[3] & 1; }
-    lgfx::i2c::endTransaction(_cfg.i2c_port).has_value();
-    _flg_released = (touch_num == 0);
-ESP_LOGE("T", "%d", touch_num);
-
-    if (count > touch_num) { count = touch_num; }
-    for (size_t idx = 0; idx < touch_num; ++idx)
-    {
-      auto d = &data[6 + idx * 10];
-      tp[idx].id = d[0] & 1;
-      tp[idx].x = d[1] + (d[2] << 8);
-      tp[idx].y = d[3] + (d[4] << 8);
-      tp[idx].size = d[5];
-    }
-    return count;
-//*/
   }
 
 //----------------------------------------------------------------------------
