@@ -212,6 +212,28 @@ namespace lgfx
           }
           _panel_last = p;
           _set_pwm_backlight(45, 7, 12000);
+
+          {
+            auto t = new lgfx::Touch_TT21xxx();
+            _touch_last = t;
+            auto cfg = t->config();
+            cfg.pin_int  =  3;   // INT pin number
+            cfg.pin_sda  =  8;   // I2C SDA pin number
+            cfg.pin_scl  = 18;   // I2C SCL pin number
+            cfg.i2c_addr = 0x24; // I2C device addr
+            cfg.i2c_port = I2C_NUM_0;// I2C port number
+            cfg.freq = 400000;   // I2C freq
+            cfg.x_min = 0;
+            cfg.x_max = 319;
+            cfg.y_min = 0;
+            cfg.y_max = 239;
+            cfg.bus_shared = false;
+            t->config(cfg);
+            p->touch(t);
+            float affine[6] = { 1, 0, 0, 0, -1, 240 };
+            p->setCalibrateAffine(affine);
+          }
+
           goto init_clear;
         }
         lgfx::pinMode(48, lgfx::pin_mode_t::input); // LCD RST

@@ -17,7 +17,6 @@ Contributors:
 /----------------------------------------------------------------------------*/
 #if defined (ESP_PLATFORM)
 #include <sdkconfig.h>
-#if !defined (CONFIG_IDF_TARGET) || defined (CONFIG_IDF_TARGET_ESP32) || defined (CONFIG_IDF_TARGET_ESP32S2) || defined (CONFIG_IDF_TARGET_ESP32C3)
 
 #include "Bus_I2C.hpp"
 #include "../../misc/pixelcopy.hpp"
@@ -99,22 +98,30 @@ namespace lgfx
 
   void Bus_I2C::wait(void)
   {
-#if defined (CONFIG_IDF_TARGET_ESP32C3)
+#if I2C_NUM_MAX > 1
+    auto dev = (_cfg.i2c_port == 0) ? &I2C0 : &I2C1;
+#else
     auto dev = &I2C0;
+#endif
+
+#if defined (CONFIG_IDF_TARGET_ESP32C3) || defined (CONFIG_IDF_TARGET_ESP32S3)
     while (dev->sr.bus_busy) { taskYIELD(); }
 #else
-    auto dev = (_cfg.i2c_port == 0) ? &I2C0 : &I2C1;
     while (dev->status_reg.bus_busy) { taskYIELD(); }
 #endif
   }
 
   bool Bus_I2C::busy(void) const
   {
-#if defined (CONFIG_IDF_TARGET_ESP32C3)
+#if I2C_NUM_MAX > 1
+    auto dev = (_cfg.i2c_port == 0) ? &I2C0 : &I2C1;
+#else
     auto dev = &I2C0;
+#endif
+
+#if defined (CONFIG_IDF_TARGET_ESP32C3) || defined (CONFIG_IDF_TARGET_ESP32S3)
     return dev->sr.bus_busy;
 #else
-    auto dev = (_cfg.i2c_port == 0) ? &I2C0 : &I2C1;
     return dev->status_reg.bus_busy;
 #endif
   }
@@ -258,5 +265,4 @@ namespace lgfx
  }
 }
 
-#endif
 #endif

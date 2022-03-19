@@ -42,7 +42,7 @@ This library has the following advantages.
 |:------:|:---:|:---:|:--------:|:--------:|
 |ESP32   | HW  | HW  | HW (I2S) | ---      |
 |ESP32-S2| HW  | HW  | HW (I2S) | HW (I2S) |
-|ESP32-S3| HW  | --- | ---      | ---      |
+|ESP32-S3| HW  | HW  | ---      | ---      |
 |ESP32-C3| HW  | HW  | SW       | ---      |
 |ESP8266 | HW  | SW  | ---      | ---      |
 |SAMD51  | HW  | HW  | ---      | ---      |
@@ -67,7 +67,7 @@ This library has the following advantages.
     - ILI9163
     - ILI9225
     - ILI9341 (WioTerminal, ESP-WROVER-KIT, ODROID-GO, LoLin D32 Pro, WiFiBoy Pro)
-    - ILI9342 (M5Stack, M5Stack Core2)
+    - ILI9342 (M5Stack, M5Stack Core2, ESP32-S3-BOX)
     - ILI9481
     - ILI9486
     - ILI9488 (Makerfabs Touch with Camera)
