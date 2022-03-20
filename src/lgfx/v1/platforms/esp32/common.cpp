@@ -433,10 +433,10 @@ namespace lgfx
 
     static i2c_dev_t* getDev(int num)
     {
-#if I2C_NUM_MAX > 1
-      return num == 0 ? &I2C0 : &I2C1;
-#else
+#if defined ( CONFIG_IDF_TARGET_ESP32C3 )
       return &I2C0;
+#else
+      return num == 0 ? &I2C0 : &I2C1;
 #endif
     }
 
