@@ -50,12 +50,12 @@ namespace lgfx
     {
       static constexpr uint8_t list0[] =
       {
-        0x01, 0+CMD_INIT_DELAY, 100,  // software reset
         //PLL multiplier, set PLL clock to 120M
         0xE2, 3, 0x23, 0x02, 0x54,
               //N=0x36 for 6.5M, 0x23 for 10M crystal
-        0xE0, 1+CMD_INIT_DELAY, 0x01, 10,  // PLL enable
-        0xE0, 1+CMD_INIT_DELAY, 0x03, 10,
+        0xE0, 1+CMD_INIT_DELAY, 0x01, 1,  // PLL enable
+        0xE0, 1               , 0x03,
+        0x01, 0+CMD_INIT_DELAY, 10,  // software reset
 
         0xE6, 3, 0x03, 0x33, 0x33,   //PLL setting for PCLK
 

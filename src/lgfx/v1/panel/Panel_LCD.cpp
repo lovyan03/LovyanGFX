@@ -149,11 +149,13 @@ namespace lgfx
   {
     if (_bus != nullptr)
     {
+      
       startWrite();
       write_command(CMD_COLMOD);
       writeData(getColMod(_write_bits), 1);
       write_command(CMD_MADCTL);
       writeData(getMadCtl(_internal_rotation) | (_cfg.rgb_order ? MAD_RGB : MAD_BGR), 1);
+      _bus->flush();
       endWrite();
     }
   }
@@ -314,7 +316,8 @@ namespace lgfx
           static constexpr uint32_t WRITEPIXELS_MAXLEN = 32767;
 
           setWindow(x, y, x + w - 1, y + h - 1);
-          bool nogap = (param->src_bitwidth == w || h == 1);
+          // bool nogap = (param->src_bitwidth == w || h == 1);
+          bool nogap = (h == 1) || (param->src_y32_add == 0 && ((param->src_bitwidth << pixelcopy_t::FP_SCALE) == (w * param->src_x32_add)));
           if (nogap && (w * h <= WRITEPIXELS_MAXLEN))
           {
             writePixels(param, w * h, use_dma);
