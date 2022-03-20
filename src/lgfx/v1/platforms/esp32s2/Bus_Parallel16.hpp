@@ -20,10 +20,10 @@ Contributors:
 #include <vector>
 #include <string.h>
 
-#if __has_include(<esp32/rom/lldesc.h>)
- #include <esp32/rom/lldesc.h>
-#else
+#if __has_include(<rom/lldesc.h>)
  #include <rom/lldesc.h>
+#else
+ #include <esp32/rom/lldesc.h>
 #endif
 
 #if __has_include(<freertos/FreeRTOS.h>)
