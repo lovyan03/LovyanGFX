@@ -21,6 +21,8 @@ Contributors:
 #include "../Bus.hpp"
 #include "../misc/colortype.hpp"
 
+#include <stdlib.h>
+
 namespace lgfx
 {
  inline namespace v1
