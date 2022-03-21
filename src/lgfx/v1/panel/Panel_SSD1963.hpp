@@ -34,7 +34,7 @@ namespace lgfx
       uint8_t refresh_rate = 60;
 
       /// HSYNC parameter
-      uint16_t h_branking_total = 64;
+      uint16_t h_branking_total = 128;
       uint8_t  hpw = 48;
       uint16_t hps = 46;
       uint16_t lps = 15;
