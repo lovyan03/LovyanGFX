@@ -27,6 +27,26 @@ namespace lgfx
 
   struct Panel_SSD1963 : public Panel_LCD
   {
+    struct timing_params_t
+    {
+      uint32_t xtal_clock = 10000000;  /// Oscillator frequency on board;
+      uint32_t pll_clock = 120000000;
+      uint8_t refresh_rate = 60;
+
+      /// HSYNC parameter
+      uint16_t h_branking_total = 64;
+      uint8_t  hpw = 48;
+      uint16_t hps = 46;
+      uint16_t lps = 15;
+      uint8_t  lpspp = 0;
+
+      /// VSYNC parameter
+      uint16_t v_branking_total = 45;
+      uint8_t  vpw = 16;
+      uint16_t vps = 16;
+      uint16_t fps = 8;
+    };
+
     Panel_SSD1963(void)
     {
       _cfg.memory_width  = _cfg.panel_width  = 864;
@@ -44,8 +64,14 @@ namespace lgfx
     void setRotation(uint_fast8_t r) override;
     color_depth_t setColorDepth(color_depth_t depth) override;
 
+    const timing_params_t& config_timing_params(void) const { return _timing_params; }
+    void config_timing_params(const timing_params_t& timing_params);
+
   protected:
 
+    timing_params_t _timing_params;
+
+/*
     const uint8_t* getInitCommands(uint8_t listno) const override
     {
       static constexpr uint8_t list0[] =
@@ -57,22 +83,10 @@ namespace lgfx
         0xE0, 1               , 0x03,
         0x01, 0+CMD_INIT_DELAY, 10,  // software reset
 
-// for 480
-        // 0xE6, 3, 0x01, 0x1F, 0xFF,
-        // 0xB0, 7, 0x20, 0x00, 0x01, 0xDF, 0x01, 0x0F, 0x00,
-        // 0xB4, 8, 0x02, 0x13, 0x00, 0x08, 0x2B, 0x00, 0x02, 0x00, 
-        // 0xB6, 7, 0x01, 0x20, 0x00, 0x04, 0x0c, 0x00, 0x02,
-
-// for 800
-        0xE6, 3, 0x03, 0xFF, 0xFF,
-        0xB0, 7, 0x24, 0x00, 0x03, 0x1F, 0x01, 0xDF, 0x00,
-        0xB4, 8, 0x03, 0xA0, 0x00, 0x2E, 0x30, 0x00, 0x0F, 0x00,
-        0xB6, 7, 0x02, 0x0D, 0x00, 0x10, 0x10, 0x00, 0x08,
-
-        // 0xE6, 3, 0x03, 0x33, 0x33,   //PLL setting for PCLK
-        // 0xB0, 7, 0x20, 0x00, 0x03, 0x5F, 0x01, 0xDF, 0x2D,   //LCD SPECIFICATION
-        // 0xB4, 8, 0x03, 0xA0, 0x00, 0x2E, 0x30, 0x00, 0x0F, 0x00,    //HSYNC
-        // 0xB6, 7, 0x02, 0x0D, 0x00, 0x10, 0x10, 0x00, 0x08,          //VSYNC
+        0xE6, 3, 0x03, 0x33, 0x33,   //PLL setting for PCLK
+        0xB0, 7, 0x20, 0x00, 0x03, 0x5F, 0x01, 0xDF, 0x2D,   //LCD SPECIFICATION
+        0xB4, 8, 0x03, 0xA0, 0x00, 0x2E, 0x30, 0x00, 0x0F, 0x00,    //HSYNC
+        0xB6, 7, 0x02, 0x0D, 0x00, 0x10, 0x10, 0x00, 0x08,          //VSYNC
         
         0xBA, 1, 0x0F,    //GPIO[3:0] out 1
 
@@ -95,6 +109,7 @@ namespace lgfx
       default: return nullptr;
       }
     }
+//*/
   };
 
 //----------------------------------------------------------------------------
