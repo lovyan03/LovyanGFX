@@ -79,21 +79,71 @@ namespace lgfx
   }
 
 //----------------------------------------------------------------------------
+
+#if defined (ARDUINO)
+ #if defined (__STORAGE_H__)
+
   struct FileWrapper : public DataWrapper
   {
-    FileWrapper() : DataWrapper() { need_transaction = true; }
 
- // dummy.
+public:
+    FileWrapper() : DataWrapper()
+    {
+      _fs = nullptr;
+      _fp = nullptr;
+    }
 
-    bool open(const char*) override { return false; }
-    int read(uint8_t*, uint32_t) override { return 0; }
-    void skip(int32_t) override { }
-    bool seek(uint32_t) override { return false; }
-    bool seek(uint32_t, int) { return false; }
+    StorageClass* _fs;
+    File *_fp;
+    File _file;
+
+    FileWrapper(StorageClass& fs, File* fp = nullptr) : DataWrapper(), _fs(&fs), _fp(fp) {}
+    void setFS(StorageClass& fs) {
+      _fs = &fs;
+    }
+
+    bool open(StorageClass& fs, const char* path)
+    {
+      setFS(fs);
+      return open(path);
+    }
+    bool open(const char* path) override
+    {
+      _file = _fs->open(path);
+      _fp = &_file;
+      return _file;
+    }
+    int read(uint8_t *buf, uint32_t len) override { return _fp->read(buf, len); }
+    void skip(int32_t offset) override { _fp->seek(_fp->position() + offset); }
+    bool seek(uint32_t offset) override { return _fp->seek(offset); }
+    void close(void) override { if (_fp) _fp->close(); }
+    int32_t tell(void) override { return _fp->position(); }
+  };
+ #else
+
+  struct FileWrapper : public DataWrapper
+  {
+    FileWrapper() : DataWrapper()
+    {
+      need_transaction = false;
+    }
+    void* _fp;
+
+    template <typename T>
+    void setFS(T& fs) {}
+
+    bool open(const char* , const char* ) { return false; }
+    int read(uint8_t *, uint32_t ) override { return false; }
+    void skip(int32_t ) override { }
+    bool seek(uint32_t ) override { return false; }
+    bool seek(uint32_t , int ) { return false; }
     void close() override { }
     int32_t tell(void) override { return 0; }
-
   };
+
+ #endif
+
+#endif
 
 //----------------------------------------------------------------------------
  }
