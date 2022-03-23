@@ -83,43 +83,7 @@ namespace lgfx
   {
     FileWrapper() : DataWrapper() { need_transaction = true; }
 
-#if defined (ARDUINO) && defined (__SEEED_FS__)
-
-    fs::File _file;
-    fs::File *_fp;
-
-    fs::FS *_fs = nullptr;
-    void setFS(fs::FS& fs) {
-      _fs = &fs;
-      need_transaction = false;
-    }
-    FileWrapper(fs::FS& fs) : DataWrapper(), _fp(nullptr) { setFS(fs); }
-    FileWrapper(fs::FS& fs, fs::File* fp) : DataWrapper(), _fp(fp) { setFS(fs); }
-
-    bool open(fs::FS& fs, const char* path) {
-      setFS(fs);
-      return open(path);
-    }
-
-    bool open(const char* path) override {
-      fs::File file = _fs->open(path, "r");
-      // この邪悪なmemcpyは、Seeed_FSのFile実装が所有権moveを提供してくれないのにデストラクタでcloseを呼ぶ実装になっているため、;
-      // 正攻法ではFileをクラスメンバに保持できない状況を打開すべく応急処置的に実装したものです。;
-      memcpy(&_file, &file, sizeof(fs::File));
-      // memsetにより一時変数の中身を吹っ飛ばし、デストラクタによるcloseを予防します。;
-      memset(&file, 0, sizeof(fs::File));
-      _fp = &_file;
-      return _file;
-    }
-
-    int read(uint8_t *buf, uint32_t len) override { return _fp->read(buf, len); }
-    void skip(int32_t offset) override { seek(offset, SeekCur); }
-    bool seek(uint32_t offset) override { return seek(offset, SeekSet); }
-    bool seek(uint32_t offset, SeekMode mode) { return _fp->seek(offset, mode); }
-    void close() override { _fp->close(); }
-    int32_t tell(void) override { return _fp->position(); }
-
-#else  // dummy.
+ // dummy.
 
     bool open(const char*) override { return false; }
     int read(uint8_t*, uint32_t) override { return 0; }
@@ -128,8 +92,6 @@ namespace lgfx
     bool seek(uint32_t, int) { return false; }
     void close() override { }
     int32_t tell(void) override { return 0; }
-
-#endif
 
   };
 

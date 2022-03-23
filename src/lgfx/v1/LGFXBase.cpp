@@ -1645,8 +1645,8 @@ namespace lgfx
 
   static char* floatToStr(double number, char* buf, size_t /*buflen*/, uint8_t digits)
   {
-    if (std::isnan(number))    { return (char*)memcpy(buf, "nan\0", 4); }
-    if (std::isinf(number))    { return (char*)memcpy(buf, "inf\0", 4); }
+    if (isnan(number))    { return (char*)memcpy(buf, "nan\0", 4); }
+    if (isinf(number))    { return (char*)memcpy(buf, "inf\0", 4); }
     if (number > 4294967040.0) { return (char*)memcpy(buf, "ovf\0", 4); } // constant determined empirically
     if (number <-4294967040.0) { return (char*)memcpy(buf, "ovf\0", 4); } // constant determined empirically
 
