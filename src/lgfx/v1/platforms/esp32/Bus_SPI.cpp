@@ -75,8 +75,6 @@ namespace lgfx
     _spi_user_reg         = reg(SPI_USER_REG(        spi_port));
     _spi_mosi_dlen_reg    = reg(SPI_MOSI_DLEN_REG(   spi_port));
 #if defined ( SOC_GDMA_SUPPORTED )
-    _spi_dma_out_link_reg = reg(DMA_OUT_LINK_CH0_REG);
-    _spi_dma_outstatus_reg = reg(DMA_OUTFIFO_STATUS_CH0_REG);
 #elif defined ( SPI_DMA_STATUS_REG )
     _spi_dma_out_link_reg = reg(SPI_DMA_OUT_LINK_REG(spi_port));
     _spi_dma_outstatus_reg = reg(SPI_DMA_STATUS_REG(spi_port));
@@ -84,9 +82,18 @@ namespace lgfx
     _spi_dma_out_link_reg = reg(SPI_DMA_OUT_LINK_REG(spi_port));
     _spi_dma_outstatus_reg = reg(SPI_DMA_OUTSTATUS_REG(spi_port));
 #endif
-    _mask_reg_dc = (cfg.pin_dc < 0) ? 0 : (1ul << (cfg.pin_dc & 31));
-    _gpio_reg_dc[0] = get_gpio_lo_reg(cfg.pin_dc);
-    _gpio_reg_dc[1] = get_gpio_hi_reg(cfg.pin_dc);
+    if (cfg.pin_dc < 0)
+    { // D/Cピン不使用の場合はGPIOレジスタの代わりにダミーとしてmask_reg_dcのアドレスを設定しておく;
+      _mask_reg_dc = 0;
+      _gpio_reg_dc[0] = &_mask_reg_dc;
+      _gpio_reg_dc[1] = &_mask_reg_dc;
+    }
+    else
+    {
+      _mask_reg_dc = (1ul << (cfg.pin_dc & 31));
+      _gpio_reg_dc[0] = get_gpio_lo_reg(cfg.pin_dc);
+      _gpio_reg_dc[1] = get_gpio_hi_reg(cfg.pin_dc);
+    }
     _last_freq_apb = 0;
 
     auto spi_mode = cfg.spi_mode;
@@ -285,6 +292,7 @@ namespace lgfx
       regbuf1 = regbuf0 >> 8 | regbuf0 << 16;
       regbuf2 = regbuf0 >>16 | regbuf0 <<  8;
     } else {
+      if (bit_length == 8) { regbuf0 |= regbuf0 << 16; }
       regbuf1 = regbuf0;
       regbuf2 = regbuf0;
     }
