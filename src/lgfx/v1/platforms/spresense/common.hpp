@@ -79,59 +79,71 @@ namespace lgfx
   }
 
 //----------------------------------------------------------------------------
+
+#if defined (ARDUINO)
+ #if defined (__STORAGE_H__)
+
   struct FileWrapper : public DataWrapper
   {
-    FileWrapper() : DataWrapper() { need_transaction = true; }
 
-#if defined (ARDUINO) && defined (__SEEED_FS__)
-
-    fs::File _file;
-    fs::File *_fp;
-
-    fs::FS *_fs = nullptr;
-    void setFS(fs::FS& fs) {
-      _fs = &fs;
-      need_transaction = false;
+public:
+    FileWrapper() : DataWrapper()
+    {
+      _fs = nullptr;
+      _fp = nullptr;
     }
-    FileWrapper(fs::FS& fs) : DataWrapper(), _fp(nullptr) { setFS(fs); }
-    FileWrapper(fs::FS& fs, fs::File* fp) : DataWrapper(), _fp(fp) { setFS(fs); }
 
-    bool open(fs::FS& fs, const char* path) {
+    StorageClass* _fs;
+    File *_fp;
+    File _file;
+
+    FileWrapper(StorageClass& fs, File* fp = nullptr) : DataWrapper(), _fs(&fs), _fp(fp) {}
+    void setFS(StorageClass& fs) {
+      _fs = &fs;
+    }
+
+    bool open(StorageClass& fs, const char* path)
+    {
       setFS(fs);
       return open(path);
     }
-
-    bool open(const char* path) override {
-      fs::File file = _fs->open(path, "r");
-      // この邪悪なmemcpyは、Seeed_FSのFile実装が所有権moveを提供してくれないのにデストラクタでcloseを呼ぶ実装になっているため、;
-      // 正攻法ではFileをクラスメンバに保持できない状況を打開すべく応急処置的に実装したものです。;
-      memcpy(&_file, &file, sizeof(fs::File));
-      // memsetにより一時変数の中身を吹っ飛ばし、デストラクタによるcloseを予防します。;
-      memset(&file, 0, sizeof(fs::File));
+    bool open(const char* path) override
+    {
+      _file = _fs->open(path);
       _fp = &_file;
       return _file;
     }
-
     int read(uint8_t *buf, uint32_t len) override { return _fp->read(buf, len); }
-    void skip(int32_t offset) override { seek(offset, SeekCur); }
-    bool seek(uint32_t offset) override { return seek(offset, SeekSet); }
-    bool seek(uint32_t offset, SeekMode mode) { return _fp->seek(offset, mode); }
-    void close() override { _fp->close(); }
+    void skip(int32_t offset) override { _fp->seek(_fp->position() + offset); }
+    bool seek(uint32_t offset) override { return _fp->seek(offset); }
+    void close(void) override { if (_fp) _fp->close(); }
     int32_t tell(void) override { return _fp->position(); }
+  };
+ #else
 
-#else  // dummy.
+  struct FileWrapper : public DataWrapper
+  {
+    FileWrapper() : DataWrapper()
+    {
+      need_transaction = false;
+    }
+    void* _fp;
 
-    bool open(const char*) override { return false; }
-    int read(uint8_t*, uint32_t) override { return 0; }
-    void skip(int32_t) override { }
-    bool seek(uint32_t) override { return false; }
-    bool seek(uint32_t, int) { return false; }
+    template <typename T>
+    void setFS(T& fs) {}
+
+    bool open(const char* , const char* ) { return false; }
+    int read(uint8_t *, uint32_t ) override { return false; }
+    void skip(int32_t ) override { }
+    bool seek(uint32_t ) override { return false; }
+    bool seek(uint32_t , int ) { return false; }
     void close() override { }
     int32_t tell(void) override { return 0; }
+  };
+
+ #endif
 
 #endif
-
-  };
 
 //----------------------------------------------------------------------------
  }

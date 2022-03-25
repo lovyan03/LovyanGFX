@@ -17,7 +17,6 @@ Contributors:
 /----------------------------------------------------------------------------*/
 #if defined (ESP_PLATFORM)
 #include <sdkconfig.h>
-#if !defined (CONFIG_IDF_TARGET) || defined (CONFIG_IDF_TARGET_ESP32) || defined (CONFIG_IDF_TARGET_ESP32S2) || defined (CONFIG_IDF_TARGET_ESP32C3)
 
 #include "Light_PWM.hpp"
 
@@ -81,11 +80,9 @@ namespace lgfx
 
   void Light_PWM::setBrightness(uint8_t brightness)
   {
+    if (_cfg.invert) brightness = ~brightness;
     uint32_t duty = brightness + (brightness >> 7);
-    if (_cfg.invert) { duty = 256 - duty; }
-    int i = 2;
-    do
-    {
+
 #if defined ( ARDUINO )
       ledcWrite(_cfg.pwm_channel, duty);
 #elif SOC_LEDC_SUPPORT_HS_MODE
@@ -95,7 +92,6 @@ namespace lgfx
       ledc_set_duty(LEDC_LOW_SPEED_MODE, (ledc_channel_t)_cfg.pwm_channel, duty);
       ledc_update_duty(LEDC_LOW_SPEED_MODE, (ledc_channel_t)_cfg.pwm_channel);
 #endif
-    } while (--i);
   }
 
 
@@ -103,5 +99,4 @@ namespace lgfx
  }
 }
 
-#endif
 #endif

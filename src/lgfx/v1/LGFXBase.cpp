@@ -24,6 +24,7 @@ Contributors:
 #include "../utility/lgfx_qrcode.h"
 #include "../utility/lgfx_tjpgd.h"
 #include "../utility/lgfx_qoi.h"
+#include "../utility/pgmspace.h"
 #include "panel/Panel_Device.hpp"
 #include "misc/bitmap.hpp"
 
@@ -1016,7 +1017,7 @@ namespace lgfx
       do {
         int32_t ip = i;
         for (;;) {
-          if (!(i & 7)) byte = bitmap[i >> 3];
+          if (!(i & 7)) { byte = pgm_read_byte(&bitmap[i >> 3]); }
           if (fg != (bool)(byte & 0x80) || (++i >= w)) break;
           byte <<= 1;
         }
@@ -1046,7 +1047,7 @@ namespace lgfx
       do {
         int32_t ip = i;
         for (;;) {
-          if (!(i & 7)) byte = bitmap[i >> 3];
+          if (!(i & 7)) { byte = pgm_read_byte(&bitmap[i >> 3]); }
           if (fg != (bool)(byte & 0x01) || (++i >= w)) break;
           byte >>= 1;
         }
@@ -1644,8 +1645,8 @@ namespace lgfx
 
   static char* floatToStr(double number, char* buf, size_t /*buflen*/, uint8_t digits)
   {
-    if (std::isnan(number))    { return (char*)memcpy(buf, "nan\0", 4); }
-    if (std::isinf(number))    { return (char*)memcpy(buf, "inf\0", 4); }
+    if (isnan(number))    { return (char*)memcpy(buf, "nan\0", 4); }
+    if (isinf(number))    { return (char*)memcpy(buf, "inf\0", 4); }
     if (number > 4294967040.0) { return (char*)memcpy(buf, "ovf\0", 4); } // constant determined empirically
     if (number <-4294967040.0) { return (char*)memcpy(buf, "ovf\0", 4); } // constant determined empirically
 

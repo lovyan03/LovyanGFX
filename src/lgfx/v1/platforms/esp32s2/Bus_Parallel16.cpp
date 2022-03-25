@@ -258,6 +258,8 @@ namespace lgfx
 
   size_t Bus_Parallel16::_flush(size_t count, bool dc)
   {
+    bool slow = _div_num > 8;
+
     auto i2s_dev = (i2s_dev_t*)_dev;
     if (i2s_dev->out_link.val)
     {
@@ -289,6 +291,11 @@ namespace lgfx
       do { __asm__ __volatile__ ("nop"); } while (--wait);
     }
     i2s_dev->conf.val = _conf_reg_start;
+    if (slow)
+    {
+      wait = _div_num >> 1;
+      do { __asm__ __volatile__ ("nop"); } while (--wait);
+    }
 
     _cache_flip = (_cache_flip == _cache[0]) ? _cache[1] : _cache[0];
     return 0;
@@ -299,6 +306,12 @@ namespace lgfx
     auto idx = _cache_index;
     int bytes = bit_length >> 4;
     auto c = _cache_flip;
+
+    if (_has_align_data)
+    {
+      _has_align_data = false;
+      c[idx++] = (_align_data << 16) | 0x100;
+    }
 
     do
     {
@@ -453,20 +466,25 @@ namespace lgfx
     }
     const uint32_t bytes = param->dst_bits >> 3;
     auto fp_copy = param->fp_copy;
-    const uint32_t limit = CACHE_SIZE / bytes;
+
+    const uint32_t limit = (CACHE_THRESH * sizeof(_cache[0][0])) / bytes;
     uint8_t len = length % limit;
+
+    auto c = (uint8_t*)_cache_flip;
     if (len)
     {
-      fp_copy(_cache_flip, 0, len, param);
-      writeBytes((uint8_t*)_cache_flip, len * bytes, true, true);
+      fp_copy(c, 0, len, param);
       _cache_flip = (_cache_flip == _cache[0]) ? _cache[1] : _cache[0];
+      writeBytes(c, len * bytes, true, true);
       if (0 == (length -= len)) return;
     }
     do
     {
-      fp_copy(_cache_flip, 0, limit, param);
-      writeBytes((uint8_t*)_cache_flip, limit * bytes, true, true);
+      c = (uint8_t*)_cache_flip;
+      fp_copy(c, 0, limit, param);
       _cache_flip = (_cache_flip == _cache[0]) ? _cache[1] : _cache[0];
+      writeBytes(c, limit * bytes, true, true);
+
     } while (length -= limit);
   }
 
@@ -477,41 +495,65 @@ namespace lgfx
       _flush(_cache_index);
       _cache_index = 0;
     }
-    auto i2s_dev = (i2s_dev_t*)_dev;
-    do
-    {
-      dc_control(dc);
-      i2s_dev->sample_rate_conf.val = _sample_rate_conf_reg_direct;
-      i2s_dev->conf.val = _conf_reg_reset;
-      if (use_dma)
-      {
-        _setup_dma_desc_links(data, length);
-        length = 0;
-      }
-      else
-      {
-        size_t len = ((length - 1) % CACHE_SIZE) + 1;
-        length -= len;
-        memcpy(_cache_flip, data, len);
-        data += len;
-        _setup_dma_desc_links((const uint8_t*)_cache_flip, len);
-        _cache_flip = (_cache_flip == _cache[0]) ? _cache[1] : _cache[0];
-      }
-      i2s_dev->out_link.val = I2S_OUTLINK_START | ((uint32_t)_dmadesc & I2S_OUTLINK_ADDR);
-      int wait = 40 - (_div_num << 3);
-      if (!_direct_dc)
-      {
-        _direct_dc = true;
-        gpio_matrix_out(_cfg.pin_rs, 0x100, 0, 0);
-        wait -= 16;
-      }
-      if (wait > 0)
-      { /// OUTLINK_START～TX_STARTの時間が短すぎるとデータの先頭を送り損じる事があるのでnopウェイトを入れる;
-        do { __asm__ __volatile__ ("nop"); } while (--wait);
-      }
 
-      i2s_dev->conf.val = _conf_reg_start;
-    } while (length);
+    auto c = (uint8_t*)_cache_flip;
+    auto i2s_dev = (i2s_dev_t*)_dev;
+
+    if ((length + _has_align_data) > 1)
+    {
+      do
+      {
+        dc_control(dc);
+        i2s_dev->sample_rate_conf.val = _sample_rate_conf_reg_direct;
+        i2s_dev->conf.val = _conf_reg_reset;
+        if (use_dma && !_has_align_data)
+        {
+          auto len = length & ~1u;
+          _setup_dma_desc_links(data, len);
+          length -= len;
+          data += len;
+        }
+        else
+        {
+          size_t len = ((length - 1) % (CACHE_THRESH * sizeof(_cache[0][0]))) + 1;
+          if (_has_align_data != (bool)(len & 1))
+          {
+            if (++len > length) { len -= 2; }
+          }
+          memcpy(&c[_has_align_data], data, (len + 3) & ~3u);
+          length -= len;
+          data += len;
+          if (_has_align_data)
+          {
+            _has_align_data = false;
+            c[0] = _align_data;
+            ++len;
+          }
+          _setup_dma_desc_links((const uint8_t*)_cache_flip, len);
+
+          _cache_flip = (_cache_flip == _cache[0]) ? _cache[1] : _cache[0];
+          c = (uint8_t*)_cache_flip;
+        }
+        i2s_dev->out_link.val = I2S_OUTLINK_START | ((uint32_t)_dmadesc & I2S_OUTLINK_ADDR);
+        int wait = 40 - (_div_num << 3);
+        if (!_direct_dc)
+        {
+          _direct_dc = true;
+          gpio_matrix_out(_cfg.pin_rs, 0x100, 0, 0);
+          wait -= 16;
+        }
+        if (wait > 0)
+        { /// OUTLINK_START～TX_STARTの時間が短すぎるとデータの先頭を送り損じる事があるのでnopウェイトを入れる;
+          do { __asm__ __volatile__ ("nop"); } while (--wait);
+        }
+        i2s_dev->conf.val = _conf_reg_start;
+      } while (length & ~1u);
+    }
+    if (length)
+    {
+      _has_align_data = true;
+      _align_data = data[0];
+    }
   }
 
   void Bus_Parallel16::beginRead(void)

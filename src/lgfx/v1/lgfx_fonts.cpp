@@ -445,49 +445,74 @@ namespace lgfx
       }
     }
 
-    uint8_t *bitmap = &this->bitmap[pgm_read_dword(&glyph->bitmapOffset)];
-    uint8_t btmp = pgm_read_byte(bitmap);
-    uint8_t mask=0x80;
+    if (h)
+    {
+      uint8_t *bitmap = &this->bitmap[pgm_read_dword(&glyph->bitmapOffset)];
+      uint_fast8_t mask = 0x80;
+      int32_t btmp = pgm_read_byte(bitmap); /// btmpの最上位ビット (符号ビット) をフラグとして扱うため敢えて uintにしない ;
+      if (btmp & mask) { btmp = ~btmp; }
+      uint32_t bitlen = 0;
 
-    gfx->setRawColor(colortbl[1]);
-    int_fast8_t i = 0;
-    int32_t limit_height = ((h + yoffset) * sy) >> 16;
-    int32_t limit_width  = ( w            * sx) >> 16;
-    int32_t y1 = (yoffset * sy) >> 16;
-    int32_t y0 = y1 - 1;
-    do {
-      bool fill = y0 != y1;
-      y0 = y1;
-      y1 = ((++i + yoffset) * sy) >> 16;
-      int32_t fh = (y1 < limit_height && y1 == y0) ? 1 : (y1 - y0);
-      //if (!fh) fh = 1;
-      if (left < right && fill) {
-        gfx->setRawColor(colortbl[0]);
-        gfx->writeFillRect(left, y + y0, right - left, fh);
-        gfx->setRawColor(colortbl[1]);
-      }
-
-      int32_t j = 0;
-      int32_t x0 = 0;
-      bool flg = false;
+      gfx->setRawColor(colortbl[1]);
+      uint32_t limit_width = ( w            * sx) >> 16;
+      int32_t limit_height = ((h + yoffset) * sy) >> 16;
+      int32_t y1 = (yoffset * sy) >> 16;
+      int32_t y0 = y1 - 1;
+      int32_t i = 0;
       do {
-        do {
-          if (flg != (bool)(btmp & mask)) break;
-          if (! (mask >>= 1)) {
-            mask = 0x80;
-            ++bitmap;
-            btmp = pgm_read_byte(bitmap);
-          }
-        } while (++j < w);
-        int32_t x1 = (j * sx) >> 16;
-        if (flg) {
-          int32_t fw = (x1 < limit_width && x1 == x0) ? 1 : (x1 - x0);
-          gfx->writeFillRect(x + x0, y + y0, fw, fh);
+        bool fill = y0 != y1;
+        y0 = y1;
+        y1 = ((++i + yoffset) * sy) >> 16;
+        int32_t fh = (y1 < limit_height && y1 == y0) ? 1 : (y1 - y0);
+
+        if (left < right && fill) {
+          gfx->setRawColor(colortbl[0]);
+          gfx->writeFillRect(left, y + y0, right - left, fh);
+          gfx->setRawColor(colortbl[1]);
         }
-        x0 = x1;
-        flg = !flg;
-      } while (j < w);
-    } while (i < h);
+        uint32_t j = 0;
+        uint32_t x0 = 0;
+        uint32_t remain = w;
+        do
+        {
+          if (bitlen == 0)
+          {
+            btmp = ~btmp;
+            do
+            { /// ビット連続数を取得するループ;
+              do
+              {
+                ++bitlen;
+
+                /// 1Byteぶん走査できたら次のデータを取得する。;
+                if (0 == (mask >>= 1))
+                {
+                  goto label_nextbyte;
+/// gotoを使用してループ外に出る理由は速度向上のため。連続ループ時にループ内の処理を短くする効果がある;
+/// 「データ取得が必要な場合」にgotoジャンプさせることにより、「データ取得が不要な場合」はジャンプが不要になる。;
+                }
+              } while (btmp & mask);
+              break; /// ビットが途切れた場合はループを抜ける;
+
+label_nextbyte: /// 次のデータを取得する;
+              mask = 0x80;
+              btmp = pgm_read_byte(++bitmap) ^ (btmp < 0 ? ~0 : 0);
+            } while (btmp & mask);
+          }
+
+          uint32_t l = std::min(bitlen, remain);
+          remain -= l;
+          bitlen -= l;
+          j += l;
+          uint32_t x1 = (j * sx) >> 16;
+          if (btmp >= 0) {
+            uint32_t fw = (x1 < limit_width && x1 == x0) ? 1 : (x1 - x0);
+            gfx->writeFillRect(x + x0, y + y0, fw, fh);
+          }
+          x0 = x1;
+        } while (remain);
+      } while (i < h);
+    }
     gfx->endWrite();
     return xAdvance;
   }

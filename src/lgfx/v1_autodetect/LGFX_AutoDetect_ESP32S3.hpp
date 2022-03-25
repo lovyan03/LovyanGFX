@@ -118,7 +118,7 @@ namespace lgfx
       if (0 == nvs_board)
       {
 
-        nvs_board = board_t::board_ESP32_S2_Kaluga_1;
+        nvs_board = board_t::board_ESP32_S3_BOX;
 
       }
 
@@ -150,7 +150,6 @@ namespace lgfx
     board_t autodetect(bool use_reset = true, board_t board = board_t::board_unknown)
     {
       auto bus_cfg = _bus_spi.config();
-//    if (bus_cfg.pin_mosi != -1 && bus_cfg.pin_sclk != -1) return true;
 
       panel(nullptr);
 
@@ -181,40 +180,63 @@ namespace lgfx
       (void)id;  // suppress warning
 
 
-#if defined ( LGFX_AUTODETECT ) || defined ( LGFX_ESP32_S2_KALUGA_1 )
+#if defined ( LGFX_AUTODETECT ) || defined ( LGFX_ESP32_S3_BOX )
 
-      if (board == 0 || board == board_t::board_ESP32_S2_Kaluga_1)
+      if (board == 0 || board == board_t::board_ESP32_S3_BOX)
       {
-        bus_cfg.pin_mosi =  9;
-        bus_cfg.pin_miso =  8;
-        bus_cfg.pin_sclk = 15;
-        bus_cfg.pin_dc   = 13;
-        bus_cfg.spi_mode = false;
-        bus_cfg.spi_3wire = false;
+        bus_cfg.pin_mosi =  6;
+        bus_cfg.pin_miso = -1;
+        bus_cfg.pin_sclk =  7;
+        bus_cfg.pin_dc   =  4;
+        bus_cfg.spi_mode = 0;
+        bus_cfg.spi_3wire = true;
         _bus_spi.config(bus_cfg);
         _bus_spi.init();
-        _pin_reset(16, use_reset); // LCD RST
-        id = _read_panel_id(&_bus_spi, 11);
-        if ((id & 0xFF) == 0x85)
-        {  //  check panel (ST7789)
-          board = board_t::board_ESP32_S2_Kaluga_1;
-          ESP_LOGW(LIBRARY_NAME, "[Autodetect] board_ESP32_S2_Kaluga_1");
-          bus_cfg.freq_write = 80000000;
+        _pin_reset(48, use_reset); // LCD RST
+        id = _read_panel_id(&_bus_spi, 5);
+        if ((id & 0xFF) == 0xE3)
+        {  //  check panel (ILI9342)
+          board = board_t::board_ESP32_S3_BOX;
+          ESP_LOGW(LIBRARY_NAME, "[Autodetect] board_ESP32_S3_BOX");
+          bus_cfg.freq_write = 40000000;
           bus_cfg.freq_read  = 16000000;
           _bus_spi.config(bus_cfg);
-          auto p = new Panel_ST7789();
+          auto p = new Panel_ILI9342();
           p->bus(&_bus_spi);
           {
             auto cfg = p->config();
-            cfg.pin_cs  = 11;
-            cfg.pin_rst = 16;
+            cfg.pin_cs  =  5;
+            cfg.pin_rst = 48;
+            cfg.offset_rotation = 2;
             p->config(cfg);
           }
           _panel_last = p;
-          _set_pwm_backlight(6, 7, 12000);
+          _set_pwm_backlight(45, 7, 12000);
+
+          {
+            auto t = new lgfx::Touch_TT21xxx();
+            _touch_last = t;
+            auto cfg = t->config();
+            cfg.pin_int  =  3;   // INT pin number
+            cfg.pin_sda  =  8;   // I2C SDA pin number
+            cfg.pin_scl  = 18;   // I2C SCL pin number
+            cfg.i2c_addr = 0x24; // I2C device addr
+            cfg.i2c_port = I2C_NUM_0;// I2C port number
+            cfg.freq = 400000;   // I2C freq
+            cfg.x_min = 0;
+            cfg.x_max = 319;
+            cfg.y_min = 0;
+            cfg.y_max = 239;
+            cfg.bus_shared = false;
+            t->config(cfg);
+            p->touch(t);
+            float affine[6] = { 1, 0, 0, 0, -1, 240 };
+            p->setCalibrateAffine(affine);
+          }
+
           goto init_clear;
         }
-        lgfx::pinMode(16, lgfx::pin_mode_t::input); // LCD RST
+        lgfx::pinMode(48, lgfx::pin_mode_t::input); // LCD RST
         _bus_spi.release();
       }
 #endif

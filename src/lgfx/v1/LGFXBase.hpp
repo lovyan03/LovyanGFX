@@ -1177,7 +1177,7 @@ namespace lgfx
       if (index >= count) return 0;
       if (x) *x = tp[index].x;
       if (y) *y = tp[index].y;
-      return index;
+      return count;
     }
 
     template <typename T>

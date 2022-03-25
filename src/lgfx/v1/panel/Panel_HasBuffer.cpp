@@ -106,6 +106,7 @@ namespace lgfx
     uint32_t xe = _xe;
     uint32_t ys = _ys;
     uint32_t ye = _ye;
+    if (xe < xs || ye < ys) { return; }
     uint32_t xpos = _xpos;
     uint32_t ypos = _ypos;
     do

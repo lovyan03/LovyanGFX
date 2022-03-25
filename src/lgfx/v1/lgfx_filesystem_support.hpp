@@ -27,6 +27,13 @@ Contributors:
 #include <math.h>
 #include <string.h>
 
+#if __has_include("alloca.h")
+ #include <alloca.h>
+#else
+ #include <malloc.h>
+ #define alloca _alloca
+#endif
+
 namespace lgfx
 {
  inline namespace v1
@@ -135,6 +142,76 @@ namespace lgfx
       return drawJpg(dataSource, x, y, maxWidth, maxHeight, offX, offY, 1.0f / (1 << scale));
     }
 
+ #endif
+
+ #if defined (__STORAGE_H__) // for SPRESENSE
+
+    /// load vlw fontdata from filesystem.
+    void loadFont(const char *path, StorageClass &fs)
+    {
+      init_font_file<FileWrapper>(fs);
+      load_font_with_path(path);
+    }
+
+    void loadFont(StorageClass &fs, const char *path)
+    {
+      init_font_file<FileWrapper>(fs);
+      load_font_with_path(path);
+    }
+
+  #define LGFX_FUNCTION_GENERATOR(drawImg, draw_img) \
+    inline bool drawImg##File(StorageClass &fs, const char *path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left) \
+    {  FileWrapper file(fs); \
+       bool res = this->drawImg##File(&file, path, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum); \
+       file.close(); \
+       return res; \
+    } \
+    inline bool drawImg##File(StorageClass &fs, File *file, int32_t x=0, int32_t y=0, int32_t maxWidth=0, int32_t maxHeight=0, int32_t offX=0, int32_t offY=0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left) \
+    { \
+      FileWrapper data(fs, file); \
+      bool res = this->draw_img(&data, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum); \
+      data.close(); \
+      return res; \
+    } \
+    inline bool drawImg##File(StorageClass &fs, const String& path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left) \
+    { \
+      return drawImg##File(fs, path.c_str(), x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum); \
+    } \
+    inline bool drawImg(File *dataSource, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left) \
+    { \
+      StreamWrapper data; \
+      data.set(dataSource); \
+      data.need_transaction = true; \
+      return this->draw_img(&data, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum); \
+    } \
+
+    LGFX_FUNCTION_GENERATOR(drawBmp, draw_bmp)
+    LGFX_FUNCTION_GENERATOR(drawJpg, draw_jpg)
+    LGFX_FUNCTION_GENERATOR(drawPng, draw_png)
+    LGFX_FUNCTION_GENERATOR(drawQoi, draw_qoi)
+
+  #undef LGFX_FUNCTION_GENERATOR
+
+    inline bool drawBmp(StorageClass &fs, const char *path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left)
+    {
+      return drawBmpFile(fs, path, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum);
+    }
+
+    [[deprecated("use float scale")]]
+    inline bool drawJpgFile(StorageClass &fs, const char *path, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, jpeg_div::jpeg_div_t scale)
+    {
+      return drawJpgFile(fs, path, x, y, maxWidth, maxHeight, offX, offY, 1.0f / (1 << scale));
+    }
+    [[deprecated("use float scale")]]
+    inline bool drawJpgFile(StorageClass &fs, File *file, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, jpeg_div::jpeg_div_t scale)
+    {
+      return drawJpgFile(fs, file, x, y, maxWidth, maxHeight, offX, offY, 1.0f / (1 << scale));
+    }
+    [[deprecated("use float scale")]]
+    inline bool drawJpg(File *dataSource, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, jpeg_div::jpeg_div_t scale)
+    {
+      return drawJpg(dataSource, x, y, maxWidth, maxHeight, offX, offY, 1.0f / (1 << scale));
+    }
 
  #endif
 

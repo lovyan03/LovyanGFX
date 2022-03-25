@@ -25,33 +25,26 @@ namespace lgfx
  {
 //----------------------------------------------------------------------------
 
-  struct Touch_GT911 : public ITouch
+  struct Touch_TT21xxx : public ITouch
   {
-    Touch_GT911(void)
+    Touch_TT21xxx(void)
     {
       _cfg.x_min = 0;
-      _cfg.x_max = 2047;
+      _cfg.x_max = 320;
       _cfg.y_min = 0;
-      _cfg.y_max = 2047;
+      _cfg.y_max = 320;
     }
 
     bool init(void) override;
+    void wakeup(void) override {}
+    void sleep(void) override {}
 
-    void wakeup(void) override;
-
-    void sleep(void) override;
-
-    uint_fast8_t getTouchRaw(touch_point_t *tp, uint_fast8_t count) override;
-
-    void setTouchNums(int_fast8_t nums);
+    uint_fast8_t getTouchRaw(touch_point_t* tp, uint_fast8_t count) override;
 
   private:
-    uint32_t _refresh_rate = 5;
-    uint8_t _readdata[42]; // 5point * 8byte + 2byte
+    uint8_t _readdata[36] = {0}; // 3point * 10byte + 6byte
 
-    void freshConfig(void);
-    bool writeBytes(const uint8_t* data, size_t len);
-    bool writeReadBytes(const uint8_t* write_data, size_t write_len, uint8_t* read_data, size_t read_len);
+    bool _check_init(void);
   };
 
 //----------------------------------------------------------------------------
