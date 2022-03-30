@@ -26,6 +26,9 @@ Contributors:
 #include <driver/i2c.h>
 
 
+#if defined ( ARDUINO_ESP32_S3_BOX )
+  #define LGFX_ESP32_S3_BOX
+#endif
 
 
 namespace lgfx
@@ -73,6 +76,9 @@ namespace lgfx
     static uint32_t _read_panel_id(lgfx::Bus_SPI* bus, int32_t pin_cs, uint32_t cmd = 0x04, uint8_t dummy_read_bit = 1) // 0x04 = RDDID command
     {
       bus->beginTransaction();
+      _pin_level(pin_cs, true);
+      bus->writeCommand(0, 8);
+      bus->wait();
       _pin_level(pin_cs, false);
       bus->writeCommand(cmd, 8);
       bus->beginRead(dummy_read_bit);
@@ -117,8 +123,11 @@ namespace lgfx
 
       if (0 == nvs_board)
       {
+#if defined ( ARDUINO_ESP32_S3_BOX )
 
         nvs_board = board_t::board_ESP32_S3_BOX;
+
+#endif
 
       }
 
@@ -184,16 +193,16 @@ namespace lgfx
 
       if (board == 0 || board == board_t::board_ESP32_S3_BOX)
       {
-        bus_cfg.pin_mosi =  6;
+        bus_cfg.pin_mosi =  GPIO_NUM_6;
         bus_cfg.pin_miso = -1;
-        bus_cfg.pin_sclk =  7;
-        bus_cfg.pin_dc   =  4;
+        bus_cfg.pin_sclk =  GPIO_NUM_7;
+        bus_cfg.pin_dc   =  GPIO_NUM_4;
         bus_cfg.spi_mode = 0;
         bus_cfg.spi_3wire = true;
         _bus_spi.config(bus_cfg);
         _bus_spi.init();
-        _pin_reset(48, use_reset); // LCD RST
-        id = _read_panel_id(&_bus_spi, 5);
+        _pin_reset(GPIO_NUM_48, use_reset); // LCD RST
+        id = _read_panel_id(&_bus_spi, GPIO_NUM_5);
         if ((id & 0xFF) == 0xE3)
         {  //  check panel (ILI9342)
           board = board_t::board_ESP32_S3_BOX;
@@ -205,24 +214,25 @@ namespace lgfx
           p->bus(&_bus_spi);
           {
             auto cfg = p->config();
-            cfg.pin_cs  =  5;
-            cfg.pin_rst = 48;
-            cfg.offset_rotation = 2;
+            cfg.pin_cs  = GPIO_NUM_5;
+            cfg.pin_rst = GPIO_NUM_48;
+            cfg.offset_rotation = 1;
             p->config(cfg);
+            p->setRotation(1);
           }
           _panel_last = p;
-          _set_pwm_backlight(45, 7, 12000);
+          _set_pwm_backlight(GPIO_NUM_45, 7, 12000);
 
           {
             auto t = new lgfx::Touch_TT21xxx();
             _touch_last = t;
             auto cfg = t->config();
-            cfg.pin_int  =  3;   // INT pin number
-            cfg.pin_sda  =  8;   // I2C SDA pin number
-            cfg.pin_scl  = 18;   // I2C SCL pin number
-            cfg.i2c_addr = 0x24; // I2C device addr
-            cfg.i2c_port = I2C_NUM_0;// I2C port number
-            cfg.freq = 400000;   // I2C freq
+            cfg.pin_int  = GPIO_NUM_3;
+            cfg.pin_sda  = GPIO_NUM_8;
+            cfg.pin_scl  = GPIO_NUM_18;
+            cfg.i2c_addr = 0x24;
+            cfg.i2c_port = I2C_NUM_0;
+            cfg.freq = 400000;
             cfg.x_min = 0;
             cfg.x_max = 319;
             cfg.y_min = 0;
@@ -236,7 +246,7 @@ namespace lgfx
 
           goto init_clear;
         }
-        lgfx::pinMode(48, lgfx::pin_mode_t::input); // LCD RST
+        lgfx::pinMode(GPIO_NUM_48, lgfx::pin_mode_t::input); // LCD RST
         _bus_spi.release();
       }
 #endif
