@@ -18,6 +18,11 @@ Contributors:
 #if defined (ESP_PLATFORM)
 #include <sdkconfig.h>
 
+/// ESP32-S3をターゲットにした際にREG_SPI_BASEが定義されていなかったので応急処置 ; 
+#if defined ( CONFIG_IDF_TARGET_ESP32S3 )
+ #define REG_SPI_BASE(i)   (DR_REG_SPI1_BASE + (((i)>1) ? (((i)* 0x1000) + 0x20000) : (((~(i)) & 1)* 0x1000 )))
+#endif
+
 #include "../common.hpp"
 
 #include <algorithm>
@@ -205,6 +210,10 @@ namespace lgfx
 //ESP_LOGI("LGFX","spi::init host:%d, sclk:%d, miso:%d, mosi:%d, dma:%d", spi_host, spi_sclk, spi_miso, spi_mosi, dma_channel);
       uint32_t spi_port = (spi_host + 1);
       (void)spi_port;
+
+// ※ ESP-IDFのSPIドライバの準備後に ArduinoESP32のSPIClassを準備した場合、
+// ESP32-S3環境でMOSIピンでのデータ読出し(半二重動作)ができなくなる問題があったため、
+// ArduinoESP32のSPIClassを先に準備しておく。
 
 #if defined (ARDUINO) // Arduino ESP32
 
@@ -701,6 +710,7 @@ namespace lgfx
       {
         return cpp::fail(error_t::invalid_arg);
       }
+
       auto dev = getDev(i2c_port);
       i2c_context[i2c_port].save_reg(dev);
       release(i2c_port);
@@ -711,9 +721,11 @@ namespace lgfx
 
 #if defined ( ARDUINO )
 
-      ((i2c_port == 1) ? Wire1 : Wire).setPins(pin_sda, pin_scl);
+      auto twowire = ((i2c_port == 1) ? &Wire1 : &Wire);
+      twowire->begin(pin_sda, pin_scl);
 
 #endif
+
 //ESP_LOGI("LGFX", "i2c_set_pin : %d", res);
       // i2c_set_pin((i2c_port_t)i2c_port, pin_sda, pin_scl, gpio_pullup_t::GPIO_PULLUP_ENABLE, gpio_pullup_t::GPIO_PULLUP_ENABLE, I2C_MODE_MASTER);
       // periph_module_enable(getPeriphModule(i2c_port));
@@ -724,6 +736,15 @@ namespace lgfx
     cpp::result<void, error_t> release(int i2c_port)
     {
       if (i2c_port >= I2C_NUM_MAX) { return cpp::fail(error_t::invalid_arg); }
+
+#if defined ( ARDUINO )
+ #if defined (ESP_IDF_VERSION_VAL)
+  #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 0, 0)
+      auto twowire = ((i2c_port == 1) ? &Wire1 : &Wire);
+      twowire->end();
+  #endif
+ #endif
+#endif
 
       if (i2c_context[i2c_port].pin_scl >= 0 || i2c_context[i2c_port].pin_sda >= 0)
       {

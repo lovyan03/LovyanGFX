@@ -18,6 +18,11 @@ Contributors:
 #if defined (ESP_PLATFORM)
 #include <sdkconfig.h>
 
+/// ESP32-S3をターゲットにした際にREG_SPI_BASEが定義されていなかったので応急処置 ; 
+#if defined ( CONFIG_IDF_TARGET_ESP32S3 )
+ #define REG_SPI_BASE(i)   (DR_REG_SPI1_BASE + (((i)>1) ? (((i)* 0x1000) + 0x20000) : (((~(i)) & 1)* 0x1000 )))
+#endif
+
 #include "Bus_SPI.hpp"
 
 #include "../../misc/pixelcopy.hpp"
@@ -54,6 +59,7 @@ Contributors:
   #define DMA_OUTFIFO_EMPTY_CH0      GDMA_OUTFIFO_EMPTY_L3_CH0
  #endif
 #endif
+
 #include "common.hpp"
 
 #include <algorithm>
@@ -494,7 +500,7 @@ namespace lgfx
         _setup_dma_desc_links(data, length);
 #if defined ( SOC_GDMA_SUPPORTED )
         *spi_dma_out_link_reg = DMA_OUTLINK_START_CH0 | ((int)(&_dmadesc[0]) & 0xFFFFF);
-        auto dma = reg(SPI_DMA_CONF_REG(spi_port));
+        auto dma = reg(SPI_DMA_CONF_REG(_spi_port));
         *dma = SPI_DMA_TX_ENA;
         _clear_dma_reg = dma;
 #else
@@ -663,7 +669,7 @@ namespace lgfx
 
 #if defined ( SOC_GDMA_SUPPORTED )
     *_spi_dma_out_link_reg = DMA_OUTLINK_START_CH0 | ((int)(&_dmadesc[0]) & 0xFFFFF);
-    auto dma = reg(SPI_DMA_CONF_REG(spi_port));
+    auto dma = reg(SPI_DMA_CONF_REG(_spi_port));
     *dma = SPI_DMA_TX_ENA;
     _clear_dma_reg = dma;
 #else
