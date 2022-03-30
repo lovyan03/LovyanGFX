@@ -72,6 +72,7 @@ This library has the following advantages.
     - ILI9486
     - ILI9488 (Makerfabs Touch with Camera)
     - IT8951 (M5Paper)
+    - RA8875
     - SH110x (SH1106, SH1107, M5Stack Unit OLED)
     - SSD1306 (SSD1309)
     - SSD1327
@@ -87,7 +88,9 @@ This library has the following advantages.
 
   - タッチスクリーン TouchScreens
     - I2C FT5x06 (FT5206, FT5306, FT5406, FT6206, FT6236, FT6336, FT6436)
+    - I2C GSLx680 (GSL1680)
     - I2C GT911
+    - I2C TT21xxx (TT21100)
     - SPI XPT2046
     - SPI STMPE610
 
@@ -526,15 +529,13 @@ TomThumb font : [3-clause BSD](src/lgfx/Fonts/GFXFF/TomThumb.h) Brian J. Swetlan
 
 実装予定 Unimplemented request
 ----------------
-
-
   - ディスプレイ Displays
-    - SSD1963 (realignment)
+    - OTM8009A / NT35510
     - SEPS525
     - RM68120
     - R61529
 
   - タッチスクリーン TouchScreens
     - NS2009
-    - GSL1680
+
 

@@ -34,6 +34,7 @@ class LGFX : public lgfx::LGFX_Device
 //lgfx::Panel_ILI9486     _panel_instance;
 //lgfx::Panel_ILI9488     _panel_instance;
 //lgfx::Panel_IT8951      _panel_instance;
+//lgfx::Panel_RA8875      _panel_instance;
 //lgfx::Panel_SH110x      _panel_instance; // SH1106, SH1107
 //lgfx::Panel_SSD1306     _panel_instance;
 //lgfx::Panel_SSD1327     _panel_instance;
@@ -56,8 +57,10 @@ class LGFX : public lgfx::LGFX_Device
 
 // タッチスクリーンの型にあったインスタンスを用意します。(必要なければ削除)
   lgfx::Touch_FT5x06      _touch_instance; // FT5206, FT5306, FT5406, FT6206, FT6236, FT6336, FT6436
+//lgfx::Touch_GSLx680     _touch_instance; // GSL1680
 //lgfx::Touch_GT911       _touch_instance;
 //lgfx::Touch_STMPE610    _touch_instance;
+//lgfx::Touch_TT21xxx     _touch_instance; // TT21100
 //lgfx::Touch_XPT2046     _touch_instance;
 
 public:
