@@ -780,7 +780,7 @@ namespace lgfx
         if (0 == (length -= len1)) {
           len2 = len1;
           wait_spi();
-          memcpy(dst, (void*)spi_w0_reg, len2);
+          memcpy(dst, (void*)spi_w0_reg, (len2 + 3) & ~3u);
         } else {
           if (length < len1) {
             len1 = length;
@@ -789,7 +789,7 @@ namespace lgfx
           } else {
             wait_spi();
           }
-          memcpy(dst, (void*)spi_w0_reg, len2);
+          memcpy(dst, (void*)spi_w0_reg, (len2 + 3) & ~3u);
           exec_spi();
         }
         dst += len2;
@@ -848,7 +848,7 @@ namespace lgfx
       if (0 == (length -= len1)) {
         len2 = len1;
         wait_spi();
-        memcpy(regbuf, (void*)spi_w0_reg, len2 * len_read_pixel >> 3);
+        memcpy(regbuf, (void*)spi_w0_reg, ((len2 * len_read_pixel >> 3) + 3) & ~3);
       } else {
         if (length < len1) {
           len1 = length;
@@ -857,7 +857,7 @@ namespace lgfx
         } else {
           wait_spi();
         }
-        memcpy(regbuf, (void*)spi_w0_reg, len2 * len_read_pixel >> 3);
+        memcpy(regbuf, (void*)spi_w0_reg, ((len2 * len_read_pixel >> 3) + 3) & ~3);
         exec_spi();
       }
       param->src_x = 0;
