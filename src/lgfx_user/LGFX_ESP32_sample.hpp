@@ -135,8 +135,6 @@ public:
 
       // ※ 以下の設定値はパネル毎に一般的な初期値が設定されていますので、不明な項目はコメントアウトして試してみてください。
 
-      cfg.memory_width     =   240;  // ドライバICがサポートしている最大の幅
-      cfg.memory_height    =   320;  // ドライバICがサポートしている最大の高さ
       cfg.panel_width      =   240;  // 実際に表示可能な幅
       cfg.panel_height     =   320;  // 実際に表示可能な高さ
       cfg.offset_x         =     0;  // パネルのX方向オフセット量
@@ -149,6 +147,10 @@ public:
       cfg.rgb_order        = false;  // パネルの赤と青が入れ替わってしまう場合 trueに設定
       cfg.dlen_16bit       = false;  // データ長を16bit単位で送信するパネルの場合 trueに設定
       cfg.bus_shared       =  true;  // SDカードとバスを共有している場合 trueに設定(drawJpgFile等でバス制御を行います)
+
+// 以下はST7735やILI9163のようにピクセル数が変更できるドライバでのみ設定してください。
+//    cfg.memory_width     =   240;  // ドライバICがサポートしている最大の幅
+//    cfg.memory_height    =   320;  // ドライバICがサポートしている最大の高さ
 
       _panel_instance.config(cfg);
     }

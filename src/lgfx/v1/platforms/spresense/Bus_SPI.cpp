@@ -115,6 +115,7 @@ namespace lgfx
   void Bus_SPI::endRead(void)
   {
     SPI.endTransaction();
+    SPISettings setting(_cfg.freq_write, MSBFIRST, _cfg.spi_mode);
     beginTransaction();
   }
 
