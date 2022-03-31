@@ -180,7 +180,7 @@ namespace lgfx
 
       bus_cfg.freq_write = 8000000;
       bus_cfg.freq_read  = 8000000;
-      bus_cfg.spi_host = SPI2_HOST;
+      bus_cfg.spi_host = SPI3_HOST;
       bus_cfg.spi_mode = 0;
       bus_cfg.dma_channel = SPI_DMA_CH_AUTO;
       bus_cfg.use_lock = true;
@@ -193,10 +193,10 @@ namespace lgfx
 
       if (board == 0 || board == board_t::board_ESP32_S3_BOX)
       {
-        bus_cfg.pin_mosi =  GPIO_NUM_6;
-        bus_cfg.pin_miso = -1;
-        bus_cfg.pin_sclk =  GPIO_NUM_7;
-        bus_cfg.pin_dc   =  GPIO_NUM_4;
+        bus_cfg.pin_mosi = GPIO_NUM_6;
+        bus_cfg.pin_miso = GPIO_NUM_0;
+        bus_cfg.pin_sclk = GPIO_NUM_7;
+        bus_cfg.pin_dc   = GPIO_NUM_4;
         bus_cfg.spi_mode = 0;
         bus_cfg.spi_3wire = true;
         _bus_spi.config(bus_cfg);
@@ -231,7 +231,7 @@ namespace lgfx
             cfg.pin_sda  = GPIO_NUM_8;
             cfg.pin_scl  = GPIO_NUM_18;
             cfg.i2c_addr = 0x24;
-            cfg.i2c_port = I2C_NUM_0;
+            cfg.i2c_port = I2C_NUM_1;
             cfg.freq = 400000;
             cfg.x_min = 0;
             cfg.x_max = 319;
