@@ -2467,7 +2467,7 @@ namespace lgfx
       auto res = len;
       data->preRead();
       if (buf) {
-        res = data->read(buf, len);
+        res = data->read(buf, len, (len > 1) ? 2 : 1);
       } else {
         data->skip(len);
       }
