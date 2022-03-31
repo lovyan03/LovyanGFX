@@ -499,15 +499,17 @@ namespace lgfx
         *spi_dma_out_link_reg = 0;
         _setup_dma_desc_links(data, length);
 #if defined ( SOC_GDMA_SUPPORTED )
+        uint32_t len = ((length - 1) & ((SPI_MS_DATA_BITLEN)>>3)) + 1;
         *spi_dma_out_link_reg = DMA_OUTLINK_START_CH0 | ((int)(&_dmadesc[0]) & 0xFFFFF);
         auto dma = reg(SPI_DMA_CONF_REG(_spi_port));
         *dma = SPI_DMA_TX_ENA;
         _clear_dma_reg = dma;
 #else
+        uint32_t len = length;
         *spi_dma_out_link_reg = SPI_OUTLINK_START | ((int)(&_dmadesc[0]) & 0xFFFFF);
         _clear_dma_reg = spi_dma_out_link_reg;
 #endif
-        set_write_len(length << 3);
+        set_write_len(len << 3);
         *_gpio_reg_dc[dc] = _mask_reg_dc;
 
         // DMA準備完了待ち;
@@ -519,6 +521,21 @@ namespace lgfx
         spicommon_dmaworkaround_transfer_active(_cfg.dma_channel);
 #endif
         exec_spi();
+
+#if defined ( SOC_GDMA_SUPPORTED )
+        if (length -= len)
+        {
+          while (*cmd & SPI_USR) {}
+          set_write_len(SPI_MS_DATA_BITLEN + 1);
+          goto label_start;
+          do
+          {
+            while (*cmd & SPI_USR) {}
+label_start:
+            exec_spi();
+          } while (length -= ((SPI_MS_DATA_BITLEN + 1) >> 3));
+        }
+#endif
         return;
       }
     }
