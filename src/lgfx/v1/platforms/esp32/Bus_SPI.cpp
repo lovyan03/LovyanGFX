@@ -689,13 +689,15 @@ label_start:
     auto dma = reg(SPI_DMA_CONF_REG(_spi_port));
     *dma = SPI_DMA_TX_ENA;
     _clear_dma_reg = dma;
+    uint32_t len = ((_dma_queue_bytes - 1) & ((SPI_MS_DATA_BITLEN)>>3)) + 1;
 #else
     *_spi_dma_out_link_reg = SPI_OUTLINK_START | ((int)(&_dmadesc[0]) & 0xFFFFF);
     _clear_dma_reg = _spi_dma_out_link_reg;
+    uint32_t len = _dma_queue_bytes;
+    _dma_queue_bytes = 0;
 #endif
 
-    set_write_len(_dma_queue_bytes << 3);
-    _dma_queue_bytes = 0;
+    set_write_len(len << 3);
     // DMA準備完了待ち;
 #if defined ( SOC_GDMA_SUPPORTED )
     while (*_spi_dma_outstatus_reg & DMA_OUTFIFO_EMPTY_CH0 ) {}
@@ -706,6 +708,23 @@ label_start:
 #endif
 
     exec_spi();
+
+#if defined ( SOC_GDMA_SUPPORTED )
+    uint32_t length = _dma_queue_bytes - len;
+    _dma_queue_bytes = 0;
+    if (length)
+    {
+      wait_spi();
+      set_write_len(SPI_MS_DATA_BITLEN + 1);
+      goto label_start;
+      do
+      {
+        wait_spi();
+label_start:
+        exec_spi();
+      } while (length -= ((SPI_MS_DATA_BITLEN + 1) >> 3));
+    }
+#endif
   }
 
   void Bus_SPI::beginRead(uint_fast8_t dummy_bits)
