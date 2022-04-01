@@ -1,18 +1,13 @@
 //IC:GSL1680f
 //DTAE:Aug-04-2017
 //VER:1.1
-#ifndef _GSLX680_H_
-#define _GSLX680_H_
+//800x480
+#ifndef _GSL1680F_800x480_FW_H_
+#define _GSL1680F_800x480_FW_H_
 
-#include "../../utility/pgmspace.h"
+#include "Touch_GSLx680_FW.h"
 
-struct __attribute__((packed)) gsl_fw_data
-{
-  uint8_t offset;
-  uint32_t val;
-};
-
-static constexpr const gsl_fw_data GSLX680_FW[] PROGMEM = {
+static constexpr const gsl_fw_data GSL1680F_800x480_FW[] PROGMEM = {
 
 {0xf0,0x2},
 {0x00,0x00000000},

@@ -16,7 +16,10 @@ Contributors:
  [tobozo](https://github.com/tobozo)
 /----------------------------------------------------------------------------*/
 #include "Touch_GSLx680.hpp"
-#include "Touch_GSLx680_FW.h"
+#include "gslx680/Touch_GSL1680E_800x480_FW.hpp"
+#include "gslx680/Touch_GSL1680F_480x272_FW.hpp"
+#include "gslx680/Touch_GSL1680F_800x480_FW.hpp"
+#include "gslx680/Touch_GSLx680_320x320_FW.hpp"
 
 #include "../platforms/common.hpp"
 
@@ -24,6 +27,35 @@ namespace lgfx
 {
  inline namespace v1
  {
+
+  Touch_GSL1680F_800x480::Touch_GSL1680F_800x480(void)
+  {
+    _cfg.x_max = 800;
+    _cfg.y_max = 480;
+    setFirmWare(GSL1680F_800x480_FW, sizeof(GSL1680F_800x480_FW) / sizeof(gsl_fw_data));
+  }
+
+  Touch_GSL1680F_480x272::Touch_GSL1680F_480x272(void)
+  {
+    _cfg.x_max = 480;
+    _cfg.y_max = 272;
+    setFirmWare(GSL1680F_480x272_FW, sizeof(GSL1680F_480x272_FW) / sizeof(gsl_fw_data));
+  }
+
+  Touch_GSL1680E_800x480::Touch_GSL1680E_800x480(void)
+  {
+    _cfg.x_max = 800;
+    _cfg.y_max = 480;
+    setFirmWare(GSL1680E_800x480_FW, sizeof(GSL1680E_800x480_FW) / sizeof(gsl_fw_data));
+  }
+
+  Touch_GSLx680_320x320::Touch_GSLx680_320x320(void)
+  {
+    _cfg.x_max = 320;
+    _cfg.y_max = 320;
+    setFirmWare(GSLx680_320x320_FW, sizeof(GSLx680_320x320_FW) / sizeof(gsl_fw_data));
+  }
+
 //----------------------------------------------------------------------------
 
   bool Touch_GSLx680::_init(void)
@@ -40,8 +72,8 @@ namespace lgfx
     lgfx::i2c::writeRegister8(_cfg.i2c_port, _cfg.i2c_addr, 0xE4, 0x04);  lgfx::delay(10);
     lgfx::i2c::transactionWrite(_cfg.i2c_port, _cfg.i2c_addr, buf, sizeof(buf));  lgfx::delay(10);
 
-    auto ptr_fw = GSLX680_FW;
-    size_t length = sizeof(GSLX680_FW) / sizeof(gsl_fw_data);
+    size_t length = _fw_size;
+    auto ptr_fw = _fw_data;
 
     for (size_t i = 0; i < length; ++i) 
     {
@@ -81,7 +113,7 @@ namespace lgfx
 
   uint_fast8_t Touch_GSLx680::getTouchRaw(touch_point_t *tp, uint_fast8_t count)
   {
-    if (count == 0) { return 0; }
+    if (!_inited || count == 0) { return 0; }
 
     if (_cfg.pin_int < 0 || !gpio_in(_cfg.pin_int))
     {
