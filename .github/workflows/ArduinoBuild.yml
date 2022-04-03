@@ -62,7 +62,7 @@ jobs:
 
           - arduino-boards-fqbn: esp32:esp32:m5stack-core2
             fancy-name: M5Core2
-            arduino-platform: esp32@2.0.2
+            arduino-platform: esp32:esp32@2.0.2
             platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
 
           - arduino-boards-fqbn: esp32:esp32:esp32s3box
