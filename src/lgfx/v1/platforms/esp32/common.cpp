@@ -734,9 +734,9 @@ namespace lgfx
     {
       if (i2c_port >= I2C_NUM_MAX) { return cpp::fail(error_t::invalid_arg); }
 
-#if defined ( ARDUINO )
- #if defined (ESP_IDF_VERSION_VAL)
-  #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 0, 0)
+#if defined ( ARDUINO ) && defined ( ESP_IDF_VERSION_VAL )
+ #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 0, 0)
+  #if ARDUINO_ESP32_GIT_VER != 0x44c11981
       auto twowire = ((i2c_port == 1) ? &Wire1 : &Wire);
       twowire->end();
   #endif
