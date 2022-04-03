@@ -46,6 +46,7 @@ jobs:
 
           - arduino-boards-fqbn: esp32:esp32:esp32
             fancy-name: ESP32 Generic
+            arduino-platform: esp32:esp32@1.0.6
             platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
 
           - arduino-boards-fqbn: esp32:esp32:esp32s2
@@ -54,10 +55,12 @@ jobs:
 
           - arduino-boards-fqbn: esp32:esp32:m5stick-c
             fancy-name: M5StickC
+            arduino-platform: esp32:esp32@2.0.0
             platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
 
           - arduino-boards-fqbn: esp32:esp32:m5stack-core-esp32
             fancy-name: M5Stack
+            arduino-platform: esp32:esp32@2.0.1
             platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
 
           - arduino-boards-fqbn: esp32:esp32:m5stack-core2
