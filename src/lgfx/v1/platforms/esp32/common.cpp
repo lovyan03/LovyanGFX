@@ -736,6 +736,7 @@ namespace lgfx
 
 #if defined ( ARDUINO ) && defined ( ESP_IDF_VERSION_VAL )
  #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 0, 0)
+  #include "core_version.h"
   #if ARDUINO_ESP32_GIT_VER != 0x44c11981
       auto twowire = ((i2c_port == 1) ? &Wire1 : &Wire);
       twowire->end();
