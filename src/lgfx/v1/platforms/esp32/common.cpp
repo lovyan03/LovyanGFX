@@ -18,7 +18,7 @@ Contributors:
 #if defined (ESP_PLATFORM)
 #include <sdkconfig.h>
 
-/// ESP32-S3をターゲットにした際にREG_SPI_BASEが定義されていなかったので応急処置 ; 
+/// ESP32-S3をターゲットにした際にREG_SPI_BASEが定義されていなかったので応急処置 ;
 #if defined ( CONFIG_IDF_TARGET_ESP32S3 )
  #define REG_SPI_BASE(i)   (DR_REG_SPI1_BASE + (((i)>1) ? (((i)* 0x1000) + 0x20000) : (((~(i)) & 1)* 0x1000 )))
 #endif
@@ -65,7 +65,7 @@ Contributors:
   #endif
 
   #if defined ( LGFX_EFUSE_WORKAROUND )
-// include <esp_efuse.h> でエラーが出るバージョンが存在するため、エラー回避用の記述を行ってからincludeする。; 
+// include <esp_efuse.h> でエラーが出るバージョンが存在するため、エラー回避用の記述を行ってからincludeする。;
    #define _ROM_SECURE_BOOT_H_
    #define MAX_KEY_DIGESTS 3
    struct ets_secure_boot_key_digests
@@ -702,7 +702,7 @@ namespace lgfx
     cpp::result<void, error_t> init(int i2c_port, int pin_sda, int pin_scl)
     {
       if ((i2c_port >= I2C_NUM_MAX)
-       || ((uint32_t)pin_scl >= GPIO_NUM_MAX) 
+       || ((uint32_t)pin_scl >= GPIO_NUM_MAX)
        || ((uint32_t)pin_sda >= GPIO_NUM_MAX))
       {
         return cpp::fail(error_t::invalid_arg);
@@ -736,7 +736,9 @@ namespace lgfx
 
 #if defined ( ARDUINO ) && defined ( ESP_IDF_VERSION_VAL )
  #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 0, 0)
-  #include "core_version.h"
+  #if __has_include( "core_version.h" )
+    #include "core_version.h"
+  #endif
   #if ARDUINO_ESP32_GIT_VER != 0x44c11981
       auto twowire = ((i2c_port == 1) ? &Wire1 : &Wire);
       twowire->end();
