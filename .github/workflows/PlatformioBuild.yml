@@ -28,6 +28,7 @@ jobs:
           - esp8266
           - esp32
           - esp32-s2
+          - esp32-s3
           - m5stick-c
           - m5stack-core-esp32
           - m5stack-core2
@@ -40,6 +41,7 @@ jobs:
           - pio-env: esp8266
           - pio-env: esp32
           - pio-env: esp32-s2
+          - pio-env: esp32-s3
           - pio-env: m5stick-c
           - pio-env: m5stack-core2
           - pio-env: m5stack-core-esp32
