@@ -1,7 +1,7 @@
 # LovyanGFX
 
 [![arduino-library-badge](https://www.ardu-badge.com/badge/LovyanGFX.svg?)](https://www.ardu-badge.com/LovyanGFX)
-[![PlatformIO Registry](https://badges.registry.platformio.org/packages/lovyan03/library/LovyanGFX.svg?)](https://registry.platformio.org/packages/libraries/lovyan03/LovyanGFX)
+[![PlatformIO Registry](https://badges.registry.platformio.org/packages/lovyan03/library/LovyanGFX.svg)](https://registry.platformio.org/packages/libraries/lovyan03/LovyanGFX)
 
 
 
@@ -40,13 +40,14 @@ This library has the following advantages.
 
 |        | SPI | I2C | 8bit Para|16bit Para|
 |:------:|:---:|:---:|:--------:|:--------:|
-|ESP32   | HW  | HW  | HW (I2S) |   ---    |
+|ESP32   | HW  | HW  | HW (I2S) | ---      |
 |ESP32-S2| HW  | HW  | HW (I2S) | HW (I2S) |
-|ESP32-C3| HW  | HW  | SW       |   ---    |
-|ESP8266 | HW  | SW  |   ---    |   ---    |
-|SAMD51  | HW  | HW  |   ---    |   ---    |
-|SAMD21  | HW  | HW  |   ---    |   ---    |
-|RP2040  | HW  | --- |   ---    |   ---    |
+|ESP32-S3| HW  | HW  | ---      | ---      |
+|ESP32-C3| HW  | HW  | SW       | ---      |
+|ESP8266 | HW  | SW  | ---      | ---      |
+|SAMD51  | HW  | HW  | ---      | ---      |
+|SAMD21  | HW  | HW  | ---      | ---      |
+|RP2040  | HW  | --- | ---      | ---      |
 
 ※ HW = HardWare Peripheral / SW = SoftWare implementation
 
@@ -66,11 +67,12 @@ This library has the following advantages.
     - ILI9163
     - ILI9225
     - ILI9341 (WioTerminal, ESP-WROVER-KIT, ODROID-GO, LoLin D32 Pro, WiFiBoy Pro)
-    - ILI9342 (M5Stack, M5Stack Core2)
+    - ILI9342 (M5Stack, M5Stack Core2, ESP32-S3-BOX)
     - ILI9481
     - ILI9486
     - ILI9488 (Makerfabs Touch with Camera)
     - IT8951 (M5Paper)
+    - RA8875
     - SH110x (SH1106, SH1107, M5Stack Unit OLED)
     - SSD1306 (SSD1309)
     - SSD1327
@@ -86,7 +88,9 @@ This library has the following advantages.
 
   - タッチスクリーン TouchScreens
     - I2C FT5x06 (FT5206, FT5306, FT5406, FT6206, FT6236, FT6336, FT6436)
+    - I2C GSLx680 (GSL1680)
     - I2C GT911
+    - I2C TT21xxx (TT21100)
     - SPI XPT2046
     - SPI STMPE610
 
@@ -521,4 +525,17 @@ Font 2,4,6,7,8 :  [FreeBSD](https://github.com/Bodmer/TFT_eSPI/blob/master/licen
 converted IPA font : [IPA Font License](src/lgfx/Fonts/IPA/IPA_Font_License_Agreement_v1.0.txt) IPA  
 efont : [3-clause BSD](src/lgfx/Fonts/efont/COPYRIGHT.txt) The Electronic Font Open Laboratory  
 TomThumb font : [3-clause BSD](src/lgfx/Fonts/GFXFF/TomThumb.h) Brian J. Swetland / Vassilii Khachaturov / Dan Marks  
+
+
+実装予定 Unimplemented request
+----------------
+  - ディスプレイ Displays
+    - OTM8009A / NT35510
+    - SEPS525
+    - RM68120
+    - R61529
+
+  - タッチスクリーン TouchScreens
+    - NS2009
+
 

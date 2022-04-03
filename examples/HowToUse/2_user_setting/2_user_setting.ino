@@ -34,6 +34,7 @@ class LGFX : public lgfx::LGFX_Device
 //lgfx::Panel_ILI9486     _panel_instance;
 //lgfx::Panel_ILI9488     _panel_instance;
 //lgfx::Panel_IT8951      _panel_instance;
+//lgfx::Panel_RA8875      _panel_instance;
 //lgfx::Panel_SH110x      _panel_instance; // SH1106, SH1107
 //lgfx::Panel_SSD1306     _panel_instance;
 //lgfx::Panel_SSD1327     _panel_instance;
@@ -55,10 +56,15 @@ class LGFX : public lgfx::LGFX_Device
   lgfx::Light_PWM     _light_instance;
 
 // タッチスクリーンの型にあったインスタンスを用意します。(必要なければ削除)
-  lgfx::Touch_FT5x06      _touch_instance; // FT5206, FT5306, FT5406, FT6206, FT6236, FT6336, FT6436
-//lgfx::Touch_GT911       _touch_instance;
-//lgfx::Touch_STMPE610    _touch_instance;
-//lgfx::Touch_XPT2046     _touch_instance;
+  lgfx::Touch_FT5x06           _touch_instance; // FT5206, FT5306, FT5406, FT6206, FT6236, FT6336, FT6436
+//lgfx::Touch_GSL1680E_800x480 _touch_instance; // GSL_1680E, 1688E, 2681B, 2682B
+//lgfx::Touch_GSL1680F_800x480 _touch_instance;
+//lgfx::Touch_GSL1680F_480x272 _touch_instance;
+//lgfx::Touch_GSLx680_320x320  _touch_instance;
+//lgfx::Touch_GT911            _touch_instance;
+//lgfx::Touch_STMPE610         _touch_instance;
+//lgfx::Touch_TT21xxx          _touch_instance; // TT21100
+//lgfx::Touch_XPT2046          _touch_instance;
 
 public:
 
@@ -124,8 +130,6 @@ public:
 
       // ※ 以下の設定値はパネル毎に一般的な初期値が設定されていますので、不明な項目はコメントアウトして試してみてください。
 
-      cfg.memory_width     =   240;  // ドライバICがサポートしている最大の幅
-      cfg.memory_height    =   320;  // ドライバICがサポートしている最大の高さ
       cfg.panel_width      =   240;  // 実際に表示可能な幅
       cfg.panel_height     =   320;  // 実際に表示可能な高さ
       cfg.offset_x         =     0;  // パネルのX方向オフセット量
@@ -134,10 +138,14 @@ public:
       cfg.dummy_read_pixel =     8;  // ピクセル読出し前のダミーリードのビット数
       cfg.dummy_read_bits  =     1;  // ピクセル以外のデータ読出し前のダミーリードのビット数
       cfg.readable         =  true;  // データ読出しが可能な場合 trueに設定
-      cfg.invert           =  true;  // パネルの明暗が反転してしまう場合 trueに設定
+      cfg.invert           = false;  // パネルの明暗が反転してしまう場合 trueに設定
       cfg.rgb_order        = false;  // パネルの赤と青が入れ替わってしまう場合 trueに設定
-      cfg.dlen_16bit       = false;  // データ長を16bit単位で送信するパネルの場合 trueに設定
+      cfg.dlen_16bit       = false;  // 16bitパラレルやSPIでデータ長を16bit単位で送信するパネルの場合 trueに設定
       cfg.bus_shared       =  true;  // SDカードとバスを共有している場合 trueに設定(drawJpgFile等でバス制御を行います)
+
+// 以下はST7735やILI9163のようにピクセル数が可変のドライバで表示がずれる場合にのみ設定してください。
+//    cfg.memory_width     =   240;  // ドライバICがサポートしている最大の幅
+//    cfg.memory_height    =   320;  // ドライバICがサポートしている最大の高さ
 
       _panel_instance.config(cfg);
     }

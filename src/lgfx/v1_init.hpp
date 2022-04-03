@@ -32,6 +32,7 @@ Contributors:
 #include "v1/panel/Panel_ILI9341.hpp"
 #include "v1/panel/Panel_ILI9342.hpp"
 #include "v1/panel/Panel_ILI948x.hpp"
+#include "v1/panel/Panel_RA8875.hpp"
 #include "v1/panel/Panel_SSD1306.hpp"
 #include "v1/panel/Panel_SSD1327.hpp"
 #include "v1/panel/Panel_SSD1331.hpp"
@@ -44,7 +45,9 @@ Contributors:
 #include "v1/panel/Panel_GDEW0154M09.hpp"
 #include "v1/panel/Panel_IT8951.hpp"
 #include "v1/touch/Touch_FT5x06.hpp"
+#include "v1/touch/Touch_GSLx680.hpp"
 #include "v1/touch/Touch_GT911.hpp"
 #include "v1/touch/Touch_STMPE610.hpp"
+#include "v1/touch/Touch_TT21xxx.hpp"
 #include "v1/touch/Touch_XPT2046.hpp"
 

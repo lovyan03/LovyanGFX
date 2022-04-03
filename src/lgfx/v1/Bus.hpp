@@ -92,6 +92,7 @@ namespace lgfx
     /// 引数のバイト列を送信する。;
     virtual void writeBytes(const uint8_t* data, uint32_t length, bool dc, bool use_dma) = 0;
 
+    virtual void beginRead(uint_fast8_t dummy_bits) { beginRead(); if (dummy_bits) { readData(dummy_bits); } }
     virtual void beginRead(void) = 0;
     virtual void endRead(void) = 0;
     virtual uint32_t readData(uint_fast8_t bit_length) = 0;

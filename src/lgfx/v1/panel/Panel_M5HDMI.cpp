@@ -713,40 +713,34 @@ namespace lgfx
     return res;
   }
 
-  bool Panel_M5HDMI::_check_repeat(uint32_t cmd, uint32_t length)
+  void Panel_M5HDMI::_check_busy(uint32_t length, bool force)
   {
     if ((_last_cmd & ~7) == CMD_WRITE_RAW)
     {
+      _last_cmd = 0;
       _total_send = 0;
-      if (_last_cmd == cmd)
-      {
-        return true;
-      }
-      _last_cmd = cmd;
 
       _bus->beginRead();
       while (_bus->readData(8) == 0x00);
       cs_control(true);
       _bus->endRead();
       cs_control(false);
-
-      return false;
     }
-    _last_cmd = cmd;
+    _last_cmd = 0;
 
-    if ((cmd && _total_send) || (_total_send += length) >= 512)
+    if ((force && _total_send) || (_total_send += length) >= 512)
     {
       _total_send = 0;
+      uint32_t wait = 0;
       _bus->beginRead();
       while (_bus->readData(8) == 0x00)
       {
-        delayMicroseconds(++length>>3);
+        delayMicroseconds(++wait);
       }
       cs_control(true);
       _bus->endRead();
       cs_control(false);
     }
-    return false;
   }
 
   color_depth_t Panel_M5HDMI::setColorDepth(color_depth_t depth)
@@ -842,7 +836,7 @@ namespace lgfx
     }
     if (rect || _total_send || _last_cmd)
     {
-      _check_repeat(0, bytes);
+      _check_busy(bytes);
     }
     _bus->writeBytes(((uint8_t*)buf)+3, bytes, false, false);
   }
@@ -899,7 +893,7 @@ namespace lgfx
     cmd.data_x = ((xs >> 8) & mask) + ((xs & mask) << 8);
     ys += _cfg.offset_y + ((ye + _cfg.offset_y) << 16);
     cmd.data_y = ((ys >> 8) & mask) + ((ys & mask) << 8);
-    _check_repeat(0, sizeof(cmd_t));
+    _check_busy(sizeof(cmd_t), true);
     _bus->writeBytes(cmd.raw, sizeof(cmd_t), false, false);
     _last_cmd = cmd_write;
   }
@@ -1124,7 +1118,7 @@ namespace lgfx
     cmd.src_xy2 = ((src_xy >> 8) & mask) + ((src_xy & mask) << 8);
     cmd.dst_xy  = ((dst_xy >> 8) & mask) + ((dst_xy & mask) << 8);
 
-    _check_repeat(0, sizeof(cmd_t));
+    _check_busy(sizeof(cmd_t));
     _bus->writeBytes(cmd.raw, sizeof(cmd_t), false, false);
   }
 

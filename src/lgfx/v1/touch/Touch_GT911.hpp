@@ -46,7 +46,6 @@ namespace lgfx
     void setTouchNums(int_fast8_t nums);
 
   private:
-    uint32_t _lasttime;
     uint32_t _refresh_rate = 5;
     uint8_t _readdata[42]; // 5point * 8byte + 2byte
 

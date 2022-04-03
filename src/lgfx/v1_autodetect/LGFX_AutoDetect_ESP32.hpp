@@ -407,8 +407,7 @@ namespace lgfx
       bus->wait();
       _pin_level(pin_cs, false);
       bus->writeCommand(cmd, 8);
-      if (dummy_read_bit) bus->writeData(0, dummy_read_bit);  // dummy read bit
-      bus->beginRead();
+      bus->beginRead(dummy_read_bit);
       uint32_t res = bus->readData(32);
       bus->endTransaction();
       _pin_level(pin_cs, true);
@@ -865,11 +864,18 @@ namespace lgfx
               // AXP192_IO1  = TP RST (Tough)
               lgfx::i2c::writeRegister8(axp_i2c_port, axp_i2c_addr, 0x28, 0xF0, ~0, axp_i2c_freq);   // set LDO2 3300mv // LCD PWR
               lgfx::i2c::writeRegister8(axp_i2c_port, axp_i2c_addr, 0x12, 0x04, ~0, axp_i2c_freq);   // LDO2 enable
-              if (use_reset) { lgfx::i2c::writeRegister8(axp_i2c_port, axp_i2c_addr, 0x96, 0, ~0x02, axp_i2c_freq); } // GPIO4 LOW (LCD RST)
+              lgfx::i2c::writeRegister8(axp_i2c_port, axp_i2c_addr, 0x92, 0x00, 0xF8, axp_i2c_freq); // GPIO1 OpenDrain (M5Tough TOUCH)
               lgfx::i2c::writeRegister8(axp_i2c_port, axp_i2c_addr, 0x95, 0x84, 0x72, axp_i2c_freq); // GPIO4 enable
+              if (use_reset)
+              {
+                lgfx::i2c::writeRegister8(axp_i2c_port, axp_i2c_addr, 0x96, 0, ~0x02, axp_i2c_freq); // GPIO4 LOW (LCD RST)
+                lgfx::i2c::writeRegister8(axp_i2c_port, axp_i2c_addr, 0x94, 0, ~0x02, axp_i2c_freq); // GPIO1 LOW (M5Tough TOUCH RST)
+                lgfx::delay(1);
+              }
               lgfx::i2c::writeRegister8(axp_i2c_port, axp_i2c_addr, 0x96, 0x02, ~0, axp_i2c_freq);   // GPIO4 HIGH (LCD RST)
+              lgfx::i2c::writeRegister8(axp_i2c_port, axp_i2c_addr, 0x94, 0x02, ~0, axp_i2c_freq);   // GPIO1 HIGH (M5Tough TOUCH RST)
 
-              ets_delay_us(128); // AXP 起動後、LCDがアクセス可能になるまで少し待機
+              ets_delay_us(128); // AXP 起動後、LCDがアクセス可能になるまで少し待機;
 
               bus_cfg.pin_mosi = 23;
               bus_cfg.pin_miso = 38;
@@ -891,8 +897,12 @@ namespace lgfx
                 p->bus(&_bus_spi);
                 _panel_last = p;
 
-                // Check exists touch controller for Core2
-                if (lgfx::i2c::readRegister8(I2C_NUM_1, 0x38, 0, 400000).has_value())
+                // Tough のタッチコントローラ有無をチェックする;
+                // Core2/Tough 判別条件としてCore2のTP(0x38)の有無を用いた場合、以下の問題が生じる;
+                // ・Core2のTPがスリープしている場合は反応が得られない;
+                // ・ToughにGoPlus2を組み合わせると0x38に反応がある;
+                // 上記のことから、ここではToughのTP(0x2E)の有無によって判定する;
+                if ( ! lgfx::i2c::readRegister8(axp_i2c_port, 0x2E, 0, 400000).has_value()) // 0x2E:M5Tough TOUCH
                 {
                   ESP_LOGW(LIBRARY_NAME, "[Autodetect] M5StackCore2");
                   board = board_t::board_M5StackCore2;
@@ -912,6 +922,7 @@ namespace lgfx
                   cfg.x_max = 319;
                   cfg.y_min = 0;
                   cfg.y_max = 279;
+                  cfg.bus_shared = false;
                   t->config(cfg);
                   p->touch(t);
                   float affine[6] = { 1, 0, 0, 0, 1, 0 };
@@ -920,9 +931,6 @@ namespace lgfx
                 else
                 {
                   // AXP192のGPIO1 = タッチコントローラRST
-                  lgfx::i2c::writeRegister8(axp_i2c_port, axp_i2c_addr, 0x92, 0, 0xF8, axp_i2c_freq);   // GPIO1 OpenDrain
-                  lgfx::i2c::writeRegister8(axp_i2c_port, axp_i2c_addr, 0x94, 0, ~0x02, axp_i2c_freq);  // GPIO1 LOW  (TOUCH RST)
-
                   ESP_LOGW(LIBRARY_NAME, "[Autodetect] M5Tough");
                   board = board_t::board_M5Tough;
 
@@ -937,15 +945,9 @@ namespace lgfx
                   cfg.i2c_addr = 0x2E; // I2C device addr
                   cfg.i2c_port = I2C_NUM_1;// I2C port number
                   cfg.freq = 400000;   // I2C freq
-
-                  // cfg.x_min = 0;    // 以下は試作機での設定値
-                  // cfg.x_max = 239;
-                  // cfg.y_min = 0;
-                  // cfg.y_max = 319;
-                  // cfg.offset_rotation = 2;
+                  cfg.bus_shared = false;
                   t->config(cfg);
                   p->touch(t);
-                  lgfx::i2c::writeRegister8(axp_i2c_port, axp_i2c_addr, 0x94, 0x02, ~0, axp_i2c_freq);  // GPIO1 HIGH (TOUCH RST)
                 }
 
                 goto init_clear;
@@ -1020,6 +1022,7 @@ namespace lgfx
               cfg.x_max = 319;
               cfg.y_min = 0;
               cfg.y_max = 319;
+              cfg.bus_shared = false;
               t->config(cfg);
               p->touch(t);
             }
@@ -1348,6 +1351,7 @@ namespace lgfx
                   cfg.y_min = 0;
                   cfg.y_max = 959;
                   cfg.offset_rotation = 1;
+                  cfg.bus_shared = false;
                   t->config(cfg);
                   if (!t->init())
                   {
@@ -1419,6 +1423,7 @@ namespace lgfx
               cfg.x_max = 319;
               cfg.y_min = 0;
               cfg.y_max = 479;
+              cfg.bus_shared = false;
               t->config(cfg);
               p->touch(t);
             }
@@ -1647,6 +1652,7 @@ namespace lgfx
                 cfg.x_max = 319;
                 cfg.y_min = 0;
                 cfg.y_max = 479;
+                cfg.bus_shared = false;
                 t->config(cfg);
                 p->touch(t);
               }

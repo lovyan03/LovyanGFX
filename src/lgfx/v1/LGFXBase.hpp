@@ -523,6 +523,9 @@ namespace lgfx
     int32_t fontHeight(uint8_t font) const { return (int32_t)(((const BaseFont*)fontdata[font])->height * _text_style.size_y); }
     int32_t fontHeight(const IFont* font) const;
     int32_t fontHeight(void) const { return (int32_t)(_font_metrics.height * _text_style.size_y); }
+    int32_t fontWidth(uint8_t font) const { return (int32_t)(((const BaseFont*)fontdata[font])->width * _text_style.size_x); }
+    int32_t fontWidth(const IFont* font) const;
+    int32_t fontWidth(void) const { return (int32_t)(_font_metrics.width * _text_style.size_x); }
     int32_t textLength(const char *string, int32_t width);
     int32_t textWidth(const char *string) { return textWidth(string, _font); };
     int32_t textWidth(const char *string, const IFont* font);
@@ -1174,7 +1177,7 @@ namespace lgfx
       if (index >= count) return 0;
       if (x) *x = tp[index].x;
       if (y) *y = tp[index].y;
-      return index;
+      return count;
     }
 
     template <typename T>

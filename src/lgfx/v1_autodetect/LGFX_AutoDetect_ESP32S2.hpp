@@ -75,8 +75,7 @@ namespace lgfx
       bus->beginTransaction();
       _pin_level(pin_cs, false);
       bus->writeCommand(cmd, 8);
-      if (dummy_read_bit) bus->writeData(0, dummy_read_bit);  // dummy read bit
-      bus->beginRead();
+      bus->beginRead(dummy_read_bit);
       uint32_t res = bus->readData(32);
       bus->endTransaction();
       _pin_level(pin_cs, true);
@@ -134,7 +133,6 @@ namespace lgfx
       } while (board_t::board_unknown == board && --retry >= 0);
       _board = board;
       /// autodetectの際にreset済みなのでここではuse_resetをfalseで呼び出す。
-      /// M5Paperはreset後の復帰に800msec程度掛かるのでreset省略は起動時間短縮に有効
       bool res = LGFX_Device::init_impl(false, use_clear);
 
       if (nvs_board != board) {
@@ -183,7 +181,7 @@ namespace lgfx
       (void)id;  // suppress warning
 
 
-#if defined ( LGFX_AUTODETECT )
+#if defined ( LGFX_AUTODETECT ) || defined ( LGFX_ESP32_S2_KALUGA_1 )
 
       if (board == 0 || board == board_t::board_ESP32_S2_Kaluga_1)
       {

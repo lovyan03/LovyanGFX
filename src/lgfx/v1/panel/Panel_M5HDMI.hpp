@@ -284,7 +284,7 @@ namespace lgfx
     bool _init_resolution(void);
     void _set_window(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye, uint_fast8_t cmd);
     void _fill_rect(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, uint_fast8_t bytes);
-    bool _check_repeat(uint32_t cmd, uint32_t length);
+    void _check_busy(uint32_t length, bool force = false);
     void _rotate_pixelcopy(uint_fast16_t& x, uint_fast16_t& y, uint_fast16_t& w, uint_fast16_t& h, pixelcopy_t* param, uint32_t& nextx, uint32_t& nexty);
     void _set_video_timing(const video_timing_t::info_t* param, uint8_t cmd);
     void _copy_rect(uint32_t dst_xy, uint32_t src_xy, uint32_t wh);

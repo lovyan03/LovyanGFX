@@ -71,6 +71,7 @@ namespace lgfx
 
     virtual bool open(const char* path) { (void)path;  return true; };
     virtual int read(uint8_t *buf, uint32_t len) = 0;
+    virtual int read(uint8_t *buf, uint32_t maximum_len, uint32_t required_len) { return read(buf, maximum_len); }
     virtual void skip(int32_t offset) = 0;
     virtual bool seek(uint32_t offset) = 0;
     virtual void close(void) = 0;
@@ -147,7 +148,7 @@ namespace lgfx
       _fp = &_file;
       return _file;
     }
-    int read(uint8_t *buf, uint32_t len) override { return _fp->read(buf, len); }
+    int read(uint8_t *buf, uint32_t len) override { return _fp->read(buf, std::min<uint32_t>(_fp->available(), len)); }
     void skip(int32_t offset) override { _fp->seekCur(offset); }
     bool seek(uint32_t offset) override { return _fp->seekSet(offset); }
     void close(void) override { if (_fp) _fp->close(); }
@@ -169,6 +170,20 @@ namespace lgfx
     {
       if (len > _length - _index) { len = _length - _index; }
       if (len == 0) { return 0; }
+      len = _stream->readBytes(buf, len);
+      _index += len;
+      return len;
+    }
+
+    int read(uint8_t *buf, uint32_t maximum_len, uint32_t required_len) override
+    {
+      uint32_t len = maximum_len;
+      if (len > _length - _index) { len = _length - _index; }
+      if (len == 0) { return 0; }
+
+      int32_t tmp = _stream->available();
+      if (0 < tmp && (len > (uint32_t)tmp)) { len = tmp; }
+      if (len < required_len) { len = required_len; }
       len = _stream->readBytes(buf, len);
       _index += len;
       return len;

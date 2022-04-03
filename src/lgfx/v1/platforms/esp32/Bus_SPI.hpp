@@ -19,10 +19,10 @@ Contributors:
 
 #include <string.h>
 
-#if __has_include(<esp32/rom/lldesc.h>)
- #include <esp32/rom/lldesc.h>
-#else
+#if __has_include(<rom/lldesc.h>)
  #include <rom/lldesc.h>
+#else
+ #include <esp32/rom/lldesc.h>
 #endif
 
 #if __has_include(<driver/spi_common_internal.h>)
@@ -54,7 +54,7 @@ namespace lgfx
 
   class Bus_SPI : public IBus
   {
-#if defined (CONFIG_IDF_TARGET_ESP32C3)
+#if !defined (SPI_MOSI_DLEN_REG)
     static constexpr uint32_t SPI_EXECUTE = SPI_USR | SPI_UPDATE;
     #define SPI_MOSI_DLEN_REG(i) (REG_SPI_BASE(i) + 0x1C)
     #define SPI_MISO_DLEN_REG(i) (REG_SPI_BASE(i) + 0x1C)
@@ -110,6 +110,7 @@ namespace lgfx
     void execDMAQueue(void) override;
     uint8_t* getDMABuffer(uint32_t length) override { return _flip_buffer.getBuffer(length); }
 
+    void beginRead(uint_fast8_t dummy_bits) override;
     void beginRead(void) override;
     void endRead(void) override;
     uint32_t readData(uint_fast8_t bit_length) override;
