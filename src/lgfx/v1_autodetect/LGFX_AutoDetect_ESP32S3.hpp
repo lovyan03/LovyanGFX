@@ -221,7 +221,7 @@ namespace lgfx
             p->setRotation(1);
           }
           _panel_last = p;
-          _set_pwm_backlight(GPIO_NUM_45, 7, 12000);
+          _set_pwm_backlight(GPIO_NUM_45, 0, 12000);
 
           {
             auto t = new lgfx::Touch_TT21xxx();
