@@ -3,9 +3,10 @@
 [![arduino-library-badge](https://www.ardu-badge.com/badge/LovyanGFX.svg?)](https://www.ardu-badge.com/LovyanGFX)
 [![PlatformIO Registry](https://badges.registry.platformio.org/packages/lovyan03/library/LovyanGFX.svg)](https://registry.platformio.org/packages/libraries/lovyan03/LovyanGFX)
 
-![Arduino](https://github.com/lovyan03/LovyanGFX/actions/workflows/ArduinoBuild.yml/badge.svg)
-![Platformio](https://github.com/lovyan03/LovyanGFX/actions/workflows/PlatformioBuild.yml/badge.svg)
-![esp-idf](https://github.com/lovyan03/LovyanGFX/actions/workflows/IDFBuild.yml/badge.svg)
+[![Arduino](https://github.com/lovyan03/LovyanGFX/actions/workflows/ArduinoBuild.yml/badge.svg?branch=master)](https://github.com/lovyan03/LovyanGFX/actions/workflows/ArduinoBuild.yml)
+[![Platformio](https://github.com/lovyan03/LovyanGFX/actions/workflows/PlatformioBuild.yml/badge.svg?branch=master)](https://github.com/lovyan03/LovyanGFX/actions/workflows/PlatformioBuild.yml)
+[![esp-idf](https://github.com/lovyan03/LovyanGFX/actions/workflows/IDFBuild.yml/badge.svg?branch=master)](https://github.com/lovyan03/LovyanGFX/actions/workflows/IDFBuild.yml)
+
 
 
 Display (LCD / OLED / EPD) graphics library (for ESP32 SPI, I2C, 8bitParallel / ESP8266 SPI, I2C / ATSAMD51 SPI).  
