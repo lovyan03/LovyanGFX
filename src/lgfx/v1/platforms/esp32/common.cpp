@@ -211,14 +211,13 @@ namespace lgfx
       uint32_t spi_port = (spi_host + 1);
       (void)spi_port;
 
+      if (spi_sclk >= 0) {
+        gpio_lo(spi_sclk); // ここでLOWにしておくことで、pinMode変更によるHIGHパルスが出力されるのを防止する (CSなしパネル対策);
+      }
 #if defined (ARDUINO) // Arduino ESP32
-// ※ ESP-IDFのSPIドライバの準備より後に ArduinoESP32のSPIClassを準備した場合、 ;
-// MISOの設定が -1 になっていると正しく動作しない事があったため、ArduinoESP32のSPIClassを先に準備する ;
       if (spi_host == default_spi_host)
       {
-        SPI.end();
         SPI.begin(spi_sclk, spi_miso, spi_mosi);
-        _spi_handle[spi_host] = SPI.bus();
       }
       if (_spi_handle[spi_host] == nullptr)
       {
