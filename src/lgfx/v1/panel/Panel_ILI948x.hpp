@@ -231,6 +231,84 @@ namespace lgfx
 
 //----------------------------------------------------------------------------
 
+  struct Panel_ILI9488_4DLCD_35480320_IPS : public Panel_ILI948x
+  {
+    void setColorDepth_impl(color_depth_t depth) override 
+    {
+      _write_depth = (((int)depth & color_depth_t::bit_mask) > 16
+                    || (_bus && _bus->busType() == bus_spi))
+                    ? rgb888_3Byte
+                    : rgb565_2Byte;
+
+      _read_depth = rgb888_3Byte;
+    }
+
+  protected:
+
+    static constexpr uint8_t CMD_FRMCTR1 = 0xB1;
+    static constexpr uint8_t CMD_FRMCTR2 = 0xB2;
+    static constexpr uint8_t CMD_FRMCTR3 = 0xB3;
+    static constexpr uint8_t CMD_INVCTR  = 0xB4;
+    static constexpr uint8_t CMD_DFUNCTR = 0xB6;
+    static constexpr uint8_t CMD_ETMOD   = 0xB7;
+    static constexpr uint8_t CMD_PWCTR1  = 0xC0;
+    static constexpr uint8_t CMD_PWCTR2  = 0xC1;
+    static constexpr uint8_t CMD_PWCTR3  = 0xC2;
+    static constexpr uint8_t CMD_PWCTR4  = 0xC3;
+    static constexpr uint8_t CMD_PWCTR5  = 0xC4;
+    static constexpr uint8_t CMD_VMCTR   = 0xC5;
+    static constexpr uint8_t CMD_GMCTRP1 = 0xE0; // Positive Gamma Correction
+    static constexpr uint8_t CMD_GMCTRN1 = 0xE1; // Negative Gamma Correction
+    static constexpr uint8_t CMD_ADJCTL3 = 0xF7;
+    static constexpr uint8_t CMD_MADCTL  = 0x36;
+    static constexpr uint8_t CMD_COLMOD  = 0x3A;
+    static constexpr uint8_t CMD_IFMODE  = 0xB0;
+    static constexpr uint8_t CMD_SETIMG  = 0xE9;
+
+    const uint8_t* getInitCommands(uint8_t listno) const override
+    {
+      static constexpr uint8_t list0[] =
+      {
+          CMD_PWCTR1,  2, 0x18,  // VRH1
+                          0x16,  // VRH2
+          CMD_PWCTR2,  1, 0x45,  // VGH, VGL
+          CMD_VMCTR ,  3, 0x00,  // nVM
+                          0x63,  // VCM_REG
+                          0x01,  // VCM_REG_EN
+          CMD_FRMCTR1, 1, 0xB0,  // Frame rate = 70 Hz
+          CMD_INVCTR,  1, 0x02,  // Display Inversion Control = 2dot
+          CMD_DFUNCTR, 1, 0x02,  // Nomal scan
+          CMD_ETMOD,   1, 0xC6,  // Entry Mode Set
+          CMD_ADJCTL3, 4, 0xA9,  // Adjust Control 3 
+                          0x51,
+                          0x2C,
+                          0x82,
+          CMD_MADCTL,  1, 0x48,  // Memory Access Control 
+          CMD_COLMOD,  1, 0x55,  // Interface Pixel Format
+          CMD_IFMODE,  1, 0x00,  // Interface Mode Control
+          CMD_SETIMG,  1, 0x00,  // Set Image Function
+          
+          CMD_GMCTRP1,15, 0x00, 0x13, 0x18, 0x04, 0x0F, 0x06, 0x3A, 0x56,
+                          0x4D, 0x03, 0x0A, 0x06, 0x30, 0x3E, 0x0F,
+
+          CMD_GMCTRN1,15, 0x00, 0x13, 0x18, 0x01, 0x11, 0x06, 0x38, 0x34,
+                          0x4D, 0x06, 0x0D, 0x0B, 0x31, 0x37, 0x0F,
+
+          CMD_SLPOUT , 0+CMD_INIT_DELAY, 10,    // Exit sleep mode
+          0x21       , 0,
+          CMD_DISPON , 0+CMD_INIT_DELAY, 2,
+          0xFF,0xFF, // end
+      };
+      switch (listno)
+      {
+      case 0: return list0;
+      default: return nullptr;
+      }
+    }
+  };
+
+//----------------------------------------------------------------------------
+
   struct Panel_HX8357B : public Panel_ILI948x
   {
   protected:
