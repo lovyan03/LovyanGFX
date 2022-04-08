@@ -738,9 +738,11 @@ namespace lgfx
   #if __has_include( <core_version.h> )
     #include <core_version.h>
   #endif
-  #if ARDUINO_ESP32_GIT_VER != 0x44c11981
+  #if defined ARDUINO_ESP32_GIT_VER
+    #if ARDUINO_ESP32_GIT_VER != 0x44c11981
       auto twowire = ((i2c_port == 1) ? &Wire1 : &Wire);
       twowire->end();
+    #endif
   #endif
  #endif
 #endif
