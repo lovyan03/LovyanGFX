@@ -16,7 +16,7 @@ on:
 
 jobs:
   build:
-    name: ${{ matrix.fancy-name }}
+    name: ${{matrix.board}}:${{matrix.archi}}@${{matrix.platform-version}}
 
     runs-on: ubuntu-latest
 
@@ -75,6 +75,10 @@ jobs:
             platform-version: 2.0.1
           - board: esp32s3box
             platform-version: 2.0.2
+          - board: esp32s2
+            platform-version: 1.0.6
+          - board: esp32s2
+            platform-version: 2.0.0
 
       fail-fast: false
 
