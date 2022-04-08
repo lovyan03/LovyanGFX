@@ -16,30 +16,17 @@ on:
 
 jobs:
   build:
-    name: ${{matrix.board}}:${{matrix.archi}}@${{matrix.platform-version}}
+    name: ${{matrix.board}}@${{matrix.platform-version}}
 
     runs-on: ubuntu-latest
 
     strategy:
       matrix:
 
-
         platform-url:
           - https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
 
-        #platform:
-          #- Seeduino
-          #- esp8266
-          #- esp32
-
-        #archi:
-          #- samd
-          #- esp8266
-          #- esp32
-
         board:
-          #- seeed_wio_terminal
-          #- d1_mini:eesz=4M3M,xtal=80
           - esp32
           - esp32s2
           - m5stick-c
@@ -56,9 +43,9 @@ jobs:
           - 2.0.3-RC1
 
         include:
-          - { board: seeed_wio_terminal, plaftorm: Seeduino, archi: samd, platform-url: 'https://files.seeedstudio.com/arduino/package_seeeduino_boards_index.json', platform-version: 1.6.0, ... }
-          - { board: 'd1_mini:eesz=4M3M,xtal=80', plaftorm: esp8266, archi: esp8266, platform-url: 'https://arduino.esp8266.com/stable/package_esp8266com_index.json', platform-version: 3.0.1, ... }
-          - { board: 'd1_mini:eesz=4M3M,xtal=80', plaftorm: esp8266, archi: esp8266, platform-url: 'https://arduino.esp8266.com/stable/package_esp8266com_index.json', platform-version: 3.0.2, ... }
+          - { board: seeed_wio_terminal, platform: Seeduino, archi: samd, platform-url: 'https://files.seeedstudio.com/arduino/package_seeeduino_boards_index.json', platform-version: 1.6.0, ... }
+          - { board: 'd1_mini:eesz=4M3M,xtal=80', platform: esp8266, archi: esp8266, platform-url: 'https://arduino.esp8266.com/stable/package_esp8266com_index.json', platform-version: 3.0.1, ... }
+          - { board: 'd1_mini:eesz=4M3M,xtal=80', platform: esp8266, archi: esp8266, platform-url: 'https://arduino.esp8266.com/stable/package_esp8266com_index.json', platform-version: 3.0.2, ... }
           - { board: esp32,              platform: esp32, archi: esp32, ... }
           - { board: esp32s2,            platform: esp32, archi: esp32, ... }
           - { board: m5stick-c,          platform: esp32, archi: esp32, ... }
@@ -93,12 +80,9 @@ jobs:
         with:
           arduino-board-fqbn: ${{matrix.platform}}:${{matrix.archi}}:${{matrix.board}}
           arduino-platform: ${{matrix.platform}}:${{matrix.archi}}@${{matrix.platform-version}}
-          #arduino-board-fqbn: ${{ matrix.arduino-boards-fqbn }}
-          #arduino-platform: ${{ matrix.arduino-platform }}
           platform-url: ${{ matrix.platform-url }}
           required-libraries: ${{ matrix.required-libraries }}
           build-properties: ${{ toJson(matrix.build-properties) }}
           sketch-names: ${{ env.SKETCH_NAME }}
-          #platform-default-url: ${{ env.PLATFORM_DEFAULT_URL }}
           #sketches-exclude: ${{ matrix.sketches-exclude }}
 
