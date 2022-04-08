@@ -56,9 +56,9 @@ jobs:
           - 2.0.3-RC1
 
         include:
-          - { board: seeed_wio_terminal, plaftorm: Seeduino, archi: samd, platform-url: https://files.seeedstudio.com/arduino/package_seeeduino_boards_index.json, platform-version: 1.6.0, ... }
-          - { board: d1_mini:eesz=4M3M,xtal=80, plaftorm: esp8266, archi: esp8266, platform-url: https://arduino.esp8266.com/stable/package_esp8266com_index.json, platform-version: 3.0.1, ... }
-          - { board: d1_mini:eesz=4M3M,xtal=80, plaftorm: esp8266, archi: esp8266, platform-url: https://arduino.esp8266.com/stable/package_esp8266com_index.json, platform-version: 3.0.2, ... }
+          - { board: seeed_wio_terminal, plaftorm: Seeduino, archi: samd, platform-url: 'https://files.seeedstudio.com/arduino/package_seeeduino_boards_index.json', platform-version: 1.6.0, ... }
+          - { board: d1_mini:eesz=4M3M,xtal=80, plaftorm: esp8266, archi: esp8266, platform-url: 'https://arduino.esp8266.com/stable/package_esp8266com_index.json', platform-version: 3.0.1, ... }
+          - { board: d1_mini:eesz=4M3M,xtal=80, plaftorm: esp8266, archi: esp8266, platform-url: 'https://arduino.esp8266.com/stable/package_esp8266com_index.json', platform-version: 3.0.2, ... }
           - { board: esp32,              platform: esp32, archi: esp32, ... }
           - { board: esp32s2,            platform: esp32, archi: esp32, ... }
           - { board: m5stick-c,          platform: esp32, archi: esp32, ... }
