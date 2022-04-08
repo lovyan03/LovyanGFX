@@ -42,9 +42,6 @@ jobs:
           - 2.0.2
           - 2.0.3-RC1
 
-          Seeeduino:samd:seeed_wio_terminal
-          Seeeduino:samd:seeed_wio_terminal
-
         include:
           # 3D matrix doesn't apply to these:
           - { board: seeed_wio_terminal, platform: Seeeduino, archi: samd, platform-url: 'https://files.seeedstudio.com/arduino/package_seeeduino_boards_index.json', platform-version: 1.8.2, ... }
