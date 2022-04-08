@@ -23,62 +23,58 @@ jobs:
     strategy:
       matrix:
 
-        arduino-boards-fqbn:
-          - Seeeduino:samd:seeed_wio_terminal
-          - esp8266:esp8266:d1_mini:eesz=4M3M,xtal=80
-          - esp32:esp32:esp32
-          - esp32:esp32:esp32s2
-          - esp32:esp32:m5stick-c
-          - esp32:esp32:m5stack-core-esp32
-          - esp32:esp32:m5stack-core2
-          - esp32:esp32:esp32s3box
-          #- esp32:esp32:m5stack-fire
-          #- esp32:esp32:odroid_esp32
+
+        platform-url:
+          - https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
+
+        #platform:
+          #- Seeduino
+          #- esp8266
+          #- esp32
+
+        #archi:
+          #- samd
+          #- esp8266
+          #- esp32
+
+        board:
+          #- seeed_wio_terminal
+          #- d1_mini:eesz=4M3M,xtal=80
+          - esp32
+          - esp32s2
+          - m5stick-c
+          - m5stack-core-esp32
+          - m5stack-core2
+          - esp32s3box
+
+        platform-version:
+          # ESP32 Core versions
+          - 1.0.6
+          - 2.0.0
+          - 2.0.1
+          - 2.0.2
+          - 2.0.3-RC1
 
         include:
-          - arduino-boards-fqbn: Seeeduino:samd:seeed_wio_terminal
-            fancy-name: Wio Terminal
-            platform-url: https://files.seeedstudio.com/arduino/package_seeeduino_boards_index.json
+          - { board: seeed_wio_terminal, plaftorm: Seeduino, archi: samd, platform-url: https://files.seeedstudio.com/arduino/package_seeeduino_boards_index.json, platform-version: 1.6.0, ... }
+          - { board: d1_mini:eesz=4M3M,xtal=80, plaftorm: esp8266, archi: esp8266, platform-url: https://arduino.esp8266.com/stable/package_esp8266com_index.json, platform-version: 3.0.1, ... }
+          - { board: d1_mini:eesz=4M3M,xtal=80, plaftorm: esp8266, archi: esp8266, platform-url: https://arduino.esp8266.com/stable/package_esp8266com_index.json, platform-version: 3.0.2, ... }
+          - { board: esp32,              platform: esp32, archi: esp32, ... }
+          - { board: esp32s2,            platform: esp32, archi: esp32, ... }
+          - { board: m5stick-c,          platform: esp32, archi: esp32, ... }
+          - { board: m5stack-core-esp32, platform: esp32, archi: esp32, ... }
+          - { board: m5stack-core2,      platform: esp32, archi: esp32, ... }
+          - { board: esp32s3box,         platform: esp32, archi: esp32, ... }
 
-          - arduino-boards-fqbn: esp8266:esp8266:d1_mini:eesz=4M3M,xtal=80
-            fancy-name: ESP8266 D1Mini
-            platform-url: https://arduino.esp8266.com/stable/package_esp8266com_index.json
-
-          - arduino-boards-fqbn: esp32:esp32:esp32
-            fancy-name: ESP32 Generic
-            arduino-platform: esp32:esp32@1.0.6
-            platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
-
-          - arduino-boards-fqbn: esp32:esp32:esp32s2
-            fancy-name: ESP32 S2
-            platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
-
-          - arduino-boards-fqbn: esp32:esp32:m5stick-c
-            fancy-name: M5StickC
-            arduino-platform: esp32:esp32@2.0.0
-            platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
-
-          - arduino-boards-fqbn: esp32:esp32:m5stack-core-esp32
-            fancy-name: M5Stack
-            arduino-platform: esp32:esp32@2.0.1
-            platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
-
-          - arduino-boards-fqbn: esp32:esp32:m5stack-core2
-            fancy-name: M5Core2
-            arduino-platform: esp32:esp32@2.0.2
-            platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
-
-          - arduino-boards-fqbn: esp32:esp32:esp32s3box
-            fancy-name: ESP32-S3-Box
-            platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
-
-          #- arduino-boards-fqbn: esp32:esp32:m5stack-fire
-          #  fancy-name: M5Fire
-          #  platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
-
-          #- arduino-boards-fqbn: esp32:esp32:odroid_esp32
-          #  fancy-name: OdroidGo
-          #  platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
+        exclude:
+          - board: esp32s3box
+            platform-version: 1.0.6
+          - board: esp32s3box
+            platform-version: 2.0.0
+          - board: esp32s3box
+            platform-version: 2.0.1
+          - board: esp32s3box
+            platform-version: 2.0.2
 
       fail-fast: false
 
@@ -91,8 +87,10 @@ jobs:
       - name: Compile example
         uses: ArminJo/arduino-test-compile@v3
         with:
-          arduino-board-fqbn: ${{ matrix.arduino-boards-fqbn }}
-          arduino-platform: ${{ matrix.arduino-platform }}
+          arduino-board-fqbn: ${{matrix.platform}}:${{matrix.archi}}:${{matrix.board}}
+          arduino-platform: ${{matrix.platform}}:${{matrix.archi}}@platform-version
+          #arduino-board-fqbn: ${{ matrix.arduino-boards-fqbn }}
+          #arduino-platform: ${{ matrix.arduino-platform }}
           platform-url: ${{ matrix.platform-url }}
           required-libraries: ${{ matrix.required-libraries }}
           build-properties: ${{ toJson(matrix.build-properties) }}
