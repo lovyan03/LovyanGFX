@@ -94,4 +94,4 @@ jobs:
           pip install --upgrade platformio
 
       - name: Run PlatformIO
-        cd ${{ env.PROJECT_DIR }} && pio run -e "${{ matrix.board }}@${{ matrix.platform-version }}"
+        run: cd ${{ env.PROJECT_DIR }} && pio run -e "${{ matrix.board }}@${{ matrix.platform-version }}"
