@@ -47,13 +47,6 @@ struct esp_lcd_i80_bus_t {
     uint8_t *format_buffer;  // The driver allocates an internal buffer for DMA to do data format transformer
     size_t resolution_hz;    // LCD_CLK resolution, determined by selected clock source
     gdma_channel_handle_t dma_chan; // DMA channel handle
-    void *cur_trans; // Current transaction
-    void *cur_device; // Current working device
-    LIST_HEAD(i80_device_list, lcd_panel_io_i80_t) device_list; // Head of i80 device list
-    struct {
-        unsigned int exclusive: 1; // Indicate whether the I80 bus is owned by one device (whose CS GPIO is not assigned) exclusively
-    } flags;
-    dma_descriptor_t dma_nodes[]; // DMA descriptor pool, the descriptors are shared by all i80 devices
 };
 
 
