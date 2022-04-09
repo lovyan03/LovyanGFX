@@ -16,6 +16,7 @@ file(GLOB SRCS
      src/lgfx/v1/platforms/esp32/*.cpp
      src/lgfx/v1/platforms/esp32c3/*.cpp
      src/lgfx/v1/platforms/esp32s2/*.cpp
+     src/lgfx/v1/platforms/esp32s3/*.cpp
      src/lgfx/v1/platforms/esp8266/*.cpp
      src/lgfx/v1/platforms/samd21/*.cpp
      src/lgfx/v1/platforms/samd51/*.cpp
@@ -23,6 +24,6 @@ file(GLOB SRCS
      src/lgfx/v1/touch/*.cpp
      )
 set(COMPONENT_SRCS ${SRCS})
-set(COMPONENT_REQUIRES nvs_flash efuse)
+set(COMPONENT_REQUIRES nvs_flash efuse esp_lcd)
 
 register_component()
