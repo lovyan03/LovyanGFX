@@ -42,16 +42,16 @@ This library has the following advantages.
   - OpenCV can be used as a drawing destination and can run on a PC.  
 
 
-|        | SPI | I2C | 8bit Para|16bit Para|
-|:------:|:---:|:---:|:--------:|:--------:|
-|ESP32   | HW  | HW  | HW (I2S) | ---      |
-|ESP32-S2| HW  | HW  | HW (I2S) | HW (I2S) |
-|ESP32-S3| HW  | HW  | ---      | ---      |
-|ESP32-C3| HW  | HW  | SW       | ---      |
-|ESP8266 | HW  | SW  | ---      | ---      |
-|SAMD51  | HW  | HW  | ---      | ---      |
-|SAMD21  | HW  | HW  | ---      | ---      |
-|RP2040  | HW  | --- | ---      | ---      |
+|        | SPI | I2C | 8bit Para |16bit Para |
+|:------:|:---:|:---:|:---------:|:---------:|
+|ESP32   | HW  | HW  | HW (I2S)  | ---       |
+|ESP32-S2| HW  | HW  | HW (I2S)  | HW (I2S)  |
+|ESP32-S3| HW  | HW  |HW(LCD/CAM)|HW(LCD/CAM)|
+|ESP32-C3| HW  | HW  | SW        | ---       |
+|ESP8266 | HW  | SW  | ---       | ---       |
+|SAMD51  | HW  | HW  | ---       | ---       |
+|SAMD21  | HW  | HW  | ---       | ---       |
+|RP2040  | HW  | --- | ---       | ---       |
 
 ※ HW = HardWare Peripheral / SW = SoftWare implementation
 
