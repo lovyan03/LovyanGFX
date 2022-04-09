@@ -18,11 +18,12 @@ Contributors:
 #if defined (ESP_PLATFORM)
 #include <sdkconfig.h>
 #if defined (CONFIG_IDF_TARGET_ESP32S3)
+#if __has_include (<esp_lcd_panel_io.h>)
+#include <esp_lcd_panel_io.h>
 
 #include "Bus_Parallel16.hpp"
 #include "../../misc/pixelcopy.hpp"
 
-#include <esp_lcd_panel_io.h>
 #include <hal/gpio_ll.h>
 #include <hal/lcd_hal.h>
 #include <soc/lcd_cam_reg.h>
@@ -584,5 +585,6 @@ struct esp_lcd_i80_bus_t {
  }
 }
 
+#endif
 #endif
 #endif
