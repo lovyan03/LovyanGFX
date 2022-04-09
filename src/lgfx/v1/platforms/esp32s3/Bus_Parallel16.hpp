@@ -17,6 +17,7 @@ Contributors:
 /----------------------------------------------------------------------------*/
 #pragma once
 
+#if __has_include (<esp_lcd_panel_io.h>)
 #include <esp_lcd_panel_io.h>
 #include <esp_private/gdma.h>
 #include <hal/dma_types.h>
@@ -35,6 +36,7 @@ namespace lgfx
   public:
     struct config_t
     {
+      // LCD_CAM peripheral number. No need to change (only 0 for ESP32-S3.)
       int port = 0;
 
       // max 40MHz , 27MHz , 20MHz , 16MHz , 13.3MHz , 11.43MHz , 10MHz , 8.9MHz  and more ...
@@ -130,3 +132,4 @@ namespace lgfx
 //----------------------------------------------------------------------------
  }
 }
+#endif
