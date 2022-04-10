@@ -25,6 +25,8 @@ Contributors:
 #include "../../Bus.hpp"
 #include "../common.hpp"
 
+struct lcd_cam_dev_t;
+
 namespace lgfx
 {
  inline namespace v1
@@ -118,7 +120,7 @@ namespace lgfx
     void _alloc_dmadesc(size_t len);
     void _setup_dma_desc_links(const uint8_t *data, int32_t len);
 
-    volatile void *_dev;
+    volatile lcd_cam_dev_t* _dev;
 
     uint32_t _dmadesc_size = 0;
     dma_descriptor_t* _dmadesc = nullptr;

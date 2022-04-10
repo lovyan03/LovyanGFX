@@ -135,6 +135,10 @@ struct esp_lcd_i80_bus_t {
 
   void Bus_Parallel8::release(void)
   {
+    if (_i80_bus)
+    {
+      esp_lcd_del_i80_bus(_i80_bus);
+    }
     if (_dmadesc)
     {
       heap_caps_free(_dmadesc);
@@ -145,8 +149,8 @@ struct esp_lcd_i80_bus_t {
 
   void Bus_Parallel8::beginTransaction(void)
   {
-    auto dev = getDev(_cfg.port);
-    int clk_div = std::max(1u, 80*1000*1000 / (_cfg.freq_write+1));
+    auto dev = _dev;
+    int clk_div = std::min(63u, std::max(1u, 80*1000*1000 / (_cfg.freq_write+1)));
 
     dev->lcd_clock.lcd_clkcnt_n = clk_div;
     dev->lcd_clock.lcd_clk_equ_sysclk = 0;
@@ -171,26 +175,26 @@ struct esp_lcd_i80_bus_t {
 
   void Bus_Parallel8::endTransaction(void)
   {
-    auto dev = getDev(_cfg.port);
+    auto dev = _dev;
     while (dev->lcd_user.val & LCD_CAM_LCD_START) {}
   }
 
   void Bus_Parallel8::wait(void)
   {
-    auto dev = getDev(_cfg.port);
+    auto dev = _dev;
     while (dev->lcd_user.val & LCD_CAM_LCD_START) {}
   }
 
   bool Bus_Parallel8::busy(void) const
   {
-    auto dev = getDev(_cfg.port);
+    auto dev = _dev;
     return (dev->lcd_user.val & LCD_CAM_LCD_START);
   }
 
   bool Bus_Parallel8::writeCommand(uint32_t data, uint_fast8_t bit_length)
   {
     auto bytes = bit_length >> 3;
-    auto dev = getDev(_cfg.port);
+    auto dev = _dev;
     auto reg_lcd_user = &(dev->lcd_user.val);
     dev->lcd_misc.val = LCD_CAM_LCD_CD_IDLE_EDGE | LCD_CAM_LCD_CD_CMD_SET;
     do
@@ -206,7 +210,7 @@ struct esp_lcd_i80_bus_t {
   void Bus_Parallel8::writeData(uint32_t data, uint_fast8_t bit_length)
   {
     auto bytes = bit_length >> 3;
-    auto dev = getDev(_cfg.port);
+    auto dev = _dev;
     auto reg_lcd_user = &(dev->lcd_user.val);
     dev->lcd_misc.val = LCD_CAM_LCD_CD_IDLE_EDGE;
 
@@ -313,33 +317,54 @@ struct esp_lcd_i80_bus_t {
     {
       if (dc)
       {
-        writeData(*(uint32_t*)data, length << 3);
+        writeData(*(const uint32_t*)data, length << 3);
         return;
       }
       else
       {
-        writeCommand(*(uint32_t*)data, length << 3);
+        writeCommand(*(const uint32_t*)data, length << 3);
         return;
       }
     }
-    auto dev = getDev(_cfg.port);
+    uint32_t slow = (_cfg.freq_write < 4000000) ? 2 : (_cfg.freq_write < 8000000) ? 1 : 0;
 
-    // if (use_dma)
+    auto dev = _dev;
+    do
     {
       auto reg_lcd_user = &(dev->lcd_user.val);
       dev->lcd_misc.lcd_cd_cmd_set  = !dc;
       dev->lcd_cmd_val.lcd_cmd_value = data[0] | data[1] << 16;
+      uint32_t cmd_val = data[2] | data[3] << 16;
       while (*reg_lcd_user & LCD_CAM_LCD_START) {}
       *reg_lcd_user = LCD_CAM_LCD_CMD | LCD_CAM_LCD_CMD_2_CYCLE_EN | LCD_CAM_LCD_UPDATE_REG | LCD_CAM_LCD_START;
-      _setup_dma_desc_links(&data[4], length - 4);
-      gdma_start(_dma_chan, (intptr_t)(_dmadesc));
+
+      if (use_dma)
+      {
+        if (slow) { ets_delay_us(slow); }
+        _setup_dma_desc_links(&data[4], length - 4);
+        gdma_start(_dma_chan, (intptr_t)(_dmadesc));
+        length = 0;
+      }
+      else
+      {
+        size_t len = length;
+        if (len > CACHE_SIZE)
+        {
+          len = (((len - 1) % CACHE_SIZE) + 4) & ~3u;
+        }
+        memcpy(_cache_flip, &data[4], (len-4+3)&~3);
+        _setup_dma_desc_links((const uint8_t*)_cache_flip, len-4);
+        gdma_start(_dma_chan, (intptr_t)(_dmadesc));
+        length -= len;
+        data += len;
+        _cache_flip = _cache[(_cache_flip == _cache[0])];
+      }
+      dev->lcd_cmd_val.lcd_cmd_value = cmd_val;
       dev->lcd_misc.lcd_cd_data_set = !dc;
-      dev->lcd_cmd_val.lcd_cmd_value = data[2] | data[3] << 16;
-      while (*reg_lcd_user & LCD_CAM_LCD_START) {}
       *reg_lcd_user = 1 | LCD_CAM_LCD_ALWAYS_OUT_EN | LCD_CAM_LCD_DOUT | LCD_CAM_LCD_CMD | LCD_CAM_LCD_CMD_2_CYCLE_EN | LCD_CAM_LCD_UPDATE_REG;
+      while (*reg_lcd_user & LCD_CAM_LCD_START) {}
       *reg_lcd_user = 1 | LCD_CAM_LCD_ALWAYS_OUT_EN | LCD_CAM_LCD_DOUT | LCD_CAM_LCD_CMD | LCD_CAM_LCD_CMD_2_CYCLE_EN | LCD_CAM_LCD_START;
-      return;
-    }
+    } while (length);
   }
 
   void Bus_Parallel8::beginRead(void)

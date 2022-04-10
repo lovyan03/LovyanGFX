@@ -144,6 +144,10 @@ struct esp_lcd_i80_bus_t {
 
   void Bus_Parallel16::release(void)
   {
+    if (_i80_bus)
+    {
+      esp_lcd_del_i80_bus(_i80_bus);
+    }
     if (_dmadesc)
     {
       heap_caps_free(_dmadesc);
@@ -154,8 +158,8 @@ struct esp_lcd_i80_bus_t {
 
   void Bus_Parallel16::beginTransaction(void)
   {
-    auto dev = getDev(_cfg.port);
-    int clk_div = std::max(1u, 80*1000*1000 / (_cfg.freq_write+1));
+    auto dev = _dev;
+    int clk_div = std::min(63u, std::max(1u, 80*1000*1000 / (_cfg.freq_write+1)));
 
     dev->lcd_clock.lcd_clkcnt_n = clk_div;
     dev->lcd_clock.lcd_clk_equ_sysclk = 0;
@@ -181,89 +185,87 @@ struct esp_lcd_i80_bus_t {
   void Bus_Parallel16::endTransaction(void)
   {
     if (_has_align_data) { _send_align_data(); }
-    auto dev = getDev(_cfg.port);
+    auto dev = _dev;
     while (dev->lcd_user.val & LCD_CAM_LCD_START) {}
   }
 
   void Bus_Parallel16::wait(void)
   {
-    auto dev = getDev(_cfg.port);
+    auto dev = _dev;
     while (dev->lcd_user.val & LCD_CAM_LCD_START) {}
   }
 
   bool Bus_Parallel16::busy(void) const
   {
-    auto dev = getDev(_cfg.port);
+    auto dev = _dev;
     return (dev->lcd_user.val & LCD_CAM_LCD_START);
   }
 
   void Bus_Parallel16::_send_align_data(void)
   {
-    auto dev = getDev(_cfg.port);
-    auto reg_lcd_user = &(dev->lcd_user.val);
     _has_align_data = false;
+    auto dev = _dev;
     dev->lcd_cmd_val.lcd_cmd_value = _align_data;
+    auto reg_lcd_user = &(dev->lcd_user.val);
     while (*reg_lcd_user & LCD_CAM_LCD_START) {}
     *reg_lcd_user = LCD_CAM_LCD_2BYTE_EN | LCD_CAM_LCD_CMD | LCD_CAM_LCD_UPDATE_REG | LCD_CAM_LCD_START;
   }
 
   bool Bus_Parallel16::writeCommand(uint32_t data, uint_fast8_t bit_length)
   {
-    auto words = bit_length >> 4;
-    auto dev = getDev(_cfg.port);
-    auto reg_lcd_user = &(dev->lcd_user.val);
-
     if (_has_align_data) { _send_align_data(); }
+
+    auto dev = _dev;
+    auto reg_lcd_user = &(dev->lcd_user.val);
 
     dev->lcd_misc.val = LCD_CAM_LCD_CD_IDLE_EDGE | LCD_CAM_LCD_CD_CMD_SET;
 
-    dev->lcd_cmd_val.lcd_cmd_value = data;
-    while (*reg_lcd_user & LCD_CAM_LCD_START) {}
-    *reg_lcd_user = LCD_CAM_LCD_2BYTE_EN | LCD_CAM_LCD_CMD | LCD_CAM_LCD_UPDATE_REG | LCD_CAM_LCD_START;
-    if (--words)
+    dev->lcd_cmd_val.val = data;
+
+    if (bit_length <= 16)
     {
-      dev->lcd_cmd_val.lcd_cmd_value = data >> 16;
       while (*reg_lcd_user & LCD_CAM_LCD_START) {}
       *reg_lcd_user = LCD_CAM_LCD_2BYTE_EN | LCD_CAM_LCD_CMD | LCD_CAM_LCD_UPDATE_REG | LCD_CAM_LCD_START;
+      return true;
     }
+
+    while (*reg_lcd_user & LCD_CAM_LCD_START) {}
+    *reg_lcd_user = LCD_CAM_LCD_CMD_2_CYCLE_EN | LCD_CAM_LCD_2BYTE_EN | LCD_CAM_LCD_CMD | LCD_CAM_LCD_UPDATE_REG | LCD_CAM_LCD_START;
     return true;
   }
 
   void Bus_Parallel16::writeData(uint32_t data, uint_fast8_t bit_length)
   {
     auto bytes = bit_length >> 3;
-    auto dev = getDev(_cfg.port);
+    auto dev = _dev;
     auto reg_lcd_user = &(dev->lcd_user.val);
     dev->lcd_misc.val = LCD_CAM_LCD_CD_IDLE_EDGE;
     if (_has_align_data)
     {
       _has_align_data = false;
-      dev->lcd_cmd_val.lcd_cmd_value = _align_data | (data << 8);
+      dev->lcd_cmd_val.val = _align_data | (data << 8);
       while (*reg_lcd_user & LCD_CAM_LCD_START) {}
       *reg_lcd_user = LCD_CAM_LCD_2BYTE_EN | LCD_CAM_LCD_CMD | LCD_CAM_LCD_UPDATE_REG | LCD_CAM_LCD_START;
-      if (--bytes == 0) return;
+      if (--bytes == 0) { return; }
       data >>= 8;
     }
 
     if (bytes > 1)
     {
-      dev->lcd_cmd_val.lcd_cmd_value = data;
+      dev->lcd_cmd_val.val = data;
       if (bytes == 4)
       {
         while (*reg_lcd_user & LCD_CAM_LCD_START) {}
         *reg_lcd_user = LCD_CAM_LCD_CMD_2_CYCLE_EN | LCD_CAM_LCD_2BYTE_EN | LCD_CAM_LCD_CMD | LCD_CAM_LCD_UPDATE_REG | LCD_CAM_LCD_START;
         return;
       }
-      data >>= 16;
       while (*reg_lcd_user & LCD_CAM_LCD_START) {}
       *reg_lcd_user = LCD_CAM_LCD_2BYTE_EN | LCD_CAM_LCD_CMD | LCD_CAM_LCD_UPDATE_REG | LCD_CAM_LCD_START;
-      bytes -= 2;
+      if (bytes == 2) { return; }
+      data >>= 16;
     }
-    if (bytes)
-    {
-      _has_align_data = true;
-      _align_data = data;
-    }
+    _has_align_data = true;
+    _align_data = data;
   }
 
   void Bus_Parallel16::writeDataRepeat(uint32_t color_raw, uint_fast8_t bit_length, uint32_t count)
@@ -312,7 +314,7 @@ struct esp_lcd_i80_bus_t {
         }
       }
     }
-    uint32_t len = 0;
+    uint32_t len;
     do
     {
       len = length;
@@ -350,7 +352,7 @@ struct esp_lcd_i80_bus_t {
 
   void Bus_Parallel16::writeBytes(const uint8_t* data, uint32_t length, bool dc, bool use_dma)
   {
-    auto dev = getDev(_cfg.port);
+    auto dev = _dev;
     auto reg_lcd_user = &(dev->lcd_user.val);
     if ((length + _has_align_data) > 1)
     {
@@ -360,11 +362,11 @@ struct esp_lcd_i80_bus_t {
         {
           if (dc)
           {
-            writeData(*(uint32_t*)data, length << 3);
+            writeData(*(const uint32_t*)data, length << 3);
           }
           else
           {
-            writeCommand(*(uint32_t*)data, length << 3);
+            writeCommand(*(const uint32_t*)data, length << 3);
           }
           return;
         }
@@ -381,14 +383,17 @@ struct esp_lcd_i80_bus_t {
         }
         else
         {
-          size_t len = ((length - 1) % (CACHE_SIZE-4)) + 1;
+          size_t len = (length > CACHE_SIZE)
+                     ? (((length - 1) % (CACHE_SIZE-_has_align_data)) + 4) & ~3u
+                     : length;
           if (_has_align_data != (bool)(len & 1))
           {
             if (++len > length) { len -= 2; }
           }
-          auto c = (uint8_t*)_cache_flip;
-          memcpy(&c[_has_align_data], data, (len + 3) & ~3u);
           length -= len;
+          auto c = (uint8_t*)_cache_flip;
+          while (*reg_lcd_user & LCD_CAM_LCD_START) {}
+          memcpy(&c[_has_align_data], data, (len + 3) & ~3u);
           data += len;
           if (_has_align_data)
           {
@@ -396,7 +401,6 @@ struct esp_lcd_i80_bus_t {
             c[0] = _align_data;
             ++len;
           }
-          while (*reg_lcd_user & LCD_CAM_LCD_START) {}
           _setup_dma_desc_links(&c[4], len - 4);
           gdma_start(_dma_chan, (intptr_t)(_dmadesc));
           _cache_flip = _cache[(_cache_flip == _cache[0])];
