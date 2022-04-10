@@ -173,6 +173,8 @@ struct esp_lcd_i80_bus_t {
     // dev->lcd_user.lcd_bit_order = false;
     // dev->lcd_user.lcd_8bits_order = false;
 
+    dev->lcd_user.val = LCD_CAM_LCD_2BYTE_EN | LCD_CAM_LCD_CMD | LCD_CAM_LCD_UPDATE_REG;
+
     _cache_flip = _cache[0];
   }
 
@@ -213,14 +215,17 @@ struct esp_lcd_i80_bus_t {
 
     if (_has_align_data) { _send_align_data(); }
 
-    dev->lcd_misc.lcd_cd_cmd_set = 1;
-    do
+    dev->lcd_misc.val = LCD_CAM_LCD_CD_IDLE_EDGE | LCD_CAM_LCD_CD_CMD_SET;
+
+    dev->lcd_cmd_val.lcd_cmd_value = data;
+    while (*reg_lcd_user & LCD_CAM_LCD_START) {}
+    *reg_lcd_user = LCD_CAM_LCD_2BYTE_EN | LCD_CAM_LCD_CMD | LCD_CAM_LCD_UPDATE_REG | LCD_CAM_LCD_START;
+    if (--words)
     {
-      dev->lcd_cmd_val.lcd_cmd_value = data;
-      data >>= 16;
+      dev->lcd_cmd_val.lcd_cmd_value = data >> 16;
       while (*reg_lcd_user & LCD_CAM_LCD_START) {}
       *reg_lcd_user = LCD_CAM_LCD_2BYTE_EN | LCD_CAM_LCD_CMD | LCD_CAM_LCD_UPDATE_REG | LCD_CAM_LCD_START;
-    } while (--words);
+    }
     return true;
   }
 
@@ -229,27 +234,28 @@ struct esp_lcd_i80_bus_t {
     auto bytes = bit_length >> 3;
     auto dev = getDev(_cfg.port);
     auto reg_lcd_user = &(dev->lcd_user.val);
-    dev->lcd_misc.lcd_cd_cmd_set = 0;
+    dev->lcd_misc.val = LCD_CAM_LCD_CD_IDLE_EDGE;
     if (_has_align_data)
     {
       _has_align_data = false;
       dev->lcd_cmd_val.lcd_cmd_value = _align_data | (data << 8);
-      data >>= 8;
       while (*reg_lcd_user & LCD_CAM_LCD_START) {}
       *reg_lcd_user = LCD_CAM_LCD_2BYTE_EN | LCD_CAM_LCD_CMD | LCD_CAM_LCD_UPDATE_REG | LCD_CAM_LCD_START;
       if (--bytes == 0) return;
+      data >>= 8;
     }
 
-    while (bytes > 1)
+    if (bytes > 1)
     {
       dev->lcd_cmd_val.lcd_cmd_value = data;
-      data >>= 16;
-      while (*reg_lcd_user & LCD_CAM_LCD_START) {}
       if (bytes == 4)
       {
+        while (*reg_lcd_user & LCD_CAM_LCD_START) {}
         *reg_lcd_user = LCD_CAM_LCD_CMD_2_CYCLE_EN | LCD_CAM_LCD_2BYTE_EN | LCD_CAM_LCD_CMD | LCD_CAM_LCD_UPDATE_REG | LCD_CAM_LCD_START;
         return;
       }
+      data >>= 16;
+      while (*reg_lcd_user & LCD_CAM_LCD_START) {}
       *reg_lcd_user = LCD_CAM_LCD_2BYTE_EN | LCD_CAM_LCD_CMD | LCD_CAM_LCD_UPDATE_REG | LCD_CAM_LCD_START;
       bytes -= 2;
     }
@@ -281,40 +287,40 @@ struct esp_lcd_i80_bus_t {
       regbuf1 = regbuf0;
       regbuf2 = regbuf0;
     }
-
-    uint32_t byte_length = bit_length >> 3;
-    uint32_t length = byte_length * count;
-    uint32_t len = (length <= 12u) ? length : 12u;
-    uint32_t* dst = (uint32_t*)_cache_flip;
+    auto dst = _cache_flip;
 
     dst[0] = regbuf0;
     dst[1] = regbuf1;
     dst[2] = regbuf2;
+    dst[3] = regbuf0;
+    dst[4] = regbuf1;
+    dst[5] = regbuf2;
+    dst[6] = regbuf0;
+    dst[7] = regbuf1;
+    dst[8] = regbuf2;
 
-    _cache_flip = _cache[(dst == _cache[0])];
-    writeBytes((const uint8_t*)dst, len, true, true);
-    if (0 == (length -= len)) return;
-
-    if (length > 12)
+    uint32_t length = count * (bit_length >> 3);
+    if (length > 36)
     {
-      memcpy((void*)&dst[ 3], dst, 12);
-      if (length > 24)
+      memcpy((void*)&dst[ 9], dst, 36);
+      if (length > 72)
       {
-        memcpy((void*)&dst[ 6], dst, 24);
-        if (length > 48)
+        memcpy((void*)&dst[18], dst, 72);
+        if (length > 144)
         {
-          memcpy((void*)&dst[12], dst, 48);
-          if (length > 96)
-          {
-            memcpy((void*)&dst[24], dst, 96);
-          }
+          memcpy((void*)&dst[36], dst, 108);
         }
       }
     }
+    uint32_t len = 0;
     do
     {
+      len = length;
+      if (length > 252u)
+      {
+        len = ((((length - 1) % 252) + 12) / 12) * 12;
+      }
       _cache_flip = _cache[(dst == _cache[0])];
-      len = (length < 192u) ? length : 192u;
       writeBytes((const uint8_t*)dst, len, true, true);
     } while (0 != (length -= len));
   }
@@ -363,11 +369,10 @@ struct esp_lcd_i80_bus_t {
           return;
         }
 
-        while (*reg_lcd_user & LCD_CAM_LCD_START) {}
-        size_t len;
         if (use_dma && !_has_align_data)
         {
-          len = length & ~1u;
+          size_t len = length & ~1u;
+          while (*reg_lcd_user & LCD_CAM_LCD_START) {}
           _setup_dma_desc_links(&data[4], len - 4);
           gdma_start(_dma_chan, (intptr_t)(_dmadesc));
           dev->lcd_cmd_val.lcd_cmd_value = data[0] | data[1] << 8 | data[2] <<16 | data[3] << 24;
@@ -376,7 +381,7 @@ struct esp_lcd_i80_bus_t {
         }
         else
         {
-          len = ((length - 1) % (CACHE_SIZE-4)) + 1;
+          size_t len = ((length - 1) % (CACHE_SIZE-4)) + 1;
           if (_has_align_data != (bool)(len & 1))
           {
             if (++len > length) { len -= 2; }
@@ -391,6 +396,7 @@ struct esp_lcd_i80_bus_t {
             c[0] = _align_data;
             ++len;
           }
+          while (*reg_lcd_user & LCD_CAM_LCD_START) {}
           _setup_dma_desc_links(&c[4], len - 4);
           gdma_start(_dma_chan, (intptr_t)(_dmadesc));
           _cache_flip = _cache[(_cache_flip == _cache[0])];

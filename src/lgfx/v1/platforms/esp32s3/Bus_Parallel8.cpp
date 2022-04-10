@@ -164,6 +164,8 @@ struct esp_lcd_i80_bus_t {
     // dev->lcd_user.lcd_bit_order = false;
     // dev->lcd_user.lcd_8bits_order = false;
 
+    dev->lcd_user.val = LCD_CAM_LCD_CMD | LCD_CAM_LCD_UPDATE_REG;
+
     _cache_flip = _cache[0];
   }
 
@@ -190,7 +192,7 @@ struct esp_lcd_i80_bus_t {
     auto bytes = bit_length >> 3;
     auto dev = getDev(_cfg.port);
     auto reg_lcd_user = &(dev->lcd_user.val);
-    dev->lcd_misc.lcd_cd_cmd_set = 1;
+    dev->lcd_misc.val = LCD_CAM_LCD_CD_IDLE_EDGE | LCD_CAM_LCD_CD_CMD_SET;
     do
     {
       dev->lcd_cmd_val.lcd_cmd_value = data;
@@ -206,7 +208,7 @@ struct esp_lcd_i80_bus_t {
     auto bytes = bit_length >> 3;
     auto dev = getDev(_cfg.port);
     auto reg_lcd_user = &(dev->lcd_user.val);
-    dev->lcd_misc.lcd_cd_cmd_set = 0;
+    dev->lcd_misc.val = LCD_CAM_LCD_CD_IDLE_EDGE;
 
     if (bytes & 1)
     {
@@ -217,24 +219,21 @@ struct esp_lcd_i80_bus_t {
       if (0 == --bytes) { return; }
     }
 
+    dev->lcd_cmd_val.lcd_cmd_value = (data & 0xFF) | (data << 8);
+    while (*reg_lcd_user & LCD_CAM_LCD_START) {}
+    *reg_lcd_user = LCD_CAM_LCD_CMD | LCD_CAM_LCD_CMD_2_CYCLE_EN | LCD_CAM_LCD_UPDATE_REG | LCD_CAM_LCD_START;
     bytes >>= 1;
-    do
+    if (--bytes)
     {
-      dev->lcd_cmd_val.lcd_cmd_value = (data & 0xFF) | (data << 8);
       data >>= 16;
+      dev->lcd_cmd_val.lcd_cmd_value = (data & 0xFF) | (data << 8);
       while (*reg_lcd_user & LCD_CAM_LCD_START) {}
       *reg_lcd_user = LCD_CAM_LCD_CMD | LCD_CAM_LCD_CMD_2_CYCLE_EN | LCD_CAM_LCD_UPDATE_REG | LCD_CAM_LCD_START;
-    } while (--bytes);
+    }
   }
 
   void Bus_Parallel8::writeDataRepeat(uint32_t color_raw, uint_fast8_t bit_length, uint32_t count)
   {
-// do
-// {
-//   writeData(color_raw, bit_length);
-// } while (--count);
-// return;
-
     uint32_t regbuf0 = color_raw | color_raw << bit_length;
     uint32_t regbuf1;
     uint32_t regbuf2;
@@ -248,39 +247,39 @@ struct esp_lcd_i80_bus_t {
       regbuf1 = regbuf0;
       regbuf2 = regbuf0;
     }
-
-    uint32_t byte_length = bit_length >> 3;
-    uint32_t length = byte_length * count;
-    uint32_t len = (length <= 12u) ? length : 12u;
-    uint32_t* dst = (uint32_t*)_cache_flip;
-
+    auto dst = _cache_flip;
+    _cache_flip = _cache[(dst == _cache[0])];
     dst[0] = regbuf0;
     dst[1] = regbuf1;
     dst[2] = regbuf2;
+    dst[3] = regbuf0;
+    dst[4] = regbuf1;
+    dst[5] = regbuf2;
+    dst[6] = regbuf0;
+    dst[7] = regbuf1;
+    dst[8] = regbuf2;
 
-    _cache_flip = _cache[(dst == _cache[0])];
-    writeBytes((const uint8_t*)dst, len, true, true);
-    if (0 == (length -= len)) return;
-
-    if (length > 12)
+    uint32_t length = count * (bit_length >> 3);
+    if (length > 36)
     {
-      memcpy((void*)&dst[ 3], dst, 12);
-      if (length > 24)
+      memcpy((void*)&dst[ 9], dst, 36);
+      if (length > 72)
       {
-        memcpy((void*)&dst[ 6], dst, 24);
-        if (length > 48)
+        memcpy((void*)&dst[18], dst, 72);
+        if (length > 144)
         {
-          memcpy((void*)&dst[12], dst, 48);
-          if (length > 96)
-          {
-            memcpy((void*)&dst[24], dst, 96);
-          }
+          memcpy((void*)&dst[36], dst, 108);
         }
       }
     }
+    uint32_t len = 0;
     do
     {
-      len = (length < 192u) ? length : 192u;
+      len = length;
+      if (length > 252u)
+      {
+        len = ((((length - 1) % 252) + 12) / 12) * 12;
+      }
       writeBytes((const uint8_t*)dst, len, true, true);
     } while (0 != (length -= len));
   }
