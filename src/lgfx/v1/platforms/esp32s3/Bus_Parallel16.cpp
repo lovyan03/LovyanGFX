@@ -159,8 +159,8 @@ struct esp_lcd_i80_bus_t {
   void Bus_Parallel16::beginTransaction(void)
   {
     auto dev = _dev;
-    int clk_div = std::min(63u, std::max(1u, 80*1000*1000 / (_cfg.freq_write+1)));
-
+    int clk_div = std::min(63u, std::max(1u, 120*1000*1000 / (_cfg.freq_write+1)));
+    dev->lcd_clock.lcd_clk_sel = 2; // clock_select: 1=XTAL CLOCK / 2=240MHz / 3=160MHz
     dev->lcd_clock.lcd_clkcnt_n = clk_div;
     dev->lcd_clock.lcd_clk_equ_sysclk = 0;
     dev->lcd_clock.lcd_ck_idle_edge = true;
