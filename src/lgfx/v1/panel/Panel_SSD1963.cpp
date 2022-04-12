@@ -91,7 +91,7 @@ namespace lgfx
 // ESP_LOGD("DEBUG","XTAL:%d M:%d N:%d PLL:%d", _xtal_clock, _clock_m, _clock_n, _pll_clock);
 // ESP_LOGD("DEBUG","LCDC_FPR:%d", lcdc_fpr);
 
-    uint8_t cmds[] = 
+    uint8_t cmds[] =
     { 0xE2, 3, (uint8_t)save_m         // set pll clock
              , (uint8_t)save_n
              , 0x54
@@ -103,7 +103,7 @@ namespace lgfx
              , (uint8_t)(lcdc_fpr >>  8)
              , (uint8_t)(lcdc_fpr      )
 
-    , 0xB0, 7, 0x20, 0x00             // Panel Resolution
+    , 0xB0, 7, _timing_params.data_width, 0x00             // Panel Resolution
              , (uint8_t)(hori >> 8), (uint8_t)hori
              , (uint8_t)(vert >> 8), (uint8_t)vert
              , 0x2D
@@ -165,7 +165,7 @@ namespace lgfx
     _write_depth = depth;
     _read_depth = _write_depth;
 
-    uint8_t cmds[] = 
+    uint8_t cmds[] =
     { 0xF0, 1, mode
     , 0xFF, 0xFF
     };
@@ -184,7 +184,7 @@ namespace lgfx
     uint_fast16_t hps = move + sync + back;
     uint_fast16_t lps = move;
 
-    uint8_t cmds[] = 
+    uint8_t cmds[] =
     { 0xB4, 8, (uint8_t)(ht  >> 8), (uint8_t)ht
              , (uint8_t)(hps >> 8), (uint8_t)hps
              , (uint8_t)hpw
@@ -196,14 +196,6 @@ namespace lgfx
     startWrite();
     command_list(cmds);
     endWrite();
-
-    // writeCommand(0xB4, 1);
-    // writeData(getSwap16( ht  ), 2);
-    // writeData(getSwap16(hps  ), 2);
-    // writeData(          hpw   , 1);
-    // writeData(getSwap16(lps  ), 2);
-    // writeData(          lpspp , 1);
-    // _bus->flush();
   }
 
   void Panel_SSD1963::setVSync(uint_fast16_t front, uint_fast16_t sync, uint_fast16_t back, uint_fast16_t move)
@@ -213,7 +205,7 @@ namespace lgfx
     uint_fast16_t vps = move + sync + back;
     uint_fast16_t fps = move;
 
-    uint8_t cmds[] = 
+    uint8_t cmds[] =
     { 0xB6, 7, (uint8_t)(vt  >> 8), (uint8_t)vt
              , (uint8_t)(vps >> 8), (uint8_t)vps
              , (uint8_t)vpw
@@ -224,15 +216,6 @@ namespace lgfx
     startWrite();
     command_list(cmds);
     endWrite();
-
-
-    // writeCommand(0xB6, 1);
-    // writeData(getSwap16( vt  ), 2);
-    // writeData(getSwap16(vps  ), 2);
-    // writeData(          vpw   , 1);
-    // writeData(getSwap16(fps  ), 2);
-    // _bus->flush();
-    // endWrite();
   }
 
   void Panel_SSD1963::setRotation(uint_fast8_t r)
