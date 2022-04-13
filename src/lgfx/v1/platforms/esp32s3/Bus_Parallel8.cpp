@@ -109,6 +109,21 @@ struct esp_lcd_i80_bus_t {
       gpio_ll_input_enable(&GPIO, (gpio_num_t)_cfg.pin_data[i]);
     }
 
+    uint32_t div_a, div_b, div_n, clkcnt;
+    calcClockDiv(&div_a, &div_b, &div_n, &clkcnt, 240*1000*1000, _cfg.freq_write);
+    lcd_cam_lcd_clock_reg_t lcd_clock;
+    lcd_clock.lcd_clkcnt_n = std::max(1u, clkcnt - 1);
+    lcd_clock.lcd_clk_equ_sysclk = (clkcnt == 1);
+    lcd_clock.lcd_ck_idle_edge = true;
+    lcd_clock.lcd_ck_out_edge = false;
+    lcd_clock.lcd_clkm_div_num = div_n;
+    lcd_clock.lcd_clkm_div_b = div_b;
+    lcd_clock.lcd_clkm_div_a = div_a;
+    lcd_clock.lcd_clk_sel = 2; // clock_select: 1=XTAL CLOCK / 2=240MHz / 3=160MHz
+    lcd_clock.clk_en = true;
+
+    _clock_reg_value = lcd_clock.val;
+
     _alloc_dmadesc(1);
     return true;
   }
@@ -150,12 +165,13 @@ struct esp_lcd_i80_bus_t {
   void Bus_Parallel8::beginTransaction(void)
   {
     auto dev = _dev;
-    int clk_div = std::min(63u, std::max(1u, 120*1000*1000 / (_cfg.freq_write+1)));
-    dev->lcd_clock.lcd_clk_sel = 2; // clock_select: 1=XTAL CLOCK / 2=240MHz / 3=160MHz
-    dev->lcd_clock.lcd_clkcnt_n = clk_div;
-    dev->lcd_clock.lcd_clk_equ_sysclk = 0;
-    dev->lcd_clock.lcd_ck_idle_edge = true;
-    dev->lcd_clock.lcd_ck_out_edge = false;
+    dev->lcd_clock.val = _clock_reg_value;
+    // int clk_div = std::min(63u, std::max(1u, 120*1000*1000 / (_cfg.freq_write+1)));
+    // dev->lcd_clock.lcd_clk_sel = 2; // clock_select: 1=XTAL CLOCK / 2=240MHz / 3=160MHz
+    // dev->lcd_clock.lcd_clkcnt_n = clk_div;
+    // dev->lcd_clock.lcd_clk_equ_sysclk = 0;
+    // dev->lcd_clock.lcd_ck_idle_edge = true;
+    // dev->lcd_clock.lcd_ck_out_edge = false;
 
     dev->lcd_misc.val = LCD_CAM_LCD_CD_IDLE_EDGE;
     // dev->lcd_misc.lcd_cd_idle_edge = 1;
@@ -361,9 +377,9 @@ struct esp_lcd_i80_bus_t {
       }
       dev->lcd_cmd_val.lcd_cmd_value = cmd_val;
       dev->lcd_misc.lcd_cd_data_set = !dc;
-      *reg_lcd_user = 1 | LCD_CAM_LCD_ALWAYS_OUT_EN | LCD_CAM_LCD_DOUT | LCD_CAM_LCD_CMD | LCD_CAM_LCD_CMD_2_CYCLE_EN | LCD_CAM_LCD_UPDATE_REG;
+      *reg_lcd_user = LCD_CAM_LCD_ALWAYS_OUT_EN | LCD_CAM_LCD_DOUT | LCD_CAM_LCD_CMD | LCD_CAM_LCD_CMD_2_CYCLE_EN | LCD_CAM_LCD_UPDATE_REG;
       while (*reg_lcd_user & LCD_CAM_LCD_START) {}
-      *reg_lcd_user = 1 | LCD_CAM_LCD_ALWAYS_OUT_EN | LCD_CAM_LCD_DOUT | LCD_CAM_LCD_CMD | LCD_CAM_LCD_CMD_2_CYCLE_EN | LCD_CAM_LCD_START;
+      *reg_lcd_user = LCD_CAM_LCD_ALWAYS_OUT_EN | LCD_CAM_LCD_DOUT | LCD_CAM_LCD_CMD | LCD_CAM_LCD_CMD_2_CYCLE_EN | LCD_CAM_LCD_START;
     } while (length);
   }
 

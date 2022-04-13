@@ -41,7 +41,7 @@ namespace lgfx
       // LCD_CAM peripheral number. No need to change (only 0 for ESP32-S3.)
       int port = 0;
 
-      // max 40MHz , 27MHz , 20MHz , 16MHz , 13.3MHz , 11.43MHz , 10MHz , 8.9MHz  and more ...
+      // max 80MHz.
       uint32_t freq_write = 16000000;
       int8_t pin_wr = -1;
       int8_t pin_rd = -1;
@@ -101,7 +101,7 @@ namespace lgfx
 
     config_t _cfg;
     FlipBuffer _flip_buffer;
-    size_t _div_num;
+    uint32_t _clock_reg_value;
     uint32_t _cache[2][CACHE_SIZE / sizeof(uint32_t)];
     uint32_t* _cache_flip;
 

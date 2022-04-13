@@ -49,7 +49,6 @@ struct esp_lcd_i80_bus_t {
     gdma_channel_handle_t dma_chan; // DMA channel handle
 };
 
-
   static __attribute__ ((always_inline)) inline volatile uint32_t* reg(uint32_t addr) { return (volatile uint32_t *)ETS_UNCACHED_ADDR(addr); }
 
   static lcd_cam_dev_t* getDev(int port)
@@ -117,6 +116,28 @@ struct esp_lcd_i80_bus_t {
       gpio_ll_input_enable(&GPIO, (gpio_num_t)_cfg.pin_data[i]);
     }
 
+    auto freq = std::min(_cfg.freq_write, 50000000u);
+
+    uint32_t div_a, div_b, div_n, clkcnt;
+    calcClockDiv(&div_a, &div_b, &div_n, &clkcnt, 240*1000*1000, freq);
+
+    // 送信クロックが速い場合、DMAセットアップから送信開始までの時間が短いと送信失敗するためウェイト調整を行う ;
+    int wait = 24 - (div_n * clkcnt);
+    _fast_wait = (wait < 0) ? 0 : wait;
+
+    lcd_cam_lcd_clock_reg_t lcd_clock;
+    lcd_clock.lcd_clkcnt_n = std::max(1u, clkcnt - 1);
+    lcd_clock.lcd_clk_equ_sysclk = (clkcnt == 1);
+    lcd_clock.lcd_ck_idle_edge = true;
+    lcd_clock.lcd_ck_out_edge = false;
+    lcd_clock.lcd_clkm_div_num = div_n;
+    lcd_clock.lcd_clkm_div_b = div_b;
+    lcd_clock.lcd_clkm_div_a = div_a;
+    lcd_clock.lcd_clk_sel = 2; // clock_select: 1=XTAL CLOCK / 2=240MHz / 3=160MHz
+    lcd_clock.clk_en = true;
+
+    _clock_reg_value = lcd_clock.val;
+
     _alloc_dmadesc(1);
     return true;
   }
@@ -159,12 +180,7 @@ struct esp_lcd_i80_bus_t {
   void Bus_Parallel16::beginTransaction(void)
   {
     auto dev = _dev;
-    int clk_div = std::min(63u, std::max(1u, 120*1000*1000 / (_cfg.freq_write+1)));
-    dev->lcd_clock.lcd_clk_sel = 2; // clock_select: 1=XTAL CLOCK / 2=240MHz / 3=160MHz
-    dev->lcd_clock.lcd_clkcnt_n = clk_div;
-    dev->lcd_clock.lcd_clk_equ_sysclk = 0;
-    dev->lcd_clock.lcd_ck_idle_edge = true;
-    dev->lcd_clock.lcd_ck_out_edge = false;
+    dev->lcd_clock.val = _clock_reg_value;
 
     dev->lcd_misc.val = LCD_CAM_LCD_CD_IDLE_EDGE;
     // dev->lcd_misc.lcd_cd_idle_edge = 1;
@@ -377,7 +393,7 @@ struct esp_lcd_i80_bus_t {
           while (*reg_lcd_user & LCD_CAM_LCD_START) {}
           _setup_dma_desc_links(&data[4], len - 4);
           gdma_start(_dma_chan, (intptr_t)(_dmadesc));
-          dev->lcd_cmd_val.lcd_cmd_value = data[0] | data[1] << 8 | data[2] <<16 | data[3] << 24;
+          dev->lcd_cmd_val.val = data[0] | data[1] << 8 | data[2] <<16 | data[3] << 24;
           length -= len;
           data += len;
         }
@@ -404,10 +420,17 @@ struct esp_lcd_i80_bus_t {
           _setup_dma_desc_links(&c[4], len - 4);
           gdma_start(_dma_chan, (intptr_t)(_dmadesc));
           _cache_flip = _cache[(_cache_flip == _cache[0])];
-          dev->lcd_cmd_val.lcd_cmd_value = c[0] | c[1] << 8 | c[2] <<16 | c[3] << 24;
+          dev->lcd_cmd_val.val = c[0] | c[1] << 8 | c[2] <<16 | c[3] << 24;
         }
-        dev->lcd_misc.lcd_cd_cmd_set  = !dc;
-        dev->lcd_misc.lcd_cd_data_set = !dc;
+        dev->lcd_misc.val = dc
+                          ?  LCD_CAM_LCD_CD_IDLE_EDGE
+                          : (LCD_CAM_LCD_CD_IDLE_EDGE | LCD_CAM_LCD_CD_CMD_SET | LCD_CAM_LCD_CD_DATA_SET);
+
+        auto wait = _fast_wait;
+        if (wait > 0)
+        { /// DMA準備～送信開始の時間が短すぎるとデータの先頭を送り損じる事があるのでnopウェイトを入れる;
+          do { __asm__ __volatile__ ("nop"); } while (--wait);
+        }
         *reg_lcd_user = LCD_CAM_LCD_ALWAYS_OUT_EN | LCD_CAM_LCD_2BYTE_EN | LCD_CAM_LCD_CMD_2_CYCLE_EN | LCD_CAM_LCD_DOUT | LCD_CAM_LCD_CMD | LCD_CAM_LCD_UPDATE_REG | LCD_CAM_LCD_START;
       } while (length & ~1u);
     }

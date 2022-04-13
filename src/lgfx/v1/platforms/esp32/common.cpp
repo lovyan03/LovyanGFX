@@ -115,6 +115,48 @@ namespace lgfx
     return div_num << 12 | ((div_num-1)>>1) << 6 | div_num | pre << 18;
   }
 
+  void calcClockDiv(uint32_t* div_a, uint32_t* div_b, uint32_t* div_n, uint32_t* clkcnt, uint32_t baseClock, uint32_t targetFreq)
+  {
+    uint32_t diff = INT32_MAX;
+    *div_n = 256;
+    *div_a = 63;
+    *div_b = 62;
+    *clkcnt = 64;
+    uint32_t start_cnt = std::min<uint32_t>(64u, (baseClock / (targetFreq * 2) + 1));
+    uint32_t end_cnt = std::max<uint32_t>(2u, baseClock / 256u / targetFreq);
+    if (start_cnt <= 2) { end_cnt = 1; }
+    for (uint32_t cnt = start_cnt; diff && cnt >= end_cnt; --cnt)
+    {
+      float fdiv = (float)baseClock / cnt / targetFreq;
+      uint32_t n = std::max<uint32_t>(2u, (uint32_t)fdiv);
+      fdiv -= n;
+
+      for (uint32_t a = 63; diff && a > 0; --a)
+      {
+        uint32_t b = roundf(fdiv * a);
+        if (a == b && n == 256) {
+          break;
+        }
+        uint32_t freq = baseClock / ((n * cnt) + (float)(b * cnt) / (float)a);
+        uint32_t d = abs((int)targetFreq - (int)freq);
+        if (diff <= d) { continue; }
+        diff = d;
+        *clkcnt = cnt;
+        *div_n = n;
+        *div_b = b;
+        *div_a = a;
+        if (b == 0 || a == b) {
+          break;
+        }
+      }
+    }
+    if (*div_a == *div_b)
+    {
+        *div_b = 0;
+        *div_n += 1;
+    }
+  }
+
   uint32_t get_pkg_ver(void)
   {
 #if defined ( USE_ESP_EFUSE_GET_PKG_VER )
