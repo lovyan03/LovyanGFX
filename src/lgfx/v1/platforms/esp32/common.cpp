@@ -27,6 +27,7 @@ Contributors:
 
 #include <algorithm>
 #include <string.h>
+#include <math.h>
 
 #include <driver/i2c.h>
 #include <driver/spi_common.h>
