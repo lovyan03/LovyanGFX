@@ -97,6 +97,8 @@ namespace lgfx
     void endTransaction(void) override;
     void wait(void) override;
     bool busy(void) const override;
+    uint32_t getClock(void) const override { return _cfg.freq_write; }
+    void setClock(uint32_t freq) override { _cfg.freq_write = freq; _last_freq_apb = 0; }
 
     void flush(void) override {}
     bool writeCommand(uint32_t data, uint_fast8_t bit_length) override;
@@ -166,8 +168,8 @@ namespace lgfx
     volatile uint32_t* _spi_cmd_reg = nullptr;
     volatile uint32_t* _spi_user_reg = nullptr;
     volatile uint32_t* _spi_dma_out_link_reg = nullptr;
-    volatile uint32_t* _spi_dma_outstatus_reg = nullptr;    
-    volatile uint32_t* _clear_dma_reg = nullptr;    
+    volatile uint32_t* _spi_dma_outstatus_reg = nullptr;
+    volatile uint32_t* _clear_dma_reg = nullptr;
     uint32_t _last_freq_apb = 0;
     uint32_t _clkdiv_write = 0;
     uint32_t _clkdiv_read = 0;
