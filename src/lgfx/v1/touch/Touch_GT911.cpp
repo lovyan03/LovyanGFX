@@ -56,6 +56,14 @@ namespace lgfx
 
     if (isSPI()) return false;
 
+    if (_cfg.pin_rst >= 0)
+    {
+      lgfx::pinMode(_cfg.pin_rst, pin_mode_t::output);
+      lgfx::gpio_lo(_cfg.pin_rst);
+      lgfx::delay(1);
+      lgfx::gpio_hi(_cfg.pin_rst);
+    }
+
     if (_cfg.pin_int >= 0)
     {
       lgfx::lgfxPinMode(_cfg.pin_int, pin_mode_t::input);
