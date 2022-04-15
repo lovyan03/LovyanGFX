@@ -47,6 +47,7 @@ Contributors:
 #include "v1/touch/Touch_FT5x06.hpp"
 #include "v1/touch/Touch_GSLx680.hpp"
 #include "v1/touch/Touch_GT911.hpp"
+#include "v1/touch/Touch_NS2009.hpp"
 #include "v1/touch/Touch_STMPE610.hpp"
 #include "v1/touch/Touch_TT21xxx.hpp"
 #include "v1/touch/Touch_XPT2046.hpp"
