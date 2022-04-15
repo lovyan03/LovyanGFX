@@ -40,6 +40,14 @@ jobs:
           - 2.0.3-RC1
 
         exclude:
+          - board: m5stick-c
+            platform-version: 1.0.6
+          - board: m5stack-core-esp32
+            platform-version: 1.0.6
+          - board: m5stack-core2
+            platform-version: 1.0.6
+          - board: esp32
+            platform-version: 1.0.6
           - board: esp32-s3
             platform-version: 1.0.6
           - board: esp32-s3
