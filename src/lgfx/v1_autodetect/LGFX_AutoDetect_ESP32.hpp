@@ -285,7 +285,7 @@ namespace lgfx
         if (0 == --retry) return 0;
       }
       if (count > tmp[0]) count = tmp[0];
-    
+
       for (size_t idx = 0; idx < count; ++idx)
       {
         auto data = &tmp[1 + idx * 6];
@@ -1390,47 +1390,111 @@ namespace lgfx
           _bus_spi.config(bus_cfg);
           _bus_spi.init();
           _pin_level( 4, true); // TF card CS
+          _pin_level( 2, true); // TOUCH CS
 
-          id = _read_panel_id(&_bus_spi, 15);
-          if ((id & 0xFF) == 0x54)
-          { // check panel (ILI9488)
-            board = board_t::board_Makerfabs_TouchCamera;
-            ESP_LOGW(LIBRARY_NAME, "[Autodetect] Makerfabs_TouchCamera");
-            bus_cfg.freq_write = 40000000;
-            bus_cfg.freq_read  = 16000000;
-            _bus_spi.config(bus_cfg);
-            auto p = new Panel_ILI9488();
-            p->bus(&_bus_spi);
-            {
-              auto cfg = p->config();
-              cfg.pin_cs  = 15;
-              cfg.pin_rst = -1;
-              p->config(cfg);
-            }
-            _panel_last = p;
+          id = _read_panel_id(&_bus_spi, 15, 0x09);
+          if (id)
+          {
+            id = _read_panel_id(&_bus_spi, 15) & 0xFF;
+            if (id == 0x00)
+            { // check panel (ILI9341)
+              board = board_t::board_Makerfabs_TouchCamera;
+              ESP_LOGW(LIBRARY_NAME, "[Autodetect] Makerfabs_TouchCamera(ILI9341)");  // 3.2inch
+              bus_cfg.freq_write = 40000000;
+              bus_cfg.freq_read  = 16000000;
+              _bus_spi.config(bus_cfg);
+              auto p = new Panel_ILI9341();
+              p->bus(&_bus_spi);
+              {
+                auto cfg = p->config();
+                cfg.pin_cs  = 15;
+                cfg.pin_rst = -1;
+                p->config(cfg);
+              }
+              _panel_last = p;
+              {
+                auto t = new lgfx::Touch_STMPE610();
+                _touch_last = t;
+                auto cfg = t->config();
+                cfg.bus_shared = true;
+                cfg.spi_host = VSPI_HOST;
+                cfg.pin_cs   =  2;
+                cfg.pin_mosi = 13;
+                cfg.pin_miso = 12;
+                cfg.pin_sclk = 14;
+                cfg.offset_rotation = 2;
+                t->config(cfg);
+                p->touch(t);
+              }
 
-            {
-              auto t = new lgfx::Touch_FT5x06();
-              _touch_last = t;
-              auto cfg = t->config();
-              cfg.pin_int  = 38;   // INT pin number
-              cfg.pin_sda  = 26;   // I2C SDA pin number
-              cfg.pin_scl  = 27;   // I2C SCL pin number
-              cfg.i2c_addr = 0x38; // I2C device addr
-              cfg.i2c_port = I2C_NUM_1;// I2C port number
-              cfg.freq = 400000;   // I2C freq
-              cfg.x_min = 0;
-              cfg.x_max = 319;
-              cfg.y_min = 0;
-              cfg.y_max = 479;
-              cfg.bus_shared = false;
-              t->config(cfg);
-              p->touch(t);
+              goto init_clear;
+
             }
-            goto init_clear;
+            else
+            if (id == 0x54)
+            { // check panel (ILI9488)
+              board = board_t::board_Makerfabs_TouchCamera;
+              ESP_LOGW(LIBRARY_NAME, "[Autodetect] Makerfabs_TouchCamera");  // 3.5inch
+              bus_cfg.freq_write = 40000000;
+              bus_cfg.freq_read  = 16000000;
+              _bus_spi.config(bus_cfg);
+              auto p = new Panel_ILI9488();
+              p->bus(&_bus_spi);
+              {
+                auto cfg = p->config();
+                cfg.pin_cs  = 15;
+                cfg.pin_rst = -1;
+                p->config(cfg);
+              }
+              _panel_last = p;
+
+              if (lgfx::i2c::init(I2C_NUM_1, 26, 27).has_value())
+              {
+                ITouch* t = nullptr;
+                ITouch::config_t cfg;
+                if (!lgfx::i2c::readRegister8(I2C_NUM_1, 0x38, 0, 400000).has_value()) // 0x48:NS2009
+                {
+                  t = new lgfx::Touch_NS2009();
+                  cfg = t->config();
+                  cfg.i2c_addr = 0x48; // I2C device addr
+                  cfg.x_min = 460;
+                  cfg.x_max = 3680;
+                  cfg.y_min = 150;
+                  cfg.y_max = 3780;
+                  cfg.pin_int  = 0;   // INT pin number
+                }
+                else
+                {
+                  t = new lgfx::Touch_FT5x06();
+                  cfg = t->config();
+                  cfg.i2c_addr = 0x38; // I2C device addr
+                  cfg.x_min = 0;
+                  cfg.x_max = 319;
+                  cfg.y_min = 0;
+                  cfg.y_max = 479;
+                //cfg.pin_int  = 0;   // INT pin number (board ver1.1 doesn't work)
+                }
+
+                if (t)
+                {
+                  cfg.bus_shared = false;
+                  cfg.pin_sda  = 26;   // I2C SDA pin number
+                  cfg.pin_scl  = 27;   // I2C SCL pin number
+                  cfg.i2c_port = I2C_NUM_1;// I2C port number
+                  cfg.freq = 400000;   // I2C freq
+                  _touch_last = t;
+                  t->config(cfg);
+                  p->touch(t);
+                }
+              }
+
+              goto init_clear;
+            }
           }
+
           lgfx::pinMode(15, lgfx::pin_mode_t::input); // LCD CS
           lgfx::pinMode( 4, lgfx::pin_mode_t::input); // TF card CS
+          lgfx::pinMode( 2, lgfx::pin_mode_t::input); // TOUCH CS
           _bus_spi.release();
         }
 #endif
@@ -1680,7 +1744,7 @@ namespace lgfx
           _bus_spi.config(bus_cfg);
           _bus_spi.init();
           _pin_reset(32, use_reset); // LCD RST
-          // id = _read_panel_id(&_bus_spi, -1);  // 読出しモードから抜ける事ができないのでコメントアウト; 
+          // id = _read_panel_id(&_bus_spi, -1);  // 読出しモードから抜ける事ができないのでコメントアウト;
           // if ((id & 0xFF) == 0x85)
           {
             board = board_t::board_DDUINO32_XS;
