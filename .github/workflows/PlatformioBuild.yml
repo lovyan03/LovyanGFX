@@ -40,14 +40,6 @@ jobs:
           - 2.0.3-RC1
 
         exclude:
-          - board: m5stick-c
-            platform-version: 1.0.6
-          - board: m5stack-core-esp32
-            platform-version: 1.0.6
-          - board: m5stack-core2
-            platform-version: 1.0.6
-          - board: esp32
-            platform-version: 1.0.6
           - board: esp32-s3
             platform-version: 1.0.6
           - board: esp32-s3
@@ -103,4 +95,8 @@ jobs:
           pip install --upgrade platformio
 
       - name: Run PlatformIO
-        run: cd ${{ env.PROJECT_DIR }} && pio run -e "${{ matrix.board }}@${{ matrix.platform-version }}"
+        
+        run: |
+          cd ${{ env.PROJECT_DIR }}
+          pio lib -e ${{ matrix.board }}@${{ matrix.platform-version }} install --no-save file://$(realpath ../../../)
+          pio run -e ${{ matrix.board }}@${{ matrix.platform-version }}
