@@ -208,5 +208,13 @@ public:
   }
 
 //----------------------------------------------------------------------------
+
+  namespace i2c
+  {
+    cpp::result<void, error_t> setPins(int i2c_port, int pin_sda, int pin_scl);
+    cpp::result<void, error_t> init(int i2c_port);
+  }
+
+//----------------------------------------------------------------------------
  }
 }

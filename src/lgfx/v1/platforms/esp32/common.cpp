@@ -511,76 +511,24 @@ namespace lgfx
       };
       cpp::result<state_t, error_t> state;
 
-      bool wait_ack = false;
       gpio_num_t pin_scl = (gpio_num_t)-1;
       gpio_num_t pin_sda = (gpio_num_t)-1;
+      bool initialized = false;
+      bool wait_ack = false;
       uint32_t freq = 0;
 
       void save_reg(i2c_dev_t* dev)
       {
-        scl_high_period  = dev->scl_high_period.val ;
-        scl_low_period   = dev->scl_low_period.val  ;
-        scl_start_hold   = dev->scl_start_hold.val  ;
-        scl_rstart_setup = dev->scl_rstart_setup.val;
-        scl_stop_hold    = dev->scl_stop_hold.val   ;
-        scl_stop_setup   = dev->scl_stop_setup.val  ;
-        sda_hold         = dev->sda_hold.val        ;
-        sda_sample       = dev->sda_sample.val      ;
-        fifo_conf        = dev->fifo_conf.val       ;
-#if defined (CONFIG_IDF_TARGET_ESP32S3)
-        timeout          = dev->to.val              ;
-#else
-        timeout          = dev->timeout.val         ;
-#endif
-#if defined ( I2C_FILTER_CFG_REG )
-        filter_cfg       = dev->filter_cfg.val      ;
-#else
-        scl_filter       = dev->scl_filter_cfg.val  ;
-        sda_filter       = dev->sda_filter_cfg.val  ;
-#endif
+        memcpy(_reg_store, (const void*)dev, sizeof(_reg_store));
       }
 
       void load_reg(i2c_dev_t* dev)
       {
-        dev->scl_high_period.val  = scl_high_period ;
-        dev->scl_low_period.val   = scl_low_period  ;
-        dev->scl_start_hold.val   = scl_start_hold  ;
-        dev->scl_rstart_setup.val = scl_rstart_setup;
-        dev->scl_stop_hold.val    = scl_stop_hold   ;
-        dev->scl_stop_setup.val   = scl_stop_setup  ;
-        dev->sda_hold.val         = sda_hold        ;
-        dev->sda_sample.val       = sda_sample      ;
-        dev->fifo_conf.val        = fifo_conf       ;
-#if defined (CONFIG_IDF_TARGET_ESP32S3)
-        dev->to.val               = timeout         ;
-#else
-        dev->timeout.val          = timeout         ;
-#endif
-#if defined ( I2C_FILTER_CFG_REG )
-        dev->filter_cfg.val       = filter_cfg      ;
-#else
-        dev->scl_filter_cfg.val   = scl_filter      ;
-        dev->sda_filter_cfg.val   = sda_filter      ;
-#endif
+        memcpy((void*)dev, _reg_store, sizeof(_reg_store));
       }
 
     private:
-      uint32_t scl_high_period;
-      uint32_t scl_low_period;
-      uint32_t scl_start_hold;
-      uint32_t scl_rstart_setup;
-      uint32_t scl_stop_hold;
-      uint32_t scl_stop_setup;
-      uint32_t sda_hold;
-      uint32_t sda_sample;
-      uint32_t fifo_conf;
-      uint32_t timeout;
-#if defined ( I2C_FILTER_CFG_REG )
-      uint32_t filter_cfg;
-#else
-      uint32_t scl_filter;
-      uint32_t sda_filter;
-#endif
+      uint32_t _reg_store[22];
     };
     i2c_context_t i2c_context[I2C_NUM_MAX];
 
@@ -641,7 +589,10 @@ namespace lgfx
         ets_delay_us(I2C_CLR_BUS_HALF_PERIOD_US);
       } while (!gpio_get_level(sda_io) && (i++ < I2C_CLR_BUS_SCL_NUM));
       periph_module_enable(mod);
+#if !defined (CONFIG_IDF_TARGET_ESP32C3)
+/// ESP32C3で periph_module_reset を使用すると以後通信不能になる問題が起きたため分岐;
       periph_module_reset(mod);
+#endif
       i2c_set_pin((i2c_port_t)i2c_port, sda_io, scl_io, gpio_pullup_t::GPIO_PULLUP_ENABLE, gpio_pullup_t::GPIO_PULLUP_ENABLE, I2C_MODE_MASTER);
 #else
       auto mod = getPeriphModule(i2c_port);
@@ -741,7 +692,7 @@ namespace lgfx
       return res;
     }
 
-    cpp::result<void, error_t> init(int i2c_port, int pin_sda, int pin_scl)
+    cpp::result<void, error_t> setPins(int i2c_port, int pin_sda, int pin_scl)
     {
       if ((i2c_port >= I2C_NUM_MAX)
        || ((uint32_t)pin_scl >= GPIO_NUM_MAX)
@@ -750,26 +701,54 @@ namespace lgfx
         return cpp::fail(error_t::invalid_arg);
       }
 
-      auto dev = getDev(i2c_port);
-      i2c_context[i2c_port].save_reg(dev);
-      release(i2c_port);
+      release(i2c_port).has_value();
       i2c_context[i2c_port].pin_scl = (gpio_num_t)pin_scl;
       i2c_context[i2c_port].pin_sda = (gpio_num_t)pin_sda;
-      i2c_stop(i2c_port);
-      i2c_context[i2c_port].load_reg(dev);
+#if defined ( ARDUINO )
+
+      auto twowire = ((i2c_port == 1) ? &Wire1 : &Wire);
+      twowire->setPins(pin_sda, pin_scl);
+
+#endif
+      return {};
+    }
+
+    cpp::result<void, error_t> init(int i2c_port)
+    {
+      if ((i2c_port >= I2C_NUM_MAX)
+       || ((uint32_t)i2c_context[i2c_port].pin_scl >= GPIO_NUM_MAX)
+       || ((uint32_t)i2c_context[i2c_port].pin_sda >= GPIO_NUM_MAX))
+      {
+        return cpp::fail(error_t::invalid_arg);
+      }
+
+      if (!i2c_context[i2c_port].initialized)
+      {
+        i2c_context[i2c_port].initialized = true;
+        auto dev = getDev(i2c_port);
+        i2c_context[i2c_port].save_reg(dev);
+        i2c_stop(i2c_port);
+        i2c_context[i2c_port].load_reg(dev);
+      }
 
 #if defined ( ARDUINO )
 
       auto twowire = ((i2c_port == 1) ? &Wire1 : &Wire);
-      twowire->begin(pin_sda, pin_scl);
+      twowire->begin();
 
 #endif
 
-//ESP_LOGI("LGFX", "i2c_set_pin : %d", res);
-      // i2c_set_pin((i2c_port_t)i2c_port, pin_sda, pin_scl, gpio_pullup_t::GPIO_PULLUP_ENABLE, gpio_pullup_t::GPIO_PULLUP_ENABLE, I2C_MODE_MASTER);
-      // periph_module_enable(getPeriphModule(i2c_port));
-
       return {};
+    }
+
+    cpp::result<void, error_t> init(int i2c_port, int pin_sda, int pin_scl)
+    {
+      auto res = setPins(i2c_port, pin_sda, pin_scl);
+      if (res.has_value())
+      {
+        return init(i2c_port);
+      }
+      return res;
     }
 
     cpp::result<void, error_t> release(int i2c_port)
@@ -789,15 +768,19 @@ namespace lgfx
   #endif
  #endif
 #endif
-
-      if (i2c_context[i2c_port].pin_scl >= 0 || i2c_context[i2c_port].pin_sda >= 0)
+      if (i2c_context[i2c_port].initialized)
       {
-      // ESP-IDF環境でperiph_module_disableを使うと、後でenableできなくなる問題が起きたためコメントアウト;
-//        periph_module_disable(getPeriphModule(i2c_port));
-        pinMode(i2c_context[i2c_port].pin_scl, pin_mode_t::input);
-        pinMode(i2c_context[i2c_port].pin_sda, pin_mode_t::input);
-        i2c_context[i2c_port].pin_scl = (gpio_num_t)-1;
-        i2c_context[i2c_port].pin_sda = (gpio_num_t)-1;
+        i2c_context[i2c_port].initialized = false;
+        if (i2c_context[i2c_port].pin_scl >= 0)
+        {
+          pinMode(i2c_context[i2c_port].pin_scl, pin_mode_t::input_pullup);
+          i2c_context[i2c_port].pin_scl = (gpio_num_t)-1;
+        }
+        if (i2c_context[i2c_port].pin_sda >= 0)
+        {
+          pinMode(i2c_context[i2c_port].pin_sda, pin_mode_t::input_pullup);
+          i2c_context[i2c_port].pin_sda = (gpio_num_t)-1;
+        }
       }
 
       return {};
