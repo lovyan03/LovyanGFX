@@ -433,6 +433,10 @@ namespace lgfx
 
   namespace i2c
   {
+#if __has_include( <core_version.h> )
+  #include <core_version.h>
+#endif
+
 #if !defined ( I2C_ACK_ERR_INT_RAW_M )
  #define I2C_ACK_ERR_INT_RAW_M I2C_NACK_INT_RAW_M
 #endif
@@ -524,6 +528,29 @@ namespace lgfx
       void load_reg(i2c_dev_t* dev)
       {
         memcpy((void*)dev, _reg_store, sizeof(_reg_store));
+      }
+
+      void setPins(i2c_dev_t* dev, gpio_num_t scl, gpio_num_t sda)
+      {
+        pin_sda = sda;
+        pin_scl = scl;
+#if defined ( ARDUINO )
+ #if defined ( ESP_IDF_VERSION_VAL )
+  #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 0, 0)
+   #if defined ARDUINO_ESP32_GIT_VER
+    #if ARDUINO_ESP32_GIT_VER != 0x44c11981
+     #define USE_TWOWIRE_SETPINS
+    #endif
+   #endif
+  #endif
+ #endif
+        auto twowire = ((dev == &I2C0) ? &Wire : &Wire1);
+ #if defined ( USE_TWOWIRE_SETPINS )
+        twowire->setPins(sda, scl);
+ #else
+        twowire->begin((int)sda, (int)scl);
+ #endif
+#endif
       }
 
     private:
@@ -700,14 +727,27 @@ namespace lgfx
         return cpp::fail(error_t::invalid_arg);
       }
 
+      if (i2c_context[i2c_port].initialized
+       && i2c_context[i2c_port].pin_scl == (gpio_num_t)pin_scl
+       && i2c_context[i2c_port].pin_sda == (gpio_num_t)pin_sda
+      )
+      {
+        return {};
+      }
+
       release(i2c_port).has_value();
       i2c_context[i2c_port].pin_scl = (gpio_num_t)pin_scl;
       i2c_context[i2c_port].pin_sda = (gpio_num_t)pin_sda;
 #if defined ( ARDUINO )
-
+ #if defined ( ESP_IDF_VERSION_VAL )
+  #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(3, 3, 0)
+   #define USE_TWOWIRE_SETPINS
+  #endif
+ #endif
+ #if defined ( USE_TWOWIRE_SETPINS )
       auto twowire = ((i2c_port == 1) ? &Wire1 : &Wire);
       twowire->setPins(pin_sda, pin_scl);
-
+ #endif
 #endif
       return {};
     }
@@ -720,7 +760,6 @@ namespace lgfx
       {
         return cpp::fail(error_t::invalid_arg);
       }
-
       if (!i2c_context[i2c_port].initialized)
       {
         i2c_context[i2c_port].initialized = true;
@@ -731,10 +770,12 @@ namespace lgfx
       }
 
 #if defined ( ARDUINO )
-
       auto twowire = ((i2c_port == 1) ? &Wire1 : &Wire);
+ #if defined ( USE_TWOWIRE_SETPINS )
       twowire->begin();
-
+ #else
+      twowire->begin((int)i2c_context[i2c_port].pin_sda, (int)i2c_context[i2c_port].pin_scl);
+ #endif
 #endif
 
       return {};
@@ -753,23 +794,19 @@ namespace lgfx
     cpp::result<void, error_t> release(int i2c_port)
     {
       if (i2c_port >= I2C_NUM_MAX) { return cpp::fail(error_t::invalid_arg); }
-
+      if (i2c_context[i2c_port].initialized)
+      {
+        i2c_context[i2c_port].initialized = false;
 #if defined ( ARDUINO ) && defined ( ESP_IDF_VERSION_VAL )
  #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 0, 0)
-  #if __has_include( <core_version.h> )
-    #include <core_version.h>
-  #endif
   #if defined ARDUINO_ESP32_GIT_VER
     #if ARDUINO_ESP32_GIT_VER != 0x44c11981
-      auto twowire = ((i2c_port == 1) ? &Wire1 : &Wire);
-      twowire->end();
+        auto twowire = ((i2c_port == 1) ? &Wire1 : &Wire);
+        twowire->end();
     #endif
   #endif
  #endif
 #endif
-      if (i2c_context[i2c_port].initialized)
-      {
-        i2c_context[i2c_port].initialized = false;
         if (i2c_context[i2c_port].pin_scl >= 0)
         {
           pinMode(i2c_context[i2c_port].pin_scl, pin_mode_t::input_pullup);
