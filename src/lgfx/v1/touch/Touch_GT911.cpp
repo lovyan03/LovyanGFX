@@ -77,7 +77,6 @@ namespace lgfx
       _writeBytes(buf, 3);
       _writeReadBytes(buf, 2, &buf[2], 1);
       _refresh_rate = 5 + (buf[2] & 0x0F);
-      ESP_LOGE("DEBUG", "_refresh_rate:%d ", _refresh_rate);
 /*
       {
         uint8_t writedata[4] = { 0x80, 0x40 };
