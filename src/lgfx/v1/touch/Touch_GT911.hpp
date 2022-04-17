@@ -46,12 +46,18 @@ namespace lgfx
     void setTouchNums(int_fast8_t nums);
 
   private:
+    enum
+    {
+      max_touch_points = 5
+    };
+    uint32_t _last_update = 0;
     uint32_t _refresh_rate = 5;
-    uint8_t _readdata[42]; // 5point * 8byte + 2byte
+    uint8_t _readdata[max_touch_points * 8 + 2]; // 5point * 8byte + 2byte
 
-    void freshConfig(void);
-    bool writeBytes(const uint8_t* data, size_t len);
-    bool writeReadBytes(const uint8_t* write_data, size_t write_len, uint8_t* read_data, size_t read_len);
+    void _freshConfig(void);
+    bool _writeBytes(const uint8_t* data, size_t len);
+    bool _writeReadBytes(const uint8_t* write_data, size_t write_len, uint8_t* read_data, size_t read_len);
+    bool _update_data(void);
   };
 
 //----------------------------------------------------------------------------
