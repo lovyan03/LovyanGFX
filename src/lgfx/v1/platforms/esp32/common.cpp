@@ -260,7 +260,9 @@ namespace lgfx
 #if defined (ARDUINO) // Arduino ESP32
       if (spi_host == default_spi_host)
       {
+        SPI.end();
         SPI.begin(spi_sclk, spi_miso, spi_mosi);
+        _spi_handle[spi_host] = SPI.bus();
       }
       if (_spi_handle[spi_host] == nullptr)
       {
@@ -328,10 +330,7 @@ namespace lgfx
         {
           SPI.end();
         }
-        else
-        {
-          spiStopBus(_spi_handle[spi_host]);
-        }
+        spiStopBus(_spi_handle[spi_host]);
         _spi_handle[spi_host] = nullptr;
       }
 #endif
