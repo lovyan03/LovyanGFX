@@ -1,3 +1,5 @@
+# CMakeLists for ESP-IDF
+
 set(COMPONENT_ADD_INCLUDEDIRS
     src
     )
@@ -16,13 +18,15 @@ file(GLOB SRCS
      src/lgfx/v1/platforms/esp32/*.cpp
      src/lgfx/v1/platforms/esp32c3/*.cpp
      src/lgfx/v1/platforms/esp32s2/*.cpp
-     src/lgfx/v1/platforms/esp8266/*.cpp
-     src/lgfx/v1/platforms/samd21/*.cpp
-     src/lgfx/v1/platforms/samd51/*.cpp
-     src/lgfx/v1/platforms/stm32/*.cpp
+     src/lgfx/v1/platforms/esp32s3/*.cpp
      src/lgfx/v1/touch/*.cpp
      )
 set(COMPONENT_SRCS ${SRCS})
-set(COMPONENT_REQUIRES nvs_flash efuse)
+find_package(LCD COMPONENTS esp_lcd QUIET)
+if (NOT LCD_FOUND)
+   set(COMPONENT_REQUIRES nvs_flash efuse)
+else()
+  set(COMPONENT_REQUIRES nvs_flash efuse esp_lcd)
+endif()
 
 register_component()

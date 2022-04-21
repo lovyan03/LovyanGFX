@@ -56,8 +56,8 @@ namespace lgfx
 
   bool Panel_Device::init(bool use_reset)
   {
-    _bus->init();
     init_cs();
+    _bus->init();
     init_rst();
     if (_light)
     {

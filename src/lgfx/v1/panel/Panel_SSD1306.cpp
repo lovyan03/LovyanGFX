@@ -258,6 +258,24 @@ namespace lgfx
 
 //----------------------------------------------------------------------------
 
+  void Panel_SSD1306::setComPins(uint8_t data)
+  {
+    _compins = data;
+    if (_buf)
+    { /// 初期化済みの場合はここでコマンド送信する;
+      startWrite();
+      _bus->writeCommand(CMD_SETCOMPINS | data << 8, 16);
+      endWrite();
+    }
+  }
+
+  bool Panel_SSD1306::init(bool use_reset)
+  {
+    if (!Panel_1bitOLED::init(use_reset)) { return false; }
+    setComPins(_compins);
+    return true;
+  }
+
   void Panel_SSD1306::setBrightness(uint8_t brightness)
   {
     startWrite();
@@ -280,21 +298,27 @@ namespace lgfx
 
     uint_fast8_t xs = _range_mod.left;
     uint_fast8_t xe = _range_mod.right;
-    _bus->writeCommand(CMD_COLUMNADDR| (xs + _cfg.offset_x) << 8 | (xe + _cfg.offset_x) << 16, 24);
-
     uint_fast8_t ys = _range_mod.top    >> 3;
     uint_fast8_t ye = _range_mod.bottom >> 3;
-    _bus->writeCommand(CMD_PAGEADDR | (ys + (_cfg.offset_y >> 3)) << 8 | (ye + (_cfg.offset_y >> 3)) << 16, 24);
-    do
+    int retry = 3;
+    while (!(_bus->writeCommand(CMD_COLUMNADDR| (xs +  _cfg.offset_x      ) << 8 | (xe +  _cfg.offset_x      ) << 16, 24)
+          && _bus->writeCommand(CMD_PAGEADDR  | (ys + (_cfg.offset_y >> 3)) << 8 | (ye + (_cfg.offset_y >> 3)) << 16, 24)) && --retry)
     {
-      auto buf = &_buf[xs + ys * _cfg.panel_width];
-      _bus->writeBytes(buf, xe - xs + 1, true, true);
-    } while (++ys <= ye);
-
-    _range_mod.top    = INT16_MAX;
-    _range_mod.left   = INT16_MAX;
-    _range_mod.right  = 0;
-    _range_mod.bottom = 0;
+      _bus->endTransaction();
+      _bus->beginTransaction();
+    }
+    if (retry)
+    {
+      do
+      {
+        auto buf = &_buf[xs + ys * _cfg.panel_width];
+        _bus->writeBytes(buf, xe - xs + 1, true, true);
+      } while (++ys <= ye);
+      _range_mod.top    = INT16_MAX;
+      _range_mod.left   = INT16_MAX;
+      _range_mod.right  = 0;
+      _range_mod.bottom = 0;
+    }
   }
 
 //----------------------------------------------------------------------------

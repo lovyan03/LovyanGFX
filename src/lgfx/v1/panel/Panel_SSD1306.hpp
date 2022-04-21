@@ -75,11 +75,19 @@ namespace lgfx
       _cfg.memory_height = _cfg.panel_height = 64;
     }
 
+    bool init(bool use_reset) override;
     void setBrightness(uint8_t brightness) override;
-
     void display(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h) override;
 
+    /// OLEDパネルのCOMピン配置を設定する。;
+    /// This command sets the COM signals pin configuration to match the OLED panel hardware layout.
+    /// see SSD1306 data sheet  ( 10.1.18 Set COM Pins Hardware Configuration (DAh)
+    /// @param data SETCOMPINSで送信するデータ (0x02 or 0x12 or 0x22 or 0x32)
+    void setComPins(uint8_t data = 0x02);
+
   protected:
+
+    uint8_t _compins = 0x12;
 
     static constexpr uint8_t CMD_MEMORYMODE  = 0x20;
 
@@ -109,7 +117,6 @@ namespace lgfx
         CMD_MEMORYMODE         , 0x00,
         CMD_SEGREMAP           ,
         CMD_COMSCANINC         ,
-        CMD_SETCOMPINS         , 0x12,
         CMD_SETVCOMDETECT      , 0x10,
         CMD_DISPLAYALLON_RESUME,
         CMD_DEACTIVATE_SCROLL  ,

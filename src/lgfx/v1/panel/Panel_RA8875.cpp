@@ -37,18 +37,18 @@ namespace lgfx
       0x04      , 1+CMD_INIT_DELAY, 0x82, 1,    //PCLK
     // 0x14      , 1, 0x63, //HDWR//Horizontal Display Width Setting Bit[6:0]  //Horizontal display width(pixels) = (HDWR + 1)*8       0x27
       0x15      , 1, 0x02, //HNDFCR//Horizontal Non-Display Period fine tune Bit[3:0]  //(HNDR + 1)*8 +HNDFCR
-      0x16      , 1, 0x03, //HNDR//Horizontal Non-Display Period Bit[4:0] //Horizontal Non-Display Period (pixels) = (HNDR + 1)*8 
-      0x17      , 1, 0x01, //HSTR//HSYNC Start Position[4:0]  //HSYNC Start Position(PCLK) = (HSTR + 1)*8 
-      0x18      , 1, 0x03, //HPWR//HSYNC Polarity ,The period width of HSYNC.  //HSYNC Width [4:0]   HSYNC Pulse width(PCLK) = (HPWR + 1)*8 
+      0x16      , 1, 0x03, //HNDR//Horizontal Non-Display Period Bit[4:0] //Horizontal Non-Display Period (pixels) = (HNDR + 1)*8
+      0x17      , 1, 0x01, //HSTR//HSYNC Start Position[4:0]  //HSYNC Start Position(PCLK) = (HSTR + 1)*8
+      0x18      , 1, 0x03, //HPWR//HSYNC Polarity ,The period width of HSYNC.  //HSYNC Width [4:0]   HSYNC Pulse width(PCLK) = (HPWR + 1)*8
 
 //Vertical set
     // 0x19      , 1, 0xDF, //VDHR0 //Vertical Display Height Bit [7:0] //Vertical pixels = VDHR + 1	0xef
     // 0x1a      , 1, 0x01, //VDHR1 //Vertical Display Height Bit [8]  //Vertical pixels = VDHR + 1 	0x00
-      0x1b      , 1, 0x0F, //VNDR0 //Vertical Non-Display Period Bit [7:0]  //Vertical Non-Display area = (VNDR + 1) 
-      0x1c      , 1, 0x00, //VNDR1 //Vertical Non-Display Period Bit [8] //Vertical Non-Display area = (VNDR + 1) 
-      0x1d      , 1, 0x0e, //VSTR0 //VSYNC Start Position[7:0]  //VSYNC Start Position(PCLK) = (VSTR + 1) 
-      0x1e      , 1, 0x06, //VSTR1 //VSYNC Start Position[8]  //VSYNC Start Position(PCLK) = (VSTR + 1) 
-      0x1f      , 1, 0x01, //VPWR //VSYNC Polarity ,VSYNC Pulse Width[6:0]  //VSYNC Pulse Width(PCLK) = (VPWR + 1) 
+      0x1b      , 1, 0x0F, //VNDR0 //Vertical Non-Display Period Bit [7:0]  //Vertical Non-Display area = (VNDR + 1)
+      0x1c      , 1, 0x00, //VNDR1 //Vertical Non-Display Period Bit [8] //Vertical Non-Display area = (VNDR + 1)
+      0x1d      , 1, 0x0e, //VSTR0 //VSYNC Start Position[7:0]  //VSYNC Start Position(PCLK) = (VSTR + 1)
+      0x1e      , 1, 0x06, //VSTR1 //VSYNC Start Position[8]  //VSYNC Start Position(PCLK) = (VSTR + 1)
+      0x1f      , 1, 0x01, //VPWR //VSYNC Polarity ,VSYNC Pulse Width[6:0]  //VSYNC Pulse Width(PCLK) = (VPWR + 1)
 
       0x8a      , 1, 0x80, //PWM setting
       0x8a      , 1, 0x81, //PWM setting //open PWM
@@ -67,24 +67,21 @@ namespace lgfx
 
   bool Panel_RA8875::init(bool use_reset)
   {
+    _flg_serialbus = _bus->busType() == bus_spi;
+
     if (!Panel_Device::init(use_reset))
     {
       return false;
     }
 
-    uint32_t freq_write = 5000000;
-    if (_bus->busType() == bus_spi)
+    uint32_t freq_write = _bus->getClock();
+    if (freq_write > 5000000)
     {
       /// 初期化処理は低めのクロックで実施する。;
-      /// SPIクロックが速すぎると処理されないため。;
+      /// RA8875は起動直後は動作クロックが低く、送信クロックが速すぎると処理されないため。;
       /// 初期化時に動作クロックを上げるコマンドが実行されるので、;
       /// 初期化後にユーザーが設定した本来のクロックに戻す。;
-      _flg_serialbus = true;
-      auto cfg = ((Bus_SPI*)_bus)->config();
-      auto tmp = std::min<uint32_t>(freq_write, cfg.freq_write);
-      freq_write = cfg.freq_write;
-      cfg.freq_write = tmp;
-      ((Bus_SPI*)_bus)->config(cfg);
+      _bus->setClock(5000000);
     }
 
     startWrite(true);
@@ -95,23 +92,19 @@ namespace lgfx
     }
 
     {
-      //HDWR  // Horizontal Display Width Setting 
+      //HDWR  // Horizontal Display Width Setting
       _write_reg( 0x14, (_cfg.offset_x + _cfg.panel_width +7) >> 3);
 
       uint_fast16_t height = _cfg.offset_y + _cfg.panel_height - 1;
-      //VDHR0  // Vertical Display Height Setting 
+      //VDHR0  // Vertical Display Height Setting
       _write_reg( 0x19, height);
       _write_reg( 0x1a, height >> 8);
     }
 
     endWrite();
 
-    if (_bus->busType() == bus_spi)
-    { /// 初期化後にクロックをユーザー設定値に戻す;
-      auto cfg = ((Bus_SPI*)_bus)->config();
-      cfg.freq_write = freq_write;
-      ((Bus_SPI*)_bus)->config(cfg);
-    }
+    /// 初期化後にクロックをユーザー設定値に戻す;
+    _bus->setClock(freq_write);
 
     _latestcolor = 0;
 
@@ -144,6 +137,8 @@ namespace lgfx
     _in_transaction = true;
     _flg_memorywrite = false;
     _bus->beginTransaction();
+
+    if (!_flg_serialbus) { cs_control(false); }
   }
 
   void Panel_RA8875::endTransaction(void)
@@ -189,7 +184,7 @@ namespace lgfx
 
   void Panel_RA8875::update_madctl(void)
   {
-    //SYSR   bit[4:3]=00 256 color  bit[2:1]=  00 8bit MPU interface    1x 64k color  1x 16bit 						 
+    //SYSR   bit[4:3]=00 256 color  bit[2:1]=  00 8bit MPU interface    1x 64k color  1x 16bit
     _write_reg(0x10, _write_depth == rgb565_2Byte ? 0x0C : 0x00);
 
     uint_fast8_t data = 0;

@@ -94,6 +94,9 @@ namespace lgfx
   uint32_t getApbFrequency(void);
   uint32_t FreqToClockDiv(uint32_t fapb, uint32_t hz);
 
+  /// for I2S and LCD_CAM peripheral clock
+  void calcClockDiv(size_t* div_a, size_t* div_b, size_t* div_n, size_t* clkcnt, size_t baseClock, size_t targetFreq);
+
   // esp_efuse_get_pkg_ver
   uint32_t get_pkg_ver(void);
 
@@ -202,6 +205,14 @@ public:
   {
     cpp::result<void, error_t> init(int spi_host, int spi_sclk, int spi_miso, int spi_mosi, int dma_channel);
     void beginTransaction(int spi_host);
+  }
+
+//----------------------------------------------------------------------------
+
+  namespace i2c
+  {
+    cpp::result<void, error_t> setPins(int i2c_port, int pin_sda, int pin_scl);
+    cpp::result<void, error_t> init(int i2c_port);
   }
 
 //----------------------------------------------------------------------------

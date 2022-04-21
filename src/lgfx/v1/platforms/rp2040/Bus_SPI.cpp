@@ -229,8 +229,8 @@ namespace lgfx
       uint32_t len;
       do
       {
-        len = (limit << 1) <= length ? limit : length;
         if (limit <= 256) limit <<= 1;
+        len = (limit <= length) ? limit : length;
         auto dmabuf = _flip_buffer.getBuffer(limit * dst_bytes);
         param->fp_copy(dmabuf, 0, len, param);
         writeBytes(dmabuf, len * dst_bytes, true, true);

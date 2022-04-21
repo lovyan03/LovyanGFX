@@ -49,6 +49,12 @@ namespace lgfx
     /// ペリフェラルを解放する。;
     virtual void release(void) = 0;
 
+    /// 通信速度を取得する。;
+    virtual uint32_t getClock(void) const { return 0; }
+
+    /// 通信速度を設定する。;
+    virtual void setClock(uint32_t) {};
+
     /// 通信トランザクションを開始する。（ペリフェラルを占有する）;
     virtual void beginTransaction(void) = 0;
 

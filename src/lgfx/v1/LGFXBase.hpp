@@ -1117,7 +1117,7 @@ namespace lgfx
 
 //----------------------------------------------------------------------------
 
-  class Panel_Device;
+  struct Panel_Device;
 
   class LGFX_Device : public LovyanGFX
   {

@@ -38,12 +38,12 @@ namespace lgfx
     return ccsum;
   }
 
-  bool Touch_GT911::writeBytes(const uint8_t* data, size_t len)
+  bool Touch_GT911::_writeBytes(const uint8_t* data, size_t len)
   {
     return lgfx::i2c::transactionWrite(_cfg.i2c_port, _cfg.i2c_addr, data, len, _cfg.freq).has_value();
   }
 
-  bool Touch_GT911::writeReadBytes(const uint8_t* write_data, size_t write_len, uint8_t* read_data, size_t read_len)
+  bool Touch_GT911::_writeReadBytes(const uint8_t* write_data, size_t write_len, uint8_t* read_data, size_t read_len)
   {
     return lgfx::i2c::transactionWriteRead(_cfg.i2c_port, _cfg.i2c_addr, write_data, write_len, read_data, read_len, _cfg.freq).has_value();
   }
@@ -56,19 +56,27 @@ namespace lgfx
 
     if (isSPI()) return false;
 
+    if (_cfg.pin_rst >= 0)
+    {
+      lgfx::pinMode(_cfg.pin_rst, pin_mode_t::output);
+      lgfx::gpio_lo(_cfg.pin_rst);
+      lgfx::delay(1);
+      lgfx::gpio_hi(_cfg.pin_rst);
+    }
+
     if (_cfg.pin_int >= 0)
     {
       lgfx::lgfxPinMode(_cfg.pin_int, pin_mode_t::input);
     }
 
-    _inited = lgfx::i2c::init(_cfg.i2c_port, _cfg.pin_sda, _cfg.pin_scl).has_value() && writeBytes(gt911cmd_getdata, 3);
+    _inited = lgfx::i2c::init(_cfg.i2c_port, _cfg.pin_sda, _cfg.pin_scl).has_value() && _writeBytes(gt911cmd_getdata, 3);
 
     if (_inited)
     {
-      uint8_t buf[] = { 0x80, 0x56 };
-      writeReadBytes(buf, 2, buf, 1);
-
-      _refresh_rate = 5 + (buf[0] & 0x0F);
+      uint8_t buf[] = { 0x80, 0x56, 0x00 };
+      _writeBytes(buf, 3);
+      _writeReadBytes(buf, 2, &buf[2], 1);
+      _refresh_rate = 5 + (buf[2] & 0x0F);
 /*
       {
         uint8_t writedata[4] = { 0x80, 0x40 };
@@ -108,7 +116,34 @@ namespace lgfx
   {
     if (!_inited) return;
     static constexpr uint8_t writedata[] = { 0x80, 0x40, 0x05 };
-    writeBytes(writedata, 3);
+    _writeBytes(writedata, 3);
+  }
+
+  bool Touch_GT911::_update_data(void)
+  {
+    bool res = false;
+    if (lgfx::i2c::beginTransaction(_cfg.i2c_port, _cfg.i2c_addr, _cfg.freq, false))
+    {
+      uint8_t buf;
+      if (lgfx::i2c::writeBytes(_cfg.i2c_port, gt911cmd_getdata, 2)
+      && lgfx::i2c::restart(_cfg.i2c_port, _cfg.i2c_addr, _cfg.freq, true)
+      && lgfx::i2c::readBytes(_cfg.i2c_port, &buf, 1)
+      && (buf & 0x80))
+      {
+        uint_fast8_t points = std::min<uint_fast8_t>(max_touch_points, buf & 0x0Fu);
+        if (lgfx::i2c::readBytes(_cfg.i2c_port, &_readdata[1], points * 8))
+        {
+          _readdata[0] = buf;
+          res = true;
+        }
+      }
+      lgfx::i2c::endTransaction(_cfg.i2c_port).has_value();
+      if (res)
+      {
+        _writeBytes(gt911cmd_getdata, 3);
+      }
+    }
+    return res;
   }
 
   uint_fast8_t Touch_GT911::getTouchRaw(touch_point_t* __restrict tp, uint_fast8_t count)
@@ -116,29 +151,26 @@ namespace lgfx
     if (!_inited || count == 0) return 0;
     if (count > 5) { count = 5; }
 
+    uint32_t msec = lgfx::millis();
+    uint32_t diff_msec = msec - _last_update;
+    _last_update = msec;
+
     if ((_cfg.pin_int < 0 || !gpio_in(_cfg.pin_int)))
     {
-      if (lgfx::i2c::beginTransaction(_cfg.i2c_port, _cfg.i2c_addr, _cfg.freq, false))
+      /// GT911は値を0x814Eに0を書くまで同じ値を維持する挙動となっているため、;
+      /// 前回からの間隔が長すぎると古い情報が得られるので更新のため2回取得する;
+      bool flg = (diff_msec > _refresh_rate << 4);
+      if (!_update_data() || flg)
       {
-        uint8_t buf;
-        if (lgfx::i2c::writeBytes(_cfg.i2c_port, gt911cmd_getdata, 2)
-         && lgfx::i2c::restart(_cfg.i2c_port, _cfg.i2c_addr, _cfg.freq, true)
-         && lgfx::i2c::readBytes(_cfg.i2c_port, &buf, 1)
-         && (buf & 0x80))
+        if (flg)
         {
-          uint32_t points = std::min<uint_fast8_t>(count, buf & 0x0F);
-          if (lgfx::i2c::readBytes(_cfg.i2c_port, &_readdata[1], points * 8))
-          {
-            _readdata[0] = buf;
-          }
-          if (lgfx::i2c::endTransaction(_cfg.i2c_port)
-           && lgfx::i2c::beginTransaction(_cfg.i2c_port, _cfg.i2c_addr, _cfg.freq, false)
-           && lgfx::i2c::writeBytes(_cfg.i2c_port, gt911cmd_getdata, 3))
-          {}
+          _readdata[0] = 0;
+          delay(_refresh_rate);
         }
-        if (lgfx::i2c::endTransaction(_cfg.i2c_port)) {}
+        _update_data();
       }
     }
+
     uint32_t points = std::min<uint_fast8_t>(count, _readdata[0] & 0x0F);
     for (size_t idx = 0; idx < points; ++idx)
     {
@@ -156,26 +188,26 @@ namespace lgfx
     nums = std::max<int_fast8_t>(1, std::min<int_fast8_t>(5, nums));
 
     uint8_t buf[] = { 0x80, 0x4c, 0x00 };
-    writeReadBytes(buf, 2, &buf[2], 1);
+    _writeReadBytes(buf, 2, &buf[2], 1);
     if (buf[2] != nums)
     {
       buf[2] = nums;
-      writeBytes(buf, 3);
+      _writeBytes(buf, 3);
 
-      freshConfig();
+      _freshConfig();
     }
   }
 
-  void Touch_GT911::freshConfig(void)
+  void Touch_GT911::_freshConfig(void)
   {
-    // 設定レジスタ全体を読取り
+    // 設定レジスタ全体を読取り;
     uint8_t writedata[188] = { 0x80, 0x47 };
-    if (writeReadBytes(writedata, 2, &writedata[2], 184))
+    if (_writeReadBytes(writedata, 2, &writedata[2], 184))
     {
-      // チェックサムを計算し、設定値の更新指示を行う
+      // チェックサムを計算し、設定値の更新指示を行う;
       writedata[0xBA] = calcChecksum(&writedata[2], 184); // 0x80FF checksum
       writedata[0xBB] = 0x01;                             // 0x8100 config fresh
-      writeBytes(writedata, 188);
+      _writeBytes(writedata, 188);
     }
   }
 

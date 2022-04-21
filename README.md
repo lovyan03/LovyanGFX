@@ -3,6 +3,10 @@
 [![arduino-library-badge](https://www.ardu-badge.com/badge/LovyanGFX.svg?)](https://www.ardu-badge.com/LovyanGFX)
 [![PlatformIO Registry](https://badges.registry.platformio.org/packages/lovyan03/library/LovyanGFX.svg)](https://registry.platformio.org/packages/libraries/lovyan03/LovyanGFX)
 
+[![Arduino](https://github.com/lovyan03/LovyanGFX/actions/workflows/ArduinoBuild.yml/badge.svg?branch=master)](https://github.com/lovyan03/LovyanGFX/actions/workflows/ArduinoBuild.yml)
+[![Platformio](https://github.com/lovyan03/LovyanGFX/actions/workflows/PlatformioBuild.yml/badge.svg?branch=master)](https://github.com/lovyan03/LovyanGFX/actions/workflows/PlatformioBuild.yml)
+[![esp-idf](https://github.com/lovyan03/LovyanGFX/actions/workflows/IDFBuild.yml/badge.svg?branch=master)](https://github.com/lovyan03/LovyanGFX/actions/workflows/IDFBuild.yml)
+
 
 
 Display (LCD / OLED / EPD) graphics library (for ESP32 SPI, I2C, 8bitParallel / ESP8266 SPI, I2C / ATSAMD51 SPI).  
@@ -38,16 +42,16 @@ This library has the following advantages.
   - OpenCV can be used as a drawing destination and can run on a PC.  
 
 
-|        | SPI | I2C | 8bit Para|16bit Para|
-|:------:|:---:|:---:|:--------:|:--------:|
-|ESP32   | HW  | HW  | HW (I2S) | ---      |
-|ESP32-S2| HW  | HW  | HW (I2S) | HW (I2S) |
-|ESP32-S3| HW  | HW  | ---      | ---      |
-|ESP32-C3| HW  | HW  | SW       | ---      |
-|ESP8266 | HW  | SW  | ---      | ---      |
-|SAMD51  | HW  | HW  | ---      | ---      |
-|SAMD21  | HW  | HW  | ---      | ---      |
-|RP2040  | HW  | --- | ---      | ---      |
+|        | SPI | I2C | 8bit Para |16bit Para |
+|:------:|:---:|:---:|:---------:|:---------:|
+|ESP32   | HW  | HW  | HW (I2S)  | ---       |
+|ESP32-S2| HW  | HW  | HW (I2S)  | HW (I2S)  |
+|ESP32-S3| HW  | HW  |HW(LCD/CAM)|HW(LCD/CAM)|
+|ESP32-C3| HW  | HW  | SW        | ---       |
+|ESP8266 | HW  | SW  | ---       | ---       |
+|SAMD51  | HW  | HW  | ---       | ---       |
+|SAMD21  | HW  | HW  | ---       | ---       |
+|RP2040  | HW  | --- | ---       | ---       |
 
 ※ HW = HardWare Peripheral / SW = SoftWare implementation
 
@@ -90,6 +94,7 @@ This library has the following advantages.
     - I2C FT5x06 (FT5206, FT5306, FT5406, FT6206, FT6236, FT6336, FT6436)
     - I2C GSLx680 (GSL1680)
     - I2C GT911
+    - I2C NS2009
     - I2C TT21xxx (TT21100)
     - SPI XPT2046
     - SPI STMPE610
@@ -534,8 +539,5 @@ TomThumb font : [3-clause BSD](src/lgfx/Fonts/GFXFF/TomThumb.h) Brian J. Swetlan
     - SEPS525
     - RM68120
     - R61529
-
-  - タッチスクリーン TouchScreens
-    - NS2009
 
 

@@ -17,36 +17,54 @@ on:
 
 jobs:
   build:
-    name: ${{ matrix.pio-env }}
+    name: ${{ matrix.board }}@${{ matrix.platform-version }}
 
     runs-on: ubuntu-latest
 
     strategy:
       matrix:
 
-        pio-env:
-          - esp8266
+        board:
           - esp32
           - esp32-s2
+          - esp32-s3
           - m5stick-c
           - m5stack-core-esp32
           - m5stack-core2
-          - seeed_wio_terminal
-          - adafruit_pybadge_m4
-          #- m5stack-fire
-          #- odroid_esp32
+
+        platform-version:
+          - 1.0.6
+          - 2.0.0
+          - 2.0.1
+          - 2.0.2
+          - 2.0.3-RC1
+
+        exclude:
+          - board: esp32-s3
+            platform-version: 1.0.6
+          - board: esp32-s3
+            platform-version: 2.0.0
+          - board: esp32-s3
+            platform-version: 2.0.1
+          - board: esp32-s3
+            platform-version: 2.0.2
+          - board: esp32-s2
+            platform-version: 1.0.6
+          - board: esp32-s2
+            platform-version: 2.0.0
 
         include:
-          - pio-env: esp8266
-          - pio-env: esp32
-          - pio-env: esp32-s2
-          - pio-env: m5stick-c
-          - pio-env: m5stack-core2
-          - pio-env: m5stack-core-esp32
-          - pio-env: seeed_wio_terminal
-          - pio-env: adafruit_pybadge_m4
-          #- pio-env: m5stack-fire
-          #- pio-env: odroid_esp32
+          - board: esp32
+          - board: esp32-s2
+          - board: esp32-s3
+          - board: m5stick-c
+          - board: m5stack-core-esp32
+          - board: m5stack-core2
+          - { board: esp8266, platform-version: 3.0.0, ... }
+          - { board: esp8266, platform-version: 3.1.0, ... }
+          - { board: esp8266, platform-version: 3.2.0, ... }
+          - { board: seeed_wio_terminal, platform-version: default, ... }
+          - { board: adafruit_pybadge_m4, platform-version: default, ... }
 
       fail-fast: false
 
@@ -77,4 +95,8 @@ jobs:
           pip install --upgrade platformio
 
       - name: Run PlatformIO
-        run: cd ${{ env.PROJECT_DIR }} && pio run -e ${{ matrix.pio-env }}
+        
+        run: |
+          cd ${{ env.PROJECT_DIR }}
+          pio lib -e ${{ matrix.board }}@${{ matrix.platform-version }} install --no-save file://$(realpath ../../../)
+          pio run -e ${{ matrix.board }}@${{ matrix.platform-version }}
