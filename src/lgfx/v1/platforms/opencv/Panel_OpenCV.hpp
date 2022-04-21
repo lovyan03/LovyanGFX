@@ -42,7 +42,7 @@ namespace lgfx
     void beginTransaction(void) override;
     void endTransaction(void) override;
 
-    color_depth_t setColorDepth(color_depth_t depth);
+    color_depth_t setColorDepth(color_depth_t depth) override;
     void setRotation(uint_fast8_t r) override;
     void setInvert(bool invert) override {}
     void setSleep(bool flg) override {}

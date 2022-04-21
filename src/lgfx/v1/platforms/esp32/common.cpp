@@ -330,7 +330,10 @@ namespace lgfx
         {
           SPI.end();
         }
-        spiStopBus(_spi_handle[spi_host]);
+        else
+        {
+          spiStopBus(_spi_handle[spi_host]);
+        }
         _spi_handle[spi_host] = nullptr;
       }
 #endif
