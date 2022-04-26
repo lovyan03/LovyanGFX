@@ -95,7 +95,7 @@ jobs:
           pip install --upgrade platformio
 
       - name: Run PlatformIO
-        
+
         run: |
           cd ${{ env.PROJECT_DIR }}
           pio lib -e ${{ matrix.board }}@${{ matrix.platform-version }} install --no-save file://$(realpath ../../../)
