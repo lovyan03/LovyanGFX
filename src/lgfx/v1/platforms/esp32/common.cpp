@@ -525,12 +525,32 @@ namespace lgfx
 
       void save_reg(i2c_dev_t* dev)
       {
-        memcpy(_reg_store, (const void*)dev, sizeof(_reg_store));
+        auto reg = (volatile uint32_t*)dev;
+#if defined ( CONFIG_IDF_TARGET_ESP32S3 )
+        auto fifo_reg = (volatile uint32_t*)(&dev->data);
+#else
+        auto fifo_reg = (volatile uint32_t*)(&dev->fifo_data);
+#endif
+        for (size_t i = 0; i < sizeof(_reg_store) >> 2; ++i)
+        {
+          if (fifo_reg == &reg[i]) { continue; }
+          _reg_store[i] = reg[i];
+        }
       }
 
       void load_reg(i2c_dev_t* dev)
       {
-        memcpy((void*)dev, _reg_store, sizeof(_reg_store));
+        auto reg = (volatile uint32_t*)dev;
+#if defined ( CONFIG_IDF_TARGET_ESP32S3 )
+        auto fifo_reg = (volatile uint32_t*)(&dev->data);
+#else
+        auto fifo_reg = (volatile uint32_t*)(&dev->fifo_data);
+#endif
+        for (size_t i = 0; i < sizeof(_reg_store) >> 2; ++i)
+        {
+          if (fifo_reg == &reg[i]) { continue; }
+          reg[i] = _reg_store[i];
+        }
       }
 
       void setPins(i2c_dev_t* dev, gpio_num_t scl, gpio_num_t sda)
@@ -648,6 +668,7 @@ namespace lgfx
       static constexpr uint32_t intmask = I2C_ACK_ERR_INT_RAW_M | I2C_END_DETECT_INT_RAW_M | I2C_ARBITRATION_LOST_INT_RAW_M;
       if (i2c_context[i2c_port].wait_ack)
       {
+        i2c_context[i2c_port].wait_ack = false;
         int_raw.val = dev->int_raw.val;
         if (!(int_raw.val & intmask))
         {
@@ -717,7 +738,6 @@ namespace lgfx
           i2c_context[i2c_port].state = i2c_context_t::state_t::state_disconnect;
         }
       }
-      i2c_context[i2c_port].wait_ack = false;
       return res;
     }
 
@@ -1097,21 +1117,21 @@ namespace lgfx
         }
         i2c_set_cmd(dev, 0, i2c_cmd_read, len);
         i2c_set_cmd(dev, 1, i2c_cmd_end, 0);
-        dev->int_clr.val = intmask;
         updateDev(dev);
         dev->ctr.trans_start = 1;
         taskYIELD();
+        dev->int_clr.val = intmask;
         do
         {
           uint32_t us = lgfx::micros();
 #if defined ( CONFIG_IDF_TARGET_ESP32C3 )
-          while (0 == dev->sr.rx_fifo_cnt && !(dev->int_raw.val & intmask) && ((micros() - us) <= us_limit));
+          while (0 == dev->sr.rx_fifo_cnt && !(dev->int_raw.val & intmask) && ((lgfx::micros() - us) <= us_limit));
           if (0 != dev->sr.rx_fifo_cnt)
 #elif defined ( CONFIG_IDF_TARGET_ESP32S3 )
-          while (0 == dev->sr.rxfifo_cnt && !(dev->int_raw.val & intmask) && ((micros() - us) <= us_limit));
+          while (0 == dev->sr.rxfifo_cnt && !(dev->int_raw.val & intmask) && ((lgfx::micros() - us) <= us_limit));
           if (0 != dev->sr.rxfifo_cnt)
 #else
-          while (0 == dev->status_reg.rx_fifo_cnt && !(dev->int_raw.val & intmask) && ((micros() - us) <= us_limit));
+          while (0 == dev->status_reg.rx_fifo_cnt && !(dev->int_raw.val & intmask) && ((lgfx::micros() - us) <= us_limit));
           if (0 != dev->status_reg.rx_fifo_cnt)
 #endif
           {

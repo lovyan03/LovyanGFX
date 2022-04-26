@@ -98,6 +98,35 @@ namespace lgfx
     _write_reg(FT5x06_POWER_REG, FT5x06_SLEEP_IN);
   }
 
+  size_t Touch_FT5x06::_read_data(uint8_t* readdata)
+  {
+    /// 戻り値res: 通信に失敗した場合は0、通信に成功した場合はByte数
+    size_t res = 0;
+    if (lgfx::i2c::beginTransaction(_cfg.i2c_port, _cfg.i2c_addr, _cfg.freq, false))
+    {
+      readdata[0] = 0x02;
+      if (lgfx::i2c::writeBytes(_cfg.i2c_port, readdata, 1)
+      && lgfx::i2c::restart(_cfg.i2c_port, _cfg.i2c_addr, _cfg.freq, true)
+      && lgfx::i2c::readBytes(_cfg.i2c_port, readdata, 1))
+      {
+        uint_fast8_t points = std::min<uint_fast8_t>(max_touch_points, readdata[0] & 0x0Fu);
+        if (points)
+        {
+          if (lgfx::i2c::readBytes(_cfg.i2c_port, &readdata[1], points * 6 - 2))
+          {
+            res = points * 6 - 1;
+          }
+        }
+        else
+        {
+          res = 1;
+        }
+      }
+      lgfx::i2c::endTransaction(_cfg.i2c_port).has_value();
+    }
+    return res;
+  }
+
   uint_fast8_t Touch_FT5x06::getTouchRaw(touch_point_t *tp, uint_fast8_t count)
   {
     if (!_check_init() || count == 0) return 0;
@@ -113,21 +142,23 @@ namespace lgfx
         return 0;
       }
     }
-    if (count > 5) count = 5;  // 最大５点まで
-    size_t len = count * 6 - 1;
+    if (count > max_touch_points) { count = max_touch_points; }
 
-    uint8_t tmp[2][30];
-    _read_reg(0x02, tmp[0], len);
+    uint8_t readdata[2][30];
+    size_t readlen[2];
+    if (1 == (readlen[0] = _read_data(readdata[0]))) { return 0; }
+    size_t comparelen;
     int32_t retry = 5;
     do
     { // 読出し中に値が変わる事があるので、連続読出しして前回と同値でなければリトライする
-      _read_reg(0x02, tmp[retry & 1], len);
-    } while (memcmp(tmp[0], tmp[1], len) && --retry);
+      readlen[retry & 1] = _read_data(readdata[retry & 1]);
+      comparelen = std::min(readlen[0], readlen[1]);
+    } while ((0 == comparelen || memcmp(readdata[0], readdata[1], readlen[0])) && --retry);
 
-    if (count > tmp[0][0]) count = tmp[0][0];
+    if (count > readdata[0][0]) count = readdata[0][0];
     for (size_t idx = 0; idx < count; ++idx)
     {
-      auto data = &tmp[0][idx * 6];
+      auto data = &readdata[0][idx * 6];
       tp[idx].size = 1;
       tp[idx].x = (data[1] & 0x0F) << 8 | data[2];
       tp[idx].y = (data[3] & 0x0F) << 8 | data[4];
