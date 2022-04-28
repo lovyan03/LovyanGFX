@@ -23,8 +23,10 @@ Contributors:
 
 #include <chrono>
 #include <thread>
+#include <mutex>
 
 static cv::TickMeter _tm;
+static std::mutex _m;
 
 namespace lgfx
 {
@@ -34,6 +36,7 @@ namespace lgfx
 
   unsigned long millis(void)
   {
+    std::lock_guard<std::mutex> lock(_m);
     _tm.stop();
     auto res = _tm.getTimeMilli();
     _tm.start();
@@ -42,6 +45,7 @@ namespace lgfx
 
   unsigned long micros(void)
   {
+    std::lock_guard<std::mutex> lock(_m);
     _tm.stop();
     auto res = _tm.getTimeMicro();
     _tm.start();
