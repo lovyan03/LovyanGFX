@@ -18,7 +18,7 @@ Contributors:
 Porting for SDL:
  [imliubo](https://github.com/imliubo)
 /----------------------------------------------------------------------------*/
-#if __has_include(<SDL2/SDL.h>) || __has_include(<SDL.h>)
+#if defined ( LGFX_SDL )
 
 #include "Panel_sdl.hpp"
 
@@ -600,9 +600,9 @@ namespace lgfx
   void Panel_sdl::sdl_create(monitor_t * m)
   {
     int flag = 0;
-    #if SDL_FULLSCREEN
-        flag |= SDL_WINDOW_FULLSCREEN;
-    #endif
+#if SDL_FULLSCREEN
+    flag |= SDL_WINDOW_FULLSCREEN;
+#endif
     m->panel = this;
     m->window = SDL_CreateWindow("LGFX Simulator",
                               SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,

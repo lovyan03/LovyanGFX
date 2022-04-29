@@ -43,9 +43,9 @@ void loop()
   lgfx::touch_point_t new_tp;
   if (lcd.getTouch(&new_tp))
   {
-	target_x = new_tp.x * 256;
-	target_y = new_tp.y * 256;
-	lcd.drawCircle(new_tp.x, new_tp.y, 5, TFT_WHITE);
+    target_x = new_tp.x * 256;
+    target_y = new_tp.y * 256;
+    lcd.drawCircle(new_tp.x, new_tp.y, 5, TFT_WHITE);
   }
   lgfx::delay(1);
 

@@ -18,7 +18,7 @@ Contributors:
 Porting for SDL:
  [imliubo](https://github.com/imliubo)
 /----------------------------------------------------------------------------*/
-#if __has_include(<SDL2/SDL.h>) || __has_include(<SDL.h>)
+#if defined ( LGFX_SDL )
 
 #include "common.hpp"
 

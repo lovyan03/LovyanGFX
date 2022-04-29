@@ -12,7 +12,7 @@ file(GLOB Target_Files RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} CONFIGURE_DEPENDS
     ../../../../LovyanGFX/src/lgfx/utility/*.c
     ../../../../LovyanGFX/src/lgfx/v1/*.cpp
     ../../../../LovyanGFX/src/lgfx/v1/misc/*.cpp
-    ../../../../LovyanGFX/src/lgfx/v1/panel/*.cpp
+    ../../../../LovyanGFX/src/lgfx/v1/panel/Panel_Device.cpp
     ../../../../LovyanGFX/src/lgfx/v1/platforms/opencv/*.cpp
     )
 add_executable (LGFXOpenCV ${Target_Files})

@@ -63,11 +63,11 @@ Contributors:
 
   #include "LGFX_AutoDetect_OpenCV.hpp"
 
-#elif __has_include(<SDL2/SDL.h>) || __has_include(<SDL.h>)
+#elif defined (LGFX_SDL)
 
   #include "LGFX_AutoDetect_sdl.hpp"
 
-#elif defined (__linux__)
+#elif defined (LGFX_LINUX_FB)
 
   #include "LGFX_AutoDetect_FrameBuffer.hpp"
 
