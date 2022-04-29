@@ -1,34 +1,52 @@
-﻿#include <stdio.h>  // for drawBmpFile / drawJpgFile / drawPngFile
+#include <thread>
 
 #define LGFX_USE_V1
 #include <LovyanGFX.hpp>
 #include <LGFX_AUTODETECT.hpp>
 
-#define SCREEN_X 320
-#define SCREEN_Y 240
+void setup(void);
+void loop(void);
 
-LGFX lcd ( SCREEN_X, SCREEN_Y );
-
-int32_t target_x = (SCREEN_X / 2) * 256;
-int32_t target_y = (SCREEN_Y / 2) * 256;
-int32_t current_x = 0;
-int32_t current_y = 0;
-int32_t add_x = 0;
-int32_t add_y = 0;
-
-void setup()
+static int loopThread(void*)
 {
-  lcd.init();
+  setup();
+  for (;;)
+  {
+    loop();
+    std::this_thread::yield();
+  }
 }
 
-void loop()
+static int taskThread(void*)
 {
-  static uint32_t i;
-  ++i;
-  lcd.fillCircle(current_x >> 8, current_y >> 8, 5, i);
-  current_x += add_x;
-  current_y += add_y;
-  add_x += (current_x < target_x) ? 1 : -1;
-  add_y += (current_y < target_y) ? 1 : -1;
-  lgfx::delay(1);
+  for (;;)
+  {
+    lgfx::Panel_sdl::sdl_event_handler();
+    std::this_thread::yield();
+  }
+}
+
+int main(int, char**)
+{
+//*
+//    setup();
+//    SDL_CreateThread(loopThread, "loopThread", nullptr);
+  std::thread sub_thread(loopThread, nullptr);
+  for (;;)
+  {
+    std::this_thread::yield();
+    lgfx::Panel_sdl::sdl_event_handler();
+//    SDL_Delay(1);
+  }
+/*/
+  setup();
+//  std::thread sub_thread(taskThread);
+  SDL_CreateThread(taskThread, "taskThread", nullptr);
+  for (;;)
+  {
+    loop();
+    SDL_Delay(1);
+    std::this_thread::yield();
+  }
+//*/
 }

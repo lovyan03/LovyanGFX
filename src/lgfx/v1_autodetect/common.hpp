@@ -63,7 +63,7 @@ Contributors:
 
   #include "LGFX_AutoDetect_OpenCV.hpp"
 
-#elif __has_include(<SDL2/SDL.h>)
+#elif __has_include(<SDL2/SDL.h>) || __has_include(<SDL.h>)
 
   #include "LGFX_AutoDetect_sdl.hpp"
 

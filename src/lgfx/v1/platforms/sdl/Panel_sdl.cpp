@@ -18,7 +18,7 @@ Contributors:
 Porting for SDL:
  [imliubo](https://github.com/imliubo)
 /----------------------------------------------------------------------------*/
-#if __has_include(<SDL2/SDL.h>)
+#if __has_include(<SDL2/SDL.h>) || __has_include(<SDL.h>)
 
 #include "Panel_sdl.hpp"
 
@@ -31,6 +31,17 @@ namespace lgfx
 {
  inline namespace v1
  {
+
+  static std::list<monitor_t*> _list_monitor;
+
+  static monitor_t* const getMonitorByWindowID(uint32_t windowID)
+  {
+    for (auto& m : _list_monitor)
+    {
+      if (SDL_GetWindowID(m->window) == windowID) { return m; }
+    }
+    return nullptr;
+  }
 //----------------------------------------------------------------------------
   static void memset_multi(uint8_t* buf, uint32_t c, size_t size, size_t length)
   {
@@ -92,23 +103,48 @@ namespace lgfx
 
   void Panel_sdl::sdl_event_handler(void)
   {
+    for (auto& m : _list_monitor)
+    {
+      if (m->renderer == nullptr)
+      {
+        m->panel->sdl_create(m);
+      }
+      sdl_update(m);
+    }
     SDL_Event event;
-    while(SDL_PollEvent(&event)) {
-      // TODO
-      // mouse and keyboard event handle
-      if((&event)->type == SDL_WINDOWEVENT) {
+    while (SDL_PollEvent(&event))
+    {
+      if (event.type == SDL_MOUSEBUTTONDOWN || event.type == SDL_MOUSEBUTTONUP || event.type == SDL_MOUSEMOTION)
+      {
+        auto mon = getMonitorByWindowID(event.button.windowID);
+        if (mon != nullptr)
+        {
+          SDL_GetMouseState(&mon->touch_x, &mon->touch_y);
+          if (event.type == SDL_MOUSEBUTTONDOWN && event.button.button == SDL_BUTTON_LEFT)
+          {
+            mon->touched = true;
+          }
+          if (event.type == SDL_MOUSEBUTTONUP && event.button.button == SDL_BUTTON_LEFT)
+          {
+            mon->touched = false;
+          }
+        }
+      }
+      else if (event.type == SDL_WINDOWEVENT) {
+
         switch((&event)->window.event) {
   #if SDL_VERSION_ATLEAST(2, 0, 5)
           case SDL_WINDOWEVENT_TAKE_FOCUS:
   #endif
           case SDL_WINDOWEVENT_EXPOSED:
-          // sdl_update(&monitor);
           break;
           default:
           break;
         }
       }
     }
+    //*
+    //*/
   }
 
   Panel_sdl::~Panel_sdl(void)
@@ -118,41 +154,33 @@ namespace lgfx
 
   Panel_sdl::Panel_sdl(void) : Panel_Device()
   {
-  }
-
-  bool Panel_sdl::init(bool use_reset)
-  {
+    monitor.panel = this;
+    static bool inited = false;
+    if (inited) { return; }
     /*Initialize the SDL*/
     SDL_Init(SDL_INIT_VIDEO);
 
     SDL_SetEventFilter(quit_filter, this);
 
-    sdl_create(&monitor);
-
     SDL_StartTextInput();
+  }
+
+  bool Panel_sdl::init(bool use_reset)
+  {
+    size_t len = _cfg.panel_width * _cfg.panel_height * sizeof(bgr888_t) + 16;
+    monitor.tft_fb = (bgr888_t*)malloc(len);
+    memset(monitor.tft_fb, 0x44, len);
+
+    _list_monitor.push_back(&monitor);
 
     return Panel_Device::init(use_reset);
   }
 
-  void Panel_sdl::display(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h)
-  {
-    sdl_update(&monitor);
-  }
-
   color_depth_t Panel_sdl::setColorDepth(color_depth_t depth)
   {
-    _write_bits = 32;
-    _read_bits = 32;
-    _write_depth = color_depth_t::argb8888_4Byte;
-    _read_depth = color_depth_t::argb8888_4Byte;
-    return color_depth_t::argb8888_4Byte;
-  }
-
-  void Panel_sdl::beginTransaction(void) {}
-
-  void Panel_sdl::endTransaction(void)
-  {
-    display(0, 0, 320, 240);
+    _write_depth = color_depth_t::rgb888_3Byte;
+    _read_depth = color_depth_t::rgb888_3Byte;
+    return _write_depth;
   }
 
   void Panel_sdl::setRotation(uint_fast8_t r)
@@ -212,9 +240,9 @@ namespace lgfx
     {
       uint_fast8_t bytes = _write_bits >> 3;
       uint_fast16_t bw = _cfg.panel_width;
-      uint8_t* dst = &monitor.tft_fb[(x + y * bw) * bytes];
-      uint8_t* src = dst;
-      uint_fast16_t add_dst = bw * bytes;
+      auto* dst = &monitor.tft_fb[(x + y * bw)];
+      auto* src = dst;
+      uint_fast16_t add_dst = bw;
       uint_fast16_t len = w * bytes;
 
       if (w != bw)
@@ -226,7 +254,7 @@ namespace lgfx
         w *= h;
         h = 1;
       }
-      memset_multi(src, rawcolor, bytes, w);
+      memset_multi((uint8_t*)src, rawcolor, bytes, w);
       while (--h)
       {
         memcpy(dst, src, len);
@@ -238,7 +266,7 @@ namespace lgfx
       size_t bw = _cfg.panel_width;
       size_t index = x + y * bw;
       {
-        auto img = &((bgra8888_t*)monitor.tft_fb)[index];
+        auto img = &((bgr888_t*)monitor.tft_fb)[index];
         do { *img = rawcolor; img += bw; } while (--h);
       }
     }
@@ -550,8 +578,8 @@ namespace lgfx
     int32_t add = _cfg.panel_width * bytes;
     if (src_y < dst_y) add = -add;
     int32_t pos = (src_y < dst_y) ? h - 1 : 0;
-    uint8_t* src = &monitor.tft_fb[(src_x + (src_y + pos) * _cfg.panel_width) * bytes];
-    uint8_t* dst = &monitor.tft_fb[(dst_x + (dst_y + pos) * _cfg.panel_width) * bytes];
+    uint8_t* src = (uint8_t*)&monitor.tft_fb[(src_x + (src_y + pos) * _cfg.panel_width)];
+    uint8_t* dst = (uint8_t*)&monitor.tft_fb[(dst_x + (dst_y + pos) * _cfg.panel_width)];
     do
     {
       memmove(dst, src, len);
@@ -562,7 +590,11 @@ namespace lgfx
 
   uint_fast8_t Panel_sdl::getTouchRaw(touch_point_t* tp, uint_fast8_t count)
   {
-    return 0;
+    tp->x = monitor.touch_x;
+    tp->y = monitor.touch_y;
+    tp->size = monitor.touched ? 1 : 0;
+    tp->id = 0;
+    return monitor.touched;
   }
 
   void Panel_sdl::sdl_create(monitor_t * m)
@@ -571,24 +603,20 @@ namespace lgfx
     #if SDL_FULLSCREEN
         flag |= SDL_WINDOW_FULLSCREEN;
     #endif
-
+    m->panel = this;
     m->window = SDL_CreateWindow("LGFX Simulator",
                               SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
                               _cfg.panel_width * 1, _cfg.panel_height * 1, flag);       /*last param. SDL_WINDOW_BORDERLESS to hide borders*/
 
     m->renderer = SDL_CreateRenderer(m->window, -1, SDL_RENDERER_SOFTWARE);
     m->texture = SDL_CreateTexture(m->renderer,
-                                SDL_PIXELFORMAT_BGRA8888, SDL_TEXTUREACCESS_STATIC, _cfg.panel_width, _cfg.panel_height);
-    SDL_SetTextureBlendMode(m->texture, SDL_BLENDMODE_BLEND);
-
-    m->tft_fb = (uint8_t *)malloc(_cfg.panel_width * _cfg.panel_height * sizeof(uint32_t));
-    memset(m->tft_fb, 0x44, _cfg.panel_width * _cfg.panel_height * sizeof(uint32_t));
+                                SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_STATIC, _cfg.panel_width, _cfg.panel_height);
+    SDL_SetTextureBlendMode(m->texture, SDL_BLENDMODE_NONE);
   }
 
-  void Panel_sdl::sdl_update(monitor_t * m)
+  void Panel_sdl::sdl_update(const monitor_t* const m)
   {
-    SDL_UpdateTexture(m->texture, NULL, m->tft_fb, _cfg.panel_width * sizeof(uint32_t));
-    SDL_RenderClear(m->renderer);
+    SDL_UpdateTexture(m->texture, NULL, m->tft_fb, m->panel->config().panel_width * sizeof(bgr888_t));
 
     /*Update the renderer with the texture containing the rendered image*/
     SDL_RenderCopy(m->renderer, m->texture, NULL, NULL);
@@ -597,6 +625,7 @@ namespace lgfx
 
   void Panel_sdl::sdl_quit(void)
   {
+    _list_monitor.remove(&monitor);
     SDL_DestroyTexture(monitor.texture);
     SDL_DestroyRenderer(monitor.renderer);
     SDL_DestroyWindow(monitor.window);

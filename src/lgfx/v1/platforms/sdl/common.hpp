@@ -27,6 +27,13 @@ Porting for SDL:
 #include <malloc.h>
 #include <stdio.h>
 
+#if __has_include(<SDL2/SDL.h>)
+#include <SDL2/SDL.h>
+#endif
+#if __has_include(<SDL.h>)
+#include <SDL.h>
+#endif
+
 namespace lgfx
 {
  inline namespace v1
