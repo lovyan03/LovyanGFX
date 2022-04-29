@@ -38,6 +38,8 @@ namespace lgfx
     volatile bool sdl_refr_qry;
     bgr888_t* tft_fb = nullptr;
     Panel_sdl* panel = nullptr;
+    int scaling_x = 1;
+    int scaling_y = 1;
     bool touched = false;
     int touch_x, touch_y;
   };
@@ -80,6 +82,9 @@ namespace lgfx
 
     uint_fast8_t getTouchRaw(touch_point_t* tp, uint_fast8_t count) override;
     void sdl_quit(void);
+
+
+    void setScaling(uint_fast8_t scaling_x, uint_fast8_t scaling_y);
 
   private:
     void sdl_create(monitor_t * m);

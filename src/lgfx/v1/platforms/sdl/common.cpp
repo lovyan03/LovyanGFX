@@ -47,19 +47,23 @@ namespace lgfx
 
   void delay(unsigned long milliseconds)
   {
-    if (milliseconds < 20)
+    if (milliseconds < 1024)
     {
       delayMicroseconds(milliseconds * 1000);
     }
     else
     {
-      std::this_thread::sleep_for(std::chrono::milliseconds(milliseconds));
+      std::this_thread::sleep_for(std::chrono::milliseconds(milliseconds - 1));
     }
   }
 
   void delayMicroseconds(unsigned int us)
   {
     auto start = micros();
+    if (us >= 2000)
+    {
+      std::this_thread::sleep_for(std::chrono::milliseconds((us / 1000) - 1));
+    }
     do
     {
       std::this_thread::yield();

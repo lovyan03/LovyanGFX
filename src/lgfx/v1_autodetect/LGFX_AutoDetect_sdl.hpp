@@ -38,7 +38,7 @@ namespace lgfx
 
   public:
 
-    LGFX(int width = 320, int height = 240)
+    LGFX(int width = 320, int height = 240, uint_fast8_t scaling_x = 1, uint_fast8_t scaling_y = 1)
     {
       auto cfg = _panel_instance.config();
       cfg.memory_width = width;
@@ -46,6 +46,7 @@ namespace lgfx
       cfg.memory_height = height;
       cfg.panel_height = height;
       _panel_instance.config(cfg);
+      _panel_instance.setScaling(scaling_x, scaling_y);
       setPanel(&_panel_instance);
       _board = board_t::board_SDL;
     }

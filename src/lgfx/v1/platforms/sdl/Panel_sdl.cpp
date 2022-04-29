@@ -143,13 +143,17 @@ namespace lgfx
         }
       }
     }
-    //*
-    //*/
+  }
+
+  void Panel_sdl::setScaling(uint_fast8_t scaling_x, uint_fast8_t scaling_y)
+  {
+    monitor.scaling_x = scaling_x;
+    monitor.scaling_y = scaling_y;
   }
 
   Panel_sdl::~Panel_sdl(void)
   {
-    sdl_quit();
+    _list_monitor.remove(&monitor);
   }
 
   Panel_sdl::Panel_sdl(void) : Panel_Device()
@@ -167,7 +171,7 @@ namespace lgfx
 
   bool Panel_sdl::init(bool use_reset)
   {
-    size_t len = _cfg.panel_width * _cfg.panel_height * sizeof(bgr888_t) + 16;
+    uint32_t len = _cfg.panel_width * _cfg.panel_height * sizeof(bgr888_t) + 16;
     monitor.tft_fb = (bgr888_t*)malloc(len);
     memset(monitor.tft_fb, 0x44, len);
 
@@ -590,8 +594,8 @@ namespace lgfx
 
   uint_fast8_t Panel_sdl::getTouchRaw(touch_point_t* tp, uint_fast8_t count)
   {
-    tp->x = monitor.touch_x;
-    tp->y = monitor.touch_y;
+    tp->x = monitor.touch_x / monitor.scaling_x;
+    tp->y = monitor.touch_y / monitor.scaling_y;
     tp->size = monitor.touched ? 1 : 0;
     tp->id = 0;
     return monitor.touched;
@@ -606,7 +610,7 @@ namespace lgfx
     m->panel = this;
     m->window = SDL_CreateWindow("LGFX Simulator",
                               SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-                              _cfg.panel_width * 1, _cfg.panel_height * 1, flag);       /*last param. SDL_WINDOW_BORDERLESS to hide borders*/
+                              _cfg.panel_width * m->scaling_x, _cfg.panel_height * m->scaling_y, flag);       /*last param. SDL_WINDOW_BORDERLESS to hide borders*/
 
     m->renderer = SDL_CreateRenderer(m->window, -1, SDL_RENDERER_SOFTWARE);
     m->texture = SDL_CreateTexture(m->renderer,
@@ -625,7 +629,6 @@ namespace lgfx
 
   void Panel_sdl::sdl_quit(void)
   {
-    _list_monitor.remove(&monitor);
     SDL_DestroyTexture(monitor.texture);
     SDL_DestroyRenderer(monitor.renderer);
     SDL_DestroyWindow(monitor.window);
