@@ -876,6 +876,52 @@ namespace lgfx
     endWrite();
   }
 
+  constexpr float LoAlphaTheshold = 1.0 / 32.0;
+  constexpr float HiAlphaTheshold = 1.0 - LoAlphaTheshold;
+  void LGFXBase::fillSmoothRoundRect(int32_t x, int32_t y, int32_t w, int32_t h, int32_t r)
+  {
+    startWrite();
+    int32_t xs = 0;
+    int32_t cx = 0;
+    uint32_t rgb888 = _write_conv.revert_rgb888(_color.raw);
+    // Limit radius to half width or height
+    if (r > w / 2) r = w / 2;
+    if (r > h / 2) r = h / 2;
+
+    y += r;
+    h -= 2 * r;
+    fillRect(x, y, w, h);
+    h--;
+    x += r;
+    w -= 2 * r + 1;
+    int32_t r1 = r * r;
+    r++;
+    int32_t r2 = r * r;
+
+    for (int32_t cy = r - 1; cy > 0; cy--)
+    {
+      int32_t dy2 = (r - cy) * (r - cy);
+      for (cx = xs; cx < r; cx++)
+      {
+        int32_t hyp2 = (r - cx) * (r - cx) + dy2;
+        if (hyp2 <= r1) break;
+        if (hyp2 >= r2) continue;
+        float alphaf = (float)r - sqrtf(hyp2);
+        if (alphaf > HiAlphaTheshold) break;
+        xs = cx;
+        if (alphaf < LoAlphaTheshold) continue;
+        uint8_t alpha = alphaf * 255;
+        fillRectAlpha(x + cx - r    , y + cy - r    , 1, 1, alpha, rgb888);
+        fillRectAlpha(x - cx + r + w, y + cy - r    , 1, 1, alpha, rgb888);
+        fillRectAlpha(x - cx + r + w, y - cy + r + h, 1, 1, alpha, rgb888);
+        fillRectAlpha(x + cx - r    , y - cy + r + h, 1, 1, alpha, rgb888);
+      }
+      writeFastHLine(x + cx - r, y + cy - r, 2 * (r - cx) + 1 + w);
+      writeFastHLine(x + cx - r, y - cy + r + h, 2 * (r - cx) + 1 + w);
+    }
+    endWrite();
+  }
+
   void LGFXBase::drawEllipseArc(int32_t x, int32_t y, int32_t r0x, int32_t r1x, int32_t r0y, int32_t r1y, float start, float end)
   {
     if (r0x < r1x) std::swap(r0x, r1x);

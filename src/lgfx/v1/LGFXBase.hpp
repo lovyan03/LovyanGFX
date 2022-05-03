@@ -158,6 +158,12 @@ namespace lgfx
     LGFX_INLINE_T void drawGradientVLine( int32_t x, int32_t y, int32_t h, const T& colorstart, const T& colorend ) { drawGradientLine( x, y, x, y + h - 1, colorstart, colorend ); }
     LGFX_INLINE_T void drawGradientLine ( int32_t x0, int32_t y0, int32_t x1, int32_t y1, const T& colorstart, const T& colorend ) { draw_gradient_line( x0, y0, x1, y1, convert_to_rgb888(colorstart), convert_to_rgb888(colorend) ); }
 
+    LGFX_INLINE_T void fillSmoothRoundRect(int32_t x, int32_t y, int32_t w, int32_t h, int32_t r, const T& color) { setColor(color); fillSmoothRoundRect(x, y, w, h, r); }
+                  void fillSmoothRoundRect(int32_t x, int32_t y, int32_t w, int32_t h, int32_t r);
+
+    LGFX_INLINE_T void fillSmoothCircle(int32_t x, int32_t y, int32_t r, const T& color) { setColor(color); fillSmoothCircle(x, y, r); }
+                  void fillSmoothCircle(int32_t x, int32_t y, int32_t r) { fillSmoothRoundRect(x-r, y-r, r*2+1, r*2+1, r); }
+
     LGFX_INLINE_T void fillScreen  ( const T& color) { setColor(color); fillRect(0, 0, width(), height()); }
     LGFX_INLINE   void fillScreen  ( void )          {                  fillRect(0, 0, width(), height()); }
 
