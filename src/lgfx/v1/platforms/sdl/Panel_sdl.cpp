@@ -103,6 +103,7 @@ namespace lgfx
 
   void Panel_sdl::sdl_event_handler(void)
   {
+    SDL_Delay(1);
     for (auto& m : _list_monitor)
     {
       if (m->renderer == nullptr)
@@ -437,7 +438,7 @@ namespace lgfx
       auto bits = param->src_bits;
 
       auto bw = _cfg.panel_width * bits >> 3;
-      auto dst = &monitor.tft_fb[bw * y];
+      auto dst = (uint8_t*)& monitor.tft_fb[_cfg.panel_width * y];
       auto sw = param->src_bitwidth * bits >> 3;
       auto src = &((uint8_t*)param->src_data)[param->src_y * sw];
       if (sw == bw && this->_cfg.panel_width == w && sx == 0 && x == 0)
@@ -513,7 +514,7 @@ namespace lgfx
       auto d = (uint8_t*)dst;
       w *= bytes;
       do {
-        memcpy(d, &monitor.tft_fb[(x + y * bw) * bytes], w);
+        memcpy(d, &monitor.tft_fb[(x + y * bw)], w);
         d += w;
       } while (++y != h);
     }

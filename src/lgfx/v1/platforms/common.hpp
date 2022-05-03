@@ -61,9 +61,14 @@ Contributors:
 
 #include "framebuffer/common.hpp"
 
+#else
+
+#error unknown platform...
+
 #endif
 
 #include "../../utility/result.hpp"
+#include "../misc/enum.hpp"
 
 namespace lgfx
 {

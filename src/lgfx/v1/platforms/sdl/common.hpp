@@ -86,5 +86,21 @@ namespace lgfx
   };
 
 //----------------------------------------------------------------------------
+
+  namespace spi
+  {
+    cpp::result<void, error_t> init(int spi_host, int spi_sclk, int spi_miso, int spi_mosi, int dma_channel);
+    void beginTransaction(int spi_host);
+  }
+
+//----------------------------------------------------------------------------
+
+  namespace i2c
+  {
+    static inline cpp::result<void, error_t> setPins(int i2c_port, int pin_sda, int pin_scl) { return {}; }
+    static inline cpp::result<void, error_t> init(int i2c_port) { return {}; }
+  }
+
+//----------------------------------------------------------------------------
  }
 }
