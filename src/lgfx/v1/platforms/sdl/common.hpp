@@ -24,7 +24,11 @@ Porting for SDL:
 #include "../../misc/enum.hpp"
 #include "../../../utility/result.hpp"
 
-#include <malloc.h>
+#ifdef __MACH__
+# include <stdlib.h>
+#else
+# include <malloc.h>
+#endif
 #include <stdio.h>
 
 #if __has_include(<SDL2/SDL.h>)
