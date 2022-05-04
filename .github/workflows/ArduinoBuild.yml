@@ -40,7 +40,7 @@ jobs:
           - 2.0.0
           - 2.0.1
           - 2.0.2
-          - 2.0.3-RC1
+          - 2.0.3
 
         include:
           # 3D matrix doesn't apply to these:
