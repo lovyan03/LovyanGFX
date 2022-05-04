@@ -21,7 +21,7 @@ Contributors:
 #include "../../misc/enum.hpp"
 #include "../../../utility/result.hpp"
 
-#include <malloc.h>
+#include <stdlib.h>
 #include <stdio.h>
 
 namespace lgfx
