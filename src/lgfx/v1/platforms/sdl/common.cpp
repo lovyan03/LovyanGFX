@@ -31,9 +31,14 @@ namespace lgfx
  {
 //----------------------------------------------------------------------------
 
-#if defined ( WINDOWS )
+  static uint8_t _gpio_dummy_values[EMULATED_GPIO_MAX];
 
-#endif
+  void pinMode(int_fast16_t pin, pin_mode_t mode) {}
+  void lgfxPinMode(int_fast16_t pin, pin_mode_t mode) {}
+
+  void gpio_hi(uint32_t pin) { _gpio_dummy_values[pin & (EMULATED_GPIO_MAX - 1)] = 1; }
+  void gpio_lo(uint32_t pin) { _gpio_dummy_values[pin & (EMULATED_GPIO_MAX - 1)] = 0; }
+  bool gpio_in(uint32_t pin) { return _gpio_dummy_values[pin & (EMULATED_GPIO_MAX - 1)]; }
 
   unsigned long millis(void)
   {

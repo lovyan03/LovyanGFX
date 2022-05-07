@@ -101,7 +101,7 @@ namespace lgfx
     return 1;
   }
 
-  void Panel_sdl::sdl_event_handler(void)
+  void Panel_sdl::sdl_update_handler(void)
   {
     SDL_Delay(1);
     for (auto& m : _list_monitor)
@@ -112,10 +112,52 @@ namespace lgfx
       }
       sdl_update(m);
     }
+  }
+
+  void Panel_sdl::sdl_event_handler(void)
+  {
+    sdl_update_handler();
+
     SDL_Event event;
     while (SDL_PollEvent(&event))
     {
-      if (event.type == SDL_MOUSEBUTTONDOWN || event.type == SDL_MOUSEBUTTONUP || event.type == SDL_MOUSEMOTION)
+      if (event.type == SDL_KEYDOWN)
+      {
+        switch (event.key.keysym.sym)
+        { /// M5StackのBtnA～BtnCのエミュレート;
+        case SDLK_LEFT:
+          gpio_lo(39);
+          break;
+        case SDLK_DOWN:
+          gpio_lo(38);
+          break;
+        case SDLK_RIGHT:
+          gpio_lo(37);
+          break;
+        case SDLK_UP:
+          gpio_lo(36);
+          break;
+        }
+      }
+      else if (event.type == SDL_KEYUP)
+        { /// M5StackのBtnA～BtnCのエミュレート;
+        switch (event.key.keysym.sym)
+        {
+        case SDLK_LEFT:
+          gpio_hi(39);
+          break;
+        case SDLK_DOWN:
+          gpio_hi(38);
+          break;
+        case SDLK_RIGHT:
+          gpio_hi(37);
+          break;
+        case SDLK_UP:
+          gpio_hi(36);
+          break;
+        }
+      }
+      else if (event.type == SDL_MOUSEBUTTONDOWN || event.type == SDL_MOUSEBUTTONUP || event.type == SDL_MOUSEMOTION)
       {
         auto mon = getMonitorByWindowID(event.button.windowID);
         if (mon != nullptr)
@@ -162,6 +204,8 @@ namespace lgfx
     monitor.panel = this;
     static bool inited = false;
     if (inited) { return; }
+    for (size_t pin = 0; pin < EMULATED_GPIO_MAX; ++pin) { gpio_hi(pin); }
+
     /*Initialize the SDL*/
     SDL_Init(SDL_INIT_VIDEO);
 
@@ -201,10 +245,10 @@ namespace lgfx
 
   void Panel_sdl::setWindow(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye)
   {
-    xs = std::max<unsigned long>(0u, std::min<uint_fast16_t>(_width  - 1, xs));
-    xe = std::max<unsigned long>(0u, std::min<uint_fast16_t>(_width  - 1, xe));
-    ys = std::max<unsigned long>(0u, std::min<uint_fast16_t>(_height - 1, ys));
-    ye = std::max<unsigned long>(0u, std::min<uint_fast16_t>(_height - 1, ye));
+    xs = std::max<uint_fast16_t>(0u, std::min<uint_fast16_t>(_width  - 1, xs));
+    xe = std::max<uint_fast16_t>(0u, std::min<uint_fast16_t>(_width  - 1, xe));
+    ys = std::max<uint_fast16_t>(0u, std::min<uint_fast16_t>(_height - 1, ys));
+    ye = std::max<uint_fast16_t>(0u, std::min<uint_fast16_t>(_height - 1, ye));
     _xpos = xs;
     _xs = xs;
     _xe = xe;
