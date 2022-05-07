@@ -786,9 +786,9 @@ namespace lgfx
     {
       setColorDepth(bpp, has_palette);
     }
-    color_conv_t(color_depth_t depth)
+    color_conv_t(color_depth_t depth_)
     {
-      setColorDepth(depth);
+      setColorDepth(depth_);
     }
 
     void setColorDepth(uint_fast8_t bpp, bool has_palette)
@@ -809,19 +809,19 @@ namespace lgfx
       setColorDepth(d);
     }
 
-    void setColorDepth(color_depth_t depth)
+    void setColorDepth(color_depth_t depth_)
     {
-      this->depth = depth;
+      depth = depth_;
       bytes = bits >> 3;
       colormask = (1 << bits) - 1;
 
-      convert_argb8888 = get_fp_convert_src<argb8888_t>(depth);
-      convert_rgb888   = get_fp_convert_src<rgb888_t  >(depth);
-      convert_rgb565   = get_fp_convert_src<rgb565_t  >(depth);
-      convert_rgb332   = get_fp_convert_src<rgb332_t  >(depth);
-      convert_bgr888   = get_fp_convert_src<bgr888_t  >(depth);
+      convert_argb8888 = get_fp_convert_src<argb8888_t>(depth_);
+      convert_rgb888   = get_fp_convert_src<rgb888_t  >(depth_);
+      convert_rgb565   = get_fp_convert_src<rgb565_t  >(depth_);
+      convert_rgb332   = get_fp_convert_src<rgb332_t  >(depth_);
+      convert_bgr888   = get_fp_convert_src<bgr888_t  >(depth_);
 
-      switch (depth) {
+      switch (depth_) {
       case argb8888_4Byte: revert_rgb888 = color_convert<rgb888_t, bgra8888_t>; break;
       case rgb888_3Byte:   revert_rgb888 = color_convert<rgb888_t, bgr888_t  >; break;
       case rgb666_3Byte:   revert_rgb888 = color_convert<rgb888_t, bgr666_t  >; break;
