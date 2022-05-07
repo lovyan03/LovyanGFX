@@ -98,6 +98,5 @@ jobs:
 
         run: |
           cd ${{ env.PROJECT_DIR }}
-          pio system prune -f
           pio lib -e ${{ matrix.board }}@${{ matrix.platform-version }} install --no-save file://$(realpath ../../../)
           pio run -e ${{ matrix.board }}@${{ matrix.platform-version }}
