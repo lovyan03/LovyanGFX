@@ -1,7 +1,8 @@
 #include <LovyanGFX.hpp>
 
 
-#if defined( LGFX_M5STACK ) || defined( ARDUINO_M5Stack_Core_ESP32 ) || defined( ARDUINO_M5STACK_FIRE ) // M5Stack
+#if defined( LGFX_M5STACK ) || defined( ARDUINO_M5Stack_Core_ESP32 ) || defined( ARDUINO_M5STACK_FIRE ) \
+    || defined( LGFX_M5STACK_CORE2 ) || defined( ARDUINO_M5STACK_Core2 ) // M5Stack
 
  #define BUTTON_A_PIN 39
  #define BUTTON_B_PIN 38
