@@ -28,7 +28,7 @@ target_include_directories(LGFXOpenCV PUBLIC "../../../LovyanGFX/src")
 # OpenCVを配置したパス内のincludeのパスを指定する;
 target_include_directories(LGFXOpenCV PUBLIC "C:/opencv/build/include")
 
-# OpenCVをビルドしたパス内の.libファイルのパスを指定する;
+# OpenCVを配置したパス内の.libファイルのパスを指定する;
 target_link_libraries(LGFXOpenCV PUBLIC "C:/opencv/build/x64/vc15/lib/opencv_world452d.lib" )
 
 target_compile_features(LGFXOpenCV PUBLIC cxx_std_17)
