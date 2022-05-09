@@ -1,0 +1,105 @@
+# OpenCVBuild.yml
+name: OpenCVBuild
+
+env:
+  PROJECT_DIR: examples_for_PC/CMake_OpenCV
+
+
+on:
+  push:
+    paths:
+    - '**.ino'
+    - '**.cpp'
+    - '**.hpp'
+    - '**.h'
+    - '**.c'
+    - '**OpenCVBuild.yml'
+    - '**OpenCV.cmake'
+    - '**installOpenCV.bat'
+  pull_request:
+
+  workflow_dispatch:
+
+jobs:
+
+  LGFXOpenCV:
+
+    name: LGFXOpenCV (${{ matrix.os }})
+
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - { os: windows-latest, OpenCV_DIR: "D:/a/LovyanGFX/LovyanGFX/opencv-4.5.5/opencv/build/" }
+          - { os: macos-latest,   OpenCV_DIR: "/usr/local/Cellar/opencv/4.5.5_2/" }
+          - { os: ubuntu-latest,  OpenCV_DIR: "/home/runner/work/LovyanGFX/LovyanGFX/opencv-install/opencv/build" }
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+
+      - name: Cache OpenCV for Windows
+        if: ${{ matrix.os == 'windows-latest' }}
+        uses: actions/cache@v2
+        id: cache-opencv-windows
+        with:
+          path: opencv-4.5.5
+          key: ${{ runner.os }}-${{ hashFiles('.github/scripts/installOpenCV.bat') }}
+
+      - name: Build+Install OpenCV for Windows
+        if: matrix.os == 'windows-latest' && steps.cache-opencv-windows.outputs.cache-hit != 'true'
+        run: |
+          .github/scripts/installOpenCV.bat
+
+      - name: Build LGFXOpenCV for Windows
+        if: ${{ matrix.os == 'windows-latest' }}
+        env:
+          OpenCV_DIR: ${{ matrix.OpenCV_DIR }}
+          CC: clang
+          CXX: clang++
+        run: |
+          cp .github/scripts/OpenCV.cmake ${{ env.PROJECT_DIR }}/CMakeLists.txt
+          cd ${{ env.PROJECT_DIR }}
+          mkdir build
+          cd build
+          cmake -G "Visual Studio 17 2022" -A x64 -T ClangCL ..
+          cmake --build . --config Debug
+
+      - name: Cache OpenCV for linux
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+        uses: actions/cache@v2
+        id: opencv-cache
+        with:
+          path: ./opencv-install
+          key: ${{ runner.os }}-opencv-cache
+
+      - name: Build+Install OpenCV for linux
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+        uses: rayandrews/with-opencv-action@v1
+        with:
+          dir: ./opencv-install
+          cached: ${{ steps.opencv-cache.outputs.cache-hit }}
+          opencv-version: '4.5.5'
+
+
+      - name: Install OpenCV for Mac
+        if: matrix.os == 'macos-latest'
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: 1
+        run: brew install opencv cmake
+
+
+      - name: Build LGFXOpenCV for Mac/Linux
+        if: ${{ matrix.os != 'windows-latest' }}
+        env:
+          OpenCV_DIR: ${{ matrix.OpenCV_DIR }}
+        run: |
+          cp .github/scripts/OpenCV.cmake ${{ env.PROJECT_DIR }}/CMakeLists.txt
+          cd ${{ env.PROJECT_DIR }}
+          mkdir build
+          cd build
+          cmake ..
+          cmake --build .
+
