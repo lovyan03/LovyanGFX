@@ -270,7 +270,7 @@ namespace lgfx
     size_t bw = _cfg.panel_width;
     size_t index = x + y * bw;
     {
-      auto img = &((bgra8888_t*)monitor.tft_fb)[index];
+      auto img = &((bgr888_t*)monitor.tft_fb)[index];
       *img = rawcolor;
     }
   }
