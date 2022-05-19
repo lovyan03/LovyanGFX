@@ -350,7 +350,7 @@ namespace lgfx
     auto f = pgm_read_word(&first);
     if (uniCode > pgm_read_word(&last)
     ||  uniCode < f) return nullptr;
-    uint_fast16_t custom_range_num = pgm_read_word(&range_num);
+    uint_fast16_t custom_range_num = pgm_read_word_unaligned(&range_num);
     if (custom_range_num == 0) {
       uniCode -= f;
       return &(((GFXglyph*)pgm_read_ptr( &glyph ))[uniCode]);
@@ -371,7 +371,7 @@ namespace lgfx
     int_fast8_t glyph_bb = 0;   // glyph delta Y (height) below baseline
     size_t numChars = pgm_read_word(&last) - pgm_read_word(&first);
 
-    size_t custom_range_num = pgm_read_word(&range_num);
+    size_t custom_range_num = pgm_read_word_unaligned(&range_num);
     if (custom_range_num != 0) {
       EncodeRange *range_pst = range;
       size_t i = 0;
@@ -572,12 +572,12 @@ label_nextbyte: /// 次のデータを取得する;
 
       do
       {
-        font += getSwap16(pgm_read_word(&unicode_lut[0]));
-        e     = getSwap16(pgm_read_word(&unicode_lut[2]));
+        font += (pgm_read_byte(&unicode_lut[0]) << 8) + pgm_read_byte(&unicode_lut[1]);
+        e     = (pgm_read_byte(&unicode_lut[2]) << 8) + pgm_read_byte(&unicode_lut[3]);
         unicode_lut += 4;
       } while ( e < encoding );
 
-      for ( ; 0 != (e = getSwap16(pgm_read_word(&font[0]))); font += pgm_read_byte(&font[2]))
+      for ( ; 0 != (e = (pgm_read_byte(&font[0]) << 8) + pgm_read_byte(&font[1])) ; font += pgm_read_byte(&font[2]))
       {
         if ( e == encoding ) { return font + 3; }  /* skip encoding and glyph size */
       }
