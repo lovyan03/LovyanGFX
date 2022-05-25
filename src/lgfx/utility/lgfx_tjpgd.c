@@ -264,7 +264,9 @@ static int32_t bitext (	/* >=0: extracted data, <0: error code */
 				if (dp == dpend) return 0 - (int32_t)JDR_INP;	/* Err: read error or wrong stream termination */
 				jd->dpend = dpend;
 			}
-			if (*dp == 0xff) {		/* Is start of flag sequence? */
+			uint_fast8_t s = *dp;
+			w = (w << 8) + s;
+			if (s == 0xff) {		/* Is start of flag sequence? */
 				if (++dp == dpend) {	/* No input data is available, re-fill input buffer */
 					dp = jd->inbuf;	/* Top of input buffer */
 					dpend = dp + jd->infunc(jd->device, dp, JD_SZBUF);
@@ -275,7 +277,6 @@ static int32_t bitext (	/* >=0: extracted data, <0: error code */
 				*dp = 0xff;			/* The flag is a data 0xFF */
 			}
 			jd->dptr = dp;
-			w = (w << 8) + *dp;
 			msk += 8;			/* Read from MSB */
 		} while (msk < nbit);
 	}
@@ -296,7 +297,7 @@ static int32_t huffext (	/* >=0: decoded data, <0: error code */
 	const uint8_t* hd	/* Pointer to the data table */
 )
 {
-	const uint8_t* hb_end = hb + 16;
+	const uint8_t* hb_end = hb + 16 + 1;
 	uint_fast8_t msk = jd->dbit; 
 	uint_fast16_t w = *jd->dptr & ((1ul << msk) - 1);
 	for (;;) {
@@ -309,6 +310,8 @@ static int32_t huffext (	/* >=0: decoded data, <0: error code */
 				jd->dpend = dpend = dp + jd->infunc(jd->device, dp, JD_SZBUF);
 				if (dp == dpend) return 0 - (int32_t)JDR_INP;	/* Err: read error or wrong stream termination */
 			}
+			uint_fast8_t s = *dp;
+			w = (w << 8) + s;
 			if (*dp == 0xff) {		/* Is start of flag sequence? */
 				if (++dp == dpend) {	/* No input data is available, re-fill input buffer */
 					dp = jd->inbuf;	/* Top of input buffer */
@@ -319,7 +322,6 @@ static int32_t huffext (	/* >=0: decoded data, <0: error code */
 				*dp = 0xff;			/* The flag is a data 0xFF */
 			}
 			jd->dptr = dp;
-			w = (w << 8) + *dp;
 		}
 		do {
 			uint_fast16_t v = w >> --msk;
