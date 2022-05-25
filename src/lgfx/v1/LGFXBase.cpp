@@ -2575,10 +2575,11 @@ namespace lgfx
     //TJpgD jpegdec;
     lgfxJdec jpegdec;
 
-    static constexpr uint16_t sz_pool = 3100;
+    static constexpr uint16_t sz_pool = 3900;
     uint8_t *pool = (uint8_t*)heap_alloc_dma(sz_pool);
     if (!pool)
     {
+      // ESP_LOGW("LGFX", "jpeg memory alloc fail");
       return false;
     }
 
@@ -2586,6 +2587,7 @@ namespace lgfx
 
     if (jres != JDR_OK)
     {
+      // ESP_LOGW("LGFX", "jpeg prepare error:%x", jres);
       heap_free(pool);
       return false;
     }
@@ -2631,7 +2633,7 @@ namespace lgfx
     heap_free(pool);
 
     if (jres != JDR_OK) {
-//ESP_LOGE("LGFX","jpeg decomp error:%x", jres);
+      // ESP_LOGW("LGFX", "jpeg decomp error:%x", jres);
       return false;
     }
     return true;
