@@ -285,7 +285,7 @@ namespace lgfx
 
         if (ESP_OK != spi_bus_initialize(static_cast<spi_host_device_t>(spi_host), &buscfg, dma_channel))
         {
-          ESP_LOGE("LGFX", "Failed to spi_bus_initialize. ");
+          ESP_LOGW("LGFX", "Failed to spi_bus_initialize. ");
         }
 
         spi_device_interface_config_t devcfg = {
@@ -304,7 +304,7 @@ namespace lgfx
             .pre_cb = nullptr,
             .post_cb = nullptr};
         if (ESP_OK != spi_bus_add_device(static_cast<spi_host_device_t>(spi_host), &devcfg, &_spi_dev_handle[spi_host])) {
-          ESP_LOGE("LGFX", "Failed to spi_bus_add_device. ");
+          ESP_LOGW("LGFX", "Failed to spi_bus_add_device. ");
         }
       }
 
@@ -352,7 +352,7 @@ namespace lgfx
 #else // ESP-IDF
       if (_spi_dev_handle[spi_host]) {
         if (ESP_OK != spi_device_acquire_bus(_spi_dev_handle[spi_host], portMAX_DELAY)) {
-          ESP_LOGE("LGFX", "Failed to spi_device_acquire_bus. ");
+          ESP_LOGW("LGFX", "Failed to spi_device_acquire_bus. ");
         }
       }
 #endif
@@ -1068,7 +1068,7 @@ namespace lgfx
         res = i2c_wait(i2c_port);
         if (res.has_error())
         {
-          ESP_LOGE("LGFX", "i2c write error : ack wait");
+          ESP_LOGW("LGFX", "i2c write error : ack wait");
           break;
         }
         size_t idx = 0;
@@ -1112,7 +1112,7 @@ namespace lgfx
         res = i2c_wait(i2c_port);
         if (res.has_error())
         {
-          ESP_LOGE("LGFX", "i2c read error : ack wait");
+          ESP_LOGW("LGFX", "i2c read error : ack wait");
           break;
         }
         i2c_set_cmd(dev, 0, i2c_cmd_read, len);
@@ -1140,7 +1140,7 @@ namespace lgfx
           else
           {
             i2c_stop(i2c_port);
-            ESP_LOGE("LGFX", "i2c read error : read timeout");
+            ESP_LOGW("LGFX", "i2c read error : read timeout");
             res = cpp::fail(error_t::connection_lost);
             i2c_context[i2c_port].state = cpp::fail(error_t::connection_lost);
           }
