@@ -524,7 +524,7 @@ static JRESULT mcu_load (
 			}
 		} while (++i < 64);		/* Next AC element */
 
-		if (i == 1 || JD_USE_SCALE && jd->scale == 3) {
+		if (i == 1 || (JD_USE_SCALE && jd->scale == 3)) {
 			d = (int16_t)((*tmp >> 8) + 128);	/* If scale ratio is 1/8, IDCT can be ommited and only DC element is used */
 			for (i = 0; i < 64; bp[i++] = d) ;
 		} else {
