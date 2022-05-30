@@ -137,7 +137,7 @@ IT8951 Registers defines
     _wait_busy();
 
     uint32_t readclock = _bus->getReadClock();
-    if (readclock > 8000000) {  _bus->setReadClock(8000000);  }
+    if (readclock > 2000000) { _bus->setReadClock(2000000); }
 
     startWrite();
 
@@ -145,7 +145,18 @@ IT8951 Registers defines
       _write_command(IT8951_I80_CMD_GET_DEV_INFO);
       uint16_t buf[20];
       _read_words(buf, 20);
-      _tar_memaddr = (buf[3] << 16) | buf[2];
+      uint32_t addr = (buf[3] << 16) | buf[2];
+      if (addr != 0 && addr != ~0)
+      {
+        _tar_memaddr = addr;
+      }
+      else
+      {
+        _tar_memaddr = 0x001236E0; /// default value for M5Paper.
+#if defined ( ESP_LOGE )
+        ESP_LOGE("Panel_IT8951", "can't read data from IT8951");
+#endif
+      }
       _bus->setReadClock(readclock);
 
       // for (int i = 0; i < 20; ++i)
