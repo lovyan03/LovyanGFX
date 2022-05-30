@@ -76,9 +76,10 @@ namespace lgfx
     range_rect_t _range_new;
     range_rect_t _range_old;
 
-    uint_fast16_t _xpos = 0;
-    uint_fast16_t _ypos = 0;
-    uint_fast8_t _it8951_rotation = 0;
+    uint16_t _xpos = 0;
+    uint16_t _ypos = 0;
+    uint32_t _tar_memaddr = 0;
+    uint8_t _it8951_rotation = 0;
     bool _in_transaction = false;
 
     bool _wait_busy( uint32_t timeout = 1000);

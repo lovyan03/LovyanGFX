@@ -36,8 +36,6 @@ namespace lgfx
 
   static constexpr int8_t Bayer[16] = {-30, 2, -22, 10, 18, -14, 26, -6, -18, 14, -26, 6, 30, -2, 22, -10};
 
-  static constexpr uint32_t _tar_memaddr = 0x001236E0;
-
 //Built in I80 Command Code
   static constexpr uint32_t IT8951_TCON_SYS_RUN         = 0x0001;
   static constexpr uint32_t IT8951_TCON_STANDBY         = 0x0002;
@@ -138,7 +136,23 @@ IT8951 Registers defines
 
     _wait_busy();
 
-    startWrite(true);
+    uint32_t readclock = _bus->getReadClock();
+    if (readclock > 8000000) {  _bus->setReadClock(8000000);  }
+
+    startWrite();
+
+    {
+      _write_command(IT8951_I80_CMD_GET_DEV_INFO);
+      uint16_t buf[20];
+      _read_words(buf, 20);
+      _tar_memaddr = (buf[3] << 16) | buf[2];
+      _bus->setReadClock(readclock);
+
+      // for (int i = 0; i < 20; ++i)
+      // {
+      //   ESP_LOGE("debug", "buf[%d] = %04x", i, buf[i]);
+      // }
+    }
 
     setInvert(_invert);
     setRotation(_rotation);
@@ -178,12 +192,17 @@ IT8951 Registers defines
     cs_control(true);
     if (_cfg.pin_busy >= 0 && !lgfx::gpio_in(_cfg.pin_busy))
     {
-      auto time = millis();
+      auto start_ms = millis();
       do
       {
-        if (millis() - time > timeout)
+        uint32_t ms = millis() - start_ms;
+        if (ms >= 16)
         {
-          return false;
+          if (ms > timeout)
+          {
+            return false;
+          }
+          delay(ms >> 4);
         }
       } while (!lgfx::gpio_in(_cfg.pin_busy));
     }
