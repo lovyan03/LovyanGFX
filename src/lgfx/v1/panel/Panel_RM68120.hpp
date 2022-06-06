@@ -36,6 +36,7 @@ namespace lgfx
     }
 
     bool init(bool use_reset) override;
+    void setWindow(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye) override;
 
   protected:
 

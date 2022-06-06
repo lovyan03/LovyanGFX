@@ -29,7 +29,7 @@ namespace lgfx
 
   void Panel_RM68120::writeRegister(uint16_t cmd, uint8_t data)
   {
-    writeCommand(getSwap16(cmd), 2);
+    writeCommand(cmd, 2);
     writeData(data, 1);
   }
 
@@ -168,15 +168,50 @@ namespace lgfx
       writeRegister(regs[idx].cmd, regs[idx].data);
     }
 
-    writeCommand(0x11, 1); // SLEEP OUT
+    writeCommand(0x11 << 8, 2); // SLEEP OUT
     _bus->flush();
     delay(100);
-    writeCommand(0x29, 1); // DISPLY ON
+    writeCommand(0x29 << 8, 2); // DISPLY ON
     _bus->flush();
 
     endWrite();
 
     return true;
+  }
+
+
+  void Panel_RM68120::setWindow(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye)
+  {
+    bool dlen_16bit = _cfg.dlen_16bit;
+    if (dlen_16bit && _has_align_data)
+    {
+      _bus->writeData(0, 8);
+      _has_align_data = false;
+    }
+
+    if (xs != _xs || xe != _xe)
+    {
+      _xs = xs;
+      xs += _colstart;
+      writeRegister((CMD_CASET << 8) + 0, xs >> 8);
+      writeRegister((CMD_CASET << 8) + 1, xs     );
+      _xe = xe;
+      xe += _colstart;
+      writeRegister((CMD_CASET << 8) + 2, xe >> 8);
+      writeRegister((CMD_CASET << 8) + 3, xe     );
+    }
+    if (ys != _ys || ye != _ye)
+    {
+      _ys = ys;
+      ys += _rowstart;
+      writeRegister((CMD_RASET << 8) + 0, ys >> 8);
+      writeRegister((CMD_RASET << 8) + 1, ys     );
+      _ye = ye;
+      ye += _rowstart;
+      writeRegister((CMD_RASET << 8) + 2, ye >> 8);
+      writeRegister((CMD_RASET << 8) + 3, ye     );
+    }
+    writeCommand(CMD_RAMWR << 8, 2);
   }
 
 //----------------------------------------------------------------------------
