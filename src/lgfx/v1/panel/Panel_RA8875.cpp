@@ -74,6 +74,11 @@ namespace lgfx
       return false;
     }
 
+    if (_cfg.pin_busy >= 0)
+    {
+      pinMode(_cfg.pin_busy, pin_mode_t::input);
+    }
+
     uint32_t freq_write = _bus->getClock();
     if (freq_write > 5000000)
     {
