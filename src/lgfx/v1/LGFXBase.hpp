@@ -242,6 +242,13 @@ namespace lgfx
       _panel->writePixels(&pc, len, false);
     }
 
+    /// Obtains the current scanning line position.
+    /// 現在の走査線の位置を取得する。;
+    /// @return -1=unsupported. / 0 or more = current scanline position.
+    /// @attention This function returns the raw value obtained from the device. Note that screen rotation and offset are not taken into account.
+    /// @attention この関数はデバイスから得られる生の値を返す。画面の回転やオフセットは考慮されていないことに注意。;
+    int32_t getScanLine(void) { return _panel->getScanLine(); }
+
     uint8_t getRotation(void) const { return _panel->getRotation(); }
     void setRotation(uint_fast8_t rotation);
     void setColorDepth(int bits) { setColorDepth((color_depth_t)(bits & color_depth_t::bit_mask));}
