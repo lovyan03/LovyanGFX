@@ -149,7 +149,7 @@ IT8951 Registers defines
       uint16_t buf[20];
       _read_words(buf, 20);
       uint32_t addr = (buf[3] << 16) | buf[2];
-      if (addr != 0 && addr != ~0)
+      if (addr != 0 && addr != ~0u)
       {
         _tar_memaddr = addr;
       }
