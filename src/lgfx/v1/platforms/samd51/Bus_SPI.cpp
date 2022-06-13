@@ -523,6 +523,28 @@ namespace lgfx
     wait_spi();
     set_clock_read();
   }
+  void Bus_SPI::beginRead(uint_fast8_t dummy_bits)
+  {
+    wait_spi();
+    set_clock_read();
+
+    if (dummy_bits)
+    { /// CPOLを変化させてダミークロックを生成する;
+      while (_sercom->SPI.SYNCBUSY.bit.ENABLE) {}
+      bool bit = _sercom->SPI.CTRLA.bit.CPOL;
+      do
+      {
+        _sercom->SPI.CTRLA.bit.ENABLE = 0;
+        _sercom->SPI.CTRLA.bit.CPOL = !bit;
+        _sercom->SPI.CTRLA.bit.ENABLE = 1;
+        while (_sercom->SPI.SYNCBUSY.bit.ENABLE) {}
+        _sercom->SPI.CTRLA.bit.ENABLE = 0;
+        _sercom->SPI.CTRLA.bit.CPOL = bit;
+        _sercom->SPI.CTRLA.bit.ENABLE = 1;
+        while (_sercom->SPI.SYNCBUSY.bit.ENABLE) {}
+      } while (--dummy_bits);
+    }
+  }
 
   void Bus_SPI::endRead(void)
   {
