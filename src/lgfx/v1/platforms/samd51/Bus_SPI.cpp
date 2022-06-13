@@ -528,8 +528,10 @@ namespace lgfx
     wait_spi();
     set_clock_read();
 
-    if (dummy_bits)
+    if (dummy_bits & 7u)
     { /// CPOLを変化させてダミークロックを生成する;
+      size_t bits = dummy_bits & 7u;
+      dummy_bits &= ~7u;
       while (_sercom->SPI.SYNCBUSY.bit.ENABLE) {}
       bool bit = _sercom->SPI.CTRLA.bit.CPOL;
       do
@@ -542,7 +544,11 @@ namespace lgfx
         _sercom->SPI.CTRLA.bit.CPOL = bit;
         _sercom->SPI.CTRLA.bit.ENABLE = 1;
         while (_sercom->SPI.SYNCBUSY.bit.ENABLE) {}
-      } while (--dummy_bits);
+      } while (--bits);
+    }
+    if (dummy_bits)
+    {
+      readData(dummy_bits);
     }
   }
 

@@ -187,7 +187,7 @@ namespace lgfx
     uint32_t res = 0;
     for (size_t i = 0; i < length; ++i)
     {
-      res += (_bus->readData(dlen) & 0xFF) << (i * 8);
+      res += ((_bus->readData(dlen) >> (dlen - 8)) & 0xFF) << (i * 8);
     }
     cs_control(true);
     _bus->endRead();
