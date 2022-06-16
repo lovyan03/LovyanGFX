@@ -26,16 +26,8 @@ namespace lgfx
  {
 //----------------------------------------------------------------------------
 
-  struct Panel_GC9A01  : public Panel_LCD
+  struct Panel_GC9xxx  : public Panel_LCD
   {
-    Panel_GC9A01(void)
-    {
-      _cfg.panel_width  = _cfg.memory_width  = 240;
-      _cfg.panel_height = _cfg.memory_height = 240;
-
-      _cfg.dummy_read_pixel = 16;
-    }
-
     void setWindow(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye) override
     {
       if (xs != _xs || xe != _xe || ys != _ys || ye != _ye)
@@ -79,6 +71,21 @@ namespace lgfx
       };
       return madctl_table[r];
     }
+  };
+
+//----------------------------------------------------------------------------
+
+  struct Panel_GC9A01  : public Panel_GC9xxx
+  {
+    Panel_GC9A01(void)
+    {
+      _cfg.panel_width  = _cfg.memory_width  = 240;
+      _cfg.panel_height = _cfg.memory_height = 240;
+
+      _cfg.dummy_read_pixel = 16;
+    }
+
+  protected:
 
     const uint8_t* getInitCommands(uint8_t listno) const override
     {
@@ -131,6 +138,55 @@ namespace lgfx
           0x11, 0+CMD_INIT_DELAY, 120,
           0x29, 0+CMD_INIT_DELAY,  20,
           0xFF,0xFF, // end
+      };
+      switch (listno) {
+      case 0: return list0;
+      default: return nullptr;
+      }
+    }
+  };
+
+//----------------------------------------------------------------------------
+
+  struct Panel_GC9107  : public Panel_GC9xxx
+  {
+    Panel_GC9107(void)
+    {
+      _cfg.panel_width  = _cfg.memory_width  = 128;
+      _cfg.panel_height = _cfg.memory_height = 160;
+
+      _cfg.dummy_read_pixel = 16;
+    }
+
+  protected:
+
+    const uint8_t* getInitCommands(uint8_t listno) const override
+    {
+      static constexpr uint8_t list0[] = {
+        0xFE, 0+CMD_INIT_DELAY, 5,
+        0xEF, 0+CMD_INIT_DELAY, 5,
+        0xB0, 1, 0xC0,
+        0xB2, 1, 0x2F,
+        0xB3, 1, 0x03,
+        0xB6, 1, 0x19,
+        0xB7, 1, 0x01,
+        0xAC, 1, 0xCB,
+        0xAB, 1, 0x0E,
+        0xB4, 1, 0x04,
+        0xA8, 1, 0x19,
+        0x3A, 1, 0x05,
+        0xB8, 1, 0x08,
+        0xE8, 1, 0x24,
+        0xE9, 1, 0x48,
+        0xEA, 1, 0x22,
+        0xC6, 1, 0x30,
+        0xC7, 1, 0x18,
+        0xF0, 14, 0x1F,0x28,0x04,0x3E,0x2A,0x2E,0x20,0x00,0x0C,0x06,0x00,0x1C,0x1F,0x0f,
+        0xF1, 14, 0X00,0X2D,0X2F,0X3C,0X6F,0X1C,0X0B,0X00,0X00,0X00,0X07,0X0D,0X11,0X0f,
+        0x21, 0+CMD_INIT_DELAY, 120,
+        0x11, 0+CMD_INIT_DELAY, 120,
+        0x29, 0+CMD_INIT_DELAY, 120,
+        0xFF,0xFF, // end
       };
       switch (listno) {
       case 0: return list0;
