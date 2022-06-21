@@ -1123,14 +1123,20 @@ namespace lgfx
         dev->int_clr.val = intmask;
         do
         {
-          uint32_t us = lgfx::micros();
 #if defined ( CONFIG_IDF_TARGET_ESP32C3 )
+          uint32_t us = lgfx::micros();
           while (0 == dev->sr.rx_fifo_cnt && !(dev->int_raw.val & intmask) && ((lgfx::micros() - us) <= us_limit));
           if (0 != dev->sr.rx_fifo_cnt)
 #elif defined ( CONFIG_IDF_TARGET_ESP32S3 )
-          while (0 == dev->sr.rxfifo_cnt && !(dev->int_raw.val & intmask) && ((lgfx::micros() - us) <= us_limit));
+          if (0 == dev->sr.rxfifo_cnt)
+          {
+            uint32_t us = lgfx::micros();
+            ets_delay_us(us_limit >> 1);  /// このウェイトを外すと受信失敗するケースがある;
+            while (0 == dev->sr.rxfifo_cnt && !(dev->int_raw.val & intmask) && ((lgfx::micros() - us) <= us_limit));
+          }
           if (0 != dev->sr.rxfifo_cnt)
 #else
+          uint32_t us = lgfx::micros();
           while (0 == dev->status_reg.rx_fifo_cnt && !(dev->int_raw.val & intmask) && ((lgfx::micros() - us) <= us_limit));
           if (0 != dev->status_reg.rx_fifo_cnt)
 #endif

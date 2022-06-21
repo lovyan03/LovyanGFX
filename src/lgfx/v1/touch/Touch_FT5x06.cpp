@@ -150,7 +150,7 @@ namespace lgfx
     size_t comparelen;
     int32_t retry = 5;
     do
-    { // 読出し中に値が変わる事があるので、連続読出しして前回と同値でなければリトライする
+    { // 読出し中に値が変わる事があるので、連続読出しして前回と同値でなければリトライする;
       readlen[retry & 1] = _read_data(readdata[retry & 1]);
       comparelen = std::min(readlen[0], readlen[1]);
     } while ((0 == comparelen || memcmp(readdata[0], readdata[1], readlen[0])) && --retry);
