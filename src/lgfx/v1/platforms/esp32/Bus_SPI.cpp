@@ -498,9 +498,10 @@ namespace lgfx
         *spi_dma_out_link_reg = 0;
         _setup_dma_desc_links(data, length);
 #if defined ( SOC_GDMA_SUPPORTED )
+        auto dma = reg(SPI_DMA_CONF_REG(_spi_port));
+        *dma = 0; /// Clear previous transfer
         uint32_t len = ((length - 1) & ((SPI_MS_DATA_BITLEN)>>3)) + 1;
         *spi_dma_out_link_reg = DMA_OUTLINK_START_CH0 | ((int)(&_dmadesc[0]) & 0xFFFFF);
-        auto dma = reg(SPI_DMA_CONF_REG(_spi_port));
         *dma = SPI_DMA_TX_ENA;
         _clear_dma_reg = dma;
 #else
