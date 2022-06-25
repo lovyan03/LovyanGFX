@@ -7,6 +7,9 @@ assignees: ''
 
 ---
 
+**Carefully written Issues are more likely to be given priority.**
+**丁寧に記述された報告は優先して対応される可能性が高くなります。**
+
 ## Environment ( 実行環境 )
 
 - MCU or Board name:  [ESP-WROOM-32|ESP32-S3-BOX|M5Stack|WioTerminal|RPi2040|other]
