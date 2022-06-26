@@ -25,10 +25,11 @@ namespace lgfx
  {
 //----------------------------------------------------------------------------
 
-  static constexpr uint8_t FT5x06_VENDID_REG = 0xA8;
-  static constexpr uint8_t FT5x06_POWER_REG  = 0xA5;
+  static constexpr uint8_t FT5x06_CIPHER_REG  = 0xA3;
+  static constexpr uint8_t FT5x06_INTMODE_REG = 0xA4;
+  static constexpr uint8_t FT5x06_POWER_REG   = 0xA5;
+  static constexpr uint8_t FT5x06_VENDID_REG  = 0xA8;
   static constexpr uint8_t FT5x06_PERIODACTIVE = 0x88;
-  static constexpr uint8_t FT5x06_INTMODE_REG= 0xA4;
 
   static constexpr uint8_t FT5x06_MONITOR  = 0x01;
   static constexpr uint8_t FT5x06_SLEEP_IN = 0x03;
@@ -50,20 +51,24 @@ namespace lgfx
   {
     if (_inited) return true;
 
-    uint8_t tmp[2] = { 0 };
+    uint8_t tmp[6] = { 0 };
     _inited = _write_reg(0x00, 0x00)
-          && _read_reg(FT5x06_VENDID_REG, tmp, 1)
+          && _read_reg(FT5x06_CIPHER_REG, tmp, 6)
           && _write_reg(FT5x06_INTMODE_REG, 0x00) // INT Polling mode
-          && tmp[0]
+          && tmp[5]
           ;
-
+#if defined ( ESP_LOGI )
+if (_inited)
+{
+  ESP_LOGI("FT5x06", "CIPHER:0x%02x / FIRMID:0x%02x / VENDID:0x%02x", tmp[0], tmp[3], tmp[5]);
+}
+#endif
     return _inited;
   }
 
   bool Touch_FT5x06::init(void)
   {
     _inited = false;
-    if (isSPI()) return false;
 
     if (_cfg.pin_rst >= 0)
     {
