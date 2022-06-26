@@ -591,8 +591,14 @@ namespace lgfx
       bus_cfg.freq_read  = 8000000;
       bus_cfg.spi_host = VSPI_HOST;
       bus_cfg.spi_mode = 0;
-      bus_cfg.dma_channel = 1;
       bus_cfg.use_lock = true;
+      bus_cfg.dma_channel = 1;
+#if __has_include(<esp_idf_version.h>)
+ #include <esp_idf_version.h>
+ #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 3, 0)
+      bus_cfg.dma_channel = SPI_DMA_CH_AUTO;
+ #endif
+#endif
 
       uint32_t id;
       (void)id;  // suppress warning
