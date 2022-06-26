@@ -581,7 +581,16 @@ namespace lgfx
     };
     i2c_context_t i2c_context[I2C_NUM_MAX];
 
-
+    static int32_t getRxFifoCount(i2c_dev_t* dev)
+    {
+#if defined ( CONFIG_IDF_TARGET_ESP32C3 )
+      return dev->sr.rx_fifo_cnt;
+#elif defined ( CONFIG_IDF_TARGET_ESP32S3 )
+      return dev->sr.rxfifo_cnt;
+#else
+      return dev->status_reg.rx_fifo_cnt;
+#endif
+    }
 
     static void i2c_set_cmd(i2c_dev_t* dev, uint8_t index, uint8_t op_code, uint8_t byte_num)
     {
@@ -1101,9 +1110,11 @@ namespace lgfx
       auto dev = getDev(i2c_port);
       size_t len = 0;
 #if defined ( CONFIG_IDF_TARGET_ESP32S3 )
-      uint32_t us_limit = (dev->scl_high_period.scl_high_period + dev->scl_low_period.scl_low_period + 16);
+      uint32_t us_limit = ((dev->scl_high_period.scl_high_period + dev->scl_low_period.scl_low_period) << 1) + 16;
+#elif defined ( CONFIG_IDF_TARGET_ESP32C3 )
+      uint32_t us_limit = ((dev->scl_high_period.period + dev->scl_low_period.period) << 1) + 16;
 #else
-      uint32_t us_limit = (dev->scl_high_period.period + dev->scl_low_period.period + 16);
+      uint32_t us_limit = (dev->scl_high_period.period + dev->scl_low_period.period) + 16;
 #endif
       do
       {
@@ -1119,37 +1130,26 @@ namespace lgfx
         i2c_set_cmd(dev, 1, i2c_cmd_end, 0);
         updateDev(dev);
         dev->ctr.trans_start = 1;
-        taskYIELD();
         dev->int_clr.val = intmask;
+#if defined ( CONFIG_IDF_TARGET_ESP32S3 )
+        ets_delay_us(us_limit >> 2);  /// このウェイトを外すと受信失敗するケースがある;
+#endif
         do
         {
-#if defined ( CONFIG_IDF_TARGET_ESP32C3 )
-          uint32_t us = lgfx::micros();
-          while (0 == dev->sr.rx_fifo_cnt && !(dev->int_raw.val & intmask) && ((lgfx::micros() - us) <= us_limit));
-          if (0 != dev->sr.rx_fifo_cnt)
-#elif defined ( CONFIG_IDF_TARGET_ESP32S3 )
-          if (0 == dev->sr.rxfifo_cnt)
+          if (0 == getRxFifoCount(dev))
           {
             uint32_t us = lgfx::micros();
-            ets_delay_us(us_limit >> 1);  /// このウェイトを外すと受信失敗するケースがある;
-            while (0 == dev->sr.rxfifo_cnt && !(dev->int_raw.val & intmask) && ((lgfx::micros() - us) <= us_limit));
+            do { taskYIELD(); } while (0 == getRxFifoCount(dev) && !(dev->int_raw.val & intmask) && ((lgfx::micros() - us) <= us_limit));
+            if (0 == getRxFifoCount(dev))
+            {
+              i2c_stop(i2c_port);
+              ESP_LOGW("LGFX", "i2c read error : read timeout");
+              res = cpp::fail(error_t::connection_lost);
+              i2c_context[i2c_port].state = cpp::fail(error_t::connection_lost);
+              return res;
+            }
           }
-          if (0 != dev->sr.rxfifo_cnt)
-#else
-          uint32_t us = lgfx::micros();
-          while (0 == dev->status_reg.rx_fifo_cnt && !(dev->int_raw.val & intmask) && ((lgfx::micros() - us) <= us_limit));
-          if (0 != dev->status_reg.rx_fifo_cnt)
-#endif
-          {
-            *readdata++ = *fifo_addr; //dev->fifo_data.data;
-          }
-          else
-          {
-            i2c_stop(i2c_port);
-            ESP_LOGW("LGFX", "i2c read error : read timeout");
-            res = cpp::fail(error_t::connection_lost);
-            i2c_context[i2c_port].state = cpp::fail(error_t::connection_lost);
-          }
+          *readdata++ = *fifo_addr; //dev->fifo_data.data;
         } while (--len);
       } while (length);
 
