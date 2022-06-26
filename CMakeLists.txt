@@ -21,12 +21,20 @@ file(GLOB SRCS
      src/lgfx/v1/platforms/esp32s3/*.cpp
      src/lgfx/v1/touch/*.cpp
      )
+
 set(COMPONENT_SRCS ${SRCS})
-find_package(LCD COMPONENTS esp_lcd QUIET)
-if (NOT LCD_FOUND)
-   set(COMPONENT_REQUIRES nvs_flash efuse)
-else()
+if(IDF_TARGET MATCHES "esp32s3")
   set(COMPONENT_REQUIRES nvs_flash efuse esp_lcd)
+# message(STATUS "LGFX TARGET is esp32s3")
+else()
+  find_package(LCD COMPONENTS esp_lcd QUIET)
+  if (NOT LCD_FOUND)
+    set(COMPONENT_REQUIRES nvs_flash efuse)
+# message(STATUS "LGFX TARGET is NOT esp32s3")
+  else()
+    set(COMPONENT_REQUIRES nvs_flash efuse esp_lcd)
+# message(STATUS "LGFX TARGET is NOT esp32s3 but has esp_lcd")
+  endif()
 endif()
 
 register_component()
