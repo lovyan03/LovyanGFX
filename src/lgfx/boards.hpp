@@ -42,6 +42,8 @@ namespace lgfx
     , board_FeatherM4_HX8357
     , board_ESP32_S3_BOX
     , board_SDL
+    , board_M5StackCoreS3
+    , board_M5AtomS3LCD
     };
   }
   using namespace boards;
