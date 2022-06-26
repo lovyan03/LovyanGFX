@@ -207,6 +207,7 @@ struct esp_lcd_i80_bus_t {
 
   void Bus_Parallel16::wait(void)
   {
+    if (_has_align_data) { _send_align_data(); }
     auto dev = _dev;
     while (dev->lcd_user.val & LCD_CAM_LCD_START) {}
   }
@@ -515,8 +516,8 @@ struct esp_lcd_i80_bus_t {
     uint32_t val;
     do
     {
-      in32[0] = GPIO.in;
       in32[1] = GPIO.in1.val;
+      in32[0] = GPIO.in;
       *reg_rd_h = mask_rd;
       val =              (1 & (in[(ih >>  0) & 7] >> ((mh >>  0) & 7)));
       val = (val << 1) + (1 & (in[(ih >>  3) & 7] >> ((mh >>  3) & 7)));
@@ -528,8 +529,7 @@ struct esp_lcd_i80_bus_t {
       val = (val << 1) + (1 & (in[(ih >> 21) & 7] >> ((mh >> 21) & 7)));
       *dst++ = val;
 
-      *reg_rd_l = mask_rd;
-      if (0 == --length) break;
+      if (0 == --length) { *reg_rd_l = mask_rd; break; }
 
       val =              (1 & (in[(il >>  0) & 7] >> ((ml >>  0) & 7)));
       val = (val << 1) + (1 & (in[(il >>  3) & 7] >> ((ml >>  3) & 7)));
@@ -539,6 +539,7 @@ struct esp_lcd_i80_bus_t {
       val = (val << 1) + (1 & (in[(il >> 15) & 7] >> ((ml >> 15) & 7)));
       val = (val << 1) + (1 & (in[(il >> 18) & 7] >> ((ml >> 18) & 7)));
       val = (val << 1) + (1 & (in[(il >> 21) & 7] >> ((ml >> 21) & 7)));
+      *reg_rd_l = mask_rd;
       *dst++ = val;
     } while (--length);
   }
