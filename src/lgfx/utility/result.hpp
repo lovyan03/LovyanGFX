@@ -32,9 +32,6 @@
 #ifndef RESULT_RESULT_HPP
 #define RESULT_RESULT_HPP
 
-#define RESULT_DISABLE_EXCEPTIONS
-#define RESULT_EXCEPTIONS_DISABLED
-
 #include "../internal/memory.h" // std::address_of
 
 #include <stddef.h>     // size_t
