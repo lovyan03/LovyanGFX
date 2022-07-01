@@ -4241,6 +4241,8 @@ auto RESULT_NS_IMPL::detail::throw_bad_result_access(E&& error) -> void
   );
   std::abort();
 #else
+  std::abort();
+/* // ESP32-S3向けビルドがコンパイルエラーとなるためコメントアウト by lovyan03; 
   using exception_type = bad_result_access<
     typename std::remove_const<
       typename std::remove_reference<E>::type
@@ -4250,6 +4252,7 @@ auto RESULT_NS_IMPL::detail::throw_bad_result_access(E&& error) -> void
   throw exception_type{
     detail::forward<E>(error)
   };
+//*/
 #endif
 }
 
