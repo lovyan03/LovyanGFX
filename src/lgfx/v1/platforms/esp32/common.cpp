@@ -354,6 +354,10 @@ namespace lgfx
         if (ESP_OK != spi_device_acquire_bus(_spi_dev_handle[spi_host], portMAX_DELAY)) {
           ESP_LOGW("LGFX", "Failed to spi_device_acquire_bus. ");
         }
+#if defined ( SOC_GDMA_SUPPORTED )
+        uint32_t spi_port = (spi_host + 1);
+        *reg(SPI_DMA_CONF_REG(spi_port)) = 0; /// Clear previous transfer
+#endif
       }
 #endif
     }
