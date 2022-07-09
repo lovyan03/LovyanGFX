@@ -187,8 +187,7 @@ namespace lgfx
       bus->beginTransaction();
       _pin_level(pin_cs, false);
       bus->writeCommand(cmd, 8);
-//      if (dummy_read_bit) bus->writeData(0, dummy_read_bit);  // dummy read bit
-      bus->beginRead();
+      bus->beginRead(dummy_read_bit);  // dummy read bit
       uint32_t res = bus->readData(32);
       bus->endRead();
       bus->endTransaction();
@@ -289,7 +288,6 @@ namespace lgfx
               auto cfg = p->config();
               cfg.pin_cs  = samd51::PORT_A | 19;
               cfg.pin_rst = -1;
-              cfg.dummy_read_bits = 0;
               p->config(cfg);
             }
             p->setRotation(1);
@@ -351,7 +349,6 @@ namespace lgfx
                 auto cfg = p->config();
                 cfg.pin_cs  = samd51::PORT_B | 21;
                 cfg.pin_rst = samd51::PORT_C |  7;
-                cfg.dummy_read_bits = 0;
                 p->config(cfg);
               }
               p->setRotation(1);

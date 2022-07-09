@@ -259,6 +259,11 @@ namespace lgfx
           auto img = &_img.img16()[index];
           do { *img = rawcolor;  img += bw; } while (--h);
         }
+        else if (bits == 32)
+        {
+          auto img = &_img.img32()[index];
+          do { *img = rawcolor; img += bw; } while (--h);
+        }
         else
         {
           auto img = &_img.img24()[index];

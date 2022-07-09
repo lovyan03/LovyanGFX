@@ -1,3 +1,5 @@
+#include <stdio.h>
+#include <opencv2/opencv.hpp>
 #include <thread>
 
 #define LGFX_USE_V1
@@ -12,8 +14,8 @@ void loopThread(void)
   setup();
   for (;;)
   {
-    loop();
     std::this_thread::yield();
+    loop();
   }
 }
 
@@ -23,6 +25,6 @@ int main(int, char**)
   for (;;)
   {
     std::this_thread::yield();
-    lgfx::Panel_sdl::sdl_event_handler();
+    lgfx::Panel_OpenCV::imshowall();
   }
 }

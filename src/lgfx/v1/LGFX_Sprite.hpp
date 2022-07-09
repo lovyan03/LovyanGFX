@@ -159,7 +159,6 @@ namespace lgfx
       _panel_sprite.setBuffer(buffer, w, h, &_write_conv);
       _img = _panel_sprite.getBuffer();
 
-//      _bitwidth = (w + _write_conv.x_mask) & (~(uint32_t)_write_conv.x_mask);
       _sw = w;
       _clip_r = w - 1;
       _xpivot = w >> 1;
@@ -173,12 +172,11 @@ namespace lgfx
     {
       _img = _panel_sprite.createSprite(w, h, &_write_conv, _psram);
       if (_img) {
-        if (!_palette && 0 == _write_conv.bytes)
+        if (getColorDepth() & color_depth_t::has_palette)
         {
           createPalette();
         }
       }
-//      _bitwidth = (w + _write_conv.x_mask) & (~(uint32_t)_write_conv.x_mask);
       setRotation(getRotation());
 
       _sw = width();
@@ -327,13 +325,17 @@ namespace lgfx
       if (_palette && index < _palette_count) { _palette.img24()[index].set(r, g, b); }
     }
 
-    LGFX_INLINE void* setColorDepth(uint8_t bpp) { return setColorDepth((color_depth_t)bpp); }
+    LGFX_INLINE void* setColorDepth(uint8_t bpp)
+    {
+      _write_conv.setColorDepth(bpp, bpp < 8);
+      return setColorDepth(_write_conv.depth);
+    }
     void* setColorDepth(color_depth_t depth)
     {
-      _panel_sprite.setColorDepth(depth);
-
-      _write_conv.setColorDepth(depth, hasPalette());
+      _write_conv.setColorDepth(depth);
       _read_conv = _write_conv;
+
+      _panel_sprite.setColorDepth(_write_conv.depth);
 
       if (_panel_sprite.getBuffer() == nullptr) return nullptr;
       auto w = _panel_sprite._panel_width;
@@ -410,7 +412,6 @@ namespace lgfx
     LovyanGFX* _parent;
 
     SpriteBuffer _palette;
-//    int32_t _bitwidth;
 
     bool _psram = false;
 
@@ -422,12 +423,16 @@ namespace lgfx
 
       size_t palettes = 1 << _write_conv.bits;
       _palette.reset(palettes * sizeof(bgr888_t), AllocationSource::Normal);
-      if (!_palette) {
-        _write_conv.setColorDepth(_write_conv.depth, false);
-        return false;
+      if (!_palette) { return false; }
+
+      if (!(_write_conv.depth & color_depth_t::has_palette))
+      {
+        auto depth = (color_depth_t)(_write_conv.bits | color_depth_t::has_palette);
+        _write_conv.setColorDepth(depth);
+        _read_conv = _write_conv;
+        _panel_sprite.setColorDepth(depth);
       }
       _palette_count = palettes;
-      _write_conv.setColorDepth(_write_conv.depth, true);
       return true;
     }
 
@@ -464,13 +469,13 @@ namespace lgfx
       if (bpp <= 8) {
         if (!_palette) createPalette();
         uint_fast16_t palettecount = 1 << bpp;
-        argb8888_t *palette = new argb8888_t[palettecount];
+        argb8888_t *palette = (argb8888_t*)alloca(sizeof(argb8888_t*) * palettecount);
         data->seek(bmpdata.biSize + 14);
         data->read((uint8_t*)palette, (palettecount * sizeof(argb8888_t))); // load palette
-        for (uint_fast16_t i = 0; i < _palette_count; ++i) {
+        for (uint_fast16_t i = 0; i < _palette_count; ++i)
+        {
           _palette.img24()[i].set(color_convert<bgr888_t, argb8888_t>(palette[i].get()));
         }
-        delete[] palette;
       }
 
       data->seek(seekOffset);

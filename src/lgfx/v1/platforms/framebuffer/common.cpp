@@ -18,7 +18,7 @@ Contributors:
 Porting for Linux FrameBuffer:
  [imliubo](https://github.com/imliubo)
 /----------------------------------------------------------------------------*/
-#if defined (__linux__)
+#if defined ( LGFX_LINUX_FB )
 
 #include "common.hpp"
 

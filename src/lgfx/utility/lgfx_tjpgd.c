@@ -119,9 +119,7 @@ static inline int32_t BYTECLIP (
 	int32_t val
 )
 {
-	if (val < 0) val = 0;
-	else if (val > 255) val = 255;
-	return val;
+	return (val < 0) ? 0 : (val > 255) ? 255 : val;
 }
 
 #endif
@@ -253,42 +251,38 @@ static int32_t bitext (	/* >=0: extracted data, <0: error code */
 	uint_fast8_t nbit		/* Number of bits to extract (1 to 11) */
 )
 {
-	uint8_t *dp;
-	uint_fast8_t msk;
-	uint32_t v;
+	uint_fast8_t msk = jd->dbit;
+	uint8_t *dp = jd->dptr;
+	uint32_t w = *dp;
 
-	msk = jd->dmsk; dp = jd->dptr;
-	v = 0;
-
-	for (;;) {
-		if (!msk) {				/* Next byte? */
+	if (msk < nbit) {
+		do {				/* Next byte? */
 			uint8_t *dpend = jd->dpend;
 			if (++dp == dpend) {	/* No input data is available, re-fill input buffer */
 				dp = jd->inbuf;	/* Top of input buffer */
-				jd->dpend = dpend = dp + jd->infunc(jd->device, dp, JD_SZBUF);
+				dpend = dp + jd->infunc(jd->device, dp, JD_SZBUF);
 				if (dp == dpend) return 0 - (int32_t)JDR_INP;	/* Err: read error or wrong stream termination */
+				jd->dpend = dpend;
 			}
-			if (*dp == 0xff) {		/* Is start of flag sequence? */
+			uint_fast8_t s = *dp;
+			w = (w << 8) + s;
+			if (s == 0xff) {		/* Is start of flag sequence? */
 				if (++dp == dpend) {	/* No input data is available, re-fill input buffer */
 					dp = jd->inbuf;	/* Top of input buffer */
-					jd->dpend = dpend = dp + jd->infunc(jd->device, dp, JD_SZBUF);
+					dpend = dp + jd->infunc(jd->device, dp, JD_SZBUF);
 					if (dp == dpend) return 0 - (int32_t)JDR_INP;	/* Err: read error or wrong stream termination */
+					jd->dpend = dpend;
 				}
 				if (*dp != 0) return 0 - (int32_t)JDR_FMT1;	/* Err: unexpected flag is detected (may be collapted data) */
 				*dp = 0xff;			/* The flag is a data 0xFF */
 			}
-			msk = 8;			/* Read from MSB */
-		}
-		uint_fast8_t s = *dp;	/* Get next data byte */
-		if (msk >= nbit) {
-			msk -= nbit;
-			jd->dmsk = msk; jd->dptr = dp;
-			return v + ((s >> msk) & ((1 << nbit) - 1));	/* Get bits */
-		}
-		nbit -= msk;
-		v += (s & ((1 << msk) - 1)) << nbit;	/* Get bits */
-		msk = 0;
+			jd->dptr = dp;
+			msk += 8;			/* Read from MSB */
+		} while (msk < nbit);
 	}
+	msk -= nbit;
+	jd->dbit = msk;
+	return (w >> msk) & ((1 << nbit) - 1);	/* Get bits */
 }
 
 
@@ -298,26 +292,26 @@ static int32_t bitext (	/* >=0: extracted data, <0: error code */
 
 static int32_t huffext (	/* >=0: decoded data, <0: error code */
 	lgfxJdec* jd,				/* Pointer to the decompressor object */
-	const uint8_t* hbits,	/* Pointer to the bit distribution table */
-	const uint16_t* hcode,	/* Pointer to the code word table */
-	const uint8_t* hdata	/* Pointer to the data table */
+	const uint8_t* hb,	/* Pointer to the bit distribution table */
+	const uint16_t* hc,	/* Pointer to the code word table */
+	const uint8_t* hd	/* Pointer to the data table */
 )
 {
-	uint8_t *dp;
-	uint_fast8_t msk, bl;
-	uint32_t v;
-
-	msk = jd->dmsk; dp = jd->dptr;
-	v = 0;
-	bl = 16;	/* Max code length */
+	const uint8_t* hb_end = hb + 16 + 1;
+	uint_fast8_t msk = jd->dbit; 
+	uint_fast16_t w = *jd->dptr & ((1ul << msk) - 1);
 	for (;;) {
 		if (!msk) {				/* Next byte? */
+			uint8_t *dp = jd->dptr;
 			uint8_t *dpend = jd->dpend;
+			msk = 8;
 			if (++dp == dpend) {	/* No input data is available, re-fill input buffer */
 				dp = jd->inbuf;	/* Top of input buffer */
 				jd->dpend = dpend = dp + jd->infunc(jd->device, dp, JD_SZBUF);
 				if (dp == dpend) return 0 - (int32_t)JDR_INP;	/* Err: read error or wrong stream termination */
 			}
+			uint_fast8_t s = *dp;
+			w = (w << 8) + s;
 			if (*dp == 0xff) {		/* Is start of flag sequence? */
 				if (++dp == dpend) {	/* No input data is available, re-fill input buffer */
 					dp = jd->inbuf;	/* Top of input buffer */
@@ -327,25 +321,23 @@ static int32_t huffext (	/* >=0: decoded data, <0: error code */
 				if (*dp != 0) return 0 - (int32_t)JDR_FMT1;	/* Err: unexpected flag is detected (may be collapted data) */
 				*dp = 0xff;			/* The flag is a data 0xFF */
 			}
-			msk = 8;			/* Read from MSB */
+			jd->dptr = dp;
 		}
-		uint_fast8_t s = *dp;	/* Get next data byte */
 		do {
-			v = (v << 1) + ((s >> (--msk)) & 1);	/* Get a bit */
-			size_t nd = *++hbits;
-			if (nd) {
+			uint_fast16_t v = w >> --msk;
+			uint_fast8_t nc = *++hb;
+			if (hb == hb_end) return 0 - (int32_t)JDR_FMT1;	/* Err: code not found (may be collapted data) */
+			if (nc) {
+				const uint8_t* hd_end = hd + nc;
 				do {	/* Search the code word in this bit length */
-					++hdata;
-					if (v == *++hcode) goto huffext_match;	/* Matched? */
-				} while (--nd);
+					if (v == *++hc) goto huffext_match;	/* Matched? */
+				} while (++hd != hd_end);
 			}
-			if (!--bl) return 0 - (int32_t)JDR_FMT1;	/* Err: code not found (may be collapted data) */
 		} while (msk);
 	}
 huffext_match:
-	jd->dmsk = msk;
-	jd->dptr = dp;
-	return *hdata;					/* Return the decoded data */
+	jd->dbit = msk;
+	return *++hd;					/* Return the decoded data */
 }
 
 
@@ -357,7 +349,7 @@ huffext_match:
 
 static void block_idct (
 	int32_t* src,	/* Input block data (de-quantized and pre-scaled for Arai Algorithm) */
-	uint8_t* dst	/* Pointer to the destination to store the block as byte array */
+	int16_t* dst	/* Pointer to the destination to store the block as byte array */
 )
 {
 	const int32_t M13 = (int32_t)(1.41421*256), M2 = (int32_t)(1.08239*256), M4 = (int32_t)(2.61313*256), M5 = (int32_t)(1.84776*256);
@@ -454,44 +446,15 @@ static void block_idct (
 		v1 = t12 + t11;
 		v2 = t12 - t11;
 
-		/* Descale the transformed values 8 bits and output */
-#if defined (ESP32) || defined (CONFIG_IDF_TARGET_ESP32) || defined (CONFIG_IDF_TARGET_ESP32S2) || defined (ESP_PLATFORM)
-		int32_t d0 = (v0 + v7) >> 8;
-		int32_t d7 = (v0 - v7) >> 8;
-		int32_t d1 = (v1 + v6) >> 8;
-		int32_t d6 = (v1 - v6) >> 8;
-		int32_t d2 = (v2 + v5) >> 8;
-		int32_t d5 = (v2 - v5) >> 8;
-		int32_t d3 = (v3 + v4) >> 8;
-		int32_t d4 = (v3 - v4) >> 8;
+		dst[0] = (v0 + v7) >> 8;
+		dst[7] = (v0 - v7) >> 8;
+		dst[1] = (v1 + v6) >> 8;
+		dst[6] = (v1 - v6) >> 8;
+		dst[2] = (v2 + v5) >> 8;
+		dst[5] = (v2 - v5) >> 8;
+		dst[3] = (v3 + v4) >> 8;
+		dst[4] = (v3 - v4) >> 8;
 
-		if (d0 < 0) d0 = 0; else if (d0 > 255) d0 = 255;
-		if (d1 < 0) d1 = 0; else if (d1 > 255) d1 = 255;
-		if (d2 < 0) d2 = 0; else if (d2 > 255) d2 = 255;
-		if (d3 < 0) d3 = 0; else if (d3 > 255) d3 = 255;
-		if (d4 < 0) d4 = 0; else if (d4 > 255) d4 = 255;
-		if (d5 < 0) d5 = 0; else if (d5 > 255) d5 = 255;
-		if (d6 < 0) d6 = 0; else if (d6 > 255) d6 = 255;
-		if (d7 < 0) d7 = 0; else if (d7 > 255) d7 = 255;
-
-		dst[0] = d0;
-		dst[1] = d1;
-		dst[2] = d2;
-		dst[3] = d3;
-		dst[4] = d4;
-		dst[5] = d5;
-		dst[6] = d6;
-		dst[7] = d7;
-#else
-		dst[0] = BYTECLIP((v0 + v7) >> 8);
-		dst[7] = BYTECLIP((v0 - v7) >> 8);
-		dst[1] = BYTECLIP((v1 + v6) >> 8);
-		dst[6] = BYTECLIP((v1 - v6) >> 8);
-		dst[2] = BYTECLIP((v2 + v5) >> 8);
-		dst[5] = BYTECLIP((v2 - v5) >> 8);
-		dst[3] = BYTECLIP((v3 + v4) >> 8);
-		dst[4] = BYTECLIP((v3 - v4) >> 8);
-#endif
 		dst += 8;
 		src += 8;	/* Next row */
 	}
@@ -511,7 +474,7 @@ static JRESULT mcu_load (
 	int32_t *tmp = (int32_t*)jd->workbuf;	/* Block working buffer for de-quantize and IDCT */
 	int32_t b, d, e;
 	uint32_t blk, nby, nbc;
-	uint8_t *bp;
+	int16_t *bp;
 	const uint8_t *hb, *hd;
 	const uint16_t *hc;
 
@@ -563,8 +526,9 @@ static JRESULT mcu_load (
 			}
 		} while (++i < 64);		/* Next AC element */
 
-		if (JD_USE_SCALE && jd->scale == 3) {
-			*bp = (uint8_t)((*tmp >> 8) + 128);	/* If scale ratio is 1/8, IDCT can be ommited and only DC element is used */
+		if (i == 1 || (JD_USE_SCALE && jd->scale == 3)) {
+			d = (int16_t)((*tmp >> 8) + 128);	/* If scale ratio is 1/8, IDCT can be ommited and only DC element is used */
+			for (i = 0; i < 64; bp[i++] = d) ;
 		} else {
 			block_idct(tmp, bp);		/* Apply IDCT and store the block to the MCU buffer */
 		}
@@ -592,7 +556,8 @@ static JRESULT mcu_output (
 	const int_fast16_t FP_SHIFT = 8;
 	uint32_t ix, iy, mx, my, rx, ry;
 	int32_t yy, cb, cr;
-	uint8_t *py, *pc, *rgb24;
+	int16_t *py, *pc;
+	uint8_t *rgb24;
 	JRECT rect;
 
 	mx = jd->msx << 3; my = jd->msy << 3;					/* MCU size (pixel) */
@@ -767,7 +732,7 @@ static JRESULT restart (
 		}
 		d = (d << 8) | *dp;	/* Get a byte */
 	}
-	jd->dptr = dp; jd->dmsk = 0;
+	jd->dptr = dp; jd->dbit = 0;
 
 	/* Check the marker */
 	if ((d & 0xFFD8) != 0xFFD0 || (d & 7) != (rstn & 7)) {
@@ -926,10 +891,13 @@ JRESULT lgfx_jd_prepare (
 			if (len < 256) len = 256;					/* but at least 256 byte is required for IDCT */
 			jd->workbuf = alloc_pool(jd, len);			/* and it may occupy a part of following MCU working buffer for RGB output */
 			if (!jd->workbuf) return JDR_MEM1;			/* Err: not enough memory */
-			jd->mcubuf = (uint8_t*)alloc_pool(jd, (n + 2) * 64);	/* Allocate MCU working buffer */
+			size_t mcubuf_len = (n + 2) * 64;
+			jd->mcubuf = (int16_t*)alloc_pool(jd, mcubuf_len * sizeof(int16_t));	/* Allocate MCU working buffer */
 			if (!jd->mcubuf) return JDR_MEM1;			/* Err: not enough memory */
 			if (jd->comps_in_frame == 1) {
-				memset(&jd->mcubuf[64], 128, 128);		/* Cb/Cr clear ( for grayscale )*/
+				for (size_t i = n * 16; i < mcubuf_len; ++i) {
+					jd->mcubuf[i] = 128;		/* Cb/Cr clear ( for grayscale )*/
+				}
 			}
 
 			/* Pre-load the JPEG data to extract it from the bit stream */
@@ -937,7 +905,7 @@ JRESULT lgfx_jd_prepare (
 			int32_t dc = infunc(dev, seg + ofs, JD_SZBUF - ofs);
 			jd->dptr = seg + ofs - 1;
 			jd->dpend = seg + ofs + dc;
-			jd->dmsk = 0;	/* Prepare to read bit stream */
+			jd->dbit = 0;	/* Prepare to read bit stream */
 
 			return JDR_OK;		/* Initialization succeeded. Ready to decompress the JPEG image. */
 

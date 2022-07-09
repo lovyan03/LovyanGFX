@@ -29,7 +29,7 @@ jobs:
           - esp32@v4.2
           - esp32@v4.3.1
           - esp32s2@v4.3.1
-          - esp32s3@v4.4-rc1
+          - esp32s3@v4.4.1
 
         include:
           - esp-idf-fqbn: esp32@v4.1
@@ -44,9 +44,9 @@ jobs:
           - esp-idf-fqbn: esp32s2@v4.3.1
             idf-board: esp32s2
             idf-version: v4.3.1
-          - esp-idf-fqbn: esp32s3@v4.4-rc1
+          - esp-idf-fqbn: esp32s3@v4.4.1
             idf-board: esp32s3
-            idf-version: v4.4-rc1
+            idf-version: v4.4.1
 
       fail-fast: false
 

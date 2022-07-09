@@ -132,8 +132,6 @@ namespace lgfx
                   void drawBezier      ( int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t x2, int32_t y2);
     LGFX_INLINE_T void drawBezier      ( int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t x2, int32_t y2, int32_t x3, int32_t y3, const T& color)  { setColor(color); drawBezier(x0, y0, x1, y1, x2, y2, x3, y3); }
                   void drawBezier      ( int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t x2, int32_t y2, int32_t x3, int32_t y3);
-    LGFX_INLINE_T void drawBezierHelper( int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t x2, int32_t y2, const T& color)  { setColor(color); drawBezierHelper(x0, y0, x1, y1, x2, y2); }
-                  void drawBezierHelper( int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t x2, int32_t y2);
     LGFX_INLINE_T void drawEllipseArc  ( int32_t x, int32_t y, int32_t r0x, int32_t r1x, int32_t r0y, int32_t r1y, float angle0, float angle1, const T& color) { setColor(color); drawEllipseArc( x, y, r0x, r1x, r0y, r1y, angle0, angle1); }
                   void drawEllipseArc  ( int32_t x, int32_t y, int32_t r0x, int32_t r1x, int32_t r0y, int32_t r1y, float angle0, float angle1);
     LGFX_INLINE_T void fillEllipseArc  ( int32_t x, int32_t y, int32_t r0x, int32_t r1x, int32_t r0y, int32_t r1y, float angle0, float angle1, const T& color) { setColor(color); fillEllipseArc( x, y, r0x, r1x, r0y, r1y, angle0, angle1); }
@@ -142,7 +140,7 @@ namespace lgfx
                   void drawArc         ( int32_t x, int32_t y, int32_t r0, int32_t r1, float angle0, float angle1)                 {                  drawEllipseArc( x, y, r0, r1, r0, r1, angle0, angle1); }
     LGFX_INLINE_T void fillArc         ( int32_t x, int32_t y, int32_t r0, int32_t r1, float angle0, float angle1, const T& color) { setColor(color); fillEllipseArc( x, y, r0, r1, r0, r1, angle0, angle1); }
                   void fillArc         ( int32_t x, int32_t y, int32_t r0, int32_t r1, float angle0, float angle1)                 {                  fillEllipseArc( x, y, r0, r1, r0, r1, angle0, angle1); }
-    LGFX_INLINE_T void drawCircleHelper( int32_t x, int32_t y, int32_t r, uint_fast8_t cornername                , const T& color)  { setColor(color); drawCircleHelper(x, y, r, cornername    ); }
+    LGFX_INLINE_T void drawCircleHelper( int32_t x, int32_t y, int32_t r, uint_fast8_t cornername                , const T& color) { setColor(color); drawCircleHelper(x, y, r, cornername    ); }
                   void drawCircleHelper( int32_t x, int32_t y, int32_t r, uint_fast8_t cornername);
     LGFX_INLINE_T void fillCircleHelper( int32_t x, int32_t y, int32_t r, uint_fast8_t corners, int32_t delta, const T& color)  { setColor(color); fillCircleHelper(x, y, r, corners, delta); }
                   void fillCircleHelper( int32_t x, int32_t y, int32_t r, uint_fast8_t corners, int32_t delta);
@@ -157,6 +155,12 @@ namespace lgfx
     LGFX_INLINE_T void drawGradientHLine( int32_t x, int32_t y, int32_t w, const T& colorstart, const T& colorend ) { drawGradientLine( x, y, x + w - 1, y, colorstart, colorend ); }
     LGFX_INLINE_T void drawGradientVLine( int32_t x, int32_t y, int32_t h, const T& colorstart, const T& colorend ) { drawGradientLine( x, y, x, y + h - 1, colorstart, colorend ); }
     LGFX_INLINE_T void drawGradientLine ( int32_t x0, int32_t y0, int32_t x1, int32_t y1, const T& colorstart, const T& colorend ) { draw_gradient_line( x0, y0, x1, y1, convert_to_rgb888(colorstart), convert_to_rgb888(colorend) ); }
+
+    LGFX_INLINE_T void fillSmoothRoundRect(int32_t x, int32_t y, int32_t w, int32_t h, int32_t r, const T& color) { setColor(color); fillSmoothRoundRect(x, y, w, h, r); }
+                  void fillSmoothRoundRect(int32_t x, int32_t y, int32_t w, int32_t h, int32_t r);
+
+    LGFX_INLINE_T void fillSmoothCircle(int32_t x, int32_t y, int32_t r, const T& color) { setColor(color); fillSmoothCircle(x, y, r); }
+                  void fillSmoothCircle(int32_t x, int32_t y, int32_t r) { fillSmoothRoundRect(x-r, y-r, r*2+1, r*2+1, r); }
 
     LGFX_INLINE_T void fillScreen  ( const T& color) { setColor(color); fillRect(0, 0, width(), height()); }
     LGFX_INLINE   void fillScreen  ( void )          {                  fillRect(0, 0, width(), height()); }
@@ -235,6 +239,13 @@ namespace lgfx
       auto pc = create_pc_fast(data, palette, src_depth);
       _panel->writePixels(&pc, len, false);
     }
+
+    /// Obtains the current scanning line position.
+    /// 現在の走査線の位置を取得する。;
+    /// @return -1=unsupported. / 0 or more = current scanline position.
+    /// @attention This function returns the raw value obtained from the device. Note that screen rotation and offset are not taken into account.
+    /// @attention この関数はデバイスから得られる生の値を返す。画面の回転やオフセットは考慮されていないことに注意。;
+    int32_t getScanLine(void) { return _panel->getScanLine(); }
 
     uint8_t getRotation(void) const { return _panel->getRotation(); }
     void setRotation(uint_fast8_t rotation);

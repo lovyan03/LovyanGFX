@@ -177,13 +177,22 @@ namespace lgfx
     }
   }
 
-  uint32_t Panel_LCD::readCommand(uint_fast8_t cmd, uint_fast8_t index, uint_fast8_t len)
+  uint32_t Panel_LCD::readCommand(uint_fast8_t cmd, uint_fast8_t index, uint_fast8_t length)
   {
+    size_t dlen = 8 << _cfg.dlen_16bit;
     startWrite();
     write_command(cmd);
-    index = (index << 3) + _cfg.dummy_read_bits;
-    auto res = read_bits(index, len << 3);
+    _bus->beginRead((index * dlen) + _cfg.dummy_read_bits);
+
+    uint32_t res = 0;
+    for (size_t i = 0; i < length; ++i)
+    {
+      res += ((_bus->readData(dlen) >> (dlen - 8)) & 0xFF) << (i * 8);
+    }
+    cs_control(true);
+    _bus->endRead();
     endWrite();
+
     if (_in_transaction) { cs_control(false); }
     return res;
   }
@@ -423,6 +432,11 @@ namespace lgfx
     endWrite();
 
     if (_in_transaction) { cs_control(false); }
+  }
+
+  int32_t Panel_LCD::getScanLine(void)
+  {
+    return getSwap16(readCommand(CMD_GETSCANLINE, 0, 2));
   }
 
   void Panel_LCD::set_window_8(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye, uint32_t cmd)

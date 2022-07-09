@@ -49,17 +49,26 @@ Contributors:
 
 #include "arduino_default/common.hpp"
 
-#elif defined (_WIN32) || __has_include(<opencv2/opencv.hpp>)
+#elif __has_include(<opencv2/opencv.hpp>)
 
 #include "opencv/common.hpp"
+
+#elif __has_include(<SDL2/SDL.h>) || __has_include(<SDL.h>)
+
+#include "sdl/common.hpp"
 
 #elif defined (__linux__)
 
 #include "framebuffer/common.hpp"
 
+#else
+
+#error unknown platform...
+
 #endif
 
 #include "../../utility/result.hpp"
+#include "../misc/enum.hpp"
 
 namespace lgfx
 {

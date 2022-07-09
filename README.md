@@ -76,7 +76,9 @@ This library has the following advantages.
     - ILI9486
     - ILI9488 (Makerfabs Touch with Camera)
     - IT8951 (M5Paper)
+    - R61529
     - RA8875
+    - RM68120
     - SH110x (SH1106, SH1107, M5Stack Unit OLED)
     - SSD1306 (SSD1309)
     - SSD1327
@@ -537,7 +539,5 @@ TomThumb font : [3-clause BSD](src/lgfx/Fonts/GFXFF/TomThumb.h) Brian J. Swetlan
   - ディスプレイ Displays
     - OTM8009A / NT35510
     - SEPS525
-    - RM68120
-    - R61529
 
 

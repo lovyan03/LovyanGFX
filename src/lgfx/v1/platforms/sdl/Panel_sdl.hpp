@@ -23,20 +23,26 @@ Porting for SDL:
 #include "../../panel/Panel_Device.hpp"
 #include "../../misc/range.hpp"
 #include "../../Touch.hpp"
-
-#include <SDL2/SDL.h>
+#include "common.hpp"
 
 namespace lgfx
 {
  inline namespace v1
  {
-  typedef struct {
-    SDL_Window * window;
-    SDL_Renderer * renderer;
-    SDL_Texture * texture;
+  struct Panel_sdl;
+  struct monitor_t
+  {
+    SDL_Window* window = nullptr;
+    SDL_Renderer* renderer = nullptr;
+    SDL_Texture* texture = nullptr;
     volatile bool sdl_refr_qry;
-    uint8_t * tft_fb;
-  }monitor_t;
+    bgr888_t* tft_fb = nullptr;
+    Panel_sdl* panel = nullptr;
+    int scaling_x = 1;
+    int scaling_y = 1;
+    bool touched = false;
+    int touch_x, touch_y;
+  };
 //----------------------------------------------------------------------------
 
   struct Panel_sdl : public Panel_Device
@@ -44,14 +50,15 @@ namespace lgfx
 
   public:
     static void sdl_event_handler(void);
+    static void sdl_update_handler(void);
     Panel_sdl(void);
     virtual ~Panel_sdl(void);
 
     bool init(bool use_reset) override;
-    void beginTransaction(void) override;
-    void endTransaction(void) override;
+    void beginTransaction(void) override {}
+    void endTransaction(void) override {}
 
-    color_depth_t setColorDepth(color_depth_t depth);
+    color_depth_t setColorDepth(color_depth_t depth) override;
     void setRotation(uint_fast8_t r) override;
     void setInvert(bool invert) override {}
     void setSleep(bool flg) override {}
@@ -62,7 +69,7 @@ namespace lgfx
 
     void writePixels(pixelcopy_t* param, uint32_t len, bool use_dma) override;
     void writeBlock(uint32_t rawcolor, uint32_t length) override;
-    void display(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h) override;
+    void display(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h) override {}
     void setWindow(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye) override;
     void drawPixelPreclipped(uint_fast16_t x, uint_fast16_t y, uint32_t rawcolor) override;
     void writeFillRectPreclipped(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, uint32_t rawcolor) override;
@@ -77,9 +84,12 @@ namespace lgfx
     uint_fast8_t getTouchRaw(touch_point_t* tp, uint_fast8_t count) override;
     void sdl_quit(void);
 
+
+    void setScaling(uint_fast8_t scaling_x, uint_fast8_t scaling_y);
+
   private:
     void sdl_create(monitor_t * m);
-    void sdl_update(monitor_t * m);
+    static void sdl_update(const monitor_t* const m);
 
   protected:
     touch_point_t _touch_point;

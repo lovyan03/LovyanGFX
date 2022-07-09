@@ -24,14 +24,22 @@ Porting for SDL:
 #include "../../misc/enum.hpp"
 #include "../../../utility/result.hpp"
 
-#include <malloc.h>
+#include <stdlib.h>
 #include <stdio.h>
+
+#if __has_include(<SDL2/SDL.h>)
+#include <SDL2/SDL.h>
+#endif
+#if __has_include(<SDL.h>)
+#include <SDL.h>
+#endif
 
 namespace lgfx
 {
  inline namespace v1
  {
 //----------------------------------------------------------------------------
+  static constexpr size_t EMULATED_GPIO_MAX = 128;
 
   unsigned long millis(void);
 
@@ -46,9 +54,9 @@ namespace lgfx
   static inline void* heap_alloc_dma(  size_t length) { return malloc(length); } // aligned_alloc(16, length);
   static inline void heap_free(void* buf) { free(buf); }
 
-  static inline void gpio_hi(uint32_t pin) { }
-  static inline void gpio_lo(uint32_t pin) { }
-  static inline bool gpio_in(uint32_t pin) { return false; }
+  void gpio_hi(uint32_t pin);
+  void gpio_lo(uint32_t pin);
+  bool gpio_in(uint32_t pin);
 
   enum pin_mode_t
   { output
@@ -57,8 +65,8 @@ namespace lgfx
   , input_pulldown
   };
 
-  static void pinMode(int_fast16_t pin, pin_mode_t mode) {}
-  static void lgfxPinMode(int_fast16_t pin, pin_mode_t mode) {}
+  void pinMode(int_fast16_t pin, pin_mode_t mode);
+  void lgfxPinMode(int_fast16_t pin, pin_mode_t mode);
 
 //----------------------------------------------------------------------------
 
@@ -77,6 +85,22 @@ namespace lgfx
     void close() override { if (_fp) fclose(_fp); }
     int32_t tell(void) override { return ftell(_fp); }
   };
+
+//----------------------------------------------------------------------------
+
+  namespace spi
+  {
+    cpp::result<void, error_t> init(int spi_host, int spi_sclk, int spi_miso, int spi_mosi, int dma_channel);
+    void beginTransaction(int spi_host);
+  }
+
+//----------------------------------------------------------------------------
+
+  namespace i2c
+  {
+    static inline cpp::result<void, error_t> setPins(int i2c_port, int pin_sda, int pin_scl) { return {}; }
+    static inline cpp::result<void, error_t> init(int i2c_port) { return {}; }
+  }
 
 //----------------------------------------------------------------------------
  }

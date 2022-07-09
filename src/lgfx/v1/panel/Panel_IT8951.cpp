@@ -36,8 +36,6 @@ namespace lgfx
 
   static constexpr int8_t Bayer[16] = {-30, 2, -22, 10, 18, -14, 26, -6, -18, 14, -26, 6, 30, -2, 22, -10};
 
-  static constexpr uint32_t _tar_memaddr = 0x001236E0;
-
 //Built in I80 Command Code
   static constexpr uint32_t IT8951_TCON_SYS_RUN         = 0x0001;
   static constexpr uint32_t IT8951_TCON_STANDBY         = 0x0002;
@@ -138,21 +136,53 @@ IT8951 Registers defines
 
     _wait_busy();
 
-    startWrite(true);
+    {
+      uint32_t writeclock = _bus->getClock();
+      if (writeclock > 12000000) { _bus->setClock(12000000); }
+      uint32_t readclock = _bus->getReadClock();
+      if (readclock > 2000000) { _bus->setReadClock(2000000); }
 
-    setInvert(_invert);
-    setRotation(_rotation);
+      startWrite();
 
-    _write_command(IT8951_TCON_SYS_RUN);
-    _write_reg(IT8951_I80CPCR, 0x0001); //enable pack write
+      _write_command(IT8951_I80_CMD_GET_DEV_INFO);
+      delay(1);
+      uint16_t buf[20];
+      _read_words(buf, 20);
+      uint32_t addr = (buf[3] << 16) | buf[2];
+      if (addr != 0 && addr != ~0u)
+      {
+        _tar_memaddr = addr;
+      }
+      else
+      {
+        _tar_memaddr = 0x001236E0; /// default value for M5Paper.
+#if defined ( ESP_LOGE )
+        ESP_LOGE("Panel_IT8951", "can't read data from IT8951");
+#endif
+      }
 
-    _write_command(0x0039); //tcon vcom set command
-    _write_word(0x0001);
-    _write_word(2300); // 0x08fc
+      // for (int i = 0; i < 20; ++i)
+      // {
+      //   ESP_LOGE("debug", "buf[%d] = %04x", i, buf[i]);
+      // }
 
-    _set_target_memory_addr(_tar_memaddr);
+      setInvert(_invert);
+      setRotation(_rotation);
 
-    endWrite();
+      _write_command(IT8951_TCON_SYS_RUN);
+      _write_reg(IT8951_I80CPCR, 0x0001); //enable pack write
+
+      _write_command(0x0039); //tcon vcom set command
+      _write_word(0x0001);
+      _write_word(2300); // 0x08fc
+
+      _set_target_memory_addr(_tar_memaddr);
+
+      endWrite();
+
+      _bus->setClock(writeclock);
+      _bus->setReadClock(readclock);
+    }
 
     return true;
   }
@@ -178,12 +208,17 @@ IT8951 Registers defines
     cs_control(true);
     if (_cfg.pin_busy >= 0 && !lgfx::gpio_in(_cfg.pin_busy))
     {
-      auto time = millis();
+      auto start_ms = millis();
       do
       {
-        if (millis() - time > timeout)
+        uint32_t ms = millis() - start_ms;
+        if (ms >= 16)
         {
-          return false;
+          if (ms > timeout)
+          {
+            return false;
+          }
+          delay(ms >> 4);
         }
       } while (!lgfx::gpio_in(_cfg.pin_busy));
     }
@@ -270,8 +305,8 @@ IT8951 Registers defines
   bool Panel_IT8951::_read_words(uint16_t *buf, uint32_t length)
   {
     if (!_wait_busy()) return false;
-    _bus->writeData(getSwap16(0x1000), 16 + 16); // +16 dummy read
-    _bus->beginRead();
+    _bus->writeData(getSwap16(0x1000), 16);
+    _bus->beginRead(16);  // 16 bit dummy read
     _bus->readBytes(reinterpret_cast<uint8_t*>(buf), length << 1);
     _bus->endRead();
     cs_control(true);

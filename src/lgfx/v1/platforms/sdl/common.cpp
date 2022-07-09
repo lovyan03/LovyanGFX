@@ -18,7 +18,7 @@ Contributors:
 Porting for SDL:
  [imliubo](https://github.com/imliubo)
 /----------------------------------------------------------------------------*/
-#if __has_include(<SDL2/SDL.h>)
+#if defined ( LGFX_SDL )
 
 #include "common.hpp"
 
@@ -31,51 +31,48 @@ namespace lgfx
  {
 //----------------------------------------------------------------------------
 
+  static uint8_t _gpio_dummy_values[EMULATED_GPIO_MAX];
+
+  void pinMode(int_fast16_t pin, pin_mode_t mode) {}
+  void lgfxPinMode(int_fast16_t pin, pin_mode_t mode) {}
+
+  void gpio_hi(uint32_t pin) { _gpio_dummy_values[pin & (EMULATED_GPIO_MAX - 1)] = 1; }
+  void gpio_lo(uint32_t pin) { _gpio_dummy_values[pin & (EMULATED_GPIO_MAX - 1)] = 0; }
+  bool gpio_in(uint32_t pin) { return _gpio_dummy_values[pin & (EMULATED_GPIO_MAX - 1)]; }
+
   unsigned long millis(void)
   {
-    struct timespec ts;
-
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-
-    return (ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
+    return SDL_GetTicks();
   }
 
   unsigned long micros(void)
   {
-    struct timespec ts;
-
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-
-    return (ts.tv_sec * 1000000 + ts.tv_nsec / 1000);
+    return SDL_GetPerformanceCounter() / (SDL_GetPerformanceFrequency() / (1000 * 1000));
   }
 
   void delay(unsigned long milliseconds)
   {
-    if (milliseconds < 20)
+    if (milliseconds < 1024)
     {
       delayMicroseconds(milliseconds * 1000);
     }
     else
     {
-      std::this_thread::sleep_for(std::chrono::milliseconds(milliseconds));
+      std::this_thread::sleep_for(std::chrono::milliseconds(milliseconds - 1));
     }
   }
 
   void delayMicroseconds(unsigned int us)
   {
-/*
-    std::this_thread::sleep_for(std::chrono::microseconds(us));
-/*/
     auto start = micros();
+    if (us >= 2000)
+    {
+      std::this_thread::sleep_for(std::chrono::milliseconds((us / 1000) - 1));
+    }
     do
     {
       std::this_thread::yield();
-      // for (int i = 0; i < 256; ++i)
-      // {
-      //   __nop();
-      // }
     } while (micros() - start < us);
-//*/
   }
 
 //----------------------------------------------------------------------------

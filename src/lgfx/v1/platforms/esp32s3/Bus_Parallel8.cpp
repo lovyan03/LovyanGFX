@@ -434,18 +434,18 @@ struct esp_lcd_i80_bus_t {
     uint_fast8_t val;
     do
     {
-      in32[0] = GPIO.in;
       in32[1] = GPIO.in1.val;
+      in32[0] = GPIO.in;
       *reg_rd_h = mask_rd;
       val =              (1 & (in[(idx >>  0) & 7] >> ((mask >>  0) & 7)));
       val = (val << 1) + (1 & (in[(idx >>  3) & 7] >> ((mask >>  3) & 7)));
       val = (val << 1) + (1 & (in[(idx >>  6) & 7] >> ((mask >>  6) & 7)));
       val = (val << 1) + (1 & (in[(idx >>  9) & 7] >> ((mask >>  9) & 7)));
       val = (val << 1) + (1 & (in[(idx >> 12) & 7] >> ((mask >> 12) & 7)));
-      *reg_rd_l = mask_rd;
       val = (val << 1) + (1 & (in[(idx >> 15) & 7] >> ((mask >> 15) & 7)));
       val = (val << 1) + (1 & (in[(idx >> 18) & 7] >> ((mask >> 18) & 7)));
       val = (val << 1) + (1 & (in[(idx >> 21) & 7] >> ((mask >> 21) & 7)));
+      *reg_rd_l = mask_rd;
       *dst++ = val;
     } while (--length);
   }

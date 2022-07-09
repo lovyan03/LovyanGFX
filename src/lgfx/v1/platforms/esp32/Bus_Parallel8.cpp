@@ -213,6 +213,10 @@ namespace lgfx
 
   void Bus_Parallel8::wait(void)
   {
+    if (_cache_index)
+    {
+      _cache_index = _flush(_cache_index, true);
+    }
     _wait();
   }
 
@@ -597,10 +601,10 @@ namespace lgfx
       val = (val << 1) + (1 & (in[(idx >>  6) & 7] >> ((mask >>  6) & 7)));
       val = (val << 1) + (1 & (in[(idx >>  9) & 7] >> ((mask >>  9) & 7)));
       val = (val << 1) + (1 & (in[(idx >> 12) & 7] >> ((mask >> 12) & 7)));
-      *reg_rd_l = mask_rd;
       val = (val << 1) + (1 & (in[(idx >> 15) & 7] >> ((mask >> 15) & 7)));
       val = (val << 1) + (1 & (in[(idx >> 18) & 7] >> ((mask >> 18) & 7)));
       val = (val << 1) + (1 & (in[(idx >> 21) & 7] >> ((mask >> 21) & 7)));
+      *reg_rd_l = mask_rd;
       *dst++ = val;
     } while (--length);
   }
