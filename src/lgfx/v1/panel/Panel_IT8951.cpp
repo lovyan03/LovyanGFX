@@ -172,10 +172,6 @@ IT8951 Registers defines
       _write_command(IT8951_TCON_SYS_RUN);
       _write_reg(IT8951_I80CPCR, 0x0001); //enable pack write
 
-      _write_command(0x0039); //tcon vcom set command
-      _write_word(0x0001);
-      _write_word(2300); // 0x08fc
-
       _set_target_memory_addr(_tar_memaddr);
 
       endWrite();
@@ -185,6 +181,26 @@ IT8951 Registers defines
     }
 
     return true;
+  }
+
+  uint16_t Panel_IT8951::getVCOM(void)
+  {
+    startWrite();
+    _write_command(IT8951_I80_CMD_VCOM);
+    _write_word(0x0000);
+    uint16_t vcom;
+    _read_words(&vcom, 1);
+    endWrite();
+    return vcom;
+  }
+
+  void Panel_IT8951::setVCOM(uint16_t vcom)
+  {
+    startWrite();
+    _write_command(IT8951_I80_CMD_VCOM);
+    _write_word(0x0001);
+    _write_word(vcom);
+    endWrite();
   }
 
   void Panel_IT8951::beginTransaction(void)

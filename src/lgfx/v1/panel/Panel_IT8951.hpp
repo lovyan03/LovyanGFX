@@ -58,6 +58,10 @@ namespace lgfx
 
     void readRect(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, void* dst, pixelcopy_t* param) override;
 
+
+    uint16_t getVCOM(void);
+    void setVCOM(uint16_t vcom);
+
   private:
 
     enum epd_update_mode_t
