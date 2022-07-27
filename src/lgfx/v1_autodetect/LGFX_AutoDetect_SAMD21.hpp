@@ -68,11 +68,8 @@ namespace lgfx
       default: return false;
       }
 
-      // Enable Peripheral Clocks
-      GCLK->GENCTRL.reg = 0 | (1u << 16); // Enable generic clock 0
-      while (GCLK->STATUS.bit.SYNCBUSY);
-
-      GCLK->CLKCTRL.reg = (0x01 < 14) | (0x00 << 8) | gclk_id; // CLKEN + Generic clock gen 0 + ID
+      // Enable Peripheral Clock (Arduino startup set gen clock 0 to 48 MHz)
+      GCLK->CLKCTRL.reg = (1 << 14) | (0 << 8) | gclk_id; // CLKEN + Generic clock gen 0 + ID
       while (GCLK->STATUS.bit.SYNCBUSY);
 
       // Configure _tc
@@ -89,7 +86,7 @@ namespace lgfx
 
       // Configure PORT
       lgfx::pinMode( _cfg.pin, pin_mode_t::output );
-      if (_cfg.timer_alt) lgfx::pinAssignPeriph( _cfg.pin, _cfg.timer_alt ? 5 : 45 ); // 4, 5 = periph E, F (PIO_TIMER, PIO_TIMER_ALT)
+      lgfx::pinAssignPeriph( _cfg.pin, _cfg.timer_alt ? 5 : 4 ); // 4, 5 = periph E, F (PIO_TIMER, PIO_TIMER_ALT)
 
       return true;
     }
@@ -131,12 +128,8 @@ namespace lgfx
       default: return false;
       }
 
-      // Enable Peripheral Clocks
-      GCLK->GENCTRL.reg = 0 | (1u << 16); // Enable generic clock 0
-      while (GCLK->STATUS.bit.SYNCBUSY);
-//CLK_TCC0_APB must be enabled in power manager?
-
-      GCLK->CLKCTRL.reg = (0x01 < 14) | (0x00 << 8) | gclk_id; // CLKEN + Generic clock gen 0 + ID
+      // Enable Peripheral Clock (Arduino startup set gen clock 0 to 48 MHz)
+      GCLK->CLKCTRL.reg = (1 << 14) | (0 << 8) | gclk_id; // CLKEN + Generic clock gen 0 + ID
       while (GCLK->STATUS.bit.SYNCBUSY);
 
       // Configure _tcc
@@ -156,7 +149,7 @@ namespace lgfx
 
       // Configure PORT
       lgfx::pinMode( _cfg.pin, pin_mode_t::output );
-      if (_cfg.timer_alt) lgfx::pinAssignPeriph( _cfg.pin, _cfg.timer_alt ? 5 : 45 ); // 4, 5 = periph E, F (PIO_TIMER, PIO_TIMER_ALT)
+      lgfx::pinAssignPeriph( _cfg.pin, _cfg.timer_alt ? 5 : 4 ); // 4, 5 = periph E, F (PIO_TIMER, PIO_TIMER_ALT)
 
       return true;
     }
@@ -285,7 +278,7 @@ namespace lgfx
 // HalloWing M0 screen is write-only, no LGFX_AUTODETECT
 #if defined ( LGFX_HALLOWING_M0 )
 
-      if (board == 0) // || board == board_t::board_HalloWingM0)
+      if (board == 0 || board == board_t::board_HalloWingM0)
       {
         _pin_reset(samd21::PORT_A | 27, use_reset);
         bus_cfg.sercom_index = 5;
@@ -296,7 +289,7 @@ namespace lgfx
         bus_cfg.freq_write = 24000000;
         _bus_spi.config(bus_cfg);
         board = board_t::board_HalloWingM0;
-        auto p = new lgfx::Panel_ST7735();
+        auto p = new lgfx::Panel_ST7735S();
         _panel_last = p;
         {
           auto cfg = p->config();
@@ -306,10 +299,11 @@ namespace lgfx
           cfg.panel_height = 128;
           cfg.memory_width = 128;
           cfg.memory_height = 128;
+          cfg.offset_x = 2;
+          cfg.offset_y = 1;
           cfg.readable = false;
-          cfg.rgb_order = true;
+          cfg.rgb_order = false;
           cfg.invert = false;
-          cfg.offset_rotation = 2;
           p->config(cfg);
         }
         p->setBus(&_bus_spi);
