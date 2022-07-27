@@ -471,7 +471,7 @@ namespace lgfx
         goto init_clear;
       }
 
-#endif
+#endif // end LGFX_HALLOWING_M4
 
       board = board_t::board_unknown;
 

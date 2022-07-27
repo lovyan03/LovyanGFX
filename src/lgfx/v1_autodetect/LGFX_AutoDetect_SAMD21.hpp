@@ -68,7 +68,13 @@ namespace lgfx
       default: return false;
       }
 
-      // Enable Peripheral Clock (Arduino startup set gen clock 0 to 48 MHz)
+      // As written, _tc will source from Generic Clock Generator 0, which
+      // is presumed already configured in boot code. For example, Arduino
+      // startup sets this to DFLL48M (48 MHz), and almost certainly true
+      // of any non-Arduino environment as well. That step is NOT repeated
+      // here as GCLK0 is the main system clock and unwise to alter now.
+
+      // Enable TC peripheral clock, sourced from GCLK0 (presumed 48 MHz)
       GCLK->CLKCTRL.reg = (1 << 14) | (0 << 8) | gclk_id; // CLKEN + Generic clock gen 0 + ID
       while (GCLK->STATUS.bit.SYNCBUSY);
 
@@ -128,7 +134,13 @@ namespace lgfx
       default: return false;
       }
 
-      // Enable Peripheral Clock (Arduino startup set gen clock 0 to 48 MHz)
+      // As written, _tc will source from Generic Clock Generator 0, which
+      // is presumed already configured in boot code. For example, Arduino
+      // startup sets this to DFLL48M (48 MHz), and almost certainly true
+      // of any non-Arduino environment as well. That step is NOT repeated
+      // here as GCLK0 is the main system clock and unwise to alter now.
+
+      // Enable TCC peripheral clock, sourced from GCLK0 (presumed 48 MHz)
       GCLK->CLKCTRL.reg = (1 << 14) | (0 << 8) | gclk_id; // CLKEN + Generic clock gen 0 + ID
       while (GCLK->STATUS.bit.SYNCBUSY);
 
@@ -321,7 +333,7 @@ namespace lgfx
         goto init_clear;
       }
 
-#endif
+#endif // end LGFX_HALLOWING_M0
 
       board = board_t::board_unknown;
 
