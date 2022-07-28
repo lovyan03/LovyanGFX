@@ -316,6 +316,7 @@ namespace lgfx
           cfg.readable = false;
           cfg.rgb_order = false;
           cfg.invert = false;
+          cfg.offset_rotation = 3;
           p->config(cfg);
         }
         p->setBus(&_bus_spi);
