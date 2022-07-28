@@ -451,9 +451,9 @@ namespace lgfx
           cfg.memory_width = 240;
           cfg.memory_height = 320;
           cfg.readable = false;
-          cfg.rgb_order = true;
+          cfg.rgb_order = false;
           cfg.invert = true;
-          cfg.offset_rotation = 1;
+          cfg.offset_rotation = 2;
           p->config(cfg);
         }
         p->setBus(&_bus_spi);
