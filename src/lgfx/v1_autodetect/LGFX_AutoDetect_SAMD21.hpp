@@ -148,9 +148,9 @@ namespace lgfx
       _tcc->CTRLA.bit.SWRST = 1;
       while (_tcc->SYNCBUSY.bit.SWRST);
       _tcc->CTRLA.reg = (0x04 << 8) | (0x01 << 12); // PRESCALER=DIV16, PRESCSYNC=PRESC
-      _tcc->CTRLBCLR.reg = (1u<<1); // Continuous
-      while (_tcc->SYNCBUSY.bit.CTRLB);
-      _tcc->PER.reg = 255 << 6;     // 8-bit range, no dither
+      _tcc->WAVE.bit.WAVEGEN = 2;   // Single-slope PWM
+      while (_tcc->SYNCBUSY.bit.WAVE);
+      _tcc->PER.reg = 255;          // 8-bit range
       while (_tcc->SYNCBUSY.bit.PER);
       _tcc->CC[_cfg.cc_index].reg = brightness;
       while (_tcc->SYNCBUSY.reg & 0xF00);
@@ -168,7 +168,11 @@ namespace lgfx
 
     void setBrightness(uint8_t brightness) override
     {
-      if (_tcc) _tcc->CC[_cfg.cc_index].reg = brightness;
+      if (_tcc)
+      {
+        _tcc->CC[_cfg.cc_index].reg = brightness;
+        while (_tcc->SYNCBUSY.reg & 0xF00);
+      }
     }
 
   protected:
