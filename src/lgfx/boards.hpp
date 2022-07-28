@@ -44,6 +44,8 @@ namespace lgfx
     , board_SDL
     , board_M5StackCoreS3
     , board_M5AtomS3LCD
+    , board_HalloWingM4
+    , board_HalloWingM0
     };
   }
   using namespace boards;
