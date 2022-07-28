@@ -30,6 +30,10 @@ Contributors:
   #define LGFX_WIO_TERMINAL
  #endif
 
+ #if defined ( ARDUINO_HALLOWING_M4 )
+  #define LGFX_HALLOWING_M4
+ #endif
+
 #endif
 
 namespace lgfx
@@ -421,6 +425,53 @@ namespace lgfx
       }
 
 #endif
+
+// HalloWing M4 screen is write-only, no LGFX_AUTODETECT
+#if defined ( LGFX_HALLOWING_M4 )
+
+      if (board == 0 || board == board_t::board_HalloWingM4)
+      {
+        _pin_reset(samd51::PORT_B | 30, use_reset);
+        bus_cfg.sercom_index = 1;
+        bus_cfg.pin_mosi  = samd51::PORT_A |  0;
+        bus_cfg.pin_miso  = -1;
+        bus_cfg.pin_sclk  = samd51::PORT_A |  1;
+        bus_cfg.pin_dc    = samd51::PORT_B | 31;
+        bus_cfg.freq_write = 50000000;
+        _bus_spi.config(bus_cfg);
+        board = board_t::board_HalloWingM4;
+        auto p = new lgfx::Panel_ST7789();
+        _panel_last = p;
+        {
+          auto cfg = p->config();
+          cfg.pin_cs  = samd51::PORT_A | 27;
+          cfg.pin_rst = samd51::PORT_B | 30;
+          cfg.panel_width  = 240;
+          cfg.panel_height = 240;
+          cfg.memory_width = 240;
+          cfg.memory_height = 320;
+          cfg.readable = false;
+          cfg.rgb_order = true;
+          cfg.invert = true;
+          cfg.offset_rotation = 2;
+          p->config(cfg);
+        }
+        p->setBus(&_bus_spi);
+        {
+          auto l = new Light_TC();
+          auto cfg = l->config();
+          cfg.pin = samd51::PORT_B | 14;
+          cfg.tc_index = 5;
+          cfg.cc_index = 0;
+          l->config(cfg);
+          p->setLight(l);
+          _light_last = l;
+        }
+
+        goto init_clear;
+      }
+
+#endif // end LGFX_HALLOWING_M4
 
       board = board_t::board_unknown;
 
