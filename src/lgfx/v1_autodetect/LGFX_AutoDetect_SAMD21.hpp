@@ -99,7 +99,10 @@ namespace lgfx
 
     void setBrightness(uint8_t brightness) override
     {
-      if (_tc) _tc->COUNT8.CC[_cfg.cc_index].reg = brightness;
+      if (_tc) {
+        _tc->COUNT8.CC[_cfg.cc_index].reg = brightness;
+        while ( _tc->COUNT8.STATUS.bit.SYNCBUSY );
+      }
     }
 
   protected:
