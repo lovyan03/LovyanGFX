@@ -2,7 +2,7 @@
 name: Bug report (不具合報告)
 about: Create a report to help us improve
 title: ''
-labels: bug
+labels: ''
 assignees: ''
 
 ---
@@ -16,7 +16,8 @@ assignees: ''
 - Panel Driver IC:    [ILI9341|SSD1963|ST7796|other]
 - Bus type:           [SPI|I2C|Parallel8|Parallel16|other]
 - LovyanGFX version:  [v0.4.17|latest develop|other]
-- Platform version:   [ArduinoESP32 v2.0.3|ESP-IDF v4.4|other]
+- FrameWork version:   [ArduinoESP32 v2.0.3|ESP-IDF v4.4|other]
+- Build Environment :   [ArduinoIDE|PlatformIO|Eclipse|other]
 - Operating System:   [Windows|Linux|macOS]
 
 ## Problem Description ( 問題の内容 )
