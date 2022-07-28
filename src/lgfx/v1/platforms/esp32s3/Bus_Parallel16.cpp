@@ -528,6 +528,7 @@ struct esp_lcd_i80_bus_t {
       val = (val << 1) + (1 & (in[(ih >> 18) & 7] >> ((mh >> 18) & 7)));
       val = (val << 1) + (1 & (in[(ih >> 21) & 7] >> ((mh >> 21) & 7)));
       *dst++ = val;
+      *reg_rd_l = mask_rd;
 
       if (0 == --length) { *reg_rd_l = mask_rd; break; }
 
@@ -539,7 +540,6 @@ struct esp_lcd_i80_bus_t {
       val = (val << 1) + (1 & (in[(il >> 15) & 7] >> ((ml >> 15) & 7)));
       val = (val << 1) + (1 & (in[(il >> 18) & 7] >> ((ml >> 18) & 7)));
       val = (val << 1) + (1 & (in[(il >> 21) & 7] >> ((ml >> 21) & 7)));
-      *reg_rd_l = mask_rd;
       *dst++ = val;
     } while (--length);
   }

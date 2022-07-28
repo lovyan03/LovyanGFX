@@ -35,6 +35,7 @@ Contributors:
 #include "v1/panel/Panel_R61529.hpp"
 #include "v1/panel/Panel_RA8875.hpp"
 #include "v1/panel/Panel_RM68120.hpp"
+#include "v1/panel/Panel_S6D04K1.hpp"
 #include "v1/panel/Panel_SSD1306.hpp"
 #include "v1/panel/Panel_SSD1327.hpp"
 #include "v1/panel/Panel_SSD1331.hpp"

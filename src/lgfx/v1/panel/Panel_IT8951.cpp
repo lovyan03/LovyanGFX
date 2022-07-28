@@ -188,6 +188,7 @@ IT8951 Registers defines
     startWrite();
     _write_command(IT8951_I80_CMD_VCOM);
     _write_word(0x0000);
+    delay(1);
     uint16_t vcom;
     _read_words(&vcom, 1);
     endWrite();
