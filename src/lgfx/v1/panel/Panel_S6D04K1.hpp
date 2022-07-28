@@ -35,65 +35,51 @@ namespace lgfx
 
   protected:
 
-    static constexpr uint8_t CMD_DFUNCTR = 0xB6;
-    static constexpr uint8_t CMD_PWCTR1  = 0xC0;
-    static constexpr uint8_t CMD_PWCTR2  = 0xC1;
-    static constexpr uint8_t CMD_VMCTR1  = 0xC5;
-    static constexpr uint8_t CMD_SETEXTC = 0xC8;
-    static constexpr uint8_t CMD_GMCTRP1 = 0xE0; // Positive Gamma Correction (E0h)
-    static constexpr uint8_t CMD_GMCTRN1 = 0xE1; // Negative Gamma Correction (E1h)
-
     const uint8_t* getInitCommands(uint8_t listno) const override
     {
       static constexpr uint8_t list0[] =
       {
           0xF0      ,  2, 0x5A ,0x5A,  // PASSWD1
           0xF1      ,  2, 0x5A ,0x5A,  // PASSWD2
-	        0xF4      , 14, // PWRCTL
+          0xF4      , 14, // PWRCTL
                           0x09, 0x00, 0x00, 0x00, 0x21, 0x47, 0x01,
                           0x02, 0x2A, 0x64, 0x05, 0x2A, 0x00, 0x05, 
-
           0xF5      , 10, // VCMCTL
                           0x00, 0x4D, 0x5C, 0x00, 0x00, 0x09, 0x00, 0x00, 0x01, 0x01, 
-
-	        0xF6      ,  9, // SRCCTL
+          0xF6      ,  9, // SRCCTL
                           0x01, 0x01, 0x03, 0x00, 0x04, 0x0C, 0x02, 0x00, 0x07, 
-
           0xF7      ,  4, // IFCTL
                           0x00, 0x00, 0x00, 0x00, 
-
           0xF2      , 12,  // DISCTL
                           0x1E, 0x95, 0x03, 0x08,
                           0x08, 0x10, 0x00, 0x19,
                           0x48, 0x00, 0x07, 0x01,
-
-	        0xF9      ,  1, // GAMMASEL
+          0xF9      ,  1, // GAMMASEL
                           0x04,
-	
-	        0xFA      , 12, // PGAMMACTL
+
+          0xFA      , 12, // PGAMMACTL
                           0x0A, 0x10, 0x0B, 0x1B,
                           0x14, 0x28, 0x1F, 0x33,
                           0x2A, 0x25, 0x23, 0x00,
-        
+
           0xFB      , 12, //NGAMMACTL
                           0x10, 0x0A, 0x23, 0x25,
                           0x27, 0x2C, 0x1F, 0x2E,
                           0x20, 0x1B, 0x0B, 0x00,
-
           0xF9      ,  1, // GAMMASEL
-                  	      0x03,
-	
-	        0xFA      , 12, // PGAMMACTL
+                   	      0x03,
+
+          0xFA      , 12, // PGAMMACTL
                           0x0A, 0x24, 0x0B, 0x14,
                           0x1A, 0x33, 0x2D, 0x22,
                           0x17, 0x11, 0x0B, 0x00,
-        
-	        0xFB      , 12, // NGAMMACTL
+
+          0xFB      , 12, // NGAMMACTL
                           0x24, 0x0A, 0x0B, 0x11,
                           0x14, 0x1B, 0x11, 0x39,
                           0x26, 0x14, 0x0B, 0x00,
 
-	        0x35      ,  1, 0x00, // TEON
+          0x35      ,  1, 0x00, // TEON
 
           CMD_SLPOUT , 0 + CMD_INIT_DELAY, 120,    // Exit sleep mode
         
