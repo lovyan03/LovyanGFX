@@ -22,7 +22,7 @@ Contributors:
 
 #if defined ( ARDUINO )
 
- #if defined ( ARDUINO_PYBADGE_M4 )
+ #if defined ( ARDUINO_PYBADGE_M4 ) || defined ( ARDUINO_PYBADGE_AIRLIFT_M4 )
   #define LGFX_PYBADGE
  #endif
 
@@ -32,6 +32,10 @@ Contributors:
 
  #if defined ( ARDUINO_HALLOWING_M4 )
   #define LGFX_HALLOWING_M4
+ #endif
+
+ #if defined ( ARDUINO_PYGAMER_M4 )
+  #define LGFX_PYGAMER
  #endif
 
 #endif
@@ -373,58 +377,92 @@ namespace lgfx
 
       if (board == 0 || board == board_t::board_PyBadge)
       {
-        lgfx::pinMode(samd51::PORT_A | 0, lgfx::pin_mode_t::input); // LCD RST
         bus_cfg.sercom_index = 4;
-        bus_cfg.pin_mosi  = samd51::PORT_B | 15;
-        bus_cfg.pin_miso  = samd51::PORT_B | 12;
-        bus_cfg.pin_sclk  = samd51::PORT_B | 13;
-        bus_cfg.pin_dc    = samd51::PORT_B |  5;
-        _bus_spi.config(bus_cfg);   // 設定を反映する;
-        if (lgfx::gpio_in(samd51::PORT_A | 0))
+        bus_cfg.pin_mosi     = samd51::PORT_B | 15;
+        bus_cfg.pin_miso     = -1;
+        bus_cfg.pin_sclk     = samd51::PORT_B | 13;
+        bus_cfg.pin_dc       = samd51::PORT_B |  5;
+        bus_cfg.freq_write   = 27000000;
+        _pin_reset(samd51::PORT_A | 0, use_reset); // LCD RST
+        board = board_t::board_PyBadge;
+        _bus_spi.config(bus_cfg);
+        auto p = new lgfx::Panel_ST7735S();
+        _panel_last = p;
         {
-          _bus_spi.init();
-          _pin_reset(samd51::PORT_A | 0, use_reset); // LCD RST
-          id = _read_panel_id(&_bus_spi, samd51::PORT_B | 7);
-          if ((id & 0xFF) == 0)
-          {
-            board = board_t::board_PyBadge;
-            _bus_spi.release();
-            bus_cfg.freq_write = 27000000;
-            _bus_spi.config(bus_cfg);
-            auto p = new lgfx::Panel_ST7735S();
-            _panel_last = p;
-            {
-              auto cfg = p->config();
-              cfg.pin_cs  = samd51::PORT_B |  7;
-              cfg.pin_rst = samd51::PORT_A |  0;
-              cfg.panel_width  = 128;
-              cfg.panel_height = 160;
-              cfg.memory_width = 128;
-              cfg.memory_height = 160;
-              cfg.readable = false;
-              cfg.rgb_order = true;
-              cfg.offset_rotation = 2;
-              p->config(cfg);
-            }
-            p->setBus(&_bus_spi);
-            {
-              auto l = new Light_TC();
-              auto cfg = l->config();
-              cfg.pin = samd51::PORT_A | 1;
-              cfg.tc_index = 2;
-              cfg.cc_index = 1;
-              l->config(cfg);
-              p->setLight(l);
-              _light_last = l;
-            }
-
-            goto init_clear;
-          }
-          _bus_spi.release();
+          auto cfg = p->config();
+          cfg.pin_cs  = samd51::PORT_B | 7;
+          cfg.pin_rst = samd51::PORT_A | 0;
+          cfg.panel_width  = 128;
+          cfg.panel_height = 160;
+          cfg.memory_width = 128;
+          cfg.memory_height = 160;
+          cfg.readable = false;
+          cfg.rgb_order = true;
+          cfg.offset_rotation = 3;
+          p->config(cfg);
         }
+        p->setBus(&_bus_spi);
+        {
+          auto l = new Light_TC();
+          auto cfg = l->config();
+          cfg.pin = samd51::PORT_A | 1;
+          cfg.tc_index = 2;
+          cfg.cc_index = 1;
+          l->config(cfg);
+          p->setLight(l);
+          _light_last = l;
+        }
+
+        goto init_clear;
       }
 
 #endif
+
+// PyGamer screen is write-only, no LGFX_AUTODETECT
+#if defined ( LGFX_PYGAMER )
+
+      if (board == 0 || board == board_t::board_PyGamer)
+      {
+        bus_cfg.sercom_index = 4;
+        bus_cfg.pin_mosi     = samd51::PORT_B | 15;
+        bus_cfg.pin_miso     = -1;
+        bus_cfg.pin_sclk     = samd51::PORT_B | 13;
+        bus_cfg.pin_dc       = samd51::PORT_B |  5;
+        bus_cfg.freq_write   = 27000000;
+        _pin_reset(samd51::PORT_A | 0, use_reset); // LCD RST
+        board = board_t::board_PyGamer;
+        _bus_spi.config(bus_cfg);
+        auto p = new lgfx::Panel_ST7735S();
+        _panel_last = p;
+        {
+          auto cfg = p->config();
+          cfg.pin_cs  = samd51::PORT_B | 12; // The only diff vs PyBadge TFT
+          cfg.pin_rst = samd51::PORT_A | 0;
+          cfg.panel_width  = 128;
+          cfg.panel_height = 160;
+          cfg.memory_width = 128;
+          cfg.memory_height = 160;
+          cfg.readable = false;
+          cfg.rgb_order = true;
+          cfg.offset_rotation = 3;
+          p->config(cfg);
+        }
+        p->setBus(&_bus_spi);
+        {
+          auto l = new Light_TC();
+          auto cfg = l->config();
+          cfg.pin = samd51::PORT_A | 1;
+          cfg.tc_index = 2;
+          cfg.cc_index = 1;
+          l->config(cfg);
+          p->setLight(l);
+          _light_last = l;
+        }
+
+        goto init_clear;
+      }
+
+#endif // end LGFX_PYGAMER
 
 // HalloWing M4 screen is write-only, no LGFX_AUTODETECT
 #if defined ( LGFX_HALLOWING_M4 )

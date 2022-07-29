@@ -49,6 +49,8 @@ jobs:
           - { board: 'd1_mini:eesz=4M3M,xtal=80', platform: esp8266, archi: esp8266, platform-url: 'https://arduino.esp8266.com/stable/package_esp8266com_index.json', platform-version: 3.0.2, ... }
           - { board: adafruit_hallowing, platform: adafruit, archi: samd, platform-url: 'https://adafruit.github.io/arduino-board-index/package_adafruit_index.json', platform-version: 1.7.10, ... }
           - { board: adafruit_hallowing_m4, platform: adafruit, archi: samd, platform-url: 'https://adafruit.github.io/arduino-board-index/package_adafruit_index.json', platform-version: 1.7.10, ... }
+          - { board: adafruit_pybadge_m4, platform: adafruit, archi: samd, platform-url: 'https://adafruit.github.io/arduino-board-index/package_adafruit_index.json', platform-version: 1.7.10, ... }
+          - { board: adafruit_pygamer_m4, platform: adafruit, archi: samd, platform-url: 'https://adafruit.github.io/arduino-board-index/package_adafruit_index.json', platform-version: 1.7.10, ... }
           - { board: adafruit_feather_esp32s2_tft, platform: esp32, archi: esp32, platform-url: 'https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json', platform-version: 2.0.4, ... }
           - { board: adafruit_feather_esp32s3_tft, platform: esp32, archi: esp32, platform-url: 'https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json', platform-version: 2.0.4, ... }
           - { board: adafruit_funhouse_esp32s2, platform: esp32, archi: esp32, platform-url: 'https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json', platform-version: 2.0.4, ... }
