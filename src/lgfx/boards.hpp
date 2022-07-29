@@ -48,6 +48,7 @@ namespace lgfx
     , board_HalloWingM4
     , board_Feather_ESP32_S2_TFT
     , board_Feather_ESP32_S3_TFT
+    , board_FunHouse
     };
   }
   using namespace boards;

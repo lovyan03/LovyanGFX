@@ -448,8 +448,6 @@ namespace lgfx
           cfg.pin_rst = samd51::PORT_B | 30;
           cfg.panel_width  = 240;
           cfg.panel_height = 240;
-          cfg.memory_width = 240;
-          cfg.memory_height = 320;
           cfg.readable = false;
           cfg.rgb_order = false;
           cfg.invert = true;
