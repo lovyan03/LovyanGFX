@@ -12,6 +12,11 @@
 
 #include <LovyanGFX.hpp>
 
+#if defined SKIP_I2C_TEST
+  #define DUMMY_DISPLAY
+#endif
+
+
 #if defined DUMMY_DISPLAY
   // AUTODETECT will fail, so let's build a dummy object
   // with arbitraty display for the sakes of testing
@@ -36,6 +41,9 @@
     }
   };
 #endif
+
+
+#if !defined SKIP_I2C_TEST
 
   class LGFX_I2C : public lgfx::LGFX_Device
   {
@@ -64,9 +72,14 @@
     }
   };
 
+#endif
 
 static LGFX display1;
-static LGFX_I2C display2;
+
+#if !defined SKIP_I2C_TEST
+  static LGFX_I2C display2;
+#endif
+
 static LGFX_Sprite sprite(&display1);
 
 void test(LGFX_Device &lcd)
@@ -195,7 +208,9 @@ void test(LGFX_Device &lcd)
 void setup()
 {
   test(display1);
-  test(display2);
+  #if !defined SKIP_I2C_TEST
+    test(display2);
+  #endif
 }
 
 void loop(void)
