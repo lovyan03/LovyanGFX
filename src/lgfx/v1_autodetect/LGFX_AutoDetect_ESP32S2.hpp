@@ -26,6 +26,13 @@ Contributors:
 #include <driver/i2c.h>
 
 
+#if defined ( ARDUINO_ADAFRUIT_FEATHER_ESP32S2_TFT )
+  #define LGFX_FEATHER_ESP32_S2_TFT
+#endif
+
+#if defined ( ARDUINO_FUNHOUSE_ESP32S2 )
+  #define LGFX_FUNHOUSE
+#endif
 
 
 namespace lgfx
@@ -218,6 +225,86 @@ namespace lgfx
         _bus_spi.release();
       }
 #endif
+
+// Feather S2 TFT screen is write-only, no LGFX_AUTODETECT
+#if defined ( LGFX_FEATHER_ESP32_S2_TFT )
+      if (board == 0 || board == board_t::board_Feather_ESP32_S2_TFT)
+      {
+        lgfx::pinMode(GPIO_NUM_21, lgfx::pin_mode_t::output);
+        lgfx::gpio_hi(GPIO_NUM_21); // Enable power to TFT
+        bus_cfg.pin_mosi = GPIO_NUM_35;
+        bus_cfg.pin_miso = -1;
+        bus_cfg.pin_sclk = GPIO_NUM_36;
+        bus_cfg.pin_dc   = GPIO_NUM_39;
+        bus_cfg.spi_mode = 0;
+        bus_cfg.spi_3wire = true;
+        _bus_spi.config(bus_cfg);
+        _bus_spi.init();
+        _pin_reset(GPIO_NUM_40, use_reset); // LCD RST
+        board = board_t::board_Feather_ESP32_S2_TFT;
+        ESP_LOGW(LIBRARY_NAME, "board_Feather_ESP32_S2_TFT");
+        bus_cfg.freq_write = 40000000;
+        _bus_spi.config(bus_cfg);
+        auto p = new Panel_ST7789();
+        p->bus(&_bus_spi);
+        {
+          auto cfg = p->config();
+          cfg.pin_cs  = GPIO_NUM_7;
+          cfg.pin_rst = GPIO_NUM_40;
+          cfg.panel_width  = 135;
+          cfg.panel_height = 240;
+          cfg.offset_x = 52;
+          cfg.offset_y = 40;
+          cfg.readable = false;
+          cfg.rgb_order = false;
+          cfg.invert = true;
+          cfg.offset_rotation = 1;
+          p->config(cfg);
+        }
+        _panel_last = p;
+        _set_pwm_backlight(GPIO_NUM_45, 0, 12000);
+
+        goto init_clear;
+      }
+#endif // end LGFX_FEATHER_ESP32_S2_TFT
+
+// FunHouse screen is write-only, no LGFX_AUTODETECT
+#if defined ( LGFX_FUNHOUSE )
+      if (board == 0 || board == board_t::board_FunHouse)
+      {
+        bus_cfg.pin_mosi = GPIO_NUM_35;
+        bus_cfg.pin_miso = -1;
+        bus_cfg.pin_sclk = GPIO_NUM_36;
+        bus_cfg.pin_dc   = GPIO_NUM_39;
+        bus_cfg.spi_mode = 0;
+        bus_cfg.spi_3wire = true;
+        _bus_spi.config(bus_cfg);
+        _bus_spi.init();
+        _pin_reset(GPIO_NUM_41, use_reset); // LCD RST
+        board = board_t::board_FunHouse;
+        ESP_LOGW(LIBRARY_NAME, "board_FunHouse");
+        bus_cfg.freq_write = 40000000;
+        _bus_spi.config(bus_cfg);
+        auto p = new Panel_ST7789();
+        p->bus(&_bus_spi);
+        {
+          auto cfg = p->config();
+          cfg.pin_cs  = GPIO_NUM_40;
+          cfg.pin_rst = GPIO_NUM_41;
+          cfg.panel_width  = 240;
+          cfg.panel_height = 240;
+          cfg.readable = false;
+          cfg.rgb_order = false;
+          cfg.invert = true;
+          cfg.offset_rotation = 2;
+          p->config(cfg);
+        }
+        _panel_last = p;
+        _set_pwm_backlight(GPIO_NUM_21, 0, 12000);
+
+        goto init_clear;
+      }
+#endif // end LGFX_FEATHER_ESP32_S2_TFT
 
       board = board_t::board_unknown;
 
