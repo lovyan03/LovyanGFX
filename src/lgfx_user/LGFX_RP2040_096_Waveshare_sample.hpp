@@ -43,7 +43,8 @@ class LGFX : public lgfx::LGFX_Device
 
     {
       auto cfg = _light_instance.config();
-      cfg.pin_bl = 25;
+      cfg.pin_bl      = 25;
+      cfg.pwm_channel = 1;
       _light_instance.config(cfg);
       _panel_instance.setLight(&_light_instance);
     }
