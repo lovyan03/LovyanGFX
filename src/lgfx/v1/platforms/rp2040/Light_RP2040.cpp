@@ -40,7 +40,7 @@ namespace lgfx
     gpio_set_function( _cfg.pin_bl, GPIO_FUNC_PWM );
     _slice_num = pwm_gpio_to_slice_num( _cfg.pin_bl );
     pwm_set_wrap( _slice_num, 100 );
-    pwm_set_chan_level( _slice_num, PWM_CHAN_B, 1 );
+    pwm_set_chan_level( _slice_num, _cfg.pwm_channel, 1 );
     pwm_set_clkdiv( _slice_num, 50 );
     pwm_set_enabled( _slice_num, true );
 
@@ -53,7 +53,7 @@ namespace lgfx
   {
     if (_cfg.invert) brightness = ~brightness;
     uint32_t duty = brightness + (brightness >> 7);
-    pwm_set_chan_level( _slice_num, PWM_CHAN_B, brightness );
+    pwm_set_chan_level( _slice_num, _cfg.pwm_channel, brightness );
   }
 
 //----------------------------------------------------------------------------
