@@ -52,7 +52,7 @@ namespace lgfx
   void Light_PWM::setBrightness( uint8_t brightness )
   {
     if (_cfg.invert) brightness = ~brightness;
-    uint32_t duty = brightness + (brightness >> 7);
+    // uint32_t duty = brightness + (brightness >> 7);
     pwm_set_chan_level( _slice_num, _cfg.pwm_channel, brightness );
   }
 
