@@ -25,7 +25,7 @@ namespace lgfx
  {
 //----------------------------------------------------------------------------
 
-  class Light_RP2040 : public ILight
+  class Light_PWM : public ILight
   {
   public:
     struct config_t
