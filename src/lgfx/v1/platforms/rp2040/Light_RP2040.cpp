@@ -30,7 +30,7 @@ namespace lgfx
  {
 //----------------------------------------------------------------------------
 
-  bool Light_RP2040::init( uint8_t brightness )
+  bool Light_PWM::init( uint8_t brightness )
   {
 
     gpio_init( _cfg.pin_bl );
@@ -49,7 +49,7 @@ namespace lgfx
     return true;
   }
 
-  void Light_RP2040::setBrightness( uint8_t brightness )
+  void Light_PWM::setBrightness( uint8_t brightness )
   {
     if (_cfg.invert) brightness = ~brightness;
     uint32_t duty = brightness + (brightness >> 7);
