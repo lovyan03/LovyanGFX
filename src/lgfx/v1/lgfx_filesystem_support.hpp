@@ -67,7 +67,7 @@ namespace lgfx
     }
 
 #if defined (ARDUINO)
- #if defined (FS_H) || defined (__SEEED_FS__)
+ + #if defined (FS_H) || defined (__SEEED_FS__) || defined (__LITTLEFS_H) || defined (_LiffleFS_H_) || defined (SDFS_H)
 
     /// load vlw fontdata from filesystem.
     void loadFont(const char *path, fs::FS &fs
@@ -75,6 +75,10 @@ namespace lgfx
  = SD
 #elif defined (_SPIFFS_H_)
  = SPIFFS
++#elif defined (__LITTLEFS_H) || defined (_LiffleFS_H_)
++ = LittleFS
++#elif defined SDFS_H
++ = SDFS
 #endif
     )
     {
