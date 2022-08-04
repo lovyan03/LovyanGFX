@@ -17,7 +17,7 @@ Contributors:
 /----------------------------------------------------------------------------*/
 #if defined (ARDUINO_ARCH_MBED_RP2040) || defined(ARDUINO_ARCH_RP2040)
 
-#include "Light_RP2040.hpp"
+#include "Light_PWM.hpp"
 
 #include <hardware/pwm.h>
 #include <hardware/spi.h>
