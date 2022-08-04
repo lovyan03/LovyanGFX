@@ -37,7 +37,9 @@ class LGFX : public lgfx::LGFX_Device
       cfg.panel_height = 160;
       cfg.offset_x     = 26;
       cfg.offset_y     = 1;
-      cfg.offset_rotation = 2;
+      cfg.invert       = true;
+      cfg.rgb_order    = false;
+      //cfg.offset_rotation = 0;
       _panel_instance.config(cfg);
     }
 
