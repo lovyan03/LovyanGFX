@@ -50,6 +50,7 @@ namespace lgfx
     , board_Feather_ESP32_S3_TFT
     , board_FunHouse
     , board_PyGamer
+    , board_MonsterM4sk
     };
   }
   using namespace boards;

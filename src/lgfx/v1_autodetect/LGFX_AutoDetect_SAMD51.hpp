@@ -38,6 +38,11 @@ Contributors:
   #define LGFX_PYGAMER
  #endif
 
+ #if defined ( ARDUINO_MONSTER_M4SK )
+  #define LGFX_MONSTER_M4SK
+  #include "Adafruit_seesaw.h"
+ #endif
+
 #endif
 
 namespace lgfx
@@ -67,8 +72,12 @@ namespace lgfx
       case 1: MCLK->APBAMASK.bit.TC1_ = 1; _tc = TC1; pchctrl_index =  9; break;
       case 2: MCLK->APBBMASK.bit.TC2_ = 1; _tc = TC2; pchctrl_index = 26; break;
       case 3: MCLK->APBBMASK.bit.TC3_ = 1; _tc = TC3; pchctrl_index = 26; break;
+#if defined ( TC4 )
       case 4: MCLK->APBCMASK.bit.TC4_ = 1; _tc = TC4; pchctrl_index = 30; break;
+#endif
+#if defined ( TC5 )
       case 5: MCLK->APBCMASK.bit.TC5_ = 1; _tc = TC5; pchctrl_index = 30; break;
+#endif
 #if defined ( TC6 )
       case 6: MCLK->APBDMASK.bit.TC6_ = 1; _tc = TC6; pchctrl_index = 39; break;
 #endif
@@ -113,6 +122,78 @@ namespace lgfx
     Tc* _tc = nullptr;
   };
 
+  struct Light_TCC : public ILight
+  {
+    struct config_t
+    {
+      uint8_t pin = 0;
+      uint8_t tcc_index = 0;
+      uint8_t cc_index = 0;
+      bool timer_pdec = false;
+    };
+
+    config_t config(void) const { return _cfg; }
+    void config(const config_t& config) { _cfg = config; }
+
+    bool init(uint8_t brightness) override
+    {
+      uint8_t pchctrl_index;
+      switch (_cfg.tcc_index)
+      {
+      case 0: MCLK->APBBMASK.bit.TCC0_ = 1; _tcc = TCC0; pchctrl_index = 25; break;
+      case 1: MCLK->APBBMASK.bit.TCC1_ = 1; _tcc = TCC1; pchctrl_index = 25; break;
+      case 2: MCLK->APBCMASK.bit.TCC2_ = 1; _tcc = TCC2; pchctrl_index = 29; break;
+#if defined ( TCC3 )
+      case 3: MCLK->APBCMASK.bit.TCC3_ = 1; _tcc = TCC3; pchctrl_index = 29; break;
+#endif
+#if defined ( TCC4 )
+      case 4: MCLK->APBDMASK.bit.TCC4_ = 1; _tcc = TCC4; pchctrl_index = 38; break;
+#endif
+      default: return false;
+      }
+
+      /* Enable Peripheral Clocks */
+      GCLK->PCHCTRL[pchctrl_index].reg = 0 | (1u << 6);
+      while (!GCLK->PCHCTRL[pchctrl_index].bit.CHEN);
+
+      /* Configure _tcc */
+      _tcc->CTRLA.bit.SWRST = 1;
+      while ( _tcc->SYNCBUSY.bit.SWRST );
+      _tcc->CTRLA.reg = (0x01 << 12) | (0x04 << 8); // PRESCALER=DIV16, PRESCSYNC=PRESC
+      _tcc->WAVE.reg = 0x02; // WAVEGEN=NPWM;
+      while ( _tcc->SYNCBUSY.bit.WAVE );
+      _tcc->CTRLBSET.reg = (1u<<1); // LUPD
+      while ( _tcc->SYNCBUSY.bit.CTRLB );
+      _tcc->PER.reg = 255;
+      while ( _tcc->SYNCBUSY.bit.PER );
+      _tcc->CC[_cfg.cc_index].reg = brightness;
+      while ( _tcc->SYNCBUSY.reg & 0x3F00 );
+      _tcc->DBGCTRL.bit.DBGRUN = 1;
+      _tcc->INTFLAG.reg = 0xFFC0F; // Clear all flags
+      _tcc->CTRLA.bit.ENABLE = 1;
+      while ( _tcc->SYNCBUSY.bit.ENABLE );
+
+      /* Configure PORT */
+      lgfx::pinMode( _cfg.pin, pin_mode_t::output );
+      lgfx::pinAssignPeriph( _cfg.pin, _cfg.timer_pdec ? 6 : 5 ); // 5, 6 = periph F, G
+
+      return true;
+    }
+
+    void setBrightness(uint8_t brightness) override
+    {
+      if (_tcc)
+      {
+        _tcc->CC[_cfg.cc_index].reg = brightness;
+        while ( _tcc->SYNCBUSY.reg & 0x3F00 );
+      }
+    }
+
+  protected:
+    config_t _cfg;
+    Tcc* _tcc = nullptr;
+  };
+
   struct Light_WioTerminal : public Light_TC
   {
     bool init(uint8_t brightness) override
@@ -152,12 +233,56 @@ namespace lgfx
     }
   };
 
+#if defined ( LGFX_MONSTER_M4SK )
+
+  // Backlight controlled by Adafruit Seesaw IO expander.
+  // This currently exists only on the Monster M4sk board.
+  struct Light_Seesaw : public Light_TC
+  {
+    struct config_t
+    {
+      Adafruit_seesaw *seesaw = nullptr; // -> LGFX class member
+      uint8_t pin = 0;                   // Set in autodetect()
+    };
+
+    bool init(uint8_t brightness) override
+    {
+      return true;
+    }
+
+    config_t config(void) const { return _cfg; }
+    void config(const config_t& config) { _cfg = config; }
+
+    void setBrightness(uint8_t brightness) override
+    {
+      if (_cfg.seesaw)
+      {
+        _cfg.seesaw->analogWrite(_cfg.pin, brightness);
+      }
+    }
+
+  protected:
+    config_t _cfg;
+  };
+
+#endif // end LGFX_MONSTER_M4SK
+
   class LGFX : public LGFX_Device
   {
     lgfx::Panel_Device* _panel_last = nullptr;
     lgfx::ILight* _light_last = nullptr;
     lgfx::ITouch* _touch_last = nullptr;
     lgfx::Bus_SPI _bus_spi;
+#if defined ( LGFX_MONSTER_M4SK )
+    // Monster M4sk is a weird animal in that it has two screens, one of
+    // which has reset & backlight controlled by a Seesaw IO expander
+    // (accessed via the Adafruit_seesaw Arduino library), while the other
+    // uses regular GPIO. There's probably more LGFX-like ways of handling
+    // this, but as a first pass, let's keep a pointer to an associated
+    // Adafruit_seesaw object...if NULL, this screen uses direct GPIO.
+    Adafruit_seesaw *seesaw = nullptr;
+    int16_t seesaw_addr = -1; // I2C address
+#endif
 
     static void _pin_level(int_fast16_t pin, bool level)
     {
@@ -227,6 +352,25 @@ namespace lgfx
     }
 
   public:
+
+#if defined ( LGFX_MONSTER_M4SK )
+
+    // LGFX constructor is unique on Monster M4sk, due to the dual screens
+    // and IO expander. This can optionally accept a pointer to an
+    // Adafruit_seesaw object (if screen reset and backlight are controlled
+    // that way), else presumes screen uses regular GPIO. A sketch for this
+    // board would declare TWO LGFX objects, one for each screen -- one with
+    // a Seesaw pointer and one without. If passing in a Seesaw pointer, one
+    // can optionally specify the device's I2C address, indicating that LGFX
+    // should perform Seesaw initialization...otherwise (if -1 or left off),
+    // Seesaw init is expected to be handled in user code prior to calling
+    // the Seesaw-attached panel's init() function (this would be preferred
+    // if one wants to use the Seesaw-attached button controls, light sensor
+    // or battery monitor).
+    LGFX(Adafruit_seesaw *ss = nullptr, int addr = -1) :
+      seesaw(ss), seesaw_addr(addr) {};
+
+#endif
 
     board_t autodetect(bool use_reset = true, board_t board = board_t::board_unknown)
     {
@@ -508,6 +652,105 @@ namespace lgfx
       }
 
 #endif // end LGFX_HALLOWING_M4
+
+#if defined ( LGFX_MONSTER_M4SK )
+
+      if (board == 0 || board == board_t::board_MonsterM4sk)
+      {
+        board = board_t::board_MonsterM4sk;
+        auto p = new lgfx::Panel_ST7789();
+        _panel_last = p;
+
+        if (seesaw)
+        {
+          // A Seesaw pointer was given to the constructor. This must be the
+          // right screen (left eye). Reset and backlight are via Seesaw.
+          // If an I2C address was passed to the constructor, initialize
+          // the Seesaw device here...
+          if ((seesaw_addr >= 0) && seesaw->begin(seesaw_addr, -1, false)) {
+            // Once initialized, the address is then set to -1, so behavior
+            // going forward is now the same as if Seesaw init was handled
+            // in user code. This only occurs on a successful begin() above.
+            seesaw_addr = -1;
+          }
+
+          if (seesaw_addr < 0) // Seesaw is 'begun'
+          {
+            auto l = new Light_Seesaw();
+            auto cfg = l->config();
+            cfg.seesaw = seesaw;
+            cfg.pin    = 5; // Seesaw pin 5 is TFT backlight
+            l->config(cfg);
+            p->setLight(l);
+            _light_last = l;
+            seesaw->pinMode(8, OUTPUT); // Seesaw pin 8 is TFT reset
+            seesaw->digitalWrite(8, LOW);
+            delay(2);
+            seesaw->digitalWrite(8, HIGH);
+            delay(10);
+          }
+          bus_cfg.sercom_index = 5;
+          bus_cfg.pin_mosi     = samd51::PORT_B |  2; // pin 11
+          bus_cfg.pin_miso     = -1;
+          bus_cfg.pin_sclk     = samd51::PORT_B |  3; // pin 12
+          bus_cfg.pin_dc       = samd51::PORT_B | 22; // pin 10
+          bus_cfg.freq_write   = 50000000;
+          _bus_spi.config(bus_cfg);
+          {
+            auto cfg = p->config();
+            cfg.pin_cs  = samd51::PORT_B | 23; // pin 9
+            cfg.pin_rst = -1;
+            cfg.panel_width  = 240;
+            cfg.panel_height = 240;
+            cfg.readable = false;
+            cfg.rgb_order = false;
+            cfg.invert = true;
+            cfg.offset_rotation = 2;
+            p->config(cfg);
+          }
+          p->setBus(&_bus_spi);
+        } else
+        {
+          // No Seesaw pointer given to constructor. This must be the left
+          // screen (right eye). Reset and backlight are on regular GPIO.
+          _pin_reset(samd51::PORT_A | 4, use_reset);
+          bus_cfg.sercom_index = 2;
+          bus_cfg.pin_mosi  = samd51::PORT_A | 12;
+          bus_cfg.pin_miso  = -1;
+          bus_cfg.pin_sclk  = samd51::PORT_A | 13;
+          bus_cfg.pin_dc    = samd51::PORT_A |  7;
+          bus_cfg.freq_write = 50000000;
+          _bus_spi.config(bus_cfg);
+          {
+            auto cfg = p->config();
+            cfg.pin_cs  = samd51::PORT_A | 6;
+            cfg.pin_rst = samd51::PORT_A | 4;
+            cfg.panel_width  = 240;
+            cfg.panel_height = 240;
+            cfg.readable = false;
+            cfg.rgb_order = false;
+            cfg.invert = true;
+            cfg.offset_rotation = 2;
+            p->config(cfg);
+          }
+          p->setBus(&_bus_spi);
+          {
+            auto l = new Light_TCC();
+            auto cfg = l->config();
+            cfg.pin = samd51::PORT_A | 23;
+            cfg.tcc_index = 0;
+            cfg.cc_index = 3;
+            cfg.timer_pdec = true;
+            l->config(cfg);
+            p->setLight(l);
+            _light_last = l;
+          }
+        }
+
+        goto init_clear;
+      }
+
+#endif // end LGFX_MONSTER_M4SK
 
       board = board_t::board_unknown;
 
