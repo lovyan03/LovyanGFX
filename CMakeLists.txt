@@ -23,18 +23,22 @@ file(GLOB SRCS
      )
 
 set(COMPONENT_SRCS ${SRCS})
+
+set(COMPONENT_REQUIRES nvs_flash efuse)
+
 if(IDF_TARGET MATCHES "esp32s3")
-  set(COMPONENT_REQUIRES nvs_flash efuse esp_lcd)
-# message(STATUS "LGFX TARGET is esp32s3")
+  list(APPEND COMPONENT_REQUIRES esp_lcd)
 else()
-  find_package(LCD COMPONENTS esp_lcd QUIET)
-  if (NOT LCD_FOUND)
-    set(COMPONENT_REQUIRES nvs_flash efuse)
-# message(STATUS "LGFX TARGET is NOT esp32s3")
-  else()
-    set(COMPONENT_REQUIRES nvs_flash efuse esp_lcd)
-# message(STATUS "LGFX TARGET is NOT esp32s3 but has esp_lcd")
+  if (esp_lcd IN_LIST components)
+    list(APPEND COMPONENT_REQUIRES esp_lcd)
   endif()
 endif()
+
+
+### If you use arduino-esp32 components, please activate next comment line.
+# list(APPEND COMPONENT_REQUIRES arduino-esp32)
+
+
+message(STATUS "LovyanGFX use components = ${COMPONENT_REQUIRES}")
 
 register_component()
