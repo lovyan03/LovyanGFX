@@ -79,6 +79,7 @@ Contributors:
 #elif defined (ARDUINO_ARCH_MBED_RP2040) || defined(ARDUINO_ARCH_RP2040)
 
 #include "rp2040/Light_PWM.hpp"
+#include "rp2040/Bus_I2C.hpp"
 #include "rp2040/Bus_SPI.hpp"
 
 #elif defined (ARDUINO)

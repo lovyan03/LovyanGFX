@@ -67,7 +67,7 @@ namespace lgfx
     }
 
 #if defined (ARDUINO)
- #if defined (FS_H) || defined (__SEEED_FS__)
+ #if defined (FS_H) || defined (__SEEED_FS__) || defined (__LITTLEFS_H) || defined (_LiffleFS_H_) || defined (SDFS_H)
 
     /// load vlw fontdata from filesystem.
     void loadFont(const char *path, fs::FS &fs
@@ -75,6 +75,10 @@ namespace lgfx
  = SD
 #elif defined (_SPIFFS_H_)
  = SPIFFS
+#elif defined (__LITTLEFS_H) || defined (_LiffleFS_H_)
+ = LittleFS
+#elif defined SDFS_H
+ = SDFS
 #endif
     )
     {
@@ -279,7 +283,7 @@ namespace lgfx
   #undef LGFX_SDFAT_TYPE
  #endif
 
- #if defined (Stream_h)
+ #if defined (Stream_h) || defined ARDUINO_ARCH_RP2040 // RP2040 has no defines for builtin Stream API
 
   #define LGFX_FUNCTION_GENERATOR(drawImg, draw_img) \
     inline bool drawImg(Stream *dataSource, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left) \
@@ -438,7 +442,7 @@ namespace lgfx
           return false;
         }
 
-        
+
         if (hConnect == nullptr || wcscmp(szHostName, _last_host))
         {
           if (hConnect)
