@@ -31,6 +31,7 @@ This library mimics [AdafruitGFX](https://github.com/adafruit/Adafruit-GFX-Libra
   - 複数ディスプレイの同時利用  
   - モノクロディスプレイに対する減色描画の自動処理  
   - OpenCVを描画先として利用でき、PC上で動作可能  
+  - [コンポジットビデオ信号(NTSC,PAL)を出力できます (ESP32のみ)](doc/Panel_CVBS.md)
 
 This library has the following advantages.
   - ArduinoESP32 and ESP-IDF are supported.
@@ -40,18 +41,19 @@ This library has the following advantages.
   - Simultaneous use of multiple displays.
   - Automatic processing of color reduction drawing for monochrome displays.
   - OpenCV can be used as a drawing destination and can run on a PC.  
+  - Composite video signal (NTSC, PAL) output (only ESP32)
 
 
-|        | SPI | I2C | 8bit Para |16bit Para |
-|:------:|:---:|:---:|:---------:|:---------:|
-|ESP32   | HW  | HW  | HW (I2S)  | ---       |
-|ESP32-S2| HW  | HW  | HW (I2S)  | HW (I2S)  |
-|ESP32-S3| HW  | HW  |HW(LCD/CAM)|HW(LCD/CAM)|
-|ESP32-C3| HW  | HW  | SW        | ---       |
-|ESP8266 | HW  | SW  | ---       | ---       |
-|SAMD51  | HW  | HW  | ---       | ---       |
-|SAMD21  | HW  | HW  | ---       | ---       |
-|RP2040  | HW  | --- | ---       | ---       |
+|        | SPI | I2C | 8bit Para |16bit Para | CVBS  |
+|:------:|:---:|:---:|:---------:|:---------:|:-----:|
+|ESP32   | HW  | HW  | HW (I2S)  | ---       |HW(I2S)|
+|ESP32-S2| HW  | HW  | HW (I2S)  | HW (I2S)  | ---   |
+|ESP32-S3| HW  | HW  |HW(LCD/CAM)|HW(LCD/CAM)| ---   |
+|ESP32-C3| HW  | HW  | SW        | ---       | ---   |
+|ESP8266 | HW  | SW  | ---       | ---       | ---   |
+|SAMD51  | HW  | HW  | ---       | ---       | ---   |
+|SAMD21  | HW  | HW  | ---       | ---       | ---   |
+|RP2040  | HW  | --- | ---       | ---       | ---   |
 
 ※ HW = HardWare Peripheral / SW = SoftWare implementation
 

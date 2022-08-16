@@ -50,6 +50,7 @@ Contributors:
   #include "esp32/Bus_SPI.hpp"
   #include "esp32/Bus_I2C.hpp"
   #include "esp32/Bus_Parallel8.hpp"
+  #include "esp32/Panel_CVBS.hpp"
 
  #endif
 
