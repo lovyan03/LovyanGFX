@@ -13,6 +13,7 @@ on:
     - '**.h'
     - '**.c'
     - '**IDFBuild.yml'
+    - 'CMakeLists.txt'
   pull_request:
 
 jobs:
