@@ -622,16 +622,25 @@ namespace lgfx
 
     if (output_width == 0 && output_height == 0 && scale_w == 0 && scale_h == 0)
     {
-      scale_w = 1;
-      scale_h = 1;
-      for (int scale = 2; scale <= SCALE_MAX; ++scale)
+      scale_w = 1280 / logical_width;
+      scale_h = 720 / logical_height;
+      if ((scale_w > 16)
+      || (scale_h > 16)
+      || (limit != 1280 * 720)
+      || (scale_w * logical_width != 1280)
+      || (scale_h * logical_height != 720))
       {
-        uint32_t scale_height = scale * logical_height;
-        uint32_t scale_width = scale * logical_width;
-        uint32_t total = scale_width * scale_height;
-        if (scale_width > 1920 || scale_height > 1920 || total > limit) { break; }
-        scale_w = scale;
-        scale_h = scale;
+        scale_w = 1;
+        scale_h = 1;
+        for (int scale = 2; scale <= SCALE_MAX; ++scale)
+        {
+          uint32_t scale_height = scale * logical_height;
+          uint32_t scale_width = scale * logical_width;
+          uint32_t total = scale_width * scale_height;
+          if (scale_width > 1920 || scale_height > 1920 || total > limit) { break; }
+          scale_w = scale;
+          scale_h = scale;
+        }
       }
       output_width  = scale_w * logical_width;
       output_height = scale_h * logical_height;
