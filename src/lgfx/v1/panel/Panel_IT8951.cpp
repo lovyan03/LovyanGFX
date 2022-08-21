@@ -152,18 +152,20 @@ IT8951 Registers defines
       if (addr != 0 && addr != ~0u)
       {
         _tar_memaddr = addr;
-        // for (int i = 0; i < 20; ++i)
-        // {
-        //   ESP_LOGE("debug", "buf[%d] = %04x : %d", i, buf[i], buf[i]);
-        // }
+#if defined ( ESP_LOGD )
+        for (int i = 0; i < 20; ++i)
+        {
+          ESP_LOGD("debug", "buf[%d] = %04x : %d", i, buf[i], buf[i]);
+        }
+#endif
         if (_cfg.panel_width <= 0) { _cfg.panel_width = buf[0]; }
         if (_cfg.panel_height <= 0) { _cfg.panel_height = buf[1]; }
       }
       else
       {
         _tar_memaddr = 0x001236E0; /// default value for M5Paper.
-#if defined ( ESP_LOGE )
-        ESP_LOGE("Panel_IT8951", "can't read data from IT8951");
+#if defined ( ESP_LOGW )
+        ESP_LOGW("Panel_IT8951", "can't read data from IT8951");
 #endif
       }
 
@@ -195,7 +197,9 @@ IT8951 Registers defines
     delay(1);
     uint16_t tmp[2] = { 0 }; // tmpの要素数を1にすると正しく読み取れない?;
     _read_words(tmp, 1);
-// ESP_LOGE("DEBUG","getVCOM:%d", tmp[0]);
+#if defined ( ESP_LOGI )
+    ESP_LOGI("DEBUG","getVCOM:%d", tmp[0]);
+#endif
     endWrite();
     return tmp[0];
   }
@@ -206,13 +210,14 @@ IT8951 Registers defines
     if (_bus == nullptr || _cfg.pin_busy < 0) { return; }
     uint16_t current_vcom = getVCOM();
     if (current_vcom == vcom) { return; }
-// ESP_LOGE("DEBUG","setVCOM:%d", vcom);
+#if defined ( ESP_LOGI )
+    ESP_LOGI("DEBUG","setVCOM:%d", vcom);
+#endif
 
     startWrite();
     _write_command(IT8951_I80_CMD_VCOM);
     _write_word(0x0001);
     _write_word(vcom);
-    _wait_busy(2560);
     endWrite();
   }
 
@@ -245,8 +250,8 @@ IT8951 Registers defines
         {
           if (ms > timeout)
           {
-#if defined ( ESP_LOGE )
-            ESP_LOGE("Panel_IT8951", "wait_busy: timeout");
+#if defined ( ESP_LOGW )
+            ESP_LOGW("Panel_IT8951", "wait_busy: timeout");
 #endif
             return false;
           }

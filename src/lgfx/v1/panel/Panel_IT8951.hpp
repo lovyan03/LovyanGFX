@@ -87,7 +87,7 @@ namespace lgfx
     bool _in_transaction = false;
     uint16_t _vcom = 0;
 
-    bool _wait_busy( uint32_t timeout = 2048);
+    bool _wait_busy( uint32_t timeout = 4096);
     bool _write_command( uint16_t cmd);
     bool _write_word( uint16_t data);
     bool _write_args( uint16_t cmd, uint16_t *args, int32_t length);
