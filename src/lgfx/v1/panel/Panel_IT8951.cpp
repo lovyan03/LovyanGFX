@@ -152,6 +152,12 @@ IT8951 Registers defines
       if (addr != 0 && addr != ~0u)
       {
         _tar_memaddr = addr;
+        // for (int i = 0; i < 20; ++i)
+        // {
+        //   ESP_LOGE("debug", "buf[%d] = %04x : %d", i, buf[i], buf[i]);
+        // }
+        if (_cfg.panel_width <= 0) { _cfg.panel_width = buf[0]; }
+        if (_cfg.panel_height <= 0) { _cfg.panel_height = buf[1]; }
       }
       else
       {
@@ -161,11 +167,6 @@ IT8951 Registers defines
 #endif
       }
 
-      // for (int i = 0; i < 20; ++i)
-      // {
-      //   ESP_LOGE("debug", "buf[%d] = %04x", i, buf[i]);
-      // }
-
       setInvert(_invert);
       setRotation(_rotation);
 
@@ -173,6 +174,8 @@ IT8951 Registers defines
       _write_reg(IT8951_I80CPCR, 0x0001); //enable pack write
 
       _set_target_memory_addr(_tar_memaddr);
+
+      if (_vcom > 0) { setVCOM(_vcom); }
 
       endWrite();
 
@@ -186,21 +189,30 @@ IT8951 Registers defines
   uint16_t Panel_IT8951::getVCOM(void)
   {
     startWrite();
+    _wait_busy();
     _write_command(IT8951_I80_CMD_VCOM);
     _write_word(0x0000);
     delay(1);
-    uint16_t vcom;
-    _read_words(&vcom, 1);
+    uint16_t tmp[2] = { 0 }; // tmpの要素数を1にすると正しく読み取れない?;
+    _read_words(tmp, 1);
+// ESP_LOGE("DEBUG","getVCOM:%d", tmp[0]);
     endWrite();
-    return vcom;
+    return tmp[0];
   }
 
   void Panel_IT8951::setVCOM(uint16_t vcom)
   {
+    _vcom = vcom;
+    if (_bus == nullptr || _cfg.pin_busy < 0) { return; }
+    uint16_t current_vcom = getVCOM();
+    if (current_vcom == vcom) { return; }
+// ESP_LOGE("DEBUG","setVCOM:%d", vcom);
+
     startWrite();
     _write_command(IT8951_I80_CMD_VCOM);
     _write_word(0x0001);
     _write_word(vcom);
+    _wait_busy(2560);
     endWrite();
   }
 
@@ -233,6 +245,7 @@ IT8951 Registers defines
         {
           if (ms > timeout)
           {
+ESP_LOGE("DEBUG","wait_busy: timeout");
             return false;
           }
           delay(ms >> 4);
@@ -252,7 +265,7 @@ IT8951 Registers defines
 
   bool Panel_IT8951::displayBusy(void)
   {
-    uint16_t infobuf[1] = { 1 };
+    uint16_t infobuf[2] = { 1 };
     if (_write_command(IT8951_TCON_REG_RD)
       && _write_word(IT8951_LUTAFSR)
       && _read_words(infobuf, 1))
@@ -266,7 +279,7 @@ IT8951 Registers defines
   bool Panel_IT8951::_check_afsr(void)
   {
     uint32_t start_time = millis();
-    uint16_t infobuf[1] = { 1 };
+    uint16_t infobuf[2] = { 1 };
     do
     {
       if (_write_command(IT8951_TCON_REG_RD)

@@ -1358,6 +1358,7 @@ namespace lgfx
                 _bus_spi.config(bus_cfg);
                 {
                   auto p = new lgfx::Panel_IT8951();
+                  p->setVCOM(2200);
                   p->bus(&_bus_spi);
                   _panel_last = p;
                   auto cfg = p->config();
