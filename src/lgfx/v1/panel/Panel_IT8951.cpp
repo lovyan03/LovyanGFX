@@ -245,7 +245,9 @@ IT8951 Registers defines
         {
           if (ms > timeout)
           {
-ESP_LOGE("DEBUG","wait_busy: timeout");
+#if defined ( ESP_LOGE )
+            ESP_LOGE("Panel_IT8951", "wait_busy: timeout");
+#endif
             return false;
           }
           delay(ms >> 4);
