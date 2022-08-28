@@ -47,10 +47,6 @@ namespace lgfx
   static constexpr float deg_to_rad = 0.017453292519943295769236907684886;
   static constexpr uint8_t FP_SCALE = 16;
 
-  LGFXBase::LGFXBase(void)
-  {
-  }
-
   void LGFXBase::setColorDepth(color_depth_t depth)
   {
     _panel->setColorDepth(depth);
@@ -2629,6 +2625,7 @@ namespace lgfx
 
     drawinfo.end();
     this->endWrite();
+    drawinfo.data->preRead();
 
     heap_free(pool);
 

@@ -57,15 +57,6 @@ namespace lgfx
     using Base::drawQoi;
     using Base::loadFont;
 
-    virtual ~LGFX_FILESYSTEM_Support<Base>()
-    {
-      if (this->_font_file != nullptr)
-      {
-        delete this->_font_file;
-        this->_font_file = nullptr;
-      }
-    }
-
 #if defined (ARDUINO)
  #if defined (FS_H) || defined (__SEEED_FS__) || defined (__LITTLEFS_H) || defined (_LiffleFS_H_) || defined (SDFS_H)
 
@@ -806,34 +797,24 @@ namespace lgfx
     void init_font_file(Tfs &fs)
     {
       this->unloadFont();
-      if (this->_font_file != nullptr)
-      {
-        delete this->_font_file;
-      }
-      auto wrapper = new T(fs);
-      this->_font_file = wrapper;
+      this->_font_file.reset(new T(fs));
     }
 
     template<typename T>
     void init_font_file(void)
     {
       this->unloadFont();
-      if (this->_font_file != nullptr)
-      {
-        delete this->_font_file;
-      }
-      auto wrapper = new T();
-      this->_font_file = wrapper;
+      this->_font_file.reset(new T());
     }
 
     bool load_font_with_path(const char *path)
     {
       this->unloadFont();
 
-      if (this->_font_file == nullptr) return false;
+      if (this->_font_file.get() == nullptr) return false;
       //if (this->_font_file == nullptr) { init_font_file<FileWrapper>(SD); }
 
-      this->prepareTmpTransaction(this->_font_file);
+      this->prepareTmpTransaction(this->_font_file.get());
       this->_font_file->preRead();
 
       bool result = this->_font_file->open(path);
@@ -854,7 +835,7 @@ namespace lgfx
       }
 
       if (result) {
-        result = this->load_font(this->_font_file);
+        result = this->load_font(this->_font_file.get());
       }
       this->_font_file->postRead();
       return result;
