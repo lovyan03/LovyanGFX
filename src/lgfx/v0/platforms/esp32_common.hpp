@@ -14,6 +14,9 @@
   #include <freertos/FreeRTOS.h>
   #include <freertos/task.h>
   #include <driver/gpio.h>
+  #include <soc/spi_reg.h>
+  #include <soc/gpio_struct.h>
+  #include <soc/gpio_sig_map.h>
 
   __attribute__ ((unused)) static inline unsigned long millis(void) { return (unsigned long) (esp_timer_get_time() / 1000ULL); }
 

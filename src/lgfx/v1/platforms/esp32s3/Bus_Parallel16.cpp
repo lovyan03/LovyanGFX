@@ -24,6 +24,7 @@ Contributors:
 #include "Bus_Parallel16.hpp"
 #include "../../misc/pixelcopy.hpp"
 
+#include <rom/gpio.h>
 #include <hal/gpio_ll.h>
 #include <hal/lcd_hal.h>
 #include <soc/lcd_cam_reg.h>
@@ -84,30 +85,18 @@ struct esp_lcd_i80_bus_t {
     gpio_matrix_out(_cfg.pin_rs, LCD_DC_IDX, 0, 0);
     gpio_matrix_out(_cfg.pin_wr, LCD_PCLK_IDX, 0, 0);
 
-    esp_lcd_i80_bus_config_t bus_config = {
-        .dc_gpio_num = _cfg.pin_rs,
-        .wr_gpio_num = _cfg.pin_wr,
-        .data_gpio_nums = {
-            _cfg.pin_d8,
-            _cfg.pin_d9,
-            _cfg.pin_d10,
-            _cfg.pin_d11,
-            _cfg.pin_d12,
-            _cfg.pin_d13,
-            _cfg.pin_d14,
-            _cfg.pin_d15,
-            _cfg.pin_d0,
-            _cfg.pin_d1,
-            _cfg.pin_d2,
-            _cfg.pin_d3,
-            _cfg.pin_d4,
-            _cfg.pin_d5,
-            _cfg.pin_d6,
-            _cfg.pin_d7,
-        },
-        .bus_width = 16,
-        .max_transfer_bytes = 32768
-    };
+    esp_lcd_i80_bus_config_t bus_config;
+    memset(&bus_config, 0, sizeof(esp_lcd_i80_bus_config_t));
+    bus_config.dc_gpio_num = _cfg.pin_rs;
+    bus_config.wr_gpio_num = _cfg.pin_wr;
+    for (int i = 0; i < 8; ++i)
+    {
+      bus_config.data_gpio_nums[i  ] = _cfg.pin_data[i+8];
+      bus_config.data_gpio_nums[i+8] = _cfg.pin_data[i  ];
+    }
+    bus_config.bus_width = 16;
+    bus_config.max_transfer_bytes = 32768;
+
     esp_lcd_new_i80_bus(&bus_config, &_i80_bus);
     _dma_chan = ((esp_lcd_i80_bus_t*)_i80_bus)->dma_chan;
 
@@ -116,7 +105,7 @@ struct esp_lcd_i80_bus_t {
       gpio_ll_input_enable(&GPIO, (gpio_num_t)_cfg.pin_data[i]);
     }
 
-    auto freq = std::min(_cfg.freq_write, 50000000u);
+    auto freq = std::min<uint32_t>(_cfg.freq_write, 50000000u);
 
     uint32_t div_a, div_b, div_n, clkcnt;
     calcClockDiv(&div_a, &div_b, &div_n, &clkcnt, 240*1000*1000, freq);
@@ -126,7 +115,7 @@ struct esp_lcd_i80_bus_t {
     _fast_wait = (wait < 0) ? 0 : wait;
 
     lcd_cam_lcd_clock_reg_t lcd_clock;
-    lcd_clock.lcd_clkcnt_n = std::max(1u, clkcnt - 1);
+    lcd_clock.lcd_clkcnt_n = std::max<uint32_t>(1u, clkcnt - 1);
     lcd_clock.lcd_clk_equ_sysclk = (clkcnt == 1);
     lcd_clock.lcd_ck_idle_edge = true;
     lcd_clock.lcd_ck_out_edge = false;

@@ -24,6 +24,7 @@ Contributors:
 
 #include <soc/dport_reg.h>
 #include <soc/i2s_struct.h>
+#include <rom/gpio.h>
 
 namespace lgfx
 {

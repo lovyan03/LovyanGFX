@@ -42,6 +42,7 @@ Contributors:
  #include <esp32-hal-cpu.h>
 #else
  #include <driver/spi_master.h>
+ #include <rom/gpio.h>
 #endif
 
 #ifndef SPI_PIN_REG
@@ -122,10 +123,35 @@ namespace lgfx
     _inited = spi::init(_cfg.spi_host, _cfg.pin_sclk, _cfg.pin_miso, _cfg.pin_mosi, dma_ch).has_value();
 
 #if defined ( SOC_GDMA_SUPPORTED )
+/* // 割当られたDMAチャネル番号を調べる…ESP-IDFv5でprivateヘッダに変更になったため以下の方法は使用非推奨…;
     auto attr = spi_bus_get_attr(_cfg.spi_host);
     if (!attr->dma_enabled) { _cfg.dma_channel = 0; }
     _spi_dma_out_link_reg  = reg(DMA_OUT_LINK_CH0_REG       + attr->tx_dma_chan * 0xC0);
     _spi_dma_outstatus_reg = reg(DMA_OUTFIFO_STATUS_CH0_REG + attr->tx_dma_chan * 0xC0);
+// ESP_LOGD("DBG","spi_bus_get_attr:dma_enabled:%d", attr->dma_enabled);
+// ESP_LOGD("DBG","spi_bus_get_attr:tx_dma_chan:%d", attr->tx_dma_chan);
+//*/
+    // ESP32C3: SPI2==0
+    // ESP32S3: SPI2==0 / SPI3==1
+    int peri_sel = (_spi_port == 3) ? 1 : 0;
+    int assigned_dma_ch = -1;
+    // GDMAペリフェラルレジスタの配列を順に調べてペリフェラル番号が一致するDMAチャンネルを特定する;
+    for (int i = 0; i < SOC_GDMA_PAIRS_PER_GROUP; ++i)
+    {
+// ESP_LOGD("DBG","GDMA.channel:%d peri_sel:%d", i, GDMA.channel[i].out.peri_sel.sel);
+      if (GDMA.channel[i].out.peri_sel.sel == peri_sel)
+      {
+// ESP_LOGD("DBG","GDMA.channel:%d hit", i);
+        assigned_dma_ch = i;
+        break;
+      }
+    }
+
+    if (assigned_dma_ch >= 0)
+    { // DMAチャンネルが特定できたらそれを使用する;
+      _spi_dma_out_link_reg  = reg(DMA_OUT_LINK_CH0_REG       + assigned_dma_ch * 0xC0);
+      _spi_dma_outstatus_reg = reg(DMA_OUTFIFO_STATUS_CH0_REG + assigned_dma_ch * 0xC0);
+    }
 #endif
 
     return _inited;
@@ -178,7 +204,7 @@ namespace lgfx
     *reg(SPI_PIN_REG(spi_port)) = pin;
     *reg(SPI_CLOCK_REG(spi_port)) = clkdiv_write;
 #if defined ( SPI_UPDATE )
-    *_spi_cmd_reg |= SPI_UPDATE;
+    *_spi_cmd_reg = SPI_UPDATE;
 #endif
   }
 

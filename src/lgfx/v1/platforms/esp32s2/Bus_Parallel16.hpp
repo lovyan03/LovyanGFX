@@ -17,9 +17,6 @@ Contributors:
 /----------------------------------------------------------------------------*/
 #pragma once
 
-#include <vector>
-#include <string.h>
-
 #if __has_include(<rom/lldesc.h>)
  #include <rom/lldesc.h>
 #else

@@ -24,6 +24,7 @@ Contributors:
 #include "Bus_Parallel8.hpp"
 #include "../../misc/pixelcopy.hpp"
 
+#include <rom/gpio.h>
 #include <hal/gpio_ll.h>
 #include <hal/lcd_hal.h>
 #include <soc/lcd_cam_reg.h>
@@ -85,22 +86,18 @@ struct esp_lcd_i80_bus_t {
     gpio_matrix_out(_cfg.pin_rs, LCD_DC_IDX, 0, 0);
     gpio_matrix_out(_cfg.pin_wr, LCD_PCLK_IDX, 0, 0);
 
-    esp_lcd_i80_bus_config_t bus_config = {
-        .dc_gpio_num = _cfg.pin_rs,
-        .wr_gpio_num = _cfg.pin_wr,
-        .data_gpio_nums = {
-            _cfg.pin_d0,
-            _cfg.pin_d1,
-            _cfg.pin_d2,
-            _cfg.pin_d3,
-            _cfg.pin_d4,
-            _cfg.pin_d5,
-            _cfg.pin_d6,
-            _cfg.pin_d7,
-        },
-        .bus_width = 8,
-        .max_transfer_bytes = 32768
-    };
+    esp_lcd_i80_bus_config_t bus_config;
+    memset(&bus_config, 0, sizeof(esp_lcd_i80_bus_config_t));
+    bus_config.dc_gpio_num = _cfg.pin_rs;
+    bus_config.wr_gpio_num = _cfg.pin_wr;
+    for (int i = 0; i < 8; ++i)
+    {
+      bus_config.data_gpio_nums[i] = _cfg.pin_data[i];
+      bus_config.data_gpio_nums[i+8] = -1;
+    }
+    bus_config.bus_width = 8;
+    bus_config.max_transfer_bytes = 32768;
+
     esp_lcd_new_i80_bus(&bus_config, &_i80_bus);
     _dma_chan = ((esp_lcd_i80_bus_t*)_i80_bus)->dma_chan;
 
@@ -112,7 +109,7 @@ struct esp_lcd_i80_bus_t {
     uint32_t div_a, div_b, div_n, clkcnt;
     calcClockDiv(&div_a, &div_b, &div_n, &clkcnt, 240*1000*1000, _cfg.freq_write);
     lcd_cam_lcd_clock_reg_t lcd_clock;
-    lcd_clock.lcd_clkcnt_n = std::max(1u, clkcnt - 1);
+    lcd_clock.lcd_clkcnt_n = std::max<uint32_t>(1u, clkcnt - 1);
     lcd_clock.lcd_clk_equ_sysclk = (clkcnt == 1);
     lcd_clock.lcd_ck_idle_edge = true;
     lcd_clock.lcd_ck_out_edge = false;
@@ -356,7 +353,7 @@ struct esp_lcd_i80_bus_t {
 
       if (use_dma)
       {
-        if (slow) { ets_delay_us(slow); }
+        if (slow) { delayMicroseconds(slow); }
         _setup_dma_desc_links(&data[4], length - 4);
         gdma_start(_dma_chan, (intptr_t)(_dmadesc));
         length = 0;

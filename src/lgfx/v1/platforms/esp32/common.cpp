@@ -631,7 +631,7 @@ namespace lgfx
       gpio_num_t scl_io = i2c_context[i2c_port].pin_scl;
       gpio_set_level(scl_io, 1);
       gpio_set_direction(scl_io, GPIO_MODE_OUTPUT_OD);
-      ets_delay_us(I2C_CLR_BUS_HALF_PERIOD_US);
+      delayMicroseconds(I2C_CLR_BUS_HALF_PERIOD_US);
 
       auto mod = getPeriphModule(i2c_port);
       // ESP-IDF環境でperiph_module_disableを使うと、後でenableできなくなる問題が起きたためコメントアウト;
@@ -642,13 +642,13 @@ namespace lgfx
       do
       {
         gpio_set_level(scl_io, 0);
-        ets_delay_us(I2C_CLR_BUS_HALF_PERIOD_US);
+        delayMicroseconds(I2C_CLR_BUS_HALF_PERIOD_US);
         gpio_set_level(sda_io, 0);
-        ets_delay_us(I2C_CLR_BUS_HALF_PERIOD_US);
+        delayMicroseconds(I2C_CLR_BUS_HALF_PERIOD_US);
         gpio_set_level(scl_io, 1);
-        ets_delay_us(I2C_CLR_BUS_HALF_PERIOD_US);
+        delayMicroseconds(I2C_CLR_BUS_HALF_PERIOD_US);
         gpio_set_level(sda_io, 1);
-        ets_delay_us(I2C_CLR_BUS_HALF_PERIOD_US);
+        delayMicroseconds(I2C_CLR_BUS_HALF_PERIOD_US);
       } while (!gpio_get_level(sda_io) && (i++ < I2C_CLR_BUS_SCL_NUM));
       periph_module_enable(mod);
 #if !defined (CONFIG_IDF_TARGET_ESP32C3)
@@ -1136,7 +1136,7 @@ namespace lgfx
         dev->ctr.trans_start = 1;
         dev->int_clr.val = intmask;
 #if defined ( CONFIG_IDF_TARGET_ESP32S3 )
-        ets_delay_us(us_limit >> 2);  /// このウェイトを外すと受信失敗するケースがある;
+        delayMicroseconds(us_limit >> 2);  /// このウェイトを外すと受信失敗するケースがある;
 #endif
         do
         {

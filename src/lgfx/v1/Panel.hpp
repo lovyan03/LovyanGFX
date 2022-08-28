@@ -157,7 +157,11 @@ namespace lgfx
     {
       auto ye = y + h;
       auto buf = (RGBColor*)alloca(w * sizeof(RGBColor));
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+      /// Not actually used uninitialized. Just grabbing a copy of the pointer before we start the loop that fills it.
       pixelcopy_t pc_write(buf    ,_write_depth, RGBColor::depth, false);
+#pragma GCC diagnostic pop
       pixelcopy_t pc_read( nullptr, RGBColor::depth, _read_depth, false);
       startWrite();
       do

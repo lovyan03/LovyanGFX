@@ -24,15 +24,12 @@ file(GLOB SRCS
 
 set(COMPONENT_SRCS ${SRCS})
 
-set(COMPONENT_REQUIRES nvs_flash efuse)
-
-if(IDF_TARGET MATCHES "esp32s3")
-  list(APPEND COMPONENT_REQUIRES esp_lcd)
+if (IDF_VERSION_MAJOR GREATER_EQUAL 5)
+    set(COMPONENT_REQUIRES nvs_flash efuse esp_lcd driver esp_timer)
+elseif ((IDF_VERSION_MAJOR EQUAL 4) AND (IDF_VERSION_MINOR GREATER 3) OR IDF_VERSION_MAJOR GREATER 4)
+    set(COMPONENT_REQUIRES nvs_flash efuse esp_lcd)
 else()
-  find_package(LCD COMPONENTS esp_lcd QUIET)
-  if (LCD_FOUND)
-    list(APPEND COMPONENT_REQUIRES esp_lcd)
-  endif()
+    set(COMPONENT_REQUIRES nvs_flash efuse)
 endif()
 
 
