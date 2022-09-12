@@ -74,7 +74,7 @@ namespace lgfx
     static constexpr uint32_t pll_d2_clock = 80 * 1000 * 1000;
 
     // I2S_CLKM_DIV_NUM 4=20MHz  /  5=16MHz  /  8=10MHz  /  10=8MHz
-    _div_num = std::min(255u, std::max(3u, 1 + (pll_d2_clock / (1 + _cfg.freq_write))));
+    _div_num = std::min<uint32_t>(255u, std::max<uint32_t>(3u, 1 + (pll_d2_clock / (1 + _cfg.freq_write))));
 
     _clkdiv_write =             I2S_CLK_EN
                   |        1 << I2S_CLKM_DIV_A_S
@@ -529,7 +529,7 @@ namespace lgfx
       {
         break;
       }
-      size_t limit = std::min(CACHE_THRESH, (length + idx) & ~3);
+      size_t limit = std::min<uint32_t>(CACHE_THRESH, (length + idx) & ~3);
       length -= (limit - idx);
       do
       {

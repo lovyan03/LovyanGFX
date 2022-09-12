@@ -29,10 +29,22 @@ Inherited Sources:
 #include <esp_types.h>
 #include <esp_log.h>
 #include <driver/dac.h>
-#include <driver/i2s.h>
 #include <rom/lldesc.h>
-#include <soc/i2s_struct.h>
 #include <soc/rtc.h>
+#include <soc/periph_defs.h>
+#include <soc/i2s_struct.h>
+
+#if __has_include(<driver/i2s_std.h>)
+ #include <driver/i2s_std.h>
+ #define LGFX_I2S_STD_ENABLED
+#else
+ #include <driver/i2s.h>
+#endif
+#if __has_include(<esp_private/periph_ctrl.h>)
+ // ESP-IDF v5
+ #include <esp_private/periph_ctrl.h>
+#endif
+
 #include <math.h>
 
 #include "Panel_CVBS.hpp"
@@ -126,7 +138,7 @@ namespace lgfx
   private:
     uint8_t* _buffer = nullptr;    // 先読みバッファ(memcpy先アドレス)
     const uint8_t* _src[cache_num] = { nullptr }; // キューアドレス(memcpy元アドレス)
-    xTaskHandle _task_handle = nullptr;
+    TaskHandle_t _task_handle = nullptr;
     size_t _datasize;     // データサイズ(memcpyする量)
     uint8_t _push_idx;    // 新規予約代入先インデクス;
     uint8_t _using_idx;   // 使用中インデクス;
@@ -716,7 +728,8 @@ namespace lgfx
 
     ISR_BEGIN();
 
-    if (++internal.current_scanline >= _signal_spec_info.total_scanlines) {
+    internal.current_scanline = internal.current_scanline + 1;
+    if (internal.current_scanline >= _signal_spec_info.total_scanlines) {
       internal.current_scanline = 0;
     }
 
@@ -872,8 +885,12 @@ namespace lgfx
       dac_i2s_disable();
 
       periph_module_disable(PERIPH_I2S0_MODULE);
-      rtc_clk_apll_enable(false,0,0,0,1);
 
+#if defined ( LGFX_I2S_STD_ENABLED )
+    rtc_clk_apll_enable(false);
+#else
+    rtc_clk_apll_enable(false,0,0,0,1);
+#endif
 
 // printf("dmabuf: %08x free\n", internal.dma_desc[0].buf);
       heap_free((void*)(internal.dma_desc[0].buf));
@@ -904,17 +921,17 @@ namespace lgfx
     }
     _started = true;
 
-    i2s_set_dac_mode(i2s_dac_mode_t::I2S_DAC_CHANNEL_DISABLE);
+    dac_i2s_enable();
     switch (_config_detail.pin_dac)
     {
     default:
       ESP_LOGE(TAG, "DAC output gpio error: G%d  ... Select G25 or G26.", _config_detail.pin_dac);
       return false;
     case 25:
-      i2s_set_dac_mode(i2s_dac_mode_t::I2S_DAC_CHANNEL_RIGHT_EN); // for GPIO 25
+      dac_output_enable(DAC_CHANNEL_1); // for GPIO 25
       break;
     case 26:
-      i2s_set_dac_mode(i2s_dac_mode_t::I2S_DAC_CHANNEL_LEFT_EN); // for GPIO 26
+      dac_output_enable(DAC_CHANNEL_2); // for GPIO 26
       break;
     }
 
@@ -1032,12 +1049,21 @@ namespace lgfx
     //  up to 20mhz seems to work ok:
     //  rtc_clk_apll_enable(1,0x00,0x00,0x4,0);   // 20mhz for fancy DDS
 
+#if defined ( LGFX_I2S_STD_ENABLED )
+    rtc_clk_apll_coeff_set( 1
+                          , (setup_info.apll_sdm      ) & 0xFF
+                          , (setup_info.apll_sdm >>  8) & 0xFF
+                          , (setup_info.apll_sdm >> 16) & 0xFF
+                          );
+    rtc_clk_apll_enable( true );
+#else
     rtc_clk_apll_enable( true
                        , (setup_info.apll_sdm      ) & 0xFF
                        , (setup_info.apll_sdm >>  8) & 0xFF
                        , (setup_info.apll_sdm >> 16) & 0xFF
                        , 1
                        );
+#endif
 
     periph_module_enable(PERIPH_I2S0_MODULE);
 

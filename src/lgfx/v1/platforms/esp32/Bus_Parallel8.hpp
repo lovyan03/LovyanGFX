@@ -27,7 +27,11 @@ Contributors:
  #include <freertos/FreeRTOS.h>
 #endif
 
-#include <driver/i2s.h>
+#if __has_include(<driver/i2s_std.h>)
+ #include <driver/i2s_std.h>
+#else
+ #include <driver/i2s.h>
+#endif
 
 #include "../../Bus.hpp"
 #include "../common.hpp"

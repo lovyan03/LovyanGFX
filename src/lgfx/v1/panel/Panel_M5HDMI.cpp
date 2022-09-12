@@ -419,7 +419,7 @@ namespace lgfx
     _bus->readData(8); // skip 0xFF
     uint32_t data = _bus->readData(32);
     (void)data; // suppress compiler warning.
-    ESP_LOGI(TAG, "FPGA ID:%02x %02x %02x %02x", data & 0xFF, (data >> 8) & 0xFF, (data >> 16) & 0xFF, data >> 24);
+    ESP_LOGI(TAG, "FPGA ID:%02x %02x %02x %02x", (uint8_t)data, (uint8_t)(data >> 8), (uint8_t)(data >> 16), (uint8_t)(data >> 24));
     cs_control(true);
     _bus->endRead();
     cs_control(false);
@@ -961,7 +961,11 @@ namespace lgfx
     {
       auto linebuf = (uint8_t*)alloca((xe - xs + 1) * bytes);
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+      /// Not actually used uninitialized. Just grabbing a copy of the pointer before we start the loop that fills it.
       pixelcopy_t pc((void*)linebuf, _write_depth, _write_depth);
+#pragma GCC diagnostic pop
       pc.src_x32_add = ~0u << pixelcopy_t::FP_SCALE;
 
       x = _width  - (x + 1);
