@@ -589,7 +589,12 @@ namespace lgfx
 
       bus_cfg.freq_write = 8000000;
       bus_cfg.freq_read  = 8000000;
+// ArduinoESP32 v2.0.4 ではPSRAM有効にするとVSPIが使用されるのでHSPIに変更する対策を実施する;
+#if CONFIG_SPIRAM_OCCUPY_VSPI_HOST && CONFIG_ESP32_SPIRAM_SUPPORT
+      bus_cfg.spi_host = HSPI_HOST;
+#else
       bus_cfg.spi_host = VSPI_HOST;
+#endif
       bus_cfg.spi_mode = 0;
       bus_cfg.use_lock = true;
       bus_cfg.dma_channel = 1;
@@ -1348,7 +1353,7 @@ namespace lgfx
               _bus_spi.endTransaction();
               lgfx::gpio_hi(GPIO_NUM_15);
               id = buf[0] << 24 | buf[1] << 16 | buf[2] << 8 | buf[3];
-              ESP_LOGW(LIBRARY_NAME, "[Autodetect] panel size :%08x", (unsigned int)id);
+              ESP_LOGW(LIBRARY_NAME, "[Autodetect] panel size :%08x", id);
               if (id == 0x03C0021C)
               {  //  check panel ( panel size 960(0x03C0) x 540(0x021C) )
                 board = board_t::board_M5Paper;
@@ -1455,7 +1460,7 @@ namespace lgfx
                 _touch_last = t;
                 auto cfg = t->config();
                 cfg.bus_shared = true;
-                cfg.spi_host = VSPI_HOST;
+                cfg.spi_host = bus_cfg.spi_host;
                 cfg.pin_cs   = GPIO_NUM_2;
                 cfg.pin_mosi = GPIO_NUM_13;
                 cfg.pin_miso = GPIO_NUM_12;
@@ -1628,7 +1633,7 @@ namespace lgfx
               auto cfg = t->config();
               cfg.bus_shared = true;
               cfg.freq = 2700000;
-              cfg.spi_host = VSPI_HOST;
+              cfg.spi_host = bus_cfg.spi_host;
               cfg.pin_cs   = GPIO_NUM_12;
               cfg.pin_mosi = GPIO_NUM_23;
               cfg.pin_miso = GPIO_NUM_19;

@@ -23,7 +23,6 @@ Contributors:
 #include "../../misc/pixelcopy.hpp"
 
 #include <soc/dport_reg.h>
-#include <soc/i2s_struct.h>
 #include <rom/gpio.h>
 #include <hal/gpio_ll.h>
 #include <esp_log.h>

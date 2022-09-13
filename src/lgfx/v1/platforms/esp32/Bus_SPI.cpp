@@ -50,7 +50,6 @@ Contributors:
 #endif
 
 #if defined (SOC_GDMA_SUPPORTED)  // for C3/S3
- #include <driver/spi_common_internal.h>
  #include <hal/gdma_hal.h>
  #include <hal/gdma_ll.h>
  #if !defined DMA_OUT_LINK_CH0_REG
