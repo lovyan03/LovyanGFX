@@ -1630,9 +1630,6 @@ namespace lgfx
       };
     };
 
-    range_rect_t(void) = default;
-    range_rect_t(const range_rect_t& rhs) : horizon(rhs.horizon), vertical(rhs.vertical) {}
-
     int32_t width(void) const { return right - left + 1; }
     int32_t height(void) const { return bottom - top + 1; }
     bool empty(void) const { return horizon.empty() || vertical.empty(); }
