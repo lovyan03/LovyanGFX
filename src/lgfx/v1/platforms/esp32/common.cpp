@@ -384,7 +384,7 @@ namespace lgfx
       *reg(SPI_CLOCK_REG(spi_port)) = clkdiv;
 
 #if defined ( SPI_UPDATE )
-      *reg(SPI_CMD_REG(spi_port)) |= SPI_UPDATE;
+      *reg(SPI_CMD_REG(spi_port)) = SPI_UPDATE;
 #endif
     }
 

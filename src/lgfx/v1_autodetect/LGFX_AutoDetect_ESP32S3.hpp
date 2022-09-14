@@ -223,7 +223,7 @@ namespace lgfx
       bus->endTransaction();
       _pin_level(pin_cs, true);
 
-      ESP_LOGW(LIBRARY_NAME, "[Autodetect] read cmd:%02x = %08x", cmd, res);
+      ESP_LOGW(LIBRARY_NAME, "[Autodetect] read cmd:%02x = %08x", (unsigned int)cmd, (unsigned int)res);
       return res;
     }
 
@@ -255,7 +255,7 @@ namespace lgfx
       {
         nvs_get_u32(nvs_handle, NVS_KEY, static_cast<uint32_t*>(&nvs_board));
         nvs_close(nvs_handle);
-        ESP_LOGW(LIBRARY_NAME, "[Autodetect] load from NVS : board:%d", nvs_board);
+        ESP_LOGW(LIBRARY_NAME, "[Autodetect] load from NVS : board:%d", (int)nvs_board);
       }
 
       if (0 == nvs_board)

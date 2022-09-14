@@ -57,6 +57,7 @@ Contributors:
   #define DMA_OUTFIFO_STATUS_CH0_REG GDMA_OUTFIFO_STATUS_CH0_REG
   #define DMA_OUTLINK_START_CH0      GDMA_OUTLINK_START_CH0
   #define DMA_OUTFIFO_EMPTY_CH0      GDMA_OUTFIFO_EMPTY_L3_CH0
+  #define DMA_OUT_PERI_SEL_CH0_REG   GDMA_OUT_PERI_SEL_CH0_REG
  #endif
 #endif
 
@@ -138,7 +139,7 @@ namespace lgfx
     for (int i = 0; i < SOC_GDMA_PAIRS_PER_GROUP; ++i)
     {
 // ESP_LOGD("DBG","GDMA.channel:%d peri_sel:%d", i, GDMA.channel[i].out.peri_sel.sel);
-      if (GDMA.channel[i].out.peri_sel.sel == peri_sel)
+      if ((*reg(DMA_OUT_PERI_SEL_CH0_REG + i * 0xC0) & 0x3F) == peri_sel)
       {
 // ESP_LOGD("DBG","GDMA.channel:%d hit", i);
         assigned_dma_ch = i;

@@ -1353,7 +1353,7 @@ namespace lgfx
               _bus_spi.endTransaction();
               lgfx::gpio_hi(GPIO_NUM_15);
               id = buf[0] << 24 | buf[1] << 16 | buf[2] << 8 | buf[3];
-              ESP_LOGW(LIBRARY_NAME, "[Autodetect] panel size :%08x", id);
+              ESP_LOGW(LIBRARY_NAME, "[Autodetect] panel size :%08x", (unsigned int)id);
               if (id == 0x03C0021C)
               {  //  check panel ( panel size 960(0x03C0) x 540(0x021C) )
                 board = board_t::board_M5Paper;
