@@ -17,17 +17,21 @@ Contributors:
 /----------------------------------------------------------------------------*/
 #pragma once
 
-#if __has_include(<esp32/rom/lldesc.h>)
- #include <esp32/rom/lldesc.h>
-#else
+#if __has_include(<rom/lldesc.h>)
  #include <rom/lldesc.h>
+#else
+ #include <esp32/rom/lldesc.h>
 #endif
 
 #if __has_include(<freertos/FreeRTOS.h>)
  #include <freertos/FreeRTOS.h>
 #endif
 
-#include <driver/i2s.h>
+#if __has_include(<driver/i2s_std.h>)
+ #include <driver/i2s_std.h>
+#else
+ #include <driver/i2s.h>
+#endif
 
 #include "../../Bus.hpp"
 #include "../common.hpp"
@@ -80,6 +84,8 @@ namespace lgfx
     void endTransaction(void) override;
     void wait(void) override;
     bool busy(void) const override;
+    uint32_t getClock(void) const override { return _cfg.freq_write; }
+    void setClock(uint32_t freq) override { if (_cfg.freq_write != freq) { _cfg.freq_write = freq; config(_cfg); } }
 
     void flush(void) override;
     bool writeCommand(uint32_t data, uint_fast8_t bit_length) override;
@@ -115,7 +121,6 @@ namespace lgfx
     size_t _flush(size_t idx, bool force = false);
     void _read_bytes(uint8_t* dst, uint32_t length);
 
-    uint32_t _last_freq_apb;
     uint32_t _clkdiv_write;
     volatile void *_dev;
     lldesc_t _dmadesc;

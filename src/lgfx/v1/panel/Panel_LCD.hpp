@@ -53,6 +53,8 @@ namespace lgfx
     uint32_t readData(uint_fast8_t index, uint_fast8_t len) override;
     void readRect(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, void* dst, pixelcopy_t* param) override;
 
+    int32_t getScanLine(void) override;
+
   protected:
 
     uint16_t _colstart = 0;
@@ -118,6 +120,7 @@ namespace lgfx
     static constexpr uint8_t CMD_IDMON   = 0x39;
     static constexpr uint8_t CMD_COLMOD  = 0x3A;
     static constexpr uint8_t CMD_PIXSET  = 0x3A;
+    static constexpr uint8_t CMD_GETSCANLINE= 0x45;
 
     void begin_transaction(void);
     void end_transaction(void);

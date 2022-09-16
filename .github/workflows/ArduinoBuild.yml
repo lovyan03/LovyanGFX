@@ -16,60 +16,66 @@ on:
 
 jobs:
   build:
-    name: ${{ matrix.fancy-name }}
+    name: ${{matrix.board}}@${{matrix.platform-version}}
 
     runs-on: ubuntu-latest
 
     strategy:
       matrix:
 
-        arduino-boards-fqbn:
-          - Seeeduino:samd:seeed_wio_terminal
-          - esp8266:esp8266:d1_mini:eesz=4M3M,xtal=80
-          - esp32:esp32:esp32
-          - esp32:esp32:esp32s2
-          - esp32:esp32:m5stick-c
-          - esp32:esp32:m5stack-core-esp32
-          - esp32:esp32:m5stack-core2
-          #- esp32:esp32:m5stack-fire
-          #- esp32:esp32:odroid_esp32
+        platform-url:
+          - https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
+
+        board:
+          # ESP32 devices for 3D matrix
+          - esp32
+          - esp32s2
+          - m5stick-c
+          - m5stack-core-esp32
+          - m5stack-core2
+          - esp32s3box
+
+        platform-version:
+          # ESP32 Core versions for 3D matrix
+          - 1.0.6
+          - 2.0.0
+          - 2.0.1
+          - 2.0.2
+          - 2.0.3
+          - 2.0.4
 
         include:
-          - arduino-boards-fqbn: Seeeduino:samd:seeed_wio_terminal
-            fancy-name: Wio Terminal
-            platform-url: https://files.seeedstudio.com/arduino/package_seeeduino_boards_index.json
+          # 3D matrix doesn't apply to these:
+          - { board: 'd1_mini:eesz=4M3M,xtal=80', platform: esp8266, archi: esp8266, platform-version: 3.0.1, platform-url: 'https://arduino.esp8266.com/stable/package_esp8266com_index.json', ... }
+          - { board: 'd1_mini:eesz=4M3M,xtal=80', platform: esp8266, archi: esp8266, platform-version: 3.0.2, platform-url: 'https://arduino.esp8266.com/stable/package_esp8266com_index.json', ... }
+          - { board: seeed_wio_terminal,    platform: Seeeduino, archi: samd,    platform-version: 1.8.2, platform-url: 'https://files.seeedstudio.com/arduino/package_seeeduino_boards_index.json',  ... }
+          - { board: adafruit_hallowing,    platform: adafruit,  archi: samd, platform-version: 1.7.10, platform-url: 'https://adafruit.github.io/arduino-board-index/package_adafruit_index.json', ... }
+          - { board: adafruit_hallowing_m4, platform: adafruit,  archi: samd, platform-version: 1.7.10, platform-url: 'https://adafruit.github.io/arduino-board-index/package_adafruit_index.json', ... }
+          - { board: adafruit_pybadge_m4,   platform: adafruit,  archi: samd, platform-version: 1.7.10, platform-url: 'https://adafruit.github.io/arduino-board-index/package_adafruit_index.json', ... }
+          - { board: adafruit_pygamer_m4,   platform: adafruit,  archi: samd, platform-version: 1.7.10, platform-url: 'https://adafruit.github.io/arduino-board-index/package_adafruit_index.json', ... }
+          - { board: adafruit_feather_esp32s2_tft, platform: esp32, archi: esp32, platform-version: 2.0.4, platform-url: 'https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json', ... }
+          - { board: adafruit_feather_esp32s3_tft, platform: esp32, archi: esp32, platform-version: 2.0.4, platform-url: 'https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json', ... }
+          - { board: adafruit_funhouse_esp32s2,    platform: esp32, archi: esp32, platform-version: 2.0.4, platform-url: 'https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json', ... }
+          - { board: rpipico, platform: rp2040, archi: rp2040, platform-version: 2.3.3, cli-args: '--build-property compiler.cpp.extra_flags=-DSKIP_I2C_TEST', platform-url: 'https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json', ... }
 
-          - arduino-boards-fqbn: esp8266:esp8266:d1_mini:eesz=4M3M,xtal=80
-            fancy-name: ESP8266 D1Mini
-            platform-url: https://arduino.esp8266.com/stable/package_esp8266com_index.json
+          # 3D matrix applies to these:
+          - { board: esp32,              platform: esp32, archi: esp32, ... }
+          - { board: esp32s2,            platform: esp32, archi: esp32, ... }
+          - { board: m5stick-c,          platform: esp32, archi: esp32, ... }
+          - { board: m5stack-core-esp32, platform: esp32, archi: esp32, ... }
+          - { board: m5stack-core2,      platform: esp32, archi: esp32, ... }
+          - { board: esp32s3box,         platform: esp32, archi: esp32, ... }
 
-          - arduino-boards-fqbn: esp32:esp32:esp32
-            fancy-name: ESP32 Generic
-            platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
+        exclude:
+          # 3D matrix excludes these:
+          - { board: esp32s3box, platform-version: 1.0.6 }
+          - { board: esp32s3box, platform-version: 2.0.0 }
+          - { board: esp32s3box, platform-version: 2.0.1 }
+          - { board: esp32s3box, platform-version: 2.0.2 }
+          - { board: esp32s3box, platform-version: 2.0.4 }
+          - { board: esp32s2,    platform-version: 1.0.6 }
+          - { board: esp32s2,    platform-version: 2.0.0 }
 
-          - arduino-boards-fqbn: esp32:esp32:esp32s2
-            fancy-name: ESP32 S2
-            platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
-
-          - arduino-boards-fqbn: esp32:esp32:m5stick-c
-            fancy-name: M5StickC
-            platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
-
-          - arduino-boards-fqbn: esp32:esp32:m5stack-core-esp32
-            fancy-name: M5Stack
-            platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
-
-          - arduino-boards-fqbn: esp32:esp32:m5stack-core2
-            fancy-name: M5Core2
-            platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
-
-          #- arduino-boards-fqbn: esp32:esp32:m5stack-fire
-          #  fancy-name: M5Fire
-          #  platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
-
-          #- arduino-boards-fqbn: esp32:esp32:odroid_esp32
-          #  fancy-name: OdroidGo
-          #  platform-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
 
       fail-fast: false
 
@@ -82,11 +88,12 @@ jobs:
       - name: Compile example
         uses: ArminJo/arduino-test-compile@v3
         with:
-          arduino-board-fqbn: ${{ matrix.arduino-boards-fqbn }}
+          arduino-board-fqbn: ${{matrix.platform}}:${{matrix.archi}}:${{matrix.board}}
+          arduino-platform: ${{matrix.platform}}:${{matrix.archi}}@${{matrix.platform-version}}
           platform-url: ${{ matrix.platform-url }}
           required-libraries: ${{ matrix.required-libraries }}
-          build-properties: ${{ toJson(matrix.build-properties) }}
+          extra-arduino-cli-args: ${{ matrix.cli-args }}
+          #build-properties: ${{ toJson(matrix.build-properties) }}
           sketch-names: ${{ env.SKETCH_NAME }}
-          #platform-default-url: ${{ env.PLATFORM_DEFAULT_URL }}
           #sketches-exclude: ${{ matrix.sketches-exclude }}
 

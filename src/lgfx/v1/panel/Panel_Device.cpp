@@ -56,8 +56,8 @@ namespace lgfx
 
   bool Panel_Device::init(bool use_reset)
   {
-    _bus->init();
     init_cs();
+    _bus->init();
     init_rst();
     if (_light)
     {
@@ -148,6 +148,7 @@ namespace lgfx
       uint8_t num = *addr++;   // Number of args to follow
       if (cmd == 0xFF && num == 0xFF) break;
       writeCommand(cmd, 1);  // Read, issue command
+      _bus->flush();
       uint_fast8_t ms = num & CMD_INIT_DELAY;       // If hibit set, delay follows args
       num &= ~CMD_INIT_DELAY;          // Mask out delay bit
       if (num)
@@ -155,11 +156,11 @@ namespace lgfx
         do
         {                   // For each argument...
           writeData(*addr++, 1);  // Read, issue argument
+          _bus->flush();
         } while (--num);
       }
       if (ms)
       {
-        _bus->flush();
         ms = *addr++;        // Read post-command delay time (ms)
         delay( (ms==255 ? 500 : ms) );
       }
@@ -387,11 +388,9 @@ namespace lgfx
     }
 
     {
-      float det = 1;
       for ( int k = 0; k < 3; ++k )
       {
         float t = mat[k][k];
-        det *= t;
         for ( int i = 0; i < 3; ++i ) mat[k][i] /= t;
 
         mat[k][k] = 1 / t;

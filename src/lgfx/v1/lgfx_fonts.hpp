@@ -50,19 +50,25 @@ namespace lgfx
     const uint8_t width;
     const uint8_t height;
     const uint8_t baseline;
-    BaseFont() = default;
-    constexpr BaseFont(const void *chartbl, const uint8_t *widthtbl, uint8_t width, uint8_t height, uint8_t baseline)
-     : void_chartbl(chartbl  )
-     , widthtbl (widthtbl )
-     , width    (width    )
-     , height   (height   )
-     , baseline (baseline )
+    constexpr BaseFont()
+     : void_chartbl { nullptr }
+     , widthtbl{ nullptr }
+     , width{ 0 }
+     , height{ 0 }
+     , baseline{ 0 }
+    {}
+    constexpr BaseFont(const void *char_tbl, const uint8_t *width_tbl, uint8_t w, uint8_t h, uint8_t bl)
+     : void_chartbl { char_tbl }
+     , widthtbl { width_tbl }
+     , width    { w  }
+     , height   { h  }
+     , baseline { bl }
     {}
     void getDefaultMetric(FontMetrics *metrics) const override;
   };
 
   struct GLCDfont : public BaseFont {
-    constexpr GLCDfont(const void *chartbl, const uint8_t *widthtbl, uint8_t width, uint8_t height, uint8_t baseline) : BaseFont(chartbl, widthtbl, width, height, baseline ) {}
+    constexpr GLCDfont(const void *char_tbl, const uint8_t *width_tbl, uint8_t w, uint8_t h, uint8_t bl) : BaseFont(char_tbl, width_tbl, w, h, bl ) {}
     font_type_t getType(void) const override { return ft_glcd; }
 
     bool updateFontMetric(FontMetrics *metrics, uint16_t uniCode) const override;
@@ -70,7 +76,7 @@ namespace lgfx
   };
 
   struct FixedBMPfont : public BaseFont {
-    constexpr FixedBMPfont(const void *chartbl, const uint8_t *widthtbl, uint8_t width, uint8_t height, uint8_t baseline) : BaseFont(chartbl, widthtbl, width, height, baseline ) {}
+    constexpr FixedBMPfont(const void *char_tbl, const uint8_t *width_tbl, uint8_t w, uint8_t h, uint8_t bl) : BaseFont(char_tbl, width_tbl, w, h, bl ) {}
     font_type_t getType(void) const override { return ft_bmp;  }
 
     bool updateFontMetric(FontMetrics *metrics, uint16_t uniCode) const override;
@@ -78,7 +84,7 @@ namespace lgfx
   };
 
   struct BMPfont : public BaseFont {
-    constexpr BMPfont(const void *chartbl, const uint8_t *widthtbl, uint8_t width, uint8_t height, uint8_t baseline) : BaseFont(chartbl, widthtbl, width, height, baseline ) {}
+    constexpr BMPfont(const void *char_tbl, const uint8_t *width_tbl, uint8_t w, uint8_t h, uint8_t bl) : BaseFont(char_tbl, width_tbl, w, h, bl ) {}
     font_type_t getType(void) const override { return ft_bmp;  }
 
     bool updateFontMetric(FontMetrics *metrics, uint16_t uniCode) const override;
@@ -86,7 +92,7 @@ namespace lgfx
   };
 
   struct RLEfont : public BMPfont {
-    constexpr RLEfont(const void *chartbl, const uint8_t *widthtbl, uint8_t width, uint8_t height, uint8_t baseline) : BMPfont(chartbl, widthtbl, width, height, baseline ) {}
+    constexpr RLEfont(const void *char_tbl, const uint8_t *width_tbl, uint8_t w, uint8_t h, uint8_t bl) : BMPfont(char_tbl, width_tbl, w, h, bl ) {}
     font_type_t getType(void) const override { return ft_rle; }
     size_t drawChar(LGFXBase* gfx, int32_t x, int32_t y, uint16_t c, const TextStyle* style, FontMetrics* metrics, int32_t& filled_x) const override;
   };
@@ -97,12 +103,12 @@ namespace lgfx
     uint8_t halfwidth;
     uint8_t y_advance;
     BDFfont() = default;
-    constexpr BDFfont(const void *chartbl, const uint16_t *indextbl, uint16_t indexsize, uint8_t width, uint8_t halfwidth, uint8_t height, uint8_t baseline, uint8_t y_advance)
-     : BaseFont(chartbl, nullptr, width, height, baseline )
-     , indextbl(indextbl)
-     , indexsize(indexsize)
-     , halfwidth(halfwidth)
-     , y_advance(y_advance)
+    constexpr BDFfont(const void *char_tbl, const uint16_t *index_tbl, uint16_t index_size, uint8_t w, uint8_t half_width, uint8_t h, uint8_t bl, uint8_t y_adv)
+     : BaseFont { char_tbl, nullptr, w, h, bl }
+     , indextbl  { index_tbl }
+     , indexsize { index_size }
+     , halfwidth { half_width }
+     , y_advance { y_adv }
      {}
     font_type_t getType(void) const override { return ft_bdf;  }
 

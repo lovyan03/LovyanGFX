@@ -45,6 +45,7 @@ class LGFX : public lgfx::LGFX_Device
 //lgfx::Panel_ILI9486     _panel_instance;
 //lgfx::Panel_ILI9488     _panel_instance;
 //lgfx::Panel_IT8951      _panel_instance;
+//lgfx::Panel_RA8875      _panel_instance;
 //lgfx::Panel_SH110x      _panel_instance; // SH1106, SH1107
 //lgfx::Panel_SSD1306     _panel_instance;
 //lgfx::Panel_SSD1327     _panel_instance;
@@ -66,10 +67,15 @@ class LGFX : public lgfx::LGFX_Device
   lgfx::Light_PWM     _light_instance;
 
 // タッチスクリーンの型にあったインスタンスを用意します。(必要なければ削除)
-  lgfx::Touch_FT5x06      _touch_instance; // FT5206, FT5306, FT5406, FT6206, FT6236, FT6336, FT6436
-//lgfx::Touch_GT911       _touch_instance;
-//lgfx::Touch_STMPE610    _touch_instance;
-//lgfx::Touch_XPT2046     _touch_instance;
+  lgfx::Touch_FT5x06           _touch_instance; // FT5206, FT5306, FT5406, FT6206, FT6236, FT6336, FT6436
+//lgfx::Touch_GSL1680E_800x480 _touch_instance; // GSL_1680E, 1688E, 2681B, 2682B
+//lgfx::Touch_GSL1680F_800x480 _touch_instance;
+//lgfx::Touch_GSL1680F_480x272 _touch_instance;
+//lgfx::Touch_GSLx680_320x320  _touch_instance;
+//lgfx::Touch_GT911            _touch_instance;
+//lgfx::Touch_STMPE610         _touch_instance;
+//lgfx::Touch_TT21xxx          _touch_instance; // TT21100
+//lgfx::Touch_XPT2046          _touch_instance;
 
 public:
 
@@ -81,13 +87,15 @@ public:
       auto cfg = _bus_instance.config();    // バス設定用の構造体を取得します。
 
 // SPIバスの設定
-      cfg.spi_host = VSPI_HOST;     // 使用するSPIを選択  (VSPI_HOST or HSPI_HOST)
+      cfg.spi_host = VSPI_HOST;     // 使用するSPIを選択  ESP32-S2,C3 : SPI2_HOST or SPI3_HOST / ESP32 : VSPI_HOST or HSPI_HOST
+      // ※ ESP-IDFバージョンアップに伴い、VSPI_HOST , HSPI_HOSTの記述は非推奨になるため、エラーが出る場合は代わりにSPI2_HOST , SPI3_HOSTを使用してください。
       cfg.spi_mode = 0;             // SPI通信モードを設定 (0 ~ 3)
       cfg.freq_write = 40000000;    // 送信時のSPIクロック (最大80MHz, 80MHzを整数で割った値に丸められます)
       cfg.freq_read  = 16000000;    // 受信時のSPIクロック
       cfg.spi_3wire  = true;        // 受信をMOSIピンで行う場合はtrueを設定
       cfg.use_lock   = true;        // トランザクションロックを使用する場合はtrueを設定
-      cfg.dma_channel = 1;          // Set the DMA channel (1 or 2. 0=disable)   使用するDMAチャンネルを設定 (0=DMA不使用)
+      cfg.dma_channel = SPI_DMA_CH_AUTO; // 使用するDMAチャンネルを設定 (0=DMA不使用 / 1=1ch / 2=ch / SPI_DMA_CH_AUTO=自動設定)
+      // ※ ESP-IDFバージョンアップに伴い、DMAチャンネルはSPI_DMA_CH_AUTO(自動設定)が推奨になりました。1ch,2chの指定は非推奨になります。
       cfg.pin_sclk = 18;            // SPIのSCLKピン番号を設定
       cfg.pin_mosi = 23;            // SPIのMOSIピン番号を設定
       cfg.pin_miso = 19;            // SPIのMISOピン番号を設定 (-1 = disable)
@@ -133,8 +141,6 @@ public:
 
       // ※ 以下の設定値はパネル毎に一般的な初期値が設定されていますので、不明な項目はコメントアウトして試してみてください。
 
-      cfg.memory_width     =   240;  // ドライバICがサポートしている最大の幅
-      cfg.memory_height    =   320;  // ドライバICがサポートしている最大の高さ
       cfg.panel_width      =   240;  // 実際に表示可能な幅
       cfg.panel_height     =   320;  // 実際に表示可能な高さ
       cfg.offset_x         =     0;  // パネルのX方向オフセット量
@@ -145,8 +151,12 @@ public:
       cfg.readable         =  true;  // データ読出しが可能な場合 trueに設定
       cfg.invert           = false;  // パネルの明暗が反転してしまう場合 trueに設定
       cfg.rgb_order        = false;  // パネルの赤と青が入れ替わってしまう場合 trueに設定
-      cfg.dlen_16bit       = false;  // データ長を16bit単位で送信するパネルの場合 trueに設定
+      cfg.dlen_16bit       = false;  // 16bitパラレルやSPIでデータ長を16bit単位で送信するパネルの場合 trueに設定
       cfg.bus_shared       =  true;  // SDカードとバスを共有している場合 trueに設定(drawJpgFile等でバス制御を行います)
+
+// 以下はST7735やILI9163のようにピクセル数が可変のドライバで表示がずれる場合にのみ設定してください。
+//    cfg.memory_width     =   240;  // ドライバICがサポートしている最大の幅
+//    cfg.memory_height    =   320;  // ドライバICがサポートしている最大の高さ
 
       _panel_instance.config(cfg);
     }

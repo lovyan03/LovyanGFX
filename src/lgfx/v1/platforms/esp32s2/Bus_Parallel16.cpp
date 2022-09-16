@@ -23,7 +23,8 @@ Contributors:
 #include "../../misc/pixelcopy.hpp"
 
 #include <soc/dport_reg.h>
-#include <soc/i2s_struct.h>
+#include <rom/gpio.h>
+#include <hal/gpio_ll.h>
 #include <esp_log.h>
 
 namespace lgfx
@@ -31,10 +32,6 @@ namespace lgfx
  inline namespace v1
  {
 //----------------------------------------------------------------------------
-
-#ifndef I2S_CLKA_ENA
-#define I2S_CLKA_ENA  (BIT(22)) // clk_sel = 2
-#endif
 
   static constexpr size_t CACHE_THRESH = 128;
 
@@ -67,27 +64,38 @@ namespace lgfx
     _mask_reg_dc = (cfg.pin_rs < 0) ? 0 : (1ul << (cfg.pin_rs & 31));
     _gpio_reg_dc[0] = get_gpio_lo_reg(cfg.pin_rs);
     _gpio_reg_dc[1] = get_gpio_hi_reg(cfg.pin_rs);
-    _last_freq_apb = 0;
+
+    // clock = 80MHz(PLL160 / 2)
+    static constexpr uint32_t pll_160M_clock_d2 = 160 * 1000 * 1000 >> 1;
+
+    // I2S_CLKM_DIV_NUM 2=40MHz  /  3=27MHz  /  4=20MHz  /  5=16MHz  /  8=10MHz  /  10=8MHz
+    _div_num = std::min<uint32_t>(255u, 1 + ((pll_160M_clock_d2) / (1 + _cfg.freq_write)));
+
+    _clkdiv_write = I2S_CLK_160M_PLL << I2S_CLK_SEL_S
+                  |             I2S_CLK_EN
+                  |        1 << I2S_CLKM_DIV_A_S
+                  |        0 << I2S_CLKM_DIV_B_S
+                  | _div_num << I2S_CLKM_DIV_NUM_S
+                  ;
+  }
+
+  static void _gpio_pin_init(int pin)
+  {
+    if (pin >= 0)
+    {
+      gpio_pad_select_gpio(pin);
+      gpio_hi(pin);
+      gpio_set_direction((gpio_num_t)pin, GPIO_MODE_OUTPUT);
+    }
   }
 
   bool Bus_Parallel16::init(void)
   {
     _init_pin();
 
-    // gpio_pad_select_gpio(_cfg.pin_rd);
-    // gpio_pad_select_gpio(_cfg.pin_wr);
-    // gpio_pad_select_gpio(_cfg.pin_rs);
-
-    gpio_hi(_cfg.pin_rd);
-    gpio_hi(_cfg.pin_wr);
-    gpio_hi(_cfg.pin_rs);
-    pinMode(_cfg.pin_rd, pin_mode_t::output);
-    pinMode(_cfg.pin_wr, pin_mode_t::output);
-    pinMode(_cfg.pin_rs, pin_mode_t::output);
-
-    // gpio_set_direction((gpio_num_t)_cfg.pin_rd, GPIO_MODE_OUTPUT);
-    // gpio_set_direction((gpio_num_t)_cfg.pin_wr, GPIO_MODE_OUTPUT);
-    // gpio_set_direction((gpio_num_t)_cfg.pin_rs, GPIO_MODE_OUTPUT);
+    _gpio_pin_init(_cfg.pin_rd);
+    _gpio_pin_init(_cfg.pin_wr);
+    _gpio_pin_init(_cfg.pin_rs);
 
     auto idx_base = I2S0O_DATA_OUT8_IDX;
 
@@ -176,24 +184,8 @@ namespace lgfx
 
   void Bus_Parallel16::beginTransaction(void)
   {
-    uint32_t freq_apb = getApbFrequency();
-    if (_last_freq_apb != freq_apb)
-    {
-      _last_freq_apb = freq_apb;
-      // clock = 80MHz(apb_freq) / I2S_CLKM_DIV_NUM
-      // I2S_CLKM_DIV_NUM 2=40MHz  /  3=27MHz  /  4=20MHz  /  5=16MHz  /  8=10MHz  /  10=8MHz
-      _div_num = std::min(255u, 1 + (freq_apb / (1 + _cfg.freq_write)));
-
-      _clkdiv_write =             I2S_CLKA_ENA
-                    |             I2S_CLK_EN
-                    |        1 << I2S_CLKM_DIV_A_S
-                    |        0 << I2S_CLKM_DIV_B_S
-                    | _div_num << I2S_CLKM_DIV_NUM_S
-                    ;
-    }
-    *reg(I2S_CLKM_CONF_REG(_cfg.i2s_port)) = _clkdiv_write;
-
     auto i2s_dev = (i2s_dev_t*)_dev;
+    i2s_dev->clkm_conf.val = _clkdiv_write;
     i2s_dev->out_link.val = 0;
     i2s_dev->sample_rate_conf.val = _sample_rate_conf_reg_bufferd;
     i2s_dev->fifo_conf.val = _fifo_conf_dma;
@@ -210,7 +202,7 @@ namespace lgfx
     {
       _flush(_cache_index, true);
       _cache_index = 0;
-      ets_delay_us(1);
+      delayMicroseconds(1);
     }
     _wait();
   }
@@ -232,6 +224,12 @@ namespace lgfx
 
   void Bus_Parallel16::wait(void)
   {
+    if (_cache_index)
+    {
+      _flush(_cache_index, true);
+      _cache_index = 0;
+      delayMicroseconds(1);
+    }
     _wait();
   }
 
@@ -258,6 +256,8 @@ namespace lgfx
 
   size_t Bus_Parallel16::_flush(size_t count, bool dc)
   {
+    bool slow = _div_num > 8;
+
     auto i2s_dev = (i2s_dev_t*)_dev;
     if (i2s_dev->out_link.val)
     {
@@ -289,6 +289,11 @@ namespace lgfx
       do { __asm__ __volatile__ ("nop"); } while (--wait);
     }
     i2s_dev->conf.val = _conf_reg_start;
+    if (slow)
+    {
+      wait = _div_num >> 1;
+      do { __asm__ __volatile__ ("nop"); } while (--wait);
+    }
 
     _cache_flip = (_cache_flip == _cache[0]) ? _cache[1] : _cache[0];
     return 0;
@@ -299,6 +304,12 @@ namespace lgfx
     auto idx = _cache_index;
     int bytes = bit_length >> 4;
     auto c = _cache_flip;
+
+    if (_has_align_data)
+    {
+      _has_align_data = false;
+      c[idx++] = (_align_data << 16) | 0x100;
+    }
 
     do
     {
@@ -453,20 +464,25 @@ namespace lgfx
     }
     const uint32_t bytes = param->dst_bits >> 3;
     auto fp_copy = param->fp_copy;
-    const uint32_t limit = CACHE_SIZE / bytes;
+
+    const uint32_t limit = (CACHE_THRESH * sizeof(_cache[0][0])) / bytes;
     uint8_t len = length % limit;
+
+    auto c = (uint8_t*)_cache_flip;
     if (len)
     {
-      fp_copy(_cache_flip, 0, len, param);
-      writeBytes((uint8_t*)_cache_flip, len * bytes, true, true);
+      fp_copy(c, 0, len, param);
       _cache_flip = (_cache_flip == _cache[0]) ? _cache[1] : _cache[0];
+      writeBytes(c, len * bytes, true, true);
       if (0 == (length -= len)) return;
     }
     do
     {
-      fp_copy(_cache_flip, 0, limit, param);
-      writeBytes((uint8_t*)_cache_flip, limit * bytes, true, true);
+      c = (uint8_t*)_cache_flip;
+      fp_copy(c, 0, limit, param);
       _cache_flip = (_cache_flip == _cache[0]) ? _cache[1] : _cache[0];
+      writeBytes(c, limit * bytes, true, true);
+
     } while (length -= limit);
   }
 
@@ -477,41 +493,65 @@ namespace lgfx
       _flush(_cache_index);
       _cache_index = 0;
     }
-    auto i2s_dev = (i2s_dev_t*)_dev;
-    do
-    {
-      dc_control(dc);
-      i2s_dev->sample_rate_conf.val = _sample_rate_conf_reg_direct;
-      i2s_dev->conf.val = _conf_reg_reset;
-      if (use_dma)
-      {
-        _setup_dma_desc_links(data, length);
-        length = 0;
-      }
-      else
-      {
-        size_t len = ((length - 1) % CACHE_SIZE) + 1;
-        length -= len;
-        memcpy(_cache_flip, data, len);
-        data += len;
-        _setup_dma_desc_links((const uint8_t*)_cache_flip, len);
-        _cache_flip = (_cache_flip == _cache[0]) ? _cache[1] : _cache[0];
-      }
-      i2s_dev->out_link.val = I2S_OUTLINK_START | ((uint32_t)_dmadesc & I2S_OUTLINK_ADDR);
-      int wait = 40 - (_div_num << 3);
-      if (!_direct_dc)
-      {
-        _direct_dc = true;
-        gpio_matrix_out(_cfg.pin_rs, 0x100, 0, 0);
-        wait -= 16;
-      }
-      if (wait > 0)
-      { /// OUTLINK_START～TX_STARTの時間が短すぎるとデータの先頭を送り損じる事があるのでnopウェイトを入れる;
-        do { __asm__ __volatile__ ("nop"); } while (--wait);
-      }
 
-      i2s_dev->conf.val = _conf_reg_start;
-    } while (length);
+    auto c = (uint8_t*)_cache_flip;
+    auto i2s_dev = (i2s_dev_t*)_dev;
+
+    if ((length + _has_align_data) > 1)
+    {
+      do
+      {
+        dc_control(dc);
+        i2s_dev->sample_rate_conf.val = _sample_rate_conf_reg_direct;
+        i2s_dev->conf.val = _conf_reg_reset;
+        if (use_dma && !_has_align_data)
+        {
+          auto len = length & ~1u;
+          _setup_dma_desc_links(data, len);
+          length -= len;
+          data += len;
+        }
+        else
+        {
+          size_t len = ((length - 1) % (CACHE_THRESH * sizeof(_cache[0][0]))) + 1;
+          if (_has_align_data != (bool)(len & 1))
+          {
+            if (++len > length) { len -= 2; }
+          }
+          memcpy(&c[_has_align_data], data, (len + 3) & ~3u);
+          length -= len;
+          data += len;
+          if (_has_align_data)
+          {
+            _has_align_data = false;
+            c[0] = _align_data;
+            ++len;
+          }
+          _setup_dma_desc_links((const uint8_t*)_cache_flip, len);
+
+          _cache_flip = (_cache_flip == _cache[0]) ? _cache[1] : _cache[0];
+          c = (uint8_t*)_cache_flip;
+        }
+        i2s_dev->out_link.val = I2S_OUTLINK_START | ((uint32_t)_dmadesc & I2S_OUTLINK_ADDR);
+        int wait = 40 - (_div_num << 3);
+        if (!_direct_dc)
+        {
+          _direct_dc = true;
+          gpio_matrix_out(_cfg.pin_rs, 0x100, 0, 0);
+          wait -= 16;
+        }
+        if (wait > 0)
+        { /// OUTLINK_START～TX_STARTの時間が短すぎるとデータの先頭を送り損じる事があるのでnopウェイトを入れる;
+          do { __asm__ __volatile__ ("nop"); } while (--wait);
+        }
+        i2s_dev->conf.val = _conf_reg_start;
+      } while (length & ~1u);
+    }
+    if (length)
+    {
+      _has_align_data = true;
+      _align_data = data[0];
+    }
   }
 
   void Bus_Parallel16::beginRead(void)
@@ -594,8 +634,8 @@ namespace lgfx
     uint32_t val;
     do
     {
-      in32[0] = GPIO.in;
       in32[1] = GPIO.in1.val;
+      in32[0] = GPIO.in;
       *reg_rd_h = mask_rd;
       val =              (1 & (in[(ih >>  0) & 7] >> ((mh >>  0) & 7)));
       val = (val << 1) + (1 & (in[(ih >>  3) & 7] >> ((mh >>  3) & 7)));
@@ -607,8 +647,7 @@ namespace lgfx
       val = (val << 1) + (1 & (in[(ih >> 21) & 7] >> ((mh >> 21) & 7)));
       *dst++ = val;
 
-      *reg_rd_l = mask_rd;
-      if (0 == --length) break;
+      if (0 == --length) { *reg_rd_l = mask_rd; break; }
 
       val =              (1 & (in[(il >>  0) & 7] >> ((ml >>  0) & 7)));
       val = (val << 1) + (1 & (in[(il >>  3) & 7] >> ((ml >>  3) & 7)));
@@ -618,6 +657,7 @@ namespace lgfx
       val = (val << 1) + (1 & (in[(il >> 15) & 7] >> ((ml >> 15) & 7)));
       val = (val << 1) + (1 & (in[(il >> 18) & 7] >> ((ml >> 18) & 7)));
       val = (val << 1) + (1 & (in[(il >> 21) & 7] >> ((ml >> 21) & 7)));
+      *reg_rd_l = mask_rd;
       *dst++ = val;
     } while (--length);
   }

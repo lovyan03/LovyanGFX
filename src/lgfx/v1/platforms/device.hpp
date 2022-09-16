@@ -36,12 +36,21 @@ Contributors:
   #include "esp32s2/Bus_Parallel8.hpp"
   #include "esp32s2/Bus_Parallel16.hpp"
 
+ #elif defined (CONFIG_IDF_TARGET_ESP32S3)
+
+  #include "esp32/Light_PWM.hpp"
+  #include "esp32/Bus_SPI.hpp"
+  #include "esp32/Bus_I2C.hpp"
+  #include "esp32s3/Bus_Parallel8.hpp"
+  #include "esp32s3/Bus_Parallel16.hpp"
+
  #else
 
   #include "esp32/Light_PWM.hpp"
   #include "esp32/Bus_SPI.hpp"
   #include "esp32/Bus_I2C.hpp"
   #include "esp32/Bus_Parallel8.hpp"
+  #include "esp32/Panel_CVBS.hpp"
 
  #endif
 
@@ -70,6 +79,8 @@ Contributors:
 
 #elif defined (ARDUINO_ARCH_MBED_RP2040) || defined(ARDUINO_ARCH_RP2040)
 
+#include "rp2040/Light_PWM.hpp"
+#include "rp2040/Bus_I2C.hpp"
 #include "rp2040/Bus_SPI.hpp"
 
 #elif defined (ARDUINO)

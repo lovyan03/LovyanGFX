@@ -149,11 +149,13 @@ namespace lgfx
   {
     if (_bus != nullptr)
     {
+      
       startWrite();
       write_command(CMD_COLMOD);
       writeData(getColMod(_write_bits), 1);
       write_command(CMD_MADCTL);
       writeData(getMadCtl(_internal_rotation) | (_cfg.rgb_order ? MAD_RGB : MAD_BGR), 1);
+      _bus->flush();
       endWrite();
     }
   }
@@ -175,13 +177,22 @@ namespace lgfx
     }
   }
 
-  uint32_t Panel_LCD::readCommand(uint_fast8_t cmd, uint_fast8_t index, uint_fast8_t len)
+  uint32_t Panel_LCD::readCommand(uint_fast8_t cmd, uint_fast8_t index, uint_fast8_t length)
   {
+    size_t dlen = 8 << _cfg.dlen_16bit;
     startWrite();
     write_command(cmd);
-    index = (index << 3) + _cfg.dummy_read_bits;
-    auto res = read_bits(index, len << 3);
+    _bus->beginRead((index * dlen) + _cfg.dummy_read_bits);
+
+    uint32_t res = 0;
+    for (size_t i = 0; i < length; ++i)
+    {
+      res += ((_bus->readData(dlen) >> (dlen - 8)) & 0xFF) << (i * 8);
+    }
+    cs_control(true);
+    _bus->endRead();
     endWrite();
+
     if (_in_transaction) { cs_control(false); }
     return res;
   }
@@ -197,8 +208,7 @@ namespace lgfx
 
   uint32_t Panel_LCD::read_bits(uint_fast8_t bit_index, uint_fast8_t bit_len)
   {
-    _bus->beginRead();
-    if (bit_index) { _bus->readData(bit_index); } // dummy read
+    _bus->beginRead(bit_index);
     auto res = _bus->readData(bit_len);
     cs_control(true);
     _bus->endRead();
@@ -315,7 +325,8 @@ namespace lgfx
           static constexpr uint32_t WRITEPIXELS_MAXLEN = 32767;
 
           setWindow(x, y, x + w - 1, y + h - 1);
-          bool nogap = (param->src_bitwidth == w || h == 1);
+          // bool nogap = (param->src_bitwidth == w || h == 1);
+          bool nogap = (h == 1) || (param->src_y32_add == 0 && ((param->src_bitwidth << pixelcopy_t::FP_SCALE) == (w * param->src_x32_add)));
           if (nogap && (w * h <= WRITEPIXELS_MAXLEN))
           {
             writePixels(param, w * h, use_dma);
@@ -400,12 +411,7 @@ namespace lgfx
     setWindow(x, y, x + w - 1, y + h - 1);
 
     write_command(_cmd_ramrd);
-    _bus->beginRead();
-
-    if (_cfg.dummy_read_pixel)
-    {
-      _bus->readData(_cfg.dummy_read_pixel); // dummy read
-    }
+    _bus->beginRead(_cfg.dummy_read_pixel);
 
     if (param->no_convert)
     {
@@ -426,6 +432,11 @@ namespace lgfx
     endWrite();
 
     if (_in_transaction) { cs_control(false); }
+  }
+
+  int32_t Panel_LCD::getScanLine(void)
+  {
+    return getSwap16(readCommand(CMD_GETSCANLINE, 0, 2));
   }
 
   void Panel_LCD::set_window_8(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye, uint32_t cmd)

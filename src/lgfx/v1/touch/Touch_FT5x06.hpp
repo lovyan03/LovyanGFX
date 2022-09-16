@@ -29,6 +29,7 @@ namespace lgfx
   {
     Touch_FT5x06(void)
     {
+      _cfg.i2c_addr = 0x38;
       _cfg.x_min = 0;
       _cfg.x_max = 320;
       _cfg.y_min = 0;
@@ -44,13 +45,17 @@ namespace lgfx
     uint_fast8_t getTouchRaw(touch_point_t* tp, uint_fast8_t count) override;
 
   private:
+    enum
+    {
+      max_touch_points = 5
+    };
 
     bool _flg_released = false;
 
     bool _check_init(void);
     bool _write_reg(uint8_t reg, uint8_t val);
-
     bool _read_reg(uint8_t reg, uint8_t *data, size_t length);
+    size_t _read_data(uint8_t* data);
   };
 
 //----------------------------------------------------------------------------

@@ -23,8 +23,10 @@ Contributors:
 
 #include <chrono>
 #include <thread>
+#include <mutex>
 
 static cv::TickMeter _tm;
+static std::mutex _m;
 
 namespace lgfx
 {
@@ -34,6 +36,7 @@ namespace lgfx
 
   unsigned long millis(void)
   {
+    std::lock_guard<std::mutex> lock(_m);
     _tm.stop();
     auto res = _tm.getTimeMilli();
     _tm.start();
@@ -42,6 +45,7 @@ namespace lgfx
 
   unsigned long micros(void)
   {
+    std::lock_guard<std::mutex> lock(_m);
     _tm.stop();
     auto res = _tm.getTimeMicro();
     _tm.start();
@@ -50,31 +54,27 @@ namespace lgfx
 
   void delay(unsigned long milliseconds)
   {
-    if (milliseconds < 20)
+    if (milliseconds < 1024)
     {
       delayMicroseconds(milliseconds * 1000);
     }
     else
     {
-      std::this_thread::sleep_for(std::chrono::milliseconds(milliseconds));
+      std::this_thread::sleep_for(std::chrono::milliseconds(milliseconds - 1));
     }
   }
 
   void delayMicroseconds(unsigned int us)
   {
-/*
-    std::this_thread::sleep_for(std::chrono::microseconds(us));
-/*/
     auto start = micros();
+    if (us >= 2000)
+    {
+      std::this_thread::sleep_for(std::chrono::milliseconds((us / 1000) - 1));
+    }
     do
     {
       std::this_thread::yield();
-      // for (int i = 0; i < 256; ++i)
-      // {
-      //   __nop();
-      // }
     } while (micros() - start < us);
-//*/
   }
 
 //----------------------------------------------------------------------------

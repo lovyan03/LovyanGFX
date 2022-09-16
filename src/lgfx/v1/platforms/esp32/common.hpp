@@ -29,6 +29,10 @@ Contributors:
 #include <sdkconfig.h>
 #include <soc/soc.h>
 #include <soc/spi_reg.h>
+#include <soc/i2s_reg.h>
+#include <soc/gpio_struct.h>
+#include <soc/gpio_sig_map.h>
+#include <esp_timer.h>
 
 #if !defined ( REG_SPI_BASE )
 //#define REG_SPI_BASE(i) (DR_REG_SPI0_BASE - (i) * 0x1000)
@@ -43,7 +47,14 @@ namespace lgfx
 
   __attribute__ ((unused)) static inline unsigned long millis(void) { return (unsigned long) (esp_timer_get_time() / 1000ULL); }
   __attribute__ ((unused)) static inline unsigned long micros(void) { return (unsigned long) (esp_timer_get_time()); }
-  __attribute__ ((unused)) static inline void delayMicroseconds(uint32_t us) { ets_delay_us(us); }
+  __attribute__ ((unused)) static inline void delayMicroseconds(uint32_t us)
+  {
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+    esp_rom_delay_us(us);
+#else
+    ets_delay_us(us);
+#endif
+  }
   __attribute__ ((unused)) static inline void delay(uint32_t ms)
   {
     uint32_t time = micros();
@@ -54,14 +65,14 @@ namespace lgfx
       time = micros() - time;
       if (time < ms)
       {
-        ets_delay_us(ms - time);
+        delayMicroseconds(ms - time);
       }
     }
   }
 
   static inline void* heap_alloc(      size_t length) { return heap_caps_malloc(length, MALLOC_CAP_8BIT);  }
   static inline void* heap_alloc_dma(  size_t length) { return heap_caps_malloc((length + 3) & ~3, MALLOC_CAP_DMA);  }
-  static inline void* heap_alloc_psram(size_t length) { return heap_caps_malloc(length, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);  }
+  static inline void* heap_alloc_psram(size_t length) { return heap_caps_malloc((length + 3) & ~3, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);  }
   static inline void heap_free(void* buf) { heap_caps_free(buf); }
 
   enum pin_mode_t
@@ -93,6 +104,9 @@ namespace lgfx
 
   uint32_t getApbFrequency(void);
   uint32_t FreqToClockDiv(uint32_t fapb, uint32_t hz);
+
+  /// for I2S and LCD_CAM peripheral clock
+  void calcClockDiv(uint32_t* div_a, uint32_t* div_b, uint32_t* div_n, uint32_t* clkcnt, uint32_t baseClock, uint32_t targetFreq);
 
   // esp_efuse_get_pkg_ver
   uint32_t get_pkg_ver(void);
@@ -202,6 +216,14 @@ public:
   {
     cpp::result<void, error_t> init(int spi_host, int spi_sclk, int spi_miso, int spi_mosi, int dma_channel);
     void beginTransaction(int spi_host);
+  }
+
+//----------------------------------------------------------------------------
+
+  namespace i2c
+  {
+    cpp::result<void, error_t> setPins(int i2c_port, int pin_sda, int pin_scl);
+    cpp::result<void, error_t> init(int i2c_port);
   }
 
 //----------------------------------------------------------------------------

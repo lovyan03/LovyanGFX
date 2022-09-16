@@ -49,6 +49,18 @@ namespace lgfx
     /// ペリフェラルを解放する。;
     virtual void release(void) = 0;
 
+    /// 通信速度を取得する。;
+    virtual uint32_t getClock(void) const { return 0; }
+
+    /// 受信時の通信速度を取得する。;
+    virtual uint32_t getReadClock(void) const { return 0; }
+
+    /// 通信速度を設定する。;
+    virtual void setClock(uint32_t) {};
+
+    /// 受信時の通信速度を設定する。;
+    virtual void setReadClock(uint32_t) {};
+
     /// 通信トランザクションを開始する。（ペリフェラルを占有する）;
     virtual void beginTransaction(void) = 0;
 
@@ -92,6 +104,7 @@ namespace lgfx
     /// 引数のバイト列を送信する。;
     virtual void writeBytes(const uint8_t* data, uint32_t length, bool dc, bool use_dma) = 0;
 
+    virtual void beginRead(uint_fast8_t dummy_bits) { beginRead(); if (dummy_bits) { readData(dummy_bits); } }
     virtual void beginRead(void) = 0;
     virtual void endRead(void) = 0;
     virtual uint32_t readData(uint_fast8_t bit_length) = 0;

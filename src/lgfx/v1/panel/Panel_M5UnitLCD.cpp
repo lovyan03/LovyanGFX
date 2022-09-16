@@ -32,15 +32,6 @@ namespace lgfx
     /// I2C接続のためGPIOによるRESET制御は不要なのでfalseで呼出す;
     if (!Panel_Device::init(false)) return false;
 
-    if (use_reset)
-    {
-      startWrite(true);
-      _bus->writeCommand(CMD_RESET | 0x77 << 8 | 0x89 << 16 | CMD_RESET << 24, 32);
-      endWrite();
-      // リセットコマンド後は200msec待つ;
-      lgfx::delay(200);
-    }
-
     startWrite(true);
 
     _bus->writeCommand(CMD_READ_ID, 8);
@@ -52,6 +43,21 @@ namespace lgfx
     if (res)
     {
       _check_repeat();
+      if (use_reset)
+      {
+        _bus->writeCommand(CMD_RESET | 0x77 << 8 | 0x89 << 16 | CMD_RESET << 24, 32);
+        // リセットコマンド後は300msec待つ;
+        lgfx::delay(300);
+        int retry = 8;
+        do
+        {
+          _bus->writeCommand(CMD_NOP, 16);
+          endWrite();
+          lgfx::delay(32);
+          startWrite(true);
+          _bus->writeCommand(CMD_READ_ID, 8);
+        } while (!(_bus->readBytes(buf, 4, true) && buf[0] == 0x77 && buf[1] == 0x89) && --retry);
+      }
     }
 
     endWrite();

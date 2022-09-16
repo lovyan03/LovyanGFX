@@ -63,7 +63,7 @@ struct lgfxJdec {
 	uint8_t* dptr;				/* Current data read ptr */
 	uint8_t* dpend;				/* data end ptr */
 	uint8_t* inbuf;				/* Bit stream input buffer */
-	uint_fast8_t dmsk;			/* Current bit in the current read byte */
+	uint_fast8_t dbit;			/* Current bit in the current read byte */
 	uint_fast8_t scale;			/* Output scaling ratio */
 	uint_fast8_t msx, msy;		/* MCU size in unit of block (width, height) */
 	uint_fast8_t qtid[3];		/* Quantization table ID of each component */
@@ -75,10 +75,10 @@ struct lgfxJdec {
 	uint8_t* huffdata[2][2];	/* Huffman decoded data tables [id][dcac] */
 	int32_t* qttbl[4];			/* Dequantizer tables [id] */
 	void* workbuf;				/* Working buffer for IDCT and RGB output */
-	uint8_t* mcubuf;			/* Working buffer for the MCU */
+	int16_t* mcubuf;			/* Working buffer for the MCU */
 	uint8_t* pool;				/* Pointer to available memory pool */
 	uint_fast16_t sz_pool;			/* Size of momory pool (bytes available) */
-	uint32_t (*infunc)(lgfxJdec*, uint8_t*, uint32_t);/* Pointer to jpeg stream input function */
+	uint32_t (*infunc)(void*, uint8_t*, uint32_t);/* Pointer to jpeg stream input function */
 	void* device;				/* Pointer to I/O device identifiler for the session */
 	uint8_t comps_in_frame;		/* 1=Y(grayscale)  3=YCrCb */
 };
@@ -86,8 +86,8 @@ struct lgfxJdec {
 
 
 /* TJpgDec API functions */
-JRESULT lgfx_jd_prepare (lgfxJdec*, uint32_t(*)(lgfxJdec*,uint8_t*,uint32_t), void*, uint_fast16_t, void*);
-JRESULT lgfx_jd_decomp (lgfxJdec*, uint32_t(*)(lgfxJdec*,void*,JRECT*), uint_fast8_t);
+JRESULT lgfx_jd_prepare (lgfxJdec*, uint32_t(*)(void*,uint8_t*,uint32_t), void*, uint_fast16_t, void*);
+JRESULT lgfx_jd_decomp (lgfxJdec*, uint32_t(*)(void*,void*,JRECT*), uint_fast8_t);
 
 
 #ifdef __cplusplus

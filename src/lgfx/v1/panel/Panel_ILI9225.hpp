@@ -48,7 +48,7 @@ namespace lgfx
 
   protected:
 
-    void update_madctl(void);
+    void update_madctl(void) override;
     void set_window(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye, uint32_t cmd);
 
     static constexpr uint8_t CMD_RAMWR = 0x22;
@@ -87,7 +87,7 @@ namespace lgfx
       }
     }
 
-    virtual void setColorDepth_impl(color_depth_t depth) { _write_depth = ((int)depth & color_depth_t::bit_mask) > 16 ? rgb888_3Byte : rgb565_2Byte; _read_depth = rgb888_3Byte; }
+    void setColorDepth_impl(color_depth_t depth) override { _write_depth = ((int)depth & color_depth_t::bit_mask) > 16 ? rgb888_3Byte : rgb565_2Byte; _read_depth = rgb888_3Byte; }
   };
 
 //----------------------------------------------------------------------------

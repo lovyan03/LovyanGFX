@@ -17,7 +17,6 @@ Contributors:
 /----------------------------------------------------------------------------*/
 #if defined (ESP_PLATFORM)
 #include <sdkconfig.h>
-#if !defined (CONFIG_IDF_TARGET) || defined (CONFIG_IDF_TARGET_ESP32)
 
 #include "Panel_M5HDMI.hpp"
 #include "Panel_M5HDMI_FS.h"
@@ -347,7 +346,8 @@ namespace lgfx
   {
     auto id = this->readChipID();
     {
-      static constexpr const uint8_t data_1[] = { 0xff, 0x82, 0xde, 0x00, 0xde, 0xc0, 0xff, 0x81, 0x23, 0x40, 0x24, 0x64, 0x26, 0x55, 0x29, 0x04, 0x4d, 0x00, 0x27, 0x60, 0x28, 0x00, 0x25, 0x01, 0x2c, 0x94, 0x2d, 0x99 };
+      static constexpr const uint8_t data_1[] = { 0xff, 0x82, 0xD6, 0x8E, 0xD7, 0x04, 0xff, 0x84, 0x06, 0x08, 0x07, 0x10, 0x09, 0x00, 0x0F, 0xAB, 0x34, 0xD5, 0x35, 0x00, 0x36, 0x30, 0x37, 0x00, 0x3C, 0x21,
+                                                  0xff, 0x82, 0xde, 0x00, 0xde, 0xc0, 0xff, 0x81, 0x23, 0x40, 0x24, 0x64, 0x26, 0x55, 0x29, 0x04, 0x4d, 0x00, 0x27, 0x60, 0x28, 0x00, 0x25, 0x01, 0x2c, 0x94, 0x2d, 0x99 };
       this->writeRegisterSet(data_1, sizeof(data_1));
     }
     this->writeRegister(0x2b, this->readRegister(0x2b) & 0xfd);
@@ -419,7 +419,7 @@ namespace lgfx
     _bus->readData(8); // skip 0xFF
     uint32_t data = _bus->readData(32);
     (void)data; // suppress compiler warning.
-    ESP_LOGI(TAG, "FPGA ID:%02x %02x %02x %02x", data & 0xFF, (data >> 8) & 0xFF, (data >> 16) & 0xFF, data >> 24);
+    ESP_LOGI(TAG, "FPGA ID:%02x %02x %02x %02x", (uint8_t)data, (uint8_t)(data >> 8), (uint8_t)(data >> 16), (uint8_t)(data >> 24));
     cs_control(true);
     _bus->endRead();
     cs_control(false);
@@ -622,16 +622,25 @@ namespace lgfx
 
     if (output_width == 0 && output_height == 0 && scale_w == 0 && scale_h == 0)
     {
-      scale_w = 1;
-      scale_h = 1;
-      for (int scale = 2; scale <= SCALE_MAX; ++scale)
+      scale_w = 1280 / logical_width;
+      scale_h = 720 / logical_height;
+      if ((scale_w > 16)
+      || (scale_h > 16)
+      || (limit != 1280 * 720)
+      || (scale_w * logical_width != 1280)
+      || (scale_h * logical_height != 720))
       {
-        uint32_t scale_height = scale * logical_height;
-        uint32_t scale_width = scale * logical_width;
-        uint32_t total = scale_width * scale_height;
-        if (scale_width > 1920 || scale_height > 1920 || total > limit) { break; }
-        scale_w = scale;
-        scale_h = scale;
+        scale_w = 1;
+        scale_h = 1;
+        for (int scale = 2; scale <= SCALE_MAX; ++scale)
+        {
+          uint32_t scale_height = scale * logical_height;
+          uint32_t scale_width = scale * logical_width;
+          uint32_t total = scale_width * scale_height;
+          if (scale_width > 1920 || scale_height > 1920 || total > limit) { break; }
+          scale_w = scale;
+          scale_h = scale;
+        }
       }
       output_width  = scale_w * logical_width;
       output_height = scale_h * logical_height;
@@ -713,40 +722,34 @@ namespace lgfx
     return res;
   }
 
-  bool Panel_M5HDMI::_check_repeat(uint32_t cmd, uint32_t length)
+  void Panel_M5HDMI::_check_busy(uint32_t length, bool force)
   {
     if ((_last_cmd & ~7) == CMD_WRITE_RAW)
     {
+      _last_cmd = 0;
       _total_send = 0;
-      if (_last_cmd == cmd)
-      {
-        return true;
-      }
-      _last_cmd = cmd;
 
       _bus->beginRead();
       while (_bus->readData(8) == 0x00);
       cs_control(true);
       _bus->endRead();
       cs_control(false);
-
-      return false;
     }
-    _last_cmd = cmd;
+    _last_cmd = 0;
 
-    if ((cmd && _total_send) || (_total_send += length) >= 512)
+    if ((force && _total_send) || (_total_send += length) >= 512)
     {
       _total_send = 0;
+      uint32_t wait = 0;
       _bus->beginRead();
       while (_bus->readData(8) == 0x00)
       {
-        delayMicroseconds(++length>>3);
+        delayMicroseconds(++wait);
       }
       cs_control(true);
       _bus->endRead();
       cs_control(false);
     }
-    return false;
   }
 
   color_depth_t Panel_M5HDMI::setColorDepth(color_depth_t depth)
@@ -842,7 +845,7 @@ namespace lgfx
     }
     if (rect || _total_send || _last_cmd)
     {
-      _check_repeat(0, bytes);
+      _check_busy(bytes);
     }
     _bus->writeBytes(((uint8_t*)buf)+3, bytes, false, false);
   }
@@ -899,7 +902,7 @@ namespace lgfx
     cmd.data_x = ((xs >> 8) & mask) + ((xs & mask) << 8);
     ys += _cfg.offset_y + ((ye + _cfg.offset_y) << 16);
     cmd.data_y = ((ys >> 8) & mask) + ((ys & mask) << 8);
-    _check_repeat(0, sizeof(cmd_t));
+    _check_busy(sizeof(cmd_t), true);
     _bus->writeBytes(cmd.raw, sizeof(cmd_t), false, false);
     _last_cmd = cmd_write;
   }
@@ -958,7 +961,11 @@ namespace lgfx
     {
       auto linebuf = (uint8_t*)alloca((xe - xs + 1) * bytes);
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+      /// Not actually used uninitialized. Just grabbing a copy of the pointer before we start the loop that fills it.
       pixelcopy_t pc((void*)linebuf, _write_depth, _write_depth);
+#pragma GCC diagnostic pop
       pc.src_x32_add = ~0u << pixelcopy_t::FP_SCALE;
 
       x = _width  - (x + 1);
@@ -1124,7 +1131,7 @@ namespace lgfx
     cmd.src_xy2 = ((src_xy >> 8) & mask) + ((src_xy & mask) << 8);
     cmd.dst_xy  = ((dst_xy >> 8) & mask) + ((dst_xy & mask) << 8);
 
-    _check_repeat(0, sizeof(cmd_t));
+    _check_busy(sizeof(cmd_t));
     _bus->writeBytes(cmd.raw, sizeof(cmd_t), false, false);
   }
 
@@ -1289,5 +1296,4 @@ namespace lgfx
  }
 }
 
-#endif
 #endif

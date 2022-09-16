@@ -143,6 +143,10 @@ namespace lgfx
     virtual void readRect(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, void* dst, pixelcopy_t* param) = 0;
     virtual void copyRect(uint_fast16_t dst_x, uint_fast16_t dst_y, uint_fast16_t w, uint_fast16_t h, uint_fast16_t src_x, uint_fast16_t src_y) = 0;
 
+    /// Obtains the current scanning line position.
+    /// @return -1=unsupported. / 0~height= current scanline position.
+    virtual int32_t getScanLine(void) { return -1; }
+
     virtual void writeFillRectAlphaPreclipped(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, uint32_t argb8888)
     {
       effect(x, y, w, h, effect_fill_alpha ( argb8888_t { argb8888 } ) );
@@ -153,7 +157,11 @@ namespace lgfx
     {
       auto ye = y + h;
       auto buf = (RGBColor*)alloca(w * sizeof(RGBColor));
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+      /// Not actually used uninitialized. Just grabbing a copy of the pointer before we start the loop that fills it.
       pixelcopy_t pc_write(buf    ,_write_depth, RGBColor::depth, false);
+#pragma GCC diagnostic pop
       pixelcopy_t pc_read( nullptr, RGBColor::depth, _read_depth, false);
       startWrite();
       do

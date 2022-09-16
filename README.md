@@ -1,5 +1,14 @@
 # LovyanGFX
 
+[![arduino-library-badge](https://www.ardu-badge.com/badge/LovyanGFX.svg?)](https://www.ardu-badge.com/LovyanGFX)
+[![PlatformIO Registry](https://badges.registry.platformio.org/packages/lovyan03/library/LovyanGFX.svg)](https://registry.platformio.org/packages/libraries/lovyan03/LovyanGFX)
+
+[![Arduino](https://github.com/lovyan03/LovyanGFX/actions/workflows/ArduinoBuild.yml/badge.svg?branch=master)](https://github.com/lovyan03/LovyanGFX/actions/workflows/ArduinoBuild.yml)
+[![Platformio](https://github.com/lovyan03/LovyanGFX/actions/workflows/PlatformioBuild.yml/badge.svg?branch=master)](https://github.com/lovyan03/LovyanGFX/actions/workflows/PlatformioBuild.yml)
+[![esp-idf](https://github.com/lovyan03/LovyanGFX/actions/workflows/IDFBuild.yml/badge.svg?branch=master)](https://github.com/lovyan03/LovyanGFX/actions/workflows/IDFBuild.yml)
+
+
+
 Display (LCD / OLED / EPD) graphics library (for ESP32 SPI, I2C, 8bitParallel / ESP8266 SPI, I2C / ATSAMD51 SPI).  
 M5Stack / M5StickC / TTGO T-Watch / ODROID-GO / ESP-WROVER-KIT / WioTerminal / and more...  
 [![examples](http://img.youtube.com/vi/SMOHRPqUZcQ/0.jpg)](http://www.youtube.com/watch?v=SMOHRPqUZcQ "examples")
@@ -21,7 +30,8 @@ This library mimics [AdafruitGFX](https://github.com/adafruit/Adafruit-GFX-Libra
   - オフスクリーンバッファ（スプライト）の高速な回転/拡縮描画  
   - 複数ディスプレイの同時利用  
   - モノクロディスプレイに対する減色描画の自動処理  
-  - OpenCVを描画先として利用でき、PC上で動作可能  
+  - [OpenCV,SDL2を描画先として利用でき、PC上で動作可能](examples_for_PC/README.md)  
+  - [コンポジットビデオ信号(NTSC,PAL)を出力できます (ESP32のみ)](doc/Panel_CVBS.md)
 
 This library has the following advantages.
   - ArduinoESP32 and ESP-IDF are supported.
@@ -30,27 +40,31 @@ This library has the following advantages.
   - Fast rotation/expansion of the off-screen buffer (sprite).
   - Simultaneous use of multiple displays.
   - Automatic processing of color reduction drawing for monochrome displays.
-  - OpenCV can be used as a drawing destination and can run on a PC.  
+  - OpenCV,SDL2 can be used as a drawing destination and can run on a PC.  
+  - Composite video signal (NTSC, PAL) output (only ESP32)
 
 
-|        | SPI | I2C | 8bit Para|16bit Para|
-|:------:|:---:|:---:|:--------:|:--------:|
-|ESP32   | HW  | HW  | HW (I2S) |   ---    |
-|ESP32-S2| HW  | HW  | HW (I2S) | HW (I2S) |
-|ESP32-C3| HW  | HW  | SW       |   ---    |
-|ESP8266 | HW  | SW  |   ---    |   ---    |
-|SAMD51  | HW  | HW  |   ---    |   ---    |
-|SAMD21  | HW  | HW  |   ---    |   ---    |
+|        | SPI | I2C | 8bit Para |16bit Para | CVBS  |
+|:------:|:---:|:---:|:---------:|:---------:|:-----:|
+|ESP32   | HW  | HW  | HW (I2S)  | ---       |HW(I2S)|
+|ESP32-S2| HW  | HW  | HW (I2S)  | HW (I2S)  | ---   |
+|ESP32-S3| HW  | HW  |HW(LCD/CAM)|HW(LCD/CAM)| ---   |
+|ESP32-C3| HW  | HW  | SW        | ---       | ---   |
+|ESP8266 | HW  | SW  | ---       | ---       | ---   |
+|SAMD51  | HW  | HW  | ---       | ---       | ---   |
+|SAMD21  | HW  | HW  | ---       | ---       | ---   |
+|RP2040  | HW  | --- | ---       | ---       | ---   |
 
 ※ HW = HardWare Peripheral / SW = SoftWare implementation
 
 
-対応環境 support environments
+対応環境 Supported environments
 ---------------
   - プラットフォーム Platform
     - ESP-IDF
     - Arduino ESP32
     - Arduino ATSAMD51 (Seeed)
+    - Arduino RP2040
 
   - ディスプレイ Displays
     - GC9A01
@@ -59,12 +73,15 @@ This library has the following advantages.
     - ILI9163
     - ILI9225
     - ILI9341 (WioTerminal, ESP-WROVER-KIT, ODROID-GO, LoLin D32 Pro, WiFiBoy Pro)
-    - ILI9342 (M5Stack, M5Stack Core2)
+    - ILI9342 (M5Stack, M5Stack Core2, ESP32-S3-BOX)
     - ILI9481
     - ILI9486
     - ILI9488 (Makerfabs Touch with Camera)
     - IT8951 (M5Paper)
-    - SH110x (SH1106, SH1107, M5UnitOLED)
+    - R61529
+    - RA8875
+    - RM68120
+    - SH110x (SH1106, SH1107, M5Stack Unit OLED)
     - SSD1306 (SSD1309)
     - SSD1327
     - SSD1331
@@ -79,7 +96,10 @@ This library has the following advantages.
 
   - タッチスクリーン TouchScreens
     - I2C FT5x06 (FT5206, FT5306, FT5406, FT6206, FT6236, FT6336, FT6436)
+    - I2C GSLx680 (GSL1680)
     - I2C GT911
+    - I2C NS2009
+    - I2C TT21xxx (TT21100)
     - SPI XPT2046
     - SPI STMPE610
 
@@ -459,15 +479,19 @@ LovyanGFX has been created to add these features and optimize performance.
 謝辞 Acknowledgements
 ----------------
 このライブラリを作成するにあたり、インスピレーションを頂いた[TFT_eSPI](https://github.com/Bodmer/TFT_eSPI)ライブラリの作者[Bodmer](https://github.com/Bodmer/)氏へ感謝いたします。  
-TFT_eSPIのベースとなった、[AdafruitGFX](https://github.com/adafruit/Adafruit-GFX-Library)を公開している[Adafruit Industries](https://github.com/adafruit/)へ感謝いたします。  
+TFT_eSPIのベースとなった、[AdafruitGFX](https://github.com/adafruit/Adafruit-GFX-Library)を公開されている[Adafruit Industries](https://github.com/adafruit/)へ感謝いたします。  
 [TJpgDec](http://elm-chan.org/fsw/tjpgd/00index.html) (Tiny JPEG Decompressor) の作者 [ChaN](http://elm-chan.org/)氏へ感謝いたします。  
 [Pngle](https://github.com/kikuchan/pngle) (PNG Loader for Embedding) の作者 [kikuchan](https://github.com/kikuchan/)氏へ感謝いたします。  
 [QRCode](https://github.com/ricmoo/QRCode/) (QR code generation library) の作者 [Richard Moore](https://github.com/ricmoo/)氏へ感謝いたします。  
-多くの技術的なアドバイスやESP-IDF環境での検証に協力してくれた[ciniml](https://github.com/ciniml)氏へ感謝いたします。  
+多くの技術的なアドバイスやESP-IDF環境での検証に協力してくださった[ciniml](https://github.com/ciniml)氏へ感謝いたします。  
 不具合の多い開発初期からの動作検証および多数の助言をくださった[mongonta0716](https://github.com/mongonta0716)氏へ感謝いたします。  
 多数のボードでの動作検証や英語への翻訳および多数の助言をくださった[tobozo](https://github.com/tobozo)氏へ感謝いたします。  
 フォントデータの作成に協力してくださった[TANAKA Masayuki](https://github.com/tanakamasayuki)氏へ感謝いたします。  
 [日本語フォントサブセットジェネレーター](https://github.com/yamamaya/lgfxFontSubsetGenerator)を製作してくださった[YAMANEKO](https://github.com/yamamaya)氏へ感謝いたします。  
+Raspberry pi pico (RP2040)対応に協力してくださった[yasuhirok](https://github.com/yasuhirok-git)氏へ感謝いたします。  
+Linux FrameBuffer対応に協力してくださった[IAMLIUBO](https://github.com/imliubo)氏へ感謝いたします。  
+コンポジットビデオ信号をESP32で出力するプロジェクトを公開されている[rossum](https://github.com/rossumur)氏と[Roger Cheng](https://github.com/Roger-random)氏へ感謝いたします。  
+
 
 Thanks to [Bodmer](https://github.com/Bodmer/), author of the [TFT_eSPI](https://github.com/Bodmer/TFT_eSPI) library, for the inspiration to create this library.  
 Thanks to [Adafruit Industries](https://github.com/adafruit/) for publishing [AdafruitGFX](https://github.com/adafruit/Adafruit-GFX-Library), which is the basis for TFT_eSPI.  
@@ -479,6 +503,9 @@ Thanks to [mongonta0716](https://github.com/mongonta0716), for verifying the wor
 Thanks to [tobozo](https://github.com/tobozo), for testing it on various boards, translating it into English and giving me a lot of advice.  
 Thanks to [TANAKA Masayuki](https://github.com/tanakamasayuki), for creating the font data.  
 Thanks to [YAMANEKO](https://github.com/yamamaya), for creating the [lgfxFontSubsetGenerator](https://github.com/yamamaya/lgfxFontSubsetGenerator).  
+Thanks to [yasuhirok](https://github.com/yasuhirok-git), for add Raspberry pi pico (RP2040) support.  
+Thanks to [IAMLIUBO](https://github.com/imliubo), for add Linux FrameBuffer support.  
+Thanks to [rossum](https://github.com/rossumur) and [Roger Cheng](https://github.com/Roger-random), published the project to output a composite video signal from ESP32.
 
 
 使用ライブラリ included library  
@@ -510,4 +537,12 @@ Font 2,4,6,7,8 :  [FreeBSD](https://github.com/Bodmer/TFT_eSPI/blob/master/licen
 converted IPA font : [IPA Font License](src/lgfx/Fonts/IPA/IPA_Font_License_Agreement_v1.0.txt) IPA  
 efont : [3-clause BSD](src/lgfx/Fonts/efont/COPYRIGHT.txt) The Electronic Font Open Laboratory  
 TomThumb font : [3-clause BSD](src/lgfx/Fonts/GFXFF/TomThumb.h) Brian J. Swetland / Vassilii Khachaturov / Dan Marks  
+
+
+実装予定 Unimplemented request
+----------------
+  - ディスプレイ Displays
+    - OTM8009A / NT35510
+    - SEPS525
+
 

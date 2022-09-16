@@ -19,13 +19,17 @@ Contributors:
 
 #include <string.h>
 
-#if __has_include(<esp32/rom/lldesc.h>)
- #include <esp32/rom/lldesc.h>
-#else
+#if __has_include(<rom/lldesc.h>)
  #include <rom/lldesc.h>
+#else
+ #include <esp32/rom/lldesc.h>
 #endif
 
-#if __has_include(<driver/spi_common_internal.h>)
+#if __has_include(<esp_private/spi_common_internal.h>)
+ // ESP-IDF v5
+ #include <esp_private/spi_common_internal.h>
+#elif __has_include(<driver/spi_common_internal.h>)
+ // ESP-IDF v4
  #include <driver/spi_common_internal.h>
 #endif
 
@@ -54,7 +58,7 @@ namespace lgfx
 
   class Bus_SPI : public IBus
   {
-#if defined (CONFIG_IDF_TARGET_ESP32C3)
+#if !defined (SPI_MOSI_DLEN_REG)
     static constexpr uint32_t SPI_EXECUTE = SPI_USR | SPI_UPDATE;
     #define SPI_MOSI_DLEN_REG(i) (REG_SPI_BASE(i) + 0x1C)
     #define SPI_MISO_DLEN_REG(i) (REG_SPI_BASE(i) + 0x1C)
@@ -97,6 +101,10 @@ namespace lgfx
     void endTransaction(void) override;
     void wait(void) override;
     bool busy(void) const override;
+    uint32_t getClock(void) const override { return _cfg.freq_write; }
+    void setClock(uint32_t freq) override { if (_cfg.freq_write != freq) { _cfg.freq_write = freq; _last_freq_apb = 0; } }
+    uint32_t getReadClock(void) const override { return _cfg.freq_read; }
+    void setReadClock(uint32_t freq) override { if (_cfg.freq_read != freq) { _cfg.freq_read = freq; _last_freq_apb = 0; } }
 
     void flush(void) override {}
     bool writeCommand(uint32_t data, uint_fast8_t bit_length) override;
@@ -110,6 +118,7 @@ namespace lgfx
     void execDMAQueue(void) override;
     uint8_t* getDMABuffer(uint32_t length) override { return _flip_buffer.getBuffer(length); }
 
+    void beginRead(uint_fast8_t dummy_bits) override;
     void beginRead(void) override;
     void endRead(void) override;
     uint32_t readData(uint_fast8_t bit_length) override;
@@ -165,8 +174,8 @@ namespace lgfx
     volatile uint32_t* _spi_cmd_reg = nullptr;
     volatile uint32_t* _spi_user_reg = nullptr;
     volatile uint32_t* _spi_dma_out_link_reg = nullptr;
-    volatile uint32_t* _spi_dma_outstatus_reg = nullptr;    
-    volatile uint32_t* _clear_dma_reg = nullptr;    
+    volatile uint32_t* _spi_dma_outstatus_reg = nullptr;
+    volatile uint32_t* _clear_dma_reg = nullptr;
     uint32_t _last_freq_apb = 0;
     uint32_t _clkdiv_write = 0;
     uint32_t _clkdiv_read = 0;

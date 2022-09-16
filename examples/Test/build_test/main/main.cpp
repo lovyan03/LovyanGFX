@@ -6,7 +6,16 @@
   #define LGFX_USE_V1
 #endif
 
+#if defined ( ARDUINO ) && defined ( ESP32 )
+  #include <SPIFFS.h>
+#endif
+
 #include <LovyanGFX.hpp>
+
+#if defined SKIP_I2C_TEST
+  #define DUMMY_DISPLAY
+#endif
+
 
 #if defined DUMMY_DISPLAY
   // AUTODETECT will fail, so let's build a dummy object
@@ -33,10 +42,47 @@
   };
 #endif
 
-static LGFX lcd;
-static LGFX_Sprite sprite(&lcd);
 
-void setup(void)
+#if !defined SKIP_I2C_TEST
+
+  class LGFX_I2C : public lgfx::LGFX_Device
+  {
+    lgfx::Bus_I2C       _bus_instance;
+    lgfx::Panel_SSD1306 _panel_instance;
+    lgfx::Touch_FT5x06  _touch_instance;
+
+   public:
+    LGFX_I2C(void)
+    {
+      {
+        auto cfg = _bus_instance.config();
+        _bus_instance.config(cfg);
+        _panel_instance.setBus(&_bus_instance);
+      }
+      {
+        auto cfg = _panel_instance.config();
+        _panel_instance.config(cfg);
+      }
+      {
+        auto cfg = _touch_instance.config();
+        _touch_instance.config(cfg);
+        _panel_instance.setTouch(&_touch_instance);
+      }
+      setPanel(&_panel_instance);
+    }
+  };
+
+#endif
+
+static LGFX display1;
+
+#if !defined SKIP_I2C_TEST
+  static LGFX_I2C display2;
+#endif
+
+static LGFX_Sprite sprite(&display1);
+
+void test(LGFX_Device &lcd)
 {
   lcd.init();
   lcd.setRotation(1);
@@ -144,25 +190,32 @@ void setup(void)
   sprite.fillCircle(32, 32, 22, 2);
   sprite.fillTriangle(32, 12, 15, 43, 49, 43, 3);
 
-  sprite.pushSprite( 0,  0, 0);
+  sprite.pushSprite(&lcd, 0,  0, 0);
 
-  lcd.startWrite();
+  lcd.drawBmp((uint8_t*)nullptr, 0, 0, 0);
+  lcd.drawPng((uint8_t*)nullptr, 0, 0, 0);
+  lcd.drawJpg((uint8_t*)nullptr, 0, 0, 0);
+  lcd.drawQoi((uint8_t*)nullptr, 0, 0, 0);
+
+#if defined ( ARDUINO ) && defined ( ESP32 )
+  lcd.drawBmpFile(SPIFFS, "/test.bmp");
+  lcd.drawPngFile(SPIFFS, "/test.png");
+  lcd.drawJpgFile(SPIFFS, "/test.jpg");
+  lcd.drawQoiFile(SPIFFS, "/test.qoi");
+#endif
+}
+
+void setup()
+{
+  test(display1);
+  #if !defined SKIP_I2C_TEST
+    test(display2);
+  #endif
 }
 
 void loop(void)
 {
-  static int count = 0;
-  static int a = 0;
-  static int x = 0;
-  static int y = 0;
-  static float zoom = 3;
-  ++count;
-  if ((a += 1) >= 360) a -= 360;
-  if ((x += 2) >= lcd.width()) x -= lcd.width();
-  if ((y += 1) >= lcd.height()) y -= lcd.height();
-  sprite.setPaletteColor(3, lcd.color888( count & 0xFF, 0, 0));
-  sprite.pushRotateZoom(x, y, a, zoom, zoom, 0);
-  if ((count % 100) == 0) lcd.display(); // 電子ペーパーの場合の表示更新を 100回に一度行う
+  lgfx::delay(1000);
 }
 
 

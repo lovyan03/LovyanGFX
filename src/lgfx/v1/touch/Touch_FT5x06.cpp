@@ -25,10 +25,11 @@ namespace lgfx
  {
 //----------------------------------------------------------------------------
 
-  static constexpr uint8_t FT5x06_VENDID_REG = 0xA8;
-  static constexpr uint8_t FT5x06_POWER_REG  = 0x87;
+  static constexpr uint8_t FT5x06_CIPHER_REG  = 0xA3;
+  static constexpr uint8_t FT5x06_INTMODE_REG = 0xA4;
+  static constexpr uint8_t FT5x06_POWER_REG   = 0xA5;
+  static constexpr uint8_t FT5x06_VENDID_REG  = 0xA8;
   static constexpr uint8_t FT5x06_PERIODACTIVE = 0x88;
-  static constexpr uint8_t FT5x06_INTMODE_REG= 0xA4;
 
   static constexpr uint8_t FT5x06_MONITOR  = 0x01;
   static constexpr uint8_t FT5x06_SLEEP_IN = 0x03;
@@ -50,20 +51,32 @@ namespace lgfx
   {
     if (_inited) return true;
 
-    uint8_t tmp[2] = { 0 };
+    uint8_t tmp[6] = { 0 };
     _inited = _write_reg(0x00, 0x00)
-          && _read_reg(FT5x06_VENDID_REG, tmp, 1)
+          && _read_reg(FT5x06_CIPHER_REG, tmp, 6)
           && _write_reg(FT5x06_INTMODE_REG, 0x00) // INT Polling mode
-          && tmp[0]
+          && tmp[5]
           ;
-
+#if defined ( ESP_LOGI )
+if (_inited)
+{
+  ESP_LOGI("FT5x06", "CIPHER:0x%02x / FIRMID:0x%02x / VENDID:0x%02x", tmp[0], tmp[3], tmp[5]);
+}
+#endif
     return _inited;
   }
 
   bool Touch_FT5x06::init(void)
   {
     _inited = false;
-    if (isSPI()) return false;
+
+    if (_cfg.pin_rst >= 0)
+    {
+      lgfx::pinMode(_cfg.pin_rst, pin_mode_t::output);
+      lgfx::gpio_lo(_cfg.pin_rst);
+      lgfx::delay(1);
+      lgfx::gpio_hi(_cfg.pin_rst);
+    }
 
     if (_cfg.pin_int >= 0)
     {
@@ -75,6 +88,12 @@ namespace lgfx
   void Touch_FT5x06::wakeup(void)
   {
     if (!_check_init()) return;
+    if (_cfg.pin_int >= 0)
+    {
+      lgfx::pinMode(_cfg.pin_int, pin_mode_t::input_pulldown);
+      delayMicroseconds(512);
+      lgfx::pinMode(_cfg.pin_int, pin_mode_t::input_pullup);
+    }
     _write_reg(FT5x06_POWER_REG, FT5x06_MONITOR);
   }
 
@@ -82,6 +101,35 @@ namespace lgfx
   {
     if (!_check_init()) return;
     _write_reg(FT5x06_POWER_REG, FT5x06_SLEEP_IN);
+  }
+
+  size_t Touch_FT5x06::_read_data(uint8_t* readdata)
+  {
+    /// 戻り値res: 通信に失敗した場合は0、通信に成功した場合はByte数
+    size_t res = 0;
+    if (lgfx::i2c::beginTransaction(_cfg.i2c_port, _cfg.i2c_addr, _cfg.freq, false))
+    {
+      readdata[0] = 0x02;
+      if (lgfx::i2c::writeBytes(_cfg.i2c_port, readdata, 1)
+      && lgfx::i2c::restart(_cfg.i2c_port, _cfg.i2c_addr, _cfg.freq, true)
+      && lgfx::i2c::readBytes(_cfg.i2c_port, readdata, 1))
+      {
+        uint_fast8_t points = std::min<uint_fast8_t>(max_touch_points, readdata[0] & 0x0Fu);
+        if (points)
+        {
+          if (lgfx::i2c::readBytes(_cfg.i2c_port, &readdata[1], points * 6 - 2))
+          {
+            res = points * 6 - 1;
+          }
+        }
+        else
+        {
+          res = 1;
+        }
+      }
+      lgfx::i2c::endTransaction(_cfg.i2c_port).has_value();
+    }
+    return res;
   }
 
   uint_fast8_t Touch_FT5x06::getTouchRaw(touch_point_t *tp, uint_fast8_t count)
@@ -99,21 +147,23 @@ namespace lgfx
         return 0;
       }
     }
-    if (count > 5) count = 5;  // 最大５点まで
-    size_t len = count * 6 - 1;
+    if (count > max_touch_points) { count = max_touch_points; }
 
-    uint8_t tmp[2][30];
-    _read_reg(0x02, tmp[0], len);
+    uint8_t readdata[2][30];
+    size_t readlen[2];
+    if (1 == (readlen[0] = _read_data(readdata[0]))) { return 0; }
+    size_t comparelen;
     int32_t retry = 5;
     do
-    { // 読出し中に値が変わる事があるので、連続読出しして前回と同値でなければリトライする
-      _read_reg(0x02, tmp[retry & 1], len);
-    } while (memcmp(tmp[0], tmp[1], len) && --retry);
+    { // 読出し中に値が変わる事があるので、連続読出しして前回と同値でなければリトライする;
+      readlen[retry & 1] = _read_data(readdata[retry & 1]);
+      comparelen = std::min(readlen[0], readlen[1]);
+    } while ((0 == comparelen || memcmp(readdata[0], readdata[1], readlen[0])) && --retry);
 
-    if (count > tmp[0][0]) count = tmp[0][0];
+    if (count > readdata[0][0]) count = readdata[0][0];
     for (size_t idx = 0; idx < count; ++idx)
     {
-      auto data = &tmp[0][idx * 6];
+      auto data = &readdata[0][idx * 6];
       tp[idx].size = 1;
       tp[idx].x = (data[1] & 0x0F) << 8 | data[2];
       tp[idx].y = (data[3] & 0x0F) << 8 | data[4];

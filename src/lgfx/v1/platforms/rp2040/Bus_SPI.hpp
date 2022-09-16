@@ -14,11 +14,19 @@ Contributors:
  [ciniml](https://github.com/ciniml)
  [mongonta0716](https://github.com/mongonta0716)
  [tobozo](https://github.com/tobozo)
+
+Porting for RP2040:
+ [yasuhirok](https://github.com/yasuhirok-git)
 /----------------------------------------------------------------------------*/
 #pragma once
 
 #include <Arduino.h> 
 #include <hardware/spi.h>
+
+#include <hardware/structs/dma.h>
+#undef dma_hw
+#define dma_hw ((dma_hw_t*)DMA_BASE)
+#include <hardware/dma.h>
 
 #include "../../Bus.hpp"
 #include "../common.hpp"
@@ -94,60 +102,63 @@ namespace lgfx
 
     __attribute__ ((always_inline)) inline void wait_spi(void)
     {
-      if (!_need_wait) return;
       while (is_busy()) {}
-      _need_wait = false;
+    }
+
+    __attribute__ ((always_inline)) inline void dc_h(void)
+    {
+      auto dc = _gpio_dc_mask;
+      auto &reg = sio_hw->gpio_set;
+      while (is_busy()) { }
+      reg = dc;
+    }
+
+    __attribute__ ((always_inline)) inline void dc_l(void)
+    {
+      auto dc = _gpio_dc_mask;
+      auto &reg = sio_hw->gpio_clr;
+      while (is_busy()) { }
+      reg = dc;
     }
 
     __attribute__ ((always_inline)) inline void dc_control(bool flg)
     {
-      // 送受信完了待ち
-      wait_spi();
-      if (flg)
-      {
-        gpio_hi(_cfg.pin_dc);
-      }
-      else
-      {
-        gpio_lo(_cfg.pin_dc);
-      }
+      if (flg) { dc_h(); }
+      else     { dc_l(); }
     }
 
     // FIFOを8bitモードにする。
-    __attribute__ ((always_inline)) void set_dss_8() const
+    __attribute__ ((always_inline)) void set_dss_8()
     {
-      auto temp = _spi_regs->cr0;
-      temp &= ~(SPI_SSPCR0_DSS_BITS);
-      temp |= CR0_DSS_8;
-      _spi_regs->cr0 = temp;
+      _spi_regs->cr0 = _sspcr0_mask_8bit;
     }
 
     // FIFOを16bitモードにする。
-    __attribute__ ((always_inline)) void set_dss_16() const
+    __attribute__ ((always_inline)) void set_dss_16()
     {
-      auto temp = _spi_regs->cr0;
-      temp &= ~(SPI_SSPCR0_DSS_BITS);
-      temp |= CR0_DSS_16;
-      _spi_regs->cr0 = temp;
+      _spi_regs->cr0 = _sspcr0_mask_16bit;
     }
     
     __attribute__ ((always_inline)) inline void clear_rx_fifo()
     {
-      // 送受信完了待ち
-      wait_spi();
       // FIFO内のデータをすべて読みだす
       while (is_rx_fifo_not_empty())
       {
-        static_cast<void>(recv8());
+        static_cast<void>(_spi_regs->dr);
       }
     }
 
     config_t _cfg;
     FlipBuffer _flip_buffer;
-    bool _need_wait;
     uint32_t _last_apb_freq = -1;
     uint32_t _clkdiv_write;
     uint32_t _clkdiv_read;
+    uint32_t _gpio_dc_mask;
+    uint32_t _sspcr0_mask_8bit;
+    uint32_t _sspcr0_mask_16bit;
+
+    int      _dma_ch;
+    dma_channel_config _dma_tx_cfg;
 
     static constexpr uint8_t default_spi_host = 1; 
     volatile spi_hw_t * _spi_regs;

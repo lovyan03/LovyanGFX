@@ -190,7 +190,7 @@
 // functions (such as tdefl_compress_mem_to_heap() and tinfl_decompress_mem_to_heap()) won't work.
 //#define MINIZ_NO_MALLOC
 
-// 
+//
 //#define MINIZ_NO_COMPRESSION
 
 
@@ -215,8 +215,6 @@
 
 #if MINIZ_X86_OR_X64_CPU
 // Set MINIZ_USE_UNALIGNED_LOADS_AND_STORES to 1 on CPU's that permit efficient integer loads and stores from unaligned addresses.
-#define MINIZ_USE_UNALIGNED_LOADS_AND_STORES 1
-#elif defined (ESP_PLATFORM)
 #define MINIZ_USE_UNALIGNED_LOADS_AND_STORES 1
 #else
 #endif
@@ -830,7 +828,7 @@ size_t tdefl_compress_mem_to_mem(void *pOut_buf, size_t out_buf_len, const void 
 
 // Compresses an image to a compressed PNG file in memory.
 // On entry:
-//  pImage, w, h, and num_chans describe the image to compress. num_chans may be 1, 2, 3, or 4. 
+//  pImage, w, h, and num_chans describe the image to compress. num_chans may be 1, 2, 3, or 4.
 //  The image pitch in bytes per scanline will be w*num_chans. The leftmost pixel on the top scanline is stored first in memory.
 //  level may range from [0,10], use MZ_NO_COMPRESSION, MZ_BEST_SPEED, MZ_BEST_COMPRESSION, etc. or a decent default is MZ_DEFAULT_LEVEL
 //  If flip is true, the image will be flipped on the Y axis (useful for OpenGL apps).
@@ -1440,7 +1438,8 @@ const char *mz_error(int err)
     if ((pIn_buf_end - pIn_buf_cur) < 2) { \
        TINFL_HUFF_BITBUF_FILL(state_index, pHuff); \
     } else { \
-       bit_buf |= (((tinfl_bit_buf_t)pIn_buf_cur[0]) << num_bits) | (((tinfl_bit_buf_t)pIn_buf_cur[1]) << (num_bits + 8)); pIn_buf_cur += 2; num_bits += 16; \
+       c = ((tinfl_bit_buf_t)pIn_buf_cur[0]) + (((tinfl_bit_buf_t)pIn_buf_cur[1]) << 8); \
+       bit_buf += c << num_bits; pIn_buf_cur += 2; num_bits += 16; \
     } \
   } \
   if ((temp = (pHuff)->m_look_up[bit_buf & (TINFL_FAST_LOOKUP_SIZE - 1)]) >= 0) \
@@ -1451,8 +1450,8 @@ const char *mz_error(int err)
 
 tinfl_status tinfl_decompress(tinfl_decompressor *r, const mz_uint8 *pIn_buf_next, size_t *pIn_buf_size, mz_uint8 *pOut_buf_start, mz_uint8 *pOut_buf_next, size_t *pOut_buf_size, const mz_uint32 decomp_flags)
 {
-  static const mz_uint16 s_length_base[31] = { 3,4,5,6,7,8,9,10,11,13, 15,17,19,23,27,31,35,43,51,59, 67,83,99,115,131,163,195,227,258,0,0 };
-  static const mz_uint8 s_length_extra[31]= { 0,0,0,0,0,0,0,0,1,1,1,1,2,2,2,2,3,3,3,3,4,4,4,4,5,5,5,5,0,0,0 };
+  static const mz_uint16 s_length_base[32] = { 0,3,4,5,6,7,8,9,10,11,13, 15,17,19,23,27,31,35,43,51,59, 67,83,99,115,131,163,195,227,258,0,0 };
+  static const mz_uint8 s_length_extra[32]= { 0,0,0,0,0,0,0,0,0,1,1,1,1,2,2,2,2,3,3,3,3,4,4,4,4,5,5,5,5,0,0,0 };
   static const mz_uint16 s_dist_base[32] = { 1,2,3,4,5,7,9,13,17,25,33,49,65,97,129,193, 257,385,513,769,1025,1537,2049,3073,4097,6145,8193,12289,16385,24577,0,0};
   static const mz_uint8 s_dist_extra[32] = { 0,0,0,0,1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,11,11,12,12,13,13};
   static const mz_uint8 s_length_dezigzag[19] = { 16,17,18,0,8,7,9,6,10,5,11,4,12,3,13,2,14,1,15 };
@@ -1629,9 +1628,9 @@ tinfl_status tinfl_decompress(tinfl_decompressor *r, const mz_uint8 *pIn_buf_nex
             pOut_buf_cur += 2;
           }
         }
-        if ((counter &= 511) == 256) break;
+        if ((counter &= 255) == 0) break;
 
-        num_extra = s_length_extra[counter - 257]; counter = s_length_base[counter - 257];
+        num_extra = s_length_extra[counter]; counter = s_length_base[counter];
         if (num_extra) { mz_uint extra_bits; TINFL_GET_BITS(25, extra_bits, num_extra); counter += extra_bits; }
 
         TINFL_HUFF_DECODE(26, dist, &r->m_tables[1]);
@@ -1639,7 +1638,7 @@ tinfl_status tinfl_decompress(tinfl_decompressor *r, const mz_uint8 *pIn_buf_nex
         if (num_extra) { mz_uint extra_bits; TINFL_GET_BITS(27, extra_bits, num_extra); dist += extra_bits; }
 
         dist_from_out_buf_start = pOut_buf_cur - pOut_buf_start;
-        if ((dist > dist_from_out_buf_start) && (decomp_flags & TINFL_FLAG_USING_NON_WRAPPING_OUTPUT_BUF))
+        if ((decomp_flags & TINFL_FLAG_USING_NON_WRAPPING_OUTPUT_BUF) && (dist > dist_from_out_buf_start))
         {
           TINFL_CR_RETURN_FOREVER(37, TINFL_STATUS_FAILED);
         }
@@ -1920,10 +1919,9 @@ static void tdefl_optimize_huffman_table(tdefl_compressor *d, int table_num, int
   mz_uint bits = b; mz_uint len = l; MZ_ASSERT(bits <= ((1U << len) - 1U)); \
   d->m_bit_buffer |= (bits << d->m_bits_in); d->m_bits_in += len; \
   while (d->m_bits_in >= 8) { \
-    if (d->m_pOutput_buf < d->m_pOutput_buf_end) \
-      *d->m_pOutput_buf++ = (mz_uint8)(d->m_bit_buffer); \
-      d->m_bit_buffer >>= 8; \
-      d->m_bits_in -= 8; \
+    if (d->m_pOutput_buf < d->m_pOutput_buf_end) { *d->m_pOutput_buf++ = (mz_uint8)(d->m_bit_buffer); } \
+    d->m_bit_buffer >>= 8; \
+    d->m_bits_in -= 8; \
   } \
 } MZ_MACRO_END
 
@@ -4493,7 +4491,7 @@ mz_bool mz_zip_writer_add_file(mz_zip_archive *pZip, const char *pArchive_name, 
 
   if (!mz_zip_get_file_modified_time(pSrc_filename, &dos_time, &dos_date))
     return MZ_FALSE;
-    
+
   pSrc_file = MZ_FOPEN(pSrc_filename, "rb");
   if (!pSrc_file)
     return MZ_FALSE;

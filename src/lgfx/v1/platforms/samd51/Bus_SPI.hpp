@@ -81,6 +81,7 @@ namespace lgfx
     uint8_t* getDMABuffer(uint32_t length) override { return _flip_buffer.getBuffer(length); }
 
     void beginRead(void) override;
+    void beginRead(uint_fast8_t dummy_bits) override;
     void endRead(void) override;
     uint32_t readData(uint_fast8_t bit_length) override;
     bool readBytes(uint8_t* dst, uint32_t length, bool use_dma) override;

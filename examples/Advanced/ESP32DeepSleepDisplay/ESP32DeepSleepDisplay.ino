@@ -52,22 +52,28 @@ void setup(void)
   lcd.powerSaveOn(); // 省電力指定 M5Stack CoreInkで電源オフ時に色が薄くならないようにする
   lcd.waitDisplay(); // 待機
 
-  auto gpio_rst = (gpio_num_t)lcd.getPanel()->config().pin_rst;
-  if (gpio_rst >= 0) {
+  auto pin_rst = (gpio_num_t)lcd.getPanel()->config().pin_rst;
+  if ((uint32_t)pin_rst < GPIO_NUM_MAX)
+  {
     // RSTピンをRTC_GPIOで管理しhigh状態を維持する
-    rtc_gpio_set_level(gpio_rst, 1);
-    rtc_gpio_set_direction(gpio_rst, RTC_GPIO_MODE_OUTPUT_ONLY);
-    rtc_gpio_init(gpio_rst);
+    rtc_gpio_set_level(pin_rst, 1);
+    rtc_gpio_set_direction(pin_rst, RTC_GPIO_MODE_OUTPUT_ONLY);
+    rtc_gpio_init(pin_rst);
     esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_ON);
   }
 
-  auto gpio_bl = (gpio_num_t)lcd.getPanel()->gpio_bl;
-  if (gpio_bl >= 0) {
-    // BackLightピンをRTC_GPIOで管理しhigh状態を維持する
-    rtc_gpio_set_level(gpio_bl, 1);
-    rtc_gpio_set_direction(gpio_bl, RTC_GPIO_MODE_OUTPUT_ONLY);
-    rtc_gpio_init(gpio_bl);
-    esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_ON);
+  auto light = lcd.getPanel()->getLight();
+  if (light)
+  {
+    auto pin_bl = (gpio_num_t)((lgfx::Light_PWM*)light)->config().pin_bl;
+    if ((uint32_t)pin_bl < GPIO_NUM_MAX)
+    {
+      // BackLightピンをRTC_GPIOで管理しhigh状態を維持する
+      rtc_gpio_set_level(pin_bl, 1);
+      rtc_gpio_set_direction(pin_bl, RTC_GPIO_MODE_OUTPUT_ONLY);
+      rtc_gpio_init(pin_bl);
+      esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_ON);
+    }
   }
 
   ESP_LOGW("sleep");

@@ -24,6 +24,7 @@ Contributors:
 
 #include <soc/dport_reg.h>
 #include <soc/i2s_struct.h>
+#include <rom/gpio.h>
 
 namespace lgfx
 {
@@ -69,7 +70,17 @@ namespace lgfx
 
     _i2s_fifo_wr_reg = reg(SAFE_I2S_FIFO_WR_REG(port));
     
-    _last_freq_apb = 0;
+    // clock = 80MHz(PLL_D2_CLK)
+    static constexpr uint32_t pll_d2_clock = 80 * 1000 * 1000;
+
+    // I2S_CLKM_DIV_NUM 4=20MHz  /  5=16MHz  /  8=10MHz  /  10=8MHz
+    _div_num = std::min<uint32_t>(255u, std::max<uint32_t>(3u, 1 + (pll_d2_clock / (1 + _cfg.freq_write))));
+
+    _clkdiv_write =             I2S_CLK_EN
+                  |        1 << I2S_CLKM_DIV_A_S
+                  |        0 << I2S_CLKM_DIV_B_S
+                  | _div_num << I2S_CLKM_DIV_NUM_S
+                  ;
   }
 
   bool Bus_Parallel8::init(void)
@@ -166,24 +177,8 @@ namespace lgfx
 
   void Bus_Parallel8::beginTransaction(void)
   {
-    uint32_t freq_apb = getApbFrequency();
-    if (_last_freq_apb != freq_apb)
-    {
-      _last_freq_apb = freq_apb;
-      // clock = 80MHz(apb_freq) / I2S_CLKM_DIV_NUM
-      // I2S_CLKM_DIV_NUM 4=20MHz  /  5=16MHz  /  8=10MHz  /  10=8MHz
-      _div_num = std::min(255u, std::max(3u, 1 + (freq_apb / (1 + _cfg.freq_write))));
-
-      _clkdiv_write =             I2S_CLKA_ENA
-                    |             I2S_CLK_EN
-                    |        1 << I2S_CLKM_DIV_A_S
-                    |        0 << I2S_CLKM_DIV_B_S
-                    | _div_num << I2S_CLKM_DIV_NUM_S
-                    ;
-    }
-    *reg(I2S_CLKM_CONF_REG(_cfg.i2s_port)) = _clkdiv_write;
-
     auto i2s_dev = (i2s_dev_t*)_dev;
+    i2s_dev->clkm_conf.val = _clkdiv_write;
     i2s_dev->out_link.val = 0;
     i2s_dev->sample_rate_conf.val = _sample_rate_conf_reg_16bit;
     i2s_dev->fifo_conf.val = _fifo_conf_dma;
@@ -219,6 +214,10 @@ namespace lgfx
 
   void Bus_Parallel8::wait(void)
   {
+    if (_cache_index)
+    {
+      _cache_index = _flush(_cache_index, true);
+    }
     _wait();
   }
 
@@ -530,7 +529,7 @@ namespace lgfx
       {
         break;
       }
-      size_t limit = std::min(CACHE_THRESH, (length + idx) & ~3);
+      size_t limit = std::min<uint32_t>(CACHE_THRESH, (length + idx) & ~3);
       length -= (limit - idx);
       do
       {
@@ -603,10 +602,10 @@ namespace lgfx
       val = (val << 1) + (1 & (in[(idx >>  6) & 7] >> ((mask >>  6) & 7)));
       val = (val << 1) + (1 & (in[(idx >>  9) & 7] >> ((mask >>  9) & 7)));
       val = (val << 1) + (1 & (in[(idx >> 12) & 7] >> ((mask >> 12) & 7)));
-      *reg_rd_l = mask_rd;
       val = (val << 1) + (1 & (in[(idx >> 15) & 7] >> ((mask >> 15) & 7)));
       val = (val << 1) + (1 & (in[(idx >> 18) & 7] >> ((mask >> 18) & 7)));
       val = (val << 1) + (1 & (in[(idx >> 21) & 7] >> ((mask >> 21) & 7)));
+      *reg_rd_l = mask_rd;
       *dst++ = val;
     } while (--length);
   }

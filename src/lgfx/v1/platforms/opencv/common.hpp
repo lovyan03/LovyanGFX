@@ -21,7 +21,7 @@ Contributors:
 #include "../../misc/enum.hpp"
 #include "../../../utility/result.hpp"
 
-#include <malloc.h>
+#include <stdlib.h>
 #include <stdio.h>
 
 namespace lgfx
@@ -54,8 +54,8 @@ namespace lgfx
   , input_pulldown
   };
 
-  static void pinMode(int_fast16_t pin, pin_mode_t mode) {}
-  static void lgfxPinMode(int_fast16_t pin, pin_mode_t mode) {}
+  __attribute__((unused)) static void pinMode(int_fast16_t pin, pin_mode_t mode) {}
+  __attribute__((unused)) static void lgfxPinMode(int_fast16_t pin, pin_mode_t mode) {}
 
 //----------------------------------------------------------------------------
 

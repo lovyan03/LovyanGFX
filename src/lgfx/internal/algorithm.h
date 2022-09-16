@@ -13,7 +13,7 @@
   #ifdef atol
   #undef atol
   #endif
-  __attribute__((weak)) float atof(const char* nptr) { return strtod((nptr), NULL); }
+  __attribute__((weak)) double atof(const char* nptr) { return strtod((nptr), NULL); }
   __attribute__((weak)) int atoi(const char* nptr) { return (int)strtol((nptr), NULL, 10); }
   __attribute__((weak)) long atol(const char* nptr) { return strtol((nptr), NULL, 10); }
   __attribute__((weak)) int	mblen(const char*, size_t) { return 0; }
