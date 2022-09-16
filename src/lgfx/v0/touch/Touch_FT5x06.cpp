@@ -9,9 +9,10 @@ namespace lgfx
  {
 //----------------------------------------------------------------------------
 
-  static constexpr uint8_t FT5x06_VENDID_REG = 0xA8;
-  static constexpr uint8_t FT5x06_POWER_REG  = 0x87;
-  static constexpr uint8_t FT5x06_INTMODE_REG= 0xA4;
+  static constexpr uint8_t FT5x06_DEVICE_MODE = 0x00; // Driver keep this in Normal operating Mode (0)
+  static constexpr uint8_t FT5x06_POWER_REG   = 0x87;
+  static constexpr uint8_t FT5x06_INTMODE_REG = 0xA4; // Driver keep INT Polling mode
+  static constexpr uint8_t FT5x06_VENDID_REG  = 0xA8;
 
   static constexpr uint8_t FT5x06_MONITOR  = 0x01;
   static constexpr uint8_t FT5x06_SLEEP_IN = 0x03;
@@ -23,7 +24,7 @@ namespace lgfx
 
     lgfx::i2c::init(i2c_port, i2c_sda, i2c_scl, freq);
 
-    lgfx::i2c::writeRegister8(i2c_port, i2c_addr, 0x00, 0x00); // OperatingMode
+    lgfx::i2c::writeRegister8(i2c_port, i2c_addr, FT5x06_DEVICE_MODE, 0x00); // OperatingMode Normal
 
     uint8_t tmp[2];
     if (!lgfx::i2c::readRegister(i2c_port, i2c_addr, FT5x06_VENDID_REG, tmp, 1)) {

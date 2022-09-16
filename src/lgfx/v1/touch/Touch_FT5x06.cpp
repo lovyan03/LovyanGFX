@@ -25,11 +25,12 @@ namespace lgfx
  {
 //----------------------------------------------------------------------------
 
-  static constexpr uint8_t FT5x06_CIPHER_REG  = 0xA3;
-  static constexpr uint8_t FT5x06_INTMODE_REG = 0xA4;
-  static constexpr uint8_t FT5x06_POWER_REG   = 0xA5;
-  static constexpr uint8_t FT5x06_VENDID_REG  = 0xA8;
+  static constexpr uint8_t FT5x06_DEVICE_MODE  = 0x00; // Driver keep this in Normal operating Mode (0)
   static constexpr uint8_t FT5x06_PERIODACTIVE = 0x88;
+  static constexpr uint8_t FT5x06_CIPHER_REG   = 0xA3;
+  static constexpr uint8_t FT5x06_INTMODE_REG  = 0xA4; // Driver keep INT Polling mode
+  static constexpr uint8_t FT5x06_POWER_REG    = 0xA5;
+  static constexpr uint8_t FT5x06_VENDID_REG   = 0xA8;
 
   static constexpr uint8_t FT5x06_MONITOR  = 0x01;
   static constexpr uint8_t FT5x06_SLEEP_IN = 0x03;
@@ -52,7 +53,7 @@ namespace lgfx
     if (_inited) return true;
 
     uint8_t tmp[6] = { 0 };
-    _inited = _write_reg(0x00, 0x00)
+    _inited = _write_reg(FT5x06_DEVICE_MODE, 0x00) // OperatingMode Normal 
           && _read_reg(FT5x06_CIPHER_REG, tmp, 6)
           && _write_reg(FT5x06_INTMODE_REG, 0x00) // INT Polling mode
           && tmp[5]
@@ -140,7 +141,6 @@ if (_inited)
       if (_flg_released != (bool)gpio_in(_cfg.pin_int))
       {
         _flg_released = !_flg_released;
-        _write_reg(FT5x06_INTMODE_REG, 0x00); // INT Polling mode
       }
       if (_flg_released)
       {
