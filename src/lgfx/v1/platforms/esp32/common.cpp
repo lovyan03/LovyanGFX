@@ -85,6 +85,14 @@ Contributors:
  #include <soc/i2c_periph.h>
 #endif
 
+#if defined (SOC_GDMA_SUPPORTED)  // for C3/S3
+ #include <soc/gdma_reg.h>
+ // S3とC3で同じレジスタに異なる定義名がついているため、ここで統一;
+ #if !defined (DMA_OUT_PERI_SEL_CH0_REG)
+  #define DMA_OUT_PERI_SEL_CH0_REG  GDMA_OUT_PERI_SEL_CH0_REG
+ #endif
+#endif
+
 #if defined ( ARDUINO )
  #include <SPI.h>
  #include <Wire.h>
@@ -173,6 +181,27 @@ namespace lgfx
     }
     return pkg_ver;
 #endif
+  }
+
+  int32_t search_dma_out_ch(int peripheral_select)
+  {
+#if defined ( SOC_GDMA_SUPPORTED ) // for ESP32S3 / ESP32C3
+    // ESP32C3: SPI2==0
+    // ESP32S3: SPI2==0 / SPI3==1
+    // SOC_GDMA_TRIG_PERIPH_SPI3
+    // SOC_GDMA_TRIG_PERIPH_LCD0
+    // GDMAペリフェラルレジスタの配列を順に調べてペリフェラル番号が一致するDMAチャンネルを特定する;
+    for (int i = 0; i < SOC_GDMA_PAIRS_PER_GROUP; ++i)
+    {
+// ESP_LOGD("DBG","GDMA.channel:%d peri_sel:%d", i, GDMA.channel[i].out.peri_sel.sel);
+      if ((*reg(DMA_OUT_PERI_SEL_CH0_REG + i * 0xC0) & 0x3F) == peripheral_select)
+      {
+// ESP_LOGD("DBG","GDMA.channel:%d hit", i);
+        return i;
+      }
+    }
+#endif
+    return -1;
   }
 
 //----------------------------------------------------------------------------
@@ -355,8 +384,7 @@ namespace lgfx
           ESP_LOGW("LGFX", "Failed to spi_device_acquire_bus. ");
         }
 #if defined ( SOC_GDMA_SUPPORTED )
-        uint32_t spi_port = (spi_host + 1);
-        *reg(SPI_DMA_CONF_REG(spi_port)) = 0; /// Clear previous transfer
+        *reg(SPI_DMA_CONF_REG((spi_host + 1))) = 0; /// Clear previous transfer
 #endif
       }
 #endif
@@ -728,6 +756,7 @@ namespace lgfx
         else
         {
           i2c_set_cmd(dev, 0, i2c_cmd_stop, 0);
+          i2c_set_cmd(dev, 1, i2c_cmd_end, 0);
           dev->ctr.trans_start = 1;
           static constexpr uint32_t intmask = I2C_ACK_ERR_INT_RAW_M | I2C_TIME_OUT_INT_RAW_M | I2C_END_DETECT_INT_RAW_M | I2C_ARBITRATION_LOST_INT_RAW_M | I2C_TRANS_COMPLETE_INT_RAW_M;
           uint32_t ms = lgfx::millis();

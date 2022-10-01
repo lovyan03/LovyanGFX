@@ -50,14 +50,13 @@ Contributors:
 #endif
 
 #if defined (SOC_GDMA_SUPPORTED)  // for C3/S3
- #include <hal/gdma_hal.h>
- #include <hal/gdma_ll.h>
+ #include <soc/gdma_channel.h>
+ #include <soc/gdma_reg.h>
  #if !defined DMA_OUT_LINK_CH0_REG
   #define DMA_OUT_LINK_CH0_REG       GDMA_OUT_LINK_CH0_REG
   #define DMA_OUTFIFO_STATUS_CH0_REG GDMA_OUTFIFO_STATUS_CH0_REG
   #define DMA_OUTLINK_START_CH0      GDMA_OUTLINK_START_CH0
   #define DMA_OUTFIFO_EMPTY_CH0      GDMA_OUTFIFO_EMPTY_L3_CH0
-  #define DMA_OUT_PERI_SEL_CH0_REG   GDMA_OUT_PERI_SEL_CH0_REG
  #endif
 #endif
 
@@ -123,29 +122,15 @@ namespace lgfx
     _inited = spi::init(_cfg.spi_host, _cfg.pin_sclk, _cfg.pin_miso, _cfg.pin_mosi, dma_ch).has_value();
 
 #if defined ( SOC_GDMA_SUPPORTED )
-/* // 割当られたDMAチャネル番号を調べる…ESP-IDFv5でprivateヘッダに変更になったため以下の方法は使用非推奨…;
-    auto attr = spi_bus_get_attr(_cfg.spi_host);
-    if (!attr->dma_enabled) { _cfg.dma_channel = 0; }
-    _spi_dma_out_link_reg  = reg(DMA_OUT_LINK_CH0_REG       + attr->tx_dma_chan * 0xC0);
-    _spi_dma_outstatus_reg = reg(DMA_OUTFIFO_STATUS_CH0_REG + attr->tx_dma_chan * 0xC0);
-// ESP_LOGD("DBG","spi_bus_get_attr:dma_enabled:%d", attr->dma_enabled);
-// ESP_LOGD("DBG","spi_bus_get_attr:tx_dma_chan:%d", attr->tx_dma_chan);
-//*/
-    // ESP32C3: SPI2==0
-    // ESP32S3: SPI2==0 / SPI3==1
-    int peri_sel = (_spi_port == 3) ? 1 : 0;
-    int assigned_dma_ch = -1;
-    // GDMAペリフェラルレジスタの配列を順に調べてペリフェラル番号が一致するDMAチャンネルを特定する;
-    for (int i = 0; i < SOC_GDMA_PAIRS_PER_GROUP; ++i)
-    {
-// ESP_LOGD("DBG","GDMA.channel:%d peri_sel:%d", i, GDMA.channel[i].out.peri_sel.sel);
-      if ((*reg(DMA_OUT_PERI_SEL_CH0_REG + i * 0xC0) & 0x3F) == peri_sel)
-      {
-// ESP_LOGD("DBG","GDMA.channel:%d hit", i);
-        assigned_dma_ch = i;
-        break;
-      }
-    }
+    // 割当られたDMAチャネル番号を取得する
+
+#if defined ( SOC_GDMA_TRIG_PERIPH_SPI3 )
+    int peri_sel = (_spi_port == 3) ? SOC_GDMA_TRIG_PERIPH_SPI3 : SOC_GDMA_TRIG_PERIPH_SPI2;
+#else
+    int peri_sel = SOC_GDMA_TRIG_PERIPH_SPI2;
+#endif
+
+    int assigned_dma_ch = search_dma_out_ch(peri_sel);
 
     if (assigned_dma_ch >= 0)
     { // DMAチャンネルが特定できたらそれを使用する;

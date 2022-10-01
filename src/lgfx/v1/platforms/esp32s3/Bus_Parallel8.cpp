@@ -30,26 +30,20 @@ Contributors:
 #include <soc/lcd_cam_reg.h>
 #include <soc/lcd_cam_struct.h>
 
+#include <soc/gdma_channel.h>
+#include <soc/gdma_reg.h>
+#if !defined (DMA_OUT_LINK_CH0_REG)
+  #define DMA_OUT_LINK_CH0_REG       GDMA_OUT_LINK_CH0_REG
+  #define DMA_OUTFIFO_STATUS_CH0_REG GDMA_OUTFIFO_STATUS_CH0_REG
+  #define DMA_OUTLINK_START_CH0      GDMA_OUTLINK_START_CH0
+  #define DMA_OUTFIFO_EMPTY_CH0      GDMA_OUTFIFO_EMPTY_L3_CH0
+#endif
+
 namespace lgfx
 {
  inline namespace v1
  {
 //----------------------------------------------------------------------------
-
-/// from esp-idf/components/esp_lcd/src/esp_lcd_panel_io_i80.c
-struct esp_lcd_i80_bus_t {
-    int bus_id;            // Bus ID, index from 0
-    portMUX_TYPE spinlock; // spinlock used to protect i80 bus members(hal, device_list, cur_trans)
-    lcd_hal_context_t hal; // Hal object
-    size_t bus_width;      // Number of data lines
-    intr_handle_t intr;    // LCD peripheral interrupt handle
-    void* pm_lock; // Power management lock
-    size_t num_dma_nodes;  // Number of DMA descriptors
-    uint8_t *format_buffer;  // The driver allocates an internal buffer for DMA to do data format transformer
-    size_t resolution_hz;    // LCD_CLK resolution, determined by selected clock source
-    gdma_channel_handle_t dma_chan; // DMA channel handle
-};
-
 
   static __attribute__ ((always_inline)) inline volatile uint32_t* reg(uint32_t addr) { return (volatile uint32_t *)ETS_UNCACHED_ADDR(addr); }
 
@@ -96,10 +90,21 @@ struct esp_lcd_i80_bus_t {
       bus_config.data_gpio_nums[i+8] = -1;
     }
     bus_config.bus_width = 8;
-    bus_config.max_transfer_bytes = 32768;
+    bus_config.max_transfer_bytes = 4092;
 
     esp_lcd_new_i80_bus(&bus_config, &_i80_bus);
-    _dma_chan = ((esp_lcd_i80_bus_t*)_i80_bus)->dma_chan;
+    _dma_out_link_reg  = nullptr;
+    _dma_outstatus_reg = nullptr;
+    _dma_ch = search_dma_out_ch(SOC_GDMA_TRIG_PERIPH_LCD0);
+    if (_dma_ch >= 0)
+    {
+      _dma_out_link_reg  = reg(DMA_OUT_LINK_CH0_REG       + _dma_ch * 0xC0);
+      _dma_outstatus_reg = reg(DMA_OUTFIFO_STATUS_CH0_REG + _dma_ch * 0xC0);
+    }
+    else
+    {
+      ESP_LOGE("Bus_Parallel8", "DMA channel not found...");
+    }
 
     for (size_t i = 0; i < 8; ++i)
     {
@@ -339,7 +344,7 @@ struct esp_lcd_i80_bus_t {
         return;
       }
     }
-    uint32_t slow = (_cfg.freq_write < 4000000) ? 2 : (_cfg.freq_write < 8000000) ? 1 : 0;
+    uint32_t slow_wait = 8000000 / _cfg.freq_write;
 
     auto dev = _dev;
     do
@@ -353,9 +358,9 @@ struct esp_lcd_i80_bus_t {
 
       if (use_dma)
       {
-        if (slow) { delayMicroseconds(slow); }
+        if (slow_wait) { delayMicroseconds(slow_wait); }
         _setup_dma_desc_links(&data[4], length - 4);
-        gdma_start(_dma_chan, (intptr_t)(_dmadesc));
+        *_dma_out_link_reg = DMA_OUTLINK_START_CH0 | (((uintptr_t)_dmadesc) & 0xFFFFF);
         length = 0;
       }
       else
@@ -367,7 +372,7 @@ struct esp_lcd_i80_bus_t {
         }
         memcpy(_cache_flip, &data[4], (len-4+3)&~3);
         _setup_dma_desc_links((const uint8_t*)_cache_flip, len-4);
-        gdma_start(_dma_chan, (intptr_t)(_dmadesc));
+        *_dma_out_link_reg = DMA_OUTLINK_START_CH0 | (((uintptr_t)_dmadesc) & 0xFFFFF);
         length -= len;
         data += len;
         _cache_flip = _cache[(_cache_flip == _cache[0])];

@@ -39,6 +39,12 @@ Contributors:
 #define REG_SPI_BASE(i)     (DR_REG_SPI2_BASE)
 #endif
 
+#if defined ( ESP_IDF_VERSION_VAL )
+ #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+  #define LGFX_IDF_V5
+ #endif
+#endif
+
 namespace lgfx
 {
  inline namespace v1
@@ -49,7 +55,7 @@ namespace lgfx
   __attribute__ ((unused)) static inline unsigned long micros(void) { return (unsigned long) (esp_timer_get_time()); }
   __attribute__ ((unused)) static inline void delayMicroseconds(uint32_t us)
   {
-#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+#if defined ( LGFX_IDF_V5 )
     esp_rom_delay_us(us);
 #else
     ets_delay_us(us);
@@ -110,6 +116,9 @@ namespace lgfx
 
   // esp_efuse_get_pkg_ver
   uint32_t get_pkg_ver(void);
+
+  // Find GDMA assigned to a peripheral;
+  int32_t search_dma_out_ch(int peripheral_select);
 
 //----------------------------------------------------------------------------
 
