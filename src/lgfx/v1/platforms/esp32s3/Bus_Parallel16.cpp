@@ -24,6 +24,7 @@ Contributors:
 #include "Bus_Parallel16.hpp"
 #include "../../misc/pixelcopy.hpp"
 
+#include <esp_log.h>
 #include <rom/gpio.h>
 #include <hal/gpio_ll.h>
 #include <hal/lcd_hal.h>
