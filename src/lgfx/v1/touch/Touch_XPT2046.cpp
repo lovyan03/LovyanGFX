@@ -33,6 +33,13 @@ namespace lgfx
 
     lgfx::gpio_hi(_cfg.pin_cs);
     lgfx::pinMode(_cfg.pin_cs, lgfx::pin_mode_t::output);
+    if (_cfg.spi_host < 0)
+    {
+      pinMode(_cfg.pin_sclk, lgfx::pin_mode_t::output);
+      pinMode(_cfg.pin_mosi, lgfx::pin_mode_t::output);
+      pinMode(_cfg.pin_miso, lgfx::pin_mode_t::input_pullup);
+    }
+    else
     if (lgfx::spi::init(_cfg.spi_host, _cfg.pin_sclk, _cfg.pin_miso, _cfg.pin_mosi).has_error())
     {
       return false;
@@ -45,6 +52,30 @@ namespace lgfx
 
     _inited = true;
     return true;
+  }
+
+  static void transfer(uint8_t* read_data, const uint8_t* write_data, size_t len, const Touch_XPT2046::config_t *cfg)
+  {
+    int pin_sclk = cfg->pin_sclk;
+    int pin_miso = cfg->pin_miso;
+    int pin_mosi = cfg->pin_mosi;
+
+    do
+    {
+      uint_fast8_t r = 0;
+      uint_fast8_t mask = 0x80;
+      uint_fast8_t d = *write_data++;
+      do
+      {
+        gpio_lo(pin_sclk);
+        if (d & mask) { gpio_hi(pin_mosi); } else { gpio_lo(pin_mosi); }
+        gpio_hi(pin_sclk);
+        if (gpio_in(pin_miso)) { r += mask; }
+      } while (mask >>= 1);
+
+      *read_data++ = (uint8_t)r;
+    } while (--len);
+    gpio_lo(pin_sclk);
   }
 
   uint_fast8_t Touch_XPT2046::getTouchRaw(touch_point_t* __restrict tp, uint_fast8_t count)
@@ -70,11 +101,20 @@ namespace lgfx
     memcpy(&data[16], data, 16);
     memcpy(&data[32], data, 24);
 
-    spi::beginTransaction(_cfg.spi_host, _cfg.freq, 0);
-    lgfx::gpio_lo(_cfg.pin_cs);
-    spi::readBytes(_cfg.spi_host, data, 57);
-    spi::endTransaction(_cfg.spi_host);
-    lgfx::gpio_hi(_cfg.pin_cs);
+    if (_cfg.spi_host < 0)
+    {
+      lgfx::gpio_lo(_cfg.pin_cs);
+      transfer(data, data, 57, &_cfg);
+      lgfx::gpio_hi(_cfg.pin_cs);
+    }
+    else
+    {
+      spi::beginTransaction(_cfg.spi_host, _cfg.freq, 0);
+      lgfx::gpio_lo(_cfg.pin_cs);
+      spi::readBytes(_cfg.spi_host, data, 57);
+      lgfx::gpio_hi(_cfg.pin_cs);
+      spi::endTransaction(_cfg.spi_host);
+    }
 
     size_t ix = 0, iy = 0, iz = 0;
     uint_fast16_t xt[7], yt[7], zt[7];
