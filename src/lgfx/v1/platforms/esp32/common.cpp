@@ -825,13 +825,10 @@ namespace lgfx
       {
         return cpp::fail(error_t::invalid_arg);
       }
-      if (!i2c_context[i2c_port].initialized)
+
+      if (i2c_context[i2c_port].initialized)
       {
-        i2c_context[i2c_port].initialized = true;
-        auto dev = getDev(i2c_port);
-        i2c_context[i2c_port].save_reg(dev);
-        i2c_stop(i2c_port);
-        i2c_context[i2c_port].load_reg(dev);
+        release(i2c_port);
       }
 
 #if defined ( ARDUINO )
@@ -842,6 +839,12 @@ namespace lgfx
       twowire->begin((int)i2c_context[i2c_port].pin_sda, (int)i2c_context[i2c_port].pin_scl);
  #endif
 #endif
+
+      i2c_context[i2c_port].initialized = true;
+      auto dev = getDev(i2c_port);
+      i2c_context[i2c_port].save_reg(dev);
+      i2c_stop(i2c_port);
+      i2c_context[i2c_port].load_reg(dev);
 
       return {};
     }
@@ -872,15 +875,13 @@ namespace lgfx
   #endif
  #endif
 #endif
-        if (i2c_context[i2c_port].pin_scl >= 0)
+        if ((int)i2c_context[i2c_port].pin_scl >= 0)
         {
           pinMode(i2c_context[i2c_port].pin_scl, pin_mode_t::input_pullup);
-          i2c_context[i2c_port].pin_scl = (gpio_num_t)-1;
         }
-        if (i2c_context[i2c_port].pin_sda >= 0)
+        if ((int)i2c_context[i2c_port].pin_sda >= 0)
         {
           pinMode(i2c_context[i2c_port].pin_sda, pin_mode_t::input_pullup);
-          i2c_context[i2c_port].pin_sda = (gpio_num_t)-1;
         }
       }
 
@@ -1110,7 +1111,7 @@ namespace lgfx
         res = i2c_wait(i2c_port);
         if (res.has_error())
         {
-          ESP_LOGW("LGFX", "i2c write error : ack wait");
+          ESP_LOGD("LGFX", "i2c write error : ack wait");
           break;
         }
         size_t idx = 0;
@@ -1156,7 +1157,7 @@ namespace lgfx
         res = i2c_wait(i2c_port);
         if (res.has_error())
         {
-          ESP_LOGW("LGFX", "i2c read error : ack wait");
+          ESP_LOGD("LGFX", "i2c read error : ack wait");
           break;
         }
         i2c_set_cmd(dev, 0, i2c_cmd_read, len);
