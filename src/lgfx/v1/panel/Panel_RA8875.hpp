@@ -63,7 +63,7 @@ namespace lgfx
     void setInvert(bool invert) override {}; // Not yet implemented.
     void setSleep(bool flg) override {}; // Not yet implemented.
     void setPowerSave(bool flg) override {}; // Not yet implemented.
-    uint32_t readCommand(uint_fast8_t cmd, uint_fast8_t index, uint_fast8_t len) override { return 0; }; // Not yet implemented.
+    uint32_t readCommand(uint_fast16_t cmd, uint_fast8_t index, uint_fast8_t len) override { return 0; }; // Not yet implemented.
     uint32_t readData(uint_fast8_t index, uint_fast8_t len)  override { return 0; }; // Not yet implemented.
 
   protected:

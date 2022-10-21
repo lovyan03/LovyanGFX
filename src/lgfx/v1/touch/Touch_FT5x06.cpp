@@ -57,10 +57,10 @@ namespace lgfx
           && _write_reg(FT5x06_INTMODE_REG, 0x00) // INT Polling mode
           && tmp[5]
           ;
-#if defined ( ESP_LOGI )
+#if defined ( ESP_LOGV )
 if (_inited)
 {
-  ESP_LOGI("FT5x06", "CIPHER:0x%02x / FIRMID:0x%02x / VENDID:0x%02x", tmp[0], tmp[3], tmp[5]);
+  ESP_LOGV("FT5x06", "CIPHER:0x%02x / FIRMID:0x%02x / VENDID:0x%02x", tmp[0], tmp[3], tmp[5]);
 }
 #endif
     return _inited;

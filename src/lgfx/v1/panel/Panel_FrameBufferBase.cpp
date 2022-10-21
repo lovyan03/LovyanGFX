@@ -19,6 +19,7 @@ Contributors:
 #include "Panel_FrameBufferBase.hpp"
 #include "../platforms/common.hpp"
 #include "../misc/pixelcopy.hpp"
+#include "../misc/common_function.hpp"
 
 namespace lgfx
 {
@@ -79,7 +80,11 @@ namespace lgfx
       if (r & 2)                  { x = _width  - (x + 1); }
       if (r & 1) { std::swap(x, y); }
     }
-    _lines_buffer[y][x] = rawcolor;
+    if (_write_bits >= 8)
+    {
+      size_t bytes = _write_bits >> 3;
+      memcpy(&_lines_buffer[y][x * bytes], &rawcolor, bytes);
+    }
   }
 
   void Panel_FrameBufferBase::writeFillRectPreclipped(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, uint32_t rawcolor)
@@ -92,10 +97,14 @@ namespace lgfx
       if (r & 1) { std::swap(x, y);  std::swap(w, h); }
     }
     h += y;
-    do
+    if (_write_bits >= 8)
     {
-      memset(&_lines_buffer[y][x], rawcolor, w);
-    } while (++y < h);
+      size_t bytes = _write_bits >> 3;
+      do
+      {
+        memset_multi(&_lines_buffer[y][x * bytes], rawcolor, bytes, w);
+      } while (++y < h);
+    }
   }
 
   void Panel_FrameBufferBase::writeBlock(uint32_t rawcolor, uint32_t length)

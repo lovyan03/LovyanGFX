@@ -21,6 +21,10 @@ Contributors:
 #include "../misc/pixelcopy.hpp"
 #include "../misc/colortype.hpp"
 
+#if __has_include (<esp_log.h>)
+ #include <esp_log.h>
+#endif
+
 #ifdef min
 #undef min
 #endif
@@ -273,14 +277,17 @@ IT8951 Registers defines
   bool Panel_IT8951::displayBusy(void)
   {
     uint16_t infobuf[2] = { 1 };
+    bool res = true;
+    startWrite();
     if (_write_command(IT8951_TCON_REG_RD)
       && _write_word(IT8951_LUTAFSR)
       && _read_words(infobuf, 1))
     {
-      return 0 != infobuf[0];
+      res = (0 != infobuf[0]);
     }
     cs_control(true);
-    return true;
+    endWrite();
+    return res;
   }
 
   bool Panel_IT8951::_check_afsr(void)

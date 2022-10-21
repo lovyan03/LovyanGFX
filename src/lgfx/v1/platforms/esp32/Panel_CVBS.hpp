@@ -59,6 +59,7 @@ namespace lgfx
       uint8_t use_psram = 0;
     };
 
+    color_depth_t setColorDepth(color_depth_t) override { return _write_depth; }
     void setResolution(uint16_t width, uint16_t height, config_detail_t::signal_type_t type = config_detail_t::signal_type_max, int output_width = -1, int output_height = -1, int offset_x = -1, int offset_y = -1);
     void setOutputLevel(uint8_t output_level);
     void setChromaLevel(uint8_t chroma);

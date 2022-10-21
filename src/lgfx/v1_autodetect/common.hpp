@@ -27,21 +27,7 @@ Contributors:
 
  #include <sdkconfig.h>
 
- #if defined (CONFIG_IDF_TARGET_ESP32S2)
-
-  #include "LGFX_AutoDetect_ESP32S2.hpp"
-
- #elif defined (CONFIG_IDF_TARGET_ESP32S3)
-
-  #include "LGFX_AutoDetect_ESP32S3.hpp"
-
- #elif defined (CONFIG_IDF_TARGET_ESP32C3)
-
- #else
-
-  #include "LGFX_AutoDetect_ESP32.hpp"
-
- #endif
+ #include "LGFX_AutoDetect_ESP32_all.hpp"
 
 #elif defined (ESP8266)
 

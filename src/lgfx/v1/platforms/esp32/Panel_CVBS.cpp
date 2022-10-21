@@ -916,8 +916,7 @@ namespace lgfx
   {
     if (_started)
     {
-      ESP_LOGE(TAG, "begin() is only allowed to be called once.");
-      ESP_ERROR_CHECK(ESP_FAIL);
+      return true;
     }
     _started = true;
 

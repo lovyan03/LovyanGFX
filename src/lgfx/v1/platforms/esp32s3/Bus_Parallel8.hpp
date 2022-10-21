@@ -43,6 +43,7 @@ namespace lgfx
 
       // max 80MHz.
       uint32_t freq_write = 16000000;
+      uint32_t freq_read  =  8000000;
       int8_t pin_wr = -1;
       int8_t pin_rd = -1;
       int8_t pin_rs = -1;  // D/C

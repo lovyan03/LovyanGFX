@@ -138,7 +138,7 @@ namespace lgfx
     virtual void writeImageARGB(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, pixelcopy_t* param) = 0;
     virtual void writePixels(pixelcopy_t* param, uint32_t len, bool use_dma) = 0;
 
-    virtual uint32_t readCommand(uint_fast8_t cmd, uint_fast8_t index = 0, uint_fast8_t length = 4) = 0;
+    virtual uint32_t readCommand(uint_fast16_t cmd, uint_fast8_t index = 0, uint_fast8_t length = 4) = 0;
     virtual uint32_t readData(uint_fast8_t index = 0, uint_fast8_t length = 4) = 0;
     virtual void readRect(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, void* dst, pixelcopy_t* param) = 0;
     virtual void copyRect(uint_fast16_t dst_x, uint_fast16_t dst_y, uint_fast16_t w, uint_fast16_t h, uint_fast16_t src_x, uint_fast16_t src_y) = 0;
