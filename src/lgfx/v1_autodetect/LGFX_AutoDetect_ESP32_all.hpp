@@ -3111,7 +3111,7 @@ namespace lgfx
 
 
       std::uint32_t pkg_ver = lgfx::get_pkg_ver();
-  ESP_LOGE("LGFX","pkg:%d", pkg_ver);
+//  ESP_LOGE("LGFX","pkg:%d", pkg_ver);
 
       switch (pkg_ver)
       {
