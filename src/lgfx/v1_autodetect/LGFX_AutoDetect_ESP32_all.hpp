@@ -2503,6 +2503,17 @@ namespace lgfx
         , VSPI_HOST       // SPI HOST
         } {}
 
+        bool detect(_detector_result_t* result, bool use_reset) const override
+        {
+          // ESP32_2432S028 とSPIピンやパネル種類に共通点が多く誤判定しやすい。
+          // そこで ESP32_2432S028 のD/CピンであるGPIO2をHIGHにすることで誤判定を防止する
+          _pin_backup_t backup = { GPIO_NUM_2 };
+          _pin_level(GPIO_NUM_2, true);
+          bool res = _detector_spi_t::detect(result, use_reset);
+          backup.restore();
+          return res;
+        }
+
         void setup(_detector_result_t* result) const override
         {
           ESP_LOGI(LIBRARY_NAME, "[Autodetect] Makerfabs_TouchCamera (ILI9341)");
@@ -2749,6 +2760,17 @@ namespace lgfx
         , false           // SPI 3wire
         , HSPI_HOST       // SPI HOST
         } {}
+
+        bool detect(_detector_result_t* result, bool use_reset) const override
+        {
+          // Makerfabs_TouchCamera とSPIピンやパネル種類に共通点が多く誤判定しやすい。
+          // そこで Makerfabs_TouchCamera のD/CピンであるGPIO33をHIGHにすることで誤判定を防止する
+          _pin_backup_t backup = { GPIO_NUM_33 };
+          _pin_level(GPIO_NUM_33, true);
+          bool res = _detector_spi_t::detect(result, use_reset);
+          backup.restore();
+          return res;
+        }
 
         void setup(_detector_result_t* result) const override
         {
@@ -3111,7 +3133,7 @@ namespace lgfx
 
 
       std::uint32_t pkg_ver = lgfx::get_pkg_ver();
-//  ESP_LOGE("LGFX","pkg:%d", pkg_ver);
+//  ESP_LOGV("LGFX","pkg:%d", pkg_ver);
 
       switch (pkg_ver)
       {
