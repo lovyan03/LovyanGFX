@@ -448,7 +448,7 @@ namespace lgfx
 
       //Extract data from clockMode
       sercom->SPI.CTRLA.bit.CPHA = spi_mode & 1;
-      sercom->SPI.CTRLA.bit.CPOL = spi_mode & 2;
+      sercom->SPI.CTRLA.bit.CPOL = (spi_mode >> 1) & 1;
       sercom->SPI.BAUD.reg = FreqToClockDiv(freq);
 
       sercom->SPI.CTRLA.bit.ENABLE = 1;
