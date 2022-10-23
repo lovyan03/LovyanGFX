@@ -1224,6 +1224,12 @@ namespace lgfx
     if (flg_psram) { res = (uint8_t*)heap_alloc_psram(size); }
     if (res == nullptr)
     {
+      //heap_caps_malloc((size + 3) & ~3, MALLOC_CAP_DMA);
+      int funvar = (size + 3) & ~3;
+      int freeb = heap_caps_get_largest_free_block(MALLOC_CAP_DMA);
+      printf("Our largest free block: %d \n", freeb);
+      printf("We are requesting: %d \n", funvar);
+      printf("==========================================");
       res = (uint8_t*)heap_alloc_dma(size);
     }
     if (res) { memset(res, 0, size); }
@@ -1301,7 +1307,7 @@ namespace lgfx
 // printf ("line %08x alloc \n", lineChunk);
           if (lineChunk == nullptr)
           {
-            ESP_LOGE(TAG, "framebuffer memory alloc fail.");
+            ESP_LOGE(TAG, "framebuffer memory alloc fail2.");
 
             deinitFrameBuffer();
             return false;
