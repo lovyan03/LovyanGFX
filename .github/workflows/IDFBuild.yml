@@ -44,13 +44,13 @@ jobs:
           - { esp-idf-fqbn: esp32@v5.0-beta1,   idf-board: esp32,   idf-version: v5.0-beta1 }
           - { esp-idf-fqbn: esp32s2@v5.0-beta1, idf-board: esp32s2, idf-version: v5.0-beta1 }
           - { esp-idf-fqbn: esp32s3@v5.0-beta1, idf-board: esp32s3, idf-version: v5.0-beta1 }
-          
+
 
       fail-fast: false
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           ref: ${{ github.event.pull_request.head.sha }}
 
