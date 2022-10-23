@@ -55,7 +55,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Cache pip for ${{ matrix.esp-idf-fqbn }}
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ matrix.idf-version }}-${{ hashFiles('**/requirements.txt') }}
@@ -63,7 +63,7 @@ jobs:
             ${{ runner.os }}-pip-
 
       - name: Cache espressif tools for ${{ matrix.esp-idf-fqbn }}
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         id: espressif
         with:
           path: |
@@ -72,7 +72,7 @@ jobs:
 
       - name: Cache esp-idf for ${{ matrix.esp-idf-fqbn }}
         id: cache-idf
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ~/esp/esp-idf
           key: ${{ runner.os }}-idf-${{ matrix.idf-version }}-${{ hashFiles('**/lockfiles') }}

@@ -46,7 +46,7 @@ jobs:
 
       - name: 🪟 📦 Cache OpenCV for Windows
         if: ${{ matrix.os == 'windows-latest' }}
-        uses: actions/cache@v3.0.5
+        uses: actions/cache@v3
         id: cache-opencv-windows
         with:
           path: D:\a\LovyanGFX\LovyanGFX\opencv-4.5.5\
@@ -76,7 +76,7 @@ jobs:
 
       - name: 🐧 📦 Cache OpenCV for Linux
         if: matrix.os == 'ubuntu-latest'
-        uses: actions/cache@v3.0.5
+        uses: actions/cache@v3
         id: cache-opencv-linux
         with:
           path: /home/runner/work/LovyanGFX/LovyanGFX/opencv-install
@@ -96,7 +96,7 @@ jobs:
 
       - name: 🍏 📦 🍺 Cache brew deps for MacOS
         if: matrix.os == 'macos-latest'
-        uses: actions/cache@v3.0.5
+        uses: actions/cache@v3
         id: cache-opencv-macosx
         with:
           # Paths to cache:
