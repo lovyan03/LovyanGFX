@@ -32,7 +32,7 @@ jobs:
       matrix:
         include:
           - { os: windows-latest }
-          - { os: macos-latest   }
+          - { os: macos-12   }
           - { os: ubuntu-latest  }
 
     steps:
