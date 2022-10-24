@@ -734,8 +734,8 @@ namespace lgfx
         if (cur * sx * sy < 0) {
           xx = -xx; yy = -yy; xy = -xy; cur = -cur;
         }
-        dx = 4.0 * sy * cur * (x1 - x0) + xx - xy;
-        dy = 4.0 * sx * cur * (y0 - y1) + yy - xy;
+        dx = 4.0f * sy * cur * (x1 - x0) + xx - xy;
+        dy = 4.0f * sx * cur * (y0 - y1) + yy - xy;
         xx += xx; yy += yy; err = dx + dy + xy;
         do {
           drawPixel(x0, y0);
@@ -872,8 +872,8 @@ namespace lgfx
     endWrite();
   }
 
-  constexpr float LoAlphaTheshold = 1.0 / 32.0;
-  constexpr float HiAlphaTheshold = 1.0 - LoAlphaTheshold;
+  constexpr float LoAlphaTheshold = 1.0f / 32.0f;
+  constexpr float HiAlphaTheshold = 1.0f - LoAlphaTheshold;
   void LGFXBase::fillSmoothRoundRect(int32_t x, int32_t y, int32_t w, int32_t h, int32_t r)
   {
     startWrite();
@@ -928,13 +928,13 @@ namespace lgfx
     bool equal = fabsf(start - end) < std::numeric_limits<float>::epsilon();
     start = fmodf(start, 360);
     end = fmodf(end, 360);
-    if (start < 0) start += 360.0;
-    if (end < 0) end += 360.0;
+    if (start < 0) start += 360.0f;
+    if (end < 0) end += 360.0f;
 
     startWrite();
     fill_arc_helper(x, y, r0x, r1x, r0y, r1y, start, start);
     fill_arc_helper(x, y, r0x, r1x, r0y, r1y, end, end);
-    if (!equal && (fabsf(start - end) <= 0.0001)) { start = .0; end = 360.0; }
+    if (!equal && (fabsf(start - end) <= 0.0001f)) { start = .0; end = 360.0f; }
     fill_arc_helper(x, y, r0x, r0x, r0y, r0y, start, end);
     fill_arc_helper(x, y, r1x, r1x, r1y, r1y, start, end);
     endWrite();
@@ -950,9 +950,9 @@ namespace lgfx
     bool equal = fabsf(start - end) < std::numeric_limits<float>::epsilon();
     start = fmodf(start, 360);
     end = fmodf(end, 360);
-    if (start < 0) start += 360.0;
-    if (end < 0) end += 360.0;
-    if (!equal && (fabsf(start - end) <= 0.0001)) { start = .0; end = 360.0; }
+    if (start < 0) start += 360.0f;
+    if (end < 0) end += 360.0f;
+    if (!equal && (fabsf(start - end) <= 0.0001f)) { start = .0f; end = 360.0f; }
 
     startWrite();
     fill_arc_helper(x, y, r0x, r1x, r0y, r1y, start, end);
@@ -965,9 +965,9 @@ namespace lgfx
     float e_cos = (cosf(end * deg_to_rad));
     float sslope = s_cos / (sinf(start * deg_to_rad));
     float eslope = -1000000;
-    if (end != 360.0) eslope = e_cos / (sinf(end * deg_to_rad));
-    float swidth =  0.5 / s_cos;
-    float ewidth = -0.5 / e_cos;
+    if (end != 360.0f) eslope = e_cos / (sinf(end * deg_to_rad));
+    float swidth =  0.5f / s_cos;
+    float ewidth = -0.5f / e_cos;
 
     bool start180 = !(start < 180);
     bool end180 = end < 180;

@@ -225,7 +225,7 @@ namespace lgfx
         saturation = saturation * black_level / 2;
         for (int j = 0; j < 4; j++)
         {
-          int tmp = ((int)roundf(y + sinf(phase_offset + M_PI / 2 * j) * saturation)) >> 8;
+          int tmp = ((int)roundf(y + sinf(phase_offset + (float)M_PI / 2 * j) * saturation)) >> 8;
           buf[j] = tmp < 0 ? 0 : tmp > 255 ? 255 : tmp;
         }
         // I2Sに渡す際に処理負荷を軽減できるよう、予めバイトスワップ等を行ったテーブルを作成しておく;
