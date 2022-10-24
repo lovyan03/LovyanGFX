@@ -100,5 +100,5 @@ jobs:
 
         run: |
           cd ${{ env.PROJECT_DIR }}
-          pio pkg install --library -e ${{ matrix.board }}@${{ matrix.platform-version }} --no-save file://$(realpath ../../../)
+          pio pkg install -e ${{ matrix.board }}@${{ matrix.platform-version }} --no-save --library file://$(realpath ../../../)
           pio run -e ${{ matrix.board }}@${{ matrix.platform-version }}
