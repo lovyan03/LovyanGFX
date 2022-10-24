@@ -1229,7 +1229,7 @@ namespace lgfx
       int freeb = heap_caps_get_largest_free_block(MALLOC_CAP_DMA);
       printf("==========================================\n");
       printf("Our largest free block: %d \n", freeb);
-      printf("We are requesting: %d \n", funvar);
+      printf("We are requesting:      %d \n", funvar);
       printf("==========================================\n");
       res = (uint8_t*)heap_alloc_dma(size);
     }
