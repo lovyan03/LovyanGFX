@@ -41,18 +41,13 @@ jobs:
           - default
 
         exclude:
-          - board: esp32-s3
-            platform-version: 1.0.6
-          - board: esp32-s3
-            platform-version: 2.0.0
-          - board: esp32-s3
-            platform-version: 2.0.1
-          - board: esp32-s3
-            platform-version: 2.0.2
-          - board: esp32-s2
-            platform-version: 1.0.6
-          - board: esp32-s2
-            platform-version: 2.0.0
+          - { board: esp32-s3, platform-version: 1.0.6 }
+          - { board: esp32-s3, platform-version: 2.0.0 }
+          - { board: esp32-s3, platform-version: 2.0.1 }
+          - { board: esp32-s3, platform-version: 2.0.2 }
+          - { board: esp32-s3, platform-version: default } # esp32s3/include/newlib/platform_include/assert.h:20:10: fatal error: sdkconfig.h: No such file or directory
+          - { board: esp32-s2, platform-version: 1.0.6 }
+          - { board: esp32-s2, platform-version: 2.0.0 }
 
         include:
           - board: esp32
