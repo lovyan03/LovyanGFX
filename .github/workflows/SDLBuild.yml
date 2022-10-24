@@ -84,7 +84,7 @@ jobs:
 
 
       - name: Build LGFX_SDL2 for Mac
-        if: ${{ matrix.os == 'macos-latest' }}
+        if: ${{ matrix.os == 'macos-12' }}
         run: |
           brew install sdl2
           cp .github/scripts/SDL.cmake ${{ env.PROJECT_DIR }}/CMakeLists.txt
