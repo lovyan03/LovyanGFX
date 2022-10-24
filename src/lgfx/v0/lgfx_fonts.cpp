@@ -19,6 +19,11 @@
 #define PROGMEM
 #endif
 
+extern "C" {
+  #pragma GCC diagnostic ignored "-Wshadow"
+  #pragma GCC diagnostic ignored "-Wdouble-promotion"
+}
+
 namespace lgfx
 {
  inline namespace v0
@@ -122,7 +127,7 @@ namespace lgfx
 
         if (fillbg && info->datawidth < fontWidth) {
           gfx->setRawColor(colortbl[0]);
-          gfx->writeFillRect(x + x0, y, x1 - x0, fontHeight * style->size_y); 
+          gfx->writeFillRect(x + x0, y, x1 - x0, fontHeight * style->size_y);
         }
         gfx->endWrite();
 /*
@@ -404,7 +409,7 @@ namespace lgfx
   }
 
   GFXglyph* GFXfont::getGlyph(uint16_t uniCode) const {
-    if (uniCode > last 
+    if (uniCode > last
     ||  uniCode < first) return nullptr;
     uint16_t custom_range_num = range_num;
     if (custom_range_num == 0) {
@@ -413,7 +418,7 @@ namespace lgfx
     }
     auto range_pst = range;
     size_t i = 0;
-    while ((uniCode > range_pst[i].end) 
+    while ((uniCode > range_pst[i].end)
         || (uniCode < range_pst[i].start)) {
       if (++i == custom_range_num) return nullptr;
     }
@@ -607,7 +612,7 @@ namespace lgfx
       const uint8_t *unicode_lookup_table;
 
       font += this->start_pos_unicode();
-      unicode_lookup_table = font; 
+      unicode_lookup_table = font;
 
       do
       {
@@ -632,7 +637,7 @@ namespace lgfx
     metrics->y_offset  = -metrics->baseline;
     metrics->x_offset  = 0;
   }
-  
+
   bool U8g2font::updateFontMetric(lgfx::FontMetrics *metrics, uint16_t uniCode) const
   {
     u8g2_font_decode_t decode(getGlyph(uniCode));
@@ -665,7 +670,7 @@ namespace lgfx
 
     int32_t xoffset = decode.get_signed_bits(bits_per_char_x()) * sx;
 
-    int32_t yoffset = -(decode.get_signed_bits(bits_per_char_y()) + h + font_metrics.y_offset); 
+    int32_t yoffset = -(decode.get_signed_bits(bits_per_char_y()) + h + font_metrics.y_offset);
 
     int32_t xAdvance = decode.get_signed_bits(bits_per_delta_x()) * sx;
 
@@ -748,7 +753,7 @@ namespace lgfx
               lx = 0;
               ++ly;
               y0 = y1;
-              y1 = (ly+yoffset + 1) * sy; 
+              y1 = (ly+yoffset + 1) * sy;
             }
           }
           i = !i;
@@ -1347,6 +1352,11 @@ namespace fonts
   const U8g2font efontTW_24_bi  = { lgfx_efont_tw_24_bi };
   const U8g2font efontTW_24_i   = { lgfx_efont_tw_24_i  };
  }
+}
+
+extern "C" {
+  #pragma GCC diagnostic ignored "-Wshadow"
+  #pragma GCC diagnostic ignored "-Wdouble-promotion"
 }
 
 #endif

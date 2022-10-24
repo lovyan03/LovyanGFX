@@ -1,26 +1,31 @@
 /*----------------------------------------------------------------------------/
   Lovyan GFX library - LCD graphics library .
-  
+
   support platform:
     ESP32 (SPI/I2S) with Arduino/ESP-IDF
     ATSAMD51 (SPI) with Arduino
-  
-Original Source:  
- https://github.com/lovyan03/LovyanGFX/  
 
-Licence:  
- [BSD](https://github.com/lovyan03/LovyanGFX/blob/master/license.txt)  
+Original Source:
+ https://github.com/lovyan03/LovyanGFX/
 
-Author:  
- [lovyan03](https://twitter.com/lovyan03)  
+Licence:
+ [BSD](https://github.com/lovyan03/LovyanGFX/blob/master/license.txt)
 
-Contributors:  
- [ciniml](https://github.com/ciniml)  
- [mongonta0716](https://github.com/mongonta0716)  
- [tobozo](https://github.com/tobozo)  
+Author:
+ [lovyan03](https://twitter.com/lovyan03)
+
+Contributors:
+ [ciniml](https://github.com/ciniml)
+ [mongonta0716](https://github.com/mongonta0716)
+ [tobozo](https://github.com/tobozo)
 /----------------------------------------------------------------------------*/
 #ifndef LGFX_BASE_HPP_
 #define LGFX_BASE_HPP_
+
+extern "C" {
+  #pragma GCC diagnostic ignored "-Wshadow"
+  #pragma GCC diagnostic ignored "-Wdouble-promotion"
+}
 
 #include "lgfx_common.hpp"
 #include "lgfx_fonts.hpp"
@@ -103,7 +108,7 @@ namespace lgfx
     template<typename T> inline void fillCircle      ( int32_t x, int32_t y                      , int32_t r, const T& color) { setColor(color); fillCircle   (x, y      , r); }
                                 void fillCircle      ( int32_t x, int32_t y                      , int32_t r);
     template<typename T> inline void drawEllipse     ( int32_t x, int32_t y, int32_t rx, int32_t ry         , const T& color) { setColor(color); drawEllipse  (x, y, rx, ry ); }
-                                void drawEllipse     ( int32_t x, int32_t y, int32_t rx, int32_t ry);     
+                                void drawEllipse     ( int32_t x, int32_t y, int32_t rx, int32_t ry);
     template<typename T> inline void fillEllipse     ( int32_t x, int32_t y, int32_t rx, int32_t ry         , const T& color) { setColor(color); fillEllipse  (x, y, rx, ry ); }
                                 void fillEllipse     ( int32_t x, int32_t y, int32_t rx, int32_t ry);
     template<typename T> inline void drawLine        ( int32_t x0, int32_t y0, int32_t x1, int32_t y1       , const T& color)  { setColor(color); drawLine(    x0, y0, x1, y1        ); }
@@ -724,7 +729,7 @@ namespace lgfx
     int32_t  _sx, _sy, _sw, _sh; // for scroll zone
 
     int32_t _clip_l = 0, _clip_r = -1, _clip_t = 0, _clip_b = -1; // clip rect
-    uint32_t _base_rgb888 = 0;  // gap fill colour for clear and scroll zone 
+    uint32_t _base_rgb888 = 0;  // gap fill colour for clear and scroll zone
     raw_color_t _color = 0xFFFFFFU;
 
     color_conv_t _write_conv;
@@ -945,7 +950,7 @@ namespace lgfx
 
     __attribute__ ((always_inline)) inline pixelcopy_t create_pc_antialias(const uint8_t *data, uint32_t raw_transparent = ~0u)
     {
-      return create_pc_antialias(reinterpret_cast<const rgb332_t*>(data), raw_transparent); 
+      return create_pc_antialias(reinterpret_cast<const rgb332_t*>(data), raw_transparent);
     }
     __attribute__ ((always_inline)) inline pixelcopy_t create_pc_antialias(const uint16_t *data, uint32_t raw_transparent = ~0u)
     {
@@ -1110,5 +1115,9 @@ namespace lgfx
 }
 
 using LovyanGFX = lgfx::LovyanGFX;
+
+extern "C" {
+  #pragma GCC diagnostic pop
+}
 
 #endif

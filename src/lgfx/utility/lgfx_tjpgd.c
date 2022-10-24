@@ -298,7 +298,7 @@ static int32_t huffext (	/* >=0: decoded data, <0: error code */
 )
 {
 	const uint8_t* hb_end = hb + 16 + 1;
-	uint_fast8_t msk = jd->dbit; 
+	uint_fast8_t msk = jd->dbit;
 	uint_fast16_t w = *jd->dptr & ((1ul << msk) - 1);
 	for (;;) {
 		if (!msk) {				/* Next byte? */
@@ -620,36 +620,36 @@ static JRESULT mcu_output (
 
 		/* Descale the MCU rectangular if needed */
 		if (JD_USE_SCALE && jd->scale) {
-			uint32_t x, y, r, g, b, s, w;
+			uint32_t x_, y_, r_, g_, b_, s_, w_;
 			uint8_t *op;
 
 			/* Get averaged RGB value of each square correcponds to a pixel */
-			s = jd->scale * 2;	/* Bumber of shifts for averaging */
-			w = 1 << jd->scale;	/* Width of square */
+			s_ = jd->scale * 2;	/* Bumber of shifts for averaging */
+			w_ = 1 << jd->scale;	/* Width of square */
 			op = workbuf;
 			iy = 0;
 			do {
 				ix = 0;
 				do {
 					rgb24 = &workbuf[(iy * mx + ix) * 3];
-					r = g = b = 0;
-					y = 0;
+					r_ = g_ = b_ = 0;
+					y_ = 0;
 					do {	/* Accumulate RGB value in the square */
-						x = 0;
+						x_ = 0;
 						do {
-							r += rgb24[x*3  ];
-							g += rgb24[x*3+1];
-							b += rgb24[x*3+2];
-						} while (++x < w);
+							r_ += rgb24[x_*3  ];
+							g_ += rgb24[x_*3+1];
+							b_ += rgb24[x_*3+2];
+						} while (++x_ < w_);
 						rgb24 += mx * 3;
-					} while (++y < w);
+					} while (++y_ < w_);
 					/* Put the averaged RGB value as a pixel */
-					op[0] = r >> s;
-					op[1] = g >> s;
-					op[2] = b >> s;
+					op[0] = r_ >> s_;
+					op[1] = g_ >> s_;
+					op[2] = b_ >> s_;
 					op += 3;
-				} while ((ix += w) < mx);
-			} while ((iy += w) < my);
+				} while ((ix += w_) < mx);
+			} while ((iy += w_) < my);
 		}
 
 	} else {	/* For only 1/8 scaling (left-top pixel in each block are the DC value of the block) */
@@ -681,10 +681,10 @@ static JRESULT mcu_output (
 	/* Squeeze up pixel table if a part of MCU is to be truncated */
 	mx >>= jd->scale;
 	if (rx < mx) {
-		uint8_t *s, *d;
-		s = d = workbuf;
-		for (size_t y = 1; y < ry; ++y) {
-			memcpy(d += rx * 3, s += mx * 3, rx * 3);	/* Copy effective pixels */
+		uint8_t *s_, *d;
+		s_ = d = workbuf;
+		for (size_t y_ = 1; y_ < ry; ++y_) {
+			memcpy(d += rx * 3, s_ += mx * 3, rx * 3);	/* Copy effective pixels */
 		}
 	}
 
@@ -704,7 +704,7 @@ static JRESULT mcu_output (
 	}
 
 	/* Output the RGB rectangular */
-	return outfunc(jd->device, workbuf, &rect) ? JDR_OK : JDR_INTR; 
+	return outfunc(jd->device, workbuf, &rect) ? JDR_OK : JDR_INTR;
 }
 
 

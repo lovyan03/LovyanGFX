@@ -1,23 +1,23 @@
 /*----------------------------------------------------------------------------/
   Lovyan GFX library - LCD graphics library .
-  
+
   support platform:
     ESP32 (SPI/I2S) with Arduino/ESP-IDF
     ATSAMD51 (SPI) with Arduino
-  
-Original Source:  
- https://github.com/lovyan03/LovyanGFX/  
 
-Licence:  
- [BSD](https://github.com/lovyan03/LovyanGFX/blob/master/license.txt)  
+Original Source:
+ https://github.com/lovyan03/LovyanGFX/
 
-Author:  
- [lovyan03](https://twitter.com/lovyan03)  
+Licence:
+ [BSD](https://github.com/lovyan03/LovyanGFX/blob/master/license.txt)
 
-Contributors:  
- [ciniml](https://github.com/ciniml)  
- [mongonta0716](https://github.com/mongonta0716)  
- [tobozo](https://github.com/tobozo)  
+Author:
+ [lovyan03](https://twitter.com/lovyan03)
+
+Contributors:
+ [ciniml](https://github.com/ciniml)
+ [mongonta0716](https://github.com/mongonta0716)
+ [tobozo](https://github.com/tobozo)
 /----------------------------------------------------------------------------*/
 #include "lgfx_common.hpp"
 #if defined (LGFX_ENABLE_V0)
@@ -43,6 +43,11 @@ Contributors:
 #include <malloc.h>
 #define alloca _alloca
 #endif
+
+extern "C" {
+  #pragma GCC diagnostic ignored "-Wshadow"
+  #pragma GCC diagnostic ignored "-Wdouble-promotion"
+}
 
 namespace lgfx
 {
@@ -420,7 +425,7 @@ namespace lgfx
 
   void LGFXBase::drawRoundRect(int32_t x, int32_t y, int32_t w, int32_t h, int32_t r)
   {
-    if (_adjust_abs(x, w)||_adjust_abs(y, h)) return; 
+    if (_adjust_abs(x, w)||_adjust_abs(y, h)) return;
     startWrite();
 
     w--;
@@ -465,7 +470,7 @@ namespace lgfx
 
   void LGFXBase::fillRoundRect(int32_t x, int32_t y, int32_t w, int32_t h, int32_t r)
   {
-    if (_adjust_abs(x, w)||_adjust_abs(y, h)) return; 
+    if (_adjust_abs(x, w)||_adjust_abs(y, h)) return;
     startWrite();
     int32_t y2 = y + r;
     int32_t y1 = y + h - r - 1;
@@ -508,7 +513,7 @@ namespace lgfx
       std::swap(xstart, ystart);
       std::swap(xend, yend);
       std::swap(x0, y0);
-      std::swap(x1, y1); 
+      std::swap(x1, y1);
     }
     if (x0 > x1) {
       std::swap(x0, x1);
@@ -1167,7 +1172,7 @@ namespace lgfx
       max_y += min_y;
       min_y = 0;
     }
-    if (min_y > max_y) 
+    if (min_y > max_y)
     {
       std::swap(min_y, max_y);
     }
@@ -1226,7 +1231,7 @@ namespace lgfx
       max_y += min_y;
       min_y = 0;
     }
-    if (min_y > max_y) 
+    if (min_y > max_y)
     {
       std::swap(min_y, max_y);
     }
@@ -1294,7 +1299,7 @@ namespace lgfx
       max_y += min_y;
       min_y = 0;
     }
-    if (min_y > max_y) 
+    if (min_y > max_y)
     {
       std::swap(min_y, max_y);
     }
@@ -1784,7 +1789,7 @@ namespace lgfx
           uint16_t uniCode = *tmp;
           if (_text_style.utf8) {
             do {
-              uniCode = decodeUTF8(*tmp); 
+              uniCode = decodeUTF8(*tmp);
             } while (uniCode < 0x20 && *++tmp);
             if (uniCode < 0x20) break;
           }
@@ -1930,7 +1935,7 @@ namespace lgfx
     }
 
   #if !defined (ARDUINO)
-    size_t LGFXBase::printf(const char * format, ...) 
+    size_t LGFXBase::printf(const char * format, ...)
     {
       char loc_buf[64];
       char * temp = loc_buf;
@@ -2645,7 +2650,7 @@ namespace lgfx
     else
     if (div_x == 1)
     {
-//*  
+//*
       p->gfx->waitDMA();
       do
       {
@@ -2791,7 +2796,7 @@ namespace lgfx
     void* rgbBuffer = heap_alloc_dma(width * 3);
 
     png_encoder_t enc = { this, x, y };
-    
+
     auto res = tdefl_write_image_to_png_file_in_memory_ex_with_cb(rgbBuffer, width, height, 3, datalen, 6, 0, (tdefl_get_png_row_func)png_encoder_get_row, &enc);
 
     heap_free(rgbBuffer);
@@ -2801,4 +2806,9 @@ namespace lgfx
 //----------------------------------------------------------------------------
  }
 }
+
+extern "C" {
+  #pragma GCC diagnostic pop
+}
+
 #endif

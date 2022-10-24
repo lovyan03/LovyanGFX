@@ -781,7 +781,7 @@ namespace lgfx
           return false;
         }
         _pin_backup_t backup[7] =
-        { pins[0], pins[1], pins[2], pins[3], pins[4], pins[5], pins[6] };      
+        { pins[0], pins[1], pins[2], pins[3], pins[4], pins[5], pins[6] };
 
         _pin_level(pin_cs, true);
 
@@ -832,10 +832,10 @@ namespace lgfx
           auto p = result->panel;
           p->bus(bus);
           {
-            auto cfg = p->config();
-            if (pin_cs  >= 0) { cfg.pin_cs  = pin_cs;  }
-            if (pin_rst >= 0) { cfg.pin_rst = pin_rst; }
-            p->config(cfg);
+            auto cfg_ = p->config();
+            if (pin_cs  >= 0) { cfg_.pin_cs  = pin_cs;  }
+            if (pin_rst >= 0) { cfg_.pin_rst = pin_rst; }
+            p->config(cfg_);
           }
           return true;
         }
@@ -1296,9 +1296,9 @@ namespace lgfx
         , 0x04, 0xFF, 0x54 // ILI9488
         , 40000000, 16000000
         // DATA 0 - 7
-        , GPIO_NUM_47, GPIO_NUM_21, GPIO_NUM_14, GPIO_NUM_13, GPIO_NUM_12, GPIO_NUM_11, GPIO_NUM_10, GPIO_NUM_9 
+        , GPIO_NUM_47, GPIO_NUM_21, GPIO_NUM_14, GPIO_NUM_13, GPIO_NUM_12, GPIO_NUM_11, GPIO_NUM_10, GPIO_NUM_9
         // DATA 8-15
-        , GPIO_NUM_3 , GPIO_NUM_8 , GPIO_NUM_16, GPIO_NUM_15, GPIO_NUM_7 , GPIO_NUM_6 , GPIO_NUM_5 , GPIO_NUM_4 
+        , GPIO_NUM_3 , GPIO_NUM_8 , GPIO_NUM_16, GPIO_NUM_15, GPIO_NUM_7 , GPIO_NUM_6 , GPIO_NUM_5 , GPIO_NUM_4
         , GPIO_NUM_35     // WR
         , GPIO_NUM_48     // RD
         , GPIO_NUM_36     // RS
@@ -1456,9 +1456,9 @@ namespace lgfx
         , 0x04, 0xFFFFFF, 0x668054 // ILI9488
         , 27000000, 16000000
         // DATA 0 - 7
-        , GPIO_NUM_33, GPIO_NUM_21, GPIO_NUM_14, GPIO_NUM_13, GPIO_NUM_12, GPIO_NUM_11, GPIO_NUM_10, GPIO_NUM_9 
+        , GPIO_NUM_33, GPIO_NUM_21, GPIO_NUM_14, GPIO_NUM_13, GPIO_NUM_12, GPIO_NUM_11, GPIO_NUM_10, GPIO_NUM_9
         // DATA 8-15
-        , GPIO_NUM_3 , GPIO_NUM_8 , GPIO_NUM_16, GPIO_NUM_15, GPIO_NUM_7 , GPIO_NUM_6 , GPIO_NUM_5 , GPIO_NUM_4 
+        , GPIO_NUM_3 , GPIO_NUM_8 , GPIO_NUM_16, GPIO_NUM_15, GPIO_NUM_7 , GPIO_NUM_6 , GPIO_NUM_5 , GPIO_NUM_4
         , GPIO_NUM_35     // WR
         , GPIO_NUM_34     // RD
         , GPIO_NUM_36     // RS
@@ -2401,7 +2401,7 @@ namespace lgfx
           return false;
         }
 
-        bool judgement(IBus* bus, int pin_cs) const override
+        bool judgement(IBus* bus, int pin_cs_) const override
         {
           uint32_t id = lgfx::millis();
           do
@@ -2826,9 +2826,9 @@ namespace lgfx
         } {}
 
         // LCD読出しでは判定が不十分なのでタッチパネルの有無をチェックする;
-        bool judgement(IBus* bus, int pin_cs) const override
+        bool judgement(IBus* bus, int pin_cs_) const override
         {
-          if (_detector_spi_t::judgement(bus, pin_cs))
+          if (_detector_spi_t::judgement(bus, pin_cs_))
           {
             _pin_backup_t backup[] = { GPIO_NUM_18, GPIO_NUM_19 };
             lgfx::i2c::init(I2C_NUM_1, GPIO_NUM_18, GPIO_NUM_19);
@@ -2929,7 +2929,7 @@ namespace lgfx
       static constexpr const _detector_wywy_ESP32S3_HMI_DevKit_t                 detector_wywy_ESP32S3_HMI_DevKit;
       static constexpr const _detector_Feather_ESP32_S3_TFT_t                    detector_Feather_ESP32_S3_TFT;
 
-      static constexpr const _detector_t* detector_list[] = 
+      static constexpr const _detector_t* detector_list[] =
       {
 
 #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_M5ATOM_S3LCD )
@@ -2971,7 +2971,7 @@ namespace lgfx
       static constexpr const _detector_Feather_ESP32_S2_TFT_t                     detector_Feather_ESP32_S2_TFT;
       static constexpr const _detector_FunHouse_t                                 detector_FunHouse;
 
-      static constexpr const _detector_t* detector_list[] = 
+      static constexpr const _detector_t* detector_list[] =
       {
 
 #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_ESP32_S2_KALUGA_1 )
@@ -2999,7 +2999,7 @@ namespace lgfx
 
       static constexpr const _detector_Makerfabs_ESP32_C3_TFT_Touch_SPI_t        detector_Makerfabs_ESP32_C3_TFT_Touch_SPI;
 
-      static constexpr const _detector_t* detector_list[] = 
+      static constexpr const _detector_t* detector_list[] =
       {
 
 #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_MAKERFABS_TFT_TOUCH_SPI )
@@ -3041,7 +3041,7 @@ namespace lgfx
 
       static constexpr const _detector_DDUINO32_XS_t           detector_DDUINO32_X;
 
-      static constexpr const _detector_t* detector_list_PICO_D4[] = 
+      static constexpr const _detector_t* detector_list_PICO_D4[] =
       {
 
 #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_M5STACK_COREINK )
@@ -3060,7 +3060,7 @@ namespace lgfx
         nullptr // terminator
       };
 
-      static constexpr const _detector_t* detector_list_D0WDQ5[] = 
+      static constexpr const _detector_t* detector_list_D0WDQ5[] =
       {
 #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_MAKERFABS_TOUCHCAMERA )
         &detector_Makerfabs_TouchCamera_9488,
@@ -3095,7 +3095,7 @@ namespace lgfx
         nullptr // terminator
       };
 
-      static constexpr const _detector_t* detector_list_D0WDQ6[] = 
+      static constexpr const _detector_t* detector_list_D0WDQ6[] =
       {
 #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_M5STATION )
         &detector_M5Station,
