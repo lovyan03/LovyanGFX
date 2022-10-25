@@ -24,57 +24,25 @@ Contributors:
 #include <esp_lcd_panel_rgb.h>
 #include <esp_pm.h>
 #include <esp_log.h>
-#include <rom/gpio.h>
 #include <esp_rom_gpio.h>
+#include <rom/gpio.h>
+#include <hal/gdma_ll.h>
 #include <hal/gpio_ll.h>
 #include <hal/gpio_hal.h>
+#include <hal/lcd_ll.h>
 #include <hal/lcd_hal.h>
 #include <soc/lcd_periph.h>
 #include <soc/lcd_cam_reg.h>
 #include <soc/lcd_cam_struct.h>
 #include <soc/gdma_channel.h>
 #include <soc/gdma_reg.h>
-#if !defined (DMA_OUT_LINK_CH0_REG)
-  #define DMA_OUT_LINK_CH0_REG       GDMA_OUT_LINK_CH0_REG
-  #define DMA_OUTFIFO_STATUS_CH0_REG GDMA_OUTFIFO_STATUS_CH0_REG
-  #define DMA_OUTLINK_START_CH0      GDMA_OUTLINK_START_CH0
-  #define DMA_OUTFIFO_EMPTY_CH0      GDMA_OUTFIFO_EMPTY_L3_CH0
+#include <soc/gdma_struct.h>
+
+#if __has_include (<esp_private/periph_ctrl.h>)
+ #include <esp_private/periph_ctrl.h>
+#else
+ #include <driver/periph_ctrl.h>
 #endif
-
-#include <freertos/semphr.h>
-
-struct esp_rgb_panel_t {
-    esp_lcd_panel_t base;  // Base class of generic lcd panel
-    int panel_id;          // LCD panel ID
-    lcd_hal_context_t hal; // Hal layer object
-    size_t data_width;     // Number of data lines (e.g. for RGB565, the data width is 16)
-    size_t sram_trans_align;  // Alignment for framebuffer that allocated in SRAM
-    size_t psram_trans_align; // Alignment for framebuffer that allocated in PSRAM
-    int disp_gpio_num;     // Display control GPIO, which is used to perform action like "disp_off"
-    intr_handle_t intr;    // LCD peripheral interrupt handle
-    esp_pm_lock_handle_t pm_lock; // Power management lock
-    size_t num_dma_nodes;  // Number of DMA descriptors that used to carry the frame buffer
-    uint8_t *fb;           // Frame buffer
-    size_t fb_size;        // Size of frame buffer
-    int data_gpio_nums[SOC_LCD_RGB_DATA_WIDTH]; // GPIOs used for data lines, we keep these GPIOs for action like "invert_color"
-    size_t resolution_hz;    // Peripheral clock resolution
-    esp_lcd_rgb_timing_t timings;   // RGB timing parameters (e.g. pclk, sync pulse, porch width)
-    gdma_channel_handle_t dma_chan; // DMA channel handle
-    int new_frame_id;               // ID for new frame, we use ID to identify whether the frame content has been updated
-    int cur_frame_id;               // ID for current transferring frame
-    SemaphoreHandle_t done_sem;     // Binary semaphore, indicating if the new frame has been flushed to LCD
-    esp_lcd_rgb_panel_frame_trans_done_cb_t on_frame_trans_done; // Callback, invoked after frame trans done
-    void *user_ctx;                // Reserved user's data of callback functions
-    int x_gap;                      // Extra gap in x coordinate, it's used when calculate the flush window
-    int y_gap;                      // Extra gap in y coordinate, it's used when calculate the flush window
-    struct {
-        unsigned int disp_en_level: 1; // The level which can turn on the screen by `disp_gpio_num`
-        unsigned int stream_mode: 1;   // If set, the LCD transfers data continuously, otherwise, it stops refreshing the LCD when transaction done
-        unsigned int new_frame: 1;     // Whether the frame we're going to flush is a new one
-        unsigned int fb_in_psram: 1;   // Whether the frame buffer is in PSRAM
-    } flags;
-    dma_descriptor_t dma_nodes[]; // DMA descriptor pool of size `num_dma_nodes`
-};
 
 namespace lgfx
 {
@@ -94,6 +62,37 @@ namespace lgfx
     _cfg = cfg;
   }
 
+
+  IRAM_ATTR void Bus_RGB::lcd_default_isr_handler(void *args)
+  {
+    Bus_RGB *me = (Bus_RGB*)args;
+    auto dev = getDev(me->config().port);
+
+    uint32_t intr_status = dev->lc_dma_int_st.val & 0x03;
+    dev->lc_dma_int_clr.val = intr_status;
+    if (intr_status & LCD_LL_EVENT_VSYNC_END) {
+      GDMA.channel[me->_dma_ch].out.conf0.out_rst = 1;
+      GDMA.channel[me->_dma_ch].out.conf0.out_rst = 0;
+      GDMA.channel[me->_dma_ch].out.link.addr = (uintptr_t)&(me->_dmadesc_restart);
+      GDMA.channel[me->_dma_ch].out.link.start = 1;
+
+    // bool need_yield = false;
+        // call user registered callback
+        // if (rgb_panel->on_vsync) {
+        //     if (rgb_panel->on_vsync(&rgb_panel->base, NULL, rgb_panel->user_ctx)) {
+        //         need_yield = true;
+        //     }
+        // }
+
+        // check whether to update the PCLK frequency, it should be safe to update the PCLK frequency in the VSYNC interrupt
+        // lcd_rgb_panel_try_update_pclk(rgb_panel);
+
+        // if (need_yield) {
+        //     portYIELD_FROM_ISR();
+        // }
+    }
+  }
+
   static void _gpio_pin_sig(uint32_t pin, uint32_t sig)
   {
     gpio_hal_iomux_func_sel(GPIO_PIN_MUX_REG[pin], PIN_FUNC_GPIO);
@@ -103,67 +102,130 @@ namespace lgfx
 
   bool Bus_RGB::init(void)
   {
-    esp_lcd_rgb_panel_config_t *_panel_config = (esp_lcd_rgb_panel_config_t *)heap_caps_calloc(1, sizeof(esp_lcd_rgb_panel_config_t), MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
+// ここでは ESP-IDFのLCDドライバに初期化部分だけ任せる
+// 本来なら esp_lcd_rgb_panel_config_t を使ってRGBバスを作成するところだが、
+// フレームバッファの確保やイベントハンドラは自前で処理したいので、敢えて i80バスを作成する。
+/*
+    esp_lcd_rgb_panel_config_t _panel_config;
 
-    _panel_config->clk_src = LCD_CLK_SRC_PLL160M;
+    memset(&_panel_config, 0, sizeof(_panel_config));
+    _panel_config.clk_src = LCD_CLK_SRC_PLL160M;
+    _panel_config.timings.pclk_hz = _cfg.freq_write;
+    _panel_config.timings.h_res = 1;//_cfg.panel->width();
+    _panel_config.timings.v_res = 1;//_cfg.panel->height();
 
-    _panel_config->timings.pclk_hz = _cfg.freq_write;
-    _panel_config->timings.h_res = _cfg.panel->width();
-    _panel_config->timings.v_res = _cfg.panel->height();
-    // The following parameters should refer to LCD spec
-    _panel_config->timings.hsync_pulse_width = _cfg.hsync_pulse_width;
-    _panel_config->timings.hsync_back_porch = _cfg.hsync_back_porch;
-    _panel_config->timings.hsync_front_porch = _cfg.hsync_front_porch;
-    _panel_config->timings.vsync_pulse_width = _cfg.vsync_pulse_width;
-    _panel_config->timings.vsync_back_porch = _cfg.vsync_back_porch;
-    _panel_config->timings.vsync_front_porch = _cfg.vsync_front_porch;
-    _panel_config->timings.flags.hsync_idle_low = (_cfg.hsync_polarity == 0) ? 1 : 0;
-    _panel_config->timings.flags.vsync_idle_low = (_cfg.vsync_polarity == 0) ? 1 : 0;
-    _panel_config->timings.flags.de_idle_high = 0;
-    _panel_config->timings.flags.pclk_active_neg = _cfg.pclk_idle_high;
-    _panel_config->timings.flags.pclk_idle_high = 0;
-
+    _panel_config.data_width = 16;
     // _panel_config->data_width = _cfg.panel->getWriteDepth() & color_depth_t::bit_mask; // RGB565 in parallel mode, thus 16bit in width
-    _panel_config->data_width = 16; // RGB565 in parallel mode, thus 16bit in width
-    _panel_config->sram_trans_align = 8;
-    _panel_config->psram_trans_align = 64;
-    _panel_config->hsync_gpio_num = _cfg.pin_hsync;
-    _panel_config->vsync_gpio_num = _cfg.pin_vsync;
-    _panel_config->de_gpio_num = _cfg.pin_henable;
-    _panel_config->pclk_gpio_num = _cfg.pin_pclk;
-    _panel_config->disp_gpio_num = GPIO_NUM_NC;
+
+    _panel_config.sram_trans_align = 8;
+    _panel_config.psram_trans_align = 64;
+    _panel_config.hsync_gpio_num = _cfg.pin_hsync;
+    _panel_config.vsync_gpio_num = _cfg.pin_vsync;
+    _panel_config.de_gpio_num = _cfg.pin_henable;
+    _panel_config.pclk_gpio_num = _cfg.pin_pclk;
+    _panel_config.disp_gpio_num = GPIO_NUM_NC;
 
     for (int i = 0; i < 16; ++ i) {
-      _panel_config->data_gpio_nums[i^8] = _cfg.pin_data[i];
+      _panel_config.data_gpio_nums[i] = _cfg.pin_data[i];
     }
+    _panel_config.flags.fb_in_psram = 1;             // allocate frame buffer in PSRAM
 
-    _panel_config->flags.disp_active_low = 0;
-    _panel_config->flags.relax_on_idle = 0;
-    _panel_config->flags.fb_in_psram = 1;             // allocate frame buffer in PSRAM
+    ESP_ERROR_CHECK(esp_lcd_new_rgb_panel(&_panel_config, &_panel_handle));
+/*/
+    // dummy settings.
+    esp_lcd_i80_bus_config_t bus_config;
+    memset(&bus_config, 0, sizeof(esp_lcd_i80_bus_config_t));
+    // bus_config.dc_gpio_num = GPIO_NUM_NC;
+    bus_config.dc_gpio_num = _cfg.pin_vsync;
+    bus_config.wr_gpio_num = _cfg.pin_pclk;
+    bus_config.sram_trans_align = 8;
+    bus_config.psram_trans_align = 64;
+    bus_config.clk_src = lcd_clock_source_t::LCD_CLK_SRC_PLL160M;
+    for (int i = 0; i < 16; ++i)
+    {
+      bus_config.data_gpio_nums[i^8] = _cfg.pin_data[i];
+    }
+    bus_config.bus_width = 16;
+    bus_config.max_transfer_bytes = 4092;
 
-    ESP_ERROR_CHECK(esp_lcd_new_rgb_panel(_panel_config, &_panel_handle));
-    ESP_ERROR_CHECK(esp_lcd_panel_reset(_panel_handle));
-    ESP_ERROR_CHECK(esp_lcd_panel_init(_panel_handle));
-
-    _rgb_panel = __containerof(_panel_handle, esp_rgb_panel_t, base);
-
-////////////////////////////
-//////////////////////////// 以下 自前コード
+    if (ESP_OK != esp_lcd_new_i80_bus(&bus_config, &_i80_bus)) {
+      return false;
+    }
+    uint8_t pixel_bytes = (_cfg.panel->getWriteDepth() & bit_mask) >> 3;
+    auto dev = getDev(_cfg.port);
 
     {
       static constexpr const uint8_t rgb332sig_tbl[] = { 1, 0, 1, 0, 1, 2, 3, 4, 2, 3, 4, 5, 6, 5, 6, 7 };
       static constexpr const uint8_t rgb565sig_tbl[] = { 8, 9, 10, 11, 12, 13, 14, 15, 0, 1, 2, 3, 4, 5, 6, 7 };
-      auto tbl = ((_cfg.panel->getWriteDepth() & bit_mask) > 8) ? rgb565sig_tbl : rgb332sig_tbl;
-      auto sigs = lcd_periph_signals.panels[_rgb_panel->panel_id].data_sigs;
+      auto tbl = (pixel_bytes == 2) ? rgb565sig_tbl : rgb332sig_tbl;
+      auto sigs = lcd_periph_signals.panels[_cfg.port];
       for (size_t i = 0; i < 16; i++) {
-        _gpio_pin_sig(_cfg.pin_data[i], sigs[tbl[i]]);
+        _gpio_pin_sig(_cfg.pin_data[i], sigs.data_sigs[tbl[i]]);
       }
+      _gpio_pin_sig(_cfg.pin_henable, sigs.de_sig);
+      _gpio_pin_sig(_cfg.pin_hsync, sigs.hsync_sig);
+      _gpio_pin_sig(_cfg.pin_vsync, sigs.vsync_sig);
+      _gpio_pin_sig(_cfg.pin_pclk, sigs.pclk_sig);
     }
 
-    uint32_t pclk_prescale = _rgb_panel->resolution_hz / _cfg.freq_write;
-    _rgb_panel->timings.pclk_hz = _rgb_panel->resolution_hz / pclk_prescale;
+    // periph_module_enable(lcd_periph_signals.panels[_cfg.port].module);
+    _dma_ch = search_dma_out_ch(SOC_GDMA_TRIG_PERIPH_LCD0);
+    if (_dma_ch < 0)
+    {
+      esp_lcd_del_i80_bus(_i80_bus);
+      ESP_LOGE("Bus_RGB", "DMA channel not found...");
+      return false;
+    }
 
-    auto dev = getDev(_cfg.port);
+
+    GDMA.channel[_dma_ch].out.peri_sel.sel = SOC_GDMA_TRIG_PERIPH_LCD0;
+
+    typeof(GDMA.channel[0].out.conf0) conf0;
+    conf0.val = 0;
+    conf0.out_eof_mode = 1;
+    conf0.outdscr_burst_en = 1;
+    conf0.out_data_burst_en = 1;
+    GDMA.channel[_dma_ch].out.conf0.val = conf0.val;
+
+    typeof(GDMA.channel[0].out.conf1) conf1;
+    conf1.val = 0;
+    conf1.out_ext_mem_bk_size = GDMA_LL_EXT_MEM_BK_SIZE_64B;
+    GDMA.channel[_dma_ch].out.conf1.val = conf1.val;
+
+
+
+    size_t fb_len = (_cfg.panel->width() * pixel_bytes) * _cfg.panel->height();
+    auto data = (uint8_t*)heap_alloc_psram(fb_len);
+    _frame_buffer = data;
+    static constexpr size_t MAX_DMA_LEN = (4096-64);
+    size_t dmadesc_size = (fb_len - 1) / MAX_DMA_LEN + 1;
+    auto dmadesc = (dma_descriptor_t*)heap_caps_malloc(sizeof(dma_descriptor_t) * dmadesc_size, MALLOC_CAP_DMA);
+    _dmadesc = dmadesc;
+
+    size_t len = fb_len;
+    while (len > MAX_DMA_LEN)
+    {
+      len -= MAX_DMA_LEN;
+      dmadesc->buffer = (uint8_t *)data;
+      data += MAX_DMA_LEN;
+      *(uint32_t*)dmadesc = MAX_DMA_LEN | MAX_DMA_LEN << 12 | 0x80000000;
+      dmadesc->next = dmadesc + 1;
+      dmadesc++;
+    }
+    *(uint32_t*)dmadesc = ((len + 3) & ( ~3 )) | len << 12 | 0xC0000000;
+    dmadesc->buffer = (uint8_t *)data;
+    dmadesc->next = _dmadesc;
+    GDMA.channel[_dma_ch].out.link.addr = (uintptr_t)&(_dmadesc);
+    GDMA.channel[_dma_ch].out.link.start = 1;
+    //////////////////////////////////////////////
+
+    memcpy(&_dmadesc_restart, _dmadesc, sizeof(_dmadesc_restart));
+    int skip_bytes = (GDMA_LL_L2FIFO_BASE_SIZE + 1) * pixel_bytes;
+    auto p = (uint8_t*)(_dmadesc_restart.buffer);
+    _dmadesc_restart.buffer = &p[skip_bytes];
+    _dmadesc_restart.dw0.length -= skip_bytes;
+    _dmadesc_restart.dw0.size -= skip_bytes;
+
 
     uint32_t hsw = _cfg.hsync_pulse_width;
     uint32_t hbp = _cfg.hsync_back_porch;
@@ -175,17 +237,17 @@ namespace lgfx
     uint32_t vfp = _cfg.vsync_front_porch;
     uint32_t active_height = _cfg.panel->height();
 
+    uint32_t div_a, div_b, div_n, clkcnt;
+    calcClockDiv(&div_a, &div_b, &div_n, &clkcnt, 240*1000*1000, std::min<uint32_t>(_cfg.freq_write, 40000000u));
     typeof(dev->lcd_clock) lcd_clock;
-    lcd_clock.val = dev->lcd_clock.val;
-  // ESP_LOGE("DEBUG","lcd_clock: %08x", lcd_clock.val);
-  //   lcd_clock.val = 0xe0000502;
-// ok:e0000502
-// ng:60000443
-    lcd_clock.lcd_clkcnt_n = pclk_prescale - 1;
-    lcd_clock.lcd_clk_equ_sysclk = 0; // 0:pixel_clk == lcd_clk
+    lcd_clock.lcd_clkcnt_n = std::max<uint32_t>(1u, clkcnt - 1);
+    lcd_clock.lcd_clk_equ_sysclk = (clkcnt == 1);
     lcd_clock.lcd_ck_idle_edge = false;
     lcd_clock.lcd_ck_out_edge = _cfg.pclk_idle_high;
-    lcd_clock.lcd_clk_sel = 3; // 3=PLL_F160M
+    lcd_clock.lcd_clkm_div_num = div_n;
+    lcd_clock.lcd_clkm_div_b = div_b;
+    lcd_clock.lcd_clkm_div_a = div_a;
+    lcd_clock.lcd_clk_sel = 2; // clock_select: 1=XTAL CLOCK / 2=240MHz / 3=160MHz
     lcd_clock.clk_en = true;
     dev->lcd_clock.val = lcd_clock.val;
 
@@ -197,11 +259,12 @@ namespace lgfx
     // lcd_user.lcd_update = false;
     // lcd_user.lcd_bit_order = false;
     // lcd_user.lcd_byte_order = false;
-    lcd_user.lcd_2byte_en = (_cfg.panel->getWriteDepth() >> 4) & 1; // RGB565 or RGB332
+    lcd_user.lcd_2byte_en = pixel_bytes > 1; // RGB565 or RGB332
     lcd_user.lcd_dout = 1;
     // lcd_user.lcd_dummy = 0;
     // lcd_user.lcd_cmd = 0;
-    lcd_user.lcd_start = 1;
+    lcd_user.lcd_update = 1;
+    lcd_user.lcd_reset = 1; // self clear
     // lcd_user.lcd_reset = 0;
     lcd_user.lcd_dummy_cyclelen = 3;
     // lcd_user.lcd_cmd_2_cycle_en = 0;
@@ -209,6 +272,7 @@ namespace lgfx
 
     typeof(dev->lcd_misc) lcd_misc;
     lcd_misc.val = 0;
+    lcd_misc.lcd_afifo_reset = true;
     lcd_misc.lcd_next_frame_en = true;
     lcd_misc.lcd_bk_en = true;
     // lcd_misc.lcd_vfk_cyclelen = 0;
@@ -240,12 +304,22 @@ namespace lgfx
 
     dev->lc_dma_int_ena.val = 1;
 
+    int isr_flags = ESP_INTR_FLAG_INTRDISABLED | ESP_INTR_FLAG_SHARED;
+    esp_intr_alloc_intrstatus(lcd_periph_signals.panels[_cfg.port].irq_id, isr_flags,
+                                   (uint32_t)&dev->lc_dma_int_st,
+                                    LCD_LL_EVENT_VSYNC_END, lcd_default_isr_handler, this, &_intr_handle);
+    esp_intr_enable(_intr_handle);
+
+    dev->lcd_user.lcd_update = 1;
+    dev->lcd_user.lcd_start = 1;
+
     return true;
   }
 
   uint8_t* Bus_RGB::getDMABuffer(uint32_t length)
   {
-    return _rgb_panel->fb;
+    return _frame_buffer;
+    // return _rgb_panel->fb;
   }
 
   void Bus_RGB::release(void)

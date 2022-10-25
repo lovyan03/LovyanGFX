@@ -261,7 +261,10 @@ namespace lgfx
     uint_fast8_t r = _rotation;
     if (r == 0 && param->transp == pixelcopy_t::NON_TRANSP && param->no_convert)
     {
-      auto sw = param->src_bitwidth;
+      auto bits = _write_bits;
+      x = x * bits >> 3;
+      w = w * bits >> 3;
+      auto sw = param->src_bitwidth * bits >> 3;
       auto src = &((uint8_t*)param->src_data)[param->src_y * sw + param->src_x];
       h += y;
       do

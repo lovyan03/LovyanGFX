@@ -126,7 +126,7 @@ namespace lgfx
     uint32_t _dmadesc_size = 0;
     dma_descriptor_t* _dmadesc = nullptr;
     esp_lcd_i80_bus_handle_t _i80_bus = nullptr;
-    int _dma_ch;
+    int32_t _dma_ch;
     volatile uint32_t* _dma_out_link_reg;
     volatile uint32_t* _dma_outstatus_reg;
 

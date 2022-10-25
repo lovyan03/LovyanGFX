@@ -128,8 +128,17 @@ namespace lgfx
 
   private:
     config_t _cfg;
+
+    dma_descriptor_t _dmadesc_restart;
+    dma_descriptor_t* _dmadesc = nullptr;
+    esp_lcd_i80_bus_handle_t _i80_bus = nullptr;
+    int32_t _dma_ch;
+
     esp_lcd_panel_handle_t _panel_handle = nullptr;
-    esp_rgb_panel_t *_rgb_panel = nullptr;
+
+    uint8_t *_frame_buffer = nullptr;
+    intr_handle_t _intr_handle;
+    static void lcd_default_isr_handler(void *args);
   };
 
 //----------------------------------------------------------------------------
