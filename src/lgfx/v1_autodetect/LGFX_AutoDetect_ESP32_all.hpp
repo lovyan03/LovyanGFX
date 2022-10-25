@@ -2811,7 +2811,7 @@ namespace lgfx
         constexpr _detector_WT32_SC01_t(void)
         : _detector_spi_t
         { board_t::board_WT32_SC01
-        , 0x04, 0xFFFFFFFF, 0 // 読出し不可につき全0
+        , 0,0,0       // (write only)
         , 40000000, 16000000
         , GPIO_NUM_13     // MOSI
         , (gpio_num_t)-1  // MISO
@@ -2827,23 +2827,18 @@ namespace lgfx
 
         bool judgement(IBus* bus, int pin_cs_) const override
         {
-          // 本来は読み出しができない製品だが、読み出しを試行する。;
-          // 得られた値が 全部0,全部FF,全部07の場合のみヒット判定とする。;
-          uint32_t value = _read_panel_id(bus, pin_cs_, id_cmd);
-          if (value == 0x00u || value == 0xFFFFFFFFu || value == 0x07070707u)
-          { // LCD読出しでは判定が不十分なのでタッチパネルの有無をチェックする;
-            _pin_backup_t backup[] = { GPIO_NUM_18, GPIO_NUM_19 };
-            lgfx::i2c::init(I2C_NUM_1, GPIO_NUM_18, GPIO_NUM_19);
-            // I2C通信でタッチパネルコントローラが存在するかチェックする
-            if (0x11 == lgfx::i2c::readRegister8(I2C_NUM_1, 0x38, 0xA8, 400000))
-            { /// FocalTech's Panel ID reg=0xA8  value=0x11
-              return true;
-            }
-            lgfx::i2c::release(I2C_NUM_1);
-            for (auto &b : backup)
-            {
-              b.restore();
-            }
+          // タッチパネルの有無をチェックする;
+          _pin_backup_t backup[] = { GPIO_NUM_18, GPIO_NUM_19 };
+          lgfx::i2c::init(I2C_NUM_1, GPIO_NUM_18, GPIO_NUM_19);
+          // I2C通信でタッチパネルコントローラが存在するかチェックする
+          if (0x11 == lgfx::i2c::readRegister8(I2C_NUM_1, 0x38, 0xA8, 400000))
+          { /// FocalTech's Panel ID reg=0xA8  value=0x11
+            return true;
+          }
+          lgfx::i2c::release(I2C_NUM_1);
+          for (auto &b : backup)
+          {
+            b.restore();
           }
           return false;
         }
@@ -3084,8 +3079,8 @@ namespace lgfx
 #endif
 
   // WT32_SC01 は読出しが出来ない製品だがタッチパネルの有無で判定する。;
-  // 誤判定防止のため順序はなるべく後半にしておく。;
-#if defined ( LGFX_AUTODETECT ) || defined ( LGFX_WT32_SC01 )
+  // LGFX_AUTO_DETECTでは機能しないようにしておく。;
+#if defined ( LGFX_WT32_SC01 )
         &detector_WT32_SC01,
 #endif
   // DSTIKE D-Duino32XS については読出しが出来ないため無条件設定となる。;
