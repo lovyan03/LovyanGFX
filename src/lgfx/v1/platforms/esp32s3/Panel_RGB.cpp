@@ -85,7 +85,7 @@ namespace lgfx
   bool Panel_RGB::initFrameBuffer(uint_fast16_t w, uint_fast16_t h, color_depth_t depth, uint8_t chunk_lines, uint8_t use_psram)
   {
     size_t lineArray_size = h * sizeof(void*);
-ESP_LOGE("DEBUG","height:%d", h);
+// ESP_LOGE("DEBUG","height:%d", h);
     uint8_t** lineArray = (uint8_t**)heap_alloc_dma(lineArray_size);
     if (lineArray)
     {
