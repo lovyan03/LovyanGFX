@@ -82,6 +82,7 @@ This library has the following advantages.
     - RA8875
     - RM68120
     - SH110x (SH1106, SH1107, M5Stack Unit OLED)
+    - S6D04K1
     - SSD1306 (SSD1309)
     - SSD1327
     - SSD1331
