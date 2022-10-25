@@ -138,8 +138,6 @@ namespace lgfx
     // bus_config.dc_gpio_num = GPIO_NUM_NC;
     bus_config.dc_gpio_num = _cfg.pin_vsync;
     bus_config.wr_gpio_num = _cfg.pin_pclk;
-    bus_config.sram_trans_align = 8;
-    bus_config.psram_trans_align = 64;
     bus_config.clk_src = lcd_clock_source_t::LCD_CLK_SRC_PLL160M;
     for (int i = 0; i < 16; ++i)
     {
