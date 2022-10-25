@@ -19,11 +19,10 @@ Contributors:
 #include <sdkconfig.h>
 #if defined (CONFIG_IDF_TARGET_ESP32S3)
 #if __has_include (<esp_lcd_panel_rgb.h>)
-#include <esp_lcd_panel_rgb.h>
-#include <esp_pm.h>
-
 #include "Bus_RGB.hpp"
 
+#include <esp_lcd_panel_rgb.h>
+#include <esp_pm.h>
 #include <esp_log.h>
 #include <rom/gpio.h>
 #include <esp_rom_gpio.h>
@@ -33,7 +32,6 @@ Contributors:
 #include <soc/lcd_periph.h>
 #include <soc/lcd_cam_reg.h>
 #include <soc/lcd_cam_struct.h>
-
 #include <soc/gdma_channel.h>
 #include <soc/gdma_reg.h>
 #if !defined (DMA_OUT_LINK_CH0_REG)
@@ -42,6 +40,8 @@ Contributors:
   #define DMA_OUTLINK_START_CH0      GDMA_OUTLINK_START_CH0
   #define DMA_OUTFIFO_EMPTY_CH0      GDMA_OUTFIFO_EMPTY_L3_CH0
 #endif
+
+#include <freertos/semphr.h>
 
 struct esp_rgb_panel_t {
     esp_lcd_panel_t base;  // Base class of generic lcd panel
@@ -92,16 +92,6 @@ namespace lgfx
   void Bus_RGB::config(const config_t& cfg)
   {
     _cfg = cfg;
-  }
-
-  static void _gpio_pin_init(int pin)
-  {
-    if (pin >= 0)
-    {
-      gpio_pad_select_gpio(pin);
-      gpio_hi(pin);
-      gpio_set_direction((gpio_num_t)pin, GPIO_MODE_OUTPUT);
-    }
   }
 
   static void _gpio_pin_sig(uint32_t pin, uint32_t sig)
