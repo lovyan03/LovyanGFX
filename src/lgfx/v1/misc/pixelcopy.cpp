@@ -24,24 +24,24 @@ namespace lgfx
   {
 //----------------------------------------------------------------------------
 
-    pixelcopy_t::pixelcopy_t( const void* src_data
-               , color_depth_t dst_depth
-               , color_depth_t src_depth
-               , bool dst_palette
-               , const void* src_palette
-               , uint32_t src_transp
+    pixelcopy_t::pixelcopy_t( const void* src_data_
+               , color_depth_t dst_depth_
+               , color_depth_t src_depth_
+               , bool dst_palette_
+               , const void* src_palette_
+               , uint32_t src_transp_
                )
-    : transp    ( src_transp )
-    , src_depth ( src_depth )
-    , dst_depth ( dst_depth )
-    , src_data  ( src_data   )
-    , palette   ( src_palette)
+    : transp    ( src_transp_ )
+    , src_depth ( src_depth_ )
+    , dst_depth ( dst_depth_ )
+    , src_data  ( src_data_   )
+    , palette   ( src_palette_)
     , src_mask  ( (1 << src_bits) - 1 )
     , dst_mask  ( (1 << dst_bits) - 1 )
-    , no_convert( src_depth == dst_depth )
+    , no_convert( src_depth_ == dst_depth_ )
     {
-      if (dst_palette || dst_bits < 8) {
-        if (src_palette && (dst_bits == 8) && (src_bits == 8)) {
+      if (dst_palette_ || dst_bits < 8) {
+        if (src_palette_ && (dst_bits == 8) && (src_bits == 8)) {
           fp_copy = pixelcopy_t::copy_rgb_affine<rgb332_t, rgb332_t>;
           fp_skip = pixelcopy_t::skip_rgb_affine<rgb332_t>;
         } else {
@@ -49,7 +49,7 @@ namespace lgfx
           fp_skip = pixelcopy_t::skip_bit_affine;
         }
       } else
-      if (src_palette || src_bits < 8) {
+      if (src_palette_ || src_bits < 8) {
         fp_copy = pixelcopy_t::get_fp_copy_palette_affine<bgr888_t>(dst_depth);
         fp_skip = pixelcopy_t::skip_bit_affine;
       } else {

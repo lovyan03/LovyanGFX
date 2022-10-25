@@ -734,8 +734,8 @@ namespace lgfx
         if (cur * sx * sy < 0) {
           xx = -xx; yy = -yy; xy = -xy; cur = -cur;
         }
-        dx = 4.0 * sy * cur * (x1 - x0) + xx - xy;
-        dy = 4.0 * sx * cur * (y0 - y1) + yy - xy;
+        dx = 4.0f * sy * cur * (x1 - x0) + xx - xy;
+        dy = 4.0f * sx * cur * (y0 - y1) + yy - xy;
         xx += xx; yy += yy; err = dx + dy + xy;
         do {
           drawPixel(x0, y0);
@@ -872,8 +872,8 @@ namespace lgfx
     endWrite();
   }
 
-  constexpr float LoAlphaTheshold = 1.0 / 32.0;
-  constexpr float HiAlphaTheshold = 1.0 - LoAlphaTheshold;
+  constexpr float LoAlphaTheshold = 1.0f / 32.0f;
+  constexpr float HiAlphaTheshold = 1.0f - LoAlphaTheshold;
   void LGFXBase::fillSmoothRoundRect(int32_t x, int32_t y, int32_t w, int32_t h, int32_t r)
   {
     startWrite();
@@ -928,13 +928,13 @@ namespace lgfx
     bool equal = fabsf(start - end) < std::numeric_limits<float>::epsilon();
     start = fmodf(start, 360);
     end = fmodf(end, 360);
-    if (start < 0) start += 360.0;
-    if (end < 0) end += 360.0;
+    if (start < 0) start += 360.0f;
+    if (end < 0) end += 360.0f;
 
     startWrite();
     fill_arc_helper(x, y, r0x, r1x, r0y, r1y, start, start);
     fill_arc_helper(x, y, r0x, r1x, r0y, r1y, end, end);
-    if (!equal && (fabsf(start - end) <= 0.0001)) { start = .0; end = 360.0; }
+    if (!equal && (fabsf(start - end) <= 0.0001f)) { start = .0; end = 360.0f; }
     fill_arc_helper(x, y, r0x, r0x, r0y, r0y, start, end);
     fill_arc_helper(x, y, r1x, r1x, r1y, r1y, start, end);
     endWrite();
@@ -950,9 +950,9 @@ namespace lgfx
     bool equal = fabsf(start - end) < std::numeric_limits<float>::epsilon();
     start = fmodf(start, 360);
     end = fmodf(end, 360);
-    if (start < 0) start += 360.0;
-    if (end < 0) end += 360.0;
-    if (!equal && (fabsf(start - end) <= 0.0001)) { start = .0; end = 360.0; }
+    if (start < 0) start += 360.0f;
+    if (end < 0) end += 360.0f;
+    if (!equal && (fabsf(start - end) <= 0.0001f)) { start = .0f; end = 360.0f; }
 
     startWrite();
     fill_arc_helper(x, y, r0x, r1x, r0y, r1y, start, end);
@@ -965,9 +965,9 @@ namespace lgfx
     float e_cos = (cosf(end * deg_to_rad));
     float sslope = s_cos / (sinf(start * deg_to_rad));
     float eslope = -1000000;
-    if (end != 360.0) eslope = e_cos / (sinf(end * deg_to_rad));
-    float swidth =  0.5 / s_cos;
-    float ewidth = -0.5 / e_cos;
+    if (end != 360.0f) eslope = e_cos / (sinf(end * deg_to_rad));
+    float swidth =  0.5f / s_cos;
+    float ewidth = -0.5f / e_cos;
 
     bool start180 = !(start < 180);
     bool end180 = end < 180;
@@ -1648,8 +1648,8 @@ namespace lgfx
           p.src_y32_add = 0;
           _panel->readRect(cl, newy, w, 1, linebufs[bidx], &p);
         }
-        auto linebuf = &linebufs[bidx][- cl];
-        paint_add_points(points, lx ,rx, newy, ly, linebuf);
+        auto linebuf_ = &linebufs[bidx][- cl];
+        paint_add_points(points, lx ,rx, newy, ly, linebuf_);
       } while (++i < 2);
     }
     size_t i = 0;
@@ -2057,9 +2057,9 @@ namespace lgfx
       }
       else
       {
-        int32_t sx = 65536 * _text_style.size_x;
+        int32_t sx_ = 65536 * _text_style.size_x;
         _font->updateFontMetric(&_font_metrics, uniCode);
-        _cursor_x += (_font_metrics.x_advance * sx) >> 16;
+        _cursor_x += (_font_metrics.x_advance * sx_) >> 16;
       }
     }
 
@@ -2081,7 +2081,7 @@ namespace lgfx
   }
 
 #if defined (LGFX_PRINTF_ENABLED)
-  size_t LGFXBase::printf(const char * __restrict format, ...) 
+  size_t LGFXBase::printf(const char * __restrict format, ...)
   {
     va_list arg;
     va_start(arg, format);
@@ -2294,93 +2294,93 @@ namespace lgfx
       gfx->setClipRect(_cl, _ct, _cw, _ch);
     }
 
-    bool begin( LGFXBase* gfx
-              , int32_t x
-              , int32_t y
-              , int32_t maxWidth
-              , int32_t maxHeight
-              , int32_t offX
-              , int32_t offY
-              , float zoom_x
-              , float zoom_y
-              , datum_t datum
-              , int32_t w, int32_t h)
+    bool begin( LGFXBase* gfx_
+              , int32_t x_
+              , int32_t y_
+              , int32_t maxWidth_
+              , int32_t maxHeight_
+              , int32_t offX_
+              , int32_t offY_
+              , float zoom_x_
+              , float zoom_y_
+              , datum_t datum_
+              , int32_t w_, int32_t h_)
     {
-      gfx->getClipRect(&_cl, &_ct, &_cw, &_ch);
+      gfx_->getClipRect(&_cl, &_ct, &_cw, &_ch);
 
-      if (zoom_y <= 0.0f || zoom_x <= 0.0f)
+      if (zoom_y_ <= 0.0f || zoom_x_ <= 0.0f)
       {
-        float fit_width  = (maxWidth  > 0) ? maxWidth  : gfx->width();
-        float fit_height = (maxHeight > 0) ? maxHeight : gfx->height();
-        if (zoom_x <= -1.0f) { zoom_x = fit_width  / w; }
-        if (zoom_y <= -1.0f) { zoom_y = fit_height / h; }
-        if (zoom_x <= 0.0f)
+        float fit_width  = (maxWidth_  > 0) ? maxWidth_  : gfx_->width();
+        float fit_height = (maxHeight_ > 0) ? maxHeight_ : gfx_->height();
+        if (zoom_x_ <= -1.0f) { zoom_x_ = fit_width  / w_; }
+        if (zoom_y_ <= -1.0f) { zoom_y_ = fit_height / h_; }
+        if (zoom_x_ <= 0.0f)
         {
-          if (zoom_y <= 0.0f)
+          if (zoom_y_ <= 0.0f)
           {
-            zoom_y = std::min<float>(fit_width / w, fit_height / h);
+            zoom_y_ = std::min<float>(fit_width / w_, fit_height / h_);
           }
-          zoom_x = zoom_y;
+          zoom_x_ = zoom_y_;
         }
-        if (zoom_y <= 0.0f)
+        if (zoom_y_ <= 0.0f)
         {
-          zoom_y = zoom_x;
+          zoom_y_ = zoom_x_;
         }
       }
 
-      if (datum)
+      if (datum_)
       {
-        if (datum & (datum_t::top_center | datum_t::top_right))
+        if (datum_ & (datum_t::top_center | datum_t::top_right))
         {
-          float fit_width  = (maxWidth  > 0) ? maxWidth  : gfx->width();
-          float fw = fit_width - w * zoom_x;
-          if (datum & datum_t::top_center) { fw /= 2; }
-          offX -= fw;
+          float fit_width  = (maxWidth_  > 0) ? maxWidth_  : gfx_->width();
+          float fw = fit_width - w_ * zoom_x;
+          if (datum_ & datum_t::top_center) { fw /= 2; }
+          offX_ -= fw;
         }
-        if (datum & (datum_t::middle_left | datum_t::bottom_left | datum_t::baseline_left))
+        if (datum_ & (datum_t::middle_left | datum_t::bottom_left | datum_t::baseline_left))
         {
-          float fit_height = (maxHeight > 0) ? maxHeight : gfx->height();
-          float fh = fit_height - h * zoom_y;
-          if (datum & datum_t::middle_left) { fh /= 2; }
-          offY -= fh;
+          float fit_height = (maxHeight_ > 0) ? maxHeight_ : gfx_->height();
+          float fh = fit_height - h_ * zoom_y_;
+          if (datum_ & datum_t::middle_left) { fh /= 2; }
+          offY_ -= fh;
         }
       }
 
-      if (maxWidth <= 0) { maxWidth = INT16_MAX; }
-      int32_t right = x + maxWidth;
+      if (maxWidth_ <= 0) { maxWidth_ = INT16_MAX; }
+      int32_t right = x + maxWidth_;
       const int32_t cr = _cw + _cl;
       if (right > cr) { right = cr; }
-      if (x < _cl) { offX -= x - _cl; x = _cl; }
-      if (offX < 0) { x -= offX; offX = 0; }
-      if (maxWidth > right - x) { maxWidth = right - x; }
-      int32_t ww = ((int32_t)ceilf(w * zoom_x)) - offX;
-      if (maxWidth > ww) { maxWidth = ww; }
+      if (x_ < _cl) { offX_ -= x_ - _cl; x_ = _cl; }
+      if (offX_ < 0) { x_ -= offX_; offX_ = 0; }
+      if (maxWidth_ > right - x_) { maxWidth_ = right - x_; }
+      int32_t ww = ((int32_t)ceilf(w_ * zoom_x_)) - offX_;
+      if (maxWidth_ > ww) { maxWidth_ = ww; }
 
-      if (maxHeight <= 0) { maxHeight = INT16_MAX; }
-      int32_t bottom = y + maxHeight;
+      if (maxHeight_ <= 0) { maxHeight_ = INT16_MAX; }
+      int32_t bottom = y_ + maxHeight_;
       const int32_t cb = _ch + _ct;
       if (bottom > cb) { bottom = cb; }
-      if (y < _ct) { offY -= y - _ct; y = _ct; }
-      if (offY < 0) { y -= offY; offY = 0; }
-      if (maxHeight > bottom - y) { maxHeight = bottom - y; }
-      int32_t hh = ((int32_t)ceilf(h * zoom_y)) - offY;
-      if (maxHeight > hh) { maxHeight = hh; }
+      if (y_ < _ct) { offY_ -= y_ - _ct; y_ = _ct; }
+      if (offY_ < 0) { y_ -= offY_; offY_ = 0; }
+      if (maxHeight_ > bottom - y_) { maxHeight_ = bottom - y_; }
+      int32_t hh = ((int32_t)ceilf(h_ * zoom_y_)) - offY_;
+      if (maxHeight_ > hh) { maxHeight_ = hh; }
 
-      this->gfx       = gfx      ;
-      this->x         = x        ;
-      this->y         = y        ;
-      this->maxWidth  = maxWidth ;
-      this->maxHeight = maxHeight;
-      this->offX      = offX     ;
-      this->offY      = offY     ;
-      this->zoom_x    = zoom_x   ;
-      this->zoom_y    = zoom_y   ;
-      this->datum     = datum    ;
+      this->gfx       = gfx_      ;
+      this->x         = x_        ;
+      this->y         = y_        ;
+      this->maxWidth  = maxWidth_ ;
+      this->maxHeight = maxHeight_;
+      this->offX      = offX_     ;
+      this->offY      = offY_     ;
+      this->zoom_x    = zoom_x_   ;
+      this->zoom_y    = zoom_y_   ;
+      this->datum     = datum_    ;
 
-      if (maxWidth  <= 0) return false;
-      if (maxHeight <= 0) return false;
+      if (maxWidth_  <= 0) return false;
+      if (maxHeight_ <= 0) return false;
 
-      gfx->setClipRect(x, y, maxWidth, maxHeight);
+      gfx_->setClipRect(x_, y_, maxWidth_, maxHeight_);
       return true;
     }
   };
@@ -2835,7 +2835,7 @@ namespace lgfx
     else
     if (div_x == 1)
     {
-//*  
+//*
       p->gfx->waitDMA();
       do
       {

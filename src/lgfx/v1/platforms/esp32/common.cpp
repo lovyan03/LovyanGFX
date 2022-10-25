@@ -758,10 +758,10 @@ namespace lgfx
           i2c_set_cmd(dev, 0, i2c_cmd_stop, 0);
           i2c_set_cmd(dev, 1, i2c_cmd_end, 0);
           dev->ctr.trans_start = 1;
-          static constexpr uint32_t intmask = I2C_ACK_ERR_INT_RAW_M | I2C_TIME_OUT_INT_RAW_M | I2C_END_DETECT_INT_RAW_M | I2C_ARBITRATION_LOST_INT_RAW_M | I2C_TRANS_COMPLETE_INT_RAW_M;
+          static constexpr uint32_t intmask_ = I2C_ACK_ERR_INT_RAW_M | I2C_TIME_OUT_INT_RAW_M | I2C_END_DETECT_INT_RAW_M | I2C_ARBITRATION_LOST_INT_RAW_M | I2C_TRANS_COMPLETE_INT_RAW_M;
           uint32_t ms = lgfx::millis();
           taskYIELD();
-          while (!(dev->int_raw.val & intmask) && ((millis() - ms) < 14));
+          while (!(dev->int_raw.val & intmask_) && ((millis() - ms) < 14));
 #if !defined (CONFIG_IDF_TARGET) || defined (CONFIG_IDF_TARGET_ESP32)
           if (res.has_value() && dev->int_raw.ack_err)
 #elif defined ( CONFIG_IDF_TARGET_ESP32S3 )

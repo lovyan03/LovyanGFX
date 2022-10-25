@@ -1,0 +1,336 @@
+Processing esp32@latest (board: esp32dev; platform: https://github.com/tasmota/platform-espressif32; framework: arduino)
+--------------------------------------------------------------------------------
+Verbose mode can be enabled via `-v, --verbose` option
+CONFIGURATION: https://docs.platformio.org/page/boards/espressif32/esp32dev.html
+PLATFORM: Espressif 32 (2.0.5+sha.f53ca2d) > Espressif ESP32 Dev Module
+HARDWARE: ESP32 240MHz, 320KB RAM, 4MB Flash
+DEBUG: Current (cmsis-dap) External (cmsis-dap, esp-bridge, esp-prog, iot-bus-jtag, jlink, minimodule, olimex-arm-usb-ocd, olimex-arm-usb-ocd-h, olimex-arm-usb-tiny-h, olimex-jtag-tiny, tumpa)
+PACKAGES:
+ - framework-arduinoespressif32 @ 2.0.5
+ - tool-esptoolpy @ 1.40300.220914 (4.3.0)
+ - tool-mklittlefs @ 1.203.210628 (2.3)
+ - tool-mkspiffs @ 2.230.0 (2.30)
+ - toolchain-xtensa-esp32 @ 8.4.0+2021r2-patch5
+LDF: Library Dependency Finder -> https://bit.ly/configure-pio-ldf
+LDF Modes: Finder ~ chain, Compatibility ~ soft
+Found 33 compatible libraries
+Scanning dependencies...
+Dependency Graph
+|-- LovyanGFX @ 0.4.18
+|   |-- SPI @ 2.0.0
+|   |-- Wire @ 2.0.0
+|-- SPIFFS @ 2.0.0
+|   |-- FS @ 2.0.0
+Building in release mode
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/Fonts/IPA/lgfx_font_japan.c.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/Fonts/efont/lgfx_efont_cn.c.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/Fonts/efont/lgfx_efont_ja.c.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/Fonts/efont/lgfx_efont_kr.c.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/Fonts/efont/lgfx_efont_tw.c.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/utility/lgfx_pngle.c.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/utility/lgfx_qoi.c.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/utility/lgfx_qrcode.c.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/utility/lgfx_tjpgd.c.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/utility/miniz.c.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v0/LGFXBase.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v0/lgfx_fonts.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v0/panel/Panel_GDEW0154M09.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v0/panel/Panel_IT8951.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v0/platforms/esp32_common.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v0/platforms/samd51_common.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v0/touch/Touch_FT5x06.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v0/touch/Touch_GT911.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v0/touch/Touch_STMPE610.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v0/touch/Touch_XPT2046.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/LGFXBase.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/LGFX_Button.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/LGFX_Sprite.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/lgfx_fonts.cpp.o
+.pio/libdeps/esp32@latest/LovyanGFX/src/lgfx/v1/LGFXBase.cpp: In member function 'void lgfx::v1::LGFXBase::draw_bezier_helper(int32_t, int32_t, int32_t, int32_t, int32_t, int32_t)':
+.pio/libdeps/esp32@latest/LovyanGFX/src/lgfx/v1/LGFXBase.cpp:737:23: warning: implicit conversion from 'float' to 'double' to match other operand of binary expression [-Wdouble-promotion]
+         dx = 4.0 * sy * cur * (x1 - x0) + xx - xy;
+              ~~~~~~~~~^~~~~
+.pio/libdeps/esp32@latest/LovyanGFX/src/lgfx/v1/LGFXBase.cpp:738:23: warning: implicit conversion from 'float' to 'double' to match other operand of binary expression [-Wdouble-promotion]
+         dy = 4.0 * sx * cur * (y0 - y1) + yy - xy;
+              ~~~~~~~~~^~~~~
+.pio/libdeps/esp32@latest/LovyanGFX/src/lgfx/v1/LGFXBase.cpp: At global scope:
+.pio/libdeps/esp32@latest/LovyanGFX/src/lgfx/v1/LGFXBase.cpp:876:41: warning: implicit conversion from 'float' to 'double' to match other operand of binary expression [-Wdouble-promotion]
+   constexpr float HiAlphaTheshold = 1.0 - LoAlphaTheshold;
+                                     ~~~~^~~~~~~~~~~~~~~~~
+.pio/libdeps/esp32@latest/LovyanGFX/src/lgfx/v1/LGFXBase.cpp: In member function 'void lgfx::v1::LGFXBase::drawEllipseArc(int32_t, int32_t, int32_t, int32_t, int32_t, int32_t, float, float)':
+.pio/libdeps/esp32@latest/LovyanGFX/src/lgfx/v1/LGFXBase.cpp:931:26: warning: implicit conversion from 'float' to 'double' to match other operand of binary expression [-Wdouble-promotion]
+     if (start < 0) start += 360.0;
+                    ~~~~~~^~~~~~~~
+.pio/libdeps/esp32@latest/LovyanGFX/src/lgfx/v1/LGFXBase.cpp:932:22: warning: implicit conversion from 'float' to 'double' to match other operand of binary expression [-Wdouble-promotion]
+     if (end < 0) end += 360.0;
+                  ~~~~^~~~~~~~
+.pio/libdeps/esp32@latest/LovyanGFX/src/lgfx/v1/LGFXBase.cpp:937:39: warning: implicit conversion from 'float' to 'double' to match other operand of binary expression [-Wdouble-promotion]
+     if (!equal && (fabsf(start - end) <= 0.0001)) { start = .0; end = 360.0; }
+                    ~~~~~~~~~~~~~~~~~~~^~~~~~~~~
+.pio/libdeps/esp32@latest/LovyanGFX/src/lgfx/v1/LGFXBase.cpp: In member function 'void lgfx::v1::LGFXBase::fillEllipseArc(int32_t, int32_t, int32_t, int32_t, int32_t, int32_t, float, float)':
+.pio/libdeps/esp32@latest/LovyanGFX/src/lgfx/v1/LGFXBase.cpp:953:26: warning: implicit conversion from 'float' to 'double' to match other operand of binary expression [-Wdouble-promotion]
+     if (start < 0) start += 360.0;
+                    ~~~~~~^~~~~~~~
+.pio/libdeps/esp32@latest/LovyanGFX/src/lgfx/v1/LGFXBase.cpp:954:22: warning: implicit conversion from 'float' to 'double' to match other operand of binary expression [-Wdouble-promotion]
+     if (end < 0) end += 360.0;
+                  ~~~~^~~~~~~~
+.pio/libdeps/esp32@latest/LovyanGFX/src/lgfx/v1/LGFXBase.cpp:955:39: warning: implicit conversion from 'float' to 'double' to match other operand of binary expression [-Wdouble-promotion]
+     if (!equal && (fabsf(start - end) <= 0.0001)) { start = .0; end = 360.0; }
+                    ~~~~~~~~~~~~~~~~~~~^~~~~~~~~
+.pio/libdeps/esp32@latest/LovyanGFX/src/lgfx/v1/LGFXBase.cpp: In member function 'void lgfx::v1::LGFXBase::fill_arc_helper(int32_t, int32_t, int32_t, int32_t, int32_t, int32_t, float, float)':
+.pio/libdeps/esp32@latest/LovyanGFX/src/lgfx/v1/LGFXBase.cpp:968:13: warning: implicit conversion from 'float' to 'double' to match other operand of binary expression [-Wdouble-promotion]
+     if (end != 360.0) eslope = e_cos / (sinf(end * deg_to_rad));
+         ~~~~^~~~~~~~
+.pio/libdeps/esp32@latest/LovyanGFX/src/lgfx/v1/LGFXBase.cpp:969:25: warning: implicit conversion from 'float' to 'double' to match other operand of binary expression [-Wdouble-promotion]
+     float swidth =  0.5 / s_cos;
+                     ~~~~^~~~~~~
+.pio/libdeps/esp32@latest/LovyanGFX/src/lgfx/v1/LGFXBase.cpp:970:25: warning: implicit conversion from 'float' to 'double' to match other operand of binary expression [-Wdouble-promotion]
+     float ewidth = -0.5 / e_cos;
+                    ~~~~~^~~~~~~
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/misc/SpriteBuffer.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/misc/common_function.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/misc/pixelcopy.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/panel/Panel_Device.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/panel/Panel_FrameBufferBase.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/panel/Panel_GDEW0154M09.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/panel/Panel_HasBuffer.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/panel/Panel_ILI9225.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/panel/Panel_IT8951.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/panel/Panel_LCD.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/panel/Panel_M5HDMI.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/panel/Panel_M5UnitLCD.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/panel/Panel_RA8875.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/panel/Panel_RM68120.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/panel/Panel_SSD1306.cpp.o
+In file included from ~/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-log.h:189,
+                 from ~/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal.h:76,
+                 from ~/.platformio/packages/framework-arduinoespressif32/cores/esp32/Arduino.h:36,
+                 from .pio/libdeps/esp32@latest/LovyanGFX/src/lgfx/v1/panel/../platforms/esp32/../../misc/DataWrapper.hpp:21,
+                 from .pio/libdeps/esp32@latest/LovyanGFX/src/lgfx/v1/panel/../platforms/esp32/common.hpp:20,
+                 from .pio/libdeps/esp32@latest/LovyanGFX/src/lgfx/v1/panel/../platforms/common.hpp:22,
+                 from .pio/libdeps/esp32@latest/LovyanGFX/src/lgfx/v1/panel/Panel_M5HDMI.hpp:21,
+                 from .pio/libdeps/esp32@latest/LovyanGFX/src/lgfx/v1/panel/Panel_M5HDMI.cpp:21:
+.pio/libdeps/esp32@latest/LovyanGFX/src/lgfx/v1/panel/Panel_M5HDMI.cpp: In member function 'bool lgfx::v1::Panel_M5HDMI::_init_resolution()':
+.pio/libdeps/esp32@latest/LovyanGFX/src/lgfx/v1/panel/Panel_M5HDMI.cpp:522:93: warning: implicit conversion from 'float' to 'double' when passing argument to function [-Wdouble-promotion]
+       ESP_LOGE(TAG, "resolution error. out of range  %dx%d %.2f Hz", mem_width, mem_height, _refresh_rate);
+                                                                                             ^~~~~~~~~~~~~
+~/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/log/include/esp_log.h:421:137: note: in definition of macro 'ESP_LOG_LEVEL'
+         if (level==ESP_LOG_ERROR )          { esp_log_write(ESP_LOG_ERROR,      tag, LOG_FORMAT(E, format), esp_log_timestamp(), tag, ##__VA_ARGS__); } \
+                                                                                                                                         ^~~~~~~~~~~
+~/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/log/include/esp_log.h:351:38: note: in expansion of macro 'ESP_LOG_LEVEL_LOCAL'
+ #define ESP_LOGE( tag, format, ... ) ESP_LOG_LEVEL_LOCAL(ESP_LOG_ERROR,   tag, format, ##__VA_ARGS__)
+                                      ^~~~~~~~~~~~~~~~~~~
+.pio/libdeps/esp32@latest/LovyanGFX/src/lgfx/v1/panel/Panel_M5HDMI.cpp:522:7: note: in expansion of macro 'ESP_LOGE'
+       ESP_LOGE(TAG, "resolution error. out of range  %dx%d %.2f Hz", mem_width, mem_height, _refresh_rate);
+       ^~~~~~~~
+.pio/libdeps/esp32@latest/LovyanGFX/src/lgfx/v1/panel/Panel_M5HDMI.cpp:522:93: warning: implicit conversion from 'float' to 'double' when passing argument to function [-Wdouble-promotion]
+       ESP_LOGE(TAG, "resolution error. out of range  %dx%d %.2f Hz", mem_width, mem_height, _refresh_rate);
+                                                                                             ^~~~~~~~~~~~~
+~/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/log/include/esp_log.h:422:137: note: in definition of macro 'ESP_LOG_LEVEL'
+         else if (level==ESP_LOG_WARN )      { esp_log_write(ESP_LOG_WARN,       tag, LOG_FORMAT(W, format), esp_log_timestamp(), tag, ##__VA_ARGS__); } \
+                                                                                                                                         ^~~~~~~~~~~
+~/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/log/include/esp_log.h:351:38: note: in expansion of macro 'ESP_LOG_LEVEL_LOCAL'
+ #define ESP_LOGE( tag, format, ... ) ESP_LOG_LEVEL_LOCAL(ESP_LOG_ERROR,   tag, format, ##__VA_ARGS__)
+                                      ^~~~~~~~~~~~~~~~~~~
+.pio/libdeps/esp32@latest/LovyanGFX/src/lgfx/v1/panel/Panel_M5HDMI.cpp:522:7: note: in expansion of macro 'ESP_LOGE'
+       ESP_LOGE(TAG, "resolution error. out of range  %dx%d %.2f Hz", mem_width, mem_height, _refresh_rate);
+       ^~~~~~~~
+.pio/libdeps/esp32@latest/LovyanGFX/src/lgfx/v1/panel/Panel_M5HDMI.cpp:522:93: warning: implicit conversion from 'float' to 'double' when passing argument to function [-Wdouble-promotion]
+       ESP_LOGE(TAG, "resolution error. out of range  %dx%d %.2f Hz", mem_width, mem_height, _refresh_rate);
+                                                                                             ^~~~~~~~~~~~~
+~/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/log/include/esp_log.h:423:137: note: in definition of macro 'ESP_LOG_LEVEL'
+         else if (level==ESP_LOG_DEBUG )     { esp_log_write(ESP_LOG_DEBUG,      tag, LOG_FORMAT(D, format), esp_log_timestamp(), tag, ##__VA_ARGS__); } \
+                                                                                                                                         ^~~~~~~~~~~
+~/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/log/include/esp_log.h:351:38: note: in expansion of macro 'ESP_LOG_LEVEL_LOCAL'
+ #define ESP_LOGE( tag, format, ... ) ESP_LOG_LEVEL_LOCAL(ESP_LOG_ERROR,   tag, format, ##__VA_ARGS__)
+                                      ^~~~~~~~~~~~~~~~~~~
+.pio/libdeps/esp32@latest/LovyanGFX/src/lgfx/v1/panel/Panel_M5HDMI.cpp:522:7: note: in expansion of macro 'ESP_LOGE'
+       ESP_LOGE(TAG, "resolution error. out of range  %dx%d %.2f Hz", mem_width, mem_height, _refresh_rate);
+       ^~~~~~~~
+.pio/libdeps/esp32@latest/LovyanGFX/src/lgfx/v1/panel/Panel_M5HDMI.cpp:522:93: warning: implicit conversion from 'float' to 'double' when passing argument to function [-Wdouble-promotion]
+       ESP_LOGE(TAG, "resolution error. out of range  %dx%d %.2f Hz", mem_width, mem_height, _refresh_rate);
+                                                                                             ^~~~~~~~~~~~~
+~/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/log/include/esp_log.h:424:137: note: in definition of macro 'ESP_LOG_LEVEL'
+         else if (level==ESP_LOG_VERBOSE )   { esp_log_write(ESP_LOG_VERBOSE,    tag, LOG_FORMAT(V, format), esp_log_timestamp(), tag, ##__VA_ARGS__); } \
+                                                                                                                                         ^~~~~~~~~~~
+~/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/log/include/esp_log.h:351:38: note: in expansion of macro 'ESP_LOG_LEVEL_LOCAL'
+ #define ESP_LOGE( tag, format, ... ) ESP_LOG_LEVEL_LOCAL(ESP_LOG_ERROR,   tag, format, ##__VA_ARGS__)
+                                      ^~~~~~~~~~~~~~~~~~~
+.pio/libdeps/esp32@latest/LovyanGFX/src/lgfx/v1/panel/Panel_M5HDMI.cpp:522:7: note: in expansion of macro 'ESP_LOGE'
+       ESP_LOGE(TAG, "resolution error. out of range  %dx%d %.2f Hz", mem_width, mem_height, _refresh_rate);
+       ^~~~~~~~
+.pio/libdeps/esp32@latest/LovyanGFX/src/lgfx/v1/panel/Panel_M5HDMI.cpp:522:93: warning: implicit conversion from 'float' to 'double' when passing argument to function [-Wdouble-promotion]
+       ESP_LOGE(TAG, "resolution error. out of range  %dx%d %.2f Hz", mem_width, mem_height, _refresh_rate);
+                                                                                             ^~~~~~~~~~~~~
+~/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/log/include/esp_log.h:425:137: note: in definition of macro 'ESP_LOG_LEVEL'
+         else                                { esp_log_write(ESP_LOG_INFO,       tag, LOG_FORMAT(I, format), esp_log_timestamp(), tag, ##__VA_ARGS__); } \
+                                                                                                                                         ^~~~~~~~~~~
+~/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/log/include/esp_log.h:351:38: note: in expansion of macro 'ESP_LOG_LEVEL_LOCAL'
+ #define ESP_LOGE( tag, format, ... ) ESP_LOG_LEVEL_LOCAL(ESP_LOG_ERROR,   tag, format, ##__VA_ARGS__)
+                                      ^~~~~~~~~~~~~~~~~~~
+.pio/libdeps/esp32@latest/LovyanGFX/src/lgfx/v1/panel/Panel_M5HDMI.cpp:522:7: note: in expansion of macro 'ESP_LOGE'
+       ESP_LOGE(TAG, "resolution error. out of range  %dx%d %.2f Hz", mem_width, mem_height, _refresh_rate);
+       ^~~~~~~~
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/panel/Panel_SSD1327.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/panel/Panel_SSD1331.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/panel/Panel_SSD1351.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/panel/Panel_SSD1963.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/platforms/arduino_default/Bus_SPI.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/platforms/arduino_default/Bus_Stream.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/platforms/arduino_default/common.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/platforms/esp32/Bus_I2C.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/platforms/esp32/Bus_Parallel8.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/platforms/esp32/Bus_SPI.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/platforms/esp32/Light_PWM.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/platforms/esp32/Panel_CVBS.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/platforms/esp32/common.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/platforms/esp32c3/Bus_Parallel8.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/platforms/esp32s2/Bus_Parallel16.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/platforms/esp32s2/Bus_Parallel8.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/platforms/esp32s3/Bus_Parallel16.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/platforms/esp32s3/Bus_Parallel8.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/platforms/esp8266/Bus_I2C.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/platforms/esp8266/Bus_SPI.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/platforms/esp8266/common.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/platforms/framebuffer/Panel_fb.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/platforms/framebuffer/common.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/platforms/opencv/Panel_OpenCV.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/platforms/opencv/common.cpp.o
+.pio/libdeps/esp32@latest/LovyanGFX/src/lgfx/v1/platforms/esp32/Panel_CVBS.cpp: In function 'void lgfx::v1::setup_palette_ntsc(uint32_t*, uint_fast16_t, uint_fast16_t, uint_fast8_t)':
+.pio/libdeps/esp32@latest/LovyanGFX/src/lgfx/v1/platforms/esp32/Panel_CVBS.cpp:228:56: warning: implicit conversion from 'float' to 'double' to match other operand of binary expression [-Wdouble-promotion]
+           int tmp = ((int)roundf(y + sinf(phase_offset + M_PI / 2 * j) * saturation)) >> 8;
+                                           ~~~~~~~~~~~~~^~~~~~~~~~~~~~
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/platforms/rp2040/Bus_I2C.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/platforms/rp2040/Bus_SPI.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/platforms/rp2040/Light_PWM.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/platforms/rp2040/common.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/platforms/samd21/Bus_I2C.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/platforms/samd21/Bus_SPI.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/platforms/samd21/common.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/platforms/samd51/Bus_I2C.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/platforms/samd51/Bus_SPI.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/platforms/samd51/common.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/platforms/sdl/Panel_sdl.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/platforms/sdl/common.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/platforms/spresense/Bus_SPI.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/platforms/spresense/common.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/platforms/stm32/Bus_SPI.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/platforms/stm32/common.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/touch/Touch_FT5x06.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/touch/Touch_GSLx680.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/touch/Touch_GT911.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/touch/Touch_NS2009.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/touch/Touch_STMPE610.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/touch/Touch_TT21xxx.cpp.o
+Compiling .pio/build/esp32@latest/lib82e/LovyanGFX/lgfx/v1/touch/Touch_XPT2046.cpp.o
+Compiling .pio/build/esp32@latest/src/main.cpp.o
+Generating partitions .pio/build/esp32@latest/partitions.bin
+Compiling .pio/build/esp32@latest/lib368/SPI/SPI.cpp.o
+Compiling .pio/build/esp32@latest/liba50/Wire/Wire.cpp.o
+Archiving .pio/build/esp32@latest/lib368/libSPI.a
+Indexing .pio/build/esp32@latest/lib368/libSPI.a
+Compiling .pio/build/esp32@latest/lib0c0/FS/FS.cpp.o
+Compiling .pio/build/esp32@latest/lib0c0/FS/vfs_api.cpp.o
+Archiving .pio/build/esp32@latest/liba50/libWire.a
+Indexing .pio/build/esp32@latest/liba50/libWire.a
+Compiling .pio/build/esp32@latest/liba15/SPIFFS/SPIFFS.cpp.o
+Compiling .pio/build/esp32@latest/FrameworkArduino/Esp.cpp.o
+Archiving .pio/build/esp32@latest/lib0c0/libFS.a
+Indexing .pio/build/esp32@latest/lib0c0/libFS.a
+Compiling .pio/build/esp32@latest/FrameworkArduino/FirmwareMSC.cpp.o
+Compiling .pio/build/esp32@latest/FrameworkArduino/FunctionalInterrupt.cpp.o
+Archiving .pio/build/esp32@latest/liba15/libSPIFFS.a
+Indexing .pio/build/esp32@latest/liba15/libSPIFFS.a
+Compiling .pio/build/esp32@latest/FrameworkArduino/HWCDC.cpp.o
+Compiling .pio/build/esp32@latest/FrameworkArduino/HardwareSerial.cpp.o
+~/.platformio/packages/framework-arduinoespressif32/cores/esp32/Esp.cpp: In member function 'uint32_t EspClass::magicFlashChipSize(uint8_t)':
+~/.platformio/packages/framework-arduinoespressif32/cores/esp32/Esp.cpp:367:51: warning: declaration of 'byte' shadows a global declaration [-Wshadow]
+ uint32_t EspClass::magicFlashChipSize(uint8_t byte)
+                                                   ^
+In file included from ~/.platformio/packages/framework-arduinoespressif32/cores/esp32/Esp.cpp:20:
+~/.platformio/packages/framework-arduinoespressif32/cores/esp32/Arduino.h:133:17: note: shadowed declaration is here
+ typedef uint8_t byte;
+                 ^~~~
+~/.platformio/packages/framework-arduinoespressif32/cores/esp32/Esp.cpp: In member function 'uint32_t EspClass::magicFlashChipSpeed(uint8_t)':
+~/.platformio/packages/framework-arduinoespressif32/cores/esp32/Esp.cpp:385:52: warning: declaration of 'byte' shadows a global declaration [-Wshadow]
+ uint32_t EspClass::magicFlashChipSpeed(uint8_t byte)
+                                                    ^
+In file included from ~/.platformio/packages/framework-arduinoespressif32/cores/esp32/Esp.cpp:20:
+~/.platformio/packages/framework-arduinoespressif32/cores/esp32/Arduino.h:133:17: note: shadowed declaration is here
+ typedef uint8_t byte;
+                 ^~~~
+~/.platformio/packages/framework-arduinoespressif32/cores/esp32/Esp.cpp: In member function 'FlashMode_t EspClass::magicFlashChipMode(uint8_t)':
+~/.platformio/packages/framework-arduinoespressif32/cores/esp32/Esp.cpp:401:54: warning: declaration of 'byte' shadows a global declaration [-Wshadow]
+ FlashMode_t EspClass::magicFlashChipMode(uint8_t byte)
+                                                      ^
+In file included from ~/.platformio/packages/framework-arduinoespressif32/cores/esp32/Esp.cpp:20:
+~/.platformio/packages/framework-arduinoespressif32/cores/esp32/Arduino.h:133:17: note: shadowed declaration is here
+ typedef uint8_t byte;
+                 ^~~~
+Compiling .pio/build/esp32@latest/FrameworkArduino/IPAddress.cpp.o
+Compiling .pio/build/esp32@latest/FrameworkArduino/IPv6Address.cpp.o
+Compiling .pio/build/esp32@latest/FrameworkArduino/MD5Builder.cpp.o
+Compiling .pio/build/esp32@latest/FrameworkArduino/Print.cpp.o
+Compiling .pio/build/esp32@latest/FrameworkArduino/Stream.cpp.o
+Compiling .pio/build/esp32@latest/FrameworkArduino/StreamString.cpp.o
+Compiling .pio/build/esp32@latest/FrameworkArduino/Tone.cpp.o
+Compiling .pio/build/esp32@latest/FrameworkArduino/USB.cpp.o
+Compiling .pio/build/esp32@latest/FrameworkArduino/USBCDC.cpp.o
+Compiling .pio/build/esp32@latest/FrameworkArduino/USBMSC.cpp.o
+Compiling .pio/build/esp32@latest/FrameworkArduino/WMath.cpp.o
+Compiling .pio/build/esp32@latest/FrameworkArduino/WString.cpp.o
+Compiling .pio/build/esp32@latest/FrameworkArduino/base64.cpp.o
+Compiling .pio/build/esp32@latest/FrameworkArduino/cbuf.cpp.o
+Compiling .pio/build/esp32@latest/FrameworkArduino/esp32-hal-adc.c.o
+Compiling .pio/build/esp32@latest/FrameworkArduino/esp32-hal-bt.c.o
+Compiling .pio/build/esp32@latest/FrameworkArduino/esp32-hal-cpu.c.o
+Compiling .pio/build/esp32@latest/FrameworkArduino/esp32-hal-dac.c.o
+Compiling .pio/build/esp32@latest/FrameworkArduino/esp32-hal-gpio.c.o
+Compiling .pio/build/esp32@latest/FrameworkArduino/esp32-hal-i2c-slave.c.o
+Compiling .pio/build/esp32@latest/FrameworkArduino/esp32-hal-i2c.c.o
+~/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-i2c-slave.c: In function 'i2c_slave_check_line_state':
+~/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-i2c-slave.c:547:30: warning: declaration of 'a' shadows a previous local [-Wshadow]
+                 for (uint8_t a=0;a<9; a++) {
+                              ^
+~/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal-i2c-slave.c:541:22: note: shadowed declaration is here
+         for (uint8_t a=0; a<9; a++) {
+                      ^
+Compiling .pio/build/esp32@latest/FrameworkArduino/esp32-hal-ledc.c.o
+Compiling .pio/build/esp32@latest/FrameworkArduino/esp32-hal-matrix.c.o
+Compiling .pio/build/esp32@latest/FrameworkArduino/esp32-hal-misc.c.o
+Compiling .pio/build/esp32@latest/FrameworkArduino/esp32-hal-psram.c.o
+Compiling .pio/build/esp32@latest/FrameworkArduino/esp32-hal-rgb-led.c.o
+Compiling .pio/build/esp32@latest/FrameworkArduino/esp32-hal-rmt.c.o
+Compiling .pio/build/esp32@latest/FrameworkArduino/esp32-hal-sigmadelta.c.o
+Compiling .pio/build/esp32@latest/FrameworkArduino/esp32-hal-spi.c.o
+Compiling .pio/build/esp32@latest/FrameworkArduino/esp32-hal-time.c.o
+Compiling .pio/build/esp32@latest/FrameworkArduino/esp32-hal-timer.c.o
+Compiling .pio/build/esp32@latest/FrameworkArduino/esp32-hal-tinyusb.c.o
+Compiling .pio/build/esp32@latest/FrameworkArduino/esp32-hal-touch.c.o
+Compiling .pio/build/esp32@latest/FrameworkArduino/esp32-hal-uart.c.o
+Compiling .pio/build/esp32@latest/FrameworkArduino/firmware_msc_fat.c.o
+Compiling .pio/build/esp32@latest/FrameworkArduino/libb64/cdecode.c.o
+Compiling .pio/build/esp32@latest/FrameworkArduino/libb64/cencode.c.o
+Compiling .pio/build/esp32@latest/FrameworkArduino/main.cpp.o
+Compiling .pio/build/esp32@latest/FrameworkArduino/stdlib_noniso.c.o
+Compiling .pio/build/esp32@latest/FrameworkArduino/wiring_pulse.c.o
+Compiling .pio/build/esp32@latest/FrameworkArduino/wiring_shift.c.o
+Archiving .pio/build/esp32@latest/libFrameworkArduino.a
+Indexing .pio/build/esp32@latest/libFrameworkArduino.a
+Linking .pio/build/esp32@latest/firmware.elf
+Retrieving maximum program size .pio/build/esp32@latest/firmware.elf
+Checking size .pio/build/esp32@latest/firmware.elf
+Advanced Memory Usage is available via "PlatformIO Home > Project Inspect"
+RAM:   [          ]   4.9% (used 15904 bytes from 327680 bytes)
+Flash: [==        ]  19.6% (used 257481 bytes from 1310720 bytes)
+Building .pio/build/esp32@latest/firmware.bin
+esptool.py v4.3
+Creating esp32 image...
+Merged 2 ELF sections
+Successfully created esp32 image.
+========================= [SUCCESS] Took 39.00 seconds =========================
+
+Environment    Status    Duration
+-------------  --------  ------------
+esp32@latest   SUCCESS   00:00:38.996
+========================= 1 succeeded in 00:00:38.996 =========================

@@ -159,7 +159,7 @@ namespace lgfx
             memcpy(&(me->_buffer[me->_datasize * pop_idx]), src, me->_datasize);
             pop_idx = (pop_idx + 1) & (cache_num - 1);
           }
-        } 
+        }
         MEMCPY_END()
       }
       vTaskDelete(nullptr);
@@ -225,7 +225,7 @@ namespace lgfx
         saturation = saturation * black_level / 2;
         for (int j = 0; j < 4; j++)
         {
-          int tmp = ((int)roundf(y + sinf(phase_offset + M_PI / 2 * j) * saturation)) >> 8;
+          int tmp = ((int)roundf(y + sinf(phase_offset + (float)M_PI / 2 * j) * saturation)) >> 8;
           buf[j] = tmp < 0 ? 0 : tmp > 255 ? 255 : tmp;
         }
         // I2Sに渡す際に処理負荷を軽減できるよう、予めバイトスワップ等を行ったテーブルを作成しておく;
@@ -992,7 +992,7 @@ namespace lgfx
       uint16_t panel_height = std::min(_cfg.panel_height, output_height);
       internal.memory_height = output_height;
       internal.panel_height = panel_height;
-      
+
       internal.offset_y = std::min<uint32_t>(_cfg.offset_y , output_height - panel_height);
     }
 
@@ -1076,7 +1076,7 @@ namespace lgfx
     // reset conf
     I2S0.conf.tx_reset = 1;
     I2S0.conf.tx_reset = 0;
-    
+
     /// 出力先のGPIOが25か26かでLEFT/RIGHTの出力順を変える。25==right / 26==left
     /// first側の出力は綺麗に出るが、もう一方の出力は値が乱れる (ランダムに前の出力値のビットが半端に混ざった外れ値が出る事がある);
     /// ゆえに出力先をfirstに設定しないと信号出力に外れ値ノイズが頻出することに注意;
@@ -1191,8 +1191,8 @@ namespace lgfx
 
     if (internal.palette)
     {
-      const signal_setup_info_t& setup_info = signal_setup_info_list[_config_detail.signal_type];
-      setup_info.setup_palette(internal.palette, internal.WHITE_LEVEL, internal.BLACK_LEVEL, _config_detail.chroma_level);
+      const signal_setup_info_t& setup_info_ = signal_setup_info_list[_config_detail.signal_type];
+      setup_info_.setup_palette(internal.palette, internal.WHITE_LEVEL, internal.BLACK_LEVEL, _config_detail.chroma_level);
     }
   }
 
@@ -1243,7 +1243,7 @@ namespace lgfx
 // printf ("lineArray %08x alloc \n", lineArray);
     if ( nullptr == lineArray ) { return false; }
 
-    /// 4byte alignment; 
+    /// 4byte alignment;
     width = (width + 3) & ~3u;
 
     _lines_buffer = lineArray;
