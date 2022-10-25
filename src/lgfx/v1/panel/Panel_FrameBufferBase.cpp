@@ -21,21 +21,39 @@ Contributors:
 #include "../misc/pixelcopy.hpp"
 #include "../misc/common_function.hpp"
 
+#if __has_include(<esp32s3/rom/cache.h>)
+ #include <esp32s3/rom/cache.h>
+ extern int Cache_WriteBack_Addr(uint32_t addr, uint32_t size);
+ #define LGFX_USE_CACHE_WRITEBACK_ADDR
+#endif
+
 namespace lgfx
 {
  inline namespace v1
  {
 //----------------------------------------------------------------------------
 
+#if defined ( LGFX_USE_CACHE_WRITEBACK_ADDR )
+  void cacheWriteBack(const void* ptr, uint32_t size)
+  {
+    if (!isEmbeddedMemory(ptr))
+    {
+      Cache_WriteBack_Addr((uint32_t)ptr, size);
+    }
+  }
+#else
+  static inline void cacheWriteBack(const void*, uint32_t) {}
+#endif
+
   bool Panel_FrameBufferBase::init(bool use_reset)
   {
+    setInvert(_invert);
+    setRotation(_rotation);
+
     if (!Panel_Device::init(use_reset))
     {
       return false;
     }
-
-    setInvert(_invert);
-    setRotation(_rotation);
     return true;
   }
 
@@ -83,7 +101,9 @@ namespace lgfx
     if (_write_bits >= 8)
     {
       size_t bytes = _write_bits >> 3;
-      memcpy(&_lines_buffer[y][x * bytes], &rawcolor, bytes);
+      auto ptr = &_lines_buffer[y][x * bytes];
+      memcpy(ptr, &rawcolor, bytes);
+      cacheWriteBack(ptr, bytes);
     }
   }
 
@@ -102,7 +122,9 @@ namespace lgfx
       size_t bytes = _write_bits >> 3;
       do
       {
-        memset_multi(&_lines_buffer[y][x * bytes], rawcolor, bytes, w);
+        auto ptr = &_lines_buffer[y][x * bytes];
+        memset_multi(ptr, rawcolor, bytes, w);
+        cacheWriteBack(ptr, bytes * w);
       } while (++y < h);
     }
   }

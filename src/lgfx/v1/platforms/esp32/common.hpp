@@ -81,6 +81,13 @@ namespace lgfx
   static inline void* heap_alloc_psram(size_t length) { return heap_caps_malloc((length + 3) & ~3, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);  }
   static inline void heap_free(void* buf) { heap_caps_free(buf); }
 
+  /// 引数のポインタが組込RAMか判定する  true=内部RAM / false=外部RAMやROM等;
+#if defined ( CONFIG_IDF_TARGET_ESP32S3 )
+  static inline bool isEmbeddedMemory(const void* ptr) { return (((uintptr_t)ptr & 0x3FF80000u) == 0x3FC80000u); }
+#else
+  static inline bool isEmbeddedMemory(const void* ptr) { return (((uintptr_t)ptr & 0x3FF80000u) == 0x3FF00000u); }
+#endif
+
   enum pin_mode_t
   { output
   , input
