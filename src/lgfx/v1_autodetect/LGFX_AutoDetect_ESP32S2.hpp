@@ -304,7 +304,7 @@ namespace lgfx
 
         goto init_clear;
       }
-#endif // end LGFX_FEATHER_ESP32_S2_TFT
+#endif // end LGFX_FUNHOUSE
 
       board = board_t::board_unknown;
 

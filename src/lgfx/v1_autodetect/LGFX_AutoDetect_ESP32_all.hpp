@@ -786,23 +786,23 @@ namespace lgfx
         _pin_level(pin_cs, true);
 
         Bus_SPI bus_spi;
-        auto cfg = bus_spi.config();
-        cfg.freq_write  = 8000000;
-        cfg.freq_read   = 8000000;
-        cfg.use_lock    = true;
+        auto bus_cfg = bus_spi.config();
+        bus_cfg.freq_write  = 8000000;
+        bus_cfg.freq_read   = 8000000;
+        bus_cfg.use_lock    = true;
 
 // パネル検出時点ではDMAを使用しない設定にしておく。
 // これはバスをリリースしてもDPORT_SPI_DMA_CHAN_SEL_REGの値がクリアされず、
 // 次回DMA設定時に動作に支障が出ることがあるため。
-        cfg.dma_channel = 0;
-        cfg.spi_host    = spi_host;
-        cfg.pin_mosi    = pin_mosi;
-        cfg.pin_miso    = pin_miso;
-        cfg.pin_sclk    = pin_sclk;
-        cfg.pin_dc      = pin_dc;
-        cfg.spi_mode    = spi_mode;
-        cfg.spi_3wire   = spi_3wire;
-        bus_spi.config(cfg);
+        bus_cfg.dma_channel = 0;
+        bus_cfg.spi_host    = spi_host;
+        bus_cfg.pin_mosi    = pin_mosi;
+        bus_cfg.pin_miso    = pin_miso;
+        bus_cfg.pin_sclk    = pin_sclk;
+        bus_cfg.pin_dc      = pin_dc;
+        bus_cfg.spi_mode    = spi_mode;
+        bus_cfg.spi_3wire   = spi_3wire;
+        bus_spi.config(bus_cfg);
         bus_spi.init();
         _pin_reset(pin_rst, use_reset); // LCD RST
 
@@ -816,26 +816,26 @@ namespace lgfx
 
         if (hit)
         {
-          cfg.dma_channel = 1;
+          bus_cfg.dma_channel = 1;
 #if defined (ESP_IDF_VERSION)
  #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 3, 0)
-          cfg.dma_channel = SPI_DMA_CH_AUTO;
+          bus_cfg.dma_channel = SPI_DMA_CH_AUTO;
  #endif
 #endif
-          cfg.freq_write = freq_write;
-          cfg.freq_read  = freq_read;
+          bus_cfg.freq_write = freq_write;
+          bus_cfg.freq_read  = freq_read;
           auto bus = new Bus_SPI();
-          bus->config(cfg);
+          bus->config(bus_cfg);
           result->bus = bus;
           result->board = board;
           setup(result);
           auto p = result->panel;
           p->bus(bus);
           {
-            auto cfg_ = p->config();
-            if (pin_cs  >= 0) { cfg_.pin_cs  = pin_cs;  }
-            if (pin_rst >= 0) { cfg_.pin_rst = pin_rst; }
-            p->config(cfg_);
+            auto cfg = p->config();
+            if (pin_cs  >= 0) { cfg.pin_cs  = pin_cs;  }
+            if (pin_rst >= 0) { cfg.pin_rst = pin_rst; }
+            p->config(cfg);
           }
           return true;
         }
@@ -2401,7 +2401,7 @@ namespace lgfx
           return false;
         }
 
-        bool judgement(IBus* bus, int pin_cs_) const override
+        bool judgement(IBus* bus, int) const override
         {
           uint32_t id = lgfx::millis();
           do
@@ -2828,6 +2828,9 @@ namespace lgfx
         // LCD読出しでは判定が不十分なのでタッチパネルの有無をチェックする;
         bool judgement(IBus* bus, int pin_cs_) const override
         {
+          REG_CLR_BIT(IO_MUX_GPIO0_REG + (pin_mosi * 0x04), FUN_PU);
+          REG_SET_BIT(IO_MUX_GPIO0_REG + (pin_mosi * 0x04), FUN_PD);
+
           if (_detector_spi_t::judgement(bus, pin_cs_))
           {
             _pin_backup_t backup[] = { GPIO_NUM_18, GPIO_NUM_19 };
