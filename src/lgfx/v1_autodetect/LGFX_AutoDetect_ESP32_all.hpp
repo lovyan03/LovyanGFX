@@ -2811,7 +2811,7 @@ namespace lgfx
         constexpr _detector_WT32_SC01_t(void)
         : _detector_spi_t
         { board_t::board_WT32_SC01
-        , 0x09, 0xFFFFFFFF, 0 // 読出し不可につき全0
+        , 0x04, 0xFFFFFFFF, 0 // 読出し不可につき全0
         , 40000000, 16000000
         , GPIO_NUM_13     // MOSI
         , (gpio_num_t)-1  // MISO
@@ -2825,14 +2825,13 @@ namespace lgfx
         , HSPI_HOST       // SPI HOST
         } {}
 
-        // LCD読出しでは判定が不十分なのでタッチパネルの有無をチェックする;
         bool judgement(IBus* bus, int pin_cs_) const override
         {
-          REG_CLR_BIT(IO_MUX_GPIO0_REG + (pin_mosi * 0x04), FUN_PU);
-          REG_SET_BIT(IO_MUX_GPIO0_REG + (pin_mosi * 0x04), FUN_PD);
-
-          if (_detector_spi_t::judgement(bus, pin_cs_))
-          {
+          // 本来は読み出しができない製品だが、読み出しを試行する。;
+          // 得られた値が 全部0,全部FF,全部07の場合のみヒット判定とする。;
+          uint32_t value = _read_panel_id(bus, pin_cs_, id_cmd);
+          if (value == 0x00u || value == 0xFFFFFFFFu || value == 0x07070707u)
+          { // LCD読出しでは判定が不十分なのでタッチパネルの有無をチェックする;
             _pin_backup_t backup[] = { GPIO_NUM_18, GPIO_NUM_19 };
             lgfx::i2c::init(I2C_NUM_1, GPIO_NUM_18, GPIO_NUM_19);
             // I2C通信でタッチパネルコントローラが存在するかチェックする
