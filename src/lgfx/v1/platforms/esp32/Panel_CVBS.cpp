@@ -72,6 +72,8 @@ namespace lgfx
 
     int prev_index;
 
+    uint8_t core_num;
+
     typedef void(*tasktype)(void*);
 
     bool begin(size_t line_width)
@@ -84,7 +86,7 @@ namespace lgfx
       _push_idx = 0;
       _using_idx = cache_num - 1;
       prev_index = 0;
-      xTaskCreatePinnedToCore(task_memcpy, "task_memcpy", 2048, this, 25, &_task_handle, PRO_CPU_NUM);
+      xTaskCreatePinnedToCore(task_memcpy, "task_memcpy", 2048, this, 25, &_task_handle, core_num==0 ? PRO_CPU_NUM : APP_CPU_NUM);
       return true;
     }
 
@@ -1010,6 +1012,7 @@ namespace lgfx
     internal.use_psram = use_psram;
     if (use_psram)
     {
+      _scanline_cache.core_num = _config_detail.core_num;
       _scanline_cache.begin(( internal.panel_width + 4 ) & ~3);
     }
 

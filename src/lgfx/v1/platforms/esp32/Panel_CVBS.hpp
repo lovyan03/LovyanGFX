@@ -57,6 +57,8 @@ namespace lgfx
 
       // 0=SRAM only (no use PSRAM) / 1=both(half PSRAM and half SRAM) / 2=PSRAM only (no use SRAM)
       uint8_t use_psram = 0;
+
+      uint8_t core_num = 0;
     };
 
     color_depth_t setColorDepth(color_depth_t) override { return _write_depth; }
@@ -65,6 +67,7 @@ namespace lgfx
     void setChromaLevel(uint8_t chroma);
     void setSignalType(config_detail_t::signal_type_t signal_type) { _config_detail.signal_type = signal_type; config_detail(_config_detail); }
     void setPsram( bool use_psram ) { _config_detail.use_psram = use_psram; config_detail(_config_detail); }
+    void setTaskCoreISR( uint8_t core_num_ ) { _config_detail.core_num = core_num_; }
 
     bool init(bool) override;
 
