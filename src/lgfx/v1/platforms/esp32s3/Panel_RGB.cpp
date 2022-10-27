@@ -45,7 +45,7 @@ namespace lgfx
 
     auto h = _cfg.panel_height;
 
-    auto _frame_buffer = _bus->getDMABuffer(0);
+    auto frame_buffer_ = _bus->getDMABuffer(0);
     size_t lineArray_size = h * sizeof(void*);
     uint8_t** lineArray = (uint8_t**)heap_alloc_dma(lineArray_size);
 
@@ -56,8 +56,8 @@ namespace lgfx
 
       uint8_t bits = _write_bits;
       int w = (_cfg.panel_width + 3) & ~3;
-      if (_frame_buffer) {
-        auto fb = _frame_buffer;
+      if (frame_buffer_) {
+        auto fb = frame_buffer_;
         for (int i = 0; i < h; ++i) {
           lineArray[i] = fb;
           fb += w * bits >> 3;
@@ -115,13 +115,13 @@ namespace lgfx
     if (_frame_buffer)
     {
       heap_free(_frame_buffer);
-      _frame_buffer = nullptr; 
+      _frame_buffer = nullptr;
     }
 
     if (_lines_buffer)
     {
       heap_free(_lines_buffer);
-      _lines_buffer = nullptr; 
+      _lines_buffer = nullptr;
     }
   }
 
