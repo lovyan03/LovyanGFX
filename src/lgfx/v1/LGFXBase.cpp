@@ -2302,7 +2302,7 @@ namespace lgfx
               , float zoom_x_
               , float zoom_y_
               , datum_t datum_
-              , int32_t w, int32_t h)
+              , int32_t w_, int32_t h_)
     {
       gfx_->getClipRect(&_cl, &_ct, &_cw, &_ch);
 
@@ -2310,13 +2310,13 @@ namespace lgfx
       {
         float fit_width  = (maxWidth_  > 0) ? maxWidth_  : gfx_->width();
         float fit_height = (maxHeight_ > 0) ? maxHeight_ : gfx_->height();
-        if (zoom_x_ <= -1.0f) { zoom_x_ = fit_width  / w; }
-        if (zoom_y_ <= -1.0f) { zoom_y_ = fit_height / h; }
+        if (zoom_x_ <= -1.0f) { zoom_x_ = fit_width  / w_; }
+        if (zoom_y_ <= -1.0f) { zoom_y_ = fit_height / h_; }
         if (zoom_x_ <= 0.0f)
         {
           if (zoom_y_ <= 0.0f)
           {
-            zoom_y_ = std::min<float>(fit_width / w, fit_height / h);
+            zoom_y_ = std::min<float>(fit_width / w_, fit_height / h_);
           }
           zoom_x_ = zoom_y_;
         }
@@ -2331,14 +2331,14 @@ namespace lgfx
         if (datum_ & (datum_t::top_center | datum_t::top_right))
         {
           float fit_width  = (maxWidth_  > 0) ? maxWidth_  : gfx_->width();
-          float fw = fit_width - w * zoom_x_;
+          float fw = fit_width - w_ * zoom_x_;
           if (datum_ & datum_t::top_center) { fw /= 2; }
           offX_ -= fw;
         }
         if (datum_ & (datum_t::middle_left | datum_t::bottom_left | datum_t::baseline_left))
         {
           float fit_height = (maxHeight_ > 0) ? maxHeight_ : gfx_->height();
-          float fh = fit_height - h * zoom_y_;
+          float fh = fit_height - h_ * zoom_y_;
           if (datum_ & datum_t::middle_left) { fh /= 2; }
           offY_ -= fh;
         }
@@ -2351,7 +2351,7 @@ namespace lgfx
       if (x_ < _cl) { offX_ -= x_ - _cl; x_ = _cl; }
       if (offX_ < 0) { x_ -= offX_; offX_ = 0; }
       if (maxWidth_ > right - x_) { maxWidth_ = right - x_; }
-      int32_t ww = ((int32_t)ceilf(w * zoom_x_)) - offX_;
+      int32_t ww = ((int32_t)ceilf(w_ * zoom_x_)) - offX_;
       if (maxWidth_ > ww) { maxWidth_ = ww; }
 
       if (maxHeight_ <= 0) { maxHeight_ = INT16_MAX; }
@@ -2361,7 +2361,7 @@ namespace lgfx
       if (y_ < _ct) { offY_ -= y_ - _ct; y_ = _ct; }
       if (offY_ < 0) { y_ -= offY_; offY_ = 0; }
       if (maxHeight_ > bottom - y_) { maxHeight_ = bottom - y_; }
-      int32_t hh = ((int32_t)ceilf(h * zoom_y_)) - offY_;
+      int32_t hh = ((int32_t)ceilf(h_ * zoom_y_)) - offY_;
       if (maxHeight_ > hh) { maxHeight_ = hh; }
 
       this->gfx       = gfx_      ;
