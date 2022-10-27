@@ -63,7 +63,10 @@ namespace lgfx
   #define ISR_END()
   #define MEMCPY_BEGIN()
   #define MEMCPY_END()
-  #define LOVYAN_USE_CORE_NUM 0
+
+  // Set to: PRO_CPU_NUM or APP_CPU_NUM (default PRO_CPU_NUM)
+  // Set to APP_CPU_NUM if enabling use_psram while in the espidf environment
+  #define LOVYAN_CVBS_USE_CORE_NUM PRO_CPU_NUM 
 
   // PSRAM使用時、表示内容を先行してSRAMにmemcpyするためのクラス;
   class scanline_cache_t
@@ -85,7 +88,7 @@ namespace lgfx
       _push_idx = 0;
       _using_idx = cache_num - 1;
       prev_index = 0;
-      xTaskCreatePinnedToCore(task_memcpy, "task_memcpy", 2048, this, 25, &_task_handle, LOVYAN_USE_CORE_NUM);
+      xTaskCreatePinnedToCore(task_memcpy, "task_memcpy", 2048, this, 25, &_task_handle, LOVYAN_CVBS_USE_CORE_NUM);
       return true;
     }
 
@@ -1224,13 +1227,6 @@ namespace lgfx
     if (flg_psram) { res = (uint8_t*)heap_alloc_psram(size); }
     if (res == nullptr)
     {
-      //heap_caps_malloc((size + 3) & ~3, MALLOC_CAP_DMA);
-      int funvar = (size + 3) & ~3;
-      int freeb = heap_caps_get_largest_free_block(MALLOC_CAP_DMA);
-      printf("==========================================\n");
-      printf("Our largest free block: %d \n", freeb);
-      printf("We are requesting:      %d \n", funvar);
-      printf("==========================================\n");
       res = (uint8_t*)heap_alloc_dma(size);
     }
     if (res) { memset(res, 0, size); }
