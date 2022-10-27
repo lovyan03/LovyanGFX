@@ -1304,7 +1304,7 @@ namespace lgfx
 // printf ("line %08x alloc \n", lineChunk);
           if (lineChunk == nullptr)
           {
-            ESP_LOGE(TAG, "framebuffer memory alloc fail2.");
+            ESP_LOGE(TAG, "framebuffer memory alloc fail.");
 
             deinitFrameBuffer();
             return false;
