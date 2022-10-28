@@ -21,7 +21,7 @@ Contributors:
 #include "../misc/pixelcopy.hpp"
 #include "../misc/common_function.hpp"
 
-#if __has_include(<esp32s3/rom/cache.h>)
+#if defined ESP32S3 && __has_include(<esp32s3/rom/cache.h>)
  #include <esp32s3/rom/cache.h>
  extern int Cache_WriteBack_Addr(uint32_t addr, uint32_t size);
  #define LGFX_USE_CACHE_WRITEBACK_ADDR
