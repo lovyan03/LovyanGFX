@@ -55,7 +55,7 @@ namespace lgfx
       };
 
       // 1秒間の表示更新回数 (この値に基づいて送信クロックが自動計算される)
-      uint16_t refresh_rate = 60;
+      uint16_t refresh_rate = 120;
 
       union
       {

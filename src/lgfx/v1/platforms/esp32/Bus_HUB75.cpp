@@ -144,7 +144,7 @@ namespace lgfx
     size_t buf_bytes = chain_length * (TRANSFER_PERIOD_COUNT + 1) * sizeof(uint16_t);
     for (int i = 0; i < 2; i++) {
       // ラインバッファ確保。 点灯期間1回分 + データ転送期間 8回分の合計9回分を連続領域として確保する
-      // 点灯期間は合計34回あるが、同じ領域を使い回しできるので1回分でよい
+      // 点灯期間は合計19回あるが、同じ領域を使い回しできるのでDMAバッファは1回分でよい;
       _dma_buf[i] = (uint16_t*)heap_alloc_dma(buf_bytes);
       if (_dma_buf[i] == nullptr) {
         ESP_EARLY_LOGE("Bus_HUB75", "memory allocate error.");
@@ -235,7 +235,6 @@ namespace lgfx
     i2s_dev->int_clr.val = int_ena;
 
     // 点灯期間のDMAディスクリプタのインデクスを順に処理する
-    // for (uint8_t i: { 18, 10, 6, 4, 3, 2, 1, 0} )
     for (uint8_t i: { 11, 7, 5, 4, 3, 2, 1, 0} )
     {
       if (--dsclen_shifter < 0) { dsclen_shifter = 0; }
@@ -328,12 +327,22 @@ namespace lgfx
 // DEBUG
 // lgfx::gpio_hi(15);
 
-    int y = me->_dma_y;
+    int yidx = me->_dma_y;
     auto panel_height = me->_panel_height;
 
+    // ビット順序反転テーブル
+    uint8_t ytbl[] = { 0, 16, 8, 24, 4, 20, 12, 28, 2, 18, 10, 26, 6, 22, 14, 30, 1, 17, 9, 25, 5, 21, 13, 29, 3, 19, 11, 27, 7, 23, 15, 31 };
+    // uint_fast8_t prev_y = ytbl[yidx];
     // uint32_t prev_addr = y << 8 | y << 24 | _mask_oe;
-    y = (y + 1) & ((panel_height>>1) - 1);
-    me->_dma_y = y;
+    yidx = (yidx + 1) & ((panel_height>>1) - 1);
+    me->_dma_y = yidx;
+    uint_fast8_t y = ytbl[yidx];
+
+    if (panel_height <= 32)
+    {
+      // prev_y >>= 1;
+      y >>= 1;
+    }
 
     auto desc = (lldesc_t*)dev->out_eof_des_addr;
     auto dst = (uint16_t*)desc->buf;
@@ -379,53 +388,71 @@ namespace lgfx
     auto s2 = (uint32_t*)src2;
     auto len = chain_length >> 1;
     uint32_t x = len;
-    do {
-      uint32_t rgb1 = *s1++;
-      uint32_t rgb2 = *s2++;
-      uint32_t rgb3 = rgb1 >> 16;
-      uint32_t rgb4 = rgb2 >> 16;
+    do
+    {
+      uint32_t swap565_1 = *s1++;
+      uint32_t swap565_2 = *s2++;
 
-      uint32_t b1 =  rgb1 >> 7;
-      uint32_t b2 =  rgb2 >> 7;
-      uint32_t b3 =  rgb3 >> 7;
-      uint32_t b4 =  rgb4 >> 7;
-      uint32_t g1 =  rgb1 & 0x07;
-      uint32_t g2 =  rgb2 & 0x07;
-      uint32_t g3 =  rgb3 & 0x07;
-      uint32_t g4 =  rgb4 & 0x07;
-      uint32_t r1 =  rgb1 >> 2;
-      uint32_t r2 =  rgb2 >> 2;
-      uint32_t r3 =  rgb3 >> 2;
-      uint32_t r4 =  rgb4 >> 2;
-      g1 = (0x07 & (rgb1 >> 13)) + (g1 << 3);
-      g2 = (0x07 & (rgb2 >> 13)) + (g2 << 3);
-      g3 =         (rgb3 >> 13)  + (g3 << 3);
-      g4 =         (rgb4 >> 13)  + (g4 << 3);
-      b1 &= 0x3E;
-      b2 &= 0x3E;
-      b3 &= 0x3E;
-      b4 &= 0x3E;
+      uint32_t r1 = swap565_1 >> 2;
+      uint32_t r2 = swap565_2 >> 2;
+
+      uint32_t g1 = swap565_1 & 0x070007;
+      uint32_t g2 = swap565_2 & 0x070007;
+
+      uint32_t b1 = r1 >> 5;
+      uint32_t b2 = r2 >> 5;
+
+      r1 &= 0x3E003E;
+      r2 &= 0x3E003E;
+
+      uint32_t g3 = b1 >> 6;
+      uint32_t g4 = b2 >> 6;
+
+      b1 &= 0x3E003E;
+      b2 &= 0x3E003E;
+
+      g3 &= 0x070007;
+      g4 &= 0x070007;
+
+      r1 += r1 >> 5;
+      r2 += r2 >> 5;
+
+      b1 += b1 >> 5;
+      b2 += b2 >> 5;
+
+      g1 = (g1 << 3) + g3;
+      g2 = (g2 << 3) + g4;
+
+      uint32_t r3 = r1 >> 16;
+      uint32_t r4 = r2 >> 16;
+
+      r1 &= 0x3F;
+      r2 &= 0x3F;
+
+      uint32_t b3 = b1 >> 16;
+      uint32_t b4 = b2 >> 16;
+
+      b1 &= 0x3F;
+      b2 &= 0x3F;
+
+      g3 = g1 >> 16;
+      g4 = g2 >> 16;
+
       g1 &= 0x3F;
       g2 &= 0x3F;
-      g3 &= 0x3F;
-      g4 &= 0x3F;
-      r1 &= 0x3E;
-      r2 &= 0x3E;
-      r3 &= 0x3E;
-      r4 &= 0x3E;
 
-      b3 = gamma_tbl[b3];
-      b4 = gamma_tbl[b4];
       b1 = gamma_tbl[b1];
       b2 = gamma_tbl[b2];
-      g3 = gamma_tbl[g3];
-      g4 = gamma_tbl[g4];
+      b3 = gamma_tbl[b3];
+      b4 = gamma_tbl[b4];
       g1 = gamma_tbl[g1];
       g2 = gamma_tbl[g2];
-      r3 = gamma_tbl[r3];
-      r4 = gamma_tbl[r4];
+      g3 = gamma_tbl[g3];
+      g4 = gamma_tbl[g4];
       r1 = gamma_tbl[r1];
       r2 = gamma_tbl[r2];
+      r3 = gamma_tbl[r3];
+      r4 = gamma_tbl[r4];
 
       uint32_t bbbb = (b1 << 16) + (b2 << 24) + b3 + (b4 <<  8);
       uint32_t gggg = (g1 << 16) + (g2 << 24) + g3 + (g4 <<  8);
