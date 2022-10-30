@@ -17,10 +17,10 @@ Contributors:
 /----------------------------------------------------------------------------*/
 #pragma once
 
-#if __has_include(<rom/lldesc.h>)
- #include <rom/lldesc.h>
-#else
+#if __has_include(<esp32/rom/lldesc.h>)
  #include <esp32/rom/lldesc.h>
+#else
+ #include <rom/lldesc.h>
 #endif
 
 #if __has_include(<freertos/FreeRTOS.h>)
@@ -55,7 +55,7 @@ namespace lgfx
       };
 
       // 1秒間の表示更新回数 (この値に基づいて送信クロックが自動計算される)
-      uint8_t refresh_rate = 60;
+      uint16_t refresh_rate = 60;
 
       union
       {
@@ -69,14 +69,14 @@ namespace lgfx
           int8_t pin_g2;
           int8_t pin_b2;
           int8_t pin_lat;
-          int8_t pin_clk;
+          int8_t pin_oe;
           int8_t pin_addr_a;
           int8_t pin_addr_b;
           int8_t pin_addr_c;
           int8_t pin_addr_d;
           int8_t pin_addr_e;
           int8_t pin_addr_f;
-          int8_t pin_oe;
+          int8_t pin_clk;
         };
       };
     };
@@ -125,12 +125,11 @@ namespace lgfx
 
   private:
 
-    static constexpr const uint32_t _mask_lat    = 0x00000040;
-    static constexpr const uint32_t _mask_oe     = 0x40004000;
-    static constexpr const uint32_t _mask_clock  = 0x00000080;
     static constexpr int32_t TRANSFER_PERIOD_COUNT = 8;
-    static constexpr int32_t SHINE_PERIOD_COUNT = 34;
+    static constexpr int32_t SHINE_PERIOD_COUNT = 19;
     static constexpr const int32_t TOTAL_PERIOD_COUNT = TRANSFER_PERIOD_COUNT + SHINE_PERIOD_COUNT;
+    static constexpr const uint32_t _mask_lat    = 0x00000040;
+    static constexpr const uint32_t _mask_oe     = 0x00800080;
 
     static void i2s_intr_handler_hub75(void *arg);
 
@@ -139,7 +138,9 @@ namespace lgfx
     int_fast16_t _panel_width = 64;
     int_fast16_t _panel_height = 32;
 
-    uint32_t* _dma_buf[2] = { nullptr, nullptr };
+    uint16_t* _dma_buf[2] = { nullptr, nullptr };
+
+    // uint16_t _light_len[TRANSFER_PERIOD_COUNT];
 
     intr_handle_t _isr_handle = nullptr;
 
