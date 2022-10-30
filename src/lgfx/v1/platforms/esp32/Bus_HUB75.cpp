@@ -331,7 +331,7 @@ namespace lgfx
     int y = me->_dma_y;
     auto panel_height = me->_panel_height;
 
-    uint32_t prev_addr = y << 8 | y << 24 | _mask_oe;
+    // uint32_t prev_addr = y << 8 | y << 24 | _mask_oe;
     y = (y + 1) & ((panel_height>>1) - 1);
     me->_dma_y = y;
 
