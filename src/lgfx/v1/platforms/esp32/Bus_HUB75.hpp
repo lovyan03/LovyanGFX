@@ -59,7 +59,7 @@ namespace lgfx
 
       union
       {
-        int8_t pin_data[15] = { -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, };
+        int8_t pin_data[14] = { -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1  };
         struct
         {
           int8_t pin_r1;
@@ -69,14 +69,13 @@ namespace lgfx
           int8_t pin_g2;
           int8_t pin_b2;
           int8_t pin_lat;
+          int8_t pin_clk;
           int8_t pin_oe;
           int8_t pin_addr_a;
           int8_t pin_addr_b;
           int8_t pin_addr_c;
           int8_t pin_addr_d;
           int8_t pin_addr_e;
-          int8_t pin_addr_f;
-          int8_t pin_clk;
         };
       };
     };
@@ -126,12 +125,15 @@ namespace lgfx
   private:
 
     static constexpr int32_t TRANSFER_PERIOD_COUNT = 8;
-    static constexpr int32_t SHINE_PERIOD_COUNT = 19;
-    static constexpr const int32_t TOTAL_PERIOD_COUNT = TRANSFER_PERIOD_COUNT + SHINE_PERIOD_COUNT;
+    static constexpr int32_t EXTEND_PERIOD_COUNT = 11;
+    static constexpr const int32_t TOTAL_PERIOD_COUNT = TRANSFER_PERIOD_COUNT + EXTEND_PERIOD_COUNT;
     static constexpr const uint32_t _mask_lat    = 0x00000040;
-    static constexpr const uint32_t _mask_oe     = 0x00800080;
+    static constexpr const uint32_t _mask_oe     = 0x01000100;
 
     static void i2s_intr_handler_hub75(void *arg);
+
+    static uint8_t* _gamma_tbl;
+    static uint8_t* _bitinvert_tbl;
 
     config_t _cfg;
 
@@ -140,7 +142,7 @@ namespace lgfx
 
     uint16_t* _dma_buf[2] = { nullptr, nullptr };
 
-    // uint16_t _light_len[TRANSFER_PERIOD_COUNT];
+    uint16_t _light_period[TRANSFER_PERIOD_COUNT + 1];
 
     intr_handle_t _isr_handle = nullptr;
 
