@@ -121,20 +121,6 @@ namespace lgfx
 
 /* DMAディスクリプタリストの各役割、 各行先頭がデータ転送期間、２列目以降が拡張点灯期間 
   ↓転送期間 ↓拡張点灯期間 
-  [11] ↲
-  [12] ↲
-  [13] ↲
-  [14] ↲
-  [15] ↲
-  [16] → 0 ↲
-  [17] → 1→ 2→ 3 ↲
-  [18] → 4→ 5→ 6→ 7→ 8→ 9→10↲(EOF,次ライン)
-   色深度8を再現するために、各ビットに対応した点灯を行うため同一ラインに8回データを送る。
-   8回の点灯期間は、1回進む毎に点灯期間が前回の2倍になる。
-   後半の点灯期間がとても長くなるため、データ転送をせず点灯のみを行う拡張点灯期間を設ける。
-   全ての拡張点灯期間はメモリ上の同一地点を利用しメモリを節約している。
-
-
   [7] → 8→ 9→10→11→12→13→14 ↲
   [6] →15→16→17 ↲
   [5] →18 ↲
@@ -143,10 +129,12 @@ namespace lgfx
   [2] ↲
   [1] ↲
   [0] ↲(EOF,次ライン)
+   色深度8を再現するために、各ビットに対応した点灯を行うため同一ラインに8回データを送る。
+   8回の点灯期間は、1回進む毎に点灯期間が前回の2倍になる。
+   後半の点灯期間がとても長くなるため、データ転送をせず点灯のみを行う拡張点灯期間を設ける。
+   全ての拡張点灯期間はメモリ上の同一地点を利用しメモリを節約している。
 */
     static constexpr const uint8_t dma_link_idx_tbl[] = {
-      // 17, 2, 3, 18, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 0, 1, 4
-
       7, 0, 1, 2, 3, 18, 15, 8, 9, 10, 11, 12, 13, 14, 6, 16, 17, 5, 4,
     };
 
@@ -167,7 +155,6 @@ namespace lgfx
 
       memset(_dma_buf[i], 0x01, buf_bytes); // OE(消灯)で埋める
 
-      // ディスクリプタリストの先頭に点灯期間19回分のDMA情報を纏めて配置する
       for (int j = 0; j < TOTAL_PERIOD_COUNT; j++) {
         uint32_t idx = i * TOTAL_PERIOD_COUNT + j;
         int bufidx = panel_width * (j < TRANSFER_PERIOD_COUNT ? j : TRANSFER_PERIOD_COUNT);
@@ -267,7 +254,7 @@ namespace lgfx
     for (int period = TRANSFER_PERIOD_COUNT - 1; period >= 0; --period)
     {
       if (period <= 3) { slen >>= 1; }
-      _light_period[period] = slen + 2; // 末尾2サイクルがLAT+OEとなるので+1する
+      _light_period[period] = slen;
     }
   }
 
@@ -330,7 +317,7 @@ namespace lgfx
     if (!flg_eof) { return; }
 
 // DEBUG
-lgfx::gpio_hi(15);
+// lgfx::gpio_hi(15);
 
     int yidx = me->_dma_y;
     auto panel_height = me->_panel_height;
@@ -480,7 +467,7 @@ lgfx::gpio_hi(15);
     memset(&d32[len32 - light_period[5]], y<<1  , sizeof(uint32_t) * (light_period[5]-1));
 
 // DEBUG
-lgfx::gpio_lo(15);
+// lgfx::gpio_lo(15);
   }
 //*/
 
