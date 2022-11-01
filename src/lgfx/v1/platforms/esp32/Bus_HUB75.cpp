@@ -31,8 +31,17 @@ namespace lgfx
  inline namespace v1
  {
 
+  // uint32_t* Bus_HUB75::_gamma_tbl = nullptr;
   uint8_t* Bus_HUB75::_gamma_tbl = nullptr;
   uint8_t* Bus_HUB75::_bitinvert_tbl = nullptr;
+
+  void Bus_HUB75::setImageBuffer(void* buffer)
+  {
+    auto fb = (DividedFrameBuffer*)buffer;
+    _frame_buffer = fb;
+    _panel_width = fb->getLineSize() >> 1;
+    _panel_height = fb->getTotalLines();
+  }
 
 //----------------------------------------------------------------------------
 
@@ -191,6 +200,21 @@ namespace lgfx
       };
       _gamma_tbl = (uint8_t*)heap_alloc_dma(sizeof(gamma_tbl));
       memcpy(_gamma_tbl, gamma_tbl, sizeof(gamma_tbl));
+/*/
+      _gamma_tbl = (uint32_t*)heap_alloc_dma(sizeof(gamma_tbl) * sizeof(uint32_t));
+      for (size_t i = 0; i < sizeof(gamma_tbl); ++i)
+      {
+        uint32_t span3bit = 0;
+        for (int j = 0; j < 8; ++j)
+        {
+          if (gamma_tbl[i] & (1 << j))
+          {
+            span3bit += 1 << ((j + 1) * 3);
+          }
+        }
+        _gamma_tbl[i] = span3bit;
+      }
+//*/
     }
     if (_bitinvert_tbl == nullptr)
     {
@@ -251,10 +275,11 @@ namespace lgfx
     uint32_t light_len_limit = (panel_width - 8) >> 1;
     uint32_t slen = (light_len_limit * br) >> 16;
 
+    _light_period[0] = 2;
     for (int period = TRANSFER_PERIOD_COUNT - 1; period >= 0; --period)
     {
       if (period <= 3) { slen >>= 1; }
-      _light_period[period] = slen;
+      _light_period[period + 1] = slen + 2;
     }
   }
 
@@ -317,7 +342,7 @@ namespace lgfx
     if (!flg_eof) { return; }
 
 // DEBUG
-// lgfx::gpio_hi(15);
+//lgfx::gpio_hi(15);
 
     int yidx = me->_dma_y;
     auto panel_height = me->_panel_height;
@@ -333,8 +358,8 @@ namespace lgfx
       y >>= 1;
     }
 
-    uint32_t prev_addr = prev_y << 9 | prev_y << 25;  // | _mask_oe;
-    uint32_t addr = y << 9 | y << 25;  // | _mask_oe;
+    uint32_t prev_addr = prev_y << 9 | prev_y << 25 | _mask_oe;
+    uint32_t addr      =      y << 9 |      y << 25 | _mask_oe;
 
     auto desc = (lldesc_t*)dev->out_eof_des_addr;
     auto d32 = (uint32_t*)desc->buf;
@@ -343,16 +368,22 @@ namespace lgfx
     const uint32_t len32 = panel_width >> 1;
 
     uint16_t* light_period = me->_light_period;
-    light_period[TRANSFER_PERIOD_COUNT] = len32;
+    light_period[TRANSFER_PERIOD_COUNT+1] = len32-1;
+    light_period[TRANSFER_PERIOD_COUNT+2] = len32;
 
-    auto src1 = &((uint16_t*)(me->_frame_buffer))[y * panel_width];
-    auto src2 = &src1[panel_width * (panel_height>>1)];
+    {
+    // 点灯期間のYアドレス設定
+      uint32_t light_len = light_period[5] - 2;
+      memset(&d32[len32 * TRANSFER_PERIOD_COUNT], addr >> 8, sizeof(uint32_t) * (len32 - light_len));
+      memset(&d32[len32 * (TRANSFER_PERIOD_COUNT + 1) - light_len], y<<1  , sizeof(uint32_t) * (light_len));
+    }
 
-    auto s1 = (uint32_t*)src1;
-    auto s2 = (uint32_t*)src2;
-    // d32 += len32;
-    uint32_t x = 0;
+    auto s1 = (uint32_t*)(me->_frame_buffer->getLineBuffer(y));
+    auto s2 = (uint32_t*)(me->_frame_buffer->getLineBuffer(y + (panel_height>>1)));
+
     uint32_t addrs[TRANSFER_PERIOD_COUNT] = { addr, addr, addr, addr, addr, addr, addr, prev_addr };
+
+    uint32_t x = 0;
     int light_idx = 0;
     for (;;)
     {
@@ -419,7 +450,7 @@ namespace lgfx
       r2 = _gamma_tbl[r2];
       r3 = _gamma_tbl[r3];
       r4 = _gamma_tbl[r4];
-
+//*
       uint32_t bbbb = (b1 << 16) + (b2 << 24) + b3 + (b4 <<  8);
       uint32_t gggg = (g1 << 16) + (g2 << 24) + g3 + (g4 <<  8);
       uint32_t rrrr = (r1 << 16) + (r2 << 24) + r3 + (r4 <<  8);
@@ -439,35 +470,81 @@ namespace lgfx
         rgb += (rgb >> 5);
         d32[i * len32] = addrs[i] | (rgb & 0x3F003F);
       } while (++i != TRANSFER_PERIOD_COUNT);
+/*/
+      uint32_t rgb1 = (r1 >> 3) + (g1 >> 2) + (b1 >> 1);
+      uint32_t rgb2 =  r2       + (g2 << 1) + (b2 << 2);
+      uint32_t rgb3 = (r3 >> 3) + (g3 >> 2) + (b3 >> 1);
+      uint32_t rgb4 =  r4       + (g4 << 1) + (b4 << 2);
+
+      int32_t i = 0;
+      uint32_t mask = 0x07;
+      do
+      {
+        uint32_t p1 = rgb1 & mask;
+        uint32_t p3 = rgb3 & mask;
+        mask <<= 3;
+        uint32_t p2 = rgb2 & mask;
+        uint32_t p4 = rgb4 & mask;
+        p1 += p2;
+        p3 += p4;
+        p1 >>= i * 3;
+        p3 >>= i * 3;
+        d32[i * len32] = addrs[i] + p3 + (p1 << 16);
+      } while (++i != TRANSFER_PERIOD_COUNT);
+//*/
       ++d32;
 
       if (++x < light_period[light_idx]) { continue; }
-      if (light_idx == TRANSFER_PERIOD_COUNT) { break; }
-      if (light_idx == 4)
+   // if (++light_idx > TRANSFER_PERIOD_COUNT+2) break; 
+// /*
+      if (light_idx <= TRANSFER_PERIOD_COUNT)
       {
-        addrs[TRANSFER_PERIOD_COUNT - 1] = addr | _mask_oe;
+        if (light_idx == 0)
+        {
+          for (int k = 0; k < TRANSFER_PERIOD_COUNT; ++k)
+          {
+            addrs[k] &= ~_mask_oe;
+          }
+          if (x < light_period[++light_idx]) { continue; }
+        }
+        do {
+          addrs[(light_idx - 2) & (TRANSFER_PERIOD_COUNT - 1)] |= _mask_oe;
+        } while (x >= light_period[++light_idx]);
+        if (light_idx == 5)
+        {
+          addrs[TRANSFER_PERIOD_COUNT - 1] = addr | _mask_oe;
+        }
       }
-      do {
-        addrs[(light_idx - 1) & (TRANSFER_PERIOD_COUNT - 1)] |= _mask_oe;
-      } while (x >= light_period[++light_idx]);
+      else
+      {
+        if (light_idx == TRANSFER_PERIOD_COUNT + 2) { break; }
+        ++light_idx;
+        for (int k = 0; k < TRANSFER_PERIOD_COUNT; ++k)
+        {
+          addrs[k] = addr | _mask_lat | _mask_oe;
+        }
+      }
+//*/
     }
 
+/*
     for (int i = 0; i < TRANSFER_PERIOD_COUNT; ++i)
     { // 各転送期間の末尾にLATを指定する
       d32[i * len32 - 1] |= _mask_lat | _mask_oe;
     }
 
     d32 += len32 * (TRANSFER_PERIOD_COUNT - 1);
-
     addr |= _mask_oe;
-    // 点灯期間のYアドレス設定
-    d32[len32 - 1] = addr;
-    memset(d32    , addr >> 8, sizeof(uint32_t) * (len32 - light_period[5]));
+// 点灯期間のYアドレス設定
+// d32[len32 - 1] = 0xFF;
+    uint32_t light_len = light_period[5] - 2;
+    memset(d32    , addr >> 8, sizeof(uint32_t) * (len32 - light_len));
     addr &= ~_mask_oe;
-    memset(&d32[len32 - light_period[5]], y<<1  , sizeof(uint32_t) * (light_period[5]-1));
+    memset(&d32[len32 - light_len], y<<1  , sizeof(uint32_t) * (light_len));
+//*/
 
 // DEBUG
-// lgfx::gpio_lo(15);
+//lgfx::gpio_lo(15);
   }
 //*/
 

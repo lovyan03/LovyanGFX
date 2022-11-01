@@ -35,6 +35,7 @@ namespace lgfx
     bus_parallel8,
     bus_parallel16,
     bus_stream,
+    bus_image_push,
   };
 
   struct IBus
@@ -139,6 +140,15 @@ namespace lgfx
     uint32_t readData(uint_fast8_t) override { return 0; }
     bool readBytes(uint8_t*, uint32_t, bool) override { return false; }
     void readPixels(void*, pixelcopy_t*, uint32_t) override {}
+  };
+
+  /// @brief コマンド体系を持たず、画面全体を送信するタイプのバスの基本形として使用する
+  struct Bus_ImagePush : public Bus_NULL
+  {
+    bus_type_t busType(void) const override { return bus_type_t::bus_image_push; }
+    virtual void setImageBuffer(void*) {}
+    virtual void setBrightness(uint8_t brightness) {}
+    virtual void setInvert(uint8_t invert) {}
   };
 
 //----------------------------------------------------------------------------

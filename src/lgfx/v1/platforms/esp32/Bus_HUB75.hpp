@@ -35,8 +35,9 @@ Contributors:
 
 #include <soc/i2s_struct.h>
 
-#include "../../Bus.hpp"
 #include "../common.hpp"
+#include "../../Bus.hpp"
+#include "../../misc/DividedFrameBuffer.hpp"
 
 namespace lgfx
 {
@@ -44,7 +45,7 @@ namespace lgfx
  {
 //----------------------------------------------------------------------------
 
-  class Bus_HUB75 : public IBus
+  class Bus_HUB75 : public Bus_ImagePush
   {
   public:
     struct config_t
@@ -83,44 +84,26 @@ namespace lgfx
     const config_t& config(void) const { return _cfg; }
     void config(const config_t& config);
 
-    bus_type_t busType(void) const override { return bus_type_t::bus_unknown; }
-
     bool init(void) override;
     void release(void) override;
 
     void beginTransaction(void) override;
     void endTransaction(void) override;
-    void wait(void) override {}
-    bool busy(void) const override { return false; }
 
     void flush(void) override {}
-    bool writeCommand(uint32_t data, uint_fast8_t bit_length) override { return true; }
-    void writeData(uint32_t data, uint_fast8_t bit_length) override {}
-    void writeDataRepeat(uint32_t data, uint_fast8_t bit_length, uint32_t count) override {}
-    void writePixels(pixelcopy_t* param, uint32_t length) override {}
-    void writeBytes(const uint8_t* data, uint32_t length, bool dc, bool use_dma) override {}
-
-    void initDMA(void) override {}
-    void addDMAQueue(const uint8_t* data, uint32_t length) override {}
-    void execDMAQueue(void) override {};
-    uint8_t* getDMABuffer(uint32_t length) override { return nullptr; }
-
-    void beginRead(void) override {}
-    void endRead(void) override {}
-    uint32_t readData(uint_fast8_t bit_length) override { return 0; }
-
-    bool readBytes(uint8_t* dst, uint32_t length, bool use_dma) override { return false; }
-    void readPixels(void* dst, pixelcopy_t* param, uint32_t length) override {}
 
     void setBrightness(uint8_t brightness);
     uint8_t getBrightness(void) const { return _brightness; }
 
+    void setImageBuffer(void* buffer) override;
+/*
     void setFrameBuffer(void* buf, color_depth_t depth, uint16_t panel_width, uint16_t panel_height) {
       _panel_width = panel_width;
       _panel_height = panel_height;
       _frame_buffer = buf;
       _frame_buffer_depth = depth;
     }
+*/
 
   private:
 
@@ -133,6 +116,7 @@ namespace lgfx
     static void i2s_intr_handler_hub75(void *arg);
 
     static uint8_t* _gamma_tbl;
+    // static uint32_t* _gamma_tbl;
     static uint8_t* _bitinvert_tbl;
 
     config_t _cfg;
@@ -142,12 +126,13 @@ namespace lgfx
 
     uint16_t* _dma_buf[2] = { nullptr, nullptr };
 
-    uint16_t _light_period[TRANSFER_PERIOD_COUNT + 1];
+    uint16_t _light_period[TRANSFER_PERIOD_COUNT + 3];
 
     intr_handle_t _isr_handle = nullptr;
 
-    void* _frame_buffer;
-    color_depth_t _frame_buffer_depth;
+    DividedFrameBuffer* _frame_buffer;
+    // void* _frame_buffer;
+    // color_depth_t _frame_buffer_depth;
     int _dma_y = 0;
 
     volatile void *_dev;
