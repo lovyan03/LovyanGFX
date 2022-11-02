@@ -31,8 +31,7 @@ namespace lgfx
  inline namespace v1
  {
 
-  // uint32_t* Bus_HUB75::_gamma_tbl = nullptr;
-  uint8_t* Bus_HUB75::_gamma_tbl = nullptr;
+  uint32_t* Bus_HUB75::_gamma_tbl = nullptr;
   uint8_t* Bus_HUB75::_bitinvert_tbl = nullptr;
 
   void Bus_HUB75::setImageBuffer(void* buffer)
@@ -130,9 +129,10 @@ namespace lgfx
 
 /* DMAディスクリプタリストの各役割、 各行先頭がデータ転送期間、２列目以降が拡張点灯期間 
   ↓転送期間 ↓拡張点灯期間 
-  [7] → 8→ 9→10→11→12→13→14 ↲
-  [6] →15→16→17 ↲
-  [5] →18 ↲
+  [8]   ※ ディスクリプタ[8]は色信号なし、前回データに対する点灯のみ行う期間↲
+  [7] → 9→10→11→12→13→14→15 ↲ ここで[7]のデータ転送は同時にSHIFTREG_ABCの転送期間を兼ねる
+  [6] →16→17→18 ↲
+  [5] →19 ↲
   [4] ↲
   [3] ↲
   [2] ↲
@@ -143,33 +143,34 @@ namespace lgfx
    後半の点灯期間がとても長くなるため、データ転送をせず点灯のみを行う拡張点灯期間を設ける。
    全ての拡張点灯期間はメモリ上の同一地点を利用しメモリを節約している。
 */
+
     static constexpr const uint8_t dma_link_idx_tbl[] = {
-      7, 0, 1, 2, 3, 18, 15, 8, 9, 10, 11, 12, 13, 14, 6, 16, 17, 5, 4,
+      8, 0, 1, 2, 3, 19, 16, 9, 7, 10, 11, 12, 13, 14, 15, 6, 17, 18, 5, 4,
     };
 
-    // (データ転送期間8回 + 拡張点灯期間11回 = 19) * 2ライン分
+    // (データ転送期間8回 + Y座標変更期間1回 + 拡張点灯期間11回 = 19) * 2ライン分
     if (_dmadesc) heap_caps_free(_dmadesc);
     _dmadesc = (lldesc_t*)heap_caps_malloc(sizeof(lldesc_t) * TOTAL_PERIOD_COUNT * 2, MALLOC_CAP_DMA);
 
     uint32_t panel_width = _panel_width;
 
-    size_t buf_bytes = panel_width * (TRANSFER_PERIOD_COUNT + 1) * sizeof(uint16_t);
+    // ラインバッファ確保。 データ転送期間8回分 + 拡張点灯期間1回分 + Y座標変更期間1回分 の合計10回分を連続領域として確保する
+    // 拡張点灯期間は合計11回あるが、同じ領域を使い回すためバッファは1回分でよい;
+    static constexpr const size_t buf_linkcount = TRANSFER_PERIOD_COUNT + LINECHANGE_PERIOD_COUNT + 1;
+    size_t buf_bytes = panel_width * buf_linkcount * sizeof(uint16_t);
     for (int i = 0; i < 2; i++) {
-      // ラインバッファ確保。 点灯期間1回分 + データ転送期間 8回分の合計9回分を連続領域として確保する
-      // 拡張点灯期間は合計11回あるが、同じ領域を使い回すためバッファは1回分でよい;
       _dma_buf[i] = (uint16_t*)heap_alloc_dma(buf_bytes);
       if (_dma_buf[i] == nullptr) {
         ESP_EARLY_LOGE("Bus_HUB75", "memory allocate error.");
       }
-
-      memset(_dma_buf[i], 0x01, buf_bytes); // OE(消灯)で埋める
+      memset(_dma_buf[i], 0x01, buf_bytes); // バッファ初期値として OE(消灯)で埋めておく
 
       for (int j = 0; j < TOTAL_PERIOD_COUNT; j++) {
         uint32_t idx = i * TOTAL_PERIOD_COUNT + j;
-        int bufidx = panel_width * (j < TRANSFER_PERIOD_COUNT ? j : TRANSFER_PERIOD_COUNT);
+        int bufidx = panel_width * (j < (buf_linkcount - 1) ? j : (buf_linkcount - 1));
         bool eof = j == 0;
         _dmadesc[idx].buf = (volatile uint8_t*)&(_dma_buf[i][bufidx]);
-        _dmadesc[idx].eof = eof; // 最後の拡張点灯期間のみEOFイベントを発生させる
+        _dmadesc[idx].eof = eof; // 最後の転送期間のみEOFイベントを発生させる
         _dmadesc[idx].empty = (uint32_t)(&_dmadesc[dma_link_idx_tbl[j] + (i ^ eof) * TOTAL_PERIOD_COUNT]);
         _dmadesc[idx].owner = 1;
         _dmadesc[idx].length = panel_width * sizeof(uint16_t);
@@ -198,9 +199,6 @@ namespace lgfx
         155, 161, 167, 173, 179, 186, 192, 199,
         205, 212, 219, 226, 233, 241, 248, 255
       };
-      _gamma_tbl = (uint8_t*)heap_alloc_dma(sizeof(gamma_tbl));
-      memcpy(_gamma_tbl, gamma_tbl, sizeof(gamma_tbl));
-/*/
       _gamma_tbl = (uint32_t*)heap_alloc_dma(sizeof(gamma_tbl) * sizeof(uint32_t));
       for (size_t i = 0; i < sizeof(gamma_tbl); ++i)
       {
@@ -214,7 +212,6 @@ namespace lgfx
         }
         _gamma_tbl[i] = span3bit;
       }
-//*/
     }
     if (_bitinvert_tbl == nullptr)
     {
@@ -342,15 +339,17 @@ namespace lgfx
     if (!flg_eof) { return; }
 
 // DEBUG
-//lgfx::gpio_hi(15);
+// lgfx::gpio_hi(15);
 
     int yidx = me->_dma_y;
     auto panel_height = me->_panel_height;
 
     uint_fast8_t prev_y = _bitinvert_tbl[yidx];
+// uint_fast8_t prev_y = yidx;
     yidx = (yidx + 1) & ((panel_height>>1) - 1);
     me->_dma_y = yidx;
     uint_fast8_t y = _bitinvert_tbl[yidx];
+// uint_fast8_t y = yidx;
 
     if (panel_height <= 32)
     {
@@ -358,150 +357,151 @@ namespace lgfx
       y >>= 1;
     }
 
-    uint32_t prev_addr = prev_y << 9 | prev_y << 25 | _mask_oe;
-    uint32_t addr      =      y << 9 |      y << 25 | _mask_oe;
-
     auto desc = (lldesc_t*)dev->out_eof_des_addr;
     auto d32 = (uint32_t*)desc->buf;
 
     auto panel_width = me->_panel_width;
     const uint32_t len32 = panel_width >> 1;
 
-    uint16_t* light_period = me->_light_period;
-    light_period[TRANSFER_PERIOD_COUNT+1] = len32-1;
-    light_period[TRANSFER_PERIOD_COUNT+2] = len32;
 
-    {
-    // 点灯期間のYアドレス設定
-      uint32_t light_len = light_period[5] - 2;
-      memset(&d32[len32 * TRANSFER_PERIOD_COUNT], addr >> 8, sizeof(uint32_t) * (len32 - light_len));
-      memset(&d32[len32 * (TRANSFER_PERIOD_COUNT + 1) - light_len], y<<1  , sizeof(uint32_t) * (light_len));
-    }
+    uint16_t* light_period = me->_light_period;
+    light_period[TRANSFER_PERIOD_COUNT+1] = len32;
+    // light_period[TRANSFER_PERIOD_COUNT+2] = len32;
 
     auto s1 = (uint32_t*)(me->_frame_buffer->getLineBuffer(y));
     auto s2 = (uint32_t*)(me->_frame_buffer->getLineBuffer(y + (panel_height>>1)));
 
-    uint32_t addrs[TRANSFER_PERIOD_COUNT] = { addr, addr, addr, addr, addr, addr, addr, prev_addr };
+    uint32_t addr = y << 9 | y << 25 | _mask_oe;
+    uint32_t addrs[TRANSFER_PERIOD_COUNT] = { addr, addr, addr, addr, addr, addr, addr, _mask_oe | _mask_pin_a_clk };
 
     uint32_t x = 0;
     int light_idx = 0;
     for (;;)
     {
-      uint32_t swap565x2_1 = *s1++;
-      uint32_t swap565x2_2 = *s2++;
+      // 16bit RGB565を32bit変数に2ピクセル纏めて取り込む。(画面の上半分用)
+      uint32_t swap565x2_L = *s1++;
+      // 画面の下半分用のピクセルも同様に2ピクセル纏めて取り込む
+      uint32_t swap565x2_H = *s2++;
 
-      uint32_t r1 = swap565x2_1 >> 2;
-      uint32_t r2 = swap565x2_2 >> 2;
+      // R,G,Bそれぞれの成分に分離する。2ピクセルまとめて処理することで演算回数を削減する
+      uint32_t r_L1 = swap565x2_L >> 2;
+      uint32_t r_H1 = swap565x2_H >> 2;
 
-      uint32_t g1 = swap565x2_1 & 0x070007;
-      uint32_t g2 = swap565x2_2 & 0x070007;
+      uint32_t g_L1 = swap565x2_L & 0x070007;
+      uint32_t g_H1 = swap565x2_H & 0x070007;
 
-      uint32_t b1 = r1 >> 5;
-      uint32_t b2 = r2 >> 5;
+      uint32_t b_L1 = r_L1 >> 5;
+      uint32_t b_H1 = r_H1 >> 5;
 
-      r1 &= 0x3E003E;
-      r2 &= 0x3E003E;
+      r_L1 &= 0x3E003E;
+      r_H1 &= 0x3E003E;
 
-      uint32_t g3 = b1 >> 6;
-      uint32_t g4 = b2 >> 6;
+      uint32_t g_L2 = b_L1 >> 6;
+      uint32_t g_H2 = b_H1 >> 6;
 
-      b1 &= 0x3E003E;
-      b2 &= 0x3E003E;
+      b_L1 &= 0x3E003E;
+      b_H1 &= 0x3E003E;
 
-      r1 += r1 >> 5;
-      r2 += r2 >> 5;
+      r_L1 += r_L1 >> 5;
+      r_H1 += r_H1 >> 5;
 
-      g3 &= 0x070007;
-      g4 &= 0x070007;
+      g_L2 &= 0x070007;
+      g_H2 &= 0x070007;
 
-      b1 += b1 >> 5;
-      b2 += b2 >> 5;
+      b_L1 += b_L1 >> 5;
+      b_H1 += b_H1 >> 5;
 
-      uint32_t r3 = r1 >> 16;
-      uint32_t r4 = r2 >> 16;
+      uint32_t r_L2 = r_L1 >> 16;
+      uint32_t r_H2 = r_H1 >> 16;
 
-      g1 = (g1 << 3) + g3;
-      g2 = (g2 << 3) + g4;
+      g_L1 = (g_L1 << 3) + g_L2;
+      g_H1 = (g_H1 << 3) + g_H2;
 
-      r1 &= 0x3F;
-      r2 &= 0x3F;
+      r_L1 &= 0x3F;
+      r_H1 &= 0x3F;
 
-      uint32_t b3 = b1 >> 16;
-      uint32_t b4 = b2 >> 16;
+      uint32_t b_L2 = b_L1 >> 16;
+      uint32_t b_H2 = b_H1 >> 16;
 
-      b1 &= 0x3F;
-      b2 &= 0x3F;
+      b_L1 &= 0x3F;
+      b_H1 &= 0x3F;
 
-      g3 = g1 >> 16;
-      g4 = g2 >> 16;
+      g_L2 = g_L1 >> 16;
+      g_H2 = g_H1 >> 16;
 
-      g1 &= 0x3F;
-      g2 &= 0x3F;
+      g_L1 &= 0x3F;
+      g_H1 &= 0x3F;
 
-      b1 = _gamma_tbl[b1];
-      b2 = _gamma_tbl[b2];
-      b3 = _gamma_tbl[b3];
-      b4 = _gamma_tbl[b4];
-      g1 = _gamma_tbl[g1];
-      g2 = _gamma_tbl[g2];
-      g3 = _gamma_tbl[g3];
-      g4 = _gamma_tbl[g4];
-      r1 = _gamma_tbl[r1];
-      r2 = _gamma_tbl[r2];
-      r3 = _gamma_tbl[r3];
-      r4 = _gamma_tbl[r4];
-//*
-      uint32_t bbbb = (b1 << 16) + (b2 << 24) + b3 + (b4 <<  8);
-      uint32_t gggg = (g1 << 16) + (g2 << 24) + g3 + (g4 <<  8);
-      uint32_t rrrr = (r1 << 16) + (r2 << 24) + r3 + (r4 <<  8);
+      // RGBそれぞれ64階調値を元にガンマテーブルを適用する
+      // このテーブルの中身は単にガンマ補正をするだけでなく、
+      // 各ビットを3bit間隔に変換する処理を兼ねている。
+      // 例えば 0bABCDEFGH -> 0bA00B00C00D00E00F00G00H000 のようになる
+      r_L1 = _gamma_tbl[r_L1];
+      r_H1 = _gamma_tbl[r_H1];
+      r_L2 = _gamma_tbl[r_L2];
+      r_H2 = _gamma_tbl[r_H2];
+      b_L1 = _gamma_tbl[b_L1];
+      b_H1 = _gamma_tbl[b_H1];
+      b_L2 = _gamma_tbl[b_L2];
+      b_H2 = _gamma_tbl[b_H2];
+      g_L1 = _gamma_tbl[g_L1];
+      g_H1 = _gamma_tbl[g_H1];
+      g_L2 = _gamma_tbl[g_L2];
+      g_H2 = _gamma_tbl[g_H2];
+
+      // テーブルから取り込んだ値は3bit間隔となっているので、
+      // R,G,Bそれぞれが互いを避けるようにビットシフトすることでまとめることができる。
+      uint32_t rgb_L1 = (r_L1 >> 3) + (g_L1 >> 2) + (b_L1 >> 1);
+      uint32_t rgb_H1 =  r_H1       + (g_H1 << 1) + (b_H1 << 2);
+      uint32_t rgb_L2 = (r_L2 >> 3) + (g_L2 >> 2) + (b_L2 >> 1);
+      uint32_t rgb_H2 =  r_H2       + (g_H2 << 1) + (b_H2 << 2);
+
+      // 上記の変数の中身は BGRBGRBGRBGR… の順にビットが並んだ状態となる
+      // これを、各色の0,2,4,6ビットと1,3,5,7ビットの成分に分離する
+      uint32_t rgb_L1_even = rgb_L1 & 0b000111000111000111000111000;
+      uint32_t rgb_H1_even = rgb_H1 & 0b111000111000111000111000111;
+      uint32_t rgb_L1_odd  = rgb_L1 & 0b111000111000111000111000111;
+      uint32_t rgb_H1_odd  = rgb_H1 & 0b000111000111000111000111000;
+      uint32_t rgb_L2_even = rgb_L2 & 0b000111000111000111000111000;
+      uint32_t rgb_H2_even = rgb_H2 & 0b111000111000111000111000111;
+      uint32_t rgb_L2_odd  = rgb_L2 & 0b111000111000111000111000111;
+      uint32_t rgb_H2_odd  = rgb_H2 & 0b000111000111000111000111000;
+
+      // パラレルで同時に送信する6bit分のRGB成分(画面の上半分と下半分)が隣接するように纏める。
+      uint32_t rgb_even_1 = (rgb_L1_even + rgb_H1_even) >> 3;
+      uint32_t rgb_odd_1  =  rgb_L1_odd  + rgb_H1_odd;
+      uint32_t rgb_even_2 = (rgb_L2_even + rgb_H2_even) >> 3;
+      uint32_t rgb_odd_2  =  rgb_L2_odd  + rgb_H2_odd;
 
       int32_t i = 0;
-      uint32_t mask = 0x01010101u;
       do
       {
-        uint32_t b = bbbb & mask;
-        uint32_t g = gggg & mask;
-        uint32_t r = rrrr & mask;
-        b >>= i;
-        g >>= i;
-        r >>= i;
-        uint32_t rgb = r + (g << 1) + (b << 2);
-        mask <<= 1;
-        rgb += (rgb >> 5);
-        d32[i * len32] = addrs[i] | (rgb & 0x3F003F);
-      } while (++i != TRANSFER_PERIOD_COUNT);
-/*/
-      uint32_t rgb1 = (r1 >> 3) + (g1 >> 2) + (b1 >> 1);
-      uint32_t rgb2 =  r2       + (g2 << 1) + (b2 << 2);
-      uint32_t rgb3 = (r3 >> 3) + (g3 >> 2) + (b3 >> 1);
-      uint32_t rgb4 =  r4       + (g4 << 1) + (b4 << 2);
-
-      int32_t i = 0;
-      uint32_t mask = 0x07;
-      do
-      {
-        uint32_t p1 = rgb1 & mask;
-        uint32_t p3 = rgb3 & mask;
-        mask <<= 3;
-        uint32_t p2 = rgb2 & mask;
-        uint32_t p4 = rgb4 & mask;
-        p1 += p2;
-        p3 += p4;
-        p1 >>= i * 3;
-        p3 >>= i * 3;
-        d32[i * len32] = addrs[i] + p3 + (p1 << 16);
+        uint32_t odd_1 = rgb_odd_1 & 0x3F;
+        uint32_t odd_2 = rgb_odd_2 & 0x3F;
+        uint32_t even_1 = rgb_even_1 & 0x3F;
+        uint32_t even_2 = rgb_even_2 & 0x3F;
+        odd_1 <<= 16;
+        rgb_odd_1 >>= 6;
+        rgb_odd_2 >>= 6;
+        // 奇数番ビット成分を横２列ぶん同時にバッファにセットする
+        d32[i * len32] = addrs[i] + odd_2 + odd_1;
+        even_1 <<= 16;
+        ++i;
+        rgb_even_1 >>= 6;
+        rgb_even_2 >>= 6;
+        // 偶数番ビット成分を横２列ぶん同時にバッファにセットする
+        d32[i * len32] = addrs[i] + even_2 + even_1;
       } while (++i != TRANSFER_PERIOD_COUNT);
 //*/
       ++d32;
 
       if (++x < light_period[light_idx]) { continue; }
-   // if (++light_idx > TRANSFER_PERIOD_COUNT+2) break; 
-// /*
+
       if (light_idx <= TRANSFER_PERIOD_COUNT)
       {
         if (light_idx == 0)
         {
-          for (int k = 0; k < TRANSFER_PERIOD_COUNT; ++k)
+          for (int k = 0; k < TRANSFER_PERIOD_COUNT-1; ++k)
           {
             addrs[k] &= ~_mask_oe;
           }
@@ -510,41 +510,42 @@ namespace lgfx
         do {
           addrs[(light_idx - 2) & (TRANSFER_PERIOD_COUNT - 1)] |= _mask_oe;
         } while (x >= light_period[++light_idx]);
-        if (light_idx == 5)
-        {
-          addrs[TRANSFER_PERIOD_COUNT - 1] = addr | _mask_oe;
-        }
+
+        continue;
       }
-      else
-      {
-        if (light_idx == TRANSFER_PERIOD_COUNT + 2) { break; }
-        ++light_idx;
-        for (int k = 0; k < TRANSFER_PERIOD_COUNT; ++k)
-        {
-          addrs[k] = addr | _mask_lat | _mask_oe;
-        }
-      }
-//*/
+
+      break;
     }
 
-/*
     for (int i = 0; i < TRANSFER_PERIOD_COUNT; ++i)
     { // 各転送期間の末尾にLATを指定する
       d32[i * len32 - 1] |= _mask_lat | _mask_oe;
     }
 
-    d32 += len32 * (TRANSFER_PERIOD_COUNT - 1);
-    addr |= _mask_oe;
-// 点灯期間のYアドレス設定
-// d32[len32 - 1] = 0xFF;
-    uint32_t light_len = light_period[5] - 2;
-    memset(d32    , addr >> 8, sizeof(uint32_t) * (len32 - light_len));
-    addr &= ~_mask_oe;
-    memset(&d32[len32 - light_len], y<<1  , sizeof(uint32_t) * (light_len));
-//*/
+    d32 += len32 * (TRANSFER_PERIOD_COUNT - 1) - 1;
+
+    // SHIFTREG_ABCのY座標情報をセットする
+    d32[-y] |= _mask_pin_c_dat;
+    d32[-(y+(panel_height >> 1))] |= _mask_pin_c_dat;
+    *d32 |= _mask_pin_b_lat | _mask_lat;
+
+    ++d32;
+    {
+      memset(&d32[0], prev_y << 1 | _mask_oe >> 8, sizeof(uint32_t) * len32);
+      uint32_t light_len = light_period[1] - 2;
+      memset(&d32[3], prev_y << 1, sizeof(uint32_t) * light_len);
+    }
+
+    d32 += len32;
+    {
+    // 拡張点灯期間の内容を設定する
+      uint32_t light_len = light_period[5] - 2;
+      memset(&d32[0], addr >> 8, sizeof(uint32_t) * (len32 - light_len));
+      memset(&d32[len32 - light_len], y<<1  , sizeof(uint32_t) * (light_len));
+    }
 
 // DEBUG
-//lgfx::gpio_lo(15);
+// lgfx::gpio_lo(15);
   }
 //*/
 

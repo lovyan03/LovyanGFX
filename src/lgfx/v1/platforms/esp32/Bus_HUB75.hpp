@@ -96,27 +96,23 @@ namespace lgfx
     uint8_t getBrightness(void) const { return _brightness; }
 
     void setImageBuffer(void* buffer) override;
-/*
-    void setFrameBuffer(void* buf, color_depth_t depth, uint16_t panel_width, uint16_t panel_height) {
-      _panel_width = panel_width;
-      _panel_height = panel_height;
-      _frame_buffer = buf;
-      _frame_buffer_depth = depth;
-    }
-*/
 
   private:
 
     static constexpr int32_t TRANSFER_PERIOD_COUNT = 8;
+    static constexpr int32_t LINECHANGE_PERIOD_COUNT = 1;
     static constexpr int32_t EXTEND_PERIOD_COUNT = 11;
-    static constexpr const int32_t TOTAL_PERIOD_COUNT = TRANSFER_PERIOD_COUNT + EXTEND_PERIOD_COUNT;
+    static constexpr const int32_t TOTAL_PERIOD_COUNT = TRANSFER_PERIOD_COUNT + LINECHANGE_PERIOD_COUNT + EXTEND_PERIOD_COUNT;
     static constexpr const uint32_t _mask_lat    = 0x00000040;
     static constexpr const uint32_t _mask_oe     = 0x01000100;
+    static constexpr const uint32_t _mask_addr   = 0x3E003E00;
+    static constexpr const uint32_t _mask_pin_a_clk = 0x00000200;
+    static constexpr const uint32_t _mask_pin_c_dat = 0x08000800;
+    static constexpr const uint32_t _mask_pin_b_lat = 0x00000400;
 
     static void i2s_intr_handler_hub75(void *arg);
 
-    static uint8_t* _gamma_tbl;
-    // static uint32_t* _gamma_tbl;
+    static uint32_t* _gamma_tbl;
     static uint8_t* _bitinvert_tbl;
 
     config_t _cfg;
@@ -131,8 +127,7 @@ namespace lgfx
     intr_handle_t _isr_handle = nullptr;
 
     DividedFrameBuffer* _frame_buffer;
-    // void* _frame_buffer;
-    // color_depth_t _frame_buffer_depth;
+
     int _dma_y = 0;
 
     volatile void *_dev;

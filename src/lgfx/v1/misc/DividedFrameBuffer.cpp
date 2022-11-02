@@ -21,8 +21,6 @@ Contributors:
 #include "../../internal/algorithm.h"
 #include "../platforms/common.hpp"
 
-#include <assert.h>
-
 namespace lgfx
 {
  inline namespace v1
@@ -50,7 +48,6 @@ namespace lgfx
       memset(block_array, 0, block_array_size);
       bool success = true;
       bool psram = use_psram != no_psram;
-      auto remain_lines = (int32_t)total_lines;
       for (size_t i = 0; i < block_count; ++i)
       {
         size_t block_size = line_size * (total_lines < block_lines ? total_lines : block_lines);
