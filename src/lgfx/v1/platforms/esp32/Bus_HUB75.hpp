@@ -108,7 +108,7 @@ namespace lgfx
     static constexpr const uint32_t _mask_addr   = 0x3E003E00;
     static constexpr const uint32_t _mask_pin_a_clk = 0x00000200;
     static constexpr const uint32_t _mask_pin_c_dat = 0x08000800;
-    static constexpr const uint32_t _mask_pin_b_lat = 0x00000400;
+    static constexpr const uint32_t _mask_pin_b_lat = 0x04000400;
 
     static void i2s_intr_handler_hub75(void *arg);
 

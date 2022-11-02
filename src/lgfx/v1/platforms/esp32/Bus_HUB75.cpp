@@ -129,15 +129,15 @@ namespace lgfx
 
 /* DMAディスクリプタリストの各役割、 各行先頭がデータ転送期間、２列目以降が拡張点灯期間 
   ↓転送期間 ↓拡張点灯期間 
-  [8]   ※ ディスクリプタ[8]は色信号なし、前回データに対する点灯のみ行う期間↲
-  [7] → 9→10→11→12→13→14→15 ↲ ここで[7]のデータ転送は同時にSHIFTREG_ABCの転送期間を兼ねる
-  [6] →16→17→18 ↲
-  [5] →19 ↲
+  [0]   ※ ディスクリプタ[0]は色信号なし、前回データに対する点灯のみ行う期間 (EOF)↲
+  [1] → 9→10→11→12→13→14→15 ↲ ここで[1]のデータ転送は同時にSHIFTREG_ABCの転送期間を兼ねる
+  [2] →16→17→18 ↲
+  [3] →19 ↲
   [4] ↲
-  [3] ↲
-  [2] ↲
-  [1] ↲
-  [0] ↲(EOF,次ライン)
+  [5] ↲
+  [6] ↲
+  [7] ↲
+  [8] ↲(次ライン)
    色深度8を再現するために、各ビットに対応した点灯を行うため同一ラインに8回データを送る。
    8回の点灯期間は、1回進む毎に点灯期間が前回の2倍になる。
    後半の点灯期間がとても長くなるため、データ転送をせず点灯のみを行う拡張点灯期間を設ける。
@@ -145,7 +145,7 @@ namespace lgfx
 */
 
     static constexpr const uint8_t dma_link_idx_tbl[] = {
-      8, 0, 1, 2, 3, 19, 16, 9, 7, 10, 11, 12, 13, 14, 15, 6, 17, 18, 5, 4,
+      1, 9, 16, 19, 5, 6, 7, 8, 0, 10, 11, 12, 13, 14, 15, 2, 17, 18, 3, 4,
     };
 
     // (データ転送期間8回 + Y座標変更期間1回 + 拡張点灯期間11回 = 19) * 2ライン分
@@ -272,11 +272,12 @@ namespace lgfx
     uint32_t light_len_limit = (panel_width - 8) >> 1;
     uint32_t slen = (light_len_limit * br) >> 16;
 
-    _light_period[0] = 2;
-    for (int period = TRANSFER_PERIOD_COUNT - 1; period >= 0; --period)
+    _light_period[TRANSFER_PERIOD_COUNT+1] = 2;
+    // for (int period = TRANSFER_PERIOD_COUNT - 1; period >= 0; --period)
+    for (int period = 0; period < TRANSFER_PERIOD_COUNT; ++period)
     {
-      if (period <= 3) { slen >>= 1; }
-      _light_period[period + 1] = slen + 2;
+      if (period > 3) { slen >>= 1; }
+      _light_period[period+1] = slen + 2;
     }
   }
 
@@ -365,17 +366,34 @@ namespace lgfx
 
 
     uint16_t* light_period = me->_light_period;
-    light_period[TRANSFER_PERIOD_COUNT+1] = len32;
+    light_period[0] = len32;
     // light_period[TRANSFER_PERIOD_COUNT+2] = len32;
+
+    uint32_t addr = y << 9 | y << 25 | _mask_oe;
+
+    {
+      for (int i = 0; i < len32; ++i)
+      {
+        d32[i] = addr;
+      }
+      uint32_t light_len = light_period[TRANSFER_PERIOD_COUNT];
+      uint32_t yy = y << 9 | y << 25;
+      for (int i = 2; i < light_len; ++i)
+      {
+        d32[i] = yy;
+      }
+      // memset(&d32[0], y << 1 | _mask_oe >> 8, sizeof(uint32_t) * len32);
+      // memset(&d32[4], y << 1, sizeof(uint32_t) * light_len);
+    }
+
+    uint32_t addrs[TRANSFER_PERIOD_COUNT] = { _mask_oe | _mask_pin_a_clk, addr, addr, addr, addr, addr, addr, addr };
 
     auto s1 = (uint32_t*)(me->_frame_buffer->getLineBuffer(y));
     auto s2 = (uint32_t*)(me->_frame_buffer->getLineBuffer(y + (panel_height>>1)));
 
-    uint32_t addr = y << 9 | y << 25 | _mask_oe;
-    uint32_t addrs[TRANSFER_PERIOD_COUNT] = { addr, addr, addr, addr, addr, addr, addr, _mask_oe | _mask_pin_a_clk };
-
+    d32 += len32;
     uint32_t x = 0;
-    int light_idx = 0;
+    int light_idx = TRANSFER_PERIOD_COUNT + 1;
     for (;;)
     {
       // 16bit RGB565を32bit変数に2ピクセル纏めて取り込む。(画面の上半分用)
@@ -473,7 +491,7 @@ namespace lgfx
       uint32_t rgb_even_2 = (rgb_L2_even + rgb_H2_even) >> 3;
       uint32_t rgb_odd_2  =  rgb_L2_odd  + rgb_H2_odd;
 
-      int32_t i = 0;
+      int32_t i = 7;
       do
       {
         uint32_t odd_1 = rgb_odd_1 & 0x3F;
@@ -486,30 +504,30 @@ namespace lgfx
         // 奇数番ビット成分を横２列ぶん同時にバッファにセットする
         d32[i * len32] = addrs[i] + odd_2 + odd_1;
         even_1 <<= 16;
-        ++i;
+        --i;
         rgb_even_1 >>= 6;
         rgb_even_2 >>= 6;
         // 偶数番ビット成分を横２列ぶん同時にバッファにセットする
         d32[i * len32] = addrs[i] + even_2 + even_1;
-      } while (++i != TRANSFER_PERIOD_COUNT);
+      } while (--i >= 0);
 //*/
       ++d32;
 
       if (++x < light_period[light_idx]) { continue; }
 
-      if (light_idx <= TRANSFER_PERIOD_COUNT)
+      if (light_idx != 0)
       {
-        if (light_idx == 0)
+        if (light_idx == TRANSFER_PERIOD_COUNT+1)
         {
-          for (int k = 0; k < TRANSFER_PERIOD_COUNT-1; ++k)
+          for (int k = 1; k < TRANSFER_PERIOD_COUNT; ++k)
           {
             addrs[k] &= ~_mask_oe;
           }
-          if (x < light_period[++light_idx]) { continue; }
+          if (x < light_period[--light_idx]) { continue; }
         }
         do {
-          addrs[(light_idx - 2) & (TRANSFER_PERIOD_COUNT - 1)] |= _mask_oe;
-        } while (x >= light_period[++light_idx]);
+          addrs[1 + ((light_idx - 1) & (TRANSFER_PERIOD_COUNT - 1))] |= _mask_oe;
+        } while (x >= light_period[--light_idx]);
 
         continue;
       }
@@ -522,24 +540,15 @@ namespace lgfx
       d32[i * len32 - 1] |= _mask_lat | _mask_oe;
     }
 
-    d32 += len32 * (TRANSFER_PERIOD_COUNT - 1) - 1;
-
     // SHIFTREG_ABCのY座標情報をセットする
-    d32[-y] |= _mask_pin_c_dat;
-    d32[-(y+(panel_height >> 1))] |= _mask_pin_c_dat;
-    *d32 |= _mask_pin_b_lat | _mask_lat;
+    d32[-(y+1)] |= _mask_pin_c_dat;
+    d32[-(y+1+(panel_height >> 1))] |= _mask_pin_c_dat;
+    d32[-1] |= _mask_pin_b_lat | _mask_lat;
 
-    ++d32;
-    {
-      memset(&d32[0], prev_y << 1 | _mask_oe >> 8, sizeof(uint32_t) * len32);
-      uint32_t light_len = light_period[1] - 2;
-      memset(&d32[3], prev_y << 1, sizeof(uint32_t) * light_len);
-    }
-
-    d32 += len32;
+    d32 += len32 * (TRANSFER_PERIOD_COUNT - 1);
     {
     // 拡張点灯期間の内容を設定する
-      uint32_t light_len = light_period[5] - 2;
+      uint32_t light_len = light_period[1] - 2;
       memset(&d32[0], addr >> 8, sizeof(uint32_t) * (len32 - light_len));
       memset(&d32[len32 - light_len], y<<1  , sizeof(uint32_t) * (light_len));
     }
