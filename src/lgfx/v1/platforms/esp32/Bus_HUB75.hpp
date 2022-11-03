@@ -100,10 +100,10 @@ namespace lgfx
   private:
 
     static constexpr int32_t TRANSFER_PERIOD_COUNT = 8;
-    static constexpr int32_t LINECHANGE_PERIOD_COUNT = 1;
+    static constexpr int32_t LINECHANGE_HALF_PERIOD_COUNT = 2;
     static constexpr int32_t EXTEND_PERIOD_COUNT = 11;
-    static constexpr const int32_t TOTAL_PERIOD_COUNT = TRANSFER_PERIOD_COUNT + LINECHANGE_PERIOD_COUNT + EXTEND_PERIOD_COUNT;
-    static constexpr const uint32_t _mask_lat    = 0x00000040;
+    static constexpr const int32_t TOTAL_PERIOD_COUNT = TRANSFER_PERIOD_COUNT + LINECHANGE_HALF_PERIOD_COUNT + EXTEND_PERIOD_COUNT;
+    static constexpr const uint32_t _mask_lat    = 0x00400040;
     static constexpr const uint32_t _mask_oe     = 0x01000100;
     static constexpr const uint32_t _mask_addr   = 0x3E003E00;
     static constexpr const uint32_t _mask_pin_a_clk = 0x00000200;
@@ -111,9 +111,9 @@ namespace lgfx
     static constexpr const uint32_t _mask_pin_b_lat = 0x04000400;
 
     static void i2s_intr_handler_hub75(void *arg);
+    static void dmaTask(void *arg);
 
     static uint32_t* _gamma_tbl;
-    static uint8_t* _bitinvert_tbl;
 
     config_t _cfg;
 
@@ -122,15 +122,14 @@ namespace lgfx
 
     uint16_t* _dma_buf[2] = { nullptr, nullptr };
 
-    uint16_t _light_period[TRANSFER_PERIOD_COUNT + 3];
+    uint16_t _brightness_period[TRANSFER_PERIOD_COUNT + 3];
 
     intr_handle_t _isr_handle = nullptr;
 
     DividedFrameBuffer* _frame_buffer;
 
-    int _dma_y = 0;
-
     volatile void *_dev;
+    xTaskHandle _dmatask_handle = nullptr;
 
     lldesc_t* _dmadesc = nullptr;
     uint8_t _brightness = 128;
