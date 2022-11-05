@@ -565,7 +565,7 @@ namespace lgfx
         if ((x += 2) < xe) { continue; }
         if (light_idx == TRANSFER_PERIOD_COUNT) break;
         do {
-          yys[light_idx] |= me->_cfg.address_shiftreg ? _mask_oe | _mask_pin_b_lat : _mask_oe;
+          yys[light_idx] |= me->_cfg.address_shiftreg ? _mask_pin_b_lat : _mask_oe :  _mask_oe;
           xe = brightness_period[++light_idx];
         } while (x >= xe);
       }
