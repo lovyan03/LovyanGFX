@@ -324,7 +324,7 @@ namespace lgfx
 
     // LEDドライバの輝度設定レジスタ操作
     static constexpr const uint8_t fm6124_param_reg[2][16] =
-    { { 0, 0, 0, 0, 0,    0, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F,  0, 0, 0, 0, 0 }
+    { { 0, 0, 0, 0, 0,    0, 0x3F, 0x3F,    0, 0x3F, 0x3F,  0, 0, 0, 0, 0 }
     , { 0, 0, 0, 0, 0,    0,    0,    0,    0, 0x3F,    0,  0, 0, 0, 0, 0 }
     };
     for (size_t i = 0; i < _panel_width; ++i)
@@ -565,7 +565,7 @@ namespace lgfx
         if ((x += 2) < xe) { continue; }
         if (light_idx == TRANSFER_PERIOD_COUNT) break;
         do {
-          yys[light_idx] |= _mask_oe;
+          yys[light_idx] |= me->_cfg.address_shiftreg ? _mask_oe | _mask_pin_b_lat : _mask_oe;
           xe = brightness_period[++light_idx];
         } while (x >= xe);
       }
