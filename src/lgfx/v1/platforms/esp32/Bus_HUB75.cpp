@@ -23,7 +23,6 @@ Contributors:
 #include "../../misc/pixelcopy.hpp"
 
 #include <soc/dport_reg.h>
-#include <rom/gpio.h>
 #include <esp_log.h>
 
 namespace lgfx

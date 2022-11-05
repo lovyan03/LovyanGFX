@@ -143,7 +143,7 @@ namespace lgfx
     DividedFrameBuffer* _frame_buffer;
 
     volatile void *_dev;
-    xTaskHandle _dmatask_handle = nullptr;
+    TaskHandle_t _dmatask_handle = nullptr;
 
     lldesc_t* _dmadesc = nullptr;
     uint8_t _brightness = 128;
