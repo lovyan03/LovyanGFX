@@ -114,8 +114,8 @@ namespace lgfx
 
     static constexpr int32_t TRANSFER_PERIOD_COUNT = 8;
     static constexpr int32_t LINECHANGE_HALF_PERIOD_COUNT = 2;
-    static constexpr int32_t EXTEND_PERIOD_COUNT = 11;
-    // static constexpr int32_t EXTEND_PERIOD_COUNT = 4;
+    // static constexpr int32_t EXTEND_PERIOD_COUNT = 11;
+    static constexpr int32_t EXTEND_PERIOD_COUNT = 4;
     static constexpr const int32_t TOTAL_PERIOD_COUNT = TRANSFER_PERIOD_COUNT + LINECHANGE_HALF_PERIOD_COUNT + EXTEND_PERIOD_COUNT;
     static constexpr const uint32_t _mask_lat    = 0x00400040;
     static constexpr const uint32_t _mask_oe     = 0x01000100;

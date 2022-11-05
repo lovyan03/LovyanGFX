@@ -146,10 +146,10 @@ namespace lgfx
     // 各DMAディスクリプタが利用するDMAメモリ位置テーブル
     static constexpr const uint8_t dma_buf_idx_tbl[] = {
 // for EXTEND_PERIOD_COUNT == 11
-      16, 1, 18, 18, 18, 18, 18, 18, 18, 14, 18, 18, 18, 12, 18, 10, 8, 6, 4, 2, 0,
+   // 16, 1, 18, 18, 18, 18, 18, 18, 18, 14, 18, 18, 18, 12, 18, 10, 8, 6, 4, 2, 0,
 
 // for EXTEND_PERIOD_COUNT == 4
-//    16, 1, 18, 18, 18, 14, 18, 12, 10, 8, 6, 4, 2, 0,
+      16, 1, 18, 18, 18, 14, 18, 12, 10, 8, 6, 4, 2, 0,
     };
 
     // (データ転送期間8回 + 無信号期間2回 + 拡張点灯期間11回 = 21) * 2ライン分
@@ -162,12 +162,15 @@ namespace lgfx
     // 拡張点灯期間は合計11回あるが、同じ領域を使い回すためバッファは1回分でよい;
     static constexpr const size_t buf_linkcount = TRANSFER_PERIOD_COUNT + 1 + (LINECHANGE_HALF_PERIOD_COUNT / 2);
     size_t buf_bytes = panel_width * buf_linkcount * sizeof(uint16_t);
-    for (int i = 0; i < 2; i++) {
+    for (size_t i = 0; i < 2; i++) {
       _dma_buf[i] = (uint16_t*)heap_alloc_dma(buf_bytes);
       if (_dma_buf[i] == nullptr) {
         ESP_EARLY_LOGE("Bus_HUB75", "memory allocate error.");
       }
-      memset(_dma_buf[i], 0x01, buf_bytes); // バッファ初期値として OE(消灯)で埋めておく
+      for (size_t j = 0; j < (buf_bytes >> 1); ++j)
+      { // バッファ初期値として OE(消灯)で埋めておく
+        _dma_buf[i][j] = (uint16_t) _mask_oe;
+      }
 
       for (int j = 0; j < TOTAL_PERIOD_COUNT; j++) {
         uint32_t idx = i * TOTAL_PERIOD_COUNT + j;
@@ -191,15 +194,18 @@ namespace lgfx
     {
       static constexpr const uint8_t gamma_tbl[] =
       {
-          0,   1,   2,   3,   4,   5,   6,   7,
-          8,  10,  12,  13,  15,  17,  19,  21,
-         24,  26,  29,  31,  34,  37,  40,  43,
-         46,  49,  53,  56,  60,  64,  67,  71,
-         75,  80,  84,  88,  93,  97, 102, 107,
-        112, 117, 122, 127, 133, 138, 144, 149,
-        155, 161, 167, 173, 179, 186, 192, 199,
-        205, 212, 219, 226, 233, 241, 248, 255
+          0,   0,   1,   1,   2,   2,   3,   4,
+          5,   6,   8,   9,  11,  12,  14,  16,
+         18,  20,  23,  25,  28,  30,  33,  36,
+         39,  42,  46,  49,  53,  56,  60,  64,
+         68,  72,  77,  81,  86,  90,  95, 100,
+        105, 110, 116, 121, 127, 132, 138, 144,
+        150, 156, 163, 169, 176, 182, 189, 196,
+        203, 210, 218, 225, 233, 240, 248, 255
       };
+
+
+
       _gamma_tbl = (uint32_t*)heap_alloc_dma(sizeof(gamma_tbl) * sizeof(uint32_t));
       for (size_t i = 0; i < sizeof(gamma_tbl); ++i)
       {
@@ -230,8 +236,10 @@ namespace lgfx
     return b;
   }
 
-  static uint32_t getClockDivValue(uint32_t baseClock, uint32_t targetFreq)
+  static uint32_t getClockDivValue(uint32_t targetFreq)
   {
+    // ToDo:get from APB clock.
+    uint32_t baseClock = 80 * 1000 * 1000;
     uint32_t n = baseClock / targetFreq;
     if (n > 255) { n = 255; }
     uint32_t a = 1;
@@ -272,7 +280,7 @@ namespace lgfx
     // _brightness_period[0] = 0;
     for (int period = TRANSFER_PERIOD_COUNT - 1; period >= 0; --period)
     {
-      if (period < 4) { slen >>= 1; }
+      if (period < 5) { slen >>= 1; }
       _brightness_period[period] = slen + 3;
 // ESP_EARLY_LOGE("DEBUG","period%d  = %d", period, slen);
     }
@@ -302,24 +310,6 @@ namespace lgfx
       return;
     }
 
-    auto i2s_dev = (i2s_dev_t*)_dev;
-    i2s_dev->out_link.val = 0;
-    i2s_dev->fifo_conf.val = _fifo_conf_dma;
-    i2s_dev->sample_rate_conf.val = _sample_rate_conf_reg_direct;
-
-    // 総転送データ量とリフレッシュレートに基づいて送信クロックを設定する
-    uint32_t pll_d2_clock = 80 * 1000 * 1000;
-    uint32_t period_len = TRANSFER_PERIOD_COUNT + EXTEND_PERIOD_COUNT + (LINECHANGE_HALF_PERIOD_COUNT >> 1);
-    uint32_t freq_write = (period_len * _panel_width * _panel_height * _cfg.refresh_rate) >> 1;
-    i2s_dev->clkm_conf.val = getClockDivValue(pll_d2_clock, freq_write);
-
-    // esp_intr_enable(_isr_handle);
-    i2s_dev->int_clr.val = ~0u;
-
-    i2s_dev->conf.val = _conf_reg_reset;
-    i2s_dev->out_link.val = I2S_OUTLINK_START | ((uint32_t)&_dmadesc[0] & I2S_OUTLINK_ADDR);
-    i2s_dev->conf.val = _conf_reg_start;
-
 #if portNUM_PROCESSORS > 1
     if (((size_t)_cfg.task_pinned_core) < portNUM_PROCESSORS)
     {
@@ -330,6 +320,33 @@ namespace lgfx
     {
       xTaskCreate(dmaTask, "hub75dma", 2048, this, _cfg.task_priority, &_dmatask_handle);
     }
+
+    auto dev = (i2s_dev_t*)_dev;
+
+    // LEDドライバの輝度設定レジスタ操作
+    static constexpr const uint8_t fm6124_param_reg[2][16] =
+    { { 0, 0, 0, 0, 0,    0, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F,  0, 0, 0, 0, 0 }
+    , { 0, 0, 0, 0, 0,    0,    0,    0,    0, 0x3F,    0,  0, 0, 0, 0, 0 }
+    };
+    for (size_t i = 0; i < _panel_width; ++i)
+    {
+      for (size_t j = 0; j < 2; ++j)
+      {
+        // set register param.
+        _dma_buf[0][_panel_width * (7 - j) + (i ^ 1)] = (uint16_t)(fm6124_param_reg[j][i & 15] | _mask_oe | (i >= (_panel_width - (11+j)) ? _mask_lat : 0));
+      }
+    }
+
+    dev->out_link.val = 0;
+    dev->fifo_conf.val = _fifo_conf_dma;
+    dev->sample_rate_conf.val = _sample_rate_conf_reg_direct;
+
+    dev->clkm_conf.val = getClockDivValue(400000);
+    dev->int_clr.val = ~0u;
+
+    dev->conf.val = _conf_reg_reset;
+    dev->out_link.val = I2S_OUTLINK_START | ((uint32_t)_dmadesc & I2S_OUTLINK_ADDR);
+    dev->conf.val = _conf_reg_start;
   }
 
   void Bus_HUB75::endTransaction(void)
@@ -377,26 +394,32 @@ namespace lgfx
     }
 #endif
 
-    intr_handle_t _isr_handle = nullptr;
-
     if (esp_intr_alloc(intr_source, ESP_INTR_FLAG_LEVEL2 | ESP_INTR_FLAG_IRAM,
-        i2s_intr_handler_hub75, me, &_isr_handle) != ESP_OK) {
+        i2s_intr_handler_hub75, me, &(me->_isr_handle)) != ESP_OK) {
       ESP_EARLY_LOGE("Bus_HUB75","esp_intr_alloc failure ");
       return;
     }
     ESP_EARLY_LOGV("Bus_HUB75","esp_intr_alloc success ");
 
-    const auto panel_height = me->_panel_height;
-    const auto panel_width = me->_panel_width;
-    const uint32_t len32 = panel_width >> 1;
-    uint_fast8_t yidx = 0;
+    ulTaskNotifyTake( pdFALSE, portMAX_DELAY);
 
-// uint8_t bitinvert_tbl[] = { 0, 16, 8, 24, 4, 20, 12, 28, 2, 18, 10, 26, 6, 22, 14, 30, 1, 17, 9, 25, 5, 21, 13, 29, 3, 19, 11, 27, 7, 23, 15, 31 };
-// if (panel_height <= 32)
-// {
-//   for (size_t i = 0; i < sizeof(bitinvert_tbl); ++i) 
-//   bitinvert_tbl[i] >>= 1;
-// }
+    const auto panel_width = me->_panel_width;
+
+    for (int i = 0; i < panel_width; ++i)
+    {
+      me->_dma_buf[0][panel_width * 7 + i] = (uint16_t)_mask_oe;
+      me->_dma_buf[0][panel_width * 6 + i] = (uint16_t)_mask_oe;
+    }
+
+    const auto panel_height = me->_panel_height;
+
+    // 総転送データ量とリフレッシュレートに基づいて送信クロックを設定する
+    uint32_t freq_write = (TOTAL_PERIOD_COUNT * panel_width * panel_height * me->_cfg.refresh_rate) >> 1;
+    dev->clkm_conf.val = getClockDivValue(freq_write);
+
+    const uint32_t len32 = panel_width >> 1;
+    uint_fast8_t y = 0;
+
     const uint16_t* brightness_period = me->_brightness_period;
 
     while (auto dst = (uint32_t*)ulTaskNotifyTake( pdTRUE, portMAX_DELAY))
@@ -405,12 +428,8 @@ namespace lgfx
 // DEBUG
 // lgfx::gpio_hi(15);
 
-      yidx = (yidx + 1) & ((panel_height>>1) - 1);
+      y = (y + 1) & ((panel_height>>1) - 1);
 
-   // uint_fast8_t y = bitinvert_tbl[yidx];
-      uint_fast8_t y = yidx;
-
-      // uint32_t yy = y << 9 | y << 25;
       uint32_t yy = 0;
       if (me->_cfg.address_mode == config_t::address_mode_t::address_binary)
       {
