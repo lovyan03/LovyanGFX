@@ -56,7 +56,20 @@ namespace lgfx
       };
 
       // 1秒間の表示更新回数 (この値に基づいて送信クロックが自動計算される)
-      uint16_t refresh_rate = 120;
+      uint16_t refresh_rate = 90;
+
+      /// background task priority
+      UBaseType_t task_priority = 1;
+
+      /// background task pinned core. (APP_CPU_NUM or PRO_CPU_NUM)
+      BaseType_t task_pinned_core = -1;
+
+      enum address_mode_t
+      {
+        address_binary,
+        address_shiftreg,
+      };
+      address_mode_t address_mode = address_binary;
 
       union
       {
@@ -102,6 +115,7 @@ namespace lgfx
     static constexpr int32_t TRANSFER_PERIOD_COUNT = 8;
     static constexpr int32_t LINECHANGE_HALF_PERIOD_COUNT = 2;
     static constexpr int32_t EXTEND_PERIOD_COUNT = 11;
+    // static constexpr int32_t EXTEND_PERIOD_COUNT = 4;
     static constexpr const int32_t TOTAL_PERIOD_COUNT = TRANSFER_PERIOD_COUNT + LINECHANGE_HALF_PERIOD_COUNT + EXTEND_PERIOD_COUNT;
     static constexpr const uint32_t _mask_lat    = 0x00400040;
     static constexpr const uint32_t _mask_oe     = 0x01000100;
