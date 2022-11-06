@@ -218,19 +218,21 @@ namespace lgfx
       uint32_t raw;
       do
       {
-        uint8_t* buf = &pixelbuf[pos];
         auto pos2 = param->fp_copy(pixelbuf, pos, w, param);
-        while (pos != pos2)
-        {
-          raw = *buf++;
-          for (size_t by = 1; by < bytes; ++by)
-          {
-            raw += (*buf++) << (by * 8);
-          }
-          drawPixelPreclipped(x + pos, y, raw);
-          ++pos;
-        }
         if (pos != pos2)
+        {
+          uint8_t* buf = &pixelbuf[pos * bytes];
+          do
+          {
+            raw = *buf++;
+            for (size_t by = 1; by < bytes; ++by)
+            {
+              raw += (*buf++) << (by * 8);
+            }
+            drawPixelPreclipped(x + pos, y, raw);
+          } while (++pos != pos2);
+        }
+        if (pos != w)
         {
           pos = param->fp_skip(pos, w, param);
         }

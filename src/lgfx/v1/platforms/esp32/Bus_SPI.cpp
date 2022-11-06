@@ -43,10 +43,24 @@ Contributors:
 #else
  #include <driver/spi_master.h>
 
- #if __has_include (<esp32/rom/gpio.h>)
-  #include <esp32/rom/gpio.h>
+ #if defined ( CONFIG_IDF_TARGET_ESP32S3 )
+  #if __has_include (<esp32s3/rom/gpio.h>)
+    #include <esp32s3/rom/gpio.h>
+  #else
+    #include <rom/gpio.h>
+  #endif
+ #elif defined ( CONFIG_IDF_TARGET_ESP32S2 )
+  #if __has_include (<esp32s2/rom/gpio.h>)
+    #include <esp32s2/rom/gpio.h>
+  #else
+    #include <rom/gpio.h>
+  #endif
  #else
-  #include <rom/gpio.h>
+  #if __has_include (<esp32/rom/gpio.h>)
+    #include <esp32/rom/gpio.h>
+  #else
+    #include <rom/gpio.h>
+  #endif
  #endif
 #endif
 

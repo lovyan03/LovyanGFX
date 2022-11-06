@@ -90,7 +90,6 @@ namespace lgfx
     uint32_t dport_clk_en;
     uint32_t dport_rst;
 
-    int intr_source = ETS_I2S0_INTR_SOURCE;
     if (_cfg.i2s_port == I2S_NUM_0) {
       idx_base = I2S0O_WS_OUT_IDX;
       dport_clk_en = DPORT_I2S0_CLK_EN;
@@ -99,7 +98,6 @@ namespace lgfx
 #if !defined (CONFIG_IDF_TARGET_ESP32S2)
     else
     {
-      intr_source = ETS_I2S1_INTR_SOURCE;
       idx_base = I2S1O_WS_OUT_IDX;
       dport_clk_en = DPORT_I2S1_CLK_EN;
       dport_rst = DPORT_I2S1_RST;
@@ -620,6 +618,7 @@ namespace lgfx
 
 // DEBUG
 // lgfx::gpio_lo(15);
+      // taskYIELD();
     }
   }
 //*/
