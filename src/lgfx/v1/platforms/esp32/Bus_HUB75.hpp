@@ -71,6 +71,13 @@ namespace lgfx
       };
       address_mode_t address_mode = address_binary;
 
+      enum initialize_mode_t
+      {
+        initialize_none,
+        initialize_fm6124,
+      };
+      initialize_mode_t initialize_mode = initialize_none;
+
       union
       {
         int8_t pin_data[14] = { -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1  };
@@ -113,10 +120,10 @@ namespace lgfx
   private:
 
     static constexpr int32_t TRANSFER_PERIOD_COUNT = 8;
-    static constexpr int32_t LINECHANGE_HALF_PERIOD_COUNT = 2;
+    static constexpr int32_t LINECHANGE_PERIOD_COUNT = 1;
     // static constexpr int32_t EXTEND_PERIOD_COUNT = 11;
-    static constexpr int32_t EXTEND_PERIOD_COUNT = 4;
-    static constexpr const int32_t TOTAL_PERIOD_COUNT = TRANSFER_PERIOD_COUNT + LINECHANGE_HALF_PERIOD_COUNT + EXTEND_PERIOD_COUNT;
+    static constexpr int32_t EXTEND_PERIOD_COUNT = 5;
+    static constexpr const int32_t TOTAL_PERIOD_COUNT = TRANSFER_PERIOD_COUNT + LINECHANGE_PERIOD_COUNT + EXTEND_PERIOD_COUNT;
     static constexpr const uint32_t _mask_lat    = 0x00400040;
     static constexpr const uint32_t _mask_oe     = 0x01000100;
     static constexpr const uint32_t _mask_addr   = 0x3E003E00;

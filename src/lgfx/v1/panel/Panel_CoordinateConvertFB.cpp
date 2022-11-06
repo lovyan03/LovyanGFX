@@ -207,7 +207,6 @@ namespace lgfx
   void Panel_CoordinateConvertFB::writeImage(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, pixelcopy_t* param, bool)
   {
     uint32_t sx32 = param->src_x32;
-    uint32_t sy32 = param->src_y32;
     size_t bytes = _write_bits >> 3;
     size_t len = w * bytes;
     auto pixelbuf = (uint8_t*)alloca((len + 7) & ~3);
@@ -237,6 +236,7 @@ namespace lgfx
         }
       } while (pos < w);
       param->src_y++;
+      param->src_x32 = sx32;
     } while (++y != h);
   }
 

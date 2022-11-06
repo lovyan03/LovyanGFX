@@ -42,7 +42,12 @@ Contributors:
  #include <esp32-hal-cpu.h>
 #else
  #include <driver/spi_master.h>
- #include <rom/gpio.h>
+
+ #if __has_include (<esp32/rom/gpio.h>)
+  #include <esp32/rom/gpio.h>
+ #else
+  #include <rom/gpio.h>
+ #endif
 #endif
 
 #ifndef SPI_PIN_REG
