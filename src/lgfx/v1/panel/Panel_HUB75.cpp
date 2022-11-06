@@ -74,7 +74,7 @@ namespace lgfx
     uint_fast8_t panel_index = px + _config_detail.x_panel_count * py;
 
     auto buf = (uint16_t*)_frame_buffer.getLineBuffer(y);
-    return buf[x];
+    return buf[x + panel_index * _single_width];
   }
 
   void Panel_HUB75::_draw_pixel_inner(uint_fast16_t x, uint_fast16_t y, uint32_t rawcolor)
