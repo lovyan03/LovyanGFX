@@ -1491,7 +1491,10 @@ namespace lgfx
     int32_t dst_y = src_y + dy;
 
     startWrite();
-    _panel->copyRect(dst_x, dst_y, w, h, src_x, src_y);
+    if (w && h)
+    {
+      _panel->copyRect(dst_x, dst_y, w, h, src_x, src_y);
+    }
 
     if (     dx > 0) writeFillRectPreclipped(_sx           , dst_y,  dx, h);
     else if (dx < 0) writeFillRectPreclipped(_sx + _sw + dx, dst_y, -dx, h);

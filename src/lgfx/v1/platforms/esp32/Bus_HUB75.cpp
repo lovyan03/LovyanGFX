@@ -91,7 +91,11 @@ namespace lgfx
     }
 
     idx_base = (_cfg.i2s_port == I2S_NUM_0) ? I2S0O_WS_OUT_IDX : I2S1O_WS_OUT_IDX;
+#if defined ( LGFX_IDF_V5 )
+    esp_rom_gpio_connect_out_signal(_cfg.pin_clk, idx_base, 1, 0); // clock Active-low
+#else
     gpio_matrix_out(_cfg.pin_clk, idx_base, 1, 0); // clock Active-low
+#endif
 
     uint32_t dport_clk_en;
     uint32_t dport_rst;
@@ -101,7 +105,7 @@ namespace lgfx
       dport_clk_en = DPORT_I2S0_CLK_EN;
       dport_rst = DPORT_I2S0_RST;
     }
-#if !defined (CONFIG_IDF_TARGET_ESP32S2)
+#if SOC_I2C_NUM > 1
     else
     {
       idx_base = I2S1O_WS_OUT_IDX;
@@ -409,7 +413,7 @@ namespace lgfx
     auto dev = getDev(me->_cfg.i2s_port);
 
     int intr_source = ETS_I2S0_INTR_SOURCE;
-#if !defined (CONFIG_IDF_TARGET_ESP32S2)
+#if SOC_I2C_NUM > 1
     if (me->_cfg.i2s_port != I2S_NUM_0)
     {
       intr_source = ETS_I2S1_INTR_SOURCE;

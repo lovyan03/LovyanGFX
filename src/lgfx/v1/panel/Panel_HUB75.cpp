@@ -66,6 +66,13 @@ namespace lgfx
 
   uint32_t Panel_HUB75::_read_pixel_inner(uint_fast16_t x, uint_fast16_t y)
   {
+    uint_fast8_t px = x / _single_width;
+    uint_fast8_t py = y / _single_height;
+
+    x -= px * _single_width;
+    y -= py * _single_height;
+    uint_fast8_t panel_index = px + _config_detail.x_panel_count * py;
+
     auto buf = (uint16_t*)_frame_buffer.getLineBuffer(y);
     return buf[x];
   }

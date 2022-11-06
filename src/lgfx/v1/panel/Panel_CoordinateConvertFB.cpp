@@ -55,6 +55,8 @@ namespace lgfx
     _ye = ph-1;
     _xs = 0;
     _ys = 0;
+    _xpos = 0;
+    _ypos = 0;
   }
 
   void Panel_CoordinateConvertFB::setWindow(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye)
@@ -249,12 +251,34 @@ namespace lgfx
 
   void Panel_CoordinateConvertFB::readRect(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, void* dst, pixelcopy_t* param)
   {
-    //ToDo:implement
-  }
+    uint32_t sx32 = param->src_x32;
+    size_t bytes = _write_bits >> 3;
+    size_t len = w * bytes;
+    auto pixelbuf = (uint8_t*)alloca((len + 7) & ~3);
 
-  void Panel_CoordinateConvertFB::copyRect(uint_fast16_t dst_x, uint_fast16_t dst_y, uint_fast16_t w, uint_fast16_t h, uint_fast16_t src_x, uint_fast16_t src_y)
-  {
-    //ToDo:implement
+    size_t pos = 0;
+
+    h += y;
+    do
+    {
+      uint8_t* buf = pixelbuf;
+      uint32_t i = 0;
+      do
+      {
+        uint32_t raw = readPixelPreclipped(x + i, y);
+        *buf++ = raw;
+        for (size_t by = 1; by < bytes; ++by)
+        {
+          *buf++ = raw >>= 8;
+        }
+      } while (++i != w);
+
+      param->src_y32 = 0;
+      param->src_x32 = 0;
+      param->src_data = pixelbuf;
+
+      pos = param->fp_copy(dst, pos, pos + w, param);
+    } while (++y != h);
   }
 
 //----------------------------------------------------------------------------
