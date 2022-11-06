@@ -251,7 +251,6 @@ namespace lgfx
 
   void Panel_CoordinateConvertFB::readRect(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, void* dst, pixelcopy_t* param)
   {
-    uint32_t sx32 = param->src_x32;
     size_t bytes = _write_bits >> 3;
     size_t len = w * bytes;
     auto pixelbuf = (uint8_t*)alloca((len + 7) & ~3);
