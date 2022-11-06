@@ -61,7 +61,7 @@ namespace lgfx
     /// @brief Y座標番号を指定してバッファのポインタを取得する
     /// @param y ライン番号
     /// @return 指定したラインの先頭ポインタ (ブロックの先頭とは限らない)
-    inline uint8_t* getLineBuffer(size_t y) const { return &_block_array[y / _block_lines][y % _block_lines]; }
+    inline uint8_t* getLineBuffer(size_t y) const { return &_block_array[y / _block_lines][_line_size * (y % _block_lines)]; }
 
   private:
     uint8_t** _block_array;

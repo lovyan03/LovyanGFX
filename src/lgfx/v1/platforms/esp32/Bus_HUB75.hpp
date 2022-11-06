@@ -130,6 +130,7 @@ namespace lgfx
     static constexpr const uint32_t _mask_pin_a_clk = 0x00000200;
     static constexpr const uint32_t _mask_pin_c_dat = 0x08000800;
     static constexpr const uint32_t _mask_pin_b_lat = 0x04000400;
+    static constexpr const uint8_t _dma_desc_set = 3;
 
     static void i2s_intr_handler_hub75(void *arg);
     static void dmaTask(void *arg);
@@ -141,9 +142,9 @@ namespace lgfx
     int_fast16_t _panel_width = 64;
     int_fast16_t _panel_height = 32;
 
-    uint16_t* _dma_buf[2] = { nullptr, nullptr };
+    uint16_t* _dma_buf[_dma_desc_set] = { nullptr, nullptr, nullptr };
 
-    uint16_t _brightness_period[TRANSFER_PERIOD_COUNT + 3];
+    uint16_t _brightness_period[TRANSFER_PERIOD_COUNT + 2];
 
     intr_handle_t _isr_handle = nullptr;
 
@@ -154,6 +155,7 @@ namespace lgfx
 
     lldesc_t* _dmadesc = nullptr;
     uint8_t _brightness = 128;
+    bool _task_running = false;
   };
 
 //----------------------------------------------------------------------------

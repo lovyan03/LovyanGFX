@@ -41,7 +41,7 @@ namespace lgfx
     size_t single_height = _cfg.panel_height / _config_detail.y_panel_count;
     size_t buffer_length = single_width * _config_detail.panel_count * sizeof(swap565_t);
 
-    if (_frame_buffer.create(buffer_length, single_height, 1) == nullptr)
+    if (_frame_buffer.create(buffer_length, single_height, single_height >> 1) == nullptr)
     {
       return false;
     }
