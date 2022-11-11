@@ -72,6 +72,16 @@ namespace lgfx
     _dev = getDev(cfg.i2s_port);
   }
 
+  uint32_t Bus_HUB75::calc_dma_buffer_len(uint32_t panel_width, uint32_t panel_height)
+  {
+    return (((TRANSFER_PERIOD_COUNT + 1) * panel_width) + (2 * panel_height)) * sizeof(uint16_t);
+  }
+
+  uint32_t Bus_HUB75::calc_dma_transfer_len(uint32_t panel_width, uint32_t panel_height)
+  {
+    return (((TRANSFER_PERIOD_COUNT + EXTEND_PERIOD_COUNT) * panel_width) + (2 * panel_height));
+  }
+
   bool Bus_HUB75::init(void)
   {
     auto idx_base = (_cfg.i2s_port == I2S_NUM_0) ? I2S0O_DATA_OUT8_IDX : I2S1O_DATA_OUT8_IDX;
@@ -141,19 +151,18 @@ namespace lgfx
 /*  // DMAディスクリプタが利用するDMAメモリ位置テーブル
  この配列は、14x2セットのDMAディスクリプタそれぞれが使用するバッファメモリの範囲を表す。
   0 : 無データ,x1点灯
-  1 : SHIFTREG_ABC座標,無灯
-  2 : 輝度1/32データ,無灯
-  3 : 輝度1/16データ,1/32点灯
-  4 : 輝度1/ 8データ,1/16点灯
-  5 : 輝度1/ 4データ,1/8点灯
-  6 : 輝度1/ 2データ,1/4点灯
-  7 : 輝度 x 1データ,1/2点灯
-  8 : 輝度 x 2データ, x1点灯
-  9 : 輝度 x 4データ, x1点灯
+  1 : 輝度1/32データ,無灯
+  2 : 輝度1/16データ,1/32点灯
+  3 : 輝度1/ 8データ,1/16点灯
+  4 : 輝度1/ 4データ,1/8点灯
+  5 : 輝度1/ 2データ,1/4点灯
+  6 : 輝度 x 1データ,1/2点灯
+  7 : 輝度 x 2データ, x1点灯
+  8 : 輝度 x 4データ, x1点灯
+  9 : SHIFTREG_ABC座標,無灯 (他の期間と比べてデータサイズが小さい。パネルの高さ相当)
 */
     static constexpr const uint8_t dma_buf_idx_tbl[] = {
-      1, 2, 3, 4, 5, 6, 7, 8, 0, 9, 0, 0, 0, 0, 
-      // 1, 2, 3, 4, 5, 6, 7, 0, 8, 0, 0, 0, 9, 0, 0, 0, 0, 0, 0, 0, 0, 
+      9, 1, 2, 3, 4, 5, 6, 7, 0, 8, 0, 0, 0, 0, 
     };
 
 /* DMAディスクリプタの各役割は以下の通り
@@ -174,6 +183,8 @@ namespace lgfx
   ※ 13番の転送が終わったあとは2セットあるディスクリプタ群の先頭にリンクする。
      また、13番の転送が終わった時点でEOF割込みが起こり、次のラインのデータ生成タスクが実行される。
 
+  ※ 0番 SHIFTREG_ABC座標,無灯の転送期間はパネル１枚の高さに比例、それ以外の期間はパネル全体の幅に比例する
+
    色深度8を再現するために、同一ラインに輝度成分の異なるデータを8回を送る。
    後半の輝度x2,x4のデータに対しては点灯期間が長いため、x1点灯期間を複数設けることで輝度差を実現する。
    "データ無しx1点灯期間"で送信する内容はすべて同一で良いため、同じメモリ範囲を共有利用してメモリを節約している。
@@ -186,9 +197,9 @@ namespace lgfx
     uint32_t panel_width = _panel_width;
 
     // DMA用バッファメモリ確保。 無データ点灯期間1回分 + データ転送期間8回分 + SHIFTREG_ABC座標期間1回 の合計10回分を連続領域として確保する
-    // 拡張点灯期間は合計11回あるが、同じ領域を使い回すためバッファは1回分でよい;
-    static constexpr const size_t buf_linkcount = TRANSFER_PERIOD_COUNT + LINECHANGE_PERIOD_COUNT + 1;
-    size_t buf_bytes = panel_width * buf_linkcount * sizeof(uint16_t);
+    // 無データ点灯期間は合計5回あるが、同じ領域を使い回すためバッファは1回分でよい;
+    size_t buf_bytes = calc_dma_buffer_len(panel_width, _panel_height);
+
     for (size_t i = 0; i < _dma_desc_set; i++) {
       _dma_buf[i] = (uint16_t*)heap_alloc_dma(buf_bytes);
       if (_dma_buf[i] == nullptr) {
@@ -200,12 +211,14 @@ namespace lgfx
       for (int j = 0; j < TOTAL_PERIOD_COUNT; j++) {
         uint32_t idx = i * TOTAL_PERIOD_COUNT + j;
         size_t bufidx = dma_buf_idx_tbl[j] * panel_width;
+        // SHIFTREG_ABCの期間のみデータ長をpanel_height * 2とする
+        size_t buflen = ((j == 0) ? _panel_height<<1 : panel_width) * sizeof(uint16_t);
         _dmadesc[idx].buf = (volatile uint8_t*)&(_dma_buf[i][bufidx]);
         _dmadesc[idx].eof = j == (TOTAL_PERIOD_COUNT - 1); // 最後の転送期間のみEOFイベントを発生させる
         _dmadesc[idx].empty = (uint32_t)(&_dmadesc[(idx + 1) % (TOTAL_PERIOD_COUNT * _dma_desc_set)]);
         _dmadesc[idx].owner = 1;
-        _dmadesc[idx].length = panel_width * sizeof(uint16_t);
-        _dmadesc[idx].size = panel_width * sizeof(uint16_t);
+        _dmadesc[idx].length = buflen;
+        _dmadesc[idx].size = buflen;
       }
     }
     setBrightness(_brightness);
@@ -308,8 +321,8 @@ namespace lgfx
     {
       for (size_t i = 0; i < width; ++i)
       { // 正しく反映されない事があるので、2回連続で設定しておく;
-        buf[width * (2 + j * 2) + (i ^ 1)] = (uint16_t)(fm6124_param_reg[j][i & 15] | _mask_oe | (i >= (width - (11 + j)) ? _mask_lat : 0));
-        buf[width * (3 + j * 2) + (i ^ 1)] = (uint16_t)(fm6124_param_reg[j][i & 15] | _mask_oe | (i >= (width - (11 + j)) ? _mask_lat : 0));
+        buf[width * (1 + j * 4) + (i ^ 1)] = (uint16_t)(fm6124_param_reg[j][i & 15] | _mask_oe | (i >= (width - (11+j)) ? _mask_lat : 0));
+        buf[width * (2 + j * 4) + (i ^ 1)] = (uint16_t)(fm6124_param_reg[j][i & 15] | _mask_oe | (i >= (width - (11+j)) ? _mask_lat : 0));
       }
     }
   }
@@ -326,17 +339,6 @@ namespace lgfx
       heap_free(_pixel_tbl);
     }
 
-#if portNUM_PROCESSORS > 1
-    if (((size_t)_cfg.task_pinned_core) < portNUM_PROCESSORS)
-    {
-      xTaskCreatePinnedToCore(dmaTask, "hub75dma", 2048, this, _cfg.task_priority, &_dmatask_handle, _cfg.task_pinned_core);
-    }
-    else
-#endif
-    {
-      xTaskCreate(dmaTask, "hub75dma", 2048, this, _cfg.task_priority, &_dmatask_handle);
-    }
-
     {
       if (_pixel_tbl)
       {
@@ -347,7 +349,7 @@ namespace lgfx
       auto bytes = (_depth & color_depth_t::bit_mask) >> 3;
       if (bytes <= 1)
       { // for RGB332
-        _pixel_tbl = (uint32_t*)heap_alloc_dma(512 * sizeof(uint32_t));
+        _pixel_tbl = (uint32_t*)heap_alloc_dma(256 * sizeof(uint32_t));
         for (size_t rgb332 = 0; rgb332 < 256; ++rgb332)
         {
           uint_fast16_t r = 1 + (((rgb332 & 0xE0u) * 0b01001u) >> 5);
@@ -398,13 +400,21 @@ namespace lgfx
     dev->sample_rate_conf.val = _sample_rate_conf_reg_direct;
 
     // 総転送データ量とリフレッシュレートに基づいて送信クロックを設定する
-    uint32_t freq_write = (TOTAL_PERIOD_COUNT * _panel_width * _panel_height * _cfg.refresh_rate) >> 1;
+    uint32_t freq_write = (calc_dma_transfer_len(_panel_width, _panel_height) * _panel_height * _cfg.refresh_rate) >> 1;
     dev->clkm_conf.val = getClockDivValue(freq_write);
-
-    dev->int_clr.val = ~0u;
 
     dev->conf.val = _conf_reg_reset;
     dev->out_link.val = I2S_OUTLINK_START | ((uint32_t)_dmadesc & I2S_OUTLINK_ADDR);
+#if portNUM_PROCESSORS > 1
+    if (((size_t)_cfg.task_pinned_core) < portNUM_PROCESSORS)
+    {
+      xTaskCreatePinnedToCore(dmaTask, "hub75dma", 4096, this, _cfg.task_priority, &_dmatask_handle, _cfg.task_pinned_core);
+    }
+    else
+#endif
+    {
+      xTaskCreate(dmaTask, "hub75dma", 4096, this, _cfg.task_priority, &_dmatask_handle);
+    }
   }
 
   void Bus_HUB75::endTransaction(void)
@@ -458,7 +468,7 @@ namespace lgfx
 
     intr_handle_t _isr_handle = nullptr;
 
-    if (esp_intr_alloc(intr_source, ESP_INTR_FLAG_LEVEL2 | ESP_INTR_FLAG_IRAM,
+    if (esp_intr_alloc(intr_source, ESP_INTR_FLAG_LEVEL1 | ESP_INTR_FLAG_IRAM,
         i2s_intr_handler_hub75, me, &(_isr_handle)) != ESP_OK) {
       ESP_EARLY_LOGE("Bus_HUB75","esp_intr_alloc failure ");
       return;
@@ -468,6 +478,7 @@ namespace lgfx
 
     auto dev = getDev(me->_cfg.i2s_port);
     dev->conf.val = _conf_reg_start;
+    dev->int_clr.val = ~0u;
 
     // LEDドライバの輝度レジスタ設定
     if (me->_cfg.initialize_mode == config_t::initialize_mode_t::initialize_fm6124)
@@ -478,18 +489,20 @@ namespace lgfx
         fm6124_command(buf, me->_panel_width, me->_cfg.fm6124_brightness);
 
         // 送信完了を待機
-        for (int i = 0; i < _dma_desc_set - 1; ++i)
-        {
-          ulTaskNotifyTake(pdTRUE, 32);
-        }
+        ulTaskNotifyTake(pdTRUE, 32);
+
         // 送信クロックを下げる
         dev->sample_rate_conf.tx_bck_div_num = 16;
 
         // 送信完了を待機
-        ulTaskNotifyTake(pdTRUE, 32);
-
-        // 輝度設定コマンド列をクリア
-        memset(buf, _mask_oe, (TRANSFER_PERIOD_COUNT + LINECHANGE_PERIOD_COUNT + 1) * me->_panel_width * sizeof(uint16_t));
+        for (int i = 0; i <= _dma_desc_set; ++i)
+        {
+          auto buf2 = (uint16_t*)ulTaskNotifyTake( pdTRUE, 32);
+          if (buf2)
+          { // 輝度設定コマンド列をクリア
+            memset(buf2, _mask_oe, calc_dma_buffer_len(me->_panel_width, me->_panel_height));
+          }
+        }
 
         // 送信クロックを元に戻す
         dev->sample_rate_conf.tx_bck_div_num = 1;
@@ -537,18 +550,20 @@ namespace lgfx
       y = (y + 1) & ((panel_height>>1) - 1);
 
       uint32_t yy = 0;
+      uint32_t yy_oe = _mask_oe | _mask_pin_b_lat;
       if (_cfg.address_mode == config_t::address_mode_t::address_binary)
       {
         yy = y << 8 | y << 24;
+        yy_oe = yy | _mask_oe;
       }
-      uint32_t yys[] = { _mask_pin_a_clk | _mask_oe, yy | _mask_oe, yy, yy, yy, yy, yy, yy, yy, yy, };
+      uint32_t yys[] = { yy_oe, yy, yy, yy, yy, yy, yy, yy, yy, };
 
       auto s_upper = (uint16_t*)(_frame_buffer->getLineBuffer(y));
       auto s_lower = (uint16_t*)(_frame_buffer->getLineBuffer(y + (panel_height>>1)));
 
       uint_fast8_t light_idx = 0;
       uint32_t x = 0;
-      uint32_t xe = brightness_period[1];
+      uint32_t xe = brightness_period[0] >> 1;
 // lgfx::gpio_lo(15);
       for (;;)
       {
@@ -572,13 +587,12 @@ namespace lgfx
         uint32_t rgb_1 = rgb_upper_1 + (rgb_lower_1 << 3);
         uint32_t rgb_2 = rgb_upper_2 + (rgb_lower_2 << 3);
 
-        d32[len32 * 0] = yys[TRANSFER_PERIOD_COUNT-1];
+        d32[len32 * 0] = yys[TRANSFER_PERIOD_COUNT - 1];
         d32[len32 * 1] = yys[0];
         d32[len32 * 2] = yys[1];
         d32[len32 * 3] = yys[2];
-        d32[len32 * 4] = yys[3];
 
-        int32_t i = 4;
+        int32_t i = 3;
         uint32_t pixel_2 = rgb_2 & 0x3F;
         uint32_t pixel_1 = rgb_1 & 0x3F;
         pixel_2 += yys[i];
@@ -594,16 +608,16 @@ namespace lgfx
           pixel_1 <<= 16;
           // 横２列ぶん同時にバッファにセットする
           d32[++i * len32] = pixel_1 + pixel_2;
-        } while (i <= TRANSFER_PERIOD_COUNT);
+        } while (i < TRANSFER_PERIOD_COUNT);
 
         ++d32;
 
-        if ((x += 2) < xe) { continue; }
+        if (++x < xe) { continue; }
         if (light_idx == TRANSFER_PERIOD_COUNT) break;
         do {
-          // PIN B Discharge+
-          yys[++light_idx] |= (_cfg.address_mode == config_t::address_binary) ? _mask_oe : ( _mask_pin_b_lat | _mask_oe);
-          xe = brightness_period[light_idx];
+          // PIN B Discharge
+          yys[++light_idx] = yy_oe;
+          xe = brightness_period[light_idx] >> 1;
         } while (x >= xe);
       }
 // lgfx::gpio_hi(15);
@@ -611,13 +625,6 @@ namespace lgfx
       // 無データ,点灯のみの期間の先頭の点灯防止処理
       d32[0 - len32] |= _mask_oe;
       d32[1 - len32] |= (brightness_period[TRANSFER_PERIOD_COUNT-1] & 1) ? (_mask_oe & ~0xFFFF) : _mask_oe;
-
-      d32 += len32;
-
-      // SHIFTREG_ABCのY座標情報をセット;
-      d32[- (y + 1                      )] = _mask_pin_c_dat | _mask_pin_a_clk | _mask_oe;
-      d32[- (y + 1 + (panel_height >> 1))] = _mask_pin_c_dat | _mask_pin_a_clk | _mask_oe;
-      d32[ - 1] |= _mask_lat | _mask_pin_b_lat;
 
       d32 += len32;
       // データのラッチ及びラッチ直後の点灯防止処理
@@ -628,12 +635,28 @@ namespace lgfx
         d32[len32 * i + 1] |= (brightness_period[i] & 1) ? (_mask_oe & ~0xFFFF) :  _mask_oe;
       }
 
+      d32 += len32 * 7;
+
+      {
+      // SHIFTREG_ABCのY座標情報をセット;
+        uint32_t poi = (~y) & ((panel_height >> 1) - 1);
+        d32[poi                      ] = _mask_pin_a_clk | _mask_oe | _mask_pin_c_dat;
+        d32[poi + (panel_height >> 1)] = _mask_pin_a_clk | _mask_oe | _mask_pin_c_dat;
+        for (int i = 0; i < _dma_desc_set; ++i)
+        {
+          poi = (poi + 1) & ((panel_height >> 1) - 1);
+          d32[poi                      ] = _mask_pin_a_clk | _mask_oe;
+          d32[poi + (panel_height >> 1)] = _mask_pin_a_clk | _mask_oe;
+        }
+        d32[panel_height - 1] |= _mask_lat | _mask_pin_b_lat;
+      }
+
       // 作画中に次の割込みが発生した場合はビジー状態が続くことを回避するため処理をスキップする
       ulTaskNotifyTake( pdTRUE, 0);
     }
   }
 
-  void Bus_HUB75::dmaTask565(void)
+  void IRAM_ATTR Bus_HUB75::dmaTask565(void)
   {
     const auto panel_width = _panel_width;
     const auto panel_height = _panel_height;
@@ -656,11 +679,13 @@ namespace lgfx
       y = (y + 1) & ((panel_height>>1) - 1);
 
       uint32_t yy = 0;
+      uint32_t yy_oe = _mask_oe | _mask_pin_b_lat;
       if (_cfg.address_mode == config_t::address_mode_t::address_binary)
       {
         yy = y << 8 | y << 24;
+        yy_oe = yy | _mask_oe;
       }
-      uint32_t yys[] = { _mask_pin_a_clk | _mask_oe, yy | _mask_oe, yy, yy, yy, yy, yy, yy, yy, yy, };
+      uint32_t yys[] = { yy_oe, yy, yy, yy, yy, yy, yy, yy, yy, };
 
       auto s_upper = (uint32_t*)(_frame_buffer->getLineBuffer(y));
       auto s_lower = (uint32_t*)(_frame_buffer->getLineBuffer(y + (panel_height>>1)));
@@ -756,9 +781,8 @@ namespace lgfx
         uint32_t rgb_even_2 = (rgb_lower_2_even    ) + (rgb_upper_2_even >> 3);
         uint32_t rgb_odd_2  = (rgb_lower_2_odd << 3) + (rgb_upper_2_odd      );
 
-        d32[len32 * 0] = yys[TRANSFER_PERIOD_COUNT-1];
-        d32[len32 * 1] = yys[0];
-        int32_t i = 1;
+        d32[len32 * 0] = yys[TRANSFER_PERIOD_COUNT - 1];
+        int32_t i = 0;
         do
         {
           uint32_t odd_2 = rgb_odd_2 & 0x3F;
@@ -775,15 +799,15 @@ namespace lgfx
           rgb_even_1 >>= 6;
           // 偶数番ビット成分を横２列ぶん同時にバッファにセットする
           d32[++i * len32] = even_2;
-        } while (i <= TRANSFER_PERIOD_COUNT);
+        } while (i < TRANSFER_PERIOD_COUNT);
 
         ++d32;
 
         if (++x < xe) { continue; }
         if (light_idx == TRANSFER_PERIOD_COUNT) break;
         do {
-          // PIN B Discharge+
-          yys[++light_idx + 1] |= (_cfg.address_mode == config_t::address_binary) ? _mask_oe : ( _mask_pin_b_lat | _mask_oe);
+          // PIN B Discharge
+          yys[++light_idx] = yy_oe;
           xe = brightness_period[light_idx] >> 1;
         } while (x >= xe);
       }
@@ -794,19 +818,28 @@ namespace lgfx
       d32[1 - len32] |= (brightness_period[TRANSFER_PERIOD_COUNT-1] & 1) ? (_mask_oe & ~0xFFFF) : _mask_oe;
 
       d32 += len32;
-
-      // SHIFTREG_ABCのY座標情報をセット;
-      d32[- (y + 1                      )] = _mask_pin_c_dat | _mask_pin_a_clk | _mask_oe;
-      d32[- (y + 1 + (panel_height >> 1))] = _mask_pin_c_dat | _mask_pin_a_clk | _mask_oe;
-      d32[ - 1] |= _mask_lat | _mask_pin_b_lat;
-
-      d32 += len32;
       // データのラッチ及びラッチ直後の点灯防止処理
       for (int i = 0; i < TRANSFER_PERIOD_COUNT; ++i)
       {
         d32[len32 * i - 1] |= _mask_lat;
         d32[len32 * i + 0] |= _mask_oe;
         d32[len32 * i + 1] |= (brightness_period[i] & 1) ? (_mask_oe & ~0xFFFF) :  _mask_oe;
+      }
+
+      d32 += len32 * 7;
+
+      {
+      // SHIFTREG_ABCのY座標情報をセット;
+        uint32_t poi = (~y) & ((panel_height >> 1) - 1);
+        d32[poi                      ] = _mask_pin_a_clk | _mask_oe | _mask_pin_c_dat;
+        d32[poi + (panel_height >> 1)] = _mask_pin_a_clk | _mask_oe | _mask_pin_c_dat;
+        for (int i = 0; i < _dma_desc_set; ++i)
+        {
+          poi = (poi + 1) & ((panel_height >> 1) - 1);
+          d32[poi                      ] = _mask_pin_a_clk | _mask_oe;
+          d32[poi + (panel_height >> 1)] = _mask_pin_a_clk | _mask_oe;
+        }
+        d32[panel_height - 1] |= _mask_lat | _mask_pin_b_lat;
       }
 
       // 作画中に次の割込みが発生した場合はビジー状態が続くことを回避するため処理をスキップする

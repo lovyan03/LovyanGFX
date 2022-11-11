@@ -139,6 +139,8 @@ namespace lgfx
     static void dmaTask(void *arg);
     // static void fm6124_init(uint16_t* dma_buf, uint32_t panel_width, uint8_t brightness);
     static void fm6124_command(uint16_t *buf, uint32_t width, uint8_t brightness);
+    static uint32_t calc_dma_buffer_len(uint32_t panel_width, uint32_t panel_height);
+    static uint32_t calc_dma_transfer_len(uint32_t panel_width, uint32_t panel_height);
 
     void dmaTask332(void);
     void dmaTask565(void);
