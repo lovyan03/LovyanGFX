@@ -37,9 +37,16 @@ namespace lgfx
       return false;
     }
 
+    // _write_depth = color_depth_t::rgb332_1Byte;
+    _write_depth = color_depth_t::rgb565_2Byte;
+    // _write_depth = color_depth_t::rgb888_3Byte;
+    _read_depth = _write_depth;
+
+    uint_fast8_t bytes = _write_bits >> 3;
+
     size_t single_width  = _cfg.panel_width  / _config_detail.x_panel_count;
     size_t single_height = _cfg.panel_height / _config_detail.y_panel_count;
-    size_t buffer_length = single_width * _config_detail.panel_count * sizeof(swap565_t);
+    size_t buffer_length = single_width * _config_detail.panel_count * bytes;
 
     if (_frame_buffer.create(buffer_length, single_height, single_height >> 1) == nullptr)
     {
@@ -49,10 +56,7 @@ namespace lgfx
     _single_width = single_width;
     _single_height = single_height;
 
-    _write_depth = color_depth_t::rgb565_2Byte;
-    _read_depth = color_depth_t::rgb565_2Byte;
-
-    ((Bus_ImagePush*)_bus)->setImageBuffer((void*)&_frame_buffer);
+    ((Bus_ImagePush*)_bus)->setImageBuffer((void*)&_frame_buffer, _write_depth);
 
     if (!Panel_CoordinateConvertFB::init(use_reset))
     {
@@ -73,8 +77,13 @@ namespace lgfx
     y -= py * _single_height;
     uint_fast8_t panel_index = px + _config_detail.x_panel_count * py;
 
-    auto buf = (uint16_t*)_frame_buffer.getLineBuffer(y);
-    return buf[x + panel_index * _single_width];
+    auto buf = _frame_buffer.getLineBuffer(y);
+    switch (_read_bits >> 3)
+    {
+      default: return                   buf [x + panel_index * _single_width];
+      case 2:  return       ((uint16_t*)buf)[x + panel_index * _single_width];
+      case 3:  return ((lgfx::bgr888_t*)buf)[x + panel_index * _single_width].get();
+    }
   }
 
   void Panel_HUB75::_draw_pixel_inner(uint_fast16_t x, uint_fast16_t y, uint32_t rawcolor)
@@ -86,8 +95,13 @@ namespace lgfx
     y -= py * _single_height;
     uint_fast8_t panel_index = px + _config_detail.x_panel_count * py;
 
-    auto buf = (uint16_t*)_frame_buffer.getLineBuffer(y);
-    buf[x + panel_index * _single_width] = rawcolor;
+    auto buf = _frame_buffer.getLineBuffer(y);
+    switch (_write_bits >> 3)
+    {
+      default:                  buf [x + panel_index * _single_width] = rawcolor;  break;
+      case 2:       ((uint16_t*)buf)[x + panel_index * _single_width] = rawcolor;  break;
+      case 3: ((lgfx::bgr888_t*)buf)[x + panel_index * _single_width] = rawcolor;  break;
+    }
   }
 
   void Panel_HUB75::setBrightness(uint8_t brightness)
