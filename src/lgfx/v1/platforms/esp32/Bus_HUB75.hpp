@@ -78,6 +78,9 @@ namespace lgfx
       };
       initialize_mode_t initialize_mode = initialize_none;
 
+      // LEDドライバFM6124の輝度レジスタ設定値 (指定可能な範囲 : 0 ~ 15 )
+      uint8_t fm6124_brightness = 12;
+
       union
       {
         int8_t pin_data[14] = { -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1  };
@@ -90,13 +93,13 @@ namespace lgfx
           int8_t pin_g2;
           int8_t pin_b2;
           int8_t pin_lat;
-          int8_t pin_clk;
           int8_t pin_oe;
           int8_t pin_addr_a;
           int8_t pin_addr_b;
           int8_t pin_addr_c;
           int8_t pin_addr_d;
           int8_t pin_addr_e;
+          int8_t pin_clk;
         };
       };
     };
@@ -115,29 +118,35 @@ namespace lgfx
     void setBrightness(uint8_t brightness);
     uint8_t getBrightness(void) const { return _brightness; }
 
-    void setImageBuffer(void* buffer) override;
+    void setImageBuffer(void* buffer, color_depth_t depth) override;
 
   private:
 
     static constexpr int32_t TRANSFER_PERIOD_COUNT = 8;
     static constexpr int32_t LINECHANGE_PERIOD_COUNT = 1;
-    // static constexpr int32_t EXTEND_PERIOD_COUNT = 11;
+    // static constexpr int32_t EXTEND_PERIOD_COUNT = 12;
     static constexpr int32_t EXTEND_PERIOD_COUNT = 5;
     static constexpr const int32_t TOTAL_PERIOD_COUNT = TRANSFER_PERIOD_COUNT + LINECHANGE_PERIOD_COUNT + EXTEND_PERIOD_COUNT;
     static constexpr const uint32_t _mask_lat    = 0x00400040;
-    static constexpr const uint32_t _mask_oe     = 0x01000100;
-    static constexpr const uint32_t _mask_addr   = 0x3E003E00;
-    static constexpr const uint32_t _mask_pin_a_clk = 0x00000200;
-    static constexpr const uint32_t _mask_pin_c_dat = 0x08000800;
-    static constexpr const uint32_t _mask_pin_b_lat = 0x04000400;
+    static constexpr const uint32_t _mask_oe     = 0x00800080;
+    static constexpr const uint32_t _mask_addr   = 0x1F001F00;
+    static constexpr const uint32_t _mask_pin_a_clk = 0x00000100;
+    static constexpr const uint32_t _mask_pin_b_lat = 0x02000200;
+    static constexpr const uint32_t _mask_pin_c_dat = 0x04000400;
     static constexpr const uint8_t _dma_desc_set = 3;
 
     static void i2s_intr_handler_hub75(void *arg);
     static void dmaTask(void *arg);
+    // static void fm6124_init(uint16_t* dma_buf, uint32_t panel_width, uint8_t brightness);
+    static void fm6124_command(uint16_t *buf, uint32_t width, uint8_t brightness);
 
-    static uint32_t* _gamma_tbl;
+    void dmaTask332(void);
+    void dmaTask565(void);
+
+    uint32_t* _pixel_tbl;
 
     config_t _cfg;
+    color_depth_t _depth = color_depth_t::rgb565_2Byte;
 
     int_fast16_t _panel_width = 64;
     int_fast16_t _panel_height = 32;
@@ -146,8 +155,6 @@ namespace lgfx
 
     uint16_t _brightness_period[TRANSFER_PERIOD_COUNT + 2];
 
-    intr_handle_t _isr_handle = nullptr;
-
     DividedFrameBuffer* _frame_buffer;
 
     volatile void *_dev;
@@ -155,7 +162,6 @@ namespace lgfx
 
     lldesc_t* _dmadesc = nullptr;
     uint8_t _brightness = 128;
-    bool _task_running = false;
   };
 
 //----------------------------------------------------------------------------
