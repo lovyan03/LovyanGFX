@@ -666,9 +666,9 @@ namespace lgfx
     uint32_t* mixdata;        // 16
     uint16_t* xe_tbl;         // 20
     uint32_t len32;           // 24
-    uint32_t x;               // 28
+    uint32_t xe_idx;          // 28
     uint32_t xe;              // 32
-    uint32_t xe_idx;          // 36
+    uint32_t dummy_;          // 36
     uint32_t mix_value;       // 40
     uint32_t* _retaddr;       // 44 A0保管用
   };
@@ -685,8 +685,9 @@ namespace lgfx
       "movi    a0,  0b111000111000111000111000111000   \n"  // A0 にマスクパターンをセット
       "l32i.n  a11, a2,   4               \n" // ★a11 = パネル上側の元データ配列
       "l32i.n  a12, a2,   8               \n" // ★a12 = パネル下側の元データ配列
-      "l32i.n  a13, a2,  28               \n" // ★a13 = x
       "l32i.n  a14, a2,   0               \n" // ★a14 = 出力先アドレス
+   // "l32i.n  a13, a2,  28               \n" // ★a13 = x
+      "movi.n  a13, 0                     \n" // ★a13 = x
 
 "XLOOP_START:                       \n"
 
@@ -870,7 +871,7 @@ namespace lgfx
       "addi.n  a13, a13, 1                \n" // A13 ++x
       "blt     a13, a3,  XLOOP_START      \n" // x が右端に達していない (x < xe) なら ループ最初に戻る
 
-      "l32i.n  a4,  a2,  36               \n" // a4に xe_idx を代入
+      "l32i.n  a4,  a2,  28               \n" // a4に xe_idx を代入
       "l32i.n  a5,  a2,  20               \n" // a5に xe_tbl を代入
       "l32i.n  a9,  a2,  40               \n" // A9に mixテーブル更新用の値を取得
       "beqi    a4,  8,   EXIT_FUNC_TEST_1 \n" // xe_idx が終端に達していたら処理を終える
@@ -885,7 +886,7 @@ namespace lgfx
         "srli    a3,  a3,  1                \n" // A3 >>= 1
       "bge     a13, a3,  BRLOOP_START     \n" // x == xe ならBR_LOOP再トライ
       "s32i.n  a3,  a2,  32               \n" // xe の値を保存
-      "s32i.n  a4,  a2,  36               \n" // xe_idx の値を保存
+      "s32i.n  a4,  a2,  28               \n" // xe_idx の値を保存
       "j XLOOP_START                      \n" // xe の位置が刷新されたので再度先頭からループ
 
 "EXIT_FUNC_TEST_1:                   \n"
@@ -903,7 +904,6 @@ namespace lgfx
     uint_fast8_t y = 0;
 
     const uint16_t* xe_tbl = _brightness_period;
-    auto pixel_tbl = _pixel_tbl;
 
     asm_work_t work;
 
@@ -947,14 +947,10 @@ lgfx::gpio_hi(15);
       }
       uint32_t yys[] = { yy_oe, yy, yy, yy, yy, yy, yy, yy, yy, };
 
-      auto s_upper = (uint32_t* __restrict)(_frame_buffer->getLineBuffer(y));
-      auto s_lower = (uint32_t* __restrict)(_frame_buffer->getLineBuffer(y + (panel_height>>1)));
-
       work.d32 = dst;
-      work.s32h = s_upper;
-      work.s32l = s_lower;
+      work.s32h = (uint32_t* __restrict)(_frame_buffer->getLineBuffer(y));
+      work.s32l = (uint32_t* __restrict)(_frame_buffer->getLineBuffer(y + (panel_height>>1)));
       work.mixdata = yys;
-      work.x = 0;
       work.xe = xe_tbl[0] >> 1;
       work.xe_idx = 0;
       work.mix_value = yy_oe;
