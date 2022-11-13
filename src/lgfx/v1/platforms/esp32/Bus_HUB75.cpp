@@ -682,12 +682,12 @@ namespace lgfx
   {
     __asm__ __volatile__ (
       "s32i.n  a0,  a2,  44               \n" // A0 を退避
-      "movi    a0,  0b111000111000111000111000111000   \n"  // A0 にマスクパターンをセット
       "l32i.n  a11, a2,   4               \n" // ★a11 = パネル上側の元データ配列
       "l32i.n  a12, a2,   8               \n" // ★a12 = パネル下側の元データ配列
       "l32i.n  a14, a2,   0               \n" // ★a14 = 出力先アドレス
    // "l32i.n  a13, a2,  28               \n" // ★a13 = x
       "movi.n  a13, 0                     \n" // ★a13 = x
+      "movi    a0,  0b111000111000111000111000111000   \n"  // A0 にマスクパターンをセット
 
 "XLOOP_START:                       \n"
 
@@ -914,10 +914,10 @@ namespace lgfx
     while (_dmatask_handle)
     {
 // DEBUG
-lgfx::gpio_lo(15);
+// lgfx::gpio_lo(15);
       auto dst = (uint32_t* __restrict)ulTaskNotifyTake( pdTRUE, portMAX_DELAY);
 // DEBUG
-lgfx::gpio_hi(15);
+// lgfx::gpio_hi(15);
       if (dst == nullptr) { break; }
       auto d32 = &dst[len32 * 9];
 
