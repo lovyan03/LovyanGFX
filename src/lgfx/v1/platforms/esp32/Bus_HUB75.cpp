@@ -84,40 +84,16 @@ namespace lgfx
 
   bool Bus_HUB75::init(void)
   {
-    auto idx_base = (_cfg.i2s_port == I2S_NUM_0) ? I2S0O_DATA_OUT8_IDX : I2S1O_DATA_OUT8_IDX;
-
-    for (size_t i = 0; i < 14; ++i)
-    {
-      if (_cfg.pin_data[i] < 0) continue;
-
-#if defined ( LGFX_IDF_V5 )
-      esp_rom_gpio_pad_select_gpio(_cfg.pin_data[i]);
-      esp_rom_gpio_connect_out_signal(_cfg.pin_data[i  ], idx_base + i, 0, 0);
-#else
-      gpio_pad_select_gpio(_cfg.pin_data[i]);
-      gpio_matrix_out(_cfg.pin_data[i  ], idx_base + i, 0, 0);
-#endif
-    }
-
-    idx_base = (_cfg.i2s_port == I2S_NUM_0) ? I2S0O_WS_OUT_IDX : I2S1O_WS_OUT_IDX;
-#if defined ( LGFX_IDF_V5 )
-    esp_rom_gpio_connect_out_signal(_cfg.pin_clk, idx_base, 1, 0); // clock Active-low
-#else
-    gpio_matrix_out(_cfg.pin_clk, idx_base, 1, 0); // clock Active-low
-#endif
-
     uint32_t dport_clk_en;
     uint32_t dport_rst;
 
     if (_cfg.i2s_port == I2S_NUM_0) {
-      idx_base = I2S0O_WS_OUT_IDX;
       dport_clk_en = DPORT_I2S0_CLK_EN;
       dport_rst = DPORT_I2S0_RST;
     }
 #if SOC_I2C_NUM > 1
     else
     {
-      idx_base = I2S1O_WS_OUT_IDX;
       dport_clk_en = DPORT_I2S1_CLK_EN;
       dport_rst = DPORT_I2S1_RST;
     }
@@ -304,28 +280,68 @@ namespace lgfx
     }
   }
 
-  void Bus_HUB75::fm6124_command(uint16_t *buf, uint32_t width, uint8_t brightness)
+  void Bus_HUB75::fm6124_init(uint8_t brightness)
   {
+    for (size_t i = 0; i < 14; ++i)
+    {
+      if (_cfg.pin_data[i] < 0) continue;
+
+#if defined ( LGFX_IDF_V5 )
+      esp_rom_gpio_pad_select_gpio(_cfg.pin_data[i]);
+      esp_rom_gpio_connect_out_signal(_cfg.pin_data[i  ], SIG_GPIO_OUT_IDX, 0, 0);
+#else
+      gpio_pad_select_gpio(_cfg.pin_data[i]);
+      gpio_matrix_out(_cfg.pin_data[i  ], SIG_GPIO_OUT_IDX, 0, 0);
+#endif
+      gpio_lo(_cfg.pin_data[i]);
+    }
+
+
     // 通信開始時に送信するLEDドライバの輝度設定レジスタ操作データ
     uint8_t fm6124_param_reg[2][16] =
-    { { 0, 0, 0, 0, 0, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F, 0x3F,    0, 0, 0, 0, 0 } // REG 11
-    , { 0, 0, 0, 0, 0,    0,    0,    0,    0, 0x3F,    0,    0, 0, 0, 0, 0 } // REG 12
+    { { 0, 0, 0, 0, 0,   1, 1, 1, 1, 1, 1,   0, 0, 0, 0, 0 } // REG 11
+    , { 0, 0, 0, 0, 0,   0, 0, 0, 0, 1, 0,   0, 0, 0, 0, 0 } // REG 12
     };
 
     // 輝度設定に合わせて値を変更する
     for (uint8_t bit = 0; bit < 5; ++bit)
     {
-      fm6124_param_reg[0][8 - bit] = (brightness & (1 << bit)) ? 0x3F : 0;
+      fm6124_param_reg[0][8 - bit] = brightness & (1 << bit);
     }
 
+    gpio_hi(_cfg.pin_oe);
+    gpio_lo(_cfg.pin_lat);
     for (size_t j = 0; j < 2; ++j)
     {
-      for (size_t i = 0; i < width; ++i)
-      { // 正しく反映されない事があるので、2回連続で設定しておく;
-        buf[width * (1 + j * 4) + (i ^ 1)] = (uint16_t)(fm6124_param_reg[j][i & 15] | _mask_oe | (i >= (width - (11+j)) ? _mask_lat : 0));
-        buf[width * (2 + j * 4) + (i ^ 1)] = (uint16_t)(fm6124_param_reg[j][i & 15] | _mask_oe | (i >= (width - (11+j)) ? _mask_lat : 0));
+      for (size_t i = 0; i < _panel_width; ++i)
+      {
+        if (fm6124_param_reg[j][i & 15])
+        {
+          for (size_t k = 0; k < 6; ++k)
+          {
+            gpio_hi(_cfg.pin_data[k]);
+          }
+        }
+        else
+        {
+          for (size_t k = 0; k < 6; ++k)
+          {
+            gpio_lo(_cfg.pin_data[k]);
+          }
+        }
+        if (i >= (_panel_width - (11+j)))
+        {
+          gpio_hi(_cfg.pin_lat);
+        }
+        else
+        {
+          gpio_lo(_cfg.pin_lat);
+        }
+        gpio_hi(_cfg.pin_clk);
+        gpio_lo(_cfg.pin_clk);
       }
     }
+    gpio_lo(_cfg.pin_lat);
   }
 
   void Bus_HUB75::beginTransaction(void)
@@ -394,6 +410,32 @@ namespace lgfx
         }
       }
     }
+
+    if (_cfg.initialize_mode == config_t::initialize_mode_t::initialize_fm6124)
+    { // LEDドライバの輝度レジスタ設定
+      fm6124_init(_cfg.fm6124_brightness);
+    }
+
+    auto idx_base = (_cfg.i2s_port == I2S_NUM_0) ? I2S0O_DATA_OUT8_IDX : I2S1O_DATA_OUT8_IDX;
+    for (size_t i = 0; i < 14; ++i)
+    {
+      if (_cfg.pin_data[i] < 0) continue;
+
+#if defined ( LGFX_IDF_V5 )
+      esp_rom_gpio_pad_select_gpio(_cfg.pin_data[i]);
+      esp_rom_gpio_connect_out_signal(_cfg.pin_data[i  ], idx_base + i, 0, 0);
+#else
+      gpio_pad_select_gpio(_cfg.pin_data[i]);
+      gpio_matrix_out(_cfg.pin_data[i  ], idx_base + i, 0, 0);
+#endif
+    }
+
+    idx_base = (_cfg.i2s_port == I2S_NUM_0) ? I2S0O_WS_OUT_IDX : I2S1O_WS_OUT_IDX;
+#if defined ( LGFX_IDF_V5 )
+    esp_rom_gpio_connect_out_signal(_cfg.pin_clk, idx_base, 1, 0); // clock Active-low
+#else
+    gpio_matrix_out(_cfg.pin_clk, idx_base, 1, 0); // clock Active-low
+#endif
 
     auto dev = (i2s_dev_t*)_dev;
     dev->out_link.val = 0;
@@ -480,35 +522,6 @@ namespace lgfx
     auto dev = getDev(me->_cfg.i2s_port);
     dev->conf.val = _conf_reg_start;
     dev->int_clr.val = ~0u;
-
-    // LEDドライバの輝度レジスタ設定
-    if (me->_cfg.initialize_mode == config_t::initialize_mode_t::initialize_fm6124)
-    {
-      auto buf = (uint16_t*)ulTaskNotifyTake( pdTRUE, 32);
-      if (buf)
-      {
-        fm6124_command(buf, me->_panel_width, me->_cfg.fm6124_brightness);
-
-        // 送信完了を待機
-        ulTaskNotifyTake(pdTRUE, 32);
-
-        // 送信クロックを下げる
-        dev->sample_rate_conf.tx_bck_div_num = 16;
-
-        // 送信完了を待機
-        for (int i = 0; i <= _dma_desc_set; ++i)
-        {
-          auto buf2 = (uint16_t*)ulTaskNotifyTake( pdTRUE, 32);
-          if (buf2)
-          { // 輝度設定コマンド列をクリア
-            memset(buf2, _mask_oe, calc_dma_buffer_len(me->_panel_width, me->_panel_height));
-          }
-        }
-
-        // 送信クロックを元に戻す
-        dev->sample_rate_conf.tx_bck_div_num = 1;
-      }
-    }
 
     int bytes = (me->_depth & color_depth_t::bit_mask) >> 3;
     if (bytes < 2)
@@ -682,24 +695,23 @@ namespace lgfx
   {
     __asm__ __volatile__ (
       "s32i.n  a0,  a2,  44               \n" // A0 を退避
-      "l32i.n  a11, a2,   4               \n" // ★a11 = パネル上側の元データ配列
-      "l32i.n  a12, a2,   8               \n" // ★a12 = パネル下側の元データ配列
-      "l32i.n  a14, a2,   0               \n" // ★a14 = 出力先アドレス
-   // "l32i.n  a13, a2,  28               \n" // ★a13 = x
-      "movi.n  a13, 0                     \n" // ★a13 = x
+      "l32i.n  a11, a2,  4                \n" // ★a11 = パネル上側の元データ配列
+      "l32i.n  a12, a2,  8                \n" // ★a12 = パネル下側の元データ配列
+      "l32i.n  a14, a2,  0                \n" // ★a14 = 出力先アドレス
+      "l32i.n  a13, a2,  32               \n" // ★a13 = xe
       "movi    a0,  0b111000111000111000111000111000   \n"  // A0 にマスクパターンをセット
 
 "XLOOP_START:                       \n"
 
-      "l32i.n  a5,  a11,  0               \n" // a5 = 元データ配列から swap565形式 2ピクセル まとめて取得
-      "l32i.n  a6,  a12,  0               \n" // a6 = 元データ配列から swap565形式 2ピクセル まとめて取得
+      "l32i.n  a5,  a11, 0                \n" // a5 = 元データ配列から swap565形式 2ピクセル まとめて取得
+      "l32i.n  a6,  a12, 0                \n" // a6 = 元データ配列から swap565形式 2ピクセル まとめて取得
       "l32i.n  a15, a2,  12               \n" // ★A15 = pixel_tbl
-      "addi.n  a11, a11,  4               \n" // 元データのアドレスを4進める
-      "addi.n  a12, a12,  4               \n" // 元データのアドレスを4進める
+      "addi.n  a11, a11, 4                \n" // 元データのアドレスを4進める
+      "addi.n  a12, a12, 4                \n" // 元データのアドレスを4進める
 
 
-      "extui   a10, a5,  8,    5          \n" // A10 = 青成分5bit取得
-      "extui   a9,  a5,  12,   1          \n" // A9  = 青成分の最上位1bit取得
+      "extui   a10, a5,  8,   5           \n" // A10 = 青成分5bit取得
+      "extui   a9,  a5,  12,  1           \n" // A9  = 青成分の最上位1bit取得
       "addx2   a9,  a10, a9               \n" // A9  = 青成分6bitデータ生成 (A10 << 1) + A9 
       "addx4   a10, a9,  a15              \n" // A10 = &pixel_tbl[A9 青成分] アドレス
 
@@ -746,34 +758,34 @@ namespace lgfx
       "l32i.n  a9,  a10, 0                \n" // A4  = pixel_tbl[A10(赤成分)]
       "addx2   a8,  a8,  a7               \n" // A8 = 青と緑 成分の合成値
 
-      "extui   a10, a5,  24,   5          \n" // A10 = 青成分5bit取得
+      "extui   a10, a5,  24,  5           \n" // A10 = 青成分5bit取得
 
       "addx2   a4,  a8,  a9               \n" // A4 = 1ピクセル目の RGB成分の合成値
   //////////////////
 //*/
 
-      "extui   a9,  a5,  28,   1          \n" // A9  = 青成分の最上位1bit取得
+      "extui   a9,  a5,  28,  1           \n" // A9  = 青成分の最上位1bit取得
       "addx2   a9,  a10, a9               \n" // A9  = 青成分6bitデータ生成 (A10 << 1) + A9 
       "addx4   a10, a9,  a15              \n" // A10 = &pixel_tbl[A9 青成分] アドレス
 
       "l32i.n  a8,  a10,  0               \n" // A8  = pixel_tbl[A10(青成分)]
 
-      "extui   a10, a5,  16,   3          \n" // A10 = 緑成分上位3bit取得
-      "extui   a9,  a5,  29,   3          \n" // A9  = 緑成分下位3bit取得
+      "extui   a10, a5,  16,  3           \n" // A10 = 緑成分上位3bit取得
+      "extui   a9,  a5,  29,  3           \n" // A9  = 緑成分下位3bit取得
       "addx8   a9,  a10, a9               \n" // A9  = 緑成分6bitデータ生成 (A10 << 3) + A9
       "addx4   a10, a9,  a15              \n" // A10 = &pixel_tbl[A10 緑成分] アドレス
 
       "l32i.n  a7,  a10,  0               \n" // A5  = pixel_tbl[A10(緑成分)]
 
-      "extui   a10, a5,  19,   5          \n" // A10 = 赤成分5bit取得
-      "extui   a9,  a5,  23,   1          \n" // A9  = 赤成分の最上位1bit取得
+      "extui   a10, a5,  19,  5           \n" // A10 = 赤成分5bit取得
+      "extui   a9,  a5,  23,  1           \n" // A9  = 赤成分の最上位1bit取得
       "addx2   a9,  a10, a9               \n" // A9  = 赤成分6bitデータ生成 (A10 << 1) + A9 
       "addx4   a10, a9,  a15              \n" // A10 = &pixel_tbl[A9 赤成分] アドレス
 
-      "l32i.n  a9,  a10,  0               \n" // A5  = pixel_tbl[A10(赤成分)]
+      "l32i.n  a9,  a10, 0                \n" // A5  = pixel_tbl[A10(赤成分)]
       "addx2   a8,  a8,  a7               \n" // A8  = 青と緑 成分の合成値
 
-      "extui   a10, a6,   24,   5         \n" // A8  = 青成分5bit取得
+      "extui   a10, a6,  24,   5          \n" // A8  = 青成分5bit取得
 
       "addx2   a5,  a8,  a9               \n" // a4 = 2ピクセル目の RGB成分の合成値
   //////////////////
@@ -840,54 +852,57 @@ namespace lgfx
       "movi.n   a7, 4                     \n"  // 4回ループ (TRANSFER_PERIOD_COUNT >> 1)
       "loop     a7, OUTPUTLOOP_END        \n"  // ※ ループ内で 2回出力 x4回ループで 8回分の出力をする
 
-        "addx4   a10, a9,  a10            \n"  // a10 出力先アドレス += len32(a9)
-        "l32i.n  a8,  a15, 0              \n"  // A8  = mixdata[0] (A15)
-        "extui   a7,  a3,  0,   6         \n"  // odd1 下位6ビット取得
-        "slli    a7,  a7,  16             \n"  // odd1のデータを左16bitシフト
-        "add.n   a8,  a7,  a8             \n"  // a8 = odd1 + tmp
-        "extui   a7,  a4,  0,   6         \n"  // odd2 下位6ビット取得
-        "add.n   a8,  a7,  a8             \n"  // a8 = odd2 + mixdata
-        "s32i.n  a8,  a10, 0              \n"  // a8 の値を出力先に詰める
+        "l32i.n   a8,  a15, 0             \n"  // A8  = mixdata[0] (A15)
+        "addx4    a10, a9,  a10           \n"  // a10 出力先アドレス += len32(a9)
+        "extui    a7,  a3,  0,   6        \n"  // odd1 下位6ビット取得
+        "slli     a7,  a7,  16            \n"  // odd1のデータを左16bitシフト
+        "add.n    a8,  a7,  a8            \n"  // a8 = odd1 + tmp
+        "extui    a7,  a4,  0,   6        \n"  // odd2 下位6ビット取得
+        "add.n    a7,  a7,  a8            \n"  // a7 = odd2 + mixdata
+        "s32i.n   a7,  a10, 0             \n"  // a7 の値を出力先に詰める
 
-        "addx4   a10, a9,  a10            \n"  // 出力先アドレス += len32(a9)
-        "l32i.n  a8,  a15, 4              \n"  // a8 = mixdata[1] (A15)
-        "extui   a7,  a5,  0,   6         \n"  // even1 下位6ビット取得
-        "slli    a7,  a7,  16             \n"  // even1のデータを左16bitシフト
-        "add.n   a8,  a7,  a8             \n"  // a8 = odd1 + tmp
-        "extui   a7,  a6,  0,   6         \n"  // even2 下位6ビット取得
-        "add.n   a8,  a7,  a8             \n"  // a8 = odd2 + mixdata
-        "s32i.n  a8,  a10, 0              \n"  // a8 の値を出力先に詰める
+        "l32i.n   a8,  a15, 4             \n"  // a8 = mixdata[1] (A15)
+        "addx4    a10, a9,  a10           \n"  // 出力先アドレス += len32(a9)
+        "extui    a7,  a5,  0,   6        \n"  // even1 下位6ビット取得
+        "slli     a7,  a7,  16            \n"  // even1のデータを左16bitシフト
+        "add.n    a8,  a7,  a8            \n"  // a8 = odd1 + tmp
+        "extui    a7,  a6,  0,   6        \n"  // even2 下位6ビット取得
+        "add.n    a7,  a7,  a8            \n"  // a7 = odd2 + mixdata
+        "s32i.n   a7,  a10, 0             \n"  // a7 の値を出力先に詰める
 
-        "addi.n  a15, a15, 8              \n"  // mixdataアドレスを8進める(要素2個ぶん)
-        "srli    a3,  a3,  6              \n"  // odd1の元データを右6bitシフト
-        "srli    a4,  a4,  6              \n"  // odd2の元データを右6bitシフト
-        "srli    a5,  a5,  6              \n"  // even1の元データを右6bitシフト
-        "srli    a6,  a6,  6              \n"  // even2の元データを右6bitシフト
+        "addi.n   a15, a15, 8             \n"  // mixdataアドレスを8進める(要素2個ぶん)
+        "srli     a3,  a3,  6             \n"  // odd1の元データを右6bitシフト
+        "srli     a4,  a4,  6             \n"  // odd2の元データを右6bitシフト
+        "srli     a5,  a5,  6             \n"  // even1の元データを右6bitシフト
+        "srli     a6,  a6,  6             \n"  // even2の元データを右6bitシフト
 
 "OUTPUTLOOP_END:                     \n"
 
-      "l32i.n  a3,  a2,  32               \n" // A3に xe を代入
-      "l32i.n  a15, a2,  16               \n" // A15 に mixdata アドレスを代入
-      "addi.n  a13, a13, 1                \n" // A13 ++x
-      "blt     a13, a3,  XLOOP_START      \n" // x が右端に達していない (x < xe) なら ループ最初に戻る
+      "addi.n  a13, a13, -1               \n" // A13 --xe
+      "bnez    a13, XLOOP_START           \n" // xe が残っているなら ループ最初に戻る
 
       "l32i.n  a4,  a2,  28               \n" // a4に xe_idx を代入
       "l32i.n  a5,  a2,  20               \n" // a5に xe_tbl を代入
       "l32i.n  a9,  a2,  40               \n" // A9に mixテーブル更新用の値を取得
       "beqi    a4,  8,   EXIT_FUNC_TEST_1 \n" // xe_idx が終端に達していたら処理を終える
-
+      "addx2   a6,  a4,  a5               \n" // a6 に xeテーブル現在インデクスのアドレス
+      "l16ui   a3,  a6,  0                \n" // A3 に現在の xe値
+      "l32i.n  a15, a2,  16               \n" // A15 に mixdata アドレスを代入
+      "srli    a3 , a3,  1                \n" // A10 >>= 1
 // ここから mixdata の値を更新、 xe の位置を再設定
 "BRLOOP_START:                       \n"
+        "mov     a10, a3                    \n" // a10 に前の xe値 を移す
+        "l16ui   a3,  a6,  2                \n" // a3 に新しい xe値 を代入
+        "addi.n  a6,  a6,  2                \n" // a6 xeテーブル位置をひとつ進める
         "addi.n  a4,  a4,  1                \n" // a4 ++xe_idx
-        "addx2   a7,  a4,  a5               \n" // a7 に取得対象の xe_tbl のアドレスをセット
-        "l16ui   a3,  a7,  0                \n" // A3に新しいXEを代入
         "addx4   a8,  a4,  a15              \n" // A8 に更新対象の mixdata のアドレスをセット
         "s32i.n  a9,  a8,  0                \n" // mixdata 更新
         "srli    a3,  a3,  1                \n" // A3 >>= 1
-      "bge     a13, a3,  BRLOOP_START     \n" // x == xe ならBR_LOOP再トライ
-      "s32i.n  a3,  a2,  32               \n" // xe の値を保存
+      "bge     a10, a3,  BRLOOP_START     \n" // xe 値が同値なら BR_LOOP 再トライ
+      "sub     a13, a3,  a10              \n" // 新しい xe値から前回のxe値を引き、差分を得る
       "s32i.n  a4,  a2,  28               \n" // xe_idx の値を保存
       "j XLOOP_START                      \n" // xe の位置が刷新されたので再度先頭からループ
+
 
 "EXIT_FUNC_TEST_1:                   \n"
 
