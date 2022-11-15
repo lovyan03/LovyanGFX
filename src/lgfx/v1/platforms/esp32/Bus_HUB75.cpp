@@ -584,12 +584,11 @@ namespace lgfx
       "s32i.n  a0,  a2,  44               \n" // A0 を退避
       "l32i.n  a3,  a2,  32               \n" // a3  = xe
       "l32i.n  a0,  a2,  0                \n" // ★a0  = 出力先アドレス
-      "l32i.n  a15, a2,  16               \n" // ★a15 = mixdata アドレス
+      "l32i.n  a11, a2,  4                \n" // ★a11 = パネル上側の元データ配列
+      "l32i.n  a12, a2,  8                \n" // ★a12 = パネル下側の元データ配列
       "l32i.n  a14, a2,  24               \n" // ★a14 = len32
       "l32i.n  a13, a2,  12               \n" // ★a13 = pixel_tbl
-      "l32i.n  a12, a2,  8                \n" // ★a12 = パネル下側の元データ配列
-      "l32i.n  a11, a2,  4                \n" // ★a11 = パネル上側の元データ配列
-      "l32i.n  a10, a15, 16               \n" // ★a10 に mixdata末尾の値を代入 (4*sizeof(uint32_t) = 16)
+      "l32i.n  a15, a2,  16               \n" // ★a15 = mixdata アドレス
       "slli    a14, a14, 2                \n" // len32 を 4倍(d32の加算に使うため)
 
 "HUB75_DRAW332_LOOP_START:          \n"
@@ -619,11 +618,12 @@ namespace lgfx
 
       "addx8   a3,  a4,  a3               \n"  // a3 = (lower_1 << 3) + upper_1
       "addx8   a4,  a6,  a5               \n"  // a4 = (lower_2 << 3) + upper_2
+      "l32i.n  a6,  a15, 16               \n"  // a6 に mixdata末尾の値を代入 (4*sizeof(uint32_t) = 16)
 
       "mov.n   a5,  a0                    \n"  // a5 に 出力先 アドレスをコピー
       "addi.n  a0,  a0,  4                \n"  // ★a0 出力先アドレス を1進める
 
-      "s32i.n  a10, a5,  0                \n"  // mixdata 末尾のデータを出力先にセット
+      "s32i.n  a6,  a5,  0                \n"  // mixdata 末尾のデータを出力先にセット
 
 // ここから出力
 // RGB成分 と mixdata(Y座標情報) を合わせた16bitデータを2ピクセル分32bit纏めて出力 を 5回(TRANSFER_PERIOD_COUNT) 行う
@@ -664,11 +664,11 @@ namespace lgfx
       "add.n    a7,  a7,  a8              \n"  // a7 = 2ピクセル目+a8
       "s32i.n   a7,  a5,  0               \n"  // a7 の値を出力先にセット
 
-      // 最後の1回は mixdata の取得を省略(a10に取得しておいた値を再利用する)
+      // 最後の1回は mixdata の取得を省略(a6に取得しておいた値を再利用する)
       "extui    a7,  a3,  24,  6          \n"  // 1ピクセル目 6ビット取得
       "add.n    a5,  a14, a5              \n"  // a5 出力先アドレス += len32
       "slli     a7,  a7,  16              \n"  // 1ピクセル目のデータを左16bitシフト
-      "add.n    a8,  a7,  a10             \n"  // a8 = 1ピクセル目+mixdata
+      "add.n    a8,  a7,  a6              \n"  // a8 = 1ピクセル目+mixdata
       "extui    a7,  a4,  24,  6          \n"  // 2ピクセル目 6ビット取得
       "add.n    a7,  a7,  a8              \n"  // a7 = 2ピクセル目+a8
       "s32i.n   a7,  a5,  0               \n"  // a7 の値を出力先にセット
