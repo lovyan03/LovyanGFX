@@ -557,132 +557,6 @@ namespace lgfx
     vTaskDelete( nullptr );
   }
 
-  void Bus_HUB75::dmaTask332(void)
-  {
-    const auto panel_width = _panel_width;
-    const auto panel_height = _panel_height;
-    const uint32_t len32 = panel_width >> 1;
-    uint_fast8_t y = 0;
-
-    const uint16_t* xe_tbl = _brightness_period;
-    auto pixel_tbl = _pixel_tbl;
-
-    while (_dmatask_handle)
-    {
-// DEBUG
-// lgfx::gpio_lo(15);
-      auto dst = (uint32_t*)ulTaskNotifyTake( pdTRUE, portMAX_DELAY);
-// DEBUG
-// lgfx::gpio_hi(15);
-      if (dst == nullptr) { break; }
-      auto d32 = dst;
-
-      y = (y + 1) & ((panel_height>>1) - 1);
-
-      uint32_t yy = 0;
-      uint32_t yy_oe = _mask_oe | _mask_pin_b_lat;
-      if (_cfg.address_mode == config_t::address_mode_t::address_binary)
-      {
-        yy = y << 8 | y << 24;
-        yy_oe = yy | _mask_oe;
-      }
-      uint32_t yys[] = { yy_oe, yy, yy, yy, yy, yy, yy, yy, yy, };
-
-      auto s_upper = (uint16_t*)(_frame_buffer->getLineBuffer(y));
-      auto s_lower = (uint16_t*)(_frame_buffer->getLineBuffer(y + (panel_height>>1)));
-
-      uint_fast8_t xe_idx = 0;
-      uint32_t x = 0;
-      uint32_t xe = xe_tbl[0] >> 1;
-// lgfx::gpio_lo(15);
-      for (;;)
-      {
-        do
-        {
-          // RGB332の値を基にガンマテーブルを適用する
-          // このテーブルの中身は単にガンマ補正をするだけでなく、
-          // BGR順に1ビットずつ並んだ状態に変換する処理を兼ねている。
-          uint32_t rgb_upper_1 = *s_upper++;
-          uint32_t rgb_lower_1 = *s_lower++;
-          uint32_t rgb_upper_2 = rgb_upper_1 >> 8;
-          uint32_t rgb_lower_2 = rgb_lower_1 >> 8;
-
-          rgb_upper_1 &= 0xFF;
-          rgb_lower_1 &= 0xFF;
-
-          rgb_upper_1 = pixel_tbl[rgb_upper_1];
-          rgb_lower_1 = pixel_tbl[rgb_lower_1];
-          rgb_upper_2 = pixel_tbl[rgb_upper_2];
-          rgb_lower_2 = pixel_tbl[rgb_lower_2];
-
-          // パラレルで同時に送信する6bit分のRGB成分(画面の上半分と下半分)が隣接するように纏める。
-          uint32_t rgb_1 = rgb_upper_1 + (rgb_lower_1 << 3);
-          uint32_t rgb_2 = rgb_upper_2 + (rgb_lower_2 << 3);
-
-          d32[len32 * 0] = yys[TRANSFER_PERIOD_COUNT_332];
-
-          int32_t i = 0;
-          uint32_t pixel_2 = rgb_2 & 0x3F;
-          uint32_t pixel_1 = rgb_1 & 0x3F;
-          pixel_2 += yys[i];
-          pixel_1 <<= 16;
-          d32[++i * len32] = pixel_1 + pixel_2;
-          do
-          {
-            rgb_2 >>= 6;
-            rgb_1 >>= 6;
-            pixel_2 = rgb_2 & 0x3F;
-            pixel_1 = rgb_1 & 0x3F;
-            pixel_2 += yys[i];
-            pixel_1 <<= 16;
-            // 横２列ぶん同時にバッファにセットする
-            d32[++i * len32] = pixel_1 + pixel_2;
-          } while (i < TRANSFER_PERIOD_COUNT_332);
-
-          ++d32;
-        } while (++x < xe);
-        if (xe_idx == TRANSFER_PERIOD_COUNT_332) break;
-        do {
-          yys[++xe_idx] = yy_oe;
-          xe = xe_tbl[xe_idx] >> 1;
-        } while (x >= xe);
-      }
-// lgfx::gpio_hi(15);
-
-      // 無データ,点灯のみの期間の先頭の点灯防止処理
-      d32[0 - len32] |= _mask_oe;
-      d32[1 - len32] |= (xe_tbl[TRANSFER_PERIOD_COUNT_332-1] & 1) ? (_mask_oe & ~0xFFFF) : _mask_oe;
-
-      d32 += len32;
-      // データのラッチ及びラッチ直後の点灯防止処理
-      for (int i = 0; i < TRANSFER_PERIOD_COUNT_332; ++i)
-      {
-        d32[len32 * i - 1] |= _mask_lat;
-        d32[len32 * i + 0] |= _mask_oe;
-        d32[len32 * i + 1] |= (xe_tbl[i] & 1) ? (_mask_oe & ~0xFFFF) :  _mask_oe;
-      }
-
-      d32 += len32 * (TRANSFER_PERIOD_COUNT_332 - 1);
-
-      {
-      // SHIFTREG_ABCのY座標情報をセット;
-        uint32_t poi = (~y) & ((panel_height >> 1) - 1);
-        d32[poi                      ] = _mask_pin_a_clk | _mask_oe | _mask_pin_c_dat;
-        d32[poi + (panel_height >> 1)] = _mask_pin_a_clk | _mask_oe | _mask_pin_c_dat;
-        for (int i = 0; i < _dma_desc_set; ++i)
-        {
-          poi = (poi + 1) & ((panel_height >> 1) - 1);
-          d32[poi                      ] = _mask_pin_a_clk | _mask_oe;
-          d32[poi + (panel_height >> 1)] = _mask_pin_a_clk | _mask_oe;
-        }
-        d32[panel_height - 1] |= _mask_lat | _mask_pin_b_lat;
-      }
-
-      // 作画中に次の割込みが発生した場合はビジー状態が続くことを回避するため処理をスキップする
-      ulTaskNotifyTake( pdTRUE, 0);
-    }
-  }
-
   struct asm_work_t
   {
     uint32_t* d32;            //  0
@@ -698,6 +572,136 @@ namespace lgfx
     uint32_t mix_value;       // 40
     uint32_t* _retaddr;       // 44 A0保管用
   };
+
+  void __attribute__ ((noinline)) __noinline asmHub75Draw332(asm_work_t* work)
+  {
+/* 関数が呼び出された直後のレジスタの値
+    a0 : リターンアドレス (workに退避し、a0を別の用途に使用)
+    a1 : スタックポインタ (変更不可)
+    a2 : asm_work_t*      (変更せずそのまま利用する)
+*/
+    __asm__ __volatile__ (
+      "s32i.n  a0,  a2,  44               \n" // A0 を退避
+      "l32i.n  a3,  a2,  32               \n" // a3  = xe
+      "l32i.n  a0,  a2,  0                \n" // ★a0  = 出力先アドレス
+      "l32i.n  a15, a2,  16               \n" // ★a15 = mixdata アドレス
+      "l32i.n  a14, a2,  24               \n" // ★a14 = len32
+      "l32i.n  a13, a2,  12               \n" // ★a13 = pixel_tbl
+      "l32i.n  a12, a2,  8                \n" // ★a12 = パネル下側の元データ配列
+      "l32i.n  a11, a2,  4                \n" // ★a11 = パネル上側の元データ配列
+      "l32i.n  a10, a15, 16               \n" // ★a10 に mixdata末尾の値を代入 (4*sizeof(uint32_t) = 16)
+      "slli    a14, a14, 2                \n" // len32 を 4倍(d32の加算に使うため)
+
+"HUB75_DRAW332_LOOP_START:          \n"
+
+      "loop    a3, HUB75_DRAW332_LOOP_END \n" // ループ開始 (a3 にループ回数 xe がセットされた状態でここに来ること)
+
+      "l8ui    a3,  a11, 0                \n" // a3 = 元データ上側配列から rgb332形式 1ピクセル目取得
+      "l8ui    a5,  a11, 1                \n" // a5 = 元データ上側配列から rgb332形式 2ピクセル目取得
+      "addi.n  a11, a11, 2                \n" // 元データのアドレスを2進める
+      "l8ui    a4,  a12, 0                \n" // a4 = 元データ下側配列から rgb332形式 1ピクセル目取得
+      "l8ui    a6,  a12, 1                \n" // a6 = 元データ下側配列から rgb332形式 2ピクセル目取得
+      "addi.n  a12, a12, 2                \n" // 元データのアドレスを2進める
+
+      "addx4   a3,  a3,  a13              \n" // a3  = テーブルアドレスに変換
+      "l32i.n  a3,  a3,  0                \n" // a3  = pixel_tbl[RGB332] 1ピクセル目 上側の RGB成分 完成
+      "addx4   a4,  a4,  a13              \n" // a4  = テーブルアドレスに変換
+      "l32i.n  a4,  a4,  0                \n" // a4  = pixel_tbl[RGB332] 1ピクセル目 下側の RGB成分 完成
+      "addx4   a5,  a5,  a13              \n" // a5  = テーブルアドレスに変換
+      "l32i.n  a5,  a5,  0                \n" // a5  = pixel_tbl[RGB332] 1ピクセル目 上側の RGB成分 完成
+      "addx4   a6,  a6,  a13              \n" // a6  = テーブルアドレスに変換
+      "l32i.n  a6,  a6,  0                \n" // a6  = pixel_tbl[RGB332] 1ピクセル目 下側の RGB成分 完成
+
+//////////////////
+
+// この時点で a3,a4,a5,a6 に 合計4ピクセル分のデータが入った状態になっている
+// ここから、パネル上側と下側のRGB成分が隣接し6bit単位となった状態に変換する
+
+      "addx8   a3,  a4,  a3               \n"  // a3 = (lower_1 << 3) + upper_1
+      "addx8   a4,  a6,  a5               \n"  // a4 = (lower_2 << 3) + upper_2
+
+      "mov.n   a5,  a0                    \n"  // a5 に 出力先 アドレスをコピー
+      "addi.n  a0,  a0,  4                \n"  // ★a0 出力先アドレス を1進める
+
+      "s32i.n  a10, a5,  0                \n"  // mixdata 末尾のデータを出力先にセット
+
+// ここから出力
+// RGB成分 と mixdata(Y座標情報) を合わせた16bitデータを2ピクセル分32bit纏めて出力 を 5回(TRANSFER_PERIOD_COUNT) 行う
+
+      "l32i.n   a8,  a15, 0               \n"  // a8  = mixdata[0]
+      "extui    a7,  a3,  0,   6          \n"  // 1ピクセル目 6ビット取得
+      "add.n    a5,  a14, a5              \n"  // a5 出力先アドレス += len32
+      "slli     a7,  a7,  16              \n"  // 1ピクセル目のデータを左16bitシフト
+      "add.n    a8,  a7,  a8              \n"  // a8 = 1ピクセル目+mixdata
+      "extui    a7,  a4,  0,   6          \n"  // 2ピクセル目 6ビット取得
+      "add.n    a7,  a7,  a8              \n"  // a7 = 2ピクセル目+a8
+      "s32i.n   a7,  a5,  0               \n"  // a7 の値を出力先にセット
+
+      "l32i.n   a8,  a15, 4               \n"  // a8 = mixdata[1]
+      "extui    a7,  a3,  6,   6          \n"  // 1ピクセル目 6ビット取得
+      "add.n    a5,  a14, a5              \n"  // a5 出力先アドレス += len32
+      "slli     a7,  a7,  16              \n"  // 1ピクセル目のデータを左16bitシフト
+      "add.n    a8,  a7,  a8              \n"  // a8 = 1ピクセル目+mixdata
+      "extui    a7,  a4,  6,   6          \n"  // 2ピクセル目 6ビット取得
+      "add.n    a7,  a7,  a8              \n"  // a7 = 2ピクセル目+a8
+      "s32i.n   a7,  a5,  0               \n"  // a7 の値を出力先にセット
+
+      "l32i.n   a8,  a15, 8               \n"  // a8  = mixdata[2]
+      "extui    a7,  a3,  12,  6          \n"  // 1ピクセル目 6ビット取得
+      "add.n    a5,  a14, a5              \n"  // a5 出力先アドレス += len32
+      "slli     a7,  a7,  16              \n"  // 1ピクセル目のデータを左16bitシフト
+      "add.n    a8,  a7,  a8              \n"  // a8 = 1ピクセル目+mixdata
+      "extui    a7,  a4,  12,  6          \n"  // 2ピクセル目 6ビット取得
+      "add.n    a7,  a7,  a8              \n"  // a7 = 2ピクセル目+a8
+      "s32i.n   a7,  a5,  0               \n"  // a7 の値を出力先にセット
+
+      "l32i.n   a8,  a15, 12              \n"  // a8 = mixdata[3]
+      "extui    a7,  a3,  18,  6          \n"  // 1ピクセル目 6ビット取得
+      "add.n    a5,  a14, a5              \n"  // a5 出力先アドレス += len32
+      "slli     a7,  a7,  16              \n"  // 1ピクセル目のデータを左16bitシフト
+      "add.n    a8,  a7,  a8              \n"  // a8 = 1ピクセル目+mixdata
+      "extui    a7,  a4,  18,  6          \n"  // 2ピクセル目 6ビット取得
+      "add.n    a7,  a7,  a8              \n"  // a7 = 2ピクセル目+a8
+      "s32i.n   a7,  a5,  0               \n"  // a7 の値を出力先にセット
+
+      // 最後の1回は mixdata の取得を省略(a10に取得しておいた値を再利用する)
+      "extui    a7,  a3,  24,  6          \n"  // 1ピクセル目 6ビット取得
+      "add.n    a5,  a14, a5              \n"  // a5 出力先アドレス += len32
+      "slli     a7,  a7,  16              \n"  // 1ピクセル目のデータを左16bitシフト
+      "add.n    a8,  a7,  a10             \n"  // a8 = 1ピクセル目+mixdata
+      "extui    a7,  a4,  24,  6          \n"  // 2ピクセル目 6ビット取得
+      "add.n    a7,  a7,  a8              \n"  // a7 = 2ピクセル目+a8
+      "s32i.n   a7,  a5,  0               \n"  // a7 の値を出力先にセット
+
+"HUB75_DRAW332_LOOP_END:            \n"
+
+      "l32i.n  a4,  a2,  28               \n" // a4に xe_idx を代入
+      "l32i.n  a5,  a2,  20               \n" // a5に xe_tbl を代入
+      "l32i.n  a9,  a2,  40               \n" // a9に mixdata テーブル更新用の値を取得
+      "beqi    a4,  5,   HUB75_EXIT332    \n" // xe_idx が終端に達していたら処理を終える
+      "addx2   a6,  a4,  a5               \n" // a6 に xeテーブル現在インデクスのアドレス
+      "l16ui   a3,  a6,  0                \n" // a3 に現在の xe値
+      "srli    a3 , a3,  1                \n" // a3 >>= 1
+// ここから mixdata の値を更新、 xe の位置を再設定
+"HUB75_BR332LOOP_START:             \n"
+        "mov     a5,  a3                    \n" // a5 に前の xe値 を移す
+        "l16ui   a3,  a6,  2                \n" // a3 に新しい xe値 を代入
+        "addi.n  a6,  a6,  2                \n" // a6 xeテーブル位置をひとつ進める
+        "addi.n  a4,  a4,  1                \n" // a4 ++xe_idx
+        "addx4   a8,  a4,  a15              \n" // A8 に更新対象の mixdata のアドレスをセット
+        "s32i.n  a9,  a8,  0                \n" // mixdata 更新
+        "srli    a3,  a3,  1                \n" // A3 >>= 1
+      "bge     a5,  a3,  HUB75_BR332LOOP_START     \n" // xe 値が同値なら BR_LOOP 再トライ
+      "s32i.n  a4,  a2,  28               \n" // xe_idx の値を保存
+      "sub     a3,  a3,  a5               \n" // 新しい xe値から前回のxe値を引き、差分を得る
+      "j HUB75_DRAW332_LOOP_START         \n" // a3 (xe) の位置が刷新されたので再度先頭からループ
+
+
+"HUB75_EXIT332:                   \n"
+
+      "l32i   a0,  a2,  44                \n"
+      );
+  }
 
   void __attribute__ ((noinline)) __noinline asmHub75Draw565(asm_work_t* work)
   {
@@ -933,6 +937,93 @@ namespace lgfx
   }
 
 //*
+  void Bus_HUB75::dmaTask332(void)
+  {
+    const auto panel_width = _panel_width;
+    const auto panel_height = _panel_height;
+    const uint32_t len32 = panel_width >> 1;
+    uint_fast8_t y = 0;
+
+    const uint16_t* xe_tbl = _brightness_period;
+
+    asm_work_t work;
+
+    uint32_t yys[TRANSFER_PERIOD_COUNT_332 + 1];
+    work.xe_tbl = _brightness_period;
+    work.len32 = panel_width >> 1;
+    work.pixel_tbl = _pixel_tbl;
+    work.mixdata = yys;
+
+    while (_dmatask_handle)
+    {
+// DEBUG
+// lgfx::gpio_lo(15);
+      auto dst = (uint32_t*)ulTaskNotifyTake( pdTRUE, portMAX_DELAY);
+// DEBUG
+// lgfx::gpio_hi(15);
+      if (dst == nullptr) { break; }
+      auto d32 = &dst[len32 * (TRANSFER_PERIOD_COUNT_332 + 1)];
+
+      y = (y + 1) & ((panel_height>>1) - 1);
+
+      {
+      // SHIFTREG_ABCのY座標情報をセット;
+        uint32_t poi = (~y) & ((panel_height >> 1) - 1);
+        d32[poi                      ] = _mask_pin_a_clk | _mask_oe | _mask_pin_c_dat;
+        d32[poi + (panel_height >> 1)] = _mask_pin_a_clk | _mask_oe | _mask_pin_c_dat;
+        for (int i = 0; i < _dma_desc_set; ++i)
+        { // 以前のY座標ビットを消去;
+          poi = (poi + 1) & ((panel_height >> 1) - 1);
+          d32[poi                      ] = _mask_pin_a_clk | _mask_oe;
+          d32[poi + (panel_height >> 1)] = _mask_pin_a_clk | _mask_oe;
+        }
+        // 末尾にラッチを追加
+        d32[panel_height - 1] |= _mask_lat | _mask_pin_b_lat;
+      }
+
+      uint32_t yy = 0;
+      uint32_t yy_oe = _mask_oe | _mask_pin_b_lat; // PIN B Discharge
+      if (_cfg.address_mode == config_t::address_mode_t::address_binary)
+      {
+        yy = y << 8 | y << 24;
+        yy_oe = yy | _mask_oe;
+      }
+      yys[0] = yy_oe;
+      for (size_t i = 1; i <= TRANSFER_PERIOD_COUNT_332; ++i)
+      {
+        yys[i] = yy;
+      }
+
+      work.d32 = dst;
+      work.s32h = (uint32_t*)(_frame_buffer->getLineBuffer(y));
+      work.s32l = (uint32_t*)(_frame_buffer->getLineBuffer(y + (panel_height>>1)));
+      work.xe = xe_tbl[0] >> 1;
+      work.xe_idx = 0;
+      work.mix_value = yy_oe;
+
+      // データ生成用の関数をコール
+      asmHub75Draw332(&work);
+
+      d32 = &dst[len32];
+
+      // 無データ,点灯のみの期間の先頭の点灯防止処理
+      d32[0 - len32] |= _mask_oe;
+      d32[1 - len32] |= (xe_tbl[TRANSFER_PERIOD_COUNT_332 - 1] & 1) ? (_mask_oe & ~0xFFFF) : _mask_oe;
+
+      d32 += len32;
+      // データのラッチ及びラッチ直後の点灯防止処理
+      for (int i = 0; i < TRANSFER_PERIOD_COUNT_332; ++i)
+      {
+        d32[len32 * i - 1] |= _mask_lat;
+        d32[len32 * i + 0] |= _mask_oe;
+        d32[len32 * i + 1] |= (xe_tbl[i] & 1) ? (_mask_oe & ~0xFFFF) :  _mask_oe;
+      }
+
+      // 作画中に次の割込みが発生した場合はビジー状態が続くことを回避するため処理をスキップする
+      ulTaskNotifyTake( pdTRUE, 0);
+    }
+  }
+
   void Bus_HUB75::dmaTask565(void)
   {
     const auto panel_width = _panel_width;
@@ -1020,6 +1111,133 @@ namespace lgfx
     }
   }
 /*/
+ // C++版 dmaTask332
+  void Bus_HUB75::dmaTask332(void)
+  {
+    const auto panel_width = _panel_width;
+    const auto panel_height = _panel_height;
+    const uint32_t len32 = panel_width >> 1;
+    uint_fast8_t y = 0;
+
+    const uint16_t* xe_tbl = _brightness_period;
+    auto pixel_tbl = _pixel_tbl;
+
+    while (_dmatask_handle)
+    {
+// DEBUG
+// lgfx::gpio_lo(15);
+      auto dst = (uint32_t*)ulTaskNotifyTake( pdTRUE, portMAX_DELAY);
+// DEBUG
+// lgfx::gpio_hi(15);
+      if (dst == nullptr) { break; }
+      auto d32 = dst;
+
+      y = (y + 1) & ((panel_height>>1) - 1);
+
+      uint32_t yy = 0;
+      uint32_t yy_oe = _mask_oe | _mask_pin_b_lat;
+      if (_cfg.address_mode == config_t::address_mode_t::address_binary)
+      {
+        yy = y << 8 | y << 24;
+        yy_oe = yy | _mask_oe;
+      }
+      uint32_t yys[] = { yy_oe, yy, yy, yy, yy, yy, yy, yy, yy, };
+
+      auto s_upper = (uint16_t*)(_frame_buffer->getLineBuffer(y));
+      auto s_lower = (uint16_t*)(_frame_buffer->getLineBuffer(y + (panel_height>>1)));
+
+      uint_fast8_t xe_idx = 0;
+      uint32_t x = 0;
+      uint32_t xe = xe_tbl[0] >> 1;
+// lgfx::gpio_lo(15);
+      for (;;)
+      {
+        do
+        {
+          // RGB332の値を基にガンマテーブルを適用する
+          // このテーブルの中身は単にガンマ補正をするだけでなく、
+          // BGR順に1ビットずつ並んだ状態に変換する処理を兼ねている。
+          uint32_t rgb_upper_1 = *s_upper++;
+          uint32_t rgb_lower_1 = *s_lower++;
+          uint32_t rgb_upper_2 = rgb_upper_1 >> 8;
+          uint32_t rgb_lower_2 = rgb_lower_1 >> 8;
+
+          rgb_upper_1 &= 0xFF;
+          rgb_lower_1 &= 0xFF;
+
+          rgb_upper_1 = pixel_tbl[rgb_upper_1];
+          rgb_lower_1 = pixel_tbl[rgb_lower_1];
+          rgb_upper_2 = pixel_tbl[rgb_upper_2];
+          rgb_lower_2 = pixel_tbl[rgb_lower_2];
+
+          // パラレルで同時に送信する6bit分のRGB成分(画面の上半分と下半分)が隣接するように纏める。
+          uint32_t rgb_1 = rgb_upper_1 + (rgb_lower_1 << 3);
+          uint32_t rgb_2 = rgb_upper_2 + (rgb_lower_2 << 3);
+
+          d32[len32 * 0] = yys[TRANSFER_PERIOD_COUNT_332];
+
+          int32_t i = 0;
+          uint32_t pixel_2 = rgb_2 & 0x3F;
+          uint32_t pixel_1 = rgb_1 & 0x3F;
+          pixel_2 += yys[i];
+          pixel_1 <<= 16;
+          d32[++i * len32] = pixel_1 + pixel_2;
+          do
+          {
+            rgb_2 >>= 6;
+            rgb_1 >>= 6;
+            pixel_2 = rgb_2 & 0x3F;
+            pixel_1 = rgb_1 & 0x3F;
+            pixel_2 += yys[i];
+            pixel_1 <<= 16;
+            // 横２列ぶん同時にバッファにセットする
+            d32[++i * len32] = pixel_1 + pixel_2;
+          } while (i < TRANSFER_PERIOD_COUNT_332);
+
+          ++d32;
+        } while (++x < xe);
+        if (xe_idx == TRANSFER_PERIOD_COUNT_332) break;
+        do {
+          yys[++xe_idx] = yy_oe;
+          xe = xe_tbl[xe_idx] >> 1;
+        } while (x >= xe);
+      }
+// lgfx::gpio_hi(15);
+
+      // 無データ,点灯のみの期間の先頭の点灯防止処理
+      d32[0 - len32] |= _mask_oe;
+      d32[1 - len32] |= (xe_tbl[TRANSFER_PERIOD_COUNT_332-1] & 1) ? (_mask_oe & ~0xFFFF) : _mask_oe;
+
+      d32 += len32;
+      // データのラッチ及びラッチ直後の点灯防止処理
+      for (int i = 0; i < TRANSFER_PERIOD_COUNT_332; ++i)
+      {
+        d32[len32 * i - 1] |= _mask_lat;
+        d32[len32 * i + 0] |= _mask_oe;
+        d32[len32 * i + 1] |= (xe_tbl[i] & 1) ? (_mask_oe & ~0xFFFF) :  _mask_oe;
+      }
+
+      d32 += len32 * (TRANSFER_PERIOD_COUNT_332 - 1);
+
+      {
+      // SHIFTREG_ABCのY座標情報をセット;
+        uint32_t poi = (~y) & ((panel_height >> 1) - 1);
+        d32[poi                      ] = _mask_pin_a_clk | _mask_oe | _mask_pin_c_dat;
+        d32[poi + (panel_height >> 1)] = _mask_pin_a_clk | _mask_oe | _mask_pin_c_dat;
+        for (int i = 0; i < _dma_desc_set; ++i)
+        {
+          poi = (poi + 1) & ((panel_height >> 1) - 1);
+          d32[poi                      ] = _mask_pin_a_clk | _mask_oe;
+          d32[poi + (panel_height >> 1)] = _mask_pin_a_clk | _mask_oe;
+        }
+        d32[panel_height - 1] |= _mask_lat | _mask_pin_b_lat;
+      }
+
+      // 作画中に次の割込みが発生した場合はビジー状態が続くことを回避するため処理をスキップする
+      ulTaskNotifyTake( pdTRUE, 0);
+    }
+  }
+
  // C++版 dmaTask565
   void Bus_HUB75::dmaTask565(void)
   {
