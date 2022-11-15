@@ -71,7 +71,6 @@ namespace lgfx
 
     if (_frame_buffer.create(buffer_length, single_height, single_height >> 1) == nullptr)
     {
-      ESP_LOGE("DEBUG", "memory allocate error.");
       return false;
     }
 
