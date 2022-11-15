@@ -52,6 +52,7 @@ namespace lgfx
     void config_detail(const config_detail_t& config_detail) { _config_detail = config_detail; }
 
     void setBrightness(uint8_t brightness) override;
+    color_depth_t setColorDepth(color_depth_t depth) override;
 
   protected:
     config_detail_t _config_detail;
@@ -59,6 +60,9 @@ namespace lgfx
 
     uint16_t _single_width;
     uint16_t _single_height;
+    bool _initialized = false;
+
+    bool _init_frame_buffer(void);
 
     uint32_t _read_pixel_inner(uint_fast16_t x, uint_fast16_t y) override;
     void _draw_pixel_inner(uint_fast16_t x, uint_fast16_t y, uint32_t rawcolor) override;

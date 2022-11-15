@@ -18,6 +18,7 @@ Contributors:
 
 #include "Panel_HUB75.hpp"
 #include "../Bus.hpp"
+#include "../platforms/common.hpp"
 
 namespace lgfx
 {
@@ -32,16 +33,36 @@ namespace lgfx
 
   bool Panel_HUB75::init(bool use_reset)
   {
+    if (_initialized)
+    {
+      return true;
+    }
+
     if (_bus->busType() != bus_type_t::bus_image_push)
     {
       return false;
     }
 
-    // _write_depth = color_depth_t::rgb332_1Byte;
-    _write_depth = color_depth_t::rgb565_2Byte;
-    // _write_depth = color_depth_t::rgb888_3Byte;
-    _read_depth = _write_depth;
+    if (!Panel_CoordinateConvertFB::init(use_reset))
+    {
+      return false;
+    }
 
+    if (!_init_frame_buffer())
+    {
+      return false;
+    }
+
+    // 転送開始
+    _bus->beginTransaction();
+    _initialized = true;
+
+    return true;
+  }
+
+  bool Panel_HUB75::_init_frame_buffer(void)
+  {
+    _frame_buffer.release();
     uint_fast8_t bytes = _write_bits >> 3;
 
     size_t single_width  = _cfg.panel_width  / _config_detail.x_panel_count;
@@ -50,6 +71,7 @@ namespace lgfx
 
     if (_frame_buffer.create(buffer_length, single_height, single_height >> 1) == nullptr)
     {
+      ESP_LOGE("DEBUG", "memory allocate error.");
       return false;
     }
 
@@ -57,14 +79,6 @@ namespace lgfx
     _single_height = single_height;
 
     ((Bus_ImagePush*)_bus)->setImageBuffer((void*)&_frame_buffer, _write_depth);
-
-    if (!Panel_CoordinateConvertFB::init(use_reset))
-    {
-      return false;
-    }
-
-    // 転送開始
-    _bus->beginTransaction();
     return true;
   }
 
@@ -80,9 +94,17 @@ namespace lgfx
     auto buf = _frame_buffer.getLineBuffer(y);
     switch (_read_bits >> 3)
     {
-      default: return                   buf [x + panel_index * _single_width];
-      case 2:  return       ((uint16_t*)buf)[x + panel_index * _single_width];
-      case 3:  return ((lgfx::bgr888_t*)buf)[x + panel_index * _single_width].get();
+      default:
+        return buf [x + panel_index * _single_width];
+
+      case 2:
+      { // swap565ではなく rgb565で扱う
+        uint32_t tmp = ((uint16_t*)buf)[x + panel_index * _single_width];
+        return ((uint8_t)tmp << 8) | (tmp >> 8);
+      }
+
+      case 3:
+        return ((lgfx::bgr888_t*)buf)[x + panel_index * _single_width].get();
     }
   }
 
@@ -98,10 +120,40 @@ namespace lgfx
     auto buf = _frame_buffer.getLineBuffer(y);
     switch (_write_bits >> 3)
     {
-      default:                  buf [x + panel_index * _single_width] = rawcolor;  break;
-      case 2:       ((uint16_t*)buf)[x + panel_index * _single_width] = rawcolor;  break;
-      case 3: ((lgfx::bgr888_t*)buf)[x + panel_index * _single_width] = rawcolor;  break;
+      default:
+        buf [x + panel_index * _single_width] = rawcolor;
+        break;
+
+      case 2:
+        // swap565ではなく rgb565で扱う
+        ((uint16_t*)buf)[x + panel_index * _single_width] = rawcolor << 8 | rawcolor >> 8;
+        break;
+
+      case 3:
+        ((lgfx::bgr888_t*)buf)[x + panel_index * _single_width] = rawcolor;
+        break;
     }
+  }
+
+  color_depth_t Panel_HUB75::setColorDepth(color_depth_t depth)
+  {
+    depth = ((depth & color_depth_t::bit_mask) < 16)
+          ? color_depth_t::rgb332_1Byte
+          : color_depth_t::rgb565_2Byte;
+    if (_write_depth != depth)
+    {
+      _write_depth = depth;
+      _read_depth = depth;
+      if (_initialized)
+      {
+        _bus->endTransaction();
+        if (_init_frame_buffer())
+        {
+          _bus->beginTransaction();
+        }
+      }
+    }
+    return depth;
   }
 
   void Panel_HUB75::setBrightness(uint8_t brightness)

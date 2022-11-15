@@ -122,11 +122,13 @@ namespace lgfx
 
   private:
 
-    static constexpr int32_t TRANSFER_PERIOD_COUNT = 8;
     static constexpr int32_t LINECHANGE_PERIOD_COUNT = 1;
-    // static constexpr int32_t EXTEND_PERIOD_COUNT = 12;
-    static constexpr int32_t EXTEND_PERIOD_COUNT = 5;
-    static constexpr const int32_t TOTAL_PERIOD_COUNT = TRANSFER_PERIOD_COUNT + LINECHANGE_PERIOD_COUNT + EXTEND_PERIOD_COUNT;
+    static constexpr int32_t TRANSFER_PERIOD_COUNT_332 = 5;
+    static constexpr int32_t TRANSFER_PERIOD_COUNT_565 = 8;
+    static constexpr int32_t EXTEND_PERIOD_COUNT_332 = 2;
+    static constexpr int32_t EXTEND_PERIOD_COUNT_565 = 5;
+    static constexpr const int32_t TOTAL_PERIOD_COUNT_332 = TRANSFER_PERIOD_COUNT_332 + EXTEND_PERIOD_COUNT_332 + LINECHANGE_PERIOD_COUNT;
+    static constexpr const int32_t TOTAL_PERIOD_COUNT_565 = TRANSFER_PERIOD_COUNT_565 + EXTEND_PERIOD_COUNT_565 + LINECHANGE_PERIOD_COUNT;
     static constexpr const uint32_t _mask_lat    = 0x00400040;
     static constexpr const uint32_t _mask_oe     = 0x00800080;
     static constexpr const uint32_t _mask_addr   = 0x1F001F00;
@@ -137,8 +139,6 @@ namespace lgfx
 
     static void i2s_intr_handler_hub75(void *arg);
     static void dmaTask(void *arg);
-    static uint32_t calc_dma_buffer_len(uint32_t panel_width, uint32_t panel_height);
-    static uint32_t calc_dma_transfer_len(uint32_t panel_width, uint32_t panel_height);
 
     void fm6124_init(uint8_t brightness);
     void dmaTask332(void);
@@ -149,12 +149,14 @@ namespace lgfx
     config_t _cfg;
     color_depth_t _depth = color_depth_t::rgb565_2Byte;
 
+    uint32_t _dma_transfer_len;
+
     int_fast16_t _panel_width = 64;
     int_fast16_t _panel_height = 32;
 
     uint16_t* _dma_buf[_dma_desc_set] = { nullptr, nullptr, nullptr };
 
-    uint16_t _brightness_period[TRANSFER_PERIOD_COUNT + 2];
+    uint16_t _brightness_period[TRANSFER_PERIOD_COUNT_565 + 1];
 
     DividedFrameBuffer* _frame_buffer;
 
