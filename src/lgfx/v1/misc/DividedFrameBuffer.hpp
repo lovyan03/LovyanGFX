@@ -63,6 +63,8 @@ namespace lgfx
     /// @return 指定したラインの先頭ポインタ (ブロックの先頭とは限らない)
     inline uint8_t* getLineBuffer(size_t y) const { return &_block_array[y / _block_lines][_line_size * (y % _block_lines)]; }
 
+    inline bool isInitialized(void) const { return _block_array != nullptr; }
+
   private:
     uint8_t** _block_array;
     size_t _line_size;  // ラインひとつあたりのバイト数

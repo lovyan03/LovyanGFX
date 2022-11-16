@@ -59,7 +59,7 @@ namespace lgfx
       uint16_t refresh_rate = 90;
 
       /// background task priority
-      UBaseType_t task_priority = 1;
+      UBaseType_t task_priority = 2;
 
       /// background task pinned core. (APP_CPU_NUM or PRO_CPU_NUM)
       BaseType_t task_pinned_core = -1;
@@ -139,10 +139,11 @@ namespace lgfx
 
     static void i2s_intr_handler_hub75(void *arg);
     static void dmaTask(void *arg);
+    void dmaTask_inner(void);
 
     void fm6124_init(uint8_t brightness);
-    void dmaTask332(void);
-    void dmaTask565(void);
+    // void dmaTask332(void);
+    // void dmaTask565(void);
 
     uint32_t* _pixel_tbl;
 

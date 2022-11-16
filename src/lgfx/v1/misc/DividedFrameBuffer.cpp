@@ -87,7 +87,7 @@ namespace lgfx
     {
       for (int i = _block_count - 1; i >= 0; --i)
       {
-        if (_block_array[i])
+        if (_block_array[i] != nullptr)
         {
           heap_free(_block_array[i]);
         }

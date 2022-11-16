@@ -31,7 +31,27 @@ namespace lgfx
     _frame_buffer.release();
   }
 
+  Panel_HUB75_Multi::~Panel_HUB75_Multi(void)
+  {
+    if (_panel_position)
+    {
+      heap_free(_panel_position);
+      _panel_position = nullptr;
+    }
+    _panel_position_count = 0;
+  }
+
   bool Panel_HUB75::init(bool use_reset)
+  {
+    return _init_impl(_cfg.panel_width, _cfg.panel_height);
+  }
+
+  bool Panel_HUB75_Multi::init(bool use_reset)
+  {
+    return _init_impl(_config_detail.panel_count * _config_detail.single_width, _config_detail.single_height);
+  }
+
+  bool Panel_HUB75::_init_impl(uint_fast16_t width, uint_fast16_t height)
   {
     if (_initialized)
     {
@@ -43,95 +63,21 @@ namespace lgfx
       return false;
     }
 
-    if (!Panel_CoordinateConvertFB::init(use_reset))
+    if (!Panel_FlexibleFrameBuffer::init(false))
     {
       return false;
     }
 
-    if (!_init_frame_buffer())
+    if (!_init_frame_buffer(width, height))
     {
       return false;
     }
 
+    _initialized = true;
     // 転送開始
     _bus->beginTransaction();
-    _initialized = true;
 
     return true;
-  }
-
-  bool Panel_HUB75::_init_frame_buffer(void)
-  {
-    _frame_buffer.release();
-    uint_fast8_t bytes = _write_bits >> 3;
-
-    size_t single_width  = _cfg.panel_width  / _config_detail.x_panel_count;
-    size_t single_height = _cfg.panel_height / _config_detail.y_panel_count;
-    size_t buffer_length = single_width * _config_detail.panel_count * bytes;
-
-    if (_frame_buffer.create(buffer_length, single_height, single_height >> 1) == nullptr)
-    {
-      return false;
-    }
-
-    _single_width = single_width;
-    _single_height = single_height;
-
-    ((Bus_ImagePush*)_bus)->setImageBuffer((void*)&_frame_buffer, _write_depth);
-    return true;
-  }
-
-  uint32_t Panel_HUB75::_read_pixel_inner(uint_fast16_t x, uint_fast16_t y)
-  {
-    uint_fast8_t px = x / _single_width;
-    uint_fast8_t py = y / _single_height;
-
-    x -= px * _single_width;
-    y -= py * _single_height;
-    uint_fast8_t panel_index = px + _config_detail.x_panel_count * py;
-
-    auto buf = _frame_buffer.getLineBuffer(y);
-    switch (_read_bits >> 3)
-    {
-      default:
-        return buf [x + panel_index * _single_width];
-
-      case 2:
-      { // swap565ではなく rgb565で扱う
-        uint32_t tmp = ((uint16_t*)buf)[x + panel_index * _single_width];
-        return ((uint8_t)tmp << 8) | (tmp >> 8);
-      }
-
-      case 3:
-        return ((lgfx::bgr888_t*)buf)[x + panel_index * _single_width].get();
-    }
-  }
-
-  void Panel_HUB75::_draw_pixel_inner(uint_fast16_t x, uint_fast16_t y, uint32_t rawcolor)
-  {
-    uint_fast8_t px = x / _single_width;
-    uint_fast8_t py = y / _single_height;
-
-    x -= px * _single_width;
-    y -= py * _single_height;
-    uint_fast8_t panel_index = px + _config_detail.x_panel_count * py;
-
-    auto buf = _frame_buffer.getLineBuffer(y);
-    switch (_write_bits >> 3)
-    {
-      default:
-        buf [x + panel_index * _single_width] = rawcolor;
-        break;
-
-      case 2:
-        // swap565ではなく rgb565で扱う
-        ((uint16_t*)buf)[x + panel_index * _single_width] = rawcolor << 8 | rawcolor >> 8;
-        break;
-
-      case 3:
-        ((lgfx::bgr888_t*)buf)[x + panel_index * _single_width] = rawcolor;
-        break;
-    }
   }
 
   color_depth_t Panel_HUB75::setColorDepth(color_depth_t depth)
@@ -141,12 +87,13 @@ namespace lgfx
           : color_depth_t::rgb565_2Byte;
     if (_write_depth != depth)
     {
+      uint32_t prev_bytes = _write_bits >> 3;
       _write_depth = depth;
       _read_depth = depth;
       if (_initialized)
       {
         _bus->endTransaction();
-        if (_init_frame_buffer())
+        if (_init_frame_buffer(_frame_buffer.getLineSize() / prev_bytes, _frame_buffer.getTotalLines()))
         {
           _bus->beginTransaction();
         }
@@ -158,6 +105,177 @@ namespace lgfx
   void Panel_HUB75::setBrightness(uint8_t brightness)
   {
     ((Bus_ImagePush*)_bus)->setBrightness(brightness);
+  }
+
+  bool Panel_HUB75::_init_frame_buffer(uint_fast16_t total_width, uint_fast16_t single_height)
+  {
+    _frame_buffer.release();
+
+    uint_fast8_t bytes = _write_bits >> 3;
+
+    if (_frame_buffer.create(total_width * bytes, single_height, single_height >> 1) == nullptr)
+    {
+      return false;
+    }
+
+    ((Bus_ImagePush*)_bus)->setImageBuffer((void*)&_frame_buffer, _write_depth);
+
+    return true;
+  }
+
+  void Panel_HUB75::_draw_pixel_inner(uint_fast16_t x, uint_fast16_t y, uint32_t rawcolor)
+  {
+    if (convertCoordinate)
+    {
+      convertCoordinate(x, y);
+    }
+    auto buf = _frame_buffer.getLineBuffer(y);
+    switch (_write_bits >> 3)
+    {
+      default:
+        buf [x] = rawcolor;
+        break;
+
+      case 2:
+        // swap565ではなく rgb565で扱う
+        ((uint16_t*)buf)[x] = rawcolor << 8 | rawcolor >> 8;
+        break;
+
+      case 3:
+        ((lgfx::bgr888_t*)buf)[x] = rawcolor;
+        break;
+    }
+  }
+
+  uint32_t Panel_HUB75::_read_pixel_inner(uint_fast16_t x, uint_fast16_t y)
+  {
+    if (convertCoordinate)
+    {
+      convertCoordinate(x, y);
+    }
+    auto buf = _frame_buffer.getLineBuffer(y);
+    switch (_read_bits >> 3)
+    {
+      default:
+        return buf [x];
+
+      case 2:
+      { // swap565ではなく rgb565で扱う
+        uint32_t tmp = ((uint16_t*)buf)[x];
+        return ((uint8_t)tmp << 8) | (tmp >> 8);
+      }
+
+      case 3:
+        return ((lgfx::bgr888_t*)buf)[x].get();
+    }
+  }
+
+  void Panel_HUB75_Multi::_draw_pixel_inner(uint_fast16_t x, uint_fast16_t y, uint32_t rawcolor)
+  {
+    uint32_t indexmask = _x_check_mask[x >> _x_check_shifter] & _y_check_mask[y >> _y_check_shifter];
+    if (!indexmask) { return; }
+
+    auto single_width = _config_detail.single_width;
+    auto single_height = _config_detail.single_height;
+    for (uint_fast8_t panel_index = 0; indexmask; ++panel_index, indexmask >>= 1)
+    {
+      if (indexmask & 1)
+      {
+        uint_fast16_t ix = x - _panel_position[panel_index].x;
+        uint_fast16_t iy = y - _panel_position[panel_index].y;
+        if (ix >= single_width) { continue; }
+        if (iy >= single_height) { continue; }
+
+        Panel_HUB75::_draw_pixel_inner(ix + panel_index * single_width, iy, rawcolor);
+      }
+    }
+  }
+
+  uint32_t Panel_HUB75_Multi::_read_pixel_inner(uint_fast16_t x, uint_fast16_t y)
+  {
+    uint32_t indexmask = _x_check_mask[x >> _x_check_shifter] & _y_check_mask[y >> _y_check_shifter];
+    if (!indexmask) { return 0; }
+    {
+      auto single_width = _config_detail.single_width;
+      auto single_height = _config_detail.single_height;
+      for (uint_fast8_t panel_index = 0; indexmask; ++panel_index, indexmask >>= 1)
+      {
+        if (indexmask & 1)
+        {
+          uint_fast16_t ix = x - _panel_position[panel_index].x;
+          uint_fast16_t iy = y - _panel_position[panel_index].y;
+          if (ix >= single_width) { continue; }
+          if (iy >= single_height) { continue; }
+
+          return Panel_HUB75::_read_pixel_inner(ix + panel_index * single_width, iy);
+        }
+      }
+    }
+    return 0;
+  }
+
+  bool Panel_HUB75_Multi::setPanelPosition(uint_fast8_t index, uint_fast16_t x, uint_fast16_t y)
+  {
+    auto panel_count = _config_detail.panel_count;
+    if (index < panel_count)
+    {
+      if (_panel_position == nullptr)
+      {
+        if (panel_count < 1)
+        {
+          return false;
+        }
+        _panel_position_count = panel_count;
+        _panel_position = (panel_position_t*)heap_alloc_dma(panel_count * sizeof(panel_position_t));
+        memset(_x_check_mask, 0, sizeof(_x_check_mask));
+        memset(_y_check_mask, 0, sizeof(_y_check_mask));
+
+        uint32_t s = 1;
+        uint32_t tmp = _cfg.panel_width;
+        while (tmp >>= 1) { ++s; }
+        _x_check_shifter = (s > 4) ? (s - 4) : 0;
+
+        s = 1;
+        tmp = _cfg.panel_height;
+        while (tmp >>= 1) { ++s; }
+        _y_check_shifter = (s > 4) ? (s - 4) : 0;
+      }
+
+      _panel_position[index].x = x;
+      _panel_position[index].y = y;
+
+      static constexpr const size_t x_size = sizeof(_x_check_mask) / sizeof(_x_check_mask[0]);
+      static constexpr const size_t y_size = sizeof(_y_check_mask) / sizeof(_y_check_mask[0]);
+
+      uint32_t mask_index = 1 << index;
+
+      for (size_t i = 0; i < x_size; ++i)
+      {
+        _x_check_mask[i] &= ~mask_index;
+      }
+      uint_fast16_t xe = (x + _config_detail.single_width - 1) >> _x_check_shifter;
+      if (xe > x_size - 1) { xe = x_size - 1; }
+      x >>= _x_check_shifter;
+      while (x <= xe)
+      {
+        _x_check_mask[x] |= mask_index;
+        ++x;
+      }
+
+      for (size_t i = 0; i < y_size; ++i)
+      {
+        _y_check_mask[i] &= ~mask_index;
+      }
+      uint_fast16_t ye = (y + _config_detail.single_height - 1) >> _y_check_shifter;
+      if (ye > y_size - 1) { ye = y_size - 1; }
+      y >>= _y_check_shifter;
+      while (y <= ye)
+      {
+        _y_check_mask[y] |= mask_index;
+        ++y;
+      }
+    }
+    return true;
   }
 
 //----------------------------------------------------------------------------

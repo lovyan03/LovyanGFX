@@ -16,7 +16,7 @@ Contributors:
  [tobozo](https://github.com/tobozo)
 /----------------------------------------------------------------------------*/
 
-#include "Panel_CoordinateConvertFB.hpp"
+#include "Panel_FlexibleFrameBuffer.hpp"
 #include "../platforms/common.hpp"
 #include "../misc/pixelcopy.hpp"
 #include "../misc/common_function.hpp"
@@ -27,7 +27,7 @@ namespace lgfx
  {
 //----------------------------------------------------------------------------
 
-  bool Panel_CoordinateConvertFB::init(bool use_reset)
+  bool Panel_FlexibleFrameBuffer::init(bool use_reset)
   {
     setInvert(_invert);
     setRotation(_rotation);
@@ -39,7 +39,7 @@ namespace lgfx
     return true;
   }
 
-  void Panel_CoordinateConvertFB::setRotation(uint_fast8_t r)
+  void Panel_FlexibleFrameBuffer::setRotation(uint_fast8_t r)
   {
     r &= 7;
     _rotation = r;
@@ -59,7 +59,7 @@ namespace lgfx
     _ypos = 0;
   }
 
-  void Panel_CoordinateConvertFB::setWindow(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye)
+  void Panel_FlexibleFrameBuffer::setWindow(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye)
   {
     xs = std::max<uint_fast16_t>(0u, std::min<uint_fast16_t>(_width  - 1, xs));
     xe = std::max<uint_fast16_t>(0u, std::min<uint_fast16_t>(_width  - 1, xe));
@@ -73,7 +73,7 @@ namespace lgfx
     _ye = ye;
   }
 
-  void Panel_CoordinateConvertFB::drawPixelPreclipped(uint_fast16_t x, uint_fast16_t y, uint32_t rawcolor)
+  void Panel_FlexibleFrameBuffer::drawPixelPreclipped(uint_fast16_t x, uint_fast16_t y, uint32_t rawcolor)
   {
     uint_fast8_t r = _rotation;
     if (r)
@@ -86,7 +86,7 @@ namespace lgfx
     _draw_pixel_inner(x, y, rawcolor);
   }
 
-  uint32_t Panel_CoordinateConvertFB::readPixelPreclipped(uint_fast16_t x, uint_fast16_t y)
+  uint32_t Panel_FlexibleFrameBuffer::readPixelPreclipped(uint_fast16_t x, uint_fast16_t y)
   {
     uint_fast8_t r = _rotation;
     if (r)
@@ -99,7 +99,7 @@ namespace lgfx
     return _read_pixel_inner(x, y);
   }
 
-  void Panel_CoordinateConvertFB::writeFillRectPreclipped(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, uint32_t rawcolor)
+  void Panel_FlexibleFrameBuffer::writeFillRectPreclipped(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, uint32_t rawcolor)
   {
     uint_fast8_t r = _rotation;
     if (r)
@@ -112,7 +112,7 @@ namespace lgfx
     _fill_rect_inner(x, y, w, h, rawcolor);
   }
 
-  void Panel_CoordinateConvertFB::_fill_rect_inner(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, uint32_t rawcolor)
+  void Panel_FlexibleFrameBuffer::_fill_rect_inner(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, uint32_t rawcolor)
   {
     h += y;
     int ie = x + w;
@@ -126,7 +126,7 @@ namespace lgfx
     } while (++y < h);
   }
 
-  void Panel_CoordinateConvertFB::writeBlock(uint32_t rawcolor, uint32_t length)
+  void Panel_FlexibleFrameBuffer::writeBlock(uint32_t rawcolor, uint32_t length)
   {
     do
     {
@@ -144,7 +144,7 @@ namespace lgfx
     } while (length);
   }
 
-  void Panel_CoordinateConvertFB::writePixels(pixelcopy_t* param, uint32_t length, bool use_dma)
+  void Panel_FlexibleFrameBuffer::writePixels(pixelcopy_t* param, uint32_t length, bool use_dma)
   {
     (void)use_dma;
     uint_fast16_t xs = _xs;
@@ -206,7 +206,7 @@ namespace lgfx
     _ypos = y;
   }
 
-  void Panel_CoordinateConvertFB::writeImage(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, pixelcopy_t* param, bool)
+  void Panel_FlexibleFrameBuffer::writeImage(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, pixelcopy_t* param, bool)
   {
     uint32_t sx32 = param->src_x32;
     size_t bytes = _write_bits >> 3;
@@ -244,12 +244,12 @@ namespace lgfx
     } while (++y != h);
   }
 
-  void Panel_CoordinateConvertFB::writeImageARGB(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, pixelcopy_t* param)
+  void Panel_FlexibleFrameBuffer::writeImageARGB(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, pixelcopy_t* param)
   {
     //ToDo:implement
   }
 
-  void Panel_CoordinateConvertFB::readRect(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, void* dst, pixelcopy_t* param)
+  void Panel_FlexibleFrameBuffer::readRect(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, void* dst, pixelcopy_t* param)
   {
     size_t bytes = _write_bits >> 3;
     size_t len = w * bytes;

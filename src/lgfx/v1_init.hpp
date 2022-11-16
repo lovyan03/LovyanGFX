@@ -27,6 +27,7 @@ Contributors:
 #include "v1/LGFX_Button.hpp"
 #include "v1/Light.hpp"
 #include "v1/panel/Panel_GC9A01.hpp"
+#include "v1/panel/Panel_HUB75.hpp"
 #include "v1/panel/Panel_ILI9163.hpp"
 #include "v1/panel/Panel_ILI9225.hpp"
 #include "v1/panel/Panel_ILI9341.hpp"
