@@ -99,10 +99,10 @@ namespace lgfx
     config_detail_t _config_detail;
 
 // 座標の上位3ビットを使用し、座標範囲に該当するパネルを判定するためのテーブル
-    uint32_t _x_check_mask[8];
-    uint32_t _y_check_mask[8];
-    uint8_t _x_check_shifter = 0;
-    uint8_t _y_check_shifter = 0;
+    uint32_t _x_hitcheck_mask[8];
+    uint32_t _y_hitcheck_mask[8];
+    uint8_t _x_hitcheck_shift = 0;
+    uint8_t _y_hitcheck_shift = 0;
 
     panel_position_t* _panel_position = nullptr;
     size_t  _panel_position_count = 0;
@@ -110,6 +110,7 @@ namespace lgfx
     uint16_t _single_width;
     uint16_t _single_height;
 
+    bool _init_hitcheck(void);
     uint32_t _read_pixel_inner(uint_fast16_t x, uint_fast16_t y) override;
     void _draw_pixel_inner(uint_fast16_t x, uint_fast16_t y, uint32_t rawcolor) override;
   };

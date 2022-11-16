@@ -48,7 +48,12 @@ namespace lgfx
 
   bool Panel_HUB75_Multi::init(bool use_reset)
   {
-    return _init_impl(_config_detail.panel_count * _config_detail.single_width, _config_detail.single_height);
+    if (_init_impl(_config_detail.panel_count * _config_detail.single_width, _config_detail.single_height))
+    {
+      _init_hitcheck();
+      return true;
+    }
+    return false;
   }
 
   bool Panel_HUB75::_init_impl(uint_fast16_t width, uint_fast16_t height)
@@ -172,7 +177,7 @@ namespace lgfx
 
   void Panel_HUB75_Multi::_draw_pixel_inner(uint_fast16_t x, uint_fast16_t y, uint32_t rawcolor)
   {
-    uint32_t indexmask = _x_check_mask[x >> _x_check_shifter] & _y_check_mask[y >> _y_check_shifter];
+    uint32_t indexmask = _x_hitcheck_mask[x >> _x_hitcheck_shift] & _y_hitcheck_mask[y >> _y_hitcheck_shift];
     if (!indexmask) { return; }
 
     auto single_width = _config_detail.single_width;
@@ -193,7 +198,7 @@ namespace lgfx
 
   uint32_t Panel_HUB75_Multi::_read_pixel_inner(uint_fast16_t x, uint_fast16_t y)
   {
-    uint32_t indexmask = _x_check_mask[x >> _x_check_shifter] & _y_check_mask[y >> _y_check_shifter];
+    uint32_t indexmask = _x_hitcheck_mask[x >> _x_hitcheck_shift] & _y_hitcheck_mask[y >> _y_hitcheck_shift];
     if (!indexmask) { return 0; }
     {
       auto single_width = _config_detail.single_width;
@@ -214,64 +219,71 @@ namespace lgfx
     return 0;
   }
 
+  bool Panel_HUB75_Multi::_init_hitcheck(void)
+  {
+    if (_panel_position == nullptr)
+    {
+      auto panel_count = _config_detail.panel_count;
+      if (panel_count < 1)
+      {
+        return false;
+      }
+      _panel_position_count = panel_count;
+      _panel_position = (panel_position_t*)heap_alloc_dma(panel_count * sizeof(panel_position_t));
+      memset(_panel_position, 0, panel_count * sizeof(panel_position_t));
+      memset(_x_hitcheck_mask, 0, sizeof(_x_hitcheck_mask));
+      memset(_y_hitcheck_mask, 0, sizeof(_y_hitcheck_mask));
+
+      uint32_t s = 0;
+      uint32_t tmp = _cfg.panel_width - 1;
+      while (tmp >>= 1) { ++s; }
+      _x_hitcheck_shift = (s > 2) ? (s - 2) : 0;
+
+      s = 0;
+      tmp = _cfg.panel_height - 1;
+      while (tmp >>= 1) { ++s; }
+      _y_hitcheck_shift = (s > 2) ? (s - 2) : 0;
+    }
+    return _panel_position != nullptr;
+  }
+
   bool Panel_HUB75_Multi::setPanelPosition(uint_fast8_t index, uint_fast16_t x, uint_fast16_t y)
   {
+    if (!_init_hitcheck()) { return false; }
     auto panel_count = _config_detail.panel_count;
     if (index < panel_count)
     {
-      if (_panel_position == nullptr)
-      {
-        if (panel_count < 1)
-        {
-          return false;
-        }
-        _panel_position_count = panel_count;
-        _panel_position = (panel_position_t*)heap_alloc_dma(panel_count * sizeof(panel_position_t));
-        memset(_x_check_mask, 0, sizeof(_x_check_mask));
-        memset(_y_check_mask, 0, sizeof(_y_check_mask));
-
-        uint32_t s = 1;
-        uint32_t tmp = _cfg.panel_width - 1;
-        while (tmp >>= 1) { ++s; }
-        _x_check_shifter = (s > 3) ? (s - 3) : 0;
-
-        s = 1;
-        tmp = _cfg.panel_height;
-        while (tmp >>= 1) { ++s; }
-        _y_check_shifter = (s > 3) ? (s - 3) : 0;
-      }
-
       _panel_position[index].x = x;
       _panel_position[index].y = y;
 
-      static constexpr const size_t x_size = sizeof(_x_check_mask) / sizeof(_x_check_mask[0]);
-      static constexpr const size_t y_size = sizeof(_y_check_mask) / sizeof(_y_check_mask[0]);
+      static constexpr const size_t x_size = sizeof(_x_hitcheck_mask) / sizeof(_x_hitcheck_mask[0]);
+      static constexpr const size_t y_size = sizeof(_y_hitcheck_mask) / sizeof(_y_hitcheck_mask[0]);
 
       uint32_t mask_index = 1 << index;
 
       for (size_t i = 0; i < x_size; ++i)
       {
-        _x_check_mask[i] &= ~mask_index;
+        _x_hitcheck_mask[i] &= ~mask_index;
       }
-      uint_fast16_t xe = (x + _config_detail.single_width - 1) >> _x_check_shifter;
+      uint_fast16_t xe = (x + _config_detail.single_width - 1) >> _x_hitcheck_shift;
       if (xe > x_size - 1) { xe = x_size - 1; }
-      x >>= _x_check_shifter;
+      x >>= _x_hitcheck_shift;
       while (x <= xe)
       {
-        _x_check_mask[x] |= mask_index;
+        _x_hitcheck_mask[x] |= mask_index;
         ++x;
       }
 
       for (size_t i = 0; i < y_size; ++i)
       {
-        _y_check_mask[i] &= ~mask_index;
+        _y_hitcheck_mask[i] &= ~mask_index;
       }
-      uint_fast16_t ye = (y + _config_detail.single_height - 1) >> _y_check_shifter;
+      uint_fast16_t ye = (y + _config_detail.single_height - 1) >> _y_hitcheck_shift;
       if (ye > y_size - 1) { ye = y_size - 1; }
-      y >>= _y_check_shifter;
+      y >>= _y_hitcheck_shift;
       while (y <= ye)
       {
-        _y_check_mask[y] |= mask_index;
+        _y_hitcheck_mask[y] |= mask_index;
         ++y;
       }
     }
