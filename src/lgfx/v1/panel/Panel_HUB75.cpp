@@ -231,14 +231,14 @@ namespace lgfx
         memset(_y_check_mask, 0, sizeof(_y_check_mask));
 
         uint32_t s = 1;
-        uint32_t tmp = _cfg.panel_width;
+        uint32_t tmp = _cfg.panel_width - 1;
         while (tmp >>= 1) { ++s; }
-        _x_check_shifter = (s > 4) ? (s - 4) : 0;
+        _x_check_shifter = (s > 3) ? (s - 3) : 0;
 
         s = 1;
         tmp = _cfg.panel_height;
         while (tmp >>= 1) { ++s; }
-        _y_check_shifter = (s > 4) ? (s - 4) : 0;
+        _y_check_shifter = (s > 3) ? (s - 3) : 0;
       }
 
       _panel_position[index].x = x;

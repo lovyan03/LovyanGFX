@@ -1164,10 +1164,10 @@ namespace lgfx
     while (_dmatask_handle)
     {
 // DEBUG
-lgfx::gpio_lo(15);
+// lgfx::gpio_lo(15);
       auto dst = (uint32_t*)ulTaskNotifyTake( pdTRUE, portMAX_DELAY);
 // DEBUG
-lgfx::gpio_hi(15);
+// lgfx::gpio_hi(15);
       if (dst == nullptr) { break; }
       auto d32 = &dst[len32 * (TRANSFER_PERIOD_COUNT + 1)];
 
