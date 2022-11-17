@@ -171,16 +171,16 @@ namespace lgfx
     uint32_t light_len_limit = (panel_width - 7);
     uint32_t slen = (light_len_limit * br) >> 8;
 
-    uint32_t TRANSFER_PERIOD_COUNT = TRANSFER_PERIOD_COUNT_332;
+    uint32_t transfer_period_count = TRANSFER_PERIOD_COUNT_332;
     uint32_t half_start = 4;
     if (_depth == color_depth_t::rgb565_2Byte)
     {
-      TRANSFER_PERIOD_COUNT = TRANSFER_PERIOD_COUNT_565;
+      transfer_period_count = TRANSFER_PERIOD_COUNT_565;
       half_start = 6;
     }
 
-    _brightness_period[TRANSFER_PERIOD_COUNT] = panel_width;
-    for (int period = TRANSFER_PERIOD_COUNT - 1; period >= 0; --period)
+    _brightness_period[transfer_period_count] = panel_width;
+    for (int period = transfer_period_count - 1; period >= 0; --period)
     {
       _brightness_period[period] = slen + 4;
       if (period < half_start) { slen >>= 1; }
@@ -265,7 +265,7 @@ namespace lgfx
 
 
 /*  // DMAディスクリプタが利用するDMAメモリ位置テーブル
- この配列は、14x2セットのDMAディスクリプタそれぞれが使用するバッファメモリの範囲を表す。
+ この配列は、14x3セットのDMAディスクリプタそれぞれが使用するバッファメモリの範囲を表す。
   0 : 無データ,x1点灯
   1 : 輝度1/32データ,無灯
   2 : 輝度1/16データ,1/32点灯
@@ -281,7 +281,8 @@ namespace lgfx
       9, 1, 2, 3, 4, 5, 6, 7, 0, 8, 0, 0, 0, 0,
     };
 
-// RGB332の場合はデータ転送が5回、無データ点灯は2回になる。SHIFTREG_ABC座標は[6]
+// RGB332の場合は階調表現を減らして総データ量を削減している。
+// データ転送が5回、無データ点灯は2回になる。SHIFTREG_ABC座標は[6]
     static constexpr const uint8_t dma_buf_idx_tbl_332[] = {
       6, 1, 2, 3, 4, 5, 0, 0,
     };
@@ -294,14 +295,14 @@ namespace lgfx
   [ 4](輝度1/ 4成分データ転送,1/ 8点灯期間)
   [ 5](輝度1/ 2成分データ転送,1/ 4点灯期間)
   [ 6](輝度1/ 1成分データ転送,1/ 2点灯期間)
-  [ 7](輝度  x2成分データ転送,1/ 1点灯期間)
+  [ 7](輝度  x2成分データ転送,  x1点灯期間)
   [ 8](            データ無し,  x1点灯期間)
   [ 9](輝度  x4成分データ転送,  x1点灯期間)
   [10](            データ無し,  x1点灯期間)
   [11](            データ無し,  x1点灯期間)
   [12](            データ無し,  x1点灯期間)
   [13](            データ無し,  x1点灯期間)
-  ※ 13番の転送が終わったあとは2セットあるディスクリプタ群の先頭にリンクする。
+  ※ 13番の転送が終わったあとは次のラインの先頭ディスクリプタにリンクする。
      また、13番の転送が終わった時点でEOF割込みが起こり、次のラインのデータ生成タスクが実行される。
 
   ※ 0番 SHIFTREG_ABC座標,無灯の転送期間はパネル１枚の高さに比例、それ以外の期間はパネル全体の幅に比例する
@@ -311,19 +312,19 @@ namespace lgfx
    "データ無しx1点灯期間"で送信する内容はすべて同一で良いため、同じメモリ範囲を共有利用してメモリを節約している。
 */
 
-    uint32_t TRANSFER_PERIOD_COUNT = TRANSFER_PERIOD_COUNT_332;
-    uint32_t EXTEND_PERIOD_COUNT = EXTEND_PERIOD_COUNT_332;
-    uint32_t TOTAL_PERIOD_COUNT = TOTAL_PERIOD_COUNT_332;
+    uint32_t transfer_period_count = TRANSFER_PERIOD_COUNT_332;
+    uint32_t extend_period_count = EXTEND_PERIOD_COUNT_332;
+    uint32_t total_period_count = TOTAL_PERIOD_COUNT_332;
     auto dma_buf_idx_tbl = dma_buf_idx_tbl_332;
     if (_depth == color_depth_t::rgb565_2Byte)
     {
-      TRANSFER_PERIOD_COUNT = TRANSFER_PERIOD_COUNT_565;
-      EXTEND_PERIOD_COUNT = EXTEND_PERIOD_COUNT_565;
-      TOTAL_PERIOD_COUNT = TOTAL_PERIOD_COUNT_565;
+      transfer_period_count = TRANSFER_PERIOD_COUNT_565;
+      extend_period_count = EXTEND_PERIOD_COUNT_565;
+      total_period_count = TOTAL_PERIOD_COUNT_565;
       dma_buf_idx_tbl = dma_buf_idx_tbl_565;
     }
 
-    _dmadesc = (lldesc_t*)heap_alloc_dma(sizeof(lldesc_t) * TOTAL_PERIOD_COUNT * _dma_desc_set);
+    _dmadesc = (lldesc_t*)heap_alloc_dma(sizeof(lldesc_t) * total_period_count * _dma_desc_set);
     if (_dmadesc == nullptr)
     {
       ESP_EARLY_LOGE("Bus_HUB75", "memory allocate error.");
@@ -333,12 +334,10 @@ namespace lgfx
 
     uint32_t panel_width = _panel_width;
 
-    // DMA用バッファメモリ確保。 無データ点灯期間1回分 + データ転送期間8回分 + SHIFTREG_ABC座標期間1回 の合計10回分を連続領域として確保する
+    // DMA用バッファメモリ確保。 (無データ点灯期間1回分 + データ転送期間8回分) * パネル幅 + (SHIFTREG_ABC座標期間1回) * (パネル高さ * 2) の合計を連続領域として確保する
     // 無データ点灯期間は合計5回あるが、同じ領域を使い回すためバッファは1回分でよい;
-
-    size_t buf_bytes = (((TRANSFER_PERIOD_COUNT + 1) * panel_width) + (2 * _panel_height)) * sizeof(uint16_t);
-    _dma_transfer_len = (((TRANSFER_PERIOD_COUNT + EXTEND_PERIOD_COUNT) * panel_width) + (2 * _panel_height));
-
+    size_t buf_bytes = (((transfer_period_count + 1) * panel_width) + (2 * _panel_height)) * sizeof(uint16_t);
+    _dma_transfer_len = (((transfer_period_count + extend_period_count) * panel_width) + (2 * _panel_height));
 
     for (size_t i = 0; i < _dma_desc_set; i++) {
       _dma_buf[i] = (uint16_t*)heap_alloc_dma(buf_bytes);
@@ -350,14 +349,14 @@ namespace lgfx
       // バッファ初期値として OE(消灯)で埋めておく
       memset(_dma_buf[i], _mask_oe, buf_bytes);
 
-      for (int j = 0; j < TOTAL_PERIOD_COUNT; j++) {
-        uint32_t idx = i * TOTAL_PERIOD_COUNT + j;
+      for (int j = 0; j < total_period_count; j++) {
+        uint32_t idx = i * total_period_count + j;
         size_t bufidx = dma_buf_idx_tbl[j] * panel_width;
         // SHIFTREG_ABCの期間のみデータ長をpanel_height * 2とする
         size_t buflen = ((j == 0) ? _panel_height << 1 : panel_width) * sizeof(uint16_t);
         _dmadesc[idx].buf = (volatile uint8_t*)&(_dma_buf[i][bufidx]);
-        _dmadesc[idx].eof = j == (TOTAL_PERIOD_COUNT - 1); // 最後の転送期間のみEOFイベントを発生させる
-        _dmadesc[idx].empty = (uint32_t)(&_dmadesc[(idx + 1) % (TOTAL_PERIOD_COUNT * _dma_desc_set)]);
+        _dmadesc[idx].eof = j == (total_period_count - 1); // 最後の転送期間のみEOFイベントを発生させる
+        _dmadesc[idx].empty = (uint32_t)(&_dmadesc[(idx + 1) % (total_period_count * _dma_desc_set)]);
         _dmadesc[idx].owner = 1;
         _dmadesc[idx].length = buflen;
         _dmadesc[idx].size = buflen;
@@ -365,9 +364,12 @@ namespace lgfx
     }
     setBrightness(_brightness);
 
-    {
+    { // ガンマ補正テーブル生成
+    // ガンマ補正と同時に、各ビットの間隔を広げる処理も行うようにデータを生成する。
       if (_depth == color_depth_t::rgb565_2Byte)
       {
+        // RGB565の場合は、単一色に対して使用する64要素のテーブルを作成する。
+        // 利用時にRGB成分をまとめやすくするため、3bit間隔に変換して作成する。
         _pixel_tbl = (uint32_t*)heap_alloc_dma(64 * sizeof(uint32_t));
         if (_pixel_tbl == nullptr)
         {
@@ -381,6 +383,8 @@ namespace lgfx
           v = (v * v) >> 8;
           if (v < i) { v = i; }
           else if (v > 255) { v = 255; }
+
+          // データの各ビット間の間隔を広げる
           uint32_t value = 0;
           for (size_t shift = 0; shift < 8; ++shift)
           {
@@ -391,7 +395,9 @@ namespace lgfx
         }
       }
       else
-      { // for RGB332
+      {
+        // RGB332の場合は、3色まとめて変換できる256要素のテーブルを作成する。
+        // BGRの3ビット+無データ3bitの 6bitが5セット並んだ状態のデータを作成する。
         _pixel_tbl = (uint32_t*)heap_alloc_dma(256 * sizeof(uint32_t));
         if (_pixel_tbl == nullptr)
         {
@@ -556,96 +562,98 @@ namespace lgfx
     a2 : asm_work_t*      (変更せずそのまま利用する)
 */
     __asm__ __volatile__ (
-      "s32i.n  a0,  a2,  44               \n" // A0 を退避
-      "l32i.n  a3,  a2,  32               \n" // a3  = xe
-      "l32i.n  a0,  a2,  0                \n" // ★a0  = 出力先アドレス
-      "l32i.n  a11, a2,  4                \n" // ★a11 = パネル上側の元データ配列
-      "l32i.n  a12, a2,  8                \n" // ★a12 = パネル下側の元データ配列
-      "l32i.n  a14, a2,  24               \n" // ★a14 = len32
-      "l32i.n  a13, a2,  12               \n" // ★a13 = pixel_tbl
-      "l32i.n  a15, a2,  16               \n" // ★a15 = mixdata アドレス
-      "slli    a14, a14, 2                \n" // len32 を 4倍(d32の加算に使うため)
+      "s32i.n  a0,  a2,  44               \n"  // A0 を退避
+      "l32i.n  a3,  a2,  32               \n"  // a3  = xe
+      "l32i.n  a0,  a2,  0                \n"  // ★a0  = 出力先アドレス
+      "l32i.n  a15, a2,  16               \n"  // ★a15 = mixdata アドレス
+      "l32i.n  a14, a2,  24               \n"  // ★a14 = len32
+      "l32i.n  a13, a2,  12               \n"  // ★a13 = pixel_tbl
+      "l32i.n  a12, a2,  8                \n"  // ★a12 = パネル下側の元データ配列
+      "l32i.n  a11, a2,  4                \n"  // ★a11 = パネル上側の元データ配列
+      "slli    a14, a14, 2                \n"  // len32 を 4倍(d32の加算に使うため)
 
 "HUB75_DRAW332_LOOP_START:          \n"
 
-      "loop    a3, HUB75_DRAW332_LOOP_END \n" // ループ開始 (a3 にループ回数 xe がセットされた状態でここに来ること)
+      "loop    a3, HUB75_DRAW332_LOOP_END \n"  // ループ開始 (a3 にループ回数 xe がセットされた状態でここに来ること)
 
-      "l8ui    a3,  a11, 0                \n" // a3 = 元データ上側配列から rgb332形式 1ピクセル目取得
-      "l8ui    a5,  a11, 1                \n" // a5 = 元データ上側配列から rgb332形式 2ピクセル目取得
-      "addi.n  a11, a11, 2                \n" // 元データのアドレスを2進める
-      "l8ui    a4,  a12, 0                \n" // a4 = 元データ下側配列から rgb332形式 1ピクセル目取得
-      "l8ui    a6,  a12, 1                \n" // a6 = 元データ下側配列から rgb332形式 2ピクセル目取得
-      "addi.n  a12, a12, 2                \n" // 元データのアドレスを2進める
+      "l32i.n  a10, a15, 16               \n"  // ★a10 に mixdata末尾の値を代入 (4*sizeof(uint32_t) = 16)
 
-      "addx4   a3,  a3,  a13              \n" // a3  = テーブルアドレスに変換
-      "l32i.n  a3,  a3,  0                \n" // a3  = pixel_tbl[RGB332] 1ピクセル目 上側の RGB成分 完成
-      "addx4   a4,  a4,  a13              \n" // a4  = テーブルアドレスに変換
-      "l32i.n  a4,  a4,  0                \n" // a4  = pixel_tbl[RGB332] 1ピクセル目 下側の RGB成分 完成
-      "addx4   a5,  a5,  a13              \n" // a5  = テーブルアドレスに変換
-      "l32i.n  a5,  a5,  0                \n" // a5  = pixel_tbl[RGB332] 2ピクセル目 上側の RGB成分 完成
-      "addx4   a6,  a6,  a13              \n" // a6  = テーブルアドレスに変換
-      "l32i.n  a6,  a6,  0                \n" // a6  = pixel_tbl[RGB332] 2ピクセル目 下側の RGB成分 完成
+      "l8ui    a3,  a11, 0                \n"  // a3 = 元データ上側配列から rgb332形式 1ピクセル目取得
+      "l8ui    a4,  a12, 0                \n"  // a4 = 元データ下側配列から rgb332形式 1ピクセル目取得
+      "l8ui    a5,  a11, 1                \n"  // a5 = 元データ上側配列から rgb332形式 2ピクセル目取得
+      "l8ui    a6,  a12, 1                \n"  // a6 = 元データ下側配列から rgb332形式 2ピクセル目取得
+      "addi.n  a11, a11, 2                \n"  // 元データのアドレスを2ピクセル進める
+      "addi.n  a12, a12, 2                \n"  // 元データのアドレスを2ピクセル進める
+
+      "addx4   a3,  a3,  a13              \n"  // a3  = テーブルアドレスに変換
+      "addx4   a4,  a4,  a13              \n"  // a4  = テーブルアドレスに変換
+      "addx4   a5,  a5,  a13              \n"  // a5  = テーブルアドレスに変換
+      "addx4   a6,  a6,  a13              \n"  // a6  = テーブルアドレスに変換
+      "l32i.n  a3,  a3,  0                \n"  // a3  = pixel_tbl[RGB332] 1ピクセル目 上側の RGB成分 完成
+      "l32i.n  a4,  a4,  0                \n"  // a4  = pixel_tbl[RGB332] 1ピクセル目 下側の RGB成分 完成
+      "l32i.n  a5,  a5,  0                \n"  // a5  = pixel_tbl[RGB332] 2ピクセル目 上側の RGB成分 完成
+      "l32i.n  a6,  a6,  0                \n"  // a6  = pixel_tbl[RGB332] 2ピクセル目 下側の RGB成分 完成
 
 //////////////////
 
+      "s32i.n  a10, a0,  0                \n"  // mixdata 末尾のデータを出力先にセット
+      "mov.n   a9,  a0                    \n"  // a9 に 出力先 アドレスをコピー
+      "addi.n  a0,  a0,  4                \n"  // ★a0 出力先アドレス を1進める
+
 // この時点で a3,a4,a5,a6 に 合計4ピクセル分のデータが入った状態になっている
+// テーブルから取得したデータは 0bBGR___BGR___BGR___BGR___BGR となっている。
+// (6bit単位で 3bit無データ + BGR)
 // ここから、パネル上側と下側のRGB成分が隣接し6bit単位となった状態に変換する
       "addx8   a3,  a4,  a3               \n"  // a3 = (下側1ピクセル目 << 3) + 上側1ピクセル目
       "addx8   a4,  a6,  a5               \n"  // a4 = (下側2ピクセル目 << 3) + 上側2ピクセル目
-      "l32i.n  a6,  a15, 16               \n"  // a6 に mixdata末尾の値を代入 (4*sizeof(uint32_t) = 16)
-
-      "mov.n   a5,  a0                    \n"  // a5 に 出力先 アドレスをコピー
-      "addi.n  a0,  a0,  4                \n"  // ★a0 出力先アドレス を1進める
-
-      "s32i.n  a6,  a5,  0                \n"  // mixdata 末尾のデータを出力先にセット
 
 // ここから出力
-// RGB成分 と mixdata(Y座標情報) を合わせた16bitデータを2ピクセル分32bit纏めて出力 を 5回(TRANSFER_PERIOD_COUNT) 行う
+// RGB成分 と mixdata(Y座標情報+OE信号) を合わせた16bitデータを2ピクセル分32bit纏めて出力 を 5回(transfer_period_count) 行う
 
       "l32i.n   a8,  a15, 0               \n"  // a8  = mixdata[0]
+      "add.n    a9,  a14, a9              \n"  // a9 出力先アドレス += len32
       "extui    a7,  a3,  0,   6          \n"  // 1ピクセル目 6ビット取得
-      "add.n    a5,  a14, a5              \n"  // a5 出力先アドレス += len32
       "slli     a7,  a7,  16              \n"  // 1ピクセル目のデータを左16bitシフト
       "add.n    a8,  a7,  a8              \n"  // a8 = 1ピクセル目+mixdata
       "extui    a7,  a4,  0,   6          \n"  // 2ピクセル目 6ビット取得
       "add.n    a7,  a7,  a8              \n"  // a7 = 2ピクセル目+a8
-      "s32i.n   a7,  a5,  0               \n"  // a7 の値を出力先にセット
+      "s32i.n   a7,  a9,  0               \n"  // a7 の値を出力先にセット
 
       "l32i.n   a8,  a15, 4               \n"  // a8 = mixdata[1]
+      "add.n    a9,  a14, a9              \n"  // a9 出力先アドレス += len32
       "extui    a7,  a3,  6,   6          \n"  // 1ピクセル目 6ビット取得
-      "add.n    a5,  a14, a5              \n"  // a5 出力先アドレス += len32
       "slli     a7,  a7,  16              \n"  // 1ピクセル目のデータを左16bitシフト
       "add.n    a8,  a7,  a8              \n"  // a8 = 1ピクセル目+mixdata
       "extui    a7,  a4,  6,   6          \n"  // 2ピクセル目 6ビット取得
       "add.n    a7,  a7,  a8              \n"  // a7 = 2ピクセル目+a8
-      "s32i.n   a7,  a5,  0               \n"  // a7 の値を出力先にセット
+      "s32i.n   a7,  a9,  0               \n"  // a7 の値を出力先にセット
 
       "l32i.n   a8,  a15, 8               \n"  // a8  = mixdata[2]
+      "add.n    a9,  a14, a9              \n"  // a9 出力先アドレス += len32
       "extui    a7,  a3,  12,  6          \n"  // 1ピクセル目 6ビット取得
-      "add.n    a5,  a14, a5              \n"  // a5 出力先アドレス += len32
       "slli     a7,  a7,  16              \n"  // 1ピクセル目のデータを左16bitシフト
       "add.n    a8,  a7,  a8              \n"  // a8 = 1ピクセル目+mixdata
       "extui    a7,  a4,  12,  6          \n"  // 2ピクセル目 6ビット取得
       "add.n    a7,  a7,  a8              \n"  // a7 = 2ピクセル目+a8
-      "s32i.n   a7,  a5,  0               \n"  // a7 の値を出力先にセット
+      "s32i.n   a7,  a9,  0               \n"  // a7 の値を出力先にセット
 
       "l32i.n   a8,  a15, 12              \n"  // a8 = mixdata[3]
+      "add.n    a9,  a14, a9              \n"  // a9 出力先アドレス += len32
       "extui    a7,  a3,  18,  6          \n"  // 1ピクセル目 6ビット取得
-      "add.n    a5,  a14, a5              \n"  // a5 出力先アドレス += len32
       "slli     a7,  a7,  16              \n"  // 1ピクセル目のデータを左16bitシフト
       "add.n    a8,  a7,  a8              \n"  // a8 = 1ピクセル目+mixdata
       "extui    a7,  a4,  18,  6          \n"  // 2ピクセル目 6ビット取得
       "add.n    a7,  a7,  a8              \n"  // a7 = 2ピクセル目+a8
-      "s32i.n   a7,  a5,  0               \n"  // a7 の値を出力先にセット
+      "s32i.n   a7,  a9,  0               \n"  // a7 の値を出力先にセット
 
-      // 最後の1回は mixdata の取得を省略(a6に取得しておいた値を再利用する)
+      // 最後の1回は mixdata の取得を省略(a10に取得しておいた値を再利用する)
+      "add.n    a9,  a14, a9              \n"  // a9 出力先アドレス += len32
       "extui    a7,  a3,  24,  6          \n"  // 1ピクセル目 6ビット取得
-      "add.n    a5,  a14, a5              \n"  // a5 出力先アドレス += len32
       "slli     a7,  a7,  16              \n"  // 1ピクセル目のデータを左16bitシフト
-      "add.n    a8,  a7,  a6              \n"  // a8 = 1ピクセル目+mixdata
+      "add.n    a8,  a7,  a10             \n"  // a8 = 1ピクセル目+mixdata
       "extui    a7,  a4,  24,  6          \n"  // 2ピクセル目 6ビット取得
       "add.n    a7,  a7,  a8              \n"  // a7 = 2ピクセル目+a8
-      "s32i.n   a7,  a5,  0               \n"  // a7 の値を出力先にセット
+      "s32i.n   a7,  a9,  0               \n"  // a7 の値を出力先にセット
 
 "HUB75_DRAW332_LOOP_END:            \n"
 
@@ -668,7 +676,7 @@ namespace lgfx
       "bge     a5,  a3,  HUB75_BR332LOOP_START     \n" // xe 値が同値なら BR_LOOP 再トライ
       "s32i.n  a4,  a2,  28               \n" // xe_idx の値を保存
       "sub     a3,  a3,  a5               \n" // 新しい xe値から前回のxe値を引き、差分を得る
-      "j HUB75_DRAW332_LOOP_START         \n" // a3 (xe) の位置が刷新されたので再度先頭からループ
+      "j HUB75_DRAW332_LOOP_START         \n" // a3 (xe) が刷新されたので再度先頭からループ
 
 "HUB75_EXIT332:                   \n"
 
@@ -684,94 +692,91 @@ namespace lgfx
     a2 : asm_work_t*      (変更せずそのまま利用する)
 */
     __asm__ __volatile__ (
-      "s32i.n  a0,  a2,  44               \n" // A0 を退避
-      "l32i.n  a3,  a2,  32               \n" // a3  = xe
-      "l32i.n  a0,  a2,  0                \n" // ★a0  = 出力先アドレス
-      "l32i.n  a11, a2,  4                \n" // ★a11 = パネル上側の元データ配列
-      "l32i.n  a12, a2,  8                \n" // ★a12 = パネル下側の元データ配列
-      "l32i.n  a13, a2,  12               \n" // ★a13 = pixel_tbl
-      "l32i.n  a14, a2,  24               \n" // ★a14 = len32
+      "s32i.n  a0,  a2,  44               \n"  // a0 を退避
+      "l32i.n  a3,  a2,  32               \n"  // a3  = xe
+      "l32i.n  a0,  a2,  0                \n"  // ★a0  = 出力先アドレス
+      "l32i.n  a11, a2,  4                \n"  // ★a11 = パネル上側の元データ配列
+      "l32i.n  a12, a2,  8                \n"  // ★a12 = パネル下側の元データ配列
+      "l32i.n  a13, a2,  12               \n"  // ★a13 = pixel_tbl
+      "l32i.n  a14, a2,  24               \n"  // ★a14 = len32
       "movi    a15, 0b111000111000111000111000111   \n"  // A15 にマスクパターンをセット
-      "s32i.n  a15, a2,  36               \n" // マスクパターンをworkに退避
-      "slli    a14, a14, 2                \n" // len32 を 4倍(d32の加算に使うため)
+      "slli    a14, a14, 2                \n"  // len32 を 4倍(d32の加算に使うため)
+      "s32i.n  a15, a2,  36               \n"  // マスクパターンをworkに退避
 
 "HUB75_DRAW565_LOOP_START:          \n"
 
-      "loop    a3, HUB75_DRAW565_LOOP_END \n" // ループ開始 (a3 にループ回数 xe がセットされた状態でここに来ること)
+      "loop    a3, HUB75_DRAW565_LOOP_END \n"  // ループ開始 (a3 にループ回数 xe がセットされた状態でここに来ること)
 
-      "l32i.n  a5,  a11, 0                \n" // a5 = 元データ配列から swap565形式 2ピクセル まとめて取得
-      "addi.n  a11, a11, 4                \n" // 元データのアドレスを4進める
-      "l32i.n  a6,  a12, 0                \n" // a6 = 元データ配列から swap565形式 2ピクセル まとめて取得
-      "addi.n  a12, a12, 4                \n" // 元データのアドレスを4進める
-
-//////////////////
-
-      "extui   a7,  a5,  0,   5           \n" // a7  = 青成分取得
-      "addx8   a7,  a7,  a13              \n" // a7  = テーブルアドレスに変換 (5bitデータを元にuint32_t[64]のテーブルを引くため x8する)
-      "l32i.n  a7,  a7,  4                \n" // a7  = pixel_tbl[青成分]
-      "extui   a8,  a5,  5,   6           \n" // a8  = 緑成分取得
-      "addx4   a8,  a8,  a13              \n" // a8  = テーブルアドレスに変換 (6bitデータを元にuint32_t[64]のテーブルを引くため x4する)
-      "l32i.n  a8,  a8,  0                \n" // a8  = pixel_tbl[緑成分]
-      "extui   a9,  a5,  11,  5           \n" // a9  = 赤成分取得
-      "addx8   a9,  a9,  a13              \n" // a9  = テーブルアドレスに変換 (5bitデータを元にuint32_t[64]のテーブルを引くため x8する)
-      "l32i.n  a9,  a9,  4                \n" // a9  = pixel_tbl[赤成分]
-      "addx2   a3,  a7,  a8               \n" // a3  = (B << 1) + G
-
-      // a9のロード待ちのため、先の処理を間に挟む
-      "extui   a7,  a6,  0,   5           \n" // a7  = 青成分取得
-
-      "addx2   a3,  a3,  a9               \n" // a3  = (BG << 1) + R 1ピクセル目 上側の RGB成分 完成
+      "l32i.n  a9,  a11, 0                \n"  // a9  = 元データ配列から swap565形式 2ピクセル まとめて取得
+      "l32i.n  a10, a12, 0                \n"  // a10 = 元データ配列から swap565形式 2ピクセル まとめて取得
+      "addi.n  a11, a11, 4                \n"  // 元データのアドレスを2ピクセル進める
+      "addi.n  a12, a12, 4                \n"  // 元データのアドレスを2ピクセル進める
 
 //////////////////
 
-      "addx8   a7,  a7,  a13              \n" // a7  = テーブルアドレスに変換
-      "l32i.n  a7,  a7,  4                \n" // a7  = pixel_tbl[青成分]
-      "extui   a8,  a6,  5,   6           \n" // a8  = 緑成分取得
-      "addx4   a8,  a8,  a13              \n" // a8  = テーブルアドレスに変換
-      "l32i.n  a8,  a8,  0                \n" // a8  = pixel_tbl[緑成分]
-      "extui   a9,  a6,  11,  5           \n" // a9  = 赤成分取得
-      "addx8   a9,  a9,  a13              \n" // a9  = テーブルアドレスに変換
-      "l32i.n  a9,  a9,  4                \n" // a9  = pixel_tbl[赤成分]
-      "addx2   a4,  a7,  a8               \n" // a4  = (B << 1) + G
+      "extui   a5,  a9,  0,   5           \n"  // a5  = 青成分取得
+      "extui   a6,  a9,  5,   6           \n"  // a6  = 緑成分取得
+      "extui   a7,  a9,  11,  5           \n"  // a7  = 赤成分取得
+      "addx8   a4,  a5,  a13              \n"  // a4  = テーブルアドレスに変換 (5bitデータを元にuint32_t[64]のテーブルを引くため x8する)
+      "addx4   a5,  a6,  a13              \n"  // a5  = テーブルアドレスに変換 (6bitデータを元にuint32_t[64]のテーブルを引くため x4する)
+      "addx8   a6,  a7,  a13              \n"  // a6  = テーブルアドレスに変換 (5bitデータを元にuint32_t[64]のテーブルを引くため x8する)
+      "l32i.n  a3,  a4,  4                \n"  // a3  = pixel_tbl[青成分]
+      "l32i.n  a4,  a5,  0                \n"  // a4  = pixel_tbl[緑成分]
+      "l32i.n  a5,  a6,  4                \n"  // a5  = pixel_tbl[赤成分]
 
-      // a9のロード待ちのため、先の処理を間に挟む
-      "extui   a7,  a5,  16,  5           \n" // a7  = 青成分取得
+      // ロード待ちのため、先の処理を間に挟む
+      "extui   a6,  a10, 0,   5           \n"  // a6  = 青成分取得
+      "extui   a7,  a10, 5,   6           \n"  // a7  = 緑成分取得
+      "extui   a8,  a10, 11,  5           \n"  // a8  = 赤成分取得
 
-      "addx2   a4,  a4,  a9               \n" // a4  = (BG << 1) + R 1ピクセル目 下側の RGB成分 完成
-
+      "addx2   a3,  a3,  a4               \n"  // a3  = (青 << 1) + 緑
+      "addx2   a3,  a3,  a5               \n"  // a3  = (青緑 << 1) + 赤 1ピクセル目 上側の RGB成分 完成
 //////////////////
 
-      "addx8   a7,  a7,  a13              \n" // a7  = テーブルアドレスに変換
-      "l32i.n  a7,  a7,  4                \n" // a7  = pixel_tbl[青成分]
-      "extui   a8,  a5,  21,  6           \n" // a8  = 緑成分取得
-      "addx4   a8,  a8,  a13              \n" // a8  = テーブルアドレスに変換
-      "l32i.n  a8,  a8,  0                \n" // a8  = pixel_tbl[緑成分]
-      "extui   a9,  a5,  27,  5           \n" // a9  = 赤成分取得
-      "addx8   a9,  a9,  a13              \n" // a9  = テーブルアドレスに変換
-      "l32i.n  a9,  a9,  4                \n" // a9  = pixel_tbl[赤成分]
-      "addx2   a5,  a7,  a8               \n" // a5  = (B << 1) + G
+      "addx8   a5,  a6,  a13              \n"  // a5  = テーブルアドレスに変換
+      "addx4   a6,  a7,  a13              \n"  // a6  = テーブルアドレスに変換
+      "addx8   a7,  a8,  a13              \n"  // a7  = テーブルアドレスに変換
+      "l32i.n  a4,  a5,  4                \n"  // a4  = pixel_tbl[青成分]
+      "l32i.n  a5,  a6,  0                \n"  // a5  = pixel_tbl[緑成分]
+      "l32i.n  a6,  a7,  4                \n"  // a6  = pixel_tbl[赤成分]
 
-      // a9のロード待ちのため、先の処理を間に挟む
-      "extui   a7,  a6,  16,  5           \n" // a7  = 青成分取得
+      // ロード待ちのため、先の処理を間に挟む
+      "extui   a7,  a9,  16,  5           \n"  // a7  = 青成分取得
+      "extui   a8,  a9,  21,  6           \n"  // a8  = 緑成分取得
+      "extui   a9,  a9,  27,  5           \n"  // a9  = 赤成分取得
 
-      "addx2   a5,  a5,  a9               \n" // a5  = (BG << 1) + R 2ピクセル目 上側の RGB成分 完成
-
+      "addx2   a4,  a4,  a5               \n"  // a4  = (青 << 1) + 緑
+      "addx2   a4,  a4,  a6               \n"  // a4  = (青緑 << 1) + 赤 1ピクセル目 下側の RGB成分 完成
 //////////////////
 
-      "addx8   a7,  a7,  a13              \n" // a7  = テーブルアドレスに変換
-      "l32i.n  a7,  a7,  4                \n" // a7  = pixel_tbl[青成分]
-      "extui   a8,  a6,  21,  6           \n" // a8  = 緑成分取得
-      "addx4   a8,  a8,  a13              \n" // a8  = テーブルアドレスに変換
-      "l32i.n  a8,  a8,  0                \n" // a8  = pixel_tbl[緑成分]
-      "extui   a9,  a6,  27,  5           \n" // a9  = 赤成分取得
-      "addx8   a9,  a9,  a13              \n" // a9  = テーブルアドレスに変換
-      "l32i.n  a9,  a9,  4                \n" // a9  = pixel_tbl[赤成分]
+      "addx8   a6,  a7,  a13              \n"  // a6  = テーブルアドレスに変換
+      "addx4   a7,  a8,  a13              \n"  // a7  = テーブルアドレスに変換
+      "addx8   a8,  a9,  a13              \n"  // a8  = テーブルアドレスに変換
+      "l32i.n  a5,  a6,  4                \n"  // a5  = pixel_tbl[青成分]
+      "l32i.n  a6,  a7,  0                \n"  // a6  = pixel_tbl[緑成分]
+      "l32i.n  a7,  a8,  4                \n"  // a7  = pixel_tbl[赤成分]
 
-      // a9のロード待ちのため、先の処理を間に挟む
-      "l32i.n  a15, a2,  36               \n" // a15にマスクパターンを読み込み
+      // ロード待ちのため、先の処理を間に挟む
+      "extui   a8,  a10, 16,  5           \n"  // a8  = 青成分取得
+      "extui   a9,  a10, 21,  6           \n"  // a9  = 緑成分取得
+      "extui   a10, a10, 27,  5           \n"  // a10 = 赤成分取得
 
-      "addx2   a6,  a7,  a8               \n" // a6  = (B << 1) + G
-      "addx2   a6,  a6,  a9               \n" // a6  = (BG << 1) + R 2ピクセル目 下側の RGB成分 完成
+      "addx2   a5,  a5,  a6               \n"  // a5  = (青 << 1) + 緑
+      "addx2   a5,  a5,  a7               \n"  // a5  = (青緑 << 1) + 赤 2ピクセル目 上側の RGB成分 完成
+//////////////////
+
+      "addx8   a7,  a8,  a13              \n"  // a7  = テーブルアドレスに変換
+      "addx4   a8,  a9,  a13              \n"  // a8  = テーブルアドレスに変換
+      "addx8   a9,  a10, a13              \n"  // a9  = テーブルアドレスに変換
+      "l32i.n  a6,  a7,  4                \n"  // a6  = pixel_tbl[青成分]
+      "l32i.n  a7,  a8,  0                \n"  // a7  = pixel_tbl[緑成分]
+      "l32i.n  a8,  a9,  4                \n"  // a8  = pixel_tbl[赤成分]
+
+      // ロード待ちのため、先の処理を間に挟む
+      "l32i.n  a15, a2,  36               \n"  // a15にマスクパターンを読み込み
+
+      "addx2   a6,  a6,  a7               \n"  // a6  = (青 << 1) + 緑
+      "addx2   a6,  a6,  a8               \n"  // a6  = (青緑 << 1) + 赤 2ピクセル目 下側の RGB成分 完成
 
 // この時点で a3,a4,a5,a6 に 合計4ピクセル分のデータが入った状態になっている
 // ここから、パネル上側と下側のRGB成分が隣接し6bit単位となった状態に変換する
@@ -798,85 +803,82 @@ namespace lgfx
       "mov.n   a9,  a0                    \n"  // a9 に 出力先 アドレスをコピー
       "addi.n  a0,  a0,  4                \n"  // ★a0 出力先アドレス を1進める
 
-      "srli    a5,  a5,  3                \n"  // a5 = 1_even >> 3
-      "srli    a6,  a6,  3                \n"  // a6 = 2_even >> 3
-
       "s32i.n  a10, a9,  0                \n"  // mixdata 末尾のデータを出力先にセット
 
 // ここから出力
-// RGB成分 と mixdata(Y座標情報) を合わせた16bitデータを2ピクセル分32bit纏めて出力 を 8回(TRANSFER_PERIOD_COUNT) 行う
+// RGB成分 と mixdata(Y座標情報+OE信号) を合わせた16bitデータを2ピクセル分32bit纏めて出力 を 8回(transfer_period_count) 行う
 
       "l32i.n   a8,  a15, 0               \n"  // a8  = mixdata[0]
-      "extui    a7,  a3,  0,   6          \n"  // a7 = a3 odd1 6ビット取得
       "add.n    a9,  a14, a9              \n"  // a9 出力先アドレス += len32
+      "extui    a7,  a3,  0,   6          \n"  // a7 = a3 todd1 6ビット取得
       "slli     a7,  a7,  16              \n"  // odd1のデータを左16bitシフト
-      "add.n    a8,  a7,  a8              \n"  // a8 = odd1 + tmp
+      "add.n    a8,  a7,  a8              \n"  // a8 = odd1 + mixdata
       "extui    a7,  a4,  0,   6          \n"  // a7 = a4 odd2 6ビット取得
       "add.n    a7,  a7,  a8              \n"  // a7 = odd2 + mixdata
       "s32i.n   a7,  a9,  0               \n"  // a7 の値を出力先にセット
 
       "l32i.n   a8,  a15, 4               \n"  // a8 = mixdata[1]
-      "extui    a7,  a5,  0,   6          \n"  // a7 = a5 even1 6ビット取得
       "add.n    a9,  a14, a9              \n"  // 出力先アドレス += len32
+      "extui    a7,  a5,  3,   6          \n"  // a7 = a5 even1 6ビット取得
       "slli     a7,  a7,  16              \n"  // even1のデータを左16bitシフト
-      "add.n    a8,  a7,  a8              \n"  // a8 = odd1 + tmp
-      "extui    a7,  a6,  0,   6          \n"  // a7 = a6 even2 6ビット取得
-      "add.n    a7,  a7,  a8              \n"  // a7 = odd2 + mixdata
+      "add.n    a8,  a7,  a8              \n"  // a8 = even1 + mixdata
+      "extui    a7,  a6,  3,   6          \n"  // a7 = a6 even2 6ビット取得
+      "add.n    a7,  a7,  a8              \n"  // a7 = even2 + mixdata
       "s32i.n   a7,  a9,  0               \n"  // a7 の値を出力先にセット
 
 
       "l32i.n   a8,  a15, 8               \n"  // a8  = mixdata[2]
-      "extui    a7,  a3,  6,   6          \n"  // a7 = a3 odd1 6ビット取得
       "add.n    a9,  a14, a9              \n"  // a9 出力先アドレス += len32
+      "extui    a7,  a3,  6,   6          \n"  // a7 = a3 odd1 6ビット取得
       "slli     a7,  a7,  16              \n"  // odd1のデータを左16bitシフト
-      "add.n    a8,  a7,  a8              \n"  // a8 = odd1 + tmp
+      "add.n    a8,  a7,  a8              \n"  // a8 = odd1 + mixdata
       "extui    a7,  a4,  6,   6          \n"  // a7 = a4 odd2 6ビット取得
       "add.n    a7,  a7,  a8              \n"  // a7 = odd2 + mixdata
       "s32i.n   a7,  a9,  0               \n"  // a7 の値を出力先にセット
 
       "l32i.n   a8,  a15, 12              \n"  // a8 = mixdata[3]
-      "extui    a7,  a5,  6,   6          \n"  // a7 = a5 even1 6ビット取得
       "add.n    a9,  a14, a9              \n"  // 出力先アドレス += len32
+      "extui    a7,  a5,  9,   6          \n"  // a7 = a5 even1 6ビット取得
       "slli     a7,  a7,  16              \n"  // even1のデータを左16bitシフト
-      "add.n    a8,  a7,  a8              \n"  // a8 = odd1 + tmp
-      "extui    a7,  a6,  6,   6          \n"  // a7 = a6 even2 6ビット取得
-      "add.n    a7,  a7,  a8              \n"  // a7 = odd2 + mixdata
+      "add.n    a8,  a7,  a8              \n"  // a8 = even1 + mixdata
+      "extui    a7,  a6,  9,   6          \n"  // a7 = a6 even2 6ビット取得
+      "add.n    a7,  a7,  a8              \n"  // a7 = even2 + mixdata
       "s32i.n   a7,  a9,  0               \n"  // a7 の値を出力先にセット
 
 
       "l32i.n   a8,  a15, 16              \n"  // a8  = mixdata[4]
-      "extui    a7,  a3,  12,  6          \n"  // a7 = a3 odd1 6ビット取得
       "add.n    a9,  a14, a9              \n"  // a9 出力先アドレス += len32
+      "extui    a7,  a3,  12,  6          \n"  // a7 = a3 odd1 6ビット取得
       "slli     a7,  a7,  16              \n"  // odd1のデータを左16bitシフト
-      "add.n    a8,  a7,  a8              \n"  // a8 = odd1 + tmp
+      "add.n    a8,  a7,  a8              \n"  // a8 = odd1 + mixdata
       "extui    a7,  a4,  12,  6          \n"  // a7 = a4 odd2 6ビット取得
       "add.n    a7,  a7,  a8              \n"  // a7 = odd2 + mixdata
       "s32i.n   a7,  a9,  0               \n"  // a7 の値を出力先にセット
 
       "l32i.n   a8,  a15, 20              \n"  // a8 = mixdata[5]
-      "extui    a7,  a5,  12,  6          \n"  // a7 = a5 even1 6ビット取得
       "add.n    a9,  a14, a9              \n"  // 出力先アドレス += len32
+      "extui    a7,  a5,  15,  6          \n"  // a7 = a5 even1 6ビット取得
       "slli     a7,  a7,  16              \n"  // even1のデータを左16bitシフト
-      "add.n    a8,  a7,  a8              \n"  // a8 = odd1 + tmp
-      "extui    a7,  a6,  12,  6          \n"  // a7 = a6 even2 6ビット取得
-      "add.n    a7,  a7,  a8              \n"  // a7 = odd2 + mixdata
+      "add.n    a8,  a7,  a8              \n"  // a8 = even1 + mixdata
+      "extui    a7,  a6,  15,  6          \n"  // a7 = a6 even2 6ビット取得
+      "add.n    a7,  a7,  a8              \n"  // a7 = even2 + mixdata
       "s32i.n   a7,  a9,  0               \n"  // a7 の値を出力先にセット
 
       // 最後の2回は mixdata の取得を省略(a10に取得しておいた値を再利用する)
-      "srli     a7,  a3,  18              \n"  // a7 = a3 odd1 6ビット取得
       "add.n    a9,  a14, a9              \n"  // a9 出力先アドレス += len32
+      "srli     a7,  a3,  18              \n"  // a7 = a3 odd1 6ビット取得
       "slli     a7,  a7,  16              \n"  // odd1のデータを左16bitシフト
-      "add.n    a8,  a7,  a10             \n"  // a8 = odd1 + tmp
+      "add.n    a8,  a7,  a10             \n"  // a8 = odd1 + mixdata
       "srli     a7,  a4,  18              \n"  // a7 = a4 odd2 6ビット取得
       "add.n    a7,  a7,  a8              \n"  // a7 = odd2 + mixdata
       "s32i.n   a7,  a9,  0               \n"  // a7 の値を出力先にセット
 
-      "srli     a7,  a5,  18              \n"  // a7 = a5 even1 6ビット取得
       "add.n    a9,  a14, a9              \n"  // 出力先アドレス += len32
+      "srli     a7,  a5,  21              \n"  // a7 = a5 even1 6ビット取得
       "slli     a7,  a7,  16              \n"  // even1のデータを左16bitシフト
-      "add.n    a8,  a7,  a10             \n"  // a8 = odd1 + tmp
-      "srli     a7,  a6,  18              \n"  // a7 = a6 even2 6ビット取得
-      "add.n    a7,  a7,  a8              \n"  // a7 = odd2 + mixdata
+      "add.n    a8,  a7,  a10             \n"  // a8 = even1 + mixdata
+      "srli     a7,  a6,  21              \n"  // a7 = a6 even2 6ビット取得
+      "add.n    a7,  a7,  a8              \n"  // a7 = even2 + mixdata
       "s32i.n   a7,  a9,  0               \n"  // a7 の値を出力先にセット
 
 "HUB75_DRAW565_LOOP_END:                     \n"
@@ -890,17 +892,17 @@ namespace lgfx
       "srli    a3 , a3,  1                \n" // a3 >>= 1
 // ここから mixdata の値を更新、 xe の位置を再設定
 "HUB75_BR565LOOP_START:             \n"
-        "mov     a5,  a3                    \n" // a5 に前の xe値 を移す
+        "mov     a5,  a3                    \n" // a5 に前回分の xe値 a3 を移す
         "l16ui   a3,  a6,  2                \n" // a3 に新しい xe値 を代入
         "addi.n  a6,  a6,  2                \n" // a6 xeテーブル位置をひとつ進める
         "addi.n  a4,  a4,  1                \n" // a4 ++xe_idx
         "addx4   a8,  a4,  a15              \n" // A8 に更新対象の mixdata のアドレスをセット
-        "s32i.n  a9,  a8,  0                \n" // mixdata 更新
         "srli    a3,  a3,  1                \n" // A3 >>= 1
+        "s32i.n  a9,  a8,  0                \n" // mixdata 更新
       "bge     a5,  a3,  HUB75_BR565LOOP_START     \n" // xe 値が同値なら BR_LOOP 再トライ
       "s32i.n  a4,  a2,  28               \n" // xe_idx の値を保存
       "sub     a3,  a3,  a5               \n" // 新しい xe値から前回のxe値を引き、差分を得る
-      "j HUB75_DRAW565_LOOP_START         \n" // a3 (xe) の位置が刷新されたので再度先頭からループ
+      "j HUB75_DRAW565_LOOP_START         \n" // a3 (xe) が刷新されたので再度先頭からループ
 
 
 "HUB75_EXIT565:                   \n"
@@ -1152,13 +1154,13 @@ namespace lgfx
 
     auto fp_draw = hub75Draw332_asm;
     // auto fp_draw = hub75Draw332_cpp;
-    auto TRANSFER_PERIOD_COUNT = TRANSFER_PERIOD_COUNT_332;
+    auto transfer_period_count = TRANSFER_PERIOD_COUNT_332;
 
     if (_depth == color_depth_t::rgb565_2Byte)
     {
       fp_draw = hub75Draw565_asm;
       // fp_draw = hub75Draw565_cpp;
-      TRANSFER_PERIOD_COUNT = TRANSFER_PERIOD_COUNT_565;
+      transfer_period_count = TRANSFER_PERIOD_COUNT_565;
     }
 
     while (_dmatask_handle)
@@ -1169,7 +1171,7 @@ namespace lgfx
 // DEBUG
 // lgfx::gpio_hi(15);
       if (dst == nullptr) { break; }
-      auto d32 = &dst[len32 * (TRANSFER_PERIOD_COUNT + 1)];
+      auto d32 = &dst[len32 * (transfer_period_count + 1)];
 
       y = (y + 1) & ((panel_height>>1) - 1);
 
@@ -1196,7 +1198,7 @@ namespace lgfx
         yy_oe = yy | _mask_oe;
       }
       mixdata[0] = yy_oe;
-      for (size_t i = 1; i <= TRANSFER_PERIOD_COUNT; ++i)
+      for (size_t i = 1; i <= transfer_period_count; ++i)
       {
         mixdata[i] = yy;
       }
@@ -1215,19 +1217,19 @@ namespace lgfx
 
       // 無データ,点灯のみの期間の先頭の点灯防止処理
       d32[0 - len32] |= _mask_oe;
-      d32[1 - len32] |= (xe_tbl[TRANSFER_PERIOD_COUNT - 1] & 1) ? (_mask_oe & ~0xFFFF) : _mask_oe;
+      d32[1 - len32] |= (xe_tbl[transfer_period_count - 1] & 1) ? (_mask_oe & ~0xFFFF) : _mask_oe;
 
       d32 += len32;
       // データのラッチ及びラッチ直後の点灯防止処理
-      for (int i = 0; i < TRANSFER_PERIOD_COUNT; ++i)
+      for (int i = 0; i < transfer_period_count; ++i)
       {
         d32[len32 * i - 1] |= _mask_lat;
         d32[len32 * i + 0] |= _mask_oe;
         d32[len32 * i + 1] |= (xe_tbl[i] & 1) ? (_mask_oe & ~0xFFFF) :  _mask_oe;
       }
 
-      // 作画中に次の割込みが発生した場合はビジー状態が続くことを回避するため処理をスキップする
-      ulTaskNotifyTake( pdTRUE, 0);
+      // 作画中に次の割込みが発生した場合は、ビジー状態が続くことを回避するため処理をスキップする
+      ulTaskNotifyTake( pdTRUE, 0); // 通知が届いていたら捨てる
     }
   }
 
