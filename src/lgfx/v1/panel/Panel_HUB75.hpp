@@ -87,13 +87,14 @@ namespace lgfx
     void config_detail(const config_detail_t& config_detail) { _config_detail = config_detail; }
 
     // 各パネルの表示座標の設定。configおよびconfig_detailを設定した後に使用すること。
-    bool setPanelPosition(uint_fast8_t index, uint_fast16_t x, uint_fast16_t y);
+    bool setPanelPosition(uint_fast8_t index, uint_fast16_t x, uint_fast16_t y, uint_fast8_t rotation = 0);
 
   protected:
     struct panel_position_t
     {
       uint16_t x;
       uint16_t y;
+      uint8_t rotation;
     };
 
     config_detail_t _config_detail;

@@ -186,10 +186,21 @@ namespace lgfx
     {
       if (indexmask & 1)
       {
+        auto r = _panel_position[panel_index].rotation;
         uint_fast16_t ix = x - _panel_position[panel_index].x;
         uint_fast16_t iy = y - _panel_position[panel_index].y;
+        if (r & 1)
+        {
+          std::swap(ix, iy);
+        }
         if (ix >= single_width) { continue; }
         if (iy >= single_height) { continue; }
+        if (r)
+        {
+          r = 1 << r;
+          if (0b11001100 & r) { ix = single_width  - ix - 1; }
+          if (0b10010110 & r) { iy = single_height - iy - 1; }
+        }
 
         Panel_HUB75::_draw_pixel_inner(ix + panel_index * single_width, iy, rawcolor);
       }
@@ -207,11 +218,21 @@ namespace lgfx
       {
         if (indexmask & 1)
         {
+          uint_fast8_t r = _panel_position[panel_index].rotation;
           uint_fast16_t ix = x - _panel_position[panel_index].x;
           uint_fast16_t iy = y - _panel_position[panel_index].y;
+          if (r & 1)
+          {
+            std::swap(ix, iy);
+          }
           if (ix >= single_width) { continue; }
           if (iy >= single_height) { continue; }
-
+          if (r)
+          {
+            r = 1 << r;
+            if (0b11001100 & r) { ix = single_width  - ix - 1; }
+            if (0b10010110 & r) { iy = single_height - iy - 1; }
+          }
           return Panel_HUB75::_read_pixel_inner(ix + panel_index * single_width, iy);
         }
       }
@@ -247,7 +268,7 @@ namespace lgfx
     return _panel_position != nullptr;
   }
 
-  bool Panel_HUB75_Multi::setPanelPosition(uint_fast8_t index, uint_fast16_t x, uint_fast16_t y)
+  bool Panel_HUB75_Multi::setPanelPosition(uint_fast8_t index, uint_fast16_t x, uint_fast16_t y, uint_fast8_t rotation)
   {
     if (!_init_hitcheck()) { return false; }
     auto panel_count = _config_detail.panel_count;
@@ -255,17 +276,24 @@ namespace lgfx
     {
       _panel_position[index].x = x;
       _panel_position[index].y = y;
+      _panel_position[index].rotation = rotation;
 
       static constexpr const size_t x_size = sizeof(_x_hitcheck_mask) / sizeof(_x_hitcheck_mask[0]);
       static constexpr const size_t y_size = sizeof(_y_hitcheck_mask) / sizeof(_y_hitcheck_mask[0]);
 
       uint32_t mask_index = 1 << index;
 
+      auto w = _config_detail.single_width;
+      auto h = _config_detail.single_height;
+      if (rotation & 1)
+      {
+        std::swap(w, h);
+      }
       for (size_t i = 0; i < x_size; ++i)
       {
         _x_hitcheck_mask[i] &= ~mask_index;
       }
-      uint_fast16_t xe = (x + _config_detail.single_width - 1) >> _x_hitcheck_shift;
+      uint_fast16_t xe = (x + w - 1) >> _x_hitcheck_shift;
       if (xe > x_size - 1) { xe = x_size - 1; }
       x >>= _x_hitcheck_shift;
       while (x <= xe)
@@ -278,7 +306,7 @@ namespace lgfx
       {
         _y_hitcheck_mask[i] &= ~mask_index;
       }
-      uint_fast16_t ye = (y + _config_detail.single_height - 1) >> _y_hitcheck_shift;
+      uint_fast16_t ye = (y + h - 1) >> _y_hitcheck_shift;
       if (ye > y_size - 1) { ye = y_size - 1; }
       y >>= _y_hitcheck_shift;
       while (y <= ye)
