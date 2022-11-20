@@ -67,10 +67,10 @@ namespace lgfx
 
   private:
     uint8_t** _block_array;
-    size_t _line_size;  // ラインひとつあたりのバイト数
-    size_t _total_lines; // 全体のライン数
-    size_t _block_lines; // メモリブロックひとつに含まれるライン数
-    size_t _block_count; // メモリブロックの数
+    uint16_t _line_size;  // ラインひとつあたりのバイト数
+    uint16_t _total_lines; // 全体のライン数
+    uint16_t _block_lines; // メモリブロックひとつに含まれるライン数
+    uint16_t _block_count; // メモリブロックの数
   };
 
 //----------------------------------------------------------------------------

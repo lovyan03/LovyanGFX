@@ -193,65 +193,110 @@ namespace lgfx
     endTransaction();
   }
 
-  void Bus_HUB75::fm6124_init(uint8_t brightness)
+  void Bus_HUB75::switch_gpio_control(bool switch_to_dma)
   {
+    auto idx_base = SIG_GPIO_OUT_IDX;
+    if (switch_to_dma)
+    {
+#if SOC_I2C_NUM > 1
+      idx_base = (_cfg.i2s_port == I2S_NUM_0) ? I2S0O_DATA_OUT8_IDX : I2S1O_DATA_OUT8_IDX;
+#else
+      idx_base = I2S0O_DATA_OUT8_IDX;
+#endif
+    }
+
     for (size_t i = 0; i < 14; ++i)
     {
-      if (_cfg.pin_data[i] < 0) continue;
+      if (_cfg.pin_data[i] < 0) { continue; }
 
 #if defined ( LGFX_IDF_V5 )
       esp_rom_gpio_pad_select_gpio(_cfg.pin_data[i]);
-      esp_rom_gpio_connect_out_signal(_cfg.pin_data[i  ], SIG_GPIO_OUT_IDX, 0, 0);
+      esp_rom_gpio_connect_out_signal(_cfg.pin_data[i  ], idx_base, 0, 0);
 #else
       gpio_pad_select_gpio(_cfg.pin_data[i]);
-      gpio_matrix_out(_cfg.pin_data[i  ], SIG_GPIO_OUT_IDX, 0, 0);
+      gpio_matrix_out(_cfg.pin_data[i  ], idx_base, 0, 0);
 #endif
-      gpio_lo(_cfg.pin_data[i]);
-    }
-    gpio_hi(_cfg.pin_oe);
-    gpio_lo(_cfg.pin_lat);
-
-    // 通信開始時に送信するLEDドライバの輝度設定レジスタ操作データ
-    uint8_t fm6124_param_reg[2][16] =
-    { { 0, 0, 0, 0, 0,   1, 1, 1, 1, 1, 1,   0, 0, 0, 0, 0 } // REG 11
-    , { 0, 0, 0, 0, 0,   0, 0, 0, 0, 1, 0,   0, 0, 0, 0, 0 } // REG 12
-    };
-
-    // 輝度設定に合わせて値を変更する
-    for (uint8_t bit = 0; bit < 5; ++bit)
-    {
-      fm6124_param_reg[0][8 - bit] = brightness & (1 << bit);
-    }
-
-    for (size_t j = 0; j < 2; ++j)
-    {
-      for (size_t i = 0; i < _panel_width; ++i)
+      if (switch_to_dma)
       {
-        if (fm6124_param_reg[j][i & 15])
-        {
-          for (size_t k = 0; k < 6; ++k)
-          {
-            gpio_hi(_cfg.pin_data[k]);
-          }
-        }
-        else
-        {
-          for (size_t k = 0; k < 6; ++k)
-          {
-            gpio_lo(_cfg.pin_data[k]);
-          }
-        }
-        if (i >= (_panel_width - (11+j)))
-        {
-          gpio_hi(_cfg.pin_lat);
-        }
-        else
-        {
-          gpio_lo(_cfg.pin_lat);
-        }
-        gpio_hi(_cfg.pin_clk);
-        gpio_lo(_cfg.pin_clk);
+        ++idx_base;
       }
+      else
+      {
+        gpio_lo(_cfg.pin_data[i]);
+      }
+    }
+
+    if (switch_to_dma)
+    {
+#if SOC_I2C_NUM > 1
+      idx_base = (_cfg.i2s_port == I2S_NUM_0) ? I2S0O_WS_OUT_IDX : I2S1O_WS_OUT_IDX;
+#else
+      idx_base = I2S0O_WS_OUT_IDX;
+#endif
+#if defined ( LGFX_IDF_V5 )
+      esp_rom_gpio_connect_out_signal(_cfg.pin_clk, idx_base, 1, 0); // clock Active-low
+#else
+      gpio_matrix_out(_cfg.pin_clk, idx_base, 1, 0); // clock Active-low
+#endif
+    }
+    else
+    {
+      gpio_hi(_cfg.pin_oe);
+    }
+  }
+
+  void Bus_HUB75::send_led_driver_command(uint8_t latcycle, uint16_t r, uint16_t g, uint16_t b)
+  {
+    for (size_t i = 0; i < _panel_width; ++i)
+    {
+      if (i == (_panel_width - latcycle))
+      {
+        gpio_hi(_cfg.pin_lat);
+      }
+      if (r & (0x8000 >> (i & 15)))
+      {
+        gpio_hi(_cfg.pin_r1);
+        gpio_hi(_cfg.pin_r2);
+      }
+      else
+      {
+        gpio_lo(_cfg.pin_r1);
+        gpio_lo(_cfg.pin_r2);
+      }
+      if (g & (0x8000 >> (i & 15)))
+      {
+        gpio_hi(_cfg.pin_g1);
+        gpio_hi(_cfg.pin_g2);
+      }
+      else
+      {
+        gpio_lo(_cfg.pin_g1);
+        gpio_lo(_cfg.pin_g2);
+      }
+      if (b & (0x8000 >> (i & 15)))
+      {
+        gpio_hi(_cfg.pin_b1);
+        gpio_hi(_cfg.pin_b2);
+      }
+      else
+      {
+        gpio_lo(_cfg.pin_b1);
+        gpio_lo(_cfg.pin_b2);
+      }
+      gpio_hi(_cfg.pin_clk);
+      gpio_lo(_cfg.pin_clk);
+    }
+    gpio_lo(_cfg.pin_lat);
+  }
+
+  void Bus_HUB75::send_led_driver_latch(uint8_t latcycle)
+  {
+    gpio_hi(_cfg.pin_lat);
+
+    for (size_t i = 0; i < latcycle; ++i)
+    {
+      gpio_hi(_cfg.pin_clk);
+      gpio_lo(_cfg.pin_clk);
     }
     gpio_lo(_cfg.pin_lat);
   }
@@ -430,40 +475,69 @@ namespace lgfx
       }
     }
 
-    if (_cfg.initialize_mode == config_t::initialize_mode_t::initialize_fm6124)
-    { // LEDドライバの輝度レジスタ設定
-      fm6124_init(_cfg.fm6124_brightness);
+    if (_cfg.led_driver)
+    { // LEDドライバ別のレジスタ設定
+      switch_gpio_control(false);
+
+      switch (_cfg.led_driver)
+      {
+      default:
+        break;
+
+      case config_t::led_driver_t::led_driver_FM6124:
+        {
+          uint8_t br = _cfg.driver_brightness >> 4;
+          uint16_t cmd11 = 0b0000000001100000 | br << 7;
+          uint16_t cmd12 = 0b0000000001000000;
+          send_led_driver_command(11, cmd11, cmd11, cmd11);
+          send_led_driver_command(12, cmd12, cmd12, cmd12);
+        }
+        break;
+
+/* ToDo:implement
+      case config_t::led_driver_t::led_driver_FM6047:
+        break;
+
+      case config_t::led_driver_t::led_driver_ICN2038:
+      case config_t::led_driver_t::led_driver_MBI5038:
+          send_led_driver_latch(13);  // Pre-active cmd
+        break;
+//*/
+
+      case config_t::led_driver_t::led_driver_ICN2053:
+      case config_t::led_driver_t::led_driver_MBI5153:
+        {
+          uint16_t cmd4  = 0b0001111101110000;
+          uint16_t cmd6  = 0xffff;
+          uint16_t cmd8  = 0b0100000011110011;
+          uint16_t cmd10 = 0;
+
+          send_led_driver_latch(14);  // Pre-active cmd
+          send_led_driver_latch(12);  // Enable all output ch
+          send_led_driver_latch( 3);  // Vsync
+          send_led_driver_latch(14);  // Pre-active cmd
+          send_led_driver_command(4, cmd4, cmd4, cmd4); // write cfg reg 1
+          send_led_driver_latch(14);  // Pre-active cmd
+          send_led_driver_command(6, cmd6, cmd6, cmd6); // write cfg reg 2
+          send_led_driver_latch(14);  // Pre-active cmd
+          send_led_driver_command(8, cmd8, cmd8, cmd8); // write cfg reg 3
+          send_led_driver_latch(14);  // Pre-active cmd
+          send_led_driver_command(10, cmd10, cmd10, cmd10); // write cfg reg 4
+          send_led_driver_latch(14);  // Pre-active cmd
+          send_led_driver_command(2, 0, 0, 0); // write debug reg
+        }
+        break;
+      }
     }
 
-    auto idx_base = (_cfg.i2s_port == I2S_NUM_0) ? I2S0O_DATA_OUT8_IDX : I2S1O_DATA_OUT8_IDX;
-    for (size_t i = 0; i < 14; ++i)
-    {
-      if (_cfg.pin_data[i] < 0) continue;
-
-#if defined ( LGFX_IDF_V5 )
-      esp_rom_gpio_pad_select_gpio(_cfg.pin_data[i]);
-      esp_rom_gpio_connect_out_signal(_cfg.pin_data[i  ], idx_base + i, 0, 0);
-#else
-      gpio_pad_select_gpio(_cfg.pin_data[i]);
-      gpio_matrix_out(_cfg.pin_data[i  ], idx_base + i, 0, 0);
-#endif
-    }
-
-    idx_base = (_cfg.i2s_port == I2S_NUM_0) ? I2S0O_WS_OUT_IDX : I2S1O_WS_OUT_IDX;
-#if defined ( LGFX_IDF_V5 )
-    esp_rom_gpio_connect_out_signal(_cfg.pin_clk, idx_base, 1, 0); // clock Active-low
-#else
-    gpio_matrix_out(_cfg.pin_clk, idx_base, 1, 0); // clock Active-low
-#endif
+    switch_gpio_control(true);
 
     auto i2s_dev = (i2s_dev_t*)_dev;
     i2s_dev->out_link.val = 0;
     i2s_dev->fifo_conf.val = _fifo_conf_dma;
     i2s_dev->sample_rate_conf.val = _sample_rate_conf_reg_direct;
 
-    // 総転送データ量とリフレッシュレートに基づいて送信クロックを設定する
-    uint32_t freq_write = (_dma_transfer_len >> 1) * _panel_height * _cfg.refresh_rate;
-    i2s_dev->clkm_conf.val = getClockDivValue(freq_write);
+    i2s_dev->clkm_conf.val = getClockDivValue(_cfg.freq_write);
     i2s_dev->conf.val = _conf_reg_reset;
     i2s_dev->out_link.val = I2S_OUTLINK_START | ((uint32_t)_dmadesc & I2S_OUTLINK_ADDR);
 
@@ -480,6 +554,17 @@ namespace lgfx
 #endif
     {
       xTaskCreate(dmaTask, "hub75dma", 4096, this, _cfg.task_priority, &_dmatask_handle);
+    }
+  }
+
+  void Bus_HUB75::setRefreshRate(uint16_t refresh_rate)
+  {
+    // 総転送データ量とリフレッシュレートに基づいて送信クロックを設定する
+    _cfg.freq_write = (_dma_transfer_len >> 1) * _panel_height * refresh_rate;
+    auto i2s_dev = (i2s_dev_t*)_dev;
+    if (i2s_dev)
+    {
+      i2s_dev->clkm_conf.val = getClockDivValue(_cfg.freq_write);
     }
   }
 
@@ -1186,8 +1271,9 @@ namespace lgfx
           d32[poi                      ] = _mask_pin_a_clk | _mask_oe;
           d32[poi + (panel_height >> 1)] = _mask_pin_a_clk | _mask_oe;
         }
-        // 末尾にラッチを追加
-        d32[panel_height - 1] |= _mask_lat | _mask_pin_b_lat;
+        // 末尾にラッチを追加;
+        // パネルの仕様の差により、LATピンとBピンどちらがラッチに使用されているか不明なため、BとLATの両方とも立てる;
+        d32[panel_height - 1] |= _mask_pin_b_lat | _mask_lat | _mask_lat << 16;
       }
 
       uint32_t yy = 0;
