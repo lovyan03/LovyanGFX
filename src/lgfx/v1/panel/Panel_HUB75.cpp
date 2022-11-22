@@ -143,7 +143,7 @@ namespace lgfx
 
       case 2:
         // swap565ではなく rgb565で扱う
-        ((uint16_t*)buf)[x] = rawcolor << 8 | rawcolor >> 8;
+        ((uint16_t*)buf)[x] = rawcolor << 8 | ((rawcolor >> 8) & 0xFF);
         break;
 
       case 3:

@@ -133,8 +133,11 @@ namespace lgfx
     uint32_t a = 1;
     uint32_t b = 0;
 
-    // div_nが小さい場合に小数成分を含めると誤動作するのでここ除外する
-    if (n > 4)
+    if (n == 0)
+    {
+      n = 1;
+    }
+    else
     {
       if (n > 255)
       {
@@ -149,10 +152,6 @@ namespace lgfx
         a /= d;
         b /= d;
       }
-    }
-    else if (n == 0)
-    {
-      n = 1;
     }
 
     return       I2S_CLK_EN
@@ -253,7 +252,8 @@ namespace lgfx
       {
         gpio_hi(_cfg.pin_lat);
       }
-      if (r & (0x8000 >> (i & 15)))
+      uint32_t mask = 0x8000 >> (i & 15);
+      if (r & mask)
       {
         gpio_hi(_cfg.pin_r1);
         gpio_hi(_cfg.pin_r2);
@@ -263,7 +263,7 @@ namespace lgfx
         gpio_lo(_cfg.pin_r1);
         gpio_lo(_cfg.pin_r2);
       }
-      if (g & (0x8000 >> (i & 15)))
+      if (g & mask)
       {
         gpio_hi(_cfg.pin_g1);
         gpio_hi(_cfg.pin_g2);
@@ -273,7 +273,7 @@ namespace lgfx
         gpio_lo(_cfg.pin_g1);
         gpio_lo(_cfg.pin_g2);
       }
-      if (b & (0x8000 >> (i & 15)))
+      if (b & mask)
       {
         gpio_hi(_cfg.pin_b1);
         gpio_hi(_cfg.pin_b2);
