@@ -25,7 +25,10 @@ namespace lgfx
  {
 //----------------------------------------------------------------------------
 
-  struct Panel_CoordinateConvertFB : public Panel_Device
+// 1ピクセル単位で描画を行うフレームバッファ
+// 動作は重いが、派生クラスで _draw_pixel_inner / _read_pixel_inner を overrideするだけで使用できる。
+
+  struct Panel_FlexibleFrameBuffer : public Panel_Device
   {
   public:
     bool init(bool use_reset) override;

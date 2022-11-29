@@ -55,11 +55,10 @@ namespace lgfx
         int port;
       };
 
-      // 1秒間の表示更新回数 (この値に基づいて送信クロックが自動計算される)
-      uint16_t refresh_rate = 90;
+      uint32_t freq_write = 16000000;
 
       /// background task priority
-      UBaseType_t task_priority = 1;
+      UBaseType_t task_priority = 2;
 
       /// background task pinned core. (APP_CPU_NUM or PRO_CPU_NUM)
       BaseType_t task_pinned_core = -1;
@@ -76,7 +75,33 @@ namespace lgfx
         initialize_none,
         initialize_fm6124,
       };
-      initialize_mode_t initialize_mode = initialize_none;
+
+      enum led_driver_t
+      {
+        led_driver_standard,
+        led_driver_FM6124,
+
+        led_driver_FM6047,
+
+        led_driver_MBI5038,
+        led_driver_ICN2038, // MBI5038 clone ?
+
+        led_driver_MBI5153,
+        led_driver_ICN2053, // MBI5153 clone ?
+      };
+
+      union {
+        led_driver_t led_driver = led_driver_standard;
+
+        [[deprecated("use led_driver")]]
+        initialize_mode_t initialize_mode;
+      };
+
+      // LEDドライバFM6124の輝度レジスタ設定値 (指定可能な範囲 : 0 ~ 15 )
+   // uint8_t fm6124_brightness = 12;
+
+      // LEDドライバに対する輝度レジスタ設定値 (0~255)
+      uint8_t driver_brightness = 192;
 
       union
       {
@@ -90,13 +115,13 @@ namespace lgfx
           int8_t pin_g2;
           int8_t pin_b2;
           int8_t pin_lat;
-          int8_t pin_clk;
           int8_t pin_oe;
           int8_t pin_addr_a;
           int8_t pin_addr_b;
           int8_t pin_addr_c;
           int8_t pin_addr_d;
           int8_t pin_addr_e;
+          int8_t pin_clk;
         };
       };
     };
@@ -115,38 +140,49 @@ namespace lgfx
     void setBrightness(uint8_t brightness);
     uint8_t getBrightness(void) const { return _brightness; }
 
-    void setImageBuffer(void* buffer) override;
+    void setImageBuffer(void* buffer, color_depth_t depth) override;
+
+    // 1秒間の表示更新回数 (この値に基づいて送信クロックが自動計算される)
+    void setRefreshRate(uint16_t refresh_rate);
+
+    void switch_gpio_control(bool switch_to_dma);
+    void send_led_driver_command(uint8_t latcycle, uint16_t r, uint16_t g, uint16_t b);
+    void send_led_driver_latch(uint8_t latcycle);
 
   private:
 
-    static constexpr int32_t TRANSFER_PERIOD_COUNT = 8;
     static constexpr int32_t LINECHANGE_PERIOD_COUNT = 1;
-    // static constexpr int32_t EXTEND_PERIOD_COUNT = 11;
-    static constexpr int32_t EXTEND_PERIOD_COUNT = 5;
-    static constexpr const int32_t TOTAL_PERIOD_COUNT = TRANSFER_PERIOD_COUNT + LINECHANGE_PERIOD_COUNT + EXTEND_PERIOD_COUNT;
-    static constexpr const uint32_t _mask_lat    = 0x00400040;
-    static constexpr const uint32_t _mask_oe     = 0x01000100;
-    static constexpr const uint32_t _mask_addr   = 0x3E003E00;
-    static constexpr const uint32_t _mask_pin_a_clk = 0x00000200;
-    static constexpr const uint32_t _mask_pin_c_dat = 0x08000800;
-    static constexpr const uint32_t _mask_pin_b_lat = 0x04000400;
+    static constexpr int32_t TRANSFER_PERIOD_COUNT_332 = 5;
+    static constexpr int32_t TRANSFER_PERIOD_COUNT_565 = 8;
+    static constexpr int32_t EXTEND_PERIOD_COUNT_332 = 2;
+    static constexpr int32_t EXTEND_PERIOD_COUNT_565 = 5;
+    static constexpr const int32_t TOTAL_PERIOD_COUNT_332 = TRANSFER_PERIOD_COUNT_332 + EXTEND_PERIOD_COUNT_332 + LINECHANGE_PERIOD_COUNT;
+    static constexpr const int32_t TOTAL_PERIOD_COUNT_565 = TRANSFER_PERIOD_COUNT_565 + EXTEND_PERIOD_COUNT_565 + LINECHANGE_PERIOD_COUNT;
+    static constexpr const uint32_t _mask_lat    = 0x00000040;
+    static constexpr const uint32_t _mask_oe     = 0x00800080;
+    static constexpr const uint32_t _mask_addr   = 0x1F001F00;
+    static constexpr const uint32_t _mask_pin_a_clk = 0x00000100;
+    static constexpr const uint32_t _mask_pin_b_lat = 0x02000200;
+    static constexpr const uint32_t _mask_pin_c_dat = 0x04000400;
     static constexpr const uint8_t _dma_desc_set = 3;
 
     static void i2s_intr_handler_hub75(void *arg);
     static void dmaTask(void *arg);
+    void dmaTask_inner(void);
 
-    static uint32_t* _gamma_tbl;
+    uint32_t* _pixel_tbl;
 
     config_t _cfg;
+    color_depth_t _depth = color_depth_t::rgb565_2Byte;
+
+    uint32_t _dma_transfer_len;
 
     int_fast16_t _panel_width = 64;
     int_fast16_t _panel_height = 32;
 
     uint16_t* _dma_buf[_dma_desc_set] = { nullptr, nullptr, nullptr };
 
-    uint16_t _brightness_period[TRANSFER_PERIOD_COUNT + 2];
-
-    intr_handle_t _isr_handle = nullptr;
+    uint16_t _brightness_period[TRANSFER_PERIOD_COUNT_565 + 1];
 
     DividedFrameBuffer* _frame_buffer;
 
@@ -155,7 +191,6 @@ namespace lgfx
 
     lldesc_t* _dmadesc = nullptr;
     uint8_t _brightness = 128;
-    bool _task_running = false;
   };
 
 //----------------------------------------------------------------------------

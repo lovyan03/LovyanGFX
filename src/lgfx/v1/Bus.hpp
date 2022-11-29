@@ -19,6 +19,8 @@ Contributors:
 
 #include <stdint.h>
 
+#include "misc/enum.hpp"
+
 namespace lgfx
 {
  inline namespace v1
@@ -146,7 +148,7 @@ namespace lgfx
   struct Bus_ImagePush : public Bus_NULL
   {
     bus_type_t busType(void) const override { return bus_type_t::bus_image_push; }
-    virtual void setImageBuffer(void*) {}
+    virtual void setImageBuffer(void* buffer, color_depth_t depth) {}
     virtual void setBrightness(uint8_t brightness) {}
     virtual void setInvert(uint8_t invert) {}
   };
