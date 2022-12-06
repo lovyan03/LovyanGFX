@@ -83,6 +83,7 @@ namespace lgfx
 
     esp_lcd_i80_bus_config_t bus_config;
     memset(&bus_config, 0, sizeof(esp_lcd_i80_bus_config_t));
+    bus_config.clk_src = lcd_clock_source_t::LCD_CLK_SRC_PLL160M; // IDFのバージョンによってenumの値が異なるので注意
     bus_config.dc_gpio_num = _cfg.pin_rs;
     bus_config.wr_gpio_num = _cfg.pin_wr;
     for (int i = 0; i < 8; ++i)

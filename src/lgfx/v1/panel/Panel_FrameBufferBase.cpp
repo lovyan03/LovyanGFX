@@ -21,10 +21,15 @@ Contributors:
 #include "../misc/pixelcopy.hpp"
 #include "../misc/common_function.hpp"
 
-#if __has_include(<esp32s3/rom/cache.h>)
- #include <esp32s3/rom/cache.h>
- extern int Cache_WriteBack_Addr(uint32_t addr, uint32_t size);
- #define LGFX_USE_CACHE_WRITEBACK_ADDR
+#if defined (ESP_PLATFORM)
+ #include <sdkconfig.h>
+ #if defined (CONFIG_IDF_TARGET_ESP32S3)
+  #if __has_include(<esp32s3/rom/cache.h>)
+   #include <esp32s3/rom/cache.h>
+   extern int Cache_WriteBack_Addr(uint32_t addr, uint32_t size);
+   #define LGFX_USE_CACHE_WRITEBACK_ADDR
+  #endif
+ #endif
 #endif
 
 namespace lgfx
