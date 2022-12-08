@@ -87,7 +87,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Compile example
-        uses: ArminJo/arduino-test-compile@v3
+        uses: ArminJo/arduino-test-compile@master
         with:
           arduino-board-fqbn: ${{matrix.platform}}:${{matrix.archi}}:${{matrix.board}}
           arduino-platform: ${{matrix.platform}}:${{matrix.archi}}@${{matrix.platform-version}}
