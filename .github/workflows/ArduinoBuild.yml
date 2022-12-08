@@ -37,12 +37,13 @@ jobs:
 
         platform-version:
           # ESP32 Core versions for 3D matrix
-          - 1.0.6
-          - 2.0.0
-          - 2.0.1
-          - 2.0.2
+          #- 1.0.6
+          #- 2.0.0
+          #- 2.0.1
+          #- 2.0.2
           - 2.0.3
           - 2.0.4
+          - 2.0.5
 
         include:
           # 3D matrix doesn't apply to these:
@@ -68,13 +69,13 @@ jobs:
 
         exclude:
           # 3D matrix excludes these:
-          - { board: esp32s3box, platform-version: 1.0.6 }
-          - { board: esp32s3box, platform-version: 2.0.0 }
-          - { board: esp32s3box, platform-version: 2.0.1 }
-          - { board: esp32s3box, platform-version: 2.0.2 }
+          #- { board: esp32s3box, platform-version: 1.0.6 }
+          #- { board: esp32s3box, platform-version: 2.0.0 }
+          #- { board: esp32s3box, platform-version: 2.0.1 }
+          #- { board: esp32s3box, platform-version: 2.0.2 }
           - { board: esp32s3box, platform-version: 2.0.4 }
-          - { board: esp32s2,    platform-version: 1.0.6 }
-          - { board: esp32s2,    platform-version: 2.0.0 }
+          #- { board: esp32s2,    platform-version: 1.0.6 }
+          #- { board: esp32s2,    platform-version: 2.0.0 }
 
 
       fail-fast: false
