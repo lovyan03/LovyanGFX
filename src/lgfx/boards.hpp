@@ -58,6 +58,7 @@ namespace lgfx
     , board_wywy_ESP32S3_HMI_DevKit
     , board_M5ModuleDisplay
     , board_ESP32_S3_BOX_Lite
+    , board_LoLinS3Pro
     };
   }
   using namespace boards;

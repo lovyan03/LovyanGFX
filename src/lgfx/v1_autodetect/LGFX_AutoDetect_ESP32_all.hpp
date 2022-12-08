@@ -52,6 +52,9 @@ namespace lgfx
 #elif defined ( ARDUINO_ADAFRUIT_FEATHER_ESP32S3_TFT )
   #define LGFX_FEATHER_ESP32_S3_TFT
   #define LGFX_DEFAULT_BOARD board_t::board_Feather_ESP32_S3_TFT
+
+#elif /*defined ( ARDUINO_LOLIN_S3_PRO ) ||*/ defined ( LGFX_LOLIN_S3_PRO )
+  #define LGFX_DEFAULT_BOARD board_t::board_LoLinS3Pro
 #endif
 
   namespace m5stack
@@ -1441,6 +1444,88 @@ namespace lgfx
             cfg.offset_rotation = 1;
             p->config(cfg);
             p->light(_create_pwm_backlight(GPIO_NUM_45, 0, 12000));
+          }
+        }
+      };
+
+      struct _detector_board_LoLinS3Pro_7735_t : public _detector_spi_t
+      {
+        constexpr _detector_board_LoLinS3Pro_7735_t(void)
+        : _detector_spi_t
+        { board_t::board_LoLinS3Pro
+        , 0x04, 0xFF, 0x7C // ST7735
+        , 27000000, 16000000
+        , GPIO_NUM_11     // MOSI
+        , GPIO_NUM_13     // MISO
+        , GPIO_NUM_12     // SCLK
+        , GPIO_NUM_47     // DC
+        , GPIO_NUM_48     // CS
+        , GPIO_NUM_21     // RST
+        , GPIO_NUM_46     // TF CARD CS
+        , 0               // SPI MODE
+        , true            // SPI 3wire
+        , SPI2_HOST       // SPI HOST
+        } {}
+
+        void setup(_detector_result_t* result) const override
+        {
+          ESP_LOGI(LIBRARY_NAME, "[Autodetect] LoLinS3Pro (ST7735)");
+
+          auto p = new Panel_ST7735S();
+          result->panel = p;
+          {
+            auto cfg = p->config();
+            cfg.memory_width  = 132;
+            cfg.memory_height = 132;
+            cfg.panel_width  = 128;
+            cfg.panel_height = 128;
+            cfg.offset_x = 2;
+            cfg.offset_y = 1;
+            p->config(cfg);
+            p->light(_create_pwm_backlight(GPIO_NUM_14, 0, 12000 ));
+          }
+        }
+      };
+
+      struct _detector_board_LoLinS3Pro_9341_t : public _detector_spi_t
+      {
+        constexpr _detector_board_LoLinS3Pro_9341_t(void)
+        : _detector_spi_t
+        { board_t::board_LoLinS3Pro
+        , 0x04, 0xFF, 0x00 // ILI9341
+        , 40000000, 16000000
+        , GPIO_NUM_11     // MOSI
+        , GPIO_NUM_13     // MISO
+        , GPIO_NUM_12     // SCLK
+        , GPIO_NUM_47     // DC
+        , GPIO_NUM_48     // CS
+        , GPIO_NUM_21     // RST
+        , GPIO_NUM_46     // TF CARD CS
+        , 0               // SPI MODE
+        , false           // SPI 3wire
+        , SPI2_HOST       // SPI HOST
+        } {}
+
+        void setup(_detector_result_t* result) const override
+        {
+          ESP_LOGI(LIBRARY_NAME, "[Autodetect] LoLinS3Pro (ILI9341)");
+
+          auto p = new Panel_ILI9341();
+          result->panel = p;
+          p->light(_create_pwm_backlight(GPIO_NUM_14, 0, 12000 ));
+
+          {
+            auto t = new lgfx::Touch_XPT2046();
+            auto cfg = t->config();
+            cfg.bus_shared = true;
+            cfg.spi_host = spi_host;
+            cfg.pin_cs   = GPIO_NUM_45;
+            cfg.pin_mosi = pin_mosi;
+            cfg.pin_miso = pin_miso;
+            cfg.pin_sclk = pin_sclk;
+            cfg.offset_rotation = 2;
+            t->config(cfg);
+            p->touch(t);
           }
         }
       };
@@ -2925,6 +3010,8 @@ namespace lgfx
       static constexpr const _detector_Makerfabs_ESP32_S3_TFT_Touch_Parallel16_t detector_Makerfabs_ESP32_S3_TFT_Touch_Parallel16;
       static constexpr const _detector_wywy_ESP32S3_HMI_DevKit_t                 detector_wywy_ESP32S3_HMI_DevKit;
       static constexpr const _detector_Feather_ESP32_S3_TFT_t                    detector_Feather_ESP32_S3_TFT;
+      static constexpr const _detector_board_LoLinS3Pro_7735_t                   detector_board_LoLinS3Pro_7735;
+      static constexpr const _detector_board_LoLinS3Pro_9341_t                   detector_board_LoLinS3Pro_9341;
 
       static constexpr const _detector_t* detector_list[] =
       {
@@ -2954,6 +3041,11 @@ namespace lgfx
 // Feather S3 TFT screen is write-only, no LGFX_AUTODETECT
 #if defined ( LGFX_FEATHER_ESP32_S3_TFT )
         &detector_Feather_ESP32_S3_TFT,
+#endif
+
+#if defined( LGFX_LOLIN_S3_PRO )
+        &detector_board_LoLinS3Pro_7735,
+        &detector_board_LoLinS3Pro_9341,
 #endif
 
         nullptr // terminator
