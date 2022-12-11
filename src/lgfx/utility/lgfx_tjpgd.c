@@ -806,7 +806,7 @@ JRESULT lgfx_jd_prepare (
 
 		switch (seg[1]) {	/* Marker */
 		case 0xC0:	/* SOF0 (baseline JPEG) */
-			/* Load segment data */
+			{/* Load segment data */
 			if (len > JD_SZBUF) return JDR_MEM2;
 			if (infunc(dev, seg, len) != len) return JDR_INP;
 
@@ -831,39 +831,43 @@ JRESULT lgfx_jd_prepare (
 				if (b > 3) return JDR_FMT3;					/* Err: Invalid ID */
 				jd->qtid[i] = b;
 			}
+			}
 			break;
 
 		case 0xDD:	/* DRI */
-			/* Load segment data */
+			{/* Load segment data */
 			if (len > JD_SZBUF) return JDR_MEM2;
 			if (infunc(dev, seg, len) != len) return JDR_INP;
 
 			/* Get restart interval (MCUs) */
 			jd->nrst = LDB_WORD(seg);
+			}
 			break;
 
 		case 0xC4:	/* DHT */
-			/* Load segment data */
+			{/* Load segment data */
 			if (len > JD_SZBUF) return JDR_MEM2;
 			if (infunc(dev, seg, len) != len) return JDR_INP;
 
 			/* Create huffman tables */
 			rc = create_huffman_tbl(jd, seg, len);
 			if (rc) return (JRESULT)rc;
+			}
 			break;
 
 		case 0xDB:	/* DQT */
-			/* Load segment data */
+			{/* Load segment data */
 			if (len > JD_SZBUF) return JDR_MEM2;
 			if (infunc(dev, seg, len) != len) return JDR_INP;
 
 			/* Create de-quantizer tables */
 			rc = create_qt_tbl(jd, seg, len);
 			if (rc) return (JRESULT)rc;
+			}
 			break;
 
 		case 0xDA:	/* SOS */
-			/* Load segment data */
+			{/* Load segment data */
 			if (len > JD_SZBUF) return JDR_MEM2;
 			if (infunc(dev, seg, len) != len) return JDR_INP;
 
@@ -907,6 +911,7 @@ JRESULT lgfx_jd_prepare (
 			jd->dpend = seg + ofs + dc;
 			jd->dbit = 0;	/* Prepare to read bit stream */
 
+			}
 			return JDR_OK;		/* Initialization succeeded. Ready to decompress the JPEG image. */
 
 		case 0xC1:	/* SOF1 */
