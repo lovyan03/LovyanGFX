@@ -55,8 +55,8 @@ namespace lgfx
     uint32_t src_x32_add = 1 << FP_SCALE;
     uint32_t src_y32_add = 0;
     uint32_t src_bitwidth = 0;
-    uint32_t src_width = 0;
-    uint32_t src_height = 0;
+    int32_t src_width = 0;
+    int32_t src_height = 0;
     uint32_t transp   = NON_TRANSP;
     union
     {

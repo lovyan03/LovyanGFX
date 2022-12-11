@@ -472,7 +472,7 @@ int lgfx_pngle_prepare(pngle_t *pngle, lgfx_pngle_read_callback_t read_cb, void*
 
     uint_fast8_t bytes_per_pixel = (pngle->channels * pngle->hdr.depth + 7) >> 3;
     size_t memlen = ((pngle->hdr.width * pngle->channels * pngle->hdr.depth + 7) >> 3) + (2 * bytes_per_pixel);
-    if ((pngle->scanline_buf = PNGLE_MALLOC(memlen, 1, "scanline flipbuf")) == NULL) return PNGLE_ERROR("Insufficient memory");
+    if ((pngle->scanline_buf = (uint8_t*)PNGLE_MALLOC(memlen, 1, "scanline flipbuf")) == NULL) return PNGLE_ERROR("Insufficient memory");
     memset(pngle->scanline_buf, 0, memlen);
   }
   // interlace
@@ -563,7 +563,7 @@ int lgfx_pngle_decomp(pngle_t *pngle, lgfx_pngle_draw_callback_t draw_cb)
       if (chunk_remain_3 > MIN(256, (1UL << pngle->hdr.depth))) return PNGLE_ERROR("Too many palettes in PLTE");
       if (chunk_remain_3 <= 0 || chunk_remain != chunk_remain_3 * 3) return PNGLE_ERROR("Invalid PLTE chunk size");
       if (pngle->palette) return PNGLE_ERROR("Too many PLTE chunk");
-      uint8_t* plt = PNGLE_MALLOC(chunk_remain_3, 4, "palette");
+      uint8_t* plt = (uint8_t*)PNGLE_MALLOC(chunk_remain_3, 4, "palette");
       if (plt == NULL) return PNGLE_ERROR("Insufficient memory");
       pngle->palette = plt;
       pngle->n_palettes = chunk_remain_3;
@@ -584,8 +584,7 @@ int lgfx_pngle_decomp(pngle_t *pngle, lgfx_pngle_draw_callback_t draw_cb)
       switch (pngle->hdr.color_type) {
       case 3: // indexed color
         if (chunk_remain > pngle->n_palettes) return PNGLE_ERROR("Too many palettes in tRNS");
-        size_t i;
-        for (i = 0; i < chunk_remain; ++i)
+        for (size_t i = 0; i < chunk_remain; ++i)
         {
           pngle->palette[i * 4] = read_buf[i];
         }
