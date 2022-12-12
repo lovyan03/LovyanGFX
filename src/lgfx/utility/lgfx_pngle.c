@@ -556,6 +556,7 @@ int lgfx_pngle_decomp(pngle_t *pngle, lgfx_pngle_draw_callback_t draw_cb)
       return 0;
 
     case PNGLE_CHUNK_PLTE:
+    {
       // Allow only 2, 3, 6. (2=truecolor / 3=indexed color / 6=truecolor+alpha)
       if (((1 << pngle->hdr.color_type) & 0b1001100) == 0) { return PNGLE_ERROR("PLTE chunk is prohibited on the color type"); }
 
@@ -577,6 +578,7 @@ int lgfx_pngle_decomp(pngle_t *pngle, lgfx_pngle_draw_callback_t draw_cb)
                                            + 0xFF;
       }
       break;
+    }
 
     case PNGLE_CHUNK_tRNS:
       if (chunk_remain <= 0 || chunk_remain > 256) return PNGLE_ERROR("Invalid tRNS chunk size");

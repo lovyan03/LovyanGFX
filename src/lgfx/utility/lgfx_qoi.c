@@ -316,7 +316,7 @@ size_t lgfx_qoi_encode(const void *lineBuffer, const qoi_desc_t *desc, int flip,
   int px_len, px_end, px_pos, channels;
   uint8_t *pixels = (uint8_t*)lineBuffer;
 
-  qoi_rgba_t *qoi_index = calloc( 64, sizeof( qoi_rgba_t ) );
+  qoi_rgba_t *qoi_index = (qoi_rgba_t*)(calloc( 64, sizeof( qoi_rgba_t ) ) );
   qoi_rgba_t px, px_prev;
 
   if (lineBuffer == NULL)                            { debug_printf( "Bad lineBuffer"); return 0; }
