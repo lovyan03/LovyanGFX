@@ -13,6 +13,7 @@ file(GLOB Target_Files RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} CONFIGURE_DEPENDS
     ../../../LovyanGFX/src/lgfx/v1/*.cpp
     ../../../LovyanGFX/src/lgfx/v1/misc/*.cpp
     ../../../LovyanGFX/src/lgfx/v1/panel/Panel_Device.cpp
+    ../../../LovyanGFX/src/lgfx/v1/panel/Panel_FrameBufferBase.cpp
     ../../../LovyanGFX/src/lgfx/v1/platforms/sdl/*.cpp
     )
 add_executable (LGFX_SDL ${Target_Files})

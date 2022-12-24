@@ -173,11 +173,11 @@ namespace lgfx
         _bus->writeData(0, 8);
         _has_align_data = false;
       }
-      _bus->writeCommand(data << 8, 16);
+      _bus->writeCommand(data << 8 | data >> 8, 16);
     }
   }
 
-  uint32_t Panel_LCD::readCommand(uint_fast8_t cmd, uint_fast8_t index, uint_fast8_t length)
+  uint32_t Panel_LCD::readCommand(uint_fast16_t cmd, uint_fast8_t index, uint_fast8_t length)
   {
     size_t dlen = 8 << _cfg.dlen_16bit;
     startWrite();

@@ -24,30 +24,27 @@ Contributors:
 #include "Bus_Parallel16.hpp"
 #include "../../misc/pixelcopy.hpp"
 
+#include <esp_log.h>
+#include <rom/gpio.h>
 #include <hal/gpio_ll.h>
 #include <hal/lcd_hal.h>
 #include <soc/lcd_cam_reg.h>
 #include <soc/lcd_cam_struct.h>
+
+#include <soc/gdma_channel.h>
+#include <soc/gdma_reg.h>
+#if !defined (DMA_OUT_LINK_CH0_REG)
+  #define DMA_OUT_LINK_CH0_REG       GDMA_OUT_LINK_CH0_REG
+  #define DMA_OUTFIFO_STATUS_CH0_REG GDMA_OUTFIFO_STATUS_CH0_REG
+  #define DMA_OUTLINK_START_CH0      GDMA_OUTLINK_START_CH0
+  #define DMA_OUTFIFO_EMPTY_CH0      GDMA_OUTFIFO_EMPTY_L3_CH0
+#endif
 
 namespace lgfx
 {
  inline namespace v1
  {
 //----------------------------------------------------------------------------
-
-/// from esp-idf/components/esp_lcd/src/esp_lcd_panel_io_i80.c
-struct esp_lcd_i80_bus_t {
-    int bus_id;            // Bus ID, index from 0
-    portMUX_TYPE spinlock; // spinlock used to protect i80 bus members(hal, device_list, cur_trans)
-    lcd_hal_context_t hal; // Hal object
-    size_t bus_width;      // Number of data lines
-    intr_handle_t intr;    // LCD peripheral interrupt handle
-    void* pm_lock; // Power management lock
-    size_t num_dma_nodes;  // Number of DMA descriptors
-    uint8_t *format_buffer;  // The driver allocates an internal buffer for DMA to do data format transformer
-    size_t resolution_hz;    // LCD_CLK resolution, determined by selected clock source
-    gdma_channel_handle_t dma_chan; // DMA channel handle
-};
 
   static __attribute__ ((always_inline)) inline volatile uint32_t* reg(uint32_t addr) { return (volatile uint32_t *)ETS_UNCACHED_ADDR(addr); }
 
@@ -84,49 +81,42 @@ struct esp_lcd_i80_bus_t {
     gpio_matrix_out(_cfg.pin_rs, LCD_DC_IDX, 0, 0);
     gpio_matrix_out(_cfg.pin_wr, LCD_PCLK_IDX, 0, 0);
 
-    esp_lcd_i80_bus_config_t bus_config = {
-        .dc_gpio_num = _cfg.pin_rs,
-        .wr_gpio_num = _cfg.pin_wr,
-        .data_gpio_nums = {
-            _cfg.pin_d8,
-            _cfg.pin_d9,
-            _cfg.pin_d10,
-            _cfg.pin_d11,
-            _cfg.pin_d12,
-            _cfg.pin_d13,
-            _cfg.pin_d14,
-            _cfg.pin_d15,
-            _cfg.pin_d0,
-            _cfg.pin_d1,
-            _cfg.pin_d2,
-            _cfg.pin_d3,
-            _cfg.pin_d4,
-            _cfg.pin_d5,
-            _cfg.pin_d6,
-            _cfg.pin_d7,
-        },
-        .bus_width = 16,
-        .max_transfer_bytes = 32768
-    };
+    esp_lcd_i80_bus_config_t bus_config;
+    memset(&bus_config, 0, sizeof(esp_lcd_i80_bus_config_t));
+    bus_config.clk_src = lcd_clock_source_t::LCD_CLK_SRC_PLL160M; // IDFのバージョンによってenumの値が異なるので注意
+    bus_config.dc_gpio_num = _cfg.pin_rs;
+    bus_config.wr_gpio_num = _cfg.pin_wr;
+    for (int i = 0; i < 8; ++i)
+    {
+      bus_config.data_gpio_nums[i  ] = _cfg.pin_data[i+8];
+      bus_config.data_gpio_nums[i+8] = _cfg.pin_data[i  ];
+    }
+    bus_config.bus_width = 16;
+    bus_config.max_transfer_bytes = 4092;
+
     esp_lcd_new_i80_bus(&bus_config, &_i80_bus);
-    _dma_chan = ((esp_lcd_i80_bus_t*)_i80_bus)->dma_chan;
+    _dma_out_link_reg  = nullptr;
+    _dma_outstatus_reg = nullptr;
+    _dma_ch = search_dma_out_ch(SOC_GDMA_TRIG_PERIPH_LCD0);
+    if (_dma_ch >= 0)
+    {
+      _dma_out_link_reg  = reg(DMA_OUT_LINK_CH0_REG       + _dma_ch * 0xC0);
+      _dma_outstatus_reg = reg(DMA_OUTFIFO_STATUS_CH0_REG + _dma_ch * 0xC0);
+    }
+    else
+    {
+      ESP_LOGE("Bus_Parallel16", "DMA channel not found...");
+    }
 
     for (size_t i = 0; i < 16; ++i)
     {
       gpio_ll_input_enable(&GPIO, (gpio_num_t)_cfg.pin_data[i]);
     }
 
-    auto freq = std::min(_cfg.freq_write, 50000000u);
-
     uint32_t div_a, div_b, div_n, clkcnt;
-    calcClockDiv(&div_a, &div_b, &div_n, &clkcnt, 240*1000*1000, freq);
-
-    // 送信クロックが速い場合、DMAセットアップから送信開始までの時間が短いと送信失敗するためウェイト調整を行う ;
-    int wait = 24 - (div_n * clkcnt);
-    _fast_wait = (wait < 0) ? 0 : wait;
-
+    calcClockDiv(&div_a, &div_b, &div_n, &clkcnt, 240*1000*1000, std::min<uint32_t>(_cfg.freq_write, 50000000u));
     lcd_cam_lcd_clock_reg_t lcd_clock;
-    lcd_clock.lcd_clkcnt_n = std::max(1u, clkcnt - 1);
+    lcd_clock.lcd_clkcnt_n = std::max<uint32_t>(1u, clkcnt - 1);
     lcd_clock.lcd_clk_equ_sysclk = (clkcnt == 1);
     lcd_clock.lcd_ck_idle_edge = true;
     lcd_clock.lcd_ck_out_edge = false;
@@ -393,7 +383,7 @@ struct esp_lcd_i80_bus_t {
           size_t len = length & ~1u;
           while (*reg_lcd_user & LCD_CAM_LCD_START) {}
           _setup_dma_desc_links(&data[4], len - 4);
-          gdma_start(_dma_chan, (intptr_t)(_dmadesc));
+          *_dma_out_link_reg = DMA_OUTLINK_START_CH0 | ((uintptr_t)(&_dmadesc[0]) & 0xFFFFF);
           dev->lcd_cmd_val.val = data[0] | data[1] << 8 | data[2] <<16 | data[3] << 24;
           length -= len;
           data += len;
@@ -419,7 +409,7 @@ struct esp_lcd_i80_bus_t {
             ++len;
           }
           _setup_dma_desc_links(&c[4], len - 4);
-          gdma_start(_dma_chan, (intptr_t)(_dmadesc));
+          *_dma_out_link_reg = DMA_OUTLINK_START_CH0 | ((uintptr_t)(&_dmadesc[0]) & 0xFFFFF);
           _cache_flip = _cache[(_cache_flip == _cache[0])];
           dev->lcd_cmd_val.val = c[0] | c[1] << 8 | c[2] <<16 | c[3] << 24;
         }
@@ -427,11 +417,8 @@ struct esp_lcd_i80_bus_t {
                           ?  LCD_CAM_LCD_CD_IDLE_EDGE
                           : (LCD_CAM_LCD_CD_IDLE_EDGE | LCD_CAM_LCD_CD_CMD_SET | LCD_CAM_LCD_CD_DATA_SET);
 
-        auto wait = _fast_wait;
-        if (wait > 0)
-        { /// DMA準備～送信開始の時間が短すぎるとデータの先頭を送り損じる事があるのでnopウェイトを入れる;
-          do { __asm__ __volatile__ ("nop"); } while (--wait);
-        }
+        while (*_dma_outstatus_reg & DMA_OUTFIFO_EMPTY_CH0 ) {}
+
         *reg_lcd_user = LCD_CAM_LCD_ALWAYS_OUT_EN | LCD_CAM_LCD_2BYTE_EN | LCD_CAM_LCD_CMD_2_CYCLE_EN | LCD_CAM_LCD_DOUT | LCD_CAM_LCD_CMD | LCD_CAM_LCD_UPDATE_REG | LCD_CAM_LCD_START;
       } while (length & ~1u);
     }
@@ -528,6 +515,7 @@ struct esp_lcd_i80_bus_t {
       val = (val << 1) + (1 & (in[(ih >> 18) & 7] >> ((mh >> 18) & 7)));
       val = (val << 1) + (1 & (in[(ih >> 21) & 7] >> ((mh >> 21) & 7)));
       *dst++ = val;
+      *reg_rd_l = mask_rd;
 
       if (0 == --length) { *reg_rd_l = mask_rd; break; }
 
@@ -539,7 +527,6 @@ struct esp_lcd_i80_bus_t {
       val = (val << 1) + (1 & (in[(il >> 15) & 7] >> ((ml >> 15) & 7)));
       val = (val << 1) + (1 & (in[(il >> 18) & 7] >> ((ml >> 18) & 7)));
       val = (val << 1) + (1 & (in[(il >> 21) & 7] >> ((ml >> 21) & 7)));
-      *reg_rd_l = mask_rd;
       *dst++ = val;
     } while (--length);
   }

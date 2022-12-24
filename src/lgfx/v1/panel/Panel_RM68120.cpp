@@ -26,6 +26,7 @@ namespace lgfx
  inline namespace v1
  {
 //----------------------------------------------------------------------------
+// ToDo : 初期化コマンド以外は NT35510と共通化する;
 
   void Panel_RM68120::writeRegister(uint16_t cmd, uint8_t data)
   {

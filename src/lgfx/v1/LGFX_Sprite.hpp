@@ -60,7 +60,7 @@ namespace lgfx
     bool isReadable(void) const override { return true; }
     bool isBusShared(void) const override { return false; }
 
-    uint32_t readCommand(uint_fast8_t, uint_fast8_t, uint_fast8_t) override { return 0; }
+    uint32_t readCommand(uint_fast16_t, uint_fast8_t, uint_fast8_t) override { return 0; }
     uint32_t readData(uint_fast8_t, uint_fast8_t) override { return 0; }
 
 

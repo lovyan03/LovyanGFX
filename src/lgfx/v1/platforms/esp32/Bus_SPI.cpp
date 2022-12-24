@@ -42,6 +42,26 @@ Contributors:
  #include <esp32-hal-cpu.h>
 #else
  #include <driver/spi_master.h>
+
+ #if defined ( CONFIG_IDF_TARGET_ESP32S3 )
+  #if __has_include (<esp32s3/rom/gpio.h>)
+    #include <esp32s3/rom/gpio.h>
+  #else
+    #include <rom/gpio.h>
+  #endif
+ #elif defined ( CONFIG_IDF_TARGET_ESP32S2 )
+  #if __has_include (<esp32s2/rom/gpio.h>)
+    #include <esp32s2/rom/gpio.h>
+  #else
+    #include <rom/gpio.h>
+  #endif
+ #else
+  #if __has_include (<esp32/rom/gpio.h>)
+    #include <esp32/rom/gpio.h>
+  #else
+    #include <rom/gpio.h>
+  #endif
+ #endif
 #endif
 
 #ifndef SPI_PIN_REG
@@ -49,9 +69,8 @@ Contributors:
 #endif
 
 #if defined (SOC_GDMA_SUPPORTED)  // for C3/S3
- #include <driver/spi_common_internal.h>
- #include <hal/gdma_hal.h>
- #include <hal/gdma_ll.h>
+ #include <soc/gdma_channel.h>
+ #include <soc/gdma_reg.h>
  #if !defined DMA_OUT_LINK_CH0_REG
   #define DMA_OUT_LINK_CH0_REG       GDMA_OUT_LINK_CH0_REG
   #define DMA_OUTFIFO_STATUS_CH0_REG GDMA_OUTFIFO_STATUS_CH0_REG
@@ -122,10 +141,21 @@ namespace lgfx
     _inited = spi::init(_cfg.spi_host, _cfg.pin_sclk, _cfg.pin_miso, _cfg.pin_mosi, dma_ch).has_value();
 
 #if defined ( SOC_GDMA_SUPPORTED )
-    auto attr = spi_bus_get_attr(_cfg.spi_host);
-    if (!attr->dma_enabled) { _cfg.dma_channel = 0; }
-    _spi_dma_out_link_reg  = reg(DMA_OUT_LINK_CH0_REG       + attr->tx_dma_chan * 0xC0);
-    _spi_dma_outstatus_reg = reg(DMA_OUTFIFO_STATUS_CH0_REG + attr->tx_dma_chan * 0xC0);
+    // 割当られたDMAチャネル番号を取得する
+
+#if defined ( SOC_GDMA_TRIG_PERIPH_SPI3 )
+    int peri_sel = (_spi_port == 3) ? SOC_GDMA_TRIG_PERIPH_SPI3 : SOC_GDMA_TRIG_PERIPH_SPI2;
+#else
+    int peri_sel = SOC_GDMA_TRIG_PERIPH_SPI2;
+#endif
+
+    int assigned_dma_ch = search_dma_out_ch(peri_sel);
+
+    if (assigned_dma_ch >= 0)
+    { // DMAチャンネルが特定できたらそれを使用する;
+      _spi_dma_out_link_reg  = reg(DMA_OUT_LINK_CH0_REG       + assigned_dma_ch * 0xC0);
+      _spi_dma_outstatus_reg = reg(DMA_OUTFIFO_STATUS_CH0_REG + assigned_dma_ch * 0xC0);
+    }
 #endif
 
     return _inited;
@@ -178,7 +208,7 @@ namespace lgfx
     *reg(SPI_PIN_REG(spi_port)) = pin;
     *reg(SPI_CLOCK_REG(spi_port)) = clkdiv_write;
 #if defined ( SPI_UPDATE )
-    *_spi_cmd_reg |= SPI_UPDATE;
+    *_spi_cmd_reg = SPI_UPDATE;
 #endif
   }
 

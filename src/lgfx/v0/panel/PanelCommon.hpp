@@ -5,6 +5,11 @@
 #include <type_traits>
 #include "../lgfx_common.hpp"
 
+extern "C" {
+  #pragma GCC diagnostic ignored "-Wshadow"
+  #pragma GCC diagnostic ignored "-Wdouble-promotion"
+}
+
 namespace lgfx
 {
  inline namespace v0
@@ -211,4 +216,9 @@ namespace lgfx
 //----------------------------------------------------------------------------
  }
 }
+
+// extern "C" {
+//   #pragma GCC diagnostic pop
+// }
+
 #endif

@@ -146,21 +146,21 @@ namespace lgfx
     uint16_t range_num;    // Number of EncodeRange
     EncodeRange *range;         // Array ofEncodeRange
 
-    constexpr GFXfont ( uint8_t *bitmap
-                      , GFXglyph *glyph
-                      , uint16_t first
-                      , uint16_t last
-                      , uint8_t yAdvance
-                      , uint16_t range_num = 0
-                      , EncodeRange *range = nullptr
+    constexpr GFXfont ( uint8_t *bitmap_
+                      , GFXglyph *glyph_
+                      , uint16_t first_
+                      , uint16_t last_
+                      , uint8_t yAdvance_
+                      , uint16_t range_num_ = 0
+                      , EncodeRange *range_ = nullptr
                       )
-    : bitmap   (bitmap   )
-    , glyph    (glyph    )
-    , first    (first    )
-    , last     (last     )
-    , yAdvance (yAdvance )
-    , range_num(range_num)
-    , range    (range    )
+    : bitmap   (bitmap_   )
+    , glyph    (glyph_    )
+    , first    (first_    )
+    , last     (last_     )
+    , yAdvance (yAdvance_ )
+    , range_num(range_num_)
+    , range    (range_    )
     {}
 
     font_type_t getType(void) const override { return font_type_t::ft_gfx; }

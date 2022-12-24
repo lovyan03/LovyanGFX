@@ -24,10 +24,15 @@ Contributors:
 #include <memory>
 #include <esp_log.h>
 #include <driver/i2c.h>
+#include <soc/gpio_reg.h>
 
 
 #if defined ( ARDUINO_ESP32_S3_BOX )
   #define LGFX_ESP32_S3_BOX
+#endif
+
+#if defined ( ARDUINO_ADAFRUIT_FEATHER_ESP32S3_TFT )
+  #define LGFX_FEATHER_ESP32_S3_TFT
 #endif
 
 
@@ -45,15 +50,16 @@ namespace lgfx
     static constexpr int_fast16_t aw9523_i2c_addr = 0x58;  // AW9523B
     static constexpr int_fast16_t axp_i2c_addr = 0x34;     // AXP2101
     static constexpr int_fast16_t i2c_port = I2C_NUM_1;
-    static constexpr int_fast16_t i2c_sda = GPIO_NUM_34;
-    static constexpr int_fast16_t i2c_scl = GPIO_NUM_33;
+    static constexpr int_fast16_t i2c_sda = GPIO_NUM_12;
+    static constexpr int_fast16_t i2c_scl = GPIO_NUM_11;
   }
 
   struct Panel_M5StackCoreS3 : public lgfx::Panel_ILI9342
   {
+    static constexpr gpio_num_t pin_miso_dc = GPIO_NUM_35;
     Panel_M5StackCoreS3(void)
     {
-      _cfg.pin_cs = GPIO_NUM_36;
+      _cfg.pin_cs = GPIO_NUM_3;
       _cfg.invert = true;
       _cfg.offset_rotation = 3;
 
@@ -68,6 +74,14 @@ namespace lgfx
       lgfx::delay(4);
       lgfx::i2c::writeRegister8(i2c_port, aw9523_i2c_addr, 0x03, (1<<5), ~0, i2c_freq);  // LCD_RST
     }
+
+    void cs_control(bool flg) override
+    {
+      lgfx::Panel_ILI9342::cs_control(flg);
+
+      // 0x43==FSPI MISO / 0x100==GPIO OUT
+      *(volatile uint32_t*)GPIO_FUNC35_OUT_SEL_CFG_REG = flg ? 0x43 : 0x100;
+    }
   };
 
   struct Touch_M5StackCoreS3 : public lgfx::Touch_FT5x06
@@ -75,7 +89,7 @@ namespace lgfx
     Touch_M5StackCoreS3(void)
     {
       using namespace m5stack;
-      _cfg.pin_int  = GPIO_NUM_35;
+      _cfg.pin_int  = GPIO_NUM_21;
       _cfg.pin_sda  = i2c_sda;
       _cfg.pin_scl  = i2c_scl;
       _cfg.i2c_addr = 0x38;
@@ -97,6 +111,8 @@ namespace lgfx
         res = lgfx::Touch_FT5x06::getTouchRaw(tp, count);
         if (res == 0)
         { /// clear INT.
+          // レジスタ 0x00を読み出すとPort0のINTがクリアされ、レジスタ 0x01を読み出すとPort1のINTがクリアされる。
+          lgfx::i2c::readRegister8(i2c_port, aw9523_i2c_addr, 0x00, i2c_freq);
           lgfx::i2c::readRegister8(i2c_port, aw9523_i2c_addr, 0x01, i2c_freq);
         }
       }
@@ -207,7 +223,7 @@ namespace lgfx
       bus->endTransaction();
       _pin_level(pin_cs, true);
 
-      ESP_LOGW(LIBRARY_NAME, "[Autodetect] read cmd:%02x = %08x", cmd, res);
+      ESP_LOGW(LIBRARY_NAME, "[Autodetect] read cmd:%02x = %08x", (unsigned int)cmd, (unsigned int)res);
       return res;
     }
 
@@ -239,7 +255,7 @@ namespace lgfx
       {
         nvs_get_u32(nvs_handle, NVS_KEY, static_cast<uint32_t*>(&nvs_board));
         nvs_close(nvs_handle);
-        ESP_LOGW(LIBRARY_NAME, "[Autodetect] load from NVS : board:%d", nvs_board);
+        ESP_LOGW(LIBRARY_NAME, "[Autodetect] load from NVS : board:%d", (int)nvs_board);
       }
 
       if (0 == nvs_board)
@@ -301,7 +317,7 @@ namespace lgfx
 
       bus_cfg.freq_write = 8000000;
       bus_cfg.freq_read  = 8000000;
-      bus_cfg.spi_host = SPI3_HOST;
+      bus_cfg.spi_host = SPI2_HOST;
       bus_cfg.spi_mode = 0;
       bus_cfg.dma_channel = SPI_DMA_CH_AUTO;
       bus_cfg.use_lock = true;
@@ -311,11 +327,11 @@ namespace lgfx
 
 #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_M5ATOM_S3LCD )
 
-      if (board == 0 || board == board_t::board_M5AtomS3LCD)
+      if (board == 0 || board == board_t::board_M5AtomS3)
       {
         bus_cfg.pin_mosi = GPIO_NUM_21;
         bus_cfg.pin_miso = GPIO_NUM_13;
-        bus_cfg.pin_sclk = GPIO_NUM_16;
+        bus_cfg.pin_sclk = GPIO_NUM_17;
         bus_cfg.pin_dc   = GPIO_NUM_33;
         bus_cfg.spi_mode = 0;
         bus_cfg.spi_3wire = true;
@@ -325,8 +341,8 @@ namespace lgfx
         id = _read_panel_id(&_bus_spi, GPIO_NUM_15);
         if ((id & 0xFFFFFF) == 0x079100)
         {  //  check panel (GC9107)
-          board = board_t::board_M5AtomS3LCD;
-          ESP_LOGW(LIBRARY_NAME, "[Autodetect] board_M5AtomS3LCD");
+          board = board_t::board_M5AtomS3;
+          ESP_LOGW(LIBRARY_NAME, "[Autodetect] board_M5AtomS3");
           bus_cfg.freq_write = 40000000;
           bus_cfg.freq_read  = 16000000;
           _bus_spi.config(bus_cfg);
@@ -342,7 +358,7 @@ namespace lgfx
             p->config(cfg);
           }
           _panel_last = p;
-          _set_pwm_backlight(GPIO_NUM_18, 7, 240); /// AtomS3LCDのバックライトはPWM周期が速いと点灯しない;
+          _set_pwm_backlight(GPIO_NUM_16, 7, 240); /// AtomS3のバックライトはPWM周期が速いと点灯しない;
 
           goto init_clear;
         }
@@ -367,21 +383,31 @@ namespace lgfx
           auto chk_aw  = lgfx::i2c::readRegister8(i2c_port, aw9523_i2c_addr, 0x10, i2c_freq);
           if (chk_aw .has_value() && chk_aw .value() == 0x23)
           {
-            lgfx::i2c::writeRegister8(i2c_port, aw9523_i2c_addr, 0x05, 0b01011000);
-            lgfx::i2c::bitOn(i2c_port, aw9523_i2c_addr, 0x03, 0b10100000);
+            lgfx::i2c::writeRegister8(i2c_port, axp_i2c_addr, 0x90, 0xBF); // LDOS ON/OFF control 0
+            lgfx::i2c::writeRegister8(i2c_port, axp_i2c_addr, 0x95, 0x28); // ALDO3 set to 3.3v // for TF card slot
+            lgfx::i2c::writeRegister8(i2c_port, axp_i2c_addr, 0x96, (0b11110 - 7)); // BLDO1 => CAM AVDD 2.8V
+            lgfx::i2c::writeRegister8(i2c_port, axp_i2c_addr, 0x97, (0b00000 + 7)); // BLDO2 => CAM DVDD 1.2V
 
-            bus_cfg.pin_mosi = GPIO_NUM_11;
-            bus_cfg.pin_miso = GPIO_NUM_12;
-            bus_cfg.pin_sclk = GPIO_NUM_13;
-            bus_cfg.pin_dc   = GPIO_NUM_3;
+            lgfx::i2c::bitOn(i2c_port, aw9523_i2c_addr, 0x02, 0b10000110);
+            lgfx::i2c::bitOn(i2c_port, aw9523_i2c_addr, 0x03, 0b10100000);
+            lgfx::i2c::writeRegister8(i2c_port, aw9523_i2c_addr, 0x04, 0b01111000);  // CONFIG_P0
+            lgfx::i2c::writeRegister8(i2c_port, aw9523_i2c_addr, 0x05, 0b01011000);  // CONFIG_P1
+            lgfx::i2c::writeRegister8(i2c_port, aw9523_i2c_addr, 0x11, 0b00010000);  // GCR P0 port is Push-Pull mode.
+            lgfx::i2c::writeRegister8(i2c_port, aw9523_i2c_addr, 0x12, 0b11111110);  // LEDMODE_P0
+            lgfx::i2c::writeRegister8(i2c_port, aw9523_i2c_addr, 0x13, 0b11111000);  // LEDMODE_P1
+
+            bus_cfg.pin_mosi = GPIO_NUM_37;
+            bus_cfg.pin_miso = GPIO_NUM_35;
+            bus_cfg.pin_sclk = GPIO_NUM_36;
+            bus_cfg.pin_dc   = GPIO_NUM_35;
             bus_cfg.spi_mode = 0;
             bus_cfg.spi_3wire = true;
             _bus_spi.config(bus_cfg);
             _bus_spi.init();
 
-            _set_sd_spimode(bus_cfg.spi_host, GPIO_NUM_37);
+            _set_sd_spimode(bus_cfg.spi_host, GPIO_NUM_4);
 
-            id = _read_panel_id(&_bus_spi, GPIO_NUM_36);
+            id = _read_panel_id(&_bus_spi, GPIO_NUM_3);
             if ((id & 0xFF) == 0xE3)
             {  //  check panel (ILI9342)
               board = board_t::board_M5StackCoreS3;
@@ -396,8 +422,6 @@ namespace lgfx
               _set_backlight(new Light_M5StackCoreS3());
 
               {
-                lgfx::i2c::bitOn(i2c_port, aw9523_i2c_addr, 0x03, 0b10100000);
-
                 auto t = new lgfx::Touch_M5StackCoreS3();
                 _touch_last = t;
                 _panel_last->touch(t);
@@ -473,6 +497,48 @@ namespace lgfx
         _bus_spi.release();
       }
 #endif
+
+// Feather S3 TFT screen is write-only, no LGFX_AUTODETECT
+#if defined ( LGFX_FEATHER_ESP32_S3_TFT )
+      if (board == 0 || board == board_t::board_Feather_ESP32_S3_TFT)
+      {
+        lgfx::pinMode(GPIO_NUM_21, lgfx::pin_mode_t::output);
+        lgfx::gpio_hi(GPIO_NUM_21); // Enable power to TFT
+        bus_cfg.pin_mosi = GPIO_NUM_35;
+        bus_cfg.pin_miso = -1;
+        bus_cfg.pin_sclk = GPIO_NUM_36;
+        bus_cfg.pin_dc   = GPIO_NUM_39;
+        bus_cfg.spi_mode = 0;
+        bus_cfg.spi_3wire = true;
+        _bus_spi.config(bus_cfg);
+        _bus_spi.init();
+        _pin_reset(GPIO_NUM_40, use_reset); // LCD RST
+        board = board_t::board_Feather_ESP32_S3_TFT;
+        ESP_LOGW(LIBRARY_NAME, "board_Feather_ESP32_S3_TFT");
+        bus_cfg.freq_write = 40000000;
+        _bus_spi.config(bus_cfg);
+        auto p = new Panel_ST7789();
+        p->bus(&_bus_spi);
+        {
+          auto cfg = p->config();
+          cfg.pin_cs  = GPIO_NUM_7;
+          cfg.pin_rst = GPIO_NUM_40;
+          cfg.panel_width  = 135;
+          cfg.panel_height = 240;
+          cfg.offset_x = 52;
+          cfg.offset_y = 40;
+          cfg.readable = false;
+          cfg.rgb_order = false;
+          cfg.invert = true;
+          cfg.offset_rotation = 1;
+          p->config(cfg);
+        }
+        _panel_last = p;
+        _set_pwm_backlight(GPIO_NUM_45, 0, 12000);
+
+        goto init_clear;
+      }
+#endif // end LGFX_FEATHER_ESP32_S3_TFT
 
       board = board_t::board_unknown;
 

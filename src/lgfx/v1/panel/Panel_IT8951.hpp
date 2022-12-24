@@ -53,10 +53,14 @@ namespace lgfx
     void writeImage(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, pixelcopy_t* param, bool use_dma) override;
     void writePixels(pixelcopy_t* param, uint32_t len, bool use_dma) override;
 
-    uint32_t readCommand(uint_fast8_t, uint_fast8_t, uint_fast8_t) override { return 0; }
+    uint32_t readCommand(uint_fast16_t, uint_fast8_t, uint_fast8_t) override { return 0; }
     uint32_t readData(uint_fast8_t, uint_fast8_t) override { return 0; }
 
     void readRect(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, void* dst, pixelcopy_t* param) override;
+
+
+    uint16_t getVCOM(void);
+    void setVCOM(uint16_t vcom);
 
   private:
 
@@ -81,8 +85,9 @@ namespace lgfx
     uint32_t _tar_memaddr = 0;
     uint8_t _it8951_rotation = 0;
     bool _in_transaction = false;
+    uint16_t _vcom = 0;
 
-    bool _wait_busy( uint32_t timeout = 1000);
+    bool _wait_busy( uint32_t timeout = 4096);
     bool _write_command( uint16_t cmd);
     bool _write_word( uint16_t data);
     bool _write_args( uint16_t cmd, uint16_t *args, int32_t length);

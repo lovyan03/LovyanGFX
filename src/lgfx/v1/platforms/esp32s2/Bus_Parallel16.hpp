@@ -17,9 +17,6 @@ Contributors:
 /----------------------------------------------------------------------------*/
 #pragma once
 
-#include <vector>
-#include <string.h>
-
 #if __has_include(<rom/lldesc.h>)
  #include <rom/lldesc.h>
 #else
@@ -30,7 +27,13 @@ Contributors:
  #include <freertos/FreeRTOS.h>
 #endif
 
-#include <driver/i2s.h>
+#if __has_include(<driver/i2s_std.h>)
+ #include <driver/i2s_std.h>
+#else
+ #include <driver/i2s.h>
+#endif
+
+#include <soc/i2s_struct.h>
 
 #include "../../Bus.hpp"
 #include "../common.hpp"
@@ -46,7 +49,10 @@ namespace lgfx
   public:
     struct config_t
     {
-      i2s_port_t i2s_port = I2S_NUM_0;
+      union {
+        i2s_port_t i2s_port = I2S_NUM_0;
+        int port;
+      };
 
       // max 40MHz , 27MHz , 20MHz , 16MHz , 13.3MHz , 11.43MHz , 10MHz , 8.9MHz  and more ...
       uint32_t freq_write = 16000000;

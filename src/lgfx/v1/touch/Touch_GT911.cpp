@@ -158,15 +158,19 @@ namespace lgfx
     if ((_cfg.pin_int < 0 || !gpio_in(_cfg.pin_int)))
     {
       /// GT911は値を0x814Eに0を書くまで同じ値を維持する挙動となっているため、;
-      /// 前回からの間隔が長すぎると古い情報が得られるので更新のため2回取得する;
-      bool flg = (diff_msec > _refresh_rate << 4);
-      if (!_update_data() || flg)
+      /// 前回からの間隔が長すぎると古い情報を得てしまうので、
+      /// 一旦データを破棄してしばらくリトライを繰返す
+      if (diff_msec >= 128)
       {
-        if (flg)
+        _writeBytes(gt911cmd_getdata, 3);
+        size_t retry = 24;
+        do
         {
-          _readdata[0] = 0;
-          delay(_refresh_rate);
-        }
+          delay(1);
+        } while (!_update_data() && --retry);
+      }
+      else
+      {
         _update_data();
       }
     }

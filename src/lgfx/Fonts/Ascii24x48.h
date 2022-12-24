@@ -15,7 +15,8 @@
 //
 /************************************************************************************/
 //
-// original source : https://github.com/m5stack/M5-CoreInk/blob/master/src/utility/Ascii24x48.cpp
+// original source :
+// https://github.com/m5stack/M5Core-Ink/blob/master/src/utility/Ascii24x48.cpp
 //
 // modified by lovyan03
 //

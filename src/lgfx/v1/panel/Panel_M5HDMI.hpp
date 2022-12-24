@@ -84,7 +84,7 @@ namespace lgfx
     void writeImageARGB(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, pixelcopy_t* param) override;
     void copyRect(uint_fast16_t dst_x, uint_fast16_t dst_y, uint_fast16_t w, uint_fast16_t h, uint_fast16_t src_x, uint_fast16_t src_y) override;
 
-    uint32_t readCommand(uint_fast8_t, uint_fast8_t, uint_fast8_t) override { return 0; }
+    uint32_t readCommand(uint_fast16_t, uint_fast8_t, uint_fast8_t) override { return 0; }
     uint32_t readData(uint_fast8_t, uint_fast8_t) override { return 0; }
     void readRect(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, void* dst, pixelcopy_t* param) override;
 
@@ -110,6 +110,7 @@ namespace lgfx
                       , uint8_t scale_h         = 0
                       );
 
+    size_t readEDID(uint8_t* EDID, size_t len);
     void setVideoTiming(const video_timing_t* param);
     void setScaling(uint_fast8_t x_scale, uint_fast8_t y_scale);
     void setViewPort(uint_fast16_t x, uint_fast16_t y);
@@ -191,18 +192,8 @@ namespace lgfx
     private:
       config_t HDMI_Trans_config;
 
-      std::uint8_t readRegister(std::uint8_t register_address)
-      {
-        std::uint8_t buffer;
-        lgfx::i2c::transactionWriteRead(this->HDMI_Trans_config.i2c_port, this->HDMI_Trans_config.i2c_addr, &register_address, 1, &buffer, 1);
-        return buffer;
-      }
-      std::uint16_t readRegister16(std::uint8_t register_address)
-      {
-        std::uint8_t buffer[2];
-        lgfx::i2c::transactionWriteRead(this->HDMI_Trans_config.i2c_port, this->HDMI_Trans_config.i2c_addr, &register_address, 1, buffer, 2);
-        return (static_cast<std::uint16_t>(buffer[0]) << 8) | buffer[1];
-      }
+      std::uint8_t readRegister(std::uint8_t register_address);
+      std::uint16_t readRegister16(std::uint8_t register_address);
       bool writeRegister(std::uint8_t register_address, std::uint8_t value);
       bool writeRegisterSet(const uint8_t *reg_value_pair, size_t len);
 
@@ -219,6 +210,7 @@ namespace lgfx
       ChipID readChipID(void);
       void reset(void);
       bool init(void);
+      size_t readEDID(uint8_t* EDID, size_t len);
     };
 
     class LOAD_FPGA

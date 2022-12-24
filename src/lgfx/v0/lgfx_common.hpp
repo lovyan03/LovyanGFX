@@ -1,23 +1,23 @@
 /*----------------------------------------------------------------------------/
   Lovyan GFX library - LCD graphics library .
-  
+
   support platform:
     ESP32 (SPI/I2S) with Arduino/ESP-IDF
     ATSAMD51 (SPI) with Arduino
-  
-Original Source:  
- https://github.com/lovyan03/LovyanGFX/  
 
-Licence:  
- [BSD](https://github.com/lovyan03/LovyanGFX/blob/master/license.txt)  
+Original Source:
+ https://github.com/lovyan03/LovyanGFX/
 
-Author:  
- [lovyan03](https://twitter.com/lovyan03)  
+Licence:
+ [BSD](https://github.com/lovyan03/LovyanGFX/blob/master/license.txt)
 
-Contributors:  
- [ciniml](https://github.com/ciniml)  
- [mongonta0716](https://github.com/mongonta0716)  
- [tobozo](https://github.com/tobozo)  
+Author:
+ [lovyan03](https://twitter.com/lovyan03)
+
+Contributors:
+ [ciniml](https://github.com/ciniml)
+ [mongonta0716](https://github.com/mongonta0716)
+ [tobozo](https://github.com/tobozo)
 /----------------------------------------------------------------------------*/
 #ifndef LGFX_COMMON_HPP_
 #define LGFX_COMMON_HPP_
@@ -32,6 +32,12 @@ Contributors:
 #endif
 
 #if defined (LGFX_ENABLE_V0)
+
+extern "C" {
+  #pragma GCC diagnostic ignored "-Wshadow"
+}
+
+
 #include <type_traits>
 #include <string.h>
 #include <stdint.h>
@@ -146,7 +152,7 @@ namespace lgfx
     static constexpr int TFT_WHITE       = 0xFFFF;      /* 255, 255, 255 */
     static constexpr int TFT_ORANGE      = 0xFDA0;      /* 255, 180,   0 */
     static constexpr int TFT_GREENYELLOW = 0xB7E0;      /* 180, 255,   0 */
-    static constexpr int TFT_PINK        = 0xFE19;      /* 255, 192, 203 */ //Lighter pink, was 0xFC9F      
+    static constexpr int TFT_PINK        = 0xFE19;      /* 255, 192, 203 */ //Lighter pink, was 0xFC9F
     static constexpr int TFT_BROWN       = 0x9A60;      /* 150,  75,   0 */
     static constexpr int TFT_GOLD        = 0xFEA0;      /* 255, 215,   0 */
     static constexpr int TFT_SILVER      = 0xC618;      /* 192, 192, 192 */
@@ -1026,7 +1032,7 @@ namespace lgfx
                , bool dst_palette = false
                , const void* src_palette = nullptr
                , uint32_t src_transp = 1 << 24u
-               ) 
+               )
     : transp    ( src_transp )
     , src_bits  ( src_depth > 8 ? (src_depth + 7) & ~7 : src_depth)
     , dst_bits  ( dst_depth > 8 ? (dst_depth + 7) & ~7 : dst_depth)
@@ -1044,7 +1050,7 @@ namespace lgfx
           fp_copy = pixelcopy_t::copy_bit_affine;
           fp_skip = pixelcopy_t::skip_bit_affine;
         }
-      } else 
+      } else
       if (src_palette || src_depth < 8) {
         fp_copy = pixelcopy_t::get_fp_copy_palette_affine<bgr888_t>(dst_depth);
         fp_skip = pixelcopy_t::skip_bit_affine;
@@ -1630,9 +1636,6 @@ namespace lgfx
       };
     };
 
-    range_rect_t(void) = default;
-    range_rect_t(const range_rect_t& rhs) : horizon(rhs.horizon), vertical(rhs.vertical) {}
-
     int32_t width(void) const { return right - left + 1; }
     int32_t height(void) const { return bottom - top + 1; }
     bool empty(void) const { return horizon.empty() || vertical.empty(); }
@@ -1656,7 +1659,7 @@ namespace lgfx
         uint32_t biSize;
         int32_t  biWidth;
         int32_t  biHeight;
-        uint16_t biPlanes; 
+        uint16_t biPlanes;
         uint16_t biBitCount;
         uint32_t biCompression;
         uint32_t biSizeImage;
@@ -1822,6 +1825,11 @@ using RGBColor = lgfx::bgr888_t;
   #include "platforms/samd51_common.hpp"
 
 #endif
+
+
+extern "C" {
+  #pragma GCC diagnostic pop
+}
 
 #endif
 

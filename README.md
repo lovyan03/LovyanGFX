@@ -30,7 +30,8 @@ This library mimics [AdafruitGFX](https://github.com/adafruit/Adafruit-GFX-Libra
   - オフスクリーンバッファ（スプライト）の高速な回転/拡縮描画  
   - 複数ディスプレイの同時利用  
   - モノクロディスプレイに対する減色描画の自動処理  
-  - OpenCVを描画先として利用でき、PC上で動作可能  
+  - [OpenCV,SDL2を描画先として利用でき、PC上で動作可能](examples_for_PC/README.md)  
+  - [コンポジットビデオ信号(NTSC,PAL)を出力できます (ESP32のみ)](doc/Panel_CVBS.md)
 
 This library has the following advantages.
   - ArduinoESP32 and ESP-IDF are supported.
@@ -39,24 +40,25 @@ This library has the following advantages.
   - Fast rotation/expansion of the off-screen buffer (sprite).
   - Simultaneous use of multiple displays.
   - Automatic processing of color reduction drawing for monochrome displays.
-  - OpenCV can be used as a drawing destination and can run on a PC.  
+  - OpenCV,SDL2 can be used as a drawing destination and can run on a PC.  
+  - Composite video signal (NTSC, PAL) output (only ESP32)
 
 
-|        | SPI | I2C | 8bit Para |16bit Para |
-|:------:|:---:|:---:|:---------:|:---------:|
-|ESP32   | HW  | HW  | HW (I2S)  | ---       |
-|ESP32-S2| HW  | HW  | HW (I2S)  | HW (I2S)  |
-|ESP32-S3| HW  | HW  |HW(LCD/CAM)|HW(LCD/CAM)|
-|ESP32-C3| HW  | HW  | SW        | ---       |
-|ESP8266 | HW  | SW  | ---       | ---       |
-|SAMD51  | HW  | HW  | ---       | ---       |
-|SAMD21  | HW  | HW  | ---       | ---       |
-|RP2040  | HW  | --- | ---       | ---       |
+|        | SPI | I2C | 8bit Para |16bit Para | CVBS  |
+|:------:|:---:|:---:|:---------:|:---------:|:-----:|
+|ESP32   | HW  | HW  | HW (I2S)  | ---       |HW(I2S)|
+|ESP32-S2| HW  | HW  | HW (I2S)  | HW (I2S)  | ---   |
+|ESP32-S3| HW  | HW  |HW(LCD/CAM)|HW(LCD/CAM)| ---   |
+|ESP32-C3| HW  | HW  | SW        | ---       | ---   |
+|ESP8266 | HW  | SW  | ---       | ---       | ---   |
+|SAMD51  | HW  | HW  | ---       | ---       | ---   |
+|SAMD21  | HW  | HW  | ---       | ---       | ---   |
+|RP2040  | HW  | --- | ---       | ---       | ---   |
 
 ※ HW = HardWare Peripheral / SW = SoftWare implementation
 
 
-対応環境 support environments
+対応環境 Supported environments
 ---------------
   - プラットフォーム Platform
     - ESP-IDF
@@ -65,6 +67,7 @@ This library has the following advantages.
     - Arduino RP2040
 
   - ディスプレイ Displays
+    - GC9107 (M5AtomS3)
     - GC9A01
     - GDEW0154M09 (M5Stack CoreInk)
     - HX8357
@@ -80,6 +83,7 @@ This library has the following advantages.
     - RA8875
     - RM68120
     - SH110x (SH1106, SH1107, M5Stack Unit OLED)
+    - S6D04K1
     - SSD1306 (SSD1309)
     - SSD1327
     - SSD1331
@@ -477,7 +481,7 @@ LovyanGFX has been created to add these features and optimize performance.
 謝辞 Acknowledgements
 ----------------
 このライブラリを作成するにあたり、インスピレーションを頂いた[TFT_eSPI](https://github.com/Bodmer/TFT_eSPI)ライブラリの作者[Bodmer](https://github.com/Bodmer/)氏へ感謝いたします。  
-TFT_eSPIのベースとなった、[AdafruitGFX](https://github.com/adafruit/Adafruit-GFX-Library)を公開している[Adafruit Industries](https://github.com/adafruit/)へ感謝いたします。  
+TFT_eSPIのベースとなった、[AdafruitGFX](https://github.com/adafruit/Adafruit-GFX-Library)を公開されている[Adafruit Industries](https://github.com/adafruit/)へ感謝いたします。  
 [TJpgDec](http://elm-chan.org/fsw/tjpgd/00index.html) (Tiny JPEG Decompressor) の作者 [ChaN](http://elm-chan.org/)氏へ感謝いたします。  
 [Pngle](https://github.com/kikuchan/pngle) (PNG Loader for Embedding) の作者 [kikuchan](https://github.com/kikuchan/)氏へ感謝いたします。  
 [QRCode](https://github.com/ricmoo/QRCode/) (QR code generation library) の作者 [Richard Moore](https://github.com/ricmoo/)氏へ感謝いたします。  
@@ -488,6 +492,8 @@ TFT_eSPIのベースとなった、[AdafruitGFX](https://github.com/adafruit/Ada
 [日本語フォントサブセットジェネレーター](https://github.com/yamamaya/lgfxFontSubsetGenerator)を製作してくださった[YAMANEKO](https://github.com/yamamaya)氏へ感謝いたします。  
 Raspberry pi pico (RP2040)対応に協力してくださった[yasuhirok](https://github.com/yasuhirok-git)氏へ感謝いたします。  
 Linux FrameBuffer対応に協力してくださった[IAMLIUBO](https://github.com/imliubo)氏へ感謝いたします。  
+コンポジットビデオ信号をESP32で出力するプロジェクトを公開されている[rossum](https://github.com/rossumur)氏と[Roger Cheng](https://github.com/Roger-random)氏へ感謝いたします。  
+
 
 Thanks to [Bodmer](https://github.com/Bodmer/), author of the [TFT_eSPI](https://github.com/Bodmer/TFT_eSPI) library, for the inspiration to create this library.  
 Thanks to [Adafruit Industries](https://github.com/adafruit/) for publishing [AdafruitGFX](https://github.com/adafruit/Adafruit-GFX-Library), which is the basis for TFT_eSPI.  
@@ -501,6 +507,7 @@ Thanks to [TANAKA Masayuki](https://github.com/tanakamasayuki), for creating the
 Thanks to [YAMANEKO](https://github.com/yamamaya), for creating the [lgfxFontSubsetGenerator](https://github.com/yamamaya/lgfxFontSubsetGenerator).  
 Thanks to [yasuhirok](https://github.com/yasuhirok-git), for add Raspberry pi pico (RP2040) support.  
 Thanks to [IAMLIUBO](https://github.com/imliubo), for add Linux FrameBuffer support.  
+Thanks to [rossum](https://github.com/rossumur) and [Roger Cheng](https://github.com/Roger-random), published the project to output a composite video signal from ESP32.
 
 
 使用ライブラリ included library  

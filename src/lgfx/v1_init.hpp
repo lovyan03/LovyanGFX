@@ -26,15 +26,19 @@ Contributors:
 #include "v1/LGFX_Sprite.hpp"
 #include "v1/LGFX_Button.hpp"
 #include "v1/Light.hpp"
+
+// LCD / OLED
 #include "v1/panel/Panel_GC9A01.hpp"
 #include "v1/panel/Panel_ILI9163.hpp"
 #include "v1/panel/Panel_ILI9225.hpp"
 #include "v1/panel/Panel_ILI9341.hpp"
 #include "v1/panel/Panel_ILI9342.hpp"
 #include "v1/panel/Panel_ILI948x.hpp"
+#include "v1/panel/Panel_NT35510.hpp"
 #include "v1/panel/Panel_R61529.hpp"
 #include "v1/panel/Panel_RA8875.hpp"
 #include "v1/panel/Panel_RM68120.hpp"
+#include "v1/panel/Panel_S6D04K1.hpp"
 #include "v1/panel/Panel_SSD1306.hpp"
 #include "v1/panel/Panel_SSD1327.hpp"
 #include "v1/panel/Panel_SSD1331.hpp"
@@ -43,9 +47,16 @@ Contributors:
 #include "v1/panel/Panel_ST7735.hpp"
 #include "v1/panel/Panel_ST7789.hpp"
 #include "v1/panel/Panel_ST7796.hpp"
-#include "v1/panel/Panel_M5UnitLCD.hpp"
+
+// EPD
 #include "v1/panel/Panel_GDEW0154M09.hpp"
 #include "v1/panel/Panel_IT8951.hpp"
+
+// other
+#include "v1/panel/Panel_HUB75.hpp"
+#include "v1/panel/Panel_M5UnitLCD.hpp"
+
+// TouchScreen
 #include "v1/touch/Touch_FT5x06.hpp"
 #include "v1/touch/Touch_GSLx680.hpp"
 #include "v1/touch/Touch_GT911.hpp"

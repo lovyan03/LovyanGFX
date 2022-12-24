@@ -29,10 +29,20 @@ Contributors:
 #include <sdkconfig.h>
 #include <soc/soc.h>
 #include <soc/spi_reg.h>
+#include <soc/i2s_reg.h>
+#include <soc/gpio_struct.h>
+#include <soc/gpio_sig_map.h>
+#include <esp_timer.h>
 
 #if !defined ( REG_SPI_BASE )
 //#define REG_SPI_BASE(i) (DR_REG_SPI0_BASE - (i) * 0x1000)
 #define REG_SPI_BASE(i)     (DR_REG_SPI2_BASE)
+#endif
+
+#if defined ( ESP_IDF_VERSION_VAL )
+ #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+  #define LGFX_IDF_V5
+ #endif
 #endif
 
 namespace lgfx
@@ -43,7 +53,14 @@ namespace lgfx
 
   __attribute__ ((unused)) static inline unsigned long millis(void) { return (unsigned long) (esp_timer_get_time() / 1000ULL); }
   __attribute__ ((unused)) static inline unsigned long micros(void) { return (unsigned long) (esp_timer_get_time()); }
-  __attribute__ ((unused)) static inline void delayMicroseconds(uint32_t us) { ets_delay_us(us); }
+  __attribute__ ((unused)) static inline void delayMicroseconds(uint32_t us)
+  {
+#if defined ( LGFX_IDF_V5 )
+    esp_rom_delay_us(us);
+#else
+    ets_delay_us(us);
+#endif
+  }
   __attribute__ ((unused)) static inline void delay(uint32_t ms)
   {
     uint32_t time = micros();
@@ -54,7 +71,7 @@ namespace lgfx
       time = micros() - time;
       if (time < ms)
       {
-        ets_delay_us(ms - time);
+        delayMicroseconds(ms - time);
       }
     }
   }
@@ -63,6 +80,13 @@ namespace lgfx
   static inline void* heap_alloc_dma(  size_t length) { return heap_caps_malloc((length + 3) & ~3, MALLOC_CAP_DMA);  }
   static inline void* heap_alloc_psram(size_t length) { return heap_caps_malloc((length + 3) & ~3, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);  }
   static inline void heap_free(void* buf) { heap_caps_free(buf); }
+
+  /// 引数のポインタが組込RAMか判定する  true=内部RAM / false=外部RAMやROM等;
+#if defined ( CONFIG_IDF_TARGET_ESP32S3 )
+  static inline bool isEmbeddedMemory(const void* ptr) { return (((uintptr_t)ptr & 0x3FF80000u) == 0x3FC80000u); }
+#else
+  static inline bool isEmbeddedMemory(const void* ptr) { return (((uintptr_t)ptr & 0x3FF80000u) == 0x3FF00000u); }
+#endif
 
   enum pin_mode_t
   { output
@@ -95,10 +119,13 @@ namespace lgfx
   uint32_t FreqToClockDiv(uint32_t fapb, uint32_t hz);
 
   /// for I2S and LCD_CAM peripheral clock
-  void calcClockDiv(size_t* div_a, size_t* div_b, size_t* div_n, size_t* clkcnt, size_t baseClock, size_t targetFreq);
+  void calcClockDiv(uint32_t* div_a, uint32_t* div_b, uint32_t* div_n, uint32_t* clkcnt, uint32_t baseClock, uint32_t targetFreq);
 
   // esp_efuse_get_pkg_ver
   uint32_t get_pkg_ver(void);
+
+  // Find GDMA assigned to a peripheral;
+  int32_t search_dma_out_ch(int peripheral_select);
 
 //----------------------------------------------------------------------------
 

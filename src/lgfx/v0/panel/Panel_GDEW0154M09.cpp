@@ -4,6 +4,11 @@
 #include "Panel_GDEW0154M09.hpp"
 #include "../LGFX_Device.hpp"
 
+extern "C" {
+  #pragma GCC diagnostic ignored "-Wshadow"
+  #pragma GCC diagnostic ignored "-Wdouble-promotion"
+}
+
 namespace lgfx
 {
  inline namespace v0
@@ -277,7 +282,7 @@ namespace lgfx
     _range_old.left = INT_MAX;
     _range_old.right = 0;
     _range_old.bottom = 0;
-    
+
     gfx->waitDMA();
   }
 
@@ -385,4 +390,9 @@ namespace lgfx
 //----------------------------------------------------------------------------
  }
 }
+
+extern "C" {
+  #pragma GCC diagnostic pop
+}
+
 #endif

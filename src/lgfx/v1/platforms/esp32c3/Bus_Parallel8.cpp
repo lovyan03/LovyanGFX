@@ -22,6 +22,9 @@ Contributors:
 #include "Bus_Parallel8.hpp"
 #include "../../misc/pixelcopy.hpp"
 
+#include <rom/gpio.h>
+#include <hal/gpio_ll.h>
+
 namespace lgfx
 {
  inline namespace v1

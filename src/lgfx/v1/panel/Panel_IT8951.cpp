@@ -21,6 +21,10 @@ Contributors:
 #include "../misc/pixelcopy.hpp"
 #include "../misc/colortype.hpp"
 
+#if __has_include (<esp_log.h>)
+ #include <esp_log.h>
+#endif
+
 #ifdef min
 #undef min
 #endif
@@ -152,19 +156,22 @@ IT8951 Registers defines
       if (addr != 0 && addr != ~0u)
       {
         _tar_memaddr = addr;
+#if defined ( ESP_LOGD )
+        for (int i = 0; i < 20; ++i)
+        {
+          ESP_LOGD("debug", "buf[%d] = %04x : %d", i, buf[i], buf[i]);
+        }
+#endif
+        if (_cfg.panel_width <= 0) { _cfg.panel_width = buf[0]; }
+        if (_cfg.panel_height <= 0) { _cfg.panel_height = buf[1]; }
       }
       else
       {
         _tar_memaddr = 0x001236E0; /// default value for M5Paper.
-#if defined ( ESP_LOGE )
-        ESP_LOGE("Panel_IT8951", "can't read data from IT8951");
+#if defined ( ESP_LOGW )
+        ESP_LOGW("Panel_IT8951", "can't read data from IT8951");
 #endif
       }
-
-      // for (int i = 0; i < 20; ++i)
-      // {
-      //   ESP_LOGE("debug", "buf[%d] = %04x", i, buf[i]);
-      // }
 
       setInvert(_invert);
       setRotation(_rotation);
@@ -172,11 +179,9 @@ IT8951 Registers defines
       _write_command(IT8951_TCON_SYS_RUN);
       _write_reg(IT8951_I80CPCR, 0x0001); //enable pack write
 
-      _write_command(0x0039); //tcon vcom set command
-      _write_word(0x0001);
-      _write_word(2300); // 0x08fc
-
       _set_target_memory_addr(_tar_memaddr);
+
+      if (_vcom > 0) { setVCOM(_vcom); }
 
       endWrite();
 
@@ -185,6 +190,39 @@ IT8951 Registers defines
     }
 
     return true;
+  }
+
+  uint16_t Panel_IT8951::getVCOM(void)
+  {
+    startWrite();
+    _wait_busy();
+    _write_command(IT8951_I80_CMD_VCOM);
+    _write_word(0x0000);
+    delay(1);
+    uint16_t tmp[2] = { 0 }; // tmpの要素数を1にすると正しく読み取れない?;
+    _read_words(tmp, 1);
+#if defined ( ESP_LOGI )
+    ESP_LOGI("DEBUG","getVCOM:%d", tmp[0]);
+#endif
+    endWrite();
+    return tmp[0];
+  }
+
+  void Panel_IT8951::setVCOM(uint16_t vcom)
+  {
+    _vcom = vcom;
+    if (_bus == nullptr || _cfg.pin_busy < 0) { return; }
+    uint16_t current_vcom = getVCOM();
+    if (current_vcom == vcom) { return; }
+#if defined ( ESP_LOGI )
+    ESP_LOGI("DEBUG","setVCOM:%d", vcom);
+#endif
+
+    startWrite();
+    _write_command(IT8951_I80_CMD_VCOM);
+    _write_word(0x0001);
+    _write_word(vcom);
+    endWrite();
   }
 
   void Panel_IT8951::beginTransaction(void)
@@ -216,6 +254,9 @@ IT8951 Registers defines
         {
           if (ms > timeout)
           {
+#if defined ( ESP_LOGW )
+            ESP_LOGW("Panel_IT8951", "wait_busy: timeout");
+#endif
             return false;
           }
           delay(ms >> 4);
@@ -235,21 +276,24 @@ IT8951 Registers defines
 
   bool Panel_IT8951::displayBusy(void)
   {
-    uint16_t infobuf[1] = { 1 };
+    uint16_t infobuf[2] = { 1 };
+    bool res = true;
+    startWrite();
     if (_write_command(IT8951_TCON_REG_RD)
       && _write_word(IT8951_LUTAFSR)
       && _read_words(infobuf, 1))
     {
-      return 0 != infobuf[0];
+      res = (0 != infobuf[0]);
     }
     cs_control(true);
-    return true;
+    endWrite();
+    return res;
   }
 
   bool Panel_IT8951::_check_afsr(void)
   {
     uint32_t start_time = millis();
-    uint16_t infobuf[1] = { 1 };
+    uint16_t infobuf[2] = { 1 };
     do
     {
       if (_write_command(IT8951_TCON_REG_RD)

@@ -13,6 +13,7 @@ on:
     - '**.h'
     - '**.c'
     - '**IDFBuild.yml'
+    - 'CMakeLists.txt'
   pull_request:
 
 jobs:
@@ -28,36 +29,33 @@ jobs:
           - esp32@v4.1
           - esp32@v4.2
           - esp32@v4.3.1
-          - esp32s2@v4.3.1
+          - esp32s2@v4.4.1
           - esp32s3@v4.4.1
+          - esp32@v5.0
+          - esp32s2@v5.0
+          - esp32s3@v5.0
 
         include:
-          - esp-idf-fqbn: esp32@v4.1
-            idf-board: esp32
-            idf-version: v4.1
-          - esp-idf-fqbn: esp32@v4.2
-            idf-board: esp32
-            idf-version: v4.2
-          - esp-idf-fqbn: esp32@v4.3.1
-            idf-board: esp32
-            idf-version: v4.3.1
-          - esp-idf-fqbn: esp32s2@v4.3.1
-            idf-board: esp32s2
-            idf-version: v4.3.1
-          - esp-idf-fqbn: esp32s3@v4.4.1
-            idf-board: esp32s3
-            idf-version: v4.4.1
+          - { esp-idf-fqbn: esp32@v4.1,         idf-board: esp32,   idf-version: v4.1 }
+          - { esp-idf-fqbn: esp32@v4.2,         idf-board: esp32,   idf-version: v4.2 }
+          - { esp-idf-fqbn: esp32@v4.3.1,       idf-board: esp32,   idf-version: v4.3.1 }
+          - { esp-idf-fqbn: esp32s2@v4.4.1,     idf-board: esp32s2, idf-version: v4.4.1 }
+          - { esp-idf-fqbn: esp32s3@v4.4.1,     idf-board: esp32s3, idf-version: v4.4.1 }
+          - { esp-idf-fqbn: esp32@v5.0,   idf-board: esp32,   idf-version: v5.0 }
+          - { esp-idf-fqbn: esp32s2@v5.0, idf-board: esp32s2, idf-version: v5.0 }
+          - { esp-idf-fqbn: esp32s3@v5.0, idf-board: esp32s3, idf-version: v5.0 }
+
 
       fail-fast: false
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Cache pip for ${{ matrix.esp-idf-fqbn }}
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ matrix.idf-version }}-${{ hashFiles('**/requirements.txt') }}
@@ -65,7 +63,7 @@ jobs:
             ${{ runner.os }}-pip-
 
       - name: Cache espressif tools for ${{ matrix.esp-idf-fqbn }}
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         id: espressif
         with:
           path: |
@@ -74,7 +72,7 @@ jobs:
 
       - name: Cache esp-idf for ${{ matrix.esp-idf-fqbn }}
         id: cache-idf
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ~/esp/esp-idf
           key: ${{ runner.os }}-idf-${{ matrix.idf-version }}-${{ hashFiles('**/lockfiles') }}

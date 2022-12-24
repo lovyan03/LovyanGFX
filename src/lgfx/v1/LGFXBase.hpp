@@ -59,7 +59,7 @@ namespace lgfx
 #endif
   {
   public:
-    LGFXBase(void);
+    LGFXBase(void) = default;
     virtual ~LGFXBase(void) = default;
 
     LGFX_INLINE static constexpr uint8_t  color332(uint8_t r, uint8_t g, uint8_t b) { return lgfx::color332(r, g, b); }
@@ -807,7 +807,7 @@ namespace lgfx
     const IFont* _font = &fonts::Font0;
 
     std::shared_ptr<RunTimeFont> _runtime_font;  // run-time generated font
-    DataWrapper* _font_file = nullptr;
+    std::shared_ptr<DataWrapper> _font_file;  // run-time font file
     PointerWrapper _font_data;
 
     bool _textwrap_x = true;

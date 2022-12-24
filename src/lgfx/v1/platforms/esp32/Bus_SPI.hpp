@@ -25,7 +25,11 @@ Contributors:
  #include <esp32/rom/lldesc.h>
 #endif
 
-#if __has_include(<driver/spi_common_internal.h>)
+#if __has_include(<esp_private/spi_common_internal.h>)
+ // ESP-IDF v5
+ #include <esp_private/spi_common_internal.h>
+#elif __has_include(<driver/spi_common_internal.h>)
+ // ESP-IDF v4
  #include <driver/spi_common_internal.h>
 #endif
 

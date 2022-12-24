@@ -27,6 +27,7 @@ jobs:
           - https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
 
         board:
+          # ESP32 devices for 3D matrix
           - esp32
           - esp32s2
           - m5stick-c
@@ -35,18 +36,29 @@ jobs:
           - esp32s3box
 
         platform-version:
-          # ESP32 Core versions
-          - 1.0.6
-          - 2.0.0
-          - 2.0.1
-          - 2.0.2
+          # ESP32 Core versions for 3D matrix
+          #- 1.0.6
+          #- 2.0.0
+          #- 2.0.1
+          #- 2.0.2
           - 2.0.3
+          - 2.0.4
+          - 2.0.5
 
         include:
           # 3D matrix doesn't apply to these:
-          - { board: seeed_wio_terminal, platform: Seeeduino, archi: samd, platform-url: 'https://files.seeedstudio.com/arduino/package_seeeduino_boards_index.json', platform-version: 1.8.2, ... }
-          - { board: 'd1_mini:eesz=4M3M,xtal=80', platform: esp8266, archi: esp8266, platform-url: 'https://arduino.esp8266.com/stable/package_esp8266com_index.json', platform-version: 3.0.1, ... }
-          - { board: 'd1_mini:eesz=4M3M,xtal=80', platform: esp8266, archi: esp8266, platform-url: 'https://arduino.esp8266.com/stable/package_esp8266com_index.json', platform-version: 3.0.2, ... }
+          - { board: 'd1_mini:eesz=4M3M,xtal=80', platform: esp8266, archi: esp8266, platform-version: 3.0.1, platform-url: 'https://arduino.esp8266.com/stable/package_esp8266com_index.json', ... }
+          - { board: 'd1_mini:eesz=4M3M,xtal=80', platform: esp8266, archi: esp8266, platform-version: 3.0.2, platform-url: 'https://arduino.esp8266.com/stable/package_esp8266com_index.json', ... }
+          - { board: seeed_wio_terminal,    platform: Seeeduino, archi: samd,    platform-version: 1.8.2, platform-url: 'https://files.seeedstudio.com/arduino/package_seeeduino_boards_index.json',  ... }
+          - { board: adafruit_hallowing,    platform: adafruit,  archi: samd, platform-version: 1.7.10, platform-url: 'https://adafruit.github.io/arduino-board-index/package_adafruit_index.json', ... }
+          - { board: adafruit_hallowing_m4, platform: adafruit,  archi: samd, platform-version: 1.7.10, platform-url: 'https://adafruit.github.io/arduino-board-index/package_adafruit_index.json', ... }
+          - { board: adafruit_pybadge_m4,   platform: adafruit,  archi: samd, platform-version: 1.7.10, platform-url: 'https://adafruit.github.io/arduino-board-index/package_adafruit_index.json', ... }
+          - { board: adafruit_pygamer_m4,   platform: adafruit,  archi: samd, platform-version: 1.7.10, platform-url: 'https://adafruit.github.io/arduino-board-index/package_adafruit_index.json', ... }
+          - { board: adafruit_feather_esp32s2_tft, platform: esp32, archi: esp32, platform-version: latest, platform-url: 'https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json', ... }
+          - { board: adafruit_feather_esp32s3_tft, platform: esp32, archi: esp32, platform-version: latest, platform-url: 'https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json', ... }
+          - { board: adafruit_funhouse_esp32s2,    platform: esp32, archi: esp32, platform-version: latest, platform-url: 'https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json', ... }
+          - { board: rpipico, platform: rp2040, archi: rp2040, platform-version: 2.3.3, cli-args: '--build-property compiler.cpp.extra_flags=-DSKIP_I2C_TEST', platform-url: 'https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json', ... }
+
           # 3D matrix applies to these:
           - { board: esp32,              platform: esp32, archi: esp32, ... }
           - { board: esp32s2,            platform: esp32, archi: esp32, ... }
@@ -56,35 +68,33 @@ jobs:
           - { board: esp32s3box,         platform: esp32, archi: esp32, ... }
 
         exclude:
-          - board: esp32s3box
-            platform-version: 1.0.6
-          - board: esp32s3box
-            platform-version: 2.0.0
-          - board: esp32s3box
-            platform-version: 2.0.1
-          - board: esp32s3box
-            platform-version: 2.0.2
-          - board: esp32s2
-            platform-version: 1.0.6
-          - board: esp32s2
-            platform-version: 2.0.0
+          # 3D matrix excludes these:
+          #- { board: esp32s3box, platform-version: 1.0.6 }
+          #- { board: esp32s3box, platform-version: 2.0.0 }
+          #- { board: esp32s3box, platform-version: 2.0.1 }
+          #- { board: esp32s3box, platform-version: 2.0.2 }
+          - { board: esp32s3box, platform-version: 2.0.4 }
+          #- { board: esp32s2,    platform-version: 1.0.6 }
+          #- { board: esp32s2,    platform-version: 2.0.0 }
+
 
       fail-fast: false
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Compile example
-        uses: ArminJo/arduino-test-compile@v3
+        uses: ArminJo/arduino-test-compile@master
         with:
           arduino-board-fqbn: ${{matrix.platform}}:${{matrix.archi}}:${{matrix.board}}
           arduino-platform: ${{matrix.platform}}:${{matrix.archi}}@${{matrix.platform-version}}
           platform-url: ${{ matrix.platform-url }}
           required-libraries: ${{ matrix.required-libraries }}
-          build-properties: ${{ toJson(matrix.build-properties) }}
+          extra-arduino-cli-args: ${{ matrix.cli-args }}
+          #build-properties: ${{ toJson(matrix.build-properties) }}
           sketch-names: ${{ env.SKETCH_NAME }}
           #sketches-exclude: ${{ matrix.sketches-exclude }}
 

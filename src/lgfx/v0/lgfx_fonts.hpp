@@ -3,6 +3,11 @@
 
 #include <stdint.h>
 
+extern "C" {
+  #pragma GCC diagnostic ignored "-Wshadow"
+  #pragma GCC diagnostic ignored "-Wdouble-promotion"
+}
+
 namespace lgfx
 {
  inline namespace v0
@@ -45,7 +50,7 @@ namespace lgfx
   };
 
   struct BaseFont : public IFont {
-    union 
+    union
     {
       const void *void_chartbl;
       const uint8_t *chartbl;
@@ -75,7 +80,7 @@ namespace lgfx
 
   struct FixedBMPfont : public BaseFont {
     constexpr FixedBMPfont(const void *chartbl, const uint8_t *widthtbl, uint8_t width, uint8_t height, uint8_t baseline) : BaseFont(chartbl, widthtbl, width, height, baseline ) {}
-    font_type_t getType(void) const override { return ft_bmp;  } 
+    font_type_t getType(void) const override { return ft_bmp;  }
 
     bool updateFontMetric(FontMetrics *metrics, uint16_t uniCode) const override;
     size_t drawChar(LGFXBase* gfx, int32_t x, int32_t y, uint16_t c, const TextStyle* style) const override;
@@ -83,7 +88,7 @@ namespace lgfx
 
   struct BMPfont : public BaseFont {
     constexpr BMPfont(const void *chartbl, const uint8_t *widthtbl, uint8_t width, uint8_t height, uint8_t baseline) : BaseFont(chartbl, widthtbl, width, height, baseline ) {}
-    font_type_t getType(void) const override { return ft_bmp;  } 
+    font_type_t getType(void) const override { return ft_bmp;  }
 
     bool updateFontMetric(FontMetrics *metrics, uint16_t uniCode) const override;
     size_t drawChar(LGFXBase* gfx, int32_t x, int32_t y, uint16_t c, const TextStyle* style) const override;
@@ -101,7 +106,7 @@ namespace lgfx
     uint8_t halfwidth;
     uint8_t y_advance;
     BDFfont() = default;
-    constexpr BDFfont(const void *chartbl, const uint16_t *indextbl, uint16_t indexsize, uint8_t width, uint8_t halfwidth, uint8_t height, uint8_t baseline, uint8_t y_advance) 
+    constexpr BDFfont(const void *chartbl, const uint16_t *indextbl, uint16_t indexsize, uint8_t width, uint8_t halfwidth, uint8_t height, uint8_t baseline, uint8_t y_advance)
      : BaseFont(chartbl, nullptr, width, height, baseline )
      , indextbl(indextbl)
      , indexsize(indexsize)
@@ -119,7 +124,7 @@ namespace lgfx
   extern const IFont* fontdata [];
 
 //----------------------------------------------------------------------------
-// Adafruit GFX font 
+// Adafruit GFX font
 
   struct EncodeRange {
     uint16_t start;
@@ -171,7 +176,7 @@ namespace lgfx
   };
 
 //----------------------------------------------------------------------------
-// u8g2 font 
+// u8g2 font
 
   struct U8g2font : public lgfx::IFont
   {
@@ -210,7 +215,7 @@ namespace lgfx
   };
 
 //----------------------------------------------------------------------------
-// VLW font 
+// VLW font
   struct DataWrapper;
 
   struct RunTimeFont : public IFont {
@@ -237,7 +242,7 @@ namespace lgfx
     DataWrapper* _fontData = nullptr;
     bool _fontLoaded = false; // Flags when a anti-aliased font is loaded
 
-    font_type_t getType(void) const override { return ft_vlw; } 
+    font_type_t getType(void) const override { return ft_vlw; }
 
     size_t drawChar(LGFXBase* gfx, int32_t x, int32_t y, uint16_t c, const TextStyle* style) const override;
 
@@ -463,5 +468,9 @@ using namespace fonts;
 using GFXfont = lgfx::GFXfont;
 using GFXglyph = lgfx::GFXglyph;
 #endif
+
+extern "C" {
+  #pragma GCC diagnostic pop
+}
 
 #endif
