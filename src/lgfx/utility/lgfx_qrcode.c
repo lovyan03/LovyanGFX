@@ -42,7 +42,7 @@
 
 #if __has_include(<alloca.h>)
 #include <alloca.h>
-#else
+#elif !defined(alloca)
 #include <malloc.h>
 #define alloca _alloca
 #endif

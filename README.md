@@ -67,6 +67,7 @@ This library has the following advantages.
     - Arduino RP2040
 
   - ディスプレイ Displays
+    - GC9107 (M5AtomS3)
     - GC9A01
     - GDEW0154M09 (M5Stack CoreInk)
     - HX8357

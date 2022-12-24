@@ -1,15 +1,12 @@
 #pragma once
 
-#if defined ( ESP_PLATFORM )
- #include <sdkconfig.h>
-#endif
-
 #define LGFX_USE_V1
 #include <LovyanGFX.hpp>
 
 #if defined ( ARDUINO )
  #include <Arduino.h>
-#elif __has_include( <sdkconfig.h> )
+#endif
+#if __has_include( <sdkconfig.h> )
  #include <sdkconfig.h>
 #endif
 

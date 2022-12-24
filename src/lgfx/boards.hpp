@@ -43,7 +43,7 @@ namespace lgfx
     , board_ESP32_S3_BOX
     , board_SDL
     , board_M5StackCoreS3
-    , board_M5AtomS3LCD
+    , board_M5AtomS3
     , board_HalloWingM0
     , board_HalloWingM4
     , board_Feather_ESP32_S2_TFT

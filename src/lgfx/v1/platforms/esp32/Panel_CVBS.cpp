@@ -883,6 +883,17 @@ namespace lgfx
       I2S0.conf.tx_start = 0;
 
       dac_i2s_disable();
+      switch (_config_detail.pin_dac)
+      {
+      default:
+        break;
+      case 25:
+        dac_output_disable(DAC_CHANNEL_1); // for GPIO 25
+        break;
+      case 26:
+        dac_output_disable(DAC_CHANNEL_2); // for GPIO 26
+        break;
+      }
 
       periph_module_disable(PERIPH_I2S0_MODULE);
 

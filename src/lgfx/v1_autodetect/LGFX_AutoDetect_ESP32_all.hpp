@@ -1017,37 +1017,35 @@ namespace lgfx
     {
 #if defined (CONFIG_IDF_TARGET_ESP32S3)
 
-      struct _detector_M5AtomS3LCD_t : public _detector_spi_t
+      struct _detector_M5AtomS3_t : public _detector_spi_t
       {
-        constexpr _detector_M5AtomS3LCD_t(void) :
+        constexpr _detector_M5AtomS3_t(void) :
         _detector_spi_t
-        { board_t::board_M5AtomS3LCD
+        { board_t::board_M5AtomS3
         , 0x04, 0xFFFFFF, 0x079100  // GC9107
         , 40000000, 16000000
         , GPIO_NUM_21     // MOSI
         , GPIO_NUM_13     // MISO
-        , GPIO_NUM_16     // SCLK
+        , GPIO_NUM_17     // SCLK
         , GPIO_NUM_33     // DC
         , GPIO_NUM_15     // CS
         , GPIO_NUM_34     // RST
         , (gpio_num_t)-1  // TF CARD CS
         , 0               // SPI MODE
         , true            // SPI 3wire
-        , SPI2_HOST       // SPI HOST
+        , SPI3_HOST       // SPI HOST
         } {}
 
         void setup(_detector_result_t* param) const override
         {
-          ESP_LOGI(LIBRARY_NAME, "[Autodetect] M5AtomS3LCD");
+          ESP_LOGI(LIBRARY_NAME, "[Autodetect] M5AtomS3");
           auto p = new Panel_GC9107();
           param->panel = p;
-          p->light(_create_pwm_backlight(GPIO_NUM_18, 7, 240)); /// AtomS3LCDのバックライトはPWM周期が速いと点灯しない;
+          p->light(_create_pwm_backlight(GPIO_NUM_16, 7, 240)); /// AtomS3のバックライトはPWM周期が速いと点灯しない;
 
           {
             auto cfg = p->config();
-            // cfg.pin_cs  = GPIO_NUM_15;
-            // cfg.pin_rst = GPIO_NUM_34;
-        // cfg.panel_width = 128;
+            cfg.panel_width = 128;
             cfg.panel_height = 128;
             cfg.offset_y = 32;
             p->config(cfg);
@@ -2906,7 +2904,7 @@ namespace lgfx
         , GPIO_NUM_22     // RST
         , (gpio_num_t)-1  // TF CARD CS
         , 0               // SPI MODE
-        , true           // SPI 3wire
+        , true            // SPI 3wire
         , HSPI_HOST       // SPI HOST
         } {}
 
@@ -2938,6 +2936,7 @@ namespace lgfx
             auto cfg = p->config();
             // cfg.pin_cs  = GPIO_NUM_15;
             // cfg.pin_rst = GPIO_NUM_22;
+            cfg.readable  = false;
             cfg.bus_shared = false;
             p->config(cfg);
             p->light(_create_pwm_backlight(GPIO_NUM_23, 7));
@@ -3002,7 +3001,7 @@ namespace lgfx
 
 #if defined (CONFIG_IDF_TARGET_ESP32S3)
 
-      static constexpr const _detector_M5AtomS3LCD_t                             detector_M5AtomS3LCD;
+      static constexpr const _detector_M5AtomS3_t                                detector_M5AtomS3;
       static constexpr const _detector_M5StackCoreS3_t                           detector_M5StackCoreS3;
       static constexpr const _detector_ESP32_S3_BOX_t                            detector_ESP32_S3_BOX;
       static constexpr const _detector_ESP32_S3_BOX_Lite_t                       detector_ESP32_S3_BOX_Lite;
@@ -3017,7 +3016,7 @@ namespace lgfx
       {
 
 #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_M5ATOM_S3LCD )
-        &detector_M5AtomS3LCD,
+        &detector_M5AtomS3,
 #endif
 #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_M5STACK_CORES3 )
         &detector_M5StackCoreS3,

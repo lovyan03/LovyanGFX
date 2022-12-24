@@ -327,11 +327,11 @@ namespace lgfx
 
 #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_M5ATOM_S3LCD )
 
-      if (board == 0 || board == board_t::board_M5AtomS3LCD)
+      if (board == 0 || board == board_t::board_M5AtomS3)
       {
         bus_cfg.pin_mosi = GPIO_NUM_21;
         bus_cfg.pin_miso = GPIO_NUM_13;
-        bus_cfg.pin_sclk = GPIO_NUM_16;
+        bus_cfg.pin_sclk = GPIO_NUM_17;
         bus_cfg.pin_dc   = GPIO_NUM_33;
         bus_cfg.spi_mode = 0;
         bus_cfg.spi_3wire = true;
@@ -341,8 +341,8 @@ namespace lgfx
         id = _read_panel_id(&_bus_spi, GPIO_NUM_15);
         if ((id & 0xFFFFFF) == 0x079100)
         {  //  check panel (GC9107)
-          board = board_t::board_M5AtomS3LCD;
-          ESP_LOGW(LIBRARY_NAME, "[Autodetect] board_M5AtomS3LCD");
+          board = board_t::board_M5AtomS3;
+          ESP_LOGW(LIBRARY_NAME, "[Autodetect] board_M5AtomS3");
           bus_cfg.freq_write = 40000000;
           bus_cfg.freq_read  = 16000000;
           _bus_spi.config(bus_cfg);
@@ -358,7 +358,7 @@ namespace lgfx
             p->config(cfg);
           }
           _panel_last = p;
-          _set_pwm_backlight(GPIO_NUM_18, 7, 240); /// AtomS3LCDのバックライトはPWM周期が速いと点灯しない;
+          _set_pwm_backlight(GPIO_NUM_16, 7, 240); /// AtomS3のバックライトはPWM周期が速いと点灯しない;
 
           goto init_clear;
         }
