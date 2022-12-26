@@ -22,7 +22,7 @@ jobs:
           days-before-stale: 30
           days-before-close: 7
           exempt-issue-labels: 'pinned'
-          exempt-pr-labels: 'awaiting-approval,work-in-progress'
+          exempt-pr-labels: 'device support request,bug'
           remove-stale-when-updated: true
           close-issue-message: 'This issue has been automatically closed because it has not had recent activity. Thank you for your contributions.'
           close-pr-message: 'This pull request has been automatically closed because it has not had recent activity. Thank you for your contributions.'
