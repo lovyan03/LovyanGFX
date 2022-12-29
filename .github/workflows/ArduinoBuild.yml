@@ -44,6 +44,7 @@ jobs:
           - 2.0.3
           - 2.0.4
           - 2.0.5
+          - 2.0.6
 
         include:
           # 3D matrix doesn't apply to these:
