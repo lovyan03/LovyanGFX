@@ -535,6 +535,7 @@ namespace lgfx
     uint_fast8_t shift0 = odd << 3;
     uint_fast8_t shift1 = shift0 ^ 8;
     int diff = (ratio_6 + ratio_5) >> 1;
+    auto pl = p + 256;
 
     src_length = (src_length + 1) >> 1;
     while (src_length--)
@@ -543,15 +544,13 @@ namespace lgfx
       uint32_t p1h = s[2];
       uint32_t p0l = s[1];
       uint32_t p0h = s[0];
-      p1l += 256;
-      p0l += 256;
-      p0h = p[p0h];
-      p0l = p[p0l];
-      p1h = p[p1h];
-      p1l = p[p1l];
+      p1l = pl[p1l];
+      p1h = p [p1h];
+      p0l = pl[p0l];
+      p0h = p [p0h];
       s += 4;
-      uint32_t color0 = p0h + p0l;
       uint32_t color1 = p1h + p1l;
+      uint32_t color0 = p0h + p0l;
 
       if (diff < 0)
       {
@@ -579,7 +578,7 @@ namespace lgfx
   }
 
   // x5 ~ x6
-  void IRAM_ATTR blit_x50_x60(uint32_t* __restrict d, const uint8_t* s, size_t src_length, const uint32_t* p, bool odd, int ratio_5, int ratio_6)
+  void IRAM_ATTR blit_x50_x60_332(uint32_t* __restrict d, const uint8_t* s, size_t src_length, const uint32_t* p, bool odd, int ratio_5, int ratio_6)
   {
     uint_fast8_t shift0 = odd << 3;
     uint_fast8_t shift1 = shift0 ^ 8;
@@ -624,6 +623,7 @@ namespace lgfx
     uint_fast8_t shift0 = odd << 3;
     uint_fast8_t shift1 = shift0 ^ 8;
     int diff = (ratio_5 + ratio_4) >> 1;
+    auto pl = p + 256;
 
     src_length = (src_length + 1) >> 1;
     while (src_length--)
@@ -632,15 +632,13 @@ namespace lgfx
       uint32_t p1h = s[2];
       uint32_t p0l = s[1];
       uint32_t p0h = s[0];
-      p1l += 256;
-      p0l += 256;
-      p0h = p[p0h];
-      p0l = p[p0l];
-      p1h = p[p1h];
-      p1l = p[p1l];
+      p1l = pl[p1l];
+      p1h = p [p1h];
+      p0l = pl[p0l];
+      p0h = p [p0h];
       s += 4;
-      uint32_t color0 = p0h + p0l;
       uint32_t color1 = p1h + p1l;
+      uint32_t color0 = p0h + p0l;
 
       if (diff < 0)
       {
@@ -668,7 +666,7 @@ namespace lgfx
   }
 
   // x4 ~ x5
-  void IRAM_ATTR blit_x40_x50(uint32_t* __restrict d, const uint8_t* s, size_t src_length, const uint32_t* p, bool odd, int ratio_4, int ratio_5)
+  void IRAM_ATTR blit_x40_x50_332(uint32_t* __restrict d, const uint8_t* s, size_t src_length, const uint32_t* p, bool odd, int ratio_4, int ratio_5)
   {
     uint_fast8_t shift0 = odd << 3;
     uint_fast8_t shift1 = shift0 ^ 8;
@@ -713,6 +711,7 @@ namespace lgfx
     uint_fast8_t shift0 = odd << 3;
     uint_fast8_t shift1 = shift0 ^ 8;
     int diff = (ratio_4 + ratio_3) >> 1;
+    auto pl = p + 256;
 
     src_length = (src_length + 1) >> 1;
     while (src_length--)
@@ -721,15 +720,13 @@ namespace lgfx
       uint32_t p1h = s[2];
       uint32_t p0l = s[1];
       uint32_t p0h = s[0];
-      p1l += 256;
-      p0l += 256;
-      p0h = p[p0h];
-      p0l = p[p0l];
-      p1h = p[p1h];
-      p1l = p[p1l];
+      p1l = pl[p1l];
+      p1h = p [p1h];
+      p0l = pl[p0l];
+      p0h = p [p0h];
       s += 4;
-      uint32_t color0 = p0h + p0l;
       uint32_t color1 = p1h + p1l;
+      uint32_t color0 = p0h + p0l;
 
       if (diff < 0)
       {
@@ -754,7 +751,7 @@ namespace lgfx
   }
 
   // x3 ~ x4
-  void IRAM_ATTR blit_x30_x40(uint32_t* __restrict d, const uint8_t* s, size_t src_length, const uint32_t* p, bool odd, int ratio_3, int ratio_4)
+  void IRAM_ATTR blit_x30_x40_332(uint32_t* __restrict d, const uint8_t* s, size_t src_length, const uint32_t* p, bool odd, int ratio_3, int ratio_4)
   {
     uint_fast8_t shift0 = odd << 3;
     uint_fast8_t shift1 = shift0 ^ 8;
@@ -796,6 +793,7 @@ namespace lgfx
     uint_fast8_t shift0 = odd << 3;
     uint_fast8_t shift1 = shift0 ^ 8;
     int diff = (ratio_3 + ratio_2) >> 1;
+    auto pl = p + 256;
 
     src_length = (src_length + 1) >> 1;
     while (src_length--)
@@ -804,15 +802,13 @@ namespace lgfx
       uint32_t p1h = s[2];
       uint32_t p0l = s[1];
       uint32_t p0h = s[0];
-      p1l += 256;
-      p0l += 256;
-      p0h = p[p0h];
-      p0l = p[p0l];
-      p1h = p[p1h];
-      p1l = p[p1l];
+      p1l = pl[p1l];
+      p1h = p [p1h];
+      p0l = pl[p0l];
+      p0h = p [p0h];
       s += 4;
-      uint32_t color0 = p0h + p0l;
       uint32_t color1 = p1h + p1l;
+      uint32_t color0 = p0h + p0l;
 
       if (diff < 0)
       {
@@ -836,7 +832,7 @@ namespace lgfx
   }
 
   // x2 ~ x3
-  void IRAM_ATTR blit_x20_x30(uint32_t* __restrict d, const uint8_t* s, size_t src_length, const uint32_t* p, bool odd, int ratio_2, int ratio_3)
+  void IRAM_ATTR blit_x20_x30_332(uint32_t* __restrict d, const uint8_t* s, size_t src_length, const uint32_t* p, bool odd, int ratio_2, int ratio_3)
   {
     uint_fast8_t shift0 = odd << 3;
     uint_fast8_t shift1 = shift0 ^ 8;
@@ -872,7 +868,64 @@ namespace lgfx
   }
 
   // x1.5~x2.0
-  void IRAM_ATTR blit_x15_x20(uint32_t* __restrict d, const uint8_t* s, size_t src_length, const uint32_t* p, bool odd, int ratio_15, int ratio_20)
+  void IRAM_ATTR blit_x15_x20_565(uint32_t* __restrict d, const uint8_t* s, size_t src_length, const uint32_t* p, bool odd, int ratio_15, int ratio_20)
+  {
+    uint_fast8_t shift0 = odd << 3;
+    uint_fast8_t shift1 = shift0 ^ 8;
+    int diff = (ratio_20 + ratio_15) >> 1;
+    auto pl = p + 256;
+
+    src_length = (src_length + 3) >> 2;
+    while (src_length--)
+    {
+      uint32_t p3l = s[7];
+      uint32_t p3h = s[6];
+      uint32_t p2l = s[5];
+      uint32_t p2h = s[4];
+      p3l = pl[p3l];
+      p3h = p [p3h];
+      p2l = pl[p2l];
+      p2h = p [p2h];
+      uint32_t color3 = p3h + p3l;
+
+      uint32_t p1l = s[3];
+      uint32_t p1h = s[2];
+      uint32_t color2 = p2h + p2l;
+      uint32_t p0h = s[0];
+      uint32_t p0l = s[1];
+      p1l = pl[p1l];
+      p1h = p [p1h];
+      p0l = pl[p0l];
+      p0h = p [p0h];
+      s += 8;
+      uint32_t color1 = p1h + p1l;
+      uint32_t color0 = p0h + p0l;
+
+      if (diff < 0)
+      {
+        diff += ratio_15;
+        color1 = ((color1 & 0xFFFF0000) + (color2 & 0xFFFF));
+        color2 = ((color2 & 0xFFFF0000) + (color3 & 0xFFFF));
+        d[0] = color0 << shift0;
+        d[2] = color2 << shift0;
+        d[1] = color1 << shift1;
+        d += 3;
+        std::swap(shift0, shift1);
+      }
+      else
+      {
+        diff += ratio_20;
+        d[0] = color0 << shift0;
+        d[2] = color2 << shift0;
+        d[1] = color1 << shift1;
+        d[3] = color3 << shift1;
+        d += 4;
+      }
+    }
+  }
+
+  // x1.5~x2.0
+  void IRAM_ATTR blit_x15_x20_332(uint32_t* __restrict d, const uint8_t* s, size_t src_length, const uint32_t* p, bool odd, int ratio_15, int ratio_20)
   {
     uint_fast8_t shift0 = odd << 3;
     uint_fast8_t shift1 = shift0 ^ 8;
@@ -914,7 +967,68 @@ namespace lgfx
   }
 
   // x1.0~x1.5
-  void IRAM_ATTR blit_x10_x15(uint32_t* __restrict d, const uint8_t* s, size_t src_length, const uint32_t* p, bool odd, int ratio_10, int ratio_15)
+  void IRAM_ATTR blit_x10_x15_565(uint32_t* __restrict d, const uint8_t* s, size_t src_length, const uint32_t* p, bool odd, int ratio_10, int ratio_15)
+  {
+    uint_fast8_t shift0 = odd << 3;
+    uint_fast8_t shift1 = shift0 ^ 8;
+    int diff = (ratio_15 + ratio_10) >> 1;
+    auto pl = p + 256;
+
+    src_length = (src_length + 3) >> 2;
+    while (src_length--)
+    {
+      uint32_t p3l = s[7];
+      uint32_t p3h = s[6];
+      uint32_t p2l = s[5];
+      uint32_t p2h = s[4];
+      p3l = pl[p3l];
+      p3h = p [p3h];
+      p2l = pl[p2l];
+      p2h = p [p2h];
+      uint32_t color3 = p3h + p3l;
+
+      uint32_t p1l = s[3];
+      uint32_t p1h = s[2];
+      uint32_t color2 = p2h + p2l;
+      uint32_t p0h = s[0];
+      uint32_t p0l = s[1];
+      p1l = pl[p1l];
+      p1h = p [p1h];
+      p0l = pl[p0l];
+      p0h = p [p0h];
+      s += 8;
+      uint32_t color1 = p1h + p1l;
+      uint32_t color0 = p0h + p0l;
+
+      if (diff < 0)
+      {
+        diff += ratio_10;
+        color0 &= 0xFFFF0000;
+        color2 &= 0xFFFF0000;
+        color1 &= 0xFFFF;
+        color3 &= 0xFFFF;
+        color0 = (color0 + color1) << shift0;
+        color2 = (color2 + color3) << shift1;
+        d[0] = color0;
+        d[1] = color2;
+        d += 2;
+      }
+      else
+      {
+        diff += ratio_15;
+        color1 = ((color1 & 0xFFFF0000) + (color2 & 0xFFFF));
+        color2 = ((color2 & 0xFFFF0000) + (color3 & 0xFFFF));
+        d[0] = color0 << shift0;
+        d[2] = color2 << shift0;
+        d[1] = color1 << shift1;
+        d += 3;
+        std::swap(shift0, shift1);
+      }
+    }
+  }
+
+  // x1.0~x1.5
+  void IRAM_ATTR blit_x10_x15_332(uint32_t* __restrict d, const uint8_t* s, size_t src_length, const uint32_t* p, bool odd, int ratio_10, int ratio_15)
   {
     uint_fast8_t shift0 = odd << 3;
     uint_fast8_t shift1 = shift0 ^ 8;
@@ -1228,20 +1342,20 @@ namespace lgfx
       /// 表示倍率に応じて出力データ生成関数を変更する;
       static constexpr void (*fp_tbl_332[])(uint32_t*, const uint8_t*, size_t, const uint32_t*, bool, int, int) =
       {
-        blit_x10_x15,
-        blit_x15_x20,
-        blit_x20_x30,
-        blit_x20_x30,
-        blit_x30_x40,
-        blit_x30_x40,
-        blit_x40_x50,
-        blit_x40_x50,
-        blit_x50_x60
+        blit_x10_x15_332,
+        blit_x15_x20_332,
+        blit_x20_x30_332,
+        blit_x20_x30_332,
+        blit_x30_x40_332,
+        blit_x30_x40_332,
+        blit_x40_x50_332,
+        blit_x40_x50_332,
+        blit_x50_x60_332
       };
       static constexpr void (*fp_tbl_565[])(uint32_t*, const uint8_t*, size_t, const uint32_t*, bool, int, int) =
       {
-        blit_x10_x15,
-        blit_x15_x20,
+        blit_x10_x15_565,
+        blit_x15_x20_565,
         blit_x20_x30_565,
         blit_x20_x30_565,
         blit_x30_x40_565,
