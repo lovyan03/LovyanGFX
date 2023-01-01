@@ -171,7 +171,7 @@ namespace lgfx
     uint8_t** lines = nullptr;        // フレームバッファ配列ポインタ;
     uint16_t* allocated_list = nullptr;  // フレームバッファのalloc割当対象のインデクス番号(free時に使用);
     uint32_t* palette = nullptr;   // RGB332から波形に変換するためのテーブル;
-    void (*fp_blit)(uint32_t*, const uint32_t*, const uint32_t*, const uint32_t*, bool, int, int);
+    void (*fp_blit)(uint32_t*, const uint8_t*, size_t, const uint32_t*, bool, int, int);
     uint32_t burst_wave[2];       // カラーバースト信号の波形データ(EVENとODDで２通り)
     intr_handle_t isr_handle = nullptr;
     lldesc_t dma_desc[2];
@@ -189,6 +189,7 @@ namespace lgfx
     uint16_t WHITE_LEVEL;
     uint8_t burst_shift = 0;        // カラーバースト信号の反転・位相ずらし処理状態保持用;
     uint8_t use_psram = 0;          // フレームバッファ PSRAM使用モード 0=不使用 / 1=半分PSRAM / 2=全部PSRAM
+    uint8_t pixel_per_bytes = 1;
     static constexpr uint8_t SYNC_LEVEL = 0;
   };
 
@@ -196,58 +197,71 @@ namespace lgfx
   static internal_t internal;
 
 
-  static void setup_palette_ntsc(uint32_t* palette, uint_fast16_t white_level, uint_fast16_t black_level, uint_fast8_t chroma_level)
+  static uint32_t setup_palette_ntsc_inner(uint32_t rgb, uint32_t diff_level, uint32_t base_level, float satuation_base, float chroma_scale)
   {
-    uint8_t buf[4];
-
 // NTSCの I・Q信号は基準位相から-147度ずれている。;
 // 加えて、このライブラリのburst_waveの位相基準は-45度となっている。;
 // この両者を合わせて 147+45=192 を引いた値が基準位相となる。;
 // つまり 360-192 = 168度を基準とする。;
     static constexpr float BASE_RAD = (M_PI * 168) / 180; // 2.932153;
+    uint8_t buf[4];
 
-    float chroma_scale = chroma_level / 7168.0f;
+    uint32_t r = rgb >> 16;
+    uint32_t g = (rgb >> 8) & 0xFF;
+    uint32_t b = rgb & 0xFF;
 
-    for (int rgb332 = 0; rgb332 < 256; ++rgb332)
+    float y = r * 0.299f + g * 0.587f + b * 0.114f;
+    float i = (b - y) * -0.2680f + (r - y) * 0.7358f;
+    float q = (b - y) *  0.4127f + (r - y) * 0.4778f;
+    y = y * diff_level / 256 + base_level;
+
+    float phase_offset = atan2f(i, q) + BASE_RAD;
+    float saturation = sqrtf(i * i + q * q) * chroma_scale;
+    saturation = saturation * satuation_base;
+    for (int j = 0; j < 4; j++)
     {
-      int r = (( rgb332 >> 5)         * 0x49) >> 1;
-      int g = (((rgb332 >> 2) & 0x07) * 0x49) >> 1;
-      int b = (( rgb332       & 0x03) * 0x55);
+      int tmp = ((int)(128.5f + y + sinf(phase_offset + (float)M_PI / 2 * j) * saturation)) >> 8;
+      buf[j] = tmp < 0 ? 0 : tmp > 255 ? 255 : tmp;
+    }
+    // I2Sに渡す際に処理負荷を軽減できるよう、予めバイトスワップ等を行ったテーブルを作成しておく;
+    return buf[0] << 24
+          | buf[1] <<  8
+          | buf[2] << 16
+          | buf[3] <<  0
+          ;
+  }
 
-      float y = r * 0.299f + g * 0.587f + b * 0.114f;
-      float i = (b - y) * -0.2680f + (r - y) * 0.7358f;
-      float q = (b - y) *  0.4127f + (r - y) * 0.4778f;
-      y = y / 255 * (white_level - black_level) + black_level;
+  static void setup_palette_ntsc_565(uint32_t* palette, uint_fast16_t white_level, uint_fast16_t black_level, uint_fast8_t chroma_level)
+  {
+    float chroma_scale = chroma_level / 7168.0f;
+    float satuation_base = black_level / 2;
+    uint32_t diff_level = white_level - black_level;
 
-      {
-        float phase_offset = atan2f(i, q) + BASE_RAD;
-        float saturation = sqrtf(i * i + q * q) * chroma_scale;
-        saturation = saturation * black_level / 2;
-        for (int j = 0; j < 4; j++)
-        {
-          int tmp = ((int)roundf(y + sinf(phase_offset + (float)M_PI / 2 * j) * saturation)) >> 8;
-          buf[j] = tmp < 0 ? 0 : tmp > 255 ? 255 : tmp;
-        }
-        // I2Sに渡す際に処理負荷を軽減できるよう、予めバイトスワップ等を行ったテーブルを作成しておく;
-        palette[rgb332] = buf[0] << 24
-                        | buf[1] <<  8
-                        | buf[2] << 16
-                        | buf[3] <<  0
-                        ;
+    uint32_t base_level = black_level / 2;
+    for (int idx = 0; idx < 256; ++idx)
+    {
+      { // RGB565の上位1Byteに対するテーブル
+        int r = (idx >> 3);
+        int g = (idx & 7) << 3;
+        r = (r * 0x21) >> 2;
+        g = (g * 0x41) >> 4;
+        palette[idx] = setup_palette_ntsc_inner(r<<16|g<<8, diff_level, base_level, satuation_base, chroma_scale);
+      }
+      { // RGB565の下位1Byteに対するテーブル
+        int g = idx >> 5;
+        int b = idx & 0x1F;
+        b = (b * 0x21) >> 2;
+        g = (g * 0x41) >> 4;
+        palette[idx + 256] = setup_palette_ntsc_inner(g<<8|b, diff_level, base_level, satuation_base, chroma_scale);
       }
     }
   }
 
-  static void setup_palette_pal(uint32_t* palette, uint_fast16_t white_level, uint_fast16_t black_level, uint_fast8_t chroma_level)
+  static void setup_palette_ntsc_332(uint32_t* palette, uint_fast16_t white_level, uint_fast16_t black_level, uint_fast8_t chroma_level)
   {
-    auto e = palette;
-    auto o = &palette[256];
-
-    uint8_t e_buf[4];
-    uint8_t o_buf[4];
-    float chroma_scale = black_level * chroma_level / 14336.0f;
-
-    static constexpr const int8_t sin_tbl[5] = { 0, -1, 0, 1, 0 };
+    float chroma_scale = chroma_level / 7168.0f;
+    float satuation_base = black_level / 2;
+    uint32_t diff_level = white_level - black_level;
 
     for (int rgb332 = 0; rgb332 < 256; ++rgb332)
     {
@@ -255,33 +269,96 @@ namespace lgfx
       int g = (((rgb332 >> 2) & 0x07) * 0x49) >> 1;
       int b = (( rgb332       & 0x03) * 0x55);
 
-      float y = r * 0.299f + g * 0.587f + b * 0.114f;
-      float u = -0.147407 * r - 0.289391 * g + 0.436798 * b;
-      float v =  0.614777 * r - 0.514799 * g - 0.099978 * b;
-      y = (y / 255 * (white_level - black_level) + black_level);
-      u *= chroma_scale;
-      v *= chroma_scale;
+      palette[rgb332] = setup_palette_ntsc_inner(r<<16|g<<8|b, diff_level, black_level, satuation_base, chroma_scale);
+    }
+  }
 
-      for (int j = 0; j < 4; j++)
-      {
-        float s = u * sin_tbl[j    ];
-        float c = v * sin_tbl[j + 1]; // cos
-        int tmp = ((int)roundf(y + s + c)) >> 8;
-        e_buf[j] = tmp < 0 ? 0 : tmp > 255 ? 255 : tmp;
-        tmp = ((int)roundf(y + s - c)) >> 8;
-        o_buf[j] = tmp < 0 ? 0 : tmp > 255 ? 255 : tmp;
+  static void setup_palette_pal_inner(uint8_t *result, uint32_t rgb, int diff_level, float base_level, float chroma_scale)
+  {
+    static constexpr const int8_t sin_tbl[5] = { 0, -1, 0, 1, 0 };
+
+    // I2Sに渡す際に処理負荷を軽減できるよう、予めバイトスワップされたテーブルを作成するため、インデクス順を入れ替える
+    static constexpr const int8_t idx_tbl[4] = { 3, 1, 2, 0 };
+    uint32_t r = rgb >> 16;
+    uint32_t g = (rgb >> 8) & 0xFF;
+    uint32_t b = rgb & 0xFF;
+
+    float y = r * 0.299f + g * 0.587f + b * 0.114f;
+    float u = -0.147407 * r - 0.289391 * g + 0.436798 * b;
+    float v =  0.614777 * r - 0.514799 * g - 0.099978 * b;
+    y = y * diff_level / 256 + base_level;
+    u *= chroma_scale;
+    v *= chroma_scale;
+
+    for (int j = 0; j < 4; j++)
+    {
+      float s = u * sin_tbl[j    ];
+      float c = v * sin_tbl[j + 1]; // cos
+      int tmp = ((int)(128.5f + y + s + c)) >> 8;
+      int i = idx_tbl[j];
+      result[i  ] = tmp < 0 ? 0 : tmp > 255 ? 255 : tmp;
+      tmp = ((int)(128.5f + y + s - c)) >> 8;
+      result[i+4] = tmp < 0 ? 0 : tmp > 255 ? 255 : tmp;
+    }
+  }
+
+  static void setup_palette_pal_565(uint32_t* palette, uint_fast16_t white_level, uint_fast16_t black_level, uint_fast8_t chroma_level)
+  {
+    auto e = palette;
+    auto o = &palette[512];
+
+    uint32_t result_buf[2];
+    float chroma_scale = black_level * chroma_level / 14336.0f;
+
+    int32_t diff_level = white_level - black_level;
+    float base_level = (float)black_level / 2;
+    for (int idx = 0; idx < 256; ++idx)
+    {
+      { // RGB565の上位1Byteに対するテーブル
+        int r = (idx >> 3);
+        int g = (idx & 7) << 3;
+        r = (r * 0x21) >> 2;
+        g = (g * 0x41) >> 4;
+
+        setup_palette_pal_inner((uint8_t*)result_buf, r<<16|g<<8, diff_level, base_level, chroma_scale);
+        e[idx] = result_buf[0];
+        o[idx] = result_buf[1];
       }
-      // I2Sに渡す際に処理負荷を軽減できるよう、予めバイトスワップ等を行ったテーブルを作成しておく;
-      e[rgb332] = e_buf[0] << 24
-                | e_buf[1] <<  8
-                | e_buf[2] << 16
-                | e_buf[3] <<  0
-                ;
-      o[rgb332] = o_buf[0] << 24
-                | o_buf[1] <<  8
-                | o_buf[2] << 16
-                | o_buf[3] <<  0
-                ;
+      { // RGB565の下位1Byteに対するテーブル
+        int g = idx >> 5;
+        int b = idx & 0x1F;
+        b = (b * 0x21) >> 2;
+        g = (g * 0x41) >> 4;
+
+        setup_palette_pal_inner((uint8_t*)result_buf, g<<8|b, diff_level, base_level, chroma_scale);
+        e[idx + 256] = result_buf[0];
+        o[idx + 256] = result_buf[1];
+      }
+    }
+
+  }
+
+  static void setup_palette_pal_332(uint32_t* palette, uint_fast16_t white_level, uint_fast16_t black_level, uint_fast8_t chroma_level)
+  {
+    auto e = palette;
+    auto o = &palette[256];
+
+    uint32_t result_buf[2];
+    float chroma_scale = black_level * chroma_level / 14336.0f;
+
+    int32_t diff_level = white_level - black_level;
+    float base_level = (float)black_level;
+
+    for (int rgb332 = 0; rgb332 < 256; ++rgb332)
+    {
+      int r = (( rgb332 >> 5)         * 0x49) >> 1;
+      int g = (((rgb332 >> 2) & 0x07) * 0x49) >> 1;
+      int b = (( rgb332       & 0x03) * 0x55);
+
+      setup_palette_pal_inner((uint8_t*)result_buf, r<<16|g<<8|b, diff_level, base_level, chroma_scale);
+
+      e[rgb332] = result_buf[0];
+      o[rgb332] = result_buf[1];
     }
   }
 
@@ -395,7 +472,8 @@ namespace lgfx
 
   struct signal_setup_info_t
   {
-    void (*setup_palette)(uint32_t*, uint_fast16_t, uint_fast16_t, uint_fast8_t); // パレット生成関数のポインタ;
+    void (*setup_palette_332)(uint32_t*, uint_fast16_t, uint_fast16_t, uint_fast8_t); // RGB332用パレット生成関数のポインタ;
+    void (*setup_palette_565)(uint32_t*, uint_fast16_t, uint_fast16_t, uint_fast8_t); // RGB565用パレット生成関数のポインタ;
     uint32_t apll_sdm;            // apllのクロック設定;
     uint16_t blanking_mv;         // SYNCレベルとBLANKINGレベルの電圧差 mV
     uint16_t black_mv;            // SYNCレベルと黒レベルの電圧差 mV
@@ -405,7 +483,8 @@ namespace lgfx
 
   static constexpr const signal_setup_info_t signal_setup_info_list[]
   { // NTSC
-    { setup_palette_ntsc
+    { setup_palette_ntsc_332
+    , setup_palette_ntsc_565
     , 0x049748    // 14.318237 // 映像に縞模様ノイズが出にくい;  ( 0x049746 = 14.318181 // 要求仕様に近い )
     , 286         // 286mV = 0IRE
     , 340         // 340mV = 7.5IRE  米国仕様では黒レベルは 7.5IRE
@@ -413,7 +492,8 @@ namespace lgfx
     , 1           // パレット数は256
     }
   , // NTSC_J
-    { setup_palette_ntsc
+    { setup_palette_ntsc_332
+    , setup_palette_ntsc_565
     , 0x049748    // 14.318237 // 映像に縞模様ノイズが出にくい;  ( 0x049746 = 14.318181 // 要求仕様に近い )
     , 286         // 286mV = 0IRE
     , 286         // 286mV = 0IRE  日本仕様では黒レベルは 0IRE
@@ -421,7 +501,8 @@ namespace lgfx
     , 1           // パレット数は256
     }
   , // PAL
-    { setup_palette_pal
+    { setup_palette_pal_332
+    , setup_palette_pal_565
     , 0x06A404    // 17.734476mhz ~4x
     , 300
     , 300
@@ -429,7 +510,8 @@ namespace lgfx
     , 2           // パレット数は512
     }
   , // PAL_M
-    { setup_palette_pal
+    { setup_palette_pal_332
+    , setup_palette_pal_565
     , 0x0494DA
     , 300
     , 300
@@ -437,7 +519,8 @@ namespace lgfx
     , 2           // パレット数は512
     }
   , // PAL_N
-    { setup_palette_pal
+    { setup_palette_pal_332
+    , setup_palette_pal_565
     , 0x498D1    // 17.734476mhz ~4x
     , 300
     , 300
@@ -447,264 +530,434 @@ namespace lgfx
   };
 
   // x5 ~ x6
-  void IRAM_ATTR blit_x50_x60(uint32_t* __restrict d, const uint32_t* s, const uint32_t* s_end, const uint32_t* p, bool odd, int ratio_5, int ratio_6)
+  void IRAM_ATTR blit_x50_x60_565(uint32_t* __restrict d, const uint8_t* s, size_t src_length, const uint32_t* p, bool odd, int ratio_5, int ratio_6)
   {
-    --d;
-
     uint_fast8_t shift0 = odd << 3;
     uint_fast8_t shift1 = shift0 ^ 8;
     int diff = (ratio_6 + ratio_5) >> 1;
-    do
+
+    src_length = (src_length + 1) >> 1;
+    while (src_length--)
     {
-      uint32_t c = *s;
-      for (int i = 0; i < 2; ++i)
+      uint32_t p1l = s[3];
+      uint32_t p1h = s[2];
+      uint32_t p0l = s[1];
+      uint32_t p0h = s[0];
+      p1l += 256;
+      p0l += 256;
+      p0h = p[p0h];
+      p0l = p[p0l];
+      p1h = p[p1h];
+      p1l = p[p1l];
+      s += 4;
+      uint32_t color0 = p0h + p0l;
+      uint32_t color1 = p1h + p1l;
+
+      if (diff < 0)
       {
-        uint32_t color0 = p[c & 0xFF]; c >>= 8;
-        uint32_t color1 = p[c & 0xFF]; c >>= 8;
-        uint32_t c00 = color0 << shift0;
-        uint32_t c01 = color0 << shift1;
-        uint32_t c10 = color1 << shift0;
-        uint32_t c11 = color1 << shift1;
-        *++d = c00;
-        *++d = c01;
-        if (diff < 0)
-        {
-          diff += ratio_6;
-          *++d = (c00 & 0xFFFF0000) + (c10 & 0xFFFF);
-          *++d = c11;
-          *++d = c10;
-          std::swap(shift0, shift1);
-        }
-        else
-        {
-          diff += ratio_5;
-          *++d = c00;
-          *++d = c11;
-          *++d = c10;
-          *++d = c11;
-        }
+        diff += ratio_5;
+        d[1] = color0 << shift1;
+        d[3] = color1 << shift1;
+        d[0] = color0 <<= shift0;
+        d[4] = color1 <<= shift0;
+        d[2] = (color0 & 0xFFFF0000) + (color1 & 0xFFFF);
+        d += 5;
+        std::swap(shift0, shift1);
       }
-    } while (++s < s_end);
+      else
+      {
+        diff += ratio_6;
+        d[1] = color0 << shift1;
+        d[3] = color1 << shift1;
+        d[5] = color1 << shift1;
+        d[4] = color1 << shift0;
+        d[0] = color0 << shift0;
+        d[2] = color0 << shift0;
+        d += 6;
+      }
+    }
+  }
+
+  // x5 ~ x6
+  void IRAM_ATTR blit_x50_x60(uint32_t* __restrict d, const uint8_t* s, size_t src_length, const uint32_t* p, bool odd, int ratio_5, int ratio_6)
+  {
+    uint_fast8_t shift0 = odd << 3;
+    uint_fast8_t shift1 = shift0 ^ 8;
+    int diff = (ratio_6 + ratio_5) >> 1;
+
+    src_length = (src_length + 1) >> 1;
+    while (src_length--)
+    {
+      auto p0 = s[0];
+      auto p1 = s[1];
+      s += 2;
+      uint32_t color0 = p[p0];
+      uint32_t color1 = p[p1];
+      if (diff < 0)
+      {
+        diff += ratio_5;
+        d[1] = color0 << shift1;
+        d[3] = color1 << shift1;
+        d[0] = color0 <<= shift0;
+        d[4] = color1 <<= shift0;
+        d[2] = (color0 & 0xFFFF0000) + (color1 & 0xFFFF);
+        d += 5;
+        std::swap(shift0, shift1);
+      }
+      else
+      {
+        diff += ratio_6;
+        d[1] = color0 << shift1;
+        d[3] = color1 << shift1;
+        d[5] = color1 << shift1;
+        d[4] = color1 << shift0;
+        d[0] = color0 << shift0;
+        d[2] = color0 << shift0;
+        d += 6;
+      }
+    }
   }
 
   // x4 ~ x5
-  void IRAM_ATTR blit_x40_x50(uint32_t* __restrict d, const uint32_t* s, const uint32_t* s_end, const uint32_t* p, bool odd, int ratio_4, int ratio_5)
+  void IRAM_ATTR blit_x40_x50_565(uint32_t* __restrict d, const uint8_t* s, size_t src_length, const uint32_t* p, bool odd, int ratio_4, int ratio_5)
   {
-    --d;
-
     uint_fast8_t shift0 = odd << 3;
     uint_fast8_t shift1 = shift0 ^ 8;
     int diff = (ratio_5 + ratio_4) >> 1;
-    do
+
+    src_length = (src_length + 1) >> 1;
+    while (src_length--)
     {
-      uint32_t c = *s;
-      for (int i = 0; i < 2; ++i)
+      uint32_t p1l = s[3];
+      uint32_t p1h = s[2];
+      uint32_t p0l = s[1];
+      uint32_t p0h = s[0];
+      p1l += 256;
+      p0l += 256;
+      p0h = p[p0h];
+      p0l = p[p0l];
+      p1h = p[p1h];
+      p1l = p[p1l];
+      s += 4;
+      uint32_t color0 = p0h + p0l;
+      uint32_t color1 = p1h + p1l;
+
+      if (diff < 0)
       {
-        uint32_t color0 = p[c & 0xFF]; c >>= 8;
-        uint32_t color1 = p[c & 0xFF]; c >>= 8;
-        uint32_t c00 = color0 << shift0;
-        uint32_t c01 = color0 << shift1;
-        uint32_t c10 = color1 << shift0;
-        uint32_t c11 = color1 << shift1;
-        *++d = c00;
-        *++d = c01;
-        if (diff < 0)
-        {
-          diff += ratio_5;
-          *++d = c10;
-          *++d = c11;
-        }
-        else
-        {
-          diff += ratio_4;
-          *++d = (c00 & 0xFFFF0000) + (c10 & 0xFFFF);
-          *++d = c11;
-          *++d = c10;
-          std::swap(shift0, shift1);
-        }
+        diff += ratio_4;
+        d[1] = color0 << shift1;
+        d[3] = color1 << shift1;
+        d[0] = color0 << shift0;
+        d[2] = color1 << shift0;
+        d += 4;
       }
-    } while (++s < s_end);
+      else
+      {
+        diff += ratio_5;
+        d[1] = color0 << shift1;
+        d[3] = color1 << shift1;
+        color0 <<= shift0;
+        color1 <<= shift0;
+        d[0] = color0;
+        d[4] = color1;
+        d[2] = (color0 & 0xFFFF0000) + (color1 & 0xFFFF);
+        std::swap(shift0, shift1);
+        d += 5;
+      }
+    }
+  }
+
+  // x4 ~ x5
+  void IRAM_ATTR blit_x40_x50(uint32_t* __restrict d, const uint8_t* s, size_t src_length, const uint32_t* p, bool odd, int ratio_4, int ratio_5)
+  {
+    uint_fast8_t shift0 = odd << 3;
+    uint_fast8_t shift1 = shift0 ^ 8;
+    int diff = (ratio_5 + ratio_4) >> 1;
+
+    src_length = (src_length + 1) >> 1;
+    while (src_length--)
+    {
+      auto p0 = s[0];
+      auto p1 = s[1];
+      s += 2;
+      uint32_t color0 = p[p0];
+      uint32_t color1 = p[p1];
+      if (diff < 0)
+      {
+        diff += ratio_4;
+        d[1] = color0 << shift1;
+        d[3] = color1 << shift1;
+        d[0] = color0 << shift0;
+        d[2] = color1 << shift0;
+        d += 4;
+      }
+      else
+      {
+        diff += ratio_5;
+        d[1] = color0 << shift1;
+        d[3] = color1 << shift1;
+        color0 <<= shift0;
+        color1 <<= shift0;
+        d[0] = color0;
+        d[4] = color1;
+        d[2] = (color0 & 0xFFFF0000) + (color1 & 0xFFFF);
+        std::swap(shift0, shift1);
+        d += 5;
+      }
+    }
   }
 
   // x3 ~ x4
-  void IRAM_ATTR blit_x30_x40(uint32_t* __restrict d, const uint32_t* s, const uint32_t* s_end, const uint32_t* p, bool odd, int ratio_3, int ratio_4)
+  void IRAM_ATTR blit_x30_x40_565(uint32_t* __restrict d, const uint8_t* s, size_t src_length, const uint32_t* p, bool odd, int ratio_3, int ratio_4)
   {
-    --d;
-
     uint_fast8_t shift0 = odd << 3;
     uint_fast8_t shift1 = shift0 ^ 8;
     int diff = (ratio_4 + ratio_3) >> 1;
-    do
+
+    src_length = (src_length + 1) >> 1;
+    while (src_length--)
     {
-      uint32_t c = *s;
-      uint32_t color0 = p[c & 0xFF]; c >>= 8;
-      uint32_t color1 = p[c & 0xFF]; c >>= 8;
+      uint32_t p1l = s[3];
+      uint32_t p1h = s[2];
+      uint32_t p0l = s[1];
+      uint32_t p0h = s[0];
+      p1l += 256;
+      p0l += 256;
+      p0h = p[p0h];
+      p0l = p[p0l];
+      p1h = p[p1h];
+      p1l = p[p1l];
+      s += 4;
+      uint32_t color0 = p0h + p0l;
+      uint32_t color1 = p1h + p1l;
+
       if (diff < 0)
       {
-        diff += ratio_4;
-        *++d = color0 << shift0;
-        *++d = ((color0 & 0xFFFF0000) + (color1 & 0xFFFF)) << shift1;
-        *++d = color1 << shift0;
+        diff += ratio_3;
+        d[0] = color0 << shift0;
+        d[2] = color1 << shift0;
+        color0 = ((color0 & 0xFFFF0000) + (color1 & 0xFFFF));
+        d[1] = color0 << shift1;
         std::swap(shift0, shift1);
+        d += 3;
       }
       else
       {
-        diff += ratio_3;
-        *++d = color0 << shift0;
-        *++d = color0 << shift1;
-        *++d = color1 << shift0;
-        *++d = color1 << shift1;
+        diff += ratio_4;
+        d[0] = color0 << shift0;
+        d[2] = color1 << shift0;
+        d[1] = color0 << shift1;
+        d[3] = color1 << shift1;
+        d += 4;
       }
-      color0 = p[c & 0xFF]; c >>= 8;
-      color1 = p[c       ];
+    }
+  }
+
+  // x3 ~ x4
+  void IRAM_ATTR blit_x30_x40(uint32_t* __restrict d, const uint8_t* s, size_t src_length, const uint32_t* p, bool odd, int ratio_3, int ratio_4)
+  {
+    uint_fast8_t shift0 = odd << 3;
+    uint_fast8_t shift1 = shift0 ^ 8;
+    int diff = (ratio_4 + ratio_3) >> 1;
+
+    src_length = (src_length + 1) >> 1;
+    while (src_length--)
+    {
+      auto p0 = s[0];
+      auto p1 = s[1];
+      s += 2;
+      uint32_t color0 = p[p0];
+      uint32_t color1 = p[p1];
       if (diff < 0)
       {
-        diff += ratio_4;
-        *++d = color0 << shift0;
-        *++d = ((color0 & 0xFFFF0000) + (color1 & 0xFFFF)) << shift1;
-        *++d = color1 << shift0;
+        diff += ratio_3;
+        d[0] = color0 << shift0;
+        d[2] = color1 << shift0;
+        color0 = ((color0 & 0xFFFF0000) + (color1 & 0xFFFF));
+        d[1] = color0 << shift1;
         std::swap(shift0, shift1);
+        d += 3;
       }
       else
       {
-        diff += ratio_3;
-        *++d = color0 << shift0;
-        *++d = color0 << shift1;
-        *++d = color1 << shift0;
-        *++d = color1 << shift1;
+        diff += ratio_4;
+        d[0] = color0 << shift0;
+        d[2] = color1 << shift0;
+        d[1] = color0 << shift1;
+        d[3] = color1 << shift1;
+        d += 4;
       }
-    } while (++s < s_end);
+    }
   }
 
   // x2 ~ x3
-  void IRAM_ATTR blit_x20_x30(uint32_t* __restrict d, const uint32_t* s, const uint32_t* s_end, const uint32_t* p, bool odd, int ratio_2, int ratio_3)
+  void IRAM_ATTR blit_x20_x30_565(uint32_t* __restrict d, const uint8_t* s, size_t src_length, const uint32_t* p, bool odd, int ratio_2, int ratio_3)
   {
-    --d;
-
     uint_fast8_t shift0 = odd << 3;
     uint_fast8_t shift1 = shift0 ^ 8;
     int diff = (ratio_3 + ratio_2) >> 1;
-    do
+
+    src_length = (src_length + 1) >> 1;
+    while (src_length--)
     {
-      uint32_t c = *s;
-      uint32_t color0 = p[c & 0xFF]; c >>= 8;
-      uint32_t color1 = p[c & 0xFF]; c >>= 8;
+      uint32_t p1l = s[3];
+      uint32_t p1h = s[2];
+      uint32_t p0l = s[1];
+      uint32_t p0h = s[0];
+      p1l += 256;
+      p0l += 256;
+      p0h = p[p0h];
+      p0l = p[p0l];
+      p1h = p[p1h];
+      p1l = p[p1l];
+      s += 4;
+      uint32_t color0 = p0h + p0l;
+      uint32_t color1 = p1h + p1l;
+
       if (diff < 0)
       {
-        diff += ratio_3;
+        diff += ratio_2;
         color0 <<= shift0;
         color1 <<= shift1;
-        *++d = color0;
-        *++d = color1;
+        d[0] = color0;
+        d[1] = color1;
+        d += 2;
       }
       else
       {
-        diff += ratio_2;
-        *++d = color0 << shift0;
-        *++d = ((color0 & 0xFFFF0000) + (color1 & 0xFFFF)) << shift1;
-        *++d = color1 << shift0;
+        diff += ratio_3;
+        d[0] = color0 << shift0;
+        d[2] = color1 << shift0;
+        d[1] = ((color0 & 0xFFFF0000) + (color1 & 0xFFFF)) << shift1;
+        d += 3;
         std::swap(shift0, shift1);
       }
-      color0 = p[c & 0xFF]; c >>= 8;
-      color1 = p[c       ];
+    }
+  }
+
+  // x2 ~ x3
+  void IRAM_ATTR blit_x20_x30(uint32_t* __restrict d, const uint8_t* s, size_t src_length, const uint32_t* p, bool odd, int ratio_2, int ratio_3)
+  {
+    uint_fast8_t shift0 = odd << 3;
+    uint_fast8_t shift1 = shift0 ^ 8;
+    int diff = (ratio_3 + ratio_2) >> 1;
+
+    src_length = (src_length + 1) >> 1;
+    while (src_length--)
+    {
+      auto p0 = s[0];
+      auto p1 = s[1];
+      s += 2;
+      uint32_t color0 = p[p0];
+      uint32_t color1 = p[p1];
       if (diff < 0)
       {
-        diff += ratio_3;
+        diff += ratio_2;
         color0 <<= shift0;
         color1 <<= shift1;
-        *++d = color0;
-        *++d = color1;
+        d[0] = color0;
+        d[1] = color1;
+        d += 2;
       }
       else
       {
-        diff += ratio_2;
-        *++d = color0 << shift0;
-        *++d = ((color0 & 0xFFFF0000) + (color1 & 0xFFFF)) << shift1;
-        *++d = color1 << shift0;
+        diff += ratio_3;
+        d[0] = color0 << shift0;
+        d[2] = color1 << shift0;
+        d[1] = ((color0 & 0xFFFF0000) + (color1 & 0xFFFF)) << shift1;
+        d += 3;
         std::swap(shift0, shift1);
       }
-    } while (++s < s_end);
+    }
   }
 
   // x1.5~x2.0
-  void IRAM_ATTR blit_x15_x20(uint32_t* __restrict d, const uint32_t* s, const uint32_t* s_end, const uint32_t* p, bool odd, int ratio_15, int ratio_20)
+  void IRAM_ATTR blit_x15_x20(uint32_t* __restrict d, const uint8_t* s, size_t src_length, const uint32_t* p, bool odd, int ratio_15, int ratio_20)
   {
-    --d;
-
     uint_fast8_t shift0 = odd << 3;
     uint_fast8_t shift1 = shift0 ^ 8;
     int diff = (ratio_20 + ratio_15) >> 1;
-    do
+
+    src_length = (src_length + 3) >> 2;
+    while (src_length--)
     {
-      uint32_t c = *s;
-      uint32_t color0 = p[c & 0xFF]; c >>= 8;
-      uint32_t color1 = p[c & 0xFF]; c >>= 8;
-      uint32_t color2 = p[c & 0xFF]; c >>= 8;
-      uint32_t color3 = p[c       ];
+      uint32_t color0 = s[0];
+      uint32_t color1 = s[1];
+      uint32_t color2 = s[2];
+      uint32_t color3 = s[3];
+      color0 = p[color0];
+      color1 = p[color1];
+      color2 = p[color2];
+      color3 = p[color3];
+      s += 4;
       if (diff < 0)
       {
-        color0 = ((color0 & 0xFFFF0000) + (color1 & 0xFFFF));
+        diff += ratio_15;
         color1 = ((color1 & 0xFFFF0000) + (color2 & 0xFFFF));
-        diff += ratio_20;
-        *++d = color0 << shift0;
-        *++d = color1 << shift1;
-        *++d = color3 << shift0;
+        color2 = ((color2 & 0xFFFF0000) + (color3 & 0xFFFF));
+        d[0] = color0 << shift0;
+        d[2] = color2 << shift0;
+        d[1] = color1 << shift1;
+        d += 3;
         std::swap(shift0, shift1);
       }
       else
       {
-        color0 <<= shift0;
-        color1 <<= shift1;
-        color2 <<= shift0;
-        color3 <<= shift1;
-        diff += ratio_15;
-        *++d = color0;
-        *++d = color1;
-        *++d = color2;
-        *++d = color3;
+        diff += ratio_20;
+        d[0] = color0 << shift0;
+        d[2] = color2 << shift0;
+        d[1] = color1 << shift1;
+        d[3] = color3 << shift1;
+        d += 4;
       }
-    } while (++s < s_end);
+    }
   }
 
   // x1.0~x1.5
-  void IRAM_ATTR blit_x10_x15(uint32_t* __restrict d, const uint32_t* s, const uint32_t* s_end, const uint32_t* p, bool odd, int ratio_10, int ratio_15)
+  void IRAM_ATTR blit_x10_x15(uint32_t* __restrict d, const uint8_t* s, size_t src_length, const uint32_t* p, bool odd, int ratio_10, int ratio_15)
   {
-    --d;
-
     uint_fast8_t shift0 = odd << 3;
     uint_fast8_t shift1 = shift0 ^ 8;
     int diff = (ratio_15 + ratio_10) >> 1;
-    do
+
+    src_length = (src_length + 3) >> 2;
+    while (src_length--)
     {
-      uint32_t c = *s;
-      uint32_t color0 = p[c & 0xFF]; c >>= 8;
-      uint32_t color1 = p[c & 0xFF]; c >>= 8;
-      uint32_t color2 = p[c & 0xFF]; c >>= 8;
-      uint32_t color3 = p[c       ];
+      uint32_t color0 = s[0];
+      uint32_t color1 = s[1];
+      uint32_t color2 = s[2];
+      uint32_t color3 = s[3];
+      color0 = p[color0];
+      color1 = p[color1];
+      color2 = p[color2];
+      color3 = p[color3];
+      s += 4;
       if (diff < 0)
       {
+        diff += ratio_10;
         color0 &= 0xFFFF0000;
         color2 &= 0xFFFF0000;
         color1 &= 0xFFFF;
         color3 &= 0xFFFF;
         color0 = (color0 + color1) << shift0;
         color2 = (color2 + color3) << shift1;
-        diff += ratio_15;
-        *++d = color0;
-        *++d = color2;
+        d[0] = color0;
+        d[1] = color2;
+        d += 2;
       }
       else
       {
+        diff += ratio_15;
         color0 <<= shift0;
         color3 <<= shift0;
         color1 = ((color1 & 0xFFFF0000) + (color2 & 0xFFFF)) << shift1;
-        diff += ratio_10;
+        d[0] = color0;
+        d[1] = color1;
+        d[2] = color3;
         std::swap(shift0, shift1);
-        *++d = color0;
-        *++d = color1;
-        *++d = color3;
+        d += 3;
       }
-    } while (++s < s_end);
+    }
   }
 
   /// 引数のポインタアドレスがSRAMかどうか判定する  true=SRAM / false=not SRAM (e.g. PSRAM FlashROM) ;
@@ -763,14 +1016,19 @@ namespace lgfx
         {
           src = _scanline_cache.get(src);
         }
+        int pidx = 0;
+        if (internal.burst_shift & 1)
+        {
+          pidx = internal.pixel_per_bytes << 8;
+        }
 
-        internal.fp_blit( (      uint32_t*)(&buf[internal.leftside_index]),
-                          (const uint32_t*) src,
-                          (const uint32_t*)(&src[internal.panel_width]),
-                          &internal.palette[(1 & internal.burst_shift) << 8],
+        internal.fp_blit( (uint32_t*)(&buf[internal.leftside_index]),
+                          src,
+                          internal.panel_width,
+                          &internal.palette[pidx],
                           internal.burst_shift & 2,
-                          internal.blit_ratio_h,
-                          internal.blit_ratio_l );
+                          internal.blit_ratio_l,
+                          internal.blit_ratio_h );
       }
     }
     else
@@ -953,6 +1211,9 @@ namespace lgfx
     const signal_spec_info_t& spec_info = signal_spec_info_list[_config_detail.signal_type];
     _signal_spec_info = spec_info;
 
+    uint32_t pixelPerBytes = (getWriteDepth() & color_depth_t::bit_mask) >> 3;
+    internal.pixel_per_bytes = pixelPerBytes;
+
 // 幅方向の解像度に関する準備 ;
     {
       uint16_t output_width = std::min(_cfg.memory_width, spec_info.display_width);
@@ -965,7 +1226,7 @@ namespace lgfx
       scale_index = (scale_index < 2 ? 2 : scale_index > 10 ? 10 : scale_index) - 2;
 
       /// 表示倍率に応じて出力データ生成関数を変更する;
-      static constexpr void (*fp_tbl[])(uint32_t*, const uint32_t*, const uint32_t*, const uint32_t*, bool, int, int) =
+      static constexpr void (*fp_tbl_332[])(uint32_t*, const uint8_t*, size_t, const uint32_t*, bool, int, int) =
       {
         blit_x10_x15,
         blit_x15_x20,
@@ -977,7 +1238,20 @@ namespace lgfx
         blit_x40_x50,
         blit_x50_x60
       };
-      internal.fp_blit = fp_tbl[scale_index];
+      static constexpr void (*fp_tbl_565[])(uint32_t*, const uint8_t*, size_t, const uint32_t*, bool, int, int) =
+      {
+        blit_x10_x15,
+        blit_x15_x20,
+        blit_x20_x30_565,
+        blit_x20_x30_565,
+        blit_x30_x40_565,
+        blit_x30_x40_565,
+        blit_x40_x50_565,
+        blit_x40_x50_565,
+        blit_x50_x60_565
+      };
+
+      internal.fp_blit = (pixelPerBytes == 1 ? fp_tbl_332 : fp_tbl_565)[scale_index];
 
       /// 描画時の引き延ばし倍率テーブル (例:2=等倍  3=1.5倍  4=2倍)  上位4bitと下位4bitで２種類の倍率を指定する;
       /// この２種類の倍率をデータ生成時に切り替えて任意サイズの出力倍率を実現する;
@@ -995,7 +1269,7 @@ namespace lgfx
 
       internal.leftside_index = (spec_info.active_start + scale_offset) & ~3u;
 
-// printf("scale_l:%d scale_h:%d swl:%d swh:%d  ratio a:%d b:%d left:%d  \n", scale_l, scale_h, scale_width_l, scale_width_h, internal.blit_ratio_h, internal.blit_ratio_l, internal.leftside_index);
+// printf("scale_l:%d scale_h:%d swl:%d swh:%d  ratio:a:%d b:%d left:%d  \n", scale_l, scale_h, output_width * scale_l, output_width * scale_h, internal.blit_ratio_h, internal.blit_ratio_l, internal.leftside_index);
     }
 
     {
@@ -1010,18 +1284,18 @@ namespace lgfx
     setRotation(getRotation());
 
     const signal_setup_info_t& setup_info = signal_setup_info_list[_config_detail.signal_type];
-    internal.palette = (uint32_t*)heap_alloc(setup_info.palette_num_256 * 256 * sizeof(uint32_t));
+    internal.palette = (uint32_t*)heap_alloc(setup_info.palette_num_256 * pixelPerBytes * 256 * sizeof(uint32_t));
 // printf("internal.palette: %08x alloc\n", internal.palette);
     if (!internal.palette) { return false; }
 
     uint_fast8_t use_psram = _config_detail.use_psram;
-    if (!initFrameBuffer(internal.panel_width, internal.panel_height, use_psram)) { return false; }
+    if (!initFrameBuffer(internal.panel_width * pixelPerBytes, internal.panel_height, use_psram)) { return false; }
 
     use_psram = isSRAM(_lines_buffer[0]) ? 0 : use_psram;
     internal.use_psram = use_psram;
     if (use_psram)
     {
-      _scanline_cache.begin(( internal.panel_width + 4 ) & ~3);
+      _scanline_cache.begin(( internal.panel_width * pixelPerBytes + 4 ) & ~3);
     }
 
     size_t n = spec_info.scanline_width << 1;  // n=DMA 1回分のデータ量  最大値は4092;
@@ -1133,6 +1407,26 @@ namespace lgfx
     }
   }
 
+  color_depth_t Panel_CVBS::setColorDepth(color_depth_t depth)
+  {
+    depth = ((depth & color_depth_t::bit_mask) > 8) ? rgb565_2Byte : rgb332_1Byte;
+    if (depth != _write_depth)
+    {
+      bool flg_started = _started;
+      if (flg_started)
+      {
+        deinit();
+      }
+      _write_depth = depth;
+      _read_depth = depth;
+      if (flg_started)
+      {
+        init(false);
+      }
+    }
+    return depth;
+  }
+
   void Panel_CVBS::setResolution(uint16_t width, uint16_t height, config_detail_t::signal_type_t type, int output_width, int output_height, int offset_x, int offset_y)
   {
     bool flg_started = _started;
@@ -1203,7 +1497,11 @@ namespace lgfx
     if (internal.palette)
     {
       const signal_setup_info_t& setup_info_ = signal_setup_info_list[_config_detail.signal_type];
-      setup_info_.setup_palette(internal.palette, internal.WHITE_LEVEL, internal.BLACK_LEVEL, _config_detail.chroma_level);
+      if (internal.pixel_per_bytes == 1) {
+        setup_info_.setup_palette_332(internal.palette, internal.WHITE_LEVEL, internal.BLACK_LEVEL, _config_detail.chroma_level);
+      } else {
+        setup_info_.setup_palette_565(internal.palette, internal.WHITE_LEVEL, internal.BLACK_LEVEL, _config_detail.chroma_level);
+      }
     }
   }
 
