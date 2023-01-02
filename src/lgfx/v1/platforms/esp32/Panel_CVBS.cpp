@@ -273,6 +273,18 @@ namespace lgfx
     }
   }
 
+  static void setup_palette_ntsc_gray(uint32_t* palette, uint_fast16_t white_level, uint_fast16_t black_level, uint_fast8_t chroma_level)
+  {
+    float chroma_scale = chroma_level / 7168.0f;
+    float satuation_base = black_level / 2;
+    uint32_t diff_level = white_level - black_level;
+
+    for (int idx = 0; idx < 256; ++idx)
+    {
+      palette[idx] = setup_palette_ntsc_inner(idx<<16|idx<<8|idx, diff_level, black_level, satuation_base, chroma_scale);
+    }
+  }
+
   static void setup_palette_pal_inner(uint8_t *result, uint32_t rgb, int diff_level, float base_level, float chroma_scale)
   {
     static constexpr const int8_t sin_tbl[5] = { 0, -1, 0, 1, 0 };
@@ -335,7 +347,6 @@ namespace lgfx
         o[idx + 256] = result_buf[1];
       }
     }
-
   }
 
   static void setup_palette_pal_332(uint32_t* palette, uint_fast16_t white_level, uint_fast16_t black_level, uint_fast8_t chroma_level)
@@ -359,6 +370,26 @@ namespace lgfx
 
       e[rgb332] = result_buf[0];
       o[rgb332] = result_buf[1];
+    }
+  }
+
+  static void setup_palette_pal_gray(uint32_t* palette, uint_fast16_t white_level, uint_fast16_t black_level, uint_fast8_t chroma_level)
+  {
+    auto e = palette;
+    auto o = &palette[256];
+
+    uint32_t result_buf[2];
+    float chroma_scale = black_level * chroma_level / 14336.0f;
+
+    int32_t diff_level = white_level - black_level;
+    float base_level = (float)black_level;
+
+    for (int idx = 0; idx < 256; ++idx)
+    {
+      setup_palette_pal_inner((uint8_t*)result_buf, idx<<16|idx<<8|idx, diff_level, base_level, chroma_scale);
+
+      e[idx] = result_buf[0];
+      o[idx] = result_buf[1];
     }
   }
 
@@ -474,6 +505,7 @@ namespace lgfx
   {
     void (*setup_palette_332)(uint32_t*, uint_fast16_t, uint_fast16_t, uint_fast8_t); // RGB332用パレット生成関数のポインタ;
     void (*setup_palette_565)(uint32_t*, uint_fast16_t, uint_fast16_t, uint_fast8_t); // RGB565用パレット生成関数のポインタ;
+    void (*setup_palette_gray)(uint32_t*, uint_fast16_t, uint_fast16_t, uint_fast8_t); // グレースケール用パレット生成関数のポインタ;
     uint32_t apll_sdm;            // apllのクロック設定;
     uint16_t blanking_mv;         // SYNCレベルとBLANKINGレベルの電圧差 mV
     uint16_t black_mv;            // SYNCレベルと黒レベルの電圧差 mV
@@ -485,6 +517,7 @@ namespace lgfx
   { // NTSC
     { setup_palette_ntsc_332
     , setup_palette_ntsc_565
+    , setup_palette_ntsc_gray
     , 0x049748    // 14.318237 // 映像に縞模様ノイズが出にくい;  ( 0x049746 = 14.318181 // 要求仕様に近い )
     , 286         // 286mV = 0IRE
     , 340         // 340mV = 7.5IRE  米国仕様では黒レベルは 7.5IRE
@@ -494,6 +527,7 @@ namespace lgfx
   , // NTSC_J
     { setup_palette_ntsc_332
     , setup_palette_ntsc_565
+    , setup_palette_ntsc_gray
     , 0x049748    // 14.318237 // 映像に縞模様ノイズが出にくい;  ( 0x049746 = 14.318181 // 要求仕様に近い )
     , 286         // 286mV = 0IRE
     , 286         // 286mV = 0IRE  日本仕様では黒レベルは 0IRE
@@ -503,6 +537,7 @@ namespace lgfx
   , // PAL
     { setup_palette_pal_332
     , setup_palette_pal_565
+    , setup_palette_pal_gray
     , 0x06A404    // 17.734476mhz ~4x
     , 300
     , 300
@@ -512,6 +547,7 @@ namespace lgfx
   , // PAL_M
     { setup_palette_pal_332
     , setup_palette_pal_565
+    , setup_palette_pal_gray
     , 0x0494DA
     , 300
     , 300
@@ -521,6 +557,7 @@ namespace lgfx
   , // PAL_N
     { setup_palette_pal_332
     , setup_palette_pal_565
+    , setup_palette_pal_gray
     , 0x498D1    // 17.734476mhz ~4x
     , 300
     , 300
@@ -1523,7 +1560,9 @@ namespace lgfx
 
   color_depth_t Panel_CVBS::setColorDepth(color_depth_t depth)
   {
-    depth = ((depth & color_depth_t::bit_mask) > 8) ? rgb565_2Byte : rgb332_1Byte;
+    if (depth != color_depth_t::grayscale_8bit) {
+      depth = ((depth & color_depth_t::bit_mask) > 8) ? rgb565_2Byte : rgb332_1Byte;
+    }
     if (depth != _write_depth)
     {
       bool flg_started = _started;
@@ -1611,11 +1650,14 @@ namespace lgfx
     if (internal.palette)
     {
       const signal_setup_info_t& setup_info_ = signal_setup_info_list[_config_detail.signal_type];
-      if (internal.pixel_per_bytes == 1) {
-        setup_info_.setup_palette_332(internal.palette, internal.WHITE_LEVEL, internal.BLACK_LEVEL, _config_detail.chroma_level);
-      } else {
-        setup_info_.setup_palette_565(internal.palette, internal.WHITE_LEVEL, internal.BLACK_LEVEL, _config_detail.chroma_level);
+      auto fp_setup_palette = internal.pixel_per_bytes == 1
+                            ? setup_info_.setup_palette_332
+                            : setup_info_.setup_palette_565
+                            ;
+      if (getWriteDepth() == grayscale_8bit) {
+        fp_setup_palette = setup_info_.setup_palette_gray;
       }
+      fp_setup_palette(internal.palette, internal.WHITE_LEVEL, internal.BLACK_LEVEL, _config_detail.chroma_level);
     }
   }
 

@@ -172,7 +172,27 @@ LGFX gfx;
 
 void setup(void)
 {
+// 色数の指定 (省略時は rgb332_1Byte)
+//gfx.setColorDepth( 8);        // RGB332 256色
+//gfx.setColorDepth(16);        // RGB565 65536色
+//gfx.setColorDepth(lgfx::color_depth_t::rgb332_1Byte);   // RGB332 256色
+//gfx.setColorDepth(lgfx::color_depth_t::rgb565_2Byte);   // RGB565 65536色
+//gfx.setColorDepth(lgfx::color_depth_t::grayscale_8bit); // モノクロ 256階調
+
+//※ 実行中に setColorDepth で色数を変更することも可能ですが、
+//   メモリの再割当を実行するため描画内容は無効になります。
+
   gfx.init();
+
+  for (int x = 0; x < gfx.width(); ++x)
+  {
+    int v = x * 256 / gfx.width();
+    gfx.fillRect(x, 0 * gfx.height() >> 3, 7, gfx.height() >> 3, gfx.color888(v, v, v));
+    gfx.fillRect(x, 1 * gfx.height() >> 3, 7, gfx.height() >> 3, gfx.color888(v, 0 ,0));
+    gfx.fillRect(x, 2 * gfx.height() >> 3, 7, gfx.height() >> 3, gfx.color888(0, v, 0));
+    gfx.fillRect(x, 3 * gfx.height() >> 3, 7, gfx.height() >> 3, gfx.color888(0, 0, v));
+  }
+  delay(1000);
 }
 
 void loop(void)
