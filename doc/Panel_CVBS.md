@@ -23,8 +23,8 @@ NTSCを使用した際に黒が僅かに白浮きしていると感じる場合�
 ----------------
 
  - 出力できる最大解像度は信号タイプによって差があります。
-   - 720 x 480  (NTSC,NTSC-J)
-   - 864 x 576  (PAL,PAL-M)
+   - 720 x 480  (PAL-M,NTSC,NTSC-J)
+   - 864 x 576  (PAL)
    - 720 x 576  (PAL-N)
  - 最大解像度以下であれば、任意の解像度を設定可能です。
  - 最大解像度を整数で約分した解像度の指定を推奨します。
@@ -34,9 +34,9 @@ NTSCを使用した際に黒が僅かに白浮きしていると感じる場合�
 <TABLE>
  <TR>
   <TH></TH>
-  <TH> NTSC <BR> NTSC-J </TH>
+  <TH> PAL-M <BR> NTSC <BR> NTSC-J </TH>
   <TH> PAL-N </TH>
-  <TH> PAL <BR> PAL-M </TH>
+  <TH> PAL </TH>
  </TR>
  <TR align="center">
   <TH> max width </TH>
