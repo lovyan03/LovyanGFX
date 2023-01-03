@@ -15,7 +15,7 @@ Contributors:
  [mongonta0716](https://github.com/mongonta0716)
  [tobozo](https://github.com/tobozo)
 
-Inherited Sources:
+Inspiration Sources:
  [Roger Cheng](https://github.com/Roger-random/ESP_8_BIT_composite)
  [rossum](https://github.com/rossumur/esp_8_bit)
 /----------------------------------------------------------------------------*/
@@ -58,7 +58,7 @@ namespace lgfx
 //----------------------------------------------------------------------------
 
   static constexpr const char *TAG = "Panel_CVBS";
-
+//debug
   #define ISR_BEGIN()
   #define ISR_END()
   #define MEMCPY_BEGIN()
@@ -171,12 +171,11 @@ namespace lgfx
     uint8_t** lines = nullptr;        // フレームバッファ配列ポインタ;
     uint16_t* allocated_list = nullptr;  // フレームバッファのalloc割当対象のインデクス番号(free時に使用);
     uint32_t* palette = nullptr;   // RGB332から波形に変換するためのテーブル;
-    void (*fp_blit)(uint32_t*, const uint8_t*, size_t, const uint32_t*, bool, int, int);
+    void (*fp_blit)(uint32_t*, const uint8_t*, size_t, const uint32_t*, int, int);
     uint32_t burst_wave[2];       // カラーバースト信号の波形データ(EVENとODDで２通り)
     intr_handle_t isr_handle = nullptr;
     lldesc_t dma_desc[2];
-    int16_t blit_ratio_h = 0;
-    int16_t blit_ratio_l = 0;
+    int32_t mul_ratio = 0;
     int16_t offset_y;
     uint16_t memory_height;
     uint16_t panel_height;
@@ -245,14 +244,14 @@ namespace lgfx
         int g = (idx & 7) << 3;
         r = (r * 0x21) >> 2;
         g = (g * 0x41) >> 4;
-        palette[idx] = setup_palette_ntsc_inner(r<<16|g<<8, diff_level, base_level, satuation_base, chroma_scale);
+        palette[idx << 1] = setup_palette_ntsc_inner(r<<16|g<<8, diff_level, base_level, satuation_base, chroma_scale);
       }
       { // RGB565の下位1Byteに対するテーブル
         int g = idx >> 5;
         int b = idx & 0x1F;
         b = (b * 0x21) >> 2;
         g = (g * 0x41) >> 4;
-        palette[idx + 256] = setup_palette_ntsc_inner(g<<8|b, diff_level, base_level, satuation_base, chroma_scale);
+        palette[(idx << 1) + 1] = setup_palette_ntsc_inner(g<<8|b, diff_level, base_level, satuation_base, chroma_scale);
       }
     }
   }
@@ -333,8 +332,8 @@ namespace lgfx
         g = (g * 0x41) >> 4;
 
         setup_palette_pal_inner((uint8_t*)result_buf, r<<16|g<<8, diff_level, base_level, chroma_scale);
-        e[idx] = result_buf[0];
-        o[idx] = result_buf[1];
+        e[idx << 1] = result_buf[0];
+        o[idx << 1] = result_buf[1];
       }
       { // RGB565の下位1Byteに対するテーブル
         int g = idx >> 5;
@@ -343,8 +342,8 @@ namespace lgfx
         g = (g * 0x41) >> 4;
 
         setup_palette_pal_inner((uint8_t*)result_buf, g<<8|b, diff_level, base_level, chroma_scale);
-        e[idx + 256] = result_buf[0];
-        o[idx + 256] = result_buf[1];
+        e[(idx << 1) + 1] = result_buf[0];
+        o[(idx << 1) + 1] = result_buf[1];
       }
     }
   }
@@ -566,13 +565,581 @@ namespace lgfx
     }
   };
 
+#if 1
+
+// a4 = ループ回数
+// a6 = シフト量反転 SARレジスタと入替、シフト量を 8 or 0 で変化させる
+// a7 = ratio
+// a8 = -ratio - 32768
+// a9 = ratio diff
+// a15 = 8固定  odd xor用
+// 準備 x3~x4 , x5~x6
+#define ASM_INIT_BLIT_NEGATIVE \
+    "ssl        a6                      \n" \
+    "addi       a6, a6, 24              \n" \
+    "srai       a9, a7, 1               \n" \
+    "addmi      a9, a9, -16384          \n" \
+    "addmi      a4, a4, 1               \n" \
+    "srai       a4, a4, 1               \n" \
+    "neg        a8, a7                  \n" \
+    "addmi      a8, a8, -32768          \n"
+
+// 準備 x2~x3 , x4~x5
+#define ASM_INIT_BLIT_POSITIVE \
+    "ssl        a6                      \n" \
+    "addi       a6, a6, 24              \n" \
+    "srai       a9, a7, 1               \n" \
+    "addmi      a9, a9, -16384          \n" \
+    "addmi      a4, a4, 1               \n" \
+    "srai       a4, a4, 1               \n" \
+    "addmi      a7, a7, 16384           \n" \
+    "addmi      a7, a7, 16384           \n"
+
+#define ASM_READ_RGB332_2PIXEL \
+    "l8ui       a10,a3, 0               \n" \
+    "l8ui       a11,a3, 1               \n" \
+    "addi       a3, a3, 2               \n" \
+    "addx4      a10,a10,a5              \n" \
+    "l32i       a10,a10,0               \n" \
+    "addx4      a11,a11,a5              \n" \
+    "l32i       a11,a11,0               \n"
+
+#define ASM_READ_RGB565_2PIXEL \
+    "l8ui       a14,a3, 1               \n" \
+    "l8ui       a4, a3, 3               \n" \
+    "l8ui       a10,a3, 0               \n" \
+    "l8ui       a11,a3, 2               \n" \
+    "addx8      a14,a14,a5              \n" \
+    "addx8      a4, a4, a5              \n" \
+    "addx8      a10,a10,a5              \n" \
+    "addx8      a11,a11,a5              \n" \
+    "l32i       a14,a14,4               \n" \
+    "l32i       a10,a10,0               \n" \
+    "l32i       a4, a4, 4               \n" \
+    "l32i       a11,a11,0               \n" \
+    "add        a10,a10,a14             \n" \
+    "addi       a3, a3, 4               \n" \
+    "add        a11,a11,a4              \n"
+
+#define ASM_READ_RGB332_4PIXEL \
+    "l8ui       a10,a3, 0               \n" \
+    "l8ui       a11,a3, 1               \n" \
+    "l8ui       a12,a3, 2               \n" \
+    "l8ui       a13,a3, 3               \n" \
+    "addx4      a10,a10,a5              \n" \
+    "l32i       a10,a10,0               \n" \
+    "addx4      a11,a11,a5              \n" \
+    "l32i       a11,a11,0               \n" \
+    "addx4      a12,a12,a5              \n" \
+    "l32i       a12,a12,0               \n" \
+    "addx4      a13,a13,a5              \n" \
+    "l32i       a13,a13,0               \n" \
+    "addi       a3, a3, 4               \n"
+
+#define ASM_READ_RGB565_4PIXEL \
+    "l8ui       a14,a3, 1               \n" \
+    "l8ui       a4, a3, 3               \n" \
+    "l8ui       a10,a3, 0               \n" \
+    "l8ui       a11,a3, 2               \n" \
+    "addx8      a14,a14,a5              \n" \
+    "addx8      a4, a4, a5              \n" \
+    "addx8      a10,a10,a5              \n" \
+    "addx8      a11,a11,a5              \n" \
+    "l32i       a14,a14,4               \n" \
+    "l32i       a10,a10,0               \n" \
+    "l32i       a4, a4, 4               \n" \
+    "l32i       a11,a11,0               \n" \
+    "add        a10,a10,a14             \n" \
+    "l8ui       a14,a3, 5               \n" \
+    "add        a11,a11,a4              \n" \
+    "l8ui       a4, a3, 7               \n" \
+    "l8ui       a12,a3, 4               \n" \
+    "l8ui       a13,a3, 6               \n" \
+    "addx8      a14,a14,a5              \n" \
+    "addx8      a4, a4, a5              \n" \
+    "addx8      a12,a12,a5              \n" \
+    "addx8      a13,a13,a5              \n" \
+    "l32i       a14,a14,4               \n" \
+    "l32i       a12,a12,0               \n" \
+    "l32i       a4, a4, 4               \n" \
+    "l32i       a13,a13,0               \n" \
+    "add        a12,a12,a14             \n" \
+    "addi       a3, a3, 8               \n" \
+    "add        a13,a13,a4              \n"
+
+
+
+/* blit_関数が呼び出された直後のレジスタの値
+    a0 : リターンアドレス     (使用しない)
+    a1 : スタックポインタ     (変更不可)
+    a2 : uint32_t d           (ループ中で加算しながら利用する)
+    a3 : const uint8_t* s     (ループ中で加算しながら利用する)
+    a4 : size_t src_length    (ループ回数として設定後、別用途に利用)
+    a5 : const uint32_t* p    (変更せずそのまま利用する)
+    a6 : int32_t odd          (そのまま利用する)
+    a7 : int32_t ratio        (変更せずそのまま利用する)
+//
+    a8 : - ratio - 32768
+    a9 : diff                 比率判定用に利用
+*/
+
   // x5 ~ x6
-  void IRAM_ATTR blit_x50_x60_565(uint32_t* __restrict d, const uint8_t* s, size_t src_length, const uint32_t* p, bool odd, int ratio_5, int ratio_6)
+  void IRAM_ATTR blit_x50_x60_565(uint32_t* __restrict d, const uint8_t* s, size_t src_length, const uint32_t* p, int odd, int ratio)
   {
-    uint_fast8_t shift0 = odd << 3;
+    __asm__ (
+    ASM_INIT_BLIT_POSITIVE
+    "loop       a4, LOOP_x50_x60_565    \n" // ループ開始
+    ASM_READ_RGB565_2PIXEL
+
+    "xsr        a6, SAR                 \n" // シフト量スイッチ
+    "sll        a4, a10                 \n"
+    "s32i       a4, a2, 4               \n" // 2,3 保存
+    "sll        a4, a11                 \n"
+    "s32i       a4, a2, 12              \n" // 6,7 保存
+    "s32i       a4, a2, 20              \n" // 10,11 保存
+    "xsr        a6, SAR                 \n" // シフト量スイッチ
+    "sll        a4, a10                 \n"
+    "s32i       a4, a2, 0               \n" // 0,1 保存
+    "s32i       a4, a2, 8               \n" // 4,5 保存
+    "sll        a4, a11                 \n"
+    "s32i       a4, a2, 16              \n" // 8,9 保存
+    "bgez       a9, BGEZ_x50_x60_565    \n"
+
+// diffがマイナスの時の処理 x5.0
+    "s16i       a4, a2, 8               \n" //   5 保存
+    "xsr        a6, SAR                 \n" // シフト量スイッチ
+    "add        a9, a9, a7              \n" // diff += ratio
+    "addi       a2, a2, -1*4            \n" // 出力先 -= 1  (後の処理で+=6されるので、トータルで +5になる)
+
+"BGEZ_x50_x60_565:                  \n"
+// diffがプラスの時の処理 x6.0
+    "addi       a2, a2, 6*4             \n" // a2 += 6 * sizeof(uint32_t)
+    "addmi      a9, a9, -32768          \n" // diff -= 32768
+"LOOP_x50_x60_565:                  \n"
+    );
+  }
+
+  // x5 ~ x6
+  void IRAM_ATTR blit_x50_x60_332(uint32_t* __restrict d, const uint8_t* s, size_t src_length, const uint32_t* p, int odd, int ratio)
+  {
+    __asm__ (
+    ASM_INIT_BLIT_POSITIVE
+    "loop       a4, LOOP_x50_x60_332    \n" // ループ開始
+    ASM_READ_RGB332_2PIXEL
+
+    "xsr        a6, SAR                 \n" // シフト量スイッチ
+    "sll        a4, a10                 \n"
+    "s32i       a4, a2, 4               \n" // 2,3 保存
+    "sll        a4, a11                 \n"
+    "s32i       a4, a2, 12              \n" // 6,7 保存
+    "s32i       a4, a2, 20              \n" // 10,11 保存
+    "xsr        a6, SAR                 \n" // シフト量スイッチ
+    "sll        a4, a10                 \n"
+    "s32i       a4, a2, 0               \n" // 0,1 保存
+    "s32i       a4, a2, 8               \n" // 4,5 保存
+    "sll        a4, a11                 \n"
+    "s32i       a4, a2, 16              \n" // 8,9 保存
+    "bgez       a9, BGEZ_x50_x60_332    \n"
+
+// diffがマイナスの時の処理 x5.0
+    "s16i       a4, a2, 8               \n" //   5 保存
+    "xsr        a6, SAR                 \n" // シフト量スイッチ
+    "add        a9, a9, a7              \n" // diff += ratio
+    "addi       a2, a2, -1*4            \n" // 出力先 -= 1  (後の処理で+=6されるので、トータルで +5になる)
+
+"BGEZ_x50_x60_332:                  \n"
+// diffがプラスの時の処理 x6.0
+    "addi       a2, a2, 6*4             \n" // a2 += 6 * sizeof(uint32_t)
+    "addmi      a9, a9, -32768          \n" // diff -= 32768
+"LOOP_x50_x60_332:                  \n"
+    );
+  }
+
+  // x4 ~ x5
+  void IRAM_ATTR blit_x40_x50_565(uint32_t* __restrict d, const uint8_t* s, size_t src_length, const uint32_t* p, int odd, int ratio)
+  {
+    __asm__ (
+    ASM_INIT_BLIT_NEGATIVE
+    "loop       a4, LOOP_x40_x50_565    \n" // ループ開始
+    ASM_READ_RGB565_2PIXEL
+
+    "xsr        a6, SAR                 \n" // シフト量スイッチ
+    "sll        a4, a10                 \n"
+    "s32i       a4, a2, 4               \n" // 2,3 保存
+    "sll        a4, a11                 \n"
+    "s32i       a4, a2, 12              \n" // 6,7 保存
+    "xsr        a6, SAR                 \n" // シフト量スイッチ
+    "sll        a10,a10                 \n"
+    "s32i       a10,a2, 0               \n" // 0,1 保存
+    "sll        a11,a11                 \n"
+    "s32i       a11,a2, 8               \n" // 4,5 保存
+    "bltz       a9, BLTZ_x40_x50_565    \n"
+
+// diffがプラスの時の処理 x5.0
+    "srli       a10,a10,16              \n"
+    "s16i       a10,a2, 10              \n" // 4   保存
+    "s32i       a11,a2, 16              \n" // 8,9 保存
+    "xsr        a6, SAR                 \n" // シフト量スイッチ
+    "add        a9, a9, a8              \n" // diff += - ratio - 32768
+    "addi       a2, a2, 4               \n" // 出力先 += 1  (後の処理で+=4されるので、トータルで +5になる)
+
+"BLTZ_x40_x50_565:                  \n"
+// diffがマイナスの時の処理 x4.0
+    "add        a9, a9, a7              \n" // diff += ratio
+    "addi       a2, a2, 4*4             \n" // a2 += 4 * sizeof(uint32_t)
+"LOOP_x40_x50_565:                  \n"
+    );
+  }
+
+  // x4 ~ x5
+  void IRAM_ATTR blit_x40_x50_332(uint32_t* __restrict d, const uint8_t* s, size_t src_length, const uint32_t* p, int odd, int ratio)
+  {
+    __asm__ (
+    ASM_INIT_BLIT_NEGATIVE
+    "loop       a4, LOOP_x40_x50_332    \n" // ループ開始
+    ASM_READ_RGB332_2PIXEL
+
+    "xsr        a6, SAR                 \n" // シフト量スイッチ
+    "sll        a4, a10                 \n"
+    "s32i       a4, a2, 4               \n" // 2,3 保存
+    "sll        a4, a11                 \n"
+    "s32i       a4, a2, 12              \n" // 6,7 保存
+    "xsr        a6, SAR                 \n" // シフト量スイッチ
+    "sll        a10,a10                 \n"
+    "s32i       a10,a2, 0               \n" // 0,1 保存
+    "sll        a11,a11                 \n"
+    "s32i       a11,a2, 8               \n" // 4,5 保存
+    "bltz       a9, BLTZ_x40_x50_332    \n"
+
+// diffがプラスの時の処理 x5.0
+    "srli       a10,a10,16              \n"
+    "s16i       a10,a2, 10              \n" // 4   保存
+    "s32i       a11,a2, 16              \n" // 8,9 保存
+    "xsr        a6, SAR                 \n" // シフト量スイッチ
+    "add        a9, a9, a8              \n" // diff += - ratio - 32768
+    "addi       a2, a2, 4               \n" // 出力先 += 1  (後の処理で+=4されるので、トータルで +5になる)
+
+"BLTZ_x40_x50_332:                  \n"
+// diffがマイナスの時の処理 x4.0
+    "add        a9, a9, a7              \n" // diff += ratio
+    "addi       a2, a2, 4*4             \n" // a2 += 4 * sizeof(uint32_t)
+"LOOP_x40_x50_332:                  \n"
+    );
+  }
+
+  // x3 ~ x4
+  void IRAM_ATTR blit_x30_x40_565(uint32_t* __restrict d, const uint8_t* s, size_t src_length, const uint32_t* p, int odd, int ratio)
+  {
+    __asm__ (
+    ASM_INIT_BLIT_POSITIVE
+    "loop       a4, LOOP_x30_x40_565    \n"  // ループ開始
+    ASM_READ_RGB565_2PIXEL
+
+    "sll        a4, a10                 \n"
+    "s32i       a4, a2, 0               \n" // 0,1 保存
+    "sll        a4, a11                 \n"
+    "s32i       a4, a2, 8               \n" // 4,5 保存
+    "xsr        a6, SAR                 \n" // シフト量スイッチ
+    "sll        a4, a10                 \n"
+    "s32i       a4, a2, 4               \n" // 2,3 保存
+    "sll        a4, a11                 \n"
+    "s32i       a4, a2, 12              \n" // 6,7 保存
+    "xsr        a6, SAR                 \n" // シフト量スイッチ
+    "bgez       a9, BGEZ_x30_x40_565    \n"
+
+// diffがマイナスの時の処理 x3.0
+    "s16i       a4, a2, 4               \n" //   3 保存
+    "xsr        a6, SAR                 \n" // シフト量スイッチ
+    "add        a9, a9, a7              \n" // diff += ratio
+    "addi       a2, a2, -1*4            \n" // 出力先 -= 1  (後の処理で+=4されるので、トータルで +3になる)
+
+"BGEZ_x30_x40_565:                  \n"
+// diffがプラスの時の処理 x4.0
+    "addi       a2, a2, 4*4             \n" // a2 += 4 * sizeof(uint32_t)
+    "addmi      a9, a9, -32768          \n" // diff -= 32768
+"LOOP_x30_x40_565:                  \n"
+    );
+  }
+
+  // x3 ~ x4
+  void IRAM_ATTR blit_x30_x40_332(uint32_t* __restrict d, const uint8_t* s, size_t src_length, const uint32_t* p, int odd, int ratio)
+  {
+    __asm__ (
+    ASM_INIT_BLIT_POSITIVE
+
+    "loop       a4, LOOP_x30_x40_332    \n"  // ループ開始
+    ASM_READ_RGB332_2PIXEL
+
+    "sll        a4, a10                 \n"
+    "s32i       a4, a2, 0               \n" // 0,1 保存
+    "sll        a4, a11                 \n"
+    "s32i       a4, a2, 8               \n" // 4,5 保存
+    "xsr        a6, SAR                 \n" // シフト量スイッチ
+    "sll        a4, a10                 \n"
+    "s32i       a4, a2, 4               \n" // 2,3 保存
+    "sll        a4, a11                 \n"
+    "s32i       a4, a2, 12              \n" // 6,7 保存
+    "xsr        a6, SAR                 \n" // シフト量スイッチ
+    "bgez       a9, BGEZ_x30_x40_332    \n"
+
+// diffがマイナスの時の処理 x3.0
+    "s16i       a4, a2, 4               \n" //   3 保存
+    "xsr        a6, SAR                 \n" // シフト量スイッチ
+    "add        a9, a9, a7              \n" // diff += ratio
+    "addi       a2, a2, -1*4            \n" // 出力先 -= 1  (後の処理で+=4されるので、トータルで +3になる)
+
+"BGEZ_x30_x40_332:                  \n"
+// diffがプラスの時の処理 x4.0
+    "addi       a2, a2, 4*4             \n" // a2 += 4 * sizeof(uint32_t)
+    "addmi      a9, a9, -32768          \n" // diff -= 32768
+"LOOP_x30_x40_332:                  \n"
+    );
+  }
+
+  // x2 ~ x3
+  void IRAM_ATTR blit_x20_x30_565(uint32_t* __restrict d, const uint8_t* s, size_t src_length, const uint32_t* p, int odd, int ratio)
+  {
+    __asm__ (
+    ASM_INIT_BLIT_NEGATIVE
+    "loop       a4, LOOP_x20_x30_565    \n"  // ループ開始
+    ASM_READ_RGB565_2PIXEL
+
+    "sll        a4, a10                 \n"
+    "s32i       a4, a2, 0               \n" // 0,1 保存
+    "xsr        a6, SAR                 \n" // シフト量スイッチ
+    "sll        a4, a11                 \n"
+    "s32i       a4, a2, 4               \n" // 2,3 保存
+    "xsr        a6, SAR                 \n" // シフト量スイッチ
+    "bltz       a9, BLTZ_x20_x30_565    \n"
+
+// diffがプラスの時の処理 x3.0
+    "sll        a4, a11                 \n"
+    "s32i       a4, a2, 8               \n" // 4,5 保存
+    "xsr        a6, SAR                 \n" // シフト量スイッチ
+    "srli       a4, a10,16              \n" // a4 = a10 >> 16
+    "sll        a4, a4                  \n" // a4 = !odd a10
+    "s16i       a4, a2, 6               \n" // 2   保存
+    "addi       a2, a2, 4               \n"
+    "add        a9, a9, a8              \n" // diff += - ratio - 32768
+
+"BLTZ_x20_x30_565:                  \n"
+// diffがマイナスの時の処理 x2.0
+    "add        a9, a9, a7              \n" // diff += ratio
+    "addi       a2, a2, 2*4             \n" // a15 += 2 * sizeof(uint32_t)
+"LOOP_x20_x30_565:                  \n"
+    );
+  }
+
+  // x2 ~ x3
+  void IRAM_ATTR blit_x20_x30_332(uint32_t* __restrict d, const uint8_t* s, size_t src_length, const uint32_t* p, int odd, int ratio)
+  {
+    __asm__ (
+    ASM_INIT_BLIT_NEGATIVE
+    "loop       a4, LOOP_x20_x30_332    \n"  // ループ開始
+    ASM_READ_RGB332_2PIXEL
+
+    "sll        a4, a10                 \n"
+    "s32i       a4, a2, 0               \n" // 0,1 保存
+    "xsr        a6, SAR                 \n" // シフト量スイッチ
+    "sll        a4, a11                 \n"
+    "s32i       a4, a2, 4               \n" // 2,3 保存
+    "xsr        a6, SAR                 \n" // シフト量スイッチ
+    "bltz       a9, BLTZ_x20_x30_332    \n"
+
+// diffがプラスの時の処理 x3.0
+    "sll        a4, a11                 \n"
+    "s32i       a4, a2, 8               \n" // 4,5 保存
+    "xsr        a6, SAR                 \n" // シフト量スイッチ
+    "srli       a4, a10,16              \n" // a4 = a10 >> 16
+    "sll        a4, a4                  \n" // a4 = !odd a10
+    "s16i       a4, a2, 6               \n" // 2   保存
+    "addi       a2, a2, 4               \n"
+    "add        a9, a9, a8              \n" // diff += - ratio - 32768
+
+"BLTZ_x20_x30_332:                  \n"
+// diffがマイナスの時の処理 x2.0
+    "add        a9, a9, a7              \n" // diff += ratio
+    "addi       a2, a2, 2*4             \n" // a15 += 2 * sizeof(uint32_t)
+"LOOP_x20_x30_332:                  \n"
+    );
+  }
+
+  // x1.5~x2.0
+  void IRAM_ATTR blit_x15_x20_565(uint32_t* __restrict d, const uint8_t* s, size_t src_length, const uint32_t* p, int odd, int ratio)
+  {
+    __asm__ (
+    ASM_INIT_BLIT_POSITIVE
+    "addi       a4, a4, 1               \n"
+    "srli       a4, a4, 1               \n"
+    "loop       a4, LOOP_x15_x20_565    \n"  // ループ開始
+    ASM_READ_RGB565_4PIXEL
+
+    "sll        a4, a10                 \n"
+    "s32i       a4, a2, 0               \n" // 0,1 保存
+    "sll        a4, a12                 \n"
+    "s32i       a4, a2, 8               \n" // 4,5 保存
+    "xsr        a6, SAR                 \n" // シフト量スイッチ
+    "sll        a4, a11                 \n"
+    "s32i       a4, a2, 4               \n" // 2,3 保存
+    "sll        a4, a13                 \n"
+    "s32i       a4, a2, 12              \n" // 6,7 保存
+    "xsr        a6, SAR                 \n" // シフト量スイッチ
+
+    "bgez       a9, BGEZ_x15_x20_565    \n"
+// diffがマイナスの時の処理 x1.5
+    "sll        a4, a13                 \n"
+    "s16i       a4, a2, 8               \n" //   5 保存
+    "xsr        a6, SAR                 \n" // シフト量スイッチ
+    "sll        a4, a12                 \n"
+    "s16i       a4, a2, 4               \n" //   3 保存
+    "add        a9, a9, a7              \n" // diff += ratio
+    "addi       a2, a2, -1*4            \n" // 出力先 -= 1  (後の処理で+=4されるので、トータルで +3になる)
+
+"BGEZ_x15_x20_565:                  \n"
+// diffがプラスの時の処理 x2.0
+    "addi       a2, a2, 4*4             \n" // a15 += 4 * sizeof(uint32_t)
+    "addmi      a9, a9, -32768          \n" // diff -= 32768
+"LOOP_x15_x20_565:                  \n"
+    );
+  }
+
+  // x1.5~x2.0
+  void IRAM_ATTR blit_x15_x20_332(uint32_t* __restrict d, const uint8_t* s, size_t src_length, const uint32_t* p, int odd, int ratio)
+  {
+    __asm__ (
+    ASM_INIT_BLIT_POSITIVE
+    "addi       a4, a4, 1               \n"
+    "srli       a4, a4, 1               \n"
+    "loop       a4, LOOP_x15_x20_332    \n"  // ループ開始
+    ASM_READ_RGB332_4PIXEL
+
+    "sll        a4, a10                 \n"
+    "s32i       a4, a2, 0               \n" // 0,1 保存
+    "sll        a4, a12                 \n"
+    "s32i       a4, a2, 8               \n" // 4,5 保存
+    "xsr        a6, SAR                 \n" // シフト量スイッチ
+    "sll        a4, a11                 \n"
+    "s32i       a4, a2, 4               \n" // 2,3 保存
+    "sll        a4, a13                 \n"
+    "s32i       a4, a2, 12              \n" // 6,7 保存
+    "xsr        a6, SAR                 \n" // シフト量スイッチ
+
+    "bgez       a9, BGEZ_x15_x20_332    \n"
+// diffがマイナスの時の処理 x1.5
+    "sll        a4, a13                 \n"
+    "s16i       a4, a2, 8               \n" //   5 保存
+    "xsr        a6, SAR                 \n" // シフト量スイッチ
+    "sll        a4, a12                 \n"
+    "s16i       a4, a2, 4               \n" //   3 保存
+    "add        a9, a9, a7              \n" // diff += ratio
+    "addi       a2, a2, -1*4            \n" // 出力先 -= 1  (後の処理で+=4されるので、トータルで +3になる)
+
+"BGEZ_x15_x20_332:                  \n"
+// diffがプラスの時の処理 x2.0
+    "addi       a2, a2, 4*4             \n" // a15 += 4 * sizeof(uint32_t)
+    "addmi      a9, a9, -32768          \n" // diff -= 32768
+"LOOP_x15_x20_332:                  \n"
+    );
+  }
+
+  // x1.0~x1.5
+  void IRAM_ATTR blit_x10_x15_565(uint32_t* __restrict d, const uint8_t* s, size_t src_length, const uint32_t* p, int odd, int ratio)
+  {
+    __asm__ (
+    ASM_INIT_BLIT_NEGATIVE
+    "addi       a4, a4, 1               \n"
+    "srli       a4, a4, 1               \n"
+    "loop       a4, LOOP_x10_x15_565    \n"  // ループ開始
+    ASM_READ_RGB565_4PIXEL
+
+    "sll        a4, a10                 \n"
+    "s32i       a4, a2, 0               \n" // 0,1 保存
+    "bltz       a9, BLTZ_x10_x15_565    \n"
+// diffがプラスの時の処理 x1.5
+
+    "sll        a4, a13                 \n"
+    "s32i       a4, a2, 8               \n" // 4,5 保存
+    "xsr        a6, SAR                 \n" // シフト量スイッチ
+    "sll        a4, a11                 \n"
+    "s32i       a4, a2, 4               \n" // 2   保存
+    "sll        a4, a12                 \n"
+    "s16i       a4, a2, 4               \n" //   3 保存
+    "addi       a2, a2, 3*4             \n"
+    "add        a9, a9, a8              \n" // diff += - ratio - 32768
+    "j          ENDIF_x10_x15_565       \n"
+
+"BLTZ_x10_x15_565:                  \n"
+// diffがマイナスの時の処理 x1.0
+
+    "sll        a4, a11                 \n"
+    "s16i       a4, a2, 0               \n" //   1 保存
+    "xsr        a6, SAR                 \n" // シフト量スイッチ
+    "sll        a4, a12                 \n"
+    "s32i       a4, a2, 4               \n" // 2   保存
+    "sll        a4, a13                 \n"
+    "s16i       a4, a2, 4               \n" //   3 保存
+    "xsr        a6, SAR                 \n" // シフト量スイッチ
+    "addi       a2, a2, 2*4             \n" // a15 += 2 * sizeof(uint32_t)
+
+"ENDIF_x10_x15_565:                 \n"
+    "add        a9, a9, a7              \n" // diff += ratio
+"LOOP_x10_x15_565:                  \n"
+    );
+  }
+
+  // x1.0~x1.5
+  void IRAM_ATTR blit_x10_x15_332(uint32_t* __restrict d, const uint8_t* s, size_t src_length, const uint32_t* p, int odd, int ratio)
+  {
+    __asm__ (
+    ASM_INIT_BLIT_NEGATIVE
+    "addi       a4, a4, 1               \n"
+    "srli       a4, a4, 1               \n"
+    "loop       a4, LOOP_x10_x15_332    \n"  // ループ開始
+    ASM_READ_RGB332_4PIXEL
+
+    "sll        a4, a10                 \n"
+    "s32i       a4, a2, 0               \n" // 0,1 保存
+    "bltz       a9, BLTZ_x10_x15_332    \n"
+// diffがプラスの時の処理 x1.5
+
+    "sll        a4, a13                 \n"
+    "s32i       a4, a2, 8               \n" // 4,5 保存
+    "xsr        a6, SAR                 \n" // シフト量スイッチ
+    "sll        a4, a11                 \n"
+    "s32i       a4, a2, 4               \n" // 2   保存
+    "sll        a4, a12                 \n"
+    "s16i       a4, a2, 4               \n" //   3 保存
+    "addi       a2, a2, 3*4             \n"
+    "add        a9, a9, a8              \n" // diff += - ratio - 32768
+    "j          ENDIF_x10_x15_332       \n"
+
+"BLTZ_x10_x15_332:                  \n"
+// diffがマイナスの時の処理 x1.0
+
+    "sll        a4, a11                 \n"
+    "s16i       a4, a2, 0               \n" //   1 保存
+    "xsr        a6, SAR                 \n" // シフト量スイッチ
+    "sll        a4, a12                 \n"
+    "s32i       a4, a2, 4               \n" // 2   保存
+    "sll        a4, a13                 \n"
+    "s16i       a4, a2, 4               \n" //   3 保存
+    "xsr        a6, SAR                 \n" // シフト量スイッチ
+    "addi       a2, a2, 2*4             \n" // a15 += 2 * sizeof(uint32_t)
+
+"ENDIF_x10_x15_332:                 \n"
+    "add        a9, a9, a7              \n" // diff += ratio
+"LOOP_x10_x15_332:                  \n"
+    );
+  }
+
+#else
+
+  // x5 ~ x6
+  void IRAM_ATTR blit_x50_x60_565(uint32_t* __restrict d, const uint8_t* s, size_t src_length, const uint32_t* p, int odd, int ratio)
+  {
+    uint_fast8_t shift0 = odd < 0 ? 0 : 8;
     uint_fast8_t shift1 = shift0 ^ 8;
-    int diff = (ratio_6 + ratio_5) >> 1;
-    auto pl = p + 256;
+    int diff = (ratio - 32768) >> 1;
 
     src_length = (src_length + 1) >> 1;
     while (src_length--)
@@ -581,17 +1148,17 @@ namespace lgfx
       uint32_t p1h = s[2];
       uint32_t p0l = s[1];
       uint32_t p0h = s[0];
-      p1l = pl[p1l];
-      p1h = p [p1h];
-      p0l = pl[p0l];
-      p0h = p [p0h];
+      p1l = p[(p1l<<1)+1];
+      p1h = p[(p1h<<1)  ];
+      p0l = p[(p0l<<1)+1];
+      p0h = p[(p0h<<1)  ];
       s += 4;
       uint32_t color1 = p1h + p1l;
       uint32_t color0 = p0h + p0l;
 
       if (diff < 0)
       {
-        diff += ratio_5;
+        diff += ratio;
         d[1] = color0 << shift1;
         d[3] = color1 << shift1;
         d[0] = color0 <<= shift0;
@@ -602,7 +1169,7 @@ namespace lgfx
       }
       else
       {
-        diff += ratio_6;
+        diff -= 32768;
         d[1] = color0 << shift1;
         d[3] = color1 << shift1;
         d[5] = color1 << shift1;
@@ -615,11 +1182,11 @@ namespace lgfx
   }
 
   // x5 ~ x6
-  void IRAM_ATTR blit_x50_x60_332(uint32_t* __restrict d, const uint8_t* s, size_t src_length, const uint32_t* p, bool odd, int ratio_5, int ratio_6)
+  void IRAM_ATTR blit_x50_x60_332(uint32_t* __restrict d, const uint8_t* s, size_t src_length, const uint32_t* p, int odd, int ratio)
   {
-    uint_fast8_t shift0 = odd << 3;
+    uint_fast8_t shift0 = odd < 0 ? 0 : 8;
     uint_fast8_t shift1 = shift0 ^ 8;
-    int diff = (ratio_6 + ratio_5) >> 1;
+    int diff = (ratio - 32768) >> 1;
 
     src_length = (src_length + 1) >> 1;
     while (src_length--)
@@ -631,7 +1198,7 @@ namespace lgfx
       uint32_t color1 = p[p1];
       if (diff < 0)
       {
-        diff += ratio_5;
+        diff += ratio;
         d[1] = color0 << shift1;
         d[3] = color1 << shift1;
         d[0] = color0 <<= shift0;
@@ -642,7 +1209,7 @@ namespace lgfx
       }
       else
       {
-        diff += ratio_6;
+        diff -= 32768;
         d[1] = color0 << shift1;
         d[3] = color1 << shift1;
         d[5] = color1 << shift1;
@@ -655,12 +1222,11 @@ namespace lgfx
   }
 
   // x4 ~ x5
-  void IRAM_ATTR blit_x40_x50_565(uint32_t* __restrict d, const uint8_t* s, size_t src_length, const uint32_t* p, bool odd, int ratio_4, int ratio_5)
+  void IRAM_ATTR blit_x40_x50_565(uint32_t* __restrict d, const uint8_t* s, size_t src_length, const uint32_t* p, int odd, int ratio)
   {
-    uint_fast8_t shift0 = odd << 3;
+    uint_fast8_t shift0 = odd < 0 ? 0 : 8;
     uint_fast8_t shift1 = shift0 ^ 8;
-    int diff = (ratio_5 + ratio_4) >> 1;
-    auto pl = p + 256;
+    int diff = (ratio - 32768) >> 1;
 
     src_length = (src_length + 1) >> 1;
     while (src_length--)
@@ -669,17 +1235,17 @@ namespace lgfx
       uint32_t p1h = s[2];
       uint32_t p0l = s[1];
       uint32_t p0h = s[0];
-      p1l = pl[p1l];
-      p1h = p [p1h];
-      p0l = pl[p0l];
-      p0h = p [p0h];
+      p1l = p[(p1l<<1)+1];
+      p1h = p[(p1h<<1)  ];
+      p0l = p[(p0l<<1)+1];
+      p0h = p[(p0h<<1)  ];
       s += 4;
       uint32_t color1 = p1h + p1l;
       uint32_t color0 = p0h + p0l;
 
       if (diff < 0)
       {
-        diff += ratio_4;
+        diff += ratio;
         d[1] = color0 << shift1;
         d[3] = color1 << shift1;
         d[0] = color0 << shift0;
@@ -688,7 +1254,7 @@ namespace lgfx
       }
       else
       {
-        diff += ratio_5;
+        diff -= 32768;
         d[1] = color0 << shift1;
         d[3] = color1 << shift1;
         color0 <<= shift0;
@@ -703,11 +1269,11 @@ namespace lgfx
   }
 
   // x4 ~ x5
-  void IRAM_ATTR blit_x40_x50_332(uint32_t* __restrict d, const uint8_t* s, size_t src_length, const uint32_t* p, bool odd, int ratio_4, int ratio_5)
+  void IRAM_ATTR blit_x40_x50_332(uint32_t* __restrict d, const uint8_t* s, size_t src_length, const uint32_t* p, int odd, int ratio)
   {
-    uint_fast8_t shift0 = odd << 3;
+    uint_fast8_t shift0 = odd < 0 ? 0 : 8;
     uint_fast8_t shift1 = shift0 ^ 8;
-    int diff = (ratio_5 + ratio_4) >> 1;
+    int diff = (ratio - 32768) >> 1;
 
     src_length = (src_length + 1) >> 1;
     while (src_length--)
@@ -719,7 +1285,7 @@ namespace lgfx
       uint32_t color1 = p[p1];
       if (diff < 0)
       {
-        diff += ratio_4;
+        diff += ratio;
         d[1] = color0 << shift1;
         d[3] = color1 << shift1;
         d[0] = color0 << shift0;
@@ -728,7 +1294,7 @@ namespace lgfx
       }
       else
       {
-        diff += ratio_5;
+        diff -= 32768;
         d[1] = color0 << shift1;
         d[3] = color1 << shift1;
         color0 <<= shift0;
@@ -743,12 +1309,11 @@ namespace lgfx
   }
 
   // x3 ~ x4
-  void IRAM_ATTR blit_x30_x40_565(uint32_t* __restrict d, const uint8_t* s, size_t src_length, const uint32_t* p, bool odd, int ratio_3, int ratio_4)
+  void IRAM_ATTR blit_x30_x40_565(uint32_t* __restrict d, const uint8_t* s, size_t src_length, const uint32_t* p, int odd, int ratio)
   {
-    uint_fast8_t shift0 = odd << 3;
+    uint_fast8_t shift0 = odd < 0 ? 0 : 8;
     uint_fast8_t shift1 = shift0 ^ 8;
-    int diff = (ratio_4 + ratio_3) >> 1;
-    auto pl = p + 256;
+    int diff = (ratio - 32768) >> 1;
 
     src_length = (src_length + 1) >> 1;
     while (src_length--)
@@ -757,17 +1322,17 @@ namespace lgfx
       uint32_t p1h = s[2];
       uint32_t p0l = s[1];
       uint32_t p0h = s[0];
-      p1l = pl[p1l];
-      p1h = p [p1h];
-      p0l = pl[p0l];
-      p0h = p [p0h];
+      p1l = p[(p1l<<1)+1];
+      p1h = p[(p1h<<1)  ];
+      p0l = p[(p0l<<1)+1];
+      p0h = p[(p0h<<1)  ];
       s += 4;
       uint32_t color1 = p1h + p1l;
       uint32_t color0 = p0h + p0l;
 
       if (diff < 0)
       {
-        diff += ratio_3;
+        diff += ratio;
         d[0] = color0 << shift0;
         d[2] = color1 << shift0;
         color0 = ((color0 & 0xFFFF0000) + (color1 & 0xFFFF));
@@ -777,7 +1342,7 @@ namespace lgfx
       }
       else
       {
-        diff += ratio_4;
+        diff -= 32768;
         d[0] = color0 << shift0;
         d[2] = color1 << shift0;
         d[1] = color0 << shift1;
@@ -788,11 +1353,11 @@ namespace lgfx
   }
 
   // x3 ~ x4
-  void IRAM_ATTR blit_x30_x40_332(uint32_t* __restrict d, const uint8_t* s, size_t src_length, const uint32_t* p, bool odd, int ratio_3, int ratio_4)
+  void IRAM_ATTR blit_x30_x40_332(uint32_t* __restrict d, const uint8_t* s, size_t src_length, const uint32_t* p, int odd, int ratio)
   {
-    uint_fast8_t shift0 = odd << 3;
+    uint_fast8_t shift0 = odd < 0 ? 0 : 8;
     uint_fast8_t shift1 = shift0 ^ 8;
-    int diff = (ratio_4 + ratio_3) >> 1;
+    int diff = (ratio - 32768) >> 1;
 
     src_length = (src_length + 1) >> 1;
     while (src_length--)
@@ -804,7 +1369,7 @@ namespace lgfx
       uint32_t color1 = p[p1];
       if (diff < 0)
       {
-        diff += ratio_3;
+        diff += ratio;
         d[0] = color0 << shift0;
         d[2] = color1 << shift0;
         color0 = ((color0 & 0xFFFF0000) + (color1 & 0xFFFF));
@@ -814,7 +1379,7 @@ namespace lgfx
       }
       else
       {
-        diff += ratio_4;
+        diff -= 32768;
         d[0] = color0 << shift0;
         d[2] = color1 << shift0;
         d[1] = color0 << shift1;
@@ -825,12 +1390,11 @@ namespace lgfx
   }
 
   // x2 ~ x3
-  void IRAM_ATTR blit_x20_x30_565(uint32_t* __restrict d, const uint8_t* s, size_t src_length, const uint32_t* p, bool odd, int ratio_2, int ratio_3)
+  void IRAM_ATTR blit_x20_x30_565(uint32_t* __restrict d, const uint8_t* s, size_t src_length, const uint32_t* p, int odd, int ratio)
   {
-    uint_fast8_t shift0 = odd << 3;
+    uint_fast8_t shift0 = odd < 0 ? 0 : 8;
     uint_fast8_t shift1 = shift0 ^ 8;
-    int diff = (ratio_3 + ratio_2) >> 1;
-    auto pl = p + 256;
+    int diff = (ratio - 32768) >> 1;
 
     src_length = (src_length + 1) >> 1;
     while (src_length--)
@@ -839,17 +1403,17 @@ namespace lgfx
       uint32_t p1h = s[2];
       uint32_t p0l = s[1];
       uint32_t p0h = s[0];
-      p1l = pl[p1l];
-      p1h = p [p1h];
-      p0l = pl[p0l];
-      p0h = p [p0h];
+      p1l = p[(p1l<<1)+1];
+      p1h = p[(p1h<<1)  ];
+      p0l = p[(p0l<<1)+1];
+      p0h = p[(p0h<<1)  ];
       s += 4;
       uint32_t color1 = p1h + p1l;
       uint32_t color0 = p0h + p0l;
 
       if (diff < 0)
       {
-        diff += ratio_2;
+        diff += ratio;
         color0 <<= shift0;
         color1 <<= shift1;
         d[0] = color0;
@@ -858,7 +1422,7 @@ namespace lgfx
       }
       else
       {
-        diff += ratio_3;
+        diff -= 32768;
         d[0] = color0 << shift0;
         d[2] = color1 << shift0;
         d[1] = ((color0 & 0xFFFF0000) + (color1 & 0xFFFF)) << shift1;
@@ -869,11 +1433,11 @@ namespace lgfx
   }
 
   // x2 ~ x3
-  void IRAM_ATTR blit_x20_x30_332(uint32_t* __restrict d, const uint8_t* s, size_t src_length, const uint32_t* p, bool odd, int ratio_2, int ratio_3)
+  void IRAM_ATTR blit_x20_x30_332(uint32_t* __restrict d, const uint8_t* s, size_t src_length, const uint32_t* p, int odd, int ratio)
   {
-    uint_fast8_t shift0 = odd << 3;
+    uint_fast8_t shift0 = odd < 0 ? 0 : 8;
     uint_fast8_t shift1 = shift0 ^ 8;
-    int diff = (ratio_3 + ratio_2) >> 1;
+    int diff = (ratio - 32768) >> 1;
 
     src_length = (src_length + 1) >> 1;
     while (src_length--)
@@ -885,7 +1449,7 @@ namespace lgfx
       uint32_t color1 = p[p1];
       if (diff < 0)
       {
-        diff += ratio_2;
+        diff += ratio;
         color0 <<= shift0;
         color1 <<= shift1;
         d[0] = color0;
@@ -894,7 +1458,8 @@ namespace lgfx
       }
       else
       {
-        diff += ratio_3;
+        // diff += ratio_3;
+        diff -= 32768;
         d[0] = color0 << shift0;
         d[2] = color1 << shift0;
         d[1] = ((color0 & 0xFFFF0000) + (color1 & 0xFFFF)) << shift1;
@@ -905,12 +1470,11 @@ namespace lgfx
   }
 
   // x1.5~x2.0
-  void IRAM_ATTR blit_x15_x20_565(uint32_t* __restrict d, const uint8_t* s, size_t src_length, const uint32_t* p, bool odd, int ratio_15, int ratio_20)
+  void IRAM_ATTR blit_x15_x20_565(uint32_t* __restrict d, const uint8_t* s, size_t src_length, const uint32_t* p, int odd, int ratio)
   {
-    uint_fast8_t shift0 = odd << 3;
+    uint_fast8_t shift0 = odd < 0 ? 0 : 8;
     uint_fast8_t shift1 = shift0 ^ 8;
-    int diff = (ratio_20 + ratio_15) >> 1;
-    auto pl = p + 256;
+    int diff = (ratio - 32768) >> 1;
 
     src_length = (src_length + 3) >> 2;
     while (src_length--)
@@ -919,10 +1483,10 @@ namespace lgfx
       uint32_t p3h = s[6];
       uint32_t p2l = s[5];
       uint32_t p2h = s[4];
-      p3l = pl[p3l];
-      p3h = p [p3h];
-      p2l = pl[p2l];
-      p2h = p [p2h];
+      p3l = p[(p3l<<1)+1];
+      p3h = p[(p3h<<1)  ];
+      p2l = p[(p2l<<1)+1];
+      p2h = p[(p2h<<1)  ];
       uint32_t color3 = p3h + p3l;
 
       uint32_t p1l = s[3];
@@ -930,17 +1494,17 @@ namespace lgfx
       uint32_t color2 = p2h + p2l;
       uint32_t p0h = s[0];
       uint32_t p0l = s[1];
-      p1l = pl[p1l];
-      p1h = p [p1h];
-      p0l = pl[p0l];
-      p0h = p [p0h];
+      p1l = p[(p1l<<1)+1];
+      p1h = p[(p1h<<1)  ];
+      p0l = p[(p0l<<1)+1];
+      p0h = p[(p0h<<1)  ];
       s += 8;
       uint32_t color1 = p1h + p1l;
       uint32_t color0 = p0h + p0l;
 
       if (diff < 0)
       {
-        diff += ratio_15;
+        diff += ratio;
         color1 = ((color1 & 0xFFFF0000) + (color2 & 0xFFFF));
         color2 = ((color2 & 0xFFFF0000) + (color3 & 0xFFFF));
         d[0] = color0 << shift0;
@@ -951,7 +1515,7 @@ namespace lgfx
       }
       else
       {
-        diff += ratio_20;
+        diff -= 32768;
         d[0] = color0 << shift0;
         d[2] = color2 << shift0;
         d[1] = color1 << shift1;
@@ -962,11 +1526,11 @@ namespace lgfx
   }
 
   // x1.5~x2.0
-  void IRAM_ATTR blit_x15_x20_332(uint32_t* __restrict d, const uint8_t* s, size_t src_length, const uint32_t* p, bool odd, int ratio_15, int ratio_20)
+  void IRAM_ATTR blit_x15_x20_332(uint32_t* __restrict d, const uint8_t* s, size_t src_length, const uint32_t* p, int odd, int ratio)
   {
-    uint_fast8_t shift0 = odd << 3;
+    uint_fast8_t shift0 = odd < 0 ? 0 : 8;
     uint_fast8_t shift1 = shift0 ^ 8;
-    int diff = (ratio_20 + ratio_15) >> 1;
+    int diff = (ratio - 32768) >> 1;
 
     src_length = (src_length + 3) >> 2;
     while (src_length--)
@@ -982,7 +1546,7 @@ namespace lgfx
       s += 4;
       if (diff < 0)
       {
-        diff += ratio_15;
+        diff += ratio;
         color1 = ((color1 & 0xFFFF0000) + (color2 & 0xFFFF));
         color2 = ((color2 & 0xFFFF0000) + (color3 & 0xFFFF));
         d[0] = color0 << shift0;
@@ -993,7 +1557,7 @@ namespace lgfx
       }
       else
       {
-        diff += ratio_20;
+        diff -= 32768;
         d[0] = color0 << shift0;
         d[2] = color2 << shift0;
         d[1] = color1 << shift1;
@@ -1004,12 +1568,11 @@ namespace lgfx
   }
 
   // x1.0~x1.5
-  void IRAM_ATTR blit_x10_x15_565(uint32_t* __restrict d, const uint8_t* s, size_t src_length, const uint32_t* p, bool odd, int ratio_10, int ratio_15)
+  void IRAM_ATTR blit_x10_x15_565(uint32_t* __restrict d, const uint8_t* s, size_t src_length, const uint32_t* p, int odd, int ratio)
   {
-    uint_fast8_t shift0 = odd << 3;
+    uint_fast8_t shift0 = odd < 0 ? 0 : 8;
     uint_fast8_t shift1 = shift0 ^ 8;
-    int diff = (ratio_15 + ratio_10) >> 1;
-    auto pl = p + 256;
+    int diff = (ratio - 32768) >> 1;
 
     src_length = (src_length + 3) >> 2;
     while (src_length--)
@@ -1018,10 +1581,10 @@ namespace lgfx
       uint32_t p3h = s[6];
       uint32_t p2l = s[5];
       uint32_t p2h = s[4];
-      p3l = pl[p3l];
-      p3h = p [p3h];
-      p2l = pl[p2l];
-      p2h = p [p2h];
+      p3l = p[(p3l<<1)+1];
+      p3h = p[(p3h<<1)  ];
+      p2l = p[(p2l<<1)+1];
+      p2h = p[(p2h<<1)  ];
       uint32_t color3 = p3h + p3l;
 
       uint32_t p1l = s[3];
@@ -1029,17 +1592,17 @@ namespace lgfx
       uint32_t color2 = p2h + p2l;
       uint32_t p0h = s[0];
       uint32_t p0l = s[1];
-      p1l = pl[p1l];
-      p1h = p [p1h];
-      p0l = pl[p0l];
-      p0h = p [p0h];
+      p1l = p[(p1l<<1)+1];
+      p1h = p[(p1h<<1)  ];
+      p0l = p[(p0l<<1)+1];
+      p0h = p[(p0h<<1)  ];
       s += 8;
       uint32_t color1 = p1h + p1l;
       uint32_t color0 = p0h + p0l;
 
       if (diff < 0)
       {
-        diff += ratio_10;
+        diff += ratio;
         color0 &= 0xFFFF0000;
         color2 &= 0xFFFF0000;
         color1 &= 0xFFFF;
@@ -1052,7 +1615,7 @@ namespace lgfx
       }
       else
       {
-        diff += ratio_15;
+        diff -= 32768;
         color1 = ((color1 & 0xFFFF0000) + (color2 & 0xFFFF));
         color2 = ((color2 & 0xFFFF0000) + (color3 & 0xFFFF));
         d[0] = color0 << shift0;
@@ -1065,11 +1628,11 @@ namespace lgfx
   }
 
   // x1.0~x1.5
-  void IRAM_ATTR blit_x10_x15_332(uint32_t* __restrict d, const uint8_t* s, size_t src_length, const uint32_t* p, bool odd, int ratio_10, int ratio_15)
+  void IRAM_ATTR blit_x10_x15_332(uint32_t* __restrict d, const uint8_t* s, size_t src_length, const uint32_t* p, int odd, int ratio)
   {
-    uint_fast8_t shift0 = odd << 3;
+    uint_fast8_t shift0 = odd < 0 ? 0 : 8;
     uint_fast8_t shift1 = shift0 ^ 8;
-    int diff = (ratio_15 + ratio_10) >> 1;
+    int diff = (ratio - 32768) >> 1;
 
     src_length = (src_length + 3) >> 2;
     while (src_length--)
@@ -1085,7 +1648,7 @@ namespace lgfx
       s += 4;
       if (diff < 0)
       {
-        diff += ratio_10;
+        diff += ratio;
         color0 &= 0xFFFF0000;
         color2 &= 0xFFFF0000;
         color1 &= 0xFFFF;
@@ -1098,7 +1661,7 @@ namespace lgfx
       }
       else
       {
-        diff += ratio_15;
+        diff -= 32768;
         color0 <<= shift0;
         color3 <<= shift0;
         color1 = ((color1 & 0xFFFF0000) + (color2 & 0xFFFF)) << shift1;
@@ -1110,6 +1673,8 @@ namespace lgfx
       }
     }
   }
+
+#endif
 
   /// 引数のポインタアドレスがSRAMかどうか判定する  true=SRAM / false=not SRAM (e.g. PSRAM FlashROM) ;
   static inline bool IRAM_ATTR isSRAM(const void* ptr)
@@ -1177,9 +1742,8 @@ namespace lgfx
                           src,
                           internal.panel_width,
                           &internal.palette[pidx],
-                          internal.burst_shift & 2,
-                          internal.blit_ratio_l,
-                          internal.blit_ratio_h );
+                          (internal.burst_shift & 2) << 2,  // burst_shift ? 8 : 0
+                          internal.mul_ratio );
       }
     }
     else
@@ -1377,7 +1941,7 @@ namespace lgfx
       scale_index = (scale_index < 2 ? 2 : scale_index > 10 ? 10 : scale_index) - 2;
 
       /// 表示倍率に応じて出力データ生成関数を変更する;
-      static constexpr void (*fp_tbl_332[])(uint32_t*, const uint8_t*, size_t, const uint32_t*, bool, int, int) =
+      static constexpr void (*fp_tbl_332[])(uint32_t*, const uint8_t*, size_t, const uint32_t*, int, int) =
       {
         blit_x10_x15_332,
         blit_x15_x20_332,
@@ -1389,7 +1953,7 @@ namespace lgfx
         blit_x40_x50_332,
         blit_x50_x60_332
       };
-      static constexpr void (*fp_tbl_565[])(uint32_t*, const uint8_t*, size_t, const uint32_t*, bool, int, int) =
+      static constexpr void (*fp_tbl_565[])(uint32_t*, const uint8_t*, size_t, const uint32_t*, int, int) =
       {
         blit_x10_x15_565,
         blit_x15_x20_565,
@@ -1412,15 +1976,22 @@ namespace lgfx
       scale_h &= 0x0F;
 
       /// 表示倍率の比率を求める;
-      internal.blit_ratio_h = spec_info.display_width - (output_width * scale_h / 2);
-      internal.blit_ratio_l = spec_info.display_width - (output_width * scale_l / 2);
+      int32_t mul_ratio_h = spec_info.display_width - (output_width * scale_h / 2);
+      int32_t mul_ratio_l = spec_info.display_width - (output_width * scale_l / 2);
+      int32_t mul_ratio = INT32_MAX;
+      if (mul_ratio_h < 0) {
+        mul_ratio_h = -mul_ratio_h;
+        mul_ratio = ((mul_ratio_l << 15) + (mul_ratio_h >> 1)) / mul_ratio_h;
+      }
+      internal.mul_ratio = mul_ratio;
+
 
       // Xオフセットに表示倍率を掛けたものを描画開始位置情報に加える
       int scale_offset = (offset_x * spec_info.display_width + output_width-1) / output_width;
 
       internal.leftside_index = (spec_info.active_start + scale_offset) & ~3u;
 
-// printf("scale_l:%d scale_h:%d swl:%d swh:%d  ratio:a:%d b:%d left:%d  \n", scale_l, scale_h, output_width * scale_l, output_width * scale_h, internal.blit_ratio_h, internal.blit_ratio_l, internal.leftside_index);
+// printf("scale_l:%d scale_h:%d swl:%d swh:%d  ratio:%d  a:%d b:%d left:%d  \n", scale_l, scale_h, output_width * scale_l, output_width * scale_h, mul_ratio, mul_ratio_h, mul_ratio_l, internal.leftside_index);
     }
 
     {
