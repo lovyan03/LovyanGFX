@@ -2302,8 +2302,7 @@ namespace lgfx
         constexpr _detector_TTGO_T4_Display_t(void)
         : _detector_spi_t
         { board_t::board_TTGO_T4_Display
-          //, 0x04, 0xFF, 0x00 // ili9341
-        , 0, 0, 0 // cannot get id
+        , 0x04, 0xFF, 0x00 // ili9341
         , 40000000, 16000000
         , GPIO_NUM_23     // MOSI
         , GPIO_NUM_12     // MISO
@@ -2313,7 +2312,7 @@ namespace lgfx
         , GPIO_NUM_5      // RST
         , GPIO_NUM_13     // TF CARD CS
         , 0               // SPI MODE
-        , true            // SPI 3wire
+        , false           // SPI 3wire
         , VSPI_HOST       // SPI HOST
         } {}
 
