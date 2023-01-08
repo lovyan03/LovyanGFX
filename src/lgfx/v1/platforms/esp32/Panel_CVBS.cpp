@@ -74,7 +74,7 @@ namespace lgfx
 
     typedef void(*tasktype)(void*);
 
-    bool begin(size_t line_width)
+    bool begin(size_t line_width, UBaseType_t task_priority, BaseType_t task_pinned_core)
     {
       _datasize = line_width;
       _buffer = (uint8_t*)heap_alloc_dma((line_width * cache_num + 3) & ~3u);
@@ -84,7 +84,14 @@ namespace lgfx
       _push_idx = 0;
       _using_idx = cache_num - 1;
       prev_index = 0;
-      xTaskCreatePinnedToCore(task_memcpy, "task_memcpy", 2048, this, 25, &_task_handle, PRO_CPU_NUM);
+      if ((uint32_t)task_pinned_core < portNUM_PROCESSORS)
+      {
+        xTaskCreatePinnedToCore(task_memcpy, "task_memcpy", 2048, this, task_priority, &_task_handle, task_pinned_core);
+      }
+      else
+      {
+        xTaskCreate(task_memcpy, "task_memcpy", 2048, this, task_priority, &_task_handle);
+      }
       return true;
     }
 
@@ -519,7 +526,7 @@ namespace lgfx
     { setup_palette_ntsc_332
     , setup_palette_ntsc_565
     , setup_palette_ntsc_gray
-    , 0x049748    // 14.318237 // 映像に縞模様ノイズが出にくい;  ( 0x049746 = 14.318181 // 要求仕様に近い )
+    , 0x049748    // 14.318237 // 映像に縞模様ノイズが出にくい;  ( 0x049746 = 14.318181 = 3.579545 x4 // 要求仕様に近い )
     , 286         // 286mV = 0IRE
     , 340         // 340mV = 7.5IRE  米国仕様では黒レベルは 7.5IRE
     , 960         // 960mV  黄色の振幅の最大値が100IRE付近になるよう、白レベルは100IREよりも低く調整しておく;
@@ -529,7 +536,7 @@ namespace lgfx
     { setup_palette_ntsc_332
     , setup_palette_ntsc_565
     , setup_palette_ntsc_gray
-    , 0x049748    // 14.318237 // 映像に縞模様ノイズが出にくい;  ( 0x049746 = 14.318181 // 要求仕様に近い )
+    , 0x049748    // 14.318237 // 映像に縞模様ノイズが出にくい;  ( 0x049746 = 14.318181 = 3.579545 x4  // 要求仕様に近い )
     , 286         // 286mV = 0IRE
     , 286         // 286mV = 0IRE  日本仕様では黒レベルは 0IRE
     , 960
@@ -539,7 +546,7 @@ namespace lgfx
     { setup_palette_pal_332
     , setup_palette_pal_565
     , setup_palette_pal_gray
-    , 0x06A404    // 17.734476mhz ~4x
+    , 0x06A404    // 17.734476mhz ~4x   4.43361875 x4
     , 300
     , 300
     , 960
@@ -559,7 +566,7 @@ namespace lgfx
     { setup_palette_pal_332
     , setup_palette_pal_565
     , setup_palette_pal_gray
-    , 0x498D1    // 17.734476mhz ~4x
+    , 0x0498D1    // 3.58205625 x4
     , 300
     , 300
     , 960
@@ -587,20 +594,20 @@ namespace lgfx
     "l32i       a11,a11,0               \n"
 
 #define ASM_READ_RGB565_2PIXEL \
-    "l8ui       a12,a3, 1               \n" \
-    "l8ui       a13,a3, 3               \n" \
     "l8ui       a10,a3, 0               \n" \
+    "l8ui       a12,a3, 1               \n" \
     "l8ui       a11,a3, 2               \n" \
-    "addx8      a12,a12,a5              \n" \
-    "addx8      a13,a13,a5              \n" \
+    "l8ui       a13,a3, 3               \n" \
     "addx8      a10,a10,a5              \n" \
-    "addx8      a11,a11,a5              \n" \
-    "l32i       a12,a12,4               \n" \
     "l32i       a10,a10,0               \n" \
-    "l32i       a13,a13,4               \n" \
+    "addx8      a12,a12,a5              \n" \
+    "l32i       a12,a12,4               \n" \
+    "addx8      a11,a11,a5              \n" \
     "l32i       a11,a11,0               \n" \
-    "add        a10,a10,a12             \n" \
+    "addx8      a13,a13,a5              \n" \
+    "l32i       a13,a13,4               \n" \
     "addi       a3, a3, 4               \n" \
+    "add        a10,a10,a12             \n" \
     "add        a11,a11,a13             \n"
 
 #define ASM_READ_RGB332_4PIXEL \
@@ -619,34 +626,34 @@ namespace lgfx
     "addi       a3, a3, 4               \n"
 
 #define ASM_READ_RGB565_4PIXEL \
-    "l8ui       a14,a3, 1               \n" \
-    "l8ui       a15,a3, 3               \n" \
+    "l8ui       a12,a3, 1               \n" \
     "l8ui       a10,a3, 0               \n" \
+    "l8ui       a13,a3, 3               \n" \
     "l8ui       a11,a3, 2               \n" \
-    "addx8      a14,a14,a5              \n" \
-    "addx8      a15,a15,a5              \n" \
+    "addx8      a12,a12,a5              \n" \
+    "l32i       a12,a12,4               \n" \
     "addx8      a10,a10,a5              \n" \
-    "addx8      a11,a11,a5              \n" \
-    "l32i       a14,a14,4               \n" \
     "l32i       a10,a10,0               \n" \
-    "l32i       a15,a15,4               \n" \
+    "addx8      a13,a13,a5              \n" \
+    "l32i       a13,a13,4               \n" \
+    "addx8      a11,a11,a5              \n" \
     "l32i       a11,a11,0               \n" \
-    "add        a10,a10,a14             \n" \
     "l8ui       a14,a3, 5               \n" \
-    "add        a11,a11,a15             \n" \
-    "l8ui       a15,a3, 7               \n" \
+    "add        a10,a10,a12             \n" \
     "l8ui       a12,a3, 4               \n" \
+    "add        a11,a11,a13             \n" \
+    "l8ui       a15,a3, 7               \n" \
     "l8ui       a13,a3, 6               \n" \
     "addx8      a14,a14,a5              \n" \
-    "addx8      a15,a15,a5              \n" \
-    "addx8      a12,a12,a5              \n" \
-    "addx8      a13,a13,a5              \n" \
     "l32i       a14,a14,4               \n" \
+    "addx8      a12,a12,a5              \n" \
     "l32i       a12,a12,0               \n" \
+    "addx8      a15,a15,a5              \n" \
     "l32i       a15,a15,4               \n" \
+    "addx8      a13,a13,a5              \n" \
     "l32i       a13,a13,0               \n" \
-    "add        a12,a12,a14             \n" \
     "addi       a3, a3, 8               \n" \
+    "add        a12,a12,a14             \n" \
     "add        a13,a13,a15             \n"
 
 
@@ -674,15 +681,15 @@ namespace lgfx
     ASM_READ_RGB565_2PIXEL
 
     "sll        a12,a10                 \n"
+    "s32i       a12,a2, 0               \n" // 0,1 保存
+    "s32i       a12,a2, 8               \n" // 4,5 保存
     "sll        a13,a11                 \n"
+    "s32i       a13,a2, 16              \n" // 8,9 保存
     "xsr        a6, SAR                 \n" // シフト量スイッチ
     "sll        a14,a10                 \n"
-    "sll        a15,a11                 \n"
-    "s32i       a12,a2, 0               \n" // 0,1 保存
     "s32i       a14,a2, 4               \n" // 2,3 保存
-    "s32i       a12,a2, 8               \n" // 4,5 保存
+    "sll        a15,a11                 \n"
     "s32i       a15,a2, 12              \n" // 6,7 保存
-    "s32i       a13,a2, 16              \n" // 8,9 保存
     "bgez       a9, BGEZ_x50_x60_565    \n"
 // diffがマイナスの時の処理 x5.0
     "s16i       a13,a2, 8               \n" //   5 保存
@@ -711,15 +718,15 @@ namespace lgfx
     ASM_READ_RGB332_2PIXEL
 
     "sll        a12,a10                 \n"
+    "s32i       a12,a2, 0               \n" // 0,1 保存
+    "s32i       a12,a2, 8               \n" // 4,5 保存
     "sll        a13,a11                 \n"
+    "s32i       a13,a2, 16              \n" // 8,9 保存
     "xsr        a6, SAR                 \n" // シフト量スイッチ
     "sll        a14,a10                 \n"
-    "sll        a15,a11                 \n"
-    "s32i       a12,a2, 0               \n" // 0,1 保存
     "s32i       a14,a2, 4               \n" // 2,3 保存
-    "s32i       a12,a2, 8               \n" // 4,5 保存
+    "sll        a15,a11                 \n"
     "s32i       a15,a2, 12              \n" // 6,7 保存
-    "s32i       a13,a2, 16              \n" // 8,9 保存
     "bgez       a9, BGEZ_x50_x60_332    \n"
 // diffがマイナスの時の処理 x5.0
     "s16i       a13,a2, 8               \n" //   5 保存
@@ -748,12 +755,12 @@ namespace lgfx
     ASM_READ_RGB565_2PIXEL
 
     "sll        a12,a10                 \n"
+    "s32i       a12,a2, 0               \n" // 0,1 保存
     "sll        a13,a11                 \n"
     "xsr        a6, SAR                 \n" // シフト量スイッチ
     "sll        a14,a10                 \n"
-    "sll        a15,a11                 \n"
-    "s32i       a12,a2, 0               \n" // 0,1 保存
     "s32i       a14,a2, 4               \n" // 2,3 保存
+    "sll        a15,a11                 \n"
     "s32i       a15,a2, 12              \n" // 6,7 保存
 
     "bgez       a9, BGEZ_x40_x50_565    \n"
@@ -785,12 +792,12 @@ namespace lgfx
     ASM_READ_RGB332_2PIXEL
 
     "sll        a12,a10                 \n"
+    "s32i       a12,a2, 0               \n" // 0,1 保存
     "sll        a13,a11                 \n"
     "xsr        a6, SAR                 \n" // シフト量スイッチ
     "sll        a14,a10                 \n"
-    "sll        a15,a11                 \n"
-    "s32i       a12,a2, 0               \n" // 0,1 保存
     "s32i       a14,a2, 4               \n" // 2,3 保存
+    "sll        a15,a11                 \n"
     "s32i       a15,a2, 12              \n" // 6,7 保存
 
     "bgez       a9, BGEZ_x40_x50_332    \n"
@@ -1797,15 +1804,17 @@ namespace lgfx
 
     if (internal.use_psram)
     {
-      i = (i == - 8) ? 0 : _scanline_cache.prev_index;
-      for (;; ++i)
+      int32_t j = (i == - _scanline_cache.cache_num) ? 0 : _scanline_cache.prev_index;
+      i += _scanline_cache.cache_num << 1;
+      for (;j < i; ++j)
       {
-        int idx = ScanLineToY(i, odd_field);
+        int idx = ScanLineToY(j, odd_field);
         if (idx >= internal.panel_height) { break; }
-        if (idx < 0 || isSRAM(internal.lines[idx])) { continue; }
-        if (!_scanline_cache.prepare(internal.lines[idx])) { break; }
+        auto ptr = internal.lines[idx];
+        if (idx < 0 || isSRAM(ptr)) { continue; }
+        if (!_scanline_cache.prepare(ptr)) { break; }
       }
-      _scanline_cache.prev_index = i;
+      _scanline_cache.prev_index = j;
     }
 
     ISR_END();
@@ -2012,7 +2021,7 @@ namespace lgfx
     internal.use_psram = use_psram;
     if (use_psram)
     {
-      _scanline_cache.begin(( internal.panel_width * pixelPerBytes + 4 ) & ~3);
+      _scanline_cache.begin(( internal.panel_width * pixelPerBytes + 4 ) & ~3, _config_detail.task_priority, _config_detail.task_pinned_core);
     }
 
     size_t n = spec_info.scanline_width << 1;  // n=DMA 1回分のデータ量  最大値は4092;

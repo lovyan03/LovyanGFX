@@ -57,6 +57,12 @@ namespace lgfx
 
       // 0=SRAM only (no use PSRAM) / 1=both(half PSRAM and half SRAM) / 2=PSRAM only (no use SRAM)
       uint8_t use_psram = 0;
+
+      /// background PSRAM read task priority
+      UBaseType_t task_priority = 25;
+
+      /// background PSRAM read task pinned core. (APP_CPU_NUM or PRO_CPU_NUM)
+      BaseType_t task_pinned_core = PRO_CPU_NUM;
     };
 
     color_depth_t setColorDepth(color_depth_t) override;

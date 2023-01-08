@@ -160,6 +160,12 @@ public:
       cfg.chroma_level = 128; // 初期値128
       // 数値を下げると彩度が下がり、0で白黒になります。数値を上げると彩度が上がります。;
 
+      // バックグラウンドでPSRAMの読出しを行うタスクの優先度を設定;
+      // cfg.task_priority = 25;
+
+      // バックグラウンドでPSRAMの読出しを行うタスクを実行するCPUを選択 (APP_CPU_NUM or PRO_CPU_NUM);
+      // cfg.task_pinned_core = PRO_CPU_NUM;
+
       _panel_instance.config_detail(cfg);
     }
 
