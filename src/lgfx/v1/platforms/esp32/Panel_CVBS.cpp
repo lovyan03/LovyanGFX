@@ -84,14 +84,11 @@ namespace lgfx
       _push_idx = 0;
       _using_idx = cache_num - 1;
       prev_index = 0;
-      if ((uint32_t)task_pinned_core < portNUM_PROCESSORS)
+      if ((uint32_t)task_pinned_core >= portNUM_PROCESSORS)
       {
-        xTaskCreatePinnedToCore(task_memcpy, "task_memcpy", 2048, this, task_priority, &_task_handle, task_pinned_core);
+        task_pinned_core = (xPortGetCoreID() + 1) % portNUM_PROCESSORS;
       }
-      else
-      {
-        xTaskCreate(task_memcpy, "task_memcpy", 2048, this, task_priority, &_task_handle);
-      }
+      xTaskCreatePinnedToCore(task_memcpy, "task_memcpy", 2048, this, task_priority, &_task_handle, task_pinned_core);
       return true;
     }
 

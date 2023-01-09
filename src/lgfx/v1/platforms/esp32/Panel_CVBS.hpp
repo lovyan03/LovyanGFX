@@ -62,7 +62,7 @@ namespace lgfx
       UBaseType_t task_priority = 25;
 
       /// background PSRAM read task pinned core. (APP_CPU_NUM or PRO_CPU_NUM)
-      BaseType_t task_pinned_core = PRO_CPU_NUM;
+      BaseType_t task_pinned_core = -1;
     };
 
     color_depth_t setColorDepth(color_depth_t) override;
