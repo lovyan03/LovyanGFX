@@ -859,8 +859,9 @@ namespace lgfx
       }
       else
       {
-        if (dst_depth == rgb565_2Byte) { pc.fp_copy = pixelcopy_t::copy_rgb_fast<swap565_t, T>; }
-        else                           { pc.fp_copy = pixelcopy_t::copy_rgb_fast<rgb332_t, T>; }
+        if (     dst_depth == rgb565_2Byte) { pc.fp_copy = pixelcopy_t::copy_rgb_fast<swap565_t, T>; }
+        else if (dst_depth == rgb332_1Byte) { pc.fp_copy = pixelcopy_t::copy_rgb_fast<rgb332_t, T>; }
+        else                                { pc.fp_copy = pixelcopy_t::copy_rgb_fast<grayscale_t, T>; }
       }
       return pc;
     }
@@ -919,8 +920,9 @@ namespace lgfx
         }
         else
         {
-          if (dst_depth == rgb565_2Byte) { pc.fp_copy = pixelcopy_t::copy_palette_fast<swap565_t, T>; }
-          else                           { pc.fp_copy = pixelcopy_t::copy_palette_fast<rgb332_t, T>; }
+          if (     dst_depth == rgb565_2Byte) { pc.fp_copy = pixelcopy_t::copy_palette_fast<swap565_t, T>; }
+          else if (dst_depth == rgb332_1Byte) { pc.fp_copy = pixelcopy_t::copy_palette_fast<rgb332_t, T>; }
+          else                                { pc.fp_copy = pixelcopy_t::copy_palette_fast<grayscale_t, T>; }
         }
       }
       return pc;
@@ -1060,8 +1062,10 @@ namespace lgfx
       {
         if (depth == rgb565_2Byte) {
           pc.fp_copy = pixelcopy_t::copy_rgb_antialias<swap565_t>;
-        } else {
+        } else if (depth == rgb332_1Byte) {
           pc.fp_copy = pixelcopy_t::copy_rgb_antialias<rgb332_t>;
+        } else {
+          pc.fp_copy = pixelcopy_t::copy_rgb_antialias<grayscale_t>;
         }
       }
       return pc;

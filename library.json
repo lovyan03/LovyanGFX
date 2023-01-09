@@ -11,7 +11,7 @@
     "type": "git",
     "url": "https://github.com/lovyan03/LovyanGFX.git"
   },
-  "version": "0.5.0",
+  "version": "1.1.2",
   "frameworks": ["arduino", "espidf"],
   "platforms": ["espressif32", "espressif8266", "atmelsam"],
   "headers": "LovyanGFX.hpp",

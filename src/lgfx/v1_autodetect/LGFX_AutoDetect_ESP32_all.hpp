@@ -909,8 +909,8 @@ namespace lgfx
 
         _pin_level(pin_cs, true);
 
-        Bus_Parallel16 bus;
-        auto cfg = bus.config();
+        Bus_Parallel16 bus_tmp;
+        auto cfg = bus_tmp.config();
         for (size_t i = 0; i < 16; ++i)
         {
           cfg.pin_data[i] = pin_data[i];
@@ -922,13 +922,13 @@ namespace lgfx
         // cfg.freq_read = 5000000;
         cfg.port   = port;
 
-        bus.config(cfg);
-        bus.init();
+        bus_tmp.config(cfg);
+        bus_tmp.init();
         _pin_reset(pin_rst, use_reset); // LCD RST
 
-        bool hit = judgement(&bus, pin_cs);
+        bool hit = judgement(&bus_tmp, pin_cs);
 
-        bus.release();
+        bus_tmp.release();
 
         if (hit)
         {
@@ -945,10 +945,10 @@ namespace lgfx
           auto p = result->panel;
           p->bus(bus);
           {
-            auto cfg = p->config();
-            if (pin_cs  >= 0) { cfg.pin_cs  = pin_cs;  }
-            if (pin_rst >= 0) { cfg.pin_rst = pin_rst; }
-            p->config(cfg);
+            auto cfg_panel = p->config();
+            if (pin_cs  >= 0) { cfg_panel.pin_cs  = pin_cs;  }
+            if (pin_rst >= 0) { cfg_panel.pin_rst = pin_rst; }
+            p->config(cfg_panel);
           }
           return true;
         }

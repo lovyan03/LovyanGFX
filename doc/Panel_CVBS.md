@@ -23,8 +23,8 @@ NTSCを使用した際に黒が僅かに白浮きしていると感じる場合�
 ----------------
 
  - 出力できる最大解像度は信号タイプによって差があります。
-   - 720 x 480  (NTSC,NTSC-J)
-   - 864 x 576  (PAL,PAL-M)
+   - 720 x 480  (PAL-M,NTSC,NTSC-J)
+   - 864 x 576  (PAL)
    - 720 x 576  (PAL-N)
  - 最大解像度以下であれば、任意の解像度を設定可能です。
  - 最大解像度を整数で約分した解像度の指定を推奨します。
@@ -34,9 +34,9 @@ NTSCを使用した際に黒が僅かに白浮きしていると感じる場合�
 <TABLE>
  <TR>
   <TH></TH>
-  <TH> NTSC <BR> NTSC-J </TH>
+  <TH> PAL-M <BR> NTSC <BR> NTSC-J </TH>
   <TH> PAL-N </TH>
-  <TH> PAL <BR> PAL-M </TH>
+  <TH> PAL </TH>
  </TR>
  <TR align="center">
   <TH> max width </TH>
@@ -160,6 +160,12 @@ public:
       cfg.chroma_level = 128; // 初期値128
       // 数値を下げると彩度が下がり、0で白黒になります。数値を上げると彩度が上がります。;
 
+      // バックグラウンドでPSRAMの読出しを行うタスクの優先度を設定;
+      // cfg.task_priority = 25;
+
+      // バックグラウンドでPSRAMの読出しを行うタスクを実行するCPUを選択 (APP_CPU_NUM or PRO_CPU_NUM);
+      // cfg.task_pinned_core = PRO_CPU_NUM;
+
       _panel_instance.config_detail(cfg);
     }
 
@@ -172,7 +178,27 @@ LGFX gfx;
 
 void setup(void)
 {
+// 色数の指定 (省略時は rgb332_1Byte)
+//gfx.setColorDepth( 8);        // RGB332 256色
+//gfx.setColorDepth(16);        // RGB565 65536色
+//gfx.setColorDepth(lgfx::color_depth_t::rgb332_1Byte);   // RGB332 256色
+//gfx.setColorDepth(lgfx::color_depth_t::rgb565_2Byte);   // RGB565 65536色
+//gfx.setColorDepth(lgfx::color_depth_t::grayscale_8bit); // モノクロ 256階調
+
+//※ 実行中に setColorDepth で色数を変更することも可能ですが、
+//   メモリの再割当を実行するため描画内容は無効になります。
+
   gfx.init();
+
+  for (int x = 0; x < gfx.width(); ++x)
+  {
+    int v = x * 256 / gfx.width();
+    gfx.fillRect(x, 0 * gfx.height() >> 3, 7, gfx.height() >> 3, gfx.color888(v, v, v));
+    gfx.fillRect(x, 1 * gfx.height() >> 3, 7, gfx.height() >> 3, gfx.color888(v, 0 ,0));
+    gfx.fillRect(x, 2 * gfx.height() >> 3, 7, gfx.height() >> 3, gfx.color888(0, v, 0));
+    gfx.fillRect(x, 3 * gfx.height() >> 3, 7, gfx.height() >> 3, gfx.color888(0, 0, v));
+  }
+  delay(1000);
 }
 
 void loop(void)

@@ -57,9 +57,15 @@ namespace lgfx
 
       // 0=SRAM only (no use PSRAM) / 1=both(half PSRAM and half SRAM) / 2=PSRAM only (no use SRAM)
       uint8_t use_psram = 0;
+
+      /// background PSRAM read task priority
+      UBaseType_t task_priority = 25;
+
+      /// background PSRAM read task pinned core. (APP_CPU_NUM or PRO_CPU_NUM)
+      BaseType_t task_pinned_core = -1;
     };
 
-    color_depth_t setColorDepth(color_depth_t) override { return _write_depth; }
+    color_depth_t setColorDepth(color_depth_t) override;
     void setResolution(uint16_t width, uint16_t height, config_detail_t::signal_type_t type = config_detail_t::signal_type_max, int output_width = -1, int output_height = -1, int offset_x = -1, int offset_y = -1);
     void setOutputLevel(uint8_t output_level);
     void setChromaLevel(uint8_t chroma);
