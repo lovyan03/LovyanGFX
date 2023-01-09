@@ -44,16 +44,16 @@ This library has the following advantages.
   - Composite video signal (NTSC, PAL) output (only ESP32)
 
 
-|        | SPI | I2C | 8bit Para |16bit Para | CVBS  |
-|:------:|:---:|:---:|:---------:|:---------:|:-----:|
-|ESP32   | HW  | HW  | HW (I2S)  | ---       |HW(I2S)|
-|ESP32-S2| HW  | HW  | HW (I2S)  | HW (I2S)  | ---   |
-|ESP32-S3| HW  | HW  |HW(LCD/CAM)|HW(LCD/CAM)| ---   |
-|ESP32-C3| HW  | HW  | SW        | ---       | ---   |
-|ESP8266 | HW  | SW  | ---       | ---       | ---   |
-|SAMD51  | HW  | HW  | ---       | ---       | ---   |
-|SAMD21  | HW  | HW  | ---       | ---       | ---   |
-|RP2040  | HW  | --- | ---       | ---       | ---   |
+|        | SPI | I2C | 8bit Para |16bit Para | RGB       | CVBS     |
+|:------:|:---:|:---:|:---------:|:---------:|:---------:|:--------:|
+|ESP32   | HW  | HW  | HW (I2S)  | ---       | ---       |HW(I2SDAC)|
+|ESP32-S2| HW  | HW  | HW (I2S)  | HW (I2S)  | ---       | ---      |
+|ESP32-S3| HW  | HW  |HW(LCD/CAM)|HW(LCD/CAM)|HW(LCD/CAM)| ---      |
+|ESP32-C3| HW  | HW  | SW        | ---       | ---       | ---      |
+|ESP8266 | HW  | SW  | ---       | ---       | ---       | ---      |
+|SAMD51  | HW  | HW  | ---       | ---       | ---       | ---      |
+|SAMD21  | HW  | HW  | ---       | ---       | ---       | ---      |
+|RP2040  | HW  | --- | ---       | ---       | ---       | ---      |
 
 ※ HW = HardWare Peripheral / SW = SoftWare implementation
 
@@ -79,6 +79,7 @@ This library has the following advantages.
     - ILI9486
     - ILI9488 (Makerfabs Touch with Camera)
     - IT8951 (M5Paper)
+    - NT35510/OTM8009A
     - R61529
     - RA8875
     - RM68120
@@ -544,7 +545,7 @@ TomThumb font : [3-clause BSD](src/lgfx/Fonts/GFXFF/TomThumb.h) Brian J. Swetlan
 実装予定 Unimplemented request
 ----------------
   - ディスプレイ Displays
-    - OTM8009A / NT35510
     - SEPS525
-
+    - LT7680A / LT7685
+    - RA8873 / RA8876
 
