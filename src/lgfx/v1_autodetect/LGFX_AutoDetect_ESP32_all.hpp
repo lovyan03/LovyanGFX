@@ -2331,7 +2331,7 @@ namespace lgfx
             cfg.panel_height = 320;
             cfg.offset_x     = 0;
             cfg.offset_y     = 0;
-            cfg.offset_rotation  =  0;
+            cfg.offset_rotation  =  2;
             cfg.dummy_read_pixel =  8;
             cfg.dummy_read_bits  =  1;
             cfg.readable         =  true;
