@@ -2297,6 +2297,55 @@ namespace lgfx
         }
       };
 
+      struct _detector_TTGO_T4_Display_t : public _detector_spi_t
+      {
+        constexpr _detector_TTGO_T4_Display_t(void)
+        : _detector_spi_t
+        { board_t::board_TTGO_T4_Display
+        , 0x04, 0xFF, 0x00 // ili9341
+        , 40000000, 16000000
+        , GPIO_NUM_23     // MOSI
+        , GPIO_NUM_12     // MISO
+        , GPIO_NUM_18     // SCLK
+        , GPIO_NUM_32     // DC
+        , GPIO_NUM_27     // CS
+        , GPIO_NUM_5      // RST
+        , GPIO_NUM_13     // TF CARD CS
+        , 0               // SPI MODE
+        , false           // SPI 3wire
+        , VSPI_HOST       // SPI HOST
+        } {}
+
+        void setup(_detector_result_t* result) const override
+        {
+          ESP_LOGI(LIBRARY_NAME, "[Autodetect] TTGO_T4_Display");
+
+          auto p = new Panel_ILI9341();
+          result->panel = p;
+          {
+            auto cfg = p->config();
+            cfg.pin_cs  = GPIO_NUM_27;
+            cfg.pin_rst = GPIO_NUM_5;
+            cfg.pin_busy     =  -1;
+            cfg.panel_width  = 240;
+            cfg.panel_height = 320;
+            cfg.offset_x     = 0;
+            cfg.offset_y     = 0;
+            cfg.offset_rotation  =  2;
+            cfg.dummy_read_pixel =  8;
+            cfg.dummy_read_bits  =  1;
+            cfg.readable         =  true;
+            cfg.invert           = false;
+            cfg.rgb_order        = false;
+            cfg.dlen_16bit       = false;
+            cfg.bus_shared       =  true;
+
+            p->config(cfg);
+            p->light(_create_pwm_backlight(GPIO_NUM_4, 7, 44100));
+          }
+        }
+      };
+
       struct _detector_WiFiBoy_Mini_t : public _detector_spi_t
       {
         constexpr _detector_WiFiBoy_Mini_t(void)
@@ -3111,6 +3160,7 @@ namespace lgfx
       static constexpr const _detector_M5StackCore2_t          detector_M5StackCore2; // and M5Tough
       static constexpr const _detector_TTGO_TWatch_t           detector_TTGO_TWatch;
       static constexpr const _detector_TTGO_TDisplay_t         detector_TTGO_TDisplay;
+      static constexpr const _detector_TTGO_T4_Display_t       detector_TTGO_T4_Display;
       static constexpr const _detector_WiFiBoy_Mini_t          detector_WiFiBoy_Mini;
       static constexpr const _detector_WiFiBoy_Pro_t           detector_WiFiBoy_Pro;
       static constexpr const _detector_Makerfabs_MakePython_t  detector_Makerfabs_MakePython;
@@ -3197,6 +3247,9 @@ namespace lgfx
 #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_TTGO_TDISPLAY )
         &detector_TTGO_TDisplay,
 #endif
+#if defined ( LGFX_AUTODETECT ) || defined ( LGFX_TTGO_T4_DISPLAY )
+        &detector_TTGO_T4_Display,
+#endif
 #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_WIFIBOY_MINI )
         &detector_WiFiBoy_Mini,
 #endif
@@ -3221,7 +3274,7 @@ namespace lgfx
 
 
       std::uint32_t pkg_ver = lgfx::get_pkg_ver();
-//  ESP_LOGV("LGFX","pkg:%d", pkg_ver);
+      ESP_LOGV("LGFX", "pkg: %lu", (unsigned long)pkg_ver);
 
       switch (pkg_ver)
       {
