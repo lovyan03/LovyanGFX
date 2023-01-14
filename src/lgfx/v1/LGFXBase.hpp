@@ -765,12 +765,12 @@ namespace lgfx
     [[deprecated("use pushPixels")]] void pushColors(const void*     data, int32_t len, bool swap) { startWrite(); writePixels(data, len, swap); endWrite(); }
     [[deprecated("use pushPixels")]] void pushColors(const uint16_t* data, int32_t len, bool swap) { startWrite(); writePixels(data, len, swap); endWrite(); }
 
+    void prepareTmpTransaction(DataWrapper* data);
 //----------------------------------------------------------------------------
 
   protected:
 
     virtual RGBColor* getPalette_impl(void) const { return nullptr; }
-    void prepareTmpTransaction(DataWrapper* data);
 
     IPanel* _panel = nullptr;
 
