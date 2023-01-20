@@ -14,6 +14,7 @@ void loopThread(void)
   for (;;)
   {
     loop();
+    sleep(2);
     std::this_thread::yield();
   }
 }
@@ -24,5 +25,6 @@ int main(int, char**)
   for (;;)
   {
     std::this_thread::yield();
+    sleep(5);
   }
 }

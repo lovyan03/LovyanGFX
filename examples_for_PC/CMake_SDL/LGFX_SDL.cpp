@@ -13,6 +13,7 @@ static void loopThread(void)
   for (;;)
   {
     std::this_thread::yield();
+    SDL_Delay(2);
     loop();
   }
 }
