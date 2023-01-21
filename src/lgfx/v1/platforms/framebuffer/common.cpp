@@ -80,6 +80,13 @@ namespace lgfx
 //*/
   }
 
+  void gpio_hi(uint32_t pin) { }
+  void gpio_lo(uint32_t pin) { }
+  bool gpio_in(uint32_t pin) { return false; }
+
+  void pinMode(int_fast16_t pin, pin_mode_t mode) {}
+  void lgfxPinMode(int_fast16_t pin, pin_mode_t mode) {}
+
 //----------------------------------------------------------------------------
 
   namespace spi
