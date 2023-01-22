@@ -496,7 +496,8 @@ namespace lgfx
     uint32_t fb_clock = base_clock;
     uint32_t save_diff = ~0u;
     uint32_t fb_div = 1;
-    uint32_t in_div = std::max(1u, base_clock / (target_clock + 1));
+    uint32_t in_div = base_clock / (target_clock + 1);
+    if (in_div == 0) { in_div = 1; }
     for (;;)
     {
       uint32_t tmp_clock = fb_clock / in_div;
@@ -603,7 +604,7 @@ namespace lgfx
 
     if (!res)
     {
-      ESP_LOGI(TAG, "PLL feedback_div:%d  input_div:%d  output_div:%d  OUTPUT_CLOCK:%d", vc.feedback_divider, vc.input_divider, vc.output_divider, OUTPUT_CLOCK);
+      ESP_LOGI(TAG, "PLL feedback_div:%d  input_div:%d  output_div:%d  OUTPUT_CLOCK:%ld", vc.feedback_divider, vc.input_divider, vc.output_divider, OUTPUT_CLOCK);
       ESP_LOGI(TAG, "logical resolution: w:%d h:%d", _cfg.panel_width, _cfg.panel_height);
       ESP_LOGI(TAG, "scaling resolution: w:%d h:%d", _cfg.panel_width * _scale_w, _cfg.panel_height * _scale_h);
       ESP_LOGI(TAG, " output resolution: w:%d h:%d", _cfg.memory_width, _cfg.memory_height);
