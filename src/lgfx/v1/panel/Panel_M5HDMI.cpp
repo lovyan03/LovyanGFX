@@ -439,7 +439,7 @@ namespace lgfx
     HDMI_Trans driver(_HDMI_Trans_config);
 
     auto result = driver.readChipID();
-    ESP_LOGI(TAG, "Chip ID: %02x %02x %02x\n", result.id[0], result.id[1], result.id[2]);
+    ESP_LOGI(TAG, "Chip ID: %02x %02x %02x\in_div", result.id[0], result.id[1], result.id[2]);
     if (result.id[0] == result.id[1] && result.id[0] == result.id[2])
     {
       return false;
@@ -489,9 +489,58 @@ namespace lgfx
     return res;
   }
 
+  uint32_t getPllParams(Panel_M5HDMI::video_clock_t* vc, uint32_t target_clock) {
+
+    static constexpr const uint32_t base_clock = 74250000;
+
+    uint32_t fb_clock = base_clock;
+    uint32_t save_diff = ~0u;
+    uint32_t fb_div = 1;
+    uint32_t in_div = std::max(1u, base_clock / (target_clock + 1));
+    for (;;)
+    {
+      uint32_t tmp_clock = fb_clock / in_div;
+      uint32_t diff = abs((int32_t)target_clock - (int32_t)tmp_clock);
+//    ESP_LOGE("M5HDMI", "FB:%d IN:%d  diff:%d", fb_div, in_div, diff);
+      if (save_diff > diff)
+      {
+        save_diff = diff;
+        vc->feedback_divider = fb_div;
+        vc->input_divider = in_div;
+        if (diff == 0) { break; }
+      }
+      if (target_clock < tmp_clock)
+      {
+        if (++in_div > 24) { break; }
+      }
+      else
+      {
+        if (++fb_div > 64) { break; }
+        fb_clock = base_clock * fb_div;
+      }
+    }
+
+    uint32_t result = base_clock * vc->feedback_divider / vc->input_divider;
+
+    save_diff = ~0u;
+    static constexpr const uint8_t odiv_tbl[] = { 2, 4, 8, 16, 32, 48, 64, 80, 96, 112, 128 };
+    static constexpr const int32_t vco_target = 800000000; // 800 MHz
+    for (auto odiv : odiv_tbl) {
+      uint32_t diff = abs((int32_t)(result * odiv) - vco_target);
+//    ESP_LOGE("M5HDMI", "DIFF:%d ODIV:%d", diff, odiv);
+      if (save_diff < diff) { break; }
+      save_diff = diff;
+      vc->output_divider = odiv;
+    }
+
+    return result;
+  }
+
   bool Panel_M5HDMI::_init_resolution(void)
   {
-    static constexpr int32_t OUTPUT_CLOCK = 74250000; // 74.25MHz
+    video_clock_t vc;
+    int32_t OUTPUT_CLOCK = getPllParams(&vc, _pixel_clock);
+
     int32_t TOTAL_RESOLUTION = OUTPUT_CLOCK / _refresh_rate;
 
     int mem_width  = _cfg.memory_width ;
@@ -550,9 +599,11 @@ namespace lgfx
 
     setVideoTiming(&vt);
     setScaling(_scale_w, _scale_h);
+    _set_video_clock(&vc);
 
     if (!res)
     {
+      ESP_LOGI(TAG, "PLL feedback_div:%d  input_div:%d  output_div:%d  OUTPUT_CLOCK:%d", vc.feedback_divider, vc.input_divider, vc.output_divider, OUTPUT_CLOCK);
       ESP_LOGI(TAG, "logical resolution: w:%d h:%d", _cfg.panel_width, _cfg.panel_height);
       ESP_LOGI(TAG, "scaling resolution: w:%d h:%d", _cfg.panel_width * _scale_w, _cfg.panel_height * _scale_h);
       ESP_LOGI(TAG, " output resolution: w:%d h:%d", _cfg.memory_width, _cfg.memory_height);
@@ -563,7 +614,7 @@ namespace lgfx
     return res;
   }
 
-  bool Panel_M5HDMI::setResolution( uint16_t logical_width, uint16_t logical_height, float refresh_rate, uint16_t output_width, uint16_t output_height, uint8_t scale_w, uint8_t scale_h)
+  bool Panel_M5HDMI::setResolution( uint16_t logical_width, uint16_t logical_height, float refresh_rate, uint16_t output_width, uint16_t output_height, uint8_t scale_w, uint8_t scale_h, uint32_t pixel_clock)
   {
     config_resolution_t cfg_reso;
     cfg_reso.logical_width  = logical_width;
@@ -573,6 +624,7 @@ namespace lgfx
     cfg_reso.output_height  = output_height;
     cfg_reso.scale_w        = scale_w;
     cfg_reso.scale_h        = scale_h;
+    cfg_reso.pixel_clock    = pixel_clock;
     return setResolution( cfg_reso );
   }
 
@@ -618,6 +670,7 @@ namespace lgfx
     uint_fast16_t output_height  = cfg_reso.output_height;
     uint_fast8_t scale_w         = cfg_reso.scale_w;
     uint_fast8_t scale_h         = cfg_reso.scale_h;
+    _pixel_clock                 = cfg_reso.pixel_clock;
 
     if (output_width)
     {
@@ -1253,6 +1306,38 @@ namespace lgfx
     cmd.back = getSwap16(param->back_porch);
     cmd.active = getSwap16(param->active);
     cmd.front = getSwap16(param->front_porch);
+    uint_fast8_t sum = 0;
+    for (size_t i = 0; i < sizeof(cmd_t)-1; ++i)
+    {
+      sum += cmd.raw[i];
+    }
+    cmd.chksum = ~sum;
+
+    startWrite();
+    waitDisplay();
+    _bus->writeBytes(cmd.raw, sizeof(cmd_t), false, false);
+    endWrite();
+  }
+
+  void Panel_M5HDMI::_set_video_clock(const video_clock_t* param)
+  {
+    union cmd_t
+    {
+      uint8_t raw[8];
+      struct __attribute__((packed))
+      {
+        uint8_t cmd;
+        uint16_t input_divider;
+        uint16_t feedback_divider;
+        uint16_t output_divider;
+        uint8_t chksum;
+      };
+    };
+    cmd_t cmd;
+    cmd.cmd = CMD_VIDEO_CLOCK;
+    cmd.input_divider = param->input_divider << 8;
+    cmd.feedback_divider = param->feedback_divider << 8;
+    cmd.output_divider = param->output_divider << 8;
     uint_fast8_t sum = 0;
     for (size_t i = 0; i < sizeof(cmd_t)-1; ++i)
     {
