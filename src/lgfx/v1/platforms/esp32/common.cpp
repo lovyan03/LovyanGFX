@@ -1027,7 +1027,6 @@ namespace lgfx
 //ESP_LOGI("LGFX", "i2c::beginTransaction : port:%d / addr:%02x / freq:%d / rw:%d", i2c_port, i2c_addr, freq, read);
 
       auto dev = getDev(i2c_port);
-      i2c_context[i2c_port].save_reg(dev);
 
 #if defined ( CONFIG_IDF_TARGET_ESP32C3 ) ||  defined ( CONFIG_IDF_TARGET_ESP32S3 )
       if (dev->sr.bus_busy)
@@ -1047,6 +1046,9 @@ namespace lgfx
         while (dev->status_reg.bus_busy && micros() - ms < 128);
 #endif
       }
+      i2c_context[i2c_port].save_reg(dev);
+
+      i2c_set_pin((i2c_port_t)i2c_port, i2c_context[i2c_port].pin_sda, i2c_context[i2c_port].pin_scl, gpio_pullup_t::GPIO_PULLUP_ENABLE, gpio_pullup_t::GPIO_PULLUP_ENABLE, I2C_MODE_MASTER);
 
 #if SOC_I2C_SUPPORT_HW_FSM_RST
       dev->ctr.fsm_rst = 1;
