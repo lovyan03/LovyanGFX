@@ -439,7 +439,7 @@ namespace lgfx
     HDMI_Trans driver(_HDMI_Trans_config);
 
     auto result = driver.readChipID();
-    ESP_LOGI(TAG, "Chip ID: %02x %02x %02x\in_div", result.id[0], result.id[1], result.id[2]);
+    ESP_LOGI(TAG, "Chip ID: %02x %02x %02x in_div", result.id[0], result.id[1], result.id[2]);
     if (result.id[0] == result.id[1] && result.id[0] == result.id[2])
     {
       return false;
