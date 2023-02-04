@@ -56,7 +56,7 @@ public:
   {
 #if defined (CONFIG_IDF_TARGET_ESP32S3)
 
-    // for AtomS3LCD
+    // for AtomS3/AtomS3Lite
     static constexpr int i2c_port = 1;
     static constexpr int i2c_sda  = GPIO_NUM_38;
     static constexpr int i2c_scl  = GPIO_NUM_39;

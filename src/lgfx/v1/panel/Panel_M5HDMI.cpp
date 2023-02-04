@@ -414,10 +414,9 @@ namespace lgfx
       }
       uint8_t* dst = &EDID[result];
       result += 32;
-      for ( size_t j = 0; j < 32; ++j )
-      {
-        dst[j] = this->readRegister( 0x83 );
-      }
+      dst[0] = 0x83;
+      lgfx::i2c::transactionWriteRead(this->HDMI_Trans_config.i2c_port, this->HDMI_Trans_config.i2c_addr, dst, 1, dst, 32, this->HDMI_Trans_config.freq_read);
+
       if (i == 3)
       {
         i_end = std::min<size_t>(i_end, ((dst[30] & 0x03) + 1) << 2);
@@ -439,7 +438,7 @@ namespace lgfx
     HDMI_Trans driver(_HDMI_Trans_config);
 
     auto result = driver.readChipID();
-    ESP_LOGI(TAG, "Chip ID: %02x %02x %02x in_div", result.id[0], result.id[1], result.id[2]);
+    ESP_LOGI(TAG, "Chip ID: %02x %02x %02x", result.id[0], result.id[1], result.id[2]);
     if (result.id[0] == result.id[1] && result.id[0] == result.id[2])
     {
       return false;
