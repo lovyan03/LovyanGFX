@@ -535,6 +535,17 @@ namespace lgfx
         *dma = SPI_DMA_TX_ENA;
         _clear_dma_reg = dma;
 #else
+        auto dma_conf_reg = reg(SPI_DMA_CONF_REG(_spi_port));
+        auto dma_conf = *dma_conf_reg | SPI_OUT_DATA_BURST_EN | SPI_OUTDSCR_BURST_EN;
+        if (length & 3)
+        { // 送信長に端数がある場合はバーストモードの使用をやめる
+          dma_conf &= ~(SPI_OUT_DATA_BURST_EN);
+          // ※ 以下の3つの条件が揃うと、DMA転送の末尾付近でデータが化ける現象が起きる。
+          //    1.送信クロック80MHz (APBクロックと1:1)
+          //    2.DMAバースト読出し有効
+          //    3.送信データ長が4の倍数ではない (1Byte~3Byteの端数がある場合)
+        }
+        *dma_conf_reg = dma_conf;
         uint32_t len = length;
         *spi_dma_out_link_reg = SPI_OUTLINK_START | ((int)(&_dmadesc[0]) & 0xFFFFF);
         _clear_dma_reg = spi_dma_out_link_reg;
