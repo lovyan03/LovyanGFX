@@ -113,7 +113,7 @@ namespace lgfx
     void writePixels(pixelcopy_t* pc, uint32_t length) override;
     void writeBytes(const uint8_t* data, uint32_t length, bool dc, bool use_dma) override;
 
-    void initDMA(void) override;
+    void initDMA(void) override {}
     void addDMAQueue(const uint8_t* data, uint32_t length) override;
     void execDMAQueue(void) override;
     uint8_t* getDMABuffer(uint32_t length) override { return _flip_buffer.getBuffer(length); }
@@ -188,7 +188,7 @@ namespace lgfx
     uint32_t _dma_queue_size = 0;
     uint32_t _dma_queue_capacity = 0;
     uint8_t _spi_port = 0;
-    bool _next_dma_reset = false;
+    uint8_t _dma_ch = 0;
     bool _inited = false;
   };
 
