@@ -160,6 +160,29 @@ namespace lgfx
     }
   };
 
+  struct Light_M5AtomS3 : public lgfx::Light_PWM
+  {
+    Light_M5AtomS3(void)
+    {
+      auto cfg = config();
+      /// The backlight of AtomS3 does not light up if the PWM cycle is too fast.
+      cfg.freq = 240;
+      cfg.pin_bl = GPIO_NUM_16;
+      cfg.pwm_channel = 7;
+      config(cfg);
+    }
+
+    void setBrightness(uint8_t brightness) override
+    {
+      if (brightness) 
+      {
+        brightness = brightness - (brightness >> 3) + 31;
+      }
+      Light_PWM::setBrightness(brightness);
+    }
+  };
+
+
 #elif defined (CONFIG_IDF_TARGET_ESP32S2)
 
 #if defined ( ARDUINO_ADAFRUIT_FEATHER_ESP32S2_TFT )
@@ -1041,7 +1064,7 @@ namespace lgfx
           ESP_LOGI(LIBRARY_NAME, "[Autodetect] M5AtomS3");
           auto p = new Panel_GC9107();
           param->panel = p;
-          p->light(_create_pwm_backlight(GPIO_NUM_16, 7, 240)); /// AtomS3のバックライトはPWM周期が速いと点灯しない;
+          p->light(new Light_M5AtomS3());
 
           {
             auto cfg = p->config();
