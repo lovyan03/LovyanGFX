@@ -989,7 +989,9 @@ namespace lgfx
         }
 
 #if defined (CONFIG_IDF_TARGET_ESP32S3)
-        dev->scl_high_period.scl_high_period = scl_high_period;
+        auto wait_high = scl_high_period >> 2;
+        dev->scl_high_period.scl_high_period = scl_high_period - wait_high;
+        dev->scl_high_period.scl_wait_high_period = wait_high;
         dev->scl_low_period .scl_low_period  = scl_low_period ;
         dev->sda_hold.sda_hold_time     = std::min<uint32_t>(1023u, (scl_high_period >> 1));
         dev->sda_sample.sda_sample_time = std::min<uint32_t>(1023u, (scl_low_period  >> 1));
@@ -998,13 +1000,18 @@ namespace lgfx
         dev->scl_start_hold.scl_start_hold_time = cycle;    //the clock num between the negedge of SDA and negedge of SCL for start mark
         dev->scl_rstart_setup.scl_rstart_setup_time = cycle;  //the clock num between the posedge of SCL and the negedge of SDA for restart mark
 #else
+
+#if defined ( I2C_SCL_WAIT_HIGH_PERIOD )
+        auto wait_high = scl_high_period >> 2;
+        dev->scl_high_period.period = scl_high_period - wait_high;
+        dev->scl_high_period.scl_wait_high_period = wait_high;
+#else
         dev->scl_high_period.period = scl_high_period;
+#endif
         dev->scl_low_period .period = scl_low_period ;
+
         dev->sda_hold.time   = std::min<uint32_t>(1023u, (scl_high_period >> 1));
         dev->sda_sample.time = std::min<uint32_t>(1023u, (scl_low_period  >> 1));
- #if defined (CONFIG_IDF_TARGET_ESP32S2) || defined (CONFIG_IDF_TARGET_ESP32C3)
-        dev->scl_high_period.scl_wait_high_period = scl_high_period >> 2;
- #endif
         dev->scl_stop_hold.time = cycle << 1;     //the clock num after the STOP bit's posedge
         dev->scl_stop_setup.time = cycle;    //the clock num between the posedge of SCL and the posedge of SDA
         dev->scl_start_hold.time = cycle;    //the clock num between the negedge of SDA and negedge of SCL for start mark
