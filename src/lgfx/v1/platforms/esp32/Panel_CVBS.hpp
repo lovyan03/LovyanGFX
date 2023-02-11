@@ -19,6 +19,8 @@ Contributors:
 
 #include "../../panel/Panel_FrameBufferBase.hpp"
 
+#include <freertos/FreeRTOS.h>
+
 namespace lgfx
 {
  inline namespace v1
