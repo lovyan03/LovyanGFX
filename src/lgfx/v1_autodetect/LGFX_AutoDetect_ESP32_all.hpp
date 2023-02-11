@@ -571,7 +571,7 @@ namespace lgfx
       {
       public:
         _pin_backup_t(int8_t pin_num)
-          : _io_mux_gpio_reg   { *reinterpret_cast<uint32_t*>(IO_MUX_GPIO0_REG           + (pin_num * 4)) }
+          : _io_mux_gpio_reg   { *reinterpret_cast<uint32_t*>(GPIO_PIN_MUX_REG[pin_num]) }
           , _gpio_pin_reg      { *reinterpret_cast<uint32_t*>(GPIO_PIN0_REG              + (pin_num * 4)) }
           , _gpio_func_out_reg { *reinterpret_cast<uint32_t*>(GPIO_FUNC0_OUT_SEL_CFG_REG + (pin_num * 4)) }
           , _pin_num           { static_cast<gpio_num_t>(pin_num) }
@@ -587,10 +587,10 @@ namespace lgfx
         {
           if ((int)_pin_num >= 0) {
   // ESP_LOGD("DEBUG","restore pin:%d ", _pin_num);
-  // ESP_LOGD("DEBUG","restore IO_MUX_GPIO0_REG          :%08x -> %08x ", *reinterpret_cast<uint32_t*>(IO_MUX_GPIO0_REG           + (_pin_num * 4)), _io_mux_gpio_reg   );
+  // ESP_LOGD("DEBUG","restore IO_MUX_GPIO0_REG          :%08x -> %08x ", *reinterpret_cast<uint32_t*>(GPIO_PIN_MUX_REG[_pin_num]                 ), _io_mux_gpio_reg   );
   // ESP_LOGD("DEBUG","restore GPIO_PIN0_REG             :%08x -> %08x ", *reinterpret_cast<uint32_t*>(GPIO_PIN0_REG              + (_pin_num * 4)), _gpio_pin_reg      );
   // ESP_LOGD("DEBUG","restore GPIO_FUNC0_OUT_SEL_CFG_REG:%08x -> %08x ", *reinterpret_cast<uint32_t*>(GPIO_FUNC0_OUT_SEL_CFG_REG + (_pin_num * 4)), _gpio_func_out_reg );
-            *reinterpret_cast<uint32_t*>(IO_MUX_GPIO0_REG           + (_pin_num * 4)) = _io_mux_gpio_reg;
+            *reinterpret_cast<uint32_t*>(GPIO_PIN_MUX_REG[_pin_num]) = _io_mux_gpio_reg;
             *reinterpret_cast<uint32_t*>(GPIO_PIN0_REG              + (_pin_num * 4)) = _gpio_pin_reg;
             *reinterpret_cast<uint32_t*>(GPIO_FUNC0_OUT_SEL_CFG_REG + (_pin_num * 4)) = _gpio_func_out_reg;
 #if defined ( GPIO_ENABLE1_REG )

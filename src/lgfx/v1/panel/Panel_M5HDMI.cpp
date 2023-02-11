@@ -429,6 +429,29 @@ namespace lgfx
 
 //----------------------------------------------------------------------------
 
+  class _pin_backup_t
+  {
+  public:
+    _pin_backup_t(gpio_num_t pin_num)
+      : _io_mux_gpio_reg   { *reinterpret_cast<uint32_t*>(GPIO_PIN_MUX_REG[pin_num]) }
+      , _gpio_func_out_reg { *reinterpret_cast<uint32_t*>(GPIO_FUNC0_OUT_SEL_CFG_REG + (pin_num * 4)) }
+      , _pin_num           { pin_num }
+    {}
+
+    void restore(void) const
+    {
+      if ((uint32_t)_pin_num < GPIO_NUM_MAX) {
+        *reinterpret_cast<uint32_t*>(GPIO_PIN_MUX_REG[_pin_num]) = _io_mux_gpio_reg;
+        *reinterpret_cast<uint32_t*>(GPIO_FUNC0_OUT_SEL_CFG_REG + (_pin_num * 4)) = _gpio_func_out_reg;
+      }
+    }
+
+  private:
+    uint32_t _io_mux_gpio_reg;
+    uint32_t _gpio_func_out_reg;
+    gpio_num_t _pin_num;
+  };
+
   bool Panel_M5HDMI::init(bool use_reset)
   {
     ESP_LOGI(TAG, "i2c port:%d sda:%d scl:%d", _HDMI_Trans_config.i2c_port, _HDMI_Trans_config.pin_sda, _HDMI_Trans_config.pin_scl);
@@ -447,12 +470,12 @@ namespace lgfx
     ESP_LOGI(TAG, "Resetting HDMI transmitter...");
     driver.reset();
 
-
     {
-      auto bus_cfg = reinterpret_cast<lgfx::Bus_SPI*>(bus())->config();
+      auto bus_cfg = reinterpret_cast<lgfx::Bus_SPI*>(_bus)->config();
+      _pin_backup_t backup_sclk[] = { (gpio_num_t)bus_cfg.pin_sclk, (gpio_num_t)bus_cfg.pin_mosi, (gpio_num_t)bus_cfg.pin_miso };
       LOAD_FPGA fpga(bus_cfg.pin_sclk, bus_cfg.pin_mosi, bus_cfg.pin_miso, _cfg.pin_cs);
+      for (auto &bup : backup_sclk) { bup.restore(); }
     }
-
     if (!Panel_Device::init(false)) { return false; }
 
     // Initialize and read ID
