@@ -33,7 +33,10 @@ Inspiration Sources:
 #include <soc/rtc.h>
 #include <soc/periph_defs.h>
 #include <soc/i2s_struct.h>
-#include <esp_chip_info.h>
+
+#if __has_include(<esp_chip_info.h>)
+ #include <esp_chip_info.h>
+#endif
 
 #if __has_include(<driver/i2s_std.h>)
  #include <driver/i2s_std.h>
