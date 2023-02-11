@@ -913,6 +913,15 @@ namespace lgfx
 
   void Panel_M5HDMI::setSleep(bool flg)
   {
+    HDMI_Trans driver(_HDMI_Trans_config);
+    if (flg)
+    {
+      driver.reset();
+    }
+    else
+    {
+      driver.init();
+    }
   }
 
   void Panel_M5HDMI::setPowerSave(bool flg)
