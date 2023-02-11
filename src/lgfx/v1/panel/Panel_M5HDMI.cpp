@@ -26,6 +26,11 @@ Contributors:
 #include "../misc/colortype.hpp"
 
 #include <esp_log.h>
+#include <soc/gpio_reg.h>
+#include <soc/io_mux_reg.h>
+#if __has_include(<hal/gpio_types.h>)
+ #include <hal/gpio_types.h>
+#endif
 
 #if __has_include(<alloca.h>)
 #include <alloca.h>
