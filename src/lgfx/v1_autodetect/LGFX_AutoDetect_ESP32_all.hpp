@@ -24,8 +24,8 @@ Contributors:
 #include <memory>
 #include <esp_log.h>
 #include <driver/i2c.h>
-#include <soc/gpio_reg.h>
 #include <soc/efuse_reg.h>
+#include <soc/gpio_reg.h>
 #include <soc/io_mux_reg.h>
 #if __has_include(<hal/gpio_types.h>)
  #include <hal/gpio_types.h>
