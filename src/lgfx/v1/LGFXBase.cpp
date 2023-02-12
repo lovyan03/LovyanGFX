@@ -29,6 +29,7 @@ Contributors:
 #include "misc/bitmap.hpp"
 
 #include <stdarg.h>
+#include <stdint.h>
 #include <math.h>
 #include <list>
 
@@ -44,8 +45,9 @@ namespace lgfx
  inline namespace v1
  {
 //----------------------------------------------------------------------------
-  static constexpr float deg_to_rad = 0.017453292519943295769236907684886;
-  static constexpr uint8_t FP_SCALE = 16;
+  static constexpr const float deg_to_rad = 0.017453292519943295769236907684886;
+  static constexpr const uint8_t FP_SCALE = 16;
+  static constexpr const uint8_t LGFX_ALPHABLEND_NONREADABLE_THRESH = 128;
 
   void LGFXBase::setColorDepth(color_depth_t depth)
   {
@@ -2697,34 +2699,51 @@ namespace lgfx
     bool hasAlpha = (idx != len);
     if (hasAlpha)
     {
-      if (p->lineBuffer == nullptr)
+      if (p->gfx->isReadable())
       {
-        p->lineBuffer = (bgra8888_t*)heap_alloc_dma(sizeof(bgra8888_t) * p->maxWidth);
-      }
-      p->gfx->readRect(p->x, p->y + y0, p->maxWidth, 1, p->lineBuffer);
-      do
-      {
-        uint_fast8_t a = argb[0];
-        if (a) {
-          if (a == 255) {
-            p->lineBuffer[x].set(*(uint32_t*)argb);
-          } else {
-            auto data = &p->lineBuffer[x];
-            uint_fast8_t inv = 255 - a;
-            data->set( (argb[1] * a + data->r * inv + 255) >> 8
-                     , (argb[2] * a + data->g * inv + 255) >> 8
-                     , (argb[3] * a + data->b * inv + 255) >> 8
-                     );
-          }
+        if (p->lineBuffer == nullptr)
+        {
+          p->lineBuffer = (bgra8888_t*)heap_alloc_dma(sizeof(bgra8888_t) * p->maxWidth);
         }
-        x += div_x;
-        if ((int32_t)x >= p->maxWidth) break;
-        argb += 4;
-      } while (--len);
-      p->pc->src_data = p->lineBuffer;
-      p->pc->src_x32_add = 1 << FP_SCALE;
-      p->pc->src_y32_add = 0;
-      p->gfx->pushImage(p->x, p->y + y0, p->maxWidth, 1, p->pc, false);
+        p->gfx->readRect(p->x, p->y + y0, p->maxWidth, 1, p->lineBuffer);
+        do
+        {
+          uint_fast8_t a = argb[0];
+          if (a) {
+            if (a == 255) {
+              p->lineBuffer[x].set(*(uint32_t*)argb);
+            } else {
+              auto data = &p->lineBuffer[x];
+              uint_fast8_t inv = 255 - a;
+              data->set( (argb[1] * a + data->r * inv + 255) >> 8
+                      , (argb[2] * a + data->g * inv + 255) >> 8
+                      , (argb[3] * a + data->b * inv + 255) >> 8
+                      );
+            }
+          }
+          x += div_x;
+          if ((int32_t)x >= p->maxWidth) break;
+          argb += 4;
+        } while (--len);
+        p->pc->src_data = p->lineBuffer;
+        p->pc->src_x32_add = 1 << FP_SCALE;
+        p->pc->src_y32_add = 0;
+        p->gfx->pushImage(p->x, p->y + y0, p->maxWidth, 1, p->pc, false);
+      }
+      else
+      {
+        do
+        {
+          if (argb[0] > LGFX_ALPHABLEND_NONREADABLE_THRESH)
+          {
+            p->gfx->setColor(color888(argb[1], argb[2], argb[3]));
+            p->gfx->writeFillRectPreclipped(p->x + x, p->y + y0, 1, 1);
+          }
+          x += div_x;
+          if ((int32_t)x >= p->maxWidth) break;
+          argb += 4;
+        } while (--len);
+      }
     }
     else
     if (div_x == 1)
@@ -2789,57 +2808,76 @@ namespace lgfx
     bool hasAlpha = (idx != len);
     if (hasAlpha)
     {
-// ESP_LOGE("TR","alpha:%d", argb[idx * 4 + 3]);
-    //   uint32_t left = idx;
-    //   idx = len;
-    //   while (idx-- && (0 == argb[idx * 4 + 3] || argb[idx * 4 + 3] == 255));
-    //   uint32_t right = idx;
-      do
+      if (p->gfx->isReadable())
       {
-        p->gfx->readRect(p->x, p->y + y0, p->maxWidth, 1, p->lineBuffer);
-        const uint8_t* argbbuf = argb;
-        size_t loop = len;
-        size_t xtmp = x;
         do
         {
-          int32_t l = ceilf( xtmp      * p->zoom_x) - p->offX;
+          p->gfx->readRect(p->x, p->y + y0, p->maxWidth, 1, p->lineBuffer);
+          const uint8_t* argbbuf = argb;
+          size_t loop = len;
+          size_t xtmp = x;
+          do
+          {
+            int32_t l = ceilf( xtmp      * p->zoom_x) - p->offX;
+            if (l < 0) l = 0;
+            int32_t r = ceilf((xtmp + 1) * p->zoom_x) - p->offX;
+            if (r > p->maxWidth) r = p->maxWidth;
+            if (l < r)
+            {
+              uint_fast8_t a = argbbuf[0];
+              if (a) {
+                if (a == 255)
+                {
+                  do
+                  {
+                    p->lineBuffer[l].set(*(uint32_t*)argbbuf);
+                  } while (++l < r);
+                }
+                else
+                {
+                  uint_fast8_t inv = 255 - a;
+                  size_t ar = argbbuf[1] * a + 255;
+                  size_t ag = argbbuf[2] * a + 255;
+                  size_t ab = argbbuf[3] * a + 255;
+                  do
+                  {
+                    auto data = &p->lineBuffer[l];
+                    data->set( (ar + data->r * inv) >> 8
+                            , (ag + data->g * inv) >> 8
+                            , (ab + data->b * inv) >> 8);
+                  } while (++l < r);
+                }
+              }
+            }
+            argbbuf += 4;
+            xtmp += div_x;
+          } while (--loop);
+          p->pc->src_x32_add = 1 << FP_SCALE;
+          p->pc->src_y32_add = 0;
+          p->gfx->pushImage(p->x, p->y + y0, p->maxWidth, 1, p->pc, true);
+        } while (++y0 != y1);
+      }
+      else
+      {
+        size_t h = y1 - y0;
+        do
+        {
+          int32_t l = ceilf( x      * p->zoom_x) - p->offX;
           if (l < 0) l = 0;
-          int32_t r = ceilf((xtmp + 1) * p->zoom_x) - p->offX;
+          int32_t r = ceilf((x + 1) * p->zoom_x) - p->offX;
           if (r > p->maxWidth) r = p->maxWidth;
           if (l < r)
           {
-            uint_fast8_t a = argbbuf[0];
-            if (a) {
-              if (a == 255)
-              {
-                do
-                {
-                  p->lineBuffer[l].set(*(uint32_t*)argbbuf);
-                } while (++l < r);
-              }
-              else
-              {
-                uint_fast8_t inv = 255 - a;
-                size_t ar = argbbuf[1] * a + 255;
-                size_t ag = argbbuf[2] * a + 255;
-                size_t ab = argbbuf[3] * a + 255;
-                do
-                {
-                  auto data = &p->lineBuffer[l];
-                  data->set( (ar + data->r * inv) >> 8
-                           , (ag + data->g * inv) >> 8
-                           , (ab + data->b * inv) >> 8);
-                } while (++l < r);
-              }
+            if (argb[0] > LGFX_ALPHABLEND_NONREADABLE_THRESH)
+            {
+              p->gfx->setColor(color888(argb[1], argb[2], argb[3]));
+              p->gfx->writeFillRectPreclipped(p->x + l, p->y + y0, r - l, h);
             }
           }
-          argbbuf += 4;
-          xtmp += div_x;
-        } while (--loop);
-        p->pc->src_x32_add = 1 << FP_SCALE;
-        p->pc->src_y32_add = 0;
-        p->gfx->pushImage(p->x, p->y + y0, p->maxWidth, 1, p->pc, true);
-      } while (++y0 != y1);
+          argb += 4;
+          x += div_x;
+        } while (--len);
+      }
     }
     else
     if (div_x == 1)
