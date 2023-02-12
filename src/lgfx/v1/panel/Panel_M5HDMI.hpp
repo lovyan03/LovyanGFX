@@ -290,6 +290,7 @@ namespace lgfx
     uint8_t _scale_h = 1;
     float _refresh_rate = 60.0f;
     uint32_t _pixel_clock = 74250000;
+    bool _in_transaction = false;
 
     bool _init_resolution(void);
     void _set_window(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye, uint_fast8_t cmd);

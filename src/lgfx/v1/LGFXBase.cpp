@@ -2533,6 +2533,8 @@ namespace lgfx
     int32_t y = rect->top;
     int32_t w = rect->right  - rect->left + 1;
     int32_t h = rect->bottom - rect->top + 1;
+    jpeg->pc->src_x32_add = 1 << FP_SCALE;
+    jpeg->pc->src_y32_add = 0;
     jpeg->gfx->pushImage( jpeg->x + x
                         , jpeg->y + y
                         , w
@@ -2720,12 +2722,16 @@ namespace lgfx
         argb += 4;
       } while (--len);
       p->pc->src_data = p->lineBuffer;
+      p->pc->src_x32_add = 1 << FP_SCALE;
+      p->pc->src_y32_add = 0;
       p->gfx->pushImage(p->x, p->y + y0, p->maxWidth, 1, p->pc, false);
     }
     else
     if (div_x == 1)
     {
       p->pc->src_data = argb;
+      p->pc->src_x32_add = 1 << FP_SCALE;
+      p->pc->src_y32_add = 0;
       p->gfx->pushImage(p->x + x, p->y + y0, len, 1, p->pc, false);
     }
     else
@@ -2830,6 +2836,8 @@ namespace lgfx
           argbbuf += 4;
           xtmp += div_x;
         } while (--loop);
+        p->pc->src_x32_add = 1 << FP_SCALE;
+        p->pc->src_y32_add = 0;
         p->gfx->pushImage(p->x, p->y + y0, p->maxWidth, 1, p->pc, true);
       } while (++y0 != y1);
     }
@@ -2854,6 +2862,8 @@ namespace lgfx
         ++x;
       } while (--len);
       do {
+        p->pc->src_x32_add = 1 << FP_SCALE;
+        p->pc->src_y32_add = 0;
         p->gfx->pushImage(p->x, p->y + y0, p->maxWidth, 1, p->pc, true);
       } while (++y0 != y1);
 /*/
