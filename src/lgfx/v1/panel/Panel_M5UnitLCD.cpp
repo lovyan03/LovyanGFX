@@ -67,6 +67,8 @@ namespace lgfx
 
   void Panel_M5UnitLCD::beginTransaction(void)
   {
+    if (_in_transaction) return;
+    _in_transaction = true;
     _bus->beginTransaction();
     cs_control(false);
     _last_cmd = 0;
@@ -74,6 +76,8 @@ namespace lgfx
 
   void Panel_M5UnitLCD::endTransaction(void)
   {
+    if (!_in_transaction) return;
+    _in_transaction = false;
     _bus->endTransaction();
     cs_control(true);
     _last_cmd = 0;

@@ -138,6 +138,7 @@ namespace lgfx
     uint32_t _ypos;
     uint32_t _last_cmd;
     uint32_t _buff_free_count;
+    bool _in_transaction = false;
 
     void _set_window(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye);
     void _fill_rect(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, uint_fast8_t bytes);
