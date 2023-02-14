@@ -16,6 +16,10 @@ Contributors:
  [tobozo](https://github.com/tobozo)
 /----------------------------------------------------------------------------*/
 
+#if defined (ESP_PLATFORM)
+#include <sdkconfig.h>
+#if defined (CONFIG_IDF_TARGET_ESP32S3)
+
 #include "Panel_RGB.hpp"
 #include "../../Bus.hpp"
 #include "../common.hpp"
@@ -488,3 +492,5 @@ namespace lgfx
 
  }
 }
+#endif
+#endif
