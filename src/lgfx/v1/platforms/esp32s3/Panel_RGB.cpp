@@ -135,14 +135,14 @@ namespace lgfx
     }
   }
 
-  static void _write_swspi(uint32_t data, uint8_t bits, uint8_t pin_scl, uint8_t pin_sda)
+  static void _write_swspi(uint32_t data, uint8_t bits, uint8_t pin_sclk, uint8_t pin_mosi)
   {
     uint_fast8_t mask = 1 << (bits - 1);
     do
     {
-      gpio_lo(pin_scl);
-      if (data & mask) { gpio_hi(pin_sda); } else { gpio_lo(pin_sda); }
-      gpio_hi(pin_scl);
+      gpio_lo(pin_sclk);
+      if (data & mask) { gpio_hi(pin_mosi); } else { gpio_lo(pin_mosi); }
+      gpio_hi(pin_sclk);
     } while (mask >>= 1);
   }
 
@@ -174,7 +174,7 @@ namespace lgfx
     do
     {
 // printf("CMD: %02x \n", data & 0xFF);
-      _write_swspi(data & 0xFF, 9, _config_detail.pin_scl, _config_detail.pin_sda);
+      _write_swspi(data & 0xFF, 9, _config_detail.pin_sclk, _config_detail.pin_mosi);
       data >>= 8;
     } while (--len);
   }
@@ -184,7 +184,7 @@ namespace lgfx
     do
     {
 // printf("DAT: %02x \n", data & 0xFF);
-      _write_swspi(data | 0x100, 9, _config_detail.pin_scl, _config_detail.pin_sda);
+      _write_swspi(data | 0x100, 9, _config_detail.pin_sclk, _config_detail.pin_mosi);
       data >>= 8;
     } while (--len);
   }
@@ -278,15 +278,15 @@ namespace lgfx
       return false;
     }
 
-    int32_t pin_sda = _config_detail.pin_sda;
-    int32_t pin_scl = _config_detail.pin_scl;
-    if (pin_sda >= 0 && pin_scl >= 0)
+    int32_t pin_mosi = _config_detail.pin_mosi;
+    int32_t pin_sclk = _config_detail.pin_sclk;
+    if (pin_mosi >= 0 && pin_sclk >= 0)
     {
-      _pin_backup_t backup_pins[] = { (gpio_num_t)pin_sda, (gpio_num_t)pin_scl };
-      lgfx::gpio_lo(pin_sda);
-      lgfx::pinMode(pin_sda, pin_mode_t::output);
-      lgfx::gpio_lo(pin_scl);
-      lgfx::pinMode(pin_scl, pin_mode_t::output);
+      _pin_backup_t backup_pins[] = { (gpio_num_t)pin_mosi, (gpio_num_t)pin_sclk };
+      lgfx::gpio_lo(pin_mosi);
+      lgfx::pinMode(pin_mosi, pin_mode_t::output);
+      lgfx::gpio_lo(pin_sclk);
+      lgfx::pinMode(pin_sclk, pin_mode_t::output);
 
 
       int32_t pin_cs = _config_detail.pin_cs;
@@ -461,15 +461,15 @@ namespace lgfx
       return false;
     }
 
-    int32_t pin_sda = _config_detail.pin_sda;
-    int32_t pin_scl = _config_detail.pin_scl;
-    if (pin_sda >= 0 && pin_scl >= 0)
+    int32_t pin_mosi = _config_detail.pin_mosi;
+    int32_t pin_sclk = _config_detail.pin_sclk;
+    if (pin_mosi >= 0 && pin_sclk >= 0)
     {
-      _pin_backup_t backup_pins[] = { (gpio_num_t)pin_sda, (gpio_num_t)pin_scl };
-      lgfx::gpio_lo(pin_sda);
-      lgfx::pinMode(pin_sda, pin_mode_t::output);
-      lgfx::gpio_lo(pin_scl);
-      lgfx::pinMode(pin_scl, pin_mode_t::output);
+      _pin_backup_t backup_pins[] = { (gpio_num_t)pin_mosi, (gpio_num_t)pin_sclk };
+      lgfx::gpio_lo(pin_mosi);
+      lgfx::pinMode(pin_mosi, pin_mode_t::output);
+      lgfx::gpio_lo(pin_sclk);
+      lgfx::pinMode(pin_sclk, pin_mode_t::output);
 
       int32_t pin_cs = _config_detail.pin_cs;
       lgfx::gpio_lo(pin_cs);

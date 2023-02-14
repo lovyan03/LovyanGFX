@@ -35,8 +35,8 @@ namespace lgfx
     struct config_detail_t
     {
       int8_t pin_cs = -1;
-      int8_t pin_scl = -1;
-      int8_t pin_sda = -1;
+      int8_t pin_sclk = -1;
+      int8_t pin_mosi = -1;
 
       // unimplemented... : TODO : 0=SRAM only (no use PSRAM) / 1=both(half PSRAM and half SRAM) / 2=PSRAM only (no use SRAM)
       uint8_t use_psram = 2;
