@@ -27,8 +27,12 @@ namespace lgfx
 
   struct Touch_GT911 : public ITouch
   {
+    static constexpr const uint8_t default_addr_1 = 0x14;
+    static constexpr const uint8_t default_addr_2 = 0x5D;
+
     Touch_GT911(void)
     {
+      _cfg.i2c_addr = default_addr_1;
       _cfg.x_min = 0;
       _cfg.x_max = 2047;
       _cfg.y_min = 0;
