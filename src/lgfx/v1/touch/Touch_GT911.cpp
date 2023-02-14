@@ -62,6 +62,7 @@ namespace lgfx
       lgfx::gpio_lo(_cfg.pin_rst);
       lgfx::delay(1);
       lgfx::gpio_hi(_cfg.pin_rst);
+      lgfx::delay(1);
     }
 
     if (_cfg.pin_int >= 0)
@@ -69,7 +70,7 @@ namespace lgfx
       lgfx::lgfxPinMode(_cfg.pin_int, pin_mode_t::input);
     }
 
-    for (int retry = 4; retry; --retry)
+    for (int retry = 6; retry; --retry)
     {
       if (lgfx::i2c::init(_cfg.i2c_port, _cfg.pin_sda, _cfg.pin_scl).has_value() && _writeBytes(gt911cmd_getdata, 3))
       {
@@ -80,12 +81,12 @@ namespace lgfx
         _refresh_rate = 5 + (buf[2] & 0x0F);
         return true;
       }
+      lgfx::delay(1);
       if (_cfg.i2c_addr == default_addr_1) {
         _cfg.i2c_addr = default_addr_2;
       } else if (_cfg.i2c_addr == default_addr_2) {
         _cfg.i2c_addr == default_addr_1;
       }
-      lgfx::delay(1);
     }
     return false;
   }

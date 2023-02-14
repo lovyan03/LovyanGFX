@@ -483,9 +483,9 @@ namespace lgfx
 
     {
       auto bus_cfg = reinterpret_cast<lgfx::Bus_SPI*>(_bus)->config();
-      _pin_backup_t backup_sclk[] = { (gpio_num_t)bus_cfg.pin_sclk, (gpio_num_t)bus_cfg.pin_mosi, (gpio_num_t)bus_cfg.pin_miso };
+      _pin_backup_t backup_pins[] = { (gpio_num_t)bus_cfg.pin_sclk, (gpio_num_t)bus_cfg.pin_mosi, (gpio_num_t)bus_cfg.pin_miso };
       LOAD_FPGA fpga(bus_cfg.pin_sclk, bus_cfg.pin_mosi, bus_cfg.pin_miso, _cfg.pin_cs);
-      for (auto &bup : backup_sclk) { bup.restore(); }
+      for (auto &bup : backup_pins) { bup.restore(); }
     }
     if (!Panel_Device::init(false)) { return false; }
 
