@@ -26,6 +26,8 @@ Contributors:
 
 #include "Bus_RGB.hpp"
 
+#include <soc/gpio_reg.h>
+
 namespace lgfx
 {
  inline namespace v1
