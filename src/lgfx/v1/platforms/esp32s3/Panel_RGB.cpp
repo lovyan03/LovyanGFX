@@ -28,6 +28,9 @@ Contributors:
 
 #include <soc/gpio_reg.h>
 #include <soc/io_mux_reg.h>
+#if __has_include(<hal/gpio_types.h>)
+ #include <hal/gpio_types.h>
+#endif
 
 namespace lgfx
 {
