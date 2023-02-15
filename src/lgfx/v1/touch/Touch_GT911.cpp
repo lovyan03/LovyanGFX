@@ -85,7 +85,7 @@ namespace lgfx
       if (_cfg.i2c_addr == default_addr_1) {
         _cfg.i2c_addr = default_addr_2;
       } else if (_cfg.i2c_addr == default_addr_2) {
-        _cfg.i2c_addr == default_addr_1;
+        _cfg.i2c_addr = default_addr_1;
       }
     }
     return false;
