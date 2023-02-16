@@ -57,6 +57,16 @@ This library has the following advantages.
 
 ※ HW = HardWare Peripheral / SW = SoftWare implementation
 
+|        |TouchScreens|
+|:------:|:----------:|
+|ESP32   | supported  |
+|ESP32-S2| supported  |
+|ESP32-S3| supported  |
+|ESP32-C3| supported  |
+|ESP8266 | supported  |
+|SAMD51  | supported  |
+|SAMD21  | supported  |
+|RP2040  | ---        |
 
 対応環境 Supported environments
 ---------------
