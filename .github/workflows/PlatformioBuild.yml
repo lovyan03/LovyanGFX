@@ -31,6 +31,7 @@ jobs:
           - m5stick-c
           - m5stack-core-esp32
           - m5stack-core2
+          - rpipico
 
         platform-version:
           - 1.0.6
@@ -66,6 +67,7 @@ jobs:
           - { board: esp8266, platform-version: 3.2.0, ... }
           - { board: seeed_wio_terminal, platform-version: default, ... }
           - { board: adafruit_pybadge_m4, platform-version: default, ... }
+          - { board: pico, platform-version: default, ... }
 
       fail-fast: false
 
