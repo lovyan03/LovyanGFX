@@ -34,8 +34,12 @@ namespace lgfx
 
     struct config_detail_t
     {
-      // 0=SRAM only (no use PSRAM) / 1=both(half PSRAM and half SRAM) / 2=PSRAM only (no use SRAM)
-      uint8_t use_psram = 0;
+      int8_t pin_cs = -1;
+      int8_t pin_sclk = -1;
+      int8_t pin_mosi = -1;
+
+      // unimplemented... : TODO : 0=SRAM only (no use PSRAM) / 1=both(half PSRAM and half SRAM) / 2=PSRAM only (no use SRAM)
+      uint8_t use_psram = 2;
     };
     const config_detail_t& config_detail(void) const { return _config_detail; }
     void config_detail(const config_detail_t& config_detail) { _config_detail = config_detail; }
@@ -45,6 +49,9 @@ namespace lgfx
     void setPsram( bool use_psram ) { _config_detail.use_psram = use_psram; }
 
     bool init(bool) override;
+
+    void writeCommand(uint32_t, uint_fast8_t) override;
+    void writeData(uint32_t, uint_fast8_t) override;
 
   protected:
 
@@ -83,6 +90,22 @@ namespace lgfx
 
     bool _started = false;
 //*/
+  };
+
+
+  struct Panel_ST7701 : public Panel_RGB
+  {
+    bool init(bool) override;
+  protected:
+    const uint8_t* getInitCommands(uint8_t listno) const override;
+  };
+
+
+  struct Panel_GC9503 : public Panel_RGB
+  {
+    bool init(bool) override;
+  protected:
+    const uint8_t* getInitCommands(uint8_t listno) const override;
   };
 
 //----------------------------------------------------------------------------

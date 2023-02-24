@@ -21,12 +21,15 @@ Contributors:
 /// ESP32-S3をターゲットにした際にREG_SPI_BASEが定義されていなかったので応急処置 ;
 #if defined ( CONFIG_IDF_TARGET_ESP32S3 )
  #define REG_SPI_BASE(i)   (DR_REG_SPI1_BASE + (((i)>1) ? (((i)* 0x1000) + 0x20000) : (((~(i)) & 1)* 0x1000 )))
+#elif defined ( CONFIG_IDF_TARGET_ESP32 ) || !defined ( CONFIG_IDF_TARGET )
+ #define LGFX_SPIDMA_WORKAROUND
 #endif
 
 #include "Bus_SPI.hpp"
 
 #include "../../misc/pixelcopy.hpp"
 
+#include <soc/dport_reg.h>
 #include <driver/rtc_io.h>
 #include <esp_heap_caps.h>
 #include <esp_log.h>
@@ -156,7 +159,14 @@ namespace lgfx
       _spi_dma_out_link_reg  = reg(DMA_OUT_LINK_CH0_REG       + assigned_dma_ch * 0xC0);
       _spi_dma_outstatus_reg = reg(DMA_OUTFIFO_STATUS_CH0_REG + assigned_dma_ch * 0xC0);
     }
+#elif defined ( CONFIG_IDF_TARGET_ESP32 ) || !defined ( CONFIG_IDF_TARGET )
+
+    dma_ch = (*reg(DPORT_SPI_DMA_CHAN_SEL_REG) >> (_cfg.spi_host * 2)) & 3;
+    // ESP_LOGE("LGFX", "SPI_HOST: %d / DMA_CH: %d", _cfg.spi_host, dma_ch);
+
 #endif
+
+    _dma_ch = dma_ch;
 
     return _inited;
   }
@@ -195,7 +205,6 @@ namespace lgfx
       dc_control(true);
       pinMode(_cfg.pin_dc, pin_mode_t::output);
     }
-    if (_cfg.dma_channel)  _next_dma_reset = true;
 
     auto spi_mode = _cfg.spi_mode;
     uint32_t pin  = (spi_mode & 2) ? SPI_CK_IDLE_EDGE : 0;
@@ -215,6 +224,9 @@ namespace lgfx
   void Bus_SPI::endTransaction(void)
   {
     dc_control(true);
+#if defined ( LGFX_SPIDMA_WORKAROUND )
+    if (_dma_ch) { spicommon_dmaworkaround_idle(_dma_ch); }
+#endif
     if (_cfg.use_lock) spi::endTransaction(_cfg.spi_host);
 #if defined (ARDUINO) // Arduino ESP32
     *_spi_user_reg = SPI_USR_MOSI | SPI_USR_MISO | SPI_DOUTDIN; // for other SPI device (e.g. SD card)
@@ -535,6 +547,18 @@ namespace lgfx
         *dma = SPI_DMA_TX_ENA;
         _clear_dma_reg = dma;
 #else
+        auto dma_conf_reg = reg(SPI_DMA_CONF_REG(_spi_port));
+        auto dma_conf = *dma_conf_reg & ~(SPI_OUT_DATA_BURST_EN | SPI_AHBM_RST | SPI_AHBM_FIFO_RST | SPI_OUT_RST);
+        *dma_conf_reg = dma_conf | SPI_AHBM_RST | SPI_AHBM_FIFO_RST | SPI_OUT_RST;
+
+        // 送信長が4の倍数の場合のみバーストモードを使用する
+        // ※ 以下の3つの条件が揃うと、DMA転送の末尾付近でデータが化ける現象が起きる。
+        //    1.送信クロック80MHz (APBクロックと1:1)
+        //    2.DMAバースト読出し有効
+        //    3.送信データ長が4の倍数ではない (1Byte~3Byteの端数がある場合)
+        dma_conf |= (length & 3) ? (SPI_OUTDSCR_BURST_EN) : (SPI_OUTDSCR_BURST_EN | SPI_OUT_DATA_BURST_EN);
+
+        *dma_conf_reg = dma_conf;
         uint32_t len = length;
         *spi_dma_out_link_reg = SPI_OUTLINK_START | ((int)(&_dmadesc[0]) & 0xFFFFF);
         _clear_dma_reg = spi_dma_out_link_reg;
@@ -548,7 +572,9 @@ namespace lgfx
 #elif defined (SPI_DMA_OUTFIFO_EMPTY)
         while (*_spi_dma_outstatus_reg & SPI_DMA_OUTFIFO_EMPTY ) {}
 #else
-        spicommon_dmaworkaround_transfer_active(_cfg.dma_channel);
+ #if defined ( LGFX_SPIDMA_WORKAROUND )
+        if (_dma_ch) { spicommon_dmaworkaround_transfer_active(_dma_ch); }
+ #endif
 #endif
         exec_spi();
 
@@ -645,14 +671,6 @@ label_start:
 
   }
 
-  void Bus_SPI::initDMA(void)
-  {
-    if (_cfg.dma_channel)
-    {
-      _spi_dma_reset();
-    }
-  }
-
   void Bus_SPI::addDMAQueue(const uint8_t* data, uint32_t length)
   {
     if (!_cfg.dma_channel)
@@ -709,10 +727,6 @@ label_start:
 
     dc_control(true);
     *_spi_dma_out_link_reg = 0;
-    if (_next_dma_reset)
-    {
-      _spi_dma_reset();
-    }
 
 #if defined ( SOC_GDMA_SUPPORTED )
     *_spi_dma_out_link_reg = DMA_OUTLINK_START_CH0 | ((int)(&_dmadesc[0]) & 0xFFFFF);
@@ -721,6 +735,12 @@ label_start:
     _clear_dma_reg = dma;
     uint32_t len = ((_dma_queue_bytes - 1) & ((SPI_MS_DATA_BITLEN)>>3)) + 1;
 #else
+    auto dma_conf_reg = reg(SPI_DMA_CONF_REG(_spi_port));
+    auto dma_conf = *dma_conf_reg & ~(SPI_OUT_DATA_BURST_EN | SPI_AHBM_RST | SPI_AHBM_FIFO_RST | SPI_OUT_RST);
+    dma_conf |= SPI_OUTDSCR_BURST_EN;
+    *dma_conf_reg = dma_conf | SPI_AHBM_RST | SPI_AHBM_FIFO_RST | SPI_OUT_RST;
+    *dma_conf_reg = dma_conf;
+
     *_spi_dma_out_link_reg = SPI_OUTLINK_START | ((int)(&_dmadesc[0]) & 0xFFFFF);
     _clear_dma_reg = _spi_dma_out_link_reg;
     uint32_t len = _dma_queue_bytes;
@@ -734,9 +754,10 @@ label_start:
 #elif defined (SPI_DMA_OUTFIFO_EMPTY)
     while (*_spi_dma_outstatus_reg & SPI_DMA_OUTFIFO_EMPTY ) {}
 #else
-    spicommon_dmaworkaround_transfer_active(_cfg.dma_channel);
+ #if defined ( LGFX_SPIDMA_WORKAROUND )
+    if (_dma_ch) { spicommon_dmaworkaround_transfer_active(_dma_ch); }
+ #endif
 #endif
-
     exec_spi();
 
 #if defined ( SOC_GDMA_SUPPORTED )
@@ -824,9 +845,17 @@ label_start:
     if (_cfg.dma_channel && use_dma) {
       wait_spi();
       set_read_len(length << 3);
+
+      auto dma_conf_reg = reg(SPI_DMA_CONF_REG(_spi_port));
+      auto dma_conf = *dma_conf_reg & ~(SPI_AHBM_RST | SPI_AHBM_FIFO_RST | SPI_OUT_RST);
+      *dma_conf_reg = dma_conf | SPI_AHBM_RST | SPI_AHBM_FIFO_RST | SPI_IN_RST;
+      *dma_conf_reg = dma_conf | SPI_INDSCR_BURST_EN;
+
       _setup_dma_desc_links(dst, length);
       *reg(SPI_DMA_IN_LINK_REG(_spi_port)) = SPI_INLINK_START | ((int)(&_dmadesc[0]) & 0xFFFFF);
-      spicommon_dmaworkaround_transfer_active(_cfg.dma_channel);
+ #if defined ( LGFX_SPIDMA_WORKAROUND )
+      if (_dma_ch) { spicommon_dmaworkaround_transfer_active(_dma_ch); }
+ #endif
       exec_spi();
     }
     else
@@ -970,7 +999,6 @@ label_start:
 
   void Bus_SPI::_spi_dma_reset(void)
   {
-    _next_dma_reset = false;
 #if defined( SOC_GDMA_SUPPORTED )  // for C3/S3
 
 #elif defined( CONFIG_IDF_TARGET_ESP32S2 )
@@ -991,10 +1019,6 @@ label_start:
   {          //spicommon_setup_dma_desc_links
     if (!_cfg.dma_channel) return;
 
-    if (_next_dma_reset)
-    {
-      _spi_dma_reset();
-    }
     if (_dmadesc_size * SPI_MAX_DMA_LEN < len)
     {
       _alloc_dmadesc(len / SPI_MAX_DMA_LEN + 1);

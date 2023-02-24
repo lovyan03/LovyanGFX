@@ -989,7 +989,9 @@ namespace lgfx
         }
 
 #if defined (CONFIG_IDF_TARGET_ESP32S3)
-        dev->scl_high_period.scl_high_period = scl_high_period;
+        auto wait_high = scl_high_period >> 2;
+        dev->scl_high_period.scl_high_period = scl_high_period - wait_high;
+        dev->scl_high_period.scl_wait_high_period = wait_high;
         dev->scl_low_period .scl_low_period  = scl_low_period ;
         dev->sda_hold.sda_hold_time     = std::min<uint32_t>(1023u, (scl_high_period >> 1));
         dev->sda_sample.sda_sample_time = std::min<uint32_t>(1023u, (scl_low_period  >> 1));
@@ -998,13 +1000,18 @@ namespace lgfx
         dev->scl_start_hold.scl_start_hold_time = cycle;    //the clock num between the negedge of SDA and negedge of SCL for start mark
         dev->scl_rstart_setup.scl_rstart_setup_time = cycle;  //the clock num between the posedge of SCL and the negedge of SDA for restart mark
 #else
+
+#if defined ( I2C_SCL_WAIT_HIGH_PERIOD )
+        auto wait_high = scl_high_period >> 2;
+        dev->scl_high_period.period = scl_high_period - wait_high;
+        dev->scl_high_period.scl_wait_high_period = wait_high;
+#else
         dev->scl_high_period.period = scl_high_period;
+#endif
         dev->scl_low_period .period = scl_low_period ;
+
         dev->sda_hold.time   = std::min<uint32_t>(1023u, (scl_high_period >> 1));
         dev->sda_sample.time = std::min<uint32_t>(1023u, (scl_low_period  >> 1));
- #if defined (CONFIG_IDF_TARGET_ESP32S2) || defined (CONFIG_IDF_TARGET_ESP32C3)
-        dev->scl_high_period.scl_wait_high_period = scl_high_period >> 2;
- #endif
         dev->scl_stop_hold.time = cycle << 1;     //the clock num after the STOP bit's posedge
         dev->scl_stop_setup.time = cycle;    //the clock num between the posedge of SCL and the posedge of SDA
         dev->scl_start_hold.time = cycle;    //the clock num between the negedge of SDA and negedge of SCL for start mark
@@ -1024,10 +1031,11 @@ namespace lgfx
     {
       if (i2c_port >= I2C_NUM_MAX) return cpp::fail(error_t::invalid_arg);
 
+      if ((uint32_t)i2c_context[i2c_port].pin_sda >= GPIO_NUM_MAX || (uint32_t)i2c_context[i2c_port].pin_scl >= GPIO_NUM_MAX) return cpp::fail(error_t::invalid_arg);
+
 //ESP_LOGI("LGFX", "i2c::beginTransaction : port:%d / addr:%02x / freq:%d / rw:%d", i2c_port, i2c_addr, freq, read);
 
       auto dev = getDev(i2c_port);
-      i2c_context[i2c_port].save_reg(dev);
 
 #if defined ( CONFIG_IDF_TARGET_ESP32C3 ) ||  defined ( CONFIG_IDF_TARGET_ESP32S3 )
       if (dev->sr.bus_busy)
@@ -1047,6 +1055,9 @@ namespace lgfx
         while (dev->status_reg.bus_busy && micros() - ms < 128);
 #endif
       }
+      i2c_context[i2c_port].save_reg(dev);
+
+      i2c_set_pin((i2c_port_t)i2c_port, i2c_context[i2c_port].pin_sda, i2c_context[i2c_port].pin_scl, gpio_pullup_t::GPIO_PULLUP_ENABLE, gpio_pullup_t::GPIO_PULLUP_ENABLE, I2C_MODE_MASTER);
 
 #if SOC_I2C_SUPPORT_HW_FSM_RST
       dev->ctr.fsm_rst = 1;

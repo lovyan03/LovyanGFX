@@ -298,6 +298,7 @@ namespace lgfx
     lcd_ctrl2.lcd_hsync_width = hsw - 1;
     lcd_ctrl2.lcd_hsync_idle_pol = _cfg.hsync_polarity;
     // lcd_ctrl2.lcd_hsync_position = 0;
+    lcd_ctrl2.lcd_de_idle_pol = _cfg.de_idle_high;
     dev->lcd_ctrl2.val = lcd_ctrl2.val;
 
     dev->lc_dma_int_ena.val = 1;

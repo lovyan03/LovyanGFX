@@ -36,6 +36,7 @@ namespace lgfx
 
   protected:
 
+    static constexpr uint8_t CMD_RAMCTRL  = 0xB0;
     static constexpr uint8_t CMD_PORCTRL  = 0xB2;      // Porch control
     static constexpr uint8_t CMD_GCTRL    = 0xB7;      // Gate control
     static constexpr uint8_t CMD_VCOMS    = 0xBB;      // VCOMS setting
@@ -63,6 +64,7 @@ namespace lgfx
           CMD_VDVSET , 1, 0x20,
           CMD_FRCTR2 , 1, 0x0f,      // 0x0f=60Hz
           CMD_PWCTRL1, 2, 0xa4, 0xa1,
+          CMD_RAMCTRL, 2, 0x00, 0xC0,
           //--------------------------------ST7789V gamma setting---------------------------------------//
           CMD_PVGAMCTRL,14, 0xd0,0x00,0x02,0x07,
                              0x0a,0x28,0x32,0x44,

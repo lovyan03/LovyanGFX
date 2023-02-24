@@ -34,6 +34,10 @@ Inspiration Sources:
 #include <soc/periph_defs.h>
 #include <soc/i2s_struct.h>
 
+#if __has_include(<esp_chip_info.h>)
+ #include <esp_chip_info.h>
+#endif
+
 #if __has_include(<driver/i2s_std.h>)
  #include <driver/i2s_std.h>
  #define LGFX_I2S_STD_ENABLED
@@ -511,63 +515,93 @@ namespace lgfx
     void (*setup_palette_332)(uint32_t*, uint_fast16_t, uint_fast16_t, uint_fast8_t); // RGB332用パレット生成関数のポインタ;
     void (*setup_palette_565)(uint32_t*, uint_fast16_t, uint_fast16_t, uint_fast8_t); // RGB565用パレット生成関数のポインタ;
     void (*setup_palette_gray)(uint32_t*, uint_fast16_t, uint_fast16_t, uint_fast8_t); // グレースケール用パレット生成関数のポインタ;
-    uint32_t apll_sdm;            // apllのクロック設定;
     uint16_t blanking_mv;         // SYNCレベルとBLANKINGレベルの電圧差 mV
     uint16_t black_mv;            // SYNCレベルと黒レベルの電圧差 mV
     uint16_t white_mv;            // SYNCレベルと白レベルの電圧差 mV
     uint8_t palette_num_256;      // パレット面数 (palはODD_EVENで2倍使用する);
+    uint8_t sdm0;
+    uint8_t sdm1;
+    uint8_t sdm2;
+    uint8_t div_n;
+    uint8_t div_b;
+    uint8_t div_a;
   };
+
+/*
+  PAL   = 4.43361875
+  NTSC  = 3.579545
+  SECAM = 4.406250
+  PAL_M = 3.57561149
+  PAL_N = 3.58205625
+*/
 
   static constexpr const signal_setup_info_t signal_setup_info_list[]
   { // NTSC
     { setup_palette_ntsc_332
     , setup_palette_ntsc_565
     , setup_palette_ntsc_gray
-    , 0x049748    // 14.318237 // 映像に縞模様ノイズが出にくい;  ( 0x049746 = 14.318181 = 3.579545 x4 // 要求仕様に近い )
     , 286         // 286mV = 0IRE
     , 340         // 340mV = 7.5IRE  米国仕様では黒レベルは 7.5IRE
     , 960         // 960mV  黄色の振幅の最大値が100IRE付近になるよう、白レベルは100IREよりも低く調整しておく;
     , 1           // パレット数は256
+    // APLL設定 14.318237 映像に縞模様ノイズが出にくい;
+    //  意図的に要求仕様を外している。 ( 0x049746 = 14.318181 = 3.579545 x4 // 要求仕様に近い )
+    , 0x48, 0x97, 0x04
+    // CLKDIV設定 (ESP32 rev0用)
+    , 5, 10, 17
     }
   , // NTSC_J
     { setup_palette_ntsc_332
     , setup_palette_ntsc_565
     , setup_palette_ntsc_gray
-    , 0x049748    // 14.318237 // 映像に縞模様ノイズが出にくい;  ( 0x049746 = 14.318181 = 3.579545 x4  // 要求仕様に近い )
     , 286         // 286mV = 0IRE
     , 286         // 286mV = 0IRE  日本仕様では黒レベルは 0IRE
     , 960
     , 1           // パレット数は256
+    // APLL設定 14.318237 映像に縞模様ノイズが出にくい;
+    //  意図的に要求仕様を外している。 ( 0x049746 = 14.318181 = 3.579545 x4 // 要求仕様に近い )
+    , 0x48, 0x97, 0x04
+    // CLKDIV設定 (ESP32 rev0用)
+    , 5, 10, 17
     }
   , // PAL
     { setup_palette_pal_332
     , setup_palette_pal_565
     , setup_palette_pal_gray
-    , 0x06A404    // 17.734476mhz ~4x   4.43361875 x4
     , 300
     , 300
     , 960
     , 2           // パレット数は512
+    // APLL設定 17.734476mhz ~4x   4.43361875 x4
+    , 0x04, 0xA4, 0x06
+    // CLKDIV設定 (ESP32 rev0用)
+    , 4, 24, 47
     }
   , // PAL_M
     { setup_palette_pal_332
     , setup_palette_pal_565
     , setup_palette_pal_gray
-    , 0x0494DA
     , 300
     , 300
     , 960
     , 2           // パレット数は512
+    // APLL設定
+    , 0xDA, 0x94, 0x04
+    // CLKDIV設定 (ESP32 rev0用)
+    , 5, 19, 32
     }
   , // PAL_N
     { setup_palette_pal_332
     , setup_palette_pal_565
     , setup_palette_pal_gray
-    , 0x0498D1    // 3.58205625 x4
     , 300
     , 300
     , 960
     , 2           // パレット数は512
+    // APLL設定 // 3.58205625 x4
+    , 0xD1, 0x98, 0x04
+    // CLKDIV設定 (ESP32 rev0用)
+    , 5, 7, 12
     }
   };
 
@@ -2056,23 +2090,6 @@ namespace lgfx
     //  see calc_freq() for math: (4+a)*10/((2 + b)*2) mhz
     //  up to 20mhz seems to work ok:
     //  rtc_clk_apll_enable(1,0x00,0x00,0x4,0);   // 20mhz for fancy DDS
-
-#if defined ( LGFX_I2S_STD_ENABLED )
-    rtc_clk_apll_coeff_set( 1
-                          , (setup_info.apll_sdm      ) & 0xFF
-                          , (setup_info.apll_sdm >>  8) & 0xFF
-                          , (setup_info.apll_sdm >> 16) & 0xFF
-                          );
-    rtc_clk_apll_enable( true );
-#else
-    rtc_clk_apll_enable( true
-                       , (setup_info.apll_sdm      ) & 0xFF
-                       , (setup_info.apll_sdm >>  8) & 0xFF
-                       , (setup_info.apll_sdm >> 16) & 0xFF
-                       , 1
-                       );
-#endif
-
     periph_module_enable(PERIPH_I2S0_MODULE);
 
     // setup interrupt
@@ -2080,6 +2097,47 @@ namespace lgfx
         i2s_intr_handler_video, this, &internal.isr_handle) != ESP_OK)
     {
       return false;
+    }
+
+
+    bool use_apll = true;
+    #if defined ( CONFIG_IDF_TARGET_ESP32 ) || !defined ( CONFIG_IDF_TARGET )
+    {
+      // ESP32 rev0 には APLLの設定値が正しく反映されないハードウェア不具合があるため、
+      // APLLを使用せずにI2Sのクロック分周設定で代用する。
+      // I2Sのクロック分周設定では要求仕様との誤差が大きくなる。
+      // そのため波打ったり色が乱れる事があるが、これを完全に解消することは不可能である。
+      esp_chip_info_t chip_info;
+      esp_chip_info(&chip_info);
+      if (chip_info.revision == 0) { use_apll = false; }
+    }
+    #endif
+    I2S0.clkm_conf.clka_en = use_apll;
+    I2S0.clkm_conf.clkm_div_num = 1;
+    I2S0.clkm_conf.clkm_div_b = 0;
+    I2S0.clkm_conf.clkm_div_a = 1;
+    if (use_apll) {
+#if defined ( LGFX_I2S_STD_ENABLED )
+      rtc_clk_apll_coeff_set( 1
+                            , setup_info.sdm0
+                            , setup_info.sdm1
+                            , setup_info.sdm2
+                            );
+      rtc_clk_apll_enable( true );
+#else
+      rtc_clk_apll_enable( true
+                          , setup_info.sdm0
+                          , setup_info.sdm1
+                          , setup_info.sdm2
+                          , 1
+                          );
+#endif
+    }
+    else
+    {
+      I2S0.clkm_conf.clkm_div_num = setup_info.div_n;
+      I2S0.clkm_conf.clkm_div_b = setup_info.div_b;
+      I2S0.clkm_conf.clkm_div_a = setup_info.div_a;
     }
 
     // reset conf
@@ -2100,10 +2158,6 @@ namespace lgfx
     I2S0.out_link.addr = (uint32_t)internal.dma_desc;
     I2S0.out_link.start = 1;
 
-    I2S0.clkm_conf.clkm_div_num = 1;  // I2S clock divider’s integral value.
-    I2S0.clkm_conf.clkm_div_b = 0;    // Fractional clock divider’s numerator value.
-    I2S0.clkm_conf.clkm_div_a = 1;    // Fractional clock divider’s denominator value
-    I2S0.clkm_conf.clka_en = 1;      // Set this bit to enable clk_apll.
     I2S0.fifo_conf.tx_fifo_mod = 1;  // 16-bit single channel data
     I2S0.fifo_conf.tx_fifo_mod_force_en = 1;
 

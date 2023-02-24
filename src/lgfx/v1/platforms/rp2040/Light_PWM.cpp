@@ -22,6 +22,7 @@ Contributors:
 #include <hardware/pwm.h>
 #include <hardware/spi.h>
 #include <hardware/gpio.h>
+#if __has_include(<pico/stdio.h>)
 #include <pico/stdio.h>
 
 namespace lgfx
@@ -59,5 +60,5 @@ namespace lgfx
 //----------------------------------------------------------------------------
  }
 }
-
+#endif 
 #endif

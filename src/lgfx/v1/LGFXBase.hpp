@@ -765,12 +765,12 @@ namespace lgfx
     [[deprecated("use pushPixels")]] void pushColors(const void*     data, int32_t len, bool swap) { startWrite(); writePixels(data, len, swap); endWrite(); }
     [[deprecated("use pushPixels")]] void pushColors(const uint16_t* data, int32_t len, bool swap) { startWrite(); writePixels(data, len, swap); endWrite(); }
 
+    void prepareTmpTransaction(DataWrapper* data);
 //----------------------------------------------------------------------------
 
   protected:
 
     virtual RGBColor* getPalette_impl(void) const { return nullptr; }
-    void prepareTmpTransaction(DataWrapper* data);
 
     IPanel* _panel = nullptr;
 
@@ -975,12 +975,25 @@ namespace lgfx
     template<typename T1, typename T2>
     pixelcopy_t create_pc_tr(const T1 *data, const T2& transparent)
     {
-      return create_pc_rawtr( data, color_convert<T1, T2>(transparent));
+      return create_pc_rawtr( data, color_convert<T1, T2>((uint32_t)transparent));
     }
 
     template<typename T> pixelcopy_t create_pc_tr(const uint8_t*  data, const T& transparent) { return create_pc_tr(reinterpret_cast<const rgb332_t*>(data), transparent); }
     template<typename T> pixelcopy_t create_pc_tr(const uint16_t* data, const T& transparent) { return create_pc_tr(data, transparent, _swapBytes); }
     template<typename T> pixelcopy_t create_pc_tr(const void*     data, const T& transparent) { return create_pc_tr(data, transparent, _swapBytes); }
+    pixelcopy_t create_pc_tr(const uint16_t* data, const uint16_t& transparent, bool swap)
+    {
+      return swap && _write_conv.bits >= 8 && !hasPalette()
+           ? create_pc_rawtr(reinterpret_cast<const rgb565_t* >(data), getSwap16(transparent))
+           : create_pc_rawtr(reinterpret_cast<const swap565_t*>(data),           transparent);
+    }
+    pixelcopy_t create_pc_tr(const void *data, const uint32_t& transparent, bool swap)
+    {
+      return swap && _write_conv.bits >= 8 && !hasPalette()
+           ? create_pc_rawtr(reinterpret_cast<const rgb888_t*>(data), getSwap24(transparent))
+           : create_pc_rawtr(reinterpret_cast<const bgr888_t*>(data),           transparent);
+    }
+
     template<typename T> pixelcopy_t create_pc_tr(const uint16_t* data, const T& transparent, bool swap)
     {
       return swap && _write_conv.bits >= 8 && !hasPalette()

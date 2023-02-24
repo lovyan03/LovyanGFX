@@ -1,7 +1,4 @@
 
-// v1.0.0 を有効にします(v0からの移行期間の特別措置です。これを書かない場合は旧v0系で動作します。)
-#define LGFX_USE_V1
-
 #include <LovyanGFX.hpp>
 
 // ESP32でLovyanGFXを独自設定で利用する場合の設定例
@@ -48,9 +45,9 @@ class LGFX : public lgfx::LGFX_Device
 
 
 // パネルを接続するバスの種類にあったインスタンスを用意します。
-  lgfx::Bus_SPI       _bus_instance;   // SPIバスのインスタンス
-//lgfx::Bus_I2C       _bus_instance;   // I2Cバスのインスタンス (ESP32のみ)
-//lgfx::Bus_Parallel8 _bus_instance;   // 8ビットパラレルバスのインスタンス (ESP32のみ)
+  lgfx::Bus_SPI        _bus_instance;   // SPIバスのインスタンス
+//lgfx::Bus_I2C        _bus_instance;   // I2Cバスのインスタンス
+//lgfx::Bus_Parallel8  _bus_instance;   // 8ビットパラレルバスのインスタンス
 
 // バックライト制御が可能な場合はインスタンスを用意します。(必要なければ削除)
   lgfx::Light_PWM     _light_instance;

@@ -30,5 +30,5 @@ void loop()
   current_y += add_y;
   add_x += (current_x < target_x) ? 1 : -1;
   add_y += (current_y < target_y) ? 1 : -1;
-  lgfx::delay(1);
+  sleep(1);
 }

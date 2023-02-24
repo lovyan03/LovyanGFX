@@ -35,11 +35,17 @@ Porting for RP2040:
 #include <hardware/spi.h>
 #include <hardware/i2c.h>
 
-//#include <xprintf.h>
-//#define DBGPRINT(fmt, ...)  xprintf("%s %d: " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
-// static char dbg_buf[256];
-// #define DBGPRINT(fmt, ...) snprintf(dbg_buf, 256, "%s %d: " fmt, __FILE__, __LINE__, ##__VA_ARGS__); Serial.print(dbg_buf);
+
+// #define DEBUG
+
+#if defined(DEBUG)
+#include <DebugUtil.hpp>
+#else
 #define DBGPRINT(fmt, ...)
+#define DBG_ENTER()
+#define DBGPRINTFUNC(fmt, ...)
+#define put_dump_byte(data, addr, length)
+#endif
 
 // 参考:
 // https://os.mbed.com/docs/mbed-os/v6.15/mbed-os-api-doxy/group__hal__gpio.html
@@ -166,25 +172,7 @@ namespace lgfx
       return true;
     }
 
-    __attribute__ ((always_inline)) inline bool lgfx_gpio_get(int_fast16_t pin)
-    {
-      return (((1UL << pin) & sio_hw->gpio_in) != 0);
-    }
-
-    __attribute__ ((always_inline)) inline void lgfx_gpio_put(int_fast16_t pin, bool value)
-    {
-      const uint32_t mask = 1ul << pin;
-      if (value)
-      {
-        sio_hw->gpio_set = mask;
-      }
-      else
-      {
-        sio_hw->gpio_clr = mask;
-      }
-    }
-
-    __attribute__((always_inline)) inline void lgfx_reset_block(uint32_t bits)
+    __attribute__ ((always_inline)) inline void lgfx_reset_block(uint32_t bits)
     {
       reset_block(bits);
     }
@@ -204,16 +192,6 @@ namespace lgfx
     lgfx_gpio_init(pin);
     lgfx_gpio_mode(pin, mode);
     lgfx_gpio_set_dir(pin, mode == pin_mode_t::output);
-  }
-
-  void digitalWrite(int_fast16_t pin, PinStatus val)
-  {
-    lgfx_gpio_put(pin, val == HIGH);
-  }
-
-  bool digitalRead(int_fast16_t pin)
-  {
-    return lgfx_gpio_get(static_cast<uint>(pin));
   }
 
 //----------------------------------------------------------------------------
@@ -481,21 +459,38 @@ namespace lgfx
 
 //----------------------------------------------------------------------------
 
-  // 実装中
   namespace i2c
   {
     namespace
     {
-      struct i2c_info_str {
-        uint32_t ref_count { 0 };
-        int pin_sda { -1 };
-        int pin_scl { -1 };
-        uint8_t last_data;
-        bool last_data_valid { false };
-        bool is_restart { false };
+      // constant
+      constexpr uint32_t i2c_timeout = 10;
+      constexpr uint64_t i2c_1Hz_period_ns{1000ULL * 1000ULL * 1000ULL};
+
+      enum class restart_state_t {
+        none,
+        restart,
+      };
+      enum class stop_state_t {
+        none,
+        stop,
+      };
+      enum class need_wait_t {
+        none,
+        wait,
       };
 
-      volatile i2c_hw_t * const i2c_dev[] = {
+      struct i2c_info_str {
+        uint32_t ref_count{0};
+        int pin_sda{-1};
+        int pin_scl{-1};
+        uint32_t timeout_count; // 送受信時のタイムアウト検出用
+        uint8_t last_byte;    // 未送信のデータ
+        bool last_byte_valid{ false }; // 未送信のデータが有効ならfalse
+        restart_state_t restart{ restart_state_t::none };
+      };
+
+      volatile i2c_hw_t *const i2c_dev[] = {
         reinterpret_cast<volatile i2c_hw_t *>(I2C0_BASE),
         reinterpret_cast<volatile i2c_hw_t *>(I2C1_BASE),
       };
@@ -522,146 +517,395 @@ namespace lgfx
       };
 
       i2c_info_str i2c_info[n_i2c];
-      std::unordered_map<uint32_t, std::array<uint32_t, 3>> prescale_map;
-    }
+      std::unordered_map<uint32_t, std::array<uint32_t, 4>> prescale_map;
 
-    //
-    namespace
-    {
-      __attribute__ ((always_inline)) inline bool is_master_not_idle(volatile i2c_hw_t * i2c_regs)
+      __attribute__((always_inline)) inline void lgfx_i2c_reset(volatile i2c_hw_t *i2c_regs)
       {
-        return ((i2c_regs->status & I2C_IC_STATUS_MST_ACTIVITY_BITS) != 0);
+        lgfx_reset_block(i2c_regs == i2c_dev[0] ? RESETS_RESET_I2C0_BITS : RESETS_RESET_I2C1_BITS);
       }
 
-      __attribute__ ((always_inline)) inline bool is_rx_fifo_full(volatile i2c_hw_t * i2c_regs)
+      __attribute__((always_inline)) inline void lgfx_i2c_unreset(volatile i2c_hw_t *i2c_regs)
       {
-        return ((i2c_regs->status & I2C_IC_STATUS_RFF_BITS) != 0);
+        lgfx_unreset_block_wait(i2c_regs == i2c_dev[0] ? RESETS_RESET_I2C0_BITS : RESETS_RESET_I2C1_BITS);
       }
 
-      __attribute__ ((always_inline)) inline bool is_rx_fifo_not_empty(volatile i2c_hw_t * i2c_regs)
+      __attribute__((always_inline)) inline void lgfx_i2c_enable(volatile i2c_hw_t *i2c_regs)
+      {
+        i2c_regs->enable = I2C_IC_ENABLE_ENABLE_VALUE_ENABLED;
+      }
+
+      __attribute__((always_inline)) inline void lgfx_i2c_disable(volatile i2c_hw_t *i2c_regs)
+      {
+        i2c_regs->enable = I2C_IC_ENABLE_ENABLE_VALUE_DISABLED;
+      }
+
+      __attribute__((always_inline)) inline void set_target_address(volatile i2c_hw_t *const i2c_regs, int addr)
+      {
+        lgfx_i2c_disable(i2c_regs);
+        i2c_regs->tar = addr & I2C_IC_TAR_IC_TAR_BITS;
+        lgfx_i2c_enable(i2c_regs);
+      }
+
+      __attribute__((always_inline)) inline void send_data(volatile i2c_hw_t *const i2c_regs, uint8_t data, restart_state_t restart, stop_state_t stop)
+      {
+        i2c_regs->data_cmd = ((restart == restart_state_t::restart) ? I2C_IC_DATA_CMD_RESTART_BITS : 0x0) |
+                             ((stop == stop_state_t::stop) ? I2C_IC_DATA_CMD_STOP_BITS : 0x0) |
+                             static_cast<uint32_t>(data);
+      }
+
+      __attribute__((always_inline)) inline void prepare_recv(volatile i2c_hw_t *const i2c_regs, bool restart, bool stop)
+      {
+        i2c_regs->data_cmd = (restart ? I2C_IC_DATA_CMD_RESTART_BITS : 0x0) |
+                              (stop ? I2C_IC_DATA_CMD_STOP_BITS : 0x0) |
+                              I2C_IC_DATA_CMD_CMD_BITS | 0xaa;
+      }
+
+      __attribute__((always_inline)) inline uint8_t recv_data(volatile i2c_hw_t *const i2c_regs)
+      {
+        return static_cast<uint8_t>(i2c_regs->data_cmd);
+      }
+
+      __attribute__((always_inline)) inline bool is_rx_fifo_not_empty(volatile i2c_hw_t *const i2c_regs)
       {
         return ((i2c_regs->status & I2C_IC_STATUS_RFNE_BITS) != 0);
       }
 
-      __attribute__ ((always_inline)) inline bool is_tx_fifo_empty(volatile i2c_hw_t * i2c_regs)
+      __attribute__((always_inline)) inline bool is_rx_fifo_empty(volatile i2c_hw_t *const i2c_regs)
       {
-        return ((i2c_regs->status & I2C_IC_STATUS_TFE_BITS) != 0);
+        return ((i2c_regs->status & I2C_IC_STATUS_RFNE_BITS) == 0);
       }
 
-      __attribute__ ((always_inline)) inline bool is_tx_fifo_not_full(volatile i2c_hw_t * i2c_regs)
+      __attribute__((always_inline)) inline bool is_tx_fifo_full(volatile i2c_hw_t *const i2c_regs)
+      {
+        return ((i2c_regs->status & I2C_IC_STATUS_TFNF_BITS) == 0);
+      }
+
+      __attribute__((always_inline)) inline bool is_tx_fifo_not_full(volatile i2c_hw_t *const i2c_regs)
       {
         return ((i2c_regs->status & I2C_IC_STATUS_TFNF_BITS) != 0);
       }
 
-      __attribute__ ((always_inline)) inline void wait_complete(volatile i2c_hw_t * i2c_regs)
+      __attribute__((always_inline)) inline bool is_tx_fifo_empty(volatile i2c_hw_t *const i2c_regs)
       {
-        while (is_master_not_idle(i2c_regs))
-        {
-          ;
+        return ((i2c_regs->status & I2C_IC_STATUS_TFE_BITS) != 0);
+      }
+
+      static __attribute__((always_inline)) inline bool is_tx_fifo_not_empty(volatile i2c_hw_t *const i2c_regs)
+      {
+        return ((i2c_regs->status & I2C_IC_STATUS_TFE_BITS) == 0);
+      }
+      __attribute__((always_inline)) inline bool is_tx_not_complete(volatile i2c_hw_t *const i2c_regs)
+      {
+        return ((i2c_regs->raw_intr_stat & I2C_IC_RAW_INTR_STAT_TX_EMPTY_BITS) == 0);
+      }
+
+      __attribute__((always_inline)) inline void abort_transfer(volatile i2c_hw_t *const i2c_regs)
+      {
+        i2c_regs->enable = I2C_IC_ENABLE_ENABLE_BITS | I2C_IC_ENABLE_ABORT_BITS;
+      }
+
+      __attribute__((always_inline)) inline bool is_abort_complete(volatile i2c_hw_t *const i2c_regs)
+      {
+        return ((i2c_regs->enable & I2C_IC_ENABLE_ABORT_BITS) == 0);
+      }
+
+      __attribute__((always_inline)) inline uint32_t get_tx_fifo_cnt(volatile i2c_hw_t *const i2c_regs) {
+          return i2c_regs->txflr;
+      }
+
+      __attribute__((always_inline)) inline uint32_t get_write_available(volatile i2c_hw_t *const i2c_regs) {
+        static constexpr  uint32_t IC_TX_BUFFER_DEPTH = 16;
+        return IC_TX_BUFFER_DEPTH - get_tx_fifo_cnt(i2c_regs);
+      }
+
+      __attribute__((always_inline)) inline uint32_t get_read_available(volatile i2c_hw_t *const i2c_regs) {
+        return i2c_regs->rxflr;
+      }
+
+      __attribute__((always_inline)) inline bool wait_for_txfifo_not_full(int i2c_port)
+      {
+        volatile i2c_hw_t *const i2c_regs = i2c_dev[i2c_port];
+        bool rc = true;
+        uint32_t wait_count = i2c_info[i2c_port].timeout_count;
+        uint32_t i = 0;
+        while (is_tx_fifo_full(i2c_regs)) {
+          i++;
+          if (i > wait_count) {
+            rc = false;
+            break;
+          }
         }
+        return rc;
       }
 
-      __attribute__ ((always_inline)) inline void send_data(volatile i2c_hw_t * i2c_regs, uint8_t data, bool is_restart, bool is_stop)
+      __attribute__((always_inline)) inline bool wait_for_txfifo_empty(int i2c_port)
       {
-        i2c_regs->data_cmd = (is_restart ? I2C_IC_DATA_CMD_RESTART_BITS : 0x0) |
-                             (is_stop ? I2C_IC_DATA_CMD_STOP_BITS : 0x0) |
-                             static_cast<uint32_t>(data);
-      }      
-
-      __attribute__ ((always_inline)) inline uint8_t recv_data(volatile i2c_hw_t * i2c_regs, bool is_restart, bool is_stop)
-      {
-        i2c_regs->data_cmd = (is_restart ? I2C_IC_DATA_CMD_RESTART_BITS : 0x0) |
-                             (is_stop ? I2C_IC_DATA_CMD_STOP_BITS : 0x0) |
-                             I2C_IC_DATA_CMD_CMD_BITS;
-        return static_cast<uint8_t>(i2c_regs->data_cmd);
-      }
-      // 送信先のアドレスを指定する。
-      __attribute__ ((always_inline)) inline void set_target_address(volatile i2c_hw_t * i2c_regs, int addr)
-      {
-        i2c_regs->enable = I2C_IC_ENABLE_ENABLE_VALUE_DISABLED;
-        i2c_regs->tar = addr & I2C_IC_TAR_IC_TAR_BITS;
-        i2c_regs->enable = I2C_IC_ENABLE_ENABLE_VALUE_ENABLED;
-      }
-
-      //
-
-      __attribute__ ((always_inline)) inline void lgfx_i2c_reset(volatile i2c_hw_t *i2c_regs) {
-        lgfx_reset_block(i2c_regs == i2c_dev[0] ? RESETS_RESET_I2C0_BITS : RESETS_RESET_I2C1_BITS);
-      }
-
-      __attribute__ ((always_inline)) inline void lgfx_i2c_unreset(volatile i2c_hw_t *i2c_regs) {
-        lgfx_unreset_block_wait(i2c_regs == i2c_dev[0] ? RESETS_RESET_I2C0_BITS : RESETS_RESET_I2C1_BITS);
-      }
-
-      bool lgfx_i2c_set_baudrate(volatile i2c_hw_t * i2c_regs, uint32_t baudrate)
-      {
-        uint32_t hcnt;
-        uint32_t lcnt;
-        uint32_t sda_tx_hold_count;
-        auto val = prescale_map.find(baudrate);
-        if (val != prescale_map.end())
-        {
-          hcnt = val->second[0];
-          lcnt = val->second[1];
-          sda_tx_hold_count = val->second[2];
+        volatile i2c_hw_t *const i2c_regs = i2c_dev[i2c_port];
+        bool rc = true;
+        uint32_t wait_count = i2c_info[i2c_port].timeout_count * (get_tx_fifo_cnt(i2c_regs) + 1);
+        uint32_t i = 0;
+        while (is_tx_not_complete(i2c_regs)) {
+          i++;
+          if (i > wait_count) {
+            rc = false;
+            break;
+          }
         }
-        else
-        {
-          if (baudrate == 0)
-          {
-            return false;
+        return rc;
+      }
+
+      __attribute__((always_inline)) inline bool wait_for_tx_complete(int i2c_port)
+      {
+        volatile i2c_hw_t *const i2c_regs = i2c_dev[i2c_port];
+        bool rc = true;
+        uint32_t wait_count = i2c_info[i2c_port].timeout_count * (get_tx_fifo_cnt(i2c_regs) + 1);
+        uint32_t i = 0;
+        while (is_tx_fifo_not_empty(i2c_regs)) { // TODO:
+          i++;
+          if (i > wait_count) {
+            rc = false;
+            break;
           }
-          uint32_t freq_in = clock_get_hz(clk_sys);
-          uint32_t period = (freq_in + baudrate / 2) / baudrate;
-          lcnt = period * 3 / 5;
-          hcnt = period - lcnt;
-          if (hcnt > I2C_IC_FS_SCL_HCNT_IC_FS_SCL_HCNT_BITS)
-          {
-            return false;
-          }
-          if (lcnt > I2C_IC_FS_SCL_LCNT_IC_FS_SCL_LCNT_BITS)
-          {
-            return false;
-          }
-          if (hcnt < 8)
-          {
-            return false;
-          }
-          if (lcnt < 8)
-          {
-            return false;
-          }
-          if (baudrate < 1000000)
-          {
-            sda_tx_hold_count = ((freq_in * 3) / 10000000) + 1;
-          }
-          else
-          {
-            sda_tx_hold_count = ((freq_in * 3) / 25000000) + 1;
-          }
-          if (sda_tx_hold_count <= lcnt - 2)
-          {
-            return false;
-          }
-          prescale_map.emplace(baudrate, decltype(prescale_map)::mapped_type{ hcnt, lcnt, sda_tx_hold_count });
         }
-        i2c_regs->enable = I2C_IC_ENABLE_ENABLE_VALUE_DISABLED;
-        uint32_t temp = i2c_regs->con;
-        temp &= ~(I2C_IC_CON_SPEED_BITS);
-        temp |= (I2C_IC_CON_SPEED_VALUE_FAST << I2C_IC_CON_SPEED_LSB);
-        i2c_regs->con = temp;
-        i2c_regs->fs_scl_hcnt = hcnt;
-        i2c_regs->fs_scl_lcnt = lcnt;
-        i2c_regs->fs_spklen = (lcnt < 16) ? 1 : lcnt / 16;
-        temp = i2c_regs->sda_hold;
-        temp &= ~(I2C_IC_SDA_HOLD_IC_SDA_TX_HOLD_BITS);
-        temp |= (sda_tx_hold_count << I2C_IC_SDA_HOLD_IC_SDA_TX_HOLD_LSB);
-        i2c_regs->sda_hold = temp;
-        i2c_regs->enable = I2C_IC_ENABLE_ENABLE_VALUE_ENABLED;
+        return rc;
+      }
+
+      __attribute__((always_inline)) inline bool wait_for_rxfifo_not_empty(int i2c_port)
+      {
+        volatile i2c_hw_t *const i2c_regs = i2c_dev[i2c_port];
+        bool rc = true;
+        uint32_t wait_count = i2c_info[i2c_port].timeout_count;
+        uint32_t i = 0;
+        while (is_rx_fifo_empty(i2c_regs)) {
+          i++;
+          if (i > wait_count) {
+            rc = false;
+            DBGPRINT("i = %d\n", i);
+            break;
+          }
+        }
+        return rc;
+      }
+
+      __attribute__((always_inline)) inline void set_last_byte(int i2c_port, uint8_t last_byte)
+      {
+        auto info = &i2c_info[i2c_port];
+        info->last_byte = last_byte;
+        info->last_byte_valid = true;
+      }
+
+      bool send_byte_blocking(int i2c_port, uint8_t byte, stop_state_t stop)
+      {
+        volatile i2c_hw_t *const i2c_regs = i2c_dev[i2c_port];
+        auto info = &i2c_info[i2c_port];
+        bool rc = wait_for_txfifo_not_full(i2c_port);
+        if (!rc) {
+          return false;
+        }
+        send_data(i2c_regs, byte, info->restart, stop);
         return true;
       }
 
-      bool lgfx_i2c_init(volatile i2c_hw_t * i2c_regs, uint32_t baudrate)
+      bool send_last_byte(int i2c_port, stop_state_t stop, need_wait_t need_wait)
+      {
+        auto info = &i2c_info[i2c_port];
+        if (!info->last_byte_valid) {
+          return true;
+        }
+        bool rc = send_byte_blocking(i2c_port, info->last_byte, stop);
+        if (!rc) {
+          DBGPRINT("send_byte_blocking() failed\n");
+          return false;
+        }
+        info->last_byte_valid = false;
+        if (need_wait == need_wait_t::none) {
+          return true;
+          }
+        rc = wait_for_tx_complete(i2c_port);
+        return rc;
+      }
+
+      constexpr uint32_t calc_scl_factor(uint32_t period, uint32_t scl_low, uint32_t scl_high)
+      {
+        return ((period + scl_low - scl_high) / 2);
+      }
+
+      constexpr uint32_t nstoclk(uint32_t time_ns, uint32_t clk_freq)
+      {
+        if (time_ns == 0)
+        {
+          return 0;
+        }
+        constexpr uint32_t MHz{1000 * 1000};
+        uint32_t clk_freq_MHz = (clk_freq + MHz - 1) / MHz;
+        return (((time_ns * clk_freq_MHz) + 1000 - 1) / 1000);
+      }
+
+      bool lgfx_i2c_set_baudrate(volatile i2c_hw_t *i2c_regs, uint32_t baudrate)
+        {
+          uint32_t hcnt;
+          uint32_t lcnt;
+          uint32_t sda_tx_setup_count;
+          uint32_t sda_tx_hold_count;
+          enum
+          {
+            i2c_standard_mode = 0,
+            i2c_fast_mode = 1,
+            i2c_fast_mode_plus = 2
+          } i2c_speed;
+
+          static constexpr uint32_t i2c_standard_mode_freq{100 * 1000};
+          static constexpr uint32_t i2c_standard_mode_min_scl_high_time_ns{4000};
+          static constexpr uint32_t i2c_standard_mode_min_scl_low_time_ns{4700};
+          static constexpr uint32_t i2c_standard_mode_min_data_setup_time_ns{250};
+          static constexpr uint32_t i2c_standard_mode_min_data_hold_time_ns{300};
+          static constexpr uint32_t i2c_standard_mode_period_ns{i2c_1Hz_period_ns / (static_cast<uint64_t>(i2c_standard_mode_freq))};
+
+          static constexpr uint32_t i2c_fast_mode_freq{400 * 1000};
+          static constexpr uint32_t i2c_fast_mode_min_scl_high_time_ns{600};
+          static constexpr uint32_t i2c_fast_mode_min_scl_low_time_ns{1300};
+          static constexpr uint32_t i2c_fast_mode_min_data_setup_time_ns{100};
+          static constexpr uint32_t i2c_fast_mode_min_data_hold_time_ns{300};
+          static constexpr uint32_t i2c_fast_mode_period_ns{i2c_1Hz_period_ns / (static_cast<uint64_t>(i2c_fast_mode_freq))};
+
+          static constexpr uint32_t i2c_fast_mode_plus_freq{1000 * 1000};
+          static constexpr uint32_t i2c_fast_mode_plus_min_scl_high_time_ns{260};
+          static constexpr uint32_t i2c_fast_mode_plus_min_scl_low_time_ns{500};
+          static constexpr uint32_t i2c_fast_plus_mode_min_data_setup_time_ns{50};
+          static constexpr uint32_t i2c_fast_mode_plus_min_data_hold_time_ns{0};
+          static constexpr uint32_t i2c_fast_mode_plus_period_ns{i2c_1Hz_period_ns / (static_cast<uint64_t>(i2c_fast_mode_plus_freq))};
+
+          static constexpr uint32_t i2c_scl_factor_table[] = {
+              calc_scl_factor(i2c_standard_mode_period_ns, i2c_standard_mode_min_scl_low_time_ns, i2c_standard_mode_min_scl_high_time_ns),
+              calc_scl_factor(i2c_fast_mode_period_ns, i2c_fast_mode_min_scl_low_time_ns, i2c_fast_mode_min_scl_high_time_ns),
+              calc_scl_factor(i2c_fast_mode_plus_period_ns, i2c_fast_mode_plus_min_scl_low_time_ns, i2c_fast_mode_plus_min_scl_high_time_ns),
+          };
+          static constexpr uint32_t i2c_period_table[] = {
+              i2c_standard_mode_period_ns,
+              i2c_fast_mode_period_ns,
+              i2c_fast_mode_plus_period_ns,
+          };
+          static constexpr uint32_t i2c_data_setup_time_table[] = {
+              i2c_standard_mode_min_data_setup_time_ns,
+              i2c_fast_mode_min_data_setup_time_ns,
+              i2c_fast_plus_mode_min_data_setup_time_ns,
+          };
+          static constexpr uint32_t i2c_data_hold_time_table[] = {
+              i2c_standard_mode_min_data_hold_time_ns,
+              i2c_fast_mode_min_data_hold_time_ns,
+              i2c_fast_mode_plus_min_data_hold_time_ns,
+          };
+
+          // DBGPRINT("%s baud = %u\n", __func__, baudrate);
+          if (baudrate <= i2c_standard_mode_freq)
+          {
+            i2c_speed = i2c_standard_mode;
+          }
+          else if (baudrate <= i2c_fast_mode_freq)
+          {
+            i2c_speed = i2c_fast_mode;
+          }
+          else
+          {
+            i2c_speed = i2c_fast_mode_plus;
+          }
+          auto val = prescale_map.find(baudrate);
+          if (val != prescale_map.end())
+          {
+            hcnt = val->second[0];
+            lcnt = val->second[1];
+            sda_tx_setup_count = val->second[2];
+            sda_tx_hold_count = val->second[3];
+          }
+          else
+          {
+            if (baudrate == 0)
+            {
+              DBGPRINT("%s return\n", __func__);
+              return false;
+            }
+#ifdef UNITTEST
+            uint32_t freq_in = sys_clock_hz;
+#else
+            uint32_t freq_in = clock_get_hz(clk_sys);
+#endif
+            uint32_t period = (freq_in + baudrate / 2) / baudrate;
+            lcnt = (period * i2c_scl_factor_table[i2c_speed]) / i2c_period_table[i2c_speed];
+            hcnt = period - lcnt;
+            if (hcnt > I2C_IC_FS_SCL_HCNT_IC_FS_SCL_HCNT_BITS)
+            {
+              DBGPRINT("%s return hcnt = %u\n", __func__, hcnt);
+              return false;
+            }
+            if (lcnt > I2C_IC_FS_SCL_LCNT_IC_FS_SCL_LCNT_BITS)
+            {
+              DBGPRINT("%s return lcnt = %u\n", __func__, lcnt);
+              return false;
+            }
+            // IC_SS_SCL_HCNT and IC_FS_SCL_HCNT register values must be larger than IC_FS_SPKLEN + 5.
+            if (hcnt <= 6)
+            {
+              DBGPRINT("%s return hcnt = %u\n", __func__, hcnt);
+              return false;
+            }
+            // IC_SS_SCL_LCNT and IC_FS_SCL_LCNT register values must be larger than IC_FS_SPKLEN + 7.
+            if (lcnt <= 8)
+            {
+              DBGPRINT("%s return\n", __func__);
+              return false;
+            }
+
+            sda_tx_setup_count = nstoclk(i2c_data_setup_time_table[i2c_speed], freq_in);
+            sda_tx_hold_count = nstoclk(i2c_data_hold_time_table[i2c_speed], freq_in);
+
+            if (sda_tx_hold_count >= lcnt - 2)
+            {
+              DBGPRINT("%s return %d %d\n", __func__, sda_tx_hold_count, lcnt);
+              return false;
+            }
+            prescale_map.emplace(baudrate, decltype(prescale_map)::mapped_type{hcnt, lcnt, sda_tx_setup_count, sda_tx_hold_count});
+          }
+#ifndef UNITTEST
+          lgfx_i2c_disable(i2c_regs);
+
+          uint32_t speed_param;
+          if (i2c_speed == i2c_standard_mode)
+          {
+            speed_param = (I2C_IC_CON_SPEED_VALUE_STANDARD << I2C_IC_CON_SPEED_LSB);
+          }
+          else if (i2c_speed == i2c_fast_mode)
+          {
+            speed_param = (I2C_IC_CON_SPEED_VALUE_FAST << I2C_IC_CON_SPEED_LSB);
+          }
+          else
+          {
+            speed_param = (I2C_IC_CON_SPEED_VALUE_HIGH << I2C_IC_CON_SPEED_LSB);
+          }
+          uint32_t temp = i2c_regs->con;
+          temp &= ~(I2C_IC_CON_SPEED_BITS);
+          temp |= speed_param;
+          i2c_regs->con = temp;
+          if (i2c_speed == i2c_standard_mode)
+          {
+            i2c_regs->ss_scl_hcnt = hcnt;
+            i2c_regs->ss_scl_lcnt = lcnt;
+          }
+          else
+          {
+            i2c_regs->fs_scl_hcnt = hcnt;
+            i2c_regs->fs_scl_lcnt = lcnt;
+          }
+          i2c_regs->fs_spklen = (lcnt < 16) ? 1 : lcnt / 16;
+          temp = i2c_regs->sda_hold;
+          temp &= ~(I2C_IC_SDA_HOLD_IC_SDA_TX_HOLD_BITS);
+          temp |= (sda_tx_hold_count << I2C_IC_SDA_HOLD_IC_SDA_TX_HOLD_LSB);
+          i2c_regs->sda_hold = temp;
+          lgfx_i2c_enable(i2c_regs);
+#endif
+          return true;
+        }
+
+      void lgfx_i2c_init(volatile i2c_hw_t * i2c_regs)
       {
         lgfx_i2c_reset(i2c_regs);
         lgfx_i2c_unreset(i2c_regs);
@@ -678,7 +922,6 @@ namespace lgfx
         i2c_regs->tx_tl = 0;
         i2c_regs->rx_tl = 0;
         i2c_regs->dma_cr = I2C_IC_DMA_CR_TDMAE_BITS | I2C_IC_DMA_CR_RDMAE_BITS;
-        return lgfx_i2c_set_baudrate(i2c_regs, baudrate);
       }
 
       void lgfx_i2c_deinit(volatile i2c_hw_t * i2c_regs)
@@ -690,167 +933,157 @@ namespace lgfx
 
     cpp::result<void, error_t> init(int i2c_port, int pin_sda, int pin_scl)
     {
+      volatile i2c_hw_t *const i2c_regs = i2c_dev[i2c_port];
+      auto info = &i2c_info[i2c_port];
       if (i2c_port < 0 || i2c_port >= n_i2c)
       {
+        DBGPRINT("invalid port number %d\n", i2c_port);
         return cpp::fail(error_t::invalid_arg);
       }
-      if (i2c_info[i2c_port].ref_count == 0)
+      if (info->ref_count == 0)
       {
         const struct i2c_pinlist_str pinlist = i2c_pinlist[i2c_port];
         if (!lgfx::v1::rp2040::pin_check(pin_sda, pinlist.sda_pinlist))
         {
+          DBGPRINT("invalid sda %d\n", pin_sda);
           return cpp::fail(error_t::invalid_arg);
         }
         if (!lgfx::v1::rp2040::pin_check(pin_scl, pinlist.scl_pinlist))
         {
+          DBGPRINT("invalid scl %d\n", pin_scl);
           return cpp::fail(error_t::invalid_arg);
         }
         lgfx_gpio_set_function(pin_sda, GPIO_FUNC_I2C);
         lgfx_gpio_set_function(pin_scl, GPIO_FUNC_I2C);
-        if (!lgfx_i2c_init(i2c_dev[i2c_port], 1000000))
-        {
-          return cpp::fail(error_t::invalid_arg);
-        }
-        i2c_info[i2c_port].pin_sda = pin_sda;
-        i2c_info[i2c_port].pin_scl = pin_scl;
-        i2c_info[i2c_port].ref_count = 1;
+        lgfx_i2c_init(i2c_regs);
+        info->pin_sda = pin_sda;
+        info->pin_scl = pin_scl;
+        info->ref_count = 1;
         return {};
       }
       if (i2c_info[i2c_port].pin_sda != pin_sda)
       {
         return cpp::fail(error_t::invalid_arg);
       }
-      if (i2c_info[i2c_port].pin_scl != pin_scl)
+      if (info->pin_scl != pin_scl)
       {
         return cpp::fail(error_t::invalid_arg);
       }
-      i2c_info[i2c_port].ref_count++;
+      info->ref_count++;
       return {};
     }
 
     cpp::result<void, error_t> release(int i2c_port)
     {
-      if (i2c_info[i2c_port].ref_count == 0)
+      volatile i2c_hw_t * const i2c_regs = i2c_dev[i2c_port];
+      auto info = &i2c_info[i2c_port];
+      
+      if (info->ref_count == 0)
       {
         return {};
       }
-      i2c_info[i2c_port].ref_count--;
-      if (i2c_info[i2c_port].ref_count == 0)
+      info->ref_count--;
+      if (info->ref_count == 0)
       {
-        i2c_info[i2c_port].pin_sda = -1;
-        i2c_info[i2c_port].pin_scl = -1;
-        lgfx_i2c_deinit(i2c_dev[i2c_port]);
+        info->pin_sda = -1;
+        info->pin_scl = -1;
+        lgfx_i2c_deinit(i2c_regs);
       }
       return {};
     }
 
-    cpp::result<void, error_t> restart(int i2c_port, int i2c_addr, uint32_t freq, [[maybe_unused]]bool read)
+    cpp::result<void, error_t> restart(int i2c_port, int i2c_addr, uint32_t freq, [[maybe_unused]] bool read)
     {
-       volatile i2c_hw_t * i2c_regs = i2c_dev[i2c_port];
-
-      auto info = &i2c_info[i2c_port];
-      // 直前のトランザクションの最後のデータを送信
-      if (info->last_data_valid)
-      {
-        while (!is_tx_fifo_not_full(i2c_regs))
-        {
-        }
-        send_data(i2c_regs, info->last_data, info->is_restart, false);
-        info->last_data_valid = false;
-        wait_complete(i2c_regs);
+      volatile i2c_hw_t *const i2c_regs = i2c_dev[i2c_port];
+      DBG_ENTER();
+      // readで読み出しが行われない可能性があるので、stop conditionに遷移する
+      if (!send_last_byte(i2c_port, stop_state_t::stop , need_wait_t::wait)) {
+        return cpp::fail(error_t::connection_lost);
       }
-      lgfx_i2c_set_baudrate(i2c_dev[i2c_port], freq);
+      if (!lgfx_i2c_set_baudrate(i2c_regs, freq)) {
+        return cpp::fail(error_t::connection_lost);
+      }
       set_target_address(i2c_regs, i2c_addr);
-      info->is_restart = true;
       return {};
     }
 
-    cpp::result<void, error_t> beginTransaction(int i2c_port, int i2c_addr, uint32_t freq, [[maybe_unused]]bool read)
+    cpp::result<void, error_t> beginTransaction(int i2c_port, int i2c_addr, uint32_t freq, [[maybe_unused]] bool read)
     {
-      volatile i2c_hw_t * i2c_regs = i2c_dev[i2c_port];
+      volatile i2c_hw_t *const i2c_regs = i2c_dev[i2c_port];
       auto info = &i2c_info[i2c_port];
-      if (info->last_data_valid)
-      {
-        send_data(i2c_regs, info->last_data, false, false);
-        info->last_data_valid = false;
-        wait_complete(i2c_regs);
+      DBG_ENTER();
+      if (!lgfx_i2c_set_baudrate(i2c_regs, freq)) {
+        return cpp::fail(error_t::connection_lost);
       }
-      lgfx_i2c_set_baudrate(i2c_dev[i2c_port], freq);
       set_target_address(i2c_regs, i2c_addr);
-      info->is_restart = false;
+      uint32_t clk_per_ms = clock_get_hz(clk_sys) / 1000;
+      info->timeout_count = clk_per_ms * i2c_timeout;;
+      info->last_byte_valid = false;
+      info->restart = restart_state_t::none;
       return {};
     }
 
     cpp::result<void, error_t> endTransaction(int i2c_port)
     {
-      volatile i2c_hw_t * i2c_regs = i2c_dev[i2c_port];
-      auto info = &i2c_info[i2c_port];
-      if (info->last_data_valid)
-      {
-        while (!is_tx_fifo_not_full(i2c_regs))
-        {
-        }
-        send_data(i2c_regs, info->last_data, false, true);
-        info->last_data_valid = false;
+      DBG_ENTER();
+      // 未送信の最終データをstop conditionで送信
+      if (!send_last_byte(i2c_port, stop_state_t::stop, need_wait_t::wait)) {
+        return cpp::fail(error_t::connection_lost);
       }
       return {};
     }
 
-    cpp::result<void, error_t> writeBytes(int i2c_port, [[maybe_unused]]const uint8_t *data, size_t length)
+    cpp::result<void, error_t> writeBytes(int i2c_port, const uint8_t *data, size_t length)
     {
-      volatile i2c_hw_t * i2c_regs = i2c_dev[i2c_port];
-      auto info = &i2c_info[i2c_port];
-      if (length == 0)
-      {
+      DBGPRINTFUNC("%d\n", length);
+      if (length == 0) {
         return {};
       }
-      if (length == 1)
-      {
-        info->last_data = *data;
-        info->last_data_valid = true;
-        return {};
+      if (!send_last_byte(i2c_port, stop_state_t::none, need_wait_t::none)) {
+        DBGPRINTFUNC("send_last_byte() failed\n");
+        return cpp::fail(error_t::connection_lost);
       }
-      length--;
-      for (decltype(length) i = 0; i < length; i++)
-      {
-        while (!is_tx_fifo_not_full(i2c_regs))
-        {
+      auto last_data_index = length - 1;
+      for (decltype(length) i = 0; i < last_data_index; i++) {
+        bool rc = send_byte_blocking(i2c_port, *data++, stop_state_t::none);
+        if (!rc) {
+          DBGPRINTFUNC("send_byte_blocking() failed\n");
+          return cpp::fail(error_t::connection_lost);
         }
-        send_data(i2c_regs, *data++, (i == 0 && info->is_restart), false);
       }
-      // 最後のデータを保存
-      info->is_restart = false;
-      info->last_data = *data;
-      info->last_data_valid = true;
+      set_last_byte(i2c_port, *data);
+      put_dump_byte(data, 0, length);
       return {};
     }
 
     cpp::result<void, error_t> readBytes(int i2c_port, uint8_t *data, size_t length)
     {
-      volatile i2c_hw_t * i2c_regs = i2c_dev[i2c_port];
+      volatile i2c_hw_t *const i2c_regs = i2c_dev[i2c_port];
       auto info = &i2c_info[i2c_port];
-      if (length == 0)
-      {
+      if (length == 0) {
         return {};
       }
-      for (decltype(length) i = 0; i < length; i++)
-      {
-        while (!is_rx_fifo_not_empty(i2c_regs))
-        {
+      for (decltype(length) i = 0; i < length; i++) {
+        prepare_recv(i2c_regs, (i == 0) && info->restart == restart_state_t::restart, (i == length - 1));
+        bool rc = wait_for_rxfifo_not_empty(i2c_port);
+        if (!rc) {
+          DBGPRINTFUNC("timeout %04x %02x %d\n", i2c_regs->status, i2c_regs->rxflr, is_rx_fifo_not_empty(i2c_regs));
+          return cpp::fail(error_t::connection_lost);
         }
-        *data++ = recv_data(i2c_regs, ((i == 0) && info->is_restart), (i == length - 1));
+        *data++ = recv_data(i2c_regs);
       }
+      info->restart = restart_state_t::none;
+      DBGPRINTFUNC("%d\n", length);
+      put_dump_byte(data, 0, length);
       return {};
     }
 
-//--------
+    //--------
 
     cpp::result<void, error_t> transactionWrite(int i2c_port, int addr, const uint8_t *writedata, uint8_t writelen, uint32_t freq)
     {
       cpp::result<void, error_t> res;
-      if ((res = beginTransaction(i2c_port, addr, freq, false)).has_value()
-       && (res = writeBytes(i2c_port, writedata, writelen)).has_value()
-      )
+      if ((res = beginTransaction(i2c_port, addr, freq, false)).has_value() && (res = writeBytes(i2c_port, writedata, writelen)).has_value())
       {
         res = endTransaction(i2c_port);
       }
@@ -860,9 +1093,7 @@ namespace lgfx
     cpp::result<void, error_t> transactionRead(int i2c_port, int addr, uint8_t *readdata, uint8_t readlen, uint32_t freq)
     {
       cpp::result<void, error_t> res;
-      if ((res = beginTransaction(i2c_port, addr, freq, true)).has_value()
-       && (res = readBytes(i2c_port, readdata, readlen)).has_value()
-      )
+      if ((res = beginTransaction(i2c_port, addr, freq, false)).has_value() && (res = readBytes(i2c_port, readdata, readlen)).has_value())
       {
         res = endTransaction(i2c_port);
       }
@@ -870,13 +1101,9 @@ namespace lgfx
     }
 
     cpp::result<void, error_t> transactionWriteRead(int i2c_port, int addr, const uint8_t *writedata, uint8_t writelen, uint8_t *readdata, size_t readlen, uint32_t freq)
-    { 
+    {
       cpp::result<void, error_t> res;
-      if ((res = beginTransaction(i2c_port, addr, freq, false)).has_value()
-       && (res = writeBytes(i2c_port, writedata, writelen)).has_value()
-       && (res = restart(i2c_port, addr, freq, true)).has_value()
-       && (res = readBytes(i2c_port, readdata, readlen)).has_value()
-      )
+      if ((res = beginTransaction(i2c_port, addr, freq, false)).has_value() && (res = writeBytes(i2c_port, writedata, writelen)).has_value() && (res = restart(i2c_port, addr, freq, false)).has_value() && (res = readBytes(i2c_port, readdata, readlen)).has_value())
       {
         res = endTransaction(i2c_port);
       }
@@ -886,17 +1113,23 @@ namespace lgfx
     cpp::result<uint8_t, error_t> readRegister8(int i2c_port, int addr, uint8_t reg, uint32_t freq)
     {
       auto res = transactionWriteRead(i2c_port, addr, &reg, 1, &reg, 1, freq);
-      if (res.has_value()) { return reg; }
-      return cpp::fail( res.error() );
+      if (res.has_value())
+      {
+        return reg;
+      }
+      return cpp::fail(res.error());
     }
 
     cpp::result<void, error_t> writeRegister8(int i2c_port, int addr, uint8_t reg, uint8_t data, uint8_t mask, uint32_t freq)
     {
-      uint8_t tmp[2] = { reg, data };
+      uint8_t tmp[2] = {reg, data};
       if (mask != 0)
       {
         auto res = transactionWriteRead(i2c_port, addr, &reg, 1, &tmp[1], 1, freq);
-        if (res.has_error()) { return res; }
+        if (res.has_error())
+        {
+          return res;
+        }
         tmp[1] = (tmp[1] & mask) | data;
       }
       return transactionWrite(i2c_port, addr, tmp, 2, freq);

@@ -24,5 +24,6 @@ int main(int, char**)
   for (;;)
   {
     std::this_thread::yield();
+    sleep(5);
   }
 }

@@ -24,8 +24,9 @@ Contributors:
 #include <memory>
 #include <esp_log.h>
 #include <driver/i2c.h>
-#include <soc/gpio_reg.h>
 #include <soc/efuse_reg.h>
+#include <soc/gpio_periph.h>
+#include <soc/gpio_reg.h>
 #include <soc/io_mux_reg.h>
 #if __has_include(<hal/gpio_types.h>)
  #include <hal/gpio_types.h>
@@ -159,6 +160,29 @@ namespace lgfx
       lgfx::i2c::writeRegister8(i2c_port, axp_i2c_addr, 0x99, brightness, 0, i2c_freq);
     }
   };
+
+  struct Light_M5AtomS3 : public lgfx::Light_PWM
+  {
+    Light_M5AtomS3(void)
+    {
+      auto cfg = config();
+      /// The backlight of AtomS3 does not light up if the PWM cycle is too fast.
+      cfg.freq = 240;
+      cfg.pin_bl = GPIO_NUM_16;
+      cfg.pwm_channel = 7;
+      config(cfg);
+    }
+
+    void setBrightness(uint8_t brightness) override
+    {
+      if (brightness) 
+      {
+        brightness = brightness - (brightness >> 3) + 31;
+      }
+      Light_PWM::setBrightness(brightness);
+    }
+  };
+
 
 #elif defined (CONFIG_IDF_TARGET_ESP32S2)
 
@@ -548,26 +572,29 @@ namespace lgfx
       {
       public:
         _pin_backup_t(int8_t pin_num)
-          : _io_mux_gpio_reg   { *reinterpret_cast<uint32_t*>(IO_MUX_GPIO0_REG           + (pin_num * 4)) }
-          , _gpio_pin_reg      { *reinterpret_cast<uint32_t*>(GPIO_PIN0_REG              + (pin_num * 4)) }
-          , _gpio_func_out_reg { *reinterpret_cast<uint32_t*>(GPIO_FUNC0_OUT_SEL_CFG_REG + (pin_num * 4)) }
-          , _pin_num           { static_cast<gpio_num_t>(pin_num) }
+        : _pin_num { static_cast<gpio_num_t>(pin_num) }
         {
+          if (pin_num >= 0)
+          {
+            _io_mux_gpio_reg   = *reinterpret_cast<uint32_t*>(GPIO_PIN_MUX_REG[pin_num]);
+            _gpio_pin_reg      = *reinterpret_cast<uint32_t*>(GPIO_PIN0_REG              + (pin_num * 4));
+            _gpio_func_out_reg = *reinterpret_cast<uint32_t*>(GPIO_FUNC0_OUT_SEL_CFG_REG + (pin_num * 4));
 #if defined ( GPIO_ENABLE1_REG )
-          _gpio_enable = *reinterpret_cast<uint32_t*>(((_pin_num & 32) ? GPIO_ENABLE1_REG : GPIO_ENABLE_REG)) & (1 << (_pin_num & 31));
+            _gpio_enable = *reinterpret_cast<uint32_t*>(((_pin_num & 32) ? GPIO_ENABLE1_REG : GPIO_ENABLE_REG)) & (1 << (_pin_num & 31));
 #else
-          _gpio_enable = *reinterpret_cast<uint32_t*>(GPIO_ENABLE_REG) & (1 << (_pin_num & 31));
+            _gpio_enable = *reinterpret_cast<uint32_t*>(GPIO_ENABLE_REG) & (1 << (_pin_num & 31));
 #endif
+          }
         }
 
         void restore(void) const
         {
           if ((int)_pin_num >= 0) {
   // ESP_LOGD("DEBUG","restore pin:%d ", _pin_num);
-  // ESP_LOGD("DEBUG","restore IO_MUX_GPIO0_REG          :%08x -> %08x ", *reinterpret_cast<uint32_t*>(IO_MUX_GPIO0_REG           + (_pin_num * 4)), _io_mux_gpio_reg   );
+  // ESP_LOGD("DEBUG","restore IO_MUX_GPIO0_REG          :%08x -> %08x ", *reinterpret_cast<uint32_t*>(GPIO_PIN_MUX_REG[_pin_num]                 ), _io_mux_gpio_reg   );
   // ESP_LOGD("DEBUG","restore GPIO_PIN0_REG             :%08x -> %08x ", *reinterpret_cast<uint32_t*>(GPIO_PIN0_REG              + (_pin_num * 4)), _gpio_pin_reg      );
   // ESP_LOGD("DEBUG","restore GPIO_FUNC0_OUT_SEL_CFG_REG:%08x -> %08x ", *reinterpret_cast<uint32_t*>(GPIO_FUNC0_OUT_SEL_CFG_REG + (_pin_num * 4)), _gpio_func_out_reg );
-            *reinterpret_cast<uint32_t*>(IO_MUX_GPIO0_REG           + (_pin_num * 4)) = _io_mux_gpio_reg;
+            *reinterpret_cast<uint32_t*>(GPIO_PIN_MUX_REG[_pin_num]) = _io_mux_gpio_reg;
             *reinterpret_cast<uint32_t*>(GPIO_PIN0_REG              + (_pin_num * 4)) = _gpio_pin_reg;
             *reinterpret_cast<uint32_t*>(GPIO_FUNC0_OUT_SEL_CFG_REG + (_pin_num * 4)) = _gpio_func_out_reg;
 #if defined ( GPIO_ENABLE1_REG )
@@ -1041,7 +1068,7 @@ namespace lgfx
           ESP_LOGI(LIBRARY_NAME, "[Autodetect] M5AtomS3");
           auto p = new Panel_GC9107();
           param->panel = p;
-          p->light(_create_pwm_backlight(GPIO_NUM_16, 7, 240)); /// AtomS3のバックライトはPWM周期が速いと点灯しない;
+          p->light(new Light_M5AtomS3());
 
           {
             auto cfg = p->config();
@@ -2297,6 +2324,55 @@ namespace lgfx
         }
       };
 
+      struct _detector_TTGO_T4_Display_t : public _detector_spi_t
+      {
+        constexpr _detector_TTGO_T4_Display_t(void)
+        : _detector_spi_t
+        { board_t::board_TTGO_T4_Display
+        , 0x04, 0xFF, 0x00 // ili9341
+        , 40000000, 16000000
+        , GPIO_NUM_23     // MOSI
+        , GPIO_NUM_12     // MISO
+        , GPIO_NUM_18     // SCLK
+        , GPIO_NUM_32     // DC
+        , GPIO_NUM_27     // CS
+        , GPIO_NUM_5      // RST
+        , GPIO_NUM_13     // TF CARD CS
+        , 0               // SPI MODE
+        , false           // SPI 3wire
+        , VSPI_HOST       // SPI HOST
+        } {}
+
+        void setup(_detector_result_t* result) const override
+        {
+          ESP_LOGI(LIBRARY_NAME, "[Autodetect] TTGO_T4_Display");
+
+          auto p = new Panel_ILI9341();
+          result->panel = p;
+          {
+            auto cfg = p->config();
+            cfg.pin_cs  = GPIO_NUM_27;
+            cfg.pin_rst = GPIO_NUM_5;
+            cfg.pin_busy     =  -1;
+            cfg.panel_width  = 240;
+            cfg.panel_height = 320;
+            cfg.offset_x     = 0;
+            cfg.offset_y     = 0;
+            cfg.offset_rotation  =  2;
+            cfg.dummy_read_pixel =  8;
+            cfg.dummy_read_bits  =  1;
+            cfg.readable         =  true;
+            cfg.invert           = false;
+            cfg.rgb_order        = false;
+            cfg.dlen_16bit       = false;
+            cfg.bus_shared       =  true;
+
+            p->config(cfg);
+            p->light(_create_pwm_backlight(GPIO_NUM_4, 7, 44100));
+          }
+        }
+      };
+
       struct _detector_WiFiBoy_Mini_t : public _detector_spi_t
       {
         constexpr _detector_WiFiBoy_Mini_t(void)
@@ -3015,7 +3091,7 @@ namespace lgfx
       static constexpr const _detector_t* detector_list[] =
       {
 
-#if defined ( LGFX_AUTODETECT ) || defined ( LGFX_M5ATOM_S3LCD )
+#if defined ( LGFX_AUTODETECT ) || defined ( LGFX_M5ATOMS3 ) || defined ( LGFX_M5ATOM_S3LCD )
         &detector_M5AtomS3,
 #endif
 #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_M5STACK_CORES3 )
@@ -3111,6 +3187,7 @@ namespace lgfx
       static constexpr const _detector_M5StackCore2_t          detector_M5StackCore2; // and M5Tough
       static constexpr const _detector_TTGO_TWatch_t           detector_TTGO_TWatch;
       static constexpr const _detector_TTGO_TDisplay_t         detector_TTGO_TDisplay;
+      static constexpr const _detector_TTGO_T4_Display_t       detector_TTGO_T4_Display;
       static constexpr const _detector_WiFiBoy_Mini_t          detector_WiFiBoy_Mini;
       static constexpr const _detector_WiFiBoy_Pro_t           detector_WiFiBoy_Pro;
       static constexpr const _detector_Makerfabs_MakePython_t  detector_Makerfabs_MakePython;
@@ -3197,6 +3274,9 @@ namespace lgfx
 #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_TTGO_TDISPLAY )
         &detector_TTGO_TDisplay,
 #endif
+#if defined ( LGFX_AUTODETECT ) || defined ( LGFX_TTGO_T4_DISPLAY )
+        &detector_TTGO_T4_Display,
+#endif
 #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_WIFIBOY_MINI )
         &detector_WiFiBoy_Mini,
 #endif
@@ -3221,7 +3301,7 @@ namespace lgfx
 
 
       std::uint32_t pkg_ver = lgfx::get_pkg_ver();
-//  ESP_LOGV("LGFX","pkg:%d", pkg_ver);
+      ESP_LOGV("LGFX", "pkg: %lu", (unsigned long)pkg_ver);
 
       switch (pkg_ver)
       {
