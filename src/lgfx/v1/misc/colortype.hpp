@@ -97,6 +97,7 @@ namespace lgfx
     inline rgb332_t& operator=(const bgr888_t&   );
     inline rgb332_t& operator=(const bgra8888_t& );
     inline rgb332_t& operator=(const grayscale_t&);
+    explicit inline operator uint32_t(void) const { return pgm_read_byte(this); }
     explicit inline operator uint8_t(void) const { return pgm_read_byte(this); }
     explicit inline operator bool(void) const { return pgm_read_byte(this); }
     static constexpr uint8_t A8(void) { return 255; }
@@ -143,6 +144,7 @@ namespace lgfx
     inline rgb565_t& operator=(const bgr888_t&   );
     inline rgb565_t& operator=(const bgra8888_t& );
     inline rgb565_t& operator=(const grayscale_t&);
+    explicit inline operator uint32_t(void) const { return pgm_read_word(this); }
     explicit inline operator uint16_t(void) const { return pgm_read_word(this); }
     explicit inline operator bool(void) const { return pgm_read_word(this); }
     static constexpr uint8_t A8(void) { return 255; }
@@ -286,6 +288,7 @@ namespace lgfx
     inline swap565_t& operator=(const bgr888_t&   );
     inline swap565_t& operator=(const bgra8888_t& );
     inline swap565_t& operator=(const grayscale_t&);
+    explicit inline operator uint32_t(void) const { return pgm_read_word(this); }
     explicit inline operator uint16_t(void) const { return pgm_read_word(this); }
     explicit inline operator bool(void) const { return pgm_read_word(this); }
     static constexpr uint8_t A8(void) { return 255; }
@@ -472,6 +475,7 @@ namespace lgfx
     inline grayscale_t& operator=(const bgr888_t&   );
     inline grayscale_t& operator=(const bgra8888_t& );
     inline grayscale_t& operator=(const grayscale_t&) = default;
+    explicit inline operator uint32_t(void) const { return pgm_read_byte(this); }
     explicit inline operator uint8_t(void) const { return pgm_read_byte(this); }
     explicit inline operator bool(void) const { return pgm_read_byte(this); }
     static constexpr uint8_t A8(void) { return 255; }
