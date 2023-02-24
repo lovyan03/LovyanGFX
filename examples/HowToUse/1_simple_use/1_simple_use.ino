@@ -4,36 +4,45 @@
 // 対応機種がボードマネージャに無い場合 ( TTGO T-Wristband や ESP-WROVER-KIT等 ) は、
 // LovyanGFX.hppのincludeより前に、define LGFX_～ の定義を記述してください。
 
-// #define LGFX_M5STACK               // M5Stack (Basic / Gray / Go / Fire)
-// #define LGFX_M5STACK_CORE2         // M5Stack Core2
-// #define LGFX_M5STACK_COREINK       // M5Stack CoreInk
-// #define LGFX_M5STICK_C             // M5Stick C / CPlus
-// #define LGFX_M5PAPER               // M5Paper
-// #define LGFX_M5TOUGH               // M5Tough
-// #define LGFX_ODROID_GO             // ODROID-GO
-// #define LGFX_TTGO_TS               // TTGO TS
-// #define LGFX_TTGO_TWATCH           // TTGO T-Watch
-// #define LGFX_TTGO_TWRISTBAND       // TTGO T-Wristband
-// #define LGFX_TTGO_TDISPLAY         // TTGO T-Display
-// #define LGFX_DDUINO32_XS           // DSTIKE D-duino-32 XS
-// #define LGFX_LOLIN_D32_PRO         // LoLin D32 Pro
-// #define LGFX_ESP_WROVER_KIT        // ESP-WROVER-KIT
-// #define LGFX_WIFIBOY_PRO           // WiFiBoy Pro
-// #define LGFX_WIFIBOY_MINI          // WiFiBoy mini
-// #define LGFX_MAKERFABS_TOUCHCAMERA // Makerfabs Touch with Camera
-// #define LGFX_MAKERFABS_MAKEPYTHON  // Makerfabs MakePython
-// #define LGFX_WT32_SC01             // Seeed WT32-SC01
-// #define LGFX_WIO_TERMINAL          // Seeed Wio Terminal
-// #define LGFX_PYBADGE               // Adafruit PyBadge
-// #define LGFX_ESPBOY                // ESPboy
+// #define LGFX_M5STACK                       // M5Stack M5Stack Basic / Gray / Go / Fire
+// #define LGFX_M5STACK_CORE2                 // M5Stack M5Stack Core2
+// #define LGFX_M5STACK_COREINK               // M5Stack M5Stack CoreInk
+// #define LGFX_M5STICK_C                     // M5Stack M5Stick C / CPlus
+// #define LGFX_M5PAPER                       // M5Stack M5Paper
+// #define LGFX_M5TOUGH                       // M5Stack M5Tough
+// #define LGFX_M5ATOMS3                      // M5Stack M5ATOMS3
+// #define LGFX_ODROID_GO                     // ODROID-GO
+// #define LGFX_TTGO_TS                       // TTGO TS
+// #define LGFX_TTGO_TWATCH                   // TTGO T-Watch
+// #define LGFX_TTGO_TWRISTBAND               // TTGO T-Wristband
+// #define LGFX_TTGO_TDISPLAY                 // TTGO T-Display
+// #define LGFX_DDUINO32_XS                   // DSTIKE D-duino-32 XS
+// #define LGFX_LOLIN_D32_PRO                 // LoLin D32 Pro
+// #define LGFX_LOLIN_S3_PRO                  // LoLin S3 Pro
+// #define LGFX_ESP_WROVER_KIT                // Espressif ESP-WROVER-KIT
+// #define LGFX_ESP32_S3_BOX                  // Espressif ESP32-S3-BOX
+// #define LGFX_ESP32_S3_BOX_LITE             // Espressif ESP32-S3-BOX Lite
+// #define LGFX_WIFIBOY_PRO                   // WiFiBoy Pro
+// #define LGFX_WIFIBOY_MINI                  // WiFiBoy mini
+// #define LGFX_MAKERFABS_TOUCHCAMERA         // Makerfabs Touch with Camera
+// #define LGFX_MAKERFABS_MAKEPYTHON          // Makerfabs MakePython
+// #define LGFX_MAKERFABS_TFT_TOUCH_SPI       // Makerfabs TFT Touch SPI
+// #define LGFX_MAKERFABS_TFT_TOUCH_PARALLEL16// Makerfabs TFT Touch Parallel 16
+// #define LGFX_WT32_SC01                     // Seeed WT32-SC01
+// #define LGFX_WIO_TERMINAL                  // Seeed Wio Terminal
+// #define LGFX_PYBADGE                       // Adafruit PyBadge
+// #define LGFX_FUNHOUSE                      // Adafruit FunHouse
+// #define LGFX_FEATHER_ESP32_S2_TFT          // Adafruit Feather ESP32 S2 TFT
+// #define LGFX_FEATHER_ESP32_S3_TFT          // Adafruit Feather ESP32 S3 TFT
+// #define LGFX_ESPBOY                        // ESPboy
+// #define LGFX_WYWY_ESP32S3_HMI_DEVKIT       // wywy ESP32S3 HMI DevKit
+// #define LGFX_ESP32_2432S028                // Sunton ESP32 2432S028
 
-  #define LGFX_AUTODETECT // 自動認識 (D-duino-32 XS, PyBadge はパネルID読取りが出来ないため自動認識の対象から外れています)
+  #define LGFX_AUTODETECT // 自動認識 (D-duino-32 XS, WT32-SC01, PyBadge はパネルID読取りが出来ないため自動認識の対象から外れています)
 
 // 複数機種の定義を行うか、LGFX_AUTODETECTを定義することで、実行時にボードを自動認識します。
 
 
-// v1.0.0 を有効にします(v0からの移行期間の特別措置です。これを書かない場合は旧v0系で動作します。)
-#define LGFX_USE_V1
 
 
 // ヘッダをincludeします。

@@ -572,16 +572,19 @@ namespace lgfx
       {
       public:
         _pin_backup_t(int8_t pin_num)
-          : _io_mux_gpio_reg   { *reinterpret_cast<uint32_t*>(GPIO_PIN_MUX_REG[pin_num]) }
-          , _gpio_pin_reg      { *reinterpret_cast<uint32_t*>(GPIO_PIN0_REG              + (pin_num * 4)) }
-          , _gpio_func_out_reg { *reinterpret_cast<uint32_t*>(GPIO_FUNC0_OUT_SEL_CFG_REG + (pin_num * 4)) }
-          , _pin_num           { static_cast<gpio_num_t>(pin_num) }
+        : _pin_num { static_cast<gpio_num_t>(pin_num) }
         {
+          if (pin_num >= 0)
+          {
+            _io_mux_gpio_reg   = *reinterpret_cast<uint32_t*>(GPIO_PIN_MUX_REG[pin_num]);
+            _gpio_pin_reg      = *reinterpret_cast<uint32_t*>(GPIO_PIN0_REG              + (pin_num * 4));
+            _gpio_func_out_reg = *reinterpret_cast<uint32_t*>(GPIO_FUNC0_OUT_SEL_CFG_REG + (pin_num * 4));
 #if defined ( GPIO_ENABLE1_REG )
-          _gpio_enable = *reinterpret_cast<uint32_t*>(((_pin_num & 32) ? GPIO_ENABLE1_REG : GPIO_ENABLE_REG)) & (1 << (_pin_num & 31));
+            _gpio_enable = *reinterpret_cast<uint32_t*>(((_pin_num & 32) ? GPIO_ENABLE1_REG : GPIO_ENABLE_REG)) & (1 << (_pin_num & 31));
 #else
-          _gpio_enable = *reinterpret_cast<uint32_t*>(GPIO_ENABLE_REG) & (1 << (_pin_num & 31));
+            _gpio_enable = *reinterpret_cast<uint32_t*>(GPIO_ENABLE_REG) & (1 << (_pin_num & 31));
 #endif
+          }
         }
 
         void restore(void) const
@@ -3088,7 +3091,7 @@ namespace lgfx
       static constexpr const _detector_t* detector_list[] =
       {
 
-#if defined ( LGFX_AUTODETECT ) || defined ( LGFX_M5ATOM_S3LCD )
+#if defined ( LGFX_AUTODETECT ) || defined ( LGFX_M5ATOMS3 ) || defined ( LGFX_M5ATOM_S3LCD )
         &detector_M5AtomS3,
 #endif
 #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_M5STACK_CORES3 )
