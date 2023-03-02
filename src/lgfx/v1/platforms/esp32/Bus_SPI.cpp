@@ -29,7 +29,10 @@ Contributors:
 
 #include "../../misc/pixelcopy.hpp"
 
-#include <soc/dport_reg.h>
+#if __has_include (<soc/dport_reg.h>)
+  #include <soc/dport_reg.h>
+#endif
+
 #include <driver/rtc_io.h>
 #include <esp_heap_caps.h>
 #include <esp_log.h>
