@@ -28,6 +28,7 @@ jobs:
           - esp32
           - esp32-s2
           - esp32-s3
+          - esp32-c3
           - m5stick-c
           - m5stack-core-esp32
           - m5stack-core2
@@ -41,6 +42,7 @@ jobs:
           - default
 
         exclude:
+          - { board: esp32-c3, platform-version: 1.0.6 }
           - { board: esp32-s3, platform-version: 1.0.6 }
           - { board: esp32-s3, platform-version: default } # 2.0.5 => esp32s3/include/newlib/platform_include/assert.h:20:10: fatal error: sdkconfig.h: No such file or directory
           - { board: esp32-s2, platform-version: 1.0.6 }
@@ -49,6 +51,7 @@ jobs:
           - board: esp32
           - board: esp32-s2
           - board: esp32-s3
+          - board: esp32-c3
           - board: m5stick-c
           - board: m5stack-core-esp32
           - board: m5stack-core2
