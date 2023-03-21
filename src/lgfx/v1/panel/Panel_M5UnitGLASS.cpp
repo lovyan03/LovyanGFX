@@ -44,7 +44,7 @@ namespace lgfx
       {
         _bus->endTransaction();
         _bus->beginRead();
-        connected = _bus->readBytes(&res, 1);
+        connected = _bus->readBytes(&res, 1, false, true);
       }
       _bus->endTransaction();
     } while (!connected && --retry >= 0);
@@ -166,7 +166,7 @@ namespace lgfx
         _bus->endTransaction();
         lgfx::delayMicroseconds(384); // データ取得可能になるまで少し待つ
         _bus->beginRead();
-        if (_bus->readBytes(&res, 1)) { retry = 0; }
+        if (_bus->readBytes(&res, 1, false, true)) { retry = 0; }
       }
       _bus->endTransaction();
     } while (--retry >= 0);
@@ -184,7 +184,7 @@ namespace lgfx
       {
         _bus->endTransaction();
         _bus->beginRead();
-        if (_bus->readBytes(&res, 1)) { retry = 0; }
+        if (_bus->readBytes(&res, 1, false, true)) { retry = 0; }
       }
       _bus->endTransaction();
     } while (--retry >= 0);

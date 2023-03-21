@@ -76,7 +76,7 @@ namespace lgfx
     startWrite(true);
     _bus->beginRead();
     uint8_t buf;
-    bool res = _bus->readBytes(&buf, 1, true);
+    bool res = _bus->readBytes(&buf, 1, true, true);
     _bus->endRead();
 
     if (res)

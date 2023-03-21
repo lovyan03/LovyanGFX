@@ -71,7 +71,8 @@ namespace lgfx
     void beginRead(void) override;
     void endRead(void) override;
     uint32_t readData(uint_fast8_t bit_length) override;
-    bool readBytes(uint8_t* dst, uint32_t length, bool use_dma) override;
+    bool readBytes(uint8_t* dst, uint32_t length, bool use_dma) override { return readBytes(dst, length, use_dma, false); }
+    bool readBytes(uint8_t* dst, uint32_t length, bool use_dma, bool last_nack) override;
     void readPixels(void* dst, pixelcopy_t* param, uint32_t length) override;
 
   protected:

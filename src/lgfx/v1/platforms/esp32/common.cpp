@@ -624,7 +624,7 @@ namespace lgfx
 #endif
     }
 
-    static void i2c_set_cmd(i2c_dev_t* dev, uint8_t index, uint8_t op_code, uint8_t byte_num)
+    static void i2c_set_cmd(i2c_dev_t* dev, uint8_t index, uint8_t op_code, uint8_t byte_num, bool flg_nack = false)
     {
 /*
       typeof(dev->command[0]) cmd;
@@ -639,6 +639,9 @@ namespace lgfx
                               || op_code == i2c_cmd_stop)
                               ? 0x100 : 0)  // writeおよびstop時はACK_ENを有効にする;
                             | op_code << 11 ;
+      if (flg_nack && op_code == i2c_cmd_read) {
+        cmd_val |= (1 << 10); // ACK_VALUE (set NACK)
+      }
 #if defined (CONFIG_IDF_TARGET_ESP32S3)
       (&dev->comd0)[index].val = cmd_val;
 #else
@@ -1142,7 +1145,7 @@ namespace lgfx
       return res;
     }
 
-    cpp::result<void, error_t> readBytes(int i2c_port, uint8_t *readdata, size_t length)
+    cpp::result<void, error_t> readBytes(int i2c_port, uint8_t *readdata, size_t length, bool last_nack)
     {
       if (i2c_port >= I2C_NUM_MAX) { return cpp::fail(error_t::invalid_arg); }
       if (i2c_context[i2c_port].state.has_error()) { return cpp::fail(i2c_context[i2c_port].state.error()); }
@@ -1171,8 +1174,14 @@ namespace lgfx
           ESP_LOGD("LGFX", "i2c read error : ack wait");
           break;
         }
-        i2c_set_cmd(dev, 0, i2c_cmd_read, len);
-        i2c_set_cmd(dev, 1, i2c_cmd_end, 0);
+
+        int cmdidx = 0;
+        if (len > 1) {
+          i2c_set_cmd(dev, cmdidx++, i2c_cmd_read, len - 1);
+        }
+        i2c_set_cmd(dev, cmdidx++, i2c_cmd_read, 1, (last_nack && length == 0));
+        i2c_set_cmd(dev, cmdidx, i2c_cmd_end, 0);
+
         updateDev(dev);
         dev->ctr.trans_start = 1;
         dev->int_clr.val = intmask;
