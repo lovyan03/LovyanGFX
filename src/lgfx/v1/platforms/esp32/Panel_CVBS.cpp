@@ -2118,12 +2118,13 @@ namespace lgfx
     I2S0.clkm_conf.clkm_div_a = 1;
     if (use_apll) {
 #if defined ( LGFX_I2S_STD_ENABLED )
+      rtc_clk_apll_enable( true );
+      // 設定する前にapllをenableにしておく必要がある
       rtc_clk_apll_coeff_set( 1
                             , setup_info.sdm0
                             , setup_info.sdm1
                             , setup_info.sdm2
                             );
-      rtc_clk_apll_enable( true );
 #else
       rtc_clk_apll_enable( true
                           , setup_info.sdm0
