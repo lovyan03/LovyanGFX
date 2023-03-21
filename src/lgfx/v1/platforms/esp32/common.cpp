@@ -23,7 +23,7 @@ Contributors:
  #define REG_SPI_BASE(i)   (DR_REG_SPI1_BASE + (((i)>1) ? (((i)* 0x1000) + 0x20000) : (((~(i)) & 1)* 0x1000 )))
 #endif
 
-#include "../common.hpp"
+#include "common.hpp"
 
 #include <algorithm>
 #include <string.h>
@@ -786,6 +786,35 @@ namespace lgfx
       return res;
     }
 
+    cpp::result<void, error_t> release(int i2c_port)
+    {
+      if (i2c_port >= I2C_NUM_MAX) { return cpp::fail(error_t::invalid_arg); }
+      if (i2c_context[i2c_port].initialized)
+      {
+        i2c_context[i2c_port].initialized = false;
+#if defined ( ARDUINO ) && defined ( ESP_IDF_VERSION_VAL )
+ #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 0, 0)
+  #if defined ARDUINO_ESP32_GIT_VER
+    #if ARDUINO_ESP32_GIT_VER != 0x44c11981
+        auto twowire = ((i2c_port == 1) ? &Wire1 : &Wire);
+        twowire->end();
+    #endif
+  #endif
+ #endif
+#endif
+        if ((int)i2c_context[i2c_port].pin_scl >= 0)
+        {
+          pinMode(i2c_context[i2c_port].pin_scl, pin_mode_t::input_pullup);
+        }
+        if ((int)i2c_context[i2c_port].pin_sda >= 0)
+        {
+          pinMode(i2c_context[i2c_port].pin_sda, pin_mode_t::input_pullup);
+        }
+      }
+
+      return {};
+    }
+
     cpp::result<void, error_t> setPins(int i2c_port, int pin_sda, int pin_scl)
     {
       if ((i2c_port >= I2C_NUM_MAX)
@@ -860,35 +889,6 @@ namespace lgfx
         return init(i2c_port);
       }
       return res;
-    }
-
-    cpp::result<void, error_t> release(int i2c_port)
-    {
-      if (i2c_port >= I2C_NUM_MAX) { return cpp::fail(error_t::invalid_arg); }
-      if (i2c_context[i2c_port].initialized)
-      {
-        i2c_context[i2c_port].initialized = false;
-#if defined ( ARDUINO ) && defined ( ESP_IDF_VERSION_VAL )
- #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 0, 0)
-  #if defined ARDUINO_ESP32_GIT_VER
-    #if ARDUINO_ESP32_GIT_VER != 0x44c11981
-        auto twowire = ((i2c_port == 1) ? &Wire1 : &Wire);
-        twowire->end();
-    #endif
-  #endif
- #endif
-#endif
-        if ((int)i2c_context[i2c_port].pin_scl >= 0)
-        {
-          pinMode(i2c_context[i2c_port].pin_scl, pin_mode_t::input_pullup);
-        }
-        if ((int)i2c_context[i2c_port].pin_sda >= 0)
-        {
-          pinMode(i2c_context[i2c_port].pin_sda, pin_mode_t::input_pullup);
-        }
-      }
-
-      return {};
     }
 
     cpp::result<void, error_t> restart(int i2c_port, int i2c_addr, uint32_t freq, bool read)
