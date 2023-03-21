@@ -959,7 +959,7 @@ typedef unsigned char mz_validate_uint64[sizeof(mz_uint64)==8 ? 1 : -1];
   #ifdef BOARD_HAS_PSRAM
     #if __has_include(<esp32/spiram.h>)
       #include <esp32/spiram.h>
-    #else
+    #elif __has_include(<esp_spiram.h>)
       #include <esp_spiram.h>
     #endif
     #include "soc/efuse_reg.h"
