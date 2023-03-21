@@ -135,10 +135,10 @@ namespace lgfx
       {
         uint32_t alp = 0;
         uint32_t x = src_x32 >> FP_SCALE;
-        if (x < param->src_width)
+        if (x < static_cast<uint32_t>(param->src_width))
         {
           uint32_t y = src_y32 >> FP_SCALE;
-          if (y < param->src_height)
+          if (y < static_cast<uint32_t>(param->src_height))
           {
             uint32_t i = (x + y * src_bitwidth) * src_bits;
             alp = k * ((pgm_read_byte(&s[i >> 3]) >> (-((int32_t)i + src_bits) & 7)) & param->src_mask);

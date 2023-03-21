@@ -1361,10 +1361,10 @@ namespace lgfx
       if (left < right)
       {
         pc->src_x32 = iA[2] + left * iA[0];
-        if (static_cast<uint32_t>(pc->src_x) < pc->src_width)
+        if (static_cast<uint32_t>(pc->src_x) < static_cast<uint32_t>(pc->src_width))
         {
           pc->src_y32 = iA[5] + left * iA[3];
-          if (static_cast<uint32_t>(pc->src_y) < pc->src_height)
+          if (static_cast<uint32_t>(pc->src_y) < static_cast<uint32_t>(pc->src_height))
           {
             pc->src_x32_add = iA[0];
             pc->src_y32_add = iA[3];

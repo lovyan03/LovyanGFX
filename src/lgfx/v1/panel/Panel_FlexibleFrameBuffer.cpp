@@ -115,7 +115,7 @@ namespace lgfx
   void Panel_FlexibleFrameBuffer::_fill_rect_inner(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, uint32_t rawcolor)
   {
     h += y;
-    int ie = x + w;
+    uint_fast16_t ie = x + w;
     do
     {
       auto i = x;
