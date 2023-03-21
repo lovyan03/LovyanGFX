@@ -703,7 +703,7 @@ namespace lgfx
       return {};
     }
 
-    cpp::result<void, error_t> readBytes(int sercom_index, uint8_t *data, size_t length, bool last_nack)
+    cpp::result<void, error_t> readBytes(int sercom_index, uint8_t *data, size_t length, bool last_nack = false)
     {
       auto sercomData = samd21::getSercomData(sercom_index);
       auto sercom = reinterpret_cast<Sercom*>(sercomData->sercomPtr);
