@@ -5,6 +5,8 @@
 #include <lgfx/v1/platforms/esp32s3/Panel_RGB.hpp>
 #include <lgfx/v1/platforms/esp32s3/Bus_RGB.hpp>
 
+#include <driver/i2c.h>
+
 class LGFX : public lgfx::LGFX_Device
 {
 public:
