@@ -979,7 +979,7 @@ namespace lgfx
 #endif
 
         uint32_t period_total = cycle - scl_high_offset - 1;
-        uint32_t scl_high_period = std::max<uint32_t>(18, (period_total-10) >> 1);
+        uint32_t scl_high_period = std::max<uint32_t>(18, (period_total + 1) >> 1);
         uint32_t scl_low_period  = period_total - scl_high_period;
         if (freq > 400000)
         {
@@ -996,7 +996,7 @@ namespace lgfx
         dev->scl_high_period.scl_high_period = scl_high_period - wait_high;
         dev->scl_high_period.scl_wait_high_period = wait_high;
         dev->scl_low_period .scl_low_period  = scl_low_period ;
-        dev->sda_hold.sda_hold_time     = std::min<uint32_t>(1023u, (scl_high_period >> 1));
+        dev->sda_hold.sda_hold_time     = std::min<uint32_t>(1023u, (scl_high_period >> 4)+1);
         dev->sda_sample.sda_sample_time = std::min<uint32_t>(1023u, (scl_low_period  >> 1));
         dev->scl_stop_hold.scl_stop_hold_time = cycle << 1;     //the clock num after the STOP bit's posedge
         dev->scl_stop_setup.scl_stop_setup_time = cycle;    //the clock num between the posedge of SCL and the posedge of SDA
@@ -1005,9 +1005,9 @@ namespace lgfx
 #else
 
 #if defined ( I2C_SCL_WAIT_HIGH_PERIOD )
-        auto wait_high = scl_high_period >> 2;
-        dev->scl_high_period.period = scl_high_period - wait_high;
-        dev->scl_high_period.scl_wait_high_period = wait_high;
+        auto high_period = 1 + (scl_high_period >> 3);
+        dev->scl_high_period.period = high_period;
+        dev->scl_high_period.scl_wait_high_period = scl_high_period - high_period;
 #else
         dev->scl_high_period.period = scl_high_period;
 #endif
@@ -1158,7 +1158,7 @@ namespace lgfx
       auto dev = getDev(i2c_port);
       size_t len = 0;
 #if defined ( CONFIG_IDF_TARGET_ESP32S3 )
-      uint32_t us_limit = ((dev->scl_high_period.scl_high_period + dev->scl_low_period.scl_low_period) << 1) + 16;
+      uint32_t us_limit = ((dev->scl_high_period.scl_high_period + dev->scl_high_period.scl_wait_high_period + dev->scl_low_period.scl_low_period) << 1) + 16;
 #elif defined ( CONFIG_IDF_TARGET_ESP32C3 )
       uint32_t us_limit = ((dev->scl_high_period.period + dev->scl_low_period.period) << 1) + 16;
 #else
