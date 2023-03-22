@@ -140,7 +140,7 @@ namespace lgfx
             _bus->writeCommand(REG_INDEX_DRAW_PICTURE | x_start << 8 | y << (3 + 16), 24);
             _bus->writeCommand(index | 1 << (3+8) | 1 << 16, 24);
             _bus->endTransaction();
-            lgfx::delayMicroseconds(index << 3); // 描画が終わるまで少し待つ
+            lgfx::delayMicroseconds(index << 5); // 描画が終わるまで少し待つ
             index = 0;
           }
         }
@@ -164,12 +164,13 @@ namespace lgfx
       if (_bus->writeCommand(REG_INDEX_READ_KEY + (idx & 1), 8))
       {
         _bus->endTransaction();
-        lgfx::delayMicroseconds(384); // データ取得可能になるまで少し待つ
+        lgfx::delayMicroseconds(512); // データ取得可能になるまで少し待つ
         _bus->beginRead();
         if (_bus->readBytes(&res, 1, false, true)) { retry = 0; }
       }
       _bus->endTransaction();
     } while (--retry >= 0);
+    _msec_busy = lgfx::millis() + 1;
     return res;
   }
 
@@ -188,6 +189,7 @@ namespace lgfx
       }
       _bus->endTransaction();
     } while (--retry >= 0);
+    _msec_busy = lgfx::millis() + 1;
     return res;
   }
 
@@ -197,6 +199,7 @@ namespace lgfx
     _bus->writeCommand(REG_INDEX_BUZZER, 8);
     _bus->writeCommand(freq | duty << 16 | _enable_buzzer_flg << 24, 32);
     _bus->endTransaction();
+    _msec_busy = lgfx::millis() + 1;
   }
 
   void Panel_M5UnitGlass::setBuzzerEnable(bool enable) {
@@ -205,6 +208,7 @@ namespace lgfx
     _bus->beginTransaction();
     _bus->writeCommand((REG_INDEX_BUZZER + 3) | enable << 8, 16);
     _bus->endTransaction();
+    _msec_busy = lgfx::millis() + 1;
   }
 
   void Panel_M5UnitGlass::waitBusy(void)
