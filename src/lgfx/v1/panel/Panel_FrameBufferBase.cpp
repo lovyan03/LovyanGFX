@@ -420,6 +420,7 @@ namespace lgfx
       uint8_t* dst = &_lines_buffer[dst_y + pos][dst_x * bytes];
       memcpy(buf, src, len);
       memcpy(dst, buf, len);
+      cacheWriteBack(dst, len);
       pos += add;
     } while (--h);
   }
