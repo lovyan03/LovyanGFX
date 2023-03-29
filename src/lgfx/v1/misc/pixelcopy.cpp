@@ -36,8 +36,8 @@ namespace lgfx
     , dst_depth ( dst_depth_ )
     , src_data  ( src_data_   )
     , palette   ( src_palette_)
-    , src_mask  ( (1 << src_bits) - 1 )
-    , dst_mask  ( (1 << dst_bits) - 1 )
+    , src_mask  ( (1 << (src_depth_ & color_depth_t::bit_mask)) - 1 )
+    , dst_mask  ( (1 << (dst_depth_ & color_depth_t::bit_mask)) - 1 )
     , no_convert( src_depth_ == dst_depth_ )
     {
       if (dst_palette_ || dst_bits < 8) {
