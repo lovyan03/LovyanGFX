@@ -38,8 +38,8 @@ namespace lgfx
 #if defined ( ARDUINO )
 
     ledcSetup(_cfg.pwm_channel, _cfg.freq, 8);
-    setBrightness(brightness);
     ledcAttachPin(_cfg.pin_bl, _cfg.pwm_channel);
+    setBrightness(brightness);
 
 #else
 

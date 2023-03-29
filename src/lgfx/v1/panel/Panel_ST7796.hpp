@@ -84,7 +84,7 @@ namespace lgfx
 
           CMD_SLPOUT, 0+CMD_INIT_DELAY, 130,    // Exit sleep mode
           CMD_IDMOFF, 0,
-          CMD_DISPON, 0+CMD_INIT_DELAY, 100,
+          CMD_DISPON, 0,
           0xFF,0xFF, // end
       };
       switch (listno) {
