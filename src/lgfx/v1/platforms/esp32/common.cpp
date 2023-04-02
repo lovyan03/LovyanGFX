@@ -1176,10 +1176,16 @@ namespace lgfx
         }
 
         int cmdidx = 0;
-        if (len > 1) {
-          i2c_set_cmd(dev, cmdidx++, i2c_cmd_read, len - 1);
+        if (length == 0 && last_nack) {
+          if (len > 1) {
+            i2c_set_cmd(dev, cmdidx++, i2c_cmd_read, len - 1);
+          }
+          i2c_set_cmd(dev, cmdidx++, i2c_cmd_read, 1, true);
         }
-        i2c_set_cmd(dev, cmdidx++, i2c_cmd_read, 1, (last_nack && length == 0));
+        else
+        {
+          i2c_set_cmd(dev, cmdidx++, i2c_cmd_read, len);
+        }
         i2c_set_cmd(dev, cmdidx, i2c_cmd_end, 0);
 
         updateDev(dev);
