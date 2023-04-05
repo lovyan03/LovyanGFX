@@ -26,6 +26,10 @@ Porting for Linux FrameBuffer:
 #include "../../Bus.hpp"
 
 #include <list>
+#include <dirent.h>
+#include <string>
+#include <fstream>
+#include <sstream>
 
 namespace lgfx
 {
@@ -106,7 +110,32 @@ namespace lgfx
     // TODO
     // default: /dev/fb0
     // Open the file for reading and writing
-    _fbfd = open("/dev/fb0", O_RDWR);
+    // First, detect target framebuffer.
+    DIR* sysfs_graphics = opendir("/sys/class/graphics");
+    struct dirent* entry;
+    std::string path;
+    std::string target = "/dev/fb0";
+    while((entry = readdir(sysfs_graphics)) != NULL) {
+        if( entry->d_type == DT_LNK ) {
+           path.clear();
+	   path.append("/sys/class/graphics/");
+	   path.append(entry->d_name);
+	   path.append("/name");
+	   std::ifstream fs(path.c_str());
+	   if( !fs.is_open() ) continue;
+	   std::stringstream buffer;
+	   buffer << fs.rdbuf();
+	   if( buffer.str().find_first_of("st7789") != std::string::npos ) {
+		   target.clear();
+		   target.append("/dev/");
+		   target.append(entry->d_name);
+		   break;
+	   }
+	}
+    }
+    closedir(sysfs_graphics);
+
+    _fbfd = open(target.c_str(), O_RDWR);
     if (_fbfd == -1) {
         printf("Error: cannot open framebuffer device.\n");
         return 1;
