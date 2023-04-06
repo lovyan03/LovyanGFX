@@ -373,5 +373,52 @@ namespace lgfx
   }
 
 //----------------------------------------------------------------------------
+
+  // void Panel_ST7565::setBrightness(uint8_t brightness) {}
+
+  void Panel_ST7565::display(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h)
+  {
+    if (0 < w && 0 < h)
+    {
+      _range_mod.left   = std::min<int_fast16_t>(_range_mod.left  , x        );
+      _range_mod.right  = std::max<int_fast16_t>(_range_mod.right , x + w - 1);
+      _range_mod.top    = std::min<int_fast16_t>(_range_mod.top   , y        );
+      _range_mod.bottom = std::max<int_fast16_t>(_range_mod.bottom, y + h - 1);
+    }
+    if (_range_mod.empty()) { return; }
+
+    // xeの位置を2ライン単位の位置にしないと次の描画位置がずれる事があったため調整
+    uint_fast8_t xs = _range_mod.left     ;
+    uint_fast8_t xe = (_range_mod.right+2) & ~1;
+    uint_fast8_t ys = _range_mod.top    >> 3;
+    uint_fast8_t ye = _range_mod.bottom >> 3;
+
+    uint_fast8_t offset_y = _cfg.offset_y >> 3;
+    uint_fast8_t offset_x = _cfg.offset_x + xs;
+
+    int retry = 3;
+    do
+    {
+      while (!_bus->writeCommand(  CMD_SETPAGEADDR | (ys + offset_y)
+                                | (CMD_SETHIGHCOLUMN + (offset_x >> 4)) << 8
+                                | (CMD_SETLOWCOLUMN  + (offset_x & 0x0F)) << 16
+                                , 24) && --retry)
+      {
+        _bus->endTransaction();
+        _bus->beginTransaction();
+      }
+      if (!retry) { break; }
+
+      auto buf = &_buf[xs + ys * _cfg.panel_width];
+      _bus->writeBytes(buf, xe - xs, true, true);
+    } while (++ys <= ye);
+
+    _range_mod.top    = INT16_MAX;
+    _range_mod.left   = INT16_MAX;
+    _range_mod.right  = 0;
+    _range_mod.bottom = 0;
+  }
+
+//----------------------------------------------------------------------------
  }
 }

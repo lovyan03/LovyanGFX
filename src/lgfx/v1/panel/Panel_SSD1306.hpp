@@ -195,6 +195,59 @@ namespace lgfx
     }
   };
 
+
+  struct Panel_ST7565 : public Panel_1bitOLED
+  {
+    Panel_ST7565(void)
+    {
+      _cfg.memory_width  = _cfg.panel_width  = 128;
+      _cfg.memory_height = _cfg.panel_height = 64;
+      _auto_display = true;
+    }
+
+    // void setBrightness(uint8_t brightness) override;
+    void display(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h) override;
+
+  protected:
+    static constexpr uint8_t CMD_SETPAGEADDR         = 0xB0;
+    static constexpr uint8_t CMD_SETLOWCOLUMN        = 0x00;
+    static constexpr uint8_t CMD_SETHIGHCOLUMN       = 0x10;
+
+    const uint8_t* getInitCommands(uint8_t listno) const override
+    {
+      static constexpr uint8_t list0[] = {
+        0xAE,           //Display = OFF
+        0xA0,           //ADC = normal
+        0xC8,           //Common output = revers
+        0xA3,           //LCD bias = 1/7
+
+  //内部レギュレータON
+        0x2C,
+        //delay(2);
+        0x2E,
+        //delay(2);
+        0x2F,
+
+  //コントラスト設定
+        0x23,           //Vo voltage regulator internal resistor ratio set
+        0x81,           //Electronic volume mode set
+        0x1C,           //Electronic volume register set
+
+  //表示設定
+        0xA4,           //Display all point ON/OFF = normal
+        0x40,           //Display start line = 0
+        // 0xA7,           //Display normal/revers = normal
+        0xAF,           //Dsiplay = ON
+
+        0xFF,0xFF, // end
+      };
+      switch (listno) {
+      case 0: return list0;
+      default: return nullptr;
+      }
+    }
+  };
+
 //----------------------------------------------------------------------------
  }
 }
