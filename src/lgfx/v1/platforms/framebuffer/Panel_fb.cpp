@@ -35,6 +35,62 @@ namespace lgfx
 {
  inline namespace v1
  {
+  namespace customizations {
+    bool __attribute__((weak)) Panel_fb_filter_target_framebuffer_device(const std::string& device_name) {
+      // Default implementation: Compare framebuffer device name with LGFX_LINUX_FB_DEVICE_NAME environment variable.
+      const char* envvar = std::getenv("LGFX_LINUX_FB_DEVICE_NAME");
+      if( envvar != nullptr ) {
+        if( device_name == envvar ) {
+          return true;
+        }
+      }
+      return false;
+    }
+    void __attribute__((weak)) Panel_fb_get_target_framebuffer_device(std::string& device_path) {
+      // Default implementation: use LGFX_LINUX_FB_DEVICE_PATH environment variable if exist.
+      // If the environment variable was not set, scan framebuffer device and filter them by its device name.
+      const char* envvar = std::getenv("LGFX_LINUX_FB_DEVICE_PATH");
+      if( envvar != nullptr ) {
+        device_path = envvar;
+        return;
+      }
+      // Scan all fb devices.
+      DIR* sysfs_graphics = opendir("/sys/class/graphics");
+      struct dirent* entry;
+      std::string path;
+      std::string target = "";
+      while((entry = readdir(sysfs_graphics)) != NULL) {
+        if( entry->d_type == DT_LNK ) {
+          path.clear();
+          path.append("/sys/class/graphics/");
+          path.append(entry->d_name);
+          path.append("/name");
+          std::ifstream fs(path.c_str());
+          if( !fs.is_open() ) continue;
+          std::stringstream buffer;
+          buffer << fs.rdbuf();
+          std::string name = buffer.str();
+          // Remove trailing LF if exists.
+          if( name.size() > 0 ) {
+            if( name.at(name.size() - 1) == 10 ) {
+              name.pop_back();
+            }
+          }
+          if( Panel_fb_filter_target_framebuffer_device(name) ) {
+            target.clear();
+            target.append("/dev/");
+            target.append(entry->d_name);
+            break;
+          }
+        }
+      }
+      closedir(sysfs_graphics);
+
+      if( !target.empty() ) {
+        device_path = target;
+      }
+    }
+  }
 //----------------------------------------------------------------------------
   void Panel_fb::fb_draw_rgb_pixel(int x, int y, uint32_t rawcolor)
   {
@@ -110,31 +166,12 @@ namespace lgfx
     // TODO
     // default: /dev/fb0
     // Open the file for reading and writing
-    // First, detect target framebuffer.
-    DIR* sysfs_graphics = opendir("/sys/class/graphics");
-    struct dirent* entry;
-    std::string path;
-    std::string target = "/dev/fb0";
-    while((entry = readdir(sysfs_graphics)) != NULL) {
-        if( entry->d_type == DT_LNK ) {
-           path.clear();
-	   path.append("/sys/class/graphics/");
-	   path.append(entry->d_name);
-	   path.append("/name");
-	   std::ifstream fs(path.c_str());
-	   if( !fs.is_open() ) continue;
-	   std::stringstream buffer;
-	   buffer << fs.rdbuf();
-	   if( buffer.str().find_first_of("st7789") != std::string::npos ) {
-		   target.clear();
-		   target.append("/dev/");
-		   target.append(entry->d_name);
-		   break;
-	   }
-	}
+    std::string target = "";
+    customizations::Panel_fb_get_target_framebuffer_device(target);
+    if( target.empty() ) {
+      printf("Error: Could not detect the framebuffer device.\n");
+      return 1;
     }
-    closedir(sysfs_graphics);
-
     _fbfd = open(target.c_str(), O_RDWR);
     if (_fbfd == -1) {
         printf("Error: cannot open framebuffer device.\n");
