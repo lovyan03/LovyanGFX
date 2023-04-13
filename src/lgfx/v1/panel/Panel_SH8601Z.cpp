@@ -49,7 +49,7 @@ namespace lgfx
         }
 
         /* Init command */
-        printf("666\n");
+        printf("init\n");
 
 
         startWrite();
@@ -123,6 +123,7 @@ namespace lgfx
 
     void Panel_SH8601Z::beginTransaction(void)
     {
+        printf("beginTransaction\n");
         if (_in_transaction) return;
         _in_transaction = true;
         _bus->beginTransaction();
@@ -133,6 +134,7 @@ namespace lgfx
 
     void Panel_SH8601Z::endTransaction(void)
     {
+        printf("endTransaction\n");
         if (!_in_transaction) return;
         _in_transaction = false;
         _bus->endTransaction();
@@ -143,39 +145,39 @@ namespace lgfx
 
     color_depth_t Panel_SH8601Z::setColorDepth(color_depth_t depth)
     {
-
+        printf("setColorDepth\n");
         return lgfx::rgb565_2Byte;
     }
 
 
     void Panel_SH8601Z::setRotation(uint_fast8_t r)
     {
-
+        printf("setRotation\n");
     }
 
     void Panel_SH8601Z::setInvert(bool invert)
     {
-
+        printf("setInvert\n");
     }
 
     void Panel_SH8601Z::setSleep(bool flg)
     {
-
+        printf("setSleep\n");
     }
     
     void Panel_SH8601Z::setPowerSave(bool flg)
     {
-
+        printf("setPowerSave\n");
     }
 
     void Panel_SH8601Z::waitDisplay(void)
     {
-
+        printf("waitDisplay\n");
     }
 
     bool Panel_SH8601Z::displayBusy(void)
     {
-
+        printf("displayBusy\n");
         return false;
     }
 
@@ -188,11 +190,13 @@ namespace lgfx
     void Panel_SH8601Z::writeBlock(uint32_t rawcolor, uint32_t len)
     {
         printf("writeBlock\n");
+
+        printf("0x%lx %ld\n", rawcolor, len);
     }
 
     void Panel_SH8601Z::setWindow(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye)
     {
-        printf("Set Win\n");
+        printf("setWindow\n");
 
         /* Set Column Start Address */
         cs_control(false);
@@ -229,7 +233,7 @@ namespace lgfx
 
     void Panel_SH8601Z::writeFillRectPreclipped(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, uint32_t rawcolor)
     {
-        printf("Fill Rect\n");
+        printf("writeFillRectPreclipped\n");
 
         uint32_t len = w * h;
         uint_fast16_t xe = w + x - 1;
@@ -248,17 +252,19 @@ namespace lgfx
 
     uint32_t Panel_SH8601Z::readCommand(uint_fast16_t cmd, uint_fast8_t index, uint_fast8_t len)
     {
+        printf("readCommand\n");
         return 0;
     }
 
     uint32_t Panel_SH8601Z::readData(uint_fast8_t index, uint_fast8_t len)
     {
+        printf("readData\n");
         return 0;
     }
 
     void Panel_SH8601Z::readRect(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, void* dst, pixelcopy_t* param)
     {
-
+        printf("readRect\n");
     }
 
 
