@@ -20,12 +20,32 @@ Contributors:
 #include "../platforms/common.hpp"
 #include "../misc/pixelcopy.hpp"
 #include "../misc/colortype.hpp"
+#include "driver/spi_master.h"
+
+
 
 namespace lgfx
 {
  inline namespace v1
  {
 //----------------------------------------------------------------------------
+
+    void Panel_SH8601Z::write_cmd(uint8_t cmd)
+    {
+        uint8_t cmd_buffer[4] = {0x02, 0x00, 0x00, 0x00};
+        cmd_buffer[2] = cmd;
+        // _bus->writeBytes(cmd_buffer, 4, 0, false);
+        for (int i = 0; i < 4; i++) {
+            _bus->writeCommand(cmd_buffer[i], 8);
+        }
+    }
+
+
+    void Panel_SH8601Z::write_data(uint8_t data)
+    {
+
+    }
+
 
     /* Panel init */
     bool Panel_SH8601Z::init(bool use_reset)
@@ -34,8 +54,88 @@ namespace lgfx
             return false;
         }
 
-
         /* Init command */
+        printf("666\n");
+
+        
+
+
+
+
+
+        startWrite();
+
+        /* Sleep out */
+        cs_control(false);
+        write_cmd(0x11);
+        _bus->wait();
+        cs_control(true);
+        delay(120);
+
+        cs_control(false);
+        write_cmd(0x44);
+        _bus->writeCommand(0x01, 8);
+        _bus->writeCommand(0x66, 8);
+        _bus->wait();
+        cs_control(true);
+        delay(1);
+
+        /* TE on */
+        cs_control(false);
+        write_cmd(0x35);
+        _bus->writeCommand(0x00, 8);
+        _bus->wait();
+        cs_control(true);
+        delay(1);
+
+        /* Interface Pixel Format 16bit/pixel */
+        cs_control(false);
+        write_cmd(0x3A);
+        _bus->writeCommand(0x55, 8);
+        _bus->wait();
+        cs_control(true);
+        delay(1);
+
+        cs_control(false);
+        write_cmd(0x53);
+        _bus->writeCommand(0x20, 8);
+        _bus->wait();
+        cs_control(true);
+        delay(10);
+
+        /* Write Display Brightness	MAX_VAL=0XFF */
+        cs_control(false);
+        write_cmd(0x51);
+        _bus->writeCommand(0x00, 8);
+        _bus->wait();
+        cs_control(true);
+        delay(10);
+
+        /* Display on */
+        cs_control(false);
+        write_cmd(0x29);
+        _bus->wait();
+        cs_control(true);
+        delay(10);
+
+        /* Write Display Brightness	MAX_VAL=0XFF */
+        cs_control(false);
+        write_cmd(0x51);
+        _bus->writeCommand(0xFF, 8);
+        _bus->wait();
+        cs_control(true);
+        delay(1);
+
+
+        endWrite();
+
+
+
+
+
+
+
+
         
 
         return false;
@@ -44,13 +144,19 @@ namespace lgfx
 
     void Panel_SH8601Z::beginTransaction(void)
     {
-
+        if (_in_transaction) return;
+        _in_transaction = true;
+        _bus->beginTransaction();
+        // cs_control(false);
     }
 
 
     void Panel_SH8601Z::endTransaction(void)
     {
-
+        if (!_in_transaction) return;
+        _in_transaction = false;
+        _bus->endTransaction();
+        // cs_control(true);
     }
 
 

@@ -58,7 +58,10 @@ namespace lgfx
 
 
   protected:
-  
+        bool _in_transaction = false;
+
+        void write_cmd(uint8_t cmd);
+        void write_data(uint8_t data);
 
   };
 
