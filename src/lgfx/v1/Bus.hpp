@@ -33,6 +33,7 @@ namespace lgfx
   {
     bus_unknown,
     bus_spi,
+    bus_qspi,
     bus_i2c,
     bus_parallel8,
     bus_parallel16,

@@ -236,6 +236,16 @@ public:
 
 //----------------------------------------------------------------------------
 
+  namespace qspi
+  {
+    cpp::result<void, error_t> init(int spi_host, int spi_sclk, int spi_io0, int spi_io1, int spi_io2, int spi_io3, int dma_channel);
+    void beginTransaction(int spi_host);
+    void release(int spi_host);
+    void endTransaction(int spi_host);
+  }
+
+//----------------------------------------------------------------------------
+
   namespace i2c
   {
     cpp::result<void, error_t> setPins(int i2c_port, int pin_sda, int pin_scl);
