@@ -114,6 +114,7 @@ namespace lgfx
       setColorDepth(_write_conv.depth);
     }
 
+    LGFX_INLINE LovyanGFX* getParent(void) const { return _parent; }
     LGFX_INLINE void* getBuffer(void) const { return _panel_sprite.getBuffer(); }
     uint32_t bufferLength(void) const { return _panel_sprite.bufferLength(); }
 
