@@ -41,12 +41,6 @@ namespace lgfx
     }
 
 
-    void Panel_SH8601Z::write_data(uint8_t data)
-    {
-
-    }
-
-
     /* Panel init */
     bool Panel_SH8601Z::init(bool use_reset)
     {
@@ -56,11 +50,6 @@ namespace lgfx
 
         /* Init command */
         printf("666\n");
-
-        
-
-
-
 
 
         startWrite();
@@ -126,17 +115,9 @@ namespace lgfx
         cs_control(true);
         delay(1);
 
-
         endWrite();
 
 
-
-
-
-
-
-
-        
 
         return false;
     }
