@@ -117,9 +117,7 @@ namespace lgfx
 
         endWrite();
 
-
-
-        return false;
+        return true;
     }
 
 
@@ -129,6 +127,7 @@ namespace lgfx
         _in_transaction = true;
         _bus->beginTransaction();
         // cs_control(false);
+        // printf("begin\n");
     }
 
 
@@ -138,6 +137,7 @@ namespace lgfx
         _in_transaction = false;
         _bus->endTransaction();
         // cs_control(true);
+        // printf("end\n");
     }
 
 
@@ -181,32 +181,69 @@ namespace lgfx
 
     void Panel_SH8601Z::writePixels(pixelcopy_t* param, uint32_t len, bool use_dma)
     {
-
+        
+        printf("writePixels\n");
     }
 
     void Panel_SH8601Z::writeBlock(uint32_t rawcolor, uint32_t len)
     {
-
+        printf("writeBlock\n");
     }
 
     void Panel_SH8601Z::setWindow(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye)
     {
+        printf("Set Win\n");
 
+        /* Set Column Start Address */
+        cs_control(false);
+        write_cmd(0x2A);
+        _bus->writeCommand(xs >> 8, 8);
+        _bus->writeCommand(xs & 0xFF, 8);
+        _bus->writeCommand(xe >> 8, 8);
+        _bus->writeCommand(xe & 0xFF, 8);
+        _bus->wait();
+        cs_control(true);
+        
+        /* Set Row Start Address */
+        cs_control(false);
+        write_cmd(0x2B);
+        _bus->writeCommand(ys >> 8, 8);
+        _bus->writeCommand(ys & 0xFF, 8);
+        _bus->writeCommand(ye >> 8, 8);
+        _bus->writeCommand(ye & 0xFF, 8);
+        _bus->wait();
+        cs_control(true);
+
+        /* Memory Write */
+        cs_control(false);
+        write_cmd(0x2C);
+        _bus->wait();
+        cs_control(true);
     }
 
     void Panel_SH8601Z::drawPixelPreclipped(uint_fast16_t x, uint_fast16_t y, uint32_t rawcolor)
     {
+        printf("drawPixelPreclipped\n");
 
     }
 
     void Panel_SH8601Z::writeFillRectPreclipped(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, uint32_t rawcolor)
     {
+        printf("Fill Rect\n");
+
+        uint32_t len = w * h;
+        uint_fast16_t xe = w + x - 1;
+        uint_fast16_t ye = y + h - 1;
+
+        setWindow(x,y,xe,ye);
+
+
 
     }
 
     void Panel_SH8601Z::writeImage(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, pixelcopy_t* param, bool use_dma)
     {
-
+        printf("writeImage\n");
     }
 
     uint32_t Panel_SH8601Z::readCommand(uint_fast16_t cmd, uint_fast8_t index, uint_fast8_t len)
