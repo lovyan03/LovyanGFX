@@ -113,9 +113,12 @@ namespace lgfx
     void flush(void) override {}
     bool writeCommand(uint32_t data, uint_fast8_t bit_length) override;
     void writeData(uint32_t data, uint_fast8_t bit_length) override;
+    void writeDataQuad(uint32_t data, uint_fast8_t bit_length);
     void writeDataRepeat(uint32_t data, uint_fast8_t bit_length, uint32_t count) override;
     void writePixels(pixelcopy_t* pc, uint32_t length) override;
     void writeBytes(const uint8_t* data, uint32_t length, bool dc, bool use_dma) override;
+
+    
 
     void initDMA(void) override {}
     void addDMAQueue(const uint8_t* data, uint32_t length) override;

@@ -192,6 +192,9 @@ namespace lgfx
         printf("writeBlock\n");
 
         printf("0x%lx %ld\n", rawcolor, len);
+
+        
+
     }
 
     void Panel_SH8601Z::setWindow(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye)
