@@ -41,6 +41,17 @@ namespace lgfx
     }
 
 
+    void Panel_SH8601Z::write_bytes(const uint8_t* data, uint32_t len, bool use_dma)
+    {
+        // _bus->writeBytes(data, len, true, use_dma);
+        // if (_cfg.dlen_16bit && (_write_bits & 15) && (len & 1))
+        // {
+        //     _has_align_data = !_has_align_data;
+        // }
+        _bus->writeBytesQuad(data, len, true, use_dma);
+    }
+
+
     /* Panel init */
     bool Panel_SH8601Z::init(bool use_reset)
     {
@@ -264,128 +275,121 @@ namespace lgfx
     }
 
 
-    void Panel_SH8601Z::writeImage(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, pixelcopy_t* param, bool use_dma)
+
+  void Panel_SH8601Z::writeImage(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, pixelcopy_t* param, bool use_dma)
+  {
+    printf("writeImage\n");
+
+    auto bytes = param->dst_bits >> 3;
+    auto src_x = param->src_x;
+
+    if (param->transp == pixelcopy_t::NON_TRANSP)
     {
-        printf("writeImage\n");
-
-
-        auto bytes = param->dst_bits >> 3;
-        auto src_x = param->src_x;
-
-        if (param->transp == pixelcopy_t::NON_TRANSP)
+      if (param->no_convert)
+      {
+        auto wb = w * bytes;
+        uint32_t i = (src_x + param->src_y * param->src_bitwidth) * bytes;
+        auto src = &((const uint8_t*)param->src_data)[i];
+        setWindow(x, y, x + w - 1, y + h - 1);
+        if (param->src_bitwidth == w || h == 1)
         {
-            if (param->no_convert)
-            {
-                auto wb = w * bytes;
-                uint32_t i = (src_x + param->src_y * param->src_bitwidth) * bytes;
-                auto src = &((const uint8_t*)param->src_data)[i];
-                setWindow(x, y, x + w - 1, y + h - 1);
-                if (param->src_bitwidth == w || h == 1)
-                {
-                    // write_bytes(src, wb * h, use_dma);
-                    _bus->writeBytesQuad(src, wb * h, true, use_dma);
-                }
-                else
-                {
-                auto add = param->src_bitwidth * bytes;
-                if (use_dma)
-                {
-                    if (_cfg.dlen_16bit && ((wb * h) & 1))
-                    {
-                        _has_align_data = !_has_align_data;
-                    }
-                    do
-                    {
-                        _bus->addDMAQueue(src, wb);
-                        src += add;
-                    } while (--h);
-                    _bus->execDMAQueue();
-                }
-                else
-                {
-                    do
-                    {
-                        // write_bytes(src, wb, false);
-                        _bus->writeBytesQuad(src, wb, true, false);
-                        src += add;
-                    } while (--h);
-                }
-                }
+          write_bytes(src, wb * h, use_dma);
         }
         else
         {
-            if (!_bus->busy())
+          auto add = param->src_bitwidth * bytes;
+          if (use_dma)
+          {
+            if (_cfg.dlen_16bit && ((wb * h) & 1))
             {
-                static constexpr uint32_t WRITEPIXELS_MAXLEN = 32767;
-
-                setWindow(x, y, x + w - 1, y + h - 1);
-                // bool nogap = (param->src_bitwidth == w || h == 1);
-                bool nogap = (h == 1) || (param->src_y32_add == 0 && ((param->src_bitwidth << pixelcopy_t::FP_SCALE) == (w * param->src_x32_add)));
-                if (nogap && (w * h <= WRITEPIXELS_MAXLEN))
-                {
-                    writePixels(param, w * h, use_dma);
-                }
-                else
-                {
-                    uint_fast16_t h_step = nogap ? WRITEPIXELS_MAXLEN / w : 1;
-                    uint_fast16_t h_len = (h_step > 1) ? ((h - 1) % h_step) + 1 : 1;
-                    writePixels(param, w * h_len, use_dma);
-                    if (h -= h_len)
-                    {
-                    param->src_y += h_len;
-                    do
-                    {
-                        param->src_x = src_x;
-                        writePixels(param, w * h_step, use_dma);
-                        param->src_y += h_step;
-                    } while (h -= h_step);
-                    }
-                }
+              _has_align_data = !_has_align_data;
             }
-            else
+            do
             {
-                size_t wb = w * bytes;
-                auto buf = _bus->getDMABuffer(wb);
-                param->fp_copy(buf, 0, w, param);
-                setWindow(x, y, x + w - 1, y + h - 1);
-                // write_bytes(buf, wb, true);
-                _bus->writeBytesQuad(buf, wb, true, true);
-                _has_align_data = (_cfg.dlen_16bit && (_write_bits & 15) && (w & h & 1));
-                while (--h)
-                {
-                    param->src_x = src_x;
-                    param->src_y++;
-                    buf = _bus->getDMABuffer(wb);
-                    param->fp_copy(buf, 0, w, param);
-                    // write_bytes(buf, wb, true);
-                    _bus->writeBytesQuad(buf, wb, true, true);
-                }
-            }
+              _bus->addDMAQueue(src, wb);
+              src += add;
+            } while (--h);
+            _bus->execDMAQueue();
+          }
+          else
+          {
+            do
+            {
+              write_bytes(src, wb, false);
+              src += add;
+            } while (--h);
+          }
         }
+      }
+      else
+      {
+        if (!_bus->busy())
+        {
+          static constexpr uint32_t WRITEPIXELS_MAXLEN = 32767;
+
+          setWindow(x, y, x + w - 1, y + h - 1);
+          // bool nogap = (param->src_bitwidth == w || h == 1);
+          bool nogap = (h == 1) || (param->src_y32_add == 0 && ((param->src_bitwidth << pixelcopy_t::FP_SCALE) == (w * param->src_x32_add)));
+          if (nogap && (w * h <= WRITEPIXELS_MAXLEN))
+          {
+            writePixels(param, w * h, use_dma);
+          }
+          else
+          {
+            uint_fast16_t h_step = nogap ? WRITEPIXELS_MAXLEN / w : 1;
+            uint_fast16_t h_len = (h_step > 1) ? ((h - 1) % h_step) + 1 : 1;
+            writePixels(param, w * h_len, use_dma);
+            if (h -= h_len)
+            {
+              param->src_y += h_len;
+              do
+              {
+                param->src_x = src_x;
+                writePixels(param, w * h_step, use_dma);
+                param->src_y += h_step;
+              } while (h -= h_step);
+            }
+          }
         }
         else
         {
-        h += y;
-        uint32_t wb = w * bytes;
-        do
-        {
-            uint32_t i = 0;
-            while (w != (i = param->fp_skip(i, w, param)))
-            {
-            auto buf = _bus->getDMABuffer(wb);
-            int32_t len = param->fp_copy(buf, 0, w - i, param);
-            setWindow(x + i, y, x + i + len - 1, y);
-            // write_bytes(buf, len * bytes, true);
-            _bus->writeBytesQuad(buf, len * bytes, true, true);
-            if (w == (i += len)) break;
-            }
+          size_t wb = w * bytes;
+          auto buf = _bus->getDMABuffer(wb);
+          param->fp_copy(buf, 0, w, param);
+          setWindow(x, y, x + w - 1, y + h - 1);
+          write_bytes(buf, wb, true);
+          _has_align_data = (_cfg.dlen_16bit && (_write_bits & 15) && (w & h & 1));
+          while (--h)
+          {
             param->src_x = src_x;
             param->src_y++;
-        } while (++y != h);
+            buf = _bus->getDMABuffer(wb);
+            param->fp_copy(buf, 0, w, param);
+            write_bytes(buf, wb, true);
+          }
         }
-
-
+      }
     }
+    else
+    {
+      h += y;
+      uint32_t wb = w * bytes;
+      do
+      {
+        uint32_t i = 0;
+        while (w != (i = param->fp_skip(i, w, param)))
+        {
+          auto buf = _bus->getDMABuffer(wb);
+          int32_t len = param->fp_copy(buf, 0, w - i, param);
+          setWindow(x + i, y, x + i + len - 1, y);
+          write_bytes(buf, len * bytes, true);
+          if (w == (i += len)) break;
+        }
+        param->src_x = src_x;
+        param->src_y++;
+      } while (++y != h);
+    }
+  }
 
 
 
