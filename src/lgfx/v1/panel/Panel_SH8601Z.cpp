@@ -193,6 +193,11 @@ namespace lgfx
 
         printf("0x%lx %ld\n", rawcolor, len);
 
+        _bus->writeDataRepeatQuad(rawcolor, _write_bits, len);
+        if (_cfg.dlen_16bit && (_write_bits & 15) && (len & 1))
+        {
+        _has_align_data = !_has_align_data;
+        }
         
 
     }
