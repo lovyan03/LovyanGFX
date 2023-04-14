@@ -55,12 +55,17 @@ namespace lgfx
     /* Panel init */
     bool Panel_SH8601Z::init(bool use_reset)
     {
+        printf("init\n");
+
+        
         if (!Panel_Device::init(use_reset)) {
             return false;
         }
 
-        /* Init command */
-        printf("init\n");
+        
+        /* Update pannel resolution */
+        _width = _cfg.panel_width;
+        _height = _cfg.panel_height;
 
 
         startWrite();
@@ -211,8 +216,14 @@ namespace lgfx
 
     void Panel_SH8601Z::setWindow(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye)
     {
-        printf("setWindow\n");
-        printf("%d %d %d %d\n", xs, ys, xe, ye);
+        // printf("setWindow\n");
+        // printf("%d %d %d %d\n", xs, ys, xe, ye);
+
+        
+        /* Set limit */
+        if ((xe - xs) >= _width) { xs = 0; xe = _width - 1; }
+        if ((ye - ys) >= _height) { ys = 0; ye = _height - 1; }
+
 
         /* Set Column Start Address */
         cs_control(false);
