@@ -143,6 +143,21 @@ namespace lgfx
     }
 
 
+    void Panel_SH8601Z::setBrightness(uint8_t brightness)
+    {
+        startWrite();
+
+        /* Write Display Brightness	MAX_VAL=0XFF */
+        cs_control(false);
+        write_cmd(0x51);
+        _bus->writeCommand(brightness, 8);
+        _bus->wait();
+        cs_control(true);
+
+        endWrite();
+    }
+
+
     color_depth_t Panel_SH8601Z::setColorDepth(color_depth_t depth)
     {
         printf("setColorDepth\n");
