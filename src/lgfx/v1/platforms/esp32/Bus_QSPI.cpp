@@ -461,6 +461,119 @@ namespace lgfx
     }
   }
 
+
+  void Bus_QSPI::writeDataRepeatQuad(uint32_t data, uint_fast8_t bit_length, uint32_t count)
+  {
+    auto spi_mosi_dlen_reg = _spi_mosi_dlen_reg;
+    auto spi_w0_reg = _spi_w0_reg;
+    auto spi_cmd_reg = _spi_cmd_reg;
+    auto gpio_reg_dc = _gpio_reg_dc[1];
+    auto mask_reg_dc = _mask_reg_dc;
+    auto spi_user_reg = _spi_user_reg;
+    /* Send data in 4-bit mode */
+    uint32_t user = (*spi_user_reg | SPI_FWRITE_QUAD);
+    
+#if defined ( CONFIG_IDF_TARGET ) && !defined ( CONFIG_IDF_TARGET_ESP32 )
+    auto dma = _clear_dma_reg;
+    if (dma) { _clear_dma_reg = nullptr; }
+#endif
+    if (1 == count)
+    {
+      --bit_length;
+      while (*spi_cmd_reg & SPI_USR);    // wait SPI
+#if defined ( CONFIG_IDF_TARGET ) && !defined ( CONFIG_IDF_TARGET_ESP32 )
+      if (dma) { *dma = 0; }
+#endif
+      *spi_user_reg = user;
+      *gpio_reg_dc = mask_reg_dc;        // D/C high (data)
+      *spi_mosi_dlen_reg = bit_length;   // set bitlength
+      *spi_w0_reg = data;                // set data
+      *spi_cmd_reg = SPI_EXECUTE;        // exec SPI
+      return;
+    }
+
+    uint32_t regbuf0 = data | data << bit_length;
+    uint32_t regbuf1;
+    uint32_t regbuf2;
+    // make 12Bytes data.
+    bool bits24 = (bit_length == 24);
+    if (bits24) {
+      regbuf1 = regbuf0 >> 8 | regbuf0 << 16;
+      regbuf2 = regbuf0 >>16 | regbuf0 <<  8;
+    } else {
+      if (bit_length == 8) { regbuf0 |= regbuf0 << 16; }
+      regbuf1 = regbuf0;
+      regbuf2 = regbuf0;
+    }
+
+    uint32_t length = bit_length * count;          // convert to bitlength.
+    uint32_t len = (length <= 96u) ? length : (length <= 144u) ? 48u : 96u; // 1st send length = max 12Byte (96bit).
+
+    length -= len;
+    --len;
+
+    while (*spi_cmd_reg & SPI_USR) {}  // wait SPI
+#if defined ( CONFIG_IDF_TARGET ) && !defined ( CONFIG_IDF_TARGET_ESP32 )
+    if (dma) { *dma = 0; }
+#endif
+    *spi_user_reg = user;
+    *gpio_reg_dc = mask_reg_dc;      // D/C high (data)
+    *spi_mosi_dlen_reg = len;
+    // copy to SPI buffer register
+    spi_w0_reg[0] = regbuf0;
+    spi_w0_reg[1] = regbuf1;
+    spi_w0_reg[2] = regbuf2;
+    *spi_cmd_reg = SPI_EXECUTE;      // exec SPI
+    if (0 == length) return;
+
+    uint32_t regbuf[7] = { regbuf0, regbuf1, regbuf2, regbuf0, regbuf1, regbuf2, regbuf0 } ;
+
+    // copy to SPI buffer register
+    memcpy((void*)&spi_w0_reg[3], regbuf, 24);
+    memcpy((void*)&spi_w0_reg[9], regbuf, 28);
+
+    // limit = 64Byte / depth_bytes;
+    // When 24bit color, 504 bits out of 512bit buffer are used.
+    // When 16bit color, it uses exactly 512 bytes. but, it behaves like a ring buffer, can specify a larger size.
+    uint32_t limit;
+    if (bits24)
+    {
+      limit = 504;
+      len = length % limit;
+    }
+    else
+    {
+#if defined ( CONFIG_IDF_TARGET_ESP32 )
+      limit = (1 << 11);
+#else
+      limit = (1 << 9);
+#endif
+      len = length & (limit - 1);
+    }
+
+    if (len)
+    {
+      length -= len;
+      --len;
+      while (*spi_cmd_reg & SPI_USR);
+      *spi_mosi_dlen_reg = len;
+      *spi_cmd_reg = SPI_EXECUTE;
+      if (0 == length) return;
+    }
+
+    while (*spi_cmd_reg & SPI_USR);
+    *spi_mosi_dlen_reg = limit - 1;
+    *spi_cmd_reg = SPI_EXECUTE;
+    while (length -= limit)
+    {
+      while (*spi_cmd_reg & SPI_USR);
+      *spi_cmd_reg = SPI_EXECUTE;
+    }
+  }
+
+
+
+
   void Bus_QSPI::writePixels(pixelcopy_t* param, uint32_t length)
   {
     const uint8_t bytes = param->dst_bits >> 3;
@@ -723,6 +836,180 @@ label_start:
 #endif
 
   }
+
+
+  void Bus_QSPI::writeBytesQuad(const uint8_t* data, uint32_t length, bool dc, bool use_dma)
+  {
+    auto spi_user_reg = _spi_user_reg;
+    /* Send data in 4-bit mode */
+    uint32_t user = (*spi_user_reg | SPI_FWRITE_QUAD);
+
+    if (length <= 64)
+    {
+      *spi_user_reg = user;
+      auto spi_w0_reg = _spi_w0_reg;
+      auto aligned_len = (length + 3) & (~3);
+      length <<= 3;
+      dc_control(dc);
+      set_write_len(length);
+      memcpy((void*)spi_w0_reg, data, aligned_len);
+      exec_spi();
+      return;
+    }
+
+    if (_cfg.dma_channel)
+    {
+      *spi_user_reg = user;
+      if (false == use_dma && length < 1024)
+      {
+        use_dma = true;
+        auto buf = _flip_buffer.getBuffer(length);
+        memcpy(buf, data, length);
+        data = buf;
+      }
+      if (use_dma)
+      {
+        auto spi_dma_out_link_reg = _spi_dma_out_link_reg;
+        auto cmd = _spi_cmd_reg;
+        while (*cmd & SPI_USR) {}
+        *spi_dma_out_link_reg = 0;
+        _setup_dma_desc_links(data, length);
+#if defined ( SOC_GDMA_SUPPORTED )
+        auto dma = reg(SPI_DMA_CONF_REG(_spi_port));
+        *dma = 0; /// Clear previous transfer
+        uint32_t len = ((length - 1) & ((SPI_MS_DATA_BITLEN)>>3)) + 1;
+        *spi_dma_out_link_reg = DMA_OUTLINK_START_CH0 | ((int)(&_dmadesc[0]) & 0xFFFFF);
+        *dma = SPI_DMA_TX_ENA;
+        _clear_dma_reg = dma;
+#else
+        auto dma_conf_reg = reg(SPI_DMA_CONF_REG(_spi_port));
+        auto dma_conf = *dma_conf_reg & ~(SPI_OUT_DATA_BURST_EN | SPI_AHBM_RST | SPI_AHBM_FIFO_RST | SPI_OUT_RST);
+        *dma_conf_reg = dma_conf | SPI_AHBM_RST | SPI_AHBM_FIFO_RST | SPI_OUT_RST;
+
+        // 送信長が4の倍数の場合のみバーストモードを使用する
+        // ※ 以下の3つの条件が揃うと、DMA転送の末尾付近でデータが化ける現象が起きる。
+        //    1.送信クロック80MHz (APBクロックと1:1)
+        //    2.DMAバースト読出し有効
+        //    3.送信データ長が4の倍数ではない (1Byte~3Byteの端数がある場合)
+        dma_conf |= (length & 3) ? (SPI_OUTDSCR_BURST_EN) : (SPI_OUTDSCR_BURST_EN | SPI_OUT_DATA_BURST_EN);
+
+        *dma_conf_reg = dma_conf;
+        uint32_t len = length;
+        *spi_dma_out_link_reg = SPI_OUTLINK_START | ((int)(&_dmadesc[0]) & 0xFFFFF);
+        _clear_dma_reg = spi_dma_out_link_reg;
+#endif
+        set_write_len(len << 3);
+        *_gpio_reg_dc[dc] = _mask_reg_dc;
+
+        // DMA準備完了待ち;
+#if defined ( SOC_GDMA_SUPPORTED )
+        while (*_spi_dma_outstatus_reg & DMA_OUTFIFO_EMPTY_CH0 ) {}
+#elif defined (SPI_DMA_OUTFIFO_EMPTY)
+        while (*_spi_dma_outstatus_reg & SPI_DMA_OUTFIFO_EMPTY ) {}
+#else
+ #if defined ( LGFX_SPIDMA_WORKAROUND )
+        if (_dma_ch) { spicommon_dmaworkaround_transfer_active(_dma_ch); }
+ #endif
+#endif
+        exec_spi();
+
+#if defined ( SOC_GDMA_SUPPORTED )
+        if (length -= len)
+        {
+          while (*cmd & SPI_USR) {}
+          set_write_len(SPI_MS_DATA_BITLEN + 1);
+          goto label_start;
+          do
+          {
+            while (*cmd & SPI_USR) {}
+label_start:
+            exec_spi();
+          } while (length -= ((SPI_MS_DATA_BITLEN + 1) >> 3));
+        }
+#endif
+        return;
+      }
+    }
+
+    auto spi_w0_reg = _spi_w0_reg;
+
+/// ESP32-C3 で HIGHPART を使用すると異常動作するため分岐する;
+#if defined ( SPI_UPDATE )  // for C3/S3
+
+    uint32_t regbuf[16];
+    constexpr uint32_t limit = 64;
+    uint32_t len = ((length - 1) & 0x3F) + 1;
+
+    memcpy(regbuf, data, len);
+    dc_control(dc);
+    set_write_len(len << 3);
+
+    memcpy((void*)spi_w0_reg, regbuf, (len + 3) & (~3));
+    exec_spi();
+    if (0 == (length -= len)) return;
+
+    data += len;
+    memcpy(regbuf, data, limit);
+    wait_spi();
+    set_write_len(limit << 3);
+    memcpy((void*)spi_w0_reg, regbuf, limit);
+    exec_spi();
+    if (0 == (length -= limit)) return;
+
+    do
+    {
+      data += limit;
+      memcpy(regbuf, data, limit);
+      wait_spi();
+      memcpy((void*)spi_w0_reg, regbuf, limit);
+      exec_spi();
+    } while (0 != (length -= limit));
+
+#else
+
+    constexpr uint32_t limit = 32;
+    uint32_t len = ((length - 1) & 0x1F) + 1;
+    uint32_t highpart = ((length - 1) & limit) >> 2; // 8 or 0
+
+    uint32_t user_reg = _user_reg;
+    user_reg = user_reg | SPI_FWRITE_QUAD;
+
+    dc_control(dc);
+    set_write_len(len << 3);
+
+    memcpy((void*)&spi_w0_reg[highpart], data, (len + 3) & (~3));
+    if (highpart) *_spi_user_reg = user_reg | SPI_USR_MOSI_HIGHPART;
+    exec_spi();
+    if (0 == (length -= len)) return;
+
+    for (; length; length -= limit)
+    {
+      data += len;
+      memcpy((void*)&spi_w0_reg[highpart ^= 0x08], data, limit);
+      uint32_t user = user_reg;
+      if (highpart) user |= SPI_USR_MOSI_HIGHPART;
+      if (len != limit)
+      {
+        len = limit;
+        wait_spi();
+        set_write_len(limit << 3);
+        *_spi_user_reg = user;
+        exec_spi();
+      }
+      else
+      {
+        wait_spi();
+        *_spi_user_reg = user;
+        exec_spi();
+      }
+    }
+
+#endif
+
+  }
+
+
+
 
   void Bus_QSPI::addDMAQueue(const uint8_t* data, uint32_t length)
   {
