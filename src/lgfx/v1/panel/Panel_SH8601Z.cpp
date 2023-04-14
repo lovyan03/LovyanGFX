@@ -207,25 +207,12 @@ namespace lgfx
         return false;
     }
 
-    void Panel_SH8601Z::writePixels(pixelcopy_t* param, uint32_t len, bool use_dma)
-    {
-        
-        printf("writePixels\n");
-    }
-
-    void Panel_SH8601Z::writeBlock(uint32_t rawcolor, uint32_t len)
-    {
-        printf("writeBlock\n");
-
-        printf("0x%lx %ld\n", rawcolor, len);
-
-        _bus->writeDataRepeatQuad(rawcolor, _write_bits, len);
-
-    }
+    
 
     void Panel_SH8601Z::setWindow(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye)
     {
         printf("setWindow\n");
+        printf("%d %d %d %d\n", xs, ys, xe, ye);
 
         /* Set Column Start Address */
         cs_control(false);
@@ -253,6 +240,52 @@ namespace lgfx
         _bus->wait();
         cs_control(true);
     }
+
+
+    
+
+
+
+    void Panel_SH8601Z::writeBlock(uint32_t rawcolor, uint32_t len)
+    {
+        printf("writeBlock\n");
+        printf("0x%lx %ld\n", rawcolor, len);
+
+
+        /* Begin QSPI */
+        cs_control(false);
+        _bus->writeCommand(0x32, 8);
+        _bus->writeCommand(0x00, 8);
+        _bus->writeCommand(0x2C, 8);
+        _bus->writeCommand(0x00, 8);
+        _bus->wait();
+
+
+        /* Push color */
+        _bus->writeDataRepeatQuad(rawcolor, _write_bits, len);
+        _bus->wait();
+
+
+        /* Stop QSPI */
+        _bus->writeCommand(0x32, 8);
+        _bus->writeCommand(0x00, 8);
+        _bus->writeCommand(0x00, 8);
+        _bus->writeCommand(0x00, 8);
+        _bus->wait();
+        cs_control(true);
+
+    }
+
+
+
+
+    void Panel_SH8601Z::writePixels(pixelcopy_t* param, uint32_t len, bool use_dma)
+    {
+        
+        printf("writePixels\n");
+    }
+
+
 
     void Panel_SH8601Z::drawPixelPreclipped(uint_fast16_t x, uint_fast16_t y, uint32_t rawcolor)
     {

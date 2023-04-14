@@ -262,6 +262,10 @@ namespace lgfx
     auto spi_cmd_reg = _spi_cmd_reg;
     auto gpio_reg_dc = _gpio_reg_dc[0];
     auto mask_reg_dc = _mask_reg_dc;
+    auto spi_user_reg = _spi_user_reg;
+    /* Send data in 1-bit mode */
+    uint32_t user = (*spi_user_reg & (~SPI_FWRITE_QUAD));
+
 #if !defined ( CONFIG_IDF_TARGET ) || defined ( CONFIG_IDF_TARGET_ESP32 )
     while (*spi_cmd_reg & SPI_USR) {}    // wait SPI
 #else
@@ -277,6 +281,7 @@ namespace lgfx
       while (*spi_cmd_reg & SPI_USR) {}    // wait SPI
     }
 #endif
+    *spi_user_reg = user;
     *spi_mosi_dlen_reg = bit_length;   // set bitlength
     *spi_w0_reg = data;                // set data
     *gpio_reg_dc = mask_reg_dc;        // D/C
@@ -293,6 +298,10 @@ namespace lgfx
     auto spi_cmd_reg = _spi_cmd_reg;
     auto gpio_reg_dc = _gpio_reg_dc[1];
     auto mask_reg_dc = _mask_reg_dc;
+    auto spi_user_reg = _spi_user_reg;
+    /* Send data in 1-bit mode */
+    uint32_t user = (*spi_user_reg & (~SPI_FWRITE_QUAD));
+    
 #if !defined ( CONFIG_IDF_TARGET ) || defined ( CONFIG_IDF_TARGET_ESP32 )
     while (*spi_cmd_reg & SPI_USR) {}    // wait SPI
 #else
@@ -308,6 +317,7 @@ namespace lgfx
       while (*spi_cmd_reg & SPI_USR) {}    // wait SPI
     }
 #endif
+    *spi_user_reg = user;
     *spi_mosi_dlen_reg = bit_length;   // set bitlength
     *spi_w0_reg = data;                // set data
     *gpio_reg_dc = mask_reg_dc;        // D/C
