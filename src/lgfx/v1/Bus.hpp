@@ -138,12 +138,13 @@ namespace lgfx
     void flush(void) override {}
     bool writeCommand(uint32_t, uint_fast8_t) override { return false; }
     void writeData(uint32_t, uint_fast8_t) override {}
-    void writeDataQuad(uint32_t data, uint_fast8_t bit_length) override {}
     void writeDataRepeat(uint32_t, uint_fast8_t, uint32_t) override {}
-    void writeDataRepeatQuad(uint32_t data, uint_fast8_t bit_length, uint32_t count) override {}
     void writePixels(pixelcopy_t*, uint32_t) override {}
     void writeBytes(const uint8_t*, uint32_t, bool, bool) override {}
-    void writeBytesQuad(const uint8_t* data, uint32_t length, bool dc, bool use_dma) override {}
+    
+    void writeDataQuad(uint32_t, uint_fast8_t) override {}
+    void writeDataRepeatQuad(uint32_t, uint_fast8_t, uint32_t) override {}
+    void writeBytesQuad(const uint8_t*, uint32_t, bool, bool) override {}
 
     void beginRead(void) override {}
     void endRead(void) override {}
