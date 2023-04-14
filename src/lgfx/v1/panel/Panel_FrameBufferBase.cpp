@@ -278,13 +278,6 @@ namespace lgfx
       w = w * bits >> 3;
       auto sw = param->src_bitwidth * bits >> 3;
       auto src = &((uint8_t*)param->src_data)[param->src_y * sw + param->src_x];
-
-      if (sw == w && x == 0) {
-        memcpy(_lines_buffer[y], src, w * h);
-        cacheWriteBack(_lines_buffer[y], w * h);
-        return;
-      }
-
       h += y;
       do
       {
