@@ -27,10 +27,9 @@ Contributors:
 /**
  * @brief Bug list
  * 
- *  > No DMA yet
- *  > In spi 40MHz draw vertical line in complete, but 10MHz ok
- *  > In spi 80MHz push color blue(0x1F) no effect, but 40MHz ok
- * 
+ *  > Write function block even use DMA (manual CS)
+ *  > In spi 40MHz draw vertical line incomplete, but 10MHz ok (Likely because my dupont line connection)
+ *
  */
 
 
@@ -43,7 +42,7 @@ namespace lgfx
     /* Panel init */
     bool Panel_SH8601Z::init(bool use_reset)
     {
-        ESP_LOGD("SH8601Z","init");
+        ESP_LOGD("SH8601Z","pannel init");
         
         if (!Panel_Device::init(use_reset)) {
             return false;
@@ -127,7 +126,7 @@ namespace lgfx
 
     void Panel_SH8601Z::setBrightness(uint8_t brightness)
     {
-        ESP_LOGD("SH8601Z","setBrightness");
+        ESP_LOGD("SH8601Z","setBrightness %d", brightness);
 
         startWrite();
 
@@ -149,7 +148,7 @@ namespace lgfx
 
     void Panel_SH8601Z::setInvert(bool invert)
     {
-        ESP_LOGD("SH8601Z","setInvert");
+        // ESP_LOGD("SH8601Z","setInvert");
     }
 
     void Panel_SH8601Z::setSleep(bool flg)
@@ -176,8 +175,38 @@ namespace lgfx
 
     color_depth_t Panel_SH8601Z::setColorDepth(color_depth_t depth)
     {
-        ESP_LOGD("SH8601Z","setColorDepth");
-        return lgfx::rgb565_2Byte;
+        ESP_LOGD("SH8601Z","setColorDepth %d", depth);
+
+        /* 0x55: 16bit/pixel */
+        /* 0x66: 18bit/pixel */
+        /* 0x77: 24bit/pixel */
+        uint8_t cmd_send = 0;
+        if (depth == rgb565_2Byte) {
+            cmd_send = 0x55;
+        }
+        else if (depth == rgb666_3Byte) {
+            cmd_send = 0x66;
+        }
+        else if (depth == rgb888_3Byte) {
+            cmd_send = 0x77;
+        }
+        else {
+            return _write_depth;
+        }
+        _write_depth = depth;
+
+        /* Set interface Pixel Format */
+        startWrite();
+        
+        cs_control(false);
+        write_cmd(0x3A);
+        _bus->writeCommand(cmd_send, 8);
+        _bus->wait();
+        cs_control(true);
+
+        endWrite();
+
+        return _write_depth;
     }
 
 
@@ -338,7 +367,7 @@ namespace lgfx
   void Panel_SH8601Z::writeImage(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, pixelcopy_t* param, bool use_dma)
   {
     // ESP_LOGD("SH8601Z","writeImage %d %d %d %d %d", x, y, w, h, use_dma);
-    use_dma = false;
+    // use_dma = false;
 
     auto bytes = param->dst_bits >> 3;
     auto src_x = param->src_x;
