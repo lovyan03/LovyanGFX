@@ -99,10 +99,6 @@ namespace lgfx
     /// D/Cピンをhighにしてデータを送信する。;
     virtual void writeData(uint32_t data, uint_fast8_t bit_length) = 0;
 
-    virtual void writeDataQuad(uint32_t data, uint_fast8_t bit_length) = 0;
-    virtual void writeDataRepeatQuad(uint32_t data, uint_fast8_t bit_length, uint32_t count) = 0;
-    virtual void writeBytesQuad(const uint8_t* data, uint32_t length, bool dc, bool use_dma) = 0;
-
     /// D/Cピンをhighにして指定回数繰り返しデータを送信する。;
     virtual void writeDataRepeat(uint32_t data, uint_fast8_t bit_length, uint32_t count) = 0;
 
@@ -141,10 +137,6 @@ namespace lgfx
     void writeDataRepeat(uint32_t, uint_fast8_t, uint32_t) override {}
     void writePixels(pixelcopy_t*, uint32_t) override {}
     void writeBytes(const uint8_t*, uint32_t, bool, bool) override {}
-    
-    void writeDataQuad(uint32_t, uint_fast8_t) override {}
-    void writeDataRepeatQuad(uint32_t, uint_fast8_t, uint32_t) override {}
-    void writeBytesQuad(const uint8_t*, uint32_t, bool, bool) override {}
 
     void beginRead(void) override {}
     void endRead(void) override {}

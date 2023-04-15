@@ -210,15 +210,6 @@ namespace lgfx
     }
 
 
-
-
-
-
-
-
-
-
-
     void Panel_SH8601Z::write_cmd(uint8_t cmd)
     {
         uint8_t cmd_buffer[4] = {0x02, 0x00, 0x00, 0x00};
@@ -274,7 +265,7 @@ namespace lgfx
     void Panel_SH8601Z::write_bytes(const uint8_t* data, uint32_t len, bool use_dma)
     {
         start_qspi();
-        _bus->writeBytesQuad(data, len, true, use_dma);
+        _bus->writeBytes(data, len, true, use_dma);
         _bus->wait();
         end_qspi();
     }
@@ -283,12 +274,10 @@ namespace lgfx
     void Panel_SH8601Z::setWindow(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye)
     {
         // ESP_LOGD("SH8601Z","setWindow %d %d %d %d", xs, ys, xe, ye);
-
         
         /* Set limit */
         if ((xe - xs) >= _width) { xs = 0; xe = _width - 1; }
         if ((ye - ys) >= _height) { ys = 0; ye = _height - 1; }
-
 
         /* Set Column Start Address */
         cs_control(false);
@@ -324,7 +313,7 @@ namespace lgfx
 
         /* Push color */
         start_qspi();
-        _bus->writeDataRepeatQuad(rawcolor, _write_bits, len);
+        _bus->writeDataRepeat(rawcolor, _write_bits, len);
         _bus->wait();
         end_qspi();
     }
@@ -335,7 +324,21 @@ namespace lgfx
     void Panel_SH8601Z::writePixels(pixelcopy_t* param, uint32_t len, bool use_dma)
     {
         ESP_LOGD("SH8601Z","writePixels");
+
+        if (param->no_convert) {
+            _bus->writeBytes(reinterpret_cast<const uint8_t*>(param->src_data), len * _write_bits >> 3, true, use_dma);
+        }
+        else {
+            _bus->writePixels(param, len);
+        }
+        if (_cfg.dlen_16bit && (_write_bits & 15) && (len & 1)) {
+            _has_align_data = !_has_align_data;
+        }
     }
+
+
+
+
 
 
 
@@ -357,7 +360,7 @@ namespace lgfx
         // if (_cfg.dlen_16bit) { _has_align_data = (_write_bits & 15) && (len & 1); }
         
         start_qspi();
-        _bus->writeDataRepeatQuad(rawcolor, _write_bits, len);
+        _bus->writeDataRepeat(rawcolor, _write_bits, len);
         _bus->wait();
         end_qspi();
     }

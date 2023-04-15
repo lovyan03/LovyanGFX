@@ -113,20 +113,20 @@ namespace lgfx
     void flush(void) override {}
     bool writeCommand(uint32_t data, uint_fast8_t bit_length) override;
     void writeData(uint32_t data, uint_fast8_t bit_length) override;
-    void writeDataQuad(uint32_t data, uint_fast8_t bit_length) override;
+    // void writeDataQuad(uint32_t data, uint_fast8_t bit_length) override;
     void writeDataRepeat(uint32_t data, uint_fast8_t bit_length, uint32_t count) override;
-    void writeDataRepeatQuad(uint32_t data, uint_fast8_t bit_length, uint32_t count) override;
+    // void writeDataRepeatQuad(uint32_t data, uint_fast8_t bit_length, uint32_t count) override;
     void writePixels(pixelcopy_t* pc, uint32_t length) override;
     void writeBytes(const uint8_t* data, uint32_t length, bool dc, bool use_dma) override;
-    void writeBytesQuad(const uint8_t* data, uint32_t length, bool dc, bool use_dma) override;
+    // void writeBytesQuad(const uint8_t* data, uint32_t length, bool dc, bool use_dma) override;
 
     
 
     void initDMA(void) override {}
     void addDMAQueue(const uint8_t* data, uint32_t length) override;
-    void addDMAQueueQuad(const uint8_t* data, uint32_t length);
+    // void addDMAQueueQuad(const uint8_t* data, uint32_t length);
     void execDMAQueue(void) override;
-    void execDMAQueueQuad(void);
+    // void execDMAQueueQuad(void);
     uint8_t* getDMABuffer(uint32_t length) override { return _flip_buffer.getBuffer(length); }
 
     void beginRead(uint_fast8_t dummy_bits) override;
