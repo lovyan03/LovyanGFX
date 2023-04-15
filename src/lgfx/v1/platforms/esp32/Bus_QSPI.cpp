@@ -241,7 +241,10 @@ namespace lgfx
   void Bus_QSPI::wait(void)
   {
     auto spi_cmd_reg = _spi_cmd_reg;
-    while (*spi_cmd_reg & SPI_USR);
+    uint32_t time_out = esp_timer_get_time();
+    while (*spi_cmd_reg & SPI_USR) {
+        if ((esp_timer_get_time() - time_out) > 20000) { break; }
+    }
   }
 
   bool Bus_QSPI::busy(void) const

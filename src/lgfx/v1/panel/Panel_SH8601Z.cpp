@@ -27,9 +27,12 @@ Contributors:
 /**
  * @brief Bug list
  * 
- *  > Write function block even use DMA (manual CS)
- *  > In spi 40MHz draw vertical line incomplete, but 10MHz ok (Likely because my dupont line connection)
- *
+ *  > Write image (pushSprite) works fine, bugs down below are from writing directly
+ * 
+ *  > Write function is block even with DMA (manual CS)
+ *  > In spi 40MHz draw vertical line incomplete, but 10MHz OK (Likely because my dupont line connection)
+ *  > Somtimes will stuck in "_bus->wait();", like draw line in "TFT_graphicstest_PDQ" in the second time, but sck freq effects it, add timeout break in bus->wait() better it a bit
+ * 
  */
 
 
@@ -256,8 +259,19 @@ namespace lgfx
     void Panel_SH8601Z::endTransaction(void)
     {
         ESP_LOGD("SH8601Z","endTransaction");
+        // if (!_in_transaction) return;
+        // _in_transaction = false;
+        // _bus->endTransaction();
+
         if (!_in_transaction) return;
         _in_transaction = false;
+
+        if (_has_align_data)
+        {
+            _has_align_data = false;
+            _bus->writeData(0, 8);
+        }
+
         _bus->endTransaction();
     }
 
@@ -323,7 +337,9 @@ namespace lgfx
 
     void Panel_SH8601Z::writePixels(pixelcopy_t* param, uint32_t len, bool use_dma)
     {
-        ESP_LOGD("SH8601Z","writePixels");
+        ESP_LOGD("SH8601Z","writePixels %ld %d", len, use_dma);
+
+        start_qspi();
 
         if (param->no_convert) {
             _bus->writeBytes(reinterpret_cast<const uint8_t*>(param->src_data), len * _write_bits >> 3, true, use_dma);
@@ -334,6 +350,9 @@ namespace lgfx
         if (_cfg.dlen_16bit && (_write_bits & 15) && (len & 1)) {
             _has_align_data = !_has_align_data;
         }
+
+        _bus->wait();
+        end_qspi();
     }
 
 
@@ -344,7 +363,22 @@ namespace lgfx
 
     void Panel_SH8601Z::drawPixelPreclipped(uint_fast16_t x, uint_fast16_t y, uint32_t rawcolor)
     {
-        ESP_LOGD("SH8601Z","drawPixelPreclipped");
+        ESP_LOGD("SH8601Z","drawPixelPreclipped %d %d 0x%lX", x, y, rawcolor);
+
+        bool tr = _in_transaction;
+        if (!tr) beginTransaction();
+
+        setWindow(x,y,x,y);
+        if (_cfg.dlen_16bit) { _has_align_data = (_write_bits & 15); }
+
+        start_qspi();
+
+        _bus->writeData(rawcolor, _write_bits);
+
+        _bus->wait();
+        end_qspi();
+
+        if (!tr) endTransaction();
 
     }
 
