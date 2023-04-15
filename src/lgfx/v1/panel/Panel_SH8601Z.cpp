@@ -21,7 +21,17 @@ Contributors:
 #include "../misc/pixelcopy.hpp"
 #include "../misc/colortype.hpp"
 #include "driver/spi_master.h"
+#include "esp_log.h"
 
+
+/**
+ * @brief Bug list
+ * 
+ *  > No DMA yet
+ *  > In spi 40MHz draw vertical line in complete, but 10MHz ok
+ *  > In spi 80MHz push color blue(0x1F) no effect, but 40MHz ok
+ * 
+ */
 
 
 namespace lgfx
@@ -30,54 +40,10 @@ namespace lgfx
  {
 //----------------------------------------------------------------------------
 
-    void Panel_SH8601Z::write_cmd(uint8_t cmd)
-    {
-        uint8_t cmd_buffer[4] = {0x02, 0x00, 0x00, 0x00};
-        cmd_buffer[2] = cmd;
-        // _bus->writeBytes(cmd_buffer, 4, 0, false);
-        for (int i = 0; i < 4; i++) {
-            _bus->writeCommand(cmd_buffer[i], 8);
-        }
-    }
-
-
-    void Panel_SH8601Z::start_qspi()
-    {
-        /* Begin QSPI */
-        cs_control(false);
-        _bus->writeCommand(0x32, 8);
-        _bus->writeCommand(0x00, 8);
-        _bus->writeCommand(0x2C, 8);
-        _bus->writeCommand(0x00, 8);
-        _bus->wait();
-    }
-
-    void Panel_SH8601Z::end_qspi()
-    {
-        /* Stop QSPI */
-        _bus->writeCommand(0x32, 8);
-        _bus->writeCommand(0x00, 8);
-        _bus->writeCommand(0x00, 8);
-        _bus->writeCommand(0x00, 8);
-        _bus->wait();
-        cs_control(true);
-    }
-
-
-    void Panel_SH8601Z::write_bytes(const uint8_t* data, uint32_t len, bool use_dma)
-    {
-        start_qspi();
-        _bus->writeBytesQuad(data, len, true, use_dma);
-        _bus->wait();
-        end_qspi();
-    }
-
-
     /* Panel init */
     bool Panel_SH8601Z::init(bool use_reset)
     {
-        printf("init\n");
-
+        ESP_LOGD("SH8601Z","init");
         
         if (!Panel_Device::init(use_reset)) {
             return false;
@@ -158,26 +124,11 @@ namespace lgfx
     }
 
 
-    void Panel_SH8601Z::beginTransaction(void)
-    {
-        printf("beginTransaction\n");
-        if (_in_transaction) return;
-        _in_transaction = true;
-        _bus->beginTransaction();
-    }
-
-
-    void Panel_SH8601Z::endTransaction(void)
-    {
-        printf("endTransaction\n");
-        if (!_in_transaction) return;
-        _in_transaction = false;
-        _bus->endTransaction();
-    }
-
 
     void Panel_SH8601Z::setBrightness(uint8_t brightness)
     {
+        ESP_LOGD("SH8601Z","setBrightness");
+
         startWrite();
 
         /* Write Display Brightness	MAX_VAL=0XFF */
@@ -191,50 +142,118 @@ namespace lgfx
     }
 
 
-    color_depth_t Panel_SH8601Z::setColorDepth(color_depth_t depth)
-    {
-        printf("setColorDepth\n");
-        return lgfx::rgb565_2Byte;
-    }
-
-
     void Panel_SH8601Z::setRotation(uint_fast8_t r)
     {
-        printf("setRotation\n");
+        ESP_LOGD("SH8601Z","setRotation");
     }
 
     void Panel_SH8601Z::setInvert(bool invert)
     {
-        printf("setInvert\n");
+        ESP_LOGD("SH8601Z","setInvert");
     }
 
     void Panel_SH8601Z::setSleep(bool flg)
     {
-        printf("setSleep\n");
+        ESP_LOGD("SH8601Z","setSleep");
     }
     
     void Panel_SH8601Z::setPowerSave(bool flg)
     {
-        printf("setPowerSave\n");
+        ESP_LOGD("SH8601Z","setPowerSave");
     }
 
     void Panel_SH8601Z::waitDisplay(void)
     {
-        printf("waitDisplay\n");
+        ESP_LOGD("SH8601Z","waitDisplay");
     }
 
     bool Panel_SH8601Z::displayBusy(void)
     {
-        printf("displayBusy\n");
+        ESP_LOGD("SH8601Z","displayBusy");
         return false;
     }
 
-    
+
+    color_depth_t Panel_SH8601Z::setColorDepth(color_depth_t depth)
+    {
+        ESP_LOGD("SH8601Z","setColorDepth");
+        return lgfx::rgb565_2Byte;
+    }
+
+
+
+
+
+
+
+
+
+
+
+    void Panel_SH8601Z::write_cmd(uint8_t cmd)
+    {
+        uint8_t cmd_buffer[4] = {0x02, 0x00, 0x00, 0x00};
+        cmd_buffer[2] = cmd;
+        // _bus->writeBytes(cmd_buffer, 4, 0, false);
+        for (int i = 0; i < 4; i++) {
+            _bus->writeCommand(cmd_buffer[i], 8);
+        }
+    }
+
+
+    void Panel_SH8601Z::start_qspi()
+    {
+        /* Begin QSPI */
+        cs_control(false);
+        _bus->writeCommand(0x32, 8);
+        _bus->writeCommand(0x00, 8);
+        _bus->writeCommand(0x2C, 8);
+        _bus->writeCommand(0x00, 8);
+        _bus->wait();
+    }
+
+    void Panel_SH8601Z::end_qspi()
+    {
+        /* Stop QSPI */
+        _bus->writeCommand(0x32, 8);
+        _bus->writeCommand(0x00, 8);
+        _bus->writeCommand(0x00, 8);
+        _bus->writeCommand(0x00, 8);
+        _bus->wait();
+        cs_control(true);
+    }
+
+
+    void Panel_SH8601Z::beginTransaction(void)
+    {
+        ESP_LOGD("SH8601Z","beginTransaction");
+        if (_in_transaction) return;
+        _in_transaction = true;
+        _bus->beginTransaction();
+    }
+
+
+    void Panel_SH8601Z::endTransaction(void)
+    {
+        ESP_LOGD("SH8601Z","endTransaction");
+        if (!_in_transaction) return;
+        _in_transaction = false;
+        _bus->endTransaction();
+    }
+
+
+    void Panel_SH8601Z::write_bytes(const uint8_t* data, uint32_t len, bool use_dma)
+    {
+        start_qspi();
+        _bus->writeBytesQuad(data, len, true, use_dma);
+        _bus->wait();
+        end_qspi();
+    }
+
 
     void Panel_SH8601Z::setWindow(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye)
     {
-        // printf("setWindow\n");
-        // printf("%d %d %d %d\n", xs, ys, xe, ye);
+        // ESP_LOGD("SH8601Z","setWindow %d %d %d %d", xs, ys, xe, ye);
 
         
         /* Set limit */
@@ -270,38 +289,15 @@ namespace lgfx
     }
 
 
-    
-
-
-
     void Panel_SH8601Z::writeBlock(uint32_t rawcolor, uint32_t len)
     {
-        printf("writeBlock\n");
-        printf("0x%lx %ld\n", rawcolor, len);
-
-
-        /* Begin QSPI */
-        cs_control(false);
-        _bus->writeCommand(0x32, 8);
-        _bus->writeCommand(0x00, 8);
-        _bus->writeCommand(0x2C, 8);
-        _bus->writeCommand(0x00, 8);
-        _bus->wait();
-
+        // ESP_LOGD("SH8601Z","writeBlock 0x%lx %ld", rawcolor, len);
 
         /* Push color */
+        start_qspi();
         _bus->writeDataRepeatQuad(rawcolor, _write_bits, len);
         _bus->wait();
-
-
-        /* Stop QSPI */
-        _bus->writeCommand(0x32, 8);
-        _bus->writeCommand(0x00, 8);
-        _bus->writeCommand(0x00, 8);
-        _bus->writeCommand(0x00, 8);
-        _bus->wait();
-        cs_control(true);
-
+        end_qspi();
     }
 
 
@@ -309,38 +305,39 @@ namespace lgfx
 
     void Panel_SH8601Z::writePixels(pixelcopy_t* param, uint32_t len, bool use_dma)
     {
-        
-        printf("writePixels\n");
+        ESP_LOGD("SH8601Z","writePixels");
     }
 
 
 
     void Panel_SH8601Z::drawPixelPreclipped(uint_fast16_t x, uint_fast16_t y, uint32_t rawcolor)
     {
-        printf("drawPixelPreclipped\n");
+        ESP_LOGD("SH8601Z","drawPixelPreclipped");
 
     }
 
     void Panel_SH8601Z::writeFillRectPreclipped(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, uint32_t rawcolor)
     {
-        printf("writeFillRectPreclipped\n");
+        ESP_LOGD("SH8601Z","writeFillRectPreclipped %d %d %d %d 0x%lX", x, y, w, h, rawcolor);
 
         uint32_t len = w * h;
         uint_fast16_t xe = w + x - 1;
         uint_fast16_t ye = y + h - 1;
 
         setWindow(x,y,xe,ye);
-
-
-
+        // if (_cfg.dlen_16bit) { _has_align_data = (_write_bits & 15) && (len & 1); }
+        
+        start_qspi();
+        _bus->writeDataRepeatQuad(rawcolor, _write_bits, len);
+        _bus->wait();
+        end_qspi();
     }
 
 
 
   void Panel_SH8601Z::writeImage(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, pixelcopy_t* param, bool use_dma)
   {
-    printf("writeImage\n");
-    printf("%d %d %d %d %d\n", x, y, w, h, use_dma);
+    // ESP_LOGD("SH8601Z","writeImage %d %d %d %d %d", x, y, w, h, use_dma);
     use_dma = false;
 
     auto bytes = param->dst_bits >> 3;
@@ -459,19 +456,19 @@ namespace lgfx
 
     uint32_t Panel_SH8601Z::readCommand(uint_fast16_t cmd, uint_fast8_t index, uint_fast8_t len)
     {
-        printf("readCommand\n");
+        ESP_LOGD("SH8601Z","readCommand");
         return 0;
     }
 
     uint32_t Panel_SH8601Z::readData(uint_fast8_t index, uint_fast8_t len)
     {
-        printf("readData\n");
+        ESP_LOGD("SH8601Z","readData");
         return 0;
     }
 
     void Panel_SH8601Z::readRect(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, void* dst, pixelcopy_t* param)
     {
-        printf("readRect\n");
+        ESP_LOGD("SH8601Z","readRect");
     }
 
 
