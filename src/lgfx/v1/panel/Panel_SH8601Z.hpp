@@ -63,6 +63,8 @@ namespace lgfx
         bool _in_transaction = false;
 
         void write_cmd(uint8_t cmd);
+        void start_qspi();
+        void end_qspi();
         void write_bytes(const uint8_t* data, uint32_t len, bool use_dma);
   };
 

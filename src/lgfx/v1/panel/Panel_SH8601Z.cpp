@@ -41,14 +41,35 @@ namespace lgfx
     }
 
 
+    void Panel_SH8601Z::start_qspi()
+    {
+        /* Begin QSPI */
+        cs_control(false);
+        _bus->writeCommand(0x32, 8);
+        _bus->writeCommand(0x00, 8);
+        _bus->writeCommand(0x2C, 8);
+        _bus->writeCommand(0x00, 8);
+        _bus->wait();
+    }
+
+    void Panel_SH8601Z::end_qspi()
+    {
+        /* Stop QSPI */
+        _bus->writeCommand(0x32, 8);
+        _bus->writeCommand(0x00, 8);
+        _bus->writeCommand(0x00, 8);
+        _bus->writeCommand(0x00, 8);
+        _bus->wait();
+        cs_control(true);
+    }
+
+
     void Panel_SH8601Z::write_bytes(const uint8_t* data, uint32_t len, bool use_dma)
     {
-        // _bus->writeBytes(data, len, true, use_dma);
-        // if (_cfg.dlen_16bit && (_write_bits & 15) && (len & 1))
-        // {
-        //     _has_align_data = !_has_align_data;
-        // }
+        start_qspi();
         _bus->writeBytesQuad(data, len, true, use_dma);
+        _bus->wait();
+        end_qspi();
     }
 
 
@@ -63,7 +84,7 @@ namespace lgfx
         }
 
         
-        /* Update pannel resolution */
+        /* Store pannel resolution */
         _width = _cfg.panel_width;
         _height = _cfg.panel_height;
 
@@ -143,8 +164,6 @@ namespace lgfx
         if (_in_transaction) return;
         _in_transaction = true;
         _bus->beginTransaction();
-        // cs_control(false);
-        // printf("begin\n");
     }
 
 
@@ -154,8 +173,6 @@ namespace lgfx
         if (!_in_transaction) return;
         _in_transaction = false;
         _bus->endTransaction();
-        // cs_control(true);
-        // printf("end\n");
     }
 
 
@@ -323,6 +340,8 @@ namespace lgfx
   void Panel_SH8601Z::writeImage(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, pixelcopy_t* param, bool use_dma)
   {
     printf("writeImage\n");
+    printf("%d %d %d %d %d\n", x, y, w, h, use_dma);
+    use_dma = false;
 
     auto bytes = param->dst_bits >> 3;
     auto src_x = param->src_x;

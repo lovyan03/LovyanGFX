@@ -124,7 +124,9 @@ namespace lgfx
 
     void initDMA(void) override {}
     void addDMAQueue(const uint8_t* data, uint32_t length) override;
+    void addDMAQueueQuad(const uint8_t* data, uint32_t length);
     void execDMAQueue(void) override;
+    void execDMAQueueQuad(void);
     uint8_t* getDMABuffer(uint32_t length) override { return _flip_buffer.getBuffer(length); }
 
     void beginRead(uint_fast8_t dummy_bits) override;

@@ -375,6 +375,10 @@ namespace lgfx
     auto spi_cmd_reg = _spi_cmd_reg;
     auto gpio_reg_dc = _gpio_reg_dc[1];
     auto mask_reg_dc = _mask_reg_dc;
+    auto spi_user_reg = _spi_user_reg;
+    /* Send data in 1-bit mode */
+    uint32_t user = (*spi_user_reg & (~SPI_FWRITE_QUAD));
+
 #if defined ( CONFIG_IDF_TARGET ) && !defined ( CONFIG_IDF_TARGET_ESP32 )
     auto dma = _clear_dma_reg;
     if (dma) { _clear_dma_reg = nullptr; }
@@ -386,6 +390,7 @@ namespace lgfx
 #if defined ( CONFIG_IDF_TARGET ) && !defined ( CONFIG_IDF_TARGET_ESP32 )
       if (dma) { *dma = 0; }
 #endif
+      *spi_user_reg = user;
       *gpio_reg_dc = mask_reg_dc;        // D/C high (data)
       *spi_mosi_dlen_reg = bit_length;   // set bitlength
       *spi_w0_reg = data;                // set data
@@ -417,6 +422,7 @@ namespace lgfx
 #if defined ( CONFIG_IDF_TARGET ) && !defined ( CONFIG_IDF_TARGET_ESP32 )
     if (dma) { *dma = 0; }
 #endif
+    *spi_user_reg = user;
     *gpio_reg_dc = mask_reg_dc;      // D/C high (data)
     *spi_mosi_dlen_reg = len;
     // copy to SPI buffer register
@@ -687,6 +693,11 @@ namespace lgfx
 
   void Bus_QSPI::writeBytes(const uint8_t* data, uint32_t length, bool dc, bool use_dma)
   {
+    auto spi_user_reg = _spi_user_reg;
+    /* Send data in 1-bit mode */
+    uint32_t user = (*spi_user_reg & (~SPI_FWRITE_QUAD));
+    *spi_user_reg = user;
+
     if (length <= 64)
     {
       auto spi_w0_reg = _spi_w0_reg;
@@ -850,13 +861,13 @@ label_start:
 
   void Bus_QSPI::writeBytesQuad(const uint8_t* data, uint32_t length, bool dc, bool use_dma)
   {
-    auto spi_user_reg = _spi_user_reg;
     /* Send data in 4-bit mode */
+    auto spi_user_reg = _spi_user_reg;
     uint32_t user = (*spi_user_reg | SPI_FWRITE_QUAD);
+    *spi_user_reg = user;
 
     if (length <= 64)
     {
-      *spi_user_reg = user;
       auto spi_w0_reg = _spi_w0_reg;
       auto aligned_len = (length + 3) & (~3);
       length <<= 3;
@@ -869,7 +880,6 @@ label_start:
 
     if (_cfg.dma_channel)
     {
-      *spi_user_reg = user;
       if (false == use_dma && length < 1024)
       {
         use_dma = true;
@@ -1059,9 +1069,55 @@ label_start:
     dmadesc->buf = const_cast<uint8_t*>(data);
   }
 
+
+  void Bus_QSPI::addDMAQueueQuad(const uint8_t* data, uint32_t length)
+  {
+    if (!_cfg.dma_channel)
+    {
+      writeBytesQuad(data, length, true, true);
+      return;
+    }
+
+    _dma_queue_bytes += length;
+    size_t index = _dma_queue_size;
+    size_t new_size = index + ((length-1) / SPI_MAX_DMA_LEN) + 1;
+
+    if (_dma_queue_capacity < new_size)
+    {
+      _dma_queue_capacity = new_size + 8;
+      auto new_queue = (lldesc_t*)heap_caps_malloc(sizeof(lldesc_t) * _dma_queue_capacity, MALLOC_CAP_DMA);
+      if (index)
+      {
+        memcpy(new_queue, _dma_queue, sizeof(lldesc_t) * index);
+      }
+      if (_dma_queue != nullptr) { heap_free(_dma_queue); }
+      _dma_queue = new_queue;
+    }
+    _dma_queue_size = new_size;
+    lldesc_t *dmadesc = &_dma_queue[index];
+
+    while (length > SPI_MAX_DMA_LEN)
+    {
+      *(uint32_t*)dmadesc = SPI_MAX_DMA_LEN | SPI_MAX_DMA_LEN << 12 | 0x80000000;
+      dmadesc->buf = const_cast<uint8_t*>(data);
+      dmadesc++;
+      data += SPI_MAX_DMA_LEN;
+      length -= SPI_MAX_DMA_LEN;
+    }
+    *(uint32_t*)dmadesc = ((length + 3) & ( ~3 )) | length << 12 | 0x80000000;
+    dmadesc->buf = const_cast<uint8_t*>(data);
+  }
+
+
+
   void Bus_QSPI::execDMAQueue(void)
   {
     if (0 == _dma_queue_size) return;
+
+    /* Send data in 1-bit mode */
+    auto spi_user_reg = _spi_user_reg;
+    uint32_t user = (*spi_user_reg & (~SPI_FWRITE_QUAD));
+    *spi_user_reg = user;
 
     int index = _dma_queue_size - 1;
     _dma_queue_size = 0;
@@ -1127,6 +1183,83 @@ label_start:
     }
 #endif
   }
+
+
+  void Bus_QSPI::execDMAQueueQuad(void)
+  {
+    if (0 == _dma_queue_size) return;
+
+    /* Send data in 4-bit mode */
+    auto spi_user_reg = _spi_user_reg;
+    uint32_t user = (*spi_user_reg | SPI_FWRITE_QUAD);
+    *spi_user_reg = user;
+
+    int index = _dma_queue_size - 1;
+    _dma_queue_size = 0;
+    _dma_queue[index].eof = 1;
+    _dma_queue[index].qe.stqe_next = nullptr;
+    while (--index >= 0)
+    {
+      _dma_queue[index].qe.stqe_next = &_dma_queue[index + 1];
+    }
+
+    std::swap(_dmadesc, _dma_queue);
+    std::swap(_dmadesc_size, _dma_queue_capacity);
+
+    dc_control(true);
+    *_spi_dma_out_link_reg = 0;
+
+#if defined ( SOC_GDMA_SUPPORTED )
+    *_spi_dma_out_link_reg = DMA_OUTLINK_START_CH0 | ((int)(&_dmadesc[0]) & 0xFFFFF);
+    auto dma = reg(SPI_DMA_CONF_REG(_spi_port));
+    *dma = SPI_DMA_TX_ENA;
+    _clear_dma_reg = dma;
+    uint32_t len = ((_dma_queue_bytes - 1) & ((SPI_MS_DATA_BITLEN)>>3)) + 1;
+#else
+    auto dma_conf_reg = reg(SPI_DMA_CONF_REG(_spi_port));
+    auto dma_conf = *dma_conf_reg & ~(SPI_OUT_DATA_BURST_EN | SPI_AHBM_RST | SPI_AHBM_FIFO_RST | SPI_OUT_RST);
+    dma_conf |= SPI_OUTDSCR_BURST_EN;
+    *dma_conf_reg = dma_conf | SPI_AHBM_RST | SPI_AHBM_FIFO_RST | SPI_OUT_RST;
+    *dma_conf_reg = dma_conf;
+
+    *_spi_dma_out_link_reg = SPI_OUTLINK_START | ((int)(&_dmadesc[0]) & 0xFFFFF);
+    _clear_dma_reg = _spi_dma_out_link_reg;
+    uint32_t len = _dma_queue_bytes;
+    _dma_queue_bytes = 0;
+#endif
+
+    set_write_len(len << 3);
+    // DMA準備完了待ち;
+#if defined ( SOC_GDMA_SUPPORTED )
+    while (*_spi_dma_outstatus_reg & DMA_OUTFIFO_EMPTY_CH0 ) {}
+#elif defined (SPI_DMA_OUTFIFO_EMPTY)
+    while (*_spi_dma_outstatus_reg & SPI_DMA_OUTFIFO_EMPTY ) {}
+#else
+ #if defined ( LGFX_SPIDMA_WORKAROUND )
+    if (_dma_ch) { spicommon_dmaworkaround_transfer_active(_dma_ch); }
+ #endif
+#endif
+    exec_spi();
+
+#if defined ( SOC_GDMA_SUPPORTED )
+    uint32_t length = _dma_queue_bytes - len;
+    _dma_queue_bytes = 0;
+    if (length)
+    {
+      wait_spi();
+      set_write_len(SPI_MS_DATA_BITLEN + 1);
+      goto label_start;
+      do
+      {
+        wait_spi();
+label_start:
+        exec_spi();
+      } while (length -= ((SPI_MS_DATA_BITLEN + 1) >> 3));
+    }
+#endif
+  }
+
+
 
   void Bus_QSPI::beginRead(uint_fast8_t dummy_bits)
   {
