@@ -551,8 +551,8 @@ namespace lgfx
 
       gpio_num_t pin_scl = (gpio_num_t)-1;
       gpio_num_t pin_sda = (gpio_num_t)-1;
+      uint8_t wait_ack_stage = 0;   // 0:Not waiting. / 1:Waiting after addressing. / 2:Waiting during data transmission.
       bool initialized = false;
-      bool wait_ack = false;
       uint32_t freq = 0;
 
       void save_reg(i2c_dev_t* dev)
@@ -710,9 +710,8 @@ namespace lgfx
       auto dev = getDev(i2c_port);
       typeof(dev->int_raw) int_raw;
       static constexpr uint32_t intmask = I2C_ACK_ERR_INT_RAW_M | I2C_END_DETECT_INT_RAW_M | I2C_ARBITRATION_LOST_INT_RAW_M;
-      if (i2c_context[i2c_port].wait_ack)
+      if (i2c_context[i2c_port].wait_ack_stage)
       {
-        i2c_context[i2c_port].wait_ack = false;
         int_raw.val = dev->int_raw.val;
         if (!(int_raw.val & intmask))
         {
@@ -725,6 +724,9 @@ namespace lgfx
 #else
           uint32_t us_limit = (dev->scl_high_period.period + dev->scl_low_period.period + 16 ) * (1 + dev->status_reg.tx_fifo_cnt);
 #endif
+          if (i2c_context[i2c_port].wait_ack_stage == 2) {
+            us_limit += 1024;
+          }
           do
           {
             taskYIELD();
@@ -744,6 +746,7 @@ namespace lgfx
           res = cpp::fail(error_t::connection_lost);
           i2c_context[i2c_port].state = cpp::fail(error_t::connection_lost);
         }
+        i2c_context[i2c_port].wait_ack_stage = 0;
       }
 
       if (flg_stop || res.has_error())
@@ -1026,7 +1029,7 @@ namespace lgfx
       dev->int_clr.val = 0x1FFFF;
       dev->ctr.trans_start = 1;
       i2c_context[i2c_port].state = read ? i2c_context_t::state_t::state_read : i2c_context_t::state_t::state_write;
-      i2c_context[i2c_port].wait_ack = true;
+      i2c_context[i2c_port].wait_ack_stage = 1;
       return res;
     }
 
@@ -1137,7 +1140,7 @@ namespace lgfx
         i2c_set_cmd(dev, 1, i2c_cmd_end, 0);
         updateDev(dev);
         dev->ctr.trans_start = 1;
-        i2c_context[i2c_port].wait_ack = true;
+        i2c_context[i2c_port].wait_ack_stage = 2;
         data += len;
         length -= len;
         len = txfifo_limit;
@@ -1158,12 +1161,13 @@ namespace lgfx
       auto dev = getDev(i2c_port);
       size_t len = 0;
 #if defined ( CONFIG_IDF_TARGET_ESP32S3 )
-      uint32_t us_limit = ((dev->scl_high_period.scl_high_period + dev->scl_high_period.scl_wait_high_period + dev->scl_low_period.scl_low_period) << 1) + 16;
+      uint32_t us_limit = ((dev->scl_high_period.scl_high_period + dev->scl_high_period.scl_wait_high_period + dev->scl_low_period.scl_low_period) << 1);
 #elif defined ( CONFIG_IDF_TARGET_ESP32C3 )
-      uint32_t us_limit = ((dev->scl_high_period.period + dev->scl_low_period.period) << 1) + 16;
+      uint32_t us_limit = ((dev->scl_high_period.period + dev->scl_low_period.period) << 1);
 #else
-      uint32_t us_limit = (dev->scl_high_period.period + dev->scl_low_period.period) + 16;
+      uint32_t us_limit = (dev->scl_high_period.period + dev->scl_low_period.period);
 #endif
+      us_limit += 1024;
       do
       {
         len = ((length-1) & 63) + 1;
