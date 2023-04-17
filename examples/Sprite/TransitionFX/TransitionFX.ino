@@ -37,6 +37,9 @@
  *
 \*/
 
+#define LGFX_USE_V1
+#define LGFX_AUTODETECT
+
 #include "LGFX_SpriteFX.hpp"
 #include "assets.h" // some example images for this demo
 

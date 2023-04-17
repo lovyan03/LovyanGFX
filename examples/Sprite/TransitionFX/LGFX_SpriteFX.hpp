@@ -1,5 +1,4 @@
-#define LGFX_USE_V1
-#define LGFX_AUTODETECT
+
 #include <LovyanGFX.hpp>
 
 /*\
@@ -34,33 +33,33 @@ namespace lgfx
     const float d1 = 2.75f;
 
     float linear(float t)           { return t; }
-    float easeInQuad(float t)       { return pow(t,2.0f); }
+    float easeInQuad(float t)       { return powf(t,2.0f); }
     float easeOutQuad(float t)      { return t*(2.0f-t); }
-    float easeInOutQuad(float t)    { return t<.5f ? 2.0f*pow(t,2) : -1.0f+(4.0f-2.0f*t)*t; }
-    float easeInCubic(float t)      { return pow(t,3.0f); }
-    float easeOutCubic(float t)     { return 1.0f - pow(1.0f - t, 3.0f); }
-    float easeInOutCubic(float t)   { return t<.5f ? 4.0f*pow(t,3) : (t-1.0f)*(2.0f*t-2.0f)*(2.0f*t-2.0f)+1.0f; }
-    float easeInQuart(float t)      { return pow(t,4.0f); }
-    float easeOutQuart(float t)     { return 1.0f - pow(1.0f - t, 4.0f); }
-    float easeInOutQuart(float t)   { return t < 0.5 ? 8.0f * t * t * t * t : 1.0f - pow(-2.0f * t + 2.0f, 4.0f) / 2.0f; }
-    float easeInQuint(float t)      { return pow(t,5.0f); }
-    float easeOutQuint(float t)     { return 1.0f - pow(1.0f - t, 5.0f); }
-    float easeInOutQuint(float t)   { return t < 0.5 ? 16.0f * t * t * t * t * t : 1.0f - pow(-2.0f * t + 2.0f, 5.0f) / 2.0f;/*t<.5f ? 16.0f*pow(t,5) : 1.0f+16.0f*(--t)*pow(t,4);*/ }
-    float easeInSine(float t)       { return 1.0f - cos((t * PI) / 2.0f); }
-    float easeOutSine(float t)      { return sin((t * PI) / 2.0f); }
-    float easeInOutSine(float t)    { return -(cos(PI * t) - 1.0f) / 2.0f; }
-    float easeInExpo(float t)       { return t==0 ? 0 : pow(2, 10.0f * t - 10.0f); }
-    float easeOutExpo(float t)      { return t==1.0f ? 1.0f : 1.0f - pow(2, -10.0f * t); }
-    float easeInOutExpo(float t)    { return t==0 ? 0 : t==1.0f ? 1.0f : t < 0.5f ? pow(2, 20.0f * t - 10.0f) / 2.0f : (2.0f - pow(2, -20.0f * t + 10.0f)) / 2.0f; }
-    float easeInCirc(float t)       { return 1.0f - sqrt(1.0f - pow(t, 2.0f)); }
-    float easeOutCirc(float t)      { return sqrt(1.0f - pow(t - 1, 2.0f)); }
-    float easeInOutCirc(float t)    { return t < 0.5f ? (1.0f - sqrt(1.0f - pow(2.0f * t, 2.0f))) / 2.0f : (sqrt(1 - pow(-2.0f * t + 2.0f, 2.0f)) + 1.0f) / 2.0f; }
+    float easeInOutQuad(float t)    { return t<.5f ? 2.0f*powf(t,2) : -1.0f+(4.0f-2.0f*t)*t; }
+    float easeInCubic(float t)      { return powf(t,3.0f); }
+    float easeOutCubic(float t)     { return 1.0f - powf(1.0f - t, 3.0f); }
+    float easeInOutCubic(float t)   { return t<.5f ? 4.0f*powf(t,3) : (t-1.0f)*(2.0f*t-2.0f)*(2.0f*t-2.0f)+1.0f; }
+    float easeInQuart(float t)      { return powf(t,4.0f); }
+    float easeOutQuart(float t)     { return 1.0f - powf(1.0f - t, 4.0f); }
+    float easeInOutQuart(float t)   { return t < 0.5 ? 8.0f * t * t * t * t : 1.0f - powf(-2.0f * t + 2.0f, 4.0f) / 2.0f; }
+    float easeInQuint(float t)      { return powf(t,5.0f); }
+    float easeOutQuint(float t)     { return 1.0f - powf(1.0f - t, 5.0f); }
+    float easeInOutQuint(float t)   { return t < 0.5 ? 16.0f * t * t * t * t * t : 1.0f - powf(-2.0f * t + 2.0f, 5.0f) / 2.0f;/*t<.5f ? 16.0f*powf(t,5) : 1.0f+16.0f*(--t)*powf(t,4);*/ }
+    float easeInSine(float t)       { return 1.0f - cosf((t * PI) / 2.0f); }
+    float easeOutSine(float t)      { return sinf((t * PI) / 2.0f); }
+    float easeInOutSine(float t)    { return -(cosf(PI * t) - 1.0f) / 2.0f; }
+    float easeInExpo(float t)       { return t==0 ? 0 : powf(2, 10.0f * t - 10.0f); }
+    float easeOutExpo(float t)      { return t==1.0f ? 1.0f : 1.0f - powf(2, -10.0f * t); }
+    float easeInOutExpo(float t)    { return t==0 ? 0 : t==1.0f ? 1.0f : t < 0.5f ? powf(2, 20.0f * t - 10.0f) / 2.0f : (2.0f - powf(2, -20.0f * t + 10.0f)) / 2.0f; }
+    float easeInCirc(float t)       { return 1.0f - sqrtf(1.0f - powf(t, 2.0f)); }
+    float easeOutCirc(float t)      { return sqrtf(1.0f - powf(t - 1, 2.0f)); }
+    float easeInOutCirc(float t)    { return t < 0.5f ? (1.0f - sqrtf(1.0f - powf(2.0f * t, 2.0f))) / 2.0f : (sqrtf(1 - powf(-2.0f * t + 2.0f, 2.0f)) + 1.0f) / 2.0f; }
     float easeInBack(float t)       { return c3 * t * t * t - c1 * t * t; }
-    float easeOutBack(float t)      { return 1.0f + c3 * pow(t - 1.0f, 3.0f) + c1 * pow(t - 1.0f, 2.0f); }
-    float easeInOutBack(float t)    { return t < 0.5f ? (pow(2.0*t, 2.0f) * ((c2 + 1.0f) * 2.0f * t - c2)) / 2.0f : (pow(2.0*t-2, 2.0f) * ((c2 + 1.0f) * (t * 2.0f - 2.0f) + c2) + 2.0f) / 2.0f; }
-    float easeInElastic(float t)    { return t==0 ? 0 : t==1.0f ? 1.0f : -pow(2, 10.0f * t - 10.0f) * sin((t * 10.0f - 10.75f) * c4); }
-    float easeOutElastic(float t)   { return t==0 ? 0 : t==1.0f ? 1.0f : pow(2, -10.0f * t) * sin((t * 10.0f - 0.75f) * c4) + 1; }
-    float easeInOutElastic(float t) { return t==0 ? 0 : t==1 ? 1 : t<0.5 ? -(pow(2, 20.0f*t-10.0f)*sin((20.0f*t-11.125f)*c5))/2.0f : (pow(2,-20.0f*t+10.0f)*sin((20.0f*t-11.125f)*c5))/2.0f+1.0f; }
+    float easeOutBack(float t)      { return 1.0f + c3 * powf(t - 1.0f, 3.0f) + c1 * powf(t - 1.0f, 2.0f); }
+    float easeInOutBack(float t)    { return t < 0.5f ? (powf(2.0*t, 2.0f) * ((c2 + 1.0f) * 2.0f * t - c2)) / 2.0f : (powf(2.0*t-2, 2.0f) * ((c2 + 1.0f) * (t * 2.0f - 2.0f) + c2) + 2.0f) / 2.0f; }
+    float easeInElastic(float t)    { return t==0 ? 0 : t==1.0f ? 1.0f : -powf(2, 10.0f * t - 10.0f) * sinf((t * 10.0f - 10.75f) * c4); }
+    float easeOutElastic(float t)   { return t==0 ? 0 : t==1.0f ? 1.0f : powf(2, -10.0f * t) * sinf((t * 10.0f - 0.75f) * c4) + 1; }
+    float easeInOutElastic(float t) { return t==0 ? 0 : t==1 ? 1 : t<0.5 ? -(powf(2, 20.0f*t-10.0f)*sinf((20.0f*t-11.125f)*c5))/2.0f : (powf(2,-20.0f*t+10.0f)*sinf((20.0f*t-11.125f)*c5))/2.0f+1.0f; }
     float easeOutBounce(float t)    { return t<1.0f/d1 ? n1*t*t : t<2.0f/d1 ? n1*(t-=1.5f/d1)*t+0.75f : t<2.5f/d1 ? n1*(t-=2.25f/d1)*t+0.9375f : n1*(t-=2.625f/d1)*t+0.984375f; }
 
   }; // end namespace easing
