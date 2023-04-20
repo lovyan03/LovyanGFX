@@ -34,6 +34,39 @@ namespace lgfx
       _cfg.dummy_read_pixel = 16;
     }
 
+  public:
+
+    void setRotation(uint_fast8_t r) override {
+      r &= 7;
+      _rotation = r;
+      // offset_rotationを加算 (0~3:回転方向、 4:上下反転フラグ);
+      _internal_rotation = ((r + _cfg.offset_rotation) & 3) | ((r & 4) ^ (_cfg.offset_rotation & 4));
+
+      int16_t ox = (int16_t)_cfg.offset_x;
+      int16_t oy = (int16_t)_cfg.offset_y;
+      int16_t pw = (int16_t)_cfg.panel_width;
+      int16_t ph = (int16_t)_cfg.panel_height;
+      int16_t mw = (int16_t)_cfg.memory_width;
+      int16_t mh = (int16_t)_cfg.memory_height;
+      if (_internal_rotation & 1)
+      {
+        std::swap(ox, oy);
+        std::swap(pw, ph);
+        std::swap(mw, mh);
+      }
+      _width  = pw;
+      _height = ph;
+      _colstart = (_internal_rotation & 2)
+                ? abs(mw - (pw + ox)) : ox;
+
+      _rowstart = ((1 << _internal_rotation) & 0b10010110) // case 1:2:4:7
+                ? abs(mh - (ph + oy)) : oy;
+
+      _xs = _xe = _ys = _ye = INT16_MAX;
+
+      update_madctl();
+    }
+
   protected:
 
     static constexpr uint8_t CMD_RAMCTRL  = 0xB0;
