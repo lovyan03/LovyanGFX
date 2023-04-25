@@ -199,25 +199,25 @@ namespace lgfx
 #elif defined (CONFIG_IDF_TARGET_ESP32C3)
 #elif defined (CONFIG_IDF_TARGET_ESP32) || !defined (CONFIG_IDF_TARGET)
 
-#if defined( ARDUINO_M5Stack_Core_ESP32 ) || defined( ARDUINO_M5STACK_FIRE )
+#if defined( ARDUINO_M5STACK_CORE_ESP32 ) || defined( ARDUINO_M5Stack_Core_ESP32 ) || defined( ARDUINO_M5STACK_FIRE )
   #define LGFX_M5STACK
   #define LGFX_DEFAULT_BOARD board_t::board_M5Stack
-#elif defined( ARDUINO_M5STACK_Core2 ) // M5Stack Core2
+#elif defined( ARDUINO_M5STACK_CORE2 ) || defined( ARDUINO_M5STACK_Core2 ) // M5Stack Core2
   #define LGFX_M5STACK_CORE2
   #define LGFX_DEFAULT_BOARD board_t::board_M5StackCore2
 #elif defined ( ARDUINO_M5STACK_TOUGH )
   #define LGFX_M5TOUGH
   #define LGFX_DEFAULT_BOARD board_t::board_M5Tough
-#elif defined( ARDUINO_M5Stick_C ) // M5Stick C / CPlus
+#elif defined( ARDUINO_M5STICK_C ) || defined( ARDUINO_M5Stick_C ) // M5Stick C / CPlus
   #define LGFX_M5STICK_C
   #define LGFX_DEFAULT_BOARD board_t::board_M5StickC
-#elif defined( ARDUINO_M5Stick_C_Plus )
+#elif defined( ARDUINO_M5STICK_C_PLUS ) || defined( ARDUINO_M5Stick_C_Plus )
   #define LGFX_M5STICK_C
   #define LGFX_DEFAULT_BOARD board_t::board_M5StickCPlus
-#elif defined( ARDUINO_M5Stack_CoreInk ) // M5Stack CoreInk
+#elif defined( ARDUINO_M5STACK_COREINK ) || defined( ARDUINO_M5Stack_CoreInk ) // M5Stack CoreInk
   #define LGFX_M5STACK_COREINK
   #define LGFX_DEFAULT_BOARD board_t::board_M5StackCoreInk
-#elif defined( ARDUINO_M5STACK_Paper ) // M5Paper
+#elif defined( ARDUINO_M5STACK_PAPER ) || defined( ARDUINO_M5STACK_Paper ) // M5Paper
   #define LGFX_M5PAPER
   #define LGFX_DEFAULT_BOARD board_t::board_M5Paper
 #elif defined( ARDUINO_ODROID_ESP32 ) // ODROID-GO
@@ -226,7 +226,7 @@ namespace lgfx
 #elif defined( ARDUINO_TTGO_T1 ) // TTGO TS
   #define LGFX_TTGO_TS
   #define LGFX_DEFAULT_BOARD board_t::board_TTGO_TS
-#elif defined( ARDUINO_TWatch ) || defined( ARDUINO_T ) // TTGO T-Watch
+#elif defined( ARDUINO_TWATCH ) || defined( ARDUINO_TWatch ) || defined( ARDUINO_T ) // TTGO T-Watch
   #define LGFX_TTGO_TWATCH
   #define LGFX_DEFAULT_BOARD board_t::board_TTGO_TWatch
 #elif defined( ARDUINO_D ) || defined( ARDUINO_DDUINO32_XS ) // DSTIKE D-duino-32 XS
