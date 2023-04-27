@@ -39,7 +39,11 @@ namespace lgfx
 
   public:
 
-    LGFX(int width = 320, int height = 240)
+    /// create instance.
+    /// @param width display width.
+    /// @param height display height.
+    /// @param device_name Specify the path (e.g., "/dev/fb1") or device name (e.g., "st7789") of the device to be operated.
+    LGFX(int width = 320, int height = 240, const char* device_name = "/dev/fb0")
     {
       auto cfg = _panel_instance.config();
       cfg.memory_width = width;
@@ -47,6 +51,7 @@ namespace lgfx
       cfg.memory_height = height;
       cfg.panel_height = height;
       _panel_instance.config(cfg);
+      _panel_instance.setDeviceName(device_name);
       setPanel(&_panel_instance);
       _board = board_t::board_FrameBuffer;
     }
