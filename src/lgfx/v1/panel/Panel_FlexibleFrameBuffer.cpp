@@ -115,7 +115,7 @@ namespace lgfx
   void Panel_FlexibleFrameBuffer::_fill_rect_inner(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, uint32_t rawcolor)
   {
     h += y;
-    int ie = x + w;
+    uint_fast16_t ie = x + w;
     do
     {
       auto i = x;
@@ -246,7 +246,61 @@ namespace lgfx
 
   void Panel_FlexibleFrameBuffer::writeImageARGB(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, pixelcopy_t* param)
   {
-    //ToDo:implement
+    auto src_x = param->src_x;
+    auto buffer = reinterpret_cast<argb8888_t*>(const_cast<void*>(param->src_data));
+    auto bytes = param->dst_bits >> 3;
+// ESP_LOGI("LGFX","DEBUG: %d %d", param->dst_bits, bytes);
+    // uint8_t* dmabuf = _bus->getFlipBuffer(w * bytes);
+    // memset(dmabuf, 0, w * bytes);
+    // param->fp_copy(dmabuf, 0, w, param);
+    // setWindow(x, y, x + w - 1, y);
+    // writeBytes(dmabuf, w * bytes, true);
+    // return;
+    pixelcopy_t pc_read(nullptr, _write_depth, _read_depth);
+    pixelcopy_t pc_write(nullptr, _write_depth, _write_depth);
+    auto dmabuf = (uint8_t*)alloca((w+1) * bytes);
+    pc_write.src_data = dmabuf;
+    for (;;)
+    {
+      uint32_t xstart = 0, drawed_x = 0;
+      do
+      {
+        uint_fast8_t a = buffer[xstart].a;
+        if (!a)
+        {
+          if (drawed_x < xstart)
+          {
+            param->src_x = drawed_x;
+            param->fp_copy(dmabuf, drawed_x, xstart, param);
+
+            pc_write.src_x = drawed_x;
+            writeImage(x + drawed_x, y, xstart - drawed_x, 1, &pc_write, true);
+          }
+          drawed_x = xstart + 1;
+        }
+        else
+        {
+          while (255 == buffer[xstart].a && ++xstart != w);
+          if (xstart == w) break;
+          uint32_t j = xstart;
+          while (++j != w && buffer[j].a && buffer[j].a != 255);
+          readRect(x + xstart, y, j - xstart + 1, 1, &dmabuf[xstart * bytes], &pc_read);
+          if (w == (xstart = j)) break;
+        }
+      } while (++xstart != w);
+      if (drawed_x < xstart)
+      {
+        param->src_x = drawed_x;
+        param->fp_copy(dmabuf, drawed_x, xstart, param);
+
+        pc_write.src_x = drawed_x;
+        writeImage(x + drawed_x, y, xstart - drawed_x, 1, &pc_write, true);
+      }
+      if (!--h) return;
+      param->src_x = src_x;
+      param->src_y++;
+      ++y;
+    }
   }
 
   void Panel_FlexibleFrameBuffer::readRect(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, void* dst, pixelcopy_t* param)

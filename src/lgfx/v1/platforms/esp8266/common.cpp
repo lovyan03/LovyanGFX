@@ -413,13 +413,13 @@ namespace lgfx
       }
       return {};
     }
-    cpp::result<void, error_t> readBytes(int i2c_port, uint8_t *data, size_t length)
+    cpp::result<void, error_t> readBytes(int i2c_port, uint8_t *data, size_t length, bool last_nack)
     {
       if (i2c_port >= I2C_NUM_MAX) { return cpp::fail(error_t::invalid_arg); }
       auto i2c = &i2c_context[i2c_port];
       while (length--)
       {
-        *data++ = i2c->read_byte(false);
+        *data++ = i2c->read_byte(last_nack && length == 0);
       }
       return {};
     }

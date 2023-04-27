@@ -23,7 +23,7 @@ Contributors:
  #define REG_SPI_BASE(i)   (DR_REG_SPI1_BASE + (((i)>1) ? (((i)* 0x1000) + 0x20000) : (((~(i)) & 1)* 0x1000 )))
 #endif
 
-#include "../common.hpp"
+#include "common.hpp"
 
 #include <algorithm>
 #include <string.h>
@@ -551,8 +551,8 @@ namespace lgfx
 
       gpio_num_t pin_scl = (gpio_num_t)-1;
       gpio_num_t pin_sda = (gpio_num_t)-1;
+      uint8_t wait_ack_stage = 0;   // 0:Not waiting. / 1:Waiting after addressing. / 2:Waiting during data transmission.
       bool initialized = false;
-      bool wait_ack = false;
       uint32_t freq = 0;
 
       void save_reg(i2c_dev_t* dev)
@@ -624,7 +624,7 @@ namespace lgfx
 #endif
     }
 
-    static void i2c_set_cmd(i2c_dev_t* dev, uint8_t index, uint8_t op_code, uint8_t byte_num)
+    static void i2c_set_cmd(i2c_dev_t* dev, uint8_t index, uint8_t op_code, uint8_t byte_num, bool flg_nack = false)
     {
 /*
       typeof(dev->command[0]) cmd;
@@ -639,6 +639,9 @@ namespace lgfx
                               || op_code == i2c_cmd_stop)
                               ? 0x100 : 0)  // writeおよびstop時はACK_ENを有効にする;
                             | op_code << 11 ;
+      if (flg_nack && op_code == i2c_cmd_read) {
+        cmd_val |= (1 << 10); // ACK_VALUE (set NACK)
+      }
 #if defined (CONFIG_IDF_TARGET_ESP32S3)
       (&dev->comd0)[index].val = cmd_val;
 #else
@@ -707,9 +710,8 @@ namespace lgfx
       auto dev = getDev(i2c_port);
       typeof(dev->int_raw) int_raw;
       static constexpr uint32_t intmask = I2C_ACK_ERR_INT_RAW_M | I2C_END_DETECT_INT_RAW_M | I2C_ARBITRATION_LOST_INT_RAW_M;
-      if (i2c_context[i2c_port].wait_ack)
+      if (i2c_context[i2c_port].wait_ack_stage)
       {
-        i2c_context[i2c_port].wait_ack = false;
         int_raw.val = dev->int_raw.val;
         if (!(int_raw.val & intmask))
         {
@@ -722,6 +724,9 @@ namespace lgfx
 #else
           uint32_t us_limit = (dev->scl_high_period.period + dev->scl_low_period.period + 16 ) * (1 + dev->status_reg.tx_fifo_cnt);
 #endif
+          if (i2c_context[i2c_port].wait_ack_stage == 2) {
+            us_limit += 1024;
+          }
           do
           {
             taskYIELD();
@@ -741,6 +746,7 @@ namespace lgfx
           res = cpp::fail(error_t::connection_lost);
           i2c_context[i2c_port].state = cpp::fail(error_t::connection_lost);
         }
+        i2c_context[i2c_port].wait_ack_stage = 0;
       }
 
       if (flg_stop || res.has_error())
@@ -781,6 +787,35 @@ namespace lgfx
         }
       }
       return res;
+    }
+
+    cpp::result<void, error_t> release(int i2c_port)
+    {
+      if (i2c_port >= I2C_NUM_MAX) { return cpp::fail(error_t::invalid_arg); }
+      if (i2c_context[i2c_port].initialized)
+      {
+        i2c_context[i2c_port].initialized = false;
+#if defined ( ARDUINO ) && defined ( ESP_IDF_VERSION_VAL )
+ #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 0, 0)
+  #if defined ARDUINO_ESP32_GIT_VER
+    #if ARDUINO_ESP32_GIT_VER != 0x44c11981
+        auto twowire = ((i2c_port == 1) ? &Wire1 : &Wire);
+        twowire->end();
+    #endif
+  #endif
+ #endif
+#endif
+        if ((int)i2c_context[i2c_port].pin_scl >= 0)
+        {
+          pinMode(i2c_context[i2c_port].pin_scl, pin_mode_t::input_pullup);
+        }
+        if ((int)i2c_context[i2c_port].pin_sda >= 0)
+        {
+          pinMode(i2c_context[i2c_port].pin_sda, pin_mode_t::input_pullup);
+        }
+      }
+
+      return {};
     }
 
     cpp::result<void, error_t> setPins(int i2c_port, int pin_sda, int pin_scl)
@@ -857,35 +892,6 @@ namespace lgfx
         return init(i2c_port);
       }
       return res;
-    }
-
-    cpp::result<void, error_t> release(int i2c_port)
-    {
-      if (i2c_port >= I2C_NUM_MAX) { return cpp::fail(error_t::invalid_arg); }
-      if (i2c_context[i2c_port].initialized)
-      {
-        i2c_context[i2c_port].initialized = false;
-#if defined ( ARDUINO ) && defined ( ESP_IDF_VERSION_VAL )
- #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 0, 0)
-  #if defined ARDUINO_ESP32_GIT_VER
-    #if ARDUINO_ESP32_GIT_VER != 0x44c11981
-        auto twowire = ((i2c_port == 1) ? &Wire1 : &Wire);
-        twowire->end();
-    #endif
-  #endif
- #endif
-#endif
-        if ((int)i2c_context[i2c_port].pin_scl >= 0)
-        {
-          pinMode(i2c_context[i2c_port].pin_scl, pin_mode_t::input_pullup);
-        }
-        if ((int)i2c_context[i2c_port].pin_sda >= 0)
-        {
-          pinMode(i2c_context[i2c_port].pin_sda, pin_mode_t::input_pullup);
-        }
-      }
-
-      return {};
     }
 
     cpp::result<void, error_t> restart(int i2c_port, int i2c_addr, uint32_t freq, bool read)
@@ -976,7 +982,7 @@ namespace lgfx
 #endif
 
         uint32_t period_total = cycle - scl_high_offset - 1;
-        uint32_t scl_high_period = std::max<uint32_t>(18, (period_total-10) >> 1);
+        uint32_t scl_high_period = std::max<uint32_t>(18, (period_total + 1) >> 1);
         uint32_t scl_low_period  = period_total - scl_high_period;
         if (freq > 400000)
         {
@@ -993,7 +999,7 @@ namespace lgfx
         dev->scl_high_period.scl_high_period = scl_high_period - wait_high;
         dev->scl_high_period.scl_wait_high_period = wait_high;
         dev->scl_low_period .scl_low_period  = scl_low_period ;
-        dev->sda_hold.sda_hold_time     = std::min<uint32_t>(1023u, (scl_high_period >> 1));
+        dev->sda_hold.sda_hold_time     = std::min<uint32_t>(1023u, (scl_high_period >> 4)+1);
         dev->sda_sample.sda_sample_time = std::min<uint32_t>(1023u, (scl_low_period  >> 1));
         dev->scl_stop_hold.scl_stop_hold_time = cycle << 1;     //the clock num after the STOP bit's posedge
         dev->scl_stop_setup.scl_stop_setup_time = cycle;    //the clock num between the posedge of SCL and the posedge of SDA
@@ -1002,9 +1008,9 @@ namespace lgfx
 #else
 
 #if defined ( I2C_SCL_WAIT_HIGH_PERIOD )
-        auto wait_high = scl_high_period >> 2;
-        dev->scl_high_period.period = scl_high_period - wait_high;
-        dev->scl_high_period.scl_wait_high_period = wait_high;
+        auto high_period = 1 + (scl_high_period >> 3);
+        dev->scl_high_period.period = high_period;
+        dev->scl_high_period.scl_wait_high_period = scl_high_period - high_period;
 #else
         dev->scl_high_period.period = scl_high_period;
 #endif
@@ -1023,7 +1029,7 @@ namespace lgfx
       dev->int_clr.val = 0x1FFFF;
       dev->ctr.trans_start = 1;
       i2c_context[i2c_port].state = read ? i2c_context_t::state_t::state_read : i2c_context_t::state_t::state_write;
-      i2c_context[i2c_port].wait_ack = true;
+      i2c_context[i2c_port].wait_ack_stage = 1;
       return res;
     }
 
@@ -1134,7 +1140,7 @@ namespace lgfx
         i2c_set_cmd(dev, 1, i2c_cmd_end, 0);
         updateDev(dev);
         dev->ctr.trans_start = 1;
-        i2c_context[i2c_port].wait_ack = true;
+        i2c_context[i2c_port].wait_ack_stage = 2;
         data += len;
         length -= len;
         len = txfifo_limit;
@@ -1142,7 +1148,7 @@ namespace lgfx
       return res;
     }
 
-    cpp::result<void, error_t> readBytes(int i2c_port, uint8_t *readdata, size_t length)
+    cpp::result<void, error_t> readBytes(int i2c_port, uint8_t *readdata, size_t length, bool last_nack = false)
     {
       if (i2c_port >= I2C_NUM_MAX) { return cpp::fail(error_t::invalid_arg); }
       if (i2c_context[i2c_port].state.has_error()) { return cpp::fail(i2c_context[i2c_port].state.error()); }
@@ -1155,12 +1161,13 @@ namespace lgfx
       auto dev = getDev(i2c_port);
       size_t len = 0;
 #if defined ( CONFIG_IDF_TARGET_ESP32S3 )
-      uint32_t us_limit = ((dev->scl_high_period.scl_high_period + dev->scl_low_period.scl_low_period) << 1) + 16;
+      uint32_t us_limit = ((dev->scl_high_period.scl_high_period + dev->scl_high_period.scl_wait_high_period + dev->scl_low_period.scl_low_period) << 1);
 #elif defined ( CONFIG_IDF_TARGET_ESP32C3 )
-      uint32_t us_limit = ((dev->scl_high_period.period + dev->scl_low_period.period) << 1) + 16;
+      uint32_t us_limit = ((dev->scl_high_period.period + dev->scl_low_period.period) << 1);
 #else
-      uint32_t us_limit = (dev->scl_high_period.period + dev->scl_low_period.period) + 16;
+      uint32_t us_limit = (dev->scl_high_period.period + dev->scl_low_period.period);
 #endif
+      us_limit += 1024;
       do
       {
         len = ((length-1) & 63) + 1;
@@ -1171,8 +1178,20 @@ namespace lgfx
           ESP_LOGD("LGFX", "i2c read error : ack wait");
           break;
         }
-        i2c_set_cmd(dev, 0, i2c_cmd_read, len);
-        i2c_set_cmd(dev, 1, i2c_cmd_end, 0);
+
+        int cmdidx = 0;
+        if (length == 0 && last_nack) {
+          if (len > 1) {
+            i2c_set_cmd(dev, cmdidx++, i2c_cmd_read, len - 1);
+          }
+          i2c_set_cmd(dev, cmdidx++, i2c_cmd_read, 1, true);
+        }
+        else
+        {
+          i2c_set_cmd(dev, cmdidx++, i2c_cmd_read, len);
+        }
+        i2c_set_cmd(dev, cmdidx, i2c_cmd_end, 0);
+
         updateDev(dev);
         dev->ctr.trans_start = 1;
         dev->int_clr.val = intmask;

@@ -112,6 +112,7 @@ namespace lgfx
     virtual void endRead(void) = 0;
     virtual uint32_t readData(uint_fast8_t bit_length) = 0;
     virtual bool readBytes(uint8_t* dst, uint32_t length, bool use_dma = false) = 0;
+    virtual bool readBytes(uint8_t* dst, uint32_t length, bool use_dma, bool last_nack) { return readBytes(dst, length, use_dma); }
     virtual void readPixels(void* dst, pixelcopy_t* pc, uint32_t length) = 0;
   };
 

@@ -156,12 +156,12 @@ IT8951 Registers defines
       if (addr != 0 && addr != ~0u)
       {
         _tar_memaddr = addr;
-#if defined ( ESP_LOGD )
-        for (int i = 0; i < 20; ++i)
-        {
-          ESP_LOGD("debug", "buf[%d] = %04x : %d", i, buf[i], buf[i]);
-        }
-#endif
+// #if defined ( ESP_LOGV )
+//         for (int i = 0; i < 20; ++i)
+//         {
+//           ESP_LOGV("Panel_IT8951", "buf[%d] = %04x : %d", i, buf[i], buf[i]);
+//         }
+// #endif
         if (_cfg.panel_width <= 0) { _cfg.panel_width = buf[0]; }
         if (_cfg.panel_height <= 0) { _cfg.panel_height = buf[1]; }
       }

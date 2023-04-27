@@ -198,7 +198,7 @@ namespace lgfx
     uint_fast16_t ye = _ye;
     uint_fast16_t x = _xpos;
     uint_fast16_t y = _ypos;
-    // const size_t bits = _write_bits;
+    const size_t bytes = _write_bits >> 3;
     // auto k = _bitwidth * bits >> 3;
 
     uint_fast8_t r = _internal_rotation;
@@ -207,7 +207,10 @@ namespace lgfx
       uint_fast16_t linelength;
       do {
         linelength = std::min<uint_fast16_t>(xe - x + 1, length);
-        param->fp_copy(_lines_buffer[y], x, x + linelength, param);
+        auto ptr = &_lines_buffer[y][x * bytes];
+        param->fp_copy(ptr, 0, linelength, param);
+        cacheWriteBack(ptr, bytes * linelength);
+
         if ((x += linelength) > xe)
         {
           x = xs;
@@ -242,6 +245,7 @@ namespace lgfx
     }
     else
     {
+      int w = abs((int)(xe - xs)) + 1;
       do
       {
         param->fp_copy(_lines_buffer[y], x, x + 1, param);
@@ -252,6 +256,7 @@ namespace lgfx
         else
         {
           x = xs;
+          cacheWriteBack(&_lines_buffer[y][x], bytes * w);
           y = (y != ye) ? (y + ay) : ys;
         }
       } while (--length);
@@ -277,6 +282,7 @@ namespace lgfx
       do
       {
         memcpy(&_lines_buffer[y][x], src, w);
+        cacheWriteBack(&_lines_buffer[y][x], w);
         src += sw;
       } while (++y != h);
       return;
@@ -290,6 +296,7 @@ namespace lgfx
     }
     uint32_t sx32 = param->src_x32;
     uint32_t sy32 = param->src_y32;
+    uint_fast8_t bytes = _write_bits >> 3;
     h += y;
     do
     {
@@ -299,6 +306,8 @@ namespace lgfx
          &&  end != (pos = param->fp_skip(                  pos, end, param)));
       param->src_x32 = (sx32 += nextx);
       param->src_y32 = (sy32 += nexty);
+      auto ptr = &_lines_buffer[y][x * bytes];
+      cacheWriteBack(ptr, bytes * end);
     } while (++y != h);
   }
 
@@ -316,9 +325,11 @@ namespace lgfx
     uint32_t pos = x;
     uint32_t end = pos + w;
     h += y;
+    uint_fast16_t wbytes = (w * _write_bits) >> 3;
     do
     {
       param->fp_copy(_lines_buffer[y], pos, end, param);
+      cacheWriteBack(&_lines_buffer[y][pos], wbytes);
       param->src_x32 = (sx32 += nextx);
       param->src_y32 = (sy32 += nexty);
     } while (++y < h);
@@ -409,6 +420,7 @@ namespace lgfx
       uint8_t* dst = &_lines_buffer[dst_y + pos][dst_x * bytes];
       memcpy(buf, src, len);
       memcpy(dst, buf, len);
+      cacheWriteBack(dst, len);
       pos += add;
     } while (--h);
   }

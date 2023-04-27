@@ -5,6 +5,8 @@
 #include <lgfx/v1/platforms/esp32s3/Panel_RGB.hpp>
 #include <lgfx/v1/platforms/esp32s3/Bus_RGB.hpp>
 
+#include <driver/i2c.h>
+
 class LGFX : public lgfx::LGFX_Device
 {
 public:
@@ -62,7 +64,7 @@ public:
       cfg.pin_vsync   = GPIO_NUM_41;
       cfg.pin_hsync   = GPIO_NUM_39;
       cfg.pin_pclk    = GPIO_NUM_42;
-      cfg.freq_write  = 16000000;
+      cfg.freq_write  = 14000000;
 
       cfg.hsync_polarity    = 0;
       cfg.hsync_front_porch = 8;

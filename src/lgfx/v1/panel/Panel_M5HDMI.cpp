@@ -494,21 +494,46 @@ namespace lgfx
     startWrite();
     _bus->beginRead();
     while (_bus->readData(8) != 0xFF) {}
-    cs_control(true);
-    _bus->endRead();
-    cs_control(false);
-    _bus->writeData(CMD_READ_ID, 8); // READ_ID
-    _bus->beginRead();
-    while (_bus->readData(8) == 0xFF) {}
-    _bus->readData(8); // skip 0xFF
-    uint32_t data = _bus->readData(32);
-    (void)data; // suppress compiler warning.
-    ESP_LOGI(TAG, "FPGA ID:%02x %02x %02x %02x", (uint8_t)data, (uint8_t)(data >> 8), (uint8_t)(data >> 16), (uint8_t)(data >> 24));
-    cs_control(true);
-    _bus->endRead();
-    cs_control(false);
+    endWrite();
+    uint32_t fpga_id = ~0u;
 
+    uint32_t apbfreq = lgfx::getApbFrequency();
+    uint_fast8_t div_write = apbfreq / (_bus->getClock() + 1) + 1;
+    uint_fast8_t div_read  = apbfreq / (_bus->getReadClock() + 1) + 1;
+
+    for (;;)
+    {
+   // ESP_LOGI(TAG, "FREQ:%lu , %lu  DIV_W:%lu , %lu", _bus->getClock(), _bus->getReadClock(), div_write, div_read);
+      startWrite();
+      _bus->writeData(CMD_READ_ID, 8); // READ_ID
+      _bus->beginRead();
+      while (_bus->readData(8) == 0xFF) {}
+      _bus->readData(8); // skip 0xFF
+      fpga_id = _bus->readData(32);
+      endWrite();
+
+      ESP_LOGI(TAG, "FPGA ID:%02x %02x %02x %02x", (uint8_t)fpga_id, (uint8_t)(fpga_id >> 8), (uint8_t)(fpga_id >> 16), (uint8_t)(fpga_id >> 24));
+
+      // 受信したIDの先頭が "HD" なら正常動作
+      if (((fpga_id     ) & 0xFF) == 'H'
+       && ((fpga_id >> 8) & 0xFF) == 'D')
+      {
+        break;
+      }
+
+      if (fpga_id == 0 || fpga_id == ~0u)
+      { // MISOが変化しない場合、コマンドが正しく受理されていないと仮定し送信速度を下げる。
+        _bus->setClock(apbfreq / ++div_write);
+      }
+      else
+      { // 受信データの先頭が HD でない場合は受信速度を下げる。
+        _bus->setReadClock(apbfreq / ++div_read);
+      }
+    }
+
+    startWrite();
     bool res = _init_resolution();
+    endWrite();
 
     ESP_LOGI(TAG, "Initialize HDMI transmitter...");
     if (!driver.init() )
@@ -517,8 +542,7 @@ namespace lgfx
       return false;
     }
 
-    endWrite();
-
+    ESP_LOGI(TAG, "done.");
     return res;
   }
 

@@ -29,7 +29,10 @@ Contributors:
 
 #include "../../misc/pixelcopy.hpp"
 
-#include <soc/dport_reg.h>
+#if __has_include (<soc/dport_reg.h>)
+  #include <soc/dport_reg.h>
+#endif
+
 #include <driver/rtc_io.h>
 #include <esp_heap_caps.h>
 #include <esp_log.h>
@@ -176,7 +179,8 @@ namespace lgfx
     if (pin >= GPIO_NUM_MAX) return;
     gpio_reset_pin( (gpio_num_t)pin);
     gpio_matrix_out((gpio_num_t)pin, 0x100, 0, 0);
-    gpio_matrix_in( (gpio_num_t)pin, 0x100, 0   );
+    // gpio_matrix_in には、ArduinoESP32 v1.0.x系では重大なバグがある。(無関係なピンに対して設定変更が行われることがある)
+    // gpio_matrix_in( (gpio_num_t)pin, 0x100, 0   );
   }
 
   void Bus_SPI::release(void)

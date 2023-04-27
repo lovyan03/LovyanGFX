@@ -6,8 +6,12 @@
 
 #define SCREEN_X 320
 #define SCREEN_Y 240
+#define DEVICE_NAME "/dev/fb0"
 
-LGFX lcd ( SCREEN_X, SCREEN_Y );
+// 引数1 画面の幅
+// 引数2 画面の高さ
+// 引数3 操作対象とするフレームバッファのパス名、またはデバイス名称 ("st7789") 等の文字列
+LGFX lcd ( SCREEN_X, SCREEN_Y, DEVICE_NAME );
 
 int32_t target_x = (SCREEN_X / 2) * 256;
 int32_t target_y = (SCREEN_Y / 2) * 256;
@@ -30,5 +34,5 @@ void loop()
   current_y += add_y;
   add_x += (current_x < target_x) ? 1 : -1;
   add_y += (current_y < target_y) ? 1 : -1;
-  sleep(1);
+  lgfx::delay(1);
 }

@@ -1056,7 +1056,7 @@ namespace lgfx
       return {};
     }
 
-    cpp::result<void, error_t> readBytes(int i2c_port, uint8_t *data, size_t length)
+    cpp::result<void, error_t> readBytes(int i2c_port, uint8_t *data, size_t length, bool last_nack = false)
     {
       volatile i2c_hw_t *const i2c_regs = i2c_dev[i2c_port];
       auto info = &i2c_info[i2c_port];

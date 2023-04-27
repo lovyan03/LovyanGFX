@@ -127,7 +127,7 @@ public:
     {
       auto cfg = _bus_instance.config();
       cfg.freq_write = 80000000;
-      cfg.freq_read  = 20000000;
+      cfg.freq_read  = 16000000;
       cfg.spi_host = spi_host;
       cfg.spi_mode = 3;
       cfg.use_lock = true;

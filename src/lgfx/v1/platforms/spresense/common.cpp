@@ -79,7 +79,7 @@ namespace lgfx
     cpp::result<void, error_t> beginTransaction(int , int , uint32_t , bool ) { return cpp::fail(error_t::unknown_err); }
     cpp::result<void, error_t> endTransaction(int ) { return cpp::fail(error_t::unknown_err); }
     cpp::result<void, error_t> writeBytes(int , const uint8_t *, size_t ) { return cpp::fail(error_t::unknown_err); }
-    cpp::result<void, error_t> readBytes(int , uint8_t *, size_t ) { return cpp::fail(error_t::unknown_err); }
+    cpp::result<void, error_t> readBytes(int , uint8_t *, size_t, bool ) { return cpp::fail(error_t::unknown_err); }
 
 //--------
 

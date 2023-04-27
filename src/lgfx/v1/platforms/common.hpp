@@ -177,7 +177,7 @@ namespace lgfx
     cpp::result<void, error_t> beginTransaction(int i2c_port, int i2c_addr, uint32_t freq, bool read = false);
     cpp::result<void, error_t> endTransaction(int i2c_port);
     cpp::result<void, error_t> writeBytes(int i2c_port, const uint8_t *data, size_t length);
-    cpp::result<void, error_t> readBytes(int i2c_port, uint8_t *data, size_t length);
+    cpp::result<void, error_t> readBytes(int i2c_port, uint8_t *data, size_t length, bool last_nack = false);
 
 //--------
 
