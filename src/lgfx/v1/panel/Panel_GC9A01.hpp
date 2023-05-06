@@ -85,6 +85,26 @@ namespace lgfx
       _cfg.dummy_read_pixel = 16;
     }
 
+  public:
+    void endTransaction(void)
+    {
+      end_transaction();
+    }
+    void end_transaction(void)
+    {
+      if (!_in_transaction) return;
+      _in_transaction = false;
+
+      if (_has_align_data)
+      {
+        _has_align_data = false;
+        _bus->writeData(0, 8);
+      }
+
+      _bus->endTransaction();
+      cs_control(true);
+    }
+    
   protected:
 
     const uint8_t* getInitCommands(uint8_t listno) const override
