@@ -1236,7 +1236,7 @@ namespace lgfx
     {
       cpp::result<void, error_t> res;
       if ((res = beginTransaction(i2c_port, addr, freq, true)).has_value()
-       && (res = readBytes(i2c_port, readdata, readlen)).has_value()
+       && (res = readBytes(i2c_port, readdata, readlen, true)).has_value()
       )
       {
         res = endTransaction(i2c_port);
@@ -1250,7 +1250,7 @@ namespace lgfx
       if ((res = beginTransaction(i2c_port, addr, freq, false)).has_value()
        && (res = writeBytes(i2c_port, writedata, writelen)).has_value()
        && (res = restart(i2c_port, addr, freq, true)).has_value()
-       && (res = readBytes(i2c_port, readdata, readlen)).has_value()
+       && (res = readBytes(i2c_port, readdata, readlen, true)).has_value()
       )
       {
         res = endTransaction(i2c_port);
