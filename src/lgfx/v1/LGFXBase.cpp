@@ -930,8 +930,8 @@ namespace lgfx
     bool ring = fabsf(start - end) >= 360;
     start = fmodf(start, 360);
     end = fmodf(end, 360);
-    if (std::signbit(start)) start = fmodf(start + 360.0f, 360);
-    if (std::signbit(end)) end = fmodf(end + 360.0f, 360);
+    if (start < 0.0f) start = fmodf(start + 360.0f, 360);
+    if (end < 0.0f) end = fmodf(end + 360.0f, 360);
     startWrite();
     fill_arc_helper(x, y, r0x, r1x, r0y, r1y, start, start);
     fill_arc_helper(x, y, r0x, r1x, r0y, r1y, end, end);
@@ -951,8 +951,8 @@ namespace lgfx
     bool ring = fabsf(start - end) >= 360;
     start = fmodf(start, 360);
     end = fmodf(end, 360);
-    if (std::signbit(start)) start = fmodf(start + 360.0f, 360);
-    if (std::signbit(end)) end = fmodf(end + 360.0f, 360);
+    if (start < 0.0f) start = fmodf(start + 360.0f, 360);
+    if (end < 0.0f) end = fmodf(end + 360.0f, 360);
     if (ring && (fabsf(start - end) <= 0.0001f)) { start = .0f; end = 360.0f; }
 
     startWrite();
