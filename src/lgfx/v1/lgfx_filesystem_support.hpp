@@ -61,7 +61,7 @@ namespace lgfx
  #if defined (FS_H) || defined (__SEEED_FS__) || defined (__LITTLEFS_H) || defined (_LiffleFS_H_) || defined (SDFS_H)
 
     /// load vlw fontdata from filesystem.
-    void loadFont(const char *path, fs::FS &fs
+    bool loadFont(const char *path, fs::FS &fs
 #if defined (_SD_H_)
  = SD
 #elif defined (_SPIFFS_H_)
@@ -74,13 +74,13 @@ namespace lgfx
     )
     {
       init_font_file<FileWrapper>(fs);
-      load_font_with_path(path);
+      return load_font_with_path(path);
     }
 
-    void loadFont(fs::FS &fs, const char *path)
+    bool loadFont(fs::FS &fs, const char *path)
     {
       init_font_file<FileWrapper>(fs);
-      load_font_with_path(path);
+      return load_font_with_path(path);
     }
 
   #define LGFX_FUNCTION_GENERATOR(drawImg, draw_img) \
@@ -142,16 +142,16 @@ namespace lgfx
  #if defined (__STORAGE_H__) // for SPRESENSE
 
     /// load vlw fontdata from filesystem.
-    void loadFont(const char *path, StorageClass &fs)
+    bool loadFont(const char *path, StorageClass &fs)
     {
       init_font_file<FileWrapper>(fs);
-      load_font_with_path(path);
+      return load_font_with_path(path);
     }
 
-    void loadFont(StorageClass &fs, const char *path)
+    bool loadFont(StorageClass &fs, const char *path)
     {
       init_font_file<FileWrapper>(fs);
-      load_font_with_path(path);
+      return load_font_with_path(path);
     }
 
   #define LGFX_FUNCTION_GENERATOR(drawImg, draw_img) \
@@ -217,16 +217,16 @@ namespace lgfx
    #define LGFX_SDFAT_TYPE SdBase<FsVolume>
   #endif
 
-    void loadFont(const char *path, LGFX_SDFAT_TYPE &fs)
+    bool loadFont(const char *path, LGFX_SDFAT_TYPE &fs)
     {
       init_font_file<SdFatWrapper>(fs);
-      load_font_with_path(path);
+      return load_font_with_path(path);
     }
 
-    void loadFont(LGFX_SDFAT_TYPE &fs, const char *path)
+    bool loadFont(LGFX_SDFAT_TYPE &fs, const char *path)
     {
       init_font_file<SdFatWrapper>(fs);
-      load_font_with_path(path);
+      return load_font_with_path(path);
     }
 
   #define LGFX_FUNCTION_GENERATOR(drawImg, draw_img) \
@@ -372,10 +372,10 @@ namespace lgfx
       return drawJpgFile(path, x, y, maxWidth, maxHeight, offX, offY, 1.0f / (1 << scale));
     }
 
-    void loadFont(const char *path)
+    bool loadFont(const char *path)
     {
       init_font_file<FileWrapper>();
-      load_font_with_path(path);
+      return load_font_with_path(path);
     }
 
 #endif

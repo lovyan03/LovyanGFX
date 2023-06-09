@@ -113,17 +113,6 @@ namespace lgfx
 
   void Bus_Parallel8::_init_pin(void)
   {
-    int8_t pins[] =
-    { _cfg.pin_d0
-    , _cfg.pin_d1
-    , _cfg.pin_d2
-    , _cfg.pin_d3
-    , _cfg.pin_d4
-    , _cfg.pin_d5
-    , _cfg.pin_d6
-    , _cfg.pin_d7
-    };
-
 #if defined (CONFIG_IDF_TARGET_ESP32S2)
     auto idx_base = I2S0O_DATA_OUT8_IDX;
 #else
@@ -131,22 +120,21 @@ namespace lgfx
 #endif
     for (size_t i = 0; i < 8; ++i)
     {
-      gpio_pad_select_gpio(pins[i]);
-      gpio_set_direction((gpio_num_t)pins[i], GPIO_MODE_INPUT_OUTPUT);
-      gpio_matrix_out(pins[i], idx_base + i, 0, 0);
+      int32_t pin = _cfg.pin_data[i];
+      if (pin < 0) { continue; }
+      gpio_pad_select_gpio(pin);
+      gpio_set_direction((gpio_num_t)pin, GPIO_MODE_INPUT_OUTPUT);
+      gpio_matrix_out(pin, idx_base + i, 0, 0);
     }
 
-    gpio_pad_select_gpio(_cfg.pin_rd);
-    gpio_pad_select_gpio(_cfg.pin_wr);
-    gpio_pad_select_gpio(_cfg.pin_rs);
-
-    gpio_hi(_cfg.pin_rd);
-    gpio_hi(_cfg.pin_wr);
-    gpio_hi(_cfg.pin_rs);
-
-    gpio_set_direction((gpio_num_t)_cfg.pin_rd, GPIO_MODE_OUTPUT);
-    gpio_set_direction((gpio_num_t)_cfg.pin_wr, GPIO_MODE_OUTPUT);
-    gpio_set_direction((gpio_num_t)_cfg.pin_rs, GPIO_MODE_OUTPUT);
+    for (size_t i = 0; i < 3; ++i)
+    {
+      int32_t pin = _cfg.pin_ctrl[i];
+      if (pin < 0) { continue; }
+      gpio_pad_select_gpio(pin);
+      gpio_hi(pin);
+      gpio_set_direction((gpio_num_t)pin, GPIO_MODE_OUTPUT);
+    }
 
     gpio_matrix_out(_cfg.pin_rs, idx_base + 8, 0, 0);
 

@@ -17,10 +17,10 @@ Contributors:
 /----------------------------------------------------------------------------*/
 #pragma once
 
-#if __has_include(<rom/lldesc.h>)
- #include <rom/lldesc.h>
-#else
+#if __has_include(<esp32/rom/lldesc.h>)
  #include <esp32/rom/lldesc.h>
+#else
+ #include <rom/lldesc.h>
 #endif
 
 #if __has_include(<freertos/FreeRTOS.h>)
@@ -56,9 +56,16 @@ namespace lgfx
 
       // max 40MHz , 27MHz , 20MHz , 16MHz , 13.3MHz , 11.43MHz , 10MHz , 8.9MHz  and more ...
       uint32_t freq_write = 16000000;
-      int8_t pin_wr = -1;
-      int8_t pin_rd = -1;
-      int8_t pin_rs = -1;  // D/C
+      union
+      {
+        int8_t pin_ctrl[3] = { -1, -1, -1 };
+        struct
+        {
+          int8_t pin_rd;
+          int8_t pin_wr;
+          int8_t pin_rs;  // D/C
+        };
+      };
       union
       {
         int8_t pin_data[16];
