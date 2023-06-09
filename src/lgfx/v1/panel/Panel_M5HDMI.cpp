@@ -463,6 +463,24 @@ namespace lgfx
     gpio_num_t _pin_num;
   };
 
+  uint32_t Panel_M5HDMI::_read_fpga_id(void)
+  {
+    startWrite();
+    _bus->writeData(CMD_NOP, 32);
+    endWrite();
+    _bus->writeData(CMD_NOP, 32);
+    startWrite();
+    _bus->writeData(CMD_READ_ID, 8); // READ_ID
+    _bus->beginRead();
+    uint32_t retry = 16;
+    while (_bus->readData(8) == 0xFF && --retry) {}
+    _bus->readData(8); // skip 0xFF
+    uint32_t fpga_id = _bus->readData(32);
+    endWrite();
+    ESP_LOGI(TAG, "FPGA ID:%08x", (int)__builtin_bswap32(fpga_id));
+    return fpga_id;
+  }
+
   bool Panel_M5HDMI::init(bool use_reset)
   {
     ESP_LOGI(TAG, "i2c port:%d sda:%d scl:%d", _HDMI_Trans_config.i2c_port, _HDMI_Trans_config.pin_sda, _HDMI_Trans_config.pin_scl);
@@ -481,48 +499,41 @@ namespace lgfx
     ESP_LOGI(TAG, "Resetting HDMI transmitter...");
     driver.reset();
 
+    if (!Panel_Device::init(false)) { return false; }
+
+    if ((_read_fpga_id() & 0xFFFF) != ('H' | 'D' << 8))
     {
       auto bus_cfg = reinterpret_cast<lgfx::Bus_SPI*>(_bus)->config();
       _pin_backup_t backup_pins[] = { (gpio_num_t)bus_cfg.pin_sclk, (gpio_num_t)bus_cfg.pin_mosi, (gpio_num_t)bus_cfg.pin_miso };
       LOAD_FPGA fpga(bus_cfg.pin_sclk, bus_cfg.pin_mosi, bus_cfg.pin_miso, _cfg.pin_cs);
       for (auto &bup : backup_pins) { bup.restore(); }
-    }
-    if (!Panel_Device::init(false)) { return false; }
 
-    // Initialize and read ID
-    ESP_LOGI(TAG, "Waiting the FPGA gets idle...");
-    startWrite();
-    _bus->beginRead();
-    uint32_t retry = 2048;
-    do {
-      lgfx::delay(10);
-    } while ((0xFFFFFFFFu != _bus->readData(32)) && --retry);
-    endWrite();
-    uint32_t fpga_id = ~0u;
+      // Initialize and read ID
+      ESP_LOGI(TAG, "Waiting the FPGA gets idle...");
+      startWrite();
+      _bus->beginRead();
+      _bus->readData(32);
+      uint32_t retry = 1024;
+      do {
+        lgfx::delay(10);
+      } while ((0xFFFFFFFFu != _bus->readData(32)) && --retry);
+      endWrite();
 
-    if (retry == 0) {
-      ESP_LOGW(TAG, "Waiting for FPGA idle timed out.");
-      return false;
+      if (retry == 0) {
+        ESP_LOGW(TAG, "Waiting for FPGA idle timed out.");
+        return false;
+      }
     }
 
     uint32_t apbfreq = lgfx::getApbFrequency();
     uint_fast8_t div_write = apbfreq / (_bus->getClock() + 1) + 1;
     uint_fast8_t div_read  = apbfreq / (_bus->getReadClock() + 1) + 1;
 
-    retry = 8;
+    uint32_t retry = 8;
     do
     {
    // ESP_LOGI(TAG, "FREQ:%lu , %lu  DIV_W:%lu , %lu", _bus->getClock(), _bus->getReadClock(), div_write, div_read);
-      startWrite();
-      _bus->writeData(CMD_READ_ID, 8); // READ_ID
-      _bus->beginRead();
-      while (_bus->readData(8) == 0xFF) {}
-      _bus->readData(8); // skip 0xFF
-      fpga_id = _bus->readData(32);
-      endWrite();
-
-      ESP_LOGI(TAG, "FPGA ID:%08x", __builtin_bswap32(fpga_id));
-
+      uint32_t fpga_id = _read_fpga_id();
       // 受信したIDの先頭が "HD" なら正常動作
       if ((fpga_id & 0xFFFF) == ('H' | 'D' << 8))
       {
