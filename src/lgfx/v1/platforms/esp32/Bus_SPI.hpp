@@ -25,7 +25,7 @@ Contributors:
  #include <esp32s2/rom/lldesc.h>
 #elif defined (CONFIG_IDF_TARGET_ESP32C3) && __has_include(<esp32c3/rom/lldesc.h>)
  #include <esp32c3/rom/lldesc.h>
-#elif defined (CONFIG_IDF_TARGET_ESP32) && __has_include(<esp32/rom/lldesc.h>)
+#elif __has_include(<esp32/rom/lldesc.h>)
  #include <esp32/rom/lldesc.h>
 #else
  #include <rom/lldesc.h>

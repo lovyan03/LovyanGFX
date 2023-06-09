@@ -29,10 +29,15 @@ Inspiration Sources:
 #include <esp_types.h>
 #include <esp_log.h>
 #include <driver/dac.h>
-#include <rom/lldesc.h>
 #include <soc/rtc.h>
 #include <soc/periph_defs.h>
 #include <soc/i2s_struct.h>
+
+#if __has_include(<esp32/rom/lldesc.h>)
+ #include <esp32/rom/lldesc.h>
+#else
+ #include <rom/lldesc.h>
+#endif
 
 #if __has_include(<esp_chip_info.h>)
  #include <esp_chip_info.h>
