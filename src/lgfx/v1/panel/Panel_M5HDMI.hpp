@@ -300,6 +300,7 @@ namespace lgfx
     void _set_video_timing(const video_timing_t::info_t* param, uint8_t cmd);
     void _set_video_clock(const video_clock_t* param);
     void _copy_rect(uint32_t dst_xy, uint32_t src_xy, uint32_t wh);
+    uint32_t _read_fpga_id(void);
   };
 
 //----------------------------------------------------------------------------
