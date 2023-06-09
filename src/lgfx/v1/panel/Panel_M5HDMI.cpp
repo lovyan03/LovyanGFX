@@ -684,7 +684,7 @@ namespace lgfx
     _set_video_clock(&vc);
 
     {
-      ESP_LOGD(TAG, "PLL feedback_div:%d  input_div:%d  output_div:%d  OUTPUT_CLOCK:%ld", vc.feedback_divider, vc.input_divider, vc.output_divider, OUTPUT_CLOCK);
+      ESP_LOGD(TAG, "PLL feedback_div:%d  input_div:%d  output_div:%d  OUTPUT_CLOCK:%d", vc.feedback_divider, vc.input_divider, vc.output_divider, (int)OUTPUT_CLOCK);
       ESP_LOGD(TAG, "logical resolution: w:%d h:%d", _cfg.panel_width, _cfg.panel_height);
       ESP_LOGD(TAG, "scaling resolution: w:%d h:%d", _cfg.panel_width * _scale_w, _cfg.panel_height * _scale_h);
       ESP_LOGD(TAG, " output resolution: w:%d h:%d", _cfg.memory_width, _cfg.memory_height);
