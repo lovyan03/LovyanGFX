@@ -927,16 +927,15 @@ namespace lgfx
     if (r1x < 0) return;
     if (r1y < 0) return;
 
-    bool equal = fabsf(start - end) < std::numeric_limits<float>::epsilon();
+    bool ring = fabsf(start - end) >= 360;
     start = fmodf(start, 360);
     end = fmodf(end, 360);
-    if (start < 0) start += 360.0f;
-    if (end < 0) end += 360.0f;
-
+    if (signbit(start)) start = fmodf(start + 360.0f, 360);
+    if (signbit(end)) end = fmodf(end + 360.0f, 360);
     startWrite();
     fill_arc_helper(x, y, r0x, r1x, r0y, r1y, start, start);
     fill_arc_helper(x, y, r0x, r1x, r0y, r1y, end, end);
-    if (!equal && (fabsf(start - end) <= 0.0001f)) { start = .0f; end = 360.0f; }
+    if (ring && (fabsf(start - end) <= 0.0001f)) { start = .0f; end = 360.0f; }
     fill_arc_helper(x, y, r0x, r0x, r0y, r0y, start, end);
     fill_arc_helper(x, y, r1x, r1x, r1y, r1y, start, end);
     endWrite();
@@ -949,12 +948,12 @@ namespace lgfx
     if (r1x < 0) return;
     if (r1y < 0) return;
 
-    bool equal = fabsf(start - end) < std::numeric_limits<float>::epsilon();
+    bool ring = fabsf(start - end) >= 360;
     start = fmodf(start, 360);
     end = fmodf(end, 360);
-    if (start < 0) start += 360.0f;
-    if (end < 0) end += 360.0f;
-    if (!equal && (fabsf(start - end) <= 0.0001f)) { start = .0f; end = 360.0f; }
+    if (signbit(start)) start = fmodf(start + 360.0f, 360);
+    if (signbit(end)) end = fmodf(end + 360.0f, 360);
+    if (ring && (fabsf(start - end) <= 0.0001f)) { start = .0f; end = 360.0f; }
 
     startWrite();
     fill_arc_helper(x, y, r0x, r1x, r0y, r1y, start, end);
