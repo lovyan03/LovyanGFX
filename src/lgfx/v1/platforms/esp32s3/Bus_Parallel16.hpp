@@ -44,9 +44,16 @@ namespace lgfx
       // max 40MHz.
       uint32_t freq_write = 16000000;
       uint32_t freq_read  =  8000000;
-      int8_t pin_wr = -1;
-      int8_t pin_rd = -1;
-      int8_t pin_rs = -1;  // D/C
+      union
+      {
+        int8_t pin_ctrl[3] = { -1, -1, -1 };
+        struct
+        {
+          int8_t pin_rd;
+          int8_t pin_wr;
+          int8_t pin_rs;  // D/C
+        };
+      };
       union
       {
         int8_t pin_data[16];

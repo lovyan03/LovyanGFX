@@ -60,23 +60,18 @@ namespace lgfx
     _dev = getDev(port);
   }
 
-  static void _gpio_pin_init(int pin)
-  {
-    if (pin >= 0)
-    {
-      gpio_pad_select_gpio(pin);
-      gpio_hi(pin);
-      gpio_set_direction((gpio_num_t)pin, GPIO_MODE_OUTPUT);
-    }
-  }
-
   bool Bus_Parallel16::init(void)
   {
     _init_pin();
 
-    _gpio_pin_init(_cfg.pin_rd);
-    _gpio_pin_init(_cfg.pin_wr);
-    _gpio_pin_init(_cfg.pin_rs);
+    for (size_t i = 0; i < 3; ++i)
+    {
+      int32_t pin = _cfg.pin_ctrl[i];
+      if (pin < 0) { continue; }
+      gpio_pad_select_gpio(pin);
+      gpio_hi(pin);
+      gpio_set_direction((gpio_num_t)pin, GPIO_MODE_OUTPUT);
+    }
 
     gpio_matrix_out(_cfg.pin_rs, LCD_DC_IDX, 0, 0);
     gpio_matrix_out(_cfg.pin_wr, LCD_PCLK_IDX, 0, 0);

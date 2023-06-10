@@ -79,23 +79,18 @@ namespace lgfx
                   ;
   }
 
-  static void _gpio_pin_init(int pin)
-  {
-    if (pin >= 0)
-    {
-      gpio_pad_select_gpio(pin);
-      gpio_hi(pin);
-      gpio_set_direction((gpio_num_t)pin, GPIO_MODE_OUTPUT);
-    }
-  }
-
   bool Bus_Parallel16::init(void)
   {
     _init_pin();
 
-    _gpio_pin_init(_cfg.pin_rd);
-    _gpio_pin_init(_cfg.pin_wr);
-    _gpio_pin_init(_cfg.pin_rs);
+    for (size_t i = 0; i < 3; ++i)
+    {
+      int32_t pin = _cfg.pin_ctrl[i];
+      if (pin < 0) { continue; }
+      gpio_pad_select_gpio(pin);
+      gpio_hi(pin);
+      gpio_set_direction((gpio_num_t)pin, GPIO_MODE_OUTPUT);
+    }
 
     auto idx_base = I2S0O_DATA_OUT8_IDX;
 

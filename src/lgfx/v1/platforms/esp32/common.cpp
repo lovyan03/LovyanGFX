@@ -1128,7 +1128,7 @@ namespace lgfx
         res = i2c_wait(i2c_port);
         if (res.has_error())
         {
-          ESP_LOGD("LGFX", "i2c write error : ack wait");
+          ESP_LOGV("LGFX", "i2c write error : ack wait");
           break;
         }
         size_t idx = 0;
@@ -1175,7 +1175,7 @@ namespace lgfx
         res = i2c_wait(i2c_port);
         if (res.has_error())
         {
-          ESP_LOGD("LGFX", "i2c read error : ack wait");
+          ESP_LOGV("LGFX", "i2c read error : ack wait");
           break;
         }
 
@@ -1236,7 +1236,7 @@ namespace lgfx
     {
       cpp::result<void, error_t> res;
       if ((res = beginTransaction(i2c_port, addr, freq, true)).has_value()
-       && (res = readBytes(i2c_port, readdata, readlen)).has_value()
+       && (res = readBytes(i2c_port, readdata, readlen, true)).has_value()
       )
       {
         res = endTransaction(i2c_port);
@@ -1250,7 +1250,7 @@ namespace lgfx
       if ((res = beginTransaction(i2c_port, addr, freq, false)).has_value()
        && (res = writeBytes(i2c_port, writedata, writelen)).has_value()
        && (res = restart(i2c_port, addr, freq, true)).has_value()
-       && (res = readBytes(i2c_port, readdata, readlen)).has_value()
+       && (res = readBytes(i2c_port, readdata, readlen, true)).has_value()
       )
       {
         res = endTransaction(i2c_port);

@@ -32,13 +32,15 @@ jobs:
           - m5stick-c
           - m5stack-core-esp32
           - m5stack-core2
+          - m5stack-cores3
 
         platform-version:
           - 1.0.6
-          - 2.0.4
+          #- 2.0.4
           - 2.0.5
           - 2.0.6
           - 2.0.7
+          - 2.0.8
           - default
 
         exclude:
@@ -46,6 +48,7 @@ jobs:
           - { board: esp32-s3, platform-version: 1.0.6 }
           - { board: esp32-s3, platform-version: default } # 2.0.5 => esp32s3/include/newlib/platform_include/assert.h:20:10: fatal error: sdkconfig.h: No such file or directory
           - { board: esp32-s2, platform-version: 1.0.6 }
+          - { board: m5stack-cores3, platform-version: 1.0.6 }
 
         include:
           - board: esp32
@@ -55,6 +58,7 @@ jobs:
           - board: m5stick-c
           - board: m5stack-core-esp32
           - board: m5stack-core2
+          - board: m5stack-cores3
           - { board: esp8266, platform-version: 3.0.0, ... }
           - { board: esp8266, platform-version: 3.1.0, ... }
           - { board: esp8266, platform-version: 3.2.0, ... }
@@ -96,5 +100,7 @@ jobs:
 
         run: |
           cd ${{ env.PROJECT_DIR }}
-          pio pkg install -e ${{ matrix.board }}@${{ matrix.platform-version }} --no-save --library file://$(realpath ../../../)
-          pio run -e ${{ matrix.board }}@${{ matrix.platform-version }}
+          export pio_ver=${{ matrix.platform-version }}
+          export pio_env="${pio_ver//./_}"
+          pio pkg install -e ${{ matrix.board }}-$pio_env --no-save --library file://$(realpath ../../../)
+          pio run -e ${{ matrix.board }}-$pio_env

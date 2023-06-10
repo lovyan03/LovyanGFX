@@ -463,6 +463,24 @@ namespace lgfx
     gpio_num_t _pin_num;
   };
 
+  uint32_t Panel_M5HDMI::_read_fpga_id(void)
+  {
+    startWrite();
+    _bus->writeData(CMD_NOP, 32);
+    endWrite();
+    _bus->writeData(CMD_NOP, 32);
+    startWrite();
+    _bus->writeData(CMD_READ_ID, 8); // READ_ID
+    _bus->beginRead();
+    uint32_t retry = 16;
+    while (_bus->readData(8) == 0xFF && --retry) {}
+    _bus->readData(8); // skip 0xFF
+    uint32_t fpga_id = _bus->readData(32);
+    endWrite();
+    ESP_LOGI(TAG, "FPGA ID:%08x", (int)__builtin_bswap32(fpga_id));
+    return fpga_id;
+  }
+
   bool Panel_M5HDMI::init(bool use_reset)
   {
     ESP_LOGI(TAG, "i2c port:%d sda:%d scl:%d", _HDMI_Trans_config.i2c_port, _HDMI_Trans_config.pin_sda, _HDMI_Trans_config.pin_scl);
@@ -481,42 +499,43 @@ namespace lgfx
     ESP_LOGI(TAG, "Resetting HDMI transmitter...");
     driver.reset();
 
+    if (!Panel_Device::init(false)) { return false; }
+
+    if ((_read_fpga_id() & 0xFFFF) != ('H' | 'D' << 8))
     {
       auto bus_cfg = reinterpret_cast<lgfx::Bus_SPI*>(_bus)->config();
       _pin_backup_t backup_pins[] = { (gpio_num_t)bus_cfg.pin_sclk, (gpio_num_t)bus_cfg.pin_mosi, (gpio_num_t)bus_cfg.pin_miso };
       LOAD_FPGA fpga(bus_cfg.pin_sclk, bus_cfg.pin_mosi, bus_cfg.pin_miso, _cfg.pin_cs);
       for (auto &bup : backup_pins) { bup.restore(); }
-    }
-    if (!Panel_Device::init(false)) { return false; }
 
-    // Initialize and read ID
-    ESP_LOGI(TAG, "Waiting the FPGA gets idle...");
-    startWrite();
-    _bus->beginRead();
-    while (_bus->readData(8) != 0xFF) {}
-    endWrite();
-    uint32_t fpga_id = ~0u;
+      // Initialize and read ID
+      ESP_LOGI(TAG, "Waiting the FPGA gets idle...");
+      startWrite();
+      _bus->beginRead();
+      _bus->readData(32);
+      uint32_t retry = 1024;
+      do {
+        lgfx::delay(10);
+      } while ((0xFFFFFFFFu != _bus->readData(32)) && --retry);
+      endWrite();
+
+      if (retry == 0) {
+        ESP_LOGW(TAG, "Waiting for FPGA idle timed out.");
+        return false;
+      }
+    }
 
     uint32_t apbfreq = lgfx::getApbFrequency();
     uint_fast8_t div_write = apbfreq / (_bus->getClock() + 1) + 1;
     uint_fast8_t div_read  = apbfreq / (_bus->getReadClock() + 1) + 1;
 
-    for (;;)
+    uint32_t retry = 8;
+    do
     {
    // ESP_LOGI(TAG, "FREQ:%lu , %lu  DIV_W:%lu , %lu", _bus->getClock(), _bus->getReadClock(), div_write, div_read);
-      startWrite();
-      _bus->writeData(CMD_READ_ID, 8); // READ_ID
-      _bus->beginRead();
-      while (_bus->readData(8) == 0xFF) {}
-      _bus->readData(8); // skip 0xFF
-      fpga_id = _bus->readData(32);
-      endWrite();
-
-      ESP_LOGI(TAG, "FPGA ID:%02x %02x %02x %02x", (uint8_t)fpga_id, (uint8_t)(fpga_id >> 8), (uint8_t)(fpga_id >> 16), (uint8_t)(fpga_id >> 24));
-
+      uint32_t fpga_id = _read_fpga_id();
       // 受信したIDの先頭が "HD" なら正常動作
-      if (((fpga_id     ) & 0xFF) == 'H'
-       && ((fpga_id >> 8) & 0xFF) == 'D')
+      if ((fpga_id & 0xFFFF) == ('H' | 'D' << 8))
       {
         break;
       }
@@ -529,6 +548,11 @@ namespace lgfx
       { // 受信データの先頭が HD でない場合は受信速度を下げる。
         _bus->setReadClock(apbfreq / ++div_read);
       }
+    } while (--retry);
+
+    if (retry == 0) {
+      ESP_LOGW(TAG, "read FPGA ID failed.");
+      return false;
     }
 
     startWrite();
@@ -538,7 +562,7 @@ namespace lgfx
     ESP_LOGI(TAG, "Initialize HDMI transmitter...");
     if (!driver.init() )
     {
-      ESP_LOGI(TAG, "failed.");
+      ESP_LOGW(TAG, "HDMI transmitter Initialize failed.");
       return false;
     }
 
@@ -659,14 +683,13 @@ namespace lgfx
     setScaling(_scale_w, _scale_h);
     _set_video_clock(&vc);
 
-    if (!res)
     {
-      // ESP_LOGI(TAG, "PLL feedback_div:%d  input_div:%d  output_div:%d  OUTPUT_CLOCK:%ld", vc.feedback_divider, vc.input_divider, vc.output_divider, OUTPUT_CLOCK);
-      ESP_LOGI(TAG, "logical resolution: w:%d h:%d", _cfg.panel_width, _cfg.panel_height);
-      ESP_LOGI(TAG, "scaling resolution: w:%d h:%d", _cfg.panel_width * _scale_w, _cfg.panel_height * _scale_h);
-      ESP_LOGI(TAG, " output resolution: w:%d h:%d", _cfg.memory_width, _cfg.memory_height);
-      ESP_LOGI(TAG, "video timing(Hori) total:%d active:%d frontporch:%d sync:%d backporch:%d", vt.h.active + vt.h.front_porch + vt.h.sync + vt.h.back_porch, vt.h.active, vt.h.front_porch, vt.h.sync, vt.h.back_porch);
-      ESP_LOGI(TAG, "video timing(Vert) total:%d active:%d frontporch:%d sync:%d backporch:%d", vt.v.active + vt.v.front_porch + vt.v.sync + vt.v.back_porch, vt.v.active, vt.v.front_porch, vt.v.sync, vt.v.back_porch);
+      ESP_LOGD(TAG, "PLL feedback_div:%d  input_div:%d  output_div:%d  OUTPUT_CLOCK:%d", vc.feedback_divider, vc.input_divider, vc.output_divider, (int)OUTPUT_CLOCK);
+      ESP_LOGD(TAG, "logical resolution: w:%d h:%d", _cfg.panel_width, _cfg.panel_height);
+      ESP_LOGD(TAG, "scaling resolution: w:%d h:%d", _cfg.panel_width * _scale_w, _cfg.panel_height * _scale_h);
+      ESP_LOGD(TAG, " output resolution: w:%d h:%d", _cfg.memory_width, _cfg.memory_height);
+      ESP_LOGD(TAG, "video timing(Hori) total:%d active:%d frontporch:%d sync:%d backporch:%d", vt.h.active + vt.h.front_porch + vt.h.sync + vt.h.back_porch, vt.h.active, vt.h.front_porch, vt.h.sync, vt.h.back_porch);
+      ESP_LOGD(TAG, "video timing(Vert) total:%d active:%d frontporch:%d sync:%d backporch:%d", vt.v.active + vt.v.front_porch + vt.v.sync + vt.v.back_porch, vt.v.active, vt.v.front_porch, vt.v.sync, vt.v.back_porch);
     }
 
     return res;

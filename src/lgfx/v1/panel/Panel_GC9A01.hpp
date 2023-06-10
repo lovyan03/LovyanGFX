@@ -83,6 +83,10 @@ namespace lgfx
       _cfg.panel_height = _cfg.memory_height = 240;
 
       _cfg.dummy_read_pixel = 16;
+
+      // GC9A01 malfunctions when sending NOP.
+      // Therefore, the function to send a NOP at the end of communication should be disabled.
+      _nop_closing = false;
     }
 
   protected:
