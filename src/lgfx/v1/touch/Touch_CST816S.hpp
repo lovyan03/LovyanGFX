@@ -49,13 +49,10 @@ namespace lgfx
 
     bool init(void) override;
 
-    void wakeup(void) override;
-
-    void sleep(void) override;
+    // void wakeup(void) override;
+    // void sleep(void) override;
 
     uint_fast8_t getTouchRaw(touch_point_t* tp, uint_fast8_t count) override;
-
-    CS816S_GESTURE getGesture();
 
   private:
     enum
@@ -63,14 +60,11 @@ namespace lgfx
       max_touch_points = 1
     };
 
-    bool _flg_released = false;
-
     bool _check_init(void);
     bool _write_reg(uint8_t reg, uint8_t val);
     bool _write_regs(uint8_t* val, size_t length);
     bool _read_reg(uint8_t reg, uint8_t *data, size_t length);
     size_t _read_data(uint8_t* data);
-    void _irq_isr(void);
   };
 
 //----------------------------------------------------------------------------
