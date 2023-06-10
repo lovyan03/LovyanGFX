@@ -1128,7 +1128,7 @@ namespace lgfx
         res = i2c_wait(i2c_port);
         if (res.has_error())
         {
-          ESP_LOGD("LGFX", "i2c write error : ack wait");
+          ESP_LOGV("LGFX", "i2c write error : ack wait");
           break;
         }
         size_t idx = 0;
@@ -1175,7 +1175,7 @@ namespace lgfx
         res = i2c_wait(i2c_port);
         if (res.has_error())
         {
-          ESP_LOGD("LGFX", "i2c read error : ack wait");
+          ESP_LOGV("LGFX", "i2c read error : ack wait");
           break;
         }
 
