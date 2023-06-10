@@ -62,6 +62,7 @@ namespace lgfx
     bool _in_transaction = false;
     uint8_t _cmd_nop = CMD_NOP;
     uint8_t _cmd_ramrd = CMD_RAMRD;
+    bool _nop_closing = true; // トランザクション終了時にnopを送るか否か
 
     enum mad_t
     { MAD_MY  = 0x80
