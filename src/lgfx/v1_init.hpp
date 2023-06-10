@@ -57,6 +57,7 @@ Contributors:
 #include "v1/panel/Panel_M5UnitLCD.hpp"
 
 // TouchScreen
+#include "v1/touch/Touch_CST816S.hpp"
 #include "v1/touch/Touch_FT5x06.hpp"
 #include "v1/touch/Touch_GSLx680.hpp"
 #include "v1/touch/Touch_GT911.hpp"
