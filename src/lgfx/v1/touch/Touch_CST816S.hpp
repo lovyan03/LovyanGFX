@@ -49,8 +49,8 @@ namespace lgfx
 
     bool init(void) override;
 
-    // void wakeup(void) override;
-    // void sleep(void) override;
+    void wakeup(void) override {};
+    void sleep(void) override {};
 
     uint_fast8_t getTouchRaw(touch_point_t* tp, uint_fast8_t count) override;
 

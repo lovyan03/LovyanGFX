@@ -108,6 +108,7 @@ This library has the following advantages.
     - M5Stack AtomDisplay
 
   - タッチスクリーン TouchScreens
+    - I2C CST816S
     - I2C FT5x06 (FT5206, FT5306, FT5406, FT6206, FT6236, FT6336, FT6436)
     - I2C GSLx680 (GSL1680)
     - I2C GT911
