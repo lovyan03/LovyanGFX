@@ -2242,30 +2242,39 @@ namespace lgfx
       y = (height() - w) >> 1;
     }
 
-    setColor(0xFFFFFFU);
-    startWrite();
-    writeFillRect(x, y, w, w);
     for (; version <= 40; ++version)
     {
       QRCode qrcode;
       auto qrcodeData = (uint8_t*)alloca(lgfx_qrcode_getBufferSize(version));
       if (0 != lgfx_qrcode_initText(&qrcode, qrcodeData, version, 0, string)) continue;
       int_fast16_t thickness = w / qrcode.size;
-      if (!thickness) break;
       int_fast16_t lineLength = qrcode.size * thickness;
-      int_fast16_t xOffset = x + ((w - lineLength) >> 1);
-      int_fast16_t yOffset = y + ((w - lineLength) >> 1);
-      setColor(0);
-      y = 0;
-      do {
-        x = 0;
+      int_fast16_t offset = (w - lineLength) >> 1;
+      int_fast16_t xOffset = x + offset;
+      int_fast16_t yOffset = y + offset;
+      startWrite();
+      writeFillRect(x, y, w, offset, TFT_WHITE);
+      int_fast16_t dy = yOffset;
+      if (thickness)
+      {
+        int_fast16_t iy = 0;
         do {
-          if (lgfx_qrcode_getModule(&qrcode, x, y)) writeFillRect(x * thickness + xOffset, y * thickness + yOffset, thickness, thickness);
-        } while (++x < qrcode.size);
-      } while (++y < qrcode.size);
+          writeFillRect(x, dy, offset, thickness, TFT_WHITE);
+          int_fast16_t ix = 0;
+          int_fast16_t dx = xOffset;
+          do {
+            setColor(lgfx_qrcode_getModule(&qrcode, ix, iy) ? TFT_BLACK : TFT_WHITE);
+            writeFillRect(dx, dy, thickness, thickness);
+            dx += thickness;
+          } while (++ix < qrcode.size);
+          writeFillRect(dx, dy, x+w - dx, thickness, TFT_WHITE);
+          dy += thickness;
+        } while (++iy < qrcode.size);
+      }
+      writeFillRect(x, dy, w, y+w - dy, TFT_WHITE);
+      endWrite();
       break;
     }
-    endWrite();
   }
 
 //----------------------------------------------------------------------------
