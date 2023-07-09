@@ -26,7 +26,9 @@ Porting for SDL:
 
 #include <stdlib.h>
 #include <stdio.h>
+#if __has_include(<sec_api/stdio_s.h>)
 #include <sec_api/stdio_s.h>
+#endif
 
 #if __has_include(<SDL2/SDL.h>)
 #include <SDL2/SDL.h>
