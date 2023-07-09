@@ -77,7 +77,7 @@ namespace lgfx
       need_transaction = false;
     }
     FILE* _fp;
-    bool open(const char* path) override { return (_fp = fopen(path, "rb")); }
+    bool open(const char* path) override { return (0 == fopen_s(&_fp, path, "rb")); }
     int read(uint8_t *buf, uint32_t len) override { return fread((char*)buf, 1, len, _fp); }
     void skip(int32_t offset) override { seek(offset, SEEK_CUR); }
     bool seek(uint32_t offset) override { return seek(offset, SEEK_SET); }

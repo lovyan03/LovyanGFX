@@ -31,7 +31,9 @@ Contributors:
  #include <alloca.h>
 #else
  #include <malloc.h>
+ #ifndef alloca
  #define alloca _alloca
+ #endif
 #endif
 
 namespace lgfx

@@ -45,6 +45,17 @@ namespace lgfx
   };
 //----------------------------------------------------------------------------
 
+  struct Touch_sdl : public ITouch
+  {
+    bool init(void) override { return true; }
+    void wakeup(void) override {}
+    void sleep(void) override {}
+    bool isEnable(void) override { return true; };
+    uint_fast8_t getTouchRaw(touch_point_t* tp, uint_fast8_t count) override { return 0; }
+  };
+
+//----------------------------------------------------------------------------
+
   struct Panel_sdl : public Panel_Device
   {
 
@@ -82,8 +93,6 @@ namespace lgfx
     void copyRect(uint_fast16_t dst_x, uint_fast16_t dst_y, uint_fast16_t w, uint_fast16_t h, uint_fast16_t src_x, uint_fast16_t src_y) override;
 
     uint_fast8_t getTouchRaw(touch_point_t* tp, uint_fast8_t count) override;
-    void sdl_quit(void);
-
 
     void setScaling(uint_fast8_t scaling_x, uint_fast8_t scaling_y);
 

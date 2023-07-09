@@ -87,15 +87,32 @@ namespace lgfx
 
   int quit_filter(void * userdata, SDL_Event * event)
   {
-    Panel_sdl *sdl = (Panel_sdl *)userdata;
+//  Panel_sdl *sdl = (Panel_sdl *)userdata;
 
     if(event->type == SDL_WINDOWEVENT) {
       if(event->window.event == SDL_WINDOWEVENT_CLOSE) {
-        sdl->sdl_quit();
+        auto monitor = getMonitorByWindowID(event->window.windowID);
+        if (monitor) {
+          SDL_DestroyTexture(monitor->texture);
+          SDL_DestroyRenderer(monitor->renderer);
+          SDL_DestroyWindow(monitor->window);
+          _list_monitor.remove(monitor);
+          if (_list_monitor.empty()) {
+            SDL_Quit();
+            exit(0);
+          }
+        }
       }
     }
     else if(event->type == SDL_QUIT) {
-      sdl->sdl_quit();
+      for (auto& m : _list_monitor)
+      {
+        SDL_DestroyTexture(m->texture);
+        SDL_DestroyRenderer(m->renderer);
+        SDL_DestroyWindow(m->window);
+      }
+      SDL_Quit();
+      exit(0);
     }
 
     return 1;
@@ -672,15 +689,6 @@ namespace lgfx
     SDL_RenderPresent(m->renderer);
   }
 
-  void Panel_sdl::sdl_quit(void)
-  {
-    SDL_DestroyTexture(monitor.texture);
-    SDL_DestroyRenderer(monitor.renderer);
-    SDL_DestroyWindow(monitor.window);
-
-    SDL_Quit();
-    exit(0);
-  }
 //----------------------------------------------------------------------------
  }
 }
