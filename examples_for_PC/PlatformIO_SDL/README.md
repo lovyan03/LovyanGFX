@@ -2,11 +2,10 @@
 ## Visual Studio Code + PlatformIO + SDL2 環境で LovyanGFXを使用する手順
 
 まず最初にVisual Studio Code をインストールし、PlatformIO を使用できる状態にする。  
-この手順に関しては説明を省略。
 
  ---
 
-次に、PlatformIOにて、 `platform = native` のビルドができる状態にする。
+### PlatformIOにて、 `platform = native` のビルドができる状態にする。
 
 手順は下記 URL から `Installation` の項目を読んで実施する。  
 https://docs.platformio.org/en/latest/platforms/native.html#installation
@@ -48,6 +47,9 @@ https://github.com/libsdl-org/SDL/releases
  - lib
 
 C:\msys64\mingw64\ を開き、上記の４つのフォルダと同名のフォルダが存在することを確認したら、C:\msys64\mingw64\ 内に上記フォルダの内容を追加する。（上書きコピー）
+
+ ---
+
 
 
 
