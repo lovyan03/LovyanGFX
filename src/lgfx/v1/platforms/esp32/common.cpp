@@ -247,7 +247,7 @@ namespace lgfx
     auto s = (const uint32_t*)src;
     do
     {
-      printf("0x%08x = 0x%08x\n", (size_t)s, s[0]);
+      printf("0x%08x = 0x%08x\n", (int)s, (int)s[0]);
       ++s;
       len -= 4;
     } while (len > 0);
