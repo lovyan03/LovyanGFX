@@ -46,10 +46,6 @@ Contributors:
 #include <soc/soc_caps.h>
 #endif
 
-#if __has_include (<hal/gpio_hal.h>)
-#include <hal/gpio_hal.h>
-#endif
-
 #if __has_include (<esp_private/periph_ctrl.h>)
  #include <esp_private/periph_ctrl.h>
 #else
