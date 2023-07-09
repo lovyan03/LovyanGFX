@@ -61,6 +61,9 @@ Contributors:
 #endif
 
 #if defined (ESP_IDF_VERSION_VAL)
+ #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+  #include <hal/gpio_hal.h>
+ #endif
  #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(3, 4, 0)
 
   #if defined (ESP_ARDUINO_VERSION_VAL)
