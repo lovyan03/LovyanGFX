@@ -34,7 +34,6 @@ Contributors:
 #include <driver/spi_master.h>
 #include <driver/rtc_io.h>
 #include <soc/rtc.h>
-#include <soc/soc_caps.h>
 #include <soc/soc.h>
 #include <soc/i2c_reg.h>
 #include <soc/i2c_struct.h>
@@ -43,6 +42,10 @@ Contributors:
 #include <hal/gpio_hal.h>
 
 #include <esp_log.h>
+
+#if __has_include (<soc/soc_caps.h>)
+#include <soc/soc_caps.h>
+#endif
 
 #if __has_include (<esp_private/periph_ctrl.h>)
  #include <esp_private/periph_ctrl.h>
