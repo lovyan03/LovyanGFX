@@ -39,12 +39,15 @@ Contributors:
 #include <soc/i2c_struct.h>
 #include <soc/apb_ctrl_reg.h>
 #include <soc/efuse_reg.h>
-#include <hal/gpio_hal.h>
 
 #include <esp_log.h>
 
 #if __has_include (<soc/soc_caps.h>)
 #include <soc/soc_caps.h>
+#endif
+
+#if __has_include (<hal/gpio_hal.h>)
+#include <hal/gpio_hal.h>
 #endif
 
 #if __has_include (<esp_private/periph_ctrl.h>)

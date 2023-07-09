@@ -1,29 +1,23 @@
-#include <thread>
-
-#define LGFX_USE_V1
-#include <LovyanGFX.hpp>
-#include <LGFX_AUTODETECT.hpp>
+#include <lgfx/v1/platforms/sdl/Panel_sdl.hpp>
+#if defined ( SDL_h_ )
 
 void setup(void);
 void loop(void);
 
-static void loopThread(void)
+#if __has_include(<windows.h>)
+#include <windows.h>
+#include <tchar.h>
+int WINAPI _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmdShow)
+#else
+int main(int, char**)
+#endif
 {
   setup();
   for (;;)
   {
-    std::this_thread::yield();
+    lgfx::Panel_sdl::sdl_event_handler();
     loop();
   }
+  return 1;
 }
-
-int main(int, char**)
-{
-  std::thread sub_thread(loopThread);
-  for (;;)
-  {
-    std::this_thread::yield();
-    lgfx::Panel_sdl::sdl_event_handler();
-    SDL_Delay(5);
-  }
-}
+#endif
