@@ -33,13 +33,14 @@ Contributors:
 #include <driver/spi_common.h>
 #include <driver/spi_master.h>
 #include <driver/rtc_io.h>
-#include <soc/apb_ctrl_reg.h>
-#include <soc/efuse_reg.h>
-#include <soc/gpio_periph.h>
+#include <soc/rtc.h>
+#include <soc/soc_caps.h>
+#include <soc/soc.h>
 #include <soc/i2c_reg.h>
 #include <soc/i2c_struct.h>
-#include <soc/rtc.h>
-#include <soc/soc.h>
+#include <soc/apb_ctrl_reg.h>
+#include <soc/efuse_reg.h>
+#include <hal/gpio_hal.h>
 
 #include <esp_log.h>
 
@@ -51,6 +52,10 @@ Contributors:
 
 #if __has_include(<esp_arduino_version.h>)
  #include <esp_arduino_version.h>
+#endif
+
+#ifndef SOC_GPIO_SUPPORT_RTC_INDEPENDENT
+#define SOC_GPIO_SUPPORT_RTC_INDEPENDENT 0
 #endif
 
 #if defined (ESP_IDF_VERSION_VAL)
@@ -88,9 +93,13 @@ Contributors:
 
 #if defined (SOC_GDMA_SUPPORTED)  // for C3/S3
  #include <soc/gdma_reg.h>
+ #include <soc/gdma_struct.h>
  // S3とC3で同じレジスタに異なる定義名がついているため、ここで統一;
  #if !defined (DMA_OUT_PERI_SEL_CH0_REG)
   #define DMA_OUT_PERI_SEL_CH0_REG  GDMA_OUT_PERI_SEL_CH0_REG
+ #endif
+ #if !defined (DMA_IN_PERI_SEL_CH0_REG)
+  #define DMA_IN_PERI_SEL_CH0_REG  GDMA_IN_PERI_SEL_CH0_REG
  #endif
 #endif
 
@@ -199,7 +208,7 @@ namespace lgfx
     for (int i = 0; i < SOC_GDMA_PAIRS_PER_GROUP; ++i)
     {
 // ESP_LOGD("DBG","GDMA.channel:%d peri_sel:%d", i, GDMA.channel[i].out.peri_sel.sel);
-      if ((*reg(DMA_OUT_PERI_SEL_CH0_REG + i * 0xC0) & 0x3F) == peripheral_select)
+      if ((*reg(DMA_OUT_PERI_SEL_CH0_REG + i * sizeof(GDMA.channel[0])) & 0x3F) == peripheral_select)
       {
 // ESP_LOGD("DBG","GDMA.channel:%d hit", i);
         return i;
@@ -209,46 +218,93 @@ namespace lgfx
     return -1;
   }
 
+  int32_t search_dma_in_ch(int peripheral_select)
+  {
+#if defined ( SOC_GDMA_SUPPORTED ) // for ESP32S3 / ESP32C3
+    // ESP32C3: SPI2==0
+    // ESP32S3: SPI2==0 / SPI3==1
+    // SOC_GDMA_TRIG_PERIPH_SPI3
+    // SOC_GDMA_TRIG_PERIPH_LCD0
+    // GDMAペリフェラルレジスタの配列を順に調べてペリフェラル番号が一致するDMAチャンネルを特定する;
+    for (int i = 0; i < SOC_GDMA_PAIRS_PER_GROUP; ++i)
+    {
+// ESP_LOGD("DBG","GDMA.channel:%d peri_sel:%d", i, GDMA.channel[i].out.peri_sel.sel);
+      if ((*reg(DMA_IN_PERI_SEL_CH0_REG + i * sizeof(GDMA.channel[0])) & 0x3F) == peripheral_select)
+      {
+// ESP_LOGD("DBG","GDMA.channel:%d hit", i);
+        return i;
+      }
+    }
+#endif
+    return -1;
+  }
+
+  void debug_memory_dump(const void* src, size_t len)
+  {
+    auto s = (const uint32_t*)src;
+    do
+    {
+      printf("0x%08x = 0x%08x\n", (size_t)s, s[0]);
+      ++s;
+      len -= 4;
+    } while (len > 0);
+  }
+
 //----------------------------------------------------------------------------
 
   void pinMode(int_fast16_t pin, pin_mode_t mode)
   {
-    if (pin < 0) return;
+    auto gpio_num = (gpio_num_t)pin;
+    if ((size_t)gpio_num >= GPIO_NUM_MAX) return;
 
-    gpio_set_direction((gpio_num_t)pin, GPIO_MODE_DISABLE);
-#if defined (ARDUINO)
-    int m;
-    switch (mode)
+    /// GPIO OUTPUT enの場合はGPIO_ENABLE_W1TS, disの場合はGPIO_ENABLE_W1TCの該当ビットを立てる。
+    /// レジスタのアドレスをテーブル化しておき、演算で対象レジスタを切り替える。
+    static constexpr volatile uint32_t* gpio_en_regs[] =
     {
-    case pin_mode_t::output:         m = OUTPUT;         break;
-    default:
-    case pin_mode_t::input:          m = INPUT;          break;
-    case pin_mode_t::input_pullup:   m = INPUT_PULLUP;   break;
-    case pin_mode_t::input_pulldown: m = INPUT_PULLDOWN; break;
-    }
-    ::pinMode(pin, m);
-#else
+      (volatile uint32_t*)GPIO_ENABLE_W1TC_REG,
+      (volatile uint32_t*)GPIO_ENABLE_W1TS_REG,
+#if defined ( GPIO_ENABLE1_W1TC_REG )
+      (volatile uint32_t*)GPIO_ENABLE1_W1TC_REG,
+      (volatile uint32_t*)GPIO_ENABLE1_W1TS_REG,
+#endif
+    };
+    /// pin番号が32未満かどうかで分岐する。 bit0は OUTPUT enか否かで切替。
+    auto gpio_en_reg = gpio_en_regs[((pin >> 5) << 1) + (mode == pin_mode_t::output ? 1 : 0)];
+    *gpio_en_reg = 1u << (pin & 31);
+
+    auto io_mux_reg = (volatile uint32_t*)(GPIO_PIN_MUX_REG[pin]);
+    auto io_mux_val = *io_mux_reg; // &  ~(FUN_PU_M | FUN_PD_M | SLP_PU_M | SLP_PD_M | MCU_SEL_M);
 
 #if SOC_RTCIO_INPUT_OUTPUT_SUPPORTED
-    if (rtc_gpio_is_valid_gpio((gpio_num_t)pin)) rtc_gpio_deinit((gpio_num_t)pin);
-#endif
-    gpio_config_t io_conf;
-    io_conf.intr_type = GPIO_INTR_DISABLE;
-    io_conf.pin_bit_mask = (std::uint64_t)1 << pin;
-    switch (mode)
-    {
-    case pin_mode_t::output:
-      io_conf.mode = GPIO_MODE_OUTPUT;
-      break;
-    default:
-      io_conf.mode = GPIO_MODE_INPUT;
-      break;
+    if (!SOC_GPIO_SUPPORT_RTC_INDEPENDENT && rtc_gpio_is_valid_gpio(gpio_num)) {
+      rtc_gpio_deinit(gpio_num);
+      if (mode == pin_mode_t::input_pulldown)
+      { rtc_gpio_pulldown_en((gpio_num_t)pin); }
+      else
+      { rtc_gpio_pulldown_dis((gpio_num_t)pin); }
+
+      if (mode == pin_mode_t::input_pullup)
+      { rtc_gpio_pullup_en((gpio_num_t)pin); }
+      else
+      { rtc_gpio_pullup_dis((gpio_num_t)pin); }
     }
-    io_conf.mode         = (mode == pin_mode_t::output) ? GPIO_MODE_OUTPUT : GPIO_MODE_INPUT;
-    io_conf.pull_down_en = (mode == pin_mode_t::input_pulldown) ? GPIO_PULLDOWN_ENABLE : GPIO_PULLDOWN_DISABLE;
-    io_conf.pull_up_en   = (mode == pin_mode_t::input_pullup  ) ? GPIO_PULLUP_ENABLE   : GPIO_PULLUP_DISABLE;
-    gpio_config(&io_conf);
+    else
 #endif
+    {
+      io_mux_val &= ~(FUN_PU_M | FUN_PD_M | SLP_PU_M | SLP_PD_M);
+      switch (mode) {
+      case pin_mode_t::input_pullup:    io_mux_val |= FUN_PU_M | SLP_PU_M;   break;
+      case pin_mode_t::input_pulldown:  io_mux_val |= FUN_PD_M | SLP_PD_M;   break;
+      default:   break;
+      }
+    }
+    io_mux_val &= ~(MCU_SEL_M);
+    io_mux_val |= FUN_IE_M | (PIN_FUNC_GPIO << MCU_SEL_S);
+
+    *io_mux_reg = io_mux_val;
+
+    GPIO.pin[pin].pad_driver = 0; // 1 = OpenDrain / 0 = normal output
+    GPIO.func_out_sel_cfg[pin].func_sel = SIG_GPIO_OUT_IDX;
   }
 
 //----------------------------------------------------------------------------
@@ -289,11 +345,11 @@ namespace lgfx
         *reinterpret_cast<uint32_t*>(GPIO_PIN_MUX_REG[_pin_num]) = _io_mux_gpio_reg;
         *reinterpret_cast<uint32_t*>(GPIO_PIN0_REG              + (_pin_num * 4)) = _gpio_pin_reg;
         *reinterpret_cast<uint32_t*>(GPIO_FUNC0_OUT_SEL_CFG_REG + (_pin_num * 4)) = _gpio_func_out_reg;
-  #if defined ( GPIO_ENABLE1_REG )
+#if defined ( GPIO_ENABLE1_REG )
         auto gpio_enable_reg = reinterpret_cast<uint32_t*>(((_pin_num & 32) ? GPIO_ENABLE1_REG : GPIO_ENABLE_REG));
-  #else
+#else
         auto gpio_enable_reg = reinterpret_cast<uint32_t*>(GPIO_ENABLE_REG);
-  #endif
+#endif
 
         uint32_t pin_mask = 1 << (_pin_num & 31);
         uint32_t val = *gpio_enable_reg;
@@ -393,7 +449,7 @@ namespace lgfx
       if (spi_sclk >= 0) {
         gpio_lo(spi_sclk); // ここでLOWにしておくことで、pinMode変更によるHIGHパルスが出力されるのを防止する (CSなしパネル対策);
       }
-#if defined (ARDUINO) // Arduino ESP32
+#if defined (ARDUINO) && __has_include (<SPI.h>) // Arduino ESP32
       if (spi_host == default_spi_host)
       {
         SPI.end();
@@ -459,7 +515,7 @@ namespace lgfx
     void release(int spi_host)
     {
 //ESP_LOGI("LGFX","spi::release");
-#if defined (ARDUINO) // Arduino ESP32
+#if defined (ARDUINO) && __has_include (<SPI.h>) // Arduino ESP32
       if (_spi_handle[spi_host] != nullptr)
       {
         if (spi_host == default_spi_host)
@@ -696,7 +752,7 @@ namespace lgfx
       {
         pin_sda = sda;
         pin_scl = scl;
-#if defined ( ARDUINO )
+#if defined ( ARDUINO ) && __has_include (<Wire.h>)
  #if defined ( ESP_IDF_VERSION_VAL )
   #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 0, 0)
    #if defined ARDUINO_ESP32_GIT_VER
@@ -902,7 +958,7 @@ namespace lgfx
       if (i2c_context[i2c_port].initialized)
       {
         i2c_context[i2c_port].initialized = false;
-#if defined ( ARDUINO ) && defined ( ESP_IDF_VERSION_VAL )
+#if defined ( ARDUINO ) && __has_include (<Wire.h>) && defined ( ESP_IDF_VERSION_VAL )
  #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 0, 0)
   #if defined ARDUINO_ESP32_GIT_VER
     #if ARDUINO_ESP32_GIT_VER != 0x44c11981
@@ -945,7 +1001,7 @@ namespace lgfx
       release(i2c_port).has_value();
       i2c_context[i2c_port].pin_scl = (gpio_num_t)pin_scl;
       i2c_context[i2c_port].pin_sda = (gpio_num_t)pin_sda;
-#if defined ( ARDUINO )
+#if defined ( ARDUINO ) && __has_include (<Wire.h>)
  #if defined ( ESP_IDF_VERSION_VAL )
   #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(3, 3, 0)
    #define USE_TWOWIRE_SETPINS
@@ -973,7 +1029,7 @@ namespace lgfx
         release(i2c_port);
       }
 
-#if defined ( ARDUINO )
+#if defined ( ARDUINO ) && __has_include (<Wire.h>)
       auto twowire = ((i2c_port == 1) ? &Wire1 : &Wire);
  #if defined ( USE_TWOWIRE_SETPINS )
       twowire->begin();

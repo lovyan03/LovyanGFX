@@ -91,8 +91,8 @@ namespace lgfx
   enum pin_mode_t
   { output
   , input
-  , input_pullup
   , input_pulldown
+  , input_pullup
   };
 
   void pinMode(int_fast16_t pin, pin_mode_t mode);
@@ -225,6 +225,41 @@ public:
   };
 
 #endif
+
+//----------------------------------------------------------------------------
+
+  namespace gpio
+  {
+    class pin_backup_t
+    {
+    public:
+      pin_backup_t(int pin_num);
+      void backup(void);
+      void restore(void);
+
+    private:
+      uint32_t _io_mux_gpio_reg;
+      uint32_t _gpio_pin_reg;
+      uint32_t _gpio_func_out_reg;
+      gpio_num_t _pin_num;
+      bool _gpio_enable;
+    };
+
+    enum command_t : uint8_t
+    {
+      command_end = 0,              // コマンド列の場合はコマンド終了
+      command_read,                 // [1]=GPIO番号 1bit読みとる
+      command_write_low,            // [1]=GPIO番号 LOW出力
+      command_write_high,           // [1]=GPIO番号 HIGH出力
+      command_mode_output,          // [1]=GPIO番号 outputモードに変更する
+      command_mode_input,           // [1]=GPIO番号 inputモードに変更する
+      command_mode_input_pulldown,  // [1]=GPIO番号 input pulldownモードに変更する
+      command_mode_input_pullup,    // [1]=GPIO番号 input pullupモードに変更する
+      command_delay,                // [1]=停止する時間[ミリ秒]
+    };
+    bool command(command_t cmd, uint8_t pin);
+    uint32_t command(const uint8_t* cmd_list);
+  }
 
 //----------------------------------------------------------------------------
 
