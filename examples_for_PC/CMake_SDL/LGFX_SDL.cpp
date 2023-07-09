@@ -4,13 +4,7 @@
 void setup(void);
 void loop(void);
 
-#if __has_include(<windows.h>)
-#include <windows.h>
-#include <tchar.h>
-int WINAPI _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmdShow)
-#else
 int main(int, char**)
-#endif
 {
   setup();
   for (;;)
@@ -18,6 +12,6 @@ int main(int, char**)
     lgfx::Panel_sdl::sdl_event_handler();
     loop();
   }
-  return 1;
+  return 0;
 }
 #endif
