@@ -33,14 +33,15 @@ Contributors:
 #include <driver/spi_common.h>
 #include <driver/spi_master.h>
 #include <driver/rtc_io.h>
-#include <soc/rtc.h>
-#include <soc/soc.h>
-#include <soc/i2c_reg.h>
-#include <soc/i2c_struct.h>
-#include <esp_log.h>
-
 #include <soc/apb_ctrl_reg.h>
 #include <soc/efuse_reg.h>
+#include <soc/gpio_periph.h>
+#include <soc/i2c_reg.h>
+#include <soc/i2c_struct.h>
+#include <soc/rtc.h>
+#include <soc/soc.h>
+
+#include <esp_log.h>
 
 #if __has_include (<esp_private/periph_ctrl.h>)
  #include <esp_private/periph_ctrl.h>
@@ -94,8 +95,12 @@ Contributors:
 #endif
 
 #if defined ( ARDUINO )
- #include <SPI.h>
- #include <Wire.h>
+ #if __has_include (<SPI.h>)
+  #include <SPI.h>
+ #endif
+ #if __has_include (<Wire.h>)
+  #include <Wire.h>
+ #endif
 #endif
 
 namespace lgfx
@@ -244,6 +249,108 @@ namespace lgfx
     io_conf.pull_up_en   = (mode == pin_mode_t::input_pullup  ) ? GPIO_PULLUP_ENABLE   : GPIO_PULLUP_DISABLE;
     gpio_config(&io_conf);
 #endif
+  }
+
+//----------------------------------------------------------------------------
+
+  namespace gpio
+  {
+    pin_backup_t::pin_backup_t(int pin_num)
+    : _pin_num { static_cast<gpio_num_t>(pin_num) }
+    {
+      backup();
+    }
+
+    void pin_backup_t::backup(void)
+    {
+      auto pin_num = (size_t)_pin_num;
+      if (pin_num < GPIO_NUM_MAX)
+      {
+        _io_mux_gpio_reg   = *reinterpret_cast<uint32_t*>(GPIO_PIN_MUX_REG[pin_num]);
+        _gpio_pin_reg      = *reinterpret_cast<uint32_t*>(GPIO_PIN0_REG              + (pin_num * 4));
+        _gpio_func_out_reg = *reinterpret_cast<uint32_t*>(GPIO_FUNC0_OUT_SEL_CFG_REG + (pin_num * 4));
+#if defined ( GPIO_ENABLE1_REG )
+        _gpio_enable = *reinterpret_cast<uint32_t*>(((_pin_num & 32) ? GPIO_ENABLE1_REG : GPIO_ENABLE_REG)) & (1 << (_pin_num & 31));
+#else
+        _gpio_enable = *reinterpret_cast<uint32_t*>(GPIO_ENABLE_REG) & (1 << (_pin_num & 31));
+#endif
+      }
+    }
+
+    void pin_backup_t::restore(void)
+    {
+      auto pin_num = (size_t)_pin_num;
+      if (pin_num < GPIO_NUM_MAX)
+      {
+  // ESP_LOGD("DEBUG","restore pin:%d ", _pin_num);
+  // ESP_LOGD("DEBUG","restore IO_MUX_GPIO0_REG          :%08x -> %08x ", *reinterpret_cast<uint32_t*>(GPIO_PIN_MUX_REG[_pin_num]                 ), _io_mux_gpio_reg   );
+  // ESP_LOGD("DEBUG","restore GPIO_PIN0_REG             :%08x -> %08x ", *reinterpret_cast<uint32_t*>(GPIO_PIN0_REG              + (_pin_num * 4)), _gpio_pin_reg      );
+  // ESP_LOGD("DEBUG","restore GPIO_FUNC0_OUT_SEL_CFG_REG:%08x -> %08x ", *reinterpret_cast<uint32_t*>(GPIO_FUNC0_OUT_SEL_CFG_REG + (_pin_num * 4)), _gpio_func_out_reg );
+        *reinterpret_cast<uint32_t*>(GPIO_PIN_MUX_REG[_pin_num]) = _io_mux_gpio_reg;
+        *reinterpret_cast<uint32_t*>(GPIO_PIN0_REG              + (_pin_num * 4)) = _gpio_pin_reg;
+        *reinterpret_cast<uint32_t*>(GPIO_FUNC0_OUT_SEL_CFG_REG + (_pin_num * 4)) = _gpio_func_out_reg;
+  #if defined ( GPIO_ENABLE1_REG )
+        auto gpio_enable_reg = reinterpret_cast<uint32_t*>(((_pin_num & 32) ? GPIO_ENABLE1_REG : GPIO_ENABLE_REG));
+  #else
+        auto gpio_enable_reg = reinterpret_cast<uint32_t*>(GPIO_ENABLE_REG);
+  #endif
+
+        uint32_t pin_mask = 1 << (_pin_num & 31);
+        uint32_t val = *gpio_enable_reg;
+  // ESP_LOGD("DEBUG","restore GPIO_ENABLE_REG:%08x", *gpio_enable_reg);
+        if (_gpio_enable)
+        {
+           val |= pin_mask;
+        }
+        else
+        {
+          val &= ~pin_mask;
+        }
+        *gpio_enable_reg = val;
+  // ESP_LOGD("DEBUG","restore GPIO_ENABLE_REG:%08x", *gpio_enable_reg);
+      }
+    }
+
+    bool command(command_t cmd, uint8_t val)
+    {
+      bool res = false;
+      switch (cmd)
+      {
+      case command_read:       res = gpio_in(val); break;
+      case command_write_low:  gpio_lo(val); break;
+      case command_write_high: gpio_hi(val); break;
+      case command_delay:      delay(val); break;
+      default:
+        if ((cmd >> 2) == (command_mode_output >> 2)) {
+          pin_mode_t mode = pin_mode_t::output;
+          switch (cmd)
+          {
+          case command_mode_input:          mode = pin_mode_t::input;          break;
+          case command_mode_input_pulldown: mode = pin_mode_t::input_pulldown; break;
+          case command_mode_input_pullup:   mode = pin_mode_t::input_pullup;   break;
+          default: break;
+          }
+          pinMode(val, mode);
+        }
+        break;
+      }
+      return res;
+    }
+
+    uint32_t command(const uint8_t* cmd_list)
+    {
+      uint32_t result = 0;
+      while (cmd_list[0] != command_end)
+      {
+        auto cmd = (command_t)cmd_list[0];
+        bool res = command(cmd, cmd_list[1]);
+        if (cmd == command_read) {
+          result = (result << 1) + res;
+        }
+        cmd_list += 2;
+      }
+      return result;
+    }
   }
 
 //----------------------------------------------------------------------------

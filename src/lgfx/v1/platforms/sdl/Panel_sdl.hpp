@@ -20,10 +20,11 @@ Porting for SDL:
 /----------------------------------------------------------------------------*/
 #pragma once
 
+#include "common.hpp"
+#if defined (SDL_h_)
 #include "../../panel/Panel_Device.hpp"
 #include "../../misc/range.hpp"
 #include "../../Touch.hpp"
-#include "common.hpp"
 
 namespace lgfx
 {
@@ -58,10 +59,12 @@ namespace lgfx
 
   struct Panel_sdl : public Panel_Device
   {
+  protected:
+    static uint32_t _last_msec;
 
   public:
     static void sdl_event_handler(void);
-    static void sdl_update_handler(void);
+    static void sdl_update_handler(bool force = false);
     Panel_sdl(void);
     virtual ~Panel_sdl(void);
 
@@ -80,7 +83,7 @@ namespace lgfx
 
     void writePixels(pixelcopy_t* param, uint32_t len, bool use_dma) override;
     void writeBlock(uint32_t rawcolor, uint32_t length) override;
-    void display(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h) override {}
+    void display(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h) override;
     void setWindow(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye) override;
     void drawPixelPreclipped(uint_fast16_t x, uint_fast16_t y, uint32_t rawcolor) override;
     void writeFillRectPreclipped(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, uint32_t rawcolor) override;
@@ -98,7 +101,7 @@ namespace lgfx
 
   private:
     void sdl_create(monitor_t * m);
-    static void sdl_update(const monitor_t* const m);
+    void sdl_update(void);
 
   protected:
     touch_point_t _touch_point;
@@ -113,3 +116,4 @@ namespace lgfx
 //----------------------------------------------------------------------------
  }
 }
+#endif

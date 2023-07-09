@@ -179,17 +179,18 @@ namespace lgfx
         uint8_t* dst = &_img[(x + y * bw) * bytes];
         uint8_t* src = dst;
         uint_fast16_t add_dst = bw * bytes;
-        uint_fast16_t len = w * bytes;
+        uint_fast32_t len = w * bytes;
+        uint_fast32_t w32 = w;
 
         if (_img.use_memcpy())
         {
-          if (w != bw)
+          if (w32 != bw)
           {
             dst += add_dst;
           }
           else
           {
-            w *= h;
+            w32 *= h;
             h = 1;
           }
         }
@@ -198,7 +199,7 @@ namespace lgfx
           src = (uint8_t*)alloca(len);
           ++h;
         }
-        memset_multi(src, rawcolor, bytes, w);
+        memset_multi(src, rawcolor, bytes, w32);
         while (--h)
         {
           memcpy(dst, src, len);

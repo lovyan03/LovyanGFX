@@ -18,9 +18,9 @@ Contributors:
 Porting for SDL:
  [imliubo](https://github.com/imliubo)
 /----------------------------------------------------------------------------*/
-#if defined ( LGFX_SDL )
-
 #include "common.hpp"
+
+#if defined ( SDL_h_ )
 
 #include <chrono>
 #include <thread>

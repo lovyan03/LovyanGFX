@@ -17,8 +17,6 @@ static float zoom;                      // 表示倍率
 
 void setup(void)
 {
-  Serial.begin(115200);
-
   lcd.init();
   int lw = std::min(lcd.width(), lcd.height());
 

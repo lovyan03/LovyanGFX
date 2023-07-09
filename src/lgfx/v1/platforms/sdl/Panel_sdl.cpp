@@ -18,11 +18,12 @@ Contributors:
 Porting for SDL:
  [imliubo](https://github.com/imliubo)
 /----------------------------------------------------------------------------*/
-#if defined ( LGFX_SDL )
-
 #include "Panel_sdl.hpp"
 
+#if defined ( SDL_h_ )
+
 #include "../common.hpp"
+#include "../../misc/common_function.hpp"
 #include "../../Bus.hpp"
 
 #include <list>
@@ -32,6 +33,7 @@ namespace lgfx
  inline namespace v1
  {
 
+  uint32_t Panel_sdl::_last_msec;
   static std::list<monitor_t*> _list_monitor;
 
   static monitor_t* const getMonitorByWindowID(uint32_t windowID)
@@ -43,47 +45,6 @@ namespace lgfx
     return nullptr;
   }
 //----------------------------------------------------------------------------
-  static void memset_multi(uint8_t* buf, uint32_t c, size_t size, size_t length)
-  {
-    if (size == 1 || ((c & 0xFF) == ((c >> 8) & 0xFF) && (size == 2 || ((c & 0xFF) == ((c >> 16) & 0xFF)))))
-    {
-      memset(buf, c, size * length);
-      return;
-    }
-
-    size_t l = length;
-    if (l & ~0xF)
-    {
-      while ((l >>= 1) & ~0xF);
-      ++l;
-    }
-    size_t len = l * size;
-    length = (length * size) - len;
-    uint8_t* dst = buf;
-    if (size == 2) {
-      do { // 2byte speed tweak
-        *(uint16_t*)dst = c;
-        dst += 2;
-      } while (--l);
-    } else {
-      do {
-        size_t i = 0;
-        do {
-          *dst++ = *(((uint8_t*)&c) + i);
-        } while (++i != size);
-      } while (--l);
-    }
-    if (!length) return;
-    while (length > len) {
-      memcpy(dst, buf, len);
-      dst += len;
-      length -= len;
-      len <<= 1;
-    }
-    if (length) {
-      memcpy(dst, buf, length);
-    }
-  }
 
   int quit_filter(void * userdata, SDL_Event * event)
   {
@@ -118,16 +79,25 @@ namespace lgfx
     return 1;
   }
 
-  void Panel_sdl::sdl_update_handler(void)
+  void Panel_sdl::display(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h)
   {
-    SDL_Delay(1);
+    sdl_update_handler(true);
+  }
+
+  void Panel_sdl::sdl_update_handler(bool force)
+  {
+    uint32_t msec = millis();
+    if ((msec - _last_msec) < 16 && !force) {
+      return;
+    }
+    if (!force) {
+      SDL_Delay(1);
+      ++msec;
+    }
+    _last_msec = msec;
     for (auto& m : _list_monitor)
     {
-      if (m->renderer == nullptr)
-      {
-        m->panel->sdl_create(m);
-      }
-      sdl_update(m);
+      m->panel->sdl_update();
     }
   }
 
@@ -218,6 +188,7 @@ namespace lgfx
 
   Panel_sdl::Panel_sdl(void) : Panel_Device()
   {
+    _auto_display = true;
     monitor.panel = this;
     static bool inited = false;
     if (inited) { return; }
@@ -290,6 +261,7 @@ namespace lgfx
       auto img = &((bgr888_t*)monitor.tft_fb)[index];
       *img = rawcolor;
     }
+    sdl_update_handler();
   }
 
   void Panel_sdl::writeFillRectPreclipped(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, uint32_t rawcolor)
@@ -309,18 +281,18 @@ namespace lgfx
       auto* dst = &monitor.tft_fb[(x + y * bw)];
       auto* src = dst;
       uint_fast16_t add_dst = bw;
-      uint_fast16_t len = w * bytes;
-
-      if (w != bw)
+      uint_fast32_t w32 = w;
+      uint_fast32_t len = w * bytes;
+      if (w32 != bw)
       {
         dst += add_dst;
       }
       else
       {
-        w *= h;
+        w32 *= h;
         h = 1;
       }
-      memset_multi((uint8_t*)src, rawcolor, bytes, w);
+      memset_multi((uint8_t*)src, rawcolor, bytes, w32);
       while (--h)
       {
         memcpy(dst, src, len);
@@ -336,6 +308,7 @@ namespace lgfx
         do { *img = rawcolor; img += bw; } while (--h);
       }
     }
+    sdl_update_handler();
   }
 
   void Panel_sdl::writeBlock(uint32_t rawcolor, uint32_t length)
@@ -413,81 +386,83 @@ namespace lgfx
       } while (length -= linelength);
       _xpos = x;
       _ypos = y;
-      return;
-    }
-
-    int_fast16_t ax = 1;
-    int_fast16_t ay = 1;
-    if ((1u << r) & 0b10010110) { y = _height - (y + 1); ys = _height - (ys + 1); ye = _height - (ye + 1); ay = -1; }
-    if (r & 2)                  { x = _width  - (x + 1); xs = _width  - (xs + 1); xe = _width  - (xe + 1); ax = -1; }
-    if (param->no_convert)
-    {
-      size_t bytes = _write_bits >> 3;
-      size_t xw = 1;
-      size_t yw = _cfg.panel_width;
-      if (r & 1) std::swap(xw, yw);
-      size_t idx = y * yw + x * xw;
-      auto data = (uint8_t*)param->src_data;
-      do
-      {
-        auto dst = &monitor.tft_fb[idx * bytes];
-        size_t b = 0;
-        do
-        {
-          dst[b] = *data++;
-        } while (++b < bytes);
-        if (x != xe)
-        {
-          idx += xw * ax;
-          x += ax;
-        }
-        else
-        {
-          x = xs;
-          y = (y != ye) ? (y + ay) : ys;
-          idx = y * yw + x * xw;
-        }
-      } while (--length);
     }
     else
     {
-      if (r & 1)
+      int_fast16_t ax = 1;
+      int_fast16_t ay = 1;
+      if ((1u << r) & 0b10010110) { y = _height - (y + 1); ys = _height - (ys + 1); ye = _height - (ye + 1); ay = -1; }
+      if (r & 2)                  { x = _width  - (x + 1); xs = _width  - (xs + 1); xe = _width  - (xe + 1); ax = -1; }
+      if (param->no_convert)
       {
+        size_t bytes = _write_bits >> 3;
+        size_t xw = 1;
+        size_t yw = _cfg.panel_width;
+        if (r & 1) std::swap(xw, yw);
+        size_t idx = y * yw + x * xw;
+        auto data = (uint8_t*)param->src_data;
         do
         {
-          param->fp_copy(&monitor.tft_fb[x * k], y, y + 1, param);
+          auto dst = &monitor.tft_fb[idx * bytes];
+          size_t b = 0;
+          do
+          {
+            dst[b] = *data++;
+          } while (++b < bytes);
           if (x != xe)
           {
+            idx += xw * ax;
             x += ax;
           }
           else
           {
             x = xs;
             y = (y != ye) ? (y + ay) : ys;
+            idx = y * yw + x * xw;
           }
         } while (--length);
       }
       else
       {
-        do
+        if (r & 1)
         {
-          param->fp_copy(&monitor.tft_fb[y * k], x, x + 1, param);
-          if (x != xe)
+          do
           {
-            x += ax;
-          }
-          else
+            param->fp_copy(&monitor.tft_fb[x * k], y, y + 1, param);
+            if (x != xe)
+            {
+              x += ax;
+            }
+            else
+            {
+              x = xs;
+              y = (y != ye) ? (y + ay) : ys;
+            }
+          } while (--length);
+        }
+        else
+        {
+          do
           {
-            x = xs;
-            y = (y != ye) ? (y + ay) : ys;
-          }
-        } while (--length);
+            param->fp_copy(&monitor.tft_fb[y * k], x, x + 1, param);
+            if (x != xe)
+            {
+              x += ax;
+            }
+            else
+            {
+              x = xs;
+              y = (y != ye) ? (y + ay) : ys;
+            }
+          } while (--length);
+        }
       }
+      if ((1u << r) & 0b10010110) { y = _height - (y + 1); }
+      if (r & 2)                  { x = _width  - (x + 1); }
+      _xpos = x;
+      _ypos = y;
     }
-    if ((1u << r) & 0b10010110) { y = _height - (y + 1); }
-    if (r & 2)                  { x = _width  - (x + 1); }
-    _xpos = x;
-    _ypos = y;
+    sdl_update_handler();
   }
 
   void Panel_sdl::writeImage(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, pixelcopy_t* param, bool)
@@ -515,29 +490,31 @@ namespace lgfx
       {
         memcpy(&dst[y * bw], &src[y * sw], w);
       } while (++y != h);
-      return;
     }
-
-    uint32_t nextx = 0;
-    uint32_t nexty = 1 << pixelcopy_t::FP_SCALE;
-    if (r)
+    else
     {
-      _rotate_pixelcopy(x, y, w, h, param, nextx, nexty);
+      uint32_t nextx = 0;
+      uint32_t nexty = 1 << pixelcopy_t::FP_SCALE;
+      if (r)
+      {
+        _rotate_pixelcopy(x, y, w, h, param, nextx, nexty);
+      }
+      uint32_t sx32 = param->src_x32;
+      uint32_t sy32 = param->src_y32;
+
+      uint_fast32_t y4b = y * _cfg.panel_width;
+      do
+      {
+        int32_t pos = y4b + x;
+        int32_t end = pos + w;
+        while (end != (pos = param->fp_copy(monitor.tft_fb, pos, end, param))
+          &&  end != (pos = param->fp_skip(      pos, end, param)));
+        param->src_x32 = (sx32 += nextx);
+        param->src_y32 = (sy32 += nexty);
+        y4b += _cfg.panel_width;
+      } while (--h);
     }
-    uint32_t sx32 = param->src_x32;
-    uint32_t sy32 = param->src_y32;
-
-    y *= _cfg.panel_width;
-    do
-    {
-      int32_t pos = x + y;
-      int32_t end = pos + w;
-      while (end != (pos = param->fp_copy(monitor.tft_fb, pos, end, param))
-         &&  end != (pos = param->fp_skip(      pos, end, param)));
-      param->src_x32 = (sx32 += nextx);
-      param->src_y32 = (sy32 += nexty);
-      y += _cfg.panel_width;
-    } while (--h);
+    sdl_update_handler();
   }
 
   void Panel_sdl::writeImageARGB(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, pixelcopy_t* param)
@@ -562,6 +539,7 @@ namespace lgfx
       param->src_y32 = (sy32 += nexty);
       param->fp_copy(monitor.tft_fb, pos, end, param);
     }
+    sdl_update_handler();
   }
 
   void Panel_sdl::readRect(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, void* dst, pixelcopy_t* param)
@@ -652,6 +630,7 @@ namespace lgfx
       src += add;
       dst += add;
     } while (--h);
+    sdl_update_handler();
   }
 
   uint_fast8_t Panel_sdl::getTouchRaw(touch_point_t* tp, uint_fast8_t count)
@@ -674,19 +653,24 @@ namespace lgfx
                               SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
                               _cfg.panel_width * m->scaling_x, _cfg.panel_height * m->scaling_y, flag);       /*last param. SDL_WINDOW_BORDERLESS to hide borders*/
 
-    m->renderer = SDL_CreateRenderer(m->window, -1, SDL_RENDERER_SOFTWARE);
+    m->renderer = SDL_CreateRenderer(m->window, -1, SDL_RENDERER_ACCELERATED);
     m->texture = SDL_CreateTexture(m->renderer,
                                 SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_STATIC, _cfg.panel_width, _cfg.panel_height);
     SDL_SetTextureBlendMode(m->texture, SDL_BLENDMODE_NONE);
   }
 
-  void Panel_sdl::sdl_update(const monitor_t* const m)
+  void Panel_sdl::sdl_update(void)
   {
-    SDL_UpdateTexture(m->texture, NULL, m->tft_fb, m->panel->config().panel_width * sizeof(bgr888_t));
+    if (monitor.renderer == nullptr)
+    {
+      sdl_create(&monitor);
+    }
+
+    SDL_UpdateTexture(monitor.texture, NULL, monitor.tft_fb, _cfg.panel_width * sizeof(bgr888_t));
 
     /*Update the renderer with the texture containing the rendered image*/
-    SDL_RenderCopy(m->renderer, m->texture, NULL, NULL);
-    SDL_RenderPresent(m->renderer);
+    SDL_RenderCopy(monitor.renderer, monitor.texture, NULL, NULL);
+    SDL_RenderPresent(monitor.renderer);
   }
 
 //----------------------------------------------------------------------------

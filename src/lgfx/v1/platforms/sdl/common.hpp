@@ -29,10 +29,10 @@ Porting for SDL:
 
 #if __has_include(<SDL2/SDL.h>)
 #include <SDL2/SDL.h>
-#endif
-#if __has_include(<SDL.h>)
+#elif __has_include(<SDL.h>)
 #include <SDL.h>
 #endif
+#if defined (SDL_h_)
 
 namespace lgfx
 {
@@ -109,3 +109,5 @@ namespace lgfx
 //----------------------------------------------------------------------------
  }
 }
+
+#endif

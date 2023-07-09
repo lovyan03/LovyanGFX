@@ -168,8 +168,8 @@ void loop(void)
 {
   static uint32_t p_milli = 0;
   uint32_t milli = lgfx::millis() % 1000;
-  if (p_milli < milli) count +=        (milli - p_milli);
-  else                 count += 1000 + (milli - p_milli);
+  if (p_milli > milli) count += 1000 + (milli - p_milli);
+  else                 count +=        (milli - p_milli);
   p_milli = milli;
 
   int32_t tmp = (count % 1000) >> 3;
