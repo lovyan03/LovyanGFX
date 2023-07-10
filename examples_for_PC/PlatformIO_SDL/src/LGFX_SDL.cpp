@@ -19,6 +19,6 @@ int main(int, char**)
     lgfx::Panel_sdl::sdl_event_handler();
     loop();
   }
-  return 1;
+  return 0;
 }
 #endif
