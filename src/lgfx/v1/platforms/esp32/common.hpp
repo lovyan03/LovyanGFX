@@ -91,8 +91,8 @@ namespace lgfx
   enum pin_mode_t
   { output
   , input
-  , input_pulldown
   , input_pullup
+  , input_pulldown
   };
 
   void pinMode(int_fast16_t pin, pin_mode_t mode);
@@ -126,6 +126,9 @@ namespace lgfx
 
   // Find GDMA assigned to a peripheral;
   int32_t search_dma_out_ch(int peripheral_select);
+  int32_t search_dma_in_ch(int peripheral_select);
+
+  void debug_memory_dump(const void* src, size_t len);
 
 //----------------------------------------------------------------------------
 
@@ -247,7 +250,7 @@ public:
 
     enum command_t : uint8_t
     {
-      command_end = 0,              // コマンド列の場合はコマンド終了
+      command_end = 0,              // コマンド終了
       command_read,                 // [1]=GPIO番号 1bit読みとる
       command_write_low,            // [1]=GPIO番号 LOW出力
       command_write_high,           // [1]=GPIO番号 HIGH出力

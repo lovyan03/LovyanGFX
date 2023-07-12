@@ -109,6 +109,14 @@ namespace lgfx
     *_tdi_reg[0] = TDI_MASK;
     *_tck_reg[0] = TCK_MASK;
 
+    int retry = 128;
+    do
+    { // FPGAのロットによって待ち時間に差がある。
+      // 先に進んで良いかステータスレジスタの状態をチェックする。
+      if ((JTAG_ReadStatus() & 0x200) == 0) { break; }
+      delay(1);
+    } while (--retry);
+
     JTAG_MoveTap(TAP_UNKNOWN, TAP_IDLE);
 
     ESP_LOGI(TAG, "Erase FPGA SRAM...");
@@ -440,29 +448,6 @@ namespace lgfx
 
 //----------------------------------------------------------------------------
 
-  class _pin_backup_t
-  {
-  public:
-    _pin_backup_t(gpio_num_t pin_num)
-      : _io_mux_gpio_reg   { *reinterpret_cast<uint32_t*>(GPIO_PIN_MUX_REG[pin_num]) }
-      , _gpio_func_out_reg { *reinterpret_cast<uint32_t*>(GPIO_FUNC0_OUT_SEL_CFG_REG + (pin_num * 4)) }
-      , _pin_num           { pin_num }
-    {}
-
-    void restore(void) const
-    {
-      if ((uint32_t)_pin_num < GPIO_NUM_MAX) {
-        *reinterpret_cast<uint32_t*>(GPIO_PIN_MUX_REG[_pin_num]) = _io_mux_gpio_reg;
-        *reinterpret_cast<uint32_t*>(GPIO_FUNC0_OUT_SEL_CFG_REG + (_pin_num * 4)) = _gpio_func_out_reg;
-      }
-    }
-
-  private:
-    uint32_t _io_mux_gpio_reg;
-    uint32_t _gpio_func_out_reg;
-    gpio_num_t _pin_num;
-  };
-
   uint32_t Panel_M5HDMI::_read_fpga_id(void)
   {
     startWrite();
@@ -504,7 +489,7 @@ namespace lgfx
     if ((_read_fpga_id() & 0xFFFF) != ('H' | 'D' << 8))
     {
       auto bus_cfg = reinterpret_cast<lgfx::Bus_SPI*>(_bus)->config();
-      _pin_backup_t backup_pins[] = { (gpio_num_t)bus_cfg.pin_sclk, (gpio_num_t)bus_cfg.pin_mosi, (gpio_num_t)bus_cfg.pin_miso };
+      gpio::pin_backup_t backup_pins[] = { bus_cfg.pin_sclk, bus_cfg.pin_mosi, bus_cfg.pin_miso };
       LOAD_FPGA fpga(bus_cfg.pin_sclk, bus_cfg.pin_mosi, bus_cfg.pin_miso, _cfg.pin_cs);
       for (auto &bup : backup_pins) { bup.restore(); }
 
@@ -1042,10 +1027,7 @@ namespace lgfx
       buf[3] = _raw_color;
       bytes += 4;
     }
-    if (rect || _total_send || _last_cmd)
-    {
-      _check_busy(bytes);
-    }
+    _check_busy(bytes);
     _bus->writeBytes(((uint8_t*)buf)+3, bytes, false, false);
   }
 
