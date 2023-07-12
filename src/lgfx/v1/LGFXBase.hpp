@@ -747,7 +747,7 @@ namespace lgfx
 
     void* createPng( size_t* datalen, int32_t x = 0, int32_t y = 0, int32_t width = 0, int32_t height = 0);
 
-
+    void releasePngMemory(void);
 
     template<typename T>
     [[deprecated("use pushImage")]] void pushRect( int32_t x, int32_t y, int32_t w, int32_t h, const T* data) { pushImage(x, y, w, h, data); }
