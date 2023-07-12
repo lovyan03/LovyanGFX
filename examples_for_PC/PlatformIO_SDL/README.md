@@ -10,6 +10,30 @@
 手順は下記 URL から `Installation` の項目を読んで実施する。  
 https://docs.platformio.org/en/latest/platforms/native.html#installation
 
+#### Linuxの場合
+
+`apt` で `build-essential` をインストールする。
+```
+sudo apt update
+sudo apt install build-essential
+```
+
+#### macOSの場合
+ターミナルから `xcode-select` をインストールする。
+```
+xcode-select --install
+```
+
+#### Windowsの場合
+`MSYS2` をここ https://www.msys2.org/ から入手してインストールする。
+そのあと、Windowsの`システムのプロパティ`->`環境変数` を開き、 `PATH` に以下の３つのパスを追加する。
+```
+C:\msys64\mingw64\bin
+C:\msys64\ucrt64\bin
+C:\msys64\usr\bin
+```
+
+
  ---
 
 ### PlatformIOにて、 SDL2 が使用できる状態にする。
@@ -23,7 +47,7 @@ https://docs.lvgl.io/latest/en/html/get-started/pc-simulator.html#install-sdl-2
 apt-getでlibsdl2をインストールする。
 
 ```
- sudo apt-get install libsdl2 libsdl2-dev
+sudo apt-get install libsdl2 libsdl2-dev
 ```
 
 #### MacOS OSXの場合
