@@ -643,7 +643,11 @@ namespace lgfx
         cmd_val |= (1 << 10); // ACK_VALUE (set NACK)
       }
 #if defined (CONFIG_IDF_TARGET_ESP32S3)
+ #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
       (&dev->comd[0])[index].val = cmd_val;
+ #else
+      (&dev->comd0)[index].val = cmd_val;
+ #endif
 #else
       dev->command[index].val = cmd_val;
 #endif
