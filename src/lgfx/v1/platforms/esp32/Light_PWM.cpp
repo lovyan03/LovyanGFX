@@ -37,7 +37,7 @@ namespace lgfx
 
 #if defined ( ARDUINO )
 
-    ledcSetup(_cfg.pwm_channel, _cfg.freq, 8);
+    ledcSetup(_cfg.pwm_channel, _cfg.freq, 10);
     ledcAttachPin(_cfg.pin_bl, _cfg.pwm_channel);
     setBrightness(brightness);
 
@@ -54,7 +54,7 @@ namespace lgfx
      ledc_channel.channel    = (ledc_channel_t)_cfg.pwm_channel;
      ledc_channel.intr_type  = LEDC_INTR_DISABLE;
      ledc_channel.timer_sel  = (ledc_timer_t)((_cfg.pwm_channel >> 1) & 3);
-     ledc_channel.duty       = _cfg.invert ? 256 : 0;
+     ledc_channel.duty       = _cfg.invert ? 1024 : 0;
      ledc_channel.hpoint     = 0;
     };
     ledc_channel_config(&ledc_channel);
@@ -65,7 +65,7 @@ namespace lgfx
 #else
       ledc_timer.speed_mode = LEDC_LOW_SPEED_MODE;
 #endif
-      ledc_timer.duty_resolution = (ledc_timer_bit_t)8; // resolution of PWM duty
+      ledc_timer.duty_resolution = (ledc_timer_bit_t)10; // resolution of PWM duty
       ledc_timer.freq_hz = _cfg.freq;                        // frequency of PWM signal
       ledc_timer.timer_num = ledc_channel.timer_sel;    // timer index
     };
@@ -80,8 +80,17 @@ namespace lgfx
 
   void Light_PWM::setBrightness(uint8_t brightness)
   {
-    if (_cfg.invert) brightness = ~brightness;
-    uint32_t duty = brightness + (brightness >> 7);
+    uint32_t duty = 0;
+    if (brightness)
+    {
+      uint_fast16_t ofs = _cfg.offset;
+      if (ofs) { ofs = ofs * 259 >> 8; }
+      duty = brightness * (257 - ofs);
+      duty += (ofs * 255) + 32;
+      duty += 32;
+      duty >>= 6;
+    }
+    if (_cfg.invert) duty = 1024 - duty;
 
 #if defined ( ARDUINO )
       ledcWrite(_cfg.pwm_channel, duty);

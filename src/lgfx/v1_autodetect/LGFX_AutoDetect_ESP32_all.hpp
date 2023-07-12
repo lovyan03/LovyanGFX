@@ -161,29 +161,6 @@ namespace lgfx
     }
   };
 
-  struct Light_M5AtomS3 : public lgfx::Light_PWM
-  {
-    Light_M5AtomS3(void)
-    {
-      auto cfg = config();
-      /// The backlight of AtomS3 does not light up if the PWM cycle is too fast.
-      cfg.freq = 240;
-      cfg.pin_bl = GPIO_NUM_16;
-      cfg.pwm_channel = 7;
-      config(cfg);
-    }
-
-    void setBrightness(uint8_t brightness) override
-    {
-      if (brightness) 
-      {
-        brightness = brightness - (brightness >> 3) + 31;
-      }
-      Light_PWM::setBrightness(brightness);
-    }
-  };
-
-
 #elif defined (CONFIG_IDF_TARGET_ESP32S2)
 
 #if defined ( ARDUINO_ADAFRUIT_FEATHER_ESP32S2_TFT )
@@ -715,13 +692,14 @@ namespace lgfx
         return res;
       }
 
-      static ILight* _create_pwm_backlight(int16_t pin, uint8_t ch, uint32_t freq = 12000, bool invert = false)
+      static ILight* _create_pwm_backlight(int16_t pin, uint8_t ch, uint32_t freq = 12000, bool invert = false, uint8_t offset = 0)
       {
         auto bl = new lgfx::Light_PWM();
         auto cfg = bl->config();
         cfg.pin_bl = pin;
         cfg.freq   = freq;
         cfg.pwm_channel = ch;
+        cfg.offset = offset;
         cfg.invert = invert;
         bl->config(cfg);
         return bl;
@@ -1068,7 +1046,7 @@ namespace lgfx
           ESP_LOGI(LIBRARY_NAME, "[Autodetect] M5AtomS3");
           auto p = new Panel_GC9107();
           param->panel = p;
-          p->light(new Light_M5AtomS3());
+          p->light(_create_pwm_backlight(GPIO_NUM_16, 7, 256, false, 48));
 
           {
             auto cfg = p->config();
@@ -1839,6 +1817,35 @@ namespace lgfx
           auto p = new Panel_M5StickCPlus();
           result->panel = p;
           p->light(new Light_M5StickC());
+        }
+      };
+
+      struct _detector_M5StickCPlus2_t : public _detector_spi_t
+      {
+        constexpr _detector_M5StickCPlus2_t(void) :
+        _detector_spi_t
+        { board_t::board_M5StickCPlus2
+        , 0x04, 0xFF, 0x85 // ST7789
+        , 40000000, 15000000
+        , GPIO_NUM_15     // MOSI
+        , (gpio_num_t)-1  // MISO
+        , GPIO_NUM_13     // SCLK
+        , GPIO_NUM_14     // DC
+        , GPIO_NUM_5      // CS
+        , GPIO_NUM_12     // RST
+        , (gpio_num_t)-1  // TF CARD CS
+        , 0               // SPI MODE
+        , true            // SPI 3wire
+        , HSPI_HOST       // SPI HOST
+        } {}
+
+        void setup(_detector_result_t* result) const override
+        {
+          ESP_LOGI(LIBRARY_NAME, "[Autodetect] M5StickCPlus2");
+
+          auto p = new Panel_M5StickCPlus();
+          result->panel = p;
+          p->light(_create_pwm_backlight(GPIO_NUM_27, 7, 256, false, 40));
         }
       };
 
@@ -3177,8 +3184,9 @@ namespace lgfx
 
 #elif defined (CONFIG_IDF_TARGET_ESP32) || !defined (CONFIG_IDF_TARGET)
 
-      static constexpr const _detector_M5StickCPlus_t          detector_M5StickCPlus;
       static constexpr const _detector_M5StickC_t              detector_M5StickC;
+      static constexpr const _detector_M5StickCPlus_t          detector_M5StickCPlus;
+      static constexpr const _detector_M5StickCPlus2_t         detector_M5StickCPlus2;
       static constexpr const _detector_M5StackCoreInk_t        detector_M5StackCoreInk;
       static constexpr const _detector_TTGO_TWristband_t       detector_TTGO_TWristband;
       static constexpr const _detector_TTGO_TS_t               detector_TTGO_TS;
@@ -3205,6 +3213,15 @@ namespace lgfx
       static constexpr const _detector_WT32_SC01_t             detector_WT32_SC01;
 
       static constexpr const _detector_DDUINO32_XS_t           detector_DDUINO32_X;
+
+      static constexpr const _detector_t* detector_list_PICO_V3[] =
+      {
+
+#if defined ( LGFX_AUTODETECT ) || defined ( LGFX_M5STICK_C ) || defined ( LGFX_M5STICKC )
+        &detector_M5StickCPlus2,
+#endif
+        nullptr // terminator
+      };
 
       static constexpr const _detector_t* detector_list_PICO_D4[] =
       {
@@ -3316,6 +3333,10 @@ namespace lgfx
       default:
       case EFUSE_RD_CHIP_VER_PKG_ESP32PICOD4:
         detectors = detector_list_PICO_D4;
+        break;
+
+      case 6:
+        detectors = detector_list_PICO_V3;
         break;
       }
 
