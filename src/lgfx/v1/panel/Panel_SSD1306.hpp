@@ -46,6 +46,7 @@ namespace lgfx
     uint32_t readData(uint_fast8_t, uint_fast8_t) override { return 0; }
 
     void readRect(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, void* dst, pixelcopy_t* param) override;
+    void setTilePattern(uint_fast8_t);
 
   protected:
 
@@ -59,6 +60,8 @@ namespace lgfx
     static constexpr uint8_t CMD_DISP_ON             = 0xAF;
     static constexpr uint8_t CMD_SETPRECHARGE        = 0xD9;
     static constexpr uint8_t CMD_SETVCOMDETECT       = 0xDB;
+
+    uint8_t _bayer_offset = 0;
 
     size_t _get_buffer_length(void) const override;
     bool _read_pixel(uint_fast16_t x, uint_fast16_t y);
