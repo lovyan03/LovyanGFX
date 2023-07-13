@@ -86,7 +86,7 @@ namespace lgfx
 
     void _set_write_pos(uint_fast16_t x, uint_fast16_t y);
     bool _wait_busy( uint32_t timeout = 1000);
-    void _write_reg(uint8_t reg, uint8_t data);
+    void _write_reg(uint_fast16_t reg, uint_fast16_t data);
     void _write_reg_0x51(uint8_t reg, uint8_t data);
     void _start_memorywrite(void);
   };

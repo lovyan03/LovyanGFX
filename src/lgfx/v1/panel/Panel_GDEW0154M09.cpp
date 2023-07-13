@@ -291,7 +291,7 @@ namespace lgfx
       uint32_t idx = 0;
       do
       {
-        readbuf[idx] = _read_pixel(x + idx, y) ? ~0u : 0;
+        readbuf[idx] = _read_pixel(x + idx, y) ? -1 : 0;
       } while (++idx != w);
       param->src_x32 = 0;
       readpos = param->fp_copy(dst, readpos, readpos + w, param);

@@ -33,7 +33,7 @@ namespace lgfx
  {
 //----------------------------------------------------------------------------
 
-  static constexpr uint8_t Bayer[16] = { 8, 136, 40, 168, 200, 72, 232, 104, 56, 184, 24, 152, 248, 120, 216, 88 };
+  static constexpr uint8_t Bayer[] = { 8, 136, 40, 168, 200, 72, 232, 104, 56, 184, 24, 152, 248, 120, 216, 88, 8, 136, 40, 168, 200, 72, 232, 104, 56, 184, 24, 152, 248, 120, 216, 88 };
 
   inline static uint32_t to_gray(uint8_t r, uint8_t g, uint8_t b)
   {
@@ -42,6 +42,11 @@ namespace lgfx
           + (g * g * 38771)    // G 0.587
           + (b * b *  7530)    // B 0.114
           ) >> 24;
+  }
+
+  void Panel_1bitOLED::setTilePattern(uint_fast8_t i)
+  {
+    _bayer_offset = Bayer[i & 15] >> 4;
   }
 
   color_depth_t Panel_1bitOLED::setColorDepth(color_depth_t depth)
@@ -131,7 +136,7 @@ namespace lgfx
     {
       x = xs;
       uint32_t idx = x + (y >> 3) * _cfg.panel_width;
-      auto btbl = &Bayer[(y & 3) << 2];
+      auto btbl = &Bayer[_bayer_offset + ((y & 3) << 2)];
       uint32_t mask = 1 << (y&7);
       do
       {
@@ -223,7 +228,7 @@ namespace lgfx
       uint32_t idx = 0;
       do
       {
-        readbuf[idx] = _read_pixel(x + idx, y) ? ~0u : 0;
+        readbuf[idx] = _read_pixel(x + idx, y) ? -1 : 0;
       } while (++idx != w);
       param->src_x32 = 0;
       readpos = param->fp_copy(dst, readpos, readpos + w, param);
@@ -235,7 +240,7 @@ namespace lgfx
     _rotate_pos(x, y);
     uint32_t idx = x + (y >> 3) * _cfg.panel_width;
     uint32_t mask = 1 << (y&7);
-    bool flg = 256 <= value + Bayer[(x & 3) | (y & 3) << 2];
+    bool flg = 256 <= value + Bayer[_bayer_offset + ((x & 3) | (y & 3) << 2)];
     if (flg) _buf[idx] |=  mask;
     else     _buf[idx] &= ~mask;
   }
