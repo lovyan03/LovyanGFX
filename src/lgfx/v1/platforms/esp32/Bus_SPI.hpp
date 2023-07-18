@@ -64,7 +64,7 @@ namespace lgfx
 
   class Bus_SPI : public IBus
   {
-#if !defined (SPI_MOSI_DLEN_REG)
+#if defined ( SPI_UPDATE )
     static constexpr uint32_t SPI_EXECUTE = SPI_USR | SPI_UPDATE;
     #define SPI_MOSI_DLEN_REG(i) (REG_SPI_BASE(i) + 0x1C)
     #define SPI_MISO_DLEN_REG(i) (REG_SPI_BASE(i) + 0x1C)
