@@ -485,21 +485,12 @@ namespace lgfx
           ESP_LOGW("LGFX", "Failed to spi_bus_initialize. ");
         }
 
-        spi_device_interface_config_t devcfg = {
-            .command_bits = 0,
-            .address_bits = 0,
-            .dummy_bits = 0,
-            .mode = 0,
-            .duty_cycle_pos = 0,
-            .cs_ena_pretrans = 0,
-            .cs_ena_posttrans = 0,
-            .clock_speed_hz = (int)getApbFrequency()>>1,
-            .input_delay_ns = 0,
-            .spics_io_num = -1,
-            .flags = SPI_DEVICE_3WIRE | SPI_DEVICE_HALFDUPLEX,
-            .queue_size = 1,
-            .pre_cb = nullptr,
-            .post_cb = nullptr};
+        spi_device_interface_config_t devcfg;
+        memset(&devcfg, 0, sizeof(devcfg));
+        devcfg.clock_speed_hz = 10000000;
+        devcfg.spics_io_num = -1;
+        devcfg.flags = SPI_DEVICE_3WIRE | SPI_DEVICE_HALFDUPLEX;
+        devcfg.queue_size = 1;
         if (ESP_OK != spi_bus_add_device(static_cast<spi_host_device_t>(spi_host), &devcfg, &_spi_dev_handle[spi_host])) {
           ESP_LOGW("LGFX", "Failed to spi_bus_add_device. ");
         }
