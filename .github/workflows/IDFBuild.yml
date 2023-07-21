@@ -37,6 +37,8 @@ jobs:
           - esp32@v5.0.1
           - esp32s2@v5.0.1
           - esp32s3@v5.0.1
+          - esp32@v5.1
+          - esp32s3@v5.1
 
         include:
           - { esp-idf-fqbn: esp32@v4.1,         idf-board: esp32,   idf-version: v4.1 }
@@ -44,13 +46,14 @@ jobs:
           - { esp-idf-fqbn: esp32@v4.3.1,       idf-board: esp32,   idf-version: v4.3.1 }
           - { esp-idf-fqbn: esp32s2@v4.4.4,     idf-board: esp32s2, idf-version: v4.4.4 }
           - { esp-idf-fqbn: esp32s3@v4.4.4,     idf-board: esp32s3, idf-version: v4.4.4 }
-          - { esp-idf-fqbn: esp32@v5.0,   idf-board: esp32,   idf-version: v5.0 }
-          - { esp-idf-fqbn: esp32s2@v5.0, idf-board: esp32s2, idf-version: v5.0 }
-          - { esp-idf-fqbn: esp32s3@v5.0, idf-board: esp32s3, idf-version: v5.0 }
-          - { esp-idf-fqbn: esp32@v5.0.1,   idf-board: esp32,   idf-version: v5.0.1 }
-          - { esp-idf-fqbn: esp32s2@v5.0.1, idf-board: esp32s2, idf-version: v5.0.1 }
-          - { esp-idf-fqbn: esp32s3@v5.0.1, idf-board: esp32s3, idf-version: v5.0.1 }
-
+          - { esp-idf-fqbn: esp32@v5.0,         idf-board: esp32,   idf-version: v5.0 }
+          - { esp-idf-fqbn: esp32s2@v5.0,       idf-board: esp32s2, idf-version: v5.0 }
+          - { esp-idf-fqbn: esp32s3@v5.0,       idf-board: esp32s3, idf-version: v5.0 }
+          - { esp-idf-fqbn: esp32@v5.0.1,       idf-board: esp32,   idf-version: v5.0.1 }
+          - { esp-idf-fqbn: esp32s2@v5.0.1,     idf-board: esp32s2, idf-version: v5.0.1 }
+          - { esp-idf-fqbn: esp32s3@v5.0.1,     idf-board: esp32s3, idf-version: v5.0.1 }
+          - { esp-idf-fqbn: esp32@v5.1,         idf-board: esp32,   idf-version: v5.1 }
+          - { esp-idf-fqbn: esp32s3@v5.1,       idf-board: esp32s3, idf-version: v5.1 }
 
       fail-fast: false
 
