@@ -479,7 +479,7 @@ namespace lgfx
         buscfg.max_transfer_sz = 1;
         buscfg.flags = SPICOMMON_BUSFLAG_MASTER;
         buscfg.intr_flags = 0;
-#if ESP_IDF_VERSION_MAJOR > 5 || (ESP_IDF_VERSION_MAJOR == 5 && ESP_IDF_VERSION_MINOR >= 1)
+#if (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 1, 0))
         buscfg.isr_cpu_id = INTR_CPU_ID_AUTO;
 #endif
 
