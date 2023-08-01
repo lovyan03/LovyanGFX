@@ -27,9 +27,12 @@ Porting for SDL:
 #include <stdlib.h>
 #include <stdio.h>
 
+#define SDL_MAIN_HANDLED
 #if __has_include(<SDL2/SDL.h>)
+#include <SDL2/SDL_main.h>
 #include <SDL2/SDL.h>
 #elif __has_include(<SDL.h>)
+#include <SDL_main.h>
 #include <SDL.h>
 #endif
 #if defined (SDL_h_)

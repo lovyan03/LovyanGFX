@@ -58,7 +58,7 @@ namespace lgfx
     }
     else
     {
-      std::this_thread::sleep_for(std::chrono::milliseconds(milliseconds - 1));
+      SDL_Delay(milliseconds);
     }
   }
 
@@ -67,7 +67,7 @@ namespace lgfx
     auto start = micros();
     if (us >= 2000)
     {
-      std::this_thread::sleep_for(std::chrono::milliseconds((us / 1000) - 1));
+      SDL_Delay((us / 1000) - 1);
     }
     do
     {

@@ -39,7 +39,6 @@ ELSEIF (CMAKE_SYSTEM_NAME MATCHES "Windows")
 
 # SDL2を配置したパス内の.libファイルのパスを指定する;
     target_link_libraries(LGFX_SDL PUBLIC "C:/SDL2/lib/x64/SDL2.lib")
-    target_link_libraries(LGFX_SDL PUBLIC "C:/SDL2/lib/x64/SDL2main.lib")
 
 
     add_compile_options("$<$<C_COMPILER_ID:MSVC>:/utf-8>")

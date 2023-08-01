@@ -85,22 +85,27 @@ namespace lgfx
     static int loop(void);
     static int close(void);
 
+    static int main(int(*fn)(bool*));
+
   protected:
-    uint32_t _last_msec;
     const char* _window_title = "LGFX Simulator";
     SDL_mutex *_sdl_mutex = nullptr;
 
     void sdl_create(monitor_t * m);
-    void sdl_update(uint32_t msec);
+    void sdl_update(void);
 
     touch_point_t _touch_point;
     monitor_t monitor;
 
     rgb888_t* _texturebuf = nullptr;
+    uint_fast16_t _modified_counter;
+    uint_fast16_t _texupdate_counter;
+    uint_fast16_t _display_counter;
+    bool _invalidated;
 
     static void _event_proc(void);
-    static bool _update_proc(void);
-    void sdl_invalidate(void) { _last_msec = 0; }
+    static void _update_proc(void);
+    void sdl_invalidate(void) { _invalidated = true; }
     bool initFrameBuffer(size_t width, size_t height);
     void deinitFrameBuffer(void);
 

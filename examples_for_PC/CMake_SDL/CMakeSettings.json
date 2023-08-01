@@ -15,12 +15,13 @@
       "name": "x64-Release",
       "generator": "Ninja",
       "configurationType": "Release",
-      "inheritEnvironments": [ "clang_cl_x64_x64" ],
       "buildRoot": "${projectDir}\\.out\\build\\${name}",
       "installRoot": "${projectDir}\\.out\\install\\${name}",
       "cmakeCommandArgs": "",
       "buildCommandArgs": "",
-      "ctestCommandArgs": ""
+      "ctestCommandArgs": "",
+      "inheritEnvironments": [ "clang_cl_x64_x64" ],
+      "variables": []
     }
   ]
 }

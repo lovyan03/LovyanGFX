@@ -34,8 +34,9 @@ namespace lgfx
  {
   static SDL_semaphore *_update_in_semaphore = nullptr;
   static SDL_semaphore *_update_out_semaphore = nullptr;
-  volatile static uint_fast8_t _in_step_exec = 0;
+  volatile static uint_fast16_t _in_step_exec = 0;
   static bool _inited = false;
+  static bool _all_close = false;
 
   static std::list<monitor_t*> _list_monitor;
 
@@ -113,20 +114,19 @@ namespace lgfx
   {
     uint32_t prev_ms = SDL_GetTicks();
     do {
-      SDL_Delay(4);
+      SDL_Delay(1);
       uint32_t ms = SDL_GetTicks();
       /// 時間間隔が広すぎる場合はステップ実行中 (ブレークポイントで止まった)と判断する。
-      /// また、解除されたと判断した後も256msecほど状態を維持する。
-      if (ms - prev_ms > 32) { _in_step_exec = 64; }
+      /// また、解除されたと判断した後も1023msecほど状態を維持する。
+      if (ms - prev_ms > 64) { _in_step_exec = 1023; }
       else if (_in_step_exec) { --_in_step_exec; }
       prev_ms = ms;
     } while (*running);
     return 0;
   }
 
-  bool Panel_sdl::_update_proc(void)
+  void Panel_sdl::_update_proc(void)
   {
-    uint32_t msec = millis();
     for (auto it = _list_monitor.begin(); it != _list_monitor.end(); )
     {
       if ((*it)->closing) {
@@ -135,14 +135,14 @@ namespace lgfx
         SDL_DestroyWindow((*it)->window);
         _list_monitor.erase(it++);
         if (_list_monitor.empty()) {
-          return true;
+          _all_close = true;
+          return;
         }
         continue;
       }
-      (*it)->panel->sdl_update(msec);
+      (*it)->panel->sdl_update();
       ++it;
     }
-    return false;
   }
 
   int Panel_sdl::setup(void)
@@ -166,15 +166,17 @@ namespace lgfx
   int Panel_sdl::loop(void)
   {
     if (!_inited) return 1;
+
     _event_proc();
-    while (0 == SDL_SemTryWait(_update_out_semaphore));
-    int result = 0;
-    result = SDL_SemWaitTimeout(_update_in_semaphore, 1);
-    if (_update_proc()) { return 1; }
-    if (result == 0) {
+    SDL_SemWaitTimeout(_update_in_semaphore, 1);
+    _update_proc();
+    _event_proc();
+    if (SDL_SemValue(_update_out_semaphore) == 0)
+    {
       SDL_SemPost(_update_out_semaphore);
     }
-    return 0;
+
+    return _all_close;
   }
 
   int Panel_sdl::close(void)
@@ -187,6 +189,28 @@ namespace lgfx
     SDL_DestroySemaphore(_update_out_semaphore);
     SDL_Quit();
     return 0;
+  }
+
+  int Panel_sdl::main(int(*fn)(bool*))
+  {
+    /// SDLの準備
+    if (0 != Panel_sdl::setup()) { return 1; }
+
+    /// ユーザコード関数の動作・停止フラグ
+    bool running = true;
+
+    /// ユーザコード関数を起動する
+    auto thread = SDL_CreateThread((SDL_ThreadFunction)fn, "fn", &running);
+
+    /// 全部のウィンドウが閉じられるまでSDLのイベント・描画処理を継続
+    while (0 == Panel_sdl::loop()) {};
+
+    /// ユーザコード関数を終了する
+    running = false;
+    SDL_WaitThread(thread, nullptr);
+
+    /// SDLを終了する
+    return Panel_sdl::close();
   }
 
   void Panel_sdl::setScaling(uint_fast8_t scaling_x, uint_fast8_t scaling_y)
@@ -244,11 +268,14 @@ namespace lgfx
 
   Panel_sdl::lock_t::~lock_t(void)
   {
-    _parent->sdl_invalidate();
+    ++_parent->_modified_counter;
     SDL_UnlockMutex(_parent->_sdl_mutex);
-    if (_in_step_exec && SDL_SemValue(_update_in_semaphore) == 0) {
+    if (SDL_SemValue(_update_in_semaphore) < 2)
+    {
       SDL_SemPost(_update_in_semaphore);
-      SDL_SemWaitTimeout(_update_out_semaphore, 1);
+      if (!_in_step_exec) {
+        SDL_SemWaitTimeout(_update_out_semaphore, 1);
+      }
     }
   };
 
@@ -266,7 +293,7 @@ namespace lgfx
 
   void Panel_sdl::writeBlock(uint32_t rawcolor, uint32_t length)
   {
-    lock_t lock(this);
+//    lock_t lock(this);
     Panel_FrameBufferBase::writeBlock(rawcolor, length);
   }
 
@@ -290,12 +317,15 @@ namespace lgfx
 
   void Panel_sdl::display(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h)
   {
-    _last_msec = 0;
-
     if (_in_step_exec)
     {
-      SDL_SemPost(_update_in_semaphore);
-      SDL_SemWaitTimeout(_update_out_semaphore, 512);
+      if (_display_counter != _modified_counter) {
+        do {
+          SDL_SemPost(_update_in_semaphore);
+          SDL_SemWaitTimeout(_update_out_semaphore, 1);
+        } while (_display_counter != _modified_counter);
+        SDL_Delay(1);
+      }
     }
   }
 
@@ -315,7 +345,7 @@ namespace lgfx
       SDL_SetWindowTitle(monitor.window, _window_title);
     }
   }
-  
+
   void Panel_sdl::sdl_create(monitor_t * m)
   {
     int flag = SDL_WINDOW_RESIZABLE;
@@ -327,43 +357,35 @@ namespace lgfx
                               _cfg.panel_width * m->scaling_x, _cfg.panel_height * m->scaling_y, flag);       /*last param. SDL_WINDOW_BORDERLESS to hide borders*/
 
     m->renderer = SDL_CreateRenderer(m->window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-
     m->texture = SDL_CreateTexture(m->renderer, SDL_PIXELFORMAT_RGB24,
                      SDL_TEXTUREACCESS_STATIC, _cfg.panel_width, _cfg.panel_height);
     SDL_SetTextureBlendMode(m->texture, SDL_BLENDMODE_NONE);
   }
 
-  void Panel_sdl::sdl_update(uint32_t msec)
+  void Panel_sdl::sdl_update(void)
   {
     if (monitor.renderer == nullptr)
     {
       sdl_create(&monitor);
     }
 
-    uint32_t lm = _last_msec;
-    _last_msec = msec;
-    if (!_in_step_exec) {
-      if (lm != 0 && (msec - lm) < 16)
-      {
-        return;
+    bool step_exec = _in_step_exec;
+
+    if (_texupdate_counter != _modified_counter) {
+      pixelcopy_t pc(nullptr, color_depth_t::rgb888_3Byte, _write_depth, false);
+      if (_write_depth == rgb565_2Byte) {
+        pc.fp_copy = pixelcopy_t::copy_rgb_fast<bgr888_t, swap565_t>;
+      } else if (_write_depth == rgb888_3Byte) {
+        pc.fp_copy = pixelcopy_t::copy_rgb_fast<bgr888_t, bgr888_t>;
+      } else if (_write_depth == rgb332_1Byte) {
+        pc.fp_copy = pixelcopy_t::copy_rgb_fast<bgr888_t, rgb332_t>;
+      } else if (_write_depth == grayscale_8bit) {
+        pc.fp_copy = pixelcopy_t::copy_rgb_fast<bgr888_t, grayscale_t>;
       }
-    }
 
-    pixelcopy_t pc(nullptr, color_depth_t::rgb888_3Byte, _write_depth, false);
-    if (_write_depth == rgb565_2Byte) {
-      pc.fp_copy = pixelcopy_t::copy_rgb_fast<bgr888_t, swap565_t>;
-    } else if (_write_depth == rgb888_3Byte) {
-      pc.fp_copy = pixelcopy_t::copy_rgb_fast<bgr888_t, bgr888_t>;
-    } else if (_write_depth == rgb332_1Byte) {
-      pc.fp_copy = pixelcopy_t::copy_rgb_fast<bgr888_t, rgb332_t>;
-    } else if (_write_depth == grayscale_8bit) {
-      pc.fp_copy = pixelcopy_t::copy_rgb_fast<bgr888_t, grayscale_t>;
-    }
-
-    int loop = _in_step_exec ? 2 : 1;
-    do {
       if (0 == SDL_LockMutex(_sdl_mutex))
       {
+        _texupdate_counter = _modified_counter;
         for (int y = 0; y < _cfg.panel_height; ++y)
         {
           pc.src_x32 = 0;
@@ -371,16 +393,29 @@ namespace lgfx
           pc.fp_copy(&_texturebuf[y * _cfg.panel_width], 0, _cfg.panel_width, &pc);
         }
         SDL_UnlockMutex(_sdl_mutex);
-      
-      /*Update the renderer with the texture containing the rendered image*/
         SDL_UpdateTexture(monitor.texture, nullptr, _texturebuf, _cfg.panel_width * sizeof(rgb888_t));
+      }
+    }
+
+    if (_invalidated || (_display_counter != _texupdate_counter))
+    {
+      SDL_RendererInfo info;
+      if (0 == SDL_GetRendererInfo(monitor.renderer, &info)) {
+        // ステップ実行中はVSYNCを待機しない
+        if (((bool)(info.flags & SDL_RENDERER_PRESENTVSYNC)) == step_exec)
+        {
+          SDL_RenderSetVSync(monitor.renderer, !step_exec);
+        }
       }
       SDL_RenderCopy(monitor.renderer, monitor.texture, nullptr, nullptr);
       SDL_RenderPresent(monitor.renderer);
-      if (_in_step_exec) {
-        SDL_Delay(8);
+      _display_counter = _texupdate_counter;
+      if (_invalidated) {
+        _invalidated = false;
+        SDL_RenderCopy(monitor.renderer, monitor.texture, nullptr, nullptr);
+        SDL_RenderPresent(monitor.renderer);
       }
-    } while (--loop);
+    }
   }
 
   bool Panel_sdl::initFrameBuffer(size_t width, size_t height)
@@ -398,7 +433,6 @@ namespace lgfx
 
     uint8_t* framebuffer = (uint8_t*)heap_alloc_dma(width * height + 16);
 
-    size_t alloc_idx = 0;
     auto fb = framebuffer;
     {
       for (int y = 0; y < height; ++y)
