@@ -1497,10 +1497,24 @@ namespace lgfx
       _panel->copyRect(dst_x, dst_y, w, h, src_x, src_y);
     }
 
-    if (     dx > 0) writeFillRectPreclipped(_sx           , dst_y,  dx, h);
-    else if (dx < 0) writeFillRectPreclipped(_sx + _sw + dx, dst_y, -dx, h);
-    if (     dy > 0) writeFillRectPreclipped(_sx, _sy           , _sw,  dy);
-    else if (dy < 0) writeFillRectPreclipped(_sx, _sy + _sh + dy, _sw, -dy);
+    int_fast16_t sx = _sx;
+    if (dy != 0)
+    {
+      int_fast16_t sy = _sy;
+      if (dy < 0) {
+        sy += _sh + dy;
+        dy = -dy;
+      }
+      writeFillRectPreclipped(sx, sy, _sw,  dy);
+    }
+    if (dx != 0)
+    {
+      if (dx < 0) {
+        sx += _sw + dx;
+        dx = -dx;
+      }
+      writeFillRectPreclipped(sx, dst_y,  dx, h);
+    }
     endWrite();
   }
 
