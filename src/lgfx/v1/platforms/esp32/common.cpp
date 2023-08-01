@@ -875,6 +875,7 @@ namespace lgfx
       auto dev = getDev(i2c_port);
       typeof(dev->int_raw) int_raw;
       static constexpr uint32_t intmask = I2C_ACK_ERR_INT_RAW_M | I2C_END_DETECT_INT_RAW_M | I2C_ARBITRATION_LOST_INT_RAW_M;
+
       if (i2c_context[i2c_port].wait_ack_stage)
       {
         int_raw.val = dev->int_raw.val;
@@ -1324,6 +1325,7 @@ namespace lgfx
       static constexpr uint32_t intmask = I2C_ACK_ERR_INT_RAW_M | I2C_TIME_OUT_INT_RAW_M | I2C_END_DETECT_INT_RAW_M | I2C_ARBITRATION_LOST_INT_RAW_M;
       auto fifo_addr = getFifoAddr(i2c_port);
       auto dev = getDev(i2c_port);
+
       size_t len = 0;
 #if defined ( CONFIG_IDF_TARGET_ESP32S3 )
       uint32_t us_limit = ((dev->scl_high_period.scl_high_period + dev->scl_high_period.scl_wait_high_period + dev->scl_low_period.scl_low_period) << 1);
@@ -1332,11 +1334,8 @@ namespace lgfx
 #else
       uint32_t us_limit = (dev->scl_high_period.period + dev->scl_low_period.period);
 #endif
-      us_limit += 1024;
       do
       {
-        len = ((length-1) & 63) + 1;
-        length -= len;
         res = i2c_wait(i2c_port);
         if (res.has_error())
         {
@@ -1344,31 +1343,33 @@ namespace lgfx
           break;
         }
 
-        int cmdidx = 0;
-        if (length == 0 && last_nack) {
-          if (len > 1) {
-            i2c_set_cmd(dev, cmdidx++, i2c_cmd_read, len - 1);
-          }
-          i2c_set_cmd(dev, cmdidx++, i2c_cmd_read, 1, true);
-        }
-        else
-        {
-          i2c_set_cmd(dev, cmdidx++, i2c_cmd_read, len);
-        }
-        i2c_set_cmd(dev, cmdidx, i2c_cmd_end, 0);
+        len = length < 64 ? length : 64;
+        if (length == len && last_nack && len > 1) { --len; }
 
+        length -= len;
+        i2c_set_cmd(dev, 0, i2c_cmd_read, len, last_nack && length == 0);
+        i2c_set_cmd(dev, 1, i2c_cmd_end, 0);
         updateDev(dev);
         dev->ctr.trans_start = 1;
         dev->int_clr.val = intmask;
+
+        uint32_t us = lgfx::micros();
+        taskYIELD();
+
 #if defined ( CONFIG_IDF_TARGET_ESP32S3 )
         delayMicroseconds(us_limit >> 2);  /// このウェイトを外すと受信失敗するケースがある;
 #endif
+        auto delayus = (us_limit + 7) >> 3;
+        us = lgfx::micros() - us;
+        if (us < delayus) {
+          delayMicroseconds(delayus - us);
+        }
         do
         {
           if (0 == getRxFifoCount(dev))
           {
             uint32_t us = lgfx::micros();
-            do { taskYIELD(); } while (0 == getRxFifoCount(dev) && !(dev->int_raw.val & intmask) && ((lgfx::micros() - us) <= us_limit));
+            do { taskYIELD(); } while (0 == getRxFifoCount(dev) && !(dev->int_raw.val & intmask) && ((lgfx::micros() - us) <= us_limit + 1024));
             if (0 == getRxFifoCount(dev))
             {
               i2c_stop(i2c_port);
