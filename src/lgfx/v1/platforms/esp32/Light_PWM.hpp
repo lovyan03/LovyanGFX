@@ -32,7 +32,7 @@ namespace lgfx
     {
       uint32_t freq = 1200;
       int16_t pin_bl = -1;
-
+      uint8_t offset = 0;
       uint8_t pwm_channel = 7;
 
       bool invert = false;

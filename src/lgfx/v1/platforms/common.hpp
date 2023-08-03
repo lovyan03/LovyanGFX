@@ -49,13 +49,13 @@ Contributors:
 
 #include "arduino_default/common.hpp"
 
-#elif __has_include(<opencv2/opencv.hpp>)
-
-#include "opencv/common.hpp"
-
 #elif __has_include(<SDL2/SDL.h>) || __has_include(<SDL.h>)
 
 #include "sdl/common.hpp"
+
+#elif __has_include(<opencv2/opencv.hpp>)
+
+#include "opencv/common.hpp"
 
 #elif defined (__linux__)
 

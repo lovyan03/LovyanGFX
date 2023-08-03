@@ -27,12 +27,15 @@ Porting for SDL:
 #include <stdlib.h>
 #include <stdio.h>
 
+#define SDL_MAIN_HANDLED
 #if __has_include(<SDL2/SDL.h>)
+#include <SDL2/SDL_main.h>
 #include <SDL2/SDL.h>
-#endif
-#if __has_include(<SDL.h>)
+#elif __has_include(<SDL.h>)
+#include <SDL_main.h>
 #include <SDL.h>
 #endif
+#if defined (SDL_h_)
 
 namespace lgfx
 {
@@ -77,7 +80,11 @@ namespace lgfx
       need_transaction = false;
     }
     FILE* _fp;
+#if defined (__STDC_WANT_SECURE_LIB__)
+    bool open(const char* path) override { return (0 == fopen_s(&_fp, path, "rb")); }
+#else
     bool open(const char* path) override { return (_fp = fopen(path, "rb")); }
+#endif
     int read(uint8_t *buf, uint32_t len) override { return fread((char*)buf, 1, len, _fp); }
     void skip(int32_t offset) override { seek(offset, SEEK_CUR); }
     bool seek(uint32_t offset) override { return seek(offset, SEEK_SET); }
@@ -105,3 +112,5 @@ namespace lgfx
 //----------------------------------------------------------------------------
  }
 }
+
+#endif

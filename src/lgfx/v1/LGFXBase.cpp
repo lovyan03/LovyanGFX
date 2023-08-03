@@ -1497,10 +1497,24 @@ namespace lgfx
       _panel->copyRect(dst_x, dst_y, w, h, src_x, src_y);
     }
 
-    if (     dx > 0) writeFillRectPreclipped(_sx           , dst_y,  dx, h);
-    else if (dx < 0) writeFillRectPreclipped(_sx + _sw + dx, dst_y, -dx, h);
-    if (     dy > 0) writeFillRectPreclipped(_sx, _sy           , _sw,  dy);
-    else if (dy < 0) writeFillRectPreclipped(_sx, _sy + _sh + dy, _sw, -dy);
+    int_fast16_t sx = _sx;
+    if (dy != 0)
+    {
+      int_fast16_t sy = _sy;
+      if (dy < 0) {
+        sy += _sh + dy;
+        dy = -dy;
+      }
+      writeFillRectPreclipped(sx, sy, _sw,  dy);
+    }
+    if (dx != 0)
+    {
+      if (dx < 0) {
+        sx += _sw + dx;
+        dx = -dx;
+      }
+      writeFillRectPreclipped(sx, dst_y,  dx, h);
+    }
     endWrite();
   }
 
@@ -2242,30 +2256,37 @@ namespace lgfx
       y = (height() - w) >> 1;
     }
 
-    setColor(0xFFFFFFU);
-    startWrite();
-    writeFillRect(x, y, w, w);
     for (; version <= 40; ++version)
     {
       QRCode qrcode;
       auto qrcodeData = (uint8_t*)alloca(lgfx_qrcode_getBufferSize(version));
       if (0 != lgfx_qrcode_initText(&qrcode, qrcodeData, version, 0, string)) continue;
       int_fast16_t thickness = w / qrcode.size;
-      if (!thickness) break;
       int_fast16_t lineLength = qrcode.size * thickness;
-      int_fast16_t xOffset = x + ((w - lineLength) >> 1);
-      int_fast16_t yOffset = y + ((w - lineLength) >> 1);
-      setColor(0);
-      y = 0;
-      do {
-        x = 0;
+      int_fast16_t offset = (w - lineLength) >> 1;
+      startWrite();
+      writeFillRect(x, y, w, offset, TFT_WHITE);
+      int_fast16_t dy = y + offset;
+      if (thickness)
+      {
+        int_fast16_t iy = 0;
         do {
-          if (lgfx_qrcode_getModule(&qrcode, x, y)) writeFillRect(x * thickness + xOffset, y * thickness + yOffset, thickness, thickness);
-        } while (++x < qrcode.size);
-      } while (++y < qrcode.size);
+          writeFillRect(x, dy, offset, thickness, TFT_WHITE);
+          int_fast16_t ix = 0;
+          int_fast16_t dx = x + offset;
+          do {
+            setColor(lgfx_qrcode_getModule(&qrcode, ix, iy) ? TFT_BLACK : TFT_WHITE);
+            writeFillRect(dx, dy, thickness, thickness);
+            dx += thickness;
+          } while (++ix < qrcode.size);
+          writeFillRect(dx, dy, x + w - dx, thickness, TFT_WHITE);
+          dy += thickness;
+        } while (++iy < qrcode.size);
+      }
+      writeFillRect(x, dy, w, y + w - dy, TFT_WHITE);
+      endWrite();
       break;
     }
-    endWrite();
   }
 
 //----------------------------------------------------------------------------
@@ -2935,9 +2956,24 @@ namespace lgfx
     }
   }
 
+
+  static pngle_t* pngle = nullptr;
+  void LGFXBase::releasePngMemory(void)
+  {
+    if (pngle) {
+      lgfx_pngle_destroy(pngle);
+      pngle = nullptr;
+    }
+  }
+
   bool LGFXBase::draw_png(DataWrapper* data, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, float zoom_x, float zoom_y, datum_t datum)
   {
-    pngle_t *pngle = lgfx_pngle_new();
+    /// PNG描画を繰り返し使用した場合、pngleのメモリ確保に失敗するケースがある。
+    /// そのため、pngle使用後に解放せず、再利用できる構成に変更した。
+    /// メモリを明示的に解放したい場合は releasePngMemory を使用する。
+    if (pngle == nullptr) {
+      pngle = lgfx_pngle_new();
+    }
     if (pngle == nullptr) { return false; }
 
     prepareTmpTransaction(data);
@@ -2947,7 +2983,6 @@ namespace lgfx
 
     if (lgfx_pngle_prepare(pngle, image_decoder_t::read_data, &png) < 0)
     {
-      lgfx_pngle_destroy(pngle);
       return false;
     }
 
@@ -2963,7 +2998,6 @@ namespace lgfx
                   , datum
                   , lgfx_pngle_get_width(pngle), lgfx_pngle_get_height(pngle)))
     {
-      lgfx_pngle_destroy(pngle);
       return true;
     }
 
@@ -2992,7 +3026,6 @@ namespace lgfx
       heap_free(png.lineBuffer);
     }
     png.end();
-    lgfx_pngle_destroy(pngle);
 
     return res < 0 ? false : true;
   }

@@ -241,7 +241,7 @@ namespace lgfx
     return true;
   }
 
-  void Panel_RA8875::_write_reg(uint8_t reg, uint8_t data)
+  void Panel_RA8875::_write_reg(uint_fast16_t reg, uint_fast16_t data)
   {
     _flg_memorywrite = false;
     if (_flg_serialbus)

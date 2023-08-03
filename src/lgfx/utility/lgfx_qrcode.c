@@ -850,11 +850,11 @@ int8_t lgfx_qrcode_initBytes(QRCode *qrcode, uint8_t *modules, uint8_t version, 
 
     // Find the best (lowest penalty) mask
     uint8_t mask = 0;
-    int32_t minPenalty = INT32_MAX;
+    uint32_t minPenalty = ~0u;
     for (uint_fast8_t i = 0; i < 8; i++) {
         drawFormatBits(&modulesGrid, &isFunctionGrid, eccFormatBits, i);
         applyMask(&modulesGrid, &isFunctionGrid, i);
-        int penalty = getPenaltyScore(&modulesGrid);
+        uint32_t penalty = getPenaltyScore(&modulesGrid);
         if (penalty < minPenalty) {
             mask = i;
             minPenalty = penalty;

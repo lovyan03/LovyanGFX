@@ -31,7 +31,9 @@ Contributors:
  #include <alloca.h>
 #else
  #include <malloc.h>
+ #ifndef alloca
  #define alloca _alloca
+ #endif
 #endif
 
 namespace lgfx
@@ -350,7 +352,7 @@ namespace lgfx
   #endif
  #endif
 
-#elif defined (ESP_PLATFORM) || defined(__SAMD51_HARMONY__) || defined(_INC_STDIO) // ESP-IDF or Harmony
+#elif defined (ESP_PLATFORM) || defined(__SAMD51_HARMONY__) || defined(stdin) // ESP-IDF, Harmony, stdio
 
   #define LGFX_FUNCTION_GENERATOR(drawImg) \
     inline bool drawImg##File(const char *path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left) \

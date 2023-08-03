@@ -19,8 +19,6 @@ Contributors:
 
 #include "../../panel/Panel_FrameBufferBase.hpp"
 
-#include <freertos/FreeRTOS.h>
-
 namespace lgfx
 {
  inline namespace v1
@@ -61,10 +59,10 @@ namespace lgfx
       uint8_t use_psram = 0;
 
       /// background PSRAM read task priority
-      UBaseType_t task_priority = 25;
+      uint8_t task_priority = 25;
 
       /// background PSRAM read task pinned core. (APP_CPU_NUM or PRO_CPU_NUM)
-      BaseType_t task_pinned_core = -1;
+      uint8_t task_pinned_core = -1;
     };
 
     color_depth_t setColorDepth(color_depth_t) override;

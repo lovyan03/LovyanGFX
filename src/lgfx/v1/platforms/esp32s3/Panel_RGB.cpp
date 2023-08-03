@@ -153,28 +153,6 @@ namespace lgfx
     } while (mask >>= 1);
   }
 
-  class _pin_backup_t
-  {
-  public:
-    _pin_backup_t(gpio_num_t pin_num)
-      : _io_mux_gpio_reg   { *reinterpret_cast<uint32_t*>(GPIO_PIN_MUX_REG[pin_num]) }
-      , _gpio_func_out_reg { *reinterpret_cast<uint32_t*>(GPIO_FUNC0_OUT_SEL_CFG_REG + (pin_num * 4)) }
-      , _pin_num           { pin_num }
-    {}
-
-    void restore(void) const
-    {
-      if ((uint32_t)_pin_num < GPIO_NUM_MAX) {
-        *reinterpret_cast<uint32_t*>(GPIO_PIN_MUX_REG[_pin_num]) = _io_mux_gpio_reg;
-        *reinterpret_cast<uint32_t*>(GPIO_FUNC0_OUT_SEL_CFG_REG + (_pin_num * 4)) = _gpio_func_out_reg;
-      }
-    }
-
-  private:
-    uint32_t _io_mux_gpio_reg;
-    uint32_t _gpio_func_out_reg;
-    gpio_num_t _pin_num;
-  };
 
   void Panel_RGB::writeCommand(uint32_t data, uint_fast8_t len)
   {
@@ -289,7 +267,8 @@ namespace lgfx
     int32_t pin_sclk = _config_detail.pin_sclk;
     if (pin_mosi >= 0 && pin_sclk >= 0)
     {
-      _pin_backup_t backup_pins[] = { (gpio_num_t)pin_mosi, (gpio_num_t)pin_sclk };
+      lgfx::gpio::pin_backup_t backup_pins[] = { (gpio_num_t)pin_mosi, (gpio_num_t)pin_sclk };
+
       lgfx::gpio_lo(pin_mosi);
       lgfx::pinMode(pin_mosi, pin_mode_t::output);
       lgfx::gpio_lo(pin_sclk);
@@ -472,7 +451,7 @@ namespace lgfx
     int32_t pin_sclk = _config_detail.pin_sclk;
     if (pin_mosi >= 0 && pin_sclk >= 0)
     {
-      _pin_backup_t backup_pins[] = { (gpio_num_t)pin_mosi, (gpio_num_t)pin_sclk };
+      lgfx::gpio::pin_backup_t backup_pins[] = { (gpio_num_t)pin_mosi, (gpio_num_t)pin_sclk };
       lgfx::gpio_lo(pin_mosi);
       lgfx::pinMode(pin_mosi, pin_mode_t::output);
       lgfx::gpio_lo(pin_sclk);

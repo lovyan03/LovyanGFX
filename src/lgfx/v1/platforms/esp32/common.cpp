@@ -37,10 +37,14 @@ Contributors:
 #include <soc/soc.h>
 #include <soc/i2c_reg.h>
 #include <soc/i2c_struct.h>
-#include <esp_log.h>
-
 #include <soc/apb_ctrl_reg.h>
 #include <soc/efuse_reg.h>
+
+#include <esp_log.h>
+
+#if __has_include (<soc/soc_caps.h>)
+#include <soc/soc_caps.h>
+#endif
 
 #if __has_include (<esp_private/periph_ctrl.h>)
  #include <esp_private/periph_ctrl.h>
@@ -52,7 +56,14 @@ Contributors:
  #include <esp_arduino_version.h>
 #endif
 
+#ifndef SOC_GPIO_SUPPORT_RTC_INDEPENDENT
+#define SOC_GPIO_SUPPORT_RTC_INDEPENDENT 0
+#endif
+
 #if defined (ESP_IDF_VERSION_VAL)
+ #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+  #include <hal/gpio_hal.h>
+ #endif
  #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(3, 4, 0)
 
   #if defined (ESP_ARDUINO_VERSION_VAL)
@@ -87,15 +98,23 @@ Contributors:
 
 #if defined (SOC_GDMA_SUPPORTED)  // for C3/S3
  #include <soc/gdma_reg.h>
+ #include <soc/gdma_struct.h>
  // S3とC3で同じレジスタに異なる定義名がついているため、ここで統一;
  #if !defined (DMA_OUT_PERI_SEL_CH0_REG)
   #define DMA_OUT_PERI_SEL_CH0_REG  GDMA_OUT_PERI_SEL_CH0_REG
  #endif
+ #if !defined (DMA_IN_PERI_SEL_CH0_REG)
+  #define DMA_IN_PERI_SEL_CH0_REG  GDMA_IN_PERI_SEL_CH0_REG
+ #endif
 #endif
 
 #if defined ( ARDUINO )
- #include <SPI.h>
- #include <Wire.h>
+ #if __has_include (<SPI.h>)
+  #include <SPI.h>
+ #endif
+ #if __has_include (<Wire.h>)
+  #include <Wire.h>
+ #endif
 #endif
 
 namespace lgfx
@@ -194,7 +213,7 @@ namespace lgfx
     for (int i = 0; i < SOC_GDMA_PAIRS_PER_GROUP; ++i)
     {
 // ESP_LOGD("DBG","GDMA.channel:%d peri_sel:%d", i, GDMA.channel[i].out.peri_sel.sel);
-      if ((*reg(DMA_OUT_PERI_SEL_CH0_REG + i * 0xC0) & 0x3F) == peripheral_select)
+      if ((*reg(DMA_OUT_PERI_SEL_CH0_REG + i * sizeof(GDMA.channel[0])) & 0x3F) == peripheral_select)
       {
 // ESP_LOGD("DBG","GDMA.channel:%d hit", i);
         return i;
@@ -204,46 +223,195 @@ namespace lgfx
     return -1;
   }
 
+  int32_t search_dma_in_ch(int peripheral_select)
+  {
+#if defined ( SOC_GDMA_SUPPORTED ) // for ESP32S3 / ESP32C3
+    // ESP32C3: SPI2==0
+    // ESP32S3: SPI2==0 / SPI3==1
+    // SOC_GDMA_TRIG_PERIPH_SPI3
+    // SOC_GDMA_TRIG_PERIPH_LCD0
+    // GDMAペリフェラルレジスタの配列を順に調べてペリフェラル番号が一致するDMAチャンネルを特定する;
+    for (int i = 0; i < SOC_GDMA_PAIRS_PER_GROUP; ++i)
+    {
+// ESP_LOGD("DBG","GDMA.channel:%d peri_sel:%d", i, GDMA.channel[i].out.peri_sel.sel);
+      if ((*reg(DMA_IN_PERI_SEL_CH0_REG + i * sizeof(GDMA.channel[0])) & 0x3F) == peripheral_select)
+      {
+// ESP_LOGD("DBG","GDMA.channel:%d hit", i);
+        return i;
+      }
+    }
+#endif
+    return -1;
+  }
+
+  void debug_memory_dump(const void* src, size_t len)
+  {
+    auto s = (const uint32_t*)src;
+    do
+    {
+      printf("0x%08x = 0x%08x\n", (int)s, (int)s[0]);
+      ++s;
+      len -= 4;
+    } while (len > 0);
+  }
+
 //----------------------------------------------------------------------------
 
   void pinMode(int_fast16_t pin, pin_mode_t mode)
   {
-    if (pin < 0) return;
+    auto gpio_num = (gpio_num_t)pin;
+    if ((size_t)gpio_num >= GPIO_NUM_MAX) return;
 
-    gpio_set_direction((gpio_num_t)pin, GPIO_MODE_DISABLE);
-#if defined (ARDUINO)
-    int m;
-    switch (mode)
+    /// GPIO OUTPUT enの場合はGPIO_ENABLE_W1TS, disの場合はGPIO_ENABLE_W1TCの該当ビットを立てる。
+    /// レジスタのアドレスをテーブル化しておき、演算で対象レジスタを切り替える。
+    static constexpr volatile uint32_t* gpio_en_regs[] =
     {
-    case pin_mode_t::output:         m = OUTPUT;         break;
-    default:
-    case pin_mode_t::input:          m = INPUT;          break;
-    case pin_mode_t::input_pullup:   m = INPUT_PULLUP;   break;
-    case pin_mode_t::input_pulldown: m = INPUT_PULLDOWN; break;
-    }
-    ::pinMode(pin, m);
-#else
+      (volatile uint32_t*)GPIO_ENABLE_W1TC_REG,
+      (volatile uint32_t*)GPIO_ENABLE_W1TS_REG,
+#if defined ( GPIO_ENABLE1_W1TC_REG )
+      (volatile uint32_t*)GPIO_ENABLE1_W1TC_REG,
+      (volatile uint32_t*)GPIO_ENABLE1_W1TS_REG,
+#endif
+    };
+    /// pin番号が32未満かどうかで分岐する。 bit0は OUTPUT enか否かで切替。
+    auto gpio_en_reg = gpio_en_regs[((pin >> 5) << 1) + (mode == pin_mode_t::output ? 1 : 0)];
+    *gpio_en_reg = 1u << (pin & 31);
+
+    auto io_mux_reg = (volatile uint32_t*)(GPIO_PIN_MUX_REG[pin]);
+    auto io_mux_val = *io_mux_reg; // &  ~(FUN_PU_M | FUN_PD_M | SLP_PU_M | SLP_PD_M | MCU_SEL_M);
 
 #if SOC_RTCIO_INPUT_OUTPUT_SUPPORTED
-    if (rtc_gpio_is_valid_gpio((gpio_num_t)pin)) rtc_gpio_deinit((gpio_num_t)pin);
-#endif
-    gpio_config_t io_conf;
-    io_conf.intr_type = GPIO_INTR_DISABLE;
-    io_conf.pin_bit_mask = (std::uint64_t)1 << pin;
-    switch (mode)
-    {
-    case pin_mode_t::output:
-      io_conf.mode = GPIO_MODE_OUTPUT;
-      break;
-    default:
-      io_conf.mode = GPIO_MODE_INPUT;
-      break;
+    if (!SOC_GPIO_SUPPORT_RTC_INDEPENDENT && rtc_gpio_is_valid_gpio(gpio_num)) {
+      rtc_gpio_deinit(gpio_num);
+      if (mode == pin_mode_t::input_pulldown)
+      { rtc_gpio_pulldown_en((gpio_num_t)pin); }
+      else
+      { rtc_gpio_pulldown_dis((gpio_num_t)pin); }
+
+      if (mode == pin_mode_t::input_pullup)
+      { rtc_gpio_pullup_en((gpio_num_t)pin); }
+      else
+      { rtc_gpio_pullup_dis((gpio_num_t)pin); }
     }
-    io_conf.mode         = (mode == pin_mode_t::output) ? GPIO_MODE_OUTPUT : GPIO_MODE_INPUT;
-    io_conf.pull_down_en = (mode == pin_mode_t::input_pulldown) ? GPIO_PULLDOWN_ENABLE : GPIO_PULLDOWN_DISABLE;
-    io_conf.pull_up_en   = (mode == pin_mode_t::input_pullup  ) ? GPIO_PULLUP_ENABLE   : GPIO_PULLUP_DISABLE;
-    gpio_config(&io_conf);
+    else
 #endif
+    {
+      io_mux_val &= ~(FUN_PU_M | FUN_PD_M | SLP_PU_M | SLP_PD_M);
+      switch (mode) {
+      case pin_mode_t::input_pullup:    io_mux_val |= FUN_PU_M | SLP_PU_M;   break;
+      case pin_mode_t::input_pulldown:  io_mux_val |= FUN_PD_M | SLP_PD_M;   break;
+      default:   break;
+      }
+    }
+    io_mux_val &= ~(MCU_SEL_M);
+    io_mux_val |= FUN_IE_M | (PIN_FUNC_GPIO << MCU_SEL_S);
+
+    *io_mux_reg = io_mux_val;
+
+    GPIO.pin[pin].pad_driver = 0; // 1 = OpenDrain / 0 = normal output
+    GPIO.func_out_sel_cfg[pin].func_sel = SIG_GPIO_OUT_IDX;
+  }
+
+//----------------------------------------------------------------------------
+
+  namespace gpio
+  {
+    pin_backup_t::pin_backup_t(int pin_num)
+    : _pin_num { static_cast<gpio_num_t>(pin_num) }
+    {
+      backup();
+    }
+
+    void pin_backup_t::backup(void)
+    {
+      auto pin_num = (size_t)_pin_num;
+      if (pin_num < GPIO_NUM_MAX)
+      {
+        _io_mux_gpio_reg   = *reinterpret_cast<uint32_t*>(GPIO_PIN_MUX_REG[pin_num]);
+        _gpio_pin_reg      = *reinterpret_cast<uint32_t*>(GPIO_PIN0_REG              + (pin_num * 4));
+        _gpio_func_out_reg = *reinterpret_cast<uint32_t*>(GPIO_FUNC0_OUT_SEL_CFG_REG + (pin_num * 4));
+#if defined ( GPIO_ENABLE1_REG )
+        _gpio_enable = *reinterpret_cast<uint32_t*>(((_pin_num & 32) ? GPIO_ENABLE1_REG : GPIO_ENABLE_REG)) & (1 << (_pin_num & 31));
+#else
+        _gpio_enable = *reinterpret_cast<uint32_t*>(GPIO_ENABLE_REG) & (1 << (_pin_num & 31));
+#endif
+      }
+    }
+
+    void pin_backup_t::restore(void)
+    {
+      auto pin_num = (size_t)_pin_num;
+      if (pin_num < GPIO_NUM_MAX)
+      {
+  // ESP_LOGD("DEBUG","restore pin:%d ", _pin_num);
+  // ESP_LOGD("DEBUG","restore IO_MUX_GPIO0_REG          :%08x -> %08x ", *reinterpret_cast<uint32_t*>(GPIO_PIN_MUX_REG[_pin_num]                 ), _io_mux_gpio_reg   );
+  // ESP_LOGD("DEBUG","restore GPIO_PIN0_REG             :%08x -> %08x ", *reinterpret_cast<uint32_t*>(GPIO_PIN0_REG              + (_pin_num * 4)), _gpio_pin_reg      );
+  // ESP_LOGD("DEBUG","restore GPIO_FUNC0_OUT_SEL_CFG_REG:%08x -> %08x ", *reinterpret_cast<uint32_t*>(GPIO_FUNC0_OUT_SEL_CFG_REG + (_pin_num * 4)), _gpio_func_out_reg );
+        *reinterpret_cast<uint32_t*>(GPIO_PIN_MUX_REG[_pin_num]) = _io_mux_gpio_reg;
+        *reinterpret_cast<uint32_t*>(GPIO_PIN0_REG              + (_pin_num * 4)) = _gpio_pin_reg;
+        *reinterpret_cast<uint32_t*>(GPIO_FUNC0_OUT_SEL_CFG_REG + (_pin_num * 4)) = _gpio_func_out_reg;
+#if defined ( GPIO_ENABLE1_REG )
+        auto gpio_enable_reg = reinterpret_cast<uint32_t*>(((_pin_num & 32) ? GPIO_ENABLE1_REG : GPIO_ENABLE_REG));
+#else
+        auto gpio_enable_reg = reinterpret_cast<uint32_t*>(GPIO_ENABLE_REG);
+#endif
+
+        uint32_t pin_mask = 1 << (_pin_num & 31);
+        uint32_t val = *gpio_enable_reg;
+  // ESP_LOGD("DEBUG","restore GPIO_ENABLE_REG:%08x", *gpio_enable_reg);
+        if (_gpio_enable)
+        {
+           val |= pin_mask;
+        }
+        else
+        {
+          val &= ~pin_mask;
+        }
+        *gpio_enable_reg = val;
+  // ESP_LOGD("DEBUG","restore GPIO_ENABLE_REG:%08x", *gpio_enable_reg);
+      }
+    }
+
+    bool command(command_t cmd, uint8_t val)
+    {
+      bool res = false;
+      switch (cmd)
+      {
+      case command_read:       res = gpio_in(val); break;
+      case command_write_low:  gpio_lo(val); break;
+      case command_write_high: gpio_hi(val); break;
+      case command_delay:      delay(val); break;
+      default:
+        if ((cmd >> 2) == (command_mode_output >> 2)) {
+          pin_mode_t mode = pin_mode_t::output;
+          switch (cmd)
+          {
+          case command_mode_input:          mode = pin_mode_t::input;          break;
+          case command_mode_input_pulldown: mode = pin_mode_t::input_pulldown; break;
+          case command_mode_input_pullup:   mode = pin_mode_t::input_pullup;   break;
+          default: break;
+          }
+          pinMode(val, mode);
+        }
+        break;
+      }
+      return res;
+    }
+
+    uint32_t command(const uint8_t* cmd_list)
+    {
+      uint32_t result = 0;
+      while (cmd_list[0] != command_end)
+      {
+        auto cmd = (command_t)cmd_list[0];
+        bool res = command(cmd, cmd_list[1]);
+        if (cmd == command_read) {
+          result = (result << 1) + res;
+        }
+        cmd_list += 2;
+      }
+      return result;
+    }
   }
 
 //----------------------------------------------------------------------------
@@ -286,7 +454,7 @@ namespace lgfx
       if (spi_sclk >= 0) {
         gpio_lo(spi_sclk); // ここでLOWにしておくことで、pinMode変更によるHIGHパルスが出力されるのを防止する (CSなしパネル対策);
       }
-#if defined (ARDUINO) // Arduino ESP32
+#if defined (ARDUINO) && __has_include (<SPI.h>) // Arduino ESP32
       if (spi_host == default_spi_host)
       {
         SPI.end();
@@ -311,27 +479,20 @@ namespace lgfx
         buscfg.max_transfer_sz = 1;
         buscfg.flags = SPICOMMON_BUSFLAG_MASTER;
         buscfg.intr_flags = 0;
-
+#if (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 1, 0))
+        buscfg.isr_cpu_id = INTR_CPU_ID_AUTO;
+#endif
         if (ESP_OK != spi_bus_initialize(static_cast<spi_host_device_t>(spi_host), &buscfg, dma_channel))
         {
           ESP_LOGW("LGFX", "Failed to spi_bus_initialize. ");
         }
 
-        spi_device_interface_config_t devcfg = {
-            .command_bits = 0,
-            .address_bits = 0,
-            .dummy_bits = 0,
-            .mode = 0,
-            .duty_cycle_pos = 0,
-            .cs_ena_pretrans = 0,
-            .cs_ena_posttrans = 0,
-            .clock_speed_hz = (int)getApbFrequency()>>1,
-            .input_delay_ns = 0,
-            .spics_io_num = -1,
-            .flags = SPI_DEVICE_3WIRE | SPI_DEVICE_HALFDUPLEX,
-            .queue_size = 1,
-            .pre_cb = nullptr,
-            .post_cb = nullptr};
+        spi_device_interface_config_t devcfg;
+        memset(&devcfg, 0, sizeof(devcfg));
+        devcfg.clock_speed_hz = 10000000;
+        devcfg.spics_io_num = -1;
+        devcfg.flags = SPI_DEVICE_3WIRE | SPI_DEVICE_HALFDUPLEX;
+        devcfg.queue_size = 1;
         if (ESP_OK != spi_bus_add_device(static_cast<spi_host_device_t>(spi_host), &devcfg, &_spi_dev_handle[spi_host])) {
           ESP_LOGW("LGFX", "Failed to spi_bus_add_device. ");
         }
@@ -352,7 +513,7 @@ namespace lgfx
     void release(int spi_host)
     {
 //ESP_LOGI("LGFX","spi::release");
-#if defined (ARDUINO) // Arduino ESP32
+#if defined (ARDUINO) && __has_include (<SPI.h>) // Arduino ESP32
       if (_spi_handle[spi_host] != nullptr)
       {
         if (spi_host == default_spi_host)
@@ -589,7 +750,7 @@ namespace lgfx
       {
         pin_sda = sda;
         pin_scl = scl;
-#if defined ( ARDUINO )
+#if defined ( ARDUINO ) && __has_include (<Wire.h>)
  #if defined ( ESP_IDF_VERSION_VAL )
   #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 0, 0)
    #if defined ARDUINO_ESP32_GIT_VER
@@ -643,7 +804,11 @@ namespace lgfx
         cmd_val |= (1 << 10); // ACK_VALUE (set NACK)
       }
 #if defined (CONFIG_IDF_TARGET_ESP32S3)
+ #if (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 2) && ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 1, 0))
+      (&dev->comd[0])[index].val = cmd_val;
+ #else
       (&dev->comd0)[index].val = cmd_val;
+ #endif
 #else
       dev->command[index].val = cmd_val;
 #endif
@@ -710,6 +875,7 @@ namespace lgfx
       auto dev = getDev(i2c_port);
       typeof(dev->int_raw) int_raw;
       static constexpr uint32_t intmask = I2C_ACK_ERR_INT_RAW_M | I2C_END_DETECT_INT_RAW_M | I2C_ARBITRATION_LOST_INT_RAW_M;
+
       if (i2c_context[i2c_port].wait_ack_stage)
       {
         int_raw.val = dev->int_raw.val;
@@ -795,7 +961,7 @@ namespace lgfx
       if (i2c_context[i2c_port].initialized)
       {
         i2c_context[i2c_port].initialized = false;
-#if defined ( ARDUINO ) && defined ( ESP_IDF_VERSION_VAL )
+#if defined ( ARDUINO ) && __has_include (<Wire.h>) && defined ( ESP_IDF_VERSION_VAL )
  #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 0, 0)
   #if defined ARDUINO_ESP32_GIT_VER
     #if ARDUINO_ESP32_GIT_VER != 0x44c11981
@@ -838,7 +1004,7 @@ namespace lgfx
       release(i2c_port).has_value();
       i2c_context[i2c_port].pin_scl = (gpio_num_t)pin_scl;
       i2c_context[i2c_port].pin_sda = (gpio_num_t)pin_sda;
-#if defined ( ARDUINO )
+#if defined ( ARDUINO ) && __has_include (<Wire.h>)
  #if defined ( ESP_IDF_VERSION_VAL )
   #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(3, 3, 0)
    #define USE_TWOWIRE_SETPINS
@@ -866,7 +1032,7 @@ namespace lgfx
         release(i2c_port);
       }
 
-#if defined ( ARDUINO )
+#if defined ( ARDUINO ) && __has_include (<Wire.h>)
       auto twowire = ((i2c_port == 1) ? &Wire1 : &Wire);
  #if defined ( USE_TWOWIRE_SETPINS )
       twowire->begin();
@@ -1159,6 +1325,7 @@ namespace lgfx
       static constexpr uint32_t intmask = I2C_ACK_ERR_INT_RAW_M | I2C_TIME_OUT_INT_RAW_M | I2C_END_DETECT_INT_RAW_M | I2C_ARBITRATION_LOST_INT_RAW_M;
       auto fifo_addr = getFifoAddr(i2c_port);
       auto dev = getDev(i2c_port);
+
       size_t len = 0;
 #if defined ( CONFIG_IDF_TARGET_ESP32S3 )
       uint32_t us_limit = ((dev->scl_high_period.scl_high_period + dev->scl_high_period.scl_wait_high_period + dev->scl_low_period.scl_low_period) << 1);
@@ -1167,11 +1334,8 @@ namespace lgfx
 #else
       uint32_t us_limit = (dev->scl_high_period.period + dev->scl_low_period.period);
 #endif
-      us_limit += 1024;
       do
       {
-        len = ((length-1) & 63) + 1;
-        length -= len;
         res = i2c_wait(i2c_port);
         if (res.has_error())
         {
@@ -1179,31 +1343,33 @@ namespace lgfx
           break;
         }
 
-        int cmdidx = 0;
-        if (length == 0 && last_nack) {
-          if (len > 1) {
-            i2c_set_cmd(dev, cmdidx++, i2c_cmd_read, len - 1);
-          }
-          i2c_set_cmd(dev, cmdidx++, i2c_cmd_read, 1, true);
-        }
-        else
-        {
-          i2c_set_cmd(dev, cmdidx++, i2c_cmd_read, len);
-        }
-        i2c_set_cmd(dev, cmdidx, i2c_cmd_end, 0);
+        len = length < 64 ? length : 64;
+        if (length == len && last_nack && len > 1) { --len; }
 
+        length -= len;
+        i2c_set_cmd(dev, 0, i2c_cmd_read, len, last_nack && length == 0);
+        i2c_set_cmd(dev, 1, i2c_cmd_end, 0);
         updateDev(dev);
         dev->ctr.trans_start = 1;
         dev->int_clr.val = intmask;
+
+        uint32_t us = lgfx::micros();
+        taskYIELD();
+
 #if defined ( CONFIG_IDF_TARGET_ESP32S3 )
         delayMicroseconds(us_limit >> 2);  /// このウェイトを外すと受信失敗するケースがある;
 #endif
+        auto delayus = (us_limit + 7) >> 3;
+        us = lgfx::micros() - us;
+        if (us < delayus) {
+          delayMicroseconds(delayus - us);
+        }
         do
         {
           if (0 == getRxFifoCount(dev))
           {
             uint32_t us = lgfx::micros();
-            do { taskYIELD(); } while (0 == getRxFifoCount(dev) && !(dev->int_raw.val & intmask) && ((lgfx::micros() - us) <= us_limit));
+            do { taskYIELD(); } while (0 == getRxFifoCount(dev) && !(dev->int_raw.val & intmask) && ((lgfx::micros() - us) <= us_limit + 1024));
             if (0 == getRxFifoCount(dev))
             {
               i2c_stop(i2c_port);

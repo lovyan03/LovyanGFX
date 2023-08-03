@@ -17,7 +17,7 @@ assignees: ''
 - Bus type:           [SPI|I2C|Parallel8|Parallel16|other]
 - LovyanGFX version:  [v0.4.17|latest develop|other]
 - FrameWork version:   [ArduinoESP32 v2.0.3|ESP-IDF v4.4|other]
-- Build Environment :   [ArduinoIDE|PlatformIO|Eclipse|other]
+- Build Environment:   [ArduinoIDE|PlatformIO|Eclipse|other]
 - Operating System:   [Windows|Linux|macOS]
 
 ## Problem Description ( 問題の内容 )
@@ -35,6 +35,9 @@ assignees: ''
 
 
 ### Code to reproduce this issue ( 再現させるためのコード )
+
+**Please submit complete source code that can reproduce your problem.**
+**あなたの問題を再現できる完全なソースコードを提示してください。**
 
 ```cpp
 // the code should be wrapped in the ```cpp tag so that it will be displayed better.

@@ -62,17 +62,64 @@ namespace lgfx
     LGFXBase(void) = default;
     virtual ~LGFXBase(void) = default;
 
+    /// @brief Converts RGB information to 8-bit color code.
+    /// @param r red
+    /// @param g green
+    /// @param b blue
+    /// @return 8-bit color code
     LGFX_INLINE static constexpr uint8_t  color332(uint8_t r, uint8_t g, uint8_t b) { return lgfx::color332(r, g, b); }
+    /// @brief Converts RGB information to 16-bit color code.
+    /// @param r red
+    /// @param g green
+    /// @param b blue
+    /// @return 16-bit color code
     LGFX_INLINE static constexpr uint16_t color565(uint8_t r, uint8_t g, uint8_t b) { return lgfx::color565(r, g, b); }
+    /// @brief Converts RGB information to 24-bit color code.
+    /// @param r red
+    /// @param g green
+    /// @param b blue
+    /// @return 24-bit color code
     LGFX_INLINE static constexpr uint32_t color888(uint8_t r, uint8_t g, uint8_t b) { return lgfx::color888(r, g, b); }
+
+    /// @brief Endian conversion of 16-bit RGB565 format color code.
+    /// @param r red
+    /// @param g green
+    /// @param b blue
+    /// @return 16-bit color code (endian converted)
+    /// @note This function is used to draw directly to the Sprite's buffer memory.
     LGFX_INLINE static constexpr uint16_t swap565( uint8_t r, uint8_t g, uint8_t b) { return lgfx::swap565( r, g, b); }
+    /// @brief Endian conversion of 24-bit RGB888 format color code.
+    /// @param r red
+    /// @param g green
+    /// @param b blue
+    /// @return 24-bit color code (endian converted)
+    /// @note This function is used to draw directly to the Sprite's buffer memory.
     LGFX_INLINE static constexpr uint32_t swap888( uint8_t r, uint8_t g, uint8_t b) { return lgfx::swap888( r, g, b); }
+
+    /// @brief Convert 16-bit RGB565 format color code to 8-bit RGB332 format.
+    /// @param rgb565 16-bit color code
+    /// @return 8-bit color code
     LGFX_INLINE static uint8_t  color16to8( uint32_t rgb565) { return lgfx::color_convert<rgb332_t,rgb565_t>(rgb565); }
+    /// @brief Convert 8-bit RGB332 format color code to 16-bit RGB565 format.
+    /// @param rgb332 16-bit color code
+    /// @return 16-bit color code
     LGFX_INLINE static uint16_t color8to16( uint32_t rgb332) { return lgfx::color_convert<rgb565_t,rgb332_t>(rgb332); }
+    /// @brief Convert 16-bit RGB565 format color code to 24-bit RGB888 format.
+    /// @param rgb565 16-bit color code
+    /// @return 24-bit color code
     LGFX_INLINE static uint32_t color16to24(uint32_t rgb565) { return lgfx::color_convert<rgb888_t,rgb565_t>(rgb565); }
+    /// @brief Convert 24-bit RGB888 format color code to 16-bit RGB565 format.
+    /// @param rgb888 24-bit color code
+    /// @return 16-bit color code
     LGFX_INLINE static uint16_t color24to16(uint32_t rgb888) { return lgfx::color_convert<rgb565_t,rgb888_t>(rgb888); }
 
+    /// @brief Specifies the color used to draw the screen.
+    /// @param r red
+    /// @param g green
+    /// @param b blue
     LGFX_INLINE   void setColor(uint8_t r, uint8_t g, uint8_t b) { setColor(lgfx::color888(r,g,b)); }
+    /// @brief Specifies the color used to draw the screen.
+    /// @param color color code
     LGFX_INLINE_T void setColor(T color) { setRawColor(_write_conv.convert(color)); }
     LGFX_INLINE   void setRawColor(uint32_t c) { *((uint32_t*)&_color) = c; }
     LGFX_INLINE   uint32_t getRawColor(void) const { return *((uint32_t*)&_color); }
@@ -81,7 +128,14 @@ namespace lgfx
     LGFX_INLINE   color_conv_t* getColorConverter(void) { return &_write_conv; }
     LGFX_INLINE   color_depth_t getColorDepth(void) const { return _write_conv.depth; }
 
+    /// @brief Allocate bus for screen communication.
+    /// @param transaction If true, transaction processing is performed.
+    /// @note Although bus allocation and release are automatically performed when drawing functions are called,
+    /// using startWrite and endWrite before and after the drawing process suppresses bus allocation
+    /// and release and improves drawing speed.
+    /// In the case of electronic paper (EPD), drawing after startWrite() is reflected on the screen by calling endWrite().
     LGFX_INLINE   void startWrite(bool transaction = true) { _panel->startWrite(transaction); }
+    /// @brief Release bus for screen communication.
     LGFX_INLINE   void endWrite(void)                      { _panel->endWrite(); }
     LGFX_INLINE   void beginTransaction(void)              { _panel->beginTransaction(); }
     LGFX_INLINE   void endTransaction(void)                { _panel->endTransaction(); }
@@ -100,15 +154,68 @@ namespace lgfx
     LGFX_INLINE   void writeFillRectPreclipped( int32_t x, int32_t y, int32_t w, int32_t h)                 { _panel->writeFillRectPreclipped(x, y, w, h, getRawColor()); }
     LGFX_INLINE_T void writeColor      ( const T& color, uint32_t length) { if (0 == length) return; setColor(color);               _panel->writeBlock(getRawColor(), length); }
     LGFX_INLINE_T void pushBlock       ( const T& color, uint32_t length) { if (0 == length) return; setColor(color); startWrite(); _panel->writeBlock(getRawColor(), length); endWrite(); }
+
+    /// @brief Draw a pixel.
+    /// @param x X-coordinate
+    /// @param y Y-coordinate
+    /// @note Draws in the color specified by setColor().
     LGFX_INLINE   void drawPixel       ( int32_t x, int32_t y) { if (x >= _clip_l && x <= _clip_r && y >= _clip_t && y <= _clip_b) { _panel->drawPixelPreclipped(x, y, getRawColor()); } }
+    /// @brief Draw a pixel.
+    /// @param x X-coordinate
+    /// @param y Y-coordinate
+    /// @param color Color to draw with
     LGFX_INLINE_T void drawPixel       ( int32_t x, int32_t y                                 , const T& color) { setColor(color); drawPixel    (x, y         ); }
+    /// @brief Draw a vertical line.
+    /// @param x Top-most X-coordinate
+    /// @param y Top-most Y-coordinate
+    /// @param h Height in pixels
+    /// @param color Color to draw with
     LGFX_INLINE_T void drawFastVLine   ( int32_t x, int32_t y           , int32_t h           , const T& color) { setColor(color); drawFastVLine(x, y   , h   ); }
+    /// @brief Draw a vertical line.
+    /// @param x Top-most X-coordinate
+    /// @param y Top-most Y-coordinate
+    /// @param h Height in pixels
+    /// @note Draws in the color specified by setColor().
                   void drawFastVLine   ( int32_t x, int32_t y           , int32_t h);
+    /// @brief Draw a horizontal line.
+    /// @param x Left-most X-coordinate
+    /// @param y Left-most Y-coordinate
+    /// @param w Width in pixels
+    /// @param color Color to draw with
     LGFX_INLINE_T void drawFastHLine   ( int32_t x, int32_t y, int32_t w                      , const T& color) { setColor(color); drawFastHLine(x, y, w      ); }
+    /// @brief Draw a horizontal line.
+    /// @param x Left-most X-coordinate
+    /// @param y Left-most Y-coordinate
+    /// @param w Width in pixels
+    /// @note Draws in the color specified by setColor().
                   void drawFastHLine   ( int32_t x, int32_t y, int32_t w);
+    /// @brief  Fill a rectangle.
+    /// @param x Top-left-corner X-coordinate
+    /// @param y Top-left-corner Y-coordinate
+    /// @param w Width in pixels
+    /// @param h Height in pixels
+    /// @param color Color to fill with
     LGFX_INLINE_T void fillRect        ( int32_t x, int32_t y, int32_t w, int32_t h           , const T& color) { setColor(color); fillRect     (x, y, w, h   ); }
+    /// @brief  Fill a rectangle.
+    /// @param x Top-left-corner X-coordinate
+    /// @param y Top-left-corner Y-coordinate
+    /// @param w Width in pixels
+    /// @param h Height in pixels
+    /// @note Draws in the color specified by setColor().
                   void fillRect        ( int32_t x, int32_t y, int32_t w, int32_t h);
+    /// @brief Draw a rectangle outline.
+    /// @param x Top-left-corner X-coordinate
+    /// @param y Top-left-corner Y-coordinate
+    /// @param w Width in pixels
+    /// @param h Height in pixels
+    /// @param color Color to fill with
     LGFX_INLINE_T void drawRect        ( int32_t x, int32_t y, int32_t w, int32_t h           , const T& color) { setColor(color); drawRect     (x, y, w, h   ); }
+    /// @brief Draw a rectangle outline.
+    /// @param x Top-left-corner X-coordinate
+    /// @param y Top-left-corner Y-coordinate
+    /// @param w Width in pixels
+    /// @param h Height in pixels
+    /// @note Draws in the color specified by setColor().
                   void drawRect        ( int32_t x, int32_t y, int32_t w, int32_t h);
     LGFX_INLINE_T void drawRoundRect   ( int32_t x, int32_t y, int32_t w, int32_t h, int32_t r, const T& color) { setColor(color); drawRoundRect(x, y, w, h, r); }
                   void drawRoundRect   ( int32_t x, int32_t y, int32_t w, int32_t h, int32_t r);
@@ -747,7 +854,7 @@ namespace lgfx
 
     void* createPng( size_t* datalen, int32_t x = 0, int32_t y = 0, int32_t width = 0, int32_t height = 0);
 
-
+    void releasePngMemory(void);
 
     template<typename T>
     [[deprecated("use pushImage")]] void pushRect( int32_t x, int32_t y, int32_t w, int32_t h, const T* data) { pushImage(x, y, w, h, data); }
@@ -1131,7 +1238,8 @@ namespace lgfx
 
 //----------------------------------------------------------------------------
 
-  /// LovyanGFXクラス。ファイルシステム等、利用環境側のinclude順に依存する機能はLGFX_FILESYSTEM_Supportから継承する。;
+  /// @brief LovyanGFX class.
+  /// that depend on the include order of the environment, such as file system, are inherited from LGFX_FILESYSTEM_Support.
   class LovyanGFX : public
   #ifdef LGFX_FILESYSTEM_SUPPORT_HPP_
       LGFX_FILESYSTEM_Support<

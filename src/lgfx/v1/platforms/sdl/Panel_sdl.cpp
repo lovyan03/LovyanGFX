@@ -18,11 +18,12 @@ Contributors:
 Porting for SDL:
  [imliubo](https://github.com/imliubo)
 /----------------------------------------------------------------------------*/
-#if defined ( LGFX_SDL )
-
 #include "Panel_sdl.hpp"
 
+#if defined ( SDL_h_ )
+
 #include "../common.hpp"
+#include "../../misc/common_function.hpp"
 #include "../../Bus.hpp"
 
 #include <list>
@@ -31,6 +32,12 @@ namespace lgfx
 {
  inline namespace v1
  {
+  static SDL_semaphore *_update_in_semaphore = nullptr;
+  static SDL_semaphore *_update_out_semaphore = nullptr;
+  volatile static uint32_t _in_step_exec = 0;
+  volatile static uint32_t _msec_step_exec = 512;
+  static bool _inited = false;
+  static bool _all_close = false;
 
   static std::list<monitor_t*> _list_monitor;
 
@@ -43,118 +50,27 @@ namespace lgfx
     return nullptr;
   }
 //----------------------------------------------------------------------------
-  static void memset_multi(uint8_t* buf, uint32_t c, size_t size, size_t length)
+
+  void Panel_sdl::_event_proc(void)
   {
-    if (size == 1 || ((c & 0xFF) == ((c >> 8) & 0xFF) && (size == 2 || ((c & 0xFF) == ((c >> 16) & 0xFF)))))
-    {
-      memset(buf, c, size * length);
-      return;
-    }
-
-    size_t l = length;
-    if (l & ~0xF)
-    {
-      while ((l >>= 1) & ~0xF);
-      ++l;
-    }
-    size_t len = l * size;
-    length = (length * size) - len;
-    uint8_t* dst = buf;
-    if (size == 2) {
-      do { // 2byte speed tweak
-        *(uint16_t*)dst = c;
-        dst += 2;
-      } while (--l);
-    } else {
-      do {
-        size_t i = 0;
-        do {
-          *dst++ = *(((uint8_t*)&c) + i);
-        } while (++i != size);
-      } while (--l);
-    }
-    if (!length) return;
-    while (length > len) {
-      memcpy(dst, buf, len);
-      dst += len;
-      length -= len;
-      len <<= 1;
-    }
-    if (length) {
-      memcpy(dst, buf, length);
-    }
-  }
-
-  int quit_filter(void * userdata, SDL_Event * event)
-  {
-    Panel_sdl *sdl = (Panel_sdl *)userdata;
-
-    if(event->type == SDL_WINDOWEVENT) {
-      if(event->window.event == SDL_WINDOWEVENT_CLOSE) {
-        sdl->sdl_quit();
-      }
-    }
-    else if(event->type == SDL_QUIT) {
-      sdl->sdl_quit();
-    }
-
-    return 1;
-  }
-
-  void Panel_sdl::sdl_update_handler(void)
-  {
-    SDL_Delay(1);
-    for (auto& m : _list_monitor)
-    {
-      if (m->renderer == nullptr)
-      {
-        m->panel->sdl_create(m);
-      }
-      sdl_update(m);
-    }
-  }
-
-  void Panel_sdl::sdl_event_handler(void)
-  {
-    sdl_update_handler();
-
     SDL_Event event;
     while (SDL_PollEvent(&event))
     {
-      if (event.type == SDL_KEYDOWN)
+      if ((event.type == SDL_KEYDOWN) || (event.type == SDL_KEYUP))
       {
+        int gpio = -1;
         switch (event.key.keysym.sym)
         { /// M5StackのBtnA～BtnCのエミュレート;
-        case SDLK_LEFT:
-          gpio_lo(39);
-          break;
-        case SDLK_DOWN:
-          gpio_lo(38);
-          break;
-        case SDLK_RIGHT:
-          gpio_lo(37);
-          break;
-        case SDLK_UP:
-          gpio_lo(36);
-          break;
+        case SDLK_LEFT:  gpio = 39; break;
+        case SDLK_DOWN:  gpio = 38; break;
+        case SDLK_RIGHT: gpio = 37; break;
+        case SDLK_UP:    gpio = 36; break;
+        default: continue;
         }
-      }
-      else if (event.type == SDL_KEYUP)
-        { /// M5StackのBtnA～BtnCのエミュレート;
-        switch (event.key.keysym.sym)
-        {
-        case SDLK_LEFT:
-          gpio_hi(39);
-          break;
-        case SDLK_DOWN:
-          gpio_hi(38);
-          break;
-        case SDLK_RIGHT:
-          gpio_hi(37);
-          break;
-        case SDLK_UP:
-          gpio_hi(36);
-          break;
+        if (event.type == SDL_KEYDOWN) {
+          gpio_lo(gpio);
+        } else {
+          gpio_hi(gpio);
         }
       }
       else if (event.type == SDL_MOUSEBUTTONDOWN || event.type == SDL_MOUSEBUTTONUP || event.type == SDL_MOUSEMOTION)
@@ -162,7 +78,11 @@ namespace lgfx
         auto mon = getMonitorByWindowID(event.button.windowID);
         if (mon != nullptr)
         {
-          SDL_GetMouseState(&mon->touch_x, &mon->touch_y);
+          int x, y, w, h;
+          SDL_GetWindowSize(mon->window, &w, &h);
+          SDL_GetMouseState(&x, &y);
+          mon->touch_x = x * mon->panel->config().panel_width / w;
+          mon->touch_y = y * mon->panel->config().panel_height / h;
           if (event.type == SDL_MOUSEBUTTONDOWN && event.button.button == SDL_BUTTON_LEFT)
           {
             mon->touched = true;
@@ -173,19 +93,127 @@ namespace lgfx
           }
         }
       }
-      else if (event.type == SDL_WINDOWEVENT) {
-
-        switch((&event)->window.event) {
-  #if SDL_VERSION_ATLEAST(2, 0, 5)
-          case SDL_WINDOWEVENT_TAKE_FOCUS:
-  #endif
-          case SDL_WINDOWEVENT_EXPOSED:
-          break;
-          default:
-          break;
+      else
+      if (event.type == SDL_WINDOWEVENT
+      || event.type == SDL_QUIT) {
+        auto monitor = getMonitorByWindowID(event.window.windowID);
+        if (monitor) {
+          if (event.window.event == SDL_WINDOWEVENT_RESIZED) {
+            monitor->panel->sdl_invalidate();
+          }
+          else
+          if (event.window.event == SDL_WINDOWEVENT_CLOSE) {
+            monitor->closing = true;
+          }
         }
       }
     }
+  }
+
+  /// デバッガでステップ実行されていることを検出するスレッド用関数。
+  static int detectDebugger(bool* running)
+  {
+    uint32_t prev_ms = SDL_GetTicks();
+    do {
+      SDL_Delay(1);
+      uint32_t ms = SDL_GetTicks();
+      /// 時間間隔が広すぎる場合はステップ実行中 (ブレークポイントで止まった)と判断する。
+      /// また、解除されたと判断した後も1023msecほど状態を維持する。
+      if (ms - prev_ms > 64) { _in_step_exec = _msec_step_exec; }
+      else if (_in_step_exec) { --_in_step_exec; }
+      prev_ms = ms;
+    } while (*running);
+    return 0;
+  }
+
+  void Panel_sdl::_update_proc(void)
+  {
+    for (auto it = _list_monitor.begin(); it != _list_monitor.end(); )
+    {
+      if ((*it)->closing) {
+        SDL_DestroyTexture((*it)->texture);
+        SDL_DestroyRenderer((*it)->renderer);
+        SDL_DestroyWindow((*it)->window);
+        _list_monitor.erase(it++);
+        if (_list_monitor.empty()) {
+          _all_close = true;
+          return;
+        }
+        continue;
+      }
+      (*it)->panel->sdl_update();
+      ++it;
+    }
+  }
+
+  int Panel_sdl::setup(void)
+  {
+    if (_inited) return 1;
+    _inited = true;
+
+    SDL_CreateThread((SDL_ThreadFunction)detectDebugger, "dbg", &_inited);
+
+    _update_in_semaphore = SDL_CreateSemaphore(0);
+    _update_out_semaphore = SDL_CreateSemaphore(0);
+    for (size_t pin = 0; pin < EMULATED_GPIO_MAX; ++pin) { gpio_hi(pin); }
+    /*Initialize the SDL*/
+    SDL_Init(SDL_INIT_VIDEO);
+    SDL_StartTextInput();
+
+    // SDL_SetThreadPriority(SDL_ThreadPriority::SDL_THREAD_PRIORITY_HIGH);
+    return 0;
+  }
+
+  int Panel_sdl::loop(void)
+  {
+    if (!_inited) return 1;
+
+    _event_proc();
+    SDL_SemWaitTimeout(_update_in_semaphore, 1);
+    _update_proc();
+    _event_proc();
+    if (SDL_SemValue(_update_out_semaphore) == 0)
+    {
+      SDL_SemPost(_update_out_semaphore);
+    }
+
+    return _all_close;
+  }
+
+  int Panel_sdl::close(void)
+  {
+    if (!_inited) return 1;
+    _inited = false;
+
+    SDL_StopTextInput();
+    SDL_DestroySemaphore(_update_in_semaphore);
+    SDL_DestroySemaphore(_update_out_semaphore);
+    SDL_Quit();
+    return 0;
+  }
+
+  int Panel_sdl::main(int(*fn)(bool*), uint32_t msec_step_exec)
+  {
+    _msec_step_exec = msec_step_exec;
+
+    /// SDLの準備
+    if (0 != Panel_sdl::setup()) { return 1; }
+
+    /// ユーザコード関数の動作・停止フラグ
+    bool running = true;
+
+    /// ユーザコード関数を起動する
+    auto thread = SDL_CreateThread((SDL_ThreadFunction)fn, "fn", &running);
+
+    /// 全部のウィンドウが閉じられるまでSDLのイベント・描画処理を継続
+    while (0 == Panel_sdl::loop()) {};
+
+    /// ユーザコード関数を終了する
+    running = false;
+    SDL_WaitThread(thread, nullptr);
+
+    /// SDLを終了する
+    return Panel_sdl::close();
   }
 
   void Panel_sdl::setScaling(uint_fast8_t scaling_x, uint_fast8_t scaling_y)
@@ -197,490 +225,243 @@ namespace lgfx
   Panel_sdl::~Panel_sdl(void)
   {
     _list_monitor.remove(&monitor);
+    SDL_DestroyMutex(_sdl_mutex);
   }
 
-  Panel_sdl::Panel_sdl(void) : Panel_Device()
+  Panel_sdl::Panel_sdl(void) : Panel_FrameBufferBase()
   {
+    _sdl_mutex = SDL_CreateMutex();
+    _auto_display = true;
     monitor.panel = this;
-    static bool inited = false;
-    if (inited) { return; }
-    for (size_t pin = 0; pin < EMULATED_GPIO_MAX; ++pin) { gpio_hi(pin); }
-
-    /*Initialize the SDL*/
-    SDL_Init(SDL_INIT_VIDEO);
-
-    SDL_SetEventFilter(quit_filter, this);
-
-    SDL_StartTextInput();
   }
 
   bool Panel_sdl::init(bool use_reset)
   {
-    uint32_t len = _cfg.panel_width * _cfg.panel_height * sizeof(bgr888_t) + 16;
-    monitor.tft_fb = (bgr888_t*)malloc(len);
-    memset(monitor.tft_fb, 0x44, len);
+    initFrameBuffer(_cfg.panel_width * 4, _cfg.panel_height);
+    bool res = Panel_FrameBufferBase::init(use_reset);
 
     _list_monitor.push_back(&monitor);
 
-    return Panel_Device::init(use_reset);
+    return res;
   }
 
   color_depth_t Panel_sdl::setColorDepth(color_depth_t depth)
   {
-    _write_depth = color_depth_t::rgb888_3Byte;
-    _read_depth = color_depth_t::rgb888_3Byte;
-    return _write_depth;
+    auto bits = depth & color_depth_t::bit_mask;
+    if (bits >= 16) {
+      depth = (bits > 16)
+            ? rgb888_3Byte
+            : rgb565_2Byte;
+    } else {
+      depth = (depth == color_depth_t::grayscale_8bit)
+            ? grayscale_8bit
+            : rgb332_1Byte;
+    }
+    _write_depth = depth;
+    _read_depth = depth;
+
+    return depth;
   }
 
-  void Panel_sdl::setRotation(uint_fast8_t r)
+  Panel_sdl::lock_t::lock_t(Panel_sdl* parent)
+  : _parent { parent }
   {
-    r &= 7;
-    _rotation = r;
-    _internal_rotation = ((r + _cfg.offset_rotation) & 3) | ((r & 4) ^ (_cfg.offset_rotation & 4));
+    SDL_LockMutex(parent->_sdl_mutex);
+  };
 
-    _width  = _cfg.panel_width;
-    _height = _cfg.panel_height;
-    if (_internal_rotation & 1) std::swap(_width, _height);
-  }
-
-  void Panel_sdl::setWindow(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye)
+  Panel_sdl::lock_t::~lock_t(void)
   {
-    xs = std::max<uint_fast16_t>(0u, std::min<uint_fast16_t>(_width  - 1, xs));
-    xe = std::max<uint_fast16_t>(0u, std::min<uint_fast16_t>(_width  - 1, xe));
-    ys = std::max<uint_fast16_t>(0u, std::min<uint_fast16_t>(_height - 1, ys));
-    ye = std::max<uint_fast16_t>(0u, std::min<uint_fast16_t>(_height - 1, ye));
-    _xpos = xs;
-    _xs = xs;
-    _xe = xe;
-    _ypos = ys;
-    _ys = ys;
-    _ye = ye;
-  }
+    ++_parent->_modified_counter;
+    SDL_UnlockMutex(_parent->_sdl_mutex);
+    if (SDL_SemValue(_update_in_semaphore) < 2)
+    {
+      SDL_SemPost(_update_in_semaphore);
+      if (!_in_step_exec) {
+        SDL_SemWaitTimeout(_update_out_semaphore, 1);
+      }
+    }
+  };
 
   void Panel_sdl::drawPixelPreclipped(uint_fast16_t x, uint_fast16_t y, uint32_t rawcolor)
   {
-    uint_fast8_t r = _internal_rotation;
-    if (r)
-    {
-      if ((1u << r) & 0b10010110) { y = _height - (y + 1); }
-      if (r & 2)                  { x = _width  - (x + 1); }
-      if (r & 1) { std::swap(x, y); }
-    }
-
-    size_t bw = _cfg.panel_width;
-    size_t index = x + y * bw;
-    {
-      auto img = &((bgr888_t*)monitor.tft_fb)[index];
-      *img = rawcolor;
-    }
+    lock_t lock(this);
+    Panel_FrameBufferBase::drawPixelPreclipped(x, y, rawcolor);
   }
 
   void Panel_sdl::writeFillRectPreclipped(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, uint32_t rawcolor)
   {
-    uint_fast8_t r = _internal_rotation;
-    if (r)
-    {
-      if ((1u << r) & 0b10010110) { y = _height - (y + h); }
-      if (r & 2)                  { x = _width  - (x + w); }
-      if (r & 1) { std::swap(x, y);  std::swap(w, h); }
-    }
-
-    if (w > 1)
-    {
-      uint_fast8_t bytes = _write_bits >> 3;
-      uint_fast16_t bw = _cfg.panel_width;
-      auto* dst = &monitor.tft_fb[(x + y * bw)];
-      auto* src = dst;
-      uint_fast16_t add_dst = bw;
-      uint_fast16_t len = w * bytes;
-
-      if (w != bw)
-      {
-        dst += add_dst;
-      }
-      else
-      {
-        w *= h;
-        h = 1;
-      }
-      memset_multi((uint8_t*)src, rawcolor, bytes, w);
-      while (--h)
-      {
-        memcpy(dst, src, len);
-        dst += add_dst;
-      }
-    }
-    else
-    {
-      size_t bw = _cfg.panel_width;
-      size_t index = x + y * bw;
-      {
-        auto img = &((bgr888_t*)monitor.tft_fb)[index];
-        do { *img = rawcolor; img += bw; } while (--h);
-      }
-    }
+    lock_t lock(this);
+    Panel_FrameBufferBase::writeFillRectPreclipped(x, y, w, h, rawcolor);
   }
 
   void Panel_sdl::writeBlock(uint32_t rawcolor, uint32_t length)
   {
-    do
-    {
-      uint32_t h = 1;
-      auto w = std::min<uint32_t>(length, _xe + 1 - _xpos);
-      if (length >= (w << 1) && _xpos == _xs)
-      {
-        h = std::min<uint32_t>(length / w, _ye + 1 - _ypos);
-      }
-      writeFillRectPreclipped(_xpos, _ypos, w, h, rawcolor);
-      if ((_xpos += w) <= _xe) return;
-      _xpos = _xs;
-      if (_ye < (_ypos += h)) { _ypos = _ys; }
-      length -= w * h;
-    } while (length);
+//    lock_t lock(this);
+    Panel_FrameBufferBase::writeBlock(rawcolor, length);
   }
 
-  void Panel_sdl::_rotate_pixelcopy(uint_fast16_t& x, uint_fast16_t& y, uint_fast16_t& w, uint_fast16_t& h, pixelcopy_t* param, uint32_t& nextx, uint32_t& nexty)
+  void Panel_sdl::writeImage(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, pixelcopy_t* param, bool use_dma)
   {
-    uint32_t addx = param->src_x32_add;
-    uint32_t addy = param->src_y32_add;
-    uint_fast8_t r = _internal_rotation;
-    uint_fast8_t bitr = 1u << r;
-    if (bitr & 0b10010110) // case 1:2:4:7:
-    {
-      param->src_y32 += nexty * (h - 1);
-      nexty = -(int32_t)nexty;
-      y = _height - (y + h);
-    }
-    if (r & 2)
-    {
-      param->src_x32 += addx * (w - 1);
-      param->src_y32 += addy * (w - 1);
-      addx = -(int32_t)addx;
-      addy = -(int32_t)addy;
-      x = _width  - (x + w);
-    }
-    if (r & 1)
-    {
-      std::swap(x, y);
-      std::swap(w, h);
-      std::swap(nextx, addx);
-      std::swap(nexty, addy);
-    }
-    param->src_x32_add = addx;
-    param->src_y32_add = addy;
-  }
-
-  void Panel_sdl::writePixels(pixelcopy_t* param, uint32_t length, bool use_dma)
-  {
-    uint_fast16_t xs = _xs;
-    uint_fast16_t xe = _xe;
-    uint_fast16_t ys = _ys;
-    uint_fast16_t ye = _ye;
-    uint_fast16_t x = _xpos;
-    uint_fast16_t y = _ypos;
-    const size_t bits = _write_bits;
-    auto k = _cfg.panel_width * bits >> 3;
-
-    uint_fast8_t r = _internal_rotation;
-    if (!r)
-    {
-      uint_fast16_t linelength;
-      do {
-        linelength = std::min<uint_fast16_t>(xe - x + 1, length);
-        param->fp_copy(&monitor.tft_fb[y * k], x, x + linelength, param);
-        if ((x += linelength) > xe)
-        {
-          x = xs;
-          y = (y != ye) ? (y + 1) : ys;
-        }
-      } while (length -= linelength);
-      _xpos = x;
-      _ypos = y;
-      return;
-    }
-
-    int_fast16_t ax = 1;
-    int_fast16_t ay = 1;
-    if ((1u << r) & 0b10010110) { y = _height - (y + 1); ys = _height - (ys + 1); ye = _height - (ye + 1); ay = -1; }
-    if (r & 2)                  { x = _width  - (x + 1); xs = _width  - (xs + 1); xe = _width  - (xe + 1); ax = -1; }
-    if (param->no_convert)
-    {
-      size_t bytes = _write_bits >> 3;
-      size_t xw = 1;
-      size_t yw = _cfg.panel_width;
-      if (r & 1) std::swap(xw, yw);
-      size_t idx = y * yw + x * xw;
-      auto data = (uint8_t*)param->src_data;
-      do
-      {
-        auto dst = &monitor.tft_fb[idx * bytes];
-        size_t b = 0;
-        do
-        {
-          dst[b] = *data++;
-        } while (++b < bytes);
-        if (x != xe)
-        {
-          idx += xw * ax;
-          x += ax;
-        }
-        else
-        {
-          x = xs;
-          y = (y != ye) ? (y + ay) : ys;
-          idx = y * yw + x * xw;
-        }
-      } while (--length);
-    }
-    else
-    {
-      if (r & 1)
-      {
-        do
-        {
-          param->fp_copy(&monitor.tft_fb[x * k], y, y + 1, param);
-          if (x != xe)
-          {
-            x += ax;
-          }
-          else
-          {
-            x = xs;
-            y = (y != ye) ? (y + ay) : ys;
-          }
-        } while (--length);
-      }
-      else
-      {
-        do
-        {
-          param->fp_copy(&monitor.tft_fb[y * k], x, x + 1, param);
-          if (x != xe)
-          {
-            x += ax;
-          }
-          else
-          {
-            x = xs;
-            y = (y != ye) ? (y + ay) : ys;
-          }
-        } while (--length);
-      }
-    }
-    if ((1u << r) & 0b10010110) { y = _height - (y + 1); }
-    if (r & 2)                  { x = _width  - (x + 1); }
-    _xpos = x;
-    _ypos = y;
-  }
-
-  void Panel_sdl::writeImage(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, pixelcopy_t* param, bool)
-  {
-    uint_fast8_t r = _internal_rotation;
-    if (r == 0 && param->transp == pixelcopy_t::NON_TRANSP && param->no_convert)
-    {
-      auto sx = param->src_x;
-      auto bits = param->src_bits;
-
-      auto bw = _cfg.panel_width * bits >> 3;
-      auto dst = (uint8_t*)& monitor.tft_fb[_cfg.panel_width * y];
-      auto sw = param->src_bitwidth * bits >> 3;
-      auto src = &((uint8_t*)param->src_data)[param->src_y * sw];
-      if (sw == bw && this->_cfg.panel_width == w && sx == 0 && x == 0)
-      {
-        memcpy(dst, src, bw * h);
-        return;
-      }
-      y = 0;
-      dst +=  x * bits >> 3;
-      src += sx * bits >> 3;
-      w    =  w * bits >> 3;
-      do
-      {
-        memcpy(&dst[y * bw], &src[y * sw], w);
-      } while (++y != h);
-      return;
-    }
-
-    uint32_t nextx = 0;
-    uint32_t nexty = 1 << pixelcopy_t::FP_SCALE;
-    if (r)
-    {
-      _rotate_pixelcopy(x, y, w, h, param, nextx, nexty);
-    }
-    uint32_t sx32 = param->src_x32;
-    uint32_t sy32 = param->src_y32;
-
-    y *= _cfg.panel_width;
-    do
-    {
-      int32_t pos = x + y;
-      int32_t end = pos + w;
-      while (end != (pos = param->fp_copy(monitor.tft_fb, pos, end, param))
-         &&  end != (pos = param->fp_skip(      pos, end, param)));
-      param->src_x32 = (sx32 += nextx);
-      param->src_y32 = (sy32 += nexty);
-      y += _cfg.panel_width;
-    } while (--h);
+    lock_t lock(this);
+    Panel_FrameBufferBase::writeImage(x, y, w, h, param, use_dma);
   }
 
   void Panel_sdl::writeImageARGB(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, pixelcopy_t* param)
   {
-    uint32_t nextx = 0;
-    uint32_t nexty = 1 << pixelcopy_t::FP_SCALE;
-    if (_internal_rotation)
-    {
-      _rotate_pixelcopy(x, y, w, h, param, nextx, nexty);
-    }
-    uint32_t sx32 = param->src_x32;
-    uint32_t sy32 = param->src_y32;
-
-    uint32_t pos = x + y * _cfg.panel_width;
-    uint32_t end = pos + w;
-    param->fp_copy(monitor.tft_fb, pos, end, param);
-    while (--h)
-    {
-      pos += _cfg.panel_width;
-      end = pos + w;
-      param->src_x32 = (sx32 += nextx);
-      param->src_y32 = (sy32 += nexty);
-      param->fp_copy(monitor.tft_fb, pos, end, param);
-    }
+    lock_t lock(this);
+    Panel_FrameBufferBase::writeImageARGB(x, y, w, h, param);
   }
 
-  void Panel_sdl::readRect(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, void* dst, pixelcopy_t* param)
+  void Panel_sdl::writePixels(pixelcopy_t* param, uint32_t len, bool use_dma)
   {
-    uint_fast8_t r = _internal_rotation;
-    if (0 == r && param->no_convert)
+    lock_t lock(this);
+    Panel_FrameBufferBase::writePixels(param, len, use_dma);
+  }
+
+  void Panel_sdl::display(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h)
+  {
+    if (_in_step_exec)
     {
-      h += y;
-      auto bytes = _write_bits >> 3;
-      auto bw = _cfg.panel_width;
-      auto d = (uint8_t*)dst;
-      w *= bytes;
-      do {
-        memcpy(d, &monitor.tft_fb[(x + y * bw)], w);
-        d += w;
-      } while (++y != h);
-    }
-    else
-    {
-      param->src_bitwidth = _cfg.panel_width;
-      param->src_data = monitor.tft_fb;
-      uint32_t nextx = 0;
-      uint32_t nexty = 1 << pixelcopy_t::FP_SCALE;
-      if (r)
-      {
-        uint32_t addx = param->src_x32_add;
-        uint32_t addy = param->src_y32_add;
-        uint_fast8_t rb = 1 << r;
-        if (rb & 0b10010110) // case 1:2:4:7:
-        {
-          nexty = -(int32_t)nexty;
-          y = _height - (y + 1);
-        }
-        if (r & 2)
-        {
-          addx = -(int32_t)addx;
-          x = _width - (x + 1);
-        }
-        if ((r+1) & 2)
-        {
-          addy  = -(int32_t)addy;
-        }
-        if (r & 1)
-        {
-          std::swap(x, y);
-          std::swap(addx, addy);
-          std::swap(nextx, nexty);
-        }
-        param->src_x32_add = addx;
-        param->src_y32_add = addy;
+      if (_display_counter != _modified_counter) {
+        do {
+          SDL_SemPost(_update_in_semaphore);
+          SDL_SemWaitTimeout(_update_out_semaphore, 1);
+        } while (_display_counter != _modified_counter);
+        SDL_Delay(1);
       }
-      size_t dstindex = 0;
-      uint32_t x32 = x << pixelcopy_t::FP_SCALE;
-      uint32_t y32 = y << pixelcopy_t::FP_SCALE;
-      param->src_x32 = x32;
-      param->src_y32 = y32;
-      do
-      {
-        param->src_x32 = x32;
-        x32 += nextx;
-        param->src_y32 = y32;
-        y32 += nexty;
-        dstindex = param->fp_copy(dst, dstindex, dstindex + w, param);
-      } while (--h);
     }
-  }
-
-  void Panel_sdl::copyRect(uint_fast16_t dst_x, uint_fast16_t dst_y, uint_fast16_t w, uint_fast16_t h, uint_fast16_t src_x, uint_fast16_t src_y)
-  {
-    uint_fast8_t r = _internal_rotation;
-    if (r)
-    {
-      if ((1u << r) & 0b10010110) { src_y = _height - (src_y + h); dst_y = _height - (dst_y + h); }
-      if (r & 2)                  { src_x = _width  - (src_x + w); dst_x = _width  - (dst_x + w); }
-      if (r & 1) { std::swap(src_x, src_y);  std::swap(dst_x, dst_y);  std::swap(w, h); }
-    }
-
-    size_t bytes = _write_bits >> 3;
-    size_t len = w * bytes;
-    int32_t add = _cfg.panel_width * bytes;
-    if (src_y < dst_y) add = -add;
-    int32_t pos = (src_y < dst_y) ? h - 1 : 0;
-    uint8_t* src = (uint8_t*)&monitor.tft_fb[(src_x + (src_y + pos) * _cfg.panel_width)];
-    uint8_t* dst = (uint8_t*)&monitor.tft_fb[(dst_x + (dst_y + pos) * _cfg.panel_width)];
-    do
-    {
-      memmove(dst, src, len);
-      src += add;
-      dst += add;
-    } while (--h);
   }
 
   uint_fast8_t Panel_sdl::getTouchRaw(touch_point_t* tp, uint_fast8_t count)
   {
-    tp->x = monitor.touch_x / monitor.scaling_x;
-    tp->y = monitor.touch_y / monitor.scaling_y;
+    tp->x = monitor.touch_x;
+    tp->y = monitor.touch_y;
     tp->size = monitor.touched ? 1 : 0;
     tp->id = 0;
     return monitor.touched;
   }
 
+  void Panel_sdl::setWindowTitle(const char* title)
+  {
+    _window_title = title;
+    if (monitor.window) {
+      SDL_SetWindowTitle(monitor.window, _window_title);
+    }
+  }
+
   void Panel_sdl::sdl_create(monitor_t * m)
   {
-    int flag = 0;
+    int flag = SDL_WINDOW_RESIZABLE;
 #if SDL_FULLSCREEN
     flag |= SDL_WINDOW_FULLSCREEN;
 #endif
-    m->panel = this;
-    m->window = SDL_CreateWindow("LGFX Simulator",
+    m->window = SDL_CreateWindow(_window_title,
                               SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
                               _cfg.panel_width * m->scaling_x, _cfg.panel_height * m->scaling_y, flag);       /*last param. SDL_WINDOW_BORDERLESS to hide borders*/
 
-    m->renderer = SDL_CreateRenderer(m->window, -1, SDL_RENDERER_SOFTWARE);
-    m->texture = SDL_CreateTexture(m->renderer,
-                                SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_STATIC, _cfg.panel_width, _cfg.panel_height);
+    m->renderer = SDL_CreateRenderer(m->window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+    m->texture = SDL_CreateTexture(m->renderer, SDL_PIXELFORMAT_RGB24,
+                     SDL_TEXTUREACCESS_STATIC, _cfg.panel_width, _cfg.panel_height);
     SDL_SetTextureBlendMode(m->texture, SDL_BLENDMODE_NONE);
   }
 
-  void Panel_sdl::sdl_update(const monitor_t* const m)
+  void Panel_sdl::sdl_update(void)
   {
-    SDL_UpdateTexture(m->texture, NULL, m->tft_fb, m->panel->config().panel_width * sizeof(bgr888_t));
+    if (monitor.renderer == nullptr)
+    {
+      sdl_create(&monitor);
+    }
 
-    /*Update the renderer with the texture containing the rendered image*/
-    SDL_RenderCopy(m->renderer, m->texture, NULL, NULL);
-    SDL_RenderPresent(m->renderer);
+    bool step_exec = _in_step_exec;
+
+    if (_texupdate_counter != _modified_counter) {
+      pixelcopy_t pc(nullptr, color_depth_t::rgb888_3Byte, _write_depth, false);
+      if (_write_depth == rgb565_2Byte) {
+        pc.fp_copy = pixelcopy_t::copy_rgb_fast<bgr888_t, swap565_t>;
+      } else if (_write_depth == rgb888_3Byte) {
+        pc.fp_copy = pixelcopy_t::copy_rgb_fast<bgr888_t, bgr888_t>;
+      } else if (_write_depth == rgb332_1Byte) {
+        pc.fp_copy = pixelcopy_t::copy_rgb_fast<bgr888_t, rgb332_t>;
+      } else if (_write_depth == grayscale_8bit) {
+        pc.fp_copy = pixelcopy_t::copy_rgb_fast<bgr888_t, grayscale_t>;
+      }
+
+      if (0 == SDL_LockMutex(_sdl_mutex))
+      {
+        _texupdate_counter = _modified_counter;
+        for (int y = 0; y < _cfg.panel_height; ++y)
+        {
+          pc.src_x32 = 0;
+          pc.src_data = _lines_buffer[y];
+          pc.fp_copy(&_texturebuf[y * _cfg.panel_width], 0, _cfg.panel_width, &pc);
+        }
+        SDL_UnlockMutex(_sdl_mutex);
+        SDL_UpdateTexture(monitor.texture, nullptr, _texturebuf, _cfg.panel_width * sizeof(rgb888_t));
+      }
+    }
+
+    if (_invalidated || (_display_counter != _texupdate_counter))
+    {
+      SDL_RendererInfo info;
+      if (0 == SDL_GetRendererInfo(monitor.renderer, &info)) {
+        // ステップ実行中はVSYNCを待機しない
+        if (((bool)(info.flags & SDL_RENDERER_PRESENTVSYNC)) == step_exec)
+        {
+          SDL_RenderSetVSync(monitor.renderer, !step_exec);
+        }
+      }
+      SDL_RenderCopy(monitor.renderer, monitor.texture, nullptr, nullptr);
+      SDL_RenderPresent(monitor.renderer);
+      _display_counter = _texupdate_counter;
+      if (_invalidated) {
+        _invalidated = false;
+        SDL_RenderCopy(monitor.renderer, monitor.texture, nullptr, nullptr);
+        SDL_RenderPresent(monitor.renderer);
+      }
+    }
   }
 
-  void Panel_sdl::sdl_quit(void)
+  bool Panel_sdl::initFrameBuffer(size_t width, size_t height)
   {
-    SDL_DestroyTexture(monitor.texture);
-    SDL_DestroyRenderer(monitor.renderer);
-    SDL_DestroyWindow(monitor.window);
+    uint8_t** lineArray = (uint8_t**)heap_alloc_dma(height * sizeof(uint8_t*));
+    if ( nullptr == lineArray ) { return false; }
 
-    SDL_Quit();
-    exit(0);
+    _texturebuf = (rgb888_t*)heap_alloc_dma(width * height * sizeof(rgb888_t));
+
+    /// 8byte alignment;
+    width = (width + 7) & ~7u;
+
+    _lines_buffer = lineArray;
+    memset(lineArray, 0, height * sizeof(uint8_t*));
+
+    uint8_t* framebuffer = (uint8_t*)heap_alloc_dma(width * height + 16);
+
+    auto fb = framebuffer;
+    {
+      for (int y = 0; y < height; ++y)
+      {
+        lineArray[y] = fb;
+        fb += width;
+      }
+    }
+    return true;
   }
+
+  void Panel_sdl::deinitFrameBuffer(void)
+  {
+    auto lines = _lines_buffer;
+    _lines_buffer = nullptr;
+    if (lines != nullptr)
+    {
+      heap_free(lines[0]);
+      heap_free(lines);
+    }
+    if (_texturebuf) {
+      heap_free(_texturebuf);
+      _texturebuf = nullptr;
+    }
+  }
+
 //----------------------------------------------------------------------------
  }
 }

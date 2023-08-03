@@ -12,6 +12,7 @@ namespace lgfx
     , board_M5StackCore2
     , board_M5StickC
     , board_M5StickCPlus
+    , board_M5StickCPlus2
     , board_TTGO_TS
     , board_TTGO_TWatch
     , board_TTGO_TWristband

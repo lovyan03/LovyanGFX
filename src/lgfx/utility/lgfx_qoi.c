@@ -332,7 +332,7 @@ size_t lgfx_qoi_encode(const void *lineBuffer, const qoi_desc_t *desc, int flip,
   writeBuffer = (uint8_t*)malloc(writeBufferSize);
   if (!writeBuffer)
   {
-    debug_printf( "Can't malloc %d bytes", writeBufferSize);
+    debug_printf( "Can't malloc %d bytes", (int)writeBufferSize);
     return 0;
   }
 
