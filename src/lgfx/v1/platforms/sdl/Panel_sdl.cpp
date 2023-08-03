@@ -34,7 +34,8 @@ namespace lgfx
  {
   static SDL_semaphore *_update_in_semaphore = nullptr;
   static SDL_semaphore *_update_out_semaphore = nullptr;
-  volatile static uint_fast16_t _in_step_exec = 0;
+  volatile static uint32_t _in_step_exec = 0;
+  volatile static uint32_t _msec_step_exec = 512;
   static bool _inited = false;
   static bool _all_close = false;
 
@@ -118,7 +119,7 @@ namespace lgfx
       uint32_t ms = SDL_GetTicks();
       /// 時間間隔が広すぎる場合はステップ実行中 (ブレークポイントで止まった)と判断する。
       /// また、解除されたと判断した後も1023msecほど状態を維持する。
-      if (ms - prev_ms > 64) { _in_step_exec = 1023; }
+      if (ms - prev_ms > 64) { _in_step_exec = _msec_step_exec; }
       else if (_in_step_exec) { --_in_step_exec; }
       prev_ms = ms;
     } while (*running);
@@ -191,8 +192,10 @@ namespace lgfx
     return 0;
   }
 
-  int Panel_sdl::main(int(*fn)(bool*))
+  int Panel_sdl::main(int(*fn)(bool*), uint32_t msec_step_exec)
   {
+    _msec_step_exec = msec_step_exec;
+
     /// SDLの準備
     if (0 != Panel_sdl::setup()) { return 1; }
 
