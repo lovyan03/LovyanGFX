@@ -425,10 +425,13 @@ namespace lgfx
         len = (limit << 1) <= length ? limit : length;
         if (limit <= 256) limit <<= 1;
         auto dmabuf = _flip_buffer.getBuffer(len * bytes);
+        if (dmabuf == nullptr) {
+          break;
+        }
         param->fp_copy(dmabuf, 0, len, param);
         writeBytes(dmabuf, len * bytes, true, true);
       } while (length -= len);
-      return;
+      if (length == 0) return;
     }
 
 /// ESP32-C3 で HIGHPART を使用すると異常動作するため分岐する;
@@ -532,10 +535,12 @@ namespace lgfx
     {
       if (false == use_dma && length < 1024)
       {
-        use_dma = true;
         auto buf = _flip_buffer.getBuffer(length);
-        memcpy(buf, data, length);
-        data = buf;
+        if (buf) {
+          memcpy(buf, data, length);
+          data = buf;
+          use_dma = true;
+        }
       }
       if (use_dma)
       {
