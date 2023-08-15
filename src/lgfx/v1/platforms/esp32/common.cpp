@@ -1360,7 +1360,7 @@ namespace lgfx
           uint32_t us = lgfx::micros();
           taskYIELD();
           us = lgfx::micros() - us;
-          int delayus = ((us_limit + 7) >> 3) - us;
+          int delayus = ((us_limit + 2) >> 2) - us;
           if (delayus > 0) {
             delayMicroseconds(delayus);
           }
