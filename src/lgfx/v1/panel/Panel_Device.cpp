@@ -69,6 +69,10 @@ namespace lgfx
     }
     _bus->init();
     rst_control(true);
+    if (use_reset)
+    {
+      delay(64);
+    }
     return true;
   }
 
