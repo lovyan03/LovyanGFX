@@ -80,13 +80,13 @@ namespace lgfx
       _rotation = 1; // default rotation
     }
 
-    void reset(void) override
+    void rst_control(bool level) override
     {
       using namespace m5stack;
-      // AXP192 reg 0x96 = GPIO3&4 control
-      lgfx::i2c::writeRegister8(i2c_port, aw9523_i2c_addr, 0x03, 0, ~(1<<5), i2c_freq);  // LCD_RST
-      lgfx::delay(4);
-      lgfx::i2c::writeRegister8(i2c_port, aw9523_i2c_addr, 0x03, (1<<5), ~0, i2c_freq);  // LCD_RST
+      uint8_t bits = level ? (1<<5) : 0;
+      uint8_t mask = level ? ~0 : ~(1<<5);
+      // LCD_RST
+      lgfx::i2c::writeRegister8(i2c_port, aw9523_i2c_addr, 0x03, bits, mask, i2c_freq);
     }
 
     void cs_control(bool flg) override
@@ -287,11 +287,16 @@ namespace lgfx
 
     bool init(bool use_reset) override
     {
-      lgfx::gpio_hi(_cfg.pin_rst);
-      lgfx::pinMode(_cfg.pin_rst, lgfx::pin_mode_t::input_pulldown);
-      _cfg.invert = lgfx::gpio_in(_cfg.pin_rst);       // get panel type (IPS or TN)
-      lgfx::pinMode(_cfg.pin_rst, lgfx::pin_mode_t::output);
-
+      _cfg.invert = lgfx::gpio::command(
+        (const uint8_t[]) {
+        lgfx::gpio::command_mode_output        , GPIO_NUM_33,
+        lgfx::gpio::command_write_low          , GPIO_NUM_33,
+        lgfx::gpio::command_mode_input_pulldown, GPIO_NUM_33,
+        lgfx::gpio::command_write_high         , GPIO_NUM_33,
+        lgfx::gpio::command_read               , GPIO_NUM_33,
+        lgfx::gpio::command_mode_output        , GPIO_NUM_33,
+        lgfx::gpio::command_end
+        });
       return lgfx::Panel_ILI9342::init(use_reset);
     }
   };
@@ -307,13 +312,13 @@ namespace lgfx
       _rotation = 1; // default rotation
     }
 
-    void reset(void) override
+    void rst_control(bool level) override
     {
       using namespace m5stack;
+      uint8_t bits = level ? 2 : 0;
+      uint8_t mask = level ? ~0 : ~2;
       // AXP192 reg 0x96 = GPIO3&4 control
-      lgfx::i2c::writeRegister8(axp_i2c_port, axp_i2c_addr, 0x96, 0, ~0x02, axp_i2c_freq); // GPIO4 LOW (LCD RST)
-      lgfx::delay(4);
-      lgfx::i2c::writeRegister8(axp_i2c_port, axp_i2c_addr, 0x96, 2, ~0x00, axp_i2c_freq); // GPIO4 HIGH (LCD RST)
+      lgfx::i2c::writeRegister8(axp_i2c_port, axp_i2c_addr, 0x96, bits, mask, axp_i2c_freq);
     }
   };
 

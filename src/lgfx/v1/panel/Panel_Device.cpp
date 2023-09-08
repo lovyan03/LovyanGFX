@@ -56,16 +56,22 @@ namespace lgfx
 
   bool Panel_Device::init(bool use_reset)
   {
-    init_cs();
-    _bus->init();
     init_rst();
+    init_cs();
     if (_light)
     {
       _light->init(0);
     }
     if (use_reset)
     {
-      reset();
+      rst_control(false);
+      delay(8);
+    }
+    _bus->init();
+    rst_control(true);
+    if (use_reset)
+    {
+      delay(64);
     }
     return true;
   }
@@ -308,16 +314,18 @@ namespace lgfx
     }
   }
 
-  void Panel_Device::reset(void)
+  void Panel_Device::rst_control(bool level)
   {
     auto pin = _cfg.pin_rst;
     if (pin < 0) return;
-    gpio_hi(pin);
-    delay(64);
-    gpio_lo(pin);
-    delay(4);
-    gpio_hi(pin);
-    delay(64);
+    if (level)
+    {
+      gpio_hi(pin);
+    }
+    else
+    {
+      gpio_lo(pin);
+    }
   }
 
 //----------------------------------------------------------------------------

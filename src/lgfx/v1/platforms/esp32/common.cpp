@@ -479,8 +479,10 @@ namespace lgfx
         buscfg.max_transfer_sz = 1;
         buscfg.flags = SPICOMMON_BUSFLAG_MASTER;
         buscfg.intr_flags = 0;
-#if (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 1, 0))
+#if defined (ESP_IDF_VERSION_VAL)
+ #if (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 1, 0))
         buscfg.isr_cpu_id = INTR_CPU_ID_AUTO;
+ #endif
 #endif
         if (ESP_OK != spi_bus_initialize(static_cast<spi_host_device_t>(spi_host), &buscfg, dma_channel))
         {
@@ -1343,7 +1345,7 @@ namespace lgfx
           break;
         }
 
-        len = length < 64 ? length : 64;
+        len = length < 33 ? length : 33;
         if (length == len && last_nack && len > 1) { --len; }
 
         length -= len;
@@ -1353,31 +1355,27 @@ namespace lgfx
         dev->ctr.trans_start = 1;
         dev->int_clr.val = intmask;
 
-        uint32_t us = lgfx::micros();
-        taskYIELD();
-
-#if defined ( CONFIG_IDF_TARGET_ESP32S3 )
-        delayMicroseconds(us_limit >> 2);  /// このウェイトを外すと受信失敗するケースがある;
-#endif
-        auto delayus = (us_limit + 7) >> 3;
-        us = lgfx::micros() - us;
-        if (us < delayus) {
-          delayMicroseconds(delayus - us);
-        }
         do
         {
+          uint32_t us = lgfx::micros();
+          taskYIELD();
+          us = lgfx::micros() - us;
+          int delayus = ((us_limit + 2) >> 2) - us;
+          if (delayus > 0) {
+            delayMicroseconds(delayus);
+          }
+          while (0 == getRxFifoCount(dev) && !(dev->int_raw.val & intmask) && ((lgfx::micros() - us) <= us_limit + 1024))
+          {
+            taskYIELD();
+          }
+
           if (0 == getRxFifoCount(dev))
           {
-            uint32_t us = lgfx::micros();
-            do { taskYIELD(); } while (0 == getRxFifoCount(dev) && !(dev->int_raw.val & intmask) && ((lgfx::micros() - us) <= us_limit + 1024));
-            if (0 == getRxFifoCount(dev))
-            {
-              i2c_stop(i2c_port);
-              ESP_LOGW("LGFX", "i2c read error : read timeout");
-              res = cpp::fail(error_t::connection_lost);
-              i2c_context[i2c_port].state = cpp::fail(error_t::connection_lost);
-              return res;
-            }
+            i2c_stop(i2c_port);
+            ESP_LOGW("LGFX", "i2c read error : read timeout");
+            res = cpp::fail(error_t::connection_lost);
+            i2c_context[i2c_port].state = cpp::fail(error_t::connection_lost);
+            return res;
           }
           *readdata++ = *fifo_addr; //dev->fifo_data.data;
         } while (--len);

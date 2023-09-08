@@ -28,7 +28,7 @@ xcode-select --install
 `MSYS2` をここ https://www.msys2.org/ から入手してインストールする。
 そのあと、Windowsの`システムのプロパティ`->`環境変数` を開き、 `PATH` に以下の３つのパスを追加する。
 ```
-C:\msys64\mingw64\bin
+C:\msys64\mingw32\bin
 C:\msys64\ucrt64\bin
 C:\msys64\usr\bin
 ```
@@ -70,7 +70,7 @@ https://github.com/libsdl-org/SDL/releases
  - include
  - lib
 
-C:\msys64\mingw64\ を開き、上記の４つのフォルダと同名のフォルダが存在することを確認したら、C:\msys64\mingw64\ 内に上記フォルダの内容を追加する。（上書きコピー）
+C:\msys64\mingw32\ を開き、上記の４つのフォルダと同名のフォルダが存在することを確認したら、C:\msys64\mingw32\ 内に上記フォルダの内容を追加する。（上書きコピー）
 
  ---
 
