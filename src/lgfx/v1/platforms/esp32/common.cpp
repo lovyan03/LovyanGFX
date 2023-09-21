@@ -715,7 +715,7 @@ namespace lgfx
       };
       cpp::result<state_t, error_t> state;
 
-      xSemaphoreHandle mtx = nullptr;
+      SemaphoreHandle_t mtx = nullptr;
 
       void lock(uint32_t msec = portMAX_DELAY) {
         if (mtx == nullptr) {
