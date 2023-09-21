@@ -136,11 +136,11 @@ namespace lgfx
     {
       x = xs;
       uint32_t idx = x + (y >> 3) * _cfg.panel_width;
-      auto btbl = &Bayer[_bayer_offset + ((y & 3) << 2)];
+      auto btbl = &Bayer[((y + (_bayer_offset >> 2)) & 3) << 2];
       uint32_t mask = 1 << (y&7);
       do
       {
-        bool flg = 256 <= value + btbl[x & 3];
+        bool flg = 256 <= value + btbl[(x + _bayer_offset) & 3];
         if (flg) _buf[idx] |=   mask;
         else     _buf[idx] &= ~ mask;
         ++idx;
@@ -240,7 +240,7 @@ namespace lgfx
     _rotate_pos(x, y);
     uint32_t idx = x + (y >> 3) * _cfg.panel_width;
     uint32_t mask = 1 << (y&7);
-    bool flg = 256 <= value + Bayer[_bayer_offset + ((x & 3) | (y & 3) << 2)];
+    bool flg = 256 <= value + Bayer[ + (((x + _bayer_offset) & 3) | ((y + (_bayer_offset >> 2)) & 3) << 2)];
     if (flg) _buf[idx] |=  mask;
     else     _buf[idx] &= ~mask;
   }
