@@ -210,16 +210,16 @@ namespace lgfx
     private:
       config_t HDMI_Trans_config;
 
-      std::uint8_t readRegister(std::uint8_t register_address);
-      std::uint16_t readRegister16(std::uint8_t register_address);
-      bool writeRegister(std::uint8_t register_address, std::uint8_t value);
+      uint8_t readRegister(uint8_t register_address);
+      uint16_t readRegister16(uint8_t register_address);
+      bool writeRegister(uint8_t register_address, uint8_t value);
       bool writeRegisterSet(const uint8_t *reg_value_pair, size_t len);
 
     public:
 
       struct ChipID
       {
-        std::uint8_t id[3];
+        uint8_t id[3];
       };
 
       HDMI_Trans(const lgfx::Bus_I2C::config_t& i2c_config) : HDMI_Trans_config(i2c_config) {}

@@ -876,6 +876,7 @@ namespace lgfx
   {
     if ((_last_cmd & ~7) == CMD_WRITE_RAW)
     {
+      _bus->wait();
       cs_control(true);
       _total_send = 0;
       _last_cmd = 0;
@@ -901,7 +902,6 @@ namespace lgfx
   {
     if ((_last_cmd & ~7) == CMD_WRITE_RAW)
     {
-      _last_cmd = 0;
       _total_send = 0;
 
       _bus->beginRead();
