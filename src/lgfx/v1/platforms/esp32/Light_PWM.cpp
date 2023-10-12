@@ -40,8 +40,13 @@ namespace lgfx
 
 #if defined ( ARDUINO )
 
-    ledcSetup(_cfg.pwm_channel, _cfg.freq, PWM_BITS);
-    ledcAttachPin(_cfg.pin_bl, _cfg.pwm_channel);
+    #if defined SOC_DAC_SUPPORTED // esp32-arduino core version >= 3.0.0
+        ledcAttach( _cfg.pin_bl, _cfg.freq, PWM_BITS ); // Note: auto channel ?
+    #else
+        ledcSetup(_cfg.pwm_channel, _cfg.freq, PWM_BITS);
+        ledcAttachPin(_cfg.pin_bl, _cfg.pwm_channel);
+    #endif
+
     setBrightness(brightness);
 
 #else
@@ -96,7 +101,11 @@ namespace lgfx
     if (_cfg.invert) duty = (1 << PWM_BITS) - duty;
 
 #if defined ( ARDUINO )
-      ledcWrite(_cfg.pwm_channel, duty);
+      #if defined SOC_DAC_SUPPORTED // esp32-arduino core version >= 3.0.0
+            ledcWrite(_cfg.pin_bl, duty);
+      #else
+            ledcWrite(_cfg.pwm_channel, duty);
+      #endif
 #elif SOC_LEDC_SUPPORT_HS_MODE
       ledc_set_duty(LEDC_HIGH_SPEED_MODE, (ledc_channel_t)_cfg.pwm_channel, duty);
       ledc_update_duty(LEDC_HIGH_SPEED_MODE, (ledc_channel_t)_cfg.pwm_channel);

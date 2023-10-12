@@ -56,6 +56,18 @@ Contributors:
 #include "../../Bus.hpp"
 #include "../common.hpp"
 
+#if defined ( ARDUINO )
+  #if __has_include(<esp_arduino_version.h>) // platformio has optional esp_arduino_version
+    #include <esp_arduino_version.h>
+  #endif
+
+  #if defined ESP_ARDUINO_VERSION_VAL
+    #if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3,0,0)
+      #include <rom/gpio.h> // import gpio_matrix_out
+    #endif
+  #endif
+#endif
+
 namespace lgfx
 {
  inline namespace v1
