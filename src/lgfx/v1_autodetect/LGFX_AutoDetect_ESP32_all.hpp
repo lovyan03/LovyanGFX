@@ -2202,6 +2202,7 @@ namespace lgfx
             result->board = board_t::board_M5Tough;
             p->light(new Light_M5Tough());
             t = new lgfx::Touch_M5Tough();
+            p->touch(t);
           }
           else
           {
@@ -2214,10 +2215,12 @@ namespace lgfx
             cfg.y_min = 0;
             cfg.y_max = 279;
             t->config(cfg);
+            p->touch(t);
+            // Touch 登録時に計算される標準変換式を上書きする;
+            // 標準式では表示領域外の仮想ボタンの高さ分だけずれてしまう;
             float affine[6] = { 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f };
             p->setCalibrateAffine(affine);
           }
-          p->touch(t);
           auto cfg = t->config();
           cfg.pin_int  = GPIO_NUM_39;   // INT pin number
           cfg.pin_sda  = axp_i2c_sda;   // I2C SDA pin number
