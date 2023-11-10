@@ -238,7 +238,15 @@ namespace lgfx
         // Draw line
         if (color_buffer.get() != last_color_buffer.get() || j == (w - 1)) {
           setColor(last_color_buffer);
-          drawFastHLine(x + j - draw_line_width, y + i, draw_line_width);
+          
+          // If reach the end of line 
+          if (j == (w - 1)) {
+            drawFastHLine(x + j - draw_line_width, y + i, draw_line_width + 1);
+          }
+          else {
+            drawFastHLine(x + j - draw_line_width, y + i, draw_line_width);
+          }
+
           last_color_buffer = color_buffer;
           draw_line_width = 0;
         }
