@@ -203,6 +203,20 @@ namespace lgfx
     /// @param h Height in pixels
     /// @note Draws in the color specified by setColor().
                   void fillRect        ( int32_t x, int32_t y, int32_t w, int32_t h);
+    /// @brief  Fill a rectangle in difference mode.
+    /// @param x Top-left-corner X-coordinate
+    /// @param y Top-left-corner Y-coordinate
+    /// @param w Width in pixels
+    /// @param h Height in pixels
+    /// @param color Color to fill with
+    LGFX_INLINE_T void fillRectInDifference( int32_t x, int32_t y, int32_t w, int32_t h       , const T& color) { setColor(color); fillRectInDifference(x, y, w, h   ); }
+    /// @brief  Fill a rectangle in difference mode.
+    /// @param x Top-left-corner X-coordinate
+    /// @param y Top-left-corner Y-coordinate
+    /// @param w Width in pixels
+    /// @param h Height in pixels
+    /// @note Draws in the color specified by setColor().
+                  void fillRectInDifference( int32_t x, int32_t y, int32_t w, int32_t h);
     /// @brief Draw a rectangle outline.
     /// @param x Top-left-corner X-coordinate
     /// @param y Top-left-corner Y-coordinate

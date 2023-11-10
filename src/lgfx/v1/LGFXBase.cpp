@@ -202,6 +202,56 @@ namespace lgfx
     endWrite();
   }
 
+  void LGFXBase::fillRectInDifference( int32_t x, int32_t y, int32_t w, int32_t h)
+  {
+    if (!_panel->isReadable())
+      fillRect(x, y, w, h);
+
+    _adjust_abs(x, w);
+    _adjust_abs(y, h);
+    startWrite();
+
+    // Get fill color 
+    bgr888_t fill_color;
+    fill_color.set(_write_conv.revert_rgb888(_color.raw));
+
+    bgr888_t last_color_buffer;
+    bgr888_t color_buffer;
+    uint32_t draw_line_width = 0;
+    
+    // Fill the rect in difference mode 
+    readRectRGB(x, y, 1, 1, &color_buffer);
+    last_color_buffer.R8(abs((int16_t)fill_color.R8() - color_buffer.R8()));
+    last_color_buffer.G8(abs((int16_t)fill_color.G8() - color_buffer.G8()));
+    last_color_buffer.B8(abs((int16_t)fill_color.B8() - color_buffer.B8()));
+
+    for (int i = 0; i < h; i++)
+    {
+      for (int j = 0; j < w; j++)
+      {
+        // Get difference 
+        readRectRGB(x + j, y + i, 1, 1, &color_buffer);
+        color_buffer.R8(abs((int16_t)fill_color.R8() - color_buffer.R8()));
+        color_buffer.G8(abs((int16_t)fill_color.G8() - color_buffer.G8()));
+        color_buffer.B8(abs((int16_t)fill_color.B8() - color_buffer.B8()));
+
+        // Draw line
+        if (color_buffer.get() != last_color_buffer.get() || j == (w - 1)) {
+          setColor(last_color_buffer);
+          drawFastHLine(x + j - draw_line_width, y + i, draw_line_width);
+          last_color_buffer = color_buffer;
+          draw_line_width = 0;
+        }
+        else {
+          draw_line_width++;
+        }
+      }
+    }
+
+    setColor(fill_color);
+    endWrite();
+  }
+
   void LGFXBase::writeFillRect(int32_t x, int32_t y, int32_t w, int32_t h)
   {
     if (_clipping(x, y, w, h))
