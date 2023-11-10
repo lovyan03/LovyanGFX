@@ -235,20 +235,19 @@ namespace lgfx
         color_buffer.G8(abs((int16_t)fill_color.G8() - color_buffer.G8()));
         color_buffer.B8(abs((int16_t)fill_color.B8() - color_buffer.B8()));
 
-        // Draw line
-        if (color_buffer.get() != last_color_buffer.get() || j == (w - 1)) {
+        // If comes new color 
+        if (color_buffer.get() != last_color_buffer.get()) {
           setColor(last_color_buffer);
-          
-          // If reach the end of line 
-          if (j == (w - 1)) {
-            drawFastHLine(x + j - draw_line_width, y + i, draw_line_width + 1);
-          }
-          else {
-            drawFastHLine(x + j - draw_line_width, y + i, draw_line_width);
-          }
-
+          drawFastHLine(x + j - draw_line_width, y + i, draw_line_width);
+          draw_line_width = 1;
           last_color_buffer = color_buffer;
+        }
+        // If reach the end of line 
+        else if (j == w - 1) {
+          setColor(last_color_buffer);
+          drawFastHLine(x + j - draw_line_width, y + i, draw_line_width + 1);
           draw_line_width = 0;
+          last_color_buffer = color_buffer;
         }
         else {
           draw_line_width++;
