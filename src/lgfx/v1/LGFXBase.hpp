@@ -189,6 +189,18 @@ namespace lgfx
     /// @param w Width in pixels
     /// @note Draws in the color specified by setColor().
                   void drawFastHLine   ( int32_t x, int32_t y, int32_t w);
+    /// @brief Draw a horizontal line in difference mode.
+    /// @param x Left-most X-coordinate
+    /// @param y Left-most Y-coordinate
+    /// @param w Width in pixels
+    /// @param color Color to draw with
+    LGFX_INLINE_T void drawFastHLineInDifference( int32_t x, int32_t y, int32_t w             , const T& color) { setColor(color); drawFastHLineInDifference(x, y, w      ); }
+    /// @brief Draw a horizontal line in difference mode.
+    /// @param x Left-most X-coordinate
+    /// @param y Left-most Y-coordinate
+    /// @param w Width in pixels
+    /// @note Draws in the color specified by setColor().
+                  void drawFastHLineInDifference( int32_t x, int32_t y, int32_t w);
     /// @brief  Fill a rectangle.
     /// @param x Top-left-corner X-coordinate
     /// @param y Top-left-corner Y-coordinate
@@ -279,6 +291,9 @@ namespace lgfx
 
     LGFX_INLINE_T void fillSmoothRoundRect(int32_t x, int32_t y, int32_t w, int32_t h, int32_t r, const T& color) { setColor(color); fillSmoothRoundRect(x, y, w, h, r); }
                   void fillSmoothRoundRect(int32_t x, int32_t y, int32_t w, int32_t h, int32_t r);
+
+    LGFX_INLINE_T void fillSmoothRoundRectInDifference(int32_t x, int32_t y, int32_t w, int32_t h, int32_t r, const T& color) { setColor(color); fillSmoothRoundRectInDifference(x, y, w, h, r); }
+                  void fillSmoothRoundRectInDifference(int32_t x, int32_t y, int32_t w, int32_t h, int32_t r);
 
     LGFX_INLINE_T void fillSmoothCircle(int32_t x, int32_t y, int32_t r, const T& color) { setColor(color); fillSmoothCircle(x, y, r); }
                   void fillSmoothCircle(int32_t x, int32_t y, int32_t r) { fillSmoothRoundRect(x-r, y-r, r*2+1, r*2+1, r); }
