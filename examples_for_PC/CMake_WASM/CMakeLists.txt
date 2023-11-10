@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.12)
 project (lv_wasm)
 
 add_definitions(-DLGFX_SDL)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -s USE_SDL=2")
+set(CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS} -g -s USE_SDL=2")
 
 include_directories(../../../LovyanGFX/src/)
 
