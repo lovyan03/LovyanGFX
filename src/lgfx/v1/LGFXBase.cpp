@@ -241,7 +241,7 @@ namespace lgfx
         drawFastHLine(x + j - draw_line_width, y, draw_line_width + 1);
         draw_line_width = 0;
         last_color_buffer = color_buffer;
-        break;;
+        break;
       }
       draw_line_width++;
     }
