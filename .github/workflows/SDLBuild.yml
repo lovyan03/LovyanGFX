@@ -3,6 +3,7 @@ name: SDLBuild
 
 env:
   PROJECT_DIR: examples_for_PC/CMake_SDL
+  WASM_DIR: examples_for_PC/CMake_WASM
 
 
 on:
@@ -19,6 +20,17 @@ on:
   pull_request:
 
   workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
+# However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
 
 jobs:
 
@@ -68,7 +80,6 @@ jobs:
           cmake --build build/release --config Release
 
 
-
       - name: Build LGFX_SDL2 for Linux
         if: ${{ matrix.os == 'ubuntu-latest' }}
         run: |
@@ -81,6 +92,28 @@ jobs:
           cmake ..
           cmake --build .
 
+      - name: Build LGFX_SDL2/WASM for Linux
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+        run: |
+          git clone https://github.com/emscripten-core/emsdk.git
+          cd emsdk
+          ./emsdk install latest # any specific version?
+          ./emsdk activate latest
+          source ./emsdk_env.sh
+          cd ..
+          cd ${{env.WASM_DIR}}
+          mkdir build
+          cd build
+          emcmake cmake ..
+          emmake make
+          mkdir -p www/WASM
+          cp index.html www/WASM/index.html
+
+      - name: Upload WASM artifact
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+        uses: actions/upload-pages-artifact@v2
+        with:
+          path: ${{env.WASM_DIR}}/build/www
 
 
       - name: Build LGFX_SDL2 for Mac
@@ -94,3 +127,15 @@ jobs:
           cmake ..
           cmake --build .
 
+
+  deploy:
+    name: Deploy WASM Example 🚀
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: LGFX_SDL2
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v2
