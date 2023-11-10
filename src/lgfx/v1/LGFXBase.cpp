@@ -221,9 +221,9 @@ namespace lgfx
     
     // Fill the rect in difference mode 
     readRectRGB(x, y, 1, 1, &color_buffer);
-    last_color_buffer.R8(abs((int16_t)fill_color.R8() - color_buffer.R8()));
+    last_color_buffer.R8(abs((int16_t)fill_color.B8() - color_buffer.R8()));
     last_color_buffer.G8(abs((int16_t)fill_color.G8() - color_buffer.G8()));
-    last_color_buffer.B8(abs((int16_t)fill_color.B8() - color_buffer.B8()));
+    last_color_buffer.B8(abs((int16_t)fill_color.R8() - color_buffer.B8()));
 
     for (int i = 0; i < h; i++)
     {
@@ -231,9 +231,9 @@ namespace lgfx
       {
         // Get difference 
         readRectRGB(x + j, y + i, 1, 1, &color_buffer);
-        color_buffer.R8(abs((int16_t)fill_color.R8() - color_buffer.R8()));
+        color_buffer.R8(abs((int16_t)fill_color.B8() - color_buffer.R8()));
         color_buffer.G8(abs((int16_t)fill_color.G8() - color_buffer.G8()));
-        color_buffer.B8(abs((int16_t)fill_color.B8() - color_buffer.B8()));
+        color_buffer.B8(abs((int16_t)fill_color.R8() - color_buffer.B8()));
 
         // If comes new color 
         if (color_buffer.get() != last_color_buffer.get()) {
