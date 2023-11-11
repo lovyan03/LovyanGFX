@@ -298,6 +298,9 @@ namespace lgfx
     LGFX_INLINE_T void fillSmoothCircle(int32_t x, int32_t y, int32_t r, const T& color) { setColor(color); fillSmoothCircle(x, y, r); }
                   void fillSmoothCircle(int32_t x, int32_t y, int32_t r) { fillSmoothRoundRect(x-r, y-r, r*2+1, r*2+1, r); }
 
+    LGFX_INLINE_T void fillSmoothCircleInDifference(int32_t x, int32_t y, int32_t r, const T& color) { setColor(color); fillSmoothCircleInDifference(x, y, r); }
+                  void fillSmoothCircleInDifference(int32_t x, int32_t y, int32_t r) { fillSmoothRoundRectInDifference(x-r, y-r, r*2+1, r*2+1, r); }
+
     LGFX_INLINE_T void fillScreen  ( const T& color) { setColor(color); fillRect(0, 0, width(), height()); }
     LGFX_INLINE   void fillScreen  ( void )          {                  fillRect(0, 0, width(), height()); }
 
