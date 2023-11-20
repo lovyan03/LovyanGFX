@@ -277,7 +277,7 @@ namespace lgfx
       x = x * bits >> 3;
       w = w * bits >> 3;
       auto sw = param->src_bitwidth * bits >> 3;
-      auto src = &((uint8_t*)param->src_data)[param->src_y * sw + param->src_x];
+      auto src = &((uint8_t*)param->src_data)[param->src_y * sw + (param->src_x * bits >> 3)];
       h += y;
       do
       {
