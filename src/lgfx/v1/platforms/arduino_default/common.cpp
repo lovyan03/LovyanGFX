@@ -90,6 +90,7 @@ namespace lgfx
     cpp::result<void, error_t> endTransaction(int i2c_port) { return cpp::fail(error_t::unknown_err); }
     cpp::result<void, error_t> writeBytes(int i2c_port, const uint8_t *data, size_t length) { return cpp::fail(error_t::unknown_err); }
     cpp::result<void, error_t> readBytes(int i2c_port, uint8_t *data, size_t length) { return cpp::fail(error_t::unknown_err); }
+    cpp::result<void, error_t> readBytes(int i2c_port, uint8_t *data, size_t length, bool last_nack) { return cpp::fail(error_t::unknown_err); }
 
 //--------
 
