@@ -55,12 +55,7 @@ jobs:
     runs-on: ubuntu-latest
 
     strategy:
-      matrix:
-        ${{ insert }}: ${{fromJSON(needs.set_matrix.outputs.matrix)}}
-        esp-idf-fqbn:
-          - esp32@4.1.4
-          - esp32@4.3.6
-          - esp32@5.2-beta1
+      matrix: ${{fromJSON(needs.set_matrix.outputs.matrix)}}
       fail-fast: false
 
     steps:

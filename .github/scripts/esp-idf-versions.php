@@ -103,9 +103,9 @@ foreach( $idf_versions as $idx => $idf_version )
 }
 
 // add hardcoded versions
-// $idf_fqbns[] = 'esp32@4.1.4';
-// $idf_fqbns[] = 'esp32@4.3.6';
-// $idf_fqbns[] = 'esp32@5.2-beta1';
+$idf_fqbns[] = 'esp32@4.1.4';
+$idf_fqbns[] = 'esp32@4.3.6';
+$idf_fqbns[] = 'esp32@5.2-beta1';
 
 $json_array = [ "esp-idf-fqbn" => $idf_fqbns ];
 
