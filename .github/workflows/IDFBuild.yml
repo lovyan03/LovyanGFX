@@ -55,7 +55,12 @@ jobs:
     runs-on: ubuntu-latest
 
     strategy:
-      matrix: ${{fromJSON(needs.set_matrix.outputs.matrix)}}
+      matrix:
+        esp-idf-fqbn:
+          - esp32@4.1.4
+          - esp32@4.3.6
+          - esp32@5.2-beta1
+        ${{ insert }} : ${{fromJSON(needs.set_matrix.outputs.matrix)}}
       fail-fast: false
 
     steps:
@@ -64,28 +69,28 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
 
-      - name: Cache pip for ${{ matrix.esp-idf-fqbn }}
-        uses: actions/cache@v3
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ matrix.esp-idf-fqbn }}-${{ hashFiles('**/requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-
-      - name: Cache espressif tools for ${{ matrix.esp-idf-fqbn }}
-        uses: actions/cache@v3
-        id: espressif
-        with:
-          path: |
-            ~/.espressif
-          key: ${{ runner.os }}-espressif-${{ matrix.esp-idf-fqbn }}-${{ hashFiles('**/lockfiles') }}
-
-      - name: Cache esp-idf for ${{ matrix.esp-idf-fqbn }}
-        id: cache-idf
-        uses: actions/cache@v3
-        with:
-          path: ~/esp/esp-idf
-          key: ${{ runner.os }}-idf-${{ matrix.esp-idf-fqbn }}-${{ hashFiles('**/lockfiles') }}
+      # - name: Cache pip for ${{ matrix.esp-idf-fqbn }}
+      #   uses: actions/cache@v3
+      #   with:
+      #     path: ~/.cache/pip
+      #     key: ${{ runner.os }}-pip-${{ matrix.esp-idf-fqbn }}-${{ hashFiles('**/requirements.txt') }}
+      #     restore-keys: |
+      #       ${{ runner.os }}-pip-
+      #
+      # - name: Cache espressif tools for ${{ matrix.esp-idf-fqbn }}
+      #   uses: actions/cache@v3
+      #   id: espressif
+      #   with:
+      #     path: |
+      #       ~/.espressif
+      #     key: ${{ runner.os }}-espressif-${{ matrix.esp-idf-fqbn }}-${{ hashFiles('**/lockfiles') }}
+      #
+      # - name: Cache esp-idf for ${{ matrix.esp-idf-fqbn }}
+      #   id: cache-idf
+      #   uses: actions/cache@v3
+      #   with:
+      #     path: ~/esp/esp-idf
+      #     key: ${{ runner.os }}-idf-${{ matrix.esp-idf-fqbn }}-${{ hashFiles('**/lockfiles') }}
 
       - name: Get/Check IDF ${{ matrix.esp-idf-fqbn }}
         run: |
