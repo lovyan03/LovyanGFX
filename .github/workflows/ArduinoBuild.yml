@@ -24,7 +24,7 @@ jobs:
       matrix:
 
         platform-url:
-          - https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
+          - https://espressif.github.io/arduino-esp32/package_esp32_index.json
 
         board:
           # ESP32 devices for 3D matrix
@@ -42,10 +42,10 @@ jobs:
           #- 2.0.1
           #- 2.0.2
           #- 2.0.3
-          - 2.0.4
-          - 2.0.5
-          - 2.0.6
-          - 2.0.7
+          #- 2.0.4
+          - 2.0.11
+          - 2.0.12
+          - 2.0.13
 
         include:
           # 3D matrix doesn't apply to these:
@@ -56,9 +56,9 @@ jobs:
           - { board: adafruit_hallowing_m4, platform: adafruit,  archi: samd, platform-version: 1.7.10, platform-url: 'https://adafruit.github.io/arduino-board-index/package_adafruit_index.json', ... }
           - { board: adafruit_pybadge_m4,   platform: adafruit,  archi: samd, platform-version: 1.7.10, platform-url: 'https://adafruit.github.io/arduino-board-index/package_adafruit_index.json', ... }
           - { board: adafruit_pygamer_m4,   platform: adafruit,  archi: samd, platform-version: 1.7.10, platform-url: 'https://adafruit.github.io/arduino-board-index/package_adafruit_index.json', ... }
-          - { board: adafruit_feather_esp32s2_tft, platform: esp32, archi: esp32, platform-version: latest, platform-url: 'https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json', ... }
-          - { board: adafruit_feather_esp32s3_tft, platform: esp32, archi: esp32, platform-version: latest, platform-url: 'https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json', ... }
-          - { board: adafruit_funhouse_esp32s2,    platform: esp32, archi: esp32, platform-version: latest, platform-url: 'https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json', ... }
+          - { board: adafruit_feather_esp32s2_tft, platform: esp32, archi: esp32, platform-version: latest, platform-url: 'https://espressif.github.io/arduino-esp32/package_esp32_index.json', ... }
+          - { board: adafruit_feather_esp32s3_tft, platform: esp32, archi: esp32, platform-version: latest, platform-url: 'https://espressif.github.io/arduino-esp32/package_esp32_index.json', ... }
+          - { board: adafruit_funhouse_esp32s2,    platform: esp32, archi: esp32, platform-version: latest, platform-url: 'https://espressif.github.io/arduino-esp32/package_esp32_index.json', ... }
           - { board: rpipico, platform: rp2040, archi: rp2040, platform-version: 2.3.3, cli-args: '--build-property compiler.cpp.extra_flags=-DSKIP_I2C_TEST', platform-url: 'https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json', ... }
 
           # 3D matrix applies to these:
@@ -75,7 +75,7 @@ jobs:
           #- { board: esp32s3box, platform-version: 2.0.0 }
           #- { board: esp32s3box, platform-version: 2.0.1 }
           #- { board: esp32s3box, platform-version: 2.0.2 }
-          - { board: esp32s3box, platform-version: 2.0.4 }
+          #- { board: esp32s3box, platform-version: 2.0.4 }
           #- { board: esp32s2,    platform-version: 1.0.6 }
           #- { board: esp32s2,    platform-version: 2.0.0 }
 
