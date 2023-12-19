@@ -16,6 +16,7 @@ on:
     - 'CMakeLists.txt'
     - 'esp-idf-versions.php'
   pull_request:
+  workflow_dispatch:
 
 jobs:
 
