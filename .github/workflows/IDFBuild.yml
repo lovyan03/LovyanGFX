@@ -90,8 +90,8 @@ jobs:
           mkdir -p ~/esp
           cd ~/esp
           idf_fqbn="${{ matrix.esp-idf-fqbn }}"
-          idf_version=${idf_fqbn*@v}
-          if [ ! -d "./esp-idf/" ]; then git clone -b $idf_version --recursive ${{ needs.set_matrix.outputs.repo_url }} esp-idf; fi
+          idf_version=${idf_fqbn*@}
+          if [ ! -d "./esp-idf/" ]; then git clone -b v$idf_version --recursive ${{ needs.set_matrix.outputs.repo_url }} esp-idf; fi
           cd ~/esp/esp-idf
           if [ ! -d "~/.espressif" ]; then ./install.sh; fi
 
