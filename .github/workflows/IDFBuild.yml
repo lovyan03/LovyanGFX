@@ -68,7 +68,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ matrix.idf-version }}-${{ hashFiles('**/requirements.txt') }}
+          key: ${{ runner.os }}-pip-${{ matrix.esp-idf-fqbn }}-${{ hashFiles('**/requirements.txt') }}
           restore-keys: |
             ${{ runner.os }}-pip-
 
@@ -78,14 +78,14 @@ jobs:
         with:
           path: |
             ~/.espressif
-          key: ${{ runner.os }}-espressif-${{ matrix.idf-version }}-${{ hashFiles('**/lockfiles') }}
+          key: ${{ runner.os }}-espressif-${{ matrix.esp-idf-fqbn }}-${{ hashFiles('**/lockfiles') }}
 
       - name: Cache esp-idf for ${{ matrix.esp-idf-fqbn }}
         id: cache-idf
         uses: actions/cache@v3
         with:
           path: ~/esp/esp-idf
-          key: ${{ runner.os }}-idf-${{ matrix.idf-version }}-${{ hashFiles('**/lockfiles') }}
+          key: ${{ runner.os }}-idf-${{ matrix.esp-idf-fqbn }}-${{ hashFiles('**/lockfiles') }}
 
       - name: Get/Check IDF ${{ matrix.esp-idf-fqbn }}
         run: |
