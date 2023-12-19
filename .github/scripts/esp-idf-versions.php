@@ -111,27 +111,27 @@ $idf_fqbns[] = 'esp32@v4.1.4';
 $idf_fqbns[] = 'esp32@v4.3.6';
 
 $json_array = [
-  "idf-board" => [],//$idf_boards,
-  "idf-version" => [],//$idf_versions,
+  // "idf-board" => [],//$idf_boards,
+  // "idf-version" => [],//$idf_versions,
   "esp-idf-fqbn" => $idf_fqbns,
-  "include" => []
+  // "include" => []
 ];
 
 
-foreach( $idf_fqbns as $idx => $fqbn )
-{
-  $parts = explode('@', $fqbn );
-  $board = $parts[0];
-  $version = str_replace('v', '', $parts[1]);
-  if( !in_array($version, $json_array['idf-version']) )
-    $json_array['idf-version'][] = $version;
-  if( !in_array($board, $json_array['idf-board']) )
-    $json_array['idf-board'][] = $board;
-  $json_array['include'][] = ['esp-idf-fqbn' => $fqbn, 'idf-board'=> $board, 'idf-version'=> 'v'.$version];
-}
-
-sort( $json_array['idf-version'] );
-sort( $json_array['idf-board'] );
+// foreach( $idf_fqbns as $idx => $fqbn )
+// {
+//   $parts = explode('@', $fqbn );
+//   $board = $parts[0];
+//   $version = str_replace('v', '', $parts[1]);
+//   if( !in_array($version, $json_array['idf-version']) )
+//     $json_array['idf-version'][] = $version;
+//   if( !in_array($board, $json_array['idf-board']) )
+//     $json_array['idf-board'][] = $board;
+//   $json_array['include'][] = ['esp-idf-fqbn' => $fqbn, 'idf-board'=> $board, 'idf-version'=> 'v'.$version];
+// }
+//
+// sort( $json_array['idf-version'] );
+// sort( $json_array['idf-board'] );
 //sort( $json_array['esp-idf-fqbn'] );
 
 // emit json for workflow matrix
