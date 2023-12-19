@@ -89,7 +89,7 @@ jobs:
         run: |
           mkdir -p ~/esp
           cd ~/esp
-          idf_fqbn=${{ matrix.esp-idf-fqbn }}
+          idf_fqbn="${{ matrix.esp-idf-fqbn }}"
           idf_version=${idf_fqbn*@v}
           if [ ! -d "./esp-idf/" ]; then git clone -b $idf_version --recursive ${{ needs.set_matrix.outputs.repo_url }} esp-idf; fi
           cd ~/esp/esp-idf
@@ -98,7 +98,7 @@ jobs:
       - name: Build example for ${{ matrix.esp-idf-fqbn }}
         run: |
           source ~/esp/esp-idf/export.sh
-          idf_fqbn=${{ matrix.esp-idf-fqbn }}
+          idf_fqbn="${{ matrix.esp-idf-fqbn }}"
           idf_board=${idf_fqbn%%@*}
           cd ${{ needs.set_matrix.outputs.project_dir }}
           idf.py set-target $idf_board

@@ -1,14 +1,17 @@
 <?php
 
-$max_versions = 3;
+$max_versions   = 3;
+$releases       = [];
+$patch_versions = [];
+$idf_fqbns      = [];
+$idf_versions   = [];
+$idf_boards     = ['esp32', 'esp32s2', 'esp32s3'];
 
 $git_remote = `git ls-remote https://github.com/espressif/esp-idf`;
 
 !empty($git_remote) or php_die("bad github response");
 
 $lines = explode("\n", $git_remote);
-
-$releases = [];
 
 // get version numbers from enumerated releases
 foreach( $lines as $num => $line )
@@ -26,8 +29,6 @@ foreach( $lines as $num => $line )
 !empty($releases) or php_die("releases not found");
 
 arsort( $releases );
-
-$patch_versions = [];
 
 // get version numbers from enumerated tags
 foreach( $lines as $num => $line )
@@ -63,10 +64,6 @@ foreach( $lines as $num => $line )
 
 arsort( $patch_versions );
 
-$idf_fqbns = [/*'esp32@v4.1.4', 'esp32@v4.3.6'*/];
-$idf_versions = [/*'4.1.4', '4.3.6'*/];
-$idf_boards = ['esp32', 'esp32s2', 'esp32s3'];
-
 $max_boards = (count($idf_boards)*$max_versions);
 
 // match release versions with tag versions
@@ -94,7 +91,7 @@ foreach( $releases as $minor )
 !empty($idf_versions) or php_die("latest versions not found");
 !empty($idf_boards) or php_die("no board selected");
 
-
+// finally fill matrix json array with jobs
 foreach( $idf_versions as $idx => $idf_version )
 {
   if( count( $idf_fqbns ) >= $max_boards ) {
@@ -105,39 +102,13 @@ foreach( $idf_versions as $idx => $idf_version )
   }
 }
 
-// hardcoded versions
-
+// add hardcoded versions
 $idf_fqbns[] = 'esp32@v4.1.4';
 $idf_fqbns[] = 'esp32@v4.3.6';
 
-$json_array = [
-  // "idf-board" => [],//$idf_boards,
-  // "idf-version" => [],//$idf_versions,
-  "esp-idf-fqbn" => $idf_fqbns,
-  // "include" => []
-];
-
-
-// foreach( $idf_fqbns as $idx => $fqbn )
-// {
-//   $parts = explode('@', $fqbn );
-//   $board = $parts[0];
-//   $version = str_replace('v', '', $parts[1]);
-//   if( !in_array($version, $json_array['idf-version']) )
-//     $json_array['idf-version'][] = $version;
-//   if( !in_array($board, $json_array['idf-board']) )
-//     $json_array['idf-board'][] = $board;
-//   $json_array['include'][] = ['esp-idf-fqbn' => $fqbn, 'idf-board'=> $board, 'idf-version'=> 'v'.$version];
-// }
-//
-// sort( $json_array['idf-version'] );
-// sort( $json_array['idf-board'] );
-//sort( $json_array['esp-idf-fqbn'] );
-
-// emit json for workflow matrix
+$json_array = [ "esp-idf-fqbn" => $idf_fqbns ];
 
 echo json_encode( $json_array, JSON_PRETTY_PRINT );
-
 
 
 function php_die($msg)
