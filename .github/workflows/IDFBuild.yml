@@ -14,6 +14,7 @@ on:
     - '**.c'
     - '**IDFBuild.yml'
     - 'CMakeLists.txt'
+    - 'esp-idf-versions.php'
   pull_request:
 
 jobs:
