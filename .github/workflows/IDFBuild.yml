@@ -39,6 +39,7 @@ jobs:
       id: set-matrix
       run: |
         matrix=`php .github/scripts/esp-idf-versions.php`
+        echo $matrix | jq # debug
         matrix="${matrix//'%'/'%25'}" # escape percent entities
         matrix="${matrix//$'\n'/''}"  # remove lf
         matrix="${matrix//$'\r'/''}"  # remove cr
@@ -52,7 +53,8 @@ jobs:
     runs-on: ubuntu-latest
 
     strategy:
-      matrix: ${{fromJSON(needs.set_matrix.outputs.matrix)}}
+      matrix:
+        ${{ include }}: ${{fromJSON(needs.set_matrix.outputs.matrix)}}
       fail-fast: false
 
     steps:
