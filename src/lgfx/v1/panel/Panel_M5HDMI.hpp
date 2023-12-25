@@ -16,6 +16,7 @@ Contributors:
  [tobozo](https://github.com/tobozo)
 /----------------------------------------------------------------------------*/
 #pragma once
+#include <cstdint>
 
 #include "Panel_Device.hpp"
 #include "../platforms/common.hpp"
