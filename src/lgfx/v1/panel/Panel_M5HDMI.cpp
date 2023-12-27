@@ -25,6 +25,8 @@ Contributors:
 #include "../misc/pixelcopy.hpp"
 #include "../misc/colortype.hpp"
 
+#include <stdint.h>
+#include <stddef.h>
 #include <esp_log.h>
 #include <soc/gpio_periph.h>
 #include <soc/gpio_reg.h>
@@ -48,6 +50,7 @@ namespace lgfx
  {
 
 //----------------------------------------------------------------------------
+  static constexpr const uint32_t base_clock = 74250000;
 
   enum GWFPGA_Inst_Def
   {
@@ -305,18 +308,18 @@ namespace lgfx
 
 //----------------------------------------------------------------------------
 
-  std::uint8_t Panel_M5HDMI::HDMI_Trans::readRegister(std::uint8_t register_address)
+  uint8_t Panel_M5HDMI::HDMI_Trans::readRegister(uint8_t register_address)
   {
-    std::uint8_t buffer;
+    uint8_t buffer;
     lgfx::i2c::transactionWriteRead(this->HDMI_Trans_config.i2c_port, this->HDMI_Trans_config.i2c_addr, &register_address, 1, &buffer, 1, this->HDMI_Trans_config.freq_read);
     return buffer;
   }
 
-  std::uint16_t Panel_M5HDMI::HDMI_Trans::readRegister16(std::uint8_t register_address)
+  uint16_t Panel_M5HDMI::HDMI_Trans::readRegister16(uint8_t register_address)
   {
-    std::uint8_t buffer[2];
+    uint8_t buffer[2];
     lgfx::i2c::transactionWriteRead(this->HDMI_Trans_config.i2c_port, this->HDMI_Trans_config.i2c_addr, &register_address, 1, buffer, 2, this->HDMI_Trans_config.freq_read);
-    return (static_cast<std::uint16_t>(buffer[0]) << 8) | buffer[1];
+    return (static_cast<uint16_t>(buffer[0]) << 8) | buffer[1];
   }
 
   bool Panel_M5HDMI::HDMI_Trans::writeRegister(uint8_t register_address, uint8_t value)
@@ -557,8 +560,6 @@ namespace lgfx
 
   uint32_t getPllParams(Panel_M5HDMI::video_clock_t* vc, uint32_t target_clock) {
 
-    static constexpr const uint32_t base_clock = 74250000;
-
     uint32_t fb_clock = base_clock;
     uint32_t save_diff = ~0u;
     uint32_t fb_div = 1;
@@ -599,6 +600,8 @@ namespace lgfx
       save_diff = diff;
       vc->output_divider = odiv;
     }
+    // Use half of the pixel clock if the target clock is greater than the base clock.
+    vc->use_half_clock = target_clock > base_clock;
 
     return result;
   }
@@ -608,7 +611,8 @@ namespace lgfx
     video_clock_t vc;
     int32_t OUTPUT_CLOCK = getPllParams(&vc, _pixel_clock);
 
-    int32_t TOTAL_RESOLUTION = OUTPUT_CLOCK / _refresh_rate;
+    bool use_half_clock = vc.use_half_clock;
+    int32_t TOTAL_RESOLUTION = (OUTPUT_CLOCK >> use_half_clock) / _refresh_rate;
 
     int mem_width  = _cfg.memory_width ;
     int mem_height = _cfg.memory_height;
@@ -617,8 +621,8 @@ namespace lgfx
     int vert_total = mem_height + 9;
     int hori_total = TOTAL_RESOLUTION / vert_total;
     int hori_tmp = hori_total, vert_tmp = vert_total;
-    int hori_min = mem_width +  32 + (mem_width >> (1+_scale_w));
-    int hori_max = mem_width + 768 + (mem_width >> 3);
+    int hori_min = mem_width + (( 32 + (mem_width >> (1+_scale_w))) >> use_half_clock);
+    int hori_max = mem_width + ((768 + (mem_width >> 3)) >> use_half_clock);
     if (hori_tmp > hori_max) { hori_tmp = hori_max; }
     for (;;)
     {
@@ -663,7 +667,15 @@ namespace lgfx
     vt.h.front_porch = porch;
     vt.h.sync = sync;
     vt.h.back_porch = remain;
-
+/*
+    // Force to 960x540
+    vt.v.front_porch = 4; //porch;
+    vt.v.sync = 5; //sync;
+    vt.v.back_porch = 36; //remain;
+    vt.h.front_porch = 88/2; //porch;
+    vt.h.sync = 44/2; //sync;
+    vt.h.back_porch = 148/2; //remain;
+//*/
     setVideoTiming(&vt);
     setScaling(_scale_w, _scale_h);
     _set_video_clock(&vc);
@@ -726,7 +738,7 @@ namespace lgfx
 
   void Panel_M5HDMI::config_resolution( const config_resolution_t& cfg_reso )
   {
-    static constexpr int SCALE_MAX = 16;
+    static constexpr int SCALE_MAX = 8;
     static constexpr int RANGE_MAX = 2048;
 
     uint_fast16_t logical_width  = cfg_reso.logical_width;
@@ -794,8 +806,8 @@ namespace lgfx
     {
       scale_w = 1280 / logical_width;
       scale_h = 720 / logical_height;
-      if ((scale_w > 16)
-      || (scale_h > 16)
+      if ((scale_w > SCALE_MAX)
+      || (scale_h > SCALE_MAX)
       || (limit != 1280 * 720)
       || (scale_w * logical_width != 1280)
       || (scale_h * logical_height != 720))
@@ -836,7 +848,10 @@ namespace lgfx
         w = output_width / --scale_w;
       }
     }
-
+    if (_pixel_clock > base_clock && scale_w >= 2) { // use_half_clock
+      scale_w >>= 1;
+      output_width >>= 1;
+    }
     _scale_w = scale_w;
     _scale_h = scale_h;
     _cfg.memory_width  = output_width  ;
@@ -1400,13 +1415,14 @@ namespace lgfx
   {
     union cmd_t
     {
-      uint8_t raw[8];
+      uint8_t raw[9];
       struct __attribute__((packed))
       {
         uint8_t cmd;
         uint16_t input_divider;
         uint16_t feedback_divider;
         uint16_t output_divider;
+        uint8_t flags;
         uint8_t chksum;
       };
     };
@@ -1415,6 +1431,7 @@ namespace lgfx
     cmd.input_divider = param->input_divider << 8;
     cmd.feedback_divider = param->feedback_divider << 8;
     cmd.output_divider = param->output_divider << 8;
+    cmd.flags = param->use_half_clock ? 1 : 0;
     uint_fast8_t sum = 0;
     for (size_t i = 0; i < sizeof(cmd_t)-1; ++i)
     {
