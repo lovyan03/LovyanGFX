@@ -18,11 +18,6 @@ Contributors:
 #if defined (ESP_PLATFORM)
 #include <sdkconfig.h>
 
-/// ESP32-S3をターゲットにした際にREG_SPI_BASEが定義されていなかったので応急処置 ;
-#if defined ( CONFIG_IDF_TARGET_ESP32S3 )
- #define REG_SPI_BASE(i)   (DR_REG_SPI1_BASE + (((i)>1) ? (((i)* 0x1000) + 0x20000) : (((~(i)) & 1)* 0x1000 )))
-#endif
-
 #include "common.hpp"
 
 #include <algorithm>
@@ -40,7 +35,11 @@ Contributors:
 #include <soc/soc.h>
 #include <soc/i2c_reg.h>
 #include <soc/i2c_struct.h>
-#include <soc/apb_ctrl_reg.h>
+#if (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 3, 0))
+ #include <soc/syscon_reg.h>
+#else
+ #include <soc/apb_ctrl_reg.h>
+#endif
 #include <soc/efuse_reg.h>
 
 #include <esp_log.h>
@@ -109,6 +108,10 @@ Contributors:
  #if !defined (DMA_IN_PERI_SEL_CH0_REG)
   #define DMA_IN_PERI_SEL_CH0_REG  GDMA_IN_PERI_SEL_CH0_REG
  #endif
+#endif
+
+#if (ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 3, 0))
+ #define SOC_GDMA_PAIRS_PER_GROUP_MAX SOC_GDMA_PAIRS_PER_GROUP
 #endif
 
 #if defined ( ARDUINO )
@@ -213,7 +216,7 @@ namespace lgfx
     // SOC_GDMA_TRIG_PERIPH_SPI3
     // SOC_GDMA_TRIG_PERIPH_LCD0
     // GDMAペリフェラルレジスタの配列を順に調べてペリフェラル番号が一致するDMAチャンネルを特定する;
-    for (int i = 0; i < SOC_GDMA_PAIRS_PER_GROUP; ++i)
+    for (int i = 0; i < SOC_GDMA_PAIRS_PER_GROUP_MAX; ++i)
     {
 // ESP_LOGD("DBG","GDMA.channel:%d peri_sel:%d", i, GDMA.channel[i].out.peri_sel.sel);
       if ((*reg(DMA_OUT_PERI_SEL_CH0_REG + i * sizeof(GDMA.channel[0])) & 0x3F) == peripheral_select)
@@ -234,7 +237,7 @@ namespace lgfx
     // SOC_GDMA_TRIG_PERIPH_SPI3
     // SOC_GDMA_TRIG_PERIPH_LCD0
     // GDMAペリフェラルレジスタの配列を順に調べてペリフェラル番号が一致するDMAチャンネルを特定する;
-    for (int i = 0; i < SOC_GDMA_PAIRS_PER_GROUP; ++i)
+    for (int i = 0; i < SOC_GDMA_PAIRS_PER_GROUP_MAX; ++i)
     {
 // ESP_LOGD("DBG","GDMA.channel:%d peri_sel:%d", i, GDMA.channel[i].out.peri_sel.sel);
       if ((*reg(DMA_IN_PERI_SEL_CH0_REG + i * sizeof(GDMA.channel[0])) & 0x3F) == peripheral_select)
@@ -483,8 +486,12 @@ namespace lgfx
         buscfg.flags = SPICOMMON_BUSFLAG_MASTER;
         buscfg.intr_flags = 0;
 #if defined (ESP_IDF_VERSION_VAL)
- #if (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 1, 0))
+ #if (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 3, 0))
+        buscfg.isr_cpu_id = ESP_INTR_CPU_AFFINITY_AUTO;
+ #else
+  #if (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 1, 0))
         buscfg.isr_cpu_id = INTR_CPU_ID_AUTO;
+  #endif
  #endif
 #endif
         if (ESP_OK != spi_bus_initialize(static_cast<spi_host_device_t>(spi_host), &buscfg, dma_channel))
@@ -823,7 +830,8 @@ namespace lgfx
       }
 #if defined (CONFIG_IDF_TARGET_ESP32S3)
  #if (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 3) && ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 1, 0)) \
-  || (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 1, 1) && ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 2, 0))
+  || (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 1, 1) && ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 2, 0)) \
+  || (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 3, 0))
       (&dev->comd[0])[index].val = cmd_val;
  #else
       (&dev->comd0)[index].val = cmd_val;

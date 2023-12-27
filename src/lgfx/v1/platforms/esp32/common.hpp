@@ -35,8 +35,13 @@ Contributors:
 #include <esp_timer.h>
 
 #if !defined ( REG_SPI_BASE )
-//#define REG_SPI_BASE(i) (DR_REG_SPI0_BASE - (i) * 0x1000)
-#define REG_SPI_BASE(i)     (DR_REG_SPI2_BASE)
+ /// ESP32-S3をターゲットにした際にREG_SPI_BASEが定義されていなかったので応急処置 5.3まで;
+ #if defined ( CONFIG_IDF_TARGET_ESP32S3 )
+  #define REG_SPI_BASE(i)   (DR_REG_SPI1_BASE + (((i)>1) ? (((i)* 0x1000) + 0x20000) : (((~(i)) & 1)* 0x1000 )))
+ #else
+  //#define REG_SPI_BASE(i) (DR_REG_SPI0_BASE - (i) * 0x1000)
+  #define REG_SPI_BASE(i)     (DR_REG_SPI2_BASE)
+ #endif
 #endif
 
 #if defined ( ESP_IDF_VERSION_VAL )

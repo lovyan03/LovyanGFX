@@ -18,14 +18,16 @@ Contributors:
 #if defined (ESP_PLATFORM)
 #include <sdkconfig.h>
 
+#include "Bus_SPI.hpp"
+
 /// ESP32-S3をターゲットにした際にREG_SPI_BASEが定義されていなかったので応急処置 ;
 #if defined ( CONFIG_IDF_TARGET_ESP32S3 )
- #define REG_SPI_BASE(i)   (DR_REG_SPI1_BASE + (((i)>1) ? (((i)* 0x1000) + 0x20000) : (((~(i)) & 1)* 0x1000 )))
+ #if ( ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 3, 0) )
+  #define REG_SPI_BASE(i)   (DR_REG_SPI1_BASE + (((i)>1) ? (((i)* 0x1000) + 0x20000) : (((~(i)) & 1)* 0x1000 )))
+ #endif
 #elif defined ( CONFIG_IDF_TARGET_ESP32 ) || !defined ( CONFIG_IDF_TARGET )
  #define LGFX_SPIDMA_WORKAROUND
 #endif
-
-#include "Bus_SPI.hpp"
 
 #include "../../misc/pixelcopy.hpp"
 
