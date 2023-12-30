@@ -1333,6 +1333,38 @@ namespace lgfx
 
   void Panel_M5HDMI::copyRect(uint_fast16_t dst_x, uint_fast16_t dst_y, uint_fast16_t w, uint_fast16_t h, uint_fast16_t src_x, uint_fast16_t src_y)
   {
+    return;
+/*
+2023/12/27 : copyRect機能を一時的に使用不能にする。 ( scroll 機能も使用不能となります )
+
+経緯：
+ModuleDisplay / AtomDisplayに搭載している GOWIN の FPGA のロットが新しくなったことに伴って、性能上の問題が生じた。
+
+現在こちらで把握しできているFPGAロットナンバーは以下の通り。
+    2103C 問題なく動作する最初期のロット。
+    2305C 性能問題が生じるロット。
+    2313C 性能問題が生じるロット。
+
+従来のFPGAデザインをそのまま使用すると正常に動作しないため、FPGAのデザイン改修作業を @ciniml 氏が進めていた。
+新しいロットのFPGAでは動作クロックやリソース使用率を下げることで安定動作する傾向にあることが判明しているが、
+正確な仕様の変化が不明なことや、タイミング制約を満たしていても動作しないケースがあり、対応作業が困難な状況にある。
+現時点では、copyRect機能が省かれているが、基本機能は動作する状態のFPGAデザインが出来ている。
+
+なお、当該問題が生じる新しいロットを搭載した製品は市場に流通していないという認識であったが、
+2023/12/25 ユーザーからの報告により、問題が生じるロットの製品が市場に流通していることが判明した。
+このため、暫定的に現時点のもので更新を行うこととした。
+
+まことに遺憾ながら、この更新により、ModuleDisplay / AtomDisplay は従来のロットであっても性能が低下する。
+ ・ FPGA内部動作クロックを下げたことにより全体的に描画性能が低下する。
+ ・ copyRect機能が使用できなくなる。
+
+
+今後の対応方針としては、FPGAリソース使用率を根本的に下げる必要があるため、
+ 1ピクセル 3Byte RGB888 のフルカラー表現を諦め、
+ 1ピクセル 2Byte RGB565 の65536色に限定したデザインに刷新することを検討している。
+*/
+
+#if 0
     uint_fast8_t r = _internal_rotation;
     if (r)
     {
@@ -1369,6 +1401,7 @@ namespace lgfx
       } while (h--);
     }
     endWrite();
+#endif
   }
 
   void Panel_M5HDMI::setVideoTiming(const video_timing_t* param)
