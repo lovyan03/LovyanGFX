@@ -17,8 +17,7 @@ Contributors:
 /----------------------------------------------------------------------------*/
 
 // CST816 info from here...
-// https://github.com/lupyuen/hynitron_i2c_cst0xxse/blob/master/cst0xx_common.h
-// https://blog.csdn.net/Distance_98/article/details/126408819
+// https://www.waveshare.com/w/upload/c/c2/CST816S_register_declaration.pdf
 
 #include "Touch_CST816S.hpp"
 
@@ -58,7 +57,14 @@ namespace lgfx
     uint8_t tmp[3] = { 0 };
     _inited = _write_reg(0x00, 0x00)
           && _read_reg(CST816S_CHIPID_REG, tmp, 3);
-    // _write_reg(0xFA, 0b00000101); // レジスタ0xFAはINTピンの動作設定に関与すると思われる。
+
+// CST816SのINT機能には問題があり、LOWパルス出力期間中のタッチ精度が顕著に劣化する。
+// 0xFAレジスタを0x40とすると接触中に定期的にINTパルスを発生できる。
+// また、0xEDを操作するとパルスの長さを変更できるが、これらを併用するとタッチ性能が顕著に劣化する。
+//  _write_reg(0xFA, 0x40); // 0x40 = 触れている間、連続的にINTパルスを発生する。
+
+    _write_reg(0xFA, 0x20); // 0x20 = 変化を検出したときINTパルスを発生する。
+    _write_reg(0xED, 20); // INT LOW パルス長さ 20 == 2 msec
 // ESP_LOGV("LGFX","CST816S id:%02x %02x %02x", tmp[0], tmp[1], tmp[2]);
     return _inited;
   }
@@ -78,27 +84,17 @@ namespace lgfx
     }
 
     if (_cfg.pin_int >= 0)
-    { // intピンのプルアップ処理を行うが、「触れている間 LOW」の設定方法が不明のため、このピンを使用していない。
+    { // intピンのプルアップ処理を行うが、「触れている間 LOW」の設定方法がないため使用していない。
       // GPIO割込みを使用すれば良いが、Arduinoに依存せず解決する必要があるため、対応を保留する。
       lgfx::pinMode(_cfg.pin_int, pin_mode_t::input_pullup);
     }
     lgfx::i2c::init(_cfg.i2c_port, _cfg.pin_sda, _cfg.pin_scl).has_value();
 
     // 画面に触れていない時、I2C通信でCST816が見つからない事がある。
-    // CST816S の正確な仕様を確認することができていないが恐らく省電力モード中は通信応答しないものと思われる。
+    // CST816S は恐らく省電力モード中はI2Cでの通信に応答しないものと思われる。
     // 通信の成否による初期化の成否の判定ができないため、ひとまず true を返す。
     return true;
   }
-
-  // void Touch_CST816S::wakeup(void)
-  // {
-  // }
-
-  // void Touch_CST816S::sleep(void)
-  // {
-  //   if (!_check_init()) return;
-  //   // _write_reg(CST816S_SLEEP_REG, CST816S_SLEEP_IN);
-  // }
 
   size_t Touch_CST816S::_read_data(uint8_t* readdata)
   {
@@ -132,19 +128,39 @@ namespace lgfx
   {
     if (!_inited && !_check_init()) return 0;
 
-    if (count > max_touch_points) { count = max_touch_points; }
+    // if (count > max_touch_points) { count = max_touch_points; }
 
-    uint8_t readdata[8];
+    uint32_t msec = lgfx::millis();
+    uint32_t diff_msec = msec - _last_update;
+
+    if (diff_msec < 10 && _wait_cycle)
+    {
+      --_wait_cycle;
+      if (_cfg.pin_int < 0 || gpio_in(_cfg.pin_int)) {
+        return 0;
+      }
+    }
+    _last_update = msec;
+
+    uint8_t readdata[6];
     int retry = 3;
     do
     {
+      // I2Cでの応答が得られない場合は触れていないものとして扱う。
       if (!_read_reg(0x02, readdata, 6))
       {
-        return 0;
+        count = 0;
+        break;
       }
       count = readdata[0];
     } while ((count > 1 || readdata[5] != 0x10) && --retry);
-    if (retry && count)
+    if (!retry)
+    {
+      count = 0;
+    }
+    _wait_cycle = count ? 0 : 16;
+
+    if (count)
     {
       // ESP_LOGV("CST816S", "%02x %02x %02x %02x %02x %02x %02x %02x %d %d",
       //                     readdata[0], readdata[1], readdata[2], readdata[3],

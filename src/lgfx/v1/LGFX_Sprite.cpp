@@ -473,16 +473,16 @@ namespace lgfx
     uint32_t sx32 = param->src_x32;
     uint32_t sy32 = param->src_y32;
 
-    y *= _bitwidth;
+    uint32_t yb = y * _bitwidth;
     do
     {
-      int32_t pos = x + y;
+      int32_t pos = x + yb;
       int32_t end = pos + w;
       while (end != (pos = param->fp_copy(_img, pos, end, param))
          &&  end != (pos = param->fp_skip(      pos, end, param)));
       param->src_x32 = (sx32 += nextx);
       param->src_y32 = (sy32 += nexty);
-      y += _bitwidth;
+      yb += _bitwidth;
     } while (--h);
   }
 
@@ -678,6 +678,107 @@ namespace lgfx
         } while (--h);
       }
     }
+  }
+
+//----------------------------------------------------------------------------
+
+  bool LGFX_Sprite::create_from_bmp_file(DataWrapper* data, const char *path) {
+    data->need_transaction = false;
+    bool res = false;
+    if (data->open(path)) {
+      res = createFromBmp(data);
+      data->close();
+    }
+    return res;
+  }
+
+  bool LGFX_Sprite::createFromBmp(DataWrapper* data)
+  {
+    bitmap_header_t bmpdata;
+
+    if (!bmpdata.load_bmp_header(data)
+      || ( bmpdata.biCompression > 3)) {
+      return false;
+    }
+    uint32_t seekOffset = bmpdata.bfOffBits;
+    uint_fast16_t bpp = bmpdata.biBitCount; // 24 bcBitCount 24=RGB24bit
+    setColorDepth(bpp < 32 ? bpp : 24);
+    uint32_t w = bmpdata.biWidth;
+    int32_t h = bmpdata.biHeight;  // bcHeight Image height (pixels)
+    if (!createSprite(w, h)) return false;
+
+      //If the value of Height is positive, the image data is from bottom to top
+      //If the value of Height is negative, the image data is from top to bottom.
+    int32_t flow = (h < 0) ? 1 : -1;
+    int32_t y = 0;
+    if (h < 0) h = -h;
+    else y = h - 1;
+
+    if (bpp <= 8) {
+      if (!_palette) createPalette();
+      uint_fast16_t palettecount = 1 << bpp;
+      argb8888_t *palette = (argb8888_t*)alloca(sizeof(argb8888_t*) * palettecount);
+      data->seek(bmpdata.biSize + 14);
+      data->read((uint8_t*)palette, (palettecount * sizeof(argb8888_t))); // load palette
+      for (uint_fast16_t i = 0; i < _palette_count; ++i)
+      {
+        _palette.img24()[i].set(color_convert<bgr888_t, argb8888_t>(palette[i].get()));
+      }
+    }
+
+    data->seek(seekOffset);
+
+    auto bitwidth = _panel_sprite._bitwidth;
+
+    size_t buffersize = ((w * bpp + 31) >> 5) << 2;  // readline 4Byte align.
+    auto lineBuffer = (uint8_t*)alloca(buffersize);
+    if (bpp <= 8) {
+      do {
+        if (bmpdata.biCompression == 1) {
+          bmpdata.load_bmp_rle8(data, lineBuffer, w);
+        } else
+        if (bmpdata.biCompression == 2) {
+          bmpdata.load_bmp_rle4(data, lineBuffer, w);
+        } else {
+          data->read(lineBuffer, buffersize);
+        }
+        memcpy(&_img8[y * bitwidth * bpp >> 3], lineBuffer, (w * bpp + 7) >> 3);
+        y += flow;
+      } while (--h);
+    } else if (bpp == 16) {
+      do {
+        data->read(lineBuffer, buffersize);
+        auto img = (uint16_t*)(&_img8[y * bitwidth * bpp >> 3]);
+        y += flow;
+        for (size_t i = 0; i < w; ++i)
+        {
+          img[i] = (lineBuffer[i << 1] << 8) + lineBuffer[(i << 1) + 1];
+        }
+      } while (--h);
+    } else if (bpp == 24) {
+      do {
+        data->read(lineBuffer, buffersize);
+        auto img = &_img8[y * bitwidth * bpp >> 3];
+        y += flow;
+        for (size_t i = 0; i < w; ++i) {
+          img[i * 3    ] = lineBuffer[i * 3 + 2];
+          img[i * 3 + 1] = lineBuffer[i * 3 + 1];
+          img[i * 3 + 2] = lineBuffer[i * 3    ];
+        }
+      } while (--h);
+    } else if (bpp == 32) {
+      do {
+        data->read(lineBuffer, buffersize);
+        auto img = &_img8[y * bitwidth * 3];
+        y += flow;
+        for (size_t i = 0; i < w; ++i) {
+          img[i * 3    ] = lineBuffer[(i << 2) + 2];
+          img[i * 3 + 1] = lineBuffer[(i << 2) + 1];
+          img[i * 3 + 2] = lineBuffer[(i << 2) + 0];
+        }
+      } while (--h);
+    }
+    return true;
   }
 
 //----------------------------------------------------------------------------

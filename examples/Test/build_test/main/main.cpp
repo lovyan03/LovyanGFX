@@ -6,7 +6,7 @@
   #define LGFX_USE_V1
 #endif
 
-#if defined ( ARDUINO ) && defined ( ESP32 )
+#if __has_include(<SPIFFS.h>)
   #include <SPIFFS.h>
 #endif
 
@@ -197,7 +197,7 @@ void test(LGFX_Device &lcd)
   lcd.drawJpg((uint8_t*)nullptr, 0, 0, 0);
   lcd.drawQoi((uint8_t*)nullptr, 0, 0, 0);
 
-#if defined ( ARDUINO ) && defined ( ESP32 )
+#if __has_include(<SPIFFS.h>)
   lcd.drawBmpFile(SPIFFS, "/test.bmp");
   lcd.drawPngFile(SPIFFS, "/test.png");
   lcd.drawJpgFile(SPIFFS, "/test.jpg");

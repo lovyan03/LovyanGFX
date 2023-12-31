@@ -14,47 +14,48 @@ on:
     - '**.c'
     - '**IDFBuild.yml'
     - 'CMakeLists.txt'
+    - 'esp-idf-versions.php'
   pull_request:
+  workflow_dispatch:
 
 jobs:
-  build:
-    name: idf ${{ matrix.idf-version }}@${{ matrix.idf-board }}>esp-idf_graphicstest
 
+
+  set_matrix:
+    name: Version planner ⊹
+    runs-on: ubuntu-latest
+    env:
+      max-versions: 3 # maximum core versions to test, starting at latest
+    outputs:
+      matrix: ${{steps.set-matrix.outputs.matrix}}
+      project_dir: ${{steps.set-matrix.outputs.project_dir}}
+      repo_url: ${{steps.set-matrix.outputs.repo_url}}
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+      with:
+        ref: ${{ github.event.pull_request.head.sha }}
+
+    - name: Setup matrix
+      id: set-matrix
+      run: |
+        matrix=`php .github/scripts/esp-idf-versions.php`
+        # echo $matrix | jq # debug
+        matrix="${matrix//'%'/'%25'}" # escape percent entities
+        matrix="${matrix//$'\n'/''}"  # remove lf
+        matrix="${matrix//$'\r'/''}"  # remove cr
+        echo "matrix=${matrix}" >> $GITHUB_OUTPUT
+        echo "project_dir=${{env.PROJECT_DIR}}" >> $GITHUB_OUTPUT
+        echo "repo_url=${{env.REPO_URL}}" >> $GITHUB_OUTPUT
+
+  build:
+    name: idf ${{ matrix.esp-idf-fqbn }}
+    needs: set_matrix
     runs-on: ubuntu-latest
 
     strategy:
-      matrix:
-
-        esp-idf-fqbn:
-          - esp32@v4.1
-          #- esp32@v4.2.5 # esp-idf tools broken by cython/openOCD
-          - esp32@v4.3.1
-          - esp32s2@v4.4.4
-          - esp32s3@v4.4.4
-          - esp32@v5.0
-          - esp32s2@v5.0
-          - esp32s3@v5.0
-          - esp32@v5.0.1
-          - esp32s2@v5.0.1
-          - esp32s3@v5.0.1
-          - esp32@v5.1
-          - esp32s3@v5.1 # LGFX I2C not ready yet 
-
-        include:
-          - { esp-idf-fqbn: esp32@v4.1,         idf-board: esp32,   idf-version: v4.1 }
-          #- { esp-idf-fqbn: esp32@v4.2.5,       idf-board: esp32,   idf-version: v4.2.5 }
-          - { esp-idf-fqbn: esp32@v4.3.1,       idf-board: esp32,   idf-version: v4.3.1 }
-          - { esp-idf-fqbn: esp32s2@v4.4.4,     idf-board: esp32s2, idf-version: v4.4.4 }
-          - { esp-idf-fqbn: esp32s3@v4.4.4,     idf-board: esp32s3, idf-version: v4.4.4 }
-          - { esp-idf-fqbn: esp32@v5.0,         idf-board: esp32,   idf-version: v5.0 }
-          - { esp-idf-fqbn: esp32s2@v5.0,       idf-board: esp32s2, idf-version: v5.0 }
-          - { esp-idf-fqbn: esp32s3@v5.0,       idf-board: esp32s3, idf-version: v5.0 }
-          - { esp-idf-fqbn: esp32@v5.0.1,       idf-board: esp32,   idf-version: v5.0.1 }
-          - { esp-idf-fqbn: esp32s2@v5.0.1,     idf-board: esp32s2, idf-version: v5.0.1 }
-          - { esp-idf-fqbn: esp32s3@v5.0.1,     idf-board: esp32s3, idf-version: v5.0.1 }
-          - { esp-idf-fqbn: esp32@v5.1,         idf-board: esp32,   idf-version: v5.1 }
-          - { esp-idf-fqbn: esp32s3@v5.1,       idf-board: esp32s3, idf-version: v5.1 }
-
+      matrix: ${{fromJSON(needs.set_matrix.outputs.matrix)}}
       fail-fast: false
 
     steps:
@@ -63,41 +64,45 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
 
-      - name: Cache pip for ${{ matrix.esp-idf-fqbn }}
-        uses: actions/cache@v3
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ matrix.idf-version }}-${{ hashFiles('**/requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-
-      - name: Cache espressif tools for ${{ matrix.esp-idf-fqbn }}
-        uses: actions/cache@v3
-        id: espressif
-        with:
-          path: |
-            ~/.espressif
-          key: ${{ runner.os }}-espressif-${{ matrix.idf-version }}-${{ hashFiles('**/lockfiles') }}
-
-      - name: Cache esp-idf for ${{ matrix.esp-idf-fqbn }}
-        id: cache-idf
-        uses: actions/cache@v3
-        with:
-          path: ~/esp/esp-idf
-          key: ${{ runner.os }}-idf-${{ matrix.idf-version }}-${{ hashFiles('**/lockfiles') }}
+      # - name: Cache pip for ${{ matrix.esp-idf-fqbn }}
+      #   uses: actions/cache@v3
+      #   with:
+      #     path: ~/.cache/pip
+      #     key: ${{ runner.os }}-pip-${{ matrix.esp-idf-fqbn }}-${{ hashFiles('**/requirements.txt') }}
+      #     restore-keys: |
+      #       ${{ runner.os }}-pip-
+      #
+      # - name: Cache espressif tools for ${{ matrix.esp-idf-fqbn }}
+      #   uses: actions/cache@v3
+      #   id: espressif
+      #   with:
+      #     path: |
+      #       ~/.espressif
+      #     key: ${{ runner.os }}-espressif-${{ matrix.esp-idf-fqbn }}-${{ hashFiles('**/lockfiles') }}
+      #
+      # - name: Cache esp-idf for ${{ matrix.esp-idf-fqbn }}
+      #   id: cache-idf
+      #   uses: actions/cache@v3
+      #   with:
+      #     path: ~/esp/esp-idf
+      #     key: ${{ runner.os }}-idf-${{ matrix.esp-idf-fqbn }}-${{ hashFiles('**/lockfiles') }}
 
       - name: Get/Check IDF ${{ matrix.esp-idf-fqbn }}
         run: |
           mkdir -p ~/esp
           cd ~/esp
-          if [ ! -d "./esp-idf/" ]; then git clone -b ${{ matrix.idf-version }} --recursive $REPO_URL esp-idf; fi
+          idf_fqbn="${{ matrix.esp-idf-fqbn }}"
+          idf_version=${idf_fqbn#*@}
+          if [ ! -d "./esp-idf/" ]; then git clone -b v$idf_version --recursive ${{ needs.set_matrix.outputs.repo_url }} esp-idf; fi
           cd ~/esp/esp-idf
           if [ ! -d "~/.espressif" ]; then ./install.sh; fi
 
       - name: Build example for ${{ matrix.esp-idf-fqbn }}
         run: |
           source ~/esp/esp-idf/export.sh
-          cd ${{ env.PROJECT_DIR }}
-          idf.py set-target ${{ matrix.idf-board }}
+          idf_fqbn="${{ matrix.esp-idf-fqbn }}"
+          idf_board=${idf_fqbn%%@*}
+          cd ${{ needs.set_matrix.outputs.project_dir }}
+          idf.py set-target $idf_board
           idf.py build
 

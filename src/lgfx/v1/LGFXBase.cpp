@@ -2144,7 +2144,6 @@ namespace lgfx
     //_decoderState = utf8_decode_state_t::utf8_state0;
 
     font->getDefaultMetric(&_font_metrics);
-
   }
 
   /// load VLW font
@@ -2152,6 +2151,39 @@ namespace lgfx
   {
     _font_data.set(array);
     return load_font(&_font_data);
+  }
+
+  bool LGFXBase::load_font_with_path(const char *path)
+  {
+    this->unloadFont();
+
+    if (this->_font_file.get() == nullptr) return false;
+
+    this->prepareTmpTransaction(this->_font_file.get());
+    this->_font_file->preRead();
+
+    bool result = this->_font_file->open(path);
+    if (!result)
+    {
+      size_t alloclen = strlen(path) + 8;
+      auto filename = (char*)alloca(alloclen);
+      memset(filename, 0, alloclen);
+      filename[0] = '/';
+
+      strcpy(&filename[1], &path[(path[0] == '/') ? 1 : 0]);
+      int len = strlen(filename);
+      if (memcmp(&filename[len - 4], ".vlw", 4))
+      {
+        strcpy(&filename[len], ".vlw");
+      }
+      result = this->_font_file->open(filename);
+    }
+
+    if (result) {
+      result = this->load_font(this->_font_file.get());
+    }
+    this->_font_file->postRead();
+    return result;
   }
 
   bool LGFXBase::load_font(lgfx::DataWrapper* data)

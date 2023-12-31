@@ -130,7 +130,7 @@ static inline int32_t BYTECLIP (
 /*---------------------------------------------*/
 
 #if JD_BAYER
-static const int_fast8_t Bayer[16] = { 0, 4, 1, 5,-2, 2,-1, 3, 1, 5, 0, 4,-1, 3,-2, 2};
+static const int8_t Bayer[16] = { 0, 4, 1, 5,-2, 2,-1, 3, 1, 5, 0, 4,-1, 3,-2, 2};
 #endif
 
 
@@ -299,7 +299,7 @@ static int32_t huffext (	/* >=0: decoded data, <0: error code */
 {
 	const uint8_t* hb_end = hb + 16 + 1;
 	uint_fast8_t msk = jd->dbit;
-	uint_fast16_t w = *jd->dptr & ((1ul << msk) - 1);
+	uint32_t w = *jd->dptr & ((1ul << msk) - 1);
 	for (;;) {
 		if (!msk) {				/* Next byte? */
 			uint8_t *dp = jd->dptr;
@@ -584,7 +584,7 @@ static JRESULT mcu_output (
 		iy = 0;
 		do {
 #if JD_BAYER
-			const int_fast8_t* btbl = &Bayer[(iy & 3) << 2];
+			const int8_t* btbl = &Bayer[(iy & 3) << 2];
 #endif
 			py = &jd->mcubuf[((iy & 8) + iy) << 3];
 			pc = &jd->mcubuf[((mx << iyshift) + (iy >> iyshift)) << 3];
@@ -596,10 +596,10 @@ static JRESULT mcu_output (
 					++pc;
 
 				/* Convert CbCr to RGB */
-					uint_fast16_t rr = ((int32_t)(1.402   * (1<<FP_SHIFT)) * cr) >> FP_SHIFT;
-					uint_fast16_t gg = ((int32_t)(0.34414 * (1<<FP_SHIFT)) * cb
+					int32_t rr = ((int32_t)(1.402   * (1<<FP_SHIFT)) * cr) >> FP_SHIFT;
+					int32_t gg = ((int32_t)(0.34414 * (1<<FP_SHIFT)) * cb
 									  + (int32_t)(0.71414 * (1<<FP_SHIFT)) * cr) >> FP_SHIFT;
-					uint_fast16_t bb = ((int32_t)(1.772   * (1<<FP_SHIFT)) * cb) >> FP_SHIFT;
+					int32_t bb = ((int32_t)(1.772   * (1<<FP_SHIFT)) * cb) >> FP_SHIFT;
 					do {
 #if JD_BAYER
 						yy = *py + btbl[ix & 3];		/* Get Y component */

@@ -742,6 +742,23 @@ namespace lgfx
     /// load VLW font
     bool loadFont(const uint8_t* array);
 
+    /// load vlw font from filesystem.
+    bool loadFont(const char *path)
+    {
+      this->unloadFont();
+      this->_font_file.reset(_create_data_wrapper());
+      return load_font_with_path(path);
+    }
+
+
+    template <typename T>
+    bool loadFont(T &fs, const char *path)
+    {
+      unloadFont();
+      _font_file.reset(new DataWrapperT<T>(&fs));
+      return load_font_with_path(path);
+    }
+
     /// unload VLW font
     void unloadFont(void);
 
@@ -753,6 +770,16 @@ namespace lgfx
     void setAttribute(attribute_t attr_id, uint8_t param);
     uint8_t getAttribute(attribute_t attr_id);
     uint8_t getAttribute(uint8_t attr_id) { return getAttribute((attribute_t)attr_id); }
+
+    template <typename T>
+    void setFileStorage(T& fs) {
+      _data_wrapper_factory.reset(new DataWrapperTFactoryT<T>(&fs));
+    }
+
+    template <typename T>
+    void setFileStorage(T* fs) { _data_wrapper_factory.reset(new DataWrapperTFactoryT<T>(fs)); }
+
+    void clearFileStorage(void) { _data_wrapper_factory.reset(new DataWrapperTFactoryT<void>(nullptr)); }
 
 //----------------------------------------------------------------------------
 // print & text support
@@ -822,9 +849,9 @@ namespace lgfx
     void qrcode(const char *string, int32_t x = -1, int32_t y = -1, int32_t width = -1, uint8_t version = 1);
 
   #define LGFX_FUNCTION_GENERATOR(drawImg, draw_img) \
-    protected: \
+   protected: \
     bool draw_img(DataWrapper* data, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, float scale_x, float scale_y, datum_t datum); \
-    public: \
+   public: \
     bool drawImg(const uint8_t *data, uint32_t len, int32_t x=0, int32_t y=0, int32_t maxWidth=0, int32_t maxHeight=0, int32_t offX=0, int32_t offY=0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left) \
     { \
       PointerWrapper data_wrapper; \
@@ -835,6 +862,34 @@ namespace lgfx
     { \
       return this->draw_img(data, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum); \
     } \
+    bool drawImg##File(DataWrapper* file, const char *path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left) \
+    { \
+      bool res = false; \
+      this->prepareTmpTransaction(file); \
+      file->preRead(); \
+      if (file->open(path)) \
+      { \
+        res = this->draw_img(file, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum); \
+        file->close(); \
+      } \
+      file->postRead(); \
+      return res; \
+    } \
+    inline bool drawImg##File(const char *path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left) \
+    { \
+      auto data = _create_data_wrapper(); \
+      bool res = drawImg##File(data, path, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum); \
+      delete data; \
+      return res; \
+    } \
+    template <typename T> \
+    inline bool drawImg##File(T &fs, const char *path, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left) \
+    { \
+      DataWrapperT<T> file ( &fs ); \
+      bool res = this->drawImg##File(&file, path, x, y, maxWidth, maxHeight, offX, offY, scale_x, scale_y, datum); \
+      file.close(); \
+      return res; \
+    }
 
     LGFX_FUNCTION_GENERATOR(drawBmp, draw_bmp)
     LGFX_FUNCTION_GENERATOR(drawJpg, draw_jpg)
@@ -850,6 +905,11 @@ namespace lgfx
     [[deprecated("use float scale")]] inline bool drawJpg(DataWrapper *data, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, jpeg_div::jpeg_div_t scale)
     {
       return drawJpg(data, x, y, maxWidth, maxHeight, offX, offY, 1.0f / (1 << scale));
+    }
+    [[deprecated("use float scale")]]
+    inline bool drawJpgFile(const char *path, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, jpeg_div::jpeg_div_t scale)
+    {
+      return drawJpgFile(path, x, y, maxWidth, maxHeight, offX, offY, 1.0f / (1 << scale));
     }
 
     void* createPng( size_t* datalen, int32_t x = 0, int32_t y = 0, int32_t width = 0, int32_t height = 0);
@@ -916,6 +976,9 @@ namespace lgfx
     std::shared_ptr<RunTimeFont> _runtime_font;  // run-time generated font
     std::shared_ptr<DataWrapper> _font_file;  // run-time font file
     PointerWrapper _font_data;
+
+    std::shared_ptr<DataWrapperFactory> _data_wrapper_factory;
+    DataWrapper* _create_data_wrapper(void) { if (nullptr == _data_wrapper_factory.get()) { clearFileStorage(); } return _data_wrapper_factory->create(); }
 
     bool _textwrap_x = true;
     bool _textwrap_y = false;
@@ -1220,6 +1283,7 @@ namespace lgfx
     size_t draw_string(const char *string, int32_t x, int32_t y, textdatum_t datum, const IFont* font = nullptr);
     int32_t text_width(const char *string, const IFont* font, FontMetrics* metrics);
     bool load_font(lgfx::DataWrapper* data);
+    bool load_font_with_path(const char *path);
 
     static void tmpBeginTransaction(LGFXBase* lgfx)
     {

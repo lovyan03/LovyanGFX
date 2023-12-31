@@ -35,8 +35,13 @@ Contributors:
 #include <esp_timer.h>
 
 #if !defined ( REG_SPI_BASE )
-//#define REG_SPI_BASE(i) (DR_REG_SPI0_BASE - (i) * 0x1000)
-#define REG_SPI_BASE(i)     (DR_REG_SPI2_BASE)
+ /// ESP32-S3をターゲットにした際にREG_SPI_BASEが定義されていなかったので応急処置 5.3まで;
+ #if defined ( CONFIG_IDF_TARGET_ESP32S3 )
+  #define REG_SPI_BASE(i)   (DR_REG_SPI1_BASE + (((i)>1) ? (((i)* 0x1000) + 0x20000) : (((~(i)) & 1)* 0x1000 )))
+ #else
+  //#define REG_SPI_BASE(i) (DR_REG_SPI0_BASE - (i) * 0x1000)
+  #define REG_SPI_BASE(i)     (DR_REG_SPI2_BASE)
+ #endif
 #endif
 
 #if defined ( ESP_IDF_VERSION_VAL )
@@ -133,100 +138,84 @@ namespace lgfx
 //----------------------------------------------------------------------------
 
 #if defined (ARDUINO)
- #if defined (FS_H)
+ #if defined (_SD_H_)
+   #define LGFX_FILESYSTEM_SD SD
+ #endif
+ #if defined (_LITTLEFS_H_) || defined (__LITTLEFS_H) || defined (_LiffleFS_H_)
+   #define LGFX_FILESYSTEM_LITTLEFS LittleFS
+ #endif
+ #if defined (_SPIFFS_H_)
+   #define LGFX_FILESYSTEM_SPIFFS SPIFFS
+ #endif
+ #if defined (_FFAT_H_)
+   #define LGFX_FILESYSTEM_FFAT FFat
+ #endif
 
-  struct FileWrapper : public DataWrapper
-  {
-private:
-#if defined (_SPIFFS_H_)
-    bool _check_need_transaction(void) const { return _fs != &SPIFFS; }
-#else
-    bool _check_need_transaction(void) const { return true; }
-#endif
+ #if defined (FS_H) \
+  || defined (LGFX_FILESYSTEM_SD) \
+  || defined (LGFX_FILESYSTEM_LITTLEFS) \
+  || defined (LGFX_FILESYSTEM_SPIFFS) \
+  || defined (LGFX_FILESYSTEM_FFAT)
 
-public:
-    FileWrapper() : DataWrapper()
-    {
-#if defined (_SD_H_)
-      _fs = &SD;
-#elif defined (_SPIFFS_H_)
-      _fs = &SPIFFS;
-#else
-      _fs = nullptr;
-#endif
-      need_transaction = _check_need_transaction();
-      _fp = nullptr;
+  template <>
+  struct DataWrapperT<fs::File> : public DataWrapper {
+    DataWrapperT(fs::File* fp = nullptr) : DataWrapper{}, _fp { fp } {
+      need_transaction = true;
     }
-
-    fs::FS* _fs;
+    int read(uint8_t *buf, uint32_t len) override { return _fp->read(buf, len); }
+    void skip(int32_t offset) override { _fp->seek(offset, SeekCur); }
+    bool seek(uint32_t offset) override { return _fp->seek(offset, SeekSet); }
+    bool seek(uint32_t offset, SeekMode mode) { return _fp->seek(offset, mode); }
+    void close(void) override { if (_fp) _fp->close(); }
+    int32_t tell(void) override { return _fp->position(); }
+protected:
     fs::File *_fp;
-    fs::File _file;
+  };
 
-    FileWrapper(fs::FS& fs, fs::File* fp = nullptr) : DataWrapper(), _fs(&fs), _fp(fp) { need_transaction = _check_need_transaction(); }
-    void setFS(fs::FS& fs) {
-      _fs = &fs;
-      need_transaction = _check_need_transaction();
-    }
-
-    bool open(fs::FS& fs, const char* path)
-    {
-      setFS(fs);
-      return open(path);
+  template <>
+  struct DataWrapperT<fs::FS> : public DataWrapperT<fs::File> {
+    DataWrapperT(fs::FS* fs, fs::File* fp = nullptr) : DataWrapperT<fs::File> { fp }, _fs { fs } {
+#if defined (LGFX_FILESYSTEM_SD)
+      need_transaction = (fs == &LGFX_FILESYSTEM_SD);
+#endif
     }
     bool open(const char* path) override
     {
       _file = _fs->open(path, "r");
-      _fp = &_file;
+      DataWrapperT<fs::File>::_fp = &_file;
       return _file;
     }
-    int read(uint8_t *buf, uint32_t len) override { return _fp->read(buf, len); }
-    void skip(int32_t offset) override { seek(offset, SeekCur); }
-    bool seek(uint32_t offset) override { return seek(offset, SeekSet); }
-    bool seek(uint32_t offset, SeekMode mode) { return _fp->seek(offset, mode); }
-    void close(void) override { if (_fp) _fp->close(); }
-    int32_t tell(void) override { return _fp->position(); }
-  };
- #else
-  // dummy
-  struct FileWrapper : public DataWrapper
-  {
-    FileWrapper() : DataWrapper()
-    {
-      need_transaction = true;
-    }
-    void* _fp;
 
-    template <typename T>
-    void setFS(T& fs) {}
-
-    bool open(const char* path, const char* mode) { return false; }
-    int read(uint8_t *buf, uint32_t len) override { return false; }
-    void skip(int32_t offset) override { }
-    bool seek(uint32_t offset) override { return false; }
-    bool seek(uint32_t offset, int origin) { return false; }
-    void close() override { }
-    int32_t tell(void) override { return 0; }
+protected:
+    fs::FS* _fs;
+    fs::File _file;
   };
 
+  #if defined (LGFX_FILESYSTEM_SD)
+  template <>
+  struct DataWrapperT<fs::SDFS> : public DataWrapperT<fs::FS> {
+    DataWrapperT(fs::FS* fs, fs::File* fp = nullptr) : DataWrapperT<fs::FS>(fs, fp) {}
+  };
+  #endif
+  #if defined (LGFX_FILESYSTEM_SPIFFS)
+  template <>
+  struct DataWrapperT<fs::SPIFFSFS> : public DataWrapperT<fs::FS> {
+    DataWrapperT(fs::FS* fs, fs::File* fp = nullptr) : DataWrapperT<fs::FS>(fs, fp) {}
+  };
+  #endif
+  #if defined (LGFX_FILESYSTEM_LITTLEFS)
+  template <>
+  struct DataWrapperT<fs::LittleFSFS> : public DataWrapperT<fs::FS> {
+    DataWrapperT(fs::FS* fs, fs::File* fp = nullptr) : DataWrapperT<fs::FS>(fs, fp) {}
+  };
+  #endif
+  #if defined (LGFX_FILESYSTEM_FFAT)
+  template <>
+  struct DataWrapperT<fs::F_Fat> : public DataWrapperT<fs::FS> {
+    DataWrapperT(fs::FS* fs, fs::File* fp = nullptr) : DataWrapperT<fs::FS>(fs, fp) {}
+  };
+  #endif
  #endif
-#else // ESP-IDF
-
-  struct FileWrapper : public DataWrapper
-  {
-    FileWrapper() : DataWrapper()
-    {
-      need_transaction = true;
-    }
-    FILE* _fp;
-    bool open(const char* path) override { return (_fp = fopen(path, "r")); }
-    int read(uint8_t *buf, uint32_t len) override { return fread((char*)buf, 1, len, _fp); }
-    void skip(int32_t offset) override { seek(offset, SEEK_CUR); }
-    bool seek(uint32_t offset) override { return seek(offset, SEEK_SET); }
-    bool seek(uint32_t offset, int origin) { return fseek(_fp, offset, origin); }
-    void close() override { if (_fp) fclose(_fp); }
-    int32_t tell(void) override { return ftell(_fp); }
-  };
-
 #endif
 
 //----------------------------------------------------------------------------

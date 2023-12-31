@@ -59,6 +59,8 @@ namespace lgfx
     {
       max_touch_points = 1
     };
+    uint32_t _last_update = 0;
+    uint8_t _wait_cycle = 0;
 
     bool _check_init(void);
     bool _write_reg(uint8_t reg, uint8_t val);
