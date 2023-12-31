@@ -158,52 +158,57 @@ namespace lgfx
   void pinAssignPeriph(int pin_and_port, int type = PIO_SERCOM);
 
 //----------------------------------------------------------------------------
-  struct FileWrapper : public DataWrapper
-  {
-    FileWrapper() : DataWrapper() { need_transaction = true; }
 
-#if defined (ARDUINO) && defined (__SEEED_FS__)
+#if defined (__SEEED_FS__)
 
-    fs::File _file;
-    fs::File *_fp;
-
-    fs::FS *_fs = nullptr;
-    void setFS(fs::FS& fs) {
-      _fs = &fs;
-      need_transaction = false;
+  template <>
+  struct DataWrapperT<fs::File> : public DataWrapper {
+    DataWrapperT(fs::File* fp = nullptr) : DataWrapper{}, _fp { fp } {
+      need_transaction = true;
     }
-    FileWrapper(fs::FS& fs) : DataWrapper(), _fp(nullptr) { setFS(fs); }
-    FileWrapper(fs::FS& fs, fs::File* fp) : DataWrapper(), _fp(fp) { setFS(fs); }
-
-    bool open(fs::FS& fs, const char* path) {
-      setFS(fs);
-      return open(path);
-    }
-
-    bool open(const char* path) override {
-      fs::File file = _fs->open(path, "r");
-      // この邪悪なmemcpyは、Seeed_FSのFile実装が所有権moveを提供してくれないのにデストラクタでcloseを呼ぶ実装になっているため、;
-      // 正攻法ではFileをクラスメンバに保持できない状況を打開すべく応急処置的に実装したものです。;
-      memcpy(&_file, &file, sizeof(fs::File));
-      // memsetにより一時変数の中身を吹っ飛ばし、デストラクタによるcloseを予防します。;
-      memset(&file, 0, sizeof(fs::File));
-      _fp = &_file;
-      return _file;
-    }
-
     int read(uint8_t *buf, uint32_t len) override { return _fp->read(buf, len); }
-    void skip(int32_t offset) override { seek(offset, SeekCur); }
-    bool seek(uint32_t offset) override { return seek(offset, SeekSet); }
+    void skip(int32_t offset) override { _fp->seek(offset, SeekCur); }
+    bool seek(uint32_t offset) override { return _fp->seek(offset, SeekSet); }
     bool seek(uint32_t offset, SeekMode mode) { return _fp->seek(offset, mode); }
     void close(void) override { if (_fp) _fp->close(); }
     int32_t tell(void) override { return _fp->position(); }
+protected:
+    fs::File *_fp;
+  };
 
-#elif __SAMD51_HARMONY__
-
-    SYS_FS_HANDLE handle = SYS_FS_HANDLE_INVALID;
-
+  template <>
+  struct DataWrapperT<fs::FS> : public DataWrapperT<fs::File> {
+    DataWrapperT(fs::FS* fs, fs::File* fp = nullptr) : DataWrapperT<fs::File> { fp }, _fs { fs } {}
     bool open(const char* path) override
     {
+      _file = _fs->open(path, "r");
+      DataWrapperT<fs::File>::_fp = &_file;
+      return _file;
+    }
+
+protected:
+    fs::FS* _fs;
+    fs::File _file;
+  };
+
+#if defined (__SD_H__)
+  template <>
+  struct DataWrapperT<fs::SDFS> : public DataWrapperT<fs::FS> {
+    DataWrapperT(fs::FS* fs, fs::File* fp = nullptr) : DataWrapperT<fs::FS>(fs, fp) {}
+  };
+#endif
+#endif
+
+#if defined (__SAMD51_HARMONY__) && ( defined (__FILE_defined) || defined (_FILE_DEFINED) || defined (_FSTDIO) )
+
+  template <>
+  struct DataWrapperT<FILE> : public DataWrapper
+  {
+    DataWrapperT(FILE* fp = nullptr) : DataWrapper() , _fp { fp }
+    {
+      need_transaction = true;
+    }
+    bool open(const char* path) override {
       this->handle = SYS_FS_FileOpen(path, SYS_FS_FILE_OPEN_ATTRIBUTES::SYS_FS_FILE_OPEN_READ);
       return this->handle != SYS_FS_HANDLE_INVALID;
     }
@@ -234,20 +239,16 @@ namespace lgfx
     {
       return SYS_FS_FileTell(this->handle);
     }
-
-#else  // dummy.
-
-    bool open(const char*) override { return false; }
-    int read(uint8_t*, uint32_t) override { return 0; }
-    void skip(int32_t) override { }
-    bool seek(uint32_t) override { return false; }
-    bool seek(uint32_t, int) { return false; }
-    void close() override { }
-    int32_t tell(void) override { return 0; }
-
-#endif
-
+  protected:
+    SYS_FS_HANDLE handle = SYS_FS_HANDLE_INVALID;
   };
+
+  template <>
+  struct DataWrapperT<void> : public DataWrapperT<FILE>
+  {
+    DataWrapperT(void) : DataWrapperT<FILE>() {}
+  };
+#endif
 
 //----------------------------------------------------------------------------
  }

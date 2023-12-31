@@ -73,6 +73,7 @@ namespace lgfx
     LGFX_INLINE int_fast16_t height(void) const { return bottom - top + 1; }
     LGFX_INLINE bool empty(void) const { return left > right || top > bottom; }
     LGFX_INLINE bool contain(int_fast16_t x, int_fast16_t y) const { return left <= x && x <= right && top <= y && y <= bottom; }
+    LGFX_INLINE bool intersectsWith(const range_rect_t& rect) const { return horizon.intersectsWith(rect.horizon) && vertical.intersectsWith(rect.vertical); }
 
 #undef LGFX_INLINE
   };

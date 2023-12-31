@@ -81,65 +81,49 @@ namespace lgfx
 //----------------------------------------------------------------------------
 
 #if defined (ARDUINO)
- #if defined (__STORAGE_H__)
+ #if defined (__FILE_H__)
 
-  struct FileWrapper : public DataWrapper
-  {
-
-public:
-    FileWrapper() : DataWrapper()
-    {
-      _fs = nullptr;
-      _fp = nullptr;
-    }
-
-    StorageClass* _fs;
-    File *_fp;
-    File _file;
-
-    FileWrapper(StorageClass& fs, File* fp = nullptr) : DataWrapper(), _fs(&fs), _fp(fp) {}
-    void setFS(StorageClass& fs) {
-      _fs = &fs;
-    }
-
-    bool open(StorageClass& fs, const char* path)
-    {
-      setFS(fs);
-      return open(path);
-    }
-    bool open(const char* path) override
-    {
-      _file = _fs->open(path);
-      _fp = &_file;
-      return _file;
+  template <>
+  struct DataWrapperT<File> : public DataWrapper {
+    DataWrapperT(File* fp = nullptr) : DataWrapper{}, _fp { fp } {
+      need_transaction = true;
     }
     int read(uint8_t *buf, uint32_t len) override { return _fp->read(buf, len); }
     void skip(int32_t offset) override { _fp->seek(_fp->position() + offset); }
     bool seek(uint32_t offset) override { return _fp->seek(offset); }
     void close(void) override { if (_fp) _fp->close(); }
     int32_t tell(void) override { return _fp->position(); }
+protected:
+    File *_fp;
   };
- #else
 
-  struct FileWrapper : public DataWrapper
-  {
-    FileWrapper() : DataWrapper()
-    {
-      need_transaction = false;
+ #if defined (__STORAGE_H__)
+
+  template <>
+  struct DataWrapperT<StorageClass> : public DataWrapperT<File> {
+    DataWrapperT(StorageClass* fs, File* fp = nullptr) : DataWrapperT<File> { fp }, _fs { fs } {
+      need_transaction = true;
     }
-    void* _fp;
+    bool open(const char* path) override
+    {
+      _file = _fs->open(path);
+      DataWrapperT<File>::_fp = &_file;
+      return _file;
+    }
 
-    template <typename T>
-    void setFS(T& fs) {}
-
-    bool open(const char* , const char* ) { return false; }
-    int read(uint8_t *, uint32_t ) override { return false; }
-    void skip(int32_t ) override { }
-    bool seek(uint32_t ) override { return false; }
-    bool seek(uint32_t , int ) { return false; }
-    void close() override { }
-    int32_t tell(void) override { return 0; }
+protected:
+    StorageClass* _fs;
+    File _file;
   };
+
+ #if defined (__SD_H__)
+  template <>
+  struct DataWrapperT<SDClass> : public DataWrapperT<StorageClass> {
+    DataWrapperT(SDClass* fs, File* fp = nullptr) : DataWrapperT<StorageClass>(fs, fp) {}
+  };
+ #endif
+
+ #endif
 
  #endif
 

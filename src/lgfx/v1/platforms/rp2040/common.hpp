@@ -90,10 +90,10 @@ namespace lgfx
   };
 
 //----------------------------------------------------------------------------
+
+/*
   struct FileWrapper : public DataWrapper
   {
-
-
 
 #if defined ARDUINO && ( defined SDFS_H || defined __LITTLEFS_H )
 
@@ -201,7 +201,7 @@ namespace lgfx
 #endif
 
   };
-
+//*/
 //----------------------------------------------------------------------------
  }
 }

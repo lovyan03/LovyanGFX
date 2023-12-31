@@ -95,6 +95,82 @@ namespace lgfx
 //----------------------------------------------------------------------------
 
 #if defined (ARDUINO)
+ #if defined (SDFS_H)
+ sdfs::
+ #endif
+ #if defined (_SD_H_)
+   #define LGFX_FILESYSTEM_SD_INSTANCE SD
+   #define LGFX_FILESYSTEM_SD_TYPENAME fs::SDFS
+ #elif defined (SDFS_H) \
+    || defined (__SD_H__) // Seeed_SD.h
+   #define LGFX_FILESYSTEM_SD_INSTANCE SDFS
+   #define LGFX_FILESYSTEM_SD_TYPENAME fs::SDFS
+ #endif
+ #if defined (_LITTLEFS_H_) || defined (__LITTLEFS_H) || defined (_LiffleFS_H_)
+   #define LGFX_FILESYSTEM_LITTLEFS_INSTANCE LittleFS
+   #define LGFX_FILESYSTEM_LITTLEFS_TYPENAME fs::LittleFSFS
+ #endif
+ #if defined (_SPIFFS_H_)
+   #define LGFX_FILESYSTEM_SPIFFS_INSTANCE SPIFFS
+   #define LGFX_FILESYSTEM_SPIFFS_TYPENAME fs::SPIFFSFS
+ #endif
+ #if defined (LGFX_FILESYSTEM_SD_INSTANCE)
+   #define LGFX_DEFAULT_FILESYSTEM LGFX_FILESYSTEM_SD_INSTANCE
+ #elif defined (LGFX_FILESYSTEM_LITTLEFS_INSTANCE)
+   #define LGFX_DEFAULT_FILESYSTEM LGFX_FILESYSTEM_LITTLEFS_INSTANCE
+ #elif defined (LGFX_FILESYSTEM_SPIFFS_INSTANCE)
+   #define LGFX_DEFAULT_FILESYSTEM LGFX_FILESYSTEM_SPIFFS_INSTANCE
+ #endif
+
+ #if defined (FS_H) || defined (__SD_H__) \
+  || defined (LGFX_FILESYSTEM_SD_INSTANCE) \
+  || defined (LGFX_FILESYSTEM_LITTLEFS_INSTANCE) \
+  || defined (LGFX_FILESYSTEM_SPIFFS_INSTANCE)
+
+  template <>
+  struct DataWrapperT<fs::File> : public DataWrapper {
+    DataWrapperT(fs::File* fp = nullptr) : DataWrapper{}, _fp { fp } {
+      need_transaction = true;
+    }
+    int read(uint8_t *buf, uint32_t len) override { return _fp->read(buf, len); }
+    void skip(int32_t offset) override { _fp->seek(offset, SeekCur); }
+    bool seek(uint32_t offset) override { return _fp->seek(offset, SeekSet); }
+    bool seek(uint32_t offset, SeekMode mode) { return _fp->seek(offset, mode); }
+    void close(void) override { if (_fp) _fp->close(); }
+    int32_t tell(void) override { return _fp->position(); }
+protected:
+    fs::File *_fp;
+  };
+
+  template <>
+  struct DataWrapperT<fs::FS> : public DataWrapperT<fs::File> {
+    DataWrapperT(fs::FS* fs, fs::File* fp = nullptr) : DataWrapperT<fs::File> { fp }, _fs { fs } {
+#if defined (LGFX_FILESYSTEM_SD_INSTANCE)
+      need_transaction = (fs == &LGFX_FILESYSTEM_SD_INSTANCE);
+#endif
+    }
+    bool open(const char* path) override
+    {
+      _file = _fs->open(path, "r");
+      DataWrapperT<fs::File>::_fp = &_file;
+      return _file;
+    }
+
+protected:
+    fs::FS* _fs;
+    fs::File _file;
+  };
+
+  #if defined (LGFX_FILESYSTEM_SD_INSTANCE)
+  template <>
+  struct DataWrapperT<fs::SDFS> : public DataWrapperT<fs::FS> {
+    DataWrapperT(fs::FS* fs, fs::File* fp = nullptr) : DataWrapperT<fs::FS>(fs, fp) {}
+  };
+  #endif
+ #endif
+#endif
+/*
+#if defined (ARDUINO)
  #if defined (FS_H)
 
   struct FileWrapper : public DataWrapper
@@ -192,6 +268,7 @@ public:
   };
 
 #endif
+*/
 
 //----------------------------------------------------------------------------
  }
