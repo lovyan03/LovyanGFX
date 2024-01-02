@@ -18,6 +18,8 @@ Contributors:
 Porting for SDL:
  [imliubo](https://github.com/imliubo)
 /----------------------------------------------------------------------------*/
+#if !defined (ARDUINO)
+
 #include "Panel_sdl.hpp"
 
 #if defined ( SDL_h_ )
@@ -466,4 +468,5 @@ namespace lgfx
  }
 }
 
+#endif
 #endif
