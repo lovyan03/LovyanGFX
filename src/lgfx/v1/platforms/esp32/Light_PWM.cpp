@@ -109,7 +109,7 @@ namespace lgfx
     if (_cfg.invert) duty = (1 << PWM_BITS) - duty;
 
 #if defined ( ARDUINO )
-      ledcWrite(_cfg.pwm_channel, duty);
+      ledcWrite(_cfg.pin_bl, duty);
 #elif SOC_LEDC_SUPPORT_HS_MODE
       ledc_set_duty(LEDC_HIGH_SPEED_MODE, (ledc_channel_t)_cfg.pwm_channel, duty);
       ledc_update_duty(LEDC_HIGH_SPEED_MODE, (ledc_channel_t)_cfg.pwm_channel);
