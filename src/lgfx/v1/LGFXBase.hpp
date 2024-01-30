@@ -1369,6 +1369,10 @@ namespace lgfx
     inline uint_fast8_t getTouch(touch_point_t *tp, uint_fast8_t count = 1) { return panel()->getTouch(tp, count); }
     inline void convertRawXY(touch_point_t *tp, uint_fast8_t count = 1) { panel()->convertRawXY(tp, count); }
 
+    // LGFX plugin support!
+    template <typename Fn, typename... Args>
+    void userFunc(Fn fn, Args... args) { fn(this, args...); }
+
     template <typename T>
     uint_fast8_t getTouchRaw(T *x, T *y, uint_fast8_t index = 0)
     {
