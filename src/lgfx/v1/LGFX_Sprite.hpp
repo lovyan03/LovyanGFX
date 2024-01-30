@@ -369,6 +369,11 @@ namespace lgfx
                          void pushAffineWithAA(                const float matrix[6])                  { push_affine_aa(_parent, matrix); }
                          void pushAffineWithAA(LovyanGFX* dst, const float matrix[6])                  { push_affine_aa(    dst, matrix); }
 
+    // LGFX plugin support!
+    template <typename Fn, typename... Args>
+    void userFunc(Fn fn, Args... args) { fn(this, args...); }
+
+
 //----------------------------------------------------------------------------
 //----------------------------------------------------------------------------
 
