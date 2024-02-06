@@ -83,14 +83,6 @@ Open `C:\msys64\mingw32\` and confirm that it also contains those four folders, 
 
 #### Build the program
 
-#### Copy files
-
-Copy files from this directory to the top level directory of this repostory
-
-<LovyanGFX>/examples_for_PC/PlatformIO_SDL/platformio.ini to <LovyanGFX>/platformio.ini
-<LovyanGFX>/src/user_code.cpp to <LovyanGFX>/src/user_code.cpp
-<LovyanGFX>/examples_for_PC/PlatformIO_SDL/src/sdl_main.cpp to <LovyanGFX>/src/sdl_main.cpp
-
 In VsCode, open this folder, i.e. <LovyanGFX>/examples_for_PC/PlatformIO_SDL/.  The first time that you do so, PlatformIO will install a lot of packages.
 
 Build the program by clicking on the checkmark icon at the bottom of the VsCode window; its tooltip is PlatformIO:Build. 
