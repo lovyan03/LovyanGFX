@@ -81,25 +81,23 @@ Open `C:\msys64\mingw32\` and confirm that it also contains those four folders, 
 
 ### Compiling and Running the example program
 
+#### Build the program
+
 #### Copy files
 
 Copy files from this directory to the top level directory of this repostory
 
 <LovyanGFX>/examples_for_PC/PlatformIO_SDL/platformio.ini to <LovyanGFX>/platformio.ini
-<LovyanGFX>/examples_for_PC/PlatformIO_SDL/src/user_code.cpp to <LovyanGFX>/src/user_code.cpp
+<LovyanGFX>/src/user_code.cpp to <LovyanGFX>/src/user_code.cpp
 <LovyanGFX>/examples_for_PC/PlatformIO_SDL/src/sdl_main.cpp to <LovyanGFX>/src/sdl_main.cpp
 
-#### Build the program
-
-In VsCode, open the folder at the top level of this repository.  The first time that you do so, PlatformIO will install a lot of packages.
-
-Select the native build environment.  At the bottom of the VsCode window, there should be an icon to select the environment.  Its initial value should be like `Default (LoyvanGFX)`.  Click on it and select `env:native` from the dropdown menu.
+In VsCode, open this folder, i.e. <LovyanGFX>/examples_for_PC/PlatformIO_SDL/.  The first time that you do so, PlatformIO will install a lot of packages.
 
 Build the program by clicking on the checkmark icon at the bottom of the VsCode window; its tooltip is PlatformIO:Build. 
 
 #### Run the program
 
-Run the program by starting a terminal - click on the icon at the bottom of the VsCode window whose tooltip is PlatformIO:New Terminal .  Inside the terminal window that appears, type this command
+Run the program by starting a terminal - click on the icon at the bottom of the VsCode window whose tooltip is "PlatformIO:New Terminal" .  Inside the terminal window that appears, type this command
 
 ```
 .pio/build/native/program
