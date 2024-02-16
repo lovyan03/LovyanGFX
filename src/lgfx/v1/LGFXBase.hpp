@@ -270,9 +270,9 @@ namespace lgfx
                   const colors_t createGradient( const rgb888_t(&colors)[N] )                   { const colors_t ret = { colors, N };     return ret; }
                   const colors_t createGradient( const rgb888_t* colors, const uint32_t count ) { const colors_t ret = { colors, count }; return ret; }
     template <typename T=rgb888_t>
-                  auto mapGradient( double val, double min, double max, const colors_t gr )                      { rgb888_t c=map_gradient(val, min, max, gr);            return T(c.r, c.g, c.b); }
+                  T mapGradient( double val, double min, double max, const colors_t gr )                      { rgb888_t c=map_gradient(val, min, max, gr);            return T(c.r, c.g, c.b); }
     template <typename T=rgb888_t>
-                  auto mapGradient( double val, double min, double max, const rgb888_t *colors, uint32_t count ) { rgb888_t c=map_gradient(val, min, max, colors, count); return T(c.r, c.g, c.b); }
+                  T mapGradient( double val, double min, double max, const rgb888_t *colors, uint32_t count ) { rgb888_t c=map_gradient(val, min, max, colors, count); return T(c.r, c.g, c.b); }
 
     LGFX_INLINE_T void drawSmoothLine   ( int32_t x0, int32_t y0, int32_t x1, int32_t y1, const T& color )                     { drawWideLine( x0, y0, x1, y1, 0.5f, color); }
                   void drawGradientLine ( int32_t x0, int32_t y0, int32_t x1, int32_t y1, const colors_t colors )              { draw_gradient_line(x0, y0, x1, y1, colors); }
