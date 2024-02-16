@@ -52,10 +52,10 @@ foreach( $lines as $num => $line )
       continue; // pattern matching failed with $semver
       //php_die("uh oh pattern matching failed with $semver/$tag_name");
     $minor = $results[1].'.'.$results[2];
-    $patch = !empty($results[3]) ? $results[1].'.'.$results[2].'.'.$results[3] : "";
+    $patch = !empty($results[3]) ? $results[1].'.'.$results[2].'.'.$results[3] : $minor;
     if( !in_array( 'v'.$minor, $releases ) )
       continue; // this tag is not listed in releases
-    if( !empty($results[3]) && !in_array( $patch, $patch_versions ) )
+    if( /*!empty($results[3]) &&*/ !in_array( $patch, $patch_versions ) )
       $patch_versions[] = $patch;
   }
 }
@@ -103,11 +103,9 @@ foreach( $idf_versions as $idx => $idf_version )
 }
 
 // add hardcoded versions
-$idf_fqbns[] = 'esp32@4.1.4';
+$idf_fqbns[] = 'esp32@4.4.6';
 $idf_fqbns[] = 'esp32@4.3.6';
-//$idf_fqbns[] = 'esp32@5.2-beta1';
-//$idf_fqbns[] = 'esp32@5.2-dev';
-//$idf_fqbns[] = 'esp32@5.3-dev';
+$idf_fqbns[] = 'esp32@4.1.4';
 
 $json_array = [ "esp-idf-fqbn" => $idf_fqbns ];
 
