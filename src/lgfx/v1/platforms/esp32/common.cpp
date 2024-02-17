@@ -486,7 +486,7 @@ namespace lgfx
         buscfg.flags = SPICOMMON_BUSFLAG_MASTER;
         buscfg.intr_flags = 0;
 #if defined (ESP_IDF_VERSION_VAL)
- #if (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 3, 0))
+ #if (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 2, 0))
         buscfg.isr_cpu_id = ESP_INTR_CPU_AFFINITY_AUTO;
  #else
   #if (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 1, 0))
