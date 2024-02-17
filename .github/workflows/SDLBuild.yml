@@ -54,7 +54,7 @@ jobs:
 
       - name: Cache SDL2 for Windows
         if: ${{ matrix.os == 'windows-latest' }}
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         id: cache-SLD2-windows
         with:
           path: contrib
@@ -111,7 +111,7 @@ jobs:
 
       - name: Upload WASM artifact
         if: ${{ matrix.os == 'ubuntu-latest' }}
-        uses: actions/upload-pages-artifact@v2
+        uses: actions/upload-pages-artifact@v3
         with:
           path: ${{env.WASM_DIR}}/build/www
 
