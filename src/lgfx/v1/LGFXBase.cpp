@@ -101,7 +101,9 @@ namespace lgfx
     if (y < 0) { h += y; y = 0; }
     if (h > height() - y) h = height() - y;
     if (h < 1) { y = 0; h = 0; }
+    startWrite();
     _panel->display(x, y, w, h);
+    endWrite();
   }
 
   void LGFXBase::getClipRect(int32_t *x, int32_t *y, int32_t *w, int32_t *h)
