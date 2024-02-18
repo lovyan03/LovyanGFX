@@ -226,29 +226,30 @@ namespace lgfx
       auto src_x32 = param->src_x32;
       auto src_y32 = param->src_y32;
 
-      uint32_t r8f = (param->fore_rgb888 >> 16) & 0xFF;
-      uint32_t g8f = (param->fore_rgb888 >>  8) & 0xFF;
-      uint32_t b8f = (param->fore_rgb888 >>  0) & 0xFF;
+      int_fast16_t r8b = (param->back_rgb888 >> 16) & 0xFF;
+      int_fast16_t g8b = (param->back_rgb888 >>  8) & 0xFF;
+      int_fast16_t b8b = (param->back_rgb888 >>  0) & 0xFF;
 
-      uint32_t r8b = (param->back_rgb888 >> 16) & 0xFF;
-      uint32_t g8b = (param->back_rgb888 >>  8) & 0xFF;
-      uint32_t b8b = (param->back_rgb888 >>  0) & 0xFF;
-
+      int_fast16_t r8f = (param->fore_rgb888 >> 16) & 0xFF;
+      int_fast16_t g8f = (param->fore_rgb888 >>  8) & 0xFF;
+      int_fast16_t b8f = (param->fore_rgb888 >>  0) & 0xFF;
+      r8f -= r8b;
+      g8f -= g8b;
+      b8f -= b8b;
       auto src_bits = param->src_bits;
       uint32_t k = (src_bits == 1) ? 0xFF
-                 : (src_bits == 2) ? 0x55
-                 : (src_bits == 4) ? 0x11
-                 :                   0x01
-                 ;
+                : (src_bits == 2) ? 0x55
+                : (src_bits == 4) ? 0x11
+                :                   0x01
+                ;
       do
       {
         uint32_t i = ((src_x32 >> FP_SCALE) + (src_y32 >> FP_SCALE) * src_bitwidth) * src_bits;
         uint32_t alp = k * ((pgm_read_byte(&s[i >> 3]) >> (-((int32_t)i + src_bits) & 7)) & param->src_mask);
-        uint32_t inv = 256 - alp;
         ++alp;
-        d[index].set((r8f * alp + r8b * inv) >> 8
-                    ,(g8f * alp + g8b * inv) >> 8
-                    ,(b8f * alp + b8b * inv) >> 8
+        d[index].set( r8b + ((r8f * alp) >> 8)
+                    , g8b + ((g8f * alp) >> 8)
+                    , b8b + ((b8f * alp) >> 8)
                     );
         src_x32 += src_x32_add;
         src_y32 += src_y32_add;
