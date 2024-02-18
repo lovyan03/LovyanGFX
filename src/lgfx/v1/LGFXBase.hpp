@@ -263,6 +263,33 @@ namespace lgfx
     LGFX_INLINE_T void drawGradientVLine( int32_t x, int32_t y, int32_t h, const T& colorstart, const T& colorend ) { drawGradientLine( x, y, x, y + h - 1, colorstart, colorend ); }
     LGFX_INLINE_T void drawGradientLine ( int32_t x0, int32_t y0, int32_t x1, int32_t y1, const T& colorstart, const T& colorend ) { draw_gradient_line( x0, y0, x1, y1, convert_to_rgb888(colorstart), convert_to_rgb888(colorend) ); }
 
+
+//----------------------------------------------------------------------------
+
+    template <const uint32_t N>
+                  const colors_t createGradient( const rgb888_t(&colors)[N] )                   { const colors_t ret = { colors, N };     return ret; }
+                  const colors_t createGradient( const rgb888_t* colors, const uint32_t count ) { const colors_t ret = { colors, count }; return ret; }
+    template <typename T=rgb888_t>
+                  T mapGradient( float val, float min, float max, const colors_t gr )                      { rgb888_t c=map_gradient(val, min, max, gr);            return T(c.r, c.g, c.b); }
+    template <typename T=rgb888_t>
+                  T mapGradient( float val, float min, double max, const rgb888_t *colors, uint32_t count ) { rgb888_t c=map_gradient(val, min, max, colors, count); return T(c.r, c.g, c.b); }
+
+    LGFX_INLINE_T void drawSmoothLine   ( int32_t x0, int32_t y0, int32_t x1, int32_t y1, const T& color )                     { drawWideLine( x0, y0, x1, y1, 0.5f, color); }
+                  void drawGradientLine ( int32_t x0, int32_t y0, int32_t x1, int32_t y1, const colors_t colors )              { draw_gradient_line(x0, y0, x1, y1, colors); }
+    LGFX_INLINE_T void drawWideLine     ( int32_t x0, int32_t y0, int32_t x1, int32_t y1, float r, const T& color)             { draw_wedgeline(x0, y0, x1, y1, r, r, convert_to_rgb888(color)); }
+                  void drawWideLine     ( int32_t x0, int32_t y0, int32_t x1, int32_t y1, float r, const colors_t colors )     { draw_gradient_wedgeline(x0, y0, x1, y1, r, r, colors); }
+    LGFX_INLINE_T void drawWedgeLine    ( int32_t x0, int32_t y0, int32_t x1, int32_t y1, float r0, float r1, const T& color ) { draw_wedgeline(x0, y0, x1, y1, r0, r1, convert_to_rgb888(color)); }
+                  void drawWedgeLine    ( int32_t x0, int32_t y0, int32_t x1, int32_t y1, float r0, float r1, const colors_t colors ) { draw_gradient_wedgeline(x0, y0, x1, y1, r0, r1, colors); }
+    LGFX_INLINE_T void drawSpot         ( int32_t x, int32_t y, float r, const T& color )    { draw_wedgeline(x, y, x, y, r, r, convert_to_rgb888(color)); }
+                  void drawGradientSpot ( int32_t x, int32_t y, float r, const colors_t gr ) { draw_gradient_wedgeline(x, y, x, y, r, r, gr); }
+                  void drawGradientHLine( int32_t x, int32_t y, uint32_t w, const colors_t colors ) { draw_gradient_line(x, y, x+w, y, colors); }
+                  void drawGradientVLine( int32_t x, int32_t y, uint32_t h, const colors_t colors ) { draw_gradient_line(x, y, x, y+h, colors); }
+                  void fillGradientRect ( int32_t x, int32_t y, uint32_t w, uint32_t h, const colors_t colors, fill_style_t style=RADIAL)        { fill_rect_gradient(x, y, w, h, colors, style); }
+    LGFX_INLINE_T void fillGradientRect ( int32_t x, int32_t y, uint32_t w, uint32_t h, const T& start, const T& end, fill_style_t style=RADIAL) { fill_rect_gradient(x, y, w, h, convert_to_rgb888(start), convert_to_rgb888(end), style); }
+
+//----------------------------------------------------------------------------
+
+
     LGFX_INLINE_T void fillSmoothRoundRect(int32_t x, int32_t y, int32_t w, int32_t h, int32_t r, const T& color) { setColor(color); fillSmoothRoundRect(x, y, w, h, r); }
                   void fillSmoothRoundRect(int32_t x, int32_t y, int32_t w, int32_t h, int32_t r);
 
@@ -949,7 +976,7 @@ namespace lgfx
     int32_t _sx = 0, _sy = 0, _sw = 0, _sh = 0; // for scroll zone
     int32_t _clip_l = 0, _clip_r = -1, _clip_t = 0, _clip_b = -1; // clip rect
 
-    uint32_t _base_rgb888 = 0;  // gap fill colour for clear and scroll zone 
+    uint32_t _base_rgb888 = 0;  // gap fill colour for clear and scroll zone
     raw_color_t _color = 0xFFFFFFU;
 
     color_conv_t _write_conv;
@@ -1266,7 +1293,28 @@ namespace lgfx
     static void make_rotation_matrix(float* result, float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y);
 
     void read_rect(int32_t x, int32_t y, int32_t w, int32_t h, void* dst, pixelcopy_t* param);
+
+//----------------------------------------------------------------------------
+
+    bool clampArea(int32_t *xlo, int32_t *ylo, int32_t *xhi, int32_t *yhi);
+
+    rgb888_t map_gradient( float value, float start, float end, const rgb888_t *colors, uint32_t colors_count );
+    rgb888_t map_gradient( float value, float start, float end, const colors_t gradient );
+
     void draw_gradient_line( int32_t x0, int32_t y0, int32_t x1, int32_t y1, uint32_t colorstart, uint32_t colorend );
+    void draw_gradient_line( int32_t x0, int32_t y0, int32_t x1, int32_t y1, const colors_t gradient );
+
+    void draw_wedgeline         (float x0, float y0, float x1, float y1, float r0, float r1, const uint32_t fg_color);
+    void draw_gradient_wedgeline(float x0, float y0, float x1, float y1, float r0, float r1, const colors_t gradient );
+
+    void fill_rect_radial_gradient(int32_t x, int32_t y, uint32_t w, uint32_t h, const colors_t gradient);
+    void fill_rect_radial_gradient(int32_t x, int32_t y, uint32_t w, uint32_t h, const uint32_t colorstart, const uint32_t colorend );
+    void fill_rect_linear_gradient(int32_t x, int32_t y, uint32_t w, uint32_t h, const colors_t gradient, fill_style_t style=VLINEAR );
+    void fill_rect_gradient(int32_t x, int32_t y, uint32_t w, uint32_t h, const colors_t gradient, fill_style_t style=RADIAL );
+    void fill_rect_gradient(int32_t x, int32_t y, uint32_t w, uint32_t h, const uint32_t colorstart, const uint32_t colorend, fill_style_t style=RADIAL );
+
+//----------------------------------------------------------------------------
+
     void fill_arc_helper(int32_t cx, int32_t cy, int32_t oradius_x, int32_t iradius_x, int32_t oradius_y, int32_t iradius_y, float start, float end);
     void draw_bezier_helper(int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t x2, int32_t y2);
     void draw_bitmap(int32_t x, int32_t y, const uint8_t *bitmap, int32_t w, int32_t h, uint32_t fg_rawcolor, uint32_t bg_rawcolor = ~0u);

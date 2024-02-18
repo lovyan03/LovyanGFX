@@ -114,6 +114,22 @@ namespace lgfx
 
 //----------------------------------------------------------------------------
 
+  namespace gradient_fill_styles
+  {
+    enum fill_style_t
+    {
+      horizontal_linear = 0,
+      vertical_linear   = 1,
+      radial_center     = 2
+    };
+    static constexpr const fill_style_t HLINEAR = fill_style_t::horizontal_linear;
+    static constexpr const fill_style_t VLINEAR = fill_style_t::vertical_linear;
+    static constexpr const fill_style_t RADIAL  = fill_style_t::radial_center;
+  }
+  using namespace gradient_fill_styles;
+
+//----------------------------------------------------------------------------
+
   namespace textdatum
   {
     enum textdatum_t : uint8_t
