@@ -53,7 +53,8 @@ namespace lgfx
     , board_Feather_ESP32_S3_TFT
     , board_FunHouse
     , board_PyGamer
-    , board_ESP32_2432S028
+    , board_Sunton_ESP32_2432S028
+    , board_ESP32_2432S028 = board_Sunton_ESP32_2432S028
     , board_Makerfabs_ESP32_C3_TFT_Touch_SPI
     , board_Makerfabs_ESP32_S3_TFT_Touch_SPI
     , board_Makerfabs_ESP32_S2_TFT_Touch_Parallel16
