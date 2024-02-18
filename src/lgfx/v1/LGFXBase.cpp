@@ -834,7 +834,7 @@ namespace lgfx
 
   // helper function for radial gradients
   // calculates distance between two sets of coordinates
-  float pixelDistance( double x0, double y0, double x1, double y1 )
+  float pixelDistance( float x0, float y0, float x1, float y1 )
   {
     return sqrtf((x1-x0)*(x1-x0) + (y1-y0)*(y1-y0) );;
   }
@@ -864,7 +864,7 @@ namespace lgfx
     return true; // Coords are adjusted and area is fully writable
   }
 
-  rgb888_t LGFXBase::map_gradient( double value, double start, double end, const rgb888_t *colors, uint32_t colors_count )
+  rgb888_t LGFXBase::map_gradient( float value, float start, float end, const rgb888_t *colors, uint32_t colors_count )
   {
     if(!colors) return rgb888_t(0,0,0);
     if(colors_count<=1) return colors[0]; // there's no point mapping to a single value, also avoid divide by zero
@@ -883,7 +883,7 @@ namespace lgfx
     }
   }
 
-  rgb888_t LGFXBase::map_gradient( double value, double start, double end, const colors_t gradient )
+  rgb888_t LGFXBase::map_gradient( float value, float start, float end, const colors_t gradient )
   {
     if(!gradient.colors) return rgb888_t(0,0,0);
     if(gradient.count<=1) return gradient.colors[0]; // there's no point mapping to a single value, also avoid divide by zero
