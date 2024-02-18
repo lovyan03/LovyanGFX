@@ -3323,7 +3323,7 @@ namespace lgfx
         &detector_ESP_WROVER_KIT_7789,
         &detector_ESP_WROVER_KIT_9341,
 #endif
-#if defined ( LGFX_AUTODETECT ) || defined ( LGFX_ESP32_2432S028 ) || defined ( LGFX_SUNTON_2432S028 )
+#if defined ( LGFX_AUTODETECT ) || defined ( LGFX_ESP32_2432S028 ) || defined ( LGFX_SUNTON_ESP32_2432S028 )
         &detector_Sunton_2432S028_9341,
         &detector_Sunton_2432S028_7789,
 #endif
@@ -3385,7 +3385,7 @@ namespace lgfx
       };
 
 
-      std::uint32_t pkg_ver = lgfx::get_pkg_ver();
+      uint32_t pkg_ver = lgfx::get_pkg_ver();
       ESP_LOGV("LGFX", "pkg: %lu", (unsigned long)pkg_ver);
 
       switch (pkg_ver)
