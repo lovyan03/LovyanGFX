@@ -3112,8 +3112,20 @@ namespace lgfx
         {
           ESP_LOGI(LIBRARY_NAME, "[Autodetect] Sunton_2432S028 (ST7789)");
 
-          result->panel = new Panel_ST7789();
+          auto p = new Panel_ST7789();
+          {
+            auto cfg = p->config();
+            cfg.offset_rotation = 2;
+            p->config(cfg);
+          }
+          result->panel = p;
           _detector_Sunton_ESP32_2432S028_t::setup(result);
+          auto t = result->panel->getTouch();
+          {
+            auto cfg = t->config();
+            cfg.offset_rotation = 2;
+            t->config(cfg);
+          }
         }
       };
 
