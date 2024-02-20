@@ -878,7 +878,9 @@ label_start:
         if (0 == (length -= len1)) {
           len2 = len1;
           wait_spi();
-          memcpy(dst, (void*)spi_w0_reg, (len2 + 3) & ~3u);
+          uint8_t tmp[32];
+          memcpy(tmp, (void*)spi_w0_reg, (len2 + 3) & ~3u);
+          memcpy(dst, tmp, len2);
         } else {
           if (length < len1) {
             len1 = length;

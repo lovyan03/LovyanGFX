@@ -51,8 +51,12 @@ namespace lgfx
       _init_button(gfx, x, y, w, h, label, textsize_x, textsize_y);
     }
 
+    void setLabelText(const char* label);
     void setLabelDatum(int16_t x_delta, int16_t y_delta, textdatum_t datum = middle_center);
-
+    template<typename T> void setOutlineColor(const T& clr) { _outlinecolor = lgfx::convert_to_rgb888(clr); }
+    template<typename T> void setFillColor(const T& clr) { _fillcolor = lgfx::convert_to_rgb888(clr); }
+    template<typename T> void setTextColor(const T& clr) { _textcolor = lgfx::convert_to_rgb888(clr); }
+      
     void drawButton(bool inverted = false, const char* long_name = nullptr);
 
     bool contains(int16_t x, int16_t y) const
@@ -88,7 +92,8 @@ namespace lgfx
     uint32_t _fillcolor    = 0;
     uint32_t _textcolor    = 0xFFFFFF;
     textdatum_t _textdatum = middle_center; // Text size multiplier and text datum for button
-    char _label[12]; // Button text is 11 chars maximum unless long_name used
+    static constexpr size_t label_length = 11;
+    char _label[label_length + 1]; // Button text is 11 chars maximum unless long_name used
     float _textsize_x, _textsize_y;
     bool _pressed, _last_press; // Button states
   };

@@ -43,6 +43,15 @@ namespace lgfx
 
   static constexpr char LIBRARY_NAME[] = "LovyanGFX";
 
+  void i2c_write_register8_array(int_fast16_t i2c_port, uint_fast8_t i2c_addr, const uint8_t* reg_data_mask, uint32_t freq)
+  {
+    while (reg_data_mask[0] != 0xFF || reg_data_mask[1] != 0xFF || reg_data_mask[2] != 0xFF)
+    {
+      lgfx::i2c::writeRegister8(i2c_port, i2c_addr, reg_data_mask[0], reg_data_mask[1], reg_data_mask[2], freq);
+      reg_data_mask += 3;
+    }
+  }
+
 #if defined (CONFIG_IDF_TARGET_ESP32S3)
 
 #if defined ( ARDUINO_ESP32_S3_BOX )
@@ -345,6 +354,33 @@ namespace lgfx
       }
     // AXP192 reg 0x27 = DC3
       lgfx::i2c::writeRegister8(axp_i2c_port, axp_i2c_addr, 0x27, brightness, 0x80, axp_i2c_freq);
+    }
+  };
+
+  struct Light_M5StackCore2_AXP2101 : public lgfx::ILight
+  {
+    bool init(uint8_t brightness) override
+    {
+      setBrightness(brightness);
+      return true;
+    }
+
+    void setBrightness(uint8_t brightness) override
+    {
+      using namespace m5stack;
+
+      // BLDO1
+      if (brightness)
+      {
+        brightness = ((brightness + 641) >> 5);
+        lgfx::i2c::bitOn(axp_i2c_port, axp_i2c_addr, 0x90, 0x10, axp_i2c_freq); // BLDO1 enable
+      }
+      else
+      {
+        lgfx::i2c::bitOff(axp_i2c_port, axp_i2c_addr, 0x90, 0x10, axp_i2c_freq); // BLDO1 disable
+      }
+    // AXP192 reg 0x96 = BLO1 voltage setting (0.5v ~ 3.5v  100mv/step)
+      lgfx::i2c::writeRegister8(axp_i2c_port, axp_i2c_addr, 0x96, brightness, 0, axp_i2c_freq);
     }
   };
 
@@ -2133,47 +2169,85 @@ namespace lgfx
           using namespace m5stack;
           _pin_backup_t backup[] = { axp_i2c_sda, axp_i2c_scl };
           lgfx::i2c::init(axp_i2c_port, axp_i2c_sda, axp_i2c_scl);
-          if (lgfx::i2c::readRegister8(axp_i2c_port, axp_i2c_addr, 0x03, 400000) == 0x03) // AXP192 found
+
+          auto chk_axp = lgfx::i2c::readRegister8(axp_i2c_port, axp_i2c_addr, 0x03, 400000);
+          if (chk_axp.has_value())
           {
-            _pin_level(GPIO_NUM_5, true);
-            // AXP192_LDO2 = LCD PWR
-            // AXP192_IO4  = LCD RST
-            // AXP192_DC3  = LCD BL (Core2)
-            // AXP192_LDO3 = LCD BL (Tough)
-            // AXP192_IO1  = TP RST (Tough)
-            static constexpr uint8_t reg_data[] =
-            {
-              0x28, 0xF0, 0xFF,   // set LDO2 3300mv // LCD PWR
-              0x12, 0x04, 0xFF,   // LDO2 enable
-              0x92, 0x00, 0xF8,   // GPIO1 OpenDrain (M5Tough TOUCH)
-              0x95, 0x84, 0x72,   // GPIO4 enable
-              0x96, 0x02, 0xFF,   // GPIO4 HIGH (LCD RST)
-              0x94, 0x02, 0xFF,   // GPIO1 HIGH (M5Tough TOUCH RST)
-            };
-            for (size_t i = 0; i < sizeof(reg_data); i += 3)
-            {
-              lgfx::i2c::writeRegister8(axp_i2c_port, axp_i2c_addr, reg_data[i  ], reg_data[i+1], reg_data[i+2], axp_i2c_freq);
+            uint_fast16_t axp_exists = 0;
+            if (chk_axp.value() == 0x03) { // AXP192 found
+              axp_exists = 192;
+              ESP_LOGD(LIBRARY_NAME, "AXP192 found");
             }
-            if (use_reset)
+            else if (chk_axp.value() == 0x4A) { // AXP2101 found
+              axp_exists = 2101;
+              ESP_LOGD(LIBRARY_NAME, "AXP2101 found");
+            }
+            if (axp_exists)
             {
-              static constexpr uint8_t reset_reg_data[] =
-              {
-                0x96,    0, 0xFD,   // GPIO4 LOW (LCD RST)
-                0x94,    0, 0xFD,   // GPIO1 LOW (M5Tough TOUCH RST)
+              // fore Core2 1st gen (AXP192)
+                // AXP192_LDO2 = LCD PWR
+                // AXP192_IO4  = LCD RST
+                // AXP192_DC3  = LCD BL (Core2)
+                // AXP192_LDO3 = LCD BL (Tough)
+                // AXP192_IO1  = TP RST (Tough)
+              static constexpr uint8_t reg_data_axp192_first[] = {
+                0x95, 0x84, 0x72,   // GPIO4 enable
+                0x28, 0xF0, 0xFF,   // set LDO2 3300mv // LCD PWR
+                0x12, 0x04, 0xFF,   // LDO2 enable
+                0x92, 0x00, 0xF8,   // GPIO1 OpenDrain (M5Tough TOUCH)
+                0xFF, 0xFF, 0xFF,
+              };
+              static constexpr uint8_t reg_data_axp192_reset[] = {
+                0x96, 0x00, 0xFD,   // GPIO4 LOW (LCD RST)
+                0x94, 0x00, 0xFD,   // GPIO1 LOW (M5Tough TOUCH RST)
+                0xFF, 0xFF, 0xFF,
+              };
+              static constexpr uint8_t reg_data_axp192_second[] = {
                 0x96, 0x02, 0xFF,   // GPIO4 HIGH (LCD RST)
                 0x94, 0x02, 0xFF,   // GPIO1 HIGH (M5Tough TOUCH RST)
+                0xFF, 0xFF, 0xFF,
               };
-              for (size_t i = 0; i < sizeof(reset_reg_data); i += 3)
-              {
-                lgfx::i2c::writeRegister8(axp_i2c_port, axp_i2c_addr, reset_reg_data[i  ], reset_reg_data[i+1], reset_reg_data[i+2], axp_i2c_freq);
+
+              // for Core2 v1.1 (AXP2101)
+                // ALDO2 == LCD+TOUCH RST
+                // ALDO3 == SPK EN
+                // ALDO4 == TF, TP, LCD PWR
+                // BLDO1 == LCD BL
+                // BLDO2 == Boost EN
+                // DLDO1 == Vibration Motor
+              static constexpr uint8_t reg_data_axp2101_first[] = {
+                0x90, 0x08, 0x7B,   // ALDO4 ON / ALDO3 OFF, DLDO1 OFF
+                0x80, 0x05, 0xFF,   // DCDC1 + DCDC3 ON
+                0x82, 0x12, 0x00,   // DCDC1 3.3V
+                0x84, 0x6A, 0x00,   // DCDC3 3.3V
+                0xFF, 0xFF, 0xFF,
+              };
+              static constexpr uint8_t reg_data_axp2101_reset[] = {
+                0x90, 0x00, 0xFD,   // ALDO2 OFF
+                0xFF, 0xFF, 0xFF,
+              };
+              static constexpr uint8_t reg_data_axp2101_second[] = {
+                0x90, 0x02, 0xFF,   // ALDO2 ON
+                0xFF, 0xFF, 0xFF,
+              };
+
+              _pin_level(GPIO_NUM_5, true);
+
+              bool isAxp192 = axp_exists == 192;
+
+              i2c_write_register8_array(axp_i2c_port, axp_i2c_addr, isAxp192 ? reg_data_axp192_first : reg_data_axp2101_first, axp_i2c_freq);
+              if (use_reset) {
+                i2c_write_register8_array(axp_i2c_port, axp_i2c_addr, isAxp192 ? reg_data_axp192_reset : reg_data_axp2101_reset, axp_i2c_freq);
                 lgfx::delay(1);
               }
-            }
+              i2c_write_register8_array(axp_i2c_port, axp_i2c_addr, isAxp192 ? reg_data_axp192_second : reg_data_axp2101_second, axp_i2c_freq);
+              lgfx::delay(1);
 
-            result->board = board_t::board_unknown;
-            if (_detector_spi_t::detect(result, use_reset))
-            {
-              return true;
+              result->board = board_t::board_unknown;
+              if (_detector_spi_t::detect(result, use_reset))
+              {
+                return true;
+              }
             }
           }
           lgfx::i2c::release(axp_i2c_port);
@@ -2207,7 +2281,12 @@ namespace lgfx
           else
           {
             ESP_LOGI(LIBRARY_NAME, "[Autodetect] M5StackCore2");
-            p->light(new Light_M5StackCore2());
+
+            auto chk_axp = lgfx::i2c::readRegister8(axp_i2c_port, axp_i2c_addr, 0x03, 400000);
+            p->light( chk_axp.value() == 0x4A // AXP2101 found
+                    ? (lgfx::ILight*)(new Light_M5StackCore2_AXP2101())
+                    : (lgfx::ILight*)(new Light_M5StackCore2())
+                    );
             t = new lgfx::Touch_FT5x06();
             auto cfg = t->config();
             cfg.x_min = 0;
@@ -2916,24 +2995,30 @@ namespace lgfx
         }
       };
 
-      struct _detector_ESP32_2432S028_t : public _detector_spi_t
+      struct _detector_Sunton_ESP32_2432S028_t : public _detector_spi_t
       {
-        constexpr _detector_ESP32_2432S028_t(void)
-        : _detector_spi_t
-        { board_t::board_ESP32_2432S028
-        , 0x04, 0xFF, 0x00 // ILI9341
-        , 40000000, 16000000
-        , GPIO_NUM_13     // MOSI
-        , GPIO_NUM_12     // MISO
-        , GPIO_NUM_14     // SCLK
-        , GPIO_NUM_2      // DC
-        , GPIO_NUM_15     // CS
-        , (gpio_num_t)-1  // RST
-        , (gpio_num_t)-1  // TF CARD CS
-        , 0               // SPI MODE
-        , false           // SPI 3wire
-        , HSPI_HOST       // SPI HOST
-        } {}
+        constexpr _detector_Sunton_ESP32_2432S028_t
+        ( board_t board_
+        , uint16_t id_cmd_
+        , uint32_t id_mask_
+        , uint32_t id_value_
+        , uint32_t freq_write_
+        , uint32_t freq_read_
+        , gpio_num_t pin_mosi_
+        , gpio_num_t pin_miso_
+        , gpio_num_t pin_sclk_
+        , gpio_num_t pin_dc_
+        , gpio_num_t pin_cs_
+        , gpio_num_t pin_rst_
+        , gpio_num_t pin_tfcard_cs_
+        , int8_t spi_mode_
+        , bool spi_3wire_
+        , spi_host_device_t spi_host_
+        ) :
+        _detector_spi_t { board_, id_cmd_, id_mask_, id_value_, freq_write_, freq_read_,
+                          pin_mosi_, pin_miso_, pin_sclk_, pin_dc_, pin_cs_, pin_rst_, pin_tfcard_cs_,
+                          spi_mode_, spi_3wire_, spi_host_ }
+        {}
 
         bool detect(_detector_result_t* result, bool use_reset) const override
         {
@@ -2948,13 +3033,9 @@ namespace lgfx
 
         void setup(_detector_result_t* result) const override
         {
-          ESP_LOGI(LIBRARY_NAME, "[Autodetect] ESP32_2432S028");
-
-          auto p = new Panel_ILI9341();
-          result->panel = p;
+          auto p = result->panel;
           {
             auto cfg = p->config();
-            // cfg.pin_cs  = GPIO_NUM_15;
             cfg.bus_shared = false;
             p->config(cfg);
             p->light(_create_pwm_backlight(GPIO_NUM_21, 7));
@@ -2976,6 +3057,74 @@ namespace lgfx
             cfg.pin_cs   = GPIO_NUM_33;
             t->config(cfg);
             p->touch(t);
+          }
+        }
+      };
+
+      struct _detector_Sunton_2432S028_9341_t : public _detector_Sunton_ESP32_2432S028_t
+      {
+        constexpr _detector_Sunton_2432S028_9341_t(void)
+        : _detector_Sunton_ESP32_2432S028_t
+        { board_t::board_Sunton_ESP32_2432S028
+        , 0x04, 0xFF, 0x00 // ILI9341
+        , 40000000, 16000000
+        , GPIO_NUM_13     // MOSI
+        , GPIO_NUM_12     // MISO
+        , GPIO_NUM_14     // SCLK
+        , GPIO_NUM_2      // DC
+        , GPIO_NUM_15     // CS
+        , (gpio_num_t)-1  // RST
+        , (gpio_num_t)-1  // TF CARD CS
+        , 0               // SPI MODE
+        , false           // SPI 3wire
+        , HSPI_HOST       // SPI HOST
+        } {}
+
+        void setup(_detector_result_t* result) const override
+        {
+          ESP_LOGI(LIBRARY_NAME, "[Autodetect] Sunton_2432S028 (ILI9341)");
+
+          result->panel = new Panel_ILI9341();
+          _detector_Sunton_ESP32_2432S028_t::setup(result);
+        }
+      };
+
+      struct _detector_Sunton_2432S028_7789_t : public _detector_Sunton_ESP32_2432S028_t
+      {
+        constexpr _detector_Sunton_2432S028_7789_t(void)
+        : _detector_Sunton_ESP32_2432S028_t
+        { board_t::board_Sunton_ESP32_2432S028
+        , 0x04, 0xFF, 0x85 // ST7789
+        , 40000000, 16000000
+        , GPIO_NUM_13     // MOSI
+        , GPIO_NUM_12     // MISO
+        , GPIO_NUM_14     // SCLK
+        , GPIO_NUM_2      // DC
+        , GPIO_NUM_15     // CS
+        , (gpio_num_t)-1  // RST
+        , (gpio_num_t)-1  // TF CARD CS
+        , 0               // SPI MODE
+        , false           // SPI 3wire
+        , HSPI_HOST       // SPI HOST
+        } {}
+
+        void setup(_detector_result_t* result) const override
+        {
+          ESP_LOGI(LIBRARY_NAME, "[Autodetect] Sunton_2432S028 (ST7789)");
+
+          auto p = new Panel_ST7789();
+          {
+            auto cfg = p->config();
+            cfg.offset_rotation = 2;
+            p->config(cfg);
+          }
+          result->panel = p;
+          _detector_Sunton_ESP32_2432S028_t::setup(result);
+          auto t = result->panel->getTouch();
+          {
+            auto cfg = t->config();
+            cfg.offset_rotation = 2;
+            t->config(cfg);
           }
         }
       };
@@ -3216,7 +3365,8 @@ namespace lgfx
       static constexpr const _detector_board_LoLinD32_9341_t   detector_board_LoLinD32_9341;
       static constexpr const _detector_ESP_WROVER_KIT_7789_t   detector_ESP_WROVER_KIT_7789;
       static constexpr const _detector_ESP_WROVER_KIT_9341_t   detector_ESP_WROVER_KIT_9341;
-      static constexpr const _detector_ESP32_2432S028_t        detector_ESP32_2432S028;
+      static constexpr const _detector_Sunton_2432S028_9341_t  detector_Sunton_2432S028_9341;
+      static constexpr const _detector_Sunton_2432S028_7789_t  detector_Sunton_2432S028_7789;
       static constexpr const _detector_ODROID_GO_t             detector_ODROID_GO;
       static constexpr const _detector_WT32_SC01_t             detector_WT32_SC01;
 
@@ -3264,8 +3414,9 @@ namespace lgfx
         &detector_ESP_WROVER_KIT_7789,
         &detector_ESP_WROVER_KIT_9341,
 #endif
-#if defined ( LGFX_AUTODETECT ) || defined ( LGFX_ESP32_2432S028 )
-        &detector_ESP32_2432S028,
+#if defined ( LGFX_AUTODETECT ) || defined ( LGFX_ESP32_2432S028 ) || defined ( LGFX_SUNTON_ESP32_2432S028 )
+        &detector_Sunton_2432S028_9341,
+        &detector_Sunton_2432S028_7789,
 #endif
 #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_ODROID_GO )
         &detector_ODROID_GO,
@@ -3325,7 +3476,7 @@ namespace lgfx
       };
 
 
-      std::uint32_t pkg_ver = lgfx::get_pkg_ver();
+      uint32_t pkg_ver = lgfx::get_pkg_ver();
       ESP_LOGV("LGFX", "pkg: %lu", (unsigned long)pkg_ver);
 
       switch (pkg_ver)
