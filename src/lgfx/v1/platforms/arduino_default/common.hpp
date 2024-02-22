@@ -16,7 +16,7 @@ Contributors:
  [tobozo](https://github.com/tobozo)
 /----------------------------------------------------------------------------*/
 #pragma once
-
+#ifndef PORTDUINO_LINUX_HARDWARE
 #include "../../misc/DataWrapper.hpp"
 #include "../../misc/enum.hpp"
 #include "../../../utility/result.hpp"
@@ -175,3 +175,4 @@ namespace lgfx
 //----------------------------------------------------------------------------
  }
 }
+#endif
