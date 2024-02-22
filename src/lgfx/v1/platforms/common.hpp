@@ -45,13 +45,14 @@ Contributors:
 
 #include "rp2040/common.hpp"
 
-#elif defined (ARDUINO)
-
-#include "arduino_default/common.hpp"
-
-#elif __has_include(<SDL2/SDL.h>) || __has_include(<SDL.h>)
-
-#include "sdl/common.hpp"
+#elif defined (ARDUINO) 
+ #if __has_include(<SDL2/SDL.h>) || __has_include(<SDL.h>)
+  #include "sdl/common.hpp"
+ #else
+  #include "arduino_default/common.hpp"
+ #endif
+//#elif __has_include(<SDL2/SDL.h>) || __has_include(<SDL.h>)
+//#include "sdl/common.hpp"
 
 #elif __has_include(<opencv2/opencv.hpp>)
 
