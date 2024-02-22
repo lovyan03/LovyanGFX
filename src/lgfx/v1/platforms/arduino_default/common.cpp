@@ -15,6 +15,7 @@ Contributors:
  [mongonta0716](https://github.com/mongonta0716)
  [tobozo](https://github.com/tobozo)
 /----------------------------------------------------------------------------*/
+#ifndef PORTDUINO_LINUX_HARDWARE
 #if defined (ESP_PLATFORM)
 #elif defined (ESP8266)
 #elif defined (__SAMD21__) || defined(__SAMD21G18A__) || defined(__SAMD21J18A__) || defined(__SAMD21E17A__) || defined(__SAMD21E18A__)
@@ -105,4 +106,5 @@ namespace lgfx
  }
 }
 
+#endif
 #endif
