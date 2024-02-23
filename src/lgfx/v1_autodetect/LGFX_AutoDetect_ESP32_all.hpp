@@ -3084,7 +3084,13 @@ namespace lgfx
         {
           ESP_LOGI(LIBRARY_NAME, "[Autodetect] Sunton_2432S028 (ILI9341)");
 
-          result->panel = new Panel_ILI9341();
+          auto p = new Panel_ILI9341();
+          result->panel = p;
+          {
+            auto cfg = p->config();
+            cfg.offset_rotation = 2;
+            p->config(cfg);
+          }
           _detector_Sunton_ESP32_2432S028_t::setup(result);
         }
       };
@@ -3095,7 +3101,7 @@ namespace lgfx
         : _detector_Sunton_ESP32_2432S028_t
         { board_t::board_Sunton_ESP32_2432S028
         , 0x04, 0xFF, 0x85 // ST7789
-        , 40000000, 16000000
+        , 80000000, 16000000
         , GPIO_NUM_13     // MOSI
         , GPIO_NUM_12     // MISO
         , GPIO_NUM_14     // SCLK
@@ -3112,13 +3118,7 @@ namespace lgfx
         {
           ESP_LOGI(LIBRARY_NAME, "[Autodetect] Sunton_2432S028 (ST7789)");
 
-          auto p = new Panel_ST7789();
-          {
-            auto cfg = p->config();
-            cfg.offset_rotation = 2;
-            p->config(cfg);
-          }
-          result->panel = p;
+          result->panel = new Panel_ST7789();
           _detector_Sunton_ESP32_2432S028_t::setup(result);
           auto t = result->panel->getTouch();
           {
