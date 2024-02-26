@@ -95,7 +95,7 @@ namespace lgfx
     static constexpr size_t label_length = 11;
     char _label[label_length + 1]; // Button text is 11 chars maximum unless long_name used
     float _textsize_x, _textsize_y;
-    bool _pressed, _last_press; // Button states
+    bool _pressed = false, _last_press = false; // Button states
   };
 
 //----------------------------------------------------------------------------
