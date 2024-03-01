@@ -62,6 +62,7 @@ namespace lgfx
     using Base::drawPngFile;
     using Base::drawQoiFile;
     using Base::loadFont;
+    using Base::load_font_with_path;
 
 #if defined (ARDUINO)
 
@@ -262,7 +263,7 @@ namespace lgfx
 
   #endif
  #endif
-/*
+
 #elif defined (ESP_PLATFORM) || defined(__SAMD51_HARMONY__) || defined(stdin) // ESP-IDF, Harmony, stdio
 
   #define LGFX_FUNCTION_GENERATOR(drawImg) \
@@ -290,7 +291,7 @@ namespace lgfx
       init_font_file<FileWrapper>();
       return load_font_with_path(path);
     }
-//*/
+
 #endif
 
 #define LGFX_URL_MAXLENGTH 2083
