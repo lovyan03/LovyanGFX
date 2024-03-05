@@ -153,7 +153,7 @@ namespace lgfx
         break;
       }
       count = readdata[0];
-    } while ((count > 1 || readdata[5] != 0x10) && --retry);
+    } while (count > 1 && --retry);
     if (!retry)
     {
       count = 0;
