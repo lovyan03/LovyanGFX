@@ -342,11 +342,11 @@ namespace lgfx
   void LGFXBase::drawEllipse(int32_t x, int32_t y, int32_t rx, int32_t ry)
   {
     if (ry == 0) {
-      drawFastHLine(x - rx, y, (ry << 2) + 1);
+      drawFastHLine(x - rx, y, (rx << 1) + 1);
       return;
     }
     if (rx == 0) {
-      drawFastVLine(x, y - ry, (rx << 2) + 1);
+      drawFastVLine(x, y - ry, (ry << 1) + 1);
       return;
     }
     if (rx < 0 || ry < 0) return;
@@ -391,11 +391,11 @@ namespace lgfx
   void LGFXBase::fillEllipse(int32_t x, int32_t y, int32_t rx, int32_t ry)
   {
     if (ry == 0) {
-      drawFastHLine(x - rx, y, (ry << 2) + 1);
+      drawFastHLine(x - rx, y, (rx << 1) + 1);
       return;
     }
     if (rx == 0) {
-      drawFastVLine(x, y - ry, (rx << 2) + 1);
+      drawFastVLine(x, y - ry, (ry << 1) + 1);
       return;
     }
     if (rx < 0 || ry < 0) return;
