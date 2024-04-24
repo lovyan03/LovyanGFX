@@ -117,6 +117,10 @@ if (_inited)
         uint_fast8_t points = std::min<uint_fast8_t>(max_touch_points, readdata[0] & 0x0Fu);
         if (points)
         {
+#ifdef PORTDUINO_LINUX_HARDWARE
+          readdata[1] = 0x03;
+          lgfx::i2c::writeBytes(_cfg.i2c_port, &readdata[1], 1);
+#endif
           if (lgfx::i2c::readBytes(_cfg.i2c_port, &readdata[1], points * 6 - 2))
           {
             res = points * 6 - 1;
