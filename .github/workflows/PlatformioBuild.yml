@@ -33,7 +33,6 @@ jobs:
           - m5stack-core-esp32
           - m5stack-core2
           - m5stack-cores3
-          - native
 
         platform-version:
           - 1.0.6
@@ -103,6 +102,5 @@ jobs:
           export pio_ver=${{ matrix.platform-version }}
           export pio_env="${pio_ver//./_}"
           pio pkg install -e ${{ matrix.board }}-$pio_env --no-save --library file://$(realpath ../../../)
-          [[ "$pio_env" == "native" ]] && { sudo apt update; sudo apt-get install libgpiod-dev; }
-          [[ "$pio_env" == "native" ]] && export PLATFORMIO_SRC_DIR=portduino
+          [[ "$pio_env" == "portduino" ]] && { sudo apt update; sudo apt-get install libgpiod-dev; export PLATFORMIO_SRC_DIR=portduino; }
           pio run -e ${{ matrix.board }}-$pio_env
