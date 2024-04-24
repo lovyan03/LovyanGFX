@@ -33,6 +33,7 @@ jobs:
           - m5stack-core-esp32
           - m5stack-core2
           - m5stack-cores3
+          - native
 
         platform-version:
           - 1.0.6
