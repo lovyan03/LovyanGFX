@@ -102,5 +102,5 @@ jobs:
           export pio_ver=${{ matrix.platform-version }}
           export pio_env="${pio_ver//./_}"
           pio pkg install -e ${{ matrix.board }}-$pio_env --no-save --library file://$(realpath ../../../)
-          [[ "$pio_env" == "portduino" ]] && { sudo apt update; sudo apt-get install libgpiod-dev; export PLATFORMIO_SRC_DIR=portduino; }
+          [[ "$pio_env" == "portduino" ]] && { sudo apt update; sudo apt-get install libgpiod-dev libbluetooth-dev; export PLATFORMIO_SRC_DIR=portduino; }
           pio run -e ${{ matrix.board }}-$pio_env
