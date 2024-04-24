@@ -63,6 +63,7 @@ jobs:
           - { board: seeed_wio_terminal, platform-version: default, ... }
           - { board: adafruit_pybadge_m4, platform-version: default, ... }
           - { board: pico, platform-version: default, ... }
+          - { board: native, platform-version: portduino, ... }
 
       fail-fast: false
 
@@ -101,4 +102,6 @@ jobs:
           export pio_ver=${{ matrix.platform-version }}
           export pio_env="${pio_ver//./_}"
           pio pkg install -e ${{ matrix.board }}-$pio_env --no-save --library file://$(realpath ../../../)
+          [[ "$pio_env" == "native" ]] && { sudo apt update; sudo apt-get install libgpiod-dev; }
+          [[ "$pio_env" == "native" ]] && export PLATFORMIO_SRC_DIR=portduino
           pio run -e ${{ matrix.board }}-$pio_env
