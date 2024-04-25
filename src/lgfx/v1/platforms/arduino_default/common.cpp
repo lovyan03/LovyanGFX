@@ -64,18 +64,26 @@ namespace lgfx
 
 //----------------------------------------------------------------------------
 
-  /// unimplemented.
   namespace spi
   {
-    cpp::result<void, error_t> init(int spi_host, int spi_sclk, int spi_miso, int spi_mosi)  { cpp::result<void, error_t> res = {}; return res; }
+    HardwareSPI *SPI_dev = &SPI;
+    cpp::result<void, error_t> init(int spi_host, int spi_sclk, int spi_miso, int spi_mosi)  {
+      cpp::result<void, error_t> res = {};
+      if (spi_host == 1)
+        SPI_dev = &SPI1;
+      else if (spi_host == 2)
+        SPI_dev = &SPI2;
+      return res; }
     void release(int spi_host) {}
     void beginTransaction(int spi_host, uint32_t freq, int spi_mode) {
       SPISettings setting(freq, MSBFIRST, SPI_MODE0);
-      SPI.beginTransaction(setting);
+      SPI_dev->beginTransaction(setting);
     }
-    void endTransaction(int spi_host) {SPI.endTransaction();}
+    void endTransaction(int spi_host) { SPI_dev->endTransaction();}
     void writeBytes(int spi_host, const uint8_t* data, size_t length) {}
-    void readBytes(int spi_host, uint8_t* data, size_t length) {SPI.transfer(data, length);}  }
+    void readBytes(int spi_host, uint8_t* data, size_t length) {
+      SPI_dev->transfer(data, length);
+      }  }
 
 //----------------------------------------------------------------------------
 

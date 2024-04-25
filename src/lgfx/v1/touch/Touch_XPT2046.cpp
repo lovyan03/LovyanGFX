@@ -31,8 +31,10 @@ namespace lgfx
     _inited = false;
     if (!isSPI()) return false;
 
-    lgfx::gpio_hi(_cfg.pin_cs);
-    lgfx::pinMode(_cfg.pin_cs, lgfx::pin_mode_t::output);
+    if (_cfg.pin_cs > -1) {
+      lgfx::gpio_hi(_cfg.pin_cs);
+      lgfx::pinMode(_cfg.pin_cs, lgfx::pin_mode_t::output);
+    }
     if (_cfg.spi_host < 0)
     {
       pinMode(_cfg.pin_sclk, lgfx::pin_mode_t::output);
@@ -110,9 +112,11 @@ namespace lgfx
     else
     {
       spi::beginTransaction(_cfg.spi_host, _cfg.freq, 0);
-      lgfx::gpio_lo(_cfg.pin_cs);
+      if (_cfg.pin_cs > -1)
+        lgfx::gpio_lo(_cfg.pin_cs);
       spi::readBytes(_cfg.spi_host, data, 57);
-      lgfx::gpio_hi(_cfg.pin_cs);
+      if (_cfg.pin_cs > -1)
+        lgfx::gpio_hi(_cfg.pin_cs);
       spi::endTransaction(_cfg.spi_host);
     }
 

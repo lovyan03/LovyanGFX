@@ -67,6 +67,7 @@ namespace lgfx
         };
       };
       int16_t pin_cs = -1;
+      bool is_SPI = false;
     };
 
     virtual ~ITouch(void) = default;
@@ -74,7 +75,7 @@ namespace lgfx
     config_t config(void) const { return _cfg; }
     void config(const config_t& config) { _cfg = config; }
 
-    inline bool isSPI(void) const { return _cfg.pin_cs >= 0; }
+    inline bool isSPI(void) const { return _cfg.pin_cs >= 0 || _cfg.is_SPI; }
 
     virtual bool init(void) = 0;
     virtual void wakeup(void) = 0;
