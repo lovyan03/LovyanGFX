@@ -317,7 +317,7 @@ namespace lgfx
 
   //----------------------------------------------------------------------------
 
-  const uint8_t* Panel_ST7701_gution_esp32_4848S040::getInitCommands(uint8_t listno) const
+  const uint8_t* Panel_ST7701_guition_esp32_4848S040::getInitCommands(uint8_t listno) const
   {
     static constexpr const uint8_t list0[] =
     {
@@ -398,7 +398,7 @@ namespace lgfx
     }
   }
 
-  bool Panel_ST7701_gution_esp32_4848S040::init(bool use_reset)
+  bool Panel_ST7701_guition_esp32_4848S040::init(bool use_reset)
   {
     if (!Panel_RGB::init(use_reset))
     {

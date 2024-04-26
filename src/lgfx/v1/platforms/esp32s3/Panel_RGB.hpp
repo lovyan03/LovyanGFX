@@ -100,7 +100,7 @@ namespace lgfx
     const uint8_t* getInitCommands(uint8_t listno) const override;
   };
 
-  struct Panel_ST7701_gution_esp32_4848S040: public Panel_RGB
+  struct Panel_ST7701_guition_esp32_4848S040: public Panel_RGB
   {
     bool init(bool) override;
   protected:
