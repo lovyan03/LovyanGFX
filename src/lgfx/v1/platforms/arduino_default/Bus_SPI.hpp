@@ -42,6 +42,8 @@ namespace lgfx
       int16_t pin_mosi = -1;
       int16_t pin_dc   = -1;
       uint8_t spi_mode = 0;
+      int8_t spi_host = 0;
+
     };
 
     const config_t& config(void) const { return _cfg; }
@@ -52,7 +54,6 @@ namespace lgfx
 
     bool init(void) override;
     void release(void) override;
-    void spi_device(HardwareSPI *newSPI);
 
     void beginTransaction(void) override;
     void endTransaction(void) override;
@@ -86,7 +87,7 @@ namespace lgfx
       gpio_lo(_cfg.pin_dc);
     }
 
-    HardwareSPI *PrivateSPI = &SPI;
+    HardwareSPI *spi;
     config_t _cfg;
     FlipBuffer _flip_buffer;
     bool _need_wait;
