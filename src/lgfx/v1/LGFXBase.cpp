@@ -986,7 +986,7 @@ namespace lgfx
   {
     const bool is_circle = (ax==bx && ay==by /*&& ar==br*/ );
     if( !gradient.colors || gradient.count==0 ) return; // line needs at least one color
-    if ( (ar < 0.0) || (br < 0.0) ) return; // don't negociate with infinity
+    if ( (ar < 0.0f) || (br < 0.0f) ) return; // don't negociate with infinity
     if ( (fabsf(ax - bx) < 0.01f) && (fabsf(ay - by) < 0.01f) ) bx += 0.01f; // Avoid divide by zero
     // convert first gradient color to RGB
     rgb888_t fg_color = gradient.colors[0];
@@ -1011,7 +1011,7 @@ namespace lgfx
 
     float rdt = ar - br; // Radius delta
     float alpha = 1.0f; // base alpha
-    ar += 0.5; // center pixel
+    ar += 0.5f; // center pixel
     // line distance including rounded edges
     float linedist = is_circle? (ar + br)*.5f : pixelDistance(ax, ay, bx, by) + ar + br;
     float xpax, ypay, bax = bx - ax, bay = by - ay;
