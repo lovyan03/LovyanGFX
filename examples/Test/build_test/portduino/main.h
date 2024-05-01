@@ -6,7 +6,6 @@
 #include "PortduinoGPIO.h"
 #include <iostream>
 
-HardwareSPI *DisplaySPI;
 int initGPIOPin(int pinNum, std::string gpioChipName);
 
 class LGFX : public lgfx::LGFX_Device
@@ -25,7 +24,11 @@ public:
       auto buscfg = _bus_instance.config();
       buscfg.spi_mode = 0;
       buscfg.pin_dc = 25;
-      _bus_instance.spi_device(DisplaySPI);
+      
+      // to use spidevX.Y
+      int x = 0;
+      int y = 0;
+      buscfg.spi_host = x + y << 4;
       _bus_instance.config(buscfg);            // applies the set value to the bus.
       _panel_instance.setBus(&_bus_instance); // set the bus on the panel.
     }

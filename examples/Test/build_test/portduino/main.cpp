@@ -8,8 +8,6 @@ void setup()
   initGPIOPin(25, "gpiochip4");
   initGPIOPin(24, "gpiochip4");
 
-  DisplaySPI = new HardwareSPI;
-  DisplaySPI->begin("/dev/spidev0.0");
   Wire.begin(1);
   display = new LGFX();
   display->init();
@@ -18,6 +16,10 @@ void setup()
   canvas.setFont(&fonts::lgfxJapanMinchoP_32);
   canvas.setTextWrap(false);        // 右端到達時のカーソル折り返しを禁止
   canvas.createSprite(display->width(), 36);
+  canvas.clear();
+  canvas.setCursor(0, 0);
+  canvas.printf("Touch to start\n");
+  canvas.pushSprite(display, 0, 0);
 }
 
 
