@@ -15,7 +15,6 @@ Contributors:
  [mongonta0716](https://github.com/mongonta0716)
  [tobozo](https://github.com/tobozo)
 /----------------------------------------------------------------------------*/
-
 #if defined (ESP_PLATFORM)
 #include <sdkconfig.h>
 #if defined (CONFIG_IDF_TARGET_ESP32S3)
@@ -175,6 +174,65 @@ namespace lgfx
   }
 
 //----------------------------------------------------------------------------
+  /* Panel ST7701 base initialization */
+  bool Panel_ST7701_Base::init(bool use_reset)
+  {
+    if (!Panel_RGB::init(use_reset))
+    {
+      return false;
+    }
+
+    int32_t pin_mosi = _config_detail.pin_mosi;
+    int32_t pin_sclk = _config_detail.pin_sclk;
+    if (pin_mosi >= 0 && pin_sclk >= 0)
+    {
+      lgfx::gpio::pin_backup_t backup_pins[] = { (gpio_num_t)pin_mosi, (gpio_num_t)pin_sclk };
+
+      lgfx::gpio_lo(pin_mosi);
+      lgfx::pinMode(pin_mosi, pin_mode_t::output);
+      lgfx::gpio_lo(pin_sclk);
+      lgfx::pinMode(pin_sclk, pin_mode_t::output);
+
+
+      int32_t pin_cs = _config_detail.pin_cs;
+      lgfx::gpio_lo(pin_cs);
+
+      writeCommand(0xFF, 1);
+      writeData(0x77, 1);
+      writeData(0x01, 1);
+      writeData(0x00, 2);
+      writeData(0x10, 1);
+
+      // 0xC0 : LNSET : Display Line Setting
+      writeCommand(0xC0, 1);
+      uint32_t line1 = (_cfg.panel_height >> 3) + 1;
+      uint32_t line2 = (_cfg.panel_height >> 1) & 3;
+      writeData(line1 + (line2 ? 0x80 : 0x00), 1);
+      writeData(line2, 1);
+
+      // 0xC3 : RGBCTRL
+      auto cfg = ((Bus_RGB*)_bus)->config();
+      writeCommand(0xC3, 1);
+      uint32_t rgbctrl = 0;
+      if ( cfg.de_idle_high  ) rgbctrl += 0x01;
+      if ( cfg.pclk_idle_high) rgbctrl += 0x02;
+      if (!cfg.hsync_polarity) rgbctrl += 0x04;
+      if (!cfg.vsync_polarity) rgbctrl += 0x08;
+      writeData(rgbctrl, 1);
+      writeData(0x10, 1);
+      writeData(0x08, 1);
+
+      for (uint8_t i = 0; auto cmds = getInitCommands(i); i++)
+      {
+        command_list(cmds);
+      }
+
+      lgfx::gpio_hi(pin_cs);
+      for (auto &bup : backup_pins) { bup.restore(); }
+    }
+
+    return true;
+  }
 
   const uint8_t* Panel_ST7701::getInitCommands(uint8_t listno) const
   {
@@ -255,67 +313,6 @@ namespace lgfx
     default: return nullptr;
     }
   }
-
-  bool Panel_ST7701::init(bool use_reset)
-  {
-    if (!Panel_RGB::init(use_reset))
-    {
-      return false;
-    }
-
-    int32_t pin_mosi = _config_detail.pin_mosi;
-    int32_t pin_sclk = _config_detail.pin_sclk;
-    if (pin_mosi >= 0 && pin_sclk >= 0)
-    {
-      lgfx::gpio::pin_backup_t backup_pins[] = { (gpio_num_t)pin_mosi, (gpio_num_t)pin_sclk };
-
-      lgfx::gpio_lo(pin_mosi);
-      lgfx::pinMode(pin_mosi, pin_mode_t::output);
-      lgfx::gpio_lo(pin_sclk);
-      lgfx::pinMode(pin_sclk, pin_mode_t::output);
-
-
-      int32_t pin_cs = _config_detail.pin_cs;
-      lgfx::gpio_lo(pin_cs);
-
-      writeCommand(0xFF, 1);
-      writeData(0x77, 1);
-      writeData(0x01, 1);
-      writeData(0x00, 2);
-      writeData(0x10, 1);
-
-      // 0xC0 : LNSET : Display Line Setting
-      writeCommand(0xC0, 1);
-      uint32_t line1 = (_cfg.panel_height >> 3) + 1;
-      uint32_t line2 = (_cfg.panel_height >> 1) & 3;
-      writeData(line1 + (line2 ? 0x80 : 0x00), 1);
-      writeData(line2, 1);
-
-      // 0xC3 : RGBCTRL
-      auto cfg = ((Bus_RGB*)_bus)->config();
-      writeCommand(0xC3, 1);
-      uint32_t rgbctrl = 0;
-      if ( cfg.de_idle_high  ) rgbctrl += 0x01;
-      if ( cfg.pclk_idle_high) rgbctrl += 0x02;
-      if (!cfg.hsync_polarity) rgbctrl += 0x04;
-      if (!cfg.vsync_polarity) rgbctrl += 0x08;
-      writeData(rgbctrl, 1);
-      writeData(0x10, 1);
-      writeData(0x08, 1);
-
-      for (uint8_t i = 0; auto cmds = getInitCommands(i); i++)
-      {
-        command_list(cmds);
-      }
-
-      lgfx::gpio_hi(pin_cs);
-      for (auto &bup : backup_pins) { bup.restore(); }
-    }
-
-    return true;
-  }
-
-//----------------------------------------------------------------------------
 
   const uint8_t* Panel_ST7701_guition_esp32_4848S040::getInitCommands(uint8_t listno) const
   {
@@ -398,64 +395,7 @@ namespace lgfx
     }
   }
 
-  bool Panel_ST7701_guition_esp32_4848S040::init(bool use_reset)
-  {
-    if (!Panel_RGB::init(use_reset))
-    {
-      return false;
-    }
-
-    int32_t pin_mosi = _config_detail.pin_mosi;
-    int32_t pin_sclk = _config_detail.pin_sclk;
-    if (pin_mosi >= 0 && pin_sclk >= 0)
-    {
-      lgfx::gpio::pin_backup_t backup_pins[] = { (gpio_num_t)pin_mosi, (gpio_num_t)pin_sclk };
-
-      lgfx::gpio_lo(pin_mosi);
-      lgfx::pinMode(pin_mosi, pin_mode_t::output);
-      lgfx::gpio_lo(pin_sclk);
-      lgfx::pinMode(pin_sclk, pin_mode_t::output);
-
-
-      int32_t pin_cs = _config_detail.pin_cs;
-      lgfx::gpio_lo(pin_cs);
-
-      writeCommand(0xFF, 1);
-      writeData(0x77, 1);
-      writeData(0x01, 1);
-      writeData(0x00, 2);
-      writeData(0x10, 1);
-
-      // 0xC0 : LNSET : Display Line Setting
-      writeCommand(0xC0, 1);
-      uint32_t line1 = (_cfg.panel_height >> 3) + 1;
-      uint32_t line2 = (_cfg.panel_height >> 1) & 3;
-      writeData(line1 + (line2 ? 0x80 : 0x00), 1);
-      writeData(line2, 1);
-
-      // 0xC3 : RGBCTRL
-      auto cfg = ((Bus_RGB*)_bus)->config();
-      writeCommand(0xC3, 1);
-      uint32_t rgbctrl = 0;
-      if ( cfg.de_idle_high  ) rgbctrl += 0x01;
-      if ( cfg.pclk_idle_high) rgbctrl += 0x02;
-      if (!cfg.hsync_polarity) rgbctrl += 0x04;
-      if (!cfg.vsync_polarity) rgbctrl += 0x08;
-      writeData(rgbctrl, 1);
-      writeData(0x10, 1);
-      writeData(0x08, 1);
-
-      for (uint8_t i = 0; auto cmds = getInitCommands(i); i++)
-      {
-        command_list(cmds);
-      }
-
-      lgfx::gpio_hi(pin_cs);
-      for (auto &bup : backup_pins) { bup.restore(); }
-    }
-
-    return true;
-  }
+//----------------------------------------------------------------------------
 
   const uint8_t* Panel_GC9503::getInitCommands(uint8_t listno) const
   {
