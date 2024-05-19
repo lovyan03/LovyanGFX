@@ -29,11 +29,17 @@ Porting for SDL:
 #include "../../Bus.hpp"
 
 #include <list>
+#include <vector>
+#include <math.h>
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
 namespace lgfx
 {
  inline namespace v1
  {
+  SDL_Keymod Panel_sdl::_keymod = KMOD_NONE;
   static SDL_semaphore *_update_in_semaphore = nullptr;
   static SDL_semaphore *_update_out_semaphore = nullptr;
   volatile static uint32_t _in_step_exec = 0;
@@ -53,6 +59,28 @@ namespace lgfx
   }
 //----------------------------------------------------------------------------
 
+  static std::vector<Panel_sdl::KeyCodeMapping_t> _key_code_map;
+
+  void Panel_sdl::addKeyCodeMapping(SDL_KeyCode keyCode, uint8_t gpio)
+  {
+    if (gpio > EMULATED_GPIO_MAX)
+      return;
+    KeyCodeMapping_t map;
+    map.keycode = keyCode;
+    map.gpio = gpio;
+    _key_code_map.push_back(map);
+  }
+
+  int Panel_sdl::getKeyCodeMapping(SDL_KeyCode keyCode)
+  {
+    for (const auto& i : _key_code_map)
+    {
+      if (i.keycode == keyCode)
+        return i.gpio;
+    }
+    return -1;
+  }
+
   void Panel_sdl::_event_proc(void)
   {
     SDL_Event event;
@@ -60,14 +88,51 @@ namespace lgfx
     {
       if ((event.type == SDL_KEYDOWN) || (event.type == SDL_KEYUP))
       {
+        auto mon = getMonitorByWindowID(event.button.windowID);
         int gpio = -1;
-        switch (event.key.keysym.sym)
-        { /// M5StackのBtnA～BtnCのエミュレート;
-        case SDLK_LEFT:  gpio = 39; break;
-        case SDLK_DOWN:  gpio = 38; break;
-        case SDLK_RIGHT: gpio = 37; break;
-        case SDLK_UP:    gpio = 36; break;
-        default: continue;
+
+        /// Check key mapping
+        gpio = getKeyCodeMapping((SDL_KeyCode)event.key.keysym.sym);
+        if (gpio < 0)
+        {
+          switch (event.key.keysym.sym)
+          { /// M5StackのBtnA～BtnCのエミュレート;
+          // case SDLK_LEFT:  gpio = 39; break;
+          // case SDLK_DOWN:  gpio = 38; break;
+          // case SDLK_RIGHT: gpio = 37; break;
+          // case SDLK_UP:    gpio = 36; break;
+    
+          /// L/Rキーで画面回転
+          case SDLK_r:
+          case SDLK_l:
+            if (event.type == SDL_KEYDOWN && event.key.keysym.mod == _keymod) 
+            {
+              if (mon != nullptr)
+              {
+                mon->frame_rotation = (mon->frame_rotation += event.key.keysym.sym == SDLK_r ? 1 : -1);
+                int x, y, w, h;
+                SDL_GetWindowSize(mon->window, &w, &h);
+                SDL_GetWindowPosition(mon->window, &x, &y);
+                SDL_SetWindowSize(mon->window, h, w);
+                SDL_SetWindowPosition(mon->window, x + (w-h)/2, y + (h-w)/2);
+                mon->panel->sdl_invalidate();
+              }
+            }
+            break;
+
+          /// 1～6キーで画面拡大率変更
+          case SDLK_1: case SDLK_2: case SDLK_3: case SDLK_4: case SDLK_5: case SDLK_6:
+            if (event.type == SDL_KEYDOWN && event.key.keysym.mod == _keymod) 
+            {
+              if (mon != nullptr)
+              {
+                int size = 1 + (event.key.keysym.sym - SDLK_1);
+                _update_scaling(mon, size, size);
+              }
+            }
+            break;
+          default: continue;
+          }
         }
         if (event.type == SDL_KEYDOWN) {
           gpio_lo(gpio);
@@ -80,11 +145,24 @@ namespace lgfx
         auto mon = getMonitorByWindowID(event.button.windowID);
         if (mon != nullptr)
         {
-          int x, y, w, h;
-          SDL_GetWindowSize(mon->window, &w, &h);
-          SDL_GetMouseState(&x, &y);
-          mon->touch_x = x * mon->panel->config().panel_width / w;
-          mon->touch_y = y * mon->panel->config().panel_height / h;
+          {
+            int x, y, w, h;
+            SDL_GetWindowSize(mon->window, &w, &h);
+            SDL_GetMouseState(&x, &y);
+            float sf = sinf(mon->frame_angle * M_PI / 180);
+            float cf = cosf(mon->frame_angle * M_PI / 180);
+            x -= w / 2.0f;
+            y -= h / 2.0f;
+            float nx = y * sf + x * cf;
+            float ny = y * cf - x * sf;
+            if (mon->frame_rotation & 1) {
+              std::swap(w, h);
+            }
+            x = (nx * mon->frame_width / w) + (mon->frame_width >> 1);
+            y = (ny * mon->frame_height / h) + (mon->frame_height >> 1);
+            mon->touch_x = x - mon->frame_inner_x;
+            mon->touch_y = y - mon->frame_inner_y;
+          }
           if (event.type == SDL_MOUSEBUTTONDOWN && event.button.button == SDL_BUTTON_LEFT)
           {
             mon->touched = true;
@@ -95,18 +173,31 @@ namespace lgfx
           }
         }
       }
-      else
-      if (event.type == SDL_WINDOWEVENT
-      || event.type == SDL_QUIT) {
+      else if (event.type == SDL_WINDOWEVENT)
+      {
         auto monitor = getMonitorByWindowID(event.window.windowID);
         if (monitor) {
           if (event.window.event == SDL_WINDOWEVENT_RESIZED) {
+            int mw, mh;
+            SDL_GetRendererOutputSize(monitor->renderer, &mw, &mh);
+            if (monitor->frame_rotation & 1) {
+              std::swap(mw, mh);
+            }
+            monitor->scaling_x = (mw * 2 / monitor->frame_width) / 2.0f;
+            monitor->scaling_y = (mh * 2 / monitor->frame_height) / 2.0f;
             monitor->panel->sdl_invalidate();
           }
           else
           if (event.window.event == SDL_WINDOWEVENT_CLOSE) {
             monitor->closing = true;
           }
+        }
+      }
+      else if (event.type == SDL_QUIT)
+      {
+        for (auto& m : _list_monitor)
+        {
+          m->closing = true;
         }
       }
     }
@@ -133,6 +224,7 @@ namespace lgfx
     for (auto it = _list_monitor.begin(); it != _list_monitor.end(); )
     {
       if ((*it)->closing) {
+        if ((*it)->texture_frameimage) { SDL_DestroyTexture((*it)->texture_frameimage); }
         SDL_DestroyTexture((*it)->texture);
         SDL_DestroyRenderer((*it)->renderer);
         SDL_DestroyWindow((*it)->window);
@@ -152,6 +244,13 @@ namespace lgfx
   {
     if (_inited) return 1;
     _inited = true;
+
+    /// Add default keycode mapping
+    /// M5StackのBtnA～BtnCのエミュレート;
+    addKeyCodeMapping(SDLK_LEFT, 39);
+    addKeyCodeMapping(SDLK_DOWN, 38);
+    addKeyCodeMapping(SDLK_RIGHT, 37);
+    addKeyCodeMapping(SDLK_UP, 36);
 
     SDL_CreateThread((SDL_ThreadFunction)detectDebugger, "dbg", &_inited);
 
@@ -222,6 +321,21 @@ namespace lgfx
   {
     monitor.scaling_x = scaling_x;
     monitor.scaling_y = scaling_y;
+  }
+
+  void Panel_sdl::setFrameImage(const void* frame_image, int frame_width, int frame_height, int inner_x, int inner_y)
+  {
+    monitor.frame_image = frame_image;
+    monitor.frame_width = frame_width;
+    monitor.frame_height = frame_height;
+    monitor.frame_inner_x = inner_x;
+    monitor.frame_inner_y = inner_y;
+  }
+
+  void Panel_sdl::setFrameRotation(uint_fast16_t frame_rotation)
+  {
+    monitor.frame_rotation = frame_rotation;
+    monitor.frame_angle = (monitor.frame_rotation) * 90;
   }
 
   Panel_sdl::~Panel_sdl(void)
@@ -322,6 +436,10 @@ namespace lgfx
 
   void Panel_sdl::display(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h)
   {
+    (void)x;
+    (void)y;
+    (void)w;
+    (void)h;
     if (_in_step_exec)
     {
       if (_display_counter != _modified_counter) {
@@ -336,6 +454,7 @@ namespace lgfx
 
   uint_fast8_t Panel_sdl::getTouchRaw(touch_point_t* tp, uint_fast8_t count)
   {
+    (void)count;
     tp->x = monitor.touch_x;
     tp->y = monitor.touch_y;
     tp->size = monitor.touched ? 1 : 0;
@@ -351,20 +470,68 @@ namespace lgfx
     }
   }
 
+  void Panel_sdl::_update_scaling(monitor_t * mon, float sx, float sy)
+  {
+    mon->scaling_x = sx;
+    mon->scaling_y = sy;
+    int nw = mon->frame_width;
+    int nh = mon->frame_height;
+    if (mon->frame_rotation & 1) {
+      std::swap(nw, nh);
+    }
+
+    int x, y, w, h;
+    int rw, rh;
+    SDL_GetRendererOutputSize(mon->renderer, &rw, &rh);
+    SDL_GetWindowSize(mon->window, &w, &h);
+    nw = nw * sx * w / rw;
+    nh = nh * sy * h / rh;
+    SDL_GetWindowPosition(mon->window, &x, &y);
+    SDL_SetWindowSize(mon->window, nw, nh);
+    SDL_SetWindowPosition(mon->window, x + (w-nw)/2, y + (h-nh)/2);
+    mon->panel->sdl_invalidate();
+  }
+
   void Panel_sdl::sdl_create(monitor_t * m)
   {
-    int flag = SDL_WINDOW_RESIZABLE;
+    int flag = SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI;
 #if SDL_FULLSCREEN
     flag |= SDL_WINDOW_FULLSCREEN;
 #endif
-    m->window = SDL_CreateWindow(_window_title,
-                              SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-                              _cfg.panel_width * m->scaling_x, _cfg.panel_height * m->scaling_y, flag);       /*last param. SDL_WINDOW_BORDERLESS to hide borders*/
 
+    if (m->frame_width < _cfg.panel_width) { m->frame_width = _cfg.panel_width; }
+    if (m->frame_height < _cfg.panel_height) { m->frame_height = _cfg.panel_height; }
+
+    int window_width = m->frame_width * m->scaling_x;
+    int window_height = m->frame_height * m->scaling_y;
+    int scaling_x = m->scaling_x;
+    int scaling_y = m->scaling_y;
+    if (m->frame_rotation & 1) {
+      std::swap(window_width, window_height);
+      std::swap(scaling_x, scaling_y);
+    }
+
+    {
+      m->window = SDL_CreateWindow(_window_title,
+                                SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+                                window_width, window_height, flag);       /*last param. SDL_WINDOW_BORDERLESS to hide borders*/
+    }
     m->renderer = SDL_CreateRenderer(m->window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
     m->texture = SDL_CreateTexture(m->renderer, SDL_PIXELFORMAT_RGB24,
-                     SDL_TEXTUREACCESS_STATIC, _cfg.panel_width, _cfg.panel_height);
+                     SDL_TEXTUREACCESS_STREAMING, _cfg.panel_width, _cfg.panel_height);
     SDL_SetTextureBlendMode(m->texture, SDL_BLENDMODE_NONE);
+
+    if (m->frame_image) {
+// 枠画像用のサーフェイスを作成
+      auto sf = SDL_CreateRGBSurfaceFrom((void*)m->frame_image, m->frame_width, m->frame_height, 32, m->frame_width* 4, 0xFF000000, 0xFF0000, 0xFF00, 0xFF);
+      if (sf != nullptr) {
+  // 枠画像からテクスチャを作成
+        m->texture_frameimage = SDL_CreateTextureFromSurface(m->renderer, sf);
+        SDL_FreeSurface(sf);
+      }
+    }
+    SDL_SetTextureBlendMode(m->texture_frameimage, SDL_BLENDMODE_BLEND);
+    _update_scaling(m, scaling_x, scaling_y);
   }
 
   void Panel_sdl::sdl_update(void)
@@ -402,6 +569,20 @@ namespace lgfx
       }
     }
 
+    int angle = monitor.frame_angle;
+    int target = (monitor.frame_rotation) * 90;
+    angle = (((target * 4) + (angle * 4) + (angle < target ? 8 : 0)) >> 3);
+
+    if (monitor.frame_angle != angle)
+    { // 表示する向きを変える
+      monitor.frame_angle = angle;
+      sdl_invalidate();
+    } else if (monitor.frame_rotation & ~3u) {
+      monitor.frame_rotation &= 3;
+      monitor.frame_angle = (monitor.frame_rotation) * 90;
+      sdl_invalidate();
+    }
+
     if (_invalidated || (_display_counter != _texupdate_counter))
     {
       SDL_RendererInfo info;
@@ -412,15 +593,52 @@ namespace lgfx
           SDL_RenderSetVSync(monitor.renderer, !step_exec);
         }
       }
-      SDL_RenderCopy(monitor.renderer, monitor.texture, nullptr, nullptr);
+      {
+        int red   = 0;
+        int green = 0;
+        int blue  = 0;
+#if defined (M5GFX_BACK_COLOR)
+        red   = ((M5GFX_BACK_COLOR) >> 16) & 0xFF;
+        green = ((M5GFX_BACK_COLOR) >>  8) & 0xFF;
+        blue  = ((M5GFX_BACK_COLOR)      ) & 0xFF;
+#endif
+        SDL_SetRenderDrawColor(monitor.renderer, red, green, blue, 0xFF);
+      }
+      SDL_RenderClear(monitor.renderer);
+      if (_invalidated)
+      {
+        _invalidated = false;
+        int mw, mh;
+        SDL_GetRendererOutputSize(monitor.renderer , &mw, &mh);
+      }
+      render_texture(monitor.texture, monitor.frame_inner_x, monitor.frame_inner_y, _cfg.panel_width, _cfg.panel_height, angle);
+      render_texture(monitor.texture_frameimage, 0, 0, monitor.frame_width, monitor.frame_height, angle);
       SDL_RenderPresent(monitor.renderer);
       _display_counter = _texupdate_counter;
       if (_invalidated) {
         _invalidated = false;
-        SDL_RenderCopy(monitor.renderer, monitor.texture, nullptr, nullptr);
+        SDL_SetRenderDrawColor(monitor.renderer, 0, 0, 0, 0xFF);
+        SDL_RenderClear(monitor.renderer);
+        render_texture(monitor.texture, monitor.frame_inner_x, monitor.frame_inner_y, _cfg.panel_width, _cfg.panel_height, angle);
+        render_texture(monitor.texture_frameimage, 0, 0, monitor.frame_width, monitor.frame_height, angle);
         SDL_RenderPresent(monitor.renderer);
       }
     }
+  }
+
+  void Panel_sdl::render_texture(SDL_Texture* texture, int tx, int ty, int tw, int th, float angle)
+  {
+    SDL_Point pivot;
+    pivot.x = (monitor.frame_width /2.0f - tx) * (float)monitor.scaling_x;
+    pivot.y = (monitor.frame_height/2.0f - ty) * (float)monitor.scaling_y;
+    SDL_Rect dstrect;
+    dstrect.w = tw * monitor.scaling_x;
+    dstrect.h = th * monitor.scaling_y;
+    int mw, mh;
+    SDL_GetRendererOutputSize(monitor.renderer, &mw, &mh);
+    dstrect.x = mw / 2.0f - pivot.x;
+    dstrect.y = mh / 2.0f - pivot.y;
+    SDL_RenderCopyEx(monitor.renderer, texture, nullptr, &dstrect, angle, &pivot, SDL_RendererFlip::SDL_FLIP_NONE);
   }
 
   bool Panel_sdl::initFrameBuffer(size_t width, size_t height)
@@ -440,7 +658,7 @@ namespace lgfx
 
     auto fb = framebuffer;
     {
-      for (int y = 0; y < height; ++y)
+      for (size_t y = 0; y < height; ++y)
       {
         lineArray[y] = fb;
         fb += width;

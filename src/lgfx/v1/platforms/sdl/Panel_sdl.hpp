@@ -21,6 +21,7 @@ Porting for SDL:
 #pragma once
 
 #include "common.hpp"
+#include <cstdint>
 #if defined (SDL_h_)
 #include "../../panel/Panel_FrameBufferBase.hpp"
 #include "../../misc/range.hpp"
@@ -36,10 +37,21 @@ namespace lgfx
     SDL_Window* window = nullptr;
     SDL_Renderer* renderer = nullptr;
     SDL_Texture* texture = nullptr;
+    SDL_Texture* texture_frameimage = nullptr;
     Panel_sdl* panel = nullptr;
-    int scaling_x = 1;
-    int scaling_y = 1;
-    int touch_x, touch_y;
+
+// 外枠
+    const void* frame_image = 0;
+    uint_fast16_t frame_width = 0;
+    uint_fast16_t frame_height = 0;
+    uint_fast16_t frame_inner_x = 0;
+    uint_fast16_t frame_inner_y = 0;
+    int_fast16_t frame_rotation = 0;
+    int_fast16_t frame_angle = 0;
+
+    float scaling_x = 1;
+    float scaling_y = 1;
+    int_fast16_t touch_x, touch_y;
     bool touched = false;
     bool closing = false;
   };
@@ -80,12 +92,24 @@ namespace lgfx
 
     void setWindowTitle(const char* title);
     void setScaling(uint_fast8_t scaling_x, uint_fast8_t scaling_y);
+    void setFrameImage(const void* frame_image, int frame_width, int frame_height, int inner_x, int inner_y);
+    void setFrameRotation(uint_fast16_t frame_rotaion);
 
     static int setup(void);
     static int loop(void);
     static int close(void);
 
     static int main(int(*fn)(bool*), uint32_t msec_step_exec = 512);
+
+    static void setShortcutKeymod(SDL_Keymod keymod) { _keymod = keymod; }
+
+    struct KeyCodeMapping_t
+    {
+      SDL_KeyCode keycode = SDLK_UNKNOWN;
+      uint8_t gpio = 0;
+    };
+    static void addKeyCodeMapping(SDL_KeyCode keyCode, uint8_t gpio);
+    static int getKeyCodeMapping(SDL_KeyCode keyCode);
 
   protected:
     const char* _window_title = "LGFX Simulator";
@@ -105,9 +129,13 @@ namespace lgfx
 
     static void _event_proc(void);
     static void _update_proc(void);
+    static void _update_scaling(monitor_t * m, float sx, float sy);
     void sdl_invalidate(void) { _invalidated = true; }
+    void render_texture(SDL_Texture* texture, int tx, int ty, int tw, int th, float angle);
     bool initFrameBuffer(size_t width, size_t height);
     void deinitFrameBuffer(void);
+
+    static SDL_Keymod _keymod;
 
     struct lock_t {
       lock_t(Panel_sdl* parent);
