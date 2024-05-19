@@ -36,7 +36,7 @@
 #include <stdint.h>
 #include <math.h>
 
-#include "miniz.h"
+#include "lgfx_miniz.h"
 #include "lgfx_pngle.h"
 
 #include "pgmspace.h"
@@ -109,7 +109,7 @@ struct _pngle_t {
   size_t  avail_out;
   uint32_t out_buf[LGFX_PNGLE_OUTBUF_LEN >> 2]; // out_buf + read_buf (Do not change the order)
   uint8_t read_buf[LGFX_PNGLE_READBUF_LEN];
-  tinfl_decompressor inflator; // 11000 bytes
+  lgfx_tinfl_decompressor inflator; // 11000 bytes
   uint8_t lz_buf[TINFL_LZ_DICT_SIZE]; // 32768 bytes
 };
 
@@ -405,7 +405,7 @@ int lgfx_pngle_prepare(pngle_t *pngle, lgfx_pngle_read_callback_t read_cb, void*
   pngle->avail_out = TINFL_LZ_DICT_SIZE;
   pngle->filter_type = ~0;
   pngle->trans_color = LGFX_PNGLE_NON_TRANS_COLOR;
-  tinfl_init(&pngle->inflator);
+  lgfx_tinfl_init(&pngle->inflator);
 
   if (pngle->read_callback(user_data, pngle->read_buf, 29) != 29
    || memcmp_P(pngle->read_buf, png_header, sizeof(png_header))) return PNGLE_ERROR("Incorrect PNG signature");
@@ -520,19 +520,19 @@ int lgfx_pngle_decomp(pngle_t *pngle, lgfx_pngle_draw_callback_t draw_cb)
           size_t in_bytes = len;
           size_t out_bytes = pngle->avail_out;
 
-          // XXX: tinfl_decompress always requires (next_out - lz_buf + avail_out) == TINFL_LZ_DICT_SIZE
-          tinfl_status status = tinfl_decompress(&pngle->inflator, (const mz_uint8*)&read_buf[in_pos], &in_bytes, pngle->lz_buf, (mz_uint8*)pngle->next_out, &out_bytes, TINFL_FLAG_HAS_MORE_INPUT | TINFL_FLAG_PARSE_ZLIB_HEADER);
+          // XXX: lgfx_tinfl_decompress always requires (next_out - lz_buf + avail_out) == TINFL_LZ_DICT_SIZE
+          lgfx_tinfl_status status = lgfx_tinfl_decompress(&pngle->inflator, (const lgfx_mz_uint8*)&read_buf[in_pos], &in_bytes, pngle->lz_buf, (lgfx_mz_uint8*)pngle->next_out, &out_bytes, TINFL_FLAG_HAS_MORE_INPUT | TINFL_FLAG_PARSE_ZLIB_HEADER);
           if (status < TINFL_STATUS_DONE)
           {
             // Decompression failed.
-            debug_printf("[pngle] tinfl_decompress() failed with status %d!\n", status);
+            debug_printf("[pngle] lgfx_tinfl_decompress() failed with status %d!\n", status);
             return PNGLE_ERROR("Failed to decompress the IDAT stream");
           }
 
           len -= in_bytes;
           in_pos += in_bytes;
 
-        //debug_printf("[pngle]       tinfl_decompress\n");
+        //debug_printf("[pngle]       lgfx_tinfl_decompress\n");
         //debug_printf("[pngle]       => in_bytes %zd, out_bytes %zd, next_out %p, status %d\n", in_bytes, out_bytes, pngle->next_out, status);
 
           if (out_bytes)

@@ -19,7 +19,7 @@ Contributors:
 #include "LGFXBase.hpp"
 
 #include "../internal/limits.h"
-#include "../utility/miniz.h"
+#include "../utility/lgfx_miniz.h"
 #include "../utility/lgfx_pngle.h"
 #include "../utility/lgfx_qrcode.h"
 #include "../utility/lgfx_tjpgd.h"
