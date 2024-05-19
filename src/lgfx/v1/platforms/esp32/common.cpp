@@ -110,11 +110,12 @@ Contributors:
  #if !defined (DMA_IN_PERI_SEL_CH0_REG)
   #define DMA_IN_PERI_SEL_CH0_REG  GDMA_IN_PERI_SEL_CH0_REG
  #endif
+
+ #if !defined (SOC_GDMA_PAIRS_PER_GROUP_MAX)
+  #define SOC_GDMA_PAIRS_PER_GROUP_MAX SOC_GDMA_PAIRS_PER_GROUP
+ #endif
 #endif
 
-#if (ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 3, 0))
- #define SOC_GDMA_PAIRS_PER_GROUP_MAX SOC_GDMA_PAIRS_PER_GROUP
-#endif
 
 #if defined ( ARDUINO )
  #if __has_include (<SPI.h>)
