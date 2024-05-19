@@ -27,7 +27,7 @@ Contributors:
 #include "../utility/lgfx_tjpgd.h"    // JPEG decode support
 #include "../utility/lgfx_pngle.h"    // PNG decode support
 #include "../utility/lgfx_qrcode.h"   // QR code support
-#include "../utility/miniz.h"
+#include "../utility/lgfx_miniz.h"
 
 #include <algorithm>
 #include <math.h>
