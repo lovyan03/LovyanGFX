@@ -675,7 +675,7 @@ namespace lgfx
 #endif
     }
 
-#if defined ( CONFIG_IDF_TARGET_ESP32 ) || !defined ( CONFIG_IDF_TARGET )
+#if defined ( CONFIG_IDF_TARGET_ESP32 ) || defined ( CONFIG_IDF_TARGET_ESP32S2 ) || !defined ( CONFIG_IDF_TARGET )
 
     static void updateDev(i2c_dev_t* dev)
     {
