@@ -565,10 +565,11 @@ extern const lgfx::U8g2font efontTW_24_b;
 extern const lgfx::U8g2font efontTW_24_bi;
 extern const lgfx::U8g2font efontTW_24_i;
 
-extern const lgfx::GFXfont BioRhyme_Regular54pt7b;
-extern const lgfx::GFXfont BioRhyme_Regular26pt7b;
-extern const lgfx::GFXfont BioRhyme_Regular17pt7b;
-extern const lgfx::GFXfont BioRhyme_Regular11pt7b;
+extern const lgfx::GFXfont MartinaPlantijn_Regular90pt7b;
+extern const lgfx::GFXfont MonumentGrotesk_Regular54pt7b;
+extern const lgfx::GFXfont MonumentGrotesk_Regular26pt7b;
+extern const lgfx::GFXfont MonumentGrotesk_Regular17pt7b;
+extern const lgfx::GFXfont MonumentGrotesk_Regular11pt7b;
 } // namespace fonts
 
 struct FontMetrics

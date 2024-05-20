@@ -1329,10 +1329,15 @@ using namespace lgfx;
 #include "../Fonts/glcdfont.h"
 
 // CHANNING COPPER
-#include "../Fonts/Custom/biorhyme_11p_fontconvert.h"
-#include "../Fonts/Custom/biorhyme_17p_fontconvert.h"
-#include "../Fonts/Custom/biorhyme_26p_fontconvert.h"
-#include "../Fonts/Custom/biorhyme_54p_fontconvert.h"
+#include "../Fonts/Custom/MartinaPlantijn_Regular90pt7b.h"
+#include "../Fonts/Custom/MonumentGrotesk_Regular26pt7b.h"
+#include "../Fonts/Custom/MonumentGrotesk_Regular17pt7b.h"
+#include "../Fonts/Custom/MonumentGrotesk_Regular11pt7b.h"
+#include "../Fonts/Custom/MonumentGrotesk_Regular54pt7b.h"
+//#include "../Fonts/Custom/biorhyme_11p_fontconvert.h"
+//#include "../Fonts/Custom/biorhyme_17p_fontconvert.h"
+//#include "../Fonts/Custom/biorhyme_26p_fontconvert.h"
+//#include "../Fonts/Custom/biorhyme_54p_fontconvert.h"
 
 static constexpr uint8_t font0_info[] = {0, 255, 5};         // start code, end code, width
 static constexpr uint8_t font8x8c64_info[] = {32, 143, 8};   // start code, end code, width
