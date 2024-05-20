@@ -27,14 +27,7 @@ Contributors:
 #include <math.h>
 #include <string.h>
 
-#if __has_include("alloca.h")
- #include <alloca.h>
-#else
- #include <malloc.h>
- #ifndef alloca
- #define alloca _alloca
- #endif
-#endif
+#include "../internal/alloca.h"
 
 namespace lgfx
 {

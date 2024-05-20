@@ -28,6 +28,7 @@ Contributors:
 #include "../utility/lgfx_pngle.h"    // PNG decode support
 #include "../utility/lgfx_qrcode.h"   // QR code support
 #include "../utility/lgfx_miniz.h"
+#include "../internal/alloca.h"
 
 #include <algorithm>
 #include <math.h>
@@ -36,13 +37,6 @@ Contributors:
 #include <string.h>
 #include <list>
 #include <string>
-
-#if __has_include(<alloca.h>)
-#include <alloca.h>
-#else
-#include <malloc.h>
-#define alloca _alloca
-#endif
 
 extern "C" {
   #pragma GCC diagnostic ignored "-Wshadow"

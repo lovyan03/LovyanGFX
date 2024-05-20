@@ -24,6 +24,7 @@ Contributors:
 #include "../platforms/common.hpp"
 #include "../misc/pixelcopy.hpp"
 #include "../misc/colortype.hpp"
+#include "../../internal/alloca.h"
 
 #include <stdint.h>
 #include <stddef.h>
@@ -33,13 +34,6 @@ Contributors:
 #include <soc/io_mux_reg.h>
 #if __has_include(<hal/gpio_types.h>)
  #include <hal/gpio_types.h>
-#endif
-
-#if __has_include(<alloca.h>)
-#include <alloca.h>
-#else
-#include <malloc.h>
-#define alloca _alloca
 #endif
 
 #define TAG "M5HDMI"
