@@ -43,7 +43,7 @@ jobs:
       id: set-matrix
       run: |
         matrix=`php .github/scripts/esp-idf-versions.php`
-        # echo $matrix | jq # debug
+        echo $matrix | jq # debug
         matrix="${matrix//'%'/'%25'}" # escape percent entities
         matrix="${matrix//$'\n'/''}"  # remove lf
         matrix="${matrix//$'\r'/''}"  # remove cr
