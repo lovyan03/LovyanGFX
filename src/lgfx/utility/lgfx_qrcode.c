@@ -40,12 +40,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#if __has_include(<alloca.h>)
-#include <alloca.h>
-#elif !defined(alloca)
-#include <malloc.h>
-#define alloca _alloca
-#endif
+#include "../internal/alloca.h"
 
 #ifdef max
 #undef max
