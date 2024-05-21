@@ -73,13 +73,13 @@ foreach($idf_versions_json['VERSIONS'] as $version)
 array_push($fqbns, ...$hardcoded_fqbns);
 
 // print the json and exit
-php_die( json_encode( [ "esp-idf-fqbn" => $fqbns ], JSON_PRETTY_PRINT ) );
+php_die( json_encode( [ "esp-idf-fqbn" => $fqbns ], JSON_PRETTY_PRINT ), 0 );
 
 // same as die() with with end of line
-function php_die($msg)
+function php_die($msg, $errcode=1)
 {
   echo $msg.PHP_EOL;
-  exit(1);
+  exit($errcode);
 }
 
 
