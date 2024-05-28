@@ -43,7 +43,7 @@ namespace lgfx
 
   static constexpr char LIBRARY_NAME[] = "LovyanGFX";
 
-  void i2c_write_register8_array(int_fast16_t i2c_port, uint_fast8_t i2c_addr, const uint8_t* reg_data_mask, uint32_t freq)
+  static void i2c_write_register8_array(int_fast16_t i2c_port, uint_fast8_t i2c_addr, const uint8_t* reg_data_mask, uint32_t freq)
   {
     while (reg_data_mask[0] != 0xFF || reg_data_mask[1] != 0xFF || reg_data_mask[2] != 0xFF)
     {
@@ -185,7 +185,7 @@ namespace lgfx
 #elif defined (CONFIG_IDF_TARGET_ESP32C3)
 #elif defined (CONFIG_IDF_TARGET_ESP32) || !defined (CONFIG_IDF_TARGET)
 
-#if defined( ARDUINO_M5STACK_CORE_ESP32 ) || defined( ARDUINO_M5Stack_Core_ESP32 ) || defined( ARDUINO_M5STACK_FIRE )
+#if defined ARDUINO_M5STACK_CORE_ESP32 || defined ARDUINO_M5Stack_Core_ESP32 || defined ARDUINO_M5STACK_CORE || defined ARDUINO_M5STACK_FIRE
   #define LGFX_M5STACK
   #define LGFX_DEFAULT_BOARD board_t::board_M5Stack
 #elif defined( ARDUINO_M5STACK_CORE2 ) || defined( ARDUINO_M5STACK_Core2 ) // M5Stack Core2
