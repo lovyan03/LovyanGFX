@@ -37,15 +37,10 @@ jobs:
 
         platform-version:
           # ESP32 Core versions for 3D matrix
-          #- 1.0.6
-          #- 2.0.0
-          #- 2.0.1
-          #- 2.0.2
-          #- 2.0.3
-          #- 2.0.4
-          - 2.0.11
-          - 2.0.12
-          - 2.0.13
+          - 2.0.15
+          - 2.0.16
+          - 2.0.17
+          - 3.0.0
 
         include:
           # 3D matrix doesn't apply to these:
@@ -61,13 +56,15 @@ jobs:
           - { board: adafruit_funhouse_esp32s2,    platform: esp32, archi: esp32, platform-version: latest, platform-url: 'https://espressif.github.io/arduino-esp32/package_esp32_index.json', ... }
           - { board: rpipico, platform: rp2040, archi: rp2040, platform-version: 2.3.3, cli-args: '--build-property compiler.cpp.extra_flags=-DSKIP_I2C_TEST', platform-url: 'https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json', ... }
 
+          - { board: esp32c6,  platform: esp32, platform-version: latest, archi: esp32, ... }
+
           # 3D matrix applies to these:
-          - { board: esp32,              platform: esp32, archi: esp32, ... }
-          - { board: esp32s2,            platform: esp32, archi: esp32, ... }
-          - { board: m5stick-c,          platform: esp32, archi: esp32, ... }
-          - { board: m5stack-core-esp32, platform: esp32, archi: esp32, ... }
-          - { board: m5stack-core2,      platform: esp32, archi: esp32, ... }
-          - { board: esp32s3box,         platform: esp32, archi: esp32, ... }
+          - { platform: esp32, archi: esp32, ... }
+          - { platform: esp32, archi: esp32, ... }
+          - { platform: esp32, archi: esp32, ... }
+          - { platform: esp32, archi: esp32, ... }
+          - { platform: esp32, archi: esp32, ... }
+          - { platform: esp32, archi: esp32, ... }
 
       fail-fast: false
 

@@ -56,17 +56,18 @@ foreach($idf_versions_json['VERSIONS'] as $version)
 {
   if(!isset($version['name']) || !isset($version['old']) || !isset($version['supported_targets']) )
     continue; // skip first entry, EOL, unsupported and preview versions
-  if($version['old']==='false') // only keep current versions
+  if($version['old']!=='false')
+    continue; // only keep current versions
+
+  foreach($version['supported_targets'] as $board)
   {
-    foreach($version['supported_targets'] as $board)
+    if(in_array($board, $idf_boards)) // only keep supported targets
     {
-      if(in_array($board, $idf_boards)) // only keep supported targets
-      {
-        // e.g. esp32@5.2.1
-        $fqbns[] = $board.'@'.str_replace(["v","V"], "", $version['name']);
-      }
+      // e.g. esp32@5.2.1
+      $fqbns[] = $board.'@'.str_replace(["v","V"], "", $version['name']);
     }
   }
+
 }
 
 // merge collected fqbns with hardcoded fqbns
