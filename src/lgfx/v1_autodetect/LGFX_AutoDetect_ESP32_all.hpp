@@ -57,7 +57,8 @@ namespace lgfx
 #if defined ( ARDUINO_ESP32_S3_BOX )
   #define LGFX_ESP32_S3_BOX
   #define LGFX_ESP32_S3_BOX_LITE
-  #define LGFX_DEFAULT_BOARD board_t::board_ESP32_S3_BOX
+  #define LGFX_ESP32_S3_BOX_V3
+  #define LGFX_DEFAULT_BOARD board_t::board_ESP32_S3_BOX_V3
 
 #elif defined ( ARDUINO_ADAFRUIT_FEATHER_ESP32S3_TFT )
   #define LGFX_FEATHER_ESP32_S3_TFT
@@ -1211,8 +1212,6 @@ namespace lgfx
           result->panel = p;
           {
             auto cfg = p->config();
-            // cfg.pin_cs  = GPIO_NUM_5;
-            // cfg.pin_rst = GPIO_NUM_48;
             cfg.offset_rotation = 1;
             p->config(cfg);    // config設定;
             p->setRotation(1); // config設定後に向きを設定;
@@ -1267,8 +1266,6 @@ namespace lgfx
           result->panel = p;
           {
             auto cfg = p->config();
-            // cfg.pin_cs  = GPIO_NUM_5;
-            // cfg.pin_rst = GPIO_NUM_48;
             cfg.invert = true;
             cfg.offset_rotation = 2;
             p->config(cfg);
@@ -1277,6 +1274,67 @@ namespace lgfx
           }
         }
       };
+
+
+      struct _detector_ESP32_S3_BOX_V3_t : public _detector_spi_t
+      {
+        constexpr _detector_ESP32_S3_BOX_V3_t(void) :
+        _detector_spi_t
+        { board_t::board_ESP32_S3_BOX_V3
+          , 0, 0, 0 // TODO? ILI9342C ID Checker
+          , 40000000, 16000000
+          , GPIO_NUM_6      // MOSI
+          , (gpio_num_t)-1  // MISO
+          , GPIO_NUM_7      // SCLK
+          , GPIO_NUM_4      // DC
+          , GPIO_NUM_5      // CS
+          , (gpio_num_t)-1  // RST
+          , (gpio_num_t)-1  // TF CARD CS
+          , 0               // SPI MODE
+          , true            // SPI 3wire
+          , SPI2_HOST       // SPI HOST
+        } {}
+
+        void setup(_detector_result_t* result) const override
+        {
+          ESP_LOGI(LIBRARY_NAME, "[Autodetect] ESP32_S3_BOX_V3");
+          lgfx::pinMode(GPIO_NUM_48, lgfx::pin_mode_t::input_pullup);
+          auto p = new Panel_ILI9342();
+          result->panel = p;
+          {
+            auto cfg = p->config();
+            cfg.offset_rotation = 1;
+            p->config(cfg);    // config設定;
+            p->setRotation(1); // config設定後に向きを設定;
+            p->light(_create_pwm_backlight(GPIO_NUM_47, 0, 12000));
+          }
+
+          {
+            auto t = new lgfx::Touch_GT911();
+            auto cfg = t->config();
+            cfg.pin_int  = GPIO_NUM_3;
+            cfg.pin_sda  = GPIO_NUM_8;
+            cfg.pin_scl  = GPIO_NUM_18;
+            cfg.i2c_addr = 0x14;
+            cfg.i2c_port = I2C_NUM_0;
+            cfg.x_min    = 0;
+            cfg.x_max    = 319;
+            cfg.y_min    = 0;
+            // Max-y = 239 + 40 pixels for "red" touch point below LCD active area
+            cfg.y_max    = 279;
+            cfg.offset_rotation = 2;
+            cfg.bus_shared = false;
+            t->config(cfg);
+            if (!t->init())
+            {
+              cfg.i2c_addr = 0x5D; // addr change (0x14 or 0x5D)
+              t->config(cfg);
+            }
+            p->touch(t);
+          }
+        }
+      };
+
 
       struct _detector_Makerfabs_ESP32_S3_TFT_Touch_SPI_t : public _detector_spi_t
       {
@@ -3245,6 +3303,7 @@ namespace lgfx
       static constexpr const _detector_M5StackCoreS3_t                           detector_M5StackCoreS3;
       static constexpr const _detector_ESP32_S3_BOX_t                            detector_ESP32_S3_BOX;
       static constexpr const _detector_ESP32_S3_BOX_Lite_t                       detector_ESP32_S3_BOX_Lite;
+      static constexpr const _detector_ESP32_S3_BOX_V3_t                         detector_ESP32_S3_BOX_V3;
       static constexpr const _detector_Makerfabs_ESP32_S3_TFT_Touch_SPI_t        detector_Makerfabs_ESP32_S3_TFT_Touch_SPI;
       static constexpr const _detector_Makerfabs_ESP32_S3_TFT_Touch_Parallel16_t detector_Makerfabs_ESP32_S3_TFT_Touch_Parallel16;
       static constexpr const _detector_wywy_ESP32S3_HMI_DevKit_t                 detector_wywy_ESP32S3_HMI_DevKit;
@@ -3266,6 +3325,9 @@ namespace lgfx
 #endif
 #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_ESP32_S3_BOX_LITE )
         &detector_ESP32_S3_BOX_Lite,
+#endif
+#if defined ( LGFX_AUTODETECT ) || defined ( LGFX_ESP32_S3_BOX_V3 )
+        &detector_ESP32_S3_BOX_V3,
 #endif
 #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_MAKERFABS_TFT_TOUCH_SPI )
         &detector_Makerfabs_ESP32_S3_TFT_Touch_SPI,

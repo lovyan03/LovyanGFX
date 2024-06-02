@@ -63,6 +63,7 @@ namespace lgfx
     , board_M5ModuleDisplay
     , board_ESP32_S3_BOX_Lite
     , board_LoLinS3Pro
+    , board_ESP32_S3_BOX_V3
     };
   }
   using namespace boards;
