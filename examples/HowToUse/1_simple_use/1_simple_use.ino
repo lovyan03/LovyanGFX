@@ -22,6 +22,7 @@
 // #define LGFX_ESP_WROVER_KIT                // Espressif ESP-WROVER-KIT
 // #define LGFX_ESP32_S3_BOX                  // Espressif ESP32-S3-BOX
 // #define LGFX_ESP32_S3_BOX_LITE             // Espressif ESP32-S3-BOX Lite
+// #define LGFX_ESP32_S3_BOX_V3               // Espressif ESP32-S3-BOX-3/3B
 // #define LGFX_WIFIBOY_PRO                   // WiFiBoy Pro
 // #define LGFX_WIFIBOY_MINI                  // WiFiBoy mini
 // #define LGFX_MAKERFABS_TOUCHCAMERA         // Makerfabs Touch with Camera

@@ -1281,7 +1281,7 @@ namespace lgfx
         constexpr _detector_ESP32_S3_BOX_V3_t(void) :
         _detector_spi_t
         { board_t::board_ESP32_S3_BOX_V3
-          , 0, 0, 0 // TODO? ILI9342C ID Checker
+          , 0x04, 0xff, 0xE3 // ILI9342C
           , 40000000, 16000000
           , GPIO_NUM_6      // MOSI
           , (gpio_num_t)-1  // MISO
