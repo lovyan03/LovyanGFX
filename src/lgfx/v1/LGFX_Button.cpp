@@ -38,9 +38,14 @@ namespace lgfx
     _h   = h;
     _textsize_x = textsize_x;
     _textsize_y = textsize_y <= std::numeric_limits<float>::epsilon() ? textsize_x : textsize_y;
-    strncpy(_label, label, 11);
+    setLabelText(label);
   }
 
+ void LGFX_Button::setLabelText(const char* label)
+ {
+   strncpy(_label, label, label_length);
+ }
+ 
   // Adjust text datum and x, y deltas
   void LGFX_Button::setLabelDatum(int16_t x_delta, int16_t y_delta, textdatum_t datum)
   {

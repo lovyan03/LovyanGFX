@@ -106,7 +106,7 @@ namespace lgfx
     pinMode(pin, mode);
   }
 
-#if defined ( CONFIG_IDF_TARGET_ESP32C3 )
+#if defined ( CONFIG_IDF_TARGET_ESP32C3 ) || defined ( CONFIG_IDF_TARGET_ESP32C6 )
   static inline volatile uint32_t* get_gpio_hi_reg(int_fast8_t pin) { return &GPIO.out_w1ts.val; }
   static inline volatile uint32_t* get_gpio_lo_reg(int_fast8_t pin) { return &GPIO.out_w1tc.val; }
   static inline bool gpio_in(int_fast8_t pin) { return GPIO.in.val & (1 << (pin & 31)); }

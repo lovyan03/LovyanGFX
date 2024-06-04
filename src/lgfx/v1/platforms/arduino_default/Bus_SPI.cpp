@@ -50,41 +50,42 @@ namespace lgfx
   {
     dc_h();
     pinMode(_cfg.pin_dc, pin_mode_t::output);
-  //SPI.pins(_cfg.pin_sclk, _cfg.pin_miso, _cfg.pin_mosi, -1);
-    SPI.begin();
+    spi = new HardwareSPI(_cfg.spi_host);
+    spi->begin();
     return true;
   }
 
   void Bus_SPI::release(void)
   {
-    SPI.end();
+    spi->end();
   }
+
 
   void Bus_SPI::beginTransaction(void)
   {
     dc_h();
     //SPISettings setting(_cfg.freq_write, BitOrder::MSBFIRST, _cfg.spi_mode, true);
     SPISettings setting(_cfg.freq_write, MSBFIRST, _cfg.spi_mode);
-    SPI.beginTransaction(setting);
+    spi->beginTransaction(setting);
   }
 
   void Bus_SPI::endTransaction(void)
   {
-    SPI.endTransaction();
+    spi->endTransaction();
     dc_h();
   }
 
   void Bus_SPI::beginRead(void)
   {
-    SPI.endTransaction();
+    spi->endTransaction();
     //SPISettings setting(_cfg.freq_read, BitOrder::MSBFIRST, _cfg.spi_mode, false);
     SPISettings setting(_cfg.freq_read, MSBFIRST, _cfg.spi_mode);
-    SPI.beginTransaction(setting);
+    spi->beginTransaction(setting);
   }
 
   void Bus_SPI::endRead(void)
   {
-    SPI.endTransaction();
+    spi->endTransaction();
     beginTransaction();
   }
 
@@ -100,14 +101,14 @@ namespace lgfx
   bool Bus_SPI::writeCommand(uint32_t data, uint_fast8_t bit_length)
   {
     dc_l();
-    SPI.transfer((uint8_t*)&data, bit_length >> 3);
+    spi->transfer((uint8_t*)&data, bit_length >> 3);
     dc_h();
     return true;
   }
 
   void Bus_SPI::writeData(uint32_t data, uint_fast8_t bit_length)
   {
-    SPI.transfer((uint8_t*)&data, bit_length >> 3);
+    spi->transfer((uint8_t*)&data, bit_length >> 3);
   }
 
   void Bus_SPI::writeDataRepeat(uint32_t data, uint_fast8_t bit_length, uint32_t length)
@@ -116,7 +117,7 @@ namespace lgfx
     auto bytes = bit_length >> 3;
     do
     {
-      SPI.send(reinterpret_cast<uint8_t*>(&data), bytes);
+      spi->send(reinterpret_cast<uint8_t*>(&data), bytes);
     } while (--length);
 /*/
     const uint8_t dst_bytes = bit_length >> 3;
@@ -137,7 +138,7 @@ namespace lgfx
         fillpos += fillpos;
       }
 
-      SPI.transfer(buf, len * dst_bytes);
+      spi->transfer(buf, len * dst_bytes);
     } while (length -= len);
 //*/
   }
@@ -153,7 +154,7 @@ namespace lgfx
       if (limit <= 32) limit <<= 1;
       auto buf = _flip_buffer.getBuffer(len * dst_bytes);
       param->fp_copy(buf, 0, len, param);
-      SPI.transfer(buf, len * dst_bytes);
+      spi->transfer(buf, len * dst_bytes);
     } while (length -= len);
   }
 
@@ -161,7 +162,7 @@ namespace lgfx
   {
     if (dc) dc_h();
     else dc_l();
-    SPI.transfer(const_cast<uint8_t*>(data), length);
+    spi->transfer(const_cast<uint8_t*>(data), length);
     if (!dc) dc_h();
   }
 
@@ -173,7 +174,7 @@ namespace lgfx
     int idx = 0;
     do
     {
-      res |= SPI.transfer(0) << idx;
+      res |= spi->transfer(0) << idx;
       idx += 8;
     } while (--bit_length);
     return res;
@@ -183,7 +184,7 @@ namespace lgfx
   {
     do
     {
-      dst[0] = SPI.transfer(0);
+      dst[0] = spi->transfer(0);
       ++dst;
     } while (--length);
     return true;

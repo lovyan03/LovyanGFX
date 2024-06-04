@@ -100,6 +100,10 @@ namespace lgfx
 
   void Panel_Device::display(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h)
   {
+    (void)x;
+    (void)y;
+    (void)w;
+    (void)h;
     _bus->flush();
   }
 

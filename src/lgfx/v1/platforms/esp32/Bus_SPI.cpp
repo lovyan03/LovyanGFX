@@ -67,7 +67,7 @@ Contributors:
  #define SPI_PIN_REG SPI_MISC_REG
 #endif
 
-#if defined (SOC_GDMA_SUPPORTED)  // for C3/S3
+#if defined (SOC_GDMA_SUPPORTED)  // for C3/C6/S3
  #include <soc/gdma_channel.h>
  #include <soc/gdma_reg.h>
  #include <soc/gdma_struct.h>
@@ -75,7 +75,11 @@ Contributors:
   #define DMA_OUT_LINK_CH0_REG       GDMA_OUT_LINK_CH0_REG
   #define DMA_OUTFIFO_STATUS_CH0_REG GDMA_OUTFIFO_STATUS_CH0_REG
   #define DMA_OUTLINK_START_CH0      GDMA_OUTLINK_START_CH0
-  #define DMA_OUTFIFO_EMPTY_CH0      GDMA_OUTFIFO_EMPTY_L3_CH0
+  #if defined (GDMA_OUTFIFO_EMPTY_L3_CH0)
+   #define DMA_OUTFIFO_EMPTY_CH0      GDMA_OUTFIFO_EMPTY_L3_CH0
+  #else
+   #define DMA_OUTFIFO_EMPTY_CH0      GDMA_OUTFIFO_EMPTY_CH0
+  #endif
  #endif
 #endif
 
@@ -878,7 +882,9 @@ label_start:
         if (0 == (length -= len1)) {
           len2 = len1;
           wait_spi();
-          memcpy(dst, (void*)spi_w0_reg, (len2 + 3) & ~3u);
+          uint8_t tmp[32];
+          memcpy(tmp, (void*)spi_w0_reg, (len2 + 3) & ~3u);
+          memcpy(dst, tmp, len2);
         } else {
           if (length < len1) {
             len1 = length;

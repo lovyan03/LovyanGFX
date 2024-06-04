@@ -22,6 +22,7 @@
 // #define LGFX_ESP_WROVER_KIT                // Espressif ESP-WROVER-KIT
 // #define LGFX_ESP32_S3_BOX                  // Espressif ESP32-S3-BOX
 // #define LGFX_ESP32_S3_BOX_LITE             // Espressif ESP32-S3-BOX Lite
+// #define LGFX_ESP32_S3_BOX_V3               // Espressif ESP32-S3-BOX-3/3B
 // #define LGFX_WIFIBOY_PRO                   // WiFiBoy Pro
 // #define LGFX_WIFIBOY_MINI                  // WiFiBoy mini
 // #define LGFX_MAKERFABS_TOUCHCAMERA         // Makerfabs Touch with Camera
@@ -36,7 +37,7 @@
 // #define LGFX_FEATHER_ESP32_S3_TFT          // Adafruit Feather ESP32 S3 TFT
 // #define LGFX_ESPBOY                        // ESPboy
 // #define LGFX_WYWY_ESP32S3_HMI_DEVKIT       // wywy ESP32S3 HMI DevKit
-// #define LGFX_ESP32_2432S028                // Sunton ESP32 2432S028
+// #define LGFX_SUNTON_ESP32_2432S028         // Sunton ESP32 2432S028
 
   #define LGFX_AUTODETECT // 自動認識 (D-duino-32 XS, WT32-SC01, PyBadge はパネルID読取りが出来ないため自動認識の対象から外れています)
 

@@ -70,7 +70,7 @@ namespace lgfx
 
     virtual bool open(const char* path) { (void)path;  return true; };
     virtual int read(uint8_t *buf, uint32_t len) = 0;
-    virtual int read(uint8_t *buf, uint32_t maximum_len, uint32_t required_len) { return read(buf, maximum_len); }
+    virtual int read(uint8_t *buf, uint32_t maximum_len, uint32_t required_len) { (void)required_len; return read(buf, maximum_len); }
     virtual void skip(int32_t offset) = 0;
     virtual bool seek(uint32_t offset) = 0;
     virtual void close(void) = 0;

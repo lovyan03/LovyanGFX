@@ -112,7 +112,7 @@ namespace lgfx
     virtual void endRead(void) = 0;
     virtual uint32_t readData(uint_fast8_t bit_length) = 0;
     virtual bool readBytes(uint8_t* dst, uint32_t length, bool use_dma = false) = 0;
-    virtual bool readBytes(uint8_t* dst, uint32_t length, bool use_dma, bool last_nack) { return readBytes(dst, length, use_dma); }
+    virtual bool readBytes(uint8_t* dst, uint32_t length, bool use_dma, bool last_nack) { (void)last_nack; return readBytes(dst, length, use_dma); }
     virtual void readPixels(void* dst, pixelcopy_t* pc, uint32_t length) = 0;
   };
 
@@ -149,9 +149,9 @@ namespace lgfx
   struct Bus_ImagePush : public Bus_NULL
   {
     bus_type_t busType(void) const override { return bus_type_t::bus_image_push; }
-    virtual void setImageBuffer(void* buffer, color_depth_t depth) {}
-    virtual void setBrightness(uint8_t brightness) {}
-    virtual void setInvert(uint8_t invert) {}
+    virtual void setImageBuffer(void* buffer, color_depth_t depth) { (void)buffer; (void)depth; }
+    virtual void setBrightness(uint8_t brightness) { (void)brightness; }
+    virtual void setInvert(uint8_t invert) { (void)invert; }
   };
 
 //----------------------------------------------------------------------------

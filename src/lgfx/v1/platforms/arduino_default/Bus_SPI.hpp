@@ -42,6 +42,8 @@ namespace lgfx
       int16_t pin_mosi = -1;
       int16_t pin_dc   = -1;
       uint8_t spi_mode = 0;
+      int8_t spi_host = 0;
+
     };
 
     const config_t& config(void) const { return _cfg; }
@@ -76,7 +78,7 @@ namespace lgfx
     bool readBytes(uint8_t* dst, uint32_t length, bool use_dma) override;
     void readPixels(void* dst, pixelcopy_t* param, uint32_t length) override;
 
-  private:
+  protected:
 
     __attribute__ ((always_inline)) inline void dc_h(void) {
       gpio_hi(_cfg.pin_dc);
@@ -85,6 +87,7 @@ namespace lgfx
       gpio_lo(_cfg.pin_dc);
     }
 
+    HardwareSPI *spi;
     config_t _cfg;
     FlipBuffer _flip_buffer;
     bool _need_wait;

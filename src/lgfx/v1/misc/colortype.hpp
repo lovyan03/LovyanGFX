@@ -936,6 +936,14 @@ namespace lgfx
     uint_fast16_t _b8a;
   };
 
+
+  struct colors_t
+  {
+    const rgb888_t *colors;
+    const uint32_t count;
+  };
+
+
 //----------------------------------------------------------------------------
 #undef LGFX_INLINE
 

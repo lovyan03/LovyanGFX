@@ -217,7 +217,6 @@ namespace lgfx
 // この両者を合わせて 147+45=192 を引いた値が基準位相となる。;
 // つまり 360-192 = 168度を基準とする。;
     static constexpr float BASE_RAD = (M_PI * 168) / 180; // 2.932153;
-    uint8_t buf[4];
 
     uint32_t r = rgb >> 16;
     uint32_t g = (rgb >> 8) & 0xFF;
@@ -231,10 +230,33 @@ namespace lgfx
     float phase_offset = atan2f(i, q) + BASE_RAD;
     float saturation = sqrtf(i * i + q * q) * chroma_scale;
     saturation = saturation * satuation_base;
+
+    uint8_t buf[4];
+    uint8_t frac[4];
+    int frac_total = 0;
     for (int j = 0; j < 4; j++)
     {
-      int tmp = ((int)(128.5f + y + sinf(phase_offset + (float)M_PI / 2 * j) * saturation)) >> 8;
+      int tmp = ((int)(y + sinf(phase_offset + (float)M_PI / 2 * j) * saturation));
+      frac[j] = tmp & 0xFF;
+      frac_total += frac[j];
+      tmp >>= 8;
       buf[j] = tmp < 0 ? 0 : tmp > 255 ? 255 : tmp;
+    }
+    // 切り捨てた端数分を補正する
+    while (frac_total > 128)
+    {
+      frac_total -= 256;
+      int target_idx = 0;
+      const uint8_t idxtbl[] = { 0, 2, 1, 3 };
+      for (int j = 1; j < 4; j++)
+      {
+        if (frac[idxtbl[j]] > frac[target_idx] || frac[target_idx] == 255) {
+          target_idx = idxtbl[j];
+        }
+      }
+      if (buf[target_idx] == 255) { break; }
+      buf[target_idx]++;
+      frac[target_idx] = 0;
     }
     // I2Sに渡す際に処理負荷を軽減できるよう、予めバイトスワップ等を行ったテーブルを作成しておく;
     return buf[0] << 24
@@ -315,15 +337,43 @@ namespace lgfx
     u *= chroma_scale;
     v *= chroma_scale;
 
+    uint8_t frac[8];
+    int frac_total[2] = {0,0};
+
     for (int j = 0; j < 4; j++)
     {
       float s = u * sin_tbl[j    ];
       float c = v * sin_tbl[j + 1]; // cos
-      int tmp = ((int)(128.5f + y + s + c)) >> 8;
       int i = idx_tbl[j];
+      int tmp = ((int)(y + s + c));
+      frac[i  ] = tmp & 0xFF;
+      frac_total[0] += frac[i  ];
+      tmp >>= 8;
       result[i  ] = tmp < 0 ? 0 : tmp > 255 ? 255 : tmp;
-      tmp = ((int)(128.5f + y + s - c)) >> 8;
-      result[i+4] = tmp < 0 ? 0 : tmp > 255 ? 255 : tmp;
+      tmp = ((int)(y + s - c));
+      i += 4;
+      frac[i] = tmp & 0xFF;
+      frac_total[1] += frac[i];
+      tmp >>= 8;
+      result[i] = tmp < 0 ? 0 : tmp > 255 ? 255 : tmp;
+    }
+
+    // 切り捨てた端数分を補正する
+    for (int i = 0; i < 2; ++i) {
+      while (frac_total[i] > 128)
+      {
+        frac_total[i] -= 256;
+        int target_idx = i*4;
+        for (int j = 1; j < 4; j++)
+        {
+          if (frac[j+i*4] > frac[target_idx] || frac[target_idx] == 255) {
+            target_idx = j+i*4;
+          }
+        }
+        if (result[target_idx] == 255) { break; }
+        result[target_idx]++;
+        frac[target_idx] = 0;
+      }
     }
   }
 

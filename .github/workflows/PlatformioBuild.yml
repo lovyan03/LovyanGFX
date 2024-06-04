@@ -57,35 +57,36 @@ jobs:
           - board: m5stack-core-esp32
           - board: m5stack-core2
           - board: m5stack-cores3
-          - { board: esp8266, platform-version: 3.0.0, ... }
-          - { board: esp8266, platform-version: 3.1.0, ... }
-          - { board: esp8266, platform-version: 3.2.0, ... }
+          - { board: esp8266, platform-version: 4.2.1, ... }
+          - { board: esp8266, platform-version: 4.2.0, ... }
+          - { board: esp8266, platform-version: 4.1.0, ... }
           - { board: seeed_wio_terminal, platform-version: default, ... }
           - { board: adafruit_pybadge_m4, platform-version: default, ... }
           - { board: pico, platform-version: default, ... }
+          - { board: native, platform-version: portduino, ... }
 
       fail-fast: false
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Cache pip
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
           restore-keys: |
             ${{ runner.os }}-pip-
       - name: Cache PlatformIO
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.platformio
           key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.9'
 
@@ -101,4 +102,5 @@ jobs:
           export pio_ver=${{ matrix.platform-version }}
           export pio_env="${pio_ver//./_}"
           pio pkg install -e ${{ matrix.board }}-$pio_env --no-save --library file://$(realpath ../../../)
+          [[ "$pio_env" == "portduino" ]] && { sudo apt update; sudo apt-get install libgpiod-dev libbluetooth-dev; export PLATFORMIO_SRC_DIR=portduino; }
           pio run -e ${{ matrix.board }}-$pio_env
