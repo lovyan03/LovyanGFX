@@ -164,8 +164,6 @@ namespace lgfx
           _readdata[0] = buf;
           res = true;
         }
-      } else {
-        if( buf !=0 ) ESP_LOGI("[Touch_GT911]", "buf: 0x%02x", buf);
       }
       lgfx::i2c::endTransaction(_cfg.i2c_port).has_value();
 
