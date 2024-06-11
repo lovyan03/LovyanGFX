@@ -62,6 +62,9 @@ namespace lgfx
     bool _writeBytes(const uint8_t* data, size_t len);
     bool _writeReadBytes(const uint8_t* write_data, size_t write_len, uint8_t* read_data, size_t read_len);
     bool _update_data(void);
+    void _update_keys(void);
+
+    uint8_t _buttons = 0; // touch nums
   };
 
 //----------------------------------------------------------------------------

@@ -1315,21 +1315,22 @@ namespace lgfx
             cfg.pin_int  = GPIO_NUM_3;
             cfg.pin_sda  = GPIO_NUM_8;
             cfg.pin_scl  = GPIO_NUM_18;
-            cfg.i2c_addr = 0x14;
+            cfg.i2c_addr = t->default_addr_1; // 0x14;
             cfg.i2c_port = I2C_NUM_0;
             cfg.x_min    = 0;
             cfg.x_max    = 319;
             cfg.y_min    = 0;
-            // Max-y = 239 + 40 pixels for "red" touch point below LCD active area
-            cfg.y_max    = 279;
+            cfg.y_max    = 239;
             cfg.offset_rotation = 2;
             cfg.bus_shared = false;
             t->config(cfg);
             if (!t->init())
             {
-              cfg.i2c_addr = 0x5D; // addr change (0x14 or 0x5D)
+              cfg.i2c_addr = t->default_addr_2; // 0x5D; // addr change (0x14 or 0x5D)
               t->config(cfg);
+              //ESP_LOGI(LIBRARY_NAME, "[TouchInit] i2c addr 0x%02x, init: %s", t->default_addr_2, t->init()?"success":"fail");
             }
+            t->setTouchNums(5); // /!\ driver is not multitouch+button ready
             p->touch(t);
           }
         }

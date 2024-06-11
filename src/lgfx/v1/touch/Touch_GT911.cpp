@@ -25,7 +25,8 @@ namespace lgfx
  inline namespace v1
  {
 //----------------------------------------------------------------------------
-  static constexpr uint8_t gt911cmd_getdata[] = { 0x81, 0x4E, 0x00 };
+  static constexpr uint8_t gt911cmd_getdata[] = { 0x81, 0x4E, 0x00 }; // read XY
+  static constexpr uint8_t gt911cmd_getkey[]  = { 0x80, 0x93, 0x00 }; // read button
 
   static uint8_t calcChecksum(const uint8_t *buf, uint8_t len)
   {
@@ -131,6 +132,21 @@ namespace lgfx
     _writeBytes(writedata, 3);
   }
 
+
+
+  void Touch_GT911::_update_keys(void)
+  {
+    if ( (_readdata[0] & 0x10) == 0x10)
+    {
+      _writeReadBytes(gt911cmd_getkey, 2, &_readdata[0], max_touch_points);
+      // Serial.printf("%04x: %02x %02x %02x %02x %02x\n" , 0x8093, _readdata[0], _readdata[1], _readdata[2], _readdata[3], _readdata[4]);
+      _writeBytes(gt911cmd_getkey, 3); // clear
+      _readdata[0] = 1;
+      _readdata[2] = _cfg.y_max+20; // assign value outside coords
+    }
+  }
+
+
   bool Touch_GT911::_update_data(void)
   {
     bool res = false;
@@ -148,11 +164,18 @@ namespace lgfx
           _readdata[0] = buf;
           res = true;
         }
+      } else {
+        if( buf !=0 ) ESP_LOGI("[Touch_GT911]", "buf: 0x%02x", buf);
       }
       lgfx::i2c::endTransaction(_cfg.i2c_port).has_value();
+
+      if(_buttons>0) {
+        _update_keys();
+      }
+
       if (res)
       {
-        _writeBytes(gt911cmd_getdata, 3);
+        _writeBytes(gt911cmd_getdata, 3); // clear
       }
     }
     return res;
@@ -161,7 +184,7 @@ namespace lgfx
   uint_fast8_t Touch_GT911::getTouchRaw(touch_point_t* __restrict tp, uint_fast8_t count)
   {
     if (!_inited || count == 0) return 0;
-    if (count > 5) { count = 5; }
+    if (count > max_touch_points) { count = max_touch_points; }
 
     uint32_t msec = lgfx::millis();
     uint32_t diff_msec = msec - _last_update;
@@ -201,13 +224,13 @@ namespace lgfx
 
   void Touch_GT911::setTouchNums(int_fast8_t nums)
   {
-    nums = std::max<int_fast8_t>(1, std::min<int_fast8_t>(5, nums));
+    _buttons = std::max<int_fast8_t>(1, std::min<int_fast8_t>(max_touch_points, _buttons));
 
     uint8_t buf[] = { 0x80, 0x4c, 0x00 };
     _writeReadBytes(buf, 2, &buf[2], 1);
-    if (buf[2] != nums)
+    if (buf[2] != _buttons)
     {
-      buf[2] = nums;
+      buf[2] = _buttons;
       _writeBytes(buf, 3);
 
       _freshConfig();
