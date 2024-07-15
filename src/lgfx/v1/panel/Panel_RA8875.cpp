@@ -50,6 +50,8 @@ namespace lgfx
       0x1e      , 1, 0x06, //VSTR1 //VSYNC Start Position[8]  //VSYNC Start Position(PCLK) = (VSTR + 1)
       0x1f      , 1, 0x01, //VPWR //VSYNC Polarity ,VSYNC Pulse Width[6:0]  //VSYNC Pulse Width(PCLK) = (VPWR + 1)
 
+      0xc7      , 1, 0x01,  // set Extra General Purpose IO Register to Output (used to enable Display by Adafruit)
+    
       0x8a      , 1, 0x80, //PWM setting
       0x8a      , 1, 0x81, //PWM setting //open PWM
       0x8b      , 1, 0x7F, //Backlight brightness setting //Brightness parameter 0xff-0x00
