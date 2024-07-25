@@ -49,15 +49,15 @@ Contributors:
 
 #include "arduino_default/common.hpp"
 
-#elif __has_include(<SDL2/SDL.h>) || __has_include(<SDL.h>)
+#elif (__has_include(<SDL2/SDL.h>) || __has_include(<SDL.h>)) && !defined(LGFX_LINUX_FB)
 
 #include "sdl/common.hpp"
 
-#elif __has_include(<opencv2/opencv.hpp>)
+#elif __has_include(<opencv2/opencv.hpp>) && !defined(LGFX_LINUX_FB)
 
 #include "opencv/common.hpp"
 
-#elif defined (__linux__)
+#elif defined (__linux__) && defined(LGFX_LINUX_FB)
 
 #include "framebuffer/common.hpp"
 
