@@ -775,6 +775,7 @@ namespace lgfx
           if (fifo_reg == &reg[i]) { continue; }
           reg[i] = _reg_store[i];
         }
+        updateDev(dev);
       }
 
       void setPins(i2c_dev_t* dev, gpio_num_t scl, gpio_num_t sda)
@@ -862,10 +863,6 @@ namespace lgfx
       gpio_set_direction(scl_io, GPIO_MODE_OUTPUT_OD);
       delayMicroseconds(I2C_CLR_BUS_HALF_PERIOD_US);
 
-      auto mod = getPeriphModule(i2c_port);
-      // ESP-IDF環境でperiph_module_disableを使うと、後でenableできなくなる問題が起きたためコメントアウト;
-      //periph_module_disable(mod);
-
       // SDAがHIGHになるまでSTOP送出を繰り返す。;
       int i = 0;
       do
@@ -879,9 +876,10 @@ namespace lgfx
         gpio_set_level(sda_io, 1);
         delayMicroseconds(I2C_CLR_BUS_HALF_PERIOD_US);
       } while (!gpio_get_level(sda_io) && (i++ < I2C_CLR_BUS_SCL_NUM));
-      periph_module_enable(mod);
+
 #if !defined (CONFIG_IDF_TARGET_ESP32C3)
 /// ESP32C3で periph_module_reset を使用すると以後通信不能になる問題が起きたため分岐;
+      auto mod = getPeriphModule(i2c_port);
       periph_module_reset(mod);
 #endif
       i2c_set_pin((i2c_port_t)i2c_port, sda_io, scl_io, gpio_pullup_t::GPIO_PULLUP_ENABLE, gpio_pullup_t::GPIO_PULLUP_ENABLE, I2C_MODE_MASTER);
@@ -1005,6 +1003,9 @@ namespace lgfx
     #endif
   #endif
  #endif
+#else
+        auto mod = getPeriphModule(i2c_port);
+        periph_module_disable(mod);
 #endif
         if ((int)i2c_context[i2c_port].pin_scl >= 0)
         {
@@ -1074,6 +1075,9 @@ namespace lgfx
  #else
       twowire->begin((int)i2c_context[i2c_port].pin_sda, (int)i2c_context[i2c_port].pin_scl);
  #endif
+#else
+      auto mod = getPeriphModule(i2c_port);
+      periph_module_enable(mod);
 #endif
 
       i2c_context[i2c_port].initialized = true;
