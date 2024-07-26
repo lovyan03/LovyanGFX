@@ -104,18 +104,31 @@ Contributors:
 #endif
 
 #if defined (SOC_GDMA_SUPPORTED)  // for C3/S3
- #include <soc/gdma_reg.h>
- #include <soc/gdma_struct.h>
- // S3とC3で同じレジスタに異なる定義名がついているため、ここで統一;
- #if !defined (DMA_OUT_PERI_SEL_CH0_REG)
-  #define DMA_OUT_PERI_SEL_CH0_REG  GDMA_OUT_PERI_SEL_CH0_REG
+ #if __has_include(<soc/gdma_reg.h>)
+  #include <soc/gdma_reg.h>
+ #elif __has_include(<soc/axi_dma_reg.h>) // ESP32P4
+  #include <soc/axi_dma_reg.h>
  #endif
- #if !defined (DMA_IN_PERI_SEL_CH0_REG)
-  #define DMA_IN_PERI_SEL_CH0_REG  GDMA_IN_PERI_SEL_CH0_REG
+ #if __has_include(<soc/gdma_struct.h>)
+  #include <soc/gdma_struct.h>
+ #elif __has_include(<soc/axi_dma_struct.h>) // ESP32P4
+  #include <soc/axi_dma_struct.h>
  #endif
+ #if defined ( CONFIG_IDF_TARGET_ESP32P4 )
+   #define DMA_OUT_PERI_SEL_CH0_REG  AXI_DMA_OUT_PERI_SEL_CH0_REG
+   #define DMA_IN_PERI_SEL_CH0_REG  AXI_DMA_IN_PERI_SEL_CH0_REG
+ #else
+  // S3とC3で同じレジスタに異なる定義名がついているため、ここで統一;
+  #if !defined (DMA_OUT_PERI_SEL_CH0_REG)
+   #define DMA_OUT_PERI_SEL_CH0_REG  GDMA_OUT_PERI_SEL_CH0_REG
+  #endif
+  #if !defined (DMA_IN_PERI_SEL_CH0_REG)
+   #define DMA_IN_PERI_SEL_CH0_REG  GDMA_IN_PERI_SEL_CH0_REG
+  #endif
 
- #if !defined (SOC_GDMA_PAIRS_PER_GROUP_MAX)
-  #define SOC_GDMA_PAIRS_PER_GROUP_MAX SOC_GDMA_PAIRS_PER_GROUP
+  #if !defined (SOC_GDMA_PAIRS_PER_GROUP_MAX)
+   #define SOC_GDMA_PAIRS_PER_GROUP_MAX SOC_GDMA_PAIRS_PER_GROUP
+  #endif
  #endif
 #endif
 
