@@ -36,7 +36,10 @@ Contributors:
 #include <soc/i2c_reg.h>
 #include <soc/i2c_struct.h>
 #if (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 3, 0))
- #include <soc/syscon_reg.h>
+ //#include <soc/syscon_reg.h>
+ #if __has_include(<soc/syscon_reg.h>)
+  #include <soc/syscon_reg.h>
+ #endif
 #else
  #if __has_include (<soc/apb_ctrl_reg.h>)
   #include <soc/apb_ctrl_reg.h>
@@ -669,7 +672,7 @@ namespace lgfx
 
     static i2c_dev_t* getDev(int num)
     {
-#if SOC_I2C_NUM == 1
+#if SOC_I2C_NUM == 1 || defined CONFIG_IDF_TARGET_ESP32C6
       return &I2C0;
 #else
       return num == 0 ? &I2C0 : &I2C1;
