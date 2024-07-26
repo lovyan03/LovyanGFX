@@ -69,8 +69,16 @@ Contributors:
 
 #if defined (SOC_GDMA_SUPPORTED)  // for C3/C6/S3
  #include <soc/gdma_channel.h>
- #include <soc/gdma_reg.h>
- #include <soc/gdma_struct.h>
+ #if __has_include(<soc/gdma_reg.h>)
+  #include <soc/gdma_reg.h>
+ #elif __has_include(<soc/axi_dma_reg.h>) // ESP32P4
+  #include <soc/axi_dma_reg.h>
+ #endif
+ #if __has_include(<soc/gdma_struct.h>)
+  #include <soc/gdma_struct.h>
+ #elif __has_include(<soc/axi_dma_struct.h>) // ESP32P4
+  #include <soc/axi_dma_struct.h>
+ #endif
  #if !defined DMA_OUT_LINK_CH0_REG
   #define DMA_OUT_LINK_CH0_REG       GDMA_OUT_LINK_CH0_REG
   #define DMA_OUTFIFO_STATUS_CH0_REG GDMA_OUTFIFO_STATUS_CH0_REG
