@@ -1023,7 +1023,7 @@ namespace lgfx
   #endif
  #endif
 #else
-        auto mod = getPeriphModule(i2c_port)
+        auto mod = getPeriphModule(i2c_port);
         periph_module_disable(mod);
 #endif
         if ((int)i2c_context[i2c_port].pin_scl >= 0)
@@ -1095,7 +1095,7 @@ namespace lgfx
       twowire->begin((int)i2c_context[i2c_port].pin_sda, (int)i2c_context[i2c_port].pin_scl);
  #endif
 #else
-      auto mod = getPeriphModule(i2c_port)
+      auto mod = getPeriphModule(i2c_port);
       periph_module_disable(mod);
 #endif
 
