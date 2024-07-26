@@ -117,6 +117,7 @@ Contributors:
  #if defined ( CONFIG_IDF_TARGET_ESP32P4 )
    #define DMA_OUT_PERI_SEL_CH0_REG  AXI_DMA_OUT_PERI_SEL_CH0_REG
    #define DMA_IN_PERI_SEL_CH0_REG  AXI_DMA_IN_PERI_SEL_CH0_REG
+   #define GDMA AXI_DMA // this is probably wrong
  #else
   // S3とC3で同じレジスタに異なる定義名がついているため、ここで統一;
   #if !defined (DMA_OUT_PERI_SEL_CH0_REG)
