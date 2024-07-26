@@ -672,7 +672,7 @@ namespace lgfx
 
     static i2c_dev_t* getDev(int num)
     {
-#if SOC_I2C_NUM == 1
+#if SOC_I2C_NUM == 1 || defined CONFIG_IDF_TARGET_ESP32C6
       return &I2C0;
 #else
       return num == 0 ? &I2C0 : &I2C1;
