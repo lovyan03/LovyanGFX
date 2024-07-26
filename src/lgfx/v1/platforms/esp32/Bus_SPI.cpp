@@ -22,7 +22,7 @@ Contributors:
 
 /// ESP32-S3をターゲットにした際にREG_SPI_BASEが定義されていなかったので応急処置 ;
 #if defined ( CONFIG_IDF_TARGET_ESP32S3 )
- #if !defined( REG_SPI_BASE )
+ #if ( ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 3, 0) )
   #define REG_SPI_BASE(i)   (DR_REG_SPI1_BASE + (((i)>1) ? (((i)* 0x1000) + 0x20000) : (((~(i)) & 1)* 0x1000 )))
  #endif
 #elif defined ( CONFIG_IDF_TARGET_ESP32 ) || !defined ( CONFIG_IDF_TARGET )
@@ -67,7 +67,7 @@ Contributors:
  #define SPI_PIN_REG SPI_MISC_REG
 #endif
 
-#if defined (SOC_GDMA_SUPPORTED)  // for C3/C6/S3
+#if defined (SOC_GDMA_SUPPORTED)  // for C3/C6/S3/P4
  #include <soc/gdma_channel.h>
  #if __has_include(<soc/gdma_reg.h>)
   #include <soc/gdma_reg.h>
@@ -79,12 +79,14 @@ Contributors:
  #elif __has_include(<soc/axi_dma_struct.h>) // ESP32P4
   #include <soc/axi_dma_struct.h>
  #endif
- #if defined ( CONFIG_IDF_TARGET_ESP32P4 ) 
+ #if defined ( CONFIG_IDF_TARGET_ESP32P4 )
   #define DMA_OUT_LINK_CH0_REG       AXI_DMA_OUT_LINK1_CH0_REG
   #define DMA_OUTFIFO_STATUS_CH0_REG AXI_DMA_OUTFIFO_STATUS_CH0_REG
   #define DMA_OUTLINK_START_CH0      AXI_DMA_OUTLINK_START_CH0
   #define DMA_OUTFIFO_EMPTY_CH0      AXI_DMA_OUTFIFO_L3_EMPTY_CH0
   #define GDMA AXI_DMA // TODO: fix this
+  #define GDMA_CHANNEL_0 GDMA.in[0]
+
  #else
   #if !defined DMA_OUT_LINK_CH0_REG
    #define DMA_OUT_LINK_CH0_REG       GDMA_OUT_LINK_CH0_REG
@@ -96,6 +98,7 @@ Contributors:
     #define DMA_OUTFIFO_EMPTY_CH0      GDMA_OUTFIFO_EMPTY_CH0
    #endif
   #endif
+  #define GDMA_CHANNEL_0 GDMA.channel[0]
  #endif
 #endif
 
@@ -173,8 +176,8 @@ namespace lgfx
 
     if (assigned_dma_ch >= 0)
     { // DMAチャンネルが特定できたらそれを使用する;
-      _spi_dma_out_link_reg  = reg(DMA_OUT_LINK_CH0_REG       + assigned_dma_ch * sizeof(GDMA.channel[0]));
-      _spi_dma_outstatus_reg = reg(DMA_OUTFIFO_STATUS_CH0_REG + assigned_dma_ch * sizeof(GDMA.channel[0]));
+      _spi_dma_out_link_reg  = reg(DMA_OUT_LINK_CH0_REG       + assigned_dma_ch * sizeof(GDMA_CHANNEL_0));
+      _spi_dma_outstatus_reg = reg(DMA_OUTFIFO_STATUS_CH0_REG + assigned_dma_ch * sizeof(GDMA_CHANNEL_0));
     }
 #elif defined ( CONFIG_IDF_TARGET_ESP32 ) || !defined ( CONFIG_IDF_TARGET )
 
