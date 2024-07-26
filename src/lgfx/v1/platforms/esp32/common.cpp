@@ -1163,7 +1163,7 @@ namespace lgfx
         uint32_t src_clock = 80 * 1000 * 1000;
         if (cpu_freq_conf.freq_mhz < 80)
         {
-          src_clock = (cpu_freq_conf.source_freq_mhz * 1000000) / cpu_freq_conf.div.integer;
+          src_clock = (cpu_freq_conf.source_freq_mhz * 1000000) / cpu_freq_conf.div;
         }
 // ESP_LOGI("LGFX", "i2c::restart : port:%d / addr:%02x / freq:%d / rw:%d", i2c_port, i2c_addr, freq, read);
 // ESP_LOGI("LGFX", "cpu_freq_conf.div             :%d", cpu_freq_conf.div);
