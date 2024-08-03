@@ -146,8 +146,10 @@ namespace lgfx
   {
     if (_light) { Panel_LCD::setBrightness(brightness); }
     else {
+      startWrite();
       uint8_t cmd[] = { 0xBE, 6, 0x05, brightness, 0x01, 0xFF, 0x00, 0x00, 0xFF, 0xFF };
       command_list(cmd);
+      endWrite();
     }
   }
 
