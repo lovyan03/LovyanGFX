@@ -178,7 +178,30 @@ namespace lgfx
   }
 
 //----------------------------------------------------------------------------
+  void Panel_Device::writeImageARGB(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, pixelcopy_t* param)
+  {
+    auto src_x = param->src_x;
+    auto bytes = param->dst_bits >> 3;
 
+    pixelcopy_t pc_read(nullptr, _write_depth, _read_depth);
+    pixelcopy_t pc_write(nullptr, _write_depth, _write_depth);
+    for (;;)
+    {
+      uint8_t* dmabuf = _bus->getDMABuffer((w+1) * bytes);
+      pc_write.src_data = dmabuf;
+      readRect(x, y, w, 1, dmabuf, &pc_read);
+      {
+        param->fp_copy(dmabuf, 0, w, param);
+        pc_write.src_x = 0;
+        writeImage(x, y, w, 1, &pc_write, true);
+      }
+      if (!--h) return;
+      param->src_x = src_x;
+      param->src_y++;
+      ++y;
+    }
+  }
+#if 0
   void Panel_Device::writeImageARGB(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, pixelcopy_t* param)
   {
     auto src_x = param->src_x;
@@ -237,6 +260,7 @@ namespace lgfx
       ++y;
     }
   }
+#endif
 
   void Panel_Device::copyRect(uint_fast16_t dst_x, uint_fast16_t dst_y, uint_fast16_t w, uint_fast16_t h, uint_fast16_t src_x, uint_fast16_t src_y)
   {

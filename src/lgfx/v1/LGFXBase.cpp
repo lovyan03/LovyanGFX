@@ -1441,6 +1441,27 @@ namespace lgfx
     endWrite();
   }
 
+  void LGFXBase::pushAlphaImage(int32_t x, int32_t y, int32_t w, int32_t h, pixelcopy_t *param)
+  {
+    uint32_t x_mask = 7 >> (param->src_bits >> 1);
+    param->src_bitwidth = (w + x_mask) & (~x_mask);
+
+    int32_t dx=0, dw=w;
+    if (0 < _clip_l - x) { dx = _clip_l - x; dw -= dx; x = _clip_l; }
+
+    if (_adjust_width(x, dx, dw, _clip_l, _clip_r - _clip_l + 1)) return;
+    param->src_x32 = param->src_x32_add * dx;
+
+    int32_t dy=0, dh=h;
+    if (0 < _clip_t - y) { dy = _clip_t - y; dh -= dy; y = _clip_t; }
+    if (_adjust_width(y, dy, dh, _clip_t, _clip_b - _clip_t + 1)) return;
+    param->src_y = dy;
+
+    startWrite();
+    _panel->writeImageARGB(x, y, dw, dh, param);
+    endWrite();
+  }
+
   void LGFXBase::make_rotation_matrix(float* result, float dst_x, float dst_y, float src_x, float src_y, float angle, float zoom_x, float zoom_y)
   {
     float rad = fmodf(angle, 360) * deg_to_rad;

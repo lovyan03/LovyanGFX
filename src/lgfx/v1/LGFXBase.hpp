@@ -568,9 +568,13 @@ namespace lgfx
 
     // T == bgra8888_t or argb8888_t
     template<typename T>
-    void pushImageARGB(int32_t x, int32_t y, int32_t w, int32_t h, const T* data)
+    void pushAlphaImage(int32_t x, int32_t y, int32_t w, int32_t h, const T* data)
     {
       auto pc = create_pc(data);
+
+      // not support 1, 2, 4, and palette mode.
+      if (pc.dst_bits < 8 || this->hasPalette()) { return; }
+
       if (pc.dst_bits > 16) {
         if (pc.dst_depth == rgb888_3Byte) {
           pc.fp_copy = pixelcopy_t::blend_rgb_fast<bgr888_t, T>;
@@ -584,13 +588,10 @@ namespace lgfx
           pc.fp_copy = pixelcopy_t::blend_rgb_fast<rgb332_t, T>;
         }
       }
-      pc.src_bitwidth = w;
-      pc.src_width = w;
-      pc.src_height = h;
-      startWrite();
-      _panel->writeImageARGB(x, y, w, h, &pc);
-      endWrite();
+      pushAlphaImage(x, y, w, h, &pc);
     }
+
+    void pushAlphaImage(int32_t x, int32_t y, int32_t w, int32_t h, pixelcopy_t *param);
 
 //----------------------------------------------------------------------------
 
