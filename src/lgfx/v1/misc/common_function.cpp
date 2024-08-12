@@ -11,7 +11,13 @@ namespace lgfx
 
   void memset_multi(uint8_t* buf, uint32_t c, size_t size, size_t length)
   {
-    if (size == 1 || ((c & 0xFF) == ((c >> 8) & 0xFF) && (size == 2 || ((c & 0xFF) == ((c >> 16) & 0xFF)))))
+    if (size == 1 
+     || ( (c & 0xFF) == ((c >> 8) & 0xFF)
+       && ( size == 2
+        || ( (c & 0xFF) == ((c >> 16) & 0xFF)
+          && ( size == 3
+           || ( (c & 0xFF) == ((c >> 24) & 0xFF)
+      ))))))
     {
       memset(buf, c, size * length);
       return;

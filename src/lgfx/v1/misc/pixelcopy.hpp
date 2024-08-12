@@ -449,13 +449,13 @@ namespace lgfx
       return last;
     }
 
-    template <typename TDst>
+    template <typename TDst, typename TSrc>
     static uint32_t blend_rgb_fast(void* __restrict dst, uint32_t index, uint32_t last, pixelcopy_t* __restrict param)
     {
       auto d = static_cast<TDst*>(dst);
       auto src_x32_add = param->src_x32_add;
       auto src_y32_add = param->src_y32_add;
-      auto s = static_cast<const argb8888_t*>(param->src_data);
+      auto s = static_cast<const TSrc*>(param->src_data);
       for (;;) {
         uint32_t i = param->src_x + param->src_y * param->src_bitwidth;
         uint_fast16_t a = s[i].a;
@@ -463,7 +463,7 @@ namespace lgfx
         {
           if (a == 255)
           {
-            d[index].set(s[i].r, s[i].g, s[i].b);
+            d[index].set(s[i].R8(), s[i].G8(), s[i].B8());
             param->src_x32 += src_x32_add;
             param->src_y32 += src_y32_add;
             if (++index == last) return last;

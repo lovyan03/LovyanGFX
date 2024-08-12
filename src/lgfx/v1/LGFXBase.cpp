@@ -1510,15 +1510,15 @@ namespace lgfx
     else
     if (pc_post.dst_bits > 16) {
       if (dst_depth == rgb888_3Byte) {
-        pc_post.fp_copy = pixelcopy_t::blend_rgb_fast<bgr888_t>;
+        pc_post.fp_copy = pixelcopy_t::blend_rgb_fast<bgr888_t, argb8888_t>;
       } else {
-        pc_post.fp_copy = pixelcopy_t::blend_rgb_fast<bgr666_t>;
+        pc_post.fp_copy = pixelcopy_t::blend_rgb_fast<bgr666_t, argb8888_t>;
       }
     } else {
       if (dst_depth == rgb565_2Byte) {
-        pc_post.fp_copy = pixelcopy_t::blend_rgb_fast<swap565_t>;
+        pc_post.fp_copy = pixelcopy_t::blend_rgb_fast<swap565_t, argb8888_t>;
       } else { // src_depth == rgb332_1Byte:
-        pc_post.fp_copy = pixelcopy_t::blend_rgb_fast<rgb332_t>;
+        pc_post.fp_copy = pixelcopy_t::blend_rgb_fast<rgb332_t, argb8888_t>;
       }
     }
     push_image_affine_aa(matrix, pc, &pc_post);
