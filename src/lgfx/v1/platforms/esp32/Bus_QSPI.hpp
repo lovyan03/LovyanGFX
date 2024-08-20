@@ -56,6 +56,10 @@
 #include "../../Bus.hpp"
 #include "../common.hpp"
 
+
+#if defined LGFX_USE_QSPI
+
+
 namespace lgfx
 {
     inline namespace v1
@@ -212,3 +216,5 @@ namespace lgfx
         //----------------------------------------------------------------------------
     }
 }
+
+#endif

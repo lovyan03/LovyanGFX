@@ -48,7 +48,6 @@ Contributors:
 #include "v1/panel/Panel_ST7735.hpp"
 #include "v1/panel/Panel_ST7789.hpp"
 #include "v1/panel/Panel_ST7796.hpp"
-#include "v1/panel/Panel_SH8601Z.hpp"
 
 // EPD
 #include "v1/panel/Panel_GDEW0154M09.hpp"

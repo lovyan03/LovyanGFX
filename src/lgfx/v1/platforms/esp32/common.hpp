@@ -48,6 +48,7 @@ Contributors:
  #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
   #define LGFX_IDF_V5
  #endif
+ #define LGFX_USE_QSPI
 #endif
 
 namespace lgfx
@@ -258,7 +259,9 @@ protected:
   namespace spi
   {
     cpp::result<void, error_t> init(int spi_host, int spi_sclk, int spi_miso, int spi_mosi, int dma_channel);
+#if defined LGFX_USE_QSPI
     cpp::result<void, error_t> initQuad(int spi_host, int spi_sclk, int spi_io0, int spi_io1, int spi_io2, int spi_io3, int dma_channel);
+#endif
     void beginTransaction(int spi_host);
   }
 

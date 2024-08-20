@@ -10,6 +10,7 @@
  */
 #pragma once
 #include <LovyanGFX.hpp>
+#include <lgfx/v1/panel/Panel_SH8601Z.hpp>
 
 
 /// 独自の設定を行うクラスを、LGFX_Deviceから派生して作成します。

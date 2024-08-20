@@ -20,6 +20,9 @@
 
 #include "Bus_QSPI.hpp"
 
+#if defined LGFX_USE_QSPI
+
+
 /// ESP32-S3をターゲットにした際にREG_SPI_BASEが定義されていなかったので応急処置 ;
 #if defined ( CONFIG_IDF_TARGET_ESP32S3 )
  #if !defined( REG_SPI_BASE )
@@ -1100,4 +1103,5 @@ namespace lgfx
     }
 }
 
+#endif
 #endif
