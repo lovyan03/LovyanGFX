@@ -38,6 +38,7 @@ Contributors:
 
   #include "esp32/Light_PWM.hpp"
   #include "esp32/Bus_SPI.hpp"
+  #include "esp32/Bus_QSPI.hpp"
   #include "esp32/Bus_I2C.hpp"
   #include "esp32s2/Bus_Parallel8.hpp"
   #include "esp32s2/Bus_Parallel16.hpp"
@@ -46,6 +47,7 @@ Contributors:
 
   #include "esp32/Light_PWM.hpp"
   #include "esp32/Bus_SPI.hpp"
+  #include "esp32/Bus_QSPI.hpp"
   #include "esp32/Bus_I2C.hpp"
   #include "esp32s3/Bus_Parallel8.hpp"
   #include "esp32s3/Bus_Parallel16.hpp"

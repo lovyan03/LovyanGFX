@@ -50,7 +50,7 @@ Contributors:
 #endif
 
 #ifndef LGFX_ESP32_SPI_DMA_CH
-#define LGFX_ESP32_SPI_DMA_CH 0
+ #define LGFX_ESP32_SPI_DMA_CH 0
 #endif
 
 #include "../../Bus.hpp"

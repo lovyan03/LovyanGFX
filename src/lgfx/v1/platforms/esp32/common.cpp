@@ -531,6 +531,100 @@ namespace lgfx
       return {};
     }
 
+
+
+
+
+    cpp::result<void, error_t> initQuad(int spi_host, int spi_sclk, int spi_io0, int spi_io1, int spi_io2, int spi_io3)
+    {
+      return initQuad(spi_host, spi_sclk, spi_io0, spi_io1, spi_io2, spi_io3, 0); // SPI_DMA_CH_AUTO;
+    }
+
+    cpp::result<void, error_t> initQuad(int spi_host, int spi_sclk, int spi_io0, int spi_io1, int spi_io2, int spi_io3, int dma_channel)
+    {
+      //ESP_LOGI("LGFX","spi::init host:%d, sclk:%d, miso:%d, mosi:%d, dma:%d", spi_host, spi_sclk, spi_miso, spi_mosi, dma_channel);
+      uint32_t spi_port = (spi_host + 1);
+      (void)spi_port;
+
+      if (spi_sclk >= 0) {
+        gpio_lo(spi_sclk); // ここでLOWにしておくことで、pinMode変更によるHIGHパルスが出力されるのを防止する (CSなしパネル対策);
+      }
+      #if defined (ARDUINO) // Arduino ESP32
+       #pragma message "Quad SPI.begin() postponed to core 3.1.0, see https://github.com/espressif/arduino-esp32/issues/7063#issuecomment-1954558942"
+       // also see https://github.com/moononournation/Arduino_GFX/blob/master/src/databus/Arduino_ESP32QSPI.cpp / hpp
+      //
+      // if (spi_host == default_spi_host)
+      // {
+      //   SPI.end();
+      //   SPI.begin(spi_sclk, spi_miso, spi_mosi);
+      //   _spi_handle[spi_host] = SPI.bus();
+      // }
+      // if (_spi_handle[spi_host] == nullptr)
+      // {
+      //   _spi_handle[spi_host] = spiStartBus(spi_port, SPI_CLK_EQU_SYSCLK, 0, 0);
+      // }
+      #endif
+
+      // バスの設定にはESP-IDFのSPIドライバを使用する。;
+      if (_spi_dev_handle[spi_host] == nullptr)
+      {
+        spi_bus_config_t buscfg;
+        memset(&buscfg, ~0u, sizeof(spi_bus_config_t));
+        // buscfg.mosi_io_num = spi_mosi;
+        // buscfg.miso_io_num = spi_miso;
+        buscfg.data0_io_num = spi_io0;
+        buscfg.data1_io_num = spi_io1;
+        buscfg.data2_io_num = spi_io2;
+        buscfg.data3_io_num = spi_io3;
+
+        buscfg.sclk_io_num = spi_sclk;
+        buscfg.max_transfer_sz = 1;
+        buscfg.flags = SPICOMMON_BUSFLAG_MASTER | SPICOMMON_BUSFLAG_QUAD;
+        buscfg.intr_flags = 0;
+
+        if (ESP_OK != spi_bus_initialize(static_cast<spi_host_device_t>(spi_host), &buscfg, dma_channel))
+        {
+          ESP_LOGW("LGFX", "Failed to spi_bus_initialize. ");
+        }
+
+        spi_device_interface_config_t devcfg = {
+          .command_bits = 0,
+          .address_bits = 0,
+          .dummy_bits = 0,
+          .mode = 0,
+          .duty_cycle_pos = 0,
+          .cs_ena_pretrans = 0,
+          .cs_ena_posttrans = 0,
+          .clock_speed_hz = (int)getApbFrequency()>>1,
+          .input_delay_ns = 0,
+          .spics_io_num = -1,
+          .flags = SPI_DEVICE_3WIRE | SPI_DEVICE_HALFDUPLEX,
+          .queue_size = 1,
+          .pre_cb = nullptr,
+          .post_cb = nullptr};
+          if (ESP_OK != spi_bus_add_device(static_cast<spi_host_device_t>(spi_host), &devcfg, &_spi_dev_handle[spi_host])) {
+            ESP_LOGW("LGFX", "Failed to spi_bus_add_device. ");
+          }
+      }
+
+      *reg(SPI_USER_REG(spi_port)) = SPI_USR_MOSI | SPI_USR_MISO | SPI_DOUTDIN;  // need SD card access (full duplex setting)
+      *reg(SPI_CTRL_REG(spi_port)) = 0;
+      #if defined ( SPI_CTRL1_REG )
+      *reg(SPI_CTRL1_REG(spi_port)) = 0;
+      #endif
+      #if defined ( SPI_CTRL2_REG )
+      *reg(SPI_CTRL2_REG(spi_port)) = 0;
+      #endif
+
+      return {};
+    }
+
+
+
+
+
+
+
     void release(int spi_host)
     {
 //ESP_LOGI("LGFX","spi::release");
