@@ -566,6 +566,35 @@ namespace lgfx
 
 //----------------------------------------------------------------------------
 
+    // T == bgra8888_t or argb8888_t
+    template<typename T>
+    void pushAlphaImage(int32_t x, int32_t y, int32_t w, int32_t h, const T* data)
+    {
+      auto pc = create_pc(data);
+
+      // not support 1, 2, 4, and palette mode.
+      if (pc.dst_bits < 8 || this->hasPalette()) { return; }
+
+      if (pc.dst_bits > 16) {
+        if (pc.dst_depth == rgb888_3Byte) {
+          pc.fp_copy = pixelcopy_t::blend_rgb_fast<bgr888_t, T>;
+        } else {
+          pc.fp_copy = pixelcopy_t::blend_rgb_fast<bgr666_t, T>;
+        }
+      } else {
+        if (pc.dst_depth == rgb565_2Byte) {
+          pc.fp_copy = pixelcopy_t::blend_rgb_fast<swap565_t, T>;
+        } else { // src_depth == rgb332_1Byte:
+          pc.fp_copy = pixelcopy_t::blend_rgb_fast<rgb332_t, T>;
+        }
+      }
+      pushAlphaImage(x, y, w, h, &pc);
+    }
+
+    void pushAlphaImage(int32_t x, int32_t y, int32_t w, int32_t h, pixelcopy_t *param);
+
+//----------------------------------------------------------------------------
+
     /// read RGB565 16bit color
     uint16_t readPixel(int32_t x, int32_t y)
     {

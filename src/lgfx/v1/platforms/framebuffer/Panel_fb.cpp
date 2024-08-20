@@ -89,15 +89,11 @@ namespace lgfx
   {
     // unmap fb file from memory
     munmap(_fbp, _screensize);
-    // reset the display mode
-    if (ioctl(_fbfd, FBIOPUT_VSCREENINFO, &_fix_info)) {
-        printf("Error re-setting variable information.\n");
-    }
     // close fb file    
     close(_fbfd);
 
     memset(&_fix_info, 0, sizeof(_fix_info));
-    memset(&_var_info, 0, sizeof(_fix_info));
+    memset(&_var_info, 0, sizeof(_var_info));
   }
 
   Panel_fb::Panel_fb(void) : Panel_Device(), _fbp(nullptr)

@@ -66,6 +66,8 @@ namespace lgfx
       _read_depth  = rgb565_2Byte;
     }
 
+    void setBrightness(uint8_t brightness) override;
+
     void setHSync(uint_fast16_t front, uint_fast16_t sync, uint_fast16_t back, uint_fast16_t move = 0, uint_fast16_t lpspp = 0);
     void setVSync(uint_fast16_t front, uint_fast16_t sync, uint_fast16_t back, uint_fast16_t move = 0);
 
