@@ -44,10 +44,8 @@ namespace lgfx
     uint_fast8_t getTouchRaw(touch_point_t* tp, uint_fast8_t count) override;
     
   private:
-    // int _spi_mode = 0;
     uint8_t readRegister8(uint8_t reg);
     void writeRegister8(uint8_t reg, uint8_t data);
-    // uint8_t readStat();
   };
 
 //----------------------------------------------------------------------------

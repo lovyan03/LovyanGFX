@@ -45,9 +45,8 @@ namespace lgfx
     writeRegister8(0x71, 0x00 | 0x04);
 
     // Enable TP INT
+    // ToDo: you might want to mask the other bits of the register
     writeRegister8(0xF0, 0x04);
-    // better solution:
-    // writeReg(RA8875_INTC1, readReg(RA8875_INTC1) | RA8875_INTC1_TP);
 
     delay(2);
     writeRegister8(0xF1, 0x04); // clear interrupt
@@ -58,7 +57,6 @@ namespace lgfx
 
   uint_fast8_t Touch_RA8875::getTouchRaw(touch_point_t* tp, uint_fast8_t count)
   {
-    // check int state F1h
     if (!_inited || count == 0) return 0;   // ToDo: figure what count does
 
     // what does it do??
@@ -88,8 +86,7 @@ namespace lgfx
       tp->x = 0;
       tp->y = 0;
       tp->size = 0;
-    }
-    
+    }    
 
     writeRegister8(0xF1, 0x04); // clear interrupt
 
@@ -130,30 +127,6 @@ namespace lgfx
       lgfx::gpio_hi(_cfg.pin_cs);
     }
   }
-
-  // uint8_t Touch_RA8875::readStat()
-  // {
-  //   if (isSPI()) {
-  //     uint8_t tmp[1] = {0xC0};
-  //     uint8_t res = 0;
-
-  //     digitalWrite(4, HIGH);
-  //     spi::beginTransaction(_cfg.spi_host, _cfg.freq);
-  //     lgfx::gpio_lo(_cfg.pin_cs);
-
-  //     spi::writeBytes(_cfg.spi_host, tmp, 1);
-  //     spi::readBytes(_cfg.spi_host, &res, 3);
-
-  //     spi::endTransaction(_cfg.spi_host);
-  //     lgfx::gpio_hi(_cfg.pin_cs);
-  //     digitalWrite(4, LOW);
-
-  //     return res;
-  //   }
-  //   return 0;
-  // }
-
-
 //----------------------------------------------------------------------------
  }
 }
