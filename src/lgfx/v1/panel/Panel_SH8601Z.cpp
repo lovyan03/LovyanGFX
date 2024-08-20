@@ -15,6 +15,9 @@
  * [mongonta0716](https://github.com/mongonta0716)
  * [tobozo](https://github.com/tobozo)
  * /----------------------------------------------------------------------------*/
+
+#if defined (ESP_PLATFORM)
+
 #include "Panel_SH8601Z.hpp"
 #include "../Bus.hpp"
 #include "../platforms/common.hpp"
@@ -594,3 +597,6 @@ namespace lgfx
         //----------------------------------------------------------------------------
     }
 }
+
+
+#endif
