@@ -36,9 +36,7 @@ namespace lgfx
 
     // enable Touch Panel
     // RA8875_TPCR0: RA8875_TPCR0_ENABLE | RA8875_TPCR0_WAIT_4096CLK | RA8875_TPCR0_WAKEENABLE | adcClk
-    digitalWrite(4, HIGH);
     writeRegister8(0x70, 0x80 | 0x30 | 0x08 | 0x04); // 10mhz max!
-    digitalWrite(4, LOW);
 
     // Set Auto Mode
     // RA8875_TPCR1, RA8875_TPCR1_AUTO | RA8875_TPCR1_DEBOUNCE
