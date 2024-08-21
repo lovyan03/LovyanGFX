@@ -18,7 +18,7 @@
 
 #if defined (ESP_PLATFORM)
 
-#include "Panel_SH8601Z.hpp"
+#include "Panel_NV3041A.hpp"
 #include "../Bus.hpp"
 #include "../platforms/common.hpp"
 #include "../misc/pixelcopy.hpp"
@@ -28,14 +28,14 @@
 
 
 /**
- * @brief Bug list
+ * @brief Bug list (inherited from Panel_SH8601Z)
  *
  *  > Write image (pushSprite) works fine, bugs down below are from writing directly
  *
  *  1> Write function is block even with DMA (manual CS wait data)
  *  2> In spi 40MHz draw vertical line incomplete, but 10MHz OK (Likely because my dupont line connection)
  *  3> After implement write/draw pixel funcs, "testFilledRects" stucks sometime, acts differently to the different sck freq
- *  4> Haven't find the way to set rotation by reg
+ *  4> Haven't found the way to set rotation by reg
  */
 
 
@@ -45,103 +45,91 @@ namespace lgfx
     {
         //----------------------------------------------------------------------------
 
-
-
         /* Panel init */
-        bool Panel_SH8601Z::init(bool use_reset)
+        bool Panel_NV3041A::init(bool use_reset)
         {
-            // ESP_LOGD("SH8601Z","pannel init %d", use_reset);
+            // ESP_LOGD("NV3041A","pannel init %d", use_reset);
 
             if (!Panel_Device::init(use_reset)) {
                 return false;
             }
 
+            startWrite();
+            cs_control(false);
+            write_cmd(CMD_SWRESET);
+            delay(150);
+            _bus->wait();
+            cs_control(true);
+            endWrite();
 
-            uint8_t cmds[] =
+            startWrite();
+            for(int i=0;i<sizeof(init_cmds);i+=2)
             {
-                0x11, 0+CMD_INIT_DELAY, 150, // Sleep out
-                0x44, 2+CMD_INIT_DELAY, 0x01, 0x66, 1,
-                0x35, 1+CMD_INIT_DELAY, 0x00, 1, // TE on
-                0x3a, 1+CMD_INIT_DELAY, 0x55, 1, // Interface Pixel Format 16bit/pixel
-                0x53, 1+CMD_INIT_DELAY, 0x20, 10,
-                0x51, 1+CMD_INIT_DELAY, 0x00, 10, // Write Display Brightness MAX_VAL=0XFF
-                0x29, 0+CMD_INIT_DELAY, 10,
-                0x51, 1+CMD_INIT_DELAY, 0xff, 1, // Write Display Brightness MAX_VAL=0XFF
-                0xff, 0xff
-            };
+                cs_control(false);
+                this->write_cmd(init_cmds[i]);
+                _bus->writeCommand(init_cmds[i+1], 8);
+                _bus->wait();
+                cs_control(true);
+                delay(1);
+            }
+            endWrite();
+            delay(120);
 
-            this->command_list(cmds);
+            startWrite();
+            cs_control(false);
+            this->write_cmd(CMD_DISPON);
+            _bus->writeCommand(0x00, 8);
+            _bus->wait();
+            cs_control(true);
+            endWrite();
 
             return true;
         }
 
 
-
-        void Panel_SH8601Z::setBrightness(uint8_t brightness)
+        void Panel_NV3041A::update_madctl(void)
         {
-            // ESP_LOGD("SH8601Z","setBrightness %d", brightness);
+            uint8_t r = _internal_rotation;
+            switch (r)
+            {
+                case 1:
+                    r = CMD_MADCTL_MY | CMD_MADCTL_MV | CMD_MADCTL_RGB;
+                    break;
+                case 2:
+                    r = CMD_MADCTL_RGB;
+                    break;
+                case 3:
+                    r = CMD_MADCTL_MX | CMD_MADCTL_MV | CMD_MADCTL_RGB;
+                    break;
+                default: // case 0:
+                    r = CMD_MADCTL_MX | CMD_MADCTL_MY | CMD_MADCTL_RGB;
+                    break;
+            }
 
             startWrite();
-
-            /* Write Display Brightness	MAX_VAL=0XFF */
             cs_control(false);
-            write_cmd(0x51);
-            _bus->writeCommand(brightness, 8);
+            this->write_cmd(CMD_MADCTL);
+            _bus->writeCommand(r, 8);
             _bus->wait();
             cs_control(true);
-
             endWrite();
         }
 
 
-        void Panel_SH8601Z::setRotation(uint_fast8_t r)
+
+        void Panel_NV3041A::setInvert(bool invert)
         {
-            // ESP_LOGD("SH8601Z","setRotation %d", r);
-
-            r &= 7;
-            _rotation = r;
-            // offset_rotationを加算 (0~3:回転方向、 4:上下反転フラグ);
-            _internal_rotation = ((r + _cfg.offset_rotation) & 3) | ((r & 4) ^ (_cfg.offset_rotation & 4));
-
-            auto ox = _cfg.offset_x;
-            auto oy = _cfg.offset_y;
-            auto pw = _cfg.panel_width;
-            auto ph = _cfg.panel_height;
-            auto mw = _cfg.memory_width;
-            auto mh = _cfg.memory_height;
-            if (_internal_rotation & 1)
-            {
-                std::swap(ox, oy);
-                std::swap(pw, ph);
-                std::swap(mw, mh);
-            }
-            _width  = pw;
-            _height = ph;
-            // _colstart = (_internal_rotation & 2)
-            //         ? mw - (pw + ox) : ox;
-
-            // _rowstart = ((1 << _internal_rotation) & 0b10010110) // case 1:2:4:7
-            //         ? mh - (ph + oy) : oy;
-
-            _xs = _xe = _ys = _ye = INT16_MAX;
-
-            // update_madctl();
-        }
-
-
-        void Panel_SH8601Z::setInvert(bool invert)
-        {
-            // ESP_LOGD("SH8601Z","setInvert %d", invert);
+            // ESP_LOGD("NV3041A","setInvert %d", invert);
 
             cs_control(false);
 
             if (invert) {
                 /* Inversion On */
-                write_cmd(0x21);
+                write_cmd(CMD_INVON);
             }
             else {
                 /* Inversion Off */
-                write_cmd(0x20);
+                write_cmd(CMD_INVOFF);
             }
             _bus->wait();
 
@@ -149,19 +137,19 @@ namespace lgfx
         }
 
 
-        void Panel_SH8601Z::setSleep(bool flg)
+        void Panel_NV3041A::setSleep(bool flg)
         {
-            // ESP_LOGD("SH8601Z","setSleep %d", flg);
+            // ESP_LOGD("NV3041A","setSleep %d", flg);
 
             cs_control(false);
 
             if (flg) {
                 /* Sleep in */
-                write_cmd(0x10);
+                write_cmd(CMD_SLPIN);
             }
             else {
                 /* Sleep out */
-                write_cmd(0x11);
+                write_cmd(CMD_SLPOUT);
                 delay(150);
             }
             _bus->wait();
@@ -170,41 +158,37 @@ namespace lgfx
         }
 
 
-        void Panel_SH8601Z::setPowerSave(bool flg)
+        void Panel_NV3041A::setPowerSave(bool flg)
         {
-            // ESP_LOGD("SH8601Z","setPowerSave");
+            // ESP_LOGD("NV3041A","setPowerSave");
         }
 
 
-        void Panel_SH8601Z::waitDisplay(void)
+        void Panel_NV3041A::waitDisplay(void)
         {
-            // ESP_LOGD("SH8601Z","waitDisplay");
+            // ESP_LOGD("NV3041A","waitDisplay");
         }
 
 
-        bool Panel_SH8601Z::displayBusy(void)
+        bool Panel_NV3041A::displayBusy(void)
         {
-            // ESP_LOGD("SH8601Z","displayBusy");
+            // ESP_LOGD("NV3041A","displayBusy");
             return false;
         }
 
 
-        color_depth_t Panel_SH8601Z::setColorDepth(color_depth_t depth)
+        color_depth_t Panel_NV3041A::setColorDepth(color_depth_t depth)
         {
-            // ESP_LOGD("SH8601Z","setColorDepth %d", depth);
+            // ESP_LOGD("NV3041A","setColorDepth %d", depth);
 
-            /* 0x55: 16bit/pixel */
-            /* 0x66: 18bit/pixel */
-            /* 0x77: 24bit/pixel */
+            /* 0x00: 16bit/pixel */
+            /* 0x01: 18bit/pixel */
             uint8_t cmd_send = 0;
             if (depth == rgb565_2Byte) {
-                cmd_send = 0x55;
+                cmd_send = 0x00;
             }
             else if (depth == rgb666_3Byte) {
-                cmd_send = 0x66;
-            }
-            else if (depth == rgb888_3Byte) {
-                cmd_send = 0x77;
+                cmd_send = 0x01;
             }
             else {
                 return _write_depth;
@@ -215,7 +199,7 @@ namespace lgfx
             startWrite();
 
             cs_control(false);
-            write_cmd(0x3A);
+            write_cmd(CMD_COLMOD);
             _bus->writeCommand(cmd_send, 8);
             _bus->wait();
             cs_control(true);
@@ -226,42 +210,7 @@ namespace lgfx
         }
 
 
-        void Panel_SH8601Z::command_list(const uint8_t *addr)
-        {
-            startWrite();
-            for (;;)
-            {                // For each command...
-                uint8_t cmd = *addr++;
-                uint8_t num = *addr++;   // Number of args to follow
-                if (cmd == 0xFF && num == 0xFF) break;
-
-                cs_control(false);
-
-                this->write_cmd(cmd);  // Read, issue command
-                uint_fast8_t ms = num & CMD_INIT_DELAY;       // If hibit set, delay follows args
-                num &= ~CMD_INIT_DELAY;          // Mask out delay bit
-                if (num)
-                {
-                    do
-                    {   // For each argument...
-                        _bus->writeCommand(*addr++, 8);
-                    } while (--num);
-                }
-
-                _bus->wait();
-                cs_control(true);
-
-                if (ms)
-                {
-                    ms = *addr++;        // Read post-command delay time (ms)
-                    delay( (ms==255 ? 500 : ms) );
-                }
-            }
-            endWrite();
-        }
-
-
-        void Panel_SH8601Z::write_cmd(uint8_t cmd)
+        void Panel_NV3041A::write_cmd(uint8_t cmd)
         {
             uint8_t cmd_buffer[4] = {0x02, 0x00, 0x00, 0x00};
             cmd_buffer[2] = cmd;
@@ -272,7 +221,7 @@ namespace lgfx
         }
 
 
-        void Panel_SH8601Z::start_qspi()
+        void Panel_NV3041A::start_qspi()
         {
             /* Begin QSPI */
             cs_control(false);
@@ -283,7 +232,7 @@ namespace lgfx
             _bus->wait();
         }
 
-        void Panel_SH8601Z::end_qspi()
+        void Panel_NV3041A::end_qspi()
         {
             /* Stop QSPI */
             _bus->writeCommand(0x32, 8);
@@ -295,18 +244,18 @@ namespace lgfx
         }
 
 
-        void Panel_SH8601Z::beginTransaction(void)
+        void Panel_NV3041A::beginTransaction(void)
         {
-            // ESP_LOGD("SH8601Z","beginTransaction");
+            // ESP_LOGD("NV3041A","beginTransaction");
             if (_in_transaction) return;
             _in_transaction = true;
             _bus->beginTransaction();
         }
 
 
-        void Panel_SH8601Z::endTransaction(void)
+        void Panel_NV3041A::endTransaction(void)
         {
-            // ESP_LOGD("SH8601Z","endTransaction");
+            // ESP_LOGD("NV3041A","endTransaction");
             // if (!_in_transaction) return;
             // _in_transaction = false;
             // _bus->endTransaction();
@@ -324,7 +273,7 @@ namespace lgfx
         }
 
 
-        void Panel_SH8601Z::write_bytes(const uint8_t* data, uint32_t len, bool use_dma)
+        void Panel_NV3041A::write_bytes(const uint8_t* data, uint32_t len, bool use_dma)
         {
             start_qspi();
             _bus->writeBytes(data, len, true, use_dma);
@@ -333,9 +282,9 @@ namespace lgfx
         }
 
 
-        void Panel_SH8601Z::setWindow(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye)
+        void Panel_NV3041A::setWindow(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye)
         {
-            // ESP_LOGD("SH8601Z","setWindow %d %d %d %d", xs, ys, xe, ye);
+            // ESP_LOGD("NV3041A","setWindow %d %d %d %d", xs, ys, xe, ye);
 
             /* Set limit */
             if ((xe - xs) >= _width) { xs = 0; xe = _width - 1; }
@@ -343,7 +292,7 @@ namespace lgfx
 
             /* Set Column Start Address */
             cs_control(false);
-            write_cmd(0x2A);
+            write_cmd(CMD_CASET);
             _bus->writeCommand(xs >> 8, 8);
             _bus->writeCommand(xs & 0xFF, 8);
             _bus->writeCommand(xe >> 8, 8);
@@ -353,7 +302,7 @@ namespace lgfx
 
             /* Set Row Start Address */
             cs_control(false);
-            write_cmd(0x2B);
+            write_cmd(CMD_RASET);
             _bus->writeCommand(ys >> 8, 8);
             _bus->writeCommand(ys & 0xFF, 8);
             _bus->writeCommand(ye >> 8, 8);
@@ -363,15 +312,15 @@ namespace lgfx
 
             /* Memory Write */
             cs_control(false);
-            write_cmd(0x2C);
+            write_cmd(CMD_RAMWR);
             _bus->wait();
             cs_control(true);
         }
 
 
-        void Panel_SH8601Z::writeBlock(uint32_t rawcolor, uint32_t len)
+        void Panel_NV3041A::writeBlock(uint32_t rawcolor, uint32_t len)
         {
-            // ESP_LOGD("SH8601Z","writeBlock 0x%lx %ld", rawcolor, len);
+            // ESP_LOGD("NV3041A","writeBlock 0x%lx %ld", rawcolor, len);
 
             /* Push color */
             start_qspi();
@@ -383,9 +332,9 @@ namespace lgfx
 
 
 
-        void Panel_SH8601Z::writePixels(pixelcopy_t* param, uint32_t len, bool use_dma)
+        void Panel_NV3041A::writePixels(pixelcopy_t* param, uint32_t len, bool use_dma)
         {
-            // ESP_LOGD("SH8601Z","writePixels %ld %d", len, use_dma);
+            // ESP_LOGD("NV3041A","writePixels %ld %d", len, use_dma);
 
             start_qspi();
 
@@ -404,9 +353,9 @@ namespace lgfx
         }
 
 
-        void Panel_SH8601Z::drawPixelPreclipped(uint_fast16_t x, uint_fast16_t y, uint32_t rawcolor)
+        void Panel_NV3041A::drawPixelPreclipped(uint_fast16_t x, uint_fast16_t y, uint32_t rawcolor)
         {
-            // ESP_LOGD("SH8601Z","drawPixelPreclipped %d %d 0x%lX", x, y, rawcolor);
+            // ESP_LOGD("NV3041A","drawPixelPreclipped %d %d 0x%lX", x, y, rawcolor);
 
             setWindow(x,y,x,y);
             if (_cfg.dlen_16bit) { _has_align_data = (_write_bits & 15); }
@@ -420,9 +369,9 @@ namespace lgfx
         }
 
 
-        void Panel_SH8601Z::writeFillRectPreclipped(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, uint32_t rawcolor)
+        void Panel_NV3041A::writeFillRectPreclipped(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, uint32_t rawcolor)
         {
-            // ESP_LOGD("SH8601Z","writeFillRectPreclipped %d %d %d %d 0x%lX", x, y, w, h, rawcolor);
+            // ESP_LOGD("NV3041A","writeFillRectPreclipped %d %d %d %d 0x%lX", x, y, w, h, rawcolor);
 
             uint32_t len = w * h;
             uint_fast16_t xe = w + x - 1;
@@ -439,9 +388,9 @@ namespace lgfx
 
 
 
-        void Panel_SH8601Z::writeImage(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, pixelcopy_t* param, bool use_dma)
+        void Panel_NV3041A::writeImage(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, pixelcopy_t* param, bool use_dma)
         {
-            // ESP_LOGD("SH8601Z","writeImage %d %d %d %d %d", x, y, w, h, use_dma);
+            // ESP_LOGD("NV3041A","writeImage %d %d %d %d %d", x, y, w, h, use_dma);
             // use_dma = false;
 
             auto bytes = param->dst_bits >> 3;
@@ -558,21 +507,21 @@ namespace lgfx
 
 
 
-        uint32_t Panel_SH8601Z::readCommand(uint_fast16_t cmd, uint_fast8_t index, uint_fast8_t len)
+        uint32_t Panel_NV3041A::readCommand(uint_fast16_t cmd, uint_fast8_t index, uint_fast8_t len)
         {
-            // ESP_LOGD("SH8601Z","readCommand");
+            // ESP_LOGD("NV3041A","readCommand");
             return 0;
         }
 
-        uint32_t Panel_SH8601Z::readData(uint_fast8_t index, uint_fast8_t len)
+        uint32_t Panel_NV3041A::readData(uint_fast8_t index, uint_fast8_t len)
         {
-            // ESP_LOGD("SH8601Z","readData");
+            // ESP_LOGD("NV3041A","readData");
             return 0;
         }
 
-        void Panel_SH8601Z::readRect(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, void* dst, pixelcopy_t* param)
+        void Panel_NV3041A::readRect(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, void* dst, pixelcopy_t* param)
         {
-            // ESP_LOGD("SH8601Z","readRect");
+            // ESP_LOGD("NV3041A","readRect");
         }
 
 

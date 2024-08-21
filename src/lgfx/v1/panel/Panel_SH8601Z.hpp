@@ -64,6 +64,8 @@ namespace lgfx
         protected:
             bool _in_transaction = false;
 
+            void command_list(const uint8_t *addr);
+
             void write_cmd(uint8_t cmd);
             void start_qspi();
             void end_qspi();
