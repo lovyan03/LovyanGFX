@@ -209,7 +209,27 @@ namespace lgfx
     }
 
     auto spi_mode = _cfg.spi_mode;
-    uint32_t pin  = (spi_mode & 2) ? SPI_CK_IDLE_EDGE : 0;
+    uint32_t pin = 0
+#if defined ( SPI_CS0_DIS )
+            | SPI_CS0_DIS
+#endif
+#if defined ( SPI_CS1_DIS )
+            | SPI_CS1_DIS
+#endif
+#if defined ( SPI_CS2_DIS )
+            | SPI_CS2_DIS
+#endif
+#if defined ( SPI_CS3_DIS )
+            | SPI_CS3_DIS
+#endif
+#if defined ( SPI_CS4_DIS )
+            | SPI_CS4_DIS
+#endif
+#if defined ( SPI_CS5_DIS )
+            | SPI_CS5_DIS
+#endif
+    ;
+    if (spi_mode & 2) pin = SPI_CK_IDLE_EDGE;
 
     if (_cfg.use_lock) spi::beginTransaction(_cfg.spi_host);
 
