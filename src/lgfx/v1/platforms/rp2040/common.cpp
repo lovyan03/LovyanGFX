@@ -36,6 +36,15 @@ Porting for RP2040:
 #include <hardware/i2c.h>
 
 
+#if __has_include("hardware_structs/include/hardware/structs/iobank0.h")
+  // NOTE: old pico sdk (before rp2350) used enum type for gpio function, iobank was named differently too
+  #define gpio_function_t enum gpio_function
+  #define io_bank0_hw_t iobank0_hw_t
+#elif ! __has_include("hardware/regs/io_bank0.h")
+  // expecting gpio_function_t and io_bank0_hw_t
+  #error "Unsupported pico sdk version, can't find io_bank0.h or iobank0.h to use gpio_function_t and io_bank0_hw_t"
+#endif
+
 // #define DEBUG
 
 #if defined(DEBUG)
@@ -75,7 +84,7 @@ namespace lgfx
 
   namespace {
 
-    bool lgfx_gpio_set_function(int_fast16_t pin, enum gpio_function fn)
+    bool lgfx_gpio_set_function(int_fast16_t pin, gpio_function_t fn)
     {
       if (pin < 0 || pin >= static_cast<int_fast16_t>(NUM_BANK0_GPIOS))
       {
@@ -89,7 +98,7 @@ namespace lgfx
       temp &= ~(PADS_BANK0_GPIO0_IE_BITS | PADS_BANK0_GPIO0_OD_BITS);
       temp |= PADS_BANK0_GPIO0_IE_BITS;
       padsbank0_hw->io[pin] = temp;
-      volatile iobank0_hw_t *iobank0_regs = reinterpret_cast<volatile iobank0_hw_t *>(IO_BANK0_BASE);
+      volatile io_bank0_hw_t *iobank0_regs = reinterpret_cast<volatile io_bank0_hw_t *>(IO_BANK0_BASE);
       iobank0_regs->io[pin].ctrl = fn << IO_BANK0_GPIO0_CTRL_FUNCSEL_LSB;
       return true;
     }
