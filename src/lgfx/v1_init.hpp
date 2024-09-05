@@ -66,4 +66,4 @@ Contributors:
 #include "v1/touch/Touch_STMPE610.hpp"
 #include "v1/touch/Touch_TT21xxx.hpp"
 #include "v1/touch/Touch_XPT2046.hpp"
-
+#include "v1/touch/Touch_RA8875.hpp"
