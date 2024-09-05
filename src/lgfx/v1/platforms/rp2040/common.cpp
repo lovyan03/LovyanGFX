@@ -36,13 +36,10 @@ Porting for RP2040:
 #include <hardware/i2c.h>
 
 
-#if __has_include("hardware_structs/include/hardware/structs/iobank0.h")
+#if PICO_SDK_VERSION_MAJOR<2
   // NOTE: old pico sdk (before rp2350) used enum type for gpio function, iobank was named differently too
   #define gpio_function_t enum gpio_function
   #define io_bank0_hw_t iobank0_hw_t
-#elif ! __has_include("hardware/regs/io_bank0.h")
-  // expecting gpio_function_t and io_bank0_hw_t
-  #error "Unsupported pico sdk version, can't find io_bank0.h or iobank0.h to use gpio_function_t and io_bank0_hw_t"
 #endif
 
 // #define DEBUG
