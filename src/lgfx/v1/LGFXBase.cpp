@@ -1125,7 +1125,7 @@ namespace lgfx
     for( int ys=0;ys<h;ys++ ) {
       if( is_vertical ) { // scanline is used as an colors index
         setColor(color888(scanline[ys].r, scanline[ys].g, scanline[ys].b));
-        drawFastHLine( x, ys, w );
+        drawFastHLine( x, y+ys, w );
       } else { // scanline is used as a line buffer
         pushImage( x, y+ys, w, 1, scanline );
       }
