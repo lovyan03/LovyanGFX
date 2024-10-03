@@ -97,6 +97,10 @@ namespace lgfx
       padsbank0_hw->io[pin] = temp;
       volatile io_bank0_hw_t *iobank0_regs = reinterpret_cast<volatile io_bank0_hw_t *>(IO_BANK0_BASE);
       iobank0_regs->io[pin].ctrl = fn << IO_BANK0_GPIO0_CTRL_FUNCSEL_LSB;
+      #if defined(PICO_RP2350)
+        // Remove pad isolation now that the correct peripheral is in control of the pad
+        hw_clear_bits(&padsbank0_hw->io[pin], PADS_BANK0_GPIO0_ISO_BITS);
+      #endif
       return true;
     }
 
