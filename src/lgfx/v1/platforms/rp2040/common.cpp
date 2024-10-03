@@ -75,7 +75,11 @@ namespace lgfx
 
   namespace {
 
+#if (PICO_SDK_VERSION_MAJOR < 2)
     bool lgfx_gpio_set_function(int_fast16_t pin, enum gpio_function fn)
+#else
+    bool lgfx_gpio_set_function(int_fast16_t pin, int fn)
+#endif
     {
       if (pin < 0 || pin >= static_cast<int_fast16_t>(NUM_BANK0_GPIOS))
       {
@@ -89,7 +93,11 @@ namespace lgfx
       temp &= ~(PADS_BANK0_GPIO0_IE_BITS | PADS_BANK0_GPIO0_OD_BITS);
       temp |= PADS_BANK0_GPIO0_IE_BITS;
       padsbank0_hw->io[pin] = temp;
+#if (PICO_SDK_VERSION_MAJOR < 2)
       volatile iobank0_hw_t *iobank0_regs = reinterpret_cast<volatile iobank0_hw_t *>(IO_BANK0_BASE);
+#else
+      volatile io_bank0_hw_t *iobank0_regs = reinterpret_cast<volatile io_bank0_hw_t *>(IO_BANK0_BASE);
+#endif
       iobank0_regs->io[pin].ctrl = fn << IO_BANK0_GPIO0_CTRL_FUNCSEL_LSB;
       return true;
     }
