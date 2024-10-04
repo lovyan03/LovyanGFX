@@ -1,0 +1,63 @@
+name: PicoSDKBuild
+
+env:
+  WORKSPACE_DIR: examples_for_picosdk
+  PROJECT_DIR=: examples_for_picosdk/i2c
+
+on:
+  push:
+    paths:
+    - '**.ino'
+    - '**.cpp'
+    - '**.hpp'
+    - '**.h'
+    - '**.c'
+    - '**PicoSDKBuild.yml'
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: ${{ matrix.board }}@${{ matrix.platform-version }}
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: checkout code
+        uses: actions/checkout
+
+      - name: install python
+        uses: actions/setup-python
+        with:
+          python-version: '3.12'
+
+      - name: install deps
+        run: |
+            sudo apt install ca-certificates build-essential avr-libc gcc-avr gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib libusb-1.0-0-dev cmake
+
+      - name: compile
+        run: |
+            cd ${env.WORKSPACE_DIR}
+
+            git clone -b master --depth 1 https://github.com/raspberrypi/pico-sdk
+            git clone -b master --depth 1 https://github.com/raspberrypi/pico-extras
+
+            cd pico-sdk
+            git submodule update --init
+            cd ..
+
+            export PICO_SDK_PATH="$(pwd)/pico-sdk"
+            export PICO_SDK_EXTRAS_PATH="$(pwd)/pico-extras"
+            export PICO_PLATFORM="rp2350"
+
+            cp $PICO_SDK_PATH/external/pico_sdk_import.cmake ${env.WORKSPACE_DIR}/pico_sdk_import.cmake
+            cp $PICO_SDK_EXTRAS_PATH/external/pico_extras_import.cmake ${env.WORKSPACE_DIR}/pico_extras_import_optional.cmake
+
+            cd ${env.PROJECT_DIR}
+            ln -sv ../../../LovyanGFX LovyanGFX
+
+            mkdir -p build
+            cd build
+            cmake ..
+            make -j $(nproc)
+
