@@ -1,19 +1,26 @@
 {
   "name": "LovyanGFX",
   "description": "TFT LCD Graphics driver with touch for ESP32, ESP8266, SAMD21, SAMD51, RP2040",
-  "keywords": "lcd,tft,gfx,lgfx,esp32,esp8266,samd21,samd51,m5stack,m5stackcore2,m5stickc,m5stickcplus,odroid-go,ttgo t-watch,ttgo t-wristband,esp-wrover-kit,wioterminal,wifiboy,makepython,hx8357,ili9163,ili9342,ili9341,ili9486,ili9488,st7735,st7789,st7796,ssd1351",
-  "authors": {
-    "name": "lovyan03",
-    "url": "https://github.com/lovyan03",
-    "maintainer": true
-  },
+  "keywords": "lcd,tft,gfx,lgfx,esp32,esp8266,samd21,samd51,m5stack,m5stackcore2,m5stickc,m5stickcplus,raspberrypi,pico,rp2040,rp2350,odroid-go,ttgo t-watch,ttgo t-wristband,esp-wrover-kit,wioterminal,wifiboy,makepython,hx8357,ili9163,ili9342,ili9341,ili9486,ili9488,st7735,st7789,st7796,ssd1351",
+  "license": "MIT AND BSD-2-Clause",
+  "authors": [
+    {
+      "name": "lovyan03",
+      "url": "https://github.com/lovyan03"
+    },
+    {
+      "name": "tobozo",
+      "url": "https://github.com/tobozo",
+      "maintainer": true
+    }
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/lovyan03/LovyanGFX.git"
   },
-  "version": "1.1.16",
+  "version": "1.1.17",
   "frameworks": ["arduino", "espidf", "*"],
-  "platforms": ["espressif32", "espressif8266", "atmelsam", "native"],
+  "platforms": ["espressif32", "espressif8266", "atmelsam", "native", "raspberrypi"],
   "headers": "LovyanGFX.hpp",
   "build": {
     "libArchive": false
