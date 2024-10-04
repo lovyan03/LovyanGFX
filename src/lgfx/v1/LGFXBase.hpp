@@ -48,7 +48,7 @@ namespace lgfx
 #endif
 //----------------------------------------------------------------------------
 
-#if !defined (ARDUINO) || defined (ARDUINO_ARCH_MBED_RP2040) || defined (ARDUINO_ARCH_RP2040)
+#if !defined (ARDUINO) || defined (ARDUINO_ARCH_MBED_RP2040) || defined (ARDUINO_ARCH_RP2040) || (USE_PICO_SDK)
 #define LGFX_PRINTF_ENABLED
 #endif
 

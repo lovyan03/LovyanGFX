@@ -30,7 +30,12 @@ Porting for RP2040:
 #include <malloc.h>
 #endif
 
+#if defined (ARDUINO_ARCH_MBED_RP2040) || defined(ARDUINO_ARCH_RP2040)
 #include <Arduino.h>
+#else
+#include <pico/time.h>
+#include <hardware/gpio.h>
+#endif
 
 namespace lgfx
 {
@@ -38,6 +43,7 @@ namespace lgfx
  {
 //----------------------------------------------------------------------------
 
+#if defined (ARDUINO_ARCH_MBED_RP2040) || defined(ARDUINO_ARCH_RP2040)
   __attribute__ ((unused))
   static inline unsigned long millis(void)
   {
@@ -59,14 +65,41 @@ namespace lgfx
     ::delayMicroseconds(us);
   }
 
+  static inline void gpio_hi(uint32_t pin) { sio_hw->gpio_set = 1 << pin; }
+  static inline void gpio_lo(uint32_t pin) { sio_hw->gpio_clr = 1 << pin; }
+  static inline bool gpio_in(uint32_t pin) { return digitalRead(pin); }
+
+#else /* USE_PICO_SDK */
+  __attribute__ ((unused))
+  static inline unsigned long millis(void)
+  {
+    return to_ms_since_boot(get_absolute_time());
+  }
+  __attribute__ ((unused))
+  static inline unsigned long micros(void)
+  {
+    return to_us_since_boot(get_absolute_time());
+  }
+  __attribute__ ((unused))
+  static inline void delay(unsigned long milliseconds)
+  {
+    sleep_ms(milliseconds);
+  }
+  __attribute__ ((unused))
+  static void delayMicroseconds(unsigned int us)
+  {
+    sleep_us(us);
+  }
+
+  static inline void gpio_hi(uint32_t pin) { gpio_put(pin, 1); }
+  static inline void gpio_lo(uint32_t pin) { gpio_put(pin, 0); }
+  static inline bool gpio_in(uint32_t pin) { return gpio_get(pin); }
+#endif
+
   static inline void* heap_alloc(      size_t length) { return malloc(length); }
   static inline void* heap_alloc_psram(size_t length) { return malloc(length); }
   static inline void* heap_alloc_dma(  size_t length) { return malloc(length); } // aligned_alloc(16, length);
   static inline void heap_free(void* buf) { free(buf); }
-
-  static inline void gpio_hi(uint32_t pin) { sio_hw->gpio_set = 1 << pin; }
-  static inline void gpio_lo(uint32_t pin) { sio_hw->gpio_clr = 1 << pin; }
-  static inline bool gpio_in(uint32_t pin) { return digitalRead(pin); }
 
   enum pin_mode_t
   { output
