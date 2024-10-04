@@ -23,13 +23,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: checkout code
-        uses: actions/checkout
-
-      - name: install python
-        uses: actions/setup-python
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
-          python-version: '3.12'
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
 
       - name: install deps
         run: |
