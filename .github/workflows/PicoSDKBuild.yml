@@ -39,7 +39,7 @@ jobs:
 
       - name: compile
         run: |
-            cd ${env.WORKSPACE_DIR}
+            cd ${{env.WORKSPACE_DIR}}
 
             git clone -b master --depth 1 https://github.com/raspberrypi/pico-sdk
             git clone -b master --depth 1 https://github.com/raspberrypi/pico-extras
@@ -52,10 +52,10 @@ jobs:
             export PICO_SDK_EXTRAS_PATH="$(pwd)/pico-extras"
             export PICO_PLATFORM="rp2350"
 
-            cp $PICO_SDK_PATH/external/pico_sdk_import.cmake ${env.WORKSPACE_DIR}/pico_sdk_import.cmake
-            cp $PICO_SDK_EXTRAS_PATH/external/pico_extras_import.cmake ${env.WORKSPACE_DIR}/pico_extras_import_optional.cmake
+            cp $PICO_SDK_PATH/external/pico_sdk_import.cmake ${{env.WORKSPACE_DIR}}/pico_sdk_import.cmake
+            cp $PICO_SDK_EXTRAS_PATH/external/pico_extras_import.cmake ${{env.WORKSPACE_DIR}}/pico_extras_import_optional.cmake
 
-            cd ${env.PROJECT_DIR}
+            cd ${{env.PROJECT_DIR}}
             ln -sv ../../../LovyanGFX LovyanGFX
 
             mkdir -p build
