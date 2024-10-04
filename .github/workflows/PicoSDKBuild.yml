@@ -2,7 +2,7 @@ name: PicoSDKBuild
 
 env:
   WORKSPACE_DIR: examples_for_picosdk
-  PROJECT_DIR=: examples_for_picosdk/i2c
+  PROJECT_DIR: i2c
 
 on:
   push:
@@ -56,8 +56,8 @@ jobs:
 
             pwd
 
-            cp $PICO_SDK_PATH/external/pico_sdk_import.cmake ${{env.WORKSPACE_DIR}}/pico_sdk_import.cmake
-            cp $PICO_SDK_EXTRAS_PATH/external/pico_extras_import.cmake ${{env.WORKSPACE_DIR}}/pico_extras_import_optional.cmake
+            cp pico-sdk/external/pico_sdk_import.cmake ./
+            cp pico-extras/external/pico_extras_import.cmake ./pico_extras_import_optional.cmake
 
             cd ${{env.PROJECT_DIR}}
             ln -sv ../../../LovyanGFX LovyanGFX
