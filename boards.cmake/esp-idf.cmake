@@ -1,21 +1,21 @@
 # CMakeLists for ESP-IDF
 
 set(COMPONENT_ADD_INCLUDEDIRS
-    src
+    ${LGFX_ROOT}/src
     )
 file(GLOB SRCS
-     src/lgfx/Fonts/efont/*.c
-     src/lgfx/Fonts/IPA/*.c
-     src/lgfx/utility/*.c
-     src/lgfx/v1/*.cpp
-     src/lgfx/v1/misc/*.cpp
-     src/lgfx/v1/panel/*.cpp
-     src/lgfx/v1/platforms/arduino_default/*.cpp
-     src/lgfx/v1/platforms/esp32/*.cpp
-     src/lgfx/v1/platforms/esp32c3/*.cpp
-     src/lgfx/v1/platforms/esp32s2/*.cpp
-     src/lgfx/v1/platforms/esp32s3/*.cpp
-     src/lgfx/v1/touch/*.cpp
+     ${LGFX_ROOT}/src/lgfx/Fonts/efont/*.c
+     ${LGFX_ROOT}/src/lgfx/Fonts/IPA/*.c
+     ${LGFX_ROOT}/src/lgfx/utility/*.c
+     ${LGFX_ROOT}/src/lgfx/v1/*.cpp
+     ${LGFX_ROOT}/src/lgfx/v1/misc/*.cpp
+     ${LGFX_ROOT}/src/lgfx/v1/panel/*.cpp
+     ${LGFX_ROOT}/src/lgfx/v1/platforms/arduino_default/*.cpp
+     ${LGFX_ROOT}/src/lgfx/v1/platforms/esp32/*.cpp
+     ${LGFX_ROOT}/src/lgfx/v1/platforms/esp32c3/*.cpp
+     ${LGFX_ROOT}/src/lgfx/v1/platforms/esp32s2/*.cpp
+     ${LGFX_ROOT}/src/lgfx/v1/platforms/esp32s3/*.cpp
+     ${LGFX_ROOT}/src/lgfx/v1/touch/*.cpp
      )
 
 set(COMPONENT_SRCS ${SRCS})
