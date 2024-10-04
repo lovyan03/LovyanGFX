@@ -25,11 +25,10 @@ jobs:
     strategy:
       matrix:
 
-        board: [ rp2040, rp2350 ]
-
         include:
-          - { sdk-version: 2.0.0, sdk-extras-version: sdk-2.0.0, ... }
-          - { sdk-version: 1.5.1, sdk-extras-version: sdk-1.5.1, ... }
+          - { board: rp2350, sdk-version: 2.0.0, sdk-extras-version: sdk-2.0.0 }
+          - { board: rp2040, sdk-version: 2.0.0, sdk-extras-version: sdk-2.0.0 }
+          - { board: rp2040, sdk-version: 1.5.1, sdk-extras-version: sdk-1.5.1 }
 
       fail-fast: false
 
