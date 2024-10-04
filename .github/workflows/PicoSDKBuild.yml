@@ -44,6 +44,8 @@ jobs:
             git clone -b master --depth 1 https://github.com/raspberrypi/pico-sdk
             git clone -b master --depth 1 https://github.com/raspberrypi/pico-extras
 
+            ls -la
+
             cd pico-sdk
             git submodule update --init
             cd ..
@@ -51,6 +53,8 @@ jobs:
             export PICO_SDK_PATH="$(pwd)/pico-sdk"
             export PICO_SDK_EXTRAS_PATH="$(pwd)/pico-extras"
             export PICO_PLATFORM="rp2350"
+
+            pwd
 
             cp $PICO_SDK_PATH/external/pico_sdk_import.cmake ${{env.WORKSPACE_DIR}}/pico_sdk_import.cmake
             cp $PICO_SDK_EXTRAS_PATH/external/pico_extras_import.cmake ${{env.WORKSPACE_DIR}}/pico_extras_import_optional.cmake
