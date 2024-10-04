@@ -84,7 +84,7 @@ Contributors:
 
 #include "spresense/Bus_SPI.hpp"
 
-#elif defined (ARDUINO_ARCH_MBED_RP2040) || defined(ARDUINO_ARCH_RP2040)
+#elif defined (ARDUINO_ARCH_MBED_RP2040) || defined(ARDUINO_ARCH_RP2040) || defined(USE_PICO_SDK)
 
 #include "rp2040/Light_PWM.hpp"
 #include "rp2040/Bus_I2C.hpp"

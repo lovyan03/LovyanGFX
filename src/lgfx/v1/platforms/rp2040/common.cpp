@@ -18,7 +18,7 @@ Contributors:
 Porting for RP2040:
  [yasuhirok](https://github.com/yasuhirok-git)
 /----------------------------------------------------------------------------*/
-#if defined (ARDUINO_ARCH_MBED_RP2040) || defined(ARDUINO_ARCH_RP2040)
+#if defined (ARDUINO_ARCH_MBED_RP2040) || defined(ARDUINO_ARCH_RP2040) || defined(USE_PICO_SDK)
 
 #include "common.hpp"
 #include <array>
