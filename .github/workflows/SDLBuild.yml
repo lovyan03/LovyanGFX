@@ -44,7 +44,7 @@ jobs:
       matrix:
         include:
           - { os: windows-latest }
-          - { os: macos-12   }
+          - { os: macos-latest   }
           - { os: ubuntu-latest  }
 
     steps:
