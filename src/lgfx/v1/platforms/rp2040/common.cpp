@@ -223,13 +223,24 @@ namespace lgfx
       };
       constexpr int n_spi = std::extent<decltype(spi_dev), 0>::value;
 
+#if defined(PICO_RP2350)
+      // RP2350 Dataheetの 9.4. Function Select (Table 642)を参照
+      // ※30以降は2350Bで使用可能
+      constexpr uint8_t spi0_sclk_pinlist[] = {  2,  6, 18, 22, 34, 38,     UINT8_MAX };
+      constexpr uint8_t spi0_miso_pinlist[] = {  0,  4, 16, 20, 32, 36,     UINT8_MAX };
+      constexpr uint8_t spi0_mosi_pinlist[] = {  3,  7, 19, 23, 35, 39,     UINT8_MAX };
+      constexpr uint8_t spi1_sclk_pinlist[] = { 10, 14, 26,     30, 42, 46, UINT8_MAX };
+      constexpr uint8_t spi1_miso_pinlist[] = {  8, 12, 24, 28, 40, 44,     UINT8_MAX };
+      constexpr uint8_t spi1_mosi_pinlist[] = { 11, 15, 27,     31, 43, 47, UINT8_MAX };
+#else
       // RP2040 Dataheetの 1.4.3. GPIO Functions Table 2を参照
-      constexpr uint8_t spi0_sclk_pinlist[] = {  2,  6, 18, 23, UINT8_MAX };
+      constexpr uint8_t spi0_sclk_pinlist[] = {  2,  6, 18, 22, UINT8_MAX };
       constexpr uint8_t spi0_miso_pinlist[] = {  0,  4, 16, 20, UINT8_MAX };
       constexpr uint8_t spi0_mosi_pinlist[] = {  3,  7, 19, 23, UINT8_MAX };
       constexpr uint8_t spi1_sclk_pinlist[] = { 10, 14, 26,     UINT8_MAX };
       constexpr uint8_t spi1_miso_pinlist[] = {  8, 12, 24, 28, UINT8_MAX };
       constexpr uint8_t spi1_mosi_pinlist[] = { 11, 15, 27,     UINT8_MAX };
+#endif
 
       constexpr uint32_t PRESCALE_ERROR = UINT32_MAX;
 
@@ -506,11 +517,20 @@ namespace lgfx
       };
       constexpr int n_i2c = std::extent<decltype(i2c_dev), 0>::value;
 
+#if defined(PICO_RP2350)
+      // RP2350 Dataheetの 9.4. Function Select (Table 642)を参照
+      // ※30以降は2350Bで使用可能
+      constexpr uint8_t i2c0_sda_pinlist[] = {  0,  4,  8, 12, 16, 20, 24, 28,     32, 36, 40, 44, UINT8_MAX };
+      constexpr uint8_t i2c0_sck_pinlist[] = {  1,  5,  9, 13, 17, 21, 25, 29,     33, 37, 41, 45, UINT8_MAX };
+      constexpr uint8_t i2c1_sda_pinlist[] = {  2,  6, 10, 14, 18, 22, 26,     30, 34, 38, 42, 46, UINT8_MAX };
+      constexpr uint8_t i2c1_sck_pinlist[] = {  3,  7, 11, 15, 19, 23, 27,     31, 35, 39, 43, 47, UINT8_MAX };
+#else
       // RP2040 Dataheetの 1.4.3. GPIO Functions Table 2を参照
       constexpr uint8_t i2c0_sda_pinlist[] = {  0,  4,  8, 12, 16, 20, 24, 28, UINT8_MAX };
       constexpr uint8_t i2c0_sck_pinlist[] = {  1,  5,  9, 13, 17, 21, 25, 29, UINT8_MAX };
       constexpr uint8_t i2c1_sda_pinlist[] = {  2,  6, 10, 14, 18, 22, 26,     UINT8_MAX };
       constexpr uint8_t i2c1_sck_pinlist[] = {  3,  7, 11, 15, 19, 23, 27,     UINT8_MAX };
+#endif
 
       constexpr struct i2c_pinlist_str {
         const uint8_t *sda_pinlist;
