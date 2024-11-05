@@ -353,11 +353,14 @@ namespace lgfx
         _gpio_enable = *reinterpret_cast<uint32_t*>(GPIO_ENABLE_REG) & (1 << (pin_num & 31));
 #endif
         _in_func_num = -1;
-        size_t func_num = GPIO.func_out_sel_cfg[pin_num].func_sel;
-        if (func_num < 256 && pin_num == GPIO.func_in_sel_cfg[func_num].func_sel) {
-          _gpio_func_in_reg = GPIO.func_in_sel_cfg[func_num].val;
-          _in_func_num = func_num;
+
+        size_t func_num = ((_gpio_func_out_reg >> GPIO_FUNC0_OUT_SEL_S) & GPIO_FUNC0_OUT_SEL_V);
+        if (func_num < sizeof(GPIO.func_in_sel_cfg) / sizeof(GPIO.func_in_sel_cfg[0])) {
+          _gpio_func_in_reg = *reinterpret_cast<uint32_t*>(GPIO_FUNC0_IN_SEL_CFG_REG + (func_num * 4));
+          if (func_num == ((_gpio_func_in_reg >> GPIO_FUNC0_IN_SEL_S) & GPIO_FUNC0_IN_SEL_V)) {
+            _in_func_num = func_num;
 // ESP_LOGD("DEBUG","backup pin:%d : func_num:%d", pin_num, _in_func_num);
+          }
         }
       }
     }
