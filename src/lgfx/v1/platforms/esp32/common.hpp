@@ -229,7 +229,7 @@ protected:
     {
     public:
       pin_backup_t(int pin_num);
-      pin_backup_t(void) : pin_backup_t( GPIO_NUM_NC ) {};
+      pin_backup_t(void) : pin_backup_t( -1 ) {};
       void setPin(int pin_num) { _pin_num = pin_num; }
       int getPin(void) const { return _pin_num; }
       void backup(void);
