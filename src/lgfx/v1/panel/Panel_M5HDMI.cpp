@@ -431,8 +431,6 @@ namespace lgfx
   Panel_M5HDMI::HDMI_Trans::HDMI_Trans(const lgfx::Bus_I2C::config_t& i2c_config)
   {
     HDMI_Trans_config.i2c_port = i2c_config.i2c_port;
-    // _pin_backup[2].setPin(GPIO_NUM_NC);
-    // _pin_backup[3].setPin(GPIO_NUM_NC);
     _i2c_backup();
     HDMI_Trans_config = i2c_config;
     lgfx::i2c::release(HDMI_Trans_config.i2c_port);
