@@ -240,8 +240,8 @@ protected:
       uint32_t _gpio_pin_reg;
       uint32_t _gpio_func_out_reg;
       uint32_t _gpio_func_in_reg;
-      int16_t _in_func_num = -1;;
-      int8_t _pin_num = GPIO_NUM_NC;
+      int16_t _in_func_num = -1;
+      int8_t _pin_num = (gpio_num_t)-1; //GPIO_NUM_NC
       bool _gpio_enable;
     };
 
