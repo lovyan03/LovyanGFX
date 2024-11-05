@@ -20,12 +20,7 @@ Contributors:
 
 #include "Bus_SPI.hpp"
 
-/// ESP32-S3をターゲットにした際にREG_SPI_BASEが定義されていなかったので応急処置 ;
-#if defined ( CONFIG_IDF_TARGET_ESP32S3 )
- #if !defined( REG_SPI_BASE )
-  #define REG_SPI_BASE(i)   (DR_REG_SPI1_BASE + (((i)>1) ? (((i)* 0x1000) + 0x20000) : (((~(i)) & 1)* 0x1000 )))
- #endif
-#elif defined ( CONFIG_IDF_TARGET_ESP32 ) || !defined ( CONFIG_IDF_TARGET )
+#if defined ( CONFIG_IDF_TARGET_ESP32 ) || !defined ( CONFIG_IDF_TARGET )
  #define LGFX_SPIDMA_WORKAROUND
 #endif
 
@@ -613,6 +608,7 @@ namespace lgfx
           goto label_start;
           do
           {
+            vTaskDelay(1 / portTICK_PERIOD_MS);
             while (*cmd & SPI_USR) {}
 label_start:
             exec_spi();
