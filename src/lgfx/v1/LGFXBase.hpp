@@ -907,7 +907,7 @@ namespace lgfx
       qrcode(string.c_str(), x, y, width, version);
     }
 #endif
-    void qrcode(const char *string, int32_t x = -1, int32_t y = -1, int32_t width = -1, uint8_t version = 1);
+    void qrcode(const char *string, int32_t x = -1, int32_t y = -1, int32_t width = -1, uint8_t version = 1,bool margin = false);
 
   #define LGFX_FUNCTION_GENERATOR(drawImg, draw_img) \
    protected: \
