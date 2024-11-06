@@ -35,16 +35,13 @@ Contributors:
 #include <soc/soc.h>
 #include <soc/i2c_reg.h>
 #include <soc/i2c_struct.h>
-#if (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 3, 0))
- //#include <soc/syscon_reg.h>
- #if __has_include(<soc/syscon_reg.h>)
-  #include <soc/syscon_reg.h>
- #endif
-#else
- #if __has_include (<soc/apb_ctrl_reg.h>)
-  #include <soc/apb_ctrl_reg.h>
- #endif
+
+#if __has_include(<soc/syscon_reg.h>)
+ #include <soc/syscon_reg.h>
+#elif __has_include (<soc/apb_ctrl_reg.h>)
+ #include <soc/apb_ctrl_reg.h>
 #endif
+
 #include <soc/efuse_reg.h>
 
 #include <esp_log.h>

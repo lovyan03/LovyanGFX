@@ -29,6 +29,8 @@ namespace lgfx
 {
  inline namespace v1
  {
+# pragma GCC diagnostic push
+# pragma GCC diagnostic ignored "-Warray-bounds"
 //----------------------------------------------------------------------------
 
 #if defined ( _MSVC_LANG )
@@ -947,6 +949,7 @@ namespace lgfx
 //----------------------------------------------------------------------------
 #undef LGFX_INLINE
 
+# pragma GCC diagnostic pop
  }
 }
 

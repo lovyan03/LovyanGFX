@@ -28,7 +28,6 @@ Inspiration Sources:
 #include <freertos/task.h>
 #include <esp_types.h>
 #include <esp_log.h>
-#include <driver/dac.h>
 #include <soc/rtc.h>
 #include <soc/periph_defs.h>
 #include <soc/i2s_struct.h>
@@ -49,6 +48,16 @@ Inspiration Sources:
 #else
  #include <driver/i2s.h>
 #endif
+
+#if __has_include (<hal/dac_ll.h>)
+ #include <hal/dac_types.h>
+ #include <hal/dac_ll.h>
+ #include <driver/rtc_io.h>
+#else
+ #include <driver/dac.h>
+#endif
+
+
 #if __has_include(<esp_private/periph_ctrl.h>)
  // ESP-IDF v5
  #include <esp_private/periph_ctrl.h>
@@ -1921,6 +1930,14 @@ namespace lgfx
     deinit();
   }
 
+  static dac_channel_t _get_dacchannel(int pin) {
+#if defined ( LGFX_I2S_STD_ENABLED )
+    return (pin == 25) ? DAC_CHAN_0 : DAC_CHAN_1;
+#else
+    return (pin == 25) ? DAC_CHANNEL_1 : DAC_CHANNEL_2;
+#endif
+  }
+
   void Panel_CVBS::deinit(void)
   {
     if (_started)
@@ -1946,25 +1963,21 @@ namespace lgfx
       I2S0.out_link.start = 0;
       I2S0.conf.tx_start = 0;
 
+#if __has_include (<hal/dac_ll.h>)
+      dac_ll_digi_enable_dma(false);
+      auto ch = _get_dacchannel(_config_detail.pin_dac);
+      dac_ll_power_down(ch);
+#else
       dac_i2s_disable();
-      switch (_config_detail.pin_dac)
-      {
-      default:
-        break;
-      case 25:
-        dac_output_disable(DAC_CHANNEL_1); // for GPIO 25
-        break;
-      case 26:
-        dac_output_disable(DAC_CHANNEL_2); // for GPIO 26
-        break;
-      }
-
+      auto ch = _get_dacchannel(_config_detail.pin_dac);
+      dac_output_disable(ch);
+#endif
       periph_module_disable(PERIPH_I2S0_MODULE);
 
 #if defined ( LGFX_I2S_STD_ENABLED )
-    rtc_clk_apll_enable(false);
+      rtc_clk_apll_enable(false);
 #else
-    rtc_clk_apll_enable(false,0,0,0,1);
+      rtc_clk_apll_enable(false,0,0,0,1);
 #endif
 
 // printf("dmabuf: %08x free\n", internal.dma_desc[0].buf);
@@ -1993,22 +2006,40 @@ namespace lgfx
     {
       return true;
     }
-    _started = true;
-
-    dac_i2s_enable();
-    switch (_config_detail.pin_dac)
+    if (_config_detail.pin_dac != GPIO_NUM_25 && _config_detail.pin_dac != GPIO_NUM_26)
     {
-    default:
       ESP_LOGE(TAG, "DAC output gpio error: G%d  ... Select G25 or G26.", _config_detail.pin_dac);
       return false;
-    case 25:
-      dac_output_enable(DAC_CHANNEL_1); // for GPIO 25
-      break;
-    case 26:
-      dac_output_enable(DAC_CHANNEL_2); // for GPIO 26
-      break;
     }
+    _started = true;
 
+#if __has_include (<hal/dac_ll.h>)
+    { static constexpr const gpio_num_t gpio_table[2] = { GPIO_NUM_25, GPIO_NUM_26 }; // for ESP32 (not ESP32S2, s2=gpio17,gpio18)
+      for (int i = 0; i < 2; ++i)
+      {
+        if (_config_detail.pin_dac != gpio_table[i]) { continue; }
+        auto gpio_num = gpio_table[i];
+        rtc_gpio_init(gpio_num);
+        rtc_gpio_set_direction(gpio_num, RTC_GPIO_MODE_DISABLED);
+        rtc_gpio_pullup_dis(gpio_num);
+        rtc_gpio_pulldown_dis(gpio_num);
+
+        auto channel = _get_dacchannel(gpio_num);
+        dac_ll_power_on(channel);
+      }
+      dac_ll_rtc_sync_by_adc(false);
+      dac_ll_digi_enable_dma(true);
+
+      I2S0.conf2.lcd_en = true;
+      I2S0.conf.tx_right_first = false;
+      I2S0.conf.tx_msb_shift = 0;
+      I2S0.conf.tx_short_sync = 0;
+    }
+#else
+    dac_i2s_enable();
+    auto ch = _get_dacchannel(_config_detail.pin_dac);
+    dac_output_enable(ch);
+#endif
     if (_config_detail.signal_type >= config_detail_t::signal_type_t::signal_type_max)
     {
       _config_detail.signal_type = (config_detail_t::signal_type_t)0;
