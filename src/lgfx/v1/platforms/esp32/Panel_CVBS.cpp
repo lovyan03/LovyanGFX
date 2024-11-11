@@ -45,18 +45,15 @@ Inspiration Sources:
 #if __has_include(<driver/i2s_std.h>)
  #include <driver/i2s_std.h>
  #define LGFX_I2S_STD_ENABLED
+ #if __has_include (<hal/dac_ll.h>)
+  #include <hal/dac_types.h>
+  #include <hal/dac_ll.h>
+  #include <driver/rtc_io.h>
+ #endif
 #else
  #include <driver/i2s.h>
-#endif
-
-#if __has_include (<hal/dac_ll.h>)
- #include <hal/dac_types.h>
- #include <hal/dac_ll.h>
- #include <driver/rtc_io.h>
-#else
  #include <driver/dac.h>
 #endif
-
 
 #if __has_include(<esp_private/periph_ctrl.h>)
  // ESP-IDF v5
@@ -1931,10 +1928,12 @@ namespace lgfx
   }
 
   static dac_channel_t _get_dacchannel(int pin) {
-#if defined ( LGFX_I2S_STD_ENABLED )
-    return (pin == 25) ? DAC_CHAN_0 : DAC_CHAN_1;
-#else
+#if !defined (ESP_IDF_VERSION_VAL)
     return (pin == 25) ? DAC_CHANNEL_1 : DAC_CHANNEL_2;
+#elif ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 1, 0)
+    return (pin == 25) ? DAC_CHANNEL_1 : DAC_CHANNEL_2;
+#else
+    return (pin == 25) ? DAC_CHAN_0 : DAC_CHAN_1;
 #endif
   }
 
@@ -1963,7 +1962,7 @@ namespace lgfx
       I2S0.out_link.start = 0;
       I2S0.conf.tx_start = 0;
 
-#if __has_include (<hal/dac_ll.h>)
+#if defined ( LGFX_I2S_STD_ENABLED )
       dac_ll_digi_enable_dma(false);
       auto ch = _get_dacchannel(_config_detail.pin_dac);
       dac_ll_power_down(ch);
@@ -2013,7 +2012,7 @@ namespace lgfx
     }
     _started = true;
 
-#if __has_include (<hal/dac_ll.h>)
+#if defined ( LGFX_I2S_STD_ENABLED )
     { static constexpr const gpio_num_t gpio_table[2] = { GPIO_NUM_25, GPIO_NUM_26 }; // for ESP32 (not ESP32S2, s2=gpio17,gpio18)
       for (int i = 0; i < 2; ++i)
       {
