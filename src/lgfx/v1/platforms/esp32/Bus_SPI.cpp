@@ -59,7 +59,7 @@ Contributors:
 #endif   
 
 #ifndef SPI_PIN_REG
- #define SPI_PIN_REG(i) SPI_MISC_REG(i)
+ #define SPI_PIN_REG SPI_MISC_REG
 #endif
 
 #if defined (SOC_GDMA_SUPPORTED)  // for C3/C6/S3
