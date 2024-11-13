@@ -35,7 +35,7 @@ namespace lgfx
  {
 //----------------------------------------------------------------------------
 
-  static constexpr const uint8_t PWM_BITS = 9;
+  static constexpr const uint8_t PWM_BITS = SOC_LEDC_TIMER_BIT_WIDTH;
 
 
   bool Light_PWM::init(uint8_t brightness)

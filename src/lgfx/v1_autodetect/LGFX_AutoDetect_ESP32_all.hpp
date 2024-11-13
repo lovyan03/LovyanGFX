@@ -1270,7 +1270,7 @@ namespace lgfx
             cfg.offset_rotation = 2;
             p->config(cfg);
             p->setRotation(1);
-            p->light(_create_pwm_backlight(GPIO_NUM_45, 0, 12000, true));
+            p->light(_create_pwm_backlight(GPIO_NUM_45, 0, 1200, true));
           }
         }
       };
