@@ -33,7 +33,7 @@
  */
 
 // hardcoded EOL versions, official versions will be added by the script
-$hardcoded_fqbns = ['esp32@4.3.6', 'esp32@4.1.4', 'esp32s3@release/v5.4'];
+$hardcoded_fqbns = ['esp32@v4.3.6', 'esp32@v4.1.4', 'esp32s3@release/v5.4'];
 
 // restrict output to these idf targets, other targets will be ignored
 $idf_boards     = ['esp32', 'esp32s2', 'esp32s3', 'esp32c6'/*, 'esp32h2', 'esp32p4', 'esp32c5'*/];
@@ -64,7 +64,7 @@ foreach($idf_versions_json['VERSIONS'] as $version)
     if(in_array($board, $idf_boards)) // only keep supported targets
     {
       // e.g. esp32@5.2.1
-      $fqbns[] = $board.'@'.str_replace(["v","V"], "", $version['name']);
+      $fqbns[] = $board.'@v'.str_replace(["v","V"], "", $version['name']);
     }
   }
 
