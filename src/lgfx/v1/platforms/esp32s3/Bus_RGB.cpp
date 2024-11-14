@@ -45,7 +45,10 @@ Contributors:
 #endif
 
 #if SOC_LCDCAM_RGB_LCD_SUPPORTED || CONFIG_SOC_LCDCAM_RGB_LCD_SUPPORTED || (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 4, 0))
-  #define LGFX_USE_LCD_PERIPH_RGB_SIGNALS
+  // lcd_periph_signals() function was renamed to lcd_periph_rgb_signals()
+  #define LGFX_LCD_PERIPH_RGB_SIGNALS lcd_periph_rgb_signals
+#else
+  #define LGFX_LCD_PERIPH_RGB_SIGNALS lcd_periph_signals
 #endif
 
 
@@ -161,11 +164,9 @@ namespace lgfx
       static constexpr const uint8_t rgb332sig_tbl[] = { 1, 0, 1, 0, 1, 2, 3, 4, 2, 3, 4, 5, 6, 5, 6, 7 };
       static constexpr const uint8_t rgb565sig_tbl[] = { 8, 9, 10, 11, 12, 13, 14, 15, 0, 1, 2, 3, 4, 5, 6, 7 };
       auto tbl = (pixel_bytes == 2) ? rgb565sig_tbl : rgb332sig_tbl;
-#if defined LGFX_USE_LCD_PERIPH_RGB_SIGNALS
-      auto sigs = &lcd_periph_rgb_signals.panels[_cfg.port];
-#else
-      auto sigs = &lcd_periph_signals.panels[_cfg.port];
-#endif
+
+      auto sigs = &LGFX_LCD_PERIPH_RGB_SIGNALS.panels[_cfg.port];
+
       for (size_t i = 0; i < 16; i++) {
         _gpio_pin_sig(_cfg.pin_data[i], sigs->data_sigs[tbl[i]]);
       }
@@ -314,11 +315,7 @@ namespace lgfx
 
     int isr_flags = ESP_INTR_FLAG_INTRDISABLED | ESP_INTR_FLAG_SHARED;
 
-#if defined LGFX_USE_LCD_PERIPH_RGB_SIGNALS
-      auto sigs = &lcd_periph_rgb_signals.panels[_cfg.port];
-#else
-      auto sigs = &lcd_periph_signals.panels[_cfg.port];
-#endif
+    auto sigs = &LGFX_LCD_PERIPH_RGB_SIGNALS.panels[_cfg.port];
 
     esp_intr_alloc_intrstatus(sigs->irq_id, isr_flags,
                                    (uint32_t)&dev->lc_dma_int_st,
