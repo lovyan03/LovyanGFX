@@ -44,6 +44,11 @@ Contributors:
  #include <driver/periph_ctrl.h>
 #endif
 
+#if SOC_LCDCAM_RGB_LCD_SUPPORTED || CONFIG_SOC_LCDCAM_RGB_LCD_SUPPORTED || (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 4, 0))
+  #define LGFX_USE_LCD_PERIPH_RGB_SIGNALS
+#endif
+
+
 namespace lgfx
 {
  inline namespace v1
@@ -156,7 +161,7 @@ namespace lgfx
       static constexpr const uint8_t rgb332sig_tbl[] = { 1, 0, 1, 0, 1, 2, 3, 4, 2, 3, 4, 5, 6, 5, 6, 7 };
       static constexpr const uint8_t rgb565sig_tbl[] = { 8, 9, 10, 11, 12, 13, 14, 15, 0, 1, 2, 3, 4, 5, 6, 7 };
       auto tbl = (pixel_bytes == 2) ? rgb565sig_tbl : rgb332sig_tbl;
-#if SOC_LCDCAM_RGB_LCD_SUPPORTED
+#if defined LGFX_USE_LCD_PERIPH_RGB_SIGNALS
       auto sigs = &lcd_periph_rgb_signals.panels[_cfg.port];
 #else
       auto sigs = &lcd_periph_signals.panels[_cfg.port];
@@ -309,7 +314,7 @@ namespace lgfx
 
     int isr_flags = ESP_INTR_FLAG_INTRDISABLED | ESP_INTR_FLAG_SHARED;
 
-#if SOC_LCDCAM_RGB_LCD_SUPPORTED
+#if defined LGFX_USE_LCD_PERIPH_RGB_SIGNALS
       auto sigs = &lcd_periph_rgb_signals.panels[_cfg.port];
 #else
       auto sigs = &lcd_periph_signals.panels[_cfg.port];
