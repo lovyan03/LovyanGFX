@@ -45,6 +45,14 @@
 
 #if !defined SKIP_I2C_TEST
 
+
+  #if defined ESP32S3
+    #include <lgfx/v1/platforms/esp32s3/Panel_RGB.hpp>
+    #include <lgfx/v1/platforms/esp32s3/Bus_RGB.hpp>
+  #endif
+
+
+
   class LGFX_I2C : public lgfx::LGFX_Device
   {
     lgfx::Bus_I2C       _bus_instance;
