@@ -37,13 +37,9 @@ jobs:
 
         platform-version:
           # ESP32 Core versions for 3D matrix
-          # - 2.0.15
-          # - 2.0.16
+          - 2.0.15
+          - 2.0.16
           - 2.0.17
-          # - 3.0.5
-          - 3.0.6
-          - 3.0.7
-          - 3.1.0-RC2
           #- 3.0.0
 
         include:
@@ -66,6 +62,7 @@ jobs:
           - { board: esp32c6,  platform: esp32, platform-version: latest, platform-url: 'https://espressif.github.io/arduino-esp32/package_esp32_index.json', archi: esp32, ... }
           - { board: esp32c3,  platform: esp32, platform-version: latest, platform-url: 'https://espressif.github.io/arduino-esp32/package_esp32_index.json', archi: esp32, ... }
           # - { board: esp32h2,  platform: esp32, platform-version: latest, platform-url: 'https://espressif.github.io/arduino-esp32/package_esp32_index.json', archi: esp32, ... }
+          - { board: esp32s3,  platform: esp32, platform-version: 3.1.0-RC2, platform-url: 'https://espressif.github.io/arduino-esp32/package_esp32_dev_index.json', archi: esp32, ... }
 
           # 3D matrix applies to these:
           - { platform: esp32, archi: esp32, ... }
