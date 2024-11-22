@@ -36,7 +36,10 @@ Contributors:
 #include <soc/i2c_reg.h>
 #include <soc/i2c_struct.h>
 #if (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 3, 0))
- #include <soc/syscon_reg.h>
+ //#include <soc/syscon_reg.h>
+ #if __has_include(<soc/syscon_reg.h>)
+  #include <soc/syscon_reg.h>
+ #endif
 #else
  #if __has_include (<soc/apb_ctrl_reg.h>)
   #include <soc/apb_ctrl_reg.h>
@@ -345,10 +348,20 @@ namespace lgfx
         _gpio_pin_reg      = *reinterpret_cast<uint32_t*>(GPIO_PIN0_REG              + (pin_num * 4));
         _gpio_func_out_reg = *reinterpret_cast<uint32_t*>(GPIO_FUNC0_OUT_SEL_CFG_REG + (pin_num * 4));
 #if defined ( GPIO_ENABLE1_REG )
-        _gpio_enable = *reinterpret_cast<uint32_t*>(((_pin_num & 32) ? GPIO_ENABLE1_REG : GPIO_ENABLE_REG)) & (1 << (_pin_num & 31));
+        _gpio_enable = *reinterpret_cast<uint32_t*>(((pin_num & 32) ? GPIO_ENABLE1_REG : GPIO_ENABLE_REG)) & (1 << (pin_num & 31));
 #else
-        _gpio_enable = *reinterpret_cast<uint32_t*>(GPIO_ENABLE_REG) & (1 << (_pin_num & 31));
+        _gpio_enable = *reinterpret_cast<uint32_t*>(GPIO_ENABLE_REG) & (1 << (pin_num & 31));
 #endif
+        _in_func_num = -1;
+
+        size_t func_num = ((_gpio_func_out_reg >> GPIO_FUNC0_OUT_SEL_S) & GPIO_FUNC0_OUT_SEL_V);
+        if (func_num < sizeof(GPIO.func_in_sel_cfg) / sizeof(GPIO.func_in_sel_cfg[0])) {
+          _gpio_func_in_reg = *reinterpret_cast<uint32_t*>(GPIO_FUNC0_IN_SEL_CFG_REG + (func_num * 4));
+          if (func_num == ((_gpio_func_in_reg >> GPIO_FUNC0_IN_SEL_S) & GPIO_FUNC0_IN_SEL_V)) {
+            _in_func_num = func_num;
+// ESP_LOGD("DEBUG","backup pin:%d : func_num:%d", pin_num, _in_func_num);
+          }
+        }
       }
     }
 
@@ -357,22 +370,28 @@ namespace lgfx
       auto pin_num = (size_t)_pin_num;
       if (pin_num < GPIO_NUM_MAX)
       {
-  // ESP_LOGD("DEBUG","restore pin:%d ", _pin_num);
-  // ESP_LOGD("DEBUG","restore IO_MUX_GPIO0_REG          :%08x -> %08x ", *reinterpret_cast<uint32_t*>(GPIO_PIN_MUX_REG[_pin_num]                 ), _io_mux_gpio_reg   );
-  // ESP_LOGD("DEBUG","restore GPIO_PIN0_REG             :%08x -> %08x ", *reinterpret_cast<uint32_t*>(GPIO_PIN0_REG              + (_pin_num * 4)), _gpio_pin_reg      );
-  // ESP_LOGD("DEBUG","restore GPIO_FUNC0_OUT_SEL_CFG_REG:%08x -> %08x ", *reinterpret_cast<uint32_t*>(GPIO_FUNC0_OUT_SEL_CFG_REG + (_pin_num * 4)), _gpio_func_out_reg );
+        if ((uint16_t)_in_func_num < 256) {
+          GPIO.func_in_sel_cfg[_in_func_num].val = _gpio_func_in_reg;
+  // ESP_LOGD("DEBUG","pin:%d in_func_num:%d", (int)pin_num, (int)_in_func_num);
+        }
+
+  // ESP_LOGD("DEBUG","restore pin:%d ", pin_num);
+  // ESP_LOGD("DEBUG","restore IO_MUX_GPIO0_REG          :%08x -> %08x ", *reinterpret_cast<uint32_t*>(GPIO_PIN_MUX_REG[pin_num]                 ), _io_mux_gpio_reg   );
+  // ESP_LOGD("DEBUG","restore GPIO_PIN0_REG             :%08x -> %08x ", *reinterpret_cast<uint32_t*>(GPIO_PIN0_REG              + (pin_num * 4)), _gpio_pin_reg      );
+  // ESP_LOGD("DEBUG","restore GPIO_FUNC0_OUT_SEL_CFG_REG:%08x -> %08x ", *reinterpret_cast<uint32_t*>(GPIO_FUNC0_OUT_SEL_CFG_REG + (pin_num * 4)), _gpio_func_out_reg );
         *reinterpret_cast<uint32_t*>(GPIO_PIN_MUX_REG[_pin_num]) = _io_mux_gpio_reg;
-        *reinterpret_cast<uint32_t*>(GPIO_PIN0_REG              + (_pin_num * 4)) = _gpio_pin_reg;
-        *reinterpret_cast<uint32_t*>(GPIO_FUNC0_OUT_SEL_CFG_REG + (_pin_num * 4)) = _gpio_func_out_reg;
+        *reinterpret_cast<uint32_t*>(GPIO_PIN0_REG              + (pin_num * 4)) = _gpio_pin_reg;
+        *reinterpret_cast<uint32_t*>(GPIO_FUNC0_OUT_SEL_CFG_REG + (pin_num * 4)) = _gpio_func_out_reg;
+
 #if defined ( GPIO_ENABLE1_REG )
-        auto gpio_enable_reg = reinterpret_cast<uint32_t*>(((_pin_num & 32) ? GPIO_ENABLE1_REG : GPIO_ENABLE_REG));
+        auto gpio_enable_reg = reinterpret_cast<uint32_t*>(((pin_num & 32) ? GPIO_ENABLE1_REG : GPIO_ENABLE_REG));
 #else
         auto gpio_enable_reg = reinterpret_cast<uint32_t*>(GPIO_ENABLE_REG);
 #endif
 
-        uint32_t pin_mask = 1 << (_pin_num & 31);
+        uint32_t pin_mask = 1 << (pin_num & 31);
         uint32_t val = *gpio_enable_reg;
-  // ESP_LOGD("DEBUG","restore GPIO_ENABLE_REG:%08x", *gpio_enable_reg);
+  // ESP_LOGD("DEBUG","restore GPIO_ENABLE_REG:%08x", (int)*gpio_enable_reg);
         if (_gpio_enable)
         {
            val |= pin_mask;
@@ -382,7 +401,6 @@ namespace lgfx
           val &= ~pin_mask;
         }
         *gpio_enable_reg = val;
-  // ESP_LOGD("DEBUG","restore GPIO_ENABLE_REG:%08x", *gpio_enable_reg);
       }
     }
 
@@ -477,7 +495,12 @@ namespace lgfx
       }
       if (_spi_handle[spi_host] == nullptr)
       {
-        _spi_handle[spi_host] = spiStartBus(spi_port, SPI_CLK_EQU_SYSCLK, 0, 0);
+        auto spi_num = spi_port;
+#if  defined ( CONFIG_IDF_TARGET_ESP32S3 )
+        spi_num = HSPI;
+        if (spi_host == SPI2_HOST) { spi_num = FSPI; }
+#endif
+        _spi_handle[spi_host] = spiStartBus(spi_num, SPI_CLK_EQU_SYSCLK, 0, 0);
       }
 
 #endif
@@ -577,8 +600,27 @@ namespace lgfx
 
       uint32_t user = SPI_USR_MOSI | SPI_USR_MISO | SPI_DOUTDIN;
       if (spi_mode == 1 || spi_mode == 2) user |= SPI_CK_OUT_EDGE;
-      uint32_t pin = 0;
-      if (spi_mode & 2) pin = SPI_CK_IDLE_EDGE;
+      uint32_t pin = (spi_mode & 2) ? SPI_CK_IDLE_EDGE : 0;
+      pin = pin
+#if defined ( SPI_CS0_DIS )
+            | SPI_CS0_DIS
+#endif
+#if defined ( SPI_CS1_DIS )
+            | SPI_CS1_DIS
+#endif
+#if defined ( SPI_CS2_DIS )
+            | SPI_CS2_DIS
+#endif
+#if defined ( SPI_CS3_DIS )
+            | SPI_CS3_DIS
+#endif
+#if defined ( SPI_CS4_DIS )
+            | SPI_CS4_DIS
+#endif
+#if defined ( SPI_CS5_DIS )
+            | SPI_CS5_DIS
+#endif
+      ;
 
       beginTransaction(spi_host);
 
@@ -608,13 +650,7 @@ namespace lgfx
 
     void endTransaction(int spi_host, int spi_cs)
     {
-      if (_spi_dev_handle[spi_host]) {
-#if defined (ARDUINO) // Arduino ESP32
-        spiEndTransaction(_spi_handle[spi_host]);
-#else // ESP-IDF
-        spi_device_release_bus(_spi_dev_handle[spi_host]);
-#endif
-      }
+      endTransaction(spi_host);
       gpio_hi(spi_cs);
     }
 
@@ -655,21 +691,18 @@ namespace lgfx
  #define I2C_ACK_ERR_INT_RAW_M I2C_NACK_INT_RAW_M
 #endif
 
-#if __has_include(<soc/i2c_periph.h>)
     static periph_module_t getPeriphModule(int num)
     {
-      return i2c_periph_signal[num].module;
-    }
+#if SOC_I2C_NUM == 1 || defined CONFIG_IDF_TARGET_ESP32C6
+      return PERIPH_I2C0_MODULE;
 #else
-    static periph_module_t getPeriphModule(int num)
-    {
       return num == 0 ? PERIPH_I2C0_MODULE : PERIPH_I2C1_MODULE;
-    }
 #endif
+    }
 
     static i2c_dev_t* getDev(int num)
     {
-#if SOC_I2C_NUM == 1
+#if SOC_I2C_NUM == 1 || defined CONFIG_IDF_TARGET_ESP32C6
       return &I2C0;
 #else
       return num == 0 ? &I2C0 : &I2C1;
@@ -775,6 +808,7 @@ namespace lgfx
           if (fifo_reg == &reg[i]) { continue; }
           reg[i] = _reg_store[i];
         }
+        updateDev(dev);
       }
 
       void setPins(i2c_dev_t* dev, gpio_num_t scl, gpio_num_t sda)
@@ -791,7 +825,13 @@ namespace lgfx
    #endif
   #endif
  #endif
+
+#if SOC_I2C_NUM == 1 || defined CONFIG_IDF_TARGET_ESP32C6
+        auto twowire = &Wire;
+#else
         auto twowire = ((dev == &I2C0) ? &Wire : &Wire1);
+#endif
+
  #if defined ( USE_TWOWIRE_SETPINS )
         twowire->setPins(sda, scl);
  #else
@@ -862,10 +902,6 @@ namespace lgfx
       gpio_set_direction(scl_io, GPIO_MODE_OUTPUT_OD);
       delayMicroseconds(I2C_CLR_BUS_HALF_PERIOD_US);
 
-      auto mod = getPeriphModule(i2c_port);
-      // ESP-IDF環境でperiph_module_disableを使うと、後でenableできなくなる問題が起きたためコメントアウト;
-      //periph_module_disable(mod);
-
       // SDAがHIGHになるまでSTOP送出を繰り返す。;
       int i = 0;
       do
@@ -879,9 +915,10 @@ namespace lgfx
         gpio_set_level(sda_io, 1);
         delayMicroseconds(I2C_CLR_BUS_HALF_PERIOD_US);
       } while (!gpio_get_level(sda_io) && (i++ < I2C_CLR_BUS_SCL_NUM));
-      periph_module_enable(mod);
+
 #if !defined (CONFIG_IDF_TARGET_ESP32C3)
 /// ESP32C3で periph_module_reset を使用すると以後通信不能になる問題が起きたため分岐;
+      auto mod = getPeriphModule(i2c_port);
       periph_module_reset(mod);
 #endif
       i2c_set_pin((i2c_port_t)i2c_port, sda_io, scl_io, gpio_pullup_t::GPIO_PULLUP_ENABLE, gpio_pullup_t::GPIO_PULLUP_ENABLE, I2C_MODE_MASTER);
@@ -923,9 +960,8 @@ namespace lgfx
 #else
           uint32_t us_limit = (dev->scl_high_period.period + dev->scl_low_period.period + 16 ) * (1 + dev->status_reg.tx_fifo_cnt);
 #endif
-          if (i2c_context[i2c_port].wait_ack_stage == 2) {
-            us_limit += 1024;
-          }
+          us_limit += 512 << i2c_context[i2c_port].wait_ack_stage;
+
           do
           {
             taskYIELD();
@@ -963,6 +999,7 @@ namespace lgfx
           i2c_set_cmd(dev, 0, i2c_cmd_stop, 0);
           i2c_set_cmd(dev, 1, i2c_cmd_end, 0);
           static constexpr uint32_t intmask_ = I2C_ACK_ERR_INT_RAW_M | I2C_TIME_OUT_INT_RAW_M | I2C_END_DETECT_INT_RAW_M | I2C_ARBITRATION_LOST_INT_RAW_M | I2C_TRANS_COMPLETE_INT_RAW_M;
+          updateDev(dev);
           dev->int_clr.val = intmask_;
           dev->ctr.trans_start = 1;
           uint32_t ms = lgfx::millis();
@@ -1000,11 +1037,18 @@ namespace lgfx
  #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 0, 0)
   #if defined ARDUINO_ESP32_GIT_VER
     #if ARDUINO_ESP32_GIT_VER != 0x44c11981
+      #if SOC_I2C_NUM == 1 || defined CONFIG_IDF_TARGET_ESP32C6
+        auto twowire = &Wire;
+      #else
         auto twowire = ((i2c_port == 1) ? &Wire1 : &Wire);
+      #endif
         twowire->end();
     #endif
   #endif
  #endif
+#else
+        auto mod = getPeriphModule(i2c_port);
+        periph_module_disable(mod);
 #endif
         if ((int)i2c_context[i2c_port].pin_scl >= 0)
         {
@@ -1046,11 +1090,26 @@ namespace lgfx
   #endif
  #endif
  #if defined ( USE_TWOWIRE_SETPINS )
+
+#if SOC_I2C_NUM == 1 || defined CONFIG_IDF_TARGET_ESP32C6
+      auto twowire = &Wire;
+#else
       auto twowire = ((i2c_port == 1) ? &Wire1 : &Wire);
+#endif
       twowire->setPins(pin_sda, pin_scl);
  #endif
 #endif
       return {};
+    }
+
+    cpp::result<int, error_t> getPinSDA(int i2c_port)
+    {
+      return i2c_context[i2c_port].pin_sda;
+    }
+
+    cpp::result<int, error_t> getPinSCL(int i2c_port)
+    {
+      return i2c_context[i2c_port].pin_scl;
     }
 
     cpp::result<void, error_t> init(int i2c_port)
@@ -1068,12 +1127,19 @@ namespace lgfx
       }
 
 #if defined ( ARDUINO ) && __has_include (<Wire.h>)
+#if SOC_I2C_NUM == 1 || defined CONFIG_IDF_TARGET_ESP32C6
+      auto twowire = &Wire;
+#else
       auto twowire = ((i2c_port == 1) ? &Wire1 : &Wire);
+#endif
  #if defined ( USE_TWOWIRE_SETPINS )
       twowire->begin();
  #else
       twowire->begin((int)i2c_context[i2c_port].pin_sda, (int)i2c_context[i2c_port].pin_scl);
  #endif
+#else
+      auto mod = getPeriphModule(i2c_port);
+      periph_module_enable(mod);
 #endif
 
       i2c_context[i2c_port].initialized = true;
@@ -1390,19 +1456,19 @@ namespace lgfx
         dev->int_clr.val = intmask;
         dev->ctr.trans_start = 1;
 
+        uint32_t us = lgfx::micros();
+        taskYIELD();
+        int delayus = ((us_limit + 2) >> 2) - (lgfx::micros() - us);
+        if (delayus > 0) {
+          delayMicroseconds(delayus);
+        }
         do
         {
-          uint32_t us = lgfx::micros();
-          taskYIELD();
-          us = lgfx::micros() - us;
-          int delayus = ((us_limit + 2) >> 2) - us;
-          if (delayus > 0) {
-            delayMicroseconds(delayus);
-          }
+          us = lgfx::micros();
           do
           {
             taskYIELD();
-          } while (0 == getRxFifoCount(dev) && !(dev->int_raw.val & intmask) && ((lgfx::micros() - us) <= us_limit + 1024));
+          } while ((len>>1) >= getRxFifoCount(dev) && !(dev->int_raw.val & intmask) && ((lgfx::micros() - us) <= us_limit + 1024));
 
           if (0 == getRxFifoCount(dev))
           {
@@ -1413,7 +1479,7 @@ namespace lgfx
             i2c_context[i2c_port].wait_ack_stage = 0;
             return res;
           }
-          *readdata++ = *fifo_addr; //dev->fifo_data.data;
+          *readdata++ = *fifo_addr;
         } while (--len);
       } while (length);
 

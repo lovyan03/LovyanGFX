@@ -180,7 +180,7 @@ namespace lgfx
 
  #endif
 //*/
- #if defined (Stream_h) || defined ARDUINO_ARCH_RP2040 // RP2040 has no defines for builtin Stream API
+ #if defined (Stream_h) || defined (ARDUINO_ARCH_RP2040) // RP2040 has no defines for builtin Stream API
 
   #define LGFX_FUNCTION_GENERATOR(drawImg, draw_img) \
     inline bool drawImg(Stream *dataSource, int32_t x = 0, int32_t y = 0, int32_t maxWidth = 0, int32_t maxHeight = 0, int32_t offX = 0, int32_t offY = 0, float scale_x = 1.0f, float scale_y = 0.0f, datum_t datum = datum_t::top_left) \

@@ -142,6 +142,17 @@ namespace lgfx
     return true;
   }
 
+  void Panel_SSD1963::setBrightness(uint8_t brightness)
+  {
+    if (_light) { Panel_LCD::setBrightness(brightness); }
+    else {
+      startWrite();
+      uint8_t cmd[] = { 0xBE, 6, 0x05, brightness, 0x01, 0xFF, 0x00, 0x00, 0xFF, 0xFF };
+      command_list(cmd);
+      endWrite();
+    }
+  }
+
   color_depth_t Panel_SSD1963::setColorDepth(color_depth_t depth)
   {
     uint8_t mode = 0x00;

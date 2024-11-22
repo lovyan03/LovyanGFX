@@ -34,12 +34,15 @@ Contributors:
 #include <soc/gpio_sig_map.h>
 #include <esp_timer.h>
 
-#if !defined ( REG_SPI_BASE )
- /// ESP32-S3をターゲットにした際にREG_SPI_BASEが定義されていなかったので応急処置 5.3まで;
- #if defined ( CONFIG_IDF_TARGET_ESP32S3 )
-  #define REG_SPI_BASE(i)   (DR_REG_SPI1_BASE + (((i)>1) ? (((i)* 0x1000) + 0x20000) : (((~(i)) & 1)* 0x1000 )))
- #else
-  //#define REG_SPI_BASE(i) (DR_REG_SPI0_BASE - (i) * 0x1000)
+
+#if defined ( CONFIG_IDF_TARGET_ESP32S3 )
+ /// ESP32-S3をターゲットにした際にREG_SPI_BASEの定義がおかしいため自前で設定
+ #if defined( REG_SPI_BASE )
+  #undef REG_SPI_BASE
+ #endif
+ #define REG_SPI_BASE(i)   (DR_REG_SPI1_BASE + (((i)>1) ? (((i)* 0x1000) + 0x20000) : (((~(i)) & 1)* 0x1000 )))
+#else
+ #if !defined ( REG_SPI_BASE )
   #define REG_SPI_BASE(i)     (DR_REG_SPI2_BASE)
  #endif
 #endif
@@ -226,6 +229,9 @@ protected:
     {
     public:
       pin_backup_t(int pin_num);
+      pin_backup_t(void) : pin_backup_t( -1 ) {};
+      void setPin(int pin_num) { _pin_num = pin_num; }
+      int getPin(void) const { return _pin_num; }
       void backup(void);
       void restore(void);
 
@@ -233,7 +239,9 @@ protected:
       uint32_t _io_mux_gpio_reg;
       uint32_t _gpio_pin_reg;
       uint32_t _gpio_func_out_reg;
-      gpio_num_t _pin_num;
+      uint32_t _gpio_func_in_reg;
+      int16_t _in_func_num = -1;
+      int8_t _pin_num = -1; //GPIO_NUM_NC
       bool _gpio_enable;
     };
 
@@ -267,6 +275,8 @@ protected:
   {
     cpp::result<void, error_t> setPins(int i2c_port, int pin_sda, int pin_scl);
     cpp::result<void, error_t> init(int i2c_port);
+    cpp::result<int, error_t> getPinSDA(int i2c_port);
+    cpp::result<int, error_t> getPinSCL(int i2c_port);
   }
 
 //----------------------------------------------------------------------------

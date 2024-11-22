@@ -1,12 +1,17 @@
-#define LGFX_USE_V1
-#include <LovyanGFX.hpp>
+#include <pico/stdlib.h>
 
-#include "partyparrot.h"
+#include <LovyanGFX.hpp>
+#include "LGFX_config.hpp"
+
+#include "../../examples/Sprite/PartyParrot/partyparrot.h"
 
 static LGFX lcd;
 static LGFX_Sprite sprite[10];
 
-static std::uint32_t count = 0;
+void setup(void);
+void loop(void);
+
+static uint32_t count = 0;
 static float zoom = 0;
 
 extern const unsigned char parrot00[];
@@ -20,7 +25,20 @@ extern const unsigned char parrot07[];
 extern const unsigned char parrot08[];
 extern const unsigned char parrot09[];
 
-void setup()
+int main()
+{
+	stdio_init_all();
+
+	setup();
+
+	while (1) {
+		loop();
+	}
+
+	return 0;
+}
+
+void setup(void)
 {
   lcd.init();
   lcd.setRotation(0);
@@ -45,7 +63,8 @@ void setup()
   sprite[9].createFromBmp(parrot09);
 }
 
-void loop() {
+void loop(void)
+{
   if (++count == 10) count = 0;
   sprite[count].pushRotateZoom(&lcd, lcd.width() >> 1, lcd.height() >> 1, 0, zoom, zoom);
 }

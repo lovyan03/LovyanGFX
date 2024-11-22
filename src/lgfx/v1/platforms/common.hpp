@@ -41,7 +41,7 @@ Contributors:
 
 #include "spresense/common.hpp"
 
-#elif defined (ARDUINO_ARCH_MBED_RP2040) || defined(ARDUINO_ARCH_RP2040)
+#elif defined (ARDUINO_ARCH_MBED_RP2040) || defined(ARDUINO_ARCH_RP2040) || defined(USE_PICO_SDK)
 
 #include "rp2040/common.hpp"
 
@@ -49,15 +49,15 @@ Contributors:
 
 #include "arduino_default/common.hpp"
 
-#elif __has_include(<SDL2/SDL.h>) || __has_include(<SDL.h>)
+#elif (__has_include(<SDL2/SDL.h>) || __has_include(<SDL.h>)) && !defined(LGFX_LINUX_FB)
 
 #include "sdl/common.hpp"
 
-#elif __has_include(<opencv2/opencv.hpp>)
+#elif __has_include(<opencv2/opencv.hpp>) && !defined(LGFX_LINUX_FB)
 
 #include "opencv/common.hpp"
 
-#elif defined (__linux__)
+#elif defined (__linux__) && defined(LGFX_LINUX_FB)
 
 #include "framebuffer/common.hpp"
 

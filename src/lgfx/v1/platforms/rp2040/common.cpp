@@ -18,7 +18,7 @@ Contributors:
 Porting for RP2040:
  [yasuhirok](https://github.com/yasuhirok-git)
 /----------------------------------------------------------------------------*/
-#if defined (ARDUINO_ARCH_MBED_RP2040) || defined(ARDUINO_ARCH_RP2040)
+#if defined (ARDUINO_ARCH_MBED_RP2040) || defined(ARDUINO_ARCH_RP2040) || defined(USE_PICO_SDK)
 
 #include "common.hpp"
 #include <array>
@@ -35,6 +35,12 @@ Porting for RP2040:
 #include <hardware/spi.h>
 #include <hardware/i2c.h>
 
+
+#if PICO_SDK_VERSION_MAJOR<2
+  // NOTE: old pico sdk (before rp2350) used enum type for gpio function, iobank was named differently too
+  #define gpio_function_t enum gpio_function
+  #define io_bank0_hw_t iobank0_hw_t
+#endif
 
 // #define DEBUG
 
@@ -75,7 +81,7 @@ namespace lgfx
 
   namespace {
 
-    bool lgfx_gpio_set_function(int_fast16_t pin, enum gpio_function fn)
+    bool lgfx_gpio_set_function(int_fast16_t pin, gpio_function_t fn)
     {
       if (pin < 0 || pin >= static_cast<int_fast16_t>(NUM_BANK0_GPIOS))
       {
@@ -89,8 +95,12 @@ namespace lgfx
       temp &= ~(PADS_BANK0_GPIO0_IE_BITS | PADS_BANK0_GPIO0_OD_BITS);
       temp |= PADS_BANK0_GPIO0_IE_BITS;
       padsbank0_hw->io[pin] = temp;
-      volatile iobank0_hw_t *iobank0_regs = reinterpret_cast<volatile iobank0_hw_t *>(IO_BANK0_BASE);
+      volatile io_bank0_hw_t *iobank0_regs = reinterpret_cast<volatile io_bank0_hw_t *>(IO_BANK0_BASE);
       iobank0_regs->io[pin].ctrl = fn << IO_BANK0_GPIO0_CTRL_FUNCSEL_LSB;
+      #if defined(PICO_RP2350)
+        // Remove pad isolation now that the correct peripheral is in control of the pad
+        hw_clear_bits(&padsbank0_hw->io[pin], PADS_BANK0_GPIO0_ISO_BITS);
+      #endif
       return true;
     }
 
@@ -213,13 +223,24 @@ namespace lgfx
       };
       constexpr int n_spi = std::extent<decltype(spi_dev), 0>::value;
 
+#if defined(PICO_RP2350)
+      // RP2350 Dataheetの 9.4. Function Select (Table 642)を参照
+      // ※30以降は2350Bで使用可能
+      constexpr uint8_t spi0_sclk_pinlist[] = {  2,  6, 18, 22, 34, 38,     UINT8_MAX };
+      constexpr uint8_t spi0_miso_pinlist[] = {  0,  4, 16, 20, 32, 36,     UINT8_MAX };
+      constexpr uint8_t spi0_mosi_pinlist[] = {  3,  7, 19, 23, 35, 39,     UINT8_MAX };
+      constexpr uint8_t spi1_sclk_pinlist[] = { 10, 14, 26,     30, 42, 46, UINT8_MAX };
+      constexpr uint8_t spi1_miso_pinlist[] = {  8, 12, 24, 28, 40, 44,     UINT8_MAX };
+      constexpr uint8_t spi1_mosi_pinlist[] = { 11, 15, 27,     31, 43, 47, UINT8_MAX };
+#else
       // RP2040 Dataheetの 1.4.3. GPIO Functions Table 2を参照
-      constexpr uint8_t spi0_sclk_pinlist[] = {  2,  6, 18, 23, UINT8_MAX };
+      constexpr uint8_t spi0_sclk_pinlist[] = {  2,  6, 18, 22, UINT8_MAX };
       constexpr uint8_t spi0_miso_pinlist[] = {  0,  4, 16, 20, UINT8_MAX };
       constexpr uint8_t spi0_mosi_pinlist[] = {  3,  7, 19, 23, UINT8_MAX };
       constexpr uint8_t spi1_sclk_pinlist[] = { 10, 14, 26,     UINT8_MAX };
       constexpr uint8_t spi1_miso_pinlist[] = {  8, 12, 24, 28, UINT8_MAX };
       constexpr uint8_t spi1_mosi_pinlist[] = { 11, 15, 27,     UINT8_MAX };
+#endif
 
       constexpr uint32_t PRESCALE_ERROR = UINT32_MAX;
 
@@ -496,11 +517,20 @@ namespace lgfx
       };
       constexpr int n_i2c = std::extent<decltype(i2c_dev), 0>::value;
 
+#if defined(PICO_RP2350)
+      // RP2350 Dataheetの 9.4. Function Select (Table 642)を参照
+      // ※30以降は2350Bで使用可能
+      constexpr uint8_t i2c0_sda_pinlist[] = {  0,  4,  8, 12, 16, 20, 24, 28,     32, 36, 40, 44, UINT8_MAX };
+      constexpr uint8_t i2c0_sck_pinlist[] = {  1,  5,  9, 13, 17, 21, 25, 29,     33, 37, 41, 45, UINT8_MAX };
+      constexpr uint8_t i2c1_sda_pinlist[] = {  2,  6, 10, 14, 18, 22, 26,     30, 34, 38, 42, 46, UINT8_MAX };
+      constexpr uint8_t i2c1_sck_pinlist[] = {  3,  7, 11, 15, 19, 23, 27,     31, 35, 39, 43, 47, UINT8_MAX };
+#else
       // RP2040 Dataheetの 1.4.3. GPIO Functions Table 2を参照
       constexpr uint8_t i2c0_sda_pinlist[] = {  0,  4,  8, 12, 16, 20, 24, 28, UINT8_MAX };
       constexpr uint8_t i2c0_sck_pinlist[] = {  1,  5,  9, 13, 17, 21, 25, 29, UINT8_MAX };
       constexpr uint8_t i2c1_sda_pinlist[] = {  2,  6, 10, 14, 18, 22, 26,     UINT8_MAX };
       constexpr uint8_t i2c1_sck_pinlist[] = {  3,  7, 11, 15, 19, 23, 27,     UINT8_MAX };
+#endif
 
       constexpr struct i2c_pinlist_str {
         const uint8_t *sda_pinlist;

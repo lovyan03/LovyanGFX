@@ -84,7 +84,7 @@ Contributors:
 
 #include "spresense/Bus_SPI.hpp"
 
-#elif defined (ARDUINO_ARCH_MBED_RP2040) || defined(ARDUINO_ARCH_RP2040)
+#elif defined (ARDUINO_ARCH_MBED_RP2040) || defined(ARDUINO_ARCH_RP2040) || defined(USE_PICO_SDK)
 
 #include "rp2040/Light_PWM.hpp"
 #include "rp2040/Bus_I2C.hpp"
@@ -94,7 +94,7 @@ Contributors:
 
 #include "arduino_default/Bus_SPI.hpp"
 
-#elif __has_include(<SDL2/SDL.h>) || __has_include(<SDL.h>)
+#elif (__has_include(<SDL2/SDL.h>) || __has_include(<SDL.h>)) && !defined(LGFX_LINUX_FB)
 
 #include "sdl/Bus_I2C.hpp"
 #include "sdl/Panel_sdl.hpp"
