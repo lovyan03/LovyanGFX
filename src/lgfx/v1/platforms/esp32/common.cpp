@@ -1446,7 +1446,7 @@ namespace lgfx
           break;
         }
 
-        len = length < 33 ? length : 33;
+        len = length < 32 ? length : 32;
         if (length == len && last_nack && len > 1) { --len; }
 
         length -= len;
