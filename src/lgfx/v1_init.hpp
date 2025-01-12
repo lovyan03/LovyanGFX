@@ -49,6 +49,11 @@ Contributors:
 #include "v1/panel/Panel_ST7789.hpp"
 #include "v1/panel/Panel_ST7796.hpp"
 
+// AMOLED
+#include "v1/panel/Panel_SH8601Z.hpp"
+#include "v1/panel/Panel_NV3041A.hpp"
+#include "v1/panel/Panel_RM67162.hpp"
+
 // EPD
 #include "v1/panel/Panel_GDEW0154M09.hpp"
 #include "v1/panel/Panel_IT8951.hpp"
