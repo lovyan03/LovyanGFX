@@ -1,0 +1,75 @@
+name: PicoSDKBuild
+
+env:
+  WORKSPACE_DIR: examples_for_picosdk
+  PROJECT_DIR: i2c
+
+on:
+  push:
+    paths:
+    - '**.ino'
+    - '**.cpp'
+    - '**.hpp'
+    - '**.h'
+    - '**.c'
+    - '**PicoSDKBuild.yml'
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: ${{ matrix.board }}@${{ matrix.sdk-version }}
+
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+
+        include:
+          - { board: rp2350, sdk-version: 2.0.0, sdk-extras-version: sdk-2.0.0 }
+          - { board: rp2040, sdk-version: 2.0.0, sdk-extras-version: sdk-2.0.0 }
+          - { board: rp2040, sdk-version: 1.5.1, sdk-extras-version: sdk-1.5.1 }
+
+      fail-fast: false
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+
+      - name: install deps
+        run: |
+            sudo apt install ca-certificates build-essential avr-libc gcc-avr gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib libusb-1.0-0-dev cmake
+
+      - name: compile
+        run: |
+            cd ${{env.WORKSPACE_DIR}}
+
+            git clone -b ${{ matrix.sdk-version }} --depth 1 https://github.com/raspberrypi/pico-sdk
+            git clone -b ${{ matrix.sdk-extras-version }} --depth 1 https://github.com/raspberrypi/pico-extras
+
+            cd pico-sdk
+            git submodule update --init
+            cd ..
+
+            export PICO_SDK_PATH="$(pwd)/pico-sdk"
+            export PICO_SDK_EXTRAS_PATH="$(pwd)/pico-extras"
+            export PICO_PLATFORM="${{ matrix.board }}"
+
+            cp pico-sdk/external/pico_sdk_import.cmake ./
+            cp pico-extras/external/pico_extras_import.cmake ./pico_extras_import_optional.cmake
+
+            cd ${{env.PROJECT_DIR}}
+            ln -sv ../../../LovyanGFX LovyanGFX
+
+            mkdir -p build
+            cd build
+            cmake ..
+            make -j $(nproc)
+

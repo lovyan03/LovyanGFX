@@ -2575,7 +2575,7 @@ namespace lgfx
 
 //----------------------------------------------------------------------------
 
-  void LGFXBase::qrcode(const char *string, int32_t x, int32_t y, int32_t w, uint8_t version) {
+  void LGFXBase::qrcode(const char *string, int32_t x, int32_t y, int32_t w, uint8_t version, bool margin) {
     if (w == -1) {
       w = std::min(width(), height()) * 9 / 10;
     }
@@ -2592,6 +2592,16 @@ namespace lgfx
       int_fast16_t thickness = w / qrcode.size;
       int_fast16_t lineLength = qrcode.size * thickness;
       int_fast16_t offset = (w - lineLength) >> 1;
+
+      if(margin) {
+        int_fast16_t mlen = thickness * 4; // Need 4 cell or greater margin
+        if(offset < mlen) {
+          thickness = (w - (mlen << 1)) / qrcode.size;
+          lineLength = qrcode.size * thickness;
+          offset = (w - lineLength) >> 1;
+        }
+      }
+
       startWrite();
       writeFillRect(x, y, w, offset, TFT_WHITE);
       int_fast16_t dy = y + offset;

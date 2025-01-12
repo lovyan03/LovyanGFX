@@ -20,12 +20,7 @@ Contributors:
 
 #include "Bus_SPI.hpp"
 
-/// ESP32-S3をターゲットにした際にREG_SPI_BASEが定義されていなかったので応急処置 ;
-#if defined ( CONFIG_IDF_TARGET_ESP32S3 )
- #if !defined( REG_SPI_BASE )
-  #define REG_SPI_BASE(i)   (DR_REG_SPI1_BASE + (((i)>1) ? (((i)* 0x1000) + 0x20000) : (((~(i)) & 1)* 0x1000 )))
- #endif
-#elif defined ( CONFIG_IDF_TARGET_ESP32 ) || !defined ( CONFIG_IDF_TARGET )
+#if defined ( CONFIG_IDF_TARGET_ESP32 ) || !defined ( CONFIG_IDF_TARGET )
  #define LGFX_SPIDMA_WORKAROUND
 #endif
 
@@ -209,7 +204,27 @@ namespace lgfx
     }
 
     auto spi_mode = _cfg.spi_mode;
-    uint32_t pin  = (spi_mode & 2) ? SPI_CK_IDLE_EDGE : 0;
+    uint32_t pin = (spi_mode & 2) ? SPI_CK_IDLE_EDGE : 0;
+    pin = pin
+#if defined ( SPI_CS0_DIS )
+            | SPI_CS0_DIS
+#endif
+#if defined ( SPI_CS1_DIS )
+            | SPI_CS1_DIS
+#endif
+#if defined ( SPI_CS2_DIS )
+            | SPI_CS2_DIS
+#endif
+#if defined ( SPI_CS3_DIS )
+            | SPI_CS3_DIS
+#endif
+#if defined ( SPI_CS4_DIS )
+            | SPI_CS4_DIS
+#endif
+#if defined ( SPI_CS5_DIS )
+            | SPI_CS5_DIS
+#endif
+    ;
 
     if (_cfg.use_lock) spi::beginTransaction(_cfg.spi_host);
 
@@ -593,6 +608,7 @@ namespace lgfx
           goto label_start;
           do
           {
+            vTaskDelay(1 / portTICK_PERIOD_MS);
             while (*cmd & SPI_USR) {}
 label_start:
             exec_spi();

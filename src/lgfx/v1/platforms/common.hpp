@@ -41,7 +41,7 @@ Contributors:
 
 #include "spresense/common.hpp"
 
-#elif defined (ARDUINO_ARCH_MBED_RP2040) || defined(ARDUINO_ARCH_RP2040)
+#elif defined (ARDUINO_ARCH_MBED_RP2040) || defined(ARDUINO_ARCH_RP2040) || defined(USE_PICO_SDK)
 
 #include "rp2040/common.hpp"
 

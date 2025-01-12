@@ -48,6 +48,7 @@ Contributors:
 #include "v1/panel/Panel_ST7735.hpp"
 #include "v1/panel/Panel_ST7789.hpp"
 #include "v1/panel/Panel_ST7796.hpp"
+#include "v1/panel/Panel_ST77961.hpp"
 
 // AMOLED
 #include "v1/panel/Panel_SH8601Z.hpp"
@@ -71,4 +72,4 @@ Contributors:
 #include "v1/touch/Touch_STMPE610.hpp"
 #include "v1/touch/Touch_TT21xxx.hpp"
 #include "v1/touch/Touch_XPT2046.hpp"
-
+#include "v1/touch/Touch_RA8875.hpp"

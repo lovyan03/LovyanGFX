@@ -44,7 +44,7 @@ jobs:
       matrix:
         include:
           - { os: windows-latest }
-          - { os: macos-12   }
+          - { os: macos-latest   }
           - { os: ubuntu-latest  }
 
     steps:
@@ -117,7 +117,7 @@ jobs:
 
 
       - name: Build LGFX_SDL2 for Mac
-        if: ${{ matrix.os == 'macos-12' }}
+        if: ${{ matrix.os == 'macos-latest' }}
         run: |
           brew install sdl2
           cp .github/scripts/SDL.cmake ${{ env.PROJECT_DIR }}/CMakeLists.txt

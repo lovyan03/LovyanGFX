@@ -347,10 +347,67 @@ namespace lgfx
     return true;
   }
 
+  void Panel_M5HDMI::HDMI_Trans::_i2c_backup(void)
+  {
+    int i2c_port = HDMI_Trans_config.i2c_port;
+    auto sda = lgfx::i2c::getPinSDA(i2c_port);
+    int prev_sda = -1;
+    if (sda.has_value())
+    {
+      prev_sda = sda.value();
+    }
+    _pin_backup[0].setPin(prev_sda);
+    _pin_backup[0].backup();
+
+    auto scl = lgfx::i2c::getPinSCL(i2c_port);
+    int prev_scl = -1;
+    if (scl.has_value())
+    {
+      prev_scl = scl.value();
+    }
+    _pin_backup[1].setPin(prev_scl);
+    _pin_backup[1].backup();
+
+    int new_sda = _pin_backup[2].getPin();
+    int new_scl = _pin_backup[3].getPin();
+    if (new_sda >= 0 && new_scl >= 0)
+    {
+      if (prev_sda != new_sda || prev_scl != new_scl)
+      {
+        // lgfx::i2c::setPins(i2c_port, new_sda, new_scl);
+        lgfx::i2c::init(i2c_port, new_sda, new_scl);
+        const uint8_t gpio_command[] = {
+          lgfx::gpio::command_mode_output, (uint8_t)new_scl,
+          lgfx::gpio::command_write_low  , (uint8_t)new_scl,
+          lgfx::gpio::command_mode_output, (uint8_t)new_sda,
+          lgfx::gpio::command_write_low  , (uint8_t)new_sda,
+          lgfx::gpio::command_write_high , (uint8_t)new_scl,
+          lgfx::gpio::command_write_high , (uint8_t)new_sda,
+          lgfx::gpio::command_write_low  , (uint8_t)new_scl,
+          lgfx::gpio::command_write_low  , (uint8_t)new_sda,
+          lgfx::gpio::command_write_high , (uint8_t)new_scl,
+          lgfx::gpio::command_write_high , (uint8_t)new_sda,
+          lgfx::gpio::command_end
+        };
+        lgfx::gpio::command(gpio_command);
+        _pin_backup[2].restore();
+        _pin_backup[3].restore();
+      }
+    }
+  }
+
+  void Panel_M5HDMI::HDMI_Trans::_i2c_restore(void)
+  {
+    lgfx::i2c::init(HDMI_Trans_config.i2c_port, _pin_backup[0].getPin(), _pin_backup[1].getPin());
+    _pin_backup[0].restore();
+    _pin_backup[1].restore();
+  }
+
   Panel_M5HDMI::HDMI_Trans::ChipID Panel_M5HDMI::HDMI_Trans::readChipID(void)
   {
     ChipID chip_id = { 0,0,0 };
 
+    _i2c_backup();
     if (this->writeRegister(0xff, 0x80)
      && this->writeRegister(0xee, 0x01))
     {
@@ -358,18 +415,37 @@ namespace lgfx
       chip_id.id[1] = this->readRegister(0x01);
       chip_id.id[2] = this->readRegister(0x02);
     }
+    _i2c_restore();
+
     return chip_id;
   }
 
   void Panel_M5HDMI::HDMI_Trans::reset(void)
   {
+    _i2c_backup();
     static constexpr const uint8_t data[] = { 0xff, 0x81, 0x30, 0x00, 0x02, 0x66, 0x0a, 0x06, 0x15, 0x06, 0x4e, 0xa8, 0xff, 0x80, 0xee, 0x01, 0x11, 0x00, 0x13, 0xf1, 0x13, 0xf9, 0x0a, 0x80, 0xff, 0x82, 0x1b, 0x77, 0x1c, 0xec, 0x45, 0x00, 0x4f, 0x40, 0x50, 0x00, 0x47, 0x07 };
     this->writeRegisterSet(data, sizeof(data));
+    _i2c_restore();
+  }
+
+  Panel_M5HDMI::HDMI_Trans::HDMI_Trans(const lgfx::Bus_I2C::config_t& i2c_config)
+  {
+    HDMI_Trans_config.i2c_port = i2c_config.i2c_port;
+    _i2c_backup();
+    HDMI_Trans_config = i2c_config;
+    lgfx::i2c::release(HDMI_Trans_config.i2c_port);
+    lgfx::i2c::init(HDMI_Trans_config.i2c_port, HDMI_Trans_config.pin_sda, HDMI_Trans_config.pin_scl);
+    _pin_backup[2].setPin(HDMI_Trans_config.pin_sda);
+    _pin_backup[3].setPin(HDMI_Trans_config.pin_scl);
+    _pin_backup[2].backup();
+    _pin_backup[3].backup();
+    _i2c_restore();
   }
 
   bool Panel_M5HDMI::HDMI_Trans::init(void)
   {
     auto id = this->readChipID();
+    _i2c_backup();
     {
 // 96kHz audio setting.
 //    static constexpr const uint8_t data_1[] = { 0xff, 0x82, 0xD6, 0x8E, 0xD7, 0x04, 0xff, 0x84, 0x06, 0x08, 0x07, 0x10, 0x09, 0x00, 0x0F, 0xAB, 0x34, 0xD5, 0x35, 0x00, 0x36, 0x30, 0x37, 0x00, 0x3C, 0x21,
@@ -393,6 +469,7 @@ namespace lgfx
       this->writeRegisterSet(data_u3, sizeof(data_u3));
     }
 
+    bool result = false;
     for (int i = 0; i < 8; ++i)
     {
       static constexpr const uint8_t data_pll[] = { 0xff, 0x80, 0x16, 0xf1, 0x18, 0xdc, 0x18, 0xfc, 0x16, 0xf3, 0x16, 0xe3, 0x16, 0xf3, 0xff, 0x82 };
@@ -404,15 +481,21 @@ namespace lgfx
       {
         static constexpr const uint8_t data[] = { 0xb9, 0x00, 0xff, 0x84, 0x43, 0x31, 0x44, 0x10, 0x45, 0x2a, 0x47, 0x04, 0x10, 0x2c, 0x12, 0x64, 0x3d, 0x0a, 0xff, 0x80, 0x11, 0x00, 0x13, 0xf1, 0x13, 0xf9, 0xff, 0x81, 0x31, 0x44, 0x32, 0x4a, 0x33, 0x0b, 0x34, 0x00, 0x35, 0x00, 0x36, 0x00, 0x37, 0x44, 0x3f, 0x0f, 0x40, 0xa0, 0x41, 0xa0, 0x42, 0xa0, 0x43, 0xa0, 0x44, 0xa0, 0x30, 0xea };
         this->writeRegisterSet(data, sizeof(data));
-        return true;
+        result = true;
+        break;
       }
     }
-    ESP_LOGE(TAG, "failed to initialize the HDMI transmitter.");
-    return false;
+    _i2c_restore();
+    if (!result) {
+      ESP_LOGE(TAG, "failed to initialize the HDMI transmitter.");
+      return false;
+    }
+    return true;
   }
 
   size_t Panel_M5HDMI::HDMI_Trans::readEDID(uint8_t* EDID, size_t len)
   {
+    _i2c_backup();
     static constexpr const uint8_t data[] = { 0xff, 0x85 ,0x03, 0xc9 ,0x04, 0xA0 ,0x06, 0x20 ,0x14, 0x7f };
     this->writeRegisterSet(data, sizeof(data));
 
@@ -440,6 +523,7 @@ namespace lgfx
     }
     static constexpr const uint8_t data3[] = { 0x03, 0xc2 ,0x07, 0x1f };
     this->writeRegisterSet(data3, sizeof(data3));
+    _i2c_restore();
     return result;
   }
 
@@ -467,10 +551,8 @@ namespace lgfx
   {
     ESP_LOGI(TAG, "i2c port:%d sda:%d scl:%d", _HDMI_Trans_config.i2c_port, _HDMI_Trans_config.pin_sda, _HDMI_Trans_config.pin_scl);
 
-    lgfx::i2c::init(_HDMI_Trans_config.i2c_port, _HDMI_Trans_config.pin_sda, _HDMI_Trans_config.pin_scl);
-
     HDMI_Trans driver(_HDMI_Trans_config);
-
+  
     auto result = driver.readChipID();
     ESP_LOGI(TAG, "Chip ID: %02x %02x %02x", result.id[0], result.id[1], result.id[2]);
     if (result.id[0] == result.id[1] && result.id[0] == result.id[2])
