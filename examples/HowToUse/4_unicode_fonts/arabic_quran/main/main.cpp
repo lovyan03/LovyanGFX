@@ -20,10 +20,19 @@ const char *TAG = "QURAN_EXAMPLE";
 
 LGFX lcd;
 
-// otf2bdf -r 72 -p 32 x.ttf -o quran.bdf
+// ------- quran_u8g2.c file generated using: -------
+// 
+// otf2bdf -r 72 -p 32 Hafs.ttf -o quran.bdf
 // bdfconv -v -f 1 -m "0-127,1536-1791,64336-64337,65136-65279" quran.bdf -o quran_u8g2.c -n quran_u8g2 -d quran.bdf
+// 
+// `0 - 127` is the unicode range for latin letters
+// `1536 - 1791 is the unicode range for the Arabic (Letters in isolated form only)`
+// `65136 - 65278 is the unicode range for the Arabic Presentation Forms-B` (Includes all letter forms)
+// See https://unicodemap.com/ for more info
+// The "x.tga" file is an image that shows all the bitmaps in the generated `u8g2.c` file
+// > I get an error because of `U8G2_FONT_SECTION("arabic_u8g2")` so I remove it from the `u8g2.c` file manually everytime I run bdfconv.
+// > Also bdfconv gives me an error of `glyph size too large` for the sagdah glyphs so I remove them from the .bdf file manually aswell.
 lgfx::U8g2font quran_font (quran_u8g2);
-
 
 void init_spiffs() {
       esp_vfs_spiffs_conf_t conf = {
