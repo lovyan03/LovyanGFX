@@ -4,13 +4,14 @@
 #include "esp_system.h"
 #include "esp_freertos_hooks.h"
 #include "hal/spi_types.h"
-#include "lgfx/v1/lgfx_fonts.hpp"
+#include <vector>
+#include <string>
 
 #define LGFX_AUTODETECT
 #define LGFX_USE_V1
 #include <LovyanGFX.hpp>
 
-#include <arabic_u8g2.c>
+#include "arabic_u8g2.c"
 
 const char *TAG = "ARABIC_EXAMPLE";
 
@@ -235,10 +236,11 @@ std::u16string utf8_to_utf16(const std::string& utf8_str) {
     return utf16_str;
 }
 
-void loop(void*) {
+void app(void*) {
     lcd.init();
     lcd.setRotation(1);
     lcd.setFont(&arabic_font);
+    lcd.setTextColor(TFT_WHITE);
     uint16_t scr_width = lcd.width();
     ESP_LOGI(TAG, "Screen initialized successfully, width: %i", scr_width);
     
@@ -278,7 +280,10 @@ void loop(void*) {
     vTaskDelete(NULL);
 }
 
+#ifndef ARDUINO
 extern "C" void app_main(void) {
-  xTaskCreate(loop, "app", 8192, NULL, 1, NULL);
+    xTaskCreate(app, "app", 8192, NULL, 1, NULL);
 }
+#endif
+
 
