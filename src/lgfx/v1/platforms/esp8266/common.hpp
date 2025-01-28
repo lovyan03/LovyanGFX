@@ -68,7 +68,7 @@ namespace lgfx
   static inline void* heap_alloc_psram(size_t length) { return malloc(length); }
   static inline void* heap_alloc_dma(  size_t length) { return malloc(length); } // aligned_alloc(16, length);
   static inline void heap_free(void* buf) { free(buf); }
-  static inline bool heap_capable_dma(const void* ptr) { return true; }
+  static inline bool heap_capable_dma(const void* ptr) { return false; }
 
   static inline void gpio_hi(int_fast8_t pin) { if (pin & 16) { if (pin == 16) *(volatile uint32_t*)(0x60000768) |=  1; } else { *(volatile uint32_t*)(0x60000304) = 1 << (pin & 15); } }
   static inline void gpio_lo(int_fast8_t pin) { if (pin & 16) { if (pin == 16) *(volatile uint32_t*)(0x60000768) &= ~1; } else { *(volatile uint32_t*)(0x60000308) = 1 << (pin & 15); } }
