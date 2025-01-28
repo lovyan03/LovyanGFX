@@ -1580,11 +1580,19 @@ namespace lgfx
 #if defined ( ARDUINO ) && __has_include (<Wire.h>)
           _twowire = nullptr;
           if (search_sda >=0 && search_scl >= 0) {
+#if defined ( ARDUINO ) && __has_include (<Wire.h>) && defined ( ESP_IDF_VERSION_VAL )
+ #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 0, 0)
+  #if defined ARDUINO_ESP32_GIT_VER
+    #if ARDUINO_ESP32_GIT_VER != 0x44c11981
             _twowire = &Wire;
 #if defined (I2CEXT1_SDA_IN_IDX)
             if (i2c_port != 0) { _twowire = &Wire1; }
 #endif
             _twowire->end();
+    #endif
+  #endif
+ #endif
+#endif
           }
 #endif
           i2c::release(_i2c_port);
