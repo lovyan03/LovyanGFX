@@ -1608,7 +1608,7 @@ namespace lgfx
         if (_need_reinit) {
           int sda = _pin_backup[SEARCH_SDA_IDX].getPin();
           int scl = _pin_backup[SEARCH_SCL_IDX].getPin();
-#if defined ( ARDUINO )
+#if defined ( ARDUINO ) && __has_include (<Wire.h>)
           if (_twowire) {
             _twowire->begin(sda, scl);
           }

@@ -36,7 +36,7 @@ Contributors:
 
 #if __has_include(<esp_memory_utils.h>)
  #include <esp_memory_utils.h>
-#else
+#elif __has_include(<soc/soc_memory_types.h>)
  #include <soc/soc_memory_types.h>
 #endif
 
