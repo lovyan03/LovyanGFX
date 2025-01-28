@@ -120,21 +120,22 @@ Contributors:
 #endif
 
 
-#if defined ( ARDUINO )
- #if __has_include (<SPI.h>)
-  #include <SPI.h>
- #endif
- #if __has_include (<Wire.h>)
-  #include <Wire.h>
- #endif
-#endif
-
 namespace lgfx
 {
  inline namespace v1
  {
 //----------------------------------------------------------------------------
   static __attribute__ ((always_inline)) inline volatile uint32_t* reg(uint32_t addr) { return (volatile uint32_t *)ETS_UNCACHED_ADDR(addr); }
+
+  static int search_pin_number(int peripheral_sig)
+  {
+#if defined (CONFIG_IDF_TARGET_ESP32C6)
+    uint32_t result = GPIO.func_in_sel_cfg[peripheral_sig].in_sel;
+#else
+    uint32_t result = GPIO.func_in_sel_cfg[peripheral_sig].func_sel;
+#endif
+    return (result < GPIO_NUM_MAX) ? result : -1;
+  }
 
   uint32_t getApbFrequency(void)
   {
@@ -1040,7 +1041,7 @@ namespace lgfx
       #if SOC_I2C_NUM == 1 || defined CONFIG_IDF_TARGET_ESP32C6
         auto twowire = &Wire;
       #else
-        auto twowire = ((i2c_port == 1) ? &Wire1 : &Wire);
+        auto twowire = ((i2c_port == 0) ? &Wire : &Wire1);
       #endif
         twowire->end();
     #endif
@@ -1094,7 +1095,7 @@ namespace lgfx
 #if SOC_I2C_NUM == 1 || defined CONFIG_IDF_TARGET_ESP32C6
       auto twowire = &Wire;
 #else
-      auto twowire = ((i2c_port == 1) ? &Wire1 : &Wire);
+      auto twowire = ((i2c_port == 0) ? &Wire : &Wire1);
 #endif
       twowire->setPins(pin_sda, pin_scl);
  #endif
@@ -1130,7 +1131,7 @@ namespace lgfx
 #if SOC_I2C_NUM == 1 || defined CONFIG_IDF_TARGET_ESP32C6
       auto twowire = &Wire;
 #else
-      auto twowire = ((i2c_port == 1) ? &Wire1 : &Wire);
+      auto twowire = ((i2c_port == 0) ? &Wire : &Wire1);
 #endif
  #if defined ( USE_TWOWIRE_SETPINS )
       twowire->begin();
@@ -1541,6 +1542,80 @@ namespace lgfx
         tmp[1] = (tmp[1] & mask) | data;
       }
       return transactionWrite(i2c_port, addr, tmp, 2, freq);
+    }
+
+
+
+
+    enum pin_index_t {
+      SEARCH_SCL_IDX,
+      SEARCH_SDA_IDX,
+      PIN_SCL_IDX,
+      PIN_SDA_IDX,
+    };
+
+    i2c_temporary_switcher_t::i2c_temporary_switcher_t(int i2c_port, int pin_sda, int pin_scl)
+    : _i2c_port { i2c_port }
+    {
+      int peri_sig_sda = I2CEXT0_SDA_IN_IDX;
+      int peri_sig_scl = I2CEXT0_SCL_IN_IDX;
+#if defined (I2CEXT1_SDA_IN_IDX)
+      if (i2c_port != 0) {
+        peri_sig_sda = I2CEXT1_SDA_IN_IDX;
+        peri_sig_scl = I2CEXT1_SCL_IN_IDX;
+      }
+#endif
+      int search_sda = search_pin_number(peri_sig_sda);
+      int search_scl = search_pin_number(peri_sig_scl);
+
+      if (search_sda != pin_sda || search_scl != pin_scl) {
+        _backuped = true;
+        if (pin_sda >= 0 || pin_scl >= 0) {
+          _pin_backup[PIN_SDA_IDX].setPin(pin_sda);
+          _pin_backup[PIN_SDA_IDX].backup();
+          _pin_backup[PIN_SCL_IDX].setPin(pin_scl);
+          _pin_backup[PIN_SCL_IDX].backup();
+        }
+        if (search_sda >= 0 || search_scl >= 0) {
+#if defined ( ARDUINO ) && __has_include (<Wire.h>)
+          _twowire = nullptr;
+          if (search_sda >=0 && search_scl >= 0) {
+            _twowire = &Wire;
+#if defined (I2CEXT1_SDA_IN_IDX)
+            if (i2c_port != 0) { _twowire = &Wire1; }
+#endif
+            _twowire->end();
+          }
+#endif
+          i2c::release(_i2c_port);
+          _pin_backup[SEARCH_SDA_IDX].setPin(search_sda);
+          _pin_backup[SEARCH_SCL_IDX].setPin(search_scl);
+          _pin_backup[SEARCH_SDA_IDX].backup();
+          _pin_backup[SEARCH_SCL_IDX].backup();
+          _need_reinit = true;
+        }
+        i2c::init(_i2c_port, pin_sda, pin_scl);
+      }
+    }
+
+    void i2c_temporary_switcher_t::restore(void) {
+      if (_backuped) {
+        i2c::release(_i2c_port);
+        for (auto &b : _pin_backup) {
+          b.restore();
+        }
+        // if (sda >= 0 && scl >= 0) {
+        if (_need_reinit) {
+          int sda = _pin_backup[SEARCH_SDA_IDX].getPin();
+          int scl = _pin_backup[SEARCH_SCL_IDX].getPin();
+#if defined ( ARDUINO )
+          if (_twowire) {
+            _twowire->begin(sda, scl);
+          }
+#endif
+          i2c::init(_i2c_port, sda, scl);
+        }
+      }
     }
 
   }

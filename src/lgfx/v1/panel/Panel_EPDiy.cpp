@@ -64,28 +64,23 @@ namespace lgfx
     Panel_HasBuffer::init(use_reset);
 
     epd_set_board(_config_detail.epd_board);
-
     _buf = epd_hl_get_framebuffer(_config_detail.epd_hl);
+    epd_poweron();
 
-    startWrite();
-    memset(_buf, 0, _cfg.memory_width * _cfg.memory_height / 2);
-    display(0, 0, _cfg.panel_width, _cfg.panel_height);
-    memset(_buf, 0xFF, _cfg.memory_width * _cfg.memory_height / 2);
-    display(0, 0, _cfg.panel_width, _cfg.panel_height);
-    endWrite();
+    _range_mod.top    = INT16_MAX;
+    _range_mod.left   = INT16_MAX;
+    _range_mod.right  = 0;
+    _range_mod.bottom = 0;
 
     return true;
   }
 
   void Panel_EPDiy::beginTransaction(void)
   {
-    epd_set_board(_config_detail.epd_board);
-    epd_poweron();
   }
 
   void Panel_EPDiy::endTransaction(void)
   {
-    epd_poweroff();
   }
 
   void Panel_EPDiy::waitDisplay(void)
@@ -105,10 +100,20 @@ namespace lgfx
 
   void Panel_EPDiy::setSleep(bool flg)
   {
+    if (flg) {
+      epd_poweroff();
+    } else {
+      epd_poweron();
+    }
   }
 
   void Panel_EPDiy::setPowerSave(bool flg)
   {
+    if (flg) {
+      epd_poweroff();
+    } else {
+      epd_poweron();
+    }
   }
 
   void Panel_EPDiy::writeFillRectPreclipped(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, uint32_t rawcolor)
@@ -249,7 +254,7 @@ namespace lgfx
     uint_fast8_t value;
     bool fast = _epd_mode == epd_mode_t::epd_fast || _epd_mode == epd_mode_t::epd_fastest;
     if (fast) {
-      value = (sum + btbl[x & 3] * 16 < 512 ? 0 : 0xF) << shift;
+      value = ((int32_t)sum + btbl[x & 3] * 16 < 512 ? 0 : 0xF) << shift;
     } else {
       value = (std::min<int32_t>(15, std::max<int32_t>(0, sum + btbl[x & 3]) >> 6) & 0x0F) << shift;
     }

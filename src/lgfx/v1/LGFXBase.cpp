@@ -2935,7 +2935,7 @@ namespace lgfx
     lgfxJdec jpegdec;
 
     static constexpr uint16_t sz_pool = 3900;
-    uint8_t *pool = (uint8_t*)heap_alloc_dma(sz_pool);
+    uint8_t *pool = (uint8_t*)malloc(sz_pool);
     if (!pool)
     {
       // ESP_LOGW("LGFX", "jpeg memory alloc fail");
@@ -2947,7 +2947,7 @@ namespace lgfx
     if (jres != JDR_OK)
     {
       // ESP_LOGW("LGFX", "jpeg prepare error:%x", jres);
-      heap_free(pool);
+      free(pool);
       return false;
     }
 
@@ -2963,7 +2963,7 @@ namespace lgfx
                        , datum
                        , jpegdec.width, jpegdec.height))
     {
-      heap_free(pool);
+      free(pool);
       return false;
     }
 
@@ -2990,7 +2990,7 @@ namespace lgfx
     this->endWrite();
     drawinfo.data->preRead();
 
-    heap_free(pool);
+    free(pool);
 
     if (jres != JDR_OK) {
       // ESP_LOGW("LGFX", "jpeg decomp error:%x", jres);

@@ -214,9 +214,6 @@ namespace lgfx
       typedef lgfx::Bus_I2C::config_t config_t;
     private:
       config_t HDMI_Trans_config;
-      gpio::pin_backup_t _pin_backup[4];
-      void _i2c_backup(void);
-      void _i2c_restore(void);
 
       uint8_t readRegister(uint8_t register_address);
       uint16_t readRegister16(uint8_t register_address);

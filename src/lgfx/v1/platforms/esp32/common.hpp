@@ -34,6 +34,20 @@ Contributors:
 #include <soc/gpio_sig_map.h>
 #include <esp_timer.h>
 
+#if __has_include(<esp_memory_utils.h>)
+ #include <esp_memory_utils.h>
+#else
+ #include <soc/soc_memory_types.h>
+#endif
+
+#if defined ( ARDUINO )
+ #if __has_include (<SPI.h>)
+  #include <SPI.h>
+ #endif
+ #if __has_include (<Wire.h>)
+  #include <Wire.h>
+ #endif
+#endif
 
 #if defined ( CONFIG_IDF_TARGET_ESP32S3 )
  /// ESP32-S3をターゲットにした際にREG_SPI_BASEの定義がおかしいため自前で設定
@@ -88,6 +102,7 @@ namespace lgfx
   static inline void* heap_alloc_dma(  size_t length) { return heap_caps_malloc((length + 3) & ~3, MALLOC_CAP_DMA);  }
   static inline void* heap_alloc_psram(size_t length) { return heap_caps_malloc((length + 3) & ~3, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);  }
   static inline void heap_free(void* buf) { heap_caps_free(buf); }
+  static inline bool heap_capable_dma(const void* ptr) { return esp_ptr_dma_capable(ptr); }
 
   /// 引数のポインタが組込RAMか判定する  true=内部RAM / false=外部RAMやROM等;
 #if defined ( CONFIG_IDF_TARGET_ESP32S3 )
@@ -277,6 +292,20 @@ protected:
     cpp::result<void, error_t> init(int i2c_port);
     cpp::result<int, error_t> getPinSDA(int i2c_port);
     cpp::result<int, error_t> getPinSCL(int i2c_port);
+
+    struct i2c_temporary_switcher_t
+    {
+      i2c_temporary_switcher_t(int i2c_port, int pin_sda, int pin_scl);
+      void restore(void);
+    protected:
+#if defined ( ARDUINO ) && __has_include (<Wire.h>)
+      TwoWire* _twowire = nullptr;
+#endif
+      gpio::pin_backup_t _pin_backup[4];
+      int _i2c_port = 0;
+      bool _backuped = false;
+      bool _need_reinit = false;
+    };
   }
 
 //----------------------------------------------------------------------------

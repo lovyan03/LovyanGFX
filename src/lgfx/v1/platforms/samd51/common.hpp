@@ -138,6 +138,7 @@ namespace lgfx
   static inline void* heap_alloc_psram(size_t length) { return malloc(length); }
   static inline void* heap_alloc_dma(  size_t length) { return memalign(16, length); }
   static inline void heap_free(void* buf) { free(buf); }
+  static inline bool heap_capable_dma(const void* ptr) { return true; }
 
   static inline void gpio_hi(uint32_t pin) {        PORT->Group[pin >> samd51::PORT_SHIFT].OUTSET.reg = (1ul << (pin & samd51::PIN_MASK)); }
   static inline void gpio_lo(uint32_t pin) {        PORT->Group[pin >> samd51::PORT_SHIFT].OUTCLR.reg = (1ul << (pin & samd51::PIN_MASK)); }
