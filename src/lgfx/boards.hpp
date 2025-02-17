@@ -64,6 +64,7 @@ namespace lgfx
     , board_ESP32_S3_BOX_Lite
     , board_LoLinS3Pro
     , board_ESP32_S3_BOX_V3
+    , board_Guition_ESP32_2432W328
     };
   }
   using namespace boards;
