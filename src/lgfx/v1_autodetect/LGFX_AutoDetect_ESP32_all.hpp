@@ -3598,6 +3598,10 @@ namespace lgfx
 #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_ODROID_GO )
         &detector_ODROID_GO,
 #endif
+#if defined ( LGFX_AUTODETECT ) || defined ( LGFX_ESP32_2432S028 ) || defined ( LGFX_SUNTON_ESP32_2432S028 )
+        &detector_Sunton_2432S028_9341,
+        &detector_Sunton_2432S028_7789,
+#endif
 
         nullptr // terminator
       };
