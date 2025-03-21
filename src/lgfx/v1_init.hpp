@@ -47,6 +47,7 @@ Contributors:
 #include "v1/panel/Panel_SSD1963.hpp"
 #include "v1/panel/Panel_ST7735.hpp"
 #include "v1/panel/Panel_ST7789.hpp"
+#include "v1/panel/Panel_ST7789P3.hpp"
 #include "v1/panel/Panel_ST7796.hpp"
 #include "v1/panel/Panel_ST77961.hpp"
 
