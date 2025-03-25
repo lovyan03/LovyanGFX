@@ -29,7 +29,6 @@ Contributors:
 
 #if __has_include(<driver/i2c_master.h>)
  #include <driver/i2c_master.h>
- #include <esp_private/gpio.h>
 #else
  #include <driver/i2c.h>
 #endif
@@ -70,6 +69,10 @@ Contributors:
 
 #ifndef SOC_GPIO_SUPPORT_RTC_INDEPENDENT
 #define SOC_GPIO_SUPPORT_RTC_INDEPENDENT 0
+#endif
+
+#if __has_include(<esp_private/gpio.h>)
+ #include <esp_private/gpio.h>
 #endif
 
 #if defined (ESP_IDF_VERSION_VAL)
@@ -898,7 +901,7 @@ namespace lgfx
 #if __has_include(<driver/i2c_master.h>)
       if ((int8_t)pin_sda >= 0) {
         gpio_set_level(pin_sda, true);
-        gpio_func_sel(pin_sda, PIN_FUNC_GPIO);
+        gpio_iomux_out(pin_sda, PIN_FUNC_GPIO, false);
         gpio_set_direction(pin_sda, GPIO_MODE_INPUT_OUTPUT_OD);
         gpio_set_pull_mode(pin_sda, GPIO_PULLUP_ONLY);
         esp_rom_gpio_connect_out_signal(pin_sda, i2c_periph_signal[i2c_num].sda_out_sig, 0, 0);
@@ -906,7 +909,7 @@ namespace lgfx
       }
       if ((int8_t)pin_scl >= 0) {
         gpio_set_level(pin_scl, true);
-        gpio_func_sel(pin_scl, PIN_FUNC_GPIO);
+        gpio_iomux_out(pin_scl, PIN_FUNC_GPIO, false);
         gpio_set_direction(pin_scl, GPIO_MODE_INPUT_OUTPUT_OD);
         esp_rom_gpio_connect_out_signal(pin_scl, i2c_periph_signal[i2c_num].scl_out_sig, 0, 0);
         esp_rom_gpio_connect_in_signal(pin_scl, i2c_periph_signal[i2c_num].scl_in_sig, 0);
