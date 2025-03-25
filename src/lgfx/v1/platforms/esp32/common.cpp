@@ -913,7 +913,7 @@ namespace lgfx
         gpio_set_pull_mode(pin_scl, GPIO_PULLUP_ONLY);
       }
 #else
-      i2c_set_pin(port, pin_sda, pin_scl, true, true, I2C_MODE_MASTER);
+      i2c_set_pin(i2c_num, pin_sda, pin_scl, true, true, I2C_MODE_MASTER);
 #endif
     }
 
