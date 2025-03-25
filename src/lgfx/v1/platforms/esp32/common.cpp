@@ -27,7 +27,12 @@ Contributors:
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
 
-#include <driver/i2c.h>
+#if __has_include(<driver/i2c_master.h>)
+ #include <driver/i2c_master.h>
+ #include <esp_private/gpio.h>
+#else
+ #include <driver/i2c.h>
+#endif
 #include <driver/spi_common.h>
 #include <driver/spi_master.h>
 #include <driver/rtc_io.h>
@@ -888,6 +893,30 @@ namespace lgfx
     };
     i2c_context_t i2c_context[I2C_NUM_MAX];
 
+    static void set_pin(i2c_port_t i2c_num, gpio_num_t pin_sda, gpio_num_t pin_scl)
+    {
+#if __has_include(<driver/i2c_master.h>)
+      if ((int8_t)pin_sda >= 0) {
+        gpio_set_level(pin_sda, true);
+        gpio_func_sel(pin_sda, PIN_FUNC_GPIO);
+        gpio_set_direction(pin_sda, GPIO_MODE_INPUT_OUTPUT_OD);
+        gpio_set_pull_mode(pin_sda, GPIO_PULLUP_ONLY);
+        esp_rom_gpio_connect_out_signal(pin_sda, i2c_periph_signal[i2c_num].sda_out_sig, 0, 0);
+        esp_rom_gpio_connect_in_signal(pin_sda, i2c_periph_signal[i2c_num].sda_in_sig, 0);
+      }
+      if ((int8_t)pin_scl >= 0) {
+        gpio_set_level(pin_scl, true);
+        gpio_func_sel(pin_scl, PIN_FUNC_GPIO);
+        gpio_set_direction(pin_scl, GPIO_MODE_INPUT_OUTPUT_OD);
+        esp_rom_gpio_connect_out_signal(pin_scl, i2c_periph_signal[i2c_num].scl_out_sig, 0, 0);
+        esp_rom_gpio_connect_in_signal(pin_scl, i2c_periph_signal[i2c_num].scl_in_sig, 0);
+        gpio_set_pull_mode(pin_scl, GPIO_PULLUP_ONLY);
+      }
+#else
+      i2c_set_pin(port, pin_sda, pin_scl, true, true, I2C_MODE_MASTER);
+#endif
+    }
+
     static int32_t getRxFifoCount(i2c_dev_t* dev)
     {
 #if defined ( CONFIG_IDF_TARGET_ESP32C3 )
@@ -964,7 +993,7 @@ namespace lgfx
       auto mod = getPeriphModule(i2c_port);
       periph_module_reset(mod);
 #endif
-      i2c_set_pin((i2c_port_t)i2c_port, sda_io, scl_io, gpio_pullup_t::GPIO_PULLUP_ENABLE, gpio_pullup_t::GPIO_PULLUP_ENABLE, I2C_MODE_MASTER);
+      set_pin((i2c_port_t)i2c_port, sda_io, scl_io);
 #else
       auto mod = getPeriphModule(i2c_port);
       periph_module_enable(mod);
@@ -976,7 +1005,7 @@ namespace lgfx
       gpio_num_t sda_io = i2c_context[i2c_port].pin_sda;
       gpio_num_t scl_io = i2c_context[i2c_port].pin_scl;
       periph_module_reset(mod);
-      i2c_set_pin((i2c_port_t)i2c_port, sda_io, scl_io, gpio_pullup_t::GPIO_PULLUP_ENABLE, gpio_pullup_t::GPIO_PULLUP_ENABLE, I2C_MODE_MASTER);
+      set_pin((i2c_port_t)i2c_port, sda_io, scl_io);
 #endif
     }
 
@@ -1380,7 +1409,7 @@ namespace lgfx
       }
       i2c_context[i2c_port].save_reg(dev);
 
-      i2c_set_pin((i2c_port_t)i2c_port, i2c_context[i2c_port].pin_sda, i2c_context[i2c_port].pin_scl, gpio_pullup_t::GPIO_PULLUP_ENABLE, gpio_pullup_t::GPIO_PULLUP_ENABLE, I2C_MODE_MASTER);
+      set_pin((i2c_port_t)i2c_port, i2c_context[i2c_port].pin_sda, i2c_context[i2c_port].pin_scl);
 
 #if SOC_I2C_SUPPORT_HW_FSM_RST
       dev->ctr.fsm_rst = 1;
