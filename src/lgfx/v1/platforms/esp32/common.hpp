@@ -110,11 +110,14 @@ namespace lgfx
   static inline bool heap_capable_dma(const void* ptr) { return esp_ptr_dma_capable(ptr); }
 
   /// 引数のポインタが組込RAMか判定する  true=内部RAM / false=外部RAMやROM等;
+  static inline bool isEmbeddedMemory(const void* ptr) { return esp_ptr_in_dram(ptr); }
+/*
 #if defined ( CONFIG_IDF_TARGET_ESP32S3 )
   static inline bool isEmbeddedMemory(const void* ptr) { return (((uintptr_t)ptr & 0x3FF80000u) == 0x3FC80000u); }
 #else
   static inline bool isEmbeddedMemory(const void* ptr) { return (((uintptr_t)ptr & 0x3FF80000u) == 0x3FF00000u); }
 #endif
+*/
 
   enum pin_mode_t
   { output

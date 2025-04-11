@@ -1274,7 +1274,7 @@ namespace lgfx
       {
         i2c_context[i2c_port].freq = freq;
         static constexpr uint32_t MIN_I2C_CYCLE = 35;
-#if defined (CONFIG_IDF_TARGET_ESP32C3) || defined (CONFIG_IDF_TARGET_ESP32S3) || defined ( CONFIG_IDF_TARGET_ESP32C6 )
+#if defined (CONFIG_IDF_TARGET_ESP32C3) || defined (CONFIG_IDF_TARGET_ESP32S3) || defined ( CONFIG_IDF_TARGET_ESP32C6 ) || defined ( CONFIG_IDF_TARGET_ESP32P4 )
         uint32_t src_clock = 40 * 1000 * 1000; // XTAL clock
 #else
         rtc_cpu_freq_config_t cpu_freq_conf;
@@ -1282,11 +1282,7 @@ namespace lgfx
         uint32_t src_clock = 80 * 1000 * 1000;
         if (cpu_freq_conf.freq_mhz < 80)
         {
-#if defined ( CONFIG_IDF_TARGET_ESP32P4 )
-          src_clock = (cpu_freq_conf.source_freq_mhz * 1000000) / cpu_freq_conf.div.integer;
-#else
           src_clock = (cpu_freq_conf.source_freq_mhz * 1000000) / cpu_freq_conf.div;
-#endif
         }
 // ESP_LOGI("LGFX", "i2c::restart : port:%d / addr:%02x / freq:%d / rw:%d", i2c_port, i2c_addr, freq, read);
 // ESP_LOGI("LGFX", "cpu_freq_conf.div             :%d", cpu_freq_conf.div);
@@ -1444,7 +1440,7 @@ namespace lgfx
       dev->fifo_conf.val = fifo_conf_reg.val;
 
       fifo_conf_reg.val = 0;
-#if defined (CONFIG_IDF_TARGET_ESP32S2) || defined (CONFIG_IDF_TARGET_ESP32C3) || defined (CONFIG_IDF_TARGET_ESP32S3)
+#if defined (CONFIG_IDF_TARGET_ESP32S2) || defined (CONFIG_IDF_TARGET_ESP32C3) || defined (CONFIG_IDF_TARGET_ESP32S3) || defined (CONFIG_IDF_TARGET_ESP32P4)
       fifo_conf_reg.fifo_prt_en = 1;
 #endif
       dev->fifo_conf.val = fifo_conf_reg.val;
