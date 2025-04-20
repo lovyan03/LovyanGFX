@@ -19,7 +19,9 @@ Contributors:
 
 #include <string.h>
 
-#if defined (CONFIG_IDF_TARGET_ESP32S3) && __has_include(<esp32s3/rom/lldesc.h>)
+#if __has_include(<rom/lldesc.h>)
+ #include <rom/lldesc.h>
+#elif defined (CONFIG_IDF_TARGET_ESP32S3) && __has_include(<esp32s3/rom/lldesc.h>)
  #include <esp32s3/rom/lldesc.h>
 #elif defined (CONFIG_IDF_TARGET_ESP32S2) && __has_include(<esp32s2/rom/lldesc.h>)
  #include <esp32s2/rom/lldesc.h>
@@ -27,8 +29,6 @@ Contributors:
  #include <esp32c3/rom/lldesc.h>
 #elif __has_include(<esp32/rom/lldesc.h>)
  #include <esp32/rom/lldesc.h>
-#else
- #include <rom/lldesc.h>
 #endif
 
 #if __has_include(<esp_private/spi_common_internal.h>)

@@ -75,7 +75,7 @@ namespace lgfx
 
     void release(void);
 
-    bool use_dma(void) const { return _source == AllocationSource::Dma; }
+    bool use_dma(void) const;
     bool use_memcpy(void) const { return _source != AllocationSource::Psram; }
   };
 

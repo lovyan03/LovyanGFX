@@ -112,6 +112,7 @@ namespace lgfx
                                            ? copy_rgb_affine<bgr888_t, bgr888_t>
                                            : copy_rgb_affine<bgr666_t, TSrc>)
            : (dst_depth == grayscale_8bit) ? copy_rgb_affine<grayscale_t, TSrc>
+           : (dst_depth == rgb565_nonswapped) ? copy_rgb_affine<rgb565_t, TSrc>
            : nullptr;
     }
 
@@ -135,6 +136,7 @@ namespace lgfx
            : (dst_depth == rgb888_3Byte) ? copy_palette_affine<bgr888_t , TPalette>
            : (dst_depth == rgb666_3Byte) ? copy_palette_affine<bgr666_t , TPalette>
            : (dst_depth == grayscale_8bit) ? copy_palette_affine<grayscale_t, TPalette>
+           : (dst_depth == rgb565_nonswapped) ? copy_palette_affine<rgb565_t, TPalette>
            : nullptr;
     }
 
@@ -173,7 +175,8 @@ namespace lgfx
       }
       return last;
     }
-
+#if 0
+// 最適化前の関数
     template <typename TDst, typename TPalette>
     static uint32_t copy_palette_affine(void* __restrict dst, uint32_t index, uint32_t last, pixelcopy_t* __restrict param)
     {
@@ -191,6 +194,50 @@ namespace lgfx
       } while (++index != last);
       return index;
     }
+#else
+// 最適化後の関数
+    template <typename TDst, typename TPalette>
+    static uint32_t copy_palette_affine(void* __restrict dst, uint32_t index, uint32_t last, pixelcopy_t* __restrict param)
+    {
+      auto s = static_cast<const uint8_t*>(param->src_data);
+      auto d = static_cast<TDst*>(dst);
+      auto pal = static_cast<const TPalette*>(param->palette);
+      auto transp = param->transp;
+
+      uint32_t remain = last - index;
+      const auto src_x32_add = param->src_x32_add;
+      const auto src_y32_add = param->src_y32_add;
+
+      uint32_t prev_i = (param->src_x + param->src_y * param->src_bitwidth);
+      uint32_t ibits = prev_i * param->src_bits;
+      uint32_t prev_raw = (pgm_read_byte(&s[ibits >> 3]) >> (-(int32_t)(ibits + param->src_bits) & 7)) & param->src_mask;
+      do {
+        if (prev_raw == transp) { break; }
+        auto color = color_convert<TDst, TPalette>(pal[prev_raw].get());
+        uint32_t color_len = 0;
+        while (color_len < remain) {
+          ++color_len;
+          param->src_x32 += src_x32_add;
+          param->src_y32 += src_y32_add;
+          uint32_t i = (param->src_x + param->src_y * param->src_bitwidth);
+          if (prev_i == i) { continue; }
+          prev_i = i;
+          ibits = i * param->src_bits;
+          uint32_t raw = (pgm_read_byte(&s[ibits >> 3]) >> (-(int32_t)(ibits + param->src_bits) & 7)) & param->src_mask;
+          if (prev_raw == raw) { continue; }
+          prev_raw = raw;
+          break;
+        }
+        for (uint32_t j = 0; j < color_len; ++j)
+        {
+          d[index] = color;
+          ++index;
+        }
+        remain -= color_len;
+      } while (remain);
+      return index;
+    }
+#endif
 
     template <typename TDst, typename TSrc>
     static uint32_t copy_rgb_affine(void* __restrict dst, uint32_t index, uint32_t last, pixelcopy_t* __restrict param)
