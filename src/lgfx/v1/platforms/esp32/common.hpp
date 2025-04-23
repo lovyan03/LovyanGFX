@@ -69,7 +69,9 @@ Contributors:
 #if defined ( ESP_IDF_VERSION_VAL )
  #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
   #define LGFX_IDF_V5
-  // NOTE: in order to optimize maintenance, QSPI support is deliberately limited to esp-idf version >= v5.x.x.
+ #endif
+ #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 4, 0)
+  // NOTE: in order to optimize maintenance, QSPI support is deliberately limited to esp-idf version >= v5.4.x.
   #define LGFX_USE_QSPI
  #endif
 #endif
