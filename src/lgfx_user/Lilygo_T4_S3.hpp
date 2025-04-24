@@ -10,6 +10,7 @@ class Lilygo_T4_S3 : public lgfx::LGFX_Device
 
   lgfx::Bus_QSPI      _bus_instance;
   lgfx::Panel_RM690B0 _panel_instance;
+  lgfx::Touch_CST226  _touch_instance; // I2C sda:6, scl:7, int:8, rst: 17
 
   /*
    * NOTE: RM690B0 has a limitation: for any given area to write [x, y, w, h], x and w
@@ -73,6 +74,28 @@ class Lilygo_T4_S3 : public lgfx::LGFX_Device
         cfg.offset_y = 0;
 
         _panel_instance.config(cfg);
+      }
+
+
+      {
+        auto cfg = _touch_instance.config();
+        cfg.i2c_addr = 0x5A;
+        cfg.pin_sda  = GPIO_NUM_6;
+        cfg.pin_scl  = GPIO_NUM_7;
+        cfg.pin_int  = GPIO_NUM_8;
+        cfg.pin_rst  = GPIO_NUM_17;
+
+        cfg.x_min      = 0;
+        cfg.y_min      = 0;
+        cfg.x_max      = 450;
+        cfg.y_max      = 600;
+
+        cfg.freq       = 400000;
+        cfg.bus_shared = false;
+        cfg.offset_rotation = 0;
+
+        _touch_instance.config(cfg);
+        _panel_instance.setTouch(&_touch_instance);
       }
 
       setPanel(&_panel_instance);
