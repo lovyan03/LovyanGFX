@@ -178,7 +178,7 @@ namespace lgfx
 
     bool Touch_CST226::init(void)
     {
-      ESP_LOGD("LGFX", "Init touch CST226");
+      // ESP_LOGD("LGFX", "Init touch CST226");
       _inited = false;
       if (_cfg.pin_rst >= 0) {
         lgfx::pinMode(_cfg.pin_rst, pin_mode_t::output);
@@ -204,13 +204,13 @@ namespace lgfx
       buffer[0] = 0xd1;
       if( ! _read_reg8(0xd1, buffer, 1) )
       {
-        ESP_LOGE("LGFX", "Write to reg 0xd1 failed");
+        // ESP_LOGE("LGFX", "Write to reg 0xd1 failed");
         return false;
       }
       lgfx::delay(10);
       if( ! _read_reg16(0xd204, buffer, 4) ) // read chip id and project id
       {
-        ESP_LOGE("LGFX", "Write to reg 0xD204 failed");
+        // ESP_LOGE("LGFX", "Write to reg 0xD204 failed");
         return false;
       }
       // uint16_t chip_id = buffer[2] + (buffer[3] << 8);
@@ -219,7 +219,7 @@ namespace lgfx
 
       if( ! _read_reg8(0, buffer, 28) ) // read all registers
       {
-        ESP_LOGE("LGFX", "Write to reg 0x00 failed");
+        // ESP_LOGE("LGFX", "Write to reg 0x00 failed");
         return false;
       }
       // for( int i=0;i<28;i++ ) {
