@@ -19,7 +19,7 @@ Contributors:
 // CST816 info from here...
 // https://www.waveshare.com/w/upload/c/c2/CST816S_register_declaration.pdf
 
-#include "Touch_CST816S.hpp"
+#include "Touch_CSTxxx.hpp"
 
 #include "../platforms/common.hpp"
 
@@ -174,5 +174,135 @@ namespace lgfx
   }
 
 //----------------------------------------------------------------------------
+
+
+    bool Touch_CST226::init(void)
+    {
+      ESP_LOGD("LGFX", "Init touch CST226");
+      _inited = false;
+      if (_cfg.pin_rst >= 0) {
+        lgfx::pinMode(_cfg.pin_rst, pin_mode_t::output);
+        lgfx::gpio_lo(_cfg.pin_rst);
+        lgfx::delay(10);
+        lgfx::gpio_hi(_cfg.pin_rst);
+        lgfx::delay(10);
+      }
+      if (_cfg.pin_int >= 0) {
+        lgfx::pinMode(_cfg.pin_int, pin_mode_t::input_pullup);
+      }
+      lgfx::i2c::init(_cfg.i2c_port, _cfg.pin_sda, _cfg.pin_scl).has_value();
+      return true;
+    }
+
+
+    bool Touch_CST226::_check_init(void)
+    {
+      if (_inited) return true;
+
+      uint8_t buffer[28];
+
+      buffer[0] = 0xd1;
+      if( ! _read_reg8(0xd1, buffer, 1) )
+      {
+        ESP_LOGE("LGFX", "Write to reg 0xd1 failed");
+        return false;
+      }
+      lgfx::delay(10);
+      if( ! _read_reg16(0xd204, buffer, 4) ) // read chip id and project id
+      {
+        ESP_LOGE("LGFX", "Write to reg 0xD204 failed");
+        return false;
+      }
+      // uint16_t chip_id = buffer[2] + (buffer[3] << 8);
+      // uint16_t project_id = buffer[0] + (buffer[1] << 8);
+      // ESP_LOGD("LGFX", "Chip id: 0x%04x, project id: 0x%04x", chip_id, project_id);
+
+      if( ! _read_reg8(0, buffer, 28) ) // read all registers
+      {
+        ESP_LOGE("LGFX", "Write to reg 0x00 failed");
+        return false;
+      }
+      // for( int i=0;i<28;i++ ) {
+      //   ESP_LOGD("LGFX", "Register 0xD0%02x = 0x%02x", i, buffer[i]);
+      // }
+      _inited = true;
+
+      return _inited;
+
+    }
+
+
+    uint_fast8_t Touch_CST226::getTouchRaw(touch_point_t* tp, uint_fast8_t count)
+    {
+      if (!_inited && !_check_init()) return 0;
+      if (count > max_touch_points || count == 0) return 0;
+      auto requested_count = count;
+
+      uint32_t msec = lgfx::millis();
+      uint32_t diff_msec = msec - _last_update;
+
+      if (diff_msec < 10 && _wait_cycle)
+      {
+        --_wait_cycle;
+        if (_cfg.pin_int < 0 || gpio_in(_cfg.pin_int)) {
+          return 0;
+        }
+      }
+      _last_update = msec;
+
+      uint8_t readdata[8];
+
+      if( ! _read_reg8(0, readdata, 8) ) // read all registers
+      {
+        return 0;
+      }
+
+      if (readdata[6] != 0xab) return 0;
+      if (readdata[0] == 0xab) return 0;
+      if (readdata[5] == 0x80) return 0;
+      count = readdata[5] & 0x7f;
+      if (count > max_touch_points) return 0; // TODO: should reset ?
+      _wait_cycle = count ? 0 : 16;
+
+      if (count)
+      {
+        if( requested_count > 1 ) // an array of touch_point_t was provided
+        {
+          int pIdx = 0; // points index with corrected offset
+          for (int i=0; i<count; i++) {
+            tp[i].id = i;
+            tp[i].size = readdata[pIdx+4]; // pressure
+            tp[i].x = (uint16_t)((readdata[pIdx+1] << 4) | ((readdata[pIdx+3] >> 4) & 0xf));
+            tp[i].y = (uint16_t)((readdata[pIdx+2] << 4) | (readdata[pIdx+3] & 0xf));
+            pIdx += i==0 ? 7 : 5; // first point is followed by 2 extra bytes, next points are consecutive
+          }
+        }
+        else // a single touch_point_t was provided
+        {
+          tp[0].id = 0;
+          tp[0].size = readdata[4]; // pressure
+          tp[0].x = (uint16_t)((readdata[1] << 4) | ((readdata[3] >> 4) & 0xf));
+          tp[0].y = (uint16_t)((readdata[2] << 4) | (readdata[3] & 0xf));
+        }
+
+      }
+      return count;
+    }
+
+
+
+    bool Touch_CST226::_read_reg16(uint16_t reg, uint8_t *data, size_t length)
+    {
+      return lgfx::i2c::transactionWriteRead(_cfg.i2c_port, _cfg.i2c_addr, (uint8_t*)&reg, 2, data, length, _cfg.freq).has_value();
+    }
+
+
+    bool Touch_CST226::_read_reg8(uint8_t reg, uint8_t *data, size_t length)
+    {
+      return lgfx::i2c::transactionWriteRead(_cfg.i2c_port, _cfg.i2c_addr, &reg, 1, data, length, _cfg.freq).has_value();
+    }
+
+//----------------------------------------------------------------------------
+
  }
 }
