@@ -92,7 +92,7 @@ class Lilygo_T4_S3 : public lgfx::LGFX_Device
 
         cfg.freq       = 400000;
         cfg.bus_shared = false;
-        cfg.offset_rotation = 0;
+        cfg.offset_rotation = _offset_rotation = 0;
 
         _touch_instance.config(cfg);
         _panel_instance.setTouch(&_touch_instance);
@@ -108,6 +108,13 @@ class Lilygo_T4_S3 : public lgfx::LGFX_Device
         auto fbPanel = _panel_instance.getPanelFb();
         if( fbPanel ) {
           fbPanel->setBus(&_bus_instance);
+          auto touch_cfg = _touch_instance.config();
+          _offset_rotation = touch_cfg.offset_rotation; // memoize for later restoration
+          touch_cfg.offset_rotation = _panel_instance.getRotation(); // apply display rotation
+          if(touch_cfg.offset_rotation & 1)
+            std::swap(touch_cfg.x_max, touch_cfg.y_max);
+          _touch_instance.config(touch_cfg);
+          fbPanel->setTouch(&_touch_instance); // attach touch to the framebuffer
           fbPanel->setAutoDisplay(auto_display);
           setPanel(fbPanel);
           return true;
@@ -119,8 +126,17 @@ class Lilygo_T4_S3 : public lgfx::LGFX_Device
 
     void disableFrameBuffer()
     {
-      _panel_instance.deinitPanelFb();
-      setPanel(&_panel_instance);
+      auto fbPanel = _panel_instance.getPanelFb();
+      if(fbPanel) {
+        _panel_instance.deinitPanelFb();
+        auto touch_cfg = _touch_instance.config();
+        if(touch_cfg.offset_rotation & 1)
+          std::swap(touch_cfg.x_max, touch_cfg.y_max);
+        touch_cfg.offset_rotation = _offset_rotation; // restore memoized offset rotation
+        _touch_instance.config(touch_cfg);
+        _panel_instance.setTouch(&_touch_instance); // reattach touch to the display
+        setPanel(&_panel_instance);
+      }
     }
 
 
@@ -131,5 +147,8 @@ class Lilygo_T4_S3 : public lgfx::LGFX_Device
       bool ret = lgfx::LGFX_Device::init();
       return ret;
     }
+
+  protected:
+    uint8_t _offset_rotation = 0; // memoize offset rotation when toggling framebuffer
 
 };

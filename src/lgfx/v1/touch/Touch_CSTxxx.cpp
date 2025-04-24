@@ -250,9 +250,10 @@ namespace lgfx
       }
       _last_update = msec;
 
-      uint8_t readdata[8];
+      uint8_t readdata[28];
+      uint8_t bytes_to_read = count==1 ? 8 : 28;
 
-      if( ! _read_reg8(0, readdata, 8) ) // read all registers
+      if( ! _read_reg8(0, readdata, bytes_to_read) )
       {
         return 0;
       }
