@@ -70,12 +70,10 @@ Contributors:
  #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
   #define LGFX_IDF_V5
  #endif
- #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 4, 0)
-  // NOTE: in order to optimize maintenance, QSPI support is deliberately limited to esp-idf version >= v5.4.x.
-  #if ! defined(CONFIG_IDF_TARGET_ESP32P4) // QSPI support for ESP32P4 still needs to be fixed
-    #define LGFX_USE_QSPI
-  #endif
- #endif
+#endif
+
+#if ! defined(CONFIG_IDF_TARGET_ESP32P4) // QSPI support for ESP32P4 still needs to be fixed
+  #define LGFX_USE_QSPI
 #endif
 
 namespace lgfx
