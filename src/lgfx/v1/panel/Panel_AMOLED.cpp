@@ -18,7 +18,7 @@
 
 #if defined (ESP_PLATFORM)
 
-#include "Panel_RM690B0.hpp"
+#include "Panel_AMOLED.hpp"
 #include "../Bus.hpp"
 #include "../platforms/common.hpp"
 #include "../misc/pixelcopy.hpp"
@@ -37,7 +37,7 @@ namespace lgfx
         //----------------------------------------------------------------------------
 
 
-        void Panel_RM690B0::update_madctl()
+        void Panel_AMOLED::update_madctl()
         {
             uint8_t madctl = 0;
             switch (_rotation) {
@@ -57,7 +57,7 @@ namespace lgfx
         }
 
 
-        void Panel_RM690B0::command_list(const uint8_t *addr)
+        void Panel_AMOLED::command_list(const uint8_t *addr)
         {
             startWrite();
             for (;;)
@@ -90,7 +90,7 @@ namespace lgfx
         }
 
 
-        void Panel_RM690B0::write_cmd(uint8_t cmd)
+        void Panel_AMOLED::write_cmd(uint8_t cmd)
         {
             uint8_t cmd_buffer[4] = {0x02, 0x00, 0x00, 0x00};
             cmd_buffer[2] = cmd;
@@ -100,7 +100,7 @@ namespace lgfx
         }
 
 
-        void Panel_RM690B0::start_qspi()
+        void Panel_AMOLED::start_qspi()
         {
             /* Begin QSPI */
             cs_control(false);
@@ -111,7 +111,7 @@ namespace lgfx
             _bus->wait();
         }
 
-        void Panel_RM690B0::end_qspi()
+        void Panel_AMOLED::end_qspi()
         {
             /* Stop QSPI */
             _bus->writeCommand(0x32, 8);
@@ -122,7 +122,7 @@ namespace lgfx
             cs_control(true);
         }
 
-        void Panel_RM690B0::write_bytes(const uint8_t* data, uint32_t len, bool use_dma)
+        void Panel_AMOLED::write_bytes(const uint8_t* data, uint32_t len, bool use_dma)
         {
             start_qspi();
             _bus->writeBytes(data, len, true, use_dma);
@@ -137,46 +137,31 @@ namespace lgfx
 
 
         /* Panel init */
-        bool Panel_RM690B0::init(bool use_reset)
+        bool Panel_AMOLED::init(bool use_reset)
         {
-            // ESP_LOGD("RM690B0","pannel init %d", use_reset);
+            // ESP_LOGD("Panel_AMOLED","pannel init %d", use_reset);
 
             if (!Panel_Device::init(use_reset)) {
                 return false;
             }
 
-            uint8_t cmds[] =
+            startWrite(true);
+
+            for (uint8_t i = 0; auto cmds = getInitCommands(i); i++)
             {
-                0x11, 0+CMD_INIT_DELAY, 150, // Sleep out
-                0xfe, 1, 0x20, // SET PAGE
-                0x26, 1, 0x0a, // MIPI OFF
-                0x24, 1, 0x80, // SPI write RAM
-                0x5a, 1, 0x51, //! 230918:SWIRE FOR BV6804
-                0x5b, 1, 0x2e, //! 230918:SWIRE FOR BV6804
-                0xfe, 1, 0x00, // SET PAGE
+              command_list(cmds);
+            }
 
-                0x2a, 4, 0x00, 0x10, 0x01, 0xd1, // SET COLUMN START ADRESS SC = 0x0010 = 16 and EC = 0x01D1 = 465 (450 columns but an 16 offset)
-                0x2b, 4, 0x00, 0x00, 0x02, 0x57, // SET ROW START ADRESS SP = 0 and EP = 0x256 = 599 (600 lines)
-
-                0xc2, 1, 0xA1, // Set DSI Mode; 0x00 = Internal Timmings, 0xA1 = 1010 0001, first bit = SPI interface write RAM enable
-
-                0x3a, 1+CMD_INIT_DELAY, 0x55, 20, // Interface Pixel Format, 0x55=16bit/pixel
-                0x51, 1, 0x01, // display brightness dark (max = 0xff)
-                0x29, 0+CMD_INIT_DELAY, 200, // display on
-                0x51, 1, 0xd0, // display brightness (max = 0xff)
-                0xff, 0xff
-            };
-
-            this->command_list(cmds);
+            endWrite();
 
             return true;
         }
 
 
 
-        void Panel_RM690B0::setBrightness(uint8_t brightness)
+        void Panel_AMOLED::setBrightness(uint8_t brightness)
         {
-            // ESP_LOGD("RM690B0","setBrightness %d", brightness);
+            // ESP_LOGD("Panel_AMOLED","setBrightness %d", brightness);
 
             startWrite();
             /* Write Display Brightness	MAX_VAL=0XFF */
@@ -189,9 +174,9 @@ namespace lgfx
         }
 
 
-        void Panel_RM690B0::setRotation(uint_fast8_t r)
+        void Panel_AMOLED::setRotation(uint_fast8_t r)
         {
-            // ESP_LOGD("RM690B0","setRotation %d", r);
+            // ESP_LOGD("Panel_AMOLED","setRotation %d", r);
 
             r &= 7;
             _rotation = r;
@@ -228,9 +213,9 @@ namespace lgfx
         }
 
 
-        void Panel_RM690B0::setInvert(bool invert)
+        void Panel_AMOLED::setInvert(bool invert)
         {
-            // ESP_LOGD("RM690B0","setInvert %d", invert);
+            // ESP_LOGD("Panel_AMOLED","setInvert %d", invert);
 
             cs_control(false);
 
@@ -248,9 +233,9 @@ namespace lgfx
         }
 
 
-        void Panel_RM690B0::setSleep(bool flg)
+        void Panel_AMOLED::setSleep(bool flg)
         {
-            // ESP_LOGD("RM690B0","setSleep %d", flg);
+            // ESP_LOGD("Panel_AMOLED","setSleep %d", flg);
 
             cs_control(false);
 
@@ -269,28 +254,28 @@ namespace lgfx
         }
 
 
-        void Panel_RM690B0::setPowerSave(bool flg)
+        void Panel_AMOLED::setPowerSave(bool flg)
         {
-            // ESP_LOGD("RM690B0","setPowerSave");
+            // ESP_LOGD("Panel_AMOLED","setPowerSave");
         }
 
 
-        void Panel_RM690B0::waitDisplay(void)
+        void Panel_AMOLED::waitDisplay(void)
         {
-            // ESP_LOGD("RM690B0","waitDisplay");
+            // ESP_LOGD("Panel_AMOLED","waitDisplay");
         }
 
 
-        bool Panel_RM690B0::displayBusy(void)
+        bool Panel_AMOLED::displayBusy(void)
         {
-            // ESP_LOGD("RM690B0","displayBusy");
+            // ESP_LOGD("Panel_AMOLED","displayBusy");
             return false;
         }
 
 
-        color_depth_t Panel_RM690B0::setColorDepth(color_depth_t depth)
+        color_depth_t Panel_AMOLED::setColorDepth(color_depth_t depth)
         {
-            // ESP_LOGD("RM690B0","setColorDepth %d", depth);
+            // ESP_LOGD("Panel_AMOLED","setColorDepth %d", depth);
             // NOTE: this probably needs revisiting, supported formats are RGB888/RGB666/RGB565/RGB332/RGB111/Gray 256
 
             /* 0x55: 16bit/pixel */
@@ -326,18 +311,18 @@ namespace lgfx
         }
 
 
-        void Panel_RM690B0::beginTransaction(void)
+        void Panel_AMOLED::beginTransaction(void)
         {
-            // ESP_LOGD("RM690B0","beginTransaction");
+            // ESP_LOGD("Panel_AMOLED","beginTransaction");
             if (_in_transaction) return;
             _in_transaction = true;
             _bus->beginTransaction();
         }
 
 
-        void Panel_RM690B0::endTransaction(void)
+        void Panel_AMOLED::endTransaction(void)
         {
-            // ESP_LOGD("RM690B0","endTransaction");
+            // ESP_LOGD("Panel_AMOLED","endTransaction");
             // if (!_in_transaction) return;
             // _in_transaction = false;
             // _bus->endTransaction();
@@ -355,7 +340,7 @@ namespace lgfx
         }
 
 
-        void Panel_RM690B0::setPartialArea(uint_fast16_t ys, uint_fast16_t ye)
+        void Panel_AMOLED::setPartialArea(uint_fast16_t ys, uint_fast16_t ye)
         {
             if( ys==0 && ys==_height-1 ) {
                 cs_control(false);
@@ -379,7 +364,7 @@ namespace lgfx
         }
 
 
-        void Panel_RM690B0::setVerticalPartialArea(uint_fast16_t xs, uint_fast16_t xe)
+        void Panel_AMOLED::setVerticalPartialArea(uint_fast16_t xs, uint_fast16_t xe)
         {
             if( xs==0 && xe==_width-1 ) {
                 cs_control(false);
@@ -403,11 +388,11 @@ namespace lgfx
         }
 
 
-        void Panel_RM690B0::setWindow(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye)
+        void Panel_AMOLED::setWindow(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye)
         {
-            // ESP_LOGD("RM690B0","setWindow %d %d %d %d", xs, ys, xe, ye);
+            // ESP_LOGD("Panel_AMOLED","setWindow %d %d %d %d", xs, ys, xe, ye);
             uint16_t w = (xe-xs)+1;
-            if(xs%2!=0 || w%2!=0) { // RM690B0 restriction: x and w must be divisible by 2
+            if(xs%2!=0 || w%2!=0) { // Panel_AMOLED restriction: x and w must be divisible by 2
                 // ESP_LOGD("LGFX", "clip coords aren't aligned");
                 return;
             }
@@ -415,8 +400,7 @@ namespace lgfx
             if (xs > xe || xe > _width-1) { return; }
             if (ys > ye || ye > _height-1) { return; }
 
-            /* As RM69090 driver need offset (see ORIENTATIONS_GENERAL) then the memory area needs to follow offsets*/
-
+            // apply offsets
             xs += _colstart;
             ys += _rowstart;
             xe += _colstart;
@@ -429,10 +413,9 @@ namespace lgfx
             static uint_fast16_t _oldxs = -1, _oldys = -1, _oldxe = -1, _oldye = -1;
 
             if( xs != _oldxs || xe != _oldxe ) {
-                /* Set Column Start Address */
+                // Set Column Start Address (CASET)
                 cs_control(false);
                 write_cmd(0x2A);
-                //write_cmd(0x30);
                 _bus->writeCommand(xs >> 8, 8);
                 _bus->writeCommand(xs & 0xFF, 8);
                 _bus->writeCommand(xe >> 8, 8);
@@ -442,10 +425,9 @@ namespace lgfx
             }
 
             if( ys != _oldys || ye != _oldye ) {
-                /* Set Row Start Address */
+                // Set Row Start Address (RASET)
                 cs_control(false);
                 write_cmd(0x2B);
-                //write_cmd(0x31);
                 _bus->writeCommand(ys >> 8, 8);
                 _bus->writeCommand(ys & 0xFF, 8);
                 _bus->writeCommand(ye >> 8, 8);
@@ -457,7 +439,7 @@ namespace lgfx
             _oldxs = xs; _oldys = ys;
             _oldxe = xe; _oldye = ye;
 
-            // /* Memory Write */
+            // // Memory Write
             // cs_control(false);
             // write_cmd(0x2C);
             // _bus->wait();
@@ -465,10 +447,10 @@ namespace lgfx
         }
 
 
-        void Panel_RM690B0::writeBlock(uint32_t rawcolor, uint32_t len)
+        void Panel_AMOLED::writeBlock(uint32_t rawcolor, uint32_t len)
         {
-            // ESP_LOGD("RM690B0","writeBlock 0x%lx %ld", rawcolor, len);
-            /* Push color */
+            // ESP_LOGD("Panel_AMOLED","writeBlock 0x%lx %ld", rawcolor, len);
+            // Push color
             start_qspi();
             _bus->writeDataRepeat(rawcolor, _write_bits, len);
             _bus->wait();
@@ -476,7 +458,7 @@ namespace lgfx
         }
 
 
-        void Panel_RM690B0::writePixels(pixelcopy_t* param, uint32_t len, bool use_dma)
+        void Panel_AMOLED::writePixels(pixelcopy_t* param, uint32_t len, bool use_dma)
         {
             start_qspi();
 
@@ -495,10 +477,10 @@ namespace lgfx
         }
 
 
-        void Panel_RM690B0::drawPixelPreclipped(uint_fast16_t x, uint_fast16_t y, uint32_t rawcolor)
+        void Panel_AMOLED::drawPixelPreclipped(uint_fast16_t x, uint_fast16_t y, uint32_t rawcolor)
         {
-            // ESP_LOGD("RM690B0","drawPixelPreclipped %d %d 0x%lX", x, y, rawcolor);
-            if(x%2!=0) { // RM690B0 restriction: x and w must be divisible by 2
+            // ESP_LOGD("Panel_AMOLED","drawPixelPreclipped %d %d 0x%lX", x, y, rawcolor);
+            if(x%2!=0) { // Panel_AMOLED restriction: x and w must be divisible by 2
                 // ESP_LOGD("LGFX", "clip coords aren't aligned");
                 return;
             }
@@ -514,10 +496,10 @@ namespace lgfx
         }
 
 
-        void Panel_RM690B0::writeFillRectPreclipped(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, uint32_t rawcolor)
+        void Panel_AMOLED::writeFillRectPreclipped(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, uint32_t rawcolor)
         {
-            // ESP_LOGD("RM690B0","writeFillRectPreclipped %d %d %d %d 0x%lX", x, y, w, h, rawcolor);
-            if(x%2!=0 || w%2!=0) { // RM690B0 restriction: x and w must be divisible by 2
+            // ESP_LOGD("Panel_AMOLED","writeFillRectPreclipped %d %d %d %d 0x%lX", x, y, w, h, rawcolor);
+            if(x%2!=0 || w%2!=0) { // Panel_AMOLED restriction: x and w must be divisible by 2
                 // ESP_LOGD("LGFX", "clip coords aren't aligned");
                 return;
             }
@@ -535,10 +517,10 @@ namespace lgfx
         }
 
 
-        void Panel_RM690B0::writeImage(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, pixelcopy_t* param, bool use_dma)
+        void Panel_AMOLED::writeImage(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, pixelcopy_t* param, bool use_dma)
         {
-            // ESP_LOGD("RM690B0","writeImage %d %d %d %d %d", x, y, w, h, use_dma);
-            if(x%2!=0 || w%2!=0) { // RM690B0 restriction: x and w must be divisible by 2
+            // ESP_LOGD("Panel_AMOLED","writeImage %d %d %d %d %d", x, y, w, h, use_dma);
+            if(x%2!=0 || w%2!=0) { // Panel_AMOLED restriction: x and w must be divisible by 2
                 ESP_LOGD("LGFX", "clip coords aren't aligned x(%d) y(%d) w(%d) h(%d) use_dma(%d)", x, y, w, h, use_dma);
                 return;
             }
@@ -660,20 +642,20 @@ namespace lgfx
 
 
 
-        bool Panel_RM690B0_Framebuffer::init(bool use_reset)
+        bool Panel_AMOLED_Framebuffer::init(bool use_reset)
         {
             if( _frame_buffer )
               return true;
             // setRotation(getRotation());
-            ESP_LOGD("RM690B0","Panel_RM690B0_Framebuffer init [%d x %d] %d", _width, _height, use_reset);
+            ESP_LOGD("Panel_AMOLED","Panel_AMOLED_Framebuffer init [%d x %d] %d", _width, _height, use_reset);
             if( !initFramebuffer(_width, _height) )
               return false;
             _internal_rotation = 0;
-            return Panel_Device/*Panel_FrameBufferBase*/::init(false);
+            return Panel_Device::init(false);
         }
 
 
-        void Panel_RM690B0_Framebuffer::display(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h)
+        void Panel_AMOLED_Framebuffer::display(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h)
         {
             if( !_frame_buffer)
                 return;
@@ -722,7 +704,7 @@ namespace lgfx
         }
 
 
-        bool Panel_RM690B0_Framebuffer::initFramebuffer(uint_fast16_t w, uint_fast16_t h)
+        bool Panel_AMOLED_Framebuffer::initFramebuffer(uint_fast16_t w, uint_fast16_t h)
         {
             size_t lineArray_size = h * sizeof(void*);
             // ESP_LOGE("DEBUG","height:%d", h);
@@ -755,7 +737,7 @@ namespace lgfx
         }
 
 
-        void Panel_RM690B0_Framebuffer::deinitFramebuffer(void)
+        void Panel_AMOLED_Framebuffer::deinitFramebuffer(void)
         {
             if (_frame_buffer)
             {

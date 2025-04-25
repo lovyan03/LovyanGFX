@@ -19,7 +19,7 @@
 
 #if defined (ESP_PLATFORM)
 
-#include "Panel_Device.hpp"
+#include "Panel_AMOLED.hpp"
 #include "Panel_FrameBufferBase.hpp"
 #include "../platforms/common.hpp"
 #include "../platforms/device.hpp"
@@ -34,44 +34,10 @@ namespace lgfx
 
         // AMOLED Panel used by LilyGO T4-S3
 
-        struct Panel_RM690B0;
-
-        struct Panel_RM690B0_Framebuffer : Panel_FrameBufferBase
+        struct Panel_RM690B0 : public Panel_AMOLED
         {
         public:
-            Panel_RM690B0_Framebuffer(Panel_RM690B0* panel) : _panel(panel) { assert(_panel); }
-            ~Panel_RM690B0_Framebuffer(void) { deinitFramebuffer(); }
-            bool init(bool use_reset) override;
-            bool initFramebuffer(uint_fast16_t w, uint_fast16_t h);
-            void deinitFramebuffer(void);
 
-            // TODO: reinit frame buffer when one of those functions is called
-            //color_depth_t setColorDepth(color_depth_t depth) override;
-            //void setRotation(uint_fast8_t r) override;
-            //void setInvert(bool invert) override;
-
-            void display(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h) override;
-
-        protected:
-            uint8_t* _frame_buffer = nullptr;
-            Panel_RM690B0* _panel = nullptr;
-        };
-
-
-        //----------------------------------------------------------------------------
-
-
-        struct Panel_RM690B0 : public Panel_Device
-        {
-        protected:
-            bool _in_transaction = false;
-
-            Panel_RM690B0_Framebuffer* _panel_fb = nullptr;
-
-            uint16_t _colstart = 0;
-            uint16_t _rowstart = 0;
-
-        public:
             Panel_RM690B0(void)
             {
               _cfg.memory_width  = _cfg.panel_width  = 452;
@@ -80,81 +46,33 @@ namespace lgfx
               _read_depth = color_depth_t::rgb565_2Byte;
             }
 
-            ~Panel_RM690B0(void)
+            const uint8_t* getInitCommands(uint8_t listno) const override
             {
-              deinitPanelFb();
-            }
+              static constexpr uint8_t list0[] = {
+                0x11, 0+CMD_INIT_DELAY, 150, // Sleep out
+                0xfe, 1, 0x20, // SET PAGE
+                0x26, 1, 0x0a, // MIPI OFF
+                0x24, 1, 0x80, // SPI write RAM
+                0x5a, 1, 0x51, //! 230918:SWIRE FOR BV6804
+                0x5b, 1, 0x2e, //! 230918:SWIRE FOR BV6804
+                0xfe, 1, 0x00, // SET PAGE
 
-            bool init(bool use_reset) override;
-            void beginTransaction(void) override;
-            void endTransaction(void) override;
+                0x2a, 4, 0x00, 0x10, 0x01, 0xd1, // SET COLUMN START ADRESS SC = 0x0010 = 16 and EC = 0x01D1 = 465 (450 columns but an 16 offset)
+                0x2b, 4, 0x00, 0x00, 0x02, 0x57, // SET ROW START ADRESS SP = 0 and EP = 0x256 = 599 (600 lines)
 
+                0xc2, 1, 0xA1, // Set DSI Mode; 0x00 = Internal Timmings, 0xA1 = 1010 0001, first bit = SPI interface write RAM enable
 
-            bool initPanelFb()
-            {
-              if(_panel_fb)
-                return true;
-              _panel_fb = new Panel_RM690B0_Framebuffer(this);
-              _panel_fb->config(_cfg);
-              _panel_fb->setColorDepth(_write_depth);
-              _panel_fb->setRotation(getRotation());
-              return _panel_fb->init(false);
-            }
-
-            void deinitPanelFb()
-            {
-              if(_panel_fb) {
-                delete _panel_fb;
-                _panel_fb = nullptr;
+                0x3a, 1+CMD_INIT_DELAY, 0x55, 20, // Interface Pixel Format, 0x55=16bit/pixel
+                0x51, 1, 0x01, // display brightness dark (max = 0xff)
+                0x29, 0+CMD_INIT_DELAY, 200, // display on
+                0x51, 1, 0xd0, // display brightness (max = 0xff)
+                0xff, 0xff // end
+              };
+              switch (listno) {
+                case 0: return list0;
+                default: return nullptr;
               }
             }
-
-            Panel_RM690B0_Framebuffer* getPanelFb()
-            {
-              return _panel_fb;
-            }
-
-            void display(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h) override
-            {
-              if(_panel_fb)
-                _panel_fb->display(x, y, w, h);
-            }
-
-            void command_list(const uint8_t *addr);
-
-            void update_madctl();
-
-            void write_cmd(uint8_t cmd);
-            void start_qspi();
-            void end_qspi();
-            void write_bytes(const uint8_t* data, uint32_t len, bool use_dma);
-
-
-            color_depth_t setColorDepth(color_depth_t depth) override;
-            void setRotation(uint_fast8_t r) override;
-            void setInvert(bool invert) override;
-            void setSleep(bool flg) override;
-            void setPowerSave(bool flg) override;
-            void setBrightness(uint8_t brightness) override;
-
-            void waitDisplay(void) override;
-            bool displayBusy(void) override;
-
-            void writePixels(pixelcopy_t* param, uint32_t len, bool use_dma) override;
-            void writeBlock(uint32_t rawcolor, uint32_t len) override;
-
-            // not sure what these display commands are for, more testing needed
-            void setVerticalPartialArea(uint_fast16_t xs, uint_fast16_t xe);
-            void setPartialArea(uint_fast16_t ys, uint_fast16_t ye);
-
-            void setWindow(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye) override;
-            void drawPixelPreclipped(uint_fast16_t x, uint_fast16_t y, uint32_t rawcolor) override;
-            void writeFillRectPreclipped(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, uint32_t rawcolor) override;
-            void writeImage(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, pixelcopy_t* param, bool use_dma) override;
-
-            uint32_t readCommand(uint_fast16_t cmd, uint_fast8_t index, uint_fast8_t len) override { return 0;}
-            uint32_t readData(uint_fast8_t index, uint_fast8_t len) override { return 0;}
-            void readRect(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, void* dst, pixelcopy_t* param) override { };
         };
 
 
