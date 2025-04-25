@@ -1,7 +1,9 @@
 
 #include <LovyanGFX.hpp>
 
-#include <lgfx/v1/panel/Panel_RM690B0.hpp>
+#if !defined LGFX_USE_QSPI
+  #error "This device does not support QSPI"
+#endif
 
 // AMOLED Panel used by LilyGO T4-S3
 
