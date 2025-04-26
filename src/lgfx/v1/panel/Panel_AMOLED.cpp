@@ -102,9 +102,8 @@ namespace lgfx
 
         void Panel_AMOLED::start_qspi()
         {
-            /* Begin QSPI */
             cs_control(false);
-            _bus->writeCommand(0x32, 8);
+            _bus->writeCommand(0x32, 8); // 4 wire pixel data transmission (0x32 or 0x12)
             _bus->writeCommand(0x00, 8);
             _bus->writeCommand(0x2c, 8); // WRITE_MEMORY_START
             _bus->writeCommand(0x00, 8);
@@ -113,8 +112,7 @@ namespace lgfx
 
         void Panel_AMOLED::end_qspi()
         {
-            /* Stop QSPI */
-            _bus->writeCommand(0x32, 8);
+            _bus->writeCommand(0x32, 8); // 4 wire pixel data transmission (0x32 or 0x12)
             _bus->writeCommand(0x00, 8);
             _bus->writeCommand(0x00, 8); // NOP
             _bus->writeCommand(0x00, 8);
@@ -132,15 +130,10 @@ namespace lgfx
 
 
 
-        //----------------------------------------------------------------------------
 
-
-
-        /* Panel init */
         bool Panel_AMOLED::init(bool use_reset)
         {
             // ESP_LOGD("Panel_AMOLED","pannel init %d", use_reset);
-
             if (!Panel_Device::init(use_reset)) {
                 return false;
             }
@@ -162,9 +155,8 @@ namespace lgfx
         void Panel_AMOLED::setBrightness(uint8_t brightness)
         {
             // ESP_LOGD("Panel_AMOLED","setBrightness %d", brightness);
-
             startWrite();
-            /* Write Display Brightness	MAX_VAL=0XFF */
+            // Write Display Brightness	MAX_VAL=0XFF
             cs_control(false);
             write_cmd(0x51);
             _bus->writeCommand(brightness, 8);
@@ -177,7 +169,6 @@ namespace lgfx
         void Panel_AMOLED::setRotation(uint_fast8_t r)
         {
             // ESP_LOGD("Panel_AMOLED","setRotation %d", r);
-
             r &= 7;
             _rotation = r;
             // offset_rotationを加算 (0~3:回転方向、 4:上下反転フラグ);
@@ -203,7 +194,6 @@ namespace lgfx
 
             // _colstart = (_internal_rotation & 2)
             //         ? mw - (pw + ox) : ox;
-
             // _rowstart = ((1 << _internal_rotation) & 0b10010110) // case 1:2:4:7
             //         ? mh - (ph + oy) : oy;
 
@@ -216,17 +206,13 @@ namespace lgfx
         void Panel_AMOLED::setInvert(bool invert)
         {
             // ESP_LOGD("Panel_AMOLED","setInvert %d", invert);
-
             cs_control(false);
 
-            if (invert) {
-                /* Inversion On */
-                write_cmd(0x21);
-            }
-            else {
-                /* Inversion Off */
-                write_cmd(0x20);
-            }
+            if (invert)
+                write_cmd(0x21); // Inversion On
+            else
+                write_cmd(0x20); // Inversion Off
+
             _bus->wait();
 
             cs_control(true);
@@ -236,16 +222,13 @@ namespace lgfx
         void Panel_AMOLED::setSleep(bool flg)
         {
             // ESP_LOGD("Panel_AMOLED","setSleep %d", flg);
-
             cs_control(false);
 
             if (flg) {
-                /* Sleep in */
-                write_cmd(0x10);
+                write_cmd(0x10); // Sleep in
             }
             else {
-                /* Sleep out */
-                write_cmd(0x11);
+                write_cmd(0x11); // Sleep out
                 delay(150);
             }
             _bus->wait();
@@ -262,6 +245,7 @@ namespace lgfx
 
         void Panel_AMOLED::waitDisplay(void)
         {
+            _bus->wait();
             // ESP_LOGD("Panel_AMOLED","waitDisplay");
         }
 
@@ -278,9 +262,9 @@ namespace lgfx
             // ESP_LOGD("Panel_AMOLED","setColorDepth %d", depth);
             // NOTE: this probably needs revisiting, supported formats are RGB888/RGB666/RGB565/RGB332/RGB111/Gray 256
 
-            /* 0x55: 16bit/pixel */
-            /* 0x66: 18bit/pixel */
-            /* 0x77: 24bit/pixel */
+            // 0x55: 16bit/pixel
+            // 0x66: 18bit/pixel
+            // 0x77: 24bit/pixel
             uint8_t cmd_send = 0;
             if (depth == rgb565_2Byte) {
                 cmd_send = 0x55;
@@ -296,7 +280,7 @@ namespace lgfx
             }
             _write_depth = depth;
 
-            /* Set interface Pixel Format */
+            // Set interface Pixel Format
             startWrite();
 
             cs_control(false);
@@ -406,13 +390,11 @@ namespace lgfx
             xe += _colstart;
             ye += _rowstart;
 
-            /* Set limit */
+            // Set limit
             if ((xe - xs) >= _width) { xs = 0; xe = _width - 1; }
             if ((ye - ys) >= _height) { ys = 0; ye = _height - 1; }
 
-            static uint_fast16_t _oldxs = -1, _oldys = -1, _oldxe = -1, _oldye = -1;
-
-            if( xs != _oldxs || xe != _oldxe ) {
+            {
                 // Set Column Start Address (CASET)
                 cs_control(false);
                 write_cmd(0x2A);
@@ -424,7 +406,7 @@ namespace lgfx
                 cs_control(true);
             }
 
-            if( ys != _oldys || ye != _oldye ) {
+            {
                 // Set Row Start Address (RASET)
                 cs_control(false);
                 write_cmd(0x2B);
@@ -436,10 +418,7 @@ namespace lgfx
                 cs_control(true);
             }
 
-            _oldxs = xs; _oldys = ys;
-            _oldxe = xe; _oldye = ye;
-
-            // // Memory Write
+            // // Memory Write (disabled because setWindow can also be used for memory read)
             // cs_control(false);
             // write_cmd(0x2C);
             // _bus->wait();
@@ -450,7 +429,6 @@ namespace lgfx
         void Panel_AMOLED::writeBlock(uint32_t rawcolor, uint32_t len)
         {
             // ESP_LOGD("Panel_AMOLED","writeBlock 0x%lx %ld", rawcolor, len);
-            // Push color
             start_qspi();
             _bus->writeDataRepeat(rawcolor, _write_bits, len);
             _bus->wait();

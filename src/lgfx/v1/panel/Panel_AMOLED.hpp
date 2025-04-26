@@ -121,7 +121,6 @@ namespace lgfx
             void end_qspi();
             void write_bytes(const uint8_t* data, uint32_t len, bool use_dma);
 
-
             color_depth_t setColorDepth(color_depth_t depth) override;
             void setRotation(uint_fast8_t r) override;
             void setInvert(bool invert) override;
@@ -144,6 +143,7 @@ namespace lgfx
             void writeFillRectPreclipped(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, uint32_t rawcolor) override;
             void writeImage(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, pixelcopy_t* param, bool use_dma) override;
 
+            // TODO: implement those
             uint32_t readCommand(uint_fast16_t cmd, uint_fast8_t index, uint_fast8_t len) override { return 0;}
             uint32_t readData(uint_fast8_t index, uint_fast8_t len) override { return 0;}
             void readRect(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, void* dst, pixelcopy_t* param) override { };
