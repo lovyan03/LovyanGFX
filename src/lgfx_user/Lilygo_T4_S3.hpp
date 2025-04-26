@@ -81,7 +81,7 @@ class Lilygo_T4_S3 : public lgfx::LGFX_Device
 
       {
         auto cfg = _touch_instance.config();
-        cfg.i2c_addr = 0x5A;
+        cfg.i2c_addr = 0x5A; // 0x5a (CST226SE) or 0x1A (CST226)
         cfg.pin_sda  = GPIO_NUM_6;
         cfg.pin_scl  = GPIO_NUM_7;
         cfg.pin_int  = GPIO_NUM_8;
