@@ -12,7 +12,6 @@ class Lilygo_T_Display_S3_AMOLED : public lgfx::LGFX_Device
 
   lgfx::Bus_QSPI      _bus_instance;
   lgfx::Panel_RM67162 _panel_instance; // 1.91 inch RM67162 IPS AMOLED:
-  // lgfx::Touch_CST226  _touch_instance; // I2C sda:6, scl:7, int:8, rst: 17
 
   /*
    * NOTE: RM67162 has a limitation: for any given area to write [x, y, w, h], x and w
@@ -46,7 +45,7 @@ class Lilygo_T_Display_S3_AMOLED : public lgfx::LGFX_Device
       {
         auto cfg = _bus_instance.config();
 
-        cfg.freq_write = 40000000;
+        cfg.freq_write = 75000000;
         cfg.freq_read  = 20000000; // irrelevant
 
         cfg.pin_sclk  = GPIO_NUM_47;
@@ -72,33 +71,8 @@ class Lilygo_T_Display_S3_AMOLED : public lgfx::LGFX_Device
 
         cfg.readable = true;
 
-        //cfg.offset_x = 16;
-        //cfg.offset_y = 0;
-
         _panel_instance.config(cfg);
       }
-
-
-      // {
-      //   auto cfg = _touch_instance.config();
-      //   cfg.i2c_addr = 0x5A;
-      //   cfg.pin_sda  = GPIO_NUM_6;
-      //   cfg.pin_scl  = GPIO_NUM_7;
-      //   cfg.pin_int  = GPIO_NUM_8;
-      //   cfg.pin_rst  = GPIO_NUM_17;
-      //
-      //   cfg.x_min      = 0;
-      //   cfg.y_min      = 0;
-      //   cfg.x_max      = 450;
-      //   cfg.y_max      = 600;
-      //
-      //   cfg.freq       = 400000;
-      //   cfg.bus_shared = false;
-      //   cfg.offset_rotation = _offset_rotation = 0;
-      //
-      //   _touch_instance.config(cfg);
-      //   _panel_instance.setTouch(&_touch_instance);
-      // }
 
       setPanel(&_panel_instance);
     }
@@ -110,13 +84,6 @@ class Lilygo_T_Display_S3_AMOLED : public lgfx::LGFX_Device
         auto fbPanel = _panel_instance.getPanelFb();
         if( fbPanel ) {
           fbPanel->setBus(&_bus_instance);
-          // auto touch_cfg = _touch_instance.config();
-          // _offset_rotation = touch_cfg.offset_rotation; // memoize for later restoration
-          // touch_cfg.offset_rotation = _panel_instance.getRotation(); // apply display rotation
-          // if(touch_cfg.offset_rotation & 1)
-          //   std::swap(touch_cfg.x_max, touch_cfg.y_max);
-          // _touch_instance.config(touch_cfg);
-          // fbPanel->setTouch(&_touch_instance); // attach touch to the framebuffer
           fbPanel->setAutoDisplay(auto_display);
           setPanel(fbPanel);
           return true;
@@ -131,12 +98,6 @@ class Lilygo_T_Display_S3_AMOLED : public lgfx::LGFX_Device
       auto fbPanel = _panel_instance.getPanelFb();
       if(fbPanel) {
         _panel_instance.deinitPanelFb();
-        // auto touch_cfg = _touch_instance.config();
-        // if(touch_cfg.offset_rotation & 1)
-        //   std::swap(touch_cfg.x_max, touch_cfg.y_max);
-        // touch_cfg.offset_rotation = _offset_rotation; // restore memoized offset rotation
-        // _touch_instance.config(touch_cfg);
-        // _panel_instance.setTouch(&_touch_instance); // reattach touch to the display
         setPanel(&_panel_instance);
       }
     }
@@ -150,7 +111,5 @@ class Lilygo_T_Display_S3_AMOLED : public lgfx::LGFX_Device
       return ret;
     }
 
-  // protected:
-  //   uint8_t _offset_rotation = 0; // memoize offset rotation when toggling framebuffer
 
 };

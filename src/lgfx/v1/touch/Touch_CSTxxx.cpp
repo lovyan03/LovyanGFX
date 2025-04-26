@@ -178,8 +178,8 @@ namespace lgfx
 
     bool Touch_CST226::init(void)
     {
-      // ESP_LOGD("LGFX", "Init touch CST226");
       _inited = false;
+
       if (_cfg.pin_rst >= 0) {
         lgfx::pinMode(_cfg.pin_rst, pin_mode_t::output);
         lgfx::gpio_lo(_cfg.pin_rst);
@@ -187,10 +187,13 @@ namespace lgfx
         lgfx::gpio_hi(_cfg.pin_rst);
         lgfx::delay(10);
       }
+
       if (_cfg.pin_int >= 0) {
         lgfx::pinMode(_cfg.pin_int, pin_mode_t::input_pullup);
       }
+
       lgfx::i2c::init(_cfg.i2c_port, _cfg.pin_sda, _cfg.pin_scl).has_value();
+
       return true;
     }
 
@@ -199,36 +202,75 @@ namespace lgfx
     {
       if (_inited) return true;
 
-      uint8_t buffer[28];
-
-      buffer[0] = 0xd1;
-      if( ! _read_reg8(0xd1, buffer, 1) )
-      {
-        // ESP_LOGE("LGFX", "Write to reg 0xd1 failed");
-        return false;
+      { // enter command mode
+        if( ! _write_reg16(0xd101)) // 0xd101 = ENUM_MODE_DEBUG_INFO
+          return false;
       }
+
       lgfx::delay(10);
-      if( ! _read_reg16(0xd204, buffer, 4) ) // read chip id and project id
-      {
-        // ESP_LOGE("LGFX", "Write to reg 0xD204 failed");
-        return false;
-      }
-      // uint16_t chip_id = buffer[2] + (buffer[3] << 8);
-      // uint16_t project_id = buffer[0] + (buffer[1] << 8);
-      // ESP_LOGD("LGFX", "Chip id: 0x%04x, project id: 0x%04x", chip_id, project_id);
 
-      if( ! _read_reg8(0, buffer, 28) ) // read all registers
-      {
-        // ESP_LOGE("LGFX", "Write to reg 0x00 failed");
-        return false;
+      { // verify chip integrity
+        uint32_t chip_ic_checkcode;
+        if( ! _read_reg16(0xd1fc, (uint8_t*)&chip_ic_checkcode, 4) ) // 0xd1fc = read chip_ic_checkcode
+          return false;
+        // printf("Touch Chip_ic_checkcode: 0x%08lx (expecting 0xcacaxxxx)\n", chip_ic_checkcode); // e.g. Chip_ic_checkcode: 0xcaca5fdc
+        if( (chip_ic_checkcode & 0xffff0000) != 0xcaca0000 )
+          return false;
       }
-      // for( int i=0;i<28;i++ ) {
-      //   ESP_LOGD("LGFX", "Register 0xD0%02x = 0x%02x", i, buffer[i]);
-      // }
+
+      lgfx::delay(10);
+
+      { // read touch resolution
+        uint16_t resolution[2];
+        if( ! _read_reg16(0xd1f8, (uint8_t*)&resolution, 4) ) // 0xd1f8 = read chip resolution
+          return false;
+        // printf("Touch Resolution: %d x %d\n", resolution[1], resolution[0]); // e.g. Resolution: 600 x 450
+      }
+
+      lgfx::delay(10);
+
+      { // identify the chip id and project id (NOTE: this can be used in autodetect routine)
+        uint16_t c_p_info[2];
+        if( ! _read_reg16(0xd204, (uint8_t*)&c_p_info, 4) ) // 0xd204 = read chip type and project id
+          return false;
+        if( c_p_info[1] != 0xa8 ) // 0xa8 is chip ID for CST226 and CST226SE
+          return false;
+        // printf("Touch Chip id: 0x%04x, project id: 0x%04x\n", c_p_info[1], c_p_info[0]); // e.g. Chip id: 0x00a8, project id: 0x465f
+      }
+
+      lgfx::delay(10);
+
+      { // check if firmware is installed
+        uint32_t fw_chksum[2];
+        if( ! _read_reg16(0xd208, (uint8_t*)fw_chksum, 8) ) // 0xd208 = read fw version + checksum
+          return false;
+        if( fw_chksum[0]==0xA5A5A5A5 ) // the chip has no firmware !!
+          return false;
+        // printf("Touch FW Version: 0x%08lx, Checksum: 0x%08lx\n", fw_chksum[0], fw_chksum[1]); // e.g. FW version 0x01000001, Checksum: 0x140f47c8
+      }
+
+      lgfx::delay(10);
+
+      { // exit command mode
+        if( ! _write_reg16(0xd109) ) // 0xd109 = ENUM_MODE_NORMAL, 0xd109 = ENUM_MODE_FACTORY
+          return false;
+      }
+
+      lgfx::delay(5);
       _inited = true;
+      return true;
+    }
 
-      return _inited;
 
+    void Touch_CST226::wakeup(void)
+    {
+      init();
+    }
+
+
+    void Touch_CST226::sleep(void)
+    {
+      _write_reg16(0xd105); // 0xD105 = deep sleep
     }
 
 
@@ -262,7 +304,10 @@ namespace lgfx
       if (readdata[0] == 0xab) return 0;
       if (readdata[5] == 0x80) return 0;
       count = readdata[5] & 0x7f;
-      if (count > max_touch_points) return 0; // TODO: should reset ?
+      if (count > max_touch_points || count == 0) {
+        _write_reg16(0x00ab); // Publish the synchronization command to complete the coordinate read
+        return 0;
+      }
       _wait_cycle = count ? 0 : 16;
 
       if (count)
@@ -285,15 +330,21 @@ namespace lgfx
           tp[0].x = (uint16_t)((readdata[1] << 4) | ((readdata[3] >> 4) & 0xf));
           tp[0].y = (uint16_t)((readdata[2] << 4) | (readdata[3] & 0xf));
         }
-
       }
       return count;
     }
 
 
+    bool Touch_CST226::_write_reg16(uint16_t reg)
+    {
+      reg = (reg<<8)+(reg>>8); // swap
+      return lgfx::i2c::transactionWrite(_cfg.i2c_port, _cfg.i2c_addr, (uint8_t*)&reg, 2, _cfg.freq).has_value();
+    }
+
 
     bool Touch_CST226::_read_reg16(uint16_t reg, uint8_t *data, size_t length)
     {
+      reg = (reg<<8)+(reg>>8); // swap
       return lgfx::i2c::transactionWriteRead(_cfg.i2c_port, _cfg.i2c_addr, (uint8_t*)&reg, 2, data, length, _cfg.freq).has_value();
     }
 
