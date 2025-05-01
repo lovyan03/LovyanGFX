@@ -1395,6 +1395,7 @@ namespace lgfx
                : (dst_depth == rgb332_1Byte) ? pixelcopy_t::copy_grayscale_affine<rgb332_t>
                : (dst_depth == rgb888_3Byte) ? pixelcopy_t::copy_grayscale_affine<bgr888_t>
                : (dst_depth == rgb666_3Byte) ? pixelcopy_t::copy_grayscale_affine<bgr666_t>
+               : (dst_depth == grayscale_8bit) ? pixelcopy_t::copy_grayscale_affine<grayscale_t>
                : nullptr;
 
     return pc;
@@ -1876,6 +1877,7 @@ namespace lgfx
     case color_depth_t::rgb666_3Byte: p.fp_copy = pixelcopy_t::compare_rgb_affine<bgr666_t>;  break;
     case color_depth_t::rgb565_2Byte: p.fp_copy = pixelcopy_t::compare_rgb_affine<swap565_t>; break;
     case color_depth_t::rgb332_1Byte: p.fp_copy = pixelcopy_t::compare_rgb_affine<rgb332_t>;  break;
+    case color_depth_t::grayscale_8bit: p.fp_copy = pixelcopy_t::compare_rgb_affine<grayscale_t>;  break;
     default: p.fp_copy = pixelcopy_t::compare_bit_affine;
       p.src_mask = (1 << p.src_bits) - 1;
       p.transp &= p.src_mask;
@@ -2935,7 +2937,7 @@ namespace lgfx
     lgfxJdec jpegdec;
 
     static constexpr uint16_t sz_pool = 3900;
-    uint8_t *pool = (uint8_t*)heap_alloc_dma(sz_pool);
+    uint8_t *pool = (uint8_t*)malloc(sz_pool);
     if (!pool)
     {
       // ESP_LOGW("LGFX", "jpeg memory alloc fail");
@@ -2947,7 +2949,7 @@ namespace lgfx
     if (jres != JDR_OK)
     {
       // ESP_LOGW("LGFX", "jpeg prepare error:%x", jres);
-      heap_free(pool);
+      free(pool);
       return false;
     }
 
@@ -2963,7 +2965,7 @@ namespace lgfx
                        , datum
                        , jpegdec.width, jpegdec.height))
     {
-      heap_free(pool);
+      free(pool);
       return false;
     }
 
@@ -2990,7 +2992,7 @@ namespace lgfx
     this->endWrite();
     drawinfo.data->preRead();
 
-    heap_free(pool);
+    free(pool);
 
     if (jres != JDR_OK) {
       // ESP_LOGW("LGFX", "jpeg decomp error:%x", jres);

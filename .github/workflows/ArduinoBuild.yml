@@ -13,6 +13,7 @@ on:
     - '**.c'
     - '**ArduinoBuild.yml'
   pull_request:
+  workflow_dispatch:
 
 jobs:
   build:

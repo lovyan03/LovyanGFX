@@ -334,6 +334,18 @@ namespace lgfx
 
   void Bus_RGB::release(void)
   {
+    if (_intr_handle) {
+      esp_intr_free(_intr_handle);
+    }
+    if (_i80_bus)
+    {
+      esp_lcd_del_i80_bus(_i80_bus);
+    }
+    if (_dmadesc)
+    {
+      heap_caps_free(_dmadesc);
+      _dmadesc = nullptr;
+    }
   }
 
 //----------------------------------------------------------------------------

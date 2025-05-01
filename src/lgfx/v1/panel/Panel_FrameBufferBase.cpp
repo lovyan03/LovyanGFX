@@ -23,11 +23,32 @@ Contributors:
 
 #if defined (ESP_PLATFORM)
  #include <sdkconfig.h>
- #if defined (CONFIG_IDF_TARGET_ESP32S3)
-  #if __has_include(<esp32s3/rom/cache.h>)
-   #include <esp32s3/rom/cache.h>
-   extern int Cache_WriteBack_Addr(uint32_t addr, uint32_t size);
-   #define LGFX_USE_CACHE_WRITEBACK_ADDR
+
+ #if __has_include(<esp_cache.h>)
+  #include <esp_cache.h>
+ #endif
+ #if defined (ESP_CACHE_MSYNC_FLAG_DIR_C2M)
+  __attribute__((weak))
+  int Cache_WriteBack_Addr(uint32_t addr, uint32_t size)
+  {
+    uintptr_t start = addr & ~63u;
+    uintptr_t end = (addr + size + 63u) & ~63u;
+    if (start >= end) return 0;
+    return esp_cache_msync((void*)start, end - start, ESP_CACHE_MSYNC_FLAG_DIR_C2M | ESP_CACHE_MSYNC_FLAG_TYPE_DATA);
+    // auto res = esp_cache_msync((void*)start, end - start, ESP_CACHE_MSYNC_FLAG_DIR_C2M | ESP_CACHE_MSYNC_FLAG_TYPE_DATA);
+    // if (res != ESP_OK){
+    //   printf("start: %08x, end: %08x\n", start, end);
+    // }
+    // return res;
+  }
+  #define LGFX_USE_CACHE_WRITEBACK_ADDR
+ #else
+  #if defined (CONFIG_IDF_TARGET_ESP32S3)
+   #if __has_include(<esp32s3/rom/cache.h>)
+    #include <esp32s3/rom/cache.h>
+    extern int Cache_WriteBack_Addr(uint32_t addr, uint32_t size);
+    #define LGFX_USE_CACHE_WRITEBACK_ADDR
+   #endif
   #endif
  #endif
 #endif
@@ -52,6 +73,11 @@ namespace lgfx
 
   bool Panel_FrameBufferBase::init(bool use_reset)
   {
+#if defined ( LGFX_USE_CACHE_WRITEBACK_ADDR )
+    // キャッシュのライトバックを display メソッドで行うため、auto_displayで自動化する
+    _auto_display = true;
+#endif
+
     setInvert(_invert);
     setRotation(_rotation);
 
@@ -82,6 +108,56 @@ namespace lgfx
     _ys = 0;
   }
 
+  void Panel_FrameBufferBase::display(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h)
+  {
+    if (0 < w && 0 < h)
+    {
+      _range_mod.left   = std::min<int_fast16_t>(_range_mod.left  , x        );
+      _range_mod.right  = std::max<int_fast16_t>(_range_mod.right , x + w - 1);
+      _range_mod.top    = std::min<int_fast16_t>(_range_mod.top   , y        );
+      _range_mod.bottom = std::max<int_fast16_t>(_range_mod.bottom, y + h - 1);
+    }
+    if (_range_mod.empty()) { return; }
+#if defined ( LGFX_USE_CACHE_WRITEBACK_ADDR )
+    int ye = _range_mod.bottom + 1;
+    int xs_byte =  _range_mod.left     * _write_bits >> 3;
+    int xe_byte = (_range_mod.right+1) * _write_bits >> 3;
+    size_t bytes = xe_byte - xs_byte;
+
+    void* ptr_start = (void*)~0;
+    void* ptr_end = nullptr;
+    for (int y = _range_mod.top; y < ye; ++y)
+    {
+      auto ptr = &_lines_buffer[y][xs_byte];
+      if (!isEmbeddedMemory(ptr))
+      {
+        if (ptr_start < ptr_end) {
+          // 4096byte以上離れている場合はライトバック
+          if ((ptr + bytes + 4096 < ptr_start)
+          || (ptr - 4096 > ptr_end)) {
+            cacheWriteBack(ptr_start, (int)ptr_end - (int)ptr_start);
+            ptr_start = ptr;
+            ptr_end = ptr + bytes;
+          }
+        }
+        if (ptr_start > ptr) {
+          ptr_start = ptr;
+        }
+        if (ptr_end < (ptr + bytes)) {
+          ptr_end = (ptr + bytes);
+        }
+      }
+    }
+    if (ptr_start < ptr_end) {
+      cacheWriteBack(ptr_start, (int)ptr_end - (int)ptr_start);
+    }
+#endif
+    _range_mod.top = INT16_MAX;
+    _range_mod.left = INT16_MAX;
+    _range_mod.right = 0;
+    _range_mod.bottom = 0;
+  }
+
   void Panel_FrameBufferBase::setWindow(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye)
   {
     xs = std::max<uint_fast16_t>(0u, std::min<uint_fast16_t>(_width  - 1, xs));
@@ -107,10 +183,15 @@ namespace lgfx
     }
     if (_write_bits >= 8)
     {
+      _range_mod.left   = std::min<int_fast16_t>(_range_mod.left  , x);
+      _range_mod.right  = std::max<int_fast16_t>(_range_mod.right , x);
+      _range_mod.top    = std::min<int_fast16_t>(_range_mod.top   , y);
+      _range_mod.bottom = std::max<int_fast16_t>(_range_mod.bottom, y);
+
       size_t bytes = _write_bits >> 3;
       auto ptr = &_lines_buffer[y][x * bytes];
       memcpy(ptr, &rawcolor, bytes);
-      cacheWriteBack(ptr, bytes);
+      // cacheWriteBack(ptr, bytes);
     }
   }
 
@@ -123,6 +204,11 @@ namespace lgfx
       if (r & 2)                  { x = _width  - (x + w); }
       if (r & 1) { std::swap(x, y);  std::swap(w, h); }
     }
+    _range_mod.left   = std::min<int_fast16_t>(_range_mod.left  , x        );
+    _range_mod.right  = std::max<int_fast16_t>(_range_mod.right , x + w - 1);
+    _range_mod.top    = std::min<int_fast16_t>(_range_mod.top   , y        );
+    _range_mod.bottom = std::max<int_fast16_t>(_range_mod.bottom, y + h - 1);
+
     h += y;
     if (_write_bits >= 8)
     {
@@ -131,7 +217,7 @@ namespace lgfx
       {
         auto ptr = &_lines_buffer[y][x * bytes];
         memset_multi(ptr, rawcolor, bytes, w);
-        cacheWriteBack(ptr, bytes * w);
+        // cacheWriteBack(ptr, bytes * w);
       } while (++y < h);
     }
   }
@@ -202,6 +288,17 @@ namespace lgfx
     // auto k = _bitwidth * bits >> 3;
 
     uint_fast8_t r = _internal_rotation;
+    int_fast16_t ax = 1;
+    int_fast16_t ay = 1;
+    if (r) {
+      if ((1u << r) & 0b10010110) { y = _height - (y + 1); ys = _height - (ys + 1); ye = _height - (ye + 1); ay = -1; }
+      if (r & 2)                  { x = _width  - (x + 1); xs = _width  - (xs + 1); xe = _width  - (xe + 1); ax = -1; }
+    }
+    _range_mod.left   = std::min<int_fast16_t>(_range_mod.left  , xs);
+    _range_mod.right  = std::max<int_fast16_t>(_range_mod.right , xe);
+    _range_mod.top    = std::min<int_fast16_t>(_range_mod.top   , ys);
+    _range_mod.bottom = std::max<int_fast16_t>(_range_mod.bottom, ye);
+
     if (!r)
     {
       uint_fast16_t linelength;
@@ -209,7 +306,7 @@ namespace lgfx
         linelength = std::min<uint_fast16_t>(xe - x + 1, length);
         auto ptr = &_lines_buffer[y][x * bytes];
         param->fp_copy(ptr, 0, linelength, param);
-        cacheWriteBack(ptr, bytes * linelength);
+        // cacheWriteBack(ptr, bytes * linelength);
 
         if ((x += linelength) > xe)
         {
@@ -222,10 +319,6 @@ namespace lgfx
       return;
     }
 
-    int_fast16_t ax = 1;
-    int_fast16_t ay = 1;
-    if ((1u << r) & 0b10010110) { y = _height - (y + 1); ys = _height - (ys + 1); ye = _height - (ye + 1); ay = -1; }
-    if (r & 2)                  { x = _width  - (x + 1); xs = _width  - (xs + 1); xe = _width  - (xe + 1); ax = -1; }
 
     if (r & 1)
     {
@@ -245,7 +338,7 @@ namespace lgfx
     }
     else
     {
-      int w = abs((int)(xe - xs)) + 1;
+      // int w = abs((int)(xe - xs)) + 1;
       do
       {
         param->fp_copy(_lines_buffer[y], x, x + 1, param);
@@ -256,7 +349,7 @@ namespace lgfx
         else
         {
           x = xs;
-          cacheWriteBack(&_lines_buffer[y][x], bytes * w);
+          // cacheWriteBack(&_lines_buffer[y][x], bytes * w);
           y = (y != ye) ? (y + ay) : ys;
         }
       } while (--length);
@@ -271,6 +364,17 @@ namespace lgfx
   void Panel_FrameBufferBase::writeImage(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, pixelcopy_t* param, bool)
   {
     uint_fast8_t r = _internal_rotation;
+    uint32_t nextx = 0;
+    uint32_t nexty = 1 << pixelcopy_t::FP_SCALE;
+    if (r)
+    {
+      _rotate_pixelcopy(x, y, w, h, param, nextx, nexty);
+    }
+    _range_mod.left   = std::min<int32_t>(x, _range_mod.left);
+    _range_mod.right  = std::max<int32_t>(x+w-1, _range_mod.right);
+    _range_mod.top    = std::min<int32_t>(y, _range_mod.top);
+    _range_mod.bottom = std::max<int32_t>(y+h-1, _range_mod.bottom);
+
     if (r == 0 && param->transp == pixelcopy_t::NON_TRANSP && param->no_convert)
     {
       auto bits = _write_bits;
@@ -282,21 +386,15 @@ namespace lgfx
       do
       {
         memcpy(&_lines_buffer[y][x], src, w);
-        cacheWriteBack(&_lines_buffer[y][x], w);
+        // cacheWriteBack(&_lines_buffer[y][x], w);
         src += sw;
       } while (++y != h);
       return;
     }
 
-    uint32_t nextx = 0;
-    uint32_t nexty = 1 << pixelcopy_t::FP_SCALE;
-    if (r)
-    {
-      _rotate_pixelcopy(x, y, w, h, param, nextx, nexty);
-    }
     uint32_t sx32 = param->src_x32;
     uint32_t sy32 = param->src_y32;
-    uint_fast8_t bytes = _write_bits >> 3;
+    // uint_fast8_t bytes = _write_bits >> 3;
     h += y;
     do
     {
@@ -306,8 +404,8 @@ namespace lgfx
          &&  end != (pos = param->fp_skip(                  pos, end, param)));
       param->src_x32 = (sx32 += nextx);
       param->src_y32 = (sy32 += nexty);
-      auto ptr = &_lines_buffer[y][x * bytes];
-      cacheWriteBack(ptr, bytes * end);
+      // auto ptr = &_lines_buffer[y][x * bytes];
+      // cacheWriteBack(ptr, bytes * end);
     } while (++y != h);
   }
 
@@ -325,11 +423,11 @@ namespace lgfx
     uint32_t pos = x;
     uint32_t end = pos + w;
     h += y;
-    uint_fast16_t wbytes = (w * _write_bits) >> 3;
+    // uint_fast16_t wbytes = (w * _write_bits) >> 3;
     do
     {
       param->fp_copy(_lines_buffer[y], pos, end, param);
-      cacheWriteBack(&_lines_buffer[y][pos], wbytes);
+      // cacheWriteBack(&_lines_buffer[y][pos], wbytes);
       param->src_x32 = (sx32 += nextx);
       param->src_y32 = (sy32 += nexty);
     } while (++y < h);
@@ -420,7 +518,7 @@ namespace lgfx
       uint8_t* dst = &_lines_buffer[dst_y + pos][dst_x * bytes];
       memcpy(buf, src, len);
       memcpy(dst, buf, len);
-      cacheWriteBack(dst, len);
+      // cacheWriteBack(dst, len);
       pos += add;
     } while (--h);
   }

@@ -59,7 +59,7 @@ namespace lgfx
       uint8_t use_psram = 0;
 
       /// background PSRAM read task priority
-      uint8_t task_priority = 25;
+      uint8_t task_priority = 24;
 
       /// background PSRAM read task pinned core. (APP_CPU_NUM or PRO_CPU_NUM)
       uint8_t task_pinned_core = -1;

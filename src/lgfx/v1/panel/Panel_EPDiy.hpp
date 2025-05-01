@@ -17,8 +17,14 @@ Contributors:
 /----------------------------------------------------------------------------*/
 #pragma once
 
-#include "Panel_Device.hpp"
-#include "../misc/range.hpp"
+#if __has_include (<epdiy.h>)
+extern "C" {
+  #include <epdiy.h>
+};
+#endif
+
+#include "lgfx/v1/panel/Panel_HasBuffer.hpp"
+#include "lgfx/v1/misc/range.hpp"
 
 namespace lgfx
 {
@@ -26,49 +32,54 @@ namespace lgfx
  {
 //----------------------------------------------------------------------------
 
-  struct Panel_FrameBufferBase : public Panel_Device
+  struct Panel_EPDiy : public Panel_HasBuffer
   {
-  public:
+    Panel_EPDiy(void);
+    virtual ~Panel_EPDiy(void);
+
+    struct config_detail_t
+    {
+#if __has_include (<epdiy.h>)
+      EpdBoardDefinition* epd_board;
+      EpdiyHighlevelState* epd_hl;
+#endif
+    };
+
+    const config_detail_t& config_detail(void) const { return _config_detail; }
+    void config_detail(const config_detail_t& config_detail) { _config_detail = config_detail; }
+
+    void beginTransaction(void) override;
+    void endTransaction(void) override;
 
     bool init(bool use_reset) override;
-    void beginTransaction(void) override {}
-    void endTransaction(void) override {}
-    void setRotation(uint_fast8_t r) override;
 
-    void initDMA(void) override {}
-    void waitDMA(void) override {}
-    bool dmaBusy(void) override { return false; }
-    void waitDisplay(void) override {}
-    bool displayBusy(void) override { return false; }
-    color_depth_t setColorDepth(color_depth_t depth) override { _write_depth = depth; _read_depth = depth; return depth; }
+    void waitDisplay(void) override;
+    bool displayBusy(void) override;
+    color_depth_t setColorDepth(color_depth_t depth) override;
 
-    void setInvert(bool invert) override { _invert = invert; }
-    void setSleep(bool flg) override {}
-    void setPowerSave(bool flg) override {}
+    void setInvert(bool invert) override;
+    void setSleep(bool flg) override;
+    void setPowerSave(bool flg) override;
 
     void display(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h) override;
 
-    void setWindow(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye) override;
-    void drawPixelPreclipped(uint_fast16_t x, uint_fast16_t y, uint32_t rawcolor) override;
     void writeFillRectPreclipped(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, uint32_t rawcolor) override;
-    void writeBlock(uint32_t rawcolor, uint32_t length) override;
     void writeImage(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, pixelcopy_t* param, bool use_dma) override;
-    void writeImageARGB(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, pixelcopy_t* param) override;
     void writePixels(pixelcopy_t* param, uint32_t len, bool use_dma) override;
 
     uint32_t readCommand(uint_fast16_t, uint_fast8_t, uint_fast8_t) override { return 0; }
     uint32_t readData(uint_fast8_t, uint_fast8_t) override { return 0; }
 
     void readRect(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, void* dst, pixelcopy_t* param) override;
-    void copyRect(uint_fast16_t dst_x, uint_fast16_t dst_y, uint_fast16_t w, uint_fast16_t h, uint_fast16_t src_x, uint_fast16_t src_y) override;
 
-  protected:
-    uint8_t** _lines_buffer = nullptr;
-    uint16_t _xpos, _ypos;
+  private:
+    config_detail_t _config_detail;
 
-    range_rect_t _range_mod;
-
-    void _rotate_pixelcopy(uint_fast16_t& x, uint_fast16_t& y, uint_fast16_t& w, uint_fast16_t& h, pixelcopy_t* param, uint32_t& nextx, uint32_t& nexty);
+    // フレームバッファはEPDiyに用意してもらうのでここでの戻り値は0とする
+    size_t _get_buffer_length(void) const override { return 0; }
+    uint8_t _read_pixel(uint_fast16_t x, uint_fast16_t y);
+    void _draw_pixel(uint_fast16_t x, uint_fast16_t y, uint32_t value);
+    void _update_transferred_rect(uint_fast16_t &xs, uint_fast16_t &ys, uint_fast16_t &xe, uint_fast16_t &ye);
   };
 
 //----------------------------------------------------------------------------

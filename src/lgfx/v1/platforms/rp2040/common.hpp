@@ -100,6 +100,7 @@ namespace lgfx
   static inline void* heap_alloc_psram(size_t length) { return malloc(length); }
   static inline void* heap_alloc_dma(  size_t length) { return malloc(length); } // aligned_alloc(16, length);
   static inline void heap_free(void* buf) { free(buf); }
+  static inline bool heap_capable_dma(const void* ptr) { return false; }
 
   enum pin_mode_t
   { output

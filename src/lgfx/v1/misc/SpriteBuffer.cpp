@@ -153,6 +153,8 @@ namespace lgfx
     }
   }
 
+  bool SpriteBuffer::use_dma(void) const { return _source == AllocationSource::Dma || heap_capable_dma(_buffer); }
+
 //----------------------------------------------------------------------------
  }
 }
