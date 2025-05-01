@@ -176,7 +176,7 @@ namespace lgfx
 
 //----------------------------------------------------------------------------
 
-#if defined (SdFat_h)
+#if defined (SdFat_h) || defined (SD_FAT_VERSION)
   // #if SD_FAT_VERSION >= 20102
   //  #define LGFX_SDFAT_TYPE SdBase<FsVolume,FsFormatter>
   // #else

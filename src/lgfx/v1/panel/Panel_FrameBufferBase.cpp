@@ -34,12 +34,12 @@ Contributors:
     uintptr_t start = addr & ~63u;
     uintptr_t end = (addr + size + 63u) & ~63u;
     if (start >= end) return 0;
-    // return esp_cache_msync((void*)start, end - start, ESP_CACHE_MSYNC_FLAG_DIR_C2M | ESP_CACHE_MSYNC_FLAG_TYPE_DATA);
-    auto res = esp_cache_msync((void*)start, end - start, ESP_CACHE_MSYNC_FLAG_DIR_C2M | ESP_CACHE_MSYNC_FLAG_TYPE_DATA);
-    if (res != ESP_OK){
-      printf("start: %08x, end: %08x\n", start, end);
-    }
-    return res;
+    return esp_cache_msync((void*)start, end - start, ESP_CACHE_MSYNC_FLAG_DIR_C2M | ESP_CACHE_MSYNC_FLAG_TYPE_DATA);
+    // auto res = esp_cache_msync((void*)start, end - start, ESP_CACHE_MSYNC_FLAG_DIR_C2M | ESP_CACHE_MSYNC_FLAG_TYPE_DATA);
+    // if (res != ESP_OK){
+    //   printf("start: %08x, end: %08x\n", start, end);
+    // }
+    // return res;
   }
   #define LGFX_USE_CACHE_WRITEBACK_ADDR
  #else
