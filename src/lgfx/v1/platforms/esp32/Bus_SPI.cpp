@@ -56,7 +56,7 @@ Contributors:
    #include <esp32/rom/gpio.h>
 #else
    #include <rom/gpio.h> // dispatched by core
-#endif   
+#endif
 
 #ifndef SPI_PIN_REG
  #define SPI_PIN_REG SPI_MISC_REG

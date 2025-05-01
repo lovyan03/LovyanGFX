@@ -90,19 +90,20 @@ namespace lgfx
         void Panel_NV3041A::update_madctl(void)
         {
             uint8_t r = _internal_rotation;
+            uint8_t rgb_order = (_cfg.rgb_order ? CMD_MADCTL_RGB : CMD_MADCTL_BGR);
             switch (r)
             {
                 case 1:
-                    r = CMD_MADCTL_MY | CMD_MADCTL_MV | CMD_MADCTL_RGB;
+                    r = CMD_MADCTL_MY | CMD_MADCTL_MV | rgb_order;
                     break;
                 case 2:
-                    r = CMD_MADCTL_RGB;
+                    r = rgb_order;
                     break;
                 case 3:
-                    r = CMD_MADCTL_MX | CMD_MADCTL_MV | CMD_MADCTL_RGB;
+                    r = CMD_MADCTL_MX | CMD_MADCTL_MV | rgb_order;
                     break;
                 default: // case 0:
-                    r = CMD_MADCTL_MX | CMD_MADCTL_MY | CMD_MADCTL_RGB;
+                    r = CMD_MADCTL_MX | CMD_MADCTL_MY | rgb_order;
                     break;
             }
 

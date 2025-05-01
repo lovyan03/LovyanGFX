@@ -54,6 +54,7 @@ namespace lgfx
             static constexpr uint8_t CMD_MADCTL_MV    = 0x20;
             static constexpr uint8_t CMD_MADCTL_ML    = 0x10;
             static constexpr uint8_t CMD_MADCTL_RGB   = 0x0 ;
+            static constexpr uint8_t CMD_MADCTL_BGR   = 0x1 ;
 
 
             static constexpr uint8_t init_cmds[91*2] =
@@ -190,7 +191,7 @@ namespace lgfx
         protected:
             bool _in_transaction = false;
 
-            void update_madctl(void);
+            void update_madctl(void) override;
             void write_cmd(uint8_t cmd);
             void start_qspi();
             void end_qspi();

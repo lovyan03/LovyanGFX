@@ -499,7 +499,7 @@ namespace lgfx
         {
             // ESP_LOGD("Panel_AMOLED","writeImage %d %d %d %d %d", x, y, w, h, use_dma);
             if(x%2!=0 || w%2!=0) { // Panel_AMOLED restriction: x and w must be divisible by 2
-                ESP_LOGD("LGFX", "clip coords aren't aligned x(%d) y(%d) w(%d) h(%d) use_dma(%d)", x, y, w, h, use_dma);
+                // ESP_LOGD("LGFX", "clip coords aren't aligned x(%d) y(%d) w(%d) h(%d) use_dma(%d)", x, y, w, h, use_dma);
                 return;
             }
             // use_dma = false;
@@ -651,8 +651,6 @@ namespace lgfx
             uint16_t y0 = y & 0xfe; // Make even
             uint16_t x1 = x + w - 1;
             uint16_t y1 = y + h - 1;
-            size_t p_buf_idx;
-            size_t buf_idx;
 
             if( x1%2==0 ) x1++; // Make odd if not
             if( y1%2==0 ) y1++; // Make odd if not
@@ -691,7 +689,7 @@ namespace lgfx
             {
                 memset(lineArray, 0, lineArray_size);
                 uint8_t bits = (_write_depth & color_depth_t::bit_mask);
-                ESP_LOGD("LGFX", "color has %d bits (%d bytes)", bits, bits/8);
+                // ESP_LOGD("LGFX", "color has %d bits (%d bytes)", bits, bits/8);
                 w = (w + 3) & ~3; // round up to nearest multiple of 4
                 // 暫定実装。画面全体のバッファを一括で確保する。
                 // ToDo : 分割確保
@@ -705,7 +703,7 @@ namespace lgfx
                         lineArray[i] = fb;
                         fb += w * bits >> 3;
                     }
-                    ESP_LOGD("LGFX", "Framebuffer allocated [%d x %d] (%d) bytes", w, h, framebuffersize);
+                    // ESP_LOGD("LGFX", "Framebuffer allocated [%d x %d] (%d) bytes", w, h, framebuffersize);
                     return true;
                 }
                 heap_free(lineArray);
