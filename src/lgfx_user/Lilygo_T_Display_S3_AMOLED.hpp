@@ -10,7 +10,7 @@
 class Lilygo_T_Display_S3_AMOLED : public lgfx::LGFX_Device
 {
 
-  lgfx::Bus_SPI      _bus_instance;
+  lgfx::Bus_SPI       _bus_instance;
   lgfx::Panel_RM67162 _panel_instance; // 1.91 inch RM67162 IPS AMOLED:
 
   /*

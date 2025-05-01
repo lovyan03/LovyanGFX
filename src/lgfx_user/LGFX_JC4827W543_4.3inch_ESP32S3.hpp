@@ -16,7 +16,7 @@ class LGFX : public lgfx::LGFX_Device {
 
     lgfx::Touch_GT911   _touch_instance;
     lgfx::Panel_NV3041A _panel_instance;
-    lgfx::Bus_QSPI      _bus_instance;
+    lgfx::Bus_SPI       _bus_instance;
     lgfx::Light_PWM     _light_instance;
 
 public:

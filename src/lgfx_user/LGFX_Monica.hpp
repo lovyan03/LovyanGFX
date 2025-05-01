@@ -18,7 +18,7 @@ class LGFX_Monica : public lgfx::LGFX_Device {
     // 接続するパネルの型にあったインスタンスを用意します。
     lgfx::Panel_SH8601Z     _panel_instance;
     // パネルを接続するバスの種類にあったインスタンスを用意します。
-    lgfx::Bus_QSPI      _bus_instance;
+    lgfx::Bus_SPI           _bus_instance;
 
 public:
     // コンストラクタを作成し、ここで各種設定を行います。
