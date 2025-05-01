@@ -51,6 +51,12 @@ Contributors:
 #include "v1/panel/Panel_ST7796.hpp"
 #include "v1/panel/Panel_ST77961.hpp"
 
+// AMOLED
+#include "v1/panel/Panel_SH8601Z.hpp"
+#include "v1/panel/Panel_NV3041A.hpp"
+#include "v1/panel/Panel_RM690B0.hpp"
+#include "v1/panel/Panel_RM67162.hpp"
+
 // EPD
 #include "v1/panel/Panel_GDEW0154M09.hpp"
 #include "v1/panel/Panel_IT8951.hpp"
@@ -60,7 +66,7 @@ Contributors:
 #include "v1/panel/Panel_M5UnitLCD.hpp"
 
 // TouchScreen
-#include "v1/touch/Touch_CST816S.hpp"
+#include "v1/touch/Touch_CSTxxx.hpp"
 #include "v1/touch/Touch_FT5x06.hpp"
 #include "v1/touch/Touch_GSLx680.hpp"
 #include "v1/touch/Touch_GT911.hpp"
