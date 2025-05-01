@@ -193,9 +193,9 @@ namespace lgfx
       need_transaction = true;
     }
     int read(uint8_t *buf, uint32_t len) override { return _fp->read(buf, len); }
-    void skip(int32_t offset) override { _fp->seek(offset, SeekCur); }
-    bool seek(uint32_t offset) override { return _fp->seek(offset, SeekSet); }
-    bool seek(uint32_t offset, SeekMode mode) { return _fp->seek(offset, mode); }
+    void skip(int32_t offset) override { _fp->seek(offset, fs::SeekCur); }
+    bool seek(uint32_t offset) override { return _fp->seek(offset, fs::SeekSet); }
+    bool seek(uint32_t offset, fs::SeekMode mode) { return _fp->seek(offset, mode); }
     void close(void) override { if (_fp) _fp->close(); }
     int32_t tell(void) override { return _fp->position(); }
 protected:
