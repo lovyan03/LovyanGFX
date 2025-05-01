@@ -10,7 +10,7 @@
 class Lilygo_T4_S3 : public lgfx::LGFX_Device
 {
 
-  lgfx::Bus_QSPI      _bus_instance;
+  lgfx::Bus_SPI       _bus_instance;
   lgfx::Panel_RM690B0 _panel_instance;
   lgfx::Touch_CST226  _touch_instance; // I2C sda:6, scl:7, int:8, rst: 17
 
