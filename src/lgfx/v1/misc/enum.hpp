@@ -41,7 +41,7 @@ namespace lgfx
 
   namespace epd_mode
   {
-    enum epd_mode_t
+    enum epd_mode_t : uint8_t
     {
       epd_quality = 1,
       epd_text    = 2,
