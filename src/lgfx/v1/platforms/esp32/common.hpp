@@ -180,6 +180,9 @@ namespace lgfx
  #if defined (_SD_H_)
    #define LGFX_FILESYSTEM_SD SD
  #endif
+ #if defined (_SDMMC_H_)
+   #define LGFX_FILESYSTEM_SDMMC SDMMC
+ #endif
  #if defined (_LITTLEFS_H_) || defined (__LITTLEFS_H) || defined (_LiffleFS_H_)
    #define LGFX_FILESYSTEM_LITTLEFS LittleFS
  #endif
@@ -192,6 +195,7 @@ namespace lgfx
 
  #if defined (FS_H) \
   || defined (LGFX_FILESYSTEM_SD) \
+  || defined (LGFX_FILESYSTEM_SDMMC) \
   || defined (LGFX_FILESYSTEM_LITTLEFS) \
   || defined (LGFX_FILESYSTEM_SPIFFS) \
   || defined (LGFX_FILESYSTEM_FFAT)
@@ -233,6 +237,12 @@ protected:
   #if defined (LGFX_FILESYSTEM_SD)
   template <>
   struct DataWrapperT<fs::SDFS> : public DataWrapperT<fs::FS> {
+    DataWrapperT(fs::FS* fs, fs::File* fp = nullptr) : DataWrapperT<fs::FS>(fs, fp) {}
+  };
+  #endif
+  #if defined (LGFX_FILESYSTEM_SDMMC)
+  template <>
+  struct DataWrapperT<fs::SDMMCFS> : public DataWrapperT<fs::FS> {
     DataWrapperT(fs::FS* fs, fs::File* fp = nullptr) : DataWrapperT<fs::FS>(fs, fp) {}
   };
   #endif
