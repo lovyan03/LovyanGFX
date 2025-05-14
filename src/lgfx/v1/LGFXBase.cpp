@@ -1395,6 +1395,7 @@ namespace lgfx
                : (dst_depth == rgb332_1Byte) ? pixelcopy_t::copy_grayscale_affine<rgb332_t>
                : (dst_depth == rgb888_3Byte) ? pixelcopy_t::copy_grayscale_affine<bgr888_t>
                : (dst_depth == rgb666_3Byte) ? pixelcopy_t::copy_grayscale_affine<bgr666_t>
+               : (dst_depth == rgb565_nonswapped) ? pixelcopy_t::copy_grayscale_affine<rgb565_t>
                : (dst_depth == grayscale_8bit) ? pixelcopy_t::copy_grayscale_affine<grayscale_t>
                : nullptr;
 
