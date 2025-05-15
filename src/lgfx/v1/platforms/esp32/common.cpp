@@ -40,7 +40,22 @@ Contributors:
 #include <soc/i2c_reg.h>
 #include <soc/i2c_struct.h>
 #if (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 3, 0))
- //#include <soc/syscon_reg.h>
+ #if __has_include(<hal/i2c_ll.h>)
+  #include <hal/i2c_ll.h>
+  #if defined ( i2c_ll_reset_register )
+   #if SOC_PERIPH_CLK_CTRL_SHARED
+    #define I2C_CLOCK_SRC_ATOMIC() PERIPH_RCC_ATOMIC()
+   #else
+    #define I2C_CLOCK_SRC_ATOMIC()
+   #endif
+   #if !SOC_RCC_IS_INDEPENDENT
+    #define I2C_RCC_ATOMIC() PERIPH_RCC_ATOMIC()
+   #else
+    #define I2C_RCC_ATOMIC()
+   #endif
+  #endif
+ #endif
+
  #if __has_include(<soc/syscon_reg.h>)
   #include <soc/syscon_reg.h>
  #endif
@@ -109,22 +124,6 @@ Contributors:
 
 #if __has_include(<soc/i2c_periph.h>)
  #include <soc/i2c_periph.h>
-#endif
-
-#if __has_include(<hal/i2c_ll.h>)
- #include <hal/i2c_ll.h>
- #if defined ( i2c_ll_reset_register )
-  #if SOC_PERIPH_CLK_CTRL_SHARED
-   #define I2C_CLOCK_SRC_ATOMIC() PERIPH_RCC_ATOMIC()
-  #else
-   #define I2C_CLOCK_SRC_ATOMIC()
-  #endif
-  #if !SOC_RCC_IS_INDEPENDENT
-   #define I2C_RCC_ATOMIC() PERIPH_RCC_ATOMIC()
-  #else
-   #define I2C_RCC_ATOMIC()
-  #endif
- #endif
 #endif
 
 #if defined (SOC_GDMA_SUPPORTED)  // for C3/S3
