@@ -91,9 +91,9 @@ namespace lgfx
                MAD_MX|MAD_MH|MAD_MY|MAD_ML,
         MAD_MV|              MAD_MY|MAD_ML,
                              MAD_MY|MAD_ML,
-        MAD_MV                            ,
+        MAD_MV|MAD_MX|MAD_MH|MAD_MY|MAD_ML,
                MAD_MX|MAD_MH              ,
-        MAD_MV|MAD_MX|MAD_MY|MAD_MH|MAD_ML,
+        MAD_MV                            ,
       };
       return madctl_table[r];
     }
