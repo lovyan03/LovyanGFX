@@ -122,6 +122,19 @@ namespace lgfx
     if (!Panel_HasBuffer::init(use_reset)) {
       return false;
     }
+
+    if( _config_detail.pin_extmod > -1 )
+    {
+      lgfx::gpio_hi(_config_detail.pin_extmod);
+      lgfx::pinMode(_config_detail.pin_extmod, pin_mode_t::output);
+    }
+
+    if(_config_detail.pin_dispon > -1 )
+    {
+      lgfx::gpio_hi(_config_detail.pin_dispon);
+      lgfx::pinMode(_config_detail.pin_dispon, pin_mode_t::output);
+    }
+
     _vcom = BIT_VCOM;
     memset(_buf, 0xff, _get_buffer_length());
     setRotation(_rotation);

@@ -34,12 +34,18 @@ namespace lgfx
 
     struct config_detail_t
     {
+      // Some SharpLCD breakouts can optionally drive those pins
+      int16_t pin_dispon = -1; // DISPON
+      int16_t pin_extmod = -1; // EXTMOD
+
       // number of bytes containing update command and the line number to update
       // should be 1 when the display height is under 255 pixels
       uint8_t prefix_bytes = 1;
+
       // number of trailing (dummy) bytes at the end of a line
       uint8_t suffix_bytes = 1;
-      bool enable_dithering = false;
+
+      bool enable_dithering = false;  // enable if working with lgfx colors, but expect low performances
       bool enable_autodisplay = true;
     };
 
