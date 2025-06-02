@@ -31,8 +31,8 @@ Contributors:
   __attribute__((weak))
   int Cache_WriteBack_Addr(uint32_t addr, uint32_t size)
   {
-    uintptr_t start = addr & ~63u;
-    uintptr_t end = (addr + size + 63u) & ~63u;
+    uintptr_t start = addr & ~127u;
+    uintptr_t end = (addr + size + 127u) & ~127u;
     if (start >= end) return 0;
     return esp_cache_msync((void*)start, end - start, ESP_CACHE_MSYNC_FLAG_DIR_C2M | ESP_CACHE_MSYNC_FLAG_TYPE_DATA);
     // auto res = esp_cache_msync((void*)start, end - start, ESP_CACHE_MSYNC_FLAG_DIR_C2M | ESP_CACHE_MSYNC_FLAG_TYPE_DATA);

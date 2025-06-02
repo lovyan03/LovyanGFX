@@ -15,13 +15,14 @@ file(GLOB SRCS
      ${LGFX_ROOT}/src/lgfx/v1/platforms/esp32c3/*.cpp
      ${LGFX_ROOT}/src/lgfx/v1/platforms/esp32s2/*.cpp
      ${LGFX_ROOT}/src/lgfx/v1/platforms/esp32s3/*.cpp
+     ${LGFX_ROOT}/src/lgfx/v1/platforms/esp32p4/*.cpp
      ${LGFX_ROOT}/src/lgfx/v1/touch/*.cpp
      )
 
 set(COMPONENT_SRCS ${SRCS})
 
 if (IDF_VERSION_MAJOR GREATER_EQUAL 5)
-    set(COMPONENT_REQUIRES nvs_flash efuse esp_lcd driver esp_timer)
+    set(COMPONENT_REQUIRES nvs_flash efuse esp_lcd driver esp_timer esp_mm)
 elseif ((IDF_VERSION_MAJOR EQUAL 4) AND (IDF_VERSION_MINOR GREATER 3) OR IDF_VERSION_MAJOR GREATER 4)
     set(COMPONENT_REQUIRES nvs_flash efuse esp_lcd)
 else()

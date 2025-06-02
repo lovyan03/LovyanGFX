@@ -54,11 +54,16 @@ namespace lgfx
         fp_skip = pixelcopy_t::skip_bit_affine;
       } else {
         if (src_bits > 16) {
-          fp_skip = pixelcopy_t::skip_rgb_affine<bgr888_t>;
-          if (src_depth == rgb888_3Byte) {
-            fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<bgr888_t>(dst_depth);
-          } else if (src_depth == rgb666_3Byte) {
-            fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<bgr666_t>(dst_depth);
+          if (src_bits > 24) {
+            fp_skip = pixelcopy_t::skip_rgb_affine<bgra8888_t>;
+            fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<bgra8888_t>(dst_depth);
+          } else {
+            fp_skip = pixelcopy_t::skip_rgb_affine<bgr888_t>;
+            if (src_depth == rgb888_3Byte) {
+              fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<bgr888_t>(dst_depth);
+            } else if (src_depth == rgb666_3Byte) {
+              fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<bgr666_t>(dst_depth);
+            }
           }
         } else {
           if (src_depth == rgb565_2Byte) {

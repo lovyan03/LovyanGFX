@@ -1090,7 +1090,7 @@ namespace lgfx
       float fmidy  = midy*hratio;
       float hyp0   = pixelDistance( midx, midy, 0, 0 );
 
-      rgb888_t scanline[w];
+      auto scanline = (rgb888_t*)alloca(w * sizeof(rgb888_t));
 
       startWrite();
       for( int _y=0;_y<h;_y++ ) {
@@ -1117,7 +1117,7 @@ namespace lgfx
     if( !gradient.colors || gradient.count==0 ) return;
     bool is_vertical = style==VLINEAR;
     const uint32_t gradient_len = is_vertical ? h : w;
-    rgb888_t scanline[gradient_len];
+    auto scanline = (rgb888_t*)alloca(gradient_len * sizeof(rgb888_t));
     for(int i=0;i<gradient_len;i++) { // memoize one gradient scanline
       scanline[i] = map_gradient( i, 0, gradient_len, gradient );
     }
