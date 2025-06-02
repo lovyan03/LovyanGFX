@@ -106,7 +106,7 @@ namespace lgfx
 //----------------------------------------------------------------------------
 
 #pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Warray-bounds"Add commentMore actions
+#pragma GCC diagnostic ignored "-Warray-bounds"
   static __attribute__ ((always_inline)) inline void writereg(uint32_t addr, uint32_t value) { *(volatile uint32_t*)addr = value; }
 #pragma GCC diagnostic pop
 

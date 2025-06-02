@@ -22,7 +22,11 @@ file(GLOB SRCS
 set(COMPONENT_SRCS ${SRCS})
 
 if (IDF_VERSION_MAJOR GREATER_EQUAL 5)
-    set(COMPONENT_REQUIRES nvs_flash efuse esp_lcd driver esp_timer esp_mm)
+    if(IDF_VERSION_MINOR GREATER_EQUAL 1)
+        set(COMPONENT_REQUIRES nvs_flash efuse esp_lcd driver esp_timer esp_mm)
+    else()
+        set(COMPONENT_REQUIRES nvs_flash efuse esp_lcd driver esp_timer)
+    endif()
 elseif ((IDF_VERSION_MAJOR EQUAL 4) AND (IDF_VERSION_MINOR GREATER 3) OR IDF_VERSION_MAJOR GREATER 4)
     set(COMPONENT_REQUIRES nvs_flash efuse esp_lcd)
 else()
