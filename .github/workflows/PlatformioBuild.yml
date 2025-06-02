@@ -35,18 +35,18 @@ jobs:
           - m5stack-cores3
 
         platform-version:
-          - 1.0.6
+          #- 1.0.6
           - 2.0.11
           - 2.0.12
           - 2.0.13
           - default
 
         exclude:
-          - { board: esp32-c3, platform-version: 1.0.6 }
-          - { board: esp32-s3, platform-version: 1.0.6 }
-          - { board: esp32-s3, platform-version: default }
-          - { board: esp32-s2, platform-version: 1.0.6 }
-          - { board: m5stack-cores3, platform-version: 1.0.6 }
+          #- { board: esp32-c3, platform-version: 1.0.6 }
+          #- { board: esp32-s3, platform-version: 1.0.6 }
+          #- { board: esp32-s3, platform-version: default }
+          #- { board: esp32-s2, platform-version: 1.0.6 }
+          #- { board: m5stack-cores3, platform-version: 1.0.6 }
 
         include:
           - board: esp32
