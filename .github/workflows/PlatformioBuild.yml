@@ -41,7 +41,7 @@ jobs:
           - 2.0.13
           - default
 
-        exclude:
+        #exclude:
           #- { board: esp32-c3, platform-version: 1.0.6 }
           #- { board: esp32-s3, platform-version: 1.0.6 }
           #- { board: esp32-s3, platform-version: default }
