@@ -103,7 +103,7 @@ public:
   }
 
 
-  bool init(bool use_reset)
+  bool init()
   {
     static constexpr int_fast16_t in_i2c_port = 1;// I2C_NUM_1;
 
@@ -114,15 +114,19 @@ public:
     std::uint32_t id = lgfx::i2c::readRegister8(in_i2c_port, pi4io1_i2c_addr, 0x01).has_value()
       && lgfx::i2c::readRegister8(in_i2c_port, pi4io2_i2c_addr, 0x01).has_value();
 
-    if( id == 0 ) return false;
+    if( id == 0 )
+    {
+      ESP_LOGE("LGFX", "M5Tab5 detection failed");
+      return false;
+    }
+
+    ESP_LOGI("LGFX", "M5Tab5 detected: 0x%x", id);
 
     i2c_write_register8_array(in_i2c_port, pi4io1_i2c_addr, reg_data_io1_1, 400000);
     i2c_write_register8_array(in_i2c_port, pi4io2_i2c_addr, reg_data_io2, 400000);
     i2c_write_register8_array(in_i2c_port, pi4io1_i2c_addr, reg_data_io1_2, 400000);
 
-    auto dev = (lgfx::Panel_Device*)this;
-
-    return dev->init(use_reset);
+    return lgfx::LGFX_Device::init();
   }
 
 };
