@@ -10,6 +10,7 @@
 
 class Tab5Display : public lgfx::LGFX_Device
 {
+  lgfx::Bus_MIPI       _bus_instance;
   lgfx::Panel_ILI9881C _panel_instance; // NOTE: this panel does not use IBus
   lgfx::Light_PWM      _light_instance;
   lgfx::Touch_GT911    _touch_instance;
@@ -63,14 +64,42 @@ public:
     ESP_LOGD("LGFX", "pkg_ver : %02x", (int)pkg_ver);
 
     {
+      auto cfg = _bus_instance.config();
+      cfg.panel = &_panel_instance;
+      cfg.dsi_num_data_lanes     = 2;
+      cfg.dsi_lane_bit_rate_mbps = 730; // mpbs
+
+      cfg.ldo_chan_id    = 3;
+      cfg.ldo_voltage_mv = 2500;
+
+      cfg.dbi_virtual_channel = 0;
+      cfg.dbi_lcd_cmd_bits    = 8;
+      cfg.dbi_lcd_param_bits  = 8;
+
+      cfg.dpi_clock_freq_mhz = 60;
+
+      cfg.hsync_back_porch  = 140;
+      cfg.hsync_pulse_width = 40;
+      cfg.hsync_front_porch = 40;
+      cfg.vsync_back_porch  = 20;
+      cfg.vsync_pulse_width = 4;
+      cfg.vsync_front_porch = 20;
+
+      _bus_instance.config(cfg);
+      _panel_instance.setBus(&_bus_instance);
+    }
+
+
+    {
       auto cfg = _panel_instance.config();
-      cfg.panel_width = 720;
-      cfg.panel_height = 1280;
-      cfg.memory_width = 720;
+      cfg.panel_width   = 720;
+      cfg.panel_height  = 1280;
+      cfg.memory_width  = 720;
       cfg.memory_height = 1280;
       cfg.readable = true;
       _panel_instance.config(cfg);
     }
+
 
     {
       auto cfg = _touch_instance.config();
@@ -78,7 +107,7 @@ public:
       cfg.pin_sda = GPIO_NUM_31;
       cfg.pin_scl = GPIO_NUM_32;
       cfg.pin_int = GPIO_NUM_23;
-      cfg.freq = 400000;
+      cfg.freq  = 400000;
       cfg.x_min = 0;
       cfg.x_max = 719;
       cfg.y_min = 0;
@@ -89,6 +118,7 @@ public:
       _touch_instance.config(cfg);
       _panel_instance.setTouch(&_touch_instance);
     }
+
 
     {
       auto cfg = _light_instance.config();
