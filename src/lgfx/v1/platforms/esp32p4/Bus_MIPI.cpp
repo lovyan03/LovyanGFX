@@ -84,8 +84,6 @@ extern "C" {
       dpi_config.video_timing.vsync_front_porch = _cfg.vsync_front_porch;
       dpi_config.flags.use_dma2d = true;
 
-      ESP_LOGD("Bus_MIPI", "porch values: %d, %d, %d, %d, %d, %d", _cfg.hsync_back_porch, _cfg.hsync_pulse_width, _cfg.hsync_front_porch, _cfg.vsync_back_porch, _cfg.vsync_pulse_width, _cfg.vsync_front_porch);
-
       vendor_config_t vendor_config;
       vendor_config.init_cmds = _cfg.panel->getLcdInitCommands();
       vendor_config.init_cmds_size = _cfg.panel->getLcdInitCommandsize();

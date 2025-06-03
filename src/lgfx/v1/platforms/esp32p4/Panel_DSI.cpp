@@ -109,8 +109,6 @@ extern "C" {
       panel->reset_gpio_num = panel_dev_config->reset_gpio_num;
       panel->flags.reset_level = panel_dev_config->flags.reset_active_high;
 
-      ESP_LOGD(TAG, "Got %d init commands", vendor_config->init_cmds_size);
-
       // Create MIPI DPI panel
       ESP_GOTO_ON_ERROR(esp_lcd_new_panel_dpi(vendor_config->mipi_config.dsi_bus, vendor_config->mipi_config.dpi_config, ret_panel), err, TAG,
                         "create MIPI DPI panel failed");
@@ -280,9 +278,7 @@ namespace lgfx
     if (_lines_buffer != nullptr) return false;
 
     auto mipi_bus = (Bus_MIPI*)_bus;
-    ESP_LOGD(TAG, "Calling Bus_MIPI::init()");
     if(mipi_bus->init())
-    //if (init_bus())
     {
       esp_lcd_dpi_panel_get_frame_buffer(_disp_panel_handle, 1, &(_config_detail.buffer));
     }
