@@ -798,8 +798,8 @@ label_nextbyte: /// 次のデータを取得する;
                 //getSwap32(buf[1]); // vlw encoder version - discard
       yAdvance = getSwap32(buf[2]); // Font size in points, not pixels
                 //getSwap32(buf[3]); // discard
-      ascent   = getSwap32(buf[4]); // top of "d"
-      descent  = getSwap32(buf[5]); // bottom of "p"
+      ascent   = abs((int32_t)getSwap32(buf[4])); // top of "d"
+      descent  = abs((int32_t)getSwap32(buf[5])); // bottom of "p"
     }
 
     // These next gFont values might be updated when the Metrics are fetched
