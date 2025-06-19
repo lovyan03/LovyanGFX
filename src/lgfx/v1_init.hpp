@@ -14,6 +14,8 @@ Contributors:
  [ciniml](https://github.com/ciniml)
  [mongonta0716](https://github.com/mongonta0716)
  [tobozo](https://github.com/tobozo)
+ [erazor83](https://github.com/erazor83)
+ 
 /----------------------------------------------------------------------------*/
 #pragma once
 
@@ -68,6 +70,8 @@ Contributors:
 
 // TouchScreen
 #include "v1/touch/Touch_CSTxxx.hpp"
+#include "v1/touch/Touch_CHSC6x.hpp"
+
 #include "v1/touch/Touch_FT5x06.hpp"
 #include "v1/touch/Touch_GSLx680.hpp"
 #include "v1/touch/Touch_GT911.hpp"
