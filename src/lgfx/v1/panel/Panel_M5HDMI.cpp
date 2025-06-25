@@ -487,9 +487,11 @@ namespace lgfx
   {
     startWrite();
     _bus->writeData(CMD_NOP, 32);
-    endWrite();
+    _bus->wait();
+    cs_control(true);
     _bus->writeData(CMD_NOP, 32);
-    startWrite();
+    _bus->wait();
+    cs_control(false);
     _bus->writeData(CMD_READ_ID, 8); // READ_ID
     _bus->beginRead();
     uint32_t retry = 16;

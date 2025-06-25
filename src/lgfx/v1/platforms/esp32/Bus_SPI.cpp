@@ -56,7 +56,7 @@ Contributors:
    #include <esp32/rom/gpio.h>
 #else
    #include <rom/gpio.h> // dispatched by core
-#endif
+#endif   
 
 #ifndef SPI_PIN_REG
  #define SPI_PIN_REG SPI_MISC_REG
@@ -104,6 +104,11 @@ namespace lgfx
  inline namespace v1
  {
 //----------------------------------------------------------------------------
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Warray-bounds"
+  static __attribute__ ((always_inline)) inline void writereg(uint32_t addr, uint32_t value) { *(volatile uint32_t*)addr = value; }
+#pragma GCC diagnostic pop
 
   void Bus_SPI::config(const config_t& cfg)
   {
@@ -275,8 +280,8 @@ namespace lgfx
     *_spi_user_reg = _user_reg;
     auto spi_port = _spi_port;
     (void)spi_port;
-    *reg(SPI_PIN_REG(spi_port)) = pin;
-    *reg(SPI_CLOCK_REG(spi_port)) = clkdiv_write;
+    writereg(SPI_PIN_REG(spi_port), pin);
+    writereg(SPI_CLOCK_REG(spi_port), clkdiv_write);
 #if defined ( SPI_UPDATE )
     *_spi_cmd_reg = SPI_UPDATE;
 #endif
@@ -641,7 +646,14 @@ namespace lgfx
       length <<= 3;
       dc_control(dc);
       set_write_len(length);
+#if defined ( CONFIG_IDF_TARGET_ESP32P4 )
+// P4のペリフェラルレジスタへのmemcpyはうまく動作しないので処理を分岐する
+      for (int i = 0; i < aligned_len >> 2; ++i) {
+        spi_w0_reg[i] = ((uint32_t*)data)[i];
+      }
+#else
       memcpy((void*)spi_w0_reg, data, aligned_len);
+#endif
       exec_spi();
       return;
     }
@@ -735,7 +747,10 @@ label_start:
     dc_control(dc);
     set_write_len(len << 3);
 
-    memcpy((void*)spi_w0_reg, regbuf, (len + 3) & (~3));
+    for (int i = 0; i < (len + 3) >> 2; ++i) {
+      spi_w0_reg[i] = regbuf[i];
+    }
+
     exec_spi();
     if (0 == (length -= len)) return;
 
@@ -743,7 +758,10 @@ label_start:
     memcpy(regbuf, data, limit);
     wait_spi();
     set_write_len(limit << 3);
-    memcpy((void*)spi_w0_reg, regbuf, limit);
+    for (int i = 0; i < limit >> 2; ++i) {
+      spi_w0_reg[i] = regbuf[i];
+    }
+
     exec_spi();
     if (0 == (length -= limit)) return;
 
@@ -752,7 +770,9 @@ label_start:
       data += limit;
       memcpy(regbuf, data, limit);
       wait_spi();
-      memcpy((void*)spi_w0_reg, regbuf, limit);
+      for (int i = 0; i < limit >> 2; ++i) {
+        spi_w0_reg[i] = regbuf[i];
+      }
       exec_spi();
     } while (0 != (length -= limit));
 
@@ -950,8 +970,8 @@ label_start:
                         | (_cfg.spi_3wire ? SPI_SIO : 0);
     dc_control(true);
     *_spi_user_reg = user;
-    *reg(SPI_PIN_REG(_spi_port)) = pin;
-    *reg(SPI_CLOCK_REG(_spi_port)) = _clkdiv_read;
+    writereg(SPI_PIN_REG(_spi_port), pin);
+    writereg(SPI_CLOCK_REG(_spi_port), _clkdiv_read);
 #if defined ( SPI_UPDATE )
     *_spi_cmd_reg = SPI_UPDATE;
 #endif
@@ -961,8 +981,8 @@ label_start:
   {
     uint32_t pin = (_cfg.spi_mode & 2) ? SPI_CK_IDLE_EDGE : 0;
     *_spi_user_reg = _user_reg;
-    *reg(SPI_PIN_REG(_spi_port)) = pin;
-    *reg(SPI_CLOCK_REG(_spi_port)) = _clkdiv_write;
+    writereg(SPI_PIN_REG(_spi_port), pin);
+    writereg(SPI_CLOCK_REG(_spi_port), _clkdiv_write);
 #if defined ( SPI_UPDATE )
     *_spi_cmd_reg = SPI_UPDATE;
 #endif
@@ -1152,7 +1172,7 @@ label_start:
     {
       periph_module_reset( PERIPH_SPI3_DMA_MODULE );
     }
-#else
+#elif defined( CONFIG_IDF_TARGET_ESP32 ) || !defined( CONFIG_IDF_TARGET )
     periph_module_reset( PERIPH_SPI_DMA_MODULE );
 #endif
   }

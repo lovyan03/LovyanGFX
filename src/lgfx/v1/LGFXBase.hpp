@@ -1091,6 +1091,7 @@ namespace lgfx
       else
       {
         if (     dst_depth == rgb565_2Byte) { pc.fp_copy = pixelcopy_t::copy_rgb_fast<swap565_t, T>; }
+        else if (dst_depth == rgb565_nonswapped) { pc.fp_copy = pixelcopy_t::copy_rgb_fast<rgb565_t, T>; }
         else if (dst_depth == rgb332_1Byte) { pc.fp_copy = pixelcopy_t::copy_rgb_fast<rgb332_t, T>; }
         else                                { pc.fp_copy = pixelcopy_t::copy_rgb_fast<grayscale_t, T>; }
       }

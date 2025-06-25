@@ -122,6 +122,7 @@ namespace lgfx
       return (src_depth == rgb565_2Byte) ? copy_rgb_affine<TDst, swap565_t>
            : (src_depth == rgb332_1Byte) ? copy_rgb_affine<TDst, rgb332_t >
            : (src_depth == grayscale_8bit) ? copy_rgb_affine<TDst, grayscale_t>
+           : (src_depth == rgb565_nonswapped) ? copy_rgb_affine<TDst, rgb565_t >
            : (src_depth == rgb888_3Byte) ? copy_rgb_affine<TDst, bgr888_t >
                                          : (std::is_same<bgr666_t, TDst>::value)
                                            ? copy_rgb_affine<bgr888_t, bgr888_t>

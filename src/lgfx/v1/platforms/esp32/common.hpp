@@ -79,8 +79,6 @@ Contributors:
 
 #endif
 
-
-
 namespace lgfx
 {
  inline namespace v1
