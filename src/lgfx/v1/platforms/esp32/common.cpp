@@ -843,8 +843,6 @@ namespace lgfx
 //----------------------------------------------------------------------------
   static constexpr const int __DECLARE_RCC_ATOMIC_ENV = 0;
 
-  static constexpr const int __DECLARE_RCC_ATOMIC_ENV = 0;
-
   namespace i2c
   {
 #if __has_include( <core_version.h> )
