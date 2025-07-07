@@ -55,12 +55,14 @@ Contributors:
    #endif
   #endif
  #endif
-#endif
 
-#if __has_include(<soc/syscon_reg.h>)
- #include <soc/syscon_reg.h>
-#elif __has_include (<soc/apb_ctrl_reg.h>)
- #include <soc/apb_ctrl_reg.h>
+ #if __has_include(<soc/syscon_reg.h>)
+  #include <soc/syscon_reg.h>
+ #endif
+#else
+ #if __has_include (<soc/apb_ctrl_reg.h>)
+  #include <soc/apb_ctrl_reg.h>
+ #endif
 #endif
 
 #include <soc/efuse_reg.h>
