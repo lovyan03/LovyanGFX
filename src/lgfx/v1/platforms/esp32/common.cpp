@@ -156,6 +156,13 @@ Contributors:
 #endif
 
 
+
+#if defined (CONFIG_IDF_TARGET_ESP32C6) || defined (CONFIG_IDF_TARGET_ESP32P4) || ( defined (CONFIG_IDF_TARGET_ESP32C3) && ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 4, 2) )
+ #define LGFX_GPIO_IN_SEL_CFG_REG
+#endif
+
+
+
 namespace lgfx
 {
  inline namespace v1
@@ -169,7 +176,7 @@ namespace lgfx
 
   static int search_pin_number(int peripheral_sig)
   {
-#if defined (CONFIG_IDF_TARGET_ESP32C6) || defined (CONFIG_IDF_TARGET_ESP32P4)
+#if defined LGFX_GPIO_IN_SEL_CFG_REG
     uint32_t result = GPIO.func_in_sel_cfg[peripheral_sig].in_sel;
 #else
     uint32_t result = GPIO.func_in_sel_cfg[peripheral_sig].func_sel;
@@ -382,7 +389,7 @@ namespace lgfx
     *gpio_en_reg = 1u << (pin & 31);
 
 
-#if defined (CONFIG_IDF_TARGET_ESP32C6) || defined (CONFIG_IDF_TARGET_ESP32P4)
+#if defined LGFX_GPIO_IN_SEL_CFG_REG
     GPIO.func_out_sel_cfg[pin].out_sel = SIG_GPIO_OUT_IDX;
 #else
     GPIO.func_out_sel_cfg[pin].func_sel = SIG_GPIO_OUT_IDX;
