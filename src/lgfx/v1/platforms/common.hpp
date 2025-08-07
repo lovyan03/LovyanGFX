@@ -45,13 +45,13 @@ Contributors:
 
 #include "rp2040/common.hpp"
 
-#elif defined (ARDUINO)
-
-#include "arduino_default/common.hpp"
-
 #elif (__has_include(<SDL2/SDL.h>) || __has_include(<SDL.h>)) && !defined(LGFX_LINUX_FB)
 
 #include "sdl/common.hpp"
+
+#elif defined (ARDUINO)
+
+#include "arduino_default/common.hpp"
 
 #elif __has_include(<opencv2/opencv.hpp>) && !defined(LGFX_LINUX_FB)
 

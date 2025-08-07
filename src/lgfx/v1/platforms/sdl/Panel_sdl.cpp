@@ -18,7 +18,7 @@ Contributors:
 Porting for SDL:
  [imliubo](https://github.com/imliubo)
 /----------------------------------------------------------------------------*/
-#if !defined (ARDUINO)
+#if !defined (ARDUINO) || __has_include(<SDL2/SDL.h>)
 
 #include "Panel_sdl.hpp"
 
