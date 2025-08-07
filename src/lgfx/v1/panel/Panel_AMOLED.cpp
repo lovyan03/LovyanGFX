@@ -92,8 +92,11 @@ namespace lgfx
 
         void Panel_AMOLED::write_cmd(uint8_t cmd)
         {
+            _bus->wait();
+            cs_control(true);
             uint8_t cmd_buffer[4] = {0x02, 0x00, 0x00, 0x00};
             cmd_buffer[2] = cmd;
+            cs_control(false);
             for (int i = 0; i < 4; i++) {
                 _bus->writeCommand(cmd_buffer[i], 8);
             }
@@ -102,30 +105,39 @@ namespace lgfx
 
         void Panel_AMOLED::start_qspi()
         {
+            _bus->wait();
+            cs_control(true);
             cs_control(false);
+            // 4 wire pixel data transmission (0x32 or 0x12)
+            // 0x32, 0x00, 0x2c, 0x00
+            _bus->writeCommand(0x002C0032, 32);
+/*
             _bus->writeCommand(0x32, 8); // 4 wire pixel data transmission (0x32 or 0x12)
             _bus->writeCommand(0x00, 8);
             _bus->writeCommand(0x2c, 8); // WRITE_MEMORY_START
             _bus->writeCommand(0x00, 8);
-            _bus->wait();
+*/
+            // _bus->wait();
         }
 
         void Panel_AMOLED::end_qspi()
         {
+/*
             _bus->writeCommand(0x32, 8); // 4 wire pixel data transmission (0x32 or 0x12)
             _bus->writeCommand(0x00, 8);
             _bus->writeCommand(0x00, 8); // NOP
             _bus->writeCommand(0x00, 8);
             _bus->wait();
             cs_control(true);
+*/
         }
 
         void Panel_AMOLED::write_bytes(const uint8_t* data, uint32_t len, bool use_dma)
         {
             start_qspi();
             _bus->writeBytes(data, len, true, use_dma);
-            _bus->wait();
-            end_qspi();
+            // _bus->wait();
+            // end_qspi();
         }
 
 
@@ -157,7 +169,6 @@ namespace lgfx
             // ESP_LOGD("Panel_AMOLED","setBrightness %d", brightness);
             startWrite();
             // Write Display Brightness	MAX_VAL=0XFF
-            cs_control(false);
             write_cmd(0x51);
             _bus->writeCommand(brightness, 8);
             _bus->wait();
@@ -319,6 +330,8 @@ namespace lgfx
                 _has_align_data = false;
                 _bus->writeData(0, 8);
             }
+            _bus->wait();
+            cs_control(true);
 
             _bus->endTransaction();
         }
@@ -329,12 +342,14 @@ namespace lgfx
             if( ys==0 && ys==_height-1 ) {
                 cs_control(false);
                 write_cmd(0x13); // Set Partial Display Mode to Normal (off)
+                _bus->wait();
                 cs_control(true);
                 return;
             }
 
             cs_control(false);
             write_cmd(0x12); // Set Partial Display Mode On
+            _bus->wait();
             cs_control(true);
 
             cs_control(false);
@@ -353,12 +368,14 @@ namespace lgfx
             if( xs==0 && xe==_width-1 ) {
                 cs_control(false);
                 write_cmd(0x13); // Set Partial Display Mode to Normal (off)
+                _bus->wait();
                 cs_control(true);
                 return;
             }
 
             cs_control(false);
             write_cmd(0x12); // Set Partial Display Mode On
+            _bus->wait();
             cs_control(true);
 
             cs_control(false);
@@ -386,43 +403,24 @@ namespace lgfx
 
             // apply offsets
             xs += _colstart;
-            ys += _rowstart;
             xe += _colstart;
-            ye += _rowstart;
-
             // Set limit
             if ((xe - xs) >= _width) { xs = 0; xe = _width - 1; }
-            if ((ye - ys) >= _height) { ys = 0; ye = _height - 1; }
 
             {
                 // Set Column Start Address (CASET)
-                cs_control(false);
                 write_cmd(0x2A);
-                _bus->writeCommand(xs >> 8, 8);
-                _bus->writeCommand(xs & 0xFF, 8);
-                _bus->writeCommand(xe >> 8, 8);
-                _bus->writeCommand(xe & 0xFF, 8);
-                _bus->wait();
-                cs_control(true);
+                _bus->writeCommand(__builtin_bswap32(xs << 16 | xe), 32);
             }
 
+            ys += _rowstart;
+            ye += _rowstart;
+            if ((ye - ys) >= _height) { ys = 0; ye = _height - 1; }
             {
                 // Set Row Start Address (RASET)
-                cs_control(false);
                 write_cmd(0x2B);
-                _bus->writeCommand(ys >> 8, 8);
-                _bus->writeCommand(ys & 0xFF, 8);
-                _bus->writeCommand(ye >> 8, 8);
-                _bus->writeCommand(ye & 0xFF, 8);
-                _bus->wait();
-                cs_control(true);
+                _bus->writeCommand(__builtin_bswap32(ys << 16 | ye), 32);
             }
-
-            // // Memory Write (disabled because setWindow can also be used for memory read)
-            // cs_control(false);
-            // write_cmd(0x2C);
-            // _bus->wait();
-            // cs_control(true);
         }
 
 
@@ -431,8 +429,8 @@ namespace lgfx
             // ESP_LOGD("Panel_AMOLED","writeBlock 0x%lx %ld", rawcolor, len);
             start_qspi();
             _bus->writeDataRepeat(rawcolor, _write_bits, len);
-            _bus->wait();
-            end_qspi();
+            // _bus->wait();
+            // end_qspi();
         }
 
 
@@ -450,8 +448,8 @@ namespace lgfx
                 _has_align_data = !_has_align_data;
             }
 
-            _bus->wait();
-            end_qspi();
+            // _bus->wait();
+            // end_qspi();
         }
 
 
@@ -490,8 +488,9 @@ namespace lgfx
 
             start_qspi();
             _bus->writeDataRepeat(rawcolor, _write_bits, len);
-            _bus->wait();
-            end_qspi();
+            // _bus->wait();
+            // cs_control(true);
+            // end_qspi();
         }
 
 
@@ -625,11 +624,11 @@ namespace lgfx
             if( _frame_buffer )
               return true;
             // setRotation(getRotation());
-            ESP_LOGD("Panel_AMOLED","Panel_AMOLED_Framebuffer init [%d x %d] %d", _width, _height, use_reset);
-            if( !initFramebuffer(_width, _height) )
+            // ESP_LOGD("Panel_AMOLED","Panel_AMOLED_Framebuffer init [%d x %d] %d", _width, _height, use_reset);
+            if( !initFramebuffer(_cfg.panel_width, _cfg.panel_height) )
               return false;
             _internal_rotation = 0;
-            return Panel_Device::init(false);
+            return Panel_FrameBufferBase::init(false);
         }
 
 
@@ -638,42 +637,50 @@ namespace lgfx
             if( !_frame_buffer)
                 return;
 
-            if( x == 0 && y == 0 && w == 0 && h == 0 )
+            if (0 < w && 0 < h)
             {
-                w = _width;
-                h = _height;
+                _range_mod.left   = std::min<int_fast16_t>(_range_mod.left  , x        );
+                _range_mod.right  = std::max<int_fast16_t>(_range_mod.right , x + w - 1);
+                _range_mod.top    = std::min<int_fast16_t>(_range_mod.top   , y        );
+                _range_mod.bottom = std::max<int_fast16_t>(_range_mod.bottom, y + h - 1);
             }
+            if (_range_mod.empty()) return;
 
-            if( w == 0 || h == 0 )
-                return;
+            uint16_t xs = _range_mod.left  & ~1; // Make even
+            uint16_t ys = _range_mod.top   & ~1; // Make even
+            uint16_t xe = _range_mod.right  | 1;
+            uint16_t ye = _range_mod.bottom | 1;
 
-            uint16_t x0 = x & 0xfe; // Make even
-            uint16_t y0 = y & 0xfe; // Make even
-            uint16_t x1 = x + w - 1;
-            uint16_t y1 = y + h - 1;
+            uint16_t w1 = xe - xs + 1 ; // Corrected width
+            uint16_t h1 = ye - ys + 1;  // Corrected height
 
-            if( x1%2==0 ) x1++; // Make odd if not
-            if( y1%2==0 ) y1++; // Make odd if not
-
-            uint16_t w1 = x1 - x0 + 1 ; // Corrected width
-            uint16_t h1 = y1 - y0 + 1;  // Corrected height
-
-            _panel->setWindow(x0, y0, x1, y1);
             // ESP_LOGD("LGFX", "x(%d=>%d), y(%d=>%d), w(%d=>%d), h(%d=>%d)", x, x0, y, y0, w, w1, h, h1);
 
+            _panel->setWindow(xs, ys, xe, ye);
             uint8_t bpp = _write_bits >> 3; // bytes per pixel
             size_t wb = w1 * bpp; // bytes per line
-            uint8_t* buf = _panel->getBus()->getDMABuffer(wb*2);
+            size_t stride = _cfg.panel_width * bpp; // bytes per line in framebuffer
+            auto bus = _panel->getBus();
+            uint8_t* buf[2];
+            buf[0] = bus->getDMABuffer(wb);
+            buf[1] = bus->getDMABuffer(wb);
 
             _panel->start_qspi();
-            for( int i=y0;i<y1;i+=2)
+            int fbpos = ys * stride + (xs * bpp);
+
+            for( int i = 0; i < h1; i++)
             {
-                int fbpos0 = ((i*_width)+(x0))*bpp;
-                int fbpos1 = fbpos0+(_width*bpp);
-                memcpy(&buf[0],  &_frame_buffer[fbpos0], wb);
-                memcpy(&buf[wb], &_frame_buffer[fbpos1], wb);
-                _panel->getBus()->writeBytes(buf, wb*2, false, true);
+                auto lb = buf[i & 1];//s->getDMABuffer(wb);
+                memcpy(lb,  &_frame_buffer[fbpos], wb);
+                fbpos += stride; // next line
+                bus->writeBytes(lb, wb, false, true);
             }
+//*/
+            _range_mod.top = INT16_MAX;
+            _range_mod.left = INT16_MAX;
+            _range_mod.right = 0;
+            _range_mod.bottom = 0;
+
             _panel->end_qspi();
 
             return;

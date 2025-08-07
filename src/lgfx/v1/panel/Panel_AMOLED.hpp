@@ -38,7 +38,7 @@ namespace lgfx
         {
         public:
             Panel_AMOLED_Framebuffer(Panel_AMOLED* panel) : _panel(panel) { assert(_panel); }
-            ~Panel_AMOLED_Framebuffer(void) { deinitFramebuffer(); }
+            virtual ~Panel_AMOLED_Framebuffer(void) { deinitFramebuffer(); }
             bool init(bool use_reset) override;
             bool initFramebuffer(uint_fast16_t w, uint_fast16_t h);
             void deinitFramebuffer(void);
