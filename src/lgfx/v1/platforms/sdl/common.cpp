@@ -18,7 +18,7 @@ Contributors:
 Porting for SDL:
  [imliubo](https://github.com/imliubo)
 /----------------------------------------------------------------------------*/
-#if !defined (ARDUINO) || __has_include(<SDL2/SDL.h>)
+#if !defined (ARDUINO) || defined(LGFX_SDL)
 
 #include "common.hpp"
 
