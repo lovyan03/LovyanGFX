@@ -105,7 +105,7 @@ namespace lgfx
       gpio_hal_context_t gpio_hal = {
           .dev = GPIO_HAL_GET_HW(GPIO_PORT_0)
       };
-      gpio_hal_func_sel(&gpio_hal, GPIO_PIN_MUX_REG[pin], PIN_FUNC_GPIO);
+      gpio_hal_func_sel(&gpio_hal, pin, PIN_FUNC_GPIO);
     #else
       gpio_hal_iomux_func_sel(GPIO_PIN_MUX_REG[pin], PIN_FUNC_GPIO);
     #endif
