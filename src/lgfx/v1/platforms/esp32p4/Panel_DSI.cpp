@@ -318,6 +318,30 @@ namespace lgfx
   }
 
 //----------------------------------------------------------------------------
+
+  void Panel_DSI::setInvert(bool invert)
+  {
+    _invert = invert;
+    if (_disp_panel_handle != nullptr) {
+    _disp_panel_handle->invert_color( (esp_lcd_panel_t*)(_disp_panel_handle), invert);
+    }
+  }
+
+  void Panel_DSI::setSleep(bool flg_sleep)
+  {
+    if (_disp_panel_handle != nullptr) {
+      _disp_panel_handle->disp_sleep( (esp_lcd_panel_t*)(_disp_panel_handle), flg_sleep);
+    }
+  }
+
+  void Panel_DSI::setPowerSave(bool flg_idle)
+  {
+    if (_disp_panel_handle != nullptr) {
+      _disp_panel_handle->disp_on_off((esp_lcd_panel_t*)(_disp_panel_handle), flg_idle);
+    }
+  }
+
+//----------------------------------------------------------------------------
  }
 }
 

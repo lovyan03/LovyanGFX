@@ -142,6 +142,11 @@ namespace lgfx
     const config_detail_t& config_detail(void) const { return _config_detail; }
     void config_detail(const config_detail_t& config_detail) { _config_detail = config_detail; };
 
+
+    void setInvert(bool invert) override;
+    void setSleep(bool flg_sleep) override;
+    void setPowerSave(bool flg_idle) override;
+
     virtual panel_callbacks_t getCallbacks();
     virtual const lcd_init_cmd_t* getLcdInitCommands(uint8_t listno=0) const { (void)listno; return nullptr; }
     virtual size_t getLcdInitCommandsize(uint8_t listno=0) { (void)listno; return 0; }
