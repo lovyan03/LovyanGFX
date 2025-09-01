@@ -1207,7 +1207,9 @@ namespace lgfx
         }
         dev->int_clr.val = int_raw.val;
 #if !defined (CONFIG_IDF_TARGET) || defined (CONFIG_IDF_TARGET_ESP32)
-        if (!int_raw.end_detect || int_raw.ack_err)
+        auto pin_sda = i2c_context[i2c_port].pin_sda;
+        bool flg_nack = (gpio_in(pin_sda) == 1);
+        if (!int_raw.end_detect || int_raw.ack_err || flg_nack)
 #elif defined ( CONFIG_IDF_TARGET_ESP32S3 ) || defined ( CONFIG_IDF_TARGET_ESP32C6 ) || defined ( CONFIG_IDF_TARGET_ESP32P4 )
         if (!int_raw.end_detect_int_raw || int_raw.nack_int_raw)
 #else
@@ -1223,9 +1225,9 @@ namespace lgfx
       if (flg_stop || res.has_error())
       {
 #if defined ( CONFIG_IDF_TARGET_ESP32S3 ) || defined ( CONFIG_IDF_TARGET_ESP32C6 ) || defined ( CONFIG_IDF_TARGET_ESP32P4 )
-        if (i2c_context[i2c_port].state == i2c_context_t::state_read || !int_raw.end_detect_int_raw)
+        if (res.has_error() || i2c_context[i2c_port].state == i2c_context_t::state_read || !int_raw.end_detect_int_raw)
 #else
-        if (i2c_context[i2c_port].state == i2c_context_t::state_read || !int_raw.end_detect)
+        if (res.has_error() || i2c_context[i2c_port].state == i2c_context_t::state_read || !int_raw.end_detect)
 #endif
         { // force stop
           i2c_stop(i2c_port);
