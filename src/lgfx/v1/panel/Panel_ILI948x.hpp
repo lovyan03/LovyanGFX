@@ -236,31 +236,17 @@ namespace lgfx
   // The orignal settings do not work well with the IPS version of the display; however, the changes below do.
   // Contributed by @supremeneuron, see https://github.com/lovyan03/LovyanGFX/discussions/449
 
-  struct Panel_ILI9488IPS : public Panel_ILI948x
+  struct Panel_ILI9488IPS : public Panel_ILI9488
   {
-    void setColorDepth_impl(color_depth_t depth) override
+    Panel_ILI9488IPS(void)
     {
-      _write_depth = (((int)depth & color_depth_t::bit_mask) > 16
-                    || (_bus && _bus->busType() == bus_spi))
-                    ? rgb888_3Byte
-                    : rgb565_2Byte;
-
-      _read_depth = rgb888_3Byte;
+      _cfg.memory_width  = _cfg.panel_width  = 320;
+      _cfg.memory_height = _cfg.panel_height = 480;
+      _cfg.invert        = true;
     }
 
   protected:
 
-    static constexpr uint8_t CMD_FRMCTR1 = 0xB1;
-    static constexpr uint8_t CMD_INVCTR  = 0xB4;
-    static constexpr uint8_t CMD_DFUNCTR = 0xB6;
-    static constexpr uint8_t CMD_ETMOD   = 0xB7;
-    static constexpr uint8_t CMD_PWCTR1  = 0xC0;
-    static constexpr uint8_t CMD_PWCTR2  = 0xC1;
-    static constexpr uint8_t CMD_PWCTR3  = 0xC2;
-    static constexpr uint8_t CMD_VMCTR   = 0xC5;
-    static constexpr uint8_t CMD_GMCTRP1 = 0xE0; // Positive Gamma Correction
-    static constexpr uint8_t CMD_GMCTRN1 = 0xE1; // Negative Gamma Correction
-    static constexpr uint8_t CMD_ADJCTL3 = 0xF7;
     static constexpr uint8_t NML_BLACK   = 0x21;
 
     const uint8_t* getInitCommands(uint8_t listno) const override
