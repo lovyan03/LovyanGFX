@@ -3722,13 +3722,15 @@ namespace lgfx
         &detector_ESP_WROVER_KIT_9341,
 #endif
 #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_ESP32_2432S028 ) || defined ( LGFX_SUNTON_ESP32_2432S028 )
-        &detector_Sunton_2432S028_9341,
-        &detector_Sunton_2432S028_7789,
-        &detector_ESP32_ESP32E_9341,
+        &detector_Sunton_2432S028_7789, //0x04 0xFF 0x81 ST7789[SPI:12,13,14,15]      +XPT2046[SPI:32,39,25,33] 
+        &detector_Sunton_2432S028_9341, //0x04 0xFF 0x00 ILI9341[SPI:12,13,14,15]     +XPT2046[SPI:32,39,25,33] TESTED 2025/9/30 tac-lab.tech
 #endif
+//0xb38100 系のLCDドライバ
 #if defined(LGFX_AUTODETECT) || defined(LGFX_ESP32_2432W328) || defined(LGFX_GUITION_ESP32_2432W328)
-        &detector_Guition_JC2432W328R,
-        &detector_Guition_JC2432W328C,
+        &detector_Guition_JC2432W328R,  //0x04 0xFFFF 0xb38100 ST7789[SPI:12,13,14,15]+XPT2046[SPI:12,13,14,33] TESTED 2025/9/30 tac-lab.tech
+        &detector_ESP32_ESP32E_9341,    //0x04 0xFFFF 0xb38100 ST7789[SPI:12,13,14,15]+XPT2046[SPI:32,39,25,33] TESTED 2025/9/30 tac-lab.tech
+        //SPIが反応しない場合にIICにつなぐ
+        &detector_Guition_JC2432W328C,  //0x04 0xFFFF 0xb38100 ST7789[SPI:12,13,14,15]+CST816S[IIC:33,32,25]    TESTED 2025/9/30 tac-lab.tech
 #endif
 #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_ODROID_GO )
         &detector_ODROID_GO,
