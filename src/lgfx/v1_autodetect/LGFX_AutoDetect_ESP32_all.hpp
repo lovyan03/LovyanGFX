@@ -3123,7 +3123,7 @@ namespace lgfx
       {
         constexpr _detector_Sunton_2432S028_9341_t(void)
         : _detector_Sunton_ESP32_2432S028_t
-        { board_t::board_Sunton_ESP32_2432S028
+        { board_t::board_Sunton_ESP32_2432S028_9341
         , 0x04, 0xFF, 0x00 // ILI9341
         , 40000000, 16000000
         , GPIO_NUM_13     // MOSI
@@ -3157,7 +3157,7 @@ namespace lgfx
       {
         constexpr _detector_Sunton_2432S028_7789_t(void)
         : _detector_Sunton_ESP32_2432S028_t
-        { board_t::board_Sunton_ESP32_2432S028
+        { board_t::board_Sunton_ESP32_2432S028_7789
         , 0x04, 0xFF, 0x85 // ST7789
         , 80000000, 16000000
         , GPIO_NUM_13     // MOSI
@@ -3188,11 +3188,11 @@ namespace lgfx
       };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
-      struct _detector_ESP32_ESP32E_9341_t : public _detector_Sunton_ESP32_2432S028_t
+      struct _detector_ESP32_ESP32E_t : public _detector_Sunton_ESP32_2432S028_t
       {
-        constexpr _detector_ESP32_ESP32E_9341_t(void)
+        constexpr _detector_ESP32_ESP32E_t(void)
         : _detector_Sunton_ESP32_2432S028_t
-        {board_t::board_Sunton_ESP32_2432S028
+        {board_t::board_ESP32_ESP32E
         , 0x04, 0xFFFF00, 0xb38100 // ST7789
         , 40000000, 16000000
         , GPIO_NUM_13 // MOSI
@@ -3289,7 +3289,7 @@ namespace lgfx
       {
         constexpr _detector_Guition_JC2432W328R_t(void)
         : _detector_Sunton_ESP32_2432S028_t
-        { board_t::board_Guition_ESP32_2432W328
+        { board_t::board_Guition_ESP32_2432W328R
           , 0x04, 0xFFFF00, 0xb38100 // ST7789
           , 55000000, 20000000
           , GPIO_NUM_13     // MOSI
@@ -3382,7 +3382,7 @@ namespace lgfx
       {
         constexpr _detector_Guition_JC2432W328C_t(void)
         : _detector_Sunton_ESP32_2432S028_t
-        { board_t::board_Guition_ESP32_2432W328
+        { board_t::board_Guition_ESP32_2432W328C
         , 0x04, 0xFFFF00, 0xb38100 // ST7789
         , 55000000, 20000000
         , GPIO_NUM_13     // MOSI
@@ -3673,7 +3673,7 @@ namespace lgfx
       static constexpr const _detector_Guition_JC2432W328R_t   detector_Guition_JC2432W328R;
       static constexpr const _detector_Sunton_2432S028_9341_t  detector_Sunton_2432S028_9341;
       static constexpr const _detector_Sunton_2432S028_7789_t  detector_Sunton_2432S028_7789;
-      static constexpr const _detector_ESP32_ESP32E_9341_t     detector_ESP32_ESP32E_9341;
+      static constexpr const _detector_ESP32_ESP32E_t     detector_ESP32_ESP32E;
       static constexpr const _detector_ODROID_GO_t             detector_ODROID_GO;
       static constexpr const _detector_WT32_SC01_t             detector_WT32_SC01;
 
@@ -3728,7 +3728,7 @@ namespace lgfx
 //0xb38100 系のLCDドライバ
 #if defined(LGFX_AUTODETECT) || defined(LGFX_ESP32_2432W328) || defined(LGFX_GUITION_ESP32_2432W328)
         &detector_Guition_JC2432W328R,  //0x04 0xFFFF 0xb38100 ST7789[SPI:12,13,14,15]+XPT2046[SPI:12,13,14,33] TESTED 2025/9/30 tac-lab.tech
-        &detector_ESP32_ESP32E_9341,    //0x04 0xFFFF 0xb38100 ST7789[SPI:12,13,14,15]+XPT2046[SPI:32,39,25,33] TESTED 2025/9/30 tac-lab.tech
+        &detector_ESP32_ESP32E,         //0x04 0xFFFF 0xb38100 ST7789[SPI:12,13,14,15]+XPT2046[SPI:32,39,25,33] TESTED 2025/9/30 tac-lab.tech
         //SPIが反応しない場合にIICにつなぐ
         &detector_Guition_JC2432W328C,  //0x04 0xFFFF 0xb38100 ST7789[SPI:12,13,14,15]+CST816S[IIC:33,32,25]    TESTED 2025/9/30 tac-lab.tech
 #endif
@@ -3788,7 +3788,7 @@ namespace lgfx
 #if defined ( LGFX_AUTODETECT ) || defined ( LGFX_ESP32_2432S028 ) || defined ( LGFX_SUNTON_ESP32_2432S028 )
         &detector_Sunton_2432S028_9341,
         &detector_Sunton_2432S028_7789,
-        &detector_ESP32_ESP32E_9341,
+        &detector_ESP32_ESP32E,
 #endif
 
         nullptr // terminator
