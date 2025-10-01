@@ -3419,7 +3419,6 @@ namespace lgfx
               cfg.pin_scl = GPIO_NUM_32;
               cfg.pin_rst = GPIO_NUM_25;
               cfg.pin_int = -1;
-              cfg.offset_rotation = 6;
               cfg.freq = 400000;
               cfg.x_max = 240;
               cfg.y_max = 320;
