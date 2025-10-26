@@ -1910,10 +1910,7 @@ label_nextbyte: /// 次のデータを取得する;
     int32_t sy = 65536 * style->size_y;
     y += (metrics->y_offset * sy) >> 16;
 
-    if (code == 0x20) {
-      gNum = 0xFFFF;
-      buffer[2] = getSwap32(this->spaceWidth);
-    } else if (!this->getUnicodeIndex(code, &gNum)) {
+    if (!this->getUnicodeIndex(code, &gNum)) {
       return drawCharDummy(gfx, x, y, this->spaceWidth, metrics->height, style, filled_x);
     } else {
       file->preRead();
