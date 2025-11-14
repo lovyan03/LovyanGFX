@@ -44,6 +44,12 @@ Contributors:
  #include <driver/periph_ctrl.h>
 #endif
 
+#if defined ( ESP_IDF_VERSION_VAL )
+    #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 5, 0)
+        #define LGFX_HAL_FUNC_SEL
+    #endif
+#endif
+
 namespace lgfx
 {
  inline namespace v1
@@ -95,7 +101,26 @@ namespace lgfx
 
   static void _gpio_pin_sig(uint32_t pin, uint32_t sig)
   {
-    gpio_hal_iomux_func_sel(GPIO_PIN_MUX_REG[pin], PIN_FUNC_GPIO);
+
+#define SOLUTION_2
+    
+#if defined SOLUTION_1
+	#if defined LGFX_HAL_FUNC_SEL
+		gpio_hal_context_t gpio_hal = {
+			.dev = GPIO_HAL_GET_HW(GPIO_PORT_0)
+		};
+		gpio_hal_func_sel(&gpio_hal, pin, PIN_FUNC_GPIO);
+	#else
+		gpio_hal_iomux_func_sel(GPIO_PIN_MUX_REG[pin], PIN_FUNC_GPIO);
+	#endif
+#endif
+
+#if defined SOLUTION_2
+	gpio_set_drive_capability((gpio_num_t)pin, (gpio_drive_cap_t)2);
+	REG_SET_FIELD(GPIO_PIN_MUX_REG[pin], MCU_SEL, 0);
+#endif
+
+    //gpio_hal_iomux_func_sel(GPIO_PIN_MUX_REG[pin], PIN_FUNC_GPIO);
     gpio_set_direction((gpio_num_t)pin, GPIO_MODE_OUTPUT);
     esp_rom_gpio_connect_out_signal(pin, sig, false, false);
   }
