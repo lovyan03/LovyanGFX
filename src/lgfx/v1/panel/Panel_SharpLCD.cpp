@@ -134,7 +134,7 @@ namespace lgfx
       lgfx::gpio_hi(_config_detail.pin_dispon);
       lgfx::pinMode(_config_detail.pin_dispon, pin_mode_t::output);
     }
-
+    
     _vcom = BIT_VCOM;
     memset(_buf, 0xff, _get_buffer_length());
     setRotation(_rotation);
@@ -203,15 +203,15 @@ namespace lgfx
     if (_range_mod.empty()) { return; }
 
     uint16_t i, lineAddr;
-
-    beginTransaction();
-
-    _bus->writeCommand(bitrev8(_vcom | CMD_UPDATE), 8);
-    _vcom ^=1;
-
     uint8_t prefix_bytes = _config_detail.prefix_bytes;
     uint16_t bytes_per_line = prefix_bytes + _pitch + _config_detail.suffix_bytes;
     uint8_t line[bytes_per_line];
+    
+    beginTransaction();
+    if(prefix_bytes == 1) {
+      _bus->writeCommand(bitrev8(_vcom | CMD_UPDATE), 8);
+      _vcom ^=1;
+    }
 
     uint32_t buflen = _get_buffer_length();
     uint32_t bstart = std::min( uint32_t(_range_mod.top*_pitch), buflen );
@@ -222,9 +222,26 @@ namespace lgfx
       lineAddr = ((i + 1) / _pitch) + 1;
 
       if(prefix_bytes == 2) {
-        // TODO: verify this on a SharpLCD with height>255, line[0] and line[1] may need to be swapped
-        line[0] = bitrev8(lineAddr>>8);
-        line[1] = bitrev8(lineAddr&0xff);
+        if( _cfg.panel_height < 512 ) {
+          // LS018B7DH02 230x303 requires 9 bits for line address
+          // line number's 8 MSBs of 9 go to line[1]
+          line[1] = bitrev8((lineAddr >> 1) & 0xFF);
+          // line number's LSB is left in line[0]
+          line[0] = uint8_t(lineAddr & 0x01) << 7;
+        } else {
+          // LS032B7DD02 336x536 requires 10 bits for line address
+          // line number's 8 MSBs of 10 go to line[1]
+          line[1] = bitrev8((lineAddr >> 2) & 0xFF);
+          // line number's 2 LSBs are on left side in line[0]
+          line[0] = uint8_t(lineAddr & 0x03) << 6;
+        }
+        if(i == bstart){
+          //M0-M2 added to first line only
+          line[0] = bitrev8(line[0] | _vcom | CMD_UPDATE);
+          _vcom ^=1;
+        } else {
+          line[0] = bitrev8(line[0]);
+        }
       } else {
         line[0] = bitrev8(lineAddr);
       }
