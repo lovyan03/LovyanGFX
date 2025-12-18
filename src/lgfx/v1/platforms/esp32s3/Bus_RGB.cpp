@@ -95,7 +95,7 @@ namespace lgfx
 
   static void _gpio_pin_sig(uint32_t pin, uint32_t sig)
   {
-    gpio_hal_iomux_func_sel(GPIO_PIN_MUX_REG[pin], PIN_FUNC_GPIO);
+    // gpio_hal_iomux_func_sel(GPIO_PIN_MUX_REG[pin], PIN_FUNC_GPIO);
     gpio_set_direction((gpio_num_t)pin, GPIO_MODE_OUTPUT);
     esp_rom_gpio_connect_out_signal(pin, sig, false, false);
   }
