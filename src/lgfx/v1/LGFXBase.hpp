@@ -375,10 +375,8 @@ namespace lgfx
     }
 
     /// Obtains the current scanning line position.
-    /// 現在の走査線の位置を取得する。;
     /// @return -1=unsupported. / 0 or more = current scanline position.
     /// @attention This function returns the raw value obtained from the device. Note that screen rotation and offset are not taken into account.
-    /// @attention この関数はデバイスから得られる生の値を返す。画面の回転やオフセットは考慮されていないことに注意。;
     int32_t getScanLine(void) { return _panel->getScanLine(); }
 
     uint8_t getRotation(void) const { return _panel->getRotation(); }
@@ -1488,13 +1486,14 @@ namespace lgfx
     /// This requires a uint16_t array with 8 elements. ( or nullptr )
     template <typename T>
     void calibrateTouch(uint16_t *parameters, const T& color_fg, const T& color_bg, uint8_t size = 10)
-    { // 第1引数 にuint16_t[8]のポインタを渡すことで、setTouchCalibrateで使用できるキャリブレーション値を得ることが出来る。;
-      // この値をフラッシュ等に記録しておき、次回起動時にsetTouchCalibrateを使うことで、手作業によるキャリブレーションを省略できる。;
+    {
+      // By passing a pointer to uint16_t[8] to the first argument, you can get the calibration value that can be used with setTouchCalibrate.
+      // By recording this value in flash, etc., you can omit manual calibration by using setTouchCalibrate at the next startup.
       calibrate_touch(parameters, _write_conv.convert(color_fg), _write_conv.convert(color_bg), size);
     }
 
     /// This requires a uint16_t array with 8 elements.
-    /// calibrateTouchで得たキャリブレーション値を用いて設定を再現する。;
+    /// Reproduce the setting using the calibration value obtained with calibrateTouch.
     void setTouchCalibrate(uint16_t *parameters)
     {
       panel()->setCalibrate(parameters);
