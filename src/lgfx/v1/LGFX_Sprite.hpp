@@ -96,8 +96,8 @@ namespace lgfx
 
     uint_fast16_t _xpos;
     uint_fast16_t _ypos;
-    uint_fast16_t _panel_width;   // rotationしていない状態の幅;
-    uint_fast16_t _panel_height;  // rotationしていない状態の高さ;
+    uint_fast16_t _panel_width;   // width without rotation
+    uint_fast16_t _panel_height;  // height without rotation
     uint_fast16_t _bitwidth;
   };
 
