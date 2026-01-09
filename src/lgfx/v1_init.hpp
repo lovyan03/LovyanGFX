@@ -14,6 +14,8 @@ Contributors:
  [ciniml](https://github.com/ciniml)
  [mongonta0716](https://github.com/mongonta0716)
  [tobozo](https://github.com/tobozo)
+ [erazor83](https://github.com/erazor83)
+ 
 /----------------------------------------------------------------------------*/
 #pragma once
 
@@ -50,6 +52,13 @@ Contributors:
 #include "v1/panel/Panel_ST7789P3.hpp"
 #include "v1/panel/Panel_ST7796.hpp"
 #include "v1/panel/Panel_ST77961.hpp"
+#include "v1/panel/Panel_SharpLCD.hpp"
+
+// AMOLED
+#include "v1/panel/Panel_SH8601Z.hpp"
+#include "v1/panel/Panel_NV3041A.hpp"
+#include "v1/panel/Panel_RM690B0.hpp"
+#include "v1/panel/Panel_RM67162.hpp"
 
 // EPD
 #include "v1/panel/Panel_GDEW0154M09.hpp"
@@ -60,7 +69,9 @@ Contributors:
 #include "v1/panel/Panel_M5UnitLCD.hpp"
 
 // TouchScreen
-#include "v1/touch/Touch_CST816S.hpp"
+#include "v1/touch/Touch_CSTxxx.hpp"
+#include "v1/touch/Touch_CHSC6x.hpp"
+
 #include "v1/touch/Touch_FT5x06.hpp"
 #include "v1/touch/Touch_GSLx680.hpp"
 #include "v1/touch/Touch_GT911.hpp"

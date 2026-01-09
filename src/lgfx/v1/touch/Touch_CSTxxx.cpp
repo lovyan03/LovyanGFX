@@ -19,7 +19,7 @@ Contributors:
 // CST816 info from here...
 // https://www.waveshare.com/w/upload/c/c2/CST816S_register_declaration.pdf
 
-#include "Touch_CST816S.hpp"
+#include "Touch_CSTxxx.hpp"
 
 #include "../platforms/common.hpp"
 
@@ -174,5 +174,187 @@ namespace lgfx
   }
 
 //----------------------------------------------------------------------------
+
+
+    bool Touch_CST226::init(void)
+    {
+      _inited = false;
+
+      if (_cfg.pin_rst >= 0) {
+        lgfx::pinMode(_cfg.pin_rst, pin_mode_t::output);
+        lgfx::gpio_lo(_cfg.pin_rst);
+        lgfx::delay(10);
+        lgfx::gpio_hi(_cfg.pin_rst);
+        lgfx::delay(10);
+      }
+
+      if (_cfg.pin_int >= 0) {
+        lgfx::pinMode(_cfg.pin_int, pin_mode_t::input_pullup);
+      }
+
+      lgfx::i2c::init(_cfg.i2c_port, _cfg.pin_sda, _cfg.pin_scl).has_value();
+
+      return true;
+    }
+
+
+    bool Touch_CST226::_check_init(void)
+    {
+      if (_inited) return true;
+
+      { // enter command mode
+        if( ! _write_reg16(0xd101)) // 0xd101 = ENUM_MODE_DEBUG_INFO
+          return false;
+      }
+
+      lgfx::delay(10);
+
+      { // verify chip integrity
+        uint32_t chip_ic_checkcode;
+        if( ! _read_reg16(0xd1fc, (uint8_t*)&chip_ic_checkcode, 4) ) // 0xd1fc = read chip_ic_checkcode
+          return false;
+        // printf("Touch Chip_ic_checkcode: 0x%08lx (expecting 0xcacaxxxx)\n", chip_ic_checkcode); // e.g. Chip_ic_checkcode: 0xcaca5fdc
+        if( (chip_ic_checkcode & 0xffff0000) != 0xcaca0000 )
+          return false;
+      }
+
+      lgfx::delay(10);
+
+      { // read touch resolution
+        uint16_t resolution[2];
+        if( ! _read_reg16(0xd1f8, (uint8_t*)&resolution, 4) ) // 0xd1f8 = read chip resolution
+          return false;
+        // printf("Touch Resolution: %d x %d\n", resolution[1], resolution[0]); // e.g. Resolution: 600 x 450
+      }
+
+      lgfx::delay(10);
+
+      { // identify the chip id and project id (NOTE: this can be used in autodetect routine)
+        uint16_t c_p_info[2];
+        if( ! _read_reg16(0xd204, (uint8_t*)&c_p_info, 4) ) // 0xd204 = read chip type and project id
+          return false;
+        if( c_p_info[1] != 0xa8 ) // 0xa8 is chip ID for CST226 and CST226SE
+          return false;
+        // printf("Touch Chip id: 0x%04x, project id: 0x%04x\n", c_p_info[1], c_p_info[0]); // e.g. Chip id: 0x00a8, project id: 0x465f
+      }
+
+      lgfx::delay(10);
+
+      { // check if firmware is installed
+        uint32_t fw_chksum[2];
+        if( ! _read_reg16(0xd208, (uint8_t*)fw_chksum, 8) ) // 0xd208 = read fw version + checksum
+          return false;
+        if( fw_chksum[0]==0xA5A5A5A5 ) // the chip has no firmware !!
+          return false;
+        // printf("Touch FW Version: 0x%08lx, Checksum: 0x%08lx\n", fw_chksum[0], fw_chksum[1]); // e.g. FW version 0x01000001, Checksum: 0x140f47c8
+      }
+
+      lgfx::delay(10);
+
+      { // exit command mode
+        if( ! _write_reg16(0xd109) ) // 0xd109 = ENUM_MODE_NORMAL, 0xd109 = ENUM_MODE_FACTORY
+          return false;
+      }
+
+      lgfx::delay(5);
+      _inited = true;
+      return true;
+    }
+
+
+    void Touch_CST226::wakeup(void)
+    {
+      init();
+    }
+
+
+    void Touch_CST226::sleep(void)
+    {
+      _write_reg16(0xd105); // 0xD105 = deep sleep
+    }
+
+
+    uint_fast8_t Touch_CST226::getTouchRaw(touch_point_t* tp, uint_fast8_t count)
+    {
+      if (!_inited && !_check_init()) return 0;
+      if (count > max_touch_points || count == 0) return 0;
+      auto requested_count = count;
+
+      uint32_t msec = lgfx::millis();
+      uint32_t diff_msec = msec - _last_update;
+
+      if (diff_msec < 10 && _wait_cycle)
+      {
+        --_wait_cycle;
+        if (_cfg.pin_int < 0 || gpio_in(_cfg.pin_int)) {
+          return 0;
+        }
+      }
+      _last_update = msec;
+
+      uint8_t readdata[28];
+      uint8_t bytes_to_read = count==1 ? 8 : 28;
+
+      if( ! _read_reg8(0, readdata, bytes_to_read) )
+      {
+        return 0;
+      }
+
+      if (readdata[6] != 0xab) return 0;
+      if (readdata[0] == 0xab) return 0;
+      if (readdata[5] == 0x80) return 0;
+      count = readdata[5] & 0x7f;
+      if (count > max_touch_points || count == 0) {
+        _write_reg16(0x00ab); // Publish the synchronization command to complete the coordinate read
+        return 0;
+      }
+      _wait_cycle = count ? 0 : 16;
+
+      if (count)
+      {
+        if( requested_count > 1 ) // an array of touch_point_t was provided
+        {
+          int pIdx = 0; // points index with corrected offset
+          for (int i=0; i<count; i++) {
+            tp[i].id = i;
+            tp[i].size = readdata[pIdx+4]; // pressure
+            tp[i].x = (uint16_t)((readdata[pIdx+1] << 4) | ((readdata[pIdx+3] >> 4) & 0xf));
+            tp[i].y = (uint16_t)((readdata[pIdx+2] << 4) | (readdata[pIdx+3] & 0xf));
+            pIdx += i==0 ? 7 : 5; // first point is followed by 2 extra bytes, next points are consecutive
+          }
+        }
+        else // a single touch_point_t was provided
+        {
+          tp[0].id = 0;
+          tp[0].size = readdata[4]; // pressure
+          tp[0].x = (uint16_t)((readdata[1] << 4) | ((readdata[3] >> 4) & 0xf));
+          tp[0].y = (uint16_t)((readdata[2] << 4) | (readdata[3] & 0xf));
+        }
+      }
+      return count;
+    }
+
+
+    bool Touch_CST226::_write_reg16(uint16_t reg)
+    {
+      reg = (reg<<8)+(reg>>8); // swap
+      return lgfx::i2c::transactionWrite(_cfg.i2c_port, _cfg.i2c_addr, (uint8_t*)&reg, 2, _cfg.freq).has_value();
+    }
+
+
+    bool Touch_CST226::_read_reg16(uint16_t reg, uint8_t *data, size_t length)
+    {
+      reg = (reg<<8)+(reg>>8); // swap
+      return lgfx::i2c::transactionWriteRead(_cfg.i2c_port, _cfg.i2c_addr, (uint8_t*)&reg, 2, data, length, _cfg.freq).has_value();
+    }
+
+
+    bool Touch_CST226::_read_reg8(uint8_t reg, uint8_t *data, size_t length)
+    {
+      return lgfx::i2c::transactionWriteRead(_cfg.i2c_port, _cfg.i2c_addr, &reg, 1, data, length, _cfg.freq).has_value();
+    }
+
+//----------------------------------------------------------------------------
+
  }
 }

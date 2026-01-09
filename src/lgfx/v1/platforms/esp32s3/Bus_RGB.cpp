@@ -45,6 +45,11 @@ Contributors:
 #endif
 
 #include <esp_idf_version.h>
+#if defined ( ESP_IDF_VERSION_VAL )
+ #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 5, 0)
+  #define LGFX_HAL_FUNC_SEL
+ #endif
+#endif
 
 namespace lgfx
 {
@@ -102,6 +107,14 @@ namespace lgfx
 #else
     gpio_hal_iomux_func_sel(GPIO_PIN_MUX_REG[pin], PIN_FUNC_GPIO);
 #endif
+    #if defined LGFX_HAL_FUNC_SEL
+      gpio_hal_context_t gpio_hal = {
+          .dev = GPIO_HAL_GET_HW(GPIO_PORT_0)
+      };
+      gpio_hal_func_sel(&gpio_hal, pin, PIN_FUNC_GPIO);
+    #else
+      gpio_hal_iomux_func_sel(GPIO_PIN_MUX_REG[pin], PIN_FUNC_GPIO);
+    #endif
     gpio_set_direction((gpio_num_t)pin, GPIO_MODE_OUTPUT);
     esp_rom_gpio_connect_out_signal(pin, sig, false, false);
   }

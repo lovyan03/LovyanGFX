@@ -14,12 +14,19 @@
 #endif
 #define SPI_PORT  0
 
+#ifdef USE_TOUCH
+#define TOUCH_CS 29
+#endif
+
 class LGFX : public lgfx::LGFX_Device
 {
   lgfx::Panel_ST7735S _panel_instance;
   lgfx::Bus_SPI       _bus_instance; // SPIバスのインスタンス
 #ifdef USE_BACKLIGHT
   lgfx::Light_PWM     _light_instance;
+#endif
+#ifdef USE_TOUCH
+  lgfx::Touch_XPT2046 _touch_instance;
 #endif
 
 public:
@@ -75,6 +82,22 @@ public:
       _panel_instance.setLight(&_light_instance);  // バックライトをパネルにセットします。
     }
 #endif
+
+#ifdef USE_TOUCH
+    {
+      auto cfg = _touch_instance.config();
+      cfg.bus_shared = true;
+      cfg.spi_host = SPI_PORT;
+      cfg.pin_sclk = TFT_SCLK;
+      cfg.pin_mosi = TFT_MOSI;
+      cfg.pin_miso = TFT_MISO;
+      cfg.pin_cs   = TOUCH_CS;
+
+      _touch_instance.config(cfg);
+      _panel_instance.setTouch(&_touch_instance);
+    }
+#endif
+
 
     setPanel(&_panel_instance); // 使用するパネルをセットします。
   }
