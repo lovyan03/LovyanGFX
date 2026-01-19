@@ -18,7 +18,7 @@ Contributors:
 Porting for RP2040:
  [yasuhirok](https://github.com/yasuhirok-git)
 /----------------------------------------------------------------------------*/
-#if defined (ARDUINO_ARCH_MBED_RP2040) || defined(ARDUINO_ARCH_RP2040)
+#if defined (ARDUINO_ARCH_MBED_RP2040) || defined(ARDUINO_ARCH_RP2040) || defined(USE_PICO_SDK)
 
 #include "common.hpp"
 #include <array>
@@ -97,6 +97,10 @@ namespace lgfx
       padsbank0_hw->io[pin] = temp;
       volatile io_bank0_hw_t *iobank0_regs = reinterpret_cast<volatile io_bank0_hw_t *>(IO_BANK0_BASE);
       iobank0_regs->io[pin].ctrl = fn << IO_BANK0_GPIO0_CTRL_FUNCSEL_LSB;
+      #if defined(PICO_RP2350)
+        // Remove pad isolation now that the correct peripheral is in control of the pad
+        hw_clear_bits(&padsbank0_hw->io[pin], PADS_BANK0_GPIO0_ISO_BITS);
+      #endif
       return true;
     }
 
@@ -219,13 +223,24 @@ namespace lgfx
       };
       constexpr int n_spi = std::extent<decltype(spi_dev), 0>::value;
 
+#if defined(PICO_RP2350)
+      // RP2350 Dataheetの 9.4. Function Select (Table 642)を参照
+      // ※30以降は2350Bで使用可能
+      constexpr uint8_t spi0_sclk_pinlist[] = {  2,  6, 18, 22, 34, 38,     UINT8_MAX };
+      constexpr uint8_t spi0_miso_pinlist[] = {  0,  4, 16, 20, 32, 36,     UINT8_MAX };
+      constexpr uint8_t spi0_mosi_pinlist[] = {  3,  7, 19, 23, 35, 39,     UINT8_MAX };
+      constexpr uint8_t spi1_sclk_pinlist[] = { 10, 14, 26,     30, 42, 46, UINT8_MAX };
+      constexpr uint8_t spi1_miso_pinlist[] = {  8, 12, 24, 28, 40, 44,     UINT8_MAX };
+      constexpr uint8_t spi1_mosi_pinlist[] = { 11, 15, 27,     31, 43, 47, UINT8_MAX };
+#else
       // RP2040 Dataheetの 1.4.3. GPIO Functions Table 2を参照
-      constexpr uint8_t spi0_sclk_pinlist[] = {  2,  6, 18, 23, UINT8_MAX };
+      constexpr uint8_t spi0_sclk_pinlist[] = {  2,  6, 18, 22, UINT8_MAX };
       constexpr uint8_t spi0_miso_pinlist[] = {  0,  4, 16, 20, UINT8_MAX };
       constexpr uint8_t spi0_mosi_pinlist[] = {  3,  7, 19, 23, UINT8_MAX };
       constexpr uint8_t spi1_sclk_pinlist[] = { 10, 14, 26,     UINT8_MAX };
       constexpr uint8_t spi1_miso_pinlist[] = {  8, 12, 24, 28, UINT8_MAX };
       constexpr uint8_t spi1_mosi_pinlist[] = { 11, 15, 27,     UINT8_MAX };
+#endif
 
       constexpr uint32_t PRESCALE_ERROR = UINT32_MAX;
 
@@ -273,13 +288,16 @@ namespace lgfx
         lgfx_unreset_block_wait((spi_regs == spi_dev[0]) ? RESETS_RESET_SPI0_BITS : RESETS_RESET_SPI1_BITS);
       }
 
+      static uint32_t last_clock_div = 1;
+
       bool lgfx_spi_set_baudrate(volatile spi_hw_t * spi_regs, uint32_t baudrate)
       {
         spi_regs->cpsr = 2;  // prescale
-        uint32_t div = FreqToClockDiv(baudrate);
+        last_clock_div = FreqToClockDiv(baudrate);
+
         uint32_t temp = spi_regs->cr0;
         temp &= ~SPI_SSPCR0_SCR_BITS;
-        temp |= (div << SPI_SSPCR0_SCR_LSB);
+        temp |= (last_clock_div << SPI_SSPCR0_SCR_LSB);
         spi_regs->cr0 = temp;
         return true;
       }
@@ -355,7 +373,7 @@ namespace lgfx
       {
         return cpp::fail(error_t::invalid_arg);
       }
-      // DBGPRINT("ref_count %d\n", spi_info[spi_port].ref_count); 
+      // DBGPRINT("ref_count %d\n", spi_info[spi_port].ref_count);
       if (spi_info[spi_port].ref_count == 0)
       {
         const spi_pinlist_str pinlist = spi_pinlist[spi_port];
@@ -385,7 +403,7 @@ namespace lgfx
         DBGPRINT("return %s\n", __func__);
         return {};
       }
-      // 
+      //
       if (spi_info[spi_port].pin_sclk != pin_sclk)
       {
         return cpp::fail(error_t::invalid_arg);
@@ -445,6 +463,7 @@ namespace lgfx
       return lgfx_spi_set_baudrate(spi_dev[spi_port], baudrate);
     }
 
+
     void beginTransaction(int spi_port, uint32_t freq, int spi_mode)
     {
       static constexpr spi_cpha_t cpha_table[] = { SPI_CPHA_0, SPI_CPHA_1, SPI_CPHA_0, SPI_CPHA_1 };
@@ -460,6 +479,66 @@ namespace lgfx
     void endTransaction([[maybe_unused]]int spi_port)
     {
 
+    }
+
+
+    bool is_rx_fifo_not_empty(int spi_port)
+    {
+      return ((spi_dev[spi_port]->sr & SPI_SSPSR_RNE_BITS)  != 0);
+    }
+
+    bool is_tx_fifo_not_full(int spi_port)
+    {
+      return ((spi_dev[spi_port]->sr & SPI_SSPSR_TNF_BITS)  != 0);
+    }
+
+    void clear_rx_fifo(int spi_port)
+    {
+      // FIFO内のデータをすべて読みだす
+      while (is_rx_fifo_not_empty(spi_port))
+      {
+        static_cast<void>(spi_dev[spi_port]->dr);
+      }
+    }
+
+    // FIFOを8bitモードにする。
+    void set_dss_8(int spi_port)
+    {
+      //spi_dev[spi_port]-> cr0 BIt7 mask This was the correct way to set it to 16bit to 8-bit mode. 16bit to 8Bitモードへの設定方法です
+      //Spi_stk = spi_dev[spi_port]->cr0;
+      uint32_t _sspcr0_mask_8bit = spi_dev[spi_port]-> cr0;
+      _sspcr0_mask_8bit &= ~0x0000000f;
+      _sspcr0_mask_8bit |=  0x0000007;
+      spi_dev[spi_port]->cr0 = _sspcr0_mask_8bit;
+    }
+
+
+    void readBytes(int spi_port, uint8_t* dst, size_t length)
+    {
+      uint8_t *p;
+      p = dst;
+      clear_rx_fifo (spi_port);
+      set_dss_8 (spi_port);
+      auto tx_length = length;
+      do
+      {
+        DBGPRINT("tx_length %d : length %d\n", tx_length, length);
+        while (tx_length && is_tx_fifo_not_full(spi_port))
+        {
+          // データを送信（中身は何でもよい訳ではない！ Send data (not just anything goes！）
+          //Touch_XPT2046.cppで設定された制御コードをSPIの送信データに乗せないと、XPT2046は動作しません
+          //If the control code set in Touch_XPT2046.cpp is not included in the SPI transmission data, the XPT2046 will not work.
+          spi_dev[spi_port]->dr = *p++; //!!
+          --tx_length;
+        }
+        // 制御コードが記載された *dst を上書きしないよう比較保護して受信バッファと兼用する
+        // *dst, which contains the control code, is protected from being overwritten and is used as a receive buffer.
+        while ((length > tx_length) && is_tx_fifo_not_full (spi_port))
+        {
+          *dst++ = spi_dev[spi_port]->dr;
+          --length;
+        }
+      } while (length);
     }
   }
 
@@ -502,11 +581,20 @@ namespace lgfx
       };
       constexpr int n_i2c = std::extent<decltype(i2c_dev), 0>::value;
 
+#if defined(PICO_RP2350)
+      // RP2350 Dataheetの 9.4. Function Select (Table 642)を参照
+      // ※30以降は2350Bで使用可能
+      constexpr uint8_t i2c0_sda_pinlist[] = {  0,  4,  8, 12, 16, 20, 24, 28,     32, 36, 40, 44, UINT8_MAX };
+      constexpr uint8_t i2c0_sck_pinlist[] = {  1,  5,  9, 13, 17, 21, 25, 29,     33, 37, 41, 45, UINT8_MAX };
+      constexpr uint8_t i2c1_sda_pinlist[] = {  2,  6, 10, 14, 18, 22, 26,     30, 34, 38, 42, 46, UINT8_MAX };
+      constexpr uint8_t i2c1_sck_pinlist[] = {  3,  7, 11, 15, 19, 23, 27,     31, 35, 39, 43, 47, UINT8_MAX };
+#else
       // RP2040 Dataheetの 1.4.3. GPIO Functions Table 2を参照
       constexpr uint8_t i2c0_sda_pinlist[] = {  0,  4,  8, 12, 16, 20, 24, 28, UINT8_MAX };
       constexpr uint8_t i2c0_sck_pinlist[] = {  1,  5,  9, 13, 17, 21, 25, 29, UINT8_MAX };
       constexpr uint8_t i2c1_sda_pinlist[] = {  2,  6, 10, 14, 18, 22, 26,     UINT8_MAX };
       constexpr uint8_t i2c1_sck_pinlist[] = {  3,  7, 11, 15, 19, 23, 27,     UINT8_MAX };
+#endif
 
       constexpr struct i2c_pinlist_str {
         const uint8_t *sda_pinlist;
@@ -918,7 +1006,7 @@ namespace lgfx
 
         i2c_regs->enable = I2C_IC_ENABLE_ENABLE_VALUE_DISABLED;
 
-        i2c_regs->con = 
+        i2c_regs->con =
           I2C_IC_CON_SPEED_VALUE_FAST << I2C_IC_CON_SPEED_LSB |
           I2C_IC_CON_MASTER_MODE_BITS |
           I2C_IC_CON_IC_SLAVE_DISABLE_BITS |
@@ -983,7 +1071,7 @@ namespace lgfx
     {
       volatile i2c_hw_t * const i2c_regs = i2c_dev[i2c_port];
       auto info = &i2c_info[i2c_port];
-      
+
       if (info->ref_count == 0)
       {
         return {};

@@ -227,7 +227,7 @@ namespace lgfx
         uint8_t id[3];
       };
 
-      HDMI_Trans(const lgfx::Bus_I2C::config_t& i2c_config) : HDMI_Trans_config(i2c_config) {}
+      HDMI_Trans(const lgfx::Bus_I2C::config_t& i2c_config);
       HDMI_Trans(const HDMI_Trans&) = delete;
       HDMI_Trans(HDMI_Trans&&) = delete;
       ChipID readChipID(void);

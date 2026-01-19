@@ -266,7 +266,7 @@ namespace lgfx
   {
     pixelcopy_t pc_read( (void*)nullptr, _write_depth, _read_depth);
     pixelcopy_t pc_write((void*)nullptr, _write_depth, _write_depth);
-    size_t write_bytes = (_write_depth + 7) >> 3;
+    size_t write_bytes = (_write_bits + 7) >> 3;
     startWrite();
 
     auto dir = get_fastread_dir();

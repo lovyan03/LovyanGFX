@@ -35,7 +35,7 @@ namespace lgfx
       _cfg.memory_height = _cfg.panel_height = 480;
     }
 
-    void setColorDepth_impl(color_depth_t depth) override 
+    void setColorDepth_impl(color_depth_t depth) override
     { // ILI9481,ILI9486 は SPIバス接続時は16bppが使用できない (ILI9486 spec Page 125 of 312);
       _write_depth = (((int)depth & color_depth_t::bit_mask) > 16
                     || (_bus && _bus->busType() == bus_spi))
@@ -86,7 +86,7 @@ namespace lgfx
 
     uint8_t getMadCtl(uint8_t r) const override
     {
-      static constexpr uint8_t madctl_table[] = 
+      static constexpr uint8_t madctl_table[] =
       {
                MAD_HF       ,
         MAD_MV              ,
@@ -139,8 +139,8 @@ namespace lgfx
           CMD_DFUNCTR, 3, 0x02,  // Nomal scan
                           0x22,  // 5 frames
                           0x3B,
-          CMD_ETMOD,   1, 0xC6,  // 
-          CMD_ADJCTL3, 4, 0xA9,  // Adjust Control 3 
+          CMD_ETMOD,   1, 0xC6,  //
+          CMD_ADJCTL3, 4, 0xA9,  // Adjust Control 3
                           0x51,
                           0x2C,
                           0x82,
@@ -168,7 +168,7 @@ namespace lgfx
 
   struct Panel_ILI9488 : public Panel_ILI948x
   {
-    void setColorDepth_impl(color_depth_t depth) override 
+    void setColorDepth_impl(color_depth_t depth) override
     {
       _write_depth = (((int)depth & color_depth_t::bit_mask) > 16
                     || (_bus && _bus->busType() == bus_spi))
@@ -211,8 +211,8 @@ namespace lgfx
           CMD_DFUNCTR, 3, 0x02,  // Nomal scan
                           0x22,  // 5 frames
                           0x3B,
-          CMD_ETMOD,   1, 0xC6,  // 
-          CMD_ADJCTL3, 4, 0xA9,  // Adjust Control 3 
+          CMD_ETMOD,   1, 0xC6,  //
+          CMD_ADJCTL3, 4, 0xA9,  // Adjust Control 3
                           0x51,
                           0x2C,
                           0x82,
@@ -228,6 +228,66 @@ namespace lgfx
       }
     }
   };
+
+//----------------------------------------------------------------------------
+
+
+  // The following is a revision of the above for BuyDisplay ILI9488 IPS 3.5" screen.
+  // The orignal settings do not work well with the IPS version of the display; however, the changes below do.
+  // Contributed by @supremeneuron, see https://github.com/lovyan03/LovyanGFX/discussions/449
+
+  struct Panel_ILI9488IPS : public Panel_ILI9488
+  {
+    Panel_ILI9488IPS(void)
+    {
+      _cfg.memory_width  = _cfg.panel_width  = 320;
+      _cfg.memory_height = _cfg.panel_height = 480;
+      _cfg.invert        = true;
+    }
+
+  protected:
+
+    static constexpr uint8_t NML_BLACK   = 0x21;
+
+    const uint8_t* getInitCommands(uint8_t listno) const override
+    {
+      static constexpr uint8_t list0[] =
+      {
+          CMD_PWCTR1,  2, 0x0F,  // VRH1
+                          0x0F,  // VRH2
+          CMD_PWCTR2,  1, 0x41,  // VGH, VGL
+          CMD_PWCTR3,  1, 0x22,
+          CMD_VMCTR ,  3, 0x00,  // nVM
+                          0x53,  // VCM_REG
+                          0x80,  // VCM_REG_EN
+          CMD_FRMCTR1, 1, 0xA0,  // Frame rate = 60Hz
+          CMD_INVCTR,  1, 0x02,  // Display Inversion Control = 2dot
+          CMD_DFUNCTR, 3, 0x02,  // Nomal scan
+                          0x22,  // 5 frames
+                          0x3B,
+          CMD_ETMOD,   1, 0xC6,  //
+          CMD_ADJCTL3, 4, 0xA9,  // Adjust Control 3
+                          0x51,
+                          0x2C,
+                          0x82,
+          // The following Gamma settings and command are IPS-specific
+          CMD_GMCTRP1, 15, 0x00,0x08,0x0C,0x02,0x0E,0x04,0x30,0x45,0x47,0x04,0x0C,0x0A,0x2E,0x34,0x0F,
+          CMD_GMCTRN1, 15, 0x00,0x11,0x0D,0x01,0x0F,0x05,0x39,0x36,0x51,0x06,0x0F,0x0D,0x33,0x37,0x0F,
+          NML_BLACK,    0,
+          // End IPS-specific setting
+          CMD_SLPOUT , 0+CMD_INIT_DELAY, 120,    // Exit sleep mode
+          CMD_IDMOFF , 0,
+          CMD_DISPON , 0+CMD_INIT_DELAY, 100,
+          0xFF,0xFF, // end
+      };
+      switch (listno)
+      {
+      case 0: return list0;
+      default: return nullptr;
+      }
+    }
+  };
+
 
 //----------------------------------------------------------------------------
 
@@ -295,8 +355,8 @@ namespace lgfx
     {
       static constexpr uint8_t list0[] =
       {
-          CMD_SWRESET , CMD_INIT_DELAY, 20, 
-          CMD_SETC    , 3+CMD_INIT_DELAY, 0xFF, 0x83, 0x57, 100, 
+          CMD_SWRESET , CMD_INIT_DELAY, 20,
+          CMD_SETC    , 3+CMD_INIT_DELAY, 0xFF, 0x83, 0x57, 100,
           CMD_SETRGB  , 4, 0x80, 0x00, 0x06, 0x06,
           CMD_SETCOM  , 1, 0x25,
           CMD_SETOSC  , 1, 0x68,

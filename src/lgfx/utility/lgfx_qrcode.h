@@ -38,7 +38,8 @@
 #ifndef _LGFX_QRCODE_H_
 #define _LGFX_QRCODE_H_
 
-#ifndef __cplusplus
+// Fix for gcc (Alpine 15.2.0) see https://github.com/lovyan03/LovyanGFX/issues/808#issuecomment-3724949845
+#if !defined(__cplusplus) && (!defined(__STDC_VERSION__) || __STDC_VERSION__ < 202311L)
 typedef unsigned char bool;
 static const bool false = 0;
 static const bool true = 1;

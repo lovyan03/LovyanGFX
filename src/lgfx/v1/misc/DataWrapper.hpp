@@ -176,7 +176,7 @@ namespace lgfx
 
 //----------------------------------------------------------------------------
 
-#if defined (SdFat_h)
+#if defined (SdFat_h) || defined (SD_FAT_VERSION)
   // #if SD_FAT_VERSION >= 20102
   //  #define LGFX_SDFAT_TYPE SdBase<FsVolume,FsFormatter>
   // #else
@@ -253,7 +253,7 @@ namespace lgfx
 
 //----------------------------------------------------------------------------
 
-#if ( defined (ARDUINO) && defined (Stream_h) ) || defined (ARDUINO_ARCH_RP2040) // RP2040 has no defines for builtin Stream API
+#if ( defined (ARDUINO) && ( defined (Stream_h) || defined (HTTPClient_H_)) ) || defined (ARDUINO_ARCH_RP2040) // RP2040 has no defines for builtin Stream API
 
   struct StreamWrapper : public DataWrapper
   {

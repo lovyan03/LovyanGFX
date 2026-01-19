@@ -48,7 +48,7 @@ namespace lgfx
 #endif
 //----------------------------------------------------------------------------
 
-#if !defined (ARDUINO) || defined (ARDUINO_ARCH_MBED_RP2040) || defined (ARDUINO_ARCH_RP2040)
+#if !defined (ARDUINO) || defined (ARDUINO_ARCH_MBED_RP2040) || defined (ARDUINO_ARCH_RP2040) || (USE_PICO_SDK)
 #define LGFX_PRINTF_ENABLED
 #endif
 
@@ -299,10 +299,10 @@ namespace lgfx
     LGFX_INLINE_T void fillScreen  ( const T& color) { setColor(color); fillRect(0, 0, width(), height()); }
     LGFX_INLINE   void fillScreen  ( void )          {                  fillRect(0, 0, width(), height()); }
 
-    LGFX_INLINE_T void clear       ( const T& color) { setBaseColor(color); clear(); }
-    LGFX_INLINE   void clear       ( void )          { setColor(_base_rgb888); fillScreen(); }
-    LGFX_INLINE_T void clearDisplay( const T& color) { setBaseColor(color); clear(); }
-    LGFX_INLINE   void clearDisplay( void )          { setColor(_base_rgb888); fillScreen(); }
+    LGFX_INLINE_T void clear       ( const T& color) { setBaseColor(color); clearDisplay(); }
+    LGFX_INLINE   void clear       ( void )          { clearDisplay(); }
+    LGFX_INLINE_T void clearDisplay( const T& color) { setBaseColor(color); clearDisplay(); }
+    LGFX_INLINE   void clearDisplay( void )          { if (isEPD()) { waitDisplay(); fillScreen(~_base_rgb888); waitDisplay(); } fillScreen(_base_rgb888); }
 
     LGFX_INLINE   void  setPivot(float x, float y) { _xpivot = x; _ypivot = y; }
     LGFX_INLINE   float getPivotX(void) const { return _xpivot; }
@@ -907,7 +907,7 @@ namespace lgfx
       qrcode(string.c_str(), x, y, width, version);
     }
 #endif
-    void qrcode(const char *string, int32_t x = -1, int32_t y = -1, int32_t width = -1, uint8_t version = 1);
+    void qrcode(const char *string, int32_t x = -1, int32_t y = -1, int32_t width = -1, uint8_t version = 1,bool margin = false);
 
   #define LGFX_FUNCTION_GENERATOR(drawImg, draw_img) \
    protected: \
@@ -1091,6 +1091,7 @@ namespace lgfx
       else
       {
         if (     dst_depth == rgb565_2Byte) { pc.fp_copy = pixelcopy_t::copy_rgb_fast<swap565_t, T>; }
+        else if (dst_depth == rgb565_nonswapped) { pc.fp_copy = pixelcopy_t::copy_rgb_fast<rgb565_t, T>; }
         else if (dst_depth == rgb332_1Byte) { pc.fp_copy = pixelcopy_t::copy_rgb_fast<rgb332_t, T>; }
         else                                { pc.fp_copy = pixelcopy_t::copy_rgb_fast<grayscale_t, T>; }
       }
@@ -1408,7 +1409,7 @@ namespace lgfx
 
     bool init(void)               { return init_impl(true , true); };
     bool begin(void)              { return init_impl(true , true); };
-    bool init_without_reset(void) { return init_impl(false, false); };
+    bool init_without_reset(bool clear = false) { return init_impl(false, clear); };
     board_t getBoard(void) const { return _board; }
     void initBus(void);
     void releaseBus(void);

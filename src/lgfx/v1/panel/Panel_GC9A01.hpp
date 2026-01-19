@@ -197,6 +197,214 @@ namespace lgfx
     }
   };
 
+  struct Panel_GC9307  : public Panel_GC9xxx
+  {
+      Panel_GC9307(void)
+      {
+          _cfg.panel_height = _cfg.memory_height = 320;
+          _cfg.dummy_read_pixel = 16;
+      }
+
+      void setWindow(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye) override
+      {
+        if (_internal_rotation % 2 == 0) {
+          _bus->writeCommand(CMD_CASET, 8);
+          _bus->writeData((xs + 34) >> 8 | ((xs + 34) & 0xFF) << 8 | ((xe + 34) << 8 | (xe + 34) >> 8) << 16, 32);
+          _bus->writeCommand(CMD_RASET, 8);
+          _bus->writeData(ys >> 8 | (ys & 0xFF) << 8 | (ye << 8 | ye >> 8) << 16, 32);
+        } else if (_internal_rotation % 2 == 1) {
+          _bus->writeCommand(CMD_CASET, 8);
+          _bus->writeData(xs >> 8 | (xs & 0xFF) << 8 | (xe << 8 | xe >> 8) << 16, 32);
+          _bus->writeCommand(CMD_RASET, 8);
+          _bus->writeData((ys + 34) >> 8 | ((ys + 34) & 0xFF) << 8 | ((ye + 34) << 8 | (ye + 34) >> 8) << 16, 32);
+        }
+        _bus->writeCommand(CMD_RAMWR, 8);
+      }
+
+  protected:
+
+      const uint8_t* getInitCommands(uint8_t listno) const override {
+
+          static constexpr uint8_t list0[] = {
+            0xfe, 0,
+            0xef, 0,
+            // 0x36, 1, 0x48,
+            // 0x3a, 1, 0x05,
+            0x85, 1, 0xc0,
+            0x86, 1, 0x98,
+            0x87, 1, 0x28,
+            0x89, 1, 0x33,
+            0x8B, 1, 0x84,
+            0x8D, 1, 0x3B,
+            0x8E, 1, 0x0f,
+            0x8F, 1, 0x70,
+            0xe8, 2, 0x13, 0x17,
+            0xec, 3, 0x57, 0x07, 0xff,
+            0xed, 2, 0x18, 0x09,
+            0xc9, 1, 0x10,
+            0xff, 1, 0x61,
+            0x99, 1, 0x3A,
+            0x9d, 1, 0x43,
+            0x98, 1, 0x3e,
+            0x9c, 1, 0x4b,
+            0xF0, 6, 0x06, 0x08, 0x08, 0x06, 0x05, 0x1d,
+            0xF2, 6, 0x00, 0x01, 0x09, 0x07, 0x04, 0x23,
+            0xF1, 6, 0x3b, 0x68, 0x66, 0x36, 0x35, 0x2f,
+            0xF3, 6, 0x37, 0x6a, 0x66, 0x37, 0x35, 0x35,
+            0xFA, 2, 0x80, 0x0f,
+            0xBE, 1, 0x11,
+            0xCB, 1, 0x02,
+            0xCD, 1, 0x22,
+            0x9B, 1, 0xFF,
+            0x35, 1, 0x00,
+            0x44, 2, 0x00, 0x0a,
+            0x11, 0+CMD_INIT_DELAY, 200,
+            0x29, 0,
+            0xFF,0xFF, // end
+          };
+          switch (listno) {
+              case 0: return list0;
+              default: return nullptr;
+          }
+      }
+    uint8_t getMadCtl(uint8_t r) const override
+    {
+      static constexpr uint8_t madctl_table[] =
+      {
+        // 7      | 6      | 5      | 4       | 3       | 2      | 1 | 0
+        // MAD_MY | MAD_MX | MAD_MV | MAD_ML  | MAD_BGR | MAD_MH | 0 | 0,
+               MAD_MX                             , // 0
+                      MAD_MV|MAD_ML        |MAD_MH, // 1
+        MAD_MY                                    , // 2
+        MAD_MY|MAD_MX|MAD_MV                      , // 3
+        MAD_MY|MAD_MX                             , // 4
+               MAD_MX|MAD_MV                      , // 5
+        0                                         , // 6
+        MAD_MY|MAD_MV                             , // 7
+      };
+      return madctl_table[r];
+    }
+  };
+
+
+
+  // thanks to @multiOTP, see https://github.com/lovyan03/LovyanGFX/discussions/733
+  struct Panel_Round_GC9A01_071 : public Panel_GC9xxx
+  {
+    Panel_Round_GC9A01_071(void)
+    {
+      _cfg.panel_width  = _cfg.memory_width  = 160;
+      _cfg.panel_height = _cfg.memory_height = 160;
+
+      _cfg.offset_x       = 0;
+      _cfg.offset_y       = 0;
+      _cfg.offset_rotation = 0;
+      _cfg.dummy_read_pixel = 8;
+      _cfg.dummy_read_bits  = 1;
+      _cfg.readable         = false;
+      _cfg.invert           = false;
+      _cfg.rgb_order        = 1; // 0: RGB, 1: BGR
+      _cfg.dlen_16bit       = false;
+      _cfg.bus_shared       = false;
+
+      // GC9A01 malfunctions when sending NOP.
+      // Therefore, the function to send a NOP at the end of communication should be disabled.
+      _nop_closing = false;
+    }
+
+  protected:
+    const uint8_t* getInitCommands(uint8_t listno) const override
+    {
+      static constexpr uint8_t list0[] = {
+        0xFE, 0,
+        0xEF, 0,
+        0x80, 1, 0xFF,
+        0x81, 1, 0xFF,
+        0x82, 1, 0xFF,
+        0x83, 1, 0xFF,
+        0x84, 1, 0xFF,
+        0x85, 1, 0xFF,
+        0x86, 1, 0xFF,
+        0x87, 1, 0xFF,
+        0x88, 1, 0xFF,
+        0x89, 1, 0xFF,
+        0x8A, 1, 0xFF,
+        0x8B, 1, 0xFF,
+        0x8C, 1, 0xFF,
+        0x8D, 1, 0xFF,
+        0x8E, 1, 0xFF,
+        0x8F, 1, 0xFF,
+
+        0x3A, 1, 0x05,
+        0xEC, 1, 0x01,
+
+        0x74, 7, 0x02, 0x0E, 0x00, 0x00, 0x00, 0x00, 0x00,
+
+        0x98, 1, 0x3E,
+        0x99, 1, 0x3E,
+
+        0xB5, 2, 0x0D, 0x0D,
+
+        0x60, 4, 0x38, 0x0F, 0x79, 0x67,
+        0x61, 4, 0x38, 0x11, 0x79, 0x67,
+
+        0x64, 6, 0x38, 0x17, 0x71, 0x5F, 0x79, 0x67,
+        0x65, 6, 0x38, 0x13, 0x71, 0x5B, 0x79, 0x67,
+
+        0x6A, 2, 0x00, 0x00,
+
+        0x6C, 7, 0x22, 0x02, 0x22, 0x02, 0x22, 0x22, 0x50,
+
+        0x6E, 32,
+          0x03, 0x03, 0x01, 0x01,
+          0x00, 0x00, 0x0f, 0x0f,
+          0x0d, 0x0d, 0x0b, 0x0b,
+          0x09, 0x09, 0x00, 0x00,
+          0x00, 0x00, 0x0a, 0x0a,
+          0x0c, 0x0c, 0x0e, 0x0e,
+          0x10, 0x10, 0x00, 0x00,
+          0x02, 0x02, 0x04, 0x04,
+
+        0xBF, 1, 0x01,
+        0xF9, 1, 0x40,
+
+        0x9B, 1, 0x3B,
+        0x93, 3, 0x33, 0x7F, 0x00,
+
+        0x7E, 1, 0x30,
+
+        0x70, 6, 0x0D, 0x02, 0x08, 0x0D, 0x02, 0x08,
+        0x71, 3, 0x0D, 0x02, 0x08,
+
+        0x91, 2, 0x0E, 0x09,
+
+        0xC3, 1, 0x19,
+        0xC4, 1, 0x19,
+        0xC9, 1, 0x3C,
+
+        0xF0, 6, 0x53, 0x15, 0x0A, 0x04, 0x00, 0x3E,
+        0xF2, 6, 0x53, 0x15, 0x0A, 0x04, 0x00, 0x3A,
+
+        0xF1, 6, 0x56, 0xA8, 0x7F, 0x33, 0x34, 0x5F,
+        0xF3, 6, 0x52, 0xA4, 0x7F, 0x33, 0x34, 0xDF,
+
+        0x36, 1, 0x00,
+
+        0x11, 0+CMD_INIT_DELAY, 200,
+
+        0x29, 0,     // display on
+        0x2C, 0,     // memory write
+        0xFF, 0xFF   // end of list
+      };
+      switch (listno) {
+        case 0: return list0;
+        default: return nullptr;
+      }
+    }
+  };
+
+
+
 //----------------------------------------------------------------------------
  }
 }

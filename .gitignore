@@ -4,3 +4,4 @@ sdkconfig*
 build
 .vs
 .DS_Store
+.directory

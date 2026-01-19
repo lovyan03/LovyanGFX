@@ -36,7 +36,7 @@
 $hardcoded_fqbns = ['esp32@4.3.6', 'esp32@4.1.4'];
 
 // restrict output to these idf targets, other targets will be ignored
-$idf_boards     = ['esp32', 'esp32s2', 'esp32s3', 'esp32c6'/*, 'esp32h2', 'esp32p4', 'esp32c5'*/];
+$idf_boards     = ['esp32', 'esp32s2', 'esp32s3', 'esp32c6', 'esp32c3', 'esp32p4'/*, 'esp32h2', 'esp32c5'*/];
 
 // get the official support matrix from the espressif website
 // it contains a JavaScript object declaration with all necessary chip/version informations

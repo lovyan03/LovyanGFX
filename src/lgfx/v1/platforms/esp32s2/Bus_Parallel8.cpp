@@ -134,7 +134,11 @@ namespace lgfx
     i2s_dev->in_link.val = 0;
     i2s_dev->out_link.val = 0;
 
+#if defined ( I2S_TX_PCM_BYPASS )
     i2s_dev->conf1.val = I2S_TX_PCM_BYPASS | I2S_TX_STOP_EN;
+#else
+    i2s_dev->conf1.val = (BIT(3)) | I2S_TX_STOP_EN;
+#endif
     i2s_dev->conf2.val = I2S_LCD_EN;
     i2s_dev->conf_chan.val = 1 << I2S_TX_CHAN_MOD_S | 1 << I2S_RX_CHAN_MOD_S;
 

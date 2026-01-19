@@ -104,7 +104,7 @@ namespace lgfx
     auto dev = &I2C0;
 #endif
 
-#if defined (CONFIG_IDF_TARGET_ESP32C3) || defined (CONFIG_IDF_TARGET_ESP32C6) || defined (CONFIG_IDF_TARGET_ESP32S3)
+#if defined (CONFIG_IDF_TARGET_ESP32C3) || defined (CONFIG_IDF_TARGET_ESP32C6) || defined (CONFIG_IDF_TARGET_ESP32S3) || defined (CONFIG_IDF_TARGET_ESP32P4)
     while (dev->sr.bus_busy) { taskYIELD(); }
 #else
     while (dev->status_reg.bus_busy) { taskYIELD(); }
@@ -119,7 +119,7 @@ namespace lgfx
     auto dev = &I2C0;
 #endif
 
-#if defined (CONFIG_IDF_TARGET_ESP32C3) || defined (CONFIG_IDF_TARGET_ESP32C6) || defined (CONFIG_IDF_TARGET_ESP32S3)
+#if defined (CONFIG_IDF_TARGET_ESP32C3) || defined (CONFIG_IDF_TARGET_ESP32C6) || defined (CONFIG_IDF_TARGET_ESP32S3) || defined (CONFIG_IDF_TARGET_ESP32P4)
     return dev->sr.bus_busy;
 #else
     return dev->status_reg.bus_busy;

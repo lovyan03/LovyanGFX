@@ -19,7 +19,9 @@ Contributors:
 
 #include <string.h>
 
-#if defined (CONFIG_IDF_TARGET_ESP32S3) && __has_include(<esp32s3/rom/lldesc.h>)
+#if __has_include(<rom/lldesc.h>)
+ #include <rom/lldesc.h>
+#elif defined (CONFIG_IDF_TARGET_ESP32S3) && __has_include(<esp32s3/rom/lldesc.h>)
  #include <esp32s3/rom/lldesc.h>
 #elif defined (CONFIG_IDF_TARGET_ESP32S2) && __has_include(<esp32s2/rom/lldesc.h>)
  #include <esp32s2/rom/lldesc.h>
@@ -27,8 +29,6 @@ Contributors:
  #include <esp32c3/rom/lldesc.h>
 #elif __has_include(<esp32/rom/lldesc.h>)
  #include <esp32/rom/lldesc.h>
-#else
- #include <rom/lldesc.h>
 #endif
 
 #if __has_include(<esp_private/spi_common_internal.h>)
@@ -50,7 +50,7 @@ Contributors:
 #endif
 
 #ifndef LGFX_ESP32_SPI_DMA_CH
-#define LGFX_ESP32_SPI_DMA_CH 0
+ #define LGFX_ESP32_SPI_DMA_CH 0
 #endif
 
 #include "../../Bus.hpp"
@@ -81,6 +81,10 @@ namespace lgfx
       int16_t pin_miso = -1;
       int16_t pin_mosi = -1;
       int16_t pin_dc   = -1;
+      int16_t pin_io0  = -1;// Quad spi
+      int16_t pin_io1  = -1;// Quad spi
+      int16_t pin_io2  = -1;// Quad spi
+      int16_t pin_io3  = -1;// Quad spi
       uint8_t spi_mode = 0;
       bool spi_3wire = true;
       bool use_lock = true;
@@ -132,6 +136,8 @@ namespace lgfx
     void readPixels(void* dst, pixelcopy_t* pc, uint32_t length) override;
 
   private:
+
+    bool _is_quad_spi = false;
 
     static __attribute__ ((always_inline)) inline volatile uint32_t* reg(uint32_t addr) { return (volatile uint32_t *)ETS_UNCACHED_ADDR(addr); }
     __attribute__ ((always_inline)) inline void exec_spi(void) {        *_spi_cmd_reg = SPI_EXECUTE; }

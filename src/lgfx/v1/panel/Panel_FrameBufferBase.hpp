@@ -18,6 +18,7 @@ Contributors:
 #pragma once
 
 #include "Panel_Device.hpp"
+#include "../misc/range.hpp"
 
 namespace lgfx
 {
@@ -45,7 +46,7 @@ namespace lgfx
     void setSleep(bool flg) override {}
     void setPowerSave(bool flg) override {}
 
-    void display(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h) override {}
+    void display(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h) override;
 
     void setWindow(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye) override;
     void drawPixelPreclipped(uint_fast16_t x, uint_fast16_t y, uint32_t rawcolor) override;
@@ -65,8 +66,9 @@ namespace lgfx
     uint8_t** _lines_buffer = nullptr;
     uint16_t _xpos, _ypos;
 
-    void _rotate_pixelcopy(uint_fast16_t& x, uint_fast16_t& y, uint_fast16_t& w, uint_fast16_t& h, pixelcopy_t* param, uint32_t& nextx, uint32_t& nexty);
+    range_rect_t _range_mod;
 
+    void _rotate_pixelcopy(uint_fast16_t& x, uint_fast16_t& y, uint_fast16_t& w, uint_fast16_t& h, pixelcopy_t* param, uint32_t& nextx, uint32_t& nexty);
   };
 
 //----------------------------------------------------------------------------

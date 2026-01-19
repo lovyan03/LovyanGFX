@@ -20,7 +20,9 @@ Porting for RP2040:
 /----------------------------------------------------------------------------*/
 #pragma once
 
-#include <Arduino.h> 
+#if defined (ARDUINO_ARCH_MBED_RP2040) || defined(ARDUINO_ARCH_RP2040)
+#include <Arduino.h>
+#endif
 #include <hardware/spi.h>
 
 #include <hardware/structs/dma.h>

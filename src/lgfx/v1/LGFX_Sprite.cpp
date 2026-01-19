@@ -145,9 +145,13 @@ namespace lgfx
       {
         _img.img16()[index] = rawcolor;
       }
-      else
+      else if (bits == 24)
       {
         _img.img24()[index] = rawcolor;
+      }
+      else if (bits == 32)
+      {
+        _img.img32()[index] = rawcolor;
       }
     }
     else

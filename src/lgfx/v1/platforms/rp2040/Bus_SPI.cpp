@@ -18,7 +18,7 @@ Contributors:
 Porting for RP2040:
  [yasuhirok](https://github.com/yasuhirok-git)
 /----------------------------------------------------------------------------*/
-#if defined (ARDUINO_ARCH_MBED_RP2040) || defined(ARDUINO_ARCH_RP2040)
+#if defined (ARDUINO_ARCH_MBED_RP2040) || defined(ARDUINO_ARCH_RP2040) || defined(USE_PICO_SDK)
 
 #include <hardware/structs/spi.h>
 #include "Bus_SPI.hpp"
@@ -60,13 +60,13 @@ namespace lgfx
       return false;
     }
 
-    uint32_t temp = _spi_regs->cr0 & ~(SPI_SSPCR0_SCR_BITS | SPI_SSPCR0_DSS_BITS);
-    _clkdiv_write |= temp;
-    _clkdiv_read  |= temp;
-
     // DCピンを出力に設定
     lgfxPinMode(_cfg.pin_dc, pin_mode_t::output);
     _spi_regs = reinterpret_cast<spi_hw_t *>(_spi_dev[_cfg.spi_host]);
+
+    uint32_t temp = _spi_regs->cr0 & ~(SPI_SSPCR0_SCR_BITS | SPI_SSPCR0_DSS_BITS);
+    _clkdiv_write |= temp;
+    _clkdiv_read  |= temp;
 
     int dma_ch = dma_claim_unused_channel(true);
     _dma_ch = dma_ch;
