@@ -50,7 +50,6 @@ namespace lgfx
             const uint8_t* getInitCommands(uint8_t listno) const override
             {
               static constexpr uint8_t list0[] = {
-//                0x11, 0+CMD_INIT_DELAY, 150, // Sleep out
                 0xFE, 1, 0x00, // {0xFE, {0x00}, 0x01}, //SET PAGE 00H
                 0xC4, 1, 0x80,
                 0x3A, 1, 0x55, // Interface Pixel Format: 16bit/pixel
@@ -60,7 +59,7 @@ namespace lgfx
                 0x2A, 4, 0x00, 0x16, 0x01, 0xAF, // SET COLUMN START ADRESS SC = 0x0016 = 22 and EC = 0x01AF = 431 (410 columns but an 22 offset)
                 0x2B, 4, 0x00, 0x00, 0x01, 0xF5, // SET ROW START ADRESS SP = 0 and EP = 0x1F5 = 501 (502 lines)
                 0x11, 0x80, 0, // Sleep out
-                0x51, 1, 0x01, // display brightness dark (max = 0xff)
+                0x51, 1, 0x01, // display brightness dark
                 0x29, 0x80, 0, // display on
                 0x51, 1, 0x80, // display brightness (max = 0xff)
                 0xff, 0xff // end
