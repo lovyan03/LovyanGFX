@@ -1065,6 +1065,10 @@ namespace lgfx
 #endif
       }
 
+#if defined ( ARDUINO ) && __has_include (<Wire.h>)
+#elif __has_include(<driver/i2c_master.h>)
+      i2c_master_bus_handle_t i2c_bus_handle = nullptr;
+#endif
     private:
       uint32_t _reg_store[22];
     };
@@ -1282,6 +1286,12 @@ namespace lgfx
     #endif
   #endif
  #endif
+#elif __has_include(<driver/i2c_master.h>)
+        auto bus_handle = i2c_context[i2c_port].i2c_bus_handle;
+        if (bus_handle) {
+          i2c_context[i2c_port].i2c_bus_handle = nullptr;
+          i2c_del_master_bus(bus_handle);
+        }
 #else
         i2c_periph_disable(i2c_port);
 #endif
@@ -1363,6 +1373,8 @@ namespace lgfx
         release(i2c_port);
       }
 
+      i2c_stop(i2c_port);
+
 #if defined ( ARDUINO ) && __has_include (<Wire.h>)
 #if SOC_I2C_NUM == 1 || defined CONFIG_IDF_TARGET_ESP32C6
       auto twowire = &Wire;
@@ -1374,6 +1386,20 @@ namespace lgfx
  #else
       twowire->begin((int)pin_sda, (int)pin_scl);
  #endif
+#elif __has_include(<driver/i2c_master.h>)
+      i2c_master_bus_handle_t bus_handle = nullptr;
+      i2c_master_bus_config_t bus_config;
+      memset(&bus_config, 0, sizeof(i2c_master_bus_config_t));
+      bus_config.i2c_port = i2c_port;
+      bus_config.sda_io_num = pin_sda;
+      bus_config.scl_io_num = pin_scl;
+      bus_config.clk_source = I2C_CLK_SRC_DEFAULT;
+      bus_config.glitch_ignore_cnt = 7;
+      bus_config.flags.enable_internal_pullup = true;
+      bus_config.intr_priority = 1;
+
+      i2c_new_master_bus(&bus_config, &bus_handle);
+      i2c_context[i2c_port].i2c_bus_handle = bus_handle;
 #else
       i2c_periph_enable(i2c_port);
 #endif
@@ -1382,7 +1408,6 @@ namespace lgfx
       auto dev = getDev(i2c_port);
       set_pin((i2c_port_t)i2c_port, pin_sda, pin_scl);
       i2c_context[i2c_port].save_reg(dev);
-      i2c_stop(i2c_port);
 
       return {};
     }
