@@ -2754,8 +2754,10 @@ namespace lgfx
   bool LGFXBase::draw_bmp(DataWrapper* data, int32_t x, int32_t y, int32_t maxWidth, int32_t maxHeight, int32_t offX, int32_t offY, float zoom_x, float zoom_y, datum_t datum)
   {
     prepareTmpTransaction(data);
+    data->preRead();
     bitmap_header_t bmpdata;
     if (!bmpdata.load_bmp_header(data) || (bmpdata.biCompression > 3)) {
+      data->postRead();
       return false;
     }
 
@@ -2777,13 +2779,17 @@ namespace lgfx
                    , datum
                    , w, h))
     {
+      data->postRead();
       return true;
     }
 
     argb8888_t *palette = nullptr;
     if (bpp <= 8) {
       palette = (argb8888_t*)alloca(sizeof(argb8888_t*) * (1 << bpp));
-      if (!palette) { return false; }
+      if (!palette) {
+        data->postRead();
+        return false;
+      }
       data->seek(bmpdata.biSize + 14);
       data->read((uint8_t*)palette, (1 << bpp)*sizeof(argb8888_t)); // load palette
     }
@@ -2823,6 +2829,7 @@ namespace lgfx
     int32_t dst_y32_add = (1u << FP_SCALE) * zoom_y;
     if (bmpdata.biHeight > 0) dst_y32_add = - dst_y32_add;
 
+    data->postRead();
     this->startWrite(!data->hasParent());
 
     float affine[6] = { zoom_x, 0.0f, (float)x, 0.0f, 1.0f, 0.0f };
@@ -2860,6 +2867,7 @@ namespace lgfx
     info.end();
 
     this->endWrite();
+    data->preRead();
 
     return true;
   }
