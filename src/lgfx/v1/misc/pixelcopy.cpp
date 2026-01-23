@@ -69,6 +69,9 @@ namespace lgfx
           if (src_depth == rgb565_2Byte) {
             fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<swap565_t>(dst_depth);
             fp_skip = pixelcopy_t::skip_rgb_affine<swap565_t>;
+          } else if (src_depth == rgb565_nonswapped) {
+            fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<rgb565_t>(dst_depth);
+            fp_skip = pixelcopy_t::skip_rgb_affine<rgb565_t>;
           } else if (src_depth == rgb332_1Byte) {
             fp_copy = pixelcopy_t::get_fp_copy_rgb_affine<rgb332_t >(dst_depth);
             fp_skip = pixelcopy_t::skip_rgb_affine<rgb332_t>;
@@ -111,7 +114,7 @@ namespace lgfx
         param->src_y32 += param->src_y32_add;
         uint32_t raw = (pgm_read_byte(&s[i >> 3]) >> (-((int32_t)i + param->src_bits) & 7)) & param->src_mask;
         if (raw != param->transp) {
-          auto dstidx = index * param->dst_bits;
+          uint32_t dstidx = index * param->dst_bits;
           auto shift = (-(int32_t)(dstidx + param->dst_bits)) & 7;
           auto tmp = &d[dstidx >> 3];
           *tmp = (*tmp & ~(param->dst_mask << shift)) | ((param->dst_mask & raw) << shift);
