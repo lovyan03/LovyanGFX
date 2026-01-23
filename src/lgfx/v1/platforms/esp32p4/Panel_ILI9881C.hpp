@@ -20,140 +20,288 @@ Contributors:
 #include "Panel_DSI.hpp"
 #if SOC_MIPI_DSI_SUPPORTED
 
+#include "Bus_DSI.hpp"
+
 namespace lgfx
 {
  inline namespace v1
  {
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-
-  static const lcd_init_cmd_t lcd_ili9881c_init_code[] = {
-    // {cmd, { data }, data_size, delay}
-    /**** CMD_Page 1 ****/
-    {0xFF, (uint8_t[]){0x98, 0x81, 0x01}, 3, 0},
-    {0xB7, (uint8_t[]){0x03}, 1, 0},  // set 2 lane
-    /**** CMD_Page 3 ****/
-    {0xFF, (uint8_t[]){0x98, 0x81, 0x03}, 3, 0},
-    {0x01, (uint8_t[]){0x00}, 1, 0}, {0x02, (uint8_t[]){0x00}, 1, 0}, {0x03, (uint8_t[]){0x73}, 1, 0}, {0x04, (uint8_t[]){0x00}, 1, 0},
-    {0x05, (uint8_t[]){0x00}, 1, 0}, {0x06, (uint8_t[]){0x08}, 1, 0}, {0x07, (uint8_t[]){0x00}, 1, 0}, {0x08, (uint8_t[]){0x00}, 1, 0},
-    {0x09, (uint8_t[]){0x1B}, 1, 0}, {0x0a, (uint8_t[]){0x01}, 1, 0}, {0x0b, (uint8_t[]){0x01}, 1, 0}, {0x0c, (uint8_t[]){0x0D}, 1, 0},
-    {0x0d, (uint8_t[]){0x01}, 1, 0}, {0x0e, (uint8_t[]){0x01}, 1, 0}, {0x0f, (uint8_t[]){0x26}, 1, 0}, {0x10, (uint8_t[]){0x26}, 1, 0},
-    {0x11, (uint8_t[]){0x00}, 1, 0}, {0x12, (uint8_t[]){0x00}, 1, 0}, {0x13, (uint8_t[]){0x02}, 1, 0}, {0x14, (uint8_t[]){0x00}, 1, 0},
-    {0x15, (uint8_t[]){0x00}, 1, 0}, {0x16, (uint8_t[]){0x00}, 1, 0}, {0x17, (uint8_t[]){0x00}, 1, 0}, {0x18, (uint8_t[]){0x00}, 1, 0},
-    {0x19, (uint8_t[]){0x00}, 1, 0}, {0x1a, (uint8_t[]){0x00}, 1, 0}, {0x1b, (uint8_t[]){0x00}, 1, 0}, {0x1c, (uint8_t[]){0x00}, 1, 0},
-    {0x1d, (uint8_t[]){0x00}, 1, 0}, {0x1e, (uint8_t[]){0x40}, 1, 0}, {0x1f, (uint8_t[]){0x00}, 1, 0}, {0x20, (uint8_t[]){0x06}, 1, 0},
-    {0x21, (uint8_t[]){0x01}, 1, 0}, {0x22, (uint8_t[]){0x00}, 1, 0}, {0x23, (uint8_t[]){0x00}, 1, 0}, {0x24, (uint8_t[]){0x00}, 1, 0},
-    {0x25, (uint8_t[]){0x00}, 1, 0}, {0x26, (uint8_t[]){0x00}, 1, 0}, {0x27, (uint8_t[]){0x00}, 1, 0}, {0x28, (uint8_t[]){0x33}, 1, 0},
-    {0x29, (uint8_t[]){0x03}, 1, 0}, {0x2a, (uint8_t[]){0x00}, 1, 0}, {0x2b, (uint8_t[]){0x00}, 1, 0}, {0x2c, (uint8_t[]){0x00}, 1, 0},
-    {0x2d, (uint8_t[]){0x00}, 1, 0}, {0x2e, (uint8_t[]){0x00}, 1, 0}, {0x2f, (uint8_t[]){0x00}, 1, 0}, {0x30, (uint8_t[]){0x00}, 1, 0},
-    {0x31, (uint8_t[]){0x00}, 1, 0}, {0x32, (uint8_t[]){0x00}, 1, 0}, {0x33, (uint8_t[]){0x00}, 1, 0}, {0x34, (uint8_t[]){0x00}, 1, 0},
-    {0x35, (uint8_t[]){0x00}, 1, 0}, {0x36, (uint8_t[]){0x00}, 1, 0}, {0x37, (uint8_t[]){0x00}, 1, 0}, {0x38, (uint8_t[]){0x00}, 1, 0},
-    {0x39, (uint8_t[]){0x00}, 1, 0}, {0x3a, (uint8_t[]){0x00}, 1, 0}, {0x3b, (uint8_t[]){0x00}, 1, 0}, {0x3c, (uint8_t[]){0x00}, 1, 0},
-    {0x3d, (uint8_t[]){0x00}, 1, 0}, {0x3e, (uint8_t[]){0x00}, 1, 0}, {0x3f, (uint8_t[]){0x00}, 1, 0}, {0x40, (uint8_t[]){0x00}, 1, 0},
-    {0x41, (uint8_t[]){0x00}, 1, 0}, {0x42, (uint8_t[]){0x00}, 1, 0}, {0x43, (uint8_t[]){0x00}, 1, 0}, {0x44, (uint8_t[]){0x00}, 1, 0},
-
-    {0x50, (uint8_t[]){0x01}, 1, 0}, {0x51, (uint8_t[]){0x23}, 1, 0}, {0x52, (uint8_t[]){0x45}, 1, 0}, {0x53, (uint8_t[]){0x67}, 1, 0},
-    {0x54, (uint8_t[]){0x89}, 1, 0}, {0x55, (uint8_t[]){0xab}, 1, 0}, {0x56, (uint8_t[]){0x01}, 1, 0}, {0x57, (uint8_t[]){0x23}, 1, 0},
-    {0x58, (uint8_t[]){0x45}, 1, 0}, {0x59, (uint8_t[]){0x67}, 1, 0}, {0x5a, (uint8_t[]){0x89}, 1, 0}, {0x5b, (uint8_t[]){0xab}, 1, 0},
-    {0x5c, (uint8_t[]){0xcd}, 1, 0}, {0x5d, (uint8_t[]){0xef}, 1, 0},
-
-    {0x5e, (uint8_t[]){0x11}, 1, 0}, {0x5f, (uint8_t[]){0x02}, 1, 0}, {0x60, (uint8_t[]){0x00}, 1, 0}, {0x61, (uint8_t[]){0x07}, 1, 0},
-    {0x62, (uint8_t[]){0x06}, 1, 0}, {0x63, (uint8_t[]){0x0E}, 1, 0}, {0x64, (uint8_t[]){0x0F}, 1, 0}, {0x65, (uint8_t[]){0x0C}, 1, 0},
-    {0x66, (uint8_t[]){0x0D}, 1, 0}, {0x67, (uint8_t[]){0x02}, 1, 0}, {0x68, (uint8_t[]){0x02}, 1, 0}, {0x69, (uint8_t[]){0x02}, 1, 0},
-    {0x6a, (uint8_t[]){0x02}, 1, 0}, {0x6b, (uint8_t[]){0x02}, 1, 0}, {0x6c, (uint8_t[]){0x02}, 1, 0}, {0x6d, (uint8_t[]){0x02}, 1, 0},
-    {0x6e, (uint8_t[]){0x02}, 1, 0}, {0x6f, (uint8_t[]){0x02}, 1, 0}, {0x70, (uint8_t[]){0x02}, 1, 0}, {0x71, (uint8_t[]){0x02}, 1, 0},
-    {0x72, (uint8_t[]){0x02}, 1, 0}, {0x73, (uint8_t[]){0x05}, 1, 0}, {0x74, (uint8_t[]){0x01}, 1, 0}, {0x75, (uint8_t[]){0x02}, 1, 0},
-    {0x76, (uint8_t[]){0x00}, 1, 0}, {0x77, (uint8_t[]){0x07}, 1, 0}, {0x78, (uint8_t[]){0x06}, 1, 0}, {0x79, (uint8_t[]){0x0E}, 1, 0},
-    {0x7a, (uint8_t[]){0x0F}, 1, 0}, {0x7b, (uint8_t[]){0x0C}, 1, 0}, {0x7c, (uint8_t[]){0x0D}, 1, 0}, {0x7d, (uint8_t[]){0x02}, 1, 0},
-    {0x7e, (uint8_t[]){0x02}, 1, 0}, {0x7f, (uint8_t[]){0x02}, 1, 0}, {0x80, (uint8_t[]){0x02}, 1, 0}, {0x81, (uint8_t[]){0x02}, 1, 0},
-    {0x82, (uint8_t[]){0x02}, 1, 0}, {0x83, (uint8_t[]){0x02}, 1, 0}, {0x84, (uint8_t[]){0x02}, 1, 0}, {0x85, (uint8_t[]){0x02}, 1, 0},
-    {0x86, (uint8_t[]){0x02}, 1, 0}, {0x87, (uint8_t[]){0x02}, 1, 0}, {0x88, (uint8_t[]){0x02}, 1, 0}, {0x89, (uint8_t[]){0x05}, 1, 0},
-    {0x8A, (uint8_t[]){0x01}, 1, 0},
-
-    /**** CMD_Page 4 ****/
-    {0xFF, (uint8_t[]){0x98, 0x81, 0x04}, 3, 0},
-    {0x38, (uint8_t[]){0x01}, 1, 0}, {0x39, (uint8_t[]){0x00}, 1, 0}, {0x6C, (uint8_t[]){0x15}, 1, 0}, {0x6E, (uint8_t[]){0x1A}, 1, 0},
-    {0x6F, (uint8_t[]){0x25}, 1, 0}, {0x3A, (uint8_t[]){0xA4}, 1, 0}, {0x8D, (uint8_t[]){0x20}, 1, 0}, {0x87, (uint8_t[]){0xBA}, 1, 0},
-    {0x3B, (uint8_t[]){0x98}, 1, 0},
-
-    /**** CMD_Page 1 ****/
-    {0xFF, (uint8_t[]){0x98, 0x81, 0x01}, 3, 0},
-    {0x22, (uint8_t[]){0x0A}, 1, 0}, {0x31, (uint8_t[]){0x00}, 1, 0}, {0x50, (uint8_t[]){0x6B}, 1, 0}, {0x51, (uint8_t[]){0x66}, 1, 0},
-    {0x53, (uint8_t[]){0x73}, 1, 0}, {0x55, (uint8_t[]){0x8B}, 1, 0}, {0x60, (uint8_t[]){0x1B}, 1, 0}, {0x61, (uint8_t[]){0x01}, 1, 0},
-    {0x62, (uint8_t[]){0x0C}, 1, 0}, {0x63, (uint8_t[]){0x00}, 1, 0},
-
-    // Gamma P
-    {0xA0, (uint8_t[]){0x00}, 1, 0}, {0xA1, (uint8_t[]){0x15}, 1, 0}, {0xA2, (uint8_t[]){0x1F}, 1, 0}, {0xA3, (uint8_t[]){0x13}, 1, 0},
-    {0xA4, (uint8_t[]){0x11}, 1, 0}, {0xA5, (uint8_t[]){0x21}, 1, 0}, {0xA6, (uint8_t[]){0x17}, 1, 0}, {0xA7, (uint8_t[]){0x1B}, 1, 0},
-    {0xA8, (uint8_t[]){0x6B}, 1, 0}, {0xA9, (uint8_t[]){0x1E}, 1, 0}, {0xAA, (uint8_t[]){0x2B}, 1, 0}, {0xAB, (uint8_t[]){0x5D}, 1, 0},
-    {0xAC, (uint8_t[]){0x19}, 1, 0}, {0xAD, (uint8_t[]){0x14}, 1, 0}, {0xAE, (uint8_t[]){0x4B}, 1, 0}, {0xAF, (uint8_t[]){0x1D}, 1, 0},
-    {0xB0, (uint8_t[]){0x27}, 1, 0}, {0xB1, (uint8_t[]){0x49}, 1, 0}, {0xB2, (uint8_t[]){0x5D}, 1, 0}, {0xB3, (uint8_t[]){0x39}, 1, 0},
-
-    // Gamma N
-    {0xC0, (uint8_t[]){0x00}, 1, 0}, {0xC1, (uint8_t[]){0x01}, 1, 0}, {0xC2, (uint8_t[]){0x0C}, 1, 0}, {0xC3, (uint8_t[]){0x11}, 1, 0},
-    {0xC4, (uint8_t[]){0x15}, 1, 0}, {0xC5, (uint8_t[]){0x28}, 1, 0}, {0xC6, (uint8_t[]){0x1B}, 1, 0}, {0xC7, (uint8_t[]){0x1C}, 1, 0},
-    {0xC8, (uint8_t[]){0x62}, 1, 0}, {0xC9, (uint8_t[]){0x1C}, 1, 0}, {0xCA, (uint8_t[]){0x29}, 1, 0}, {0xCB, (uint8_t[]){0x60}, 1, 0},
-    {0xCC, (uint8_t[]){0x16}, 1, 0}, {0xCD, (uint8_t[]){0x17}, 1, 0}, {0xCE, (uint8_t[]){0x4A}, 1, 0}, {0xCF, (uint8_t[]){0x23}, 1, 0},
-    {0xD0, (uint8_t[]){0x24}, 1, 0}, {0xD1, (uint8_t[]){0x4F}, 1, 0}, {0xD2, (uint8_t[]){0x5F}, 1, 0}, {0xD3, (uint8_t[]){0x39}, 1, 0},
-
-    /**** CMD_Page 0 ****/
-    {0xFF, (uint8_t[]){0x98, 0x81, 0x00}, 3, 0},
-    {0x35, (uint8_t[]){0x00}, 0, 0},
-    // {0x11, (uint8_t []){0x00}, 0},
-    {0xFE, (uint8_t[]){0x00}, 0, 0},
-    {0x29, (uint8_t[]){0x00}, 0, 0},
-    //============ Gamma END===========
-  };
-
-
-#ifdef __cplusplus
-}
-#endif
+//----------------------------------------------------------------------------
 
   struct Panel_ILI9881C : public Panel_DSI
   {
   public:
+  protected:
+    static constexpr uint8_t CMD_PAD_CONTROL  = 0xB7;
+    static constexpr uint8_t DSI_2_LANE   = 0x03;
+    static constexpr uint8_t DSI_3_4_LANE = 0x02;
 
-    static constexpr uint8_t CMD_CNDBKxSEL               = (0xFF);
-    static constexpr uint8_t CMD_BKxSEL_BYTE0            = (0x98);
-    static constexpr uint8_t CMD_BKxSEL_BYTE1            = (0x81);
-    static constexpr uint8_t CMD_BKxSEL_BYTE2_PAGE0      = (0x00);
-    static constexpr uint8_t CMD_BKxSEL_BYTE2_PAGE1      = (0x01);
-    static constexpr uint8_t CMD_BKxSEL_BYTE2_PAGE2      = (0x02);
-    static constexpr uint8_t CMD_BKxSEL_BYTE2_PAGE3      = (0x03);
-    static constexpr uint8_t CMD_BKxSEL_BYTE2_PAGE4      = (0x04);
 
-    static constexpr uint8_t PAD_CONTROL                 = (0xB7);
-    static constexpr uint8_t DSI_2_LANE                  = (0x03);
-    static constexpr uint8_t DSI_3_4_LANE                = (0x02);
+    static constexpr uint8_t CMD_CNDBKxSEL = 0xFF;
+    static constexpr uint8_t BKxSEL0       = 0x98;
+    static constexpr uint8_t BKxSEL1       = 0x81;
+    static constexpr uint8_t BKxSEL2_PAGE0 = 0x00;
+    static constexpr uint8_t BKxSEL2_PAGE1 = 0x01;
+    static constexpr uint8_t BKxSEL2_PAGE2 = 0x02;
+    static constexpr uint8_t BKxSEL2_PAGE3 = 0x03;
+    static constexpr uint8_t BKxSEL2_PAGE4 = 0x04;
 
-    static constexpr uint8_t CMD_GS_BIT                  = (1 << 0);
-    static constexpr uint8_t CMD_SS_BIT                  = (1 << 1);
-
-    panel_callbacks_t getCallbacks();
-
-    const lcd_init_cmd_t* getLcdInitCommands(uint8_t listno=0) const
+    const uint8_t* getInitParams(size_t listno) const override
     {
-      (void)listno;
-      return lcd_ili9881c_init_code;
+      static constexpr uint8_t list0[] =
+      {//len(cmd+params), cmd, params
+        4,  CMD_CNDBKxSEL, BKxSEL0, BKxSEL1, BKxSEL2_PAGE1, // select page 1
+        2,  CMD_PAD_CONTROL, DSI_2_LANE, // set 2 lane
+        0, // end
+      };
+
+      static constexpr uint8_t list0_lane3or4[] =
+      {//len(cmd+params), cmd, params
+        4,  CMD_CNDBKxSEL, BKxSEL0, BKxSEL1, BKxSEL2_PAGE1, // select page 1
+        2,  CMD_PAD_CONTROL, DSI_3_4_LANE, // set 3,4 lane
+        0, // end
+      };
+
+      static constexpr uint8_t list1[] =
+      {//len(cmd+params), cmd, params
+        4,  CMD_CNDBKxSEL, BKxSEL0, BKxSEL1, BKxSEL2_PAGE0, // select page 0
+        1,  CMD_SLPOUT, // SLPOUT
+        0, // end
+      };
+
+      static constexpr uint8_t list2[] =
+      {//len, cmd, params...
+        4,  CMD_CNDBKxSEL, BKxSEL0, BKxSEL1, BKxSEL2_PAGE3, // select page 3
+        2, 0x01, 0x00,
+        2, 0x02, 0x00,
+        2, 0x03, 0x73,
+        2, 0x04, 0x00,
+        2, 0x05, 0x00,
+        2, 0x06, 0x08,
+        2, 0x07, 0x00,
+        2, 0x08, 0x00,
+        2, 0x09, 0x1B,
+        2, 0x0a, 0x01,
+        2, 0x0b, 0x01,
+        2, 0x0c, 0x0D,
+        2, 0x0d, 0x01,
+        2, 0x0e, 0x01,
+        2, 0x0f, 0x26,
+        2, 0x10, 0x26,
+        2, 0x11, 0x00,
+        2, 0x12, 0x00,
+        2, 0x13, 0x02,
+        2, 0x14, 0x00,
+        2, 0x15, 0x00,
+        2, 0x16, 0x00,
+        2, 0x17, 0x00,
+        2, 0x18, 0x00,
+        2, 0x19, 0x00,
+        2, 0x1a, 0x00,
+        2, 0x1b, 0x00,
+        2, 0x1c, 0x00,
+        2, 0x1d, 0x00,
+        2, 0x1e, 0x40,
+        2, 0x1f, 0x00,
+        2, 0x20, 0x06,
+        2, 0x21, 0x01,
+        2, 0x22, 0x00,
+        2, 0x23, 0x00,
+        2, 0x24, 0x00,
+        2, 0x25, 0x00,
+        2, 0x26, 0x00,
+        2, 0x27, 0x00,
+        2, 0x28, 0x33,
+        2, 0x29, 0x03,
+        2, 0x2a, 0x00,
+        2, 0x2b, 0x00,
+        2, 0x2c, 0x00,
+        2, 0x2d, 0x00,
+        2, 0x2e, 0x00,
+        2, 0x2f, 0x00,
+        2, 0x30, 0x00,
+        2, 0x31, 0x00,
+        2, 0x32, 0x00,
+        2, 0x33, 0x00,
+        2, 0x34, 0x00,
+        2, 0x35, 0x00,
+        2, 0x36, 0x00,
+        2, 0x37, 0x00,
+        2, 0x38, 0x00,
+        2, 0x39, 0x00,
+        2, 0x3a, 0x00,
+        2, 0x3b, 0x00,
+        2, 0x3c, 0x00,
+        2, 0x3d, 0x00,
+        2, 0x3e, 0x00,
+        2, 0x3f, 0x00,
+        2, 0x40, 0x00,
+        2, 0x41, 0x00,
+        2, 0x42, 0x00,
+        2, 0x43, 0x00,
+        2, 0x44, 0x00,
+        2, 0x50, 0x01,
+        2, 0x51, 0x23,
+        2, 0x52, 0x45,
+        2, 0x53, 0x67,
+        2, 0x54, 0x89,
+        2, 0x55, 0xab,
+        2, 0x56, 0x01,
+        2, 0x57, 0x23,
+        2, 0x58, 0x45,
+        2, 0x59, 0x67,
+        2, 0x5a, 0x89,
+        2, 0x5b, 0xab,
+        2, 0x5c, 0xcd,
+        2, 0x5d, 0xef,
+        2, 0x5e, 0x11,
+        2, 0x5f, 0x02,
+        2, 0x60, 0x00,
+        2, 0x61, 0x07,
+        2, 0x62, 0x06,
+        2, 0x63, 0x0E,
+        2, 0x64, 0x0F,
+        2, 0x65, 0x0C,
+        2, 0x66, 0x0D,
+        2, 0x67, 0x02,
+        2, 0x68, 0x02,
+        2, 0x69, 0x02,
+        2, 0x6a, 0x02,
+        2, 0x6b, 0x02,
+        2, 0x6c, 0x02,
+        2, 0x6d, 0x02,
+        2, 0x6e, 0x02,
+        2, 0x6f, 0x02,
+        2, 0x70, 0x02,
+        2, 0x71, 0x02,
+        2, 0x72, 0x02,
+        2, 0x73, 0x05,
+        2, 0x74, 0x01,
+        2, 0x75, 0x02,
+        2, 0x76, 0x00,
+        2, 0x77, 0x07,
+        2, 0x78, 0x06,
+        2, 0x79, 0x0E,
+        2, 0x7a, 0x0F,
+        2, 0x7b, 0x0C,
+        2, 0x7c, 0x0D,
+        2, 0x7d, 0x02,
+        2, 0x7e, 0x02,
+        2, 0x7f, 0x02,
+        2, 0x80, 0x02,
+        2, 0x81, 0x02,
+        2, 0x82, 0x02,
+        2, 0x83, 0x02,
+        2, 0x84, 0x02,
+        2, 0x85, 0x02,
+        2, 0x86, 0x02,
+        2, 0x87, 0x02,
+        2, 0x88, 0x02,
+        2, 0x89, 0x05,
+        2, 0x8A, 0x01,
+        0, // end
+      };
+
+      static constexpr uint8_t list3[] =
+      {//len(cmd+params), cmd, params
+        4,  CMD_CNDBKxSEL, BKxSEL0, BKxSEL1, BKxSEL2_PAGE4, // select page 4
+        2, 0x38, 0x01,
+        2, 0x39, 0x00,
+        2, 0x6C, 0x15,
+        2, 0x6E, 0x1A,
+        2, 0x6F, 0x25,
+        2, 0x3A, 0xA4,
+        2, 0x8D, 0x20,
+        2, 0x87, 0xBA,
+        2, 0x3B, 0x98,
+
+        4,  CMD_CNDBKxSEL, BKxSEL0, BKxSEL1, BKxSEL2_PAGE1, // select page 1
+        2, 0x22, 0x0A,
+        2, 0x31, 0x00,
+        2, 0x50, 0x6B,
+        2, 0x51, 0x66,
+        2, 0x53, 0x73,
+        2, 0x55, 0x8B,
+        2, 0x60, 0x1B,
+        2, 0x61, 0x01,
+        2, 0x62, 0x0C,
+        2, 0x63, 0x00,
+
+  // Gamma P
+        2, 0xA0, 0x00,
+        2, 0xA1, 0x15,
+        2, 0xA2, 0x1F,
+        2, 0xA3, 0x13,
+        2, 0xA4, 0x11,
+        2, 0xA5, 0x21,
+        2, 0xA6, 0x17,
+        2, 0xA7, 0x1B,
+        2, 0xA8, 0x6B,
+        2, 0xA9, 0x1E,
+        2, 0xAA, 0x2B,
+        2, 0xAB, 0x5D,
+        2, 0xAC, 0x19,
+        2, 0xAD, 0x14,
+        2, 0xAE, 0x4B,
+        2, 0xAF, 0x1D,
+        2, 0xB0, 0x27,
+        2, 0xB1, 0x49,
+        2, 0xB2, 0x5D,
+        2, 0xB3, 0x39,
+
+  // Gamma N
+        2, 0xC0, 0x00,
+        2, 0xC1, 0x01,
+        2, 0xC2, 0x0C,
+        2, 0xC3, 0x11,
+        2, 0xC4, 0x15,
+        2, 0xC5, 0x28,
+        2, 0xC6, 0x1B,
+        2, 0xC7, 0x1C,
+        2, 0xC8, 0x62,
+        2, 0xC9, 0x1C,
+        2, 0xCA, 0x29,
+        2, 0xCB, 0x60,
+        2, 0xCC, 0x16,
+        2, 0xCD, 0x17,
+        2, 0xCE, 0x4A,
+        2, 0xCF, 0x23,
+        2, 0xD0, 0x24,
+        2, 0xD1, 0x4F,
+        2, 0xD2, 0x5F,
+        2, 0xD3, 0x39,
+
+        4,  CMD_CNDBKxSEL, BKxSEL0, BKxSEL1, BKxSEL2_PAGE0, // select page 0
+        1, 0x35,
+        1, 0xFE,
+        1, CMD_DISPON,
+        0, // end
+      };
+      switch (listno)
+      {
+      case 0:
+      {
+        auto bus = getBusDSI();
+        return (bus && (bus->config().lane_num >= 3))
+             ? list0_lane3or4
+             : list0;
+        }
+      case 1: return list1;
+      case 2: return list2;
+      case 3: return list3;
+      default: return nullptr;
+      }
     }
 
-
-    size_t getLcdInitCommandsize(uint8_t listno=0)
+    size_t getInitDelay(size_t listno) const override
     {
-      (void)listno;
-      return sizeof(lcd_ili9881c_init_code) / sizeof(lcd_ili9881c_init_code[0]);
+      switch (listno)
+      {
+      case 1: return 120; // after SLPOUT
+      default: return 0;
+      }
     }
-
   };
-
-
-
-
-
-//----------------------------------------------------------------------------
 
 //----------------------------------------------------------------------------
  }
