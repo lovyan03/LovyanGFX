@@ -62,6 +62,7 @@ Contributors:
 #include "v1/panel/Panel_CO5300.hpp"
 
 // EPD
+#include "v1/panel/Panel_GDEW0154D67.hpp"
 #include "v1/panel/Panel_GDEW0154M09.hpp"
 #include "v1/panel/Panel_IT8951.hpp"
 

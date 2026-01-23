@@ -16,254 +16,77 @@ Contributors:
  [tobozo](https://github.com/tobozo)
 /----------------------------------------------------------------------------*/
 
-#include "Bus_MIPI.hpp"
 #include "Panel_DSI.hpp"
-
 
 #if SOC_MIPI_DSI_SUPPORTED
 
 #include "../common.hpp"
 
-#include <esp_check.h>
-#include <esp_log.h>
-#include <esp_ldo_regulator.h>
 #include <esp_lcd_panel_ops.h>
 #include <esp_lcd_panel_io.h>
-#include <esp_lcd_panel_vendor.h>
-#include <esp_lcd_mipi_dsi.h>
-#include <esp_lcd_panel_commands.h>
-#include <esp_lcd_panel_interface.h>
-#include <freertos/FreeRTOS.h>
-#include <freertos/task.h>
-#include <driver/gpio.h>
-#include <stdint.h>
-
-static const char *TAG = "Panel_DSI";
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-
-  static esp_err_t default_panel_del(esp_lcd_panel_t *panel);
-  static esp_err_t default_panel_init(esp_lcd_panel_t *panel);
-  static esp_err_t default_panel_reset(esp_lcd_panel_t *panel);
-  static esp_err_t default_panel_invert_color(esp_lcd_panel_t *panel, bool invert_color_data);
-  static esp_err_t default_panel_mirror(esp_lcd_panel_t *panel, bool mirror_x, bool mirror_y);
-  static esp_err_t default_panel_disp_on_off(esp_lcd_panel_t *panel, bool on_off);
-  static esp_err_t default_panel_sleep(esp_lcd_panel_t *panel, bool sleep);
-
-
-
-  esp_err_t esp_lcd_new_panel(const esp_lcd_panel_io_handle_t io, const esp_lcd_panel_dev_config_t *panel_dev_config,
-                                       panel_callbacks_t *callbacks, esp_lcd_panel_handle_t *ret_panel)
-  {
-      ESP_RETURN_ON_FALSE(io && panel_dev_config && ret_panel, ESP_ERR_INVALID_ARG, TAG, "invalid arguments");
-      vendor_config_t *vendor_config = (vendor_config_t *)panel_dev_config->vendor_config;
-      ESP_RETURN_ON_FALSE(vendor_config && vendor_config->mipi_config.dpi_config && vendor_config->mipi_config.dsi_bus, ESP_ERR_INVALID_ARG, TAG,
-                          "invalid vendor config");
-
-      esp_err_t ret = ESP_OK;
-      panel_t *panel = (panel_t *)calloc(1, sizeof(panel_t));
-      ESP_RETURN_ON_FALSE(panel, ESP_ERR_NO_MEM, TAG, "no mem for Panel_DSI");
-
-      if (panel_dev_config->reset_gpio_num >= 0) {
-          gpio_config_t io_conf;
-          memset(&io_conf, 0, sizeof(io_conf));
-          io_conf.mode = GPIO_MODE_OUTPUT;
-          io_conf.pin_bit_mask = 1ULL << panel_dev_config->reset_gpio_num;
-          ESP_GOTO_ON_ERROR(gpio_config(&io_conf), err, TAG, "configure GPIO for RST line failed");
-      }
-
-      switch (panel_dev_config->rgb_ele_order) {
-      case LCD_RGB_ELEMENT_ORDER_RGB:
-          panel->madctl_val = 0;
-          break;
-      case LCD_RGB_ELEMENT_ORDER_BGR:
-          panel->madctl_val |= LCD_CMD_BGR_BIT;
-          break;
-      default:
-          ESP_GOTO_ON_FALSE(false, ESP_ERR_NOT_SUPPORTED, err, TAG, "unsupported color space");
-          break;
-      }
-
-      switch (panel_dev_config->bits_per_pixel) {
-      case 16: // RGB565
-          panel->colmod_val = 0x55;
-          break;
-      case 18: // RGB666
-          panel->colmod_val = 0x66;
-          break;
-      case 24: // RGB888
-          panel->colmod_val = 0x77;
-          break;
-      default:
-          ESP_GOTO_ON_FALSE(false, ESP_ERR_NOT_SUPPORTED, err, TAG, "unsupported pixel width");
-          break;
-      }
-
-      panel->io = io;
-      panel->init_cmds = vendor_config->init_cmds;
-      panel->init_cmds_size = vendor_config->init_cmds_size;
-      panel->lane_num = vendor_config->mipi_config.lane_num;
-      panel->reset_gpio_num = panel_dev_config->reset_gpio_num;
-      panel->flags.reset_level = panel_dev_config->flags.reset_active_high;
-
-      // Create MIPI DPI panel
-      ESP_GOTO_ON_ERROR(esp_lcd_new_panel_dpi(vendor_config->mipi_config.dsi_bus, vendor_config->mipi_config.dpi_config, ret_panel), err, TAG,
-                        "create MIPI DPI panel failed");
-      ESP_LOGD(TAG, "new MIPI DPI panel @%p", *ret_panel);
-
-      // Save the original functions of MIPI DPI panel
-      panel->del = (*ret_panel)->del;
-      panel->init = (*ret_panel)->init;
-      // Overwrite the functions of MIPI DPI panel
-      (*ret_panel)->del = callbacks->panel_del;
-      (*ret_panel)->init = callbacks->panel_init;
-      (*ret_panel)->reset = callbacks->panel_reset;
-      (*ret_panel)->mirror = callbacks->panel_mirror;
-      (*ret_panel)->invert_color = callbacks->panel_invert_color;
-      (*ret_panel)->disp_on_off = callbacks->panel_disp_on_off;
-      (*ret_panel)->disp_sleep = callbacks->panel_sleep;
-      (*ret_panel)->user_data = panel;
-      ESP_LOGD(TAG, "new Panel_DSI @%p", panel);
-
-      return ESP_OK;
-
-  err:
-      if (panel) {
-          if (panel_dev_config->reset_gpio_num >= 0) {
-              gpio_reset_pin((gpio_num_t)panel_dev_config->reset_gpio_num);
-          }
-          free(panel);
-      }
-      return ret;
-  }
-
-
-  static esp_err_t default_panel_del(esp_lcd_panel_t *panel)
-  {
-      panel_t *paneldata = (panel_t *)panel->user_data;
-
-      if (paneldata->reset_gpio_num >= 0) {
-          gpio_reset_pin((gpio_num_t)paneldata->reset_gpio_num);
-      }
-      // Delete MIPI DPI panel
-      paneldata->del(panel);
-      ESP_LOGD(TAG, "del Panel_DSI @%p", paneldata);
-      free(paneldata);
-
-      return ESP_OK;
-  }
-
-  static esp_err_t default_panel_init(esp_lcd_panel_t *panel)
-  {
-      return ESP_FAIL;
-  }
-
-  static esp_err_t default_panel_reset(esp_lcd_panel_t *panel)
-  {
-      panel_t *paneldata = (panel_t *)panel->user_data;
-      esp_lcd_panel_io_handle_t io = paneldata->io;
-
-      // Perform hardware reset
-      if (paneldata->reset_gpio_num >= 0) {
-          gpio_set_level((gpio_num_t)paneldata->reset_gpio_num, paneldata->flags.reset_level);
-          vTaskDelay(pdMS_TO_TICKS(10));
-          gpio_set_level((gpio_num_t)paneldata->reset_gpio_num, !paneldata->flags.reset_level);
-          vTaskDelay(pdMS_TO_TICKS(10));
-      } else if (io) { // Perform software reset
-          ESP_RETURN_ON_ERROR(esp_lcd_panel_io_tx_param(io, LCD_CMD_SWRESET, NULL, 0), TAG, "send command failed");
-          vTaskDelay(pdMS_TO_TICKS(20));
-      }
-
-      return ESP_OK;
-  }
-
-  static esp_err_t default_panel_invert_color(esp_lcd_panel_t *panel, bool invert_color_data)
-  {
-      panel_t *paneldata = (panel_t *)panel->user_data;
-      esp_lcd_panel_io_handle_t io = paneldata->io;
-      uint8_t command = 0;
-
-      ESP_RETURN_ON_FALSE(io, ESP_ERR_INVALID_STATE, TAG, "invalid panel IO");
-
-      if (invert_color_data) {
-          command = LCD_CMD_INVON;
-      } else {
-          command = LCD_CMD_INVOFF;
-      }
-      ESP_RETURN_ON_ERROR(esp_lcd_panel_io_tx_param(io, command, NULL, 0), TAG, "send command failed");
-
-      return ESP_OK;
-  }
-
-  static esp_err_t default_panel_mirror(esp_lcd_panel_t *panel, bool mirror_x, bool mirror_y)
-  {
-      return ESP_FAIL;
-  }
-
-  static esp_err_t default_panel_disp_on_off(esp_lcd_panel_t *panel, bool on_off)
-  {
-      panel_t *paneldata = (panel_t *)panel->user_data;
-      esp_lcd_panel_io_handle_t io = paneldata->io;
-      int command = 0;
-
-      if (on_off) {
-          command = LCD_CMD_DISPON;
-      } else {
-          command = LCD_CMD_DISPOFF;
-      }
-      ESP_RETURN_ON_ERROR(esp_lcd_panel_io_tx_param(io, command, NULL, 0), TAG, "send command failed");
-      return ESP_OK;
-  }
-
-  static esp_err_t default_panel_sleep(esp_lcd_panel_t *panel, bool sleep)
-  {
-      panel_t *paneldata = (panel_t *)panel->user_data;
-      esp_lcd_panel_io_handle_t io = paneldata->io;
-      int command = 0;
-
-      if (sleep) {
-          command = LCD_CMD_SLPIN;
-      } else {
-          command = LCD_CMD_SLPOUT;
-      }
-      ESP_RETURN_ON_ERROR(esp_lcd_panel_io_tx_param(io, command, NULL, 0), TAG, "send command failed");
-      vTaskDelay(pdMS_TO_TICKS(100));
-
-      return ESP_OK;
-  }
-
-#ifdef __cplusplus
-}
-#endif
-
-
-
 
 namespace lgfx
 {
  inline namespace v1
  {
 //----------------------------------------------------------------------------
-
-
-  panel_callbacks_t Panel_DSI::getCallbacks()
+  bool Panel_DSI::init_panel(void)
   {
-    panel_callbacks_t cb =
+    auto bus = getBusDSI();
+    if (bus == nullptr) { return false; }
+
+    const uint8_t* params;
+    for (size_t i = 0; nullptr != (params = getInitParams(i)); ++i)
     {
-      default_panel_del,
-      default_panel_init,
-      default_panel_reset,
-      default_panel_invert_color,
-      default_panel_mirror,
-      default_panel_disp_on_off,
-      default_panel_sleep
-    };
-    return cb;
+      size_t len;
+      while (0 != (len = params[0])) {
+// printf("cmd: %02x, len: %d\n", params[1], len);
+        bus->writeParams(params[1], &params[2], len - 1);
+        params += len + 1;
+      }
+      vTaskDelay(pdMS_TO_TICKS(getInitDelay(i)));
+    }
+
+    uint8_t madctl_val = 0;
+    if (_cfg.rgb_order == false) {
+      madctl_val = 1<<3; //LCD_CMD_BGR_BIT;
+    }
+
+    uint8_t colmod_val = 0x55;
+    if (_write_bits >= 24) {
+      colmod_val = 0x77;
+    }
+
+    bus->writeParams(CMD_MADCTL, &(madctl_val), 1);
+    bus->writeParams(CMD_COLMOD, &(colmod_val), 1);
+
+    return (ESP_OK == esp_lcd_panel_init(_disp_panel_handle));
   }
 
+
+  bool Panel_DSI::init_dpi(Bus_DSI* bus)
+  {
+    esp_lcd_dsi_bus_handle_t mipi_dsi_bus = bus->getMipiDsiBus();
+
+    esp_lcd_dpi_panel_config_t dpi_config;
+    memset(&dpi_config, 0, sizeof(dpi_config));
+    dpi_config.virtual_channel = 0;
+    dpi_config.dpi_clk_src = MIPI_DSI_DPI_CLK_SRC_DEFAULT;
+    dpi_config.dpi_clock_freq_mhz = _config_detail.dpi_freq_mhz;
+    dpi_config.pixel_format = LCD_COLOR_PIXEL_FORMAT_RGB565;
+    dpi_config.num_fbs = 1;
+    dpi_config.video_timing.h_size = _cfg.panel_width;
+    dpi_config.video_timing.v_size = _cfg.panel_height;
+    dpi_config.video_timing.hsync_back_porch  = _config_detail.hsync_back_porch;
+    dpi_config.video_timing.hsync_pulse_width = _config_detail.hsync_pulse_width;
+    dpi_config.video_timing.hsync_front_porch = _config_detail.hsync_front_porch;
+    dpi_config.video_timing.vsync_back_porch  = _config_detail.vsync_back_porch;
+    dpi_config.video_timing.vsync_pulse_width = _config_detail.vsync_pulse_width;
+    dpi_config.video_timing.vsync_front_porch = _config_detail.vsync_front_porch;
+    dpi_config.flags.use_dma2d = true;
+
+    return ESP_OK == esp_lcd_new_panel_dpi(mipi_dsi_bus, &dpi_config, &_disp_panel_handle);
+  }
 
   color_depth_t Panel_DSI::setColorDepth(color_depth_t depth)
   {
@@ -272,17 +95,21 @@ namespace lgfx
     return color_depth_t::rgb565_nonswapped;
   }
 
-
   bool Panel_DSI::init(bool use_reset)
   {
     if (_lines_buffer != nullptr) return false;
 
-    auto mipi_bus = (Bus_MIPI*)_bus;
-    if(mipi_bus->init())
+    if (!Panel_FrameBufferBase::init(use_reset))
     {
-      esp_lcd_dpi_panel_get_frame_buffer(_disp_panel_handle, 1, &(_config_detail.buffer));
+      return false;
     }
 
+    auto bus = getBusDSI();
+    if (bus == nullptr) { return false; }
+    if (init_dpi(bus) && init_panel())
+    {
+        esp_lcd_dpi_panel_get_frame_buffer(_disp_panel_handle, 1, &(_config_detail.buffer));
+    }
 
     auto ptr = (uint8_t*)_config_detail.buffer;
 // printf ("ptr : %08x \n", (uintptr_t)ptr);
@@ -310,39 +137,42 @@ namespace lgfx
       ptr = ptr + line_length;
     }
 
-    if (!Panel_FrameBufferBase::init(use_reset))
-    {
-      return false;
-    }
     return true;
   }
 
 //----------------------------------------------------------------------------
 
+  bool Panel_DSI::write_params(uint32_t cmd, const uint8_t* data, size_t length)
+  {
+    bool res = false;
+    auto b = getBusDSI();
+    if (b) {
+      startWrite();
+      res = b->writeParams(cmd, data, length);
+      b->flush();
+      endWrite();
+    }
+    return res;
+  }
+
   void Panel_DSI::setInvert(bool invert)
   {
     _invert = invert;
-    if (_disp_panel_handle != nullptr) {
-    _disp_panel_handle->invert_color( (esp_lcd_panel_t*)(_disp_panel_handle), invert);
-    }
+    write_params((invert ^ _cfg.invert) ? CMD_INVON : CMD_INVOFF);
   }
 
   void Panel_DSI::setSleep(bool flg_sleep)
   {
-    if (_disp_panel_handle != nullptr) {
-      _disp_panel_handle->disp_sleep( (esp_lcd_panel_t*)(_disp_panel_handle), flg_sleep);
-    }
+    write_params(flg_sleep ? CMD_SLPIN : CMD_SLPOUT);
   }
 
   void Panel_DSI::setPowerSave(bool flg_idle)
   {
-    if (_disp_panel_handle != nullptr) {
-      _disp_panel_handle->disp_on_off((esp_lcd_panel_t*)(_disp_panel_handle), flg_idle);
-    }
+    write_params(flg_idle ? CMD_IDMON : CMD_IDMOFF);
   }
 
 //----------------------------------------------------------------------------
- }
+}
 }
 
 #endif
