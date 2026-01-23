@@ -158,7 +158,7 @@ Contributors:
 
 
 
-#if defined (CONFIG_IDF_TARGET_ESP32C6) || defined (CONFIG_IDF_TARGET_ESP32P4) || ( defined (CONFIG_IDF_TARGET_ESP32C3) && ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 3, 4) )
+#if defined (CONFIG_IDF_TARGET_ESP32C6) || defined (CONFIG_IDF_TARGET_ESP32P4) || ( defined (CONFIG_IDF_TARGET_ESP32C3) && ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 2, 0) )
  #define LGFX_GPIO_IN_SEL_CFG_REG
 #endif
 
@@ -1065,6 +1065,10 @@ namespace lgfx
 #endif
       }
 
+#if defined ( ARDUINO ) && __has_include (<Wire.h>)
+#elif __has_include(<driver/i2c_master.h>)
+      i2c_master_bus_handle_t i2c_bus_handle = nullptr;
+#endif
     private:
       uint32_t _reg_store[22];
     };
@@ -1184,8 +1188,6 @@ namespace lgfx
 
       if (i2c_context[i2c_port].wait_ack_stage)
       {
-        int_raw.val = dev->int_raw.val;
-        if (!(int_raw.val & intmask))
         {
           uint32_t start_us = lgfx::micros();
           uint32_t us;
@@ -1203,13 +1205,13 @@ namespace lgfx
             taskYIELD();
             us = lgfx::micros() - start_us;
             int_raw.val = dev->int_raw.val;
-          } while (!(int_raw.val & intmask) && (us <= us_limit));
+          } while ((!(int_raw.val & intmask)) && (us <= us_limit));
         }
+        int_raw.val = dev->int_raw.val;
+
         dev->int_clr.val = int_raw.val;
 #if !defined (CONFIG_IDF_TARGET) || defined (CONFIG_IDF_TARGET_ESP32)
-        auto pin_sda = i2c_context[i2c_port].pin_sda;
-        bool flg_nack = (gpio_in(pin_sda) == 1);
-        if (!int_raw.end_detect || int_raw.ack_err || flg_nack)
+        if (!int_raw.end_detect || int_raw.ack_err)
 #elif defined ( CONFIG_IDF_TARGET_ESP32S3 ) || defined ( CONFIG_IDF_TARGET_ESP32C6 ) || defined ( CONFIG_IDF_TARGET_ESP32P4 )
         if (!int_raw.end_detect_int_raw || int_raw.nack_int_raw)
 #else
@@ -1284,6 +1286,12 @@ namespace lgfx
     #endif
   #endif
  #endif
+#elif __has_include(<driver/i2c_master.h>)
+        auto bus_handle = i2c_context[i2c_port].i2c_bus_handle;
+        if (bus_handle) {
+          i2c_context[i2c_port].i2c_bus_handle = nullptr;
+          i2c_del_master_bus(bus_handle);
+        }
 #else
         i2c_periph_disable(i2c_port);
 #endif
@@ -1365,6 +1373,8 @@ namespace lgfx
         release(i2c_port);
       }
 
+      i2c_stop(i2c_port);
+
 #if defined ( ARDUINO ) && __has_include (<Wire.h>)
 #if SOC_I2C_NUM == 1 || defined CONFIG_IDF_TARGET_ESP32C6
       auto twowire = &Wire;
@@ -1376,6 +1386,20 @@ namespace lgfx
  #else
       twowire->begin((int)pin_sda, (int)pin_scl);
  #endif
+#elif __has_include(<driver/i2c_master.h>)
+      i2c_master_bus_handle_t bus_handle = nullptr;
+      i2c_master_bus_config_t bus_config;
+      memset(&bus_config, 0, sizeof(i2c_master_bus_config_t));
+      bus_config.i2c_port = i2c_port;
+      bus_config.sda_io_num = pin_sda;
+      bus_config.scl_io_num = pin_scl;
+      bus_config.clk_source = I2C_CLK_SRC_DEFAULT;
+      bus_config.glitch_ignore_cnt = 7;
+      bus_config.flags.enable_internal_pullup = true;
+      bus_config.intr_priority = 1;
+
+      i2c_new_master_bus(&bus_config, &bus_handle);
+      i2c_context[i2c_port].i2c_bus_handle = bus_handle;
 #else
       i2c_periph_enable(i2c_port);
 #endif
@@ -1384,7 +1408,6 @@ namespace lgfx
       auto dev = getDev(i2c_port);
       set_pin((i2c_port_t)i2c_port, pin_sda, pin_scl);
       i2c_context[i2c_port].save_reg(dev);
-      i2c_stop(i2c_port);
 
       return {};
     }
@@ -1609,6 +1632,7 @@ namespace lgfx
       dev->fifo_conf.val = fifo_conf_reg.val;
 
       i2c_context[i2c_port].state = i2c_context_t::state_t::state_disconnect;
+      i2c_context[i2c_port].wait_ack_stage = 0;
 
       return restart(i2c_port, i2c_addr, freq, read);
     }
@@ -1687,14 +1711,17 @@ namespace lgfx
         }
 
         len = length < 32 ? length : 32;
+#if defined ( CONFIG_IDF_TARGET_ESP32 ) || !defined ( CONFIG_IDF_TARGET )
+        // workaround for ESP32 i2c bug.
+        if (last_nack && len == length && len > 1) { len -= 1; }
+#endif
         length -= len;
-
-        i2c_set_cmd(dev, 2, i2c_cmd_end, 0, false);
         i2c_set_cmd(dev, 1, i2c_cmd_end, 0, false);
         bool flg_nack = (last_nack && length == 0);
         i2c_set_cmd(dev, 0, i2c_cmd_read, len - (flg_nack ? 1 : 0), false);
         if (flg_nack) {
           i2c_set_cmd(dev, (len == 1) ? 0 : 1, i2c_cmd_read, 1, true);
+          i2c_set_cmd(dev, 2, i2c_cmd_end, 0, false);
         }
         updateDev(dev);
         dev->int_clr.val = intmask;

@@ -405,7 +405,7 @@ namespace lgfx
 #if defined LGFX_USE_QSPI
     // reg for sending data in 4-bit mode
     auto qspi_user_reg = _spi_user_reg;
-    uint32_t qspi_user = (*qspi_user_reg | SPI_FWRITE_QUAD);
+    uint32_t qspi_user = (_user_reg & ~(SPI_USR_MISO | SPI_DOUTDIN | SPI_SIO)) | SPI_USR_MOSI | SPI_FWRITE_QUAD;
 #endif
 
 #if defined ( CONFIG_IDF_TARGET ) && !defined ( CONFIG_IDF_TARGET_ESP32 )
@@ -520,7 +520,7 @@ namespace lgfx
     {
       // reg for sending data in 4-bit mode
       auto qspi_user_reg = _spi_user_reg;
-      uint32_t qspi_user = (*qspi_user_reg | SPI_FWRITE_QUAD);
+      uint32_t qspi_user = (_user_reg & ~(SPI_USR_MISO | SPI_DOUTDIN | SPI_SIO)) | SPI_USR_MOSI | SPI_FWRITE_QUAD;
       *qspi_user_reg = qspi_user;
     }
 #endif
@@ -634,7 +634,7 @@ namespace lgfx
     {
       // reg for sending data in 4-bit mode
       auto qspi_user_reg = _spi_user_reg;
-      uint32_t qspi_user = (*qspi_user_reg | SPI_FWRITE_QUAD);
+      uint32_t qspi_user = (_user_reg & ~(SPI_USR_MISO | SPI_DOUTDIN | SPI_SIO)) | SPI_USR_MOSI | SPI_FWRITE_QUAD;
       *qspi_user_reg = qspi_user;
     }
 #endif
@@ -868,7 +868,7 @@ label_start:
     {
       // reg for sending data in 4-bit mode
       auto qspi_user_reg = _spi_user_reg;
-      uint32_t qspi_user = (*qspi_user_reg | SPI_FWRITE_QUAD);
+      uint32_t qspi_user = (_user_reg & ~(SPI_USR_MISO | SPI_DOUTDIN | SPI_SIO)) | SPI_USR_MOSI | SPI_FWRITE_QUAD;
       *qspi_user_reg = qspi_user;
     }
 #endif
