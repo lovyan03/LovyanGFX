@@ -1184,8 +1184,6 @@ namespace lgfx
 
       if (i2c_context[i2c_port].wait_ack_stage)
       {
-        int_raw.val = dev->int_raw.val;
-        if (!(int_raw.val & intmask))
         {
           uint32_t start_us = lgfx::micros();
           uint32_t us;
@@ -1203,13 +1201,13 @@ namespace lgfx
             taskYIELD();
             us = lgfx::micros() - start_us;
             int_raw.val = dev->int_raw.val;
-          } while (!(int_raw.val & intmask) && (us <= us_limit));
+          } while ((!(int_raw.val & intmask)) && (us <= us_limit));
         }
+        int_raw.val = dev->int_raw.val;
+
         dev->int_clr.val = int_raw.val;
 #if !defined (CONFIG_IDF_TARGET) || defined (CONFIG_IDF_TARGET_ESP32)
-        auto pin_sda = i2c_context[i2c_port].pin_sda;
-        bool flg_nack = (gpio_in(pin_sda) == 1);
-        if (!int_raw.end_detect || int_raw.ack_err || flg_nack)
+        if (!int_raw.end_detect || int_raw.ack_err)
 #elif defined ( CONFIG_IDF_TARGET_ESP32S3 ) || defined ( CONFIG_IDF_TARGET_ESP32C6 ) || defined ( CONFIG_IDF_TARGET_ESP32P4 )
         if (!int_raw.end_detect_int_raw || int_raw.nack_int_raw)
 #else
@@ -1609,6 +1607,7 @@ namespace lgfx
       dev->fifo_conf.val = fifo_conf_reg.val;
 
       i2c_context[i2c_port].state = i2c_context_t::state_t::state_disconnect;
+      i2c_context[i2c_port].wait_ack_stage = 0;
 
       return restart(i2c_port, i2c_addr, freq, read);
     }
