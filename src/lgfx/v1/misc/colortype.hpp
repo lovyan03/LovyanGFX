@@ -777,12 +777,12 @@ namespace lgfx
 
   struct color_conv_t
   {
-    uint32_t (*convert_argb8888)(uint32_t);
-    uint32_t (*convert_bgr888)(uint32_t);
-    uint32_t (*convert_rgb888)(uint32_t);
-    uint32_t (*convert_rgb565)(uint32_t);
-    uint32_t (*convert_rgb332)(uint32_t);
-    uint32_t (*revert_rgb888)(uint32_t);
+    uint32_t (*convert_argb8888)(uint32_t) = nullptr;
+    uint32_t (*convert_bgr888)(uint32_t) = nullptr;
+    uint32_t (*convert_rgb888)(uint32_t) = nullptr;
+    uint32_t (*convert_rgb565)(uint32_t) = nullptr;
+    uint32_t (*convert_rgb332)(uint32_t) = nullptr;
+    uint32_t (*revert_rgb888)(uint32_t) = nullptr;
     uint32_t colormask;
     union
     {

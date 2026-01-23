@@ -798,8 +798,8 @@ label_nextbyte: /// 次のデータを取得する;
                 //getSwap32(buf[1]); // vlw encoder version - discard
       yAdvance = getSwap32(buf[2]); // Font size in points, not pixels
                 //getSwap32(buf[3]); // discard
-      ascent   = getSwap32(buf[4]); // top of "d"
-      descent  = getSwap32(buf[5]); // bottom of "p"
+      ascent   = abs((int32_t)getSwap32(buf[4])); // top of "d"
+      descent  = abs((int32_t)getSwap32(buf[5])); // bottom of "p"
     }
 
     // These next gFont values might be updated when the Metrics are fetched
@@ -808,11 +808,11 @@ label_nextbyte: /// 次のデータを取得する;
     yAdvance   = std::max((int)yAdvance, ascent + descent);
     spaceWidth = yAdvance * 2 / 7;  // Guess at space width
 
-//ESP_LOGI("LGFX", "ascent:%d  descent:%d", gFont.ascent, gFont.descent);
+//printf("LGFX:ascent:%d  descent:%d\r\n", ascent, descent);
 
     if (!gCount) return false;
 
-//ESP_LOGI("LGFX", "font count:%d", gCount);
+//printf("LGFX:font count:%d\r\n", gCount);
 
     uint32_t bitmapPtr = 24 + (uint32_t)gCount * 28;
 
@@ -833,7 +833,7 @@ label_nextbyte: /// 次のデータを取得する;
       || !gWidth
       || !gxAdvance
       || !gdX) {
-//ESP_LOGE("LGFX", "can not alloc font table");
+//printf("LGFX:can not alloc font table\r\n");
       return false;
     }
 
@@ -854,12 +854,12 @@ label_nextbyte: /// 次のデータを取得する;
       uint16_t height = getSwap32(buffer[1]); // Height of glyph
       if ((unicode > 0xFF) || ((unicode > 0x20) && (unicode < 0xA0) && (unicode != 0x7F))) {
         int16_t dY =  (int16_t)getSwap32(buffer[4]); // y delta from baseline
-//Serial.printf("LGFX:unicode:%x  dY:%d\r\n", unicode, dY);
+//printf("LGFX:unicode:%x  dY:%d\r\n", unicode, dY);
         if (maxAscent < dY && unicode != 0x3000) {
           maxAscent = dY;
         }
         if (maxDescent < (height - dY) && unicode != 0x3000) {
-//Serial.printf("LGFX:maxDescent:%d\r\n", maxDescent);
+//printf("LGFX:maxDescent:%d\r\n", maxDescent);
           maxDescent = height - dY;
         }
       }
@@ -870,7 +870,7 @@ label_nextbyte: /// 次のデータを取得する;
 
     yAdvance = maxAscent + maxDescent;
 
-//Serial.printf("LGFX:maxDescent:%d\r\n", maxDescent);
+//printf("LGFX:maxDescent:%d\r\n", maxDescent);
     return true;
   }
 

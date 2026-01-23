@@ -1,0 +1,310 @@
+/*----------------------------------------------------------------------------/
+  Lovyan GFX - Graphics library for embedded devices.
+
+Original Source:
+ https://github.com/lovyan03/LovyanGFX/
+
+Licence:
+ [FreeBSD](https://github.com/lovyan03/LovyanGFX/blob/master/license.txt)
+
+Author:
+ [lovyan03](https://twitter.com/lovyan03)
+
+Contributors:
+ [ciniml](https://github.com/ciniml)
+ [mongonta0716](https://github.com/mongonta0716)
+ [tobozo](https://github.com/tobozo)
+/----------------------------------------------------------------------------*/
+#pragma once
+
+#include "Panel_DSI.hpp"
+#if SOC_MIPI_DSI_SUPPORTED
+
+#include "Bus_DSI.hpp"
+
+namespace lgfx
+{
+ inline namespace v1
+ {
+//----------------------------------------------------------------------------
+
+  struct Panel_ILI9881C : public Panel_DSI
+  {
+  public:
+  protected:
+    static constexpr uint8_t CMD_PAD_CONTROL  = 0xB7;
+    static constexpr uint8_t DSI_2_LANE   = 0x03;
+    static constexpr uint8_t DSI_3_4_LANE = 0x02;
+
+
+    static constexpr uint8_t CMD_CNDBKxSEL = 0xFF;
+    static constexpr uint8_t BKxSEL0       = 0x98;
+    static constexpr uint8_t BKxSEL1       = 0x81;
+    static constexpr uint8_t BKxSEL2_PAGE0 = 0x00;
+    static constexpr uint8_t BKxSEL2_PAGE1 = 0x01;
+    static constexpr uint8_t BKxSEL2_PAGE2 = 0x02;
+    static constexpr uint8_t BKxSEL2_PAGE3 = 0x03;
+    static constexpr uint8_t BKxSEL2_PAGE4 = 0x04;
+
+    const uint8_t* getInitParams(size_t listno) const override
+    {
+      static constexpr uint8_t list0[] =
+      {//len(cmd+params), cmd, params
+        4,  CMD_CNDBKxSEL, BKxSEL0, BKxSEL1, BKxSEL2_PAGE1, // select page 1
+        2,  CMD_PAD_CONTROL, DSI_2_LANE, // set 2 lane
+        0, // end
+      };
+
+      static constexpr uint8_t list0_lane3or4[] =
+      {//len(cmd+params), cmd, params
+        4,  CMD_CNDBKxSEL, BKxSEL0, BKxSEL1, BKxSEL2_PAGE1, // select page 1
+        2,  CMD_PAD_CONTROL, DSI_3_4_LANE, // set 3,4 lane
+        0, // end
+      };
+
+      static constexpr uint8_t list1[] =
+      {//len(cmd+params), cmd, params
+        4,  CMD_CNDBKxSEL, BKxSEL0, BKxSEL1, BKxSEL2_PAGE0, // select page 0
+        1,  CMD_SLPOUT, // SLPOUT
+        0, // end
+      };
+
+      static constexpr uint8_t list2[] =
+      {//len, cmd, params...
+        4,  CMD_CNDBKxSEL, BKxSEL0, BKxSEL1, BKxSEL2_PAGE3, // select page 3
+        2, 0x01, 0x00,
+        2, 0x02, 0x00,
+        2, 0x03, 0x73,
+        2, 0x04, 0x00,
+        2, 0x05, 0x00,
+        2, 0x06, 0x08,
+        2, 0x07, 0x00,
+        2, 0x08, 0x00,
+        2, 0x09, 0x1B,
+        2, 0x0a, 0x01,
+        2, 0x0b, 0x01,
+        2, 0x0c, 0x0D,
+        2, 0x0d, 0x01,
+        2, 0x0e, 0x01,
+        2, 0x0f, 0x26,
+        2, 0x10, 0x26,
+        2, 0x11, 0x00,
+        2, 0x12, 0x00,
+        2, 0x13, 0x02,
+        2, 0x14, 0x00,
+        2, 0x15, 0x00,
+        2, 0x16, 0x00,
+        2, 0x17, 0x00,
+        2, 0x18, 0x00,
+        2, 0x19, 0x00,
+        2, 0x1a, 0x00,
+        2, 0x1b, 0x00,
+        2, 0x1c, 0x00,
+        2, 0x1d, 0x00,
+        2, 0x1e, 0x40,
+        2, 0x1f, 0x00,
+        2, 0x20, 0x06,
+        2, 0x21, 0x01,
+        2, 0x22, 0x00,
+        2, 0x23, 0x00,
+        2, 0x24, 0x00,
+        2, 0x25, 0x00,
+        2, 0x26, 0x00,
+        2, 0x27, 0x00,
+        2, 0x28, 0x33,
+        2, 0x29, 0x03,
+        2, 0x2a, 0x00,
+        2, 0x2b, 0x00,
+        2, 0x2c, 0x00,
+        2, 0x2d, 0x00,
+        2, 0x2e, 0x00,
+        2, 0x2f, 0x00,
+        2, 0x30, 0x00,
+        2, 0x31, 0x00,
+        2, 0x32, 0x00,
+        2, 0x33, 0x00,
+        2, 0x34, 0x00,
+        2, 0x35, 0x00,
+        2, 0x36, 0x00,
+        2, 0x37, 0x00,
+        2, 0x38, 0x00,
+        2, 0x39, 0x00,
+        2, 0x3a, 0x00,
+        2, 0x3b, 0x00,
+        2, 0x3c, 0x00,
+        2, 0x3d, 0x00,
+        2, 0x3e, 0x00,
+        2, 0x3f, 0x00,
+        2, 0x40, 0x00,
+        2, 0x41, 0x00,
+        2, 0x42, 0x00,
+        2, 0x43, 0x00,
+        2, 0x44, 0x00,
+        2, 0x50, 0x01,
+        2, 0x51, 0x23,
+        2, 0x52, 0x45,
+        2, 0x53, 0x67,
+        2, 0x54, 0x89,
+        2, 0x55, 0xab,
+        2, 0x56, 0x01,
+        2, 0x57, 0x23,
+        2, 0x58, 0x45,
+        2, 0x59, 0x67,
+        2, 0x5a, 0x89,
+        2, 0x5b, 0xab,
+        2, 0x5c, 0xcd,
+        2, 0x5d, 0xef,
+        2, 0x5e, 0x11,
+        2, 0x5f, 0x02,
+        2, 0x60, 0x00,
+        2, 0x61, 0x07,
+        2, 0x62, 0x06,
+        2, 0x63, 0x0E,
+        2, 0x64, 0x0F,
+        2, 0x65, 0x0C,
+        2, 0x66, 0x0D,
+        2, 0x67, 0x02,
+        2, 0x68, 0x02,
+        2, 0x69, 0x02,
+        2, 0x6a, 0x02,
+        2, 0x6b, 0x02,
+        2, 0x6c, 0x02,
+        2, 0x6d, 0x02,
+        2, 0x6e, 0x02,
+        2, 0x6f, 0x02,
+        2, 0x70, 0x02,
+        2, 0x71, 0x02,
+        2, 0x72, 0x02,
+        2, 0x73, 0x05,
+        2, 0x74, 0x01,
+        2, 0x75, 0x02,
+        2, 0x76, 0x00,
+        2, 0x77, 0x07,
+        2, 0x78, 0x06,
+        2, 0x79, 0x0E,
+        2, 0x7a, 0x0F,
+        2, 0x7b, 0x0C,
+        2, 0x7c, 0x0D,
+        2, 0x7d, 0x02,
+        2, 0x7e, 0x02,
+        2, 0x7f, 0x02,
+        2, 0x80, 0x02,
+        2, 0x81, 0x02,
+        2, 0x82, 0x02,
+        2, 0x83, 0x02,
+        2, 0x84, 0x02,
+        2, 0x85, 0x02,
+        2, 0x86, 0x02,
+        2, 0x87, 0x02,
+        2, 0x88, 0x02,
+        2, 0x89, 0x05,
+        2, 0x8A, 0x01,
+        0, // end
+      };
+
+      static constexpr uint8_t list3[] =
+      {//len(cmd+params), cmd, params
+        4,  CMD_CNDBKxSEL, BKxSEL0, BKxSEL1, BKxSEL2_PAGE4, // select page 4
+        2, 0x38, 0x01,
+        2, 0x39, 0x00,
+        2, 0x6C, 0x15,
+        2, 0x6E, 0x1A,
+        2, 0x6F, 0x25,
+        2, 0x3A, 0xA4,
+        2, 0x8D, 0x20,
+        2, 0x87, 0xBA,
+        2, 0x3B, 0x98,
+
+        4,  CMD_CNDBKxSEL, BKxSEL0, BKxSEL1, BKxSEL2_PAGE1, // select page 1
+        2, 0x22, 0x0A,
+        2, 0x31, 0x00,
+        2, 0x50, 0x6B,
+        2, 0x51, 0x66,
+        2, 0x53, 0x73,
+        2, 0x55, 0x8B,
+        2, 0x60, 0x1B,
+        2, 0x61, 0x01,
+        2, 0x62, 0x0C,
+        2, 0x63, 0x00,
+
+  // Gamma P
+        2, 0xA0, 0x00,
+        2, 0xA1, 0x15,
+        2, 0xA2, 0x1F,
+        2, 0xA3, 0x13,
+        2, 0xA4, 0x11,
+        2, 0xA5, 0x21,
+        2, 0xA6, 0x17,
+        2, 0xA7, 0x1B,
+        2, 0xA8, 0x6B,
+        2, 0xA9, 0x1E,
+        2, 0xAA, 0x2B,
+        2, 0xAB, 0x5D,
+        2, 0xAC, 0x19,
+        2, 0xAD, 0x14,
+        2, 0xAE, 0x4B,
+        2, 0xAF, 0x1D,
+        2, 0xB0, 0x27,
+        2, 0xB1, 0x49,
+        2, 0xB2, 0x5D,
+        2, 0xB3, 0x39,
+
+  // Gamma N
+        2, 0xC0, 0x00,
+        2, 0xC1, 0x01,
+        2, 0xC2, 0x0C,
+        2, 0xC3, 0x11,
+        2, 0xC4, 0x15,
+        2, 0xC5, 0x28,
+        2, 0xC6, 0x1B,
+        2, 0xC7, 0x1C,
+        2, 0xC8, 0x62,
+        2, 0xC9, 0x1C,
+        2, 0xCA, 0x29,
+        2, 0xCB, 0x60,
+        2, 0xCC, 0x16,
+        2, 0xCD, 0x17,
+        2, 0xCE, 0x4A,
+        2, 0xCF, 0x23,
+        2, 0xD0, 0x24,
+        2, 0xD1, 0x4F,
+        2, 0xD2, 0x5F,
+        2, 0xD3, 0x39,
+
+        4,  CMD_CNDBKxSEL, BKxSEL0, BKxSEL1, BKxSEL2_PAGE0, // select page 0
+        1, 0x35,
+        1, 0xFE,
+        1, CMD_DISPON,
+        0, // end
+      };
+      switch (listno)
+      {
+      case 0:
+      {
+        auto bus = getBusDSI();
+        return (bus && (bus->config().lane_num >= 3))
+             ? list0_lane3or4
+             : list0;
+        }
+      case 1: return list1;
+      case 2: return list2;
+      case 3: return list3;
+      default: return nullptr;
+      }
+    }
+
+    size_t getInitDelay(size_t listno) const override
+    {
+      switch (listno)
+      {
+      case 1: return 120; // after SLPOUT
+      default: return 0;
+      }
+    }
+  };
+
+//----------------------------------------------------------------------------
+ }
+}
+
+#endif

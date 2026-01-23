@@ -253,7 +253,7 @@ namespace lgfx
 
 //----------------------------------------------------------------------------
 
-#if ( defined (ARDUINO) && defined (Stream_h) ) || defined (ARDUINO_ARCH_RP2040) // RP2040 has no defines for builtin Stream API
+#if ( defined (ARDUINO) && ( defined (Stream_h) || defined (HTTPClient_H_)) ) || defined (ARDUINO_ARCH_RP2040) // RP2040 has no defines for builtin Stream API
 
   struct StreamWrapper : public DataWrapper
   {

@@ -122,6 +122,7 @@ namespace lgfx
       return (src_depth == rgb565_2Byte) ? copy_rgb_affine<TDst, swap565_t>
            : (src_depth == rgb332_1Byte) ? copy_rgb_affine<TDst, rgb332_t >
            : (src_depth == grayscale_8bit) ? copy_rgb_affine<TDst, grayscale_t>
+           : (src_depth == rgb565_nonswapped) ? copy_rgb_affine<TDst, rgb565_t >
            : (src_depth == rgb888_3Byte) ? copy_rgb_affine<TDst, bgr888_t >
                                          : (std::is_same<bgr666_t, TDst>::value)
                                            ? copy_rgb_affine<bgr888_t, bgr888_t>
@@ -208,8 +209,8 @@ namespace lgfx
       const auto src_x32_add = param->src_x32_add;
       const auto src_y32_add = param->src_y32_add;
 
-      uint32_t prev_i = (param->src_x + param->src_y * param->src_bitwidth);
-      uint32_t ibits = prev_i * param->src_bits;
+      int prev_i = (param->src_x + param->src_y * param->src_bitwidth);
+      int ibits = prev_i * param->src_bits;
       uint32_t prev_raw = (pgm_read_byte(&s[ibits >> 3]) >> (-(int32_t)(ibits + param->src_bits) & 7)) & param->src_mask;
       do {
         if (prev_raw == transp) { break; }
@@ -219,7 +220,7 @@ namespace lgfx
           ++color_len;
           param->src_x32 += src_x32_add;
           param->src_y32 += src_y32_add;
-          uint32_t i = (param->src_x + param->src_y * param->src_bitwidth);
+          int i = (param->src_x + param->src_y * param->src_bitwidth);
           if (prev_i == i) { continue; }
           prev_i = i;
           ibits = i * param->src_bits;

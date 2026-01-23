@@ -244,9 +244,9 @@ namespace lgfx
     uint_fast8_t rotation = _internal_rotation;
     if (rotation)
     {
-      if ((1u << rotation) & 0b10010110) { y = _height - (y + 1); }
-      if (rotation & 2)                  { x = _width  - (x + 1); }
-      if (rotation & 1) { std::swap(x, y); }
+      if ((1u << rotation) & 0b10010110) { y = _height - (y + h); }
+      if (rotation & 2)                  { x = _width  - (x + w); }
+      if (rotation & 1) { std::swap(x, y);  std::swap(w, h); }
     }
 
     for (size_t width = 0; width < w; width++)

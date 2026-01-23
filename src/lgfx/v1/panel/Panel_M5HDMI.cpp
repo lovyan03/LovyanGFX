@@ -487,9 +487,11 @@ namespace lgfx
   {
     startWrite();
     _bus->writeData(CMD_NOP, 32);
-    endWrite();
+    _bus->wait();
+    cs_control(true);
     _bus->writeData(CMD_NOP, 32);
-    startWrite();
+    _bus->wait();
+    cs_control(false);
     _bus->writeData(CMD_READ_ID, 8); // READ_ID
     _bus->beginRead();
     uint32_t retry = 16;
@@ -506,7 +508,7 @@ namespace lgfx
     ESP_LOGI(TAG, "i2c port:%d sda:%d scl:%d", _HDMI_Trans_config.i2c_port, _HDMI_Trans_config.pin_sda, _HDMI_Trans_config.pin_scl);
 
     HDMI_Trans driver(_HDMI_Trans_config);
-  
+
     auto result = driver.readChipID();
     ESP_LOGI(TAG, "Chip ID: %02x %02x %02x", result.id[0], result.id[1], result.id[2]);
     if (result.id[0] == result.id[1] && result.id[0] == result.id[2])

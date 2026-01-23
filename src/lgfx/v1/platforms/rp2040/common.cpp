@@ -288,13 +288,16 @@ namespace lgfx
         lgfx_unreset_block_wait((spi_regs == spi_dev[0]) ? RESETS_RESET_SPI0_BITS : RESETS_RESET_SPI1_BITS);
       }
 
+      static uint32_t last_clock_div = 1;
+
       bool lgfx_spi_set_baudrate(volatile spi_hw_t * spi_regs, uint32_t baudrate)
       {
         spi_regs->cpsr = 2;  // prescale
-        uint32_t div = FreqToClockDiv(baudrate);
+        last_clock_div = FreqToClockDiv(baudrate);
+
         uint32_t temp = spi_regs->cr0;
         temp &= ~SPI_SSPCR0_SCR_BITS;
-        temp |= (div << SPI_SSPCR0_SCR_LSB);
+        temp |= (last_clock_div << SPI_SSPCR0_SCR_LSB);
         spi_regs->cr0 = temp;
         return true;
       }
@@ -370,7 +373,7 @@ namespace lgfx
       {
         return cpp::fail(error_t::invalid_arg);
       }
-      // DBGPRINT("ref_count %d\n", spi_info[spi_port].ref_count); 
+      // DBGPRINT("ref_count %d\n", spi_info[spi_port].ref_count);
       if (spi_info[spi_port].ref_count == 0)
       {
         const spi_pinlist_str pinlist = spi_pinlist[spi_port];
@@ -400,7 +403,7 @@ namespace lgfx
         DBGPRINT("return %s\n", __func__);
         return {};
       }
-      // 
+      //
       if (spi_info[spi_port].pin_sclk != pin_sclk)
       {
         return cpp::fail(error_t::invalid_arg);
@@ -460,6 +463,7 @@ namespace lgfx
       return lgfx_spi_set_baudrate(spi_dev[spi_port], baudrate);
     }
 
+
     void beginTransaction(int spi_port, uint32_t freq, int spi_mode)
     {
       static constexpr spi_cpha_t cpha_table[] = { SPI_CPHA_0, SPI_CPHA_1, SPI_CPHA_0, SPI_CPHA_1 };
@@ -475,6 +479,66 @@ namespace lgfx
     void endTransaction([[maybe_unused]]int spi_port)
     {
 
+    }
+
+
+    bool is_rx_fifo_not_empty(int spi_port)
+    {
+      return ((spi_dev[spi_port]->sr & SPI_SSPSR_RNE_BITS)  != 0);
+    }
+
+    bool is_tx_fifo_not_full(int spi_port)
+    {
+      return ((spi_dev[spi_port]->sr & SPI_SSPSR_TNF_BITS)  != 0);
+    }
+
+    void clear_rx_fifo(int spi_port)
+    {
+      // FIFO内のデータをすべて読みだす
+      while (is_rx_fifo_not_empty(spi_port))
+      {
+        static_cast<void>(spi_dev[spi_port]->dr);
+      }
+    }
+
+    // FIFOを8bitモードにする。
+    void set_dss_8(int spi_port)
+    {
+      //spi_dev[spi_port]-> cr0 BIt7 mask This was the correct way to set it to 16bit to 8-bit mode. 16bit to 8Bitモードへの設定方法です
+      //Spi_stk = spi_dev[spi_port]->cr0;
+      uint32_t _sspcr0_mask_8bit = spi_dev[spi_port]-> cr0;
+      _sspcr0_mask_8bit &= ~0x0000000f;
+      _sspcr0_mask_8bit |=  0x0000007;
+      spi_dev[spi_port]->cr0 = _sspcr0_mask_8bit;
+    }
+
+
+    void readBytes(int spi_port, uint8_t* dst, size_t length)
+    {
+      uint8_t *p;
+      p = dst;
+      clear_rx_fifo (spi_port);
+      set_dss_8 (spi_port);
+      auto tx_length = length;
+      do
+      {
+        DBGPRINT("tx_length %d : length %d\n", tx_length, length);
+        while (tx_length && is_tx_fifo_not_full(spi_port))
+        {
+          // データを送信（中身は何でもよい訳ではない！ Send data (not just anything goes！）
+          //Touch_XPT2046.cppで設定された制御コードをSPIの送信データに乗せないと、XPT2046は動作しません
+          //If the control code set in Touch_XPT2046.cpp is not included in the SPI transmission data, the XPT2046 will not work.
+          spi_dev[spi_port]->dr = *p++; //!!
+          --tx_length;
+        }
+        // 制御コードが記載された *dst を上書きしないよう比較保護して受信バッファと兼用する
+        // *dst, which contains the control code, is protected from being overwritten and is used as a receive buffer.
+        while ((length > tx_length) && is_tx_fifo_not_full (spi_port))
+        {
+          *dst++ = spi_dev[spi_port]->dr;
+          --length;
+        }
+      } while (length);
     }
   }
 
@@ -942,7 +1006,7 @@ namespace lgfx
 
         i2c_regs->enable = I2C_IC_ENABLE_ENABLE_VALUE_DISABLED;
 
-        i2c_regs->con = 
+        i2c_regs->con =
           I2C_IC_CON_SPEED_VALUE_FAST << I2C_IC_CON_SPEED_LSB |
           I2C_IC_CON_MASTER_MODE_BITS |
           I2C_IC_CON_IC_SLAVE_DISABLE_BITS |
@@ -1007,7 +1071,7 @@ namespace lgfx
     {
       volatile i2c_hw_t * const i2c_regs = i2c_dev[i2c_port];
       auto info = &i2c_info[i2c_port];
-      
+
       if (info->ref_count == 0)
       {
         return {};
