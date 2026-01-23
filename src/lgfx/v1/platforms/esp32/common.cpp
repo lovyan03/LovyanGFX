@@ -1687,14 +1687,17 @@ namespace lgfx
         }
 
         len = length < 32 ? length : 32;
+#if defined ( CONFIG_IDF_TARGET_ESP32 ) || !defined ( CONFIG_IDF_TARGET )
+        // workaround for ESP32 i2c bug.
+        if (last_nack && len == length && len > 1) { len -= 1; }
+#endif
         length -= len;
-
-        i2c_set_cmd(dev, 2, i2c_cmd_end, 0, false);
         i2c_set_cmd(dev, 1, i2c_cmd_end, 0, false);
         bool flg_nack = (last_nack && length == 0);
         i2c_set_cmd(dev, 0, i2c_cmd_read, len - (flg_nack ? 1 : 0), false);
         if (flg_nack) {
           i2c_set_cmd(dev, (len == 1) ? 0 : 1, i2c_cmd_read, 1, true);
+          i2c_set_cmd(dev, 2, i2c_cmd_end, 0, false);
         }
         updateDev(dev);
         dev->int_clr.val = intmask;
