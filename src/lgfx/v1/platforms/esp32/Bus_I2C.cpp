@@ -22,6 +22,7 @@ Contributors:
 #include "../../misc/pixelcopy.hpp"
 
 #include <soc/i2c_struct.h>
+#include <hal/i2c_ll.h>
 
 namespace lgfx
 {
@@ -104,11 +105,7 @@ namespace lgfx
     auto dev = &I2C0;
 #endif
 
-#if defined (CONFIG_IDF_TARGET_ESP32C3) || defined (CONFIG_IDF_TARGET_ESP32C6) || defined (CONFIG_IDF_TARGET_ESP32S3) || defined (CONFIG_IDF_TARGET_ESP32P4)
-    while (dev->sr.bus_busy) { taskYIELD(); }
-#else
-    while (dev->status_reg.bus_busy) { taskYIELD(); }
-#endif
+    while (i2c_ll_is_bus_busy(dev)) { taskYIELD(); }
   }
 
   bool Bus_I2C::busy(void) const
@@ -119,11 +116,7 @@ namespace lgfx
     auto dev = &I2C0;
 #endif
 
-#if defined (CONFIG_IDF_TARGET_ESP32C3) || defined (CONFIG_IDF_TARGET_ESP32C6) || defined (CONFIG_IDF_TARGET_ESP32S3) || defined (CONFIG_IDF_TARGET_ESP32P4)
-    return dev->sr.bus_busy;
-#else
-    return dev->status_reg.bus_busy;
-#endif
+    return i2c_ll_is_bus_busy(dev);
   }
 
   void Bus_I2C::dc_control(bool dc)
