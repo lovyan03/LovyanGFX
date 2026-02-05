@@ -29,7 +29,9 @@ Contributors:
 #include <sdkconfig.h>
 #include <soc/soc.h>
 #include <soc/spi_reg.h>
+#if __has_include(<soc/i2s_reg.h>)
 #include <soc/i2s_reg.h>
+#endif
 #include <soc/gpio_struct.h>
 #include <soc/gpio_sig_map.h>
 #include <esp_timer.h>
