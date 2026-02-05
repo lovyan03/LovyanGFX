@@ -23,6 +23,7 @@ Contributors:
 #include <algorithm>
 #include <string.h>
 #include <math.h>
+#include <type_traits>
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
@@ -157,13 +158,6 @@ Contributors:
 #endif
 
 
-
-#if defined (CONFIG_IDF_TARGET_ESP32C6) || defined (CONFIG_IDF_TARGET_ESP32P4) || ( defined (CONFIG_IDF_TARGET_ESP32C3) && ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 2, 0) )
- #define LGFX_GPIO_IN_SEL_CFG_REG
-#endif
-
-
-
 namespace lgfx
 {
  inline namespace v1
@@ -175,13 +169,36 @@ namespace lgfx
   static __attribute__ ((always_inline)) inline volatile uint32_t* reg(uint32_t addr) { return (volatile uint32_t *)ETS_UNCACHED_ADDR(addr); }
 #pragma GCC diagnostic pop
 
+  // in_sel メンバーの存在を検出する型特性
+  template <typename T, typename = void>
+  struct has_func_sel : std::false_type {};
+
+  template <typename T>
+  struct has_func_sel<T, decltype(void(std::declval<T&>().func_sel))> : std::true_type {};
+
+  // func_sel が存在する場合
+  template <typename T>
+  static inline typename std::enable_if<has_func_sel<T>::value, uint32_t>::type
+  get_gpio_func_in_sel(T& cfg) { return cfg.func_sel; }
+
+  // func_sel が存在しない場合 (in_sel を使用)
+  template <typename T>
+  static inline typename std::enable_if<!has_func_sel<T>::value, uint32_t>::type
+  get_gpio_func_in_sel(T& cfg) { return cfg.in_sel; }
+
+  // func_sel が存在する場合
+  template <typename T>
+  static inline typename std::enable_if<has_func_sel<T>::value>::type
+  set_gpio_func_out_sel(T& cfg, uint32_t val) { cfg.func_sel = val; }
+
+  // func_sel が存在しない場合 (out_sel を使用)
+  template <typename T>
+  static inline typename std::enable_if<!has_func_sel<T>::value>::type
+  set_gpio_func_out_sel(T& cfg, uint32_t val) { cfg.out_sel = val; }
+
   static int search_pin_number(int peripheral_sig)
   {
-#if defined LGFX_GPIO_IN_SEL_CFG_REG
-    uint32_t result = GPIO.func_in_sel_cfg[peripheral_sig].in_sel;
-#else
-    uint32_t result = GPIO.func_in_sel_cfg[peripheral_sig].func_sel;
-#endif
+    uint32_t result = get_gpio_func_in_sel(GPIO.func_in_sel_cfg[peripheral_sig]);
     return (result < GPIO_NUM_MAX) ? result : -1;
   }
 
@@ -389,12 +406,7 @@ namespace lgfx
     auto gpio_en_reg = gpio_en_regs[((pin >> 5) << 1) + 1];
     *gpio_en_reg = 1u << (pin & 31);
 
-
-#if defined LGFX_GPIO_IN_SEL_CFG_REG
-    GPIO.func_out_sel_cfg[pin].out_sel = SIG_GPIO_OUT_IDX;
-#else
-    GPIO.func_out_sel_cfg[pin].func_sel = SIG_GPIO_OUT_IDX;
-#endif
+    set_gpio_func_out_sel(GPIO.func_out_sel_cfg[pin], SIG_GPIO_OUT_IDX);
   }
 
 //----------------------------------------------------------------------------
