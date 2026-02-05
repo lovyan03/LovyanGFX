@@ -66,6 +66,25 @@ Contributors:
  #endif
 #endif
 
+/// ESP32-H2のspi_reg.hではSPIレジスタマクロがパラメータなしで定義されており
+/// DR_REG_SPI_BASEも未定義のため、パラメータ付きマクロとして再定義する
+#if defined ( CONFIG_IDF_TARGET_ESP32H2 )
+ #undef SPI_CMD_REG
+ #define SPI_CMD_REG(i)      (REG_SPI_BASE(i) + 0x0)
+ #undef SPI_CTRL_REG
+ #define SPI_CTRL_REG(i)     (REG_SPI_BASE(i) + 0x8)
+ #undef SPI_CLOCK_REG
+ #define SPI_CLOCK_REG(i)    (REG_SPI_BASE(i) + 0xc)
+ #undef SPI_USER_REG
+ #define SPI_USER_REG(i)     (REG_SPI_BASE(i) + 0x10)
+ #undef SPI_MISC_REG
+ #define SPI_MISC_REG(i)     (REG_SPI_BASE(i) + 0x20)
+ #undef SPI_DMA_CONF_REG
+ #define SPI_DMA_CONF_REG(i) (REG_SPI_BASE(i) + 0x30)
+ #undef SPI_W0_REG
+ #define SPI_W0_REG(i)       (REG_SPI_BASE(i) + 0x98)
+#endif
+
 #if defined ( ESP_IDF_VERSION_VAL )
  #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
   #define LGFX_IDF_V5
