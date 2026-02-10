@@ -29,7 +29,9 @@ Contributors:
 #include <sdkconfig.h>
 #include <soc/soc.h>
 #include <soc/spi_reg.h>
+#if __has_include(<soc/i2s_reg.h>)
 #include <soc/i2s_reg.h>
+#endif
 #include <soc/gpio_struct.h>
 #include <soc/gpio_sig_map.h>
 #include <esp_timer.h>
@@ -64,6 +66,25 @@ Contributors:
  #if !defined ( REG_SPI_BASE )
   #define REG_SPI_BASE(i)     (DR_REG_SPI2_BASE)
  #endif
+#endif
+
+/// ESP32-H2のspi_reg.hではSPIレジスタマクロがパラメータなしで定義されており
+/// DR_REG_SPI_BASEも未定義のため、パラメータ付きマクロとして再定義する
+#if defined ( CONFIG_IDF_TARGET_ESP32H2 )
+ #undef SPI_CMD_REG
+ #define SPI_CMD_REG(i)      (REG_SPI_BASE(i) + 0x0)
+ #undef SPI_CTRL_REG
+ #define SPI_CTRL_REG(i)     (REG_SPI_BASE(i) + 0x8)
+ #undef SPI_CLOCK_REG
+ #define SPI_CLOCK_REG(i)    (REG_SPI_BASE(i) + 0xc)
+ #undef SPI_USER_REG
+ #define SPI_USER_REG(i)     (REG_SPI_BASE(i) + 0x10)
+ #undef SPI_MISC_REG
+ #define SPI_MISC_REG(i)     (REG_SPI_BASE(i) + 0x20)
+ #undef SPI_DMA_CONF_REG
+ #define SPI_DMA_CONF_REG(i) (REG_SPI_BASE(i) + 0x30)
+ #undef SPI_W0_REG
+ #define SPI_W0_REG(i)       (REG_SPI_BASE(i) + 0x98)
 #endif
 
 #if defined ( ESP_IDF_VERSION_VAL )
@@ -143,7 +164,7 @@ namespace lgfx
   static inline volatile uint32_t* get_gpio_hi_reg(int_fast8_t pin) { return (pin & 32) ? &GPIO.out1_w1ts.val : &GPIO.out_w1ts.val; }
   static inline volatile uint32_t* get_gpio_lo_reg(int_fast8_t pin) { return (pin & 32) ? &GPIO.out1_w1tc.val : &GPIO.out_w1tc.val; }
   static inline bool gpio_in(int_fast8_t pin) { return ((pin & 32) ? GPIO.in1.val : GPIO.in.val) & (1 << (pin & 31)); }
-#elif defined ( CONFIG_IDF_TARGET_ESP32C3 ) || defined ( CONFIG_IDF_TARGET_ESP32C6 )
+#elif defined ( CONFIG_IDF_TARGET_ESP32C3 ) || defined ( CONFIG_IDF_TARGET_ESP32C6 ) || defined ( CONFIG_IDF_TARGET_ESP32H2 )
   static inline volatile uint32_t* get_gpio_hi_reg(int_fast8_t pin) { return &GPIO.out_w1ts.val; }
   static inline volatile uint32_t* get_gpio_lo_reg(int_fast8_t pin) { return &GPIO.out_w1tc.val; }
   static inline bool gpio_in(int_fast8_t pin) { return GPIO.in.val & (1 << (pin & 31)); }

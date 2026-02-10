@@ -60,6 +60,12 @@ Contributors:
   #include "esp32/Bus_HUB75.hpp"
   #include "esp32/Panel_CVBS.hpp"
 
+ #elif defined (CONFIG_IDF_TARGET_ESP32H2)
+
+  #include "esp32/Light_PWM.hpp"
+  #include "esp32/Bus_SPI.hpp"
+  #include "esp32/Bus_I2C.hpp"
+
  #else
 
   #include "esp32/Light_PWM.hpp"
