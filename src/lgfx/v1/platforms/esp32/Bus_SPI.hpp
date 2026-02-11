@@ -186,6 +186,9 @@ namespace lgfx
     volatile uint32_t* _spi_cmd_reg = nullptr;
     volatile uint32_t* _spi_user_reg = nullptr;
     volatile uint32_t* _spi_dma_out_link_reg = nullptr;
+    #if defined (CONFIG_IDF_TARGET_ESP32P4)
+    volatile uint32_t* _spi_dma_out_link2_reg = nullptr;
+    #endif
     volatile uint32_t* _spi_dma_outstatus_reg = nullptr;
     volatile uint32_t* _clear_dma_reg = nullptr;
     uint32_t _last_freq_apb = 0;

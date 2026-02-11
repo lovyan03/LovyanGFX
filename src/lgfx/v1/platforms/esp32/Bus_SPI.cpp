@@ -56,7 +56,7 @@ Contributors:
    #include <esp32/rom/gpio.h>
 #else
    #include <rom/gpio.h> // dispatched by core
-#endif   
+#endif
 
 #ifndef SPI_PIN_REG
  #define SPI_PIN_REG SPI_MISC_REG
@@ -190,6 +190,9 @@ namespace lgfx
     { // DMAチャンネルが特定できたらそれを使用する;
       _spi_dma_out_link_reg  = reg(DMA_OUT_LINK_CH0_REG       + assigned_dma_ch * SIZE_OF_DMA_OUT_CH);
       _spi_dma_outstatus_reg = reg(DMA_OUTFIFO_STATUS_CH0_REG + assigned_dma_ch * SIZE_OF_DMA_OUT_CH);
+      #if defined ( CONFIG_IDF_TARGET_ESP32P4 )
+      _spi_dma_out_link2_reg = reg(AXI_DMA_OUT_LINK2_CH0_REG  + assigned_dma_ch * SIZE_OF_DMA_OUT_CH);
+      #endif
     }
 #elif defined ( CONFIG_IDF_TARGET_ESP32 ) || !defined ( CONFIG_IDF_TARGET )
 
@@ -673,6 +676,9 @@ namespace lgfx
       if (use_dma)
       {
         auto spi_dma_out_link_reg = _spi_dma_out_link_reg;
+        #if defined ( CONFIG_IDF_TARGET_ESP32P4 )
+        auto spi_dma_out_link2_reg = _spi_dma_out_link2_reg;
+        #endif
         auto cmd = _spi_cmd_reg;
         while (*cmd & SPI_USR) {}
         *spi_dma_out_link_reg = 0;
@@ -687,7 +693,7 @@ namespace lgfx
         *dma = 0; /// Clear previous transfer
         uint32_t len = ((length - 1) & ((SPI_MS_DATA_BITLEN)>>3)) + 1;
         #if defined ( CONFIG_IDF_TARGET_ESP32P4 )
-        REG_WRITE(AXI_DMA_OUT_LINK2_CH0_REG, (uint32_t)_dmadesc);
+        *spi_dma_out_link2_reg = ((uint32_t)(_dmadesc));
         *spi_dma_out_link_reg = DMA_OUTLINK_START_CH0 ;
         #else
         *spi_dma_out_link_reg = DMA_OUTLINK_START_CH0 | ((int)(&_dmadesc[0]) & 0xFFFFF);
@@ -901,7 +907,7 @@ label_start:
 
 #if defined ( SOC_GDMA_SUPPORTED )
     #if defined ( CONFIG_IDF_TARGET_ESP32P4 )
-    REG_WRITE(AXI_DMA_OUT_LINK2_CH0_REG, ((uint32_t)(_dmadesc)));
+    *_spi_dma_out_link2_reg = ((uint32_t)(_dmadesc));
     *_spi_dma_out_link_reg = DMA_OUTLINK_START_CH0;
     #else
     *_spi_dma_out_link_reg = DMA_OUTLINK_START_CH0 | ((int)(&_dmadesc[0]) & 0xFFFFF);
