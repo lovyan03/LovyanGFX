@@ -2059,47 +2059,48 @@ namespace lgfx
   uint16_t LGFXBase::decodeUTF8(uint8_t c)
   {
     // 7 bit Unicode Code Point
-    if (!(c & 0x80)) {
-      _decoderState = utf8_decode_state_t::utf8_state0;
-      return c;
-    }
-
-    if (_decoderState == utf8_decode_state_t::utf8_state0)
-    {
-      // 11 bit Unicode Code Point
-      if ((c & 0xE0) == 0xC0)
+    if ((c & 0x80)) {
+      // multibyte start or continue byte
+      switch (_decoderState)
       {
-        _unicode_buffer = ((c & 0x1F)<<6);
-        _decoderState = utf8_decode_state_t::utf8_state1;
-        return 0;
-      }
+        case utf8_decode_state_t::utf8_state3:
+        case utf8_decode_state_t::utf8_state2:
+        case utf8_decode_state_t::utf8_state1:
+            _decoderState=(utf8_decode_state_t)((uint8_t)_decoderState-1);
+            _unicode_buffer |= ((c & 0x3F) << (6 * (uint8_t)_decoderState));
+            return _decoderState ? 0 : _unicode_buffer;
 
-      // 16 bit Unicode Code Point
-      if ((c & 0xF0) == 0xE0)
-      {
-        _unicode_buffer = ((c & 0x0F)<<12);
-        _decoderState = utf8_decode_state_t::utf8_state2;
-        return 0;
-      }
-      // 21 bit Unicode  Code Point not supported so fall-back to extended ASCII
-      //if ((c & 0xF8) == 0xF0) return (uint16_t)c;
-    }
-    else
-    {
-      if (_decoderState == utf8_decode_state_t::utf8_state2)
-      {
-        _unicode_buffer |= ((c & 0x3F)<<6);
-        _decoderState = utf8_decode_state_t::utf8_state1;
-        return 0;
-      }
-      _unicode_buffer |= (c & 0x3F);
-      _decoderState = utf8_decode_state_t::utf8_state0;
-      return _unicode_buffer;
-    }
+        case utf8_decode_state_t::utf8_state0:
+        default:
+          // 11 bit Unicode Code Point
+          if ((c & 0xE0) == 0xC0)
+          {
+              _unicode_buffer = ((c & 0x1F) << (6 * 1));
+              _decoderState = utf8_decode_state_t::utf8_state1;
+              return 0;
+          }
 
+          // 16 bit Unicode Code Point
+          if ((c & 0xF0) == 0xE0)
+          {
+              _unicode_buffer = ((c & 0x0F) << (6 * 2));
+              _decoderState = utf8_decode_state_t::utf8_state2;
+              return 0;
+          }
+          // 21 bit Unicode  Code Point not supported so fall-back to extended ASCII
+          if ((c & 0xF8) == 0xF0)
+          {
+              _unicode_buffer = (c & 0x07)<<(6 * 3); // 6 bits for each of the 3 bytes
+              _decoderState = utf8_decode_state_t::utf8_state3;
+              return 0;
+          }
+          // fallback to extended ASCII
+          break;
+      }
+    }
+    // single byte ASCII
     _decoderState = utf8_decode_state_t::utf8_state0;
-
-    return c; // fall-back to extended ASCII
+    return c;
   }
 
   int32_t LGFXBase::fontHeight(const IFont* font) const
