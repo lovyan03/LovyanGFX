@@ -90,7 +90,13 @@ namespace lgfx
       bool use_lock = true;
       uint8_t dma_channel = LGFX_ESP32_SPI_DMA_CH;
 #if !defined (CONFIG_IDF_TARGET) || defined (CONFIG_IDF_TARGET_ESP32)
-      spi_host_device_t spi_host = VSPI_HOST;
+     #if defined (VSPI_HOST)
+       spi_host_device_t spi_host = VSPI_HOST;
+     #elif defined (SPI3_HOST)
+       spi_host_device_t spi_host = SPI3_HOST;
+     #else
+       spi_host_device_t spi_host = SPI2_HOST;
+     #endif
 #else
       spi_host_device_t spi_host = SPI2_HOST;
 #endif

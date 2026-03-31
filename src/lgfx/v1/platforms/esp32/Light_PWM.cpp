@@ -26,6 +26,7 @@ Contributors:
   #include <esp_arduino_version.h>
  #endif
 #else
+ #include <driver/gpio.h>
  #include <driver/ledc.h>
 #endif
 
