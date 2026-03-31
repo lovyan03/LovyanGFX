@@ -26,6 +26,14 @@ Contributors:
 #include <soc/i2s_struct.h>
 #include <rom/gpio.h>
 
+#if defined (ESP_IDF_VERSION_VAL) && (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 0, 0))
+ #define LGFX_GPIO_PAD_SELECT(pin)               rom_gpio_pad_select_gpio((gpio_num_t)(pin))
+ #define LGFX_GPIO_MATRIX_OUT(pin, sig, inv, oen_inv) rom_gpio_matrix_out((gpio_num_t)(pin), (sig), (inv), (oen_inv))
+#else
+ #define LGFX_GPIO_PAD_SELECT(pin)               gpio_pad_select_gpio((gpio_num_t)(pin))
+ #define LGFX_GPIO_MATRIX_OUT(pin, sig, inv, oen_inv) gpio_matrix_out((gpio_num_t)(pin), (sig), (inv), (oen_inv))
+#endif
+
 namespace lgfx
 {
  inline namespace v1
@@ -122,21 +130,21 @@ namespace lgfx
     {
       int32_t pin = _cfg.pin_data[i];
       if (pin < 0) { continue; }
-      gpio_pad_select_gpio(pin);
+      LGFX_GPIO_PAD_SELECT(pin);
       gpio_set_direction((gpio_num_t)pin, GPIO_MODE_INPUT_OUTPUT);
-      gpio_matrix_out(pin, idx_base + i, 0, 0);
+      LGFX_GPIO_MATRIX_OUT(pin, idx_base + i, 0, 0);
     }
 
     for (size_t i = 0; i < 3; ++i)
     {
       int32_t pin = _cfg.pin_ctrl[i];
       if (pin < 0) { continue; }
-      gpio_pad_select_gpio(pin);
+      LGFX_GPIO_PAD_SELECT(pin);
       gpio_hi(pin);
       gpio_set_direction((gpio_num_t)pin, GPIO_MODE_OUTPUT);
     }
 
-    gpio_matrix_out(_cfg.pin_rs, idx_base + 8, 0, 0);
+    LGFX_GPIO_MATRIX_OUT(_cfg.pin_rs, idx_base + 8, 0, 0);
 
     uint32_t dport_clk_en;
     uint32_t dport_rst;
@@ -154,7 +162,7 @@ namespace lgfx
       dport_rst = DPORT_I2S1_RST;
     }
 #endif
-    gpio_matrix_out(_cfg.pin_wr, idx_base, 1, 0); // WR (Write-strobe in 8080 mode, Active-low)
+    LGFX_GPIO_MATRIX_OUT(_cfg.pin_wr, idx_base, 1, 0); // WR (Write-strobe in 8080 mode, Active-low)
 
     DPORT_SET_PERI_REG_MASK(DPORT_PERIP_CLK_EN_REG, dport_clk_en);
     DPORT_CLEAR_PERI_REG_MASK(DPORT_PERIP_RST_EN_REG, dport_rst);
@@ -534,7 +542,7 @@ namespace lgfx
     if (_cache_index) { _cache_index = _flush(_cache_index, true); }
     _wait();
 
-    gpio_matrix_out(_cfg.pin_rs, 0x100, 0, 0);
+    LGFX_GPIO_MATRIX_OUT(_cfg.pin_rs, 0x100, 0, 0);
     gpio_lo(_cfg.pin_rd);
   }
 
@@ -543,7 +551,7 @@ namespace lgfx
     gpio_hi(_cfg.pin_rd);
 
     auto idx_base = (_cfg.i2s_port == I2S_NUM_0) ? I2S0O_DATA_OUT16_IDX : I2S1O_DATA_OUT16_IDX;
-    gpio_matrix_out(_cfg.pin_rs, idx_base, 0, 0);
+    LGFX_GPIO_MATRIX_OUT(_cfg.pin_rs, idx_base, 0, 0);
   }
 
   void Bus_Parallel8::_read_bytes(uint8_t* __restrict dst, uint32_t length)
