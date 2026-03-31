@@ -24,6 +24,9 @@ Contributors:
 
 #include <esp_lcd_panel_ops.h>
 #include <esp_lcd_panel_io.h>
+#if __has_include(<esp_idf_version.h>)
+ #include <esp_idf_version.h>
+#endif
 
 namespace lgfx
 {
@@ -73,7 +76,12 @@ namespace lgfx
     dpi_config.virtual_channel = 0;
     dpi_config.dpi_clk_src = MIPI_DSI_DPI_CLK_SRC_DEFAULT;
     dpi_config.dpi_clock_freq_mhz = _config_detail.dpi_freq_mhz;
+  #if defined (ESP_IDF_VERSION_VAL) && (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 0, 0))
+    dpi_config.in_color_format = LCD_COLOR_FMT_RGB565;
+    dpi_config.out_color_format = LCD_COLOR_FMT_RGB565;
+  #else
     dpi_config.pixel_format = LCD_COLOR_PIXEL_FORMAT_RGB565;
+  #endif
     dpi_config.num_fbs = 1;
     dpi_config.video_timing.h_size = _cfg.panel_width;
     dpi_config.video_timing.v_size = _cfg.panel_height;
@@ -83,9 +91,17 @@ namespace lgfx
     dpi_config.video_timing.vsync_back_porch  = _config_detail.vsync_back_porch;
     dpi_config.video_timing.vsync_pulse_width = _config_detail.vsync_pulse_width;
     dpi_config.video_timing.vsync_front_porch = _config_detail.vsync_front_porch;
+  #if !defined (ESP_IDF_VERSION_VAL) || (ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(6, 0, 0))
     dpi_config.flags.use_dma2d = true;
-
-    return ESP_OK == esp_lcd_new_panel_dpi(mipi_dsi_bus, &dpi_config, &_disp_panel_handle);
+  #endif
+    auto ret = esp_lcd_new_panel_dpi(mipi_dsi_bus, &dpi_config, &_disp_panel_handle);
+  #if defined (ESP_IDF_VERSION_VAL) && (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 0, 0))
+    if (ret == ESP_OK)
+    {
+      (void)esp_lcd_dpi_panel_enable_dma2d(_disp_panel_handle);
+    }
+  #endif
+    return ret == ESP_OK;
   }
 
   color_depth_t Panel_DSI::setColorDepth(color_depth_t depth)
