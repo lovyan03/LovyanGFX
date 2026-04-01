@@ -61,7 +61,7 @@ Contributors:
    #include <esp32/rom/gpio.h>
 #else
    #include <rom/gpio.h> // dispatched by core
-#endif   
+#endif
 
 #ifndef SPI_PIN_REG
  #define SPI_PIN_REG SPI_MISC_REG
@@ -80,6 +80,7 @@ Contributors:
   #include <soc/gdma_reg.h>
  #elif __has_include(<soc/axi_dma_reg.h>) // ESP32P4
   #include <soc/axi_dma_reg.h>
+  #include <esp_cache.h>
  #endif
  #if __has_include(<soc/gdma_struct.h>)
   #include <soc/gdma_struct.h>
@@ -209,6 +210,9 @@ namespace lgfx
     { // DMAチャンネルが特定できたらそれを使用する;
       _spi_dma_out_link_reg  = reg(DMA_OUT_LINK_CH0_REG       + assigned_dma_ch * SIZE_OF_DMA_OUT_CH);
       _spi_dma_outstatus_reg = reg(DMA_OUTFIFO_STATUS_CH0_REG + assigned_dma_ch * SIZE_OF_DMA_OUT_CH);
+      #if defined ( CONFIG_IDF_TARGET_ESP32P4 )
+      _spi_dma_out_link2_reg = reg(AXI_DMA_OUT_LINK2_CH0_REG  + assigned_dma_ch * SIZE_OF_DMA_OUT_CH);
+      #endif
     }
 #elif defined ( CONFIG_IDF_TARGET_ESP32 ) || !defined ( CONFIG_IDF_TARGET )
 
@@ -696,15 +700,28 @@ namespace lgfx
       if (use_dma)
       {
         auto spi_dma_out_link_reg = _spi_dma_out_link_reg;
+        #if defined ( CONFIG_IDF_TARGET_ESP32P4 )
+        auto spi_dma_out_link2_reg = _spi_dma_out_link2_reg;
+        #endif
         auto cmd = _spi_cmd_reg;
         while (*cmd & SPI_USR) {}
         *spi_dma_out_link_reg = 0;
         _setup_dma_desc_links(data, length);
+
+        #if defined ( CONFIG_IDF_TARGET_ESP32P4 )
+        esp_cache_msync((void*)data, sizeof(uint8_t) * length, ESP_CACHE_MSYNC_FLAG_DIR_C2M | ESP_CACHE_MSYNC_FLAG_UNALIGNED);
+        esp_cache_msync(_dmadesc, sizeof(lldesc_t) * _dmadesc_size, ESP_CACHE_MSYNC_FLAG_DIR_C2M | ESP_CACHE_MSYNC_FLAG_UNALIGNED);
+        #endif
 #if defined ( SOC_GDMA_SUPPORTED )
         auto dma = reg(SPI_DMA_CONF_REG(_spi_port));
         *dma = 0; /// Clear previous transfer
         uint32_t len = ((length - 1) & ((SPI_MS_DATA_BITLEN)>>3)) + 1;
+        #if defined ( CONFIG_IDF_TARGET_ESP32P4 )
+        *spi_dma_out_link2_reg = ((uint32_t)(_dmadesc));
+        *spi_dma_out_link_reg = DMA_OUTLINK_START_CH0 ;
+        #else
         *spi_dma_out_link_reg = DMA_OUTLINK_START_CH0 | ((int)(&_dmadesc[0]) & 0xFFFFF);
+        #endif
         *dma = SPI_DMA_TX_ENA;
         _clear_dma_reg = dma;
 #else
@@ -913,7 +930,12 @@ label_start:
     *_spi_dma_out_link_reg = 0;
 
 #if defined ( SOC_GDMA_SUPPORTED )
+    #if defined ( CONFIG_IDF_TARGET_ESP32P4 )
+    *_spi_dma_out_link2_reg = ((uint32_t)(_dmadesc));
+    *_spi_dma_out_link_reg = DMA_OUTLINK_START_CH0;
+    #else
     *_spi_dma_out_link_reg = DMA_OUTLINK_START_CH0 | ((int)(&_dmadesc[0]) & 0xFFFFF);
+    #endif
     auto dma = reg(SPI_DMA_CONF_REG(_spi_port));
     *dma = SPI_DMA_TX_ENA;
     _clear_dma_reg = dma;

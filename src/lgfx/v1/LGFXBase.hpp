@@ -1022,6 +1022,7 @@ namespace lgfx
     { utf8_state0 = 0
     , utf8_state1 = 1
     , utf8_state2 = 2
+    , utf8_state3 = 3
     };
     utf8_decode_state_t _decoderState = utf8_state0;   // UTF8 decoder state
     uint16_t _unicode_buffer = 0;   // Unicode code-point buffer

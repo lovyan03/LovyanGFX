@@ -589,7 +589,7 @@ namespace lgfx
   }
 
 #if defined( __XTENSA__ )
-  __attribute__((noinline,noclone,optimize("-O3")))
+  __attribute__((noinline,noclone,optimize("-O3,-fomit-frame-pointer")))
   static bool blit_dmabuf(uint32_t* dst, uint16_t* src, const uint8_t* lut, size_t len)
   {
 #define DST "a2"  // a2 == dst
@@ -779,7 +779,7 @@ __asm__ __volatile(
     " or     " LPX "," LPX ", " X80 "      \n"
     " s16i   " LPX "," SRC ", 30           \n"  // src[15] = LPX|0x8000;
     " j                       BLT_RETURN7  \n"
-  
+
     "BLT_END:                              \n"
     " mov      %0   ," LPX "               \n"  // 戻り値にLPXを指定する。処理ナシの場合 0 / データ処理が存在した場合 0以外となる
   :"=r"(result)::"a3","a4","a5","a6","a7","a8","a9","a10","a11","a12","a13","a14","a15");
