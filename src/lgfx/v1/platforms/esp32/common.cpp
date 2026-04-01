@@ -883,8 +883,14 @@ namespace lgfx
 #endif
 
 #if !defined ( I2C_CLOCK_SRC_ATOMIC )
+  #if __cplusplus <= 201103L
+    #define LGFX_PERIPH_MODULE_T periph_module_t
+  #else
+    #define LGFX_PERIPH_MODULE_T auto
+  #endif
+
     __attribute__ ((unused))
-        static auto getPeriphModule(int num)
+        static LGFX_PERIPH_MODULE_T getPeriphModule(int num)
     {
 #if SOC_I2C_NUM == 1 || defined CONFIG_IDF_TARGET_ESP32C6
       return PERIPH_I2C0_MODULE;
@@ -892,6 +898,8 @@ namespace lgfx
       return num == 0 ? PERIPH_I2C0_MODULE : PERIPH_I2C1_MODULE;
 #endif
     }
+
+  #undef LGFX_PERIPH_MODULE_T
 #endif
 
     static i2c_dev_t* getDev(int num)
