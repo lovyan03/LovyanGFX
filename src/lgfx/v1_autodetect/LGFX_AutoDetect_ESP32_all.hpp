@@ -806,22 +806,42 @@ namespace lgfx
       , uint32_t id_value_
       , uint32_t freq_write_
       , uint32_t freq_read_
-      , gpio_num_t pin_mosi_
-      , gpio_num_t pin_miso_
-      , gpio_num_t pin_sclk_
-      , gpio_num_t pin_dc_
-      , gpio_num_t pin_cs_
-      , gpio_num_t pin_rst_
-      , gpio_num_t pin_tfcard_cs_
-      , int8_t spi_mode_
+      , int_fast16_t pin_mosi_
+      , int_fast16_t pin_miso_
+      , int_fast16_t pin_sclk_
+      , int_fast16_t pin_dc_
+      , int_fast16_t pin_cs_
+      , int_fast16_t pin_rst_
+      , int_fast16_t pin_tfcard_cs_
+      , int_fast8_t spi_mode_
       , bool spi_3wire_
       , spi_host_device_t spi_host_
       )
-      : _detector_t { board_, id_cmd_, id_mask_, id_value_, freq_write_, freq_read_ }
-      ,  pins       { pin_mosi_, pin_miso_, pin_sclk_, pin_dc_, pin_cs_, pin_rst_, pin_tfcard_cs_ }
-      ,  spi_mode   { spi_mode_   }
-      ,  spi_3wire  { spi_3wire_  }
-      ,  spi_host   { spi_host_   }
+      : _detector_t ( board_, id_cmd_, id_mask_, id_value_, freq_write_, freq_read_ )
+      , pins        { (int8_t)pin_mosi_, (int8_t)pin_miso_, (int8_t)pin_sclk_, (int8_t)pin_dc_, (int8_t)pin_cs_, (int8_t)pin_rst_, (int8_t)pin_tfcard_cs_ }
+      , spi_mode    { (int8_t)spi_mode_ }
+      , spi_3wire   { spi_3wire_  }
+      , spi_host    { spi_host_   }
+      {}
+
+      constexpr _detector_spi_t
+      ( const _detector_t& base
+      , int_fast16_t pin_mosi_
+      , int_fast16_t pin_miso_
+      , int_fast16_t pin_sclk_
+      , int_fast16_t pin_dc_
+      , int_fast16_t pin_cs_
+      , int_fast16_t pin_rst_
+      , int_fast16_t pin_tfcard_cs_
+      , int_fast8_t spi_mode_
+      , bool spi_3wire_
+      , spi_host_device_t spi_host_
+      )
+      : _detector_t ( base )
+      , pins        { (int8_t)pin_mosi_, (int8_t)pin_miso_, (int8_t)pin_sclk_, (int8_t)pin_dc_, (int8_t)pin_cs_, (int8_t)pin_rst_, (int8_t)pin_tfcard_cs_ }
+      , spi_mode    { (int8_t)spi_mode_ }
+      , spi_3wire   { spi_3wire_  }
+      , spi_host    { spi_host_   }
       {}
 
       bool detect(_detector_result_t* result, bool use_reset) const override
@@ -925,20 +945,20 @@ namespace lgfx
       , uint32_t id_value_
       , uint32_t freq_write_
       , uint32_t freq_read_
-      , gpio_num_t pin_d0_ , gpio_num_t pin_d1_ , gpio_num_t pin_d2_ , gpio_num_t pin_d3_ , gpio_num_t pin_d4_ , gpio_num_t pin_d5_ , gpio_num_t pin_d6_ , gpio_num_t pin_d7_
-      , gpio_num_t pin_d8_ , gpio_num_t pin_d9_ , gpio_num_t pin_d10_, gpio_num_t pin_d11_, gpio_num_t pin_d12_, gpio_num_t pin_d13_, gpio_num_t pin_d14_, gpio_num_t pin_d15_
-      , gpio_num_t pin_wr_
-      , gpio_num_t pin_rd_
-      , gpio_num_t pin_rs_
-      , gpio_num_t pin_cs_
-      , gpio_num_t pin_rst_
-      , int8_t port_
+      , int_fast16_t pin_d0_ , int_fast16_t pin_d1_ , int_fast16_t pin_d2_ , int_fast16_t pin_d3_ , int_fast16_t pin_d4_ , int_fast16_t pin_d5_ , int_fast16_t pin_d6_ , int_fast16_t pin_d7_
+      , int_fast16_t pin_d8_ , int_fast16_t pin_d9_ , int_fast16_t pin_d10_, int_fast16_t pin_d11_, int_fast16_t pin_d12_, int_fast16_t pin_d13_, int_fast16_t pin_d14_, int_fast16_t pin_d15_
+      , int_fast16_t pin_wr_
+      , int_fast16_t pin_rd_
+      , int_fast16_t pin_rs_
+      , int_fast16_t pin_cs_
+      , int_fast16_t pin_rst_
+      , int_fast8_t port_
       )
-      : _detector_t { board_, id_cmd_, id_mask_, id_value_, freq_write_, freq_read_ }
-      , pins       { pin_d0_, pin_d1_, pin_d2_, pin_d3_, pin_d4_, pin_d5_, pin_d6_, pin_d7_
-                   , pin_d8_, pin_d9_, pin_d10_, pin_d11_, pin_d12_, pin_d13_, pin_d14_, pin_d15_
-                   , pin_wr_, pin_rd_, pin_rs_, pin_cs_, pin_rst_ }
-      , port       { port_     }
+      : _detector_t ( board_, id_cmd_, id_mask_, id_value_, freq_write_, freq_read_ )
+      , pins       { (int8_t)pin_d0_, (int8_t)pin_d1_, (int8_t)pin_d2_, (int8_t)pin_d3_, (int8_t)pin_d4_, (int8_t)pin_d5_, (int8_t)pin_d6_, (int8_t)pin_d7_
+                   , (int8_t)pin_d8_, (int8_t)pin_d9_, (int8_t)pin_d10_, (int8_t)pin_d11_, (int8_t)pin_d12_, (int8_t)pin_d13_, (int8_t)pin_d14_, (int8_t)pin_d15_
+                   , (int8_t)pin_wr_, (int8_t)pin_rd_, (int8_t)pin_rs_, (int8_t)pin_cs_, (int8_t)pin_rst_ }
+      , port       { (int8_t)port_     }
       {}
 
       bool detect(_detector_result_t* result, bool use_reset) const override
