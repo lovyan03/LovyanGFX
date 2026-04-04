@@ -99,6 +99,15 @@ jobs:
           cd ~/esp/esp-idf
           if [ ! -d "~/.espressif" ]; then ./install.sh; fi
 
+      - name: Patch ESP-IDF noreturn macro for GCC 15
+        run: |
+          set -eux
+          FILE=~/esp/esp-idf/components/hal/platform_port/include/hal/assert.h
+          if [ -f "$FILE" ]; then
+            sed -i 's/#define __noreturn \[\[noreturn\]\]/#define __noreturn __attribute__((noreturn))/g' "$FILE"
+            grep -n "__noreturn" "$FILE"
+          fi
+
       - name: Build example for ${{ matrix.esp-idf-fqbn }}
         run: |
           source ~/esp/esp-idf/export.sh
