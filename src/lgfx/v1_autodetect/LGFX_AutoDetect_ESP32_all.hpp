@@ -26,7 +26,7 @@ Contributors:
 
 #if __has_include(<driver/i2c_master.h>)
   #include <driver/i2c_master.h>
-#elif __has_include(<driver/i2c.h>>
+#elif __has_include(<driver/i2c.h>)
   #include <driver/i2c.h>
 #endif
 
