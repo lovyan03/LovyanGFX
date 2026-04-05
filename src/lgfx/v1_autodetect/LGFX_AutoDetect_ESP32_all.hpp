@@ -1890,6 +1890,17 @@ namespace lgfx
 
 #elif defined (CONFIG_IDF_TARGET_ESP32) || !defined (CONFIG_IDF_TARGET)
 
+      #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 0, 0)
+        // NOTE: unsure why idf v6 does not alias those
+        #if !defined HSPI_HOST
+          #define HSPI_HOST SPI2_HOST
+        #endif
+        #if !defined VSPI_HOST
+          #define VSPI_HOST SPI3_HOST
+        #endif
+      #endif
+
+
       struct _detector_M5StickCPlus_t : public _detector_spi_t
       {
         constexpr _detector_M5StickCPlus_t(void) :
