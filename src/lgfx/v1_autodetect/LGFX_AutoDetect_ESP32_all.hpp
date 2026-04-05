@@ -23,7 +23,13 @@ Contributors:
 #include <nvs.h>
 #include <memory>
 #include <esp_log.h>
-#include <driver/i2c.h>
+
+#if __has_include(<driver/i2c_master.h>)
+  #include <driver/i2c_master.h>
+#elif __has_include(<driver/i2c.h>>
+  #include <driver/i2c.h>
+#endif
+
 #include <soc/efuse_reg.h>
 #include <soc/gpio_periph.h>
 #include <soc/gpio_reg.h>
