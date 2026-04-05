@@ -31,6 +31,8 @@ Contributors:
 #include <soc/spi_reg.h>
 #if __has_include(<soc/i2s_reg.h>)
 #include <soc/i2s_reg.h>
+#include <soc/gpio_reg.h>
+#include <soc/gpio_periph.h>
 #endif
 #include <soc/gpio_struct.h>
 #include <soc/gpio_sig_map.h>
@@ -90,6 +92,13 @@ Contributors:
 #if defined ( ESP_IDF_VERSION_VAL )
  #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
   #define LGFX_IDF_V5
+ #endif
+
+ #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 0, 0)
+  #ifndef LGFX_I2S_PORT_T_COMPAT
+   #define LGFX_I2S_PORT_T_COMPAT 1
+   typedef int i2s_port_t;
+  #endif
  #endif
 
  #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 4, 0)

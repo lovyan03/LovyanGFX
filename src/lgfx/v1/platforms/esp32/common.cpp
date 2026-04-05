@@ -43,7 +43,7 @@ Contributors:
 #if (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 3, 0))
  #if __has_include(<hal/i2c_ll.h>)
   #include <hal/i2c_ll.h>
-  #if defined ( i2c_ll_reset_register )
+  #if defined ( i2c_ll_reset_register ) || (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 0, 0))
    #if SOC_PERIPH_CLK_CTRL_SHARED
     #define I2C_CLOCK_SRC_ATOMIC() PERIPH_RCC_ATOMIC()
    #else
@@ -129,6 +129,9 @@ Contributors:
 #endif
 
 #if defined (SOC_GDMA_SUPPORTED)  // for C3/S3
+ #if __has_include(<hal/gdma_ll.h>)
+  #include <hal/gdma_ll.h>
+ #endif
  #if __has_include(<soc/gdma_reg.h>)
   #include <soc/gdma_reg.h>
  #elif __has_include(<soc/axi_dma_reg.h>) // ESP32P4
@@ -153,7 +156,13 @@ Contributors:
  #endif
 
  #if !defined (SOC_GDMA_PAIRS_PER_GROUP_MAX)
-  #define SOC_GDMA_PAIRS_PER_GROUP_MAX SOC_GDMA_PAIRS_PER_GROUP
+  #if defined (SOC_GDMA_PAIRS_PER_GROUP)
+   #define SOC_GDMA_PAIRS_PER_GROUP_MAX SOC_GDMA_PAIRS_PER_GROUP
+  #elif defined (GDMA_LL_PAIRS_PER_INST)
+   #define SOC_GDMA_PAIRS_PER_GROUP_MAX GDMA_LL_PAIRS_PER_INST
+  #else
+   #define SOC_GDMA_PAIRS_PER_GROUP_MAX 5
+  #endif
  #endif
 #endif
 
@@ -547,7 +556,13 @@ namespace lgfx
 #endif
 
 #if !defined (CONFIG_IDF_TARGET) || defined (CONFIG_IDF_TARGET_ESP32)
-    static constexpr int default_spi_host = VSPI_HOST;
+ #if defined (VSPI_HOST)
+   static constexpr int default_spi_host = VSPI_HOST;
+ #elif defined (SPI3_HOST)
+   static constexpr int default_spi_host = SPI3_HOST;
+ #else
+   static constexpr int default_spi_host = SPI2_HOST;
+ #endif
     static constexpr int spi_periph_num = 3;
 #else
     static constexpr int default_spi_host = SPI2_HOST;
@@ -867,8 +882,15 @@ namespace lgfx
  #define I2C_ACK_ERR_INT_RAW_M I2C_NACK_INT_RAW_M
 #endif
 
+#if !defined ( I2C_CLOCK_SRC_ATOMIC )
+  #if __cplusplus <= 201103L
+    #define LGFX_PERIPH_MODULE_T periph_module_t
+  #else
+    #define LGFX_PERIPH_MODULE_T auto
+  #endif
+
     __attribute__ ((unused))
-    static periph_module_t getPeriphModule(int num)
+        static LGFX_PERIPH_MODULE_T getPeriphModule(int num)
     {
 #if SOC_I2C_NUM == 1 || defined CONFIG_IDF_TARGET_ESP32C6
       return PERIPH_I2C0_MODULE;
@@ -876,6 +898,9 @@ namespace lgfx
       return num == 0 ? PERIPH_I2C0_MODULE : PERIPH_I2C1_MODULE;
 #endif
     }
+
+  #undef LGFX_PERIPH_MODULE_T
+#endif
 
     static i2c_dev_t* getDev(int num)
     {
@@ -1091,7 +1116,11 @@ namespace lgfx
 #if __has_include(<driver/i2c_master.h>)
       if ((int8_t)pin_sda >= 0) {
         gpio_set_level(pin_sda, true);
+#if defined (ESP_IDF_VERSION_VAL) && (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 0, 0))
+        (void)gpio_iomux_output(pin_sda, PIN_FUNC_GPIO);
+#else
         gpio_iomux_out(pin_sda, PIN_FUNC_GPIO, false);
+#endif
         gpio_set_direction(pin_sda, GPIO_MODE_INPUT_OUTPUT_OD);
         gpio_set_pull_mode(pin_sda, GPIO_PULLUP_ONLY);
         esp_rom_gpio_connect_out_signal(pin_sda, i2c_periph_signal[i2c_num].sda_out_sig, 0, 0);
@@ -1099,7 +1128,11 @@ namespace lgfx
       }
       if ((int8_t)pin_scl >= 0) {
         gpio_set_level(pin_scl, true);
+#if defined (ESP_IDF_VERSION_VAL) && (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 0, 0))
+        (void)gpio_iomux_output(pin_scl, PIN_FUNC_GPIO);
+#else
         gpio_iomux_out(pin_scl, PIN_FUNC_GPIO, false);
+#endif
         gpio_set_direction(pin_scl, GPIO_MODE_INPUT_OUTPUT_OD);
         esp_rom_gpio_connect_out_signal(pin_scl, i2c_periph_signal[i2c_num].scl_out_sig, 0, 0);
         esp_rom_gpio_connect_in_signal(pin_scl, i2c_periph_signal[i2c_num].scl_in_sig, 0);

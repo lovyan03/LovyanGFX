@@ -1454,11 +1454,11 @@ inline namespace bitwizeshift {
     constexpr auto extract_error(const result<T,E>& exp) noexcept -> const E&;
 
     template <typename E>
-    [[noreturn]]
+    __attribute__((noreturn))
     auto throw_bad_result_access(E&& error) -> void;
 
     template <typename String, typename E>
-    [[noreturn]]
+    __attribute__((noreturn))
     auto throw_bad_result_access_message(String&& message, E&& error) -> void;
 
   } // namespace detail

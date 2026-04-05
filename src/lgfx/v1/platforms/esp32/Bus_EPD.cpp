@@ -130,7 +130,7 @@ bool Bus_EPD::init(void)
   bus_config.wr_gpio_num = (gpio_num_t)_config.pin_cl;
   bus_config.bus_width = _config.bus_width;
   for (int i = 0; i < _config.bus_width; ++i) {
-    bus_config.data_gpio_nums[i] = _config.pin_data[i];
+    bus_config.data_gpio_nums[i] = (gpio_num_t)_config.pin_data[i];
     // starting from ESP-IDF v5.4, esp_lcd_new_i80_bus removed `gpio_set_direction` call on all pins include these data pins,
     // for somehow unknown reason, some of data pin like GPIO11, GPIO12 are Open-Drain mode when bootup and remains OD after
     // `esp_lcd_new_i80_bus`, which will cause screen not works as expected.
