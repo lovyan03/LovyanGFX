@@ -1454,11 +1454,11 @@ inline namespace bitwizeshift {
     constexpr auto extract_error(const result<T,E>& exp) noexcept -> const E&;
 
     template <typename E>
-    __attribute__((noreturn))
+    [[noreturn]]
     auto throw_bad_result_access(E&& error) -> void;
 
     template <typename String, typename E>
-    __attribute__((noreturn))
+    [[noreturn]]
     auto throw_bad_result_access_message(String&& message, E&& error) -> void;
 
   } // namespace detail
@@ -4242,7 +4242,7 @@ auto RESULT_NS_IMPL::detail::throw_bad_result_access(E&& error) -> void
   std::abort();
 #else
   std::abort();
-/* // ESP32-S3向けビルドがコンパイルエラーとなるためコメントアウト by lovyan03; 
+/* // ESP32-S3向けビルドがコンパイルエラーとなるためコメントアウト by lovyan03;
   using exception_type = bad_result_access<
     typename std::remove_const<
       typename std::remove_reference<E>::type
