@@ -49,12 +49,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
 
       - name: Cache SDL2 for Windows
         if: ${{ matrix.os == 'windows-latest' }}
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         id: cache-SLD2-windows
         with:
           path: contrib
