@@ -1093,9 +1093,9 @@ namespace lgfx
       auto scanline = (rgb888_t*)alloca(w * sizeof(rgb888_t));
 
       startWrite();
-      for( int _y=0;_y<h;_y++ ) {
+      for( int _y=0;_y<(int)h;_y++ ) {
         // only half of the scan line needs to be calculated, the other half is mirrored
-        for( int _x=0;_x<=w/2;_x++ ) {
+        for( int _x=0;_x<=(int)w/2;_x++ ) {
           auto distance       = pixelDistance( fmidx, fmidy, _x*vratio, _y*hratio );
           scanline[_x]        = map_gradient( distance, 0, hyp0, gradient );
           scanline[(w-1)-_x]  = scanline[_x];
@@ -1118,11 +1118,11 @@ namespace lgfx
     bool is_vertical = style==VLINEAR;
     const uint32_t gradient_len = is_vertical ? h : w;
     auto scanline = (rgb888_t*)alloca(gradient_len * sizeof(rgb888_t));
-    for(int i=0;i<gradient_len;i++) { // memoize one gradient scanline
+    for(int i=0;i<(int)gradient_len;i++) { // memoize one gradient scanline
       scanline[i] = map_gradient( i, 0, gradient_len, gradient );
     }
     startWrite();
-    for( int ys=0;ys<h;ys++ ) {
+    for( int ys=0;ys<(int)h;ys++ ) {
       if( is_vertical ) { // scanline is used as an colors index
         setColor(color888(scanline[ys].r, scanline[ys].g, scanline[ys].b));
         drawFastHLine( x, y+ys, w );

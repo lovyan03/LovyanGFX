@@ -24,6 +24,9 @@
 #ifdef max
 #undef max
 #endif
+#ifdef abs
+#undef abs
+#endif
 
 namespace lgfx
 {
@@ -960,30 +963,20 @@ label_nextbyte: /// 次のデータを取得する;
     }
 
     uint8_t glyph_bpp = 8;
+    // NOTE: LV_FONT_GLYPH_FORMAT_* are enum values (see lv_font/font.h),
+    //       not preprocessor macros, so they cannot be #ifdef'd.
     switch (gd.format)
     {
-#ifdef LV_FONT_GLYPH_FORMAT_A1
       case LV_FONT_GLYPH_FORMAT_A1:
-#endif
-#ifdef LV_FONT_GLYPH_FORMAT_A1_ALIGNED
       case LV_FONT_GLYPH_FORMAT_A1_ALIGNED:
-#endif
         glyph_bpp = 1;
         break;
-#ifdef LV_FONT_GLYPH_FORMAT_A2
       case LV_FONT_GLYPH_FORMAT_A2:
-#endif
-#ifdef LV_FONT_GLYPH_FORMAT_A2_ALIGNED
       case LV_FONT_GLYPH_FORMAT_A2_ALIGNED:
-#endif
         glyph_bpp = 2;
         break;
-#ifdef LV_FONT_GLYPH_FORMAT_A4
       case LV_FONT_GLYPH_FORMAT_A4:
-#endif
-#ifdef LV_FONT_GLYPH_FORMAT_A4_ALIGNED
       case LV_FONT_GLYPH_FORMAT_A4_ALIGNED:
-#endif
         glyph_bpp = 4;
         break;
       default:
