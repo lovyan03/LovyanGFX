@@ -10,8 +10,10 @@ file(GLOB Target_Files RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} CONFIGURE_DEPENDS
     *.cpp
     ../../../LovyanGFX/src/lgfx/Fonts/efont/*.c
     ../../../LovyanGFX/src/lgfx/Fonts/IPA/*.c
+    ../../../LovyanGFX/src/lgfx/Fonts/lvgl/*.c
     ../../../LovyanGFX/src/lgfx/utility/*.c
     ../../../LovyanGFX/src/lgfx/v1/*.cpp
+    ../../../LovyanGFX/src/lgfx/v1/lv_font/*.c
     ../../../LovyanGFX/src/lgfx/v1/misc/*.cpp
     ../../../LovyanGFX/src/lgfx/v1/panel/Panel_Device.cpp
     ../../../LovyanGFX/src/lgfx/v1/panel/Panel_FrameBufferBase.cpp

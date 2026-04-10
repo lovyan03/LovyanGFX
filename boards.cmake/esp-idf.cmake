@@ -6,8 +6,10 @@ set(COMPONENT_ADD_INCLUDEDIRS
 file(GLOB SRCS
      ${LGFX_ROOT}/src/lgfx/Fonts/efont/*.c
      ${LGFX_ROOT}/src/lgfx/Fonts/IPA/*.c
+     ${LGFX_ROOT}/src/lgfx/Fonts/lvgl/*.c
      ${LGFX_ROOT}/src/lgfx/utility/*.c
      ${LGFX_ROOT}/src/lgfx/v1/*.cpp
+     ${LGFX_ROOT}/src/lgfx/v1/lv_font/*.c
      ${LGFX_ROOT}/src/lgfx/v1/misc/*.cpp
      ${LGFX_ROOT}/src/lgfx/v1/panel/*.cpp
      ${LGFX_ROOT}/src/lgfx/v1/platforms/arduino_default/*.cpp
