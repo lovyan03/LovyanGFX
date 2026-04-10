@@ -2449,13 +2449,13 @@ namespace lgfx
   }
 
   /// load VLW font
-  bool LGFXBase::loadFont(const uint8_t* array)
+  bool LGFXBase::loadFont(const uint8_t* array, IFont::font_type_t font_type)
   {
     _font_data.set(array);
-    return load_font(&_font_data);
+    return load_font(&_font_data, font_type);
   }
 
-  bool LGFXBase::load_font_with_path(const char *path)
+  bool LGFXBase::load_font_with_path(const char *path, IFont::font_type_t font_type)
   {
     this->unloadFont();
 
@@ -2482,13 +2482,13 @@ namespace lgfx
     }
 
     if (result) {
-      result = this->load_font(this->_font_file.get());
+      result = this->load_font(this->_font_file.get(), font_type);
     }
     this->_font_file->postRead();
     return result;
   }
 
-  bool LGFXBase::load_font(lgfx::DataWrapper* data)
+  bool LGFXBase::load_font(lgfx::DataWrapper* data, IFont::font_type_t font_type)
   {
     this->unloadFont();
     bool result = false;
@@ -2506,8 +2506,14 @@ namespace lgfx
     }
     else
 #endif
+    switch (font_type)
     {
+    case IFont::font_type_t::ft_lvgl:
+      this->_runtime_font.reset(new BFFfont());
+      break;
+    default:
       this->_runtime_font.reset(new VLWfont());
+      break;
     }
 
     if (this->_runtime_font->loadFont(data)) {

@@ -796,28 +796,28 @@ namespace lgfx
     void setFont(const IFont* font);
 
     /// load VLW font
-    bool loadFont(const uint8_t* array);
+    bool loadFont(const uint8_t* array, IFont::font_type_t font_type = IFont::font_type_t::ft_vlw);
 
     /// load vlw font from filesystem.
-    bool loadFont(const char *path)
+    bool loadFont(const char *path, IFont::font_type_t font_type = IFont::font_type_t::ft_vlw)
     {
       unloadFont();
       _font_file.reset(_create_data_wrapper());
-      return load_font_with_path(path);
+      return load_font_with_path(path, font_type);
     }
 
 
     template <typename T>
-    bool loadFont(T &fs, const char *path)
+    bool loadFont(T &fs, const char *path, IFont::font_type_t font_type = IFont::font_type_t::ft_vlw)
     {
       unloadFont();
       _font_file.reset(new DataWrapperT<T>(&fs));
-      return load_font_with_path(path);
+      return load_font_with_path(path, font_type);
     }
 
-    bool loadFont(DataWrapper* data)
+    bool loadFont(DataWrapper* data, IFont::font_type_t font_type = IFont::font_type_t::ft_vlw)
     {
-      return load_font(data);
+      return load_font(data, font_type);
     }
 
     /// unload VLW font
@@ -1366,8 +1366,8 @@ namespace lgfx
     size_t printFloat(double number, uint8_t digits);
     size_t draw_string(const char *string, int32_t x, int32_t y, textdatum_t datum, const IFont* font = nullptr);
     int32_t text_width(const char *string, const IFont* font, FontMetrics* metrics);
-    bool load_font(lgfx::DataWrapper* data);
-    bool load_font_with_path(const char *path);
+    bool load_font(lgfx::DataWrapper* data, IFont::font_type_t font_type);
+    bool load_font_with_path(const char *path, IFont::font_type_t font_type);
 
     static void tmpBeginTransaction(LGFXBase* lgfx)
     {
