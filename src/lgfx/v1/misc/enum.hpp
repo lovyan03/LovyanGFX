@@ -64,7 +64,9 @@ namespace lgfx
     #undef TFT_PURPLE
     #undef TFT_OLIVE
     #undef TFT_LIGHTGREY
+    #undef TFT_LIGHTGRAY
     #undef TFT_DARKGREY
+    #undef TFT_DARKGRAY
     #undef TFT_BLUE
     #undef TFT_GREEN
     #undef TFT_CYAN
@@ -81,6 +83,120 @@ namespace lgfx
     #undef TFT_SKYBLUE
     #undef TFT_VIOLET
     #undef TFT_TRANSPARENT
+    #undef TFT_ALICEBLUE
+    #undef TFT_ANTIQUEWHITE
+    #undef TFT_AQUAMARINE
+    #undef TFT_AZURE
+    #undef TFT_BEIGE
+    #undef TFT_BISQUE
+    #undef TFT_BLANCHEDALMOND
+    #undef TFT_BLUEVIOLET
+    #undef TFT_BURLYWOOD
+    #undef TFT_CADETBLUE
+    #undef TFT_CHARTREUSE
+    #undef TFT_CHOCOLATE
+    #undef TFT_CORAL
+    #undef TFT_CORNFLOWERBLUE
+    #undef TFT_CORNSILK
+    #undef TFT_CRIMSON
+    #undef TFT_DARKGOLDENROD
+    #undef TFT_DARKKHAKI
+    #undef TFT_DARKMAGENTA
+    #undef TFT_DARKOLIVEGREEN
+    #undef TFT_DARKORANGE
+    #undef TFT_DARKORCHID
+    #undef TFT_DARKRED
+    #undef TFT_DARKSALMON
+    #undef TFT_DARKSEAGREEN
+    #undef TFT_DARKSLATEBLUE
+    #undef TFT_DARKSLATEGRAY
+    #undef TFT_DARKTURQUOISE
+    #undef TFT_DARKVIOLET
+    #undef TFT_DEEPPINK
+    #undef TFT_DEEPSKYBLUE
+    #undef TFT_DIMGRAY
+    #undef TFT_DODGERBLUE
+    #undef TFT_FIREBRICK
+    #undef TFT_FLORALWHITE
+    #undef TFT_FORESTGREEN
+    #undef TFT_GAINSBORO
+    #undef TFT_GHOSTWHITE
+    #undef TFT_GOLDENROD
+    #undef TFT_HONEYDEW
+    #undef TFT_HOTPINK
+    #undef TFT_INDIANRED
+    #undef TFT_INDIGO
+    #undef TFT_IVORY
+    #undef TFT_KHAKI
+    #undef TFT_LAVENDER
+    #undef TFT_LAVENDERBLUSH
+    #undef TFT_LAWNGREEN
+    #undef TFT_LEMONCHIFFON
+    #undef TFT_LIGHTBLUE
+    #undef TFT_LIGHTCORAL
+    #undef TFT_LIGHTCYAN
+    #undef TFT_LIGHTGOLDENRODYELLOW
+    #undef TFT_LIGHTGREEN
+    #undef TFT_LIGHTPINK
+    #undef TFT_LIGHTSALMON
+    #undef TFT_LIGHTSEAGREEN
+    #undef TFT_LIGHTSKYBLUE
+    #undef TFT_LIGHTSLATEGRAY
+    #undef TFT_LIGHTSTEELBLUE
+    #undef TFT_LIGHTYELLOW
+    #undef TFT_LIMEGREEN
+    #undef TFT_LINEN
+    #undef TFT_MEDIUMAQUAMARINE
+    #undef TFT_MEDIUMBLUE
+    #undef TFT_MEDIUMORCHID
+    #undef TFT_MEDIUMPURPLE
+    #undef TFT_MEDIUMSEAGREEN
+    #undef TFT_MEDIUMSLATEBLUE
+    #undef TFT_MEDIUMSPRINGGREEN
+    #undef TFT_MEDIUMTURQUOISE
+    #undef TFT_MEDIUMVIOLETRED
+    #undef TFT_MIDNIGHTBLUE
+    #undef TFT_MINTCREAM
+    #undef TFT_MISTYROSE
+    #undef TFT_MOCCASIN
+    #undef TFT_NAVAJOWHITE
+    #undef TFT_OLDLACE
+    #undef TFT_OLIVEDRAB
+    #undef TFT_ORANGERED
+    #undef TFT_ORCHID
+    #undef TFT_PALEGOLDENROD
+    #undef TFT_PALEGREEN
+    #undef TFT_PALETURQUOISE
+    #undef TFT_PALEVIOLETRED
+    #undef TFT_PAPAYAWHIP
+    #undef TFT_PEACHPUFF
+    #undef TFT_PERU
+    #undef TFT_PLUM
+    #undef TFT_POWDERBLUE
+    #undef TFT_REBECCAPURPLE
+    #undef TFT_ROSYBROWN
+    #undef TFT_ROYALBLUE
+    #undef TFT_SADDLEBROWN
+    #undef TFT_SALMON
+    #undef TFT_SANDYBROWN
+    #undef TFT_SEAGREEN
+    #undef TFT_SEASHELL
+    #undef TFT_SIENNA
+    #undef TFT_SLATEBLUE
+    #undef TFT_SLATEGRAY
+    #undef TFT_SLATEGREY
+    #undef TFT_GRAY
+    #undef TFT_GREY
+    #undef TFT_SNOW
+    #undef TFT_SPRINGGREEN
+    #undef TFT_STEELBLUE
+    #undef TFT_TAN
+    #undef TFT_THISTLE
+    #undef TFT_TOMATO
+    #undef TFT_TURQUOISE
+    #undef TFT_WHEAT
+    #undef TFT_WHITESMOKE
+    #undef TFT_YELLOWGREEN
     #endif
 
     static constexpr int TFT_BLACK       = 0x0000;      /*   0,   0,   0 */
@@ -110,6 +226,120 @@ namespace lgfx
     static constexpr int TFT_SKYBLUE     = 0x867D;      /* 135, 206, 235 */
     static constexpr int TFT_VIOLET      = 0x915C;      /* 180,  46, 226 */
     static constexpr int TFT_TRANSPARENT = 0x0120;
+    static constexpr int TFT_ALICEBLUE       = 0xF7DF;      /* 240, 248, 255 */
+    static constexpr int TFT_ANTIQUEWHITE    = 0xFF5A;      /* 250, 235, 215 */
+    static constexpr int TFT_AQUAMARINE      = 0x7FFA;      /* 127, 255, 212 */
+    static constexpr int TFT_AZURE           = 0xF7FF;      /* 240, 255, 255 */
+    static constexpr int TFT_BEIGE           = 0xF5F5;      /* 245, 245, 220 */
+    static constexpr int TFT_BISQUE          = 0xFFB5;      /* 255, 228, 196 */
+    static constexpr int TFT_BLANCHEDALMOND  = 0xFF7B;      /* 255, 235, 205 */
+    static constexpr int TFT_BLUEVIOLET      = 0x901A;      /* 138,  43, 226 */
+    static constexpr int TFT_BURLYWOOD       = 0xDEB8;      /* 222, 184, 135 */
+    static constexpr int TFT_CADETBLUE       = 0x5F9E;      /*  95, 158, 160 */
+    static constexpr int TFT_CHARTREUSE      = 0x7FFF;      /* 127, 255,   0 */
+    static constexpr int TFT_CHOCOLATE       = 0xD269;      /* 210, 105,  30 */
+    static constexpr int TFT_CORAL           = 0xFF7F;      /* 255, 127,  80 */
+    static constexpr int TFT_CORNFLOWERBLUE  = 0x6495;      /* 100, 149, 237 */
+    static constexpr int TFT_CORNSILK        = 0xFFDB;      /* 255, 248, 220 */
+    static constexpr int TFT_CRIMSON         = 0xDC14;      /* 220,  20,  60 */
+    static constexpr int TFT_DARKGOLDENROD   = 0xB886;      /* 184, 134,  11 */
+    static constexpr int TFT_DARKKHAKI       = 0xBDB7;      /* 189, 183, 107 */
+    static constexpr int TFT_DARKMAGENTA     = 0x8B00;      /* 139,   0, 139 */
+    static constexpr int TFT_DARKOLIVEGREEN  = 0x556B;      /*  85, 107,  47 */
+    static constexpr int TFT_DARKORANGE      = 0xFF8C;      /* 255, 140,   0 */
+    static constexpr int TFT_DARKORCHID      = 0x9932;      /* 153,  50, 204 */
+    static constexpr int TFT_DARKRED         = 0x8B00;      /* 139,   0,   0 */
+    static constexpr int TFT_DARKSALMON      = 0xE996;      /* 233, 150, 122 */
+    static constexpr int TFT_DARKSEAGREEN    = 0x8FBC;      /* 143, 188, 143 */
+    static constexpr int TFT_DARKSLATEBLUE   = 0x483D;      /*  72,  61, 139 */
+    static constexpr int TFT_DARKSLATEGRAY   = 0x2F4F;      /*  47,  79,  79 */
+    static constexpr int TFT_DARKTURQUOISE   = 0x00CE;      /*   0, 206, 209 */
+    static constexpr int TFT_DARKVIOLET      = 0x9400;      /* 148,   0, 211 */
+    static constexpr int TFT_DEEPPINK        = 0xFF14;      /* 255,  20, 147 */
+    static constexpr int TFT_DEEPSKYBLUE     = 0x00BF;      /*   0, 191, 255 */
+    static constexpr int TFT_DIMGRAY         = 0x6969;      /* 105, 105, 105 */
+    static constexpr int TFT_DODGERBLUE      = 0x1E90;      /*  30, 144, 255 */
+    static constexpr int TFT_FIREBRICK       = 0xB222;      /* 178,  34,  34 */
+    static constexpr int TFT_FLORALWHITE     = 0xFFFA;      /* 255, 250, 240 */
+    static constexpr int TFT_FORESTGREEN     = 0x228B;      /*  34, 139,  34 */
+    static constexpr int TFT_GAINSBORO       = 0xDCDc;      /* 220, 220, 220 */
+    static constexpr int TFT_GHOSTWHITE      = 0xF8F8;      /* 248, 248, 255 */
+    static constexpr int TFT_GOLDENROD       = 0xDAA5;      /* 218, 165,  32 */
+    static constexpr int TFT_HONEYDEW        = 0xF0FF;      /* 240, 255, 240 */
+    static constexpr int TFT_HOTPINK         = 0xFF69;      /* 255, 105, 180 */
+    static constexpr int TFT_INDIANRED       = 0xCD5C;      /* 205,  92,  92 */
+    static constexpr int TFT_INDIGO          = 0x4B00;      /*  75,   0, 132 */
+    static constexpr int TFT_IVORY           = 0xFFFF;      /* 255, 255, 240 */
+    static constexpr int TFT_KHAKI           = 0xF0E6;      /* 240, 230, 140 */
+    static constexpr int TFT_LAVENDER        = 0xE6E6;      /* 230, 230, 250 */
+    static constexpr int TFT_LAVENDERBLUSH   = 0xFFF0;      /* 255, 240, 245 */
+    static constexpr int TFT_LAWNGREEN       = 0x7CFC;      /* 124, 252,   0 */
+    static constexpr int TFT_LEMONCHIFFON    = 0xFFAC;      /* 255, 250, 205 */
+    static constexpr int TFT_LIGHTBLUE       = 0xADD8;      /* 173, 216, 230 */
+    static constexpr int TFT_LIGHTCORAL      = 0xF080;      /* 240, 128, 128 */
+    static constexpr int TFT_LIGHTCYAN       = 0xE0FF;      /* 224, 255, 255 */
+    static constexpr int TFT_LIGHTGOLDENRODYELLOW = 0xFAF0; /* 250, 250, 210 */
+    static constexpr int TFT_LIGHTGREEN      = 0x90EE;      /* 144, 238, 144 */
+    static constexpr int TFT_LIGHTPINK       = 0xFFB6;      /* 255, 182, 193 */
+    static constexpr int TFT_LIGHTSALMON     = 0xFFA0;      /* 255, 160, 122 */
+    static constexpr int TFT_LIGHTSEAGREEN   = 0x20B2;      /*  32, 178, 170 */
+    static constexpr int TFT_LIGHTSKYBLUE    = 0x87CE;      /* 135, 206, 250 */
+    static constexpr int TFT_LIGHTSLATEGRAY  = 0x7788;      /* 119, 136, 153 */
+    static constexpr int TFT_LIGHTSTEELBLUE  = 0xB0C4;      /* 176, 196, 222 */
+    static constexpr int TFT_LIGHTYELLOW     = 0xFFFF;      /* 255, 255, 224 */
+    static constexpr int TFT_LIMEGREEN       = 0x32CD;      /*  50, 205,  50 */
+    static constexpr int TFT_LINEN           = 0xFAF0;      /* 250, 240, 230 */
+    static constexpr int TFT_MEDIUMAQUAMARINE = 0x66CD;     /* 102, 205, 170 */
+    static constexpr int TFT_MEDIUMBLUE      = 0x000C;      /*   0,   0, 205 */
+    static constexpr int TFT_MEDIUMORCHID    = 0xBA55;      /* 186,  85, 213 */
+    static constexpr int TFT_MEDIUMPURPLE    = 0x9370;      /* 147, 112, 219 */
+    static constexpr int TFT_MEDIUMSEAGREEN  = 0x3CB3;      /*  60, 179, 113 */
+    static constexpr int TFT_MEDIUMSLATEBLUE = 0x7B68;      /* 123, 104, 238 */
+    static constexpr int TFT_MEDIUMSPRINGGREEN = 0x00FA;   /*   0, 250, 154 */
+    static constexpr int TFT_MEDIUMTURQUOISE = 0x48D1;      /*  72, 209, 204 */
+    static constexpr int TFT_MEDIUMVIOLETRED = 0xC715;      /* 199,  21, 133 */
+    static constexpr int TFT_MIDNIGHTBLUE    = 0x1919;      /*  25,  25, 112 */
+    static constexpr int TFT_MINTCREAM       = 0xF5FF;      /* 245, 255, 250 */
+    static constexpr int TFT_MISTYROSE       = 0xFFE4;      /* 255, 228, 225 */
+    static constexpr int TFT_MOCCASIN        = 0xFFE4;      /* 255, 228, 181 */
+    static constexpr int TFT_NAVAJOWHITE     = 0xFFDE;      /* 255, 222, 173 */
+    static constexpr int TFT_OLDLACE         = 0xFDF5;      /* 253, 245, 230 */
+    static constexpr int TFT_OLIVEDRAB       = 0x6B8E;      /* 107, 142,  35 */
+    static constexpr int TFT_ORANGERED       = 0xFF45;      /* 255,  69,   0 */
+    static constexpr int TFT_ORCHID          = 0xDA70;      /* 218, 112, 214 */
+    static constexpr int TFT_PALEGOLDENROD   = 0xEEE8;      /* 238, 232, 170 */
+    static constexpr int TFT_PALEGREEN       = 0x98FB;      /* 152, 251, 152 */
+    static constexpr int TFT_PALETURQUOISE   = 0xAFEE;      /* 175, 238, 238 */
+    static constexpr int TFT_PALEVIOLETRED   = 0xDB70;      /* 219, 112, 147 */
+    static constexpr int TFT_PAPAYAWHIP      = 0xFFEF;      /* 255, 239, 213 */
+    static constexpr int TFT_PEACHPUFF       = 0xFFDA;      /* 255, 218, 185 */
+    static constexpr int TFT_PERU            = 0xCD85;      /* 205, 133,  63 */
+    static constexpr int TFT_PLUM            = 0xDDA0;      /* 221, 160, 221 */
+    static constexpr int TFT_POWDERBLUE      = 0xB0E0;      /* 176, 224, 230 */
+    static constexpr int TFT_REBECCAPURPLE   = 0x6633;      /* 102,  51, 153 */
+    static constexpr int TFT_ROSYBROWN       = 0xBC8F;      /* 188, 143, 143 */
+    static constexpr int TFT_ROYALBLUE       = 0x4169;      /*  65, 105, 225 */
+    static constexpr int TFT_SADDLEBROWN     = 0x8B45;      /* 139,  69,  19 */
+    static constexpr int TFT_SALMON          = 0xFA80;      /* 250, 128, 114 */
+    static constexpr int TFT_SANDYBROWN      = 0xF4A4;      /* 244, 164,  96 */
+    static constexpr int TFT_SEAGREEN        = 0x2E8B;      /*  46, 139,  87 */
+    static constexpr int TFT_SEASHELL        = 0xFFF5;      /* 255, 245, 238 */
+    static constexpr int TFT_SIENNA          = 0xA052;      /* 160,  82,  45 */
+    static constexpr int TFT_SLATEBLUE       = 0x6A5A;      /* 106,  90, 205 */
+    static constexpr int TFT_SLATEGRAY       = 0x7080;      /* 112, 128, 144 */
+    static constexpr int TFT_SLATEGREY       = 0x7080;      /* 112, 128, 144 */
+    static constexpr int TFT_GRAY            = 0x8410;      /* 128, 128, 128 */
+    static constexpr int TFT_GREY            = 0x8410;      /* 128, 128, 128 */
+    static constexpr int TFT_SNOW            = 0xFFFA;      /* 255, 250, 250 */
+    static constexpr int TFT_SPRINGGREEN     = 0x00FF;      /*   0, 255, 127 */
+    static constexpr int TFT_STEELBLUE       = 0x4682;      /*  70, 130, 180 */
+    static constexpr int TFT_TAN             = 0xD2B4;      /* 210, 180, 140 */
+    static constexpr int TFT_THISTLE         = 0xD8BF;      /* 216, 191, 216 */
+    static constexpr int TFT_TOMATO          = 0xFF63;      /* 255,  99,  71 */
+    static constexpr int TFT_TURQUOISE       = 0x40E0;      /*  64, 224, 208 */
+    static constexpr int TFT_WHEAT           = 0xF5DE;      /* 245, 222, 179 */
+    static constexpr int TFT_WHITESMOKE      = 0xF5F5;      /* 245, 245, 245 */
+    static constexpr int TFT_YELLOWGREEN     = 0x9ACD;      /* 154, 205,  50 */
   }
 
 //----------------------------------------------------------------------------
