@@ -5,6 +5,7 @@
 #include <stddef.h>
 #include "misc/enum.hpp"
 #include "../utility/pgmspace.h"
+#include "lvgl.h"
 
 namespace lgfx
 {
@@ -27,6 +28,7 @@ namespace lgfx
     , ft_bdf
     , ft_vlw
     , ft_u8g2
+    , ft_lvgl
     , ft_ttf
     };
 
@@ -223,6 +225,87 @@ namespace lgfx
   };
 
 //----------------------------------------------------------------------------
+// Compact bitmap font (head/cmap/loca/glyf[/kern])
+
+  struct BFFfont : public RunTimeFont
+  {
+    struct CMapSubtable
+    {
+      uint32_t data_offset;
+      uint32_t range_start;
+      uint16_t range_length;
+      uint16_t glyph_id_offset;
+      uint16_t entries_count;
+      uint8_t format_type;
+    };
+
+    struct GlyphInfo
+    {
+      bool valid = false;
+      uint16_t glyph_id = 0;
+      uint16_t advance_raw = 0;  // uint or FP4 by advanceWidthFormat
+      int16_t bbox_x = 0;
+      int16_t bbox_y = 0;
+      uint16_t bbox_w = 0;
+      uint16_t bbox_h = 0;
+      uint16_t bitmap_w = 0;     // raw bitmap width stored in glyf
+      uint16_t bitmap_h = 0;     // raw bitmap height stored in glyf
+    };
+
+    // Parsed from head table
+    uint16_t font_size = 0;
+    uint16_t typo_ascent = 0;
+    int16_t  typo_descent = 0;
+    uint16_t typo_line_gap = 0;
+    int16_t  ascent = 0;
+    int16_t  descent = 0;
+    int16_t  min_y = 0;
+    int16_t  max_y = 0;
+    uint16_t default_advance_width = 0;
+    uint16_t kerning_scale = 0;
+    uint8_t index_to_loc_format = 0;
+    uint8_t glyph_id_format = 0;
+    uint8_t advance_width_format = 0;
+    uint8_t bits_per_pixel = 1;
+    uint8_t bbox_xy_bits = 0;
+    uint8_t bbox_wh_bits = 0;
+    uint8_t advance_width_bits = 0;
+    uint8_t compression_algorithm = 0;
+    uint8_t subpixel_rendering = 0;
+
+    uint32_t cmap_record_offset = 0;
+    uint32_t cmap_record_size = 0;
+    uint32_t loca_record_offset = 0;
+    uint32_t loca_record_size = 0;
+    uint32_t glyf_record_offset = 0;
+    uint32_t glyf_record_size = 0;
+
+    uint8_t* cmap_data = nullptr;         // cmap table payload (without record header)
+    uint32_t cmap_data_size = 0;
+    CMapSubtable* cmap_subtables = nullptr;
+    uint32_t cmap_subtable_count = 0;
+
+    uint32_t* loca_table = nullptr;
+    uint32_t loca_entries = 0;
+
+    font_type_t getType(void) const override { return ft_ttf; }
+
+    virtual ~BFFfont();
+
+    bool loadFont(DataWrapper* data) override;
+    bool unloadFont(void) override;
+    void getDefaultMetric(FontMetrics *metrics) const override;
+    bool updateFontMetric(FontMetrics *metrics, uint16_t uniCode) const override;
+    size_t drawChar(LGFXBase* gfx, int32_t x, int32_t y, uint16_t c, const TextStyle* style, FontMetrics* metrics, int32_t& filled_x) const override;
+
+  private:
+    bool mapCodepointToGlyph(uint32_t codepoint, uint16_t* glyph_id) const;
+    bool getGlyphOffsetAndLength(uint16_t glyph_id, uint32_t* offset, uint32_t* length) const;
+    bool loadGlyphInfo(uint16_t glyph_id, GlyphInfo* info) const;
+    bool decodeGlyphBitmap(uint16_t glyph_id, GlyphInfo* info, uint8_t** out_bitmap) const;
+  };
+
+//----------------------------------------------------------------------------
 // VLW font
   struct VLWfont : public RunTimeFont
   {
@@ -259,6 +342,21 @@ namespace lgfx
   };
 
 //----------------------------------------------------------------------------
+// LVGL font wrapper (lv_font_t / lv_font_fmt_txt)
+
+  struct LVGLfont : public IFont
+  {
+    constexpr LVGLfont(const ::lv_font_t* font = nullptr) : _font(font) {}
+
+    font_type_t getType(void) const override { return ft_lvgl; }
+    void getDefaultMetric(FontMetrics *metrics) const override;
+    bool updateFontMetric(FontMetrics *metrics, uint16_t uniCode) const override;
+    size_t drawChar(LGFXBase* gfx, int32_t x, int32_t y, uint16_t c, const TextStyle* style, FontMetrics* metrics, int32_t& filled_x) const override;
+
+    const ::lv_font_t* _font;
+  };
+
+//----------------------------------------------------------------------------
 
   namespace fonts
   {
@@ -275,6 +373,32 @@ namespace lgfx
     extern const lgfx::GLCDfont Font8x8C64;
     extern const lgfx::FixedBMPfont AsciiFont8x16;
     extern const lgfx::FixedBMPfont AsciiFont24x48;
+    extern const lgfx::LVGLfont lv_font_montserrat_8;
+    extern const lgfx::LVGLfont lv_font_montserrat_10;
+    extern const lgfx::LVGLfont lv_font_montserrat_12;
+    extern const lgfx::LVGLfont lv_font_montserrat_14;
+    extern const lgfx::LVGLfont lv_font_montserrat_16;
+    extern const lgfx::LVGLfont lv_font_montserrat_18;
+    extern const lgfx::LVGLfont lv_font_montserrat_20;
+    extern const lgfx::LVGLfont lv_font_montserrat_22;
+    extern const lgfx::LVGLfont lv_font_montserrat_24;
+    extern const lgfx::LVGLfont lv_font_montserrat_26;
+    extern const lgfx::LVGLfont lv_font_montserrat_28;
+    extern const lgfx::LVGLfont lv_font_montserrat_28_compressed;
+    extern const lgfx::LVGLfont lv_font_montserrat_30;
+    extern const lgfx::LVGLfont lv_font_montserrat_32;
+    extern const lgfx::LVGLfont lv_font_montserrat_34;
+    extern const lgfx::LVGLfont lv_font_montserrat_36;
+    extern const lgfx::LVGLfont lv_font_montserrat_38;
+    extern const lgfx::LVGLfont lv_font_montserrat_40;
+    extern const lgfx::LVGLfont lv_font_montserrat_42;
+    extern const lgfx::LVGLfont lv_font_montserrat_44;
+    extern const lgfx::LVGLfont lv_font_montserrat_46;
+    extern const lgfx::LVGLfont lv_font_montserrat_48;
+    extern const lgfx::LVGLfont lv_font_simsun_14_cjk;
+    extern const lgfx::LVGLfont lv_font_simsun_16_cjk;
+    extern const lgfx::LVGLfont lv_font_unscii_8;
+    extern const lgfx::LVGLfont lv_font_unscii_16;
 
     extern const lgfx::GFXfont TomThumb                 ;
     extern const lgfx::GFXfont FreeMono9pt7b            ;
@@ -489,11 +613,7 @@ namespace lgfx
  }
 }
 
-namespace fonts
-{
-  using namespace lgfx::v1::fonts;
-}
-using namespace fonts;
+namespace fonts = lgfx::v1::fonts;
 
 #ifndef _GFXFONT_H_
 #define _GFXFONT_H_
