@@ -2056,7 +2056,7 @@ namespace lgfx
     return buf;
   }
 
-  uint16_t LGFXBase::decodeUTF8(uint8_t c)
+  uint32_t LGFXBase::decodeUTF8(uint8_t c)
   {
     // 7 bit Unicode Code Point
     if ((c & 0x80)) {
@@ -2129,16 +2129,32 @@ namespace lgfx
     int32_t right = 0;
     auto str = string;
     do {
-      uint16_t uniCode = *string;
+      uint32_t uniCode = *string;
       if (_text_style.utf8) {
         do {
           uniCode = decodeUTF8(*string);
         } while (uniCode < 0x20 && *(++string));
         if (uniCode < 0x20) break;
       }
-
+      if ((uniCode >= 0xFE00) && (uniCode < 0xFE10)) continue;
+      bool use_emoji = false;
+      if (uniCode > 0xFFFF) {
+        use_emoji = true;
+      } else if (!_font->updateFontMetric(&_font_metrics, uniCode) && uniCode != 0) {
+        use_emoji = true;
+      }
+      if (use_emoji) {
+        if (_emoji_draw_cb) {
+          _font_metrics.width     = _font_metrics.height;
+          _font_metrics.x_advance = _font_metrics.height;
+          _font_metrics.x_offset  = 0;
+        } else {
+          uniCode = 0;
+          _font->updateFontMetric(&_font_metrics, uniCode);
+        }
+      }
       //if (!_font->updateFontMetric(&_font_metrics, uniCode)) continue;
-      _font->updateFontMetric(&_font_metrics, uniCode);
+      //_font->updateFontMetric(&_font_metrics, uniCode);
       if (left == 0 && right == 0 && _font_metrics.x_offset < 0) left = right = - ((_font_metrics.x_offset * sx) >> 16);
       int32_t sxadvance = (_font_metrics.x_advance * sx) >> 16;
       right = left + std::max<int>(sxadvance, ((_font_metrics.width * sx) >> 16) + ((_font_metrics.x_offset * sx) >> 16));
@@ -2173,16 +2189,32 @@ namespace lgfx
     int32_t left = 0;
     int32_t right = 0;
     do {
-      uint16_t uniCode = *string;
+      uint32_t uniCode = *string;
       if (_text_style.utf8) {
         do {
           uniCode = decodeUTF8(*string);
         } while (uniCode < 0x20 && *(++string));
         if (uniCode < 0x20) break;
       }
-
+      if ((uniCode >= 0xFE00) && (uniCode < 0xFE10)) continue;
+      bool use_emoji = false;
+      if (uniCode > 0xFFFF) {
+        use_emoji = true;
+      } else if (!font->updateFontMetric(metrics, uniCode) && uniCode != 0) {
+        use_emoji = true;
+      }
+      if (use_emoji) {
+        if (_emoji_draw_cb) {
+          metrics->width     = metrics->height;
+          metrics->x_advance = metrics->height;
+          metrics->x_offset  = 0;
+        } else {
+          uniCode = 0;
+          font->updateFontMetric(metrics, uniCode);
+        }
+      }
       //if (!_font->updateFontMetric(&metrics, uniCode)) continue;
-      font->updateFontMetric(metrics, uniCode);
+      //font->updateFontMetric(metrics, uniCode);
       int32_t sxoffset = (metrics->x_offset * sx) >> 16;
       if (left == 0 && right == 0 && metrics->x_offset < 0) left = right = - sxoffset;
       int32_t sxadvance = (metrics->x_advance * sx) >> 16;
@@ -2237,7 +2269,7 @@ namespace lgfx
     if (string && string[0]) {
       auto tmp = string;
       do {
-        uint16_t uniCode = *tmp;
+        uint32_t uniCode = *tmp;
         if (_text_style.utf8) {
           do {
             uniCode = decodeUTF8(*tmp);
@@ -2245,8 +2277,26 @@ namespace lgfx
           if (uniCode < 0x20) break;
         }
 
+        if ((uniCode >= 0xFE00) && (uniCode < 0xFE10)) continue;
+
         {
-          font->updateFontMetric(&metrics, uniCode);
+          bool use_emoji = false;
+          if (uniCode > 0xFFFF) {
+            use_emoji = true;
+          } else if (!font->updateFontMetric(&metrics, uniCode) && uniCode != 0) {
+            use_emoji = true;
+          }
+          if (use_emoji) {
+            if (_emoji_draw_cb) {
+              metrics.width     = metrics.height;
+              metrics.x_advance = metrics.height;
+              metrics.x_offset  = 0;
+              //printf("cwidth: %d\n", cwidth);
+            } else {
+              uniCode = 0;
+              font->updateFontMetric(&metrics, uniCode);
+            }
+          }
           if (metrics.x_offset < 0)
           {
             int32_t sx = 65536 * _text_style.size_x;
@@ -2293,14 +2343,27 @@ namespace lgfx
     int32_t dummy_filled_x = 0;
     if (string && string[0]) {
       do {
-        uint16_t uniCode = *string;
+        uint32_t uniCode = *string;
         if (_text_style.utf8) {
           do {
             uniCode = decodeUTF8(*string);
           } while (uniCode < 0x20 && *++string);
           if (uniCode < 0x20) break;
         }
-        sumX += font->drawChar(this, x + sumX, y, uniCode, &_text_style, &metrics, dummy_filled_x);
+        if ((uniCode >= 0xFE00) && (uniCode < 0xFE10)) continue;
+        {
+          bool drawn = false;
+          if (uniCode > 0xFFFF || (!font->updateFontMetric(&metrics, uniCode) && uniCode != 0)) {
+            if (_emoji_draw_cb) {
+              int32_t ew = _emoji_draw_cb(this, x + sumX, y, uniCode, (metrics.height * sy) >> 16);
+              if (ew > 0) { sumX += ew; drawn = true; }
+            }
+            if (!drawn) uniCode = 0;
+          }
+          if (!drawn) {
+            sumX += font->drawChar(this, x + sumX, y, uniCode, &_text_style, &metrics, dummy_filled_x);
+          }
+        }
       } while (*(++string));
     }
     this->endWrite();
@@ -2317,14 +2380,31 @@ namespace lgfx
       _cursor_x = _filled_x;
       _cursor_y += (_font_metrics.y_advance * sy) >> 16;
     } else {
-      uint16_t uniCode = utf8;
+      uint32_t uniCode = utf8;
       if (_text_style.utf8) {
         uniCode = decodeUTF8(utf8);
-        if (uniCode < 0x20) return 1;
+        if (uniCode < 0x20)
+            return 1;
       }
-      //if (!(fpUpdateFontSize)(this, uniCode)) return 1;
-      //if (!_font->updateFontMetric(&_font_metrics, uniCode)) return 1;
-      _font->updateFontMetric(&_font_metrics, uniCode);
+      if ((uniCode >= 0xFE00) && (uniCode < 0xFE10))
+        return 1;
+      bool use_emoji = false;
+      if (uniCode > 0xFFFF) {
+        use_emoji = true;
+      } else if (!_font->updateFontMetric(&_font_metrics, uniCode) && uniCode != 0) {
+        use_emoji = true;
+      }
+      if (use_emoji) {
+        if (_emoji_draw_cb) {
+          _font_metrics.width     = _font_metrics.height;
+          _font_metrics.x_advance = _font_metrics.height;
+          _font_metrics.x_offset  = 0;
+        } else {
+          uniCode = 0;
+          use_emoji = false;
+          _font->updateFontMetric(&_font_metrics, uniCode);
+        }
+      }
 
       int32_t sx = 65536 * _text_style.size_x;
       int32_t xo = (_font_metrics.x_offset * sx) >> 16;
@@ -2372,11 +2452,23 @@ namespace lgfx
 
       if (y <= _clip_b + h)
       {
-        _cursor_x += _font->drawChar(this, _cursor_x, y, uniCode, &_text_style, &_font_metrics, _filled_x);
+        if (use_emoji) {
+          int32_t ew = _emoji_draw_cb(this, _cursor_x, y, uniCode, (_font_metrics.height * sy) >> 16);
+          if (ew > 0) {
+            _cursor_x += ew;
+          } else {
+            uniCode = 0;
+            _cursor_x += _font->drawChar(this, _cursor_x, y, uniCode, &_text_style, &_font_metrics, _filled_x);
+          }
+        } else {
+          _cursor_x += _font->drawChar(this, _cursor_x, y, uniCode, &_text_style, &_font_metrics, _filled_x);
+        }
       }
       else
       {
-        _font->updateFontMetric(&_font_metrics, uniCode);
+        if (!use_emoji) {
+          _font->updateFontMetric(&_font_metrics, uniCode);
+        }
         _cursor_x += (_font_metrics.x_advance * sx) >> 16;
       }
     }

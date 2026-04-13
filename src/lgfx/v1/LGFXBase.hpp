@@ -52,6 +52,14 @@ namespace lgfx
 #define LGFX_PRINTF_ENABLED
 #endif
 
+  /// Callback for rendering emoji glyphs not present in the active font.
+  /// @param gfx   Display to draw on
+  /// @param x     X position
+  /// @param y     Y position
+  /// @param code  Unicode codepoint
+  /// @param font_height  Target height in pixels (already scaled by size_y)
+  /// @return pixel width actually drawn, or 0 if the glyph could not be rendered
+  typedef int32_t (*emoji_draw_cb_t)(LGFXBase* gfx, int32_t x, int32_t y, uint32_t code, int32_t font_height);
 
   class LGFXBase
 #if defined (ARDUINO)
@@ -677,6 +685,8 @@ namespace lgfx
     uint32_t getTextPadding(void) const { return _text_style.padding_x; }
     void setTextWrap( bool wrapX, bool wrapY = false) { _textwrap_x = wrapX; _textwrap_y = wrapY; }
     void setTextScroll(bool scroll) { _textscroll = scroll; if (_cursor_x < this->_sx) { _cursor_x = this->_sx; } if (_cursor_y < this->_sy) { _cursor_y = this->_sy; } }
+    void setEmojiCallback(emoji_draw_cb_t cb) { _emoji_draw_cb = cb; }
+    emoji_draw_cb_t getEmojiCallback(void) const { return _emoji_draw_cb; }
 
     template<typename T>
     void setTextColor(T color) {
@@ -1025,7 +1035,7 @@ namespace lgfx
     , utf8_state3 = 3
     };
     utf8_decode_state_t _decoderState = utf8_state0;   // UTF8 decoder state
-    uint16_t _unicode_buffer = 0;   // Unicode code-point buffer
+    uint32_t _unicode_buffer = 0;   // Unicode code-point buffer
 
     int32_t _cursor_x = 0;  // print text cursor
     int32_t _cursor_y = 0;
@@ -1034,6 +1044,8 @@ namespace lgfx
     TextStyle _text_style;
     FontMetrics _font_metrics = { 6, 6, 0, 8, 8, 0, 7 }; // Font0 default metric
     const IFont* _font = &fonts::Font0;
+
+    emoji_draw_cb_t _emoji_draw_cb = nullptr;
 
     std::shared_ptr<RunTimeFont> _runtime_font;  // run-time generated font
     std::shared_ptr<DataWrapper> _font_file;  // run-time font file
@@ -1360,7 +1372,7 @@ namespace lgfx
     void push_image_affine_aa(const float* matrix, int32_t w, int32_t h, pixelcopy_t *pc);
     void push_image_affine_aa(const float* matrix, pixelcopy_t *pre_pc, pixelcopy_t *post_pc);
 
-    uint16_t decodeUTF8(uint8_t c);
+    uint32_t decodeUTF8(uint8_t c);
 
     size_t printNumber(unsigned long n, uint8_t base);
     size_t printFloat(double number, uint8_t digits);
