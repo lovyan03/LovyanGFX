@@ -147,13 +147,13 @@ const void * lv_font_get_bitmap_fmt_txt(lv_font_glyph_dsc_t * g_dsc, lv_draw_buf
 }
 
 
-void * lv_utils_bsearch(const void * key, const void * base, size_t n, size_t size,
+const void * lv_utils_bsearch(const void * key, const void * base, size_t n, size_t size,
                         int (*cmp)(const void * pRef, const void * pElement))
 {
     const char * middle;
     int32_t c;
 
-    for(middle = base; n != 0;) {
+    for(middle = (const char*)base; n != 0;) {
         middle += (n / 2) * size;
         if((c = (*cmp)(key, middle)) > 0) {
             n    = (n / 2) - ((n & 1) == 0);
@@ -161,10 +161,10 @@ void * lv_utils_bsearch(const void * key, const void * base, size_t n, size_t si
         }
         else if(c < 0) {
             n /= 2;
-            middle = base;
+            middle = (const char*)base;
         }
         else {
-            return (char *)middle;
+            return (const void*)middle;
         }
     }
     return NULL;
@@ -206,7 +206,7 @@ static uint32_t get_glyph_dsc_id(const lv_font_t * font, uint32_t letter)
             glyph_id = fdsc->cmaps[i].glyph_id_start + rcp;
         }
         else if(fdsc->cmaps[i].type == LV_FONT_FMT_TXT_CMAP_FORMAT0_FULL) {
-            const uint8_t * gid_ofs_8 = fdsc->cmaps[i].glyph_id_ofs_list;
+            const uint8_t * gid_ofs_8 = (const uint8_t*)fdsc->cmaps[i].glyph_id_ofs_list;
             /* The first character is always valid and should have offset = 0
              * However if a character is missing it also has offset=0.
              * So if there is a 0 not on the first position then it's a missing character */
@@ -215,7 +215,7 @@ static uint32_t get_glyph_dsc_id(const lv_font_t * font, uint32_t letter)
         }
         else if(fdsc->cmaps[i].type == LV_FONT_FMT_TXT_CMAP_SPARSE_TINY) {
             uint16_t key = rcp;
-            uint16_t * p = lv_utils_bsearch(&key, fdsc->cmaps[i].unicode_list, fdsc->cmaps[i].list_length,
+            const uint16_t * p = (const uint16_t*)lv_utils_bsearch(&key, fdsc->cmaps[i].unicode_list, fdsc->cmaps[i].list_length,
                                             sizeof(fdsc->cmaps[i].unicode_list[0]), unicode_list_compare);
 
             if(p) {
@@ -225,12 +225,12 @@ static uint32_t get_glyph_dsc_id(const lv_font_t * font, uint32_t letter)
         }
         else if(fdsc->cmaps[i].type == LV_FONT_FMT_TXT_CMAP_SPARSE_FULL) {
             uint16_t key = rcp;
-            uint16_t * p = lv_utils_bsearch(&key, fdsc->cmaps[i].unicode_list, fdsc->cmaps[i].list_length,
+            const uint16_t * p = (const uint16_t*)lv_utils_bsearch(&key, fdsc->cmaps[i].unicode_list, fdsc->cmaps[i].list_length,
                                             sizeof(fdsc->cmaps[i].unicode_list[0]), unicode_list_compare);
 
             if(p) {
                 lv_uintptr_t ofs = p - fdsc->cmaps[i].unicode_list;
-                const uint16_t * gid_ofs_16 = fdsc->cmaps[i].glyph_id_ofs_list;
+                const uint16_t * gid_ofs_16 = (const uint16_t*)fdsc->cmaps[i].glyph_id_ofs_list;
                 glyph_id = fdsc->cmaps[i].glyph_id_start + gid_ofs_16[ofs];
             }
         }
@@ -246,8 +246,8 @@ static uint32_t get_glyph_dsc_id(const lv_font_t * font, uint32_t letter)
 
 static int kern_pair_8_compare(const void * ref, const void * element)
 {
-    const kern_pair_ref_t * ref8_p = ref;
-    const uint8_t * element8_p = element;
+    const kern_pair_ref_t * ref8_p = (const kern_pair_ref_t*)ref;
+    const uint8_t * element8_p = (const uint8_t*)element;
 
     /*If the MSB is different it will matter. If not return the diff. of the LSB*/
     if(ref8_p->gid_left != element8_p[0]) return ref8_p->gid_left - element8_p[0];
@@ -256,8 +256,8 @@ static int kern_pair_8_compare(const void * ref, const void * element)
 
 static int kern_pair_16_compare(const void * ref, const void * element)
 {
-    const kern_pair_ref_t * ref16_p = ref;
-    const uint16_t * element16_p = element;
+    const kern_pair_ref_t * ref16_p = (const kern_pair_ref_t*)ref;
+    const uint16_t * element16_p = (const uint16_t*)element;
 
     /*If the MSB is different it will matter. If not return the diff. of the LSB*/
     if(ref16_p->gid_left != element16_p[0]) return ref16_p->gid_left - element16_p[0];
@@ -273,13 +273,13 @@ static int8_t get_kern_value(const lv_font_t * font, uint32_t gid_left, uint32_t
 
     if(fdsc->kern_classes == 0) {
         /*Kern pairs*/
-        const lv_font_fmt_txt_kern_pair_t * kdsc = fdsc->kern_dsc;
+        const lv_font_fmt_txt_kern_pair_t * kdsc = (const lv_font_fmt_txt_kern_pair_t *)fdsc->kern_dsc;
         if(kdsc->glyph_ids_size == 0) {
             /*Use binary search to find the kern value.
              *The pairs are ordered left_id first, then right_id secondly.*/
-            const uint16_t * g_ids = kdsc->glyph_ids;
+            const uint16_t * g_ids = (const uint16_t*)kdsc->glyph_ids;
             kern_pair_ref_t g_id_both = {gid_left, gid_right};
-            uint16_t * kid_p = lv_utils_bsearch(&g_id_both, g_ids, kdsc->pair_cnt, 2, kern_pair_8_compare);
+            const uint16_t * kid_p = (const uint16_t*)lv_utils_bsearch(&g_id_both, g_ids, kdsc->pair_cnt, 2, kern_pair_8_compare);
 
             /*If the `g_id_both` were found get its index from the pointer*/
             if(kid_p) {
@@ -290,9 +290,9 @@ static int8_t get_kern_value(const lv_font_t * font, uint32_t gid_left, uint32_t
         else if(kdsc->glyph_ids_size == 1) {
             /*Use binary search to find the kern value.
              *The pairs are ordered left_id first, then right_id secondly.*/
-            const uint32_t * g_ids = kdsc->glyph_ids;
+            const uint32_t * g_ids = (const uint32_t*)kdsc->glyph_ids;
             kern_pair_ref_t g_id_both = {gid_left, gid_right};
-            uint32_t * kid_p = lv_utils_bsearch(&g_id_both, g_ids, kdsc->pair_cnt, 4, kern_pair_16_compare);
+            const uint32_t * kid_p = (const uint32_t*)lv_utils_bsearch(&g_id_both, g_ids, kdsc->pair_cnt, 4, kern_pair_16_compare);
 
             /*If the `g_id_both` were found get its index from the pointer*/
             if(kid_p) {
@@ -307,7 +307,7 @@ static int8_t get_kern_value(const lv_font_t * font, uint32_t gid_left, uint32_t
     }
     else {
         /*Kern classes*/
-        const lv_font_fmt_txt_kern_classes_t * kdsc = fdsc->kern_dsc;
+        const lv_font_fmt_txt_kern_classes_t * kdsc = (const lv_font_fmt_txt_kern_classes_t *)fdsc->kern_dsc;
         uint8_t left_class = kdsc->left_class_mapping[gid_left];
         uint8_t right_class = kdsc->right_class_mapping[gid_right];
 
@@ -360,11 +360,12 @@ bool lv_font_get_glyph_dsc_fmt_txt(const lv_font_t * font, lv_font_glyph_dsc_t *
     dsc_out->ofs_x = gdsc->ofs_x;
     dsc_out->ofs_y = gdsc->ofs_y;
     dsc_out->resolved_font = font;
-    dsc_out->format = (uint8_t)fdsc->bpp;
+    uint16_t bpp = (uint8_t)fdsc->bpp;
     if(fdsc->bitmap_format == LV_FONT_FMT_PLAIN_ALIGNED) {
         /*Offset in the enum to the ALIGNED values */
-        dsc_out->format += LV_FONT_GLYPH_FORMAT_A1_ALIGNED - LV_FONT_GLYPH_FORMAT_A1;
+        bpp += LV_FONT_GLYPH_FORMAT_A1_ALIGNED - LV_FONT_GLYPH_FORMAT_A1;
     }
+    dsc_out->format = (lv_font_glyph_format_t)bpp;
     dsc_out->bpp = (uint8_t)fdsc->bpp;
     dsc_out->is_placeholder = false;
     dsc_out->req_raw_bitmap = 0;
