@@ -508,6 +508,7 @@ namespace lgfx
       case command_write_low:  gpio_lo(val); break;
       case command_write_high: gpio_hi(val); break;
       case command_delay:      delay(val); break;
+      case command_delay_usec: delayMicroseconds(val); break;
       default:
         if ((cmd >> 2) == (command_mode_output >> 2)) {
           pin_mode_t mode = pin_mode_t::output;

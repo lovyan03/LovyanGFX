@@ -330,6 +330,7 @@ protected:
       command_mode_input_pulldown,  // [1]=GPIO番号 input pulldownモードに変更する
       command_mode_input_pullup,    // [1]=GPIO番号 input pullupモードに変更する
       command_delay,                // [1]=停止する時間[ミリ秒]
+      command_delay_usec,           // [1]=停止する時間[マイクロ秒]
     };
     bool command(command_t cmd, uint8_t pin);
     uint32_t command(const uint8_t* cmd_list);
