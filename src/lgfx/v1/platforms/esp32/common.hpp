@@ -29,7 +29,11 @@ Contributors:
 #include <sdkconfig.h>
 #include <soc/soc.h>
 #include <soc/spi_reg.h>
+#if __has_include(<soc/i2s_reg.h>)
 #include <soc/i2s_reg.h>
+#include <soc/gpio_reg.h>
+#include <soc/gpio_periph.h>
+#endif
 #include <soc/gpio_struct.h>
 #include <soc/gpio_sig_map.h>
 #include <esp_timer.h>
@@ -66,9 +70,35 @@ Contributors:
  #endif
 #endif
 
+/// ESP32-H2のspi_reg.hではSPIレジスタマクロがパラメータなしで定義されており
+/// DR_REG_SPI_BASEも未定義のため、パラメータ付きマクロとして再定義する
+#if defined ( CONFIG_IDF_TARGET_ESP32H2 )
+ #undef SPI_CMD_REG
+ #define SPI_CMD_REG(i)      (REG_SPI_BASE(i) + 0x0)
+ #undef SPI_CTRL_REG
+ #define SPI_CTRL_REG(i)     (REG_SPI_BASE(i) + 0x8)
+ #undef SPI_CLOCK_REG
+ #define SPI_CLOCK_REG(i)    (REG_SPI_BASE(i) + 0xc)
+ #undef SPI_USER_REG
+ #define SPI_USER_REG(i)     (REG_SPI_BASE(i) + 0x10)
+ #undef SPI_MISC_REG
+ #define SPI_MISC_REG(i)     (REG_SPI_BASE(i) + 0x20)
+ #undef SPI_DMA_CONF_REG
+ #define SPI_DMA_CONF_REG(i) (REG_SPI_BASE(i) + 0x30)
+ #undef SPI_W0_REG
+ #define SPI_W0_REG(i)       (REG_SPI_BASE(i) + 0x98)
+#endif
+
 #if defined ( ESP_IDF_VERSION_VAL )
  #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
   #define LGFX_IDF_V5
+ #endif
+
+ #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 0, 0)
+  #ifndef LGFX_I2S_PORT_T_COMPAT
+   #define LGFX_I2S_PORT_T_COMPAT 1
+   typedef int i2s_port_t;
+  #endif
  #endif
 
  #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 4, 0)
@@ -143,7 +173,7 @@ namespace lgfx
   static inline volatile uint32_t* get_gpio_hi_reg(int_fast8_t pin) { return (pin & 32) ? &GPIO.out1_w1ts.val : &GPIO.out_w1ts.val; }
   static inline volatile uint32_t* get_gpio_lo_reg(int_fast8_t pin) { return (pin & 32) ? &GPIO.out1_w1tc.val : &GPIO.out_w1tc.val; }
   static inline bool gpio_in(int_fast8_t pin) { return ((pin & 32) ? GPIO.in1.val : GPIO.in.val) & (1 << (pin & 31)); }
-#elif defined ( CONFIG_IDF_TARGET_ESP32C3 ) || defined ( CONFIG_IDF_TARGET_ESP32C6 )
+#elif defined ( CONFIG_IDF_TARGET_ESP32C3 ) || defined ( CONFIG_IDF_TARGET_ESP32C6 ) || defined ( CONFIG_IDF_TARGET_ESP32H2 )
   static inline volatile uint32_t* get_gpio_hi_reg(int_fast8_t pin) { return &GPIO.out_w1ts.val; }
   static inline volatile uint32_t* get_gpio_lo_reg(int_fast8_t pin) { return &GPIO.out_w1tc.val; }
   static inline bool gpio_in(int_fast8_t pin) { return GPIO.in.val & (1 << (pin & 31)); }
@@ -300,6 +330,7 @@ protected:
       command_mode_input_pulldown,  // [1]=GPIO番号 input pulldownモードに変更する
       command_mode_input_pullup,    // [1]=GPIO番号 input pullupモードに変更する
       command_delay,                // [1]=停止する時間[ミリ秒]
+      command_delay_usec,           // [1]=停止する時間[マイクロ秒]
     };
     bool command(command_t cmd, uint8_t pin);
     uint32_t command(const uint8_t* cmd_list);

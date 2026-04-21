@@ -90,7 +90,13 @@ namespace lgfx
       bool use_lock = true;
       uint8_t dma_channel = LGFX_ESP32_SPI_DMA_CH;
 #if !defined (CONFIG_IDF_TARGET) || defined (CONFIG_IDF_TARGET_ESP32)
-      spi_host_device_t spi_host = VSPI_HOST;
+     #if defined (VSPI_HOST)
+       spi_host_device_t spi_host = VSPI_HOST;
+     #elif defined (SPI3_HOST)
+       spi_host_device_t spi_host = SPI3_HOST;
+     #else
+       spi_host_device_t spi_host = SPI2_HOST;
+     #endif
 #else
       spi_host_device_t spi_host = SPI2_HOST;
 #endif
@@ -186,6 +192,9 @@ namespace lgfx
     volatile uint32_t* _spi_cmd_reg = nullptr;
     volatile uint32_t* _spi_user_reg = nullptr;
     volatile uint32_t* _spi_dma_out_link_reg = nullptr;
+    #if defined (CONFIG_IDF_TARGET_ESP32P4)
+    volatile uint32_t* _spi_dma_out_link2_reg = nullptr;
+    #endif
     volatile uint32_t* _spi_dma_outstatus_reg = nullptr;
     volatile uint32_t* _clear_dma_reg = nullptr;
     uint32_t _last_freq_apb = 0;

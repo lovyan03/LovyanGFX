@@ -18,6 +18,11 @@ Contributors:
 #if defined (ESP_PLATFORM)
 #include <sdkconfig.h>
 
+#if defined (CONFIG_IDF_TARGET_ESP32P4)
+ #pragma GCC diagnostic push
+ #pragma GCC diagnostic ignored "-Wattributes"
+#endif
+
 #include "Bus_SPI.hpp"
 
 #if defined ( CONFIG_IDF_TARGET_ESP32 ) || !defined ( CONFIG_IDF_TARGET )
@@ -56,18 +61,26 @@ Contributors:
    #include <esp32/rom/gpio.h>
 #else
    #include <rom/gpio.h> // dispatched by core
-#endif   
+#endif
 
 #ifndef SPI_PIN_REG
  #define SPI_PIN_REG SPI_MISC_REG
 #endif
 
 #if defined (SOC_GDMA_SUPPORTED)  // for C3/C6/S3
- #include <soc/gdma_channel.h>
+ #if __has_include(<soc/gdma_channel.h>)
+  #include <soc/gdma_channel.h>
+ #elif __has_include(<hal/gdma_channel.h>)
+  #pragma GCC diagnostic push
+  #pragma GCC diagnostic ignored "-Wattributes"
+  #include <hal/gdma_channel.h>
+  #pragma GCC diagnostic pop
+ #endif
  #if __has_include(<soc/gdma_reg.h>)
   #include <soc/gdma_reg.h>
  #elif __has_include(<soc/axi_dma_reg.h>) // ESP32P4
   #include <soc/axi_dma_reg.h>
+  #include <esp_cache.h>
  #endif
  #if __has_include(<soc/gdma_struct.h>)
   #include <soc/gdma_struct.h>
@@ -95,7 +108,15 @@ Contributors:
  #endif
 #endif
 
+#if !defined(gpio_matrix_out) && defined(rom_gpio_matrix_out)
+ #define gpio_matrix_out rom_gpio_matrix_out
+#endif
+
 #include "common.hpp"
+
+#if defined (CONFIG_IDF_TARGET_ESP32P4)
+ #pragma GCC diagnostic pop
+#endif
 
 #include <algorithm>
 
@@ -189,6 +210,9 @@ namespace lgfx
     { // DMAチャンネルが特定できたらそれを使用する;
       _spi_dma_out_link_reg  = reg(DMA_OUT_LINK_CH0_REG       + assigned_dma_ch * SIZE_OF_DMA_OUT_CH);
       _spi_dma_outstatus_reg = reg(DMA_OUTFIFO_STATUS_CH0_REG + assigned_dma_ch * SIZE_OF_DMA_OUT_CH);
+      #if defined ( CONFIG_IDF_TARGET_ESP32P4 )
+      _spi_dma_out_link2_reg = reg(AXI_DMA_OUT_LINK2_CH0_REG  + assigned_dma_ch * SIZE_OF_DMA_OUT_CH);
+      #endif
     }
 #elif defined ( CONFIG_IDF_TARGET_ESP32 ) || !defined ( CONFIG_IDF_TARGET )
 
@@ -206,7 +230,11 @@ namespace lgfx
   {
     if (pin >= GPIO_NUM_MAX) return;
     gpio_reset_pin( (gpio_num_t)pin);
+#if defined (ESP_IDF_VERSION_VAL) && (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 0, 0))
+    rom_gpio_matrix_out((gpio_num_t)pin, SIG_GPIO_OUT_IDX, 0, 0);
+#else
     gpio_matrix_out((gpio_num_t)pin, SIG_GPIO_OUT_IDX, 0, 0);
+#endif
     // gpio_matrix_in には、ArduinoESP32 v1.0.x系では重大なバグがある。(無関係なピンに対して設定変更が行われることがある)
     // gpio_matrix_in( (gpio_num_t)pin, 0x100, 0   );
   }
@@ -672,15 +700,28 @@ namespace lgfx
       if (use_dma)
       {
         auto spi_dma_out_link_reg = _spi_dma_out_link_reg;
+        #if defined ( CONFIG_IDF_TARGET_ESP32P4 )
+        auto spi_dma_out_link2_reg = _spi_dma_out_link2_reg;
+        #endif
         auto cmd = _spi_cmd_reg;
         while (*cmd & SPI_USR) {}
         *spi_dma_out_link_reg = 0;
         _setup_dma_desc_links(data, length);
+
+        #if defined ( CONFIG_IDF_TARGET_ESP32P4 )
+        esp_cache_msync((void*)data, sizeof(uint8_t) * length, ESP_CACHE_MSYNC_FLAG_DIR_C2M | ESP_CACHE_MSYNC_FLAG_UNALIGNED);
+        esp_cache_msync(_dmadesc, sizeof(lldesc_t) * _dmadesc_size, ESP_CACHE_MSYNC_FLAG_DIR_C2M | ESP_CACHE_MSYNC_FLAG_UNALIGNED);
+        #endif
 #if defined ( SOC_GDMA_SUPPORTED )
         auto dma = reg(SPI_DMA_CONF_REG(_spi_port));
         *dma = 0; /// Clear previous transfer
         uint32_t len = ((length - 1) & ((SPI_MS_DATA_BITLEN)>>3)) + 1;
+        #if defined ( CONFIG_IDF_TARGET_ESP32P4 )
+        *spi_dma_out_link2_reg = ((uint32_t)(_dmadesc));
+        *spi_dma_out_link_reg = DMA_OUTLINK_START_CH0 ;
+        #else
         *spi_dma_out_link_reg = DMA_OUTLINK_START_CH0 | ((int)(&_dmadesc[0]) & 0xFFFFF);
+        #endif
         *dma = SPI_DMA_TX_ENA;
         _clear_dma_reg = dma;
 #else
@@ -889,7 +930,12 @@ label_start:
     *_spi_dma_out_link_reg = 0;
 
 #if defined ( SOC_GDMA_SUPPORTED )
+    #if defined ( CONFIG_IDF_TARGET_ESP32P4 )
+    *_spi_dma_out_link2_reg = ((uint32_t)(_dmadesc));
+    *_spi_dma_out_link_reg = DMA_OUTLINK_START_CH0;
+    #else
     *_spi_dma_out_link_reg = DMA_OUTLINK_START_CH0 | ((int)(&_dmadesc[0]) & 0xFFFFF);
+    #endif
     auto dma = reg(SPI_DMA_CONF_REG(_spi_port));
     *dma = SPI_DMA_TX_ENA;
     _clear_dma_reg = dma;
@@ -1173,7 +1219,18 @@ label_start:
       periph_module_reset( PERIPH_SPI3_DMA_MODULE );
     }
 #elif defined( CONFIG_IDF_TARGET_ESP32 ) || !defined( CONFIG_IDF_TARGET )
+ #if defined (PERIPH_SPI_DMA_MODULE)
     periph_module_reset( PERIPH_SPI_DMA_MODULE );
+ #elif defined (PERIPH_HSPI_MODULE) && defined (PERIPH_VSPI_MODULE)
+    if (_cfg.spi_host == SPI2_HOST)
+    {
+      periph_module_reset( PERIPH_HSPI_MODULE );
+    }
+    else
+    {
+      periph_module_reset( PERIPH_VSPI_MODULE );
+    }
+ #endif
 #endif
   }
 

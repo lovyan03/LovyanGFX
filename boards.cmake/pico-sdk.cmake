@@ -25,8 +25,10 @@ target_compile_definitions(LovyanGFX INTERFACE
 file(GLOB SRCS
      src/lgfx/Fonts/efont/*.c
      src/lgfx/Fonts/IPA/*.c
+     src/lgfx/Fonts/lvgl/*.c
      src/lgfx/utility/*.c
      src/lgfx/v1/*.cpp
+     src/lgfx/v1/lv_font/*.c
      src/lgfx/v1/misc/*.cpp
      src/lgfx/v1/panel/*.cpp
      src/lgfx/v1/platforms/arduino_default/*.cpp

@@ -26,6 +26,7 @@ Contributors:
   #include <esp_arduino_version.h>
  #endif
 #else
+ #include <driver/gpio.h>
  #include <driver/ledc.h>
 #endif
 
@@ -46,11 +47,14 @@ namespace lgfx
 #if defined ESP_ARDUINO_VERSION
   #if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 0)
     #define LEDC_USE_IDF_V5 // esp32-arduino core 3.x.x uses the new ledC syntax
-  #endif   
+  #endif
+  #if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(6, 0, 0)
+    #define LEDC_USE_IDF_V6 // esp32-arduino core 6.x.x
+  #endif
 #endif
 
 #if defined LEDC_USE_IDF_V5
-    ledcAttach(_cfg.pin_bl, _cfg.freq, PWM_BITS); 
+    ledcAttach(_cfg.pin_bl, _cfg.freq, PWM_BITS);
     setBrightness(brightness);
 #else
     ledcSetup(_cfg.pwm_channel, _cfg.freq, PWM_BITS);
@@ -68,7 +72,9 @@ namespace lgfx
      ledc_channel.speed_mode = LEDC_LOW_SPEED_MODE;
 #endif
      ledc_channel.channel    = (ledc_channel_t)_cfg.pwm_channel;
+#if !defined LEDC_USE_IDF_V6  // ledc_channel_config_t.intr_type is deprecated, no need to explicitly configure interrupt, handled in the driver
      ledc_channel.intr_type  = LEDC_INTR_DISABLE;
+#endif
      ledc_channel.timer_sel  = (ledc_timer_t)((_cfg.pwm_channel >> 1) & 3);
      ledc_channel.duty       = _cfg.invert ? (1 << PWM_BITS) : 0;
      ledc_channel.hpoint     = 0;

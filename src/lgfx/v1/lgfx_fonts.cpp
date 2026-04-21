@@ -9,10 +9,13 @@
 #include "../Fonts/efont/lgfx_efont_ja.h"
 #include "../Fonts/efont/lgfx_efont_kr.h"
 #include "../Fonts/efont/lgfx_efont_tw.h"
+#include "../Fonts/lvgl/lvgl.h"
 
 #include <stdint.h>
 #include <stddef.h>
 #include <math.h>
+#include <string.h>
+#include <vector>
 #include "../internal/algorithm.h"
 
 #ifdef min
@@ -20,6 +23,9 @@
 #endif
 #ifdef max
 #undef max
+#endif
+#ifdef abs
+#undef abs
 #endif
 
 namespace lgfx
@@ -721,6 +727,1242 @@ label_nextbyte: /// 次のデータを取得する;
 
 //----------------------------------------------------------------------------
 
+  void LVGLfont::getDefaultMetric(FontMetrics *metrics) const
+  {
+    if (_font == nullptr)
+    {
+      metrics->width = 0;
+      metrics->x_advance = 0;
+      metrics->x_offset = 0;
+      metrics->height = 0;
+      metrics->y_advance = 0;
+      metrics->y_offset = 0;
+      metrics->baseline = 0;
+      return;
+    }
+
+    metrics->height = _font->line_height;
+    metrics->y_advance = _font->line_height;
+    metrics->baseline = _font->line_height - _font->base_line;
+    metrics->y_offset = -metrics->baseline;
+    metrics->width = (_font->line_height * 5) >> 3;
+    metrics->x_advance = metrics->width;
+    metrics->x_offset = 0;
+  }
+
+  bool LVGLfont::updateFontMetric(FontMetrics *metrics, uint16_t uniCode) const
+  {
+    if (_font == nullptr || _font->get_glyph_dsc == nullptr)
+    {
+      metrics->x_offset = 0;
+      metrics->width = metrics->x_advance = 0;
+      return false;
+    }
+
+    lv_font_glyph_dsc_t gd;
+    if (!_font->get_glyph_dsc(_font, &gd, uniCode, 0))
+    {
+      metrics->x_offset = 0;
+      metrics->width = metrics->x_advance = (metrics->height * 5) >> 3;
+      return false;
+    }
+
+    metrics->x_offset = gd.ofs_x;
+    metrics->width = gd.box_w;
+    metrics->x_advance = gd.adv_w;
+    return true;
+  }
+
+  static size_t draw_alpha_bitmap_common(
+      LGFXBase* gfx,
+      int32_t x,
+      int32_t y,
+      const TextStyle* style,
+      FontMetrics* metrics,
+      int32_t& filled_x,
+      int32_t xAdvance,
+      int32_t xoffset,
+      int32_t yoffset,
+      uint32_t box_w,
+      uint32_t box_h,
+      const uint8_t* bitmap,
+      uint32_t glyph_stride,
+      uint32_t alpha_max)
+  {
+    int32_t sy = 65536 * style->size_y;
+    int32_t sx = 65536 * style->size_x;
+
+    auto cc = gfx->getColorConverter();
+    uint32_t col_back = cc->convert(style->back_rgb888);
+    uint32_t col_fore = cc->convert(style->fore_rgb888);
+    bool fillbg = (style->back_rgb888 != style->fore_rgb888);
+    int32_t glyph_w_scaled = (box_w * sx) >> 16;
+
+    int32_t left = 0;
+    int32_t right = 0;
+    if (fillbg)
+    {
+      left  = std::max<int>(filled_x, x + (xoffset < 0 ? xoffset : 0));
+      right = x + std::max<int>(glyph_w_scaled + xoffset, xAdvance);
+      filled_x = right;
+    }
+
+    int32_t draw_x = x + xoffset;
+
+    uint32_t back_rgb = fillbg ? style->back_rgb888 : gfx->getBaseColor();
+    int32_t fore_r = (style->fore_rgb888 >> 16) & 0xFF;
+    int32_t fore_g = (style->fore_rgb888 >> 8) & 0xFF;
+    int32_t fore_b = style->fore_rgb888 & 0xFF;
+    int32_t back_r = (back_rgb >> 16) & 0xFF;
+    int32_t back_g = (back_rgb >> 8) & 0xFF;
+    int32_t back_b = back_rgb & 0xFF;
+
+    gfx->startWrite();
+
+    if (fillbg && left < right)
+    {
+      gfx->setRawColor(col_back);
+      if (yoffset > 0)
+      {
+        gfx->writeFillRect(left, y, right - left, (yoffset * sy) >> 16);
+      }
+      int32_t y0 = ((yoffset + (int32_t)box_h) * sy) >> 16;
+      int32_t y1 = (metrics->height * sy) >> 16;
+      if (y0 < y1)
+      {
+        gfx->writeFillRect(left, y + y0, right - left, y1 - y0);
+      }
+    }
+
+    if (bitmap != nullptr && box_w && box_h)
+    {
+      for (uint32_t py = 0; py < box_h; ++py)
+      {
+        int32_t y0 = ((yoffset + (int32_t)py) * sy) >> 16;
+        int32_t y1 = ((yoffset + (int32_t)py + 1) * sy) >> 16;
+        if (y1 <= y0)
+        {
+          continue;
+        }
+
+        if (fillbg && left < right)
+        {
+          gfx->setRawColor(col_back);
+          if (left < draw_x)
+          {
+            gfx->writeFillRect(left, y + y0, draw_x - left, y1 - y0);
+          }
+          int32_t draw_right = draw_x + glyph_w_scaled;
+          if (draw_right < right)
+          {
+            gfx->writeFillRect(draw_right, y + y0, right - draw_right, y1 - y0);
+          }
+        }
+
+        for (uint32_t px = 0; px < box_w; ++px)
+        {
+          uint32_t alpha = bitmap[py * glyph_stride + px];
+
+          if (!fillbg && alpha == 0)
+          {
+            continue;
+          }
+
+          int32_t x0 = ((int32_t)px * sx) >> 16;
+          int32_t x1 = (((int32_t)px + 1) * sx) >> 16;
+          if (x1 <= x0)
+          {
+            continue;
+          }
+
+          uint32_t raw;
+          if (alpha == 0)
+          {
+            raw = col_back;
+          }
+          else if (alpha >= alpha_max)
+          {
+            raw = col_fore;
+          }
+          else
+          {
+            int32_t r = back_r + ((fore_r - back_r) * (int32_t)alpha + (int32_t)(alpha_max >> 1)) / (int32_t)alpha_max;
+            int32_t g = back_g + ((fore_g - back_g) * (int32_t)alpha + (int32_t)(alpha_max >> 1)) / (int32_t)alpha_max;
+            int32_t b = back_b + ((fore_b - back_b) * (int32_t)alpha + (int32_t)(alpha_max >> 1)) / (int32_t)alpha_max;
+            raw = cc->convert(((uint32_t)r << 16) | ((uint32_t)g << 8) | (uint32_t)b);
+          }
+          gfx->setRawColor(raw);
+          gfx->writeFillRect(draw_x + x0, y + y0, x1 - x0, y1 - y0);
+        }
+      }
+    }
+
+    gfx->endWrite();
+    return xAdvance;
+  }
+
+  size_t LVGLfont::drawChar(LGFXBase* gfx, int32_t x, int32_t y, uint16_t uniCode, const TextStyle* style, FontMetrics* metrics, int32_t& filled_x) const
+  {
+    if (_font == nullptr || _font->get_glyph_dsc == nullptr || _font->get_glyph_bitmap == nullptr)
+    {
+      return drawCharDummy(gfx, x, y, metrics->x_advance, metrics->height, style, filled_x);
+    }
+
+    int32_t sy = 65536 * style->size_y;
+    int32_t sx = 65536 * style->size_x;
+    y += (metrics->y_offset * sy) >> 16;
+
+    lv_font_glyph_dsc_t gd;
+    if (!_font->get_glyph_dsc(_font, &gd, uniCode, 0))
+    {
+      return drawCharDummy(gfx, x, y, metrics->x_advance, metrics->height, style, filled_x);
+    }
+
+    int32_t adv_px = gd.adv_w;
+    int32_t xAdvance = (adv_px * sx) >> 16;
+    int32_t xoffset = (gd.ofs_x * sx) >> 16;
+
+    /*
+     * Space-like glyphs can have valid metrics but no bitmap payload.
+     * Do not fallback to drawCharDummy, keep LVGL-like spacing behavior.
+     */
+    if (gd.box_w == 0 || gd.box_h == 0)
+    {
+      bool fillbg = (style->back_rgb888 != style->fore_rgb888);
+      if (fillbg)
+      {
+        int32_t left  = std::max<int>(filled_x, x);
+        int32_t right = x + xAdvance;
+        if (left < right)
+        {
+          uint32_t col_back = gfx->getColorConverter()->convert(style->back_rgb888);
+          gfx->startWrite();
+          gfx->setRawColor(col_back);
+          gfx->writeFillRect(left, y, right - left, (metrics->height * sy) >> 16);
+          gfx->endWrite();
+        }
+        filled_x = right;
+      }
+      return xAdvance;
+    }
+
+    gd.req_raw_bitmap = 0;
+    gd.resolved_font = _font;
+    uint32_t glyph_stride = gd.box_w;
+    uint32_t glyph_stride_alloc = ((gd.box_w + 63U) / 64U) * 64U;
+    if (glyph_stride_alloc < gd.box_w) glyph_stride_alloc = gd.box_w;
+    const uint8_t stride_sentinel = 0xA5;
+    std::vector<uint8_t> glyph_buf(glyph_stride_alloc * gd.box_h, stride_sentinel);
+    lv_draw_buf_t draw_buf{};
+    draw_buf.data = glyph_buf.data();
+    const void* bmp_res = _font->get_glyph_bitmap(&gd, &draw_buf);
+    const uint8_t* bitmap = draw_buf.data;
+    if (bmp_res == nullptr || bitmap == nullptr)
+    {
+      return drawCharDummy(gfx, x, y, metrics->x_advance, metrics->height, style, filled_x);
+    }
+
+    uint8_t glyph_bpp = 8;
+    // NOTE: LV_FONT_GLYPH_FORMAT_* are enum values (see lv_font/font.h),
+    //       not preprocessor macros, so they cannot be #ifdef'd.
+    switch (gd.format)
+    {
+      case LV_FONT_GLYPH_FORMAT_A1:
+      case LV_FONT_GLYPH_FORMAT_A1_ALIGNED:
+        glyph_bpp = 1;
+        break;
+      case LV_FONT_GLYPH_FORMAT_A2:
+      case LV_FONT_GLYPH_FORMAT_A2_ALIGNED:
+        glyph_bpp = 2;
+        break;
+      case LV_FONT_GLYPH_FORMAT_A4:
+      case LV_FONT_GLYPH_FORMAT_A4_ALIGNED:
+        glyph_bpp = 4;
+        break;
+      default:
+        glyph_bpp = 8;
+        break;
+    }
+
+    if (gd.box_w > 0 && gd.box_h > 0)
+    {
+      auto is_quantized_alpha = [glyph_bpp](uint8_t a) -> bool {
+        if (glyph_bpp >= 8) return true;
+        if (glyph_bpp == 1) return (a == 0 || a == 255);
+        if (glyph_bpp == 2) return (a == 0 || a == 85 || a == 170 || a == 255);
+        return ((a % 17) == 0);
+      };
+
+      auto score_stride = [&](uint32_t test_stride) -> uint32_t {
+        if (test_stride < gd.box_w || test_stride > glyph_stride_alloc) return 0;
+
+        uint32_t q_score = 0;
+        uint32_t payload_written = 0;
+        uint32_t pad_untouched = 0;
+        uint32_t payload_total = gd.box_w * gd.box_h;
+        uint32_t pad_total = (test_stride - gd.box_w) * gd.box_h;
+
+        for (uint32_t py = 0; py < gd.box_h; ++py)
+        {
+          const uint8_t* row = bitmap + py * test_stride;
+          for (uint32_t px = 0; px < gd.box_w; ++px)
+          {
+            uint8_t v = row[px];
+            if (is_quantized_alpha(v)) ++q_score;
+            if (v != stride_sentinel) ++payload_written;
+          }
+          for (uint32_t px = gd.box_w; px < test_stride; ++px)
+          {
+            if (row[px] == stride_sentinel) ++pad_untouched;
+          }
+        }
+
+        /*
+         * Score terms (ratio-based to avoid bias to larger stride):
+         * 1) payload_written ratio: should be high for the true stride
+         * 2) padding_untouched ratio: should be high only when row step is correct
+         * 3) quantized alpha count: tie breaker for low-bpp fonts
+         */
+        uint32_t payload_score = payload_total ? (payload_written * 1024U / payload_total) : 0;
+        uint32_t pad_score = pad_total ? (pad_untouched * 1024U / pad_total) : 1024U;
+        return (payload_score << 12) + (pad_score << 2) + q_score;
+      };
+
+      const uint32_t candidates[] = {
+        gd.box_w,
+        (uint32_t)((gd.box_w + 1U) & ~1U),
+        (uint32_t)((gd.box_w + 3U) & ~3U),
+        (uint32_t)((gd.box_w + 7U) & ~7U),
+        (uint32_t)((gd.box_w + 15U) & ~15U),
+        (uint32_t)((gd.box_w + 31U) & ~31U),
+        (uint32_t)((gd.box_w + 63U) & ~63U)
+      };
+
+      uint32_t best_stride = gd.box_w;
+      uint32_t best_score = score_stride(best_stride);
+      for (size_t ci = 0; ci < sizeof(candidates) / sizeof(candidates[0]); ++ci)
+      {
+        uint32_t s = candidates[ci];
+        if (s == best_stride) continue;
+        uint32_t sc = score_stride(s);
+        if (sc > best_score)
+        {
+          best_score = sc;
+          best_stride = s;
+        }
+      }
+      glyph_stride = best_stride;
+    }
+
+    int32_t yoffset = metrics->baseline - (gd.ofs_y + gd.box_h);
+    return draw_alpha_bitmap_common(
+        gfx,
+        x,
+        y,
+        style,
+        metrics,
+        filled_x,
+        xAdvance,
+        xoffset,
+        yoffset,
+        gd.box_w,
+        gd.box_h,
+        bitmap,
+        glyph_stride,
+        255U);
+  }
+
+//----------------------------------------------------------------------------
+
+  namespace
+  {
+    static inline uint16_t read_u16le(const uint8_t* p)
+    {
+      return (uint16_t)p[0] | ((uint16_t)p[1] << 8);
+    }
+
+    static inline int16_t read_s16le(const uint8_t* p)
+    {
+      return (int16_t)read_u16le(p);
+    }
+
+    static inline uint32_t read_u32le(const uint8_t* p)
+    {
+      return (uint32_t)p[0]
+           | ((uint32_t)p[1] << 8)
+           | ((uint32_t)p[2] << 16)
+           | ((uint32_t)p[3] << 24);
+    }
+
+    static inline bool is_marker(const uint8_t* p, const char* marker)
+    {
+      return p[0] == (uint8_t)marker[0]
+          && p[1] == (uint8_t)marker[1]
+          && p[2] == (uint8_t)marker[2]
+          && p[3] == (uint8_t)marker[3];
+    }
+
+    struct bit_stream_t
+    {
+      const uint8_t* data = nullptr;
+      uint32_t bit_length = 0;
+      uint32_t bit_pos = 0;
+
+      uint32_t read_bits(uint8_t count)
+      {
+        if (count == 0) return 0;
+        uint32_t result = 0;
+        while (count--)
+        {
+          if (bit_pos >= bit_length) break;
+          uint32_t byte_index = bit_pos >> 3;
+          uint32_t bit_index = 7 - (bit_pos & 7);
+          result = (result << 1) | ((data[byte_index] >> bit_index) & 1U);
+          ++bit_pos;
+        }
+        return result;
+      }
+
+      int32_t read_sbits(uint8_t count)
+      {
+        if (count == 0) return 0;
+        uint32_t v = read_bits(count);
+        uint32_t sign = 1U << (count - 1);
+        if (v & sign)
+        {
+          v |= (~0U) << count;
+        }
+        return (int32_t)v;
+      }
+    };
+
+    static bool decode_rle_bitmap(bit_stream_t* bs, uint8_t bpp, uint32_t pixel_count, uint8_t* dst)
+    {
+      enum RleState : uint8_t
+      {
+        RLE_SINGLE = 0,
+        RLE_REPEATED,
+        RLE_COUNTER,
+      };
+
+      uint32_t out = 0;
+      uint8_t prev_v = 0;
+      uint8_t count = 0;
+      RleState state = RLE_SINGLE;
+
+      while (out < pixel_count)
+      {
+        uint8_t ret = 0;
+
+        if (state == RLE_SINGLE)
+        {
+          if (bs->bit_pos + bpp > bs->bit_length) break;
+          ret = (uint8_t)bs->read_bits(bpp);
+
+          if (bs->bit_pos != bpp && prev_v == ret)
+          {
+            count = 0;
+            state = RLE_REPEATED;
+          }
+
+          prev_v = ret;
+        }
+        else if (state == RLE_REPEATED)
+        {
+          if (bs->bit_pos >= bs->bit_length) break;
+          uint8_t v = (uint8_t)bs->read_bits(1);
+          ++count;
+
+          if (v == 1)
+          {
+            ret = prev_v;
+            if (count == 11)
+            {
+              if (bs->bit_pos + 6 > bs->bit_length) break;
+              count = (uint8_t)bs->read_bits(6);
+              if (count != 0)
+              {
+                state = RLE_COUNTER;
+              }
+              else
+              {
+                if (bs->bit_pos + bpp > bs->bit_length) break;
+                ret = (uint8_t)bs->read_bits(bpp);
+                prev_v = ret;
+                state = RLE_SINGLE;
+              }
+            }
+          }
+          else
+          {
+            if (bs->bit_pos + bpp > bs->bit_length) break;
+            ret = (uint8_t)bs->read_bits(bpp);
+            prev_v = ret;
+            state = RLE_SINGLE;
+          }
+        }
+        else // RLE_COUNTER
+        {
+          ret = prev_v;
+          if (count) --count;
+          if (count == 0)
+          {
+            if (bs->bit_pos + bpp > bs->bit_length) break;
+            ret = (uint8_t)bs->read_bits(bpp);
+            prev_v = ret;
+            state = RLE_SINGLE;
+          }
+        }
+
+        dst[out++] = ret;
+      }
+
+      while (out < pixel_count) dst[out++] = 0;
+      return true;
+    }
+  }
+
+  BFFfont::~BFFfont()
+  {
+    unloadFont();
+  }
+
+  bool BFFfont::unloadFont(void)
+  {
+    _fontLoaded = false;
+    if (cmap_data) {
+      heap_free(cmap_data);
+      cmap_data = nullptr;
+    }
+    cmap_data_size = 0;
+    if (cmap_subtables) {
+      heap_free(cmap_subtables);
+      cmap_subtables = nullptr;
+    }
+    cmap_subtable_count = 0;
+    if (loca_table) {
+      heap_free(loca_table);
+      loca_table = nullptr;
+    }
+    loca_entries = 0;
+    if (_fontData) {
+      _fontData->preRead();
+      _fontData->close();
+      _fontData->postRead();
+      _fontData = nullptr;
+    }
+    return true;
+  }
+
+  bool BFFfont::loadFont(DataWrapper* data)
+  {
+    unloadFont();
+    if (data == nullptr) return false;
+
+    _fontData = data;
+
+    uint32_t head_record_offset = 0;
+    uint32_t head_record_size = 0;
+
+    data->preRead();
+    if (!data->seek(0)) {
+      data->postRead();
+      return false;
+    }
+
+    uint32_t offset = 0;
+    uint8_t rec_header[8];
+    for (int i = 0; i < 32; ++i)
+    {
+      if (!data->seek(offset)) break;
+      if (data->read(rec_header, 8) != 8) break;
+
+      uint32_t rec_size = read_u32le(rec_header);
+      if (rec_size < 8) break;
+
+      if (is_marker(&rec_header[4], "head")) {
+        head_record_offset = offset;
+        head_record_size = rec_size;
+      } else if (is_marker(&rec_header[4], "cmap")) {
+        cmap_record_offset = offset;
+        cmap_record_size = rec_size;
+      } else if (is_marker(&rec_header[4], "loca")) {
+        loca_record_offset = offset;
+        loca_record_size = rec_size;
+      } else if (is_marker(&rec_header[4], "glyf")) {
+        glyf_record_offset = offset;
+        glyf_record_size = rec_size;
+      }
+
+      // Stop as soon as all required records are found.
+      // Pointer-backed data may not have explicit length bound, so continuing
+      // scan can accidentally walk into adjacent arrays and overwrite records.
+      if (head_record_size && cmap_record_size && loca_record_size && glyf_record_size)
+      {
+        break;
+      }
+
+      if (rec_size > 0x7FFFFFFFU - offset) break;
+      offset += rec_size;
+    }
+
+    if (head_record_size < 44 || cmap_record_size < 12 || loca_record_size < 12 || glyf_record_size < 8)
+    {
+      data->postRead();
+      unloadFont();
+      return false;
+    }
+
+    /*header*/
+    {
+      uint32_t payload_size = head_record_size - 8;
+      auto buf = (uint8_t*)alloca(payload_size);
+      data->seek(head_record_offset + 8);
+      if (data->read(buf, payload_size) != (int)payload_size)
+      {
+        data->postRead();
+        unloadFont();
+        return false;
+      }
+
+      // head payload layout follows font_spec.md (little-endian)
+      // [0] version(4), [4] extra table num(2)
+      font_size             = read_u16le(&buf[6]);
+      ascent                = (int16_t)read_u16le(&buf[8]);
+      descent               = read_s16le(&buf[10]);
+      typo_ascent           = read_u16le(&buf[12]);
+      typo_descent          = read_s16le(&buf[14]);
+      typo_line_gap         = read_u16le(&buf[16]);
+      min_y                 = read_s16le(&buf[18]);
+      max_y                 = read_s16le(&buf[20]);
+      default_advance_width = read_u16le(&buf[22]);
+      kerning_scale         = read_u16le(&buf[24]);
+      index_to_loc_format   = buf[26];
+      glyph_id_format       = buf[27];
+      advance_width_format  = buf[28];
+      bits_per_pixel        = buf[29];
+      bbox_xy_bits          = buf[30];
+      bbox_wh_bits          = buf[31];
+      advance_width_bits    = buf[32];
+      compression_algorithm = buf[33];
+      subpixel_rendering    = buf[34];
+    }
+
+    if (bits_per_pixel == 0 || bits_per_pixel > 4)
+    {
+      data->postRead();
+      unloadFont();
+      return false;
+    }
+
+    // Load cmap payload
+    cmap_data_size = cmap_record_size - 8;
+    cmap_data = (uint8_t*)heap_alloc_psram(cmap_data_size);
+    if (cmap_data == nullptr) cmap_data = (uint8_t*)heap_alloc(cmap_data_size);
+    if (cmap_data == nullptr)
+    {
+      data->postRead();
+      unloadFont();
+      return false;
+    }
+    data->seek(cmap_record_offset + 8);
+    if (data->read(cmap_data, cmap_data_size) != (int)cmap_data_size)
+    {
+      data->postRead();
+      unloadFont();
+      return false;
+    }
+
+    if (cmap_data_size < 4)
+    {
+      data->postRead();
+      unloadFont();
+      return false;
+    }
+
+    cmap_subtable_count = read_u32le(&cmap_data[0]);
+    if (cmap_subtable_count > 0)
+    {
+      uint32_t headers_end = 4 + cmap_subtable_count * 16;
+      if (headers_end > cmap_data_size)
+      {
+        data->postRead();
+        unloadFont();
+        return false;
+      }
+
+      cmap_subtables = (CMapSubtable*)heap_alloc(cmap_subtable_count * sizeof(CMapSubtable));
+      if (cmap_subtables == nullptr)
+      {
+        data->postRead();
+        unloadFont();
+        return false;
+      }
+
+      for (uint32_t i = 0; i < cmap_subtable_count; ++i)
+      {
+        const uint8_t* h = &cmap_data[4 + i * 16];
+        cmap_subtables[i].data_offset     = read_u32le(&h[0]);
+        cmap_subtables[i].range_start     = read_u32le(&h[4]);
+        cmap_subtables[i].range_length    = read_u16le(&h[8]);
+        cmap_subtables[i].glyph_id_offset = read_u16le(&h[10]);
+        cmap_subtables[i].entries_count   = read_u16le(&h[12]);
+        cmap_subtables[i].format_type     = h[14];
+      }
+
+      // lv_font_conv stores cmap data offsets from table-record start (includes 8-byte record header).
+      // Here cmap_data points to payload-only, so normalize if needed.
+      uint32_t payload_valid = 0;
+      uint32_t record_valid = 0;
+      for (uint32_t i = 0; i < cmap_subtable_count; ++i)
+      {
+        uint32_t off = cmap_subtables[i].data_offset;
+        if (off == 0) {
+          ++payload_valid;
+          ++record_valid;
+          continue;
+        }
+        if (off < cmap_data_size) ++payload_valid;
+        if (off >= 8 && (off - 8) < cmap_data_size) ++record_valid;
+      }
+      if (record_valid > payload_valid)
+      {
+        for (uint32_t i = 0; i < cmap_subtable_count; ++i)
+        {
+          uint32_t off = cmap_subtables[i].data_offset;
+          if (off >= 8) cmap_subtables[i].data_offset = off - 8;
+        }
+      }
+    }
+
+    // Load loca table
+    uint8_t loca_hdr[4];
+    data->seek(loca_record_offset + 8);
+    if (data->read(loca_hdr, 4) != 4)
+    {
+      data->postRead();
+      unloadFont();
+      return false;
+    }
+    loca_entries = read_u32le(loca_hdr);
+    if (loca_entries == 0)
+    {
+      data->postRead();
+      unloadFont();
+      return false;
+    }
+
+    loca_table = (uint32_t*)heap_alloc_psram(loca_entries * sizeof(uint32_t));
+    if (loca_table == nullptr) loca_table = (uint32_t*)heap_alloc(loca_entries * sizeof(uint32_t));
+    if (loca_table == nullptr)
+    {
+      data->postRead();
+      unloadFont();
+      return false;
+    }
+
+    if (index_to_loc_format == 0)
+    {
+      for (uint32_t i = 0; i < loca_entries; ++i)
+      {
+        uint8_t u16[2];
+        if (data->read(u16, 2) != 2)
+        {
+          data->postRead();
+          unloadFont();
+          return false;
+        }
+        loca_table[i] = read_u16le(u16);
+      }
+    }
+    else
+    {
+      for (uint32_t i = 0; i < loca_entries; ++i)
+      {
+        uint8_t u32[4];
+        if (data->read(u32, 4) != 4)
+        {
+          data->postRead();
+          unloadFont();
+          return false;
+        }
+        loca_table[i] = read_u32le(u32);
+      }
+    }
+
+    // lv_font_conv may store loca offsets from glyf record start (includes 8-byte record header).
+    // Normalize to payload offsets so downstream logic can use [0 .. glyf_payload_size].
+    // To avoid false positives, score both hypotheses (shift 0 / shift 8) by actually parsing
+    // several glyph headers and selecting the more plausible one.
+    {
+      uint32_t glyf_payload_size = glyf_record_size - 8;
+      uint32_t header_bits = advance_width_bits + bbox_xy_bits + bbox_xy_bits + bbox_wh_bits + bbox_wh_bits;
+      uint32_t header_bytes = (header_bits + 7) >> 3;
+      if (header_bytes == 0) header_bytes = 1;
+
+      auto score_loca_mode = [&](uint32_t shift_bits8) -> int32_t
+      {
+        if (header_bytes > 16) return -1;
+        uint32_t shift = shift_bits8 ? 8u : 0u;
+
+        // Probe several printable glyphs (skip gid0 if possible).
+        uint32_t probe_begin = (loca_entries > 1) ? 1 : 0;
+        uint32_t probe_end = std::min<uint32_t>(loca_entries, probe_begin + 12);
+
+        int32_t score = 0;
+        uint8_t hdr[16];
+
+        for (uint32_t gid = probe_begin; gid < probe_end; ++gid)
+        {
+          uint32_t raw_off = loca_table[gid];
+          if (raw_off < shift) continue;
+          uint32_t off = raw_off - shift;
+          if (off >= glyf_payload_size) continue;
+
+          uint32_t next = glyf_payload_size;
+          if (gid + 1 < loca_entries)
+          {
+            uint32_t raw_next = loca_table[gid + 1];
+            if (raw_next >= shift)
+            {
+              uint32_t n = raw_next - shift;
+              if (n >= off && n <= glyf_payload_size) next = n;
+            }
+          }
+          if (next <= off || (next - off) < header_bytes) continue;
+
+          data->seek(glyf_record_offset + 8 + off);
+          if (data->read(hdr, header_bytes) != (int)header_bytes) continue;
+
+          bit_stream_t bs;
+          bs.data = hdr;
+          bs.bit_length = header_bytes * 8;
+
+          uint32_t adv = advance_width_bits ? bs.read_bits(advance_width_bits) : default_advance_width;
+          int32_t bx = (int16_t)bs.read_sbits(bbox_xy_bits);
+          int32_t by = (int16_t)bs.read_sbits(bbox_xy_bits);
+          uint32_t bw = bs.read_bits(bbox_wh_bits);
+          uint32_t bh = bs.read_bits(bbox_wh_bits);
+
+          // Plausibility scoring.
+          if (adv > 0) score += 1;
+          if (bw > 0 && bh > 0) score += 3;
+          if (bw <= (uint32_t)(font_size * 3 + 8) && bh <= (uint32_t)(font_size * 3 + 8)) score += 2;
+          if (std::abs(bx) <= 32 && std::abs(by) <= 32) score += 1;
+        }
+        return score;
+      };
+
+      bool can_shift8 = true;
+      for (uint32_t i = 0; i < loca_entries; ++i)
+      {
+        if (loca_table[i] < 8) { can_shift8 = false; break; }
+      }
+
+      int32_t score0 = score_loca_mode(0);
+      int32_t score8 = can_shift8 ? score_loca_mode(1) : -1;
+
+      bool use_shift8 = false;
+      if (score8 >= 0)
+      {
+        if (score8 > score0 + 2)
+        {
+          use_shift8 = true;
+        }
+        else if (score8 == score0 && loca_entries && loca_table[0] == 8)
+        {
+          // Tie-breaker for common lv_font_conv output.
+          use_shift8 = true;
+        }
+      }
+
+      if (use_shift8)
+      {
+        for (uint32_t i = 0; i < loca_entries; ++i)
+        {
+          loca_table[i] -= 8;
+        }
+      }
+    }
+
+    data->postRead();
+    _fontLoaded = true;
+    return true;
+  }
+
+  void BFFfont::getDefaultMetric(FontMetrics *metrics) const
+  {
+    metrics->x_offset  = 0;
+    metrics->width     = default_advance_width;
+    metrics->x_advance = default_advance_width;
+
+    int32_t h = ascent + std::abs((int)descent);
+    if (h <= 0) h = (font_size > 0) ? font_size : 16;
+    metrics->height = h;
+    metrics->baseline = ascent;
+    metrics->y_offset = -metrics->baseline;
+
+    int32_t yadv = typo_ascent + std::abs((int)typo_descent) + typo_line_gap;
+    if (yadv <= 0) yadv = h;
+    metrics->y_advance = yadv;
+  }
+
+  bool BFFfont::mapCodepointToGlyph(uint32_t codepoint, uint16_t* glyph_id) const
+  {
+    if (glyph_id == nullptr || cmap_subtable_count == 0 || cmap_subtables == nullptr || cmap_data == nullptr) return false;
+
+    int32_t l = 0;
+    int32_t r = (int32_t)cmap_subtable_count - 1;
+    const CMapSubtable* st = nullptr;
+
+    while (l <= r)
+    {
+      int32_t m = (l + r) >> 1;
+      auto& cur = cmap_subtables[m];
+      uint32_t start = cur.range_start;
+      uint32_t end = start + cur.range_length;
+      if (codepoint < start)
+      {
+        r = m - 1;
+      }
+      else if (codepoint >= end)
+      {
+        l = m + 1;
+      }
+      else
+      {
+        st = &cur;
+        break;
+      }
+    }
+    if (st == nullptr) return false;
+
+    uint32_t index = codepoint - st->range_start;
+    uint32_t gid = 0;
+
+    switch (st->format_type)
+    {
+    default:
+      return false;
+
+    case 0: // format 0 (delta-coded uint8 array)
+      if (st->data_offset == 0) return false;
+      if (st->data_offset + index >= cmap_data_size) return false;
+      gid = st->glyph_id_offset + cmap_data[st->data_offset + index];
+      if (gid == 0) return false;
+      *glyph_id = gid;
+      return true;
+
+    case 1: // sparse
+      if (st->data_offset == 0) return false;
+      if (st->entries_count == 0) return false;
+      {
+        uint32_t cp_off = st->data_offset;
+        uint32_t gid_off = cp_off + st->entries_count * 2;
+        if (gid_off + st->entries_count * 2 > cmap_data_size) return false;
+        int32_t lo = 0;
+        int32_t hi = st->entries_count - 1;
+        while (lo <= hi)
+        {
+          int32_t mid = (lo + hi) >> 1;
+          uint16_t delta = read_u16le(&cmap_data[cp_off + mid * 2]);
+          if (index < delta) hi = mid - 1;
+          else if (index > delta) lo = mid + 1;
+          else
+          {
+            gid = st->glyph_id_offset + read_u16le(&cmap_data[gid_off + mid * 2]);
+            if (gid == 0) return false;
+            *glyph_id = gid;
+            return true;
+          }
+        }
+      }
+      return false;
+
+    case 2: // format 0 tiny
+      gid = st->glyph_id_offset + index;
+      if (gid == 0) return false;
+      *glyph_id = gid;
+      return true;
+
+    case 3: // sparse tiny
+      if (st->data_offset == 0 || st->entries_count == 0) return false;
+      if (st->data_offset + st->entries_count * 2 > cmap_data_size) return false;
+      {
+        int32_t lo = 0;
+        int32_t hi = st->entries_count - 1;
+        while (lo <= hi)
+        {
+          int32_t mid = (lo + hi) >> 1;
+          uint16_t delta = read_u16le(&cmap_data[st->data_offset + mid * 2]);
+          if (index < delta) hi = mid - 1;
+          else if (index > delta) lo = mid + 1;
+          else
+          {
+            gid = st->glyph_id_offset + mid;
+            if (gid == 0) return false;
+            *glyph_id = gid;
+            return true;
+          }
+        }
+      }
+      return false;
+    }
+  }
+
+  bool BFFfont::getGlyphOffsetAndLength(uint16_t glyph_id, uint32_t* offset, uint32_t* length) const
+  {
+    if (offset == nullptr || length == nullptr || loca_table == nullptr || loca_entries == 0) return false;
+    if (glyph_id >= loca_entries) return false;
+
+    uint32_t off = loca_table[glyph_id];
+    uint32_t glyf_payload_size = glyf_record_size - 8;
+    if (off >= glyf_payload_size) return false;
+
+    uint32_t next = glyf_payload_size;
+    if ((uint32_t)glyph_id + 1 < loca_entries)
+    {
+      uint32_t n = loca_table[glyph_id + 1];
+      if (n >= off && n <= glyf_payload_size) next = n;
+    }
+
+    *offset = glyf_record_offset + 8 + off;
+    *length = next - off;
+    return true;
+  }
+
+  bool BFFfont::loadGlyphInfo(uint16_t glyph_id, GlyphInfo* info) const
+  {
+    if (!_fontLoaded || _fontData == nullptr || info == nullptr) return false;
+
+    uint32_t offset = 0;
+    uint32_t length = 0;
+    if (!getGlyphOffsetAndLength(glyph_id, &offset, &length)) return false;
+
+    uint32_t header_bits = advance_width_bits + bbox_xy_bits + bbox_xy_bits + bbox_wh_bits + bbox_wh_bits;
+    uint32_t header_bytes = (header_bits + 7) >> 3;
+    if (header_bytes == 0) header_bytes = 1;
+    if (header_bytes > length) return false;
+
+    uint8_t tmp[32];
+    if (header_bytes > sizeof(tmp)) return false;
+
+    _fontData->preRead();
+    _fontData->seek(offset);
+    bool ok = (_fontData->read(tmp, header_bytes) == (int)header_bytes);
+    _fontData->postRead();
+    if (!ok) return false;
+
+    bit_stream_t bs;
+    bs.data = tmp;
+    bs.bit_length = header_bytes * 8;
+
+    info->glyph_id = glyph_id;
+    info->advance_raw = advance_width_bits ? bs.read_bits(advance_width_bits) : default_advance_width;
+    info->bbox_x = (int16_t)bs.read_sbits(bbox_xy_bits);
+    info->bbox_y = (int16_t)bs.read_sbits(bbox_xy_bits);
+    info->bitmap_w = (uint16_t)bs.read_bits(bbox_wh_bits);
+    info->bitmap_h = (uint16_t)bs.read_bits(bbox_wh_bits);
+    // Keep original box size exactly as stored in font data.
+    // (LVGL loader also does not shrink box_w/box_h for subpixel mode.)
+    info->bbox_w = info->bitmap_w;
+    info->bbox_h = info->bitmap_h;
+    info->valid = true;
+    return true;
+  }
+
+  bool BFFfont::decodeGlyphBitmap(uint16_t glyph_id, GlyphInfo* info, uint8_t** out_bitmap) const
+  {
+    if (out_bitmap == nullptr || info == nullptr) return false;
+    *out_bitmap = nullptr;
+    if (!info->valid && !loadGlyphInfo(glyph_id, info)) return false;
+
+    uint32_t raw_w = info->bitmap_w;
+    uint32_t raw_h = info->bitmap_h;
+    uint32_t pixel_count = raw_w * raw_h;
+    if (pixel_count == 0)
+    {
+      *out_bitmap = nullptr;
+      return true;
+    }
+
+    uint32_t offset = 0;
+    uint32_t length = 0;
+    if (!getGlyphOffsetAndLength(glyph_id, &offset, &length)) return false;
+
+    uint32_t header_bits = advance_width_bits + bbox_xy_bits + bbox_xy_bits + bbox_wh_bits + bbox_wh_bits;
+    uint32_t header_bytes = (header_bits + 7) >> 3;
+    if (header_bytes > length) return false;
+
+    auto glyph_buf = (uint8_t*)heap_alloc_psram(length);
+    if (glyph_buf == nullptr) glyph_buf = (uint8_t*)heap_alloc(length);
+    if (glyph_buf == nullptr) return false;
+
+    _fontData->preRead();
+    _fontData->seek(offset);
+    bool ok = (_fontData->read(glyph_buf, length) == (int)length);
+    _fontData->postRead();
+    if (!ok)
+    {
+      heap_free(glyph_buf);
+      return false;
+    }
+
+    auto bitmap = (uint8_t*)heap_alloc_psram(pixel_count);
+    if (bitmap == nullptr) bitmap = (uint8_t*)heap_alloc(pixel_count);
+    if (bitmap == nullptr)
+    {
+      heap_free(glyph_buf);
+      return false;
+    }
+
+    bit_stream_t bs;
+    bs.data = glyph_buf;
+    bs.bit_length = length * 8;
+    bs.bit_pos = header_bits;
+
+    if (compression_algorithm == 0)
+    {
+      for (uint32_t i = 0; i < pixel_count; ++i) bitmap[i] = bs.read_bits(bits_per_pixel);
+    }
+    else if (compression_algorithm == 1 || compression_algorithm == 2)
+    {
+      decode_rle_bitmap(&bs, bits_per_pixel, pixel_count, bitmap);
+      if (compression_algorithm == 1)
+      {
+        for (uint32_t y = 1; y < raw_h; ++y)
+        {
+          uint8_t* row = &bitmap[y * raw_w];
+          uint8_t* prev = row - raw_w;
+          for (uint32_t x = 0; x < raw_w; ++x)
+          {
+            row[x] ^= prev[x];
+          }
+        }
+      }
+    }
+    else
+    {
+      heap_free(bitmap);
+      heap_free(glyph_buf);
+      return false;
+    }
+
+    heap_free(glyph_buf);
+
+    // If source glyph is subpixel-rendered (RGB triplets), collapse to grayscale
+    // so non-subpixel panels can get a closer visual result to LVGL AA rendering.
+    if (subpixel_rendering && raw_w >= 3)
+    {
+      uint32_t out_w = raw_w / 3;
+      if (out_w == 0) out_w = 1;
+
+      auto gray = (uint8_t*)heap_alloc_psram(out_w * raw_h);
+      if (gray == nullptr) gray = (uint8_t*)heap_alloc(out_w * raw_h);
+      if (gray != nullptr)
+      {
+        for (uint32_t y = 0; y < raw_h; ++y)
+        {
+          const uint8_t* src = &bitmap[y * raw_w];
+          uint8_t* dst = &gray[y * out_w];
+          for (uint32_t x = 0; x < out_w; ++x)
+          {
+            uint32_t s = x * 3;
+            uint32_t r = src[s + 0];
+            uint32_t g = src[s + 1];
+            uint32_t b = src[s + 2];
+            // Use integer luma approximation: 0.299R + 0.587G + 0.114B
+            dst[x] = (uint8_t)((r * 77U + g * 150U + b * 29U + 128U) >> 8);
+          }
+        }
+
+        heap_free(bitmap);
+        bitmap = gray;
+        info->bitmap_w = (uint16_t)out_w;
+        info->bbox_w = (uint16_t)out_w;
+      }
+    }
+
+    *out_bitmap = bitmap;
+    return true;
+  }
+
+  bool BFFfont::updateFontMetric(FontMetrics *metrics, uint16_t uniCode) const
+  {
+    uint16_t gid = 0;
+    bool found = mapCodepointToGlyph(uniCode, &gid);
+    if (!found) gid = 0;
+
+    GlyphInfo info;
+    if (!loadGlyphInfo(gid, &info))
+    {
+      metrics->x_offset = 0;
+      metrics->width = metrics->x_advance = default_advance_width;
+      return false;
+    }
+
+    int32_t adv = info.advance_raw;
+    if (advance_width_format == 1) adv = (adv + 8) >> 4;
+    metrics->x_offset = info.bbox_x;
+    metrics->width = info.bbox_w;
+    metrics->x_advance = adv;
+    return found;
+  }
+
+  size_t BFFfont::drawChar(LGFXBase* gfx, int32_t x, int32_t y, uint16_t uniCode, const TextStyle* style, FontMetrics* metrics, int32_t& filled_x) const
+  {
+    int32_t sy = 65536 * style->size_y;
+    int32_t sx = 65536 * style->size_x;
+    y += (metrics->y_offset * sy) >> 16;
+
+    uint16_t gid = 0;
+    bool found = mapCodepointToGlyph(uniCode, &gid);
+    if (!found) gid = 0;
+
+    GlyphInfo info;
+    uint8_t* bitmap = nullptr;
+    if (!decodeGlyphBitmap(gid, &info, &bitmap))
+    {
+      return drawCharDummy(gfx, x, y, default_advance_width, metrics->height, style, filled_x);
+    }
+
+    int32_t xAdvance = info.advance_raw;
+    if (advance_width_format == 1)
+    {
+      xAdvance = (xAdvance * sx) >> 20;
+    }
+    else
+    {
+      xAdvance = (xAdvance * sx) >> 16;
+    }
+
+    int32_t xoffset = (info.bbox_x * sx) >> 16;
+    // BFF spec stores bbox_y as bottom position from baseline (upward-positive).
+    // Renderer needs top-left draw origin, so convert with: top = baseline - (bbox_y + bbox_h).
+    int32_t yoffset = metrics->baseline - (info.bbox_y + info.bbox_h);
+
+    uint32_t max_alpha = (1U << bits_per_pixel) - 1;
+    size_t drawn = draw_alpha_bitmap_common(
+        gfx,
+        x,
+        y,
+        style,
+        metrics,
+        filled_x,
+        xAdvance,
+        xoffset,
+        yoffset,
+        info.bbox_w,
+        info.bbox_h,
+        bitmap,
+        info.bbox_w,
+        max_alpha);
+    if (bitmap) heap_free(bitmap);
+    return drawn;
+  }
+
+//----------------------------------------------------------------------------
+
   void VLWfont::getDefaultMetric(FontMetrics *metrics) const
   {
     metrics->x_offset  = 0;
@@ -1188,6 +2430,32 @@ label_nextbyte: /// 次のデータを取得する;
     const GLCDfont Font8x8C64 = { font8x8_c64, font8x8c64_info, 8, 8, 7 };
     const FixedBMPfont AsciiFont8x16  = { FontLib8x16 , font0_info,  8, 16, 13 };
     const FixedBMPfont AsciiFont24x48 = { FontLib24x48, fontlib24x48_info, 24, 48, 40 };
+    const LVGLfont lv_font_montserrat_8(&::lv_font_montserrat_8);
+    const LVGLfont lv_font_montserrat_10(&::lv_font_montserrat_10);
+    const LVGLfont lv_font_montserrat_12(&::lv_font_montserrat_12);
+    const LVGLfont lv_font_montserrat_14(&::lv_font_montserrat_14);
+    const LVGLfont lv_font_montserrat_16(&::lv_font_montserrat_16);
+    const LVGLfont lv_font_montserrat_18(&::lv_font_montserrat_18);
+    const LVGLfont lv_font_montserrat_20(&::lv_font_montserrat_20);
+    const LVGLfont lv_font_montserrat_22(&::lv_font_montserrat_22);
+    const LVGLfont lv_font_montserrat_24(&::lv_font_montserrat_24);
+    const LVGLfont lv_font_montserrat_26(&::lv_font_montserrat_26);
+    const LVGLfont lv_font_montserrat_28(&::lv_font_montserrat_28);
+    const LVGLfont lv_font_montserrat_28_compressed(&::lv_font_montserrat_28_compressed);
+    const LVGLfont lv_font_montserrat_30(&::lv_font_montserrat_30);
+    const LVGLfont lv_font_montserrat_32(&::lv_font_montserrat_32);
+    const LVGLfont lv_font_montserrat_34(&::lv_font_montserrat_34);
+    const LVGLfont lv_font_montserrat_36(&::lv_font_montserrat_36);
+    const LVGLfont lv_font_montserrat_38(&::lv_font_montserrat_38);
+    const LVGLfont lv_font_montserrat_40(&::lv_font_montserrat_40);
+    const LVGLfont lv_font_montserrat_42(&::lv_font_montserrat_42);
+    const LVGLfont lv_font_montserrat_44(&::lv_font_montserrat_44);
+    const LVGLfont lv_font_montserrat_46(&::lv_font_montserrat_46);
+    const LVGLfont lv_font_montserrat_48(&::lv_font_montserrat_48);
+    const LVGLfont lv_font_simsun_14_cjk(&::lv_font_simsun_14_cjk);
+    const LVGLfont lv_font_simsun_16_cjk(&::lv_font_simsun_16_cjk);
+    const LVGLfont lv_font_unscii_8(&::lv_font_unscii_8);
+    const LVGLfont lv_font_unscii_16(&::lv_font_unscii_16);
 
     const U8g2font lgfxJapanMincho_8   = { lgfx_font_japan_mincho_8    };
     const U8g2font lgfxJapanMincho_12  = { lgfx_font_japan_mincho_12   };

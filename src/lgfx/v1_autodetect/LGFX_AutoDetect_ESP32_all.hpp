@@ -23,7 +23,13 @@ Contributors:
 #include <nvs.h>
 #include <memory>
 #include <esp_log.h>
-#include <driver/i2c.h>
+
+#if __has_include(<driver/i2c_master.h>)
+  #include <driver/i2c_master.h>
+#elif __has_include(<driver/i2c.h>)
+  #include <driver/i2c.h>
+#endif
+
 #include <soc/efuse_reg.h>
 #include <soc/gpio_periph.h>
 #include <soc/gpio_reg.h>
@@ -1889,6 +1895,17 @@ namespace lgfx
       };
 
 #elif defined (CONFIG_IDF_TARGET_ESP32) || !defined (CONFIG_IDF_TARGET)
+
+      #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 0, 0)
+        // NOTE: unsure why idf v6 does not alias those
+        #if !defined HSPI_HOST
+          #define HSPI_HOST SPI2_HOST
+        #endif
+        #if !defined VSPI_HOST
+          #define VSPI_HOST SPI3_HOST
+        #endif
+      #endif
+
 
       struct _detector_M5StickCPlus_t : public _detector_spi_t
       {

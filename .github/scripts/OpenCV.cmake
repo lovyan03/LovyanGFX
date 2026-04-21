@@ -22,8 +22,10 @@ file(GLOB Target_Files RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} CONFIGURE_DEPENDS
     *.cpp
     ${LovyanGFX_DIR}/lgfx/Fonts/efont/*.c
     ${LovyanGFX_DIR}/lgfx/Fonts/IPA/*.c
+    ${LovyanGFX_DIR}/lgfx/Fonts/lvgl/*.c
     ${LovyanGFX_DIR}/lgfx/utility/*.c
     ${LovyanGFX_DIR}/lgfx/v1/*.cpp
+    ${LovyanGFX_DIR}/lgfx/v1/lv_font/*.c
     ${LovyanGFX_DIR}/lgfx/v1/misc/*.cpp
     ${LovyanGFX_DIR}/lgfx/v1/panel/Panel_Device.cpp
     ${LovyanGFX_DIR}/lgfx/v1/platforms/opencv/*.cpp
