@@ -60,6 +60,14 @@ Contributors:
  #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 5, 0)
   #define LGFX_HAL_FUNC_SEL
  #endif
+
+ #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 4, 4)
+  // The SPI master and slave no longer accepts ESP_INTR_FLAG_SHARED as interrupt flag during initialization.
+  #define LGFX_INTR_FLAGS ESP_INTR_FLAG_INTRDISABLED
+ #else
+  #define LGFX_INTR_FLAGS ESP_INTR_FLAG_INTRDISABLED | ESP_INTR_FLAG_SHARED
+ #endif
+
 #endif
 
 namespace lgfx
@@ -332,7 +340,7 @@ namespace lgfx
 
     dev->lc_dma_int_ena.val = 1;
 
-    int isr_flags = ESP_INTR_FLAG_INTRDISABLED | ESP_INTR_FLAG_SHARED;
+    int isr_flags = LGFX_INTR_FLAGS; // ESP_INTR_FLAG_INTRDISABLED | ESP_INTR_FLAG_SHARED;
 
 #if SOC_LCDCAM_RGB_LCD_SUPPORTED
   auto sigs = LGFX_LCD_RGB_SIG(_cfg.port);

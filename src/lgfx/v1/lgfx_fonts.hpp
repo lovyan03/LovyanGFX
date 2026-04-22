@@ -341,20 +341,6 @@ namespace lgfx
     bool getUnicodeIndex(uint16_t unicode, uint16_t *index) const;
   };
 
-//----------------------------------------------------------------------------
-// LVGL font wrapper (lv_font_t / lv_font_fmt_txt)
-
-  struct LVGLfont : public IFont
-  {
-    constexpr LVGLfont(const ::lv_font_t* font = nullptr) : _font(font) {}
-
-    font_type_t getType(void) const override { return ft_lvgl; }
-    void getDefaultMetric(FontMetrics *metrics) const override;
-    bool updateFontMetric(FontMetrics *metrics, uint16_t uniCode) const override;
-    size_t drawChar(LGFXBase* gfx, int32_t x, int32_t y, uint16_t c, const TextStyle* style, FontMetrics* metrics, int32_t& filled_x) const override;
-
-    const ::lv_font_t* _font;
-  };
 
 //----------------------------------------------------------------------------
 
@@ -373,32 +359,6 @@ namespace lgfx
     extern const lgfx::GLCDfont Font8x8C64;
     extern const lgfx::FixedBMPfont AsciiFont8x16;
     extern const lgfx::FixedBMPfont AsciiFont24x48;
-    extern const lgfx::LVGLfont lv_font_montserrat_8;
-    extern const lgfx::LVGLfont lv_font_montserrat_10;
-    extern const lgfx::LVGLfont lv_font_montserrat_12;
-    extern const lgfx::LVGLfont lv_font_montserrat_14;
-    extern const lgfx::LVGLfont lv_font_montserrat_16;
-    extern const lgfx::LVGLfont lv_font_montserrat_18;
-    extern const lgfx::LVGLfont lv_font_montserrat_20;
-    extern const lgfx::LVGLfont lv_font_montserrat_22;
-    extern const lgfx::LVGLfont lv_font_montserrat_24;
-    extern const lgfx::LVGLfont lv_font_montserrat_26;
-    extern const lgfx::LVGLfont lv_font_montserrat_28;
-    extern const lgfx::LVGLfont lv_font_montserrat_28_compressed;
-    extern const lgfx::LVGLfont lv_font_montserrat_30;
-    extern const lgfx::LVGLfont lv_font_montserrat_32;
-    extern const lgfx::LVGLfont lv_font_montserrat_34;
-    extern const lgfx::LVGLfont lv_font_montserrat_36;
-    extern const lgfx::LVGLfont lv_font_montserrat_38;
-    extern const lgfx::LVGLfont lv_font_montserrat_40;
-    extern const lgfx::LVGLfont lv_font_montserrat_42;
-    extern const lgfx::LVGLfont lv_font_montserrat_44;
-    extern const lgfx::LVGLfont lv_font_montserrat_46;
-    extern const lgfx::LVGLfont lv_font_montserrat_48;
-    extern const lgfx::LVGLfont lv_font_simsun_14_cjk;
-    extern const lgfx::LVGLfont lv_font_simsun_16_cjk;
-    extern const lgfx::LVGLfont lv_font_unscii_8;
-    extern const lgfx::LVGLfont lv_font_unscii_16;
 
     extern const lgfx::GFXfont TomThumb                 ;
     extern const lgfx::GFXfont FreeMono9pt7b            ;

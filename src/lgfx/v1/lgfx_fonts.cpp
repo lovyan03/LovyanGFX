@@ -9,7 +9,6 @@
 #include "../Fonts/efont/lgfx_efont_ja.h"
 #include "../Fonts/efont/lgfx_efont_kr.h"
 #include "../Fonts/efont/lgfx_efont_tw.h"
-#include "../Fonts/lvgl/lvgl.h"
 
 #include <stdint.h>
 #include <stddef.h>
@@ -727,52 +726,6 @@ label_nextbyte: /// 次のデータを取得する;
 
 //----------------------------------------------------------------------------
 
-  void LVGLfont::getDefaultMetric(FontMetrics *metrics) const
-  {
-    if (_font == nullptr)
-    {
-      metrics->width = 0;
-      metrics->x_advance = 0;
-      metrics->x_offset = 0;
-      metrics->height = 0;
-      metrics->y_advance = 0;
-      metrics->y_offset = 0;
-      metrics->baseline = 0;
-      return;
-    }
-
-    metrics->height = _font->line_height;
-    metrics->y_advance = _font->line_height;
-    metrics->baseline = _font->line_height - _font->base_line;
-    metrics->y_offset = -metrics->baseline;
-    metrics->width = (_font->line_height * 5) >> 3;
-    metrics->x_advance = metrics->width;
-    metrics->x_offset = 0;
-  }
-
-  bool LVGLfont::updateFontMetric(FontMetrics *metrics, uint16_t uniCode) const
-  {
-    if (_font == nullptr || _font->get_glyph_dsc == nullptr)
-    {
-      metrics->x_offset = 0;
-      metrics->width = metrics->x_advance = 0;
-      return false;
-    }
-
-    lv_font_glyph_dsc_t gd;
-    if (!_font->get_glyph_dsc(_font, &gd, uniCode, 0))
-    {
-      metrics->x_offset = 0;
-      metrics->width = metrics->x_advance = (metrics->height * 5) >> 3;
-      return false;
-    }
-
-    metrics->x_offset = gd.ofs_x;
-    metrics->width = gd.box_w;
-    metrics->x_advance = gd.adv_w;
-    return true;
-  }
-
   static size_t draw_alpha_bitmap_common(
       LGFXBase* gfx,
       int32_t x,
@@ -901,176 +854,6 @@ label_nextbyte: /// 次のデータを取得する;
     return xAdvance;
   }
 
-  size_t LVGLfont::drawChar(LGFXBase* gfx, int32_t x, int32_t y, uint16_t uniCode, const TextStyle* style, FontMetrics* metrics, int32_t& filled_x) const
-  {
-    if (_font == nullptr || _font->get_glyph_dsc == nullptr || _font->get_glyph_bitmap == nullptr)
-    {
-      return drawCharDummy(gfx, x, y, metrics->x_advance, metrics->height, style, filled_x);
-    }
-
-    int32_t sy = 65536 * style->size_y;
-    int32_t sx = 65536 * style->size_x;
-    y += (metrics->y_offset * sy) >> 16;
-
-    lv_font_glyph_dsc_t gd;
-    if (!_font->get_glyph_dsc(_font, &gd, uniCode, 0))
-    {
-      return drawCharDummy(gfx, x, y, metrics->x_advance, metrics->height, style, filled_x);
-    }
-
-    int32_t adv_px = gd.adv_w;
-    int32_t xAdvance = (adv_px * sx) >> 16;
-    int32_t xoffset = (gd.ofs_x * sx) >> 16;
-
-    /*
-     * Space-like glyphs can have valid metrics but no bitmap payload.
-     * Do not fallback to drawCharDummy, keep LVGL-like spacing behavior.
-     */
-    if (gd.box_w == 0 || gd.box_h == 0)
-    {
-      bool fillbg = (style->back_rgb888 != style->fore_rgb888);
-      if (fillbg)
-      {
-        int32_t left  = std::max<int>(filled_x, x);
-        int32_t right = x + xAdvance;
-        if (left < right)
-        {
-          uint32_t col_back = gfx->getColorConverter()->convert(style->back_rgb888);
-          gfx->startWrite();
-          gfx->setRawColor(col_back);
-          gfx->writeFillRect(left, y, right - left, (metrics->height * sy) >> 16);
-          gfx->endWrite();
-        }
-        filled_x = right;
-      }
-      return xAdvance;
-    }
-
-    gd.req_raw_bitmap = 0;
-    gd.resolved_font = _font;
-    uint32_t glyph_stride = gd.box_w;
-    uint32_t glyph_stride_alloc = ((gd.box_w + 63U) / 64U) * 64U;
-    if (glyph_stride_alloc < gd.box_w) glyph_stride_alloc = gd.box_w;
-    const uint8_t stride_sentinel = 0xA5;
-    std::vector<uint8_t> glyph_buf(glyph_stride_alloc * gd.box_h, stride_sentinel);
-    lv_draw_buf_t draw_buf{};
-    draw_buf.data = glyph_buf.data();
-    const void* bmp_res = _font->get_glyph_bitmap(&gd, &draw_buf);
-    const uint8_t* bitmap = draw_buf.data;
-    if (bmp_res == nullptr || bitmap == nullptr)
-    {
-      return drawCharDummy(gfx, x, y, metrics->x_advance, metrics->height, style, filled_x);
-    }
-
-    uint8_t glyph_bpp = 8;
-    // NOTE: LV_FONT_GLYPH_FORMAT_* are enum values (see lv_font/font.h),
-    //       not preprocessor macros, so they cannot be #ifdef'd.
-    switch (gd.format)
-    {
-      case LV_FONT_GLYPH_FORMAT_A1:
-      case LV_FONT_GLYPH_FORMAT_A1_ALIGNED:
-        glyph_bpp = 1;
-        break;
-      case LV_FONT_GLYPH_FORMAT_A2:
-      case LV_FONT_GLYPH_FORMAT_A2_ALIGNED:
-        glyph_bpp = 2;
-        break;
-      case LV_FONT_GLYPH_FORMAT_A4:
-      case LV_FONT_GLYPH_FORMAT_A4_ALIGNED:
-        glyph_bpp = 4;
-        break;
-      default:
-        glyph_bpp = 8;
-        break;
-    }
-
-    if (gd.box_w > 0 && gd.box_h > 0)
-    {
-      auto is_quantized_alpha = [glyph_bpp](uint8_t a) -> bool {
-        if (glyph_bpp >= 8) return true;
-        if (glyph_bpp == 1) return (a == 0 || a == 255);
-        if (glyph_bpp == 2) return (a == 0 || a == 85 || a == 170 || a == 255);
-        return ((a % 17) == 0);
-      };
-
-      auto score_stride = [&](uint32_t test_stride) -> uint32_t {
-        if (test_stride < gd.box_w || test_stride > glyph_stride_alloc) return 0;
-
-        uint32_t q_score = 0;
-        uint32_t payload_written = 0;
-        uint32_t pad_untouched = 0;
-        uint32_t payload_total = gd.box_w * gd.box_h;
-        uint32_t pad_total = (test_stride - gd.box_w) * gd.box_h;
-
-        for (uint32_t py = 0; py < gd.box_h; ++py)
-        {
-          const uint8_t* row = bitmap + py * test_stride;
-          for (uint32_t px = 0; px < gd.box_w; ++px)
-          {
-            uint8_t v = row[px];
-            if (is_quantized_alpha(v)) ++q_score;
-            if (v != stride_sentinel) ++payload_written;
-          }
-          for (uint32_t px = gd.box_w; px < test_stride; ++px)
-          {
-            if (row[px] == stride_sentinel) ++pad_untouched;
-          }
-        }
-
-        /*
-         * Score terms (ratio-based to avoid bias to larger stride):
-         * 1) payload_written ratio: should be high for the true stride
-         * 2) padding_untouched ratio: should be high only when row step is correct
-         * 3) quantized alpha count: tie breaker for low-bpp fonts
-         */
-        uint32_t payload_score = payload_total ? (payload_written * 1024U / payload_total) : 0;
-        uint32_t pad_score = pad_total ? (pad_untouched * 1024U / pad_total) : 1024U;
-        return (payload_score << 12) + (pad_score << 2) + q_score;
-      };
-
-      const uint32_t candidates[] = {
-        gd.box_w,
-        (uint32_t)((gd.box_w + 1U) & ~1U),
-        (uint32_t)((gd.box_w + 3U) & ~3U),
-        (uint32_t)((gd.box_w + 7U) & ~7U),
-        (uint32_t)((gd.box_w + 15U) & ~15U),
-        (uint32_t)((gd.box_w + 31U) & ~31U),
-        (uint32_t)((gd.box_w + 63U) & ~63U)
-      };
-
-      uint32_t best_stride = gd.box_w;
-      uint32_t best_score = score_stride(best_stride);
-      for (size_t ci = 0; ci < sizeof(candidates) / sizeof(candidates[0]); ++ci)
-      {
-        uint32_t s = candidates[ci];
-        if (s == best_stride) continue;
-        uint32_t sc = score_stride(s);
-        if (sc > best_score)
-        {
-          best_score = sc;
-          best_stride = s;
-        }
-      }
-      glyph_stride = best_stride;
-    }
-
-    int32_t yoffset = metrics->baseline - (gd.ofs_y + gd.box_h);
-    return draw_alpha_bitmap_common(
-        gfx,
-        x,
-        y,
-        style,
-        metrics,
-        filled_x,
-        xAdvance,
-        xoffset,
-        yoffset,
-        gd.box_w,
-        gd.box_h,
-        bitmap,
-        glyph_stride,
-        255U);
-  }
 
 //----------------------------------------------------------------------------
 
@@ -2430,32 +2213,6 @@ label_nextbyte: /// 次のデータを取得する;
     const GLCDfont Font8x8C64 = { font8x8_c64, font8x8c64_info, 8, 8, 7 };
     const FixedBMPfont AsciiFont8x16  = { FontLib8x16 , font0_info,  8, 16, 13 };
     const FixedBMPfont AsciiFont24x48 = { FontLib24x48, fontlib24x48_info, 24, 48, 40 };
-    const LVGLfont lv_font_montserrat_8(&::lv_font_montserrat_8);
-    const LVGLfont lv_font_montserrat_10(&::lv_font_montserrat_10);
-    const LVGLfont lv_font_montserrat_12(&::lv_font_montserrat_12);
-    const LVGLfont lv_font_montserrat_14(&::lv_font_montserrat_14);
-    const LVGLfont lv_font_montserrat_16(&::lv_font_montserrat_16);
-    const LVGLfont lv_font_montserrat_18(&::lv_font_montserrat_18);
-    const LVGLfont lv_font_montserrat_20(&::lv_font_montserrat_20);
-    const LVGLfont lv_font_montserrat_22(&::lv_font_montserrat_22);
-    const LVGLfont lv_font_montserrat_24(&::lv_font_montserrat_24);
-    const LVGLfont lv_font_montserrat_26(&::lv_font_montserrat_26);
-    const LVGLfont lv_font_montserrat_28(&::lv_font_montserrat_28);
-    const LVGLfont lv_font_montserrat_28_compressed(&::lv_font_montserrat_28_compressed);
-    const LVGLfont lv_font_montserrat_30(&::lv_font_montserrat_30);
-    const LVGLfont lv_font_montserrat_32(&::lv_font_montserrat_32);
-    const LVGLfont lv_font_montserrat_34(&::lv_font_montserrat_34);
-    const LVGLfont lv_font_montserrat_36(&::lv_font_montserrat_36);
-    const LVGLfont lv_font_montserrat_38(&::lv_font_montserrat_38);
-    const LVGLfont lv_font_montserrat_40(&::lv_font_montserrat_40);
-    const LVGLfont lv_font_montserrat_42(&::lv_font_montserrat_42);
-    const LVGLfont lv_font_montserrat_44(&::lv_font_montserrat_44);
-    const LVGLfont lv_font_montserrat_46(&::lv_font_montserrat_46);
-    const LVGLfont lv_font_montserrat_48(&::lv_font_montserrat_48);
-    const LVGLfont lv_font_simsun_14_cjk(&::lv_font_simsun_14_cjk);
-    const LVGLfont lv_font_simsun_16_cjk(&::lv_font_simsun_16_cjk);
-    const LVGLfont lv_font_unscii_8(&::lv_font_unscii_8);
-    const LVGLfont lv_font_unscii_16(&::lv_font_unscii_16);
 
     const U8g2font lgfxJapanMincho_8   = { lgfx_font_japan_mincho_8    };
     const U8g2font lgfxJapanMincho_12  = { lgfx_font_japan_mincho_12   };

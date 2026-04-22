@@ -84,3 +84,5 @@ public:
   }
 
 };
+
+#define LGFX LGFX_RPI_LDC35A
