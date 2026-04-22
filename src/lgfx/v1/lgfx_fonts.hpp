@@ -5,7 +5,6 @@
 #include <stddef.h>
 #include "misc/enum.hpp"
 #include "../utility/pgmspace.h"
-#include "lvgl.h"
 
 namespace lgfx
 {
