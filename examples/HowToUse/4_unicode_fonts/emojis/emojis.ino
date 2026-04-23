@@ -1,11 +1,6 @@
 
 #include <LovyanGFX.hpp>
 
-#include <lgfx_user/LGFX_3.5_RPI_LCD_A.hpp>
-#if !defined LGFX
-  #define LGFX LGFX_RPI_LDC35A
-#endif
-
 static LGFX lcd;
 
 #include "emojis_packed.h"
