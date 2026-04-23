@@ -1,6 +1,11 @@
 
 #include <LovyanGFX.hpp>
 
+#include <lgfx_user/LGFX_3.5_RPI_LCD_A.hpp>
+#if !defined LGFX
+  #define LGFX LGFX_RPI_LDC35A
+#endif
+
 static LGFX lcd;
 
 #include "emojis_packed.h"
@@ -21,11 +26,11 @@ const EmojiFlashEntry* emoji_flash_lookup(uint32_t code)
   entry = EmojiFlashEntry();
   entry.code = code;
 
-  size_t emojis_count = sizeof(emoji_path_by_code)/sizeof(emoji_path_by_code_t);
+  size_t emojis_count = sizeof(emojis)/sizeof(emoji_png_t);
 
   for(int i=0;i<emojis_count;i++)
   {
-    auto emoji = emoji_path_by_code[i];
+    auto emoji = emojis[i];
     if( emoji.code ==code )
     {
       if( !emoji.data || emoji.data_len == 0 )
@@ -95,12 +100,12 @@ void loop()
 {
   lcd.setTextColor(random(0x10000)| 0x8410, random(0x10000)&0x7BEF);
 
-  size_t emojis_count = sizeof(emoji_path_by_code)/sizeof(emoji_path_by_code_t);
+  size_t emojis_count = sizeof(emojis)/sizeof(emoji_png_t);
   for(int i=0;i<emojis_count;i++)
   {
     if(lcd.getCursorY()+lcd.fontHeight()/2>lcd.height()) {
       lcd.setCursor(0,0);
     }
-    lcd.print(emoji_path_by_code[i].emoji);
+    lcd.print(emojis[i].emoji);
   }
 }
