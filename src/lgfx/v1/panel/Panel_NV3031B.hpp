@@ -58,63 +58,36 @@ namespace lgfx
             static constexpr uint8_t CMD_MADCTL_BGR   = 0x08;
 
 
-            // Init sequence derived from esp_lcd_nv3031b.c vendor_specific_init_default.
-            // Commands have variable-length data; see Panel_NV3031B::init() for the send loop.
-            struct InitCmd {
-                uint8_t  cmd;
-                uint8_t  data[8];
-                uint8_t  len;       // number of data bytes (0 = command only)
-                uint16_t delay_ms;
-            };
+            // Flat init table: cmd, len[|CMD_INIT_DELAY], data...[, delay_ms], ..., 0xFF, 0xFF
+            // CMD_INIT_DELAY ORed into len means a delay_ms byte follows the data bytes.
+            static constexpr uint8_t CMD_INIT_DELAY = 0x80;
 
-            static constexpr InitCmd init_cmds[] =
+            static constexpr uint8_t init_cmds[] =
             {
-                // 0xFD — Cmd2 Enable: password bytes 0x06,0x08 unlock factory register set (Cmd2)
-                { 0xFD, { 0x06, 0x08 },                         2, 0   },
-                // 0x60 — Source timing adjust: SDNL timing control value 0x0C
-                { 0x60, { 0x0C },                                1, 0   },
-                // 0x61 — Gate timing control: gate on/off timing (0x07 = rise, 0x04 = fall)
-                { 0x61, { 0x07, 0x04 },                         2, 0   },
-                // 0xB4 — Display inversion control: 0x01 = 1-dot inversion (column)
-                { 0xB4, { 0x01 },                                1, 0   },
-                // 0xB1 — Frame rate control (normal mode): DIVA=0x0F (osc divisor), RTNA=0x02 (line period), FPA=0x03 (front porch)
-                { 0xB1, { 0x0F, 0x02, 0x03 },                   3, 0   },
-                // 0xB5 — Blanking porch control: VFP=0x02, VBP=0x02, HBP_even=0x0A, HBP_odd=0x14
-                { 0xB5, { 0x02, 0x02, 0x0A, 0x14 },             4, 0   },
-                // 0xB6 — Display function control: ISC=0x44, SM=0x01, SS=0x9F, GS=0x00, REV=0x02
-                { 0xB6, { 0x44, 0x01, 0x9F, 0x00, 0x02 },       5, 0   },
-                // 0xDF — Vendor-specific (bias/oscillator trim): value 0x11
-                { 0xDF, { 0x11 },                                1, 0   },
-                // 0x67 — Vendor-specific (bias current control): value 0x21
-                { 0x67, { 0x21 },                                1, 0   },
-                // 0x68 — VCOM / power control: VCOM_H=0x90, VDV=0x4F, VCM_offset=0x27, VCOM_L=0x21
-                { 0x68, { 0x90, 0x4F, 0x27, 0x21 },             4, 0   },
-                // 0xE1 — Positive gamma voltage control: V63P=0x20, V0P=0x69
-                { 0xE1, { 0x20, 0x69 },                         2, 0   },
-                // 0xE4 — Negative gamma voltage control: V63N=0x69, V0N=0x20
-                { 0xE4, { 0x69, 0x20 },                         2, 0   },
-                // 0xE2 — Positive gamma correction (mid-tones): VP20,VP36,VP44,VP52,VP59,VP63
-                { 0xE2, { 0x10, 0x12, 0x12, 0x30, 0x39, 0x3F }, 6, 0   },
-                // 0xE5 — Negative gamma correction (mid-tones): VN20,VN36,VN44,VN52,VN59,VN63
-                { 0xE5, { 0x3F, 0x33, 0x2D, 0x12, 0x12, 0x10 }, 6, 0   },
-                // 0xE0 — Positive gamma curve (shadow/highlight): VP1..VP8
-                { 0xE0, { 0x06, 0x06, 0x0B, 0x12, 0x11, 0x11, 0x0E, 0x19 }, 8, 0 },
-                // 0xE3 — Negative gamma curve (shadow/highlight): VN1..VN8
-                { 0xE3, { 0x19, 0x13, 0x14, 0x14, 0x14, 0x12, 0x08, 0x05 }, 8, 0 },
-                // 0xE6 — Vendor-specific (power / AVDD/AVCL slope control): 0x00, 0xFF
-                { 0xE6, { 0x00, 0xFF },                         2, 0   },
-                // 0xE7 — Vendor-specific (source output / EQ timing): 6 bytes
-                { 0xE7, { 0x01, 0x04, 0x03, 0x03, 0x00, 0x12 }, 6, 0   },
-                // 0xE8 — Source driver output level / pre-charge control: 3 bytes
-                { 0xE8, { 0x00, 0x70, 0x00 },                   3, 0   },
-                // 0xEC — Vendor-specific (gate EQ / charge-pump timing): value 0x54
-                { 0xEC, { 0x54 },                                1, 0   },
-                // 0xFD — Cmd2 Enable: password bytes 0xFA,0xFC lock factory register set (Cmd2)
-                { 0xFD, { 0xFA, 0xFC },                         2, 0   },
-                // 0x3A — COLMOD (interface pixel format): 0x55 = 16 bpp RGB565
-                { 0x3A, { 0x55 },                                1, 0   },
-                // 0x11 — Sleep Out: exits sleep mode; 100 ms delay required before display on
-                { 0x11, { },                                     0, 100 },
+                0xFD, 2, 0x06, 0x08,                             // Cmd2 Enable: unlock factory registers
+                0x60, 1, 0x0C,                                   // Source timing adjust
+                0x61, 2, 0x07, 0x04,                             // Gate timing control
+                0xB4, 1, 0x01,                                   // Display inversion: 1-dot column
+                0xB1, 3, 0x0F, 0x02, 0x03,                       // Frame rate control
+                0xB5, 4, 0x02, 0x02, 0x0A, 0x14,                 // Blanking porch control
+                0xB6, 5, 0x44, 0x01, 0x9F, 0x00, 0x02,           // Display function control
+                0xDF, 1, 0x11,                                   // Bias/oscillator trim
+                0x67, 1, 0x21,                                   // Bias current control
+                0x68, 4, 0x90, 0x4F, 0x27, 0x21,                 // VCOM / power control
+                0xE1, 2, 0x20, 0x69,                             // Positive gamma voltage
+                0xE4, 2, 0x69, 0x20,                             // Negative gamma voltage
+                0xE2, 6, 0x10, 0x12, 0x12, 0x30, 0x39, 0x3F,     // Positive gamma mid-tones
+                0xE5, 6, 0x3F, 0x33, 0x2D, 0x12, 0x12, 0x10,     // Negative gamma mid-tones
+                0xE0, 8, 0x06, 0x06, 0x0B, 0x12, 0x11, 0x11, 0x0E, 0x19, // Positive gamma curve
+                0xE3, 8, 0x19, 0x13, 0x14, 0x14, 0x14, 0x12, 0x08, 0x05, // Negative gamma curve
+                0xE6, 2, 0x00, 0xFF,                             // AVDD/AVCL slope control
+                0xE7, 6, 0x01, 0x04, 0x03, 0x03, 0x00, 0x12,     // Source output / EQ timing
+                0xE8, 3, 0x00, 0x70, 0x00,                       // Source driver output level
+                0xEC, 1, 0x54,                                   // Gate EQ / charge-pump timing
+                0xFD, 2, 0xFA, 0xFC,                             // Cmd2 Enable: lock factory registers
+                0x3A, 1, 0x55,                                   // COLMOD: 16 bpp RGB565
+                0x11, 0|CMD_INIT_DELAY, 100,                     // Sleep Out + 100 ms delay
+                0xFF, 0xFF                                       // end of table
             };
 
         public:

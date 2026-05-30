@@ -49,19 +49,24 @@ namespace lgfx
             _bus->wait();
             cs_control(true);
 
-            // Send the full init table (variable-length data per command).
-            constexpr int n = sizeof(init_cmds) / sizeof(init_cmds[0]);
-            for (int i = 0; i < n; i++)
+            // Send the full init table (flat: cmd, len[|CMD_INIT_DELAY], data...[, delay_ms], 0xFF 0xFF).
+            const uint8_t* p = init_cmds;
+            while (p[0] != 0xFF || p[1] != 0xFF)
             {
+                uint8_t cmd      = p[0];
+                uint8_t len      = p[1] & ~CMD_INIT_DELAY;
+                bool    has_delay = (p[1] & CMD_INIT_DELAY) != 0;
+                p += 2;
                 cs_control(false);
-                write_cmd(init_cmds[i].cmd);
-                for (int j = 0; j < init_cmds[i].len; j++) {
-                    _bus->writeCommand(init_cmds[i].data[j], 8);
+                write_cmd(cmd);
+                for (uint8_t i = 0; i < len; i++) {
+                    _bus->writeCommand(p[i], 8);
                 }
                 _bus->wait();
                 cs_control(true);
-                if (init_cmds[i].delay_ms) {
-                    delay(init_cmds[i].delay_ms);
+                p += len;
+                if (has_delay) {
+                    delay(*p++);
                 }
             }
 
