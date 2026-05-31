@@ -129,6 +129,7 @@ namespace lgfx
             void start_qspi();
             void end_qspi();
             void write_bytes(const uint8_t* data, uint32_t len, bool use_dma);
+            void run_init_cmds(void);
         };
 
         //----------------------------------------------------------------------------

@@ -49,12 +49,27 @@ namespace lgfx
             _bus->wait();
             cs_control(true);
 
-            // Send the full init table (flat: cmd, len[|CMD_INIT_DELAY], data...[, delay_ms], 0xFF 0xFF).
+            endWrite();
+            run_init_cmds();
+
+            return true;
+        }
+
+        /**
+         * NV3031B initialization commands are sent in a custom way instead of using Panel_Device::command_list()
+         * because NV3031B requires the 4-byte QSPI framing that our write_cmd() implements.
+         * If Panel_Device::command_list() would have been virtual we could have overwritten it here.
+         */
+        void Panel_NV3031B::run_init_cmds(void)
+        {
+            // Send the full init table (flat: cmd, len[|CMD_INIT_DELAY], data...[, delay_ms], 0xFF 0xFF),
+            // then DISPON with dummy parameter byte as required by NV303x.
+            startWrite();
             const uint8_t* p = init_cmds;
             while (p[0] != 0xFF || p[1] != 0xFF)
             {
-                uint8_t cmd      = p[0];
-                uint8_t len      = p[1] & ~CMD_INIT_DELAY;
+                uint8_t cmd       = p[0];
+                uint8_t len       = p[1] & ~CMD_INIT_DELAY;
                 bool    has_delay = (p[1] & CMD_INIT_DELAY) != 0;
                 p += 2;
                 cs_control(false);
@@ -69,10 +84,8 @@ namespace lgfx
                     delay(*p++);
                 }
             }
-
             endWrite();
 
-            // Display on — send DISPON with one dummy 0x00 parameter byte as required by NV303x.
             startWrite();
             cs_control(false);
             write_cmd(CMD_DISPON);
@@ -80,8 +93,6 @@ namespace lgfx
             _bus->wait();
             cs_control(true);
             endWrite();
-
-            return true;
         }
 
 
@@ -128,17 +139,29 @@ namespace lgfx
 
         void Panel_NV3031B::setSleep(bool flg)
         {
-            startWrite();
-            cs_control(false);
             if (flg) {
+                startWrite();
+                cs_control(false);
                 write_cmd(CMD_SLPIN);
+                _bus->wait();
+                cs_control(true);
+                endWrite();
             } else {
-                write_cmd(CMD_SLPOUT);
-                delay(150);
+                // Software reset: resets all NV3031B registers to power-on defaults,
+                // equivalent to a hardware RST pulse.  This is the only reliable way
+                // to eliminate the 1-pixel column shift that appears after SLPOUT —
+                // no combination of delays, NOP flushes, or register restores fixes it.
+                startWrite();
+                cs_control(false);
+                write_cmd(CMD_SWRESET);
+                _bus->wait();
+                cs_control(true);
+                endWrite();
+                delay(CMD_RST_DELAY);
+                run_init_cmds();
+                _has_align_data = false;
+                update_madctl();
             }
-            _bus->wait();
-            cs_control(true);
-            endWrite();
         }
 
 
@@ -147,6 +170,10 @@ namespace lgfx
             startWrite();
             cs_control(false);
             write_cmd(flg ? CMD_DISPOFF : CMD_DISPON);
+            if (!flg) {
+                // NV303x requires a dummy 0x00 parameter byte after CMD_DISPON.
+                _bus->writeCommand(0x00, 8);
+            }
             _bus->wait();
             cs_control(true);
             endWrite();
