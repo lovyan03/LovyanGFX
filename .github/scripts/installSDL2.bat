@@ -40,6 +40,8 @@ curl https://www.libsdl.org/release/SDL2-%sdlVersion%.zip -o contrib/SDL2-SRC.zi
 
 cd contrib/src/SDL2-%sdlVersion%
 
+powershell -Command "(Get-Content CMakeLists.txt) -replace 'cmake_minimum_required\(VERSION [0-9.]+\)', 'cmake_minimum_required(VERSION 3.5)' | Set-Content CMakeLists.txt"
+
 set cwd=%cd%
 
 echo ============================================
