@@ -7,6 +7,7 @@
 #include <lgfx/v1/platforms/esp32s3/Bus_RGB.hpp>
 #include <lgfx/v1/platforms/esp32/Light_CH422G.hpp>
 
+
 // LGFX for Waveshare ESP32-S3-Touch-LCD-4.3
 // https://www.waveshare.com/esp32-s3-touch-lcd-4.3.htm
 // Hardware: 800x480 RGB565 display with GT911 touch controller.
