@@ -24,12 +24,14 @@ Contributors:
  #if defined (CONFIG_IDF_TARGET_ESP32C6)
 
   #include "esp32/Light_PWM.hpp"
+  #include "esp32/Light_CH422G.hpp"
   #include "esp32/Bus_SPI.hpp"
   #include "esp32/Bus_I2C.hpp"
 
  #elif defined (CONFIG_IDF_TARGET_ESP32C3)
 
   #include "esp32/Light_PWM.hpp"
+  #include "esp32/Light_CH422G.hpp"
   #include "esp32/Bus_SPI.hpp"
   #include "esp32/Bus_I2C.hpp"
   #include "esp32c3/Bus_Parallel8.hpp"
@@ -37,6 +39,7 @@ Contributors:
  #elif defined (CONFIG_IDF_TARGET_ESP32S2)
 
   #include "esp32/Light_PWM.hpp"
+  #include "esp32/Light_CH422G.hpp"
   #include "esp32/Bus_SPI.hpp"
   #include "esp32/Bus_I2C.hpp"
   #include "esp32s2/Bus_Parallel8.hpp"
@@ -45,6 +48,7 @@ Contributors:
  #elif defined (CONFIG_IDF_TARGET_ESP32S3)
 
   #include "esp32/Light_PWM.hpp"
+  #include "esp32/Light_CH422G.hpp"
   #include "esp32/Bus_SPI.hpp"
   #include "esp32/Bus_I2C.hpp"
   #include "esp32s3/Bus_Parallel8.hpp"
@@ -53,26 +57,30 @@ Contributors:
  #elif defined  (CONFIG_IDF_TARGET_ESP32P4)
 
   #include "esp32/Light_PWM.hpp"
+  #include "esp32/Light_CH422G.hpp"
   #include "esp32/Bus_SPI.hpp"
   #include "esp32/Bus_I2C.hpp"
   #include "esp32p4/Bus_DSI.hpp"
   #include "esp32/Bus_Parallel8.hpp"
   #include "esp32/Bus_HUB75.hpp"
+  #include "esp32/Panel_CVBS.hpp"
 
  #elif defined (CONFIG_IDF_TARGET_ESP32H2)
 
   #include "esp32/Light_PWM.hpp"
+  #include "esp32/Light_CH422G.hpp"
   #include "esp32/Bus_SPI.hpp"
   #include "esp32/Bus_I2C.hpp"
 
  #else
 
   #include "esp32/Light_PWM.hpp"
+  #include "esp32/Light_CH422G.hpp"
   #include "esp32/Bus_SPI.hpp"
   #include "esp32/Bus_I2C.hpp"
   #include "esp32/Bus_Parallel8.hpp"
   #include "esp32/Bus_HUB75.hpp"
-  #include "esp32/Panel_CVBS.hpp"
+
 
  #endif
 
@@ -115,4 +123,3 @@ Contributors:
 #include "sdl/Panel_sdl.hpp"
 
 #endif
-
