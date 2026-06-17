@@ -15,8 +15,6 @@ Contributors:
  [mongonta0716](https://github.com/mongonta0716)
  [tobozo](https://github.com/tobozo)
 /----------------------------------------------------------------------------*/
-#if defined (ESP_PLATFORM)
-
 #include "Light_CH422G.hpp"
 #include "../common.hpp"
 
@@ -68,5 +66,3 @@ namespace lgfx
 //----------------------------------------------------------------------------
  }
 }
-
-#endif
