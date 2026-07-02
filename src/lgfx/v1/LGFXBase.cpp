@@ -2129,6 +2129,7 @@ namespace lgfx
     int32_t right = 0;
     auto str = string;
     do {
+      auto char_start = string;
       uint32_t uniCode = *string;
       if (_text_style.utf8) {
         do {
@@ -2160,7 +2161,7 @@ namespace lgfx
       right = left + std::max<int>(sxadvance, ((_font_metrics.width * sx) >> 16) + ((_font_metrics.x_offset * sx) >> 16));
       //right = left + (int)(std::max<int>(_font_metrics.x_advance, _font_metrics.width + _font_metrics.x_offset) * sx);
       left += sxadvance;
-      if (width <= right) return string - str;
+      if (width <= right) return char_start - str;
     } while (*(++string));
     return string - str;
   }

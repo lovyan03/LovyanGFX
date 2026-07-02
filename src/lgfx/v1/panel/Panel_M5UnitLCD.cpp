@@ -78,8 +78,9 @@ namespace lgfx
   {
     if (!_in_transaction) return;
     _in_transaction = false;
-    _bus->endTransaction();
+    _bus->wait();
     cs_control(true);
+    _bus->endTransaction();
     _last_cmd = 0;
   }
 
@@ -96,8 +97,9 @@ namespace lgfx
         --_buff_free_count;
         return true;
       }
-      _bus->endTransaction();
+      _bus->wait();
       cs_control(true);
+      _bus->endTransaction();
       _bus->beginTransaction();
       cs_control(false);
       break;

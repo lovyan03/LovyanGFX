@@ -554,6 +554,14 @@ namespace lgfx
   {
     if (0 < w && 0 < h)
     {
+      uint_fast8_t r = _internal_rotation;
+      if (r)
+      {
+        if (r & 1) { std::swap(x, y); std::swap(w, h); }
+        uint_fast8_t rb = 1 << r;
+        if (rb & 0b11000110) { x = _cfg.panel_width  - x - w; }
+        if (rb & 0b10011100) { y = _cfg.panel_height - y - h; }
+      }
       _range_mod.left   = std::min<int16_t>(_range_mod.left  , x        );
       _range_mod.right  = std::max<int16_t>(_range_mod.right , x + w - 1);
       _range_mod.top    = std::min<int16_t>(_range_mod.top   , y        );
@@ -923,6 +931,7 @@ __asm__ __volatile(
 
           do {
             size_t w = new_data.w >> 1;
+            w &= ~1u;
             auto s = src;
             auto d = dst;
             src += panel_w >> 1;

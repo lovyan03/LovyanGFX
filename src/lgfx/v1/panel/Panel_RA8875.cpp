@@ -157,8 +157,9 @@ namespace lgfx
     if (!_in_transaction) return;
     _in_transaction = false;
 
-    _bus->endTransaction();
+    _bus->wait();
     cs_control(true);
+    _bus->endTransaction();
   }
 
   color_depth_t Panel_RA8875::setColorDepth(color_depth_t depth)

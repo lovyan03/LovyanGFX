@@ -320,6 +320,8 @@ namespace lgfx
                 _bus->writeData(0, 8);
             }
 
+            _bus->wait();
+            cs_control(true);
             _bus->endTransaction();
         }
 
