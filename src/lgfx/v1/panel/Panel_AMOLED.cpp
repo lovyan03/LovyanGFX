@@ -685,6 +685,31 @@ namespace lgfx
             buf[0] = bus->getDMABuffer(wb);
             buf[1] = bus->getDMABuffer(wb);
 
+            // getDMABuffer() returns nullptr when the DMA-capable internal heap
+            // cannot satisfy the per-line buffer (transient starvation under
+            // memory pressure). Skip this flush rather than memcpy into a null
+            // pointer; _range_mod stays dirty so the next display() retries once
+            // memory frees. Without this a null buffer faults (StoreProhibited).
+            // Log only the OOM edge and the recovery edge, not every frame.
+            if (!buf[0] || !buf[1])
+            {
+              if (!_dma_oom)
+              {
+                _dma_oom = true;
+#if defined ( ESP_LOGW )
+                ESP_LOGW("Panel_AMOLED", "DMA buffer alloc failed (%u bytes/line); deferring flush", (unsigned)wb);
+#endif
+              }
+              return;
+            }
+            if (_dma_oom)
+            {
+              _dma_oom = false;
+#if defined ( ESP_LOGI )
+              ESP_LOGI("Panel_AMOLED", "DMA buffer available; resuming flush");
+#endif
+            }
+
             _panel->start_qspi();
             int fbpos = ys * stride + (xs * bpp);
 
