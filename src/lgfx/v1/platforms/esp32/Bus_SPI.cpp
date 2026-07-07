@@ -67,7 +67,7 @@ Contributors:
  #define SPI_PIN_REG SPI_MISC_REG
 #endif
 
-#if defined (SOC_GDMA_SUPPORTED)  // for C3/C6/S3
+#if defined (SOC_GDMA_SUPPORTED)  // for C3/C6/C61/S3
  #if __has_include(<soc/gdma_channel.h>)
   #include <soc/gdma_channel.h>
  #elif __has_include(<hal/gdma_channel.h>)
@@ -81,11 +81,15 @@ Contributors:
  #elif __has_include(<soc/axi_dma_reg.h>) // ESP32P4
   #include <soc/axi_dma_reg.h>
   #include <esp_cache.h>
+ #elif __has_include(<soc/ahb_dma_reg.h>) // ESP32C61
+  #include <soc/ahb_dma_reg.h>
  #endif
  #if __has_include(<soc/gdma_struct.h>)
   #include <soc/gdma_struct.h>
  #elif __has_include(<soc/axi_dma_struct.h>) // ESP32P4
   #include <soc/axi_dma_struct.h>
+ #elif __has_include(<soc/ahb_dma_struct.h>) // ESP32C61
+  #include <soc/ahb_dma_struct.h>
  #endif
  #if defined AXI_DMA_OUT_LINK1_CH0_REG
   #define DMA_OUT_LINK_CH0_REG       AXI_DMA_OUT_LINK1_CH0_REG
@@ -93,6 +97,12 @@ Contributors:
   #define DMA_OUTLINK_START_CH0      AXI_DMA_OUTLINK_START_CH0
   #define DMA_OUTFIFO_EMPTY_CH0      AXI_DMA_OUTFIFO_L3_EMPTY_CH0
   #define SIZE_OF_DMA_OUT_CH (sizeof(axi_dma_out_reg_t))
+ #elif defined AHB_DMA_OUT_LINK_CH0_REG
+  #define DMA_OUT_LINK_CH0_REG       AHB_DMA_OUT_LINK_CH0_REG
+  #define DMA_OUTFIFO_STATUS_CH0_REG AHB_DMA_OUTFIFO_STATUS_CH0_REG
+  #define DMA_OUTLINK_START_CH0      AHB_DMA_OUTLINK_START_CH0
+  #define DMA_OUTFIFO_EMPTY_CH0      AHB_DMA_OUTFIFO_EMPTY_CH0
+  #define SIZE_OF_DMA_OUT_CH (sizeof(AHB_DMA.channel[0]))
  #else
   #if __has_include(<soc/gdma_struct.h>)
    #if !defined DMA_OUT_LINK_CH0_REG
