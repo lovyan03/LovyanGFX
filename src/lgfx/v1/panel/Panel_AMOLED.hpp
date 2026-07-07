@@ -66,8 +66,11 @@ namespace lgfx
         {
         protected:
             bool _in_transaction = false;
+            bool _dma_oom = false;  // edge state: DMA buffer alloc failing
 
             Panel_AMOLED_Framebuffer* _panel_fb = nullptr;
+
+            uint8_t* get_dma_buffer_checked(size_t len);
 
             uint16_t _colstart = 0;
             uint16_t _rowstart = 0;

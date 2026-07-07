@@ -132,6 +132,35 @@ namespace lgfx
 */
         }
 
+        // getDMABuffer() returns nullptr when the DMA-capable internal heap
+        // cannot satisfy the request (transient starvation under memory
+        // pressure). Dropping the write is preferable to copying into a null
+        // pointer (StoreProhibited). Log only the OOM edge and the recovery
+        // edge, not every call.
+        uint8_t* Panel_AMOLED::get_dma_buffer_checked(size_t len)
+        {
+            auto buf = _bus->getDMABuffer(len);
+            if (!buf)
+            {
+              if (!_dma_oom)
+              {
+                _dma_oom = true;
+#if defined ( ESP_LOGW )
+                ESP_LOGW("Panel_AMOLED", "DMA buffer alloc failed (%u bytes); dropping pixels", (unsigned)len);
+#endif
+              }
+              return nullptr;
+            }
+            if (_dma_oom)
+            {
+              _dma_oom = false;
+#if defined ( ESP_LOGI )
+              ESP_LOGI("Panel_AMOLED", "DMA buffer available; resuming writes");
+#endif
+            }
+            return buf;
+        }
+
         void Panel_AMOLED::write_bytes(const uint8_t* data, uint32_t len, bool use_dma)
         {
             start_qspi();
@@ -577,7 +606,8 @@ namespace lgfx
                     else
                     {
                         size_t wb = w * bytes;
-                        auto buf = _bus->getDMABuffer(wb);
+                        auto buf = get_dma_buffer_checked(wb);
+                        if (!buf) { return; }
                         param->fp_copy(buf, 0, w, param);
                         setWindow(x, y, x + w - 1, y + h - 1);
                         write_bytes(buf, wb, true);
@@ -586,7 +616,8 @@ namespace lgfx
                         {
                             param->src_x = src_x;
                             param->src_y++;
-                            buf = _bus->getDMABuffer(wb);
+                            buf = get_dma_buffer_checked(wb);
+                            if (!buf) { return; }
                             param->fp_copy(buf, 0, w, param);
                             write_bytes(buf, wb, true);
                         }
@@ -602,7 +633,8 @@ namespace lgfx
                     uint32_t i = 0;
                     while (w != (i = param->fp_skip(i, w, param)))
                     {
-                        auto buf = _bus->getDMABuffer(wb);
+                        auto buf = get_dma_buffer_checked(wb);
+                        if (!buf) { return; }
                         int32_t len = param->fp_copy(buf, 0, w - i, param);
                         setWindow(x + i, y, x + i + len - 1, y);
                         write_bytes(buf, len * bytes, true);
