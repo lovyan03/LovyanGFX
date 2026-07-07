@@ -88,7 +88,12 @@ namespace lgfx
 
     /// DMA用のバッファを取得する。バスの実装によっては内部的には2個のバッファを交互に使用する。;
     /// 繰返し実行した場合は前回と異なるポインタを得るが、前々回と同じになる場合がある点に注意すること。;
+    /// メモリ枯渇時は nullptr を返しうるため、呼び出し側は必ず結果を確認すること。;
     virtual uint8_t* getDMABuffer(uint32_t length) = 0;
+
+    /// DMA用のバッファを事前確保する。以降、この長さまでの getDMABuffer は再確保なしで成功する。;
+    /// 内部バッファを持たないバス実装では何もしない。;
+    virtual bool reserveDMABuffer(uint32_t) { return true; }
 
     /// 未送信のデータがあれば送信を開始する。;
     virtual void flush(void) = 0;

@@ -559,7 +559,8 @@ namespace lgfx
         uint32_t i = 0;
         while (w != (i = param->fp_skip(i, w, param)))
         {
-          auto buf = _bus->getDMABuffer(wb);
+          auto buf = get_dma_buffer_checked(wb);
+          if (!buf) { return; }
           int32_t len = param->fp_copy(buf, 0, w - i, param);
           setWindow(x + i, y, x + i + len - 1, y);
           write_bytes(buf, len * bytes, true);

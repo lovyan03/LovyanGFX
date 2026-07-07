@@ -94,15 +94,45 @@ namespace lgfx
       }
     }
 
+    // Pre-allocate the buffer and set a floor below which getBuffer()
+    // never shrinks it. See FlipBuffer::reserve.
+    bool reserve(size_t length)
+    {
+      length = (length + 3) & ~3;
+      if (_reserved < length) { _reserved = length; }
+      if (_length >= length) { return true; }
+      if (_buffer) { heap_free(_buffer); }
+      _buffer = (uint8_t*)heap_alloc_dma(length);
+      _length = _buffer ? length : 0;
+      return _buffer != nullptr;
+    }
+
     uint8_t* getBuffer(size_t length)
     {
       length = (length + 3) & ~3;
 
-      if (_length != length)
-      {
+      if (_length < length)
+      { // Grow: the current buffer cannot serve this request anyway, so
+        // free it first to give the allocator its best chance.
         if (_buffer) heap_free(_buffer);
         _buffer = (uint8_t*)heap_alloc_dma(length);
         _length = _buffer ? length : 0;
+      }
+      else
+      { // Shrink: reclaim memory, but never below the reserved floor, and
+        // never by discarding a buffer that already satisfies the request;
+        // allocate the smaller one first and keep the old one on failure.
+        size_t keep = (length > _reserved) ? length : _reserved;
+        if (_length > keep + 64)
+        {
+          auto newbuf = (uint8_t*)heap_alloc_dma(keep);
+          if (newbuf)
+          {
+            heap_free(_buffer);
+            _buffer = newbuf;
+            _length = keep;
+          }
+        }
       }
       return _buffer;
     }
@@ -110,6 +140,7 @@ namespace lgfx
   private:
     uint8_t* _buffer = nullptr;
     size_t _length = 0;
+    size_t _reserved = 0;
   };
 
 //----------------------------------------------------------------------------
@@ -135,16 +166,53 @@ namespace lgfx
       }
     }
 
+    // Pre-allocate both buffers and set a floor below which getBuffer()
+    // never shrinks them. Called at init time (e.g. with one line of
+    // pixels), this makes steady-state getBuffer() calls allocation-free,
+    // so transient heap starvation cannot fail them mid-draw.
+    bool reserve(size_t length)
+    {
+      length = (length + 3) & ~3;
+      if (_reserved < length) { _reserved = length; }
+      bool result = true;
+      for (size_t i = 0; i < 2; i++)
+      {
+        if (_length[i] >= length) { continue; }
+        if (_buffer[i]) { heap_free(_buffer[i]); }
+        _buffer[i] = (uint8_t*)heap_alloc_dma(length);
+        _length[i] = _buffer[i] ? length : 0;
+        result = result && (_buffer[i] != nullptr);
+      }
+      return result;
+    }
+
     uint8_t* getBuffer(size_t length)
     {
       length = (length + 3) & ~3;
       _flip = !_flip;
 
-      if (_length[_flip] < length || _length[_flip] > length + 64)
-      {
+      if (_length[_flip] < length)
+      { // Grow: the current buffer cannot serve this request anyway, so
+        // free it first to give the allocator its best chance.
         if (_buffer[_flip]) { heap_free(_buffer[_flip]); }
         _buffer[_flip] = (uint8_t*)heap_alloc_dma(length);
         _length[_flip] = _buffer[_flip] ? length : 0;
+      }
+      else
+      { // Shrink: reclaim memory, but never below the reserved floor, and
+        // never by discarding a buffer that already satisfies the request;
+        // allocate the smaller one first and keep the old one on failure.
+        size_t keep = (length > _reserved) ? length : _reserved;
+        if (_length[_flip] > keep + 64)
+        {
+          auto newbuf = (uint8_t*)heap_alloc_dma(keep);
+          if (newbuf)
+          {
+            heap_free(_buffer[_flip]);
+            _buffer[_flip] = newbuf;
+            _length[_flip] = keep;
+          }
+        }
       }
       return _buffer[_flip];
     }
@@ -152,6 +220,7 @@ namespace lgfx
   private:
     uint8_t* _buffer[2] = { nullptr, nullptr };
     size_t _length[2] = { 0, 0 };
+    size_t _reserved = 0;
     bool _flip = false;
   };
 

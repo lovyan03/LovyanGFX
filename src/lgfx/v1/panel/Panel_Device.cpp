@@ -22,6 +22,10 @@ Contributors:
 #include "../platforms/common.hpp"
 #include "../misc/pixelcopy.hpp"
 
+#if __has_include(<esp_log.h>)
+#include <esp_log.h>
+#endif
+
 namespace lgfx
 {
  inline namespace v1
@@ -68,12 +72,45 @@ namespace lgfx
       delay(8);
     }
     _bus->init();
+    // Pre-size the bus DMA buffers to one line of pixels (covering both
+    // rotations) so steady-state draws never reallocate mid-draw.
+    // Failure is tolerated: draw paths check getDMABuffer() results.
+    uint32_t line_max = _cfg.panel_width > _cfg.panel_height ? _cfg.panel_width : _cfg.panel_height;
+    _bus->reserveDMABuffer(line_max * ((_write_bits + 7) >> 3));
     rst_control(true);
     if (use_reset)
     {
       delay(64);
     }
     return true;
+  }
+
+  // getDMABuffer() returns nullptr when the DMA-capable heap cannot satisfy
+  // the request (transient starvation under memory pressure). Dropping the
+  // write is preferable to copying into a null pointer (StoreProhibited).
+  // Log only the OOM edge and the recovery edge, not every call.
+  uint8_t* Panel_Device::get_dma_buffer_checked(size_t len)
+  {
+    auto buf = _bus->getDMABuffer(len);
+    if (!buf)
+    {
+      if (!_dma_oom)
+      {
+        _dma_oom = true;
+#if defined ( ESP_LOGW )
+        ESP_LOGW("Panel_Device", "DMA buffer alloc failed (%u bytes); dropping pixels", (unsigned)len);
+#endif
+      }
+      return nullptr;
+    }
+    if (_dma_oom)
+    {
+      _dma_oom = false;
+#if defined ( ESP_LOGI )
+      ESP_LOGI("Panel_Device", "DMA buffer available; resuming writes");
+#endif
+    }
+    return buf;
   }
 
   bool Panel_Device::initTouch(void)
@@ -187,7 +224,8 @@ namespace lgfx
     pixelcopy_t pc_write(nullptr, _write_depth, _write_depth);
     for (;;)
     {
-      uint8_t* dmabuf = _bus->getDMABuffer((w+1) * bytes);
+      uint8_t* dmabuf = get_dma_buffer_checked((w+1) * bytes);
+      if (!dmabuf) { return; }
       pc_write.src_data = dmabuf;
       readRect(x, y, w, 1, dmabuf, &pc_read);
       {

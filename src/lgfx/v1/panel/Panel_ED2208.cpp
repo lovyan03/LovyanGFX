@@ -445,7 +445,8 @@ namespace lgfx
     _send_command(0x10);    // Data start transmission
 
     for (uint_fast16_t y = 0; y < h; ++y) {
-      uint8_t* dst = _bus->getDMABuffer(row_bytes);
+      uint8_t* dst = get_dma_buffer_checked(row_bytes);
+      if (!dst) { break; }  // fall through to CS release / endTransaction
       const bgr888_t* src = reinterpret_cast<const bgr888_t*>(_lines_buffer[y]);
       dither_fn(src, dst, w, y, dither);
       _bus->writeBytes(dst, row_bytes, true, true);
