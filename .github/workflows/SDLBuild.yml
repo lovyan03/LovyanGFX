@@ -49,12 +49,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
 
       - name: Cache SDL2 for Windows
         if: ${{ matrix.os == 'windows-2022' }}
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         id: cache-SLD2-windows
         with:
           path: contrib
@@ -111,7 +111,7 @@ jobs:
 
       - name: Upload WASM artifact
         if: ${{ matrix.os == 'ubuntu-latest' }}
-        uses: actions/upload-pages-artifact@v7
+        uses: actions/upload-pages-artifact@v5
         with:
           path: ${{env.WASM_DIR}}/build/www
 
