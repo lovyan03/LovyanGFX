@@ -67,8 +67,9 @@ namespace lgfx
   {
     if (!_in_transaction) return;
     _in_transaction = false;
-    _bus->endTransaction();
+    _bus->wait();
     cs_control(true);
+    _bus->endTransaction();
   }
 
   void Panel_HasBuffer::setRotation(uint_fast8_t r)

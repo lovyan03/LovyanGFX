@@ -577,7 +577,8 @@ namespace lgfx
                     else
                     {
                         size_t wb = w * bytes;
-                        auto buf = _bus->getDMABuffer(wb);
+                        auto buf = get_dma_buffer_checked(wb);
+                        if (!buf) { return; }
                         param->fp_copy(buf, 0, w, param);
                         setWindow(x, y, x + w - 1, y + h - 1);
                         write_bytes(buf, wb, true);
@@ -586,7 +587,8 @@ namespace lgfx
                         {
                             param->src_x = src_x;
                             param->src_y++;
-                            buf = _bus->getDMABuffer(wb);
+                            buf = get_dma_buffer_checked(wb);
+                            if (!buf) { return; }
                             param->fp_copy(buf, 0, w, param);
                             write_bytes(buf, wb, true);
                         }
@@ -602,7 +604,8 @@ namespace lgfx
                     uint32_t i = 0;
                     while (w != (i = param->fp_skip(i, w, param)))
                     {
-                        auto buf = _bus->getDMABuffer(wb);
+                        auto buf = get_dma_buffer_checked(wb);
+                        if (!buf) { return; }
                         int32_t len = param->fp_copy(buf, 0, w - i, param);
                         setWindow(x + i, y, x + i + len - 1, y);
                         write_bytes(buf, len * bytes, true);
@@ -684,6 +687,31 @@ namespace lgfx
             uint8_t* buf[2];
             buf[0] = bus->getDMABuffer(wb);
             buf[1] = bus->getDMABuffer(wb);
+
+            // getDMABuffer() returns nullptr when the DMA-capable internal heap
+            // cannot satisfy the per-line buffer (transient starvation under
+            // memory pressure). Skip this flush rather than memcpy into a null
+            // pointer; _range_mod stays dirty so the next display() retries once
+            // memory frees. Without this a null buffer faults (StoreProhibited).
+            // Log only the OOM edge and the recovery edge, not every frame.
+            if (!buf[0] || !buf[1])
+            {
+              if (!_dma_oom)
+              {
+                _dma_oom = true;
+#if defined ( ESP_LOGW )
+                ESP_LOGW("Panel_AMOLED", "DMA buffer alloc failed (%u bytes/line); deferring flush", (unsigned)wb);
+#endif
+              }
+              return;
+            }
+            if (_dma_oom)
+            {
+              _dma_oom = false;
+#if defined ( ESP_LOGI )
+              ESP_LOGI("Panel_AMOLED", "DMA buffer available; resuming flush");
+#endif
+            }
 
             _panel->start_qspi();
             int fbpos = ys * stride + (xs * bpp);
