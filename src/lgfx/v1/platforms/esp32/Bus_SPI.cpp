@@ -174,6 +174,10 @@ namespace lgfx
     {
       _is_quad_spi = true;
     }
+    ESP_LOGI("Bus_SPI", "config: pin_io0..3=%d,%d,%d,%d sclk=%d mosi=%d miso=%d dc=%d spi_mode=%d _is_quad_spi=%d",
+             _cfg.pin_io0, _cfg.pin_io1, _cfg.pin_io2, _cfg.pin_io3,
+             _cfg.pin_sclk, _cfg.pin_mosi, _cfg.pin_miso, _cfg.pin_dc,
+             (int)_cfg.spi_mode, (int)_is_quad_spi);
 #endif
   }
 
@@ -196,6 +200,7 @@ namespace lgfx
     else
 #endif
       _inited = spi::init(_cfg.spi_host, _cfg.pin_sclk, _cfg.pin_miso, _cfg.pin_mosi, dma_ch).has_value();
+    ESP_LOGI("Bus_SPI", "init: _is_quad_spi=%d _inited=%d dma_ch=%d", (int)_is_quad_spi, (int)_inited, dma_ch);
 
 #if defined ( SOC_GDMA_SUPPORTED ) && defined ( DMA_OUT_LINK_CH0_REG )
     // 割当られたDMAチャネル番号を取得する

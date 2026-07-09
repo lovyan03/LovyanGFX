@@ -52,6 +52,7 @@ Contributors:
 #include "v1/panel/Panel_ST7789P3.hpp"
 #include "v1/panel/Panel_ST7796.hpp"
 #include "v1/panel/Panel_ST77961.hpp"
+#include "v1/panel/Panel_ST77916.hpp"
 #include "v1/panel/Panel_SharpLCD.hpp"
 
 // AMOLED
