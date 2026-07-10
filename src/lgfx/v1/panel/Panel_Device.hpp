@@ -164,9 +164,14 @@ namespace lgfx
     ILight* _light = nullptr;
     ITouch* _touch = nullptr;
     bool _has_align_data = false;
+    bool _dma_oom = false;  // edge state: DMA buffer alloc failing
     uint8_t _internal_rotation = 0;
 
     float _affine[6] = {1,0,0,0,1,0};  /// touch affine parameter
+
+    /// _bus->getDMABuffer + エッジトリガーのログ。メモリ枯渇時は nullptr を返すため、;
+    /// 呼び出し側は必ず結果を確認し、失敗時は書き込みをスキップすること。;
+    uint8_t* get_dma_buffer_checked(size_t len);
 
     /// CSピンの準備処理を行う。CSピンを自前で制御する場合、この関数をoverrideして実装すること。;
     /// Performs preparation processing for the CS pin.

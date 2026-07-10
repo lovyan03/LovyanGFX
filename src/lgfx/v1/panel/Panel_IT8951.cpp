@@ -236,8 +236,9 @@ IT8951 Registers defines
   {
     if (!_in_transaction) return;
     _in_transaction = false;
-    _bus->endTransaction();
+    _bus->wait();
     cs_control(true);
+    _bus->endTransaction();
   }
 
   bool Panel_IT8951::_wait_busy(uint32_t timeout)

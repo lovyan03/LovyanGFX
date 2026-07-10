@@ -78,8 +78,9 @@ namespace lgfx
   {
     if (!_in_transaction) return;
     _in_transaction = false;
-    _bus->endTransaction();
+    _bus->wait();
     cs_control(true);
+    _bus->endTransaction();
     _last_cmd = 0;
   }
 
@@ -96,8 +97,9 @@ namespace lgfx
         --_buff_free_count;
         return true;
       }
-      _bus->endTransaction();
+      _bus->wait();
       cs_control(true);
+      _bus->endTransaction();
       _bus->beginTransaction();
       cs_control(false);
       break;
@@ -475,7 +477,8 @@ if (bytelen != rleDecode(dest, res, bytes)*bytes) {
     (void)use_dma;
     auto bytes = _write_bits >> 3;
     uint32_t wb = length * bytes;
-    auto dmabuf = _bus->getDMABuffer(wb + (wb >> 7) + 128);
+    auto dmabuf = get_dma_buffer_checked(wb + (wb >> 7) + 128);
+    if (!dmabuf) { return; }
     dmabuf[0] = CMD_WRITE_RLE | bytes;
     size_t idx = _check_repeat(dmabuf[0]) ? 0 : 1;
 
@@ -551,11 +554,12 @@ if (bytelen != rleDecode(dest, res, bytes)*bytes) {
       uint32_t i = 0;
       while (w != (i = param->fp_skip(i, w, param)))
       {
+        auto dmabuf = get_dma_buffer_checked(wb + (wb >> 7) + 128);
+        if (!dmabuf) { return; }
         auto sub = (w - i) >> 2;
         _buff_free_count = (_buff_free_count > sub)
                          ? (_buff_free_count - sub)
                          : 0;
-        auto dmabuf = _bus->getDMABuffer(wb + (wb >> 7) + 128);
         dmabuf[0] = cmd;
         auto buf = &dmabuf[(wb >> 7) + 128];
         int32_t len = param->fp_copy(buf, 0, w - i, param);

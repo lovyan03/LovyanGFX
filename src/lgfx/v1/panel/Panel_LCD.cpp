@@ -360,7 +360,8 @@ namespace lgfx
         else
         {
           size_t wb = w * bytes;
-          auto buf = _bus->getDMABuffer(wb);
+          auto buf = get_dma_buffer_checked(wb);
+          if (!buf) { return; }
           param->fp_copy(buf, 0, w, param);
           setWindow(x, y, x + w - 1, y + h - 1);
           write_bytes(buf, wb, true);
@@ -369,7 +370,8 @@ namespace lgfx
           {
             param->src_x = src_x;
             param->src_y++;
-            buf = _bus->getDMABuffer(wb);
+            buf = get_dma_buffer_checked(wb);
+            if (!buf) { return; }
             param->fp_copy(buf, 0, w, param);
             write_bytes(buf, wb, true);
           }
@@ -385,7 +387,8 @@ namespace lgfx
         uint32_t i = 0;
         while (w != (i = param->fp_skip(i, w, param)))
         {
-          auto buf = _bus->getDMABuffer(wb);
+          auto buf = get_dma_buffer_checked(wb);
+          if (!buf) { return; }
           int32_t len = param->fp_copy(buf, 0, w - i, param);
           setWindow(x + i, y, x + i + len - 1, y);
           write_bytes(buf, len * bytes, true);

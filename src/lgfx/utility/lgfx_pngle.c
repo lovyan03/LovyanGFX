@@ -170,7 +170,7 @@ pngle_ihdr_t *lgfx_pngle_get_ihdr(pngle_t *pngle)
   return &pngle->hdr;
 }
 
-static void make_pixels(pngle_t *pngle, const uint8_t* buf, uint32_t* rgbbuf, size_t len)
+static void make_pixels(pngle_t *pngle, const uint8_t* buf, uint32_t* rgbbuf, size_t len, size_t bit_offset)
 {
   size_t depth = pngle->hdr.depth;
   uint32_t* argb32 = rgbbuf - 1;
@@ -223,7 +223,7 @@ static void make_pixels(pngle_t *pngle, const uint8_t* buf, uint32_t* rgbbuf, si
   else
   {
     size_t mask = ((1 << depth) - 1);
-    size_t shift = 8;
+    size_t shift = 8 - bit_offset;
     size_t b = buf[0];
     do
     {
@@ -368,7 +368,8 @@ static int pngle_on_data(pngle_t *pngle, uint8_t *lzbuf, size_t len, size_t outb
     do
     {
       if (out_len > scanline_pixels - out_pos) { out_len = scanline_pixels - out_pos; }
-      make_pixels(pngle, &scanline[(out_pos * pngle->channels * pngle->hdr.depth) >> 3], pngle->out_buf, out_len);
+      size_t bit_pos = out_pos * pngle->channels * pngle->hdr.depth;
+      make_pixels(pngle, &scanline[bit_pos >> 3], pngle->out_buf, out_len, bit_pos & 7);
       pngle->draw_callback(pngle->user_data, draw_x + out_pos * div_x, pngle->drawing_y, div_x, out_len, (const uint8_t*)pngle->out_buf);
 
       out_pos += out_len;
