@@ -114,6 +114,8 @@ namespace lgfx
                                            : copy_rgb_affine<bgr666_t, TSrc>)
            : (dst_depth == grayscale_8bit) ? copy_rgb_affine<grayscale_t, TSrc>
            : (dst_depth == rgb565_nonswapped) ? copy_rgb_affine<rgb565_t, TSrc>
+           : (dst_depth == argb8888_nonswapped) ? copy_rgb_affine<argb8888_t, TSrc>
+           : (dst_depth == argb8888_4Byte) ? copy_rgb_affine<bgra8888_t, TSrc>
            : nullptr;
     }
 
