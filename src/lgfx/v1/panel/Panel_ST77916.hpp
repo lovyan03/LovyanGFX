@@ -10,7 +10,7 @@ Licence:
 Author:
  [lovyan03](https://twitter.com/lovyan03)
 
-ST77916 QSPI panel support (e.g. Guition JC3636W518C, 360x360 round).
+ ST77916 QSPI panel support (e.g. Guition JC3636W518C, 360x360 round).
 
  Bus plumbing follows the QSPI pattern from Panel_SH8601Z; the init
  register sequence follows the Sitronix ST779xx family (Panel_ST77961)

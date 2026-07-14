@@ -49,6 +49,18 @@ namespace lgfx
   static constexpr uint8_t MAD_RGB = 0x00;
   static constexpr uint8_t MAD_BGR = 0x08;
 
+  // Per-rotation MADCTL base (mirror/exchange bits, no color-order bit).
+  static constexpr uint8_t madctl_table[8] = {
+    MAD_RGB,                    // 0
+    MAD_MV | MAD_MX,            // 1
+    MAD_MX | MAD_MY,            // 2
+    MAD_MV | MAD_MY,            // 3
+    MAD_MY,                     // 4 (mirror)
+    MAD_MV,                     // 5
+    MAD_MX,                     // 6
+    MAD_MV | MAD_MX | MAD_MY,   // 7
+  };
+
   const uint8_t* Panel_ST77916::getInitCommands(uint8_t listno) const
   {
     static constexpr uint8_t list0[] = {
@@ -233,7 +245,6 @@ namespace lgfx
         0xD9, 1, 0xAA,
         0xF3, 1, 0x01,
         0xF0, 1, 0x00,
-        0x21, 1, 0x00,
         0x11, 1 + CMD_INIT_DELAY, 0x00, 120,
         0x29, 1, 0x00,
         0xFF, 0xFF, // end of table
@@ -253,43 +264,38 @@ namespace lgfx
     // Run the long vendor pre-configuration sequence
     command_list(getInitCommands(0));
 
-    static constexpr uint8_t cmds[] =
+    // Send MADCTL (color order + rotation) via command_list so it lands
+    // reliably on QSPI panels. Inversion and color depth are applied by the
+    // framework immediately after init() returns (invertDisplay / setColorDepth).
+    uint8_t madctl = madctl_table[_internal_rotation & 7];
+    madctl |= _cfg.rgb_order ? MAD_RGB : MAD_BGR;
+
+    const uint8_t cmds[] =
     {
-        CMD_COLMOD, 1 + CMD_INIT_DELAY, 0x55, 10,  // 16 bit/pixel (RGB565)
+        CMD_MADCTL, 1, madctl,
         0xFF, 0xFF
     };
     command_list(cmds);
 
-    setColorDepth(rgb565_2Byte);
+    setColorDepth(rgb565_2Byte);  // sends CMD_COLMOD (0x3A)
 
-    update_madctl();
+    // Seed _invert from cfg so the framework's invertDisplay() call in
+    // init_impl() reinforces the right state.
+    _invert = _cfg.invert;
 
     return true;
   }
 
   void Panel_ST77916::update_madctl(void)
   {
-    static constexpr uint8_t madctl_table[8] = {
-      MAD_RGB,                    // 0
-      MAD_MV | MAD_MX,            // 1
-      MAD_MX | MAD_MY,            // 2
-      MAD_MV | MAD_MY,            // 3
-      MAD_MY,                     // 4 (mirror)
-      MAD_MV,                     // 5
-      MAD_MX,                     // 6
-      MAD_MV | MAD_MX | MAD_MY,   // 7
-    };
-
     uint8_t madctl = madctl_table[_internal_rotation & 7];
     madctl |= _cfg.rgb_order ? MAD_RGB : MAD_BGR;
 
-    startWrite();
-    cs_control(false);
-    write_cmd(CMD_MADCTL);
-    _bus->writeCommand(madctl, 8);
-    _bus->wait();
-    cs_control(true);
-    endWrite();
+    const uint8_t cmds[] = {
+        CMD_MADCTL, 1, madctl,
+        0xFF, 0xFF
+    };
+    command_list(cmds);
   }
 
   void Panel_ST77916::setRotation(uint_fast8_t r)
@@ -321,6 +327,7 @@ namespace lgfx
 
   void Panel_ST77916::setInvert(bool invert)
   {
+    _invert = invert;
     startWrite();
     cs_control(false);
     write_cmd(invert ? CMD_INVON : CMD_INVOFF);

@@ -62,8 +62,8 @@ public:
       cfg.dummy_read_pixel = 8;
       cfg.dummy_read_bits  = 1;
       cfg.readable   = false;   // QSPI read path not implemented
-      cfg.invert     = true;    // vendor sends INVON (0x21)
-      cfg.rgb_order  = false;   // start false; flip if red/blue swap
+      cfg.invert     = true;  // true=INVON, false=INVOFF; init seq sends 0x21 so flip here to correct colors
+      cfg.rgb_order  = true;   // start false; flip if red/blue swap
       cfg.dlen_16bit = false;
       cfg.bus_shared = false;
 
