@@ -61,7 +61,14 @@ Contributors:
 #endif
 
 #if !defined ( pgm_read_3byte_unaligned )
- #define pgm_read_3byte_unaligned(addr) (pgm_read_dword_unaligned(addr) & 0xFFFFFFu)
+ #if defined ( pgm_read_dword_with_offset )
+  #define pgm_read_3byte_unaligned(addr) (pgm_read_dword_unaligned(addr) & 0xFFFFFFu)
+ #else
+  #define pgm_read_3byte_unaligned(addr) (uint32_t) \
+    ( (uint32_t)pgm_read_byte((const uint8_t *)(addr)    )       \
+    | (uint32_t)pgm_read_byte((const uint8_t *)(addr) + 1) << 8  \
+    | (uint32_t)pgm_read_byte((const uint8_t *)(addr) + 2) << 16 )
+ #endif
 #endif
 
 #if defined ( ESP8266 ) || defined (__SAMD21__) || defined(__SAMD21G18A__) || defined(__SAMD21J18A__) || defined(__SAMD21E17A__) || defined(__SAMD21E18A__) || defined(ARDUINO_ARCH_MBED_RP2040) || defined(ARDUINO_ARCH_RP2040) || defined(USE_PICO_SDK)
