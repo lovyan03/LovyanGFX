@@ -103,6 +103,7 @@ This library has the following advantages.
     - ST7735 (M5StickC, TTGO T-Wristband, TTGO TS, LoLin D32 Pro, WiFiBoy mini, ESPboy, PyBadge)
     - ST7789 (M5StickCPlus, TTGO T-Watch, ESP-WROVER-KIT, Makerfabs MakePython, DSTIKE D-duino-32 XS)
     - ST7796 (WT32-SC01)
+    - ST77916 (JC3636W518C)
 
     - M5Stack Unit LCD
     - M5Stack AtomDisplay
