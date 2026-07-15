@@ -8,7 +8,7 @@ Licence:
  [FreeBSD](https://github.com/lovyan03/LovyanGFX/blob/master/license.txt)
 
 Author:
- [lovyan03](https://twitter.com/lovyan03)
+ [Christian Erhardt](https://github.com/MoJo2600)
 
  ST77916 QSPI panel support (e.g. Guition JC3636W518C, 360x360 round).
 
