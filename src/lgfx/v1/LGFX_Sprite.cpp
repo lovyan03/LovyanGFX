@@ -709,14 +709,15 @@ namespace lgfx
     setColorDepth(bpp < 32 ? bpp : 24);
     uint32_t w = bmpdata.biWidth;
     int32_t h = bmpdata.biHeight;  // bcHeight Image height (pixels)
-    if (!createSprite(w, h)) return false;
 
       //If the value of Height is positive, the image data is from bottom to top
       //If the value of Height is negative, the image data is from top to bottom.
-    int32_t flow = (h < 0) ? 1 : -1;
-    int32_t y = 0;
-    if (h < 0) h = -h;
-    else y = h - 1;
+    if (h == INT32_MIN) return false;
+    bool top_down = h < 0;
+    if (top_down) h = -h;
+    if (!createSprite(w, h)) return false;
+    int32_t flow = top_down ? 1 : -1;
+    int32_t y = top_down ? 0 : h - 1;
 
     if (bpp <= 8) {
       if (!_palette) createPalette();
