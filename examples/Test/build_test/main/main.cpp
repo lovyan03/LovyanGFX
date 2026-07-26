@@ -1,3 +1,9 @@
+#if defined TEENSYDUINO
+  // TeensyDuino won't let any CI inject additional compiler option using Arduino IDE's well known "compiler.cpp.extra_flags".
+  // https://forum.pjrc.com/index.php?threads/request-for-arduino-ide-extra_flags-support.72556/#post-323807
+  #define SKIP_I2C_TEST
+#endif
+
 #if !defined LGFX_AUTODETECT
   #define LGFX_AUTODETECT
 #endif
