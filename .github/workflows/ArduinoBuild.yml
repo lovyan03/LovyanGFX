@@ -63,7 +63,7 @@ jobs:
           - { board: esp32,    platform: esp32, platform-version: latest, platform-url: 'https://espressif.github.io/arduino-esp32/package_esp32_index.json', archi: esp32, ... }
           - { board: esp32s2,  platform: esp32, platform-version: latest, platform-url: 'https://espressif.github.io/arduino-esp32/package_esp32_index.json', archi: esp32, ... }
           - { board: esp32s3,  platform: esp32, platform-version: latest, platform-url: 'https://espressif.github.io/arduino-esp32/package_esp32_index.json', archi: esp32, ... }
-          - { board: 'esp32c2:flash_freq=40m',  platform: esp32, platform-version: latest, platform-url: 'https://espressif.github.io/arduino-esp32/package_esp32_index.json', archi: esp32, ... }
+          - { board: 'esp32c2:FlashFreq=40',  platform: esp32, platform-version: latest, platform-url: 'https://espressif.github.io/arduino-esp32/package_esp32_index.json', archi: esp32, ... }
           - { board: esp32c3,  platform: esp32, platform-version: latest, platform-url: 'https://espressif.github.io/arduino-esp32/package_esp32_index.json', archi: esp32, ... }
           - { board: esp32c5,  platform: esp32, platform-version: latest, platform-url: 'https://espressif.github.io/arduino-esp32/package_esp32_index.json', archi: esp32, ... }
           - { board: esp32c6,  platform: esp32, platform-version: latest, platform-url: 'https://espressif.github.io/arduino-esp32/package_esp32_index.json', archi: esp32, ... }
