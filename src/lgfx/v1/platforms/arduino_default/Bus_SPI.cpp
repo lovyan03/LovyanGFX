@@ -50,22 +50,23 @@ namespace lgfx
   {
     dc_h();
     pinMode(_cfg.pin_dc, pin_mode_t::output);
-    spi = new HardwareSPI(_cfg.spi_host);
+    spi = getSPIInstance(_cfg.spi_host);
     spi->begin();
     return true;
   }
 
   void Bus_SPI::release(void)
   {
+    if (spi == nullptr) { return; }
     spi->end();
+    spi = nullptr;
   }
 
 
   void Bus_SPI::beginTransaction(void)
   {
     dc_h();
-    //SPISettings setting(_cfg.freq_write, BitOrder::MSBFIRST, _cfg.spi_mode, true);
-    SPISettings setting(_cfg.freq_write, MSBFIRST, _cfg.spi_mode);
+    SPISettings setting(_cfg.freq_write, MSBFIRST, getSPIDataMode(_cfg.spi_mode));
     spi->beginTransaction(setting);
   }
 
@@ -78,8 +79,7 @@ namespace lgfx
   void Bus_SPI::beginRead(void)
   {
     spi->endTransaction();
-    //SPISettings setting(_cfg.freq_read, BitOrder::MSBFIRST, _cfg.spi_mode, false);
-    SPISettings setting(_cfg.freq_read, MSBFIRST, _cfg.spi_mode);
+    SPISettings setting(_cfg.freq_read, MSBFIRST, getSPIDataMode(_cfg.spi_mode));
     spi->beginTransaction(setting);
   }
 
@@ -162,7 +162,7 @@ namespace lgfx
   {
     if (dc) dc_h();
     else dc_l();
-    spi->transfer(const_cast<uint8_t*>(data), length);
+    spiWriteBytes(spi, data, length);
     if (!dc) dc_h();
   }
 
