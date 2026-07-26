@@ -37,7 +37,6 @@ Contributors:
    #define LGFX_LEDCINIT(pin_bl, freq, bits, pwm_channel) ledcAttach(pin_bl, freq, bits)
    #define LGFX_LEDCWRITE(pin_bl, pwm_channel, duty) ledcWrite(pin_bl, duty)
   #elif ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(2, 0, 0)
-   // use ledcSetup(pwm_channel, freq, PWM_BITS) + ledcAttachPin(pin_bl, pwm_channel) along with ledcWrite(pwm_channel, duty);
    #define LGFX_LEDCINIT(pin_bl, freq, bits, pwm_channel) { ledcSetup(pwm_channel, freq, bits); ledcAttachPin(pin_bl, pwm_channel); }
    #define LGFX_LEDCWRITE(pin_bl, pwm_channel, duty) ledcWrite(pwm_channel, duty)
   #endif
@@ -68,7 +67,7 @@ namespace lgfx
 
 #if defined ( ARDUINO )
 
-   LGFX_LEDCINIT(_cfg.pin_bl, _cfg.freq, PWM_BITS, _cfg.pwm_channel);
+    LGFX_LEDCINIT(_cfg.pin_bl, _cfg.freq, PWM_BITS, _cfg.pwm_channel);
 
 #else // esp-idf
 
