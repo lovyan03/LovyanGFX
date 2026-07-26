@@ -63,6 +63,8 @@ jobs:
           - { board: seeed_wio_terminal, platform-version: default, ... }
           - { board: adafruit_pybadge_m4, platform-version: default, ... }
           - { board: pico, platform-version: default, ... }
+          - { board: teensy41, platform-version: default, ... }
+          - { board: teensy35, platform-version: default, ... }
           - { board: native, platform-version: portduino, ... }
 
       fail-fast: false
