@@ -46,9 +46,9 @@ Contributors:
 #else // esp-idf
 
   #if SOC_LEDC_SUPPORT_HS_MODE
-    #define LGFX_LEDC_SPEED_MODE LEDC_HIGH_SPEED_MODE;
+    #define LGFX_LEDC_SPEED_MODE LEDC_HIGH_SPEED_MODE
   #else
-    #define LGFX_LEDC_SPEED_MODE LEDC_LOW_SPEED_MODE;
+    #define LGFX_LEDC_SPEED_MODE LEDC_LOW_SPEED_MODE
   #endif
 
 #endif
