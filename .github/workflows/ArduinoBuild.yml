@@ -87,4 +87,5 @@ jobs:
           #build-properties: ${{ toJson(matrix.build-properties) }}
           sketch-names: ${{ env.SKETCH_NAME }}
           #sketches-exclude: ${{ matrix.sketches-exclude }}
+          debug-compile: true
 
