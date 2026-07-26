@@ -30,24 +30,29 @@ Contributors:
  #include <driver/ledc.h>
 #endif
 
-#if defined ESP_IDF_VERSION_VAL
+#if defined ( ARDUINO )
+
+ #if defined ESP_ARDUINO_VERSION // use ledc* functions shipped with arduino-esp32 core
+  #if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 0)
+   #define LGFX_LEDCINIT(pin_bl, freq, bits, pwm_channel) ledcAttach(pin_bl, freq, bits)
+   #define LGFX_LEDCWRITE(pin_bl, pwm_channel, duty) ledcWrite(pin_bl, duty)
+  #elif ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(2, 0, 0)
+   // use ledcSetup(pwm_channel, freq, PWM_BITS) + ledcAttachPin(pin_bl, pwm_channel) along with ledcWrite(pwm_channel, duty);
+   #define LGFX_LEDCINIT(pin_bl, freq, bits, pwm_channel) { ledcSetup(pwm_channel, freq, bits); ledcAttachPin(pin_bl, pwm_channel); }
+   #define LGFX_LEDCWRITE(pin_bl, pwm_channel, duty) ledcWrite(pwm_channel, duty)
+  #endif
+ #endif
+
+#else // esp-idf
+
   #if SOC_LEDC_SUPPORT_HS_MODE
     #define LGFX_LEDC_SPEED_MODE LEDC_HIGH_SPEED_MODE;
   #else
     #define LGFX_LEDC_SPEED_MODE LEDC_LOW_SPEED_MODE;
   #endif
- #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 0, 0)
-  #define LEDC_USE_IDF_V6 // esp32-idf v6.x.x
- #elif ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
-  #define LEDC_USE_IDF_V5 // esp32-idf v5.x.x
- #endif
-#elif defined ESP_ARDUINO_VERSION
- #if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 0)
-  #define LEDC_USE_IDF_V6 // esp32-arduino core 3.x.x
- #elif ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(2, 0, 0)
-  #define LEDC_USE_IDF_V5 // esp32-arduino core 2.x.x
- #endif
+
 #endif
+
 
 namespace lgfx
 {
@@ -62,13 +67,10 @@ namespace lgfx
   {
 
 #if defined ( ARDUINO )
- #if defined LEDC_USE_IDF_V5
-    ledcAttach(_cfg.pin_bl, _cfg.freq, PWM_BITS);
- #else
-    ledcSetup(_cfg.pwm_channel, _cfg.freq, PWM_BITS);
-    ledcAttachPin(_cfg.pin_bl, _cfg.pwm_channel);
- #endif
-#else
+
+   LGFX_LEDCINIT(_cfg.pin_bl, _cfg.freq, PWM_BITS, _cfg.pwm_channel);
+
+#else // esp-idf
 
     static ledc_channel_config_t ledc_channel = {0};
     {
@@ -78,8 +80,11 @@ namespace lgfx
      ledc_channel.timer_sel  = (ledc_timer_t)((_cfg.pwm_channel >> 1) & 3);
      ledc_channel.duty       = _cfg.invert ? (1 << PWM_BITS) : 0;
      ledc_channel.hpoint     = 0;
- #if !defined LEDC_USE_IDF_V6  // ledc_channel_config_t.intr_type is deprecated, no need to explicitly configure interrupt, handled in the driver
+ #if defined ESP_IDF_VERSION_VAL
+  // when ledc_channel_config_t.intr_type is deprecated, no need to explicitly configure interrupt, handled in the driver
+  #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 0, 0)
      ledc_channel.intr_type  = LEDC_INTR_DISABLE;
+  #endif
  #endif
     };
     ledc_channel_config(&ledc_channel);
@@ -113,14 +118,14 @@ namespace lgfx
     if (_cfg.invert) duty = (1 << PWM_BITS) - duty;
 
 #if defined ( ARDUINO )
- #if defined LEDC_USE_IDF_V5
-    ledcWrite(_cfg.pin_bl, duty);
- #else
-    ledcWrite(_cfg.pwm_channel, duty);
- #endif
-#else
+
+    LGFX_LEDCWRITE(_cfg.pin_bl, _cfg.pwm_channel, duty);
+
+#else // esp-idf
+
     ledc_set_duty(LGFX_LEDC_SPEED_MODE, (ledc_channel_t)_cfg.pwm_channel, duty);
     ledc_update_duty(LGFX_LEDC_SPEED_MODE, (ledc_channel_t)_cfg.pwm_channel);
+
 #endif
   }
 
