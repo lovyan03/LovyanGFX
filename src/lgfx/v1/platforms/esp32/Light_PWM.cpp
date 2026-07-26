@@ -72,7 +72,7 @@ namespace lgfx
 
 #else // esp-idf
 
-    static ledc_channel_config_t ledc_channel = {0};
+    static ledc_channel_config_t ledc_channel;
     {
      ledc_channel.gpio_num   = (gpio_num_t)_cfg.pin_bl;
      ledc_channel.speed_mode = LGFX_LEDC_SPEED_MODE;
@@ -88,7 +88,7 @@ namespace lgfx
  #endif
     };
     ledc_channel_config(&ledc_channel);
-    static ledc_timer_config_t ledc_timer = {0};
+    static ledc_timer_config_t ledc_timer;
     {
       ledc_timer.speed_mode = LGFX_LEDC_SPEED_MODE;     // timer mode
       ledc_timer.duty_resolution = (ledc_timer_bit_t)PWM_BITS; // resolution of PWM duty
