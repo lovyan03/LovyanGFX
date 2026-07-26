@@ -30,6 +30,25 @@ Contributors:
  #include <driver/ledc.h>
 #endif
 
+#if defined ESP_IDF_VERSION_VAL
+  #if SOC_LEDC_SUPPORT_HS_MODE
+    #define LGFX_LEDC_SPEED_MODE LEDC_HIGH_SPEED_MODE;
+  #else
+    #define LGFX_LEDC_SPEED_MODE LEDC_LOW_SPEED_MODE;
+  #endif
+ #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 0, 0)
+  #define LEDC_USE_IDF_V6 // esp32-idf v6.x.x
+ #elif ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+  #define LEDC_USE_IDF_V5 // esp32-idf v5.x.x
+ #endif
+#elif defined ESP_ARDUINO_VERSION
+ #if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 0)
+  #define LEDC_USE_IDF_V6 // esp32-arduino core 3.x.x
+ #elif ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(2, 0, 0)
+  #define LEDC_USE_IDF_V5 // esp32-arduino core 2.x.x
+ #endif
+#endif
+
 namespace lgfx
 {
  inline namespace v1
@@ -43,60 +62,39 @@ namespace lgfx
   {
 
 #if defined ( ARDUINO )
-
-#if defined ESP_ARDUINO_VERSION
-  #if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 0)
-    #define LEDC_USE_IDF_V5 // esp32-arduino core 3.x.x uses the new ledC syntax
-  #endif
-  #if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(6, 0, 0)
-    #define LEDC_USE_IDF_V6 // esp32-arduino core 6.x.x
-  #endif
-#endif
-
-#if defined LEDC_USE_IDF_V5
+ #if defined LEDC_USE_IDF_V5
     ledcAttach(_cfg.pin_bl, _cfg.freq, PWM_BITS);
-    setBrightness(brightness);
-#else
+ #else
     ledcSetup(_cfg.pwm_channel, _cfg.freq, PWM_BITS);
     ledcAttachPin(_cfg.pin_bl, _cfg.pwm_channel);
-    setBrightness(brightness);
-#endif
+ #endif
 #else
 
-    static ledc_channel_config_t ledc_channel;
+    static ledc_channel_config_t ledc_channel = {0};
     {
      ledc_channel.gpio_num   = (gpio_num_t)_cfg.pin_bl;
-#if SOC_LEDC_SUPPORT_HS_MODE
-     ledc_channel.speed_mode = LEDC_HIGH_SPEED_MODE;
-#else
-     ledc_channel.speed_mode = LEDC_LOW_SPEED_MODE;
-#endif
+     ledc_channel.speed_mode = LGFX_LEDC_SPEED_MODE;
      ledc_channel.channel    = (ledc_channel_t)_cfg.pwm_channel;
-#if !defined LEDC_USE_IDF_V6  // ledc_channel_config_t.intr_type is deprecated, no need to explicitly configure interrupt, handled in the driver
-     ledc_channel.intr_type  = LEDC_INTR_DISABLE;
-#endif
      ledc_channel.timer_sel  = (ledc_timer_t)((_cfg.pwm_channel >> 1) & 3);
      ledc_channel.duty       = _cfg.invert ? (1 << PWM_BITS) : 0;
      ledc_channel.hpoint     = 0;
+ #if !defined LEDC_USE_IDF_V6  // ledc_channel_config_t.intr_type is deprecated, no need to explicitly configure interrupt, handled in the driver
+     ledc_channel.intr_type  = LEDC_INTR_DISABLE;
+ #endif
     };
     ledc_channel_config(&ledc_channel);
-    static ledc_timer_config_t ledc_timer;
+    static ledc_timer_config_t ledc_timer = {0};
     {
-#if SOC_LEDC_SUPPORT_HS_MODE
-      ledc_timer.speed_mode = LEDC_HIGH_SPEED_MODE;     // timer mode
-#else
-      ledc_timer.speed_mode = LEDC_LOW_SPEED_MODE;
-#endif
+      ledc_timer.speed_mode = LGFX_LEDC_SPEED_MODE;     // timer mode
       ledc_timer.duty_resolution = (ledc_timer_bit_t)PWM_BITS; // resolution of PWM duty
       ledc_timer.freq_hz = _cfg.freq;                        // frequency of PWM signal
       ledc_timer.timer_num = ledc_channel.timer_sel;    // timer index
     };
     ledc_timer_config(&ledc_timer);
 
-    setBrightness(brightness);
-
 #endif
 
+    setBrightness(brightness);
     return true;
   }
 
@@ -115,17 +113,14 @@ namespace lgfx
     if (_cfg.invert) duty = (1 << PWM_BITS) - duty;
 
 #if defined ( ARDUINO )
-#if defined LEDC_USE_IDF_V5
-      ledcWrite(_cfg.pin_bl, duty);
+ #if defined LEDC_USE_IDF_V5
+    ledcWrite(_cfg.pin_bl, duty);
+ #else
+    ledcWrite(_cfg.pwm_channel, duty);
+ #endif
 #else
-      ledcWrite(_cfg.pwm_channel, duty);
-#endif
-#elif SOC_LEDC_SUPPORT_HS_MODE
-      ledc_set_duty(LEDC_HIGH_SPEED_MODE, (ledc_channel_t)_cfg.pwm_channel, duty);
-      ledc_update_duty(LEDC_HIGH_SPEED_MODE, (ledc_channel_t)_cfg.pwm_channel);
-#else
-      ledc_set_duty(LEDC_LOW_SPEED_MODE, (ledc_channel_t)_cfg.pwm_channel, duty);
-      ledc_update_duty(LEDC_LOW_SPEED_MODE, (ledc_channel_t)_cfg.pwm_channel);
+    ledc_set_duty(LGFX_LEDC_SPEED_MODE, (ledc_channel_t)_cfg.pwm_channel, duty);
+    ledc_update_duty(LGFX_LEDC_SPEED_MODE, (ledc_channel_t)_cfg.pwm_channel);
 #endif
   }
 
