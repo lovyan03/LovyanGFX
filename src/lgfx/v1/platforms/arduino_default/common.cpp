@@ -64,23 +64,45 @@ namespace lgfx
 
 //----------------------------------------------------------------------------
 
-  /// unimplemented.
   namespace spi
   {
-    HardwareSPI *spi;
-    cpp::result<void, error_t> init(int spi_host, int spi_sclk, int spi_miso, int spi_mosi)  {
-      cpp::result<void, error_t> res = {};
-      spi = new HardwareSPI(spi_host);
-      spi->begin();
-      return res; }
-    void release(int spi_host) {}
-    void beginTransaction(int spi_host, uint32_t freq, int spi_mode) {
-      SPISettings setting(freq, MSBFIRST, SPI_MODE0);
-      spi->beginTransaction(setting);
+    /// ピン割り当ては Arduino の SPI ライブラリが持つ既定に従う。
+    static SPIClass* _spi_instance = nullptr;
+
+    cpp::result<void, error_t> init(int spi_host, int spi_sclk, int spi_miso, int spi_mosi)
+    {
+      _spi_instance = getSPIInstance(spi_host);
+      _spi_instance->begin();
+      return {};
     }
-    void endTransaction(int spi_host) {spi->endTransaction();}
-    void writeBytes(int spi_host, const uint8_t* data, size_t length) {}
-    void readBytes(int spi_host, uint8_t* data, size_t length) {spi->transfer(data, length);}  }
+    void release(int spi_host)
+    {
+      if (_spi_instance == nullptr) { return; }
+      _spi_instance->end();
+      _spi_instance = nullptr;
+    }
+    void beginTransaction(int spi_host, uint32_t freq, int spi_mode)
+    {
+      if (_spi_instance == nullptr) { return; }
+      SPISettings setting(freq, MSBFIRST, getSPIDataMode(spi_mode));
+      _spi_instance->beginTransaction(setting);
+    }
+    void endTransaction(int spi_host)
+    {
+      if (_spi_instance == nullptr) { return; }
+      _spi_instance->endTransaction();
+    }
+    void writeBytes(int spi_host, const uint8_t* data, size_t length)
+    {
+      if (_spi_instance == nullptr) { return; }
+      spiWriteBytes(_spi_instance, data, length);
+    }
+    void readBytes(int spi_host, uint8_t* data, size_t length)
+    {
+      if (_spi_instance == nullptr) { return; }
+      _spi_instance->transfer(data, length);
+    }
+  }
 
 //----------------------------------------------------------------------------
 
