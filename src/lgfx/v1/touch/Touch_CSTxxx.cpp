@@ -315,7 +315,7 @@ namespace lgfx
         if( requested_count > 1 ) // an array of touch_point_t was provided
         {
           int pIdx = 0; // points index with corrected offset
-          for (int i=0; i<count; i++) {
+          for (uint_fast8_t i=0; i<count; i++) {
             tp[i].id = i;
             tp[i].size = readdata[pIdx+4]; // pressure
             tp[i].x = (uint16_t)((readdata[pIdx+1] << 4) | ((readdata[pIdx+3] >> 4) & 0xf));
