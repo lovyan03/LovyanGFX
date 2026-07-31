@@ -1268,7 +1268,237 @@ namespace lgfx
     private:
       uint32_t _reg_store[22];
     };
-    i2c_context_t i2c_context[I2C_NUM_MAX];
+    /// A negative port number selects a software bus, driven on the pins directly
+    /// without claiming a peripheral unit: port -1 is slot 0, port -2 is slot 1.
+    /// For when every unit is taken, or when touching one is undesirable.
+    static constexpr int soft_i2c_port_count = 2;
+
+    i2c_context_t i2c_context[I2C_NUM_MAX + soft_i2c_port_count];
+
+    static inline bool isSoftPort(int i2c_port) { return i2c_port < 0; }
+    static inline bool isValidPort(int i2c_port) { return -soft_i2c_port_count <= i2c_port && i2c_port < I2C_NUM_MAX; }
+    /// The software ports live behind the hardware ports in i2c_context.
+    static inline size_t getContextIndex(int i2c_port)
+    { return (i2c_port >= 0) ? i2c_port : I2C_NUM_MAX + ~i2c_port; }
+
+// ------------------------------------------------------------------------
+// Software I2C.
+// pinMode() puts a pin in open drain output with the latch high and the input
+// stage enabled, so gpio_lo() pulls a line, gpio_hi() releases it and
+// gpio_in() reads it back: exactly the drive an I2C bus wants.
+
+    static uint32_t soft_i2c_half_us[soft_i2c_port_count];
+
+    struct soft_i2c_line_t
+    {
+      gpio_num_t sda;
+      gpio_num_t scl;
+      uint32_t half_us;
+    };
+
+    static soft_i2c_line_t soft_i2c_line(int i2c_port)
+    {
+      auto idx = getContextIndex(i2c_port);
+      return { i2c_context[idx].pin_sda, i2c_context[idx].pin_scl, soft_i2c_half_us[idx - I2C_NUM_MAX] };
+    }
+
+    static inline void soft_i2c_half_wait(uint32_t half_us)
+    { if (half_us) { delayMicroseconds(half_us); } }
+
+    /// Release SCL and wait for it to actually rise, honoring clock stretching.
+    static bool soft_i2c_scl_hi(const soft_i2c_line_t& line)
+    {
+      gpio_hi(line.scl);
+      soft_i2c_half_wait(line.half_us);
+      if (gpio_in(line.scl)) { return true; }
+      auto us = micros();
+      do
+      {
+        taskYIELD();
+        if (gpio_in(line.scl)) { return true; }
+      } while ((micros() - us) < 13000); // the same order as the peripheral timeout
+      return false;
+    }
+
+    /// Returns true when the byte was acknowledged.
+    static bool soft_i2c_write_byte(const soft_i2c_line_t& line, uint8_t data)
+    {
+      size_t i = 0;
+      do
+      {
+        gpio_lo(line.scl);
+        if (data & 0x80) { gpio_hi(line.sda); } else { gpio_lo(line.sda); }
+        data <<= 1;
+        soft_i2c_half_wait(line.half_us);
+        if (!soft_i2c_scl_hi(line)) { return false; }
+      } while (++i < 8);
+      gpio_lo(line.scl);
+      gpio_hi(line.sda);  // release the data line for the acknowledge
+      soft_i2c_half_wait(line.half_us);
+      if (!soft_i2c_scl_hi(line)) { return false; }
+      bool ack = !gpio_in(line.sda);
+      gpio_lo(line.scl);
+      return ack;
+    }
+
+    static bool soft_i2c_read_byte(const soft_i2c_line_t& line, uint8_t* data, bool ack)
+    {
+      uint_fast8_t byte = 0;
+      gpio_hi(line.sda);  // released: the device drives the data line
+      size_t i = 0;
+      do
+      {
+        gpio_lo(line.scl);
+        soft_i2c_half_wait(line.half_us);
+        if (!soft_i2c_scl_hi(line)) { return false; }
+        byte = (byte << 1) + (gpio_in(line.sda) ? 1 : 0);
+      } while (++i < 8);
+      gpio_lo(line.scl);
+      if (ack) { gpio_lo(line.sda); } else { gpio_hi(line.sda); }
+      soft_i2c_half_wait(line.half_us);
+      if (!soft_i2c_scl_hi(line)) { return false; }
+      gpio_lo(line.scl);
+      gpio_hi(line.sda);
+      *data = byte;
+      return true;
+    }
+
+    static void soft_i2c_stop_cond(const soft_i2c_line_t& line)
+    {
+      gpio_lo(line.scl);
+      gpio_lo(line.sda);
+      soft_i2c_half_wait(line.half_us);
+      soft_i2c_scl_hi(line);
+      soft_i2c_half_wait(line.half_us);
+      gpio_hi(line.sda);
+      soft_i2c_half_wait(line.half_us);
+    }
+
+    /// Free a bus whose device was left mid transfer (e.g. by a reset) and holds
+    /// the data line, by clocking the leftover bits out.
+    static void soft_i2c_recover(const soft_i2c_line_t& line)
+    {
+      gpio_hi(line.sda);
+      size_t i = 0;
+      while (!gpio_in(line.sda) && ++i <= 9)
+      {
+        gpio_lo(line.scl);
+        soft_i2c_half_wait(line.half_us);
+        soft_i2c_scl_hi(line);
+      }
+      soft_i2c_stop_cond(line);
+    }
+
+    /// Ends a transfer on a failure. The bus is stopped and the lock released
+    /// right away; the error is stored so that it surfaces from the following
+    /// operation or from endTransaction, as it does on the peripheral path.
+    static void soft_i2c_abort(int i2c_port, const soft_i2c_line_t& line)
+    {
+      soft_i2c_stop_cond(line);
+      auto idx = getContextIndex(i2c_port);
+      i2c_context[idx].state = cpp::fail(error_t::connection_lost);
+      i2c_context[idx].unlock();
+    }
+
+    static cpp::result<void, error_t> soft_i2c_send_address(int i2c_port, const soft_i2c_line_t& line, int i2c_addr, bool read)
+    {
+      bool ack;
+      if (i2c_addr <= I2C_7BIT_ADDR_MAX)
+      {
+        ack = soft_i2c_write_byte(line, i2c_addr << 1 | (read ? 1 : 0));
+      }
+      else
+      {
+        ack = soft_i2c_write_byte(line, 0xF0 | (i2c_addr >> 8) << 1)
+           && soft_i2c_write_byte(line, i2c_addr & 0xFF);
+        if (ack && read)
+        { // A 10 bit read re-addresses the high byte in read mode.
+          gpio_hi(line.sda);
+          soft_i2c_half_wait(line.half_us);
+          ack = soft_i2c_scl_hi(line);
+          if (ack)
+          {
+            gpio_lo(line.sda);
+            soft_i2c_half_wait(line.half_us);
+            gpio_lo(line.scl);
+            ack = soft_i2c_write_byte(line, 0xF0 | (i2c_addr >> 8) << 1 | 1);
+          }
+        }
+      }
+      if (!ack)
+      {
+        soft_i2c_abort(i2c_port, line);
+        return {};
+      }
+      i2c_context[getContextIndex(i2c_port)].state
+        = read ? i2c_context_t::state_t::state_read : i2c_context_t::state_t::state_write;
+      return {};
+    }
+
+    static void soft_i2c_set_freq(int i2c_port, uint32_t freq)
+    {
+      auto idx = getContextIndex(i2c_port);
+      i2c_context[idx].freq = freq;
+      soft_i2c_half_us[idx - I2C_NUM_MAX] = (freq >= 500000) ? 0 : 500000 / freq;
+    }
+
+    static cpp::result<void, error_t> soft_i2c_begin(int i2c_port, int i2c_addr, uint32_t freq, bool read)
+    {
+      if (i2c_addr < I2C_7BIT_ADDR_MIN || i2c_addr > I2C_10BIT_ADDR_MAX) { return cpp::fail(error_t::invalid_arg); }
+      auto idx = getContextIndex(i2c_port);
+      i2c_context[idx].lock();
+      i2c_context[idx].state = i2c_context_t::state_t::state_disconnect;
+      soft_i2c_set_freq(i2c_port, freq);
+      auto line = soft_i2c_line(i2c_port);
+      gpio_hi(line.sda);
+      soft_i2c_scl_hi(line);
+      if (!gpio_in(line.sda))
+      {
+        soft_i2c_recover(line);
+      }
+      gpio_lo(line.sda);  // start condition
+      soft_i2c_half_wait(line.half_us);
+      gpio_lo(line.scl);
+      return soft_i2c_send_address(i2c_port, line, i2c_addr, read);
+    }
+
+    static cpp::result<void, error_t> soft_i2c_restart(int i2c_port, int i2c_addr, uint32_t freq, bool read)
+    {
+      auto idx = getContextIndex(i2c_port);
+      if (i2c_context[idx].state.has_error()) { return cpp::fail(i2c_context[idx].state.error()); }
+      soft_i2c_set_freq(i2c_port, freq);
+      auto line = soft_i2c_line(i2c_port);
+      gpio_hi(line.sda);  // repeated start
+      soft_i2c_half_wait(line.half_us);
+      if (!soft_i2c_scl_hi(line))
+      {
+        soft_i2c_abort(i2c_port, line);
+        return {};
+      }
+      gpio_lo(line.sda);
+      soft_i2c_half_wait(line.half_us);
+      gpio_lo(line.scl);
+      return soft_i2c_send_address(i2c_port, line, i2c_addr, read);
+    }
+
+    static cpp::result<void, error_t> soft_i2c_end(int i2c_port)
+    {
+      auto idx = getContextIndex(i2c_port);
+      if (i2c_context[idx].state.has_error())
+      { // The failing operation has already stopped the bus and released the lock;
+        // report its error here and clear it.
+        auto err = i2c_context[idx].state.error();
+        i2c_context[idx].state = i2c_context_t::state_t::state_disconnect;
+        return cpp::fail(err);
+      }
+      if (i2c_context[idx].state == i2c_context_t::state_disconnect) { return {}; }
+      soft_i2c_stop_cond(soft_i2c_line(i2c_port));
+      i2c_context[idx].state = i2c_context_t::state_t::state_disconnect;
+      i2c_context[idx].unlock();
+      return {};
+    }
+
+// ------------------------------------------------------------------------
 
 #if LGFX_LP_I2C_NUM > 0 && SOC_RTCIO_PIN_COUNT > 0
     /// Hand a pin back from the low power IO domain.
@@ -1497,7 +1727,19 @@ namespace lgfx
 
     cpp::result<void, error_t> release(int i2c_port)
     {
-      if (i2c_port >= I2C_NUM_MAX) { return cpp::fail(error_t::invalid_arg); }
+      if (!isValidPort(i2c_port)) { return cpp::fail(error_t::invalid_arg); }
+      if (isSoftPort(i2c_port))
+      {
+        auto idx = getContextIndex(i2c_port);
+        if (i2c_context[idx].initialized)
+        {
+          i2c_context[idx].initialized = false;
+          // Park the pins the same way the peripheral path does.
+          if ((int)i2c_context[idx].pin_scl >= 0) { pinMode(i2c_context[idx].pin_scl, pin_mode_t::input_pullup); }
+          if ((int)i2c_context[idx].pin_sda >= 0) { pinMode(i2c_context[idx].pin_sda, pin_mode_t::input_pullup); }
+        }
+        return {};
+      }
       if (i2c_context[i2c_port].initialized)
       {
         i2c_context[i2c_port].initialized = false;
@@ -1558,27 +1800,29 @@ namespace lgfx
 
     cpp::result<void, error_t> setPins(int i2c_port, int pin_sda, int pin_scl)
     {
-      if ((i2c_port >= I2C_NUM_MAX)
+      if (!isValidPort(i2c_port)
        || ((uint32_t)pin_scl >= GPIO_NUM_MAX)
        || ((uint32_t)pin_sda >= GPIO_NUM_MAX))
       {
         return cpp::fail(error_t::invalid_arg);
       }
 
-      if (i2c_context[i2c_port].initialized
-       && i2c_context[i2c_port].pin_scl == (gpio_num_t)pin_scl
-       && i2c_context[i2c_port].pin_sda == (gpio_num_t)pin_sda
+      auto ctx_idx = getContextIndex(i2c_port);
+      if (i2c_context[ctx_idx].initialized
+       && i2c_context[ctx_idx].pin_scl == (gpio_num_t)pin_scl
+       && i2c_context[ctx_idx].pin_sda == (gpio_num_t)pin_sda
       )
       {
         return {};
       }
 
       release(i2c_port).has_value();
-      i2c_context[i2c_port].pin_scl = (gpio_num_t)pin_scl;
-      i2c_context[i2c_port].pin_sda = (gpio_num_t)pin_sda;
+      i2c_context[ctx_idx].pin_scl = (gpio_num_t)pin_scl;
+      i2c_context[ctx_idx].pin_sda = (gpio_num_t)pin_sda;
+      // The TwoWire instances belong to the normal hardware ports; the others have
+      // none, and handing these pins to one would redirect that port to them.
+      if (isSoftPort(i2c_port)) { return {}; }
 #if LGFX_LP_I2C_NUM > 0
-      // The TwoWire instances belong to the normal ports; a low power port has none,
-      // and handing these pins to one would redirect that port to them.
       if (isLpPort(i2c_port)) { return {}; }
 #endif
 #if defined ( ARDUINO ) && __has_include (<Wire.h>)
@@ -1602,28 +1846,43 @@ namespace lgfx
 
     cpp::result<int, error_t> getPinSDA(int i2c_port)
     {
-      return i2c_context[i2c_port].pin_sda;
+      if (!isValidPort(i2c_port)) { return cpp::fail(error_t::invalid_arg); }
+      return i2c_context[getContextIndex(i2c_port)].pin_sda;
     }
 
     cpp::result<int, error_t> getPinSCL(int i2c_port)
     {
-      return i2c_context[i2c_port].pin_scl;
+      if (!isValidPort(i2c_port)) { return cpp::fail(error_t::invalid_arg); }
+      return i2c_context[getContextIndex(i2c_port)].pin_scl;
     }
 
     cpp::result<void, error_t> init(int i2c_port)
     {
-      gpio_num_t pin_sda = i2c_context[i2c_port].pin_sda;
-      gpio_num_t pin_scl = i2c_context[i2c_port].pin_scl;
-      if ((i2c_port >= I2C_NUM_MAX)
-       || ((uint32_t)pin_scl >= GPIO_NUM_MAX)
+      if (!isValidPort(i2c_port)) { return cpp::fail(error_t::invalid_arg); }
+      auto ctx_idx = getContextIndex(i2c_port);
+      gpio_num_t pin_sda = i2c_context[ctx_idx].pin_sda;
+      gpio_num_t pin_scl = i2c_context[ctx_idx].pin_scl;
+      if (((uint32_t)pin_scl >= GPIO_NUM_MAX)
        || ((uint32_t)pin_sda >= GPIO_NUM_MAX))
       {
         return cpp::fail(error_t::invalid_arg);
       }
 
-      if (i2c_context[i2c_port].initialized)
+      if (i2c_context[ctx_idx].initialized)
       {
         release(i2c_port);
+      }
+
+      if (isSoftPort(i2c_port))
+      {
+        soft_i2c_set_freq(i2c_port, 100000);  // until a transfer brings its own
+        // pinMode() leaves the pins as open drain outputs, latch high: both lines
+        // are released, and the transfer code only has to toggle the latches.
+        pinMode(pin_sda, pin_mode_t::input_pullup);
+        pinMode(pin_scl, pin_mode_t::input_pullup);
+        i2c_context[ctx_idx].state = i2c_context_t::state_t::state_disconnect;
+        i2c_context[ctx_idx].initialized = true;
+        return {};
       }
 
       i2c_stop(i2c_port);
@@ -1706,8 +1965,10 @@ namespace lgfx
 
     cpp::result<void, error_t> restart(int i2c_port, int i2c_addr, uint32_t freq, bool read)
     {
-      if (i2c_port >= I2C_NUM_MAX) { return cpp::fail(error_t::invalid_arg); }
+      if (!isValidPort(i2c_port)) { return cpp::fail(error_t::invalid_arg); }
       if (i2c_addr < I2C_7BIT_ADDR_MIN || i2c_addr > I2C_10BIT_ADDR_MAX) return cpp::fail(error_t::invalid_arg);
+
+      if (isSoftPort(i2c_port)) { return soft_i2c_restart(i2c_port, i2c_addr, freq, read); }
 
       auto res = i2c_wait(i2c_port);
       if (res.has_error()) return res;
@@ -1832,9 +2093,12 @@ namespace lgfx
 
     cpp::result<void, error_t> beginTransaction(int i2c_port, int i2c_addr, uint32_t freq, bool read)
     {
-      if (i2c_port >= I2C_NUM_MAX) return cpp::fail(error_t::invalid_arg);
+      if (!isValidPort(i2c_port)) return cpp::fail(error_t::invalid_arg);
 
-      if ((uint32_t)i2c_context[i2c_port].pin_sda >= GPIO_NUM_MAX || (uint32_t)i2c_context[i2c_port].pin_scl >= GPIO_NUM_MAX) return cpp::fail(error_t::invalid_arg);
+      auto ctx_idx = getContextIndex(i2c_port);
+      if ((uint32_t)i2c_context[ctx_idx].pin_sda >= GPIO_NUM_MAX || (uint32_t)i2c_context[ctx_idx].pin_scl >= GPIO_NUM_MAX) return cpp::fail(error_t::invalid_arg);
+
+      if (isSoftPort(i2c_port)) { return soft_i2c_begin(i2c_port, i2c_addr, freq, read); }
 
 //ESP_LOGI("LGFX", "i2c::beginTransaction : port:%d / addr:%02x / freq:%d / rw:%d", i2c_port, i2c_addr, freq, read);
 
@@ -1922,17 +2186,33 @@ namespace lgfx
 
     cpp::result<void, error_t> endTransaction(int i2c_port)
     {
-      if (i2c_port >= I2C_NUM_MAX) return cpp::fail(error_t::invalid_arg);
+      if (!isValidPort(i2c_port)) return cpp::fail(error_t::invalid_arg);
+      if (isSoftPort(i2c_port)) { return soft_i2c_end(i2c_port); }
       return i2c_wait(i2c_port, true);
     }
 //*/
     cpp::result<void, error_t> writeBytes(int i2c_port, const uint8_t *data, size_t length)
     {
-      if (i2c_port >= I2C_NUM_MAX) { return cpp::fail(error_t::invalid_arg); }
-      if (i2c_context[i2c_port].state.has_error()) { return cpp::fail(i2c_context[i2c_port].state.error()); }
-      if (i2c_context[i2c_port].state != i2c_context_t::state_write) { return cpp::fail(error_t::mode_mismatch); }
+      if (!isValidPort(i2c_port)) { return cpp::fail(error_t::invalid_arg); }
+      auto ctx_idx = getContextIndex(i2c_port);
+      if (i2c_context[ctx_idx].state.has_error()) { return cpp::fail(i2c_context[ctx_idx].state.error()); }
+      if (i2c_context[ctx_idx].state != i2c_context_t::state_write) { return cpp::fail(error_t::mode_mismatch); }
       cpp::result<void, error_t> res {};
       if (!length) return res;
+
+      if (isSoftPort(i2c_port))
+      {
+        auto line = soft_i2c_line(i2c_port);
+        do
+        {
+          if (!soft_i2c_write_byte(line, *data++))
+          {
+            soft_i2c_abort(i2c_port, line);
+            return cpp::fail(error_t::connection_lost);
+          }
+        } while (--length);
+        return res;
+      }
 
       const uint32_t txfifo_limit = getFifoLen(i2c_port);
       auto dev = getDev(i2c_port);
@@ -1966,11 +2246,26 @@ namespace lgfx
 
     cpp::result<void, error_t> readBytes(int i2c_port, uint8_t *readdata, size_t length, bool last_nack = false)
     {
-      if (i2c_port >= I2C_NUM_MAX) { return cpp::fail(error_t::invalid_arg); }
-      if (i2c_context[i2c_port].state.has_error()) { return cpp::fail(i2c_context[i2c_port].state.error()); }
-      if (i2c_context[i2c_port].state != i2c_context_t::state_read) { return cpp::fail(error_t::mode_mismatch); }
+      if (!isValidPort(i2c_port)) { return cpp::fail(error_t::invalid_arg); }
+      auto ctx_idx = getContextIndex(i2c_port);
+      if (i2c_context[ctx_idx].state.has_error()) { return cpp::fail(i2c_context[ctx_idx].state.error()); }
+      if (i2c_context[ctx_idx].state != i2c_context_t::state_read) { return cpp::fail(error_t::mode_mismatch); }
       cpp::result<void, error_t> res {};
       if (!length) return res;
+
+      if (isSoftPort(i2c_port))
+      {
+        auto line = soft_i2c_line(i2c_port);
+        do
+        {
+          if (!soft_i2c_read_byte(line, readdata++, !(last_nack && length == 1)))
+          {
+            soft_i2c_abort(i2c_port, line);
+            return cpp::fail(error_t::connection_lost);
+          }
+        } while (--length);
+        return res;
+      }
 
       static constexpr uint32_t intmask = I2C_ACK_ERR_INT_RAW_M | I2C_TIME_OUT_INT_RAW_M | I2C_END_DETECT_INT_RAW_M | I2C_ARBITRATION_LOST_INT_RAW_M;
       const uint32_t rxfifo_limit = getFifoLen(i2c_port);
