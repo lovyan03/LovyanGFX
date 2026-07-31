@@ -938,6 +938,83 @@ namespace lgfx
  #define I2C_ACK_ERR_INT_RAW_M I2C_NACK_INT_RAW_M
 #endif
 
+// From the ESP32-C6 on, some chips carry a low power I2C in addition to the normal ones,
+// and SOC_I2C_NUM counts both of them. SOC_HP_I2C_NUM / SOC_LP_I2C_NUM tell them apart,
+// but they only exist in recent ESP-IDF, so the chips with a single high power port have
+// to be named when they are missing.
+#if defined ( SOC_HP_I2C_NUM )
+ #define LGFX_HP_I2C_NUM SOC_HP_I2C_NUM
+#elif defined ( CONFIG_IDF_TARGET_ESP32C2 ) || defined ( CONFIG_IDF_TARGET_ESP32C5 ) || defined ( CONFIG_IDF_TARGET_ESP32C6 ) || defined ( CONFIG_IDF_TARGET_ESP32C61 )
+ #define LGFX_HP_I2C_NUM 1
+#else
+ #define LGFX_HP_I2C_NUM SOC_I2C_NUM
+#endif
+
+// ESP-IDF numbers the low power ports after all the high power ones, so the first low
+// power port index is the number of high power ports. ( see i2c_port_t in hal/i2c_types.h )
+#if defined ( SOC_LP_I2C_NUM ) && ( SOC_LP_I2C_NUM > 0 )
+ #define LGFX_LP_I2C_NUM SOC_LP_I2C_NUM
+ #define LGFX_LP_I2C_PORT LGFX_HP_I2C_NUM
+#else
+ #define LGFX_LP_I2C_NUM 0
+#endif
+
+    /// True if this port index belongs to the low power I2C.
+    static inline bool isLpPort(int i2c_port)
+    {
+#if LGFX_LP_I2C_NUM > 0
+      return i2c_port >= LGFX_LP_I2C_PORT;
+#else
+      (void)i2c_port;
+      return false;
+#endif
+    }
+
+    /// Hardware FIFO depth of this port. The low power I2C has a shallower FIFO than the
+    /// normal one, so this cannot be a single constant for the whole chip.
+    static inline uint32_t getFifoLen(int i2c_port)
+    {
+#if LGFX_LP_I2C_NUM > 0 && defined ( SOC_LP_I2C_FIFO_LEN )
+      if (isLpPort(i2c_port)) { return SOC_LP_I2C_FIFO_LEN; }
+#else
+      (void)i2c_port;
+#endif
+#if defined ( SOC_I2C_FIFO_LEN )
+      return SOC_I2C_FIFO_LEN;
+#else
+      return 32;
+#endif
+    }
+
+    /// Clock feeding the SCL divider of this port [Hz].
+    /// This is not a property of the chip alone: the low power I2C runs from its own
+    /// clock, and on the older chips the normal one follows the CPU frequency.
+    static inline uint32_t getSourceClock(int i2c_port)
+    {
+#if LGFX_LP_I2C_NUM > 0
+      if (isLpPort(i2c_port))
+      { // Both selectable sources of the low power I2C are 20MHz:
+        // LP_FAST ( RC fast, nominal 20MHz ) and XTAL_D2 ( 40MHz crystal divided by 2 ).
+        return 20 * 1000 * 1000;
+      }
+#else
+      (void)i2c_port;
+#endif
+
+#if defined (CONFIG_IDF_TARGET_ESP32C2) || defined (CONFIG_IDF_TARGET_ESP32C3) || defined ( CONFIG_IDF_TARGET_ESP32C5 ) || defined (CONFIG_IDF_TARGET_ESP32S3) || defined ( CONFIG_IDF_TARGET_ESP32C6 ) || defined ( CONFIG_IDF_TARGET_ESP32C61 ) || defined ( CONFIG_IDF_TARGET_ESP32P4 )
+      return 40 * 1000 * 1000; // XTAL clock
+#else
+      rtc_cpu_freq_config_t cpu_freq_conf;
+      rtc_clk_cpu_freq_get_config(&cpu_freq_conf);
+      if (cpu_freq_conf.freq_mhz < 80)
+      { // The source follows the CPU frequency here, so it has to be read every time
+        // rather than cached when the port is initialized.
+        return (cpu_freq_conf.source_freq_mhz * 1000000) / cpu_freq_conf.div;
+      }
+      return 80 * 1000 * 1000;
+#endif
+    }
+
 #if !defined ( I2C_CLOCK_SRC_ATOMIC )
   #if __cplusplus <= 201103L
     #define LGFX_PERIPH_MODULE_T periph_module_t
@@ -948,7 +1025,7 @@ namespace lgfx
     __attribute__ ((unused))
         static LGFX_PERIPH_MODULE_T getPeriphModule(int num)
     {
-#if SOC_I2C_NUM == 1 || defined CONFIG_IDF_TARGET_ESP32C2 || defined CONFIG_IDF_TARGET_ESP32C5 || defined CONFIG_IDF_TARGET_ESP32C6 || defined CONFIG_IDF_TARGET_ESP32C61
+#if LGFX_HP_I2C_NUM == 1
       return PERIPH_I2C0_MODULE;
 #else
       return num == 0 ? PERIPH_I2C0_MODULE : PERIPH_I2C1_MODULE;
@@ -960,7 +1037,7 @@ namespace lgfx
 
     static i2c_dev_t* getDev(int num)
     {
-#if SOC_I2C_NUM == 1 || defined CONFIG_IDF_TARGET_ESP32C2 || defined CONFIG_IDF_TARGET_ESP32C5 || defined CONFIG_IDF_TARGET_ESP32C6 || defined CONFIG_IDF_TARGET_ESP32C61
+#if LGFX_HP_I2C_NUM == 1
       return &I2C0;
 #else
       return num == 0 ? &I2C0 : &I2C1;
@@ -1144,7 +1221,7 @@ namespace lgfx
   #endif
  #endif
 
-#if SOC_I2C_NUM == 1 || defined CONFIG_IDF_TARGET_ESP32C2 || defined CONFIG_IDF_TARGET_ESP32C5 || defined CONFIG_IDF_TARGET_ESP32C6 || defined CONFIG_IDF_TARGET_ESP32C61
+#if LGFX_HP_I2C_NUM == 1
         auto twowire = &Wire;
 #else
         auto twowire = ((dev == &I2C0) ? &Wire : &Wire1);
@@ -1378,7 +1455,7 @@ namespace lgfx
  #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 0, 0)
   #if defined ARDUINO_ESP32_GIT_VER
     #if ARDUINO_ESP32_GIT_VER != 0x44c11981
-      #if SOC_I2C_NUM == 1 || defined CONFIG_IDF_TARGET_ESP32C2 || defined CONFIG_IDF_TARGET_ESP32C5 || defined CONFIG_IDF_TARGET_ESP32C6 || defined CONFIG_IDF_TARGET_ESP32C61
+      #if LGFX_HP_I2C_NUM == 1
         auto twowire = &Wire;
       #else
         auto twowire = ((i2c_port == 0) ? &Wire : &Wire1);
@@ -1437,7 +1514,7 @@ namespace lgfx
  #endif
  #if defined ( USE_TWOWIRE_SETPINS )
 
-#if SOC_I2C_NUM == 1 || defined CONFIG_IDF_TARGET_ESP32C2 || defined CONFIG_IDF_TARGET_ESP32C5 || defined CONFIG_IDF_TARGET_ESP32C6 || defined CONFIG_IDF_TARGET_ESP32C61
+#if LGFX_HP_I2C_NUM == 1
       auto twowire = &Wire;
 #else
       auto twowire = ((i2c_port == 0) ? &Wire : &Wire1);
@@ -1477,7 +1554,7 @@ namespace lgfx
       i2c_stop(i2c_port);
 
 #if defined ( ARDUINO ) && __has_include (<Wire.h>)
-#if SOC_I2C_NUM == 1 || defined CONFIG_IDF_TARGET_ESP32C2 || defined CONFIG_IDF_TARGET_ESP32C5 || defined CONFIG_IDF_TARGET_ESP32C6 || defined CONFIG_IDF_TARGET_ESP32C61
+#if LGFX_HP_I2C_NUM == 1
       auto twowire = &Wire;
 #else
       auto twowire = ((i2c_port == 0) ? &Wire : &Wire1);
@@ -1561,22 +1638,7 @@ namespace lgfx
       {
         i2c_context[i2c_port].freq = freq;
         static constexpr uint32_t MIN_I2C_CYCLE = 35;
-#if defined (CONFIG_IDF_TARGET_ESP32C2) || defined (CONFIG_IDF_TARGET_ESP32C3) || defined ( CONFIG_IDF_TARGET_ESP32C5 ) || defined (CONFIG_IDF_TARGET_ESP32S3) || defined ( CONFIG_IDF_TARGET_ESP32C6 ) || defined ( CONFIG_IDF_TARGET_ESP32C61 ) || defined ( CONFIG_IDF_TARGET_ESP32P4 )
-        uint32_t src_clock = 40 * 1000 * 1000; // XTAL clock
-#else
-        rtc_cpu_freq_config_t cpu_freq_conf;
-        rtc_clk_cpu_freq_get_config(&cpu_freq_conf);
-        uint32_t src_clock = 80 * 1000 * 1000;
-        if (cpu_freq_conf.freq_mhz < 80)
-        {
-          src_clock = (cpu_freq_conf.source_freq_mhz * 1000000) / cpu_freq_conf.div;
-        }
-// ESP_LOGI("LGFX", "i2c::restart : port:%d / addr:%02x / freq:%d / rw:%d", i2c_port, i2c_addr, freq, read);
-// ESP_LOGI("LGFX", "cpu_freq_conf.div             :%d", cpu_freq_conf.div);
-// ESP_LOGI("LGFX", "cpu_freq_conf.freq_mhz        :%d", cpu_freq_conf.freq_mhz);
-// ESP_LOGI("LGFX", "cpu_freq_conf.source          :%d", cpu_freq_conf.source);
-// ESP_LOGI("LGFX", "cpu_freq_conf.source_freq_mhz :%d", cpu_freq_conf.source_freq_mhz);
-#endif
+        uint32_t src_clock = getSourceClock(i2c_port);
 
         auto cycle = std::min<uint32_t>(32767u, std::max(MIN_I2C_CYCLE, (src_clock / (freq + 1) + 1)));
         freq = src_clock / cycle;
@@ -1752,10 +1814,10 @@ namespace lgfx
       cpp::result<void, error_t> res {};
       if (!length) return res;
 
-      static constexpr int txfifo_limit = 32;
+      const uint32_t txfifo_limit = getFifoLen(i2c_port);
       auto dev = getDev(i2c_port);
       auto fifo_addr = getFifoAddr(i2c_port);
-      size_t len = ((length - 1) & (txfifo_limit-1)) + 1;
+      size_t len = ((length - 1) % txfifo_limit) + 1;
       do
       {
         res = i2c_wait(i2c_port);
@@ -1791,6 +1853,7 @@ namespace lgfx
       if (!length) return res;
 
       static constexpr uint32_t intmask = I2C_ACK_ERR_INT_RAW_M | I2C_TIME_OUT_INT_RAW_M | I2C_END_DETECT_INT_RAW_M | I2C_ARBITRATION_LOST_INT_RAW_M;
+      const uint32_t rxfifo_limit = getFifoLen(i2c_port);
       auto fifo_addr = getFifoAddr(i2c_port);
       auto dev = getDev(i2c_port);
 
@@ -1811,7 +1874,7 @@ namespace lgfx
           break;
         }
 
-        len = length < 32 ? length : 32;
+        len = length < rxfifo_limit ? length : rxfifo_limit;
 #if defined ( CONFIG_IDF_TARGET_ESP32 ) || !defined ( CONFIG_IDF_TARGET )
         // workaround for ESP32 i2c bug.
         if (last_nack && len == length && len > 1) { len -= 1; }
