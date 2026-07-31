@@ -952,9 +952,20 @@ namespace lgfx
 
 // ESP-IDF numbers the low power ports after all the high power ones, so the first low
 // power port index is the number of high power ports. ( see i2c_port_t in hal/i2c_types.h )
-#if defined ( SOC_LP_I2C_NUM ) && ( SOC_LP_I2C_NUM > 0 )
+//
+// Bringing a low power port up is left to the ESP-IDF driver: there is no TwoWire for it,
+// and the pads reach the peripheral differently depending on the chip ( a fixed LP IO MUX
+// function on some, the LP GPIO matrix on others ). The driver already knows which, so it
+// is asked to open the bus and the registers are taken over afterwards, exactly as this
+// code does for the normal ports.
+#if defined ( SOC_LP_I2C_NUM ) && ( SOC_LP_I2C_NUM > 0 ) && __has_include ( <driver/i2c_master.h> ) \
+ && defined ( ESP_IDF_VERSION_VAL ) && ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 4, 0)
  #define LGFX_LP_I2C_NUM SOC_LP_I2C_NUM
  #define LGFX_LP_I2C_PORT LGFX_HP_I2C_NUM
+ // The default source is the RC oscillator, which drifts with temperature. XTAL_D2 is a
+ // divided crystal, so the SCL frequency comes out as asked.
+ #define LGFX_LP_I2C_SCLK LP_I2C_SCLK_XTAL_D2
+ #include <esp_clk_tree.h>
 #else
  #define LGFX_LP_I2C_NUM 0
 #endif
@@ -993,8 +1004,15 @@ namespace lgfx
     {
 #if LGFX_LP_I2C_NUM > 0
       if (isLpPort(i2c_port))
-      { // Both selectable sources of the low power I2C are 20MHz:
-        // LP_FAST ( RC fast, nominal 20MHz ) and XTAL_D2 ( 40MHz crystal divided by 2 ).
+      { // Ask the clock tree rather than assuming a figure: which source the low power
+        // port runs from is a choice made when the bus is opened, and the two are not
+        // the same clock even where they happen to share a nominal frequency.
+        uint32_t hz = 0;
+        if (ESP_OK == esp_clk_tree_src_get_freq_hz((soc_module_clk_t)LGFX_LP_I2C_SCLK
+                    , ESP_CLK_TREE_SRC_FREQ_PRECISION_APPROX, &hz) && hz)
+        {
+          return hz;
+        }
         return 20 * 1000 * 1000;
       }
 #else
@@ -1037,6 +1055,12 @@ namespace lgfx
 
     static i2c_dev_t* getDev(int num)
     {
+#if LGFX_LP_I2C_NUM > 0
+      // The register layout of the low power I2C matches the normal one, which is why
+      // ESP-IDF publishes it as an i2c_dev_t as well. Everything below the port lookup
+      // therefore works on it unchanged.
+      if (isLpPort(num)) { return &LP_I2C; }
+#endif
 #if LGFX_HP_I2C_NUM == 1
       return &I2C0;
 #else
@@ -1235,8 +1259,10 @@ namespace lgfx
 #endif
       }
 
-#if defined ( ARDUINO ) && __has_include (<Wire.h>)
-#elif __has_include(<driver/i2c_master.h>)
+// A low power port is opened through the ESP-IDF driver even in an Arduino build, where
+// the normal ports go through TwoWire, so the handle is needed in both cases.
+#if __has_include(<driver/i2c_master.h>) \
+ && ( LGFX_LP_I2C_NUM > 0 || !( defined ( ARDUINO ) && __has_include (<Wire.h>) ) )
       i2c_master_bus_handle_t i2c_bus_handle = nullptr;
 #endif
     private:
@@ -1244,8 +1270,32 @@ namespace lgfx
     };
     i2c_context_t i2c_context[I2C_NUM_MAX];
 
+#if LGFX_LP_I2C_NUM > 0 && SOC_RTCIO_PIN_COUNT > 0
+    /// Hand a pin back from the low power IO domain.
+    /// A pin routed to the low power I2C keeps that routing across a reset, because it is
+    /// held in the low power domain rather than by the CPU. Any later attempt to drive it
+    /// from a normal port then finds a pad that no longer reaches the peripheral, and the
+    /// bus looks dead for reasons nothing in the running program explains. Releasing it
+    /// here makes taking a pin over idempotent, whether or not the previous user shut
+    /// down in an orderly way.
+    static void releaseLpPad(gpio_num_t pin)
+    {
+      if ((int)pin >= 0 && rtc_gpio_is_valid_gpio(pin))
+      {
+        rtc_gpio_deinit(pin);
+      }
+    }
+#endif
+
     static void set_pin(i2c_port_t i2c_num, gpio_num_t pin_sda, gpio_num_t pin_scl)
     {
+#if LGFX_LP_I2C_NUM > 0 && SOC_RTCIO_PIN_COUNT > 0
+      // Callers keep the low power ports away from here, so reaching this point means the
+      // pins are wanted for a normal port and any low power routing left on them, possibly
+      // by a previous run, has to go. ( see releaseLpPad )
+      releaseLpPad(pin_sda);
+      releaseLpPad(pin_scl);
+#endif
 #if __has_include(<driver/i2c_master.h>)
       if ((int8_t)pin_sda >= 0) {
         gpio_set_level(pin_sda, true);
@@ -1451,6 +1501,25 @@ namespace lgfx
       if (i2c_context[i2c_port].initialized)
       {
         i2c_context[i2c_port].initialized = false;
+#if LGFX_LP_I2C_NUM > 0
+        if (isLpPort(i2c_port))
+        { // Opened through the ESP-IDF driver in init(), so it is closed the same way.
+          auto bus_handle = i2c_context[i2c_port].i2c_bus_handle;
+          if (bus_handle) {
+            i2c_context[i2c_port].i2c_bus_handle = nullptr;
+            i2c_del_master_bus(bus_handle);
+          }
+ #if SOC_RTCIO_PIN_COUNT > 0
+          // The pins have to be handed back explicitly: their routing lives in the low
+          // power domain and would otherwise outlive this program, leaving them unusable
+          // from a normal port even after a reset. ( see releaseLpPad )
+          releaseLpPad(i2c_context[i2c_port].pin_sda);
+          releaseLpPad(i2c_context[i2c_port].pin_scl);
+ #endif
+        }
+        else
+#endif
+        {
 #if defined ( ARDUINO ) && __has_include (<Wire.h>) && defined ( ESP_IDF_VERSION_VAL )
  #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 0, 0)
   #if defined ARDUINO_ESP32_GIT_VER
@@ -1473,6 +1542,7 @@ namespace lgfx
 #else
         i2c_periph_disable(i2c_port);
 #endif
+        }
         if ((int)i2c_context[i2c_port].pin_scl >= 0)
         {
           pinMode(i2c_context[i2c_port].pin_scl, pin_mode_t::input_pullup);
@@ -1506,6 +1576,11 @@ namespace lgfx
       release(i2c_port).has_value();
       i2c_context[i2c_port].pin_scl = (gpio_num_t)pin_scl;
       i2c_context[i2c_port].pin_sda = (gpio_num_t)pin_sda;
+#if LGFX_LP_I2C_NUM > 0
+      // The TwoWire instances belong to the normal ports; a low power port has none,
+      // and handing these pins to one would redirect that port to them.
+      if (isLpPort(i2c_port)) { return {}; }
+#endif
 #if defined ( ARDUINO ) && __has_include (<Wire.h>)
  #if defined ( ESP_IDF_VERSION_VAL )
   #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(3, 3, 0)
@@ -1552,6 +1627,35 @@ namespace lgfx
       }
 
       i2c_stop(i2c_port);
+
+#if LGFX_LP_I2C_NUM > 0
+      if (isLpPort(i2c_port))
+      {
+        i2c_master_bus_config_t bus_config;
+        memset(&bus_config, 0, sizeof(i2c_master_bus_config_t));
+        bus_config.i2c_port = i2c_port;
+        bus_config.sda_io_num = pin_sda;
+        bus_config.scl_io_num = pin_scl;
+        bus_config.lp_source_clk = LGFX_LP_I2C_SCLK;
+        bus_config.glitch_ignore_cnt = 7;
+        bus_config.flags.enable_internal_pullup = true;
+        bus_config.intr_priority = 1;
+
+        i2c_master_bus_handle_t bus_handle = nullptr;
+        if (ESP_OK != i2c_new_master_bus(&bus_config, &bus_handle))
+        { // The pins of the low power port are constrained: they have to be LP IO, and on
+          // the chips without an LP GPIO matrix they are a fixed pair.
+          return cpp::fail(error_t::invalid_arg);
+        }
+        i2c_context[i2c_port].i2c_bus_handle = bus_handle;
+        i2c_context[i2c_port].initialized = true;
+
+        // The pads are already routed to the peripheral by the call above, and they do not
+        // go through the normal GPIO matrix that set_pin() drives, so it is not called.
+        i2c_context[i2c_port].save_reg(getDev(i2c_port));
+        return {};
+      }
+#endif
 
 #if defined ( ARDUINO ) && __has_include (<Wire.h>)
 #if LGFX_HP_I2C_NUM == 1
@@ -1757,7 +1861,15 @@ namespace lgfx
       }
       i2c_context[i2c_port].save_reg(dev);
 
-      set_pin((i2c_port_t)i2c_port, i2c_context[i2c_port].pin_sda, i2c_context[i2c_port].pin_scl);
+#if LGFX_LP_I2C_NUM > 0
+      // A low power port reaches its pads through the low power IO domain, which set_pin()
+      // knows nothing about: routing them through the normal GPIO matrix here would
+      // disconnect the port from its own pins on every transaction.
+      if (!isLpPort(i2c_port))
+#endif
+      {
+        set_pin((i2c_port_t)i2c_port, i2c_context[i2c_port].pin_sda, i2c_context[i2c_port].pin_scl);
+      }
 
 #if SOC_I2C_SUPPORT_HW_FSM_RST
       dev->ctr.fsm_rst = 1;
@@ -1778,8 +1890,16 @@ namespace lgfx
       ctrl_reg.val = 0;
       ctrl_reg.ms_mode = 1;       // master mode
       ctrl_reg.clk_en = 1;
-      ctrl_reg.sda_force_out = 1;
-      ctrl_reg.scl_force_out = 1;
+#if LGFX_LP_I2C_NUM > 0
+      // The low power controller reaches the bus only through its internal open drain
+      // mode ( sda_force_out = 0 ): with the outputs forced, the state machine runs to
+      // completion without ever driving the lines, so no device can respond.
+      if (!isLpPort(i2c_port))
+#endif
+      {
+        ctrl_reg.sda_force_out = 1;
+        ctrl_reg.scl_force_out = 1;
+      }
       dev->ctr.val = ctrl_reg.val;
 // ---------- i2c_ll_master_init
       typeof(dev->fifo_conf) fifo_conf_reg;
