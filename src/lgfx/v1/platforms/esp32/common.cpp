@@ -1398,6 +1398,15 @@ namespace lgfx
 #endif
     }
 
+    static bool getBusBusy(i2c_dev_t* dev)
+    {
+#if defined ( CONFIG_IDF_TARGET_ESP32C3 ) || defined ( CONFIG_IDF_TARGET_ESP32C2 ) || defined ( CONFIG_IDF_TARGET_ESP32S3 ) || defined ( CONFIG_IDF_TARGET_ESP32C5 ) || defined ( CONFIG_IDF_TARGET_ESP32C6 ) || defined ( CONFIG_IDF_TARGET_ESP32C61 ) || defined ( CONFIG_IDF_TARGET_ESP32P4 ) || defined ( CONFIG_IDF_TARGET_ESP32H2 )
+      return dev->sr.bus_busy;
+#else
+      return dev->status_reg.bus_busy;
+#endif
+    }
+
     static void i2c_set_cmd(i2c_dev_t* dev, uint8_t index, uint8_t op_code, uint8_t byte_num, bool flg_nack = false)
     {
 /*
@@ -1910,11 +1919,7 @@ namespace lgfx
       auto dev = getDev(i2c_port);
       i2c_context[i2c_port].lock();
 
-#if defined ( CONFIG_IDF_TARGET_ESP32C3 ) ||  defined ( CONFIG_IDF_TARGET_ESP32C2 ) || defined ( CONFIG_IDF_TARGET_ESP32S3 ) || defined ( CONFIG_IDF_TARGET_ESP32C5 ) || defined ( CONFIG_IDF_TARGET_ESP32C6 ) || defined ( CONFIG_IDF_TARGET_ESP32C61 ) || defined ( CONFIG_IDF_TARGET_ESP32P4 ) || defined ( CONFIG_IDF_TARGET_ESP32H2 )
-      if (dev->sr.bus_busy)
-#else
-      if (dev->status_reg.bus_busy)
-#endif
+      if (getBusBusy(dev))
       {
         //ESP_LOGI("LGFX", "i2c::begin wait");
         auto ms = micros();
@@ -1922,11 +1927,7 @@ namespace lgfx
         {
           taskYIELD();
         }
-#if defined ( CONFIG_IDF_TARGET_ESP32C3 ) || defined ( CONFIG_IDF_TARGET_ESP32C2 ) || defined ( CONFIG_IDF_TARGET_ESP32S3 ) || defined ( CONFIG_IDF_TARGET_ESP32C5 ) || defined ( CONFIG_IDF_TARGET_ESP32C6 ) || defined ( CONFIG_IDF_TARGET_ESP32C61 ) || defined ( CONFIG_IDF_TARGET_ESP32P4 ) || defined ( CONFIG_IDF_TARGET_ESP32H2 )
-        while (dev->sr.bus_busy && micros() - ms < 128);
-#else
-        while (dev->status_reg.bus_busy && micros() - ms < 128);
-#endif
+        while (getBusBusy(dev) && micros() - ms < 128);
       }
       i2c_context[i2c_port].save_reg(dev);
 
@@ -1996,6 +1997,21 @@ namespace lgfx
       return i2c_wait(i2c_port, true);
     }
 //*/
+    bool busy(int i2c_port)
+    {
+      if (isSoftPort(i2c_port)) { return false; } // a software port transfers synchronously
+      if (i2c_port >= I2C_NUM_MAX) { return false; }
+      return getBusBusy(getDev(i2c_port));
+    }
+
+    void wait(int i2c_port)
+    {
+      if (isSoftPort(i2c_port)) { return; } // a software port transfers synchronously
+      if (i2c_port >= I2C_NUM_MAX) { return; }
+      auto dev = getDev(i2c_port);
+      while (getBusBusy(dev)) { taskYIELD(); }
+    }
+
     cpp::result<void, error_t> writeBytes(int i2c_port, const uint8_t *data, size_t length)
     {
       if (isSoftPort(i2c_port)) { return soft_i2c_writeBytes(i2c_port, data, length); }
