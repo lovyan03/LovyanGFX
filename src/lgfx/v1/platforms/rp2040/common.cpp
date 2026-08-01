@@ -208,6 +208,14 @@ namespace lgfx
 
   namespace spi
   {
+// ------------------------------------------------------------------------
+// Software SPI ( soft_spi.inl ), reached through the negative host numbers.
+
+#define LGFX_INTERNAL_SOFT_SPI
+#include "../soft_spi.inl"
+
+// ------------------------------------------------------------------------
+
     namespace
     {
       struct spi_info_str {
@@ -368,6 +376,7 @@ namespace lgfx
 
     cpp::result<void, error_t> init(int spi_port, int pin_sclk, int pin_miso, int pin_mosi)
     {
+      if (spi_port < 0) { return soft_spi_init(spi_port, pin_sclk, pin_miso, pin_mosi); }
       DBGPRINT("enter %s\n", __func__);
       if (spi_port < 0 || spi_port >= n_spi)
       {
@@ -444,6 +453,7 @@ namespace lgfx
 
     void release(int spi_port)
     {
+      if (spi_port < 0) { soft_spi_release(spi_port); return; }
       if (spi_info[spi_port].ref_count == 0)
       {
         return;
@@ -466,6 +476,7 @@ namespace lgfx
 
     void beginTransaction(int spi_port, uint32_t freq, int spi_mode)
     {
+      if (spi_port < 0) { soft_spi_beginTransaction(spi_port, freq, spi_mode); return; }
       static constexpr spi_cpha_t cpha_table[] = { SPI_CPHA_0, SPI_CPHA_1, SPI_CPHA_0, SPI_CPHA_1 };
       static constexpr spi_cpol_t cpol_table[] = { SPI_CPOL_0, SPI_CPOL_0, SPI_CPOL_1, SPI_CPOL_1 };
       if (spi_mode < 0 || spi_mode > 3)
@@ -478,7 +489,7 @@ namespace lgfx
 
     void endTransaction([[maybe_unused]]int spi_port)
     {
-
+      if (spi_port < 0) { return; }  // a software host holds nothing to release
     }
 
 
@@ -515,6 +526,7 @@ namespace lgfx
 
     void readBytes(int spi_port, uint8_t* dst, size_t length)
     {
+      if (spi_port < 0) { soft_spi_readBytes(spi_port, dst, length); return; }
       uint8_t *p;
       p = dst;
       clear_rx_fifo (spi_port);
@@ -546,6 +558,14 @@ namespace lgfx
 
   namespace i2c
   {
+// ------------------------------------------------------------------------
+// Software I2C ( soft_i2c.inl ), reached through the negative port numbers.
+
+#define LGFX_INTERNAL_SOFT_I2C
+#include "../soft_i2c.inl"
+
+// ------------------------------------------------------------------------
+
     namespace
     {
       // constant
@@ -1027,6 +1047,11 @@ namespace lgfx
 
     cpp::result<void, error_t> init(int i2c_port, int pin_sda, int pin_scl)
     {
+      if (i2c_port < 0)
+      {
+        auto res = soft_i2c_setPins(i2c_port, pin_sda, pin_scl);
+        return res.has_error() ? res : soft_i2c_init(i2c_port);
+      }
       volatile i2c_hw_t *const i2c_regs = i2c_dev[i2c_port];
       auto info = &i2c_info[i2c_port];
       if (i2c_port < 0 || i2c_port >= n_i2c)
@@ -1069,6 +1094,7 @@ namespace lgfx
 
     cpp::result<void, error_t> release(int i2c_port)
     {
+      if (i2c_port < 0) { return soft_i2c_release(i2c_port); }
       volatile i2c_hw_t * const i2c_regs = i2c_dev[i2c_port];
       auto info = &i2c_info[i2c_port];
 
@@ -1088,6 +1114,7 @@ namespace lgfx
 
     cpp::result<void, error_t> restart(int i2c_port, int i2c_addr, uint32_t freq, [[maybe_unused]] bool read)
     {
+      if (i2c_port < 0) { return soft_i2c_restart(i2c_port, i2c_addr, freq, read); }
       volatile i2c_hw_t *const i2c_regs = i2c_dev[i2c_port];
       DBG_ENTER();
       // readで読み出しが行われない可能性があるので、stop conditionに遷移する
@@ -1103,6 +1130,7 @@ namespace lgfx
 
     cpp::result<void, error_t> beginTransaction(int i2c_port, int i2c_addr, uint32_t freq, [[maybe_unused]] bool read)
     {
+      if (i2c_port < 0) { return soft_i2c_beginTransaction(i2c_port, i2c_addr, freq, read); }
       volatile i2c_hw_t *const i2c_regs = i2c_dev[i2c_port];
       auto info = &i2c_info[i2c_port];
       DBG_ENTER();
@@ -1119,6 +1147,7 @@ namespace lgfx
 
     cpp::result<void, error_t> endTransaction(int i2c_port)
     {
+      if (i2c_port < 0) { return soft_i2c_endTransaction(i2c_port); }
       DBG_ENTER();
       // 未送信の最終データをstop conditionで送信
       if (!send_last_byte(i2c_port, stop_state_t::stop, need_wait_t::wait)) {
@@ -1129,6 +1158,7 @@ namespace lgfx
 
     cpp::result<void, error_t> writeBytes(int i2c_port, const uint8_t *data, size_t length)
     {
+      if (i2c_port < 0) { return soft_i2c_writeBytes(i2c_port, data, length); }
       DBGPRINTFUNC("%d\n", length);
       if (length == 0) {
         return {};
@@ -1150,8 +1180,9 @@ namespace lgfx
       return {};
     }
 
-    cpp::result<void, error_t> readBytes(int i2c_port, uint8_t *data, size_t length, bool last_nack = false)
+    cpp::result<void, error_t> readBytes(int i2c_port, uint8_t *data, size_t length, bool last_nack)
     {
+      if (i2c_port < 0) { return soft_i2c_readBytes(i2c_port, data, length, last_nack); }
       volatile i2c_hw_t *const i2c_regs = i2c_dev[i2c_port];
       auto info = &i2c_info[i2c_port];
       if (length == 0) {
@@ -1187,7 +1218,7 @@ namespace lgfx
     cpp::result<void, error_t> transactionRead(int i2c_port, int addr, uint8_t *readdata, uint8_t readlen, uint32_t freq)
     {
       cpp::result<void, error_t> res;
-      if ((res = beginTransaction(i2c_port, addr, freq, false)).has_value() && (res = readBytes(i2c_port, readdata, readlen)).has_value())
+      if ((res = beginTransaction(i2c_port, addr, freq, true)).has_value() && (res = readBytes(i2c_port, readdata, readlen, true)).has_value())
       {
         res = endTransaction(i2c_port);
       }
@@ -1197,7 +1228,7 @@ namespace lgfx
     cpp::result<void, error_t> transactionWriteRead(int i2c_port, int addr, const uint8_t *writedata, uint8_t writelen, uint8_t *readdata, size_t readlen, uint32_t freq)
     {
       cpp::result<void, error_t> res;
-      if ((res = beginTransaction(i2c_port, addr, freq, false)).has_value() && (res = writeBytes(i2c_port, writedata, writelen)).has_value() && (res = restart(i2c_port, addr, freq, false)).has_value() && (res = readBytes(i2c_port, readdata, readlen)).has_value())
+      if ((res = beginTransaction(i2c_port, addr, freq, false)).has_value() && (res = writeBytes(i2c_port, writedata, writelen)).has_value() && (res = restart(i2c_port, addr, freq, true)).has_value() && (res = readBytes(i2c_port, readdata, readlen, true)).has_value())
       {
         res = endTransaction(i2c_port);
       }

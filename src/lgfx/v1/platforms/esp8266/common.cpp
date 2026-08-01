@@ -118,8 +118,17 @@ namespace lgfx
   /// unimplemented.
   namespace spi
   {
+// ------------------------------------------------------------------------
+// Software SPI ( soft_spi.inl ), reached through the negative host numbers.
+
+#define LGFX_INTERNAL_SOFT_SPI
+#include "../soft_spi.inl"
+
+// ------------------------------------------------------------------------
+
     cpp::result<void, error_t> init(int spi_host, int spi_sclk, int spi_miso, int spi_mosi)
     {
+      if (spi_host < 0) { return soft_spi_init(spi_host, spi_sclk, spi_miso, spi_mosi); }
 #if defined ( ARDUINO )
       SPI.pins(spi_sclk, spi_miso, spi_mosi, -1);
       SPI.begin();
@@ -147,12 +156,14 @@ namespace lgfx
     }
     void release(int spi_host)
     {
+      if (spi_host < 0) { soft_spi_release(spi_host); return; }
 #if defined ( ARDUINO )
       SPI.end();
 #endif
     }
     void beginTransaction(int spi_host, uint32_t freq, int spi_mode)
     {
+      if (spi_host < 0) { soft_spi_beginTransaction(spi_host, freq, spi_mode); return; }
 #if defined ( ARDUINO )
       SPI.setFrequency(freq);
       SPI.setBitOrder(MSBFIRST);
@@ -162,10 +173,12 @@ namespace lgfx
     }
     void beginTransaction(int spi_host)
     {
+      if (spi_host < 0) { soft_spi_beginTransaction(spi_host); return; }
       SPI1U &= ~(SPIUMISO | SPIUDUPLEX);
     }
     void endTransaction(int spi_host)
     {
+      if (spi_host < 0) { return; }  // a software host holds nothing to release
       while (SPI1CMD & SPIBUSY);
 #if defined ( ARDUINO )
       SPI.endTransaction();
@@ -174,6 +187,7 @@ namespace lgfx
     }
     void writeBytes(int spi_host, const uint8_t* data, size_t length)
     {
+      if (spi_host < 0) { soft_spi_writeBytes(spi_host, data, length); return; }
       const uint32_t u1 = ((length << 3) - 1) << SPILMOSI;
       while (SPI1CMD & SPIBUSY);
       SPI1U1 = u1;
@@ -182,6 +196,7 @@ namespace lgfx
     }
     void readBytes(int spi_host, uint8_t* data, size_t length)
     {
+      if (spi_host < 0) { soft_spi_readBytes(spi_host, data, length); return; }
       const uint32_t u1 = ((length << 3) - 1) << SPILMISO;
       while (SPI1CMD & SPIBUSY);
       SPI1U1 = u1;
@@ -338,8 +353,21 @@ namespace lgfx
     };
     i2c_context_t i2c_context[I2C_NUM_MAX];
 
+// ------------------------------------------------------------------------
+// Software I2C ( soft_i2c.inl ), reached through the negative port numbers.
+
+#define LGFX_INTERNAL_SOFT_I2C
+#include "../soft_i2c.inl"
+
+// ------------------------------------------------------------------------
+
     cpp::result<void, error_t> init(int i2c_port, int pin_sda, int pin_scl)
     {
+      if (i2c_port < 0)
+      {
+        auto res = soft_i2c_setPins(i2c_port, pin_sda, pin_scl);
+        return res.has_error() ? res : soft_i2c_init(i2c_port);
+      }
       if (i2c_port >= I2C_NUM_MAX) { return cpp::fail(error_t::invalid_arg); }
       auto i2c = &i2c_context[i2c_port];
 
@@ -354,10 +382,12 @@ namespace lgfx
     }
     cpp::result<void, error_t> release(int i2c_port)
     {
+      if (i2c_port < 0) { return soft_i2c_release(i2c_port); }
       return {};
     }
     cpp::result<void, error_t> restart(int i2c_port, int i2c_addr, uint32_t freq, bool read)
     {
+      if (i2c_port < 0) { return soft_i2c_restart(i2c_port, i2c_addr, freq, read); }
       if (i2c_port >= I2C_NUM_MAX) { return cpp::fail(error_t::invalid_arg); }
       auto i2c = &i2c_context[i2c_port];
 
@@ -384,10 +414,12 @@ namespace lgfx
     }
     cpp::result<void, error_t> beginTransaction(int i2c_port, int i2c_addr, uint32_t freq, bool read)
     {
+      if (i2c_port < 0) { return soft_i2c_beginTransaction(i2c_port, i2c_addr, freq, read); }
       return restart(i2c_port, i2c_addr, freq, read);
     }
     cpp::result<void, error_t> endTransaction(int i2c_port)
     {
+      if (i2c_port < 0) { return soft_i2c_endTransaction(i2c_port); }
       if (i2c_port >= I2C_NUM_MAX) { return cpp::fail(error_t::invalid_arg); }
       auto i2c = &i2c_context[i2c_port];
 
@@ -399,6 +431,7 @@ namespace lgfx
     }
     cpp::result<void, error_t> writeBytes(int i2c_port, const uint8_t *data, size_t length)
     {
+      if (i2c_port < 0) { return soft_i2c_writeBytes(i2c_port, data, length); }
       if (i2c_port >= I2C_NUM_MAX) { return cpp::fail(error_t::invalid_arg); }
       auto i2c = &i2c_context[i2c_port];
       if (length)
@@ -415,6 +448,7 @@ namespace lgfx
     }
     cpp::result<void, error_t> readBytes(int i2c_port, uint8_t *data, size_t length, bool last_nack)
     {
+      if (i2c_port < 0) { return soft_i2c_readBytes(i2c_port, data, length, last_nack); }
       if (i2c_port >= I2C_NUM_MAX) { return cpp::fail(error_t::invalid_arg); }
       auto i2c = &i2c_context[i2c_port];
       while (length--)
