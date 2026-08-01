@@ -630,6 +630,14 @@ namespace lgfx
 #endif
     static spi_device_handle_t _spi_dev_handle[spi_periph_num] = {nullptr};
 
+// ------------------------------------------------------------------------
+// Software SPI ( soft_spi.inl ), reached through the negative host numbers.
+
+#define LGFX_INTERNAL_SOFT_SPI
+#include "../soft_spi.inl"
+
+// ------------------------------------------------------------------------
+
     cpp::result<void, error_t> init(int spi_host, int spi_sclk, int spi_miso, int spi_mosi)
     {
       return init(spi_host, spi_sclk, spi_miso, spi_mosi, 0); // SPI_DMA_CH_AUTO;
@@ -638,6 +646,11 @@ namespace lgfx
     cpp::result<void, error_t> init(int spi_host, int spi_sclk, int spi_miso, int spi_mosi, int dma_channel)
     {
 //ESP_LOGI("LGFX","spi::init host:%d, sclk:%d, miso:%d, mosi:%d, dma:%d", spi_host, spi_sclk, spi_miso, spi_mosi, dma_channel);
+      if (spi_host < 0)
+      {
+        return soft_spi_init(spi_host, spi_sclk, spi_miso, spi_mosi);
+      }
+
       uint32_t spi_port = (spi_host + 1);
       (void)spi_port;
 
@@ -725,6 +738,7 @@ namespace lgfx
     cpp::result<void, error_t> initQuad(int spi_host, int spi_sclk, int spi_io0, int spi_io1, int spi_io2, int spi_io3, int dma_channel)
     {
       //ESP_LOGI("LGFX","spi::init host:%d, sclk:%d, miso:%d, mosi:%d, dma:%d", spi_host, spi_sclk, spi_miso, spi_mosi, dma_channel);
+      if (spi_host < 0) { return cpp::fail(error_t::invalid_arg); }  // the software hosts are single bit only
       uint32_t spi_port = (spi_host + 1);
       (void)spi_port;
 
@@ -800,6 +814,11 @@ namespace lgfx
     void release(int spi_host)
     {
 //ESP_LOGI("LGFX","spi::release");
+      if (spi_host < 0)
+      {
+        soft_spi_release(spi_host);
+        return;
+      }
 #if defined (ARDUINO) && __has_include (<SPI.h>) // Arduino ESP32
       if (_spi_handle[spi_host] != nullptr)
       {
@@ -824,6 +843,11 @@ namespace lgfx
 
     void beginTransaction(int spi_host)
     {
+      if (spi_host < 0)
+      {
+        soft_spi_beginTransaction(spi_host);
+        return;
+      }
 #if defined (ARDUINO) // Arduino ESP32
       spiSimpleTransaction(_spi_handle[spi_host]);
 #else // ESP-IDF
@@ -840,6 +864,11 @@ namespace lgfx
 
     void beginTransaction(int spi_host, uint32_t freq, int spi_mode)
     {
+      if (spi_host < 0)
+      {
+        soft_spi_beginTransaction(spi_host, freq, spi_mode);
+        return;
+      }
       uint32_t spi_port = (spi_host + 1);
       (void)spi_port;
       uint32_t clkdiv = FreqToClockDiv(getApbFrequency(), freq);
@@ -885,6 +914,7 @@ namespace lgfx
 
     void endTransaction(int spi_host)
     {
+      if (spi_host < 0) { return; }  // a software host holds nothing to release
       if (_spi_dev_handle[spi_host]) {
 #if defined (ARDUINO) // Arduino ESP32
         spiEndTransaction(_spi_handle[spi_host]);
@@ -902,6 +932,11 @@ namespace lgfx
 
     void writeBytes(int spi_host, const uint8_t* data, size_t len)
     {
+      if (spi_host < 0)
+      {
+        soft_spi_writeBytes(spi_host, data, len);
+        return;
+      }
       uint32_t spi_port = (spi_host + 1);
       (void)spi_port;
       if (len > 64) len = 64;
@@ -913,6 +948,11 @@ namespace lgfx
 
     void readBytes(int spi_host, uint8_t* data, size_t len)
     {
+      if (spi_host < 0)
+      {
+        soft_spi_readBytes(spi_host, data, len);
+        return;
+      }
       uint32_t spi_port = (spi_host + 1);
       (void)spi_port;
       if (len > 64) len = 64;
