@@ -630,6 +630,14 @@ namespace lgfx
 #endif
     static spi_device_handle_t _spi_dev_handle[spi_periph_num] = {nullptr};
 
+// ------------------------------------------------------------------------
+// Software SPI ( soft_spi.inl ), reached through the negative host numbers.
+
+#define LGFX_INTERNAL_SOFT_SPI
+#include "../soft_spi.inl"
+
+// ------------------------------------------------------------------------
+
     cpp::result<void, error_t> init(int spi_host, int spi_sclk, int spi_miso, int spi_mosi)
     {
       return init(spi_host, spi_sclk, spi_miso, spi_mosi, 0); // SPI_DMA_CH_AUTO;
@@ -638,6 +646,11 @@ namespace lgfx
     cpp::result<void, error_t> init(int spi_host, int spi_sclk, int spi_miso, int spi_mosi, int dma_channel)
     {
 //ESP_LOGI("LGFX","spi::init host:%d, sclk:%d, miso:%d, mosi:%d, dma:%d", spi_host, spi_sclk, spi_miso, spi_mosi, dma_channel);
+      if (spi_host < 0)
+      {
+        return soft_spi_init(spi_host, spi_sclk, spi_miso, spi_mosi);
+      }
+
       uint32_t spi_port = (spi_host + 1);
       (void)spi_port;
 
@@ -725,6 +738,7 @@ namespace lgfx
     cpp::result<void, error_t> initQuad(int spi_host, int spi_sclk, int spi_io0, int spi_io1, int spi_io2, int spi_io3, int dma_channel)
     {
       //ESP_LOGI("LGFX","spi::init host:%d, sclk:%d, miso:%d, mosi:%d, dma:%d", spi_host, spi_sclk, spi_miso, spi_mosi, dma_channel);
+      if (spi_host < 0) { return cpp::fail(error_t::invalid_arg); }  // the software hosts are single bit only
       uint32_t spi_port = (spi_host + 1);
       (void)spi_port;
 
@@ -800,6 +814,11 @@ namespace lgfx
     void release(int spi_host)
     {
 //ESP_LOGI("LGFX","spi::release");
+      if (spi_host < 0)
+      {
+        soft_spi_release(spi_host);
+        return;
+      }
 #if defined (ARDUINO) && __has_include (<SPI.h>) // Arduino ESP32
       if (_spi_handle[spi_host] != nullptr)
       {
@@ -824,6 +843,11 @@ namespace lgfx
 
     void beginTransaction(int spi_host)
     {
+      if (spi_host < 0)
+      {
+        soft_spi_beginTransaction(spi_host);
+        return;
+      }
 #if defined (ARDUINO) // Arduino ESP32
       spiSimpleTransaction(_spi_handle[spi_host]);
 #else // ESP-IDF
@@ -840,6 +864,11 @@ namespace lgfx
 
     void beginTransaction(int spi_host, uint32_t freq, int spi_mode)
     {
+      if (spi_host < 0)
+      {
+        soft_spi_beginTransaction(spi_host, freq, spi_mode);
+        return;
+      }
       uint32_t spi_port = (spi_host + 1);
       (void)spi_port;
       uint32_t clkdiv = FreqToClockDiv(getApbFrequency(), freq);
@@ -885,6 +914,7 @@ namespace lgfx
 
     void endTransaction(int spi_host)
     {
+      if (spi_host < 0) { return; }  // a software host holds nothing to release
       if (_spi_dev_handle[spi_host]) {
 #if defined (ARDUINO) // Arduino ESP32
         spiEndTransaction(_spi_handle[spi_host]);
@@ -902,6 +932,11 @@ namespace lgfx
 
     void writeBytes(int spi_host, const uint8_t* data, size_t len)
     {
+      if (spi_host < 0)
+      {
+        soft_spi_writeBytes(spi_host, data, len);
+        return;
+      }
       uint32_t spi_port = (spi_host + 1);
       (void)spi_port;
       if (len > 64) len = 64;
@@ -913,6 +948,11 @@ namespace lgfx
 
     void readBytes(int spi_host, uint8_t* data, size_t len)
     {
+      if (spi_host < 0)
+      {
+        soft_spi_readBytes(spi_host, data, len);
+        return;
+      }
       uint32_t spi_port = (spi_host + 1);
       (void)spi_port;
       if (len > 64) len = 64;
@@ -1270,6 +1310,27 @@ namespace lgfx
     };
     i2c_context_t i2c_context[I2C_NUM_MAX];
 
+    static inline bool isSoftPort(int i2c_port) { return i2c_port < 0; }
+
+// ------------------------------------------------------------------------
+// Software I2C ( soft_i2c.inl ), reached through the negative port numbers.
+// pinMode() here puts a pin in open drain output with the latch high and the
+// input stage enabled, so a line is driven and released by toggling the latch
+// alone; the direction changing default of the fragment is not needed.
+
+#define SOFT_I2C_LINE_LO(pin) gpio_lo(pin)
+#define SOFT_I2C_LINE_HI(pin) gpio_hi(pin)
+#define SOFT_I2C_LOCK(ctx) do { \
+    if ((ctx).lock_handle == nullptr) { (ctx).lock_handle = xSemaphoreCreateMutex(); } \
+    xSemaphoreTake((SemaphoreHandle_t)(ctx).lock_handle, portMAX_DELAY); \
+  } while (0)
+#define SOFT_I2C_UNLOCK(ctx) xSemaphoreGive((SemaphoreHandle_t)(ctx).lock_handle)
+#define SOFT_I2C_YIELD() taskYIELD()
+#define LGFX_INTERNAL_SOFT_I2C
+#include "../soft_i2c.inl"
+
+// ------------------------------------------------------------------------
+
 #if LGFX_LP_I2C_NUM > 0 && SOC_RTCIO_PIN_COUNT > 0
     /// Hand a pin back from the low power IO domain.
     /// A pin routed to the low power I2C keeps that routing across a reset, because it is
@@ -1497,6 +1558,7 @@ namespace lgfx
 
     cpp::result<void, error_t> release(int i2c_port)
     {
+      if (isSoftPort(i2c_port)) { return soft_i2c_release(i2c_port); }
       if (i2c_port >= I2C_NUM_MAX) { return cpp::fail(error_t::invalid_arg); }
       if (i2c_context[i2c_port].initialized)
       {
@@ -1558,12 +1620,13 @@ namespace lgfx
 
     cpp::result<void, error_t> setPins(int i2c_port, int pin_sda, int pin_scl)
     {
-      if ((i2c_port >= I2C_NUM_MAX)
-       || ((uint32_t)pin_scl >= GPIO_NUM_MAX)
+      if (((uint32_t)pin_scl >= GPIO_NUM_MAX)
        || ((uint32_t)pin_sda >= GPIO_NUM_MAX))
       {
         return cpp::fail(error_t::invalid_arg);
       }
+      if (isSoftPort(i2c_port)) { return soft_i2c_setPins(i2c_port, pin_sda, pin_scl); }
+      if (i2c_port >= I2C_NUM_MAX) { return cpp::fail(error_t::invalid_arg); }
 
       if (i2c_context[i2c_port].initialized
        && i2c_context[i2c_port].pin_scl == (gpio_num_t)pin_scl
@@ -1602,20 +1665,25 @@ namespace lgfx
 
     cpp::result<int, error_t> getPinSDA(int i2c_port)
     {
+      if (isSoftPort(i2c_port)) { return soft_i2c_getPinSDA(i2c_port); }
+      if (i2c_port >= I2C_NUM_MAX) { return cpp::fail(error_t::invalid_arg); }
       return i2c_context[i2c_port].pin_sda;
     }
 
     cpp::result<int, error_t> getPinSCL(int i2c_port)
     {
+      if (isSoftPort(i2c_port)) { return soft_i2c_getPinSCL(i2c_port); }
+      if (i2c_port >= I2C_NUM_MAX) { return cpp::fail(error_t::invalid_arg); }
       return i2c_context[i2c_port].pin_scl;
     }
 
     cpp::result<void, error_t> init(int i2c_port)
     {
+      if (isSoftPort(i2c_port)) { return soft_i2c_init(i2c_port); }
+      if (i2c_port >= I2C_NUM_MAX) { return cpp::fail(error_t::invalid_arg); }
       gpio_num_t pin_sda = i2c_context[i2c_port].pin_sda;
       gpio_num_t pin_scl = i2c_context[i2c_port].pin_scl;
-      if ((i2c_port >= I2C_NUM_MAX)
-       || ((uint32_t)pin_scl >= GPIO_NUM_MAX)
+      if (((uint32_t)pin_scl >= GPIO_NUM_MAX)
        || ((uint32_t)pin_sda >= GPIO_NUM_MAX))
       {
         return cpp::fail(error_t::invalid_arg);
@@ -1706,6 +1774,7 @@ namespace lgfx
 
     cpp::result<void, error_t> restart(int i2c_port, int i2c_addr, uint32_t freq, bool read)
     {
+      if (isSoftPort(i2c_port)) { return soft_i2c_restart(i2c_port, i2c_addr, freq, read); }
       if (i2c_port >= I2C_NUM_MAX) { return cpp::fail(error_t::invalid_arg); }
       if (i2c_addr < I2C_7BIT_ADDR_MIN || i2c_addr > I2C_10BIT_ADDR_MAX) return cpp::fail(error_t::invalid_arg);
 
@@ -1832,8 +1901,8 @@ namespace lgfx
 
     cpp::result<void, error_t> beginTransaction(int i2c_port, int i2c_addr, uint32_t freq, bool read)
     {
+      if (isSoftPort(i2c_port)) { return soft_i2c_beginTransaction(i2c_port, i2c_addr, freq, read); }
       if (i2c_port >= I2C_NUM_MAX) return cpp::fail(error_t::invalid_arg);
-
       if ((uint32_t)i2c_context[i2c_port].pin_sda >= GPIO_NUM_MAX || (uint32_t)i2c_context[i2c_port].pin_scl >= GPIO_NUM_MAX) return cpp::fail(error_t::invalid_arg);
 
 //ESP_LOGI("LGFX", "i2c::beginTransaction : port:%d / addr:%02x / freq:%d / rw:%d", i2c_port, i2c_addr, freq, read);
@@ -1922,12 +1991,14 @@ namespace lgfx
 
     cpp::result<void, error_t> endTransaction(int i2c_port)
     {
+      if (isSoftPort(i2c_port)) { return soft_i2c_endTransaction(i2c_port); }
       if (i2c_port >= I2C_NUM_MAX) return cpp::fail(error_t::invalid_arg);
       return i2c_wait(i2c_port, true);
     }
 //*/
     cpp::result<void, error_t> writeBytes(int i2c_port, const uint8_t *data, size_t length)
     {
+      if (isSoftPort(i2c_port)) { return soft_i2c_writeBytes(i2c_port, data, length); }
       if (i2c_port >= I2C_NUM_MAX) { return cpp::fail(error_t::invalid_arg); }
       if (i2c_context[i2c_port].state.has_error()) { return cpp::fail(i2c_context[i2c_port].state.error()); }
       if (i2c_context[i2c_port].state != i2c_context_t::state_write) { return cpp::fail(error_t::mode_mismatch); }
@@ -1964,8 +2035,9 @@ namespace lgfx
       return res;
     }
 
-    cpp::result<void, error_t> readBytes(int i2c_port, uint8_t *readdata, size_t length, bool last_nack = false)
+    cpp::result<void, error_t> readBytes(int i2c_port, uint8_t *readdata, size_t length, bool last_nack)
     {
+      if (isSoftPort(i2c_port)) { return soft_i2c_readBytes(i2c_port, readdata, length, last_nack); }
       if (i2c_port >= I2C_NUM_MAX) { return cpp::fail(error_t::invalid_arg); }
       if (i2c_context[i2c_port].state.has_error()) { return cpp::fail(i2c_context[i2c_port].state.error()); }
       if (i2c_context[i2c_port].state != i2c_context_t::state_read) { return cpp::fail(error_t::mode_mismatch); }

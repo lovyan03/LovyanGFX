@@ -119,6 +119,7 @@ namespace lgfx
 
   void Bus_I2C::wait(void)
   {
+    if (_cfg.i2c_port < 0) { return; } // a software port transfers synchronously
 #if I2C_NUM_MAX > 1
     auto dev = (_cfg.i2c_port == 0) ? &I2C0 : &I2C1;
 #else
@@ -130,6 +131,7 @@ namespace lgfx
 
   bool Bus_I2C::busy(void) const
   {
+    if (_cfg.i2c_port < 0) { return false; } // a software port transfers synchronously
 #if I2C_NUM_MAX > 1
     auto dev = (_cfg.i2c_port == 0) ? &I2C0 : &I2C1;
 #else
