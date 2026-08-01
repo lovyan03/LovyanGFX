@@ -359,6 +359,8 @@ protected:
     cpp::result<void, error_t> init(int i2c_port);
     cpp::result<int, error_t> getPinSDA(int i2c_port);
     cpp::result<int, error_t> getPinSCL(int i2c_port);
+    bool busy(int i2c_port);
+    void wait(int i2c_port);
 
     struct i2c_temporary_switcher_t
     {
