@@ -35,7 +35,7 @@ namespace lgfx
       uint32_t freq_read = 400000;
       int16_t pin_scl ;
       int16_t pin_sda ;
-      uint8_t i2c_port ;
+      int8_t i2c_port ;
       uint8_t i2c_addr ;
       uint32_t prefix_cmd = 0x00;
       uint32_t prefix_data = 0x40;
