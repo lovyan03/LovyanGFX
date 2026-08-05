@@ -45,6 +45,10 @@ namespace lgfx
                 case 1: madctl = 0x60; break;
                 case 2: madctl = 0xc0; break;
                 case 3: madctl = 0xa0; break;
+                case 4: madctl = 0xc2; break;
+                case 5: madctl = 0x62; break;
+                case 6: madctl = 0x02; break;
+                case 7: madctl = 0xa2; break;
             }
 
             startWrite();
