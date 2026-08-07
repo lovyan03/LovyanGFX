@@ -1149,6 +1149,13 @@ namespace lgfx
     __attribute__ ((unused))
     static void i2c_periph_reset(int i2c_num)
     {
+#if LGFX_LP_I2C_NUM > 0
+      if (isLpPort(i2c_num))
+      { // HP 用の i2c_ll_reset_register は SoC の PCR I2C 配列を範囲外参照するため LP 専用関数を使う;
+        lp_i2c_ll_reset_register(i2c_num - LGFX_HP_I2C_NUM);
+        return;
+      }
+#endif
       I2C_RCC_ATOMIC() {
         i2c_ll_reset_register(i2c_num);
         (void)__DECLARE_RCC_ATOMIC_ENV;
