@@ -1498,6 +1498,7 @@ namespace lgfx
       if (i2c_context[i2c_port].state == i2c_context_t::state_disconnect) { return res; }
       auto dev = getDev(i2c_port);
       typeof(dev->int_raw) int_raw;
+      int_raw.val = dev->int_raw.val; // ACK待ちステージをスキップした場合も後段の分岐で参照されるため必ず初期化する;
       static constexpr uint32_t intmask = I2C_ACK_ERR_INT_RAW_M | I2C_END_DETECT_INT_RAW_M | I2C_ARBITRATION_LOST_INT_RAW_M;
 
       if (i2c_context[i2c_port].wait_ack_stage)
@@ -1541,12 +1542,17 @@ namespace lgfx
       if (flg_stop || res.has_error())
       {
 #if defined ( CONFIG_IDF_TARGET_ESP32C2 ) || defined ( CONFIG_IDF_TARGET_ESP32S3 ) || defined ( CONFIG_IDF_TARGET_ESP32C5 ) || defined ( CONFIG_IDF_TARGET_ESP32C6 ) || defined ( CONFIG_IDF_TARGET_ESP32C61 ) || defined ( CONFIG_IDF_TARGET_ESP32P4 ) || defined ( CONFIG_IDF_TARGET_ESP32H2 )
-        if (res.has_error() || i2c_context[i2c_port].state == i2c_context_t::state_read || !int_raw.end_detect_int_raw)
+// エラー発生後はペリフェラルが強制停止済みの場合があり、通常のSTOPコマンド発行では完了割り込みが来ずタイムアウトまで待たされるため強制STOP側へ分岐する;
+        if (res.has_error() || i2c_context[i2c_port].state.has_error() || i2c_context[i2c_port].state == i2c_context_t::state_read || !int_raw.end_detect_int_raw)
 #else
-        if (res.has_error() || i2c_context[i2c_port].state == i2c_context_t::state_read || !int_raw.end_detect)
+        if (res.has_error() || i2c_context[i2c_port].state.has_error() || i2c_context[i2c_port].state == i2c_context_t::state_read || !int_raw.end_detect)
 #endif
         { // force stop
-          i2c_stop(i2c_port);
+          // state が既にエラーの場合はエラー検出箇所で停止済みのため再停止しない (res のエラーはこの呼び出しで検出されたもので未停止);
+          if (res.has_error() || !i2c_context[i2c_port].state.has_error())
+          {
+            i2c_stop(i2c_port);
+          }
         }
         else
         {
