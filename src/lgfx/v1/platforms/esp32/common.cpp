@@ -1149,6 +1149,13 @@ namespace lgfx
     __attribute__ ((unused))
     static void i2c_periph_reset(int i2c_num)
     {
+#if LGFX_LP_I2C_NUM > 0
+      if (isLpPort(i2c_num))
+      { // HP 用の i2c_ll_reset_register は SoC の PCR I2C 配列を範囲外参照するため LP 専用関数を使う;
+        lp_i2c_ll_reset_register(i2c_num - LGFX_HP_I2C_NUM);
+        return;
+      }
+#endif
       I2C_RCC_ATOMIC() {
         i2c_ll_reset_register(i2c_num);
         (void)__DECLARE_RCC_ATOMIC_ENV;
@@ -1491,6 +1498,7 @@ namespace lgfx
       if (i2c_context[i2c_port].state == i2c_context_t::state_disconnect) { return res; }
       auto dev = getDev(i2c_port);
       typeof(dev->int_raw) int_raw;
+      int_raw.val = dev->int_raw.val; // ACK待ちステージをスキップした場合も後段の分岐で参照されるため必ず初期化する;
       static constexpr uint32_t intmask = I2C_ACK_ERR_INT_RAW_M | I2C_END_DETECT_INT_RAW_M | I2C_ARBITRATION_LOST_INT_RAW_M;
 
       if (i2c_context[i2c_port].wait_ack_stage)
@@ -1534,12 +1542,17 @@ namespace lgfx
       if (flg_stop || res.has_error())
       {
 #if defined ( CONFIG_IDF_TARGET_ESP32C2 ) || defined ( CONFIG_IDF_TARGET_ESP32S3 ) || defined ( CONFIG_IDF_TARGET_ESP32C5 ) || defined ( CONFIG_IDF_TARGET_ESP32C6 ) || defined ( CONFIG_IDF_TARGET_ESP32C61 ) || defined ( CONFIG_IDF_TARGET_ESP32P4 ) || defined ( CONFIG_IDF_TARGET_ESP32H2 )
-        if (res.has_error() || i2c_context[i2c_port].state == i2c_context_t::state_read || !int_raw.end_detect_int_raw)
+// エラー発生後はペリフェラルが強制停止済みの場合があり、通常のSTOPコマンド発行では完了割り込みが来ずタイムアウトまで待たされるため強制STOP側へ分岐する;
+        if (res.has_error() || i2c_context[i2c_port].state.has_error() || i2c_context[i2c_port].state == i2c_context_t::state_read || !int_raw.end_detect_int_raw)
 #else
-        if (res.has_error() || i2c_context[i2c_port].state == i2c_context_t::state_read || !int_raw.end_detect)
+        if (res.has_error() || i2c_context[i2c_port].state.has_error() || i2c_context[i2c_port].state == i2c_context_t::state_read || !int_raw.end_detect)
 #endif
         { // force stop
-          i2c_stop(i2c_port);
+          // state が既にエラーの場合はエラー検出箇所で停止済みのため再停止しない (res のエラーはこの呼び出しで検出されたもので未停止);
+          if (res.has_error() || !i2c_context[i2c_port].state.has_error())
+          {
+            i2c_stop(i2c_port);
+          }
         }
         else
         {
@@ -1697,7 +1710,20 @@ namespace lgfx
 
     cpp::result<void, error_t> init(int i2c_port)
     {
-      if (isSoftPort(i2c_port)) { return soft_i2c_init(i2c_port); }
+      if (isSoftPort(i2c_port))
+      {
+#if LGFX_LP_I2C_NUM > 0 && SOC_RTCIO_PIN_COUNT > 0
+        if (soft_i2c_valid_port(i2c_port))
+        { // 低電力ポートのルーティングはリセットを跨いで残るため、前回実行が
+          // LP ポートとして使ったピンをソフトポートで取り直す場合にも返却が
+          // 必要になる。( see releaseLpPad )
+          auto& ctx = soft_i2c_ctx(i2c_port);
+          releaseLpPad((gpio_num_t)ctx.pin_sda);
+          releaseLpPad((gpio_num_t)ctx.pin_scl);
+        }
+#endif
+        return soft_i2c_init(i2c_port);
+      }
       if (i2c_port >= LGFX_I2C_PORT_NUM) { return cpp::fail(error_t::invalid_arg); }
       gpio_num_t pin_sda = i2c_context[i2c_port].pin_sda;
       gpio_num_t pin_scl = i2c_context[i2c_port].pin_scl;
@@ -2124,8 +2150,17 @@ namespace lgfx
 
           if (0 == getRxFifoCount(dev))
           {
+            uint32_t int_raw_val = dev->int_raw.val;
             i2c_stop(i2c_port);
-            ESP_LOGW("LGFX", "i2c read error : read timeout");
+            if ((int_raw_val & I2C_ACK_ERR_INT_RAW_M)
+             && !(int_raw_val & (I2C_TIME_OUT_INT_RAW_M | I2C_ARBITRATION_LOST_INT_RAW_M)))
+            { // Pure address NACK means no device is present: not a timeout, so no warning.
+              ESP_LOGV("LGFX", "i2c read error : nack");
+            }
+            else
+            {
+              ESP_LOGW("LGFX", "i2c read error : read timeout");
+            }
             res = cpp::fail(error_t::connection_lost);
             i2c_context[i2c_port].state = cpp::fail(error_t::connection_lost);
             i2c_context[i2c_port].wait_ack_stage = 0;
