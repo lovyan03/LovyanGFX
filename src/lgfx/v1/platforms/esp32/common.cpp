@@ -2150,8 +2150,17 @@ namespace lgfx
 
           if (0 == getRxFifoCount(dev))
           {
+            uint32_t int_raw_val = dev->int_raw.val;
             i2c_stop(i2c_port);
-            ESP_LOGW("LGFX", "i2c read error : read timeout");
+            if ((int_raw_val & I2C_ACK_ERR_INT_RAW_M)
+             && !(int_raw_val & (I2C_TIME_OUT_INT_RAW_M | I2C_ARBITRATION_LOST_INT_RAW_M)))
+            { // Pure address NACK means no device is present: not a timeout, so no warning.
+              ESP_LOGV("LGFX", "i2c read error : nack");
+            }
+            else
+            {
+              ESP_LOGW("LGFX", "i2c read error : read timeout");
+            }
             res = cpp::fail(error_t::connection_lost);
             i2c_context[i2c_port].state = cpp::fail(error_t::connection_lost);
             i2c_context[i2c_port].wait_ack_stage = 0;
