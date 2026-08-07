@@ -1697,7 +1697,20 @@ namespace lgfx
 
     cpp::result<void, error_t> init(int i2c_port)
     {
-      if (isSoftPort(i2c_port)) { return soft_i2c_init(i2c_port); }
+      if (isSoftPort(i2c_port))
+      {
+#if LGFX_LP_I2C_NUM > 0 && SOC_RTCIO_PIN_COUNT > 0
+        if (soft_i2c_valid_port(i2c_port))
+        { // 低電力ポートのルーティングはリセットを跨いで残るため、前回実行が
+          // LP ポートとして使ったピンをソフトポートで取り直す場合にも返却が
+          // 必要になる。( see releaseLpPad )
+          auto& ctx = soft_i2c_ctx(i2c_port);
+          releaseLpPad((gpio_num_t)ctx.pin_sda);
+          releaseLpPad((gpio_num_t)ctx.pin_scl);
+        }
+#endif
+        return soft_i2c_init(i2c_port);
+      }
       if (i2c_port >= LGFX_I2C_PORT_NUM) { return cpp::fail(error_t::invalid_arg); }
       gpio_num_t pin_sda = i2c_context[i2c_port].pin_sda;
       gpio_num_t pin_scl = i2c_context[i2c_port].pin_scl;
