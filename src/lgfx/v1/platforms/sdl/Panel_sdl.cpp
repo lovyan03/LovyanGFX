@@ -257,6 +257,11 @@ namespace lgfx
     _update_in_semaphore = SDL_CreateSemaphore(0);
     _update_out_semaphore = SDL_CreateSemaphore(0);
     for (size_t pin = 0; pin < EMULATED_GPIO_MAX; ++pin) { gpio_hi(pin); }
+#if defined ( __APPLE__ )
+    /// Since SDL 2.30.4, non-bundled apps are no longer brought to the foreground on macOS 14 or later.
+    /// Set the hint before SDL_Init so that the window appears in front. (can be overridden by the environment variable)
+    SDL_SetHint(SDL_HINT_MAC_BACKGROUND_APP, "0");
+#endif
     /*Initialize the SDL*/
     SDL_Init(SDL_INIT_VIDEO);
     SDL_StartTextInput();
