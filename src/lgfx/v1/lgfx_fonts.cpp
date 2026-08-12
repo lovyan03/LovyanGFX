@@ -941,7 +941,7 @@ label_nextbyte: /// 次のデータを取得する;
           if (bs->bit_pos + bpp > bs->bit_length) break;
           ret = (uint8_t)bs->read_bits(bpp);
 
-          if (bs->bit_pos != bpp && prev_v == ret)
+          if (out != 0 && prev_v == ret)
           {
             count = 0;
             state = RLE_REPEATED;
