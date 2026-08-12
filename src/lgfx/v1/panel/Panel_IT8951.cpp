@@ -241,10 +241,14 @@ IT8951 Registers defines
     _bus->endTransaction();
   }
 
-  bool Panel_IT8951::_wait_busy(uint32_t timeout)
+  // Bounded poll of the BUSY pin, without touching chip-select.
+  // Returns false after `timeout` ms if BUSY never deasserts (e.g. the
+  // panel's boost converter browned out and left BUSY stuck), instead of
+  // spinning forever. Shared by _wait_busy() below and by _write_args(),
+  // which must keep CS asserted continuously across a multi-word burst
+  // and therefore can't use _wait_busy() directly.
+  bool Panel_IT8951::_wait_busy_pin(uint32_t timeout)
   {
-    _bus->wait();
-    cs_control(true);
     if (_cfg.pin_busy >= 0 && !lgfx::gpio_in(_cfg.pin_busy))
     {
       auto start_ms = millis();
@@ -263,6 +267,17 @@ IT8951 Registers defines
           delay(ms >> 4);
         }
       } while (!lgfx::gpio_in(_cfg.pin_busy));
+    }
+    return true;
+  }
+
+  bool Panel_IT8951::_wait_busy(uint32_t timeout)
+  {
+    _bus->wait();
+    cs_control(true);
+    if (!_wait_busy_pin(timeout))
+    {
+      return false;
     }
     cs_control(false);
     return true;
@@ -339,7 +354,13 @@ IT8951 Registers defines
       {
         uint32_t buf = getSwap16(args[i]);
         _bus->wait();
-        while (!lgfx::gpio_in(_cfg.pin_busy));
+        // CS must stay asserted for the whole multi-word burst, so this
+        // can't go through _wait_busy() (it toggles CS). A stuck BUSY
+        // line must still fail out here rather than hang forever.
+        if (!_wait_busy_pin())
+        {
+          return false;
+        }
         _bus->writeData(buf, 16);
       } while ( ++i < length );
       return true;
