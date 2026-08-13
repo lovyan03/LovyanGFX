@@ -33,7 +33,7 @@ mkdir build
 cd build
 :: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx::
 :: Configure OpenCV
-cmake -G "Visual Studio 17 2022" -T host=x64 -DCMAKE_INSTALL_PREFIX=%cwd%/Installation -D BUILD_opencv_java=OFF -D BUILD_opencv_python=OFF -D BUILD_EXAMPLES=OFF -D INSTALL_C_EXAMPLES=OFF -D INSTALL_PYTHON_EXAMPLES=OFF ..
+cmake -T host=x64 -DCMAKE_INSTALL_PREFIX=%cwd%/Installation -D BUILD_opencv_java=OFF -D BUILD_opencv_python=OFF -D BUILD_EXAMPLES=OFF -D INSTALL_C_EXAMPLES=OFF -D INSTALL_PYTHON_EXAMPLES=OFF ..
 ::DO_NOT_CHANGE::
 ::============================================::
 :: Compile OpenCV in release mode
