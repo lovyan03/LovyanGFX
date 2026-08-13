@@ -81,7 +81,7 @@ namespace lgfx
      ledc_channel.hpoint     = 0;
  #if defined ESP_IDF_VERSION_VAL
   // when ledc_channel_config_t.intr_type is deprecated, no need to explicitly configure interrupt, handled in the driver
-  #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 0, 0)
+  #if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(6, 0, 0)
      ledc_channel.intr_type  = LEDC_INTR_DISABLE;
   #endif
  #endif
