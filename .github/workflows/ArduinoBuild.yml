@@ -11,6 +11,7 @@ on:
     - '**.hpp'
     - '**.h'
     - '**.c'
+    - '**library.properties'
     - '**ArduinoBuild.yml'
   pull_request:
     paths:
@@ -19,6 +20,7 @@ on:
     - '**.hpp'
     - '**.h'
     - '**.c'
+    - '**library.properties'
     - '**ArduinoBuild.yml'
   workflow_dispatch:
 

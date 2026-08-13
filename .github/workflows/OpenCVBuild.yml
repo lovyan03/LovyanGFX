@@ -17,6 +17,15 @@ on:
     - '**OpenCV.cmake'
     - '**installOpenCV.bat'
   pull_request:
+    paths:
+    - '**.ino'
+    - '**.cpp'
+    - '**.hpp'
+    - '**.h'
+    - '**.c'
+    - '**OpenCVBuild.yml'
+    - '**OpenCV.cmake'
+    - '**installOpenCV.bat'
 
 #  workflow_dispatch:
 

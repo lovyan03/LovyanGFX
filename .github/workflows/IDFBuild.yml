@@ -13,8 +13,10 @@ on:
     - '**.hpp'
     - '**.h'
     - '**.c'
+    - '**.cmake'
+    - '**CMakeLists.txt'
+    - '**sdkconfig*'
     - '**IDFBuild.yml'
-    - 'CMakeLists.txt'
     - '**esp-idf-versions.php'
   pull_request:
     paths:
@@ -23,8 +25,10 @@ on:
     - '**.hpp'
     - '**.h'
     - '**.c'
+    - '**.cmake'
+    - '**CMakeLists.txt'
+    - '**sdkconfig*'
     - '**IDFBuild.yml'
-    - 'CMakeLists.txt'
     - '**esp-idf-versions.php'
   schedule:
     # weekly full matrix, also catches freshly released IDF versions

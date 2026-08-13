@@ -11,6 +11,8 @@ on:
     - '**.hpp'
     - '**.h'
     - '**.c'
+    - '**platformio*.ini'
+    - '**library.json'
     - '**PlatformioBuild.yml'
   pull_request:
     paths:
@@ -19,6 +21,8 @@ on:
     - '**.hpp'
     - '**.h'
     - '**.c'
+    - '**platformio*.ini'
+    - '**library.json'
     - '**PlatformioBuild.yml'
   workflow_dispatch:
 
