@@ -72,6 +72,12 @@ foreach($idf_versions_json['VERSIONS'] as $version)
 !empty($versions) or php_die("no current versions found in ".$idf_versions_js_url);
 uksort($versions, 'version_compare');
 
+// sanity check: the feed has covered at least two major releases so far.
+// If it shrinks to one (e.g. newer majors move to a different distribution
+// channel), fail loudly instead of letting the matrix lose coverage silently.
+$majors = array_unique(array_map(fn($name) => explode('.', $name)[0], array_keys($versions)));
+count($majors) >= 2 or php_die("idf_versions.js only lists major release(s) [".implode(', ', $majors)."] — the version source may no longer cover newer majors, please review");
+
 if($matrix_mode !== 'full')
 {
   // quick mode: keep the oldest current version (backward compatibility floor)
