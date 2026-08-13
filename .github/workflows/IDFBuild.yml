@@ -55,9 +55,11 @@ jobs:
     name: Version planner ⊹
     runs-on: ubuntu-latest
     env:
-      # scheduled and manually dispatched runs build the full matrix,
-      # regular push/PR runs build the representative 'quick' matrix
-      IDF_MATRIX_MODE: ${{ github.event_name == 'schedule' && 'full' || github.event_name == 'workflow_dispatch' && inputs.matrix_mode || 'quick' }}
+      # pull requests and scheduled runs build the full matrix so the merge
+      # gate always validates every current IDF version; plain pushes
+      # (post-merge smoke on develop, work-in-progress branches on forks)
+      # build the representative 'quick' matrix
+      IDF_MATRIX_MODE: ${{ (github.event_name == 'pull_request' || github.event_name == 'schedule') && 'full' || github.event_name == 'workflow_dispatch' && inputs.matrix_mode || 'quick' }}
     outputs:
       matrix: ${{steps.set-matrix.outputs.matrix}}
       project_dir: ${{steps.set-matrix.outputs.project_dir}}
