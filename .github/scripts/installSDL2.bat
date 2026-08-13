@@ -1,7 +1,7 @@
 ::@echo off
 setlocal enabledelayedexpansion
 ::============================================::
-set sdlVersion=2.0.22
+set sdlVersion=2.32.10
 echo Installing SDL2-%sdlVersion%
 ::============================================::
 ::set count=1

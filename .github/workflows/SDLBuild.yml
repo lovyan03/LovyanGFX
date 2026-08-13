@@ -70,7 +70,7 @@ jobs:
         env:
           CC: clang
           CXX: clang++
-          SDL2_DIR: D:/a/LovyanGFX/LovyanGFX/contrib/src/SDL2-2.0.22/install
+          SDL2_DIR: D:/a/LovyanGFX/LovyanGFX/contrib/src/SDL2-2.32.10/install
         run: |
           cp .github/scripts/SDL.cmake ${{ env.PROJECT_DIR }}/CMakeLists.txt
           cd ${{ env.PROJECT_DIR }}
