@@ -43,7 +43,7 @@ jobs:
       fail-fast: true
       matrix:
         include:
-          - { os: windows-2022 }
+          - { os: windows-latest }
           - { os: macos-26   }
           - { os: ubuntu-latest  }
 
@@ -53,7 +53,7 @@ jobs:
 
 
       - name: Cache SDL2 for Windows
-        if: ${{ matrix.os == 'windows-2022' }}
+        if: ${{ startsWith(matrix.os, 'windows') }}
         uses: actions/cache@v6
         id: cache-SLD2-windows
         with:
@@ -61,12 +61,12 @@ jobs:
           key: ${{ runner.os }}-${{ hashFiles('.github/scripts/installSDL2.bat') }}
 
       - name: Build SDL2 for Windows
-        if: matrix.os == 'windows-2022' && steps.cache-SLD2-windows.outputs.cache-hit != 'true'
+        if: startsWith(matrix.os, 'windows') && steps.cache-SLD2-windows.outputs.cache-hit != 'true'
         run: |
           .github/scripts/installSDL2.bat
 
       - name: Build LGFX_SDL2 for Windows
-        if: ${{ matrix.os == 'windows-2022' }}
+        if: ${{ startsWith(matrix.os, 'windows') }}
         env:
           CC: clang
           CXX: clang++
@@ -74,9 +74,9 @@ jobs:
         run: |
           cp .github/scripts/SDL.cmake ${{ env.PROJECT_DIR }}/CMakeLists.txt
           cd ${{ env.PROJECT_DIR }}
-          cmake -S . -B build/debug -G "Visual Studio 17 2022" -A x64 -T ClangCL -DCMAKE_BUILD_TYPE=Debug -DCMAKE_PREFIX_PATH=${{ env.SDL2_DIR }} -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+          cmake -S . -B build/debug -A x64 -T ClangCL -DCMAKE_BUILD_TYPE=Debug -DCMAKE_PREFIX_PATH=${{ env.SDL2_DIR }} "-DCMAKE_POLICY_VERSION_MINIMUM=3.5"
           cmake --build build/debug --config Debug
-          cmake -S . -B build/release -G "Visual Studio 17 2022" -A x64 -T ClangCL -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=${{ env.SDL2_DIR }} -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+          cmake -S . -B build/release -A x64 -T ClangCL -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=${{ env.SDL2_DIR }} "-DCMAKE_POLICY_VERSION_MINIMUM=3.5"
           cmake --build build/release --config Release
 
 
@@ -117,7 +117,7 @@ jobs:
 
 
       - name: Build LGFX_SDL2 for Mac
-        if: ${{ matrix.os == 'macos-latest' }}
+        if: ${{ startsWith(matrix.os, 'macos') }}
         run: |
           brew install sdl2
           cp .github/scripts/SDL.cmake ${{ env.PROJECT_DIR }}/CMakeLists.txt
@@ -130,7 +130,7 @@ jobs:
 
   deploy:
     name: Deploy WASM Example 🚀
-    if: github.ref == 'refs/heads/master'
+    if: github.ref == 'refs/heads/master' && github.repository == 'lovyan03/LovyanGFX'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
