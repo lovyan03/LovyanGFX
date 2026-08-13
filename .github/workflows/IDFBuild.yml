@@ -3,7 +3,6 @@ name: IDFBuild
 
 
 env:
-  REPO_URL: https://github.com/espressif/esp-idf
   PROJECT_DIR: examples/Test/build_test
 
 on:
@@ -16,9 +15,34 @@ on:
     - '**.c'
     - '**IDFBuild.yml'
     - 'CMakeLists.txt'
-    - 'esp-idf-versions.php'
+    - '**esp-idf-versions.php'
   pull_request:
+    paths:
+    - '**.ino'
+    - '**.cpp'
+    - '**.hpp'
+    - '**.h'
+    - '**.c'
+    - '**IDFBuild.yml'
+    - 'CMakeLists.txt'
+    - '**esp-idf-versions.php'
+  schedule:
+    # weekly full matrix, also catches freshly released IDF versions
+    - cron: '0 3 * * 1'
   workflow_dispatch:
+    inputs:
+      matrix_mode:
+        description: 'quick = representative IDF versions, full = all current versions'
+        type: choice
+        options:
+        - quick
+        - full
+        default: full
+
+# supersede queued/running builds of the same branch or PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
 
 jobs:
 
@@ -27,11 +51,12 @@ jobs:
     name: Version planner ⊹
     runs-on: ubuntu-latest
     env:
-      max-versions: 3 # maximum core versions to test, starting at latest
+      # scheduled and manually dispatched runs build the full matrix,
+      # regular push/PR runs build the representative 'quick' matrix
+      IDF_MATRIX_MODE: ${{ github.event_name == 'schedule' && 'full' || github.event_name == 'workflow_dispatch' && inputs.matrix_mode || 'quick' }}
     outputs:
       matrix: ${{steps.set-matrix.outputs.matrix}}
       project_dir: ${{steps.set-matrix.outputs.project_dir}}
-      repo_url: ${{steps.set-matrix.outputs.repo_url}}
 
     steps:
     - name: Checkout
@@ -39,7 +64,7 @@ jobs:
       with:
         ref: ${{ github.event.pull_request.head.sha }}
 
-    - name: Setup matrix
+    - name: Setup matrix (${{ env.IDF_MATRIX_MODE }})
       id: set-matrix
       run: |
         matrix=`php .github/scripts/esp-idf-versions.php`
@@ -49,12 +74,13 @@ jobs:
         matrix="${matrix//$'\r'/''}"  # remove cr
         echo "matrix=${matrix}" >> $GITHUB_OUTPUT
         echo "project_dir=${{env.PROJECT_DIR}}" >> $GITHUB_OUTPUT
-        echo "repo_url=${{env.REPO_URL}}" >> $GITHUB_OUTPUT
 
   build:
-    name: idf ${{ matrix.esp-idf-fqbn }}
+    name: idf ${{ matrix.target }}@${{ matrix.idf }}
     needs: set_matrix
     runs-on: ubuntu-latest
+    container:
+      image: espressif/idf:v${{ matrix.idf }}
 
     strategy:
       matrix: ${{fromJSON(needs.set_matrix.outputs.matrix)}}
@@ -66,45 +92,10 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
 
-      # - name: Cache pip for ${{ matrix.esp-idf-fqbn }}
-      #   uses: actions/cache@v3
-      #   with:
-      #     path: ~/.cache/pip
-      #     key: ${{ runner.os }}-pip-${{ matrix.esp-idf-fqbn }}-${{ hashFiles('**/requirements.txt') }}
-      #     restore-keys: |
-      #       ${{ runner.os }}-pip-
-      #
-      # - name: Cache espressif tools for ${{ matrix.esp-idf-fqbn }}
-      #   uses: actions/cache@v3
-      #   id: espressif
-      #   with:
-      #     path: |
-      #       ~/.espressif
-      #     key: ${{ runner.os }}-espressif-${{ matrix.esp-idf-fqbn }}-${{ hashFiles('**/lockfiles') }}
-      #
-      # - name: Cache esp-idf for ${{ matrix.esp-idf-fqbn }}
-      #   id: cache-idf
-      #   uses: actions/cache@v3
-      #   with:
-      #     path: ~/esp/esp-idf
-      #     key: ${{ runner.os }}-idf-${{ matrix.esp-idf-fqbn }}-${{ hashFiles('**/lockfiles') }}
-
-      - name: Get/Check IDF ${{ matrix.esp-idf-fqbn }}
+      - name: Build example for ${{ matrix.target }}@${{ matrix.idf }}
+        shell: bash
+        working-directory: ${{ needs.set_matrix.outputs.project_dir }}
         run: |
-          mkdir -p ~/esp
-          cd ~/esp
-          idf_fqbn="${{ matrix.esp-idf-fqbn }}"
-          idf_version=${idf_fqbn#*@}
-          if [ ! -d "./esp-idf/" ]; then git clone -b v$idf_version --recursive ${{ needs.set_matrix.outputs.repo_url }} esp-idf; fi
-          cd ~/esp/esp-idf
-          if [ ! -d "~/.espressif" ]; then ./install.sh; fi
-
-      - name: Build example for ${{ matrix.esp-idf-fqbn }}
-        run: |
-          source ~/esp/esp-idf/export.sh
-          idf_fqbn="${{ matrix.esp-idf-fqbn }}"
-          idf_board=${idf_fqbn%%@*}
-          cd ${{ needs.set_matrix.outputs.project_dir }}
-          idf.py set-target $idf_board
+          . $IDF_PATH/export.sh
+          idf.py set-target ${{ matrix.target }}
           idf.py build
-
