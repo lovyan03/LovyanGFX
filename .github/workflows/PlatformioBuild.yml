@@ -119,6 +119,11 @@ jobs:
           cd ${{ env.PROJECT_DIR }}
           export pio_ver=${{ matrix.platform-version }}
           export pio_env="${pio_ver//./_}"
-          pio pkg install -e ${{ matrix.board }}-$pio_env --no-save --library file://$(realpath ../../../)
+          # registry hiccups are the dominant cause of spurious failures on
+          # this lane, so retry the network-bound package installs; the
+          # compile itself (pio run) is deliberately not retried
+          retry() { for i in 1 2 3; do "$@" && return 0; [ $i -eq 3 ] && return 1; echo "attempt $i failed, retrying in 20s: $*"; sleep 20; done; }
+          retry pio pkg install -e ${{ matrix.board }}-$pio_env --no-save
+          retry pio pkg install -e ${{ matrix.board }}-$pio_env --no-save --library file://$(realpath ../../../)
           [[ "$pio_env" == "portduino" ]] && { sudo apt update; sudo apt-get install libgpiod-dev libbluetooth-dev; export PLATFORMIO_SRC_DIR=portduino; }
           pio run -e ${{ matrix.board }}-$pio_env
