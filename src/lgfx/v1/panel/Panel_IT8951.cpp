@@ -359,6 +359,7 @@ IT8951 Registers defines
         // line must still fail out here rather than hang forever.
         if (!_wait_busy_pin())
         {
+          cs_control(true);
           return false;
         }
         _bus->writeData(buf, 16);
