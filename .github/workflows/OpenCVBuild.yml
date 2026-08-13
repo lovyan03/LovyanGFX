@@ -17,8 +17,22 @@ on:
     - '**OpenCV.cmake'
     - '**installOpenCV.bat'
   pull_request:
+    paths:
+    - '**.ino'
+    - '**.cpp'
+    - '**.hpp'
+    - '**.h'
+    - '**.c'
+    - '**OpenCVBuild.yml'
+    - '**OpenCV.cmake'
+    - '**installOpenCV.bat'
 
 #  workflow_dispatch:
+
+# supersede queued/running builds of the same branch or PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
 
