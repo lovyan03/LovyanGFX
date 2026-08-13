@@ -36,10 +36,11 @@ Contributors:
   #if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 0)
    #define LGFX_LEDCINIT(pin_bl, freq, bits, pwm_channel) ledcAttach(pin_bl, freq, bits)
    #define LGFX_LEDCWRITE(pin_bl, pwm_channel, duty) ledcWrite(pin_bl, duty)
-  #elif ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(2, 0, 0)
-   #define LGFX_LEDCINIT(pin_bl, freq, bits, pwm_channel) { ledcSetup(pwm_channel, freq, bits); ledcAttachPin(pin_bl, pwm_channel); }
-   #define LGFX_LEDCWRITE(pin_bl, pwm_channel, duty) ledcWrite(pwm_channel, duty)
   #endif
+ #endif
+ #if !defined LGFX_LEDCINIT // pre-3.x cores, including 1.x where ESP_ARDUINO_VERSION is absent
+  #define LGFX_LEDCINIT(pin_bl, freq, bits, pwm_channel) { ledcSetup(pwm_channel, freq, bits); ledcAttachPin(pin_bl, pwm_channel); }
+  #define LGFX_LEDCWRITE(pin_bl, pwm_channel, duty) ledcWrite(pwm_channel, duty)
  #endif
 
 #else // esp-idf
