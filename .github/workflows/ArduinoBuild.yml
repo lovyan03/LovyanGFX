@@ -13,7 +13,19 @@ on:
     - '**.c'
     - '**ArduinoBuild.yml'
   pull_request:
+    paths:
+    - '**.ino'
+    - '**.cpp'
+    - '**.hpp'
+    - '**.h'
+    - '**.c'
+    - '**ArduinoBuild.yml'
   workflow_dispatch:
+
+# supersede queued/running builds of the same branch or PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
