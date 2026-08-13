@@ -51,10 +51,11 @@ jobs:
           - m5stack-cores3
 
         platform-version:
-          #- 1.0.6
-          - 2.0.11
-          - 2.0.12
-          - 2.0.13
+          # boundary versions of each major series: oldest usable + newest
+          # (2.0.0-2.0.2 have no PIO manifest; 3.x below 3.0.6 does not compile)
+          - 2.0.3
+          - 2.0.17
+          - 3.0.6
           - default
 
         #exclude:
