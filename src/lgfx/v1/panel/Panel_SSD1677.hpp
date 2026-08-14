@@ -29,7 +29,7 @@ namespace lgfx
   /*
     SSD1677 (GDEQ0426T82 / 800x480) E-Paper panel driver.
 
-    Buffer / coordinate model (EPD native, see docs/Panel_SSD1677_rebuild_plan.md):
+    Buffer / coordinate model (EPD native):
       - Panel native orientation = landscape 800(X=source) x 480(Y=gate).
       - 8 pixels per byte are packed along X (source) direction, matching the
         controller's source-shift scan order. byte = 8 consecutive X pixels.
@@ -41,8 +41,9 @@ namespace lgfx
       - _draw_pixel stores an abstract gray level v(0=black..3=white) split into
         two bit planes: planeL = v&1 (-> BW RAM 0x24), planeM = v&2 (-> RED RAM 0x26).
       - The hardware RAM encoding is generated at send time per epd_mode:
-          quality/text : absolute four-gray LUT (planes sent as-is)
-          fast/fastest : monochrome differential LUT vs displayed history
+          quality/text : Mode 1 absolute four-gray update
+          fast         : Mode 2 absolute four-gray update
+          fastest      : Mode 2 monochrome differential update vs history
   */
   struct Panel_SSD1677 : public Panel_HasBuffer
   {
@@ -72,7 +73,7 @@ namespace lgfx
 
   protected:
 
-    // Longer busy ceiling for the 480x800 panel; full refresh ~3.8s.
+    // Minimum wait used by the base monochrome refresh path.
     static constexpr unsigned long _refresh_msec = 400;
 
     range_rect_t _range_old;
@@ -100,9 +101,8 @@ namespace lgfx
 
     const uint8_t* getInitCommands(uint8_t listno) const override
     {
-      // SSD1677 power-up sequence (community-sdk EInkDisplay, non-X3).
-      // panel native: 800(X=source) x 480(Y=gate). 0x01 sets 480 gates.
-      // RAM window / auto-clear / power-on are issued in _after_wake (computed).
+      // SSD1677 power-up sequence for the native 800x480 panel.
+      // 0x01 configures 480 gates; RAM setup and power-on follow in _after_wake.
       static constexpr uint8_t list0[] = {
           0x12, 0 + CMD_INIT_DELAY, 10,             // SW Reset + 10 msec
           0x18, 1, 0x80,                            // Temp sensor: internal
@@ -122,6 +122,8 @@ namespace lgfx
   {
     ~Panel_SSD1677_4Gray(void) override;
     bool init(bool use_reset) override;
+    void setSleep(bool flg) override;
+    void setPowerSave(bool flg) override;
     void display(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h) override;
 
   protected:
@@ -143,22 +145,19 @@ namespace lgfx
     range_rect_t _full_range(void) const;
     void _send_gray_lut(const uint8_t* lut);
     void _remember_displayed(const uint8_t* lsb, const uint8_t* msb);
-    void _send_transition_plane(uint8_t command,
-                                const uint8_t* new_lsb, const uint8_t* new_msb,
-                                const range_rect_t& dirty, uint8_t step,
-                                bool monochrome);
-    bool _activate_transition_step(const uint8_t* new_lsb, const uint8_t* new_msb,
-                                   const range_rect_t& dirty, uint8_t step,
-                                   bool monochrome, bool shortened = false,
-                                   bool stronger_mono = false);
+    void _send_transition_planes(const uint8_t* new_msb,
+                                 const range_rect_t& dirty);
     void _remember_mono_dirty(const uint8_t* msb, const range_rect_t& dirty);
     bool _activate(uint8_t ctrl1, uint8_t ctrl2, bool powers_down,
                    bool mode2_activation, bool enforce_refresh_minimum = true);
-    bool _reset_controller_for_mode2(void);
-    bool _refresh_quality(const uint8_t* lsb, const uint8_t* msb);
-    bool _refresh_text(const uint8_t* lsb, const uint8_t* msb);
-    bool _refresh_fast(const uint8_t* lsb, const uint8_t* msb, const range_rect_t& dirty);
-    bool _refresh_fastest(const uint8_t* lsb, const uint8_t* msb, const range_rect_t& dirty);
+    bool _reset_controller_and_face(void);
+    bool _ensure_known_face(void);
+    bool _refresh_mode1_absolute(const uint8_t* lsb, const uint8_t* msb,
+                                 const uint8_t* lut);
+    bool _refresh_mode2_absolute(const uint8_t* lsb, const uint8_t* msb,
+                                 const uint8_t* lut);
+    bool _refresh_mode2_fastest(const uint8_t* lsb, const uint8_t* msb,
+                                const range_rect_t& dirty);
   };
 
 //----------------------------------------------------------------------------
