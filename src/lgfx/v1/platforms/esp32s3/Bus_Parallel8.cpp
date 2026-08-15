@@ -80,6 +80,14 @@ namespace lgfx
 
   bool Bus_Parallel8::init(void)
   {
+    // esp_lcd_new_i80_bus does not configure pad direction / open-drain, so
+    // normalize the data pins as push-pull GPIO outputs first (same
+    // normalization used by Bus_EPD).
+    for (int pin : _cfg.pin_data)
+    {
+      lgfx::pinMode(pin, pin_mode_t::output);
+    }
+
     _init_pin();
 
     for (size_t i = 0; i < 3; ++i)

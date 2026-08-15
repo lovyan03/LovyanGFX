@@ -19,6 +19,9 @@ Contributors:
 #include <sdkconfig.h>
 
 #include "Light_PWM.hpp"
+#include "common.hpp"
+
+#include <driver/gpio.h>
 
 #if defined ( ARDUINO )
  #include <esp32-hal-ledc.h>
@@ -26,7 +29,6 @@ Contributors:
   #include <esp_arduino_version.h>
  #endif
 #else
- #include <driver/gpio.h>
  #include <driver/ledc.h>
 #endif
 
@@ -39,7 +41,7 @@ Contributors:
   #endif
  #endif
  #if !defined LGFX_LEDCINIT // pre-3.x cores, including 1.x where ESP_ARDUINO_VERSION is absent
-  #define LGFX_LEDCINIT(pin_bl, freq, bits, pwm_channel) { ledcSetup(pwm_channel, freq, bits); ledcAttachPin(pin_bl, pwm_channel); }
+  #define LGFX_LEDCINIT(pin_bl, freq, bits, pwm_channel) ( ledcSetup(pwm_channel, freq, bits) > 0 && (ledcAttachPin(pin_bl, pwm_channel), true) )
   #define LGFX_LEDCWRITE(pin_bl, pwm_channel, duty) ledcWrite(pwm_channel, duty)
  #endif
 
@@ -65,10 +67,21 @@ namespace lgfx
 
   bool Light_PWM::init(uint8_t brightness)
   {
+    if ((size_t)_cfg.pin_bl >= GPIO_NUM_MAX || !GPIO_IS_VALID_OUTPUT_GPIO((gpio_num_t)_cfg.pin_bl))
+    {
+      return false;
+    }
+
+    // The LEDC driver does not fully normalize the pad state: the open-drain
+    // flag is never cleared, and ESP-IDF v6 no longer selects the GPIO
+    // function in IO_MUX. Reconfigure the pin as a push-pull GPIO output
+    // first, latching it to the "off" level to avoid a visible glitch.
+    if (_cfg.invert) { gpio_hi(_cfg.pin_bl); } else { gpio_lo(_cfg.pin_bl); }
+    lgfx::pinMode(_cfg.pin_bl, pin_mode_t::output);
 
 #if defined ( ARDUINO )
 
-    LGFX_LEDCINIT(_cfg.pin_bl, _cfg.freq, PWM_BITS, _cfg.pwm_channel);
+    bool result = LGFX_LEDCINIT(_cfg.pin_bl, _cfg.freq, PWM_BITS, _cfg.pwm_channel);
 
 #else // esp-idf
 
@@ -87,7 +100,7 @@ namespace lgfx
   #endif
  #endif
     };
-    ledc_channel_config(&ledc_channel);
+    bool result = (ESP_OK == ledc_channel_config(&ledc_channel));
     static ledc_timer_config_t ledc_timer;
     {
       ledc_timer.speed_mode = LGFX_LEDC_SPEED_MODE;     // timer mode
@@ -95,10 +108,11 @@ namespace lgfx
       ledc_timer.freq_hz = _cfg.freq;                        // frequency of PWM signal
       ledc_timer.timer_num = ledc_channel.timer_sel;    // timer index
     };
-    ledc_timer_config(&ledc_timer);
+    result = (ESP_OK == ledc_timer_config(&ledc_timer)) && result;
 
 #endif
 
+    if (!result) { return false; }
     setBrightness(brightness);
     return true;
   }

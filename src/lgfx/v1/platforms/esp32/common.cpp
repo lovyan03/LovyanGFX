@@ -92,6 +92,8 @@ Contributors:
  #include <esp_private/gpio.h>
 #endif
 
+#include <initializer_list>
+
 #if __has_include(<hal/gpio_ll.h>)
  #include <hal/gpio_ll.h>
 #endif
@@ -625,6 +627,25 @@ namespace lgfx
 
 // ------------------------------------------------------------------------
 
+    // Clear stale open-drain state on the bus pins.
+    // spi_bus_initialize does not clear the pad open-drain flag (ESP-IDF v6
+    // no longer configures it at all), so a pin left in open-drain mode by a
+    // previous use may not rise fast enough at typical SPI clock rates.
+    static void clear_open_drain(std::initializer_list<int> pins)
+    {
+      for (int pin : pins)
+      {
+        if ((size_t)pin < GPIO_NUM_MAX)
+        {
+#if __has_include(<hal/gpio_ll.h>)
+          gpio_ll_od_disable(&GPIO, (gpio_num_t)pin);
+#else // ESP-IDF v3 (plain ESP32 only)
+          GPIO.pin[pin].pad_driver = 0;
+#endif
+        }
+      }
+    }
+
     cpp::result<void, error_t> init(int spi_host, int spi_sclk, int spi_miso, int spi_mosi)
     {
       return init(spi_host, spi_sclk, spi_miso, spi_mosi, 0); // SPI_DMA_CH_AUTO;
@@ -700,21 +721,7 @@ namespace lgfx
         }
       }
 
-      // SPIバスのピンを push-pull 出力へ明示的に戻す。
-      // pinMode の input 系設定はパッドを open-drain にするが、ESP-IDF v6 以降の
-      // spi_bus_initialize はピンの open-drain 設定を解除しないため、直前のピン状態が
-      // 残っていると SCLK/MOSI が open-drain 駆動となり、高クロックで波形が立ち上がらない。
-      for (int pin : { spi_sclk, spi_mosi, spi_miso })
-      {
-        if ((size_t)pin < GPIO_NUM_MAX)
-        {
-#if __has_include(<hal/gpio_ll.h>)
-          gpio_ll_od_disable(&GPIO, (gpio_num_t)pin);
-#else // ESP-IDF v3 系 (無印 ESP32 のみ)
-          GPIO.pin[pin].pad_driver = 0;
-#endif
-        }
-      }
+      clear_open_drain({ spi_sclk, spi_mosi, spi_miso });
 
       writereg(SPI_USER_REG(spi_port), SPI_USR_MOSI | SPI_USR_MISO | SPI_DOUTDIN);  // need SD card access (full duplex setting)
       writereg(SPI_CTRL_REG(spi_port), 0);
@@ -796,6 +803,8 @@ namespace lgfx
       }
 
 #pragma GCC diagnostic pop
+
+      clear_open_drain({ spi_sclk, spi_io0, spi_io1, spi_io2, spi_io3 });
 
       writereg(SPI_USER_REG(spi_port), SPI_USR_MOSI | SPI_USR_MISO | SPI_DOUTDIN);  // need SD card access (full duplex setting)
       writereg(SPI_CTRL_REG(spi_port), 0);
