@@ -96,6 +96,10 @@ Contributors:
  #include <hal/gpio_ll.h>
 #endif
 
+#if __has_include(<esp_rom_gpio.h>)
+ #include <esp_rom_gpio.h>
+#endif
+
 #if defined (ESP_IDF_VERSION_VAL)
  #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
   #include <hal/gpio_hal.h>
@@ -233,29 +237,6 @@ namespace lgfx
   template <typename T>
   static inline typename std::enable_if<!has_func_sel<T>::value && !has_func_in_sel<T>::value, uint32_t>::type
   get_gpio_func_in_sel(T& cfg) { return cfg.in_sel; }
-
-  // ------- func_out_sel detect -------
-  // func_sel/funcn_out_sel/out_sel: A type characteristic that detects the presence of members
-  template <typename T, typename = void>
-  struct has_funcn_out_sel : std::false_type {};
-
-  template <typename T>
-  struct has_funcn_out_sel<T, decltype(void(std::declval<T&>().funcn_out_sel))> : std::true_type {};
-
-  // func_sel exist
-  template <typename T>
-  static inline typename std::enable_if<has_func_sel<T>::value>::type
-  set_gpio_func_out_sel(T& cfg, uint32_t val) { cfg.func_sel = val; }
-
-  // func_sel does not exist, funcn_out_sel exist 
-  template <typename T>
-  static inline typename std::enable_if<!has_func_sel<T>::value && has_funcn_out_sel<T>::value>::type
-  set_gpio_func_out_sel(T& cfg, uint32_t val) { cfg.funcn_out_sel = val; }
-  
-  // func_sel && funcn_out_sel does not exist  (use out_sel)
-  template <typename T>
-  static inline typename std::enable_if<!has_func_sel<T>::value && !has_funcn_out_sel<T>::value>::type
-  set_gpio_func_out_sel(T& cfg, uint32_t val) { cfg.out_sel = val; }
 
   static int search_pin_number(int peripheral_sig)
   {
@@ -460,9 +441,11 @@ namespace lgfx
 
     *io_mux_reg = io_mux_val;
 
-#if defined(CONFIG_IDF_TARGET_ESP32C61)
-    GPIO.pinn[pin].pinn_pad_driver = (mode == pin_mode_t::output) ? 0 : 1; // 1 = OpenDrain / 0 = normal output
-#else
+    // レジスタ構造体のメンバ名はチップ毎に異なるため、命名差を吸収する LL/ROM API へ委譲する
+#if __has_include(<hal/gpio_ll.h>)
+    if (mode == pin_mode_t::output) { gpio_ll_od_disable(&GPIO, (gpio_num_t)pin); }
+    else                            { gpio_ll_od_enable (&GPIO, (gpio_num_t)pin); } // OpenDrain
+#else // ESP-IDF v3 系 (無印 ESP32 のみ)
     GPIO.pin[pin].pad_driver = (mode == pin_mode_t::output) ? 0 : 1; // 1 = OpenDrain / 0 = normal output
 #endif
     if (mode != pin_mode_t::output) {
@@ -470,10 +453,10 @@ namespace lgfx
     }
     auto gpio_en_reg = gpio_en_regs[((pin >> 5) << 1) + 1];
     *gpio_en_reg = 1u << (pin & 31);
-#if defined(CONFIG_IDF_TARGET_ESP32C61)
-    set_gpio_func_out_sel(GPIO.funcn_out_sel_cfg[pin], SIG_GPIO_OUT_IDX);
-#else
-    set_gpio_func_out_sel(GPIO.func_out_sel_cfg[pin], SIG_GPIO_OUT_IDX);
+#if __has_include(<esp_rom_gpio.h>)
+    esp_rom_gpio_connect_out_signal(pin, SIG_GPIO_OUT_IDX, false, false);
+#else // ESP-IDF v3 系 (無印 ESP32 のみ)
+    GPIO.func_out_sel_cfg[pin].func_sel = SIG_GPIO_OUT_IDX;
 #endif
   }
 
