@@ -92,6 +92,10 @@ Contributors:
  #include <esp_private/gpio.h>
 #endif
 
+#if __has_include(<hal/gpio_ll.h>)
+ #include <hal/gpio_ll.h>
+#endif
+
 #if defined (ESP_IDF_VERSION_VAL)
  #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
   #include <hal/gpio_hal.h>
@@ -710,6 +714,22 @@ namespace lgfx
         devcfg.queue_size = 1;
         if (ESP_OK != spi_bus_add_device(static_cast<spi_host_device_t>(spi_host), &devcfg, &_spi_dev_handle[spi_host])) {
           ESP_LOGW("LGFX", "Failed to spi_bus_add_device. ");
+        }
+      }
+
+      // SPIバスのピンを push-pull 出力へ明示的に戻す。
+      // pinMode の input 系設定はパッドを open-drain にするが、ESP-IDF v6 以降の
+      // spi_bus_initialize はピンの open-drain 設定を解除しないため、直前のピン状態が
+      // 残っていると SCLK/MOSI が open-drain 駆動となり、高クロックで波形が立ち上がらない。
+      for (int pin : { spi_sclk, spi_mosi, spi_miso })
+      {
+        if ((size_t)pin < GPIO_NUM_MAX)
+        {
+#if __has_include(<hal/gpio_ll.h>)
+          gpio_ll_od_disable(&GPIO, (gpio_num_t)pin);
+#else // ESP-IDF v3 系 (無印 ESP32 のみ)
+          GPIO.pin[pin].pad_driver = 0;
+#endif
         }
       }
 
