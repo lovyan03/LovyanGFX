@@ -84,8 +84,16 @@ Contributors:
  #include <esp_arduino_version.h>
 #endif
 
-#ifndef SOC_GPIO_SUPPORT_RTC_INDEPENDENT
-#define SOC_GPIO_SUPPORT_RTC_INDEPENDENT 0
+// Whether the digital pads (pulls in IO_MUX) work independently of the RTC IO
+// domain; only the plain ESP32 needs the RTC-domain path for RTC-capable pins.
+// ESP-IDF v6 removed the SOC_GPIO_SUPPORT_RTC_INDEPENDENT macro, so derive
+// the value from the build target when it is absent.
+#if defined (SOC_GPIO_SUPPORT_RTC_INDEPENDENT)
+ #define LGFX_GPIO_RTC_INDEPENDENT SOC_GPIO_SUPPORT_RTC_INDEPENDENT
+#elif defined (CONFIG_IDF_TARGET) && !defined (CONFIG_IDF_TARGET_ESP32)
+ #define LGFX_GPIO_RTC_INDEPENDENT 1
+#else
+ #define LGFX_GPIO_RTC_INDEPENDENT 0
 #endif
 
 #if __has_include(<esp_private/gpio.h>)
@@ -416,7 +424,7 @@ namespace lgfx
     auto io_mux_val = *io_mux_reg; // &  ~(FUN_PU_M | FUN_PD_M | SLP_PU_M | SLP_PD_M | MCU_SEL_M);
 
 #if SOC_RTCIO_INPUT_OUTPUT_SUPPORTED
-    if (!SOC_GPIO_SUPPORT_RTC_INDEPENDENT && rtc_gpio_is_valid_gpio(gpio_num)) {
+    if (!LGFX_GPIO_RTC_INDEPENDENT && rtc_gpio_is_valid_gpio(gpio_num)) {
       rtc_gpio_deinit(gpio_num);
       if (mode == pin_mode_t::input_pulldown)
       { rtc_gpio_pulldown_en((gpio_num_t)pin); }
