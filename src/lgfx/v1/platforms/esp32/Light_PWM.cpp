@@ -19,6 +19,7 @@ Contributors:
 #include <sdkconfig.h>
 
 #include "Light_PWM.hpp"
+#include "common.hpp"
 
 #if defined ( ARDUINO )
  #include <esp32-hal-ledc.h>
@@ -65,6 +66,15 @@ namespace lgfx
 
   bool Light_PWM::init(uint8_t brightness)
   {
+    // The LEDC driver does not fully normalize the pad state: the open-drain
+    // flag is never cleared, and ESP-IDF v6 no longer selects the GPIO
+    // function in IO_MUX. Reconfigure the pin as a push-pull GPIO output
+    // first, latching it to the "off" level to avoid a visible glitch.
+    if ((size_t)_cfg.pin_bl < GPIO_NUM_MAX)
+    {
+      if (_cfg.invert) { gpio_hi(_cfg.pin_bl); } else { gpio_lo(_cfg.pin_bl); }
+      lgfx::pinMode(_cfg.pin_bl, pin_mode_t::output);
+    }
 
 #if defined ( ARDUINO )
 
