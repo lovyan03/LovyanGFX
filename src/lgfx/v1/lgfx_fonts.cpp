@@ -1911,7 +1911,13 @@ label_nextbyte: /// 次のデータを取得する;
     y += (metrics->y_offset * sy) >> 16;
 
     if (!this->getUnicodeIndex(code, &gNum)) {
-      return drawCharDummy(gfx, x, y, this->spaceWidth, metrics->height, style, filled_x);
+      if (code != 0x20) {
+        return drawCharDummy(gfx, x, y, this->spaceWidth, metrics->height, style, filled_x);
+      }
+      // Some VLW exporters omit the space glyph; for such fonts, keep the
+      // guessed advance instead of rendering the missing-glyph box.
+      gNum = 0xFFFF;
+      buffer[2] = getSwap32(this->spaceWidth);
     } else {
       file->preRead();
       file->seek(28 + gNum * 28);
