@@ -31,7 +31,7 @@ namespace lgfx
   public:
     struct config_t
     {
-      uint8_t sercom_index = 0;
+      int8_t sercom_index = 0;
       uint32_t freq_write = 400000;
       uint32_t freq_read = 400000;
       int16_t pin_scl = samd21::PORT_A | 9;

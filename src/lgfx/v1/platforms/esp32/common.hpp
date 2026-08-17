@@ -30,9 +30,13 @@ Contributors:
 #include <soc/soc.h>
 #include <soc/spi_reg.h>
 #if __has_include(<soc/i2s_reg.h>)
-#include <soc/i2s_reg.h>
-#include <soc/gpio_reg.h>
-#include <soc/gpio_periph.h>
+ #include <soc/i2s_reg.h>
+#endif
+#if __has_include(<soc/gpio_reg.h>)
+ #include <soc/gpio_reg.h>
+#endif
+#if __has_include(<soc/gpio_periph.h>)
+ #include <soc/gpio_periph.h>
 #endif
 #include <soc/gpio_struct.h>
 #include <soc/gpio_sig_map.h>
@@ -355,6 +359,8 @@ protected:
     cpp::result<void, error_t> init(int i2c_port);
     cpp::result<int, error_t> getPinSDA(int i2c_port);
     cpp::result<int, error_t> getPinSCL(int i2c_port);
+    bool busy(int i2c_port);
+    void wait(int i2c_port);
 
     struct i2c_temporary_switcher_t
     {

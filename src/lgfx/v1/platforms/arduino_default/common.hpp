@@ -28,11 +28,61 @@ Contributors:
 #endif
 
 #include <Arduino.h>
+#include <SPI.h>
 
 namespace lgfx
 {
  inline namespace v1
  {
+//----------------------------------------------------------------------------
+
+  /// spi_host に対応する Arduino の SPIClass インスタンスを返す。
+  /// 複数の SPI を持たない環境では常に既定の SPI を返す。
+  __attribute__ ((unused))
+  static inline SPIClass* getSPIInstance(int spi_host)
+  {
+#if defined ( TEENSYDUINO )
+ #if defined (__MK64FX512__) || defined (__MK66FX1M0__) || defined (__IMXRT1062__)
+    if (spi_host == 1) { return &SPI1; }
+    if (spi_host == 2) { return &SPI2; }
+ #elif defined (__MKL26Z64__)
+    if (spi_host == 1) { return &SPI1; }
+ #endif
+#endif
+    (void)spi_host;
+    return &SPI;
+  }
+
+  /// SPI_MODE0~3 の実値は環境依存のため、spi_mode の生値を SPISettings に渡さず変換する。
+  __attribute__ ((unused))
+  static inline uint8_t getSPIDataMode(int spi_mode)
+  {
+    switch (spi_mode & 3)
+    {
+    default:
+    case 0: return SPI_MODE0;
+    case 1: return SPI_MODE1;
+    case 2: return SPI_MODE2;
+    case 3: return SPI_MODE3;
+    }
+  }
+
+  /// SPIClass::transfer(void*, size_t) は受信データでバッファを上書きするため、
+  /// 送信専用の転送は複製を経由して呼び出し元の入力を守る。
+  __attribute__ ((unused))
+  static inline void spiWriteBytes(SPIClass* spi, const uint8_t* data, size_t length)
+  {
+    uint8_t buf[64];
+    while (length)
+    {
+      size_t len = (length < sizeof(buf)) ? length : sizeof(buf);
+      memcpy(buf, data, len);
+      spi->transfer(buf, len);
+      data += len;
+      length -= len;
+    }
+  }
+
 //----------------------------------------------------------------------------
 
   __attribute__ ((unused))
@@ -133,45 +183,6 @@ namespace lgfx
 #endif
 
   };
-
-//----------------------------------------------------------------------------
-
-#if defined (ARDUINO) && defined (Stream_h)
-
-  struct StreamWrapper : public DataWrapper
-  {
-    void set(Stream* src, uint32_t length = ~0u) { _stream = src; _length = length; _index = 0; }
-
-    int read(uint8_t *buf, uint32_t len) override {
-      if (len > _length - _index) { len = _length - _index; }
-      _index += len;
-      return _stream->readBytes((char*)buf, len);
-    }
-    void skip(int32_t offset) override
-    {
-      if (0 >= offset) { return; }
-      _index += offset;
-      char dummy[64];
-      size_t len = ((offset - 1) & 63) + 1;
-      do
-      {
-        _stream->readBytes(dummy, len);
-        offset -= len;
-        len = 64;
-      } while (offset);
-    }
-    bool seek(uint32_t offset) override { if (offset < _index) { return false; } skip(offset - _index); return true; }
-    void close() override { }
-    int32_t tell(void) override { return _index; }
-
-  private:
-    Stream* _stream;
-    uint32_t _index;
-    uint32_t _length = 0;
-
-  };
-
-#endif
 
 //----------------------------------------------------------------------------
  }

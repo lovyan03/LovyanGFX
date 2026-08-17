@@ -87,7 +87,7 @@ namespace lgfx
       gpio_lo(_cfg.pin_dc);
     }
 
-    HardwareSPI *spi;
+    SPIClass* spi = nullptr;
     config_t _cfg;
     FlipBuffer _flip_buffer;
     bool _need_wait;

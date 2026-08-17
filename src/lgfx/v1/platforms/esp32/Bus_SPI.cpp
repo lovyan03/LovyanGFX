@@ -103,6 +103,12 @@ Contributors:
   #define DMA_OUTLINK_START_CH0      AHB_DMA_OUTLINK_START_CH0
   #define DMA_OUTFIFO_EMPTY_CH0      AHB_DMA_OUTFIFO_EMPTY_CH0
   #define SIZE_OF_DMA_OUT_CH (sizeof(AHB_DMA.channel[0]))
+  // AHB_DMA 世代のうち C5/C61 は OUT_LINK レジスタが制御ビットのみになり、
+  // ディスクリプタアドレスは別レジスタ (チャンネルごとに 4 バイト刻み) へ書く;
+  // (同じ AHB_DMA でも H4 はアドレスレジスタをチャンネルブロック内に持つため対象外)
+  #if defined (CONFIG_IDF_TARGET_ESP32C5) || defined (CONFIG_IDF_TARGET_ESP32C61)
+   #define DMA_OUT_LINK_ADDR_CH0_REG  AHB_DMA_OUT_LINK_ADDR_CH0_REG
+  #endif
  #else
   #if __has_include(<soc/gdma_struct.h>)
    #if !defined DMA_OUT_LINK_CH0_REG
@@ -224,6 +230,8 @@ namespace lgfx
       _spi_dma_outstatus_reg = reg(DMA_OUTFIFO_STATUS_CH0_REG + assigned_dma_ch * SIZE_OF_DMA_OUT_CH);
       #if defined ( CONFIG_IDF_TARGET_ESP32P4 )
       _spi_dma_out_link2_reg = reg(AXI_DMA_OUT_LINK2_CH0_REG  + assigned_dma_ch * SIZE_OF_DMA_OUT_CH);
+      #elif defined ( DMA_OUT_LINK_ADDR_CH0_REG )
+      _spi_dma_out_link2_reg = reg(DMA_OUT_LINK_ADDR_CH0_REG  + assigned_dma_ch * sizeof(uint32_t));
       #endif
     }
 #elif defined ( CONFIG_IDF_TARGET_ESP32 ) || !defined ( CONFIG_IDF_TARGET )
@@ -712,7 +720,7 @@ namespace lgfx
       if (use_dma)
       {
         auto spi_dma_out_link_reg = _spi_dma_out_link_reg;
-        #if defined ( CONFIG_IDF_TARGET_ESP32P4 )
+        #if defined ( CONFIG_IDF_TARGET_ESP32P4 ) || defined ( DMA_OUT_LINK_ADDR_CH0_REG )
         auto spi_dma_out_link2_reg = _spi_dma_out_link2_reg;
         #endif
         auto cmd = _spi_cmd_reg;
@@ -728,7 +736,7 @@ namespace lgfx
         auto dma = reg(SPI_DMA_CONF_REG(_spi_port));
         *dma = 0; /// Clear previous transfer
         uint32_t len = ((length - 1) & ((SPI_MS_DATA_BITLEN)>>3)) + 1;
-        #if defined ( CONFIG_IDF_TARGET_ESP32P4 )
+        #if defined ( CONFIG_IDF_TARGET_ESP32P4 ) || defined ( DMA_OUT_LINK_ADDR_CH0_REG )
         *spi_dma_out_link2_reg = ((uint32_t)(_dmadesc));
         *spi_dma_out_link_reg = DMA_OUTLINK_START_CH0 ;
         #else
@@ -946,7 +954,7 @@ label_start:
     *_spi_dma_out_link_reg = 0;
 
 #if defined ( SOC_GDMA_SUPPORTED ) && defined ( DMA_OUTLINK_START_CH0 )
-    #if defined ( CONFIG_IDF_TARGET_ESP32P4 )
+    #if defined ( CONFIG_IDF_TARGET_ESP32P4 ) || defined ( DMA_OUT_LINK_ADDR_CH0_REG )
     *_spi_dma_out_link2_reg = ((uint32_t)(_dmadesc));
     *_spi_dma_out_link_reg = DMA_OUTLINK_START_CH0;
     #else

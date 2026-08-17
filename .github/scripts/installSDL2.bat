@@ -1,7 +1,7 @@
 ::@echo off
 setlocal enabledelayedexpansion
 ::============================================::
-set sdlVersion=2.0.22
+set sdlVersion=2.32.10
 echo Installing SDL2-%sdlVersion%
 ::============================================::
 ::set count=1
@@ -47,7 +47,7 @@ echo Building Debug version
 echo ============================================
 
 :: build debug version
-cmake -S . -B build/debug -G "Visual Studio 17 2022" -T host=x64 -DCMAKE_INSTALL_PREFIX=%cwd%/install -DCMAKE_BUILD_TYPE=Debug -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+cmake -S . -B build/debug -T host=x64 -DCMAKE_INSTALL_PREFIX=%cwd%/install -DCMAKE_BUILD_TYPE=Debug -DCMAKE_POLICY_VERSION_MINIMUM=3.5
 cmake --build build/debug --target install
 
 echo ============================================
@@ -55,6 +55,6 @@ echo Building Release version
 echo ============================================
 
 :: build release verion
-cmake -S . -B build/release -G "Visual Studio 17 2022" -T host=x64 -DCMAKE_INSTALL_PREFIX=%cwd%/install -DCMAKE_BUILD_TYPE=Release -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+cmake -S . -B build/release -T host=x64 -DCMAKE_INSTALL_PREFIX=%cwd%/install -DCMAKE_BUILD_TYPE=Release -DCMAKE_POLICY_VERSION_MINIMUM=3.5
 cmake --build build/release --target install
 

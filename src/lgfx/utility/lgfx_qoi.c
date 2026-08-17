@@ -67,8 +67,6 @@ struct _qoi_t
   uint8_t read_buf[LGFX_QOI_READBUF_LEN];
 };
 
-#define QOI_DEBUG
-
 #ifdef QOI_DEBUG
 #define debug_printf(...) fprintf(stderr, __VA_ARGS__)
 #define QOI_ERROR(...) (fprintf(stderr, __VA_ARGS__), -2)

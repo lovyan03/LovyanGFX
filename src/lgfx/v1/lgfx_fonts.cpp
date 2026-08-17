@@ -941,7 +941,7 @@ label_nextbyte: /// 次のデータを取得する;
           if (bs->bit_pos + bpp > bs->bit_length) break;
           ret = (uint8_t)bs->read_bits(bpp);
 
-          if (bs->bit_pos != bpp && prev_v == ret)
+          if (out != 0 && prev_v == ret)
           {
             count = 0;
             state = RLE_REPEATED;
@@ -1910,11 +1910,14 @@ label_nextbyte: /// 次のデータを取得する;
     int32_t sy = 65536 * style->size_y;
     y += (metrics->y_offset * sy) >> 16;
 
-    if (code == 0x20) {
+    if (!this->getUnicodeIndex(code, &gNum)) {
+      if (code != 0x20) {
+        return drawCharDummy(gfx, x, y, this->spaceWidth, metrics->height, style, filled_x);
+      }
+      // Some VLW exporters omit the space glyph; for such fonts, keep the
+      // guessed advance instead of rendering the missing-glyph box.
       gNum = 0xFFFF;
       buffer[2] = getSwap32(this->spaceWidth);
-    } else if (!this->getUnicodeIndex(code, &gNum)) {
-      return drawCharDummy(gfx, x, y, this->spaceWidth, metrics->height, style, filled_x);
     } else {
       file->preRead();
       file->seek(28 + gNum * 28);

@@ -403,6 +403,14 @@ namespace lgfx
 
   namespace spi // TODO: implement.
   {
+// ------------------------------------------------------------------------
+// Software SPI ( soft_spi.inl ), reached through the negative host numbers.
+
+#define LGFX_INTERNAL_SOFT_SPI
+#include "../soft_spi.inl"
+
+// ------------------------------------------------------------------------
+
     static void resetSPI(SercomSpi* spi)
     {
       //Setting the Software Reset bit to 1
@@ -414,6 +422,7 @@ namespace lgfx
 
     cpp::result<void, error_t> init(int sercom_index, int pin_sclk, int pin_miso, int pin_mosi)
     {
+      if (sercom_index < 0) { return soft_spi_init(sercom_index, pin_sclk, pin_miso, pin_mosi); }
       if ((size_t)sercom_index >= SERCOM_INST_NUM) { return cpp::fail(error_t::invalid_arg); }
 
       int dopo = -1;
@@ -478,6 +487,7 @@ auto mastermode = SERCOM_SPI_CTRLA_MODE_SPI_MASTER;
 
     void release(int sercom_index)
     {
+      if (sercom_index < 0) { soft_spi_release(sercom_index); return; }
       if ((size_t)sercom_index >= SERCOM_INST_NUM) { return; }
 
       auto sercom_data = samd51::getSercomData(sercom_index);
@@ -501,6 +511,7 @@ auto mastermode = SERCOM_SPI_CTRLA_MODE_SPI_MASTER;
 
     void beginTransaction(int sercom_index, uint32_t freq, int spi_mode)
     {
+      if (sercom_index < 0) { soft_spi_beginTransaction(sercom_index, freq, spi_mode); return; }
       auto sercomData = samd51::getSercomData(sercom_index);
       auto sercom = reinterpret_cast<Sercom*>(sercomData->sercomPtr);
 
@@ -518,10 +529,12 @@ auto mastermode = SERCOM_SPI_CTRLA_MODE_SPI_MASTER;
 
     void endTransaction(int sercom_index)
     {
+      if (sercom_index < 0) { return; }  // a software host holds nothing to release
     }
 
     void writeBytes(int sercom_index, const uint8_t* data, size_t length)
     {
+      if (sercom_index < 0) { soft_spi_writeBytes(sercom_index, data, length); return; }
       auto sercomData = samd51::getSercomData(sercom_index);
       auto sercom = reinterpret_cast<Sercom*>(sercomData->sercomPtr);
       auto *spi = &sercom->SPI;
@@ -535,6 +548,7 @@ auto mastermode = SERCOM_SPI_CTRLA_MODE_SPI_MASTER;
 
     void readBytes(int sercom_index, uint8_t* data, size_t length)
     {
+      if (sercom_index < 0) { soft_spi_readBytes(sercom_index, data, length); return; }
       auto sercom_data = samd51::getSercomData(sercom_index);
       auto sercom = reinterpret_cast<Sercom*>(sercom_data->sercomPtr);
       auto *spi = &sercom->SPI;
@@ -553,6 +567,14 @@ auto mastermode = SERCOM_SPI_CTRLA_MODE_SPI_MASTER;
 
   namespace i2c // TODO: implement.
   {
+// ------------------------------------------------------------------------
+// Software I2C ( soft_i2c.inl ), reached through the negative port numbers.
+
+#define LGFX_INTERNAL_SOFT_I2C
+#include "../soft_i2c.inl"
+
+// ------------------------------------------------------------------------
+
     struct i2c_context_t
     {
       enum state_t
@@ -586,6 +608,11 @@ auto mastermode = SERCOM_SPI_CTRLA_MODE_SPI_MASTER;
 
     cpp::result<void, error_t> init(int sercom_index, int pin_sda, int pin_scl)
     {
+      if (sercom_index < 0)
+      {
+        auto res = soft_i2c_setPins(sercom_index, pin_sda, pin_scl);
+        return res.has_error() ? res : soft_i2c_init(sercom_index);
+      }
       if ((size_t)sercom_index >= SERCOM_INST_NUM) { return cpp::fail(error_t::invalid_arg); }
 
       int pad_sda;
@@ -643,6 +670,7 @@ auto mastermode = SERCOM_SPI_CTRLA_MODE_SPI_MASTER;
 
     cpp::result<void, error_t> release(int sercom_index)
     {
+      if (sercom_index < 0) { return soft_i2c_release(sercom_index); }
       if ((size_t)sercom_index >= SERCOM_INST_NUM) { return cpp::fail(error_t::invalid_arg); }
 
       auto sercomData = samd51::getSercomData(sercom_index);
@@ -663,6 +691,7 @@ auto mastermode = SERCOM_SPI_CTRLA_MODE_SPI_MASTER;
 
     cpp::result<void, error_t> restart(int sercom_index, int i2c_addr, uint32_t freq, bool read)
     {
+      if (sercom_index < 0) { return soft_i2c_restart(sercom_index, i2c_addr, freq, read); }
       if ((size_t)sercom_index >= SERCOM_INST_NUM) { return cpp::fail(error_t::invalid_arg); }
 
       auto sercomData = samd51::getSercomData(sercom_index);
@@ -770,6 +799,7 @@ Serial.println("restart:ok");
 
     cpp::result<void, error_t> beginTransaction(int sercom_index, int i2c_addr, uint32_t freq, bool read)
     {
+      if (sercom_index < 0) { return soft_i2c_beginTransaction(sercom_index, i2c_addr, freq, read); }
       if ((size_t)sercom_index >= SERCOM_INST_NUM) { return cpp::fail(error_t::invalid_arg); }
 /*
       auto sercomData = samd51::getSercomData(sercom_index);
@@ -827,6 +857,7 @@ Serial.println("restart:ok");
 
     cpp::result<void, error_t> endTransaction(int sercom_index)
     {
+      if (sercom_index < 0) { return soft_i2c_endTransaction(sercom_index); }
       return i2c_wait(sercom_index, true);
 
 /*
@@ -845,6 +876,7 @@ Serial.println("restart:ok");
 
     cpp::result<void, error_t> writeBytes(int sercom_index, const uint8_t *data, size_t length)
     {
+      if (sercom_index < 0) { return soft_i2c_writeBytes(sercom_index, data, length); }
       if ((size_t)sercom_index >= SERCOM_INST_NUM) { return cpp::fail(error_t::invalid_arg); }
 
       auto sercomData = samd51::getSercomData(sercom_index);
@@ -863,8 +895,9 @@ Serial.println("restart:ok");
       return res;
     }
 
-    cpp::result<void, error_t> readBytes(int sercom_index, uint8_t *data, size_t length, bool last_nack = false)
+    cpp::result<void, error_t> readBytes(int sercom_index, uint8_t *data, size_t length, bool last_nack)
     {
+      if (sercom_index < 0) { return soft_i2c_readBytes(sercom_index, data, length, last_nack); }
       if ((size_t)sercom_index >= SERCOM_INST_NUM) { return cpp::fail(error_t::invalid_arg); }
 
       auto res = i2c_wait(sercom_index);
@@ -938,7 +971,7 @@ Serial.println("read fail");
     {
       cpp::result<void, error_t> res;
       if ((res = beginTransaction(sercom_index, addr, freq, true)).has_value()
-       && (res = readBytes(sercom_index, readdata, readlen)).has_value()
+       && (res = readBytes(sercom_index, readdata, readlen, true)).has_value()
       )
       {
         res = endTransaction(sercom_index);
@@ -952,7 +985,7 @@ Serial.println("read fail");
       if ((res = beginTransaction(sercom_index, addr, freq, false)).has_value()
        && (res = writeBytes(sercom_index, writedata, writelen)).has_value()
        && (res = restart(sercom_index, addr, freq, true)).has_value()
-       && (res = readBytes(sercom_index, readdata, readlen)).has_value()
+       && (res = readBytes(sercom_index, readdata, readlen, true)).has_value()
       )
       {
         res = endTransaction(sercom_index);

@@ -64,50 +64,83 @@ namespace lgfx
 
 //----------------------------------------------------------------------------
 
-  /// unimplemented.
   namespace spi
   {
-    HardwareSPI *spi;
-    cpp::result<void, error_t> init(int spi_host, int spi_sclk, int spi_miso, int spi_mosi)  {
-      cpp::result<void, error_t> res = {};
-      spi = new HardwareSPI(spi_host);
-      spi->begin();
-      return res; }
-    void release(int spi_host) {}
-    void beginTransaction(int spi_host, uint32_t freq, int spi_mode) {
-      SPISettings setting(freq, MSBFIRST, SPI_MODE0);
-      spi->beginTransaction(setting);
+// ------------------------------------------------------------------------
+// Software SPI ( soft_spi.inl ), reached through the negative host numbers.
+
+#define LGFX_INTERNAL_SOFT_SPI
+#include "../soft_spi.inl"
+
+// ------------------------------------------------------------------------
+
+    /// ピン割り当ては Arduino の SPI ライブラリが持つ既定に従う。
+    static SPIClass* _spi_instance = nullptr;
+
+    cpp::result<void, error_t> init(int spi_host, int spi_sclk, int spi_miso, int spi_mosi)
+    {
+      if (spi_host < 0) { return soft_spi_init(spi_host, spi_sclk, spi_miso, spi_mosi); }
+      _spi_instance = getSPIInstance(spi_host);
+      _spi_instance->begin();
+      return {};
     }
-    void endTransaction(int spi_host) {spi->endTransaction();}
-    void writeBytes(int spi_host, const uint8_t* data, size_t length) {}
-    void readBytes(int spi_host, uint8_t* data, size_t length) {spi->transfer(data, length);}  }
+    void release(int spi_host)
+    {
+      if (spi_host < 0) { soft_spi_release(spi_host); return; }
+      if (_spi_instance == nullptr) { return; }
+      _spi_instance->end();
+      _spi_instance = nullptr;
+    }
+    void beginTransaction(int spi_host, uint32_t freq, int spi_mode)
+    {
+      if (spi_host < 0) { soft_spi_beginTransaction(spi_host, freq, spi_mode); return; }
+      if (_spi_instance == nullptr) { return; }
+      SPISettings setting(freq, MSBFIRST, getSPIDataMode(spi_mode));
+      _spi_instance->beginTransaction(setting);
+    }
+    void endTransaction(int spi_host)
+    {
+      if (spi_host < 0) { return; }  // a software host holds nothing to release
+      if (_spi_instance == nullptr) { return; }
+      _spi_instance->endTransaction();
+    }
+    void writeBytes(int spi_host, const uint8_t* data, size_t length)
+    {
+      if (spi_host < 0) { soft_spi_writeBytes(spi_host, data, length); return; }
+      if (_spi_instance == nullptr) { return; }
+      spiWriteBytes(_spi_instance, data, length);
+    }
+    void readBytes(int spi_host, uint8_t* data, size_t length)
+    {
+      if (spi_host < 0) { soft_spi_readBytes(spi_host, data, length); return; }
+      if (_spi_instance == nullptr) { return; }
+      _spi_instance->transfer(data, length);
+    }
+  }
 
 //----------------------------------------------------------------------------
 
 
   namespace i2c
   {
+// ------------------------------------------------------------------------
+// Software I2C ( soft_i2c.inl ), reached through the negative port numbers.
+
+#define LGFX_INTERNAL_SOFT_I2C
+#include "../soft_i2c.inl"
+
+// ------------------------------------------------------------------------
+
 #ifdef TwoWire_h
-    cpp::result<void, error_t> init(int i2c_port, int pin_sda, int pin_scl) { Wire.begin(); return {};}
-    cpp::result<void, error_t> release(int i2c_port) { Wire.end(); return {};}
-    cpp::result<void, error_t> restart(int i2c_port, int i2c_addr, uint32_t freq, bool read) {  Wire.endTransmission(true); Wire.beginTransmission(i2c_addr); return {};}
-    cpp::result<void, error_t> beginTransaction(int i2c_port, int i2c_addr, uint32_t freq, bool read) { Wire.beginTransmission(i2c_addr); return {};}
-    cpp::result<void, error_t> endTransaction(int i2c_port) { Wire.endTransmission(true); return {};}
-    cpp::result<void, error_t> writeBytes(int i2c_port, const uint8_t *data, size_t length) { Wire.write(data, length); return {};}
-    cpp::result<void, error_t> readBytes(int i2c_port, uint8_t *data, size_t length)
-      {
-        Wire.readBytes((char *)data, (size_t)length);
-        /*
-        printf("0x");
-        for (int i=0; i< length; i++) {
-          printf("%02x ", data[i]);
-        }
-        printf("\n");
-        */
-        return {};
-      }
+    cpp::result<void, error_t> init(int i2c_port, int pin_sda, int pin_scl) { if (i2c_port < 0) { auto res = soft_i2c_setPins(i2c_port, pin_sda, pin_scl); return res.has_error() ? res : soft_i2c_init(i2c_port); } Wire.begin(); return {};}
+    cpp::result<void, error_t> release(int i2c_port) { if (i2c_port < 0) { return soft_i2c_release(i2c_port); } Wire.end(); return {};}
+    cpp::result<void, error_t> restart(int i2c_port, int i2c_addr, uint32_t freq, bool read) { if (i2c_port < 0) { return soft_i2c_restart(i2c_port, i2c_addr, freq, read); } Wire.endTransmission(true); Wire.beginTransmission(i2c_addr); return {};}
+    cpp::result<void, error_t> beginTransaction(int i2c_port, int i2c_addr, uint32_t freq, bool read) { if (i2c_port < 0) { return soft_i2c_beginTransaction(i2c_port, i2c_addr, freq, read); } Wire.beginTransmission(i2c_addr); return {};}
+    cpp::result<void, error_t> endTransaction(int i2c_port) { if (i2c_port < 0) { return soft_i2c_endTransaction(i2c_port); } Wire.endTransmission(true); return {};}
+    cpp::result<void, error_t> writeBytes(int i2c_port, const uint8_t *data, size_t length) { if (i2c_port < 0) { return soft_i2c_writeBytes(i2c_port, data, length); } Wire.write(data, length); return {};}
     cpp::result<void, error_t> readBytes(int i2c_port, uint8_t *data, size_t length, bool last_nack)
     {
+      if (i2c_port < 0) { return soft_i2c_readBytes(i2c_port, data, length, last_nack); }
       Wire.readBytes((char *)data, (size_t)length);
       /*
       printf("0x");
@@ -130,7 +163,7 @@ namespace lgfx
 
     cpp::result<void, error_t> transactionRead(int i2c_port, int addr, uint8_t *readdata, uint8_t readlen, uint32_t freq)  {
       cpp::result<void, error_t> res;
-      if ((res = beginTransaction(i2c_port, addr, freq, false)).has_value() && (res = readBytes(i2c_port, readdata, readlen)).has_value())
+      if ((res = beginTransaction(i2c_port, addr, freq, true)).has_value() && (res = readBytes(i2c_port, readdata, readlen, true)).has_value())
       {
         res = endTransaction(i2c_port);
       }
@@ -140,7 +173,7 @@ namespace lgfx
     cpp::result<void, error_t> transactionWriteRead(int i2c_port, int addr, const uint8_t *writedata, uint8_t writelen, uint8_t *readdata, size_t readlen, uint32_t freq)  {
       cpp::result<void, error_t> res;
       if ((res = beginTransaction(i2c_port, addr, freq, false)).has_value() && (res = writeBytes(i2c_port, writedata, writelen)).has_value() &&
-      (res = restart(i2c_port, addr, freq, false)).has_value() && (res = readBytes(i2c_port, readdata, readlen)).has_value())
+      (res = restart(i2c_port, addr, freq, true)).has_value() && (res = readBytes(i2c_port, readdata, readlen, true)).has_value())
       {
         res = endTransaction(i2c_port);
       }
@@ -171,23 +204,73 @@ namespace lgfx
      }
 
      #else
-    cpp::result<void, error_t> init(int i2c_port, int pin_sda, int pin_scl) { return cpp::fail(error_t::unknown_err); }
-    cpp::result<void, error_t> release(int i2c_port) { return cpp::fail(error_t::unknown_err); }
-    cpp::result<void, error_t> restart(int i2c_port, int i2c_addr, uint32_t freq, bool read) { return cpp::fail(error_t::unknown_err); }
-    cpp::result<void, error_t> beginTransaction(int i2c_port, int i2c_addr, uint32_t freq, bool read) { return cpp::fail(error_t::unknown_err); }
-    cpp::result<void, error_t> endTransaction(int i2c_port) { return cpp::fail(error_t::unknown_err); }
-    cpp::result<void, error_t> writeBytes(int i2c_port, const uint8_t *data, size_t length) { return cpp::fail(error_t::unknown_err); }
-    cpp::result<void, error_t> readBytes(int i2c_port, uint8_t *data, size_t length) { return cpp::fail(error_t::unknown_err); }
-    cpp::result<void, error_t> readBytes(int i2c_port, uint8_t *data, size_t length, bool last_nack) { return cpp::fail(error_t::unknown_err); }
+    cpp::result<void, error_t> init(int i2c_port, int pin_sda, int pin_scl) { if (i2c_port < 0) { auto res = soft_i2c_setPins(i2c_port, pin_sda, pin_scl); return res.has_error() ? res : soft_i2c_init(i2c_port); } return cpp::fail(error_t::unknown_err); }
+    cpp::result<void, error_t> release(int i2c_port) { if (i2c_port < 0) { return soft_i2c_release(i2c_port); } return cpp::fail(error_t::unknown_err); }
+    cpp::result<void, error_t> restart(int i2c_port, int i2c_addr, uint32_t freq, bool read) { if (i2c_port < 0) { return soft_i2c_restart(i2c_port, i2c_addr, freq, read); } return cpp::fail(error_t::unknown_err); }
+    cpp::result<void, error_t> beginTransaction(int i2c_port, int i2c_addr, uint32_t freq, bool read) { if (i2c_port < 0) { return soft_i2c_beginTransaction(i2c_port, i2c_addr, freq, read); } return cpp::fail(error_t::unknown_err); }
+    cpp::result<void, error_t> endTransaction(int i2c_port) { if (i2c_port < 0) { return soft_i2c_endTransaction(i2c_port); } return cpp::fail(error_t::unknown_err); }
+    cpp::result<void, error_t> writeBytes(int i2c_port, const uint8_t *data, size_t length) { if (i2c_port < 0) { return soft_i2c_writeBytes(i2c_port, data, length); } return cpp::fail(error_t::unknown_err); }
+    cpp::result<void, error_t> readBytes(int i2c_port, uint8_t *data, size_t length, bool last_nack) { if (i2c_port < 0) { return soft_i2c_readBytes(i2c_port, data, length, last_nack); } return cpp::fail(error_t::unknown_err); }
 
 //--------
+// The negative (software) ports reach these through the primitives above, the
+// same way a hardware port does; a fail from beginTransaction on a hardware
+// port keeps the external behavior unchanged.
 
-    cpp::result<void, error_t> transactionWrite(int i2c_port, int addr, const uint8_t *writedata, uint8_t writelen, uint32_t freq)  { return cpp::fail(error_t::unknown_err); }
-    cpp::result<void, error_t> transactionRead(int i2c_port, int addr, uint8_t *readdata, uint8_t readlen, uint32_t freq)  { return cpp::fail(error_t::unknown_err); }
-    cpp::result<void, error_t> transactionWriteRead(int i2c_port, int addr, const uint8_t *writedata, uint8_t writelen, uint8_t *readdata, size_t readlen, uint32_t freq)  { return cpp::fail(error_t::unknown_err); }
+    cpp::result<void, error_t> transactionWrite(int i2c_port, int addr, const uint8_t *writedata, uint8_t writelen, uint32_t freq)
+    {
+      cpp::result<void, error_t> res;
+      if ((res = beginTransaction(i2c_port, addr, freq, false)).has_value())
+      {
+        res = writeBytes(i2c_port, writedata, writelen);
+      }
+      auto last = endTransaction(i2c_port);
+      return res.has_error() ? res : last;
+    }
 
-    cpp::result<uint8_t, error_t> readRegister8(int i2c_port, int addr, uint8_t reg, uint32_t freq)  { return cpp::fail(error_t::unknown_err); }
-    cpp::result<void, error_t> writeRegister8(int i2c_port, int addr, uint8_t reg, uint8_t data, uint8_t mask, uint32_t freq)  { return cpp::fail(error_t::unknown_err); }
+    cpp::result<void, error_t> transactionRead(int i2c_port, int addr, uint8_t *readdata, uint8_t readlen, uint32_t freq)
+    {
+      cpp::result<void, error_t> res;
+      if ((res = beginTransaction(i2c_port, addr, freq, true)).has_value())
+      {
+        res = readBytes(i2c_port, readdata, readlen, true);
+      }
+      auto last = endTransaction(i2c_port);
+      return res.has_error() ? res : last;
+    }
+
+    cpp::result<void, error_t> transactionWriteRead(int i2c_port, int addr, const uint8_t *writedata, uint8_t writelen, uint8_t *readdata, size_t readlen, uint32_t freq)
+    {
+      cpp::result<void, error_t> res;
+      if ((res = beginTransaction(i2c_port, addr, freq, false)).has_value()
+       && (res = writeBytes(i2c_port, writedata, writelen)).has_value()
+       && (res = restart(i2c_port, addr, freq, true)).has_value()
+      )
+      {
+        res = readBytes(i2c_port, readdata, readlen, true);
+      }
+      auto last = endTransaction(i2c_port);
+      return res.has_error() ? res : last;
+    }
+
+    cpp::result<uint8_t, error_t> readRegister8(int i2c_port, int addr, uint8_t reg, uint32_t freq)
+    {
+      auto res = transactionWriteRead(i2c_port, addr, &reg, 1, &reg, 1, freq);
+      if (res.has_value()) { return reg; }
+      return cpp::fail( res.error() );
+    }
+
+    cpp::result<void, error_t> writeRegister8(int i2c_port, int addr, uint8_t reg, uint8_t data, uint8_t mask, uint32_t freq)
+    {
+      uint8_t tmp[2] = { reg, data };
+      if (mask)
+      {
+        auto res = transactionWriteRead(i2c_port, addr, &reg, 1, &tmp[1], 1, freq);
+        if (res.has_error()) { return res; }
+        tmp[1] = (tmp[1] & mask) | data;
+      }
+      return transactionWrite(i2c_port, addr, tmp, 2, freq);
+    }
 #endif
   }
 

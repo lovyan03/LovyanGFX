@@ -36,7 +36,12 @@
 $hardcoded_fqbns = [/*'esp32@4.3.6', 'esp32@4.1.4'*/];
 
 // restrict output to these idf targets, other targets will be ignored
-$idf_boards     = ['esp32', 'esp32s2', 'esp32s3', 'esp32c6', 'esp32c3', 'esp32p4'/*, 'esp32h2', 'esp32c5'*/];
+$idf_boards     = ['esp32', 'esp32s2', 'esp32s3', 'esp32c2', 'esp32c3', 'esp32c5', 'esp32c6', 'esp32c61', 'esp32p4', 'esp32h2'];
+
+// matrix mode, selected by the workflow through the IDF_MATRIX_MODE env var:
+//   'quick' = representative versions only (oldest current + newest of each major release)
+//   'full'  = every current version (scheduled runs, manual dispatch)
+$matrix_mode = getenv('IDF_MATRIX_MODE') ?: 'full';
 
 // get the official support matrix from the espressif website
 // it contains a JavaScript object declaration with all necessary chip/version informations
@@ -50,7 +55,8 @@ $idf_versions_json = JsConverter::convertToArray( $js );
 isset($idf_versions_json['VERSIONS']) or php_die("invalid JSON in ".$idf_versions_js_url);
 !empty($idf_versions_json['VERSIONS']) or php_die("no VERSIONS found in ".$idf_versions_js_url);
 
-$fqbns = [];
+// collect the current versions first: [version name => supported targets]
+$versions = [];
 
 foreach($idf_versions_json['VERSIONS'] as $version)
 {
@@ -59,22 +65,48 @@ foreach($idf_versions_json['VERSIONS'] as $version)
   if($version['old']!=='false')
     continue; // only keep current versions
 
-  foreach($version['supported_targets'] as $board)
-  {
-    if(in_array($board, $idf_boards)) // only keep supported targets
-    {
-      // e.g. esp32@5.2.1
-      $fqbns[] = $board.'@'.str_replace(["v","V"], "", $version['name']);
-    }
-  }
-
+  $name = str_replace(["v","V"], "", $version['name']);
+  $versions[$name] = array_unique( array_merge( $versions[$name] ?? [], $version['supported_targets'] ) );
 }
 
-// merge collected fqbns with hardcoded fqbns
-array_push($fqbns, ...$hardcoded_fqbns);
+!empty($versions) or php_die("no current versions found in ".$idf_versions_js_url);
+uksort($versions, 'version_compare');
+
+// sanity check: the feed has covered at least two major releases so far.
+// If it shrinks to one (e.g. newer majors move to a different distribution
+// channel), fail loudly instead of letting the matrix lose coverage silently.
+$majors = array_unique(array_map(fn($name) => explode('.', $name)[0], array_keys($versions)));
+count($majors) >= 2 or php_die("idf_versions.js only lists major release(s) [".implode(', ', $majors)."] — the version source may no longer cover newer majors, please review");
+
+if($matrix_mode !== 'full')
+{
+  // quick mode: keep the oldest current version (backward compatibility floor)
+  // plus the newest version of each major release (latest 5.x, latest 6.x, ...)
+  $keep = [ array_key_first($versions) => true ];
+  $newest_per_major = [];
+  foreach(array_keys($versions) as $name)
+    $newest_per_major[ explode('.', $name)[0] ] = $name; // ascending order, so the last write wins
+  foreach($newest_per_major as $name)
+    $keep[$name] = true;
+  $versions = array_intersect_key($versions, $keep);
+}
+
+// build the matrix entries, keyed by fqbn so duplicates collapse
+$entries = [];
+foreach($versions as $name => $targets)
+  foreach($targets as $board)
+    if(in_array($board, $idf_boards)) // only keep supported targets
+      $entries[$board.'@'.$name] = [ 'target' => $board, 'idf' => $name ];
+
+// merge with hardcoded fqbns (e.g. 'esp32@4.3.6')
+foreach($hardcoded_fqbns as $fqbn)
+{
+  [$board, $name] = explode('@', $fqbn);
+  $entries[$fqbn] = [ 'target' => $board, 'idf' => $name ];
+}
 
 // print the json and exit
-php_die( json_encode( [ "esp-idf-fqbn" => $fqbns ], JSON_PRETTY_PRINT ), 0 );
+php_die( json_encode( [ "include" => array_values($entries) ], JSON_PRETTY_PRINT ), 0 );
 
 // same as die() with with end of line
 function php_die($msg, $errcode=1)

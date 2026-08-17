@@ -19,6 +19,9 @@ Contributors:
 #include <sdkconfig.h>
 
 #include "Light_PWM.hpp"
+#include "common.hpp"
+
+#include <driver/gpio.h>
 
 #if defined ( ARDUINO )
  #include <esp32-hal-ledc.h>
@@ -26,9 +29,32 @@ Contributors:
   #include <esp_arduino_version.h>
  #endif
 #else
- #include <driver/gpio.h>
  #include <driver/ledc.h>
 #endif
+
+#if defined ( ARDUINO )
+
+ #if defined ESP_ARDUINO_VERSION // use ledc* functions shipped with arduino-esp32 core
+  #if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 0)
+   #define LGFX_LEDCINIT(pin_bl, freq, bits, pwm_channel) ledcAttach(pin_bl, freq, bits)
+   #define LGFX_LEDCWRITE(pin_bl, pwm_channel, duty) ledcWrite(pin_bl, duty)
+  #endif
+ #endif
+ #if !defined LGFX_LEDCINIT // pre-3.x cores, including 1.x where ESP_ARDUINO_VERSION is absent
+  #define LGFX_LEDCINIT(pin_bl, freq, bits, pwm_channel) ( ledcSetup(pwm_channel, freq, bits) > 0 && (ledcAttachPin(pin_bl, pwm_channel), true) )
+  #define LGFX_LEDCWRITE(pin_bl, pwm_channel, duty) ledcWrite(pwm_channel, duty)
+ #endif
+
+#else // esp-idf
+
+  #if SOC_LEDC_SUPPORT_HS_MODE
+    #define LGFX_LEDC_SPEED_MODE LEDC_HIGH_SPEED_MODE
+  #else
+    #define LGFX_LEDC_SPEED_MODE LEDC_LOW_SPEED_MODE
+  #endif
+
+#endif
+
 
 namespace lgfx
 {
@@ -41,62 +67,53 @@ namespace lgfx
 
   bool Light_PWM::init(uint8_t brightness)
   {
+    if ((size_t)_cfg.pin_bl >= GPIO_NUM_MAX || !GPIO_IS_VALID_OUTPUT_GPIO((gpio_num_t)_cfg.pin_bl))
+    {
+      return false;
+    }
+
+    // The LEDC driver does not fully normalize the pad state: the open-drain
+    // flag is never cleared, and ESP-IDF v6 no longer selects the GPIO
+    // function in IO_MUX. Reconfigure the pin as a push-pull GPIO output
+    // first, latching it to the "off" level to avoid a visible glitch.
+    if (_cfg.invert) { gpio_hi(_cfg.pin_bl); } else { gpio_lo(_cfg.pin_bl); }
+    lgfx::pinMode(_cfg.pin_bl, pin_mode_t::output);
 
 #if defined ( ARDUINO )
 
-#if defined ESP_ARDUINO_VERSION
-  #if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 0)
-    #define LEDC_USE_IDF_V5 // esp32-arduino core 3.x.x uses the new ledC syntax
-  #endif
-  #if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(6, 0, 0)
-    #define LEDC_USE_IDF_V6 // esp32-arduino core 6.x.x
-  #endif
-#endif
+    bool result = LGFX_LEDCINIT(_cfg.pin_bl, _cfg.freq, PWM_BITS, _cfg.pwm_channel);
 
-#if defined LEDC_USE_IDF_V5
-    ledcAttach(_cfg.pin_bl, _cfg.freq, PWM_BITS);
-    setBrightness(brightness);
-#else
-    ledcSetup(_cfg.pwm_channel, _cfg.freq, PWM_BITS);
-    ledcAttachPin(_cfg.pin_bl, _cfg.pwm_channel);
-    setBrightness(brightness);
-#endif
-#else
+#else // esp-idf
 
     static ledc_channel_config_t ledc_channel;
     {
      ledc_channel.gpio_num   = (gpio_num_t)_cfg.pin_bl;
-#if SOC_LEDC_SUPPORT_HS_MODE
-     ledc_channel.speed_mode = LEDC_HIGH_SPEED_MODE;
-#else
-     ledc_channel.speed_mode = LEDC_LOW_SPEED_MODE;
-#endif
+     ledc_channel.speed_mode = LGFX_LEDC_SPEED_MODE;
      ledc_channel.channel    = (ledc_channel_t)_cfg.pwm_channel;
-#if !defined LEDC_USE_IDF_V6  // ledc_channel_config_t.intr_type is deprecated, no need to explicitly configure interrupt, handled in the driver
-     ledc_channel.intr_type  = LEDC_INTR_DISABLE;
-#endif
      ledc_channel.timer_sel  = (ledc_timer_t)((_cfg.pwm_channel >> 1) & 3);
      ledc_channel.duty       = _cfg.invert ? (1 << PWM_BITS) : 0;
      ledc_channel.hpoint     = 0;
+ #if defined ESP_IDF_VERSION_VAL
+  // when ledc_channel_config_t.intr_type is deprecated, no need to explicitly configure interrupt, handled in the driver
+  #if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(6, 0, 0)
+     ledc_channel.intr_type  = LEDC_INTR_DISABLE;
+  #endif
+ #endif
     };
-    ledc_channel_config(&ledc_channel);
+    bool result = (ESP_OK == ledc_channel_config(&ledc_channel));
     static ledc_timer_config_t ledc_timer;
     {
-#if SOC_LEDC_SUPPORT_HS_MODE
-      ledc_timer.speed_mode = LEDC_HIGH_SPEED_MODE;     // timer mode
-#else
-      ledc_timer.speed_mode = LEDC_LOW_SPEED_MODE;
-#endif
+      ledc_timer.speed_mode = LGFX_LEDC_SPEED_MODE;     // timer mode
       ledc_timer.duty_resolution = (ledc_timer_bit_t)PWM_BITS; // resolution of PWM duty
       ledc_timer.freq_hz = _cfg.freq;                        // frequency of PWM signal
       ledc_timer.timer_num = ledc_channel.timer_sel;    // timer index
     };
-    ledc_timer_config(&ledc_timer);
-
-    setBrightness(brightness);
+    result = (ESP_OK == ledc_timer_config(&ledc_timer)) && result;
 
 #endif
 
+    if (!result) { return false; }
+    setBrightness(brightness);
     return true;
   }
 
@@ -115,17 +132,14 @@ namespace lgfx
     if (_cfg.invert) duty = (1 << PWM_BITS) - duty;
 
 #if defined ( ARDUINO )
-#if defined LEDC_USE_IDF_V5
-      ledcWrite(_cfg.pin_bl, duty);
-#else
-      ledcWrite(_cfg.pwm_channel, duty);
-#endif
-#elif SOC_LEDC_SUPPORT_HS_MODE
-      ledc_set_duty(LEDC_HIGH_SPEED_MODE, (ledc_channel_t)_cfg.pwm_channel, duty);
-      ledc_update_duty(LEDC_HIGH_SPEED_MODE, (ledc_channel_t)_cfg.pwm_channel);
-#else
-      ledc_set_duty(LEDC_LOW_SPEED_MODE, (ledc_channel_t)_cfg.pwm_channel, duty);
-      ledc_update_duty(LEDC_LOW_SPEED_MODE, (ledc_channel_t)_cfg.pwm_channel);
+
+    LGFX_LEDCWRITE(_cfg.pin_bl, _cfg.pwm_channel, duty);
+
+#else // esp-idf
+
+    ledc_set_duty(LGFX_LEDC_SPEED_MODE, (ledc_channel_t)_cfg.pwm_channel, duty);
+    ledc_update_duty(LGFX_LEDC_SPEED_MODE, (ledc_channel_t)_cfg.pwm_channel);
+
 #endif
   }
 

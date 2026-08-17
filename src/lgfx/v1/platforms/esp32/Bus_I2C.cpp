@@ -21,34 +21,11 @@ Contributors:
 #include "Bus_I2C.hpp"
 #include "../../misc/pixelcopy.hpp"
 
-#include <soc/i2c_struct.h>
-#include <type_traits>
-
 namespace lgfx
 {
  inline namespace v1
  {
 //----------------------------------------------------------------------------
-
-  // status_reg メンバーの存在を検出
-  template <typename T, typename = void>
-  struct has_status_reg : std::false_type {};
-
-  template <typename T>
-  struct has_status_reg<T, decltype(void(std::declval<T&>().status_reg))> : std::true_type {};
-
-  // bus_busy 取得
-  template <typename T>
-  static inline typename std::enable_if<has_status_reg<T>::value, bool>::type
-  i2c_dev_bus_busy(const T& dev) {
-      return dev.status_reg.bus_busy;
-  }
-
-  template <typename T>
-  static inline typename std::enable_if<!has_status_reg<T>::value, bool>::type
-  i2c_dev_bus_busy(const T& dev) {
-      return dev.sr.bus_busy;
-  }
 
   void Bus_I2C::config(const config_t& config)
   {
@@ -119,24 +96,12 @@ namespace lgfx
 
   void Bus_I2C::wait(void)
   {
-#if I2C_NUM_MAX > 1
-    auto dev = (_cfg.i2c_port == 0) ? &I2C0 : &I2C1;
-#else
-    auto dev = &I2C0;
-#endif
-
-    while (i2c_dev_bus_busy(*dev)) { taskYIELD(); }
+    lgfx::i2c::wait(_cfg.i2c_port);
   }
 
   bool Bus_I2C::busy(void) const
   {
-#if I2C_NUM_MAX > 1
-    auto dev = (_cfg.i2c_port == 0) ? &I2C0 : &I2C1;
-#else
-    auto dev = &I2C0;
-#endif
-
-    return i2c_dev_bus_busy(*dev);
+    return lgfx::i2c::busy(_cfg.i2c_port);
   }
 
   void Bus_I2C::dc_control(bool dc)
