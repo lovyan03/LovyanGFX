@@ -38,6 +38,17 @@ Contributors:
 #include <driver/rtc_io.h>
 #include <soc/rtc.h>
 #include <soc/soc.h>
+#if defined ( CONFIG_IDF_TARGET_ESP32P4 )
+ #include <soc/hp_sys_clkrst_reg.h>
+#elif defined ( CONFIG_IDF_TARGET_ESP32C5 ) || defined ( CONFIG_IDF_TARGET_ESP32C6 ) \
+   || defined ( CONFIG_IDF_TARGET_ESP32C61 ) || defined ( CONFIG_IDF_TARGET_ESP32H2 )
+ #include <soc/pcr_reg.h>
+#endif
+#if __has_include(<esp_clk_tree.h>) && __has_include(<soc/clk_tree_defs.h>)
+ #include <esp_clk_tree.h>
+ #include <soc/clk_tree_defs.h>
+ #define LGFX_HAS_ESP_CLK_TREE
+#endif
 #include <soc/i2c_reg.h>
 #include <soc/i2c_struct.h>
 #if (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 3, 0))
@@ -268,12 +279,139 @@ namespace lgfx
     #endif
   }
 
+  uint32_t getSpiClockFrequency(int spi_host)
+  {
+#if defined ( CONFIG_IDF_TARGET_ESP32 ) || defined ( CONFIG_IDF_TARGET_ESP32S2 ) \
+ || !defined ( CONFIG_IDF_TARGET )
+    (void)spi_host;
+    return getApbFrequency();
+#else
+    const auto get_xtal_frequency = []() -> uint32_t
+    {
+      return static_cast<uint32_t>(rtc_clk_xtal_freq_get()) * 1000000u;
+    };
+    const auto get_rc_fast_frequency = []() -> uint32_t
+    {
+#if defined ( LGFX_HAS_ESP_CLK_TREE ) && defined ( SOC_MOD_CLK_RC_FAST )
+      uint32_t frequency = 0;
+      if (ESP_OK == esp_clk_tree_src_get_freq_hz(SOC_MOD_CLK_RC_FAST
+                   , ESP_CLK_TREE_SRC_FREQ_PRECISION_APPROX, &frequency) && frequency)
+      {
+        return frequency;
+      }
+#endif
+#if defined ( SOC_CLK_RC_FAST_FREQ_APPROX )
+      return SOC_CLK_RC_FAST_FREQ_APPROX;
+#else
+      return 17500000u;
+#endif
+    };
+
+#if defined ( CONFIG_IDF_TARGET_ESP32S3 ) || defined ( CONFIG_IDF_TARGET_ESP32C2 ) \
+ || defined ( CONFIG_IDF_TARGET_ESP32C3 )
+    static_assert(SPI_MST_CLK_SEL_V == 1u, "SPI clock source selector must be one bit");
+    // SPI_MST_CLK_SEL is a shifted mask in the older SPI register headers;
+    // decode with the explicit value mask rather than VALUE_GET_FIELD.
+    const uint32_t source_sel = (REG_READ(SPI_CLK_GATE_REG(spi_host + 1))
+                               >> SPI_MST_CLK_SEL_S) & SPI_MST_CLK_SEL_V;
+    if (source_sel == 0) { return get_xtal_frequency(); }
+ #if defined ( CONFIG_IDF_TARGET_ESP32C2 )
+    return 40000000u;
+ #else
+    return 80000000u; // PLL_F80M is independent of CPU/APB frequency scaling.
+ #endif
+
+#elif defined ( CONFIG_IDF_TARGET_ESP32C5 ) || defined ( CONFIG_IDF_TARGET_ESP32C61 )
+    if (spi_host != SPI2_HOST) { return 160000000u; }
+    const uint32_t clkm = REG_READ(PCR_SPI2_CLKM_CONF_REG);
+    const uint32_t source_sel = VALUE_GET_FIELD(clkm, PCR_SPI2_CLKM_SEL);
+    const uint32_t source_div = VALUE_GET_FIELD(clkm, PCR_SPI2_CLKM_DIV_NUM) + 1u;
+    uint32_t source_hz;
+    switch (source_sel)
+    {
+    case 0: source_hz = get_xtal_frequency(); break;
+    case 1: source_hz = 160000000u; break;
+    case 2: source_hz = get_rc_fast_frequency(); break;
+#if defined ( CONFIG_IDF_TARGET_ESP32C5 )
+    case 3: source_hz = 120000000u; break;
+#endif
+    default: source_hz = 160000000u; break; // Safe upper bound for an unknown source.
+    }
+    return source_hz / source_div;
+
+#elif defined ( CONFIG_IDF_TARGET_ESP32C6 ) || defined ( CONFIG_IDF_TARGET_ESP32H2 )
+    if (spi_host != SPI2_HOST)
+    {
+ #if defined ( CONFIG_IDF_TARGET_ESP32C6 )
+      return 80000000u;
+ #else
+      return 48000000u;
+ #endif
+    }
+    const uint32_t clkm = REG_READ(PCR_SPI2_CLKM_CONF_REG);
+    const uint32_t source_sel = VALUE_GET_FIELD(clkm, PCR_SPI2_CLKM_SEL);
+    switch (source_sel)
+    {
+    case 0: return get_xtal_frequency();
+ #if defined ( CONFIG_IDF_TARGET_ESP32C6 )
+    case 1: return 80000000u;
+ #else
+    case 1: return 48000000u;
+ #endif
+    case 2: return get_rc_fast_frequency();
+    default:
+ #if defined ( CONFIG_IDF_TARGET_ESP32C6 )
+      return 80000000u; // Safe upper bound for an unknown source.
+ #else
+      return 48000000u; // Safe upper bound for an unknown source.
+ #endif
+    }
+
+#elif defined ( CONFIG_IDF_TARGET_ESP32P4 )
+    const uint32_t ctrl116 = REG_READ(HP_SYS_CLKRST_PERI_CLK_CTRL116_REG);
+    uint32_t source_sel;
+    uint32_t hs_div;
+    uint32_t mst_div;
+    if (spi_host == SPI2_HOST)
+    {
+      source_sel = VALUE_GET_FIELD(ctrl116, HP_SYS_CLKRST_REG_GPSPI2_CLK_SRC_SEL);
+      hs_div = VALUE_GET_FIELD(ctrl116, HP_SYS_CLKRST_REG_GPSPI2_HS_CLK_DIV_NUM);
+      mst_div = VALUE_GET_FIELD(ctrl116, HP_SYS_CLKRST_REG_GPSPI2_MST_CLK_DIV_NUM);
+    }
+    else if (spi_host == SPI3_HOST)
+    {
+      const uint32_t ctrl117 = REG_READ(HP_SYS_CLKRST_PERI_CLK_CTRL117_REG);
+      source_sel = VALUE_GET_FIELD(ctrl116, HP_SYS_CLKRST_REG_GPSPI3_CLK_SRC_SEL);
+      hs_div = VALUE_GET_FIELD(ctrl117, HP_SYS_CLKRST_REG_GPSPI3_HS_CLK_DIV_NUM);
+      mst_div = VALUE_GET_FIELD(ctrl117, HP_SYS_CLKRST_REG_GPSPI3_MST_CLK_DIV_NUM);
+    }
+    else
+    {
+      return getApbFrequency();
+    }
+
+    uint32_t source_hz;
+    switch (source_sel)
+    {
+    case 0: source_hz = get_xtal_frequency(); break;
+    case 1: source_hz = get_rc_fast_frequency(); break;
+    case 4: source_hz = 480000000u; break; // SPLL
+    default: source_hz = 480000000u; break; // Safe upper bound for an unknown source.
+    }
+    return source_hz / (hs_div + 1) / (mst_div + 1);
+#else
+    (void)spi_host;
+    return getApbFrequency();
+#endif
+#endif
+  }
+
   uint32_t FreqToClockDiv(uint32_t fapb, uint32_t hz)
   {
     if (fapb <= hz) return SPI_CLK_EQU_SYSCLK;
     uint32_t div_num = fapb / (1 + hz);
-    uint32_t pre = div_num / 64u;
-    div_num = div_num / (pre+1);
+    uint32_t pre = std::min<uint32_t>(div_num / (SPI_CLKCNT_N_V + 1u), SPI_CLKDIV_PRE_V);
+    div_num = std::min<uint32_t>(div_num / (pre+1), SPI_CLKCNT_N_V);
     return div_num << 12 | ((div_num-1)>>1) << 6 | div_num | pre << 18;
   }
 
@@ -891,7 +1029,9 @@ namespace lgfx
       }
       uint32_t spi_port = (spi_host + 1);
       (void)spi_port;
-      uint32_t clkdiv = FreqToClockDiv(getApbFrequency(), freq);
+      // Bus acquisition may select a different source or pre-divider.
+      beginTransaction(spi_host);
+      uint32_t clkdiv = FreqToClockDiv(getSpiClockFrequency(spi_host), freq);
 
       uint32_t user = SPI_USR_MOSI | SPI_USR_MISO | SPI_DOUTDIN;
       if (spi_mode == 1 || spi_mode == 2) user |= SPI_CK_OUT_EDGE;
@@ -916,8 +1056,6 @@ namespace lgfx
             | SPI_CS5_DIS
 #endif
       ;
-
-      beginTransaction(spi_host);
 
       writereg(SPI_USER_REG(spi_port), user);
 #if defined (SPI_PIN_REG)
