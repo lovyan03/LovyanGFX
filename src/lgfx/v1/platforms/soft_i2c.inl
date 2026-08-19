@@ -34,6 +34,11 @@ Contributors:
  #error "soft_i2c.inl is an implementation fragment of the i2c namespace; it cannot be included directly."
 #endif
 
+// Port -1 is the probe slot. Both M5GFX board autodetection and the M5Unified
+// board check open it, and they run one after the other, so whoever calls init
+// on it must call release before returning. Nothing enforces that; keep new
+// users of the negative ports on -2, which no library takes.
+//
 // An I2C line is only ever driven low or released, never driven high. The
 // default implementation releases by turning the pin back into an input and
 // drives by turning it into an output whose latch was parked low, which works
@@ -90,6 +95,10 @@ Contributors:
     static inline bool soft_i2c_valid_port(int i2c_port) { return -soft_i2c_port_count <= i2c_port && i2c_port < 0; }
     static inline soft_i2c_context_t& soft_i2c_ctx(int i2c_port) { return soft_i2c_context[~i2c_port]; }
 
+    /// Spin limit for the settle waits. A line that never reaches its level is
+    /// handled by the checks that follow, not by spinning here forever.
+    static constexpr size_t soft_i2c_settle_guard = 4096;
+
     static inline void soft_i2c_half_wait(uint32_t half_us)
     { if (half_us) { delayMicroseconds(half_us); } }
 
@@ -99,6 +108,47 @@ Contributors:
       ctx.freq = freq;
       // Rounded up: the throttled clock must not come out above the request.
       ctx.half_us = (freq >= 500000) ? 0 : (500000 + freq - 1) / freq;
+    }
+
+    /// Drive SCL low and wait until the line actually reads low.
+    /// The data line may only move once the clock is under its low threshold:
+    /// a data change while the clock still reads high is a start or a stop to
+    /// every device on the bus, which ends the transfer instead of carrying a
+    /// bit. The clock is driven low rather than released, so waiting for it
+    /// costs the fall time of this bus and nothing more - a fixed hold would
+    /// instead have to come out of the setup time, which is exactly what the
+    /// slow rise of a released data line needs at the higher clock rates.
+    /// @return false when the clock never reached its low level. Reported the
+    /// same way as a clock that will not rise: carrying on regardless would
+    /// move the data line while the clock still reads high, which is the very
+    /// thing this wait exists to prevent.
+    static inline bool soft_i2c_scl_lo(const soft_i2c_context_t& ctx)
+    {
+      SOFT_I2C_LINE_LO(ctx.pin_scl);
+      size_t guard = 0;
+      while (gpio_in(ctx.pin_scl))
+      {
+        if (++guard >= soft_i2c_settle_guard) { return false; }
+      }
+      return true;
+    }
+
+    /// Release SDA and wait for the pullup to carry it high.
+    /// Only for the data bits: it is the rise that is slow, and giving it the
+    /// time it actually takes keeps the setup time intact where a fixed wait
+    /// would fall short on a loaded bus. Not for the acknowledge, where the
+    /// device holds the line low on purpose.
+    /// @return false when the data line stayed low. Something else is holding
+    /// it, so the bit about to be clocked out would not be the bit intended.
+    static inline bool soft_i2c_sda_hi(const soft_i2c_context_t& ctx)
+    {
+      SOFT_I2C_LINE_HI(ctx.pin_sda);
+      size_t guard = 0;
+      while (!gpio_in(ctx.pin_sda))
+      {
+        if (++guard >= soft_i2c_settle_guard) { return false; }
+      }
+      return true;
     }
 
     /// Release SCL and wait for it to actually rise, honoring clock stretching.
@@ -116,25 +166,41 @@ Contributors:
       return false;
     }
 
-    /// Returns true when the byte was acknowledged.
+    /// Returns true when the byte was acknowledged and the clock could be taken
+    /// low again afterwards. A clock that will not settle is reported the same
+    /// way as a missing acknowledge, which ends the transfer either way.
     static inline bool soft_i2c_write_byte(const soft_i2c_context_t& ctx, uint8_t data)
     {
       size_t i = 0;
       do
       {
-        SOFT_I2C_LINE_LO(ctx.pin_scl);
-        if (data & 0x80) { SOFT_I2C_LINE_HI(ctx.pin_sda); } else { SOFT_I2C_LINE_LO(ctx.pin_sda); }
+        if (!soft_i2c_scl_lo(ctx)) { return false; }
+        if (data & 0x80) { if (!soft_i2c_sda_hi(ctx)) { return false; } }
+        else             { SOFT_I2C_LINE_LO(ctx.pin_sda); }
         data <<= 1;
         soft_i2c_half_wait(ctx.half_us);
         if (!soft_i2c_scl_hi(ctx)) { return false; }
       } while (++i < 8);
-      SOFT_I2C_LINE_LO(ctx.pin_scl);
+      if (!soft_i2c_scl_lo(ctx)) { return false; }
       SOFT_I2C_LINE_HI(ctx.pin_sda);  // release the data line for the acknowledge
       soft_i2c_half_wait(ctx.half_us);
       if (!soft_i2c_scl_hi(ctx)) { return false; }
       bool ack = !gpio_in(ctx.pin_sda);
-      SOFT_I2C_LINE_LO(ctx.pin_scl);
-      return ack;
+      if (ack)
+      { // This master drove the data line low for the bit before the
+        // acknowledge, so a low here is either a device holding the line or a
+        // rise that has not finished. A device holds it for the whole pulse,
+        // while a rise is over within the time the bus is allowed to take for
+        // one ( 1us for the slowest mode ), so looking again separates them.
+        // A bus slower than the specification allows is read as an acknowledge
+        // that is not there; the limit is the specified rise time, not a
+        // measurement of this bus.
+        auto us = micros();
+        while (!gpio_in(ctx.pin_sda) && (micros() - us) <= 1) {}
+        ack = !gpio_in(ctx.pin_sda);
+      }
+      bool low = soft_i2c_scl_lo(ctx);
+      return ack && low;
     }
 
     static inline bool soft_i2c_read_byte(const soft_i2c_context_t& ctx, uint8_t* data, bool ack)
@@ -144,16 +210,17 @@ Contributors:
       size_t i = 0;
       do
       {
-        SOFT_I2C_LINE_LO(ctx.pin_scl);
+        if (!soft_i2c_scl_lo(ctx)) { return false; }
         soft_i2c_half_wait(ctx.half_us);
         if (!soft_i2c_scl_hi(ctx)) { return false; }
         byte = (byte << 1) + (gpio_in(ctx.pin_sda) ? 1 : 0);
       } while (++i < 8);
-      SOFT_I2C_LINE_LO(ctx.pin_scl);
-      if (ack) { SOFT_I2C_LINE_LO(ctx.pin_sda); } else { SOFT_I2C_LINE_HI(ctx.pin_sda); }
+      if (!soft_i2c_scl_lo(ctx)) { return false; }
+      if (ack) { SOFT_I2C_LINE_LO(ctx.pin_sda); }
+      else     { if (!soft_i2c_sda_hi(ctx)) { return false; } }
       soft_i2c_half_wait(ctx.half_us);
       if (!soft_i2c_scl_hi(ctx)) { return false; }
-      SOFT_I2C_LINE_LO(ctx.pin_scl);
+      if (!soft_i2c_scl_lo(ctx)) { return false; }
       SOFT_I2C_LINE_HI(ctx.pin_sda);
       *data = byte;
       return true;
@@ -162,12 +229,16 @@ Contributors:
     /// Returns false when the clock could not be released for the stop condition.
     static inline bool soft_i2c_stop_cond(const soft_i2c_context_t& ctx)
     {
-      SOFT_I2C_LINE_LO(ctx.pin_scl);
-      SOFT_I2C_LINE_LO(ctx.pin_sda);
+      bool low = soft_i2c_scl_lo(ctx);
+      // Taking the data line low while the clock is still high is a start, not
+      // the beginning of a stop, so it is only done once the clock is down.
+      if (low) { SOFT_I2C_LINE_LO(ctx.pin_sda); }
       soft_i2c_half_wait(ctx.half_us);
-      bool ok = soft_i2c_scl_hi(ctx);
+      bool ok = soft_i2c_scl_hi(ctx) && low;
       soft_i2c_half_wait(ctx.half_us);
-      SOFT_I2C_LINE_HI(ctx.pin_sda);
+      // The stop is the rise of the data line while the clock is high, so it
+      // is not made until the line has actually risen.
+      ok = soft_i2c_sda_hi(ctx) && ok;
       soft_i2c_half_wait(ctx.half_us);
       return ok;
     }
@@ -179,8 +250,9 @@ Contributors:
       SOFT_I2C_LINE_HI(ctx.pin_sda);
       size_t i = 0;
       while (!gpio_in(ctx.pin_sda) && ++i <= 9)
-      {
-        SOFT_I2C_LINE_LO(ctx.pin_scl);
+      { // this is the attempt to free a stuck bus: a clock that will not settle
+        // is the condition being recovered from, so it does not end the loop.
+        (void)soft_i2c_scl_lo(ctx);
         soft_i2c_half_wait(ctx.half_us);
         soft_i2c_scl_hi(ctx);
       }
@@ -210,15 +282,17 @@ Contributors:
            && soft_i2c_write_byte(ctx, i2c_addr & 0xFF);
         if (ack && read)
         { // A 10 bit read re-addresses the high byte in read mode.
-          SOFT_I2C_LINE_HI(ctx.pin_sda);
+          // The repeated start needs the data line to be high first, the same
+          // as the first start does.
+          ack = soft_i2c_sda_hi(ctx);
           soft_i2c_half_wait(ctx.half_us);
-          ack = soft_i2c_scl_hi(ctx);
+          ack = ack && soft_i2c_scl_hi(ctx);
           if (ack)
           {
             SOFT_I2C_LINE_LO(ctx.pin_sda);
             soft_i2c_half_wait(ctx.half_us);
-            SOFT_I2C_LINE_LO(ctx.pin_scl);
-            ack = soft_i2c_write_byte(ctx, 0xF0 | (i2c_addr >> 8) << 1 | 1);
+            ack = soft_i2c_scl_lo(ctx)
+               && soft_i2c_write_byte(ctx, 0xF0 | (i2c_addr >> 8) << 1 | 1);
           }
         }
       }
@@ -305,7 +379,9 @@ Contributors:
       SOFT_I2C_LOCK(ctx);
       ctx.state = soft_i2c_context_t::state_t::state_disconnect;
       soft_i2c_set_freq(ctx, freq);
-      SOFT_I2C_LINE_HI(ctx.pin_sda);
+      // Wait for the release to take effect before reading the line below:
+      // a rise still in progress is not a bus that someone else is holding.
+      (void)soft_i2c_sda_hi(ctx);
       if (!soft_i2c_scl_hi(ctx))
       { // The clock never rose: no start condition can be made on this bus.
         soft_i2c_abort(ctx);
@@ -323,7 +399,11 @@ Contributors:
       }
       SOFT_I2C_LINE_LO(ctx.pin_sda);  // start condition
       soft_i2c_half_wait(ctx.half_us);
-      SOFT_I2C_LINE_LO(ctx.pin_scl);
+      if (!soft_i2c_scl_lo(ctx))
+      {
+        soft_i2c_abort(ctx);
+        return {};
+      }
       return soft_i2c_send_address(ctx, i2c_addr, read);
     }
 
@@ -338,7 +418,15 @@ Contributors:
         return cpp::fail(error_t::mode_mismatch);
       }
       soft_i2c_set_freq(ctx, freq);
-      SOFT_I2C_LINE_HI(ctx.pin_sda);  // repeated start
+      // Unlike the first start there is no independent recheck below, so the
+      // release is judged here: without the data line going high first, the
+      // falling edge that makes the repeated start never appears on the bus
+      // and the address that follows is sent into a frame no one opened.
+      if (!soft_i2c_sda_hi(ctx))
+      {
+        soft_i2c_abort(ctx);
+        return {};
+      }
       soft_i2c_half_wait(ctx.half_us);
       if (!soft_i2c_scl_hi(ctx))
       {
@@ -347,7 +435,11 @@ Contributors:
       }
       SOFT_I2C_LINE_LO(ctx.pin_sda);
       soft_i2c_half_wait(ctx.half_us);
-      SOFT_I2C_LINE_LO(ctx.pin_scl);
+      if (!soft_i2c_scl_lo(ctx))
+      {
+        soft_i2c_abort(ctx);
+        return {};
+      }
       return soft_i2c_send_address(ctx, i2c_addr, read);
     }
 
