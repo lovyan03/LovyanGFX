@@ -39,6 +39,17 @@ Contributors:
 #include <esp_heap_caps.h>
 #include <esp_log.h>
 
+#if defined (ARDUINO) && (defined (CONFIG_IDF_TARGET_ESP32P4) \
+ || defined (CONFIG_IDF_TARGET_ESP32C5) || defined (CONFIG_IDF_TARGET_ESP32C6) \
+ || defined (CONFIG_IDF_TARGET_ESP32C61))
+ #define LGFX_SPI_CLOCK_TAKEOVER
+ #if defined (CONFIG_IDF_TARGET_ESP32P4)
+  #include <soc/hp_sys_clkrst_reg.h>
+ #else
+  #include <soc/pcr_reg.h>
+ #endif
+#endif
+
 #if __has_include (<esp_private/periph_ctrl.h>)
  #include <esp_private/periph_ctrl.h>
 #else
@@ -148,6 +159,199 @@ namespace lgfx
 #pragma GCC diagnostic ignored "-Warray-bounds"
   static __attribute__ ((always_inline)) inline void writereg(uint32_t addr, uint32_t value) { *(volatile uint32_t*)addr = value; }
 #pragma GCC diagnostic pop
+
+#if defined (LGFX_SPI_CLOCK_TAKEOVER)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-variable"
+  struct spi_clock_state_t
+  {
+    uint32_t saved0 = 0;
+    uint32_t saved1 = 0;
+    const Bus_SPI* owner = nullptr;
+    bool active = false;
+  };
+
+  static spi_clock_state_t spi_clock_state[SOC_SPI_PERIPH_NUM];
+
+  static bool spi_clock_host_supported(int spi_host)
+  {
+#if defined (CONFIG_IDF_TARGET_ESP32P4)
+    return spi_host == SPI2_HOST || spi_host == SPI3_HOST;
+#else
+    return spi_host == SPI2_HOST;
+#endif
+  }
+
+  static uint32_t spi_clock_output_frequency(uint32_t source_hz, uint32_t requested_hz)
+  {
+    const uint32_t clock_div = FreqToClockDiv(source_hz, requested_hz);
+    if (clock_div & SPI_CLK_EQU_SYSCLK) { return source_hz; }
+    const uint32_t pre = VALUE_GET_FIELD(clock_div, SPI_CLKDIV_PRE) + 1u;
+    const uint32_t n = VALUE_GET_FIELD(clock_div, SPI_CLKCNT_N) + 1u;
+    return source_hz / pre / n;
+  }
+
+  static uint32_t spi_clock_error(uint32_t actual_hz, uint32_t requested_hz)
+  {
+    return actual_hz > requested_hz ? actual_hz - requested_hz : requested_hz - actual_hz;
+  }
+
+  struct spi_clock_target_t
+  {
+    uint32_t base_hz;
+    uint32_t source_div;
+  };
+
+  static spi_clock_target_t spi_clock_find_target(uint32_t requested_hz)
+  {
+#if defined (CONFIG_IDF_TARGET_ESP32C5) || defined (CONFIG_IDF_TARGET_ESP32C61)
+    (void)requested_hz;
+    // The 80 MHz root preserves both common write and read rates (for example
+    // 40 and 16 MHz), while a 40 MHz root would make 16 MHz inexact.
+    return { 80000000u, 2u };
+#else
+    (void)requested_hz;
+    return { 80000000u, 1u };
+#endif
+  }
+
+  static bool spi_clock_acquire(const Bus_SPI* owner, int spi_host
+                              , uint32_t write_hz, uint32_t read_hz)
+  {
+    if (!spi_clock_host_supported(spi_host) || write_hz == 0 || read_hz == 0) { return false; }
+
+    const auto target = spi_clock_find_target(std::max(write_hz, read_hz));
+    const uint32_t current_hz = getSpiClockFrequency(spi_host);
+    const uint32_t current_write = spi_clock_output_frequency(current_hz, write_hz);
+    const uint32_t target_write = spi_clock_output_frequency(target.base_hz, write_hz);
+    const uint32_t target_read = spi_clock_output_frequency(target.base_hz, read_hz);
+    const uint32_t current_write_error = spi_clock_error(current_write, write_hz);
+    const uint32_t target_write_error = spi_clock_error(target_write, write_hz);
+    // Prefer write throughput: a slower read clock is acceptable, but neither
+    // clock may exceed its request. Equal write results leave the current owner
+    // untouched to avoid an unnecessary source change.
+    if (target_write > write_hz || target_read > read_hz
+     || target_write_error >= current_write_error)
+    {
+      return false;
+    }
+
+    auto& state = spi_clock_state[spi_host];
+    if (state.active) { return false; } // Host-scoped ownership is not nestable.
+
+    // The Arduino bus mutex does not serialize ESP-IDF SPI driver users on the
+    // same host; mixing the two APIs cannot provide transaction-wide exclusion.
+    PERIPH_RCC_ATOMIC()
+    {
+#if defined (CONFIG_IDF_TARGET_ESP32P4)
+      if (spi_host == SPI2_HOST)
+      {
+        constexpr uint32_t mask = HP_SYS_CLKRST_REG_GPSPI2_CLK_SRC_SEL_M
+                                | HP_SYS_CLKRST_REG_GPSPI2_HS_CLK_DIV_NUM_M
+                                | HP_SYS_CLKRST_REG_GPSPI2_MST_CLK_DIV_NUM_M;
+        constexpr uint32_t target_value = (4u << HP_SYS_CLKRST_REG_GPSPI2_CLK_SRC_SEL_S)
+                                        | (2u << HP_SYS_CLKRST_REG_GPSPI2_HS_CLK_DIV_NUM_S)
+                                        | (1u << HP_SYS_CLKRST_REG_GPSPI2_MST_CLK_DIV_NUM_S);
+        const uint32_t current = REG_READ(HP_SYS_CLKRST_PERI_CLK_CTRL116_REG);
+        state.saved0 = current & mask;
+        REG_WRITE(HP_SYS_CLKRST_PERI_CLK_CTRL116_REG, (current & ~mask) | target_value);
+      }
+      else
+      {
+        constexpr uint32_t source_mask = HP_SYS_CLKRST_REG_GPSPI3_CLK_SRC_SEL_M;
+        constexpr uint32_t source_target = 4u << HP_SYS_CLKRST_REG_GPSPI3_CLK_SRC_SEL_S;
+        constexpr uint32_t divider_mask = HP_SYS_CLKRST_REG_GPSPI3_HS_CLK_DIV_NUM_M
+                                        | HP_SYS_CLKRST_REG_GPSPI3_MST_CLK_DIV_NUM_M;
+        constexpr uint32_t divider_target = (2u << HP_SYS_CLKRST_REG_GPSPI3_HS_CLK_DIV_NUM_S)
+                                           | (1u << HP_SYS_CLKRST_REG_GPSPI3_MST_CLK_DIV_NUM_S);
+        const uint32_t ctrl116 = REG_READ(HP_SYS_CLKRST_PERI_CLK_CTRL116_REG);
+        const uint32_t ctrl117 = REG_READ(HP_SYS_CLKRST_PERI_CLK_CTRL117_REG);
+        state.saved0 = ctrl116 & source_mask;
+        state.saved1 = ctrl117 & divider_mask;
+        // Install safe dividers before selecting the 480 MHz source.
+        REG_WRITE(HP_SYS_CLKRST_PERI_CLK_CTRL117_REG, (ctrl117 & ~divider_mask) | divider_target);
+        REG_WRITE(HP_SYS_CLKRST_PERI_CLK_CTRL116_REG, (ctrl116 & ~source_mask) | source_target);
+      }
+#elif defined (CONFIG_IDF_TARGET_ESP32C5) || defined (CONFIG_IDF_TARGET_ESP32C61)
+      constexpr uint32_t mask = PCR_SPI2_CLKM_SEL_M | PCR_SPI2_CLKM_DIV_NUM_M;
+      const uint32_t target_value = (1u << PCR_SPI2_CLKM_SEL_S)
+                                  | ((target.source_div - 1u) << PCR_SPI2_CLKM_DIV_NUM_S);
+      const uint32_t current = REG_READ(PCR_SPI2_CLKM_CONF_REG);
+      state.saved0 = current & mask;
+      REG_WRITE(PCR_SPI2_CLKM_CONF_REG, (current & ~mask) | target_value);
+#elif defined (CONFIG_IDF_TARGET_ESP32C6)
+      constexpr uint32_t mask = PCR_SPI2_CLKM_SEL_M;
+      constexpr uint32_t target_value = 1u << PCR_SPI2_CLKM_SEL_S;
+      const uint32_t current = REG_READ(PCR_SPI2_CLKM_CONF_REG);
+      state.saved0 = current & mask;
+      REG_WRITE(PCR_SPI2_CLKM_CONF_REG, (current & ~mask) | target_value);
+#endif
+      state.owner = owner;
+      state.active = true;
+    }
+    return true;
+  }
+
+  static bool spi_clock_owned_by(const Bus_SPI* owner, int spi_host)
+  {
+    if (!spi_clock_host_supported(spi_host)) { return false; }
+    const auto& state = spi_clock_state[spi_host];
+    return state.active && state.owner == owner;
+  }
+
+  static bool spi_clock_restore(const Bus_SPI* owner, int spi_host)
+  {
+    if (!spi_clock_host_supported(spi_host)) { return false; }
+
+    auto& state = spi_clock_state[spi_host];
+    if (!state.active || state.owner != owner) { return false; }
+
+    PERIPH_RCC_ATOMIC()
+    {
+#if defined (CONFIG_IDF_TARGET_ESP32P4)
+      if (spi_host == SPI2_HOST)
+      {
+        constexpr uint32_t mask = HP_SYS_CLKRST_REG_GPSPI2_CLK_SRC_SEL_M
+                                | HP_SYS_CLKRST_REG_GPSPI2_HS_CLK_DIV_NUM_M
+                                | HP_SYS_CLKRST_REG_GPSPI2_MST_CLK_DIV_NUM_M;
+        const uint32_t current = REG_READ(HP_SYS_CLKRST_PERI_CLK_CTRL116_REG);
+        REG_WRITE(HP_SYS_CLKRST_PERI_CLK_CTRL116_REG, (current & ~mask) | state.saved0);
+      }
+      else
+      {
+        constexpr uint32_t source_mask = HP_SYS_CLKRST_REG_GPSPI3_CLK_SRC_SEL_M;
+        constexpr uint32_t divider_mask = HP_SYS_CLKRST_REG_GPSPI3_HS_CLK_DIV_NUM_M
+                                        | HP_SYS_CLKRST_REG_GPSPI3_MST_CLK_DIV_NUM_M;
+        const uint32_t ctrl116 = REG_READ(HP_SYS_CLKRST_PERI_CLK_CTRL116_REG);
+        const uint32_t ctrl117 = REG_READ(HP_SYS_CLKRST_PERI_CLK_CTRL117_REG);
+        // Leave the 480 MHz source before restoring potentially smaller dividers.
+        REG_WRITE(HP_SYS_CLKRST_PERI_CLK_CTRL116_REG, (ctrl116 & ~source_mask) | state.saved0);
+        REG_WRITE(HP_SYS_CLKRST_PERI_CLK_CTRL117_REG, (ctrl117 & ~divider_mask) | state.saved1);
+      }
+#elif defined (CONFIG_IDF_TARGET_ESP32C5) || defined (CONFIG_IDF_TARGET_ESP32C61)
+      constexpr uint32_t mask = PCR_SPI2_CLKM_SEL_M | PCR_SPI2_CLKM_DIV_NUM_M;
+      const uint32_t current = REG_READ(PCR_SPI2_CLKM_CONF_REG);
+      REG_WRITE(PCR_SPI2_CLKM_CONF_REG, (current & ~mask) | state.saved0);
+#elif defined (CONFIG_IDF_TARGET_ESP32C6)
+      constexpr uint32_t mask = PCR_SPI2_CLKM_SEL_M;
+      const uint32_t current = REG_READ(PCR_SPI2_CLKM_CONF_REG);
+      REG_WRITE(PCR_SPI2_CLKM_CONF_REG, (current & ~mask) | state.saved0);
+#endif
+      state.active = false;
+      state.owner = nullptr;
+    }
+    return true;
+  }
+#pragma GCC diagnostic pop
+
+  Bus_SPI::~Bus_SPI(void)
+  {
+    if (spi_clock_owned_by(this, _cfg.spi_host))
+    {
+      release();
+    }
+  }
+#endif
 
   void Bus_SPI::config(const config_t& cfg)
   {
@@ -262,6 +466,18 @@ namespace lgfx
   void Bus_SPI::release(void)
   {
 //ESP_LOGI("LGFX","Bus_SPI::release");
+#if defined (LGFX_SPI_CLOCK_TAKEOVER)
+    if (spi_clock_owned_by(this, _cfg.spi_host))
+    {
+      // An active takeover implies this instance still owns the Arduino bus
+      // mutex.  Finish the transfer and restore the host before releasing it.
+      dc_control(true);
+      if (spi_clock_restore(this, _cfg.spi_host))
+      {
+        spi::endTransaction(_cfg.spi_host);
+      }
+    }
+#endif
     if (!_inited) return;
     _inited = false;
     spi::release(_cfg.spi_host);
@@ -292,6 +508,9 @@ namespace lgfx
     if (_cfg.use_lock)
     {
       spi::beginTransaction(_cfg.spi_host);
+#if defined (LGFX_SPI_CLOCK_TAKEOVER)
+      spi_clock_acquire(this, _cfg.spi_host, _cfg.freq_write, _cfg.freq_read);
+#endif
     }
     uint32_t freq_apb = getSpiClockFrequency(_cfg.spi_host);
     uint32_t clkdiv_write = _clkdiv_write;
@@ -343,6 +562,9 @@ namespace lgfx
     dc_control(true);
 #if defined ( LGFX_SPIDMA_WORKAROUND )
     if (_dma_ch) { spicommon_dmaworkaround_idle(_dma_ch); }
+#endif
+#if defined (LGFX_SPI_CLOCK_TAKEOVER)
+    if (_cfg.use_lock) { spi_clock_restore(this, _cfg.spi_host); }
 #endif
     if (_cfg.use_lock) spi::endTransaction(_cfg.spi_host);
 #if defined (ARDUINO) // Arduino ESP32

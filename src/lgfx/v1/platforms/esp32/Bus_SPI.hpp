@@ -103,6 +103,11 @@ namespace lgfx
     };
 
     constexpr Bus_SPI(void) = default;
+#if defined (ARDUINO) && (defined (CONFIG_IDF_TARGET_ESP32P4) \
+ || defined (CONFIG_IDF_TARGET_ESP32C5) || defined (CONFIG_IDF_TARGET_ESP32C6) \
+ || defined (CONFIG_IDF_TARGET_ESP32C61))
+    ~Bus_SPI(void) override;
+#endif
 
     const config_t& config(void) const { return _cfg; }
 
