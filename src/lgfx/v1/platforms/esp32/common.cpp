@@ -272,8 +272,8 @@ namespace lgfx
   {
     if (fapb <= hz) return SPI_CLK_EQU_SYSCLK;
     uint32_t div_num = fapb / (1 + hz);
-    uint32_t pre = div_num / 64u;
-    div_num = div_num / (pre+1);
+    uint32_t pre = std::min<uint32_t>(div_num / (SPI_CLKCNT_N_V + 1u), SPI_CLKDIV_PRE_V);
+    div_num = std::min<uint32_t>(div_num / (pre+1), SPI_CLKCNT_N_V);
     return div_num << 12 | ((div_num-1)>>1) << 6 | div_num | pre << 18;
   }
 
