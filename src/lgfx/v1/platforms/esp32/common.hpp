@@ -322,6 +322,7 @@ protected:
       int16_t _in_func_num = -1;
       int8_t _pin_num = -1; //GPIO_NUM_NC
       bool _gpio_enable;
+      bool _gpio_out;
     };
 
     enum command_t : uint8_t

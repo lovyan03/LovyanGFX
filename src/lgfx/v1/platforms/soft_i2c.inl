@@ -34,10 +34,13 @@ Contributors:
  #error "soft_i2c.inl is an implementation fragment of the i2c namespace; it cannot be included directly."
 #endif
 
-// Port -1 is the probe slot. Both M5GFX board autodetection and the M5Unified
-// board check open it, and they run one after the other, so whoever calls init
-// on it must call release before returning. Nothing enforces that; keep new
-// users of the negative ports on -2, which no library takes.
+// The negative ports are shared while a board is being brought up: M5GFX board
+// autodetection opens -1 and the M5Unified board check opens -2, both from
+// inside begin(). Neither slot carries ownership - opening one takes over the
+// pins the last user left behind, and a transfer does not check whether the
+// slot is still the one it was given - so a sketch that wants a bus of its own
+// should open it once begin() is done, and open it again if it runs detection
+// a second time.
 //
 // An I2C line is only ever driven low or released, never driven high. The
 // default implementation releases by turning the pin back into an input and
