@@ -288,7 +288,12 @@ namespace lgfx
   void Bus_SPI::beginTransaction(void)
   {
 //ESP_LOGI("LGFX","Bus_SPI::beginTransaction");
-    uint32_t freq_apb = getApbFrequency();
+    // Bus acquisition can change the SPI source or its pre-dividers.
+    if (_cfg.use_lock)
+    {
+      spi::beginTransaction(_cfg.spi_host);
+    }
+    uint32_t freq_apb = getSpiClockFrequency(_cfg.spi_host);
     uint32_t clkdiv_write = _clkdiv_write;
     if (_last_freq_apb != freq_apb)
     {
@@ -322,8 +327,6 @@ namespace lgfx
             | SPI_CS5_DIS
 #endif
     ;
-
-    if (_cfg.use_lock) spi::beginTransaction(_cfg.spi_host);
 
     *_spi_user_reg = _user_reg;
     auto spi_port = _spi_port;
