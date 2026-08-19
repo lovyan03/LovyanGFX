@@ -628,8 +628,10 @@ namespace lgfx
         _gpio_func_out_reg = *reinterpret_cast<uint32_t*>(GPIO_FUNC0_OUT_SEL_CFG_REG + (pin_num * 4));
 #if defined ( GPIO_ENABLE1_REG )
         _gpio_enable = *reinterpret_cast<uint32_t*>(((pin_num & 32) ? GPIO_ENABLE1_REG : GPIO_ENABLE_REG)) & (1 << (pin_num & 31));
+        _gpio_out    = *reinterpret_cast<uint32_t*>(((pin_num & 32) ? GPIO_OUT1_REG    : GPIO_OUT_REG   )) & (1 << (pin_num & 31));
 #else
         _gpio_enable = *reinterpret_cast<uint32_t*>(GPIO_ENABLE_REG) & (1 << (pin_num & 31));
+        _gpio_out    = *reinterpret_cast<uint32_t*>(GPIO_OUT_REG   ) & (1 << (pin_num & 31));
 #endif
         _in_func_num = -1;
 
@@ -655,6 +657,22 @@ namespace lgfx
       auto pin_num = (size_t)_pin_num;
       if (pin_num < GPIO_NUM_MAX)
       {
+        uint32_t pin_mask = 1 << (pin_num & 31);
+#if defined ( GPIO_ENABLE1_REG )
+        auto gpio_enable_w1ts = reinterpret_cast<volatile uint32_t*>((pin_num & 32) ? GPIO_ENABLE1_W1TS_REG : GPIO_ENABLE_W1TS_REG);
+        auto gpio_enable_w1tc = reinterpret_cast<volatile uint32_t*>((pin_num & 32) ? GPIO_ENABLE1_W1TC_REG : GPIO_ENABLE_W1TC_REG);
+#else
+        auto gpio_enable_w1ts = reinterpret_cast<volatile uint32_t*>(GPIO_ENABLE_W1TS_REG);
+        auto gpio_enable_w1tc = reinterpret_cast<volatile uint32_t*>(GPIO_ENABLE_W1TC_REG);
+#endif
+        // Stop driving before anything else changes what driving would mean.
+        // Restoring the pad configuration can turn an open drain output back
+        // into a push-pull one, and the latch left behind by whoever borrowed
+        // the pin is usually high - the pin would drive that high for as long
+        // as it takes to reach the latch below.
+        *gpio_enable_w1tc = pin_mask;
+        *(_gpio_out ? get_gpio_hi_reg(_pin_num) : get_gpio_lo_reg(_pin_num)) = pin_mask;
+
         if ((uint16_t)_in_func_num < 256) {
           GPIO.func_in_sel_cfg[_in_func_num].val = _gpio_func_in_reg;
   // ESP_LOGD("DEBUG","pin:%d in_func_num:%d", (int)pin_num, (int)_in_func_num);
@@ -668,24 +686,11 @@ namespace lgfx
         *reinterpret_cast<uint32_t*>(GPIO_PIN0_REG              + (pin_num * 4)) = _gpio_pin_reg;
         *reinterpret_cast<uint32_t*>(GPIO_FUNC0_OUT_SEL_CFG_REG + (pin_num * 4)) = _gpio_func_out_reg;
 
-#if defined ( GPIO_ENABLE1_REG )
-        auto gpio_enable_reg = reinterpret_cast<uint32_t*>(((pin_num & 32) ? GPIO_ENABLE1_REG : GPIO_ENABLE_REG));
-#else
-        auto gpio_enable_reg = reinterpret_cast<uint32_t*>(GPIO_ENABLE_REG);
-#endif
-
-        uint32_t pin_mask = 1 << (pin_num & 31);
-        uint32_t val = *gpio_enable_reg;
-  // ESP_LOGD("DEBUG","restore GPIO_ENABLE_REG:%08x", (int)*gpio_enable_reg);
-        if (_gpio_enable)
-        {
-           val |= pin_mask;
-        }
-        else
-        {
-          val &= ~pin_mask;
-        }
-        *gpio_enable_reg = val;
+        // The pin drives again only once it is configured and holding the level
+        // it held before. Set and clear go through their own registers so a pin
+        // being restored on another core is not caught in a read-modify-write.
+        if (_gpio_enable) { *gpio_enable_w1ts = pin_mask; }
+        else              { *gpio_enable_w1tc = pin_mask; }
       }
     }
 
