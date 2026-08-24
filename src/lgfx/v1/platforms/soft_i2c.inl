@@ -165,7 +165,7 @@ Contributors:
       {
         SOFT_I2C_YIELD();
         if (gpio_in(ctx.pin_scl)) { return true; }
-      } while ((micros() - us) < 13000); // the same order as a peripheral timeout
+      } while ((micros() - us) < 25000); // the same stall allowance as the peripheral ports
       return false;
     }
 

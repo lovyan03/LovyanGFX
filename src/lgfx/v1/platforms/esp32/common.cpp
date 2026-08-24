@@ -1654,6 +1654,11 @@ namespace lgfx
       for (auto &bup : backup_pins) { bup.restore(); }
     }
 
+    /// Minimum time a transfer may stall (clock stretching or a wedged bus)
+    /// before it is given up on; 25ms covers the SMBus Tlow:sext ceiling.
+    /// NACK handling does not depend on this limit.
+    static constexpr uint32_t i2c_stall_limit_us = 25000;
+
     static cpp::result<void, error_t> i2c_wait(int i2c_port, bool flg_stop = false)
     {
       if (flg_stop == false && i2c_context[i2c_port].state.has_error()) { return cpp::fail(i2c_context[i2c_port].state.error()); }
@@ -1662,7 +1667,7 @@ namespace lgfx
       auto dev = getDev(i2c_port);
       typeof(dev->int_raw) int_raw;
       int_raw.val = dev->int_raw.val; // ACK待ちステージをスキップした場合も後段の分岐で参照されるため必ず初期化する;
-      static constexpr uint32_t intmask = I2C_ACK_ERR_INT_RAW_M | I2C_END_DETECT_INT_RAW_M | I2C_ARBITRATION_LOST_INT_RAW_M;
+      static constexpr uint32_t intmask = I2C_ACK_ERR_INT_RAW_M | I2C_TIME_OUT_INT_RAW_M | I2C_END_DETECT_INT_RAW_M | I2C_ARBITRATION_LOST_INT_RAW_M;
 
       if (i2c_context[i2c_port].wait_ack_stage)
       {
@@ -1676,7 +1681,7 @@ namespace lgfx
 #else
           uint32_t us_limit = (dev->scl_high_period.period + dev->scl_low_period.period + 16 ) * (1 + dev->status_reg.tx_fifo_cnt);
 #endif
-          us_limit += 512 << i2c_context[i2c_port].wait_ack_stage;
+          us_limit += i2c_stall_limit_us;
 
           do
           {
@@ -1688,6 +1693,13 @@ namespace lgfx
         int_raw.val = dev->int_raw.val;
 
         dev->int_clr.val = int_raw.val;
+        // A timeout or lost arbitration is fatal even when END is also set.
+        if (int_raw.val & (I2C_TIME_OUT_INT_RAW_M | I2C_ARBITRATION_LOST_INT_RAW_M))
+        {
+          res = cpp::fail(error_t::connection_lost);
+          i2c_context[i2c_port].state = cpp::fail(error_t::connection_lost);
+        }
+        else
 #if !defined (CONFIG_IDF_TARGET) || defined (CONFIG_IDF_TARGET_ESP32)
         if (!int_raw.end_detect || int_raw.ack_err)
 #elif defined ( CONFIG_IDF_TARGET_ESP32C2 ) || defined ( CONFIG_IDF_TARGET_ESP32S3 ) || defined ( CONFIG_IDF_TARGET_ESP32C5 ) || defined ( CONFIG_IDF_TARGET_ESP32C6 ) || defined ( CONFIG_IDF_TARGET_ESP32C61 ) || defined ( CONFIG_IDF_TARGET_ESP32P4 ) || defined ( CONFIG_IDF_TARGET_ESP32H2 )
@@ -1721,13 +1733,27 @@ namespace lgfx
         {
           i2c_set_cmd(dev, 0, i2c_cmd_stop, 0);
           i2c_set_cmd(dev, 1, i2c_cmd_end, 0);
-          static constexpr uint32_t intmask_ = I2C_ACK_ERR_INT_RAW_M | I2C_TIME_OUT_INT_RAW_M | I2C_END_DETECT_INT_RAW_M | I2C_ARBITRATION_LOST_INT_RAW_M | I2C_TRANS_COMPLETE_INT_RAW_M;
+          // Wake only on events that end the STOP; a NACK is evaluated after it completes.
+          static constexpr uint32_t intmask_ = I2C_TIME_OUT_INT_RAW_M | I2C_ARBITRATION_LOST_INT_RAW_M | I2C_TRANS_COMPLETE_INT_RAW_M;
           updateDev(dev);
-          dev->int_clr.val = intmask_;
+          dev->int_clr.val = intmask_ | I2C_ACK_ERR_INT_RAW_M | I2C_END_DETECT_INT_RAW_M;
           dev->ctr.trans_start = 1;
           uint32_t ms = lgfx::millis();
           taskYIELD();
-          while (!(dev->int_raw.val & intmask_) && ((millis() - ms) < 14));
+          while (!(dev->int_raw.val & intmask_) && ((millis() - ms) < (i2c_stall_limit_us / 1000))) { taskYIELD(); }
+          // A STOP that did not complete leaves the bus in an unknown state:
+          // recover it and refuse further use of this transaction.
+          {
+            uint32_t stop_raw = dev->int_raw.val;
+            if (res.has_value()
+             && ((stop_raw & (I2C_TIME_OUT_INT_RAW_M | I2C_ARBITRATION_LOST_INT_RAW_M))
+              || !(stop_raw & I2C_TRANS_COMPLETE_INT_RAW_M)))
+            {
+              res = cpp::fail(error_t::connection_lost);
+              i2c_context[i2c_port].state = cpp::fail(error_t::connection_lost);
+              i2c_stop(i2c_port);
+            }
+          }
 #if !defined (CONFIG_IDF_TARGET) || defined (CONFIG_IDF_TARGET_ESP32)
           if (res.has_value() && dev->int_raw.ack_err)
 #elif defined ( CONFIG_IDF_TARGET_ESP32C2 ) || defined ( CONFIG_IDF_TARGET_ESP32S3 ) || defined ( CONFIG_IDF_TARGET_ESP32C5 ) || defined ( CONFIG_IDF_TARGET_ESP32C6 ) || defined ( CONFIG_IDF_TARGET_ESP32C61 ) || defined ( CONFIG_IDF_TARGET_ESP32P4 ) || defined ( CONFIG_IDF_TARGET_ESP32H2 )
@@ -1735,8 +1761,9 @@ namespace lgfx
 #else
           if (res.has_value() && dev->int_raw.nack)
 #endif
-          {
+          { // The STOP completed but a byte went unacknowledged.
             res = cpp::fail(error_t::connection_lost);
+            i2c_context[i2c_port].state = cpp::fail(error_t::connection_lost);
           }
           //ESP_LOGI("LGFX", "I2C stop");
         }
@@ -2143,11 +2170,14 @@ namespace lgfx
       dev->ctr.fsm_rst = 1;
 #endif
 
+// SCL-low (clock stretch) watchdog. 2^21 source clocks stays past
+// i2c_stall_limit_us on every supported source; the ESP32 register below is at
+// its ceiling, about 13ms.
 #if defined ( CONFIG_IDF_TARGET_ESP32C3 )
-      dev->timeout.time_out_value = 31;
+      dev->timeout.time_out_value = 21;
       dev->timeout.time_out_en = 1;
 #elif defined ( CONFIG_IDF_TARGET_ESP32C2 ) || defined ( CONFIG_IDF_TARGET_ESP32S3 ) || defined ( CONFIG_IDF_TARGET_ESP32C5 ) || defined ( CONFIG_IDF_TARGET_ESP32C6 ) || defined ( CONFIG_IDF_TARGET_ESP32C61 ) || defined ( CONFIG_IDF_TARGET_ESP32P4 ) || defined ( CONFIG_IDF_TARGET_ESP32H2 )
-      dev->to.time_out_value = 31;
+      dev->to.time_out_value = 21;
       dev->to.time_out_en = 1;
 #else
       dev->timeout.tout = 0xFFFFF; // max 13ms
@@ -2310,7 +2340,7 @@ namespace lgfx
           do
           {
             taskYIELD();
-          } while ((len>>1) >= getRxFifoCount(dev) && !(dev->int_raw.val & intmask) && ((lgfx::micros() - us) <= us_limit + 1024));
+          } while ((len>>1) >= getRxFifoCount(dev) && !(dev->int_raw.val & intmask) && ((lgfx::micros() - us) <= us_limit + i2c_stall_limit_us));
 
           if (0 == getRxFifoCount(dev))
           {
