@@ -2296,6 +2296,7 @@ namespace lgfx
         updateDev(dev);
         dev->int_clr.val = intmask;
         dev->ctr.trans_start = 1;
+        i2c_context[i2c_port].wait_ack_stage = 2;
 
         uint32_t us = lgfx::micros();
         taskYIELD();
