@@ -192,6 +192,7 @@ namespace lgfx
   static inline void gpio_lo(int_fast8_t pin) { if (pin >= 0) *get_gpio_lo_reg(pin) = 1 << (pin & 31); } // ESP_LOGI("LGFX", "gpio_lo: %d", pin); }
 
   uint32_t getApbFrequency(void);
+  uint32_t getSpiClockFrequency(int spi_host);
   uint32_t FreqToClockDiv(uint32_t fapb, uint32_t hz);
 
   /// for I2S and LCD_CAM peripheral clock
@@ -321,6 +322,7 @@ protected:
       int16_t _in_func_num = -1;
       int8_t _pin_num = -1; //GPIO_NUM_NC
       bool _gpio_enable;
+      bool _gpio_out;
     };
 
     enum command_t : uint8_t

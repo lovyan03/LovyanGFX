@@ -79,6 +79,7 @@ This library has the following advantages.
   - ディスプレイ Displays
     - GC9107 (M5AtomS3)
     - GC9A01
+    - GC9B72 (GalaxyCore GC9B72 controller on 2.1-inch 360×360 round SPI TFT panels)
     - GDEW0154M09 (M5Stack CoreInk)
     - HX8357
     - ILI9163

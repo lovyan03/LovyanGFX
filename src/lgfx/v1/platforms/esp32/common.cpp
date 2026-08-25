@@ -38,6 +38,17 @@ Contributors:
 #include <driver/rtc_io.h>
 #include <soc/rtc.h>
 #include <soc/soc.h>
+#if defined ( CONFIG_IDF_TARGET_ESP32P4 )
+ #include <soc/hp_sys_clkrst_reg.h>
+#elif defined ( CONFIG_IDF_TARGET_ESP32C5 ) || defined ( CONFIG_IDF_TARGET_ESP32C6 ) \
+   || defined ( CONFIG_IDF_TARGET_ESP32C61 ) || defined ( CONFIG_IDF_TARGET_ESP32H2 )
+ #include <soc/pcr_reg.h>
+#endif
+#if __has_include(<esp_clk_tree.h>) && __has_include(<soc/clk_tree_defs.h>)
+ #include <esp_clk_tree.h>
+ #include <soc/clk_tree_defs.h>
+ #define LGFX_HAS_ESP_CLK_TREE
+#endif
 #include <soc/i2c_reg.h>
 #include <soc/i2c_struct.h>
 #if (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 3, 0))
@@ -268,12 +279,139 @@ namespace lgfx
     #endif
   }
 
+  uint32_t getSpiClockFrequency(int spi_host)
+  {
+#if defined ( CONFIG_IDF_TARGET_ESP32 ) || defined ( CONFIG_IDF_TARGET_ESP32S2 ) \
+ || !defined ( CONFIG_IDF_TARGET )
+    (void)spi_host;
+    return getApbFrequency();
+#else
+    const auto get_xtal_frequency = []() -> uint32_t
+    {
+      return static_cast<uint32_t>(rtc_clk_xtal_freq_get()) * 1000000u;
+    };
+    const auto get_rc_fast_frequency = []() -> uint32_t
+    {
+#if defined ( LGFX_HAS_ESP_CLK_TREE ) && defined ( SOC_MOD_CLK_RC_FAST )
+      uint32_t frequency = 0;
+      if (ESP_OK == esp_clk_tree_src_get_freq_hz(SOC_MOD_CLK_RC_FAST
+                   , ESP_CLK_TREE_SRC_FREQ_PRECISION_APPROX, &frequency) && frequency)
+      {
+        return frequency;
+      }
+#endif
+#if defined ( SOC_CLK_RC_FAST_FREQ_APPROX )
+      return SOC_CLK_RC_FAST_FREQ_APPROX;
+#else
+      return 17500000u;
+#endif
+    };
+
+#if defined ( CONFIG_IDF_TARGET_ESP32S3 ) || defined ( CONFIG_IDF_TARGET_ESP32C2 ) \
+ || defined ( CONFIG_IDF_TARGET_ESP32C3 )
+    static_assert(SPI_MST_CLK_SEL_V == 1u, "SPI clock source selector must be one bit");
+    // SPI_MST_CLK_SEL is a shifted mask in the older SPI register headers;
+    // decode with the explicit value mask rather than VALUE_GET_FIELD.
+    const uint32_t source_sel = (REG_READ(SPI_CLK_GATE_REG(spi_host + 1))
+                               >> SPI_MST_CLK_SEL_S) & SPI_MST_CLK_SEL_V;
+    if (source_sel == 0) { return get_xtal_frequency(); }
+ #if defined ( CONFIG_IDF_TARGET_ESP32C2 )
+    return 40000000u;
+ #else
+    return 80000000u; // PLL_F80M is independent of CPU/APB frequency scaling.
+ #endif
+
+#elif defined ( CONFIG_IDF_TARGET_ESP32C5 ) || defined ( CONFIG_IDF_TARGET_ESP32C61 )
+    if (spi_host != SPI2_HOST) { return 160000000u; }
+    const uint32_t clkm = REG_READ(PCR_SPI2_CLKM_CONF_REG);
+    const uint32_t source_sel = VALUE_GET_FIELD(clkm, PCR_SPI2_CLKM_SEL);
+    const uint32_t source_div = VALUE_GET_FIELD(clkm, PCR_SPI2_CLKM_DIV_NUM) + 1u;
+    uint32_t source_hz;
+    switch (source_sel)
+    {
+    case 0: source_hz = get_xtal_frequency(); break;
+    case 1: source_hz = 160000000u; break;
+    case 2: source_hz = get_rc_fast_frequency(); break;
+#if defined ( CONFIG_IDF_TARGET_ESP32C5 )
+    case 3: source_hz = 120000000u; break;
+#endif
+    default: source_hz = 160000000u; break; // Safe upper bound for an unknown source.
+    }
+    return source_hz / source_div;
+
+#elif defined ( CONFIG_IDF_TARGET_ESP32C6 ) || defined ( CONFIG_IDF_TARGET_ESP32H2 )
+    if (spi_host != SPI2_HOST)
+    {
+ #if defined ( CONFIG_IDF_TARGET_ESP32C6 )
+      return 80000000u;
+ #else
+      return 48000000u;
+ #endif
+    }
+    const uint32_t clkm = REG_READ(PCR_SPI2_CLKM_CONF_REG);
+    const uint32_t source_sel = VALUE_GET_FIELD(clkm, PCR_SPI2_CLKM_SEL);
+    switch (source_sel)
+    {
+    case 0: return get_xtal_frequency();
+ #if defined ( CONFIG_IDF_TARGET_ESP32C6 )
+    case 1: return 80000000u;
+ #else
+    case 1: return 48000000u;
+ #endif
+    case 2: return get_rc_fast_frequency();
+    default:
+ #if defined ( CONFIG_IDF_TARGET_ESP32C6 )
+      return 80000000u; // Safe upper bound for an unknown source.
+ #else
+      return 48000000u; // Safe upper bound for an unknown source.
+ #endif
+    }
+
+#elif defined ( CONFIG_IDF_TARGET_ESP32P4 )
+    const uint32_t ctrl116 = REG_READ(HP_SYS_CLKRST_PERI_CLK_CTRL116_REG);
+    uint32_t source_sel;
+    uint32_t hs_div;
+    uint32_t mst_div;
+    if (spi_host == SPI2_HOST)
+    {
+      source_sel = VALUE_GET_FIELD(ctrl116, HP_SYS_CLKRST_REG_GPSPI2_CLK_SRC_SEL);
+      hs_div = VALUE_GET_FIELD(ctrl116, HP_SYS_CLKRST_REG_GPSPI2_HS_CLK_DIV_NUM);
+      mst_div = VALUE_GET_FIELD(ctrl116, HP_SYS_CLKRST_REG_GPSPI2_MST_CLK_DIV_NUM);
+    }
+    else if (spi_host == SPI3_HOST)
+    {
+      const uint32_t ctrl117 = REG_READ(HP_SYS_CLKRST_PERI_CLK_CTRL117_REG);
+      source_sel = VALUE_GET_FIELD(ctrl116, HP_SYS_CLKRST_REG_GPSPI3_CLK_SRC_SEL);
+      hs_div = VALUE_GET_FIELD(ctrl117, HP_SYS_CLKRST_REG_GPSPI3_HS_CLK_DIV_NUM);
+      mst_div = VALUE_GET_FIELD(ctrl117, HP_SYS_CLKRST_REG_GPSPI3_MST_CLK_DIV_NUM);
+    }
+    else
+    {
+      return getApbFrequency();
+    }
+
+    uint32_t source_hz;
+    switch (source_sel)
+    {
+    case 0: source_hz = get_xtal_frequency(); break;
+    case 1: source_hz = get_rc_fast_frequency(); break;
+    case 4: source_hz = 480000000u; break; // SPLL
+    default: source_hz = 480000000u; break; // Safe upper bound for an unknown source.
+    }
+    return source_hz / (hs_div + 1) / (mst_div + 1);
+#else
+    (void)spi_host;
+    return getApbFrequency();
+#endif
+#endif
+  }
+
   uint32_t FreqToClockDiv(uint32_t fapb, uint32_t hz)
   {
     if (fapb <= hz) return SPI_CLK_EQU_SYSCLK;
     uint32_t div_num = fapb / (1 + hz);
-    uint32_t pre = div_num / 64u;
-    div_num = div_num / (pre+1);
+    uint32_t pre = std::min<uint32_t>(div_num / (SPI_CLKCNT_N_V + 1u), SPI_CLKDIV_PRE_V);
+    div_num = std::min<uint32_t>(div_num / (pre+1), SPI_CLKCNT_N_V);
     return div_num << 12 | ((div_num-1)>>1) << 6 | div_num | pre << 18;
   }
 
@@ -490,8 +628,10 @@ namespace lgfx
         _gpio_func_out_reg = *reinterpret_cast<uint32_t*>(GPIO_FUNC0_OUT_SEL_CFG_REG + (pin_num * 4));
 #if defined ( GPIO_ENABLE1_REG )
         _gpio_enable = *reinterpret_cast<uint32_t*>(((pin_num & 32) ? GPIO_ENABLE1_REG : GPIO_ENABLE_REG)) & (1 << (pin_num & 31));
+        _gpio_out    = *reinterpret_cast<uint32_t*>(((pin_num & 32) ? GPIO_OUT1_REG    : GPIO_OUT_REG   )) & (1 << (pin_num & 31));
 #else
         _gpio_enable = *reinterpret_cast<uint32_t*>(GPIO_ENABLE_REG) & (1 << (pin_num & 31));
+        _gpio_out    = *reinterpret_cast<uint32_t*>(GPIO_OUT_REG   ) & (1 << (pin_num & 31));
 #endif
         _in_func_num = -1;
 
@@ -517,6 +657,22 @@ namespace lgfx
       auto pin_num = (size_t)_pin_num;
       if (pin_num < GPIO_NUM_MAX)
       {
+        uint32_t pin_mask = 1 << (pin_num & 31);
+#if defined ( GPIO_ENABLE1_REG )
+        auto gpio_enable_w1ts = reinterpret_cast<volatile uint32_t*>((pin_num & 32) ? GPIO_ENABLE1_W1TS_REG : GPIO_ENABLE_W1TS_REG);
+        auto gpio_enable_w1tc = reinterpret_cast<volatile uint32_t*>((pin_num & 32) ? GPIO_ENABLE1_W1TC_REG : GPIO_ENABLE_W1TC_REG);
+#else
+        auto gpio_enable_w1ts = reinterpret_cast<volatile uint32_t*>(GPIO_ENABLE_W1TS_REG);
+        auto gpio_enable_w1tc = reinterpret_cast<volatile uint32_t*>(GPIO_ENABLE_W1TC_REG);
+#endif
+        // Stop driving before anything else changes what driving would mean.
+        // Restoring the pad configuration can turn an open drain output back
+        // into a push-pull one, and the latch left behind by whoever borrowed
+        // the pin is usually high - the pin would drive that high for as long
+        // as it takes to reach the latch below.
+        *gpio_enable_w1tc = pin_mask;
+        *(_gpio_out ? get_gpio_hi_reg(_pin_num) : get_gpio_lo_reg(_pin_num)) = pin_mask;
+
         if ((uint16_t)_in_func_num < 256) {
           GPIO.func_in_sel_cfg[_in_func_num].val = _gpio_func_in_reg;
   // ESP_LOGD("DEBUG","pin:%d in_func_num:%d", (int)pin_num, (int)_in_func_num);
@@ -530,24 +686,11 @@ namespace lgfx
         *reinterpret_cast<uint32_t*>(GPIO_PIN0_REG              + (pin_num * 4)) = _gpio_pin_reg;
         *reinterpret_cast<uint32_t*>(GPIO_FUNC0_OUT_SEL_CFG_REG + (pin_num * 4)) = _gpio_func_out_reg;
 
-#if defined ( GPIO_ENABLE1_REG )
-        auto gpio_enable_reg = reinterpret_cast<uint32_t*>(((pin_num & 32) ? GPIO_ENABLE1_REG : GPIO_ENABLE_REG));
-#else
-        auto gpio_enable_reg = reinterpret_cast<uint32_t*>(GPIO_ENABLE_REG);
-#endif
-
-        uint32_t pin_mask = 1 << (pin_num & 31);
-        uint32_t val = *gpio_enable_reg;
-  // ESP_LOGD("DEBUG","restore GPIO_ENABLE_REG:%08x", (int)*gpio_enable_reg);
-        if (_gpio_enable)
-        {
-           val |= pin_mask;
-        }
-        else
-        {
-          val &= ~pin_mask;
-        }
-        *gpio_enable_reg = val;
+        // The pin drives again only once it is configured and holding the level
+        // it held before. Set and clear go through their own registers so a pin
+        // being restored on another core is not caught in a read-modify-write.
+        if (_gpio_enable) { *gpio_enable_w1ts = pin_mask; }
+        else              { *gpio_enable_w1tc = pin_mask; }
       }
     }
 
@@ -891,7 +1034,9 @@ namespace lgfx
       }
       uint32_t spi_port = (spi_host + 1);
       (void)spi_port;
-      uint32_t clkdiv = FreqToClockDiv(getApbFrequency(), freq);
+      // Bus acquisition may select a different source or pre-divider.
+      beginTransaction(spi_host);
+      uint32_t clkdiv = FreqToClockDiv(getSpiClockFrequency(spi_host), freq);
 
       uint32_t user = SPI_USR_MOSI | SPI_USR_MISO | SPI_DOUTDIN;
       if (spi_mode == 1 || spi_mode == 2) user |= SPI_CK_OUT_EDGE;
@@ -916,8 +1061,6 @@ namespace lgfx
             | SPI_CS5_DIS
 #endif
       ;
-
-      beginTransaction(spi_host);
 
       writereg(SPI_USER_REG(spi_port), user);
 #if defined (SPI_PIN_REG)
@@ -1511,6 +1654,11 @@ namespace lgfx
       for (auto &bup : backup_pins) { bup.restore(); }
     }
 
+    /// Minimum time a transfer may stall (clock stretching or a wedged bus)
+    /// before it is given up on; 25ms covers the SMBus Tlow:sext ceiling.
+    /// NACK handling does not depend on this limit.
+    static constexpr uint32_t i2c_stall_limit_us = 25000;
+
     static cpp::result<void, error_t> i2c_wait(int i2c_port, bool flg_stop = false)
     {
       if (flg_stop == false && i2c_context[i2c_port].state.has_error()) { return cpp::fail(i2c_context[i2c_port].state.error()); }
@@ -1519,7 +1667,7 @@ namespace lgfx
       auto dev = getDev(i2c_port);
       typeof(dev->int_raw) int_raw;
       int_raw.val = dev->int_raw.val; // ACK待ちステージをスキップした場合も後段の分岐で参照されるため必ず初期化する;
-      static constexpr uint32_t intmask = I2C_ACK_ERR_INT_RAW_M | I2C_END_DETECT_INT_RAW_M | I2C_ARBITRATION_LOST_INT_RAW_M;
+      static constexpr uint32_t intmask = I2C_ACK_ERR_INT_RAW_M | I2C_TIME_OUT_INT_RAW_M | I2C_END_DETECT_INT_RAW_M | I2C_ARBITRATION_LOST_INT_RAW_M;
 
       if (i2c_context[i2c_port].wait_ack_stage)
       {
@@ -1533,7 +1681,7 @@ namespace lgfx
 #else
           uint32_t us_limit = (dev->scl_high_period.period + dev->scl_low_period.period + 16 ) * (1 + dev->status_reg.tx_fifo_cnt);
 #endif
-          us_limit += 512 << i2c_context[i2c_port].wait_ack_stage;
+          us_limit += i2c_stall_limit_us;
 
           do
           {
@@ -1545,6 +1693,13 @@ namespace lgfx
         int_raw.val = dev->int_raw.val;
 
         dev->int_clr.val = int_raw.val;
+        // A timeout or lost arbitration is fatal even when END is also set.
+        if (int_raw.val & (I2C_TIME_OUT_INT_RAW_M | I2C_ARBITRATION_LOST_INT_RAW_M))
+        {
+          res = cpp::fail(error_t::connection_lost);
+          i2c_context[i2c_port].state = cpp::fail(error_t::connection_lost);
+        }
+        else
 #if !defined (CONFIG_IDF_TARGET) || defined (CONFIG_IDF_TARGET_ESP32)
         if (!int_raw.end_detect || int_raw.ack_err)
 #elif defined ( CONFIG_IDF_TARGET_ESP32C2 ) || defined ( CONFIG_IDF_TARGET_ESP32S3 ) || defined ( CONFIG_IDF_TARGET_ESP32C5 ) || defined ( CONFIG_IDF_TARGET_ESP32C6 ) || defined ( CONFIG_IDF_TARGET_ESP32C61 ) || defined ( CONFIG_IDF_TARGET_ESP32P4 ) || defined ( CONFIG_IDF_TARGET_ESP32H2 )
@@ -1578,13 +1733,27 @@ namespace lgfx
         {
           i2c_set_cmd(dev, 0, i2c_cmd_stop, 0);
           i2c_set_cmd(dev, 1, i2c_cmd_end, 0);
-          static constexpr uint32_t intmask_ = I2C_ACK_ERR_INT_RAW_M | I2C_TIME_OUT_INT_RAW_M | I2C_END_DETECT_INT_RAW_M | I2C_ARBITRATION_LOST_INT_RAW_M | I2C_TRANS_COMPLETE_INT_RAW_M;
+          // Wake only on events that end the STOP; a NACK is evaluated after it completes.
+          static constexpr uint32_t intmask_ = I2C_TIME_OUT_INT_RAW_M | I2C_ARBITRATION_LOST_INT_RAW_M | I2C_TRANS_COMPLETE_INT_RAW_M;
           updateDev(dev);
-          dev->int_clr.val = intmask_;
+          dev->int_clr.val = intmask_ | I2C_ACK_ERR_INT_RAW_M | I2C_END_DETECT_INT_RAW_M;
           dev->ctr.trans_start = 1;
           uint32_t ms = lgfx::millis();
           taskYIELD();
-          while (!(dev->int_raw.val & intmask_) && ((millis() - ms) < 14));
+          while (!(dev->int_raw.val & intmask_) && ((millis() - ms) < (i2c_stall_limit_us / 1000))) { taskYIELD(); }
+          // A STOP that did not complete leaves the bus in an unknown state:
+          // recover it and refuse further use of this transaction.
+          {
+            uint32_t stop_raw = dev->int_raw.val;
+            if (res.has_value()
+             && ((stop_raw & (I2C_TIME_OUT_INT_RAW_M | I2C_ARBITRATION_LOST_INT_RAW_M))
+              || !(stop_raw & I2C_TRANS_COMPLETE_INT_RAW_M)))
+            {
+              res = cpp::fail(error_t::connection_lost);
+              i2c_context[i2c_port].state = cpp::fail(error_t::connection_lost);
+              i2c_stop(i2c_port);
+            }
+          }
 #if !defined (CONFIG_IDF_TARGET) || defined (CONFIG_IDF_TARGET_ESP32)
           if (res.has_value() && dev->int_raw.ack_err)
 #elif defined ( CONFIG_IDF_TARGET_ESP32C2 ) || defined ( CONFIG_IDF_TARGET_ESP32S3 ) || defined ( CONFIG_IDF_TARGET_ESP32C5 ) || defined ( CONFIG_IDF_TARGET_ESP32C6 ) || defined ( CONFIG_IDF_TARGET_ESP32C61 ) || defined ( CONFIG_IDF_TARGET_ESP32P4 ) || defined ( CONFIG_IDF_TARGET_ESP32H2 )
@@ -1592,8 +1761,9 @@ namespace lgfx
 #else
           if (res.has_value() && dev->int_raw.nack)
 #endif
-          {
+          { // The STOP completed but a byte went unacknowledged.
             res = cpp::fail(error_t::connection_lost);
+            i2c_context[i2c_port].state = cpp::fail(error_t::connection_lost);
           }
           //ESP_LOGI("LGFX", "I2C stop");
         }
@@ -2000,11 +2170,14 @@ namespace lgfx
       dev->ctr.fsm_rst = 1;
 #endif
 
+// SCL-low (clock stretch) watchdog. 2^21 source clocks stays past
+// i2c_stall_limit_us on every supported source; the ESP32 register below is at
+// its ceiling, about 13ms.
 #if defined ( CONFIG_IDF_TARGET_ESP32C3 )
-      dev->timeout.time_out_value = 31;
+      dev->timeout.time_out_value = 21;
       dev->timeout.time_out_en = 1;
 #elif defined ( CONFIG_IDF_TARGET_ESP32C2 ) || defined ( CONFIG_IDF_TARGET_ESP32S3 ) || defined ( CONFIG_IDF_TARGET_ESP32C5 ) || defined ( CONFIG_IDF_TARGET_ESP32C6 ) || defined ( CONFIG_IDF_TARGET_ESP32C61 ) || defined ( CONFIG_IDF_TARGET_ESP32P4 ) || defined ( CONFIG_IDF_TARGET_ESP32H2 )
-      dev->to.time_out_value = 31;
+      dev->to.time_out_value = 21;
       dev->to.time_out_en = 1;
 #else
       dev->timeout.tout = 0xFFFFF; // max 13ms
@@ -2153,6 +2326,7 @@ namespace lgfx
         updateDev(dev);
         dev->int_clr.val = intmask;
         dev->ctr.trans_start = 1;
+        i2c_context[i2c_port].wait_ack_stage = 2;
 
         uint32_t us = lgfx::micros();
         taskYIELD();
@@ -2166,7 +2340,7 @@ namespace lgfx
           do
           {
             taskYIELD();
-          } while ((len>>1) >= getRxFifoCount(dev) && !(dev->int_raw.val & intmask) && ((lgfx::micros() - us) <= us_limit + 1024));
+          } while ((len>>1) >= getRxFifoCount(dev) && !(dev->int_raw.val & intmask) && ((lgfx::micros() - us) <= us_limit + i2c_stall_limit_us));
 
           if (0 == getRxFifoCount(dev))
           {
