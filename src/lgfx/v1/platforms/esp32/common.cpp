@@ -846,6 +846,12 @@ namespace lgfx
         buscfg.max_transfer_sz = 1;
         buscfg.flags = SPICOMMON_BUSFLAG_MASTER;
         buscfg.intr_flags = 0;
+#if defined (ESP_IDF_VERSION_VAL) && (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 1, 0))
+        // IDF>=5.1: the memset(~0u) above leaves 0xFFFFFFFF which the GDMA driver rejects
+        // (>64B max when accessing external memory on PSRAM-capable chips such as ESP32-S3);
+        //  0 = use driver default (32B), same as pre-6.1 behavior
+        buscfg.dma_burst_size = 0;
+#endif
 #if defined (ESP_IDF_VERSION_VAL)
   #if (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 2, 0))
     #if (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 4, 0))
