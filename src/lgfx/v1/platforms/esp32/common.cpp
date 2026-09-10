@@ -847,6 +847,9 @@ namespace lgfx
         buscfg.flags = SPICOMMON_BUSFLAG_MASTER;
         buscfg.intr_flags = 0;
 #if defined (ESP_IDF_VERSION_VAL)
+  #if (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 1, 0))
+        buscfg.dma_burst_size = 0; // 0 = driver default. memset(~0u) leaves 0xFFFFFFFF, which the GDMA driver rejects
+  #endif
   #if (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 2, 0))
     #if (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 4, 0))
         buscfg.data_io_default_level = 0;
