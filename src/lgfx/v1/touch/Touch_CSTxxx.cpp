@@ -29,6 +29,102 @@ namespace lgfx
  {
 //----------------------------------------------------------------------------
 
+  bool Touch_CST3530::_write_reg32(uint32_t reg)
+  {
+    uint8_t data[4] =
+      { static_cast<uint8_t>(reg >> 24)
+      , static_cast<uint8_t>(reg >> 16)
+      , static_cast<uint8_t>(reg >> 8)
+      , static_cast<uint8_t>(reg)
+      };
+    return i2c::transactionWrite(_cfg.i2c_port, _cfg.i2c_addr, data, sizeof(data), _cfg.freq).has_value();
+  }
+
+  bool Touch_CST3530::_read_reg32(uint32_t reg, uint8_t* data, size_t length)
+  {
+    uint8_t address[4] =
+      { static_cast<uint8_t>(reg >> 24)
+      , static_cast<uint8_t>(reg >> 16)
+      , static_cast<uint8_t>(reg >> 8)
+      , static_cast<uint8_t>(reg)
+      };
+    return i2c::transactionWriteRead(_cfg.i2c_port, _cfg.i2c_addr, address, sizeof(address), data, length, _cfg.freq).has_value();
+  }
+
+  bool Touch_CST3530::_check_init(void)
+  {
+    if (_inited) return true;
+
+    bool ok = _write_reg32(0xD0000400);
+    lgfx::delay(20);
+    ok = _write_reg32(0xD0000400) && ok;
+    lgfx::delay(20);
+    ok = _write_reg32(0xD0000000) && ok;
+    ok = _write_reg32(0xD0000C00) && ok;
+    ok = _write_reg32(0xD0000100) && ok;
+    _inited = ok;
+    return _inited;
+  }
+
+  bool Touch_CST3530::init(void)
+  {
+    _inited = false;
+    if (_cfg.pin_int >= 0) {
+      lgfx::pinMode(_cfg.pin_int, pin_mode_t::input);
+    }
+    i2c::init(_cfg.i2c_port, _cfg.pin_sda, _cfg.pin_scl).has_value();
+    return true;
+  }
+
+  void Touch_CST3530::wakeup(void)
+  {
+    _inited = false;
+    _check_init();
+  }
+
+  void Touch_CST3530::sleep(void)
+  {
+  }
+
+  uint_fast8_t Touch_CST3530::getTouchRaw(touch_point_t* tp, uint_fast8_t count)
+  {
+    if (count == 0 || !_check_init()) return 0;
+
+    uint8_t data[50] = { 0 };
+    if (!_read_reg32(0xD0070000, data, 9)) return 0;
+
+    uint8_t finger_num = data[3] & 0x0F;
+    uint8_t key_num = (data[3] >> 4) & 0x0F;
+    uint8_t total_num = key_num + finger_num;
+    if (total_num > 1) {
+      size_t extra_length = (total_num - 1) * 5;
+      if (extra_length > sizeof(data) - 9) extra_length = sizeof(data) - 9;
+      if (!i2c::transactionRead(_cfg.i2c_port, _cfg.i2c_addr, &data[9], extra_length, _cfg.freq).has_value()) {
+        _write_reg32(0xD00002AB);
+        return 0;
+      }
+    }
+    _write_reg32(0xD00002AB);
+
+    if (finger_num == 0 || (data[8] >> 4) == 0) return 0;
+
+    uint_fast8_t points = finger_num;
+    if (points > max_touch_points) points = max_touch_points;
+    if (points > count) points = count;
+    for (uint_fast8_t i = 0; i < points; ++i) {
+      uint16_t index = (key_num + i) * 5;
+      uint16_t x = data[index + 4] | ((uint16_t)(data[index + 7] & 0x0F) << 8);
+      uint16_t y = data[index + 5] | ((uint16_t)(data[index + 7] & 0xF0) << 4);
+      tp[i].id = i;
+      tp[i].size = 1;
+      tp[i].x = x;
+      tp[i].y = y;
+    }
+    return points;
+  }
+
+//----------------------------------------------------------------------------
+
   static constexpr uint8_t CST816S_TOUCH_REG  = 0x01;
   static constexpr uint8_t CST816S_SLEEP_REG  = 0xA5;
   static constexpr uint8_t CST816S_CHIPID_REG = 0xA7;
