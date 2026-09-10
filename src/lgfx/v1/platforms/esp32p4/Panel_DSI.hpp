@@ -74,6 +74,7 @@ namespace lgfx
 
   protected:
 
+    static constexpr uint8_t CMD_SWRESET = 0x01;
     static constexpr uint8_t CMD_SLPIN   = 0x10;
     static constexpr uint8_t CMD_SLPOUT  = 0x11;
     static constexpr uint8_t CMD_INVOFF  = 0x20;
@@ -87,6 +88,8 @@ namespace lgfx
 
     virtual const uint8_t* getInitParams(size_t listno) const { return nullptr; }
     virtual size_t getInitDelay(size_t listno) const { return 0; }
+    virtual size_t getResetDelayBeforeDpi(void) const { return 0; }
+    virtual bool initInCommandMode(void) const { return true; }
 
     bool write_params(uint32_t cmd, const uint8_t* data = nullptr, size_t length = 0);
 
