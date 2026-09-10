@@ -838,19 +838,27 @@ namespace lgfx
  // バスの設定にはESP-IDFのSPIドライバを使用する。;
       if (_spi_dev_handle[spi_host] == nullptr)
       {
-        spi_bus_config_t buscfg;
-        memset(&buscfg, ~0u, sizeof(spi_bus_config_t));
+        // Zero-initialize, following ESP-IDF's own aggregate-initializer convention: every current
+        // non-pin field is valid at 0 (notably dma_burst_size = 0 selects the driver default on v6.1,
+        // and data_io_default_level = 0 is the Low level used before). Unused pin fields are set
+        // to -1 explicitly because 0 would mean GPIO0.
+        spi_bus_config_t buscfg = {};
         buscfg.mosi_io_num = spi_mosi;
         buscfg.miso_io_num = spi_miso;
         buscfg.sclk_io_num = spi_sclk;
+        buscfg.quadwp_io_num = -1;
+        buscfg.quadhd_io_num = -1;
         buscfg.max_transfer_sz = 1;
         buscfg.flags = SPICOMMON_BUSFLAG_MASTER;
         buscfg.intr_flags = 0;
 #if defined (ESP_IDF_VERSION_VAL)
+  #if (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 4, 0))
+        buscfg.data4_io_num = -1;
+        buscfg.data5_io_num = -1;
+        buscfg.data6_io_num = -1;
+        buscfg.data7_io_num = -1;
+  #endif
   #if (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 2, 0))
-    #if (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 4, 0))
-        buscfg.data_io_default_level = 0;
-    #endif
         buscfg.isr_cpu_id = ESP_INTR_CPU_AFFINITY_AUTO;
   #elif (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 1, 0))
         buscfg.isr_cpu_id = INTR_CPU_ID_AUTO;
