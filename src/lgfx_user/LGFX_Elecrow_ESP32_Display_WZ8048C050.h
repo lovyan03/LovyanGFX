@@ -3,7 +3,11 @@
 
 #include <lgfx/v1/platforms/esp32s3/Panel_RGB.hpp>
 #include <lgfx/v1/platforms/esp32s3/Bus_RGB.hpp>
-#include <driver/i2c.h>
+#if __has_include(<driver/i2c_master.h>)
+ #include <driver/i2c_master.h>
+#else
+ #include <driver/i2c.h>
+#endif
 
 // LGFX for Elecrow 5" 800x480 ESP32 RGB touch display (WZ8048C050)
 // https://www.elecrow.com/esp32-display-5-inch-hmi-display-rgb-tft-lcd-touch-screen-support-lvgl.html
