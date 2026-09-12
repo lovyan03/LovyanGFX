@@ -98,6 +98,15 @@ Contributors:
   #define LGFX_IDF_V5
  #endif
 
+ #if ESP_IDF_VERSION <= ESP_IDF_VERSION_VAL(5, 4, 5)
+  // Affects esp_lcd panels using esp_lcd_dpi_panel_event_callbacks_t or esp_lcd_rgb_panel_event_callbacks_t (e.g. Panel_LT8912B).
+  // Last known version of esp-idf using "on_refresh_done" is idf 5.4.x.
+  // - https://github.com/espressif/esp-idf/blob/release/v5.4/components/esp_lcd/dsi/include/esp_lcd_mipi_dsi.h#L188
+  // Struct member "on_refresh_done" is deprecated since idf 5.5.x: use "on_frame_buf_complete" instead.
+  // - https://github.com/espressif/esp-idf/blob/release/v5.5/components/esp_lcd/dsi/include/esp_lcd_mipi_dsi.h#L206
+  #define LGFX_ESP_LCD_USE_ON_REFRESH_DONE
+ #endif
+
  #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 0, 0)
   #ifndef LGFX_I2S_PORT_T_COMPAT
    #define LGFX_I2S_PORT_T_COMPAT 1
