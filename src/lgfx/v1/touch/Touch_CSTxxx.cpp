@@ -222,7 +222,7 @@ namespace lgfx
 
   uint_fast8_t Touch_CST816S::getTouchRaw(touch_point_t *tp, uint_fast8_t count)
   {
-    if (!_inited && !_check_init()) return 0;
+    if ((!_inited && !_check_init()) || count == 0) return 0;
 
     // if (count > max_touch_points) { count = max_touch_points; }
 
