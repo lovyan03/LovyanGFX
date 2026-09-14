@@ -1916,6 +1916,13 @@ namespace lgfx
       return i2c_context[i2c_port].pin_scl;
     }
 
+    bool isInitialized(int i2c_port)
+    {
+      if (isSoftPort(i2c_port)) { return soft_i2c_valid_port(i2c_port) && soft_i2c_ctx(i2c_port).initialized; }
+      if (i2c_port >= LGFX_I2C_PORT_NUM) { return false; }
+      return i2c_context[i2c_port].initialized;
+    }
+
     cpp::result<void, error_t> init(int i2c_port)
     {
       if (isSoftPort(i2c_port))

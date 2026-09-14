@@ -63,11 +63,6 @@ struct esp_lcd_dsi_bus_t {
 #define esp_lcd_new_panel_io_i2c esp_lcd_new_panel_io_i2c_v2
 #endif
 
-#if __has_include(<utility/I2C_Class.hpp>)
-#include <utility/I2C_Class.hpp>
-#define LGFX_PANEL_LT8912B_HAS_M5_I2C 1
-#endif
-
 // LT8912B esp_lcd compatibility implementation. Kept in this file to match
 // the M5GFX Panel_xxx convention while Panel_LT8912B wraps it for LovyanGFX.
 static const char *TAG = "lt8912b";
@@ -787,46 +782,48 @@ namespace lgfx
 
   static constexpr const char* TAG = "Panel_LT8912B";
 
-#if defined(LGFX_PANEL_LT8912B_HAS_M5_I2C)
-  struct M5I2CPanelIO
+  // esp_lcd panel IO over lgfx::i2c, so the bridge shares the port with whatever
+  // else the board has on that bus (the internal bus opened by the application).
+  // Only what the LT8912B code uses is implemented: tx_param / rx_param with a
+  // register as lcd_cmd; tx_color and event callbacks report ESP_ERR_NOT_SUPPORTED.
+  struct LgfxI2CPanelIO
   {
     esp_lcd_panel_io_t base;
-    m5::I2C_Class* i2c = nullptr;
+    int port = -1;
     uint8_t address = 0;
     uint32_t freq = 100000;
   };
 
-  static M5I2CPanelIO* to_m5_i2c_io(esp_lcd_panel_io_t* io)
+  static LgfxI2CPanelIO* to_lgfx_i2c_io(esp_lcd_panel_io_t* io)
   {
-    return reinterpret_cast<M5I2CPanelIO*>(io);
+    return reinterpret_cast<LgfxI2CPanelIO*>(io);
   }
 
-  static esp_err_t m5_i2c_io_tx_param(esp_lcd_panel_io_t* io, int lcd_cmd, const void* param, size_t param_size)
+  static esp_err_t lgfx_i2c_io_tx_param(esp_lcd_panel_io_t* io, int lcd_cmd, const void* param, size_t param_size)
   {
-    auto ctx = to_m5_i2c_io(io);
-    if (!ctx || !ctx->i2c || !ctx->i2c->isEnabled() || lcd_cmd < 0 || lcd_cmd > 0xFF) {
+    auto ctx = to_lgfx_i2c_io(io);
+    if (!ctx || ctx->port < 0 || lcd_cmd < 0 || lcd_cmd > 0xFF) {
       return ESP_ERR_INVALID_ARG;
     }
     if (param_size && !param) {
       return ESP_ERR_INVALID_ARG;
     }
-
-    if (!ctx->i2c->start(ctx->address, false, ctx->freq)) {
+    if (lgfx::i2c::beginTransaction(ctx->port, ctx->address, ctx->freq, false).has_error()) {
       return ESP_FAIL;
     }
-
-    bool ok = ctx->i2c->write(static_cast<uint8_t>(lcd_cmd));
+    const uint8_t cmd = static_cast<uint8_t>(lcd_cmd);
+    bool ok = lgfx::i2c::writeBytes(ctx->port, &cmd, 1).has_value();
     if (ok && param_size) {
-      ok = ctx->i2c->write(static_cast<const uint8_t*>(param), param_size);
+      ok = lgfx::i2c::writeBytes(ctx->port, static_cast<const uint8_t*>(param), param_size).has_value();
     }
-    ok = ctx->i2c->stop() && ok;
+    ok = lgfx::i2c::endTransaction(ctx->port).has_value() && ok;
     return ok ? ESP_OK : ESP_FAIL;
   }
 
-  static esp_err_t m5_i2c_io_rx_param(esp_lcd_panel_io_t* io, int lcd_cmd, void* param, size_t param_size)
+  static esp_err_t lgfx_i2c_io_rx_param(esp_lcd_panel_io_t* io, int lcd_cmd, void* param, size_t param_size)
   {
-    auto ctx = to_m5_i2c_io(io);
-    if (!ctx || !ctx->i2c || !ctx->i2c->isEnabled() || lcd_cmd < 0 || lcd_cmd > 0xFF) {
+    auto ctx = to_lgfx_i2c_io(io);
+    if (!ctx || ctx->port < 0 || lcd_cmd < 0 || lcd_cmd > 0xFF) {
       return ESP_ERR_INVALID_ARG;
     }
     if (param_size == 0) {
@@ -835,54 +832,49 @@ namespace lgfx
     if (!param) {
       return ESP_ERR_INVALID_ARG;
     }
-
-    const bool ok = ctx->i2c->readRegister(ctx->address,
-                                           static_cast<uint8_t>(lcd_cmd),
-                                           static_cast<uint8_t*>(param),
-                                           param_size,
-                                           ctx->freq);
+    const bool ok = lgfx::i2c::readRegister(ctx->port, ctx->address, static_cast<uint8_t>(lcd_cmd),
+                                            static_cast<uint8_t*>(param), param_size, ctx->freq).has_value();
     return ok ? ESP_OK : ESP_FAIL;
   }
 
-  static esp_err_t m5_i2c_io_tx_color(esp_lcd_panel_io_t* io, int lcd_cmd, const void* color, size_t color_size)
+  static esp_err_t lgfx_i2c_io_tx_color(esp_lcd_panel_io_t* io, int lcd_cmd, const void* color, size_t color_size)
   {
-    return m5_i2c_io_tx_param(io, lcd_cmd, color, color_size);
+    (void)io; (void)lcd_cmd; (void)color; (void)color_size;
+    return ESP_ERR_NOT_SUPPORTED; // the bridge is configured with tx_param / rx_param only
   }
 
-  static esp_err_t m5_i2c_io_del(esp_lcd_panel_io_t* io)
+  static esp_err_t lgfx_i2c_io_del(esp_lcd_panel_io_t* io)
   {
-    delete to_m5_i2c_io(io);
+    delete to_lgfx_i2c_io(io);
     return ESP_OK;
   }
 
-  static esp_err_t m5_i2c_io_register_event_callbacks(esp_lcd_panel_io_t* io,
-                                                      const esp_lcd_panel_io_callbacks_t* cbs,
-                                                      void* user_ctx)
+  static esp_err_t lgfx_i2c_io_register_event_callbacks(esp_lcd_panel_io_t* io,
+                                                        const esp_lcd_panel_io_callbacks_t* cbs,
+                                                        void* user_ctx)
   {
     (void)io;
     (void)cbs;
     (void)user_ctx;
-    return ESP_OK;
+    return ESP_ERR_NOT_SUPPORTED; // no asynchronous transfers, so nothing to report
   }
 
-  static esp_lcd_panel_io_handle_t new_m5_i2c_panel_io(m5::I2C_Class* i2c, uint8_t address, uint32_t freq)
+  static esp_lcd_panel_io_handle_t new_lgfx_i2c_panel_io(int port, uint8_t address, uint32_t freq)
   {
-    auto io = new (std::nothrow) M5I2CPanelIO();
+    auto io = new (std::nothrow) LgfxI2CPanelIO();
     if (!io) {
       return nullptr;
     }
-
-    io->base.rx_param = m5_i2c_io_rx_param;
-    io->base.tx_param = m5_i2c_io_tx_param;
-    io->base.tx_color = m5_i2c_io_tx_color;
-    io->base.del = m5_i2c_io_del;
-    io->base.register_event_callbacks = m5_i2c_io_register_event_callbacks;
-    io->i2c = i2c;
+    io->base.rx_param = lgfx_i2c_io_rx_param;
+    io->base.tx_param = lgfx_i2c_io_tx_param;
+    io->base.tx_color = lgfx_i2c_io_tx_color;
+    io->base.del = lgfx_i2c_io_del;
+    io->base.register_event_callbacks = lgfx_i2c_io_register_event_callbacks;
+    io->port = port;
     io->address = address;
     io->freq = freq;
     return &io->base;
   }
-#endif
 
   Panel_LT8912B::~Panel_LT8912B(void)
   {
@@ -899,45 +891,8 @@ namespace lgfx
 
   bool Panel_LT8912B::get_i2c_bus(void)
   {
-    if (_config_detail.i2c_master_bus) {
-      _i2c_bus = _config_detail.i2c_master_bus;
-      _i2c_bus_owned = false;
-      return true;
-    }
-    if (_i2c_bus) {
-      return true;
-    }
-
-    const auto port = static_cast<i2c_port_num_t>(_config_detail.i2c_port);
-    esp_err_t ret = ESP_FAIL;
-#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 5, 0)
-    ret = i2c_master_get_bus_handle(port, &_i2c_bus);
-    if (ret == ESP_OK) {
-      _i2c_bus_owned = false;
-      return true;
-    }
-    ESP_LOGW(TAG, "get existing I2C bus %d failed: %s; create fallback bus SDA=%d SCL=%d",
-             _config_detail.i2c_port, esp_err_to_name(ret),
-             _config_detail.i2c_sda, _config_detail.i2c_scl);
-#endif
-
-    i2c_master_bus_config_t bus_config = {};
-    bus_config.i2c_port = port;
-    bus_config.sda_io_num = static_cast<gpio_num_t>(_config_detail.i2c_sda);
-    bus_config.scl_io_num = static_cast<gpio_num_t>(_config_detail.i2c_scl);
-    bus_config.clk_source = I2C_CLK_SRC_DEFAULT;
-    bus_config.glitch_ignore_cnt = 7;
-    bus_config.flags.enable_internal_pullup = true;
-    bus_config.intr_priority = 1;
-
-    ret = i2c_new_master_bus(&bus_config, &_i2c_bus);
-    if (ret != ESP_OK) {
-      ESP_LOGE(TAG, "create fallback I2C bus %d failed: %s", _config_detail.i2c_port, esp_err_to_name(ret));
-      _i2c_bus = nullptr;
-      return false;
-    }
-    _i2c_bus_owned = true;
-    return true;
+    _i2c_bus = _config_detail.i2c_master_bus; // owned by the application, never deleted here
+    return _i2c_bus != nullptr;
   }
 
   bool Panel_LT8912B::init_panel(Bus_DSI* bus)
@@ -962,26 +917,37 @@ namespace lgfx
     }
 
     esp_err_t ret = ESP_OK;
-#if defined(LGFX_PANEL_LT8912B_HAS_M5_I2C)
-    if (_config_detail.i2c) {
-      if (!_config_detail.i2c->isEnabled()) {
-        ESP_LOGE(TAG, "M5.In_I2C is not initialized");
+    if (!_config_detail.i2c_master_bus) {
+      const int port = _config_detail.i2c_port;
+      if (port < 0) {
+        ESP_LOGE(TAG, "i2c_port %d: the bridge needs a hardware I2C port", port);
         return false;
       }
-      _io_main = new_m5_i2c_panel_io(_config_detail.i2c, LT8912B_IO_I2C_MAIN_ADDRESS, _config_detail.i2c_freq);
-      _io_cec = new_m5_i2c_panel_io(_config_detail.i2c, LT8912B_IO_I2C_CEC_ADDRESS, _config_detail.i2c_freq);
-      _io_avi = new_m5_i2c_panel_io(_config_detail.i2c, LT8912B_IO_I2C_AVI_ADDRESS, _config_detail.i2c_freq);
+      if (lgfx::i2c::isInitialized(port)) {
+        // Already open (the board's internal bus): share it as it is, do not re-open.
+        const int sda = lgfx::i2c::getPinSDA(port).value_or(-1);
+        const int scl = lgfx::i2c::getPinSCL(port).value_or(-1);
+        if (sda != _config_detail.i2c_sda || scl != _config_detail.i2c_scl) {
+          ESP_LOGW(TAG, "I2C port %d is already open on SDA=%d SCL=%d (config: SDA=%d SCL=%d); using it as it is",
+                   port, sda, scl, _config_detail.i2c_sda, _config_detail.i2c_scl);
+        }
+        _i2c_port_owned = false;
+      } else {
+        if (lgfx::i2c::init(port, _config_detail.i2c_sda, _config_detail.i2c_scl).has_error()) {
+          ESP_LOGE(TAG, "I2C port %d (SDA=%d SCL=%d) init failed", port, _config_detail.i2c_sda, _config_detail.i2c_scl);
+          return false;
+        }
+        _i2c_port_owned = true;
+        _i2c_port_opened = port;
+      }
+      _io_main = new_lgfx_i2c_panel_io(_config_detail.i2c_port, LT8912B_IO_I2C_MAIN_ADDRESS, _config_detail.i2c_freq);
+      _io_cec = new_lgfx_i2c_panel_io(_config_detail.i2c_port, LT8912B_IO_I2C_CEC_ADDRESS, _config_detail.i2c_freq);
+      _io_avi = new_lgfx_i2c_panel_io(_config_detail.i2c_port, LT8912B_IO_I2C_AVI_ADDRESS, _config_detail.i2c_freq);
       if (!_io_main || !_io_cec || !_io_avi) {
-        ESP_LOGE(TAG, "create LT8912B M5.In_I2C IO failed");
+        ESP_LOGE(TAG, "create LT8912B I2C IO failed");
         return false;
       }
     } else
-#else
-    if (_config_detail.i2c) {
-      ESP_LOGE(TAG, "M5Unified I2C_Class is not available");
-      return false;
-    }
-#endif
     {
       if (!get_i2c_bus()) {
         return false;
@@ -1197,11 +1163,11 @@ namespace lgfx
       esp_lcd_panel_io_del(_io_main);
       _io_main = nullptr;
     }
-    if (_i2c_bus_owned && _i2c_bus) {
-      i2c_del_master_bus(_i2c_bus);
-      _i2c_bus_owned = false;
-    }
     _i2c_bus = nullptr;
+    if (_i2c_port_owned) {
+      lgfx::i2c::release(_i2c_port_opened); // only the port this panel opened
+      _i2c_port_owned = false;
+    }
     for (auto& fb : _frame_buffers) {
       fb = nullptr;
     }
