@@ -31,6 +31,7 @@ Contributors:
 
 // LCD / OLED
 #include "v1/panel/Panel_GC9A01.hpp"
+#include "v1/panel/Panel_JD9853.hpp"
 #include "v1/panel/Panel_ILI9163.hpp"
 #include "v1/panel/Panel_ILI9225.hpp"
 #include "v1/panel/Panel_ILI9341.hpp"
@@ -43,6 +44,7 @@ Contributors:
 #include "v1/panel/Panel_RM68120.hpp"
 #include "v1/panel/Panel_S6D04K1.hpp"
 #include "v1/panel/Panel_SSD1306.hpp"
+#include "v1/panel/Panel_TM1680.hpp"
 #include "v1/panel/Panel_SSD1327.hpp"
 #include "v1/panel/Panel_SSD1331.hpp"
 #include "v1/panel/Panel_SSD1351.hpp"

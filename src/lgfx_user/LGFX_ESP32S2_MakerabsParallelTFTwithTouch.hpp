@@ -3,7 +3,11 @@
 #define LGFX_USE_V1
 
 #include <LovyanGFX.hpp>
-#include <driver/i2c.h>
+#if __has_include(<driver/i2c_master.h>)
+ #include <driver/i2c_master.h>
+#else
+ #include <driver/i2c.h>
+#endif
 
 // LGFX for Makerfabs ESP32-S2-Parallel-TFT-with-Touch
 // https://github.com/Makerfabs/Makerfabs-ESP32-S2-Parallel-TFT-with-Touch/

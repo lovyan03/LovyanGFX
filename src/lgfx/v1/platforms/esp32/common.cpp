@@ -838,19 +838,27 @@ namespace lgfx
  // バスの設定にはESP-IDFのSPIドライバを使用する。;
       if (_spi_dev_handle[spi_host] == nullptr)
       {
-        spi_bus_config_t buscfg;
-        memset(&buscfg, ~0u, sizeof(spi_bus_config_t));
+        // Zero-initialize, following ESP-IDF's own aggregate-initializer convention: every current
+        // non-pin field is valid at 0 (notably dma_burst_size = 0 selects the driver default on v6.1,
+        // and data_io_default_level = 0 is the Low level used before). Unused pin fields are set
+        // to -1 explicitly because 0 would mean GPIO0.
+        spi_bus_config_t buscfg = {};
         buscfg.mosi_io_num = spi_mosi;
         buscfg.miso_io_num = spi_miso;
         buscfg.sclk_io_num = spi_sclk;
+        buscfg.quadwp_io_num = -1;
+        buscfg.quadhd_io_num = -1;
         buscfg.max_transfer_sz = 1;
         buscfg.flags = SPICOMMON_BUSFLAG_MASTER;
         buscfg.intr_flags = 0;
 #if defined (ESP_IDF_VERSION_VAL)
+  #if (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 4, 0))
+        buscfg.data4_io_num = -1;
+        buscfg.data5_io_num = -1;
+        buscfg.data6_io_num = -1;
+        buscfg.data7_io_num = -1;
+  #endif
   #if (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 2, 0))
-    #if (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 4, 0))
-        buscfg.data_io_default_level = 0;
-    #endif
         buscfg.isr_cpu_id = ESP_INTR_CPU_AFFINITY_AUTO;
   #elif (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 1, 0))
         buscfg.isr_cpu_id = INTR_CPU_ID_AUTO;
@@ -1416,6 +1424,7 @@ namespace lgfx
       gpio_num_t pin_sda = (gpio_num_t)-1;
       uint8_t wait_ack_stage = 0;   // 0:Not waiting. / 1:Waiting after addressing. / 2:Waiting during data transmission.
       bool initialized = false;
+      bool foreign_bus = false;     // the port was already open through the platform driver when init() ran: shared, not owned
       uint32_t freq = 0;
 
       void save_reg(i2c_dev_t* dev)
@@ -1767,6 +1776,10 @@ namespace lgfx
           }
           //ESP_LOGI("LGFX", "I2C stop");
         }
+        // Leave no completion event behind: on a shared port the platform driver enables
+        // its interrupts without clearing the raw flags first, so a stale one would fire
+        // as soon as its next transfer starts.
+        dev->int_clr.val = 0x1FFFF;
         i2c_context[i2c_port].load_reg(dev);
         if (res)
         {
@@ -1784,6 +1797,11 @@ namespace lgfx
       if (i2c_context[i2c_port].initialized)
       {
         i2c_context[i2c_port].initialized = false;
+        if (i2c_context[i2c_port].foreign_bus)
+        { // Nothing was acquired: the bus and its pins belong to the platform driver.
+          i2c_context[i2c_port].foreign_bus = false;
+          return {};
+        }
 #if LGFX_LP_I2C_NUM > 0
         if (isLpPort(i2c_port))
         { // Opened through the ESP-IDF driver in init(), so it is closed the same way.
@@ -1898,6 +1916,13 @@ namespace lgfx
       return i2c_context[i2c_port].pin_scl;
     }
 
+    bool isInitialized(int i2c_port)
+    {
+      if (isSoftPort(i2c_port)) { return soft_i2c_valid_port(i2c_port) && soft_i2c_ctx(i2c_port).initialized; }
+      if (i2c_port >= LGFX_I2C_PORT_NUM) { return false; }
+      return i2c_context[i2c_port].initialized;
+    }
+
     cpp::result<void, error_t> init(int i2c_port)
     {
       if (isSoftPort(i2c_port))
@@ -1926,6 +1951,48 @@ namespace lgfx
       if (i2c_context[i2c_port].initialized)
       {
         release(i2c_port);
+      }
+
+      // A port the application already opened through the platform driver (TwoWire, or an
+      // ESP-IDF i2c_master bus) is shared rather than taken over: nothing is reset or
+      // acquired here, each transaction applies our configuration and endTransaction()
+      // puts the driver's back, so transfers from both sides can alternate. What sharing
+      // does not cover: the two sides are not serialized against each other (the
+      // application must not run them concurrently), both must use the same pins, and
+      // only the synchronous ESP-IDF API is compatible (its interrupts are off between
+      // transfers). release() then only drops the flag.
+      bool foreign = false;
+#if defined ( ARDUINO ) && __has_include (<Wire.h>)
+ #if defined ( USE_TWOWIRE_SETPINS ) && defined ( ESP_ARDUINO_VERSION_VAL ) && ( ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(2, 0, 1) )
+      foreign = i2cIsInit(i2c_port);   // present from core 2.0.1
+ #endif
+#elif __has_include(<driver/i2c_master.h>) && (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 3, 2))
+      { // Asking for the handle is the only non-destructive way to learn whether the port
+        // is open (a failing i2c_new_master_bus() unroutes the pins of the existing bus),
+        // but it logs an error when the port is free, which is the normal case here.
+        i2c_master_bus_handle_t existing = nullptr;
+        auto level = esp_log_level_get("i2c.master");
+        esp_log_level_set("i2c.master", ESP_LOG_NONE);
+        bool occupied = (ESP_OK == i2c_master_get_bus_handle(i2c_port, &existing));
+        esp_log_level_set("i2c.master", level);
+        // Occupied without a master handle means a slave driver owns the port (only
+        // detectable when no master bus was ever created on it: the driver keeps the last
+        // master handle after deleting the bus).
+        if (occupied && existing == nullptr) { return cpp::fail(error_t::invalid_arg); }
+        foreign = occupied;
+      }
+#endif
+      if (foreign)
+      {
+#if LGFX_LP_I2C_NUM > 0
+        if (isLpPort(i2c_port)) { return cpp::fail(error_t::invalid_arg); }  // a low power port is not shared
+#endif
+        i2c_context[i2c_port].foreign_bus = true;
+        i2c_context[i2c_port].initialized = true;
+        // The pins stay as the driver configured them (routing, pull-ups): they are not
+        // touched here nor per transaction, which is why both sides must use the same pins.
+        i2c_context[i2c_port].save_reg(getDev(i2c_port));
+        return {};
       }
 
       i2c_stop(i2c_port);
@@ -1982,7 +2049,17 @@ namespace lgfx
       bus_config.flags.enable_internal_pullup = true;
       bus_config.intr_priority = 1;
 
-      i2c_new_master_bus(&bus_config, &bus_handle);
+      if (ESP_OK != i2c_new_master_bus(&bus_config, &bus_handle))
+      {
+#if (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 3, 2))
+        // The port was free a moment ago, so the driver could not be set up.
+        return cpp::fail(error_t::invalid_arg);
+#else
+        // No way to tell a held port from a setup failure here: keep driving the
+        // controller directly, as before.
+        bus_handle = nullptr;
+#endif
+      }
       i2c_context[i2c_port].i2c_bus_handle = bus_handle;
 #else
       i2c_periph_enable(i2c_port);
@@ -2156,12 +2233,15 @@ namespace lgfx
       }
       i2c_context[i2c_port].save_reg(dev);
 
-#if LGFX_LP_I2C_NUM > 0
       // A low power port reaches its pads through the low power IO domain, which set_pin()
       // knows nothing about: routing them through the normal GPIO matrix here would
-      // disconnect the port from its own pins on every transaction.
-      if (!isLpPort(i2c_port))
+      // disconnect the port from its own pins on every transaction. A shared port keeps
+      // the pin setup of the driver that owns it. ( see foreign_bus )
+      if (!i2c_context[i2c_port].foreign_bus
+#if LGFX_LP_I2C_NUM > 0
+       && !isLpPort(i2c_port)
 #endif
+      )
       {
         set_pin((i2c_port_t)i2c_port, i2c_context[i2c_port].pin_sda, i2c_context[i2c_port].pin_scl);
       }

@@ -31,10 +31,9 @@ namespace lgfx
     if (_mipi_dsi_bus) {
       return true;
     }
-    esp_lcd_dsi_bus_config_t bus_config;
+    esp_lcd_dsi_bus_config_t bus_config = {};
     bus_config.bus_id = _cfg.bus_id;
     bus_config.num_data_lanes = _cfg.lane_num;
-    bus_config.phy_clk_src = static_cast<typeof(bus_config.phy_clk_src)>(MIPI_DSI_PHY_CLK_SRC_DEFAULT);
     bus_config.lane_bit_rate_mbps = _cfg.lane_mbps;
 
     esp_ldo_channel_config_t ldo_cfg;
@@ -42,7 +41,7 @@ namespace lgfx
     ldo_cfg.chan_id = _cfg.ldo_chan_id;
     ldo_cfg.voltage_mv = _cfg.ldo_voltage_mv;
 
-    esp_lcd_dbi_io_config_t dbi_config;
+    esp_lcd_dbi_io_config_t dbi_config = {};
     dbi_config.virtual_channel = 0;
     dbi_config.lcd_cmd_bits = _cfg.lcd_cmd_bits;
     dbi_config.lcd_param_bits = _cfg.lcd_param_bits;

@@ -76,6 +76,7 @@ This library has the following advantages.
     - Arduino ATSAMD51 (Seeed)
     - Arduino RP2040
 
+
   - ディスプレイ Displays
     - GC9107 (M5AtomS3)
     - GC9A01
@@ -482,6 +483,10 @@ void loop(void)
 
 
 # 注意・制限事項
+## ESP-IDF で arduino-esp32 をコンポーネントとして併用する場合
+本ライブラリはビルド内の Arduino コンポーネント (`arduino` / `arduino-esp32` / `espressif__arduino-esp32`) を自動的にリンクし、アプリケーションと同じ `ARDUINO` 定義でコンパイルされます (揃っていないと同じクラスをアプリ側とライブラリ側で異なるレイアウトで読み、クラッシュします)。別名のコンポーネントは CMake キャッシュ変数 `LGFX_ARDUINO_COMPONENT=<name>`、無効化は `LGFX_ARDUINO_COMPONENT=OFF` で指定できます。  
+When arduino-esp32 is used as an ESP-IDF component together with this library, the library links the Arduino component automatically (it looks for a component named `arduino`, `arduino-esp32` or `espressif__arduino-esp32` in the build) so that it is compiled with the same `ARDUINO` definitions as the application. Without that, the application and the library would see different layouts of the same classes. Set `LGFX_ARDUINO_COMPONENT=<name>` (CMake cache variable) if your Arduino component has another name, or `LGFX_ARDUINO_COMPONENT=OFF` to disable this.  
+
 ## M5Stack.h(M5StickC.h)と共存させる方法  
 ### 方法1
 include <M5Stack.h> より後に include <LovyanGFX.hpp> を書いてください。  

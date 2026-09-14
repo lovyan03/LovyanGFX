@@ -30,11 +30,6 @@ Contributors:
 #include <esp_lcd_panel_ops.h>
 #include <freertos/semphr.h>
 
-namespace m5
-{
-  class I2C_Class;
-}
-
 namespace lgfx
 {
  inline namespace v1
@@ -71,14 +66,19 @@ namespace lgfx
       uint16_t v_res = 720;
       uint8_t refresh_rate = 60;
 
-      // Prefer M5Unified's already-started internal I2C bus.
-      m5::I2C_Class* i2c = nullptr;
-
-      // Fallback for projects that expose an existing ESP-IDF driver_ng bus.
+      // The bridge is reached through lgfx::i2c on this hardware port (software
+      // I2C ports, negative numbers, are not supported here). When the port is
+      // already open (e.g. the board's internal bus) it is used as it is and left
+      // open; otherwise the panel opens it with these pins and closes it on release.
+      // lgfx::i2c has no reference count: whoever opened the port has to outlive
+      // the other users. An application that drives the bus through the ESP-IDF
+      // driver at the same time should hand its handle over in i2c_master_bus
+      // instead, since lgfx::i2c does not serialize with that driver.
       int i2c_port = 1;
-      int i2c_sda = GPIO_NUM_0;  // fallback SDA when no existing I2C bus is found.
-      int i2c_scl = GPIO_NUM_1;  // fallback SCL when no existing I2C bus is found.
+      int i2c_sda = GPIO_NUM_0;
+      int i2c_scl = GPIO_NUM_1;
       uint32_t i2c_freq = 100000;
+      // Alternatively an ESP-IDF driver bus the application owns; lgfx::i2c is not used then.
       i2c_master_bus_handle_t i2c_master_bus = nullptr;
 
       uint8_t fb_num = 1;
@@ -243,7 +243,8 @@ namespace lgfx
     esp_lcd_panel_io_handle_t _io_cec = nullptr;
     esp_lcd_panel_io_handle_t _io_avi = nullptr;
     i2c_master_bus_handle_t _i2c_bus = nullptr;
-    bool _i2c_bus_owned = false;
+    bool _i2c_port_owned = false; // this panel opened the lgfx::i2c port below and closes it on release
+    int _i2c_port_opened = 0;
     void* _frame_buffers[3] = {};
     SemaphoreHandle_t _refresh_done_sem = nullptr;
   };

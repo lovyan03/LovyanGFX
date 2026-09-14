@@ -892,6 +892,47 @@ __asm__ __volatile(
 
 #endif
 
+  // One source byte (2 px) of an update rectangle against the two step-framebuffer
+  // entries that hold it. s0 already carries the LUT offset.
+  static inline void step_fast(uint_fast16_t s0, uint16_t* d)
+  {
+    // 既にリクエスト済みの内容と相違がある場合のみ更新
+    if (d[1] != s0) {
+      // 高速描画の場合は消去処理は行わず直接更新指示する。
+      d[1] = s0;
+      d[0] = s0 - 0x8000;
+    }
+  }
+
+  static inline void step_text(uint_fast16_t s0, uint16_t* d, uint_fast16_t white)
+  {
+    uint_fast16_t d1 = d[1] & 0x7FFF;
+    // 白以外またはリクエスト済みの内容と相違がある場合に更新
+    if (white != d1 || d1 != s0) {
+      uint_fast16_t d0 = d[0];
+      d[1] = s0;
+      // 消去処理を挟んで更新指示する。(元の値の下位8bitのみを使用するとlut_eraser扱いになる)
+      // 既に消去処理動作中の場合は変更しない
+      if (d0 >= (lut_eraser_step << 8)) {
+        d[0] = (uint8_t)d0;
+      }
+    }
+  }
+
+  static inline void step_quality(uint_fast16_t s0, uint16_t* d)
+  {
+    // 既にリクエスト済みの内容と相違がある場合のみ更新
+    if (d[1] != s0) {
+      uint_fast16_t d0 = d[0];
+      d[1] = s0;
+      // 消去処理を挟んで更新指示する。(元の値の下位8bitのみを使用するとlut_eraser扱いになる)
+      // 既に消去処理動作中の場合は変更しない
+      if (d0 >= (lut_eraser_step << 8)) {
+        d[0] = (uint8_t)d0;
+      }
+    }
+  }
+
   void Panel_EPD::task_update(Panel_EPD* me)
   {
     update_data_t new_data;
@@ -930,101 +971,39 @@ __asm__ __volatile(
           if (flg_fast) { lut_offset += 0x8000; }
 
           do {
-            size_t w = new_data.w >> 1;
-            w &= ~1u;
+            size_t w = new_data.w >> 1; // bytes of 2 px; odd when the rectangle is 2 mod 4 px wide
             auto s = src;
             auto d = dst;
             src += panel_w >> 1;
             dst += (memory_w >> 1) * 2;
+            // Two source bytes per step, then the odd last byte on its own so that
+            // nothing past the rectangle is read or written.
             if (flg_fast) {
-              for (int i = 0; i < w; i += 2) {
-                uint_fast16_t s0 = s[0];
-                uint_fast16_t d1 = d[1];
-                uint_fast16_t s1 = s[1];
-                uint_fast16_t d3 = d[3];
-                s0 += lut_offset;
-                s1 += lut_offset;
-                // 既にリクエスト済みの内容と相違がある場合のみ更新
-                if (d1 != s0) {
-                  // 高速描画の場合は消去処理は行わず直接更新指示する。
-                  d[1] = s0;
-                  d[0] = s0 - 0x8000;
-                }
-                if (d3 != s1) {
-                  d[3] = s1;
-                  d[2] = s1 - 0x8000;
-                }
+              for (; w >= 2; w -= 2) {
+                step_fast(s[0] + lut_offset, d);
+                step_fast(s[1] + lut_offset, d + 2);
                 s += 2;
                 d += 4;
               }
+              if (w) { step_fast(s[0] + lut_offset, d); }
             } else
             if (new_data.mode == epd_mode_t::epd_text) {
               uint_fast16_t white = lut_offset | 0x00FF;
-              for (int i = 0; i < w; i += 2) {
-                uint_fast16_t s0 = s[0];
-                uint_fast16_t s1 = s[1];
-                uint_fast16_t d1 = d[1];
-                uint_fast16_t d3 = d[3];
-                s0 += lut_offset;
-                s1 += lut_offset;
-                d1 &= 0x7FFF;
-                d3 &= 0x7FFF;
-
-                // 白以外またはリクエスト済みの内容と相違がある場合に更新
-                if (white != d1 || d1 != s0) {
-                  uint_fast16_t d0 = d[0];
-                  d[1] = s0;
-                  // 消去処理を挟んで更新指示する。(元の値の下位8bitのみを使用するとlut_eraser扱いになる)
-                  // 既に消去処理動作中の場合は変更しない
-                  if (d0 >= (lut_eraser_step << 8)) {
-                    d[0] = (uint8_t)d0;
-                  }
-                }
-
-                // 白以外またはリクエスト済みの内容と相違がある場合に更新
-                if (white != d3 || d3 != s1) {
-                  uint_fast16_t d2 = d[2];
-                  d[3] = s1;
-                  if (d2 >= (lut_eraser_step << 8)) {
-                    // 消去処理を挟んで更新指示する。(元の値の下位8bitのみを使用するとlut_eraser扱いになる)
-                    d[2] = (uint8_t)d2;
-                  }
-                }
+              for (; w >= 2; w -= 2) {
+                step_text(s[0] + lut_offset, d, white);
+                step_text(s[1] + lut_offset, d + 2, white);
                 s += 2;
                 d += 4;
               }
+              if (w) { step_text(s[0] + lut_offset, d, white); }
             } else {
-              for (int i = 0; i < w; i += 2) {
-                uint_fast16_t s0 = s[0];
-                uint_fast16_t s1 = s[1];
-                uint_fast16_t d1 = d[1];
-                uint_fast16_t d3 = d[3];
-                s0 += lut_offset;
-                s1 += lut_offset;
-
-                // 既にリクエスト済みの内容と相違がある場合のみ更新
-                if (d1 != s0) {
-                  uint_fast16_t d0 = d[0];
-                  d[1] = s0;
-                  // 消去処理を挟んで更新指示する。(元の値の下位8bitのみを使用するとlut_eraser扱いになる)
-                  // 既に消去処理動作中の場合は変更しない
-                  if (d0 >= (lut_eraser_step << 8)) {
-                    d[0] = (uint8_t)d0;
-                  }
-                }
-
-                // 既にリクエスト済みの内容と相違がある場合のみ更新
-                if (d3 != s1) {
-                  uint_fast16_t d2 = d[2];
-                  d[3] = s1;
-                  if (d2 >= (lut_eraser_step << 8)) {
-                    // 消去処理を挟んで更新指示する。(元の値の下位8bitのみを使用するとlut_eraser扱いになる)
-                    d[2] = (uint8_t)d2;
-                  }
-                }
+              for (; w >= 2; w -= 2) {
+                step_quality(s[0] + lut_offset, d);
+                step_quality(s[1] + lut_offset, d + 2);
                 s += 2;
                 d += 4;
               }
+              if (w) { step_quality(s[0] + lut_offset, d); }
             }
           } while (--h);
 

@@ -19,6 +19,8 @@
 
 #if defined (ESP_PLATFORM)
 
+#include <new>
+
 #include "Panel_Device.hpp"
 #include "Panel_FrameBufferBase.hpp"
 #include "../platforms/common.hpp"
@@ -88,11 +90,22 @@ namespace lgfx
             {
               if(_panel_fb)
                 return true;
-              _panel_fb = new Panel_AMOLED_Framebuffer(this);
-              _panel_fb->config(_cfg);
-              _panel_fb->setColorDepth(_write_depth);
-              _panel_fb->setRotation(getRotation());
-              return _panel_fb->init(false);
+              auto fb = new (std::nothrow) Panel_AMOLED_Framebuffer(this);
+              if (!fb)
+                return false;
+              fb->config(_cfg);
+              fb->setColorDepth(_write_depth);
+              fb->setRotation(getRotation());
+              // Keep _panel_fb null on failure: a leftover object without a
+              // buffer would make the next call report success and route
+              // display() through a framebuffer that does not exist.
+              if (!fb->init(false))
+              {
+                delete fb;
+                return false;
+              }
+              _panel_fb = fb;
+              return true;
             }
 
             void deinitPanelFb()

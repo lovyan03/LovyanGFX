@@ -38,16 +38,10 @@ namespace lgfx
     auto bus = getBusDSI();
     if (bus == nullptr) { return false; }
 
-    const uint8_t* params;
-    for (size_t i = 0; nullptr != (params = getInitParams(i)); ++i)
-    {
-      size_t len;
-      while (0 != (len = params[0])) {
-// printf("cmd: %02x, len: %d\n", params[1], len);
-        bus->writeParams(params[1], &params[2], len - 1);
-        params += len + 1;
-      }
-      vTaskDelay(pdMS_TO_TICKS(getInitDelay(i)));
+    const bool init_in_command_mode = initInCommandMode();
+    if (!init_in_command_mode
+     && ESP_OK != esp_lcd_panel_init(_disp_panel_handle)) {
+      return false;
     }
 
     uint8_t madctl_val = 0;
@@ -60,10 +54,24 @@ namespace lgfx
       colmod_val = 0x77;
     }
 
-    bus->writeParams(CMD_MADCTL, &(madctl_val), 1);
-    bus->writeParams(CMD_COLMOD, &(colmod_val), 1);
+    const uint8_t* params;
+    for (size_t i = 0; nullptr != (params = getInitParams(i)); ++i)
+    {
+      size_t len;
+      while (0 != (len = params[0])) {
+// printf("cmd: %02x, len: %d\n", params[1], len);
+        bus->writeParams(params[1], &params[2], len - 1);
+        params += len + 1;
+      }
+      vTaskDelay(pdMS_TO_TICKS(getInitDelay(i)));
+    }
 
-    return (ESP_OK == esp_lcd_panel_init(_disp_panel_handle));
+    if (init_in_command_mode) {
+      bus->writeParams(CMD_MADCTL, &(madctl_val), 1);
+      bus->writeParams(CMD_COLMOD, &(colmod_val), 1);
+      return (ESP_OK == esp_lcd_panel_init(_disp_panel_handle));
+    }
+    return true;
   }
 
 
@@ -82,7 +90,7 @@ namespace lgfx
   #else
     dpi_config.pixel_format = LCD_COLOR_PIXEL_FORMAT_RGB565;
   #endif
-    dpi_config.num_fbs = 1;
+    dpi_config.num_fbs = 2;
     dpi_config.video_timing.h_size = _cfg.panel_width;
     dpi_config.video_timing.v_size = _cfg.panel_height;
     dpi_config.video_timing.hsync_back_porch  = _config_detail.hsync_back_porch;
@@ -122,6 +130,14 @@ namespace lgfx
 
     auto bus = getBusDSI();
     if (bus == nullptr) { return false; }
+    const size_t reset_delay = getResetDelayBeforeDpi();
+    if (reset_delay
+     && (!bus->writeParams(CMD_SWRESET, nullptr, 0))) {
+      return false;
+    }
+    if (reset_delay) {
+      vTaskDelay(pdMS_TO_TICKS(reset_delay));
+    }
     if (init_dpi(bus) && init_panel())
     {
         esp_lcd_dpi_panel_get_frame_buffer(_disp_panel_handle, 1, &(_config_detail.buffer));

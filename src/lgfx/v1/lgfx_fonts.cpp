@@ -1910,14 +1910,19 @@ label_nextbyte: /// 次のデータを取得する;
     int32_t sy = 65536 * style->size_y;
     y += (metrics->y_offset * sy) >> 16;
 
-    if (!this->getUnicodeIndex(code, &gNum)) {
-      if (code != 0x20) {
-        return drawCharDummy(gfx, x, y, this->spaceWidth, metrics->height, style, filled_x);
-      }
-      // Some VLW exporters omit the space glyph; for such fonts, keep the
-      // guessed advance instead of rendering the missing-glyph box.
-      gNum = 0xFFFF;
+    if (code == 0x20) {
+      // A space only advances the cursor. Some VLW exporters emit a blank
+      // bitmap with offsets outside the line; drawing it can erase prior rows.
       buffer[2] = getSwap32(this->spaceWidth);
+      if (this->getUnicodeIndex(code, &gNum)) {
+        file->preRead();
+        file->seek(36 + gNum * 28); // xAdvance in the glyph header
+        file->read((uint8_t*)&buffer[2], 4);
+        file->postRead();
+      }
+      gNum = 0xFFFF;
+    } else if (!this->getUnicodeIndex(code, &gNum)) {
+      return drawCharDummy(gfx, x, y, this->spaceWidth, metrics->height, style, filled_x);
     } else {
       file->preRead();
       file->seek(28 + gNum * 28);

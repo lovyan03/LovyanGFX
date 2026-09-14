@@ -38,10 +38,41 @@ else()
 endif()
 
 
-### If you use arduino-esp32 components, please activate next comment line.
-# list(APPEND COMPONENT_REQUIRES arduino-esp32)
 
 
 message(STATUS "LovyanGFX use components = ${COMPONENT_REQUIRES}")
 
 register_component()
+
+# Arduino as an ESP-IDF component: arduino-esp32 publishes -DARDUINO... as PUBLIC compile options, so
+# they only reach components that link against it, while the public headers of this library change
+# class layout with ARDUINO. Link the Arduino component publicly whenever it is part of the build so
+# this library is compiled in the same mode as the application. Only components already selected
+# for the build are considered; a build without Arduino is unaffected.
+#   LGFX_ARDUINO_COMPONENT=<name>  use a differently named Arduino component
+#   LGFX_ARDUINO_COMPONENT=OFF     disable the automatic dependency
+set(_lgfx_arduino_candidates arduino arduino-esp32 espressif__arduino-esp32)
+set(_lgfx_arduino_enabled ON)
+if(DEFINED LGFX_ARDUINO_COMPONENT AND NOT "${LGFX_ARDUINO_COMPONENT}" STREQUAL "")
+    if(LGFX_ARDUINO_COMPONENT)
+        set(_lgfx_arduino_candidates ${LGFX_ARDUINO_COMPONENT})
+    else()
+        set(_lgfx_arduino_enabled OFF)
+    endif()
+endif()
+if(_lgfx_arduino_enabled)
+    idf_build_get_property(_lgfx_arduino_build_components BUILD_COMPONENTS)
+    set(_lgfx_arduino_hits)
+    foreach(_lgfx_arduino_name ${_lgfx_arduino_candidates})
+        if(_lgfx_arduino_name IN_LIST _lgfx_arduino_build_components)
+            list(APPEND _lgfx_arduino_hits ${_lgfx_arduino_name})
+        endif()
+    endforeach()
+    list(LENGTH _lgfx_arduino_hits _lgfx_arduino_count)
+    if(_lgfx_arduino_count GREATER 1)
+        message(FATAL_ERROR "LGFX: several Arduino components are in the build (${_lgfx_arduino_hits}). Set LGFX_ARDUINO_COMPONENT to the one to use.")
+    elseif(_lgfx_arduino_count EQUAL 1)
+        idf_component_get_property(_lgfx_arduino_lib ${_lgfx_arduino_hits} COMPONENT_LIB)
+        target_link_libraries(${COMPONENT_LIB} PUBLIC ${_lgfx_arduino_lib})
+    endif()
+endif()

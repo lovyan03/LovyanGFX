@@ -566,10 +566,10 @@ namespace lgfx
 #if defined (LGFX_SPI_CLOCK_TAKEOVER)
     if (_cfg.use_lock) { spi_clock_restore(this, _cfg.spi_host); }
 #endif
-    if (_cfg.use_lock) spi::endTransaction(_cfg.spi_host);
 #if defined (ARDUINO) // Arduino ESP32
     *_spi_user_reg = SPI_USR_MOSI | SPI_USR_MISO | SPI_DOUTDIN; // for other SPI device (e.g. SD card)
 #endif
+    if (_cfg.use_lock) spi::endTransaction(_cfg.spi_host);
   }
 
   void Bus_SPI::wait(void)

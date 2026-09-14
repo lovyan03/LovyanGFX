@@ -28,6 +28,34 @@ namespace lgfx
 
   struct Touch_CST226; // CST226/CST226SE
   struct Touch_CST816S;
+  struct Touch_CST3530;
+
+
+//----------------------------------------------------------------------------
+
+  struct Touch_CST3530 : public ITouch
+  {
+    Touch_CST3530(void)
+    {
+      _cfg.i2c_addr = 0x58;
+      _cfg.x_min = 0;
+      _cfg.x_max = 479;
+      _cfg.y_min = 0;
+      _cfg.y_max = 479;
+    }
+
+    bool init(void) override;
+    void wakeup(void) override;
+    void sleep(void) override;
+    uint_fast8_t getTouchRaw(touch_point_t* tp, uint_fast8_t count) override;
+
+  private:
+    static constexpr uint_fast8_t max_touch_points = 5;
+
+    bool _check_init(void);
+    bool _write_reg32(uint32_t reg);
+    bool _read_reg32(uint32_t reg, uint8_t* data, size_t length);
+  };
 
 
 //----------------------------------------------------------------------------
