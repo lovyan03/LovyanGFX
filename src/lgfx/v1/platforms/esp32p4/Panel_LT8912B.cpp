@@ -18,6 +18,8 @@ Contributors:
 
 #include "Panel_LT8912B.hpp"
 
+#include <type_traits>
+
 #if SOC_MIPI_DSI_SUPPORTED
 
 #include "../common.hpp"
@@ -769,6 +771,20 @@ namespace lgfx
  inline namespace v1
  {
 //----------------------------------------------------------------------------
+
+  // esp_lcd renamed the DSI callback on_refresh_done to on_frame_buf_complete and
+  // deprecated the old name. The rename was backported (5.5.5, 6.0.3, 6.1), so
+  // it is detected by member presence rather than by ESP-IDF version.
+  template <typename T, typename = void>
+  struct has_on_frame_buf_complete : std::false_type {};
+  template <typename T>
+  struct has_on_frame_buf_complete<T, decltype(void(&T::on_frame_buf_complete))> : std::true_type {};
+
+  template <typename T, typename Fn>
+  static void assign_refresh_done_callback(T& callbacks, Fn fn, std::true_type) { callbacks.on_frame_buf_complete = fn; }
+  template <typename T, typename Fn>
+  static void assign_refresh_done_callback(T& callbacks, Fn fn, std::false_type) { callbacks.on_refresh_done = fn; }
+
   static constexpr const char* TAG = "Panel_LT8912B";
 
 #if defined(LGFX_PANEL_LT8912B_HAS_M5_I2C)
@@ -1054,11 +1070,7 @@ namespace lgfx
     }
     if (_refresh_done_sem) {
       esp_lcd_dpi_panel_event_callbacks_t callbacks = {};
-#if defined LGFX_ESP_LCD_USE_ON_REFRESH_DONE // idf 5.4x and previous
-      callbacks.on_refresh_done = on_refresh_done;
-#else
-      callbacks.on_frame_buf_complete = on_refresh_done;
-#endif
+      assign_refresh_done_callback(callbacks, on_refresh_done, has_on_frame_buf_complete<esp_lcd_dpi_panel_event_callbacks_t>{});
 
       (void)esp_lcd_dpi_panel_register_event_callbacks(_panel_handle, &callbacks, this);
     }
@@ -1089,6 +1101,7 @@ namespace lgfx
     _lines_buffer = line_array;
     return true;
   }
+
 
   bool Panel_LT8912B::init(bool use_reset)
   {
