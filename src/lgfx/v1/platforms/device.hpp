@@ -17,6 +17,8 @@ Contributors:
 /----------------------------------------------------------------------------*/
 #pragma once
 
+#include "common.hpp"   // selects the platform; the desktop choice is recorded as LGFX_PLATFORM_*
+
 #if defined (ESP_PLATFORM)
 
  #include <sdkconfig.h>
@@ -127,7 +129,7 @@ Contributors:
 
 #include "arduino_default/Bus_SPI.hpp"
 
-#elif (__has_include(<SDL2/SDL.h>) || __has_include(<SDL.h>)) && !defined(LGFX_LINUX_FB)
+#elif defined (LGFX_PLATFORM_SDL)   // chosen by platforms/common.hpp
 
 #include "sdl/Bus_I2C.hpp"
 #include "sdl/Panel_sdl.hpp"
