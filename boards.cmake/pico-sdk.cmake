@@ -22,19 +22,21 @@ target_compile_definitions(LovyanGFX INTERFACE
      USE_PICO_SDK
     )
 
-file(GLOB SRCS
-     src/lgfx/Fonts/efont/*.c
-     src/lgfx/Fonts/IPA/*.c
-     src/lgfx/Fonts/lvgl/*.c
-     src/lgfx/utility/*.c
-     src/lgfx/v1/*.cpp
-     src/lgfx/v1/lv_font/*.c
-     src/lgfx/v1/misc/*.cpp
-     src/lgfx/v1/panel/*.cpp
-     src/lgfx/v1/platforms/arduino_default/*.cpp
-     src/lgfx/v1/platforms/rp2040/*.cpp
-     src/lgfx/v1/touch/*.cpp
-    )
+# The build set is fixed: src/lgfx/v1/lgfx_v1.cpp includes every implementation file (*.inl),
+# the font tables and the C decoders are separate translation units on purpose.
+set(SRCS
+     src/lgfx/v1/lgfx_v1.cpp
+     src/lgfx/Fonts/efont/lgfx_efont_cn.c
+     src/lgfx/Fonts/efont/lgfx_efont_ja.c
+     src/lgfx/Fonts/efont/lgfx_efont_kr.c
+     src/lgfx/Fonts/efont/lgfx_efont_tw.c
+     src/lgfx/Fonts/IPA/lgfx_font_japan.c
+     src/lgfx/utility/lgfx_miniz.c
+     src/lgfx/utility/lgfx_pngle.c
+     src/lgfx/utility/lgfx_qoi.c
+     src/lgfx/utility/lgfx_qrcode.c
+     src/lgfx/utility/lgfx_tjpgd.c
+     )
 target_sources(LovyanGFX INTERFACE ${SRCS})
 target_link_libraries(LovyanGFX INTERFACE
      LovyanGFX_headers

@@ -45,15 +45,16 @@ Contributors:
 
   #include "LGFX_AutoDetect_STM32.hpp"
 
-#elif __has_include(<SDL2/SDL.h>) || __has_include(<SDL.h>)
+// Desktop: follow the back end chosen by lgfx/v1/platforms/common.hpp (included through LovyanGFX.hpp above).
+#elif defined (LGFX_PLATFORM_SDL)
 
   #include "LGFX_AutoDetect_sdl.hpp"
 
-#elif __has_include(<opencv2/opencv.hpp>)
+#elif defined (LGFX_PLATFORM_OPENCV)
 
   #include "LGFX_AutoDetect_OpenCV.hpp"
 
-#elif defined (LGFX_LINUX_FB)
+#elif defined (LGFX_PLATFORM_FRAMEBUFFER)
 
   #include "LGFX_AutoDetect_FrameBuffer.hpp"
 
