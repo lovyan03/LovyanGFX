@@ -22,6 +22,7 @@ Contributors:
 #include "../Bus.hpp"
 #include "../platforms/common.hpp"
 #include "../misc/pixelcopy.hpp"
+#include "../misc/dither.hpp"
 
 #ifdef min
 #undef min
@@ -35,8 +36,6 @@ namespace lgfx
  inline namespace v1
  {
 //----------------------------------------------------------------------------
-
-  static constexpr int8_t Bayer_SSD1327[16] = {-30, 2, -22, 10, 18, -14, 26, -6, -18, 14, -26, 6, 30, -2, 22, -10};
 
   color_depth_t Panel_SSD1327::setColorDepth(color_depth_t depth)
   {
@@ -117,7 +116,7 @@ namespace lgfx
     do
     {
       x = xs;
-      auto btbl = &Bayer_SSD1327[(y & 3) << 2];
+      auto btbl = &bayer_4x4_signed[(y & 3) << 2];
       auto buf = &_buf[y * ((_cfg.panel_width + 1) >> 1)];
       do
       {
@@ -221,7 +220,7 @@ namespace lgfx
   {
     _rotate_pos(x, y);
 
-    auto btbl = &Bayer_SSD1327[(y & 3) << 2];
+    auto btbl = &bayer_4x4_signed[(y & 3) << 2];
     size_t idx = (x >> 1) + (y * ((_cfg.panel_width + 1) >> 1));
     uint_fast8_t shift = (x & 1) ? 0 : 4;
     uint_fast8_t value = (std::min<int32_t>(15, std::max<int32_t>(0, sum + btbl[x & 3]) >> 6) & 0x0F) << shift;
