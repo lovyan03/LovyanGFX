@@ -19,6 +19,7 @@ Contributors:
 #error "Panel_SSD1677.inl is part of lgfx_v1.cpp and is not meant to be included on its own"
 #endif
 #include "Panel_SSD1677.hpp"
+#include "../misc/dither.hpp"
 #include "lgfx/v1/Bus.hpp"
 #include "lgfx/v1/platforms/common.hpp"
 #include "lgfx/v1/misc/pixelcopy.hpp"
@@ -35,8 +36,6 @@ namespace lgfx
  inline namespace v1
  {
 //----------------------------------------------------------------------------
-
-  static constexpr int8_t Bayer_SSD1677[16] = { -30, 18, -22, 26, -14, 2, -6, 10, -18, 30, -26, 22, -2, 14, -10, 6 };
 
   // SSD1677 commands
   static constexpr uint8_t CMD_DEEP_SLEEP        = 0x10;
@@ -499,7 +498,7 @@ namespace lgfx
     do
     {
       x = xs;
-      auto btbl = &Bayer_SSD1677[(y & 3) << 2];
+      auto btbl = &bayer_4x4_alt_signed[(y & 3) << 2];
       do
       {
         uint32_t byte_idx = y * row_bytes + (x >> 3);
@@ -622,7 +621,7 @@ namespace lgfx
     int32_t row_bytes = ((_cfg.panel_width + 7) & ~7) >> 3;
     uint32_t byte_idx = y * row_bytes + (x >> 3);
     uint8_t bit_mask = 0x80 >> (x & 7);
-    int_fast8_t v = ((int32_t)value + (Bayer_SSD1677[(x & 3) + ((y & 3) << 2)])) >> 6;
+    int_fast8_t v = ((int32_t)value + (bayer_4x4_alt_signed[(x & 3) + ((y & 3) << 2)])) >> 6;
     v = (v < 0) ? 0 : (v > 3 ? 3 : v);
     if (v & 1) _buf[byte_idx] |=  bit_mask; else _buf[byte_idx] &= ~bit_mask;
     if (v & 2) _buf[byte_idx + _buf_x1_len] |=  bit_mask; else _buf[byte_idx + _buf_x1_len] &= ~bit_mask;

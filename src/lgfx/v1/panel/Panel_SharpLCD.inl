@@ -23,6 +23,7 @@ Contributors:
 #include "../Bus.hpp"
 #include "../platforms/common.hpp"
 #include "../misc/pixelcopy.hpp"
+#include "../misc/dither.hpp"
 #include <cmath>
 
 
@@ -31,8 +32,6 @@ namespace lgfx
  inline namespace v1
  {
 //----------------------------------------------------------------------------
-
-  static constexpr uint8_t Bayer_SharpLCD[] = { 8, 136, 40, 168, 200, 72, 232, 104, 56, 184, 24, 152, 248, 120, 216, 88, 8, 136, 40, 168, 200, 72, 232, 104, 56, 184, 24, 152, 248, 120, 216, 88 };
 
   static constexpr const uint8_t byte_rev_table[256] = {
     0x00, 0x80, 0x40, 0xc0, 0x20, 0xa0, 0x60, 0xe0,
@@ -82,15 +81,6 @@ namespace lgfx
   }
 
 
-  inline static uint32_t to_gray_SharpLCD(uint8_t r, uint8_t g, uint8_t b)
-  {
-    return (uint32_t)          // gamma2.0 convert and ITU-R BT.601 RGB to Y convert
-          ( (r * r * 19749)    // R 0.299
-          + (g * g * 38771)    // G 0.587
-          + (b * b *  7530)    // B 0.114
-          ) >> 24;
-  }
-
 
   void Panel_SharpLCD::setInvert(bool invert)
   {
@@ -116,7 +106,7 @@ namespace lgfx
 
   void Panel_SharpLCD::setTilePattern(uint_fast8_t i)
   {
-    _bayer_offset = Bayer_SharpLCD[i & 15] >> 4;
+    _bayer_offset = bayer_4x4[i & 15] >> 4;
   }
 
 
@@ -382,9 +372,9 @@ namespace lgfx
 
       swap565_t color;
       color.raw = rawcolor;
-      uint32_t value = to_gray_SharpLCD(color.R8(), color.G8(), color.B8());
+      uint32_t value = to_gray8(color.R8(), color.G8(), color.B8());
 
-      auto btbl = &Bayer_SharpLCD[((y + (_bayer_offset >> 2)) & 3) << 2];
+      auto btbl = &bayer_4x4[((y + (_bayer_offset >> 2)) & 3) << 2];
       uint32_t ms = y * _pitch;
       uint32_t idx = ms + (x >> 3);
       uint32_t mask = 1 << (x & 7);

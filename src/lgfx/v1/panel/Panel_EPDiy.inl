@@ -25,6 +25,7 @@ extern "C" {
 };
 
 #include "Panel_EPDiy.hpp"
+#include "../misc/dither.hpp"
 #include "lgfx/v1/Bus.hpp"
 #include "lgfx/v1/platforms/common.hpp"
 #include "lgfx/v1/misc/pixelcopy.hpp"
@@ -42,8 +43,6 @@ namespace lgfx
  inline namespace v1
  {
 //----------------------------------------------------------------------------
-
-  static constexpr int8_t Bayer_EPDiy[16] = {-30, 2, -22, 10, 18, -14, 26, -6, -18, 14, -26, 6, 30, -2, 22, -10};
 
   Panel_EPDiy::Panel_EPDiy(void)
   {
@@ -137,7 +136,7 @@ namespace lgfx
     do
     {
       x = xs;
-      auto btbl = &Bayer_EPDiy[(y & 3) << 2];
+      auto btbl = &bayer_4x4_signed[(y & 3) << 2];
       auto buf = &_buf[y * ((_cfg.panel_width + 1) >> 1)];
 
       if (fast) {
@@ -251,7 +250,7 @@ namespace lgfx
   {
     _rotate_pos(x, y);
 
-    auto btbl = &Bayer_EPDiy[(y & 3) << 2];
+    auto btbl = &bayer_4x4_signed[(y & 3) << 2];
     size_t idx = (x >> 1) + (y * ((_cfg.panel_width + 1) >> 1));
     uint_fast8_t shift = (x & 1) ? 4 : 0;
     uint_fast8_t value;
