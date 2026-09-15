@@ -20,6 +20,10 @@
 // - The C decoders in src/lgfx/utility and the font tables in src/lgfx/Fonts stay separate
 //   translation units on purpose (third-party file-local names collide; the font tables
 //   would make a single 100+ MB translation unit).
+// - .github/scripts/check_inl_sources.py checks these rules (every *.inl is reachable from
+//   this file, directly or through another *.inl, starts with the guard below, and the ones
+//   included here compile on their own); CI runs it, and it can be run locally with the
+//   command line in .github/workflows/SourceCheck.yml.
 
 
 #define LGFX_V1_IMPLEMENTATION
