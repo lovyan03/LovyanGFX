@@ -1,0 +1,41 @@
+# SourceCheck.yml
+name: SourceCheck
+
+on:
+  push:
+    paths:
+    - 'src/**'
+    - '**check_inl_sources.py'
+    - '**SourceCheck.yml'
+  pull_request:
+
+  workflow_dispatch:
+
+jobs:
+
+  inl-sources:
+
+    name: single translation unit consistency
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install SDL2
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsdl2-dev
+
+      - name: Check the hub and the *.inl files (SDL back end)
+        run: |
+          python3 .github/scripts/check_inl_sources.py \
+            --hub src/lgfx/v1/lgfx_v1.cpp --root src/lgfx/v1 --macro LGFX_V1_IMPLEMENTATION \
+            --compile g++ -std=c++17 -DLGFX_SDL -Isrc $(sdl2-config --cflags)
+
+      - name: Check the *.inl files (Linux framebuffer back end)
+        run: |
+          python3 .github/scripts/check_inl_sources.py \
+            --hub src/lgfx/v1/lgfx_v1.cpp --root src/lgfx/v1 --macro LGFX_V1_IMPLEMENTATION \
+            --compile g++ -std=c++17 -DLGFX_LINUX_FB -Isrc
