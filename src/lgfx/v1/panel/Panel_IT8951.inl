@@ -23,6 +23,7 @@ Contributors:
 #include "../platforms/common.hpp"
 #include "../misc/pixelcopy.hpp"
 #include "../misc/colortype.hpp"
+#include "../misc/dither.hpp"
 
 #if __has_include (<esp_log.h>)
  #include <esp_log.h>
@@ -40,8 +41,6 @@ namespace lgfx
  inline namespace v1
  {
 //----------------------------------------------------------------------------
-
-  static constexpr int8_t Bayer_IT8951[16] = {-30, 2, -22, 10, 18, -14, 26, -6, -18, 14, -26, 6, 30, -2, 22, -10};
 
 //Built in I80 Command Code
   static constexpr uint32_t IT8951_TCON_SYS_RUN         = 0x0001;
@@ -574,7 +573,7 @@ IT8951 Registers defines
     uint32_t wid = (((x + w + 3) >> 2) - (x >> 2));
     do
     {
-      auto btbl = &Bayer_IT8951[(y & 3) << 2];
+      auto btbl = &bayer_4x4_signed[(y & 3) << 2];
       ++y;
       uint32_t value;
       if (fast)
@@ -646,7 +645,7 @@ IT8951 Registers defines
           }
           uint32_t writepos = 1;
           int32_t shift = (3 - ((x + prev_pos) & 3)) << 2;
-          auto btbl = &Bayer_IT8951[(y & 3) << 2];
+          auto btbl = &bayer_4x4_signed[(y & 3) << 2];
           do
           {
             uint_fast16_t buf = 0;
@@ -736,7 +735,7 @@ IT8951 Registers defines
           _bus->writeData(0, 16);
           uint32_t shift = (3 - ((xpos + prev_pos) & 3)) << 2;
           uint16_t buf = 0;
-          auto btbl = &Bayer_IT8951[(y & 3) << 2];
+          auto btbl = &bayer_4x4_signed[(y & 3) << 2];
           do
           {
             auto color = readbuf[prev_pos];

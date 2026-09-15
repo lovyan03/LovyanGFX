@@ -23,6 +23,7 @@ Contributors:
 #include "../platforms/common.hpp"
 #include "../misc/pixelcopy.hpp"
 #include "../misc/colortype.hpp"
+#include "../misc/dither.hpp"
 
 #ifdef min
 #undef min
@@ -33,8 +34,6 @@ namespace lgfx
  inline namespace v1
  {
 //----------------------------------------------------------------------------
-
-  static constexpr uint8_t Bayer_GDEW0154M09[16] = { 8, 200, 40, 232, 72, 136, 104, 168, 56, 248, 24, 216, 120, 184, 88, 152 };
 
   Panel_GDEW0154M09::Panel_GDEW0154M09(void)
   {
@@ -203,7 +202,7 @@ namespace lgfx
     {
       x = xs;
       uint32_t idx = ((_cfg.panel_width + 7) & ~7) * y + x;
-      auto btbl = &Bayer_GDEW0154M09[(y & 3) << 2];
+      auto btbl = &bayer_4x4_alt[(y & 3) << 2];
       do
       {
         bool flg = 256 <= value + btbl[x & 3];
@@ -319,7 +318,7 @@ namespace lgfx
   {
     _rotate_pos(x, y);
     uint32_t idx = ((_cfg.panel_width + 7) & ~7) * y + x;
-    bool flg = 256 <= value + Bayer_GDEW0154M09[(x & 3) | (y & 3) << 2];
+    bool flg = 256 <= value + bayer_4x4_alt[(x & 3) | (y & 3) << 2];
     if (flg) _buf[idx >> 3] |=   0x80 >> (idx & 7);
     else     _buf[idx >> 3] &= ~(0x80 >> (idx & 7));
   }
