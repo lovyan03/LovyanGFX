@@ -49,16 +49,38 @@ Contributors:
 
 #include "arduino_default/common.hpp"
 
-#elif (__has_include(<SDL2/SDL.h>) || __has_include(<SDL.h>)) && !defined(LGFX_LINUX_FB)
+// Desktop back ends. An explicit choice (the desktop CMake projects define LGFX_SDL, LGFX_OPENCV
+// or LGFX_LINUX_FB) comes first, then the headers are probed. The choice is recorded as
+// LGFX_PLATFORM_*, and the implementation files (platforms/{sdl,opencv,framebuffer}/*.inl) and
+// the autodetect header key off that macro, so exactly one back end is compiled even when
+// several SDKs are installed. The OpenCV back end is not part of every distribution of this tree.
+#elif defined (LGFX_SDL) && !defined(LGFX_LINUX_FB)
 
+#define LGFX_PLATFORM_SDL
 #include "sdl/common.hpp"
 
-#elif __has_include(<opencv2/opencv.hpp>) && !defined(LGFX_LINUX_FB)
+#elif defined (LGFX_OPENCV) && !defined(LGFX_LINUX_FB)
 
+ #if __has_include("opencv/common.hpp")
+  #define LGFX_PLATFORM_OPENCV
+  #include "opencv/common.hpp"
+ #else
+  #error "LGFX_OPENCV: the OpenCV back end is not included in this library"
+ #endif
+
+#elif (__has_include(<SDL2/SDL.h>) || __has_include(<SDL.h>)) && !defined(LGFX_LINUX_FB)
+
+#define LGFX_PLATFORM_SDL
+#include "sdl/common.hpp"
+
+#elif __has_include(<opencv2/opencv.hpp>) && __has_include("opencv/common.hpp") && !defined(LGFX_LINUX_FB)
+
+#define LGFX_PLATFORM_OPENCV
 #include "opencv/common.hpp"
 
 #elif defined (__linux__) && defined(LGFX_LINUX_FB)
 
+#define LGFX_PLATFORM_FRAMEBUFFER
 #include "framebuffer/common.hpp"
 
 #else
