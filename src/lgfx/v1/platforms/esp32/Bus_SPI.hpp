@@ -198,6 +198,15 @@ namespace lgfx
     volatile uint32_t* _spi_cmd_reg = nullptr;
     volatile uint32_t* _spi_user_reg = nullptr;
     volatile uint32_t* _spi_dma_out_link_reg = nullptr;
+    volatile uint32_t* _spi_dma_out_conf0_reg = nullptr;
+    // 外部 RAM を転送元にするときに先頭を揃える単位。GDMA の外部メモリブロック幅 (16/32/64 B、IDF の版で異なる) の最大値。
+    // 揃えるのは転送の先頭 descriptor だけ (後続 descriptor の境界端数は停止しないことを確認済み)
+    static constexpr uint32_t dma_ext_align = 64;
+    // 外部 RAM を DMA の転送元にしてよいか (init で決める。偽なら外部 RAM は CPU 経路)
+    bool _psram_dma_ok = true;
+    // 転送開始前に GDMA チャネルをリセットし、前回の異常終了 (underflow 等) の残留データを持ち越さない。
+    // 残留は転送元を問わず次の転送を壊すので、外部 RAM 対応チップに限らず GDMA を持つ全チップ・全転送で行う
+    void dma_channel_reset(void);
     // P4 (AXI_DMA) と C5/C61 (AHB_DMA) はディスクリプタアドレスを OUT_LINK と別のレジスタへ書く;
     #if defined (CONFIG_IDF_TARGET_ESP32P4) || defined (CONFIG_IDF_TARGET_ESP32C5) || defined (CONFIG_IDF_TARGET_ESP32C61)
     volatile uint32_t* _spi_dma_out_link2_reg = nullptr;
