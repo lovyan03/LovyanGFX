@@ -382,6 +382,10 @@ namespace lgfx
 
   void Bus_Parallel16::writeBytes(const uint8_t* data, uint32_t length, bool dc, bool use_dma)
   {
+#if defined ( LGFX_PSRAM_DMA_CAPABLE )
+    // 外部 RAM を LCD_CAM の DMA に直接載せる経路は未検証。既存の内部バッファ経由 (memcpy → DMA) に落とす
+    if (use_dma && esp_ptr_external_ram(data)) { use_dma = false; }
+#endif
     auto dev = _dev;
     auto reg_lcd_user = &(dev->lcd_user.val);
     if ((length + _has_align_data) > 1)
