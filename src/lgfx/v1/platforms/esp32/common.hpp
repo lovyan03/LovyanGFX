@@ -104,6 +104,13 @@ Contributors:
  #define SPI_DMA_CONF_REG(i) (REG_SPI_BASE(i) + 0x30)
  #undef SPI_W0_REG
  #define SPI_W0_REG(i)       (REG_SPI_BASE(i) + 0x98)
+ // SCT (Segmented-Configure-Transfer) で使う分
+ #undef SPI_USER1_REG
+ #define SPI_USER1_REG(i)    (REG_SPI_BASE(i) + 0x14)
+ #undef SPI_DMA_INT_CLR_REG
+ #define SPI_DMA_INT_CLR_REG(i) (REG_SPI_BASE(i) + 0x38)
+ #undef SPI_SLAVE_REG
+ #define SPI_SLAVE_REG(i)    (REG_SPI_BASE(i) + 0xe0)
 #endif
 
 #if defined ( ESP_IDF_VERSION_VAL )
