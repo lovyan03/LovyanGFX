@@ -53,6 +53,24 @@ Contributors:
  #define LGFX_ESP32_SPI_DMA_CH 0
 #endif
 
+
+// Segmented-Configure-Transfer (SCT) を持つチップか。
+// SPI の 1 トランザクションは 18 bit 長 (32 KB) が上限で、超える転送はセグメントごとに CPU が完了を待って
+// 再起動する必要がある。SCT を持つチップでは CONF バッファを DMA チェーンに挟むことでハードが自力で次の
+// セグメントへ進めるので、CPU は開始時の 1 回だけで済む。
+// 対象は SCT と GDMA の両方を持つチップ (S3 / C3 / C6 / C2 / H2)。S2 は SCT を持つが DMA が別系統なので対象外。
+// この判定はクラスのレイアウトを左右するので soc_caps だけで決める (ユーザー定義マクロで変えると翻訳単位間で
+// sizeof(Bus_SPI) が食い違う)。無効化したいときは LGFX_SPI_SCT_DISABLE を Bus_SPI.inl を含む翻訳単位に与える
+// (実行時の判定 _sct_ok だけが偽になり、レイアウトは変わらない)
+#if __has_include(<soc/soc_caps.h>)
+ #include <soc/soc_caps.h>
+#endif
+#undef LGFX_SPI_SCT   // 内部用。外から与えられても soc_caps の判定で上書きする (再定義警告を避ける)
+#if defined ( SOC_SPI_SCT_SUPPORTED ) && SOC_SPI_SCT_SUPPORTED \
+ && defined ( SOC_GDMA_SUPPORTED ) && defined ( SOC_SPI_SCT_SUPPORTED_PERIPH )
+ #define LGFX_SPI_SCT
+#endif
+
 #include "../../Bus.hpp"
 #include "../common.hpp"
 
@@ -172,6 +190,10 @@ namespace lgfx
         _clear_dma_reg = nullptr;
         while (*spi_cmd_reg & SPI_USR) {}    // wait SPI
         *dma = 0;
+#if defined ( LGFX_SPI_SCT )
+        if (_sct_active) { _sct_end(); }
+        if (_sct_ok) { *_spi_user_reg &= ~(uint32_t)SPI_CS_SETUP; }
+#endif
       }
       else
       {
@@ -189,6 +211,22 @@ namespace lgfx
     void _alloc_dmadesc(size_t len);
     void _spi_dma_reset(void);
     void _setup_dma_desc_links(const uint8_t *data, int32_t len);
+
+#if defined ( LGFX_SPI_SCT )
+    // Segmented-Configure-Transfer (SCT): 32 KB を超える 1 本の DMA 転送を、セグメントごとの CONF バッファを
+    // DMA チェーンに挟むことでハードに連続実行させる (CPU は開始時の 1 回だけ)。
+    bool _sct_start(const uint8_t* data, uint32_t length);
+    bool _sct_start_chain(lldesc_t* first, uint32_t total);
+    void _sct_put_conf(lldesc_t*& d, uint32_t*& conf, uint32_t user, uint32_t user1, uint32_t seg, bool last);
+    bool _sct_exec(void);
+    void _sct_end(void);
+    volatile uint32_t* _spi_slave_reg = nullptr;
+    lldesc_t* _sct_desc = nullptr;
+    uint32_t* _sct_conf = nullptr;
+    uint32_t _sct_desc_capacity = 0;   // _sct_desc の確保済み descriptor 数 (_sct_conf はその半分 + 1)
+    bool _sct_active = false;    // SCT で開始した転送が未後始末 (usr_conf を落とす必要がある)
+    bool _sct_ok = false;        // このバスで SCT を使うか (GP-SPI2 のみ、LGFX_SPI_SCT_DISABLE で偽)
+#endif
 
     config_t _cfg;
     FlipBuffer _flip_buffer;
