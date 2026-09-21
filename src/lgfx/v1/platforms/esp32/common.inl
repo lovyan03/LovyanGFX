@@ -294,22 +294,27 @@ namespace lgfx
     {
       return static_cast<uint32_t>(rtc_clk_xtal_freq_get()) * 1000000u;
     };
+#if defined ( CONFIG_IDF_TARGET_ESP32C5 ) || defined ( CONFIG_IDF_TARGET_ESP32C61 ) \
+ || defined ( CONFIG_IDF_TARGET_ESP32C6 ) || defined ( CONFIG_IDF_TARGET_ESP32H2 ) \
+ || defined ( CONFIG_IDF_TARGET_ESP32P4 )
+    // RC_FAST is selectable as the SPI source only on these targets (unused-variable warning elsewhere).
     const auto get_rc_fast_frequency = []() -> uint32_t
     {
-#if defined ( LGFX_HAS_ESP_CLK_TREE ) && defined ( SOC_MOD_CLK_RC_FAST )
+ #if defined ( LGFX_HAS_ESP_CLK_TREE ) && defined ( SOC_MOD_CLK_RC_FAST )
       uint32_t frequency = 0;
       if (ESP_OK == esp_clk_tree_src_get_freq_hz(SOC_MOD_CLK_RC_FAST
                    , ESP_CLK_TREE_SRC_FREQ_PRECISION_APPROX, &frequency) && frequency)
       {
         return frequency;
       }
-#endif
-#if defined ( SOC_CLK_RC_FAST_FREQ_APPROX )
+ #endif
+ #if defined ( SOC_CLK_RC_FAST_FREQ_APPROX )
       return SOC_CLK_RC_FAST_FREQ_APPROX;
-#else
+ #else
       return 17500000u;
-#endif
+ #endif
     };
+#endif
 
 #if defined ( CONFIG_IDF_TARGET_ESP32S3 ) || defined ( CONFIG_IDF_TARGET_ESP32C2 ) \
  || defined ( CONFIG_IDF_TARGET_ESP32C3 )
