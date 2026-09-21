@@ -459,7 +459,11 @@ namespace lgfx
   void Bus_SPI::dma_channel_reset(void)
   {
 #if defined ( DMA_OUT_RST_CH0 )
-    if (_spi_dma_out_conf0_reg) { *_spi_dma_out_conf0_reg |= DMA_OUT_RST_CH0; *_spi_dma_out_conf0_reg &= ~(uint32_t)DMA_OUT_RST_CH0; }
+    if (_spi_dma_out_conf0_reg)
+    { // plain assignments: compound assignment on a volatile lvalue is deprecated in C++20 (-Wvolatile on IDF 5.1)
+      *_spi_dma_out_conf0_reg = *_spi_dma_out_conf0_reg | DMA_OUT_RST_CH0;
+      *_spi_dma_out_conf0_reg = *_spi_dma_out_conf0_reg & ~(uint32_t)DMA_OUT_RST_CH0;
+    }
 #endif
   }
 
