@@ -49,6 +49,8 @@ namespace lgfx
 
   static constexpr char LIBRARY_NAME[] = "LovyanGFX";
 
+#if defined (CONFIG_IDF_TARGET_ESP32) || !defined (CONFIG_IDF_TARGET)
+  // Only the ESP32 (classic) board table uses this (unused-function warning on the other targets).
   static void i2c_write_register8_array(int_fast16_t i2c_port, uint_fast8_t i2c_addr, const uint8_t* reg_data_mask, uint32_t freq)
   {
     while (reg_data_mask[0] != 0xFF || reg_data_mask[1] != 0xFF || reg_data_mask[2] != 0xFF)
@@ -57,6 +59,7 @@ namespace lgfx
       reg_data_mask += 3;
     }
   }
+#endif
 
 #if defined (CONFIG_IDF_TARGET_ESP32S3)
 

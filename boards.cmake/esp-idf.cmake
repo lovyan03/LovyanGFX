@@ -3,22 +3,20 @@
 set(COMPONENT_ADD_INCLUDEDIRS
     ${LGFX_ROOT}/src
     )
-file(GLOB SRCS
-     ${LGFX_ROOT}/src/lgfx/Fonts/efont/*.c
-     ${LGFX_ROOT}/src/lgfx/Fonts/IPA/*.c
-     ${LGFX_ROOT}/src/lgfx/Fonts/lvgl/*.c
-     ${LGFX_ROOT}/src/lgfx/utility/*.c
-     ${LGFX_ROOT}/src/lgfx/v1/*.cpp
-     ${LGFX_ROOT}/src/lgfx/v1/lv_font/*.c
-     ${LGFX_ROOT}/src/lgfx/v1/misc/*.cpp
-     ${LGFX_ROOT}/src/lgfx/v1/panel/*.cpp
-     ${LGFX_ROOT}/src/lgfx/v1/platforms/arduino_default/*.cpp
-     ${LGFX_ROOT}/src/lgfx/v1/platforms/esp32/*.cpp
-     ${LGFX_ROOT}/src/lgfx/v1/platforms/esp32c3/*.cpp
-     ${LGFX_ROOT}/src/lgfx/v1/platforms/esp32s2/*.cpp
-     ${LGFX_ROOT}/src/lgfx/v1/platforms/esp32s3/*.cpp
-     ${LGFX_ROOT}/src/lgfx/v1/platforms/esp32p4/*.cpp
-     ${LGFX_ROOT}/src/lgfx/v1/touch/*.cpp
+# The build set is fixed: src/lgfx/v1/lgfx_v1.cpp includes every implementation file (*.inl),
+# the font tables and the C decoders are separate translation units on purpose.
+set(SRCS
+     ${LGFX_ROOT}/src/lgfx/v1/lgfx_v1.cpp
+     ${LGFX_ROOT}/src/lgfx/Fonts/efont/lgfx_efont_cn.c
+     ${LGFX_ROOT}/src/lgfx/Fonts/efont/lgfx_efont_ja.c
+     ${LGFX_ROOT}/src/lgfx/Fonts/efont/lgfx_efont_kr.c
+     ${LGFX_ROOT}/src/lgfx/Fonts/efont/lgfx_efont_tw.c
+     ${LGFX_ROOT}/src/lgfx/Fonts/IPA/lgfx_font_japan.c
+     ${LGFX_ROOT}/src/lgfx/utility/lgfx_miniz.c
+     ${LGFX_ROOT}/src/lgfx/utility/lgfx_pngle.c
+     ${LGFX_ROOT}/src/lgfx/utility/lgfx_qoi.c
+     ${LGFX_ROOT}/src/lgfx/utility/lgfx_qrcode.c
+     ${LGFX_ROOT}/src/lgfx/utility/lgfx_tjpgd.c
      )
 
 set(COMPONENT_SRCS ${SRCS})

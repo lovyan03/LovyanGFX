@@ -15,6 +15,9 @@ Contributors:
  [mongonta0716](https://github.com/mongonta0716)
  [tobozo](https://github.com/tobozo)
 /----------------------------------------------------------------------------*/
+#ifndef LGFX_V1_IMPLEMENTATION
+#error "soft_i2c.inl is part of lgfx_v1.cpp and is not meant to be included on its own"
+#endif
 // I2C on plain GPIO, selected by a negative port number: port -1 is slot 0,
 // port -2 is slot 1. It reaches a bus without claiming a peripheral unit, for
 // when every unit is taken or when touching one is undesirable.

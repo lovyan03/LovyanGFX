@@ -11,9 +11,6 @@ file(GLOB Target_Files RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} CONFIGURE_DEPENDS
     LovyanGFX/src/lgfx/utility/*.c
     LovyanGFX/src/lgfx/v1/*.cpp
     LovyanGFX/src/lgfx/v1/lv_font/*.c
-    LovyanGFX/src/lgfx/v1/misc/*.cpp
-    LovyanGFX/src/lgfx/v1/panel/Panel_Device.cpp
-    LovyanGFX/src/lgfx/v1/platforms/framebuffer/*.cpp
     )
 
 add_executable (LGFX_LINUX_FB ${Target_Files})

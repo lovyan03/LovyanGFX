@@ -15,6 +15,9 @@ Contributors:
  [mongonta0716](https://github.com/mongonta0716)
  [tobozo](https://github.com/tobozo)
 /----------------------------------------------------------------------------*/
+#ifndef LGFX_V1_IMPLEMENTATION
+#error "soft_spi.inl is part of lgfx_v1.cpp and is not meant to be included on its own"
+#endif
 // SPI on plain GPIO, selected by a negative host number: host -1 is slot 0,
 // host -2 is slot 1. It reaches a bus without claiming an SPI peripheral, and
 // the convention matches the touch driver configs, where a negative host has
