@@ -1284,9 +1284,8 @@ namespace lgfx
       (void)i2c_port;
 #endif
 
-#if LGFX_I2C_REG_LAYOUT <= 1 || defined ( CONFIG_IDF_TARGET_ESP32H2 )
-      // The source is APB here. (The ESP32-H2 runs from XTAL like the chips below, so this
-      // figure is off there; it stays on this path until the SCL rate has been measured.)
+#if LGFX_I2C_REG_LAYOUT <= 1
+      // The source is APB here.
       rtc_cpu_freq_config_t cpu_freq_conf;
       rtc_clk_cpu_freq_get_config(&cpu_freq_conf);
       if (cpu_freq_conf.freq_mhz < 80)
@@ -1295,11 +1294,12 @@ namespace lgfx
         return (cpu_freq_conf.source_freq_mhz * 1000000) / rtc_clk_div_int(cpu_freq_conf.div);
       }
       return 80 * 1000 * 1000;
-#elif defined (CONFIG_IDF_TARGET_ESP32C2) || defined (CONFIG_IDF_TARGET_ESP32C3) || defined ( CONFIG_IDF_TARGET_ESP32C5 ) || defined (CONFIG_IDF_TARGET_ESP32S3) || defined ( CONFIG_IDF_TARGET_ESP32C6 ) || defined ( CONFIG_IDF_TARGET_ESP32C61 ) || defined ( CONFIG_IDF_TARGET_ESP32P4 )
-      return 40 * 1000 * 1000; // XTAL clock
 #else
-      // Everything newer runs the port from XTAL (I2C_CLK_SRC_DEFAULT on every such chip),
-      // whose rate depends on the part, so it is read rather than assumed.
+      // Every other chip runs the port from the crystal: the ones with a clock mux in the
+      // block are set to it when the clock is configured, the rest keep the driver's I2C_CLK_SRC_DEFAULT, which is
+      // XTAL on all of them. Its rate depends on the part (32 MHz on the ESP32-H2, 26 / 32 /
+      // 40 MHz variants of the ESP32-C2, 40 / 48 MHz of the ESP32-C5), so it is read rather
+      // than assumed.
       return static_cast<uint32_t>(rtc_clk_xtal_freq_get()) * 1000000u;
 #endif
     }
