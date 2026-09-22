@@ -14,6 +14,7 @@ on:
     - '**.hpp'
     - '**.h'
     - '**.c'
+    - '**.inl'
     - '**SDLBuild.yml'
     - '**SDL.cmake'
     - '**installSDL2.bat'
