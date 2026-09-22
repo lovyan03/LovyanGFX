@@ -41,10 +41,10 @@ Contributors:
 #include <driver/rtc_io.h>
 #include <soc/rtc.h>
 #include <soc/soc.h>
-#if defined ( CONFIG_IDF_TARGET_ESP32P4 )
+#if __has_include(<soc/hp_sys_clkrst_reg.h>)
  #include <soc/hp_sys_clkrst_reg.h>
-#elif defined ( CONFIG_IDF_TARGET_ESP32C5 ) || defined ( CONFIG_IDF_TARGET_ESP32C6 ) \
-   || defined ( CONFIG_IDF_TARGET_ESP32C61 ) || defined ( CONFIG_IDF_TARGET_ESP32H2 )
+#endif
+#if __has_include(<soc/pcr_reg.h>)
  #include <soc/pcr_reg.h>
 #endif
 #if __has_include(<esp_clk_tree.h>) && __has_include(<soc/clk_tree_defs.h>)
@@ -269,6 +269,13 @@ namespace lgfx
     return (result < GPIO_NUM_MAX) ? result : -1;
   }
 
+  // rtc_cpu_freq_config_t::div is a plain integer on most chips and a hal_utils_clk_div_t
+  // (integer + fraction) where the root clock has a fractional divider; only the integer
+  // part matters here, so the field type picks the overload.
+  template <typename T>
+  static inline auto rtc_clk_div_int(const T& div) -> decltype(div.integer) { return div.integer; }
+  static inline uint32_t rtc_clk_div_int(uint32_t div) { return div; }
+
   uint32_t getApbFrequency(void)
   {
     rtc_cpu_freq_config_t conf;
@@ -276,11 +283,7 @@ namespace lgfx
     if (conf.freq_mhz >= 80){
       return 80 * 1000000;
     }
-    #if defined ( CONFIG_IDF_TARGET_ESP32P4 )
-      return (conf.source_freq_mhz * 1000000) / conf.div.integer;
-    #else
-      return (conf.source_freq_mhz * 1000000) / conf.div;
-    #endif
+    return (conf.source_freq_mhz * 1000000) / rtc_clk_div_int(conf.div);
   }
 
   uint32_t getSpiClockFrequency(int spi_host)
@@ -410,6 +413,7 @@ namespace lgfx
     return source_hz / (hs_div + 1) / (mst_div + 1);
 #else
     (void)spi_host;
+    (void)get_xtal_frequency;
     return getApbFrequency();
 #endif
 #endif
@@ -1154,6 +1158,33 @@ namespace lgfx
   #include <core_version.h>
 #endif
 
+// Register layout of the I2C block. Only the older chips are named; anything not
+// listed is taken to carry the current layout, so a new target lands there rather
+// than on the ESP32 one.
+//   0: ESP32 (and targetless builds)  fifo_data / status_reg / timeout.tout / int_raw.ack_err
+//   1: ESP32-S2                        as 0, but int_raw.nack
+//   2: ESP32-C3                        fifo_data / sr / timeout.time_out_value / *_period.period
+//   3: everything newer                data / sr / to / scl_high_period.scl_high_period / *_int_raw
+#if !defined ( CONFIG_IDF_TARGET ) || defined ( CONFIG_IDF_TARGET_ESP32 )
+ #define LGFX_I2C_REG_LAYOUT 0
+#elif defined ( CONFIG_IDF_TARGET_ESP32S2 )
+ #define LGFX_I2C_REG_LAYOUT 1
+#elif defined ( CONFIG_IDF_TARGET_ESP32C3 )
+ #define LGFX_I2C_REG_LAYOUT 2
+#else
+ #define LGFX_I2C_REG_LAYOUT 3
+#endif
+
+// Whether the block carries its own clock mux (clk_conf). Where it does, the source is
+// forced to XTAL below; the newer chips keep it in PCR / HP_SYS and are left on what the
+// driver selected (I2C_CLK_SRC_DEFAULT). Closed list: every chip since has moved it out.
+#if defined ( CONFIG_IDF_TARGET_ESP32C2 ) || defined ( CONFIG_IDF_TARGET_ESP32C3 ) || defined ( CONFIG_IDF_TARGET_ESP32S3 ) \
+ || defined ( CONFIG_IDF_TARGET_ESP32C5 ) || defined ( CONFIG_IDF_TARGET_ESP32C6 ) || defined ( CONFIG_IDF_TARGET_ESP32H2 )
+ #define LGFX_I2C_HAS_CLK_CONF 1
+#else
+ #define LGFX_I2C_HAS_CLK_CONF 0
+#endif
+
 #if !defined ( I2C_ACK_ERR_INT_RAW_M )
  #define I2C_ACK_ERR_INT_RAW_M I2C_NACK_INT_RAW_M
 #endif
@@ -1182,9 +1213,14 @@ namespace lgfx
  && defined ( ESP_IDF_VERSION_VAL ) && ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 4, 0)
  #define LGFX_LP_I2C_NUM SOC_LP_I2C_NUM
  #define LGFX_LP_I2C_PORT LGFX_HP_I2C_NUM
- // The default source is the RC oscillator, which drifts with temperature. XTAL_D2 is a
- // divided crystal, so the SCL frequency comes out as asked.
- #define LGFX_LP_I2C_SCLK LP_I2C_SCLK_XTAL_D2
+ // The default source is the RC oscillator, which drifts with temperature; a crystal
+ // derived source keeps the SCL frequency as asked. Which one the chip offers (a divided
+ // crystal on some, the crystal itself on others) is probed on the enumeration rather
+ // than named, and a chip with neither stays on the driver's default.
+ template <typename E> static constexpr auto lp_i2c_sclk_pick(int)  -> decltype(E::LP_I2C_SCLK_XTAL_D2) { return E::LP_I2C_SCLK_XTAL_D2; }
+ template <typename E> static constexpr auto lp_i2c_sclk_pick(long) -> decltype(E::LP_I2C_SCLK_XTAL)    { return E::LP_I2C_SCLK_XTAL; }
+ template <typename E> static constexpr E    lp_i2c_sclk_pick(...)  { return E::LP_I2C_SCLK_DEFAULT; }
+ #define LGFX_LP_I2C_SCLK ( lp_i2c_sclk_pick<soc_periph_lp_i2c_clk_src_t>(0) )
  #include <esp_clk_tree.h>
 #else
  #define LGFX_LP_I2C_NUM 0
@@ -1248,17 +1284,23 @@ namespace lgfx
       (void)i2c_port;
 #endif
 
-#if defined (CONFIG_IDF_TARGET_ESP32C2) || defined (CONFIG_IDF_TARGET_ESP32C3) || defined ( CONFIG_IDF_TARGET_ESP32C5 ) || defined (CONFIG_IDF_TARGET_ESP32S3) || defined ( CONFIG_IDF_TARGET_ESP32C6 ) || defined ( CONFIG_IDF_TARGET_ESP32C61 ) || defined ( CONFIG_IDF_TARGET_ESP32P4 )
-      return 40 * 1000 * 1000; // XTAL clock
-#else
+#if LGFX_I2C_REG_LAYOUT <= 1 || defined ( CONFIG_IDF_TARGET_ESP32H2 )
+      // The source is APB here. (The ESP32-H2 runs from XTAL like the chips below, so this
+      // figure is off there; it stays on this path until the SCL rate has been measured.)
       rtc_cpu_freq_config_t cpu_freq_conf;
       rtc_clk_cpu_freq_get_config(&cpu_freq_conf);
       if (cpu_freq_conf.freq_mhz < 80)
       { // The source follows the CPU frequency here, so it has to be read every time
         // rather than cached when the port is initialized.
-        return (cpu_freq_conf.source_freq_mhz * 1000000) / cpu_freq_conf.div;
+        return (cpu_freq_conf.source_freq_mhz * 1000000) / rtc_clk_div_int(cpu_freq_conf.div);
       }
       return 80 * 1000 * 1000;
+#elif defined (CONFIG_IDF_TARGET_ESP32C2) || defined (CONFIG_IDF_TARGET_ESP32C3) || defined ( CONFIG_IDF_TARGET_ESP32C5 ) || defined (CONFIG_IDF_TARGET_ESP32S3) || defined ( CONFIG_IDF_TARGET_ESP32C6 ) || defined ( CONFIG_IDF_TARGET_ESP32C61 ) || defined ( CONFIG_IDF_TARGET_ESP32P4 )
+      return 40 * 1000 * 1000; // XTAL clock
+#else
+      // Everything newer runs the port from XTAL (I2C_CLK_SRC_DEFAULT on every such chip),
+      // whose rate depends on the part, so it is read rather than assumed.
+      return static_cast<uint32_t>(rtc_clk_xtal_freq_get()) * 1000000u;
 #endif
     }
 
@@ -1364,7 +1406,7 @@ namespace lgfx
     }
 #endif
 
-#if defined ( CONFIG_IDF_TARGET_ESP32 ) || defined ( CONFIG_IDF_TARGET_ESP32S2 ) || !defined ( CONFIG_IDF_TARGET )
+#if LGFX_I2C_REG_LAYOUT <= 1
 
     static void updateDev(i2c_dev_t* dev)
     {
@@ -1388,7 +1430,7 @@ namespace lgfx
     }
     static volatile uint32_t* getFifoAddr(int num)
     {
-#if defined ( CONFIG_IDF_TARGET_ESP32C2 ) || defined ( CONFIG_IDF_TARGET_ESP32S3 ) || defined ( CONFIG_IDF_TARGET_ESP32C5 ) || defined ( CONFIG_IDF_TARGET_ESP32C6 ) || defined ( CONFIG_IDF_TARGET_ESP32C61 ) || defined ( CONFIG_IDF_TARGET_ESP32P4 ) || defined ( CONFIG_IDF_TARGET_ESP32H2 )
+#if LGFX_I2C_REG_LAYOUT == 3
       return &(getDev(num)->data.val);
 #else
       return &(getDev(num)->fifo_data.val);
@@ -1439,7 +1481,7 @@ namespace lgfx
       void save_reg(i2c_dev_t* dev)
       {
         auto reg = (volatile uint32_t*)dev;
-#if defined ( CONFIG_IDF_TARGET_ESP32C2 ) || defined ( CONFIG_IDF_TARGET_ESP32S3 ) || defined ( CONFIG_IDF_TARGET_ESP32C5 ) || defined ( CONFIG_IDF_TARGET_ESP32C6 ) || defined ( CONFIG_IDF_TARGET_ESP32C61 ) || defined ( CONFIG_IDF_TARGET_ESP32P4 ) || defined ( CONFIG_IDF_TARGET_ESP32H2 )
+#if LGFX_I2C_REG_LAYOUT == 3
         auto fifo_reg = (volatile uint32_t*)(&dev->data);
 #else
         auto fifo_reg = (volatile uint32_t*)(&dev->fifo_data);
@@ -1454,7 +1496,7 @@ namespace lgfx
       void load_reg(i2c_dev_t* dev)
       {
         auto reg = (volatile uint32_t*)dev;
-#if defined ( CONFIG_IDF_TARGET_ESP32C2 ) || defined ( CONFIG_IDF_TARGET_ESP32S3 ) || defined ( CONFIG_IDF_TARGET_ESP32C5 ) || defined ( CONFIG_IDF_TARGET_ESP32C6 ) || defined ( CONFIG_IDF_TARGET_ESP32C61 ) || defined ( CONFIG_IDF_TARGET_ESP32P4 ) || defined ( CONFIG_IDF_TARGET_ESP32H2 )
+#if LGFX_I2C_REG_LAYOUT == 3
         auto fifo_reg = (volatile uint32_t*)(&dev->data);
 #else
         auto fifo_reg = (volatile uint32_t*)(&dev->fifo_data);
@@ -1586,9 +1628,9 @@ namespace lgfx
 
     static int32_t getRxFifoCount(i2c_dev_t* dev)
     {
-#if defined ( CONFIG_IDF_TARGET_ESP32C3 )
+#if LGFX_I2C_REG_LAYOUT == 2
       return dev->sr.rx_fifo_cnt;
-#elif defined ( CONFIG_IDF_TARGET_ESP32C2 ) || defined ( CONFIG_IDF_TARGET_ESP32S3 ) || defined ( CONFIG_IDF_TARGET_ESP32C5 ) || defined ( CONFIG_IDF_TARGET_ESP32C6 ) || defined ( CONFIG_IDF_TARGET_ESP32C61 ) || defined ( CONFIG_IDF_TARGET_ESP32P4 ) || defined ( CONFIG_IDF_TARGET_ESP32H2 )
+#elif LGFX_I2C_REG_LAYOUT == 3
       return dev->sr.rxfifo_cnt;
 #else
       return dev->status_reg.rx_fifo_cnt;
@@ -1597,7 +1639,7 @@ namespace lgfx
 
     static bool getBusBusy(i2c_dev_t* dev)
     {
-#if defined ( CONFIG_IDF_TARGET_ESP32C3 ) || defined ( CONFIG_IDF_TARGET_ESP32C2 ) || defined ( CONFIG_IDF_TARGET_ESP32S3 ) || defined ( CONFIG_IDF_TARGET_ESP32C5 ) || defined ( CONFIG_IDF_TARGET_ESP32C6 ) || defined ( CONFIG_IDF_TARGET_ESP32C61 ) || defined ( CONFIG_IDF_TARGET_ESP32P4 ) || defined ( CONFIG_IDF_TARGET_ESP32H2 )
+#if LGFX_I2C_REG_LAYOUT >= 2
       return dev->sr.bus_busy;
 #else
       return dev->status_reg.bus_busy;
@@ -1692,9 +1734,9 @@ namespace lgfx
         {
           uint32_t start_us = lgfx::micros();
           uint32_t us;
-#if defined ( CONFIG_IDF_TARGET_ESP32C3 )
+#if LGFX_I2C_REG_LAYOUT == 2
           uint32_t us_limit = (dev->scl_high_period.period + dev->scl_low_period.period + 16 ) * (1 + dev->sr.tx_fifo_cnt);
-#elif defined ( CONFIG_IDF_TARGET_ESP32C2 ) || defined ( CONFIG_IDF_TARGET_ESP32S3 ) || defined ( CONFIG_IDF_TARGET_ESP32C5 ) || defined ( CONFIG_IDF_TARGET_ESP32C6 ) || defined ( CONFIG_IDF_TARGET_ESP32C61 ) || defined ( CONFIG_IDF_TARGET_ESP32P4 ) || defined ( CONFIG_IDF_TARGET_ESP32H2 )
+#elif LGFX_I2C_REG_LAYOUT == 3
           uint32_t us_limit = (dev->scl_high_period.scl_high_period + dev->scl_low_period.scl_low_period + 16 ) * (1 + dev->sr.txfifo_cnt);
 #else
           uint32_t us_limit = (dev->scl_high_period.period + dev->scl_low_period.period + 16 ) * (1 + dev->status_reg.tx_fifo_cnt);
@@ -1718,9 +1760,9 @@ namespace lgfx
           i2c_context[i2c_port].state = cpp::fail(error_t::connection_lost);
         }
         else
-#if !defined (CONFIG_IDF_TARGET) || defined (CONFIG_IDF_TARGET_ESP32)
+#if LGFX_I2C_REG_LAYOUT == 0
         if (!int_raw.end_detect || int_raw.ack_err)
-#elif defined ( CONFIG_IDF_TARGET_ESP32C2 ) || defined ( CONFIG_IDF_TARGET_ESP32S3 ) || defined ( CONFIG_IDF_TARGET_ESP32C5 ) || defined ( CONFIG_IDF_TARGET_ESP32C6 ) || defined ( CONFIG_IDF_TARGET_ESP32C61 ) || defined ( CONFIG_IDF_TARGET_ESP32P4 ) || defined ( CONFIG_IDF_TARGET_ESP32H2 )
+#elif LGFX_I2C_REG_LAYOUT == 3
         if (!int_raw.end_detect_int_raw || int_raw.nack_int_raw)
 #else
         if (!int_raw.end_detect || int_raw.nack)
@@ -1734,7 +1776,7 @@ namespace lgfx
 
       if (flg_stop || res.has_error())
       {
-#if defined ( CONFIG_IDF_TARGET_ESP32C2 ) || defined ( CONFIG_IDF_TARGET_ESP32S3 ) || defined ( CONFIG_IDF_TARGET_ESP32C5 ) || defined ( CONFIG_IDF_TARGET_ESP32C6 ) || defined ( CONFIG_IDF_TARGET_ESP32C61 ) || defined ( CONFIG_IDF_TARGET_ESP32P4 ) || defined ( CONFIG_IDF_TARGET_ESP32H2 )
+#if LGFX_I2C_REG_LAYOUT == 3
 // エラー発生後はペリフェラルが強制停止済みの場合があり、通常のSTOPコマンド発行では完了割り込みが来ずタイムアウトまで待たされるため強制STOP側へ分岐する;
         if (res.has_error() || i2c_context[i2c_port].state.has_error() || i2c_context[i2c_port].state == i2c_context_t::state_read || !int_raw.end_detect_int_raw)
 #else
@@ -1772,9 +1814,9 @@ namespace lgfx
               i2c_stop(i2c_port);
             }
           }
-#if !defined (CONFIG_IDF_TARGET) || defined (CONFIG_IDF_TARGET_ESP32)
+#if LGFX_I2C_REG_LAYOUT == 0
           if (res.has_value() && dev->int_raw.ack_err)
-#elif defined ( CONFIG_IDF_TARGET_ESP32C2 ) || defined ( CONFIG_IDF_TARGET_ESP32S3 ) || defined ( CONFIG_IDF_TARGET_ESP32C5 ) || defined ( CONFIG_IDF_TARGET_ESP32C6 ) || defined ( CONFIG_IDF_TARGET_ESP32C61 ) || defined ( CONFIG_IDF_TARGET_ESP32P4 ) || defined ( CONFIG_IDF_TARGET_ESP32H2 )
+#elif LGFX_I2C_REG_LAYOUT == 3
           if (res.has_value() && dev->int_raw.nack_int_raw)
 #else
           if (res.has_value() && dev->int_raw.nack)
@@ -2149,8 +2191,8 @@ namespace lgfx
         uint32_t val = (cycle > 64) ? (I2C_SCL_FILTER_EN | I2C_SDA_FILTER_EN) : 0;
         dev->filter_cfg.val = val;
         uint32_t scl_high_offset = ( val ? 8 : 7 );
-#if !(defined ( CONFIG_IDF_TARGET_ESP32P4 ) || defined ( CONFIG_IDF_TARGET_ESP32C61 ))
-        dev->clk_conf.sclk_sel = 0;
+#if LGFX_I2C_HAS_CLK_CONF
+        dev->clk_conf.sclk_sel = 0; // XTAL
 #endif
 #else
         dev->scl_filter_cfg.en = cycle > 64;
@@ -2180,7 +2222,7 @@ namespace lgfx
           cycle = (1<<10)-1;
         }
 
-#if defined ( CONFIG_IDF_TARGET_ESP32C2 ) || defined (CONFIG_IDF_TARGET_ESP32S3) || defined ( CONFIG_IDF_TARGET_ESP32C5 ) || defined ( CONFIG_IDF_TARGET_ESP32C6 ) || defined ( CONFIG_IDF_TARGET_ESP32C61 ) || defined ( CONFIG_IDF_TARGET_ESP32P4 ) || defined ( CONFIG_IDF_TARGET_ESP32H2 )
+#if LGFX_I2C_REG_LAYOUT == 3
         auto wait_high = scl_high_period >> 2;
         dev->scl_high_period.scl_high_period = scl_high_period - wait_high;
         dev->scl_high_period.scl_wait_high_period = wait_high;
@@ -2262,10 +2304,10 @@ namespace lgfx
 // SCL-low (clock stretch) watchdog. 2^21 source clocks stays past
 // i2c_stall_limit_us on every supported source; the ESP32 register below is at
 // its ceiling, about 13ms.
-#if defined ( CONFIG_IDF_TARGET_ESP32C3 )
+#if LGFX_I2C_REG_LAYOUT == 2
       dev->timeout.time_out_value = 21;
       dev->timeout.time_out_en = 1;
-#elif defined ( CONFIG_IDF_TARGET_ESP32C2 ) || defined ( CONFIG_IDF_TARGET_ESP32S3 ) || defined ( CONFIG_IDF_TARGET_ESP32C5 ) || defined ( CONFIG_IDF_TARGET_ESP32C6 ) || defined ( CONFIG_IDF_TARGET_ESP32C61 ) || defined ( CONFIG_IDF_TARGET_ESP32P4 ) || defined ( CONFIG_IDF_TARGET_ESP32H2 )
+#elif LGFX_I2C_REG_LAYOUT == 3
       dev->to.time_out_value = 21;
       dev->to.time_out_en = 1;
 #else
@@ -2383,9 +2425,9 @@ namespace lgfx
       auto dev = getDev(i2c_port);
 
       size_t len = 0;
-#if defined ( CONFIG_IDF_TARGET_ESP32C2 ) || defined ( CONFIG_IDF_TARGET_ESP32S3 ) || defined ( CONFIG_IDF_TARGET_ESP32C5 ) || defined ( CONFIG_IDF_TARGET_ESP32C6 ) || defined ( CONFIG_IDF_TARGET_ESP32C61 ) || defined ( CONFIG_IDF_TARGET_ESP32P4 ) || defined ( CONFIG_IDF_TARGET_ESP32H2 )
+#if LGFX_I2C_REG_LAYOUT == 3
       uint32_t us_limit = ((dev->scl_high_period.scl_high_period + dev->scl_high_period.scl_wait_high_period + dev->scl_low_period.scl_low_period) << 1);
-#elif defined ( CONFIG_IDF_TARGET_ESP32C3 )
+#elif LGFX_I2C_REG_LAYOUT == 2
       uint32_t us_limit = ((dev->scl_high_period.period + dev->scl_low_period.period) << 1);
 #else
       uint32_t us_limit = (dev->scl_high_period.period + dev->scl_low_period.period);

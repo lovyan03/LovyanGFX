@@ -35,7 +35,9 @@ Inspiration Sources:
 #include <soc/periph_defs.h>
 #include <soc/i2s_struct.h>
 
-#if __has_include(<esp32/rom/lldesc.h>)
+#if __has_include(<esp_rom_lldesc.h>)
+ #include <esp_rom_lldesc.h>
+#elif __has_include(<esp32/rom/lldesc.h>)
  #include <esp32/rom/lldesc.h>
 #else
  #include <rom/lldesc.h>

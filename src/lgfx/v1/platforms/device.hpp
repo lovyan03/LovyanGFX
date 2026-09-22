@@ -23,29 +23,14 @@ Contributors:
 
  #include <sdkconfig.h>
 
- #if defined (CONFIG_IDF_TARGET_ESP32C2)
+ #if !defined (CONFIG_IDF_TARGET) || defined (CONFIG_IDF_TARGET_ESP32)
 
   #include "esp32/Light_PWM.hpp"
   #include "esp32/Bus_SPI.hpp"
   #include "esp32/Bus_I2C.hpp"
-
- #elif defined (CONFIG_IDF_TARGET_ESP32C5)
-
-  #include "esp32/Light_PWM.hpp"
-  #include "esp32/Bus_SPI.hpp"
-  #include "esp32/Bus_I2C.hpp"
-
- #elif defined (CONFIG_IDF_TARGET_ESP32C6)
-
-  #include "esp32/Light_PWM.hpp"
-  #include "esp32/Bus_SPI.hpp"
-  #include "esp32/Bus_I2C.hpp"
-
- #elif defined (CONFIG_IDF_TARGET_ESP32C61)
-
-  #include "esp32/Light_PWM.hpp"
-  #include "esp32/Bus_SPI.hpp"
-  #include "esp32/Bus_I2C.hpp"
+  #include "esp32/Bus_Parallel8.hpp"
+  #include "esp32/Bus_HUB75.hpp"
+  #include "esp32/Panel_CVBS.hpp"
 
  #elif defined (CONFIG_IDF_TARGET_ESP32C3)
 
@@ -79,20 +64,13 @@ Contributors:
   #include "esp32/Bus_Parallel8.hpp"
   #include "esp32/Bus_HUB75.hpp"
 
- #elif defined (CONFIG_IDF_TARGET_ESP32H2)
-
-  #include "esp32/Light_PWM.hpp"
-  #include "esp32/Bus_SPI.hpp"
-  #include "esp32/Bus_I2C.hpp"
-
  #else
+  // Any other chip gets the buses every one of them carries; a parallel bus is added
+  // only once its peripheral has been checked on that chip.
 
   #include "esp32/Light_PWM.hpp"
   #include "esp32/Bus_SPI.hpp"
   #include "esp32/Bus_I2C.hpp"
-  #include "esp32/Bus_Parallel8.hpp"
-  #include "esp32/Bus_HUB75.hpp"
-  #include "esp32/Panel_CVBS.hpp"
 
  #endif
 

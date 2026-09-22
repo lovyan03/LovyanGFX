@@ -83,7 +83,11 @@ Contributors:
  #define REG_SPI_BASE(i)   (DR_REG_SPI1_BASE + (((i)>1) ? (((i)* 0x1000) + 0x20000) : (((~(i)) & 1)* 0x1000 )))
 #else
  #if !defined ( REG_SPI_BASE )
-  #define REG_SPI_BASE(i)     (DR_REG_SPI2_BASE)
+  #if defined ( DR_REG_SPI_BASE )
+   #define REG_SPI_BASE(i)    (DR_REG_SPI_BASE(i))  // the newer spi_reg.h carry the host indexed form under this name
+  #else
+   #define REG_SPI_BASE(i)    (DR_REG_SPI2_BASE)
+  #endif
  #endif
 #endif
 
@@ -172,9 +176,14 @@ namespace lgfx
   /// DMA が到達できるメモリか (内部 DMA RAM または外部 RAM)。外部 RAM は転送前に dma_cache_sync が必要
   static inline bool heap_capable_dma(const void* ptr) { return esp_ptr_dma_capable(ptr) || esp_ptr_dma_ext_capable(ptr); }
   /// 外部 RAM 上のバッファを DMA が読む前に、CPU キャッシュの内容をメモリへ書き戻す
+  /// (内部 RAM もキャッシュ越しになるチップでは、DMA に渡すものすべてが対象)
   static inline void dma_cache_sync(const void* ptr, size_t len)
   {
+ #if defined ( SOC_CACHE_INTERNAL_MEM_VIA_L1CACHE ) && SOC_CACHE_INTERNAL_MEM_VIA_L1CACHE
+    esp_cache_msync(const_cast<void*>(ptr), len, ESP_CACHE_MSYNC_FLAG_DIR_C2M | ESP_CACHE_MSYNC_FLAG_UNALIGNED);
+ #else
     if (esp_ptr_external_ram(ptr)) { esp_cache_msync(const_cast<void*>(ptr), len, ESP_CACHE_MSYNC_FLAG_DIR_C2M | ESP_CACHE_MSYNC_FLAG_UNALIGNED); }
+ #endif
   }
 #else
   static inline bool heap_capable_dma(const void* ptr) { return esp_ptr_dma_capable(ptr); }
@@ -204,20 +213,17 @@ namespace lgfx
     pinMode(pin, mode);
   }
 
-#if defined ( CONFIG_IDF_TARGET_ESP32P4 )
-  static inline volatile uint32_t* get_gpio_hi_reg(int_fast8_t pin) { return (pin & 32) ? &GPIO.out1_w1ts.val : &GPIO.out_w1ts.val; }
-  static inline volatile uint32_t* get_gpio_lo_reg(int_fast8_t pin) { return (pin & 32) ? &GPIO.out1_w1tc.val : &GPIO.out_w1tc.val; }
-  static inline bool gpio_in(int_fast8_t pin) { return ((pin & 32) ? GPIO.in1.val : GPIO.in.val) & (1 << (pin & 31)); }
-#elif defined ( CONFIG_IDF_TARGET_ESP32C2 ) || defined ( CONFIG_IDF_TARGET_ESP32C3 ) || defined ( CONFIG_IDF_TARGET_ESP32C5 ) || defined ( CONFIG_IDF_TARGET_ESP32C6 ) || defined ( CONFIG_IDF_TARGET_ESP32C61 ) || defined ( CONFIG_IDF_TARGET_ESP32H2 )
-  static inline volatile uint32_t* get_gpio_hi_reg(int_fast8_t pin) { return &GPIO.out_w1ts.val; }
-  static inline volatile uint32_t* get_gpio_lo_reg(int_fast8_t pin) { return &GPIO.out_w1tc.val; }
-  static inline bool gpio_in(int_fast8_t pin) { return GPIO.in.val & (1 << (pin & 31)); }
+  // The output set/clear and input registers are plain words on the older chips and
+  // unions on the newer ones; both are read through their address so the type does not
+  // matter. A second bank exists only where the pin count exceeds one word.
+#if !defined ( SOC_GPIO_PIN_COUNT ) || SOC_GPIO_PIN_COUNT > 32
+  static inline volatile uint32_t* get_gpio_hi_reg(int_fast8_t pin) { return (volatile uint32_t*)((pin & 32) ? (volatile void*)&GPIO.out1_w1ts : (volatile void*)&GPIO.out_w1ts); }
+  static inline volatile uint32_t* get_gpio_lo_reg(int_fast8_t pin) { return (volatile uint32_t*)((pin & 32) ? (volatile void*)&GPIO.out1_w1tc : (volatile void*)&GPIO.out_w1tc); }
+  static inline bool gpio_in(int_fast8_t pin) { return *(volatile uint32_t*)((pin & 32) ? (volatile void*)&GPIO.in1 : (volatile void*)&GPIO.in) & (1 << (pin & 31)); }
 #else
-  static inline volatile uint32_t* get_gpio_hi_reg(int_fast8_t pin) { return (pin & 32) ? &GPIO.out1_w1ts.val : &GPIO.out_w1ts; }
-//static inline volatile uint32_t* get_gpio_hi_reg(int_fast8_t pin) { return (volatile uint32_t*)((pin & 32) ? 0x60004014 : 0x60004008) ; } // workaround Eratta
-  static inline volatile uint32_t* get_gpio_lo_reg(int_fast8_t pin) { return (pin & 32) ? &GPIO.out1_w1tc.val : &GPIO.out_w1tc; }
-//static inline volatile uint32_t* get_gpio_lo_reg(int_fast8_t pin) { return (volatile uint32_t*)((pin & 32) ? 0x60004018 : 0x6000400C) ; }
-  static inline bool gpio_in(int_fast8_t pin) { return ((pin & 32) ? GPIO.in1.data : GPIO.in) & (1 << (pin & 31)); }
+  static inline volatile uint32_t* get_gpio_hi_reg(int_fast8_t pin) { return (volatile uint32_t*)&GPIO.out_w1ts; }
+  static inline volatile uint32_t* get_gpio_lo_reg(int_fast8_t pin) { return (volatile uint32_t*)&GPIO.out_w1tc; }
+  static inline bool gpio_in(int_fast8_t pin) { return *(volatile uint32_t*)&GPIO.in & (1 << (pin & 31)); }
 #endif
   static inline void gpio_hi(int_fast8_t pin) { if (pin >= 0) *get_gpio_hi_reg(pin) = 1 << (pin & 31); } // ESP_LOGI("LGFX", "gpio_hi: %d", pin); }
   static inline void gpio_lo(int_fast8_t pin) { if (pin >= 0) *get_gpio_lo_reg(pin) = 1 << (pin & 31); } // ESP_LOGI("LGFX", "gpio_lo: %d", pin); }
