@@ -1721,6 +1721,7 @@ namespace lgfx
 
     static cpp::result<void, error_t> i2c_wait(int i2c_port, bool flg_stop = false)
     {
+      bool hw_stopped = false;
       if (flg_stop == false && i2c_context[i2c_port].state.has_error()) { return cpp::fail(i2c_context[i2c_port].state.error()); }
       cpp::result<void, error_t> res = {};
       if (i2c_context[i2c_port].state == i2c_context_t::state_disconnect) { return res; }
@@ -1751,6 +1752,9 @@ namespace lgfx
           } while ((!(int_raw.val & intmask)) && (us <= us_limit));
         }
         int_raw.val = dev->int_raw.val;
+        // Sampled before the flags are cleared: on a NACK the controller may already have
+        // finished its STOP, and that completion event would otherwise be thrown away here.
+        bool trans_done = int_raw.val & I2C_TRANS_COMPLETE_INT_RAW_M;
 
         dev->int_clr.val = int_raw.val;
         // A timeout or lost arbitration is fatal even when END is also set.
@@ -1772,6 +1776,40 @@ namespace lgfx
           i2c_context[i2c_port].state = cpp::fail(error_t::connection_lost);
         }
         i2c_context[i2c_port].wait_ack_stage = 0;
+
+        // On a NACK the controller finishes the transaction with a STOP of its own
+        // (the NACK interrupt fires while it is still on the bus). Taking the pins over
+        // at that moment mangles that STOP and some slaves never accept a START again,
+        // so let it complete: bus idle plus TRANS_COMPLETE means a STOP has been sent.
+        if (res.has_error() && (int_raw.val & I2C_ACK_ERR_INT_RAW_M)
+         && !(int_raw.val & (I2C_TIME_OUT_INT_RAW_M | I2C_ARBITRATION_LOST_INT_RAW_M)))
+        {
+          // Bound: what the STOP itself takes by the configured registers (one period to
+          // release the lines, stop setup, stop hold), doubled, clamped to 50us..2ms.
+#if LGFX_I2C_REG_LAYOUT == 3
+          uint32_t stop_ticks = dev->scl_high_period.scl_high_period + dev->scl_high_period.scl_wait_high_period + dev->scl_low_period.scl_low_period
+                              + dev->scl_stop_setup.scl_stop_setup_time + dev->scl_stop_hold.scl_stop_hold_time;
+#elif defined ( I2C_SCL_WAIT_HIGH_PERIOD )
+          uint32_t stop_ticks = dev->scl_high_period.period + dev->scl_high_period.scl_wait_high_period + dev->scl_low_period.period
+                              + dev->scl_stop_setup.time + dev->scl_stop_hold.time;
+#else
+          uint32_t stop_ticks = dev->scl_high_period.period + dev->scl_low_period.period
+                              + dev->scl_stop_setup.time + dev->scl_stop_hold.time;
+#endif
+          uint32_t limit_us = (uint32_t)(((uint64_t)stop_ticks * 2u * 1000000u) / getSourceClock(i2c_port));
+          limit_us = std::min<uint32_t>(2000u, std::max<uint32_t>(50u, limit_us));
+          uint32_t start_us = lgfx::micros();
+          for (;;)
+          {
+            if (!getBusBusy(dev) && (trans_done || (dev->int_raw.val & I2C_TRANS_COMPLETE_INT_RAW_M)))
+            {
+              hw_stopped = true;
+              break;
+            }
+            if (lgfx::micros() - start_us >= limit_us) { break; }
+            taskYIELD();
+          }
+        }
       }
 
       if (flg_stop || res.has_error())
@@ -1784,7 +1822,7 @@ namespace lgfx
 #endif
         { // force stop
           // state が既にエラーの場合はエラー検出箇所で停止済みのため再停止しない (res のエラーはこの呼び出しで検出されたもので未停止);
-          if (res.has_error() || !i2c_context[i2c_port].state.has_error())
+          if (!hw_stopped && (res.has_error() || !i2c_context[i2c_port].state.has_error()))
           {
             i2c_stop(i2c_port);
           }
