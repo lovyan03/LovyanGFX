@@ -124,6 +124,9 @@ Contributors:
   #define DMA_OUT_CONF0_CH0_REG      AXI_DMA_OUT_CONF0_CH0_REG
   #define DMA_OUT_RST_CH0            AXI_DMA_OUT_RST_CH0
   #define SIZE_OF_DMA_OUT_CH (sizeof(axi_dma_out_reg_t))
+  // AXI_DMA takes the descriptor address in a register of its own (LINK2) inside the channel block
+  #define DMA_OUT_LINK_ADDR_CH0_REG  AXI_DMA_OUT_LINK2_CH0_REG
+  #define DMA_OUT_LINK_ADDR_CH_STRIDE SIZE_OF_DMA_OUT_CH
  #elif defined AHB_DMA_OUT_LINK_CH0_REG
   #define DMA_OUT_LINK_CH0_REG       AHB_DMA_OUT_LINK_CH0_REG
   #define DMA_OUTFIFO_STATUS_CH0_REG AHB_DMA_OUTFIFO_STATUS_CH0_REG
@@ -132,11 +135,12 @@ Contributors:
   #define DMA_OUT_CONF0_CH0_REG      AHB_DMA_OUT_CONF0_CH0_REG
   #define DMA_OUT_RST_CH0            AHB_DMA_OUT_RST_CH0
   #define SIZE_OF_DMA_OUT_CH (sizeof(AHB_DMA.channel[0]))
-  // AHB_DMA 世代のうち C5/C61 は OUT_LINK レジスタが制御ビットのみになり、
-  // ディスクリプタアドレスは別レジスタ (チャンネルごとに 4 バイト刻み) へ書く;
-  // (同じ AHB_DMA でも H4 はアドレスレジスタをチャンネルブロック内に持つため対象外)
-  #if defined (CONFIG_IDF_TARGET_ESP32C5) || defined (CONFIG_IDF_TARGET_ESP32C61)
+  // The newer AHB_DMA keep only control bits in OUT_LINK and take the descriptor address
+  // in a register of its own. Where that register sits differs (a packed array of words on
+  // some chips, inside the channel block on others), so the stride is taken from the header
+  #if defined AHB_DMA_OUT_LINK_ADDR_CH0_REG
    #define DMA_OUT_LINK_ADDR_CH0_REG  AHB_DMA_OUT_LINK_ADDR_CH0_REG
+   #define DMA_OUT_LINK_ADDR_CH_STRIDE (AHB_DMA_OUT_LINK_ADDR_CH1_REG - AHB_DMA_OUT_LINK_ADDR_CH0_REG)
   #endif
  #else
   #if __has_include(<soc/gdma_struct.h>)
@@ -510,10 +514,8 @@ namespace lgfx
       // (IDF の gdma_config_transfer)。長さは揃えないので、その構成では外部 RAM を CPU 経路に回す
       _psram_dma_ok = !LGFX_FLASH_ENCRYPTION_ENABLED();
       #endif
-      #if defined ( CONFIG_IDF_TARGET_ESP32P4 )
-      _spi_dma_out_link2_reg = reg(AXI_DMA_OUT_LINK2_CH0_REG  + assigned_dma_ch * SIZE_OF_DMA_OUT_CH);
-      #elif defined ( DMA_OUT_LINK_ADDR_CH0_REG )
-      _spi_dma_out_link2_reg = reg(DMA_OUT_LINK_ADDR_CH0_REG  + assigned_dma_ch * sizeof(uint32_t));
+      #if defined ( DMA_OUT_LINK_ADDR_CH0_REG )
+      _spi_dma_out_link2_reg = reg(DMA_OUT_LINK_ADDR_CH0_REG  + assigned_dma_ch * DMA_OUT_LINK_ADDR_CH_STRIDE);
       #endif
     }
 #elif defined ( CONFIG_IDF_TARGET_ESP32 ) || !defined ( CONFIG_IDF_TARGET )
@@ -1067,13 +1069,11 @@ namespace lgfx
             data += head;
             length -= head;
           }
-          #if !defined ( CONFIG_IDF_TARGET_ESP32P4 )   // P4 は下で全範囲を書き戻す
-          dma_cache_sync(data, length);
-          #endif
         }
 #endif
+        dma_cache_sync(data, length);   // before the SCT path below can hand the buffer to the DMA
         auto spi_dma_out_link_reg = _spi_dma_out_link_reg;
-        #if defined ( CONFIG_IDF_TARGET_ESP32P4 ) || defined ( DMA_OUT_LINK_ADDR_CH0_REG )
+        #if defined ( DMA_OUT_LINK_ADDR_CH0_REG )
         auto spi_dma_out_link2_reg = _spi_dma_out_link2_reg;
         #endif
         auto cmd = _spi_cmd_reg;
@@ -1089,11 +1089,7 @@ namespace lgfx
         }
 #endif
         _setup_dma_desc_links(data, length);
-
-        #if defined ( CONFIG_IDF_TARGET_ESP32P4 )
-        esp_cache_msync((void*)data, sizeof(uint8_t) * length, ESP_CACHE_MSYNC_FLAG_DIR_C2M | ESP_CACHE_MSYNC_FLAG_UNALIGNED);
-        esp_cache_msync(_dmadesc, sizeof(lldesc_t) * _dmadesc_size, ESP_CACHE_MSYNC_FLAG_DIR_C2M | ESP_CACHE_MSYNC_FLAG_UNALIGNED);
-        #endif
+        dma_cache_sync(_dmadesc, sizeof(lldesc_t) * _dmadesc_size);
 #if defined ( SOC_GDMA_SUPPORTED ) && defined ( DMA_OUTLINK_START_CH0 )
         dma_channel_reset();
         auto dma = reg(SPI_DMA_CONF_REG(_spi_port));
@@ -1103,7 +1099,7 @@ namespace lgfx
         *dma = SPI_DMA_AFIFO_RST | SPI_BUF_AFIFO_RST | SPI_RX_AFIFO_RST;
 #endif
         uint32_t len = ((length - 1) & ((SPI_MS_DATA_BITLEN)>>3)) + 1;
-        #if defined ( CONFIG_IDF_TARGET_ESP32P4 ) || defined ( DMA_OUT_LINK_ADDR_CH0_REG )
+        #if defined ( DMA_OUT_LINK_ADDR_CH0_REG )
         *spi_dma_out_link2_reg = ((uint32_t)(_dmadesc));
         *spi_dma_out_link_reg = DMA_OUTLINK_START_CH0 ;
         #else
@@ -1269,11 +1265,7 @@ label_start:
     }
 
     // 書き戻しは投入時 (投入後のバッファ変更は DMA 契約上そもそも不可)
-    #if defined ( CONFIG_IDF_TARGET_ESP32P4 )
-    esp_cache_msync((void*)data, sizeof(uint8_t) * length, ESP_CACHE_MSYNC_FLAG_DIR_C2M | ESP_CACHE_MSYNC_FLAG_UNALIGNED);
-    #else
     dma_cache_sync(data, length);
-    #endif
     _dma_queue_bytes += length;
     size_t index = _dma_queue_size;
     size_t new_size = index + ((length-1) / SPI_MAX_DMA_LEN) + 1;
@@ -1358,9 +1350,7 @@ label_start:
 
     std::swap(_dmadesc, _dma_queue);
     std::swap(_dmadesc_size, _dma_queue_capacity);
-    #if defined ( CONFIG_IDF_TARGET_ESP32P4 )
-    esp_cache_msync(_dmadesc, sizeof(lldesc_t) * _dmadesc_size, ESP_CACHE_MSYNC_FLAG_DIR_C2M | ESP_CACHE_MSYNC_FLAG_UNALIGNED);
-    #endif
+    dma_cache_sync(_dmadesc, sizeof(lldesc_t) * _dmadesc_size);
 
 #if defined ( LGFX_SPI_SCT )
     bool after_sct = _sct_active;   // dc_control が後始末で落とすので先に控える
@@ -1379,7 +1369,7 @@ label_start:
 #endif
 #if defined ( SOC_GDMA_SUPPORTED ) && defined ( DMA_OUTLINK_START_CH0 )
     dma_channel_reset();
-    #if defined ( CONFIG_IDF_TARGET_ESP32P4 ) || defined ( DMA_OUT_LINK_ADDR_CH0_REG )
+    #if defined ( DMA_OUT_LINK_ADDR_CH0_REG )
     *_spi_dma_out_link2_reg = ((uint32_t)(first));
     *_spi_dma_out_link_reg = DMA_OUTLINK_START_CH0;
     #else
