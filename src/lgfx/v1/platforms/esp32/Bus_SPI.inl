@@ -1444,8 +1444,13 @@ label_start:
       auto pin_reg = reg(SPI_PIN_REG(_spi_port));
       auto cmd_reg = _spi_cmd_reg;
       auto value = *pin_reg;
+      // 反転した極性が SPI クロック域へ届く前に元へ戻すと、クロックは 1 度も動かず読み出しが 1 bit ずれる。
+      // 値を差し替える直前に、前の SPI_UPDATE (直前の beginRead() の分を含む) の完了 (自己クリア) を待つ。
+      // 復帰後は待たない: 続く readData() の USR|UPDATE が同じ復帰値を載せる (他の転送と同じ契約)
+      while (*cmd_reg & SPI_UPDATE) {}
       *pin_reg = value ^ SPI_CK_IDLE_EDGE;
       *cmd_reg = SPI_UPDATE;
+      while (*cmd_reg & SPI_UPDATE) {}
       *pin_reg = value;
       *cmd_reg = SPI_UPDATE;
       return;
