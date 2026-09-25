@@ -117,6 +117,9 @@ int lgfx_qoi_prepare(qoi_t *qoi, lgfx_qoi_read_callback_t read_cb, void* user_da
   if( qoi->desc.width == 0 || qoi->desc.height == 0 || qoi->desc.colorspace > 1 ) return QOI_ERROR("Incorrect QOI signature");
   if (qoi->desc.channels != 0 && qoi->desc.channels != 3 && qoi->desc.channels != 4) return QOI_ERROR("Bad channels count");
   // if( qoi->desc.height >= QOI_PIXELS_MAX / qoi->desc.width ) return QOI_ERROR("Image too big");
+  // The row buffer is width * 4 bytes. Where size_t is 32 bits that product wraps for a large width,
+  // and the decoder would then write width pixels into the small buffer that malloc() gave back.
+  if (qoi->desc.width > SIZE_MAX / sizeof(qoi_rgba_t)) return QOI_ERROR("Image too wide");
 
   qoi->pixelBuffer = (qoi_rgba_t*)malloc(qoi->desc.width * sizeof(qoi_rgba_t));
   if (qoi->pixelBuffer == NULL) { return QOI_ERROR("Insufficient memory"); }
@@ -156,6 +159,11 @@ int lgfx_qoi_decomp(qoi_t *qoi, lgfx_qoi_draw_callback_t draw_cb)
       }
 
       uint8_t b1 = buf[consume & 0xFF];
+
+      // `len` counts the bytes the read callback has delivered so far. Without this check a file
+      // that ends early (or claims a huge height) makes the loop run on the stale contents of buf.
+      size_t need = (b1 == QOI_OP_RGB) ? 3 : (b1 == QOI_OP_RGBA) ? 4 : ((b1 & QOI_MASK_2) == QOI_OP_LUMA) ? 1 : 0;
+      if (consume + need >= len) { return QOI_ERROR("Insufficient data"); }
 
       if (b1 == QOI_OP_RGB)
       {
