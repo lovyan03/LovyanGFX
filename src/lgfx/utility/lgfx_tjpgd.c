@@ -170,6 +170,7 @@ static int32_t create_qt_tbl (	/* 0:OK, !0:Failed */
 	uint_fast16_t ndata		/* Size of input data */
 )
 {
+	if (ndata == 0 || ndata % 65) return JDR_FMT1;	/* Err: not a whole number of 8-bit tables (65 bytes each) */
 	const uint8_t* dataend = data + ndata;
 	do {	/* Process all tables in the segment */
 		size_t d = *data++;							/* Get table property */
@@ -204,6 +205,7 @@ static int32_t create_huffman_tbl (	/* 0:OK, !0:Failed */
 	uint16_t *ph;
 
 	do {	/* Process all tables in the segment */
+		if (ndata < 17) return JDR_FMT1;	/* Err: table header is cut short */
 		uint_fast8_t d = *data++;			/* Get table number and class */
 		if (d & 0xEE) return JDR_FMT1;		/* Err: invalid class/number */
 		uint_fast8_t cls = d >> 4;			/* class = dc(0)/ac(1), table number = 0/1 */
@@ -216,6 +218,7 @@ static int32_t create_huffman_tbl (	/* 0:OK, !0:Failed */
 		do {								/* Load number of patterns for 1 to 16-bit code */
 			np += (pb[i] = data[i]);		/* Get sum of code words for each code */
 		} while (++i < 16);
+		if (np > 256 || (int_fast16_t)(17 + np) > ndata) return JDR_FMT1;	/* Err: more code words than the segment holds */
 
 		ph = (uint16_t*)alloc_pool(jd, np * sizeof (uint16_t));/* Allocate a memory block for the code word table */
 		if (!ph) return JDR_MEM1;			/* Err: not enough memory */
@@ -517,6 +520,7 @@ static JRESULT mcu_load (
 			if (b < 0) return (JRESULT)(-b);	/* Err: invalid code or input error */
 			i += b >> 4;						/* Number of leading zero elements   Skip zero elements */
 			if (b &= 0x0F) {					/* Bit length */
+				if (i >= 64) return JDR_FMT1;	/* Err: the zero run leaves no element to store into (Zig[] has 64) */
 				d = bitext(jd, b);				/* Extract data bits */
 				if (d < 0) return (JRESULT)(-d);/* Err: input device */
 				b = 1 << (b - 1);				/* MSB position */
@@ -775,16 +779,15 @@ JRESULT lgfx_jd_prepare (
 
 	if (!pool) return JDR_PAR;
 
+	/* The caller does not clear the object (draw_jpg declares it as a plain local), and the checks
+	   below that tell whether a table or the frame header was sent read these fields. */
+	memset(jd, 0, sizeof(lgfxJdec));
+
 	jd->pool = (uint8_t*)pool;		/* Work memroy */
 	jd->sz_pool = sz_pool;	/* Size of given work memory */
 	jd->infunc = infunc;	/* Stream input function */
 	jd->device = dev;		/* I/O device identifier */
 	jd->nrst = 0;			/* No restart interval (default) */
-
-//	memset(jd->huffbits, 0, sizeof(uint8_t*) * 4);	/* Nulls pointers */
-//	memset(jd->huffcode, 0, sizeof(uint16_t*) * 4);
-//	memset(jd->huffdata, 0, sizeof(uint8_t*) * 4);
-//	memset(jd->qttbl, 0, sizeof(uint32_t*) * 4);
 
 	jd->inbuf = seg = alloc_pool(jd, JD_SZBUF);		/* Allocate stream input buffer */
 	if (!seg) return JDR_MEM1;

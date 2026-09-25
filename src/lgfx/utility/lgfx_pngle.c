@@ -425,6 +425,9 @@ int lgfx_pngle_prepare(pngle_t *pngle, lgfx_pngle_read_callback_t read_cb, void*
 
   if (pngle->hdr.compression != 0) return PNGLE_ERROR("Unsupported compression type in IHDR");
   if (pngle->hdr.filter      != 0) return PNGLE_ERROR("Unsupported filter type in IHDR");
+  // A zero width or height is invalid, and would send set_interlace_pass() looking for a pass
+  // that has pixels past the end of its tables.
+  if (pngle->hdr.width == 0 || pngle->hdr.height == 0) return PNGLE_ERROR("Invalid image size in IHDR");
 
   /*
           Color    Allowed    Interpretation                            channels
@@ -463,6 +466,10 @@ int lgfx_pngle_prepare(pngle_t *pngle, lgfx_pngle_read_callback_t read_cb, void*
     int depth = pngle->hdr.depth;
     if (pngle->hdr.color_type > 7 || pngle->channels == 0
      || depth == 0 || (depth & ch_mask) || (depth != (depth & (-depth)))) return PNGLE_ERROR("Incorrect IHDR info");
+    // The bit width of a row is worked out in 32 bits below (memlen, and scanline_stride in
+    // set_interlace_pass): refuse a width for which that wraps, or the row buffer ends up
+    // far smaller than the rows make_pixels() then reads from it.
+    if (pngle->hdr.width > (UINT32_MAX - 7) / (pngle->channels * depth)) return PNGLE_ERROR("Image too wide");
 
     pngle->magni = 0x01010100
                  * ( (depth == 1) ? 0xFF
