@@ -2087,6 +2087,8 @@ label_nextbyte: /// 次のデータを取得する;
                     } while (++x0 != x1);
                   }
                 } while (++j0 < j1);
+                p_.src_x32_add = 1 << pixelcopy_t::FP_SCALE;
+                p_.src_y32_add = 0;
                 gfx->pushImage(x + rx, by, rw, bh, &p_);
               }
             }
