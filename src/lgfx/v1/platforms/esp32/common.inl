@@ -110,6 +110,15 @@ Contributors:
  #define LGFX_GPIO_RTC_INDEPENDENT 0
 #endif
 
+// Define LP-I2C availability before the GPIO helpers: board detection may
+// reclaim an LP-owned pad without entering the I2C implementation below.
+#if defined ( SOC_LP_I2C_NUM ) && ( SOC_LP_I2C_NUM > 0 ) && __has_include ( <driver/i2c_master.h> ) \
+ && defined ( ESP_IDF_VERSION_VAL ) && ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 4, 0)
+ #define LGFX_LP_I2C_NUM SOC_LP_I2C_NUM
+#else
+ #define LGFX_LP_I2C_NUM 0
+#endif
+
 #if __has_include(<esp_private/gpio.h>)
  #include <esp_private/gpio.h>
 #endif
@@ -625,6 +634,28 @@ namespace lgfx
 
   namespace gpio
   {
+    // LP-I2C routing is retained by the low-power domain across a CPU reset.
+    // Releasing it makes takeover by a normal GPIO/peripheral idempotent even
+    // when the previous user did not shut the low-power controller down.
+    void release_lp_pad(int pin_num)
+    {
+#if !defined (LGFX_LP_I2C_NUM)
+ #error "LGFX_LP_I2C_NUM must be defined before release_lp_pad"
+#endif
+      // C61 exposes independently owned RTC/LP pads but describes its sole I2C
+      // controller as HP, so SOC_LP_I2C_NUM is intentionally absent there.
+#if (LGFX_LP_I2C_NUM > 0 || defined (CONFIG_IDF_TARGET_ESP32C61)) \
+ && defined (SOC_RTCIO_PIN_COUNT) && SOC_RTCIO_PIN_COUNT > 0
+      const auto gpio_num = static_cast<gpio_num_t>(pin_num);
+      if (pin_num >= 0 && rtc_gpio_is_valid_gpio(gpio_num))
+      {
+        rtc_gpio_deinit(gpio_num);
+      }
+#else
+      (void)pin_num;
+#endif
+    }
+
     pin_backup_t::pin_backup_t(int pin_num)
     : _pin_num { static_cast<gpio_num_t>(pin_num) }
     {
@@ -663,6 +694,21 @@ namespace lgfx
           }
         }
       }
+    }
+
+    bool pin_backup_t::matches_current(void) const
+    {
+      if ((size_t)_pin_num >= GPIO_NUM_MAX) { return false; }
+
+      const pin_backup_t current(_pin_num);
+      return _io_mux_gpio_reg   == current._io_mux_gpio_reg
+          && _gpio_pin_reg      == current._gpio_pin_reg
+          && _gpio_func_out_reg == current._gpio_func_out_reg
+          && _gpio_enable       == current._gpio_enable
+          && _gpio_out          == current._gpio_out
+          && _in_func_num       == current._in_func_num
+          && ((uint16_t)_in_func_num >= 256
+           || _gpio_func_in_reg == current._gpio_func_in_reg);
     }
 
     void pin_backup_t::restore(void)
@@ -1209,9 +1255,7 @@ namespace lgfx
 // function on some, the LP GPIO matrix on others ). The driver already knows which, so it
 // is asked to open the bus and the registers are taken over afterwards, exactly as this
 // code does for the normal ports.
-#if defined ( SOC_LP_I2C_NUM ) && ( SOC_LP_I2C_NUM > 0 ) && __has_include ( <driver/i2c_master.h> ) \
- && defined ( ESP_IDF_VERSION_VAL ) && ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 4, 0)
- #define LGFX_LP_I2C_NUM SOC_LP_I2C_NUM
+#if LGFX_LP_I2C_NUM > 0
  #define LGFX_LP_I2C_PORT LGFX_HP_I2C_NUM
  // The default source is the RC oscillator, which drifts with temperature; a crystal
  // derived source keeps the SCL frequency as asked. Which one the chip offers (a divided
@@ -1222,8 +1266,6 @@ namespace lgfx
  template <typename E> static constexpr E    lp_i2c_sclk_pick(...)  { return E::LP_I2C_SCLK_DEFAULT; }
  #define LGFX_LP_I2C_SCLK ( lp_i2c_sclk_pick<soc_periph_lp_i2c_clk_src_t>(0) )
  #include <esp_clk_tree.h>
-#else
- #define LGFX_LP_I2C_NUM 0
 #endif
 
 // The ports this implementation can drive: the high power ones, plus the low power ones
@@ -1570,31 +1612,14 @@ namespace lgfx
 
 // ------------------------------------------------------------------------
 
-#if LGFX_LP_I2C_NUM > 0 && SOC_RTCIO_PIN_COUNT > 0
-    /// Hand a pin back from the low power IO domain.
-    /// A pin routed to the low power I2C keeps that routing across a reset, because it is
-    /// held in the low power domain rather than by the CPU. Any later attempt to drive it
-    /// from a normal port then finds a pad that no longer reaches the peripheral, and the
-    /// bus looks dead for reasons nothing in the running program explains. Releasing it
-    /// here makes taking a pin over idempotent, whether or not the previous user shut
-    /// down in an orderly way.
-    static void releaseLpPad(gpio_num_t pin)
-    {
-      if ((int)pin >= 0 && rtc_gpio_is_valid_gpio(pin))
-      {
-        rtc_gpio_deinit(pin);
-      }
-    }
-#endif
-
     static void set_pin(i2c_port_t i2c_num, gpio_num_t pin_sda, gpio_num_t pin_scl)
     {
 #if LGFX_LP_I2C_NUM > 0 && SOC_RTCIO_PIN_COUNT > 0
       // Callers keep the low power ports away from here, so reaching this point means the
       // pins are wanted for a normal port and any low power routing left on them, possibly
-      // by a previous run, has to go. ( see releaseLpPad )
-      releaseLpPad(pin_sda);
-      releaseLpPad(pin_scl);
+      // by a previous run, has to go. (see gpio::release_lp_pad)
+      gpio::release_lp_pad(pin_sda);
+      gpio::release_lp_pad(pin_scl);
 #endif
 #if __has_include(<driver/i2c_master.h>)
       if ((int8_t)pin_sda >= 0) {
@@ -1902,9 +1927,9 @@ namespace lgfx
  #if SOC_RTCIO_PIN_COUNT > 0
           // The pins have to be handed back explicitly: their routing lives in the low
           // power domain and would otherwise outlive this program, leaving them unusable
-          // from a normal port even after a reset. ( see releaseLpPad )
-          releaseLpPad(i2c_context[i2c_port].pin_sda);
-          releaseLpPad(i2c_context[i2c_port].pin_scl);
+          // from a normal port even after a reset. (see gpio::release_lp_pad)
+          gpio::release_lp_pad(i2c_context[i2c_port].pin_sda);
+          gpio::release_lp_pad(i2c_context[i2c_port].pin_scl);
  #endif
         }
         else
@@ -2020,10 +2045,10 @@ namespace lgfx
         if (soft_i2c_valid_port(i2c_port))
         { // 低電力ポートのルーティングはリセットを跨いで残るため、前回実行が
           // LP ポートとして使ったピンをソフトポートで取り直す場合にも返却が
-          // 必要になる。( see releaseLpPad )
+          // 必要になる。(see gpio::release_lp_pad)
           auto& ctx = soft_i2c_ctx(i2c_port);
-          releaseLpPad((gpio_num_t)ctx.pin_sda);
-          releaseLpPad((gpio_num_t)ctx.pin_scl);
+          gpio::release_lp_pad(ctx.pin_sda);
+          gpio::release_lp_pad(ctx.pin_scl);
         }
 #endif
         return soft_i2c_init(i2c_port);

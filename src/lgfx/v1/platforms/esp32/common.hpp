@@ -341,6 +341,10 @@ protected:
 
   namespace gpio
   {
+    // Return a pad owned by the low-power domain to the normal GPIO domain.
+    // This is a no-op on targets without independently routed LP GPIOs.
+    void release_lp_pad(int pin_num);
+
     class pin_backup_t
     {
     public:
@@ -349,6 +353,7 @@ protected:
       void setPin(int pin_num) { _pin_num = pin_num; }
       int getPin(void) const { return _pin_num; }
       void backup(void);
+      bool matches_current(void) const;
       void restore(void);
 
     private:
