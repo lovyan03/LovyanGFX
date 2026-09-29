@@ -158,6 +158,8 @@ namespace lgfx
  {
 //----------------------------------------------------------------------------
 
+  // Keep descriptor writes before the register write that starts DMA.
+  static inline void dma_desc_fence(void) { __asm__ __volatile__ ("" ::: "memory"); }
 
 #if defined (LGFX_SPI_CLOCK_TAKEOVER)
 #pragma GCC diagnostic push
@@ -954,7 +956,7 @@ namespace lgfx
 
         #if defined ( CONFIG_IDF_TARGET_ESP32P4 )
         esp_cache_msync((void*)data, sizeof(uint8_t) * length, ESP_CACHE_MSYNC_FLAG_DIR_C2M | ESP_CACHE_MSYNC_FLAG_UNALIGNED);
-        esp_cache_msync(_dmadesc, sizeof(lldesc_t) * _dmadesc_size, ESP_CACHE_MSYNC_FLAG_DIR_C2M | ESP_CACHE_MSYNC_FLAG_UNALIGNED);
+        esp_cache_msync(_dmadesc, sizeof(dma_desc_t) * _dmadesc_size, ESP_CACHE_MSYNC_FLAG_DIR_C2M | ESP_CACHE_MSYNC_FLAG_UNALIGNED);
         #endif
 #if defined ( SOC_GDMA_SUPPORTED ) && defined ( DMA_OUTLINK_START_CH0 )
         auto dma = reg(SPI_DMA_CONF_REG(_spi_port));
@@ -1125,27 +1127,27 @@ label_start:
     if (_dma_queue_capacity < new_size)
     {
       _dma_queue_capacity = new_size + 8;
-      auto new_queue = (lldesc_t*)heap_caps_malloc(sizeof(lldesc_t) * _dma_queue_capacity, MALLOC_CAP_DMA);
+      auto new_queue = (dma_desc_t*)heap_caps_malloc(sizeof(dma_desc_t) * _dma_queue_capacity, MALLOC_CAP_DMA);
       if (index)
       {
-        memcpy(new_queue, _dma_queue, sizeof(lldesc_t) * index);
+        memcpy(new_queue, _dma_queue, sizeof(dma_desc_t) * index);
       }
       if (_dma_queue != nullptr) { heap_free(_dma_queue); }
       _dma_queue = new_queue;
     }
     _dma_queue_size = new_size;
-    lldesc_t *dmadesc = &_dma_queue[index];
+    dma_desc_t *dmadesc = &_dma_queue[index];
 
     while (length > SPI_MAX_DMA_LEN)
     {
       *(uint32_t*)dmadesc = SPI_MAX_DMA_LEN | SPI_MAX_DMA_LEN << 12 | 0x80000000;
-      dmadesc->buf = const_cast<uint8_t*>(data);
+      dmadesc->buffer = const_cast<uint8_t*>(data);
       dmadesc++;
       data += SPI_MAX_DMA_LEN;
       length -= SPI_MAX_DMA_LEN;
     }
     *(uint32_t*)dmadesc = ((length + 3) & ( ~3 )) | length << 12 | 0x80000000;
-    dmadesc->buf = const_cast<uint8_t*>(data);
+    dmadesc->buffer = const_cast<uint8_t*>(data);
   }
 
   void Bus_SPI::execDMAQueue(void)
@@ -1164,15 +1166,16 @@ label_start:
 
     int index = _dma_queue_size - 1;
     _dma_queue_size = 0;
-    _dma_queue[index].eof = 1;
-    _dma_queue[index].qe.stqe_next = nullptr;
+    _dma_queue[index].dw0.suc_eof = 1;
+    _dma_queue[index].next = nullptr;
     while (--index >= 0)
     {
-      _dma_queue[index].qe.stqe_next = &_dma_queue[index + 1];
+      _dma_queue[index].next = &_dma_queue[index + 1];
     }
 
     std::swap(_dmadesc, _dma_queue);
     std::swap(_dmadesc_size, _dma_queue_capacity);
+    dma_desc_fence();
 
     dc_control(true);
     *_spi_dma_out_link_reg = 0;
@@ -1456,7 +1459,7 @@ label_start:
   {
     if (_dmadesc) heap_caps_free(_dmadesc);
     _dmadesc_size = len;
-    _dmadesc = (lldesc_t*)heap_caps_malloc(sizeof(lldesc_t) * len, MALLOC_CAP_DMA);
+    _dmadesc = (dma_desc_t*)heap_caps_malloc(sizeof(dma_desc_t) * len, MALLOC_CAP_DMA);
   }
 
   void Bus_SPI::_spi_dma_reset(void)
@@ -1496,20 +1499,21 @@ label_start:
     {
       _alloc_dmadesc(len / SPI_MAX_DMA_LEN + 1);
     }
-    lldesc_t *dmadesc = _dmadesc;
+    dma_desc_t *dmadesc = _dmadesc;
 
     while (len > SPI_MAX_DMA_LEN)
     {
       len -= SPI_MAX_DMA_LEN;
-      dmadesc->buf = (uint8_t *)data;
+      dmadesc->buffer = (uint8_t *)data;
       data += SPI_MAX_DMA_LEN;
       *(uint32_t*)dmadesc = SPI_MAX_DMA_LEN | SPI_MAX_DMA_LEN << 12 | 0x80000000;
-      dmadesc->qe.stqe_next = dmadesc + 1;
+      dmadesc->next = dmadesc + 1;
       dmadesc++;
     }
     *(uint32_t*)dmadesc = ((len + 3) & ( ~3 )) | len << 12 | 0xC0000000;
-    dmadesc->buf = (uint8_t *)data;
-    dmadesc->qe.stqe_next = nullptr;
+    dmadesc->buffer = (uint8_t *)data;
+    dmadesc->next = nullptr;
+    dma_desc_fence();
   }
 
 //----------------------------------------------------------------------------

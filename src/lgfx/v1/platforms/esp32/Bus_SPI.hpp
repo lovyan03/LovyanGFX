@@ -19,17 +19,7 @@ Contributors:
 
 #include <string.h>
 
-#if __has_include(<rom/lldesc.h>)
- #include <rom/lldesc.h>
-#elif defined (CONFIG_IDF_TARGET_ESP32S3) && __has_include(<esp32s3/rom/lldesc.h>)
- #include <esp32s3/rom/lldesc.h>
-#elif defined (CONFIG_IDF_TARGET_ESP32S2) && __has_include(<esp32s2/rom/lldesc.h>)
- #include <esp32s2/rom/lldesc.h>
-#elif defined (CONFIG_IDF_TARGET_ESP32C3) && __has_include(<esp32c3/rom/lldesc.h>)
- #include <esp32c3/rom/lldesc.h>
-#elif __has_include(<esp32/rom/lldesc.h>)
- #include <esp32/rom/lldesc.h>
-#endif
+#include <hal/dma_types.h>
 
 #if __has_include(<esp_private/spi_common_internal.h>)
  // ESP-IDF v5
@@ -64,6 +54,7 @@ namespace lgfx
 
   class Bus_SPI : public IBus
   {
+    using dma_desc_t = dma_descriptor_t;
 #if defined ( SPI_UPDATE )
     static constexpr uint32_t SPI_EXECUTE = SPI_USR | SPI_UPDATE;
     #define SPI_MOSI_DLEN_REG(i) (REG_SPI_BASE(i) + 0x1C)
@@ -210,9 +201,9 @@ namespace lgfx
     uint32_t _user_reg = 0;
     uint32_t _mask_reg_dc = 0;
     uint32_t _dma_queue_bytes = 0;
-    lldesc_t* _dmadesc = nullptr;
+    dma_desc_t* _dmadesc = nullptr;
     uint32_t _dmadesc_size = 0;
-    lldesc_t* _dma_queue = nullptr;
+    dma_desc_t* _dma_queue = nullptr;
     uint32_t _dma_queue_size = 0;
     uint32_t _dma_queue_capacity = 0;
     uint8_t _spi_port = 0;
