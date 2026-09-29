@@ -1248,8 +1248,9 @@ namespace lgfx
       (void)i2c_port;
 #endif
 
-#if defined (CONFIG_IDF_TARGET_ESP32C2) || defined (CONFIG_IDF_TARGET_ESP32C3) || defined ( CONFIG_IDF_TARGET_ESP32C5 ) || defined (CONFIG_IDF_TARGET_ESP32S3) || defined ( CONFIG_IDF_TARGET_ESP32C6 ) || defined ( CONFIG_IDF_TARGET_ESP32C61 ) || defined ( CONFIG_IDF_TARGET_ESP32P4 )
-      return 40 * 1000 * 1000; // XTAL clock
+#if defined (CONFIG_IDF_TARGET_ESP32C2) || defined (CONFIG_IDF_TARGET_ESP32C3) || defined ( CONFIG_IDF_TARGET_ESP32C5 ) || defined (CONFIG_IDF_TARGET_ESP32S3) || defined ( CONFIG_IDF_TARGET_ESP32C6 ) || defined ( CONFIG_IDF_TARGET_ESP32C61 ) || defined ( CONFIG_IDF_TARGET_ESP32P4 ) || defined ( CONFIG_IDF_TARGET_ESP32H2 )
+      // These ports use XTAL as their I2C source; its frequency varies by chip and module.
+      return static_cast<uint32_t>(rtc_clk_xtal_freq_get()) * 1000000u;
 #else
       rtc_cpu_freq_config_t cpu_freq_conf;
       rtc_clk_cpu_freq_get_config(&cpu_freq_conf);
