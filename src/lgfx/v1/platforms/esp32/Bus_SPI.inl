@@ -64,6 +64,16 @@ Contributors:
  #include <esp32-hal-cpu.h>
 #endif
 #include <driver/spi_master.h>
+// IDF 6 exposes the flash-encryption query from efuse rather than esp_flash_encrypt.h.
+#if defined ( ESP_IDF_VERSION ) && ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 0, 0) && __has_include(<esp_efuse.h>)
+ #include <esp_efuse.h>
+ #define LGFX_FLASH_ENCRYPTION_ENABLED() esp_efuse_is_flash_encryption_enabled()
+#elif __has_include(<esp_flash_encrypt.h>)
+ #include <esp_flash_encrypt.h>
+ #define LGFX_FLASH_ENCRYPTION_ENABLED() esp_flash_encryption_enabled()
+#else
+ #define LGFX_FLASH_ENCRYPTION_ENABLED() true
+#endif
 
 #if defined ESP_IDF_VERSION_MAJOR && ESP_IDF_VERSION_MAJOR >= 5
     #include <rom/gpio.h> // dispatched by core
@@ -110,12 +120,16 @@ Contributors:
   #define DMA_OUTFIFO_STATUS_CH0_REG AXI_DMA_OUTFIFO_STATUS_CH0_REG
   #define DMA_OUTLINK_START_CH0      AXI_DMA_OUTLINK_START_CH0
   #define DMA_OUTFIFO_EMPTY_CH0      AXI_DMA_OUTFIFO_L3_EMPTY_CH0
+  #define DMA_OUT_CONF0_CH0_REG      AXI_DMA_OUT_CONF0_CH0_REG
+  #define DMA_OUT_RST_CH0            AXI_DMA_OUT_RST_CH0
   #define SIZE_OF_DMA_OUT_CH (sizeof(axi_dma_out_reg_t))
  #elif defined AHB_DMA_OUT_LINK_CH0_REG
   #define DMA_OUT_LINK_CH0_REG       AHB_DMA_OUT_LINK_CH0_REG
   #define DMA_OUTFIFO_STATUS_CH0_REG AHB_DMA_OUTFIFO_STATUS_CH0_REG
   #define DMA_OUTLINK_START_CH0      AHB_DMA_OUTLINK_START_CH0
   #define DMA_OUTFIFO_EMPTY_CH0      AHB_DMA_OUTFIFO_EMPTY_CH0
+  #define DMA_OUT_CONF0_CH0_REG      AHB_DMA_OUT_CONF0_CH0_REG
+  #define DMA_OUT_RST_CH0            AHB_DMA_OUT_RST_CH0
   #define SIZE_OF_DMA_OUT_CH (sizeof(AHB_DMA.channel[0]))
   // AHB_DMA 世代のうち C5/C61 は OUT_LINK レジスタが制御ビットのみになり、
   // ディスクリプタアドレスは別レジスタ (チャンネルごとに 4 バイト刻み) へ書く;
@@ -129,6 +143,8 @@ Contributors:
     #define DMA_OUT_LINK_CH0_REG       GDMA_OUT_LINK_CH0_REG
     #define DMA_OUTFIFO_STATUS_CH0_REG GDMA_OUTFIFO_STATUS_CH0_REG
     #define DMA_OUTLINK_START_CH0      GDMA_OUTLINK_START_CH0
+    #define DMA_OUT_CONF0_CH0_REG      GDMA_OUT_CONF0_CH0_REG
+    #define DMA_OUT_RST_CH0            GDMA_OUT_RST_CH0
     #if defined (GDMA_OUTFIFO_EMPTY_L3_CH0)
      #define DMA_OUTFIFO_EMPTY_CH0      GDMA_OUTFIFO_EMPTY_L3_CH0
     #else
@@ -398,6 +414,17 @@ namespace lgfx
 #endif
   }
 
+  void Bus_SPI::dma_channel_reset(void)
+  {
+#if defined ( DMA_OUT_RST_CH0 )
+    if (_spi_dma_out_conf0_reg)
+    {
+      *_spi_dma_out_conf0_reg = *_spi_dma_out_conf0_reg | DMA_OUT_RST_CH0;
+      *_spi_dma_out_conf0_reg = *_spi_dma_out_conf0_reg & ~(uint32_t)DMA_OUT_RST_CH0;
+    }
+#endif
+  }
+
   bool Bus_SPI::init(void)
   {
 //ESP_LOGI("LGFX","Bus_SPI::init");
@@ -433,6 +460,13 @@ namespace lgfx
     { // DMAチャンネルが特定できたらそれを使用する;
       _spi_dma_out_link_reg  = reg(DMA_OUT_LINK_CH0_REG       + assigned_dma_ch * SIZE_OF_DMA_OUT_CH);
       _spi_dma_outstatus_reg = reg(DMA_OUTFIFO_STATUS_CH0_REG + assigned_dma_ch * SIZE_OF_DMA_OUT_CH);
+      #if defined ( DMA_OUT_CONF0_CH0_REG )
+      _spi_dma_out_conf0_reg = reg(DMA_OUT_CONF0_CH0_REG      + assigned_dma_ch * SIZE_OF_DMA_OUT_CH);
+      #endif
+      #if defined ( LGFX_PSRAM_DMA_CAPABLE ) && !(defined ( SOC_AHB_GDMA_VERSION ) && SOC_AHB_GDMA_VERSION == 1)
+      // Encrypted external RAM requires 16-byte address and length alignment on AHB v2 / AXI.
+      _psram_dma_ok = !LGFX_FLASH_ENCRYPTION_ENABLED();
+      #endif
       #if defined ( CONFIG_IDF_TARGET_ESP32P4 )
       _spi_dma_out_link2_reg = reg(AXI_DMA_OUT_LINK2_CH0_REG  + assigned_dma_ch * SIZE_OF_DMA_OUT_CH);
       #elif defined ( DMA_OUT_LINK_ADDR_CH0_REG )
@@ -945,6 +979,23 @@ namespace lgfx
       }
       if (use_dma)
       {
+#if defined ( LGFX_PSRAM_DMA_CAPABLE )
+        // A short head before the next 64-byte boundary can stall GDMA on ESP32-S3.
+        if (esp_ptr_external_ram(data))
+        {
+          uint32_t head = (uint32_t)(-(intptr_t)data) & (dma_ext_align - 1);
+          if (!_psram_dma_ok || head >= length || length - head < dma_ext_align) { writeBytes(data, length, dc, false); return; }
+          if (head)
+          {
+            writeBytes(data, head, dc, false);
+            data += head;
+            length -= head;
+          }
+          #if !defined ( CONFIG_IDF_TARGET_ESP32P4 )
+          dma_cache_sync(data, length);
+          #endif
+        }
+#endif
         auto spi_dma_out_link_reg = _spi_dma_out_link_reg;
         #if defined ( CONFIG_IDF_TARGET_ESP32P4 ) || defined ( DMA_OUT_LINK_ADDR_CH0_REG )
         auto spi_dma_out_link2_reg = _spi_dma_out_link2_reg;
@@ -959,8 +1010,12 @@ namespace lgfx
         esp_cache_msync(_dmadesc, sizeof(dma_desc_t) * _dmadesc_size, ESP_CACHE_MSYNC_FLAG_DIR_C2M | ESP_CACHE_MSYNC_FLAG_UNALIGNED);
         #endif
 #if defined ( SOC_GDMA_SUPPORTED ) && defined ( DMA_OUTLINK_START_CH0 )
+        dma_channel_reset();
         auto dma = reg(SPI_DMA_CONF_REG(_spi_port));
         *dma = 0; /// Clear previous transfer
+#if defined ( SPI_DMA_AFIFO_RST ) && defined ( SPI_BUF_AFIFO_RST ) && defined ( SPI_RX_AFIFO_RST )
+        *dma = SPI_DMA_AFIFO_RST | SPI_BUF_AFIFO_RST | SPI_RX_AFIFO_RST;
+#endif
         uint32_t len = ((length - 1) & ((SPI_MS_DATA_BITLEN)>>3)) + 1;
         #if defined ( CONFIG_IDF_TARGET_ESP32P4 ) || defined ( DMA_OUT_LINK_ADDR_CH0_REG )
         *spi_dma_out_link2_reg = ((uint32_t)(_dmadesc));
@@ -1120,6 +1175,21 @@ label_start:
       return;
     }
 
+#if defined ( LGFX_PSRAM_DMA_CAPABLE )
+    if (!_psram_dma_ok && esp_ptr_external_ram(data))
+    { // external RAM cannot be DMA'd here (flash encryption): send what is queued, then this by CPU.
+      execDMAQueue();
+      writeBytes(data, length, true, false);
+      return;
+    }
+#endif
+    // A queued source must not be changed after submission.
+#if defined ( CONFIG_IDF_TARGET_ESP32P4 )
+    esp_cache_msync((void*)data, length, ESP_CACHE_MSYNC_FLAG_DIR_C2M | ESP_CACHE_MSYNC_FLAG_UNALIGNED);
+#else
+    dma_cache_sync(data, length);
+#endif
+
     _dma_queue_bytes += length;
     size_t index = _dma_queue_size;
     size_t new_size = index + ((length-1) / SPI_MAX_DMA_LEN) + 1;
@@ -1173,21 +1243,56 @@ label_start:
       _dma_queue[index].next = &_dma_queue[index + 1];
     }
 
+    dma_desc_t* first = &_dma_queue[0];
+#if defined ( LGFX_PSRAM_DMA_CAPABLE )
+    // Only the first external-RAM descriptor needs its head aligned to a DMA block.
+    for (;;)
+    {
+      auto buf = (const uint8_t*)first->buffer;
+      if (!buf || !esp_ptr_external_ram(buf)) { break; }
+      uint32_t head = (uint32_t)(-(intptr_t)buf) & (dma_ext_align - 1);
+      uint32_t len = first->dw0.length;
+      if (_psram_dma_ok && head == 0 && len >= dma_ext_align) { break; }
+      if (!_psram_dma_ok || head >= len || len - head < dma_ext_align)
+      {
+        writeBytes(buf, len, true, false);
+        _dma_queue_bytes -= len;
+        if (first->dw0.suc_eof) { _dma_queue_bytes = 0; return; }
+        first = (dma_desc_t*)first->next;
+        continue;
+      }
+      writeBytes(buf, head, true, false);
+      first->buffer = const_cast<uint8_t*>(buf + head);
+      len -= head;
+      first->dw0.length = len;
+      first->dw0.size = (len + 3) & ~3u;
+      _dma_queue_bytes -= head;
+      break;
+    }
+#endif
+
     std::swap(_dmadesc, _dma_queue);
     std::swap(_dmadesc_size, _dma_queue_capacity);
     dma_desc_fence();
+#if defined ( CONFIG_IDF_TARGET_ESP32P4 )
+    esp_cache_msync(_dmadesc, sizeof(dma_desc_t) * _dmadesc_size, ESP_CACHE_MSYNC_FLAG_DIR_C2M | ESP_CACHE_MSYNC_FLAG_UNALIGNED);
+#endif
 
     dc_control(true);
     *_spi_dma_out_link_reg = 0;
 
 #if defined ( SOC_GDMA_SUPPORTED ) && defined ( DMA_OUTLINK_START_CH0 )
+    dma_channel_reset();
+    auto dma = reg(SPI_DMA_CONF_REG(_spi_port));
+#if defined ( SPI_DMA_AFIFO_RST ) && defined ( SPI_BUF_AFIFO_RST ) && defined ( SPI_RX_AFIFO_RST )
+    *dma = SPI_DMA_AFIFO_RST | SPI_BUF_AFIFO_RST | SPI_RX_AFIFO_RST;
+#endif
     #if defined ( CONFIG_IDF_TARGET_ESP32P4 ) || defined ( DMA_OUT_LINK_ADDR_CH0_REG )
-    *_spi_dma_out_link2_reg = ((uint32_t)(_dmadesc));
+    *_spi_dma_out_link2_reg = ((uint32_t)(first));
     *_spi_dma_out_link_reg = DMA_OUTLINK_START_CH0;
     #else
-    *_spi_dma_out_link_reg = DMA_OUTLINK_START_CH0 | ((int)(&_dmadesc[0]) & 0xFFFFF);
+    *_spi_dma_out_link_reg = DMA_OUTLINK_START_CH0 | ((int)(first) & 0xFFFFF);
     #endif
-    auto dma = reg(SPI_DMA_CONF_REG(_spi_port));
     *dma = SPI_DMA_TX_ENA;
     _clear_dma_reg = dma;
     uint32_t len = ((_dma_queue_bytes - 1) & ((SPI_MS_DATA_BITLEN)>>3)) + 1;
@@ -1219,7 +1324,7 @@ label_start:
     *dma_conf_reg = dma_conf | SPI_AHBM_RST | SPI_AHBM_FIFO_RST | SPI_OUT_RST;
     *dma_conf_reg = dma_conf;
 
-    *_spi_dma_out_link_reg = SPI_OUTLINK_START | ((int)(&_dmadesc[0]) & 0xFFFFF);
+    *_spi_dma_out_link_reg = SPI_OUTLINK_START | ((int)(first) & 0xFFFFF);
     _clear_dma_reg = _spi_dma_out_link_reg;
     uint32_t len = _dma_queue_bytes;
     _dma_queue_bytes = 0;
