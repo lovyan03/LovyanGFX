@@ -20,6 +20,15 @@ Contributors:
 #include <string.h>
 
 #include <hal/dma_types.h>
+#if __has_include(<soc/gdma_channel.h>)
+ #include <soc/gdma_channel.h>
+#elif __has_include(<hal/gdma_channel.h>) // ESP-IDF 6
+ #include <hal/gdma_channel.h>
+#endif
+// AXI DMA requires 16-byte descriptors aligned to 8 bytes for SPI transfers.
+#if defined ( SOC_GDMA_BUS_AXI ) && defined ( SOC_GDMA_TRIG_PERIPH_SPI2_BUS ) && ( SOC_GDMA_TRIG_PERIPH_SPI2_BUS == SOC_GDMA_BUS_AXI )
+ #define LGFX_SPI_DMA_DESC_ALIGN8
+#endif
 
 #if __has_include(<esp_private/spi_common_internal.h>)
  // ESP-IDF v5
@@ -54,7 +63,14 @@ namespace lgfx
 
   class Bus_SPI : public IBus
   {
+#if defined ( LGFX_SPI_DMA_DESC_ALIGN8 )
+    using dma_desc_t = dma_descriptor_align8_t;
+#else
     using dma_desc_t = dma_descriptor_t;
+#endif
+#if defined ( CONFIG_IDF_TARGET_ESP32P4 )
+    static_assert(sizeof(dma_desc_t) == 16, "ESP32-P4 SPI DMA needs the 16-byte AXI descriptor");
+#endif
 #if defined ( SPI_UPDATE )
     static constexpr uint32_t SPI_EXECUTE = SPI_USR | SPI_UPDATE;
     #define SPI_MOSI_DLEN_REG(i) (REG_SPI_BASE(i) + 0x1C)
