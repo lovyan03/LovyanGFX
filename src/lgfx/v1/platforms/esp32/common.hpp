@@ -53,6 +53,17 @@ Contributors:
  bool esp_ptr_dma_capable(const void*) { return false; }
 #endif
 
+#if __has_include(<soc/soc_caps.h>)
+ #include <soc/soc_caps.h>
+#endif
+// PSRAM SPI DMA requires a GDMA target and a cache write-back API.
+#if defined ( SOC_PSRAM_DMA_CAPABLE ) && defined ( SOC_CACHE_WRITEBACK_SUPPORTED ) && defined ( SOC_GDMA_SUPPORTED ) && __has_include(<esp_cache.h>)
+ #include <esp_cache.h>
+ #if defined ( ESP_CACHE_MSYNC_FLAG_DIR_C2M )
+  #define LGFX_PSRAM_DMA_CAPABLE 1
+ #endif
+#endif
+
 #if defined ( ARDUINO )
  #if __has_include (<SPI.h>)
   #include <SPI.h>
@@ -149,6 +160,15 @@ namespace lgfx
   static inline void* heap_alloc_psram(size_t length) { return heap_caps_malloc((length + 3) & ~3, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);  }
   static inline void heap_free(void* buf) { heap_caps_free(buf); }
   static inline bool heap_capable_dma(const void* ptr) { return esp_ptr_dma_capable(ptr); }
+
+#if defined ( LGFX_PSRAM_DMA_CAPABLE )
+  static inline void dma_cache_sync(const void* ptr, size_t len)
+  {
+    if (esp_ptr_external_ram(ptr)) { esp_cache_msync(const_cast<void*>(ptr), len, ESP_CACHE_MSYNC_FLAG_DIR_C2M | ESP_CACHE_MSYNC_FLAG_UNALIGNED); }
+  }
+#else
+  static inline void dma_cache_sync(const void*, size_t) {}
+#endif
 
   /// 引数のポインタが組込RAMか判定する  true=内部RAM / false=外部RAMやROM等;
   static inline bool isEmbeddedMemory(const void* ptr) { return esp_ptr_in_dram(ptr); }

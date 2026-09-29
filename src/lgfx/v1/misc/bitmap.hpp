@@ -62,9 +62,13 @@ namespace lgfx
             && (biWidth > 0)
             && (biHeight != 0)
             && (biBitCount <= 32)
-            && (biBitCount != 0));
+            && (biBitCount != 0)
+            && (biCompression != 1 || biBitCount == 8)   // BI_RLE8 is 8 bpp only
+            && (biCompression != 2 || biBitCount == 4)); // BI_RLE4 is 4 bpp only
     }
 
+    // The callers size the line buffer from biBitCount, so an RLE mode that does not
+    // match it (see load_bmp_header) would be written past the end of that buffer.
     static bool load_bmp_rle8(DataWrapper* data, uint8_t* linebuf, uint_fast16_t width)
     {
       width = (width + 3) & ~3;
@@ -72,7 +76,7 @@ namespace lgfx
       uint_fast16_t xidx = 0;
       bool eol = false;
       do {
-        data->read(code, 2);
+        if (data->read(code, 2) != 2) return false; // truncated file
         if (code[0] == 0) {
           switch (code[1]) {
           case 0x00: // EOL
@@ -84,7 +88,9 @@ namespace lgfx
             return false;
 
           default:
-            data->read(&linebuf[xidx], (code[1] + 1) & ~1); // word align
+            if (xidx + code[1] > width) return false;
+            if (data->read(&linebuf[xidx], code[1]) != code[1]) return false;
+            if (code[1] & 1) data->skip(1); // word align
             xidx += code[1];
             break;
           }
@@ -98,6 +104,13 @@ namespace lgfx
       return true;
     }
 
+    // Store the 4-bit pixel number x of a row, leaving its neighbour in the same byte alone.
+    static void put_nibble(uint8_t* linebuf, uint_fast16_t x, uint8_t v)
+    {
+      uint8_t* p = &linebuf[x >> 1];
+      *p = (x & 1) ? ((*p & 0xF0) | v) : ((*p & 0x0F) | (v << 4));
+    }
+
     static bool load_bmp_rle4(DataWrapper* data, uint8_t* linebuf, uint_fast16_t width)
     {
       width = (width + 3) & ~3;
@@ -105,7 +118,7 @@ namespace lgfx
       uint_fast16_t xidx = 0;
       bool eol = false;
       do {
-        data->read(code, 2);
+        if (data->read(code, 2) != 2) return false; // truncated file
         if (code[0] == 0) {
           switch (code[1]) {
           case 0x00: // EOL
@@ -118,29 +131,24 @@ namespace lgfx
 
           default:  // 絶対モードデータ;
             {
-              int_fast16_t len = code[1];
-              int_fast16_t dbyte = ((int_fast16_t)code[1] + 1) >> 1;
-
-              data->read(&linebuf[(xidx + 1) >> 1], (dbyte + 1) & ~1); // word align
-              if (xidx & 1) {
-                linebuf[xidx >> 1] |= linebuf[(xidx >> 1) + 1] >> 4;
-                for (long i = 1; i < dbyte; ++i) {
-                  linebuf[((xidx + i) >> 1)] = (linebuf[((xidx + i) >> 1)    ] << 4)
-                                              |  linebuf[((xidx + i) >> 1) + 1] >> 4;
-                }
+              uint_fast16_t len = code[1];
+              if (xidx + len > width) return false;
+              uint_fast16_t dbyte = (len + 1) >> 1;
+              uint8_t src[128]; // an absolute run is at most 255 pixels
+              if (data->read(src, dbyte) != (int)dbyte) return false;
+              if (dbyte & 1) data->skip(1); // word align
+              for (uint_fast16_t i = 0; i < len; ++i) {
+                put_nibble(linebuf, xidx + i, (i & 1) ? (src[i >> 1] & 0x0F) : (src[i >> 1] >> 4));
               }
               xidx += len;
             }
             break;
           }
         } else if (xidx + code[0] <= width) {
-          if (xidx & 1) {
-            linebuf[xidx >> 1] |= code[1] >> 4;
-            code[1] = (code[1] >> 4) | (code[1] << 4);
+          for (uint_fast16_t i = 0; i < code[0]; ++i) {
+            put_nibble(linebuf, xidx + i, (i & 1) ? (code[1] & 0x0F) : (code[1] >> 4));
           }
-          memset(&linebuf[(xidx + 1) >> 1], code[1], (code[0] + 1) >> 1);
           xidx += code[0];
-          if (xidx & 1) linebuf[xidx >> 1] &= 0xF0;
         } else {
           return false;
         }

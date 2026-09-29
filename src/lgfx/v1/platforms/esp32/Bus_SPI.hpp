@@ -19,16 +19,15 @@ Contributors:
 
 #include <string.h>
 
-#if __has_include(<rom/lldesc.h>)
- #include <rom/lldesc.h>
-#elif defined (CONFIG_IDF_TARGET_ESP32S3) && __has_include(<esp32s3/rom/lldesc.h>)
- #include <esp32s3/rom/lldesc.h>
-#elif defined (CONFIG_IDF_TARGET_ESP32S2) && __has_include(<esp32s2/rom/lldesc.h>)
- #include <esp32s2/rom/lldesc.h>
-#elif defined (CONFIG_IDF_TARGET_ESP32C3) && __has_include(<esp32c3/rom/lldesc.h>)
- #include <esp32c3/rom/lldesc.h>
-#elif __has_include(<esp32/rom/lldesc.h>)
- #include <esp32/rom/lldesc.h>
+#include <hal/dma_types.h>
+#if __has_include(<soc/gdma_channel.h>)
+ #include <soc/gdma_channel.h>
+#elif __has_include(<hal/gdma_channel.h>) // ESP-IDF 6
+ #include <hal/gdma_channel.h>
+#endif
+// AXI DMA requires 16-byte descriptors aligned to 8 bytes for SPI transfers.
+#if defined ( SOC_GDMA_BUS_AXI ) && defined ( SOC_GDMA_TRIG_PERIPH_SPI2_BUS ) && ( SOC_GDMA_TRIG_PERIPH_SPI2_BUS == SOC_GDMA_BUS_AXI )
+ #define LGFX_SPI_DMA_DESC_ALIGN8
 #endif
 
 #if __has_include(<esp_private/spi_common_internal.h>)
@@ -64,6 +63,14 @@ namespace lgfx
 
   class Bus_SPI : public IBus
   {
+#if defined ( LGFX_SPI_DMA_DESC_ALIGN8 )
+    using dma_desc_t = dma_descriptor_align8_t;
+#else
+    using dma_desc_t = dma_descriptor_t;
+#endif
+#if defined ( CONFIG_IDF_TARGET_ESP32P4 )
+    static_assert(sizeof(dma_desc_t) == 16, "ESP32-P4 SPI DMA needs the 16-byte AXI descriptor");
+#endif
 #if defined ( SPI_UPDATE )
     static constexpr uint32_t SPI_EXECUTE = SPI_USR | SPI_UPDATE;
     #define SPI_MOSI_DLEN_REG(i) (REG_SPI_BASE(i) + 0x1C)
@@ -198,6 +205,11 @@ namespace lgfx
     volatile uint32_t* _spi_cmd_reg = nullptr;
     volatile uint32_t* _spi_user_reg = nullptr;
     volatile uint32_t* _spi_dma_out_link_reg = nullptr;
+    volatile uint32_t* _spi_dma_out_conf0_reg = nullptr;
+    // The first external-RAM descriptor must begin on a DMA block boundary.
+    static constexpr uint32_t dma_ext_align = 64;
+    bool _psram_dma_ok = true;
+    void dma_channel_reset(void);
     // P4 (AXI_DMA) と C5/C61 (AHB_DMA) はディスクリプタアドレスを OUT_LINK と別のレジスタへ書く;
     #if defined (CONFIG_IDF_TARGET_ESP32P4) || defined (CONFIG_IDF_TARGET_ESP32C5) || defined (CONFIG_IDF_TARGET_ESP32C61)
     volatile uint32_t* _spi_dma_out_link2_reg = nullptr;
@@ -210,9 +222,9 @@ namespace lgfx
     uint32_t _user_reg = 0;
     uint32_t _mask_reg_dc = 0;
     uint32_t _dma_queue_bytes = 0;
-    lldesc_t* _dmadesc = nullptr;
+    dma_desc_t* _dmadesc = nullptr;
     uint32_t _dmadesc_size = 0;
-    lldesc_t* _dma_queue = nullptr;
+    dma_desc_t* _dma_queue = nullptr;
     uint32_t _dma_queue_size = 0;
     uint32_t _dma_queue_capacity = 0;
     uint8_t _spi_port = 0;

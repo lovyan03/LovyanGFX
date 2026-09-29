@@ -1015,7 +1015,7 @@ namespace lgfx
 
     constexpr float PixelAlphaGain = 255.0f;
 
-    setClipRect( x0, y0, x1, y1 );
+    setClipRect( x0, y0, x1 - x0 + 1, y1 - y0 + 1 );
     startWrite();
 
     // Establish x start and y start
