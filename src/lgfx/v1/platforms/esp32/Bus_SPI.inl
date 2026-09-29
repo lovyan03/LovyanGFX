@@ -198,6 +198,10 @@ namespace lgfx
  {
 //----------------------------------------------------------------------------
 
+  // DMA が読むディスクリプタ・CONF バッファの書き込みを、DMA を起動するレジスタ書き込みより後ろへ
+  // コンパイラに動かさせない (IDF の dma_descriptor_t の欄は volatile でない)
+  static inline void dma_desc_fence(void) { __asm__ __volatile__ ("" ::: "memory"); }
+
 
 #if defined (LGFX_SPI_CLOCK_TAKEOVER)
 #pragma GCC diagnostic push
@@ -1089,7 +1093,7 @@ namespace lgfx
         }
 #endif
         _setup_dma_desc_links(data, length);
-        dma_cache_sync(_dmadesc, sizeof(lldesc_t) * _dmadesc_size);
+        dma_cache_sync(_dmadesc, sizeof(dma_desc_t) * _dmadesc_size);
 #if defined ( SOC_GDMA_SUPPORTED ) && defined ( DMA_OUTLINK_START_CH0 )
         dma_channel_reset();
         auto dma = reg(SPI_DMA_CONF_REG(_spi_port));
@@ -1273,27 +1277,27 @@ label_start:
     if (_dma_queue_capacity < new_size)
     {
       _dma_queue_capacity = new_size + 8;
-      auto new_queue = (lldesc_t*)heap_caps_malloc(sizeof(lldesc_t) * _dma_queue_capacity, MALLOC_CAP_DMA);
+      auto new_queue = (dma_desc_t*)heap_caps_malloc(sizeof(dma_desc_t) * _dma_queue_capacity, MALLOC_CAP_DMA);
       if (index)
       {
-        memcpy(new_queue, _dma_queue, sizeof(lldesc_t) * index);
+        memcpy(new_queue, _dma_queue, sizeof(dma_desc_t) * index);
       }
       if (_dma_queue != nullptr) { heap_free(_dma_queue); }
       _dma_queue = new_queue;
     }
     _dma_queue_size = new_size;
-    lldesc_t *dmadesc = &_dma_queue[index];
+    dma_desc_t *dmadesc = &_dma_queue[index];
 
     while (length > SPI_MAX_DMA_LEN)
     {
       *(uint32_t*)dmadesc = SPI_MAX_DMA_LEN | SPI_MAX_DMA_LEN << 12 | 0x80000000;
-      dmadesc->buf = const_cast<uint8_t*>(data);
+      dmadesc->buffer = const_cast<uint8_t*>(data);
       dmadesc++;
       data += SPI_MAX_DMA_LEN;
       length -= SPI_MAX_DMA_LEN;
     }
     *(uint32_t*)dmadesc = ((length + 3) & ( ~3 )) | length << 12 | 0x80000000;
-    dmadesc->buf = const_cast<uint8_t*>(data);
+    dmadesc->buffer = const_cast<uint8_t*>(data);
   }
 
   void Bus_SPI::execDMAQueue(void)
@@ -1312,37 +1316,37 @@ label_start:
 
     int index = _dma_queue_size - 1;
     _dma_queue_size = 0;
-    _dma_queue[index].eof = 1;
-    _dma_queue[index].qe.stqe_next = nullptr;
+    _dma_queue[index].dw0.suc_eof = 1;
+    _dma_queue[index].next = nullptr;
     while (--index >= 0)
     {
-      _dma_queue[index].qe.stqe_next = &_dma_queue[index + 1];
+      _dma_queue[index].next = &_dma_queue[index + 1];
     }
 
-    lldesc_t* first = &_dma_queue[0];
+    dma_desc_t* first = &_dma_queue[0];
 #if defined ( LGFX_PSRAM_DMA_CAPABLE )
     // 先頭 descriptor が外部 RAM なら、先頭を DMA ブロック境界に揃える (writeBytes と同じ理由)。
     // 端数は CPU で送り、descriptor の先頭と長さを詰める。短い descriptor は丸ごと CPU で送って次へ進む。
     for (;;)
     {
-      auto buf = (const uint8_t*)first->buf;
+      auto buf = (const uint8_t*)first->buffer;
       if (!buf || !esp_ptr_external_ram(buf)) { break; }
       uint32_t head = (uint32_t)(-(intptr_t)buf) & (dma_ext_align - 1);
-      uint32_t len = first->length;
+      uint32_t len = first->dw0.length;
       if (_psram_dma_ok && head == 0 && len >= dma_ext_align) { break; }
       if (!_psram_dma_ok || head >= len || len - head < dma_ext_align)   // 短い descriptor は丸ごと CPU
       {
         writeBytes(buf, len, true, false);
         _dma_queue_bytes -= len;
-        if (first->eof) { _dma_queue_bytes = 0; return; }   // 全部 CPU で送った
-        first = (lldesc_t*)first->qe.stqe_next;
+        if (first->dw0.suc_eof) { _dma_queue_bytes = 0; return; }   // 全部 CPU で送った
+        first = (dma_desc_t*)first->next;
         continue;
       }
       writeBytes(buf, head, true, false);
-      first->buf = const_cast<uint8_t*>(buf + head);
+      first->buffer = const_cast<uint8_t*>(buf + head);
       len -= head;
-      first->length = len;
-      first->size = (len + 3) & ~3u;
+      first->dw0.length = len;
+      first->dw0.size = (len + 3) & ~3u;
       _dma_queue_bytes -= head;
       break;
     }
@@ -1350,7 +1354,8 @@ label_start:
 
     std::swap(_dmadesc, _dma_queue);
     std::swap(_dmadesc_size, _dma_queue_capacity);
-    dma_cache_sync(_dmadesc, sizeof(lldesc_t) * _dmadesc_size);
+    dma_desc_fence();
+    dma_cache_sync(_dmadesc, sizeof(dma_desc_t) * _dmadesc_size);
 
 #if defined ( LGFX_SPI_SCT )
     bool after_sct = _sct_active;   // dc_control が後始末で落とすので先に控える
@@ -1654,7 +1659,7 @@ label_start:
   {
     if (_dmadesc) heap_caps_free(_dmadesc);
     _dmadesc_size = len;
-    _dmadesc = (lldesc_t*)heap_caps_malloc(sizeof(lldesc_t) * len, MALLOC_CAP_DMA);
+    _dmadesc = (dma_desc_t*)heap_caps_malloc(sizeof(dma_desc_t) * len, MALLOC_CAP_DMA);
   }
 
   void Bus_SPI::_spi_dma_reset(void)
@@ -1688,9 +1693,9 @@ label_start:
 
 #if defined ( LGFX_SPI_SCT ) && defined ( LGFX_SPI_SCT_STUB )
   void Bus_SPI::_sct_end(void) { _sct_active = false; }
-  void Bus_SPI::_sct_put_conf(lldesc_t*&, uint32_t*&, uint32_t, uint32_t, uint32_t, bool) {}
+  void Bus_SPI::_sct_put_conf(dma_desc_t*&, uint32_t*&, uint32_t, uint32_t, uint32_t, bool) {}
   bool Bus_SPI::_sct_exec(void) { return false; }
-  bool Bus_SPI::_sct_start_chain(lldesc_t*, uint32_t) { return false; }
+  bool Bus_SPI::_sct_start_chain(dma_desc_t*, uint32_t) { return false; }
   bool Bus_SPI::_sct_start(const uint8_t*, uint32_t) { return false; }
 #elif defined ( LGFX_SPI_SCT )
   // 32 KB を超える 1 本の DMA 転送を Segmented-Configure-Transfer (SCT、TRM 30.5.8.5) で送る。CPU は開始時の 1 回だけ。
@@ -1712,15 +1717,15 @@ label_start:
   }
 
   // 1 セグメント分の conf を書き、その descriptor を繋ぐ
-  void Bus_SPI::_sct_put_conf(lldesc_t*& d, uint32_t*& conf, uint32_t user, uint32_t user1, uint32_t seg, bool last)
+  void Bus_SPI::_sct_put_conf(dma_desc_t*& d, uint32_t*& conf, uint32_t user, uint32_t user1, uint32_t seg, bool last)
   {
     conf[0] = sct_bitmap;
     conf[1] = last ? (user & ~(uint32_t)SPI_USR_CONF_NXT) : (user | SPI_USR_CONF_NXT);
     conf[2] = user1;
     conf[3] = (seg << 3) - 1;
-    d->buf = (uint8_t*)conf;
+    d->buffer = (uint8_t*)conf;
     *(uint32_t*)d = sct_conf_bytes | sct_conf_bytes << 12 | 0x80000000;
-    d->qe.stqe_next = d + 1;
+    d->next = d + 1;
     ++d; conf += sct_conf_words;
   }
 
@@ -1728,6 +1733,7 @@ label_start:
   // 偽を返したときは開始しておらず、呼び出し側は従来経路で送る
   bool Bus_SPI::_sct_exec(void)
   {
+    dma_desc_fence();
     // IDF の spi_master と同じ順: GDMA リセット → AFIFO リセット → TX_ENA → GDMA 起動 → UPDATE → USR
     dma_channel_reset();
     auto dma = reg(SPI_DMA_CONF_REG(_spi_port));
@@ -1762,26 +1768,26 @@ label_start:
 
   // 行キュー (addDMAQueue で積んだ descriptor の連結) を SCT で送る。32 KB 境界が descriptor の途中に来るときは
   // その descriptor を 2 つに割る。失敗したら false を返して従来のループ経路へ落とす
-  bool Bus_SPI::_sct_start_chain(lldesc_t* first, uint32_t total)
+  bool Bus_SPI::_sct_start_chain(dma_desc_t* first, uint32_t total)
   {
     uint32_t src_count = 0;
-    for (lldesc_t* p = first; p; p = (lldesc_t*)p->qe.stqe_next) { ++src_count; }
+    for (dma_desc_t* p = first; p; p = (dma_desc_t*)p->next) { ++src_count; }
     uint32_t segs = (total + sct_seg_bytes - 1) / sct_seg_bytes;
     uint32_t need = src_count + segs * 2 + 1;
     if (_sct_desc_capacity < need)
     {
       if (_sct_desc) { heap_caps_free(_sct_desc); _sct_desc = nullptr; }
       if (_sct_conf) { heap_caps_free(_sct_conf); _sct_conf = nullptr; }
-      _sct_desc = (lldesc_t*)heap_caps_malloc(sizeof(lldesc_t) * need, MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
+      _sct_desc = (dma_desc_t*)heap_caps_malloc(sizeof(dma_desc_t) * need, MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
       _sct_conf = (uint32_t*)heap_caps_malloc(sct_conf_bytes * ((need >> 1) + 1), MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
       if (!_sct_desc || !_sct_conf) { _sct_desc_capacity = 0; return false; }
       _sct_desc_capacity = need;
     }
     uint32_t user = *_spi_user_reg | SPI_CS_SETUP;
     uint32_t user1 = *reg(SPI_USER1_REG(_spi_port));
-    lldesc_t* d = _sct_desc;
+    dma_desc_t* d = _sct_desc;
     uint32_t* conf = _sct_conf;
-    lldesc_t* src = first;
+    dma_desc_t* src = first;
     uint32_t src_off = 0;
     uint32_t remain = total;
     while (remain)
@@ -1791,20 +1797,20 @@ label_start:
       _sct_put_conf(d, conf, user, user1, seg, remain == 0);
       while (seg && src)
       {
-        uint32_t avail = src->length - src_off;
+        uint32_t avail = src->dw0.length - src_off;
         uint32_t n = seg < avail ? seg : avail;
-        d->buf = (uint8_t*)src->buf + src_off;
+        d->buffer = (uint8_t*)src->buffer + src_off;
         *(uint32_t*)d = ((n + 3) & ~3u) | n << 12 | 0x80000000;
-        d->qe.stqe_next = d + 1;
+        d->next = d + 1;
         ++d;
         src_off += n; seg -= n;
-        if (src_off >= src->length) { src = (lldesc_t*)src->qe.stqe_next; src_off = 0; }
+        if (src_off >= src->dw0.length) { src = (dma_desc_t*)src->next; src_off = 0; }
       }
       if (seg) { return false; }   // キューの合計長と total が食い違う (起きない想定)
     }
     --d;
-    d->eof = 1;
-    d->qe.stqe_next = nullptr;
+    d->dw0.suc_eof = 1;
+    d->next = nullptr;
     return _sct_exec();
   }
 
@@ -1817,14 +1823,14 @@ label_start:
     {
       if (_sct_desc) { heap_caps_free(_sct_desc); _sct_desc = nullptr; }
       if (_sct_conf) { heap_caps_free(_sct_conf); _sct_conf = nullptr; }
-      _sct_desc = (lldesc_t*)heap_caps_malloc(sizeof(lldesc_t) * need, MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
+      _sct_desc = (dma_desc_t*)heap_caps_malloc(sizeof(dma_desc_t) * need, MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
       _sct_conf = (uint32_t*)heap_caps_malloc(sct_conf_bytes * ((need >> 1) + 1), MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
       if (!_sct_desc || !_sct_conf) { _sct_desc_capacity = 0; return false; }
       _sct_desc_capacity = need;
     }
     uint32_t user = *_spi_user_reg | SPI_CS_SETUP;
     uint32_t user1 = *reg(SPI_USER1_REG(_spi_port));
-    lldesc_t* d = _sct_desc;
+    dma_desc_t* d = _sct_desc;
     uint32_t* conf = _sct_conf;
     uint32_t remain = length;
     while (remain)
@@ -1835,16 +1841,16 @@ label_start:
       while (seg)
       {
         uint32_t n = seg < SPI_MAX_DMA_LEN ? seg : SPI_MAX_DMA_LEN;
-        d->buf = (uint8_t*)data;
+        d->buffer = (uint8_t*)data;
         *(uint32_t*)d = ((n + 3) & ~3u) | n << 12 | 0x80000000;
-        d->qe.stqe_next = d + 1;
+        d->next = d + 1;
         data += n; seg -= n;
         ++d;
       }
     }
     --d;
-    d->eof = 1;
-    d->qe.stqe_next = nullptr;
+    d->dw0.suc_eof = 1;
+    d->next = nullptr;
     return _sct_exec();
   }
 #endif
@@ -1857,20 +1863,21 @@ label_start:
     {
       _alloc_dmadesc(len / SPI_MAX_DMA_LEN + 1);
     }
-    lldesc_t *dmadesc = _dmadesc;
+    dma_desc_t *dmadesc = _dmadesc;
 
     while (len > SPI_MAX_DMA_LEN)
     {
       len -= SPI_MAX_DMA_LEN;
-      dmadesc->buf = (uint8_t *)data;
+      dmadesc->buffer = (uint8_t *)data;
       data += SPI_MAX_DMA_LEN;
       *(uint32_t*)dmadesc = SPI_MAX_DMA_LEN | SPI_MAX_DMA_LEN << 12 | 0x80000000;
-      dmadesc->qe.stqe_next = dmadesc + 1;
+      dmadesc->next = dmadesc + 1;
       dmadesc++;
     }
     *(uint32_t*)dmadesc = ((len + 3) & ( ~3 )) | len << 12 | 0xC0000000;
-    dmadesc->buf = (uint8_t *)data;
-    dmadesc->qe.stqe_next = nullptr;
+    dmadesc->buffer = (uint8_t *)data;
+    dmadesc->next = nullptr;
+    dma_desc_fence();
   }
 
 //----------------------------------------------------------------------------

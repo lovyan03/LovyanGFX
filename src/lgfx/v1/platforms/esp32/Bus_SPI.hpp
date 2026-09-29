@@ -19,19 +19,7 @@ Contributors:
 
 #include <string.h>
 
-#if __has_include(<esp_rom_lldesc.h>) // target-independent since ESP-IDF 5.x; the only lldesc header on ESP32-S31 / H21 / H4
- #include <esp_rom_lldesc.h>
-#elif __has_include(<rom/lldesc.h>)
- #include <rom/lldesc.h>
-#elif defined (CONFIG_IDF_TARGET_ESP32S3) && __has_include(<esp32s3/rom/lldesc.h>)
- #include <esp32s3/rom/lldesc.h>
-#elif defined (CONFIG_IDF_TARGET_ESP32S2) && __has_include(<esp32s2/rom/lldesc.h>)
- #include <esp32s2/rom/lldesc.h>
-#elif defined (CONFIG_IDF_TARGET_ESP32C3) && __has_include(<esp32c3/rom/lldesc.h>)
- #include <esp32c3/rom/lldesc.h>
-#elif __has_include(<esp32/rom/lldesc.h>)
- #include <esp32/rom/lldesc.h>
-#endif
+#include <hal/dma_types.h>
 
 #if __has_include(<esp_private/spi_common_internal.h>)
  // ESP-IDF v5
@@ -84,6 +72,7 @@ namespace lgfx
 
   class Bus_SPI : public IBus
   {
+    using dma_desc_t = dma_descriptor_t;
 #if defined ( SPI_UPDATE )
     static constexpr uint32_t SPI_EXECUTE = SPI_USR | SPI_UPDATE;
     #define SPI_MOSI_DLEN_REG(i) (REG_SPI_BASE(i) + 0x1C)
@@ -218,12 +207,12 @@ namespace lgfx
     // Segmented-Configure-Transfer (SCT): 32 KB を超える 1 本の DMA 転送を、セグメントごとの CONF バッファを
     // DMA チェーンに挟むことでハードに連続実行させる (CPU は開始時の 1 回だけ)。
     bool _sct_start(const uint8_t* data, uint32_t length);
-    bool _sct_start_chain(lldesc_t* first, uint32_t total);
-    void _sct_put_conf(lldesc_t*& d, uint32_t*& conf, uint32_t user, uint32_t user1, uint32_t seg, bool last);
+    bool _sct_start_chain(dma_desc_t* first, uint32_t total);
+    void _sct_put_conf(dma_desc_t*& d, uint32_t*& conf, uint32_t user, uint32_t user1, uint32_t seg, bool last);
     bool _sct_exec(void);
     void _sct_end(void);
     volatile uint32_t* _spi_slave_reg = nullptr;
-    lldesc_t* _sct_desc = nullptr;
+    dma_desc_t* _sct_desc = nullptr;
     uint32_t* _sct_conf = nullptr;
     uint32_t _sct_desc_capacity = 0;   // _sct_desc の確保済み descriptor 数 (_sct_conf はその半分 + 1)
     bool _sct_active = false;    // SCT で開始した転送が未後始末 (usr_conf を落とす必要がある)
@@ -257,9 +246,9 @@ namespace lgfx
     uint32_t _user_reg = 0;
     uint32_t _mask_reg_dc = 0;
     uint32_t _dma_queue_bytes = 0;
-    lldesc_t* _dmadesc = nullptr;
+    dma_desc_t* _dmadesc = nullptr;
     uint32_t _dmadesc_size = 0;
-    lldesc_t* _dma_queue = nullptr;
+    dma_desc_t* _dma_queue = nullptr;
     uint32_t _dma_queue_size = 0;
     uint32_t _dma_queue_capacity = 0;
     uint8_t _spi_port = 0;
