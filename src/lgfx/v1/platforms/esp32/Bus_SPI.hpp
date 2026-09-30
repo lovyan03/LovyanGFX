@@ -22,6 +22,8 @@ Contributors:
 #include <hal/dma_types.h>
 #if __has_include(<soc/gdma_channel.h>)
  #include <soc/gdma_channel.h>
+#elif __has_include(<hal/gdma_channel.h>)
+ #include <hal/gdma_channel.h>
 #endif
 // SPI の DMA が AXI 経由のチップ (ESP32-P4) はディスクリプタが 16 バイト (8 バイト境界)。判定は IDF の spi_dma_desc_t と同じ。
 // 境界は MALLOC_CAP_DMA の確保で満たされる (IDF がキャッシュ行に揃える)
@@ -84,6 +86,9 @@ namespace lgfx
     using dma_desc_t = dma_descriptor_align8_t;
 #else
     using dma_desc_t = dma_descriptor_t;
+#endif
+#if defined ( CONFIG_IDF_TARGET_ESP32P4 )
+    static_assert(sizeof(dma_desc_t) == 16, "ESP32-P4 SPI DMA descriptor must be 16 bytes");
 #endif
 #if defined ( SPI_UPDATE )
     static constexpr uint32_t SPI_EXECUTE = SPI_USR | SPI_UPDATE;

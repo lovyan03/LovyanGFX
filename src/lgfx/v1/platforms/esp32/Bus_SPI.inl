@@ -1268,6 +1268,18 @@ label_start:
       return;
     }
 
+#if defined ( LGFX_PSRAM_DMA_CAPABLE )
+    // When flash encryption blocks PSRAM DMA, drain preceding descriptors before CPU output.
+    // Wait for them to finish: writeBytes() may copy into a flip buffer that a queued descriptor still reads.
+    if (!_psram_dma_ok && esp_ptr_external_ram(data))
+    {
+      execDMAQueue();
+      wait();
+      writeBytes(data, length, true, false);
+      return;
+    }
+#endif
+
     // 書き戻しは投入時 (投入後のバッファ変更は DMA 契約上そもそも不可)
     dma_cache_sync(data, length);
     _dma_queue_bytes += length;
@@ -1374,16 +1386,16 @@ label_start:
 #endif
 #if defined ( SOC_GDMA_SUPPORTED ) && defined ( DMA_OUTLINK_START_CH0 )
     dma_channel_reset();
+    auto dma = reg(SPI_DMA_CONF_REG(_spi_port));
+#if defined ( LGFX_SPI_SCT ) && !defined ( LGFX_SPI_SCT_STUB )
+    *dma = SPI_DMA_AFIFO_RST | SPI_BUF_AFIFO_RST | SPI_RX_AFIFO_RST;   // writeBytes と同じ理由
+#endif
     #if defined ( DMA_OUT_LINK_ADDR_CH0_REG )
     *_spi_dma_out_link2_reg = ((uint32_t)(first));
     *_spi_dma_out_link_reg = DMA_OUTLINK_START_CH0;
     #else
     *_spi_dma_out_link_reg = DMA_OUTLINK_START_CH0 | ((int)(first) & 0xFFFFF);
     #endif
-    auto dma = reg(SPI_DMA_CONF_REG(_spi_port));
-#if defined ( LGFX_SPI_SCT ) && !defined ( LGFX_SPI_SCT_STUB )
-    *dma = SPI_DMA_AFIFO_RST | SPI_BUF_AFIFO_RST | SPI_RX_AFIFO_RST;   // writeBytes と同じ理由
-#endif
     *dma = SPI_DMA_TX_ENA;
     _clear_dma_reg = dma;
     uint32_t len = ((_dma_queue_bytes - 1) & ((SPI_MS_DATA_BITLEN)>>3)) + 1;
