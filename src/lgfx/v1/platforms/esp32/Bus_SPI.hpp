@@ -59,16 +59,31 @@ Contributors:
 // 再起動する必要がある。SCT を持つチップでは CONF バッファを DMA チェーンに挟むことでハードが自力で次の
 // セグメントへ進めるので、CPU は開始時の 1 回だけで済む。
 // 対象は SCT と GDMA の両方を持つチップ (S3 / C3 / C6 / C2 / H2)。S2 は SCT を持つが DMA が別系統なので対象外。
-// この判定はクラスのレイアウトを左右するので soc_caps だけで決める (ユーザー定義マクロで変えると翻訳単位間で
+// この判定はクラスのレイアウトを左右するので SDK のヘッダだけで決める (ユーザー定義マクロで変えると翻訳単位間で
 // sizeof(Bus_SPI) が食い違う)。無効化したいときは LGFX_SPI_SCT_DISABLE を Bus_SPI.inl を含む翻訳単位に与える
 // (実行時の判定 _sct_ok だけが偽になり、レイアウトは変わらない)
 #if __has_include(<soc/soc_caps.h>)
  #include <soc/soc_caps.h>
 #endif
-#undef LGFX_SPI_SCT   // 内部用。外から与えられても soc_caps の判定で上書きする (再定義警告を避ける)
-#if defined ( SOC_SPI_SCT_SUPPORTED ) && SOC_SPI_SCT_SUPPORTED \
- && defined ( SOC_GDMA_SUPPORTED ) && defined ( SOC_SPI_SCT_SUPPORTED_PERIPH )
- #define LGFX_SPI_SCT
+#if __has_include(<esp_idf_version.h>)
+ #include <esp_idf_version.h>
+#endif
+#undef LGFX_SPI_SCT          // 内部用。外から与えられても SDK の判定で上書きする (再定義警告を避ける)
+#undef LGFX_SPI_SCT_PERIPH   // (host): whether that SPI host supports SCT
+#if defined ( SOC_GDMA_SUPPORTED )
+ #if defined ( SOC_SPI_SCT_SUPPORTED ) && SOC_SPI_SCT_SUPPORTED && defined ( SOC_SPI_SCT_SUPPORTED_PERIPH )
+  #define LGFX_SPI_SCT_PERIPH(host) SOC_SPI_SCT_SUPPORTED_PERIPH(host)
+ #elif !defined ( SOC_SPI_SCT_SUPPORTED ) && defined ( ESP_IDF_VERSION_VAL ) \
+    && ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 1, 0) && __has_include(<hal/spi_ll.h>)
+  // ESP-IDF 6.1 moved the SCT capability from soc_caps.h to hal/spi_ll.h (SPI_LL_PERIPH_HAS_SCT).
+  #include <hal/spi_ll.h>
+  #if defined ( SPI_LL_PERIPH_HAS_SCT )
+   #define LGFX_SPI_SCT_PERIPH(host) SPI_LL_PERIPH_HAS_SCT(host)
+  #endif
+ #endif
+ #if defined ( LGFX_SPI_SCT_PERIPH )
+  #define LGFX_SPI_SCT
+ #endif
 #endif
 
 #include "../../Bus.hpp"

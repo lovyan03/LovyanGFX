@@ -425,7 +425,7 @@ namespace lgfx
 #if defined ( LGFX_SPI_SCT_DISABLE ) || defined ( LGFX_SPI_SCT_STUB )
     _sct_ok = false;
 #else
-    _sct_ok = SOC_SPI_SCT_SUPPORTED_PERIPH((int)_cfg.spi_host) != 0;   // S3 / C3 / C6 等は GP-SPI2 のみ
+    _sct_ok = LGFX_SPI_SCT_PERIPH(_cfg.spi_host) != 0;   // S3 / C3 / C6 等は GP-SPI2 のみ
 #endif
 #endif
     _spi_user_reg         = reg(SPI_USER_REG(        spi_port));
