@@ -54,6 +54,8 @@ Contributors:
 #endif
 #include <soc/i2c_reg.h>
 #include <soc/i2c_struct.h>
+// Where no lock is needed, still declare the variable PERIPH_RCC_ATOMIC() provides: the *_ll_* macros inside the block refer to it.
+#define LGFX_RCC_NO_ATOMIC() for (int _rc_cnt = 1, __DECLARE_RCC_ATOMIC_ENV; _rc_cnt; _rc_cnt--)
 #if (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 3, 0))
  #if __has_include(<hal/i2c_ll.h>)
   #include <hal/i2c_ll.h>
@@ -61,12 +63,12 @@ Contributors:
    #if SOC_PERIPH_CLK_CTRL_SHARED
     #define I2C_CLOCK_SRC_ATOMIC() PERIPH_RCC_ATOMIC()
    #else
-    #define I2C_CLOCK_SRC_ATOMIC()
+    #define I2C_CLOCK_SRC_ATOMIC() LGFX_RCC_NO_ATOMIC()
    #endif
    #if !SOC_RCC_IS_INDEPENDENT
     #define I2C_RCC_ATOMIC() PERIPH_RCC_ATOMIC()
    #else
-    #define I2C_RCC_ATOMIC()
+    #define I2C_RCC_ATOMIC() LGFX_RCC_NO_ATOMIC()
    #endif
   #endif
  #endif
@@ -1218,8 +1220,6 @@ namespace lgfx
   }
 
 //----------------------------------------------------------------------------
-  static constexpr const int __DECLARE_RCC_ATOMIC_ENV = 0;
-
   namespace i2c
   {
 #if __has_include( <core_version.h> )
@@ -1438,7 +1438,10 @@ namespace lgfx
 #if LGFX_LP_I2C_NUM > 0
       if (isLpPort(i2c_num))
       { // HP 用の i2c_ll_reset_register は SoC の PCR I2C 配列を範囲外参照するため LP 専用関数を使う;
-        lp_i2c_ll_reset_register(i2c_num - LGFX_HP_I2C_NUM);
+        LGFX_RCC_NO_ATOMIC() {
+          lp_i2c_ll_reset_register(i2c_num - LGFX_HP_I2C_NUM);
+          (void)__DECLARE_RCC_ATOMIC_ENV;
+        }
         return;
       }
 #endif

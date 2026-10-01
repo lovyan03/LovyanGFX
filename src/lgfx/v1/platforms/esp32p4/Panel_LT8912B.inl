@@ -68,7 +68,7 @@ struct esp_lcd_dsi_bus_t {
 
 // LT8912B esp_lcd compatibility implementation. Kept in this file to match
 // the M5GFX Panel_xxx convention while Panel_LT8912B wraps it for LovyanGFX.
-static const char *TAG = "lt8912b";
+static const char *TAG __attribute__((unused)) = "lt8912b";
 
 static constexpr uint8_t LT8912B_IO_I2C_MAIN_ADDRESS = 0x48;
 static constexpr uint8_t LT8912B_IO_I2C_CEC_ADDRESS  = 0x49;
