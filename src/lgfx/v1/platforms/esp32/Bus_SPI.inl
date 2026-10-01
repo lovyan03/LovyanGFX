@@ -1059,6 +1059,8 @@ namespace lgfx
       }
       if (use_dma)
       {
+        // Route sources outside DMA-addressable memory through CPU output.
+        if (!heap_capable_dma(data)) { writeBytes(data, length, dc, false); return; }
 #if defined ( LGFX_PSRAM_DMA_CAPABLE )
         // 外部 RAM が転送元のときは、先頭を DMA ブロック境界に揃えてから DMA に載せる。
         // 先頭 descriptor の境界までの端数が 8〜15 バイトだと GDMA が停止する挙動が S3 で確定しており、
@@ -1268,17 +1270,18 @@ label_start:
       return;
     }
 
+    // Drain queued descriptors before CPU output: writeBytes() may reuse their flip buffer.
+    if (!heap_capable_dma(data)
 #if defined ( LGFX_PSRAM_DMA_CAPABLE )
-    // When flash encryption blocks PSRAM DMA, drain preceding descriptors before CPU output.
-    // Wait for them to finish: writeBytes() may copy into a flip buffer that a queued descriptor still reads.
-    if (!_psram_dma_ok && esp_ptr_external_ram(data))
+     || (!_psram_dma_ok && esp_ptr_external_ram(data))
+#endif
+       )
     {
       execDMAQueue();
       wait();
       writeBytes(data, length, true, false);
       return;
     }
-#endif
 
     // 書き戻しは投入時 (投入後のバッファ変更は DMA 契約上そもそも不可)
     dma_cache_sync(data, length);
