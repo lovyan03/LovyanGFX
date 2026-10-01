@@ -59,6 +59,23 @@ Contributors:
  #include <driver/periph_ctrl.h>
 #endif
 
+#if defined (LGFX_SPI_CLOCK_TAKEOVER)
+ #if defined (PERIPH_RCC_ATOMIC)
+  #define LGFX_SPI_CLOCK_ATOMIC() PERIPH_RCC_ATOMIC()
+ #else
+  // ESP-IDF 5.1 (arduino-esp32 3.0) has no PERIPH_RCC_ATOMIC(), and its own SPI driver writes the clock
+  // source without a lock. A critical section keeps our read-modify-write of the clock register whole.
+  static portMUX_TYPE lgfx_spi_clock_mux = portMUX_INITIALIZER_UNLOCKED;
+  struct lgfx_spi_clock_section_t
+  {
+    bool once = true;
+    lgfx_spi_clock_section_t(void) { portENTER_CRITICAL(&lgfx_spi_clock_mux); }
+    ~lgfx_spi_clock_section_t(void) { portEXIT_CRITICAL(&lgfx_spi_clock_mux); }
+  };
+  #define LGFX_SPI_CLOCK_ATOMIC() for (lgfx_spi_clock_section_t _lgfx_cs; _lgfx_cs.once; _lgfx_cs.once = false)
+ #endif
+#endif
+
 #if defined (ARDUINO) // Arduino ESP32
  #include <soc/periph_defs.h>
  #include <esp32-hal-cpu.h>
@@ -284,7 +301,7 @@ namespace lgfx
 
     // The Arduino bus mutex does not serialize ESP-IDF SPI driver users on the
     // same host; mixing the two APIs cannot provide transaction-wide exclusion.
-    PERIPH_RCC_ATOMIC()
+    LGFX_SPI_CLOCK_ATOMIC()
     {
 #if defined (CONFIG_IDF_TARGET_ESP32P4)
       if (spi_host == SPI2_HOST)
@@ -349,7 +366,7 @@ namespace lgfx
     auto& state = spi_clock_state[spi_host];
     if (!state.active || state.owner != owner) { return false; }
 
-    PERIPH_RCC_ATOMIC()
+    LGFX_SPI_CLOCK_ATOMIC()
     {
 #if defined (CONFIG_IDF_TARGET_ESP32P4)
       if (spi_host == SPI2_HOST)
