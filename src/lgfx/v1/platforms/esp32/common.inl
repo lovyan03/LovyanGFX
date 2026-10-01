@@ -75,7 +75,9 @@ Contributors:
   #include <soc/syscon_reg.h>
  #endif
 #else
- #if __has_include (<soc/apb_ctrl_reg.h>)
+ #if __has_include(<soc/syscon_reg.h>)   // apb_ctrl_reg.h is the deprecated alias of syscon_reg.h (#warning in IDF 5.x)
+  #include <soc/syscon_reg.h>
+ #elif __has_include (<soc/apb_ctrl_reg.h>)
   #include <soc/apb_ctrl_reg.h>
  #endif
 #endif
@@ -119,11 +121,18 @@ Contributors:
  #define LGFX_LP_I2C_NUM 0
 #endif
 
+#include <initializer_list>
+
+// Some ESP-IDF gpio_ll.h versions (e.g. ESP32-C5 in IDF 5.5) leave struct members out of an initializer,
+// which C++ reports under -Wextra. Keep that warning out of user builds.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
+#if defined(__GNUC__) && !defined(__clang__) && __GNUC__ >= 10
+ #pragma GCC diagnostic ignored "-Wvolatile"
+#endif
 #if __has_include(<esp_private/gpio.h>)
  #include <esp_private/gpio.h>
 #endif
-
-#include <initializer_list>
 
 #if __has_include(<hal/gpio_ll.h>)
  #include <hal/gpio_ll.h>
@@ -132,10 +141,14 @@ Contributors:
 #if __has_include(<esp_rom_gpio.h>)
  #include <esp_rom_gpio.h>
 #endif
+#pragma GCC diagnostic pop
 
 #if defined (ESP_IDF_VERSION_VAL)
  #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+  #pragma GCC diagnostic push
+  #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
   #include <hal/gpio_hal.h>
+  #pragma GCC diagnostic pop
  #endif
  #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(3, 4, 0)
 
@@ -171,7 +184,12 @@ Contributors:
 
 #if defined (SOC_GDMA_SUPPORTED)  // for C3/S3
  #if __has_include(<hal/gdma_ll.h>)
+  #pragma GCC diagnostic push
+  #if defined(__GNUC__) && !defined(__clang__) && __GNUC__ >= 10
+   #pragma GCC diagnostic ignored "-Wvolatile"
+  #endif
   #include <hal/gdma_ll.h>
+  #pragma GCC diagnostic pop
  #endif
  #if __has_include(<soc/gdma_reg.h>)
   #include <soc/gdma_reg.h>
@@ -487,7 +505,11 @@ namespace lgfx
     uint32_t pkg_ver = REG_GET_FIELD(EFUSE_BLK0_RDATA3_REG, EFUSE_RD_CHIP_VER_PKG);
     if (pkg_ver == EFUSE_RD_CHIP_VER_PKG_ESP32PICOD4)
     {
+#if defined ( SYSCON_DATE_REG )
+      if (REG_READ(SYSCON_DATE_REG) & 0x80000000)
+#else
       if (REG_READ(APB_CTRL_DATE_REG) & 0x80000000)
+#endif
       { // ESP32PICOV302
         return 6;
       }
