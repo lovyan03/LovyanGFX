@@ -319,7 +319,7 @@ epd_mode が epd_qualityか否かの変化をした場合も同様にCMD_DISPLAY
     } while (++y <= ye);
   }
 
-  void Panel_GDEW0154D67::writeImage(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, pixelcopy_t* param, bool use_dma)
+  void Panel_GDEW0154D67::writeImage(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, pixelcopy_t* param, bool /*use_dma*/)
   {
     uint_fast16_t xs = x, xe = x + w - 1;
     uint_fast16_t ys = y, ye = y + h - 1;
@@ -348,7 +348,7 @@ epd_mode が epd_qualityか否かの変化をした場合も同様にCMD_DISPLAY
     } while (++y < h);
   }
 
-  void Panel_GDEW0154D67::writePixels(pixelcopy_t* param, uint32_t length, bool use_dma)
+  void Panel_GDEW0154D67::writePixels(pixelcopy_t* param, uint32_t length, bool /*use_dma*/)
   {
     {
       uint_fast16_t xs = _xs;

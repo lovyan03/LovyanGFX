@@ -213,7 +213,7 @@ namespace lgfx
     }
   }
 
-  void Bus_SPI::writeBytes(const uint8_t* data, uint32_t length, bool dc, bool use_dma)
+  void Bus_SPI::writeBytes(const uint8_t* data, uint32_t length, bool dc, bool /*use_dma*/)
   {
     auto *spi = &_sercom->SPI;
     dc_control(dc);
@@ -244,7 +244,7 @@ namespace lgfx
     return res;
   }
 
-  bool Bus_SPI::readBytes(uint8_t* dst, uint32_t length, bool use_dma)
+  bool Bus_SPI::readBytes(uint8_t* dst, uint32_t length, bool /*use_dma*/)
   {
     auto *spi = &_sercom->SPI;
     spi->DATA.reg = 0;

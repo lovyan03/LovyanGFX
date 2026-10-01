@@ -99,7 +99,7 @@ namespace lgfx
     return res;
   }
 
-  bool Bus_Stream::readBytes(uint8_t* dst, uint32_t length, bool use_dma)
+  bool Bus_Stream::readBytes(uint8_t* dst, uint32_t length, bool /*use_dma*/)
   {
     _cfg.stream->readBytes(dst, length);
     return true;

@@ -140,9 +140,9 @@ namespace lgfx
 
     void* ptr_start = (void*)~0;
     void* ptr_end = nullptr;
-    for (int y = _range_mod.top; y < ye; ++y)
+    for (int line_y = _range_mod.top; line_y < ye; ++line_y)
     {
-      auto ptr = &_lines_buffer[y][xs_byte];
+      auto ptr = &_lines_buffer[line_y][xs_byte];
       if (!isEmbeddedMemory(ptr))
       {
         if (ptr_start < ptr_end) {

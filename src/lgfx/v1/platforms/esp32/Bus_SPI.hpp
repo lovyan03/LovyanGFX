@@ -33,7 +33,12 @@ Contributors:
 
 #if __has_include(<esp_private/spi_common_internal.h>)
  // ESP-IDF v5
+ #pragma GCC diagnostic push
+ #if defined(__GNUC__) && !defined(__clang__)
+  #pragma GCC diagnostic ignored "-Wliteral-suffix"
+ #endif
  #include <esp_private/spi_common_internal.h>
+ #pragma GCC diagnostic pop
 #elif __has_include(<driver/spi_common_internal.h>)
  // ESP-IDF v4
  #include <driver/spi_common_internal.h>
