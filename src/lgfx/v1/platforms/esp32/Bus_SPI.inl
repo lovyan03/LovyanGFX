@@ -1338,7 +1338,8 @@ label_start:
       _dma_queue[index].next = &_dma_queue[index + 1];
     }
 
-    dma_desc_t* first = &_dma_queue[0];
+    // Unused on targets that start the queue some other way.
+    __attribute__((unused)) dma_desc_t* first = &_dma_queue[0];
 #if defined ( LGFX_PSRAM_DMA_CAPABLE )
     // 先頭 descriptor が外部 RAM なら、先頭を DMA ブロック境界に揃える (writeBytes と同じ理由)。
     // 端数は CPU で送り、descriptor の先頭と長さを詰める。短い descriptor は丸ごと CPU で送って次へ進む。
