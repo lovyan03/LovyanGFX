@@ -44,10 +44,10 @@ namespace lgfx
     color_depth_t setColorDepth(color_depth_t depth) override { _write_depth = depth; _read_depth = depth; return depth; }
 
     void setInvert(bool invert) override { _invert = invert; }
-    void setSleep(bool flg) override {}
-    void setPowerSave(bool flg) override {}
+    void setSleep(bool /*flg*/) override {}
+    void setPowerSave(bool /*flg*/) override {}
 
-    void display(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h) override {}
+    void display(uint_fast16_t /*x*/, uint_fast16_t /*y*/, uint_fast16_t /*w*/, uint_fast16_t /*h*/) override {}
 
     void setWindow(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye) override;
     void drawPixelPreclipped(uint_fast16_t x, uint_fast16_t y, uint32_t rawcolor) override;
@@ -67,8 +67,8 @@ namespace lgfx
   protected:
     uint16_t _xpos, _ypos;
 
-    virtual uint32_t _read_pixel_inner(uint_fast16_t x, uint_fast16_t y) { return 0; }
-    virtual void _draw_pixel_inner(uint_fast16_t x, uint_fast16_t y, uint32_t rawcolor) {}
+    virtual uint32_t _read_pixel_inner(uint_fast16_t /*x*/, uint_fast16_t /*y*/) { return 0; }
+    virtual void _draw_pixel_inner(uint_fast16_t /*x*/, uint_fast16_t /*y*/, uint32_t /*rawcolor*/) {}
     virtual void _fill_rect_inner(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, uint32_t rawcolor);
 
   };

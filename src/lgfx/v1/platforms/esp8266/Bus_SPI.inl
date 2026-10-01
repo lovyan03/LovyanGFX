@@ -218,7 +218,7 @@ namespace lgfx
     }
   }
 
-  void Bus_SPI::writeBytes(const uint8_t* data, uint32_t length, bool dc, bool use_dma)
+  void Bus_SPI::writeBytes(const uint8_t* data, uint32_t length, bool dc, bool /*use_dma*/)
   {
     if (length <= 64)
     {
@@ -278,7 +278,7 @@ namespace lgfx
     return SPI1W0;
   }
 
-  bool Bus_SPI::readBytes(uint8_t* dst, uint32_t length, bool use_dma)
+  bool Bus_SPI::readBytes(uint8_t* dst, uint32_t length, bool /*use_dma*/)
   {
     uint32_t len1 = std::min(length, 32u);  // 32 Byte read.
     uint32_t len2 = len1;

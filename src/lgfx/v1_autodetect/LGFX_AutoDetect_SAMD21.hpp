@@ -215,7 +215,7 @@ namespace lgfx
       } while (lgfx::millis() - time < 10);
     }
 
-    static uint32_t _read_panel_id(lgfx::Bus_SPI* bus, int_fast16_t pin_cs, uint32_t cmd = 0x04, uint8_t dummy_read_bit = 1) // 0x04 = RDDID command
+    static uint32_t _read_panel_id(lgfx::Bus_SPI* bus, int_fast16_t pin_cs, uint32_t cmd = 0x04, uint8_t /*dummy_read_bit*/ = 1) // 0x04 = RDDID command
     {
       bus->beginTransaction();
       _pin_level(pin_cs, false);

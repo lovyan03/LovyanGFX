@@ -346,7 +346,7 @@ namespace lgfx
     _bus->endTransaction();
   }
 
-  bool Panel_ED2208::init(bool use_reset)
+  bool Panel_ED2208::init(bool /*use_reset*/)
   {
     pinMode(_cfg.pin_busy, pin_mode_t::input_pullup);
 

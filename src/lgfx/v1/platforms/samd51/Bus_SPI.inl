@@ -569,7 +569,7 @@ namespace lgfx
 //    return _sercom->SPI.DATA.reg;
   }
 
-  bool Bus_SPI::readBytes(uint8_t* dst, uint32_t length, bool use_dma)
+  bool Bus_SPI::readBytes(uint8_t* dst, uint32_t length, bool /*use_dma*/)
   {
 /*
       if (use_dma && length > 16) {

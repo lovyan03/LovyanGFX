@@ -42,7 +42,7 @@ namespace lgfx
     _bayer_offset = bayer_4x4[i & 15] >> 4;
   }
 
-  color_depth_t Panel_1bitOLED::setColorDepth(color_depth_t depth)
+  color_depth_t Panel_1bitOLED::setColorDepth(color_depth_t /*depth*/)
   {
     _write_depth = color_depth_t::rgb565_2Byte;
     _read_depth = color_depth_t::rgb565_2Byte;
@@ -141,7 +141,7 @@ namespace lgfx
     } while (++y <= ye);
   }
 
-  void Panel_1bitOLED::writeImage(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, pixelcopy_t* param, bool use_dma)
+  void Panel_1bitOLED::writeImage(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, pixelcopy_t* param, bool /*use_dma*/)
   {
     uint_fast16_t xs = x, xe = x + w - 1;
     uint_fast16_t ys = y, ye = y + h - 1;
@@ -170,7 +170,7 @@ namespace lgfx
     } while (++y < h);
   }
 
-  void Panel_1bitOLED::writePixels(pixelcopy_t* param, uint32_t length, bool use_dma)
+  void Panel_1bitOLED::writePixels(pixelcopy_t* param, uint32_t length, bool /*use_dma*/)
   {
     {
       uint_fast16_t xs = _xs;

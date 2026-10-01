@@ -96,7 +96,7 @@ namespace lgfx
 
   public:
 
-    board_t autodetect(bool use_reset = true, board_t board = board_t::board_unknown)
+    board_t autodetect(bool /*use_reset*/ = true, board_t board = board_t::board_unknown)
     {
       auto bus_cfg = _bus_spi.config();
 //    if (bus_cfg.pin_mosi != -1 && bus_cfg.pin_sclk != -1) return true;
