@@ -382,6 +382,8 @@ namespace lgfx
 
   void Bus_Parallel16::writeBytes(const uint8_t* data, uint32_t length, bool dc, bool use_dma)
   {
+    // Copy inaccessible sources into the internal DMA buffer.
+    if (use_dma && !heap_capable_dma(data)) { use_dma = false; }
     auto dev = _dev;
     auto reg_lcd_user = &(dev->lcd_user.val);
     if ((length + _has_align_data) > 1)

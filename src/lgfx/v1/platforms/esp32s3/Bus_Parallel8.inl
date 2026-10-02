@@ -356,6 +356,8 @@ namespace lgfx
 
   void Bus_Parallel8::writeBytes(const uint8_t* data, uint32_t length, bool dc, bool use_dma)
   {
+    // Copy inaccessible sources into the internal DMA buffer.
+    if (use_dma && !heap_capable_dma(data)) { use_dma = false; }
     if (length <= 4)
     {
       if (dc)

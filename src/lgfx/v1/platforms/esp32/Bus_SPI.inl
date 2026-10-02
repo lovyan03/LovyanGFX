@@ -996,6 +996,12 @@ namespace lgfx
       }
       if (use_dma)
       {
+        // heap_capable_dma() tests internal RAM; preserve the SPI external-RAM path below.
+        if (!heap_capable_dma(data)
+#if defined ( LGFX_PSRAM_DMA_CAPABLE )
+         && !esp_ptr_external_ram(data)
+#endif
+           ) { writeBytes(data, length, dc, false); return; }
 #if defined ( LGFX_PSRAM_DMA_CAPABLE )
         // A short head before the next 64-byte boundary can stall GDMA on ESP32-S3.
         if (esp_ptr_external_ram(data))
@@ -1192,16 +1198,19 @@ label_start:
       return;
     }
 
+    // Drain queued descriptors before CPU output; writeBytes() may reuse their flip buffer.
+    // External RAM remains eligible only when this SPI bus can DMA it without flash encryption.
+    if (!heap_capable_dma(data)
 #if defined ( LGFX_PSRAM_DMA_CAPABLE )
-    if (!_psram_dma_ok && esp_ptr_external_ram(data))
-    { // external RAM cannot be DMA'd here (flash encryption): send what is queued, then this by CPU.
+     && !(_psram_dma_ok && esp_ptr_external_ram(data))
+#endif
+       )
+    {
       execDMAQueue();
-      // writeBytes() may reuse a flip buffer that the queued DMA still reads.
       wait();
       writeBytes(data, length, true, false);
       return;
     }
-#endif
     // A queued source must not be changed after submission.
 #if defined ( CONFIG_IDF_TARGET_ESP32P4 )
     esp_cache_msync((void*)data, length, ESP_CACHE_MSYNC_FLAG_DIR_C2M | ESP_CACHE_MSYNC_FLAG_UNALIGNED);
