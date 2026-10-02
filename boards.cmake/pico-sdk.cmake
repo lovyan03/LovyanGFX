@@ -22,10 +22,17 @@ target_compile_definitions(LovyanGFX INTERFACE
      USE_PICO_SDK
     )
 
-# The build set is fixed: src/lgfx/v1/lgfx_v1.cpp includes every implementation file (*.inl),
-# the font tables and the C decoders are separate translation units on purpose.
+# Functional hubs share header parsing; large implementations and data tables stay
+# in separate translation units so unused groups can be discarded by the linker.
 set(SRCS
      src/lgfx/v1/lgfx_v1.cpp
+     src/lgfx/v1/lgfx_v1_panel.cpp
+     src/lgfx/v1/lgfx_v1_touch.cpp
+     src/lgfx/v1/lgfx_v1_platforms.cpp
+     src/lgfx/v1/LGFXBase.cpp
+     src/lgfx/v1/lgfx_fonts.cpp
+     src/lgfx/v1/panel/Panel_M5HDMI.cpp
+     src/lgfx/v1/touch/Touch_GSLx680.cpp
      src/lgfx/Fonts/efont/lgfx_efont_cn.c
      src/lgfx/Fonts/efont/lgfx_efont_ja.c
      src/lgfx/Fonts/efont/lgfx_efont_kr.c

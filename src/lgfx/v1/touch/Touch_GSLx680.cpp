@@ -15,9 +15,6 @@ Contributors:
  [mongonta0716](https://github.com/mongonta0716)
  [tobozo](https://github.com/tobozo)
 /----------------------------------------------------------------------------*/
-#ifndef LGFX_V1_IMPLEMENTATION
-#error "Touch_GSLx680.inl is part of lgfx_v1.cpp and is not meant to be included on its own"
-#endif
 #include "Touch_GSLx680.hpp"
 #include "gslx680/Touch_GSL1680E_800x480_FW.hpp"
 #include "gslx680/Touch_GSL1680F_480x272_FW.hpp"
