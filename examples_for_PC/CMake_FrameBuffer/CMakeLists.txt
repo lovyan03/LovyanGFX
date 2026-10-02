@@ -10,6 +10,8 @@ file(GLOB Target_Files RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} CONFIGURE_DEPENDS
     LovyanGFX/src/lgfx/Fonts/lvgl/*.c
     LovyanGFX/src/lgfx/utility/*.c
     LovyanGFX/src/lgfx/v1/*.cpp
+    LovyanGFX/src/lgfx/v1/panel/*.cpp
+    LovyanGFX/src/lgfx/v1/touch/*.cpp
     LovyanGFX/src/lgfx/v1/lv_font/*.c
     )
 

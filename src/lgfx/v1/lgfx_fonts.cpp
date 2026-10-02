@@ -1,6 +1,3 @@
-#ifndef LGFX_V1_IMPLEMENTATION
-#error "lgfx_fonts.inl is part of lgfx_v1.cpp and is not meant to be included on its own"
-#endif
 #include "lgfx_fonts.hpp"
 
 #include "platforms/common.hpp"

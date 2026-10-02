@@ -16,9 +16,6 @@ Contributors:
  [tobozo](https://github.com/tobozo)
 /----------------------------------------------------------------------------*/
 
-#ifndef LGFX_V1_IMPLEMENTATION
-#error "LGFXBase.inl is part of lgfx_v1.cpp and is not meant to be included on its own"
-#endif
 #include "LGFXBase.hpp"
 
 #include "../internal/limits.h"

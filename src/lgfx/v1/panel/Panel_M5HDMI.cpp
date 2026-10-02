@@ -15,9 +15,6 @@ Contributors:
  [mongonta0716](https://github.com/mongonta0716)
  [tobozo](https://github.com/tobozo)
 /----------------------------------------------------------------------------*/
-#ifndef LGFX_V1_IMPLEMENTATION
-#error "Panel_M5HDMI.inl is part of lgfx_v1.cpp and is not meant to be included on its own"
-#endif
 #if defined (ESP_PLATFORM)
 #include <sdkconfig.h>
 

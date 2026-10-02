@@ -54,7 +54,12 @@ Contributors:
 #endif
 
 #if __has_include (<esp_private/periph_ctrl.h>)
+ #pragma GCC diagnostic push
+ #if defined(__GNUC__) && !defined(__clang__)
+  #pragma GCC diagnostic ignored "-Wliteral-suffix"
+ #endif
  #include <esp_private/periph_ctrl.h>
+ #pragma GCC diagnostic pop
 #else
  #include <driver/periph_ctrl.h>
 #endif
