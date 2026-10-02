@@ -3,10 +3,17 @@
 set(COMPONENT_ADD_INCLUDEDIRS
     ${LGFX_ROOT}/src
     )
-# The build set is fixed: src/lgfx/v1/lgfx_v1.cpp includes every implementation file (*.inl),
-# the font tables and the C decoders are separate translation units on purpose.
+# Functional hubs share header parsing; large implementations and data tables stay
+# in separate translation units so unused groups can be discarded by the linker.
 set(SRCS
      ${LGFX_ROOT}/src/lgfx/v1/lgfx_v1.cpp
+     ${LGFX_ROOT}/src/lgfx/v1/lgfx_v1_panel.cpp
+     ${LGFX_ROOT}/src/lgfx/v1/lgfx_v1_touch.cpp
+     ${LGFX_ROOT}/src/lgfx/v1/lgfx_v1_platforms.cpp
+     ${LGFX_ROOT}/src/lgfx/v1/LGFXBase.cpp
+     ${LGFX_ROOT}/src/lgfx/v1/lgfx_fonts.cpp
+     ${LGFX_ROOT}/src/lgfx/v1/panel/Panel_M5HDMI.cpp
+     ${LGFX_ROOT}/src/lgfx/v1/touch/Touch_GSLx680.cpp
      ${LGFX_ROOT}/src/lgfx/Fonts/efont/lgfx_efont_cn.c
      ${LGFX_ROOT}/src/lgfx/Fonts/efont/lgfx_efont_ja.c
      ${LGFX_ROOT}/src/lgfx/Fonts/efont/lgfx_efont_kr.c

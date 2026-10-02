@@ -356,6 +356,8 @@ namespace lgfx
 
   void Bus_Parallel8::writeBytes(const uint8_t* data, uint32_t length, bool dc, bool use_dma)
   {
+    // Copy inaccessible sources into the internal DMA buffer.
+    if (use_dma && !heap_capable_dma(data)) { use_dma = false; }
     if (length <= 4)
     {
       if (dc)
@@ -394,6 +396,8 @@ namespace lgfx
         if (len > CACHE_SIZE)
         {
           len = (((len - 1) % CACHE_SIZE) + 4) & ~3u;
+          // The first four bytes use command cycles; DMA must have a payload.
+          if (len <= 4) { len += 4; }
         }
         memcpy(_cache_flip, &data[4], (len-4+3)&~3);
         _setup_dma_desc_links((const uint8_t*)_cache_flip, len-4);

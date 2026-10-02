@@ -59,6 +59,23 @@ Contributors:
  #include <driver/periph_ctrl.h>
 #endif
 
+#if defined (LGFX_SPI_CLOCK_TAKEOVER)
+ #if defined (PERIPH_RCC_ATOMIC)
+  #define LGFX_SPI_CLOCK_ATOMIC() PERIPH_RCC_ATOMIC()
+ #else
+  // ESP-IDF 5.1 (arduino-esp32 3.0) has no PERIPH_RCC_ATOMIC(), and its own SPI driver writes the clock
+  // source without a lock. A critical section keeps our read-modify-write of the clock register whole.
+  static portMUX_TYPE lgfx_spi_clock_mux = portMUX_INITIALIZER_UNLOCKED;
+  struct lgfx_spi_clock_section_t
+  {
+    bool once = true;
+    lgfx_spi_clock_section_t(void) { portENTER_CRITICAL(&lgfx_spi_clock_mux); }
+    ~lgfx_spi_clock_section_t(void) { portEXIT_CRITICAL(&lgfx_spi_clock_mux); }
+  };
+  #define LGFX_SPI_CLOCK_ATOMIC() for (lgfx_spi_clock_section_t _lgfx_cs; _lgfx_cs.once; _lgfx_cs.once = false)
+ #endif
+#endif
+
 #if defined (ARDUINO) // Arduino ESP32
  #include <soc/periph_defs.h>
  #include <esp32-hal-cpu.h>
@@ -258,7 +275,7 @@ namespace lgfx
 
     // The Arduino bus mutex does not serialize ESP-IDF SPI driver users on the
     // same host; mixing the two APIs cannot provide transaction-wide exclusion.
-    PERIPH_RCC_ATOMIC()
+    LGFX_SPI_CLOCK_ATOMIC()
     {
 #if defined (CONFIG_IDF_TARGET_ESP32P4)
       if (spi_host == SPI2_HOST)
@@ -323,7 +340,7 @@ namespace lgfx
     auto& state = spi_clock_state[spi_host];
     if (!state.active || state.owner != owner) { return false; }
 
-    PERIPH_RCC_ATOMIC()
+    LGFX_SPI_CLOCK_ATOMIC()
     {
 #if defined (CONFIG_IDF_TARGET_ESP32P4)
       if (spi_host == SPI2_HOST)
@@ -979,6 +996,12 @@ namespace lgfx
       }
       if (use_dma)
       {
+        // heap_capable_dma() tests internal RAM; preserve the SPI external-RAM path below.
+        if (!heap_capable_dma(data)
+#if defined ( LGFX_PSRAM_DMA_CAPABLE )
+         && !esp_ptr_external_ram(data)
+#endif
+           ) { writeBytes(data, length, dc, false); return; }
 #if defined ( LGFX_PSRAM_DMA_CAPABLE )
         // A short head before the next 64-byte boundary can stall GDMA on ESP32-S3.
         if (esp_ptr_external_ram(data))
@@ -1175,14 +1198,19 @@ label_start:
       return;
     }
 
+    // Drain queued descriptors before CPU output; writeBytes() may reuse their flip buffer.
+    // External RAM remains eligible only when this SPI bus can DMA it without flash encryption.
+    if (!heap_capable_dma(data)
 #if defined ( LGFX_PSRAM_DMA_CAPABLE )
-    if (!_psram_dma_ok && esp_ptr_external_ram(data))
-    { // external RAM cannot be DMA'd here (flash encryption): send what is queued, then this by CPU.
+     && !(_psram_dma_ok && esp_ptr_external_ram(data))
+#endif
+       )
+    {
       execDMAQueue();
+      wait();
       writeBytes(data, length, true, false);
       return;
     }
-#endif
     // A queued source must not be changed after submission.
 #if defined ( CONFIG_IDF_TARGET_ESP32P4 )
     esp_cache_msync((void*)data, length, ESP_CACHE_MSYNC_FLAG_DIR_C2M | ESP_CACHE_MSYNC_FLAG_UNALIGNED);
