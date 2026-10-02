@@ -1196,6 +1196,8 @@ label_start:
     if (!_psram_dma_ok && esp_ptr_external_ram(data))
     { // external RAM cannot be DMA'd here (flash encryption): send what is queued, then this by CPU.
       execDMAQueue();
+      // writeBytes() may reuse a flip buffer that the queued DMA still reads.
+      wait();
       writeBytes(data, length, true, false);
       return;
     }
