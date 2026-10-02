@@ -394,15 +394,23 @@ namespace lgfx
     {
       do
       {
-        if (length <= 4)
+        if (length <= 4 || (length == 5 && !_has_align_data))
         {
+          // Four command bytes need no DMA; retain an odd trailing byte.
+          auto len = length > 4 ? 4 : length;
           if (dc)
           {
-            writeData(*(const uint32_t*)data, length << 3);
+            writeData(*(const uint32_t*)data, len << 3);
           }
           else
           {
-            writeCommand(*(const uint32_t*)data, length << 3);
+            writeCommand(*(const uint32_t*)data, len << 3);
+          }
+          if (length > len)
+          {
+            data += len;
+            length -= len;
+            break;
           }
           return;
         }
@@ -419,17 +427,14 @@ namespace lgfx
         }
         else
         {
-          size_t len = (length > CACHE_SIZE)
-                     ? (((length - 1) % (CACHE_SIZE-_has_align_data)) + 4) & ~3u
-                     : length;
-          if (_has_align_data != (bool)(len & 1))
-          {
-            if (++len > length) { len -= 2; }
-          }
+          // Include the saved byte in the buffer limit and send whole words.
+          size_t capacity = CACHE_SIZE - _has_align_data;
+          size_t len = length > capacity ? capacity : length;
+          if (_has_align_data != (bool)(len & 1)) { --len; }
           length -= len;
           auto c = (uint8_t*)_cache_flip;
           while (*reg_lcd_user & LCD_CAM_LCD_START) {}
-          memcpy(&c[_has_align_data], data, (len + 3) & ~3u);
+          memcpy(&c[_has_align_data], data, len);
           data += len;
           if (_has_align_data)
           {
