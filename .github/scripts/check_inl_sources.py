@@ -1,36 +1,35 @@
 #!/usr/bin/env python3
-"""Consistency checks for a library built as a single translation unit.
+"""Consistency checks for functional hubs and standalone translation units.
 
-The implementation lives in *.inl files that a single hub *.cpp includes,
-directly or through other *.inl files. This script checks that the hub and
-the *.inl files agree:
+Each hub *.cpp includes implementation *.inl files, directly or through other
+*.inl files. Large implementations can instead be standalone *.cpp files.
+This script checks that the source tree and its declared translation units agree:
 
-  1. every *.inl include reachable from the hub names an existing file under
-     the source root, no file includes the same *.inl twice, and *.inl files
-     are included with the quoted form only
-  2. every *.inl under the source root is reachable from the hub
-  3. every *.inl starts with  #ifndef <MACRO> / #error / #endif  so it cannot
-     be included by user code on its own
-  4. no *.c / *.cpp other than the hub exists under the source root (a stray
-     one would compile as a separate translation unit and defeat the purpose)
-  5. (--compile) every *.inl the hub includes directly compiles on its own with
-     only the guard macro defined, so no file silently depends on what an
-     earlier include brought in (files included by other *.inl files are
-     fragments of those and are not compiled separately)
+  1. every reachable *.inl include names an existing file under the source root,
+     no file includes the same *.inl twice, and includes use the quoted form
+  2. every *.inl under the source root is reachable from a hub
+  3. every *.inl starts with #ifndef <MACRO> / #error / #endif
+  4. no *.c / *.cpp other than the declared hubs and standalone sources exists
+     under the source root
+  5. (--compile) every *.inl directly included by a hub compiles on its own with
+     only the guard macro defined; nested fragments are not compiled separately
+  6. no *.inl is reachable from more than one hub
 
 The checks are lexical: comments, string literals and line splices are
-handled like the preprocessor does, but #if conditions are not evaluated, so
-an include inside a disabled #if block still counts as reachable, a file
-included from several places (the platform directories each include the
-same bit-bang helpers, under mutually exclusive conditions) is not reported
-as a duplicate, and a platform file that compiles to nothing on the host
-still passes the compile check. The script guards against mistakes, not
-against code written to evade it.
+handled like the preprocessor does, but #if conditions are not evaluated.
+An include inside a disabled #if still counts as reachable. Multiple paths
+within one hub (such as mutually exclusive platform bit-bang helpers) are
+allowed; paths from different hubs are rejected. A platform file that
+compiles to nothing on the host still passes the compile check. The script
+guards against mistakes, not against code written to evade it.
 
 Usage:
-  check_inl_sources.py --hub src/lgfx/v1/lgfx_v1.cpp --root src/lgfx/v1 \
-      --macro LGFX_V1_IMPLEMENTATION [--compile CXX -std=c++17 -DLGFX_SDL -Isrc ...]
+  check_inl_sources.py --hub src/lgfx/v1/lgfx_v1.cpp \
+      --hub src/lgfx/v1/lgfx_v1_panel.cpp --source src/lgfx/v1/LGFXBase.cpp \
+      --root src/lgfx/v1 --macro LGFX_V1_IMPLEMENTATION \
+      [--compile CXX -std=c++17 -DLGFX_SDL -Isrc ...]
 
+Repeat --hub and --source for every translation unit under --root.
 Everything after --compile is the compiler command line; the script appends
 -fsyntax-only -x c++ -D<MACRO> and the file.
 """
@@ -221,9 +220,6 @@ def check_reachability(hub, root, problems):
             visit(path, chain + (real,))
 
     visit(hub, (os.path.realpath(hub),))
-    for inl in walk(root, {'.inl'}):
-        if inl not in reachable:
-            problems.append(f'{rel(inl, root)}: not reachable from the hub')
     return direct, reachable
 
 
@@ -239,10 +235,11 @@ def check_guards(root, macro, problems):
             problems.append(f'{rel(inl, root)}: does not start with "#ifndef {macro}" / "#error" / "#endif"')
 
 
-def check_stray_sources(root, hub, problems):
+def check_stray_sources(root, sources, problems):
+    allowed = {os.path.realpath(src) for src in sources}
     for src in walk(root, {'.c', '.cpp'}):
-        if os.path.abspath(src) != os.path.abspath(hub):
-            problems.append(f'{rel(src, root)}: source file outside the hub (add it as *.inl to the hub instead)')
+        if os.path.realpath(src) not in allowed:
+            problems.append(f'{rel(src, root)}: undeclared source file (add it to a hub as *.inl or declare it with --source)')
 
 
 def compile_one(cmd, macro, path):
@@ -272,22 +269,49 @@ def main():
         if not compile_cmd:
             sys.exit('--compile needs a compiler command line')
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument('--hub', required=True, help='the *.cpp that includes the *.inl files')
-    ap.add_argument('--root', required=True, help='directory whose *.inl files must all be reachable from the hub')
-    ap.add_argument('--macro', required=True, help='guard macro the hub defines around its includes')
+    ap.add_argument('--hub', required=True, action='append', help='hub *.cpp (repeat for each hub)')
+    ap.add_argument('--source', action='append', default=[], help='standalone *.c / *.cpp (repeat for each source)')
+    ap.add_argument('--root', required=True, help='directory whose *.inl files must all be reachable from the hubs')
+    ap.add_argument('--macro', required=True, help='guard macro each hub defines around its includes')
     args = ap.parse_args(argv)
 
-    hub = os.path.normpath(os.path.abspath(args.hub))
-    root = os.path.normpath(os.path.abspath(args.root))
+    hubs = [os.path.abspath(p) for p in args.hub]
+    sources = [os.path.abspath(p) for p in args.source]
+    root = os.path.abspath(args.root)
     problems = []
+    seen = set()
+    for src in hubs + sources:
+        real = os.path.realpath(src)
+        if real in seen:
+            ap.error(f'duplicate translation unit: {src}')
+        seen.add(real)
+        if not os.path.isfile(src) or not is_under(src, root):
+            ap.error(f'translation unit must be an existing file under --root: {src}')
+        if os.path.splitext(src)[1] not in {'.c', '.cpp'}:
+            ap.error(f'translation unit must be a *.c / *.cpp file: {src}')
 
-    direct, reachable = check_reachability(hub, root, problems)
+    direct = []
+    owners = {}
+    for hub in hubs:
+        hub_direct, reachable = check_reachability(hub, root, problems)
+        direct.extend(hub_direct)
+        for inl in sorted(reachable):
+            real = os.path.realpath(inl)
+            previous = owners.get(real)
+            if previous is not None and previous != hub:
+                problems.append(f'{rel(inl, root)}: reachable from multiple hubs: '
+                                f'{rel(previous, root)}, {rel(hub, root)}')
+            owners[real] = hub
+        print(f'{rel(hub, root)}: {len(hub_direct)} files included directly, {len(reachable)} reachable')
+    for inl in walk(root, {'.inl'}):
+        if os.path.realpath(inl) not in owners:
+            problems.append(f'{rel(inl, root)}: not reachable from any hub')
     check_guards(root, args.macro, problems)
-    check_stray_sources(root, hub, problems)
+    check_stray_sources(root, hubs + sources, problems)
     if compile_cmd:
-        check_compile(direct, root, args.macro, compile_cmd, problems)
+        check_compile(list(dict.fromkeys(direct)), root, args.macro, compile_cmd, problems)
 
-    print(f'{rel(hub, root)}: {len(direct)} files included directly, {len(reachable)} reachable, '
+    print(f'{len(hubs)} hubs, {len(sources)} standalone sources, '
           f'{sum(1 for _ in walk(root, {".inl"}))} *.inl under {rel(root, os.getcwd())}'
           + (f', compiled with: {" ".join(compile_cmd)}' if compile_cmd else ''))
     if problems:

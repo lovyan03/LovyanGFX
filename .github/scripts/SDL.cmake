@@ -13,6 +13,8 @@ file(GLOB Target_Files RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} CONFIGURE_DEPENDS
     ${LovyanGFX_DIR}/lgfx/Fonts/lvgl/*.c
     ${LovyanGFX_DIR}/lgfx/utility/*.c
     ${LovyanGFX_DIR}/lgfx/v1/*.cpp
+    ${LovyanGFX_DIR}/lgfx/v1/panel/*.cpp
+    ${LovyanGFX_DIR}/lgfx/v1/touch/*.cpp
     ${LovyanGFX_DIR}/lgfx/v1/lv_font/*.c
     )
 add_executable (${PROJECT_NAME} ${Target_Files})
