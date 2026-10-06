@@ -275,22 +275,37 @@ namespace lgfx
     _bus->writeData(data, 8);
   }
 
+  // Waits up to `timeout` ms for the controller to be idle. BUSY counts as released only
+  // after it has stayed high for 200 ms: a short high between the steps of an AUTO
+  // sequence is not the end of it.
   bool Panel_ED2208::_wait_busy(uint32_t timeout)
   {
     _bus->wait();
-    if (_cfg.pin_busy >= 0 && !gpio_in(_cfg.pin_busy))
-    {
-      uint32_t start_time = millis();
-      do
+    uint32_t start_time = millis();
+    if (_cfg.pin_busy < 0)
+    { // No BUSY pin: wait out the time a refresh may take.
+      while (displayBusy())
       {
-        if (millis() - start_time > timeout) {
-          return false;
-        }
+        if (millis() - start_time >= timeout) { return false; }
         lgfx::delay(10);
-      } while (!gpio_in(_cfg.pin_busy));
-      lgfx::delay(200);
+      }
+      return true;
     }
-    return true;
+    // Right after this instance started a refresh, a high BUSY at the entry may also be
+    // such a short high, so it needs the 200 ms as well.
+    bool confirm = _refresh_started && (millis() - _refresh_ms < REFRESH_TIMEOUT_MS);
+    if (!confirm && gpio_in(_cfg.pin_busy)) { return true; }
+    uint32_t high_since = 0;
+    bool high = false;
+    for (;;)
+    {
+      uint32_t now = millis();
+      if (!gpio_in(_cfg.pin_busy)) { high = false; }
+      else if (!high) { high = true; high_since = now; }
+      else if (now - high_since >= 200) { return true; }
+      if (now - start_time >= timeout) { return false; }
+      lgfx::delay(10);
+    }
   }
 
   void Panel_ED2208::_init_sequence(void)
@@ -316,34 +331,40 @@ namespace lgfx
     _bus->endTransaction();
   }
 
-  void Panel_ED2208::_turn_on_display(void)
+  // Starts a refresh and returns without waiting for it (15 to 30 s; BUSY is low meanwhile).
+  // The AUTO command runs POWER_ON -> DISPLAY_REFRESH -> POWER_OFF -> DEEP_SLEEP in the
+  // controller, so the panel is powered off when it ends even if nobody polls BUSY.
+  // The next display() or setSleep(false) wakes it with a reset.
+  void Panel_ED2208::_start_refresh(void)
   {
     _bus->beginTransaction();
     cs_control(false);
 
-    _send_command(0x04);    // POWER_ON
-    _wait_busy();
-    lgfx::delay(200);
-
-    _send_command(0x06);
+    _send_command(0x06);    // Booster soft start
     _send_data(0x6F);
     _send_data(0x1F);
     _send_data(0x17);
     _send_data(0x27);
-    lgfx::delay(200);
 
-    _send_command(0x12);    // DISPLAY_REFRESH
-    _send_data(0x00);
-    _wait_busy();
-
-    _send_command(0x02);    // POWER_OFF
-    _send_data(0x00);
-    _wait_busy();
-    lgfx::delay(200);
+    // Without a reset pin the controller could not be woken again: stop at POWER_OFF.
+    bool sleep = _cfg.pin_rst >= 0;
+    _send_command(0x17);    // AUTO
+    _send_data(sleep ? 0xA7 : 0xA5);  // POWER_ON, DISPLAY_REFRESH, POWER_OFF[, DEEP_SLEEP]
 
     _bus->wait();
     cs_control(true);
     _bus->endTransaction();
+    _asleep = sleep;
+    _refresh_started = true;
+    _refresh_ms = millis();
+
+    // Return once BUSY has gone low, so that a waitDisplay() or sleep() right after
+    // display() sees the refresh.
+    if (_cfg.pin_busy >= 0)
+    {
+      uint32_t start = millis();
+      while (gpio_in(_cfg.pin_busy) && millis() - start < 50) { lgfx::delay(1); }
+    }
   }
 
   bool Panel_ED2208::init(bool /*use_reset*/)
@@ -382,19 +403,33 @@ namespace lgfx
     return true;
   }
 
+  // The controller is always reset before the init sequence. It wakes it from deep sleep
+  // (left by the previous refresh, or by a previous program: a command sent to a sleeping
+  // controller leaves BUSY low and every wait times out), and after MCU resets in the middle
+  // of a refresh BUSY was seen to stay low for over 100 s per refresh. The reset keeps the
+  // image on the panel. A refresh started by this instance is waited for first.
   void Panel_ED2208::_after_wake(void)
   {
+    if (_refresh_started) { _wait_busy(REFRESH_TIMEOUT_MS); }
+    _refresh_started = false;
+    _asleep = false;
+    rst_control(false);
+    lgfx::delay(20);
+    rst_control(true);
+    lgfx::delay(10);
     _init_sequence();
   }
 
   void Panel_ED2208::waitDisplay(void)
   {
-    _wait_busy();
+    _wait_busy(REFRESH_TIMEOUT_MS);
   }
 
   bool Panel_ED2208::displayBusy(void)
   {
-    return _cfg.pin_busy >= 0 && !gpio_in(_cfg.pin_busy);
+    if (_cfg.pin_busy >= 0) { return !gpio_in(_cfg.pin_busy); }
+    if (_refresh_started && millis() - _refresh_ms >= REFRESH_TIME_NO_BUSY_MS) { _refresh_started = false; }
+    return _refresh_started;
   }
 
   void Panel_ED2208::display(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h)
@@ -414,8 +449,13 @@ namespace lgfx
       _range_mod.bottom = std::max<int_fast16_t>(_range_mod.bottom, y + h - 1);
     }
     if (!_range_mod.empty()) {
-      _exec_transfer();
-      _turn_on_display();
+      // Wait for the previous refresh (in _after_wake() when the controller sleeps).
+      // A refresh never takes this long: on a timeout the controller is taken as stuck,
+      // and the reset recovers it.
+      if (_asleep) { _after_wake(); }
+      else if (!_wait_busy(REFRESH_TIMEOUT_MS) && _cfg.pin_rst < 0) { return; }  // no reset to recover with: keep _range_mod
+      if (!_exec_transfer()) { return; }   // keep _range_mod for the next display()
+      _start_refresh();
       _range_mod.top = INT16_MAX;
       _range_mod.left = INT16_MAX;
       _range_mod.right = 0;
@@ -425,7 +465,7 @@ namespace lgfx
 
   // --- Transfer ---
 
-  void Panel_ED2208::_exec_transfer(void)
+  bool Panel_ED2208::_exec_transfer(void)
   {
     uint_fast16_t w = _cfg.panel_width;
     uint_fast16_t h = _cfg.panel_height;
@@ -447,9 +487,10 @@ namespace lgfx
 
     _send_command(0x10);    // Data start transmission
 
+    bool ok = true;
     for (uint_fast16_t y = 0; y < h; ++y) {
       uint8_t* dst = get_dma_buffer_checked(row_bytes);
-      if (!dst) { break; }  // fall through to CS release / endTransaction
+      if (!dst) { ok = false; break; }  // fall through to CS release / endTransaction
       const bgr888_t* src = reinterpret_cast<const bgr888_t*>(_lines_buffer[y]);
       dither_fn(src, dst, w, y, dither);
       _bus->writeBytes(dst, row_bytes, true, true);
@@ -458,16 +499,25 @@ namespace lgfx
 
     cs_control(true);
     _bus->endTransaction();
+    return ok;
   }
 
   void Panel_ED2208::setSleep(bool flg)
   {
     if (flg)
     {
-      startWrite();
-      _send_command(0x07);  // DEEP_SLEEP
-      _send_data(0xA5);
-      endWrite();
+      _wait_busy(REFRESH_TIMEOUT_MS);   // a refresh ends in deep sleep by itself
+      if (!_asleep && _cfg.pin_rst >= 0)   // only a reset wakes it again
+      {
+        _bus->beginTransaction();
+        cs_control(false);
+        _send_command(0x07);  // DEEP_SLEEP
+        _send_data(0xA5);
+        _bus->wait();
+        cs_control(true);
+        _bus->endTransaction();
+        _asleep = true;
+      }
     }
     else
     {
