@@ -1374,7 +1374,16 @@ label_start:
       if (_psram_dma_ok && head == 0 && len >= dma_ext_align) { break; }
       if (!_psram_dma_ok || head >= len || len - head < dma_ext_align)   // 短い descriptor は丸ごと CPU
       {
-        writeBytes(buf, len, true, false);
+        // Send in register-sized pieces: a longer non-DMA writeBytes copies through
+        // the flip buffer, which a later queued getDMABuffer() buffer may share.
+        // Stage each piece so the word-rounded register copy stays in bounds.
+        for (uint32_t pos = 0; pos < len; pos += 64)
+        {
+          uint32_t piece[16];
+          uint32_t n = std::min<uint32_t>(len - pos, sizeof(piece));
+          memcpy(piece, buf + pos, n);
+          writeBytes((const uint8_t*)piece, n, true, false);
+        }
         _dma_queue_bytes -= len;
         if (first->dw0.suc_eof) { _dma_queue_bytes = 0; return; }   // 全部 CPU で送った
         first = (dma_desc_t*)first->next;
