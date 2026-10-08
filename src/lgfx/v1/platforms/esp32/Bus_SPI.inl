@@ -1083,6 +1083,7 @@ namespace lgfx
       {
         // Route sources outside DMA-addressable memory through CPU output.
         if (!heap_capable_dma(data)) { writeBytes(data, length, dc, false); return; }
+        bool synced = false;
 #if defined ( LGFX_PSRAM_DMA_CAPABLE )
         // 外部 RAM が転送元のときは、先頭を DMA ブロック境界に揃えてから DMA に載せる。
         // 先頭 descriptor の境界までの端数が 8〜15 バイトだと GDMA が停止する挙動が S3 で確定しており、
@@ -1091,6 +1092,12 @@ namespace lgfx
         {
           uint32_t head = (uint32_t)(-(intptr_t)data) & (dma_ext_align - 1);
           if (!_psram_dma_ok || head >= length || length - head < dma_ext_align) { writeBytes(data, length, dc, false); return; }
+          // Write back before the head goes out: a write-back between the head and the DMA (up to
+          // ~0.6 ms for a dirty 300 KB sprite on ESP32-P4) stalls the bus mid-transfer, at a byte
+          // offset set by the buffer address rather than by pixel boundaries. Panels that buffer
+          // pixels (the Module Display FPGA) mis-handle that stall.
+          dma_cache_sync(data + head, length - head);
+          synced = true;
           if (head)
           {
             writeBytes(data, head, dc, false);
@@ -1099,7 +1106,7 @@ namespace lgfx
           }
         }
 #endif
-        dma_cache_sync(data, length);   // before the SCT path below can hand the buffer to the DMA
+        if (!synced) { dma_cache_sync(data, length); }   // before the SCT path below can hand the buffer to the DMA
         auto spi_dma_out_link_reg = _spi_dma_out_link_reg;
         #if defined ( DMA_OUT_LINK_ADDR_CH0_REG )
         auto spi_dma_out_link2_reg = _spi_dma_out_link2_reg;
