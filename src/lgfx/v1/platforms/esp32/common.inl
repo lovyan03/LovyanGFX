@@ -2296,6 +2296,13 @@ namespace lgfx
 
 #if SOC_I2C_SUPPORT_HW_FSM_RST
       dev->ctr.fsm_rst = 1;
+#elif defined ( CONFIG_IDF_TARGET_ESP32C3 )
+      // ESP-IDF does not count the C3 among the chips with a usable FSM reset, because
+      // the bit resets the state machine and nothing else. That is all that is wanted
+      // here: i2c_stop() skips the peripheral reset on this chip, so after a forced STOP
+      // nothing else puts the state machine back, and the next transfer can stall right
+      // after its START and stay stalled until the chip is reset.
+      dev->ctr.fsm_rst = 1;
 #endif
 
 // SCL-low (clock stretch) watchdog. 2^21 source clocks stays past
