@@ -304,14 +304,14 @@ namespace lgfx
 
   uint8_t Panel_M5HDMI::HDMI_Trans::readRegister(uint8_t register_address)
   {
-    uint8_t buffer;
+    uint8_t buffer = 0; // returned as is when the read fails
     lgfx::i2c::transactionWriteRead(this->HDMI_Trans_config.i2c_port, this->HDMI_Trans_config.i2c_addr, &register_address, 1, &buffer, 1, this->HDMI_Trans_config.freq_read);
     return buffer;
   }
 
   uint16_t Panel_M5HDMI::HDMI_Trans::readRegister16(uint8_t register_address)
   {
-    uint8_t buffer[2];
+    uint8_t buffer[2] = { 0, 0 };
     lgfx::i2c::transactionWriteRead(this->HDMI_Trans_config.i2c_port, this->HDMI_Trans_config.i2c_addr, &register_address, 1, buffer, 2, this->HDMI_Trans_config.freq_read);
     return (static_cast<uint16_t>(buffer[0]) << 8) | buffer[1];
   }
@@ -322,29 +322,31 @@ namespace lgfx
       register_address,
       value,
     };
-    int retry = 4;
-    while (lgfx::i2c::transactionWrite(this->HDMI_Trans_config.i2c_port, this->HDMI_Trans_config.i2c_addr, buffer, 2, this->HDMI_Trans_config.freq_write).has_error() && --retry)
+    // Do not add a retry here: a reported failure usually means the ACK was misread while the
+    // write itself was accepted (see writeRegisterSet), so a retry only repeats the write.
+    bool res = !lgfx::i2c::transactionWrite(this->HDMI_Trans_config.i2c_port, this->HDMI_Trans_config.i2c_addr, buffer, 2, this->HDMI_Trans_config.freq_write).has_error();
+    if (!res)
     {
-      lgfx::delay(1);
+      ESP_LOGD(TAG, "i2c write err  reg:%02x val:%02x", register_address, value);
     }
-    if (!retry)
-    {
-      ESP_LOGI(TAG, "i2c write err  reg:%02x val:%02x", register_address, value);
-    }
-    return retry != 0;
+    return res;
   }
 
   bool Panel_M5HDMI::HDMI_Trans::writeRegisterSet(const uint8_t *reg_data_pair, size_t len)
   {
+    // The Module Display has series resistors on SDA/SCL (they keep the unpowered transmitter
+    // from loading the bus), so the transmitter's ACK does not reach 0 V: measured 0.91 V on
+    // M5Stack Core (GO v2.6) and 1.37 V on Tab5, whose bus pull-ups are 2.2 kOhm. On Tab5 the
+    // host then reads some ACKs as NACKs although the writes are accepted (verified by reading
+    // the registers back), and stopping here left the reset and init sequences half applied.
+    // Always send the whole sequence; failures are only logged.
+    bool res = true;
     size_t idx = 0;
     do
     {
-      if (!this->writeRegister(reg_data_pair[idx], reg_data_pair[idx + 1]))
-      {
-        return false;
-      }
+      res &= this->writeRegister(reg_data_pair[idx], reg_data_pair[idx + 1]);
     } while ((idx += 2) < len);
-    return true;
+    return res;
   }
 
   Panel_M5HDMI::HDMI_Trans::ChipID Panel_M5HDMI::HDMI_Trans::readChipID(void)
@@ -357,12 +359,18 @@ namespace lgfx
       HDMI_Trans_config.pin_scl
     };
 
-    if (this->writeRegister(0xff, 0x80)
-     && this->writeRegister(0xee, 0x01))
+    // The write results are not used for detection (they can report NACK although accepted,
+    // see writeRegisterSet). A missing transmitter fails the reads instead, and the caller
+    // treats an ID of three equal bytes as absent.
+    this->writeRegister(0xff, 0x80);
+    this->writeRegister(0xee, 0x01);
+    for (uint8_t i = 0; i < 3; ++i)
     {
-      chip_id.id[0] = this->readRegister(0x00);
-      chip_id.id[1] = this->readRegister(0x01);
-      chip_id.id[2] = this->readRegister(0x02);
+      if (lgfx::i2c::transactionWriteRead(this->HDMI_Trans_config.i2c_port, this->HDMI_Trans_config.i2c_addr, &i, 1, &chip_id.id[i], 1, this->HDMI_Trans_config.freq_read).has_error())
+      {
+        chip_id = { 0,0,0 };
+        break;
+      }
     }
     i2c_switch.restore();
 
