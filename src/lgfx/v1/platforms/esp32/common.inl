@@ -2390,7 +2390,8 @@ namespace lgfx
         set_pin((i2c_port_t)i2c_port, i2c_context[i2c_port].pin_sda, i2c_context[i2c_port].pin_scl);
       }
 
-#if SOC_I2C_SUPPORT_HW_FSM_RST
+// ESP-IDF 6 moved this capability from soc_caps.h to hal/i2c_ll.h.
+#if SOC_I2C_SUPPORT_HW_FSM_RST || I2C_LL_SUPPORT_HW_FSM_RST
       dev->ctr.fsm_rst = 1;
 #elif defined ( CONFIG_IDF_TARGET_ESP32C3 )
       // ESP-IDF does not count the C3 among the chips with a usable FSM reset, because
