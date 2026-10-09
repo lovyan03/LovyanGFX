@@ -2390,14 +2390,11 @@ namespace lgfx
         set_pin((i2c_port_t)i2c_port, i2c_context[i2c_port].pin_sda, i2c_context[i2c_port].pin_scl);
       }
 
-#if SOC_I2C_SUPPORT_HW_FSM_RST
-      dev->ctr.fsm_rst = 1;
-#elif defined ( CONFIG_IDF_TARGET_ESP32C3 )
-      // ESP-IDF does not count the C3 among the chips with a usable FSM reset, because
-      // the bit resets the state machine and nothing else. That is all that is wanted
-      // here: i2c_stop() skips the peripheral reset on this chip, so after a forced STOP
-      // nothing else puts the state machine back, and the next transfer can stall right
-      // after its START and stay stalled until the chip is reset.
+// ESP-IDF 6 moved this capability from soc_caps.h to hal/i2c_ll.h.
+// ESP-IDF leaves out the S2, S3, C2 and C3, as their bit resets only the state
+// machine. The C2 and C3 need it anyway: i2c_stop() skips the peripheral reset there.
+#if SOC_I2C_SUPPORT_HW_FSM_RST || I2C_LL_SUPPORT_HW_FSM_RST \
+ || defined ( CONFIG_IDF_TARGET_ESP32C2 ) || defined ( CONFIG_IDF_TARGET_ESP32C3 )
       dev->ctr.fsm_rst = 1;
 #endif
 
