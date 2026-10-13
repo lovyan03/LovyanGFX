@@ -645,13 +645,19 @@ namespace lgfx
         _in_func_num = -1;
 
         size_t func_num = ((_gpio_func_out_reg >> GPIO_FUNC0_OUT_SEL_S) & GPIO_FUNC0_OUT_SEL_V);
+        // The input selector of a signal holds the GPIO number routed to it,
+        // not a signal number, so the pin is matched against the pin number.
+        // A selector only counts while the signal goes through the GPIO matrix;
+        // otherwise it is a stale value and the signal belongs to no pin here.
         if (func_num < sizeof(GPIO.func_in_sel_cfg) / sizeof(GPIO.func_in_sel_cfg[0])) {
 #if defined ( GPIO_FUNC0_IN_SEL_CFG_REG )
           _gpio_func_in_reg = *reinterpret_cast<uint32_t*>(GPIO_FUNC0_IN_SEL_CFG_REG + (func_num * 4));
-          bool hit = func_num == ((_gpio_func_in_reg >> GPIO_FUNC0_IN_SEL_S) & GPIO_FUNC0_IN_SEL_V);
+          bool hit = (_gpio_func_in_reg & GPIO_SIG0_IN_SEL)
+                  && pin_num == ((_gpio_func_in_reg >> GPIO_FUNC0_IN_SEL_S) & GPIO_FUNC0_IN_SEL_V);
 #else
           _gpio_func_in_reg = *reinterpret_cast<uint32_t*>(GPIO_FUNC1_IN_SEL_CFG_REG + ((func_num - 1) * 4));
-          bool hit = func_num == ((_gpio_func_in_reg >> GPIO_FUNC1_IN_SEL_S) & GPIO_FUNC1_IN_SEL_V);
+          bool hit = (_gpio_func_in_reg & GPIO_SIG1_IN_SEL)
+                  && pin_num == ((_gpio_func_in_reg >> GPIO_FUNC1_IN_SEL_S) & GPIO_FUNC1_IN_SEL_V);
 #endif
           if (hit) {
             _in_func_num = func_num;
@@ -682,11 +688,6 @@ namespace lgfx
         *gpio_enable_w1tc = pin_mask;
         *(_gpio_out ? get_gpio_hi_reg(_pin_num) : get_gpio_lo_reg(_pin_num)) = pin_mask;
 
-        if ((uint16_t)_in_func_num < 256) {
-          GPIO.func_in_sel_cfg[_in_func_num].val = _gpio_func_in_reg;
-  // ESP_LOGD("DEBUG","pin:%d in_func_num:%d", (int)pin_num, (int)_in_func_num);
-        }
-
   // ESP_LOGD("DEBUG","restore pin:%d ", pin_num);
   // ESP_LOGD("DEBUG","restore IO_MUX_GPIO0_REG          :%08x -> %08x ", *reinterpret_cast<uint32_t*>(GPIO_PIN_MUX_REG[pin_num]                 ), _io_mux_gpio_reg   );
   // ESP_LOGD("DEBUG","restore GPIO_PIN0_REG             :%08x -> %08x ", *reinterpret_cast<uint32_t*>(GPIO_PIN0_REG              + (pin_num * 4)), _gpio_pin_reg      );
@@ -694,6 +695,13 @@ namespace lgfx
         *reinterpret_cast<uint32_t*>(_lgfx_io_mux_reg(_pin_num)) = _io_mux_gpio_reg;
         *reinterpret_cast<uint32_t*>(GPIO_PIN0_REG              + (pin_num * 4)) = _gpio_pin_reg;
         *reinterpret_cast<uint32_t*>(GPIO_FUNC0_OUT_SEL_CFG_REG + (pin_num * 4)) = _gpio_func_out_reg;
+
+        // Route the input back only after the pad configuration, so it is not
+        // reconnected to a pad still set up by the borrower (e.g. with its input
+        // buffer disabled).
+        if ((uint16_t)_in_func_num < 256) {
+          GPIO.func_in_sel_cfg[_in_func_num].val = _gpio_func_in_reg;
+        }
 
         // The pin drives again only once it is configured and holding the level
         // it held before. Set and clear go through their own registers so a pin
