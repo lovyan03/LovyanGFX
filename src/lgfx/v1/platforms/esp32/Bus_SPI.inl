@@ -1008,15 +1008,17 @@ namespace lgfx
         {
           uint32_t head = (uint32_t)(-(intptr_t)data) & (dma_ext_align - 1);
           if (!_psram_dma_ok || head >= length || length - head < dma_ext_align) { writeBytes(data, length, dc, false); return; }
+          // Write back before the head goes out: a write-back between the head and the DMA (up to
+          // ~0.6 ms for a dirty 300 KB sprite on ESP32-P4) stalls the bus mid-transfer, at a byte
+          // offset set by the buffer address rather than by pixel boundaries. Panels that buffer
+          // pixels (the Module Display FPGA) mis-handle that stall.
+          dma_cache_sync(data + head, length - head);
           if (head)
           {
             writeBytes(data, head, dc, false);
             data += head;
             length -= head;
           }
-          #if !defined ( CONFIG_IDF_TARGET_ESP32P4 )
-          dma_cache_sync(data, length);
-          #endif
         }
 #endif
         auto spi_dma_out_link_reg = _spi_dma_out_link_reg;
@@ -1029,7 +1031,10 @@ namespace lgfx
         _setup_dma_desc_links(data, length);
 
         #if defined ( CONFIG_IDF_TARGET_ESP32P4 )
-        esp_cache_msync((void*)data, sizeof(uint8_t) * length, ESP_CACHE_MSYNC_FLAG_DIR_C2M | ESP_CACHE_MSYNC_FLAG_UNALIGNED);
+        if (!esp_ptr_external_ram(data))   // external RAM was written back above
+        {
+          esp_cache_msync((void*)data, sizeof(uint8_t) * length, ESP_CACHE_MSYNC_FLAG_DIR_C2M | ESP_CACHE_MSYNC_FLAG_UNALIGNED);
+        }
         esp_cache_msync(_dmadesc, sizeof(dma_desc_t) * _dmadesc_size, ESP_CACHE_MSYNC_FLAG_DIR_C2M | ESP_CACHE_MSYNC_FLAG_UNALIGNED);
         #endif
 #if defined ( SOC_GDMA_SUPPORTED ) && defined ( DMA_OUTLINK_START_CH0 )
@@ -1283,7 +1288,16 @@ label_start:
       if (_psram_dma_ok && head == 0 && len >= dma_ext_align) { break; }
       if (!_psram_dma_ok || head >= len || len - head < dma_ext_align)
       {
-        writeBytes(buf, len, true, false);
+        // Send in register-sized pieces: a longer non-DMA writeBytes copies through
+        // the flip buffer, which a later queued getDMABuffer() buffer may share.
+        // Stage each piece so the word-rounded register copy stays in bounds.
+        for (uint32_t pos = 0; pos < len; pos += 64)
+        {
+          uint32_t piece[16];
+          uint32_t n = std::min<uint32_t>(len - pos, sizeof(piece));
+          memcpy(piece, buf + pos, n);
+          writeBytes((const uint8_t*)piece, n, true, false);
+        }
         _dma_queue_bytes -= len;
         if (first->dw0.suc_eof) { _dma_queue_bytes = 0; return; }
         first = (dma_desc_t*)first->next;
