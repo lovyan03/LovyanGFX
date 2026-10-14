@@ -60,6 +60,16 @@ namespace lgfx
           startWrite(true);
           _bus->writeCommand(CMD_READ_ID, 8);
         } while (!(_bus->readBytes(buf, 4, true) && buf[0] == 0x77 && buf[1] == 0x89) && --retry);
+        // The unit answers READ_ID before it finishes starting up (about 250 ms more), and
+        // pixel data streamed in that period is dropped. Queue a one-pixel fill and wait until
+        // the unit has consumed it: a NOP is consumed at once and says nothing about drawing.
+        writeFillRectPreclipped(0, 0, 1, 1, 0);
+        _buff_free_count = 0;
+        retry = 4;
+        do
+        {
+          _check_repeat(0, 255);
+        } while (_buff_free_count < 255 && --retry);
       }
     }
 
@@ -588,15 +598,30 @@ if (bytelen != rleDecode(dest, res, bytes)*bytes) {
 
   void Panel_M5UnitLCD::writeImageARGB(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, pixelcopy_t* param)
   {
-    _set_window(x, y, x + w - 1, y);
-    auto buf = (uint32_t*)param->src_data;
+    // The unit blends ARGB itself, so source pixels are sent as they are, row by row,
+    // starting from the clipped source position held in param.
+    _set_window(x, y, x + w - 1, y + h - 1);
+    auto src = (const uint32_t*)param->src_data;
+    // bgra8888_t (argb8888_4Byte) holds the bytes in the reverse order of argb8888_t,
+    // so its raw value already has the byte order the unit expects.
+    bool swap = (param->src_depth != argb8888_4Byte);
     if (!_check_repeat(CMD_WRITE_RAW_32))
     {
       writeCommand(CMD_WRITE_RAW_32, 1);
     }
-    for (size_t i = 0; i < w; ++i)
+    for (;;)
     {
-      _bus->writeCommand(getSwap32(buf[i]), 32);
+      uint32_t x32 = param->src_x32;
+      uint32_t y32 = param->src_y32;
+      for (size_t i = 0; i < w; ++i)
+      {
+        uint32_t idx = (x32 >> pixelcopy_t::FP_SCALE) + (y32 >> pixelcopy_t::FP_SCALE) * param->src_bitwidth;
+        _bus->writeCommand(swap ? getSwap32(src[idx]) : src[idx], 32);
+        x32 += param->src_x32_add;
+        y32 += param->src_y32_add;
+      }
+      if (!--h) { break; }
+      param->src_y++;
     }
     _raw_color = ~0u;
   }
@@ -608,6 +633,9 @@ if (bytelen != rleDecode(dest, res, bytes)*bytes) {
     do {
       _check_repeat(0, 255);
     } while (_buff_free_count < 255 && --retry);
+    // Always send the window: after an image write the unit returns zeros when the
+    // read reuses the cached column range, so CASET must not be skipped here.
+    _xs = _xe = _ys = _ye = INT16_MAX;
     _set_window(x, y, x+w-1, y+h-1);
 
     _bus->writeCommand(CMD_READ_RAW | ((_read_bits >> 3) & 3), 8);
