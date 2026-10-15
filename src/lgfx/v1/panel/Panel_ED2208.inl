@@ -275,37 +275,19 @@ namespace lgfx
     _bus->writeData(data, 8);
   }
 
-  // Waits up to `timeout` ms for the controller to be idle. BUSY counts as released only
-  // after it has stayed high for 200 ms: a short high between the steps of an AUTO
-  // sequence is not the end of it.
+  // Waits up to `timeout` ms for the controller to be idle. BUSY stays low for the whole
+  // AUTO sequence (no short high between its steps was seen at 0.1 ms sampling), so the
+  // first high ends the wait.
   bool Panel_ED2208::_wait_busy(uint32_t timeout)
   {
     _bus->wait();
     uint32_t start_time = millis();
-    if (_cfg.pin_busy < 0)
-    { // No BUSY pin: wait out the time a refresh may take.
-      while (displayBusy())
-      {
-        if (millis() - start_time >= timeout) { return false; }
-        lgfx::delay(10);
-      }
-      return true;
-    }
-    // Right after this instance started a refresh, a high BUSY at the entry may also be
-    // such a short high, so it needs the 200 ms as well.
-    bool confirm = _refresh_started && (millis() - _refresh_ms < REFRESH_TIMEOUT_MS);
-    if (!confirm && gpio_in(_cfg.pin_busy)) { return true; }
-    uint32_t high_since = 0;
-    bool high = false;
-    for (;;)
+    while (displayBusy())
     {
-      uint32_t now = millis();
-      if (!gpio_in(_cfg.pin_busy)) { high = false; }
-      else if (!high) { high = true; high_since = now; }
-      else if (now - high_since >= 200) { return true; }
-      if (now - start_time >= timeout) { return false; }
+      if (millis() - start_time >= timeout) { return false; }
       lgfx::delay(10);
     }
+    return true;
   }
 
   void Panel_ED2208::_init_sequence(void)
