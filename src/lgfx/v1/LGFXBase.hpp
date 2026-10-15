@@ -131,7 +131,7 @@ namespace lgfx
     LGFX_INLINE_T void setColor(T color) { setRawColor(_write_conv.convert(color)); }
     LGFX_INLINE   void setRawColor(uint32_t c) { *((uint32_t*)&_color) = c; }
     LGFX_INLINE   uint32_t getRawColor(void) const { return *((uint32_t*)&_color); }
-    LGFX_INLINE_T void setBaseColor(T c) { _base_rgb888 = hasPalette() ? c : convert_to_rgb888(c); }
+    LGFX_INLINE_T void setBaseColor(T c) { _base_rgb888 = hasPalette() ? static_cast<uint32_t>(c) : convert_to_rgb888(c); }
     LGFX_INLINE   uint32_t getBaseColor(void) const { return _base_rgb888; }
     LGFX_INLINE   color_conv_t* getColorConverter(void) { return &_write_conv; }
     LGFX_INLINE   color_depth_t getColorDepth(void) const { return _write_conv.depth; }
@@ -690,7 +690,7 @@ namespace lgfx
 
     template<typename T>
     void setTextColor(T color) {
-      _text_style.fore_rgb888 = _text_style.back_rgb888 = this->hasPalette() ? color : convert_to_rgb888(color);
+      _text_style.fore_rgb888 = _text_style.back_rgb888 = this->hasPalette() ? static_cast<uint32_t>(color) : convert_to_rgb888(color);
     }
     template<typename T1, typename T2>
     void setTextColor(T1 fgcolor, T2 bgcolor) {
@@ -698,8 +698,8 @@ namespace lgfx
         _text_style.fore_rgb888 = convert_to_rgb888(fgcolor);
         _text_style.back_rgb888 = convert_to_rgb888(bgcolor);
       } else {
-        _text_style.fore_rgb888 = fgcolor;
-        _text_style.back_rgb888 = bgcolor;
+        _text_style.fore_rgb888 = static_cast<uint32_t>(fgcolor);
+        _text_style.back_rgb888 = static_cast<uint32_t>(bgcolor);
       }
     }
 
