@@ -446,6 +446,9 @@ namespace lgfx
       pushImage(x, y, w, h, &pc, true);
     }
 
+    /// use_dma permits reading param->src_data after return; keep it unchanged until this destination's waitDMA() completes.
+    /// false consumes the source before return. Internal copies may use DMA in either case.
+    /// The bus selects direct DMA, an internal copy, or CPU output based on the source.
     void pushImage(int32_t x, int32_t y, int32_t w, int32_t h, pixelcopy_t *param, bool use_dma = false);
 
 //----------------------------------------------------------------------------

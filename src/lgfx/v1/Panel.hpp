@@ -128,8 +128,13 @@ namespace lgfx
     virtual void setWindow(uint_fast16_t xs, uint_fast16_t ys, uint_fast16_t xe, uint_fast16_t ye) = 0;
     virtual void drawPixelPreclipped(uint_fast16_t x, uint_fast16_t y, uint32_t rawcolor) = 0;
     virtual void writeFillRectPreclipped(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, uint32_t rawcolor) = 0;
+    /// use_dma permits retaining param->src_data until this destination's waitDMA() completes.
+    /// false consumes the source before return; internal copies may still use DMA.
+    /// The bus copies or uses CPU output if DMA cannot read the source directly.
     virtual void writeImage(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, pixelcopy_t* param, bool use_dma) = 0;
     virtual void writeImageARGB(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, pixelcopy_t* param) = 0;
+    /// use_dma permits retaining param->src_data until this destination's waitDMA() completes.
+    /// false consumes the source before return; the bus may DMA an internal copy.
     virtual void writePixels(pixelcopy_t* param, uint32_t len, bool use_dma) = 0;
 
     virtual uint32_t readCommand(uint_fast16_t cmd, uint_fast8_t index = 0, uint_fast8_t length = 4) = 0;
