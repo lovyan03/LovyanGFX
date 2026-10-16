@@ -25,8 +25,8 @@ Contributors:
 #elif __has_include(<hal/gdma_channel.h>)
  #include <hal/gdma_channel.h>
 #endif
-// SPI の DMA が AXI 経由のチップ (ESP32-P4) はディスクリプタが 16 バイト (8 バイト境界)。判定は IDF の spi_dma_desc_t と同じ。
-// 境界は MALLOC_CAP_DMA の確保で満たされる (IDF がキャッシュ行に揃える)
+// On chips whose SPI DMA goes through AXI (ESP32-P4) a descriptor is 16 bytes (8-byte aligned), as IDF's spi_dma_desc_t.
+// MALLOC_CAP_DMA allocations satisfy the alignment (IDF aligns them to the cache line).
 #if defined ( SOC_GDMA_BUS_AXI ) && defined ( SOC_GDMA_TRIG_PERIPH_SPI2_BUS ) && ( SOC_GDMA_TRIG_PERIPH_SPI2_BUS == SOC_GDMA_BUS_AXI )
  #define LGFX_SPI_DMA_DESC_ALIGN8
 #endif
@@ -59,21 +59,21 @@ Contributors:
 #endif
 
 
-// Segmented-Configure-Transfer (SCT) を持つチップか。
-// SPI の 1 トランザクションは 18 bit 長 (32 KB) が上限で、超える転送はセグメントごとに CPU が完了を待って
-// 再起動する必要がある。SCT を持つチップでは CONF バッファを DMA チェーンに挟むことでハードが自力で次の
-// セグメントへ進めるので、CPU は開始時の 1 回だけで済む。
-// 対象は SCT と GDMA の両方を持つチップ (S3 / C3 / C6 / C2 / H2)。S2 は SCT を持つが DMA が別系統なので対象外。
-// この判定はクラスのレイアウトを左右するので SDK のヘッダだけで決める (ユーザー定義マクロで変えると翻訳単位間で
-// sizeof(Bus_SPI) が食い違う)。無効化したいときは LGFX_SPI_SCT_DISABLE を Bus_SPI.inl を含む翻訳単位に与える
-// (実行時の判定 _sct_ok だけが偽になり、レイアウトは変わらない)
+// Whether the chip has Segmented-Configure-Transfer (SCT).
+// One SPI transaction is limited to an 18-bit length (32 KB); longer transfers otherwise need the CPU to wait for
+// and restart each segment. With SCT a CONF buffer placed in the DMA chain lets the hardware move to the next
+// segment by itself, so the CPU starts the transfer only once.
+// Targets chips with both SCT and GDMA (S3 / C3 / C6 / C2 / H2). S2 has SCT but a different DMA, so it is excluded.
+// This decides the class layout, so only SDK headers are used (a user macro could make sizeof(Bus_SPI) differ
+// between translation units). To disable SCT, define LGFX_SPI_SCT_DISABLE for the translation unit that includes
+// Bus_SPI.inl (only the runtime flag _sct_ok becomes false; the layout does not change).
 #if __has_include(<soc/soc_caps.h>)
  #include <soc/soc_caps.h>
 #endif
 #if __has_include(<esp_idf_version.h>)
  #include <esp_idf_version.h>
 #endif
-#undef LGFX_SPI_SCT          // 内部用。外から与えられても SDK の判定で上書きする (再定義警告を避ける)
+#undef LGFX_SPI_SCT          // Internal. Overridden by the SDK check even if given from outside (avoids a redefinition warning)
 #undef LGFX_SPI_SCT_PERIPH   // (host): whether that SPI host supports SCT
 #if defined ( SOC_GDMA_SUPPORTED )
  #if defined ( SOC_SPI_SCT_SUPPORTED ) && SOC_SPI_SCT_SUPPORTED && defined ( SOC_SPI_SCT_SUPPORTED_PERIPH )
@@ -241,8 +241,8 @@ namespace lgfx
     void _setup_dma_desc_links(const uint8_t *data, int32_t len);
 
 #if defined ( LGFX_SPI_SCT )
-    // Segmented-Configure-Transfer (SCT): 32 KB を超える 1 本の DMA 転送を、セグメントごとの CONF バッファを
-    // DMA チェーンに挟むことでハードに連続実行させる (CPU は開始時の 1 回だけ)。
+    // Segmented-Configure-Transfer (SCT): runs a single DMA transfer over 32 KB in hardware by placing a CONF buffer
+    // per segment in the DMA chain (the CPU starts it only once).
     bool _sct_start(const uint8_t* data, uint32_t length);
     bool _sct_start_chain(dma_desc_t* first, uint32_t total);
     void _sct_put_conf(dma_desc_t*& d, uint32_t*& conf, uint32_t user, uint32_t user1, uint32_t seg, bool last);
@@ -251,9 +251,9 @@ namespace lgfx
     volatile uint32_t* _spi_slave_reg = nullptr;
     dma_desc_t* _sct_desc = nullptr;
     uint32_t* _sct_conf = nullptr;
-    uint32_t _sct_desc_capacity = 0;   // _sct_desc の確保済み descriptor 数 (_sct_conf はその半分 + 1)
-    bool _sct_active = false;    // SCT で開始した転送が未後始末 (usr_conf を落とす必要がある)
-    bool _sct_ok = false;        // このバスで SCT を使うか (GP-SPI2 のみ、LGFX_SPI_SCT_DISABLE で偽)
+    uint32_t _sct_desc_capacity = 0;   // descriptors allocated for _sct_desc (_sct_conf holds half of that + 1)
+    bool _sct_active = false;    // a transfer started with SCT is not cleaned up yet (usr_conf must be cleared)
+    bool _sct_ok = false;        // whether this bus uses SCT (GP-SPI2 only; false with LGFX_SPI_SCT_DISABLE)
 #endif
 
     config_t _cfg;
@@ -265,13 +265,15 @@ namespace lgfx
     volatile uint32_t* _spi_user_reg = nullptr;
     volatile uint32_t* _spi_dma_out_link_reg = nullptr;
     volatile uint32_t* _spi_dma_out_conf0_reg = nullptr;
-    // 外部 RAM を転送元にするときに先頭を揃える単位。GDMA の外部メモリブロック幅 (16/32/64 B、IDF の版で異なる) の最大値。
-    // 揃えるのは転送の先頭 descriptor だけ (後続 descriptor の境界端数は停止しないことを確認済み)
+    // Alignment of the start of a transfer from external RAM: the largest GDMA external memory block size
+    // (16/32/64 B, differs by IDF version). Only the first descriptor is aligned (an unaligned tail at later
+    // descriptor boundaries was confirmed not to stall).
     static constexpr uint32_t dma_ext_align = 64;
-    // 外部 RAM を DMA の転送元にしてよいか (init で決める。偽なら外部 RAM は CPU 経路)
+    // Whether external RAM may be a DMA source (decided in init; if false, external RAM goes through the CPU).
     bool _psram_dma_ok = true;
-    // 転送開始前に GDMA チャネルをリセットし、前回の異常終了 (underflow 等) の残留データを持ち越さない。
-    // 残留は転送元を問わず次の転送を壊すので、外部 RAM 対応チップに限らず GDMA を持つ全チップ・全転送で行う
+    // Reset the GDMA channel before each transfer so leftover data from an earlier abort (underflow etc.) is not carried over.
+    // Leftovers corrupt the next transfer whatever its source, so this is done on every GDMA chip and every transfer,
+    // not only on chips that support external RAM.
     void dma_channel_reset(void);
     // AXI_DMA and the newer AHB_DMA take the descriptor address in a register of its own (unused elsewhere)
     volatile uint32_t* _spi_dma_out_link2_reg = nullptr;
