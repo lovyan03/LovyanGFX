@@ -528,6 +528,8 @@ namespace lgfx
                     else
                     {
                         auto add = param->src_bitwidth * bytes;
+                        // Keep every row in one RAMWR frame; restarting it rewinds the window.
+                        start_qspi();
                         if (use_dma)
                         {
                             if (_cfg.dlen_16bit && ((wb * h) & 1))
@@ -545,7 +547,7 @@ namespace lgfx
                         {
                             do
                             {
-                                write_bytes(src, wb, false);
+                                _bus->writeBytes(src, wb, true, false);
                                 src += add;
                             } while (--h);
                         }
