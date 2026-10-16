@@ -105,39 +105,38 @@ namespace lgfx
   void Bus_SPI::beginRead(void)
   {
     DBGPRINT("enter %s\n", __func__);
+    dc_h();
     _sspcr0_mask_8bit  = _clkdiv_read | CR0_DSS_8;
     _sspcr0_mask_16bit = _clkdiv_read | CR0_DSS_16;
-    dc_h();
   }
 
   void Bus_SPI::endRead(void)
   {
+    wait_transfer();
     _sspcr0_mask_8bit  = _clkdiv_write | CR0_DSS_8;
     _sspcr0_mask_16bit = _clkdiv_write | CR0_DSS_16;
-    wait_spi();
   }
 
   void Bus_SPI::wait(void)
   {
-    wait_spi();
+    wait_transfer();
   }
 
   bool Bus_SPI::busy(void) const
   {
-    return is_busy();
+    return (_dma_ch >= 0 && dma_channel_is_busy(_dma_ch)) || is_busy();
   }
 
   bool Bus_SPI::writeCommand(uint32_t data, uint_fast8_t bit_length)
   {
     DBGPRINT("enter %s\n", __func__);
     auto bytes = bit_length >> 3;
-    auto &reg_sr = _spi_regs->sr;
     auto &reg_cr0 = _spi_regs->cr0;
     auto &reg_dr = _spi_regs->dr;
     auto &reg_gpio_dc = sio_hw->gpio_clr;
     auto cr0_mask = _sspcr0_mask_8bit;
     auto dc_mask = _gpio_dc_mask;
-    while (reg_sr & SPI_SSPSR_BSY_BITS) { }
+    wait_transfer();
     reg_gpio_dc = dc_mask;
     reg_cr0 = cr0_mask;
     do
@@ -152,13 +151,12 @@ namespace lgfx
   {
     DBGPRINT("enter %s\n", __func__);
     auto bytes = bit_length >> 3;
-    auto &reg_sr = _spi_regs->sr;
     auto &reg_cr0 = _spi_regs->cr0;
     auto &reg_dr = _spi_regs->dr;
     auto &reg_gpio_dc = sio_hw->gpio_set;
     auto cr0_mask = _sspcr0_mask_8bit;
     auto dc_mask = _gpio_dc_mask;
-    while (reg_sr & SPI_SSPSR_BSY_BITS) { }
+    wait_transfer();
     reg_gpio_dc = dc_mask;
     reg_cr0 = cr0_mask;
     do
@@ -180,11 +178,11 @@ namespace lgfx
     auto cr0_mask = _sspcr0_mask_8bit;
     auto dc_mask = _gpio_dc_mask;
 
+    wait_transfer();
     if (bytes == 2)
     {
       cr0_mask = _sspcr0_mask_16bit;
       data = ((data >> 8) & 0xFF) | data << 8;
-      while (reg_sr & SPI_SSPSR_BSY_BITS) { }
       reg_cr0 = cr0_mask;
       reg_gpio_dc = dc_mask;
       reg_dr = data;
@@ -199,7 +197,6 @@ namespace lgfx
 
     size_t b = 0;
     auto buf = (uint8_t*)&data;
-    while (reg_sr & SPI_SSPSR_BSY_BITS) { }
     reg_cr0 = cr0_mask;
     reg_gpio_dc = dc_mask;
     do
@@ -257,12 +254,14 @@ namespace lgfx
   {
     DBGPRINT("enter %s len: %d\n", __func__, length);
     auto &reg_dr = _spi_regs->dr;
+    dc_control(dc);
 
     if (use_dma && _dma_ch >= 0)
     {
       dma_channel_transfer_size dma_size = DMA_SIZE_8;
       uint32_t cr0_mask = _sspcr0_mask_8bit;
-      if (!(length & 1))
+      // Halfword DMA needs alignment; byte DMA preserves byte order even with BSWAP.
+      if (!(length & 1) && !((uintptr_t)data & 1))
       {
         dma_size = DMA_SIZE_16;
         cr0_mask = _sspcr0_mask_16bit;
@@ -270,14 +269,12 @@ namespace lgfx
       }
       channel_config_set_transfer_data_size(&_dma_tx_cfg, dma_size);
       auto &reg_cr0 = _spi_regs->cr0;
-      dc_control(dc);
       reg_cr0 = cr0_mask;
 
       dma_channel_configure(_dma_ch, &_dma_tx_cfg, &reg_dr, data, length, true);
       return;
     }
 
-    dc_control(dc);
     if (length & 1)
     { // 送信バイト数が奇数の時は、最初に1バイト送信する。
       set_dss_8();
@@ -307,6 +304,7 @@ namespace lgfx
     if (bit_length == 0) return res;
     int idx = 0;
     auto tx_bit_length = bit_length;
+    wait_transfer();
     clear_rx_fifo();
     set_dss_8();
     do
@@ -331,6 +329,7 @@ namespace lgfx
   bool Bus_SPI::readBytes(uint8_t* dst, uint32_t length, [[maybe_unused]]bool use_dma)
   {
     DBGPRINT("enter %s\n", __func__);
+    wait_transfer();
     clear_rx_fifo();
     set_dss_8();
     auto tx_length = length;

@@ -116,6 +116,7 @@ namespace lgfx
 
 #if defined (ARDUINO)
     Adafruit_ZeroDMA _dma_adafruit;
+    uint8_t _dma_channel = 0xFF;
     DmacDescriptor* _dma_write_desc = nullptr;
 #endif
 

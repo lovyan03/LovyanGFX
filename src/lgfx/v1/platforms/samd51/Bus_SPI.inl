@@ -209,6 +209,7 @@ namespace lgfx
 
 #if defined (ARDUINO)
     _dma_adafruit.allocate();
+    _dma_channel = _dma_adafruit.getChannel();
     _dma_adafruit.setTrigger(sercom_data->dmac_id_tx);
     _dma_adafruit.setAction(DMA_TRIGGER_ACTON_BEAT);
     _dma_adafruit.setCallback(dmaCallback);
@@ -309,11 +310,21 @@ namespace lgfx
 
   void Bus_SPI::wait(void)
   {
+#if defined (ARDUINO)
+    // DMA may be enabled before the first SPI byte clears TXC.
+    if (_dma_channel != 0xFF)
+    {
+      while (DMAC->Channel[_dma_channel].CHCTRLA.bit.ENABLE) {}
+    }
+#endif
     wait_spi();
   }
 
   bool Bus_SPI::busy(void) const
   {
+#if defined (ARDUINO)
+    if (_dma_channel != 0xFF && DMAC->Channel[_dma_channel].CHCTRLA.bit.ENABLE) { return true; }
+#endif
     return _need_wait && (_sercom->SPI.INTFLAG.bit.TXC == 0);
   }
 
@@ -448,8 +459,11 @@ namespace lgfx
   {
     auto *spi = &_sercom->SPI;
 #if defined (ARDUINO)
-    if (length > 31)
+    // An unallocated channel must fall back to CPU writes, not index DMAC at 0xFF.
+    if (length > 31 && _dma_channel != 0xFF)
     {
+      auto dma_channel = _dma_channel;
+      while (DMAC->Channel[dma_channel].CHCTRLA.bit.ENABLE) {}
       uint_fast8_t beatsize = spi->CTRLC.bit.DATA32B ? 2 : 0;
       // If the data is 4 bytes aligned, the DATA32B can be enabled.
       if ((bool)(beatsize) == ((length & 3) || ((uint32_t)data & 3)))
@@ -465,25 +479,29 @@ namespace lgfx
       }
 
       auto desc = _dma_write_desc;
-      uint32_t len = length;
       dc_control(dc);
       spi->LENGTH.reg = 0;
       desc->BTCTRL.bit.BEATSIZE  = beatsize;
-      desc->SRCADDR.reg = (uint32_t)data + length;
       do
       {
+        // BTCNT is 16 bits; split direct transfers without changing the beat size.
+        uint32_t len = std::min<uint32_t>(length, 65535u << beatsize);
+        const uint8_t* src = data;
         if (!use_dma)
         {
           len = ((length - 1) & 1023) + 1;
           auto dmabuf = _flip_buffer.getBuffer(len);
           memcpy(dmabuf, data, len);
-          data += len;
-          wait_spi();
-          desc->SRCADDR.reg = (uint32_t)dmabuf + len;
+          src = dmabuf;
         }
+        // The channel disables itself at the end of its descriptor; only then reuse it.
+        while (DMAC->Channel[dma_channel].CHCTRLA.bit.ENABLE) {}
+        wait_spi();
+        desc->SRCADDR.reg = (uint32_t)src + len;
         desc->BTCNT.reg = len >> beatsize;
         _dma_adafruit.startJob();
         _need_wait = true;
+        data += len;
         length -= len;
       } while (length);
       return;
