@@ -86,8 +86,8 @@ Contributors:
  #include <esp32-hal-cpu.h>
 #endif
 #include <driver/spi_master.h>
-// flash 暗号化の有無 (外部 RAM を DMA に載せてよいかの判定に使う)。IDF 6 では esp_flash_encrypt.h が
-// コンポーネント外から見えず、代替 API が efuse 側にある
+// Whether flash encryption is enabled (decides whether external RAM may be a DMA source). On IDF 6,
+// esp_flash_encrypt.h is not visible outside its component; the replacement API is in efuse.
 #if defined ( ESP_IDF_VERSION ) && ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 0, 0) && __has_include(<esp_efuse.h>)
  #include <esp_efuse.h>
  #define LGFX_FLASH_ENCRYPTION_ENABLED() esp_efuse_is_flash_encryption_enabled()
@@ -95,7 +95,7 @@ Contributors:
  #include <esp_flash_encrypt.h>
  #define LGFX_FLASH_ENCRYPTION_ENABLED() esp_flash_encryption_enabled()
 #else
- #define LGFX_FLASH_ENCRYPTION_ENABLED() true   // 判定できなければ暗号化ありとみなす (安全側)
+ #define LGFX_FLASH_ENCRYPTION_ENABLED() true   // assume encryption when it cannot be determined (safe side)
 #endif
 
 #if defined ESP_IDF_VERSION_MAJOR && ESP_IDF_VERSION_MAJOR >= 5
@@ -184,7 +184,7 @@ Contributors:
 #endif
 
 #if defined ( LGFX_SPI_SCT )
- // GDMA の TX FIFO 残量。S3 は 3 段 (L1/L2/L3)、C3 / C6 / H2 は 1 段;
+ // Free space in the GDMA TX FIFO. S3 has 3 levels (L1/L2/L3), C3 / C6 / H2 have 1.
  #if defined ( GDMA_OUTFIFO_CNT_L2_CH0_S )
   #define DMA_OUTFIFO_CNT(st) ((((st) >> GDMA_OUTFIFO_CNT_L1_CH0_S) & GDMA_OUTFIFO_CNT_L1_CH0_V) \
                              + (((st) >> GDMA_OUTFIFO_CNT_L2_CH0_S) & GDMA_OUTFIFO_CNT_L2_CH0_V) \
@@ -194,8 +194,8 @@ Contributors:
   #define DMA_OUTFIFO_CNT(st) (((st) >> GDMA_OUTFIFO_CNT_CH0_S) & GDMA_OUTFIFO_CNT_CH0_V)
   #define DMA_OUTFIFO_FULL_CH  GDMA_OUTFIFO_FULL_CH0
  #endif
- // Bus_SPI.hpp が soc_caps から SCT 対象と判定したのにレジスタ定義が揃わない構成 (将来のチップ / SDK) では、
- // 実装の代わりに空の定義を置いて実行時に使わない (hpp 側の inline が _sct_end を参照するのでシンボルは要る)
+ // When Bus_SPI.hpp selects SCT from soc_caps but the register definitions are missing (a future chip / SDK),
+ // put empty definitions here instead and never use SCT at runtime (the inline code in the hpp refers to _sct_end, so the symbol is needed).
  #if !defined ( DMA_OUTFIFO_CNT ) || !defined ( DMA_OUTLINK_START_CH0 ) || !defined ( SPI_USR_CONF ) || !defined ( SPI_DMA_SEG_MAGIC_VALUE_S ) \
   || !defined ( SPI_DMA_AFIFO_RST ) || !defined ( SPI_CS_SETUP_TIME_S )
   #define LGFX_SPI_SCT_STUB
@@ -220,8 +220,8 @@ namespace lgfx
  {
 //----------------------------------------------------------------------------
 
-  // DMA が読むディスクリプタ・CONF バッファの書き込みを、DMA を起動するレジスタ書き込みより後ろへ
-  // コンパイラに動かさせない (IDF の dma_descriptor_t の欄は volatile でない)
+  // Keep the compiler from moving writes to descriptors and CONF buffers read by DMA after the register write
+  // that starts DMA (IDF's dma_descriptor_t fields are not volatile).
   static inline void dma_desc_fence(void) { __asm__ __volatile__ ("" ::: "memory"); }
 
 
@@ -419,14 +419,14 @@ namespace lgfx
 #endif
 
 #if defined ( LGFX_SPI_SCT ) && !defined ( LGFX_SPI_SCT_STUB )
-  // SCT のチェーン構築で共通に使う定数
+  // Constants shared by SCT chain construction
   namespace
   {
-    // PREP の長さ (SPI クロック数 - 1)。CONF から DOUT への切替に必要な時間は実測で 4 APB クロック固定
-    // (SPI 20 MHz の 1 クロック = 4 APB は成立、26.7/40/50/60 MHz の 1 クロックは不成立で 2 クロックなら成立)。
-    // 分周比 1 (SPI = APB) でも 4 クロック必要なので 8 クロックにして 2 倍の余裕を取る
+    // PREP length (SPI clocks - 1). Switching from CONF to DOUT takes a fixed 4 APB clocks (measured):
+    // 1 SPI clock at 20 MHz (= 4 APB) works; 1 clock at 26.7/40/50/60 MHz fails and 2 clocks work.
+    // A divider of 1 (SPI = APB) still needs 4 clocks, so 8 clocks are used for a 2x margin.
     constexpr uint32_t sct_setup_time = 7;
-    constexpr uint32_t sct_seg_bytes = (SPI_MS_DATA_BITLEN + 1) >> 3;   // 32 KB (1 トランザクションの上限)
+    constexpr uint32_t sct_seg_bytes = (SPI_MS_DATA_BITLEN + 1) >> 3;   // 32 KB (limit of one transaction)
     constexpr uint32_t sct_conf_words = 4;   // bitmap + USER + USER1 + MS_DLEN
     constexpr uint32_t sct_conf_bytes = sct_conf_words * 4;
     constexpr uint32_t sct_magic = 0xA;
@@ -447,7 +447,7 @@ namespace lgfx
 #if defined ( LGFX_SPI_SCT_DISABLE ) || defined ( LGFX_SPI_SCT_STUB )
     _sct_ok = false;
 #else
-    _sct_ok = LGFX_SPI_SCT_PERIPH(_cfg.spi_host) != 0;   // S3 / C3 / C6 等は GP-SPI2 のみ
+    _sct_ok = LGFX_SPI_SCT_PERIPH(_cfg.spi_host) != 0;   // S3 / C3 / C6 etc.: GP-SPI2 only
 #endif
 #endif
     _spi_user_reg         = reg(SPI_USER_REG(        spi_port));
@@ -536,8 +536,8 @@ namespace lgfx
       _spi_dma_out_conf0_reg = reg(DMA_OUT_CONF0_CH0_REG      + assigned_dma_ch * SIZE_OF_DMA_OUT_CH);
       #endif
       #if defined ( LGFX_PSRAM_DMA_CAPABLE ) && !(defined ( SOC_AHB_GDMA_VERSION ) && SOC_AHB_GDMA_VERSION == 1)
-      // AHB GDMA v2 / AXI DMA は flash 暗号化が有効だと外部 RAM の DMA にアドレスと長さの 16 B 整列を要求する
-      // (IDF の gdma_config_transfer)。長さは揃えないので、その構成では外部 RAM を CPU 経路に回す
+      // AHB GDMA v2 / AXI DMA require 16-byte alignment of address and length for external RAM DMA when flash
+      // encryption is enabled (IDF's gdma_config_transfer). Lengths are not aligned here, so external RAM uses the CPU.
       _psram_dma_ok = !LGFX_FLASH_ENCRYPTION_ENABLED();
       #endif
       #if defined ( DMA_OUT_LINK_ADDR_CH0_REG )
@@ -586,8 +586,8 @@ namespace lgfx
 #endif
     if (!_inited) return;
     _inited = false;
-    // DMA / SCT の後始末が残っている (= endTransaction を経ずに来た = まだ自分のトランザクション内) ときだけ、
-    // 転送完了を待って後始末する。残っていなければバスは既に手放している可能性があるので触らない
+    // Only when DMA / SCT cleanup is pending (we arrived without endTransaction, so still inside our own transaction),
+    // wait for the transfer and clean up. Otherwise the bus may already be released, so leave it alone.
     if (_clear_dma_reg
 #if defined ( LGFX_SPI_SCT )
      || _sct_active
@@ -664,7 +664,7 @@ namespace lgfx
     auto spi_port = _spi_port;
     (void)spi_port;
 #if defined ( LGFX_SPI_SCT ) && !defined ( LGFX_SPI_SCT_STUB )
-    // PREP の長さ (SPI クロック数 - 1)。DMA 転送と SCT の各セグメントで CS_SETUP を立てて使う
+    // PREP length (SPI clocks - 1). Set with CS_SETUP for DMA transfers and each SCT segment.
     if (_sct_ok)
     {
       auto user1 = reg(SPI_USER1_REG(spi_port));
@@ -740,7 +740,7 @@ namespace lgfx
 #endif
 
 #if defined LGFX_USE_QSPI
-    // USER は SPI_USR 待ちの後に読む (SCT 進行中は conf 由来の値が見える)
+    // Read USER after waiting for SPI_USR (during SCT it shows values loaded from the conf).
     if( _is_quad_spi)
       *qspi_user_reg = (*qspi_user_reg & ~(uint32_t)(SPI_FWRITE_QUAD | SPI_CS_SETUP));
 #endif
@@ -786,7 +786,7 @@ namespace lgfx
     }
 #endif
 #if defined LGFX_USE_QSPI
-    // USER は SPI_USR 待ちの後に読む (SCT 進行中は conf 由来の値が見える)
+    // Read USER after waiting for SPI_USR (during SCT it shows values loaded from the conf).
     if( _is_quad_spi)
       *qspi_user_reg = (*qspi_user_reg & ~(uint32_t)SPI_CS_SETUP) | SPI_FWRITE_QUAD;
 #endif
@@ -1085,9 +1085,9 @@ namespace lgfx
         if (!heap_capable_dma(data)) { writeBytes(data, length, dc, false); return; }
         bool synced = false;
 #if defined ( LGFX_PSRAM_DMA_CAPABLE )
-        // 外部 RAM が転送元のときは、先頭を DMA ブロック境界に揃えてから DMA に載せる。
-        // 先頭 descriptor の境界までの端数が 8〜15 バイトだと GDMA が停止する挙動が S3 で確定しており、
-        // 端数は CPU 書き込みで先に送る。揃えた後の残りが 1 ブロック未満の短い転送も同じ理由で CPU に回す。
+        // When the source is external RAM, align its start to a DMA block boundary before handing it to DMA.
+        // On S3 the GDMA is confirmed to stall when the first descriptor has 8 to 15 bytes before the boundary,
+        // so those bytes are written by the CPU first. A short remainder under one block goes to the CPU for the same reason.
         if (esp_ptr_external_ram(data))
         {
           uint32_t head = (uint32_t)(-(intptr_t)data) & (dma_ext_align - 1);
@@ -1130,7 +1130,7 @@ namespace lgfx
         auto dma = reg(SPI_DMA_CONF_REG(_spi_port));
         *dma = 0; /// Clear previous transfer
 #if defined ( LGFX_SPI_SCT ) && !defined ( LGFX_SPI_SCT_STUB )
-        // TRM 30.5.7 の手順どおり転送前に AFIFO をリセットする (IDF の spi_hal も毎転送前に行う)
+        // Reset AFIFO before the transfer as in TRM 30.5.7 (IDF's spi_hal also does it before every transfer).
         *dma = SPI_DMA_AFIFO_RST | SPI_BUF_AFIFO_RST | SPI_RX_AFIFO_RST;
 #endif
         uint32_t len = ((length - 1) & ((SPI_MS_DATA_BITLEN)>>3)) + 1;
@@ -1145,11 +1145,11 @@ namespace lgfx
         set_write_len(len << 3);
         *_gpio_reg_dc[dc] = _mask_reg_dc;
 #if defined ( LGFX_SPI_SCT )
-        // SCT の直後に始める通常の DMA 転送は、AFIFO をリセットしても先頭 1 バイトが直前ストリームの残留値に
-        // 置き換わる (実測)。SCT のセグメントと同じく PREP を挟むと消えるので、この 1 転送だけ CS_SETUP を立てる
-        // (次の CPU バッファ経路の転送の入口で外す)。CPU バッファ経路の転送を間に挟んだ後は起きない
+        // A normal DMA transfer started right after SCT replaces its first byte with a leftover from the previous stream,
+        // even after an AFIFO reset (measured). A PREP removes it as for SCT segments, so CS_SETUP is set for this one
+        // transfer (cleared at the start of the next CPU-buffer transfer). It does not happen after a CPU-buffer transfer.
         if (after_sct) { *_spi_user_reg |= SPI_CS_SETUP; }
-        else if (*_spi_user_reg & SPI_CS_SETUP) { *_spi_user_reg &= ~(uint32_t)SPI_CS_SETUP; }   // 直前の DMA 転送が立てた分を引き継がない
+        else if (*_spi_user_reg & SPI_CS_SETUP) { *_spi_user_reg &= ~(uint32_t)SPI_CS_SETUP; }   // do not inherit what the previous DMA transfer set
 #endif
 
         // DMA準備完了待ち;
@@ -1312,7 +1312,7 @@ label_start:
       return;
     }
 
-    // 書き戻しは投入時 (投入後のバッファ変更は DMA 契約上そもそも不可)
+    // Written back when queued (changing the buffer after queuing is not allowed by the DMA contract anyway).
     dma_cache_sync(data, length);
     _dma_queue_bytes += length;
     size_t index = _dma_queue_size;
@@ -1370,8 +1370,8 @@ label_start:
     // Unused on targets that start the queue some other way.
     __attribute__((unused)) dma_desc_t* first = &_dma_queue[0];
 #if defined ( LGFX_PSRAM_DMA_CAPABLE )
-    // 先頭 descriptor が外部 RAM なら、先頭を DMA ブロック境界に揃える (writeBytes と同じ理由)。
-    // 端数は CPU で送り、descriptor の先頭と長さを詰める。短い descriptor は丸ごと CPU で送って次へ進む。
+    // If the first descriptor is in external RAM, align its start to a DMA block boundary (same reason as writeBytes).
+    // The head is sent by the CPU and the descriptor's start and length are trimmed. A short descriptor is sent whole by the CPU.
     for (;;)
     {
       auto buf = (const uint8_t*)first->buffer;
@@ -1379,7 +1379,7 @@ label_start:
       uint32_t head = (uint32_t)(-(intptr_t)buf) & (dma_ext_align - 1);
       uint32_t len = first->dw0.length;
       if (_psram_dma_ok && head == 0 && len >= dma_ext_align) { break; }
-      if (!_psram_dma_ok || head >= len || len - head < dma_ext_align)   // 短い descriptor は丸ごと CPU
+      if (!_psram_dma_ok || head >= len || len - head < dma_ext_align)   // a short descriptor goes whole to the CPU
       {
         // Send in register-sized pieces: a longer non-DMA writeBytes copies through
         // the flip buffer, which a later queued getDMABuffer() buffer may share.
@@ -1392,7 +1392,7 @@ label_start:
           writeBytes((const uint8_t*)piece, n, true, false);
         }
         _dma_queue_bytes -= len;
-        if (first->dw0.suc_eof) { _dma_queue_bytes = 0; return; }   // 全部 CPU で送った
+        if (first->dw0.suc_eof) { _dma_queue_bytes = 0; return; }   // everything was sent by the CPU
         first = (dma_desc_t*)first->next;
         continue;
       }
@@ -1412,9 +1412,9 @@ label_start:
     dma_cache_sync(_dmadesc, sizeof(dma_desc_t) * _dmadesc_size);
 
 #if defined ( LGFX_SPI_SCT )
-    bool after_sct = _sct_active;   // dc_control が後始末で落とすので先に控える
+    bool after_sct = _sct_active;   // dc_control clears it during cleanup, so save it first
 #endif
-    dc_control(true);   // SCT の後始末 (_sct_end) もここで済む
+    dc_control(true);   // this also finishes SCT cleanup (_sct_end)
     *_spi_dma_out_link_reg = 0;
 
 #if defined ( LGFX_SPI_SCT )
@@ -1423,14 +1423,14 @@ label_start:
       uint32_t total = _dma_queue_bytes;
       _dma_queue_bytes = 0;
       if (_sct_start_chain(first, total)) { return; }
-      _dma_queue_bytes = total;   // 構築に失敗したら従来のループ経路へ
+      _dma_queue_bytes = total;   // fall back to the loop path if building fails
     }
 #endif
 #if defined ( SOC_GDMA_SUPPORTED ) && defined ( DMA_OUTLINK_START_CH0 )
     dma_channel_reset();
     auto dma = reg(SPI_DMA_CONF_REG(_spi_port));
 #if defined ( LGFX_SPI_SCT ) && !defined ( LGFX_SPI_SCT_STUB )
-    *dma = SPI_DMA_AFIFO_RST | SPI_BUF_AFIFO_RST | SPI_RX_AFIFO_RST;   // writeBytes と同じ理由
+    *dma = SPI_DMA_AFIFO_RST | SPI_BUF_AFIFO_RST | SPI_RX_AFIFO_RST;   // same reason as writeBytes
 #endif
     #if defined ( DMA_OUT_LINK_ADDR_CH0_REG )
     *_spi_dma_out_link2_reg = ((uint32_t)(first));
@@ -1443,7 +1443,7 @@ label_start:
     uint32_t len = ((_dma_queue_bytes - 1) & ((SPI_MS_DATA_BITLEN)>>3)) + 1;
     set_write_len(len << 3);
 #if defined ( LGFX_SPI_SCT )
-    if (after_sct) { *_spi_user_reg |= SPI_CS_SETUP; }   // 理由は writeBytes 側と同じ
+    if (after_sct) { *_spi_user_reg |= SPI_CS_SETUP; }   // same reason as writeBytes
     else if (*_spi_user_reg & SPI_CS_SETUP) { *_spi_user_reg &= ~(uint32_t)SPI_CS_SETUP; }
 #endif
     // DMA準備完了待ち;
@@ -1752,17 +1752,18 @@ label_start:
   bool Bus_SPI::_sct_start_chain(dma_desc_t*, uint32_t) { return false; }
   bool Bus_SPI::_sct_start(const uint8_t*, uint32_t) { return false; }
 #elif defined ( LGFX_SPI_SCT )
-  // 32 KB を超える 1 本の DMA 転送を Segmented-Configure-Transfer (SCT、TRM 30.5.8.5) で送る。CPU は開始時の 1 回だけ。
-  // チェーン = [conf0][data0 ≤32 KB][conf1][data1]...。conf は bitmap + USER + USER1 + MS_DLEN の 4 word
-  // (bitmap で選んだレジスタだけを詰める compact 形式)。IDF の spi_master と同じく usr_conf は SPI_USR より前に立て、
-  // 全セグメントを CONF 経由で始める。最終セグメントの conf だけ CONF_NXT を落とす。
-  // データ descriptor はセグメント境界で必ず切る (余りが次の conf として読まれる)。
+  // Send a single DMA transfer over 32 KB with Segmented-Configure-Transfer (SCT, TRM 30.5.8.5). The CPU starts it only once.
+  // Chain = [conf0][data0 <=32 KB][conf1][data1]... Each conf is 4 words: bitmap + USER + USER1 + MS_DLEN
+  // (compact form holding only the registers selected by the bitmap). As in IDF's spi_master, usr_conf is set before
+  // SPI_USR and every segment starts through CONF. Only the last segment's conf clears CONF_NXT.
+  // Data descriptors are always split at segment boundaries (otherwise the rest is read as the next conf).
   //
-  // 各 conf で SPI_CS_SETUP を立てて CONF と DOUT の間に PREP (cs_setup、クロック出力無し) を挟む。CONF 直後に
-  // DOUT が始まると buf_tx_afifo の再充填が間に合わず、先頭 1 バイトが古い内容 (8 バイト前の値) で出る (S3 実測:
-  // 40 MHz で cs_setup_time=0 は化け、1 以上で消える)。ハード CS は使っていないので待ち時間としてだけ効く。
-  // 転送後に残る usr_conf は次の転送の入口で _sct_end が落とす。USER の CS_SETUP は経路ごとに扱う: CPU バッファ経路の
-  // 入口で落とし、SCT 直後の通常 DMA 転送 1 本には意図的に持ち越す (writeBytes 参照)。
+  // Each conf sets SPI_CS_SETUP to put a PREP (cs_setup, no clock output) between CONF and DOUT. If DOUT starts right
+  // after CONF, buf_tx_afifo is not refilled in time and the first byte is stale (the value 8 bytes earlier) (measured on
+  // S3: at 40 MHz cs_setup_time=0 corrupts, 1 or more is clean). Hardware CS is not used, so it only acts as a delay.
+  // The usr_conf left after the transfer is cleared by _sct_end at the start of the next transfer. CS_SETUP in USER is
+  // handled per path: cleared at the start of a CPU-buffer transfer, and intentionally kept for the one normal DMA
+  // transfer right after SCT (see writeBytes).
 
   void Bus_SPI::_sct_end(void)
   {
@@ -1770,7 +1771,7 @@ label_start:
     *_spi_slave_reg &= ~(uint32_t)SPI_USR_CONF;
   }
 
-  // 1 セグメント分の conf を書き、その descriptor を繋ぐ
+  // Write the conf for one segment and link its descriptor
   void Bus_SPI::_sct_put_conf(dma_desc_t*& d, uint32_t*& conf, uint32_t user, uint32_t user1, uint32_t seg, bool last)
   {
     conf[0] = sct_bitmap;
@@ -1783,12 +1784,12 @@ label_start:
     ++d; conf += sct_conf_words;
   }
 
-  // 構築済みのチェーンで SCT を開始する。descriptor の末尾は呼び出し側で閉じておく。
-  // 偽を返したときは開始しておらず、呼び出し側は従来経路で送る
+  // Start SCT with a built chain. The caller closes the end of the descriptor chain.
+  // On false nothing was started and the caller sends through the normal path.
   bool Bus_SPI::_sct_exec(void)
   {
     dma_desc_fence();
-    // IDF の spi_master と同じ順: GDMA リセット → AFIFO リセット → TX_ENA → GDMA 起動 → UPDATE → USR
+    // Same order as IDF's spi_master: GDMA reset -> AFIFO reset -> TX_ENA -> GDMA start -> UPDATE -> USR
     dma_channel_reset();
     auto dma = reg(SPI_DMA_CONF_REG(_spi_port));
     *dma = SPI_DMA_AFIFO_RST | SPI_BUF_AFIFO_RST | SPI_RX_AFIFO_RST;
@@ -1798,19 +1799,19 @@ label_start:
     *reg(SPI_DMA_INT_CLR_REG(_spi_port)) = SPI_DMA_SEG_TRANS_DONE_INT_CLR | SPI_SEG_MAGIC_ERR_INT_CLR;
     *_spi_slave_reg = (sct_magic << SPI_DMA_SEG_MAGIC_VALUE_S) | SPI_USR_CONF;
     _sct_active = true;
-    // magic / usr_conf を SPI クロック域へ同期させてから USR を立てる (同時に書くと magic 不一致で即終了する)
+    // Sync magic / usr_conf to the SPI clock domain before setting USR (writing them together ends at once on a magic mismatch)
     *_spi_cmd_reg = SPI_UPDATE;
     while (*_spi_cmd_reg & SPI_UPDATE) {}
-    // 先頭の conf だけでなく data0 の先頭が GDMA の FIFO に届くまで待つ。CONF は一瞬で終わるので、転送元が
-    // 外部 RAM だと data0 の到着前に DOUT が始まって underflow する (実測)。GDMA は消費が無ければ FIFO を
-    // 満たすまで先読みするので、FIFO 残量が conf を超えるまで待てば data0 が来たと分かる
+    // Wait until not only the first conf but the start of data0 reaches the GDMA FIFO. CONF finishes instantly, so with
+    // an external RAM source DOUT can start before data0 arrives and underflow (measured). GDMA prefetches until the FIFO
+    // is full when nothing is consumed, so once the FIFO holds more than the conf, data0 has arrived.
     for (int guard = 100000; --guard; )
     {
       uint32_t st = *_spi_dma_outstatus_reg;
       if (DMA_OUTFIFO_CNT(st) > sct_conf_bytes + 32 || (st & DMA_OUTFIFO_FULL_CH)) { exec_spi(); return true; }
     }
-    // data0 が届かない (DMA 側の異常)。SCT を取り消して従来経路 (セグメントごとに CPU が再起動する) に任せる。
-    // レジスタは _sct_exec に入る前の状態へ戻す (usr_conf 0、TX_ENA 0、GDMA リセット)
+    // data0 did not arrive (a DMA fault). Cancel SCT and leave it to the normal path (the CPU restarts each segment).
+    // Restore the registers to their state before _sct_exec (usr_conf 0, TX_ENA 0, GDMA reset).
     *_spi_dma_out_link_reg = 0;
     dma_channel_reset();
     *dma = 0;
@@ -1820,8 +1821,8 @@ label_start:
     return false;
   }
 
-  // 行キュー (addDMAQueue で積んだ descriptor の連結) を SCT で送る。32 KB 境界が descriptor の途中に来るときは
-  // その descriptor を 2 つに割る。失敗したら false を返して従来のループ経路へ落とす
+  // Send the row queue (descriptors linked by addDMAQueue) with SCT. A descriptor crossing a 32 KB boundary is
+  // split in two. On failure returns false and the caller falls back to the loop path.
   bool Bus_SPI::_sct_start_chain(dma_desc_t* first, uint32_t total)
   {
     uint32_t src_count = 0;
@@ -1860,7 +1861,7 @@ label_start:
         src_off += n; seg -= n;
         if (src_off >= src->dw0.length) { src = (dma_desc_t*)src->next; src_off = 0; }
       }
-      if (seg) { return false; }   // キューの合計長と total が食い違う (起きない想定)
+      if (seg) { return false; }   // the queue total does not match total (not expected)
     }
     --d;
     d->dw0.suc_eof = 1;

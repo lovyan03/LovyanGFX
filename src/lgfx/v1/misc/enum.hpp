@@ -480,10 +480,11 @@ namespace lgfx
 
   enum error_t
   { unknown_err
-  , invalid_arg         // 引数が範囲外等でinvalidな場合のエラー;
-  , connection_lost     // 通信が切断されたり正しく行えない場合のエラー;
-  , mode_mismatch       // I2C通信が書込みモード時に読込みを指示するなど不一致な操作を行った場合のエラー;
-  , periph_device_err   // ペリフェラルが動作していない等のエラー;
+  , invalid_arg         // an argument is out of range or otherwise invalid
+  , connection_lost     // communication was lost or could not be completed (e.g. no ACK)
+  , mode_mismatch       // the call does not match the transaction state: reading while writing (or the reverse),
+                        // a nested beginTransaction, or a call from a task that does not own the I2C transaction
+  , periph_device_err   // the peripheral is not working
   };
 
 //----------------------------------------------------------------------------

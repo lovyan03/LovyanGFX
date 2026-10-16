@@ -2085,9 +2085,9 @@ namespace lgfx
       {
 #if LGFX_LP_I2C_NUM > 0 && SOC_RTCIO_PIN_COUNT > 0
         if (soft_i2c_valid_port(i2c_port))
-        { // 低電力ポートのルーティングはリセットを跨いで残るため、前回実行が
-          // LP ポートとして使ったピンをソフトポートで取り直す場合にも返却が
-          // 必要になる。(see gpio::release_lp_pad)
+        { // Low-power port routing survives a reset, so a pin used as an LP port by
+          // the previous run must also be released when it is reclaimed as a soft
+          // port. (see gpio::release_lp_pad)
           auto& ctx = soft_i2c_ctx(i2c_port);
           gpio::release_lp_pad(ctx.pin_sda);
           gpio::release_lp_pad(ctx.pin_scl);

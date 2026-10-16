@@ -53,12 +53,12 @@ Contributors:
  bool esp_ptr_dma_capable(const void*) { return false; }
 #endif
 
-// 外部 RAM (PSRAM) を DMA の転送元にできる条件: チップが対応し、書き戻しキャッシュを同期する API がある
+// External RAM (PSRAM) can be a DMA source when the chip supports it and the cache writeback sync API exists
 #if __has_include(<soc/soc_caps.h>)
  #include <soc/soc_caps.h>
 #endif
-// (GDMA を持つチップに限る。SPI 内蔵 DMA の世代は未検証のため従来どおり CPU 経路。
-//  esp_cache.h は IDF 5.1 にもあるが方向フラグは 5.2 以降なので、フラグの有無で判定する)
+// (chips with GDMA only; generations with the SPI's own DMA are untested and keep the CPU path.
+//  esp_cache.h exists in IDF 5.1, but its direction flags are 5.2 and later, so the flags are checked)
 #if defined ( SOC_PSRAM_DMA_CAPABLE ) && defined ( SOC_CACHE_WRITEBACK_SUPPORTED ) && defined ( SOC_GDMA_SUPPORTED ) && __has_include(<esp_cache.h>)
  #include <esp_cache.h>
  #if defined ( ESP_CACHE_MSYNC_FLAG_DIR_C2M )
@@ -108,7 +108,7 @@ Contributors:
  #define SPI_DMA_CONF_REG(i) (REG_SPI_BASE(i) + 0x30)
  #undef SPI_W0_REG
  #define SPI_W0_REG(i)       (REG_SPI_BASE(i) + 0x98)
- // SCT (Segmented-Configure-Transfer) で使う分
+ // Used by SCT (Segmented-Configure-Transfer)
  #undef SPI_USER1_REG
  #define SPI_USER1_REG(i)    (REG_SPI_BASE(i) + 0x14)
  #undef SPI_DMA_INT_CLR_REG
@@ -173,10 +173,10 @@ namespace lgfx
   static inline void* heap_alloc_psram(size_t length) { return heap_caps_malloc((length + 3) & ~3, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);  }
   static inline void heap_free(void* buf) { heap_caps_free(buf); }
 #if defined ( LGFX_PSRAM_DMA_CAPABLE )
-  /// DMA が到達できるメモリか (内部 DMA RAM または外部 RAM)。外部 RAM は転送前に dma_cache_sync が必要
+  /// Whether DMA can reach this memory (internal DMA RAM or external RAM). External RAM needs dma_cache_sync before a transfer.
   static inline bool heap_capable_dma(const void* ptr) { return esp_ptr_dma_capable(ptr) || esp_ptr_dma_ext_capable(ptr); }
-  /// 外部 RAM 上のバッファを DMA が読む前に、CPU キャッシュの内容をメモリへ書き戻す
-  /// (内部 RAM もキャッシュ越しになるチップでは、DMA に渡すものすべてが対象)
+  /// Write the CPU cache back to memory before DMA reads a buffer in external RAM
+  /// (on chips where internal RAM is also cached, everything handed to DMA).
   static inline void dma_cache_sync(const void* ptr, size_t len)
   {
  #if defined ( SOC_CACHE_INTERNAL_MEM_VIA_L1CACHE ) && SOC_CACHE_INTERNAL_MEM_VIA_L1CACHE
