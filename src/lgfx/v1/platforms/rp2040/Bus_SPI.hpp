@@ -107,11 +107,19 @@ namespace lgfx
       while (is_busy()) {}
     }
 
+    __attribute__ ((always_inline)) inline void wait_transfer(void)
+    {
+      // DMA can still feed the FIFO while SPI briefly reports idle.
+      // Finish source reads before changing DC, frame width or the DMA channel.
+      if (_dma_ch >= 0) { dma_channel_wait_for_finish_blocking(_dma_ch); }
+      wait_spi();
+    }
+
     __attribute__ ((always_inline)) inline void dc_h(void)
     {
       auto dc = _gpio_dc_mask;
       auto &reg = sio_hw->gpio_set;
-      while (is_busy()) { }
+      wait_transfer();
       reg = dc;
     }
 
@@ -119,7 +127,7 @@ namespace lgfx
     {
       auto dc = _gpio_dc_mask;
       auto &reg = sio_hw->gpio_clr;
-      while (is_busy()) { }
+      wait_transfer();
       reg = dc;
     }
 
@@ -159,7 +167,7 @@ namespace lgfx
     uint32_t _sspcr0_mask_8bit;
     uint32_t _sspcr0_mask_16bit;
 
-    int      _dma_ch;
+    int      _dma_ch = -1;
     dma_channel_config _dma_tx_cfg;
 
     static constexpr uint8_t default_spi_host = 1; 

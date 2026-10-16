@@ -421,10 +421,10 @@ namespace lgfx
     void push_sprite(LovyanGFX* dst, int32_t x, int32_t y, uint32_t transp = pixelcopy_t::NON_TRANSP)
     {
       pixelcopy_t p(_img, dst->getColorDepth(), getColorDepth(), dst->hasPalette(), _palette, transp);
-      // use_dma はバッファが DMA の転送元になれるかで決まる (外部 RAM も対応チップでは真)。
-      // DMA 中にこのスプライトのバッファを書き換えないこと。dst の startWrite() 保持中に再描画するなら
-      // 先に dst->waitDMA() を呼ぶ (待つのは転送先。スプライト自身の waitDMA() は何もしない)
-      dst->pushImage(x, y, _panel_sprite._panel_width, _panel_sprite._panel_height, &p, _panel_sprite.getSpriteBuffer()->use_dma());
+      // Permit the destination bus to retain the source; it decides whether direct DMA is possible.
+      // If dst->startWrite() is kept open, call dst->waitDMA() before modifying or freeing this buffer.
+      // Waiting on the source sprite does not wait for the destination's transfer.
+      dst->pushImage(x, y, _panel_sprite._panel_width, _panel_sprite._panel_height, &p, true);
     }
 
     void push_rotate_zoom(LovyanGFX* dst, float x, float y, float angle, float zoom_x, float zoom_y, uint32_t transp = pixelcopy_t::NON_TRANSP)

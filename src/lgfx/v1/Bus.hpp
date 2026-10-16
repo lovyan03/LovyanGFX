@@ -81,6 +81,8 @@ namespace lgfx
     virtual void initDMA(void) = 0;
 
     /// DMA転送キューを追加する。;
+    /// Permits retaining data until the destination's waitDMA() completes.
+    /// The bus must copy or use CPU output if DMA cannot read the source directly.
     virtual void addDMAQueue(const uint8_t* data, uint32_t length) = 0; // { writeBytes(data, length, true); }
 
     /// 蓄積したDMA転送キューの送信を実行する。;
@@ -111,6 +113,9 @@ namespace lgfx
     virtual void writePixels(pixelcopy_t* pc, uint32_t length) = 0;
 
     /// 引数のバイト列を送信する。;
+    /// use_dma permits reading data after return; keep it unchanged until the destination's waitDMA() completes.
+    /// false consumes data before return. Internal copies may use DMA in either case.
+    /// The bus selects direct DMA, an internal copy, or CPU output based on the source.
     virtual void writeBytes(const uint8_t* data, uint32_t length, bool dc, bool use_dma) = 0;
 
     virtual void beginRead(uint_fast8_t dummy_bits) { beginRead(); if (dummy_bits) { readData(dummy_bits); } }

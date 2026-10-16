@@ -75,6 +75,7 @@ namespace lgfx
 
     void release(void);
 
+    [[deprecated("DMA source eligibility is determined by the destination bus")]]
     bool use_dma(void) const;
     bool use_memcpy(void) const { return _source != AllocationSource::Psram; }
   };

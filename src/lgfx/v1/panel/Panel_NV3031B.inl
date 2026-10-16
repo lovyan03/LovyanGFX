@@ -394,12 +394,14 @@ namespace lgfx
                     else
                     {
                         auto add = param->src_bitwidth * bytes;
+                        // Keep every row in one RAMWR frame; restarting it rewinds the window.
+                        start_qspi();
+                        if (_cfg.dlen_16bit && ((wb * h) & 1))
+                        {
+                            _has_align_data = !_has_align_data;
+                        }
                         if (use_dma)
                         {
-                            if (_cfg.dlen_16bit && ((wb * h) & 1))
-                            {
-                                _has_align_data = !_has_align_data;
-                            }
                             do
                             {
                                 _bus->addDMAQueue(src, wb);
@@ -411,10 +413,18 @@ namespace lgfx
                         {
                             do
                             {
-                                write_bytes(src, wb, false);
+                                _bus->writeBytes(src, wb, true, false);
                                 src += add;
                             } while (--h);
                         }
+                        // Pad the whole image before closing CS, rather than padding each row.
+                        if (_has_align_data)
+                        {
+                            _has_align_data = false;
+                            _bus->writeData(0, 8);
+                        }
+                        _bus->wait();
+                        end_qspi();
                     }
                 }
                 else
