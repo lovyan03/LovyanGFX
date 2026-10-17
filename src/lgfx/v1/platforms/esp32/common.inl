@@ -1980,15 +1980,13 @@ namespace lgfx
         {
 #if defined ( ARDUINO ) && __has_include (<Wire.h>) && defined ( ESP_IDF_VERSION_VAL )
  #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 0, 0)
-  #if defined ARDUINO_ESP32_GIT_VER
-    #if ARDUINO_ESP32_GIT_VER != 0x44c11981
-      #if LGFX_HP_I2C_NUM == 1
+  #if (defined(ARDUINO_ESP32_GIT_VER) && ARDUINO_ESP32_GIT_VER != 0x44c11981) || (!defined(ARDUINO_ESP32_GIT_VER) && defined(WIRE_HAS_END))
+   #if LGFX_HP_I2C_NUM == 1
         auto twowire = &Wire;
-      #else
+   #else
         auto twowire = ((i2c_port == 0) ? &Wire : &Wire1);
-      #endif
+   #endif
         twowire->end();
-    #endif
   #endif
  #endif
 #elif __has_include(<driver/i2c_master.h>)
