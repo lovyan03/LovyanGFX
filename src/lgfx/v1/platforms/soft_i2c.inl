@@ -63,6 +63,13 @@ Contributors:
  #define SOFT_I2C_UNLOCK(ctx)
 #endif
 
+// True when the pin number names a pin this platform can drive. The init
+// sequence below writes the pins directly, so a number out of range must not
+// reach it (on ESP32 it would select another pin's output latch).
+#if !defined ( SOFT_I2C_PIN_VALID )
+ #define SOFT_I2C_PIN_VALID(pin) ((pin) >= 0)
+#endif
+
 // Called while waiting out a stretched clock.
 #if !defined ( SOFT_I2C_YIELD )
  #if defined ( ARDUINO )
@@ -371,6 +378,25 @@ Contributors:
       // healthy. ( see SOFT_I2C_LINE_HI for how a line is driven afterwards )
       pinMode(ctx.pin_sda, pin_mode_t::input_pullup);
       pinMode(ctx.pin_scl, pin_mode_t::input_pullup);
+      // A device may be left mid transfer by traffic that was not addressed to
+      // it, e.g. the same two pins used earlier as another bus with SDA and SCL
+      // swapped. Such a device can keep NACKing with SDA released, so release
+      // alone does not show it. Nine STOP conditions are issued as a best
+      // effort: each also gives a clock, the count of the standard bus clear.
+      // The steps are a fixed 5 us (the standard-mode minimums for tLOW,
+      // tSU;STO and tBUF) and do not wait for the lines, so a pin that is not
+      // an I2C bus cannot stretch the init. A device that stretches the clock
+      // is therefore not followed here; beginTransaction still checks the bus.
+      if (SOFT_I2C_PIN_VALID(ctx.pin_sda) && SOFT_I2C_PIN_VALID(ctx.pin_scl))
+      {
+        for (int i = 0; i < 9; ++i)
+        {
+          SOFT_I2C_LINE_LO(ctx.pin_scl); delayMicroseconds(5);
+          SOFT_I2C_LINE_LO(ctx.pin_sda); delayMicroseconds(5);
+          SOFT_I2C_LINE_HI(ctx.pin_scl); delayMicroseconds(5);
+          SOFT_I2C_LINE_HI(ctx.pin_sda); delayMicroseconds(5);
+        }
+      }
       ctx.state = soft_i2c_context_t::state_t::state_disconnect;
       ctx.initialized = true;
       return {};

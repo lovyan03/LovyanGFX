@@ -1647,6 +1647,7 @@ namespace lgfx
   } while (0)
 #define SOFT_I2C_UNLOCK(ctx) xSemaphoreGive((SemaphoreHandle_t)(ctx).lock_handle)
 #define SOFT_I2C_YIELD() taskYIELD()
+#define SOFT_I2C_PIN_VALID(pin) ((size_t)(pin) < GPIO_NUM_MAX)
 #define LGFX_INTERNAL_SOFT_I2C
 #include "../soft_i2c.inl"
 
