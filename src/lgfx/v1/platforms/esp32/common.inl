@@ -2388,6 +2388,16 @@ namespace lgfx
       }
       i2c_context[i2c_port].save_reg(dev);
 
+      // Still busy although no transfer of ours is running: a slave glitch can leave the
+      // controller waiting for a STOP forever (ESP32 has no FSM reset bit). Recover the bus
+      // and the controller as the ESP-IDF driver does before it starts a command (the C2 and
+      // C3 skip the peripheral reset there and rely on fsm_rst below).
+      if (getBusBusy(dev))
+      {
+        ESP_LOGV("LGFX", "i2c::beginTransaction : bus busy, recover");
+        i2c_stop(i2c_port);
+      }
+
       // A low power port reaches its pads through the low power IO domain, which set_pin()
       // knows nothing about: routing them through the normal GPIO matrix here would
       // disconnect the port from its own pins on every transaction. A shared port keeps
