@@ -24,6 +24,7 @@ Contributors:
 #include "common.hpp"
 
 #include <algorithm>
+#include <atomic>
 #include <string.h>
 #include <math.h>
 #include <type_traits>
@@ -1162,6 +1163,23 @@ namespace lgfx
   #include <core_version.h>
 #endif
 
+// TwoWire::end() exists from core 2.0.1 (0x44c11981 is 2.0.0). Some board packages lack
+// core_version.h; they are judged by esp_arduino_version.h, which 2.0.1 and 2.0.2 still
+// report as 2.0.0, hence the git version first.
+#if defined ( ARDUINO ) && __has_include (<Wire.h>) && defined ( ESP_IDF_VERSION_VAL )
+ #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 0, 0)
+  #if defined ( ARDUINO_ESP32_GIT_VER )
+   #if ARDUINO_ESP32_GIT_VER != 0x44c11981
+    #define LGFX_TWOWIRE_HAS_END
+   #endif
+  #elif defined ( ESP_ARDUINO_VERSION_VAL )
+   #if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(2, 0, 1)
+    #define LGFX_TWOWIRE_HAS_END
+   #endif
+  #endif
+ #endif
+#endif
+
 #if !defined ( I2C_ACK_ERR_INT_RAW_M )
  #define I2C_ACK_ERR_INT_RAW_M I2C_NACK_INT_RAW_M
 #endif
@@ -1426,16 +1444,17 @@ namespace lgfx
       cpp::result<state_t, error_t> state;
 
       SemaphoreHandle_t mtx = nullptr;
+      std::atomic<TaskHandle_t> owner { nullptr };
 
       void lock(uint32_t msec = portMAX_DELAY) {
         if (mtx == nullptr) {
-          mtx = xSemaphoreCreateMutex();
+          mtx = xSemaphoreCreateRecursiveMutex();
         }
-        xSemaphoreTake(mtx, msec);
+        xSemaphoreTakeRecursive(mtx, msec);
       }
 
       void unlock(void) {
-        xSemaphoreGive(mtx);
+        xSemaphoreGiveRecursive(mtx);
       }
 
       gpio_num_t pin_scl = (gpio_num_t)-1;
@@ -1841,6 +1860,8 @@ namespace lgfx
         {
           i2c_context[i2c_port].state = i2c_context_t::state_t::state_disconnect;
         }
+        // Error cleanup may leave state as an error; ownership still ends here.
+        i2c_context[i2c_port].owner.store(nullptr);
         i2c_context[i2c_port].unlock();
       }
       return res;
@@ -1878,17 +1899,13 @@ namespace lgfx
 #endif
         {
 #if defined ( ARDUINO ) && __has_include (<Wire.h>) && defined ( ESP_IDF_VERSION_VAL )
- #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 0, 0)
-  #if defined ARDUINO_ESP32_GIT_VER
-    #if ARDUINO_ESP32_GIT_VER != 0x44c11981
-      #if LGFX_HP_I2C_NUM == 1
+ #if defined ( LGFX_TWOWIRE_HAS_END )
+  #if LGFX_HP_I2C_NUM == 1
         auto twowire = &Wire;
-      #else
+  #else
         auto twowire = ((i2c_port == 0) ? &Wire : &Wire1);
-      #endif
-        twowire->end();
-    #endif
   #endif
+        twowire->end();
  #endif
 #elif __has_include(<driver/i2c_master.h>)
         auto bus_handle = i2c_context[i2c_port].i2c_bus_handle;
@@ -2143,6 +2160,8 @@ namespace lgfx
     {
       if (isSoftPort(i2c_port)) { return soft_i2c_restart(i2c_port, i2c_addr, freq, read); }
       if (i2c_port >= LGFX_I2C_PORT_NUM) { return cpp::fail(error_t::invalid_arg); }
+      if (i2c_context[i2c_port].owner.load() != xTaskGetCurrentTaskHandle())
+      { return cpp::fail(error_t::mode_mismatch); }
       if (i2c_addr < I2C_7BIT_ADDR_MIN || i2c_addr > I2C_10BIT_ADDR_MAX) return cpp::fail(error_t::invalid_arg);
 
       auto res = i2c_wait(i2c_port);
@@ -2266,16 +2285,28 @@ namespace lgfx
       return res;
     }
 
+    // Do not call endTransaction after a failed beginTransaction.
+    // Only the task whose beginTransaction succeeded may end that transaction.
     cpp::result<void, error_t> beginTransaction(int i2c_port, int i2c_addr, uint32_t freq, bool read)
     {
       if (isSoftPort(i2c_port)) { return soft_i2c_beginTransaction(i2c_port, i2c_addr, freq, read); }
       if (i2c_port >= LGFX_I2C_PORT_NUM) return cpp::fail(error_t::invalid_arg);
+      // Reject invalid addresses before taking the lock or saving shared bus registers.
+      if (i2c_addr < I2C_7BIT_ADDR_MIN || i2c_addr > I2C_10BIT_ADDR_MAX) return cpp::fail(error_t::invalid_arg);
       if ((uint32_t)i2c_context[i2c_port].pin_sda >= GPIO_NUM_MAX || (uint32_t)i2c_context[i2c_port].pin_scl >= GPIO_NUM_MAX) return cpp::fail(error_t::invalid_arg);
 
 //ESP_LOGI("LGFX", "i2c::beginTransaction : port:%d / addr:%02x / freq:%d / rw:%d", i2c_port, i2c_addr, freq, read);
 
       auto dev = getDev(i2c_port);
       i2c_context[i2c_port].lock();
+      // Recursive locking supports RMW, not nested transactions. Error cleanup can
+      // leave state set to an error, so use the active owner rather than state.
+      if (i2c_context[i2c_port].owner.load() == xTaskGetCurrentTaskHandle())
+      {
+        i2c_context[i2c_port].unlock();
+        return cpp::fail(error_t::mode_mismatch);
+      }
+      i2c_context[i2c_port].owner.store(xTaskGetCurrentTaskHandle());
 
       if (getBusBusy(dev))
       {
@@ -2288,6 +2319,16 @@ namespace lgfx
         while (getBusBusy(dev) && micros() - ms < 128);
       }
       i2c_context[i2c_port].save_reg(dev);
+
+      // Still busy although no transfer of ours is running: a slave glitch can leave the
+      // controller waiting for a STOP forever (ESP32 has no FSM reset bit). Recover the bus
+      // and the controller as the ESP-IDF driver does before it starts a command (the C2 and
+      // C3 skip the peripheral reset there and rely on fsm_rst below).
+      if (getBusBusy(dev))
+      {
+        ESP_LOGV("LGFX", "i2c::beginTransaction : bus busy, recover");
+        i2c_stop(i2c_port);
+      }
 
       // A low power port reaches its pads through the low power IO domain, which set_pin()
       // knows nothing about: routing them through the normal GPIO matrix here would
@@ -2362,6 +2403,9 @@ namespace lgfx
     {
       if (isSoftPort(i2c_port)) { return soft_i2c_endTransaction(i2c_port); }
       if (i2c_port >= LGFX_I2C_PORT_NUM) return cpp::fail(error_t::invalid_arg);
+      // A failed begin or a different task must not stop another owner's transfer.
+      if (i2c_context[i2c_port].owner.load() != xTaskGetCurrentTaskHandle())
+      { return cpp::fail(error_t::mode_mismatch); }
       return i2c_wait(i2c_port, true);
     }
 //*/
@@ -2384,6 +2428,8 @@ namespace lgfx
     {
       if (isSoftPort(i2c_port)) { return soft_i2c_writeBytes(i2c_port, data, length); }
       if (i2c_port >= LGFX_I2C_PORT_NUM) { return cpp::fail(error_t::invalid_arg); }
+      if (i2c_context[i2c_port].owner.load() != xTaskGetCurrentTaskHandle())
+      { return cpp::fail(error_t::mode_mismatch); }
       if (i2c_context[i2c_port].state.has_error()) { return cpp::fail(i2c_context[i2c_port].state.error()); }
       if (i2c_context[i2c_port].state != i2c_context_t::state_write) { return cpp::fail(error_t::mode_mismatch); }
       cpp::result<void, error_t> res {};
@@ -2423,6 +2469,8 @@ namespace lgfx
     {
       if (isSoftPort(i2c_port)) { return soft_i2c_readBytes(i2c_port, readdata, length, last_nack); }
       if (i2c_port >= LGFX_I2C_PORT_NUM) { return cpp::fail(error_t::invalid_arg); }
+      if (i2c_context[i2c_port].owner.load() != xTaskGetCurrentTaskHandle())
+      { return cpp::fail(error_t::mode_mismatch); }
       if (i2c_context[i2c_port].state.has_error()) { return cpp::fail(i2c_context[i2c_port].state.error()); }
       if (i2c_context[i2c_port].state != i2c_context_t::state_read) { return cpp::fail(error_t::mode_mismatch); }
       cpp::result<void, error_t> res {};
@@ -2509,33 +2557,27 @@ namespace lgfx
 
     cpp::result<void, error_t> transactionWrite(int i2c_port, int addr, const uint8_t *writedata, uint8_t writelen, uint32_t freq)
     {
-      cpp::result<void, error_t> res;
-      if ((res = beginTransaction(i2c_port, addr, freq, false)).has_value()
-      )
-      {
-        res = writeBytes(i2c_port, writedata, writelen);
-      }
+      auto res = beginTransaction(i2c_port, addr, freq, false);
+      if (res.has_error()) { return res; } // No transaction was acquired.
+      res = writeBytes(i2c_port, writedata, writelen);
       auto last = endTransaction(i2c_port);
       return res.has_error() ? res : last;
     }
 
     cpp::result<void, error_t> transactionRead(int i2c_port, int addr, uint8_t *readdata, uint8_t readlen, uint32_t freq)
     {
-      cpp::result<void, error_t> res;
-      if ((res = beginTransaction(i2c_port, addr, freq, true)).has_value()
-      )
-      {
-        res = readBytes(i2c_port, readdata, readlen, true);
-      }
+      auto res = beginTransaction(i2c_port, addr, freq, true);
+      if (res.has_error()) { return res; } // No transaction was acquired.
+      res = readBytes(i2c_port, readdata, readlen, true);
       auto last = endTransaction(i2c_port);
       return res.has_error() ? res : last;
     }
 
     cpp::result<void, error_t> transactionWriteRead(int i2c_port, int addr, const uint8_t *writedata, uint8_t writelen, uint8_t *readdata, size_t readlen, uint32_t freq)
     {
-      cpp::result<void, error_t> res;
-      if ((res = beginTransaction(i2c_port, addr, freq, false)).has_value()
-       && (res = writeBytes(i2c_port, writedata, writelen)).has_value()
+      auto res = beginTransaction(i2c_port, addr, freq, false);
+      if (res.has_error()) { return res; } // No transaction was acquired.
+      if ((res = writeBytes(i2c_port, writedata, writelen)).has_value()
        && (res = restart(i2c_port, addr, freq, true)).has_value()
       )
       {
@@ -2555,12 +2597,33 @@ namespace lgfx
     cpp::result<void, error_t> writeRegister8(int i2c_port, int addr, uint8_t reg, uint8_t data, uint8_t mask, uint32_t freq)
     {
       uint8_t tmp[2] = { reg, data };
-      if (mask)
+      if (!mask) { return transactionWrite(i2c_port, addr, tmp, 2, freq); }
+
+      // Soft ports are not covered by the atomic hardware read/modify/write.
+      if (isSoftPort(i2c_port))
       {
         auto res = transactionWriteRead(i2c_port, addr, &reg, 1, &tmp[1], 1, freq);
         if (res.has_error()) { return res; }
         tmp[1] = (tmp[1] & mask) | data;
+        return transactionWrite(i2c_port, addr, tmp, 2, freq);
       }
+
+      // Keep the read/modify/write atomic while retaining the STOP between transfers.
+      // Each transfer takes the recursive mutex again and releases only its own level.
+      // This serializes lgfx callers only; other drivers on a shared bus can transfer
+      // between the STOP and the next START.
+      if (i2c_port >= LGFX_I2C_PORT_NUM) { return cpp::fail(error_t::invalid_arg); }
+      i2c_context[i2c_port].lock();
+      SemaphoreHandle_t mutex = i2c_context[i2c_port].mtx;
+      struct lock_guard_t
+      {
+        SemaphoreHandle_t mutex;
+        ~lock_guard_t() { xSemaphoreGiveRecursive(mutex); }
+      } guard { mutex };
+
+      auto res = transactionWriteRead(i2c_port, addr, &reg, 1, &tmp[1], 1, freq);
+      if (res.has_error()) { return res; }
+      tmp[1] = (tmp[1] & mask) | data;
       return transactionWrite(i2c_port, addr, tmp, 2, freq);
     }
 
@@ -2609,18 +2672,12 @@ namespace lgfx
 #if defined ( ARDUINO ) && __has_include (<Wire.h>)
           _twowire = nullptr;
           if (search_sda >=0 && search_scl >= 0) {
-#if defined ( ARDUINO ) && __has_include (<Wire.h>) && defined ( ESP_IDF_VERSION_VAL )
- #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 0, 0)
-  #if defined ARDUINO_ESP32_GIT_VER
-    #if ARDUINO_ESP32_GIT_VER != 0x44c11981
+#if defined ( LGFX_TWOWIRE_HAS_END )
             _twowire = &Wire;
 #if defined (I2CEXT1_SDA_IN_IDX)
             if (i2c_port != 0) { _twowire = &Wire1; }
 #endif
             _twowire->end();
-    #endif
-  #endif
- #endif
 #endif
           }
 #endif
