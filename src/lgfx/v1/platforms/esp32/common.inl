@@ -2265,9 +2265,13 @@ namespace lgfx
       {
         i2c_context[i2c_port].freq = freq;
         static constexpr uint32_t MIN_I2C_CYCLE = 35;
+        // The timing fields are 14 / 10 bits wide on ESP32 and ESP32-S2 but only 9 bits (7 for
+        // the high wait) on the later chips, and a bitfield drops the upper bits instead of
+        // saturating. Keep the cycle short enough that both SCL halves fit in their fields.
+        static constexpr uint32_t MAX_I2C_CYCLE = (I2C_SCL_LOW_PERIOD_V < 16379u) ? (I2C_SCL_LOW_PERIOD_V << 1) + 9 : 32767u;
         uint32_t src_clock = getSourceClock(i2c_port);
 
-        auto cycle = std::min<uint32_t>(32767u, std::max(MIN_I2C_CYCLE, (src_clock / (freq + 1) + 1)));
+        auto cycle = std::min<uint32_t>(MAX_I2C_CYCLE, std::max(MIN_I2C_CYCLE, (src_clock / (freq + 1) + 1)));
         freq = src_clock / cycle;
 
 #if defined (CONFIG_IDF_TARGET_ESP32S2)
@@ -2308,11 +2312,8 @@ namespace lgfx
         {
           cycle = cycle * freq / 400000;
         }
-        else
-        if (cycle > ((1<<10)-1))
-        {
-          cycle = (1<<10)-1;
-        }
+        uint32_t setup_hold = std::min<uint32_t>(cycle, I2C_SCL_START_HOLD_TIME_V);
+        uint32_t stop_hold  = std::min<uint32_t>(setup_hold << 1, I2C_SCL_STOP_HOLD_TIME_V);
 
 #if LGFX_I2C_REG_LAYOUT == 3
         auto wait_high = scl_high_period >> 2;
@@ -2321,16 +2322,16 @@ namespace lgfx
         dev->scl_low_period .scl_low_period  = scl_low_period ;
         dev->sda_hold.sda_hold_time     = std::min<uint32_t>(1023u, (scl_high_period >> 4)+1);
         dev->sda_sample.sda_sample_time = std::min<uint32_t>(1023u, (scl_low_period  >> 1));
-        dev->scl_stop_hold.scl_stop_hold_time = cycle << 1;     //the clock num after the STOP bit's posedge
-        dev->scl_stop_setup.scl_stop_setup_time = cycle;    //the clock num between the posedge of SCL and the posedge of SDA
-        dev->scl_start_hold.scl_start_hold_time = cycle;    //the clock num between the negedge of SDA and negedge of SCL for start mark
-        dev->scl_rstart_setup.scl_rstart_setup_time = cycle;  //the clock num between the posedge of SCL and the negedge of SDA for restart mark
+        dev->scl_stop_hold.scl_stop_hold_time = stop_hold;     //the clock num after the STOP bit's posedge
+        dev->scl_stop_setup.scl_stop_setup_time = setup_hold;    //the clock num between the posedge of SCL and the posedge of SDA
+        dev->scl_start_hold.scl_start_hold_time = setup_hold;    //the clock num between the negedge of SDA and negedge of SCL for start mark
+        dev->scl_rstart_setup.scl_rstart_setup_time = setup_hold;  //the clock num between the posedge of SCL and the negedge of SDA for restart mark
 #else
 
 #if defined ( I2C_SCL_WAIT_HIGH_PERIOD )
-        auto high_period = 1 + (scl_high_period >> 3);
-        dev->scl_high_period.period = high_period;
-        dev->scl_high_period.scl_wait_high_period = scl_high_period - high_period;
+        auto wait_high = std::min<uint32_t>(scl_high_period - (1 + (scl_high_period >> 3)), I2C_SCL_WAIT_HIGH_PERIOD_V);
+        dev->scl_high_period.period = scl_high_period - wait_high;
+        dev->scl_high_period.scl_wait_high_period = wait_high;
 #else
         dev->scl_high_period.period = scl_high_period;
 #endif
@@ -2338,10 +2339,10 @@ namespace lgfx
 
         dev->sda_hold.time   = std::min<uint32_t>(1023u, (scl_high_period >> 1));
         dev->sda_sample.time = std::min<uint32_t>(1023u, (scl_low_period  >> 1));
-        dev->scl_stop_hold.time = cycle << 1;     //the clock num after the STOP bit's posedge
-        dev->scl_stop_setup.time = cycle;    //the clock num between the posedge of SCL and the posedge of SDA
-        dev->scl_start_hold.time = cycle;    //the clock num between the negedge of SDA and negedge of SCL for start mark
-        dev->scl_rstart_setup.time = cycle;  //the clock num between the posedge of SCL and the negedge of SDA for restart mark
+        dev->scl_stop_hold.time = stop_hold;     //the clock num after the STOP bit's posedge
+        dev->scl_stop_setup.time = setup_hold;    //the clock num between the posedge of SCL and the posedge of SDA
+        dev->scl_start_hold.time = setup_hold;    //the clock num between the negedge of SDA and negedge of SCL for start mark
+        dev->scl_rstart_setup.time = setup_hold;  //the clock num between the posedge of SCL and the negedge of SDA for restart mark
 #endif
       }
 
