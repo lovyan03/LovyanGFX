@@ -969,7 +969,9 @@ namespace lgfx
 
     if ((force && _total_send) || (_total_send += length) >= 512)
     {
-      _total_send = 0;
+      // Count the command sent right after this wait. Otherwise a long COPYRECT goes unchecked,
+      // and the next pixel stream overflows the FPGA's ~2 KB receive queue (excess bytes are dropped).
+      _total_send = length;
       uint32_t wait = 0;
       _bus->beginRead();
       while (_bus->readData(8) == 0x00)
