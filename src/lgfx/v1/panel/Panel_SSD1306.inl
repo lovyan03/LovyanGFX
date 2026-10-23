@@ -24,6 +24,8 @@ Contributors:
 #include "../misc/pixelcopy.hpp"
 #include "../misc/dither.hpp"
 
+#include <string.h>
+
 #ifdef min
 #undef min
 #endif
@@ -70,6 +72,10 @@ namespace lgfx
     {
       return false;
     }
+    // Panel_HasBuffer::init does not clear the allocated buffer. Nothing is pushed here, so the image
+    // on the panel survives an init without clear; the first display() then sends a known buffer
+    // (black) around the drawn area instead of whatever the allocator left in it.
+    memset(_buf, 0, _get_buffer_length());
 
     startWrite(true);
     _bus->beginRead();
