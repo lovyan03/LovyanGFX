@@ -185,9 +185,11 @@ epd_mode が epd_qualityか否かの変化をした場合も同様にCMD_DISPLAY
       if (_initialize_seq) {
         _initialize_seq = false;
         // リセット直後は起動シーケンス設定およびフレームバッファの転送を行う。ここではリフレッシュは行わない。
+        // Send the normal frame here: with the inverted one, the flip draw below ended inverted
+        // (white and black swapped) whenever this was the first display() after a reset.
         _bus->writeCommand(cmd_display_update_control_2, 8);
         _bus->writeData(0xF8, 8);
-        _exec_transfer(cmd_write_ram_bw, _range_mod, true);
+        _exec_transfer(cmd_write_ram_bw, _range_mod);
         _bus->writeCommand(cmd_master_activation, 8);
         _send_msec = millis();
       }
@@ -243,16 +245,23 @@ epd_mode が epd_qualityか否かの変化をした場合も同様にCMD_DISPLAY
   void Panel_GDEW0154D67::setInvert(bool invert)
   {
     if (_invert == invert && !_initialize_seq) { return; }
+    const bool changed = (_invert != invert);
     _invert = invert;
     startWrite();
     _wait_busy();
     _bus->writeCommand(cmd_display_update_control_1, 8);
     _bus->writeData((invert ^ _cfg.invert) ? 0x88 : 0x00, 8);
-    _need_flip_draw = true;
-    _range_mod.top = 0;
-    _range_mod.left = 0;
-    _range_mod.right = _width - 1;
-    _range_mod.bottom = _height - 1;
+    // Re-applying the current value right after a reset (LGFX_Device::init_impl does) must not mark
+    // the frame dirty: the first display() sends the whole frame anyway, and a refresh here would wipe
+    // the image kept on the panel (init without clear). A changed value is still shown at once.
+    if (changed || !_initialize_seq)
+    {
+      _need_flip_draw = true;
+      _range_mod.top = 0;
+      _range_mod.left = 0;
+      _range_mod.right = _width - 1;
+      _range_mod.bottom = _height - 1;
+    }
     endWrite();
   }
 
