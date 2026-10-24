@@ -310,7 +310,9 @@ namespace lgfx
     do
     {
       // 書き込めるだけ送信データを書き込む
-      while (tx_bit_length && is_tx_fifo_not_full())
+      // (keep no more bytes in flight than the RX FIFO holds, or a delay here
+      //  overruns it, a byte is lost and the wait below never ends)
+      while (tx_bit_length && is_tx_fifo_not_full() && bit_length - tx_bit_length < fifo_depth)
       {
         // データを送信（中身は何でもよい）
         _spi_regs->dr = 0x00;
@@ -336,8 +338,8 @@ namespace lgfx
     do
     {
       DBGPRINT("tx_length %d : length %d\n", tx_length, length);
-      // 書き込めるだけ送信データを書き込む
-      while (tx_length && is_tx_fifo_not_full())
+      // 書き込めるだけ送信データを書き込む (no more in flight than the RX FIFO holds)
+      while (tx_length && is_tx_fifo_not_full() && length - tx_length < fifo_depth)
       {
         // データを送信（中身は何でもよい）
         _spi_regs->dr = 0x00;

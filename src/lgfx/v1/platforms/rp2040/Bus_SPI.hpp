@@ -89,6 +89,7 @@ namespace lgfx
     void readPixels(void* dst, pixelcopy_t* param, uint32_t length) override;
 
   private:
+    static constexpr uint32_t fifo_depth = 8;  // the RP2040/RP2350 SPI TX and RX FIFOs are 8 entries deep
     static constexpr uint32_t CR0_DSS_8    = 0b0111U;
     static constexpr uint32_t CR0_DSS_16   = 0b1111U;
 
