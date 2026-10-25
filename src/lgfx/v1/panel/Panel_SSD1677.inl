@@ -439,6 +439,9 @@ namespace lgfx
 
   void Panel_SSD1677::setInvert(bool invert)
   {
+    // Right after a reset the first display() sends the whole frame anyway; marking it dirty here
+    // would make init() refresh the panel and wipe the image kept on it (init without clear).
+    if (_invert == invert && _initialize_seq) { return; }
     _invert = invert;
     _range_mod.top = 0;
     _range_mod.left = 0;

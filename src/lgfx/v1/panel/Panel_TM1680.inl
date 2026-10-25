@@ -38,10 +38,11 @@ namespace lgfx
     {
       return false;
     }
-    // Panel_HasBuffer::init does not clear the allocated buffer;
-    // clear it here so setInvert below does not push garbage to the LEDs.
+    // Panel_HasBuffer::init does not clear the allocated buffer.
     memset(_buf, 0, _get_buffer_length());
 
+    // The init commands do not touch the LED RAM, and nothing is pushed here, so the
+    // image on the LEDs survives init() (init without clear keeps it until the first draw).
     startWrite(true);
     for (size_t i = 0; auto cmds = getInitCommands(i); i++)
     {
@@ -49,7 +50,6 @@ namespace lgfx
       while (cmds[idx] != 0xFF || cmds[idx + 1] != 0xFF) ++idx;
       if (idx) { _bus->writeBytes(cmds, idx, false, true); }
     }
-    setInvert(_invert);
     setRotation(_rotation);
     endWrite();
 
@@ -58,8 +58,11 @@ namespace lgfx
 
   void Panel_TM1680::setInvert(bool invert)
   {
-    _invert = invert;
     // The TM1680 has no display-invert command; invert while packing in display().
+    // Only a change is pushed: LGFX_Device::init_impl() re-applies the current value,
+    // and pushing the cleared buffer there would wipe the LEDs on init without clear.
+    if (_invert == invert) { return; }
+    _invert = invert;
     if (_buf)
     {
       startWrite();
