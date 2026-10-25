@@ -24,6 +24,8 @@ Contributors:
 #include "../misc/pixelcopy.hpp"
 #include "../misc/colortype.hpp"
 
+#include <string.h>
+
 namespace lgfx
 {
  inline namespace v1
@@ -36,6 +38,11 @@ namespace lgfx
     {
       return false;
     }
+    // Panel_HasBuffer::init leaves the buffer uninitialized, and the per-tile dirty flags are only
+    // ever OR-ed / cleared in display(); both must start known for the first display() after an init
+    // without clear to send just what was drawn.
+    memset(_buf, 0, _get_buffer_length());
+    memset(_modified_flags, 0, sizeof(_modified_flags));
 
     bool connected = false;
     uint8_t res = 0xFFu;
