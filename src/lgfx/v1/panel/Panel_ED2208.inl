@@ -144,7 +144,7 @@ namespace lgfx
     return best;
   }
 
-  static void _dither_row_none(const lgfx::bgr888_t* src, uint8_t* dst, uint_fast16_t w, uint_fast16_t /*y*/, uint8_t /*dither*/ )
+  static void _dither_row_none(const lgfx::bgr888_t* src, uint8_t* dst, uint_fast16_t w, uint_fast16_t /*x0*/, uint_fast16_t /*y*/, uint8_t /*dither*/ )
   {
     auto palette = epd_palette;
     for (uint_fast16_t x = 0; x < w; x += 2) {
@@ -159,12 +159,12 @@ namespace lgfx
 
   // --- Dither: Bayer RGB (uniform bias on all channels) ---
 
-  static void _dither_row_bayer_simple_pair(const lgfx::bgr888_t* src, uint8_t* dst, uint_fast16_t w, uint_fast16_t y, uint8_t dither)
+  static void _dither_row_bayer_simple_pair(const lgfx::bgr888_t* src, uint8_t* dst, uint_fast16_t w, uint_fast16_t x0, uint_fast16_t y, uint8_t dither)
   {
     auto palette = epd_palette;
     auto row = &bayer256[( y    & 15) << 4];
     for (uint_fast16_t x = 0; x < w; x += 2) {
-      int32_t bias = row[x & 15];
+      int32_t bias = row[(x0 + x) & 15];
       bias = bias * 2 - 255;
       bias = bias * dither >> 8;
       int32_t r0 = (int32_t)src[x].r + bias;
@@ -174,7 +174,7 @@ namespace lgfx
       int32_t g1 = 0;
       int32_t b1 = 0;
       if (x + 1 < w) {
-        bias = row[(x + 1) & 15];
+        bias = row[(x0 + x + 1) & 15];
         bias = bias * 2 - 255;
         bias = bias * dither >> 8;
         r1 = (int32_t)src[x + 1].r + bias;
@@ -185,7 +185,7 @@ namespace lgfx
     }
   }
 
-  static void _dither_row_rgb_pair(const lgfx::bgr888_t* src, uint8_t* dst, uint_fast16_t w, uint_fast16_t y, uint8_t dither)
+  static void _dither_row_rgb_pair(const lgfx::bgr888_t* src, uint8_t* dst, uint_fast16_t w, uint_fast16_t x0, uint_fast16_t y, uint8_t dither)
   {
     auto palette = epd_palette;
 
@@ -195,7 +195,8 @@ namespace lgfx
     static constexpr size_t step_value = 129*127;
     static constexpr size_t step_diff = step_value / 3;
 
-    int32_t bias_base = y * y_step % step_value;
+    // Start from where a full row would be at x0, so a window dithers like the full screen.
+    int32_t bias_base = (y * y_step + step_value - x0 * x_step % step_value) % step_value;
     // Original scale was /4.0f; keep that at dither_level=255 and scale down linearly.
     int32_t r0 = 0, g0 = 0, b0 = 0;
     for (uint_fast16_t x = 0; x <= w; x ++) {
@@ -430,6 +431,10 @@ namespace lgfx
       _range_mod.top    = std::min<int_fast16_t>(_range_mod.top   , y        );
       _range_mod.bottom = std::max<int_fast16_t>(_range_mod.bottom, y + h - 1);
     }
+    _range_mod.left   = std::max<int_fast16_t>(_range_mod.left  , 0);
+    _range_mod.right  = std::min<int_fast16_t>(_range_mod.right , _cfg.panel_width  - 1);
+    _range_mod.top    = std::max<int_fast16_t>(_range_mod.top   , 0);
+    _range_mod.bottom = std::min<int_fast16_t>(_range_mod.bottom, _cfg.panel_height - 1);
     if (!_range_mod.empty()) {
       // Wait for the previous refresh (in _after_wake() when the controller sleeps).
       // A refresh never takes this long: on a timeout the controller is taken as stuck,
@@ -449,8 +454,16 @@ namespace lgfx
 
   bool Panel_ED2208::_exec_transfer(void)
   {
-    uint_fast16_t w = _cfg.panel_width;
-    uint_fast16_t h = _cfg.panel_height;
+    // Only the modified rectangle is sent and refreshed (partial window). The refresh takes
+    // as long as a full one, but the rest of the panel keeps its image instead of flashing.
+    // Both window ends are inclusive. The x range is widened to multiples of 8: from an
+    // unaligned start the controller places the data shifted.
+    // _range_mod is within the panel (display() clips it).
+    int_fast16_t xs = _range_mod.left & ~7;
+    int_fast16_t xe = std::min<int_fast16_t>(_cfg.panel_width - 1, _range_mod.right | 7);
+    int_fast16_t ys = _range_mod.top;
+    int_fast16_t ye = _range_mod.bottom;
+    uint_fast16_t w = xe - xs + 1;
     uint32_t row_bytes = (w + 1) >> 1;
 
     // Select dither algorithm for the current _epd_mode.
@@ -467,14 +480,21 @@ namespace lgfx
     _bus->beginTransaction();
     cs_control(false);
 
+    _send_command(0x83);    // Partial window
+    for (int_fast16_t v : { xs, xe, ys, ye }) {
+      _send_data(v >> 8);
+      _send_data(v & 0xFF);
+    }
+    _send_data(0x01);
+
     _send_command(0x10);    // Data start transmission
 
     bool ok = true;
-    for (uint_fast16_t y = 0; y < h; ++y) {
+    for (int_fast16_t y = ys; y <= ye; ++y) {
       uint8_t* dst = get_dma_buffer_checked(row_bytes);
       if (!dst) { ok = false; break; }  // fall through to CS release / endTransaction
-      const bgr888_t* src = reinterpret_cast<const bgr888_t*>(_lines_buffer[y]);
-      dither_fn(src, dst, w, y, dither);
+      const bgr888_t* src = reinterpret_cast<const bgr888_t*>(_lines_buffer[y]) + xs;
+      dither_fn(src, dst, w, xs, y, dither);
       _bus->writeBytes(dst, row_bytes, true, true);
     }
     _bus->wait();
