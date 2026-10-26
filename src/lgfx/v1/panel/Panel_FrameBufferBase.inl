@@ -308,10 +308,16 @@ namespace lgfx
       if ((1u << r) & 0b10010110) { y = _height - (y + 1); ys = _height - (ys + 1); ye = _height - (ye + 1); ay = -1; }
       if (r & 2)                  { x = _width  - (x + 1); xs = _width  - (xs + 1); xe = _width  - (xe + 1); ax = -1; }
     }
-    _range_mod.left   = std::min<int_fast16_t>(_range_mod.left  , xs);
-    _range_mod.right  = std::max<int_fast16_t>(_range_mod.right , xe);
-    _range_mod.top    = std::min<int_fast16_t>(_range_mod.top   , ys);
-    _range_mod.bottom = std::max<int_fast16_t>(_range_mod.bottom, ye);
+    {
+      // The flips above can swap the window ends, and with r & 1 the buffer row is x.
+      int_fast16_t left   = std::min(xs, xe), right  = std::max(xs, xe);
+      int_fast16_t top    = std::min(ys, ye), bottom = std::max(ys, ye);
+      if (r & 1) { std::swap(left, top); std::swap(right, bottom); }
+      _range_mod.left   = std::min<int_fast16_t>(_range_mod.left  , left  );
+      _range_mod.right  = std::max<int_fast16_t>(_range_mod.right , right );
+      _range_mod.top    = std::min<int_fast16_t>(_range_mod.top   , top   );
+      _range_mod.bottom = std::max<int_fast16_t>(_range_mod.bottom, bottom);
+    }
 
     if (!r)
     {
@@ -431,6 +437,10 @@ namespace lgfx
     {
       _rotate_pixelcopy(x, y, w, h, param, nextx, nexty);
     }
+    _range_mod.left   = std::min<int32_t>(x, _range_mod.left);
+    _range_mod.right  = std::max<int32_t>(x+w-1, _range_mod.right);
+    _range_mod.top    = std::min<int32_t>(y, _range_mod.top);
+    _range_mod.bottom = std::max<int32_t>(y+h-1, _range_mod.bottom);
     uint32_t sx32 = param->src_x32;
     uint32_t sy32 = param->src_y32;
 
