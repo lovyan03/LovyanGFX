@@ -534,6 +534,7 @@ namespace lgfx
       std::swap(y0, y1);
     }
     if (x0 > xend || x1 < xstart) return;
+    if (std::max(y0, y1) < ystart || std::min(y0, y1) > yend) return;
     xend = std::min(x1, xend);
 
     int32_t dy = abs(y1 - y0);
