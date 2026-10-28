@@ -31,6 +31,79 @@ namespace lgfx
 {
  inline namespace v1
  {
+  // Bounds are half-open, with one pixel of slack for fractional scaling.
+  static bool font_outside_clip(LGFXBase* gfx, int32_t x0, int32_t y0, int32_t x1, int32_t y1)
+  {
+    // Inverted bounds mean the scaling is unsafe for culling. Preserve the
+    // original state-producing loop even when the clip is empty.
+    if (x1 < x0 || y1 < y0) return false;
+    int32_t cx, cy, cw, ch;
+    gfx->getClipRect(&cx, &cy, &cw, &ch);
+    if (cw <= 0 || ch <= 0) return true;
+    // Clip coordinates are nonnegative and bounded by the drawing surface.
+    // Apply the slack to the clip, avoiding x0-1/x1+1 at coordinate limits.
+    return x1 <= cx - 1 || x0 > cx + cw
+        || y1 <= cy - 1 || y0 > cy + ch;
+  }
+
+  static inline int32_t font_bound_add(int32_t base, int32_t offset)
+  {
+    // Wrapped endpoints become inverted bounds and take the original path.
+    // Unsigned addition avoids introducing signed overflow just for culling.
+    return (int32_t)((uint32_t)base + (uint32_t)offset);
+  }
+
+  static inline bool font_scale_is_safe(int32_t value, int32_t scale)
+  {
+    if (scale <= 0) return scale == 0;
+    uint32_t magnitude = value < 0 ? 0U - (uint32_t)value : (uint32_t)value;
+    // Common font sizes need no division. Larger products must remain monotone
+    // in the original 32-bit rendering loops, not merely at the two endpoints.
+    if ((magnitude | ((uint32_t)scale >> 11)) < 1024) return true;
+    uint32_t limit = value < 0 ? 0x80000000U : 0x7FFFFFFFU;
+    return magnitude <= limit / (uint32_t)scale;
+  }
+
+  static inline int32_t font_bound_scale(int32_t value, int32_t scale)
+  {
+    return (int32_t)((uint32_t)value * (uint32_t)scale) >> 16;
+  }
+
+  struct font_bounds_t { int32_t x0, y0, x1, y1; };
+
+  static inline font_bounds_t bitmap_bounds(int32_t x, int32_t y, int32_t w, int32_t h,
+      int32_t sx, int32_t sy, bool keep_columns = false)
+  {
+    if (w < 0 || h < 0 || !font_scale_is_safe(w, sx) || !font_scale_is_safe(h, sy))
+      return {1, 1, 0, 0};
+    int32_t width = font_bound_scale(w, sx);
+    if (keep_columns) width = std::max(width, w);
+    return {x, y, font_bound_add(x, width), font_bound_add(y, font_bound_scale(h, sy))};
+  }
+
+  static inline font_bounds_t glyph_bounds(int32_t x, int32_t y, int32_t w, int32_t h,
+      int32_t yoffset, int32_t line_height, int32_t sx, int32_t sy, int32_t left, int32_t right)
+  {
+    int32_t bottom = font_bound_add(yoffset, h);
+    if (w < 0 || h < 0 || bottom < yoffset
+        || !font_scale_is_safe(w, sx) || !font_scale_is_safe(yoffset, sy)
+        || !font_scale_is_safe(bottom, sy)
+        || (left < right && !font_scale_is_safe(line_height, sy)))
+      return {1, 1, 0, 0};
+    font_bounds_t b = {x, font_bound_add(y, font_bound_scale(yoffset, sy)),
+        font_bound_add(x, font_bound_scale(w, sx)),
+        font_bound_add(y, font_bound_scale(bottom, sy))};
+    if (w < 0 || h < 0 || b.x1 < b.x0 || b.y1 < b.y0) return {1, 1, 0, 0};
+    if (left < right)
+    {
+      b.x0 = std::min(b.x0, left);
+      b.x1 = std::max(b.x1, right);
+      b.y0 = std::min(b.y0, y);
+      b.y1 = std::max(b.y1, font_bound_add(y, font_bound_scale(line_height, sy)));
+    }
+    return b;
+  }
+
   struct glcd_fontinfo_t
   {
     uint8_t start;
@@ -41,9 +114,20 @@ namespace lgfx
   size_t IFont::drawCharDummy(LGFXBase* gfx, int32_t x, int32_t y, int32_t w, int32_t h, const TextStyle* style, int32_t& filled_x) const
   {
     int32_t sx = 65536 * style->size_x;
-    w = (w * sx) >> 16;
     int32_t sy = 65536 * style->size_y;
+    bool safe_bounds = font_scale_is_safe(w, sx) && font_scale_is_safe(h, sy);
+    w = (w * sx) >> 16;
     h = (h * sy) >> 16;
+    if (safe_bounds && font_outside_clip(gfx, x, y, font_bound_add(x, w), font_bound_add(y, h)))
+    {
+      if (style->fore_rgb888 != style->back_rgb888)
+      {
+        gfx->setColor(style->back_rgb888);
+        filled_x = x + w;
+      }
+      if (2 < w && 2 < h) gfx->setColor(style->fore_rgb888);
+      return w;
+    }
     gfx->startWrite();
     if (style->fore_rgb888 != style->back_rgb888)
     {
@@ -106,6 +190,30 @@ namespace lgfx
     const int32_t sy = 65536 * style->size_y;
     const int32_t sx = 65536 * style->size_x;
 
+    // The run loop can advance j from 1 to 2 even for a one-row font.
+    auto bounds = bitmap_bounds(x, y, std::max<int32_t>(fontWidth, datawidth),
+        std::max<int32_t>(fontHeight, 2), sx, sy);
+    if (datawidth && fontHeight > 0
+        && font_outside_clip(gfx, bounds.x0, bounds.y0, bounds.x1, bounds.y1))
+    {
+      // Color is observable even when writeFillRect clips every run away.
+      if (fillbg)
+      {
+        uint32_t last = datawidth < fontWidth ? 0
+                      : fontHeight > 8 ? 0 : (pgm_read_byte(font_addr + datawidth - 1) >> (fontHeight - 1)) & 1;
+        gfx->setRawColor(colortbl[last]);
+      }
+      else
+      {
+        for (uint_fast16_t i = 0; i < datawidth; ++i)
+        {
+          uint32_t line = pgm_read_byte(font_addr + i);
+          if (fontHeight < 8) line &= (1U << fontHeight) - 1;
+          if (line) { gfx->setRawColor(colortbl[1]); break; }
+        }
+      }
+      return (fontWidth * sx) >> 16;
+    }
     gfx->startWrite();
 
     uint32_t x1 = 0;
@@ -150,16 +258,34 @@ namespace lgfx
     uint32_t colortbl[2] = {gfx->getColorConverter()->convert(style->back_rgb888), gfx->getColorConverter()->convert(style->fore_rgb888)};
     bool fillbg = (style->back_rgb888 != style->fore_rgb888);
 
-    //int32_t clip_left   = gfx->_clip_l;
-    //int32_t clip_right  = gfx->_clip_r;
-    //int32_t clip_top    = gfx->_clip_t;
-    //int32_t clip_bottom = gfx->_clip_b;
-
     int32_t sx = 65536 * style->size_x;
     int32_t sy = 65536 * style->size_y;
 
-    //if ((x <= clip_right) && (clip_left < (x + fontWidth * sx ))
-    // && (y <= clip_bottom) && (clip_top < (y + sh )))
+    // A one-column bitmap can also run through column 2 in the original loop.
+    auto bounds = bitmap_bounds(x, y, std::max<int32_t>(fontWidth, 2), fontHeight, sx, sy, true);
+    if (font_outside_clip(gfx, bounds.x0, bounds.y0, bounds.x1, bounds.y1)
+        && fontWidth > margin && fontHeight > 0)
+    {
+      // At small scales a repeated row omits background, but still sets the
+      // foreground color. Find the last run that the original loop would use.
+      for (int32_t row = fontHeight - 1; row >= 0; --row)
+      {
+        bool fill = row == 0 || (((row - 1) * sy) >> 16) != ((row * sy) >> 16);
+        const uint8_t* data = font_addr + row * w;
+        for (int32_t col = fontWidth - margin - 1; col >= 0; --col)
+        {
+          bool bit = pgm_read_byte(data + (col >> 3)) & (0x80 >> (col & 7));
+          if (bit || (fillbg && fill))
+          {
+            gfx->setRawColor(colortbl[bit]);
+            return fontWidth * sx >> 16;
+          }
+        }
+      }
+      if (fillbg && margin && (((fontWidth - margin) * sx) >> 16) < ((fontWidth * sx) >> 16))
+        gfx->setRawColor(colortbl[0]);
+      return fontWidth * sx >> 16;
+    }
     {
       gfx->startWrite();
       if (fillbg && margin)
@@ -280,16 +406,27 @@ namespace lgfx
     uint32_t colortbl[2] = {gfx->getColorConverter()->convert(style->back_rgb888), gfx->getColorConverter()->convert(style->fore_rgb888)};
     bool fillbg = (style->back_rgb888 != style->fore_rgb888);
 
-    //int32_t clip_left   = gfx->_clip_l;
-    //int32_t clip_right  = gfx->_clip_r;
-    //int32_t clip_top    = gfx->_clip_t;
-    //int32_t clip_bottom = gfx->_clip_b;
-
     int32_t sx = 65536 * style->size_x;
     int32_t sy = 65536 * style->size_y;
 
-    //if ((x <= clip_right) && (clip_left < (x + fontWidth  * sx ))
-    // && (y <= clip_bottom) && (clip_top < (y + fontHeight * sy )))
+    auto bounds = bitmap_bounds(x, y, fontWidth, fontHeight, sx, sy);
+    // A zero-height font still draws one run in the original do-while.
+    if (fontHeight > 0 && font_outside_clip(gfx, bounds.x0, bounds.y0, bounds.x1, bounds.y1))
+    {
+      uint32_t remaining = fontWidth * fontHeight;
+      while (remaining)
+      {
+        uint8_t run = pgm_read_byte(font_addr++);
+        uint32_t len = (run & 0x7F) + 1;
+        if (fillbg || (run & 0x80))
+        {
+          gfx->setRawColor(colortbl[run >> 7]);
+          if (!fillbg) return fontWidth * sx >> 16;
+        }
+        remaining -= std::min(remaining, len);
+      }
+      return fontWidth * sx >> 16;
+    }
     {
       bool flg = false;
       uint_fast8_t line = 0, i = 1, j = 0;
@@ -437,6 +574,12 @@ namespace lgfx
     x += xoffset;
     int32_t yoffset = (- metrics->y_offset) + (int8_t)pgm_read_byte(&glyph_->yOffset);
 
+    auto bounds = glyph_bounds(x, y, w, h, yoffset, metrics->height, sx, sy, left, right);
+    if (font_outside_clip(gfx, bounds.x0, bounds.y0, bounds.x1, bounds.y1))
+    {
+      if (h) gfx->setRawColor(colortbl[1]);
+      return xAdvance;
+    }
     gfx->startWrite();
 
     if (left < right) {
@@ -645,6 +788,49 @@ label_nextbyte: /// 次のデータを取得する;
       gfx->setRawColor(colortbl[0]);
     }
     x += xoffset;
+    auto bounds = glyph_bounds(x, y, w, h, yoffset, metrics->height, sx, sy, left, right);
+    // From the second row, ly makes the renderer's arithmetic unsigned. If
+    // yoffset+2 is negative it wraps positive; preserve that old path.
+    bool monotone_rows = h <= 1 || yoffset >= -2;
+    if (monotone_rows && font_outside_clip(gfx, bounds.x0, bounds.y0, bounds.x1, bounds.y1))
+    {
+      // Only the compressed runs are needed to preserve the final raw color.
+      // Background runs before filled_x, or collapsed by scaling, set no color.
+      if (w > 0)
+      {
+        int32_t relative_left = left - x;
+        uint32_t lx = 0, ly = 0;
+        do
+        {
+          uint32_t ab[2] = {decode.get_unsigned_bits(bits_per_0()), decode.get_unsigned_bits(bits_per_1())};
+          bool i = false;
+          do
+          {
+            uint32_t length = ab[i];
+            while (length)
+            {
+              uint32_t len = std::min(length, w - lx);
+              length -= len;
+              if (i || fillbg)
+              {
+                int32_t x0 = (lx * sx) >> 16;
+                if (!i && x0 < relative_left) x0 = relative_left;
+                int32_t x1 = ((lx + len) * sx) >> 16;
+                if (x0 < x1)
+                {
+                  gfx->setRawColor(colortbl[i]);
+                  if (!fillbg) return xAdvance;
+                }
+              }
+              lx += len;
+              if (lx == w) { lx = 0; ++ly; }
+            }
+            i = !i;
+          } while (i || decode.get_unsigned_bits(1));
+        } while (ly < h);
+      }
+      return xAdvance;
+    }
     gfx->startWrite();
 
     if (left < right)
@@ -770,6 +956,46 @@ label_nextbyte: /// 次のデータを取得する;
     int32_t back_g = (back_rgb >> 8) & 0xFF;
     int32_t back_b = back_rgb & 0xFF;
 
+    auto alpha_color = [&](uint32_t alpha) -> uint32_t
+    {
+      if (alpha == 0) return col_back;
+      if (alpha >= alpha_max) return col_fore;
+      int32_t r = back_r + ((fore_r - back_r) * (int32_t)alpha + (int32_t)(alpha_max >> 1)) / (int32_t)alpha_max;
+      int32_t g = back_g + ((fore_g - back_g) * (int32_t)alpha + (int32_t)(alpha_max >> 1)) / (int32_t)alpha_max;
+      int32_t b = back_b + ((fore_b - back_b) * (int32_t)alpha + (int32_t)(alpha_max >> 1)) / (int32_t)alpha_max;
+      return cc->convert(((uint32_t)r << 16) | ((uint32_t)g << 8) | (uint32_t)b);
+    };
+
+    auto bounds = glyph_bounds(draw_x, y, box_w, box_h, yoffset, metrics->height, sx, sy, left, right);
+    if (font_outside_clip(gfx, bounds.x0, bounds.y0, bounds.x1, bounds.y1))
+    {
+      // The last non-collapsed pixel determines the observable drawing color.
+      // Search backwards instead of drawing/expanding every pixel rectangle.
+      if (fillbg && left < right) gfx->setRawColor(col_back);
+      if (bitmap != nullptr && box_w && box_h)
+      {
+        for (uint32_t py = box_h; py-- > 0; )
+        {
+          int32_t y0 = ((yoffset + (int32_t)py) * sy) >> 16;
+          int32_t y1 = ((yoffset + (int32_t)py + 1) * sy) >> 16;
+          if (y1 <= y0) continue;
+          if (fillbg && left < right) gfx->setRawColor(col_back);
+          for (uint32_t px = box_w; px-- > 0; )
+          {
+            uint32_t alpha = bitmap[py * glyph_stride + px];
+            if (!fillbg && alpha == 0) continue;
+            int32_t x0 = ((int32_t)px * sx) >> 16;
+            int32_t x1 = (((int32_t)px + 1) * sx) >> 16;
+            if (x1 <= x0) continue;
+            gfx->setRawColor(alpha_color(alpha));
+            return xAdvance;
+          }
+          if (fillbg && left < right) return xAdvance;
+        }
+      }
+      return xAdvance;
+    }
+
     gfx->startWrite();
 
     if (fillbg && left < right)
@@ -828,22 +1054,7 @@ label_nextbyte: /// 次のデータを取得する;
             continue;
           }
 
-          uint32_t raw;
-          if (alpha == 0)
-          {
-            raw = col_back;
-          }
-          else if (alpha >= alpha_max)
-          {
-            raw = col_fore;
-          }
-          else
-          {
-            int32_t r = back_r + ((fore_r - back_r) * (int32_t)alpha + (int32_t)(alpha_max >> 1)) / (int32_t)alpha_max;
-            int32_t g = back_g + ((fore_g - back_g) * (int32_t)alpha + (int32_t)(alpha_max >> 1)) / (int32_t)alpha_max;
-            int32_t b = back_b + ((fore_b - back_b) * (int32_t)alpha + (int32_t)(alpha_max >> 1)) / (int32_t)alpha_max;
-            raw = cc->convert(((uint32_t)r << 16) | ((uint32_t)g << 8) | (uint32_t)b);
-          }
+          uint32_t raw = alpha_color(alpha);
           gfx->setRawColor(raw);
           gfx->writeFillRect(draw_x + x0, y + y0, x1 - x0, y1 - y0);
         }
@@ -1703,6 +1914,8 @@ label_nextbyte: /// 次のデータを取得する;
 
     GlyphInfo info;
     uint8_t* bitmap = nullptr;
+    // Decode before culling: the bitmap determines the final raw color, and a
+    // failed decode must still fall back to the dummy glyph and its advance.
     if (!decodeGlyphBitmap(gid, &info, &bitmap))
     {
       return drawCharDummy(gfx, x, y, default_advance_width, metrics->height, style, filled_x);
@@ -1927,7 +2140,6 @@ label_nextbyte: /// 次のデータを取得する;
       file->preRead();
       file->seek(28 + gNum * 28);
       file->read((uint8_t*)buffer, 24);
-      file->seek(this->gBitmap[gNum]);
     }
 
 
@@ -1939,14 +2151,6 @@ label_nextbyte: /// 次のデータを取得する;
     int32_t dY       = (int16_t)getSwap32(buffer[3]); // y delta from baseline
     int32_t yoffset  = (this->maxAscent - dY);
 //      int32_t yoffset = (gfx->_font_metrics.y_offset) - dY;
-
-    auto pixel = (uint8_t*)alloca(w * h);
-    if (gNum != 0xFFFF) {
-      file->read(pixel, w * h);
-      file->postRead();
-    }
-
-    gfx->startWrite();
 
     uint32_t colortbl[2] = {gfx->getColorConverter()->convert(style->back_rgb888), gfx->getColorConverter()->convert(style->fore_rgb888)};
     bool fillbg = (style->back_rgb888 != style->fore_rgb888);
@@ -1974,6 +2178,27 @@ label_nextbyte: /// 次のデータを取得する;
 
     if (bw > clip_right+1 - bx) bw = clip_right+1 - bx;
 
+    auto bounds = glyph_bounds(x, y, w, h, yoffset, metrics->height, sx, sy, left, right);
+    bool culled = font_outside_clip(gfx, bounds.x0, bounds.y0, bounds.x1, bounds.y1);
+    if (culled && (bw < 0 || (!fillbg && gfx->isReadable() && !gfx->hasPalette())
+        || font_bound_add(y, font_bound_scale(yoffset, sy)) > clip_bottom))
+    {
+      // The readable alpha path does not set the raw color. The other two
+      // cases never visit a pixel; only an initial background color can remain.
+      if (bw >= 0 && fillbg && left < right) gfx->setRawColor(colortbl[0]);
+      if (gNum != 0xFFFF) file->postRead();
+      return xAdvance;
+    }
+
+    auto pixel = (uint8_t*)alloca(w * h);
+    if (gNum != 0xFFFF)
+    {
+      file->seek(this->gBitmap[gNum]);
+      file->read(pixel, w * h);
+      file->postRead();
+    }
+    gfx->startWrite();
+
     if (bw >= 0)
     {
       int32_t fore_r = ((style->fore_rgb888>>16)&0xFF);
@@ -1985,12 +2210,12 @@ label_nextbyte: /// 次のデータを取得する;
         if (left < right && fillbg) {
           gfx->setRawColor(colortbl[0]);
           if (yoffset > 0) {
-            gfx->writeFillRect(left, y, right - left, (yoffset * sy) >> 16);
+            if (!culled) gfx->writeFillRect(left, y, right - left, (yoffset * sy) >> 16);
           }
           int32_t y0 = ((yoffset + h)   * sy) >> 16;
           int32_t y1 = (metrics->height * sy) >> 16;
           if (y0 < y1) {
-            gfx->writeFillRect(left, y + y0, right - left, y1 - y0);
+            if (!culled) gfx->writeFillRect(left, y + y0, right - left, y1 - y0);
           }
         }
 
@@ -2007,7 +2232,7 @@ label_nextbyte: /// 次のデータを取得する;
             y1 = ((yoffset + i + 1) * sy) >> 16;
             if (left < right) {
               gfx->setRawColor(colortbl[0]);
-              gfx->writeFillRect(left, y + y0, right - left, y1 - y0);
+              if (!culled) gfx->writeFillRect(left, y + y0, right - left, y1 - y0);
             }
             int32_t j = 0;
             do {
@@ -2019,7 +2244,7 @@ label_nextbyte: /// 次のデータを取得する;
                   gfx->setColor(color888( ( fore_r * p + back_r * (257 - p)) >> 8
                                         , ( fore_g * p + back_g * (257 - p)) >> 8
                                         , ( fore_b * p + back_b * (257 - p)) >> 8 ));
-                  gfx->writeFillRect(x + x0, y + y0, x1 - x0, y1 - y0);
+                  if (!culled) gfx->writeFillRect(x + x0, y + y0, x1 - x0, y1 - y0);
                 }
                 x0 = x1;
                 if (++j == w || (clip_right - x) < x0) break;
@@ -2027,7 +2252,7 @@ label_nextbyte: /// 次のデータを取得する;
               if (j == w || (clip_right - x) < x0) break;
               gfx->setRawColor(colortbl[1]);
               do { ++j; } while (j != w && pixel[j] == 0xFF);
-              gfx->writeFillRect(x + x0, y + y0, ((j * sx) >> 16) - x0, y1 - y0);
+              if (!culled) gfx->writeFillRect(x + x0, y + y0, ((j * sx) >> 16) - x0, y1 - y0);
             } while (j != w);
             pixel += w;
           } while (++i < h);
