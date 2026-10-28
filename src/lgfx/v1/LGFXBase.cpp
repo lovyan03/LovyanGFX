@@ -116,14 +116,6 @@ namespace lgfx
     endWrite();
   }
 
-  void LGFXBase::getClipRect(int32_t *x, int32_t *y, int32_t *w, int32_t *h)
-  {
-    *x = _clip_l;
-    *w = _clip_r - *x + 1;
-    *y = _clip_t;
-    *h = _clip_b - *y + 1;
-  }
-
   void LGFXBase::clearClipRect(void)
   {
     _clip_l = 0;
