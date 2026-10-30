@@ -330,11 +330,21 @@ namespace lgfx
     template<typename T>
     LGFX_INLINE void fillSprite (const T& color) { fillScreen(color); }
 
+    /// Push the sprite to a display, optionally skipping a transparent color.
+    /// @note A DMA transfer may keep reading this sprite's buffer after the call returns.
+    /// Before modifying, recreating (createSprite / setColorDepth), or freeing
+    /// (deleteSprite) the buffer, call waitDMA() on the destination display,
+    /// not on this sprite. For these overloads the destination is the parent
+    /// or the explicit dst argument, respectively.
+    /// When startWrite() is not held open, the outermost endWrite() waits for completion.
     template<typename T>
     LGFX_INLINE void pushSprite(                int32_t x, int32_t y, const T& transp) { push_sprite(_parent, x, y, _write_conv.convert(transp) & _write_conv.colormask); }
+    /// @copydoc pushSprite(int32_t, int32_t, const T&)
     template<typename T>
     LGFX_INLINE void pushSprite(LovyanGFX* dst, int32_t x, int32_t y, const T& transp) { push_sprite(    dst, x, y, _write_conv.convert(transp) & _write_conv.colormask); }
+    /// @copydoc pushSprite(int32_t, int32_t, const T&)
     LGFX_INLINE void pushSprite(                int32_t x, int32_t y) { push_sprite(_parent, x, y); }
+    /// @copydoc pushSprite(int32_t, int32_t, const T&)
     LGFX_INLINE void pushSprite(LovyanGFX* dst, int32_t x, int32_t y) { push_sprite(    dst, x, y); }
 
     template<typename T> void pushRotated(                float angle, const T& transp) { push_rotate_zoom(_parent, _parent->getPivotX(), _parent->getPivotY(), angle, 1.0f, 1.0f, _write_conv.convert(transp) & _write_conv.colormask); }
