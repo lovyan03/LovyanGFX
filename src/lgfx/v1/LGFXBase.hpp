@@ -397,7 +397,13 @@ namespace lgfx
     void setAddrWindow(int32_t x, int32_t y, int32_t w, int32_t h);
 
     void setClipRect(int32_t x, int32_t y, int32_t w, int32_t h);
-    void getClipRect(int32_t *x, int32_t *y, int32_t *w, int32_t *h);
+    void getClipRect(int32_t *x, int32_t *y, int32_t *w, int32_t *h)
+    {
+      *x = _clip_l;
+      *w = _clip_r - *x + 1;
+      *y = _clip_t;
+      *h = _clip_b - *y + 1;
+    }
     void clearClipRect(void);
 
     void setScrollRect(int32_t x, int32_t y, int32_t w, int32_t h);
