@@ -2197,7 +2197,7 @@ namespace lgfx
         return cpp::fail(error_t::invalid_arg);
 #else
         // No way to tell a held port from a setup failure here: keep driving the
-        // controller directly, as before.
+        // controller directly.
         bus_handle = nullptr;
 #endif
       }
