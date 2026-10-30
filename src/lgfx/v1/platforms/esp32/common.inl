@@ -641,7 +641,8 @@ namespace lgfx
 
     *io_mux_reg = io_mux_val;
 
-    // レジスタ構造体のメンバ名はチップ毎に異なるため、命名差を吸収する LL/ROM API へ委譲する
+    // Register struct member names differ per chip; delegate to the LL/ROM API that absorbs the
+    // naming differences
 #if __has_include(<hal/gpio_ll.h>)
     if (mode == pin_mode_t::output) { gpio_ll_od_disable(&GPIO, (gpio_num_t)pin); }
     else                            { gpio_ll_od_enable (&GPIO, (gpio_num_t)pin); } // OpenDrain
@@ -1468,7 +1469,8 @@ namespace lgfx
     {
 #if LGFX_LP_I2C_NUM > 0
       if (isLpPort(i2c_num))
-      { // HP 用の i2c_ll_reset_register は SoC の PCR I2C 配列を範囲外参照するため LP 専用関数を使う;
+      { // The HP i2c_ll_reset_register() indexes the PCR I2C array by port number on some SoCs
+        // (e.g. ESP32-C5), which is out of range for the LP port, so use the LP-specific function
         LGFX_RCC_NO_ATOMIC() {
           lp_i2c_ll_reset_register(i2c_num - LGFX_HP_I2C_NUM);
           (void)__DECLARE_RCC_ATOMIC_ENV;
@@ -1781,7 +1783,8 @@ namespace lgfx
       if (i2c_context[i2c_port].state == i2c_context_t::state_disconnect) { return res; }
       auto dev = getDev(i2c_port);
       typeof(dev->int_raw) int_raw;
-      int_raw.val = dev->int_raw.val; // ACK待ちステージをスキップした場合も後段の分岐で参照されるため必ず初期化する;
+      // Always initialize: the branch below reads it even when the ACK-wait stage is skipped
+      int_raw.val = dev->int_raw.val;
       static constexpr uint32_t intmask = I2C_ACK_ERR_INT_RAW_M | I2C_TIME_OUT_INT_RAW_M | I2C_END_DETECT_INT_RAW_M | I2C_ARBITRATION_LOST_INT_RAW_M;
 
       if (i2c_context[i2c_port].wait_ack_stage)
@@ -1868,14 +1871,16 @@ namespace lgfx
 
       if (flg_stop || res.has_error())
       {
+        // After an error the peripheral may already be force-stopped; a normal STOP command then
+        // never raises the completion interrupt and waits until the timeout, so take the force-stop path
 #if LGFX_I2C_REG_LAYOUT == 3
-// エラー発生後はペリフェラルが強制停止済みの場合があり、通常のSTOPコマンド発行では完了割り込みが来ずタイムアウトまで待たされるため強制STOP側へ分岐する;
         if (res.has_error() || i2c_context[i2c_port].state.has_error() || i2c_context[i2c_port].state == i2c_context_t::state_read || !int_raw.end_detect_int_raw)
 #else
         if (res.has_error() || i2c_context[i2c_port].state.has_error() || i2c_context[i2c_port].state == i2c_context_t::state_read || !int_raw.end_detect)
 #endif
         { // force stop
-          // state が既にエラーの場合はエラー検出箇所で停止済みのため再停止しない (res のエラーはこの呼び出しで検出されたもので未停止);
+          // If state already holds an error, the bus was stopped where it was detected; do not stop
+          // again (an error in res was detected in this call and is not stopped yet)
           if (!hw_stopped && (res.has_error() || !i2c_context[i2c_port].state.has_error()))
           {
             i2c_stop(i2c_port);

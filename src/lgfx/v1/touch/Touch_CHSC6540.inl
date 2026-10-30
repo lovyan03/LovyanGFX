@@ -76,15 +76,16 @@ namespace lgfx
           flip = !flip;
           size_t points = std::min<uint_fast8_t>(count, tmp[0]);
           if (points && !lgfx::i2c::readBytes(_cfg.i2c_port, &tmp[1], points * 6 - 2))
-          { // 座標を読み切れなかったフレームは破棄する (ゼロ埋めの座標を有効タッチとして返さないため);
+          { // Discard a frame whose coordinates could not be read fully (zero-filled coordinates
+            // must not be returned as a valid touch)
             tmp[0] = 0;
           }
         }
         if (lgfx::i2c::endTransaction(_cfg.i2c_port)) {}
         if (tmp[0] == 0 || memcmp(buf[0], buf[1], len) == 0) break;
       }
-      // リトライを使い切った場合はタッチ無しとせず直近の読み値を採用する。
-      // (指の移動中は連続読出しが一致しないため、return 0 だとフリックが取れない)
+      // When the retries are used up, keep the latest reading instead of reporting no touch.
+      // (Consecutive reads differ while the finger moves; returning 0 would drop flicks.)
       if (0 == --retry) { break; }
     }
     if (count > tmp[0]) count = tmp[0];

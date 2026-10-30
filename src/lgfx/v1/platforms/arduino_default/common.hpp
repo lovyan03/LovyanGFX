@@ -36,8 +36,8 @@ namespace lgfx
  {
 //----------------------------------------------------------------------------
 
-  /// spi_host に対応する Arduino の SPIClass インスタンスを返す。
-  /// 複数の SPI を持たない環境では常に既定の SPI を返す。
+  /// Returns the Arduino SPIClass instance for spi_host. Environments with a single SPI always
+  /// return the default SPI.
   __attribute__ ((unused))
   static inline SPIClass* getSPIInstance(int spi_host)
   {
@@ -53,7 +53,8 @@ namespace lgfx
     return &SPI;
   }
 
-  /// SPI_MODE0~3 の実値は環境依存のため、spi_mode の生値を SPISettings に渡さず変換する。
+  /// The values of SPI_MODE0..3 are platform dependent, so spi_mode is mapped instead of being
+  /// passed to SPISettings as is.
   __attribute__ ((unused))
   static inline uint8_t getSPIDataMode(int spi_mode)
   {
@@ -67,8 +68,8 @@ namespace lgfx
     }
   }
 
-  /// SPIClass::transfer(void*, size_t) は受信データでバッファを上書きするため、
-  /// 送信専用の転送は複製を経由して呼び出し元の入力を守る。
+  /// SPIClass::transfer(void*, size_t) overwrites the buffer with received data, so write-only
+  /// transfers go through a copy to keep the caller's input intact.
   __attribute__ ((unused))
   static inline void spiWriteBytes(SPIClass* spi, const uint8_t* data, size_t length)
   {

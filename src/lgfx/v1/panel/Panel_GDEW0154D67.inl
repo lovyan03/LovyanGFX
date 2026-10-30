@@ -176,7 +176,7 @@ epd_mode が epd_qualityか否かの変化をした場合も同様にCMD_DISPLAY
     // 0b00001100 = Display with DISPLAY Mode 2
     // 0b00000010 = Disable Analog
     // 0b00000001 = Disable clock signal
-    // epd_quality高品質モードではフリッキング更新を行う
+    // epd_quality uses the flicking (full) refresh
       _range_mod.left = 0;
       _range_mod.right = _cfg.panel_width - 1;
       _range_mod.top = 0;
@@ -184,7 +184,8 @@ epd_mode が epd_qualityか否かの変化をした場合も同様にCMD_DISPLAY
 
       if (_initialize_seq) {
         _initialize_seq = false;
-        // リセット直後は起動シーケンス設定およびフレームバッファの転送を行う。ここではリフレッシュは行わない。
+        // Right after a reset, run the power-up sequence and send the frame buffer. No refresh here
+        // (0xF8 has no DISPLAY bit).
         // Send the normal frame here: with the inverted one, the flip draw below ended inverted
         // (white and black swapped) whenever this was the first display() after a reset.
         _bus->writeCommand(cmd_display_update_control_2, 8);
@@ -194,14 +195,14 @@ epd_mode が epd_qualityか否かの変化をした場合も同様にCMD_DISPLAY
         _send_msec = millis();
       }
 
-      // epd_qualityの場合は反転描画は不要になる。
-      // 他のモードに変更した直後は反転描画を行う。
+      // epd_quality does not need the inverted frame; right after switching to any other mode it
+      // does.
       need_flip_draw = (epd_mode != epd_mode_t::epd_quality);
       _epd_frame_switching = need_flip_draw;
       if (!need_flip_draw)
       {
         if (_epd_frame_back)
-        {  // フレームバッファ2番に送信される場合はモード変更前に一度描画更新を行う
+        {  // If the panel is about to write frame buffer 2, refresh once before changing the mode
           _epd_frame_back = false;
           _exec_transfer(cmd_write_ram_bw, _range_mod);
           _bus->writeCommand(cmd_master_activation, 8); // Active Display update
@@ -227,7 +228,7 @@ epd_mode が epd_qualityか否かの変化をした場合も同様にCMD_DISPLAY
     _bus->writeCommand(cmd_master_activation, 8); // Active Display update
     _send_msec = millis();
     if (need_flip_draw)
-    { // 反転リフレッシュを自前でやる場合
+    { // The inverted refresh is done by the driver itself
       _exec_transfer(cmd_write_ram_bw, tr);
       _bus->writeCommand(cmd_master_activation, 8); // Active Display update
       _send_msec = millis();
