@@ -210,6 +210,7 @@ namespace lgfx
       auto pal = static_cast<const TPalette*>(param->palette);
       auto transp = param->transp;
 
+      if (index == last) { return index; }
       uint32_t remain = last - index;
       const auto src_x32_add = param->src_x32_add;
       const auto src_y32_add = param->src_y32_add;
@@ -221,10 +222,11 @@ namespace lgfx
         if (prev_raw == transp) { break; }
         auto color = color_convert<TDst, TPalette>(pal[prev_raw].get());
         uint32_t color_len = 0;
-        while (color_len < remain) {
+        for (;;) {
           ++color_len;
           param->src_x32 += src_x32_add;
           param->src_y32 += src_y32_add;
+          if (color_len == remain) { break; } // do not read past the last pixel
           int i = (param->src_x + param->src_y * param->src_bitwidth);
           if (prev_i == i) { continue; }
           prev_i = i;
