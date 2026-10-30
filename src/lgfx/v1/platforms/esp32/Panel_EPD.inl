@@ -42,10 +42,9 @@ namespace lgfx
 
 #define LUT_MAKE(d0,d1,d2,d3,d4,d5,d6,d7,d8,d9,da,db,dc,dd,de,df) (uint32_t)((d0<< 0)|(d1<< 2)|(d2<< 4)|(d3<< 6)|(d4<< 8)|(d5<<10)|(d6<<12)|(d7<<14)|(d8<<16)|(d9<<18)|(da<<20)|(db<<22)|(dc<<24)|(dd<<26)|(de<<28)|(df<<30))
 
-// LUTの横軸は色の濃さ。左端が 黒、右端が白の16段階のグレースケール。
-// LUTの縦軸は時間軸。上から順に下に向かって処理が進んでいく。
-// 値の意味は 0 == end of data / 1 == to black / 2 == to white / 3 == no operation
-// LUT_MAKE１行あたり 1フレーム分の16階調それぞれの動作が定義される。
+// LUT columns: gray level, 16 steps from black (left) to white (right). LUT rows: time, processed
+// from top to bottom. Values: 0 == end of data / 1 == to black / 2 == to white / 3 == no operation
+// One LUT_MAKE row defines the action of each of the 16 levels for one frame.
   static constexpr const uint32_t lut_quality[] = {
     LUT_MAKE(1, 1, 1, 1, 1, 1, 1, 2, 1, 2, 2, 1, 1, 1, 1, 1),
     LUT_MAKE(2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2),
@@ -113,8 +112,8 @@ namespace lgfx
     0u,
   };
 
-  // 消去用LUT 。現在の階調から中間階調付近にシフトさせる。
-  // このLUTは単独では使用せず、この後に本来の描画を行う。
+  // Erase LUT: shifts the current level toward mid gray. Never used alone; the actual drawing
+  // follows it.
   static constexpr const uint32_t lut_eraser[] = {
     LUT_MAKE(2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 1, 1),
     LUT_MAKE(2, 2, 3, 3, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
@@ -191,17 +190,18 @@ namespace lgfx
     lut_total_step += _config_detail.lut_fast_step;
     lut_total_step += _config_detail.lut_fastest_step;
 
-    // EPD制御用LUT (2ピクセルセット)
+    // LUT for EPD control (2-pixel sets)
     _lut_2pixel = (uint8_t *)heap_caps_malloc(lut_total_step * 256 * sizeof(uint16_t), MALLOC_CAP_DMA);
 
-    // リフレッシュの進行状況付きフレームバッファ (下位8bitはピクセル2個分の16階調値そのまま)
-    // 偶数インデクスは処理中のバッファ、奇数インデクスは予約バッファ。処理中のバッファの完了時に予約バッファの値が参照される。
+    // Frame buffer with refresh progress (the low 8 bits hold the two 4-bit pixel values as is).
+    // Even index = entry being processed, odd index = pending entry; the pending value is taken
+    // over when the current one completes.
     _step_framebuf = (uint16_t *)heap_caps_aligned_alloc(16, (memory_w * memory_h / 2) * 2 * sizeof(uint16_t), MALLOC_CAP_SPIRAM); // current pixels
 
-    // 面積分のフレームバッファ (1Byte=2pixel)
+    // Frame buffer for the panel area (1 byte = 2 pixels)
     _buf = (uint8_t *)heap_caps_aligned_alloc(16, (panel_w * panel_h) / 2, MALLOC_CAP_SPIRAM); // current pixels
 
-    // DMA転送用バッファx2 (1Byte=4pixel)
+    // Two DMA transfer buffers (1 byte = 4 pixels)
     const auto dma_len = memory_w / 4 + _config_detail.line_padding;
     _dma_bufs[0] = (uint8_t *)heap_caps_malloc(dma_len, MALLOC_CAP_DMA);
     _dma_bufs[1] = (uint8_t *)heap_caps_malloc(dma_len, MALLOC_CAP_DMA);
@@ -219,7 +219,7 @@ namespace lgfx
     memset(_dma_bufs[0], 0, dma_len);
     memset(_dma_bufs[1], 0, dma_len);
 
-    // グレーの初期値をセット
+    // Initial value: mid gray
     memset(_step_framebuf, 0x88, (memory_w * memory_h / 2) * 2 * sizeof(uint16_t));
 
     auto dst = _lut_2pixel;
@@ -258,7 +258,9 @@ namespace lgfx
       task_pinned_core = (xPortGetCoreID() + 1) % portNUM_PROCESSORS;
     }
     xTaskCreatePinnedToCore((TaskFunction_t)task_update, "epd", 4096, this, task_priority, &_task_update_handle, task_pinned_core);
-    // タスク側とメイン側の処理CPUコアが異なる場合、PSRAMのキャッシュ同期をしないとフレームバッファが即時反映されない点に注意
+    // The update task may run on another core. _buf is written back from the cache before the task
+    // reads it from PSRAM (cacheWriteBack in display()); without it the frame buffer would not be
+    // visible to the task immediately.
 
     return true;
   }
@@ -278,7 +280,7 @@ namespace lgfx
 
   bool Panel_EPD::displayBusy(void)
   {
-// キュー _update_queue_handle に余裕があるか調べる
+// Check whether the queue _update_queue_handle has room
     if (_update_queue_handle && uxQueueSpacesAvailable(_update_queue_handle) == 0) {
       return true;
     }
@@ -586,10 +588,10 @@ namespace lgfx
 __asm__ __volatile(
     " movi   " LPX ", 0                    \n"  // LPX = 0
     " addmi  " X80 ", " LPX ", -32768      \n"  // X80 = 0x8000
-    " loop     a5, BLT_BUFFER_END          \n"  // lenの回数だけループ命令で処理
+    " loop     a5, BLT_BUFFER_END          \n"  // loop len times
 
-    " movi   " BUF ", 0                    \n"  // 出力用バッファを0クリア
-    " l16si  " S_0 "," SRC ", 0            \n"  // S_0 = src[0]; // 元データを 8セット分 取得
+    " movi   " BUF ", 0                    \n"  // clear the output word
+    " l16si  " S_0 "," SRC ", 0            \n"  // S_0 = src[0]; load 8 entries of source data
     " l16si  " S_1 "," SRC ", 4            \n"  // S_1 = src[2];
     " l16si  " S_2 "," SRC ", 8            \n"  // S_2 = src[4];
     " l16si  " S_3 "," SRC ", 12           \n"  // S_3 = src[6];
@@ -598,7 +600,7 @@ __asm__ __volatile(
     " l16si  " S_6 "," SRC ", 24           \n"  // S_6 = src[12];
     " l16si  " S_7 "," SRC ", 28           \n"  // S_7 = src[14];
 
-    " bgei   " S_0 ",  0    , BLT_SECTION0 \n"  // データ値が負でない場合は更新処理を行うためジャンプ
+    " bgei   " S_0 ",  0    , BLT_SECTION0 \n"  // non-negative value = needs processing, jump
     " bgei   " S_1 ",  0    , BLT_SECTION1 \n"
     "BLT_RETURN1:                          \n"
     " bgei   " S_2 ",  0    , BLT_SECTION2 \n"
@@ -613,11 +615,11 @@ __asm__ __volatile(
     "BLT_RETURN6:                          \n"
     " bgei   " S_7 ",  0    , BLT_SECTION7 \n"
     "BLT_RETURN7:                          \n"
-    " s32i   " BUF "," DST ",  0           \n"  // データを出力
-    " addi   " SRC "," SRC ",  32          \n"  // 元データのポインタを進める
-    " addi   " DST "," DST ",  4           \n"  // 出力先のポインタを進める
-    "BLT_BUFFER_END:                       \n"  // ループ終端
-    " j        BLT_END                     \n"  // 関数終了
+    " s32i   " BUF "," DST ",  0           \n"  // store the output
+    " addi   " SRC "," SRC ",  32          \n"  // advance the source pointer
+    " addi   " DST "," DST ",  4           \n"  // advance the destination pointer
+    "BLT_BUFFER_END:                       \n"  // end of loop
+    " j        BLT_END                     \n"  // leave the function
 
     "BLT_SECTION0:                         \n"
     " add    " LPX "," S_0 "," LUT "       \n"  // LPX = &lut[S_0]
@@ -756,9 +758,10 @@ __asm__ __volatile(
     " j                       BLT_RETURN7  \n"
 
     "BLT_END:                              \n"
-    " mov      %0   ," LPX "               \n"  // 戻り値にLPXを指定する。処理ナシの場合 0 / データ処理が存在した場合 0以外となる
+    " mov      %0   ," LPX "               \n"  // return LPX: 0 if idle, non-zero if any data was processed
   :"=r"(result)::"a3","a4","a5","a6","a7","a8","a9","a10","a11","a12","a13","a14","a15");
-  // ASM側でDSTの値が操作され、EPDに対する更新がある場合は nullptr以外の値になるので、bool化して戻り値とする
+  // LPX is non-zero only when at least one section ran (each section ends with src[i] | 0x8000), so
+  // it doubles as the "EPD needs an update" flag
   return result;
 
 #undef DST
@@ -863,9 +866,9 @@ __asm__ __volatile(
   // entries that hold it. s0 already carries the LUT offset.
   static inline void step_fast(uint_fast16_t s0, uint16_t* d)
   {
-    // 既にリクエスト済みの内容と相違がある場合のみ更新
+    // Update only when it differs from what is already requested
     if (d[1] != s0) {
-      // 高速描画の場合は消去処理は行わず直接更新指示する。
+      // Fast mode: request the update directly, without the erase pass.
       d[1] = s0;
       d[0] = s0 - 0x8000;
     }
@@ -874,12 +877,12 @@ __asm__ __volatile(
   static inline void step_text(uint_fast16_t s0, uint16_t* d, uint_fast16_t white)
   {
     uint_fast16_t d1 = d[1] & 0x7FFF;
-    // 白以外またはリクエスト済みの内容と相違がある場合に更新
+    // Update when the previous request was not white, or when it differs from the new one
     if (white != d1 || d1 != s0) {
       uint_fast16_t d0 = d[0];
       d[1] = s0;
-      // 消去処理を挟んで更新指示する。(元の値の下位8bitのみを使用するとlut_eraser扱いになる)
-      // 既に消去処理動作中の場合は変更しない
+      // Request the update through the erase pass (keeping only the low 8 bits of the current value
+      // makes it start at lut_eraser). Leave it alone while the erase pass is already running.
       if (d0 >= (lut_eraser_step << 8)) {
         d[0] = (uint8_t)d0;
       }
@@ -888,12 +891,12 @@ __asm__ __volatile(
 
   static inline void step_quality(uint_fast16_t s0, uint16_t* d)
   {
-    // 既にリクエスト済みの内容と相違がある場合のみ更新
+    // Update only when it differs from what is already requested
     if (d[1] != s0) {
       uint_fast16_t d0 = d[0];
       d[1] = s0;
-      // 消去処理を挟んで更新指示する。(元の値の下位8bitのみを使用するとlut_eraser扱いになる)
-      // 既に消去処理動作中の場合は変更しない
+      // Request the update through the erase pass (keeping only the low 8 bits of the current value
+      // makes it start at lut_eraser). Leave it alone while the erase pass is already running.
       if (d0 >= (lut_eraser_step << 8)) {
         d[0] = (uint8_t)d0;
       }

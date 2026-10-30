@@ -1152,7 +1152,7 @@ namespace lgfx
         else if (*_spi_user_reg & SPI_CS_SETUP) { *_spi_user_reg &= ~(uint32_t)SPI_CS_SETUP; }   // do not inherit what the previous DMA transfer set
 #endif
 
-        // DMA準備完了待ち;
+        // wait until the DMA has data ready (OUTFIFO not empty)
  #if defined ( DMA_OUTFIFO_EMPTY_CH0 )
         while (*_spi_dma_outstatus_reg & DMA_OUTFIFO_EMPTY_CH0 ) {}
  #endif
@@ -1478,7 +1478,7 @@ label_start:
     uint32_t len = _dma_queue_bytes;
     _dma_queue_bytes = 0;
     set_write_len(len << 3);
-    // DMA準備完了待ち;
+    // wait until the DMA has data ready (OUTFIFO not empty)
  #if defined (SPI_DMA_OUTFIFO_EMPTY)
     while (*_spi_dma_outstatus_reg & SPI_DMA_OUTFIFO_EMPTY ) {}
  #else
@@ -1503,9 +1503,11 @@ label_start:
       auto pin_reg = reg(SPI_PIN_REG(_spi_port));
       auto cmd_reg = _spi_cmd_reg;
       auto value = *pin_reg;
-      // 反転した極性が SPI クロック域へ届く前に元へ戻すと、クロックは 1 度も動かず読み出しが 1 bit ずれる。
-      // 値を差し替える直前に、前の SPI_UPDATE (直前の beginRead() の分を含む) の完了 (自己クリア) を待つ。
-      // 復帰後は待たない: 続く readData() の USR|UPDATE が同じ復帰値を載せる (他の転送と同じ契約)
+      // If the polarity is restored before the inverted value reaches the SPI clock domain, the
+      // clock never toggles and the read is shifted by one bit. Right before swapping the value,
+      // wait for the previous SPI_UPDATE (including the one issued by beginRead()) to self-clear.
+      // No wait after restoring: the USR|UPDATE of the following readData() carries the same value
+      // (same contract as other transfers).
       while (*cmd_reg & SPI_UPDATE) {}
       *pin_reg = value ^ SPI_CK_IDLE_EDGE;
       *cmd_reg = SPI_UPDATE;
