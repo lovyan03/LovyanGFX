@@ -93,7 +93,7 @@ namespace lgfx
   #else
     dpi_config.pixel_format = LCD_COLOR_PIXEL_FORMAT_RGB565;
   #endif
-    dpi_config.num_fbs = 2;
+    dpi_config.num_fbs = 1; // drawing goes straight into this buffer; there is no page flip
     dpi_config.video_timing.h_size = _cfg.panel_width;
     dpi_config.video_timing.v_size = _cfg.panel_height;
     dpi_config.video_timing.hsync_back_porch  = _config_detail.hsync_back_porch;
