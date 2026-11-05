@@ -60,11 +60,11 @@ namespace lgfx
     void copyRect(uint_fast16_t dst_x, uint_fast16_t dst_y, uint_fast16_t w, uint_fast16_t h, uint_fast16_t src_x, uint_fast16_t src_y) override;
 
 
-    void setInvert(bool invert) override {}; // Not yet implemented.
-    void setSleep(bool flg) override {}; // Not yet implemented.
-    void setPowerSave(bool flg) override {}; // Not yet implemented.
-    uint32_t readCommand(uint_fast16_t cmd, uint_fast8_t index, uint_fast8_t len) override { return 0; }; // Not yet implemented.
-    uint32_t readData(uint_fast8_t index, uint_fast8_t len)  override { return 0; }; // Not yet implemented.
+    void setInvert(bool /*invert*/) override {}; // Not yet implemented.
+    void setSleep(bool /*flg*/) override {}; // Not yet implemented.
+    void setPowerSave(bool /*flg*/) override {}; // Not yet implemented.
+    uint32_t readCommand(uint_fast16_t /*cmd*/, uint_fast8_t /*index*/, uint_fast8_t /*len*/) override { return 0; }; // Not yet implemented.
+    uint32_t readData(uint_fast8_t /*index*/, uint_fast8_t /*len*/)  override { return 0; }; // Not yet implemented.
 
   protected:
 

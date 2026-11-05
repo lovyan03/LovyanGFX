@@ -77,7 +77,7 @@ namespace lgfx
 
 // ------------------------------------------------------------------------
 
-    /// ピン割り当ては Arduino の SPI ライブラリが持つ既定に従う。
+    /// Pin assignment follows the defaults of the Arduino SPI library.
     static SPIClass* _spi_instance = nullptr;
 
     cpp::result<void, error_t> init(int spi_host, int spi_sclk, int spi_miso, int spi_mosi)

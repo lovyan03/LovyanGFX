@@ -93,7 +93,7 @@ namespace lgfx
   {
     _cv_mat = cv::Mat(_cfg.memory_height, _cfg.memory_width, CV_8UC3);
     _img = _cv_mat.data;
-    sprintf(_window_name, "LGFX_OpenCV_%d", ++_window_no);
+    snprintf(_window_name, sizeof(_window_name), "LGFX_OpenCV_%d", ++_window_no);
 
     _list_mat.emplace_back(cvmat_info_t{ this, &_cv_mat, _window_name });
 //  _list_mat.push_back(std::make_pair(_window_name, &_cv_mat));

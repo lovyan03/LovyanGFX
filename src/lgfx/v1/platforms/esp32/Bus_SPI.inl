@@ -54,7 +54,12 @@ Contributors:
 #endif
 
 #if __has_include (<esp_private/periph_ctrl.h>)
+ #pragma GCC diagnostic push
+ #if defined(__GNUC__) && !defined(__clang__)
+  #pragma GCC diagnostic ignored "-Wliteral-suffix"
+ #endif
  #include <esp_private/periph_ctrl.h>
+ #pragma GCC diagnostic pop
 #else
  #include <driver/periph_ctrl.h>
 #endif
@@ -81,7 +86,8 @@ Contributors:
  #include <esp32-hal-cpu.h>
 #endif
 #include <driver/spi_master.h>
-// IDF 6 exposes the flash-encryption query from efuse rather than esp_flash_encrypt.h.
+// Whether flash encryption is enabled (decides whether external RAM may be a DMA source). On IDF 6,
+// esp_flash_encrypt.h is not visible outside its component; the replacement API is in efuse.
 #if defined ( ESP_IDF_VERSION ) && ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 0, 0) && __has_include(<esp_efuse.h>)
  #include <esp_efuse.h>
  #define LGFX_FLASH_ENCRYPTION_ENABLED() esp_efuse_is_flash_encryption_enabled()
@@ -89,7 +95,7 @@ Contributors:
  #include <esp_flash_encrypt.h>
  #define LGFX_FLASH_ENCRYPTION_ENABLED() esp_flash_encryption_enabled()
 #else
- #define LGFX_FLASH_ENCRYPTION_ENABLED() true
+ #define LGFX_FLASH_ENCRYPTION_ENABLED() true   // assume encryption when it cannot be determined (safe side)
 #endif
 
 #if defined ESP_IDF_VERSION_MAJOR && ESP_IDF_VERSION_MAJOR >= 5
@@ -140,6 +146,9 @@ Contributors:
   #define DMA_OUT_CONF0_CH0_REG      AXI_DMA_OUT_CONF0_CH0_REG
   #define DMA_OUT_RST_CH0            AXI_DMA_OUT_RST_CH0
   #define SIZE_OF_DMA_OUT_CH (sizeof(axi_dma_out_reg_t))
+  // AXI_DMA takes the descriptor address in a register of its own (LINK2) inside the channel block
+  #define DMA_OUT_LINK_ADDR_CH0_REG  AXI_DMA_OUT_LINK2_CH0_REG
+  #define DMA_OUT_LINK_ADDR_CH_STRIDE SIZE_OF_DMA_OUT_CH
  #elif defined AHB_DMA_OUT_LINK_CH0_REG
   #define DMA_OUT_LINK_CH0_REG       AHB_DMA_OUT_LINK_CH0_REG
   #define DMA_OUTFIFO_STATUS_CH0_REG AHB_DMA_OUTFIFO_STATUS_CH0_REG
@@ -148,11 +157,12 @@ Contributors:
   #define DMA_OUT_CONF0_CH0_REG      AHB_DMA_OUT_CONF0_CH0_REG
   #define DMA_OUT_RST_CH0            AHB_DMA_OUT_RST_CH0
   #define SIZE_OF_DMA_OUT_CH (sizeof(AHB_DMA.channel[0]))
-  // AHB_DMA 世代のうち C5/C61 は OUT_LINK レジスタが制御ビットのみになり、
-  // ディスクリプタアドレスは別レジスタ (チャンネルごとに 4 バイト刻み) へ書く;
-  // (同じ AHB_DMA でも H4 はアドレスレジスタをチャンネルブロック内に持つため対象外)
-  #if defined (CONFIG_IDF_TARGET_ESP32C5) || defined (CONFIG_IDF_TARGET_ESP32C61)
+  // The newer AHB_DMA keep only control bits in OUT_LINK and take the descriptor address
+  // in a register of its own. Where that register sits differs (a packed array of words on
+  // some chips, inside the channel block on others), so the stride is taken from the header
+  #if defined AHB_DMA_OUT_LINK_ADDR_CH0_REG
    #define DMA_OUT_LINK_ADDR_CH0_REG  AHB_DMA_OUT_LINK_ADDR_CH0_REG
+   #define DMA_OUT_LINK_ADDR_CH_STRIDE (AHB_DMA_OUT_LINK_ADDR_CH1_REG - AHB_DMA_OUT_LINK_ADDR_CH0_REG)
   #endif
  #else
   #if __has_include(<soc/gdma_struct.h>)
@@ -170,6 +180,25 @@ Contributors:
    #endif
    #define SIZE_OF_DMA_OUT_CH (sizeof(GDMA.channel[0]))
   #endif
+ #endif
+#endif
+
+#if defined ( LGFX_SPI_SCT )
+ // Free space in the GDMA TX FIFO. S3 has 3 levels (L1/L2/L3), C3 / C6 / H2 have 1.
+ #if defined ( GDMA_OUTFIFO_CNT_L2_CH0_S )
+  #define DMA_OUTFIFO_CNT(st) ((((st) >> GDMA_OUTFIFO_CNT_L1_CH0_S) & GDMA_OUTFIFO_CNT_L1_CH0_V) \
+                             + (((st) >> GDMA_OUTFIFO_CNT_L2_CH0_S) & GDMA_OUTFIFO_CNT_L2_CH0_V) \
+                             + (((st) >> GDMA_OUTFIFO_CNT_L3_CH0_S) & GDMA_OUTFIFO_CNT_L3_CH0_V))
+  #define DMA_OUTFIFO_FULL_CH  GDMA_OUTFIFO_FULL_L2_CH0
+ #elif defined ( GDMA_OUTFIFO_CNT_CH0_S )
+  #define DMA_OUTFIFO_CNT(st) (((st) >> GDMA_OUTFIFO_CNT_CH0_S) & GDMA_OUTFIFO_CNT_CH0_V)
+  #define DMA_OUTFIFO_FULL_CH  GDMA_OUTFIFO_FULL_CH0
+ #endif
+ // When Bus_SPI.hpp selects SCT from soc_caps but the register definitions are missing (a future chip / SDK),
+ // put empty definitions here instead and never use SCT at runtime (the inline code in the hpp refers to _sct_end, so the symbol is needed).
+ #if !defined ( DMA_OUTFIFO_CNT ) || !defined ( DMA_OUTLINK_START_CH0 ) || !defined ( SPI_USR_CONF ) || !defined ( SPI_DMA_SEG_MAGIC_VALUE_S ) \
+  || !defined ( SPI_DMA_AFIFO_RST ) || !defined ( SPI_CS_SETUP_TIME_S )
+  #define LGFX_SPI_SCT_STUB
  #endif
 #endif
 
@@ -191,8 +220,10 @@ namespace lgfx
  {
 //----------------------------------------------------------------------------
 
-  // Keep descriptor writes before the register write that starts DMA.
+  // Keep the compiler from moving writes to descriptors and CONF buffers read by DMA after the register write
+  // that starts DMA (IDF's dma_descriptor_t fields are not volatile).
   static inline void dma_desc_fence(void) { __asm__ __volatile__ ("" ::: "memory"); }
+
 
 #if defined (LGFX_SPI_CLOCK_TAKEOVER)
 #pragma GCC diagnostic push
@@ -387,6 +418,22 @@ namespace lgfx
   }
 #endif
 
+#if defined ( LGFX_SPI_SCT ) && !defined ( LGFX_SPI_SCT_STUB )
+  // Constants shared by SCT chain construction
+  namespace
+  {
+    // PREP length (SPI clocks - 1). Switching from CONF to DOUT takes a fixed 4 APB clocks (measured):
+    // 1 SPI clock at 20 MHz (= 4 APB) works; 1 clock at 26.7/40/50/60 MHz fails and 2 clocks work.
+    // A divider of 1 (SPI = APB) still needs 4 clocks, so 8 clocks are used for a 2x margin.
+    constexpr uint32_t sct_setup_time = 7;
+    constexpr uint32_t sct_seg_bytes = (SPI_MS_DATA_BITLEN + 1) >> 3;   // 32 KB (limit of one transaction)
+    constexpr uint32_t sct_conf_words = 4;   // bitmap + USER + USER1 + MS_DLEN
+    constexpr uint32_t sct_conf_bytes = sct_conf_words * 4;
+    constexpr uint32_t sct_magic = 0xA;
+    constexpr uint32_t sct_bitmap = (sct_magic << 28) | (1u << 3) | (1u << 4) | (1u << 6);
+  }
+#endif
+
   void Bus_SPI::config(const config_t& cfg)
   {
     _cfg = cfg;
@@ -395,6 +442,14 @@ namespace lgfx
     _spi_port = spi_port;
     _spi_w0_reg           = reg(SPI_W0_REG(          spi_port));
     _spi_cmd_reg          = reg(SPI_CMD_REG(         spi_port));
+#if defined ( LGFX_SPI_SCT )
+    _spi_slave_reg        = reg(SPI_SLAVE_REG(       spi_port));
+#if defined ( LGFX_SPI_SCT_DISABLE ) || defined ( LGFX_SPI_SCT_STUB )
+    _sct_ok = false;
+#else
+    _sct_ok = LGFX_SPI_SCT_PERIPH(_cfg.spi_host) != 0;   // S3 / C3 / C6 etc.: GP-SPI2 only
+#endif
+#endif
     _spi_user_reg         = reg(SPI_USER_REG(        spi_port));
     _spi_mosi_dlen_reg    = reg(SPI_MOSI_DLEN_REG(   spi_port));
 #if defined ( SOC_GDMA_SUPPORTED )
@@ -435,7 +490,7 @@ namespace lgfx
   {
 #if defined ( DMA_OUT_RST_CH0 )
     if (_spi_dma_out_conf0_reg)
-    {
+    { // plain assignments: compound assignment on a volatile lvalue is deprecated in C++20 (-Wvolatile on IDF 5.1)
       *_spi_dma_out_conf0_reg = *_spi_dma_out_conf0_reg | DMA_OUT_RST_CH0;
       *_spi_dma_out_conf0_reg = *_spi_dma_out_conf0_reg & ~(uint32_t)DMA_OUT_RST_CH0;
     }
@@ -481,13 +536,12 @@ namespace lgfx
       _spi_dma_out_conf0_reg = reg(DMA_OUT_CONF0_CH0_REG      + assigned_dma_ch * SIZE_OF_DMA_OUT_CH);
       #endif
       #if defined ( LGFX_PSRAM_DMA_CAPABLE ) && !(defined ( SOC_AHB_GDMA_VERSION ) && SOC_AHB_GDMA_VERSION == 1)
-      // Encrypted external RAM requires 16-byte address and length alignment on AHB v2 / AXI.
+      // AHB GDMA v2 / AXI DMA require 16-byte alignment of address and length for external RAM DMA when flash
+      // encryption is enabled (IDF's gdma_config_transfer). Lengths are not aligned here, so external RAM uses the CPU.
       _psram_dma_ok = !LGFX_FLASH_ENCRYPTION_ENABLED();
       #endif
-      #if defined ( CONFIG_IDF_TARGET_ESP32P4 )
-      _spi_dma_out_link2_reg = reg(AXI_DMA_OUT_LINK2_CH0_REG  + assigned_dma_ch * SIZE_OF_DMA_OUT_CH);
-      #elif defined ( DMA_OUT_LINK_ADDR_CH0_REG )
-      _spi_dma_out_link2_reg = reg(DMA_OUT_LINK_ADDR_CH0_REG  + assigned_dma_ch * sizeof(uint32_t));
+      #if defined ( DMA_OUT_LINK_ADDR_CH0_REG )
+      _spi_dma_out_link2_reg = reg(DMA_OUT_LINK_ADDR_CH0_REG  + assigned_dma_ch * DMA_OUT_LINK_ADDR_CH_STRIDE);
       #endif
     }
 #elif defined ( CONFIG_IDF_TARGET_ESP32 ) || !defined ( CONFIG_IDF_TARGET )
@@ -532,6 +586,13 @@ namespace lgfx
 #endif
     if (!_inited) return;
     _inited = false;
+    // Only when DMA / SCT cleanup is pending (we arrived without endTransaction, so still inside our own transaction),
+    // wait for the transfer and clean up. Otherwise the bus may already be released, so leave it alone.
+    if (_clear_dma_reg
+#if defined ( LGFX_SPI_SCT )
+     || _sct_active
+#endif
+       ) { dc_control(true); }
     spi::release(_cfg.spi_host);
     gpio_reset(_cfg.pin_dc  );
 
@@ -602,6 +663,14 @@ namespace lgfx
     *_spi_user_reg = _user_reg;
     auto spi_port = _spi_port;
     (void)spi_port;
+#if defined ( LGFX_SPI_SCT ) && !defined ( LGFX_SPI_SCT_STUB )
+    // PREP length (SPI clocks - 1). Set with CS_SETUP for DMA transfers and each SCT segment.
+    if (_sct_ok)
+    {
+      auto user1 = reg(SPI_USER1_REG(spi_port));
+      *user1 = (*user1 & ~(uint32_t)(SPI_CS_SETUP_TIME_V << SPI_CS_SETUP_TIME_S)) | (sct_setup_time << SPI_CS_SETUP_TIME_S);
+    }
+#endif
     writereg(SPI_PIN_REG(spi_port), pin);
     writereg(SPI_CLOCK_REG(spi_port), clkdiv_write);
 #if defined ( SPI_UPDATE )
@@ -648,7 +717,6 @@ namespace lgfx
 #if defined LGFX_USE_QSPI
     // reg for sending data in 1-bit mode
     auto qspi_user_reg = _spi_user_reg;
-    uint32_t qspi_user = (*qspi_user_reg & (~SPI_FWRITE_QUAD));
 #endif
 
 #if !defined ( CONFIG_IDF_TARGET ) || defined ( CONFIG_IDF_TARGET_ESP32 )
@@ -660,6 +728,10 @@ namespace lgfx
       _clear_dma_reg = nullptr;
       while (*spi_cmd_reg & SPI_USR) {}    // wait SPI
       *dma = 0;
+#if defined ( LGFX_SPI_SCT )
+      if (_sct_active) { _sct_end(); }
+      if (_sct_ok) { *_spi_user_reg &= ~(uint32_t)SPI_CS_SETUP; }
+#endif
     }
     else
     {
@@ -668,8 +740,9 @@ namespace lgfx
 #endif
 
 #if defined LGFX_USE_QSPI
+    // Read USER after waiting for SPI_USR (during SCT it shows values loaded from the conf).
     if( _is_quad_spi)
-      *qspi_user_reg = qspi_user;
+      *qspi_user_reg = (*qspi_user_reg & ~(uint32_t)(SPI_FWRITE_QUAD | SPI_CS_SETUP));
 #endif
     *spi_mosi_dlen_reg = bit_length;   // set bitlength
     *spi_w0_reg = data;                // set data
@@ -691,7 +764,6 @@ namespace lgfx
 #if defined LGFX_USE_QSPI
     // reg for sending data in 4-bit mode
     auto qspi_user_reg = _spi_user_reg;
-    uint32_t qspi_user = (*qspi_user_reg | SPI_FWRITE_QUAD);
 #endif
 
 #if !defined ( CONFIG_IDF_TARGET ) || defined ( CONFIG_IDF_TARGET_ESP32 )
@@ -703,6 +775,10 @@ namespace lgfx
       _clear_dma_reg = nullptr;
       while (*spi_cmd_reg & SPI_USR) {}    // wait SPI
       *dma = 0;
+#if defined ( LGFX_SPI_SCT )
+      if (_sct_active) { _sct_end(); }
+      if (_sct_ok) { *_spi_user_reg &= ~(uint32_t)SPI_CS_SETUP; }
+#endif
     }
     else
     {
@@ -710,8 +786,9 @@ namespace lgfx
     }
 #endif
 #if defined LGFX_USE_QSPI
+    // Read USER after waiting for SPI_USR (during SCT it shows values loaded from the conf).
     if( _is_quad_spi)
-      *qspi_user_reg = qspi_user;
+      *qspi_user_reg = (*qspi_user_reg & ~(uint32_t)SPI_CS_SETUP) | SPI_FWRITE_QUAD;
 #endif
     *spi_mosi_dlen_reg = bit_length;   // set bitlength
     *spi_w0_reg = data;                // set data
@@ -743,6 +820,10 @@ namespace lgfx
       while (*spi_cmd_reg & SPI_USR);    // wait SPI
 #if defined ( CONFIG_IDF_TARGET ) && !defined ( CONFIG_IDF_TARGET_ESP32 )
       if (dma) { *dma = 0; }
+#if defined ( LGFX_SPI_SCT )
+      if (_sct_active) { _sct_end(); }
+      if (_sct_ok) { *_spi_user_reg &= ~(uint32_t)SPI_CS_SETUP; }
+#endif
 #endif
 #if defined LGFX_USE_QSPI
       if( _is_quad_spi)
@@ -778,6 +859,10 @@ namespace lgfx
     while (*spi_cmd_reg & SPI_USR) {}  // wait SPI
 #if defined ( CONFIG_IDF_TARGET ) && !defined ( CONFIG_IDF_TARGET_ESP32 )
     if (dma) { *dma = 0; }
+#if defined ( LGFX_SPI_SCT )
+    if (_sct_active) { _sct_end(); }
+    if (_sct_ok) { *_spi_user_reg &= ~(uint32_t)SPI_CS_SETUP; }
+#endif
 #endif
 #if defined LGFX_USE_QSPI
     if( _is_quad_spi)
@@ -996,14 +1081,13 @@ namespace lgfx
       }
       if (use_dma)
       {
-        // heap_capable_dma() tests internal RAM; preserve the SPI external-RAM path below.
-        if (!heap_capable_dma(data)
+        // Route sources outside DMA-addressable memory through CPU output.
+        if (!heap_capable_dma(data)) { writeBytes(data, length, dc, false); return; }
+        bool synced = false;
 #if defined ( LGFX_PSRAM_DMA_CAPABLE )
-         && !esp_ptr_external_ram(data)
-#endif
-           ) { writeBytes(data, length, dc, false); return; }
-#if defined ( LGFX_PSRAM_DMA_CAPABLE )
-        // A short head before the next 64-byte boundary can stall GDMA on ESP32-S3.
+        // When the source is external RAM, align its start to a DMA block boundary before handing it to DMA.
+        // On S3 the GDMA is confirmed to stall when the first descriptor has 8 to 15 bytes before the boundary,
+        // so those bytes are written by the CPU first. A short remainder under one block goes to the CPU for the same reason.
         if (esp_ptr_external_ram(data))
         {
           uint32_t head = (uint32_t)(-(intptr_t)data) & (dma_ext_align - 1);
@@ -1013,6 +1097,7 @@ namespace lgfx
           // offset set by the buffer address rather than by pixel boundaries. Panels that buffer
           // pixels (the Module Display FPGA) mis-handle that stall.
           dma_cache_sync(data + head, length - head);
+          synced = true;
           if (head)
           {
             writeBytes(data, head, dc, false);
@@ -1021,31 +1106,35 @@ namespace lgfx
           }
         }
 #endif
+        if (!synced) { dma_cache_sync(data, length); }   // before the SCT path below can hand the buffer to the DMA
         auto spi_dma_out_link_reg = _spi_dma_out_link_reg;
-        #if defined ( CONFIG_IDF_TARGET_ESP32P4 ) || defined ( DMA_OUT_LINK_ADDR_CH0_REG )
+        #if defined ( DMA_OUT_LINK_ADDR_CH0_REG )
         auto spi_dma_out_link2_reg = _spi_dma_out_link2_reg;
         #endif
         auto cmd = _spi_cmd_reg;
         while (*cmd & SPI_USR) {}
         *spi_dma_out_link_reg = 0;
-        _setup_dma_desc_links(data, length);
-
-        #if defined ( CONFIG_IDF_TARGET_ESP32P4 )
-        if (!esp_ptr_external_ram(data))   // external RAM was written back above
+#if defined ( LGFX_SPI_SCT )
+        bool after_sct = _sct_active;
+        if (after_sct) { _sct_end(); }
+        if (_sct_ok && length > ((SPI_MS_DATA_BITLEN + 1) >> 3))
         {
-          esp_cache_msync((void*)data, sizeof(uint8_t) * length, ESP_CACHE_MSYNC_FLAG_DIR_C2M | ESP_CACHE_MSYNC_FLAG_UNALIGNED);
+          *_gpio_reg_dc[dc] = _mask_reg_dc;
+          if (_sct_start(data, length)) { return; }
         }
-        esp_cache_msync(_dmadesc, sizeof(dma_desc_t) * _dmadesc_size, ESP_CACHE_MSYNC_FLAG_DIR_C2M | ESP_CACHE_MSYNC_FLAG_UNALIGNED);
-        #endif
+#endif
+        _setup_dma_desc_links(data, length);
+        dma_cache_sync(_dmadesc, sizeof(dma_desc_t) * _dmadesc_size);
 #if defined ( SOC_GDMA_SUPPORTED ) && defined ( DMA_OUTLINK_START_CH0 )
         dma_channel_reset();
         auto dma = reg(SPI_DMA_CONF_REG(_spi_port));
         *dma = 0; /// Clear previous transfer
-#if defined ( SPI_DMA_AFIFO_RST ) && defined ( SPI_BUF_AFIFO_RST ) && defined ( SPI_RX_AFIFO_RST )
+#if defined ( LGFX_SPI_SCT ) && !defined ( LGFX_SPI_SCT_STUB )
+        // Reset AFIFO before the transfer as in TRM 30.5.7 (IDF's spi_hal also does it before every transfer).
         *dma = SPI_DMA_AFIFO_RST | SPI_BUF_AFIFO_RST | SPI_RX_AFIFO_RST;
 #endif
         uint32_t len = ((length - 1) & ((SPI_MS_DATA_BITLEN)>>3)) + 1;
-        #if defined ( CONFIG_IDF_TARGET_ESP32P4 ) || defined ( DMA_OUT_LINK_ADDR_CH0_REG )
+        #if defined ( DMA_OUT_LINK_ADDR_CH0_REG )
         *spi_dma_out_link2_reg = ((uint32_t)(_dmadesc));
         *spi_dma_out_link_reg = DMA_OUTLINK_START_CH0 ;
         #else
@@ -1055,8 +1144,15 @@ namespace lgfx
         _clear_dma_reg = dma;
         set_write_len(len << 3);
         *_gpio_reg_dc[dc] = _mask_reg_dc;
+#if defined ( LGFX_SPI_SCT )
+        // A normal DMA transfer started right after SCT replaces its first byte with a leftover from the previous stream,
+        // even after an AFIFO reset (measured). A PREP removes it as for SCT segments, so CS_SETUP is set for this one
+        // transfer (cleared at the start of the next CPU-buffer transfer). It does not happen after a CPU-buffer transfer.
+        if (after_sct) { *_spi_user_reg |= SPI_CS_SETUP; }
+        else if (*_spi_user_reg & SPI_CS_SETUP) { *_spi_user_reg &= ~(uint32_t)SPI_CS_SETUP; }   // do not inherit what the previous DMA transfer set
+#endif
 
-        // DMA準備完了待ち;
+        // wait until the DMA has data ready (OUTFIFO not empty)
  #if defined ( DMA_OUTFIFO_EMPTY_CH0 )
         while (*_spi_dma_outstatus_reg & DMA_OUTFIFO_EMPTY_CH0 ) {}
  #endif
@@ -1203,11 +1299,10 @@ label_start:
       return;
     }
 
-    // Drain queued descriptors before CPU output; writeBytes() may reuse their flip buffer.
-    // External RAM remains eligible only when this SPI bus can DMA it without flash encryption.
+    // Drain queued descriptors before CPU output: writeBytes() may reuse their flip buffer.
     if (!heap_capable_dma(data)
 #if defined ( LGFX_PSRAM_DMA_CAPABLE )
-     && !(_psram_dma_ok && esp_ptr_external_ram(data))
+     || (!_psram_dma_ok && esp_ptr_external_ram(data))
 #endif
        )
     {
@@ -1216,13 +1311,9 @@ label_start:
       writeBytes(data, length, true, false);
       return;
     }
-    // A queued source must not be changed after submission.
-#if defined ( CONFIG_IDF_TARGET_ESP32P4 )
-    esp_cache_msync((void*)data, length, ESP_CACHE_MSYNC_FLAG_DIR_C2M | ESP_CACHE_MSYNC_FLAG_UNALIGNED);
-#else
-    dma_cache_sync(data, length);
-#endif
 
+    // Written back when queued (changing the buffer after queuing is not allowed by the DMA contract anyway).
+    dma_cache_sync(data, length);
     _dma_queue_bytes += length;
     size_t index = _dma_queue_size;
     size_t new_size = index + ((length-1) / SPI_MAX_DMA_LEN) + 1;
@@ -1276,9 +1367,11 @@ label_start:
       _dma_queue[index].next = &_dma_queue[index + 1];
     }
 
-    dma_desc_t* first = &_dma_queue[0];
+    // Unused on targets that start the queue some other way.
+    __attribute__((unused)) dma_desc_t* first = &_dma_queue[0];
 #if defined ( LGFX_PSRAM_DMA_CAPABLE )
-    // Only the first external-RAM descriptor needs its head aligned to a DMA block.
+    // If the first descriptor is in external RAM, align its start to a DMA block boundary (same reason as writeBytes).
+    // The head is sent by the CPU and the descriptor's start and length are trimmed. A short descriptor is sent whole by the CPU.
     for (;;)
     {
       auto buf = (const uint8_t*)first->buffer;
@@ -1286,7 +1379,7 @@ label_start:
       uint32_t head = (uint32_t)(-(intptr_t)buf) & (dma_ext_align - 1);
       uint32_t len = first->dw0.length;
       if (_psram_dma_ok && head == 0 && len >= dma_ext_align) { break; }
-      if (!_psram_dma_ok || head >= len || len - head < dma_ext_align)
+      if (!_psram_dma_ok || head >= len || len - head < dma_ext_align)   // a short descriptor goes whole to the CPU
       {
         // Send in register-sized pieces: a longer non-DMA writeBytes copies through
         // the flip buffer, which a later queued getDMABuffer() buffer may share.
@@ -1299,7 +1392,7 @@ label_start:
           writeBytes((const uint8_t*)piece, n, true, false);
         }
         _dma_queue_bytes -= len;
-        if (first->dw0.suc_eof) { _dma_queue_bytes = 0; return; }
+        if (first->dw0.suc_eof) { _dma_queue_bytes = 0; return; }   // everything was sent by the CPU
         first = (dma_desc_t*)first->next;
         continue;
       }
@@ -1316,20 +1409,30 @@ label_start:
     std::swap(_dmadesc, _dma_queue);
     std::swap(_dmadesc_size, _dma_queue_capacity);
     dma_desc_fence();
-#if defined ( CONFIG_IDF_TARGET_ESP32P4 )
-    esp_cache_msync(_dmadesc, sizeof(dma_desc_t) * _dmadesc_size, ESP_CACHE_MSYNC_FLAG_DIR_C2M | ESP_CACHE_MSYNC_FLAG_UNALIGNED);
-#endif
+    dma_cache_sync(_dmadesc, sizeof(dma_desc_t) * _dmadesc_size);
 
-    dc_control(true);
+#if defined ( LGFX_SPI_SCT )
+    bool after_sct = _sct_active;   // dc_control clears it during cleanup, so save it first
+#endif
+    dc_control(true);   // this also finishes SCT cleanup (_sct_end)
     *_spi_dma_out_link_reg = 0;
 
+#if defined ( LGFX_SPI_SCT )
+    if (_sct_ok && _dma_queue_bytes > ((SPI_MS_DATA_BITLEN + 1) >> 3))
+    {
+      uint32_t total = _dma_queue_bytes;
+      _dma_queue_bytes = 0;
+      if (_sct_start_chain(first, total)) { return; }
+      _dma_queue_bytes = total;   // fall back to the loop path if building fails
+    }
+#endif
 #if defined ( SOC_GDMA_SUPPORTED ) && defined ( DMA_OUTLINK_START_CH0 )
     dma_channel_reset();
     auto dma = reg(SPI_DMA_CONF_REG(_spi_port));
-#if defined ( SPI_DMA_AFIFO_RST ) && defined ( SPI_BUF_AFIFO_RST ) && defined ( SPI_RX_AFIFO_RST )
-    *dma = SPI_DMA_AFIFO_RST | SPI_BUF_AFIFO_RST | SPI_RX_AFIFO_RST;
+#if defined ( LGFX_SPI_SCT ) && !defined ( LGFX_SPI_SCT_STUB )
+    *dma = SPI_DMA_AFIFO_RST | SPI_BUF_AFIFO_RST | SPI_RX_AFIFO_RST;   // same reason as writeBytes
 #endif
-    #if defined ( CONFIG_IDF_TARGET_ESP32P4 ) || defined ( DMA_OUT_LINK_ADDR_CH0_REG )
+    #if defined ( DMA_OUT_LINK_ADDR_CH0_REG )
     *_spi_dma_out_link2_reg = ((uint32_t)(first));
     *_spi_dma_out_link_reg = DMA_OUTLINK_START_CH0;
     #else
@@ -1339,6 +1442,10 @@ label_start:
     _clear_dma_reg = dma;
     uint32_t len = ((_dma_queue_bytes - 1) & ((SPI_MS_DATA_BITLEN)>>3)) + 1;
     set_write_len(len << 3);
+#if defined ( LGFX_SPI_SCT )
+    if (after_sct) { *_spi_user_reg |= SPI_CS_SETUP; }   // same reason as writeBytes
+    else if (*_spi_user_reg & SPI_CS_SETUP) { *_spi_user_reg &= ~(uint32_t)SPI_CS_SETUP; }
+#endif
     // DMA準備完了待ち;
  #if defined ( DMA_OUTFIFO_EMPTY_CH0 )
     while (*_spi_dma_outstatus_reg & DMA_OUTFIFO_EMPTY_CH0 ) {}
@@ -1371,7 +1478,7 @@ label_start:
     uint32_t len = _dma_queue_bytes;
     _dma_queue_bytes = 0;
     set_write_len(len << 3);
-    // DMA準備完了待ち;
+    // wait until the DMA has data ready (OUTFIFO not empty)
  #if defined (SPI_DMA_OUTFIFO_EMPTY)
     while (*_spi_dma_outstatus_reg & SPI_DMA_OUTFIFO_EMPTY ) {}
  #else
@@ -1396,9 +1503,11 @@ label_start:
       auto pin_reg = reg(SPI_PIN_REG(_spi_port));
       auto cmd_reg = _spi_cmd_reg;
       auto value = *pin_reg;
-      // 反転した極性が SPI クロック域へ届く前に元へ戻すと、クロックは 1 度も動かず読み出しが 1 bit ずれる。
-      // 値を差し替える直前に、前の SPI_UPDATE (直前の beginRead() の分を含む) の完了 (自己クリア) を待つ。
-      // 復帰後は待たない: 続く readData() の USR|UPDATE が同じ復帰値を載せる (他の転送と同じ契約)
+      // If the polarity is restored before the inverted value reaches the SPI clock domain, the
+      // clock never toggles and the read is shifted by one bit. Right before swapping the value,
+      // wait for the previous SPI_UPDATE (including the one issued by beginRead()) to self-clear.
+      // No wait after restoring: the USR|UPDATE of the following readData() carries the same value
+      // (same contract as other transfers).
       while (*cmd_reg & SPI_UPDATE) {}
       *pin_reg = value ^ SPI_CK_IDLE_EDGE;
       *cmd_reg = SPI_UPDATE;
@@ -1637,6 +1746,171 @@ label_start:
  #endif
 #endif
   }
+
+#if defined ( LGFX_SPI_SCT ) && defined ( LGFX_SPI_SCT_STUB )
+  void Bus_SPI::_sct_end(void) { _sct_active = false; }
+  void Bus_SPI::_sct_put_conf(dma_desc_t*&, uint32_t*&, uint32_t, uint32_t, uint32_t, bool) {}
+  bool Bus_SPI::_sct_exec(void) { return false; }
+  bool Bus_SPI::_sct_start_chain(dma_desc_t*, uint32_t) { return false; }
+  bool Bus_SPI::_sct_start(const uint8_t*, uint32_t) { return false; }
+#elif defined ( LGFX_SPI_SCT )
+  // Send a single DMA transfer over 32 KB with Segmented-Configure-Transfer (SCT, TRM 30.5.8.5). The CPU starts it only once.
+  // Chain = [conf0][data0 <=32 KB][conf1][data1]... Each conf is 4 words: bitmap + USER + USER1 + MS_DLEN
+  // (compact form holding only the registers selected by the bitmap). As in IDF's spi_master, usr_conf is set before
+  // SPI_USR and every segment starts through CONF. Only the last segment's conf clears CONF_NXT.
+  // Data descriptors are always split at segment boundaries (otherwise the rest is read as the next conf).
+  //
+  // Each conf sets SPI_CS_SETUP to put a PREP (cs_setup, no clock output) between CONF and DOUT. If DOUT starts right
+  // after CONF, buf_tx_afifo is not refilled in time and the first byte is stale (the value 8 bytes earlier) (measured on
+  // S3: at 40 MHz cs_setup_time=0 corrupts, 1 or more is clean). Hardware CS is not used, so it only acts as a delay.
+  // The usr_conf left after the transfer is cleared by _sct_end at the start of the next transfer. CS_SETUP in USER is
+  // handled per path: cleared at the start of a CPU-buffer transfer, and intentionally kept for the one normal DMA
+  // transfer right after SCT (see writeBytes).
+
+  void Bus_SPI::_sct_end(void)
+  {
+    _sct_active = false;
+    *_spi_slave_reg &= ~(uint32_t)SPI_USR_CONF;
+  }
+
+  // Write the conf for one segment and link its descriptor
+  void Bus_SPI::_sct_put_conf(dma_desc_t*& d, uint32_t*& conf, uint32_t user, uint32_t user1, uint32_t seg, bool last)
+  {
+    conf[0] = sct_bitmap;
+    conf[1] = last ? (user & ~(uint32_t)SPI_USR_CONF_NXT) : (user | SPI_USR_CONF_NXT);
+    conf[2] = user1;
+    conf[3] = (seg << 3) - 1;
+    d->buffer = (uint8_t*)conf;
+    *(uint32_t*)d = sct_conf_bytes | sct_conf_bytes << 12 | 0x80000000;
+    d->next = d + 1;
+    ++d; conf += sct_conf_words;
+  }
+
+  // Start SCT with a built chain. The caller closes the end of the descriptor chain.
+  // On false nothing was started and the caller sends through the normal path.
+  bool Bus_SPI::_sct_exec(void)
+  {
+    dma_desc_fence();
+    // Same order as IDF's spi_master: GDMA reset -> AFIFO reset -> TX_ENA -> GDMA start -> UPDATE -> USR
+    dma_channel_reset();
+    auto dma = reg(SPI_DMA_CONF_REG(_spi_port));
+    *dma = SPI_DMA_AFIFO_RST | SPI_BUF_AFIFO_RST | SPI_RX_AFIFO_RST;
+    *dma = SPI_DMA_TX_ENA;
+    *_spi_dma_out_link_reg = DMA_OUTLINK_START_CH0 | ((int)(_sct_desc) & 0xFFFFF);
+    _clear_dma_reg = dma;
+    *reg(SPI_DMA_INT_CLR_REG(_spi_port)) = SPI_DMA_SEG_TRANS_DONE_INT_CLR | SPI_SEG_MAGIC_ERR_INT_CLR;
+    *_spi_slave_reg = (sct_magic << SPI_DMA_SEG_MAGIC_VALUE_S) | SPI_USR_CONF;
+    _sct_active = true;
+    // Sync magic / usr_conf to the SPI clock domain before setting USR (writing them together ends at once on a magic mismatch)
+    *_spi_cmd_reg = SPI_UPDATE;
+    while (*_spi_cmd_reg & SPI_UPDATE) {}
+    // Wait until not only the first conf but the start of data0 reaches the GDMA FIFO. CONF finishes instantly, so with
+    // an external RAM source DOUT can start before data0 arrives and underflow (measured). GDMA prefetches until the FIFO
+    // is full when nothing is consumed, so once the FIFO holds more than the conf, data0 has arrived.
+    for (int guard = 100000; --guard; )
+    {
+      uint32_t st = *_spi_dma_outstatus_reg;
+      if (DMA_OUTFIFO_CNT(st) > sct_conf_bytes + 32 || (st & DMA_OUTFIFO_FULL_CH)) { exec_spi(); return true; }
+    }
+    // data0 did not arrive (a DMA fault). Cancel SCT and leave it to the normal path (the CPU restarts each segment).
+    // Restore the registers to their state before _sct_exec (usr_conf 0, TX_ENA 0, GDMA reset).
+    *_spi_dma_out_link_reg = 0;
+    dma_channel_reset();
+    *dma = 0;
+    _clear_dma_reg = nullptr;
+    *_spi_slave_reg &= ~(uint32_t)SPI_USR_CONF;
+    _sct_active = false;
+    return false;
+  }
+
+  // Send the row queue (descriptors linked by addDMAQueue) with SCT. A descriptor crossing a 32 KB boundary is
+  // split in two. On failure returns false and the caller falls back to the loop path.
+  bool Bus_SPI::_sct_start_chain(dma_desc_t* first, uint32_t total)
+  {
+    uint32_t src_count = 0;
+    for (dma_desc_t* p = first; p; p = (dma_desc_t*)p->next) { ++src_count; }
+    uint32_t segs = (total + sct_seg_bytes - 1) / sct_seg_bytes;
+    uint32_t need = src_count + segs * 2 + 1;
+    if (_sct_desc_capacity < need)
+    {
+      if (_sct_desc) { heap_caps_free(_sct_desc); _sct_desc = nullptr; }
+      if (_sct_conf) { heap_caps_free(_sct_conf); _sct_conf = nullptr; }
+      _sct_desc = (dma_desc_t*)heap_caps_malloc(sizeof(dma_desc_t) * need, MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
+      _sct_conf = (uint32_t*)heap_caps_malloc(sct_conf_bytes * ((need >> 1) + 1), MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
+      if (!_sct_desc || !_sct_conf) { _sct_desc_capacity = 0; return false; }
+      _sct_desc_capacity = need;
+    }
+    uint32_t user = *_spi_user_reg | SPI_CS_SETUP;
+    uint32_t user1 = *reg(SPI_USER1_REG(_spi_port));
+    dma_desc_t* d = _sct_desc;
+    uint32_t* conf = _sct_conf;
+    dma_desc_t* src = first;
+    uint32_t src_off = 0;
+    uint32_t remain = total;
+    while (remain)
+    {
+      uint32_t seg = remain < sct_seg_bytes ? remain : sct_seg_bytes;
+      remain -= seg;
+      _sct_put_conf(d, conf, user, user1, seg, remain == 0);
+      while (seg && src)
+      {
+        uint32_t avail = src->dw0.length - src_off;
+        uint32_t n = seg < avail ? seg : avail;
+        d->buffer = (uint8_t*)src->buffer + src_off;
+        *(uint32_t*)d = ((n + 3) & ~3u) | n << 12 | 0x80000000;
+        d->next = d + 1;
+        ++d;
+        src_off += n; seg -= n;
+        if (src_off >= src->dw0.length) { src = (dma_desc_t*)src->next; src_off = 0; }
+      }
+      if (seg) { return false; }   // the queue total does not match total (not expected)
+    }
+    --d;
+    d->dw0.suc_eof = 1;
+    d->next = nullptr;
+    return _sct_exec();
+  }
+
+  bool Bus_SPI::_sct_start(const uint8_t* data, uint32_t length)
+  {
+    constexpr uint32_t desc_per_seg = (sct_seg_bytes + SPI_MAX_DMA_LEN - 1) / SPI_MAX_DMA_LEN + 1;  // data + conf
+    uint32_t segs = (length + sct_seg_bytes - 1) / sct_seg_bytes;
+    uint32_t need = segs * desc_per_seg;
+    if (_sct_desc_capacity < need)
+    {
+      if (_sct_desc) { heap_caps_free(_sct_desc); _sct_desc = nullptr; }
+      if (_sct_conf) { heap_caps_free(_sct_conf); _sct_conf = nullptr; }
+      _sct_desc = (dma_desc_t*)heap_caps_malloc(sizeof(dma_desc_t) * need, MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
+      _sct_conf = (uint32_t*)heap_caps_malloc(sct_conf_bytes * ((need >> 1) + 1), MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
+      if (!_sct_desc || !_sct_conf) { _sct_desc_capacity = 0; return false; }
+      _sct_desc_capacity = need;
+    }
+    uint32_t user = *_spi_user_reg | SPI_CS_SETUP;
+    uint32_t user1 = *reg(SPI_USER1_REG(_spi_port));
+    dma_desc_t* d = _sct_desc;
+    uint32_t* conf = _sct_conf;
+    uint32_t remain = length;
+    while (remain)
+    {
+      uint32_t seg = remain < sct_seg_bytes ? remain : sct_seg_bytes;
+      remain -= seg;
+      _sct_put_conf(d, conf, user, user1, seg, remain == 0);
+      while (seg)
+      {
+        uint32_t n = seg < SPI_MAX_DMA_LEN ? seg : SPI_MAX_DMA_LEN;
+        d->buffer = (uint8_t*)data;
+        *(uint32_t*)d = ((n + 3) & ~3u) | n << 12 | 0x80000000;
+        d->next = d + 1;
+        data += n; seg -= n;
+        ++d;
+      }
+    }
+    --d;
+    d->dw0.suc_eof = 1;
+    d->next = nullptr;
+    return _sct_exec();
+  }
+#endif
 
   void Bus_SPI::_setup_dma_desc_links(const uint8_t *data, int32_t len)
   {          //spicommon_setup_dma_desc_links

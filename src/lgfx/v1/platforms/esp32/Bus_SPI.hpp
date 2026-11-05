@@ -22,17 +22,23 @@ Contributors:
 #include <hal/dma_types.h>
 #if __has_include(<soc/gdma_channel.h>)
  #include <soc/gdma_channel.h>
-#elif __has_include(<hal/gdma_channel.h>) // ESP-IDF 6
+#elif __has_include(<hal/gdma_channel.h>)
  #include <hal/gdma_channel.h>
 #endif
-// AXI DMA requires 16-byte descriptors aligned to 8 bytes for SPI transfers.
+// On chips whose SPI DMA goes through AXI (ESP32-P4) a descriptor is 16 bytes (8-byte aligned), as IDF's spi_dma_desc_t.
+// MALLOC_CAP_DMA allocations satisfy the alignment (IDF aligns them to the cache line).
 #if defined ( SOC_GDMA_BUS_AXI ) && defined ( SOC_GDMA_TRIG_PERIPH_SPI2_BUS ) && ( SOC_GDMA_TRIG_PERIPH_SPI2_BUS == SOC_GDMA_BUS_AXI )
  #define LGFX_SPI_DMA_DESC_ALIGN8
 #endif
 
 #if __has_include(<esp_private/spi_common_internal.h>)
  // ESP-IDF v5
+ #pragma GCC diagnostic push
+ #if defined(__GNUC__) && !defined(__clang__)
+  #pragma GCC diagnostic ignored "-Wliteral-suffix"
+ #endif
  #include <esp_private/spi_common_internal.h>
+ #pragma GCC diagnostic pop
 #elif __has_include(<driver/spi_common_internal.h>)
  // ESP-IDF v4
  #include <driver/spi_common_internal.h>
@@ -52,6 +58,39 @@ Contributors:
  #define LGFX_ESP32_SPI_DMA_CH 0
 #endif
 
+
+// Whether the chip has Segmented-Configure-Transfer (SCT).
+// One SPI transaction is limited to an 18-bit length (32 KB); longer transfers otherwise need the CPU to wait for
+// and restart each segment. With SCT a CONF buffer placed in the DMA chain lets the hardware move to the next
+// segment by itself, so the CPU starts the transfer only once.
+// Targets chips with both SCT and GDMA (S3 / C3 / C6 / C2 / H2). S2 has SCT but a different DMA, so it is excluded.
+// This decides the class layout, so only SDK headers are used (a user macro could make sizeof(Bus_SPI) differ
+// between translation units). To disable SCT, define LGFX_SPI_SCT_DISABLE for the translation unit that includes
+// Bus_SPI.inl (only the runtime flag _sct_ok becomes false; the layout does not change).
+#if __has_include(<soc/soc_caps.h>)
+ #include <soc/soc_caps.h>
+#endif
+#if __has_include(<esp_idf_version.h>)
+ #include <esp_idf_version.h>
+#endif
+#undef LGFX_SPI_SCT          // Internal. Overridden by the SDK check even if given from outside (avoids a redefinition warning)
+#undef LGFX_SPI_SCT_PERIPH   // (host): whether that SPI host supports SCT
+#if defined ( SOC_GDMA_SUPPORTED )
+ #if defined ( SOC_SPI_SCT_SUPPORTED ) && SOC_SPI_SCT_SUPPORTED && defined ( SOC_SPI_SCT_SUPPORTED_PERIPH )
+  #define LGFX_SPI_SCT_PERIPH(host) SOC_SPI_SCT_SUPPORTED_PERIPH(host)
+ #elif !defined ( SOC_SPI_SCT_SUPPORTED ) && defined ( ESP_IDF_VERSION_VAL ) \
+    && ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 1, 0) && __has_include(<hal/spi_ll.h>)
+  // ESP-IDF 6.1 moved the SCT capability from soc_caps.h to hal/spi_ll.h (SPI_LL_PERIPH_HAS_SCT).
+  #include <hal/spi_ll.h>
+  #if defined ( SPI_LL_PERIPH_HAS_SCT )
+   #define LGFX_SPI_SCT_PERIPH(host) SPI_LL_PERIPH_HAS_SCT(host)
+  #endif
+ #endif
+ #if defined ( LGFX_SPI_SCT_PERIPH )
+  #define LGFX_SPI_SCT
+ #endif
+#endif
+
 #include "../../Bus.hpp"
 #include "../common.hpp"
 
@@ -69,7 +108,7 @@ namespace lgfx
     using dma_desc_t = dma_descriptor_t;
 #endif
 #if defined ( CONFIG_IDF_TARGET_ESP32P4 )
-    static_assert(sizeof(dma_desc_t) == 16, "ESP32-P4 SPI DMA needs the 16-byte AXI descriptor");
+    static_assert(sizeof(dma_desc_t) == 16, "ESP32-P4 SPI DMA descriptor must be 16 bytes");
 #endif
 #if defined ( SPI_UPDATE )
     static constexpr uint32_t SPI_EXECUTE = SPI_USR | SPI_UPDATE;
@@ -179,6 +218,10 @@ namespace lgfx
         _clear_dma_reg = nullptr;
         while (*spi_cmd_reg & SPI_USR) {}    // wait SPI
         *dma = 0;
+#if defined ( LGFX_SPI_SCT )
+        if (_sct_active) { _sct_end(); }
+        if (_sct_ok) { *_spi_user_reg &= ~(uint32_t)SPI_CS_SETUP; }
+#endif
       }
       else
       {
@@ -197,6 +240,22 @@ namespace lgfx
     void _spi_dma_reset(void);
     void _setup_dma_desc_links(const uint8_t *data, int32_t len);
 
+#if defined ( LGFX_SPI_SCT )
+    // Segmented-Configure-Transfer (SCT): runs a single DMA transfer over 32 KB in hardware by placing a CONF buffer
+    // per segment in the DMA chain (the CPU starts it only once).
+    bool _sct_start(const uint8_t* data, uint32_t length);
+    bool _sct_start_chain(dma_desc_t* first, uint32_t total);
+    void _sct_put_conf(dma_desc_t*& d, uint32_t*& conf, uint32_t user, uint32_t user1, uint32_t seg, bool last);
+    bool _sct_exec(void);
+    void _sct_end(void);
+    volatile uint32_t* _spi_slave_reg = nullptr;
+    dma_desc_t* _sct_desc = nullptr;
+    uint32_t* _sct_conf = nullptr;
+    uint32_t _sct_desc_capacity = 0;   // descriptors allocated for _sct_desc (_sct_conf holds half of that + 1)
+    bool _sct_active = false;    // a transfer started with SCT is not cleaned up yet (usr_conf must be cleared)
+    bool _sct_ok = false;        // whether this bus uses SCT (GP-SPI2 only; false with LGFX_SPI_SCT_DISABLE)
+#endif
+
     config_t _cfg;
     FlipBuffer _flip_buffer;
     volatile uint32_t* _gpio_reg_dc[2] = { nullptr, nullptr };
@@ -206,14 +265,18 @@ namespace lgfx
     volatile uint32_t* _spi_user_reg = nullptr;
     volatile uint32_t* _spi_dma_out_link_reg = nullptr;
     volatile uint32_t* _spi_dma_out_conf0_reg = nullptr;
-    // The first external-RAM descriptor must begin on a DMA block boundary.
+    // Alignment of the start of a transfer from external RAM: the largest GDMA external memory block size
+    // (16/32/64 B, differs by IDF version). Only the first descriptor is aligned (an unaligned tail at later
+    // descriptor boundaries was confirmed not to stall).
     static constexpr uint32_t dma_ext_align = 64;
+    // Whether external RAM may be a DMA source (decided in init; if false, external RAM goes through the CPU).
     bool _psram_dma_ok = true;
+    // Reset the GDMA channel before each transfer so leftover data from an earlier abort (underflow etc.) is not carried over.
+    // Leftovers corrupt the next transfer whatever its source, so this is done on every GDMA chip and every transfer,
+    // not only on chips that support external RAM.
     void dma_channel_reset(void);
-    // P4 (AXI_DMA) と C5/C61 (AHB_DMA) はディスクリプタアドレスを OUT_LINK と別のレジスタへ書く;
-    #if defined (CONFIG_IDF_TARGET_ESP32P4) || defined (CONFIG_IDF_TARGET_ESP32C5) || defined (CONFIG_IDF_TARGET_ESP32C61)
+    // AXI_DMA and the newer AHB_DMA take the descriptor address in a register of its own (unused elsewhere)
     volatile uint32_t* _spi_dma_out_link2_reg = nullptr;
-    #endif
     volatile uint32_t* _spi_dma_outstatus_reg = nullptr;
     volatile uint32_t* _clear_dma_reg = nullptr;
     uint32_t _last_freq_apb = 0;

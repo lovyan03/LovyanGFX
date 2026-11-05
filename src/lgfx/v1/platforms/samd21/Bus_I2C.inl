@@ -203,7 +203,7 @@ namespace lgfx
     } while (length -= len);
   }
 
-  void Bus_I2C::writeBytes(const uint8_t* data, uint32_t length, bool dc, bool use_dma)
+  void Bus_I2C::writeBytes(const uint8_t* data, uint32_t length, bool dc, bool /*use_dma*/)
   {
     if (length < 64)
     {
@@ -234,7 +234,7 @@ namespace lgfx
     return res;
   }
 
-  bool Bus_I2C::readBytes(uint8_t* dst, uint32_t length, bool use_dma, bool last_nack)
+  bool Bus_I2C::readBytes(uint8_t* dst, uint32_t length, bool /*use_dma*/, bool last_nack)
   {
     beginRead();
     return i2c::readBytes(_cfg.sercom_index, dst, length, last_nack).has_value();

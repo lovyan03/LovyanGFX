@@ -224,7 +224,7 @@ namespace lgfx
 
     void initClockNVIC(size_t sercom_index)
     {
-      if (sercom_index < 0 || sercom_index >= SERCOM_INST_NUM) return;
+      if (sercom_index >= SERCOM_INST_NUM) return;
       auto sercomData = samd21::getSercomData(sercom_index);
       uint8_t   clockId = sercomData->clock;
       IRQn_Type IdNvic  = sercomData->irqn;

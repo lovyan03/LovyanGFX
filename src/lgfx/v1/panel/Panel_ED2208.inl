@@ -144,7 +144,7 @@ namespace lgfx
     return best;
   }
 
-  static void _dither_row_none(const lgfx::bgr888_t* src, uint8_t* dst, uint_fast16_t w, uint_fast16_t /*y*/, uint8_t /*dither*/ )
+  static void _dither_row_none(const lgfx::bgr888_t* src, uint8_t* dst, uint_fast16_t w, uint_fast16_t /*x0*/, uint_fast16_t /*y*/, uint8_t /*dither*/ )
   {
     auto palette = epd_palette;
     for (uint_fast16_t x = 0; x < w; x += 2) {
@@ -159,12 +159,12 @@ namespace lgfx
 
   // --- Dither: Bayer RGB (uniform bias on all channels) ---
 
-  static void _dither_row_bayer_simple_pair(const lgfx::bgr888_t* src, uint8_t* dst, uint_fast16_t w, uint_fast16_t y, uint8_t dither)
+  static void _dither_row_bayer_simple_pair(const lgfx::bgr888_t* src, uint8_t* dst, uint_fast16_t w, uint_fast16_t x0, uint_fast16_t y, uint8_t dither)
   {
     auto palette = epd_palette;
     auto row = &bayer256[( y    & 15) << 4];
     for (uint_fast16_t x = 0; x < w; x += 2) {
-      int32_t bias = row[x & 15];
+      int32_t bias = row[(x0 + x) & 15];
       bias = bias * 2 - 255;
       bias = bias * dither >> 8;
       int32_t r0 = (int32_t)src[x].r + bias;
@@ -174,7 +174,7 @@ namespace lgfx
       int32_t g1 = 0;
       int32_t b1 = 0;
       if (x + 1 < w) {
-        bias = row[(x + 1) & 15];
+        bias = row[(x0 + x + 1) & 15];
         bias = bias * 2 - 255;
         bias = bias * dither >> 8;
         r1 = (int32_t)src[x + 1].r + bias;
@@ -185,7 +185,7 @@ namespace lgfx
     }
   }
 
-  static void _dither_row_rgb_pair(const lgfx::bgr888_t* src, uint8_t* dst, uint_fast16_t w, uint_fast16_t y, uint8_t dither)
+  static void _dither_row_rgb_pair(const lgfx::bgr888_t* src, uint8_t* dst, uint_fast16_t w, uint_fast16_t x0, uint_fast16_t y, uint8_t dither)
   {
     auto palette = epd_palette;
 
@@ -195,7 +195,8 @@ namespace lgfx
     static constexpr size_t step_value = 129*127;
     static constexpr size_t step_diff = step_value / 3;
 
-    int32_t bias_base = y * y_step % step_value;
+    // Start from where a full row would be at x0, so a window dithers like the full screen.
+    int32_t bias_base = (y * y_step + step_value - x0 * x_step % step_value) % step_value;
     // Original scale was /4.0f; keep that at dither_level=255 and scale down linearly.
     int32_t r0 = 0, g0 = 0, b0 = 0;
     for (uint_fast16_t x = 0; x <= w; x ++) {
@@ -275,20 +276,17 @@ namespace lgfx
     _bus->writeData(data, 8);
   }
 
+  // Waits up to `timeout` ms for the controller to be idle. BUSY stays low for the whole
+  // AUTO sequence (no short high between its steps was seen at 0.1 ms sampling), so the
+  // first high ends the wait.
   bool Panel_ED2208::_wait_busy(uint32_t timeout)
   {
     _bus->wait();
-    if (_cfg.pin_busy >= 0 && !gpio_in(_cfg.pin_busy))
+    uint32_t start_time = millis();
+    while (displayBusy())
     {
-      uint32_t start_time = millis();
-      do
-      {
-        if (millis() - start_time > timeout) {
-          return false;
-        }
-        lgfx::delay(10);
-      } while (!gpio_in(_cfg.pin_busy));
-      lgfx::delay(200);
+      if (millis() - start_time >= timeout) { return false; }
+      lgfx::delay(10);
     }
     return true;
   }
@@ -316,37 +314,43 @@ namespace lgfx
     _bus->endTransaction();
   }
 
-  void Panel_ED2208::_turn_on_display(void)
+  // Starts a refresh and returns without waiting for it (15 to 30 s; BUSY is low meanwhile).
+  // The AUTO command runs POWER_ON -> DISPLAY_REFRESH -> POWER_OFF -> DEEP_SLEEP in the
+  // controller, so the panel is powered off when it ends even if nobody polls BUSY.
+  // The next display() or setSleep(false) wakes it with a reset.
+  void Panel_ED2208::_start_refresh(void)
   {
     _bus->beginTransaction();
     cs_control(false);
 
-    _send_command(0x04);    // POWER_ON
-    _wait_busy();
-    lgfx::delay(200);
-
-    _send_command(0x06);
+    _send_command(0x06);    // Booster soft start
     _send_data(0x6F);
     _send_data(0x1F);
     _send_data(0x17);
     _send_data(0x27);
-    lgfx::delay(200);
 
-    _send_command(0x12);    // DISPLAY_REFRESH
-    _send_data(0x00);
-    _wait_busy();
-
-    _send_command(0x02);    // POWER_OFF
-    _send_data(0x00);
-    _wait_busy();
-    lgfx::delay(200);
+    // Without a reset pin the controller could not be woken again: stop at POWER_OFF.
+    bool sleep = _cfg.pin_rst >= 0;
+    _send_command(0x17);    // AUTO
+    _send_data(sleep ? 0xA7 : 0xA5);  // POWER_ON, DISPLAY_REFRESH, POWER_OFF[, DEEP_SLEEP]
 
     _bus->wait();
     cs_control(true);
     _bus->endTransaction();
+    _asleep = sleep;
+    _refresh_started = true;
+    _refresh_ms = millis();
+
+    // Return once BUSY has gone low, so that a waitDisplay() or sleep() right after
+    // display() sees the refresh.
+    if (_cfg.pin_busy >= 0)
+    {
+      uint32_t start = millis();
+      while (gpio_in(_cfg.pin_busy) && millis() - start < 50) { lgfx::delay(1); }
+    }
   }
 
-  bool Panel_ED2208::init(bool use_reset)
+  bool Panel_ED2208::init(bool /*use_reset*/)
   {
     pinMode(_cfg.pin_busy, pin_mode_t::input_pullup);
 
@@ -382,19 +386,33 @@ namespace lgfx
     return true;
   }
 
+  // The controller is always reset before the init sequence. It wakes it from deep sleep
+  // (left by the previous refresh, or by a previous program: a command sent to a sleeping
+  // controller leaves BUSY low and every wait times out), and after MCU resets in the middle
+  // of a refresh BUSY was seen to stay low for over 100 s per refresh. The reset keeps the
+  // image on the panel. A refresh started by this instance is waited for first.
   void Panel_ED2208::_after_wake(void)
   {
+    if (_refresh_started) { _wait_busy(REFRESH_TIMEOUT_MS); }
+    _refresh_started = false;
+    _asleep = false;
+    rst_control(false);
+    lgfx::delay(20);
+    rst_control(true);
+    lgfx::delay(10);
     _init_sequence();
   }
 
   void Panel_ED2208::waitDisplay(void)
   {
-    _wait_busy();
+    _wait_busy(REFRESH_TIMEOUT_MS);
   }
 
   bool Panel_ED2208::displayBusy(void)
   {
-    return _cfg.pin_busy >= 0 && !gpio_in(_cfg.pin_busy);
+    if (_cfg.pin_busy >= 0) { return !gpio_in(_cfg.pin_busy); }
+    if (_refresh_started && millis() - _refresh_ms >= REFRESH_TIME_NO_BUSY_MS) { _refresh_started = false; }
+    return _refresh_started;
   }
 
   void Panel_ED2208::display(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h)
@@ -413,9 +431,18 @@ namespace lgfx
       _range_mod.top    = std::min<int_fast16_t>(_range_mod.top   , y        );
       _range_mod.bottom = std::max<int_fast16_t>(_range_mod.bottom, y + h - 1);
     }
+    _range_mod.left   = std::max<int_fast16_t>(_range_mod.left  , 0);
+    _range_mod.right  = std::min<int_fast16_t>(_range_mod.right , _cfg.panel_width  - 1);
+    _range_mod.top    = std::max<int_fast16_t>(_range_mod.top   , 0);
+    _range_mod.bottom = std::min<int_fast16_t>(_range_mod.bottom, _cfg.panel_height - 1);
     if (!_range_mod.empty()) {
-      _exec_transfer();
-      _turn_on_display();
+      // Wait for the previous refresh (in _after_wake() when the controller sleeps).
+      // A refresh never takes this long: on a timeout the controller is taken as stuck,
+      // and the reset recovers it.
+      if (_asleep) { _after_wake(); }
+      else if (!_wait_busy(REFRESH_TIMEOUT_MS) && _cfg.pin_rst < 0) { return; }  // no reset to recover with: keep _range_mod
+      if (!_exec_transfer()) { return; }   // keep _range_mod for the next display()
+      _start_refresh();
       _range_mod.top = INT16_MAX;
       _range_mod.left = INT16_MAX;
       _range_mod.right = 0;
@@ -425,10 +452,18 @@ namespace lgfx
 
   // --- Transfer ---
 
-  void Panel_ED2208::_exec_transfer(void)
+  bool Panel_ED2208::_exec_transfer(void)
   {
-    uint_fast16_t w = _cfg.panel_width;
-    uint_fast16_t h = _cfg.panel_height;
+    // Only the modified rectangle is sent and refreshed (partial window). The refresh takes
+    // as long as a full one, but the rest of the panel keeps its image instead of flashing.
+    // Both window ends are inclusive. The x range is widened to multiples of 8: from an
+    // unaligned start the controller places the data shifted.
+    // _range_mod is within the panel (display() clips it).
+    int_fast16_t xs = _range_mod.left & ~7;
+    int_fast16_t xe = std::min<int_fast16_t>(_cfg.panel_width - 1, _range_mod.right | 7);
+    int_fast16_t ys = _range_mod.top;
+    int_fast16_t ye = _range_mod.bottom;
+    uint_fast16_t w = xe - xs + 1;
     uint32_t row_bytes = (w + 1) >> 1;
 
     // Select dither algorithm for the current _epd_mode.
@@ -445,29 +480,46 @@ namespace lgfx
     _bus->beginTransaction();
     cs_control(false);
 
+    _send_command(0x83);    // Partial window
+    for (int_fast16_t v : { xs, xe, ys, ye }) {
+      _send_data(v >> 8);
+      _send_data(v & 0xFF);
+    }
+    _send_data(0x01);
+
     _send_command(0x10);    // Data start transmission
 
-    for (uint_fast16_t y = 0; y < h; ++y) {
+    bool ok = true;
+    for (int_fast16_t y = ys; y <= ye; ++y) {
       uint8_t* dst = get_dma_buffer_checked(row_bytes);
-      if (!dst) { break; }  // fall through to CS release / endTransaction
-      const bgr888_t* src = reinterpret_cast<const bgr888_t*>(_lines_buffer[y]);
-      dither_fn(src, dst, w, y, dither);
+      if (!dst) { ok = false; break; }  // fall through to CS release / endTransaction
+      const bgr888_t* src = reinterpret_cast<const bgr888_t*>(_lines_buffer[y]) + xs;
+      dither_fn(src, dst, w, xs, y, dither);
       _bus->writeBytes(dst, row_bytes, true, true);
     }
     _bus->wait();
 
     cs_control(true);
     _bus->endTransaction();
+    return ok;
   }
 
   void Panel_ED2208::setSleep(bool flg)
   {
     if (flg)
     {
-      startWrite();
-      _send_command(0x07);  // DEEP_SLEEP
-      _send_data(0xA5);
-      endWrite();
+      _wait_busy(REFRESH_TIMEOUT_MS);   // a refresh ends in deep sleep by itself
+      if (!_asleep && _cfg.pin_rst >= 0)   // only a reset wakes it again
+      {
+        _bus->beginTransaction();
+        cs_control(false);
+        _send_command(0x07);  // DEEP_SLEEP
+        _send_data(0xA5);
+        _bus->wait();
+        cs_control(true);
+        _bus->endTransaction();
+        _asleep = true;
+      }
     }
     else
     {

@@ -29,11 +29,16 @@ Contributors:
 #include <esp_log.h>
 #include <esp_rom_gpio.h>
 #include <rom/gpio.h>
+#pragma GCC diagnostic push
+#if defined(__GNUC__) && !defined(__clang__) && __GNUC__ >= 10
+ #pragma GCC diagnostic ignored "-Wvolatile"
+#endif
 #include <hal/gdma_ll.h>
 #include <hal/gpio_ll.h>
 #include <hal/gpio_hal.h>
 #include <hal/lcd_ll.h>
 #include <hal/lcd_hal.h>
+#pragma GCC diagnostic pop
 #if __has_include(<soc/lcd_periph.h>)
  #include <soc/lcd_periph.h>
  #define LGFX_LCD_RGB_SIG(idx) (&lcd_periph_rgb_signals.panels[(idx)])

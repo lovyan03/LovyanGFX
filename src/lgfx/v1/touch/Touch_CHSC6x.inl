@@ -49,7 +49,7 @@ namespace lgfx
     return lgfx::i2c::init(_cfg.i2c_port, _cfg.pin_sda, _cfg.pin_scl).has_value();
   };
 
-  uint_fast8_t Touch_CHSC6X::getTouchRaw(touch_point_t *tp, uint_fast8_t count)
+  uint_fast8_t Touch_CHSC6X::getTouchRaw(touch_point_t *tp, uint_fast8_t /*count*/)
   {
     tp[0].size = 0;
     tp[0].id = 0;

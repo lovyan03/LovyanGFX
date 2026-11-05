@@ -119,7 +119,9 @@ int lgfx_qoi_prepare(qoi_t *qoi, lgfx_qoi_read_callback_t read_cb, void* user_da
   // if( qoi->desc.height >= QOI_PIXELS_MAX / qoi->desc.width ) return QOI_ERROR("Image too big");
   // The row buffer is width * 4 bytes. Where size_t is 32 bits that product wraps for a large width,
   // and the decoder would then write width pixels into the small buffer that malloc() gave back.
+#if SIZE_MAX <= UINT32_MAX
   if (qoi->desc.width > SIZE_MAX / sizeof(qoi_rgba_t)) return QOI_ERROR("Image too wide");
+#endif
 
   qoi->pixelBuffer = (qoi_rgba_t*)malloc(qoi->desc.width * sizeof(qoi_rgba_t));
   if (qoi->pixelBuffer == NULL) { return QOI_ERROR("Insufficient memory"); }
@@ -464,4 +466,3 @@ size_t lgfx_qoi_encode(const void *lineBuffer, const qoi_desc_t *desc, int flip,
 
   return p;
 }
-

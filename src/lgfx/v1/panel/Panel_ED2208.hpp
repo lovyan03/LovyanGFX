@@ -40,9 +40,19 @@ namespace lgfx
 
     uint8_t* _framebuffer = nullptr;
 
-    bool _wait_busy(uint32_t timeout = 20000);
-    void _exec_transfer(void);
-    void _turn_on_display(void);
+    // A full refresh takes about 15 to 30 s (depends on the image).
+    static constexpr uint32_t REFRESH_TIMEOUT_MS = 40000;
+    // Without a BUSY pin a refresh is taken to last this long.
+    static constexpr uint32_t REFRESH_TIME_NO_BUSY_MS = 30000;
+    // The controller is in deep sleep and needs a reset before the next command.
+    bool _asleep = false;
+    // This instance has started a refresh (it may still be running), and when.
+    bool _refresh_started = false;
+    uint32_t _refresh_ms = 0;
+
+    bool _wait_busy(uint32_t timeout = 20000);   // the default suits commands; a refresh uses REFRESH_TIMEOUT_MS
+    bool _exec_transfer(void);
+    void _start_refresh(void);
     void _send_command(uint8_t cmd);
     void _send_data(uint8_t data);
     void _init_sequence(void);

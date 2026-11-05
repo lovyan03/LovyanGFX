@@ -35,7 +35,9 @@ Inspiration Sources:
 #include <soc/periph_defs.h>
 #include <soc/i2s_struct.h>
 
-#if __has_include(<esp32/rom/lldesc.h>)
+#if __has_include(<esp_rom_lldesc.h>)
+ #include <esp_rom_lldesc.h>
+#elif __has_include(<esp32/rom/lldesc.h>)
  #include <esp32/rom/lldesc.h>
 #else
  #include <rom/lldesc.h>
@@ -60,7 +62,12 @@ Inspiration Sources:
 
 #if __has_include(<esp_private/periph_ctrl.h>)
  // ESP-IDF v5
+ #pragma GCC diagnostic push
+ #if defined(__GNUC__) && !defined(__clang__)
+  #pragma GCC diagnostic ignored "-Wliteral-suffix"
+ #endif
  #include <esp_private/periph_ctrl.h>
+ #pragma GCC diagnostic pop
 #endif
 
 #include <math.h>

@@ -43,8 +43,8 @@ namespace lgfx
     color_depth_t setColorDepth(color_depth_t depth) override { _write_depth = depth; _read_depth = depth; return depth; }
 
     void setInvert(bool invert) override { _invert = invert; }
-    void setSleep(bool flg) override {}
-    void setPowerSave(bool flg) override {}
+    void setSleep(bool /*flg*/) override {}
+    void setPowerSave(bool /*flg*/) override {}
 
     void display(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h) override;
 

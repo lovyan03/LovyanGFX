@@ -169,8 +169,8 @@ namespace lgfx
 
     float _affine[6] = {1,0,0,0,1,0};  /// touch affine parameter
 
-    /// _bus->getDMABuffer + エッジトリガーのログ。メモリ枯渇時は nullptr を返すため、;
-    /// 呼び出し側は必ず結果を確認し、失敗時は書き込みをスキップすること。;
+    /// _bus->getDMABuffer() plus an edge-triggered log. Returns nullptr when memory is exhausted;
+    /// callers must check the result and skip the write on failure.
     uint8_t* get_dma_buffer_checked(size_t len);
 
     /// CSピンの準備処理を行う。CSピンを自前で制御する場合、この関数をoverrideして実装すること。;

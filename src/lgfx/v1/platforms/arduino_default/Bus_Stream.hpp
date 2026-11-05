@@ -52,11 +52,11 @@ namespace lgfx
     bool busy(void) const override {return false;}
 
     void flush(void) override {}
-    bool writeCommand(uint32_t data, uint_fast8_t bit_length) override {return false;}
+    bool writeCommand(uint32_t /*data*/, uint_fast8_t /*bit_length*/) override {return false;}
     void writeData(uint32_t data, uint_fast8_t bit_length) override;
     void writeDataRepeat(uint32_t data, uint_fast8_t bit_length, uint32_t count) override;
     void writePixels(pixelcopy_t* param, uint32_t length) override;
-    void writeBytes(const uint8_t* data, uint32_t length, bool dc, bool use_dma) override { writeBytes(data, length); }
+    void writeBytes(const uint8_t* data, uint32_t length, bool /*dc*/, bool /*use_dma*/) override { writeBytes(data, length); }
 
     void initDMA(void) override {}
     void addDMAQueue(const uint8_t* data, uint32_t length) override { writeBytes(data, length); }

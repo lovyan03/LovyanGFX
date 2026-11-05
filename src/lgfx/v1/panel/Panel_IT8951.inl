@@ -120,7 +120,7 @@ IT8951 Registers defines
   {
   }
 
-  color_depth_t Panel_IT8951::setColorDepth(color_depth_t depth)
+  color_depth_t Panel_IT8951::setColorDepth(color_depth_t /*depth*/)
   {
     _write_depth = color_depth_t::rgb888_3Byte;
     _read_depth = color_depth_t::rgb888_3Byte;
@@ -596,7 +596,7 @@ IT8951 Registers defines
     _write_command(IT8951_TCON_LD_IMG_END);
   }
 
-  void Panel_IT8951::writeImage(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, pixelcopy_t* param, bool use_dma)
+  void Panel_IT8951::writeImage(uint_fast16_t x, uint_fast16_t y, uint_fast16_t w, uint_fast16_t h, pixelcopy_t* param, bool /*use_dma*/)
   {
     uint16_t* writebuf = static_cast<uint16_t*>(heap_alloc(w * sizeof(bgr888_t) + 4));
     bgr888_t* readbuf = reinterpret_cast<lgfx::bgr888_t*>(&writebuf[2]);
@@ -707,7 +707,7 @@ IT8951 Registers defines
     _xpos = xpos;
   }
 
-  void Panel_IT8951::writePixels(pixelcopy_t* param, uint32_t length, bool use_dma)
+  void Panel_IT8951::writePixels(pixelcopy_t* param, uint32_t length, bool /*use_dma*/)
   {
     uint32_t xs   = _xs  ;
     uint32_t ys   = _ys  ;

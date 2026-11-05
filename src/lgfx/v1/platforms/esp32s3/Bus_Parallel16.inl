@@ -384,6 +384,10 @@ namespace lgfx
   {
     // Copy inaccessible sources into the internal DMA buffer.
     if (use_dma && !heap_capable_dma(data)) { use_dma = false; }
+#if defined ( LGFX_PSRAM_DMA_CAPABLE )
+    // Putting external RAM directly on LCD_CAM DMA is untested. Fall back to the internal buffer (memcpy -> DMA).
+    if (use_dma && esp_ptr_external_ram(data)) { use_dma = false; }
+#endif
     auto dev = _dev;
     auto reg_lcd_user = &(dev->lcd_user.val);
     if ((length + _has_align_data) > 1)

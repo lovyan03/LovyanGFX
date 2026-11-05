@@ -44,12 +44,12 @@ namespace lgfx
     _panel_position_count = 0;
   }
 
-  bool Panel_HUB75::init(bool use_reset)
+  bool Panel_HUB75::init(bool /*use_reset*/)
   {
     return _init_impl(_cfg.panel_width, _cfg.panel_height);
   }
 
-  bool Panel_HUB75_Multi::init(bool use_reset)
+  bool Panel_HUB75_Multi::init(bool /*use_reset*/)
   {
     if (_init_impl(_config_detail.panel_count * _config_detail.single_width, _config_detail.single_height))
     {
