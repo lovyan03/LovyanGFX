@@ -35,6 +35,7 @@
 #include "../internal/memory.h" // std::address_of
 
 #include <stddef.h>     // size_t
+#include <cstdlib>      // std::abort
 #include <type_traits>  // std::enable_if, std::is_constructible, etc
 #include <new>          // placement-new
 #include <functional>   // std::reference_wrapper, std::invoke
