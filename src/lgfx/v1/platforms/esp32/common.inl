@@ -2146,6 +2146,24 @@ namespace lgfx
 #if LGFX_LP_I2C_NUM > 0
       if (isLpPort(i2c_port))
       {
+ #if SOC_RTCIO_INPUT_OUTPUT_SUPPORTED
+        // The driver enables the open-drain output before it hands the pad to the peripheral, so
+        // a low output latch (the reset default) pulls SDA low for a few microseconds. On the bus
+        // that is a START + STOP without an address, after which some MCU based slaves do not
+        // answer for about 0.6 ms. Raise the latches first, in open-drain mode so that SDA is not
+        // driven high. rtc_gpio_init() turns on the LP IO clock these registers need; SCL takes it
+        // because SDA must not become LP IO until they are set. A low on SCL alone is harmless.
+        const bool lp_pads = rtc_gpio_is_valid_gpio(pin_sda) && rtc_gpio_is_valid_gpio(pin_scl);
+        if (lp_pads)
+        {
+          rtc_gpio_init(pin_scl);
+          rtc_gpio_set_direction(pin_sda, RTC_GPIO_MODE_INPUT_OUTPUT_OD);
+          rtc_gpio_set_direction(pin_scl, RTC_GPIO_MODE_INPUT_OUTPUT_OD);
+          rtc_gpio_set_level(pin_sda, 1);
+          rtc_gpio_set_level(pin_scl, 1);
+          rtc_gpio_init(pin_sda);
+        }
+ #endif
         i2c_master_bus_config_t bus_config;
         memset(&bus_config, 0, sizeof(i2c_master_bus_config_t));
         bus_config.i2c_port = i2c_port;
@@ -2160,6 +2178,13 @@ namespace lgfx
         if (ESP_OK != i2c_new_master_bus(&bus_config, &bus_handle))
         { // The pins of the low power port are constrained: they have to be LP IO, and on
           // the chips without an LP GPIO matrix they are a fixed pair.
+ #if SOC_RTCIO_INPUT_OUTPUT_SUPPORTED
+          if (lp_pads)
+          {
+            gpio::release_lp_pad(pin_sda);
+            gpio::release_lp_pad(pin_scl);
+          }
+ #endif
           return cpp::fail(error_t::invalid_arg);
         }
         i2c_context[i2c_port].i2c_bus_handle = bus_handle;
