@@ -1575,6 +1575,7 @@ namespace lgfx
       gpio_num_t pin_scl = (gpio_num_t)-1;
       gpio_num_t pin_sda = (gpio_num_t)-1;
       uint8_t wait_ack_stage = 0;   // 0:Not waiting. / 1:Waiting after addressing. / 2:Waiting during data transmission.
+      bool check_ack = true;
       bool initialized = false;
       bool foreign_bus = false;     // the port was already open through the platform driver when init() ran: shared, not owned
       uint32_t freq = 0;
@@ -1702,7 +1703,7 @@ namespace lgfx
 #endif
     }
 
-    static void i2c_set_cmd(i2c_dev_t* dev, uint8_t index, uint8_t op_code, uint8_t byte_num, bool flg_nack = false)
+    static void i2c_set_cmd(i2c_dev_t* dev, uint8_t index, uint8_t op_code, uint8_t byte_num, bool flg_nack = false, bool check_ack = true)
     {
 /*
       typeof(dev->command[0]) cmd;
@@ -1713,10 +1714,8 @@ namespace lgfx
       dev->command[index].val = cmd.val;
 */
       uint32_t cmd_val = byte_num
-                            | (( op_code == i2c_cmd_write
-                              || op_code == i2c_cmd_stop)
-                              ? 0x100 : 0)  // writeおよびstop時はACK_ENを有効にする;
-                            | op_code << 11 ;
+                       | ((check_ack && (op_code == i2c_cmd_write || op_code == i2c_cmd_stop)) ? 0x100 : 0)
+                       | (op_code << 11);
       if (flg_nack && op_code == i2c_cmd_read) {
         cmd_val |= (1 << 10); // ACK_VALUE (set NACK)
       }
@@ -1888,7 +1887,7 @@ namespace lgfx
         }
         else
         {
-          i2c_set_cmd(dev, 0, i2c_cmd_stop, 0);
+          i2c_set_cmd(dev, 0, i2c_cmd_stop, 0, false, i2c_context[i2c_port].check_ack);
           i2c_set_cmd(dev, 1, i2c_cmd_end, 0);
           // Wake only on events that end the STOP; a NACK is evaluated after it completes.
           static constexpr uint32_t intmask_ = I2C_TIME_OUT_INT_RAW_M | I2C_ARBITRATION_LOST_INT_RAW_M | I2C_TRANS_COMPLETE_INT_RAW_M;
@@ -2275,13 +2274,13 @@ namespace lgfx
       if (i2c_addr <= I2C_7BIT_ADDR_MAX)
       { // 7bitアドレスの場合;
         *fifo_addr = i2c_addr << 1 | (read ? I2C_MASTER_READ : I2C_MASTER_WRITE);
-        i2c_set_cmd(dev, 1, i2c_cmd_write, 1);
+        i2c_set_cmd(dev, 1, i2c_cmd_write, 1, false, i2c_context[i2c_port].check_ack);
       }
       else
       { // 10bitアドレスの場合;
         *fifo_addr = 0xF0 | (i2c_addr>>8)<<1 | I2C_MASTER_WRITE;
         *fifo_addr =         i2c_addr;
-        i2c_set_cmd(dev, 1, i2c_cmd_write, 2);
+        i2c_set_cmd(dev, 1, i2c_cmd_write, 2, false, i2c_context[i2c_port].check_ack);
         if (read)
         { // 10bitアドレスのread要求の場合;
           *fifo_addr = 0xF0 | (i2c_addr>>8)<<1 | I2C_MASTER_READ;
@@ -2546,7 +2545,7 @@ namespace lgfx
           ESP_LOGV("LGFX", "i2c write error : ack wait");
           break;
         }
-        i2c_set_cmd(dev, 0, i2c_cmd_write, len);
+        i2c_set_cmd(dev, 0, i2c_cmd_write, len, false, i2c_context[i2c_port].check_ack);
         i2c_set_cmd(dev, 1, i2c_cmd_end, 0);
         size_t idx = 0;
         do
@@ -2661,6 +2660,25 @@ namespace lgfx
       res = writeBytes(i2c_port, writedata, writelen);
       auto last = endTransaction(i2c_port);
       return res.has_error() ? res : last;
+    }
+
+    cpp::result<void, error_t> transactionWriteIgnoreAck(int i2c_port, int addr, const uint8_t *writedata, uint8_t writelen, uint32_t freq)
+    {
+      if (i2c_port < 0 || i2c_port >= LGFX_HP_I2C_NUM) { return cpp::fail(error_t::invalid_arg); }
+      auto& ctx = i2c_context[i2c_port];
+      // Hold an outer recursive lock until the ACK policy is restored, even if
+      // error cleanup releases the transaction's own lock before returning.
+      ctx.lock();
+      if (ctx.owner.load() == xTaskGetCurrentTaskHandle())
+      {
+        ctx.unlock();
+        return cpp::fail(error_t::mode_mismatch);
+      }
+      ctx.check_ack = false;
+      auto res = transactionWrite(i2c_port, addr, writedata, writelen, freq);
+      ctx.check_ack = true;
+      ctx.unlock();
+      return res;
     }
 
     cpp::result<void, error_t> transactionRead(int i2c_port, int addr, uint8_t *readdata, uint8_t readlen, uint32_t freq)
