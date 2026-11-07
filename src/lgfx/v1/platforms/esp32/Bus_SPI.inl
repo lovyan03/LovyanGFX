@@ -1171,7 +1171,7 @@ label_start:
             exec_spi();
           } while (length -= ((SPI_MS_DATA_BITLEN + 1) >> 3));
         }
-#elif defined ( CONFIG_IDF_TARGET_ESP32 ) || !defined ( CONFIG_IDF_TARGET )
+#elif defined ( CONFIG_IDF_TARGET_ESP32 ) || defined ( CONFIG_IDF_TARGET_ESP32S2 ) || !defined ( CONFIG_IDF_TARGET )
         auto dma_conf_reg = reg(SPI_DMA_CONF_REG(_spi_port));
         auto dma_conf = *dma_conf_reg & ~(SPI_OUT_DATA_BURST_EN | SPI_AHBM_RST | SPI_AHBM_FIFO_RST | SPI_OUT_RST);
         *dma_conf_reg = dma_conf | SPI_AHBM_RST | SPI_AHBM_FIFO_RST | SPI_OUT_RST;
@@ -1466,7 +1466,7 @@ label_start:
         exec_spi();
       } while (length -= ((SPI_MS_DATA_BITLEN + 1) >> 3));
     }
-#elif defined ( CONFIG_IDF_TARGET_ESP32 ) || !defined ( CONFIG_IDF_TARGET )
+#elif defined ( CONFIG_IDF_TARGET_ESP32 ) || defined ( CONFIG_IDF_TARGET_ESP32S2 ) || !defined ( CONFIG_IDF_TARGET )
     auto dma_conf_reg = reg(SPI_DMA_CONF_REG(_spi_port));
     auto dma_conf = *dma_conf_reg & ~(SPI_OUT_DATA_BURST_EN | SPI_AHBM_RST | SPI_AHBM_FIFO_RST | SPI_OUT_RST);
     dma_conf |= SPI_OUTDSCR_BURST_EN;
