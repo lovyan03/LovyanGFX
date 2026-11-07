@@ -40,6 +40,18 @@ Contributors:
 #include <driver/spi_common.h>
 #include <driver/spi_master.h>
 #include <driver/rtc_io.h>
+#if !LGFX_GPIO_RTC_INDEPENDENT
+ #if __has_include(<hal/rtc_io_periph.h>)
+  #include <hal/rtc_io_periph.h>
+ #elif __has_include(<soc/rtc_io_periph.h>)
+  #include <soc/rtc_io_periph.h>
+ #else
+  #include <soc/rtc_periph.h>
+ #endif
+ // Internal SDK symbol present in IDF v3.3 through v6.1; share rtc_io.c's lock
+ // so restoring one pad cannot overwrite another pad's concurrent RTC update.
+ extern "C" portMUX_TYPE rtc_spinlock;
+#endif
 #include <soc/rtc.h>
 #include <soc/soc.h>
 #if __has_include(<soc/hp_sys_clkrst_reg.h>)
@@ -106,18 +118,6 @@ Contributors:
 
 #if __has_include(<esp_arduino_version.h>)
  #include <esp_arduino_version.h>
-#endif
-
-// Whether the digital pads (pulls in IO_MUX) work independently of the RTC IO
-// domain; only the plain ESP32 needs the RTC-domain path for RTC-capable pins.
-// ESP-IDF v6 removed the SOC_GPIO_SUPPORT_RTC_INDEPENDENT macro, so derive
-// the value from the build target when it is absent.
-#if defined (SOC_GPIO_SUPPORT_RTC_INDEPENDENT)
- #define LGFX_GPIO_RTC_INDEPENDENT SOC_GPIO_SUPPORT_RTC_INDEPENDENT
-#elif defined (CONFIG_IDF_TARGET) && !defined (CONFIG_IDF_TARGET_ESP32)
- #define LGFX_GPIO_RTC_INDEPENDENT 1
-#else
- #define LGFX_GPIO_RTC_INDEPENDENT 0
 #endif
 
 // Define LP-I2C availability before the GPIO helpers: board detection may
@@ -687,6 +687,24 @@ namespace lgfx
 #endif
     }
 
+#if !LGFX_GPIO_RTC_INDEPENDENT
+    static bool rtc_pad_register(size_t pin_num, volatile uint32_t*& reg, uint32_t& mask)
+    {
+      if (pin_num >= GPIO_NUM_MAX) { return false; }
+#if __has_include(<hal/rtc_io_periph.h>) || __has_include(<soc/rtc_io_periph.h>)
+      const int rtc_num = rtc_io_num_map[pin_num];
+      if (rtc_num < 0) { return false; }
+      const auto& desc = rtc_io_desc[rtc_num];
+#else
+      const auto& desc = rtc_gpio_desc[pin_num];
+#endif
+      if (!desc.reg) { return false; }
+      reg = reinterpret_cast<volatile uint32_t*>(desc.reg);
+      mask = desc.mux | desc.ie | desc.pullup | desc.pulldown;
+      return true;
+    }
+#endif
+
     pin_backup_t::pin_backup_t(int pin_num)
     : _pin_num { static_cast<gpio_num_t>(pin_num) }
     {
@@ -696,6 +714,11 @@ namespace lgfx
     void pin_backup_t::backup(void)
     {
       auto pin_num = (size_t)_pin_num;
+#if !LGFX_GPIO_RTC_INDEPENDENT
+      volatile uint32_t* rtc_reg;
+      uint32_t rtc_mask;
+      _rtc_reg = rtc_pad_register(pin_num, rtc_reg, rtc_mask) ? *rtc_reg & rtc_mask : 0;
+#endif
       if (pin_num < GPIO_NUM_MAX)
       {
         _io_mux_gpio_reg   = *reinterpret_cast<uint32_t*>(_lgfx_io_mux_reg(pin_num));
@@ -744,6 +767,9 @@ namespace lgfx
           && _gpio_enable       == current._gpio_enable
           && _gpio_out          == current._gpio_out
           && _in_func_num       == current._in_func_num
+#if !LGFX_GPIO_RTC_INDEPENDENT
+          && _rtc_reg           == current._rtc_reg
+#endif
           && ((uint16_t)_in_func_num >= 256
            || _gpio_func_in_reg == current._gpio_func_in_reg);
     }
@@ -768,6 +794,26 @@ namespace lgfx
         // as it takes to reach the latch below.
         *gpio_enable_w1tc = pin_mask;
         *(_gpio_out ? get_gpio_hi_reg(_pin_num) : get_gpio_lo_reg(_pin_num)) = pin_mask;
+
+#if !LGFX_GPIO_RTC_INDEPENDENT
+        volatile uint32_t* rtc_reg;
+        uint32_t rtc_mask;
+        if (rtc_pad_register(pin_num, rtc_reg, rtc_mask)) {
+          // Return RTC ownership after stopping digital output and restoring its
+          // latch; an RTC-owned pad stays disconnected during digital restore.
+#ifdef portENTER_CRITICAL_SAFE
+          portENTER_CRITICAL_SAFE(&rtc_spinlock);
+#else
+          portENTER_CRITICAL(&rtc_spinlock);
+#endif
+          *rtc_reg = (*rtc_reg & ~rtc_mask) | _rtc_reg;
+#ifdef portEXIT_CRITICAL_SAFE
+          portEXIT_CRITICAL_SAFE(&rtc_spinlock);
+#else
+          portEXIT_CRITICAL(&rtc_spinlock);
+#endif
+        }
+#endif
 
   // ESP_LOGD("DEBUG","restore pin:%d ", pin_num);
   // ESP_LOGD("DEBUG","restore IO_MUX_GPIO0_REG          :%08x -> %08x ", *reinterpret_cast<uint32_t*>(GPIO_PIN_MUX_REG[pin_num]                 ), _io_mux_gpio_reg   );
