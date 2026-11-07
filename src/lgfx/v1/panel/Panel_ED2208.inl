@@ -286,7 +286,7 @@ namespace lgfx
     while (displayBusy())
     {
       if (millis() - start_time >= timeout) { return false; }
-      lgfx::delay(10);
+      lgfx::task_delay(10);
     }
     return true;
   }
@@ -346,7 +346,7 @@ namespace lgfx
     if (_cfg.pin_busy >= 0)
     {
       uint32_t start = millis();
-      while (gpio_in(_cfg.pin_busy) && millis() - start < 50) { lgfx::delay(1); }
+      while (gpio_in(_cfg.pin_busy) && millis() - start < 50) { lgfx::task_delay(1); }
     }
   }
 

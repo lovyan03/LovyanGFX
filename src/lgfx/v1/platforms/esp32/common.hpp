@@ -153,6 +153,11 @@ namespace lgfx
     ets_delay_us(us);
 #endif
   }
+  /// Sleep without a busy-wait. Can end up to a tick early, so use delay() for hardware minimum waits.
+  __attribute__ ((unused)) static inline void task_delay(uint32_t ms)
+  {
+    vTaskDelay(ms ? (ms - 1) / portTICK_PERIOD_MS + 1 : 0);
+  }
   __attribute__ ((unused)) static inline void delay(uint32_t ms)
   {
     uint32_t end = micros() + ms * 1000;  // May wrap: only the final difference matters.

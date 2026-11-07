@@ -97,6 +97,10 @@ namespace lgfx
  inline namespace v1
  {
 //----------------------------------------------------------------------------
+#if !defined (ESP_PLATFORM)
+  static inline void task_delay(unsigned long ms) { delay(ms); }
+#endif
+//----------------------------------------------------------------------------
 
   class SimpleBuffer
   {

@@ -612,7 +612,7 @@ namespace lgfx
       do
       {
         if (millis() - start_time > timeout) { return false; }
-        delay(1);
+        task_delay(1);
       } while (gpio_in(_cfg.pin_busy));
     }
     return true;

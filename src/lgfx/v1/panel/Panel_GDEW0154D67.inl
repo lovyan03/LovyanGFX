@@ -430,7 +430,7 @@ epd_mode が epd_qualityか否かの変化をした場合も同様にCMD_DISPLAY
 // printf("TIMEOUT\n");
           return false;
         }
-        delay(1);
+        task_delay(1);
       } while (gpio_in(_cfg.pin_busy));
 // printf("time:%d\n", millis() - start_time);
     }
