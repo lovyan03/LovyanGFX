@@ -3695,7 +3695,7 @@ namespace lgfx
         touch_point_t tp, tp2;
         for (int j = 0; j < 8; ++j) {
           do {
-            do { delay(2); } while (!getTouchRaw(&tp));
+            do { task_delay(2); } while (!getTouchRaw(&tp));
             delay(10);
           } while (!getTouchRaw(&tp2)
                  || (abs(tp.x - tp2.x) > _RAWERR)
@@ -3709,7 +3709,7 @@ namespace lgfx
         orig[i*2  ] = x_touch >> 4;
         orig[i*2+1] = y_touch >> 4;
         draw_calibrate_point( px, py, size, bg_rawcolor, bg_rawcolor);
-        do { delay(1); } while (getTouchRaw(&tp));
+        do { task_delay(1); } while (getTouchRaw(&tp));
       }
       if (nullptr != parameters) {
         memcpy(parameters, orig, sizeof(uint16_t) * 8);

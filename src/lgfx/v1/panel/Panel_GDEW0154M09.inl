@@ -112,7 +112,7 @@ namespace lgfx
     if (_range_mod.empty()) { return; }
     _close_transfer();
     _range_old = _range_mod;
-    while (millis() - _send_msec < _refresh_msec) delay(1);
+    while (millis() - _send_msec < _refresh_msec) task_delay(1);
     if (getEpdMode() == epd_mode_t::epd_quality)
     {
       _exec_transfer(0x13, _range_mod, true);
@@ -120,7 +120,7 @@ namespace lgfx
       _bus->writeCommand(0x12, 8);
       auto send_msec = millis();
       delay(300);
-      while (millis() - send_msec < _refresh_msec) delay(1);
+      while (millis() - send_msec < _refresh_msec) task_delay(1);
       _exec_transfer(0x10, _range_mod, true);
     }
     _exec_transfer(0x13, _range_mod);
@@ -308,7 +308,7 @@ namespace lgfx
       do
       {
         if (millis() - start_time > timeout) return false;
-        delay(1);
+        task_delay(1);
       } while (!gpio_in(_cfg.pin_busy));
     }
     return true;
@@ -383,7 +383,7 @@ namespace lgfx
   void Panel_GDEW0154M09::_close_transfer(void)
   {
     if (_range_old.empty()) { return; }
-    while (millis() - _send_msec < _refresh_msec) delay(1);
+    while (millis() - _send_msec < _refresh_msec) task_delay(1);
     _exec_transfer(0x10, _range_old);
     _range_old.top    = INT16_MAX;
     _range_old.left   = INT16_MAX;

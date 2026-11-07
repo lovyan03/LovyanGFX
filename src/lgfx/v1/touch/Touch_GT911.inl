@@ -74,7 +74,7 @@ namespace lgfx
         _inited = true;
         wakeup();
         uint8_t buf[] = { 0x80, 0x56 };
-        int tmp = 0;
+        int tmp = 20;  // The longest report period, if it cannot be read.
         if (_writeReadBytes(buf, 2, buf, 1)) {
           tmp = 5 + (buf[0] & 0x0F);
         }
@@ -186,11 +186,10 @@ namespace lgfx
       if (diff_msec >= 128)
       {
         _writeBytes(gt911cmd_getdata, 3);
-        size_t retry = 24;
         do
         {
-          delay(1);
-        } while (!_update_data() && --retry);
+          task_delay(1);
+        } while (!_update_data() && lgfx::millis() - msec < _refresh_rate * 2);
       }
       else
       {

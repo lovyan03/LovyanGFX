@@ -209,7 +209,7 @@ namespace lgfx
     struct HttpWrapper : public StreamWrapper
     {
       int read(uint8_t *buf, uint32_t len) override {
-        while (_http.connected() && !_stream->available() && _index < _length) delay(1);
+        while (_http.connected() && !_stream->available() && _index < _length) task_delay(1);
         return StreamWrapper::read(buf, len);
       }
 

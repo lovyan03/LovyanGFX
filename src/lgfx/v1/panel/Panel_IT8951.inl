@@ -266,7 +266,7 @@ IT8951 Registers defines
 #endif
             return false;
           }
-          delay(ms >> 4);
+          task_delay(ms >> 4);
         }
       } while (!lgfx::gpio_in(_cfg.pin_busy));
     }
@@ -322,7 +322,7 @@ IT8951 Registers defines
         break;
       }
       if (infobuf[0] == 65535) break; // IT8951 crashed
-      delay(1);
+      task_delay(1);
     } while (millis() - start_time < 3000);
 
     cs_control(true);
