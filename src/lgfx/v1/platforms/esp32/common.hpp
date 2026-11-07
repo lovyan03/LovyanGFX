@@ -155,17 +155,11 @@ namespace lgfx
   }
   __attribute__ ((unused)) static inline void delay(uint32_t ms)
   {
-    uint32_t time = micros();
-    vTaskDelay( std::max<uint32_t>(2u, ms / portTICK_PERIOD_MS) - 1 );
-    if (ms != 0 && ms < portTICK_PERIOD_MS*8)
-    {
-      ms *= 1000;
-      time = micros() - time;
-      if (time < ms)
-      {
-        delayMicroseconds(ms - time);
-      }
-    }
+    uint32_t end = micros() + ms * 1000;  // May wrap: only the final difference matters.
+    uint32_t ticks = ms / portTICK_PERIOD_MS;
+    ticks -= ticks / 1000 * (1000 % configTICK_RATE_HZ);  // The tick period is truncated.
+    vTaskDelay( std::max<uint32_t>(2u, ticks) - 1 );
+    while ((int32_t)(end - micros()) > 0) {}
   }
 
   static inline void* heap_alloc(      size_t length) { return heap_caps_malloc(length, MALLOC_CAP_8BIT);  }
