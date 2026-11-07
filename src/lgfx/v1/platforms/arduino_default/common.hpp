@@ -30,6 +30,13 @@ Contributors:
 #include <Arduino.h>
 #include <SPI.h>
 
+// Optional per-host override supplied by the platform. A platform without it
+// leaves the weak symbol null and the default SPI object below is used, so this
+// does not change any existing target.
+#if defined (__GNUC__) || defined (__clang__)
+extern "C" SPIClass* lgfx_get_spi_instance(int) __attribute__((weak));
+#endif
+
 namespace lgfx
 {
  inline namespace v1
@@ -48,6 +55,9 @@ namespace lgfx
  #elif defined (__MKL26Z64__)
     if (spi_host == 1) { return &SPI1; }
  #endif
+#endif
+#if defined (__GNUC__) || defined (__clang__)
+    if (lgfx_get_spi_instance) { return lgfx_get_spi_instance(spi_host); }
 #endif
     (void)spi_host;
     return &SPI;
