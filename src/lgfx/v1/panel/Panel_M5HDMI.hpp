@@ -80,6 +80,9 @@ namespace lgfx
       _cfg.bus_shared       =  true;
     }
 
+    // Initialize without reads only if the transmitter ID cannot be read; readable IDs use normal initialization.
+    // Presence detection temporarily uses the three SPI pins and CS for JTAG, then restores their GPIO settings.
+    void setTransmitterWriteOnly(bool enable) { _transmitter_write_only = enable; }
     bool init(bool use_reset) override;
     void beginTransaction(void) override;
     void endTransaction(void) override;
@@ -214,6 +217,8 @@ namespace lgfx
       typedef lgfx::Bus_I2C::config_t config_t;
     private:
       config_t HDMI_Trans_config;
+      bool _write_only = false;
+      bool _write_failed = false;
 
       uint8_t readRegister(uint8_t register_address);
       uint16_t readRegister16(uint8_t register_address);
@@ -227,7 +232,7 @@ namespace lgfx
         uint8_t id[3];
       };
 
-      HDMI_Trans(const lgfx::Bus_I2C::config_t& i2c_config);
+      HDMI_Trans(const lgfx::Bus_I2C::config_t& i2c_config, bool write_only = false);
       HDMI_Trans(const HDMI_Trans&) = delete;
       HDMI_Trans(HDMI_Trans&&) = delete;
       ChipID readChipID(void);
@@ -240,8 +245,12 @@ namespace lgfx
     {
     public:
       LOAD_FPGA(uint_fast8_t _TCK_PIN, uint_fast8_t, uint_fast8_t _TDO_PIN, uint_fast8_t);
+      static bool isConnected(uint_fast8_t tck, uint_fast8_t tdi, uint_fast8_t tdo, uint_fast8_t tms);
 
     private:
+      LOAD_FPGA() = default;
+      void initPins(uint_fast8_t tck, uint_fast8_t tdi, uint_fast8_t tdo, uint_fast8_t tms);
+      uint32_t waitStatus(void);
       enum TAP_TypeDef
       {
         TAP_RESET,
@@ -279,6 +288,7 @@ namespace lgfx
       void JTAG_TapMove_Inner(bool tms_value, size_t clock_count);
       void JTAG_DUMMY_CLOCK(uint32_t msec);
       uint32_t JTAG_ReadStatus();
+      uint32_t JTAG_ReadIdCode(void);
     };
 
     const HDMI_Trans::config_t& config_transmitter(void) const { return _HDMI_Trans_config; }
@@ -286,6 +296,8 @@ namespace lgfx
 
   protected:
     HDMI_Trans::config_t _HDMI_Trans_config;
+    bool _transmitter_write_only = false;
+    bool _transmitter_write_only_active = false;
     uint32_t _raw_color = ~0u;
     uint32_t _xpos;
     uint32_t _ypos;

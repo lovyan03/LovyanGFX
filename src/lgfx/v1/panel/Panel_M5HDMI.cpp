@@ -83,7 +83,7 @@ namespace lgfx
     STATUS_FLASH_LOCK           = (1<<17)
   };
 
-  Panel_M5HDMI::LOAD_FPGA::LOAD_FPGA(uint_fast8_t _TCK_PIN, uint_fast8_t _TDI_PIN, uint_fast8_t _TDO_PIN, uint_fast8_t _TMS_PIN)
+  void Panel_M5HDMI::LOAD_FPGA::initPins(uint_fast8_t _TCK_PIN, uint_fast8_t _TDI_PIN, uint_fast8_t _TDO_PIN, uint_fast8_t _TMS_PIN)
   {
     _tdi_reg[0] = lgfx::get_gpio_lo_reg(_TDI_PIN);
     _tdi_reg[1] = lgfx::get_gpio_hi_reg(_TDI_PIN);
@@ -106,13 +106,36 @@ namespace lgfx
     *_tdi_reg[0] = TDI_MASK;
     *_tck_reg[0] = TCK_MASK;
 
+  }
+
+  uint32_t Panel_M5HDMI::LOAD_FPGA::waitStatus(void)
+  {
+    uint32_t status = 0;
     int retry = 128;
     do
     { // FPGAのロットによって待ち時間に差がある。
       // 先に進んで良いかステータスレジスタの状態をチェックする。
-      if ((JTAG_ReadStatus() & 0x200) == 0) { break; }
+      status = JTAG_ReadStatus();
+      if ((status & 0x200) == 0) { break; }
       delay(1);
     } while (--retry);
+    return status;
+  }
+
+  bool Panel_M5HDMI::LOAD_FPGA::isConnected(uint_fast8_t tck, uint_fast8_t tdi, uint_fast8_t tdo, uint_fast8_t tms)
+  {
+    LOAD_FPGA fpga;
+    fpga.initPins(tck, tdi, tdo, tms);
+    fpga.JTAG_MoveTap(TAP_UNKNOWN, TAP_IDLE);
+    uint32_t id = fpga.JTAG_ReadIdCode();
+    // An absent module reads all ones or all zeros depending on the TDO bias; a present FPGA returns its IDCODE.
+    return id != 0 && id != 0xFFFFFFFFu;
+  }
+
+  Panel_M5HDMI::LOAD_FPGA::LOAD_FPGA(uint_fast8_t _TCK_PIN, uint_fast8_t _TDI_PIN, uint_fast8_t _TDO_PIN, uint_fast8_t _TMS_PIN)
+  {
+    initPins(_TCK_PIN, _TDI_PIN, _TDO_PIN, _TMS_PIN);
+    waitStatus();
 
     JTAG_MoveTap(TAP_UNKNOWN, TAP_IDLE);
 
@@ -300,6 +323,24 @@ namespace lgfx
     return out;
   }
 
+  uint32_t Panel_M5HDMI::LOAD_FPGA::JTAG_ReadIdCode(void)
+  {
+    uint32_t out = 0;
+    JTAG_WriteInst(READ_ID_CODE);
+    JTAG_MoveTap(TAP_IDLE, TAP_DRSHIFT);
+
+    *_tms_reg[0] = TMS_MASK;
+    for (size_t i = 0; i < 32; i++)
+    {
+      if (i == 31) { *_tms_reg[1] = TMS_MASK; }
+      *_tck_reg[0] = TCK_MASK;
+      *_tck_reg[1] = TCK_MASK;
+      if (lgfx::gpio_in(TDO_PIN)) { out += 1u << i; }
+    };
+    JTAG_MoveTap(TAP_DREXIT1,  TAP_IDLE);
+    return out;
+  }
+
 //----------------------------------------------------------------------------
 
   uint8_t Panel_M5HDMI::HDMI_Trans::readRegister(uint8_t register_address)
@@ -324,9 +365,11 @@ namespace lgfx
     };
     // Do not add a retry here: a reported failure usually means the ACK was misread while the
     // write itself was accepted (see writeRegisterSet), so a retry only repeats the write.
-    bool res = !lgfx::i2c::transactionWrite(this->HDMI_Trans_config.i2c_port, this->HDMI_Trans_config.i2c_addr, buffer, 2, this->HDMI_Trans_config.freq_write).has_error();
+    auto write = _write_only ? lgfx::i2c::transactionWriteIgnoreAck : lgfx::i2c::transactionWrite;
+    bool res = !write(this->HDMI_Trans_config.i2c_port, this->HDMI_Trans_config.i2c_addr, buffer, 2, this->HDMI_Trans_config.freq_write).has_error();
     if (!res)
     {
+      if (_write_only) { _write_failed = true; }
       ESP_LOGD(TAG, "i2c write err  reg:%02x val:%02x", register_address, value);
     }
     return res;
@@ -384,24 +427,38 @@ namespace lgfx
       HDMI_Trans_config.pin_sda,
       HDMI_Trans_config.pin_scl
     };
+    if (_write_only)
+    {
+      // After power-on the transmitter ignores register writes until 0xee is set;
+      // the readable path writes it while reading the chip ID.
+      this->writeRegister(0xff, 0x80);
+      this->writeRegister(0xee, 0x01);
+    }
     static constexpr const uint8_t data[] = { 0xff, 0x81, 0x30, 0x00, 0x02, 0x66, 0x0a, 0x06, 0x15, 0x06, 0x4e, 0xa8, 0xff, 0x80, 0xee, 0x01, 0x11, 0x00, 0x13, 0xf1, 0x13, 0xf9, 0x0a, 0x80, 0xff, 0x82, 0x1b, 0x77, 0x1c, 0xec, 0x45, 0x00, 0x4f, 0x40, 0x50, 0x00, 0x47, 0x07 };
     this->writeRegisterSet(data, sizeof(data));
     i2c_switch.restore();
   }
 
-  Panel_M5HDMI::HDMI_Trans::HDMI_Trans(const lgfx::Bus_I2C::config_t& i2c_config)
+  Panel_M5HDMI::HDMI_Trans::HDMI_Trans(const lgfx::Bus_I2C::config_t& i2c_config, bool write_only)
   {
     HDMI_Trans_config = i2c_config;
+    _write_only = write_only;
   }
 
   bool Panel_M5HDMI::HDMI_Trans::init(void)
   {
-    auto id = this->readChipID();
+    auto id = _write_only ? ChipID{{ 0x17, 0x02, 0xE2 }} : this->readChipID();
     lgfx::i2c::i2c_temporary_switcher_t i2c_switch {
       HDMI_Trans_config.i2c_port,
       HDMI_Trans_config.pin_sda,
       HDMI_Trans_config.pin_scl
     };
+
+    if (_write_only)
+    {
+      this->writeRegister(0xff, 0x80);
+      this->writeRegister(0xee, 0x01);
+    }
 
     {
 // 96kHz audio setting.
@@ -417,8 +474,8 @@ namespace lgfx
 
       this->writeRegisterSet(data_1, sizeof(data_1));
     }
-    this->writeRegister(0x2b, this->readRegister(0x2b) & 0xfd);
-    this->writeRegister(0x2e, this->readRegister(0x2e) & 0xfe);
+    this->writeRegister(0x2b, _write_only ? 0x00 : (this->readRegister(0x2b) & 0xfd));
+    this->writeRegister(0x2e, _write_only ? 0x00 : (this->readRegister(0x2e) & 0xfe));
 
     if ( id.id[2] == 0xE2 )
     {
@@ -431,10 +488,19 @@ namespace lgfx
     {
       static constexpr const uint8_t data_pll[] = { 0xff, 0x80, 0x16, 0xf1, 0x18, 0xdc, 0x18, 0xfc, 0x16, 0xf3, 0x16, 0xe3, 0x16, 0xf3, 0xff, 0x82 };
       this->writeRegisterSet(data_pll, sizeof(data_pll));
-      auto locked = (this->readRegister(0x15) & 0x80) != 0;
-      auto value = this->readRegister(0xea);
-      auto done = (this->readRegister(0xeb) & 0x80) != 0;
-      if ( locked && done && value != 0xff)
+      bool ready = _write_only;
+      if (_write_only)
+      {
+        delay(100);
+      }
+      else
+      {
+        auto locked = (this->readRegister(0x15) & 0x80) != 0;
+        auto value = this->readRegister(0xea);
+        auto done = (this->readRegister(0xeb) & 0x80) != 0;
+        ready = locked && done && value != 0xff;
+      }
+      if (ready)
       {
         static constexpr const uint8_t data[] = { 0xb9, 0x00, 0xff, 0x84, 0x43, 0x31, 0x44, 0x10, 0x45, 0x2a, 0x47, 0x04, 0x10, 0x2c, 0x12, 0x64, 0x3d, 0x0a, 0xff, 0x80, 0x11, 0x00, 0x13, 0xf1, 0x13, 0xf9, 0xff, 0x81, 0x31, 0x44, 0x32, 0x4a, 0x33, 0x0b, 0x34, 0x00, 0x35, 0x00, 0x36, 0x00, 0x37, 0x44, 0x3f, 0x0f, 0x40, 0xa0, 0x41, 0xa0, 0x42, 0xa0, 0x43, 0xa0, 0x44, 0xa0, 0x30, 0xea };
         this->writeRegisterSet(data, sizeof(data));
@@ -443,7 +509,7 @@ namespace lgfx
       }
     }
     i2c_switch.restore();
-    if (!result) {
+    if (!result || (_write_only && _write_failed)) {
       ESP_LOGE(TAG, "failed to initialize the HDMI transmitter.");
       return false;
     }
@@ -452,6 +518,7 @@ namespace lgfx
 
   size_t Panel_M5HDMI::HDMI_Trans::readEDID(uint8_t* EDID, size_t len)
   {
+    if (_write_only) { return 0; }
     lgfx::i2c::i2c_temporary_switcher_t i2c_switch {
       HDMI_Trans_config.i2c_port,
       HDMI_Trans_config.pin_sda,
@@ -515,18 +582,32 @@ namespace lgfx
   {
     ESP_LOGI(TAG, "i2c port:%d sda:%d scl:%d", _HDMI_Trans_config.i2c_port, _HDMI_Trans_config.pin_sda, _HDMI_Trans_config.pin_scl);
 
-    HDMI_Trans driver(_HDMI_Trans_config);
-
-    auto result = driver.readChipID();
+    _transmitter_write_only_active = false;
+    HDMI_Trans detector(_HDMI_Trans_config);
+    auto result = detector.readChipID();
     ESP_LOGI(TAG, "Chip ID: %02x %02x %02x", result.id[0], result.id[1], result.id[2]);
     if (result.id[0] == result.id[1] && result.id[0] == result.id[2])
     {
-      return false;
+      if (!_transmitter_write_only) { return false; }
+      // The ACK voltage can stay above the controller's low threshold despite
+      // accepted writes. Without reads, assume revision 0xE2 and write zero to
+      // registers 0x2b/0x2e instead of preserving their other bits.
+      _transmitter_write_only_active = true;
     }
+    HDMI_Trans driver(_HDMI_Trans_config, _transmitter_write_only_active);
 
     ESP_LOGI(TAG, "Resetting HDMI transmitter...");
     driver.reset();
 
+    if (_transmitter_write_only_active)
+    {
+      // Check presence before SPI initialization can change other pins.
+      auto bus_cfg = reinterpret_cast<lgfx::Bus_SPI*>(_bus)->config();
+      gpio::pin_backup_t backup_pins[] = { bus_cfg.pin_sclk, bus_cfg.pin_mosi, bus_cfg.pin_miso, _cfg.pin_cs };
+      bool connected = LOAD_FPGA::isConnected(bus_cfg.pin_sclk, bus_cfg.pin_mosi, bus_cfg.pin_miso, _cfg.pin_cs);
+      for (auto &bup : backup_pins) { bup.restore(); }
+      if (!connected) { return false; }
+    }
     if (!Panel_Device::init(false)) { return false; }
 
     if ((_read_fpga_id() & 0xFFFF) != ('H' | 'D' << 8))
@@ -1012,7 +1093,7 @@ namespace lgfx
 
   void Panel_M5HDMI::setSleep(bool flg)
   {
-    HDMI_Trans driver(_HDMI_Trans_config);
+    HDMI_Trans driver(_HDMI_Trans_config, _transmitter_write_only_active);
     if (flg)
     {
       driver.reset();
@@ -1554,7 +1635,7 @@ namespace lgfx
 
   size_t Panel_M5HDMI::readEDID(uint8_t* EDID, size_t len)
   {
-    HDMI_Trans driver(_HDMI_Trans_config);
+    HDMI_Trans driver(_HDMI_Trans_config, _transmitter_write_only_active);
     return driver.readEDID(EDID, len);
   }
 

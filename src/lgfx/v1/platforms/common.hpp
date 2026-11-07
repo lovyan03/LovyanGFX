@@ -276,6 +276,11 @@ namespace lgfx
 
 //--------
 
+#if defined (ESP_PLATFORM)
+    // HP hardware ports only; software and LP ports return invalid_arg.
+    // Like transactionWrite, returns mode_mismatch if the same task has an open transaction.
+    cpp::result<void, error_t> transactionWriteIgnoreAck(int i2c_port, int addr, const uint8_t *writedata, uint8_t writelen, uint32_t freq = I2C_DEFAULT_FREQ);
+#endif
     cpp::result<void, error_t> transactionWrite(int i2c_port, int addr, const uint8_t *writedata, uint8_t writelen, uint32_t freq = I2C_DEFAULT_FREQ);
     cpp::result<void, error_t> transactionRead(int i2c_port, int addr, uint8_t *readdata, uint8_t readlen, uint32_t freq = I2C_DEFAULT_FREQ);
     cpp::result<void, error_t> transactionWriteRead(int i2c_port, int addr, const uint8_t *writedata, uint8_t writelen, uint8_t *readdata, size_t readlen, uint32_t freq = I2C_DEFAULT_FREQ);
