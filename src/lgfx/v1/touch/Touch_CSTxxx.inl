@@ -128,6 +128,93 @@ namespace lgfx
 
 //----------------------------------------------------------------------------
 
+// Similar to CST226 but getTouchRaw() not working with it.
+// Single touch implementation on touch release for now
+
+  bool Touch_CST3240::_write_reg16(uint16_t reg)
+  {
+    reg = (reg<<8)+(reg>>8); // swap
+    return lgfx::i2c::transactionWrite(_cfg.i2c_port, _cfg.i2c_addr, (uint8_t*)&reg, 2, _cfg.freq).has_value();
+  }
+
+  bool Touch_CST3240::_read_reg16(uint16_t reg, uint8_t *data, size_t length)
+  {
+    reg = (reg<<8)+(reg>>8); // swap
+    return lgfx::i2c::transactionWriteRead(_cfg.i2c_port, _cfg.i2c_addr, (uint8_t*)&reg, 2, data, length, _cfg.freq).has_value();
+  }
+
+  bool Touch_CST3240::_check_init(void)
+  {
+    if (_inited) return true;
+    bool ok = _write_reg16(0xD109);
+    lgfx::delay(20);
+    _inited = ok;
+    return _inited;
+  }
+
+  bool Touch_CST3240::init(void)
+  {
+    _inited = false;
+    if (_cfg.pin_int >= 0) {
+      lgfx::pinMode(_cfg.pin_int, pin_mode_t::input);
+    }
+    i2c::init(_cfg.i2c_port, _cfg.pin_sda, _cfg.pin_scl).has_value();
+    return true;
+  }
+
+  void Touch_CST3240::wakeup(void)
+  {
+    _inited = false;
+    _check_init();
+  }
+
+  void Touch_CST3240::sleep(void)
+  {
+    // require a full RST to wake up
+    // _write_reg16(0xD105); // deep sleep
+  }
+
+  uint_fast8_t Touch_CST3240::getTouchRaw(touch_point_t* tp, uint_fast8_t count)
+  {
+    if (count == 0 || !_check_init()) return 0;
+
+    if (count >= 1) {
+      uint8_t data[8] = { 0 };
+      if (!_read_reg16(0xD000, data, 7)) return 0;
+      tp[0].id = (data[5] & 0x0F) - 1; // finger num
+      tp[0].size = (data[0] & 0x04) ? 0 : 1; // TOUCH_EVT_PRESS : TOUCH_EVT_RELEASE;
+      tp[0].x = (data[1] << 4) | ((data[3] >> 4 ) & 0x0F);
+      tp[0].y = (data[2] << 4) | (data[3] & 0x0F);
+      _write_reg16(0xD0AB);
+      if ((data[6] == 0xAB) && (data[5] & 0x0F) > 0)
+        return 1;
+    }
+    return 0;
+  }
+
+  // Tested Chip (and project) ID returns 0x32404c53 (with NV3041A panel)
+  uint_fast32_t Touch_CST3240::getChipID()
+  {
+    uint32_t res = 0;
+    uint16_t c_p_info[2] = { 0 };
+
+    // enter command mode
+    if( !_write_reg16(0xD101)) // 0xd101 = ENUM_MODE_DEBUG_INFO
+      return 0;
+    lgfx::delay(20);
+
+    if (_read_reg16(0xD204, (uint8_t*)&c_p_info, 4)) {
+      memcpy(&res, &c_p_info[0], 4);
+      //ESP_LOGD("CST3240", "Touch Chip id: 0x%04x, project id: 0x%04x\n", c_p_info[1], c_p_info[0]);
+    }
+
+    // quit command mode
+    _write_reg16(0xD109); // ENUM_MODE_NORMAL
+    return res;
+  }
+
+//----------------------------------------------------------------------------
+
   static constexpr uint8_t CST816S_TOUCH_REG  = 0x01;
   static constexpr uint8_t CST816S_SLEEP_REG  = 0xA5;
   static constexpr uint8_t CST816S_CHIPID_REG = 0xA7;
