@@ -57,6 +57,19 @@ Contributors:
 #if __has_include(<soc/soc_caps.h>)
  #include <soc/soc_caps.h>
 #endif
+
+// Whether the digital pads (pulls in IO_MUX) work independently of the RTC IO
+// domain; only the plain ESP32 needs the RTC-domain path for RTC-capable pins.
+// ESP-IDF v6 removed the SOC_GPIO_SUPPORT_RTC_INDEPENDENT macro, so derive
+// the value from the build target when it is absent.
+#if defined (SOC_GPIO_SUPPORT_RTC_INDEPENDENT)
+ #define LGFX_GPIO_RTC_INDEPENDENT SOC_GPIO_SUPPORT_RTC_INDEPENDENT
+#elif defined (CONFIG_IDF_TARGET) && !defined (CONFIG_IDF_TARGET_ESP32)
+ #define LGFX_GPIO_RTC_INDEPENDENT 1
+#else
+ #define LGFX_GPIO_RTC_INDEPENDENT 0
+#endif
+
 // (chips with GDMA only; generations with the SPI's own DMA are untested and keep the CPU path.
 //  esp_cache.h exists in IDF 5.1, but its direction flags are 5.2 and later, so the flags are checked)
 #if defined ( SOC_PSRAM_DMA_CAPABLE ) && defined ( SOC_CACHE_WRITEBACK_SUPPORTED ) && defined ( SOC_GDMA_SUPPORTED ) && __has_include(<esp_cache.h>)
@@ -344,6 +357,10 @@ protected:
     // This is a no-op on targets without independently routed LP GPIOs.
     void release_lp_pad(int pin_num);
 
+    // Saves and restores a pin's digital routing (IO_MUX, GPIO matrix, output enable and latch).
+    // On the plain ESP32 it also restores what a temporary borrow through lgfx::pinMode
+    // changes on the RTC side (mux, input enable, pulls). RTC output enable, pad driver,
+    // function select, hold, drive strength and sleep settings are not saved.
     class pin_backup_t
     {
     public:
@@ -364,6 +381,9 @@ protected:
       int8_t _pin_num = -1; //GPIO_NUM_NC
       bool _gpio_enable;
       bool _gpio_out;
+#if !LGFX_GPIO_RTC_INDEPENDENT
+      uint32_t _rtc_reg = 0;
+#endif
     };
 
     enum command_t : uint8_t
