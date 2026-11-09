@@ -224,6 +224,47 @@ namespace lgfx
   // that starts DMA (IDF's dma_descriptor_t fields are not volatile).
   static inline void dma_desc_fence(void) { __asm__ __volatile__ ("" ::: "memory"); }
 
+  // The SPI data registers (W0..W15) only take 32-bit stores: an 8- or 16-bit store does not keep the other bytes
+  // of the word. memcpy() may store the tail of a copy, or all of a copy from a misaligned source, byte by byte
+  // (it depends on the libc build, e.g. CONFIG_LIBC_OPTIMIZED_MISALIGNED_ACCESS), so these helpers are used instead.
+  // The destination stays volatile so the compiler cannot turn the loops back into a memcpy() call.
+  typedef uint32_t __attribute__((__may_alias__)) wreg_src_t;
+
+  // Copy `words` 32-bit words from a 4-byte aligned source.
+  __attribute__((always_inline)) static inline void wreg_write_words(volatile uint32_t* dst, const wreg_src_t* src, size_t words)
+  {
+    for (; words >= 4; words -= 4, dst += 4, src += 4)
+    {
+      uint32_t a0 = src[0], a1 = src[1], a2 = src[2], a3 = src[3];
+      // Keep the four loads ahead of the four stores (interleaved loads and register stores are slower).
+      __asm__ __volatile__ ("" : "+r"(a0), "+r"(a1), "+r"(a2), "+r"(a3));
+      dst[0] = a0; dst[1] = a1; dst[2] = a2; dst[3] = a3;
+    }
+    for (; words; --words) { *dst++ = *src++; }
+  }
+
+  // Copy `len` bytes from any source. The last word is padded with whatever follows in the source word; those bytes
+  // are past the transfer length and are not sent. Only aligned words that hold at least one source byte are read.
+  __attribute__((always_inline)) static inline void wreg_write_bytes(volatile uint32_t* dst, const void* src, size_t len)
+  {
+    size_t words = (len + 3) >> 2;
+    uintptr_t s = (uintptr_t)src;
+    auto sp = (const wreg_src_t*)(s & ~(uintptr_t)3);
+    uint32_t sh = (s & 3) << 3;
+    if (sh == 0) { wreg_write_words(dst, sp, words); return; }
+    if (len == 0) { return; }
+    auto last = (const wreg_src_t*)((s + len - 1) & ~(uintptr_t)3);
+    uint32_t cur = *sp++;
+    for (; sp <= last; ++sp)
+    {
+      uint32_t next = *sp;
+      *dst++ = (cur >> sh) | (next << (32 - sh));
+      cur = next;
+      --words;
+    }
+    if (words) { *dst = cur >> sh; }
+  }
+
 
 #if defined (LGFX_SPI_CLOCK_TAKEOVER)
 #pragma GCC diagnostic push
@@ -877,11 +918,12 @@ namespace lgfx
     *spi_cmd_reg = SPI_EXECUTE;      // exec SPI
     if (0 == length) return;
 
-    uint32_t regbuf[7] = { regbuf0, regbuf1, regbuf2, regbuf0, regbuf1, regbuf2, regbuf0 } ;
-
-    // copy to SPI buffer register
-    memcpy((void*)&spi_w0_reg[3], regbuf, 24);
-    memcpy((void*)&spi_w0_reg[9], regbuf, 28);
+    // fill W3..W15 with the same 12-byte pattern while W0..W2 are being sent
+    spi_w0_reg[ 3] = regbuf0; spi_w0_reg[ 4] = regbuf1; spi_w0_reg[ 5] = regbuf2;
+    spi_w0_reg[ 6] = regbuf0; spi_w0_reg[ 7] = regbuf1; spi_w0_reg[ 8] = regbuf2;
+    spi_w0_reg[ 9] = regbuf0; spi_w0_reg[10] = regbuf1; spi_w0_reg[11] = regbuf2;
+    spi_w0_reg[12] = regbuf0; spi_w0_reg[13] = regbuf1; spi_w0_reg[14] = regbuf2;
+    spi_w0_reg[15] = regbuf0;
 
     // limit = 64Byte / depth_bytes;
     // When 24bit color, 504 bits out of 512bit buffer are used.
@@ -969,7 +1011,7 @@ namespace lgfx
     dc_control(true);
     set_write_len(len * bytes << 3);
 
-    memcpy((void*)spi_w0_reg, regbuf, (len * bytes + 3) & (~3));
+    wreg_write_words(spi_w0_reg, regbuf, (len * bytes + 3) >> 2);
 
     exec_spi();
     if (0 == length) return;
@@ -978,7 +1020,7 @@ namespace lgfx
     param->fp_copy(regbuf, 0, limit, param);
     wait_spi();
     set_write_len(limit * bytes << 3);
-    memcpy((void*)spi_w0_reg, regbuf, limit * bytes);
+    wreg_write_words(spi_w0_reg, regbuf, (limit * bytes + 3) >> 2);
     exec_spi();
 
 
@@ -986,7 +1028,7 @@ namespace lgfx
     {
       param->fp_copy(regbuf, 0, limit, param);
       wait_spi();
-      memcpy((void*)spi_w0_reg, regbuf, limit * bytes);
+      wreg_write_words(spi_w0_reg, regbuf, (limit * bytes + 3) >> 2);
       exec_spi();
     }
 
@@ -1006,7 +1048,7 @@ namespace lgfx
     dc_control(true);
     set_write_len(len * bytes << 3);
 
-    memcpy((void*)&spi_w0_reg[highpart], regbuf, (len * bytes + 3) & (~3));
+    wreg_write_words(&spi_w0_reg[highpart], regbuf, (len * bytes + 3) >> 2);
     if (highpart) *_spi_user_reg = user_reg | SPI_USR_MOSI_HIGHPART;
     exec_spi();
     if (0 == (length -= len)) return;
@@ -1014,7 +1056,7 @@ namespace lgfx
     for (; length; length -= limit)
     {
       param->fp_copy(regbuf, 0, limit, param);
-      memcpy((void*)&spi_w0_reg[highpart ^= 0x08], regbuf, limit * bytes);
+      wreg_write_words(&spi_w0_reg[highpart ^= 0x08], regbuf, (limit * bytes + 3) >> 2);
       uint32_t user = user_reg;
       if (highpart) user |= SPI_USR_MOSI_HIGHPART;
       if (len != limit)
@@ -1051,19 +1093,9 @@ namespace lgfx
 
     if (length <= 64)
     {
-      auto spi_w0_reg = _spi_w0_reg;
-      auto aligned_len = (length + 3) & (~3);
-      length <<= 3;
       dc_control(dc);
-      set_write_len(length);
-#if defined ( CONFIG_IDF_TARGET_ESP32P4 )
-// P4のペリフェラルレジスタへのmemcpyはうまく動作しないので処理を分岐する
-      for (int i = 0; i < aligned_len >> 2; ++i) {
-        spi_w0_reg[i] = ((uint32_t*)data)[i];
-      }
-#else
-      memcpy((void*)spi_w0_reg, data, aligned_len);
-#endif
+      set_write_len(length << 3);
+      wreg_write_bytes(_spi_w0_reg, data, length);
       exec_spi();
       return;
     }
@@ -1217,9 +1249,7 @@ label_start:
     dc_control(dc);
     set_write_len(len << 3);
 
-    for (int i = 0; i < (len + 3) >> 2; ++i) {
-      spi_w0_reg[i] = regbuf[i];
-    }
+    wreg_write_words(spi_w0_reg, regbuf, (len + 3) >> 2);
 
     exec_spi();
     if (0 == (length -= len)) return;
@@ -1228,9 +1258,7 @@ label_start:
     memcpy(regbuf, data, limit);
     wait_spi();
     set_write_len(limit << 3);
-    for (int i = 0; i < limit >> 2; ++i) {
-      spi_w0_reg[i] = regbuf[i];
-    }
+    wreg_write_words(spi_w0_reg, regbuf, limit >> 2);
 
     exec_spi();
     if (0 == (length -= limit)) return;
@@ -1240,9 +1268,7 @@ label_start:
       data += limit;
       memcpy(regbuf, data, limit);
       wait_spi();
-      for (int i = 0; i < limit >> 2; ++i) {
-        spi_w0_reg[i] = regbuf[i];
-      }
+      wreg_write_words(spi_w0_reg, regbuf, limit >> 2);
       exec_spi();
     } while (0 != (length -= limit));
 
@@ -1260,7 +1286,7 @@ label_start:
     dc_control(dc);
     set_write_len(len << 3);
 
-    memcpy((void*)&spi_w0_reg[highpart], data, (len + 3) & (~3));
+    wreg_write_bytes(&spi_w0_reg[highpart], data, len);
     if (highpart) *_spi_user_reg = user_reg | SPI_USR_MOSI_HIGHPART;
     exec_spi();
     if (0 == (length -= len)) return;
@@ -1268,7 +1294,7 @@ label_start:
     for (; length; length -= limit)
     {
       data += len;
-      memcpy((void*)&spi_w0_reg[highpart ^= 0x08], data, limit);
+      wreg_write_bytes(&spi_w0_reg[highpart ^= 0x08], data, limit);
       uint32_t user = user_reg;
       if (highpart) user |= SPI_USR_MOSI_HIGHPART;
       if (len != limit)
