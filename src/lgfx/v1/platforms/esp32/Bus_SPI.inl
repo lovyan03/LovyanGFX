@@ -1660,7 +1660,17 @@ label_start:
           *_spi_user_reg = user;
           exec_spi();
         }
-        memcpy(dst, (void*)&spi_w0_reg[highpart ^= 8], (len2+3)&~3u);
+        auto src = &spi_w0_reg[highpart ^= 8];
+        if (len2 & 3)
+        { // copy whole words to a buffer first, so the copy does not write past the end of dst
+          uint32_t tmp[8];
+          memcpy(tmp, (void*)src, (len2 + 3) & ~3u);
+          memcpy(dst, tmp, len2);
+        }
+        else
+        {
+          memcpy(dst, (void*)src, len2);
+        }
         dst += len2;
       } while (length);
 
