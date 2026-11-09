@@ -78,7 +78,7 @@ namespace lgfx
     uint_fast32_t getChipID();
 
   private:
-    static constexpr uint_fast8_t max_touch_points = 1;
+    static constexpr uint_fast8_t max_touch_points = 4; /* 28 bytes */
 
     bool _check_init(void);
     bool _write_reg16(uint16_t reg);

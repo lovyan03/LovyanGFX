@@ -129,7 +129,6 @@ namespace lgfx
 //----------------------------------------------------------------------------
 
 // Similar to CST226 but getTouchRaw() not working with it.
-// Single touch implementation on touch release for now
 
   bool Touch_CST3240::_write_reg16(uint16_t reg)
   {
@@ -176,20 +175,27 @@ namespace lgfx
 
   uint_fast8_t Touch_CST3240::getTouchRaw(touch_point_t* tp, uint_fast8_t count)
   {
+    // returns 0 when no finger is down
+    uint_fast8_t res = 0;
     if (count == 0 || !_check_init()) return 0;
 
-    if (count >= 1) {
-      uint8_t data[8] = { 0 };
-      if (!_read_reg16(0xD000, data, 7)) return 0;
-      tp[0].id = (data[5] & 0x0F) - 1; // finger num
-      tp[0].size = (data[0] & 0x04) ? 0 : 1; // TOUCH_EVT_PRESS : TOUCH_EVT_RELEASE;
-      tp[0].x = (data[1] << 4) | ((data[3] >> 4 ) & 0x0F);
-      tp[0].y = (data[2] << 4) | (data[3] & 0x0F);
-      _write_reg16(0xD0AB);
-      if ((data[6] == 0xAB) && (data[5] & 0x0F) > 0)
-        return 1;
+    uint8_t data[(7*max_touch_points)] = { 0 };
+    if (!_read_reg16(0xD000, data, sizeof(data)))
+      return 0;
+
+    if (count > max_touch_points)
+      count = max_touch_points;
+
+    for (uint8_t i = 0; i < count; i++) {
+      if (data[0] & 0x04) res++; // TOUCH_EVT_PRESS
+      tp[i].id = (data[5] & 0x0F) - 1; // finger id
+      tp[i].x = (data[1] << 4) | ((data[3] >> 4 ) & 0x0F);
+      tp[i].y = (data[2] << 4) | (data[3] & 0x0F);
+      tp[i].size = ((data[6] == 0xAB) && (data[5] & 0x0F) > 0) ? 1 : 0;
     }
-    return 0;
+    _write_reg16(0xD0AB);
+
+    return res;
   }
 
   // Tested Chip (and project) ID returns 0x32404c53 (with NV3041A panel)
