@@ -422,6 +422,10 @@ namespace lgfx
 
   void Panel_M5HDMI::HDMI_Trans::reset(void)
   {
+    // Write failures are judged per reset + init. On the write-only path these are bus
+    // errors (timeout, stall, lost arbitration; a missing ACK is not checked), and one from
+    // an earlier attempt must not fail a later one.
+    _write_failed = false;
     lgfx::i2c::i2c_temporary_switcher_t i2c_switch {
       HDMI_Trans_config.i2c_port,
       HDMI_Trans_config.pin_sda,
@@ -669,6 +673,17 @@ namespace lgfx
     endWrite();
 
     ESP_LOGI(TAG, "Initialize HDMI transmitter...");
+    if (_transmitter_write_only_active)
+    {
+      // Write-only: the transmitter state cannot be read back. After power-on the reset
+      // above can run before the transmitter answers, and right after it starts to answer
+      // it was seen to leave some writes unacknowledged; a single reset + init then
+      // sometimes gave no picture, and init alone did not recover it. Apply reset + init
+      // twice and use only the result of the second pass (reset() clears the bus-error flag).
+      driver.reset();
+      driver.init();
+      driver.reset();
+    }
     if (!driver.init() )
     {
       ESP_LOGW(TAG, "HDMI transmitter Initialize failed.");
