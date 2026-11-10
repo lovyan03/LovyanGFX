@@ -218,7 +218,7 @@ namespace lgfx
     private:
       config_t HDMI_Trans_config;
       bool _write_only = false;
-      bool _write_failed = false;
+      bool _write_failed = false; // write-only: a bus error since construction or the last reset()
 
       uint8_t readRegister(uint8_t register_address);
       uint16_t readRegister16(uint8_t register_address);
