@@ -87,7 +87,7 @@ Contributors:
 #endif
 #include <driver/spi_master.h>
 // Whether flash encryption is enabled (decides whether external RAM may be a DMA source). On IDF 6,
-// esp_flash_encrypt.h is not visible outside its component; the replacement API is in efuse.
+// esp_flash_encryption_enabled() is deprecated; the replacement API is in efuse.
 #if defined ( ESP_IDF_VERSION ) && ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 0, 0) && __has_include(<esp_efuse.h>)
  #include <esp_efuse.h>
  #define LGFX_FLASH_ENCRYPTION_ENABLED() esp_efuse_is_flash_encryption_enabled()
