@@ -28,11 +28,17 @@ set(SRCS
 
 set(COMPONENT_SRCS ${SRCS})
 
+# bootloader_support (ESP-IDF 5.3 and later): Bus_SPI checks <esp_flash_encrypt.h> to decide whether external RAM
+# may be a DMA source on ESP32-P4 / C5 / C61; without it the check assumes flash encryption and external RAM is sent
+# by the CPU. Up to 5.2 the header also needs spi_flash, so those versions keep the CPU path. IDF 6 uses efuse.
 if(IDF_VERSION_MAJOR GREATER_EQUAL 6)
     set(COMPONENT_REQUIRES nvs_flash efuse esp_lcd driver esp_timer esp_mm esp_driver_ledc esp_driver_i2s hal)
 elseif (IDF_VERSION_MAJOR GREATER_EQUAL 5)
     if(IDF_VERSION_MINOR GREATER_EQUAL 1)
         set(COMPONENT_REQUIRES nvs_flash efuse esp_lcd driver esp_timer esp_mm)
+        if(IDF_VERSION_MINOR GREATER_EQUAL 3)
+            list(APPEND COMPONENT_REQUIRES bootloader_support)
+        endif()
     else()
         set(COMPONENT_REQUIRES nvs_flash efuse esp_lcd driver esp_timer)
     endif()
