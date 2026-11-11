@@ -88,6 +88,7 @@ namespace lgfx
     }
 
     SPIClass* spi = nullptr;
+    bool _spi_borrowed = false;  // lent through lgfx_borrow_spiclass(): not begun or ended here
     config_t _cfg;
     FlipBuffer _flip_buffer;
     bool _need_wait;

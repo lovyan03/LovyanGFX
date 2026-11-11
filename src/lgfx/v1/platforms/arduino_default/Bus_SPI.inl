@@ -53,16 +53,18 @@ namespace lgfx
   {
     dc_h();
     pinMode(_cfg.pin_dc, pin_mode_t::output);
-    spi = getSPIInstance(_cfg.spi_host);
-    spi->begin();
+    spi = getSPIInstance(_cfg.spi_host, _spi_borrowed);
+    if (spi == nullptr) { _spi_borrowed = false; return false; }
+    if (!_spi_borrowed) { spi->begin(); }
     return true;
   }
 
   void Bus_SPI::release(void)
   {
     if (spi == nullptr) { return; }
-    spi->end();
+    if (!_spi_borrowed) { spi->end(); }
     spi = nullptr;
+    _spi_borrowed = false;
   }
 
 
