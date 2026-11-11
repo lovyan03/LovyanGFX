@@ -2354,12 +2354,20 @@ namespace lgfx
 #endif
 
 #if defined ( I2C_FILTER_CFG_REG )
-        // dev->filter_cfg.scl_en = cycle > 64;
-        // dev->filter_cfg.scl_thres = 0;
-        // dev->filter_cfg.sda_en = cycle > 64;
-        // dev->filter_cfg.sda_thres = 0;
-
-        uint32_t val = (cycle > 64) ? (I2C_SCL_FILTER_EN | I2C_SDA_FILTER_EN) : 0;
+        // Input glitch filter: pulses shorter than the threshold (source clock cycles) are ignored.
+        // With a threshold of 0, on ESP32-C61 with a device whose ACK only reaches about half of VDD,
+        // the controller detected a STOP right after the ACK and left the command list. ESP-IDF also
+        // enables a threshold. The filter delay can lengthen the SCL high time when it approaches the
+        // SCL wait-high period (about 1/8 of the bit period with the register layout of ESP32-C61 and
+        // similar chips); about 1/16 of the bit period keeps that small. The filter stays disabled for
+        // bit periods of 64 source clock cycles or less (e.g. 400 kHz on an LP I2C port).
+        uint32_t val = 0;
+        if (cycle > 64)
+        {
+          uint32_t thres = std::min<uint32_t>(I2C_SCL_FILTER_THRES_V, cycle >> 4);
+          val = I2C_SCL_FILTER_EN | I2C_SDA_FILTER_EN
+              | (thres << I2C_SCL_FILTER_THRES_S) | (thres << I2C_SDA_FILTER_THRES_S);
+        }
         dev->filter_cfg.val = val;
         uint32_t scl_high_offset = ( val ? 8 : 7 );
 #if LGFX_I2C_HAS_CLK_CONF
