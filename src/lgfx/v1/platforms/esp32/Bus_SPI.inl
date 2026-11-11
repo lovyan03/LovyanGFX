@@ -224,48 +224,6 @@ namespace lgfx
   // that starts DMA (IDF's dma_descriptor_t fields are not volatile).
   static inline void dma_desc_fence(void) { __asm__ __volatile__ ("" ::: "memory"); }
 
-  // The SPI data registers (W0..W15) only take 32-bit stores: an 8- or 16-bit store does not keep the other bytes
-  // of the word. memcpy() may store the tail of a copy, or all of a copy from a misaligned source, byte by byte
-  // (it depends on the libc build, e.g. CONFIG_LIBC_OPTIMIZED_MISALIGNED_ACCESS), so these helpers are used instead.
-  // The destination stays volatile so the compiler cannot turn the loops back into a memcpy() call.
-  typedef uint32_t __attribute__((__may_alias__)) wreg_src_t;
-
-  // Copy `words` 32-bit words from a 4-byte aligned source.
-  __attribute__((always_inline)) static inline void wreg_write_words(volatile uint32_t* dst, const wreg_src_t* src, size_t words)
-  {
-    for (; words >= 4; words -= 4, dst += 4, src += 4)
-    {
-      uint32_t a0 = src[0], a1 = src[1], a2 = src[2], a3 = src[3];
-      // Keep the four loads ahead of the four stores (interleaved loads and register stores are slower).
-      __asm__ __volatile__ ("" : "+r"(a0), "+r"(a1), "+r"(a2), "+r"(a3));
-      dst[0] = a0; dst[1] = a1; dst[2] = a2; dst[3] = a3;
-    }
-    for (; words; --words) { *dst++ = *src++; }
-  }
-
-  // Copy `len` bytes from any source. The last word is padded with whatever follows in the source word; those bytes
-  // are past the transfer length and are not sent. Only aligned words that hold at least one source byte are read.
-  __attribute__((always_inline)) static inline void wreg_write_bytes(volatile uint32_t* dst, const void* src, size_t len)
-  {
-    size_t words = (len + 3) >> 2;
-    uintptr_t s = (uintptr_t)src;
-    auto sp = (const wreg_src_t*)(s & ~(uintptr_t)3);
-    uint32_t sh = (s & 3) << 3;
-    if (sh == 0) { wreg_write_words(dst, sp, words); return; }
-    if (len == 0) { return; }
-    auto last = (const wreg_src_t*)((s + len - 1) & ~(uintptr_t)3);
-    uint32_t cur = *sp++;
-    for (; sp <= last; ++sp)
-    {
-      uint32_t next = *sp;
-      *dst++ = (cur >> sh) | (next << (32 - sh));
-      cur = next;
-      --words;
-    }
-    if (words) { *dst = cur >> sh; }
-  }
-
-
 #if defined (LGFX_SPI_CLOCK_TAKEOVER)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-variable"
@@ -1620,9 +1578,7 @@ label_start:
         if (0 == (length -= len1)) {
           len2 = len1;
           wait_spi();
-          uint8_t tmp[32];
-          memcpy(tmp, (void*)spi_w0_reg, (len2 + 3) & ~3u);
-          memcpy(dst, tmp, len2);
+          wreg_read_bytes(dst, spi_w0_reg, len2);
         } else {
           if (length < len1) {
             len1 = length;
@@ -1631,7 +1587,7 @@ label_start:
           } else {
             wait_spi();
           }
-          memcpy(dst, (void*)spi_w0_reg, (len2 + 3) & ~3u);
+          wreg_read_bytes(dst, spi_w0_reg, len2);
           exec_spi();
         }
         dst += len2;
@@ -1660,17 +1616,7 @@ label_start:
           *_spi_user_reg = user;
           exec_spi();
         }
-        auto src = &spi_w0_reg[highpart ^= 8];
-        if (len2 & 3)
-        { // copy whole words to a buffer first, so the copy does not write past the end of dst
-          uint32_t tmp[8];
-          memcpy(tmp, (void*)src, (len2 + 3) & ~3u);
-          memcpy(dst, tmp, len2);
-        }
-        else
-        {
-          memcpy(dst, (void*)src, len2);
-        }
+        wreg_read_bytes(dst, &spi_w0_reg[highpart ^= 8], len2);
         dst += len2;
       } while (length);
 
@@ -1700,7 +1646,7 @@ label_start:
       if (0 == (length -= len1)) {
         len2 = len1;
         wait_spi();
-        memcpy(regbuf, (void*)spi_w0_reg, ((len2 * len_read_pixel >> 3) + 3) & ~3);
+        wreg_read_bytes(regbuf, spi_w0_reg, ((len2 * len_read_pixel >> 3) + 3) & ~3);
       } else {
         if (length < len1) {
           len1 = length;
@@ -1709,7 +1655,7 @@ label_start:
         } else {
           wait_spi();
         }
-        memcpy(regbuf, (void*)spi_w0_reg, ((len2 * len_read_pixel >> 3) + 3) & ~3);
+        wreg_read_bytes(regbuf, spi_w0_reg, ((len2 * len_read_pixel >> 3) + 3) & ~3);
         exec_spi();
       }
       param->src_x = 0;
@@ -1738,7 +1684,7 @@ label_start:
         *_spi_user_reg = user;
         exec_spi();
       }
-      memcpy(regbuf, (void*)&spi_w0_reg[highpart ^= 8], ((len2 * len_read_pixel >> 3)+3)&~3u);
+      wreg_read_bytes(regbuf, &spi_w0_reg[highpart ^= 8], ((len2 * len_read_pixel >> 3)+3)&~3u);
       param->src_x = 0;
       dstindex = param->fp_copy(dst, dstindex, dstindex + len2, param);
     } while (length);
