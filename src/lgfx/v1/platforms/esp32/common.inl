@@ -267,6 +267,72 @@ namespace lgfx
   // Register access helpers shared with the other esp32*/ implementation files (this file is included first).
   static __attribute__ ((always_inline)) inline void writereg(uint32_t addr, uint32_t value) { *(volatile uint32_t*)addr = value; }
   static __attribute__ ((always_inline)) inline volatile uint32_t* reg(uint32_t addr) { return (volatile uint32_t *)ETS_UNCACHED_ADDR(addr); }
+
+  // The SPI data registers (W0..W15) only take 32-bit accesses: an 8- or 16-bit store does not keep the other bytes
+  // of the word, and an 8- or 16-bit load was observed to read 0 on ESP32-S3. memcpy() may copy the tail, or all of
+  // a copy with a misaligned pointer, byte by byte (it depends on the libc build, e.g.
+  // CONFIG_LIBC_OPTIMIZED_MISALIGNED_ACCESS), and on RISC-V chips it may use a misaligned load, which faults on the
+  // registers. These helpers are used instead.
+  // The register side stays volatile so the compiler cannot turn the loops back into a memcpy() call.
+  typedef uint32_t __attribute__((__may_alias__)) wreg_word_t;
+
+  // Copy `words` 32-bit words from a 4-byte aligned source.
+  __attribute__((always_inline)) static inline void wreg_write_words(volatile uint32_t* dst, const wreg_word_t* src, size_t words)
+  {
+    for (; words >= 4; words -= 4, dst += 4, src += 4)
+    {
+      uint32_t a0 = src[0], a1 = src[1], a2 = src[2], a3 = src[3];
+      // Keep the four loads ahead of the four stores (interleaved loads and register stores are slower).
+      __asm__ __volatile__ ("" : "+r"(a0), "+r"(a1), "+r"(a2), "+r"(a3));
+      dst[0] = a0; dst[1] = a1; dst[2] = a2; dst[3] = a3;
+    }
+    for (; words; --words) { *dst++ = *src++; }
+  }
+
+  // Copy `len` bytes from any source. The last word is padded with whatever follows in the source word; those bytes
+  // are past the transfer length and are not sent. Only aligned words that hold at least one source byte are read.
+  __attribute__((always_inline)) static inline void wreg_write_bytes(volatile uint32_t* dst, const void* src, size_t len)
+  {
+    size_t words = (len + 3) >> 2;
+    uintptr_t s = (uintptr_t)src;
+    auto sp = (const wreg_word_t*)(s & ~(uintptr_t)3);
+    uint32_t sh = (s & 3) << 3;
+    if (sh == 0) { wreg_write_words(dst, sp, words); return; }
+    if (len == 0) { return; }
+    auto last = (const wreg_word_t*)((s + len - 1) & ~(uintptr_t)3);
+    uint32_t cur = *sp++;
+    for (; sp <= last; ++sp)
+    {
+      uint32_t next = *sp;
+      *dst++ = (cur >> sh) | (next << (32 - sh));
+      cur = next;
+      --words;
+    }
+    if (words) { *dst = cur >> sh; }
+  }
+
+  // Copy `len` bytes from the registers to a 4-byte aligned destination.
+  __attribute__((always_inline)) static inline void wreg_read_aligned(uint32_t* dst, const volatile uint32_t* src, size_t len)
+  {
+    auto wp = (wreg_word_t*)dst;
+    for (; len >= 16; len -= 16, wp += 4, src += 4)
+    {
+      uint32_t a0 = src[0], a1 = src[1], a2 = src[2], a3 = src[3];
+      wp[0] = a0; wp[1] = a1; wp[2] = a2; wp[3] = a3;
+    }
+    for (; len >= 4; len -= 4) { *wp++ = *src++; }
+    if (len) { uint32_t v = *src; memcpy(wp, &v, len); }
+  }
+
+  // Copy `len` (up to 64) bytes from the registers to any destination. Only the words that hold the `len` bytes are read.
+  // A misaligned destination goes through an aligned buffer, which is faster than storing each word with memcpy().
+  __attribute__((always_inline)) static inline void wreg_read_bytes(void* dst, const volatile uint32_t* src, size_t len)
+  {
+    if (((uintptr_t)dst & 3) == 0) { wreg_read_aligned((uint32_t*)dst, src, len); return; }
+    uint32_t tmp[16];
+    wreg_read_aligned(tmp, src, len);
+    memcpy(dst, tmp, len);
+  }
 #pragma GCC diagnostic pop
 
   // ------- func_in_sel detect -------
@@ -1255,7 +1321,7 @@ namespace lgfx
       uint32_t spi_port = (spi_host + 1);
       (void)spi_port;
       if (len > 64) len = 64;
-      memcpy(reinterpret_cast<void*>(SPI_W0_REG(spi_port)), data, (len + 3) & ~3);
+      wreg_write_bytes(reinterpret_cast<volatile uint32_t*>(SPI_W0_REG(spi_port)), data, len);
       writereg(SPI_MOSI_DLEN_REG(spi_port), (len << 3) - 1);
       writereg(SPI_CMD_REG(      spi_port), SPI_EXECUTE);
       while (*reg(SPI_CMD_REG(spi_port)) & SPI_USR);
@@ -1271,12 +1337,12 @@ namespace lgfx
       uint32_t spi_port = (spi_host + 1);
       (void)spi_port;
       if (len > 64) len = 64;
-      memcpy(reinterpret_cast<void*>(SPI_W0_REG(spi_port)), data, (len + 3) & ~3);
+      wreg_write_bytes(reinterpret_cast<volatile uint32_t*>(SPI_W0_REG(spi_port)), data, len);
       writereg(SPI_MOSI_DLEN_REG(spi_port), (len << 3) - 1);
       writereg(SPI_CMD_REG(      spi_port), SPI_EXECUTE);
       while (*reg(SPI_CMD_REG(spi_port)) & SPI_USR);
 
-      memcpy(data, reinterpret_cast<const void*>(SPI_W0_REG(spi_port)), len);
+      wreg_read_bytes(data, reinterpret_cast<const volatile uint32_t*>(SPI_W0_REG(spi_port)), len);
     }
   }
 
