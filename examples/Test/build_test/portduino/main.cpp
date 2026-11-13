@@ -1,6 +1,16 @@
 
 #include "main.h"
 
+HardwareSPI display_spi;
+
+// Lend the application's SPI device to LovyanGFX. LovyanGFX does not begin() or end() it,
+// so the application opens it (in setup()) before display->init() and keeps it alive.
+extern "C" bool lgfx_borrow_spiclass(int spi_host, SPIClass*& spi)
+{
+  if (spi_host != 0) { return false; }  // any other host: LovyanGFX's default selection
+  spi = &display_spi;
+  return true;
+}
 
 void setup()
 {
@@ -9,6 +19,7 @@ void setup()
   initGPIOPin(24, "gpiochip4");
 
   Wire.begin(1);
+  display_spi.begin("/dev/spidev0.0");
   display = new LGFX();
   display->init();
 

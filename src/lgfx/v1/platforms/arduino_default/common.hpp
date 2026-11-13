@@ -30,6 +30,19 @@ Contributors:
 #include <Arduino.h>
 #include <SPI.h>
 
+// Optional: lend an SPIClass that the application owns and has already begun.
+// LovyanGFX does not call begin()/end() on it and does not apply pin_sclk/pin_mosi/pin_miso;
+// frequency and mode are still set per transaction. Return the same instance for the same
+// spi_host every time. Define this in an application source file: a definition that only
+// lives in a static library is not pulled in by a weak reference (add -Wl,-u,lgfx_borrow_spiclass).
+// Return true with a non-null instance to lend it, or false to use the default selection.
+// true with nullptr makes init() fail.
+extern "C" bool lgfx_borrow_spiclass(int spi_host, SPIClass*& spi)
+#if defined (LGFX_V1_IMPLEMENTATION) && (defined (__GNUC__) || defined (__clang__))
+  __attribute__((weak))
+#endif
+  ;
+
 namespace lgfx
 {
  inline namespace v1
@@ -37,10 +50,19 @@ namespace lgfx
 //----------------------------------------------------------------------------
 
   /// Returns the Arduino SPIClass instance for spi_host. Environments with a single SPI always
-  /// return the default SPI.
+  /// return the default SPI. borrowed is set when the application lent the instance through
+  /// lgfx_borrow_spiclass(); the caller must not begin() or end() it, and fails on nullptr.
   __attribute__ ((unused))
-  static inline SPIClass* getSPIInstance(int spi_host)
+  static inline SPIClass* getSPIInstance(int spi_host, bool& borrowed)
   {
+    borrowed = false;
+#if defined (LGFX_V1_IMPLEMENTATION) && (defined (__GNUC__) || defined (__clang__))
+    if (lgfx_borrow_spiclass)
+    {
+      SPIClass* spi = nullptr;
+      if (lgfx_borrow_spiclass(spi_host, spi)) { borrowed = true; return spi; }  // nullptr -> caller fails
+    }
+#endif
 #if defined ( TEENSYDUINO )
  #if defined (__MK64FX512__) || defined (__MK66FX1M0__) || defined (__IMXRT1062__)
     if (spi_host == 1) { return &SPI1; }

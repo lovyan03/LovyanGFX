@@ -24,11 +24,10 @@ public:
       auto buscfg = _bus_instance.config();
       buscfg.spi_mode = 0;
       buscfg.pin_dc = 25;
-      
-      // to use spidevX.Y
-      int x = 0;
-      int y = 0;
-      buscfg.spi_host = x + y << 4;
+
+      // The application opens /dev/spidev0.0 itself and lends it through
+      // lgfx_borrow_spiclass() in main.cpp; spi_host only names it to the hook.
+      buscfg.spi_host = 0;
       _bus_instance.config(buscfg);            // applies the set value to the bus.
       _panel_instance.setBus(&_bus_instance); // set the bus on the panel.
     }
