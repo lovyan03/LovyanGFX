@@ -116,6 +116,8 @@ namespace lgfx
     if (points > count) points = count;
     for (uint_fast8_t i = 0; i < points; ++i) {
       uint16_t index = (key_num + i) * 5;
+      // Key records share the buffer with touch records.
+      if (index + 7u >= sizeof(data)) return i;
       uint16_t x = data[index + 4] | ((uint16_t)(data[index + 7] & 0x0F) << 8);
       uint16_t y = data[index + 5] | ((uint16_t)(data[index + 7] & 0xF0) << 4);
       tp[i].id = i;
@@ -408,6 +410,8 @@ namespace lgfx
         return 0;
       }
       _wait_cycle = count ? 0 : 16;
+      // Limit both coordinate writes and the returned count to the caller's capacity.
+      if (count > requested_count) count = requested_count;
 
       if (count)
       {
