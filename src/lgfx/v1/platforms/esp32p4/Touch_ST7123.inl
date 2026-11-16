@@ -129,16 +129,16 @@ namespace lgfx
 
     size_t valid_count = 0;
     
-    adv_info_t adv_info;
-    _readParams(0x0010, (uint8_t *)&adv_info, 1);
+    adv_info_t adv_info = {};
+    if (!_readParams(0x0010, (uint8_t *)&adv_info, 1)) { return 0; }
     if (adv_info.with_coord) {
       uint8_t max_touches = 0;
-      _readParams(ST7123_MAX_TOUCHES_REG, &max_touches, 1);
+      if (!_readParams(ST7123_MAX_TOUCHES_REG, &max_touches, 1)) { return 0; }
       if (max_touches > max_touch_points) {
         max_touches = max_touch_points;
       }
-      touch_report_t touch_report[max_touch_points];
-      _readParams(ST7123_REPORT_COORD_0_REG, (uint8_t *)&touch_report[0], sizeof(touch_report_t) * max_touches);
+      touch_report_t touch_report[max_touch_points] = {};
+      if (!_readParams(ST7123_REPORT_COORD_0_REG, (uint8_t *)&touch_report[0], sizeof(touch_report_t) * max_touches)) { return 0; }
 
       for (size_t i = 0; i < max_touches; i++) {
         if (!touch_report[i].valid) { continue; }
