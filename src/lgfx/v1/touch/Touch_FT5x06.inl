@@ -156,7 +156,7 @@ if (_inited)
     }
     if (count > max_touch_points) { count = max_touch_points; }
 
-    uint8_t readdata[2][30];
+    uint8_t readdata[2][30] = {};
     size_t readlen[2];
     if (1 == (readlen[0] = _read_data(readdata[0]))) { return 0; }
     size_t comparelen;
@@ -167,7 +167,11 @@ if (_inited)
       comparelen = std::min(readlen[0], readlen[1]);
     } while ((0 == comparelen || memcmp(readdata[0], readdata[1], readlen[0])) && --retry);
 
-    if (count > readdata[0][0]) count = readdata[0][0];
+    // Retry transient failures; only the selected frame must have been read successfully.
+    // If frames never match, the last successfully read readdata[0] is used.
+    if (readlen[0] == 0) return 0;
+    if (count > (readdata[0][0] & 0x0F)) count = readdata[0][0] & 0x0F;
+    if (count > (readlen[0] + 1) / 6) count = (readlen[0] + 1) / 6;
     for (size_t idx = 0; idx < count; ++idx)
     {
       auto data = &readdata[0][idx * 6];
