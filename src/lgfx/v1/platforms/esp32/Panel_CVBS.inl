@@ -54,6 +54,10 @@ Inspiration Sources:
   #include <hal/dac_types.h>
   #include <hal/dac_ll.h>
   #include <driver/rtc_io.h>
+  // ESP-IDF 6.1.1 renamed the DAC LL functions (dac_ll_pad_*) and added this header with them.
+  #if __has_include (<hal/dac_types_private.h>)
+   #define LGFX_DAC_LL_PAD_API
+  #endif
  #endif
 #else
  #include <driver/i2s.h>
@@ -1973,9 +1977,17 @@ namespace lgfx
       I2S0.conf.tx_start = 0;
 
 #if defined ( LGFX_I2S_STD_ENABLED )
-      dac_ll_digi_enable_dma(false);
       auto ch = _get_dacchannel(_config_detail.pin_dac);
+ #if defined ( LGFX_DAC_LL_PAD_API )
+      // dac_ll_digi_enable_dma() was split into the data source and the DMA clock inversion.
+      // DIRECT also turns off the cosine generator of this channel, which is not used here.
+      dac_ll_pad_set_data_source(ch, DAC_DATA_SOURCE_DIRECT);
+      dac_ll_dma_clk_inv(false);
+      dac_ll_pad_power_down(ch);
+ #else
+      dac_ll_digi_enable_dma(false);
       dac_ll_power_down(ch);
+ #endif
 #else
       dac_i2s_disable();
       auto ch = _get_dacchannel(_config_detail.pin_dac);
@@ -2034,10 +2046,20 @@ namespace lgfx
         rtc_gpio_pulldown_dis(gpio_num);
 
         auto channel = _get_dacchannel(gpio_num);
+ #if defined ( LGFX_DAC_LL_PAD_API )
+        dac_ll_pad_set_data_source(channel, DAC_DATA_SOURCE_DMA);
+        dac_ll_pad_power_on(channel);
+ #else
         dac_ll_power_on(channel);
+ #endif
       }
+ #if defined ( LGFX_DAC_LL_PAD_API )
+      dac_ll_sync_by_adc(false);
+      dac_ll_dma_clk_inv(true);
+ #else
       dac_ll_rtc_sync_by_adc(false);
       dac_ll_digi_enable_dma(true);
+ #endif
 
       I2S0.conf2.lcd_en = true;
       I2S0.conf.tx_right_first = false;
