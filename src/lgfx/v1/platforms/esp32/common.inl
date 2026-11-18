@@ -189,6 +189,11 @@ Contributors:
 #if __has_include(<soc/i2c_periph.h>)
  #include <soc/i2c_periph.h>
 #endif
+// lp_gpio_connect_*_signal(): routing an LP I2C port through the LP GPIO matrix (ESP32-P4)
+#if defined ( SOC_LP_GPIO_MATRIX_SUPPORTED ) && SOC_LP_GPIO_MATRIX_SUPPORTED && __has_include(<driver/lp_io.h>)
+ #include <driver/lp_io.h>
+ #define LGFX_LP_GPIO_MATRIX 1
+#endif
 
 #if defined (SOC_GDMA_SUPPORTED)  // for C3/S3
  #if __has_include(<hal/gdma_ll.h>)
@@ -1547,6 +1552,20 @@ namespace lgfx
 #endif
     }
 
+#if LGFX_LP_I2C_NUM > 0
+    /// Resets the low power I2C controller. The HP reset cannot do it: i2c_ll_reset_register()
+    /// indexes the PCR I2C array by port number on some SoCs (e.g. ESP32-C5), which is out of
+    /// range for the LP port, and periph_module_reset() only knows the HP controllers.
+    /// The reset register is shared with other LP peripherals, so take the lock as ESP-IDF does.
+    static void lp_i2c_periph_reset(int i2c_num)
+    {
+      PERIPH_RCC_ATOMIC() {
+        lp_i2c_ll_reset_register(i2c_num - LGFX_HP_I2C_NUM);
+        (void)__DECLARE_RCC_ATOMIC_ENV;
+      }
+    }
+#endif
+
 #if defined ( I2C_CLOCK_SRC_ATOMIC )
     __attribute__ ((unused))
     static void i2c_periph_enable(int i2c_num)
@@ -1580,15 +1599,7 @@ namespace lgfx
     static void i2c_periph_reset(int i2c_num)
     {
 #if LGFX_LP_I2C_NUM > 0
-      if (isLpPort(i2c_num))
-      { // The HP i2c_ll_reset_register() indexes the PCR I2C array by port number on some SoCs
-        // (e.g. ESP32-C5), which is out of range for the LP port, so use the LP-specific function
-        LGFX_RCC_NO_ATOMIC() {
-          lp_i2c_ll_reset_register(i2c_num - LGFX_HP_I2C_NUM);
-          (void)__DECLARE_RCC_ATOMIC_ENV;
-        }
-        return;
-      }
+      if (isLpPort(i2c_num)) { lp_i2c_periph_reset(i2c_num); return; }
 #endif
       I2C_RCC_ATOMIC() {
         i2c_ll_reset_register(i2c_num);
@@ -1613,6 +1624,9 @@ namespace lgfx
     __attribute__ ((unused))
     static void i2c_periph_reset(int i2c_num)
     {
+#if LGFX_LP_I2C_NUM > 0
+      if (isLpPort(i2c_num)) { lp_i2c_periph_reset(i2c_num); return; }
+#endif
       auto mod = getPeriphModule(i2c_num);
       periph_module_reset(mod);
     }
@@ -1844,6 +1858,52 @@ namespace lgfx
 #endif
     }
 
+// Without driver/lp_io.h, a chip that routes LP I2C through the LP GPIO matrix keeps the pads
+// on the LP side, as before.
+#if LGFX_LP_I2C_NUM > 0 && SOC_RTCIO_INPUT_OUTPUT_SUPPORTED \
+ && (!(defined ( SOC_LP_GPIO_MATRIX_SUPPORTED ) && SOC_LP_GPIO_MATRIX_SUPPORTED) || defined ( LGFX_LP_GPIO_MATRIX ))
+ #define LGFX_LP_I2C_LEND_PADS 1
+    /// Whether the ESP-IDF driver accepts these pins for the low power port.
+    static bool lp_pads_accepted(const gpio_num_t sda, const gpio_num_t scl)
+    {
+      if (!rtc_gpio_is_valid_gpio(sda) || !rtc_gpio_is_valid_gpio(scl)) { return false; }
+ #if !defined ( LGFX_LP_GPIO_MATRIX ) && defined ( LP_I2C_SDA_IOMUX_PAD ) && defined ( LP_I2C_SCL_IOMUX_PAD )
+      // Without the LP GPIO matrix the controller reaches one fixed pair only.
+      if (sda != LP_I2C_SDA_IOMUX_PAD || scl != LP_I2C_SCL_IOMUX_PAD) { return false; }
+ #endif
+      return true;
+    }
+
+    /// Hands the pads of an open low power port back to the low power I2C controller after
+    /// i2c_stop() borrowed them. Same steps as the ESP-IDF LP pin setup, ordered like init():
+    /// releasing the pads also turned their LP IO clock off, and SDA must not become LP IO
+    /// before its latch is high, or the bus would see a false START.
+    static void lp_pads_return(const int i2c_port, const gpio_num_t sda, const gpio_num_t scl)
+    {
+      rtc_gpio_init(scl);  // turns the LP IO clock back on for the registers below
+      rtc_gpio_set_direction(sda, RTC_GPIO_MODE_INPUT_OUTPUT_OD);
+      rtc_gpio_set_direction(scl, RTC_GPIO_MODE_INPUT_OUTPUT_OD);
+      rtc_gpio_pulldown_dis(sda);
+      rtc_gpio_pulldown_dis(scl);
+      rtc_gpio_pullup_en(sda);
+      rtc_gpio_pullup_en(scl);
+      rtc_gpio_set_level(sda, 1);
+      rtc_gpio_set_level(scl, 1);
+      rtc_gpio_init(sda);
+ #if defined ( LGFX_LP_GPIO_MATRIX )
+      // The LP IO function selected above is the LP GPIO matrix: route the controller through it.
+      const auto& sig = i2c_periph_signal[i2c_port];
+      lp_gpio_connect_out_signal(sda, sig.sda_out_sig, false, false);
+      lp_gpio_connect_in_signal(sda, sig.sda_in_sig, false);
+      lp_gpio_connect_out_signal(scl, sig.scl_out_sig, false, false);
+      lp_gpio_connect_in_signal(scl, sig.scl_in_sig, false);
+ #else
+      rtc_gpio_iomux_func_sel(sda, i2c_periph_signal[i2c_port].iomux_func);
+      rtc_gpio_iomux_func_sel(scl, i2c_periph_signal[i2c_port].iomux_func);
+ #endif
+    }
+#endif
+
     static void i2c_stop(int i2c_port)
     {
       static constexpr int I2C_CLR_BUS_HALF_PERIOD_US = 2;
@@ -1852,6 +1912,19 @@ namespace lgfx
       gpio_num_t sda_io = i2c_context[i2c_port].pin_sda;
       gpio_num_t scl_io = i2c_context[i2c_port].pin_scl;
       gpio::pin_backup_t backup_pins[] = { sda_io, scl_io };
+
+#if defined ( LGFX_LP_I2C_LEND_PADS )
+      // The pads of an open low power port are routed through the low power IO domain, out of
+      // reach of the GPIO writes below: lend them to the normal GPIO while the bus is cleared.
+      const bool lp_lent = isLpPort(i2c_port) && (i2c_context[i2c_port].i2c_bus_handle != nullptr);
+      if (lp_lent)
+      {
+        gpio::release_lp_pad(sda_io);
+        gpio::release_lp_pad(scl_io);
+        pinMode(sda_io, pin_mode_t::input_pullup);  // selects the GPIO function of the pads
+        pinMode(scl_io, pin_mode_t::input_pullup);
+      }
+#endif
 
       gpio_set_level(sda_io, 1);
       gpio_set_direction(sda_io, GPIO_MODE_INPUT_OUTPUT_OD);
@@ -1879,6 +1952,9 @@ namespace lgfx
       i2c_periph_reset(i2c_port);
 #endif
       for (auto &bup : backup_pins) { bup.restore(); }
+#if defined ( LGFX_LP_I2C_LEND_PADS )
+      if (lp_lent) { lp_pads_return(i2c_port, sda_io, scl_io); }
+#endif
     }
 
     /// Minimum time a transfer may stall (clock stretching or a wedged bus)
@@ -1982,12 +2058,16 @@ namespace lgfx
 
       if (flg_stop || res.has_error())
       {
+        // A read is normally closed by i2c_stop(), which ends it with a STOP driven through the
+        // GPIO. On a low power port the controller sends that STOP instead: i2c_stop() would
+        // first have to take its pads from the low power IO domain and hand them back after.
+        const bool force_stop_read = (i2c_context[i2c_port].state == i2c_context_t::state_read) && !isLpPort(i2c_port);
         // After an error the peripheral may already be force-stopped; a normal STOP command then
         // never raises the completion interrupt and waits until the timeout, so take the force-stop path
 #if LGFX_I2C_REG_LAYOUT == 3
-        if (res.has_error() || i2c_context[i2c_port].state.has_error() || i2c_context[i2c_port].state == i2c_context_t::state_read || !int_raw.end_detect_int_raw)
+        if (res.has_error() || i2c_context[i2c_port].state.has_error() || force_stop_read || !int_raw.end_detect_int_raw)
 #else
-        if (res.has_error() || i2c_context[i2c_port].state.has_error() || i2c_context[i2c_port].state == i2c_context_t::state_read || !int_raw.end_detect)
+        if (res.has_error() || i2c_context[i2c_port].state.has_error() || force_stop_read || !int_raw.end_detect)
 #endif
         { // force stop
           // If state already holds an error, the bus was stopped where it was detected; do not stop
@@ -2252,6 +2332,22 @@ namespace lgfx
         return {};
       }
 
+#if defined ( LGFX_LP_I2C_LEND_PADS )
+      if (isLpPort(i2c_port))
+      {
+        // Refuse the pins the driver would refuse, before any pin is touched: otherwise the steps
+        // below set them to GPIO and move them to the LP side, and the failure path moves them back,
+        // which loses the routing they had (HP or LP).
+        if (!lp_pads_accepted(pin_sda, pin_scl)) { return cpp::fail(error_t::invalid_arg); }
+        // The routing of a previous run survives a reset and keeps the bus clearing below off
+        // the pads, while a peripheral cut off inside a byte may still hold SDA. The pads are
+        // routed to the controller again below. (see gpio::release_lp_pad)
+        gpio::release_lp_pad(pin_sda);
+        gpio::release_lp_pad(pin_scl);
+        pinMode(pin_sda, pin_mode_t::input_pullup);  // selects the GPIO function of the pads
+        pinMode(pin_scl, pin_mode_t::input_pullup);
+      }
+#endif
       i2c_stop(i2c_port);
 
 #if LGFX_LP_I2C_NUM > 0
