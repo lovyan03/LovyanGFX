@@ -1863,6 +1863,17 @@ namespace lgfx
 #if LGFX_LP_I2C_NUM > 0 && SOC_RTCIO_INPUT_OUTPUT_SUPPORTED \
  && (!(defined ( SOC_LP_GPIO_MATRIX_SUPPORTED ) && SOC_LP_GPIO_MATRIX_SUPPORTED) || defined ( LGFX_LP_GPIO_MATRIX ))
  #define LGFX_LP_I2C_LEND_PADS 1
+    /// Whether the ESP-IDF driver accepts these pins for the low power port.
+    static bool lp_pads_accepted(const gpio_num_t sda, const gpio_num_t scl)
+    {
+      if (!rtc_gpio_is_valid_gpio(sda) || !rtc_gpio_is_valid_gpio(scl)) { return false; }
+ #if !defined ( LGFX_LP_GPIO_MATRIX ) && defined ( LP_I2C_SDA_IOMUX_PAD ) && defined ( LP_I2C_SCL_IOMUX_PAD )
+      // Without the LP GPIO matrix the controller reaches one fixed pair only.
+      if (sda != LP_I2C_SDA_IOMUX_PAD || scl != LP_I2C_SCL_IOMUX_PAD) { return false; }
+ #endif
+      return true;
+    }
+
     /// Hands the pads of an open low power port back to the low power I2C controller after
     /// i2c_stop() borrowed them. Same steps as the ESP-IDF LP pin setup, ordered like init():
     /// releasing the pads also turned their LP IO clock off, and SDA must not become LP IO
@@ -2322,11 +2333,15 @@ namespace lgfx
       }
 
 #if defined ( LGFX_LP_I2C_LEND_PADS )
-      if (isLpPort(i2c_port) && rtc_gpio_is_valid_gpio(pin_sda) && rtc_gpio_is_valid_gpio(pin_scl))
-      { // The routing of a previous run survives a reset and keeps the bus clearing below off
+      if (isLpPort(i2c_port))
+      {
+        // Refuse the pins the driver would refuse, before any pin is touched: otherwise the steps
+        // below set them to GPIO and move them to the LP side, and the failure path moves them back,
+        // which loses the routing they had (HP or LP).
+        if (!lp_pads_accepted(pin_sda, pin_scl)) { return cpp::fail(error_t::invalid_arg); }
+        // The routing of a previous run survives a reset and keeps the bus clearing below off
         // the pads, while a peripheral cut off inside a byte may still hold SDA. The pads are
-        // routed to the controller again below. Other pins are left to the backup in
-        // i2c_stop(): the driver refuses them, and their routing must survive. (see gpio::release_lp_pad)
+        // routed to the controller again below. (see gpio::release_lp_pad)
         gpio::release_lp_pad(pin_sda);
         gpio::release_lp_pad(pin_scl);
         pinMode(pin_sda, pin_mode_t::input_pullup);  // selects the GPIO function of the pads
