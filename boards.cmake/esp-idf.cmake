@@ -31,8 +31,13 @@ set(COMPONENT_SRCS ${SRCS})
 # bootloader_support (ESP-IDF 5.3 and later): Bus_SPI checks <esp_flash_encrypt.h> to decide whether external RAM
 # may be a DMA source on ESP32-P4 / C5 / C61; without it the check assumes flash encryption and external RAM is sent
 # by the CPU. Up to 5.2 the header also needs spi_flash, so those versions keep the CPU path. IDF 6 uses efuse.
+# esp_driver_gpio / i2c / spi / dma (ESP-IDF 6): up to 5.x, driver makes every esp_driver_* public, but from 6.0 it does not,
+# and these headers (<driver/gpio.h>, <driver/lp_io.h>, <driver/i2c_master.h>, <driver/spi_master.h>, <esp_private/gdma.h>)
+# were only reached through esp_lcd. Without <driver/i2c_master.h> or <driver/lp_io.h>, the low power I2C port or its pad
+# handling on ESP32-P4 would drop out of the build silently.
 if(IDF_VERSION_MAJOR GREATER_EQUAL 6)
-    set(COMPONENT_REQUIRES nvs_flash efuse esp_lcd driver esp_timer esp_mm esp_driver_ledc esp_driver_i2s hal)
+    set(COMPONENT_REQUIRES nvs_flash efuse esp_lcd driver esp_timer esp_mm esp_driver_ledc esp_driver_i2s hal
+                           esp_driver_gpio esp_driver_i2c esp_driver_spi esp_driver_dma)
 elseif (IDF_VERSION_MAJOR GREATER_EQUAL 5)
     if(IDF_VERSION_MINOR GREATER_EQUAL 1)
         set(COMPONENT_REQUIRES nvs_flash efuse esp_lcd driver esp_timer esp_mm)
