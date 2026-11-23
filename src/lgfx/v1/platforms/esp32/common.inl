@@ -1710,6 +1710,7 @@ namespace lgfx
       gpio_num_t pin_sda = (gpio_num_t)-1;
       uint8_t wait_ack_stage = 0;   // 0:Not waiting. / 1:Waiting after addressing. / 2:Waiting during data transmission.
       bool check_ack = true;
+      bool last_read_acked = false; // the last read ended with an ACK, so the slave still drives SDA for the next byte
       bool initialized = false;
       bool foreign_bus = false;     // the port was already open through the platform driver when init() ran: shared, not owned
       uint32_t freq = 0;
@@ -2087,8 +2088,20 @@ namespace lgfx
         }
         else
         {
-          i2c_set_cmd(dev, 0, i2c_cmd_stop, 0, false, i2c_context[i2c_port].check_ack);
-          i2c_set_cmd(dev, 1, i2c_cmd_end, 0);
+          // A read that ended with an ACK leaves the slave driving SDA for the next byte, so the
+          // controller's STOP cannot be formed. On the low power port, which closes reads with
+          // that STOP, clock one more byte and NACK it first to make the slave release SDA.
+          // The slave prepared that byte when it received the ACK, so what this does to its read
+          // pointer or FIFO is up to the slave, as with any other way of ending the read here: one
+          // that commits the byte only once it is fully sent loses it.
+          // The NACK is sent by the controller, so it does not set the ACK error checked below.
+          const bool nack_before_stop = isLpPort(i2c_port)
+                                     && (i2c_context[i2c_port].state == i2c_context_t::state_read)
+                                     && i2c_context[i2c_port].last_read_acked;
+          uint8_t cmd_idx = 0;
+          if (nack_before_stop) { i2c_set_cmd(dev, cmd_idx++, i2c_cmd_read, 1, true); }
+          i2c_set_cmd(dev, cmd_idx++, i2c_cmd_stop, 0, false, i2c_context[i2c_port].check_ack);
+          i2c_set_cmd(dev, cmd_idx, i2c_cmd_end, 0);
           // Wake only on events that end the STOP; a NACK is evaluated after it completes.
           static constexpr uint32_t intmask_ = I2C_TIME_OUT_INT_RAW_M | I2C_ARBITRATION_LOST_INT_RAW_M | I2C_TRANS_COMPLETE_INT_RAW_M;
           updateDev(dev);
@@ -2110,6 +2123,13 @@ namespace lgfx
               i2c_stop(i2c_port);
             }
           }
+          if (nack_before_stop)
+          { // Discard the extra byte so the next read does not pick it up from the RX FIFO.
+            // This also runs after a failed STOP; the FIFO is then already empty if i2c_stop() reset the peripheral.
+            auto fifo_addr = getFifoAddr(i2c_port);
+            while (getRxFifoCount(dev)) { (void)*fifo_addr; }
+          }
+          i2c_context[i2c_port].last_read_acked = false;
 #if LGFX_I2C_REG_LAYOUT == 0
           if (res.has_value() && dev->int_raw.ack_err)
 #elif LGFX_I2C_REG_LAYOUT == 3
@@ -2603,6 +2623,7 @@ namespace lgfx
       dev->int_clr.val = 0x1FFFF;
       dev->ctr.trans_start = 1;
       i2c_context[i2c_port].state = read ? i2c_context_t::state_t::state_read : i2c_context_t::state_t::state_write;
+      i2c_context[i2c_port].last_read_acked = false;
       i2c_context[i2c_port].wait_ack_stage = 1;
       return res;
     }
@@ -2797,6 +2818,8 @@ namespace lgfx
       if (i2c_context[i2c_port].state != i2c_context_t::state_read) { return cpp::fail(error_t::mode_mismatch); }
       cpp::result<void, error_t> res {};
       if (!length) return res;
+      // Set again only when this read succeeds, so a failed read leaves no stale value behind.
+      i2c_context[i2c_port].last_read_acked = false;
 
       static constexpr uint32_t intmask = I2C_ACK_ERR_INT_RAW_M | I2C_TIME_OUT_INT_RAW_M | I2C_END_DETECT_INT_RAW_M | I2C_ARBITRATION_LOST_INT_RAW_M;
       const uint32_t rxfifo_limit = getFifoLen(i2c_port);
@@ -2874,6 +2897,7 @@ namespace lgfx
         } while (--len);
       } while (length);
 
+      if (res.has_value()) { i2c_context[i2c_port].last_read_acked = !last_nack; }
       return res;
     }
 
