@@ -277,6 +277,151 @@ namespace lgfx
 //----------------------------------------------------------------------------
 
 
+    bool Touch_CST9217::init(void)
+    {
+      _inited = false;
+
+      if (_cfg.pin_rst >= 0) {
+        lgfx::pinMode(_cfg.pin_rst, pin_mode_t::output);
+        lgfx::gpio_lo(_cfg.pin_rst);
+        lgfx::delay(10);
+        lgfx::gpio_hi(_cfg.pin_rst);
+        lgfx::delay(50);
+      }
+
+      if (_cfg.pin_int >= 0) {
+        lgfx::pinMode(_cfg.pin_int, pin_mode_t::input_pullup);
+      }
+
+      lgfx::i2c::init(_cfg.i2c_port, _cfg.pin_sda, _cfg.pin_scl).has_value();
+      return true;
+    }
+
+
+    bool Touch_CST9217::_check_init(void)
+    {
+      if (_inited) return true;
+
+      // Enter debug-info mode so the identification registers are readable.
+      if (!_write_reg16(0xD101)) return false;
+      lgfx::delay(10);
+
+      uint8_t data[4] = { 0 };
+      if (!_read_reg16(0xD1FC, data, sizeof(data))
+       || data[2] != 0xCA || data[3] != 0xCA) return false;
+
+      if (!_read_reg16(0xD204, data, sizeof(data))) return false;
+      const uint16_t chip_type = static_cast<uint16_t>(data[2])
+                               | static_cast<uint16_t>(data[3] << 8);
+      if (chip_type != 0x9217) return false;
+
+      if (!_write_reg16(0xD109)) return false;
+      lgfx::delay(5);
+      _inited = true;
+      return true;
+    }
+
+
+    void Touch_CST9217::wakeup(void)
+    {
+      if (_cfg.pin_rst >= 0) init();
+      _inited = false;
+      _check_init();
+    }
+
+
+    void Touch_CST9217::sleep(void)
+    {
+      // Deep sleep ends only with a reset pulse.
+      if (_cfg.pin_rst < 0) return;
+      _write_reg16(0xD101);
+      lgfx::delay(10);
+      _write_reg16(0xD105);
+      _inited = false;
+    }
+
+
+    uint_fast8_t Touch_CST9217::getTouchRaw(touch_point_t* tp, uint_fast8_t count)
+    {
+      if (count == 0 || (!_inited && !_check_init())) return 0;
+
+      const uint32_t msec = lgfx::millis();
+      if (msec - _last_update < 10 && _wait_cycle)
+      {
+        --_wait_cycle;
+        if (_cfg.pin_int < 0 || gpio_in(_cfg.pin_int)) return 0;
+      }
+      _last_update = msec;
+
+      uint8_t data[report_length] = { 0 };
+      const bool read_ok = _read_reg16(0xD000, data, sizeof(data));
+      _ack_read();
+      if (!read_ok || data[6] != 0xAB || data[0] == 0xAB || data[0] == 0) {
+        _wait_cycle = 16;
+        return 0;
+      }
+
+      uint_fast8_t slots = data[5] & 0x7F;
+      if (slots > max_touch_points) slots = max_touch_points;
+      _wait_cycle = slots ? 0 : 16;
+
+      uint_fast8_t points = 0;
+      uint8_t used_ids = 0;
+      for (uint_fast8_t i = 0; i < slots && points < count; ++i)
+      {
+        const uint_fast8_t offset = i * 5 + (i ? 2 : 0);
+        const uint8_t id = data[offset] >> 4;
+        if ((data[offset] & 0x0F) != EVENT_PRESSED
+         || id >= max_touch_points || (used_ids & (1u << id))) {
+          continue;
+        }
+
+        used_ids |= 1u << id;
+        tp[points].id = id;
+        tp[points].size = 1;
+        tp[points].x = static_cast<uint16_t>((data[offset + 1] << 4)
+                                           | (data[offset + 3] >> 4));
+        tp[points].y = static_cast<uint16_t>((data[offset + 2] << 4)
+                                           | (data[offset + 3] & 0x0F));
+        ++points;
+      }
+      return points;
+    }
+
+
+    bool Touch_CST9217::_read_reg16(uint16_t reg, uint8_t* data, size_t length)
+    {
+      const uint8_t address[] = {
+        static_cast<uint8_t>(reg >> 8),
+        static_cast<uint8_t>(reg),
+      };
+      return lgfx::i2c::transactionWriteRead(_cfg.i2c_port, _cfg.i2c_addr,
+                                             address, sizeof(address), data, length,
+                                             _cfg.freq).has_value();
+    }
+
+
+    bool Touch_CST9217::_write_reg16(uint16_t reg)
+    {
+      const uint8_t data[] = {
+        static_cast<uint8_t>(reg >> 8),
+        static_cast<uint8_t>(reg),
+      };
+      return lgfx::i2c::transactionWrite(_cfg.i2c_port, _cfg.i2c_addr,
+                                         data, sizeof(data), _cfg.freq).has_value();
+    }
+
+
+    bool Touch_CST9217::_ack_read(void)
+    {
+      const uint8_t ack[] = { 0xD0, 0x00, 0xAB };
+      return lgfx::i2c::transactionWrite(_cfg.i2c_port, _cfg.i2c_addr,
+                                         ack, sizeof(ack), _cfg.freq).has_value();
+    }
+
+//----------------------------------------------------------------------------
+
+
     bool Touch_CST226::init(void)
     {
       _inited = false;
