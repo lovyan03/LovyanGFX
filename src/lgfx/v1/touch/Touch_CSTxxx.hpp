@@ -27,6 +27,7 @@ namespace lgfx
   // Hynitron CSTxxx family touch devices
 
   struct Touch_CST226; // CST226/CST226SE
+  struct Touch_CST9217;
   struct Touch_CST816S;
   struct Touch_CST3530;
 
@@ -158,6 +159,47 @@ namespace lgfx
     bool _read_reg16(uint16_t reg, uint8_t *data, size_t length);
     bool _write_reg16(uint16_t reg);
 
+  };
+
+
+//----------------------------------------------------------------------------
+
+  // CST9217 uses the same 16-bit command/register protocol as CST226, but has
+  // its own chip ID and reports at most two touch points.
+  struct Touch_CST9217 : public ITouch
+  {
+    enum CST9217_EVENT {
+      EVENT_PRESSED = 0x06,
+    };
+
+    Touch_CST9217(void)
+    {
+      _cfg.i2c_addr = 0x5A;
+      _cfg.x_min    = 0;
+      _cfg.x_max    = 466;
+      _cfg.y_min    = 0;
+      _cfg.y_max    = 466;
+    }
+
+    bool init(void) override;
+    void wakeup(void) override;
+    void sleep(void) override;
+    uint_fast8_t getTouchRaw(touch_point_t* tp, uint_fast8_t count) override;
+
+  private:
+    enum
+    {
+      max_touch_points = 2,
+      report_length = max_touch_points * 5 + 5,
+    };
+
+    uint32_t _last_update = 0;
+    uint8_t _wait_cycle = 0;
+
+    bool _check_init(void);
+    bool _read_reg16(uint16_t reg, uint8_t* data, size_t length);
+    bool _write_reg16(uint16_t reg);
+    bool _ack_read(void);
   };
 
 
