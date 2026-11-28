@@ -1079,6 +1079,18 @@ namespace lgfx
         buscfg.isr_cpu_id = INTR_CPU_ID_AUTO;
   #endif
 #endif
+#if defined (ARDUINO) && defined ( PCR_SPI2_CLKM_CONF_REG )
+        // Arduino SPI computes its dividers for the clock source it selected, but the ESP-IDF master
+        // driver selects another source when the first device is added (PLL on the ESP32-C6 / C61 in
+        // ESP-IDF 5.x), so the actual SCLK would differ from what Arduino computed.
+        // Put back the source Arduino selected; transactions here read the current source anyway.
+        constexpr uint32_t clkm_mask = PCR_SPI2_CLKM_SEL_M
+ #if defined ( PCR_SPI2_CLKM_DIV_NUM_M )
+                                     | PCR_SPI2_CLKM_DIV_NUM_M
+ #endif
+                                     ;
+        const uint32_t saved_clkm = REG_READ(PCR_SPI2_CLKM_CONF_REG) & clkm_mask;
+#endif
         if (ESP_OK != spi_bus_initialize(static_cast<spi_host_device_t>(spi_host), &buscfg, dma_channel))
         {
           ESP_LOGW("LGFX", "Failed to spi_bus_initialize. ");
@@ -1093,6 +1105,12 @@ namespace lgfx
         if (ESP_OK != spi_bus_add_device(static_cast<spi_host_device_t>(spi_host), &devcfg, &_spi_dev_handle[spi_host])) {
           ESP_LOGW("LGFX", "Failed to spi_bus_add_device. ");
         }
+#if defined (ARDUINO) && defined ( PCR_SPI2_CLKM_CONF_REG )
+        if (spi_host == SPI2_HOST && _spi_handle[spi_host] != nullptr)
+        {
+          REG_WRITE(PCR_SPI2_CLKM_CONF_REG, (REG_READ(PCR_SPI2_CLKM_CONF_REG) & ~clkm_mask) | saved_clkm);
+        }
+#endif
       }
 
       clear_open_drain({ spi_sclk, spi_mosi, spi_miso });
