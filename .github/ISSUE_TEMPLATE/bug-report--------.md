@@ -15,10 +15,14 @@ assignees: ''
 - MCU or Board name:  [ESP-WROOM-32|ESP32-S3-BOX|M5Stack|WioTerminal|RPi2040|other]
 - Panel Driver IC:    [ILI9341|SSD1963|ST7796|other]
 - Bus type:           [SPI|I2C|Parallel8|Parallel16|other]
-- LovyanGFX version:  [v0.4.17|latest develop|other]
-- FrameWork version:   [ArduinoESP32 v2.0.3|ESP-IDF v4.4|other]
+- LovyanGFX version:  [v1.3.0|latest develop|other]
+- FrameWork version:   [ArduinoESP32 v3.3.13|ESP-IDF v5.5.6|other]
 - Build Environment:   [ArduinoIDE|PlatformIO|Eclipse|other]
 - Operating System:   [Windows|Linux|macOS]
+
+## Checklist ( 確認事項 )
+
+- [ ] I have tried the [develop](https://github.com/lovyan03/LovyanGFX/tree/develop) branch and the issue persists ( develop ブランチでも問題が再現する )
 
 ## Problem Description ( 問題の内容 )
 
